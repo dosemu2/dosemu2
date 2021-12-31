@@ -5,14 +5,11 @@
 #ifndef IPXDMU_H
 #define IPXDMU_H
 
-/* commment out the next line to turn off IPX emulation */
-#if 1
+#if defined(HAVE_NETIPX_IPX_H) || defined(HAVE_LINUX_IPX_H)
 #define IPX 1
 #endif
 
-#if 0
-#include "cpu.h"
-#endif
+#ifdef IPX
 #include <sys/types.h>
 
 #define INT2F_DETECT_IPX		0x7A00
@@ -35,7 +32,6 @@
 #define IPX_FAST_SEND					0x000F
 #define IPX_GET_MEDIA_DATA_SIZE			0x001A	/* undocumented */
 
-#define CC_SUCCESS			0x00
 #define CC_EVENT_CANCELED	0xFC
 #define CC_FRAGMENT_ERROR	0xFD
 #define CC_PACKET_UNDELIVERABLE	0xFE
@@ -130,4 +126,5 @@ extern void ipx_send_esr_call(void);
 extern int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks );
 extern void ipx_close(void);
 
+#endif
 #endif /* IPX_H */

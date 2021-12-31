@@ -1,7 +1,8 @@
 #ifndef SYS_VM86_H
 #define SYS_VM86_H
 
-#include <syscall.h>
+#if defined(__linux__)
+#include <sys/syscall.h>
 
 #ifdef __i386__
 #ifdef SYS_vm86old
@@ -18,6 +19,11 @@
 #endif
 typedef struct { int fd; int irq; } SillyG_t;
 extern SillyG_t *SillyG;
+#endif
+
+#else
+#define vm86(param) -2
+#define vm86_plus(function,param) -1
 #endif
 
 #endif

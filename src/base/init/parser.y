@@ -27,9 +27,10 @@
 
 %{
 
+#define YYDEBUG 0
+
 #define PARSER_VERSION_STRING "parser_version_3"
 
-#include "config.h"
 #include <stdlib.h>
 #include <termios.h>
 #include <sys/types.h>
@@ -37,7 +38,6 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#include <setjmp.h>
 #include <sys/stat.h>                    /* structure stat       */
 #include <unistd.h>                      /* prototype for stat() */
 #include <sys/wait.h>
@@ -60,6 +60,7 @@
 #include "disks.h"
 #include "port.h"
 #define allow_io	port_allow_io
+#include "mmio_tracing.h"
 #include "lpt.h"
 #include "video.h"
 #include "vc.h"
@@ -68,17 +69,18 @@
 #include "timers.h"
 #include "keyboard/keymaps.h"
 #include "keyboard/keyb_server.h"
+#include "translate/dosemu_charset.h"
 #include "memory.h"
 #include "mapping.h"
 #include "utilities.h"
 #include "aspi.h"
+#include "int.h"
 #include "pktdrvr.h"
+#include "redirect.h"
 #include "iodev.h" /* for TM_BIOS / TM_PIT / TM_LINUX */
 
 #define USERVAR_PREF	"dosemu_"
-static int user_scope_level;
 
-static int after_secure_check = 0;
 static serial_t *sptr;
 static serial_t nullser;
 static mouse_t *mptr = &config.mouse;
@@ -86,15 +88,12 @@ static int c_ser = 0;
 
 static struct disk *dptr;
 static struct disk nulldisk;
-static int c_hdisks = 0;
-static int c_fdisks = 0;
+#define c_hdisks config.hdisks
+#define c_fdisks config.fdisks
+static int skipped_disks;
 
-int dexe_running = 0;
-static int dexe_forbid_disk = 1;
-char own_hostname[128];
-
-static struct printer nullptr;
-static struct printer *pptr = &nullptr;
+static struct printer nullprt;
+static struct printer *pptr = &nullprt;
 static int c_printers = 0;
 
 static int ports_permission = IO_RDWR;
@@ -105,9 +104,7 @@ static char dev_name[255]= "";
 
 static int errors = 0;
 static int warnings = 0;
-
 static int priv_lvl = 0;
-static int saved_priv_lvl = 0; 
 
 
 static char *file_being_parsed;
@@ -133,8 +130,9 @@ static void stop_serial(void);
 static void start_printer(void);
 static void stop_printer(void);
 static void start_keyboard(void);
-static void keytable_start(int layout);
+static void keytable_start(char *layout);
 static void keytable_stop(void);
+static void keyb_layout(char *layout);
 static void dump_keytables_to_file(char *name);
 static void stop_terminal(void);
 static void start_disk(void);
@@ -142,34 +140,22 @@ static void do_part(char *);
 static void start_floppy(void);
 static void stop_disk(int token);
 static void start_vnet(char *);
-static FILE* open_file(char* filename);
+static FILE* open_file(const char* filename);
 static void close_file(FILE* file);
-static void write_to_syslog(char *message);
 static void set_irq_value(int bits, int i1);
 static void set_irq_range(int bits, int i1, int i2);
-static int undefine_config_variable(char *name);
+static int undefine_config_variable(const char *name);
 static void check_user_var(char *name);
 static char *run_shell(char *command);
 static int for_each_handling(int loopid, char *varname, char *delim, char *list);
-static void enter_user_scope(int incstackptr);
-static void leave_user_scope(int incstackptr);
 static void handle_features(int which, int value);
 static void set_joy_device(char *devstring);
 static int parse_timemode(const char *);
-
-	/* class stuff */
-#define IFCLASS(m) if (is_in_allowed_classes(m))
-
-#define CL_ALL			-1
-#define CL_VAR		    0x200
-#define CL_VPORT	   0x2000
-#define CL_PORT		  0x20000
-#define CL_PCI		  0x40000
-#define CL_IRQ		 0x200000
-#define CL_HARDRAM	0x1000000
-#define CL_NET		0x2000000
-
-static int is_in_allowed_classes(int mask);
+static void set_hdimage(struct disk *dptr, char *name);
+static void set_drive_c(void);
+static void set_default_drives(void);
+static void set_dosemu_drive(void);
+static void set_hostfs_drives(char *drivespec);
 
 #define TOF(x) ( x.type == TYPE_REAL ? x.value.r : x.value.i )
 #define V_VAL(x,y,z) \
@@ -186,14 +172,12 @@ while (0)
 static void keyb_mod(int wich, t_keysym keynum, int unicode);
 static void dump_keytable_part(FILE *f, t_keysym *map, int size);
 
-
-
-#include "translate/translate.h"
-#include "translate/dosemu_charset.h"
-	/* for translate plugin */
-
-static void set_internal_charset(char *charset_name);
-static void set_external_charset(char *charset_name);
+enum {
+	TYPE_NONE,
+	TYPE_INTEGER,
+	TYPE_BOOLEAN,
+	TYPE_REAL
+} _type;
 
 %}
 
@@ -201,19 +185,12 @@ static void set_external_charset(char *charset_name);
 
 %start lines
 
-%pure-parser
-
 %union {
 	int i_value;
 	char *s_value;
 	float r_value;
 	struct {
-		enum {
-			TYPE_NONE,
-			TYPE_INTEGER,
-			TYPE_BOOLEAN,
-			TYPE_REAL
-		} type;
+		int type;
 		union {
 			int i;
 			float r;
@@ -226,7 +203,6 @@ static void set_external_charset(char *charset_name);
 %}
 
 %token <i_value> INTEGER L_OFF L_ON L_AUTO L_YES L_NO CHIPSET_TYPE
-%token <i_value> KEYB_LAYOUT
 %token <r_value> REAL
 %token <s_value> STRING VARIABLE
 
@@ -252,36 +228,34 @@ static void set_external_charset(char *charset_name);
 
 	/* flow control */
 %token DEFINE UNDEF IFSTATEMENT WHILESTATEMENT FOREACHSTATEMENT
-%token <i_value> ENTER_USER_SPACE LEAVE_USER_SPACE
 
 	/* variable handling */
 %token CHECKUSERVAR
 
 	/* main options */
-%token DOSBANNER FASTFLOPPY HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
+%token FASTFLOPPY HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
 %token ETHDEV TAPDEV VDESWITCH SLIRPARGS VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTDRIVE SWAP_BOOTDRIVE
 %token L_XMS L_DPMI DPMI_LIN_RSV_BASE DPMI_LIN_RSV_SIZE PM_DOS_API NO_NULL_CHECKS
 %token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS UMB_A0 UMB_B0 UMB_F0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
-%token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
-%token DEXE ALLOWDISK FORCEXDOS XDOSONLY
-%token ABORT WARN
+%token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FILE_LOCK_LIMIT
+%token ABORT WARN ERROR
 %token L_FLOPPY EMUSYS L_X L_SDL
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
-%token LFN_SUPPORT
+%token LFN_SUPPORT FFS_REDIR SET_INT_HOOKS TRACE_IRETS FINT_REVECT
 	/* speaker */
 %token EMULATED NATIVE
 	/* cpuemu */
-%token CPUEMU CPU_VM VM86 FULL VM86SIM FULLSIM KVM
+%token CPUEMU CPU_VM CPU_VM_DPMI VM86 KVM
 	/* keyboard */
 %token RAWKEYBOARD
 %token PRESTROKE
-%token KEYTABLE SHIFT_MAP ALT_MAP NUMPAD_MAP DUMP
+%token KEYTABLE SHIFT_MAP ALT_MAP NUMPAD_MAP DUMP LAYOUT
 %token DGRAVE DACUTE DCIRCUM DTILDE DBREVE DABOVED DDIARES DABOVER DDACUTE DCEDILLA DIOTA DOGONEK DCARON
 	/* ipx */
-%token NETWORK PKTDRIVER
+%token NETWORK PKTDRIVER NE2K
         /* lock files */
 %token DIRECTORY NAMESTUB BINARY
 	/* serial */
@@ -290,30 +264,35 @@ static void set_external_charset(char *charset_name);
 %token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2 IMPS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
 	/* x-windows */
-%token L_DISPLAY L_TITLE X_TITLE_SHOW_APPNAME ICON_NAME X_KEYCODE X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
+%token L_DISPLAY L_TITLE X_TITLE_SHOW_APPNAME ICON_NAME X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
 %token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE
 %token X_GAMMA X_FULLSCREEN VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY X_BACKGROUND_PAUSE
 	/* sdl */
-%token SDL_HWREND
+%token SDL_HWREND SDL_FONTS
 	/* video */
 %token VGA MGA CGA EGA NONE CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VGAEMUBIOS_FILE VBIOS_FILE 
 %token VBIOS_COPY VBIOS_MMAP DUALMON
-%token VBIOS_POST
+%token VBIOS_POST VGA_FONTS
 
 %token FORCE_VT_SWITCH PCI
 	/* terminal */
-%token COLOR ESCCHAR XTERM_TITLE
+%token COLOR ESCCHAR XTERM_TITLE SIZE
 	/* debug */
 %token IO PORT CONFIG READ WRITE KEYB PRINTER WARNING GENERAL HARDWARE
 %token L_IPC SOUND
 %token TRACE CLEAR
+%token TRACE_MMIO
+%token UEXEC LPATHS HDRIVES
 
 	/* printer */
 %token LPT COMMAND TIMEOUT L_FILE
 	/* disk */
-%token L_PARTITION WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 READONLY LAYOUT
+%token L_PARTITION WHOLEDISK
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE HDTYPE1 HDTYPE2 HDTYPE9 DISKCYL4096
+	/* floppy */
+%token THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 READONLY BOOT
+%token DEFAULT_DRIVES SKIP_DRIVES
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST SLOW
 	/* Silly interrupts */
@@ -322,7 +301,8 @@ static void set_external_charset(char *charset_name);
 %token HARDWARE_RAM
         /* Sound Emulation */
 %token SB_BASE SB_IRQ SB_DMA SB_HDMA MPU_BASE MPU_IRQ MPU_IRQ_MT32 MIDI_SYNTH
-%token SOUND_DRIVER MIDI_DRIVER MUNT_ROMS SND_PLUGIN_PARAMS PCM_HPF MIDI_FILE WAV_FILE
+%token SOUND_DRIVER MIDI_DRIVER MUNT_ROMS OPL2LPT_DEV OPL2LPT_TYPE
+%token SND_PLUGIN_PARAMS PCM_HPF MIDI_FILE WAV_FILE
 	/* CD-ROM */
 %token CDROM
 	/* ASPI driver */
@@ -339,8 +319,8 @@ static void set_external_charset(char *charset_name);
 	 * and tell the parser to ignore that */
 	/* %expect 1 */
 
-%type <i_value> int_bool irq_bool bool speaker floppy_bool cpuemu
-%type <i_value> cpu_vm
+%type <i_value> int_bool irq_bool bool speaker floppy_bool
+%type <i_value> cpu_vm cpu_vm_dpmi
 
 	/* special bison declaration */
 %token <i_value> UNICODE
@@ -352,7 +332,7 @@ static void set_external_charset(char *charset_name);
 
 %%
 
-lines		: line
+lines		:
 		| lines line
 		| lines optdelim line
 		;
@@ -364,8 +344,8 @@ optdelim	: ';'
 line:		CHARSET '{' charset_flags '}' {}
 		/* charset flags */
 		| HOGTHRESH expression	{ config.hogthreshold = $2; }
-		| DEFINE string_unquoted{ IFCLASS(CL_VAR){ define_config_variable($2);} free($2); }
-		| UNDEF string_unquoted	{ IFCLASS(CL_VAR){ undefine_config_variable($2);} free($2); }
+		| DEFINE string_unquoted{ define_config_variable($2); free($2); }
+		| UNDEF string_unquoted	{ undefine_config_variable($2); free($2); }
 		| IFSTATEMENT '(' expression ')' {
 			/* NOTE:
 			 * We _need_ absolutely to return to state stack 0
@@ -400,8 +380,6 @@ line:		CHARSET '{' charset_flags '}' {}
 			if (s) free(s);
 			free($3);
 		}
-		| ENTER_USER_SPACE { enter_user_scope($1); }
-		| LEAVE_USER_SPACE { leave_user_scope($1); }
 		| VARIABLE '=' strarglist {
 		    if (!parser_version_3_style_used) {
 			parser_version_3_style_used = 1;
@@ -409,16 +387,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		    if ((strpbrk($1, "uhc") == $1) && ($1[1] == '_'))
 			yyerror("reserved variable %s can't be set\n", $1);
-		    else {
-			if (user_scope_level) {
-			    char *s = malloc(strlen($1)+sizeof(USERVAR_PREF));
-			    strcpy(s, USERVAR_PREF);
-			    strcat(s,$1);
-			    setenv(s, $3, 1);
-			    free(s);
-			}
-			else IFCLASS(CL_VAR) setenv($1, $3, 1);
-		    }
+		    else
+			setenv($1, $3, 1);
 		    free($1); free($3);
 		}
 		| CHECKUSERVAR check_user_var_list
@@ -436,7 +406,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		    { if ($2[0]) fprintf(stderr,"CONF aborted with: %s\n", $2);
 			exit(99);
 		    }
-		| WARN strarglist	{ c_printf("CONF: %s\n", $2); free($2); }
+		| ERROR strarglist { if ($2[0]) fprintf(stderr, "%s\n", $2); }
+		| WARN strarglist	{ warn("CONF: %s\n", $2); free($2); }
  		| EMUSYS string_expr
 		    {
 		    free(config.emusys); config.emusys = $2;
@@ -457,13 +428,29 @@ line:		CHARSET '{' charset_flags '}' {}
 		    free(config.mappingdriver); config.mappingdriver = $2;
 		    c_printf("CONF: mapping driver = '%s'\n", $2);
 		    }
-		| FULL_FILE_LOCKS bool
+		| FILE_LOCK_LIMIT INTEGER
 		    {
-		    config.full_file_locks = ($2!=0);
+		    config.file_lock_limit = $2;
 		    }
 		| LFN_SUPPORT bool
 		    {
 		    config.lfn = ($2!=0);
+		    }
+		| FINT_REVECT bool
+		    {
+		    config.force_revect = ($2 == -2 ? 1 : $2);
+		    }
+		| SET_INT_HOOKS bool
+		    {
+		    config.int_hooks = ($2 == -2 ? 1 : $2);
+		    }
+		| TRACE_IRETS bool
+		    {
+		    config.trace_irets = ($2 == -2 ? 1 : $2);
+		    }
+		| FFS_REDIR bool
+		    {
+		    config.force_redir = ($2!=0);
 		    }
 		| FASTFLOPPY floppy_bool
 			{
@@ -480,33 +467,23 @@ line:		CHARSET '{' charset_flags '}' {}
 			else
 				yyerror("error in CPU user override\n");
 			}
-		| CPU EMULATED
-			{
-			vm86s.cpu_type = 5;
-#ifdef X86_EMULATOR
-			config.cpuemu = 1;
-			c_printf("CONF: CPUEMU set to %d for %d86\n",
-				config.cpuemu, (int)vm86s.cpu_type);
-#endif
-			}
 		| CPU_VM cpu_vm
 			{
 			config.cpu_vm = $2;
 			c_printf("CONF: CPU VM set to %d\n", config.cpu_vm);
 			}
-		| CPUEMU cpuemu
+		| CPU_VM_DPMI cpu_vm_dpmi
+			{
+			config.cpu_vm_dpmi = $2;
+			c_printf("CONF: CPU VM set to %d for DPMI\n",
+				 config.cpu_vm_dpmi);
+			}
+		| CPUEMU INTEGER
 			{
 #ifdef X86_EMULATOR
-			config.cpuemu = $2;
-			if (config.cpuemu > 4) {
-				config.cpuemu -= 2;
-#ifdef HOST_ARCH_X86
-				config.cpusim = 1;
-#endif
-			}
-			c_printf("CONF: %s CPUEMU set to %d for %d86\n",
-				CONFIG_CPUSIM ? "simulated" : "JIT",
-				config.cpuemu, (int)vm86s.cpu_type);
+			config.cpusim = $2;
+			c_printf("CONF: CPUEMU set to %s\n",
+				CONFIG_CPUSIM ? "sim" : "jit");
 #endif
 			}
 		| CPUSPEED real_expression
@@ -538,7 +515,6 @@ line:		CHARSET '{' charset_flags '}' {}
 		| PCI bool
 		    {
 		      config.pci_video = ($2!=0);
-		      IFCLASS(CL_PCI) {}
 		      config.pci = (abs($2)==2); 
 		    }
 		| BOOTDRIVE string_expr
@@ -549,13 +525,39 @@ line:		CHARSET '{' charset_flags '}' {}
 		        config.hdiskboot = $2[0] - 'a';
 		      } else {
 		        error("wrong value for $_bootdrive\n");
-		        config.hdiskboot = 2;
+		        config.hdiskboot = -1;
 		      }
 		      free($2);
 		    }
 		| SWAP_BOOTDRIVE bool
 		    {
 		      config.swap_bootdrv = ($2!=0);
+		    }
+		| DEFAULT_DRIVES int_expr
+		    {
+		      c_printf("default_drives %i\n", $2);
+		      switch ($2) {
+		      case 0:
+		        set_drive_c();
+		        break;
+		      case 1:
+		        set_dosemu_drive();
+		        set_default_drives();
+		        break;
+		      case 2:
+		        set_dosemu_drive();
+		        break;
+		      default:
+			error("Path group %i not implemented\n", $2);
+			exit(1);
+		      }
+		    }
+		| SKIP_DRIVES int_expr
+		    {
+		      c_printf("skip %i drives from %i\n", $2, c_hdisks);
+		      config.drives_mask |= ((1 << $2) - 1) << (c_hdisks +
+			 skipped_disks + 2);
+		      skipped_disks += $2;
 		    }
 		| TIMER expression
 		    {
@@ -584,18 +586,13 @@ line:		CHARSET '{' charset_flags '}' {}
 		    {
 		      logfile_limit = $2;
 		    }
-		| DOSBANNER bool
-		    {
-		    config.dosbanner = ($2!=0);
-		    c_printf("CONF: dosbanner %s\n", ($2) ? "on" : "off");
-		    }
 		| EMURETRACE bool
-		    { IFCLASS(CL_VPORT){
+		    {
 		    if ($2 && !config.emuretrace && priv_lvl)
 		      yyerror("Can not modify video port access in user config file");
 		    config.emuretrace = ($2!=0);
 		    c_printf("CONF: emu_retrace %s\n", ($2) ? "on" : "off");
-		    }}
+		    }
 		| L_EMS '{' ems_flags '}'
 		| L_EMS int_bool
 		    {
@@ -657,11 +654,15 @@ line:		CHARSET '{' charset_flags '}' {}
 		| IPXNETWORK int_bool	{ config.ipx_net = $2; }
 		| PKTDRIVER bool
 		    {
-		      if (config.vnet == VNET_TYPE_TAP || config.vnet == VNET_TYPE_VDE || $2 == 0 || is_in_allowed_classes(CL_NET)) {
 			config.pktdrv = ($2!=0);
 			c_printf("CONF: Packet Driver %s.\n", 
 				($2) ? "enabled" : "disabled");
-		      }
+		    }
+		| NE2K bool
+		    {
+			config.ne2k = ($2!=0);
+			c_printf("CONF: NE2000 %s.\n", 
+				($2) ? "enabled" : "disabled");
 		    }
 		| ETHDEV string_expr	{ free(config.ethdev); config.ethdev = $2; }
 		| TAPDEV string_expr	{ free(config.tapdev); config.tapdev = $2; }
@@ -687,6 +688,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		    { start_video(); }
 		  '{' video_flags '}'
 		    { stop_video(); }
+		| VGA_FONTS bool
+		    { config.vga_fonts = ($2!=0); }
 		| XTERM_TITLE string_expr { free(config.xterm_title); config.xterm_title = $2; }
 		| TERMINAL
                   '{' term_flags '}'
@@ -712,8 +715,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		| KEYBOARD
 		    { start_keyboard(); }
 	          '{' keyboard_flags '}'
-		| KEYTABLE KEYB_LAYOUT
-			{keytable_start($2);}
+		| KEYTABLE string_expr
+			{keytable_start($2); free($2);}
 		  '{' keyboard_mods '}'
 		  	{keytable_stop();}
  		| PRESTROKE string_expr
@@ -727,9 +730,12 @@ line:		CHARSET '{' charset_flags '}' {}
 			free($3);
 		    }
 		| PORTS
-		    { IFCLASS(CL_PORT) start_ports(); }
+		    { start_ports(); }
 		  '{' port_flags '}'
 		| TRACE PORTS '{' trace_port_flags '}'
+		| TRACE_MMIO
+		   { config.mmio_tracing = 1; }
+		  '{' trace_mmio_flags '}'
 		| DISK
 		    { start_disk(); }
 		  '{' disk_flags '}'
@@ -773,17 +779,16 @@ line:		CHARSET '{' charset_flags '}' {}
 		| L_JOYSTICK bool { if (! $2) { config.joy_device[0] = config.joy_device[1] = NULL; } }
                 | L_JOYSTICK '{' joystick_flags '}'
 		| SILLYINT
-                    { IFCLASS(CL_IRQ) config.sillyint=0; }
+                    { config.sillyint=0; }
                   '{' sillyint_flags '}'
 		| SILLYINT irq_bool
-                    { IFCLASS(CL_IRQ) if ($2) {
+                    { if ($2) {
 		        config.sillyint = 1 << $2;
 		        c_printf("CONF: IRQ %d for irqpassing\n", $2);
 		      }
 		    }
-		| DEXE '{' dexeflags '}'
 		| HARDWARE_RAM
-                    { IFCLASS(CL_HARDRAM) {}
+                    {
 		    if (priv_lvl)
 		      yyerror("Can not change hardware ram access settings in user config file");
 		    }
@@ -800,6 +805,12 @@ line:		CHARSET '{' charset_flags '}' {}
 		    c_printf("CONF: time mode = '%s'\n", $2);
 		    free($2);
 		    }
+		| UEXEC string_expr
+		    { free(config.unix_exec); config.unix_exec = $2; }
+		| LPATHS string_expr
+		    { free(config.lredir_paths); config.lredir_paths = $2; }
+		| HDRIVES string_expr
+		    { set_hostfs_drives($2); free($2); }
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error
@@ -953,7 +964,7 @@ real_expr:	  REAL
 
 variable_content:
 		VARIABLE {
-			char *s = $1;
+			const char *s = $1;
 			if (get_config_variable(s))
 				s = "1";
 			else if (strncmp("c_",s,2)
@@ -1056,7 +1067,6 @@ x_flag		: L_DISPLAY string_expr	{ free(config.X_display); config.X_display = $2;
 		| L_TITLE string_expr	{ free(config.X_title); config.X_title = $2; }
 		| X_TITLE_SHOW_APPNAME bool	{ config.X_title_show_appname = ($2!=0); }
 		| ICON_NAME string_expr	{ free(config.X_icon_name); config.X_icon_name = $2; }
-		| X_KEYCODE expression	{ config.X_keycode = $2; }
 		| X_BLINKRATE expression	{ config.X_blinkrate = $2; }
 		| X_SHARECMAP		{ config.X_sharecmap = 1; }
 		| X_MITSHM              { config.X_mitshm = 1; }
@@ -1096,25 +1106,7 @@ sdl_flags	: sdl_flag
 		| sdl_flags sdl_flag
 		;
 sdl_flag	: SDL_HWREND expression	{ config.sdl_hwrend = ($2!=0); }
-		;
-
-dexeflags	: dexeflag
-		| dexeflags dexeflag
-		;
-
-dexeflag	: ALLOWDISK	{ if (!priv_lvl) dexe_forbid_disk = 0; }
-		| FORCEXDOS	{
-			char *env = getenv("DISPLAY");
-			if (env && env[0] && dexe_running) config.X = 1;
-		}
-		| XDOSONLY	{
-			char *env = getenv("DISPLAY");
-			if (env && env[0] && dexe_running) config.X = 1;
-			else if (dexe_running) {
-			  yyerror("this DEXE requires X, giving up");
-			  exit(99);
-			}
-		}
+		| SDL_FONTS string_expr	{ free(config.sdl_fonts); config.sdl_fonts = $2; }
 		;
 
 	/* sb emulation */
@@ -1136,6 +1128,19 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 			{
 				free(config.munt_roms_dir);
 				config.munt_roms_dir = concat_dir(LOCALDIR, $2);
+				free($2);
+			}
+		| OPL2LPT_DEV string_expr
+			{
+				free(config.opl2lpt_device);
+				config.opl2lpt_device = strlen($2) ? $2 : NULL;
+			}
+		| OPL2LPT_TYPE string_expr
+			{
+				if (strlen($2) == 4 && isdigit($2[3]))
+					config.opl2lpt_type = atoi($2 + 3) - 2;
+				else
+					yyerror("invalid value %s\n", $2);
 				free($2);
 			}
 		| SND_PLUGIN_PARAMS string_expr	{ free(config.snd_plugin_params); config.snd_plugin_params = $2; }
@@ -1237,6 +1242,7 @@ term_flags	: term_flag
 		;
 term_flag	: ESCCHAR expression       { config.term_esc_char = $2; }
 		| COLOR bool		{ config.term_color = ($2!=0); }
+		| SIZE string_expr         { free(config.term_size); config.term_size = $2; }
 		| STRING
 		    { yyerror("unrecognized terminal option '%s'", $1);
 		      free($1); }
@@ -1292,60 +1298,60 @@ mouse_flag	: DEVICE string_expr	{ free(mptr->dev); mptr->dev = $2; }
 		| EMULATE3BUTTONS	{ mptr->emulate3buttons = TRUE; }
 		| BAUDRATE expression	{ mptr->baudRate = $2; }
 		| CLEARDTR
-		    { if (mptr->type == MOUSE_MOUSESYSTEMS)
+		    { if (mptr->dev_type == MOUSE_MOUSESYSTEMS)
 			 mptr->cleardtr = TRUE;
 		      else
 			 yyerror("option CLEARDTR is only valid for MicroSystems-mice");
 		    }
 		| MICROSOFT
 		  {
-		  mptr->type = MOUSE_MICROSOFT;
+		  mptr->dev_type = MOUSE_MICROSOFT;
 		  mptr->flags = CS7 | CREAD | CLOCAL | HUPCL;
 		  }
 		| MS3BUTTON
 		  {
-		  mptr->type = MOUSE_MS3BUTTON;
+		  mptr->dev_type = MOUSE_MS3BUTTON;
 		  mptr->flags = CS7 | CREAD | CLOCAL | HUPCL;
 		  }
 		| MOUSESYSTEMS
 		  {
-		  mptr->type = MOUSE_MOUSESYSTEMS;
+		  mptr->dev_type = MOUSE_MOUSESYSTEMS;
 		  mptr->flags = CS8 | CREAD | CLOCAL | HUPCL;
 /* is cstopb needed?  mptr->flags = CS8 | CSTOPB | CREAD | CLOCAL | HUPCL; */
 		  }
 		| MMSERIES
 		  {
-		  mptr->type = MOUSE_MMSERIES;
+		  mptr->dev_type = MOUSE_MMSERIES;
 		  mptr->flags = CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL;
 		  }
 		| LOGITECH
 		  {
-		  mptr->type = MOUSE_LOGITECH;
+		  mptr->dev_type = MOUSE_LOGITECH;
 		  mptr->flags = CS8 | CSTOPB | CREAD | CLOCAL | HUPCL;
 		  }
 		| PS2
 		  {
-		  mptr->type = MOUSE_PS2;
+		  mptr->dev_type = MOUSE_PS2;
 		  mptr->flags = 0;
 		  }
 		| IMPS2
 		  {
-		  mptr->type = MOUSE_IMPS2;
+		  mptr->dev_type = MOUSE_IMPS2;
 		  mptr->flags = 0;
 		  }
 		| MOUSEMAN
 		  {
-		  mptr->type = MOUSE_MOUSEMAN;
+		  mptr->dev_type = MOUSE_MOUSEMAN;
 		  mptr->flags = CS7 | CREAD | CLOCAL | HUPCL;
 		  }
 		| HITACHI
 		  {
-		  mptr->type = MOUSE_HITACHI;
+		  mptr->dev_type = MOUSE_HITACHI;
 		  mptr->flags = CS8 | CREAD | CLOCAL | HUPCL;
 		  }
 		| BUSMOUSE
 		  {
-		  mptr->type = MOUSE_BUSMOUSE;
+		  mptr->dev_type = MOUSE_BUSMOUSE;
 		  mptr->flags = 0;
 		  }
 		| STRING
@@ -1358,10 +1364,7 @@ mouse_flag	: DEVICE string_expr	{ free(mptr->dev); mptr->dev = $2; }
 keyboard_flags	: keyboard_flag
 		| keyboard_flags keyboard_flag
 		;
-keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
-		| LAYOUT KEYB_LAYOUT {keyb_layout($2);} '{' keyboard_mods '}'
-		| LAYOUT L_NO		{ keyb_layout(KEYB_NO); }
-		| LAYOUT L_AUTO		{ keyb_layout(-1); }
+keyboard_flag	: LAYOUT string_expr	{ keyb_layout($2); free($2); }
 		| RAWKEYBOARD bool	{ config.console_keyb = $2; }
 		| STRING
 		    { yyerror("unrecognized keyboard flag '%s'", $1);
@@ -1430,7 +1433,7 @@ serial_flags	: serial_flag
 serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 		| VIRTUAL		  {
 					   if (isatty(0)) {
-					     sptr->virtual = TRUE;
+					     sptr->virt = TRUE;
 					     sptr->pseudo = TRUE;
 					     no_local_video = 1;
 					     sptr->dev = strdup(ttyname(0));
@@ -1448,7 +1451,8 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 		| COM expression	  { sptr->real_comport = $2; }
 		| BASE expression		{ sptr->base_port = $2; }
 		| IRQ expression		{ sptr->irq = $2; }
-		| MOUSE			{ sptr->mouse = 1; }
+		| MOUSE			{ sptr->mouse = 1;
+					  config.num_serial_mices++; }
 		| STRING
 		    { yyerror("unrecognized serial flag '%s'", $1); free($1); }
 		| error
@@ -1460,9 +1464,9 @@ printer_flags	: printer_flag
 		| printer_flags printer_flag
 		;
 printer_flag	: LPT expression	{ c_printers = $2 - 1; }
-		| COMMAND string_expr	{ pptr->prtcmd = $2; }
+		| COMMAND string_expr	{ free(pptr->prtcmd); pptr->prtcmd = $2; }
 		| TIMEOUT expression	{ pptr->delay = $2; }
-		| L_FILE string_expr		{ pptr->dev = $2; }
+		| L_FILE string_expr		{ free(pptr->dev); pptr->dev = $2; }
 		| BASE expression		{ pptr->base_port = $2; }
 		| STRING
 		    { yyerror("unrecognized printer flag %s", $1); free($1); }
@@ -1474,12 +1478,13 @@ printer_flag	: LPT expression	{ c_printers = $2 - 1; }
 floppy_flags	: floppy_flag
 		| floppy_flags floppy_flag
 		;
-floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
+floppy_flag	: READONLY              { dptr->rdonly = 1; }
 		| THREEINCH	{ dptr->default_cmos = THREE_INCH_FLOPPY; }
 		| THREEINCH_2880	{ dptr->default_cmos = THREE_INCH_2880KFLOP; }
 		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
 		| FIVEINCH_360	{ dptr->default_cmos = FIVE_INCH_360KFLOP; }
+		| BOOT		{ dptr->boot = 1; }
 		| L_FLOPPY string_expr
 		  {
 		  struct stat st;
@@ -1498,6 +1503,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		  } else {
 		    yyerror("Floppy device/file %s is wrong type", $2);
 		  }
+		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  dptr->floppy = 1;  // tell IMAGE and DIR we are a floppy
 		  }
@@ -1505,6 +1511,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
+		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  }
 		| DIRECTORY string_expr
@@ -1512,6 +1519,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a directory given.");
 		  dptr->type = DIR_TYPE;
+		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  }
 		| STRING
@@ -1522,7 +1530,7 @@ floppy_flag	: READONLY              { dptr->wantrdonly = 1; }
 disk_flags	: disk_flag
 		| disk_flags disk_flag
 		;
-disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
+disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		| DISKCYL4096	{ dptr->diskcyl4096 = 1; }
 		| HDTYPE1	{ dptr->hdtype = 1; }
 		| HDTYPE2	{ dptr->hdtype = 2; }
@@ -1536,6 +1544,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
+		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  }
 		| L_FILE string_expr
@@ -1548,8 +1557,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a harddisk-image file given.");
-		  dptr->type = IMAGE;
-		  dptr->dev_name = $2;
+		  set_hdimage(dptr, $2);
 		  }
 		| WHOLEDISK STRING
 		  {
@@ -1648,6 +1656,29 @@ trace_port_flag	: INTEGER
 		      free($1); }
 		| error
 		;
+
+/* MMIO tracing */
+
+trace_mmio_flags	: trace_mmio_flag
+    | trace_mmio_flags trace_mmio_flag
+    ;
+trace_mmio_flag	: INTEGER
+      { register_mmio_tracing($1, $1);
+        c_printf("CONF: MMIO tracing registered for 0x%x\n", $1); }
+    | '(' expression ')'
+      { register_mmio_tracing($2, $2);
+        c_printf("CONF: MMIO tracing registered for 0x%x\n", $2); }
+    | RANGE INTEGER INTEGER
+      { register_mmio_tracing($2, $3);
+        c_printf("CONF: MMIO tracing registered for 0x%x-0x%x\n", $2, $3); }
+    | RANGE expression ',' expression
+      { register_mmio_tracing($2, $4);
+        c_printf("CONF: MMIO tracing registered for 0x%x-0x%x\n", $2, $4); }
+    | STRING
+       { yyerror("unrecognized mmio trace command '%s'", $1);
+         free($1); }
+    | error
+    ;
 
 	/* IRQ definition for Silly Interrupt Generator */
 
@@ -1785,33 +1816,35 @@ speaker		: L_OFF		{ $$ = SPKR_OFF; }
 		| error         { yyerror("expected 'emulated' or 'native'"); }
 		;
 
-	/* cpuemu value */
-
-cpuemu		: L_OFF		{ $$ = 0; }
-		| VM86		{ $$ = 3; }
-		| FULL		{ $$ = 4; }
-		| VM86SIM	{ $$ = 5; }
-		| FULLSIM	{ $$ = 6; }
-		| STRING        { yyerror("got '%s', expected 'off', 'vm86' or 'full'", $1);
-				  free($1); }
-		| error         { yyerror("expected 'off', 'vm86' or 'full'"); }
-		;
-
 cpu_vm		: L_AUTO	{ $$ = -1; }
 		| VM86		{ $$ = CPUVM_VM86; }
 		| KVM		{ $$ = CPUVM_KVM; }
-		| EMULATED	{ $$ = CPUVM_EMU; }
+		| EMULATED	{
+#ifdef X86_EMULATOR
+				 $$ = CPUVM_EMU;
+#else
+				 yyerror("CPU emulator not compiled in");
+#endif
+				}
 		| STRING        { yyerror("got '%s' for cpu_vm", $1);
 				  free($1); }
 		| error         { yyerror("bad value for cpu_vm"); }
 		;
 
+cpu_vm_dpmi	: L_AUTO	{ $$ = -1; }
+		| NATIVE	{ $$ = CPUVM_NATIVE; }
+		| KVM		{ $$ = CPUVM_KVM; }
+		| EMULATED	{ $$ = CPUVM_EMU; }
+		| STRING        { yyerror("got '%s' for cpu_vm_dpmi", $1);
+				  free($1); }
+		| error         { yyerror("bad value for cpu_vm_dpmi"); }
+
 charset_flags	: charset_flag
 		| charset_flags charset_flag
 		;
 
-charset_flag	: INTERNAL STRING { set_internal_charset ($2); free($2); }
-		| EXTERNAL STRING { set_external_charset ($2); free($2); }
+charset_flag	: INTERNAL STRING { set_internal_charset ($2); }
+		| EXTERNAL STRING { set_external_charset ($2); }
 		;
 
 %%
@@ -1852,6 +1885,7 @@ static void start_mouse(void)
   mptr = &config.mouse;
   mptr->fd = -1;
   mptr->com = -1;
+  mptr->com_num = -1;
   mptr->has3buttons = 1;	// drivers can disable this
 }
 
@@ -1860,7 +1894,11 @@ static void stop_mouse(void)
   char *p, *p1;
   if (mptr->dev && (p = strstr(mptr->dev, "com")) && strlen(p) > 3) {
     /* parse comX setting */
-    mptr->com = atoi(p + 3);
+    if (!isdigit(p[3]) || isdigit(p[4])) {
+      yyerror("wrong $_mouse_dev setting");
+      return;
+    }
+    mptr->com_num = atoi(p + 3);
     /* see if something else is specified and remove comX */
     if (p > mptr->dev) {
       p[-1] = 0;
@@ -1875,6 +1913,8 @@ static void stop_mouse(void)
     }
     c_printf("MOUSE: using COM%i\n", mptr->com);
   }
+
+  mptr->type = mptr->dev_type;
   c_printf("MOUSE: %s, type %x using internaldriver: %s, emulate3buttons: %s baudrate: %d\n", 
         mptr->dev && mptr->dev[0] ? mptr->dev : "no device specified",
         mptr->type, mptr->intdrv ? "yes" : "no", 
@@ -1999,7 +2039,7 @@ static void start_serial(void)
     sptr->end_port = 0;
     sptr->real_comport = 0;
     sptr->mouse = 0;
-    sptr->virtual = FALSE;
+    sptr->virt = FALSE;
     sptr->pseudo = FALSE;
     sptr->system_rtscts = FALSE;
     sptr->low_latency = FALSE;
@@ -2031,7 +2071,8 @@ static int keyboard_statement_already = 0;
 
 static void start_keyboard(void)
 {
-  keyb_layout(KEYB_USER); /* NOTE: the default has changed, --Hans, 971204 */
+  if (!keyboard_statement_already)
+    config.layout_auto = 1;
   config.console_keyb = 0;
   keyboard_statement_already = 1;
 }
@@ -2080,20 +2121,12 @@ static void start_floppy(void)
   dptr->default_cmos = THREE_INCH_FLOPPY;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
-  dptr->wantrdonly = 0;
+  dptr->rdonly = 0;
   dptr->header = 0;
 }
 
-static void start_disk(void)
+static void dp_init(struct disk *dptr)
 {
-  if (c_hdisks >= MAX_HDISKS) 
-    {
-    yyerror("There are too many hard disks defined");
-    dptr = &nulldisk;          /* Dummy-Entry to avoid core-dumps */
-    }
-  else
-    dptr = &hdisktab[c_hdisks];
-
   dptr->type    =  NODISK;
   dptr->sectors = -1;
   dptr->heads   = -1;
@@ -2102,12 +2135,29 @@ static void start_disk(void)
   dptr->hdtype = 0;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
-  dptr->wantrdonly = 0;
+  dptr->rdonly = 0;
   dptr->header = 0;
-  dptr->dexeflags = 0;
 }
 
-static void start_vnet(char *mode) {
+static void start_disk(void)
+{
+  if (c_hdisks >= MAX_HDISKS)
+    {
+    yyerror("There are too many hard disks defined");
+    dptr = &nulldisk;          /* Dummy-Entry to avoid core-dumps */
+    }
+  else
+    dptr = &hdisktab[c_hdisks];
+
+  dp_init(dptr);
+}
+
+static void start_vnet(char *mode)
+{
+  if (strcmp(mode, "off") == 0) {
+    config.vnet = VNET_TYPE_NONE;
+    return;
+  }
   if (strcmp(mode, "") == 0) {
     config.vnet = VNET_TYPE_AUTO;
     return;
@@ -2120,7 +2170,10 @@ static void start_vnet(char *mode) {
     config.vnet = VNET_TYPE_VDE;
     return;
   }
-  IFCLASS(CL_NET) {}
+  if (strcmp(mode, "slirp") == 0) {
+    config.vnet = VNET_TYPE_SLIRP;
+    return;
+  }
   if (strcmp(mode, "eth") == 0)
     config.vnet = VNET_TYPE_ETH;
   else {
@@ -2134,6 +2187,7 @@ static void do_part(char *dev)
   if (dptr->dev_name != NULL)
     yyerror("Two names for a partition given.");
   dptr->type = PARTITION;
+  free(dptr->dev_name);
   dptr->dev_name = dev;
 #ifdef __linux__
   dptr->part_info.number = atoi(dptr->dev_name+8);
@@ -2148,18 +2202,19 @@ static void stop_disk(int token)
 #ifdef __linux__
   FILE   *f;
   struct mntent *mtab;
-#endif
   int    mounted_rw;
+#endif
 
-  if (dexe_running && dexe_forbid_disk)
-    return;
   if (dptr == &nulldisk)              /* is there any disk? */
     return;                           /* no, nothing to do */
 
-  if (!dptr->dev_name)                /* Is there a file/device-name? */
-    yyerror("disk: no device/file-name given!");
-  else                                /* check the file/device for existance */
-    {
+  if (!dptr->dev_name) {               /* Is there a file/device-name? */
+    if (token == L_FLOPPY)
+      error("floppy %c: no device/file-name given!\n", 'A'+c_fdisks);
+    else
+      error("drive %c: no device/file-name given!\n", 'C'+c_hdisks);
+    return;
+  } else {                               /* check the file/device for existance */
       struct stat st;
 
       if (stat(dptr->dev_name, &st) != 0) { /* Does this file exist? */
@@ -2183,7 +2238,7 @@ static void stop_disk(int token)
     }
     if (mtab) {
       mounted_rw = ( hasmntopt(mtab, MNTOPT_RW) != NULL );
-      if (mounted_rw && !dptr->wantrdonly) 
+      if (mounted_rw && !dptr->rdonly) 
         yyerror("\n\nYou specified '%s' for read-write Direct Partition Access,"
                 "\nit is currently mounted read-write on '%s' !!!\n",
                 dptr->dev_name, mtab->mnt_dir);
@@ -2191,7 +2246,7 @@ static void stop_disk(int token)
         yywarn("You specified '%s' for read-only Direct Partition Access,"
                "\n         it is currently mounted read-write on '%s'.\n",
                dptr->dev_name, mtab->mnt_dir);
-      else if (!dptr->wantrdonly) 
+      else if (!dptr->rdonly) 
         yywarn("You specified '%s' for read-write Direct Partition Access,"
                "\n         it is currently mounted read-only on '%s'.\n",
                dptr->dev_name, mtab->mnt_dir);
@@ -2217,64 +2272,71 @@ static void stop_disk(int token)
     }
   }
 
+  if (dptr->type == DIR_TYPE)
+    dptr->mfs_idx = mfs_define_drive(dptr->dev_name);
+  else
+    dptr->mfs_idx = 0;
+
   if (token == L_FLOPPY) {
     c_printf(" floppy %c:\n", 'A'+c_fdisks);
+    disktab[c_fdisks].drive_num = c_fdisks;
     c_fdisks++;
-    config.fdisks = c_fdisks;
   }
   else {
     c_printf(" drive %c:\n", 'C'+c_hdisks);
+    hdisktab[c_hdisks].drive_num = (c_hdisks | 0x80);
+    hdisktab[c_hdisks].log_offs = skipped_disks;
     c_hdisks++;
-    config.hdisks = c_hdisks;
   }
 }
 
 	/* keyboard */
 
-void keyb_layout(int layout)
+static void do_keyb_layout(const char *layout, int alt)
 {
   struct keytable_entry *kt = keytable_list;
-  if (layout == -1) {
-    /* auto: do it later */
-    config.keytable = NULL;
-    return;
-  }
+
   while (kt->name) {
-    if (kt->keyboard == layout) {
-      if (kt->flags & KT_ALTERNATE) {
+    if (strcmp(kt->name, layout) == 0) {
+      if (alt) {
         c_printf("CONF: Alternate keyboard-layout %s\n", kt->name);
         config.altkeytable = kt;
       } else {
-      c_printf("CONF: Keyboard-layout %s\n", kt->name);
-      config.keytable = kt;
+        c_printf("CONF: Keyboard-layout %s\n", kt->name);
+        config.keytable = kt;
       }
+      config.layout_auto = 0;
       return;
     }
     kt++;
   }
-  c_printf("CONF: ERROR -- Keyboard has incorrect number!!!\n");
+  yyerror("CONF: ERROR -- Keyboard has incorrect layout %s\n", layout);
 }
 
-static void keytable_start(int layout)
+static void keyb_layout(char *layout)
 {
-  static struct keytable_entry *saved_kt = 0;
-  if (layout == -1) {
-    if (keyboard_statement_already) {
-      if (config.keytable != saved_kt) {
-        yywarn("keytable changed to %s table, but previously was defined %s\n",
-                config.keytable->name, saved_kt->name);
-      }
-    }
+  char *p = layout;
+  char *p1;
+
+  if (strcmp(p, "auto") == 0) {
+    /* auto: do it later */
+    config.keytable = NULL;
+    config.layout_auto = 1;
+    return;
   }
-  else {
-    saved_kt = config.keytable;
-    keyb_layout(layout);
-  }
+  while ((p1 = strsep(&p, ",")))
+    do_keyb_layout(p1, p1 != layout);
+}
+
+static void keytable_start(char *layout)
+{
+  keyboard_statement_already = 1;
+  /* switch to builtin layout, then apply mods */
+  keyb_layout(layout);
 }
 
 static void keytable_stop(void)
 {
-  keytable_start(-1);
 }
 
 static void dump_keytables_to_file(char *name)
@@ -2323,35 +2385,35 @@ static void set_irq_range(int bits, int i1, int i2) {
 
 	/* errors & warnings */
 
-void yywarn(char* string, ...)
+void yywarn(const char *string, ...)
 {
   va_list vars;
+  error("@Warning: ");
   va_start(vars, string);
-  fprintf(stderr, "Warning: ");
-  vfprintf(stderr, string, vars);
-  fprintf(stderr, "\n");
+  vprint(string, vars);
   va_end(vars);
+  error("@\n");
   warnings++;
 }
 
-void yyerror(char* string, ...)
+void yyerror(const char *string, ...)
 {
   va_list vars;
   va_start(vars, string);
   if (include_stack_ptr != 0 && !last_include) {
 	  int i;
-	  fprintf(stderr, "In file included from %s:%d\n",
+	  error("@In file included from %s:%d\n",
 		  include_fnames[0], include_lines[0]);
 	  for(i = 1; i < include_stack_ptr; i++) {
-		  fprintf(stderr, "                 from %s:%d\n",
+		  error("@                 from %s:%d\n",
 			  include_fnames[i], include_lines[i]);
 	  }
 	  last_include = 1;
   }
-  fprintf(stderr, "Error in %s: (line %.3d) ", 
+  error("@Error in %s: (line %.3d) ", 
 	  include_fnames[include_stack_ptr], line_count);
-  vfprintf(stderr, string, vars);
-  fprintf(stderr, "\n");
+  vprint(string, vars);
+  error("@\n");
   va_end(vars);
   errors++;
 }
@@ -2362,13 +2424,13 @@ void yyerror(char* string, ...)
  *             a file-pointer. The error/warning-counters are reset to zero.
  */
 
-static FILE *open_file(char *filename)
+static FILE *open_file(const char *filename)
 {
   errors   = 0;                  /* Reset error counter */
   warnings = 0;                  /* Reset counter for warnings */
 
   if (!filename) return 0;
-  return fopen(filename, "r"); /* Open config-file */
+  return fopen(filename, "re"); /* Open config-file */
 }
 
 /*
@@ -2382,71 +2444,160 @@ static void close_file(FILE * file)
   if (file) fclose(file);                  /* Close the config-file */
 
   if(errors)
-    fprintf(stderr, "%d error(s) detected while parsing the configuration-file\n",
+    error("@%d error(s) detected while parsing the configuration-file\n",
 	    errors);
   if(warnings)
-    fprintf(stderr, "%d warning(s) detected while parsing the configuration-file\n",
+    error("@%d warning(s) detected while parsing the configuration-file\n",
 	    warnings);
 
   if (errors != 0)               /* Exit dosemu on errors */
     {
       config.exitearly = TRUE;
     }
+  errors = 0;
+  warnings = 0;
 }
 
-/* write_to_syslog */
-static void write_to_syslog(char *message)
+static void set_hdimage(struct disk *dptr, char *name)
 {
-  openlog("dosemu", LOG_PID, LOG_USER | LOG_NOTICE);
-  syslog(LOG_PID | LOG_USER | LOG_NOTICE, "%s", message);
-  closelog();
-}
+  char *l = strstr(name, ".lnk");
 
-static void move_dosemu_lib_dir(char *path)
-{
-  char *commands_path;
-  if (dosemu_lib_dir_path != path) {
-    if (dosemu_lib_dir_path != dosemulib_default)
-      free(dosemu_lib_dir_path);
-    dosemu_lib_dir_path = strdup(path);
+  c_printf("Setting up hdimage %s\n", name);
+  if (l && strlen(l) == 4) {
+    const char *tmpl = "eval echo -n `cat %s`";
+    char *cmd, path[1024], *rname;
+    FILE *f;
+    size_t ret;
+
+    asprintf(&cmd, tmpl, name);
+    free(name);
+    f = popen(cmd, "r");
+    free(cmd);
+    ret = fread(path, 1, sizeof(path), f);
+    pclose(f);
+    if (ret == 0)
+      return;
+    path[ret] = '\0';
+    c_printf("Link resolved to %s\n", path);
+    rname = expand_path(path);
+    if (access(rname, R_OK) != 0) {
+      warn("hdimage: %s does not exist\n", rname);
+      free(rname);
+      return;
+    }
+    free(dptr->dev_name);
+    dptr->dev_name = rname;
+    dptr->type = DIR_TYPE;
+    c_printf("Set up as a directory\n");
+    return;
   }
-  fddir_default = assemble_path(dosemu_lib_dir_path, FREEDOS_DIR, 0);
-  setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
-  commands_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
-  setenv("DOSEMU_COMMANDS_DIR", commands_path, 1);
-  free(commands_path);
-
-  if (keymap_load_base_path != keymaploadbase_default)
-    free(keymap_load_base_path);
-  keymap_load_base_path = assemble_path(path, "", 0);
+  dptr->type = IMAGE;
+  free(dptr->dev_name);
+  dptr->dev_name = name;
+  c_printf("Set up as an image\n");
 }
 
-static FILE *open_dosemu_users(void)
+static int add_drive(const char *name, int rdonly)
 {
-  FILE *fp;
-  fp = open_file(DOSEMU_USERS_FILE);
-  if (fp) return fp;
+  struct disk *dptr = &hdisktab[c_hdisks];
+  char *rname = expand_path(name);
+  if (access(rname, R_OK) != 0) {
+    free(rname);
+    return -1;
+  }
+  dp_init(dptr);
+  dptr->dev_name = rname;
+  dptr->type = DIR_TYPE;
+  dptr->rdonly = rdonly;
+  dptr->drive_num = (c_hdisks | 0x80);
+  dptr->log_offs = skipped_disks;
+  dptr->mfs_idx = mfs_define_drive(rname);
+  c_printf("Added drive %i (%x): %s\n", c_hdisks, dptr->drive_num, name);
+  c_hdisks++;
   return 0;
 }
 
-static void setup_home_directories(void)
+static void set_drive_c(void)
 {
-  setenv("DOSEMU_HDIMAGE_DIR", dosemu_hdimage_dir_path, 1);
-  LOCALDIR = get_dosemu_local_home();
-  RUNDIR = mkdir_under(LOCALDIR, "run", 0);
-  DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI, 0);
-  DOSEMU_MIDI_IN_PATH = assemble_path(RUNDIR, DOSEMU_MIDI_IN, 0);
+  int err;
+
+  c_printf("Setting up drive C, %s\n", dosemu_drive_c_path);
+  if (!config.alt_drv_c && !exists_dir(dosemu_drive_c_path)) {
+    char *system_str;
+    c_printf("Creating default drive C\n");
+    err = asprintf(&system_str, "mkdir -p %s/tmp", dosemu_drive_c_path);
+    assert(err != -1);
+    err = system(system_str);
+    free(system_str);
+    if (err) {
+      error("unable to create %s\n", dosemu_drive_c_path);
+      return;
+    }
+  }
+  if (config.alt_drv_c && c_hdisks) {
+    error("wrong mapping of Group 0 to %c\n", 'C' + c_hdisks);
+    dosemu_drive_c_path = DRIVE_C_DEFAULT;
+    config.alt_drv_c = 0;
+  }
+  config.drive_c_num = c_hdisks | 0x80;
+  err = add_drive(dosemu_drive_c_path, 0);
+  assert(!err);
 }
 
-static void lax_user_checking(void)
+static void set_dosemu_drive(void)
+{
+  if (!commands_path) {
+    error("can't map utility drive, dosemu2 installation incomplete\n");
+    leavedos(3);
+    return;
+  }
+  add_drive(commands_path, 1);
+}
+
+static void set_default_drives(void)
+{
+#define AD(p) do { \
+    if (p) \
+      add_drive(p, 1); \
+} while (0)
+  c_printf("Setting up default drives from %c\n", 'C' + c_hdisks);
+  if (config.try_freedos) {
+    AD(fddir_boot);
+    AD(fddir_default);
+  } else {
+    AD(comcom_dir);
+    AD(xbat_dir);
+  }
+}
+
+static void set_hostfs_drives(char *drivespec)
 {
   char *p;
-  define_config_variable("c_all");
-  p = getenv("USER");
-  if (!p) p = "guest";
-  setenv("DOSEMU_USER", p, 1);
-  setenv("DOSEMU_REAL_USER", p, 1);
-  setup_home_directories();
+  int err;
+
+  while ((p = strsep(&drivespec, " "))) {
+    int ro = 0;
+    int cd = 0;
+    int grp = 0;
+    char *d = strchr(p, ':');
+    if (d) {
+      switch (d[1]) {
+	case 'r':
+	    ro++;
+	    break;
+	case 'c':
+	    cd++;
+	    break;
+	case 'g':
+	    grp++;
+	    break;
+      }
+      *d = '\0';
+    }
+    err = add_extra_drive(p, ro, cd, grp);
+    if (err)
+	config.exitearly = 1;
+  }
 }
 
 /* Parse TimeMode, Paul Crawford and Andrew Brooks 2004-08-01 */
@@ -2465,422 +2616,71 @@ int parse_timemode(const char *timemodestr)
    return(TM_BIOS);
 }
 
-/* Parse Users for DOSEMU, by Alan Hourihane, alanh@fairlite.demon.co.uk */
-/* Jan-17-1996: Erik Mouw (J.A.K.Mouw@et.tudelft.nl)
- *  - added logging facilities
- * In 1998:     Hans
- *  - havy changes and re-arangments
- */
-void
-parse_dosemu_users(void)
+char *commandline_statements;
+
+static void do_parse(FILE *fp, const char *confname, const char *errtx)
 {
-#define ALL_USERS "all"
-#define PBUFLEN 256
-
-  FILE *volatile fp;
-  struct passwd *pwd;
-  char buf[PBUFLEN];
-  int userok = 0;
-  char *ustr;
-  int uid;
-  int have_vars=0;
-
-  /* We come here _very_ early (at top of main()) to avoid security conflicts.
-   * priv_init() has already been called, but nothing more.
-   *
-   * We will exit, if /etc/dosemu.users says that the user has no right
-   * to run a suid root dosemu (and we are on), but will continue, if the user
-   * is running a non-suid copy _and_ is mentioned in dosemu users.
-   * The dosemu.users entry for such a user is:
-   *
-   *      joeodd  ... nosuidroot
-   *
-   * The functions we call rely on the following setting:
-   */
-  after_secure_check = 0;
-  priv_lvl = 0;
-
-  setenv("DOSEMU_CONF_DIR", DOSEMU_CONF_DIR, 1);
-  /* we check for some vital global settings
-   * which we need before proceeding
-   */
-  setenv("DOSEMU_LIB_DIR", dosemulib_default, 1);
-  move_dosemu_lib_dir(dosemu_lib_dir_path);
-
-  fp = open_dosemu_users();
-  if (fp) while (fgets(buf, PBUFLEN, fp) != NULL) {
-    int l = strlen(buf);
-    if (l && (buf[l-1] == '\n')) buf[l-1] = 0;
-    ustr = strtok(buf, " \t\n=,;:");
-    if (ustr && (ustr[0] != '#')) {
-      if (!strcmp(ustr, "default_lib_dir")) {
-        ustr=strtok(0, " \t\n=,;:");
-        if (ustr) {
-          if (!exists_dir(ustr)) {
-            char *tx = "default_lib_dir %s does not exist\n";
-            fprintf(stderr, tx, ustr);
-            fprintf(stdout, tx, ustr);
-            exit(1);
-          }
-          move_dosemu_lib_dir(ustr);
-        }
-      }
-      if (!strcmp(ustr, "default_hdimage_dir")) {
-        ustr=strtok(0, " \t\n=,;:");
-        if (ustr) {
-          if (!exists_dir(ustr)) {
-            char *tx = "default_hdimage_dir %s does not exist\n";
-            fprintf(stderr, tx, ustr);
-            fprintf(stdout, tx, ustr);
-            exit(1);
-          }
-          if (dosemu_hdimage_dir_path != dosemuhdimage_default)
-            free(dosemu_hdimage_dir_path);
-          dosemu_hdimage_dir_path = strdup(ustr);
-	  dexe_load_path = dosemu_hdimage_dir_path;
-        }
-      }
-      else if (!strcmp(ustr, "log_level")) {
-        int ll = 0;
-        ustr=strtok(0, " \t\n=,;:");
-        if (ustr) {
-          ll = atoi(ustr);
-          if (ll < 0) ll = 0;
-          if (ll > 2) ll = 2;
-        }
-      }
-      else if (!strcmp(ustr, "config_script")) {
-        ustr=strtok(0, " \t\n=,;:");
-        if (ustr && strcmp(ustr, DEFAULT_CONFIG_SCRIPT)) {
-          config_script_path = strdup(ustr);
-          if (!exists_file(config_script_path)) {
-            char *tx = "config_script %s does not exist\n";
-            fprintf(stderr, tx, ustr);
-            fprintf(stdout, tx, ustr);
-            exit(1);
-          }
-	  config_script_name = strdup(ustr);
-	}
-      }
-    }
-  }
-  if (fp) fclose(fp);
-
-  if (!can_do_root_stuff || under_root_login) {
-     /* simply ignore -- we're not suid-root */
-     lax_user_checking();
-     after_secure_check = 1;
-     return;
-  }
-
-  /* We want to test if the _user_ is allowed to do certain privileged    */
-  /* things, o check if the username connected to the get_orig_uid() is   */
-  /* in the DOSEMU_USERS_FILE file (usually /etc/dosemu.users).           */
-   
-  uid = get_orig_uid();
-
-  errno = 0; /* man says this is necessary?! */
-  pwd = getpwuid(uid);
-
-  /* Sanity Check, Shouldn't be anyone logged in without a userid */
-  if (!pwd) 
-     {
-       error("Illegal User: uid=%i, error=%s\n", uid, strerror(errno));
-       sprintf(buf, "Illegal DOSEMU user: uid=%i", uid);
-       write_to_syslog(buf);
-       exit(1);
-     }
-
-  /* preset DOSEMU_*USER env, such that a user can't fake it */
-  setenv("DOSEMU_USER", "unknown", 1);
-  setenv("DOSEMU_REAL_USER", pwd->pw_name, 1);
-
-  {
-       int can_have_privsetup = 0;
-       fp = open_dosemu_users();
-       if (fp) {
-	   for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) {
-	     int l = strlen(buf);
-	     if (l && (buf[l-1] == '\n')) buf[l-1] = 0;
-	     ustr = strtok(buf, " \t\n,;:");
-	     if (ustr && (ustr[0] != '#')) {
-	       if (strcmp(ustr, pwd->pw_name)== 0) 
-		 userok = 1;
-	       else if (strcmp(ustr, ALL_USERS)== 0)
-		 userok = 1;
-	       if (userok) {
-		 setenv("DOSEMU_USER", ustr, 1);
-		 while ((ustr=strtok(0, " \t,;:")) !=0) {
-		   if (ustr[0] == '#') break;
-		   define_config_variable(ustr);
-		   have_vars = 1;
-                   if (!strcmp(ustr,"private_setup")) {
-                     can_have_privsetup = 1;
-                   }
-		 }
-	         if (!have_vars && !using_sudo)
-		   define_config_variable("restricted");
-	       }
-	     }
-	   }
-           fclose(fp);
-       }
-       
-
-       if (can_have_privsetup
-              && (   get_config_variable("unrestricted")
-                  || under_root_login || !can_do_root_stuff)) {
-         /* this user is allowed to have a privat ~/.dosemu/lib
-          * (which replaces DOSEMULIB_DEFAULT if existing).
-          * Hence this user can have its own global.conf e.t.c.
-          * However, this is only possible with non-suid-root
-          * binary or when running under root loggin or when 'unrestricted'
-          * also is set.       -- Hans
-          */
-         char *lpath = get_path_in_HOME(LOCALDIR_BASE_NAME "/lib");
-         if (exists_dir(lpath)) move_dosemu_lib_dir(lpath);
-         free(lpath);
-       }
-  }
-
-  define_config_variable("c_all");
-  if(userok==0 && !using_sudo) {
-    define_config_variable("restricted");
-  }
-  if (get_config_variable("nosuidroot") || (get_config_variable("restricted") && !on_console())) {
-    fprintf(stderr, "Dropping root privileges: guest or a restricted user not on console.\n");
-    priv_drop();
-    lax_user_checking();
-    after_secure_check = 1;
-    return;
-  }
-
-  /* now we setup up our local DOSEMU home directory, where we
-   * have (among other things) all temporary stuff in
-   * (since 0.97.10.2)
-   */
-  setup_home_directories();
-  after_secure_check = 1;
+  yyin = fp;
+  line_count = 1;
+  include_stack_ptr = 0;
+  c_printf("CONF: Parsing %s file.\n", confname);
+  file_being_parsed = strdup(confname);
+  include_fnames[include_stack_ptr] = file_being_parsed;
+  yyrestart(fp);
+  if (yyparse())
+    yyerror(errtx, confname);
+  close_file(fp);
+  include_stack_ptr = 0;
+  include_fnames[include_stack_ptr] = 0;
+  free(file_being_parsed);
 }
 
-
-char *commandline_statements=0;
-
-static int has_dexe_magic(char *name)
-{
-  int fd, magic, ret;
-  fd = open(name, O_RDONLY);
-  if (fd <0) return 0;
-  ret = (read(fd, &magic, 4) == 4) && (magic == DEXE_MAGIC);
-  close(fd);
-  return ret;
-}
-
-static int stat_dexe(char *name)
-{
-  struct stat s;
-  if (stat(name, &s)) return 0;
-  if ( ! S_ISREG(s.st_mode)) return 0;
-  if ((s.st_mode & S_IXUSR) && (s.st_uid == get_orig_uid()))
-    return has_dexe_magic(name);
-  if ((s.st_mode & S_IXGRP) && (is_in_groups(s.st_gid)))
-    return  has_dexe_magic(name); 
-  if (s.st_mode & S_IXOTH) return has_dexe_magic(name);
-  return 0;
-}
-
-static char *resolve_exec_path(char *dexename, char *ext)
-{
-  enum { maxn=0x255 };
-  static char n[maxn+1];
-  static char name[maxn+1];
-  char *p, *path=getenv("PATH");
-
-  strncpy(name,dexename,maxn);
-  name[maxn] = 0;
-  n[maxn] = 0;
-  p = rindex(name, '.');
-  if ( ext && ((p && strcmp(p, ext)) || !p) )
-    strncat(name,ext,maxn);
-
-
-  /* first try the pure file name */
-  if (!path || (name[0] == '/') || (!strncmp(name, "./", 2))) {
-    if (stat_dexe(name)) return name;
-    return 0;
-  }
-
-  /* next try the standard path for DEXE files */
-  snprintf(n, maxn, "%s/%s", dexe_load_path, name);
-  if (stat_dexe(n)) return n;
-
-  /* now search in the users normal PATH */
-  path = strdup(path);
-  p= strtok(path,":");
-  while (p) {
-    snprintf(n, maxn, "%s/%s", p, name);
-    if (stat_dexe(n)) {
-      free(path);
-      return n;
-    }
-    p=strtok(0,":");
-  }
-  free(path);
-  return 0;
-}
-
-void prepare_dexe_load(char *name)
-{
-  char *n, *cbuf;
-  int fd, csize;
-  struct image_header ihdr;
-
-  n = resolve_exec_path(name, ".dexe");
-  if (!n) {
-    n = resolve_exec_path(name, 0);
-    if (!n) {
-      error("DEXE file not found or not executable\n");
-      exit(1);
-    }
-  }
-
-  /* now we extract the configuration file and the access flags */
-  fd = open(n, O_RDONLY);
-  if (read(fd, &ihdr, sizeof(struct image_header)) != sizeof(struct image_header)) {
-    error("broken DEXE format, can't read image header\n");
-    close(fd);
-    exit(1);
-  }
-
-  lseek(fd, HEADER_SIZE + 0x200, SEEK_SET); /* just behind the MBR */
-  if ((read(fd, &csize, 4) != 4) || (csize > 0x2000)) {
-    error("broken DEXE format, configuration not found\n");
-    close(fd);
-    exit(1);
-  }
-  
-  /* we use the -I option to feed in the configuration,
-   * and we put ours in front of eventually existing options
-   */
-  if (commandline_statements) {
-    cbuf = malloc(csize+1+strlen(commandline_statements)+1);
-    read(fd, cbuf, csize);
-    cbuf[csize] = '\n';
-    strcpy(cbuf+csize+1, commandline_statements);
-  }
-  else {
-    cbuf = malloc(csize+1);
-    read(fd, cbuf, csize);
-    cbuf[csize] = 0;
-  }
-  commandline_statements = cbuf;
-  close(fd);
-
-  start_disk();
-  dptr->type = IMAGE;
-  dptr->header = HEADER_SIZE;
-  dptr->dev_name = n;
-  dptr->dexeflags = ihdr.dexeflags | DISK_IS_DEXE;
-  stop_disk(DISK);
-  dexe_running = 1;
-}
-
-
-static void do_parse(FILE* fp, char *confname, char *errtx)
-{
-        yyin = fp;
-        line_count = 1;
-	include_stack_ptr = 0;
-        c_printf("CONF: Parsing %s file.\n", confname);
-	file_being_parsed = strdup(confname);
-	include_fnames[include_stack_ptr] = file_being_parsed;
-	yyrestart(fp);
-        if (yyparse()) yyerror(errtx, confname);
-        close_file(fp);
-	include_stack_ptr = 0;
-	include_fnames[include_stack_ptr] = 0;
-	free(file_being_parsed);
-}
-
-int parse_config(char *confname, char *dosrcname)
+int parse_config(const char *confname, const char *dosrcname)
 {
   FILE *fd;
-  int is_user_config;
 #if YYDEBUG != 0
   yydebug  = 1;
 #endif
 
   define_config_variable(PARSER_VERSION_STRING);
 
-  /* Let's try confname if not null, and fail if not found */
-  /* Else try the user's own .dosrc (old) or .dosemurc (new) */
-  /* If that doesn't exist we will default to CONFIG_FILE */
+  /* privileged options allowed? */
+  priv_lvl = !under_root_login && can_do_root_stuff;
 
-  { 
-    if (!dosrcname) {
-      char *name = get_path_in_HOME(DOSEMU_RC);
-      setenv("DOSEMU_RC", name, 1);
-      free(name);
-    }
-    else {
-      setenv("DOSEMU_RC",dosrcname,1);
-    }
+  define_config_variable("c_system");
 
-    /* privileged options allowed? */
-    is_user_config = (confname && config_script_path && strcmp(confname, config_script_path));
-    priv_lvl = !under_root_login && can_do_root_stuff && is_user_config;
-
-    /* DEXE together with option F ? */
-    if (priv_lvl && dexe_running) {
-      /* for security reasons we cannot allow this */
-      fprintf(stderr, "user cannot load DEXE file together with option -F\n");
+  yy_vbuffer = dosemu_conf;
+  do_parse(NULL, "built-in dosemu.conf", "error in built-in dosemu.conf");
+  if (confname) {
+    yy_vbuffer = NULL;
+    fd = open_file(confname);
+    if (!fd) {
+      fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n", confname);
       exit(1);
     }
-
-    if (is_user_config) define_config_variable("c_user");
-    else define_config_variable("c_system");
-    if (dexe_running) define_config_variable("c_dexerun");
-
-    yy_vbuffer = dosemu_conf;
-    do_parse(NULL, "built-in dosemu.conf", "error in built-in dosemu.conf");
-    yy_vbuffer = global_conf;
-    do_parse(NULL, "built-in global.conf", "error in built-in global.conf");
-    if (confname) {
-      yy_vbuffer = NULL;
-      fd = open_file(confname);
-      if (!fd) {
-        if (!dexe_running) {
-          fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n",confname);
-          exit(1);
-        }
-      }
-      do_parse(fd, confname, "error in configuration file %s");
+    do_parse(fd, confname, "error in configuration file %s");
+  }
+  if (dosrcname) {
+    define_config_variable("c_user");
+    yy_vbuffer = NULL;
+    fd = open_file(dosrcname);
+    if (!fd) {
+      fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n", dosrcname);
+      exit(1);
     }
+    do_parse(fd, dosrcname, "error in configuration file %s");
+  }
+  yy_vbuffer = global_conf;
+  do_parse(NULL, "built-in global.conf", "error in built-in global.conf");
 
-    if (priv_lvl) undefine_config_variable("c_user");
-    else undefine_config_variable("c_system");
+  undefine_config_variable("c_system");
 
-    if (!get_config_variable(CONFNAME_V3USED)) {
-	/* we obviously have an old configuration file
-         * ( or a too simple one )
-	 * giving up
-	 */
-	yyerror("\nYour %s script or configuration file is obviously\n"
-		"an old style or a too simple one\n"
-		"Please read README.txt on how to upgrade\n", confname);
-	exit(1);
-    }
+  /* Now we parse any commandline statements from option '-I'
+   * We do this under priv_lvl set above, so we have the same secure level
+   * as with .dosrc
+   */
 
-    /* privileged options allowed for user's config? */
-    priv_lvl = !under_root_login && can_do_root_stuff;
-    if (priv_lvl) define_config_variable("c_user");
-
-    /* Now we parse any commandline statements from option '-I'
-     * We do this under priv_lvl set above, so we have the same secure level
-     * as with .dosrc
-     */
-
-    if (commandline_statements) {
+  if (commandline_statements) {
       #define XX_NAME "commandline"
 
       open_file(0);
@@ -2890,25 +2690,6 @@ int parse_config(char *confname, char *dosrcname)
       yy_vbuffer=commandline_statements; /* this is the input to scan */
       do_parse(0, XX_NAME, "error in user's %s statement");
       undefine_config_variable("c_comline");
-    }
-  }
-
-  /* check for global settings, that should know the whole settings
-   * This we only can do, after having parsed all statements
-   */
-
-  if (dexe_running) {
-    /* force a BootC,
-     * regardless what ever was set in the config files
-     */
-    config.hdiskboot = 2;
-  }
-  else {
-    if (get_config_variable("c_dexeonly")) {
-       c_printf("CONF: only execution of DEXE files allowed\n");
-       fprintf(stderr, "only execution of DEXE files allowed\n");
-       exit(99);
-    }
   }
 
 #ifdef TESTING
@@ -2922,79 +2703,9 @@ int parse_config(char *confname, char *dosrcname)
 char *config_variables[MAX_CONFIGVARIABLES+1] = {0};
 static int config_variables_count = 0;
 static int config_variables_last = 0;
-static int allowed_classes = -1;
-static int saved_allowed_classes = -1;
 
 
-
-static int is_in_allowed_classes(int mask)
-{
-  if (!(allowed_classes & mask)) {
-    yyerror("insufficient class privilege to use this configuration option\n");
-    exit(99);
-  }
-  return 1;
-}
-
-struct config_classes {
-	char *class;
-	int mask;
-} config_classes[] = {
-	{"c_all", CL_ALL},
-	{"c_normal", CL_ALL & (~(CL_VAR | CL_VPORT | CL_IRQ | CL_HARDRAM | CL_PCI | CL_NET))},
-	{"c_var", CL_VAR},
-	{"c_system", CL_ALL},
-	{"c_vport", CL_VPORT},
-	{"c_port", CL_PORT},
-	{"c_irq", CL_IRQ},
-	{"c_pci", CL_PCI},
-	{"c_hardram", CL_HARDRAM},
-	{"c_net", CL_NET},
-	{0,0}
-};
-
-static int get_class_mask(char *name)
-{
-  struct config_classes *p = &config_classes[0];
-  while (p->class) {
-    if (!strcmp(p->class,name)) return p->mask;
-    p++;
-  }
-  return 0;
-}
-
-static void update_class_mask(void)
-{
-  int i, m;
-  allowed_classes = 0;
-  for (i=0; i< config_variables_count; i++) {
-    if ((m=get_class_mask(config_variables[i])) != 0) {
-      allowed_classes |= m;
-    }
-  }
-}
-
-static void enter_user_scope(int incstackptr)
-{
-  if (user_scope_level) return;
-  saved_priv_lvl = priv_lvl;
-  priv_lvl = 1;
-  saved_allowed_classes = allowed_classes;
-  allowed_classes = 0;
-  user_scope_level = incstackptr;
-  c_printf("CONF: entered user scope, includelevel %d\n", incstackptr-1);
-}
-
-static void leave_user_scope(int incstackptr)
-{
-  if (user_scope_level != incstackptr) return;
-  priv_lvl = saved_priv_lvl;
-  allowed_classes = saved_allowed_classes;
-  user_scope_level = 0;
-  c_printf("CONF: left user scope, includelevel %d\n", incstackptr-1);
-}
-
-char *get_config_variable(char *name)
+char *get_config_variable(const char *name)
 {
   int i;
   for (i=0; i< config_variables_count; i++) {
@@ -3006,7 +2717,7 @@ char *get_config_variable(char *name)
   return 0;
 }
 
-int define_config_variable(char *name)
+int define_config_variable(const char *name)
 {
   if (priv_lvl) {
     if (strcmp(name, CONFNAME_V3USED) && strncmp(name, "u_", 2)) {
@@ -3017,20 +2728,17 @@ int define_config_variable(char *name)
   if (!get_config_variable(name)) {
     if (config_variables_count < MAX_CONFIGVARIABLES) {
       config_variables[config_variables_count++] = strdup(name);
-      if (!priv_lvl) update_class_mask();
     }
     else {
-      if (after_secure_check)
-        c_printf("CONF: overflow on config variable list\n");
+      c_printf("CONF: overflow on config variable list\n");
       return 0;
     }
   }
-  if (after_secure_check)
-    c_printf("CONF: config variable %s set\n", name);
+  c_printf("CONF: config variable %s set\n", name);
   return 1;
 }
 
-static int undefine_config_variable(char *name)
+static int undefine_config_variable(const char *name)
 {
   if (priv_lvl) {
     if (strncmp(name, "u_", 2)) {
@@ -3046,7 +2754,6 @@ static int undefine_config_variable(char *name)
       config_variables[i] = config_variables[i+1];
     }
     config_variables_count--;
-    if (!priv_lvl) update_class_mask();
     c_printf("CONF: config variable %s unset\n", name);
     return 1;
   }
@@ -3055,14 +2762,6 @@ static int undefine_config_variable(char *name)
 
 char *checked_getenv(const char *name)
 {
-  if (user_scope_level) {
-     char *s, *name_ = malloc(strlen(name)+sizeof(USERVAR_PREF));
-     strcpy(name_, USERVAR_PREF);
-     strcat(name_, name);
-     s = getenv(name_);
-     free(name_);
-     if (s) return s;
-  }
   return getenv(name);
 }
 
@@ -3071,7 +2770,6 @@ static void check_user_var(char *name)
 	char *name_;
 	char *s;
 
-	if (user_scope_level) return;
 	name_ = malloc(strlen(name)+sizeof(USERVAR_PREF));
 	strcpy(name_, USERVAR_PREF);
 	strcat(name_, name);
@@ -3157,7 +2855,7 @@ static struct for_each_entry *for_each_list = 0;
 static int for_each_handling(int loopid, char *varname, char *delim, char *list)
 {
 	struct for_each_entry *fe;
-	char * new;
+	char * _new;
 	char saved;
 	if (!for_each_list) {
 		int size = FOR_EACH_DEPTH * sizeof(struct for_each_entry);
@@ -3192,13 +2890,13 @@ static int for_each_handling(int loopid, char *varname, char *delim, char *list)
 		fe->list = 0;
 		return (0);
 	}
-	new = strpbrk(fe->ptr, delim);
-	if (!new) new = strchr(fe->ptr,0);
-	saved = *new;
-	*new = 0;
+	_new = strpbrk(fe->ptr, delim);
+	if (!_new) _new = strchr(fe->ptr,0);
+	saved = *_new;
+	*_new = 0;
 	setenv(varname,fe->ptr,1);
-	if (saved) new++;
-	fe->ptr = new;
+	if (saved) _new++;
+	fe->ptr = _new;
 	return (1);
 }
 
@@ -3230,7 +2928,7 @@ static void keyb_mod(int wich, t_keysym keynum, int unicode)
 {
 	static t_keysym *table = 0;
 	static int count = 0;
-	
+
 	if (wich == ' ') {
 		switch (keynum & 0xFF00) {
 		case 0x000: wich = ' '; break;
@@ -3296,11 +2994,11 @@ static void keyb_mod(int wich, t_keysym keynum, int unicode)
 }
 
 
-static char *get_key_name(t_keysym key)
+static const char *get_key_name(t_keysym key)
 {
 	struct key_names {
 		t_keysym key;
-		char *name;
+		const char *name;
 	};
 	static struct key_names names[] =
 	{
@@ -3330,7 +3028,8 @@ static void dump_keytable_part(FILE *f, t_keysym *map, int size)
 {
   int i, in_string=0;
   t_keysym c;
-  char *cc, comma=' ', buf[16];
+  const char *cc; 
+  char comma=' ', buf[16];
 
   /* Note: This code assumes every font is a superset of ascii */
   if (!map) {
@@ -3398,55 +3097,3 @@ void dump_keytable(FILE *f, struct keytable_entry *kt)
     dump_keytable_part(f, kt->ctrl_alt_map, kt->sizemap);
     fprintf(f, "}\n\n\n");
 }
-
-
-
-	/* charset */
-static struct char_set *get_charset(char *name)
-{
-	struct char_set *charset;
-
-	charset = lookup_charset(name);
-	if (!charset) {
-		yyerror("Can't find charset %s", name);
-	}
-	return charset;
-
-}
-
-static void set_external_charset(char *charset_name)
-{
-	struct char_set *charset;
-	charset = get_charset(charset_name);
-	charset = get_terminal_charset(charset);
-	if (charset) {
-		if (!trconfig.output_charset) {
-			trconfig.output_charset = charset;
-		}
-		if (!trconfig.keyb_charset) {
-			trconfig.keyb_charset = charset;
-		}
-	}
-	return;
-}
-
-static void set_internal_charset(char *charset_name)
-{
-	struct char_set *charset_video, *charset_config;
-	charset_video = get_charset(charset_name);
-	if (!is_display_charset(charset_video)) {
-		yyerror("%s not suitable as an internal charset", charset_name);
-	}
-	charset_config = get_terminal_charset(charset_video);
-	if (charset_video && !trconfig.video_mem_charset) {
-		trconfig.video_mem_charset = charset_video;
-	}
-	if (charset_config && !trconfig.keyb_config_charset) {
-		trconfig.keyb_config_charset = charset_config;
-	}
-	if (charset_config && !trconfig.dos_charset) {
-		trconfig.dos_charset = charset_config;
-	}
-	return;
-}
-

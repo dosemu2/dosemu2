@@ -9,11 +9,9 @@ ifdef USE_SVGALIB
 VCFILES = svgalib.c
 endif
 
-ASOBJS  = vesabios_pm.o vesabios.o
-
-CFILES = miscemu.c $(ASOBJS) \
-         vgaemu.c vesa.c dacemu.c attremu.c seqemu.c crtcemu.c gfxemu.c \
-         hercemu.c vgafonts.c
+SFILES  = vesabios_pm.S vesabios.S
+CFILES = miscemu.c vgaemu.c vesa.c dacemu.c attremu.c seqemu.c crtcemu.c \
+         gfxemu.c hercemu.c vgafonts.c
 
 all: lib
 

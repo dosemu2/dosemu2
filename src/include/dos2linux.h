@@ -18,6 +18,23 @@ struct MCB {
 	char name[8];			/* 8 */
 } __attribute__((packed));
 
+struct DSCB {
+  char stype;           /* 0 (subsegment type)
+                          'D'  device driver
+                          'E'  device driver appendage
+                          'I'  Installable File System driver
+                          'F'  FILES= control block storage area (for FILES>5)
+                          'X'  FCBS= control block storage area, if present
+                          'C'  BUFFERS EMS workspace area if BUFFERS /X is used
+                          'B'  BUFFERS= storage area
+                          'L'  LASTDRIVE= current directory structure array
+                          'S'  STACKS= code/data area, if present (see below) */
+  uint16_t start;       /* 1 (segment) */
+  uint16_t size;        /* 3 (paragraphs) */
+  char padding[3];      /* 5 */
+  char fname[8];        /* 8 (types "D" and "I" filename of driver) */
+} __attribute__((packed));
+
 struct PSP {
 	unsigned short	opint20;	/* 0x00 */
 	unsigned short	memend_frame;	/* 0x02 */
@@ -38,28 +55,99 @@ struct PSP {
 	unsigned char	FCB1[0x6c-0x5c];	/* 0x5c */
 	unsigned char	FCB2[0x80-0x6c];	/* 0x6c */
 	unsigned char	cmdline_len;		/* 0x80 */
-	unsigned char	cmdline[0x100-0x81];	/* 0x81 */
+	char		cmdline[0x100-0x81];	/* 0x81 */
+} __attribute__((packed));
+
+struct DDH {
+  FAR_PTR next;
+  uint16_t attr;
+  uint16_t strat;
+  uint16_t intr;
+  char name[8];
+} __attribute__((packed));
+
+struct DDRH {
+  uint8_t length;
+  uint8_t unit;
+  uint8_t command;
+  uint16_t status;
+  uint8_t reserved[8];
+
+  // RH 6, 7, 10, 11, 13, 14, 15  (inputstatus, inputflush, outputstatus,
+  //                               outputflush, open, close, removable)
+  // have no unique portions, the variables above fully describe them
+
+  union {
+    struct { // RH 0
+      uint8_t nunits;
+      FAR_PTR brk;
+      union {
+        FAR_PTR cmdline;
+        FAR_PTR bpb;
+      };
+      uint8_t first_drv;
+    } __attribute__((packed)) init;
+
+    struct { // RH 1
+      uint8_t id;
+      int8_t status;
+    } __attribute__((packed)) media_check;
+
+    struct { // RH 2
+      uint8_t id;
+      FAR_PTR buf;
+      FAR_PTR bpb;
+    } __attribute__((packed)) get_bpb;
+
+    struct { // RH 3, 4, 8, 9, 12
+        /* ioctlread, read, write, write_verify, ioctlwrite */
+      uint8_t id;
+      FAR_PTR buf;
+      uint16_t count;
+      uint16_t start;
+      FAR_PTR volumeid; // not ioctlread
+    } __attribute__((packed)) io;
+
+    struct { // RH 5
+      uint8_t retval;
+    } __attribute__((packed)) nd_input;
+
+  };
 } __attribute__((packed));
 
 struct DPB {
-	unsigned char drv_num;
-	unsigned char unit_num;
-	unsigned short bytes_per_sect;
-	unsigned char last_sec_in_clust;
-	unsigned char sec_shift;
-	unsigned short reserv_secs;
-	unsigned char num_fats;
-	unsigned short root_ents;
-	unsigned short data_start;
-	unsigned short max_clu;
-	unsigned short sects_per_fat;
-	unsigned short first_dir_off;
-	far_t ddh_ptr;
-	unsigned char media_id;
-	unsigned char accessed;
-	far_t next_DPB;
-	unsigned short first_free_clu;
-	unsigned short fre_clusts;
+  uint8_t drv_num;
+  uint8_t unit_num;
+  uint16_t bytes_per_sect;
+  uint8_t last_sec_in_clust;
+  uint8_t sec_shift;
+  uint16_t reserv_secs;
+  uint8_t num_fats;
+  uint16_t root_ents;
+  uint16_t data_start;
+  uint16_t max_clu;
+  union {
+    struct {
+      uint8_t sects_per_fat;
+      uint16_t first_dir_off;
+      far_t ddh_ptr;
+      uint8_t media_id;
+      uint8_t accessed;
+      far_t next_DPB;
+      uint16_t first_free_clu;
+      uint16_t fre_clusts;
+    } __attribute__((packed)) v3;
+    struct {
+      uint16_t sects_per_fat;
+      uint16_t first_dir_off;
+      far_t ddh_ptr;
+      uint8_t media_id;
+      uint8_t accessed;
+      far_t next_DPB;
+      uint16_t first_free_clu;
+      uint16_t fre_clusts;
+    } __attribute__((packed)) v4;
+  };
 } __attribute__((packed));
 
 struct DINFO {
@@ -119,27 +207,6 @@ typedef u_char *sft_t;
 #define	sft_fd(sft)		(*(u_char *)&sft[sft_fd_off])
 
 typedef u_char *cds_t;
-extern cds_t cds_base;
-extern cds_t cds;
-extern int cds_current_path_off;
-extern int cds_rootlen_off;
-extern int cds_record_size;
-
-
-#define	cds_current_path(cds)	((char	   *)&cds[cds_current_path_off])
-#define	cds_flags(cds)		(*(u_short *)&cds[cds_flags_off])
-#define cds_DBP_pointer(cds)	(*(far_t *)&cds[cds_DBP_pointer_off])
-#define cds_cur_cluster(cds)	(*(u_short *)&cds[cds_cur_cluster_off])
-#define	cds_rootlen(cds)	(*(u_short *)&cds[cds_rootlen_off])
-#define drive_cds(dd) ((cds_t)(((char *)cds_base)+(cds_record_size*(dd))))
-
-#define CDS_FLAG_NOTNET 0x0080
-#define CDS_FLAG_SUBST  0x1000
-#define CDS_FLAG_JOIN   0x2000
-#define CDS_FLAG_READY  0x4000
-#define CDS_FLAG_REMOTE 0x8000
-
-#define CDS_DEFAULT_ROOT_LEN	2
 
 typedef u_char *sda_t;
 extern sda_t sda;
@@ -207,13 +274,6 @@ extern int sft_name_off;
 extern int sft_ext_off;
 extern int sft_record_size;
 
-extern int cds_record_size;
-extern int cds_current_path_off;
-extern int cds_flags_off;
-extern int cds_DBP_pointer_off;
-extern int cds_cur_cluster_off;
-extern int cds_rootlen_off;
-
 extern int sda_current_dta_off;
 extern int sda_cur_psp_off;
 extern int sda_cur_drive_off;
@@ -244,23 +304,44 @@ extern lol_t lol;
 extern int lol_nuldev_off;
 
 extern int com_errno;
-extern int unix_e_welcome;
+
+extern far_t get_nuldev(void);
 
 extern char *misc_e6_options (void);
 extern void misc_e6_store_options(char *str);
 
-extern int find_drive (char **linux_path_resolved);
-extern int find_free_drive(void);
-
-extern int run_unix_command (char *buffer);
+int run_unix_command(int argc, char **argv);
+int run_unix_secure(char *prg);
 extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
 
 void show_welcome_screen(void);
-void memcpy_2unix(void *dest, unsigned src, size_t n);
-void memcpy_2dos(unsigned dest, const void *src, size_t n);
-void memmove_dos2dos(unsigned dest, unsigned src, size_t n);
-void memcpy_dos2dos(unsigned dest, unsigned src, size_t n);
 
+typedef void (*sim_pagefault_handler_t)(dosaddr_t, int, uint32_t op, int);
+void default_sim_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len);
+void invalidate_unprotected_page_cache(dosaddr_t addr, int len);
+uint8_t read_byte(dosaddr_t addr);
+uint16_t read_word(dosaddr_t addr);
+uint32_t read_dword(dosaddr_t addr);
+uint64_t read_qword(dosaddr_t addr);
+void write_byte(dosaddr_t addr, uint8_t byte);
+void write_word(dosaddr_t addr, uint16_t word);
+void write_dword(dosaddr_t addr, uint32_t dword);
+void write_qword(dosaddr_t addr, uint64_t qword);
+
+uint8_t do_read_byte(dosaddr_t addr, sim_pagefault_handler_t handler);
+uint16_t do_read_word(dosaddr_t addr, sim_pagefault_handler_t handler);
+uint32_t do_read_dword(dosaddr_t addr, sim_pagefault_handler_t handler);
+uint64_t do_read_qword(dosaddr_t addr, sim_pagefault_handler_t handler);
+void do_write_byte(dosaddr_t addr, uint8_t byte, sim_pagefault_handler_t handler);
+void do_write_word(dosaddr_t addr, uint16_t word, sim_pagefault_handler_t handler);
+void do_write_dword(dosaddr_t addr, uint32_t dword, sim_pagefault_handler_t handler);
+void do_write_qword(dosaddr_t addr, uint64_t qword, sim_pagefault_handler_t handler);
+
+void memcpy_2unix(void *dest, dosaddr_t src, size_t n);
+void memcpy_2dos(dosaddr_t dest, const void *src, size_t n);
+void memmove_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n);
+void memcpy_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n);
+void memset_dos(dosaddr_t dest, char ch, size_t n);
 
 int unix_read(int fd, void *data, int cnt);
 int dos_read(int fd, unsigned data, int cnt);
@@ -268,30 +349,28 @@ int unix_write(int fd, const void *data, int cnt);
 int dos_write(int fd, unsigned data, int cnt);
 int com_vsprintf(char *str, const char *format, va_list ap);
 int com_vsnprintf(char *str, size_t size, const char *format, va_list ap);
-int com_sprintf(char *str, char *format, ...) FORMAT(printf, 2, 3);
-int com_vfprintf(int dosfilefd, char *format, va_list ap);
-int com_vprintf(char *format, va_list ap);
-int com_fprintf(int dosfilefd, char *format, ...) FORMAT(printf, 2, 3);
-int com_printf(char *format, ...) FORMAT(printf, 1, 2);
-int com_puts(char *s);
+int com_sprintf(char *str, const char *format, ...) FORMAT(printf, 2, 3);
+int com_vfprintf(int dosfilefd, const char *format, va_list ap);
+int com_vprintf(const char *format, va_list ap);
+int com_fprintf(int dosfilefd, const char *format, ...) FORMAT(printf, 2, 3);
+int com_printf(const char *format, ...) FORMAT(printf, 1, 2);
+int com_puts(const char *s);
 char *skip_white_and_delim(char *s, int delim);
-void pre_msdos(void);
+#define pre_msdos() do { struct vm86_regs _saved_regs = REGS;
+#define _post_msdos() REGS = _saved_regs
+#define post_msdos() REGS = _saved_regs; } while(0)
 void call_msdos(void);
-void post_msdos(void);
 int com_doswrite(int dosfilefd, char *buf32, u_short size);
 int com_dosread(int dosfilefd, char *buf32, u_short size);
 int com_dosreadcon(char *buf32, u_short size);
-int com_doswritecon(char *buf32, u_short size);
-int com_dosprint(char *buf32);
+int com_doswritecon(const char *buf32, u_short size);
+int com_dosprint(const char *buf32);
+int com_dosopen(const char *name, int flags);
+int com_dosclose(int fd);
 int com_biosgetch(void);
 int com_bioscheckkey(void);
 int com_biosread(char *buf32, u_short size);
 int com_setcbreak(int on);
-
-static inline u_short dos_get_psp(void)
-{
-  return sda_cur_psp(sda);
-}
 
 void init_all_DOS_tables(void);
 extern unsigned char upperDOS_table[0x100];

@@ -1,5 +1,5 @@
 #keytable cz-qwertz
-keytable keyb-user {
+keytable "keyb-user" {
   0=
      0,27,"+",216,231,159,253,167,236,160,161,130,"=",dacute,127,9,
      "qwertzuiop",163,")",13,0,"as",

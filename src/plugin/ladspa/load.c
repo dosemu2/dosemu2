@@ -78,8 +78,10 @@ dlopenLADSPA (const char *pcFilename, int iFlag)
         pvResult = dlopen (pcBuffer, iFlag);
 
         free (pcBuffer);
-        if (pvResult != NULL)
+        if (pvResult != NULL) {
+          free(pcLADSPAPath);
           return pvResult;
+        }
 
         pcStart = pcEnd;
         if (*pcStart == ':')
@@ -124,12 +126,13 @@ loadLADSPAPluginLibrary (const char *pcPluginFilename)
   void *pvPluginHandle;
 
   pvPluginHandle = dlopenLADSPA (pcPluginFilename, RTLD_NOW);
+#if 0
   if (!pvPluginHandle) {
     fprintf (stderr,
         "Failed to load plugin \"%s\": %s\n", pcPluginFilename, dlerror ());
-//    exit (1);
+    exit (1);
   }
-
+#endif
   return pvPluginHandle;
 }
 

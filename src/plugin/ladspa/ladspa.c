@@ -276,18 +276,34 @@ static int ladspa_process(int h, sndbuf_t buf[][SNDBUF_CHANS],
     return nframes;
 }
 
-static struct pcm_efp ladspa = {
+static struct pcm_efp ladspa
+#ifdef __cplusplus
+{
+    ladspa_name,
+    ladspa_longname,
+    ladspa_cfg,
+    ladspa_open,
+    ladspa_close,
+    ladspa_start,
+    ladspa_stop,
+    ladspa_setup,
+    ladspa_process,
+    PCM_F_PASSTHRU | PCM_F_EXPLICIT,
+};
+#else
+= {
     .name = ladspa_name,
     .longname = ladspa_longname,
+    .get_cfg = ladspa_cfg,
     .open = ladspa_open,
     .close = ladspa_close,
     .start = ladspa_start,
     .stop = ladspa_stop,
     .setup = ladspa_setup,
-    .get_cfg = ladspa_cfg,
     .process = ladspa_process,
     .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
+#endif
 
 CONSTRUCTOR(static void ladspa_init(void))
 {

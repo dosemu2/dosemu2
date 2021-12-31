@@ -22,8 +22,9 @@
 #include <errno.h>
 #include <string.h>
 #include <pwd.h>
+#if 0
 #include <linux/serial.h>
-
+#endif
 #include "emu.h"
 #include "dosemu_config.h"
 #include "ser_defs.h"
@@ -266,7 +267,7 @@ static int tty_already_locked(char *nam)
   FILE *fd = (FILE *)0;
 
   /* Does the lock file on our device exist? */
-  if ((fd = fopen(nam, "r")) == (FILE *)0)
+  if ((fd = fopen(nam, "re")) == (FILE *)0)
     return 0; /* No, return perm to continue */
 
   /* Yes, the lock is there.  Now let's make sure at least */
@@ -295,14 +296,14 @@ static int tty_already_locked(char *nam)
  *   mode: 1 = lock, 2 = reaquire lock, anythingelse = unlock,
  *   return = zero if success, greater than zero for failure]
  */
-static int tty_lock(char *path, int mode)
+static int tty_lock(const char *path, int mode)
 {
   char saved_path[strlen(config.tty_lockdir) + 1 +
                   strlen(config.tty_lockfile) +
                   strlen(path) + 1];
   struct passwd *pw;
   pid_t ime;
-  char *slash;
+  const char *slash;
 
   if (path == NULL) return(0);        /* standard input */
   slash = strrchr(path, '/');
@@ -322,7 +323,7 @@ static int tty_lock(char *path, int mode)
         return (-1);
       }
       unlink(saved_path);	/* kill stale lockfiles, if any */
-      fd = fopen(saved_path, "w");
+      fd = fopen(saved_path, "we");
       if (fd == (FILE *)0) {
         error("tty: lock: (%s): %s\n", saved_path, strerror(errno));
         return(-1);
@@ -349,7 +350,7 @@ static int tty_lock(char *path, int mode)
   else if (mode == 2) { /* re-acquire a lock after a fork() */
     FILE *fd;
 
-     fd = fopen(saved_path,"w");
+     fd = fopen(saved_path,"we");
      if (fd == (FILE *)0) {
       error("tty_lock: reacquire (%s): %s\n",
               saved_path, strerror(errno));
@@ -370,7 +371,7 @@ static int tty_lock(char *path, int mode)
     FILE *fd;
     int retval;
 
-    fd = fopen(saved_path,"w");
+    fd = fopen(saved_path,"we");
     if (fd == (FILE *)0) {
       error("tty_lock: can't reopen %s to delete: %s\n",
              saved_path, strerror(errno));
@@ -381,7 +382,8 @@ static int tty_lock(char *path, int mode)
     if (retval < 0) {
       error("tty: unlock: (%s): %s\n", saved_path,
              strerror(errno));
-      return(-1);
+      fclose(fd);
+      return -1;
     }
   }
   return(0);
@@ -533,7 +535,7 @@ static int ser_open_existing(com_t *com)
   if (!com->is_file) {
     RPT_SYSCALL(tcgetattr(com->fd, &com->oldset));
     RPT_SYSCALL(tcgetattr(com->fd, &com->newset));
-
+#if 0
     if (com->cfg->low_latency) {
       struct serial_struct ser_info;
       int err = ioctl(com->fd, TIOCGSERIAL, &ser_info);
@@ -550,6 +552,7 @@ static int ser_open_existing(com_t *com)
           s_printf("SER%d: low_latency flag set\n", com->num);
       }
     }
+#endif
     ser_set_params(com);
   }
   if (io_sel)
@@ -572,7 +575,7 @@ static int tty_open(com_t *com)
   if (com->fd != -1)
     return (com->fd);
 
-  if (com->cfg->virtual)
+  if (com->cfg->virt)
   {
     /* don't try to remove any lock: they don't make sense for ttyname(0) */
     s_printf("Opening Virtual Port\n");
@@ -603,8 +606,10 @@ static int tty_open(com_t *com)
       goto fail_unlock;
   } else {
     com->fd = open(com->cfg->dev, O_WRONLY | O_CREAT | O_EXCL, 0666);
-    if (com->fd == -1)
+    if (com->fd == -1) {
+      error("SER%i: unable to open or create %s\n", com->num, com->cfg->dev);
       goto fail_unlock;
+    }
   }
 
   modstat_engine(com->num);

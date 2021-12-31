@@ -12,9 +12,11 @@
  */
 
 enum {
+	VNET_TYPE_NONE,
 	VNET_TYPE_AUTO,
 	VNET_TYPE_ETH,
 	VNET_TYPE_TAP,
+	VNET_TYPE_SLIRP,
 	VNET_TYPE_VDE,
 	VNET_TYPE_MAX,
 };
@@ -90,7 +92,7 @@ extern void pkt_term (void);
 
 struct pkt_ops {
     int id;
-    int (*open)(char *name);
+    int (*open)(const char *name, void (*cbk)(int, int));
     void (*close)(int);
     int (*get_hw_addr)(unsigned char *addr);
     int (*get_MTU)(void);
@@ -105,7 +107,5 @@ extern void pkt_get_fake_mac(unsigned char *addr);
 void pkt_set_flags(int flags);
 void pkt_clear_flags(int flags);
 int pkt_get_flags(void);
-
-extern unsigned short receive_mode;
 
 #endif				/* PKTDRVR_H */

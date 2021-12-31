@@ -46,7 +46,7 @@ typedef struct RemapFuncDescStruct {
   unsigned src_mode;
   unsigned dst_mode;
   void (*func)(struct RemapObjectStruct *);
-  char *func_name;
+  const char *func_name;
   void (*func_init)(struct RemapObjectStruct *);
   struct RemapFuncDescStruct *next;
 } RemapFuncDesc;
@@ -80,7 +80,7 @@ typedef struct RemapObjectStruct {
   int supported_src_modes;
   void (*remap_func)(struct RemapObjectStruct *);
   unsigned remap_func_flags;
-  char *remap_func_name;
+  const char *remap_func_name;
   void (*remap_func_init)(struct RemapObjectStruct *);
   void (*remap_line)(void);
   RemapFuncDesc *func_all;

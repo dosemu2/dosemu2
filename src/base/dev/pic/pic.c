@@ -123,7 +123,7 @@
 
 #include <stdio.h>
 #include <inttypes.h>
-#include "config.h"
+
 #include "port.h"
 #include "hlt.h"
 #include "bitops.h"
@@ -134,7 +134,7 @@
 #include "emu.h"
 #include "timers.h"
 #include "iodev.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "serial.h"
 #include "int.h"
 #include "ipx.h"
@@ -143,6 +143,8 @@
 #undef us
 #define us unsigned
 static void pic_activate(void);
+
+#define TIMER0_FLOOD_THRESHOLD 50000
 
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
 static unsigned long pic_irq2_ivec = 0;
@@ -169,7 +171,8 @@ hitimer_t pic_sys_time;     /* system time set by pic_watch */
 /* PIC "registers", plus a few more */
 
 static unsigned long pic_irr;          /* interrupt request register */
-static unsigned long pic_isr;          /* interrupt in-service register */
+static unsigned long pic0_isr;          /* interrupt in-service register */
+#define pic_isr (pic0_isr | pic1_isr)
 static unsigned int pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
 static unsigned long pic_irqall = 0xfffe;       /* bits for all IRQs set. */
 
@@ -239,8 +242,8 @@ static int pic_get_ilevel(void);
 #define set_pic1_imr(x) pic1_imr=(((long)x)<<3);pic_set_mask
 #define get_pic0_imr()  emu_to_pic0(pic0_imr)
 #define get_pic1_imr()  (pic1_imr>>3)
-#define get_pic0_isr()  emu_to_pic0(pic_isr)
-#define get_pic1_isr()  (pic_isr>>3)
+#define get_pic0_isr()  emu_to_pic0(pic0_isr)
+#define get_pic1_isr()  (pic1_isr>>3)
 #define get_pic0_irr()  emu_to_pic0(pic_irr)
 #define get_pic1_irr()  (pic_irr>>3)
 
@@ -253,6 +256,8 @@ static unsigned char pic0_icw_state; /* 0-3=>next port 1 write= mask,ICW2,3,4 */
 static unsigned char pic1_icw_state;
 static unsigned char pic0_cmd; /* 0-3=>last port 0 write was none,ICW1,OCW2,3*/
 static unsigned char pic1_cmd;
+
+//static int pic_pending_masked(uint8_t mask);
 
 /* DANG_BEGIN_FUNCTION pic_print
  *
@@ -291,29 +296,59 @@ static unsigned char pic1_cmd;
 		log_printf(1, "PIC: %s%"PRIu64"%s\n", s1, v1, s2); \
 	}
 
-static void p_pic_print(char *s1, int v1, char *s2)
+static void p_pic_print(const char *s1, int v1, const char *s2)
 {
-  static int oldi=0, header_count=0;
-  int pic_ilevel=find_bit(pic_isr);
+  static int oldi = 0, header_count = 0;
+  int pic_ilevel = find_bit(pic_isr);
   char ci;
 
-  if (pic_ilevel > oldi) ci='+';
-  else if(pic_ilevel < oldi) ci='-';
-  else ci=' ';
+  if (pic_ilevel > oldi)
+    ci = '+';
+  else if (pic_ilevel < oldi)
+    ci = '-';
+  else
+    ci = ' ';
   oldi = pic_ilevel;
   if (!header_count++)
     log_printf(1, "PIC: cnt lvl pic_isr  pic_imr  pic_irr (column headers)\n");
-  if(header_count>15) header_count=0;
+  if (header_count > 15)
+    header_count = 0;
 
-  if(s2)
-  log_printf(1, "PIC: %c%2d %08lx %08lx %08lx %s%02d%s\n",
-     ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1, v1, s2);
+  if (s2)
+    log_printf(1, "PIC: %c%2d %08lx %08lx %08lx %s%02d%s\n",
+                   ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1, v1, s2);
   else
-  log_printf(1, "PIC: %c%2d %08lx %08lx %08lx %s\n",
-     ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1);
-
+    log_printf(1, "PIC: %c%2d %08lx %08lx %08lx %s\n",
+                   ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1);
 }
 #endif
+
+static int emu_to_pic0(int flags)
+{
+    /*
+     * This function takes the pic0 bits from the overall pic bit field
+     * and concatenates them into a single byte.
+     */
+
+    /* move bits 7654 3xxx xxxx 210x to xxxx xxxx 7654 3210          */
+    /* where 76543210 are final 8 bits and x = don't care            */
+    int pic1 = ((flags & 0b11111111000) ? 4 : 0);
+    return (((flags >> 1) & 3) | pic1 | (flags >> 8));
+}
+
+static int pic0_to_emu(char flags)
+{
+    /* This function maps pic0 bits to their positions in priority order */
+    /*
+     * It makes room for the pic1 bits in between.
+     */
+
+    /* move bits xxxx xxxx 7654 3210 to 7654 3222 2222 210o             */
+    /* where 76543210 are original 8 bits, x = don't care, and o = zero */
+    /* bit 2 (cascade int) is used to mask/unmask pic1 (Larry)          */
+    int pic1 = ((flags & 4) ? 0b11111111000 : 0);
+    return (((flags & 0xf8) << 8) | pic1 | ((flags & 3) << 1));
+}
 
 static void set_pic0_base(unsigned char int_num)
 {
@@ -397,9 +432,7 @@ if(!port){                          /* icw1, ocw2, ocw3 */
     pic0_cmd=3;
     }
   else if((value&0xb8) == 0x20) {    /* ocw2 */
-    /* irqs on pic1 require an outb20 to each pic. we settle for any 2 */
-     if(!clear_bit(ilevel,&pic1_isr)) {
-       clear_bit(ilevel,&pic_isr);  /* the famous outb20 */
+       clear_bit(ilevel,&pic0_isr);  /* the famous outb20 */
        pic_print(1,"EOI resetting bit ",ilevel, " on pic0");
 #if 1
 	/* XXX hack: to avoid timer interrupt re-entrancy,
@@ -413,9 +446,6 @@ if(!port){                          /* icw1, ocw2, ocw3 */
          clear_IF_timed();
        }
 #endif
-       }
-     else
-       pic_print(1,"EOI resetting bit ",ilevel, " on pic1");
      pic0_cmd=2;
       }
    }
@@ -427,6 +457,7 @@ else                              /* icw2, icw3, icw4, or mask register */
        break;
      case 1:                        /* icw2          */
        set_pic0_base(value);
+       /* Fall through */
      default:                       /* icw2, 3, and 4*/
        if(pic0_icw_state++ >= icw_max_state) pic0_icw_state=0;
   }
@@ -467,13 +498,8 @@ if(!port){                            /* icw1, ocw2, ocw3 */
     pic1_cmd=3;
     }
   else if((value&0xb8) == 0x20) {    /* ocw2 */
-    /* irqs on pic1 require an outb20 to each pic. we settle for any 2 */
-     if(!clear_bit(ilevel,&pic1_isr)) {
-       clear_bit(ilevel,&pic_isr);  /* the famous outb20 */
-       pic_print(1,"EOI resetting bit ",ilevel, " on pic0");
-       }
-     else
-       pic_print(1,"EOI resetting bit ",ilevel, " on pic1");
+     clear_bit(ilevel,&pic1_isr);
+     pic_print(1,"EOI resetting bit ",ilevel, " on pic1");
      pic0_cmd=2;
      }
   }
@@ -485,6 +511,7 @@ else                         /* icw2, icw3, icw4, or mask register */
        break;
      case 1:                    /* icw 2         */
        set_pic1_base(value);
+       /* Fall through */
      default:                   /* icw 2,3 and 4 */
        if(pic1_icw_state++ >= icw_max_state) pic1_icw_state=0;
   }
@@ -559,6 +586,12 @@ void pic_seti(unsigned int level, int (*func)(int), unsigned int ivec,
   if(level>15) pic_iinfo[level].ivec = ivec;
 }
 
+static int pic_isset_IF(void)
+{
+    if (in_dpmi_pm())
+        return dpmi_isset_IF();
+    return isset_IF();
+}
 
 void run_irqs(void)
 /* find the highest priority unmasked requested irq and run it */
@@ -567,10 +600,26 @@ void run_irqs(void)
 
        /* don't allow HW interrupts in force trace mode */
        pic_activate();
-       if (!isset_IF()) {
-		if (pic_pending())
+       if (!pic_isset_IF()) {
+	    if (pic_pending()) {
+#if 0
+		/* try to detect timer flood, and not set VIP if it is there.
+		 * See https://github.com/stsp/dosemu2/issues/918
+		 */
+		if (pic_sys_time < pic_dos_time +
+				TIMER0_FLOOD_THRESHOLD ||
+				pic_pending_masked(1 << PIC_IRQ0))
 			set_VIP();
-		return;                      /* exit if ints are disabled */
+		else
+			r_printf("PIC: timer flood work-around\n");
+#else
+		/* the above work-around regresses goblins2, see
+		 * https://github.com/dosemu2/dosemu2/issues/1300
+		 */
+		set_VIP();
+#endif
+	    }
+	    return;                      /* exit if ints are disabled */
        }
        clear_VIP();
 
@@ -581,7 +630,7 @@ void run_irqs(void)
         * irq code actually runs, will reset the bits.  We also reset them here,
         * since dos code won't necessarily run.
         */
-       while((local_pic_ilevel = pic_get_ilevel()) != -1) { /* while something to do*/
+       if((local_pic_ilevel = pic_get_ilevel()) != -1) { /* if something to do*/
                pic_print(1, "Running irq lvl ", local_pic_ilevel, "");
                clear_bit(local_pic_ilevel, &pic_irr);
 	       /* pic_isr bit is set in do_irq() */
@@ -589,6 +638,12 @@ void run_irqs(void)
 	    	      pic_iinfo[local_pic_ilevel].func(local_pic_ilevel) : 1);      /* run the function */
 	       if (ret) {
 		       do_irq(local_pic_ilevel);
+		       if (pic_pending())
+			       /* If special mask mode is active, multiple IRQs
+			          can be pending. In that cases we need to
+			          return from dos code asap when it enables
+				  interrupts to schedule the next interrupt. */
+			       set_VIP();
 	       }
        }
 }
@@ -625,15 +680,18 @@ static void do_irq(int ilevel)
 {
     int intr;
 
-    set_bit(ilevel, &pic_isr);     /* set in-service bit */
+    set_bit(ilevel, &pic0_isr);     /* set in-service bit */
     set_bit(ilevel, &pic1_isr);    /* pic1 too */
-    pic1_isr &= pic_isr & pic1_mask;         /* isolate pic1 irqs */
+    pic1_isr &= pic1_mask;         /* isolate pic1 irqs */
 
     intr=pic_iinfo[ilevel].ivec;
 
-     if (pic_iinfo[ilevel].callback)
-        pic_iinfo[ilevel].callback();
-     else {
+     if (pic_iinfo[ilevel].callback) {
+       if(in_dpmi_pm())
+         fake_pm_int();
+       fake_int_to(BIOSSEG, EOI_OFF);
+       pic_iinfo[ilevel].callback();
+     } else {
        if (dpmi_active()) run_pm_int(intr);
        else {
  /* schedule the requested interrupt, then enter the vm86() loop */
@@ -756,17 +814,24 @@ void pic_watch(hitimer_u *s_time)
   pic_activate();
 }
 
-static int pic_get_ilevel(void)
+static int pic_get_ilevel_masked(uint8_t mask)
 {
     int local_pic_ilevel, old_ilevel;
-    int int_req = (pic_irr & ~(pic_isr | pic_imr));
+    int int_req = (pic_irr & ~(pic_isr | pic_imr | mask));
     if (!int_req)
 	return -1;
     local_pic_ilevel = find_bit(int_req);    /* find out what it is  */
     old_ilevel = find_bit(pic_isr);
+    /* note that this priority check is a no-op if special mask mode
+       is active (ie. pic_smm == 32, and local_pic_level is always <= 31) */
     if (local_pic_ilevel >= old_ilevel + pic_smm)  /* priority check */
 	return -1;
     return local_pic_ilevel;
+}
+
+static int pic_get_ilevel(void)
+{
+    return pic_get_ilevel_masked(0);
 }
 
 int pic_pending(void)
@@ -774,9 +839,17 @@ int pic_pending(void)
     return (pic_get_ilevel() != -1);
 }
 
+#if 0
+int pic_pending_masked(uint8_t mask)
+{
+    return (pic_get_ilevel_masked(mask) != -1);
+}
+#endif
+
 int pic_irq_active(int num)
 {
-    return test_bit(num, &pic_isr);
+    unsigned isr = pic_isr;
+    return test_bit(num, &isr);
 }
 
 int pic_irq_masked(int num)
@@ -795,7 +868,11 @@ static void pic_activate(void)
 {
   hitimer_t earliest;
   int timer, count;
-  unsigned pic_newirr = pic_pirr & ~(pic_irr | pic_isr);
+  unsigned pic_newirr;
+
+  if (pic_pending())
+    return;
+  pic_newirr = pic_pirr & ~(pic_irr | pic_isr);
   pic_irr |= pic_newirr;
   pic_pirr &= ~pic_newirr;
 
@@ -815,7 +892,9 @@ static void pic_activate(void)
    if(count) pic_print(2,"Activated ",count, " interrupts.");
    pic_print2(2,"Activate ++ dos time to ",earliest, " ");
    pic_print2(2,"pic_sys_time is ",pic_sys_time," ");
-   /*if(!pic_icount)*/ pic_dos_time = pic_itime[32] = earliest;
+   pic_itime[32] = earliest;
+   if (count)
+      pic_dos_time = earliest;
 }
 
 /* DANG_BEGIN_FUNCTION pic_sched
@@ -872,10 +951,8 @@ void pic_sched(int ilevel, int interval)
 
 int CAN_SLEEP(void)
 {
-  if (dosemu_frozen)
-    return 1;
   return (!(pic_isr || (REG(eflags) & VIP) || signal_pending() ||
-    (pic_sys_time > pic_dos_time) || in_leavedos));
+    (pic_sys_time > pic_dos_time + TIMER0_FLOOD_THRESHOLD) || in_leavedos));
 }
 
 void pic_init(void)

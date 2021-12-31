@@ -6,11 +6,6 @@ TODO items for the next release:
 - implement parport support via ppdev (steal from wine)
     Unlikely to happen before 2.0 release
 
-- Look into SDL_ttf if it can render the bdf fonts
-    Unlikely to happen before 2.0 release
-
 - look into directfb support
 
 - look into gstreamer support
-
-- implement mouse wheel support (as per ctmouse)

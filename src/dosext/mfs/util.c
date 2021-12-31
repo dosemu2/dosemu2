@@ -1,10 +1,12 @@
-#include "config.h"
-#include "emu.h"
 #include "mangle.h"
 #include "translate/translate.h"
 #include "dos2linux.h"
+#include <ctype.h>
 #include <wctype.h>
 #include <errno.h>
+#include <string.h>
+
+#include "mfs.h"
 
 int case_default=-1;
 BOOL case_mangle=False;
@@ -20,34 +22,6 @@ static void valid_initialise(void)
 
   for (i=0;i<256;i++)
     valid_dos_char[i] = is_valid_DOS_char(i);
-}
-
-/* this is the fast table for single byte DOS character sets,
-   used to avoid expensive translate calls */
-unsigned char unicode_to_dos_table[0x10000];
-static void init_unicode_to_dos_table(void)
-{
-  struct char_set_state dos_state;
-  unsigned char *dest;
-  t_unicode symbol;
-  int result;
-
-  dest = unicode_to_dos_table;
-
-  /* these are either invalid or ascii: no replacement '_' ! */
-  for (symbol = 0; symbol <= 0x7f; symbol++)
-    *dest++ = symbol;
-
-  for (symbol = 0x80; symbol <= 0xffff; symbol++) {
-    init_charset_state(&dos_state, trconfig.dos_charset);
-    result = unicode_to_charset(&dos_state, symbol, dest, 1);
-    if (result == -1 && errno == -E2BIG)
-      error("BUG: Internal multibyte character sets can't happen\n");
-    if (result != 1 || *dest == '?')
-      *dest = '_';
-    cleanup_charset_state(&dos_state);
-    dest++;
-  }
 }
 
 unsigned short dos_to_unicode_table[0x100];
@@ -116,13 +90,14 @@ static void init_upperlowerDOS_table(void)
 void init_all_DOS_tables(void)
 {
   valid_initialise();
-  init_unicode_to_dos_table();
   init_dos_to_unicode_table();
   init_upperlowerDOS_table();
 }
 
 BOOL is_valid_DOS_char(int c)
-{ unsigned char u=(unsigned char)c; /* convert to ascii */
+{
+  unsigned char u=(unsigned char)c; /* convert to ascii */
+  if (!u) return(False); /* strchr() below always returns true for \0 */
   if (u >= 128 || isalnum(u)) return(True);
 
   /* now we add some extra special chars  */
@@ -235,4 +210,17 @@ void array_promote(char *array,int elsize,int element)
   free(p);
 }
 
+int get_drive_from_path(char *path, int *drive)
+{
+  char c;
 
+  if (!path)
+    return 0;
+
+  c = toupper(path[0]);
+  if (c < 'A' || c > 'Z' || path[1] != ':')
+    return 0;
+
+  *drive = c - 'A';
+  return 1;
+}

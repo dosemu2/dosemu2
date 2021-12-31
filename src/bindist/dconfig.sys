@@ -1,0 +1,17 @@
+rem config.sys for DOSEMU + DR/Novell/Open DOS (but not DR-OpenDOS!)
+rem SWITCHES=/F
+lastdrive=Z
+files=40
+stacks=0,0
+buffers=10
+rem below is for DR-DOS
+rem device=d:\dosemu\emufs.sys /ALL
+rem below is for Novell-DOS but works also on DR
+device=d:\dosemu\emufs.sys
+device=d:\dosemu\umb.sys
+rem Reportedly DOS=UMB should be after umb.sys
+DOS=UMB,HIGH
+devicehigh=d:\dosemu\ems.sys
+devicehigh=d:\dosemu\cdrom.sys
+shell=command.com /e:1024 /p:dautoemu.bat
+HISTORY=ON,512,ON

@@ -8,9 +8,6 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 .B \-dumb
 ]
 [
-.B \-quiet
-]
-[
 .B \-input
 .I keystroke-string
 ]
@@ -28,9 +25,6 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 .B xdosemu
 [
 .B \-dumb
-]
-[
-.B \-quiet
 ]
 [
 .B \-input
@@ -73,13 +67,10 @@ plain text output to stdout, but has the advantage that (A) the output of
 the DOS application stacks up in your xterm scroll buffer and (B) you can
 redirect it to a file such as
 .TP
-		$ dosemu \-dumb dir > listing
+		$ dosemu \-dumb \-exec dir > listing
 
 Note that DOSEMU command.com's commandline editor/history will also work
 here, however, editing is restricted to BACKSPACE'ing.
-.TP
-.I -quiet
-do not print startup comment and do not stop for prompting
 .TP
 .I -input
 Do simulated keystrokes as given by
@@ -129,7 +120,7 @@ funny software.
 .SH FILES
 .PD 0
 .TP
-.I $HOME/.dosemurc
+.I $HOME/.dosemu/.dosemurc
 per-user configuration file
 .TP
 .I @sysconfdir@/dosemu.conf

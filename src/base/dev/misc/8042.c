@@ -70,7 +70,8 @@ static inline void keyb_ctrl_clearbuf(void)
 }
 
 /* write byte to the 8042's output buffer */
-void output_byte_8042(Bit8u value) {
+void output_byte_8042(Bit8u value)
+{
    port60_buffer=value;
    port60_ready=1;
    if (keyb_ctrl_command & 0x01) {    /* if interrupt enabled */
@@ -81,8 +82,9 @@ void output_byte_8042(Bit8u value) {
       k_printf("8042: interrupt flag OFF!\n");
 }
 
-static void ack(void) {
-   output_byte_8042(0xfa);
+static void ack(void)
+{
+    write_queue(&keyb_queue, 0xfa);
 }
 
 static void write_port60(Bit8u value)
@@ -97,7 +99,7 @@ static void write_port60(Bit8u value)
 	  break;
         case 0xee:    /* port check */
 	  h_printf("8042: write port 0x60 test mode 0xee\n");
-	  output_byte_8042(0xee);
+	  write_queue(&keyb_queue, 0xee);
 	  break;
 	case 0xf0:    /* set keyb scan byte */
 	  h_printf("8042: write port 0x60 set keyb scan type\n");
@@ -150,7 +152,7 @@ static void write_port60(Bit8u value)
 	  break;
 	case 0xfe:    /* resend */
 	  h_printf("8042: write port 0x60 resend\n");
-	  output_byte_8042(port60_buffer);
+	  write_queue(&keyb_queue, port60_buffer);
 	  break;
 	case 0xff:    /* reset */
 	  h_printf("8042: write port 0x60 reset\n");
@@ -159,7 +161,7 @@ static void write_port60(Bit8u value)
 	  break;
 	default:
 	  h_printf("8042: write port 0x60 unsupported command 0x%02x =>Error\n", value);
-	  output_byte_8042(0xfe);
+	  write_queue(&keyb_queue, 0xfe);
 	  break;
       }
       break;
@@ -201,9 +203,9 @@ static void write_port60(Bit8u value)
       h_printf("8042: write port 0x60 get/set keyboard scan map 0x%02x\n", value);
       ack();
       if (value == 0)
- 	 output_byte_8042(keyb_ctrl_scanmap);
+	  write_queue(&keyb_queue, keyb_ctrl_scanmap);
       else
-         keyb_ctrl_scanmap=value;
+	  keyb_ctrl_scanmap=value;
       wstate=0;
       break;
 

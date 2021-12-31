@@ -1,5 +1,5 @@
 #keytable hu-latin2
-keytable keyb-user {
+keytable "keyb-user" {
   0=
      0,27,"123456789",246,252,243,127,9,
      "qwertzuiop",245,250,13,0,"as",

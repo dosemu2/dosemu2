@@ -6,8 +6,6 @@
 #ifndef EMU_H
 #define EMU_H
 
-#define X86_EMULATOR
-#define USE_MHPDBG
 #include <stdio.h>
 #include <sys/types.h>
 #include "types.h"
@@ -15,6 +13,8 @@
 #include "priv.h"
 #include "mouse.h"
 #include "dosemu_config.h"
+
+extern char * const *dosemu_envp;
 
 struct eflags_fs_gs {
   unsigned long eflags;
@@ -28,11 +28,12 @@ struct eflags_fs_gs {
 extern struct eflags_fs_gs eflags_fs_gs;
 
 int vm86_init(void);
-int vm86_fault(struct sigcontext *scp);
+int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2);
 
 #define BIT(x)  	(1<<x)
 
 #define us unsigned short
+#define CC_SUCCESS			0x00
 
 /*
  * DANG_BEGIN_REMARK
@@ -92,16 +93,19 @@ extern char *cl,		/* clear screen */
 
 /* the fd for the keyboard */
 extern int console_fd;
+extern int no_local_video; /* used by virtual port code */
 /* the file descriptor for /dev/mem mmap'ing */
 extern int mem_fd;
 extern volatile int in_vm86;
+
+extern FILE *real_stderr;
 
 void dos_ctrl_alt_del(void);	/* disabled */
 
 extern void vm86_helper(void);
 extern void loopstep_run_vm86(void);
-extern void do_call_back(Bit16u cs, Bit16u ip);
-extern void do_int_call_back(int intno);
+extern int do_call_back(Bit16u cs, Bit16u ip);
+extern int do_int_call_back(int intno);
 
 void getKeys(void);
 
@@ -146,21 +150,33 @@ typedef struct vesamode_type_struct {
 typedef struct config_info {
        int hdiskboot;
        boolean swap_bootdrv;
+       boolean alt_drv_c;
+       uint8_t drive_c_num;
+       uint32_t drives_mask;
+       int try_freedos;
+       int boot_dos;
 
 #ifdef X86_EMULATOR
-       int cpuemu;
+       #define EMU_V86() (config.cpu_vm == CPUVM_EMU)
+       #define EMU_DPMI() (config.cpu_vm_dpmi == CPUVM_EMU)
+       #define EMU_FULL() (EMU_V86() && EMU_DPMI())
+       #define IS_EMU() (EMU_V86() || EMU_DPMI())
        boolean cpusim;
 #endif
        int cpu_vm;
+       int cpu_vm_dpmi;
        int CPUSpeedInMhz;
        /* for video */
        int console_video;
        int term;
+       char *term_size;
        int dumb_video;
+       int tty_stderr;
        int vga;
        boolean X;
        boolean X_fullscreen;
        boolean sdl;
+       boolean vga_fonts;
        int sdl_sound;
        int libao_sound;
        u_short cardtype;
@@ -195,6 +211,7 @@ typedef struct config_info {
        int     X_pm_interface;		/* support protected mode interface */
        int     X_background_pause;	/* pause xdosemu if it loses focus */
        boolean sdl_hwrend;		/* accelerate SDL with OpenGL */
+       char    *sdl_fonts;		/* TTF font used in SDL2 */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;
@@ -215,7 +232,7 @@ typedef struct config_info {
        char   *vdeswitch;
        char   *slirp_args;
        boolean pktdrv;
-       boolean dosbanner;
+       boolean ne2k;
        boolean emuretrace;
        boolean rdtsc;
        boolean mapped_bios;	/* video BIOS */
@@ -229,13 +246,13 @@ typedef struct config_info {
 
        int  fastfloppy;
        char *emusys;		/* map CONFIG.SYS to CONFIG.EMU */
-       char *install;          /* directory to point ~/.dosemu/drives/c to */
 
        u_short speaker;		/* 0 off, 1 native, 2 emulated */
        u_short fdisks, hdisks;
        u_short num_lpt;
        u_short num_ser;
        mouse_t mouse;
+       int num_serial_mices;
 
        int pktflags;		/* global flags for packet driver */
 
@@ -245,7 +262,8 @@ typedef struct config_info {
 
        int hogthreshold;
 
-       int mem_size, ext_mem, xms_size, ems_size, umb_a0, umb_b0, umb_f0;
+       int mem_size, ext_mem, xms_size, ems_size;
+       int umb_a0, umb_b0, umb_f0;
        unsigned int ems_frame;
        int ems_uma_pages, ems_cnv_pages;
        int dpmi, pm_dos_api, no_null_checks;
@@ -255,21 +273,30 @@ typedef struct config_info {
        int sillyint;            /* IRQ numbers for Silly Interrupt Generator
        				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */
 
+       int layout_auto;
        struct keytable_entry *keytable;
        struct keytable_entry *altkeytable;
+       const char *internal_cset;
+       const char *external_cset;
 
        unsigned short detach;
        char *debugout;
        char *pre_stroke;        /* pointer to keyboard pre strokes */
 
        /* Lock File business */
-       boolean full_file_locks;
+       int file_lock_limit;
        char *tty_lockdir;	/* The Lock directory  */
        char *tty_lockfile;	/* Lock file pretext ie LCK.. */
        boolean tty_lockbinary;	/* Binary lock files ? */
 
        /* LFN support */
        boolean lfn;
+       int int_hooks;
+       int force_revect;
+       int trace_irets;
+       boolean force_redir;
+
+       boolean dos_trace;	/* SWITCHES=/Y */
 
        /* type of mapping driver */
        char *mappingdriver;
@@ -320,16 +347,24 @@ typedef struct config_info {
        int joy_granularity;	/* the higher, the less sensitive - for wobbly joysticks */
        int joy_latency;		/* delay between nonblocking linux joystick reads */
 
+       int mmio_tracing;
+
        int cli_timeout;		/* cli timeout hack */
 
         char *dos_cmd;
         char *unix_path;
-        int cdup;
+        char *dos_path;
+
+        char *unix_exec;
+        char *lredir_paths;
+
+        char *opl2lpt_device;
+        int opl2lpt_type;
 } config_t;
 
 
 enum { SPKR_OFF, SPKR_NATIVE, SPKR_EMULATED };
-enum { CPUVM_VM86, CPUVM_KVM, CPUVM_EMU };
+enum { CPUVM_VM86, CPUVM_KVM, CPUVM_EMU, CPUVM_NATIVE };
 
 /*
  * Right now, dosemu only supports two serial ports.
@@ -351,7 +386,8 @@ extern void cpu_reset(void);
 extern void real_run_int(int);
 #define run_int real_run_int
 extern void mfs_reset(void);
-extern int mfs_redirector(void);
+extern int mfs_redirector(struct vm86_regs *regs, char *stk, int revect);
+extern int mfs_fat32(void);
 extern int mfs_lfn(void);
 extern int int10(void);
 extern int int13(void);
@@ -363,8 +399,7 @@ extern int printer_tick(u_long);
 extern void floppy_tick(void);
 extern void open_kmem(void);
 extern void close_kmem(void);
-extern int parse_config(char *, char *);
-extern void prepare_dexe_load(char *name);
+extern int parse_config(const char *, const char *);
 extern void disk_init(void);
 extern void disk_reset(void);
 extern void serial_init(void);
@@ -389,8 +424,9 @@ extern void __leavedos(int code, int sig, const char *s, int num);
 }
 extern void leavedos_from_sig(int sig);
 extern void leavedos_from_thread(int code);
-#define leavedos_main(n) __leavedos_main(n, 0)
-extern void __leavedos_main(int code, int sig);
+#define leavedos_main(n) __leavedos_main_wrp(n, 0, __func__, __LINE__)
+#define _leavedos_main(n, s) __leavedos_main_wrp(n, s, __func__, __LINE__)
+extern void __leavedos_main_wrp(int code, int sig, const char *s, int num);
 extern void check_leavedos(void);
 extern void add_to_io_select_new(int, void(*)(void *), void *,
 	const char *name);
@@ -443,10 +479,9 @@ extern void hma_exit(void);
 extern void ems_helper(void);
 extern int ems_fn(struct vm86_regs *);
 extern void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
+extern void cdrom_done(void);
 extern int mscdex(void);
 extern void boot(void);
-extern void do_liability_disclaimer_prompt(int prompt);
-extern void install_dos(void);
 extern int ipx_int7a(void);
 extern void read_next_scancode_from_queue (void);
 extern unsigned short detach (void);
@@ -457,6 +492,11 @@ extern void HMA_MAP(int HMA);
 extern void hardware_run(void);
 extern int register_exit_handler(void (*handler)(void));
 
-extern char *Path_cdrom[];
+typedef struct emu_hlt_s emu_hlt_t;
+extern void *vm86_hlt_state;
+extern Bit16u hlt_register_handler_vm86(emu_hlt_t handler);
+extern int hlt_unregister_handler_vm86(Bit16u start_addr);
+
+extern const char *Path_cdrom[];
 
 #endif /* EMU_H */

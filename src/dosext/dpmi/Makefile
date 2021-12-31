@@ -1,10 +1,10 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-CFILES = dpmi.c memory.c emu-ldt.c msdoshlp.c vxd.c
+CFILES = dpmi.c dnative.c memory.c emu-ldt.c msdoshlp.c vxd.c coopth_pm.c \
+  dpmi_api.c
 SFILES = dpmisel.S
 ALL_CPPFLAGS += -I$(REALTOPDIR)/src/dosext/dpmi/msdos \
-    -I$(REALTOPDIR)/src/base/misc/libpcl \
     -DDOSEMU
 
 all:  lib

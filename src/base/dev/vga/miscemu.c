@@ -65,7 +65,6 @@
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-#include "config.h"
 #include "emu.h"
 #include "vgaemu.h"
 #include "timers.h"
@@ -93,14 +92,14 @@ void Misc_init()
 
   u = 0x23;	/* CRTC port = 0x3d4, CPU access enabled */
 
-  if(vga.VGA_mode == 7 || vga.VGA_mode == 15) {
+  if(vga.mode_type == TEXT_MONO) {
     /* mono modes --> CRTC port = 0x3b4 */
     u &= ~1;
   }
 
   /* clock select */
   if(vga.VGA_mode >= 0) {
-    if(vga.VGA_mode <= 3 || vga.VGA_mode == 7)
+    if(vga.VGA_mode <= 3 || vga.mode_type == TEXT_MONO)
       u |= 4;	/* clock #1 */
     else if(vga.VGA_mode > 0x13)
       u |= 0xc;	/* clock #3 */
@@ -180,7 +179,7 @@ void Misc_set_misc_output(unsigned char data)
 void Misc_set_color_select(unsigned char data)
 {
   int i;
-  int colors = 1 << vga.color_bits;
+  unsigned long long colors = 1ULL << vga.color_bits;
 
   misc_deb2("Misc_set_color_select: 0x%02x\n", (unsigned) data);
   if (vga.mode_class == TEXT) {
@@ -370,9 +369,9 @@ unsigned char Misc_get_input_status_1()
 	 10 reads taken from DosBox. It seems to work in most cases,
          (in particular Commander Keen 4) */
       flip++;
-      if (flip > 20) flip = 0;
+      if (flip > 40) flip = 0;
       /* We're in horizontal retrace?  If so, just set DE flag, 0 in VR */
-      hretrace = flip > 10;
+      hretrace = flip > 20;
     }
   }
 

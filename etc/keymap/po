@@ -1,5 +1,5 @@
 #keytable po
-keytable keyb-user {
+keytable "keyb-user" {
   0=
      0,27,"1234567890",96,174,127,9,
      "qwertyuiop+",dacute,13,0,"as",

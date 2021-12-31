@@ -12,8 +12,6 @@
 #ifndef _EMU_KEYMAPS_H
 #define _EMU_KEYMAPS_H
 
-#include "config.h"
-
 #include "emu.h"
 #include "keyboard.h"
 
@@ -60,7 +58,7 @@
 #define KT_ALTERNATE	1
 
 struct keytable_entry {
-  char *name;
+  const char *name;
   int keyboard;
   int flags;
   int sizemap;
@@ -73,5 +71,7 @@ extern struct keytable_entry keytable_list[];
 
 void setup_default_keytable(void);
 void dump_keytable(FILE *f, struct keytable_entry *kt);
+
+extern int (*XDetectLayout)(void);
 
 #endif /* _EMU_KEYMAPS_H */

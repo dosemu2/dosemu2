@@ -125,7 +125,7 @@ struct video_save_struct {
   unsigned char pal[3 * 256];
   unsigned int banks;
   unsigned char video_mode;
-  char *video_name;			/* Debugging only */
+  const char *video_name;			/* Debugging only */
   unsigned char release_video;
   unsigned char xregs[MAX_X_REGS];      /* These are EXT regs */
 };

@@ -8,7 +8,6 @@
    table and variables at 0040:xxxx are initialized. */
 
 #include "emu.h"
-#include "config.h"
 #include "bios.h"
 #include "memory.h"
 #include "hlt.h"
@@ -19,9 +18,10 @@
 #include "emm.h"
 #include "xms.h"
 #include "hma.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "ipx.h"
 #include "serial.h"
+#include "joystick.h"
 #include "utilities.h"
 #include "doshelpers.h"
 #include "mhpdbg.h"
@@ -30,25 +30,19 @@
 static int li_tid;
 unsigned int bios_configuration;
 
-/*
- * install_int_10_handler - install a handler for the video-interrupt (int 10)
- *                          at address INT10_SEG:INT10_OFFS. Currently
- *                          it's f800:4200.
- *                          The new handler is only installed, if the bios
- *                          handler at f800:4200 is not the appropriate on
- *                          that means, if we use not mda with X
- */
 static void install_int_10_handler (void)
 {
   unsigned int ptr;
 
-  if (config.vbios_seg == 0xe000 && config.vbios_post) {
-    ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_int10ptr - (long)bios_f000));
-    WRITE_DWORD(ptr, 0xe0000003);
-    v_printf("VID: new int10 handler at %#x\n",ptr);
-  }
-  else
-    v_printf("VID: install_int_10_handler: do nothing\n");
+  if (!config.mouse.intdrv) return;
+  /* grab int10 back from video card for mouse */
+  ptr = SEGOFF2LINEAR(BIOSSEG, bios_f000_int10_old);
+  m_printf("ptr is at %x; ptr[0] = %x, ptr[1] = %x\n",ptr,READ_WORD(ptr),READ_WORD(ptr+2));
+  WRITE_WORD(ptr, IOFF(0x10));
+  WRITE_WORD(ptr + 2, ISEG(0x10));
+  m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",READ_WORD(ptr),READ_WORD(ptr+2));
+  /* Otherwise this isn't safe */
+  SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
 }
 
 /*
@@ -62,11 +56,15 @@ static void install_int_10_handler (void)
  */
 static inline void bios_mem_setup(void)
 {
+  int day_rollover;
   int b;
 
   video_mem_setup();
   serial_mem_setup();
   printer_mem_setup();
+
+  WRITE_DWORD(BIOS_TICK_ADDR, get_linux_ticks(0, &day_rollover));
+  WRITE_BYTE(TICK_OVERFLOW_ADDR, day_rollover);
 
   /* show 0 serial ports and 3 parallel ports, maybe a mouse, game card and the
    * configured number of floppy disks
@@ -77,7 +75,9 @@ static inline void bios_mem_setup(void)
   if (config.mouse.intdrv)
     bios_configuration |= CONF_MOUSE;
 
-  bios_configuration |= CONF_GAME | CONF_DMA;
+  bios_configuration |= CONF_DMA;
+  if (joy_exist())
+    bios_configuration |= CONF_GAME;
 
   if (config.mathco)
     bios_configuration |= CONF_MATHCO;
@@ -93,9 +93,8 @@ static inline void bios_mem_setup(void)
 }
 
 static int initialized;
-static void bios_reset(void);
+static void dosemu_reset(void);
 static void bios_setup(void);
-static void late_init_post(int tid);
 
 static void late_init_thr(void *arg)
 {
@@ -104,30 +103,25 @@ static void late_init_thr(void *arg)
   /* if something else is to be added here,
    * add the "late_init" member into dev_list instead */
   video_late_init();
-}
+  mouse_late_init();
+  mouse_client_post_init();
 
-static void late_init_post(int tid)
-{
-  bios_reset();
-  if (initialized)
-    return;
   initialized = 1;
 }
 
 void post_hook(void)
 {
   LWORD(eip)++; // skip hlt
+  dosemu_reset();
   bios_setup();
 
   /* late_init can call int10, so make it a thread */
-  coopth_start(li_tid, late_init_thr, NULL);
+  coopth_start(li_tid, NULL);
 }
 
 static void bios_setup(void)
 {
   int i;
-
-  int_vector_setup();
 
   /* initially, no HMA */
   set_a20(0);
@@ -181,11 +175,15 @@ static void bios_setup(void)
   SETIVEC(0x46, INT46_SEG, INT46_OFF);
   SETIVEC(0x75, INT75_SEG, INT75_OFF);
 
-#ifdef IPX
+  if (config.ems_size)
+    SETIVEC(0x67, BIOSSEG, INT_OFF(0x67));
+  if (config.pktdrv)
+    SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
+  if (config.mouse.intdrv)
+    SETIVEC(0x74, BIOSSEG, Mouse_ROUTINE_OFF);
   /* IPX. Dummy but should not crash */
   if (config.ipxsup)
     SETIVEC(0x7a, BIOSSEG, INT_OFF(0x7a));
-#endif
 
   /* Install new handler for video-interrupt into bios_f000_int10ptr,
    * for video initialization at f800:4200
@@ -198,20 +196,21 @@ static void bios_setup(void)
     /* update boot drive in Banner-code */
     unsigned ptr;
 
-    ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_bootdrive - (long)bios_f000));
-    WRITE_BYTE(ptr, config.hdiskboot >= 2 || config.hdiskboot == -1 ? 0x80 : 0);
+    ptr = SEGOFF2LINEAR(BIOSSEG, bios_f000_bootdrive);
+    WRITE_BYTE(ptr, (config.hdiskboot >= 2 || config.hdiskboot == -1) ? 0x80 : 0);
   }
 
   bios_mem_setup();		/* setup values in BIOS area */
 }
 
-static void bios_reset(void)
+static void dosemu_reset(void)
 {
+  initialized = 0;
   dos_post_boot_reset();
   mfs_reset();
   iodev_reset();		/* reset all i/o devices          */
-  _AL = DOS_HELPER_COMMANDS_DONE;
-  while (dos_helper());		/* release memory used by helper utilities */
+  commands_plugin_inte6_reset();
+  lowmem_reset();		/* release memory used by helper utilities */
 #ifdef USE_MHPDBG
   mhp_debug(DBG_BOOT, 0, 0);
 #endif
@@ -219,6 +218,5 @@ static void bios_reset(void)
 
 void bios_setup_init(void)
 {
-  li_tid = coopth_create("late_init");
-  coopth_set_permanent_post_handler(li_tid, late_init_post);
+  li_tid = coopth_create("late_init", late_init_thr);
 }

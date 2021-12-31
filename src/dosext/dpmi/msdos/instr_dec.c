@@ -27,7 +27,7 @@
 #include "cpu.h"
 #include "dosemu_debug.h"
 #include "memory.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "instremu.h"
 #include "instr_dec.h"
 
@@ -46,7 +46,7 @@ typedef struct x86_ins {
 enum {REP_NONE, REPZ, REPNZ};
 static unsigned wordmask[5] = {0,0xff,0xffff,0xffffff,0xffffffff};
 
-static uint32_t x86_pop(struct sigcontext *scp, x86_ins *x86)
+static uint32_t x86_pop(sigcontext_t *scp, x86_ins *x86)
 {
   unsigned ss_base = GetSegmentBase(_ss);
   unsigned char *mem = MEM_BASE32(ss_base + (_esp & wordmask[(x86->_32bit+1)*2]));
@@ -57,7 +57,7 @@ static uint32_t x86_pop(struct sigcontext *scp, x86_ins *x86)
   return (x86->operand_size == 4 ? READ_DWORDP(mem) : READ_WORDP(mem));
 }
 
-static int x86_handle_prefixes(struct sigcontext *scp, unsigned cs_base,
+static int x86_handle_prefixes(sigcontext_t *scp, unsigned cs_base,
 	x86_ins *x86)
 {
   unsigned eip = _eip;
@@ -127,7 +127,7 @@ static int x86_handle_prefixes(struct sigcontext *scp, unsigned cs_base,
 #define instr_deb2(x...)
 #endif
 
-int decode_segreg(struct sigcontext *scp)
+int decode_segreg(sigcontext_t *scp)
 {
   unsigned cs, eip;
   unsigned char *csp, *orig_csp;
@@ -158,7 +158,7 @@ int decode_segreg(struct sigcontext *scp)
 	  _esp += ((unsigned short *) (MEM_BASE32(cs + eip + 1)))[0];
 	  break;
         case 0xcf: /*iret*/
-	  _eflags = get_EFLAGS(x86_pop(scp, &x86));
+	  _eflags = dpmi_flags_from_stack_iret(scp, x86_pop(scp, &x86));
 	  break;
       }
       _eip = tmp_eip;
@@ -224,7 +224,7 @@ int decode_segreg(struct sigcontext *scp)
   return ret;
 }
 
-uint16_t decode_selector(struct sigcontext *scp)
+uint16_t decode_selector(sigcontext_t *scp)
 {
     unsigned cs;
     int pfx;
@@ -247,7 +247,7 @@ uint16_t decode_selector(struct sigcontext *scp)
     return _ds;
 }
 
-static uint8_t reg8(struct sigcontext *scp, int reg)
+static uint8_t reg8(sigcontext_t *scp, int reg)
 {
 #define RG8(x, r) ((_e##x >> ((r & 4) << 1)) & 0xff)
     switch (reg & 3) {
@@ -263,7 +263,7 @@ static uint8_t reg8(struct sigcontext *scp, int reg)
     return -1;
 }
 
-static uint32_t reg(struct sigcontext *scp, int reg)
+static uint32_t reg(sigcontext_t *scp, int reg)
 {
     switch (reg & 7) {
     case 0:
@@ -286,7 +286,7 @@ static uint32_t reg(struct sigcontext *scp, int reg)
     return -1;
 }
 
-int decode_memop(struct sigcontext *scp, uint32_t *op)
+int decode_memop(sigcontext_t *scp, uint32_t *op, unsigned char *cr2)
 {
     unsigned cs, eip, seg_base;
     unsigned char *csp, *orig_csp;
@@ -296,14 +296,36 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
     x86._32bit = dpmi_segment_is32(_cs);
     cs = GetSegmentBase(_cs);
     eip = _eip + x86_handle_prefixes(scp, cs, &x86);
-    if (x86.rep) {		// FIXME
-	error("LDT: Unimplemented rep\n");
-	return 0;
-    }
     csp = (unsigned char *)MEM_BASE32(cs + eip);
     orig_csp = (unsigned char *)MEM_BASE32(cs + _eip);
     inst_len = instr_len(orig_csp, x86._32bit);
     loop_inc = (_eflags & DF) ? -1 : 1;
+    if (x86.rep) {
+	int cnt = 0;
+	switch (x86.address_size) {
+	case 2:
+	    cnt = _LWORD(ecx);
+	    break;
+	case 4:
+	    cnt = _ecx;
+	    break;
+	}
+	if (!cnt) {
+	    _eip += inst_len;
+	    return 0;
+	}
+	cnt--;
+	switch (x86.address_size) {
+	case 2:
+	    _LWORD(ecx) = cnt;
+	    break;
+	case 4:
+	    _ecx = cnt;
+	    break;
+	}
+	if (cnt > 0)
+	    inst_len = 0;
+    }
     if (x86.es)
 	seg_base = GetSegmentBase(_es);
     else if (x86.fs)
@@ -348,21 +370,21 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
 
      case 0x80:		/* logical r/m8,imm8 */
      case 0x82:
-	*op = instr_binary_byte(csp[1] >> 3, *(unsigned char *)_cr2,
-		orig_csp[inst_len - 1], &_eflags);
+	*op = instr_binary_byte(csp[1] >> 3, *cr2,
+		orig_csp[inst_len - 1], (unsigned*)&_eflags);
 	ret = 1;
 	break;
 
     case 0x81:		/* logical r/m,imm */
 	switch (x86.operand_size) {
 	case 2:
-	    *op = instr_binary_word(csp[1] >> 3, *(uint16_t *)_cr2,
-		    *(uint16_t *)(orig_csp + inst_len - 2), &_eflags);
+	    *op = instr_binary_word(csp[1] >> 3, *(uint16_t *)cr2,
+		    *(uint16_t *)(orig_csp + inst_len - 2), (unsigned*)&_eflags);
 	    ret = 2;
 	    break;
 	case 4:
-	    *op = instr_binary_dword(csp[1] >> 3, *(uint32_t *)_cr2,
-		    *(uint32_t *)(orig_csp + inst_len - 4), &_eflags);
+	    *op = instr_binary_dword(csp[1] >> 3, *(uint32_t *)cr2,
+		    *(uint32_t *)(orig_csp + inst_len - 4), (unsigned*)&_eflags);
 	    ret = 4;
 	    break;
 	}
@@ -371,13 +393,13 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
     case 0x83:		/* logical r/m,imm8 */
 	switch (x86.operand_size) {
 	case 2:
-	    *op = instr_binary_word(csp[1] >> 3, *(uint16_t *)_cr2,
-		    (short)*(signed char *)(orig_csp + inst_len - 1), &_eflags);
+	    *op = instr_binary_word(csp[1] >> 3, *(uint16_t *)cr2,
+		    (short)*(signed char *)(orig_csp + inst_len - 1), (unsigned*)&_eflags);
 	    ret = 2;
 	    break;
 	case 4:
-	    *op = instr_binary_dword(csp[1] >> 3, *(uint32_t *)_cr2,
-		    (int)*(signed char *)(orig_csp + inst_len - 1), &_eflags);
+	    *op = instr_binary_dword(csp[1] >> 3, *(uint32_t *)cr2,
+		    (int)*(signed char *)(orig_csp + inst_len - 1), (unsigned*)&_eflags);
 	    ret = 4;
 	    break;
 	}
@@ -507,8 +529,8 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
     case 0x28:		/* sub r/m8,reg8 */
     case 0x30:		/* xor r/m8,reg8 */
 //    case 0x38:		/* cmp r/m8,reg8 */
-	*op = instr_binary_byte(csp[0] >> 3, *(unsigned char *)_cr2,
-		reg8(scp, csp[1] >> 3), &_eflags);
+	*op = instr_binary_byte(csp[0] >> 3, *cr2,
+		reg8(scp, csp[1] >> 3), (unsigned*)&_eflags);
 	ret = 1;
 	break;
 
@@ -522,20 +544,20 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
 //  case 0x39:		/* cmp r/m16,reg16 */
 	switch (x86.operand_size) {
 	case 2:
-	    *op = instr_binary_word(csp[0] >> 3, *(uint16_t *)_cr2,
-		    reg(scp, csp[1] >> 3), &_eflags);
+	    *op = instr_binary_word(csp[0] >> 3, *(uint16_t *)cr2,
+		    reg(scp, csp[1] >> 3), (unsigned*)&_eflags);
 	    ret = 2;
 	    break;
 	case 4:
-	    *op = instr_binary_dword(csp[0] >> 3, *(uint32_t *)_cr2,
-		    reg(scp, csp[1] >> 3), &_eflags);
+	    *op = instr_binary_dword(csp[0] >> 3, *(uint32_t *)cr2,
+		    reg(scp, csp[1] >> 3), (unsigned*)&_eflags);
 	    ret = 4;
 	    break;
 	}
 	break;
 
     case 0xfe: /* inc/dec mem */
-	*op = *(unsigned char *)_cr2;
+	*op = *cr2;
 	switch (csp[1] & 0x38) {
 	case 0:	/* inc */
 	    (*op)++;
@@ -555,11 +577,11 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
 		uint32_t mask = 1 << (csp[4] & 0x1f);
 		switch (x86.operand_size) {
 		case 2:
-		    *op = *(uint16_t *)_cr2;
+		    *op = *(uint16_t *)cr2;
 		    ret = 2;
 		    break;
 		case 4:
-		    *op = *(uint32_t *)_cr2;
+		    *op = *(uint32_t *)cr2;
 		    ret = 4;
 		    break;
 		}
@@ -578,17 +600,17 @@ int decode_memop(struct sigcontext *scp, uint32_t *op)
 	}
 	default:
 	    error("Unimplemented memop decode 0x0f %#x\n", csp[1]);
-	    break;
+	    return -1;
 	}
 	break;
 
     default:
 	error("Unimplemented memop decode %#x\n", *csp);
-	return 0;
+	return -1;
   }
 
   assert(ret);
-  assert(inst_len);
+  assert(inst_len || x86.rep);
   _eip += inst_len;
   return ret;
 }

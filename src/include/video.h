@@ -1,8 +1,6 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
-#include "port.h"
-
 extern void gettermcap(int,int *, int *);
 
 /* if you set this to 1, then you will be able to use your MDA + monitor
@@ -142,8 +140,9 @@ enum {
 #define CHG_BACKGROUND_PAUSE	9
 #define GET_TITLE_APPNAME	10
 #define CHG_FULLSCREEN	11
+#define CHG_USE_CUSTOM_FONT	12
 
-extern int load_file(char *name, int foffset, unsigned char *mstart, int msize);
+extern int load_file(const char *name, int foffset, unsigned char *mstart, int msize);
 extern void register_video_client(struct video_system *vid);
 extern struct video_system *video_get(const char *name);
 

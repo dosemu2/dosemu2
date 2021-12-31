@@ -1,3 +1,9 @@
+dosemu2 (2.0~pre8-2) disco; urgency=low
+
+  * fixing deps
+
+ -- Stas Sergeev <stsp@users.sourceforge.net>  Mon, 25 Feb 2019 15:00:00 +0300
+
 dosemu2 (2.0~pre8-1) artful; urgency=low
 
   * pre8

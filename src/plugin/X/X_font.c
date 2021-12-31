@@ -7,14 +7,13 @@
 /* X font handling. Generally X fonts are faster than bitmapped fonts
    but they can't be scaled or their images changed by DOS software */
 
-#include "config.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
 
@@ -36,10 +35,9 @@ static unsigned long text_colors[16];
 static GC text_gc;
 static int text_cmap_colors;
 
-static int X_text_lock(void *opaque)
+static void X_text_lock(void *opaque)
 {
   XLockDisplay(text_display);
-  return 0;
 }
 
 static void X_text_unlock(void *opaque)
@@ -109,14 +107,16 @@ static void X_draw_string16(void *opaque, int x, int y, unsigned char *text,
  * Draw a horizontal line (for text modes)
  * The attribute is the VGA color/mono text attribute.
  */
-static void X_draw_line(void *opaque, int x, int y, int len)
+static void X_draw_line(void *opaque, int x, int y, float ul, int len,
+    Bit8u attr)
 {
+  set_gc_attr(attr);
   XDrawLine(
       text_display, text_window, text_gc,
       font_width * x,
-      font_height * y + font_shift,
+      font_height * y + font_shift * ul,
       font_width * (x + len) - 1,
-      font_height * y + font_shift
+      font_height * y + font_shift * ul
     );
 }
 
@@ -226,6 +226,7 @@ static struct text_system Text_X =
    X_text_lock,
    X_text_unlock,
    NULL,
+   "X_font",
 };
 
 /* Runs xset to load X fonts */
@@ -235,9 +236,11 @@ static int run_xset(const char *path)
   int status, ret;
   struct stat buf;
 
-  stat(path, &buf);
-  if (!S_ISDIR(buf.st_mode))
+  ret = stat(path, &buf);
+  if (ret == -1 || !S_ISDIR(buf.st_mode)) {
+    X_printf("X: xset stat fail '%s'\n", path);
     return 0;
+  }
 
   ret = asprintf(&command, "xset +fp %s 2>/dev/null", path);
   assert(ret != -1);

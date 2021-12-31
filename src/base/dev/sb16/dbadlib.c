@@ -22,7 +22,6 @@
    The only code really added for DOSEMU is the mono->stereo conversion.
 */
 
-#include "config.h"
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
@@ -30,11 +29,72 @@
 #include "emu.h"
 #include "timers.h"
 #include "opl.h"
+#include "sound/oplplug.h"
 #include "dbadlib.h"
 
-/*
-Chip
-*/
+typedef struct _AdlibTimer AdlibTimer;
+
+struct _AdlibTimer {
+	long long start;
+	long long delay;
+	bool enabled, overflow, masked;
+	Bit8u counter;
+};
+
+static void AdlibTimer__AdlibTimer(AdlibTimer *self) {
+	self->masked = false;
+	self->overflow = false;
+	self->enabled = false;
+	self->counter = 0;
+	self->delay = 0;
+}
+
+//Call update before making any further changes
+static void AdlibTimer__Update(AdlibTimer *self, long long time) {
+	long long deltaStart;
+	if ( !self->enabled ) 
+		return;
+	deltaStart = time - self->start;
+	//Only set the overflow flag when not masked
+	if ( deltaStart >= 0 && !self->masked ) {
+		self->overflow = 1;
+	}
+}
+
+//On a reset make sure the start is in sync with the next cycle
+static void AdlibTimer__Reset(AdlibTimer *self, const long long time) {
+	long long delta, rem;
+	self->overflow = false;
+	if ( !self->enabled )
+		return;
+	delta = time - self->start;
+	if ( self->delay )
+		rem = self->delay - delta % self->delay;
+	else
+		rem = 0;
+	self->start = time + rem;
+}
+
+static void AdlibTimer__Stop(AdlibTimer *self) {
+	self->enabled = false;
+}
+
+static void AdlibTimer__Start(AdlibTimer *self, const long long time, Bits scale) {
+	//Don't enable again
+	if ( self->enabled ) {
+		return;
+	}
+	self->enabled = true;
+	self->delay = (255 - self->counter ) * scale;
+	self->start = time + self->delay;
+}
+
+static AdlibTimer opl3_timers[2];
+
+static uint8_t dbadlib_PortRead(void *impl, uint16_t port);
+static void dbadlib_PortWrite(void *impl, uint16_t port, uint8_t val );
+static void *dbadlib_create(int opl3_rate);
+static void dbadlib_generate(int total, int16_t output[][2]);
 
 //Check for it being a write to the timer
 static bool AdlibChip__WriteTimer(AdlibTimer *timer, Bit32u reg, Bit8u val) {
@@ -111,7 +171,8 @@ static struct {
 } reg;
 
 // stripped down from DOSBOX adlib.cpp: Adlib::Module::PortWrite
-void dbadlib_PortWrite(AdlibTimer *timer, Bitu port, Bitu val ) {
+static void dbadlib_PortWrite(void *impl, uint16_t port, uint8_t val ) {
+	AdlibTimer *timer = impl;
 	if ( port&1 ) {
 		if ( !AdlibChip__WriteTimer( timer, reg.normal, val ) ) {
 			opl_write( reg.normal, val );
@@ -124,7 +185,8 @@ void dbadlib_PortWrite(AdlibTimer *timer, Bitu port, Bitu val ) {
 
 
 // stripped down from DOSBOX adlib.cpp: Adlib::Module::PortRead
-Bitu dbadlib_PortRead(AdlibTimer *timer, Bitu port) {
+static uint8_t dbadlib_PortRead(void *impl, uint16_t port) {
+	AdlibTimer *timer = impl;
 	//We allocated 4 ports, so just return -1 for the higher ones
 	if ( !(port & 3 ) ) {
 		return AdlibChip__Read(timer);
@@ -134,14 +196,22 @@ Bitu dbadlib_PortRead(AdlibTimer *timer, Bitu port) {
 }
 
 // converted from DOSBOX dbopl.cpp: DBOPL::Handler::Init
-void dbadlib_init(AdlibTimer *timer, int opl3_rate)
+static void *dbadlib_create(int opl3_rate)
 {
-	AdlibChip__AdlibChip(timer);
+	AdlibChip__AdlibChip(opl3_timers);
 	opl_init(opl3_rate);
+	return opl3_timers;
 }
 
 // converted from DOSBOX dbopl.cpp: DBOPL::Handler::Generate
-void dbadlib_generate(Bitu total, Bit16s output[][2])
+static void dbadlib_generate(int total, int16_t output[][2])
 {
 	opl_getsample((Bit16s *)output, total);
 }
+
+struct opl_ops dbadlib_ops = {
+    .PortRead = dbadlib_PortRead,
+    .PortWrite = dbadlib_PortWrite,
+    .Create = dbadlib_create,
+    .Generate = dbadlib_generate,
+};

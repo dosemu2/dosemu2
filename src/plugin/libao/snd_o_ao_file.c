@@ -58,11 +58,14 @@ static int aosndf_open(void *arg)
     info.byte_format = AO_FMT_LITTLE;
     info.bits = 16;
     id = ao_driver_id(ao_drv_manual_name);
-    if (id == -1)
+    if (id == -1) {
+	error("libao_file: unable to get %s writer driver\n",
+		ao_drv_manual_name);
 	return 0;
+    }
     ao = ao_open_file(id, config.wav_file, 1, &info, NULL);
     if (!ao) {
-	error("libao: opening %s failed\n", config.wav_file);
+	error("libao_file: opening %s failed\n", config.wav_file);
 	return 0;
     }
 
@@ -117,17 +120,34 @@ static int aosndf_get_cfg(void *arg)
     return 0;
 }
 
-static const struct pcm_player player = {
+static const struct pcm_player player
+#ifdef __cplusplus
+{
+    aosndf_name,
+    NULL,
+    aosndf_get_cfg,
+    aosndf_open,
+    aosndf_close,
+    aosndf_timer,
+    aosndf_start,
+    aosndf_stop,
+    PCM_F_PASSTHRU | PCM_F_EXPLICIT,
+    PCM_ID_P,
+    0
+};
+#else
+= {
     .name = aosndf_name,
+    .get_cfg = aosndf_get_cfg,
     .open = aosndf_open,
     .close = aosndf_close,
+    .timer = aosndf_timer,
     .start = aosndf_start,
     .stop = aosndf_stop,
-    .timer = aosndf_timer,
-    .get_cfg = aosndf_get_cfg,
-    .id = PCM_ID_P,
     .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
+    .id = PCM_ID_P,
 };
+#endif
 
 CONSTRUCTOR(static void aosndf_init(void))
 {

@@ -35,22 +35,23 @@
  * Here is an overview of which flags are used and which not, please keep
  * this comment in sync with the reality:
  *
- *   used: aA  cCdDeE  g h iIj k   mMn   pP QrRsStTu v wW X   Z#
- *   free:   bB      fF G H   J KlL   NoO  q        U V  x yYz
+ *   used: aA  cCdDeE Fg h iIj k   mMn   pP QrRsStTu v wW X   Z#
+ *   free:   bB      f  G H   J KlL   NoO  q        U V  x yYz
  */
 
 #define DEBUG_CLASSES 128
 struct debug_class
 {
 	void (*change_level)(int level);
-	char *help_text;
-	unsigned char level, letter;
+	const char *help_text;
+	unsigned char letter;
 };
 
 int log_printf(int, const char *,...) FORMAT(printf, 2, 3);
 int vlog_printf(int, const char *,va_list);
 
 int p_dos_str(const char *,...) FORMAT(printf, 1, 2);
+int p_dos_vstr(const char *fmt, va_list args);
 
 #if 0  /* set this to 1, if you want dosemu to honor the -D flags */
  #define NO_DEBUGPRINT_AT_ALL
@@ -74,14 +75,22 @@ extern int shut_debug;
 
 /* unconditional message into debug log and stderr */
 void error(const char *fmt, ...) FORMAT(printf, 1, 2);
-#define error_once(s, ... ) { \
+#define error_once(s, ... ) do { \
     static int __warned; \
     if (!__warned) { \
 	__warned = 1; \
 	error(s, __VA_ARGS__); \
     } \
-}
+} while(0)
+#define error_once0(s) do { \
+    static int __warned; \
+    if (!__warned) { \
+	__warned = 1; \
+	error(s); \
+    } \
+} while(0)
 void verror(const char *fmt, va_list args);
+void vprint(const char *fmt, va_list args);
 
 #define flush_log()		{ if (dbg_fd) log_printf(-1, "\n"); }
 
@@ -148,7 +157,7 @@ void verror(const char *fmt, va_list args);
 #undef P_printf
 #define ds_printf(f,a...)	ifprintf(debug_level('D'),f,##a)
 #define D_printf(f,a...)	ifprintf(debug_level('M'),f,##a)
-#define warn(f,a...)		ifprintf(debug_level('w'),f,##a)
+#define warn(f,a...)		ifprintf(debug_level('w'),"Warning: " f,##a)
 #define pd_printf(f,a...)	ifprintf(debug_level('P'),f,##a)
 
 #ifndef NO_DEBUGPRINT_AT_ALL
@@ -156,12 +165,14 @@ void verror(const char *fmt, va_list args);
 extern int parse_debugflags(const char *s, unsigned char flag);
 extern int SetDebugFlagsHelper(char *debugStr);
 extern int GetDebugFlagsHelper(char *debugStr, int print);
+extern int GetDebugInfoHelper(char *buf, int bufsize);
 extern int register_debug_class(
-	int letter, void (*change_level)(int level), char *help_text);
+	int letter, void (*change_level)(int level), const char *help_text);
 extern int unregister_debug_class(int letter);
 extern void print_debug_usage(FILE *stream);
 extern int set_debug_level(int letter, int level);
-int debug_level(int letter);
+extern unsigned char debug_levels[DEBUG_CLASSES];
+#define debug_level(letter) ((letter) >= DEBUG_CLASSES ? -1 : debug_levels[letter])
 
 #else
 
@@ -169,15 +180,16 @@ int debug_level(int letter);
 extern inline int parse_debugflags(const char *s, unsigned char flag) { return 0; }
 extern inline int SetDebugFlagsHelper(char *debugStr) { return 0; }
 extern inline int GetDebugFlagsHelper(char *debugStr) { debugStr[0] = '\0'; return 0; }
+extern inline int GetDebugInfoHelper(char *buf, int bufsize) { return 0; }
 extern inline int register_debug_class(
-	int letter, void (*change_level)(int level), char *help_text)
+	int letter, void (*change_level)(int level), const char *help_text)
 {
 	return 0;
 }
 extern inline int unregister_debug_class(int letter) { return 0; }
 extern inline void print_debug_usage(FILE *stream) { return; }
 extern inline int set_debug_level(int letter, int level) { return 0; }
-extern inline int debug_level(int letter) { return 0; }
+#define debug_level(letter) (0)
 #endif
 
 #endif /* DOSEMU_DEBUG_H */

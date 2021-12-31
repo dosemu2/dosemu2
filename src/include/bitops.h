@@ -26,7 +26,6 @@ static int set_bit(int nr, void * addr);
 static int clear_bit(int nr, void * addr);
 static int change_bit(int nr, void * addr);
 static int test_bit(int nr, void * addr);
-static int pic0_to_emu(char flags);
 
 /*
  * These have to be done with inline assembly: that way the bit-setting is
@@ -36,7 +35,7 @@ static int pic0_to_emu(char flags);
  * bit 0 is the LSB of addr; bit 32 is the LSB of (addr+1).
  */
 
-#define ADDR (*(volatile long *) addr)
+#define ADDR (*(volatile unsigned *) addr)
 
 /* JLS's stuff */
 /*
@@ -65,46 +64,6 @@ find_bit_r(unsigned int word)
                :"=r" (result) /* output */
                :"0" (result), "r" (word)); /* input */
        return result;
-}
-
-static __inline__ int
-pic0_to_emu(char flags)
-{
-    /* This function maps pic0 bits to their positions in priority order */
-    /*
-     * It makes room for the pic1 bits in between.  This could be done in
-     * c, but it would be messier, and might get clobbered by optimization
-     */
-
-    /* move bits xxxx xxxx 7654 3210 to 7654 3222 2222 210o             */
-    /* where 76543210 are original 8 bits, x = don't care, and o = zero */
-    /* bit 2 (cascade int) is used to mask/unmask pic1 (Larry)          */
-
-    int             result;
-    __asm__         __volatile__("movzbl %1,%0\n\t"
-				 "shll $13, %0\n\t"
-				 "sarw $7, %w0\n\t"
-				 "shrl $5, %0 " \
-				 :"=r"(result):"q"(flags));
-    return result;
-}
-static __inline__ int
-emu_to_pic0(int flags)
-{
-    /*
-     * This function takes the pic0 bits from the overall pic bit field
-     * and concatenates them into a single byte.  This could be done in c,
-     * but it would be messier and might get clobbered by optimization.
-     */
-
-    /* move bits 7654 3xxx xxxx 210x to xxxx xxxx 7654 3210          */
-    /* where 76543210 are final 8 bits and x = don't care            */
-
-    __asm__         __volatile__("shll $6,%0\n\t"
-				 "shlw $7, %w0\n\t"
-				 "shrl $14, %0 "
-				 :"=r"(flags):"0"(flags));
-    return flags;
 }
 
 /*
@@ -156,6 +115,17 @@ test_bit(int nr, void *addr)
     __asm__         __volatile__("btl %2,%1\n\tsbbl %0,%0"
 				 :"=r"(oldbit)
 				 :"m"(ADDR), "r"(nr));
+    return oldbit;
+}
+
+static __inline__ int
+test_bit_i(int nr, unsigned val)
+{
+    int             oldbit;
+
+    __asm__         __volatile__("btl %2,%1\n\tsbbl %0,%0"
+				 :"=r"(oldbit)
+				 :"r"(val), "r"(nr));
     return oldbit;
 }
 

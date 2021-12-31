@@ -16,17 +16,11 @@
 #ifndef __MSDOS_H__
 #define __MSDOS_H__
 
-extern void msdos_setup(u_short emm_s);
-extern void msdos_reset(void);
-extern void msdos_init(int is_32, unsigned short mseg);
-extern void msdos_done(void);
-extern int msdos_get_lowmem_size(void);
-extern int msdos_pre_extender(struct sigcontext *scp, int intr,
-	struct RealModeCallStructure *rmreg, int *r_mask,
-	u_char *stk, int stk_len, int *r_stk_used);
-extern void msdos_post_extender(struct sigcontext *scp, int intr,
-	const struct RealModeCallStructure *rmreg);
-
-enum { MSDOS_NONE, MSDOS_RM, MSDOS_DONE };
+void msdos_setup(void);
+void msdos_reset(void);
+void msdos_init(int is_32, unsigned short mseg, unsigned short psp);
+void msdos_done(void);
+void msdos_set_client(int num);
+int msdos_get_lowmem_size(void);
 
 #endif

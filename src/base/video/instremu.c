@@ -45,10 +45,9 @@
  */
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-#include "config.h"
 #include "emu.h"
 #include "vgaemu.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "emu-ldt.h"
 #include "cpu.h"
 #include "dis8086.h"
@@ -68,8 +67,8 @@
 #define COUNT  150	/* bail out when this #instructions were simulated
 			   after a VGA r/w access */
 
-#define R_LO(a) LO_BYTE(a)
-#define R_HI(a) HI_BYTE(a)
+#define R_LO(a) LO_BYTE_d(a)
+#define R_HI(a) HI_BYTE_d(a)
 #define R_WORD(a) LO_WORD(a)
 #define R_DWORD(a) (*((unsigned *) &(a)))
 #define AL (R_LO(x86->eax))
@@ -88,7 +87,7 @@
 #define DI (R_WORD(x86->edi))
 #define SP (R_WORD(x86->esp))
 #define BP (R_WORD(x86->ebp))
-#define EFLAGS (x86->eflags)
+#define EFLAGS (R_DWORD(x86->eflags))
 #define FLAGS (R_WORD(EFLAGS))
 #define OP_JCC(cond) eip += (cond) ? 2 + *(signed char *)MEM_BASE32(cs + eip + 1) : 2; break;
 
@@ -139,7 +138,7 @@ typedef struct x86_regs {
   /* this sequence is important because this is the cpu's order and thus
      gives us an optimization */
   unsigned eip;
-  unsigned long eflags;
+  unsigned eflags;
   unsigned es, cs, ss, ds, fs, gs;
   unsigned cs_base, ds_base, es_base, ss_base, fs_base, gs_base;
   unsigned seg_base, seg_ss_base;
@@ -148,7 +147,7 @@ typedef struct x86_regs {
   unsigned operand_size;
   unsigned prefixes, rep;
   unsigned (*instr_binary)(unsigned op, unsigned op1,
-                           unsigned op2, unsigned long *eflags);
+                           unsigned op2, unsigned *eflags);
   unsigned (*instr_read)(const unsigned char *addr);
   void (*instr_write)(unsigned char *addr, unsigned u);
   unsigned char *(*modrm)(unsigned char *cp, struct x86_regs *x86, int *inst_len);
@@ -198,8 +197,8 @@ static unsigned instr_read_dword(const unsigned char *addr);
 static void instr_write_byte(unsigned char *addr, unsigned char u);
 static void instr_write_word(unsigned char *addr, unsigned u);
 static void instr_write_dword(unsigned char *addr, unsigned u);
-static void instr_flags(unsigned val, unsigned smask, unsigned long *eflags);
-static unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned long *eflags);
+static void instr_flags(unsigned val, unsigned smask, unsigned *eflags);
+static unsigned instr_shift(unsigned op, unsigned op1, unsigned op2, unsigned size, unsigned *eflags);
 static unsigned char *sib(unsigned char *cp, x86_regs *x86, int *inst_len);
 static unsigned char *modrm32(unsigned char *cp, x86_regs *x86, int *inst_len);
 static unsigned char *modrm16(unsigned char *cp, x86_regs *x86, int *inst_len);
@@ -211,7 +210,7 @@ static void dump_x86_regs(x86_regs *x86)
     x86->eax, x86->ebx, x86->ecx, x86->edx, x86->esi, x86->edi, x86-> ebp, x86->esp
     );
   instr_deb(
-    "eip=%08x cs=%04x/%08x ds=%04x/%08x es=%04x/%08x d=%lu c=%lu p=%lu a=%lu z=%lu s=%lu o=%lu\n",
+    "eip=%08x cs=%04x/%08x ds=%04x/%08x es=%04x/%08x d=%u c=%u p=%u a=%u z=%u s=%u o=%u\n",
     x86->eip, x86->cs, x86->cs_base, x86->ds, x86->ds_base, x86->es, x86->es_base,
     (EFLAGS&DF)>>10,
     EFLAGS&CF,(EFLAGS&PF)>>2,(EFLAGS&AF)>>4,
@@ -430,7 +429,7 @@ unsigned instr_read_word(const unsigned char *address)
     R_LO(u) = vga_read(addr);
     R_HI(u) = vga_read(addr+1);
   } else
-    u = *(unsigned short *)address;
+    u = *(const unsigned short *)address;
 
 #if DEBUG_INSTR >= 2
   instr_deb2("Read word 0x%x", u);
@@ -455,7 +454,7 @@ unsigned instr_read_dword(const unsigned char *address)
     ((unsigned char *) &u)[2] = vga_read(addr+2);
     ((unsigned char *) &u)[3] = vga_read(addr+3);
   } else
-    u = *(unsigned *)address;
+    u = *(const unsigned *)address;
 
 #if DEBUG_INSTR >= 2
   instr_deb2("Read word 0x%x", u);
@@ -532,7 +531,7 @@ void instr_write_dword(unsigned char *address, unsigned u)
 
 /* We use the cpu itself to set the flags, which is easy since we are
    emulating x86 on x86. */
-void instr_flags(unsigned val, unsigned smask, unsigned long *eflags)
+void instr_flags(unsigned val, unsigned smask, unsigned *eflags)
 {
   unsigned long flags;
 
@@ -546,7 +545,7 @@ void instr_flags(unsigned val, unsigned smask, unsigned long *eflags)
 /* 6 logical and arithmetic "RISC" core functions
    follow
 */
-unsigned char instr_binary_byte(unsigned char op, unsigned char op1, unsigned char op2, unsigned long *eflags)
+unsigned char instr_binary_byte(unsigned char op, unsigned char op1, unsigned char op2, unsigned *eflags)
 {
   unsigned long flags;
 
@@ -582,7 +581,7 @@ unsigned char instr_binary_byte(unsigned char op, unsigned char op1, unsigned ch
   return 0;
 }
 
-unsigned instr_binary_word(unsigned op, unsigned op1, unsigned op2, unsigned long *eflags)
+unsigned instr_binary_word(unsigned op, unsigned op1, unsigned op2, unsigned *eflags)
 {
   unsigned long flags;
   unsigned short opw1 = op1;
@@ -620,7 +619,7 @@ unsigned instr_binary_word(unsigned op, unsigned op1, unsigned op2, unsigned lon
   return 0;
 }
 
-unsigned instr_binary_dword(unsigned op, unsigned op1, unsigned op2, unsigned long *eflags)
+unsigned instr_binary_dword(unsigned op, unsigned op1, unsigned op2, unsigned *eflags)
 {
   unsigned long flags;
 
@@ -656,7 +655,7 @@ unsigned instr_binary_dword(unsigned op, unsigned op1, unsigned op2, unsigned lo
   return 0;
 }
 
-unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned long *eflags)
+unsigned instr_shift(unsigned op, unsigned op1, unsigned op2, unsigned size, unsigned *eflags)
 {
   unsigned result, carry;
   unsigned width = size * 8;
@@ -668,49 +667,63 @@ unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned
   case 0: /* rol */
     op2 &= width-1;
     result = (((op1 << op2) | ((op1&mask) >> (width-op2)))) & mask;
-    *eflags &= ~(CF|OF);
-    *eflags |= (result & CF) | ((((result >> (width-1)) ^ result) << 11) & OF);
+    if (op2 > 0) {
+      *eflags &= ~(CF|OF);
+      *eflags |= (result & CF) | ((((result >> (width-1)) ^ result) << 11) & OF);
+    }
     return result;
   case 1:/* ror */
     op2 &= width-1;
     result = ((((op1&mask) >> op2) | (op1 << (width-op2)))) & mask;
-    *eflags &= ~(CF|OF);
-    carry = (result >> (width-1)) & CF;
-    *eflags |=  carry |
-      (((carry ^ (result >> (width-2))) << 11) & OF);
+    if (op2 > 0) {
+      *eflags &= ~(CF|OF);
+      carry = (result >> (width-1)) & CF;
+      *eflags |=  carry | (((carry ^ (result >> (width-2))) << 11) & OF);
+    }
     return result;
   case 2: /* rcl */
     op2 %= width+1;
-    carry = (op1>>(width-op2))&CF;
     result = (((op1 << op2) | ((op1&mask) >> (width+1-op2))) | ((*eflags&CF) << (op2-1))) & mask;
-    *eflags &= ~(CF|OF);
-    *eflags |= carry | ((((result >> (width-1)) ^ carry) << 11) & OF);
+    if (op2 > 0) {
+      *eflags &= ~(CF|OF);
+      carry = (op1>>(width-op2))&CF;
+      *eflags |= carry | ((((result >> (width-1)) ^ carry) << 11) & OF);
+    }
     return result;
   case 3:/* rcr */
     op2 %= width+1;
-    carry = (op1>>(op2-1))&CF;
     result = ((((op1&mask) >> op2) | (op1 << (width+1-op2))) | ((*eflags&CF) << (width-op2))) & mask;
-    *eflags &= ~(CF|OF);
-    *eflags |= carry | ((((result >> (width-1)) ^ (result >> (width-2))) << 11) & OF);
+    if (op2 > 0) {
+      *eflags &= ~(CF|OF);
+      carry = (op1>>(op2-1))&CF;
+      *eflags |= carry | ((((result >> (width-1)) ^ (result >> (width-2))) << 11) & OF);
+    }
     return result;
   case 4: /* shl */
     result = (op1 << op2) & mask;
-    instr_flags(result, smask, eflags);
-    *eflags &= ~(CF|OF);
-    *eflags |= ((op1 >> (width-op2))&CF) |
-      ((((op1 >> (width-1)) ^ (op1 >> (width-2))) << 11) & OF);
+    if (op2 > 0) {
+      instr_flags(result, smask, eflags);
+      *eflags &= ~(CF|OF);
+      *eflags |= ((op1 >> (width-op2))&CF) |
+        ((((op1 >> (width-1)) ^ (op1 >> (width-2))) << 11) & OF);
+    }
     return result;
   case 5: /* shr */
     result = ((unsigned)(op1&mask) >> op2);
-    instr_flags(result, smask, eflags);
-    *eflags &= ~(CF|OF);
-    *eflags |= ((op1 >> (op2-1)) & CF) | (((op1 >> (width-1)) << 11) & OF);
+    if (op2 > 0) {
+      instr_flags(result, smask, eflags);
+      *eflags &= ~(CF|OF);
+      *eflags |= ((op1 >> (op2-1)) & CF) | (((op1 >> (width-1)) << 11) & OF);
+    }
     return result;
+  /* case 6 - sal? */
   case 7: /* sar */
     result = op1 >> op2;
-    instr_flags(result, smask, eflags);
-    *eflags &= ~(CF|OF);
-    *eflags |= (op1 >> (op2-1)) & CF;
+    if (op2 > 0) {
+      instr_flags(result, smask, eflags);
+      *eflags &= ~(CF|OF);
+      *eflags |= (op1 >> (op2-1)) & CF;
+    }
     return result;
   }
   return 0;
@@ -1659,10 +1672,14 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     eip++; break;
 
   case 0x98:
-    if (x86->operand_size == 2) /* cbw */
-      AX = (short)(signed char)AL;
-    else /* cwde */
-      x86->eax = (int)(short)AX;
+    if (x86->operand_size == 2) { /* cbw */
+      AH = (AL & 0x80) ? 0xff : 0;
+    } else {                      /* cwde */
+      if (AX & 0x8000)
+        x86->eax |= 0xffff0000;
+      else
+        x86->eax &= 0x0000ffff;
+    }
     eip++; break;
 
   case 0x99:
@@ -2201,7 +2218,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       eip += inst_len + 2; break;
     case 0x30: /*div word*/
       if (x86->operand_size == 4) return 0;
-      und = (DX<<16) + AX;
+      und = ((uint32_t)DX<<16) + AX;
       uns = instr_read_word(mem);
       if (uns == 0) return 0;
       und2 = und / uns;
@@ -2211,7 +2228,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       eip += inst_len + 2; break;
     case 0x38: /*idiv word*/
       if (x86->operand_size == 4) return 0;
-      i = ((short)DX<<16) + AX;
+      i = ((uint32_t)DX<<16) + AX;
       uns = instr_read_word(mem);
       if (uns == 0) return 0;
       i2 = i / (short)uns;
@@ -2224,23 +2241,23 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
   case 0xf8: /* clc */
     EFLAGS &= ~CF;
-    eip++; break;;
+    eip++; break;
 
   case 0xf9: /* stc */
     EFLAGS |= CF;
-    eip++; break;;
+    eip++; break;
 
     /* 0xfa cli 0xfb sti */
 
   case 0xfc: /* cld */
     EFLAGS &= ~DF;
     loop_inc = 1;
-    eip++; break;;
+    eip++; break;
 
   case 0xfd: /* std */
     EFLAGS |= DF;
     loop_inc = -1;
-    eip++; break;;
+    eip++; break;
 
   case 0xfe: /* inc/dec mem */
     mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
@@ -2279,7 +2296,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       OPandFLAG0(unl, decw, uns, =r);
       EFLAGS |= unl & (OF|ZF|SF|PF|AF);
       instr_write_word(mem, uns);
-      eip += inst_len + 2; break;;
+      eip += inst_len + 2; break;
     case 0x10: /*call near*/
       push(eip + inst_len + 2, x86);
       eip = uns;
@@ -2337,7 +2354,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   return 1;
 }
 
-static void scp_to_x86_regs(x86_regs *x86, struct sigcontext *scp, int pmode)
+static void scp_to_x86_regs(x86_regs *x86, sigcontext_t *scp, int pmode)
 {
   if(pmode) {
     x86->eax = _eax;
@@ -2392,7 +2409,7 @@ static void scp_to_x86_regs(x86_regs *x86, struct sigcontext *scp, int pmode)
   prepare_x86(x86);
 }
 
-static void x86_regs_to_scp(x86_regs *x86, struct sigcontext *scp, int pmode)
+static void x86_regs_to_scp(x86_regs *x86, sigcontext_t *scp, int pmode)
 {
   if(pmode) {
     _cs = x86->cs;
@@ -2434,19 +2451,17 @@ static void x86_regs_to_scp(x86_regs *x86, struct sigcontext *scp, int pmode)
  * state in the x86 structure.
  *
  * arguments:
- * scp - A pointer to a struct sigcontext holding some relevant data.
+ * scp - A pointer to a sigcontext_t holding some relevant data.
  * pmode - flags protected mode
  * cnt - number of instructions to be simulated
  *
  * DANG_END_FUNCTION
  */
 
-int instr_emu(struct sigcontext *scp, int pmode, int cnt)
+int instr_emu(sigcontext_t *scp, int pmode, int cnt)
 {
 #if DEBUG_INSTR >= 1
-  unsigned int ref;
   int refseg, rc;
-  unsigned char frmtbuf[256];
 #endif
   int i = 0;
   x86_regs x86;
@@ -2458,12 +2473,14 @@ int instr_emu(struct sigcontext *scp, int pmode, int cnt)
   do {
     if (!instr_sim(&x86, pmode)) {
       if (debug_level('v')) {
-        dosaddr_t cp = SEGOFF2LINEAR(x86.cs_base, x86.eip);
+#ifdef USE_MHPDBG
+        dosaddr_t cp = SEGOFF2LINEAR(x86.cs, x86.eip);
         unsigned int ref;
         char frmtbuf[256];
         dis_8086(cp, frmtbuf, x86._32bit ? 3 : 0, &ref, x86.cs_base);
-        instr_deb("vga_emu_fault: %u bytes not simulated %d: %s fault addr=%08x\n",
-            instr_len(MEM_BASE32(cp), x86._32bit), count, frmtbuf, (unsigned) scp->cr2);
+        instr_deb("vga_emu_fault: %u bytes not simulated %d: %s\n",
+            instr_len(MEM_BASE32(cp), x86._32bit), count, frmtbuf);
+#endif
         dump_x86_regs(&x86);
       }
       break;
@@ -2482,7 +2499,7 @@ int instr_emu(struct sigcontext *scp, int pmode, int cnt)
   return True;
 }
 
-int decode_modify_segreg_insn(struct sigcontext *scp, int pmode,
+int decode_modify_segreg_insn(sigcontext_t *scp, int pmode,
     unsigned int *new_val)
 {
   unsigned char *mem;

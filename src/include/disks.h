@@ -13,12 +13,6 @@
 #define PART_NOBOOT	0
 #define PART_BOOT	0x80
 
-#ifndef __linux__
-#define off64_t  off_t
-#define open64   open
-#define lseek64  lseek
-#endif
-
 #include <stdint.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -30,14 +24,11 @@ typedef enum {
   NUM_DTYPES
 } disk_t;
 
-char *disk_t_str(disk_t t);
+const char *disk_t_str(disk_t t);
+
 
 #define DISK_RDWR	0
 #define DISK_RDONLY	1
-
-/* definitions for 'dexeflags' in 'struct disk' and 'struct image_header' */
-#define  DISK_IS_DEXE		1
-#define  DISK_DEXE_RDWR		2
 
 struct on_disk_bpb {
   uint16_t bytes_per_sector;
@@ -105,29 +96,30 @@ typedef enum {
   THREE_INCH_2880KFLOP,		/* 3.5 in, 2.88 MB floppy */
 } floppy_t;
 
-char *floppy_t_str(floppy_t t);
+const char *floppy_t_str(floppy_t t);
 
 struct disk {
   char *dev_name;		/* disk file */
   int diskcyl4096;		/* INT13 support for 4096 cylinders */
-  int wantrdonly;		/* user wants the disk to be read only */
   int rdonly;			/* The way we opened the disk (only filled in if the disk is open) */
-  int dexeflags;		/* special flags for DEXE support */
+  int boot;			/* This is a boot disk */
   int sectors, heads, tracks;	/* geometry */
   unsigned long start;		/* geometry */
   uint64_t num_secs;		/* total sectors on disk */
   int hdtype;			/* 0 none, IBM Types 1, 2 and 9 */
   floppy_t default_cmos;	/* default CMOS floppy type */
   int drive_num;
+  int log_offs;
   unsigned long serial;		/* serial number */
   disk_t type;			/* type of file: image, partition, disk */
-  loff_t header;		/* compensation for opt. pre-disk header */
+  off_t header;			/* compensation for opt. pre-disk header */
   int fdesc;			/* file descriptor */
   int removeable;		/* real removable drive, can disappear */
   int floppy;			/* emulating floppy */
   int timeout;			/* seconds between floppy timeouts */
   struct partition part_info;	/* neato partition info */
   fatfs_t *fatfs;		/* for FAT file system emulation */
+  int mfs_idx;
 };
 
 /* NOTE: the "header" element in the structure above can (and will) be
@@ -176,6 +168,20 @@ extern struct disk disktab[MAX_FDISKS];
  */
 extern struct disk hdisktab[MAX_HDISKS];
 
+extern struct disk *hdisk_find(uint8_t num);
+extern struct disk *hdisk_find_by_path(const char *path);
+
+#define HDISK_NUM(i) ({ assert(hdisktab[i].drive_num & 0x80); \
+    (hdisktab[i].drive_num & 0x7f) + 2; })
+
+#define FOR_EACH_HDISK(i, c) do { \
+    for (i = 0; i < MAX_HDISKS; i++) { \
+        if (!hdisktab[i].drive_num) \
+            continue; \
+        c \
+    } \
+} while (0)
+
 #if 1
 #ifdef __linux__
 #define DISK_OFFSET(dp,h,s,t) \
@@ -189,12 +195,13 @@ extern struct disk hdisktab[MAX_HDISKS];
   (((h * dp->tracks + t) * dp->sectors + s) * SECTOR_SIZE)
 #endif
 
-int read_mbr(struct disk *dp, unsigned buffer);
-int read_sectors(struct disk *, unsigned, uint64_t, long);
+int read_mbr(const struct disk *dp, unsigned buffer);
+int read_sectors(const struct disk *, unsigned, uint64_t, long);
 int write_sectors(struct disk *, unsigned, uint64_t, long);
 
 void disk_open(struct disk *dp);
 int disk_is_bootable(const struct disk *dp);
+int disk_root_contains(const struct disk *dp, int file_idx);
 int disk_validate_boot_part(struct disk *dp);
 
 void mimic_boot_blk(void);
@@ -202,7 +209,7 @@ void mimic_boot_blk(void);
 void fatfs_init(struct disk *);
 void fatfs_done(struct disk *);
 
-fatfs_t *get_fat_fs_by_serial(unsigned long serial);
+fatfs_t *get_fat_fs_by_serial(unsigned long serial, int *r_idx, int *r_ro);
 fatfs_t *get_fat_fs_by_drive(unsigned char drv_num);
 
 #define floppy_setup	d_nullf
@@ -214,11 +221,26 @@ fatfs_t *get_fat_fs_by_drive(unsigned char drv_num);
 #define DERR_WP 	3
 #define DERR_NOTFOUND 	4
 #define DERR_CHANGE 	6
+#define DERR_BOUNDARY	9
 #define DERR_ECCERR 	0x10
 #define DERR_CONTROLLER	0x20
 #define DERR_SEEK	0x40
 #define DERR_NOTREADY	0x80
 #define DERR_WRITEFLT	0xcc
+
+/* Int13 maximum amount of sectors to access.
+ *
+ * Mentioned in RBIL 61 Int 1301 Table 00234,
+ *  which lists error code 09 as follows:
+ *
+ * 09h	data boundary error (attempted DMA across 64K boundary or >80h sectors)
+ *
+ * Note that > 80h sectors with 512 bytes per sector always crosses a 64 KiB
+ *  boundary, so it may be the error code is only meant for that crossing.
+ *  But in Int 1342 Table 00272, it is also mentioned that the maximum amount
+ *  of blocks may be 7Fh (for LBA), and we use the same error code then.
+ */
+#define I13_MAX_ACCESS	0x80
 
 /* IBM/MS Extensions */
 #define IMEXT_MAGIC                 0xaa55
@@ -248,7 +270,7 @@ struct ibm_ms_drive_params {
 } __attribute__((packed));
 
 /* Values for information flags */
-#define IMEXT_INFOFLAG_DMAERR     0x01
+#define IMEXT_INFOFLAG_NODMAERR   0x01
 #define IMEXT_INFOFLAG_CHSVALID   0x02
 #define IMEXT_INFOFLAG_REMOVABLE  0x04
 #define IMEXT_INFOFLAG_WVERIFY    0x08

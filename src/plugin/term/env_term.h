@@ -17,4 +17,4 @@ extern struct mouse_client Mouse_xterm;
 int term_init(void);
 void term_close(void);
 int using_xterm(void);
-void xtermmouse_get_event (Bit8u **kbp, int *kb_count);
+int xtermmouse_get_event (Bit8u *kbp, int kb_count);

@@ -13,11 +13,10 @@
 #include <linux/version.h>
 #endif
 
-#include "config.h"
 #include "version.h"
 #include "emu.h"
 #include "memory.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "bios.h"
 #include "int.h"
 #include "timers.h"
@@ -39,6 +38,10 @@
 #include "cpu-emu.h"
 #include "kvm.h"
 #include "mapping.h"
+#include "vgaemu.h"
+#include "cpi.h"
+
+#define GFX_CHARS       0xffa6e
 
 #if 0
 static inline void dbug_dumpivec(void)
@@ -66,30 +69,28 @@ static inline void dbug_dumpivec(void)
  */
 void stdio_init(void)
 {
-  setbuf(stdout, NULL);
-
-  if(dbg_fd) {
-    warn("DBG_FD already set\n");
-    return;
-  }
-
-  if(config.debugout)
-  {
-    dbg_fd=fopen(config.debugout,"w");
-    if(!dbg_fd) {
-      error("can't open \"%s\" for writing debug file\n",
-	      config.debugout);
-      exit(1);
+    if (config.debugout == NULL) {
+        char *home = getenv("HOME");
+        if (home) {
+            const static char *debugout = "/.dosemu/boot.log";
+            config.debugout = malloc(strlen(home) + strlen(debugout) + 1);
+            strcpy(config.debugout, home);
+            strcat(config.debugout, debugout);
+        }
     }
-    free(config.debugout);
-    config.debugout = NULL;
-  }
-  else
-  {
-    dbg_fd=0;
-    warn("No debug output file specified, debugging information will not be printed");
-  }
-  sync();  /* for safety */
+    if (config.debugout != NULL) {
+        dbg_fd = fopen(config.debugout, "we");
+        if (!dbg_fd)
+            error("can't open \"%s\" for writing\n", config.debugout);
+        else
+            setlinebuf(dbg_fd);
+    }
+
+    real_stderr = stderr;
+#ifdef HAVE_ASSIGNABLE_STDERR
+    if (dbg_fd)
+        stderr = fstream_tee(stderr, dbg_fd);
+#endif
 }
 
 /*
@@ -167,7 +168,7 @@ void map_video_bios(void)
     }
 
     /* copy graphics characters from system BIOS */
-    load_file("/dev/mem", GFX_CHARS, LINEAR2UNIX(GFX_CHARS), GFXCHAR_SIZE);
+    load_file("/dev/mem", GFX_CHARS, vga_rom_08, 128 * 8);
 
     memcheck_addtype('V', "Video BIOS");
     memcheck_reserve('V', VBIOS_START, VBIOS_SIZE);
@@ -176,28 +177,64 @@ void map_video_bios(void)
   }
 }
 
+static void setup_fonts(void)
+{
+  uint8_t *f8, *f14, *f16;
+  int l8, l14, l16;
+  uint16_t cp;
+  char *path;
+
+  if (!config.internal_cset || strncmp(config.internal_cset, "cp", 2) != 0)
+    return;
+  cp = atoi(config.internal_cset + 2);
+  if (!cp)
+    return;
+  c_printf("loading fonts for %s\n", config.internal_cset);
+  path = assemble_path(dosemu_lib_dir_path, "cpi");
+  f8 = cpi_load_font(path, cp, 8, 8, &l8);
+  f14 = cpi_load_font(path, cp, 8, 14, &l14);
+  f16 = cpi_load_font(path, cp, 8, 16, &l16);
+  if (f8 && f14 && f16) {
+    assert(l8 == 256 * 8);
+    memcpy(vga_rom_08, f8, l8);
+    assert(l14 == 256 * 14);
+    memcpy(vga_rom_14, f14, l14);
+    assert(l16 == 256 * 16);
+    memcpy(vga_rom_16, f16, l16);
+  } else {
+    error("CPI not found for %s\n", config.internal_cset);
+  }
+  free(f8);
+  free(f14);
+  free(f16);
+  free(path);
+}
+
 /*
  * DANG_BEGIN_FUNCTION map_custom_bios
  *
  * description:
  *  Setup the dosemu amazing custom BIOS, quietly overwriting anything
- *  was copied there before. Do not overwrite graphic fonts!
+ *  was copied there before.
  *
  * DANG_END_FUNCTION
  */
+
+#include "bios_data.xxd"
+
 void map_custom_bios(void)
 {
   unsigned int ptr;
-  u_long n;
 
-  n = (u_long)bios_f000_endpart1 - (u_long)bios_f000;
-  ptr = SEGOFF2LINEAR(BIOSSEG, 0);
-  e_invalidate(ptr, n);
-  MEMCPY_2DOS(ptr, bios_f000, n);
-
-  n = (u_long)bios_f000_end - (u_long)bios_f000_part2;
-  ptr = SEGOFF2LINEAR(BIOSSEG, ((u_long)bios_f000_part2 - (u_long)bios_f000));
-  MEMCPY_2DOS(ptr, bios_f000_part2, n);
+  /* make sure nothing overlaps */
+  assert(bios_data_start >= DOSEMU_LMHEAP_OFF + DOSEMU_LMHEAP_SIZE);
+  /* Copy the BIOS into DOS memory */
+  ptr = SEGOFF2LINEAR(BIOSSEG, bios_data_start);
+  e_invalidate(ptr, DOSEMU_BIOS_SIZE());
+  MEMCPY_2DOS(ptr, bios_data, DOSEMU_BIOS_SIZE());
+  setup_fonts();
+  /* Initialise the ROM-BIOS graphic font (lower half only) */
+  MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);
 }
 
 /*
@@ -215,7 +252,7 @@ void memory_init(void)
   setup_interrupts();          /* setup interrupts */
   bios_setup_init();
   /* Initialize the lowmem heap that resides in a custom bios */
-  lowmem_heap_init();
+  lowmem_init();
 }
 
 /*
@@ -235,13 +272,12 @@ void device_init(void)
   mouse_priv_init();
 }
 
-static void *mem_reserve_contig(void *base, uint32_t size, uint32_t dpmi_size,
+static void *mem_reserve_contig(uint32_t size, uint32_t dpmi_size,
 	void **base2)
 {
   void *result;
-
-  result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH |
-      MAPPING_DPMI | MAPPING_NOOVERLAP, base, size + dpmi_size, PROT_NONE);
+  int cap = MAPPING_INIT_LOWRAM | MAPPING_SCRATCH | MAPPING_DPMI;
+  result = mmap_mapping_ux(cap, (void *)-1, size + dpmi_size, PROT_NONE);
   if (result == MAP_FAILED)
     return result;
 
@@ -249,15 +285,14 @@ static void *mem_reserve_contig(void *base, uint32_t size, uint32_t dpmi_size,
   return result;
 }
 
-static void *mem_reserve_split(void *base, uint32_t size, uint32_t dpmi_size,
-	void **base2)
+static void *mem_reserve_split(uint32_t size, uint32_t dpmi_size, void **base2)
 {
   void *result;
   void *dpmi_base;
 
   /* lowmem_base is not yet available, so use _ux version */
-  result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH |
-      MAPPING_NOOVERLAP, base, size, PROT_NONE);
+  result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH,
+      (void *)-1, size, PROT_NONE);
   if (result == MAP_FAILED)
     return result;
   if (!config.dpmi)
@@ -298,10 +333,8 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
-    if (config.dpmi && config.dpmi_lin_rsv_base == (dosaddr_t)-1)
-      result = mem_reserve_contig(0, memsize, dpmi_size, base2);
-    else
-      result = mem_reserve_split(0, memsize, dpmi_size, base2);
+    result = mmap_mapping_ux(MAPPING_NULL | MAPPING_SCRATCH,
+			     NULL, memsize, PROT_NONE);
     if (result == MAP_FAILED) {
       const char *msg =
 	"You can most likely avoid this problem by running\n"
@@ -313,8 +346,6 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
       if (errno == EPERM || errno == EACCES) {
 	/* switch on vm86-only JIT CPU emulation with non-zero base */
 	config.cpu_vm = CPUVM_EMU;
-	config.cpuemu = 3;
-	init_emu_cpu();
 	c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
 	error("Using CPU emulation because vm.mmap_min_addr > 0\n");
 	error("@%s", msg);
@@ -326,42 +357,23 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
 	error("@%s", msg);
 	exit(EXIT_FAILURE);
       }
-    } else {
-      /* some DPMI clients don't like negative memory pointers,
-       * i.e. over 0x80000000. In fact, Screamer game won't work
-       * with anything above 0x40000000 */
-      dpmi_base = mapping_find_hole(LOWMEM_SIZE, 0x40000000, dpmi_memsize);
-      if (dpmi_base == MAP_FAILED) {
-        error("MAPPING: cannot find mem hole for DPMI pool of %x\n", dpmi_memsize);
-        dump_maps();
-        exit(EXIT_FAILURE);
-      }
-      dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH |
-          MAPPING_NOOVERLAP, dpmi_base, dpmi_memsize, PROT_NONE);
-      if (dpmi_base == MAP_FAILED) {
-        error("MAPPING: cannot create mem pool for DPMI, size=%x\n", dpmi_memsize);
-        dump_maps();
-        exit(EXIT_FAILURE);
-      }
-      *r_dpmi_base = dpmi_base;
-      return result;
     }
   }
 #endif
 
   if (config.dpmi && config.dpmi_lin_rsv_base == (dosaddr_t)-1) { /* contiguous memory */
-    result = mem_reserve_contig((void*)-1, memsize, dpmi_size + dpmi_memsize,
-          base2);
+    result = mem_reserve_contig(memsize, dpmi_size + dpmi_memsize, base2);
     dpmi_base = *base2 + dpmi_size;
   } else {
-    result = mem_reserve_split((void*)-1, memsize + dpmi_memsize, dpmi_size,
-          base2);
+    result = mem_reserve_split(memsize + dpmi_memsize, dpmi_size, base2);
     dpmi_base = result + memsize;
   }
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
+  if (!config.dpmi)
+    dpmi_base = NULL;
   *r_dpmi_base = dpmi_base;
   return result;
 }
@@ -376,7 +388,7 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
  */
 void low_mem_init(void)
 {
-  void *lowmem, *base2, *dpmi_base;
+  void *lowmem, *base2 = MAP_FAILED, *dpmi_base = MAP_FAILED;
   int result;
 
   open_mapping(MAPPING_INIT_LOWRAM);
@@ -388,6 +400,8 @@ void low_mem_init(void)
   }
 
   mem_base = mem_reserve(&base2, &dpmi_base);
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+    init_kvm_monitor();
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (result == -1) {
@@ -395,14 +409,8 @@ void low_mem_init(void)
     exit(EXIT_FAILURE);
   }
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
-  dpmi_set_mem_bases(base2, dpmi_base);
-
-  if (config.cpu_vm == CPUVM_KVM)
-    init_kvm_monitor();
-
-  /* keep conventional memory protected as long as possible to protect
-     NULL pointer dereferences */
-  mprotect_mapping(MAPPING_LOWMEM, 0, config.mem_size * 1024, PROT_NONE);
+  if (config.dpmi)
+    dpmi_set_mem_bases(base2, dpmi_base);
 
   /* R/O protect 0xf0000-0xf4000 */
   if (!config.umb_f0)
@@ -444,7 +452,7 @@ void print_version(void)
   struct utsname unames;
 
   uname(&unames);
-  warn("DOSEMU-%s is coming up on %s version %s %s %s\n", VERSTR,
+  warn("dosemu2-%s is coming up on %s version %s %s %s\n", VERSTR,
        unames.sysname, unames.release, unames.version, unames.machine);
   warn("Compiled with "
 #ifdef __clang__

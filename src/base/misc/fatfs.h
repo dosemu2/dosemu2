@@ -7,71 +7,57 @@
 #ifndef FATFS_H
 #define FATFS_H
 
-#define MAX_DIR_NAME_LEN	256	/* max size of fully qualified path */
-#define MAX_FILE_NAME_LEN	256	/* max size of a file name */
+typedef struct fatfs_s fatfs_t;
 
-typedef struct {
-  struct {
-    unsigned dir	:1;
-    unsigned scanned	:1;
-    unsigned ro		:1;
-    unsigned hidden	:1;
-    unsigned sys	:1;
-    unsigned label	:1;		/* is volume label */
-    unsigned not_real	:1;		/* entry doesn't need a start cluster */
-    unsigned this_dir	:1;		/* is "." entry */
-    unsigned parent_dir	:1;		/* is ".." entry */
-  } is;
-  unsigned start, len;			/* start cluster, length in clusters */
-  unsigned parent;			/* index of parent object */
-  unsigned first_child;			/* index of first dir entry */
-  unsigned size;			/* file length in bytes */
-  unsigned time;			/* date/time in dos format */
-  char *name;
-  char *full_name;
-  unsigned dos_dir_size;		/* size of the dos directory entry */
-} obj_t;
+int fatfs_read(fatfs_t *f, unsigned buf, unsigned pos, int len);
+int fatfs_write(fatfs_t *f, unsigned buf, unsigned pos, int len);
+int fatfs_is_bootable(const fatfs_t *f);
+int fatfs_root_contains(const fatfs_t *f, int file_idx);
+int fatfs_get_part_type(const fatfs_t *f);
+const char *fatfs_get_host_dir(const fatfs_t *f);
+struct sys_dsc *fatfs_get_sfiles(fatfs_t *f);
 
-enum { FAT_TYPE_NONE, FAT_TYPE_FAT12, FAT_TYPE_FAT16, FAT_TYPE_FAT32 };
+struct sys_dsc {
+    const char *name;
+    int is_sys;
+    int flags;
+    int (*pre_boot)(unsigned char *boot_sec);
+};
 
-typedef struct {
-  char *dir;				/* base directory name */
-  unsigned ok;				/* successfully initialized */
+#define FLG_ALLOW_EMPTY 1
+#define FLG_COMCOM32 2
+#define FLG_ISDIR 4
+#define FLG_NOREAD 8
 
-  unsigned secs_track, heads, reserved_secs, hidden_secs, total_secs;
-  unsigned bytes_per_sect;
-  unsigned serial;
-  char label[12];
-  unsigned char fat_type;
-  unsigned char media_id;
-  unsigned fat_secs;
-  unsigned fats;
-  unsigned root_secs;
-  unsigned root_entries;
-  unsigned cluster_secs;
-  unsigned char drive_num;
-  unsigned sys_type;			/* see fatfs::scan_dir() */
+void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *));
 
-  unsigned got_all_objs;
-  unsigned last_cluster;
-  unsigned first_free_cluster;
-  unsigned objs, alloc_objs;
-  unsigned sys_objs;
-  obj_t *obj;
+enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
+       IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
+       RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX, RXND_IDX,
+       MOSB_IDX, MOSD_IDX,
+       IPL_IDX, KER_IDX,
+       CMD_IDX, RXCMD_IDX,
+       CONF_IDX, CONF2_IDX, CONF3_IDX, CONF4_IDX,
+       AUT_IDX, AUT2_IDX,
+       DEMU_IDX, MAX_SYS_IDX
+};
 
-  char *ffn, *ffn_ptr;			/* buffer for file names */
-  unsigned ffn_obj;
+#define _FATFS_EXPORTS \
+    XPRT(MS_D) \
+    XPRT(PC_D) \
+    XPRT(FD_D)
+#ifdef USE_FDPP
+#define FATFS_EXPORTS _FATFS_EXPORTS \
+    XPRT(FDP_D)
+#else
+#define FATFS_EXPORTS _FATFS_EXPORTS
+#endif
 
-  unsigned char *boot_sec;
-
-  int fd;
-  unsigned fd_obj;
-
-} fatfs_t;
-
-int fatfs_read(fatfs_t *, unsigned, unsigned, int);
-int fatfs_write(fatfs_t *, unsigned, unsigned, int);
-int fatfs_is_bootable(const fatfs_t *);
-int fatfs_get_part_type(const fatfs_t *);
+#ifndef FATFS_IMPL
+#define XPRT(n) extern const int FATFS_##n;
+FATFS_EXPORTS
+#else
+#define XPRT(n) const int FATFS_##n = n;
+#endif
 
 #endif

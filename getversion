@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if git describe >/dev/null 2>&1 ; then
+if git describe --match 'dosemu2*' >/dev/null 2>&1 ; then
   USE_GIT=1
 else
   USE_GIT=0
@@ -9,7 +9,7 @@ fi
 if [ "$USE_GIT" = "1" ]; then
   # need -n 1 for merge commits
   DATE=`git log HEAD^..HEAD -n 1 --format=%cd --date=short`
-  REV=`git rev-list HEAD ^dosemu-1.5.0 --count`
+  REV=`git describe --match dosemu-1.5.0 | cut -d- -f3`
 else
   DATE=`date -r VERSION +%F`
   REV=`tail -n 1 VERSION`
@@ -18,7 +18,7 @@ fi
 if test "$1" = "-r"; then
   shift
   if [ -n "$1" ]; then
-    REV=`git rev-list $1 ^dosemu-1.5.0 --count`
+    REV=`git rev-list dosemu-1.5.0..$1 --count`
   fi
   echo "$REV"
   exit 0
@@ -29,23 +29,30 @@ if test "$1" = "-d"; then
 else
   if [ "$USE_GIT" = "1" ]; then
     DATE=`echo "$DATE" | sed -e 's/-//g'`
-    s=`git describe --tags --match '*2.*' HEAD 2>/dev/null | sed -e "s/-\([^-]\+-g\)/-$DATE-\1/"`
+    gd=`git describe --tags --match '*2.*' HEAD 2>/dev/null`
+    s=`echo $gd | sed -e "s/-\([^-]\+-g\)/-$DATE-\1/"`
+    ss=`echo $gd | sed -e "s/-[^-]\+-g.*/\.$DATE/"`
   fi
   v1=`head -n 1 VERSION`
-  if test -z "$s"; then
+  if test -z "$gd"; then
     s=$v1
+    ss=$v1
+    v=$v1
   else
-    v=`echo $s | cut -d - -f 1`
+    v=`echo $gd | cut -d - -f 1`
   fi
   if test "$1" = "-s"; then
-    if test -n "$v"; then
-      echo "$v"
-    else
-      echo "$v1"
-    fi
+    echo "$v"
     exit 0
   fi
-  if [ -n "$v" -a "$v" != "$v1" ]; then
+  if test "$1" = "-b"; then
+    echo "$ss"
+    exit 0
+  fi
+  if test "$1" = "-u"; then
+    r1=`tail -n 1 VERSION`
+  fi
+  if [ -n "$v" -a "$v" != "$v1" ] || [ -n "$r1" -a "$REV" != "$r1" ]; then
     echo "Update VERSION $v1 -> $v" >&2
     echo $v > VERSION
     echo "$REV" >> VERSION

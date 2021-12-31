@@ -12,7 +12,7 @@
 
 <para>
 This file lists programs that needs specific tweaks in order to
-run them under dosemu.
+run them under dosemu2.
 </para>
 
 </abstract>
@@ -184,6 +184,132 @@ Solution: apply the following patch to runflat.exe:
 00013111: F6 90
 00013112: D1 90
 00013113: E9 90
+</screen>
+</para>
+</sect2>
+</sect1>
+
+<sect1>
+<title>Prince of Persia 2</title>
+<sect2>
+<title>
+Game slows down unbearably after some playing.
+</title>
+<para>
+Solution: update to v1.1 of the game or apply the following
+patch to prince.exe:
+<screen>
+00016549: CF CB
+</screen>
+</para>
+</sect2>
+</sect1>
+
+<sect1>
+<title>Cosmo game by Apogee Software</title>
+<sect2>
+<title>
+Cosmo's Cosmic Adventure doesn't start
+</title>
+<para>
+Solution: Unpack the cosmo1.exe which is packed with LZEXE.
+Then apply the following patch:
+<screen>
+00011F8F: 75 90
+00011F90: F9 90
+</screen>
+</para>
+</sect2>
+</sect1>
+
+<sect1>
+<title>Pinball Fantasies</title>
+<sect2>
+<title>
+Long start-up delay (like half a minute)
+</title>
+<para>
+No solution yet.
+</para>
+</sect2>
+<sect2>
+<title>
+Black screen and hang after choosing the table.
+</title>
+<para>
+Solution: A few driver files needs to be patched.
+Or just patch the one that you selected in a sound setup.
+</para>
+<para>
+Apply the following patch to sb16.sdr:
+<screen>
+00002007: F7 90
+00002008: F3 90
+</screen>
+</para>
+<para>
+Apply the following patch to sbpro.sdr:
+<screen>
+000020A4: F7 90
+000020A5: F3 90
+</screen>
+</para>
+<para>
+Apply the following patch to sb20.sdr:
+<screen>
+0000206B: F7 90
+0000206C: F3 90
+</screen>
+</para>
+<para>
+Apply the following patch to sblaster.sdr:
+<screen>
+00001F25: F7 90
+00001F26: F3 90
+</screen>
+</para>
+<sect2>
+<title>
+Game doesn't see the Fx keys that should start the game.
+</title>
+<para>
+No solution yet, the game is unplayable.
+</para>
+</sect2>
+</sect1>
+
+<sect1>
+<title>WordPerfect 6.2</title>
+<sect2>
+<title>
+Hang trying to play the MIDI file embedded in document.
+</title>
+<para>
+Apply the following patch to vmp.com:
+<screen>
+00002C4B: 72 90
+00002C4C: 0D 90
+00002C5B: 01 00
+</screen>
+<ulink url="https://github.com/dosemu2/dosemu2/issues/1189#issuecomment-639217647">
+see here for details
+</para>
+</sect2>
+</sect1>
+
+<sect1>
+<title>LEXICON 1.2 (mod 8.98)</title>
+<sect2>
+<title>
+dosemu crashes after a few minutes of work.
+</title>
+<para>
+Looking at lexicon code, the crash seems intentional.
+Probably some kind of a copy protection.
+Apply the following patch to lexicon.exe:
+<screen>
+0000ED9C: 74 EB
+00011DAE: 74 EB
 </screen>
 </para>
 </sect2>

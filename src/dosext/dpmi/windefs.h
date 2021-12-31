@@ -293,7 +293,7 @@ typedef struct _IMAGE_NT_HEADERS {
 #define W32S_APP2WINE(addr) ((addr)? (uintptr_t)(addr) + W32S_offset : 0)
 #define W32S_WINE2APP(addr) ((addr)? (uintptr_t)(addr) - W32S_offset : 0)
 
-#define CONTEXT86 struct sigcontext
+#define CONTEXT86 sigcontext_t
 
 #define GetTickCount() GETtickTIME(0)
 

@@ -27,7 +27,7 @@ static struct mousevideoinfo mouse_current_video;
 static int get_current_graphics_video_mode(void);
 
 static void
-realize_mask(unsigned char *dest,short *src,int org,int vga_val)
+realize_mask(unsigned char *dest, unsigned short *src, int org, int vga_val)
 {
 	static int pixelsPerByte[] = { 0, 8, 4, 8, 1 };
 	static int bytesPerLine[] =  { 0, 3, 5, 3, 16 };
@@ -94,7 +94,7 @@ realize_mask(unsigned char *dest,short *src,int org,int vga_val)
 
 
 static void
-realize_cursor(short *scrmask,short *curmask,int org)
+realize_cursor(unsigned short *scrmask, unsigned short *curmask, int org)
 {
 	realize_mask(screenmasks,scrmask,org,255);
 	realize_mask(cursormasks,curmask,org,15);
@@ -406,7 +406,7 @@ static mouse_cursor_func mouse_cursors[] = {
 
 
 void
-define_graphics_cursor(short *scrmask,short *curmask)
+define_graphics_cursor(unsigned short *scrmask, unsigned short *curmask)
 {
 	if (!get_current_graphics_video_mode())
 		return;

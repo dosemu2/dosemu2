@@ -10,7 +10,6 @@
 #include <gpm.h>
 #include <fcntl.h>
 
-#include "config.h"
 #include "emu.h"
 #include "video.h"
 #include "mouse.h"
@@ -24,10 +23,11 @@ static void gpm_getevent(void *arg)
 	Gpm_Event ev;
 	fd_set mfds;
 	int type;
+	struct timeval tv = {};
 
 	FD_ZERO(&mfds);
 	FD_SET(gpm_fd, &mfds);
-	if (select(gpm_fd + 1, &mfds, NULL, NULL, NULL) <= 0)
+	if (select(gpm_fd + 1, &mfds, NULL, NULL, &tv) <= 0)
 		return;
 	Gpm_GetEvent((void*)&ev);
 	type = GPM_BARE_EVENTS(ev.type);
@@ -35,9 +35,10 @@ static void gpm_getevent(void *arg)
 	switch (type) {
 	case GPM_MOVE:
 	case GPM_DRAG:
-		mouse_move_absolute(ev.x - 1, ev.y - 1, gpm_mx, gpm_my);
+		mouse_move_absolute(ev.x - 1, ev.y - 1, gpm_mx, gpm_my, 1,
+			MOUSE_GPM);
 		if (ev.wdy)
-			mouse_move_wheel(-ev.wdy);
+			mouse_move_wheel(-ev.wdy, MOUSE_GPM);
 		break;
 	case GPM_UP:
 		if (ev.buttons & GPM_B_LEFT) buttons &= ~GPM_B_LEFT;
@@ -46,9 +47,10 @@ static void gpm_getevent(void *arg)
 		ev.buttons = buttons;
 		/* fall through */
 	case GPM_DOWN:
-		mouse_move_buttons(ev.buttons & GPM_B_LEFT,
-				   ev.buttons & GPM_B_MIDDLE,
-				   ev.buttons & GPM_B_RIGHT);
+		mouse_move_buttons(!!(ev.buttons & GPM_B_LEFT),
+				   !!(ev.buttons & GPM_B_MIDDLE),
+				   !!(ev.buttons & GPM_B_RIGHT),
+				   MOUSE_GPM);
 		buttons = ev.buttons;
 		/* fall through */
 	default:
@@ -58,7 +60,7 @@ static void gpm_getevent(void *arg)
 
 static int gpm_init(void)
 {
-	int fd;
+	int fd, ret;
 	mouse_t *mice = &config.mouse;
 	Gpm_Connect conn;
 
@@ -75,7 +77,19 @@ static int gpm_init(void)
 		return FALSE;
 
 	mice->type = MOUSE_GPM;
-	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+	ret = fcntl(fd, F_GETFL);
+	if (ret == -1) {
+		m_printf("GPM MOUSE: fcntl F_GETFL failed\n");
+		Gpm_Close();
+		return FALSE;
+	}
+	ret = fcntl(fd, F_SETFL, ret | O_NONBLOCK);
+	if (ret == -1) {
+		m_printf("GPM MOUSE: fcntl F_SETFL failed\n");
+		Gpm_Close();
+		return FALSE;
+	}
+
 	add_to_io_select(fd, gpm_getevent, NULL);
 	m_printf("GPM MOUSE: Using GPM Mouse\n");
 	return TRUE;

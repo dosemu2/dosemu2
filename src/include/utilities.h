@@ -17,28 +17,29 @@ typedef void cmdprintf_func(const char *fmt, ...);
 void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
 	 cmdprintf_func *printf);
 void sigalarm_onoff(int on);
-void sigalarm_block(int block);
 
 char *strprintable(char *s);
 char *chrprintable(char c);
-void open_proc_scan(char *name);
+int is_printable(const char *s);
+void open_proc_scan(const char *name);
 void close_proc_scan(void);
-char *get_proc_string_by_key(char *key);
+char *get_proc_string_by_key(const char *key);
 void advance_proc_bufferptr(void);
 void reset_proc_bufferptr(void);
-int get_proc_intvalue_by_key(char *key);
+int get_proc_intvalue_by_key(const char *key);
 int integer_sqrt(int x);
-int exists_dir(char *name);
-int exists_file(char *name);
+int exists_dir(const char *name);
+int exists_file(const char *name);
 void subst_file_ext(char *ptr);
 char *strcatdup(char *s1, char *s2);
-char *assemble_path(char *dir, char *file, int append_pid);
+char *assemble_path(const char *dir, const char *file);
+char *expand_path(const char *dir);
 char *concat_dir(const char *s1, const char *s2);
-char *mkdir_under(char *basedir, char *dir, int append_pid);
-char *get_path_in_HOME(char *path);
-char *get_dosemu_local_home(void);
+const char *mkdir_under(const char *basedir, const char *dir);
+char *get_path_in_HOME(const char *path);
+const char *get_dosemu_local_home(void);
 char *readlink_malloc (const char *filename);
-void dosemu_error(char *fmt, ...) FORMAT(printf, 1, 2);
+void dosemu_error(const char *fmt, ...) FORMAT(printf, 1, 2);
 void *load_plugin(const char *plugin_name);
 void close_plugin(void *handle);
 
@@ -81,7 +82,9 @@ static inline unsigned int roundUpToNextPowerOfTwo(unsigned int x)
 }
 
 #define P2ALIGN(x, y) (((x) + (y) - 1) & -(y))
+#ifndef ALIGN
 #define ALIGN(x, y) (P2ALIGN(x, roundUpToNextPowerOfTwo(y)))
+#endif
 
 struct popen2 {
     pid_t child_pid;
@@ -89,7 +92,10 @@ struct popen2 {
 };
 
 int popen2(const char *cmdline, struct popen2 *childinfo);
+int popen2_custom(const char *cmdline, struct popen2 *childinfo);
 int pclose2(struct popen2 *childinfo);
+
+char *findprog(char *prog, const char *path);
 
 #define DLSYM_ASSERT(h, s) ({ \
     void *__sym = dlsym(h, s); \
@@ -99,6 +105,23 @@ int pclose2(struct popen2 *childinfo);
     __sym; \
 })
 
-size_t strlcpy(char *dst, const char *src, size_t dsize);
+//size_t strlcpy(char *dst, const char *src, size_t dsize);
+char *strupper(char *src);
+char *strlower(char *src);
+
+struct string_store {
+    const int num;
+    char *strings[0];
+};
+
+int replace_string(struct string_store *store, const char *old, char *str);
+
+FILE *fstream_tee(FILE *orig, FILE *copy);
+
+#define cond_wait(c, m) { \
+    pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, m); \
+    pthread_cond_wait(c, m); \
+    pthread_cleanup_pop(0); \
+}
 
 #endif /* UTILITIES_H */

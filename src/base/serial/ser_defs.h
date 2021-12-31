@@ -335,7 +335,7 @@ typedef struct {
   serial_t *cfg;
   int num;
   int fd;			/* File descriptor of device */
-  boolean opened;
+  int opened;
   boolean is_file;
   boolean ro;
   boolean dev_locked;           /* Flag to indicate that device is locked */
@@ -385,7 +385,7 @@ typedef struct {
 
 extern com_t com[MAX_SER];
 
-extern boolean fossil_tsr_installed;
+extern boolean fossil_initialised;
 
 #define RX_BUF_BYTES(num) (com[num].rx_buf_end - com[num].rx_buf_start)
 //#define RX_FIFO_BYTES(num) min(RX_BUF_BYTES(num), com[num].rx_fifo_size)
@@ -442,7 +442,7 @@ struct serial_drv {
   int (*ser_close)(com_t *com);
   int (*uart_fill)(com_t *com);
   int (*serial_get_msr)(com_t *com);
-  char *name;
+  const char *name;
 };
 
 #endif /* SER_DEFS_H */

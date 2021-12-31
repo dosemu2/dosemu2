@@ -49,7 +49,7 @@ static void seqbuf_dump(void)
 
 static int midooss_init(void *arg)
 {
-    char *name = "/dev/sequencer";
+    const char *name = "/dev/sequencer";
     seq_fd = RPT_SYSCALL(open(name, O_WRONLY));
     if (seq_fd == -1) {
 	S_printf("%s: unable to open %s for writing: %s\n",
@@ -78,15 +78,31 @@ static int midooss_cfg(void *arg)
     return pcm_parse_cfg(config.midi_driver, midooss_name);
 }
 
-static const struct midi_out_plugin midooss = {
+static const struct midi_out_plugin midooss
+#ifdef __cplusplus
+{
+    midooss_name,
+    midooss_longname,
+    midooss_cfg,
+    midooss_init,
+    midooss_done,
+    0,
+    midooss_write,
+    NULL, NULL,
+    ST_GM,
+    0
+};
+#else
+= {
     .name = midooss_name,
     .longname = midooss_longname,
+    .get_cfg = midooss_cfg,
     .open = midooss_init,
     .close = midooss_done,
     .write = midooss_write,
-    .get_cfg = midooss_cfg,
     .stype = ST_GM,
 };
+#endif
 
 CONSTRUCTOR(static void midooss_register(void))
 {

@@ -27,8 +27,8 @@
 
 #define MAX_SELECTORS	LDT_ENTRIES
 
-#define DT_LIMIT(dp)		(((dp)->limit_hi<<16) | ((dp)->limit_lo))
-#define DT_BASE(dp)		(((dp)->base_hi<<24) | ((dp)->base_mid<<16) | ((dp)->base_lo))
+#define DT_LIMIT(dp)		((uint32_t)((dp)->limit_hi<<16) | ((dp)->limit_lo))
+#define DT_BASE(dp)		(((uint32_t)(dp)->base_hi<<24) | ((dp)->base_mid<<16) | ((dp)->base_lo))
 #if defined(i386)||defined(__i386)||defined(__i386__)||defined(__x86_64__)
 #define DT_FLAGS(dp)		(*((unsigned short *)(((char *)(dp))+5))&0xf0ff)
 #endif
@@ -60,7 +60,7 @@
  * flags mask 00f0ff00.00000000
  *
  */
-typedef struct descriptor {
+typedef struct ldt_descriptor {
 	unsigned limit_lo  : 16;	/* b0,b1 */
 	unsigned base_lo   : 16;	/* b2,b3 */
 	unsigned base_mid  : 8;		/* b4 */

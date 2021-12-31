@@ -13,9 +13,6 @@
  * 21.10.2004 -	Removed callback from ESR and procedure to call into
  *		IPX from DOSEmu (bios.S ESRFarCall). stsp
  */
-
-#include "config.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -32,7 +29,7 @@
 #include "sig.h"
 #include "cpu.h"
 #include "int.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "bios.h"
 #include "coopth.h"
 #include "ipx.h"
@@ -55,6 +52,8 @@ static ipx_socket_t *ipx_socket_list = NULL;
 static far_t recvECB;
 static far_t aesECB;
 static void AESTimerTick(void);
+static void ipx_recv_esr_call_thr(void *arg);
+static void ipx_aes_esr_call_thr(void *arg);
 
 /* DANG_FIXTHIS - get a real value for my address !! */
 static unsigned char MyAddress[10] =
@@ -86,7 +85,7 @@ static int GetMyAddress(unsigned long ipx_net, unsigned char *MyAddress)
   ipxs.sipx_port=htons(DEF_PORT);
 
   /* bind this socket to network */
-  if(bind(sock,&ipxs,sizeof(ipxs))==-1)
+  if(bind(sock,(struct sockaddr*)&ipxs,sizeof(ipxs))==-1)
   {
     n_printf("IPX: could not bind to network %#lx in GetMyAddress: %s\n",
       ipx_net, strerror(errno));
@@ -95,7 +94,7 @@ static int GetMyAddress(unsigned long ipx_net, unsigned char *MyAddress)
   }
 
   len = sizeof(ipxs2);
-  if (getsockname(sock,&ipxs2,&len) < 0) {
+  if (getsockname(sock,(struct sockaddr*)&ipxs2,&len) < 0) {
     n_printf("IPX: could not get socket name in GetMyAddress: %s\n", strerror(errno));
     close( sock );
     return(-1);
@@ -131,8 +130,8 @@ void ipx_init(void)
   pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
   pic_seti(PIC_IPX_AES, IPXCheckForAESReady, 0, ipx_aes_esr_call);
 
-  recv_tid = coopth_create("IPX receiver callback");
-  aes_tid = coopth_create("IPX aes callback");
+  recv_tid = coopth_create("IPX receiver callback", ipx_recv_esr_call_thr);
+  aes_tid = coopth_create("IPX aes callback", ipx_aes_esr_call_thr);
 
   sigalrm_register_handler(AESTimerTick);
 }
@@ -142,8 +141,7 @@ void ipx_init(void)
  * returns AL=FF
  * 	ES:DI points to helper routine which gets to FarCallHandler
  *************************/
-int
-IPXInt2FHandler(void)
+int IPXInt2FHandler(void)
 {
   LO(ax) = 0xff;
   SREG(es) = IPX_SEG;
@@ -359,7 +357,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
   ipxs.sipx_port = port;
 
   /* now bind to this port */
-  if (bind(sock, &ipxs, sizeof(ipxs)) == -1) {
+  if (bind(sock, (struct sockaddr*)&ipxs, sizeof(ipxs)) == -1) {
     /* I can't think of anything else to return */
     n_printf("IPX: could not bind socket to address: %s\n", strerror(errno));
     close( sock );
@@ -368,7 +366,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
 
   if( port==0 ) {
     len = sizeof(ipxs2);
-    if (getsockname(sock,&ipxs2,&len) < 0) {
+    if (getsockname(sock,(struct sockaddr*)&ipxs2,&len) < 0) {
       /* I can't think of anything else to return */
       n_printf("IPX: could not get socket name in IPXOpenSocket: %s\n", strerror(errno));
       close( sock );
@@ -478,13 +476,6 @@ static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
   n_printf("IPX: ESR callback ended\n");
 }
 
-static void ipx_esr_irq_begin(void)
-{
-  if(in_dpmi_pm())
-    fake_pm_int();
-  fake_int_to(BIOSSEG, EOI_OFF);
-}
-
 static void ipx_recv_esr_call_thr(void *arg)
 {
   n_printf("IPX: Calling receive ESR\n");
@@ -493,8 +484,7 @@ static void ipx_recv_esr_call_thr(void *arg)
 
 static void ipx_recv_esr_call(void)
 {
-  ipx_esr_irq_begin();
-  coopth_start(recv_tid, ipx_recv_esr_call_thr, NULL);
+  coopth_start(recv_tid, NULL);
 }
 
 static void ipx_aes_esr_call_thr(void *arg)
@@ -505,8 +495,7 @@ static void ipx_aes_esr_call_thr(void *arg)
 
 static void ipx_aes_esr_call(void)
 {
-  ipx_esr_irq_begin();
-  coopth_start(aes_tid, ipx_aes_esr_call_thr, NULL);
+  coopth_start(aes_tid, NULL);
 }
 
 static u_char IPXSendPacket(far_t ECBPtr)
@@ -553,7 +542,7 @@ static u_char IPXSendPacket(far_t ECBPtr)
     return RCODE_SOCKET_NOT_OPEN;
   }
   if (sendto(mysock->fd, (void *) &data, dataLen, 0,
-	     &ipxs, sizeof(ipxs)) == -1) {
+	     (struct sockaddr*)&ipxs, sizeof(ipxs)) == -1) {
     n_printf("IPX: error sending packet: %s\n", strerror(errno));
     ECBp->InUseFlag = IU_ECB_FREE;
     ECBp->CompletionCode = CC_HARDWARE_ERROR;
@@ -718,15 +707,20 @@ static void AESTimerTick(void)
   }
 }
 
-static void ipx_fdset(fd_set * set)
+static int ipx_fdset(fd_set * set)
 {
   ipx_socket_t *s;
+  int max_fd = -1;
 
   s = ipx_socket_list;
   while (s != NULL) {
     FD_SET(s->fd, set);
+    if (s->fd > max_fd)
+      max_fd = s->fd;
     s = s->next;
   }
+
+  return max_fd;
 }
 
 static int ScatterFragmentData(int size, unsigned char *buffer, ECB_t * ECB,
@@ -801,7 +795,7 @@ static int IPXReceivePacket(ipx_socket_t * s)
   socklen_t sz;
 
   sz = sizeof(ipxs);
-  size = recvfrom(s->fd, buffer, sizeof(buffer), 0, &ipxs, &sz);
+  size = recvfrom(s->fd, buffer, sizeof(buffer), 0, (struct sockaddr*)&ipxs, &sz);
   n_printf("IPX: received %d bytes of data\n", size);
   if (size > 0 && s->listenCount) {
     ECBPtr = s->listenList;
@@ -870,7 +864,7 @@ static ipx_socket_t *check_ipx_ready(fd_set * set)
 
 static void IPXRelinquishControl(void)
 {
-  idle(0, 5, 0, "IPX");
+  idle_enable(0, 5, 0, "IPX");
 }
 
 int ipx_receive(int ilevel)
@@ -879,19 +873,22 @@ int ipx_receive(int ilevel)
   /* let's use this as an opportunity to poll outstanding listens */
   fd_set fds;
   int selrtn;
+  int max_fd;
   ipx_socket_t *s;
   far_t ECBPtr;
   struct timeval timeout;
 
   FD_ZERO(&fds);
 
-  ipx_fdset(&fds);
+  max_fd = ipx_fdset(&fds);
+  if (max_fd == -1)
+    return 0;
 
   timeout.tv_sec = 0;
   timeout.tv_usec = 0;
   n_printf("IPX: select\n");
 
-  switch ((selrtn = select(255, &fds, NULL, NULL, &timeout))) {
+  switch ((selrtn = select(max_fd + 1, &fds, NULL, NULL, &timeout))) {
   case 0:			/* none ready */
     /*			n_printf("IPX: no receives ready\n"); */
     break;
@@ -1054,8 +1051,7 @@ int ipx_int7a(void)
 }
 
 /* ipx_close is called on DOSEMU shutdown */
-void
-ipx_close(void)
+void ipx_close(void)
 {
   ipx_socket_t *s;
 
@@ -1066,4 +1062,5 @@ ipx_close(void)
     s = ipx_socket_list;
   }
 }
+
 #endif

@@ -45,6 +45,7 @@
 #define fatfs_deb2(x...)
 #endif
 
+#define FATFS_IMPL
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "emu.h"
@@ -60,13 +61,16 @@
 #include <errno.h>
 #include <assert.h>
 #include <limits.h>
+#include <stdint.h>			/* RxDOS.3 lsv uses types */
 
+#include "int.h"
 #include "disks.h"
-#include "fatfs.h"
 #include "doshelpers.h"
 #include "cpu-emu.h"
 #include "dos2linux.h"
 #include "utilities.h"
+#include "fatfs.h"
+#include "fatfs_priv.h"
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -81,7 +85,7 @@ static void scan_dir(fatfs_t *, unsigned);
 static char *full_name(fatfs_t *, unsigned, const char *);
 static void add_object(fatfs_t *, unsigned, char *);
 static unsigned dos_time(time_t *);
-static unsigned make_dos_entry(fatfs_t *, obj_t *, unsigned char **);
+static unsigned make_dos_entry(fatfs_t *, const obj_t *, unsigned char **);
 static unsigned find_obj(fatfs_t *, unsigned);
 static void assign_clusters(fatfs_t *, unsigned, unsigned);
 static int read_cluster(fatfs_t *, unsigned, unsigned, unsigned char *buf);
@@ -92,17 +96,19 @@ static int read_dir(fatfs_t *, unsigned, unsigned, unsigned,
 static unsigned next_cluster(fatfs_t *, unsigned);
 static void build_boot_blk(fatfs_t *m, unsigned char *b);
 
-static int sys_type;
+static uint64_t sys_type;
 static int sys_done;
 static const char *real_config_sys = "CONFIG.SYS";
 static char config_sys[16];
+#define MAX_HOOKS 5
+static void (*sys_hook[MAX_HOOKS])(struct sys_dsc *sfiles, fatfs_t *);
+static int sys_hooks_used;
 
-enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
-       IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,
-       RXOB_IDX, RXOD_IDX, RXMB_IDX, RXMD_IDX,
-       MOSB_IDX, MOSD_IDX,
-       IPL_IDX, KER_IDX, CMD_IDX, RXCMD_IDX, CONF_IDX, AUT_IDX, MAX_SYS_IDX
-};
+void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *))
+{
+    assert(sys_hooks_used < MAX_HOOKS);
+    sys_hook[sys_hooks_used++] = hook;
+}
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
 #define MS_D IX(IO, MSD)
@@ -111,27 +117,62 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 #define EDR_D IX(EDRB, EDRD)
 #define RXO_D IX(RXOB, RXOD)
 #define RXM_D IX(RXMB, RXMD)
+#define RXN_D (1 << RXND_IDX)
 #define MOS_D IX(MOSB, MOSD)
 #define FDO_D (1 << IPL_IDX)
 #define FD_D (1 << KER_IDX)
+#define FDP_D (1 << FDP_IDX)
 
-#define NEWPCD_D (PC_D | (1 << 23))
-#define OLDPCD_D (PC_D | (1 << 24))
+#define OLDPCD_D (PC_D | (1 << 25))
+#define NEWPCD_D (PC_D | (1 << 26))
 #define OLDDRD_D DR_D
 /* Most DR-DOS versions have the same filenames as PC-DOS for compatibility
  * reasons but have larger file sizes which defeats the PC-DOS old/new logic,
  * so we need a special case */
-#define MIDDRD_D (PC_D | (1 << 25))
+#define MIDDRD_D (PC_D | (1 << 27))
 #define ENHDRD_D EDR_D
 
-#define NECMSD_D (MS_D | (1 << 26))
-#define NEWMSD_D (MS_D | (1 << 27))
-#define MIDMSD_D (MS_D | (1 << 28))
-#define OLDMSD_D (MS_D | (1 << 29))
+#define OLDMSD_D (MS_D | (1 << 28))
+#define NECMSD_D (MS_D | (1 << 29))
+#define MIDMSD_D (MS_D | (1 << 30))
+#define NEWMSD_D (MS_D | (1ULL << 31))
+#define OLDMOS_D (MOS_D | (1ULL << 32))
+
+FATFS_EXPORTS
+
+static const struct sys_dsc i_sfiles[] = {
+    [IO_IDX]   = { "IO.SYS",		1,   },
+    [MSD_IDX]  = { "MSDOS.SYS",		1, FLG_ALLOW_EMPTY },
+    [DRB_IDX]  = { "DRBIOS.SYS",	1,   },
+    [DRD_IDX]  = { "DRBDOS.SYS",	1,   },
+    [IBMB_IDX] = { "IBMBIO.COM",	1,   },
+    [IBMD_IDX] = { "IBMDOS.COM",	1,   },
+    [EDRB_IDX] = { "DRBIO.SYS",		1,   },
+    [EDRD_IDX] = { "DRDOS.SYS",		1,   },
+    [RXOB_IDX] = { "RXDOSBIO.SYS",	1,   },
+    [RXOD_IDX] = { "RXDOS.SYS",		1,   },
+    [RXMB_IDX] = { "RXBIO.SYS",		1,   },
+    [RXMD_IDX] = { "RXDOS.SYS",		1,   },
+    [RXND_IDX] = { "RXDOS.COM",		1,   },
+    [MOSB_IDX] = { "$$MOS.SYS",		1,   },
+    [MOSD_IDX] = { "$$SHELL.SYS",	1,   },
+    [IPL_IDX]  = { "IPL.SYS",		1,   },
+    [KER_IDX]  = { "KERNEL.SYS",	1,   },
+    [CMD_IDX]  = { "COMMAND.COM",	0,   },
+    [RXCMD_IDX]= { "RXDOSCMD.EXE",	0,   },
+    [CONF_IDX] = { config_sys,		0,   },
+    [CONF2_IDX]= { "FDCONFIG.SYS",	0,   },
+    [CONF3_IDX]= { "DCONFIG.SYS",	0,   },
+    [CONF4_IDX]= { "FDPPCONF.SYS",	0,   },
+    [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
+    [AUT2_IDX] = { "FDPPAUTO.BAT",	0,   },
+    [DEMU_IDX] = { "DOSEMU",		0, FLG_ISDIR },
+};
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
 {
+  int i;
   fatfs_t *f;
   int num_sectors = dp->tracks * dp->heads * dp->sectors - dp->start;
 
@@ -249,9 +290,14 @@ void fatfs_init(struct disk *dp)
   make_label(f);
 
   fatfs_deb2("init: volume label set to \"%s\"\n", f->label);
+  memcpy(f->sfiles, i_sfiles, sizeof(f->sfiles));
   strcpy(config_sys, real_config_sys);
-  if (config.emusys)
+  if (config.emusys) {
     strcpy(strrchr(config_sys, '.') + 1, config.emusys);
+    strupperDOS(config_sys);
+  }
+  for (i = 0; i < sys_hooks_used; i++)
+    sys_hook[i](f->sfiles, f);
   f->ok = 1;
   /* entry 0 not freed, not doing strdup() here */
   f->obj[0].name = f->dir;
@@ -314,8 +360,7 @@ int fatfs_read(fatfs_t *f, unsigned buf, unsigned pos, int len)
  */
 int fatfs_write(fatfs_t *f, unsigned buf, unsigned pos, int len)
 {
-
-  fatfs_deb("write: dir %s, sec %u, len %d\n", f->dir, pos, len);
+  error("fatfs write ignored: dir %s, sec %u, len %d\n", f->dir, pos, len);
 
   if(!f->ok) return -1;
 
@@ -325,6 +370,13 @@ int fatfs_write(fatfs_t *f, unsigned buf, unsigned pos, int len)
 int fatfs_is_bootable(const fatfs_t *f)
 {
   return (f->sys_type != 0);
+}
+
+int fatfs_root_contains(const fatfs_t *f, int file_idx)
+{
+  if (file_idx >= MAX_SYS_IDX)
+    return 0;
+  return f->sys_found[file_idx];
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -512,50 +564,18 @@ static void update_geometry(fatfs_t *f, unsigned char *b)
 
   if (version >= 400)
     memcpy(bpb->v400_fat_type, f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
-
-  if (f->sys_type == MOS_D)
-    b[0x3e] = config.fdisks ? f->drive_num : 0;
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 int read_boot(fatfs_t *f, unsigned char *b)
 {
-  struct on_disk_bpb *bpb = (struct on_disk_bpb *) &b[0x0b];
-
   fatfs_deb("dir %s, reading boot sector\n", f->dir);
 
-  if(f->boot_sec) {
-    memcpy(b, f->boot_sec, 0x200);
-    update_geometry(f, b);
-    return 0;
+  if(!f->boot_sec) {
+    return -1;
   }
 
-  // build v4 boot block for Dosemu's boot code
-  build_boot_blk(f, b);
-
-  memcpy(b + 0x03, "IBM  3.3", 8);
-
-  /* This is an instruction that we never execute and is present only to
-   * convince Norton Disk Doctor that we are a valid boot program */
-  b[0x45] = 0xcd;                   /* int 0x13 */
-  b[0x46] = 0x13;
-
-  set_bpb_common(f, bpb);
-  bpb->v331_400_hidden_sectors = f->hidden_secs;
-  bpb->v331_400_num_sectors_large = bpb->num_sectors_small ? 0 : f->total_secs;
-  bpb->v340_400_drive_number = f->drive_num;
-  bpb->v340_400_flags = 0;
-  bpb->v340_400_signature = BPB_SIG_V400;
-  bpb->v340_400_serial_number = f->serial;
-  memcpy(bpb->v400_vol_label,  f->label, 11);
-  memcpy(bpb->v400_fat_type,
-         f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
-  /* MOS has a bug: if no floppies installed, first HDD goes to A,
-   * but the boot HDD is always looked up starting from C. So we
-   * pretend to be a floppy to boot from HDD at A. */
-  if (f->sys_type == MOS_D)
-    b[0x3e] = config.fdisks ? f->drive_num : 0;
-
+  memcpy(b, f->boot_sec, 0x200);
   return 0;
 }
 
@@ -577,15 +597,22 @@ void make_label(fatfs_t *f)
   name_ufs_to_dos(sdos, s);
   s = sdos;
   i = strlen(s);
+  if(i == 0) return;
 
   if(i > 11) {
     for(j = 0; j < i; j++) {
       if(s[j] == '/' && i - j <= 12) break;
     }
     if(j != i) { i -= j + 1; s += j + 1; }
+    else {
+      char *p = strrchr(s, '/');
+      if (!p)
+        p = s;
+      s = p + 1;
+      i = 11;
+    }
   }
 
-  if(i == 0) return;
 
   if(s[i - 1] == '/') i--;
 
@@ -593,7 +620,11 @@ void make_label(fatfs_t *f)
 
   if(i <= 11 && i > 0) {
     memcpy(f->label, s, i);
+    while ((s = strchr(f->label, '.')))
+      *s = ' ';
     while ((s = strchr(f->label, '/')))
+      *s = ' ';
+    while ((s = strchr(f->label, '-')))
       *s = ' ';
     strupperDOS(f->label);
   }
@@ -624,7 +655,7 @@ unsigned new_obj(fatfs_t *f)
   return f->objs++;
 }
 
-static char *system_type(unsigned int t) {
+static const char *system_type(uint64_t t) {
     switch(t) {
     case 0:
         return "Non-system partition";
@@ -654,80 +685,65 @@ static char *system_type(unsigned int t) {
         return "Old FreeDOS";
     case FD_D:
         return "FreeDOS";
+#ifdef USE_FDPP
+    case FDP_D:
+        return "FDPP";
+#endif
     case RXO_D:
-        return "RxDOS (< v7.2)";
+        return "RxDOS (< v7.20)";
     case RXM_D:
-        return "RxDOS (v7.2)";
+        return "RxDOS (v7.20)";
+    case RXN_D:
+        return "RxDOS (>= v7.23)";
     case MOS_D:
         return "PC-MOS/386";
+    case OLDMOS_D:
+        return "PC-MOS 5.01";
     }
 
     return "Unknown System Type";
 }
 
-struct sys_dsc {
-    const char *name;
-    const int is_sys;
-    int allow_empty;
-};
-
-static const struct sys_dsc sfiles[] = {
-    [IO_IDX]   = { "IO.SYS",		1,   },
-    [MSD_IDX]  = { "MSDOS.SYS",		1, 1 },
-    [DRB_IDX]  = { "DRBIOS.SYS",	1,   },
-    [DRD_IDX]  = { "DRBDOS.SYS",	1,   },
-    [IBMB_IDX] = { "IBMBIO.COM",	1,   },
-    [IBMD_IDX] = { "IBMDOS.COM",	1,   },
-    [EDRB_IDX]  = { "DRBIO.SYS",	1,   },
-    [EDRD_IDX]  = { "DRDOS.SYS",	1,   },
-    [RXOB_IDX]  = { "RXDOSBIO.SYS",	1,   },
-    [RXOD_IDX]  = { "RXDOS.SYS",	1,   },
-    [RXMB_IDX]  = { "RXBIO.SYS",	1,   },
-    [RXMD_IDX]  = { "RXDOS.SYS",	1,   },
-    [MOSB_IDX]  = { "$$MOS.SYS",	1,   },
-    [MOSD_IDX]  = { "$$SHELL.SYS",	1,   },
-    [IPL_IDX]  = { "IPL.SYS",		1,   },
-    [KER_IDX]  = { "KERNEL.SYS",	1,   },
-    [CMD_IDX]  = { "COMMAND.COM",	0,   },
-    [RXCMD_IDX]  = { "RXDOSCMD.EXE",	0,   },
-    [CONF_IDX] = { config_sys,		0,   },
-    [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
-};
-
 static int fs_prio[MAX_SYS_IDX];
 
 static fatfs_t *cur_d;
 
-static int get_s_idx(const char *name)
+static int get_s_idx(const char *name, fatfs_t *f)
 {
     int i;
-    for (i = 0; i < ARRAY_SIZE(sfiles); i++) {
-	if (strequalDOS(name, sfiles[i].name))
+    for (i = 0; i < MAX_SYS_IDX; i++) {
+	if (!f->sfiles[i].name)
+	    continue;
+	if (strequalDOS(name, f->sfiles[i].name))
 	    return i;
     }
     return -1;
 }
 
-static int sys_file_idx(const char *name)
+static int sys_file_idx(const char *name, fatfs_t *f)
 {
     int idx, err;
     struct stat sb;
     const struct sys_dsc *fp;
     const char *path;
 
-    idx = get_s_idx(name);
+    idx = get_s_idx(name, f);
     if (idx == -1)
 	return -1;
-    fp = &sfiles[idx];
+    fp = &f->sfiles[idx];
     if (!fp->is_sys)
 	return -1;
-    path = full_name(cur_d, 0, name);
+    path = full_name(f, 0, name);
+    if (!path)
+	return -1;
     err = stat(path, &sb);
     if (err)
 	return -1;
-    if (!S_ISREG(sb.st_mode))
+    if (!(S_ISREG(sb.st_mode) || (S_ISDIR(sb.st_mode) &&
+	    (fp->flags & FLG_ISDIR))))
 	return -1;
-    if (!fp->allow_empty && sb.st_size == 0)
+    if (S_ISREG(sb.st_mode) && !(fp->flags & FLG_ALLOW_EMPTY) &&
+	    sb.st_size == 0)
 	return -1;
     return idx;
 }
@@ -739,89 +755,103 @@ static int d_filter(const struct dirent *d)
 
     if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
 	return 0;
-    idx = sys_file_idx(name);
+    idx = sys_file_idx(name, cur_d);
     if (idx != -1)
 	sys_type |= 1 << idx;
+    idx = get_s_idx(name, cur_d);
+    if (idx != -1)
+	cur_d->sys_found[idx] = 1;
     return 1;
 }
 
 static void init_sfiles(void)
 {
-    int i, sfs;
+    int i, sfs = 1;
+    int sysf_located = 0;
     memset(fs_prio, 0, sizeof(fs_prio));
     if((sys_type & MS_D) == MS_D) {
       sys_type = MS_D;		/* MS-DOS */
-      fs_prio[IO_IDX] = 1;
-      fs_prio[MSD_IDX] = 2;
-      sfs = 3;
-      sys_done = 1;
+      fs_prio[IO_IDX] = sfs++;
+      fs_prio[MSD_IDX] = sfs++;
+      sysf_located = 1;
     }
     if((sys_type & DR_D) == DR_D) {
       sys_type = DR_D;		/* DR-DOS */
-      fs_prio[DRB_IDX] = 1;
-      fs_prio[DRD_IDX] = 2;
-      sfs = 3;
-      sys_done = 1;
+      fs_prio[DRB_IDX] = sfs++;
+      fs_prio[DRD_IDX] = sfs++;
+      sysf_located = 1;
+    }
+    if((sys_type & EDR_D) == EDR_D) {
+      sys_type = EDR_D;		/* Enhanced DR-DOS (7.01.07+) */
+      fs_prio[EDRB_IDX] = sfs++;
+      fs_prio[EDRD_IDX] = sfs++;
+      sysf_located = 1;
     }
     if((sys_type & PC_D) == PC_D) {
       sys_type = PC_D;		/* PC-DOS */
-      fs_prio[IBMB_IDX] = 1;
-      fs_prio[IBMD_IDX] = 2;
-      sfs = 3;
-      sys_done = 1;
+      fs_prio[IBMB_IDX] = sfs++;
+      fs_prio[IBMD_IDX] = sfs++;
+      sysf_located = 1;
     }
     if((sys_type & RXO_D) == RXO_D) {
-      sys_type = RXO_D;		/* RX-DOS (Old naming) */
-      fs_prio[RXOB_IDX] = 1;
-      fs_prio[RXOD_IDX] = 2;
-      sfs = 3;
-      sys_done = 1;
+      sys_type = RXO_D;		/* RxDOS (Old naming) */
+      fs_prio[RXOB_IDX] = sfs++;
+      fs_prio[RXOD_IDX] = sfs++;
+      sysf_located = 1;
     }
     if((sys_type & RXM_D) == RXM_D) {
-      sys_type = RXM_D;		/* RX-DOS (New naming) */
-      fs_prio[RXMB_IDX] = 1;
-      fs_prio[RXMD_IDX] = 2;
-      sfs = 3;
-      sys_done = 1;
+      sys_type = RXM_D;		/* RxDOS (New naming) */
+      fs_prio[RXMB_IDX] = sfs++;
+      fs_prio[RXMD_IDX] = sfs++;
+      sysf_located = 1;
+    }
+    if((sys_type & RXN_D) == RXN_D) {
+      sys_type = RXN_D;		/* RxDOS 7.23+, single-file loading */
+      fs_prio[RXND_IDX] = sfs++;
+      sysf_located = 1;
     }
     if((sys_type & MOS_D) == MOS_D) {
       sys_type = MOS_D;		/* PC-MOS/386 */
-      fs_prio[MOSB_IDX] = 1;
-      fs_prio[MOSD_IDX] = 2;
-      sfs = 3;
-      sys_done = 1;
+      fs_prio[MOSB_IDX] = sfs++;
+      fs_prio[MOSD_IDX] = sfs++;
+      sysf_located = 1;
     }
     if((sys_type & FDO_D) == FDO_D) {
       sys_type = FDO_D;		/* FreeDOS, orig. Patv kernel */
-      fs_prio[IPL_IDX] = 1;
-      sfs = 2;
-      sys_done = 1;
+      fs_prio[IPL_IDX] = sfs++;
+      sysf_located = 1;
     }
     if((sys_type & FD_D) == FD_D) {
       sys_type = FD_D;		/* FreeDOS, FD maintained kernel */
-      fs_prio[KER_IDX] = 1;
-      sfs = 2;
-      sys_done = 1;
+      fs_prio[KER_IDX] = sfs++;
+      sysf_located = 1;
     }
-    if (sys_done) {
-	for (i = 0; i < ARRAY_SIZE(sfiles); i++) {
-	    if (sfiles[i].is_sys)
-		continue;
-	    fs_prio[i] = sfs++;
-	}
-	cur_d->sys_objs = sfs - 1;
-    } else {
+#ifdef USE_FDPP
+    if((sys_type & FDP_D) == FDP_D) {
+      sys_type = FDP_D;		/* FDPP kernel */
+      fs_prio[FDP_IDX] = sfs++;
+      sysf_located = 1;
+    }
+#endif
+    for (i = 0; i < MAX_SYS_IDX; i++) {
+	if (!cur_d->sfiles[i].name)
+	    continue;
+	if (cur_d->sfiles[i].is_sys || !cur_d->sys_found[i])
+	    continue;
+	fs_prio[i] = sfs++;
+    }
+    cur_d->sys_objs = sfs - 1;
+    if (!sysf_located)
 	sys_type = 0;
-	cur_d->sys_objs = 0;
-    }
+    sys_done = 1;
 }
 
 static int d_compar(const struct dirent **d1, const struct dirent **d2)
 {
     const char *name1 = (*d1)->d_name;
     const char *name2 = (*d2)->d_name;
-    int idx1 = get_s_idx(name1);
-    int idx2 = get_s_idx(name2);
+    int idx1 = get_s_idx(name1, cur_d);
+    int idx2 = get_s_idx(name2, cur_d);
     int prio1, prio2;
     if (idx1 == -1 && idx2 == -1)
 	return alphasort(d1, d2);
@@ -829,7 +859,7 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
 	return 1;
     if (idx2 == -1)
 	return -1;
-    if (sys_type && !sys_done)
+    if (!sys_done)
 	init_sfiles();
     prio1 = fs_prio[idx1];
     prio2 = fs_prio[idx2];
@@ -881,6 +911,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
   int i;
   struct dirent **dlist;
   int num;
+  int read_bb;
 
   // just checking...
   if(!o->is.dir || o->size || !o->name || o->is.scanned) {
@@ -897,8 +928,11 @@ void scan_dir(fatfs_t *f, unsigned oi)
     fatfs_msg("file name too complex: object %u\n", oi);
     return;
   }
-  if (!oi)
+  if (!oi) {
     sys_type = sys_done = 0;
+    memset(f->sys_found, 0, sizeof(f->sys_found));
+    f->sys_objs = 0;
+  }
   name = strdup(name);
   cur_d = f;
   num = scandir(name, &dlist, d_filter, d_compar);
@@ -907,6 +941,8 @@ void scan_dir(fatfs_t *f, unsigned oi)
     fatfs_msg("fatfs: scandir failed\n");
     return;
   }
+  if (!sys_done)
+    init_sfiles();
 
   if(oi) {
     for(i = 0; i < 2; i++) {
@@ -927,19 +963,6 @@ void scan_dir(fatfs_t *f, unsigned oi)
   } else {
     char *buf, *buf_ptr;
     int fd, size;
-    /* look for "boot.blk" and read it */
-    s = full_name(f, oi, "boot.blk");
-    if (s && access(s, R_OK) == 0 && !stat(s, &sb) &&
-	S_ISREG(sb.st_mode) && sb.st_size == 0x200) {
-                if((fd = open(s, O_RDONLY)) != -1) {
-                  if((f->boot_sec = malloc(0x200)) && read(fd, f->boot_sec, 0x200) != 0x200) {
-                    free(f->boot_sec);
-                    f->boot_sec = NULL;
-                  }
-                  close(fd);
-	          fatfs_msg("fatfs: boot block taken from boot.blk\n");
-            }
-    }
 
     if (sys_type == MS_D) {
         s = full_name(f, oi, dlist[0]->d_name); /* io.sys */
@@ -1017,9 +1040,9 @@ void scan_dir(fatfs_t *f, unsigned oi)
                         else
                             sys_type = OLDPCD_D;
                     }
-                 }
-                 free(buf);
-                 close(fd);
+                }
+                free(buf);
+                close(fd);
             }
             if ((sys_type == PC_D) && (sb.st_size <= 26*1024)) {
                 sys_type = OLDPCD_D; /* unknown but small enough to be < v4 */
@@ -1029,13 +1052,47 @@ void scan_dir(fatfs_t *f, unsigned oi)
             sys_type = NEWPCD_D;     /* default to v4.x -> v7.x */
     }
 
-    if (!sys_done) {
+    if (sys_type == MOS_D) {
+      /* see if it is old MOS */
+      s = full_name(f, oi, dlist[0]->d_name);
+      if (s && stat(s, &sb) == 0 && sb.st_size == 128880) {
+        if((fd = open(s, O_RDONLY)) != -1) {
+          uint32_t buf;
+          lseek(fd, 0x175, SEEK_SET);
+          read(fd, &buf, sizeof(buf));
+          if (buf == 0x20200105)    /* 5.01 */
+            sys_type = OLDMOS_D;
+          close(fd);
+        }
+      }
+    }
+
+    if (!sys_type) {
       fatfs_msg("system files not found!\n");
     } else {
       f->sys_type = sys_type;
+      fatfs_msg("system type is \"%s\" (0x%"PRIx64")\n",
+                system_type(f->sys_type), f->sys_type);
     }
-    fatfs_msg("system type is \"%s\" (0x%x)\n",
-              system_type(f->sys_type), f->sys_type);
+
+    /* load boot block from "boot.blk" file or generate Dosemu's own */
+    f->boot_sec = malloc(0x200);
+    s = full_name(f, oi, "boot.blk");
+    read_bb = 0;
+    if (s && (fd = open(s, O_RDONLY)) != -1) {
+      if (
+          fstat(fd, &sb) == 0 && S_ISREG(sb.st_mode) && sb.st_size == 0x200 &&
+          read(fd, f->boot_sec, 0x200) == 0x200) {
+        read_bb = 1;
+        fatfs_msg("fatfs: boot block taken from boot.blk\n");
+        update_geometry(f, f->boot_sec);
+      }
+      close(fd);
+    }
+    if (!read_bb) {
+      fatfs_msg("fatfs: boot block generated\n");
+      build_boot_blk(f, f->boot_sec);
+    }
   }
 
   for (i = 0; i < num; i++) {
@@ -1116,8 +1173,6 @@ static void _add_object(fatfs_t *f, unsigned parent, char *s, const char *name)
   obj_t tmp_o = {{0}, 0};
   unsigned u;
 
-  tmp_o.full_name = strdup(s);
-
   fatfs_deb("trying to add \"%s\":\n", s);
   if(stat(s, &sb)) {
       fatfs_deb("file not found\n");
@@ -1144,10 +1199,11 @@ static void _add_object(fatfs_t *f, unsigned parent, char *s, const char *name)
 
   tmp_o.time = dos_time(&sb.st_mtime);
 
+  tmp_o.full_name = strdup(s);
   tmp_o.name = strdup(name);
   if(!(u = make_dos_entry(f, &tmp_o, NULL))) {
     fatfs_deb("fatfs: make_dos_entry(%s) failed\n", name);
-    return;
+    goto err;
   }
   tmp_o.dos_dir_size = u;
   if (parent == 0 && f->obj[parent].size >= f->root_secs << 9) {
@@ -1159,19 +1215,25 @@ static void _add_object(fatfs_t *f, unsigned parent, char *s, const char *name)
 	    f->obj[parent].name, f->obj[parent].size);
       warned++;
     }
-    return;
+    goto err;
   }
 
-  if(!(u = new_obj(f))) { free(tmp_o.name); return; }
+  if(!(u = new_obj(f)))
+    goto err;
 
   if(f->obj[parent].is.dir) {
    f->obj[parent].size += tmp_o.dos_dir_size;
    if(!f->obj[parent].first_child) f->obj[parent].first_child = u;
   }
 
-  memcpy(f->obj + u, &tmp_o, sizeof *f->obj);
+  f->obj[u] = tmp_o;
 
   fatfs_deb("added as a %s\n", tmp_o.is.dir ? "directory" : "file");
+  return;
+
+err:
+  free(tmp_o.name);
+  free(tmp_o.full_name);
 }
 
 void add_object(fatfs_t *f, unsigned parent, char *nm)
@@ -1209,14 +1271,15 @@ unsigned dos_time(time_t *tt)
 
   return (t->tm_sec >> 1) + (t->tm_min << 5) + (t->tm_hour << 11) +
          (t->tm_mday << 16) + ((t->tm_mon + 1) << 21) +
-         ((t->tm_year < 80 ? 0 : t->tm_year - 80) << 25);
+         ((unsigned)(t->tm_year < 80 ? 0 : t->tm_year - 80) << 25);
 }
 
 
-unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
+unsigned make_dos_entry(fatfs_t *f, const obj_t *o, unsigned char **e)
 {
   static unsigned char dos_ent[0x20];
-  char *s, sdos[PATH_MAX + 1];
+  const char *s;
+  char sdos[PATH_MAX + 1];
   unsigned u, start;
   int i, j;
 
@@ -1286,10 +1349,12 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
 
   if(!s[j])
     return 0x20;
-  if (s[j] != '.') {
+  if (s[j] != '.' || strlen(s + j) > 4) {
     /* poor man's lfn mangling */
     char *dot;
-    memcpy(dos_ent + 6, "~1", 2);
+    if (i > 6)
+      i = 6;
+    memcpy(dos_ent + i, "~1", 2);
     dot = strchr(s, '.');
     if (!dot)
       return 0x20;
@@ -1297,7 +1362,7 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
   }
 
   for(j++, i = 0; s[j] && i < 3; j++) {
-    if (s[j] == ' ')
+    if (s[j] == ' ' || s[j] == '.')
       continue;
     dos_ent[8 + i++] = toupperDOS(s[j]);
   }
@@ -1328,7 +1393,7 @@ unsigned find_obj(fatfs_t *f, unsigned clu)
 
 void assign_clusters(fatfs_t *f, unsigned max_clu, unsigned max_obj)
 {
-  unsigned u;
+  unsigned u, k;
 
   fatfs_deb2("assigning up to cluster %u, obj %u\n", max_clu, max_obj);
 
@@ -1349,6 +1414,14 @@ void assign_clusters(fatfs_t *f, unsigned max_clu, unsigned max_obj)
       f->got_all_objs = 1;
       fatfs_msg("assign_clusters: file system full\n");
       error("fatfs: file system full, %s\n", f->obj[0].name);
+      /* remove dangling objects */
+      for(k = u; k < f->objs; k++) {
+        if(f->obj[k].name)
+          free(f->obj[k].name);
+        if(f->obj[k].full_name)
+          free(f->obj[k].full_name);
+      }
+      f->objs = u;
     }
     fatfs_deb("assign_clusters: obj %u, start %u, len %u (%s)\n",
 	u, f->obj[u].start, f->obj[u].len, f->obj[u].name);
@@ -1414,7 +1487,7 @@ int read_file(fatfs_t *f, unsigned oi, unsigned clu, unsigned pos,
   fatfs_deb2("going to read 0x200 bytes from file \"%s\", ofs 0x%x \n", s, pos);
 
   if(f->fd_obj == 0) {
-    if((f->fd = open(s, O_RDONLY)) == -1) {
+    if((f->fd = open(s, O_RDONLY | O_CLOEXEC)) == -1) {
       fatfs_deb("fatfs: open %s failed\n", s);
       return -1;
     }
@@ -1530,16 +1603,18 @@ unsigned next_cluster(fatfs_t *f, unsigned clu)
  */
 void mimic_boot_blk(void)
 {
-  int fd, size;
-  unsigned loadaddress, r_o, d_o, sp;
+  int fd, size, idx;
+  unsigned r_o, d_o, sp;
+  int load_offs;
   uint16_t seg;
   uint16_t ofs;
 
   fatfs_t *f = get_fat_fs_by_drive(HI(ax));
 
-  if (!f || !f->obj[1].full_name) {
+  if (!f || (idx = sys_file_idx(f->obj[1].name, f)) == -1) {
     error("BOOT-helper requested, but no systemfile available\n");
     leavedos(99);
+    return;
   }
 
   if ((fd = open(f->obj[1].full_name, O_RDONLY)) == -1) {
@@ -1556,14 +1631,17 @@ void mimic_boot_blk(void)
   /* defaults */
   seg = 0x0070;
   ofs = 0x0000;
-  loadaddress = SEGOFF2LINEAR(seg, ofs);
+  load_offs = 0;
+  SREG(cs)  = seg;
+  LWORD(eip) = ofs;
+
   size = f->obj[1].size;
 
   switch(f->sys_type) {
     case NEWMSD_D:                     /* for IO.SYS, MS-DOS version >= 7 */
       seg = 0x0070;
       ofs = 0x0200;
-      loadaddress = SEGOFF2LINEAR(seg, 0x0000); // different to cs:ip
+      load_offs = -ofs;                // different to cs:ip
       size = 4 * SECTOR_SIZE;
 
       LWORD(ebp) = sp = 0x7c00;
@@ -1572,6 +1650,8 @@ void mimic_boot_blk(void)
       LWORD(esp) = sp;
 
       LWORD(edi) = 0x0002;
+      SREG(cs)  = seg;
+      LWORD(eip) = ofs;
       break;
 
     case NEWPCD_D:		/* MS-DOS 4.0 -> 6.22 / PC-DOS 4.0 -> 7.0 */
@@ -1621,24 +1701,56 @@ void mimic_boot_blk(void)
       LWORD(ebp) = LWORD(esp) = 0x7c00;
       break;
 
+    case ENHDRD_D:		/* Enhanced DR-DOS 7.01.07+ */
+      /* setup done by real boot sector
+        r
+        AX=0000  BX=0080  CX=0004  DX=0080  SI=2012  DI=0000  SP=7ba0  BP=7c00
+        DS=1fe0  ES=0870  FS=0000  GS=0000  FL=000a3246
+        CS:IP=0070:0000       SS:SP=1fe0:7ba0
+
+        d ds:bp
+        1fe0:7c00 EB 3C 90 44 52 44 4F 53 37 2E 30 00 02 08 01 00  k<.DRDOS7.0.....
+        1fe0:7c10 02 00 02 37 51 F8 08 00 11 00 04 00 11 00 00 00  ...7Qx..........
+        1fe0:7c20 00 00 00 00 80 00 29 24 23 E7 1B 4E 4F 20 4E 41  ......)$#g.NO NA
+        1fe0:7c30 4D 45 20 20 20 20 46 41 54 31 32 20 20 20 FA FC  ME    FAT12   z|
+        1fe0:7c40 31 C0 8E D8 BD 00 7C B8 E0 1F 8E C0 89 EE 89 EF  1@.X=.|8`..@.n.o
+        1fe0:7c50 B9 00 01 F3 A5 EA 5E 7C E0 1F 00 00 70 00 8E D8  9..s%j^|`...p..X
+        1fe0:7c60 8E D0 8D 66 A0 FB 90 90 90 C7 46 C0 10 00 C7 46  .P.f {...GF@..GF
+        1fe0:7c70 C2 01 00 8C 5E C6 C7 46 C4 A0 63 8B 76 1C 8B 7E  B...^FGFD c.v..~
+      */
+      LWORD(edx) = f->drive_num;
+
+      SREG(ds) = SREG(ss) = 0x1fe0;
+      LWORD(ebp) = 0x7c00;
+      LWORD(esp) = 0x7ba0;  // as per dump above, but not used by 7.01.07
+
+      /* load boot sector */
+      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1fe0, 0x7c00)));
+      break;
+
     case FDO_D:			/* FreeDOS, orig. Patv kernel */
       seg = 0x2000;
       ofs = 0x0000;
-      loadaddress = SEGOFF2LINEAR(seg, ofs);
-
       LWORD(edx) = f->drive_num;
+      SREG(cs)  = seg;
+      LWORD(eip) = ofs;
       break;
 
     case FD_D:			/* FreeDOS, FD maintained kernel */
+      int_try_disable_revect();		// assume emufs.sys loaded
       seg = 0x0060;
       ofs = 0x0000;
-      loadaddress = SEGOFF2LINEAR(seg, ofs);
-
       LWORD(ebx) = f->drive_num;
-      SREG(ds)  = loadaddress >> 4;
-      SREG(es)  = loadaddress >> 4;
+      SREG(ds)  = seg;
+      SREG(es)  = seg;
       SREG(ss)  = 0x1FE0;
       LWORD(esp) = 0x7c00;  /* temp stack */
+      LWORD(ebp) = 0x7C00;
+      SREG(cs)  = seg;
+      LWORD(eip) = ofs;
+
+      /* load boot sector to stack */
+      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _SP)));
       break;
 
     case RXO_D:
@@ -1654,13 +1766,71 @@ void mimic_boot_blk(void)
       size = 3 * SECTOR_SIZE;
       break;
 
+    case RXN_D: {
+      char *string_pointer;
+      const uint32_t loadtop = SEGOFF2LINEAR(0x1FE0, 0x7C00 - 8192);
+				/* 1FE0h:7C00h -> BPB, -8192: stack reservation */
+      struct {
+	uint32_t FirstCluster;	/* (all) first cluster of load file */
+	uint32_t FATSector;	/* (FAT32,FAT16) loaded sector-in-FAT, or -1 */
+	uint16_t FATSeg;	/* (all) FAT buffer (FAT12: full FAT), or 0 */
+	uint16_t LoadSeg;	/* (all) => behind last loaded paragraph */
+	uint32_t DataStart;	/* (all) data area start sector-in-partition */
+      } __attribute__((packed)) *lsv;
+
+      seg = 0x0200;
+      ofs = 0x0400;				/* execute at 200h:400h */
+      load_offs = -ofs;				/* load to 200h:0 */
+      LWORD(ebx) = f->drive_num;
+      LWORD(edx) = f->drive_num;
+      SREG(ss) = 0x1FE0;
+      LWORD(ebp) = 0x7C00;			/* -> BPB, -> behind lsv */
+      LWORD(esp) = 0x7C00 - sizeof(*lsv);	/* -> lsv */
+      SREG(cs)  = seg;
+      LWORD(eip) = ofs;
+
+      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00)));	/* load BPB */
+      /* RxDOS.3 load protocol note:
+	The top 20 KiB below LMA top, EBDA, and/or RPL space is assumed
+	 to be available to the iniload stage for its own stack and buffers.
+	 As we use the FreeDOS-derived fixed BPB address of 1FE0h:7C00h,
+	 we assume that these 20 KiB are left available.
+	If we did "auto-BPB" allocation like lDebug's BOOT command,
+	 we would have to insure to reserve the top 20 KiB.
+      */
+
+      if ( ((seg << 4) + size) > loadtop ) {
+	/* (seg << 4) + size -> after end of load */
+	size = loadtop - (seg << 4);		/* limit loaded size to max */
+      }
+      if (size < 0x600) {
+	error("too small DOS system file %s\n", f->obj[1].full_name);
+	leavedos(99);
+      }
+
+      string_pointer = (char *)
+	LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00))
+	+ sizeof(struct on_disk_bpb) + 0x000B;	/* -> after (FAT16) BPB */
+      strcpy(string_pointer, "RXDOS   COM");	/* give it padded filename */
+
+      lsv = LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00 - sizeof(*lsv)));
+      lsv->FirstCluster = 2;			/* first cluster of file */
+      lsv->FATSector = -1;			/* (FAT32,FAT16) none */
+      lsv->FATSeg = 0;				/* (FAT12) none */
+      lsv->LoadSeg = seg + ((size + 15) >> 4);	/* => behind last loaded */
+      lsv->DataStart = d_o - f->hidden_secs;
+
+      break;
+    }
+
     case MOS_D:			/* PC-MOS/386 */
+    case OLDMOS_D:		/* PC-MOS 5.01 */
       seg = 0x0080;
       ofs = 0x0000;
-      loadaddress = SEGOFF2LINEAR(seg, ofs);
-
       SREG(ds)  = 0x2790;
       SREG(es)  = 0x2000;
+      SREG(cs)  = seg;
+      LWORD(eip) = ofs;
 
       /* load boot sector to stack */
       read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x2790, 0x0)));
@@ -1673,17 +1843,25 @@ void mimic_boot_blk(void)
       break;
 
     default:
-      error("BOOT-helper requested for system type %#x\n", f->sys_type);
-      leavedos(99);
-      return;
+      if (f->sfiles[idx].pre_boot && f->sfiles[idx].pre_boot(f->boot_sec) == 0) {
+        /* load boot sector to stack */
+        read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _SP)));
+      } else {
+        error("%s boot failed\n", system_type(f->sys_type));
+        leavedos(99);
+        return;
+      }
+      break;
   }
+  config.boot_dos = f->sys_type;
+  c_printf("config.boot_dos set to %x\n", config.boot_dos);
+  c_printf("config.int_hooks set to %i\n", config.int_hooks);
+  c_printf("config.force_revect set to %i\n", config.force_revect);
 
   // load bootfile i.e IO.SYS, IBMBIO.COM, etc
-  dos_read(fd, loadaddress, size);
+  if (!(f->sfiles[idx].flags & FLG_NOREAD))
+    dos_read(fd, SEGOFF2LINEAR(_CS, _IP) + load_offs, size);
   close(fd);
-
-  SREG(cs)  = seg;
-  LWORD(eip) = ofs;
 }
 
 /*
@@ -1691,19 +1869,35 @@ void mimic_boot_blk(void)
  */
 void build_boot_blk(fatfs_t *f, unsigned char *b)
 {
-  unsigned t_o;
-  int eos = (0x7ded-0x7c00);
-#define MSG_F "\r\n" \
-     "Sorry, could not load an operating system from\r\n" \
-     "%s\r\n" \
-     "Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n" \
-     "\r\n" \
-     "Press any key to return to Linux...\r\n"
+  struct on_disk_bpb *bpb = (struct on_disk_bpb *) &b[0x0b];
 
   memset(b, 0, 0x200);
   b[0x00] = 0xeb;	/* jmp 0x7c40 */
   b[0x01] = 0x3e;
   b[0x02] = 0x90;
+
+  memcpy(b + 0x03, "IBM  3.3", 8);
+
+  set_bpb_common(f, bpb);
+  bpb->v331_400_hidden_sectors = f->hidden_secs;
+  bpb->v331_400_num_sectors_large = bpb->num_sectors_small ? 0 : f->total_secs;
+  bpb->v340_400_drive_number = f->drive_num;
+  bpb->v340_400_flags = 0;
+  bpb->v340_400_signature = BPB_SIG_V400;
+  bpb->v340_400_serial_number = f->serial;
+  memcpy(bpb->v400_vol_label,  f->label, 11);
+  memcpy(bpb->v400_fat_type,
+         f->fat_type == FAT_TYPE_FAT12 ? "FAT12   " : "FAT16   ", 8);
+
+  if ((f->sys_type & MOS_D) == MOS_D)
+    b[0x3e] = f->drive_num;
+  if (f->sys_type == OLDMOS_D) {
+    /* MOS has a bug: if no floppies installed, first HDD goes to A,
+     * but the boot HDD is always looked up starting from C. So we
+     * pretend to be a floppy to bypass the buggy code. */
+    if (!config.fdisks)
+        b[0x3e] &= ~0x80;
+  }
 
   /* boot loading is done by DOSEMU-HELPER with mimic_boot_blk() function */
   b[0x40] = 0xb8;	/* mov ax,0fdh */
@@ -1712,18 +1906,81 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   b[0x43] = 0xcd;	/* int 0e6h */
   b[0x44] = DOS_HELPER_INT;
 
+  /* This is an instruction that we never execute and is present only to
+   * convince Norton Disk Doctor that we are a valid boot program */
+  b[0x45] = 0xcd;                   /* int 0x13 */
+  b[0x46] = 0x13;
+
   /*
-   * IO.SYS from MS-DOS 7 normally re-uses the boot block's error message.
-   * Please note that the address points to four bytes before the string to
-   * be displayed so we pad beforehand. Presumably this data would be
-   * meaningful, but as yet we do not know what it might be used for.
+   * IO.SYS from MS-DOS 7+ is currently the only DOS we know of that reuses
+   * the messages in the boot block, so create a compatible message table here.
    */
-  t_o = 0x48;
-  snprintf((char *)b + t_o, eos - t_o, "\x04\x03\x02\x01" MSG_F, f->dir);
-  b[0x1ee] = (0x7c00 + t_o);                  /* address of error msg */
-  b[0x1ef] = (0x7c00 + t_o) >> 8;
+  if (f->sys_type == NEWMSD_D) {
+    /*
+       There are four possible messages that can be defined. The standard
+     MS-DOS 7.0 boot block only seems to define three. They are:
+       MSG_1 = "Invalid system disk"
+       MSG_2 = "Disk I/O error"
+       MSG_3 points to MSG_1 string data
+       MSG_4 = "Replace the disk, and then press any key"
+
+     A dump of the salient part of the boot block shows
+000180 03 18 01 27 0d 0a 49 6e 76 61 6c 69 64 20 73 79  >...'..Invalid sy<
+000190 73 74 65 6d 20 64 69 73 6b ff 0d 0a 44 69 73 6b  >stem disk...Disk<
+0001a0 20 49 2f 4f 20 65 72 72 6f 72 ff 0d 0a 52 65 70  > I/O error...Rep<
+0001b0 6c 61 63 65 20 74 68 65 20 64 69 73 6b 2c 20 61  >lace the disk, a<
+0001c0 6e 64 20 74 68 65 6e 20 70 72 65 73 73 20 61 6e  >nd then press an<
+0001d0 79 20 6b 65 79 0d 0a 00                          >y key...        <
+
+     Based on the text in lDebug's msg.asm which describes the format well:
+       - The first four bytes give displacements to the various messages.
+       - Each message string will be terminated with 0xff, except the last
+       which will be terminated in the usual manner by 0x00.
+       - No displacement shall be 0x00
+       - The maximum allowed displacement is 0x7f.
+       - MS-DOS 7.10 from MSW 98 SE seems to have at least 167h (359) bytes
+       allocated to its buffer for these.
+
+     For Dosemu's purposes it is sufficient to have a single string and have
+     all of the messages reference it. For this to work it is necessary to pad
+     the start of the string with 0xff to ensure we don't end up with a MSG_4
+     illegal displacement of 0x00.
+     */
+    unsigned t_o = 0x48;
+    int eos = (0x7ded-0x7c00); // 0x7ded is the maximum limit of string
+
+    snprintf((char *)b + t_o, eos - t_o, "\x04\x03\x02\x01\xff"
+      "\r\n"
+      "Sorry, could not load an operating system from\r\n"
+      "%s\r\n"
+      "Please check the IO.SYS file for corruption or replace with FreeDOS\r\n"
+      "\r\n"
+      "Press any key to retry...\r\n"
+      , f->dir);
+
+    /* The value here is based on the final location in memory, which is not
+     * the same as a real MS-DOS boot sector would specify. Here's what lDebug
+     * has to say on the matter:
+       ; this pointer points to the MS-DOS 7 message table.
+       ; note that in actual MS-DOS 7 boot sectors, this value is
+       ; eg 17Fh, which is incorrectly used with the boot sector's
+       ; SS to load the table into the initial loader.
+     */
+    b[0x1ee] = (0x7c00 + t_o);                 /* address of error msg table */
+    b[0x1ef] = (0x7c00 + t_o) >> 8;
+  }
 
   /* add the boot block signature */
   b[0x1fe] = 0x55;
   b[0x1ff] = 0xaa;
+}
+
+const char *fatfs_get_host_dir(const fatfs_t *f)
+{
+  return f->dir;
+}
+
+struct sys_dsc *fatfs_get_sfiles(fatfs_t *f)
+{
+  return f->sfiles;
 }

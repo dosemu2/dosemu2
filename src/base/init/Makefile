@@ -1,18 +1,13 @@
-
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
-vpath %.y $(srcdir)
-vpath %.l $(srcdir)
 
 #DEFINES=-DYYDEBUG=1 -DYYERROR_VERBOSE -DYYPURE -DTESTING
 
-ALL_CPPFLAGS+=-DYYPURE -I$(srcdir)
-
 # CFLAGS=-O2 -Wall -Wmissing-prototypes \
-       -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
+#       -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
 #-Wwrite-strings
 
-CFILES = config.c dosemu_c.c global_c.c memcheck.c init.c dev_list.c install.c
+CFILES = config.c dosemu_c.c global_c.c memcheck.c init.c dev_list.c
 LFILES = lexer.l
 YFILES = parser.y
 HFILES = parsglob.h
@@ -25,7 +20,9 @@ ALL = $(YFILES) $(LFILES) $(CFILES) $(HFILES)
 
 OBJS=parser.o lex.yy.o $(CFILES:.c=.o)
 
-all:  lib
+all: lib
+
+init.o: $(top_builddir)/src/base/bios/x86/bios_data.xxd
 
 install:
 
@@ -43,18 +40,20 @@ global_c.c : $(top_srcdir)/etc/global.conf
 	    -e 's/^/"/g' -e 's/$$/\\n\"\\/g' $< >> $@
 	echo ';' >> $@
 
-parser.h: parser.c
-
-parser.c : parser.y
+# pattern rules are not parallel
+%.c %.h: %.y
 	$(YACC) -v -do $@  $<
+
+.PRECIOUS: parser.c
 
 lex.yy.c : lexer.l parser.y parser.h
 	$(LEX) -i $< 
 
 clean::
-	rm -f  parser.[ch] parser.output lex.yy.c dosemu_c.c global_c.c
-
-# how do we generate dependencies?
-
+	rm -f parser.[ch] parser.output lex.yy.c dosemu_c.c global_c.c
 
 include $(REALTOPDIR)/src/Makefile.common
+vpath %.y $(srcdir)
+vpath %.l $(srcdir)
+
+ALL_CPPFLAGS += -I$(srcdir)

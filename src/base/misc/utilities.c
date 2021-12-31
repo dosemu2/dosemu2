@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <sys/time.h>
+#include <limits.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -18,11 +19,12 @@
 #include <assert.h>
 #include <dlfcn.h>
 #include <pthread.h>
+#include <wordexp.h>
 
 #include "bios.h"
 #include "timers.h"
 #include "pic.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "debug.h"
 #include "utilities.h"
 #include "dos2linux.h"
@@ -46,7 +48,7 @@
 #define INITIAL_LOGBUFSIZE      0
 #endif
 #ifndef INITIAL_LOGBUFLIMIT
-#define INITIAL_LOGFILELIMIT	(500*1024*1024)
+#define INITIAL_LOGFILELIMIT	(1024*1024*1024ULL)
 #endif
 
 static pthread_mutex_t log_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -104,6 +106,17 @@ static char *timestamp (char *p)
 #define timestamp(p)	(p)
 #endif
 
+int is_printable(const char *s)
+{
+  int i;
+  int l = strlen(s);
+
+  for (i = 0; i < l; i++) {
+    if (!isprint(s[i]))
+      return 0;
+  }
+  return 1;
+}
 
 char *strprintable(char *s)
 {
@@ -143,6 +156,7 @@ int vlog_printf(int flg, const char *fmt, va_list args)
   int i;
   static int is_cr = 1;
 
+#ifdef USE_MHPDBG
   if (dosdebug_flags & DBGF_INTERCEPT_LOG) {
     va_list args2;
     va_copy(args2, args);
@@ -151,6 +165,7 @@ int vlog_printf(int flg, const char *fmt, va_list args)
     va_end(args2);
     if ((dosdebug_flags & DBGF_DISABLE_LOG_TO_FILE) || !dbg_fd) return i;
   }
+#endif
 
   if (!flg || !dbg_fd ||
 #ifdef USE_MHPDBG
@@ -253,7 +268,10 @@ int log_printf(int flg, const char *fmt, ...)
 	}
 #endif
 	if (in_log_printf) return 0;
-	if (!(dosdebug_flags & DBGF_INTERCEPT_LOG)) {
+#ifdef USE_MHPDBG
+	if (!(dosdebug_flags & DBGF_INTERCEPT_LOG))
+#endif
+	{
 		if (!flg || !dbg_fd ) return 0;
 	}
 	in_log_printf = 1;
@@ -266,27 +284,30 @@ int log_printf(int flg, const char *fmt, ...)
 	return ret;
 }
 
+void vprint(const char *fmt, va_list args)
+{
+  pthread_mutex_lock(&log_mtx);
+  if (!config.quiet) {
+    va_list copy_args;
+    va_copy(copy_args, args);
+    vfprintf(real_stderr ?: stderr, fmt, copy_args);
+    va_end(copy_args);
+  }
+  vlog_printf(10, fmt, args);
+  pthread_mutex_unlock(&log_mtx);
+}
+
 void verror(const char *fmt, va_list args)
 {
-	char fmtbuf[1025];
-	va_list orig_args;
-	va_copy(orig_args, args);
+  char fmtbuf[1025];
 
-	if (fmt[0] == '@') {
-		pthread_mutex_lock(&log_mtx);
-		vlog_printf(10, fmt+1, args);
-		vfprintf(stderr, fmt+1, orig_args);
-		pthread_mutex_unlock(&log_mtx);
-	}
-	else {
-		fmtbuf[sizeof(fmtbuf)-1] = 0;
-		snprintf(fmtbuf, sizeof(fmtbuf)-1, "ERROR: %s", fmt);
-		pthread_mutex_lock(&log_mtx);
-		vlog_printf(10, fmtbuf, args);
-		vfprintf(stderr, fmtbuf, orig_args);
-		pthread_mutex_unlock(&log_mtx);
-	}
-	va_end(orig_args);
+  if (fmt[0] == '@') {
+    fmt++;
+  } else {
+    snprintf(fmtbuf, sizeof(fmtbuf), "ERROR: %s", fmt);
+    fmt = fmtbuf;
+  }
+  vprint(fmt, args);
 }
 
 void error(const char *fmt, ...)
@@ -299,21 +320,29 @@ void error(const char *fmt, ...)
 
 
 /* write string to dos? */
-int
-p_dos_str(const char *fmt,...) {
-  va_list args;
+int p_dos_vstr(const char *fmt, va_list args)
+{
   static char buf[1024];
   char *s;
   int i;
 
-  va_start(args, fmt);
   i = com_vsnprintf(buf, sizeof(buf), fmt, args);
-  va_end(args);
-
   s = buf;
   g_printf("CONSOLE MSG: '%s'\n",buf);
   while (*s)
 	char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+  return i;
+}
+
+int p_dos_str(const char *fmt, ...)
+{
+  va_list args;
+  int i;
+
+  va_start(args, fmt);
+  i = p_dos_vstr(fmt, args);
+  va_end(args);
+
   return i;
 }
 
@@ -333,7 +362,7 @@ void close_proc_scan(void)
   procfile_name = procbuf = procbufptr = proclastpos = 0;
 }
 
-void open_proc_scan(char *name)
+void open_proc_scan(const char *name)
 {
   int size, fd;
   close_proc_scan();
@@ -367,7 +396,7 @@ void reset_proc_bufferptr(void)
   procbufptr = procbuf;
 }
 
-char *get_proc_string_by_key(char *key)
+char *get_proc_string_by_key(const char *key)
 {
 
   char *p;
@@ -397,7 +426,7 @@ char *get_proc_string_by_key(char *key)
   return 0; /* just to make GCC happy */
 }
 
-int get_proc_intvalue_by_key(char *key)
+int get_proc_intvalue_by_key(const char *key)
 {
   char *p = get_proc_string_by_key(key);
   int val;
@@ -429,14 +458,14 @@ int integer_sqrt(int x)
 	return y;
 }
 
-int exists_dir(char *name)
+int exists_dir(const char *name)
 {
 	struct stat st;
 	if (stat(name, &st)) return 0;
 	return (S_ISDIR(st.st_mode));
 }
 
-int exists_file(char *name)
+int exists_file(const char *name)
 {
 	struct stat st;
 	if (stat(name, &st)) return 0;
@@ -459,14 +488,14 @@ char *strcatdup(char *s1, char *s2)
 static char *_concat_dir(const char *s1, const char *s2)
 {
   size_t strlen_s1 = strlen(s1);
-  char *new = malloc(strlen_s1+strlen(s2)+2);
+  char *_new = malloc(strlen_s1+strlen(s2)+2);
 //  debug("concat_dir(%s,%s)", s1, s2);
-  strcpy(new,s1);
+  strcpy(_new,s1);
   if (s1[strlen_s1 - 1] != '/')
-    strcat(new, "/");
-  strcat(new,s2);
-//  debug("->%s\n", new);
-  return new;
+    strcat(_new, "/");
+  strcat(_new,s2);
+//  debug("->%s\n", _new);
+  return _new;
 }
 
 char *concat_dir(const char *s1, const char *s2)
@@ -476,22 +505,39 @@ char *concat_dir(const char *s1, const char *s2)
 	return _concat_dir(s1, s2);
 }
 
-char *assemble_path(char *dir, char *file, int append_pid)
+char *assemble_path(const char *dir, const char *file)
 {
 	char *s;
-	char pid[32] = "";
-	if (append_pid) sprintf(pid, "%d", getpid());
-	s = malloc(strlen(dir)+1+strlen(file)+strlen(pid)+1);
-	assert(s);
-	sprintf(s, "%s/%s%s", dir, file, pid);
+	wordexp_t p;
+	int err;
+
+	err = wordexp(dir, &p, WRDE_NOCMD);
+	assert(!err);
+	assert(p.we_wordc == 1);
+	asprintf(&s, "%s/%s", p.we_wordv[0], file);
+	wordfree(&p);
 	return s;
 }
 
-char *mkdir_under(char *basedir, char *dir, int append_pid)
+char *expand_path(const char *dir)
 {
-	char *s = basedir;
+	char *s;
+	wordexp_t p;
+	int err;
 
-	if (dir) s = assemble_path(basedir, dir, append_pid);
+	err = wordexp(dir, &p, WRDE_NOCMD);
+	assert(!err);
+	assert(p.we_wordc == 1);
+	s = realpath(p.we_wordv[0], NULL);
+	wordfree(&p);
+	return s;
+}
+
+const char *mkdir_under(const char *basedir, const char *dir)
+{
+	const char *s = basedir;
+
+	if (dir) s = assemble_path(basedir, dir);
 	if (!exists_dir(s)) {
 		if (mkdir(s, S_IRWXU)) {
 			fprintf(stderr, "can't create local %s directory\n", s);
@@ -500,7 +546,7 @@ char *mkdir_under(char *basedir, char *dir, int append_pid)
 	return s;
 }
 
-char *get_path_in_HOME(char *path)
+char *get_path_in_HOME(const char *path)
 {
 	char *home = getenv("HOME");
 
@@ -511,12 +557,12 @@ char *get_path_in_HOME(char *path)
 	if (!path) {
 		return strdup(home);
 	}
-	return assemble_path(home, path, 0);
+	return assemble_path(home, path);
 }
 
-char *get_dosemu_local_home(void)
+const char *get_dosemu_local_home(void)
 {
-	return mkdir_under(get_path_in_HOME(".dosemu"), 0, 0);
+	return mkdir_under(get_path_in_HOME(".dosemu"), 0);
 }
 
 int argparse(char *s, char *argvx[], int maxarg)
@@ -549,7 +595,7 @@ int argparse(char *s, char *argvx[], int maxarg)
          if (*s == delim) mode = 1;
       }
    }
-   argvx[argcx] = 0;
+   argvx[argcx] = NULL;
    return(argcx);
 }
 
@@ -643,9 +689,9 @@ void sigalarm_onoff(int on)
   static volatile int is_off = 0;
   if (on) {
     if (is_off--) {
-    	setitimer(ITIMER_REAL, &itv_old, NULL);
+	setitimer(ITIMER_REAL, &itv_old, NULL);
 #ifdef X86_EMULATOR
-    	setitimer(ITIMER_PROF, &itv_oldp, NULL);
+	setitimer(ITIMER_VIRTUAL, &itv_oldp, NULL);
 #endif
     }
   }
@@ -654,25 +700,8 @@ void sigalarm_onoff(int on)
     itv.it_value = itv.it_interval;
     setitimer(ITIMER_REAL, &itv, &itv_old);
 #ifdef X86_EMULATOR
-    setitimer(ITIMER_PROF, &itv, &itv_oldp);
+    setitimer(ITIMER_VIRTUAL, &itv, &itv_oldp);
 #endif
-  }
-}
-
-void sigalarm_block(int block)
-{
-  static volatile int is_blocked = 0;
-  sigset_t blockset;
-  static sigset_t oldset;
-  if (block) {
-    if (!is_blocked++) {
-      sigemptyset(&blockset);
-      sigaddset(&blockset, SIGALRM);
-      sigprocmask(SIG_BLOCK, &blockset, &oldset);
-    }
-  }
-  else if (is_blocked--) {
-    sigprocmask(SIG_SETMASK, &oldset, NULL);
   }
 }
 
@@ -700,7 +729,7 @@ char *readlink_malloc (const char *filename)
   return buffer;
 }
 
-void dosemu_error(char *fmt, ...)
+void dosemu_error(const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -710,38 +739,44 @@ void dosemu_error(char *fmt, ...)
 }
 
 #ifdef USE_DL_PLUGINS
+static void *do_dlopen(const char *filename, int flags)
+{
+    void *handle = dlopen(filename, flags | RTLD_NOLOAD);
+    if (handle)
+	return handle;
+    handle = dlopen(filename, flags);
+    if (handle)
+	return handle;
+    error("%s\n", dlerror());
+    return NULL;
+}
+
 void *load_plugin(const char *plugin_name)
 {
     char *fullname;
+    char *p;
     void *handle;
-    char *slash;
     int ret;
+    static int warned;
 
-    fullname = malloc(strlen(dosemu_proc_self_exe) + strlen(plugin_name) + 20);
-    assert(fullname != NULL);
+    if (!warned && dosemu_proc_self_exe &&
+	    (p = strrchr(dosemu_proc_self_exe, '/'))) {
+	asprintf(&fullname, "%.*s/libplugin_%s.so",
+		(int)(p - dosemu_proc_self_exe),
+		dosemu_proc_self_exe, plugin_name);
+	if (access(fullname, R_OK) == 0 &&
+			strcmp(dosemu_plugin_dir_path, DOSEMUPLUGINDIR) == 0) {
+		error("running from build dir must be done via script\n");
+		warned++;
+	}
+	free(fullname);
 
-    strcpy(fullname, dosemu_proc_self_exe);
-    slash = strrchr(fullname, '/');
-    if (slash == NULL) {
-      free (fullname);
-      return NULL;
     }
-    sprintf(slash + 1, "libplugin_%s.so", plugin_name);
-    handle = dlopen(fullname, RTLD_LAZY);
-    free(fullname);
-    if (handle != NULL)
-	return handle;
-
     ret = asprintf(&fullname, "%s/libplugin_%s.so",
-	     DOSEMUPLUGINDIR, plugin_name);
+	     dosemu_plugin_dir_path, plugin_name);
     assert(ret != -1);
-
-    handle = dlopen(fullname, RTLD_LAZY);
+    handle = do_dlopen(fullname, RTLD_LOCAL | RTLD_NOW);
     free(fullname);
-    if (handle != NULL)
-	return handle;
-    error("%s support not compiled in or not found:\n", plugin_name);
-    error("%s\n", dlerror());
     return handle;
 }
 
@@ -760,11 +795,11 @@ void close_plugin(void *handle)
 #endif
 
 /* http://media.unpythonic.net/emergent-files/01108826729/popen2.c */
-int popen2(const char *cmdline, struct popen2 *childinfo)
+int popen2_custom(const char *cmdline, struct popen2 *childinfo)
 {
     pid_t p;
     int pipe_stdin[2], pipe_stdout[2];
-    sigset_t set, oset;
+    sigset_t oset;
 
     if(pipe(pipe_stdin)) return -1;
     if(pipe(pipe_stdout)) return -1;
@@ -772,10 +807,7 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
 //    printf("pipe_stdin[0] = %d, pipe_stdin[1] = %d\n", pipe_stdin[0], pipe_stdin[1]);
 //    printf("pipe_stdout[0] = %d, pipe_stdout[1] = %d\n", pipe_stdout[0], pipe_stdout[1]);
 
-    sigemptyset(&set);
-    sigaddset(&set, SIGIO);
-    sigaddset(&set, SIGALRM);
-    sigprocmask(SIG_BLOCK, &set, &oset);
+    signal_block_async_nosig(&oset);
     p = fork();
     assert(p >= 0);
     if(p == 0) { /* child */
@@ -805,12 +837,28 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
     sigprocmask(SIG_SETMASK, &oset, NULL);
     close(pipe_stdin[0]);
     close(pipe_stdout[1]);
-    fcntl(pipe_stdin[1], F_SETFD, FD_CLOEXEC);
-    fcntl(pipe_stdout[0], F_SETFD, FD_CLOEXEC);
+    if (fcntl(pipe_stdin[1], F_SETFD, FD_CLOEXEC) == -1)
+      error("fcntl failed to set FD_CLOEXEC '%s'\n", strerror(errno));
+    if (fcntl(pipe_stdout[0], F_SETFD, FD_CLOEXEC) == -1)
+      error("fcntl failed to set FD_CLOEXEC '%s'\n", strerror(errno));
     childinfo->child_pid = p;
     childinfo->to_child = pipe_stdin[1];
     childinfo->from_child = pipe_stdout[0];
     return 0; 
+}
+
+int popen2(const char *cmdline, struct popen2 *childinfo)
+{
+    int ret = popen2_custom(cmdline, childinfo);
+    if (ret)
+	return ret;
+    ret = sigchld_enable_cleanup(childinfo->child_pid);
+    if (ret) {
+	error("failed to popen %s\n", cmdline);
+	pclose2(childinfo);
+	kill(childinfo->child_pid, SIGKILL);
+    }
+    return ret;
 }
 
 int pclose2(struct popen2 *childinfo)
@@ -843,7 +891,8 @@ int pclose2(struct popen2 *childinfo)
 
 #include <sys/types.h>
 #include <string.h>
-
+#if 0
+/* disable this and use libbsd */
 /*
  * Copy string src to buffer dst of size dsize.  At most dsize-1
  * chars will be copied.  Always NUL terminates (unless dsize == 0).
@@ -872,4 +921,134 @@ strlcpy(char *dst, const char *src, size_t dsize)
     }
 
     return(src - osrc - 1);	/* count does not include NUL */
+}
+#endif
+
+/* Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com> */
+/* modified by stsp */
+char *findprog(char *prog, const char *pathc)
+{
+	static char filename[PATH_MAX];
+	char *p;
+	char *path;
+	char dot[] = ".";
+	int proglen, plen;
+	struct stat sbuf;
+	char *pathcpy;
+
+	/* Special case if prog contains '/' */
+	if (strchr(prog, '/')) {
+		if ((stat(prog, &sbuf) == 0) && S_ISREG(sbuf.st_mode) &&
+		    access(prog, X_OK) == 0) {
+			return prog;
+		} else {
+//			warnx("%s: Command not found.", prog);
+			return NULL;
+		}
+	}
+
+	if (!pathc)
+		return NULL;
+	path = strdup(pathc);
+	assert(path);
+	pathcpy = path;
+
+	proglen = strlen(prog);
+	while ((p = strsep(&pathcpy, ":")) != NULL) {
+		if (*p == '\0')
+			p = dot;
+
+		plen = strlen(p);
+		while (p[plen-1] == '/')
+			p[--plen] = '\0';	/* strip trailing '/' */
+
+		if (plen + 1 + proglen >= sizeof(filename)) {
+//			warnx("%s/%s: %s", p, prog, strerror(ENAMETOOLONG));
+			free(path);
+			return NULL;
+		}
+
+		snprintf(filename, sizeof(filename), "%s/%s", p, prog);
+		if ((stat(filename, &sbuf) == 0) && S_ISREG(sbuf.st_mode) &&
+		    access(filename, X_OK) == 0) {
+			free(path);
+			return filename;
+		}
+	}
+	(void)free(path);
+	return NULL;
+}
+
+char *strupper(char *src)
+{
+  char *s = src;
+  for (; *src; src++)
+    *src = toupper(*src);
+  return s;
+}
+
+char *strlower(char *src)
+{
+  char *s = src;
+  for (; *src; src++)
+    *src = tolower(*src);
+  return s;
+}
+
+int replace_string(struct string_store *store, const char *old, char *str)
+{
+    int i;
+    int empty = -1;
+
+    for (i = 0; i < store->num; i++) {
+        if (old == store->strings[i]) {
+            free(store->strings[i]);
+            store->strings[i] = str;
+            return 1;
+        }
+        if (!store->strings[i] && empty == -1)
+            empty = i;
+    }
+    assert(empty != -1);
+    store->strings[empty] = str;
+    return 0;
+}
+
+struct tee_struct {
+    FILE *stream[2];
+};
+
+static ssize_t tee_write(void *cookie, const char *buf, size_t size)
+{
+    struct tee_struct *c = cookie;
+    fwrite(buf, size, 1, c->stream[0]);
+    return fwrite(buf, size, 1, c->stream[1]);
+}
+
+static int tee_close(void *cookie)
+{
+    int ret;
+    struct tee_struct *c = cookie;
+    fclose(c->stream[0]);
+    ret = fclose(c->stream[1]);
+    free(c);
+    return ret;
+}
+
+static cookie_io_functions_t tee_ops = {
+    .write = tee_write,
+    .close = tee_close,
+};
+
+FILE *fstream_tee(FILE *orig, FILE *copy)
+{
+    FILE *f;
+    struct tee_struct *c = malloc(sizeof(struct tee_struct));
+    assert(c);
+    c->stream[0] = copy;
+    c->stream[1] = orig;
+    f = fopencookie(c, "w", tee_ops);
+    assert(f);
+    setbuf(f, NULL);
+    return f;
 }

@@ -1,7 +1,5 @@
 /* ipx.h compatibility wrapper */
 
-#include "config.h"
-
 #ifdef HAVE_NETIPX_IPX_H
 #include <netipx/ipx.h>
 #else

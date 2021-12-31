@@ -11,7 +11,6 @@
 #include "cpu.h"
 #include "emu.h"
 #include "timers.h"
-#include "config.h"
 #include "int.h"
 #include "memory.h"
 #include "coopth.h"
@@ -119,11 +118,11 @@ static unsigned check_key_available(int extended)
 {
   unsigned keyptr = get_key(0, extended);
   if(keyptr == -1) {
-    if(!port60_buffer || (port60_buffer & 0x80))
+    if(!port60_ready)
       trigger_idle();
     else
       reset_idle(0);
-    idle(500, 20, 0, "int16");
+    idle_enable(500, 20, 2, "int16");
   } else {
     reset_idle(1);
   }
@@ -199,13 +198,16 @@ int int16(void)
   switch(HI(ax))
   {
   case 0:
+    int_yield();
     read_key(NON_EXTENDED);
     break;
   case 1:
+    int_yield();
     check_key_available(NON_EXTENDED);
     break;
   case 2:
   case 0x12:
+    int_yield();
     get_shift_flags();
     break;
   case 3:
@@ -218,9 +220,11 @@ int int16(void)
     store_key_in_buffer();
     break;
   case 0x10:
+    int_yield();
     read_key(EXTENDED);
     break;
   case 0x11:
+    int_yield();
     check_key_available(EXTENDED);
     break;
   default:

@@ -41,6 +41,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include "libpacket.h"
@@ -48,27 +49,40 @@
 #include "coopth.h"
 #include "hlt.h"
 #include "utilities.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 
-#define TAP_DEVICE  "tap%d"
+#ifndef ETH_FRAME_LEN
+#define ETH_FRAME_LEN   1514
+#define ETH_ALEN        6               /* Octets in one ethernet addr   */
+#define ETH_ZLEN        60              /* Min. octets in frame sans FCS */
+#define ETH_P_ALL       0x0003          /* Every packet (be careful!!!) */
+#define ETH_P_802_3     0x0001          /* Dummy type for 802.3 frames  */
+#define ETH_P_IPX       0x8137          /* IPX over DIX                 */
+#endif
 
-static void pkt_hlt(Bit16u idx, void *arg);
-static int Open_sockets(char *name);
-static int Insert_Type(int, int, char *);
+#ifndef __linux__
+struct ethhdr {
+        unsigned char   h_dest[ETH_ALEN];       /* destination eth addr */
+        unsigned char   h_source[ETH_ALEN];     /* source ether addr    */
+        uint16_t        h_proto;                /* packet type ID field */
+} __attribute__((packed));
+#endif
+
+static void pkt_hlt(Bit16u idx, HLT_ARG(arg));
+static int Insert_Type(int, int, Bit8u *);
 static int Remove_Type(int);
 int Find_Handle(u_char *buf);
-static void printbuf(char *, struct ethhdr *);
+static void printbuf(const char *, struct ethhdr *);
 static int pkt_check_receive(int ilevel);
 static void pkt_receiver_callback(void);
 static void pkt_receiver_callback_thr(void *arg);
+static void pkt_register_net_fd_and_mode(int fd, int mode);
 static Bit32u PKTRcvCall_TID;
 static Bit16u pkt_hlt_off;
 
-static int pktdrvr_installed;
-
-unsigned short receive_mode;
+static unsigned short receive_mode;
 static unsigned short local_receive_mode;
-static int pkt_fd;
+static int pkt_fd = -1;
 
 /* array used by virtual net to keep track of packet types */
 #define MAX_PKT_TYPE_SIZE 10
@@ -87,6 +101,18 @@ int max_pkt_type_array=0;
 
 /* global data common to all interfaces (there is only one interface
    for the moment...) */
+
+struct per_handle
+{
+	char in_use;			/* this handle in use? */
+	char cls;			/* class it was access_type'd with */
+	short packet_type_len;		/* length of packet type */
+	int flags;			/* per-packet-type flags */
+	int sock;			/* fd for the socket */
+	Bit16u rcvr_cs, rcvr_ip;	/* receive handler */
+	Bit8u packet_type[16];		/* packet type for this handle */
+};
+
 struct pkt_globs
 {
     unsigned char classes[4];		/* supported classes */
@@ -95,24 +121,8 @@ struct pkt_globs
     int flags;				/* configuration flags */
     int nfds;				/* number of fd's for select() */
     fd_set sockset;			/* set of sockets for select() */
-
-    struct per_handle
-    {
-	char in_use;			/* this handle in use? */
-	char class;			/* class it was access_type'd with */
-	short packet_type_len;		/* length of packet type */
-	int flags;			/* per-packet-type flags */
-	int sock;			/* fd for the socket */
-	Bit16u rcvr_cs, rcvr_ip;	/* receive handler */
-	char packet_type[16];		/* packet type for this handle */
-    } handle[MAX_HANDLE];
+    struct per_handle  handle[MAX_HANDLE];
 } pg;
-
-/* creates a pointer into the BIOS from the asm exported labels */
-#define MK_PTR(ofs) ( MK_FP32(BIOSSEG,(long)(ofs)-(long)bios_f000) )
-
-/* calculates offset of a label from the start of the packet driver */
-#define MK_PKT_OFS(ofs) ((long)(ofs)-(long)PKTDRV_start)
 
 unsigned char pkt_buf[PKT_BUF_SIZE];
 
@@ -127,53 +137,11 @@ struct pkt_statistics *p_stats;
 /* initialize the packet driver interface (called at startup) */
 void pkt_priv_init(void)
 {
-    int ret = -1;
-    /* initialize the globals */
     if (!config.pktdrv)
       return;
 
+    /* initialize the globals */
     LibpacketInit();
-
-    /* call Open_sockets() only for priv configs */
-    switch (config.vnet) {
-      case VNET_TYPE_ETH:
-	pd_printf("PKT: Using ETH device %s\n", config.ethdev);
-	ret = Open_sockets(config.ethdev);
-	if (ret < 0)
-	  error("PKT: Cannot open %s: %s\n", config.ethdev, strerror(errno));
-	break;
-      case VNET_TYPE_AUTO:
-      case VNET_TYPE_TAP: {
-	int vnet = config.vnet;
-	char devname[256];
-	int tap_auto = 0;
-        if (!config.tapdev || !config.tapdev[0]) {
-	  pd_printf("PKT: Using dynamic TAP device\n");
-	  strcpy(devname, TAP_DEVICE);
-	  tap_auto = 1;
-	} else {
-	  pd_printf("PKT: trying to bind to TAP device %s\n", config.tapdev);
-	  strcpy(devname, config.tapdev);
-	}
-	config.vnet = VNET_TYPE_TAP;
-	ret = Open_sockets(devname);
-	if (ret < 0) {
-	  if (vnet != VNET_TYPE_AUTO) {
-	    error("PKT: Cannot open %s: %s\n", devname, strerror(errno));
-	  } else {
-	    pd_printf("PKT: Cannot open %s: %s\n", devname, strerror(errno));
-	    if (!tap_auto || can_do_root_stuff)
-	      error("PKT: Cannot open TAP %s (%s), will try VDE\n",
-	          devname, strerror(errno));
-	  }
-	  config.vnet = vnet;
-	}
-	break;
-      }
-    }
-
-    if (ret != -1)
-	pktdrvr_installed = 1;
 }
 
 void
@@ -186,43 +154,16 @@ pkt_init(void)
 
     hlt_hdlr.name       = "pkt callout";
     hlt_hdlr.func       = pkt_hlt;
-    pkt_hlt_off = hlt_register_handler(hlt_hdlr);
+    pkt_hlt_off = hlt_register_handler_vm86(hlt_hdlr);
 
-    /* call Open_sockets() only for non-priv configs */
-    if (!pktdrvr_installed) {
-      switch (config.vnet) {
-      case VNET_TYPE_AUTO:
-	pkt_set_flags(PKT_FLG_QUIET);
-	/* no break */
-      case VNET_TYPE_VDE: {
-	int vnet = config.vnet;
-	const char *pr_dev = config.vdeswitch[0] ? config.vdeswitch : "(auto)";
-	if (!pkt_is_registered_type(VNET_TYPE_VDE)) {
-	  if (vnet != VNET_TYPE_AUTO)
-	    error("vde support is not compiled in\n");
-	  break;
-	}
-	config.vnet = VNET_TYPE_VDE;
-	ret = Open_sockets(config.vdeswitch);
-	if (ret < 0) {
-	  if (vnet == VNET_TYPE_AUTO)
-	    warn("PKT: Cannot run VDE %s\n", pr_dev);
-	  else
-	    error("Unable to run VDE %s\n", pr_dev);
-	  config.vnet = vnet;
-	} else {
-	  pktdrvr_installed = 1;
-	  pd_printf("PKT: Using device %s\n", pr_dev);
-	}
-	break;
-      }
-      }
-    }
-    if (!pktdrvr_installed)
+    ret = OpenNetworkLink(pkt_register_net_fd_and_mode);
+    if (ret < 0) {
+      config.pktdrv = 0;
       return;
+    }
 
-    p_param = MK_PTR(PKTDRV_param);
-    p_stats = MK_PTR(PKTDRV_stats);
+    p_param = MK_FP32(BIOSSEG, PKTDRV_param);
+    p_stats = MK_FP32(BIOSSEG, PKTDRV_stats);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
     pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
@@ -243,21 +184,18 @@ pkt_init(void)
     p_param->rcv_bufs = 8 - 1;		/* a guess */
     p_param->xmt_bufs = 2 - 1;
 
-    PKTRcvCall_TID = coopth_create("PKT_receiver_call");
+    PKTRcvCall_TID = coopth_create("PKT_receiver_call",
+	pkt_receiver_callback_thr);
 }
 
 void
 pkt_reset(void)
 {
     int handle;
-    if (!config.pktdrv || !pktdrvr_installed)
+    if (!config.pktdrv)
       return;
-    WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_OFF +
-	    MK_PKT_OFS(PKTDRV_driver_entry_ip)), pkt_hlt_off);
-    WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_OFF +
-	    MK_PKT_OFS(PKTDRV_driver_entry_cs)), BIOS_HLT_BLK_SEG);
-    /* hook the interrupt vector by pointing it into the magic table */
-    SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
+    WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_driver_entry_ip), pkt_hlt_off);
+    WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_driver_entry_cs), BIOS_HLT_BLK_SEG);
 
     max_pkt_type_array = 0;
     for (handle = 0; handle < MAX_HANDLE; handle++)
@@ -266,7 +204,7 @@ pkt_reset(void)
 
 void pkt_term(void)
 {
-    if (!config.pktdrv || !pktdrvr_installed)
+    if (!config.pktdrv)
       return;
     remove_from_io_select(pkt_fd);
     CloseNetworkLink(pkt_fd);
@@ -279,7 +217,7 @@ static int pkt_int(void)
     int hdlp_handle=-1;
 
     /* If something went wrong in pkt_init, pretend we are not there. */
-    if (!pktdrvr_installed)
+    if (!config.pktdrv)
 	return 0;
 
 #if 1
@@ -331,12 +269,12 @@ static int pkt_int(void)
 	   time.
 	*/
 	if (hdlp_handle !=0 && hdlp != NULL && hdlp->in_use)
-	    REG(ecx) = (hdlp->class << 8) + 1;	/* class, number */
+	    REG(ecx) = (hdlp->cls << 8) + 1;	/* class, number */
 	else
 	    REG(ecx) = (pg.classes[0] << 8) + 1;
 	REG(edx) = pg.type;			/* type (dummy) */
 	SREG(ds) = PKTDRV_SEG;			/* driver name */
-	REG(esi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_driver_name);
+	REG(esi) = PKTDRV_driver_name;
         pd_printf("Class returned = %d, handle=%d, pg.classes[0]=%d \n",
 		  REG(ecx)>>8, hdlp_handle, pg.classes[0] );
 	return 1;
@@ -375,7 +313,7 @@ static int pkt_int(void)
 		hdlp = &pg.handle[handle];
 
 		if (hdlp->in_use) {
-		    if (hdlp->class == LO(ax) && /* same class? */
+		    if (hdlp->cls == LO(ax) && /* same class? */
 			!memcmp(hdlp->packet_type, /* same type? (prefix) */
 				SEG_ADR((char *),ds,si),
 				min(LWORD(ecx), hdlp->packet_type_len)))
@@ -403,9 +341,9 @@ static int pkt_int(void)
 	    hdlp->rcvr_ip = LWORD(edi);
 	    hdlp->packet_type_len = LWORD(ecx);
 	    memcpy(hdlp->packet_type, SEG_ADR((char *),ds,si), LWORD(ecx));
-	    hdlp->class = LO(ax);
+	    hdlp->cls = LO(ax);
 
-	    if (hdlp->class == IEEE_CLASS)
+	    if (hdlp->cls == IEEE_CLASS)
 		type = ETH_P_802_3;
 	    else {
 		if (hdlp->packet_type_len < 2)
@@ -424,7 +362,7 @@ static int pkt_int(void)
 			{
 			    hdlp->flags |= FLAG_NOVELL;
 			    hdlp->packet_type[0] = hdlp->packet_type[1] = 0xff;
-			    hdlp->class = IEEE_CLASS;
+			    hdlp->cls = IEEE_CLASS;
 			    type = ETH_P_802_3;
 			}
 			break;
@@ -476,14 +414,11 @@ static int pkt_int(void)
 	}
 
 	if (pkt_write(pkt_fd, SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
-		    pd_printf("Write to net was ok\n");
-		    return 1;
-	} else {
-		    warn("WriteToNetwork(len=%u): error %d\n",
-			 LWORD(ecx), errno);
-		    break;
+	    pd_printf("Write to net was ok\n");
+	    return 1;
 	}
 
+	warn("WriteToNetwork(len=%u): error %d\n", LWORD(ecx), errno);
 	p_stats->errors_out++;
 	HI(dx) = E_CANT_SEND;
     }
@@ -516,7 +451,7 @@ static int pkt_int(void)
 
     case F_GET_PARAMS:
 	SREG(es) = PKTDRV_SEG;
-	REG(edi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_param);
+	REG(edi) = PKTDRV_param;
 	return 1;
 
     case F_SET_RCV_MODE:
@@ -545,7 +480,7 @@ static int pkt_int(void)
 	    break;
 	}
 	SREG(ds) = PKTDRV_SEG;
-	REG(esi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_stats);
+	REG(esi) = PKTDRV_stats;
 	return 1;
 
     default:
@@ -567,7 +502,7 @@ static int pkt_int(void)
     return 1;
 }
 
-static void pkt_hlt(Bit16u idx, void *arg)
+static void pkt_hlt(Bit16u idx, HLT_ARG(arg))
 {
     fake_iret();
     pkt_int();
@@ -578,25 +513,18 @@ static void pkt_receive_req_async(void *arg)
 	pic_request(PIC_NET);
 }
 
-static int
-Open_sockets(char *name)
+static void pkt_register_net_fd_and_mode(int fd, int mode)
 {
-    /* The socket for normal packets */
-    int ret = OpenNetworkLink(name);
-    if (ret < 0)
-	return ret;
-    pkt_fd = ret;
+    pkt_fd = fd;
     add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
-
-    local_receive_mode = receive_mode;
-    pd_printf("PKT: detected receive mode %i\n", receive_mode);
-
-    return 0;
+    receive_mode = mode;
+    local_receive_mode = mode;
+    pd_printf("PKT: detected receive mode %i\n", mode);
 }
 
 /* register a new packet type */
 static int
-Insert_Type(int handle, int pkt_type_len, char *pkt_type)
+Insert_Type(int handle, int pkt_type_len, Bit8u *pkt_type)
 {
     int i, nchars;
     if(pkt_type_len > MAX_PKT_TYPE_SIZE) return -1;
@@ -644,13 +572,8 @@ Remove_Type(int handle)
 
 static void pkt_receiver_callback(void)
 {
-    if (p_helper_size == 0)
-      return;
-
-    if(in_dpmi_pm())
-	fake_pm_int();
-    fake_int_to(BIOSSEG, EOI_OFF);
-    coopth_start(PKTRcvCall_TID, pkt_receiver_callback_thr, NULL);
+    assert(p_helper_size);
+    coopth_start(PKTRcvCall_TID, NULL);
 }
 
 static void pkt_receiver_callback_thr(void *arg)
@@ -686,7 +609,7 @@ static int pkt_receive(void)
     int size, handle;
     struct per_handle *hdlp;
 
-    if (!pktdrvr_installed) {
+    if (!config.pktdrv) {
         pd_printf("Driver not initialized ...\n");
 	return 0;
     }
@@ -717,7 +640,7 @@ static int pkt_receive(void)
 		/* in the ACCESS_TYPE call.  the position depends on the */
 		/* driver class! */
 
-		if (hdlp->class == ETHER_CLASS)
+		if (hdlp->cls == ETHER_CLASS)
 		    p = pkt_buf + 2 * ETH_ALEN;		/* Ethernet-II */
 		else
 		    p = pkt_buf + 2 * ETH_ALEN + 2;	/* IEEE 802.3 */
@@ -734,7 +657,7 @@ static int pkt_receive(void)
 	     */
 	    if (size < ETH_ZLEN) {
 		pd_printf("Fixing packet padding. Actual length: %d\n", size);
-		memset(pkt_buf + size, '0', ETH_ZLEN - size);
+		memset(pkt_buf + size, 0, ETH_ZLEN - size);
 		size = ETH_ZLEN;
 	    }
 
@@ -796,21 +719,23 @@ Find_Handle(u_char *buf)
     return -1;
 }
 
-static void
-printbuf(char *mesg, struct ethhdr *buf)
+static void printbuf(const char *mesg, struct ethhdr *buf)
 {
-int i;
-u_char *p;
-  pd_printf( "%s :\n Dest.=", mesg);
-  for (i=0;i<6;i++) pd_printf("%x:",buf->h_dest[i]);
-  pd_printf( " Source=");
-  for (i=0;i<6;i++) pd_printf("%x:",buf->h_source[i]);
+  int i;
+  u_char *p;
+
+  pd_printf("%s :\n Dest.=", mesg);
+  for (i = 0; i < 6; i++)
+    pd_printf("%x:", buf->h_dest[i]);
+  pd_printf(" Source=");
+  for (i = 0; i < 6; i++)
+    pd_printf("%x:", buf->h_source[i]);
   if (ntohs(buf->h_proto) >= 1536) {
-    p = (u_char *)buf + 2 * ETH_ALEN;		/* Ethernet-II */
+    p = (u_char *)buf + 2 * ETH_ALEN; /* Ethernet-II */
     pd_printf(" Ethernet-II;");
   } else {
-    p = (u_char *)buf + 2 * ETH_ALEN + 2;     /* All the rest frame types. */
+    p = (u_char *)buf + 2 * ETH_ALEN + 2; /* All the rest frame types. */
     pd_printf(" 802.3;");
   }
-  pd_printf( " Type= 0x%x \n", ntohs(*(u_short *)p));
+  pd_printf(" Type= 0x%x \n", ntohs(*(u_short *)p));
 }

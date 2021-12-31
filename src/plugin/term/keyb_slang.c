@@ -383,10 +383,7 @@ static Keymap_Scan_Type terminfo_basic_fkeys[] =
    {"^(F2)",	DKY_F2|SHIFT_MASK},    /* Shift F2 */
    {"^(F3)",	DKY_F3|SHIFT_MASK},    /* Shift F3 */
    {"^(F4)",	DKY_F4|SHIFT_MASK},    /* Shift F4 */
-/* disable because of the conflict with CPR. See comments below. */
-#if 0
    {"^(F5)",	DKY_F5|SHIFT_MASK},    /* Shift F5 */
-#endif
    {"^(F6)",	DKY_F6|SHIFT_MASK},    /* Shift F6 */
    {"^(F7)",	DKY_F7|SHIFT_MASK},    /* Shift F7 */
    {"^(F8)",	DKY_F8|SHIFT_MASK},    /* Shift F8 */
@@ -402,20 +399,7 @@ static Keymap_Scan_Type terminfo_ext_fkeys[] =
    {"^(F2)",	DKY_F12},	       /* F12 */
    {"^(F3)",	DKY_F1|SHIFT_MASK},    /* Shift F1 */
    {"^(F4)",	DKY_F2|SHIFT_MASK},    /* Shift F2 */
-/* FIXME: we have a problem here: Shift-F3 is reported as "\33[1;2R
- * and the cursor position reply (see is_cursor_position_reply()) is
- * reported as \33[Y;XR where Y and X are the coordinates digits:
- * http://unix.stackexchange.com/questions/239271/parse-terminfo-u6-string
- * So the CPR can match Shift-F3 if the cursor is at the proper position.
- * It is not clear for me why the cursor position is reported at
- * all. But the code in do_slang_getkeys() expects it to not return
- * the valid key. For this assumption to always hold true, let's
- * disable Shift-F3 until someone is to dig deeper and get rid of
- * this cursor position reply entirely somehow. Without this fix,
- * "dosemu -t" may detect Shift-F3 early at boot, and skip config/autoexec! */
-#if 0
    {"^(F5)",	DKY_F3|SHIFT_MASK},    /* Shift F3 */
-#endif
    {"^(F6)",	DKY_F4|SHIFT_MASK},    /* Shift F4 */
    {"^(F7)",	DKY_F5|SHIFT_MASK},    /* Shift F5 */
    {"^(F8)",	DKY_F6|SHIFT_MASK},    /* Shift F6 */
@@ -513,6 +497,24 @@ static Keymap_Scan_Type Dosemu_Ctrl_keys[] =
   {"", 0}
 };
 
+static Keymap_Scan_Type Dosemu_Alt_keys[] =
+{
+  {"\033[1;3P",  ALT_MASK | DKY_F1},
+  {"\033[1;3Q",  ALT_MASK | DKY_F2},
+  {"\033[1;3R",  ALT_MASK | DKY_F3},
+  {"\033[1;3S",  ALT_MASK | DKY_F4},
+  {"\033[15;3~", ALT_MASK | DKY_F5},
+  {"\033[17;3~", ALT_MASK | DKY_F6},
+  {"\033[18;3~", ALT_MASK | DKY_F7},
+  {"\033[19;3~", ALT_MASK | DKY_F8},
+  {"\033[20;3~", ALT_MASK | DKY_F9},
+  {"\033[21;3~", ALT_MASK | DKY_F10},
+  {"\033[23;3~", ALT_MASK | DKY_F11},
+  {"\033[24;3~", ALT_MASK | DKY_F12},
+
+  {"", 0}
+};
+
 
 /* shift state from previous keypress */
 static unsigned long old_flags = 0;
@@ -537,7 +539,7 @@ static int define_getkey_callback(void)
 /* Note: Later definitions with the same or a conflicting key sequence fail,
  *  and give an error message, but now don't stop the emulator.
  */
-static int define_key(const char *key, unsigned long scan,
+static int define_key(char *key, unsigned long scan,
 		      SLKeyMap_List_Type * m)
 {
 	char buf[SLANG_MAX_KEYMAP_KEY_SEQ +1], k1;
@@ -569,7 +571,7 @@ static int define_key(const char *key, unsigned long scan,
 	}
 
 	/* Get the translated keystring, and save a copy */
-	key_str = (unsigned char *)SLang_process_keystring((char *)key);
+	key_str = (unsigned char *)SLang_process_keystring(key);
 	memcpy(buf2, key_str, key_str[0]);
 	key_str = buf2;
 
@@ -733,6 +735,7 @@ static int init_slang_keymaps(void)
 
   /* And more Dosemu keys */
 	define_keyset(Dosemu_Ctrl_keys, m);
+	define_keyset(Dosemu_Alt_keys, m);
 
 	if (slang_get_error())
 		return -1;
@@ -757,12 +760,7 @@ static int init_slang_keymaps(void)
 	 * Now add one more for the esc character so that sending it twice sends
 	 * it.
 	 */
-	buf[0] = '^';
-	buf[1] = keyb_state.Esc_Char;
-	buf[2] = '^';
-	buf[3] = keyb_state.Esc_Char;
-	buf[4] = 0;
-	SLkm_define_key(buf, (VOID *) esc_scan, m);
+	SLkm_define_key("^[^[", (VOID *) DKY_ESC, m);
 	if (slang_get_error())
 		return -1;
 
@@ -787,6 +785,7 @@ static int read_some_keys(void)
 	struct timeval tv = { 0, 0 };
 	int selrt;
 	int cc;
+	int offs;
 
 	if (keyb_state.kbcount == 0)
 		keyb_state.kbp = keyb_state.kbbuf;
@@ -801,7 +800,9 @@ static int read_some_keys(void)
 		return 0;
 	if (!FD_ISSET(keyb_state.kbd_fd, &fds))
 		return 0;
-	cc = read(keyb_state.kbd_fd, &keyb_state.kbp[keyb_state.kbcount], KBBUF_SIZE - keyb_state.kbcount - 1);
+	offs = keyb_state.kbp - keyb_state.kbbuf;
+	cc = read(keyb_state.kbd_fd, &keyb_state.kbp[keyb_state.kbcount],
+			KBBUF_SIZE - keyb_state.kbcount - offs);
 	k_printf("KBD: cc found %d characters (Xlate)\n", cc);
 	if (cc > 0)
 		keyb_state.kbcount += cc;
@@ -822,46 +823,8 @@ static int getkey_callback(void)
 		keyb_state.KeyNot_Ready = 1;
 		return 0;
 	}
-	return (int)*(keyb_state.kbp + keyb_state.Keystr_Len++);
+	return keyb_state.kbp[keyb_state.Keystr_Len++];
 }
-
-/* DANG_BEGIN_COMMENT
- * sltermio_input_pending is called when a key is pressed and the time
- * till next keypress is important in interpreting the meaning of the
- * keystroke.  -- i.e. ESC
- * DANG_END_COMMENT
- */
-static int sltermio_input_pending(void)
-{
-	struct timeval scr_tv;
-	hitimer_t t_dif;
-	fd_set fds;
-	int selrt;
-
-#if 0
-#define	THE_TIMEOUT 750000L
-#else
-#define THE_TIMEOUT 250000L
-#endif
-	FD_ZERO(&fds);
-	FD_SET(keyb_state.kbd_fd, &fds);
-	scr_tv.tv_sec = 0L;
-	scr_tv.tv_usec = 0;
-
-	selrt = select(keyb_state.kbd_fd + 1, &fds, NULL, NULL, &scr_tv);
-	switch(selrt) {
-	case -1:
-		k_printf("ERROR: select failed, %s\n", strerror(errno));
-		return -1;
-	case 0:
-		t_dif = GETusTIME(0) - keyb_state.t_start;
-		if (t_dif >= THE_TIMEOUT)
-			return -1;
-		return 0;
-	}
-	return 1;
-}
-
 
 /*
  * If the sticky bits are set, then the scan code or the modifier key has
@@ -874,12 +837,6 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 
 	k_printf("KBD: slang_send_scancode(ls_flags=%08lx, lscan=%08lx)\n",
 		ls_flags, lscan);
-
-	if (lscan == DKY_MOUSE) {
-		/* Xtermmouse support */
-		xtermmouse_get_event(&keyb_state.kbp, &keyb_state.kbcount);
-		return;
-	}
 	if (ls_flags & KEYPAD_MASK) {
 		flags |= KEYPAD_MASK;
 		switch(lscan)
@@ -1000,6 +957,7 @@ void handle_slang_keys(Boolean make, t_keysym key)
 		break;
 	case DKY_DOSEMU_PAN_UP:
 		DOSemu_Terminal_Scroll = -1;
+		break;
 	case DKY_DOSEMU_PAN_DOWN:
 		DOSemu_Terminal_Scroll = 1;
 		break;
@@ -1032,7 +990,7 @@ void handle_slang_keys(Boolean make, t_keysym key)
 
 static void do_slang_special_keys(unsigned long scan)
 {
-	static char * keymap_prompts[] = {
+	static const char *keymap_prompts[] = {
 		0,
 		"[Shift]",
 		"[Ctrl]",
@@ -1188,8 +1146,9 @@ static void do_slang_special_keys(unsigned long scan)
 static const char *exitstr;
 static const char exitstr1[] =
   "Your locale (using the LANG, LC_CTYPE, or LC_ALL environment variable,\n"
-  "e.g., en_US) or $_external_char_set setting in ~/.dosemurc or dosemu.conf\n"
-  "does not match your terminal: one assumes UTF-8 and the other does not.\n"
+  "e.g., en_US) or $_external_char_set setting in ~/.dosemu/.dosemurc or\n"
+  "dosemu.conf does not match your terminal: one assumes UTF-8 and the other\n" 
+  "does not.\n"
   "Non-ASCII characters (\"extended ASCII\") were not displayed correctly.\n\n";
 
 /* check for u6=\E[%i%d;%dR cursor position reply */
@@ -1293,39 +1252,28 @@ static void do_slang_pending(void)
 {
 	if (keyb_state.KeyNot_Ready && (keyb_state.Keystr_Len == 1) &&
 			(*keyb_state.kbp == 27) && keyb_state.kbcount == 1) {
-		switch (sltermio_input_pending()) {
-		case -1:
+#if 0
+#define THE_TIMEOUT 750000L
+#else
+#define THE_TIMEOUT 250000L
+#endif
+		hitimer_t t_dif = GETusTIME(0) - keyb_state.t_start;
+		if (t_dif >= THE_TIMEOUT) {
 			k_printf("KBD: slang got single ESC\n");
 			keyb_state.kbcount--;	/* update count */
 			keyb_state.kbp++;
 			slang_send_scancode(keyb_state.Shift_Flags, DKY_ESC);
 			keyb_state.KeyNot_Ready = 0;
-			return;
-		case 0:
-			return;
-		case 1:
-			break;
 		}
 	}
-
+	/* do_slang_getkeys() throttles pasting. So we call it here in
+	 * addition to the SIGIO handler. */
 	if (keyb_state.kbcount)
 		_do_slang_getkeys();
 }
 
-static void _do_slang_getkeys(void)
+static void do_sync_shiftstate(void)
 {
-	SLang_Key_Type *key;
-	int cc;
-	int modifier = 0;
-
-	cc = read_some_keys();
-	if (cc <= 0 && !keyb_state.kbcount && ((old_flags & ~WAIT_MASK) == 0)) {
-		old_flags &= ~WAIT_MASK;
-		return;
-	}
-
-	k_printf("KBD: do_slang_getkeys()\n");
-	/* restore shift-state from previous keypress */
 	if (old_flags & SHIFT_MASK) {
 		move_key(RELEASE, DKY_L_SHIFT);
 		keyb_state.Shift_Flags &= ~SHIFT_MASK;
@@ -1346,6 +1294,31 @@ static void _do_slang_getkeys(void)
 		keyb_state.Shift_Flags &= ~KEYPAD_MASK;
 	}
 	old_flags = 0;
+}
+
+static void _do_slang_getkeys(void)
+{
+	SLang_Key_Type *key;
+	int cc;
+	int modifier = 0;
+
+	cc = read_some_keys();
+	if (cc <= 0 && !keyb_state.kbcount) {
+		if (old_flags == 0)
+			return;
+		if (old_flags & WAIT_MASK) {
+			old_flags &= ~WAIT_MASK;
+			return;
+		}
+		do_sync_shiftstate();
+		return;
+	}
+	if (cc <= 0 && keyb_state.KeyNot_Ready)
+		return;
+
+	k_printf("KBD: do_slang_getkeys()\n");
+	/* restore shift-state from previous keypress */
+	do_sync_shiftstate();
 	if (!keyb_state.kbcount) {
 		do_slang_special_keys(0);
 		return;
@@ -1402,9 +1375,6 @@ static void _do_slang_getkeys(void)
 			symbol = keyb_state.kbp[0] & 0x7f;
 		}
 
-		keyb_state.kbcount -= keyb_state.Keystr_Len;	/* update count */
-		keyb_state.kbp += keyb_state.Keystr_Len;
-
                if (key == NULL && symbol != DKY_ESC) {
 			/* undefined key --- return */
 			DOSemu_Slang_Show_Help = 0;
@@ -1414,9 +1384,31 @@ static void _do_slang_getkeys(void)
 
 		if (DOSemu_Slang_Show_Help) {
 			DOSemu_Slang_Show_Help = 0;
+			keyb_state.kbcount = 0;
 			continue;
 		}
 
+		if (symbol == DKY_MOUSE) {
+			int len = keyb_state.kbcount - keyb_state.Keystr_Len;
+			k_printf("KDB: mouse str=%s len=%i\n",
+					strprintable((char *)key->str + 1),
+					keyb_state.Keystr_Len + len);
+			if (len <= 0)
+				break;
+			k_printf("\t%s\n", strprintable((char *)keyb_state.kbp + keyb_state.Keystr_Len));
+			/* Xtermmouse support */
+			int pr = xtermmouse_get_event(
+					keyb_state.kbp + keyb_state.Keystr_Len,
+					len);
+			if (!pr)
+				break;
+			keyb_state.kbcount -= keyb_state.Keystr_Len + pr;
+			keyb_state.kbp += keyb_state.Keystr_Len + pr;
+			continue;
+		}
+
+		keyb_state.kbcount -= keyb_state.Keystr_Len;	/* update count */
+		keyb_state.kbp += keyb_state.Keystr_Len;
 
 		k_printf("KBD: scan=%08lx Shift_Flags=%08lx str[0]=%d str='%s' len=%d\n",
                        scan,keyb_state.Shift_Flags,key ? key->str[0] : 27,
@@ -1566,27 +1558,6 @@ static int slang_keyb_init(void)
 		setup_pc_scancode_mode();
 		add_to_io_select(keyb_state.kbd_fd, do_pc_scancode_getkeys, NULL);
 	} else {
-		/* Try to test for a UTF-8 terminal: this prints a character
-		 * followed by a requests for the cursor position.
-		 * The reply is handled asynchronously.
-		 */
-		struct termios buf;
-		char *u6 = SLtt_tgetstr ("u6");
-		char *u7 = SLtt_tgetstr ("u7");
-		char *ce = SLtt_tgetstr ("ce");
-		char *cr = SLtt_tgetstr ("cr");
-		if (u6 && u7 && ce && cr &&
-		    strcmp(u6, "\x1b[%i%d;%dR") == 0 &&
-		    strcmp(u7, "\x1b[6n") == 0 &&
-		    isatty(STDOUT_FILENO) &&
-		    tcgetattr(STDOUT_FILENO, &buf) == 0 &&
-		    (buf.c_cflag & CSIZE) == CS8) {
-			SLtt_write_string(cr);
-			SLtt_write_string("\xc2\xa1");
-			SLtt_write_string(u7);
-			SLtt_write_string(cr);
-			SLtt_write_string(ce);
-		}
 		if (-1 == init_slang_keymaps()) {
 			error("Unable to initialize S-Lang keymaps.\n");
 			return FALSE;
@@ -1608,7 +1579,8 @@ static void slang_keyb_close(void)
 		error("slang_keyb_close(): failed to restore keyboard termios settings!\n");
 	}
 	if (keyb_state.save_kbd_flags != -1) {
-		fcntl(keyb_state.kbd_fd, F_SETFL, keyb_state.save_kbd_flags);
+		if (fcntl(keyb_state.kbd_fd, F_SETFL, keyb_state.save_kbd_flags) == -1)
+			error("slang_keyb_close(): failed to restore keyboard flags!\n");
 	}
 	term_close();
 	cleanup_charset_state(&keyb_state.translate_state);
@@ -1626,7 +1598,7 @@ static void slang_keyb_close(void)
 static int slang_keyb_probe(void)
 {
 	struct termios buf;
-	if (config.X || config.console_keyb)
+	if (config.X || config.console_keyb != KEYB_OTHER)
 	  return FALSE;
 	if (tcgetattr(STDIN_FILENO, &buf) >= 0
 	    || errno == EINVAL || errno == ENOTTY)

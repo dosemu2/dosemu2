@@ -78,8 +78,41 @@
 #include "dos2linux.h"
 #include "sig.h"
 
-struct text_system Text_term;
-static struct video_system Video_term;
+static pthread_mutex_t term_mtx = PTHREAD_MUTEX_INITIALIZER;
+static int terminal_initialize(void);
+static void terminal_close(void);
+#define term_setmode NULL
+static int slang_update(void);
+
+static struct video_system Video_term = {
+   NULL,
+   terminal_initialize,
+   NULL,
+   NULL,
+   terminal_close,
+   term_setmode,
+   slang_update,
+   NULL,
+   NULL,
+   "term"
+};
+
+static void term_draw_string(void *opaque, int x, int y, unsigned char *text,
+    int len, Bit8u attr);
+static void term_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
+    int first, int last, Boolean focus);
+
+struct text_system Text_term =
+{
+   term_draw_string,
+   NULL,
+   term_draw_text_cursor,
+   NULL,
+   NULL,
+   NULL,
+   NULL,
+   "term",
+};
 
 /* The interpretation of the DOS attributes depend upon if the adapter is
  * color or not.
@@ -120,7 +153,6 @@ static int *Attribute_Map;
    mb1 != 0 in utf8 mode means that mb1 is in the alternate character set.
  */
 static unsigned char The_Charset[256][4];
-static int slang_update (void);
 static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr);
 static void term_write_nchars_utf8(unsigned char *text, int len, Bit8u attr);
 static void (*term_write_nchars)(unsigned char *, int, Bit8u) = term_write_nchars_utf8;
@@ -134,14 +166,32 @@ static int DOSemu_Terminal_Scroll_Min = 0;
 
 static int text_updated;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
+static struct winsize old_ws;
 
 static void get_screen_size (void)
 {
-  struct winsize ws;		/* buffer for TIOCSWINSZ */
+  struct winsize ws = {};		/* buffer for TIOCSWINSZ */
+  int rc = 0;
 
    SLtt_Screen_Rows = 0;
    SLtt_Screen_Cols = 0;
-   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0)
+
+   if (config.term_size && config.term_size[0]) {
+     int i;
+     v_printf("set terminal size to %s\n", config.term_size);
+     i = sscanf(config.term_size, "%hix%hi", &ws.ws_col, &ws.ws_row);
+     if (i == 2) {
+       ioctl(STDOUT_FILENO, TIOCGWINSZ, &old_ws);
+       printf("\033[8;%i;%it", ws.ws_row, ws.ws_col);
+       rc = ioctl(STDOUT_FILENO, TIOCSWINSZ, &ws);
+     } else {
+       error("terminal size is wrong: %s\n", config.term_size);
+     }
+   } else {
+     rc = ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
+   }
+
+   if (rc >= 0)
      {
         if (ws.ws_row > MAX_LINES || ws.ws_col > MAX_COLUMNS)
 	  {
@@ -168,6 +218,7 @@ static void get_screen_size (void)
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
+   vga.line_compare = Rows;
 }
 
 /* bitmap of cp437 characters < 32 that are always control characters
@@ -353,9 +404,14 @@ static int term_change_config(unsigned item, void *buf)
    return 100;
 }
 
-static void sigwinch(struct sigcontext *scp, siginfo_t *si)
+static void sigwinch(void *arg)
 {
-  get_screen_size();
+    /* not really a sighandler, can use mutex to protect from render thread */
+    pthread_mutex_lock(&term_mtx);
+    SLtt_get_screen_size();
+    SLsmg_reinit_smg();
+    dos_slang_redraw();
+    pthread_mutex_unlock(&term_mtx);
 }
 
 #if SLANG_VERSION < 20000 || defined(USE_RELAYTOOL)
@@ -386,6 +442,13 @@ static int terminal_initialize(void)
    struct termios buf;
 
    v_printf("VID: terminal_initialize() called \n");
+   /* stderr should be redirected by wrapper script.
+    * If its not the case, we need to close it by hands. */
+   if (!config.tty_stderr && isatty(STDERR_FILENO)) {
+     error("term: stderr still on tty, closing\n");
+     close(STDERR_FILENO);
+     open("/dev/null", O_WRONLY | O_CLOEXEC);
+   }
 
    /* This maps (r,g,b) --> (b,g,r) */
    rotate[0] = 0; rotate[1] = 4;
@@ -393,10 +456,7 @@ static int terminal_initialize(void)
    rotate[4] = 1; rotate[5] = 5;
    rotate[6] = 3; rotate[7] = 7;
 
-   if(no_local_video!=1) {
-     Video_term.update_screen = slang_update;
-   }
-   else
+   if (no_local_video)
      Video_term.update_screen = NULL;
 
    if (using_xterm())
@@ -405,12 +465,7 @@ static int terminal_initialize(void)
    term_init();
 
    get_screen_size ();
-
-   /* respond to resize events unless we're running on the Linux console
-      with raw keyboard: then SIGWINCH = SIG_RELEASE ! */
-   if (!config.console_keyb) {
-     registersig(SIGWINCH, sigwinch);
-   }
+   registersig_std(SIGWINCH, sigwinch);
 
    if (isatty(STDOUT_FILENO) && tcgetattr(STDOUT_FILENO, &buf) == 0 &&
        (buf.c_cflag & CSIZE) == CS8 &&
@@ -419,13 +474,14 @@ static int terminal_initialize(void)
      printf(
      "You did not specify a locale (using the LANG, LC_CTYPE, or LC_ALL\n"
      "environment variable, e.g., en_US) or did not specify an explicit set for\n"
-     "$_external_char_set in ~/.dosemurc or dosemu.conf.\n"
+     "$_external_char_set in ~/.dosemu/.dosemurc or dosemu.conf.\n"
      "Non-ASCII characters (\"extended ASCII\") are not displayed correctly.\n");
 
    /* initialize VGA emulator */
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
+   vga.line_compare = Rows;
    register_text_system(&Text_term);
 
 #if SLANG_VERSION < 20000 || defined(USE_RELAYTOOL)
@@ -468,13 +524,13 @@ static int terminal_initialize(void)
 	if (attr & 0x08) sltt_attr |= SLTT_BOLD_MASK;
 
 	bw_sltt_attr = color_sltt_attr = sltt_attr;
-
-	bg = (attr >> 4) & 0x07;
-	fg = (attr & 0x07);
+	bg = (attr >> 4) & 0x0f;
+	fg = (attr & 0x0f);
 
 	/* color information */
-	color_sltt_attr |= (rotate[bg] << 16) | (rotate[fg] << 8);
-	SLtt_set_color_object (attr, color_sltt_attr);
+	//color_sltt_attr |= (rotate[bg] << 16) | (rotate[fg] << 8);
+	SLtt_set_color_fgbg(attr,rotate[fg & 7] | (fg & 8),rotate[bg & 7] | (bg & 8));
+	//SLtt_set_color_object (attr, color_sltt_attr);
 
 	/* Monochrome information */
 	if ((fg == 0x01) && (bg == 0x00)) bw_sltt_attr |= SLTT_ULINE_MASK;
@@ -515,15 +571,18 @@ static int terminal_initialize(void)
    return 0;
 }
 
-static void terminal_close (void)
+static void terminal_close(void)
 {
    v_printf("VID: terminal_close() called\n");
    SLsmg_gotorc (SLtt_Screen_Rows - 1, 0);
    SLtt_set_cursor_visibility(1);
-   SLsmg_refresh ();
    SLsmg_reset_smg ();
    putc ('\n', stdout);
    term_close();
+   if (old_ws.ws_row) {
+     printf("\033[8;%i;%it", old_ws.ws_row, old_ws.ws_col);
+     ioctl(STDOUT_FILENO, TIOCSWINSZ, &old_ws);
+   }
 }
 
 #if 0 /* unused -- Bart */
@@ -536,7 +595,7 @@ static void v_write(int fd, unsigned char *ch, int len)
 }
 #endif
 
-static char *Help[] =
+static const char *Help[] =
 {
    "NOTE: The '^@' defaults to Ctrl-^, see dosemu.conf 'terminal {escchar}' .",
    "Function Keys:",
@@ -579,28 +638,21 @@ static char *Help[] =
    NULL
 };
 
-static void show_help (void)
+static void show_help(void)
 {
-   int i;
-   char *s;
-   SLsmg_cls ();
+  int i;
+  const char *s;
 
-   i = 0;
-   while ((s = Help[i]) != NULL)
-     {
-	if (*s)
-	  {
-	     SLsmg_gotorc (i, 0);
-	     SLsmg_write_string (s);
-	  }
-	i++;
-     }
-   dirty_text_screen();
-   SLsmg_refresh ();
+  SLsmg_cls();
+  for (i = 0; (s = Help[i]) != NULL; i++) {
+    if (*s) {
+      SLsmg_gotorc(i, 0);
+      SLsmg_write_string(s);
+    }
+  }
+  dirty_text_screen();
+  SLsmg_refresh();
 }
-
-
-
 
 /* global variables co and li determine the size of the screen.  Also, use
  * the short pointers prev_screen and screen_adr for updating the screen.
@@ -639,6 +691,7 @@ static int slang_update (void)
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
+   vga.line_compare = Rows;
    if (imin != DOSemu_Terminal_Scroll_Min) {
       DOSemu_Terminal_Scroll_Min = imin;
       redraw_text_screen();
@@ -660,7 +713,7 @@ static int slang_update (void)
 	     SLsmg_gotorc (last_row, 0);
 	     last_col = strlen (DOSemu_Keyboard_Keymap_Prompt);
 	     SLsmg_set_color (0);
-	     SLsmg_write_nchars ((char *)DOSemu_Keyboard_Keymap_Prompt, last_col);
+	     SLsmg_write_nchars (DOSemu_Keyboard_Keymap_Prompt, last_col);
 	     dirty_text_screen();
 
 	     if (*DOSemu_Keyboard_Keymap_Prompt == '[')
@@ -750,8 +803,12 @@ static void term_draw_string(void *opaque, int x, int y, unsigned char *text,
 {
    int this_obj = Attribute_Map[attr];
 
+   pthread_mutex_lock(&term_mtx);
    y -= DOSemu_Terminal_Scroll_Min;
-   if (y < 0 || y >= SLtt_Screen_Rows) return;
+   if (y < 0 || y >= SLtt_Screen_Rows) {
+      pthread_mutex_unlock(&term_mtx);
+      return;
+   }
    SLsmg_gotorc (y, x);
    SLsmg_set_color (abs(this_obj));
 
@@ -762,6 +819,7 @@ static void term_draw_string(void *opaque, int x, int y, unsigned char *text,
       SLsmg_write_nchars(buf, len);
    } else
       term_write_nchars(text, len, attr);
+   pthread_mutex_unlock(&term_mtx);
 
    pthread_mutex_lock(&upd_mtx);
    text_updated++;
@@ -831,30 +889,8 @@ void dos_slang_smart_set_mono (void)
 static void term_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
     int first, int last, Boolean focus)
 {
+   /* pthread_mutex_lock(&term_mtx); */
 }
-
-#define term_setmode NULL
-
-static struct video_system Video_term = {
-   NULL,
-   terminal_initialize,
-   NULL,
-   NULL,
-   terminal_close,
-   term_setmode,
-   slang_update,
-   NULL,
-   NULL,
-   "term"
-};
-
-struct text_system Text_term =
-{
-   term_draw_string,
-   NULL,
-   term_draw_text_cursor,
-   NULL,
-};
 
 CONSTRUCTOR(static void init(void))
 {

@@ -130,7 +130,7 @@ static void
 prSreg(uchar *s)
 {
     int i;
-    char buf[8];
+    char buf[32];
 
     for (i = 0; i <= SREG_MAX; i++,s++) {
 	if (i % 8 == 0) {
@@ -144,7 +144,7 @@ prSreg(uchar *s)
 static void
 prOption(void)
 {
-    static char *onoff[]={"off", "on "};
+    static const char *onoff[] = {"off", "on "};
     char buf[64];
 
     putTty1(CHAR_CR); putTty1(CHAR_LF);
@@ -352,6 +352,8 @@ int
 atcmdPT(const char *s)
 {
     int i;
+    int len;
+    char *term = getenv("TERM");
 
     i = getNumArg(s);
     switch (i) {
@@ -359,8 +361,13 @@ atcmdPT(const char *s)
 	atcmd.pt.wont = 1;
 	break;
     case 1:
-	strncpy(atcmd.pt.str, getenv("TERM"), PT_MAX);
-	atcmd.pt.len = strlen(atcmd.pt.str);
+	if (!term)
+	    return 1;
+	len = strlen(term);
+#define MIN(a,b) (((a)<(b))?(a):(b))
+	len = MIN(len, PT_MAX - 1);
+	memcpy(atcmd.pt.str, term, len + 1);
+	atcmd.pt.len = len;
 	atcmd.pt.wont = 0;
 	break;
     default:
@@ -374,9 +381,11 @@ atcmdPT(const char *s)
 int
 atcmdPTSet(const char *s)
 {
-    sscanf(s+4, "%" LIT(PT_MAX) "[^\"]", atcmd.pt.str);
+    char buf[PT_MAX];
+    sscanf(s+4, "%" LIT(PT_MAX) "[^\"]", buf);
     /*strncpy(atcmd.pt.str, s+3, PT_MAX);*/
-    atcmd.pt.len = strlen(atcmd.pt.str);
+    atcmd.pt.len = strlen(buf);
+    memcpy(atcmd.pt.str, buf, atcmd.pt.len + 1);
     /*telOpt.sentReqs = 0; renegotiation will be of no effect*/
     atcmd.pt.wont = 0;
     return 0;

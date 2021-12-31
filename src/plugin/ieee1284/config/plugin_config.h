@@ -1,0 +1,1 @@
+#define USE_IEEE1284 1

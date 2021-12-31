@@ -42,21 +42,21 @@ int DOSemu_Terminal_Scroll = 0;
 int DOSemu_Slang_Show_Help = 0;
 
 #if SLANG_VERSION < 10000
-static void sl_exit_error (char *err)
+static void sl_exit_error(SLFUTURE_CONST char *err)
 {
 	error ("%s\n", err);
 	leavedos (32);
 }
 #else
 #include <stdarg.h>
-static void sl_exit_error (char *fmt, va_list args)
+static void sl_exit_error(SLFUTURE_CONST char *fmt, va_list args)
 {
 	verror (fmt, args);
 	leavedos (32);
 }
 #endif
 
-static void sl_print_error(char *str)
+static void sl_print_error(SLFUTURE_CONST char *str)
 {
 	dbug_printf("Slang:%s\n", str);
 }

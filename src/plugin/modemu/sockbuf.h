@@ -44,4 +44,4 @@ sockBufWrite(void);
 void
 putSock1(uchar c);
 void
-putSockN(const char *cp, int n);
+putSockN(const uchar *cp, int n);

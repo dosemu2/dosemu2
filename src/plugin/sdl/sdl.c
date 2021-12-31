@@ -21,9 +21,6 @@
  * Loosely based on SDL1 plugin by Emmanuel Jeandel and Bart Oldeman
  */
 
-#define SDL_C
-#include "config.h"
-
 #include <stdio.h>
 #include <stdlib.h>		/* for malloc & free */
 #include <string.h>		/* for memset */
@@ -35,6 +32,13 @@
 #include <semaphore.h>
 #include <assert.h>
 #include <SDL.h>
+#ifdef HAVE_SDL2_IMAGE
+#include <SDL_image.h>
+#endif
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+#include <SDL_ttf.h>
+#include <fontconfig/fontconfig.h>
+#endif
 
 #include "emu.h"
 #include "timers.h"
@@ -43,9 +47,6 @@
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
-#ifdef X_SUPPORT
-#include <SDL_syswm.h>
-#endif
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "render.h"
@@ -53,6 +54,7 @@
 #include "keyboard/keyb_clients.h"
 #include "dos2linux.h"
 #include "utilities.h"
+#include "ringbuf.h"
 #include "sdl.h"
 
 #define THREADED_REND 1
@@ -75,6 +77,15 @@ static void unlock_surface(void);
 #if THREADED_REND
 static void *render_thread(void *arg);
 #endif
+static void do_rend(void);
+
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+static void setup_ttf_winsize(int xtarget, int ytarget);
+static int probe_font(int idx);
+#endif
+
+#define MIN_X 100
+#define MIN_Y 75
 
 static struct video_system Video_SDL = {
   SDL_priv_init,
@@ -90,9 +101,9 @@ static struct video_system Video_SDL = {
 };
 
 static struct render_system Render_SDL = {
+  .refresh_rect = SDL_put_image,
   .lock = lock_surface,
   .unlock = unlock_surface,
-  .refresh_rect = SDL_put_image,
   .name = "sdl",
 };
 
@@ -102,17 +113,44 @@ static SDL_Texture *texture_buf;
 static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
 static Uint32 pixel_format;
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+static TTF_Font *sdl_font;
+static pthread_mutex_t sdl_font_mtx = PTHREAD_MUTEX_INITIALIZER;
+struct font_desc {
+  SDL_RWops *rw;
+  int width;
+  int height;
+};
+#define MAX_FONTS 5
+static struct font_desc sdl_fdesc[MAX_FONTS];
+static int num_fdescs;
+static int cur_fdesc;
+static int sdl_font_size;
+static SDL_Color text_colors[16];
+#define TTF_CHARS_MAX 10000
+static struct rng_s ttf_char_rng;
+static SDL_Texture *texture_ttf;
+static struct text_system Text_SDL;
+#endif
+struct rect_desc {
+  SDL_Rect rect;
+  SDL_Texture *tex;
+};
 static int font_width, font_height;
 static int win_width, win_height;
+static int real_win_width, real_win_height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
+static int use_ttf_font;
 static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
+static int tmp_rects_num;
+#define RECTS_UPD_THRESHOLD 10000
+static struct rng_s rects_rng;
 static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t tex_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if THREADED_REND
 static pthread_t rend_thr;
-static sem_t rend_sem;
+static pthread_cond_t rend_cnd = PTHREAD_COND_INITIALIZER;
 #endif
 
 static int force_grab = 0;
@@ -120,73 +158,17 @@ static int grab_active = 0;
 static int kbd_grab_active = 0;
 static int m_cursor_visible;
 static int initialized;
-static int pre_initialized;
+static int pre_initialized = 0;
 static int wait_kup;
 static int copypaste;
-
-#ifndef USE_DL_PLUGINS
-#undef X_SUPPORT
-#endif
-
-#ifdef X_SUPPORT
-#ifdef USE_DL_PLUGINS
-void *X_handle;
-#define X_load_text_font pX_load_text_font
-static int (*X_load_text_font) (Display * display, int private_dpy,
-				Window window, const char *p, int *w,
-				int *h);
-#define X_handle_text_expose pX_handle_text_expose
-static int (*X_handle_text_expose) (void);
-#define X_close_text_display pX_close_text_display
-static int (*X_close_text_display) (void);
-#define X_pre_init pX_pre_init
-static int (*X_pre_init) (void);
-#define X_register_speaker pX_register_speaker
-static void (*X_register_speaker) (Display * display);
-#define X_set_resizable pX_set_resizable
-static void (*X_set_resizable) (Display * display, Window window, int on,
-				int x_res, int y_res);
-#define X_process_key pX_process_key
-static void (*X_process_key)(Display *display, XKeyEvent *e);
-#endif
+static int current_mode_class;
+#define MODE_CLASS() ((current_mode_class == GRAPH || use_bitmap_font ) ? \
+    GRAPH : TEXT)
+static SDL_Keycode mgrab_key = SDLK_HOME;
 
 #define CONFIG_SDL_SELECTION 1
 
-Display *x11_display;
-static Window x11_window;
-
-static void preinit_x11_support(void)
-{
-#ifdef USE_DL_PLUGINS
-  void *handle = load_plugin("X");
-  assert(handle);
-  X_register_speaker = DLSYM_ASSERT(handle, "X_register_speaker");
-  X_load_text_font = DLSYM_ASSERT(handle, "X_load_text_font");
-  X_pre_init = DLSYM_ASSERT(handle, "X_pre_init");
-  X_close_text_display = DLSYM_ASSERT(handle, "X_close_text_display");
-  X_handle_text_expose = DLSYM_ASSERT(handle, "X_handle_text_expose");
-  X_set_resizable = DLSYM_ASSERT(handle, "X_set_resizable");
-  X_process_key = DLSYM_ASSERT(handle, "X_process_key");
-  X_pre_init();
-  X_handle = handle;
-#endif
-}
-
-static void init_x11_support(SDL_Window * win)
-{
-  int ret;
-  SDL_SysWMinfo info;
-  SDL_VERSION(&info.version);
-  if (SDL_GetWindowWMInfo(win, &info) && info.subsystem == SDL_SYSWM_X11) {
-    x11_display = info.info.x11.display;
-    x11_window = info.info.x11.window;
-    ret = X_load_text_font(x11_display, 1, x11_window, config.X_font,
-			   &font_width, &font_height);
-    use_bitmap_font = !ret;
-  }
-}
-#endif				/* X_SUPPORT */
-
+/* separate done call-back for video-unrelated things (eg audio) */
 static void SDL_done(void)
 {
   SDL_Quit();
@@ -195,27 +177,33 @@ static void SDL_done(void)
 void SDL_pre_init(void)
 {
   int err;
+
   if (pre_initialized)
     return;
   pre_initialized = 1;
+
+  SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
   err = SDL_Init(0);
   if (err)
     return;
+
   register_exit_handler(SDL_done);
 }
 
-int SDL_priv_init(void)
+static int SDL_priv_init(void)
 {
   /* The privs are needed for opening /dev/input/mice.
    * Unfortunately SDL does not support gpm.
    * Also, as a bonus, /dev/fb0 can be opened with privs. */
   PRIV_SAVE_AREA
   int ret;
+
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
-#ifdef X_SUPPORT
-  preinit_x11_support();
-#endif
   SDL_pre_init();
+  /* RENDER_DRIVER hint appears to be the hint for video init,
+   * not CreateRenderer */
+  if (!config.sdl_hwrend)
+      SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
   enter_priv_on();
   ret = SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   leave_priv_setting();
@@ -227,22 +215,142 @@ int SDL_priv_init(void)
   return 0;
 }
 
-int SDL_init(void)
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+static int sdl_load_font(const char *name)
+{
+  char *pth = NULL;
+  FcPattern *pat, *match;
+  FcResult result;
+  char *foundname;
+  int idx;
+
+  pat = FcNameParse((const FcChar8*)name);
+  if (!pat)
+    return 0;
+  FcConfigSubstitute(NULL, pat, FcMatchPattern);
+  FcDefaultSubstitute(pat);
+  match = FcFontMatch(NULL, pat, &result);
+  if (!match) {
+    FcPatternDestroy(pat);
+    return 0;
+  }
+  FcPatternGetString(match, FC_FAMILY, 0, (FcChar8 **)&foundname);
+  FcPatternGetString(match, FC_FILE, 0, (FcChar8 **)&pth);
+  FcPatternGetInteger(match, FC_INDEX, 0, &idx);
+
+  // Fontconfig guesses if not an exact match, which might be what we want
+  if (strncasecmp(name, foundname, strlen(foundname)) != 0) {
+    v_printf("SDL: not accepting substitute font '%s'\n", foundname);
+    FcPatternDestroy(match);
+    FcPatternDestroy(pat);
+    return 0;
+  }
+  v_printf("SDL: using font '%s(%d)'\n", pth, idx);
+  v_printf("SDL: searched for '%s'\n", name);
+  v_printf("SDL: and found '%s'\n", foundname);
+
+  assert(num_fdescs < MAX_FONTS);
+  sdl_fdesc[num_fdescs].rw = SDL_RWFromFile(pth, "r");
+  FcPatternDestroy(match);
+  FcPatternDestroy(pat);
+  if (!sdl_fdesc[num_fdescs].rw || !probe_font(num_fdescs)) {
+    error("SDL_RWFromFile: %s\n", SDL_GetError());
+    return 0;
+  }
+  cur_fdesc = num_fdescs++;
+
+  return 1;
+}
+#endif
+
+static int SDL_text_init(void)
+{
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+  int err;
+  char *p, *p1;
+
+  err = TTF_Init();
+  if (err) {
+    error("TTF_Init: %s\n", TTF_GetError());
+    return 0;
+  }
+
+  // Lookup font path with fontconfig
+  if (!FcInit()) {
+    error("FcInit: returned false\n");
+    goto tidy_ttf;
+  }
+
+  p = config.sdl_fonts;
+  while ((p1 = strsep(&p, ","))) {
+    while (*p1 == ' ')
+      p1++;
+    if (!sdl_load_font(p1)) {
+      error("SDL: failed to load font \"%s\"\n", p1);
+      goto tidy_ttf;
+    }
+  }
+
+  register_text_system(&Text_SDL);
+  /* set initial font size to match VGA font */
+  font_width = 9;
+  font_height = 16;
+
+  rng_init(&ttf_char_rng, TTF_CHARS_MAX, sizeof(struct rect_desc));
+  rng_allow_ovw(&ttf_char_rng, 0);
+  return 1;
+
+tidy_ttf:
+  TTF_Quit();
+  return 0;
+
+#else
+  v_printf("SDL: TTF support not compiled in\n");
+  return 0;
+#endif
+}
+
+static int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
-  Uint32 rflags = config.sdl_hwrend ? 0 : SDL_RENDERER_SOFTWARE;
+  Uint32 rflags = SDL_RENDERER_TARGETTEXTURE;
   int bpp, features;
   Uint32 rm, gm, bm, am;
+  int rc;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
+
+  rng_init(&rects_rng, RECTS_UPD_THRESHOLD, sizeof(struct rect_desc));
+  rng_allow_ovw(&rects_rng, 0);
+
+  if (!config.sdl_hwrend)
+    rflags |= SDL_RENDERER_SOFTWARE;
+#ifdef SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR /* only available since SDL 2.0.8 */
+  SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
+#endif
+
+  rc = 0;
+  if (config.sdl_fonts && config.sdl_fonts[0] && !config.vga_fonts)
+    rc = SDL_text_init();
+  use_ttf_font = rc;
+  use_bitmap_font = 1;
+
+  /* hints are set before renderer is created */
   if (config.X_lin_filt || config.X_bilin_filt) {
     v_printf("SDL: enabling scaling filter\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
   }
+#if SDL_VERSION_ATLEAST(2,0,10)
+  SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
+#endif
+  flags |= SDL_WINDOW_RESIZABLE;
+#if 0
+  /* some SDL bug prevents resizing if the window was created with this
+   * flag. And leaving full-screen mode doesn't help.
+   * It remains unresizable. */
   if (config.X_fullscreen)
     flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-  else
-    flags |= SDL_WINDOW_RESIZABLE;
+#endif
 #if 0
   /* it is better to create window and renderer at once. They have
    * internal cyclic dependencies, so if you create renderer after
@@ -267,11 +375,7 @@ int SDL_init(void)
   }
 #endif
 
-#ifdef X_SUPPORT
-  init_x11_support(window);
-#else
-  use_bitmap_font = 1;
-#endif
+  SDL_SetWindowMinimumSize(window, MIN_X, MIN_Y);
 
   if (config.X_fullscreen) {
     window_grab(1, 1);
@@ -290,8 +394,6 @@ int SDL_init(void)
   SDL_csd.b_mask = bm;
   color_space_complete(&SDL_csd);
   features = 0;
-  if (use_bitmap_font)
-    features |= RFF_BITMAP_FONT;
   register_render_system(&Render_SDL);
   if (remapper_init(1, 1, features, &SDL_csd)) {
     error("SDL: SDL_init: VGAEmu init failed!\n");
@@ -299,10 +401,12 @@ int SDL_init(void)
     return -1;
   }
 
+  if (config.X_mgrab_key && config.X_mgrab_key[0])
+    mgrab_key = SDL_GetKeyFromName(config.X_mgrab_key);
+
 #if THREADED_REND
-  sem_init(&rend_sem, 0, 0);
   pthread_create(&rend_thr, NULL, render_thread, NULL);
-#ifdef HAVE_PTHREAD_SETNAME_NP
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
   pthread_setname_np(rend_thr, "dosemu: sdl_r");
 #endif
 #endif
@@ -324,14 +428,27 @@ void SDL_close(void)
 #endif
   remapper_done();
   vga_emu_done();
-#ifdef X_SUPPORT
-  if (x11_display && x11_window != None)
-    X_close_text_display();
-#endif
   /* destroy texture before renderer, or crash */
-  SDL_DestroyTexture(texture_buf);
+  if (texture_buf)
+    SDL_DestroyTexture(texture_buf);
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+  if (texture_ttf)
+    SDL_DestroyTexture(texture_ttf);
+#endif
   SDL_DestroyRenderer(renderer);
-  SDL_FreeSurface(surface);
+  if (surface)
+    SDL_FreeSurface(surface);
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+  if (use_ttf_font) {
+    int i;
+    TTF_CloseFont(sdl_font);
+    for (i = 0; i < num_fdescs; i++)
+      SDL_RWclose(sdl_fdesc[i].rw);
+    TTF_Quit();
+  }
+  rng_destroy(&ttf_char_rng);
+#endif
+  rng_destroy(&rects_rng);
   SDL_DestroyWindow(window);
   SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 }
@@ -346,10 +463,9 @@ static void do_redraw(void)
 static void do_redraw_full(void)
 {
   pthread_mutex_lock(&rend_mtx);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
   SDL_RenderClear(renderer);
-  pthread_mutex_lock(&tex_mtx);
   SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
-  pthread_mutex_unlock(&tex_mtx);
   SDL_RenderPresent(renderer);
   pthread_mutex_unlock(&rend_mtx);
 }
@@ -357,22 +473,40 @@ static void do_redraw_full(void)
 static void SDL_update(void)
 {
   int i;
+  v_printf("SDL_update\n");
+
   pthread_mutex_lock(&rects_mtx);
+#if !THREADED_REND
+  sdl_rects_num = tmp_rects_num;
+  tmp_rects_num = 0;
+#endif
   i = sdl_rects_num;
   sdl_rects_num = 0;
   pthread_mutex_unlock(&rects_mtx);
-  if (i > 0)
+  if (i > 0) {
+#if !THREADED_REND
+    do_rend();
+#endif
     do_redraw();
+  }
+}
+
+static void redraw_text(void)
+{
+  pthread_mutex_lock(&rend_mtx);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+  SDL_RenderClear(renderer);
+  pthread_mutex_unlock(&rend_mtx);
+  redraw_text_screen();
 }
 
 static void SDL_redraw(void)
 {
-#ifdef X_SUPPORT
-  if (x11_display && !use_bitmap_font && vga.mode_class == TEXT) {
-    redraw_text_screen();
+  if (MODE_CLASS() == TEXT) {
+    assert(!use_bitmap_font);
+    redraw_text();
     return;
   }
-#endif
 
   do_redraw_full();
 }
@@ -381,31 +515,22 @@ static struct bitmap_desc lock_surface(void)
 {
   int err;
 
+  if (!surface)
+    return (struct bitmap_desc){0};
   err = SDL_LockSurface(surface);
   assert(!err);
   return BMP(surface->pixels, win_width, win_height, surface->pitch);
 }
 
-static void do_rend(void)
-{
-  pthread_mutex_lock(&rend_mtx);
-  SDL_RenderClear(renderer);
-  pthread_mutex_lock(&tex_mtx);
-  SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
-  pthread_mutex_unlock(&tex_mtx);
-  pthread_mutex_unlock(&rend_mtx);
-}
-
 static void unlock_surface(void)
 {
-  int i;
+  int is_surf = !!surface;
+  if (surface)
+    SDL_UnlockSurface(surface);
+  if (!is_surf)
+    return;
 
-  SDL_UnlockSurface(surface);
-
-  pthread_mutex_lock(&rects_mtx);
-  i = sdl_rects_num;
-  pthread_mutex_unlock(&rects_mtx);
-  if (!i) {
+  if (!tmp_rects_num) {
 #if 1
     v_printf("ERROR: update with zero rects count\n");
 #else
@@ -415,19 +540,232 @@ static void unlock_surface(void)
   }
 
 #if THREADED_REND
-  sem_post(&rend_sem);
-#else
-  do_rend();
+  pthread_cond_signal(&rend_cnd);
 #endif
+}
+
+/* wrapper needed to "clean up" the created textures */
+static SDL_Texture *CreateTextureTarget(int w, int h, int clean)
+{
+  SDL_Texture *tex = SDL_CreateTexture(renderer, pixel_format,
+                                       SDL_TEXTUREACCESS_TARGET, w, h);
+  if (tex && clean) {
+    SDL_SetRenderTarget(renderer, tex);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderTarget(renderer, NULL);
+  }
+  return tex;
+}
+
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+
+static TTF_Font *do_open_font(int idx, int psize, int *w, int *h)
+{
+  TTF_Font *f;
+  int minx, maxx, miny, maxy;
+
+  SDL_RWseek(sdl_fdesc[idx].rw, 0, RW_SEEK_SET);
+
+  f = TTF_OpenFontRW(sdl_fdesc[idx].rw, 0, psize);
+  if (!f) {
+    error("TTF_OpenFontRW: %s\n", TTF_GetError());
+    return NULL;
+  }
+
+  if (!TTF_FontFaceIsFixedWidth(f)) {
+    TTF_CloseFont(f);
+    error("TTF_FontFaceIsFixedWidth: Font is not fixed width\n");
+    return NULL;
+  }
+
+  // get metrics
+  *h = TTF_FontLineSkip(f);
+  TTF_GlyphMetrics(f, 'W', &minx, &maxx, &miny, &maxy, w);
+  return f;
+}
+
+static int probe_font(int idx)
+{
+  TTF_Font *f = do_open_font(idx, 80, &sdl_fdesc[idx].width,
+      &sdl_fdesc[idx].height);
+  if (!f)
+    return 0;
+  TTF_CloseFont(f);
+  return 1;
+}
+
+static int open_font(int psize)
+{
+  assert(sdl_font == NULL);
+  sdl_font = do_open_font(cur_fdesc, psize, &font_width, &font_height);
+  if (!sdl_font)
+    return 0;
+  sdl_font_size = psize;
+  return 1;
+}
+
+static void close_font(void)
+{
+  TTF_CloseFont(sdl_font);
+  sdl_font = NULL;
+}
+
+static int find_best_font(int xtarget, int ytarget, int cols, int rows)
+{
+  int i;
+  int idx = -1;
+  float delta = 0;
+  float asp = xtarget / (float)ytarget;
+
+  for (i = 0; i < num_fdescs; i++) {
+    float fasp = sdl_fdesc[i].width * cols /
+        (float)(sdl_fdesc[i].height * rows);
+    float d0 = fabsf(fasp - asp);
+    if (idx == -1 || d0 < delta) {
+      idx = i;
+      delta = d0;
+    }
+  }
+  return idx;
+}
+
+static int _setup_ttf_winsize(int xtarget, int ytarget)
+{
+  int xnow, ynow;
+  int cols, rows;
+  int i = 0, idx;
+  int ret = 0;
+
+  v_printf("SDL: setup_ttf_winsize called with xtarget %d, ytarget %d\n", xtarget, ytarget);
+
+  cols = vga.text_width;
+  rows = vga.text_height;
+  idx = find_best_font(xtarget, ytarget, cols, rows);
+  if (idx == -1)
+    return 0;
+
+  pthread_mutex_lock(&sdl_font_mtx);
+  if (idx != cur_fdesc) {
+    close_font();
+    cur_fdesc = idx;
+  }
+
+  if (!sdl_font) {  // In initialisation
+    if (!open_font(80)) {
+      v_printf("SDL: open_font(80) failed\n");
+      goto done;
+    }
+  }
+
+  xnow = cols * font_width;
+  ynow = rows * font_height;
+
+  // increase if necessary
+  while (xnow < xtarget && ynow < ytarget) {
+    i = sdl_font_size + 1;
+    v_printf("SDL: resizing larger, increasing a point size(%d)\n", i);
+    v_printf("     xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n", xtarget, xnow, ytarget, ynow);
+
+    close_font();
+    if (!open_font(i)) {
+      v_printf("SDL: open_font(%d) failed\n", i);
+      goto done;
+    }
+    xnow = cols * font_width;
+    ynow = rows * font_height;
+  }
+
+  // reduce to fit if necessary
+  while ((xnow > xtarget || ynow > ytarget) && sdl_font_size > 1) {
+    i = sdl_font_size - 1;
+    v_printf("SDL: reducing a point size(%d)\n", i);
+    v_printf("     xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n", xtarget, xnow, ytarget, ynow);
+
+    close_font();
+    if (!open_font(i)) {
+      v_printf("SDL: open_font(%d) failed\n", i);
+      goto done;
+    }
+    xnow = cols * font_width;
+    ynow = rows * font_height;
+  }
+
+  if (xnow <= xtarget && ynow <= ytarget) {
+    v_printf("SDL: point size %d fits xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n",
+               i, xtarget, xnow, ytarget, ynow);
+    ret = 1;
+  } else
+    v_printf("SDL: reduced pointsize to zero xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n",
+           xtarget, xnow, ytarget, ynow);
+
+done:
+  pthread_mutex_unlock(&sdl_font_mtx);
+  return ret;
+}
+
+static void setup_ttf_winsize(int xtarget, int ytarget)
+{
+  int rc = _setup_ttf_winsize(xtarget, ytarget);
+  if (!rc)
+    error("SDL: failed to set font for %i:%i\n", xtarget, ytarget);
+
+  if (texture_ttf)
+    SDL_DestroyTexture(texture_ttf);
+  texture_ttf = CreateTextureTarget(xtarget, ytarget, 1);
+  if (!texture_ttf) {
+    error("SDL target texture failed: %s\n", SDL_GetError());
+    leavedos(99);
+  }
+}
+#endif
+
+static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
+{
+  int rc;
+  struct rect_desc d;
+
+  SDL_SetRenderTarget(renderer, tex);
+  pthread_mutex_lock(&rects_mtx);
+  while ((rc = rng_get(rng, &d))) {
+    SDL_RenderCopy(renderer, d.tex, NULL, &d.rect);
+    SDL_DestroyTexture(d.tex);
+  }
+  pthread_mutex_unlock(&rects_mtx);
+  SDL_SetRenderTarget(renderer, NULL);
+  SDL_RenderCopy(renderer, tex, NULL, NULL);
+}
+
+static void do_rend(void)
+{
+  pthread_mutex_lock(&rend_mtx);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+  SDL_RenderClear(renderer);
+  if (!surface) {
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+    do_rend_rects(&ttf_char_rng, texture_ttf);
+#endif
+  } else {
+    /* texture_buf protected by render_mode_lock() */
+    do_rend_rects(&rects_rng, texture_buf);
+  }
+  pthread_mutex_unlock(&rend_mtx);
 }
 
 #if THREADED_REND
 static void *render_thread(void *arg)
 {
   while (1) {
-    sem_wait(&rend_sem);
+    pthread_mutex_lock(&rects_mtx);
+    while (!tmp_rects_num)
+      cond_wait(&rend_cnd, &rects_mtx);
+    sdl_rects_num = tmp_rects_num;
+    tmp_rects_num = 0;
+    pthread_mutex_unlock(&rects_mtx);
     render_mode_lock();
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     do_rend();
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     render_mode_unlock();
   }
   return NULL;
@@ -437,7 +775,7 @@ static void *render_thread(void *arg)
 int SDL_set_videomode(struct vid_mode_params vmp)
 {
   v_printf
-      ("SDL: X_setmode: video_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
+      ("SDL: set_videomode: 0x%x (%s), size %d x %d (%d x %d pixel)\n",
        video_mode, vmp.mode_class ? "GRAPH" : "TEXT",
        vmp.text_width, vmp.text_height, vmp.x_res, vmp.y_res);
   if (win_width == vmp.x_res && win_height == vmp.y_res) {
@@ -450,20 +788,8 @@ int SDL_set_videomode(struct vid_mode_params vmp)
   else
     SDL_change_mode(vmp.x_res, vmp.y_res, vmp.w_x_res, vmp.w_y_res);
 
+  current_mode_class = vmp.mode_class;
   return 1;
-}
-
-static void set_resizable(int on, int x_res, int y_res)
-{
-#if 0
-  /* no such api :( */
-  SDL_SetWindowResizable(window, on ? SDL_ENABLE : SDL_DISABLE);
-#else
-#ifdef X_SUPPORT
-  if (x11_display)
-    X_set_resizable(x11_display, x11_window, on, x_res, y_res);
-#endif
-#endif
 }
 
 static void sync_mouse_coords(void)
@@ -471,7 +797,7 @@ static void sync_mouse_coords(void)
   int m_x, m_y;
 
   SDL_GetMouseState(&m_x, &m_y);
-  mouse_move_absolute(m_x, m_y, m_x_res, m_y_res);
+  mouse_move_absolute(m_x, m_y, m_x_res, m_y_res, m_cursor_visible, MOUSE_SDL);
 }
 
 static void update_mouse_coords(void)
@@ -484,19 +810,22 @@ static void update_mouse_coords(void)
 static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 {
   Uint32 flags;
+  int is_text;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
 	   w_y_res, SDL_csd.bits);
-  if (surface) {
+  if (surface)
     SDL_FreeSurface(surface);
+
+  /* all textures are protected with rend_mtx */
+  pthread_mutex_lock(&rend_mtx);
+  if (texture_buf) {
     SDL_DestroyTexture(texture_buf);
+    texture_buf = NULL;
   }
   if (x_res > 0 && y_res > 0) {
-    texture_buf = SDL_CreateTexture(renderer,
-        pixel_format,
-        SDL_TEXTUREACCESS_STREAMING,
-        x_res, y_res);
+    texture_buf = CreateTextureTarget(x_res, y_res, 1);
     if (!texture_buf) {
       error("SDL target texture failed: %s\n", SDL_GetError());
       leavedos(99);
@@ -507,67 +836,128 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
       error("SDL surface failed: %s\n", SDL_GetError());
       leavedos(99);
     }
+    render_enable(&Render_SDL);
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+    Text_SDL.flags |= TEXTF_DISABLED;
+#endif
+    is_text = 0;
   } else {
     surface = NULL;
     texture_buf = NULL;
+    render_disable(&Render_SDL);
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+    Text_SDL.flags &= ~TEXTF_DISABLED;
+#endif
+    is_text = 1;
   }
 
-  if (config.X_fixed_aspect)
-    SDL_RenderSetLogicalSize(renderer, w_x_res, w_y_res);
   flags = SDL_GetWindowFlags(window);
-  if (!(flags & SDL_WINDOW_MAXIMIZED))
+  if (!(flags & (SDL_WINDOW_MAXIMIZED | SDL_WINDOW_FULLSCREEN_DESKTOP))) {
+    int nw_x_res, nw_y_res;
     SDL_SetWindowSize(window, w_x_res, w_y_res);
-  set_resizable(use_bitmap_font
-		|| vga.mode_class == GRAPH, w_x_res, w_y_res);
+    /* work around SDL bug:
+     * https://bugzilla.libsdl.org/show_bug.cgi?id=5341
+     */
+    SDL_GetWindowSize(window, &nw_x_res, &nw_y_res);
+    if (nw_x_res != w_x_res) {
+      error("X res changed: %i -> %i\n", w_x_res, nw_x_res);
+      w_x_res = nw_x_res;
+    }
+    if (nw_y_res != w_y_res) {
+      error("Y res changed: %i -> %i\n", w_y_res, nw_y_res);
+      w_y_res = nw_y_res;
+    }
+    /* set window size again to avoid crash, huh? */
+    SDL_SetWindowSize(window, w_x_res, w_y_res);
+  }
+  if (config.X_fixed_aspect) {
+    if (!is_text)
+      SDL_RenderSetLogicalSize(renderer, w_x_res, w_y_res);
+    else
+      SDL_RenderSetLogicalSize(renderer, 0, 0);
+  }
   if (!initialized) {
+#ifdef HAVE_SDL2_IMAGE
+    SDL_Surface *icon;
+#endif
     initialized = 1;
+    if (config.X_fullscreen) {
+      SDL_DisplayMode dm;
+      SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+      /* SDL_GetWindowSize() cannot be used before resize event,
+       * so query mode instead. */
+      SDL_GetDesktopDisplayMode(0, &dm);
+      w_x_res = dm.w;
+      w_y_res = dm.h;
+    }
+#ifdef HAVE_SDL2_IMAGE
+    icon = IMG_Load(DOSEMULIB_DEFAULT "/icons/dosemu.xpm");
+    if (icon) {
+        SDL_SetWindowIcon(window, icon);
+        SDL_FreeSurface(icon);
+    }
+#endif
     SDL_ShowWindow(window);
     SDL_RaiseWindow(window);
-    m_cursor_visible = 1;
     if (config.X_fullscreen)
       render_gain_focus();
   }
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
   SDL_RenderClear(renderer);
   SDL_RenderPresent(renderer);
-  if (texture_buf) {
-    SDL_SetRenderTarget(renderer, texture_buf);
-    SDL_RenderClear(renderer);
-  }
-
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+  if (is_text)
+    setup_ttf_winsize(w_x_res, w_y_res);
+#endif
+  pthread_mutex_unlock(&rend_mtx);
   m_x_res = w_x_res;
   m_y_res = w_y_res;
+  real_win_width = w_x_res;
+  real_win_height = w_y_res;
   win_width = x_res;
   win_height = y_res;
+
   /* forget about those rectangles */
+  pthread_mutex_lock(&rects_mtx);
   sdl_rects_num = 0;
+  pthread_mutex_unlock(&rects_mtx);
 
   update_mouse_coords();
 }
 
-int SDL_update_screen(void)
+static int SDL_update_screen(void)
 {
   if (render_is_updating())
     return 0;
-#ifdef X_SUPPORT
-  if (!use_bitmap_font && vga.mode_class == TEXT)
-    return 0;
-#endif
   SDL_update();
   return 0;
 }
 
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
-  const SDL_Rect rect = { .x = x, .y = y, .w = width, .h = height };
   int offs = x * SDL_csd.bits / 8 + y * surface->pitch;
+  struct rect_desc d;
 
-  pthread_mutex_lock(&tex_mtx);
-  SDL_UpdateTexture(texture_buf, &rect, surface->pixels + offs,
-      surface->pitch);
-  pthread_mutex_unlock(&tex_mtx);
+  d.rect.x = x;
+  d.rect.y = y;
+  d.rect.w = width;
+  d.rect.h = height;
+
+  pthread_mutex_lock(&rend_mtx);
+  d.tex = SDL_CreateTexture(renderer,
+        pixel_format,
+        SDL_TEXTUREACCESS_STATIC,
+        width, height);
+  assert(d.tex);
+  SDL_UpdateTexture(d.tex, NULL, surface->pixels + offs, surface->pitch);
   pthread_mutex_lock(&rects_mtx);
-  sdl_rects_num++;
+  if (!rng_put(&rects_rng, &d)) {
+    error("SDL: rects queue overflow\n");
+    SDL_DestroyTexture(d.tex);
+  }
+  tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
+  pthread_mutex_unlock(&rend_mtx);
 }
 
 static void window_grab(int on, int kbd)
@@ -583,7 +973,7 @@ static void window_grab(int on, int kbd)
     v_printf("SDL: mouse grab activated\n");
     SDL_ShowCursor(SDL_DISABLE);
     SDL_SetRelativeMouseMode(SDL_TRUE);
-    mouse_enable_native_cursor(1);
+    mouse_enable_native_cursor(1, MOUSE_SDL);
     kbd_grab_active = kbd;
   } else {
     v_printf("SDL: grab released\n");
@@ -591,7 +981,7 @@ static void window_grab(int on, int kbd)
     if (m_cursor_visible)
       SDL_ShowCursor(SDL_ENABLE);
     SDL_SetRelativeMouseMode(SDL_FALSE);
-    mouse_enable_native_cursor(0);
+    mouse_enable_native_cursor(0, MOUSE_SDL);
     kbd_grab_active = 0;
     sync_mouse_coords();
   }
@@ -614,10 +1004,14 @@ static void toggle_fullscreen_mode(void)
       window_grab(1, 1);
       force_grab = 1;
     }
+    pthread_mutex_lock(&rend_mtx);
     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    pthread_mutex_unlock(&rend_mtx);
   } else {
     v_printf("SDL: entering windowed mode!\n");
+    pthread_mutex_lock(&rend_mtx);
     SDL_SetWindowFullscreen(window, 0);
+    pthread_mutex_unlock(&rend_mtx);
     if (force_grab && grab_active) {
       window_grab(0, 0);
     }
@@ -641,7 +1035,8 @@ static int SDL_change_config(unsigned item, void *buf)
   case CHG_TITLE:
     /* low-level write */
     if (buf) {
-      char *sw, /**si,*/ *charset;
+      char *sw;
+      const char *charset;
 /*	size_t iconlen = strlen(config.X_icon_name) + 1;
 	wchar_t iconw[iconlen];
 	if (mbstowcs(iconw, config.X_icon_name, iconlen) == -1)
@@ -668,30 +1063,52 @@ static int SDL_change_config(unsigned item, void *buf)
     change_config(item, buf, grab_active, kbd_grab_active);
     break;
 
-#ifdef X_SUPPORT
-  case CHG_FONT:{
-      if (!x11_display || x11_window == None || use_bitmap_font)
-	break;
-      X_load_text_font(x11_display, 1, x11_window, buf,
-		       &font_width, &font_height);
-      if (win_width != vga.text_width * font_width ||
-	  win_height != vga.text_height * font_height) {
-	if (vga.mode_class == TEXT) {
-	  render_mode_lock();
-	  SDL_change_mode(0, 0, vga.text_width * font_width,
-			  vga.text_height * font_height);
-	  render_mode_unlock();
-	}
-      }
+  case CHG_FONT: {
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+    char *p;
+    while ((p = strchr(buf, '_')))
+      *p = ' ';
+    if (!sdl_load_font(buf)) {
+      error("xmode: font %s not found\n", (char *)buf);
       break;
     }
+    close_font();
+    pthread_mutex_lock(&rend_mtx);
+    setup_ttf_winsize(real_win_width, real_win_height);
+    pthread_mutex_unlock(&rend_mtx);
+    redraw_text();
+#else
+    v_printf("SDL: CHG_FONT not implemented\n");
 #endif
+    break;
+  }
 
   case CHG_FULLSCREEN:
     v_printf("SDL: SDL_change_config: fullscreen %i\n", *((int *) buf));
     if (*((int *) buf) == !config.X_fullscreen)
       toggle_fullscreen_mode();
     break;
+
+  case CHG_USE_CUSTOM_FONT: {
+    int use = *(int *)buf;
+    v_printf("SDL: SDL_change_config: custom_font %i\n", use);
+    if (use_bitmap_font == !use)
+      break;
+    if (!use || use_ttf_font) {
+      use_bitmap_font = !use;
+      if (current_mode_class == TEXT) {
+        render_mode_lock_w();
+        if (!use_bitmap_font)
+          SDL_change_mode(0, 0, real_win_width, real_win_height);
+        else
+          SDL_change_mode(real_win_width, real_win_height,
+              real_win_width, real_win_height);
+        render_mode_unlock();
+        redraw_text();
+      }
+    }
+    break;
+  }
 
   default:
     err = 100;
@@ -701,7 +1118,7 @@ static int SDL_change_config(unsigned item, void *buf)
 }
 
 #if CONFIG_SDL_SELECTION
-static char *get_selection_string(t_unicode sel_text[], char *charset)
+static char *get_selection_string(t_unicode sel_text[], const char *charset)
 {
 	struct char_set_state paste_state;
 	struct char_set *paste_charset;
@@ -751,7 +1168,13 @@ static void SDL_handle_events(void)
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   if (render_is_updating())
     return;
-  while (SDL_PollEvent(&event)) {
+  /* events may resize renderer, so lock */
+  pthread_mutex_lock(&rend_mtx);
+  SDL_PumpEvents();
+  pthread_mutex_unlock(&rend_mtx);
+  /* SDL_PeepEvents() is thread-safe, SDL_PollEvent() - not */
+  while (SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_FIRSTEVENT,
+	SDL_LASTEVENT) > 0) {
     switch (event.type) {
 
     case SDL_WINDOWEVENT:
@@ -768,7 +1191,23 @@ static void SDL_handle_events(void)
 	if (config.X_background_pause && !dosemu_user_froze)
 	  freeze_dosemu();
 	break;
+
+      case SDL_WINDOWEVENT_SIZE_CHANGED:
+        v_printf("SDL: window size changed to %dx%d\n", event.window.data1, event.window.data2);
+        break;
+
       case SDL_WINDOWEVENT_RESIZED:
+        v_printf("SDL: window resized %dx%d\n", event.window.data1, event.window.data2);
+        real_win_width = event.window.data1;
+        real_win_height = event.window.data2;
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+        if (MODE_CLASS() == TEXT) {
+          pthread_mutex_lock(&rend_mtx);
+          setup_ttf_winsize(event.window.data1, event.window.data2);
+          pthread_mutex_unlock(&rend_mtx);
+        }
+#endif
+
 	/* very strange things happen: if renderer size was explicitly
 	 * set, SDL reports mouse coords relative to that. Otherwise
 	 * it reports mouse coords relative to the window. */
@@ -780,6 +1219,7 @@ static void SDL_handle_events(void)
 	update_mouse_coords();
 	SDL_redraw();
 	break;
+
       case SDL_WINDOWEVENT_EXPOSED:
 	SDL_redraw();
 	break;
@@ -787,18 +1227,39 @@ static void SDL_handle_events(void)
         /* ignore fake enter events */
         if (config.X_fullscreen)
           break;
-        mouse_drag_to_corner(m_x_res, m_y_res);
+        mouse_drag_to_corner(m_x_res, m_y_res, MOUSE_SDL);
         break;
+      }
+      break;
+
+    case SDL_TEXTINPUT:
+      {
+	SDL_Event key_event;
+	int rc;
+
+	k_printf("SDL: TEXTINPUT event before KEYDOWN\n");
+	do
+	  rc = SDL_PeepEvents(&key_event, 1, SDL_GETEVENT, SDL_KEYDOWN,
+		SDL_KEYDOWN);
+	while (rc == 1 && event.text.timestamp != key_event.key.timestamp);
+	if (rc != 1) {
+	  error("SDL: missing key event\n");
+	  break;
+	}
+	SDL_process_key_text(key_event.key, event.text);
       }
       break;
 
     case SDL_KEYDOWN:
       {
+	SDL_Event text_event;
+	int rc;
+	SDL_Keysym keysym = event.key.keysym;
+
 	if (wait_kup)
 	  break;
-	SDL_Keysym keysym = event.key.keysym;
 	if ((keysym.mod & KMOD_CTRL) && (keysym.mod & KMOD_ALT)) {
-	  if (keysym.sym == SDLK_HOME || keysym.sym == SDLK_k) {
+	  if (keysym.sym == mgrab_key || keysym.sym == SDLK_k) {
 	    force_grab = 0;
 	    toggle_grab(keysym.sym == SDLK_k);
 	    break;
@@ -818,19 +1279,30 @@ static void SDL_handle_events(void)
 	  if (!m_cursor_visible)
 	    SDL_ShowCursor(SDL_ENABLE);
 	}
-      }
 #if CONFIG_SDL_SELECTION
-      clear_if_in_selection();
+	clear_if_in_selection();
 #endif
-#ifdef X_SUPPORT
-#if HAVE_XKB
-      if (x11_display && config.X_keycode)
-	SDL_process_key_xkb(x11_display, event.key);
-      else
-#endif
-#endif
-	SDL_process_key(event.key);
+	do
+	  rc = SDL_PeepEvents(&text_event, 1, SDL_GETEVENT, SDL_TEXTINPUT,
+		SDL_TEXTINPUT);
+	while (rc == 1 && event.key.timestamp != text_event.text.timestamp);
+	if (rc == 1) {
+	    SDL_Event key_event;
+	    int rc2 = SDL_PeepEvents(&key_event, 1, SDL_PEEKEVENT, SDL_KEYDOWN,
+		    SDL_KEYDOWN);
+	    if (rc2 == 1 && event.key.timestamp == key_event.key.timestamp) {
+		error("SDL: duplicate keypress events\n");
+		/* at this point we can't trust text_event */
+		rc = 0;
+	    }
+	}
+	if (rc == 1)
+	    SDL_process_key_text(event.key, text_event.text);
+	else
+	    SDL_process_key_press(event.key);
+      }
       break;
+
     case SDL_KEYUP: {
       SDL_Keysym keysym = event.key.keysym;
       wait_kup = 0;
@@ -840,14 +1312,7 @@ static void SDL_handle_events(void)
         if (!m_cursor_visible)
 	    SDL_ShowCursor(SDL_DISABLE);
       }
-#ifdef X_SUPPORT
-#if HAVE_XKB
-      if (x11_display && config.X_keycode)
-	SDL_process_key_xkb(x11_display, event.key);
-      else
-#endif
-#endif
-	SDL_process_key(event.key);
+	SDL_process_key_release(event.key);
       break;
     }
 
@@ -866,15 +1331,18 @@ static void SDL_handle_events(void)
 				   y_to_row(event.button.y, m_y_res));
 	  else if (event.button.button == SDL_BUTTON_MIDDLE) {
 	    char *paste = SDL_GetClipboardText();
-	    if (paste)
+	    if (paste) {
+	      set_shiftstate(0);
 	      paste_text(paste, strlen(paste), "utf8");
+	    }
 	  }
 	  break;
 	}
 #endif				/* CONFIG_SDL_SELECTION */
-	mouse_move_buttons(buttons & SDL_BUTTON(1),
-			   buttons & SDL_BUTTON(2),
-			   buttons & SDL_BUTTON(3));
+	mouse_move_buttons(!!(buttons & SDL_BUTTON(1)),
+			   !!(buttons & SDL_BUTTON(2)),
+			   !!(buttons & SDL_BUTTON(3)),
+			   MOUSE_SDL);
 	break;
       }
     case SDL_MOUSEBUTTONUP:
@@ -890,9 +1358,10 @@ static void SDL_handle_events(void)
 	    }
 	}
 #endif				/* CONFIG_SDL_SELECTION */
-	mouse_move_buttons(buttons & SDL_BUTTON(1),
-			   buttons & SDL_BUTTON(2),
-			   buttons & SDL_BUTTON(3));
+	mouse_move_buttons(!!(buttons & SDL_BUTTON(1)),
+			   !!(buttons & SDL_BUTTON(2)),
+			   !!(buttons & SDL_BUTTON(3)),
+			   MOUSE_SDL);
 	break;
       }
 
@@ -903,13 +1372,13 @@ static void SDL_handle_events(void)
 #endif				/* CONFIG_SDL_SELECTION */
       if (grab_active)
 	mouse_move_relative(event.motion.xrel, event.motion.yrel,
-			    m_x_res, m_y_res);
+			    m_x_res, m_y_res, MOUSE_SDL);
       else
 	mouse_move_absolute(event.motion.x, event.motion.y, m_x_res,
-			    m_y_res);
+			    m_y_res, m_cursor_visible, MOUSE_SDL);
       break;
     case SDL_MOUSEWHEEL:
-      mouse_move_wheel(-event.wheel.y);
+      mouse_move_wheel(-event.wheel.y, MOUSE_SDL);
       break;
     case SDL_QUIT:
       leavedos(0);
@@ -920,14 +1389,6 @@ static void SDL_handle_events(void)
       break;
     }
   }
-
-#ifdef X_SUPPORT
-  if (x11_display && !use_bitmap_font && vga.mode_class == TEXT &&
-      X_handle_text_expose()) {
-    /* need to check separately because SDL_VIDEOEXPOSE is eaten by SDL */
-    redraw_text_screen();
-  }
-#endif
 }
 
 static int SDL_mouse_init(void)
@@ -937,7 +1398,7 @@ static int SDL_mouse_init(void)
     return FALSE;
 
   mice->type = MOUSE_SDL;
-  mouse_enable_native_cursor(config.X_fullscreen);
+  mouse_enable_native_cursor(config.X_fullscreen, MOUSE_SDL);
   /* we have the X cursor, but if we start fullscreen, grab by default */
   m_printf("MOUSE: SDL Mouse being set\n");
   return TRUE;
@@ -965,6 +1426,223 @@ static void sdl_scrub(void)
     Video = NULL;
   }
 }
+
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text,
+    int len, Bit8u attr)
+{
+  char *s;
+  struct char_set_state state;
+  int characters;
+  t_unicode *str;
+  struct rect_desc d;
+
+  v_printf("SDL_draw_string\n");
+
+  init_charset_state(&state, trconfig.video_mem_charset);
+  characters = character_count(&state, (char *)text, len);
+  if (characters == -1) {
+    v_printf("SDL: invalid char count\n");
+    return;
+  }
+  str = malloc(sizeof(t_unicode) * (characters + 1));
+
+  charset_to_unicode_string(&state, str, (const char **)&text, len, characters + 1);
+  cleanup_charset_state(&state);
+
+  s = unicode_string_to_charset((wchar_t *)str, "utf8");
+  free(str);
+
+  pthread_mutex_lock(&sdl_font_mtx);
+  if (!sdl_font) {
+    pthread_mutex_unlock(&sdl_font_mtx);
+    free(s);
+    error("SDL: sdl_font is null\n");
+    return;
+  }
+
+  SDL_Surface *srf = TTF_RenderUTF8_Shaded(sdl_font, s,
+                                           text_colors[ATTR_FG(attr)],
+                                           text_colors[ATTR_BG(attr)]);
+  d.rect.x = font_width * x;  /* font_width/height needs to be under font mtx */
+  d.rect.y = font_height * y; /* height plus spacing to next line */
+  d.rect.w = min(srf->w, font_width * len);
+  d.rect.h = min(srf->h, font_height);
+  pthread_mutex_unlock(&sdl_font_mtx);
+  free(s);
+  if (!srf) {
+    error("TTF render failure\n");
+    leavedos(3);
+  }
+
+  pthread_mutex_lock(&rend_mtx);
+  d.tex = SDL_CreateTextureFromSurface(renderer, srf);
+  pthread_mutex_unlock(&rend_mtx);
+  SDL_FreeSurface(srf);
+
+  assert(d.tex);
+  pthread_mutex_lock(&rects_mtx);
+  if (!rng_put(&ttf_char_rng, &d)) {
+    error("TTF queue overflowed\n");
+    SDL_DestroyTexture(d.tex);
+  }
+  tmp_rects_num++;
+  pthread_mutex_unlock(&rects_mtx);
+
+#if THREADED_REND
+  pthread_cond_signal(&rend_cnd);
+#endif
+}
+
+/*
+ * Draw a horizontal line (for text modes)
+ * The attribute is the VGA color/mono text attribute.
+ */
+static void SDL_draw_line(void *opaque, int x, int y, float ul, int len,
+    Bit8u attr)
+{
+  struct rect_desc d;
+  v_printf("SDL_draw_line x(%d) y(%d) len(%d)\n", x, y, len);
+
+  pthread_mutex_lock(&rend_mtx);
+  d.tex = CreateTextureTarget(font_width * len, 1, 0);
+  assert(d.tex);
+  SDL_SetRenderTarget(renderer, d.tex);
+  SDL_SetRenderDrawColor(renderer,
+                           text_colors[ATTR_FG(attr)].r,
+                           text_colors[ATTR_FG(attr)].g,
+                           text_colors[ATTR_FG(attr)].b,
+                           text_colors[ATTR_FG(attr)].a);
+  SDL_RenderDrawLine(renderer, 0, 0, font_width * len - 1, 0);
+  SDL_SetRenderTarget(renderer, NULL);
+  pthread_mutex_unlock(&rend_mtx);
+
+  d.rect.x = font_width * x;
+  d.rect.y = font_height * y + (font_height - 1) * ul;
+  d.rect.w = font_width * len,
+  d.rect.h = 1;
+
+  pthread_mutex_lock(&rects_mtx);
+  if (!rng_put(&ttf_char_rng, &d)) {
+    error("TTF queue overflowed\n");
+    SDL_DestroyTexture(d.tex);
+  }
+  tmp_rects_num++;
+  pthread_mutex_unlock(&rects_mtx);
+
+#if THREADED_REND
+  pthread_cond_signal(&rend_cnd);
+#endif
+}
+
+/*
+ * Draw the cursor (nothing in graphics modes, normal if we have focus,
+ * rectangle otherwise).
+ */
+static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
+                               int start, int end, Boolean focus)
+{
+  SDL_Rect rect;
+  struct rect_desc d;
+
+  if (MODE_CLASS() == GRAPH)
+    return;
+
+  if (!focus) {
+    rect.x = 0;
+    rect.y = 0;
+    rect.w = font_width;
+    rect.h = font_height;
+    d.rect.x = font_width * x;
+    d.rect.y = font_height * y;
+    d.rect.w = font_width;
+    d.rect.h = font_height;
+  } else {
+    int cstart, cend;
+
+    cstart = ((start + 1) * font_height) / vga.char_height - 1;
+    if (cstart == -1)
+      cstart = 0;
+    cend = ((end + 1) * font_height) / vga.char_height - 1;
+    if (cend == -1)
+      cend = 0;
+
+    rect.x = 0;
+    rect.y = 0;
+    rect.w = font_width;
+    rect.h = cend - cstart + 1;
+    d.rect.x = font_width * x;
+    d.rect.y = font_height * y + cstart;
+    d.rect.w = font_width;
+    d.rect.h = cend - cstart + 1;
+  }
+
+  pthread_mutex_lock(&rend_mtx);
+  d.tex = CreateTextureTarget(rect.w, rect.h, 0);
+  assert(d.tex);
+  SDL_SetRenderTarget(renderer, d.tex);
+  SDL_SetRenderDrawColor(renderer,
+                           text_colors[ATTR_FG(attr)].r,
+                           text_colors[ATTR_FG(attr)].g,
+                           text_colors[ATTR_FG(attr)].b,
+                           text_colors[ATTR_FG(attr)].a);
+
+  if (!focus)
+    SDL_RenderDrawRect(renderer, &rect);
+  else
+    SDL_RenderFillRect(renderer, &rect);
+  SDL_SetRenderTarget(renderer, NULL);
+  pthread_mutex_unlock(&rend_mtx);
+
+  pthread_mutex_lock(&rects_mtx);
+  if (!rng_put(&ttf_char_rng, &d)) {
+    error("TTF queue overflowed\n");
+    SDL_DestroyTexture(d.tex);
+  }
+  tmp_rects_num++;
+  pthread_mutex_unlock(&rects_mtx);
+
+#if THREADED_REND
+  pthread_cond_signal(&rend_cnd);
+#endif
+}
+
+/*
+ * Update the active SDL colormap for text modes DAC entry col.
+ */
+static void SDL_set_text_palette(void *opaque, DAC_entry *col, int i)
+{
+  int shift = 8 - vga.dac.bits;
+
+  v_printf("SDL_set_text_palette %d: shift %d, rgb(%x, %x, %x)\n", i, shift, col->r << shift, col->g << shift, col->b << shift);
+
+  text_colors[i].r = col->r << shift;
+  text_colors[i].g = col->g << shift;
+  text_colors[i].b = col->b << shift;
+  text_colors[i].a = 0;
+}
+
+static void SDL_text_lock(void *opaque)
+{
+}
+
+static void SDL_text_unlock(void *opaque)
+{
+}
+
+
+static struct text_system Text_SDL =
+{
+  SDL_draw_string,
+  SDL_draw_line,
+  SDL_draw_text_cursor,
+  SDL_set_text_palette,
+  SDL_text_lock,
+  SDL_text_unlock,
+  NULL,
+  "sdl",
+};
+#endif
 
 CONSTRUCTOR(static void init(void))
 {

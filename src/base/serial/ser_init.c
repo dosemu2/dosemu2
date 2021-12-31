@@ -80,7 +80,7 @@ static void add_dmx(ioport_t port, int val)
   dmxs[i].port = port;
   dmxs[i].def_val = dval;
   dmxs[i].use_cnt = 1;
-  sprintf(dmxs[i].name, "ser_dmx_%i", i);
+  sprintf(dmxs[i].name, "ser_dmx_%hhi", (uint8_t)i);
 }
 
 static Bit8u dmx_readb(ioport_t port)
@@ -224,8 +224,8 @@ static void do_ser_init(int num)
   static struct {
     int irq;
     ioport_t base_port;
-    char *dev;
-    char *handler_name;
+    const char *dev;
+    const char *handler_name;
   } default_com[MAX_SER] = {
     { 4, 0x3F8, "/dev/ttyS0", "COM1" },
     { 3, 0x2F8, "/dev/ttyS1", "COM2" },
@@ -273,10 +273,10 @@ static void do_ser_init(int num)
   if (com_cfg[num].vmodem)
     com_cfg[num].dev = modemu_init(num);
 #endif
-
-  if ((!com_cfg[num].dev || !com_cfg[num].dev[0]) && !com_cfg[num].mouse) {	/* Is the device file undef? */
+  /* Is the device file undef? */
+  if ((!com_cfg[num].dev || !com_cfg[num].dev[0]) && !com_cfg[num].mouse) {
     /* Define it using std devs */
-    com_cfg[num].dev = default_com[com_cfg[num].real_comport-1].dev;
+    com_cfg[num].dev = strdup(default_com[com_cfg[num].real_comport-1].dev);
   }
   if (com_cfg[num].dev && com_cfg[num].dev[0])
     iodev_add_device(com_cfg[num].dev);
@@ -332,7 +332,7 @@ void serial_reset(void)
   for (num = 0; num < config.num_ser; num++)
     ser_reset_dev(num);
 
-  fossil_tsr_installed = FALSE;
+  fossil_initialised = FALSE;
 }
 
 /* DANG_BEGIN_FUNCTION serial_run
@@ -360,7 +360,7 @@ static void serial_run(void)
    * system if they are called 100x's per second.
    */
   for (i = 0; i < config.num_ser; i++) {
-    if (!com[i].opened)
+    if (com[i].opened <= 0)
       continue;
     serial_update(i);
   }
@@ -389,7 +389,7 @@ void serial_init(void)
     com[i].num = i;
     com[i].cfg = &com_cfg[i];
     com[i].fd = -1;
-    com[i].opened = FALSE;
+    com[i].opened = 0;
     com[i].dev_locked = FALSE;
     com[i].drv = com_cfg[i].mouse ? &serm_drv : &tty_drv;
 
@@ -415,7 +415,7 @@ void serial_close(void)
   int i;
   s_printf("SER: Running serial_close\n");
   for (i = 0; i < config.num_ser; i++) {
-    if (!com[i].opened)
+    if (com[i].opened <= 0)
       continue;
 #ifdef USE_MODEMU
     if (com_cfg[i].vmodem)

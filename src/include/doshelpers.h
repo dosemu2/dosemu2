@@ -44,31 +44,40 @@
 #define DOS_HELPER_INSERT_INTO_KEYBUFFER 0x06 /* OLD, depreciated */
 #define DOS_HELPER_GET_BIOS_KEY     0x07  /* OLD, depreciated */
 #define DOS_HELPER_VIDEO_INIT       0x08
-#define DOS_HELPER_VIDEO_INIT_DONE  0x09
-
 
 #define DOS_HELPER_GET_DEBUG_STRING 0x10
 #define DOS_HELPER_SET_DEBUG_STRING 0x11
 #define DOS_HELPER_SET_HOGTHRESHOLD 0x12
 #define DOS_HELPER_PRINT_STRING     0x13 /* ES:DX point to a NULL terminated string */
 
-
 #define DOS_HELPER_MFS_HELPER       0x20
 #define DOS_SUBHELPER_MFS_EMUFS_INIT 0
-#define DOS_SUBHELPER_MFS_REDIR_INIT 5
+#define DOS_SUBHELPER_MFS_REDIR_INIT 4
+#define DOS_SUBHELPER_MFS_REDIR_RESET 5
 #define DOS_SUBHELPER_MFS_REDIR_STATE 6
 
 #define DOS_HELPER_EMS_HELPER       0x21
 #define DOS_HELPER_EMS_BIOS         0x22
 #define DOS_HELPER_XMS_HELPER       0x23
+#define DOS_HELPER_EMUFS_HELPER     0x24
+#define DOS_SUBHELPER_EMUFS_REDIRECT   0
+#define DOS_SUBHELPER_EMUFS_IOCTL      1
+
+#define EMUFS_IOCTL_GET_ENTRY          0
+#define EMUFS_HELPER_REDIRECT          1
+#define EMUFS_HELPER_REHASH_DYN        2
 
 #define DOS_HELPER_GARROT_HELPER    0x28
 
 #define DOS_HELPER_SERIAL_HELPER    0x29
-#define DOS_SUBHELPER_SERIAL_TSR_CHECK 0
+#define DOS_SUBHELPER_SERIAL_FOSSIL_CHECK 0
 #define DOS_SUBHELPER_SERIAL_TSR_INSTALL 1
+#define DOS_SUBHELPER_SERIAL_FOSSIL_INIT 2
 #define DOS_ERROR_SERIAL_ALREADY_INSTALLED 1
 #define DOS_ERROR_SERIAL_CONFIG_DISABLED 2
+#define DOS_ERROR_SERIAL_TSR_INVALID 3
+#define DOS_ERROR_SERIAL_FOSSIL_VERSION 4
+#define DOS_VERSION_SERIAL_FOSSIL 1
 
 
 #define DOS_HELPER_BOOTDISK         0x30  /* OLD, removed functionality */
@@ -85,10 +94,9 @@
 #define DOS_SUBHELPER_RVC_CALL          1
 #define DOS_SUBHELPER_RVC2_CALL         2
 #define DOS_SUBHELPER_RVC_UNREVECT      3
+#define DOS_SUBHELPER_RVC_NEXT_VEC      4
 
-#define DOS_HELPER_RUN_UNIX         0x50
 #define DOS_HELPER_GET_UNIX_ENV     0x52
-#define DOS_HELPER_0x53             0x53
 #define DOS_HELPER_GET_CPU_SPEED    0x54 /* return CPU clock frequency in EAX,
 					    Units: MHz * 0x10000, */
 #define DOS_HELPER_GET_TERM_TYPE    0x55 /* return type-bits in EAX:
@@ -99,9 +107,6 @@
 					    bit4 = console_video
 					    bit5 = console graphics
 					    bit6 = dualmon */
-
-#define DOS_HELPER_PLUGIN	    0x60 /* first reserved for plug-ins */
-#define DOS_HELPER_PLUGIN_LAST      0x6f /* last  reserved for plug-ins */
 
 #define DOS_HELPER_GETCWD           0x80
 #define DOS_HELPER_CHDIR            0x81
@@ -127,7 +132,7 @@
 #define USE_COMMANDS_PLUGIN 1
 
 /* Increment this when the interface changes */
-#define BUILTINS_PLUGIN_VERSION     2
+#define BUILTINS_PLUGIN_VERSION     (2 + CMDS_REV)
 
 #define DOS_HELPER_COMMANDS         0xc0
 #define DOS_HELPER_COMMANDS_DONE    0xc1
@@ -137,4 +142,12 @@
 extern int commands_plugin_inte6(void);
 extern int commands_plugin_inte6_done(void);
 extern int commands_plugin_inte6_set_retcode(void);
+extern void commands_plugin_inte6_reset(void);
+
+extern int register_cleanup_handler(void (*call)(void));
+
+typedef int (*run_dos_cb)(const char *command);
+typedef unsigned short (*get_psp_cb)(int parent);
+int run_command_plugin(const char *name, const char *argv0, char *cmdbuf,
+    run_dos_cb run_cb, get_psp_cb psp_cb);
 #endif

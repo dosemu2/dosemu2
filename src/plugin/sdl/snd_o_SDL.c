@@ -110,18 +110,35 @@ static void sdlsnd_close(void *arg)
     SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
-static const struct pcm_player player = {
+static const struct pcm_player player
+#ifdef __cplusplus
+{
+    sdlsnd_name,
+    sdlsnd_longname,
+    sndsdl_cfg,
+    sdlsnd_open,
+    sdlsnd_close,
+    NULL,
+    sdlsnd_start,
+    sdlsnd_stop,
+    0,
+    .id = PCM_ID_P,
+    0
+};
+#else
+= {
     .name = sdlsnd_name,
     .longname = sdlsnd_longname,
-    .start = sdlsnd_start,
-    .stop = sdlsnd_stop,
+    .get_cfg = sndsdl_cfg,
     .open = sdlsnd_open,
     .close = sdlsnd_close,
-    .get_cfg = sndsdl_cfg,
+    .start = sdlsnd_start,
+    .stop = sdlsnd_stop,
 //    .lock = SDL_LockAudio,
 //    .unlock = SDL_UnlockAudio,
     .id = PCM_ID_P,
 };
+#endif
 
 CONSTRUCTOR(static void sdlsnd_init(void))
 {

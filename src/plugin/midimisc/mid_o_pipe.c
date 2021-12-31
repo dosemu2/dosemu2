@@ -38,8 +38,12 @@ static int pipe_fd = -1;
 
 static int midopipe_init(void *arg)
 {
-    char *name = DOSEMU_MIDI_PATH;
-    mkfifo(name, 0666);
+    const char *name = DOSEMU_MIDI_PATH;
+
+    if (mkfifo(name, 0666) == -1) {
+        S_printf("Unable to mkfifo() '%s'\n", strerror(errno));
+        return 0;
+    }
     pipe_fd = RPT_SYSCALL(open(name, O_WRONLY | O_NONBLOCK));
     if (pipe_fd == -1) {
 	int err = errno;
@@ -84,16 +88,32 @@ static int midopipe_cfg(void *arg)
     return pcm_parse_cfg(config.midi_driver, midopipe_name);
 }
 
-static const struct midi_out_plugin midopipe = {
+static const struct midi_out_plugin midopipe
+#ifdef __cplusplus
+{
+    midopipe_name,
+    midopipe_longname,
+    midopipe_cfg,
+    midopipe_init,
+    midopipe_done,
+    0,
+    midopipe_write,
+    NULL, NULL,
+    ST_ANY,
+    PCM_F_PASSTHRU | PCM_F_EXPLICIT,
+};
+#else
+= {
     .name = midopipe_name,
     .longname = midopipe_longname,
+    .get_cfg = midopipe_cfg,
     .open = midopipe_init,
     .close = midopipe_done,
     .write = midopipe_write,
-    .get_cfg = midopipe_cfg,
     .stype = ST_ANY,
     .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
+#endif
 
 CONSTRUCTOR(static void midopipe_register(void))
 {

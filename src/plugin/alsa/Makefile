@@ -5,18 +5,18 @@
 #
 
 top_builddir=../../..
-include $(top_builddir)/Makefile.conf
--include Makefile.conf
+include ../plugins.mak
 
 ALL_CFLAGS+=$(DL_CFLAGS) $(ALSACFLAGS)
 CFILES=mid_o_alsa.c snd_i_alsa.c
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_alsa.so
+ALL_CFLAGS += -fPIC
 endif
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post
 
 ifdef USE_DL_PLUGINS
-$(BINPATH)/bin/libplugin_alsa.so: $(OBJS)
+$(BINPATH)/bin/libplugin_alsa.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(ALSALIB)
 endif

@@ -27,7 +27,7 @@
 
 #include "cpu.h"
 #include "memory.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "dosemu_debug.h"
 #define ALL_GDTS 0
 #if ALL_GDTS
@@ -37,16 +37,15 @@
 #include "msdos_ldt.h"
 #include "msdos_priv.h"
 #include "segreg_priv.h"
-#include "segreg.h"
 
-static enum MfRet msdos_sel_fault(struct sigcontext *scp)
+static enum MfRet msdos_sel_fault(sigcontext_t *scp)
 {
-    struct sigcontext new_sct;
+    sigcontext_t new_sct;
     int reg;
     unsigned int segment;
     unsigned short desc;
 
-    D_printf("MSDOS: msdos_fault, err=%#lx\n", _err);
+    D_printf("MSDOS: msdos_fault, err=%#x\n", _err);
     if ((_err & 0xffff) == 0)	/*  not a selector error */
 	return MFR_NOT_HANDLED;
 
@@ -71,12 +70,12 @@ static enum MfRet msdos_sel_fault(struct sigcontext *scp)
     default:
 	return MFR_ERROR;
     }
-    copy_context(&new_sct, scp, 0);
+    new_sct = *scp;
     reg = decode_segreg(&new_sct);
     if (reg == -1)
 	return MFR_ERROR;
 #else
-    copy_context(&new_sct, scp, 0);
+    new_sct = *scp;
     reg = decode_modify_segreg_insn(&new_sct, 1, &segment);
     if (reg == -1)
 	return MFR_ERROR;
@@ -109,7 +108,7 @@ static enum MfRet msdos_sel_fault(struct sigcontext *scp)
 	return MFR_ERROR;
 
     /* OKay, all the sanity checks passed. Now we go and fix the selector */
-    copy_context(scp, &new_sct, 0);
+    *scp = new_sct;
     switch (reg) {
     case es_INDEX:
 	_es = desc;
@@ -135,7 +134,7 @@ static enum MfRet msdos_sel_fault(struct sigcontext *scp)
     return MFR_HANDLED;
 }
 
-int msdos_fault(struct sigcontext *scp)
+static int msdos_fault(sigcontext_t *scp)
 {
     enum MfRet ret;
     uint16_t sel;
@@ -159,4 +158,88 @@ int msdos_fault(struct sigcontext *scp)
     MR_CHK(ret);
 
     return 0;
+}
+
+static void decode_exc(sigcontext_t *scp, const unsigned int *ssp)
+{
+    ssp += 8+2; // skip legacy frame and cs:eip
+    _err = *ssp++;
+    _eip = *ssp++;
+    _cs = *ssp++;
+    _eflags = *ssp++;
+    _esp = *ssp++;
+    _ss = *ssp++;
+    _es = *ssp++;
+    _ds = *ssp++;
+    _fs = *ssp++;
+    _gs = *ssp++;
+    _cr2 = *ssp++;
+}
+
+static void encode_exc(sigcontext_t *scp, unsigned int *ssp)
+{
+    ssp += 8+2; // skip legacy frame and cs:eip
+    ssp++;  // err
+    *ssp++ = _eip;
+    *ssp++ = _cs;
+    *ssp++ = _eflags;
+    *ssp++ = _esp;
+    *ssp++ = _ss;
+    *ssp++ = _es;
+    *ssp++ = _ds;
+    *ssp++ = _fs;
+    *ssp++ = _gs;
+}
+
+static void copy_gp(sigcontext_t *scp, sigcontext_t *src)
+{
+#define CP_R(r) _##r = get_##r(src)
+    CP_R(eax);
+    CP_R(ebx);
+    CP_R(ecx);
+    CP_R(edx);
+    CP_R(esi);
+    CP_R(edi);
+    CP_R(ebp);
+}
+
+static void do_fault(sigcontext_t *scp, const DPMI_INTDESC *pma,
+    int (*cbk)(sigcontext_t *))
+{
+    unsigned int *ssp;
+    sigcontext_t new_sct;
+
+    new_sct = *scp;
+    ssp = SEL_ADR(_ss,_esp);
+    decode_exc(&new_sct, ssp);
+    if (!cbk(&new_sct)) {
+        int is_32 = (ssp[9] & 0xffff) > 0;
+        /* if not handled, we push old addr and return to it */
+        if (is_32) {
+            D_printf("MSDOS: chain exception to %x:%x\n",
+                    pma->selector, pma->offset32);
+            *--ssp = pma->selector;
+            *--ssp = pma->offset32;
+            _esp -= 8;
+        } else {
+            *--ssp = (pma->selector << 16) | pma->offset32;
+            _LWORD(esp) -= 4;
+        }
+        return;
+    }
+    encode_exc(&new_sct, ssp);
+    copy_gp(scp, &new_sct);
+    _esp += 0x20; // skip legacy frame
+}
+
+void msdos_fault_handler(sigcontext_t *scp, void *arg)
+{
+    void *(*cb)(void) = arg;
+    do_fault(scp, cb(), msdos_fault);
+}
+
+void msdos_pagefault_handler(sigcontext_t *scp, void *arg)
+{
+    void *(*cb)(void) = arg;
+    do_fault(scp, cb(), msdos_ldt_pagefault);
 }

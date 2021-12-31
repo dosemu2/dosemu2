@@ -56,6 +56,10 @@ struct dspio_dma {
     int is16bit;
     int stereo;
     int samp_signed;
+    int adpcm;
+    int adpcm_need_ref;
+    uint8_t adpcm_ref;
+    int adpcm_step;
     int input;
     int silence;
     int dsp_fifo_enabled;
@@ -188,6 +192,7 @@ void dspio_clear_midi_in_fifo(void *dspio)
 
 static int dspio_get_dma_data(struct dspio_state *state, void *ptr, int is16bit)
 {
+    static int warned;
     if (sb_get_dma_data(ptr, is16bit))
 	return 1;
     if (rng_count(&state->fifo_in)) {
@@ -200,7 +205,10 @@ static int dspio_get_dma_data(struct dspio_state *state, void *ptr, int is16bit)
 	}
 	return 1;
     }
-    error("SB: input fifo empty\n");
+    if (!warned) {
+	error("SB: input fifo empty, adjust input and volume with SB mixer\n");
+	warned++;
+    }
     return 0;
 }
 
@@ -218,19 +226,111 @@ static void dspio_put_dma_data(struct dspio_state *state, void *ptr, int is16bit
     }
 }
 
-static int dspio_get_output_sample(struct dspio_state *state, void *ptr,
-	int is16bit)
+/* https://wiki.multimedia.cx/index.php/Creative_8_bits_ADPCM */
+static uint8_t decode_adpcm2(struct dspio_dma *dma, uint8_t val)
 {
-    if (rng_count(&state->fifo_out)) {
-	if (is16bit) {
-	    rng_get(&state->fifo_out, ptr);
-	} else {
-	    Bit16u tmp;
-	    rng_get(&state->fifo_out, &tmp);
-	    *(Bit8u *) ptr = tmp;
-	}
-	return 1;
+    int sign = (val & 2) ? -1 : 1;
+    int value = val & 1;
+    int sample = dma->adpcm_ref + sign * (value << (dma->adpcm_step + 2));
+    if (sample < 0)
+	sample = 0;
+    if (sample > 255)
+	sample = 255;
+    dma->adpcm_ref = sample;
+    if (value >= 1)
+	dma->adpcm_step++;
+    else if (value == 0)
+	dma->adpcm_step--;
+    if (dma->adpcm_step < 0)
+	dma->adpcm_step = 0;
+    if (dma->adpcm_step > 3)
+	dma->adpcm_step = 3;
+    return sample;
+}
+
+static uint8_t decode_adpcm3(struct dspio_dma *dma, uint8_t val)
+{
+    int sign = (val & 4) ? -1 : 1;
+    int value = val & 3;
+    int sample = dma->adpcm_ref + sign * (value << dma->adpcm_step);
+    if (sample < 0)
+	sample = 0;
+    if (sample > 255)
+	sample = 255;
+    dma->adpcm_ref = sample;
+    if (value >= 3)
+	dma->adpcm_step++;
+    else if (value == 0)
+	dma->adpcm_step--;
+    if (dma->adpcm_step < 0)
+	dma->adpcm_step = 0;
+    if (dma->adpcm_step > 3)
+	dma->adpcm_step = 3;
+    return sample;
+}
+
+static uint8_t decode_adpcm4(struct dspio_dma *dma, uint8_t val)
+{
+    int sign = (val & 8) ? -1 : 1;
+    int value = val & 7;
+    int sample = dma->adpcm_ref + sign * (value << dma->adpcm_step);
+    if (sample < 0)
+	sample = 0;
+    if (sample > 255)
+	sample = 255;
+    dma->adpcm_ref = sample;
+    if (value >= 5)
+	dma->adpcm_step++;
+    else if (value == 0)
+	dma->adpcm_step--;
+    if (dma->adpcm_step < 0)
+	dma->adpcm_step = 0;
+    if (dma->adpcm_step > 3)
+	dma->adpcm_step = 3;
+    return sample;
+}
+
+static int dspio_get_output_sample(struct dspio_state *state,
+	sndbuf_t buf[PCM_MAX_BUF][SNDBUF_CHANS], int i, int j)
+{
+    int k;
+    uint16_t val;
+    int cnt = rng_count(&state->fifo_out);
+    if (!cnt)
+	return 0;
+    rng_get(&state->fifo_out, &val);
+    switch (state->dma.adpcm) {
+	case 0:
+	    buf[i][j] = val;
+	    return 1;
+	case 2:
+	    assert(!j);
+	    if (i + 4 > PCM_MAX_BUF)
+		return 0;
+	    for (k = 0; k < 4; k++)
+		buf[i + k][j] = decode_adpcm2(&state->dma,
+			(val >> (6 - k * 2)) & 0x3);
+	    return k;
+	case 3:
+	    assert(!j);
+	    if (i + 3 > PCM_MAX_BUF)
+		return 0;
+	    /* 2.6bits, not 3, see dosbox */
+	    for (k = 0; k < 2; k++)
+		buf[i + k][j] = decode_adpcm3(&state->dma,
+			(val >> (5 - k * 3)) & 0x7);
+	    buf[i + k][j] = decode_adpcm3(&state->dma, (val & 0x3) << 1);
+	    return k + 1;
+	case 4:
+	    assert(!j);
+	    if (i + 2 > PCM_MAX_BUF)
+		return 0;
+	    for (k = 0; k < 2; k++)
+		buf[i + k][j] = decode_adpcm4(&state->dma,
+			(val >> (4 - k * 4)) & 0xf);
+	    return k;
     }
+    error("should not be here, %i\n", state->dma.adpcm);
     return 0;
 }
 
@@ -272,13 +372,26 @@ static void dspio_i_stop(void *arg)
     state->i_started = 0;
 }
 
-static const struct pcm_player player = {
+static const struct pcm_player player
+#ifdef __cplusplus
+{
+    "SB REC",
+    NULL, NULL, NULL, NULL, NULL,
+    dspio_i_start,
+    dspio_i_stop,
+    PCM_F_PASSTHRU,
+    PCM_ID_R,
+    0
+};
+#else
+= {
     .name = "SB REC",
     .start = dspio_i_start,
     .stop = dspio_i_stop,
-    .id = PCM_ID_R,
     .flags = PCM_F_PASSTHRU,
+    .id = PCM_ID_R,
 };
+#endif
 
 static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg);
 static int dspio_is_connected(int id, void *arg);
@@ -472,8 +585,14 @@ static int do_run_dma(struct dspio_state *state)
 	    }
 	}
     }
-    if (!dma->input)
+    if (!dma->input) {
+	if (dma->adpcm && dma->adpcm_need_ref) {
+	    dma->adpcm_ref = dma_buf[0];
+	    dma->adpcm_step = 0;
+	    dma->adpcm_need_ref = 0;
+	}
 	dspio_put_dma_data(state, dma_buf, dma->is16bit);
+    }
     return 1;
 }
 
@@ -518,6 +637,8 @@ static void get_dma_params(struct dspio_dma *dma)
     dma->input = sb_dma_input();
     dma->silence = sb_dma_silence();
     dma->dsp_fifo_enabled = sb_fifo_enabled();
+    dma->adpcm = sb_dma_adpcm();
+    dma->adpcm_need_ref = sb_dma_adpcm_ref();
 }
 
 static int dspio_fill_output(struct dspio_state *state)
@@ -580,6 +701,9 @@ static int calc_nframes(struct dspio_state *state,
 	hitimer_t time_beg, hitimer_t time_dst)
 {
     int nfr;
+
+    if (time_dst < time_beg)
+	return 0;
     if (state->dma.rate) {
 	nfr = (time_dst - time_beg) / pcm_frame_period_us(state->dma.rate) + 1;
 	if (nfr < 0)	// happens because of get_stream_time() hack
@@ -594,9 +718,10 @@ static int calc_nframes(struct dspio_state *state,
 
 static void dspio_process_dma(struct dspio_state *state)
 {
-    int dma_cnt, nfr, in_fifo_cnt, out_fifo_cnt, i, j, tlocked;
+    int dma_cnt, nfr, in_fifo_cnt, out_fifo_cnt, i, j;
     unsigned long long time_dst;
-    double output_time_cur;
+    double output_time_cur = 0;
+    int n[SNDBUF_CHANS];
     sndbuf_t buf[PCM_MAX_BUF][SNDBUF_CHANS];
     static int warned;
 
@@ -616,26 +741,29 @@ static void dspio_process_dma(struct dspio_state *state)
 
     time_dst = GETusTIME(0);
     if (state->output_running) {
-	output_time_cur = pcm_time_lock(state->dma_strm);
-	tlocked = 1;
+	output_time_cur = pcm_get_stream_time(state->dma_strm);
 	nfr = calc_nframes(state, output_time_cur, time_dst);
     } else {
 	nfr = 0;
-	tlocked = 0;
     }
-    for (i = 0; i < nfr; i++) {
+    if (nfr > PCM_MAX_BUF)
+	nfr = PCM_MAX_BUF;
+    for (i = 0; i < nfr;) {
+	memset(n, 0, sizeof(n));
 	for (j = 0; j < state->dma.stereo + 1; j++) {
 	    if (state->dma.running && !dspio_output_fifo_filled(state)) {
 		if (!dspio_run_dma(state))
 		    break;
 		dma_cnt++;
 	    }
-	    if (!dspio_get_output_sample(state, &buf[i][j],
-		    state->dma.is16bit)) {
+	    n[j] = dspio_get_output_sample(state, buf, i, j);
+	    if (!n[j]) {
 		if (out_fifo_cnt && debug_level('S') >= 5)
 		    S_printf("SB: no output samples\n");
 		break;
 	    }
+	    if (j)
+		assert(n[j] == n[0]);
 #if 0
 	    /* if speaker disabled, overwrite DMA data with silence */
 	    /* on SB16 is not used */
@@ -646,8 +774,9 @@ static void dspio_process_dma(struct dspio_state *state)
 	}
 	if (j != state->dma.stereo + 1)
 	    break;
-	out_fifo_cnt++;
+	i += n[0];
     }
+    out_fifo_cnt = i;
     if (out_fifo_cnt && state->dma.rate) {
 	pcm_write_interleaved(buf, out_fifo_cnt, state->dma.rate,
 			  pcm_get_format(state->dma.is16bit,
@@ -682,8 +811,6 @@ static void dspio_process_dma(struct dspio_state *state)
 	    reset_idle(0);
 	}
     }
-    if (tlocked)
-	pcm_time_unlock(state->dma_strm);
 
     /* TODO: sync also input time with PCM? */
     if (state->input_running)
@@ -789,7 +916,7 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
     double vol;
     enum MixSubChan msc;
     enum MixRet mr = MR_UNSUP;
-    enum MixChan mc = (long)arg;
+    enum MixChan mc = (enum MixChan)(intptr_t)arg;
     int chans = sb_mixer_get_chan_num(mc);
 
     if (chan_src >= chans)
@@ -848,7 +975,7 @@ double dspio_calc_vol(int val, int step, int init_db)
 
 static int dspio_is_connected(int id, void *arg)
 {
-    enum MixChan mc = (long)arg;
+    enum MixChan mc = (enum MixChan)(intptr_t)arg;
 
     if (mc == MC_NONE)	// connect anonymous streams only to playback (P)
 	return (id == PCM_ID_P);
@@ -863,8 +990,8 @@ static int dspio_is_connected(int id, void *arg)
 
 static int dspio_checkid2(void *id2, void *arg)
 {
-    enum MixChan mc = (long)arg;
-    enum MixChan mc2 = (long)id2;
+    enum MixChan mc = (enum MixChan)(intptr_t)arg;
+    enum MixChan mc2 = (enum MixChan)(intptr_t)id2;
 
     return (mc2 == MC_NONE || mc2 == mc);
 }

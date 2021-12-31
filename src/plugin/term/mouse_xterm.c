@@ -6,9 +6,9 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <slang.h>
 
-#include "config.h"
 #include "emu.h"
 #include "video.h"
 #include "env_term.h"
@@ -17,71 +17,133 @@
 #include "vgaemu.h"
 #include "vc.h"
 
-/* XTERM MOUSE suport by M.Laak */
-void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
+static int use_sgr;
+
+/* old XTERM MOUSE suport by M.Laak */
+static int xtermmouse_get_event_old(Bit8u *kbp, int kbcount)
 {
 	int btn;
 	static int last_btn = 0;
 	int x_pos, y_pos;
+	int co, li, li_1;
 
 	/* Decode Xterm mouse information to a GPM style event */
 
-	if (*kbcount >= 3) {
-		x_pos = (*kbp)[1] - 33;
-		y_pos = (*kbp)[2] - 33;
-		mouse_move_absolute(x_pos, y_pos,
-			READ_WORD(BIOS_SCREEN_COLUMNS),
-			READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1);
-		m_printf("XTERM MOUSE: movement detected to pos x=%d: y=%d\n", x_pos, y_pos);
+	if (kbcount < 3)
+		return 0;
+	/* Read sizes from BDA because term can be resized. */
+	co = READ_WORD(BIOS_SCREEN_COLUMNS);
+	li_1 = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
+	li = li_1 + 1;
+	if (!co || !li_1)
+		return 3;
+	x_pos = kbp[1] - 33;
+	y_pos = kbp[2] - 33;
+	m_printf("XTERM MOUSE: movement detected to pos x=%d: y=%d\n", x_pos, y_pos);
+	mouse_move_absolute(x_pos, y_pos, co, li, 1, MOUSE_XTERM);
 
-		/* Variable btn has following meaning: */
-		/* 0 = btn1 dn, 1 = btn2 dn, 2 = btn3 dn, 3 = btn up,
-		 * 32 = no button state change */
-		btn = (*kbp)[0] - 32;
-		switch (btn) {
-		case 0:
-			mouse_move_buttons(1, 0, 0);
-			m_printf("XTERM MOUSE: left button click detected\n");
-			last_btn = 1;
-			break;
-		case 1:
-			mouse_move_buttons(0, 1, 0);
-			m_printf("XTERM MOUSE: middle button click detected\n");
-			last_btn = 2;
-			break;
-		case 2:
-			mouse_move_buttons(0, 0, 1);
-			m_printf("XTERM MOUSE: right button click detected\n");
-			last_btn = 3;
-			break;
+	/* Variable btn has following meaning: */
+	/* 0 = btn1 dn, 1 = btn2 dn, 2 = btn3 dn, 3 = btn up,
+	 * 32 = no button state change */
+	btn = kbp[0] - 32;
+	if (btn < 3) {
+		m_printf("XTERM MOUSE: button %i press\n", btn);
+		mouse_move_button(btn, 1, MOUSE_XTERM);
+		last_btn++;
+		return 3;
+	}
+	switch (btn) {
 		case 3:
 			/* There seems to be no way of knowing which button was released */
 			/* So we assume all the buttons were released */
 			if (last_btn) {
-				mouse_move_buttons(0, 0, 0);
+				mouse_move_buttons(0, 0, 0, MOUSE_XTERM);
 				m_printf("XTERM MOUSE: button release detected\n");
 				last_btn = 0;
 			}
 			break;
 		case 64:
-			mouse_move_wheel(-1);
+			m_printf("XTERM MOUSE: wheel UP\n");
+			mouse_move_wheel(-1, MOUSE_XTERM);
 			break;
 		case 65:
-			mouse_move_wheel(1);
+			m_printf("XTERM MOUSE: wheel DOWN\n");
+			mouse_move_wheel(1, MOUSE_XTERM);
 			break;
-		}
-		*kbcount -= 3;	/* update count */
-		*kbp += 3;
 	}
+	return 3;
+}
+
+static int xtermmouse_get_event_sgr(Bit8u *kbp, int kbcount)
+{
+	int btn, x_pos, y_pos, cnt;
+	char press;
+	#define IS_PR (press == 'M')
+	char buf[16];
+	int co, li, li_1;
+
+	if (kbcount > sizeof(buf) - 1)
+		kbcount = sizeof(buf) - 1;
+	memcpy(buf, kbp, kbcount);
+	buf[kbcount] = 0;
+	cnt = 0;
+	sscanf(buf, "%d;%d;%d%c%n", &btn, &x_pos, &y_pos, &press, &cnt);
+	if (!cnt)
+		return 0;
+	/* Read sizes from BDA because term can be resized. */
+	co = READ_WORD(BIOS_SCREEN_COLUMNS);
+	li_1 = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
+	li = li_1 + 1;
+	if (!co || !li_1)
+		return cnt;
+	m_printf("XTERM MOUSE: movement detected to pos x=%d: y=%d\n", x_pos, y_pos);
+	mouse_move_absolute(x_pos - 1, y_pos - 1, co, li, 1, MOUSE_XTERM);
+	if (btn == 35)    // movement only
+		return cnt;
+	if (btn < 3) {
+		m_printf("XTERM MOUSE: button %i press %i\n", btn, IS_PR);
+		mouse_move_button(btn, IS_PR, MOUSE_XTERM);
+		return cnt;
+	}
+	switch (btn) {
+		case 64:
+			m_printf("XTERM MOUSE: wheel UP\n");
+			mouse_move_wheel(-1, MOUSE_XTERM);
+			break;
+		case 65:
+			m_printf("XTERM MOUSE: wheel DOWN\n");
+			mouse_move_wheel(1, MOUSE_XTERM);
+			break;
+	}
+	return cnt;
+}
+
+int xtermmouse_get_event(Bit8u *kbp, int kbcount)
+{
+	if (use_sgr)
+		return xtermmouse_get_event_sgr(kbp, kbcount);
+	return xtermmouse_get_event_old(kbp, kbcount);
 }
 
 static int has_xterm_mouse_support(void)
 {
+	const char *km;
+
 	if (config.vga || on_console())
 		return 0;
 
 	term_init();
-	return SLtt_tgetstr ("Km") || using_xterm();
+	km = SLtt_tgetstr("Km");
+	if (!km || strlen(km) < 3)
+		return 0;
+	switch (km[2]) {
+	case 'M':
+		return 1;
+	case '<':
+		use_sgr = 1;
+		return 1;
+	}
+	return 0;
 }
 
 static int xterm_mouse_init(void)
@@ -93,16 +155,15 @@ static int xterm_mouse_init(void)
 
 	mice->type = MOUSE_XTERM;
 	mice->native_cursor = 0;      /* we have the xterm cursor */
-#if 0
-	SLtt_set_mouse_mode(0, 0);
-#else
 	/* save old highlight mouse tracking */
 	printf("\033[?1001s");
 	/* enable mouse tracking */
-	printf("\033[?9h\033[?1000h\033[?1002h\033[?1003h");
+	if (use_sgr)
+		printf("\033[?9h\033[?1000h\033[?1002h\033[?1003h\033[?1006h");
+	else
+		printf("\033[?9h\033[?1000h\033[?1002h\033[?1003h");
 	fflush(stdout);
-	m_printf("XTERM MOUSE: Remote terminal mouse tracking enabled\n");
-#endif
+	m_printf("XTERM MOUSE: tracking enabled, sgr=%i\n", use_sgr);
 
 	return TRUE;
 }
@@ -110,7 +171,10 @@ static int xterm_mouse_init(void)
 static void xterm_mouse_close(void)
 {
 	/* disable mouse tracking */
-	printf("\033[?1003l\033[?1002l\033[?1000l\033[9l");
+	if (use_sgr)
+		printf("\033[?1006l\033[?1003l\033[?1002l\033[?1000l\033[?9l");
+	else
+		printf("\033[?1003l\033[?1002l\033[?1000l\033[?9l");
 	/* restore old highlight mouse tracking */
 	printf("\033[?1001r\033[?1001l");
 	fflush(stdout);

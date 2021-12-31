@@ -27,12 +27,12 @@ DPMI_raw_mode_switch_pm:
 	.globl DPMI_save_restore_pm
 DPMI_save_restore_pm:
 	hlt
-	lret
+	lretl
 /* ======================= Addr = dpmi_sel():0003 */
 	.globl DPMI_API_extension
 DPMI_API_extension:
 	hlt
-	lret
+	lretl
 /* ======================= Addr = dpmi_sel():0005 */
 	.globl DPMI_return_from_pm
 DPMI_return_from_pm:
@@ -54,8 +54,8 @@ DPMI_exception:
 DPMI_interrupt:
 	FILL_OPCODE 256,hlt
 /* ======================= Addr = dpmi_sel():0128 */
-	.globl	DPMI_return_from_dosint
-DPMI_return_from_dosint:
+/*	.globl	reserved */
+reserved:
 	hlt
 /* ======================= Addr = dpmi_sel():0129 */
 	.globl DPMI_return_from_ext_exception
@@ -77,33 +77,60 @@ DPMI_return_from_int_24:
 	.globl DPMI_return_from_RSPcall
 DPMI_return_from_RSPcall:
 	hlt
-
-	.globl MSDOS_spm_start
-MSDOS_spm_start:
-	.globl MSDOS_XMS_call
-MSDOS_XMS_call:
+/* ======================= Addr = dpmi_sel():012E */
+	.globl DPMI_return_from_rm_ext_exception
+DPMI_return_from_rm_ext_exception:
 	hlt
-	.globl MSDOS_spm_end
-MSDOS_spm_end:
-
-	.globl MSDOS_epm_start
-MSDOS_epm_start:
-	.globl MSDOS_XMS_ret
-MSDOS_XMS_ret:
+/* ======================= Addr = dpmi_sel():012F */
+	.globl DPMI_return_from_rm_exception
+DPMI_return_from_rm_exception:
 	hlt
-	.globl MSDOS_epm_end
-MSDOS_epm_end:
+/* ======================= Addr = dpmi_sel():0130 */
+	.globl DPMI_ext_exception
+DPMI_ext_exception:
+	FILL_OPCODE 32,hlt
+/* ======================= Addr = dpmi_sel():0150 */
+	.globl DPMI_rm_exception
+DPMI_rm_exception:
+	FILL_OPCODE 32,hlt
+/* ======================= Addr = dpmi_sel():0170 */
+	.globl DPMI_return_from_LDTcall
+DPMI_return_from_LDTcall:
+	hlt
+/* ======================= Addr = dpmi_sel():0171 */
+	.globl DPMI_return_from_LDTExitCall
+DPMI_return_from_LDTExitCall:
+	hlt
+/* ======================= Addr = dpmi_sel():0172 */
+	.globl DPMI_sel_end
+DPMI_sel_end:
 
 	.globl MSDOS_pmc_start
 MSDOS_pmc_start:
+	.globl MSDOS_fault
+MSDOS_fault:
+	hlt
+	lretl
+	.globl MSDOS_pagefault
+MSDOS_pagefault:
+	hlt
+	lretl
 	.globl MSDOS_API_call
 MSDOS_API_call:
 	hlt
-	lret
+	lretl
 	.globl MSDOS_API_WINOS2_call
 MSDOS_API_WINOS2_call:
 	hlt
-	lret
+	lretl
+	.globl MSDOS_LDT_call16
+MSDOS_LDT_call16:
+	hlt
+	lretl
+	.globl MSDOS_LDT_call32
+MSDOS_LDT_call32:
+	hlt
+	lretl
 
 	.globl MSDOS_rmcb_call_start
 MSDOS_rmcb_call_start:
@@ -113,23 +140,28 @@ MSDOS_rmcb_call0:
 	.globl MSDOS_rmcb_ret0
 MSDOS_rmcb_ret0:
 	hlt
-	iret
+	iretl
 	.globl MSDOS_rmcb_call1
 MSDOS_rmcb_call1:
 	hlt
 	.globl MSDOS_rmcb_ret1
 MSDOS_rmcb_ret1:
 	hlt
-	iret
+	iretl
 	.globl MSDOS_rmcb_call2
 MSDOS_rmcb_call2:
 	hlt
 	.globl MSDOS_rmcb_ret2
 MSDOS_rmcb_ret2:
 	hlt
-	iret
+	iretl
 	.globl MSDOS_rmcb_call_end
 MSDOS_rmcb_call_end:
+	.globl MSDOS_hlt_start
+MSDOS_hlt_start:
+	FILL_OPCODE 32,hlt
+	.globl MSDOS_hlt_end
+MSDOS_hlt_end:
 	.globl MSDOS_pmc_end
 MSDOS_pmc_end:
 
@@ -138,57 +170,66 @@ DPMI_VXD_start:
 	.globl	DPMI_VXD_VMM
 DPMI_VXD_VMM:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_PageFile
 DPMI_VXD_PageFile:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_Reboot
 DPMI_VXD_Reboot:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_VDD
 DPMI_VXD_VDD:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_VMD
 DPMI_VXD_VMD:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_VXDLDR
 DPMI_VXD_VXDLDR:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_SHELL
 DPMI_VXD_SHELL:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_VCD
 DPMI_VXD_VCD:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_VTD
 DPMI_VXD_VTD:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_CONFIGMG
 DPMI_VXD_CONFIGMG:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_ENABLE
 DPMI_VXD_ENABLE:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_APM
 DPMI_VXD_APM:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_VTDAPI
 DPMI_VXD_VTDAPI:
 	hlt
-	lret
+	lretl
 	.globl	DPMI_VXD_end
 DPMI_VXD_end:
+
+	.globl DPMI_call
+DPMI_call:
+	int $0x31
+	lretl
+	.globl DPMI_msdos
+DPMI_msdos:
+	int $0x21
+	lretl
 
 	.globl DPMI_sel_code_end
 DPMI_sel_code_end:

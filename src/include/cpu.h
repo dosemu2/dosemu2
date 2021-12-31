@@ -9,19 +9,16 @@
 #include "types.h"
 #include "bios.h"
 #include "memory.h"
+#include "sig.h"
+#include <signal.h>
+#include <inttypes.h>
+#include <fenv.h>
+#include "vm86_compat.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
 #endif
 
-#ifdef BIOSSEG
-#undef BIOSSEG
-#endif
-#include <signal.h>
-#include "vm86_compat.h"
-#ifndef BIOSSEG
-#define BIOSSEG 0xf000
-#endif
 #define _regs vm86s.regs
 
 #ifndef HAVE_STD_C11
@@ -46,28 +43,112 @@
 #define READ_SEG_REG(reg) (REGS.reg)
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
 
-#define MAY_ALIAS __attribute__((may_alias))
-
 union dword {
-  unsigned long l;
   Bit32u d;
-#ifdef __x86_64__
-  struct { Bit16u l, h, w2, w3; } w;
-#else
   struct { Bit16u l, h; } w;
+#ifdef __i386__
+  /* unsigned long member is needed only for strict aliasing,
+   * we never convert to it, but sometimes convert _from_ it */
+  unsigned long ul;
 #endif
   struct { Bit8u l, h, b2, b3; } b;
-} MAY_ALIAS ;
+};
 
-#define DWORD_(wrd)	(((union dword *)&(wrd))->d)
+union word {
+  Bit16u w;
+  struct { Bit8u l, h; } b;
+};
+
+#ifndef __linux__
+#define __ctx(fld) fld
+#ifdef __x86_64__
+/* taken from glibc, don't blame me :) */
+typedef long long int greg_t;
+struct _libc_fpxreg
+{
+  unsigned short int __ctx(significand)[4];
+  unsigned short int __ctx(exponent);
+  unsigned short int __glibc_reserved1[3];
+};
+struct _libc_xmmreg
+{
+  __uint32_t	__ctx(element)[4];
+};
+struct _libc_fpstate
+{
+  /* 64-bit FXSAVE format.  */
+  uint16_t		__ctx(cwd);
+  uint16_t		__ctx(swd);
+  uint16_t		__ctx(ftw);
+  uint16_t		__ctx(fop);
+  uint64_t		__ctx(rip);
+  uint64_t		__ctx(rdp);
+  uint32_t		__ctx(mxcsr);
+  uint32_t		__ctx(mxcr_mask);
+  struct _libc_fpxreg	_st[8];
+  struct _libc_xmmreg	_xmm[16];
+  uint32_t		__glibc_reserved1[24];
+};
+/* Structure to describe FPU registers.  */
+typedef struct _libc_fpstate *fpregset_t;
+#else
+typedef int greg_t;
+struct _libc_fpreg
+{
+  unsigned short int __ctx(significand)[4];
+  unsigned short int __ctx(exponent);
+};
+struct _libc_fpstate
+{
+  unsigned long int __ctx(cw);
+  unsigned long int __ctx(sw);
+  unsigned long int __ctx(tag);
+  unsigned long int __ctx(ipoff);
+  unsigned long int __ctx(cssel);
+  unsigned long int __ctx(dataoff);
+  unsigned long int __ctx(datasel);
+  struct _libc_fpreg _st[8];
+  unsigned long int __ctx(status);
+};
+#endif
+#endif
+
+union g_reg {
+  greg_t reg;
+#ifdef __x86_64__
+  uint64_t q;
+  uint32_t d[2];
+  uint16_t w[4];
+#else
+  uint32_t d[1];
+  uint16_t w[2];
+#endif
+};
+
+#define DWORD__(reg, c)	(((c union g_reg *)&(reg))->d[0])
 /* vxd.c redefines DWORD */
-#define DWORD(wrd)	DWORD_(wrd)
+#define DWORD(wrd)	DWORD__(wrd,)
+#define DWORD_(wrd)	DWORD__(wrd,)
 
-#define LO_WORD(wrd)	(((union dword *)&(wrd))->w.l)
-#define HI_WORD(wrd)    (((union dword *)&(wrd))->w.h)
-
-#define LO_BYTE(wrd)	(((union dword *)&(wrd))->b.l)
-#define HI_BYTE(wrd)    (((union dword *)&(wrd))->b.h)
+#define LO_WORD_(wrd, c)	(((c union dword *)&(wrd))->w.l)
+#define HI_WORD_(wrd, c)	(((c union dword *)&(wrd))->w.h)
+#define LO_WORD(wrd)		LO_WORD_(wrd,)
+#define HI_WORD(wrd)		HI_WORD_(wrd,)
+#if 0
+#define LO_BYTE_(wrd, c)	(((c union word *)({static_assert(sizeof(wrd)==2, "bad reg"); &(wrd);}))->b.l)
+#define HI_BYTE_(wrd, c)	(((c union word *)({static_assert(sizeof(wrd)==2, "bad reg"); &(wrd);}))->b.h)
+#else
+#define LO_BYTE_(wrd, c)	(((c union word *)&(wrd))->b.l)
+#define HI_BYTE_(wrd, c)	(((c union word *)&(wrd))->b.h)
+#endif
+#define LO_BYTE(wrd)		LO_BYTE_(wrd,)
+#define HI_BYTE(wrd)		HI_BYTE_(wrd,)
+#define LO_BYTE_c(wrd)		LO_BYTE_(wrd, const)
+#define HI_BYTE_c(wrd)		HI_BYTE_(wrd, const)
+#define LO_BYTE_d(wrd)	(((union dword *)&(wrd))->b.l)
+#define HI_BYTE_d(wrd)	(((union dword *)&(wrd))->b.h)
+#define LO_BYTE_dc(wrd)	(((const union dword *)&(wrd))->b.l)
+#define HI_BYTE_dc(wrd)	(((const union dword *)&(wrd))->b.h)
 
 #define _AL      LO(ax)
 #define _BL      LO(bx)
@@ -108,8 +189,10 @@ union dword {
 #define LO(reg)  vm86u.b[offsetof(struct vm86_struct, regs.e##reg)]
 #define HI(reg)  vm86u.b[offsetof(struct vm86_struct, regs.e##reg)+1]
 
-#define _LO(reg) LO_BYTE(_##e##reg)
-#define _HI(reg) HI_BYTE(_##e##reg)
+#define _LO(reg) LO_BYTE_d(_##e##reg)
+#define _HI(reg) HI_BYTE_d(_##e##reg)
+#define _LO_(reg) LO_BYTE_dc(_##e##reg##_)
+#define _HI_(reg) HI_BYTE_dc(_##e##reg##_)
 
 /* these are used like: LWORD(eax) = 65535 (sets ax to 65535) */
 #define LWORD(reg)	(*({ static_assert(sizeof(REGS.reg) == 4, "bad reg"); \
@@ -121,6 +204,8 @@ union dword {
 
 #define _LWORD(reg)	LO_WORD(_##reg)
 #define _HWORD(reg)	HI_WORD(_##reg)
+#define _LWORD_(reg)	LO_WORD_(_##reg, const)
+#define _HWORD_(reg)	HI_WORD_(_##reg, const)
 
 /* this is used like: SEG_ADR((char *), es, bx) */
 #define SEG_ADR(type, seg, reg)  type(LINEAR2UNIX(SEGOFF2LINEAR(SREG(seg), LWORD(e##reg))))
@@ -128,7 +213,7 @@ union dword {
 /* alternative SEG:OFF to linear conversion macro */
 #define SEGOFF2LINEAR(seg, off)  ((((unsigned)(seg)) << 4) + (off))
 
-#define SEG2LINEAR(seg)		LINEAR2UNIX(SEGOFF2LINEAR(seg, 0))
+#define SEG2UNIX(seg)		LINEAR2UNIX(SEGOFF2LINEAR(seg, 0))
 
 typedef unsigned int FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
 typedef struct {
@@ -136,7 +221,7 @@ typedef struct {
   u_short segment;
 } far_t;
 #define MK_FP16(s,o)		((((unsigned int)(s)) << 16) | ((o) & 0xffff))
-#define MK_FP			MK_FP16
+#define MK_FP(f)		MK_FP16(f.segment, f.offset)
 #define FP_OFF16(far_ptr)	((far_ptr) & 0xffff)
 #define FP_SEG16(far_ptr)	(((far_ptr) >> 16) & 0xffff)
 #define MK_FP32(s,o)		LINEAR2UNIX(SEGOFF2LINEAR(s,o))
@@ -151,10 +236,14 @@ static inline far_t rFAR_FARt(FAR_PTR far_ptr) {
 static inline void *FAR2PTR(FAR_PTR far_ptr) {
   return MK_FP32(FP_SEG16(far_ptr), FP_OFF16(far_ptr));
 }
+static inline dosaddr_t FAR2ADDR(far_t ptr) {
+  return SEGOFF2LINEAR(ptr.segment, ptr.offset);
+}
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
 
-extern struct _fpstate vm86_fpu_state;
+extern fpregset_t vm86_fpu_state;
+extern fenv_t dosemu_fenv;
 
 /*
  * Boy are these ugly, but we need to do the correct 16-bit arithmetic.
@@ -227,37 +316,30 @@ extern struct _fpstate vm86_fpu_state;
 
 #ifdef __x86_64__
 #define loadfpstate(value) \
-	asm volatile("fxrstor64  %0\n" :: "m"(value), "cdaSDb"(&value));
+	asm volatile("fxrstor64  %0\n" :: "m"(value))
 
-#define savefpstate(value) { \
-	unsigned mxcsr = 0x1f80; \
-	asm volatile("fxsave64 %0; fninit; ldmxcsr %1\n": \
-		     "=m"(value) : "m"(mxcsr), "cdaSDb"(&value)); }
+#define savefpstate(value) \
+	asm volatile("fxsave64 %0; fninit\n": "=m"(value))
 #else
 #define loadfpstate(value) \
 	do { \
 		if (config.cpufxsr) \
 			asm volatile("fxrstor %0\n" :: \
-				    "m"(*((char *)&value+112)),"m"(value)); \
+				    "m"(*((char *)&value+112))); \
 		else \
 			asm volatile("frstor %0\n" :: "m"(value)); \
-	} while(0);
+	} while(0)
 
 #define savefpstate(value) \
 	do { \
 		if (config.cpufxsr) { \
 			asm volatile("fxsave %0; fninit\n" : \
-				     "=m"(*((char *)&value+112)),"=m"(value)); \
-			if (config.cpusse) { \
-				unsigned mxcsr = 0x1f80; \
-				asm volatile("ldmxcsr %0\n" :: "m"(mxcsr)); \
-			} \
+				     "=m"(*((char *)&value+112))); \
 		} else \
 			asm volatile("fnsave %0; fwait\n" : "=m"(value)); \
-	} while(0);
+	} while(0)
 #endif
 
-#ifdef __linux__
 static __inline__ void set_revectored(int nr, struct revectored_struct * bitmap)
 {
 	__asm__ __volatile__("btsl %1,%0"
@@ -282,7 +364,6 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 		:"m" (*bitmap),"r" (nr));
 	return ret;
 }
-#endif
 
 /* flags */
 #define CF  (1 <<  0)
@@ -302,8 +383,9 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 #define VIP VIP_MASK
 #define ID  ID_MASK
 
+#define IOPL_SHIFT 12
 #ifndef IOPL_MASK
-#define IOPL_MASK  (3 << 12)
+#define IOPL_MASK  (3 << IOPL_SHIFT)
 #endif
 
   /* Flag setting and clearing, and testing */
@@ -340,15 +422,25 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 #define clear_VIP() (_EFLAGS &= ~VIP)
 #define isset_VIP()   ((_EFLAGS & VIP) != 0)
 
+#ifdef USE_MHPDBG
 #define set_EFLAGS(flgs, new_flgs) ({ \
-  int __nflgs = (new_flgs); \
-  (flgs)=(__nflgs) | IF | IOPL_MASK; \
+  uint32_t __oflgs = (flgs); \
+  uint32_t __nflgs = (new_flgs); \
+  (flgs)=(__nflgs) | IF | IOPL_MASK | ((__nflgs & IF) ? VIF : 0) \
+    (mhpdbg.active ? (__oflgs & TF) : 0); \
   ((__nflgs & IF) ? set_IF() : clear_IF()); \
 })
+#else
+#define set_EFLAGS(flgs, new_flgs) ({ \
+  uint32_t __nflgs = (new_flgs); \
+  (flgs)=(__nflgs) | IF | IOPL_MASK | ((__nflgs & IF) ? VIF : 0); \
+  ((__nflgs & IF) ? set_IF() : clear_IF()); \
+})
+#endif
 #define set_FLAGS(flags) set_EFLAGS(_FLAGS, flags)
 #define get_EFLAGS(flags) ({ \
   int __flgs = (flags); \
-  (((__flgs & IF) ? __flgs | VIF : __flgs & ~VIF) | IF | IOPL_MASK); \
+  (((__flgs & IF) ? __flgs | VIF : __flgs & ~VIF) | IF | IOPL_MASK | 2); \
 })
 #define get_FLAGS(flags) ({ \
   int __flgs = (flags); \
@@ -361,6 +453,8 @@ static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
 #define NOCARRY clear_CF()
 
 #define vflags read_FLAGS()
+
+#define IS_CR0_AM_SET() (config.cpu_vm == CPUVM_VM86)
 
 /* this is the array of interrupt vectors */
 struct vec_t {
@@ -387,71 +481,231 @@ EXTERN struct vec_t *ivecs;
 #define OP_IRET			0xcf
 
 #include "memory.h" /* for INT_OFF */
-#define IS_REDIRECTED(i)	(IVEC(i) != SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)))
+//#define IS_REDIRECTED(i)	(IVEC(i) != SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)))
 #define IS_IRET(i)		(READ_BYTE(IVEC(i)) == OP_IRET)
 
 /*
 #define WORD(i) (unsigned short)(i)
 */
 
-#define _gs     (scp->gs)
-#define _fs     (scp->fs)
+#ifdef __APPLE__
+extern uint16_t _es;
+extern uint16_t _ds;
+#define _rdi    ((*scp)->__ss.__rdi)
+#define _rsi    ((*scp)->__ss.__rsi)
+#define _rbp    ((*scp)->__ss.__rbp)
+#define _rsp    ((*scp)->__ss.__rsp)
+#define _rbx    ((*scp)->__ss.__rbx)
+#define _rdx    ((*scp)->__ss.__rdx)
+#define _rcx    ((*scp)->__ss.__rcx)
+#define _rax    ((*scp)->__ss.__rax)
+#define _rip    ((*scp)->__ss.__rip)
+extern uint16_t _cs;
+extern uint16_t _gs;
+extern uint16_t _fs;
+extern uint16_t _ss;
+extern uint64_t _err;
+extern uint64_t _eflags;
+#define _eflags_ _eflags
+extern uint64_t _cr2;
+extern uint16_t _trapno;
+#define __fpstate (&(*scp)->__fs)
+#define PRI_RG  PRIx64
+#elif defined(__FreeBSD__)
 #ifdef __x86_64__
-#define _es     HI_WORD(scp->trapno)
-#define _ds     (((union dword *)&(scp->trapno))->w.w2)
-#define _rdi    (scp->rdi)
-#define _rsi    (scp->rsi)
-#define _rbp    (scp->rbp)
-#define _rsp    (scp->rsp)
-#define _rbx    (scp->rbx)
-#define _rdx    (scp->rdx)
-#define _rcx    (scp->rcx)
-#define _rax    (scp->rax)
-#define _rip    (scp->rip)
-#ifdef HAVE_SIGCONTEXT_SS
-#define _ss     (scp->ss)
+#define _rax scp->mc_rax
+#define _rbx scp->mc_rbx
+#define _rcx scp->mc_rcx
+#define _rdx scp->mc_rdx
+#define _rbp scp->mc_rbp
+#define _rsp scp->mc_rsp
+#define _rsi scp->mc_rsi
+#define _rdi scp->mc_rdi
+#define _rip scp->mc_rip
+#define _eflags (*(unsigned *)&scp->mc_rflags)
+#define _eflags_ (*(const unsigned *)&scp->mc_rflags)
+#define _cr2 (*(uint64_t *)&scp->mc_spare[0])
+#define PRI_RG PRIx64
 #else
-#define _ss     (scp->__pad0)
+#define _eax scp->mc_eax
+#define _ebx scp->mc_ebx
+#define _ecx scp->mc_ecx
+#define _edx scp->mc_edx
+#define _ebp scp->mc_ebp
+#define _esp scp->mc_esp
+#define _esi scp->mc_esi
+#define _edi scp->mc_edi
+#define _eip scp->mc_eip
+#define _eflags scp->mc_eflags
+#define _eflags_ scp->mc_eflags
+#define _cr2 scp->mc_spare[0]
+#define PRI_RG PRIx32
 #endif
+#define _cs (*(unsigned *)&scp->mc_cs)
+#define _ds (*(unsigned *)&scp->mc_ds)
+#define _es (*(unsigned *)&scp->mc_es)
+#define _ds_ (*(const unsigned *)&scp->mc_ds)
+#define _es_ (*(const unsigned *)&scp->mc_es)
+#define _fs (*(unsigned *)&scp->mc_fs)
+#define _gs (*(unsigned *)&scp->mc_gs)
+#define _ss (*(unsigned *)&scp->mc_ss)
+#define _trapno scp->mc_trapno
+#define _err (*(unsigned *)&scp->mc_err)
+#define __fpstate scp->mc_fpstate
+#elif defined(__x86_64__)
+#define _es     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
+#define _ds     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[2])
+#define _es_    (((const union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
+#define _ds_    (((const union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[2])
+#define get_rdi(s)    ((s)->gregs[REG_RDI])
+#define get_rsi(s)    ((s)->gregs[REG_RSI])
+#define get_rbp(s)    ((s)->gregs[REG_RBP])
+#define get_rsp(s)    ((s)->gregs[REG_RSP])
+#define get_rbx(s)    ((s)->gregs[REG_RBX])
+#define get_rdx(s)    ((s)->gregs[REG_RDX])
+#define get_rcx(s)    ((s)->gregs[REG_RCX])
+#define get_rax(s)    ((s)->gregs[REG_RAX])
+#define get_rip(s)    ((s)->gregs[REG_RIP])
+#define get_rflags(s) ((s)->gregs[REG_EFL])
+#define get_es(s)     (((union g_reg *)&((s)->gregs[REG_TRAPNO]))->w[1])
+#define get_ds(s)     (((union g_reg *)&((s)->gregs[REG_TRAPNO]))->w[2])
+#define get_ss(s)     (((union g_reg *)&(s)->gregs[REG_CSGSFS])->w[3])
+#define get_fs(s)     (((union g_reg *)&(s)->gregs[REG_CSGSFS])->w[2])
+#define get_gs(s)     (((union g_reg *)&(s)->gregs[REG_CSGSFS])->w[1])
+#define get_cs(s)     (((union g_reg *)&(s)->gregs[REG_CSGSFS])->w[0])
+#define _rdi    get_rdi(scp)
+#define _rsi    get_rsi(scp)
+#define _rbp    get_rbp(scp)
+#define _rsp    get_rsp(scp)
+#define _rbx    get_rbx(scp)
+#define _rdx    get_rdx(scp)
+#define _rcx    get_rcx(scp)
+#define _rax    get_rax(scp)
+#define _rip    get_rip(scp)
+#define _cs     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[0])
+#define _cs_    (((const union g_reg *)&scp->gregs[REG_CSGSFS])->w[0])
+#define _gs     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[1])
+#define _fs     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[2])
+#define _ss     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[3])
+#define _err    DWORD_(scp->gregs[REG_ERR])
+#define _eflags DWORD_(scp->gregs[REG_EFL])
+#define _eflags_ DWORD__(scp->gregs[REG_EFL], const)
+#define _cr2    (scp->gregs[REG_CR2])
+#define _trapno (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[0])
+#define __fpstate (scp->fpregs)
+#define PRI_RG  "llx"
 #else
-#define _es     (scp->es)
-#define _ds     (scp->ds)
-#define _rdi    (scp->edi)
-#define _rsi    (scp->esi)
-#define _rbp    (scp->ebp)
-#define _rsp    (scp->esp)
-#define _rbx    (scp->ebx)
-#define _rdx    (scp->edx)
-#define _rcx    (scp->ecx)
-#define _rax    (scp->eax)
-#define _rip    (scp->eip)
-#define _ss     (scp->ss)
+#define _es     (scp->gregs[REG_ES])
+#define _ds     (scp->gregs[REG_DS])
+#define _es_    (scp->gregs[REG_ES])
+#define _ds_    (scp->gregs[REG_DS])
+#define get_edi(s)    (*(uint32_t *)&(s)->gregs[REG_EDI])
+#define get_esi(s)    (*(uint32_t *)&(s)->gregs[REG_ESI])
+#define get_ebp(s)    (*(uint32_t *)&(s)->gregs[REG_EBP])
+#define get_esp(s)    (*(uint32_t *)&(s)->gregs[REG_ESP])
+#define get_ebx(s)    (*(uint32_t *)&(s)->gregs[REG_EBX])
+#define get_edx(s)    (*(uint32_t *)&(s)->gregs[REG_EDX])
+#define get_ecx(s)    (*(uint32_t *)&(s)->gregs[REG_ECX])
+#define get_eax(s)    (*(uint32_t *)&(s)->gregs[REG_EAX])
+#define get_eip(s)    (*(uint32_t *)&(s)->gregs[REG_EIP])
+#define get_eflags(s) (*(uint32_t *)&(s)->gregs[REG_EFL])
+#define get_es(s)     ((s)->gregs[REG_ES])
+#define get_ds(s)     ((s)->gregs[REG_DS])
+#define get_ss(s)     ((s)->gregs[REG_SS])
+#define get_fs(s)     ((s)->gregs[REG_FS])
+#define get_gs(s)     ((s)->gregs[REG_GS])
+#define get_cs(s)     ((s)->gregs[REG_CS])
+#define _edi    get_edi(scp)
+#define _esi    get_esi(scp)
+#define _ebp    get_ebp(scp)
+#define _esp    get_esp(scp)
+#define _ebx    get_ebx(scp)
+#define _edx    get_edx(scp)
+#define _ecx    get_ecx(scp)
+#define _eax    get_eax(scp)
+#define _eip    get_eip(scp)
+#define _edi_   (*(const uint32_t *)&scp->gregs[REG_EDI])
+#define _esi_   (*(const uint32_t *)&scp->gregs[REG_ESI])
+#define _ebp_   (*(const uint32_t *)&scp->gregs[REG_EBP])
+#define _esp_   (*(const uint32_t *)&scp->gregs[REG_ESP])
+#define _ebx_   (*(const uint32_t *)&scp->gregs[REG_EBX])
+#define _edx_   (*(const uint32_t *)&scp->gregs[REG_EDX])
+#define _ecx_   (*(const uint32_t *)&scp->gregs[REG_ECX])
+#define _eax_   (*(const uint32_t *)&scp->gregs[REG_EAX])
+#define _eip_   (*(const uint32_t *)&scp->gregs[REG_EIP])
+#define _cs     (scp->gregs[REG_CS])
+#define _cs_    (scp->gregs[REG_CS])
+#define _gs     (scp->gregs[REG_GS])
+#define _fs     (scp->gregs[REG_FS])
+#define _ss     (scp->gregs[REG_SS])
+#define _err    (scp->gregs[REG_ERR])
+#define _eflags (scp->gregs[REG_EFL])
+#define _eflags_ (scp->gregs[REG_EFL])
+#define _cr2    (((union dword *)&scp->cr2)->d)
+#define _trapno (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[0])
+#define __fpstate (scp->fpregs)
+#define PRI_RG  PRIx32
 #endif
-#define _edi    DWORD_(_rdi)
-#define _esi    DWORD_(_rsi)
-#define _ebp    DWORD_(_rbp)
-#define _esp    DWORD_(_rsp)
-#define _ebx    DWORD_(_rbx)
-#define _edx    DWORD_(_rdx)
-#define _ecx    DWORD_(_rcx)
-#define _eax    DWORD_(_rax)
-#define _eip    DWORD_(_rip)
-#define _eax    DWORD_(_rax)
-#define _eip    DWORD_(_rip)
-#define _err	(scp->err)
-#define _trapno LO_WORD(scp->trapno)
-#define _cs     (scp->cs)
-#define _eflags (scp->eflags)
-#define _cr2	(scp->cr2)
+#ifdef __x86_64__
+#define get_edi(s)    DWORD_(get_rdi(s))
+#define get_esi(s)    DWORD_(get_rsi(s))
+#define get_ebp(s)    DWORD_(get_rbp(s))
+#define get_esp(s)    DWORD_(get_rsp(s))
+#define get_ebx(s)    DWORD_(get_rbx(s))
+#define get_edx(s)    DWORD_(get_rdx(s))
+#define get_ecx(s)    DWORD_(get_rcx(s))
+#define get_eax(s)    DWORD_(get_rax(s))
+#define get_eip(s)    DWORD_(get_rip(s))
+#define get_eax(s)    DWORD_(get_rax(s))
+#define get_eip(s)    DWORD_(get_rip(s))
+#define get_eflags(s) DWORD_(get_rflags(s))
+#define _edi    DWORD_(get_rdi(scp))
+#define _esi    DWORD_(get_rsi(scp))
+#define _ebp    DWORD_(get_rbp(scp))
+#define _esp    DWORD_(get_rsp(scp))
+#define _ebx    DWORD_(get_rbx(scp))
+#define _edx    DWORD_(get_rdx(scp))
+#define _ecx    DWORD_(get_rcx(scp))
+#define _eax    DWORD_(get_rax(scp))
+#define _eip    DWORD_(get_rip(scp))
+#define _eax    DWORD_(get_rax(scp))
+#define _eip    DWORD_(get_rip(scp))
+#define _edi_   DWORD__(_rdi, const)
+#define _esi_   DWORD__(_rsi, const)
+#define _ebp_   DWORD__(_rbp, const)
+#define _esp_   DWORD__(_rsp, const)
+#define _ebx_   DWORD__(_rbx, const)
+#define _edx_   DWORD__(_rdx, const)
+#define _ecx_   DWORD__(_rcx, const)
+#define _eax_   DWORD__(_rax, const)
+#define _eip_   DWORD__(_rip, const)
+#define _eax_   DWORD__(_rax, const)
+#define _eip_   DWORD__(_rip, const)
+#else
+/* compatibility */
+#define _rdi    _edi
+#define _rsi    _esi
+#define _rbp    _ebp
+#define _rsp    _esp
+#define _rbx    _ebx
+#define _rdx    _edx
+#define _rcx    _ecx
+#define _rax    _eax
+#define _rip    _eip
+#define _rax    _eax
+#define _rip    _eip
+#endif
 
 void show_regs(void);
 void show_ints(int, int);
 char *emu_disasm(unsigned int ip);
 void dump_state(void);
 
-int cpu_trap_0f (unsigned char *, struct sigcontext *);
+int cpu_trap_0f (unsigned char *, sigcontext_t *);
 
+#ifndef PAGE_MASK
 #define PAGE_MASK	(~(PAGE_SIZE-1))
+#endif
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 

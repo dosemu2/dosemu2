@@ -1,4 +1,3 @@
-#include "config.h"
 #include "emu.h"
 #include "keyboard.h"
 #include "keystate.h"
@@ -31,7 +30,6 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 {
 	Boolean result = TRUE;
 	switch(key) {
-	/* C-A-D is disabled */
 	case DKY_DOSEMU_REBOOT:
 		if (make) {
 			k_printf("KBD: Ctrl-Alt-Del: rebooting dosemu\n");

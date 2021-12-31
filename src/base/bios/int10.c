@@ -45,9 +45,6 @@
  * DANG_END_CHANGELOG
  */
 
-
-#include "config.h"
-
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -57,8 +54,11 @@
 #include "video.h"
 #include "bios.h"
 #include "int.h"
+#include "port.h"
 #include "speaker.h"
 #include "utilities.h"
+#include "dos2linux.h"
+#include "timers.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 
@@ -234,8 +234,13 @@ bios_scroll(int x0, int y0, int x1, int y1, int l, int att)
 
 static int using_text_mode(void)
 {
-  unsigned char mode = READ_BYTE(BIOS_VIDEO_MODE);
-  return mode <= 3 || mode == 7 || (mode >= 0x50 && mode <= 0x5a);
+  unsigned char mode = READ_BYTE(BIOS_VDU_CONTROL);
+  return (!(mode & 2));
+}
+
+static int using_mono_mode(void)
+{
+  return ((READ_BYTE(BIOS_VDU_CONTROL) & 0xc) == 0xc);
 }
 
 /* Output a character to the screen. */
@@ -257,25 +262,20 @@ void tty_char_out(unsigned char ch, int s, int attr)
 /* i10_deb("tty_char_out: char 0x%02x, page %d, attr 0x%02x\n", ch, s, attr); */
 
   if (config.dumb_video) {
-    struct char_set_state dos_state;
     struct char_set_state term_state;
-    t_unicode uni;
+    t_unicode uni = dos_to_unicode_table[ch];
     unsigned char buff[MB_LEN_MAX + 1];
     int num, i;
 
-    if (config.quiet)
+    if (no_local_video)
       return;
 
-    init_charset_state(&dos_state, trconfig.dos_charset);
     init_charset_state(&term_state, trconfig.output_charset);
-    num = charset_to_unicode(&dos_state, &uni, &ch, 1);
-    if (num <= 0)
-      return;
     num = unicode_to_charset(&term_state, uni, buff, MB_LEN_MAX);
     if (num <= 0)
       return;
     for (i = 0; i < num; i++)
-      putchar(buff[i]);
+      fputc(buff[i], config.tty_stderr ? stderr : stdout);
     return;
   }
 
@@ -434,7 +434,7 @@ static int adjust_font_size(int vga_font_height)
   port_outb(port + 1, (port_inb(port + 1) & ~0x1f) + vga_font_height -1);
   WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
 
-  if(READ_BYTE(BIOS_VIDEO_MODE) == 7)
+  if (using_mono_mode())
     set_cursor_shape(0x0b0d);
   else
     set_cursor_shape(0x0607);
@@ -476,6 +476,10 @@ boolean set_video_mode(int mode)
     i10_msg("set_video_mode: undefined video mode\n");
     return 0;
   }
+  if (vmi->mode_class == GRAPH && config.term) {
+    error("Cannot set graphics mode under terminal!\n");
+    return 0;
+  }
   if (!memcheck_is_reserved(vmi->buffer_start << 4, 0x8000, 'v')) {
     error("VGA: cannot set mode %i because of UMB at 0x%x\n",
 	    mode, vmi->buffer_start);
@@ -500,7 +504,7 @@ boolean set_video_mode(int mode)
 
   if(config.cardtype == CARD_MDA) mode = 7;
 
-  if(mode == 7) {
+  if(vmi->type == TEXT_MONO) {
     WRITE_BYTE(BIOS_CONFIGURATION, READ_BYTE(BIOS_CONFIGURATION) | 0x30);
     port = 0x3b4;
   } else {
@@ -517,6 +521,14 @@ boolean set_video_mode(int mode)
    * had been assigned. -- sw
    */
   WRITE_BYTE(BIOS_VIDEO_MODE, vmi->VGA_mode & 0x7f);
+  if (mode == 3)
+    WRITE_BYTE(BIOS_VDU_CONTROL, 9);
+  else if (vmi->type == TEXT_MONO)
+    WRITE_BYTE(BIOS_VDU_CONTROL, 0xc);
+  else if (vmi->mode_class == TEXT)
+    WRITE_BYTE(BIOS_VDU_CONTROL, 8);
+  else
+    WRITE_BYTE(BIOS_VDU_CONTROL, 0xa);
 
   if (Video->setmode != NULL) {
     li = vmi->text_height;
@@ -543,7 +555,7 @@ boolean set_video_mode(int mode)
    * and then let the BIOS say, if it can ?!?!)
    * If we have config.dualmon, this happens legally.
    */
-  if(mode == 7 && config.dualmon)
+  if(vmi->type == TEXT_MONO && config.dualmon)
     vga_emu_setmode(7, co, li);
   else
 #endif
@@ -561,7 +573,7 @@ boolean set_video_mode(int mode)
   if(clear_mem && using_text_mode()) clear_screen();
   if (mode == 0x6)
     WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x3f);
-  else if (mode <= 0x7)
+  else if (mode <= 0x7 || vmi->type == TEXT_MONO)
     WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x30);
 
   vga_font_height = vmi->char_height;
@@ -589,7 +601,7 @@ boolean set_video_mode(int mode)
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
     WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
   }
-  set_cursor_shape(mode == 7 ? 0x0b0d : 0x0607);
+  set_cursor_shape(vmi->type == TEXT_MONO ? 0x0b0d : 0x0607);
 
   switch(vga_font_height) {
     case 14:
@@ -842,6 +854,7 @@ int int10(void) /* with dualmon */
 
 
     case 0x06:		/* scroll up */
+      reset_idle(0);
       i10_deb(
         "scroll up: %u lines, area %u.%u-%u.%u, attr 0x%02x\n",
         LO(ax), LO(cx), HI(cx), LO(dx), HI(dx), HI(bx)
@@ -856,6 +869,7 @@ int int10(void) /* with dualmon */
 
 
     case 0x07:		/* scroll down */
+      reset_idle(0);
       i10_deb(
         "scroll dn: %u lines, area %u.%u-%u.%u, attr 0x%02x\n",
         LO(ax), LO(cx), HI(cx), LO(dx), HI(dx), HI(bx)
@@ -896,6 +910,7 @@ int int10(void) /* with dualmon */
        * the difference is that 0xA ignores color for text modes
        */
     case 0x09:		/* write char & attr */
+      reset_idle(0);
       i10_deb(
           "rep char: page %u, char 0x%02x '%c', attr 0x%02x\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' ', LO(bx)
@@ -904,6 +919,7 @@ int int10(void) /* with dualmon */
       break;
 
     case 0x0a:		/* write char */
+      reset_idle(0);
       i10_deb(
           "rep char: page %u, char 0x%02x '%c'\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' '
@@ -933,6 +949,7 @@ int int10(void) /* with dualmon */
       break;
 
     case 0x0c:		/* write pixel */
+      reset_idle(0);
       if(!using_text_mode())
         vgaemu_put_pixel(LWORD(ecx), LWORD(edx), HI(bx), LO(ax));
       break;
@@ -947,6 +964,7 @@ int int10(void) /* with dualmon */
       break;
 
     case 0x0e:		/* print char */
+      reset_idle(0);
       if(using_text_mode()) {
         i10_deb(
           "tty put char: page %u, char 0x%02x '%c'\n",
@@ -963,10 +981,14 @@ int int10(void) /* with dualmon */
       }
       break;
 
-
     case 0x0f:		/* get video mode */
-      LO(ax) = READ_BYTE(BIOS_VIDEO_MODE) |
-	(READ_BYTE(BIOS_VIDEO_INFO_0) & 0x80);
+/*        EGA, VGA, and UltraVision return either AL=03h (color) or AL=07h
+          (monochrome) in all extended-row text modes */
+      if (using_text_mode() && li > 25)
+        LO(ax) = (using_mono_mode() ? 7 : 3);
+      else
+        LO(ax) = READ_BYTE(BIOS_VIDEO_MODE) |
+	    (READ_BYTE(BIOS_VIDEO_INFO_0) & 0x80);
       HI(ax) = co & 0xff;
       HI(bx) = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
       i10_deb(
@@ -1360,6 +1382,7 @@ int int10(void) /* with dualmon */
         unsigned int str = SEGOFF2LINEAR(SREG(es), LWORD(ebp));
         unsigned old_x, old_y;
 
+        reset_idle(0);
         old_x = get_bios_cursor_x_position(page);
         old_y = get_bios_cursor_y_position(page);
 
@@ -1431,7 +1454,7 @@ int int10(void) /* with dualmon */
       switch(LO(ax)) {
       case 0: {
 	unsigned size = 0;
-	i10_msg("save/restore: return state buffer size\n");
+	i10_msg("save/restore: return state buffer size, cl=%x\n", LO(cx));
 	if (LO(cx) & 1) {
 	  /* video hardware */
 	  size += 0x46;
@@ -1448,6 +1471,7 @@ int int10(void) /* with dualmon */
 	break;
       }
       case 1:
+	i10_msg("save/restore: save state, cl=%x\n", LO(cx));
 	if (LO(cx) & 1) {
 	  unsigned char buf[0x46];
 	  unsigned crtc, ind;
@@ -1511,11 +1535,12 @@ int int10(void) /* with dualmon */
 	  for(ind = 0; ind < 768; ind++)
 	    buf[0x3 + ind] = port_inb(DAC_DATA);
 	  buf[0x303] = port_inb(COLOR_SELECT);
-
 	  MEMCPY_2DOS(SEGOFF2LINEAR(SREG(es), base), buf, sizeof(buf));
+	  base += sizeof(buf);
 	}
 	break;
       case 2:
+	i10_msg("save/restore: restore state, cl=%x\n", LO(cx));
 	if (LO(cx) & 1) {
 	  unsigned char buf[0x46];
 	  unsigned crtc, ind;
@@ -1551,13 +1576,14 @@ int int10(void) /* with dualmon */
 	  memcpy(vga.latch, &buf[0x42], 4);
 	}
 	if (LO(cx) & 2) {
-	  MEMCPY_DOS2DOS(0x449, SEGOFF2LINEAR(_ES, _BX), 96);
+	  MEMCPY_DOS2DOS(0x449, SEGOFF2LINEAR(_ES, base), 96);
 	  base += 96;
 	}
 	if (LO(cx) & 4) {
 	  unsigned char buf[0x304];
 	  unsigned ind;
 	  MEMCPY_2UNIX(buf, SEGOFF2LINEAR(_ES, base), sizeof(buf));
+	  base += sizeof(buf);
 	  port_outb(DAC_PEL_MASK, buf[2]);
 	  port_outb(DAC_WRITE_INDEX, 0x00);
 	  for(ind = 0; ind < 768; ind++)
@@ -1607,7 +1633,7 @@ void video_mem_setup(void)
 
   li = LI;
   co = CO;
-  if (config.term && !config.dumb_video)
+  if (config.term)
     gettermcap(0, &co, &li);
 
   WRITE_WORD(BIOS_SCREEN_COLUMNS, co);     /* chars per line */
@@ -1653,7 +1679,7 @@ void video_mem_setup(void)
     Bit16u vc;
 
     i10_msg("Now initialising 0x40:a8-ab\n");
-    WRITE_DWORD(BIOS_VIDEO_SAVEPTR, int_bios_area[0x4a8/4]);
+    WRITE_DWORD(BIOS_VIDEO_SAVEPTR, int_bios_area[BIOS_VIDEO_SAVEPTR/4]);
 
     /* many BIOSes use this: take as fallback value */
     WRITE_BYTE(BIOS_VIDEO_COMBO, 0xb);

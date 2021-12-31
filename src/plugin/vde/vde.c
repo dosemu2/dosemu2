@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
+#include <pthread.h>
 #include <libvdeplug.h>
 #include "emu.h"
 #include "init.h"
@@ -36,11 +37,17 @@
 
 static VDECONN *vde;
 static struct popen2 vdesw, slirp;
+static pthread_t open_thr;
 
 static void vde_exit(void)
 {
     error("vde failed, exiting\n");
     leavedos(35);
+}
+
+static void err_handler(void *arg)
+{
+    error("VDE startup failure\n");
 }
 
 static char *start_vde(void)
@@ -58,7 +65,7 @@ static char *start_vde(void)
 	open("/dev/null", O_WRONLY);
     }
     snprintf(cmd, sizeof(cmd), "vde_switch -s %s", nam);
-    err = popen2(cmd, &vdesw);
+    err = popen2_custom(cmd, &vdesw);
     if (fd != -1) {
 	close(STDERR_FILENO);
 	dup(fd);
@@ -72,13 +79,16 @@ static char *start_vde(void)
     FD_SET(vdesw.from_child, &fds);
     tv.tv_sec = 1;
     tv.tv_usec = 0;
+    pthread_cleanup_push(err_handler, NULL);
     err = select(vdesw.from_child + 1, &fds, NULL, NULL, &tv);
+    pthread_cleanup_pop(0);
     switch(err) {
     case -1:
 	error("select failed: %s\n", strerror(errno));
 	goto fail1;
     case 0:
-	error("you appear to have unpatched vde\n");
+	if (!q)
+	    error("you appear to have unpatched vde\n");
 	break;
     default:
 	n = read(vdesw.from_child, cmd, sizeof(cmd) - 1);
@@ -121,7 +131,7 @@ out:
     }
     snprintf(cmd, sizeof(cmd), "slirpvde -s %s %s 2>&1", nam,
 	     config.slirp_args ? : "");
-    err = popen2(cmd, &slirp);
+    err = popen2_custom(cmd, &slirp);
     if (err) {
 	error("failed to start %s\n", cmd);
 	goto fail1;
@@ -156,22 +166,64 @@ out:
     return NULL;
 }
 
-static int OpenNetworkLinkVde(char *name)
+struct cbk_data {
+    VDECONN *vde;
+    void (*cbk)(int, int);
+};
+
+static void pkt_register_cb(void *arg)
 {
+    struct cbk_data *cbkd = arg;
+    vde = cbkd->vde;
+    cbkd->cbk(vde_datafd(cbkd->vde), 6);
+    free(cbkd);
+}
+
+struct thr_data {
+    const char *name;
+    void (*cbk)(int, int);
+};
+
+static void *open_thread(void *arg)
+{
+    struct thr_data *thrd = arg;
+    const char *name = thrd->name;
+    char *name2;
+    VDECONN *vde;
+    struct cbk_data *cbkd;
+
     if (!name[0]) {
 	name = start_vde();
 	if (!name)
-	    return -1;
+	    return NULL;
     }
-    vde = vde_open(name, "dosemu", NULL);
+    name2 = strdup("dosemu");
+    vde = vde_open(name, name2, NULL);
+    free(name2);
     if (!vde)
-	return -1;
-    receive_mode = 6;
-    return vde_datafd(vde);
+	return NULL;
+    cbkd = malloc(sizeof(*cbkd));
+    cbkd->vde = vde;
+    cbkd->cbk = thrd->cbk;
+    add_thread_callback(pkt_register_cb, cbkd, "vde");
+    free(thrd);
+    return NULL;
+}
+
+static int OpenNetworkLinkVde(const char *name, void (*cbk)(int, int))
+{
+    struct thr_data *thrd = malloc(sizeof(*thrd));
+    thrd->name = name;
+    thrd->cbk = cbk;
+    /* need to open in a separate thread as waiting for startup
+     * may be long if the vde is unpatched */
+    return pthread_create(&open_thr, NULL, open_thread, thrd);
 }
 
 static void CloseNetworkLinkVde(int pkt_fd)
 {
+    pthread_cancel(open_thr);
+    pthread_join(open_thr, NULL);
     remove_from_io_select(pkt_fd);
     vde_close(vde);
     sigchld_enable_handler(slirp.child_pid, 0);

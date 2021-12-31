@@ -3,7 +3,7 @@
  */
 #ifndef LEXER_H
 #define LEXER_H
-#define OUR_YY_DECL int yylex (YYSTYPE* yylval)
+#define OUR_YY_DECL int yylex (void)
 OUR_YY_DECL;
 
 extern void tell_lexer_if(int value);
@@ -14,8 +14,8 @@ extern void yyrestart(FILE *input_file);
 extern FILE* yyin;
 #endif
 
-extern void yyerror(char *, ...);
-extern void yywarn(char *, ...);
+extern void yyerror(const char *, ...);
+extern void yywarn(const char *, ...);
 extern char *yy_vbuffer;
 extern int include_stack_ptr;
 extern char *include_fnames[];

@@ -4,8 +4,6 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-#include "config.h"
-
 #include <stdio.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -20,6 +18,7 @@
 #include "render_priv.h"
 
 #define RENDER_THREADED 1
+#define TEXT_THREADED 1
 
 struct rmcalls_wrp {
   struct remap_calls *calls;
@@ -30,18 +29,25 @@ static struct rmcalls_wrp rmcalls[MAX_REMAPS];
 static int num_remaps;
 static int is_updating;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t text_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if RENDER_THREADED
 static pthread_t render_thr;
 #endif
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_rwlock_t mode_mtx = PTHREAD_RWLOCK_INITIALIZER;
 static sem_t render_sem;
-static void do_rend(void);
+static void do_rend_gfx(void);
+static void do_rend_text(void);
 static int remap_mode(void);
+static void bitmap_refresh_pal(void *opaque, DAC_entry *col, int index);
 
+struct rs_wrp {
+    struct render_system *render;
+    int locked;
+};
 #define MAX_RENDERS 5
 struct render_wrp {
-    struct render_system *render[MAX_RENDERS];
+    struct rs_wrp wrp[MAX_RENDERS];
     int num_renders;
     int render_locked;
     int render_text;
@@ -57,14 +63,19 @@ static int render_lock(void)
 {
   int i, j;
   for (i = 0; i < Render.num_renders; i++) {
-    Render.dst_image[i] = Render.render[i]->lock();
+    Render.dst_image[i] = Render.wrp[i].render->lock();
+    if (Render.wrp[i].render->flags & RENDF_DISABLED) {
+      Render.wrp[i].render->unlock();
+      continue;
+    }
     if (!Render.dst_image[i].width) {
-      error("render %s failed to lock\n", Render.render[i]->name);
+      error("render %s failed to lock\n", Render.wrp[i].render->name);
       /* undo locks in case of a failure */
       for (j = 0; j < i; j++)
-        Render.render[j]->unlock();
+        Render.wrp[j].render->unlock();
       return -1;
     }
+    Render.wrp[i].locked++;
   }
   Render.render_locked++;
   return 0;
@@ -73,8 +84,12 @@ static int render_lock(void)
 static void render_unlock(void)
 {
   int i;
-  for (i = 0; i < Render.num_renders; i++)
-    Render.render[i]->unlock();
+  for (i = 0; i < Render.num_renders; i++) {
+    if (!Render.wrp[i].locked)
+      continue;
+    Render.wrp[i].locked--;
+    Render.wrp[i].render->unlock();
+  }
   Render.render_locked--;
 }
 
@@ -84,13 +99,11 @@ static void check_locked(void)
     dosemu_error("render not locked!\n");
 }
 
-static int render_text_begin(void)
+static void render_text_begin(void)
 {
-  int err = text_lock();
-  if (err)
-    return err;
+  pthread_mutex_lock(&text_mtx);
+  text_lock();
   Render.render_text++;
-  return 0;
 }
 
 static void render_text_end(void)
@@ -98,21 +111,21 @@ static void render_text_end(void)
   text_unlock();
   Render.render_text--;
   assert(!Render.text_locked);
+  pthread_mutex_unlock(&text_mtx);
 }
 
-static int render_text_lock(void *opaque)
+static void render_text_lock(void *opaque)
 {
   int err;
   if (Render.render_text || Render.text_locked) {
     dosemu_error("render not in text mode!\n");
     leavedos(95);
-    return -1;
+    return;
   }
   err = render_lock();
   if (err)
-    return err;
+    return;
   Render.text_locked++;
-  return 0;
 }
 
 static void render_text_unlock(void *opaque)
@@ -123,7 +136,7 @@ static void render_text_unlock(void *opaque)
 
 static void render_rect_add(int rend_idx, RectArea rect)
 {
-  Render.render[rend_idx]->refresh_rect(rect.x, rect.y, rect.width, rect.height);
+  Render.wrp[rend_idx].render->refresh_rect(rect.x, rect.y, rect.width, rect.height);
 }
 
 /*
@@ -143,13 +156,15 @@ static void bitmap_draw_string(void *opaque, int x, int y,
 			      vga.char_width * len, vga.char_height);
 }
 
-static void bitmap_draw_line(void *opaque, int x, int y, int len)
+static void bitmap_draw_text_line(void *opaque, int x, int y, float ul,
+    int len, Bit8u attr)
 {
   struct remap_object **obj = opaque;
   struct bitmap_desc src_image;
-  src_image = draw_bitmap_line(x, y, len);
+  src_image = draw_bitmap_line(x, y, ul, len, attr);
   remap_remap_rect(*obj, src_image, MODE_PSEUDO_8,
-    x, y, len, 1);
+    vga.char_width * x, vga.char_height * y,
+    vga.char_width * len, vga.char_height);
 }
 
 static void bitmap_draw_text_cursor(void *opaque, int x, int y,
@@ -166,18 +181,20 @@ static void bitmap_draw_text_cursor(void *opaque, int x, int y,
 static struct text_system Text_bitmap =
 {
   bitmap_draw_string,
-  bitmap_draw_line,
+  bitmap_draw_text_line,
   bitmap_draw_text_cursor,
-  NULL,
+  bitmap_refresh_pal,
   render_text_lock,
   render_text_unlock,
   &Render.text_remap,
+  "text_bitmap",
+  TEXTF_BMAP_FONT,
 };
 
 int register_render_system(struct render_system *render_system)
 {
   assert(Render.num_renders < MAX_RENDERS);
-  Render.render[Render.num_renders++] = render_system;
+  Render.wrp[Render.num_renders++].render = render_system;
   return 1;
 }
 
@@ -211,13 +228,10 @@ int remapper_init(int have_true_color, int have_shmap, int features,
 
   remap_src_modes = find_supported_modes(ximage_mode);
   Render.gfx_remap = remap_init(ximage_mode, features, csd);
-  if (features & RFF_BITMAP_FONT) {
-    use_bitmap_font = 1;
-    /* linear 1 byte per pixel */
-    Render.text_remap = remap_init(ximage_mode, features, csd);
-    register_text_system(&Text_bitmap);
-    init_text_mapper(ximage_mode, features, csd);
-  }
+  /* linear 1 byte per pixel */
+  Render.text_remap = remap_init(ximage_mode, features, csd);
+  register_text_system(&Text_bitmap);
+  init_text_mapper(ximage_mode, features, csd);
 
   return vga_emu_init(remap_src_modes, csd);
 }
@@ -231,7 +245,10 @@ static void *render_thread(void *arg)
     is_updating = 1;
     pthread_mutex_unlock(&upd_mtx);
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-    do_rend();
+    do_rend_gfx();
+#if TEXT_THREADED
+    do_rend_text();
+#endif
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_mutex_lock(&upd_mtx);
     is_updating = 0;
@@ -248,7 +265,7 @@ int render_init(void)
   err = sem_init(&render_sem, 0, 0);
   assert(!err);
   err = pthread_create(&render_thr, NULL, render_thread, NULL);
-#ifdef HAVE_PTHREAD_SETNAME_NP
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
   pthread_setname_np(render_thr, "dosemu: render");
 #endif
   assert(!err);
@@ -277,6 +294,12 @@ void remapper_done(void)
  * Update the displayed image to match the current DAC entries.
  * Will redraw the *entire* screen if at least one color has changed.
  */
+static void bitmap_refresh_pal(void *opaque, DAC_entry *col, int index)
+{
+  struct remap_object **ro = opaque;
+  remap_palette_update(*ro, index, vga.dac.bits, col->r, col->g, col->b);
+}
+
 static void refresh_truecolor(DAC_entry *col, int index, void *udata)
 {
   struct remap_object *ro = udata;
@@ -284,7 +307,7 @@ static void refresh_truecolor(DAC_entry *col, int index, void *udata)
 }
 
 /* returns True if the screen needs to be redrawn */
-Boolean refresh_palette(void *opaque)
+static Boolean refresh_palette(void *opaque)
 {
   struct remap_object **obj = opaque;
   return changed_vga_colors(refresh_truecolor, *obj);
@@ -297,6 +320,15 @@ static void refresh_graphics_palette(void)
 {
   if (refresh_palette(&Render.gfx_remap))
     dirty_all_video_pages();
+}
+
+static int suitable_mode_class(void)
+{
+  /* Add more checks here.
+   * Need to treat any weird text mode as gfx. */
+  if (vga.char_width < 8 || vga.char_width > 9 || vga.char_height < 8)
+    return GRAPH;
+  return TEXT;
 }
 
 struct vid_mode_params get_mode_parameters(void)
@@ -361,7 +393,10 @@ struct vid_mode_params get_mode_parameters(void)
   ret.w_y_res = w_y_res;
   ret.x_res = x_res;
   ret.y_res = y_res;
-  ret.mode_class = vga.mode_class;
+  if (vga.mode_class == GRAPH)
+    ret.mode_class = GRAPH;
+  else
+    ret.mode_class = suitable_mode_class();
   ret.text_width = vga.text_width;
   ret.text_height = vga.text_height;
   return ret;
@@ -453,32 +488,21 @@ int render_is_updating(void)
   return upd;
 }
 
-static void do_rend(void)
+static void do_rend_gfx(void)
 {
   pthread_rwlock_rdlock(&mode_mtx);
+  vga_emu_update_lock();
   if(vga.reconfig.mem || vga.reconfig.dac)
     modify_mode();
   switch (vga.mode_class) {
     case TEXT:
-      blink_cursor();
-      if (text_is_dirty()) {
-        int err = render_text_begin();
-        if (err)
-          break;
-        vga_emu_update_lock();
-        update_text_screen();
-        vga_emu_update_unlock();
-        render_text_end();
-      }
       break;
     case GRAPH:
       if (vgaemu_is_dirty()) {
         int err = render_lock();
         if (err)
           break;
-        vga_emu_update_lock();
         update_graphics_screen();
-        vga_emu_update_unlock();
         render_unlock();
       }
       break;
@@ -486,12 +510,43 @@ static void do_rend(void)
       v_printf("VGA not yet initialized\n");
       break;
   }
+  vga_emu_update_unlock();
+  pthread_rwlock_unlock(&mode_mtx);
+}
+
+static void do_rend_text(void)
+{
+  pthread_rwlock_rdlock(&mode_mtx);
+  vga_emu_update_lock();
+  if(vga.reconfig.mem || vga.reconfig.dac)
+    modify_mode();
+  switch (vga.mode_class) {
+    case TEXT:
+      blink_cursor();
+      if (text_is_dirty()) {
+        render_text_begin();
+        update_text_screen();
+        render_text_end();
+      }
+      break;
+    case GRAPH:
+      break;
+    default:
+      v_printf("VGA not yet initialized\n");
+      break;
+  }
+  vga_emu_update_unlock();
   pthread_rwlock_unlock(&mode_mtx);
 }
 
 void render_mode_lock(void)
 {
   pthread_rwlock_rdlock(&mode_mtx);
+}
+
+void render_mode_lock_w(void)
+{
+  pthread_rwlock_wrlock(&mode_mtx);
 }
 
 void render_mode_unlock(void)
@@ -535,8 +590,28 @@ int update_screen(void)
 {
   int upd = render_is_updating();
 
+  /* update vidmode before doing any rendering. */
+  if(vga.reconfig.display) {
+    if (upd)
+      return 1;
+    v_printf(
+      "modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
+      vga.width, vga.height, vga.scan_len
+    );
+    vga_emu_update_lock();
+    render_update_vidmode();
+    dirty_all_video_pages();
+    vga.reconfig.display = 0;
+    vga_emu_update_unlock();
+  }
+
 #if !RENDER_THREADED
-  do_rend();
+  do_rend_gfx();
+  do_rend_text();
+#else
+#if !TEXT_THREADED
+  do_rend_text();
+#endif
 #endif
   if (!upd) {
     if (Video->update_screen)
@@ -552,19 +627,6 @@ int update_screen(void)
   }
   if (upd)
     return 1;
-  /* unfortunately SDL is not thread-safe, so display mode updates
-   * need to be done from main thread. */
-  if(vga.reconfig.display) {
-    v_printf(
-      "modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
-      vga.width, vga.height, vga.scan_len
-    );
-    vga_emu_update_lock();
-    render_update_vidmode();
-    dirty_all_video_pages();
-    vga.reconfig.display = 0;
-    vga_emu_update_unlock();
-  }
 
   sem_post(&render_sem);
   return 1;
@@ -572,19 +634,20 @@ int update_screen(void)
 
 void redraw_text_screen(void)
 {
+  pthread_mutex_lock(&text_mtx);
   dirty_text_screen();
+  dirty_all_vga_colors();
+  pthread_mutex_unlock(&text_mtx);
 }
 
 void render_gain_focus(void)
 {
-  if (vga.mode_class == TEXT)
-    text_gain_focus();
+  text_gain_focus();
 }
 
 void render_lose_focus(void)
 {
-  if (vga.mode_class == TEXT)
-    text_lose_focus();
+  text_lose_focus();
 }
 
 static int remap_mode(void)
@@ -624,8 +687,6 @@ void render_blit(int x, int y, int width, int height)
     return;
   if (vga.mode_class == TEXT) {
     struct bitmap_desc src_image;
-    if (!use_bitmap_font)
-      goto unlock;
     src_image = get_text_canvas();
     remap_remap_rect_dst(Render.text_remap, src_image, MODE_PSEUDO_8,
 	x, y, width, height);
@@ -638,7 +699,6 @@ void render_blit(int x, int y, int width, int height)
 	vga.width, vga.height, vga.scan_len), remap_mode(),
 	x, y, width, height);
   }
-unlock:
   render_unlock();
 }
 
@@ -749,6 +809,8 @@ void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5) \
   CHECK_##_x(); \
   pthread_mutex_lock(&render_mtx); \
   for (i = 0; i < Render.num_renders; i++) { \
+    if (!Render.wrp[i].locked) \
+      continue; \
     r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, Render.dst_image[i]); \
     if (r.width) \
       render_rect_add(i, r); \
@@ -763,11 +825,27 @@ void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a
   CHECK_##_x(); \
   pthread_mutex_lock(&render_mtx); \
   for (i = 0; i < Render.num_renders; i++) { \
+    if (!Render.wrp[i].locked) \
+      continue; \
     r = ro->calls->_x(ro->priv, a1, a2, a3, a4, a5, a6, Render.dst_image[i]); \
     if (r.width) \
       render_rect_add(i, r); \
   } \
   pthread_mutex_unlock(&render_mtx); \
+}
+
+void render_enable(struct render_system *render)
+{
+  pthread_mutex_lock(&render_mtx);
+  render->flags &= ~RENDF_DISABLED;
+  pthread_mutex_unlock(&render_mtx);
+}
+
+void render_disable(struct render_system *render)
+{
+  pthread_mutex_lock(&render_mtx);
+  render->flags |= RENDF_DISABLED;
+  pthread_mutex_unlock(&render_mtx);
 }
 
 #define CHECK_get_cap()

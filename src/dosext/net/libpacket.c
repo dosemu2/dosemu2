@@ -7,11 +7,13 @@
  *
  *	(c) 1994 Alan Cox	iiitac@pyr.swan.ac.uk	GW4PTS@GB7SWN
  */
-#include "config.h"
-
+#ifdef HAVE_NETPACKET_PACKET_H
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -34,7 +36,10 @@
 #include "pktdrvr.h"
 #include "libpacket.h"
 
+#define TAP_DEVICE  "dosemu_tap%d"
+
 static int tun_alloc(char *dev);
+static int pkt_is_registered_type(int type);
 
 static uint8_t local_eth_addr[6] = {0,0,0,0,0,0};
 #define DOSNET_FAKED_ETH_ADDRESS   "fbx\x90xx"
@@ -43,6 +48,8 @@ static int num_backends;
 static struct pkt_ops *ops[VNET_TYPE_MAX];
 
 static int pkt_flags;
+static int early_fd;
+static int rcv_mode;
 
 /* Should return a unique ID corresponding to this invocation of
    dosemu not clashing with other dosemus. We use a random value and
@@ -80,23 +87,32 @@ static struct pkt_ops *find_ops(int id)
  *	hell will break loose - unless you use virtual TCP/IP (dosnet).
  */
 
-static int OpenNetworkLinkEth(char *name)
+static int OpenNetworkLinkEth(const char *name, void (*cbk)(int, int))
 {
 	PRIV_SAVE_AREA
 	int s, proto, ret;
 	struct ifreq req;
 	struct sockaddr_ll addr;
+	unsigned short receive_mode;
 
 	proto = htons(ETH_P_ALL);
 	enter_priv_on();
 	s = socket(PF_PACKET, SOCK_RAW, proto);
 	leave_priv_setting();
 	if (s < 0) {
-		if (errno == EPERM) error("Must be root for direct NIC access\n");
+		if (errno == EPERM)
+			error("Must be root for direct NIC access\n");
 		return -1;
 	}
-	fcntl(s, F_SETFL, O_NDELAY);
-	strcpy(req.ifr_name, name);
+
+	ret = fcntl(s, F_SETFL, O_NDELAY);
+	if (ret == -1) {
+		pd_printf("OpenNetwork: fcntl failed '%s'\n", strerror(errno));
+		close(s);
+		return -1;
+	}
+
+	strlcpy(req.ifr_name, name, sizeof(req.ifr_name));
 	if (ioctl(s, SIOCGIFINDEX, &req) < 0) {
 		close(s);
 		return -1;
@@ -122,25 +138,102 @@ static int OpenNetworkLinkEth(char *name)
 	receive_mode = (req.ifr_flags & IFF_PROMISC) ? 6 :
 		((req.ifr_flags & IFF_BROADCAST) ? 3 : 2);
 
-	return s;
+	cbk(s, receive_mode);
+	return 0;
 }
 
-static int OpenNetworkLinkTap(char *name)
+static int OpenNetworkLinkTap(const char *name, void (*cbk)(int, int))
 {
-	int pkt_fd = tun_alloc(name);
+	char devname[256];
+	int pkt_fd;
+
+	strlcpy(devname, name, sizeof(devname));
+	pkt_fd = tun_alloc(devname);
 	if (pkt_fd < 0)
 		return pkt_fd;
-	receive_mode = 6;
-	return pkt_fd;
+	cbk(pkt_fd, 6);
+	pd_printf("PKT: Using device %s\n", devname);
+	return 0;
 }
 
-int OpenNetworkLink(char *name)
+static void set_fd(int fd, int mode)
 {
+	early_fd = fd;
+	rcv_mode = mode;
+}
 
-	struct pkt_ops *o = find_ops(config.vnet);
+static int Open_sockets(const char *name, int vnet)
+{
+	struct pkt_ops *o = find_ops(vnet);
 	if (!o)
 		return -1;
-	return o->open(name);
+	return o->open(name, set_fd);
+}
+
+int OpenNetworkLink(void (*cbk)(int, int))
+{
+	int ret = -1;
+	struct pkt_ops *o;
+
+	assert(early_fd != 0);
+	if (early_fd != -1) {
+		cbk(early_fd, rcv_mode);
+		return 0;
+	}
+	/* try non-priv setups like vde */
+	switch (config.vnet) {
+	case VNET_TYPE_AUTO:
+		pkt_set_flags(PKT_FLG_QUIET);
+		/* no break, slirp default */
+	case VNET_TYPE_SLIRP: {
+		if (!pkt_is_registered_type(VNET_TYPE_SLIRP)) {
+			if (config.vnet != VNET_TYPE_AUTO)
+				error("slirp support is not compiled in\n");
+			break;
+		}
+		o = find_ops(VNET_TYPE_SLIRP);
+		if (!o)
+			ret = -1;
+		else
+			ret = o->open("slirp", cbk);
+		if (ret < 0) {
+			if (config.vnet == VNET_TYPE_AUTO)
+				warn("PKT: Cannot run slirp\n");
+			else
+				error("Unable to run slirp\n");
+		} else {
+			if (config.vnet == VNET_TYPE_AUTO)
+				config.vnet = VNET_TYPE_SLIRP;
+			pd_printf("PKT: Using slirp networking\n");
+		}
+		break;
+	}
+	case VNET_TYPE_VDE: {
+		const char *pr_dev = config.vdeswitch[0] ? config.vdeswitch : "(auto)";
+		if (!pkt_is_registered_type(VNET_TYPE_VDE)) {
+			if (config.vnet != VNET_TYPE_AUTO)
+				error("vde support is not compiled in\n");
+			break;
+		}
+		o = find_ops(VNET_TYPE_VDE);
+		if (!o)
+			ret = -1;
+		else
+			ret = o->open(config.vdeswitch, cbk);
+		if (ret < 0) {
+			if (config.vnet == VNET_TYPE_AUTO)
+				warn("PKT: Cannot run VDE %s\n", pr_dev);
+			else
+				error("Unable to run VDE %s\n", pr_dev);
+		} else {
+			if (config.vnet == VNET_TYPE_AUTO)
+				config.vnet = VNET_TYPE_VDE;
+			pd_printf("PKT: Using device %s\n", pr_dev);
+		}
+		break;
+	}
+	}
+	return ret;
 }
 
 /*
@@ -178,11 +271,16 @@ void CloseNetworkLink(int pkt_fd)
 
 static int GetDeviceHardwareAddressEth(unsigned char *addr)
 {
-	int s = socket(AF_INET, SOCK_DGRAM, 0);
+	int s;
 	struct ifreq req;
 	int err;
 
-	strcpy(req.ifr_name, config.ethdev);
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s == -1) {
+		return -1;
+	}
+
+	strlcpy(req.ifr_name, config.ethdev, sizeof(req.ifr_name));
 
 	err = ioctl(s, SIOCGIFHWADDR, &req);
 	close(s);
@@ -199,11 +297,7 @@ static int GetDeviceHardwareAddressEth(unsigned char *addr)
 
 void pkt_get_fake_mac(unsigned char *addr)
 {
-	int i;
 	memcpy(addr, local_eth_addr, 6);
-	for (i=0; i < 6; i++)
-		pd_printf("%02x:", local_eth_addr[i] & 0xff);
-	pd_printf("\n");
 }
 
 static int GetDeviceHardwareAddressTap(unsigned char *addr)
@@ -211,13 +305,18 @@ static int GetDeviceHardwareAddressTap(unsigned char *addr)
 	/* This routine is totally local; doesn't make
 	   request to actual device. */
 	pkt_get_fake_mac(addr);
-	pd_printf("Assigned Ethernet Address = ");
 	return 0;
 }
 
 int GetDeviceHardwareAddress(unsigned char *addr)
 {
-	return find_ops(config.vnet)->get_hw_addr(addr);
+	int i;
+	int ret = find_ops(config.vnet)->get_hw_addr(addr);
+	pd_printf("Assigned Ethernet Address = ");
+	for (i=0; i < 6; i++)
+		pd_printf("%02x:", local_eth_addr[i] & 0xff);
+	pd_printf("\n");
+	return ret;
 }
 
 /*
@@ -230,11 +329,16 @@ int GetDeviceHardwareAddress(unsigned char *addr)
 
 static int GetDeviceMTUEth(void)
 {
-	int s = socket(AF_INET, SOCK_DGRAM, 0);
+	int s;
 	struct ifreq req;
 	int err;
 
-	strcpy(req.ifr_name, config.ethdev);
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s == -1) {
+		return -1;
+	}
+
+	strlcpy(req.ifr_name, config.ethdev, sizeof(req.ifr_name));
 
 	err = ioctl(s, SIOCGIFMTU, &req);
 	close(s);
@@ -248,14 +352,14 @@ int GetDeviceMTU(void)
 	return find_ops(config.vnet)->get_MTU();
 }
 
-static int tun_alloc(char *dev)
+int tun_alloc(char *dev)
 {
       PRIV_SAVE_AREA
       struct ifreq ifr;
       int fd, err;
 
       enter_priv_on();
-      fd = open("/dev/net/tun", O_RDWR);
+      fd = open("/dev/net/tun", O_RDWR | O_CLOEXEC);
       leave_priv_setting();
       if (fd < 0)
          return -1;
@@ -268,8 +372,13 @@ static int tun_alloc(char *dev)
        *        IFF_NO_PI - Do not provide packet information
        */
       ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-      if( *dev )
-         strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+      if (*dev) {
+        err = snprintf(ifr.ifr_name, IFNAMSIZ, "%s", dev);
+        if (err >= IFNAMSIZ) {
+          close(fd);
+          return -1;
+        }
+      }
 
       enter_priv_on();
       err = ioctl(fd, TUNSETIFF, (void *) &ifr);
@@ -349,6 +458,8 @@ static struct pkt_ops tap_ops = {
 
 void LibpacketInit(void)
 {
+	int ret;
+
 	GenerateDosnetID();
 
 	pkt_register_backend(&eth_ops);
@@ -358,7 +469,53 @@ void LibpacketInit(void)
 #ifdef USE_VDE
 	load_plugin("vde");
 #endif
+#ifdef USE_SLIRP
+	load_plugin("slirp");
 #endif
+#endif
+	early_fd = -1;
+	/* Open sockets only for priv configs */
+	switch (config.vnet) {
+	case VNET_TYPE_ETH:
+		pd_printf("PKT: Using ETH device %s\n", config.ethdev);
+		ret = Open_sockets(config.ethdev, VNET_TYPE_ETH);
+		if (ret < 0)
+			error("PKT: Cannot open %s: %s\n", config.ethdev, strerror(errno));
+		else
+			pd_printf("PKT: eth backend enabled, dev=%s\n", config.ethdev);
+		break;
+	case VNET_TYPE_AUTO:
+	case VNET_TYPE_SLIRP:
+		ret = Open_sockets("slirp", VNET_TYPE_SLIRP);
+		if (ret < 0) {
+			if (config.vnet != VNET_TYPE_AUTO) {
+				error("PKT: Cannot open slirp\n");
+			} else {
+				pd_printf("PKT: Cannot open slirp\n");
+			}
+		} else {
+			if (config.vnet == VNET_TYPE_AUTO)
+				config.vnet = VNET_TYPE_SLIRP;
+			pd_printf("PKT: slirp backend enabled\n");
+		}
+		break;
+	case VNET_TYPE_TAP: {
+		char devname[256];
+		if (!config.tapdev || !config.tapdev[0]) {
+			pd_printf("PKT: Using dynamic TAP device\n");
+			strcpy(devname, TAP_DEVICE);
+		} else {
+			pd_printf("PKT: trying to bind to TAP device %s\n", config.tapdev);
+			strlcpy(devname, config.tapdev, sizeof(devname));
+		}
+		ret = Open_sockets(devname, VNET_TYPE_TAP);
+		if (ret < 0)
+			error("PKT: Cannot open %s: %s\n", devname, strerror(errno));
+		else
+			pd_printf("PKT: tap backend enabled, dev=%s\n", devname);
+		break;
+	}
+	}
 }
 
 void pkt_set_flags(int flags)
@@ -376,7 +533,9 @@ int pkt_get_flags(void)
 	return pkt_flags;
 }
 
-int pkt_is_registered_type(int type)
+static int pkt_is_registered_type(int type)
 {
 	return !!find_ops(type);
 }
+
+#endif

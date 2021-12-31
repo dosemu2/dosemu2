@@ -25,18 +25,23 @@ Modified by O.V.Zhirov, July 1998
 
 
 #ifdef DOSEMU
-#include "config.h"
-#include "utilities.h"
+#include "emu.h"
 #include "mangle.h"
 #include "mfs.h"
 #include "dos2linux.h"
-#include "emu.h"
+#include "utilities.h"
 #include "translate/translate.h"
-#include <wctype.h>
+#include <ctype.h>
+#include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #else
 #include "includes.h"
 #include "loadparm.h"
 #endif
+
+static void mangle_name_83(char *s, char *MangledMap);
 
 /****************************************************************************
 provide a checksum on a string
@@ -49,7 +54,7 @@ static int str_checksum(char *s)
   while (*s)
     {
       c = *s;
-      res ^= (c << (i % 15)) ^ (c >> (15-(i%15)));
+      res ^= ((unsigned)c << (i % 15)) ^ ((unsigned)c >> (15-(i%15)));
       s++; i++;
     }
   return(res);
@@ -59,12 +64,21 @@ static int str_checksum(char *s)
 check if a name is a special msdos reserved name:
 the name is either a full Unix name or an 8 character candidate
 ****************************************************************************/
-unsigned int is_dos_device(const char *fname)
+FAR_PTR is_dos_device(const char *path)
 {
   char *p;
-  unsigned int dev;
-  unsigned int devfar;
+  const char *fname;
+  dosaddr_t dev;
+  far_t devfar;
   int i;
+  int cnt;
+
+  /* C:\DEV notation is allowed */
+  fname = strrchr(path, '\\');
+  if (fname)
+    fname++;
+  else
+    fname = path;
 
   /*
    * LPTx e.t.c. is reserved no matter the path (e.g. .\LPT1 _is_ reserved),
@@ -95,8 +109,9 @@ unsigned int is_dos_device(const char *fname)
    */
 
   /* walk the chain of DOS devices; see also FreeDOS kernel code */
-  dev = lol_nuldev(lol);
-  devfar = MK_FP16(FP_SEG32(dev - 0x26), 0x26);
+  devfar = get_nuldev();
+  dev = FAR2ADDR(devfar);
+  cnt = 0;
   do
   {
     for (i = 0; i < 8; i++)
@@ -117,12 +132,15 @@ unsigned int is_dos_device(const char *fname)
         break;
     }
     if (i == 8)
-      return devfar;
+      return MK_FP(devfar);
     if (READ_BYTE(dev) == 0xff || READ_BYTE(dev+1) == 0xff)
       return 0;
-    devfar = READ_DWORD(dev);
-    dev = SEGOFF2LINEAR(FP_SEG16(devfar), FP_OFF16(devfar));
-  } while (1);
+    devfar = rFAR_FARt(READ_DWORD(dev));
+    dev = FAR2ADDR(devfar);
+  } while (cnt++ < 256);
+  error("MFS: DOS device list corrupted\n");
+  leavedos(17);
+  return 0;
 }
 
 
@@ -263,7 +281,7 @@ static void push_mangled_name(char *s)
 
   safe_memcpy(mangled_stack[1],mangled_stack[0],
 	      sizeof(fstring)*min(mangled_stack_len,mangled_stack_size-1));
-  strcpy(mangled_stack[0],s);
+  strlcpy(mangled_stack[0], s, sizeof(mangled_stack[0]));
   p = strrchr(mangled_stack[0],'.');
   if (p && (!strhasupperDOS(p+1)) && (strlen(p+1) < 4))
     *p = 0;
@@ -385,7 +403,7 @@ BOOL is_mangled(const char *s)
  * the buffer must be able to hold 13 characters (including the null)
  *****************************************************************************
  */
-void mangle_name_83(char *s, char *MangledMap)
+static void mangle_name_83(char *s, char *MangledMap)
 {
   int csum = str_checksum(s);
   char *p;
@@ -480,7 +498,7 @@ BOOL name_ufs_to_dos(char *dest, const char *src)
     symbol = *wdest++;
     if (symbol > 0xffff)
       symbol = '_';
-    *dest = unicode_to_dos_table[symbol];
+    *dest = unicode_to_dos_table(symbol);
     if (!VALID_DOS_PCHAR(dest) && strchr(" +,;=[]",*dest)==0)
       retval = 0;
     dest++;

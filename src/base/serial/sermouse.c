@@ -33,6 +33,7 @@ struct serm_state {
   int div;
   char but;
   int x, y;
+  int lb, mb, rb;
 };
 static struct serm_state serm;
 
@@ -49,7 +50,7 @@ static int limit_delta(int delta, int min, int max)
           delta < min ? min : delta;
 }
 
-static int ser_mouse_accepts(void *udata)
+static int ser_mouse_accepts(int from, void *udata)
 {
   com_t *com = udata;
   if (!serm.opened)
@@ -58,7 +59,9 @@ static int ser_mouse_accepts(void *udata)
     dosemu_error("sermouse NULL udata\n");
     return 0;
   }
-  return com->cfg->mouse;
+  /* if commouse is used, we need to accept any events */
+  return (com->cfg->mouse && (config.mouse.dev_type == from ||
+      config.mouse.com != -1));
 }
 
 static int add_buf(com_t *com, const char *buf, int len)
@@ -86,12 +89,54 @@ static int add_buf(com_t *com, const char *buf, int len)
   return len;
 }
 
+static void ser_mouse_move_button(int num, int press, void *udata)
+{
+  com_t *com = udata;
+  char buf[3] = {0x40, 0, 0};
+
+  s_printf("SERM: button %i %i\n", num, press);
+  switch (num) {
+  case 0:
+    if (press == serm.lb)
+      return;
+    serm.lb = press;
+    if (press)
+      serm.but |= 0x20;
+    else
+      serm.but &= ~0x20;
+    break;
+  case 1:
+    if (press == serm.mb)
+      return;
+    serm.mb = press;
+    /* change in mbutton is signalled by sending the prev state */
+    break;
+  case 2:
+    if (press == serm.rb)
+      return;
+    serm.rb = press;
+    if (press)
+      serm.but |= 0x10;
+    else
+      serm.but &= ~0x10;
+    break;
+  }
+  buf[0] |= serm.but;
+
+  add_buf(com, buf, sizeof(buf));
+}
+
 static void ser_mouse_move_buttons(int lbutton, int mbutton, int rbutton,
 	void *udata)
 {
   com_t *com = udata;
   char buf[3] = {0x40, 0, 0};
 
+  if (serm.lb == lbutton && serm.mb == mbutton && serm.rb == rbutton)
+    return;
+  serm.lb = lbutton;
+  serm.mb = mbutton;
+  serm.rb = rbutton;
   s_printf("SERM: buttons %i %i %i\n", lbutton, mbutton, rbutton);
   serm.but = 0;
   if (lbutton)
@@ -106,7 +151,7 @@ static void ser_mouse_move_buttons(int lbutton, int mbutton, int rbutton,
 
 static void ser_mouse_move_wheel(int dy, void *udata)
 {
-  error("serial wheel mouse\n");
+  s_printf("serial mouse wheel move\n");
 }
 
 static void ser_mouse_move_mickeys(int dx, int dy, void *udata)
@@ -114,6 +159,8 @@ static void ser_mouse_move_mickeys(int dx, int dy, void *udata)
   com_t *com = udata;
   char buf[3] = {0x40, 0, 0};
 
+  if (!dx && !dy)
+    return;
   s_printf("SERM: movement %i %i\n", dx, dy);
   buf[0] |= serm.but;
   dx = limit_delta(dx, -128, 127);
@@ -130,15 +177,20 @@ static void ser_mouse_move_mickeys(int dx, int dy, void *udata)
 static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 	void *udata)
 {
+  if (!dx && !dy)
+    return;
   /* oops, ignore ranges and use hardcoded ratio for now */
   ser_mouse_move_mickeys(dx, dy * 2, udata);
 }
 
 static void ser_mouse_move_absolute(int x, int y, int x_range, int y_range,
-	void *udata)
+	int vis, void *udata)
 {
   int dx = x - serm.x;
   int dy = y - serm.y;
+
+  if (!dx && !dy)
+    return;
   ser_mouse_move_relative(dx, dy, x_range, y_range, udata);
   serm.x = x;
   serm.y = y;
@@ -153,16 +205,15 @@ static void ser_mouse_drag_to_corner(int x_range, int y_range, void *udata)
 }
 
 struct mouse_drv ser_mouse = {
-  NULL, /* init */
-  ser_mouse_accepts,
-  ser_mouse_move_buttons,
-  ser_mouse_move_wheel,
-  ser_mouse_move_relative,
-  ser_mouse_move_mickeys,
-  ser_mouse_move_absolute,
-  ser_mouse_drag_to_corner,
-  NULL, /* ser_mouse_enable_native_cursor */
-  "serial mouse"
+  .accepts = ser_mouse_accepts,
+  .move_button = ser_mouse_move_button,
+  .move_buttons = ser_mouse_move_buttons,
+  .move_wheel = ser_mouse_move_wheel,
+  .move_relative = ser_mouse_move_relative,
+  .move_mickeys = ser_mouse_move_mickeys,
+  .move_absolute = ser_mouse_move_absolute,
+  .drag_to_corner = ser_mouse_drag_to_corner,
+  .name = "serial mouse",
 };
 
 CONSTRUCTOR(static void serial_mouse_register(void))
@@ -210,6 +261,7 @@ static int serm_dtr(com_t *com, int flag)
 static int serm_rts(com_t *com, int flag)
 {
   if (flag && !serm.nrst) {
+    /* ctmouse wrongly expects "M" here. It doesn't work with "M3" */
     const char *id = "M3";
     /* Many mouse drivers require this, they detect for Framing Errors
      * coming from the mouse, during initialization, usually right after

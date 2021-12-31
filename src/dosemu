@@ -1,0 +1,223 @@
+get_binary() {
+  BINDIR=$(realpath `dirname "$1"`)
+  BINARY="$BINDIR"/dosemu.bin
+  if [ ! -f "$BINARY" ]; then
+    echo "$BINARY does not exist"
+    exit 1
+  fi
+  if [ "$BINDIR" == "$LOCAL_BUILD_PATH/$LOCAL_BIN_DIR" ]; then
+    OPTS="$OPTS --Fcmddir "$LOCAL_BUILD_PATH/commands" \
+        --Flibdir "$LOCAL_BUILD_PATH/etc" \
+        --Fplugindir "$BINDIR" \
+        "
+  fi
+}
+usage () {
+  echo "
+USAGE:
+
+ dosemu [-dumb] [-home] [-quiet] [-input] [-cdrom path] [-license] [-exec cmd] [-s] [args...]
+"
+  exit 1
+}
+
+THISDIR="$PWD"
+ARG0="$0"
+
+unset STRING_I USE_SUDO INPUT OPTS
+
+mkdir -p ~/.dosemu
+
+SUFFIX=""
+while [ $# -gt 0 ] ; do
+  case "$1" in
+    -dumb)
+      OPTS="$OPTS -td -kt"
+      exec 4>&2 2>~/.dosemu/stderr.log.$BASHPID
+      shift
+      ;;
+    -exec)
+      OPTS="$OPTS -t:e -E $2"
+      shift
+      shift
+      ;;
+    -home)
+      OPTS="$OPTS -d ${HOME}:R"
+      shift
+      ;;
+    -cdrom)
+      CDROM_PATH=`realpath "$2"`
+      OPTS="$OPTS -d ${CDROM_PATH}:C"
+      CDDEV=`findmnt -n -o SOURCE "$2"`
+      shift
+      shift
+      if test -n "$CDDEV"; then
+        STRING_I="$STRING_I cdrom "'{'"$CDDEV"'}'
+      fi
+      ;;
+    -dos)
+      shift
+      if [ ! -d ~/.dosemu/install/$1 ]; then
+        echo "$1 is not installed"
+        exit 1
+      fi
+      OPTS="$OPTS --Fdrive_c %I/install/$1/drive_c --Fimagedir %I/install/$1"
+      if [ -f ~/.dosemu/install/$1/.dosemurc ]; then
+        OPTS="$OPTS -f %I/install/$1/.dosemurc"
+      else
+        OPTS="$OPTS -n"
+      fi
+      LOG_FILE=~/.dosemu/install/$1/boot.log
+      shift
+      ;;
+    -quiet)
+      # Note: this switches to dumb mode rather than to work with
+      # -dumb because -dumb expects to redirect only errors to the
+      # log file, not the whole dosemu output of stderr.
+      OPTS="$OPTS -tde -kt"
+      exec 2>/dev/null
+      shift
+      ;;
+    -input)
+      INPUT=1
+      if [ -n "$2" -a -n "${2%%-*}" ]; then
+        STRING_I="$STRING_I keystroke "'"'"$2"'"'
+        shift
+      fi
+      shift
+      ;;
+    -license)
+      printf "$license"
+      shift
+      exit
+      ;;
+    -info)
+      echo "prefix: $prefix"
+      shift
+      exit
+      ;;
+    -help)
+      usage
+      shift
+      exit
+      ;;
+    -I)
+      if [ -z "$2" -o -z "${2%%-*}" ]; then usage; fi
+      if [ -z "$STRING_I" ]; then
+        STRING_I="$2"
+      else
+        STRING_I="$STRING_I $2"
+      fi
+      shift
+      shift
+      ;;
+    -s)
+      USE_SUDO=1
+      SUFFIX="$SUFFIX \"$1\""
+      shift
+      ;;
+    -t)
+      exec 4>&2 2>~/.dosemu/stderr.log.$BASHPID
+      SUFFIX="$SUFFIX \"$1\""
+      shift
+      ;;
+    -valgrind)
+      DBG="valgrind --trace-children=yes --track-origins=yes"
+      STRING_I="$STRING_I cpu_vm emulated cpuemu 1 cpu_vm_dpmi kvm"
+      shift
+      ;;
+    -gdb)
+      DBG="gdb --args"
+      shift
+      ;;
+    *)
+      # this should avoid avoid resulting substitution odds
+      SUFFIX="$SUFFIX \"$1\""
+      shift
+      ;;
+  esac
+done
+
+[ -z "$DOSEMU_QUIET" ] || OPTS="$OPTS -q"
+
+[ -n "$LOG_FILE" ] || LOG_FILE=~/.dosemu/boot.log
+MAX_LOGS=3
+
+if [ -f "$LOG_FILE" ]; then
+  NL="`ls "$LOG_FILE".[0-9] 2> /dev/null | tail -n 1`"
+  NL="${NL##*.}"
+  if [ -z "$NL" ]; then
+    NL="1"
+  elif [ "$NL" -ge "$MAX_LOGS" ]; then
+    NL="1"
+  else
+    NL="`expr $NL + 1`"
+  fi
+  mv -f "$LOG_FILE" "$LOG_FILE.$NL"
+fi
+
+get_binary "$0"
+
+if [ "`id -ur`" -eq 0 ]; then
+  echo "Running dosemu2 as root is highly discouraged"
+  exit 1
+fi
+
+SUDO=""
+# set sudo_uid/sudo_gid so that somebody who does "sudo dosemu"
+# really gets root
+if [ -n "$SUDO_UID" ] ; then
+  SUDO_UID=0
+fi
+if [ -n "$SUDO_GID" ] ; then
+  SUDO_GID=0
+fi
+if [ -n "$USE_SUDO" ] ; then
+  SUDO=sudo
+  SUDOOPTS=-E
+fi
+
+# for address sanitizer
+export ASAN_OPTIONS='handle_segv=0:abort_on_error=1:detect_leaks=0'
+
+eval "set -- $SUFFIX"
+COMMAND="$SUDO $SUDOOPTS $DBG $BINARY -o $LOG_FILE $OPTS"
+DOSEMU_INVOKED_NAME="$0"
+export DOSEMU_INVOKED_NAME
+if [ -n "$STRING_I" ] ; then
+  COMMAND="$COMMAND -I '$STRING_I'"
+fi
+
+exec 3>&1
+# in a non-bash case, $BASHPID won't work and we fail the cleanup - no problem
+DPID="$(echo "$BASHPID"; exec 1<&3; exec $COMMAND "$@")"
+EC=$?
+exec 3>&-
+if [ -f ~/.dosemu/stderr.log.$BASHPID ]; then
+  cat ~/.dosemu/stderr.log.$BASHPID >&4
+  rm -f ~/.dosemu/stderr.log.$BASHPID
+fi
+RUNDIR="$HOME/.dosemu/run"
+STALE="`ls "$RUNDIR"/*."$DPID" 2>/dev/null`"
+if [ -n "$STALE" ]; then
+  echo "removing stale files:"
+  echo "$STALE"
+  rm -f $STALE
+  stty sane
+  kbd_mode -a 2>/dev/null
+fi
+
+if [ $EC -gt 128 ]; then
+  SIG=`expr $EC - 128`
+  echo "Terminated with signal $SIG"
+fi
+
+if [ -x "/usr/bin/dpkg-query" ]; then
+  echo "Package info:" >>$LOG_FILE
+  dpkg-query --show --showformat='dosemu2: ${db:Status-Status}\n' dosemu2 >>$LOG_FILE 2>/dev/null
+  dpkg-query -W dosemu2 >>$LOG_FILE 2>/dev/null
+  dpkg-query --show --showformat='fdpp: ${db:Status-Status}\n' fdpp >>$LOG_FILE 2>/dev/null
+  dpkg-query -W fdpp >>$LOG_FILE 2>/dev/null
+fi
+
+exit $EC

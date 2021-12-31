@@ -3,21 +3,12 @@
 #ifndef BIOS_H
 #define BIOS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-extern void bios_f000(void);		/* BIOS start at 0xf0000 */
-/* these two addresses are needed to avoid overwriting e.g. font
- * tables copied from VBIOS */
-extern void bios_f000_endpart1(void);
-extern void bios_f000_part2(void);
-extern void bios_f000_end(void);	/* BIOS end at 0xfffff */
-extern void bios_f000_int10ptr(void);
-extern void bios_f000_bootdrive(void);
-extern void bios_f000_int10_old(void);
-extern char bios_in_int10_callback;
-
-extern char LFN_short_name[];
-
-#define INT2F_IDLE_MAGIC	0x1680
+#include "bios_offsets.hh"
+#define DOSEMU_BIOS_SIZE() (bios_f000_end - bios_data_start + 1)
 
 /*
  * symbols to access BIOS-data with meaningful names, not just addresses,
@@ -80,6 +71,7 @@ extern char LFN_short_name[];
 #define BIOS_24_HOURS_FLAG              0x470
 #define BIOS_KEYBOARD_FLAGS             0x471
 #define BIOS_CTRL_ALT_DEL_FLAG          0x472
+#define BIOS_HDISK_STATUS               0x474
 #define BIOS_HARDDISK_COUNT		0x475
 /* 0x474, 0x476, 0x477 is reserved */
 #define BIOS_LPT1_TIMEOUT               0x478
@@ -134,50 +126,12 @@ extern unsigned int bios_configuration;	// The virtual
 
 void            bios_setup_init(void);
 
-void            INT08_dummy_start(void);
-void            INT08_dummy_end(void);
-void            INT70_dummy_start(void);
-void            INT70_dummy_end(void);
-void            DPMI_dummy_start(void);
-void            DPMI_dummy_end(void);
-void            DPMI_dpmi_init(void);
-void            DPMI_return_from_dos(void);
-void            DPMI_return_from_dosext(void);
-void            DPMI_return_from_rmint(void);
-void            DPMI_return_from_realmode(void);
-void            DPMI_return_from_dos_memory(void);
-void            DPMI_raw_mode_switch_rm(void);
-void            DPMI_save_restore_rm(void);
-void            DPMI_int1c(void);
-void            DPMI_int23(void);
-void            DPMI_int24(void);
-
-#define HLT_OFF(addr) ((unsigned long)addr-(unsigned long)DPMI_dummy_start)
-
-void		MSDOS_lr_start(void);
-void		MSDOS_lr_entry_ip(void);
-void		MSDOS_lr_entry_cs(void);
-void		MSDOS_lw_start(void);
-void		MSDOS_lw_entry_ip(void);
-void		MSDOS_lw_entry_cs(void);
-
-/* various declarations for interfacing with the packet driver code in
-   bios.S */
-
-void		PKTDRV_driver_name(void);
-void		PKTDRV_param(void);
-void		PKTDRV_stats(void);
-void		PKTDRV_start(void);
-void		PKTDRV_driver_entry_ip(void);
-void		PKTDRV_driver_entry_cs(void);
+#define HLT_OFF(offs) (offs-DPMI_OFF)
 
 void post_hook(void);
 
-void int_rvc_start_21(void);
-void int_rvc_cs_21(void);
-void int_rvc_ip_21(void);
-void int_rvc_start_2f(void);
-void int_rvc_cs_2f(void);
-void int_rvc_ip_2f(void);
+#ifdef __cplusplus
+};
+#endif
 
 #endif				/* BIOS_H */

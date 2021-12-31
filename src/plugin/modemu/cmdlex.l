@@ -50,8 +50,14 @@ flexYyInput(char *buf,int maxsize)
 
 static Cmdstat cmdstat;
 
-static int
-yywrap(void)
+#ifdef __cplusplus
+extern "C"
+#endif
+int yywrap(void);
+#ifdef __cplusplus
+extern "C"
+#endif
+int yywrap(void)
 {
 	return 1;
 }

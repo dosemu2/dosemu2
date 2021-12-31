@@ -10,7 +10,13 @@
 #define DPMI_SEL_OFF(x) (x-DPMI_sel_code_start)
 
 #ifdef __x86_64__
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern void		DPMI_iret(void);
+#ifdef __cplusplus
+};
+#endif
 #endif
 
 extern unsigned char	DPMI_sel_code_start[];
@@ -21,17 +27,23 @@ extern unsigned char	DPMI_return_from_rm_callback[];
 extern unsigned char	DPMI_VXD_start[];
 extern unsigned char	DPMI_VXD_end[];
 extern unsigned char	DPMI_return_from_RSPcall[];
+extern unsigned char	DPMI_return_from_LDTcall[];
+extern unsigned char	DPMI_return_from_LDTExitCall[];
 extern unsigned char	DPMI_return_from_int_1c[];
 extern unsigned char	DPMI_return_from_int_23[];
 extern unsigned char	DPMI_return_from_int_24[];
 extern unsigned char	DPMI_return_from_rm_callback[];
 extern unsigned char	DPMI_return_from_ext_exception[];
 extern unsigned char	DPMI_return_from_exception[];
+extern unsigned char	DPMI_return_from_rm_ext_exception[];
+extern unsigned char	DPMI_return_from_rm_exception[];
 extern unsigned char	DPMI_return_from_pm[];
 extern unsigned char	DPMI_API_extension[];
 extern unsigned char	DPMI_exception[];
+extern unsigned char	DPMI_ext_exception[];
+extern unsigned char	DPMI_rm_exception[];
 extern unsigned char	DPMI_interrupt[];
-extern unsigned char	DPMI_return_from_dosint[];
+extern unsigned char	DPMI_sel_end[];
 
 extern unsigned char	DPMI_VXD_start[];
 extern unsigned char	DPMI_VXD_VMM[];
@@ -49,15 +61,13 @@ extern unsigned char	DPMI_VXD_APM[];
 extern unsigned char	DPMI_VXD_VTDAPI[];
 extern unsigned char	DPMI_VXD_end[];
 
-extern unsigned char	MSDOS_spm_start[];
-extern unsigned char	MSDOS_XMS_call[];
-extern unsigned char	MSDOS_spm_end[];
-extern unsigned char	MSDOS_epm_start[];
-extern unsigned char	MSDOS_XMS_ret[];
-extern unsigned char	MSDOS_epm_end[];
 extern unsigned char	MSDOS_pmc_start[];
+extern unsigned char	MSDOS_fault[];
+extern unsigned char	MSDOS_pagefault[];
 extern unsigned char	MSDOS_API_call[];
 extern unsigned char	MSDOS_API_WINOS2_call[];
+extern unsigned char	MSDOS_LDT_call16[];
+extern unsigned char	MSDOS_LDT_call32[];
 extern unsigned char	MSDOS_rmcb_call_start[];
 extern unsigned char	MSDOS_rmcb_call0[];
 extern unsigned char	MSDOS_rmcb_call1[];
@@ -66,7 +76,11 @@ extern unsigned char	MSDOS_rmcb_ret0[];
 extern unsigned char	MSDOS_rmcb_ret1[];
 extern unsigned char	MSDOS_rmcb_ret2[];
 extern unsigned char	MSDOS_rmcb_call_end[];
+extern unsigned char	MSDOS_hlt_start[];
+extern unsigned char	MSDOS_hlt_end[];
 extern unsigned char	MSDOS_pmc_end[];
+extern unsigned char	DPMI_call[];
+extern unsigned char	DPMI_msdos[];
 
 extern unsigned char	DPMI_sel_code_end[];
 

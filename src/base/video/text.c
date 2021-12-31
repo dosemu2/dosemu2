@@ -27,7 +27,6 @@
 #define x_deb2(x...)
 #endif
 
-#include "config.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -44,10 +43,11 @@
 #include "render_priv.h"
 #include "translate/translate.h"
 
-static struct text_system *Text = NULL;
-int use_bitmap_font;
-Boolean have_focus = FALSE;
+#define MAX_TEXTS 5
+static struct text_system *Text[MAX_TEXTS];
+static int num_texts;
 
+Boolean have_focus;
 static unsigned prev_cursor_location = -1;
 static ushort prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
@@ -72,9 +72,6 @@ static Boolean doing_selection = FALSE, visible_selection = FALSE;
 #define CHAR(w) (*(Bit8u *)(w))
 #define ATTR(w) (*(((Bit8u *)(w))+1))
 
-/* Kludge for incorrect ASCII 0 char in vga font. */
-#define XCHAR(w) (((u_char)CHAR(w)||use_bitmap_font)?(u_char)CHAR(w):(u_char)' ')
-
 #if CONFIG_SELECTION
 #define SEL_ACTIVE(w) (visible_selection && ((w) >= sel_start) && ((w) <= sel_end))
 static inline Bit8u sel_attr(Bit8u a)
@@ -92,32 +89,39 @@ static inline Bit8u sel_attr(Bit8u a)
 #define XATTR(w) (ATTR(w))
 #endif
 
-#define XREAD_WORD(w) ((XATTR(w)<<8)|XCHAR(w))
+#define XREAD_WORD(w) ((XATTR(w)<<8)|CHAR(w))
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 int register_text_system(struct text_system *text_system)
 {
-  if (Text) {
-    dosemu_error
-	("multiple text renderers not supported, please report a bug!\n");
-    return 0;
-  }
-  Text = text_system;
+  assert(num_texts < MAX_TEXTS);
+  Text[num_texts++] = text_system;
   return 1;
 }
 
-int text_lock(void)
+void text_lock(void)
 {
-  if (Text && Text->lock)
-    return Text->lock(Text->opaque);
-  return 0;
+  int i;
+
+  for (i = 0; i < num_texts; i++) {
+    if (Text[i]->flags & TEXTF_DISABLED)
+      continue;
+    if (Text[i]->lock)
+      Text[i]->lock(Text[i]->opaque);
+  }
 }
 
 void text_unlock(void)
 {
-  if (Text && Text->unlock)
-    Text->unlock(Text->opaque);
+  int i;
+
+  for (i = 0; i < num_texts; i++) {
+    if (Text[i]->flags & TEXTF_DISABLED)
+      continue;
+    if (Text[i]->unlock)
+      Text[i]->unlock(Text[i]->opaque);
+  }
 }
 
 /*
@@ -127,12 +131,29 @@ void text_unlock(void)
 static void draw_string(int x, int y, unsigned char *text, int len,
 			Bit8u attr)
 {
+  int i;
+
   x_deb2("X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
 	 len, x, y, (unsigned) attr);
-  Text->Draw_string(Text->opaque, x, y, text, len, attr);
-  if (vga.mode_type == TEXT_MONO
-      && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
-    Text->Draw_line(Text->opaque, x, y, len);
+  for (i = 0; i < num_texts; i++) {
+    u_char charbuff[MAX_COLUMNS], *p;
+
+    if (Text[i]->flags & TEXTF_DISABLED)
+      continue;
+    memcpy(charbuff, text, len);
+    if (!(Text[i]->flags & TEXTF_BMAP_FONT)) {
+      while ((p = memchr(charbuff, '\0', len)))
+        *p = ' ';
+    }
+    Text[i]->Draw_string(Text[i]->opaque, x, y, charbuff, len, attr);
+    if (vga.mode_type == TEXT_MONO && vga.char_height
+        && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
+      int ul = vga.crtc.data[0x14] & 0x1f;
+      if (ul > vga.char_height - 1)
+        ul = vga.char_height - 1;
+      Text[i]->Draw_line(Text[i]->opaque, x, y, ul / (float)vga.char_height,
+          len, attr);
+    }
   }
 }
 
@@ -193,7 +214,7 @@ static void restore_cell(unsigned cursor_location)
 
   sp = (Bit16u *) (vga.mem.base + location_to_memoffs(cursor_location));
   oldsp = prev_screen + cursor_location / 2;
-  c = XCHAR(sp);
+  c = CHAR(sp);
 
   *oldsp = XREAD_WORD(sp);
   draw_string(x, y, &c, 1, XATTR(sp));
@@ -205,15 +226,19 @@ static void restore_cell(unsigned cursor_location)
  */
 static void draw_cursor(void)
 {
-  int x, y;
+  int x, y, i;
 
   if (check_cursor_location
       (memoffs_to_location(vga.crtc.cursor_location), &x, &y)
       && (blink_state || !have_focus)) {
     Bit16u *cursor = (Bit16u *) (vga.mem.base + vga.crtc.cursor_location);
-    Text->Draw_cursor(Text->opaque, x, y, XATTR(cursor),
+    for (i = 0; i < num_texts; i++) {
+      if (Text[i]->flags & TEXTF_DISABLED)
+        continue;
+      Text[i]->Draw_cursor(Text[i]->opaque, x, y, XATTR(cursor),
 		      CURSOR_START(vga.crtc.cursor_shape),
 		      CURSOR_END(vga.crtc.cursor_shape), have_focus);
+    }
   }
 }
 
@@ -271,18 +296,15 @@ struct bitmap_desc draw_bitmap_cursor(int x, int y, Bit8u attr, int start,
  * Draw a horizontal line (for text modes)
  * The attribute is the VGA color/mono text attribute.
  */
-struct bitmap_desc draw_bitmap_line(int x, int y, int linelen)
+struct bitmap_desc draw_bitmap_line(int x, int y, float ul, int linelen,
+    Bit8u attr)
 {
-  Bit16u *screen_adr = (Bit16u *) (vga.mem.base +
-				   location_to_memoffs(y * vga.scan_len +
-						       x * 2));
-  int fg = ATTR_FG(XATTR(screen_adr));
+  int fg = ATTR_FG(attr);
   int len = vga.scan_len / 2 * vga.char_width;
   unsigned char *deb;
-  int ul = vga.crtc.data[0x14] & 0x1f;
 
   x = vga.char_width * x;
-  y = vga.char_height * y + ul;
+  y = vga.char_height * y + ul * vga.char_height;
   linelen *= vga.char_width;
 
   deb = text_canvas + len * y + x;
@@ -314,8 +336,14 @@ void reset_redraw_text_screen(void)
 
 static void refresh_text_pal(DAC_entry * col, int index, void *udata)
 {
-  if (Text->SetPalette)
-    Text->SetPalette(Text->opaque, col, index);
+  int i;
+
+  for (i = 0; i < num_texts; i++) {
+    if (Text[i]->flags & TEXTF_DISABLED)
+      continue;
+    if (Text[i]->SetPalette)
+      Text[i]->SetPalette(Text[i]->opaque, col, index);
+  }
 }
 
 /*
@@ -326,24 +354,17 @@ static void refresh_text_pal(DAC_entry * col, int index, void *udata)
  */
 static int refresh_text_palette(void)
 {
-  int j;
-
   if (vga.pixel_size > 4) {
     X_printf
 	("X: refresh_text_palette: invalid color size - no updates made\n");
     return -1;
   }
 
-  if (use_bitmap_font)
-    j = refresh_palette(Text->opaque);
-  else
-    j = changed_vga_colors(refresh_text_pal, NULL);
-  return j;
+  return changed_vga_colors(refresh_text_pal, NULL);
 }
 
 struct bitmap_desc get_text_canvas(void)
 {
-  assert(use_bitmap_font);
   return BMP(text_canvas, vga.width, vga.height, vga.width);
 }
 
@@ -393,11 +414,11 @@ static void text_redraw_text_screen(void)
 
       do {			/* conversion of string to X */
 	*oldsp++ = XREAD_WORD(sp);
-	*bp++ = XCHAR(sp);
+	*bp++ = CHAR(sp);
 	sp++;
 	x++;
       } while (XATTR(sp) == attr && x < vga.text_width);
-
+      *bp = '\0';
       draw_string(start_x, y, charbuff, x - start_x, attr);
     } while (x < vga.text_width);
     oldsp += vga.scan_len / 2 - vga.text_width;
@@ -414,7 +435,9 @@ int text_is_dirty(void)
   unsigned char *sp;
   int ret;
   unsigned int compare;
-  if (blink_count == 0 || need_redraw_cursor)
+  if (blink_count == 0 || need_redraw_cursor ||
+	memoffs_to_location(vga.crtc.cursor_location) !=
+	prev_cursor_location)
     return 1;
   sp = vga.mem.base + location_to_memoffs(0);
 
@@ -439,6 +462,17 @@ static void update_cursor(void)
   if (need_redraw_cursor) {
     need_redraw_cursor = FALSE;
     redraw_cursor();
+    return;
+  }
+  if (vga.crtc.cursor_shape.w == NO_CURSOR)
+    return;
+  if (memoffs_to_location(vga.crtc.cursor_location) !=
+	prev_cursor_location) {
+    restore_cell(prev_cursor_location);
+    prev_cursor_location = memoffs_to_location(vga.crtc.cursor_location);
+    prev_cursor_shape = vga.crtc.cursor_shape.w;
+    redraw_cursor();
+    return;
   }
   if (blink_count)
     return;
@@ -446,19 +480,11 @@ static void update_cursor(void)
   blink_count = config.X_blinkrate;
   blink_state = !blink_state;
 
-  if (vga.crtc.cursor_shape.w != NO_CURSOR) {
-    if (memoffs_to_location(vga.crtc.cursor_location) !=
-	prev_cursor_location) {
-      restore_cell(prev_cursor_location);
-      prev_cursor_location = memoffs_to_location(vga.crtc.cursor_location);
-      prev_cursor_shape = vga.crtc.cursor_shape.w;
-    }
 
-    if (blink_state)
-      draw_cursor();
-    else
-      restore_cell(memoffs_to_location(vga.crtc.cursor_location));
-  }
+  if (blink_state)
+    draw_cursor();
+  else
+    restore_cell(memoffs_to_location(vga.crtc.cursor_location));
 }
 
 /*
@@ -590,7 +616,7 @@ void update_text_screen(void)
   static int yloop = -1;
   int numscan = 0;		/* Number of lines scanned. */
 
-  if (!Text)			// not yet inited
+  if (!num_texts)			// not yet inited
     return;
 
   if (vga.reconfig.mem) {
@@ -665,7 +691,7 @@ void update_text_screen(void)
       unchanged = 0;		/* counter for unchanged chars */
 
       while (1) {
-	*bp++ = XCHAR(sp);
+	*bp++ = CHAR(sp);
 	*oldsp++ = XREAD_WORD(sp);
 	sp++;
 	x++;
@@ -737,14 +763,26 @@ void text_gain_focus()
 static void calculate_selection(void)
 {
   unsigned start, end;
+  int co = vga.scan_len / 2;
+
   if ((sel_end_row < sel_start_row) ||
       ((sel_end_row == sel_start_row) && (sel_end_col < sel_start_col))) {
+    if (sel_start_col == 0) {
+	assert(sel_start_row && sel_end_row < sel_start_row);
+	sel_start_row--;
+	sel_start_col = co;
+    }
     start =
 	location_to_memoffs(sel_end_row * vga.scan_len + sel_end_col * 2);
     end =
 	location_to_memoffs(sel_start_row * vga.scan_len +
 			    (sel_start_col - 1) * 2);
   } else {
+    if (sel_end_col == 0) {
+	assert(sel_end_row && sel_end_row > sel_start_row);
+	sel_end_row--;
+	sel_end_col = co;
+    }
     start =
 	location_to_memoffs(sel_start_row * vga.scan_len +
 			    sel_start_col * 2);
@@ -762,8 +800,6 @@ static void calculate_selection(void)
  */
 static void clear_visible_selection(void)
 {
-  sel_start_col = sel_start_row = sel_end_col = sel_end_row = 0;
-  sel_start = sel_end = NULL;
   visible_selection = FALSE;
 }
 
@@ -848,9 +884,21 @@ void extend_selection(int col, int row)
 void start_extend_selection(int col, int row)
 {
   /* Try to extend selection, visibility is handled by extend_selection */
-  doing_selection = visible_selection = TRUE;
-  extend_selection(col, row);
-
+  if (!visible_selection)
+    return;
+  doing_selection = TRUE;
+  if ((sel_end_col == col) && (sel_end_row == row))
+    return;
+  if (row < sel_start_row || (row == sel_start_row && col < sel_start_col)) {
+    sel_start_col = col;
+    sel_start_row = row;
+  } else {
+    sel_end_col = col;
+    sel_end_row = row;
+  }
+  X_printf("X:extend selection , start %d %d, end %d %d\n",
+	   sel_start_col, sel_start_row, sel_end_col, sel_end_row);
+  calculate_selection();	// make selection visible
 }
 
 static void save_selection(int col1, int row1, int col2, int row2)
@@ -882,7 +930,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
     p = sel_text_ptr = sel_text_dos;
     for (col = line_start_col; (col <= line_end_col); col++) {
       *p++ =
-	  XCHAR(screen_adr +
+	  CHAR(screen_adr +
 		location_to_memoffs(2 * (row * co + col)) / 2);
     }
     sel_text_bytes = line_end_col - line_start_col + 1;

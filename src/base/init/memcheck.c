@@ -23,7 +23,7 @@
 #define MAX_PAGE (MEM_SIZE/GRAN_SIZE)   /* Number of 'pages' in memory */
 
 static unsigned char mem_map[MAX_PAGE];          /* Map of memory contents      */
-static char *mem_names[256];             /* List of id. strings         */
+static const char *mem_names[256];             /* List of id. strings         */
 
 struct system_memory_map {
   Bit32u base, hibase, length, hilength, type;
@@ -38,7 +38,7 @@ static inline void round_addr(dosaddr_t *addr)
   *addr *= GRAN_SIZE;
 }
 
-int memcheck_addtype(unsigned char map_char, char *name)
+int memcheck_addtype(unsigned char map_char, const char *name)
 {
   if (mem_names[map_char] != NULL) {
     if (strcmp(mem_names[map_char], name) != 0) {
@@ -150,6 +150,7 @@ void memcheck_type_init(void)
   once = 1;
   memcheck_addtype('d', "Base DOS memory (first 640K)");
   memcheck_addtype('r', "Dosemu reserved area");
+  memcheck_addtype('b', "BIOS");
   memcheck_addtype('h', "Direct-mapped hardware page frame");
   memcheck_addtype('v', "Video memory");
 }
@@ -158,10 +159,12 @@ void memcheck_init(void)
 {
   memcheck_type_init();
   memcheck_reserve('d', 0x00000, config.mem_size*1024); /* dos memory  */
-  if (config.umb_f0)
-    memcheck_reserve('r', 0xF4000, 0xC000);               /* dosemu bios */
-  else
-    memcheck_reserve('r', 0xF0000, 0x10000);
+  if (!config.umb_f0)
+    memcheck_reserve('r', 0xF0000, DOSEMU_LMHEAP_OFF);
+  memcheck_reserve('r', 0xF0000 + DOSEMU_LMHEAP_OFF, DOSEMU_LMHEAP_SIZE);
+  assert(DOSEMU_LMHEAP_OFF + DOSEMU_LMHEAP_SIZE == bios_data_start);
+  /* dosemu bios */
+  memcheck_reserve('b', 0xF0000 + bios_data_start, DOSEMU_BIOS_SIZE());
 }
 
 int memcheck_isfree(dosaddr_t addr_start, uint32_t size)

@@ -153,7 +153,7 @@ static void operator_advance(op_type* op_pt, Bit32s vib) {
 	
 	// advance waveform time
 	op_pt->tcount += op_pt->tinc;
-	op_pt->tcount += (Bit32s)(op_pt->tinc)*vib/FIXEDPT;
+	op_pt->tcount += (int64_t)(op_pt->tinc)*vib/FIXEDPT;
 
 	op_pt->generator_pos += generator_add;
 }

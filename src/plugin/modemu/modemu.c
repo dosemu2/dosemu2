@@ -111,8 +111,9 @@ sockReadLoop(void)
 
 /* TTY input processing loop */
 
+enum { ESH_NORM, ESH_P1, ESH_P2, ESH_P3 };
 static struct {
-    enum { ESH_NORM, ESH_P1, ESH_P2, ESH_P3 } state;
+    int state;
     struct timeval plus1T; /* the time 1st '+' input */
     int checkSilence; /* Recognized silence,"+++" sequence.
 			 Now prepare for the 2nd silence.. */
@@ -169,8 +170,8 @@ escSeqHandle(int c)
 /*#define LINEBUF_SIZE 256 =>defs.h*/
 
 static struct {
-    char buf[LINEBUF_SIZE];
-    char *ptr;
+    uchar buf[LINEBUF_SIZE];
+    uchar *ptr;
     /*int eol;*/
 } lineBuf;
 
@@ -434,8 +435,6 @@ openPtyMaster(const char *dev)
 }
 #endif
 
-#ifdef HAVE_GRANTPT
-
 #ifdef DOSEMU
 static
 #endif
@@ -443,13 +442,14 @@ int
 getPtyMaster(char **line_return)
 {
     int rc;
-    char name[12], *temp_line, *line = NULL;
+    char name[12], *line = NULL;
     int pty = -1;
-    char *name1 = "pqrstuvwxyzPQRST", *name2 = "0123456789abcdef";
-    char *p1, *p2;
+    const char *name1 = "pqrstuvwxyzPQRST", *name2 = "0123456789abcdef";
+    const char *p1, *p2;
 
 #ifdef HAVE_GRANTPT
-    pty = open("/dev/ptmx", O_RDWR);
+    char *temp_line;
+    pty = open("/dev/ptmx", O_RDWR | O_CLOEXEC);
     if(pty < 0)
         goto bsd;
 
@@ -479,9 +479,9 @@ getPtyMaster(char **line_return)
 
     *line_return = line;
     return pty;
-#endif /* HAVE_GRANTPT */
 
   bsd:
+#endif /* HAVE_GRANTPT */
 
     strcpy(name, "/dev/pty??");
     for(p1 = name1; *p1; p1++) {
@@ -501,8 +501,7 @@ getPtyMaster(char **line_return)
     goto bail;
 
   found:
-    line = malloc(strlen(name));
-    strcpy(line, name);
+    line = strdup(name);
     line[5] = 't';
     rc = chown(line, getuid(), getgid());
     if(rc < 0) {
@@ -527,38 +526,6 @@ getPtyMaster(char **line_return)
         free(line);
     return -1;
 }
-
-#else
-
-#define PTY00 "/dev/ptyXX"
-#define PTY10 "pqrs"
-#define PTY01 "0123456789abcdef"
-
-static int
-getPtyMaster(char *tty10, char *tty01)
-{
-    char *p10;
-    char *p01;
-    static char dev[] = PTY00;
-    int fd;
-
-    for (p10 = PTY10; *p10 != '\0'; p10++) {
-	dev[8] = *p10;
-	for (p01 = PTY01; *p01 != '\0'; p01++) {
-	    dev[9] = *p01;
-	    fd = open(dev, O_RDWR);
-	    if (fd >= 0) {
-		*tty10 = *p10;
-		*tty01 = *p01;
-		return fd;
-	    }
-	}
-    }
-    fprintf(stderr,"Ran out of pty.\n");
-    exit(1);
-    return fd;
-}
-#endif
 
 static int start_online(void)
 {
@@ -714,19 +681,14 @@ void modemu_update(int num)
 
 char *modemu_init(int num)
 {
-    char *ptyslave;
+    char *ptyslave = NULL;
 
     if (initialized) {
 	error("Multiple vmodem ports not supported, sorry!\n");
 	return NULL;
     }
     initialized++;
-#ifdef HAVE_GRANTPT
     tty.rfd = tty.wfd = getPtyMaster(&ptyslave);
-#else
-    char c10, c01;
-    tty.rfd = tty.wfd = getPtyMaster(&c10, &c01);
-#endif
     init_modemu();
     add_to_io_select(tty.rfd, modemu_async_callback, NULL);
 

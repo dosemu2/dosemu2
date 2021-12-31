@@ -42,8 +42,9 @@
  * DANG_END_MODULE
  */
 
-#include "emu.h"
 #include <stdio.h>
+#ifdef HAVE_SCSI_SG_H
+#include "emu.h"
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -188,7 +189,7 @@ struct standard_inquiry_data {
 #endif
 } __attribute__ ((packed));
 
-static char *scsi_device_types[] = {
+static const char *scsi_device_types[] = {
   "Direct-Access",
   "Sequential-Access",
   "Printer",
@@ -204,7 +205,7 @@ static char *scsi_device_types[] = {
 #define NUMKNOWNTYPES ((sizeof(scsi_device_types)/sizeof(char *))-1)
 
 
-static char *scsiprocfile = "/proc/scsi/scsi";
+static const char *scsiprocfile = "/proc/scsi/scsi";
 static struct scsi_device_info *sg_devices = 0;
 static int num_sg_devices = 0;
 static struct scsi_device_info **configured_devices = 0;
@@ -247,7 +248,7 @@ static int query_device_type(char *devname)
   return ret;
 }
 
-static char *strbetween(char *s, char **next, char *pre, char *post)
+static char *strbetween(char *s, char **next, const char *pre, const char *post)
 {
    char *p, *p2 = 0;
    p = strstr(s, pre);
@@ -896,3 +897,16 @@ void aspi_helper(int mode)
 
    return;
 }
+
+#else
+
+char *aspi_add_device(char *name, char *devtype, int target)
+{
+    return NULL;
+}
+
+void aspi_helper(int mode)
+{
+}
+
+#endif

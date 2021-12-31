@@ -358,7 +358,51 @@ the startup screen it runs fine though.
 </listitem>
 </itemizedlist>
 </sect2>
+</sect1>
 
+<sect1>
+<title>Differences in behaviour between Dosemu and Dosemu2</title>
+<para>
+The following differences may be apparent if you have previously been
+using Dosemu.
+</para>
+<sect2>
+<title>
+Filesystems
+</title>
+
+<sect3>
+<title>
+MFS
+</title>
+<para>
+Network device DOS filesystem that provides read write access to the host filesystem.
+</para>
+<itemizedlist>
+<listitem>
+<para>
+Dosemu2 does not redirect a drive to arbitrary host paths on the command
+line of the emufs.sys driver when it is loaded in config.sys. Use the lredir2
+command to accomplish this in autoexec.bat instead.
+</para>
+</listitem>
+<listitem>
+<para>
+Dosemu2 does not support LFN on the SUBST / JOIN drives.
+</para>
+</listitem>
+<listitem>
+<para>
+Dosemu2 now provides enhanced FAT32 disk functions only as a fallback
+to the native DOS in the event that the DOS does not implement them itself.
+A consequence of being a fallback is that if the DOS has a bug in its
+implementation it is not overriden by Dosemu2. Examples of this are
+MS-DOS 7.0 and PC-DOS 7.10.
+</para>
+</listitem>
+</itemizedlist>
+</sect3>
+</sect2>
 </sect1>
 
 </article>

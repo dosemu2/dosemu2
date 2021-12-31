@@ -17,6 +17,8 @@ struct render_system
   struct bitmap_desc (*lock)(void);
   void (*unlock)(void);
   const char *name;
+#define RENDF_DISABLED 1
+  unsigned flags;
 };
 
 int register_render_system(struct render_system *render_system);
@@ -36,6 +38,9 @@ void render_gain_focus(void);
 void render_lose_focus(void);
 int render_init(void);
 void render_mode_lock(void);
+void render_mode_lock_w(void);
 void render_mode_unlock(void);
+void render_enable(struct render_system *render);
+void render_disable(struct render_system *render);
 
 #endif

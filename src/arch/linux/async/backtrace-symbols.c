@@ -140,7 +140,8 @@ static char** translate_addresses_buf(bfd * abfd, bfd_vma *addr, int naddr)
 	int naddr_orig = naddr;
 	char b;
 	int total  = 0;
-	enum { Count, Print } state;
+	enum { Count, Print };
+	int state;
 	char *buf = &b;
 	int len = 0;
 	char **ret_buf = NULL;

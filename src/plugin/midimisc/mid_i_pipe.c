@@ -61,7 +61,7 @@ static void midipipe_io(void *arg)
 
 static int midipipe_init(void *arg)
 {
-    char *name = DOSEMU_MIDI_IN_PATH;
+    const char *name = DOSEMU_MIDI_IN_PATH;
     pipe_fd = RPT_SYSCALL(open(name, O_RDONLY | O_NONBLOCK));
     if (pipe_fd == -1) {
 	S_printf("%s: unable to open %s for reading: %s\n",
@@ -81,11 +81,20 @@ static void midipipe_done(void *arg)
     pipe_fd = -1;
 }
 
-static const struct midi_in_plugin midipipe = {
+static const struct midi_in_plugin midipipe
+#ifdef __cplusplus
+{
+    midipipe_name,
+    midipipe_init,
+    midipipe_done,
+};
+#else
+= {
     .name = midipipe_name,
     .open = midipipe_init,
     .close = midipipe_done,
 };
+#endif
 
 CONSTRUCTOR(static void midipipe_register(void))
 {

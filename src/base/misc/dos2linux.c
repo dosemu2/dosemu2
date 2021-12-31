@@ -108,10 +108,12 @@
 
 
 
-#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/unistd.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/time.h>
@@ -122,11 +124,15 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <assert.h>
+#ifdef __GLIBC__
+#include <alloca.h>
+#endif
+#include <semaphore.h>
 
 #include "emu.h"
 #include "cpu-emu.h"
 #include "int.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "timers.h"
 #include "video.h"
 #include "lowmem.h"
@@ -134,10 +140,13 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "vgaemu.h"
-
+#include "disks.h"
+#include "mapping.h"
 #include "redirect.h"
+#include "translate/translate.h"
 #include "../../dosext/mfs/lfn.h"
 #include "../../dosext/mfs/mfs.h"
+#include "mmio_tracing.h"
 
 #define com_stderr      2
 
@@ -150,7 +159,6 @@
 
 static char *misc_dos_options;
 int com_errno;
-static struct vm86_regs saved_regs;
 
 char *misc_e6_options(void)
 {
@@ -162,108 +170,24 @@ void misc_e6_store_options(char *str)
   size_t olen = 0;
   size_t slen = strlen(str);
   /* any later arguments are collected as DOS options */
-  if (misc_dos_options)
+  if (misc_dos_options) {
     olen = strlen(misc_dos_options);
-  misc_dos_options = realloc(misc_dos_options, olen + slen + 2);
-  misc_dos_options[olen] = ' ';
-  memcpy(misc_dos_options + olen + 1, str, slen + 1);
+    misc_dos_options = realloc(misc_dos_options, olen + slen + 2);
+    misc_dos_options[olen] = ' ';
+    strcpy(misc_dos_options + olen + 1, str);
+  } else {
+    misc_dos_options = malloc(slen + 1);
+    strcpy(misc_dos_options, str);
+  }
   g_printf ("Storing Options : %s\n", misc_dos_options);
 }
 
-static char *make_end_in_backslash (char *s)
-{
-  int len = strlen (s);
-  if (len && s [len - 1] != '/')
-    strcpy (s + len, "/");
-  return s;
-}
-
-
-/*
- * Return the drive from which <linux_path_resolved> is accessible.
- * If there is no such redirection, it returns the next available drive * -1.
- * If there are no available drives (from >= 2 aka "C:"), it returns -26.
- * If an error occurs, it returns -27.
- *
- * In addition, if a drive is available, <linux_path_resolved> is modified
- * to have the drive's uncannonicalized linux root as its prefix.  This is
- * necessary as make_unmake_dos_mangled_path() will not work with a resolved
- * path if the drive was LREDIR'ed by the user to a unresolved path.
- */
-int find_drive (char **plinux_path_resolved)
-{
-  int drive;
-  char *linux_path_resolved = *plinux_path_resolved;
-
-  j_printf ("find_drive (linux_path='%s')\n", linux_path_resolved);
-
-  for (drive = 0; drive < 26; drive++) {
-    char *drive_linux_root = NULL;
-    int drive_ro, ret;
-    char *drive_linux_root_resolved;
-
-    if (GetRedirectionRoot (drive, &drive_linux_root, &drive_ro) == 0/*success*/) {
-      drive_linux_root_resolved = realpath(drive_linux_root, NULL);
-      if (!drive_linux_root_resolved) {
-        com_fprintf (com_stderr,
-                     "ERROR: %s.  Cannot canonicalize drive root path.\n",
-                     strerror (errno));
-        return -27;
-      }
-
-      /* make sure drive root ends in / */
-      make_end_in_backslash (drive_linux_root_resolved);
-
-      j_printf ("CMP: drive=%i drive_linux_root='%s' (resolved='%s')\n",
-                 drive, drive_linux_root, drive_linux_root_resolved);
-
-      /* TODO: handle case insensitive filesystems (e.g. VFAT)
-       *     - can we just strlwr() both paths before comparing them? */
-      if (strstr (linux_path_resolved, drive_linux_root_resolved) == linux_path_resolved) {
-        j_printf ("\tFound drive!\n");
-        ret = asprintf (plinux_path_resolved, "%s%s",
-                  drive_linux_root/*unresolved*/,
-                  linux_path_resolved + strlen (drive_linux_root_resolved));
-        assert(ret != -1);
-
-        j_printf ("\t\tModified root; linux path='%s'\n", *plinux_path_resolved);
-	free (linux_path_resolved);
-
-	free (drive_linux_root_resolved);
-        free (drive_linux_root);
-        return drive;
-      }
-
-      free (drive_linux_root_resolved);
-      free (drive_linux_root);
-    }
-  }
-
-  j_printf("find_drive() not found\n");
-  return -26;
-}
-
-int find_free_drive(void)
-{
-  int drive;
-
-  for (drive = 2; drive < 26; drive++) {
-    char *drive_linux_root;
-    int drive_ro, ret;
-
-    ret = GetRedirectionRoot(drive, &drive_linux_root, &drive_ro);
-    if (ret != 0)
-      return drive;
-    else
-      free(drive_linux_root);
-  }
-
-  return -1;
-}
 
 static int pty_fd;
 static int pty_done;
 static int cbrk;
+static sem_t *pty_sem;
+static char sem_name[256];
 
 static void pty_thr(void)
 {
@@ -271,6 +195,11 @@ static void pty_thr(void)
     fd_set rfds;
     struct timeval tv;
     int retval, rd, wr;
+    struct char_set_state kstate;
+    struct char_set_state dstate;
+
+    init_charset_state(&kstate, trconfig.keyb_charset);
+    init_charset_state(&dstate, trconfig.dos_charset);
     while (1) {
 	rd = wr = 0;
 	tv.tv_sec = 0;
@@ -287,7 +216,7 @@ static void pty_thr(void)
 	    break;
 	default:
 	    /* one of the pipes has data, or EOF */
-	    rd = RPT_SYSCALL(read(pty_fd, buf, sizeof(buf)));
+	    rd = RPT_SYSCALL(read(pty_fd, buf, sizeof(buf) - 1));
 	    switch (rd) {
 	    case -1:
 		g_printf("run_unix_command(): read error %s\n", strerror(errno));
@@ -295,9 +224,27 @@ static void pty_thr(void)
 	    case 0:
 		pty_done++;
 		break;
-	    default:
-		com_doswritecon(buf, rd);
+	    default: {
+		int rc;
+		const char *p = buf;
+		buf[rd] = 0;
+		while (*p) {
+		    #define MAX_LEN 256
+		    t_unicode uni[MAX_LEN];
+		    const t_unicode *u = uni;
+		    char buf2[MAX_LEN * MB_LEN_MAX];
+		    rc = charset_to_unicode_string(&kstate, uni, &p, strlen(p),
+			    MAX_LEN);
+		    if (rc <= 0)
+			break;
+		    rc = unicode_to_charset_string(&dstate, buf2, &u, rc,
+			    sizeof(buf2));
+		    if (rc <= 0)
+			break;
+		    com_doswritecon(buf2, rc);
+		}
 		break;
+	    }
 	    }
 	    break;
 	}
@@ -311,6 +258,8 @@ static void pty_thr(void)
 	if (!rd && !wr)
 	    coopth_wait();
     }
+    cleanup_charset_state(&kstate);
+    cleanup_charset_state(&dstate);
 }
 
 int dos2tty_init(void)
@@ -322,12 +271,21 @@ int dos2tty_init(void)
         return -1;
     }
     unlockpt(pty_fd);
+    snprintf(sem_name, sizeof(sem_name), "/dosemu_pty_sem_%i", getpid());
+    pty_sem = sem_open(sem_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
+    if (!pty_sem)
+    {
+        error("sem_open failed %s\n", strerror(errno));
+        return -1;
+    }
     return 0;
 }
 
 void dos2tty_done(void)
 {
     close(pty_fd);
+    sem_close(pty_sem);
+    sem_unlink(sem_name);
 }
 
 static int dos2tty_open(void)
@@ -338,11 +296,12 @@ static int dos2tty_open(void)
 	error("grantpt failed: %s\n", strerror(errno));
 	return err;
     }
-    pts_fd = open(ptsname(pty_fd), O_RDWR);
+    pts_fd = open(ptsname(pty_fd), O_RDWR | O_CLOEXEC);
     if (pts_fd == -1) {
 	error("pts open failed: %s\n", strerror(errno));
 	return -1;
     }
+    sem_post(pty_sem);
     return pts_fd;
 }
 
@@ -358,6 +317,7 @@ static void dos2tty_start(void)
     pty_done = 0;
     /* must run with interrupts enabled to read keypresses */
     set_IF();
+    sem_wait(pty_sem);
     pty_thr();
 }
 
@@ -367,31 +327,16 @@ static void dos2tty_stop(void)
     com_setcbreak(cbrk);
 }
 
-int run_unix_command(char *buffer)
+static int do_run_cmd(const char *path, int argc, char * const *argv,
+        int use_stdin, int close_from)
 {
-    /* unix command is in a null terminate buffer pointed to by ES:DX. */
-
-    /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
-
-    int pts_fd;
-    int pid, status, retval, wt;
     sigset_t set, oset;
+    int pid, status, retval, wt;
+    int pts_fd;
     struct timespec to = { 0, 0 };
 
-    g_printf("UNIX: run '%s'\n",buffer);
-#if 0
-    dos2tty_init();
-#endif
-    /* open pts in parent to avoid reading it before child opens */
-    pts_fd = dos2tty_open();
-    if (pts_fd == -1) {
-	error("run_unix_command(): open pts failed %s\n", strerror(errno));
-	return -1;
-    }
-    sigemptyset(&set);
-    sigaddset(&set, SIGIO);
-    sigaddset(&set, SIGALRM);
-    sigprocmask(SIG_BLOCK, &set, &oset);
+    signal_block_async_nosig(&oset);
+    sigprocmask(SIG_SETMASK, NULL, &set);
     /* fork child */
     switch ((pid = fork())) {
     case -1: /* failed */
@@ -401,13 +346,29 @@ int run_unix_command(char *buffer)
     case 0: /* child */
 	priv_drop();
 	setsid();	// will have ctty
+	/* open pts _after_ setsid, or it won't became a ctty */
+	pts_fd = dos2tty_open();
+	if (pts_fd == -1) {
+	    error("run_unix_command(): open pts failed %s\n", strerror(errno));
+	    _exit(EXIT_FAILURE);
+	}
 	close(0);
 	close(1);
 	close(2);
-	dup(pts_fd);
+	if (use_stdin)
+	    dup(pts_fd);
+	else
+	    open("/dev/null", O_RDONLY);
 	dup(pts_fd);
 	dup(pts_fd);
 	close(pts_fd);
+	close(pty_fd);
+#ifdef HAVE_LIBBSD
+	if (close_from != -1)
+	    closefrom(close_from);
+#else
+#warning no closefrom()
+#endif
 	/* close signals, then unblock */
 	signal_done();
 	/* flush pending signals */
@@ -416,13 +377,11 @@ int run_unix_command(char *buffer)
 	} while (wt != -1);
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 
-	setenv("LC_ALL", "C", 1);	// disable i18n
-	retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
-	error("exec /bin/sh failed\n");
+	retval = execve(path, argv, dosemu_envp);	/* execute command */
+	error("exec failed: %s\n", strerror(errno));
 	_exit(retval);
 	break;
     }
-    close(pts_fd);
     sigprocmask(SIG_SETMASK, &oset, NULL);
 
     assert(!isset_IF());
@@ -432,13 +391,64 @@ int run_unix_command(char *buffer)
     if (retval == -1)
 	error("waitpid: %s\n", strerror(errno));
     dos2tty_stop();
-#if 0
-    dos2tty_done();
-#endif
     /* print child exitcode. not perfect */
     g_printf("run_unix_command() (parent): child exit code: %i\n",
             WEXITSTATUS(status));
     return WEXITSTATUS(status);
+}
+
+int run_unix_command(int argc, char **argv)
+{
+    const char *path;
+    char *p;
+
+    path = findprog(argv[0], getenv("PATH"));
+    if (!path) {
+	com_printf("unix: %s not found\n", argv[0]);
+	return -1;
+    }
+    /* check if path allowed */
+    p = config.unix_exec ? strstr(config.unix_exec, path) : NULL;
+    if (p) {
+	/* make sure the found string is entire word */
+	int l = strlen(path);
+	if ((p > config.unix_exec && p[-1] != ' ') ||
+		(p[l] != '\0' && p[l] != ' '))
+	    p = NULL;
+    }
+    if (!p) {
+	com_printf("unix: execution of %s is not allowed.\n"
+		"Add %s to $_unix_exec list.\n",
+		argv[0], path);
+	error("execution of %s is not allowed.\n"
+		"Add %s to $_unix_exec list.\n",
+		argv[0], path);
+	return -1;
+    }
+
+    g_printf("UNIX: run %s, %i args\n", path, argc);
+    return do_run_cmd(path, argc, argv, 1, -1);
+}
+
+/* no PATH searching, no arguments allowed, no stdin, no inherited fds */
+int run_unix_secure(char *prg)
+{
+    char *path;
+    char *argv[2];
+    int ret;
+
+    path = assemble_path(DOSEMULIBEXEC_DEFAULT, prg);
+    if (!exists_file(path)) {
+	com_printf("unix: %s not found\n", path);
+	free(path);
+	return -1;
+    }
+    argv[0] = prg;
+    argv[1] = NULL;	/* no args allowed */
+    g_printf("UNIX: run_secure %s '%s'\n", path, prg);
+    ret = do_run_cmd(path, 1, argv, 0, STDERR_FILENO + 1);
+    free(path);
+    return ret;
 }
 
 /*
@@ -557,6 +567,225 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
   return err;
 }
 
+/* set of 4096 addresses rounded down to page boundaries where
+   bits 12..23 equal the index: if the page is in this set we quickly
+   know that regular reads and writes are valid.
+   Initialize with invalid entries */
+static dosaddr_t unprotected_page_cache[PAGE_SIZE] = {0xffffffff};
+
+void invalidate_unprotected_page_cache(dosaddr_t addr, int len)
+{
+  unsigned int page;
+  for (page = addr >> PAGE_SHIFT;
+       page <= (addr + len - 1) >> PAGE_SHIFT; page++)
+    unprotected_page_cache[page & (PAGE_SIZE-1)] = 0xffffffff;
+}
+
+static inline int mem_likely_protected(dosaddr_t addr, int len)
+{
+  /* hash = low 12 bits of page number, add len-1 to fail on boundaries.
+     This gives no clashes if all addresses are under 16MB and >99.99% hit
+     rate when addresses over 16MB are present while still using a small
+     cache table.
+     See http://www.emulators.com/docs/nx08_stlb.htm for background on
+     this technique.
+   */
+  int hash = (addr >> PAGE_SHIFT) & (PAGE_SIZE-1);
+  return unprotected_page_cache[hash] != ((addr + len - 1) & PAGE_MASK);
+}
+
+static inline void set_unprotected_page(dosaddr_t addr)
+{
+  unprotected_page_cache[(addr >> PAGE_SHIFT) & (PAGE_SIZE-1)] = addr & PAGE_MASK;
+}
+
+void default_sim_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
+{
+  if (err & 2)
+    dosemu_error("Invalid write to addr %#x, ptr %p, len %d\n",
+		 addr, MEM_BASE32(addr), len);
+  else
+    dosemu_error("Invalid read from addr %#x, ptr %p\n",
+		 addr, MEM_BASE32(addr));
+  leavedos_main(1);
+}
+
+static void check_read_pagefault(dosaddr_t addr,
+				 sim_pagefault_handler_t handler)
+{
+  if (addr >= LOWMEM_SIZE + HMASIZE) {
+    if (!dpmi_read_access(addr))
+      /* uncommitted page is never "present" */
+      handler(addr, 4, 0, 0);
+    /* only add writable pages to the cache! */
+    if (!dpmi_write_access(addr))
+      return;
+  }
+  set_unprotected_page(addr);
+}
+
+uint8_t do_read_byte(dosaddr_t addr, sim_pagefault_handler_t handler)
+{
+  if (mem_likely_protected(addr, 1)) {
+    /* use vga_write_access instead of vga_read_access here to avoid adding
+       read-only addresses to the cache */
+    if (vga_write_access(addr))
+      return vga_read(addr);
+    if (config.mmio_tracing && mmio_check(addr))
+      return mmio_trace_byte(addr, READ_BYTE(addr), MMIO_READ);
+    check_read_pagefault(addr, handler);
+  }
+  return READ_BYTE(addr);
+}
+
+uint16_t do_read_word(dosaddr_t addr, sim_pagefault_handler_t handler)
+{
+  if (mem_likely_protected(addr, 2)) {
+    if (((addr+1) & (PAGE_SIZE-1)) == 0)
+      /* split if spanning a page boundary */
+      return do_read_byte(addr, handler) |
+	((uint16_t)do_read_byte(addr+1, handler) << 8);
+    if (vga_write_access(addr))
+      return vga_read_word(addr);
+    if (config.mmio_tracing && mmio_check(addr))
+      return mmio_trace_word(addr, READ_WORD(addr), MMIO_READ);
+    check_read_pagefault(addr, handler);
+  }
+  return READ_WORD(addr);
+}
+
+uint32_t do_read_dword(dosaddr_t addr, sim_pagefault_handler_t handler)
+{
+  if (mem_likely_protected(addr, 4)) {
+    if (((addr+3) & (PAGE_SIZE-1)) < 3)
+      return do_read_word(addr, handler) |
+	((uint32_t)do_read_word(addr+2, handler) << 16);
+    if (vga_write_access(addr))
+      return vga_read_dword(addr);
+    if (config.mmio_tracing && mmio_check(addr))
+      return mmio_trace_dword(addr, READ_DWORD(addr), MMIO_READ);
+    check_read_pagefault(addr, handler);
+  }
+  return READ_DWORD(addr);
+}
+
+uint64_t do_read_qword(dosaddr_t addr, sim_pagefault_handler_t handler)
+{
+  return do_read_dword(addr, handler) |
+    ((uint64_t)do_read_dword(addr+4, handler) << 32);
+}
+
+static int check_write_pagefault(dosaddr_t addr, uint32_t op, int len,
+				 sim_pagefault_handler_t handler)
+{
+  if (addr >= LOWMEM_SIZE + HMASIZE && !dpmi_write_access(addr)) {
+    handler(addr, 6 + dpmi_read_access(addr), op, len);
+    return 1;
+  }
+  set_unprotected_page(addr);
+  return 0;
+}
+
+void do_write_byte(dosaddr_t addr, uint8_t byte, sim_pagefault_handler_t handler)
+{
+  if (mem_likely_protected(addr, 1)) {
+    if (vga_write_access(addr)) {
+
+      vga_write(addr, byte);
+      return;
+    }
+    if (config.mmio_tracing && mmio_check(addr))
+      mmio_trace_byte(addr, byte, MMIO_WRITE);
+    if (check_write_pagefault(addr, byte, 1, handler))
+      return;
+  }
+  WRITE_BYTE(addr, byte);
+}
+
+void do_write_word(dosaddr_t addr, uint16_t word, sim_pagefault_handler_t handler)
+{
+  if (mem_likely_protected(addr, 2)) {
+    if (((addr+1) & (PAGE_SIZE-1)) == 0) {
+      do_write_byte(addr, word & 0xff, handler);
+      do_write_byte(addr+1, word >> 8, handler);
+    }
+    if (vga_write_access(addr)) {
+      vga_write_word(addr, word);
+      return;
+    }
+    if (config.mmio_tracing && mmio_check(addr))
+      mmio_trace_word(addr, word, MMIO_WRITE);
+    if (check_write_pagefault(addr, word, 2, handler))
+      return;
+  }
+  WRITE_WORD(addr, word);
+}
+
+void do_write_dword(dosaddr_t addr, uint32_t dword, sim_pagefault_handler_t handler)
+{
+  if (mem_likely_protected(addr, 4)) {
+    if (((addr+3) & (PAGE_SIZE-1)) < 3) {
+      do_write_word(addr, dword & 0xffff, handler);
+      do_write_word(addr+2, dword >> 16, handler);
+    }
+    if (vga_write_access(addr)) {
+      vga_write_dword(addr, dword);
+      return;
+    }
+    if (config.mmio_tracing && mmio_check(addr))
+      mmio_trace_dword(addr, dword, MMIO_WRITE);
+    if (check_write_pagefault(addr, dword, 4, handler))
+      return;
+  }
+  WRITE_DWORD(addr, dword);
+}
+
+void do_write_qword(dosaddr_t addr, uint64_t qword, sim_pagefault_handler_t handler)
+{
+  do_write_dword(addr, qword & 0xffffffff, handler);
+  do_write_dword(addr+4, qword >> 32, handler);
+}
+
+uint8_t read_byte(dosaddr_t addr)
+{
+  return do_read_byte(addr, default_sim_pagefault_handler);
+}
+
+uint16_t read_word(dosaddr_t addr)
+{
+  return do_read_word(addr, default_sim_pagefault_handler);
+}
+
+uint32_t read_dword(dosaddr_t addr)
+{
+  return do_read_dword(addr, default_sim_pagefault_handler);
+}
+
+uint64_t read_qword(dosaddr_t addr)
+{
+  return do_read_qword(addr, default_sim_pagefault_handler);
+}
+
+void write_byte(dosaddr_t addr, uint8_t byte)
+{
+  do_write_byte(addr, byte, default_sim_pagefault_handler);
+}
+
+void write_word(dosaddr_t addr, uint16_t word)
+{
+  do_write_word(addr, word, default_sim_pagefault_handler);
+}
+
+void write_dword(dosaddr_t addr, uint32_t dword)
+{
+  do_write_dword(addr, dword, default_sim_pagefault_handler);
+}
+
+void write_qword(dosaddr_t addr, uint64_t qword)
+{
+  do_write_qword(addr, qword, default_sim_pagefault_handler);
+}
+
 void memcpy_2unix(void *dest, dosaddr_t src, size_t n)
 {
   if (vga.inst_emu && src >= 0xa0000 && src < 0xc0000)
@@ -577,13 +806,32 @@ void memcpy_2dos(dosaddr_t dest, const void *src, size_t n)
 {
   if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
     memcpy_to_vga(dest, src, n);
-  else while (n) {
-    dosaddr_t bound = (dest & PAGE_MASK) + PAGE_SIZE;
-    size_t to_copy = min(n, bound - dest);
-    MEMCPY_2DOS(dest, src, to_copy);
-    src += to_copy;
-    dest += to_copy;
-    n -= to_copy;
+  else {
+    e_invalidate(dest, n);
+    while (n) {
+      dosaddr_t bound = (dest & PAGE_MASK) + PAGE_SIZE;
+      size_t to_copy = min(n, bound - dest);
+      MEMCPY_2DOS(dest, src, to_copy);
+      src += to_copy;
+      dest += to_copy;
+      n -= to_copy;
+    }
+  }
+}
+
+void memset_dos(dosaddr_t dest, char ch, size_t n)
+{
+  if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
+    vga_memset(dest, ch, n);
+  else {
+    e_invalidate(dest, n);
+    while (n) {
+      dosaddr_t bound = (dest & PAGE_MASK) + PAGE_SIZE;
+      size_t to_copy = min(n, bound - dest);
+      MEMSET_DOS(dest, ch, to_copy);
+      dest += to_copy;
+      n -= to_copy;
+    }
   }
 }
 
@@ -596,15 +844,18 @@ void memmove_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n)
     memcpy_dos_from_vga(dest, src, n);
   else if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
     memcpy_dos_to_vga(dest, src, n);
-  else while (n) {
-    dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
-    dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
-    size_t to_copy1 = min(bound1 - src, bound2 - dest);
-    size_t to_copy = min(n, to_copy1);
-    MEMMOVE_DOS2DOS(dest, src, to_copy);
-    src += to_copy;
-    dest += to_copy;
-    n -= to_copy;
+  else {
+    e_invalidate(dest, n);
+    while (n) {
+      dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
+      dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
+      size_t to_copy1 = min(bound1 - src, bound2 - dest);
+      size_t to_copy = min(n, to_copy1);
+      MEMMOVE_DOS2DOS(dest, src, to_copy);
+      src += to_copy;
+      dest += to_copy;
+      n -= to_copy;
+    }
   }
 }
 
@@ -615,15 +866,18 @@ void memcpy_dos2dos(unsigned dest, unsigned src, size_t n)
     memcpy_dos_from_vga(dest, src, n);
   else if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
     memcpy_dos_to_vga(dest, src, n);
-  else while (n) {
-    dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
-    dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
-    size_t to_copy1 = min(bound1 - src, bound2 - dest);
-    size_t to_copy = min(n, to_copy1);
-    MEMCPY_DOS2DOS(dest, src, to_copy);
-    src += to_copy;
-    dest += to_copy;
-    n -= to_copy;
+  else {
+    e_invalidate(dest, n);
+    while (n) {
+      dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
+      dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
+      size_t to_copy1 = min(bound1 - src, bound2 - dest);
+      size_t to_copy = min(n, to_copy1);
+      MEMCPY_DOS2DOS(dest, src, to_copy);
+      src += to_copy;
+      dest += to_copy;
+      n -= to_copy;
+    }
   }
 }
 
@@ -658,7 +912,11 @@ int dos_write(int fd, unsigned data, int cnt)
 {
   int ret;
   const unsigned char *d;
-  unsigned char buf[cnt];
+  unsigned char *buf;
+
+  if (!cnt)
+    return 0;
+  buf = alloca(cnt);
   if (vga.inst_emu && data >= 0xa0000 && data < 0xc0000) {
     memcpy_from_vga(buf, data, cnt);
     d = buf;
@@ -699,7 +957,7 @@ int com_vsprintf(char *str, const char *format, va_list ap)
 	return com_vsnprintf(str, BUF_SIZE, format, ap);
 }
 
-int com_sprintf(char *str, char *format, ...)
+int com_sprintf(char *str, const char *format, ...)
 {
 	va_list ap;
 	int ret;
@@ -710,7 +968,7 @@ int com_sprintf(char *str, char *format, ...)
 	return ret;
 }
 
-int com_vfprintf(int dosfilefd, char *format, va_list ap)
+int com_vfprintf(int dosfilefd, const char *format, va_list ap)
 {
 	int size;
 	char scratch2[BUF_SIZE];
@@ -720,7 +978,7 @@ int com_vfprintf(int dosfilefd, char *format, va_list ap)
 	return com_doswrite(dosfilefd, scratch2, size);
 }
 
-int com_vprintf(char *format, va_list ap)
+int com_vprintf(const char *format, va_list ap)
 {
 	int size;
 	char scratch2[BUF_SIZE];
@@ -730,7 +988,7 @@ int com_vprintf(char *format, va_list ap)
 	return com_dosprint(scratch2);
 }
 
-int com_fprintf(int dosfilefd, char *format, ...)
+int com_fprintf(int dosfilefd, const char *format, ...)
 {
 	va_list ap;
 	int ret;
@@ -741,7 +999,7 @@ int com_fprintf(int dosfilefd, char *format, ...)
 	return ret;
 }
 
-int com_printf(char *format, ...)
+int com_printf(const char *format, ...)
 {
 	va_list ap;
 	int ret;
@@ -752,7 +1010,7 @@ int com_printf(char *format, ...)
 	return ret;
 }
 
-int com_puts(char *s)
+int com_puts(const char *s)
 {
 	return com_printf("%s", s);
 }
@@ -765,30 +1023,20 @@ char *skip_white_and_delim(char *s, int delim)
 	return s;
 }
 
-void pre_msdos(void)
-{
-	saved_regs = REGS;
-}
-
 void call_msdos(void)
 {
 	do_int_call_back(0x21);
-}
-
-void post_msdos(void)
-{
-	REGS = saved_regs;
 }
 
 int com_doswrite(int dosfilefd, char *buf32, u_short size)
 {
 	char *s;
 	u_short int23_seg, int23_off;
-	int ret;
+	int ret = -1;
 
 	if (!size) return 0;
 	com_errno = 8;
-	s = lowmem_heap_alloc(size);
+	s = lowmem_alloc(size);
 	if (!s) return -1;
 	memcpy(s, buf32, size);
 	pre_msdos();
@@ -804,13 +1052,11 @@ int com_doswrite(int dosfilefd, char *buf32, u_short size)
 	SETIVEC(0x23, CBACK_SEG, CBACK_OFF);
 	call_msdos();	/* call MSDOS */
 	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
-	lowmem_heap_free(s);
-	if (LWORD(eflags) & CF) {
+	lowmem_free(s);
+	if (LWORD(eflags) & CF)
 		com_errno = LWORD(eax);
-		post_msdos();
-		return -1;
-	}
-	ret = LWORD(eax);
+	else
+		ret = LWORD(eax);
 	post_msdos();
 	return ret;
 }
@@ -819,11 +1065,11 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 {
 	char *s;
 	u_short int23_seg, int23_off;
-	int ret;
+	int ret = -1;
 
 	if (!size) return 0;
 	com_errno = 8;
-	s = lowmem_heap_alloc(size);
+	s = lowmem_alloc(size);
 	if (!s) return -1;
 	pre_msdos();
 	LWORD(ecx) = size;
@@ -841,14 +1087,12 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
 	if (LWORD(eflags) & CF) {
 		com_errno = LWORD(eax);
-		post_msdos();
-		lowmem_heap_free(s);
-		return -1;
+	} else {
+		memcpy(buf32, s, min(size, LWORD(eax)));
+		ret = LWORD(eax);
 	}
-	memcpy(buf32, s, min(size, LWORD(eax)));
-	ret = LWORD(eax);
 	post_msdos();
-	lowmem_heap_free(s);
+	lowmem_free(s);
 	return ret;
 }
 
@@ -871,7 +1115,7 @@ int com_dosreadcon(char *buf32, u_short size)
 	return rd;
 }
 
-int com_doswritecon(char *buf32, u_short size)
+int com_doswritecon(const char *buf32, u_short size)
 {
 	u_short rd;
 
@@ -887,14 +1131,14 @@ int com_doswritecon(char *buf32, u_short size)
 	return rd;
 }
 
-int com_dosprint(char *buf32)
+int com_dosprint(const char *buf32)
 {
 	char *s;
 	u_short int23_seg, int23_off, size;
 	size = strlen(buf32);
 	if (!size) return 0;
 	com_errno = 8;
-	s = lowmem_heap_alloc(size);
+	s = lowmem_alloc(size);
 	if (!s) return -1;
 	memcpy(s, buf32, size);
 	pre_msdos();
@@ -911,8 +1155,58 @@ int com_dosprint(char *buf32)
 	call_msdos();	/* call MSDOS */
 	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
 	post_msdos();
-	lowmem_heap_free(s);
+	lowmem_free(s);
 	return size;
+}
+
+int com_dosopen(const char *name, int flags)
+{
+	int ret = -1;
+	int len = strlen(name) + 1;
+	char *s = lowmem_alloc(len);
+	strcpy(s, name);
+	pre_msdos();
+	HI(ax) = 0x3d;
+	switch (flags & O_ACCMODE) {
+	case O_RDONLY:
+	default:
+		LO(ax) = 0;
+		break;
+	case O_WRONLY:
+		LO(ax) = 1;
+		break;
+	case O_RDWR:
+		LO(ax) = 2;
+		break;
+	}
+	if (flags & O_CLOEXEC)
+		LO(ax) |= 1 << 7;
+	SREG(ds) = DOSEMU_LMHEAP_SEG;
+	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
+	LWORD(ecx) = 0;
+	call_msdos();
+	if (LWORD(eflags) & CF)
+		com_errno = LWORD(eax);
+	else
+		ret = LWORD(eax);
+	post_msdos();
+	lowmem_free(s);
+	return ret;
+}
+
+int com_dosclose(int fd)
+{
+	int ret = -1;
+	pre_msdos();
+	HI(ax) = 0x3e;
+	LWORD(ebx) = fd;
+	call_msdos();
+	if (LWORD(eflags) & CF)
+		com_errno = LWORD(eax);
+	else
+		ret = 0;
+	post_msdos();
+	return ret;
 }
 
 int com_bioscheckkey(void)

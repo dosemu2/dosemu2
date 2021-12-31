@@ -4,10 +4,6 @@
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
  */
 
-#ifdef __linux__
-#define _LARGEFILE64_SOURCE 1
-#endif
-
 #include "emu.h"
 #include <sys/types.h>
 #include <unistd.h>
@@ -38,9 +34,7 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "redirect.h"
-#ifdef X86_EMULATOR
 #include "cpu-emu.h"
-#endif
 
 static int disks_initiated = 0;
 struct disk disktab[MAX_FDISKS];
@@ -49,7 +43,9 @@ struct disk hdisktab[MAX_HDISKS];
 #define FDISKS config.fdisks
 #define HDISKS config.hdisks
 
+#ifdef __linux__
 static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr);
+#endif
 
 #if 1
 #  define FLUSHDISK(dp) flush_disk(dp)
@@ -100,7 +96,7 @@ static struct disk_fptr disk_fptrs[NUM_DTYPES] =
   {dir_auto, dir_setup}
 };
 
-char *disk_t_str(disk_t t) {
+const char *disk_t_str(disk_t t) {
   static char tmp[32];
 
   switch (t) {
@@ -122,7 +118,7 @@ char *disk_t_str(disk_t t) {
   }
 }
 
-char *floppy_t_str(floppy_t t) {
+const char *floppy_t_str(floppy_t t) {
   static char tmp[32];
 
   switch (t) {
@@ -168,7 +164,7 @@ static void dump_disk_blks(unsigned tb, int count, int ssiz)
   }
 }
 
-int read_mbr(struct disk *dp, unsigned buffer)
+int read_mbr(const struct disk *dp, unsigned buffer)
 {
   /* copy the MBR... */
   e_invalidate(buffer, dp->part_info.mbr_size);
@@ -200,9 +196,10 @@ int read_mbr(struct disk *dp, unsigned buffer)
  * combination.
  */
 
-static off64_t calc_pos(struct disk *dp, int64_t sector)
+static off_t calc_pos(const struct disk *dp, int64_t sector)
 {
-    off64_t pos;
+    off_t pos;
+
     if (dp->type == PARTITION || dp->type == DIR_TYPE)
 	sector -= dp->start;
     pos = sector * SECTOR_SIZE;
@@ -212,10 +209,10 @@ static off64_t calc_pos(struct disk *dp, int64_t sector)
 }
 
 int
-read_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
+read_sectors(const struct disk *dp, unsigned buffer, uint64_t sector,
 	     long count)
 {
-  off64_t  pos;
+  off_t  pos;
   long already = 0;
   long tmpread;
 
@@ -294,7 +291,7 @@ read_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
     tmpread *= SECTOR_SIZE;
   }
   else {
-    if(pos != lseek64(dp->fdesc, pos, SEEK_SET)) {
+    if(pos != lseek(dp->fdesc, pos, SEEK_SET)) {
       error("Sector not found in read_sector, error = %s!\n", strerror(errno));
       return -DERR_NOTFOUND;
     }
@@ -315,7 +312,7 @@ int
 write_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
 	     long count)
 {
-  off64_t  pos;
+  off_t pos;
   long tmpwrite, already = 0;
 
   if ( (sector + count - 1) >= dp->num_secs) {
@@ -379,7 +376,7 @@ write_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
     tmpwrite *= SECTOR_SIZE;
   }
   else {
-    if(pos != lseek64(dp->fdesc, pos, SEEK_SET)) {
+    if(pos != lseek(dp->fdesc, pos, SEEK_SET)) {
       error("Sector not found in write_sector!\n");
       return -DERR_NOTFOUND;
     }
@@ -486,14 +483,7 @@ static void image_auto(struct disk *dp)
 
   if (dp->fdesc == -1) {
     warn("WARNING: image filedesc not open\n");
-    dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR);
-    /* The next line should only be done in case the open succeeds,
-       but that should be the normal case, and allows somewhat better
-       code for the if (how sick can you get, since the open is going to
-       take a lot more time anyways :-) )
-    */
-    dp->rdonly = dp->wantrdonly;
-    dp->fdesc = open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR);
+    dp->fdesc = open(dp->dev_name, (dp->rdonly ? O_RDONLY : O_RDWR) | O_CLOEXEC);
     if (dp->fdesc == -1) {
       /* We should check whether errno is EROFS, but if not the next open will
          fail again and the following lseek will throw us out of dos. So we win
@@ -501,9 +491,15 @@ static void image_auto(struct disk *dp)
          this does work (should be impossible), we can at least try to
          continue. (again how sick can you get :-) )
        */
-      dp->fdesc = open(dp->dev_name, O_RDONLY);
+      dp->fdesc = open(dp->dev_name, O_RDONLY | O_CLOEXEC);
       dp->rdonly = 1;
     }
+  }
+
+  if (dp->fdesc == -1) {
+    warn("WARNING: image filedesc still not open\n");
+    leavedos(19);
+    return;
   }
 
   if (dp->floppy) {
@@ -529,12 +525,12 @@ static void image_auto(struct disk *dp)
 
   // Hard disk image
 
-  lseek64(dp->fdesc, 0, SEEK_SET);
+  lseek(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, &header, sizeof(header))) != sizeof(header)) {
     error("could not read full header in image_init\n");
     leavedos(19);
   }
-  lseek64(dp->fdesc, 0, SEEK_SET);
+  lseek(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, sect, sizeof(sect))) != sizeof(sect)) {
     error("could not read full header in image_init\n");
     leavedos(19);
@@ -549,7 +545,7 @@ static void image_auto(struct disk *dp)
     dp->header = header.header_end;
     dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   } else if (sect[510] == 0x55 && sect[511] == 0xaa) {
-    filesize = lseek64(dp->fdesc, 0, SEEK_END);
+    filesize = lseek(dp->fdesc, 0, SEEK_END);
     if (filesize & (SECTOR_SIZE - 1) ) {
       error("hdimage size is not sector-aligned (%"PRIu64" bytes), truncated!\n",
 	    filesize & (SECTOR_SIZE - 1) );
@@ -762,12 +758,14 @@ static struct on_disk_partition build_pi(struct disk *dp)
   return p;
 }
 
+#ifdef __linux__
 static void update_disk_geometry(struct disk *dp, struct on_disk_partition *p)
 {
   dp->heads = p->end_head + 1;
   dp->sectors = p->end_sector;
   dp->tracks = PTBL_HL_GET(p, end_track) + 1;
 }
+#endif
 
 static void dir_setup(struct disk *dp)
 {
@@ -826,6 +824,7 @@ static void dir_setup(struct disk *dp)
 static void image_setup(struct disk *dp)
 {
   ssize_t rd;
+  int ret;
 
   if (dp->floppy) {
     return;
@@ -834,10 +833,16 @@ static void image_setup(struct disk *dp)
   dp->part_info.number = 1;
   dp->part_info.mbr_size = SECTOR_SIZE;
   dp->part_info.mbr = malloc(dp->part_info.mbr_size);
-  lseek(dp->fdesc, dp->header, SEEK_SET);
+
+  ret = lseek(dp->fdesc, dp->header, SEEK_SET);
+  if (ret == -1) {
+    error("image_setup: Can't seek '%s'\n", dp->dev_name);
+    leavedos(35);
+  }
+
   rd = read(dp->fdesc, dp->part_info.mbr, dp->part_info.mbr_size);
   if (rd != dp->part_info.mbr_size) {
-    error("Can't read MBR from %s\n", dp->dev_name);
+    error("image_setup: Can't read MBR from '%s'\n", dp->dev_name);
     leavedos(35);
   }
 }
@@ -858,6 +863,7 @@ static void partition_auto(struct disk *dp)
 
 static void partition_setup(struct disk *dp)
 {
+#ifdef __linux__
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
   char *hd_name;
@@ -869,14 +875,15 @@ static void partition_setup(struct disk *dp)
 
   d_printf("PARTITION SETUP for %s\n", dp->dev_name);
 
-#ifdef __linux__
   hd_name = strdup(dp->dev_name);
   hd_name[8] = '\0';			/* i.e.  /dev/hda6 -> /dev/hda */
-#endif
 
-  part_fd = SILENT_DOS_SYSCALL(open(hd_name, O_RDONLY));
+  part_fd = SILENT_DOS_SYSCALL(open(hd_name, O_RDONLY | O_CLOEXEC));
   if (part_fd == -1) {
-    if (dp->floppy) return;
+    if (dp->floppy) {
+      free(hd_name);
+      return;
+    }
     PNUM = 1;
     set_part_ent(dp, tmp_mbr);
     tmp_mbr[0x1fe] = 0x55;
@@ -938,7 +945,7 @@ static void partition_setup(struct disk *dp)
     memset(dp->part_info.mbr + PART_INFO_START + (i * PART_INFO_LEN),
 	   0, PART_INFO_LEN);
   }
-
+#endif
 }
 
 /* XXX - this function constructs a primary partition table entry for the device
@@ -947,19 +954,17 @@ static void partition_setup(struct disk *dp)
  *       of the drive. The physical h/s/c start and end are calculated and
  *       put in the dp->part_info.number'th entry in the part table.
  */
-
+#ifdef __linux__
 static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr)
 {
   long	length;		/* partition length in sectors		*/
   long	end;		/* last sector number offset		*/
   unsigned char	*p;	/* ptr to part table entry to create	*/
 
-#ifdef __linux__
   if (ioctl(dp->fdesc, BLKGETSIZE, &length)) {
     error("calling ioctl BLKGETSIZE for PARTITION %s\n", dp->dev_name);
     leavedos(22);
   }
-#endif
 #define SECPERCYL	(dp->heads * dp->sectors)
 #define CYL(s)		((s)/SECPERCYL)			/* 0-based */
 #define HEAD(s)		(((s)%SECPERCYL)/dp->sectors)	/* 0-based */
@@ -997,7 +1002,7 @@ static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr)
   *((uint32_t *)(p+8)) = dp->start;				/* pre sects */
   *((uint32_t *)(p+12)) = length;				/* len sects */
 }
-
+#endif
 void
 disk_close(void)
 {
@@ -1036,7 +1041,9 @@ disk_open(struct disk *dp)
   if (dp == NULL || dp->fdesc >= 0)
     return;
 
-  dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR));
+  dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ?
+      "/dev/null" : dp->dev_name, (dp->rdonly ? O_RDONLY :
+      O_RDWR) | O_CLOEXEC));
   if (dp->type == IMAGE || dp->type == DIR_TYPE)
     return;
 
@@ -1047,7 +1054,7 @@ disk_open(struct disk *dp)
    */
   if ( /*!dp->removeable &&*/ (dp->fdesc < 0)) {
     if (errno == EROFS || errno == ENODEV) {
-      dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY));
+      dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY | O_CLOEXEC));
       if (dp->fdesc < 0) {
         error("ERROR: (disk) can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
         /* In case we DO get more clever, we want to share that code */
@@ -1059,7 +1066,6 @@ disk_open(struct disk *dp)
       d_printf("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
     }
   }
-  else dp->rdonly = dp->wantrdonly;
 
 {
 #if 1
@@ -1105,6 +1111,7 @@ void
 disk_close_all(void)
 {
   struct disk *dp;
+  int i;
 
   if (!disks_initiated)
     return;  /* prevent idiocy */
@@ -1116,14 +1123,14 @@ disk_close_all(void)
       dp->fdesc = -1;
     }
   }
-  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
-    if(dp->type == DIR_TYPE) fatfs_done(dp);
-    if (dp->fdesc >= 0) {
-      d_printf("Hard disk Closing %x\n", dp->fdesc);
-      (void) close(dp->fdesc);
-      dp->fdesc = -1;
+  FOR_EACH_HDISK(i, {
+    if(hdisktab[i].type == DIR_TYPE) fatfs_done(&hdisktab[i]);
+    if (hdisktab[i].fdesc >= 0) {
+      d_printf("Hard disk Closing %x\n", hdisktab[i].fdesc);
+      (void) close(hdisktab[i].fdesc);
+      hdisktab[i].fdesc = -1;
     }
-  }
+  });
   disks_initiated = 0;
 }
 
@@ -1160,7 +1167,6 @@ disk_init(void)
   int i;
 
   disks_initiated = 1;  /* disk_init has been called */
-  init_all_DOS_tables();
 
   if (FDISKS) {
     emu_iodev_t  io_device;
@@ -1184,7 +1190,6 @@ disk_init(void)
     dp->fdesc = -1;
     dp->floppy = 1;
     dp->removeable = 1;
-    dp->drive_num = i;
     dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
   }
 
@@ -1192,10 +1197,8 @@ disk_init(void)
     dp = &hdisktab[i];
     dp->fdesc = -1;
     dp->floppy = 0;
-    dp->drive_num = i | 0x80;
     dp->serial = 0x4ADD1B0A + dp->drive_num;	// sernum must be unique!
   }
-
 }
 
 static void disk_reset2(void)
@@ -1237,7 +1240,6 @@ static void disk_reset2(void)
     } else if (S_ISDIR(stbuf.st_mode)) {
       d_printf("dev %s is a directory\n", dp->dev_name);
       dp->type = DIR_TYPE;
-      dp->rdonly = dp->wantrdonly;
       dp->removeable = 0;
     } else {
       error("dev %s is wrong type\n", dp->dev_name);
@@ -1251,22 +1253,15 @@ static void disk_reset2(void)
   /*
    * Open hard disks
    */
-  for (i = 0; i < HDISKS; i++) {
+  FOR_EACH_HDISK(i, {
     dp = &hdisktab[i];
-    if(dp->type == IMAGE)  {
-	if (dp->dexeflags & DISK_DEXE_RDWR) {
-	  d_printf("IMAGE: dexe, RDWR access allowed for %s\n",dp->dev_name);
-	}
-	else {
-	  d_printf("IMAGE: Using user permissions\n");
-	}
-    }
     if (dp->fdesc != -1)
       close(dp->fdesc);
-    dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR);
+    dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name,
+        (dp->rdonly ? O_RDONLY : O_RDWR) | O_CLOEXEC);
     if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
-        dp->fdesc = open(dp->dev_name, O_RDONLY);
+        dp->fdesc = open(dp->dev_name, O_RDONLY | O_CLOEXEC);
         if (dp->fdesc < 0) {
           error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
           config.exitearly = 1;
@@ -1279,7 +1274,6 @@ static void disk_reset2(void)
         config.exitearly = 1;
       }
     }
-    else dp->rdonly = dp->wantrdonly;
     dp->removeable = 0;
 
     /* HACK: if unspecified geometry (-1) then try to get it from kernel.
@@ -1337,7 +1331,7 @@ static void disk_reset2(void)
       /* leavedos(28); */
     }
 #endif
-  }
+  });
 }
 
 void disk_reset(void)
@@ -1348,49 +1342,67 @@ void disk_reset(void)
   disk_reset2();
 
   subst_file_ext(NULL);
-  for (i = 0; i < 26; i++)
-    ResetRedirection(i);
-  redir_state = 1;
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if(dp->type == DIR_TYPE) {
       if (dp->fatfs) fatfs_done(dp);
       fatfs_init(dp);
     }
   }
-  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
-    if(dp->type == DIR_TYPE) {
-      if (dp->fatfs) fatfs_done(dp);
-      fatfs_init(dp);
+  FOR_EACH_HDISK(i, {
+    if(hdisktab[i].type == DIR_TYPE) {
+      if (hdisktab[i].fatfs) fatfs_done(&hdisktab[i]);
+      fatfs_init(&hdisktab[i]);
     }
-  }
+  });
 }
 
 static void hdisk_reset(int num)
 {
-  struct disk *dp;
+  int i;
 
   disk_reset2();
 
   subst_file_ext(NULL);
-  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
-    if(dp->type == DIR_TYPE) {
-      if (dp->fatfs)
-        fatfs_done(dp);
+  FOR_EACH_HDISK(i, {
+    if(hdisktab[i].type == DIR_TYPE) {
+      if (hdisktab[i].fatfs)
+        fatfs_done(&hdisktab[i]);
     }
-  }
+  });
   if (HDISKS > num)
     HDISKS = num;
-  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
-    if(dp->type == DIR_TYPE)
-      fatfs_init(dp);
-  }
+  FOR_EACH_HDISK(i, {
+    if (HDISK_NUM(i) >= num + 2) {
+      hdisktab[i].drive_num = 0;
+      continue;
+    }
+    if(hdisktab[i].type == DIR_TYPE)
+      fatfs_init(&hdisktab[i]);
+  });
 }
 
 int disk_is_bootable(const struct disk *dp)
 {
+  uint8_t *p;
+  switch (dp->type) {
+    case DIR_TYPE:
+      return fatfs_is_bootable(dp->fatfs);
+    case IMAGE:
+      if (dp->floppy)
+        return 1;
+      p = dp->part_info.mbr + PART_INFO_START +
+        (PART_INFO_LEN * (dp->part_info.number-1));
+      return (p[0] == PART_BOOT);
+    default:		// fsck on other types
+      return 1;
+  }
+}
+
+int disk_root_contains(const struct disk *dp, int file_idx)
+{
   if (dp->type != DIR_TYPE)
-    return 1;
-  return fatfs_is_bootable(dp->fatfs);
+    return 0;
+  return fatfs_root_contains(dp->fatfs, file_idx);
 }
 
 int disk_validate_boot_part(struct disk *dp)
@@ -1438,14 +1450,20 @@ int int13(void)
   unsigned int disk, head, sect, track, number;
   uint64_t number_sectors;
   int res;
-  off64_t  pos;
+  off_t pos;
   unsigned buffer;
   struct disk *dp;
   int checkdp_val;
+  unsigned status_addr;
 
   disk = LO(dx);
-  if (disk < FDISKS) {
-    dp = &disktab[disk];
+  if (!(disk & 0x80)) {
+    status_addr = BIOS_DISK_STATUS;
+    if (disk >= FDISKS) {
+      d_printf("INT13: no such fdisk %x\n", disk);
+      dp = NULL;
+    } else
+      dp = &disktab[disk];
     switch (HI(ax)) {
       /* NOTE: we use this counter for closing. Also older games seem to rely
        * on it. We count it down in INT08 (bios.S) --SW, --Hans, --Bart
@@ -1454,11 +1472,12 @@ int int13(void)
         WRITE_BYTE(BIOS_MOTOR_TIMEOUT, 37);  /* set timout to 2 seconds */
         break;
     }
+  } else {
+    status_addr = BIOS_HDISK_STATUS;
+    dp = hdisk_find(disk);
+    if (!dp)
+      d_printf("INT13: no such hdisk %x\n", disk);
   }
-  else if (disk >= 0x80 && disk < 0x80 + HDISKS)
-    dp = &hdisktab[disk - 0x80];
-  else
-    dp = NULL;
 
   d_printf("INT13: ax=%04x cx=%04x dx=%04x\n", LWORD(eax), LWORD(ecx), LWORD(edx));
 
@@ -1473,11 +1492,13 @@ int int13(void)
     NOCARRY;
     break;
 
-  case 1:			/* read error code into AL */
-    LO(ax) = DERR_NOERR;
-    NOCARRY;
+  case 1:			/* read error code into AH */
+    if ((HI(ax) = READ_BYTE(status_addr)) == 0)
+      NOCARRY;
+    else
+      CARRY;
     d_printf("DISK error code\n");
-    break;
+    return 1;
 
   case 2:			/* read */
     FLUSHDISK(dp);
@@ -1496,24 +1517,32 @@ int int13(void)
       track |= (HI(dx) & 0xc0) << 4;
     buffer = SEGOFF2LINEAR(SREG(es), LWORD(ebx));
     number = LO(ax);
-    d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
-	     disk, head, sect, track, number, SREG(es), LWORD(ebx));
+    d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	     disk, head, sect, track, number, buffer, SREG(es), LWORD(ebx));
+
+    if (number > I13_MAX_ACCESS) {
+      error("Too large read, ah=0x02!\n");
+      error("DISK %02x read [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	    disk, head, sect, track, number, buffer, SREG(es), LWORD(ebx));
+      HI(ax) = DERR_BOUNDARY;
+      CARRY;
+      break;
+    }
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
       d_printf("Sector not found, ah=0x02!\n");
-      d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%#x\n",
-	       disk, head, sect, track, number, buffer);
+      d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	       disk, head, sect, track, number, buffer, SREG(es), LWORD(ebx));
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
       } else {
 	  d_printf("DISK %02x undefined.\n", disk);
       }
-
+      show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs();
       break;
     }
 
@@ -1556,35 +1585,47 @@ int int13(void)
       track |= (HI(dx) & 0xc0) << 4;
     buffer = SEGOFF2LINEAR(SREG(es), LWORD(ebx));
     number = LO(ax);
-    W_printf("DISK write [h:%d,s:%d,t:%d](%d)->%#x\n",
-	     head, sect, track, number, buffer);
+    W_printf("DISK %02x write [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	     disk, head, sect, track, number, buffer, SREG(es), LWORD(ebx));
+
+    if (number > I13_MAX_ACCESS) {
+      error("Too large write, ah=0x03!\n");
+      error("DISK %02x write [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	    disk, head, sect, track, number, buffer, SREG(es), LWORD(ebx));
+      HI(ax) = DERR_BOUNDARY;
+      CARRY;
+      break;
+    }
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
       error("Sector not found, ah=0x03!\n");
-      show_regs();
+      error("DISK %02x write [h:%d,s:%d,t:%d](%d)->%#x (%04x:%04x)\n",
+	    disk, head, sect, track, number, buffer, SREG(es), LWORD(ebx));
+      if (dp) {
+	  error("DISK dev %s GEOM %d heads %d sects %d trk\n",
+		dp->dev_name, dp->heads, dp->sectors, dp->tracks);
+      } else {
+	  error("DISK %02x undefined.\n", disk);
+      }
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
       break;
     }
 
     if (dp->rdonly) {
-      W_printf("write protect!\n");
-      show_regs();
+      W_printf("DISK %02x write protected!\n", disk);
       if (dp->floppy)
-	HI(ax) = DERR_WP;
+        HI(ax) = DERR_WP;
       else
-	HI(ax) = DERR_WRITEFLT;
+        HI(ax) = DERR_WRITEFLT;
       REG(eflags) |= CF;
       break;
     }
 
-    if (dp->rdonly)
-      W_printf("CONTINUED!!!!!\n");
     res = write_sectors(dp, buffer,
 			DISK_OFFSET(dp, head, sect, track) / SECTOR_SIZE,
 			number);
-
     if (res < 0) {
       W_printf("DISK write error: %d\n", -res);
       HI(ax) = -res;
@@ -1620,7 +1661,8 @@ int int13(void)
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
       error("test: sector not found 5\n");
-      dbug_printf("hds: %d, sec: %d, tks: %d\n",
+      if (dp)
+        dbug_printf("hds: %d, sec: %d, tks: %d\n",
 		  dp->heads, dp->sectors, dp->tracks);
       break;
     }
@@ -1631,7 +1673,7 @@ int int13(void)
       break;
     }
 
-    if (pos != lseek64(dp->fdesc, pos, 0)) {
+    if (pos != lseek(dp->fdesc, pos, 0)) {
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
       error("test: sector not found 6\n");
@@ -1868,7 +1910,7 @@ int int13(void)
     break;
 
   case 0x20:			/* ??? */
-    d_printf("weird int13, ah=0x%x\n", LWORD(eax));
+    d_printf("weird int13, ax=0x%04x\n", LWORD(eax));
     break;
   case 0x28:			/* DRDOS 6.0 call ??? */
     d_printf("int 13h, ax=%04x...DRDOS call\n", LWORD(eax));
@@ -1887,27 +1929,37 @@ int int13(void)
     FLUSHDISK(dp);
     disk_open(dp);
     diskaddr = SEG_ADR((struct ibm_ms_diskaddr_pkt *), ds, si);
+
+    if (diskaddr->len < sizeof(*diskaddr) /* 0x10 */ ) {
+      error("Too small disk packet, ah=0x42!\n");
+      error("DISK %02x ext read\n", disk);
+      HI(ax) = DERR_BADCMD;	/* Award Medallion BIOS v6.0 uses this code */
+      CARRY;
+      break;
+    }
+
     checkdp_val = checkdp(dp);
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     WRITE_P(diskaddr->blocks, 0);
-    d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%04x:%04x\n",
-	     disk, diskaddr->block, number, diskaddr->buf_seg, diskaddr->buf_ofs);
+    d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
+	     disk, diskaddr->block, number,
+	     buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
 
     if (checkdp_val) {
       d_printf("Sector not found, AH=0x42!\n");
-      d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%#x\n",
-	       disk, diskaddr->block, number, buffer);
+      d_printf("DISK %02x ext read [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
+	       disk, diskaddr->block, number,
+	       buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
       } else {
 	  d_printf("DISK %02x undefined.\n", disk);
       }
-
+      show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs();
       break;
     }
 
@@ -1939,45 +1991,50 @@ int int13(void)
     FLUSHDISK(dp);
     disk_open(dp);
     diskaddr = SEG_ADR((struct ibm_ms_diskaddr_pkt *), ds, si);
+
+    if (diskaddr->len < sizeof(*diskaddr) /* 0x10 */ ) {
+      error("Too small disk packet, ah=0x43!\n");
+      error("DISK %02x ext write\n", disk);
+      HI(ax) = DERR_BADCMD;	/* Award Medallion BIOS v6.0 uses this code */
+      CARRY;
+      break;
+    }
+
     checkdp_val = checkdp(dp);
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     WRITE_P(diskaddr->blocks, 0);
-    d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%04x:%04x\n",
-	     disk, diskaddr->block, number, diskaddr->buf_seg, diskaddr->buf_ofs);
+    d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
+	     disk, diskaddr->block, number,
+	     buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
 
     if (checkdp_val) {
       error("Sector not found, AH=0x43!\n");
-      d_printf("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x\n",
-	       disk, diskaddr->block, number, buffer);
+      error("DISK %02x ext write [LBA %"PRIu64"](%d)->%#x (%04x:%04x)\n",
+	    disk, diskaddr->block, number,
+	    buffer, diskaddr->buf_seg, diskaddr->buf_ofs);
       if (dp) {
-	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
-		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
+	  error("DISK dev %s GEOM %d heads %d sects %d trk\n",
+		dp->dev_name, dp->heads, dp->sectors, dp->tracks);
       } else {
-	  d_printf("DISK %02x undefined.\n", disk);
+	  error("DISK %02x undefined.\n", disk);
       }
-
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs();
       break;
     }
 
     if (dp->rdonly) {
-      d_printf("DISK is write protected!\n");
-      show_regs();
+      d_printf("DISK %02x is write protected!\n", disk);
       if (dp->floppy)
-	HI(ax) = DERR_WP;
+        HI(ax) = DERR_WP;
       else
-	HI(ax) = DERR_WRITEFLT;
+        HI(ax) = DERR_WRITEFLT;
       REG(eflags) |= CF;
       break;
     }
 
-    if (dp->rdonly)
-      error("CONTINUED!!!!!\n");
     res = write_sectors(dp, buffer, diskaddr->block, number);
-
     if (res < 0) {
       HI(ax) = -res;
       CARRY;
@@ -2024,14 +2081,13 @@ int int13(void)
       } else {
 	  d_printf("DISK %02x undefined.\n", disk);
       }
-
+      show_regs();
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs();
       break;
     }
 
-    WRITE_P(params->flags, IMEXT_INFOFLAG_CHSVALID);
+    WRITE_P(params->flags, IMEXT_INFOFLAG_CHSVALID | IMEXT_INFOFLAG_NODMAERR);
     if (dp->floppy)
       WRITE_P(params->flags, params->flags | IMEXT_INFOFLAG_REMOVABLE);
     WRITE_P(params->tracks, dp->tracks);
@@ -2063,13 +2119,15 @@ int int13(void)
     NOCARRY;
     break;
   default:
-    d_printf("disk error, unknown command: int13, ax=0x%x\n",
+    d_printf("disk error, unknown command: int13, ax=0x%04x\n",
 	  LWORD(eax));
     show_regs();
     CARRY;
     HI(ax) = DERR_BADCMD;
     break;
   }
+
+  WRITE_BYTE(status_addr, HI(ax));
   return 1;
 }
 
@@ -2091,18 +2149,26 @@ floppy_tick(void)
   }
 }
 
-fatfs_t *get_fat_fs_by_serial(unsigned long serial)
+fatfs_t *get_fat_fs_by_serial(unsigned long serial, int *r_idx, int *r_ro)
 {
-  struct disk *dp;
+  int i;
 
-  for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
-    if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial)
+  for (i = 0; i < FDISKS; i++) {
+    struct disk *dp = &disktab[i];
+    if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial) {
+      *r_idx = dp->mfs_idx;
+      *r_ro = dp->rdonly;
       return dp->fatfs;
+    }
   }
-  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
-    if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial)
+  FOR_EACH_HDISK(i, {
+    struct disk *dp = &hdisktab[i];
+    if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial) {
+      *r_idx = dp->mfs_idx;
+      *r_ro = dp->rdonly;
       return dp->fatfs;
-  }
+    }
+  });
   return NULL;
 }
 
@@ -2112,15 +2178,34 @@ fatfs_t *get_fat_fs_by_drive(unsigned char drv_num)
   int num = drv_num & 0x7f;
 
   if (drv_num & 0x80) {
-    if (num >= HDISKS)
-      return NULL;
-    dp = &hdisktab[num];
+    dp = hdisk_find(drv_num);
   } else {
-    if (num >= FDISKS)
-      return NULL;
-    dp = &disktab[num];
+    if (num < FDISKS)
+      dp = &disktab[num];
   }
+  if (!dp)
+    return NULL;
   if (dp->type == DIR_TYPE)
     return dp->fatfs;
+  return NULL;
+}
+
+struct disk *hdisk_find(uint8_t num)
+{
+  int i;
+  FOR_EACH_HDISK(i,
+    if (hdisktab[i].drive_num == num)
+      return &hdisktab[i];
+  );
+  return NULL;
+}
+
+struct disk *hdisk_find_by_path(const char *path)
+{
+  int i;
+  FOR_EACH_HDISK(i,
+    if (hdisktab[i].dev_name && strcmp(hdisktab[i].dev_name, path) == 0)
+      return &hdisktab[i];
+  );
   return NULL;
 }

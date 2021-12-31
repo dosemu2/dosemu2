@@ -107,7 +107,6 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "config.h"
 #include "emu.h"
 #include "bitops.h"
 
@@ -121,6 +120,10 @@
 #include "translate/translate.h"
 
 #include "video.h" /* for charset defines */
+
+#define CHARSET_DEBUG 0
+#define TRANSLATE_DEBUG 0
+#define SHIFTSTATE_DEBUG 0
 
 #if NUM_KEYSYMS != 0x10000
 #error NUM_KEYSYMS needs to be 0x10000
@@ -148,7 +151,7 @@ static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
  */
 
 
-static const Bit8u bios_ctrl_scancodes[NUM_DKY_NUMS] =
+static const Bit8u bios_ctrl_scancodes[NUM_KEY_NUMS] =
 {
    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,    /* 00-07 */
    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x94,    /* 08-0F */
@@ -185,7 +188,7 @@ static const Bit8u bios_ctrl_scancodes[NUM_DKY_NUMS] =
    0x00, 0x00, 0x00, 0x00, 0x00, 0x72, 0x00, 0x00,    /* F8-FF */
 };
 
-static const Bit8u bios_alt_scancodes[NUM_DKY_NUMS] =
+static const Bit8u bios_alt_scancodes[NUM_KEY_NUMS] =
 {
    0x00, 0x01, 0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d,    /* 00-07 */
    0x7e, 0x7f, 0x80, 0x81, 0x82, 0x83, 0x0e, 0xa5,    /* 08-0F */
@@ -351,7 +354,7 @@ static void init_heuristics_alt_map(t_keysym *rule, t_keysym *plain_rule)
 	 * values on the other keycaps.
 	 */
 	for(i = 1; i < 27; i++) {
-		for(j = 0; j < NUM_DKY_NUMS; j++) {
+		for(j = 0; j < NUM_KEY_NUMS; j++) {
 			/* lower case letters */
 			if (plain_rule[j] == (i + 0x60)) {
 				rule[j] = i + DKY_ALT_A -1;
@@ -378,8 +381,9 @@ static void init_misc_shift_altgr_map(t_keysym *rule)
 }
 static void init_misc_ctrl_alt_map(t_keysym *rule)
 {
-	rule[NUM_PGUP] = DKY_DOSEMU_X86EMU_DEBUG;
-	rule[NUM_DEL] = DKY_DOSEMU_REBOOT;
+	rule[NUM_PAD_AST] = DKY_DOSEMU_REBOOT;
+	/* C-A-D is disabled */
+//	rule[NUM_DEL] = DKY_DOSEMU_REBOOT;
 
 	rule[NUM_PGDN] = DKY_DOSEMU_EXIT;
 	rule[NUM_PAD_3] = DKY_DOSEMU_EXIT;
@@ -418,7 +422,7 @@ static void init_heuristics_ctrl_map(t_keysym *rule, t_keysym *plain_rule)
 	 * values on the other keycaps.
 	 */
 	for(i = 1; i < 27; i++) {
-		for(j = 0; j < NUM_DKY_NUMS; j++) {
+		for(j = 0; j < NUM_KEY_NUMS; j++) {
 			/* lower case letters */
 			if (plain_rule[j] == (i + 0x60)) {
 				rule[j] = i;
@@ -482,13 +486,14 @@ static void init_translate_rule(t_keysym *rule,
 	}
 }
 
+#if TRANSLATE_DEBUG
 static void dump_translate_rules(struct scancode_translate_rules *rules)
 {
 	int i, j;
 #define LOOP(type)  \
 	do { \
 		k_printf(#type ":\n"); \
-		for(i = 0; i < NUM_DKY_NUMS; i++) { \
+		for(i = 0; i < NUM_KEY_NUMS; i++) { \
 			t_keysym keysym = type[i]; \
 			t_keynum keynum = validate_keynum(i); \
 			if (keysym == DKY_VOID || keynum == NUM_VOID) \
@@ -502,6 +507,7 @@ static void dump_translate_rules(struct scancode_translate_rules *rules)
 		LOOP(rules->trans_rules.rule_arr[j].rule_map);
 	}
 }
+#endif
 
 /* FIXME: I need external input for ctrl mappings!
  * I have a clever hack that get's it right most of the time,
@@ -517,13 +523,13 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
 	int i, j;
 
 	for(i = 0; i < MAPS_MAX; i++) {
-		if(maps[i].keyboard==KEYB_NO) {
+		if(maps[i].keyboard == -1) {
 			rules = &maps[i];
 			break;
 		}
 	}
-	if(rules==NULL) {
-		k_printf("init: maximum keymaps limit exceeded\n");
+	if(rules == NULL) {
+		error("init: maximum keymaps limit exceeded\n");
 		return;
 	}
 
@@ -539,7 +545,7 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
 	rules->trans_rules.rule_structs.ctrl_alt.modifiers = MODIFIER_CTRL | MODIFIER_ALT;
 
 	for(j = 0; j < NUM_RULES; j++) {
-		for(i = 0; i < NUM_DKY_NUMS; i++)
+		for(i = 0; i < NUM_KEY_NUMS; i++)
 			rules->trans_rules.rule_arr[j].rule_map[i] = DKY_VOID;
 	}
 
@@ -598,8 +604,9 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
 
 	for(i = 0; i < NUM_RULES; i++)
 		init_misc_all_maps(rules->trans_rules.rule_arr[i].rule_map);
-
+#if TRANSLATE_DEBUG
 	dump_translate_rules(rules);
+#endif
 }
 
 /*
@@ -619,7 +626,7 @@ static void init_charset_keymap(struct character_translate_rules *charset,
 
 	for(j = 0; j < NUM_RULES; j++) {
 	    rule = &rules->trans_rules.rule_arr[j];
-	    for (i = 0; i < NUM_DKY_NUMS; i++) {
+	    for (i = 0; i < NUM_KEY_NUMS; i++) {
 		ch = rule->rule_map[i];
 		shiftstate = rule->modifiers;
 		if (ch == DKY_VOID) {
@@ -678,6 +685,7 @@ static void init_one_deadkey(void *p, t_keysym dead_sym, t_keysym in, t_keysym o
 	charset->keys[out].shiftstate =
 		charset->keys[in].shiftstate;
 	charset->keys[out].deadsym = dead_sym;
+	charset->keys[out].map = charset->keys[dead_sym].map;
 }
 
 static void init_charset_deadmap(struct character_translate_rules *charset)
@@ -724,6 +732,7 @@ static void init_charset_approximations(struct character_translate_rules *charse
 	traverse_approximation_list(charset, init_one_approximation);
 }
 
+#if CHARSET_DEBUG
 static void dump_charset(struct character_translate_rules *charset)
 {
 	int i;
@@ -740,6 +749,7 @@ static void dump_charset(struct character_translate_rules *charset)
 			 charset->keys[i].character);
 	}
 }
+#endif
 
 static void init_charset_keys(struct character_translate_rules *charset,
 		       struct scancode_translate_rules maps[])
@@ -780,7 +790,9 @@ static void init_charset_keys(struct character_translate_rules *charset,
 	init_charset_approximations(charset);
 
 	/* When debugging show the translations */
+#if CHARSET_DEBUG
 	dump_charset(charset);
+#endif
 }
 
 /*
@@ -808,7 +820,7 @@ static void init_rules(struct keyboard_rules *rules)
 
 	rules->activemap = 0;
 	for(i = 0; i < MAPS_MAX; i++) {
-		rules->maps[i].keyboard=KEYB_NO;
+		rules->maps[i].keyboard = -1;
 	}
 }
 
@@ -1186,10 +1198,42 @@ static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
 		if (mask && ((shiftstate & ANY_SHIFT) != (cur_shiftstate & ANY_SHIFT)))
 			*mask |= CAPS_LOCK;
 	}
+#if SHIFTSTATE_DEBUG
 	k_printf("KBD: translate(old_shiftstate=%04x, shiftstate=%04x, key=%04x)\n",
 		 cur_shiftstate, shiftstate, key);
-
+#endif
 	return shiftstate;
+}
+
+static t_keysym *get_rule_ptr(t_keynum key, struct keyboard_state *state)
+{
+	t_keysym *ch;
+	t_shiftstate shiftstate = translate_shiftstate(state->shiftstate,
+		&state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain, key, NULL);
+
+	if ((shiftstate & ANY_ALT) && (shiftstate & ANY_CTRL)) {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.ctrl_alt.rule_map[key];
+	}
+	else if ((shiftstate & R_ALT) && (shiftstate & ANY_SHIFT)) {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.shift_altgr.rule_map[key];
+	}
+	else if (shiftstate & R_ALT) {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.altgr.rule_map[key];
+	}
+	else if (shiftstate & ANY_ALT) {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.alt.rule_map[key];
+	}
+	else if (shiftstate & ANY_CTRL) {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.ctrl.rule_map[key];
+	}
+	else if (shiftstate & ANY_SHIFT) {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.shift.rule_map[key];
+	}
+	else /* unshifted */ {
+		ch = &state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain.rule_map[key];
+	}
+
+	return ch;
 }
 
 /* translate a keynum to its ASCII equivalent.
@@ -1199,43 +1243,21 @@ static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
 static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
 	struct keyboard_state *state)
 {
-	t_shiftstate shiftstate = translate_shiftstate(state->shiftstate,
-		&state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain, key, NULL);
-	t_keysym ch = DKY_VOID;
+	t_keysym ch = *get_rule_ptr(key, state);
 
 	*is_accent=FALSE;
 
-	if ((shiftstate & ANY_ALT) && (shiftstate & ANY_CTRL)) {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.ctrl_alt.rule_map[key];
-	}
-	else if ((shiftstate & R_ALT) && (shiftstate & ANY_SHIFT)) {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.shift_altgr.rule_map[key];
-	}
-	else if (shiftstate & R_ALT) {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.altgr.rule_map[key];
-	}
-	else if (shiftstate & ANY_ALT) {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.alt.rule_map[key];
-	}
-	else if (shiftstate & ANY_CTRL) {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.ctrl.rule_map[key];
-	}
-	else if (shiftstate & ANY_SHIFT) {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.shift.rule_map[key];
-	}
-	else /* unshifted */ {
-		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain.rule_map[key];
-	}
 	if (make && (state->accent != DKY_VOID)) {
 		t_keysym new_ch = keysym_dead_key_translation(state->accent, ch);
 		if ((new_ch != ch) && (state->rules->charset.keys[ch].character)) {
-			/* ignore accented characters that aren't
+			/* allow accents for the characters that are
 			 * in the current character set.
 			 */
 			ch = new_ch;
+			*is_accent = TRUE;
 		}
-		state->accent = DKY_VOID;
-		*is_accent = TRUE;
+		if (state->rules->charset.keys[ch].character)
+			state->accent = DKY_VOID;
 	}
 	if (make && is_keysym_dead(ch)) {
 		state->accent = ch;
@@ -1613,13 +1635,32 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 	backend_run();
 }
 
-static void put_keynum(Boolean make, t_keynum input_keynum, t_keysym sym, struct keyboard_state *state)
+static void put_keynum_grp(Boolean make, t_keynum key, t_unicode sym,
+		struct keyboard_state *state)
 {
 	if (sym != DKY_VOID) {
 		/* switch active keymap if needed */
 		state->rules->activemap = state->rules->charset.keys[sym].map;
 	}
-	put_keynum_r(make, input_keynum, state);
+	put_keynum_r(make, key, state);
+}
+
+static void put_keynum(Boolean make, t_keynum key, t_unicode sym,
+		struct keyboard_state *state)
+{
+	if (sym != DKY_VOID) {
+		t_keysym *ch;
+		/* switch active keymap if needed */
+		state->rules->activemap = state->rules->charset.keys[sym].map;
+		ch = get_rule_ptr(key, state);
+		if (!config.layout_auto || is_keysym_dead(*ch))
+			error("$_layout inconsistency\n");
+		else if (*ch != sym && state->accent == DKY_VOID) {
+			k_printf("replace char %x with %x\n", *ch, sym);
+			*ch = sym;
+		}
+	}
+	put_keynum_r(make, key, state);
 }
 
  /***********************************************************************************************
@@ -2102,18 +2143,40 @@ void put_rawkey(t_rawkeycode code)
  * DANG_END_FUNCTION
  */
 
-int move_keynum(Boolean make, t_keynum keynum, t_keysym sym)
+int move_keynum(Boolean make, t_keynum keynum, t_unicode sym)
 {
-	int result = 0;
-	k_printf("move_key: keynum=%04x\n", keynum);
-	keynum = validate_keynum(keynum);
+	k_printf("move_keynum: keynum=%04x\n", keynum);
 	/* move_keynum only works for valid keynum... */
-	if (keynum != NUM_VOID) {
-		put_keynum(make, keynum, sym, &input_keyboard_state);
-	} else {
-		result = -1;
+	assert(keynum != NUM_VOID);
+	put_keynum(make, keynum, sym, &input_keyboard_state);
+	return 0;
+}
+
+int move_keynum_grp(Boolean make, t_keynum keynum, int grp)
+{
+	struct keyboard_state *state = &input_keyboard_state;
+	k_printf("move_keynum_grp: keynum=%04x\n", keynum);
+	/* move_keynum only works for valid keynum... */
+	assert(keynum != NUM_VOID);
+	state->rules->activemap = grp;
+	if (state->rules->activemap >= MAPS_MAX ||
+			state->rules->maps[state->rules->activemap].
+			keyboard == -1) {
+		k_printf("no such map %i\n", state->rules->activemap);
+		state->rules->activemap = 0;
 	}
-	return result;
+	put_keynum_r(make, keynum, state);
+	return 0;
+}
+
+int move_keynum_grpsym(Boolean make, t_keynum keynum, t_unicode sym)
+{
+	k_printf("move_keynum_grpsym: keynum=%04x\n", keynum);
+	/* move_keynum only works for valid keynum... */
+	assert(keynum != NUM_VOID);
+	assert(sym != DKY_VOID);
+	put_keynum_grp(make, keynum, sym, &input_keyboard_state);
+	return 0;
 }
 
 /*

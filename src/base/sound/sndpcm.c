@@ -26,7 +26,6 @@
  *
  * Author: Stas Sergeev.
  *
- * TODO: Add the ADPCM processing.
  * TODO: Add the PDM processing for PC-Speaker.
  */
 
@@ -97,8 +96,6 @@ struct sample {
     unsigned char data[2];
 };
 
-static const struct sample mute_samp = { PCM_FORMAT_NONE, 0, {0, 0} };
-
 struct stream {
     int channels;
     struct rng_s buffer;
@@ -123,7 +120,7 @@ struct stream {
     double adj_time_delay;
     double last_fillup;
     /* --- */
-    char *name;
+    const char *name;
 };
 
 #define MAX_STREAMS 10
@@ -153,11 +150,11 @@ struct efp_wr {
     enum EfpType type;
 };
 
-#define PLAYER(p) ((struct pcm_player *)p->plugin)
+#define PLAYER(p) ((const struct pcm_player *)p->plugin)
 #define PL_PRIV(p) ((struct pcm_player_wr *)p->priv)
 #define PL_LNAME(p) (p->longname ?: p->name)
-#define RECORDER(p) ((struct pcm_recorder *)p->plugin)
-#define EFPR(p) ((struct pcm_efp *)p->plugin)
+#define RECORDER(p) ((const struct pcm_recorder *)p->plugin)
+#define EFPR(p) ((const struct pcm_efp *)p->plugin)
 #define EF_PRIV(p) ((struct efp_wr *)p->priv)
 
 struct pcm_struct {
@@ -219,18 +216,18 @@ int pcm_init(void)
     pthread_mutex_init(&pcm.time_mtx, NULL);
 
 #ifdef USE_DL_PLUGINS
-#define LOAD_PLUGIN_C(x, c) \
+#define LOAD_PLUGIN_C(x, c) do { \
     dl_handles[num_dl_handles] = load_plugin(x); \
     if (dl_handles[num_dl_handles]) { \
 	num_dl_handles++; \
 	c \
-    }
+    } } while(0)
 #define LOAD_PLUGIN(x) LOAD_PLUGIN_C(x,)
 #ifdef USE_LIBAO
     LOAD_PLUGIN_C("libao", { ca = pcm_get_cfg("ao"); } );
 #endif
 #ifdef SDL_SUPPORT
-    if (ca == -1 || config.sdl)
+    if (ca == -1 || config.sdl || strstr(config.sound_driver, "sdl"))
 	LOAD_PLUGIN_C("sdl", { cs = pcm_get_cfg("sdl"); } );
 #endif
     if (!ca && !cs) {		// auto, config.sdl==1
@@ -287,7 +284,7 @@ static void pcm_reset_stream(int strm_idx)
     pcm.stream[strm_idx].prepared = 0;
 }
 
-int pcm_allocate_stream(int channels, char *name, void *vol_arg)
+int pcm_allocate_stream(int channels, const char *name, void *vol_arg)
 {
     int index;
     if (pcm.num_streams >= MAX_STREAMS) {
@@ -798,21 +795,13 @@ user_tstamp:
 
 double pcm_get_stream_time(int strm_idx)
 {
+    double ret;
     /* we allow user to write samples to the future to prevent
      * subsequent underflows */
-    return get_stream_time(strm_idx) - pcm.stream[strm_idx].stretch_tot;
-}
-
-double pcm_time_lock(int strm_idx)
-{
-    /* well, yes, the lock needs to be per-stream... Go get it. :) */
     pthread_mutex_lock(&pcm.time_mtx);
-    return pcm_get_stream_time(strm_idx);
-}
-
-void pcm_time_unlock(int strm_idx)
-{
+    ret = get_stream_time(strm_idx) - pcm.stream[strm_idx].stretch_tot;
     pthread_mutex_unlock(&pcm.time_mtx);
+    return ret;
 }
 
 static double pcm_calc_tstamp(int strm_idx)
@@ -905,48 +894,63 @@ static void pcm_remove_samples(double time)
     }
 }
 
+static sndbuf_t pcm_interpolate(struct sample s1, struct sample s2,
+		double time)
+{
+    sndbuf_t v1 = sample_to_S16(s1.data, s1.format);
+    sndbuf_t v2 = sample_to_S16(s2.data, s2.format);
+    if (s2.tstamp <= s1.tstamp)
+	return v1;
+    /* simple linear interpolation for now */
+    return (v1 + (time - s1.tstamp) * (v2 - v1) / (s2.tstamp - s1.tstamp));
+}
+
 static void pcm_get_samples(double time,
-		struct sample samp[MAX_STREAMS][SNDBUF_CHANS], int *idxs,
+		sndbuf_t samp[MAX_STREAMS][SNDBUF_CHANS], int *idxs,
 		int out_channels, int id)
 {
     int i, j;
+    int started;
+    int have_prev;
     struct sample s[SNDBUF_CHANS], prev_s[SNDBUF_CHANS];
 
     for (i = 0; i < pcm.num_streams; i++) {
 	for (j = 0; j < SNDBUF_CHANS; j++)
-	    samp[i][j] = mute_samp;
+	    samp[i][j] = 0;
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE ||
 		!pcm.is_connected(id, pcm.stream[i].vol_arg))
 	    continue;
 
-//    pcm_printf("PCM: stream %i fillup: %i\n", i, rng_count(&pcm.stream[i].buffer));
-	for (j = 0; j < pcm.stream[i].channels; j++) {
-	    if (idxs[i] >= pcm.stream[i].channels)
-		rng_peek(&pcm.stream[i].buffer,
-			 idxs[i] - pcm.stream[i].channels + j, &prev_s[j]);
-	    else
-		prev_s[j] = mute_samp;
+	have_prev = 0;
+	started = 0;
+	if (idxs[i] >= pcm.stream[i].channels) {
+	    idxs[i] -= pcm.stream[i].channels;
+	    have_prev = 1;
 	}
-	if (out_channels == 2 && pcm.stream[i].channels == 1)
-	    prev_s[1] = prev_s[0];
 	while (rng_count(&pcm.stream[i].buffer) - idxs[i] >=
 	       pcm.stream[i].channels) {
 	    for (j = 0; j < pcm.stream[i].channels; j++)
 		rng_peek(&pcm.stream[i].buffer, idxs[i] + j, &s[j]);
+	    if (out_channels == 2 && pcm.stream[i].channels == 1)
+		s[1] = s[0];
 	    if (s[0].tstamp > time) {
-//        pcm_printf("PCM: stream %i time=%lli, req_time=%lli\n", i, s.tstamp, time);
-		memcpy(samp[i], prev_s, sizeof(struct sample) * out_channels);
+		if (!started) {
+		    /* assert on idxs in sync with time */
+		    assert(!have_prev);
+		    break;
+		}
+		for (j = 0; j < out_channels; j++)
+		    samp[i][j] = pcm_interpolate(prev_s[j], s[j], time);
 		break;
 	    }
-	    memcpy(prev_s, s, sizeof(struct sample) * pcm.stream[i].channels);
-	    if (out_channels == 2 && pcm.stream[i].channels == 1)
-		prev_s[1] = prev_s[0];
+	    memcpy(prev_s, s, sizeof(struct sample) * out_channels);
 	    idxs[i] += pcm.stream[i].channels;
+	    started = 1;
 	}
     }
 }
 
-static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
+static void pcm_mix_samples(sndbuf_t in[][SNDBUF_CHANS],
 	sndbuf_t out[SNDBUF_CHANS], int channels, int format,
 	double volume[][SNDBUF_CHANS][SNDBUF_CHANS])
 {
@@ -958,10 +962,9 @@ static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
 	    if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
 		continue;
 	    for (k = 0; k < SNDBUF_CHANS; k++) {
-		if (volume[i][j][k] == 0 || in[i][k].format == PCM_FORMAT_NONE)
+		if (volume[i][j][k] == 0)
 		    continue;
-		value[j] += sample_to_S16(in[i][k].data, in[i][k].format) *
-			volume[i][j][k];
+		value[j] += in[i][k] * volume[i][j][k];
 	    }
 	}
     }
@@ -1029,7 +1032,7 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     int idxs[MAX_STREAMS], out_idx, handle, i;
     long long now;
     double start_time, stop_time, frame_period, frag_period, time;
-    struct sample samp[MAX_STREAMS][SNDBUF_CHANS];
+    sndbuf_t samp[MAX_STREAMS][SNDBUF_CHANS];
     double volume[MAX_STREAMS][SNDBUF_CHANS][SNDBUF_CHANS];
     struct pcm_holder *p;
 
@@ -1242,9 +1245,11 @@ void pcm_done(void)
     pthread_mutex_destroy(&pcm.strm_mtx);
     pthread_mutex_destroy(&pcm.time_mtx);
 
-#if 0
     for (i = 0; i < num_dl_handles; i++)
+#if 0
 	close_plugin(dl_handles[i]);
+#else
+	(void)dl_handles[i];
 #endif
     for (i = 0; i < pcm.num_players; i++)
 	free(pcm.players[i].priv);

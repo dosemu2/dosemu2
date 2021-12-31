@@ -24,7 +24,6 @@
 #include <string.h>
 
 #include "emu.h"
-#include "config.h"
 #include "memory.h"
 #include "xms.h"
 #include "hlt.h"
@@ -67,14 +66,16 @@ static char RCSxms[] = "$Id$";
 
 static int a20_local, a20_global, freeHMA;	/* is HMA free? */
 
-static struct Handle handles[NUM_HANDLES + 1];
-static int handle_count = 0;
+static struct Handle handles[NUM_HANDLES];
+static int handle_count;
+static int intdrv;
 
 void show_emm(struct EMM);
 static unsigned char xms_query_freemem(int), xms_allocate_EMB(int), xms_free_EMB(void),
  xms_move_EMB(void), xms_lock_EMB(int), xms_EMB_info(int), xms_realloc_EMB(int);
 
 static int FindFreeHandle(int);
+static void xx_printf(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
 
 /* beginning of quote from Mach */
 
@@ -89,40 +90,51 @@ static int FindFreeHandle(int);
 static smpool umbs[UMBS];
 static int umbs_used;
 
-#define x_Stub(arg1, s, a...)   x_printf("XMS: "s, ##a)
+#define x_Stub(arg1, s, a...)   x_printf("XMS: " s, ##a)
 #define Debug0(args)		x_Stub args
 #define Debug1(args)		x_Stub args
 #define Debug2(args)		x_Stub args
 /* #define dbg_fd stderr */
 
 static void
-umb_setup(int check_ems)
+umb_setup(int umb_ems)
 {
   dosaddr_t addr_start;
   uint32_t size;
+//  int i;
 
   memcheck_addtype('U', "Upper Memory Block (UMB, XMS 3.0)");
 
   addr_start = 0x00000;     /* start address */
   while ((size = memcheck_findhole(&addr_start, 1024, 0x100000)) != 0) {
-    if (check_ems && emm_is_pframe_addr(addr_start, &size)) {
+    if (!umb_ems && emm_is_pframe_addr(addr_start, &size)) {
       addr_start += 16*1024;
       continue;
     }
     Debug0((dbg_fd, "findhole - from 0x%5.5X, %dKb\n", addr_start, size/1024));
     memcheck_map_reserve('U', addr_start, size);
-
+#if 0
     if (addr_start == 0xa0000 && config.umb_a0 == 2) {
       // FreeDOS UMB bug, reserve 1 para
       const int rsv = 16;
       addr_start += rsv;
       size -= rsv;
     }
+#endif
     assert(umbs_used < UMBS);
-    sminit(&umbs[umbs_used++], MEM_BASE32(addr_start), size);
+    sminit(&umbs[umbs_used], MEM_BASE32(addr_start), size);
+    smregister_error_notifier(&umbs[umbs_used], xx_printf);
+    umbs_used++;
     Debug0((dbg_fd, "umb_setup: addr %x size 0x%04x\n",
 	      addr_start, size));
   }
+#if 0
+  /* need to memset UMBs as FreeDOS marks them as used */
+  /* in fact smalloc does memset(), so this no longer needed */
+  /* bug is fixed in FDPP to not require this */
+  for (i = 0; i < umbs_used; i++)
+    memset(smget_base_addr(&umbs[i]), 0, umbs[i].size);
+#endif
 }
 
 static int
@@ -158,17 +170,20 @@ static void umb_free_all(void)
 {
   int i;
 
-  for (i = 0; i < umbs_used; i++)
+  for (i = 0; i < umbs_used; i++) {
+    e_invalidate_full(DOSADDR_REL(smget_base_addr(&umbs[i])), umbs[i].size);
     smfree_all(&umbs[i]);
+  }
   umbs_used = 0;
 }
 
-static void umb_free(int segbase)
+static int umb_free(int segbase)
 {
   int umb = umb_find(segbase);
 
   if (umb != UMB_NULL)
-    smfree(&umbs[umb], SEG2LINEAR(segbase));
+    return smfree(&umbs[umb], SEG2UNIX(segbase));
+  return -1;
 }
 
 static int
@@ -216,13 +231,15 @@ static void xms_free(unsigned addr)
 void
 xms_reset(void)
 {
-  umb_free_all();
-  memcheck_map_free('U');
+  if (umbs_used) {
+    umb_free_all();
+    memcheck_map_free('U');
+  }
   config.xms_size = 0;
+  intdrv = 0;
 }
 
-static void xx_printf(int prio, char *fmt, ...) FORMAT(printf, 2, 3);
-static void xx_printf(int prio, char *fmt, ...)
+static void xx_printf(int prio, const char *fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
@@ -230,19 +247,20 @@ static void xx_printf(int prio, char *fmt, ...)
   va_end(args);
 }
 
+int xms_intdrv(void)
+{
+  return intdrv;
+}
+
 static void xms_helper_init(void)
 {
   int i;
 
-  if (!config.ext_mem) {
-    CARRY;
-    return;
-  }
+  NOCARRY;	/* report success */
 
-  LWORD(eax) = 0;	/* report success */
-
-  if (config.xms_size)
+  if (intdrv)
     return;
+  intdrv = 1;
 
   config.xms_size = EXTMEM_SIZE >> 10;
   x_printf("XMS: initializing XMS... %d handles\n", NUM_HANDLES);
@@ -250,8 +268,10 @@ static void xms_helper_init(void)
   freeHMA = 1;
   a20_global = a20_local = 0;
 
+  if (!config.xms_size)
+    return;
   handle_count = 0;
-  for (i = 0; i < NUM_HANDLES + 1; i++) {
+  for (i = 0; i < NUM_HANDLES; i++) {
     if (handles[i].valid && handles[i].addr)
       xms_free(handles[i].addr);
     handles[i].valid = 0;
@@ -260,11 +280,6 @@ static void xms_helper_init(void)
   smdestroy(&mp);
   sminit(&mp, ext_mem_base, config.xms_size * 1024);
   smregister_error_notifier(&mp, xx_printf);
-
-  /* need to memset UMBs as FreeDOS marks them as used */
-  /* in fact smalloc does memset(), so this no longer needed */
-  for (i = 0; i < umbs_used; i++)
-    memset(smget_base_addr(&umbs[i]), 0, umbs[i].size);
 }
 
 void xms_helper(void)
@@ -285,7 +300,7 @@ void xms_helper(void)
 
   case XMS_HELPER_UMB_INIT: {
     char *cmdl, *p, *p1;
-    int check_ems = 1;
+    int umb_ems = 0;
     int unk_opt = 0;
 
     if (LO(bx) < UMB_DRIVER_VERSION) {
@@ -326,8 +341,8 @@ void xms_helper(void)
       p = strrchr(cmdl, ' ');
       if (p) {
         p++;
-        if (strcasecmp(p, "FULL") == 0)
-          check_ems = 0;
+        if (strcasecmp(p, "/FULL") == 0)
+          umb_ems = 1;
         else
           unk_opt = 1;
       }
@@ -339,7 +354,7 @@ void xms_helper(void)
       }
     }
 
-    umb_setup(check_ems);
+    umb_setup(umb_ems);
     LWORD(eax) = umbs_used;
     if (!umbs_used) {
       CARRY;
@@ -377,7 +392,16 @@ void xms_control(void)
   case XMS_ALLOCATE_UMB:
     {
       int size = LWORD(edx) << 4;
-      unsigned int addr = umb_allocate(size);
+      unsigned int addr;
+
+      if (size == 0) {
+	int avail = umb_query();
+	Debug0((dbg_fd, "Allocate UMB with 0 size\n"));
+	XMS_RET(0xa7);
+	LWORD(edx) = avail >> 4;
+	break;
+      }
+      addr = umb_allocate(size);
       is_umb_fn = 1;
       Debug0((dbg_fd, "Allocate UMB memory: %#x\n", size));
       if (addr == 0) {
@@ -389,24 +413,22 @@ void xms_control(void)
       }
       else {
 	Debug0((dbg_fd, "Allocate UMB Success\n"));
-	LWORD(eax) = 1;
+	XMS_RET(0);
 	LWORD(ebx) = addr >> 4;
 	LWORD(edx) = size >> 4;
+	Debug0((dbg_fd, "umb_allocated: %#x:%#x\n", addr, size));
       }
-      Debug0((dbg_fd, "umb_allocated: %#x0:%#x0\n",
-	      (unsigned) LWORD(ebx),
-	      (unsigned) LWORD(edx)));
       /* retval = UNCHANGED; */
       break;
     }
 
   case XMS_DEALLOCATE_UMB:
     {
+      int err;
       is_umb_fn = 1;
-      umb_free(LWORD(edx));
-      XMS_RET(0);			/* no error */
-      Debug0((dbg_fd, "umb_freed: 0x%04x\n",
-	      (unsigned) LWORD(edx)));
+      Debug0((dbg_fd, "umb_free: 0x%04x\n", (unsigned) LWORD(edx)));
+      err = umb_free(LWORD(edx));
+      XMS_RET(err ? 0xb2 : 0);
       /* retval = UNCHANGED; */
       break;
     }
@@ -419,7 +441,7 @@ void xms_control(void)
     break;
  }
 
- if (config.xms_size && !is_umb_fn) {
+ if (intdrv && !is_umb_fn) {
   switch (HI(ax)) {
   case 0:			/* Get XMS Version Number */
     LWORD(eax) = XMS_VERSION;
@@ -554,14 +576,14 @@ void xms_control(void)
  }
  /* If this is the UMB request which came via the external himem.sys,
   * dont pass it back. */
- if (!config.xms_size) {
+ if (!intdrv) {
    if (is_umb_fn)
      LWORD(esp) += 4;
    else
      x_printf("XMS: skipping external request, ax=0x%04x, dx=0x%04x\n",
 	      LWORD(eax), LWORD(edx));
  }
- fake_retf(0);
+ LWORD(eip)++;
 }
 
 static int
@@ -570,7 +592,7 @@ FindFreeHandle(int start)
   int i, h = 0;
 
   /* first free handle is 1 */
-  for (i = start; (i <= NUM_HANDLES) && (h == 0); i++) {
+  for (i = start; (i < NUM_HANDLES) && (h == 0); i++) {
     if (!handles[i].valid) {
       x_printf("XMS: found free handle: %d\n", i);
       h = i;
@@ -585,7 +607,7 @@ FindFreeHandle(int start)
 static int
 ValidHandle(unsigned short h)
 {
-  if ((h <= NUM_HANDLES) && (handles[h].valid))
+  if ((h < NUM_HANDLES) && (handles[h].valid))
     return 1;
   else
     return 0;
@@ -596,6 +618,19 @@ xms_query_freemem(int api)
 {
   unsigned totalBytes = 0, subtotal, largest;
   int h;
+
+  if (!config.xms_size) {
+    if (api == OLDXMS) {
+      LWORD(eax) = 0;
+      LWORD(edx) = 0;
+    } else {
+      REG(eax) = 0;
+      REG(edx) = 0;
+      REG(ecx) = 0;
+    }
+    LO(bx) = 0;
+    return 0;
+  }
 
   /* the new XMS api should actually work with the function as it
    * stands...
@@ -608,7 +643,7 @@ xms_query_freemem(int api)
    */
 
   totalBytes = 0;
-  for (h = FIRST_HANDLE; h <= NUM_HANDLES; h++) {
+  for (h = FIRST_HANDLE; h < NUM_HANDLES; h++) {
     if (ValidHandle(h))
       totalBytes += handles[h].size;
   }
@@ -642,6 +677,7 @@ xms_query_freemem(int api)
   else {
     REG(eax) = largest;
     REG(edx) = subtotal;
+    REG(ecx) = (config.xms_size * 1024 + LOWMEM_SIZE + HMASIZE) - 1;
     x_printf("XMS query free memory(new): %dK %dK\n",
 	     REG(eax), REG(edx));
   }
@@ -656,6 +692,9 @@ xms_allocate_EMB(int api)
   unsigned int h;
   unsigned int kbsize;
   unsigned addr;
+
+  if (!config.xms_size)
+    return 0xa0;
 
   if (api == OLDXMS)
     kbsize = LWORD(edx);
@@ -739,7 +778,7 @@ xms_move_EMB(void)
     src = SEGOFF2LINEAR(e.SourceOffset >> 16, e.SourceOffset & 0xffff);
   }
   else {
-    if (handles[e.SourceHandle].valid == 0) {
+    if (e.SourceHandle >= NUM_HANDLES || handles[e.SourceHandle].valid == 0) {
       x_printf("XMS: invalid source handle\n");
       return 0xa3;
     }
@@ -816,12 +855,12 @@ xms_EMB_info(int api)
 
   if (ValidHandle(h)) {
     if (api == OLDXMS) {
-      LO(bx) = NUM_HANDLES - handle_count;
+      LO(bx) = NUM_HANDLES - FIRST_HANDLE - handle_count;
       LWORD(edx) = handles[h].size / 1024;
       x_printf("XMS Get EMB info(old) %d\n", h);
     }
     else {			/* api == NEWXMS */
-      LWORD(ecx) = NUM_HANDLES - handle_count;
+      LWORD(ecx) = NUM_HANDLES - FIRST_HANDLE - handle_count;
       REG(edx) = handles[h].size / 1024;
       x_printf("XMS Get EMB info(new) %d\n", h);
     }

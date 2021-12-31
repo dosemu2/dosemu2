@@ -3,36 +3,17 @@
  *
  */
 
-#include "config.h"
-#include <stdio.h>
-#include <termios.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/mman.h>
-
 #include "emu.h"
-#include "init.h"
-#include "sig.h"
 #include "bios.h"
 #include "int.h"
 #include "memory.h"
 #include "video.h"		/* video base address */
-#include "mouse.h"
 #include "serial.h"
-#include "port.h"
+#include "timers.h"
 #include "utilities.h"
 #include "doshelpers.h"
-#include "dpmi.h"
-#include "port.h"
-#include "iodev.h"
-#include "bitops.h"
+#include "lowmem.h"
+#include "mouse.h"
 
 /* This is included for video mode support. Please DO NOT remove !
  * mousevid.h will become part of VGA emulator package */
@@ -40,9 +21,9 @@
 #include "gcursor.h"
 #include "vgaemu.h"
 
-#define SETHIGH(x, v) HI_BYTE(x) = (v)
+#define SETHIGH(x, v) HI_BYTE_d(x) = (v)
 #define SETLO_WORD(x, v) LO_WORD(x) = (v)
-#define SETLO_BYTE(x, v) LO_BYTE(x) = (v)
+#define SETLO_BYTE(x, v) LO_BYTE_d(x) = (v)
 #define SETWORD(x, v) SETLO_WORD(x, v)
 
 #define MOUSE_RX mouse_roundx(get_mx())
@@ -62,14 +43,38 @@ static int mickeyy(void)
 	return (mouse.unscm_y / (mouse.py_range * 8));
 }
 
+static int _get_mx(void)
+{
+	return mouse.unsc_x / mouse.px_range;
+}
+
 static int get_mx(void)
 {
-	return (mouse.unsc_x / mouse.px_range);
+	static int warned;
+	int ret = _get_mx();
+	if (mouse.virtual_maxx && ret > mouse.virtual_maxx && !warned) {
+		dosemu_error("MOUSE: X out of range: %i > %i, %i\n",
+				ret, mouse.virtual_maxx, mouse.px_range);
+		warned++;
+	}
+	return ret;
+}
+
+static int _get_my(void)
+{
+	return mouse.unsc_y / mouse.py_range;
 }
 
 static int get_my(void)
 {
-	return (mouse.unsc_y / mouse.py_range);
+	static int warned;
+	int ret = _get_my();
+	if (mouse.virtual_maxy && ret > mouse.virtual_maxy && !warned) {
+		dosemu_error("MOUSE: Y out of range: %i > %i, %i\n",
+				ret, mouse.virtual_maxy, mouse.py_range);
+		warned++;
+	}
+	return ret;
 }
 
 static void set_px_ranges(int x_range, int y_range)
@@ -80,6 +85,8 @@ static void set_px_ranges(int x_range, int y_range)
 	mouse.unscm_x = mouse.unscm_x * x_range / mouse.px_range;
 	mouse.unscm_y = mouse.unscm_y * y_range / mouse.py_range;
 
+	m_printf("MOUSE: setting px ranges (%i, %i) -> (%i, %i)\n",
+			mouse.px_range, mouse.py_range, x_range, y_range);
 	mouse.px_range = x_range;
 	mouse.py_range = y_range;
 }
@@ -99,12 +106,13 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_detalternate(void), mouse_hardintrate(void), mouse_disppage(void),
  mouse_detpage(void), mouse_getmaxminvirt(void);
 static void scale_coords3(int x, int y, int x_range, int y_range,
-	int speed_x, int speed_y, int *s_x, int *s_y);
+	int speed_x, int speed_y, long long *s_x, long long *s_y);
 static void scale_coords(int x, int y, int x_range, int y_range,
-	int *s_x, int *s_y);
-static void scale_coords_spd_unsc(int x, int y, int *s_x, int *s_y);
-static void scale_coords_spd_unsc_mk(int x, int y, int *s_x, int *s_y);
-static void do_move_abs(int x, int y, int x_range, int y_range);
+	long long *s_x, long long *s_y);
+static void scale_coords_spd_unsc(int x, int y, long long *s_x, long long *s_y);
+static void scale_coords_spd_unsc_mk(int x, int y, long long *s_x,
+	long long *s_y);
+static void do_move_abs(int x, int y, int x_range, int y_range, int vis);
 
 /* mouse movement functions */
 static void mouse_reset(void);
@@ -112,10 +120,12 @@ static void mouse_do_cur(int callback), mouse_update_cursor(int clipped);
 static void mouse_reset_to_current_video_mode(void);
 
 static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void *udata);
+static void int33_mouse_move_button(int num, int press, void *udata);
 static void int33_mouse_move_wheel(int dy, void *udata);
 static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range, void *udata);
 static void int33_mouse_move_mickeys(int dx, int dy, void *udata);
-static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range, void *udata);
+static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
+    int vis, void *udata);
 static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata);
 static void int33_mouse_enable_native_cursor(int flag, void *udata);
 
@@ -127,7 +137,7 @@ void graph_plane(int);
 static void mouse_delta(int);
 
 /* Internal mouse helper functions */
-static int mouse_round_coords(void);
+static int mouse_clip_coords(void);
 static void mouse_hide_on_exclusion(void);
 
 static void call_mouse_event_handler(void);
@@ -152,7 +162,7 @@ static inline int mouse_roundy(int y)
 	return y & ~((1 << mouse.yshift)-1);
 }
 
-static short default_graphcursormask[HEIGHT] =  {
+static unsigned short default_graphcursormask[HEIGHT] =  {
   0x0000,  /*0000000000000000*/
   0x4000,  /*0100000000000000*/
   0x6000,  /*0110000000000000*/
@@ -171,7 +181,7 @@ static short default_graphcursormask[HEIGHT] =  {
   0x0000   /*0000000000000000*/
 };
 
-static short default_graphscreenmask[HEIGHT] =  {
+static unsigned short default_graphscreenmask[HEIGHT] =  {
   0x3fff,  /*0011111111111111*/
   0x1fff,  /*0001111111111111*/
   0x0fff,  /*0000111111111111*/
@@ -201,11 +211,10 @@ mouse_helper(struct vm86_regs *regs)
 
   SETWORD(regs->eax, 0);		/* Set successful completion */
 
-  switch (LO_BYTE(regs->ebx)) {
+  switch (LO_BYTE_d(regs->ebx)) {
   case 0:				/* Reset iret for mouse */
     m_printf("MOUSE move iret !\n");
     mouse_enable_internaldriver();
-    SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
     break;
   case 1:				/* Select Microsoft Mode */
     m_printf("MOUSE Microsoft Mouse (two buttons) selected.\n");
@@ -228,21 +237,21 @@ mouse_helper(struct vm86_regs *regs)
     SETLO_BYTE(regs->edx, mice->ignorevesa);
     break;
   case 4:				/* Set vertical speed */
-    if (LO_BYTE(regs->ecx) < 1) {
+    if (LO_BYTE_d(regs->ecx) < 1) {
       m_printf("MOUSE Vertical speed out of range. ERROR!\n");
       SETWORD(regs->eax, 1);
     } else
-      mice->init_speed_y = LO_BYTE(regs->ecx);
+      mice->init_speed_y = LO_BYTE_d(regs->ecx);
     break;
   case 5:				/* Set horizontal speed */
-    if (LO_BYTE(regs->ecx) < 1) {
+    if (LO_BYTE_d(regs->ecx) < 1) {
       m_printf("MOUSE Horizontal speed out of range. ERROR!\n");
       SETWORD(regs->eax, 1);
     } else
-      mice->init_speed_x = LO_BYTE(regs->ecx);
+      mice->init_speed_x = LO_BYTE_d(regs->ecx);
     break;
   case 6:				/* Ignore vesa modes */
-    mice->ignorevesa = LO_BYTE(regs->ecx);
+    mice->ignorevesa = LO_BYTE_d(regs->ecx);
     break;
   case 7:				/* get minimum internal resolution */
     SETWORD(regs->ecx, mouse.min_max_x);
@@ -251,6 +260,12 @@ mouse_helper(struct vm86_regs *regs)
   case 8:				/* set minimum internal resolution */
     mouse.min_max_x = LO_WORD(regs->ecx);
     mouse.min_max_y = LO_WORD(regs->edx);
+    break;
+  case 9:				/* set cursor visibility */
+    mouse_client_show_cursor(!!regs->ecx);
+    break;
+  case 0xa:				/* lock cursor visibility */
+    mouse.visibility_locked = !!regs->ecx;
     break;
   case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
     m_printf("MOUSE Start video mode set\n");
@@ -267,10 +282,11 @@ mouse_helper(struct vm86_regs *regs)
       unsigned ax = popw(ssp, sp);
       int mode = popw(ssp, sp);
 
-      if (!mice->ignorevesa && mode >= 0x100 && ax == 0x4f) {
+      if (!mice->ignorevesa && mode >= 0x100 &&
+	    (mode & 0xff00) != 0x1100 && ax == 0x4f) {
 	/* no chargen function; check if vesa mode set successful */
 	vidmouse_set_video_mode(mode);
-      } else {
+      } else if ((mode & 0xff00) != 0x1100) {
 	vidmouse_set_video_mode(-1);
       }
       mouse_reset_to_current_video_mode();
@@ -383,6 +399,8 @@ void mouse_ps2bios(void)
 int
 mouse_int(void)
 {
+  if (!mice->intdrv)
+    return 0;
   m_printf("MOUSE: int 33h, ax=%x bx=%x\n", LWORD(eax), LWORD(ebx));
 
   switch (LWORD(eax)) {
@@ -453,7 +471,7 @@ mouse_int(void)
     break;
 
   case 0x11:
-    LWORD(eax) = 0x574D;;
+    LWORD(eax) = 0x574D;
     LWORD(ebx) = 0;
     LWORD(ecx) = 1;
     break;
@@ -747,9 +765,15 @@ mouse_software_reset(void)
   m_printf("MOUSE: software reset on mouse\n");
 
   /* Disable cursor, and de-install current event handler */
-  mouse.cs=0;
-  mouse.ip=0;
+  mouse.cs = 0;
+  mouse.ip = 0;
+  mouse.ps2.cs = 0;
+  mouse.ps2.ip = 0;
   mouse_enable_internaldriver();
+  if (mouse.cursor_on < -1) {
+    m_printf("MOUSE: normalizing hide count, %i\n", mouse.cursor_on);
+    mouse.cursor_on = -1;
+  }
 
   /* Return 0xffff on success, 0x21 on failure */
   LWORD(eax) = 0xffff;
@@ -798,7 +822,7 @@ mouse_restorestate(void)
 
   /* regenerate mouse graphics cursor from masks; they take less
   	space than the "compiled" version. */
-  define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
+  define_graphics_cursor(mouse.graphscreenmask, mouse.graphcursormask);
 
   /* we turned off the mouse cursor prior to saving, so turn it
   	back on again at the restore. */
@@ -861,7 +885,7 @@ mouse_excevhand(void)
 void
 mouse_setcurspeed(void)
 {
-  int oldx, oldy, newx, newy;
+  long long oldx, oldy, newx, newy;
 
   if (mouse.cursor_on < 0) {
     /* when speed changes, in ungrabbed mode we need to update deltas
@@ -913,15 +937,15 @@ static void setmxy(int x, int y)
 	mouse.unscm_y = get_unsc_mk_y(y);
 }
 
-static void add_abs_coords(int udx, int udy)
+static void add_abs_coords(long long udx, long long udy)
 {
 	mouse.unsc_x += udx;
 	mouse.unsc_y += udy;
 
-	mouse_round_coords();
+	mouse_clip_coords();
 }
 
-static void add_mickey_coords(int udx, int udy)
+static void add_mickey_coords(long long udx, long long udy)
 {
 	mouse.unscm_x += udx;
 	mouse.unscm_y += udy;
@@ -935,7 +959,8 @@ static void get_scale_range(int *mx_range, int *my_range)
 
 static void add_mk(int dx, int dy)
 {
-	int mx_range, my_range, udx, udy;
+	int mx_range, my_range;
+	long long udx, udy;
 
 	/* pixel range set to 1 */
 	udx = dx * 8;
@@ -949,7 +974,7 @@ static void add_mk(int dx, int dy)
 
 static void add_px(int dx, int dy)
 {
-	int mdx, mdy, udx, udy;
+	long long mdx, mdy, udx, udy;
 
 	scale_coords_spd_unsc(dx, dy, &mdx, &mdy);
 	scale_coords_spd_unsc_mk(dx, dy, &udx, &udy);
@@ -1071,6 +1096,9 @@ mouse_reset_to_current_video_mode(void)
   mouse.virtual_miny = MOUSE_MINY;
   mouse.virtual_maxy = mouse.maxy;
 
+  /* counters may become out-of-range, adjust */
+  mouse_clip_coords();
+
   m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i type=%d\n",
 	   mouse.maxx, mouse.maxy, mouse.speed_x, mouse.speed_y,
 	   mice->type);
@@ -1084,7 +1112,7 @@ static void int33_mouse_enable_native_cursor(int flag, void *udata)
 
 static void scale_coords_spd(int x, int y, int x_range, int y_range,
 	int mx_range, int my_range, int speed_x, int speed_y,
-	int *s_x, int *s_y)
+	long long *s_x, long long *s_y)
 {
 	*s_x = ((long long)x * mx_range * mice->init_speed_x * 100) /
 	    (x_range * speed_x * mouse.sens_x) + MOUSE_MINX;
@@ -1092,13 +1120,14 @@ static void scale_coords_spd(int x, int y, int x_range, int y_range,
 	    (y_range * speed_y * mouse.sens_y) + MOUSE_MINY;
 }
 
-static void scale_coords_spd_unsc_mk(int x, int y, int *s_x, int *s_y)
+static void scale_coords_spd_unsc_mk(int x, int y, long long *s_x,
+        long long *s_y)
 {
 	scale_coords_spd(x, y, 1, 1, mouse.min_max_x, mouse.min_max_y,
 		    1, 1, s_x, s_y);
 }
 
-static void scale_coords_spd_unsc(int x, int y, int *s_x, int *s_y)
+static void scale_coords_spd_unsc(int x, int y, long long *s_x, long long *s_y)
 {
 	int mx_range, my_range;
 
@@ -1108,7 +1137,7 @@ static void scale_coords_spd_unsc(int x, int y, int *s_x, int *s_y)
 }
 
 static void scale_coords_basic(int x, int y, int x_range, int y_range,
-	int mx_range, int my_range, int *s_x, int *s_y)
+	int mx_range, int my_range, long long *s_x, long long *s_y)
 {
 	*s_x = ((long long)x * mx_range) / x_range + MOUSE_MINX;
 	*s_y = ((long long)y * my_range) / y_range + MOUSE_MINY;
@@ -1116,7 +1145,7 @@ static void scale_coords_basic(int x, int y, int x_range, int y_range,
 
 static void scale_coords2(int x, int y, int x_range, int y_range,
 	int mx_range, int my_range, int speed_x, int speed_y,
-	int *s_x, int *s_y)
+	long long *s_x, long long *s_y)
 {
 	/* if cursor is not visible we need to take into
 	 * account the user's speed. If it is visible, then
@@ -1131,23 +1160,27 @@ static void scale_coords2(int x, int y, int x_range, int y_range,
 }
 
 static void scale_coords3(int x, int y, int x_range, int y_range,
-	int speed_x, int speed_y, int *s_x, int *s_y)
+	int speed_x, int speed_y, long long *s_x, long long *s_y)
 {
 	int mx_range, my_range;
 
 	get_scale_range(&mx_range, &my_range);
 	scale_coords2(x, y, x_range, y_range, mx_range, my_range,
-			speed_x, speed_y, s_x, s_y);
+			min(speed_x, mice->init_speed_x),
+			min(speed_y, mice->init_speed_y), s_x, s_y);
 }
 
 static void scale_coords(int x, int y, int x_range, int y_range,
-	int *s_x, int *s_y)
+	long long *s_x, long long *s_y)
 {
 	int mx_range, my_range;
 
 	get_scale_range(&mx_range, &my_range);
 	scale_coords2(x, y, x_range, y_range, mx_range, my_range,
-			mouse.speed_x, mouse.speed_y, s_x, s_y);
+		/* simcity hack: only handle cursor speed-ups but ignore
+		 * slow-downs. */
+		min(mouse.speed_x, mice->init_speed_x),
+		min(mouse.speed_y, mice->init_speed_y), s_x, s_y);
 }
 
 static void mouse_reset(void)
@@ -1155,6 +1188,8 @@ static void mouse_reset(void)
   m_printf("MOUSE: reset mouse/installed!\n");
 
   mouse.ps2.state = 0;
+  mouse.ps2.cs = 0;
+  mouse.ps2.ip = 0;
 
   mouse_enable_internaldriver();
 
@@ -1175,7 +1210,6 @@ static void mouse_reset(void)
 
   mouse.cursor_on = -1;
   mouse.lbutton = mouse.mbutton = mouse.rbutton = 0;
-  mouse.oldlbutton = mouse.oldmbutton = mouse.oldrbutton = 1;
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
   mouse.wmcount = 0;
@@ -1227,15 +1261,16 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
   	return;
 
   /* adjust hide count (always negative or zero) */
-  mouse.cursor_on = mouse.cursor_on + flag;
+  mouse.cursor_on += flag;
 
   /* update the cursor if we just turned it off or on */
   if ((flag == -1 && mouse.cursor_on == -1) ||
   		(flag == 1 && mouse.cursor_on == 0)){
 	  mouse_do_cur(1);
     if (flag == 1 && need_resync && !dragged.cnt)
-      do_move_abs(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range);
-    mouse_client_show_cursor(mouse.cursor_on >= 0);
+      do_move_abs(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range,
+          mouse.cursor_on >= 0);
+    mouse.visibility_changed++;
   }
 
   m_printf("MOUSE: %s mouse cursor %d\n", flag > 0 ? "show" : "hide", mouse.cursor_on);
@@ -1271,13 +1306,13 @@ mouse_setpos(void)
   }
 #endif
   setxy(LWORD(ecx), LWORD(edx));
-  mouse_round_coords();
+  mouse_clip_coords();
   mouse_hide_on_exclusion();
   if (mouse.cursor_on >= 0) {
     mouse.x_delta = mouse.y_delta = 0;
     mouse_do_cur(1);
   } else {
-    int abs_x, abs_y;
+    long long abs_x, abs_y;
     scale_coords(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range,
 	    &abs_x, &abs_y);
     mouse.x_delta = get_mx() - abs_x;
@@ -1420,7 +1455,7 @@ mouse_set_gcur(void)
   memcpy((void *)mouse.graphcursormask,ptr+16,32);
 
   /* compile it so that it can acutally be drawn. */
-  define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
+  define_graphics_cursor(mouse.graphscreenmask, mouse.graphcursormask);
 }
 
 void
@@ -1475,7 +1510,8 @@ mouse_mickeys(void)
     dragged.cnt = 0;
     if (dragged.skipped) {
       dragged.skipped = 0;
-      do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range);
+      do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range,
+          mouse.cursor_on >= 0);
     }
   }
 }
@@ -1484,10 +1520,14 @@ void
 mouse_version(void)
 {
   LWORD(ebx) = MOUSE_VERSION;
-  HI(cx) = 4;			/* ps2 mouse */
-  LO(cx) = 0;			/* Basically, treat the internal mouse */
-				/* driver as an IBM PS/2 mouse */
-  m_printf("MOUSE: get version %04x\n", LWORD(ebx));
+  if (mice->com == -1) {
+    HI(cx) = 4;			/* ps2 mouse */
+    LO(cx) = 0;
+  } else {
+    HI(cx) = 2;			/* serial mouse */
+    LO(cx) = com_cfg[mice->com].irq;
+  }
+  m_printf("MOUSE: get version %04x, 0x%04x\n", LWORD(ebx), LWORD(ecx));
 }
 
 void
@@ -1499,6 +1539,7 @@ mouse_disable_internaldriver()
 
   mouse.enabled = FALSE;
 
+  mouse_client_show_cursor(1);
   m_printf("MOUSE: Disable InternalDriver\n");
 }
 
@@ -1506,6 +1547,7 @@ void
 mouse_enable_internaldriver()
 {
   mouse.enabled = TRUE;
+  mouse_client_show_cursor(mouse.cursor_on >= 0);
   m_printf("MOUSE: Enable InternalDriver\n");
 }
 
@@ -1585,19 +1627,17 @@ void mouse_keyboard(Boolean make, t_keysym key)
 	if (state.l) {
 		dx -= 1;
 	}
-	mouse_move_mickeys(dx, dy);
-	mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton);
+	mouse_move_mickeys(dx, dy, MOUSE_VKBD);
+	mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton,
+		MOUSE_VKBD);
 }
 
-static int mouse_round_coords2(int x, int y, int *r_x, int *r_y)
+static int mouse_clip_coords2(int x, int y, int *r_x, int *r_y)
 {
 	int clipped = 0;
 
 	*r_x = x;
 	*r_y = y;
-	/* in ps2 mode ignore clipping */
-	if (mouse.ps2.cs || mouse.ps2.ip)
-		return 0;
 	/* put the mouse coordinate in bounds */
 	if (x < mouse.virtual_minx) {
 		*r_x = mouse.virtual_minx;
@@ -1618,11 +1658,11 @@ static int mouse_round_coords2(int x, int y, int *r_x, int *r_y)
 	return clipped;
 }
 
-static int mouse_round_coords(void)
+static int mouse_clip_coords(void)
 {
 	int newx, newy, ret;
 
-	ret = mouse_round_coords2(get_mx(), get_my(), &newx, &newy);
+	ret = mouse_clip_coords2(_get_mx(), _get_my(), &newx, &newy);
 	if (ret & 1)
 	    mouse.unsc_x = get_unsc_x(newx);
 	if (ret & 2)
@@ -1661,6 +1701,12 @@ static void mouse_hide_on_exclusion(void)
 
 static void mouse_move(int clipped)
 {
+  /* delayed visibility change */
+  if (mouse.visibility_changed) {
+    mouse.visibility_changed = 0;
+    mouse_client_show_cursor(mouse.visibility_locked ?: mouse.cursor_on >= 0);
+  }
+
   mouse_hide_on_exclusion();
   mouse_update_cursor(clipped);
 
@@ -1725,7 +1771,7 @@ static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void
 	if (dragged.skipped) {
 		dragged.skipped = 0;
 		do_move_abs(dragged.x, dragged.y, dragged.x_range,
-			    dragged.y_range);
+			    dragged.y_range, mouse.cursor_on >= 0);
 	}
 
 	/* Provide 3 button emulation on 2 button mice,
@@ -1742,21 +1788,51 @@ static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void
 			mbutton = 1;  /* Set middle button */
 		}
 	}
-	mouse.oldlbutton = mouse.lbutton;
-	mouse.oldmbutton = mouse.mbutton;
-	mouse.oldrbutton = mouse.rbutton;
-	mouse.lbutton = !!lbutton;
-	mouse.mbutton = !!mbutton;
-	mouse.rbutton = !!rbutton;
 	/*
 	 * update the event mask
 	 */
-	if (mouse.oldlbutton != mouse.lbutton)
-	   mouse_lb();
-        if (mouse.threebuttons && mouse.oldmbutton != mouse.mbutton)
-	   mouse_mb();
-	if (mouse.oldrbutton != mouse.rbutton)
-	   mouse_rb();
+	if (lbutton != mouse.lbutton) {
+	    mouse.lbutton = lbutton;
+	    mouse_lb();
+	}
+	if (mouse.threebuttons && mbutton != mouse.mbutton) {
+	    mouse.mbutton = mbutton;
+	    mouse_mb();
+	}
+	if (rbutton != mouse.rbutton) {
+	    mouse.rbutton = rbutton;
+	    mouse_rb();
+	}
+}
+
+static void int33_mouse_move_button(int num, int press, void *udata)
+{
+	if (dragged.skipped) {
+		dragged.skipped = 0;
+		do_move_abs(dragged.x, dragged.y, dragged.x_range,
+			    dragged.y_range, mouse.cursor_on >= 0);
+	}
+
+	switch (num) {
+	case 0:
+		if (press != mouse.lbutton) {
+		    mouse.lbutton = press;
+		    mouse_lb();
+		}
+		break;
+	case 1:
+		if (mouse.threebuttons && press != mouse.mbutton) {
+		    mouse.mbutton = press;
+		    mouse_mb();
+		}
+		break;
+	case 2:
+		if (press != mouse.rbutton) {
+		    mouse.rbutton = press;
+		    mouse_rb();
+		}
+		break;
+	}
 }
 
 static void int33_mouse_move_wheel(int dy, void *udata)
@@ -1806,7 +1882,8 @@ static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
 static int move_abs_mickeys(int dx, int dy, int x_range, int y_range)
 {
 
-	int ret = 0, mdx, mdy, oldmx = mickeyx(), oldmy = mickeyy();
+	int ret = 0, oldmx = mickeyx(), oldmy = mickeyy();
+	long long mdx, mdy;
 	scale_coords_spd_unsc_mk(dx, dy, &mdx, &mdy);
 
 	if (mdx || mdy) {
@@ -1819,20 +1896,16 @@ static int move_abs_mickeys(int dx, int dy, int x_range, int y_range)
 	return ret;
 }
 
-static int move_abs_coords(int x, int y, int x_range, int y_range)
+static int move_abs_coords(int x, int y, int x_range, int y_range, int vis)
 {
-	int new_x, new_y, clipped, c_x, c_y, oldx = get_mx(), oldy = get_my();
+	long long new_x, new_y;
+	int clipped, c_x, c_y, oldx = get_mx(), oldy = get_my();
 
-	/* simcity hack: only handle cursor speed-ups but ignore
-	 * slow-downs. */
-	scale_coords3(x, y, x_range, y_range,
-			min(mouse.speed_x, mice->init_speed_x),
-			min(mouse.speed_y, mice->init_speed_y),
-			&new_x, &new_y);
+	scale_coords(x, y, x_range, y_range, &new_x, &new_y);
 	/* for visible cursor always recalc deltas */
-	if (mouse.cursor_on >= 0)
+	if (vis)
 		mouse.x_delta = mouse.y_delta = 0;
-	clipped = mouse_round_coords2(new_x + mouse.x_delta,
+	clipped = mouse_clip_coords2(new_x + mouse.x_delta,
 		    new_y + mouse.y_delta, &c_x, &c_y);
 	/* we dont allow DOS prog to grab mouse pointer by locking it
 	 * inside a clipping region. So just update deltas. If cursor
@@ -1841,8 +1914,7 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	    mouse.x_delta = c_x - new_x;
 	    mouse.y_delta = c_y - new_y;
 	}
-	mouse.unsc_x = get_unsc_x(c_x);
-	mouse.unsc_y = get_unsc_y(c_y);
+	setxy(c_x, c_y);
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) %d %d -> %d %d \n",
 		 x, y, x_range, y_range, oldx, oldy, get_mx(), get_my());
@@ -1850,7 +1922,7 @@ static int move_abs_coords(int x, int y, int x_range, int y_range)
 	return 1;
 }
 
-static void do_move_abs(int x, int y, int x_range, int y_range)
+static void do_move_abs(int x, int y, int x_range, int y_range, int vis)
 {
 	int moved = 0;
 
@@ -1859,7 +1931,7 @@ static void do_move_abs(int x, int y, int x_range, int y_range)
 
 	moved |= move_abs_mickeys(x - mouse.px_abs, y - mouse.py_abs,
 		    x_range, y_range);
-	moved |= move_abs_coords(x, y, x_range, y_range);
+	moved |= move_abs_coords(x, y, x_range, y_range, vis);
 
 	mouse.px_abs = x;
 	mouse.py_abs = y;
@@ -1872,7 +1944,7 @@ static void do_move_abs(int x, int y, int x_range, int y_range)
 }
 
 static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
-	void *udata)
+	int vis, void *udata)
 {
 	/* give an app some time to chew dragging */
 	if (dragged.cnt > 1) {
@@ -1892,7 +1964,7 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 		mouse.need_resync = 0;
 		/* for invisible cursor update deltas and return */
 		if (mouse.cursor_on < 0) {
-			int new_x, new_y;
+			long long new_x, new_y;
 			scale_coords(x, y, x_range, y_range, &new_x, &new_y);
 			mouse.x_delta = get_mx() - new_x;
 			mouse.y_delta = get_my() - new_y;
@@ -1908,7 +1980,7 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
 		m_printf("MOUSE: synced coords, x:%i y:%i\n",
 			    mouse.px_abs, mouse.py_abs);
 	}
-	do_move_abs(x, y, x_range, y_range);
+	do_move_abs(x, y, x_range, y_range, vis);
 }
 
 /* this is for buggy apps that use the mickey tracking and have
@@ -1949,14 +2021,13 @@ mouse_delta(int event)
  */
 static void call_int15_mouse_event_handler(void)
 {
-  struct vm86_regs saved_regs;
   int status;
   unsigned int ssp, sp;
   int dx, dy, cnt = 0;
 
+  rm_stack_enter();
   ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
-  saved_regs = REGS;
 
   do {
     cnt++;
@@ -1972,8 +2043,8 @@ static void call_int15_mouse_event_handler(void)
       dx = dx < -128 ? -128 : 127;
     if (dy < -128 || dy > 127)
       dy = dy < -128 ? -128 : 127;
-    mouse.unscm_x -= get_unsc_mk_x(dx << 3);
-    mouse.unscm_y += get_unsc_mk_y(dy << 3);
+    mouse.unscm_x -= get_unsc_mk_x(dx * 8);
+    mouse.unscm_y += get_unsc_mk_y(dy * 8);
     /* we'll call the handler again */
     if (dx < 0)
       status |= 0x10;
@@ -1994,17 +2065,15 @@ static void call_int15_mouse_event_handler(void)
     LWORD(esp) += 8;
   } while (mickeyx() || mickeyy());
 
-  REGS = saved_regs;
+  rm_stack_leave();
 }
 
 static void call_int33_mouse_event_handler(void)
 {
-    struct vm86_regs saved_regs;
-
-    saved_regs = REGS;
+    rm_stack_enter();
     LWORD(eax) = mouse_events;
-    LWORD(ecx) = get_mx();
-    LWORD(edx) = get_my();
+    LWORD(ecx) = MOUSE_RX;
+    LWORD(edx) = MOUSE_RY;
     LWORD(esi) = mickeyx();
     LWORD(edi) = mickeyy();
     LO(bx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
@@ -2020,7 +2089,7 @@ static void call_int33_mouse_event_handler(void)
     m_printf("MOUSE: .........jumping to %04x:%04x\n", mouse.cs, mouse.ip);
     SREG(ds) = mouse.cs;		/* put DS in user routine */
     do_call_back(mouse.cs, mouse.ip);
-    REGS = saved_regs;
+    rm_stack_leave();
 
     /* When mouse is dragged to the corner with mouse_drag_to_corner(),
      * the mickey counters are going crazy. This is not a problem when
@@ -2063,7 +2132,8 @@ static void call_mouse_event_handler(void)
 
   if (handled && dragged.skipped) {
     dragged.skipped = 0;
-    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range);
+    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range,
+        mouse.cursor_on >= 0);
   }
 }
 
@@ -2166,7 +2236,8 @@ static void mouse_curtick(void)
     dragged.cnt--;
   } else if (dragged.skipped) {
     dragged.skipped = 0;
-    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range);
+    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range,
+        mouse.cursor_on >= 0);
   }
   if (mouse.cursor_on != 0)
     return;
@@ -2174,12 +2245,6 @@ static void mouse_curtick(void)
   /* we used to do an unconditional update here, but that causes a
   	distracting flicker in the mouse cursor. */
   mouse_update_cursor(0);
-}
-
-void dosemu_mouse_reset(void)
-{
-  if (mice->intdrv)
-    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
 }
 
 /*
@@ -2213,7 +2278,6 @@ static int int33_mouse_init(void)
   else
   	mouse.threebuttons = FALSE;
 
-  /* Set to disabled, will be enabled in post_boot() */
   mouse.enabled = FALSE;
 
   mice->native_cursor = 1;
@@ -2235,38 +2299,27 @@ static int int33_mouse_init(void)
   return 1;
 }
 
-static int int33_mouse_accepts(void *udata)
+static int int33_mouse_accepts(int from, void *udata)
 {
-  /* if sermouse.c accepts events, we only accept events
-   * that are explicitly sent to int33 (they ignore .accepts member) */
-  if (mice->com != -1 && mousedrv_accepts("serial mouse"))
+  if (!mice->intdrv)
     return 0;
-  return mice->intdrv;
+  /* if commouse.c is active, we only accept events from it,
+   * and nothing else. Those events ignore .accepts member. */
+  if (mice->com != -1)
+    return 0;
+  /* for 2 mices see if source is ours */
+  if (mice->type != mice->dev_type)
+    return (from == mice->type);
+  return 1;
 }
 
-void mouse_post_boot(void)
+void mouse_late_init(void)
 {
-  unsigned int ptr;
-
   if (!mice->intdrv) return;
 
-  /* This is needed here to revectoring the interrupt, after dos
-   * has revectored it. --EB 1 Nov 1997 */
-
-  mouse_reset_to_current_video_mode();
-  mouse_enable_internaldriver();
-  SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
-
-  /* grab int10 back from video card for mouse */
-  ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_int10_old - (long)bios_f000));
-  m_printf("ptr is at %x; ptr[0] = %x, ptr[1] = %x\n",ptr,READ_WORD(ptr),READ_WORD(ptr+2));
-  WRITE_WORD(ptr, IOFF(0x10));
-  WRITE_WORD(ptr + 2, ISEG(0x10));
-  m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",READ_WORD(ptr),READ_WORD(ptr+2));
-  /* Otherwise this isn't safe */
-  SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
-
-  mouse_client_post_init();
+  mouse.enabled = FALSE;
+  mouse.cursor_on = -1;
+  mouse_client_show_cursor(0);
 }
 
 void mouse_set_win31_mode(void)
@@ -2295,16 +2348,17 @@ dosemu_mouse_close(void)
 */
 
 struct mouse_drv int33_mouse = {
-  int33_mouse_init,
-  int33_mouse_accepts,
-  int33_mouse_move_buttons,
-  int33_mouse_move_wheel,
-  int33_mouse_move_relative,
-  int33_mouse_move_mickeys,
-  int33_mouse_move_absolute,
-  int33_mouse_drag_to_corner,
-  int33_mouse_enable_native_cursor,
-  "int33 mouse"
+  .init = int33_mouse_init,
+  .accepts = int33_mouse_accepts,
+  .move_button = int33_mouse_move_button,
+  .move_buttons = int33_mouse_move_buttons,
+  .move_wheel = int33_mouse_move_wheel,
+  .move_relative = int33_mouse_move_relative,
+  .move_mickeys = int33_mouse_move_mickeys,
+  .move_absolute = int33_mouse_move_absolute,
+  .drag_to_corner = int33_mouse_drag_to_corner,
+  .enable_native_cursor = int33_mouse_enable_native_cursor,
+  .name = "int33 mouse",
 };
 
 CONSTRUCTOR(static void int33_mouse_register(void))

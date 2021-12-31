@@ -35,9 +35,9 @@
 #define MAX_IN_PLUGINS 1
 static struct pcm_holder out[ST_MAX][MAX_OUT_PLUGINS];
 static struct pcm_holder in[MAX_IN_PLUGINS];
-#define OUT_PLUGIN(i) ((struct midi_out_plugin *)out[synth_type][i].plugin)
-#define OUT_PLUGIN2(i, j) ((struct midi_out_plugin *)out[i][j].plugin)
-#define IN_PLUGIN(i) ((struct midi_in_plugin *)in[i].plugin)
+#define OUT_PLUGIN(i) ((const struct midi_out_plugin *)out[synth_type][i].plugin)
+#define OUT_PLUGIN2(i, j) ((const struct midi_out_plugin *)out[i][j].plugin)
+#define IN_PLUGIN(i) ((const struct midi_in_plugin *)in[i].plugin)
 static int out_registered[ST_MAX], in_registered;
 static struct rng_s midi_in;
 #define MAX_DL_HANDLES 10
@@ -92,9 +92,11 @@ void midi_done(void)
 	pcm_deinit_plugins(out[i], out_registered[i]);
     pcm_deinit_plugins(in, in_registered);
     rng_destroy(&midi_in);
-#if 0
     for (i = 0; i < num_dl_handles; i++)
+#if 0
 	close_plugin(dl_handles[i]);
+#else
+	(void)dl_handles[i];
 #endif
 }
 

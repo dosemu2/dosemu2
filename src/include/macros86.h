@@ -1,23 +1,6 @@
 #ifndef __MACROS86_H_
 #define __MACROS86_H_
 
-#ifndef __ASM__
-#  define __ASM__
-#endif
-
-.macro SIM_INT n,rtnlabel
-        pushw %ds
-        pushw $0
-        popw %ds
-        pushf
-        pushw %cs
-        pushw $\rtnlabel-bios_f000
-        pushw (4*\n)+2
-        pushw (4*\n)
-        lret
-        \rtnlabel: popw %ds
-.endm
-
 .macro FILL_OPCODE x,v
 .rept \x
 \v

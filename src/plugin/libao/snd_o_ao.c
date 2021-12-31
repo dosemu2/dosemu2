@@ -64,7 +64,9 @@ static int aosnd_cfg(void *arg)
 static int aosnd_open(void *arg)
 {
     ao_sample_format info = {};
+#if 0
     ao_option opt = {};
+#endif
     int id;
 
     ao_init();
@@ -77,10 +79,15 @@ static int aosnd_open(void *arg)
     info.byte_format = AO_FMT_LITTLE;
     info.bits = 16;
     id = ao_default_driver_id();
-    if (id == -1)
+    if (id == -1) {
+	S_printf("libao: default driver not specified, trying alsa\n");
 	id = ao_driver_id("alsa");
-    if (id == -1)
+    }
+    if (id == -1) {
+	error("libao: unable to get driver id\n");
 	return 0;
+    }
+#if 0
     /* for alsa the default settings are fine, but for pulse we
      * need to manually increase buffer_time to avoid clicks...
      * https://bugzilla.redhat.com/show_bug.cgi?id=1193688
@@ -95,15 +102,20 @@ static int aosnd_open(void *arg)
 	 * remember that? */
 	ao = ao_open_live(id, &info, NULL);
     }
-    if (!ao)
+#else
+    ao = ao_open_live(id, &info, NULL);
+#endif
+    if (!ao) {
+	error("libao: unable to open output device\n");
 	return 0;
+    }
 
     pcm_setup_hpf(&params);
 
     sem_init(&start_sem, 0, 0);
     sem_init(&stop_sem, 0, 0);
     pthread_create(&write_thr, NULL, aosnd_write, NULL);
-#ifdef HAVE_PTHREAD_SETNAME_NP
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
     pthread_setname_np(write_thr, "dosemu: libao");
 #endif
     return 1;
@@ -167,16 +179,33 @@ static void aosnd_stop(void *arg)
     sem_wait(&stop_sem);
 }
 
-static const struct pcm_player player = {
+static const struct pcm_player player
+#ifdef __cplusplus
+{
+    aosnd_name,
+    aosnd_longname,
+    aosnd_cfg,
+    aosnd_open,
+    aosnd_close,
+    NULL,
+    aosnd_start,
+    aosnd_stop,
+    0,
+    PCM_ID_P,
+    0
+};
+#else
+= {
     .name = aosnd_name,
     .longname = aosnd_longname,
+    .get_cfg = aosnd_cfg,
     .open = aosnd_open,
     .close = aosnd_close,
     .start = aosnd_start,
     .stop = aosnd_stop,
-    .get_cfg = aosnd_cfg,
     .id = PCM_ID_P,
 };
+#endif
 
 CONSTRUCTOR(static void aosnd_init(void))
 {

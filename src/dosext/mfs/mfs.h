@@ -9,21 +9,17 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 #include <utime.h>
 
 /* definitions to make mach emu code compatible with dosemu */
-#include "emu.h"
-#include "redirect.h"
 
 #define direct dirent
 #ifdef __linux__
 #define d_namlen d_reclen
 #endif
 
-#define PRINTER_BASE_DRIVE 33
+#define MAX_DRIVE 26
+#define PRINTER_BASE_DRIVE MAX_DRIVE
 #define MAX_PRINTER 9
 
-#ifndef MAX_DRIVE
-#define MAX_DRIVE (PRINTER_BASE_DRIVE + MAX_PRINTER)
-#endif
-#define DRIVE_Z 32
+#define MAX_DRIVES (PRINTER_BASE_DRIVE + MAX_PRINTER + 1)
 
 #define USE_DF_AND_AFS_STUFF
 
@@ -38,7 +34,7 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 
 #define dbg_fd -1
 
-#define d_Stub(arg1, s, a...)   d_printf("MFS: "s, ##a)
+#define d_Stub(arg1, s, a...)   d_printf("MFS: " s, ##a)
 #define Debug0(args)		d_Stub args
 #define Debug1(args)		d_Stub args
 
@@ -51,7 +47,7 @@ typedef struct vm86_regs state_t;
 #define HIGH(x)		MASK8((unsigned long)(x) >> 8)
 #define LOW(x)		MASK8((unsigned long)(x))
 #undef WORD
-#define WORD(x)		(uint16_t)(x)
+#define WORD(x)		(unsigned)(uint16_t)(x)
 #define SETHIGH(x,y) 	(*(x) = (*(x) & ~0xff00) | ((MASK8(y))<<8))
 #define SETLOW(x,y) 	(*(x) = (*(x) & ~0xff) | (MASK8(y)))
 #define SETWORD(x,y)	(*(x) = (*(x) & ~0xffff) | (MASK16(y)))
@@ -235,6 +231,8 @@ typedef struct vm86_regs state_t;
 
 #define DUPLICATE_REDIR		0x55
 
+#define CDS_DEFAULT_ROOT_LEN	2
+
 /* Something seems to depend on this structure being no more than 32
    bytes, otherwise dosemu crashes. Why? /MB */
 struct dir_ent {
@@ -242,7 +240,6 @@ struct dir_ent {
   char ext[3];
   char d_name[256];             /* unix name as in readdir */
   u_short mode;			/* unix st_mode value */
-  u_short hidden;
   u_short long_path;            /* directory has long path */
   int size;			/* size of file */
   time_t time;			/* st_mtime */
@@ -262,8 +259,8 @@ struct dos_name {
 
 struct mfs_dirent
 {
-  char *d_name;
-  char *d_long_name;
+  const char *d_name;
+  const char *d_long_name;
 };
 
 struct mfs_dir
@@ -286,9 +283,18 @@ struct drive_info
 {
   char *root;
   int root_len;
-  int read_only;
+  int options;
+  #define read_only(x) (REDIR_CLIENT_SIG_OK(x.options) ? \
+    (x.options & REDIR_DEVICE_READ_ONLY) : 0)
+  #define cdrom(x) (REDIR_CLIENT_SIG_OK(x.options) ? \
+    ((x.options & REDIR_DEVICE_CDROM_MASK) >> 1) : 0)
+  #define permanent(x) (REDIR_CLIENT_SIG_OK(x.options) ? \
+      (x.options & REDIR_DEVICE_PERMANENT) : 0)
+  #define disabled(x) (REDIR_CLIENT_SIG_OK(x.options) ? \
+      (x.options & REDIR_DEVICE_DISABLED) : 0)
+  uint16_t user_param;
+  int saved_cds_flags;
 };
-extern struct drive_info drives[];
 
 extern int mfs_enabled;
 
@@ -316,36 +322,14 @@ extern int mfs_enabled;
 #define CHILD_INHERIT	0x00
 #define NO_INHERIT	0x01
 
-#define GET_REDIRECTION	2
-#define REDIRECT_DEVICE 3
-#define CANCEL_REDIRECTION 4
-#define EXTENDED_GET_REDIRECTION 5
-
-
-/* #define MAX_PATH_LENGTH 57 */
-/* 2001/01/05 Manfred Scherer
- * With the value 57 I can create pathlength until 54.
- * In native DOS I can create pathlength until 63.
- * With the value 66 it should be possible to create
- * paths with length 63.
- * I've tested it on my own system, and I found the value 66
- * is right for me.
- */
-
-#define MAX_PATH_LENGTH 66
-
-
-extern int build_ufs_path_(char *ufs, const char *path, int drive,
+extern void build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
-extern int find_file(char *fpath, struct stat *st, int drive,
+extern int find_file(char *fpath, struct stat *st, int root_len,
 			   int *doserror);
-extern int is_hidden(char *fname);
-extern int get_dos_attr(const char *fname,int mode,int hidden);
-extern int get_dos_attr_fd(int fd,int mode,int hidden);
+extern int get_dos_attr(const char *fname, int mode);
 extern int set_fat_attr(int fd,int attr);
-extern int set_dos_attr(char *fname,int mode,int attr);
+extern int set_dos_attr(char *fname, int attr);
 extern int dos_utime(char *fpath, struct utimbuf *ut);
-extern int get_unix_attr(int mode, int attr);
 extern void time_to_dos(time_t clock, u_short *date, u_short *time);
 extern time_t time_to_unix(u_short dos_date, u_short dos_time);
 extern void extract_filename(const char *filestring0, char *name, char *ext);
@@ -353,13 +337,16 @@ extern struct mfs_dir *dos_opendir(const char *name);
 extern struct mfs_dirent *dos_readdir(struct mfs_dir *);
 extern int dos_closedir(struct mfs_dir *dir);
 extern void get_volume_label(char *fname, char *fext, char *lfn, int drive);
-extern int dos_rename(const char *filename1, const char *filename2, int drive, int lfn);
+extern int dos_rename_lfn(const char *filename1, const char *filename2, int drive);
 extern int dos_mkdir(const char *filename, int drive, int lfn);
 extern int dos_rmdir(const char *filename, int drive, int lfn);
-extern int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
-			      unsigned int *spc, unsigned int *bps);
-extern char *sft_to_filename(const unsigned char *sft, int *fd);
 
 extern void register_cdrom(int drive, int device);
 extern void unregister_cdrom(int drive);
 extern int get_volume_label_cdrom(int drive, char *name);
+extern int get_drive_from_path(char *path, int *drive);
+
+/* returns drive number and any bits that are impossible for drive.
+ * Should be checked against MAX_DRIVE to make sure it is actually
+ * a drive, i.e. no impossible-for-drive bits are set. */
+#define SFT_DRIVE(sft) ((sft_device_info(sft) & 0x88bf) ^ 0x8800)

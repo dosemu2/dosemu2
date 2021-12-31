@@ -19,7 +19,7 @@
 #define UMB_ERROR_UNKNOWN_OPTION 3
 #define UMB_ERROR_UMBS_UNAVAIL 4
 
-#define NUM_HANDLES     64
+#define NUM_HANDLES     65
 #define FIRST_HANDLE    1
 
 #define PARAGRAPH       16	/* bytes in a paragraph */
@@ -54,6 +54,7 @@ void xms_init(void);
 void xms_reset(void);
 void xms_helper(void);
 void xms_control(void);
+int xms_intdrv(void);
 #endif
 
 #endif /* XMS_H */

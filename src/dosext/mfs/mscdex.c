@@ -8,13 +8,11 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-#include "config.h"
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <limits.h>
 #include <sys/types.h>
-#include <linux/cdrom.h>
 #include "emu.h"
 #include "int.h"
 #include "cpu.h"
@@ -35,6 +33,8 @@
 #define MSCDEX_ERROR_BAD_FORMAT		11
 #define MSCDEX_ERROR_UNKNOWN_DRIVE	15
 #define MSCDEX_ERROR_DRIVE_NOT_READY	21
+
+#define CD_FRAMESIZE       2048
 
 static int numDrives = 0;
 static int cd_drives[4] = { -1, -1, -1, -1 };	/* drive letter (A=0) for each CDROM */
@@ -63,7 +63,7 @@ void unregister_cdrom(int drive)
 	int device = GetDriver(drive);
 	if (device >= 4)
 		return;
-	cd_drives[drive] = -1;
+	cd_drives[device] = -1;
 	numDrives--;
 }
 
@@ -270,9 +270,9 @@ static int GetDirectoryEntry(int drive, int copyFlag, Bit32u pathname,
 
 int mscdex(void)
 {
-	unsigned int buf = SEGOFF2LINEAR(_ES, _BX);
-	unsigned long dev;
-	unsigned seg, strat, intr;
+	dosaddr_t buf = SEGOFF2LINEAR(_ES, _BX);
+	dosaddr_t dev;
+	unsigned strat, intr;
 	int err;
 	int i;
 	char devname[] = "MSCD0001";
@@ -282,33 +282,50 @@ int mscdex(void)
 
 	switch (_AL) {
 	case 0x00:		/* install check */
-		_BX = numDrives;
-		if (_BX > 0) {
-			int firstdrive = INT_MAX;
-			for (i = 0; i < 4; i++) {
-				if (cd_drives[i] != -1
-				    && cd_drives[i] < firstdrive)
-					firstdrive = cd_drives[i];
-			}
-			_CX = firstdrive;
-		}
-		break;
-	case 0x01:		/* driver info */
+	{
+		int firstdrive = -1;
+		int cnt = 0;
 		for (i = 0; i < 4; i++) {
-			if (cd_drives[i] != -1) {
-				/* subunit: always 0 for cdrom.sys */
-				WRITE_BYTE(buf, 0x00);
-				devname[7] = i + '1';
-				WRITE_DWORD(buf + 1, is_dos_device(devname));
-				buf += 5;
-			}
-		};
+			if (cd_drives[i] == -1)
+				continue;
+			devname[7] = i + '1';
+			if (!is_dos_device(devname))
+				continue;
+			cnt++;
+			if (cd_drives[i] < firstdrive || firstdrive == -1)
+				firstdrive = cd_drives[i];
+		}
+		_BX = cnt;
+		_CX = firstdrive;
+		break;
+	}
+	case 0x01:		/* driver info */
+		if (!buf) {
+			CARRY;
+			break;
+		}
+		for (i = 0; i < 4; i++) {
+			if (cd_drives[i] == -1)
+				continue;
+			devname[7] = i + '1';
+			dev = is_dos_device(devname);
+			if (!dev)
+				continue;
+			/* subunit: always 0 for cdrom.sys */
+			WRITE_BYTE(buf, 0x00);
+			WRITE_DWORD(buf + 1, dev);
+			buf += 5;
+		}
 		break;
 	case 0x02:		/* copyright file name */
 	case 0x03:		/* abstract file name */
 	case 0x04:		/* documentation file name */
 		{
 			unsigned char readbuf[CD_FRAMESIZE];
+			if (!buf) {
+				CARRY;
+				break;
+			}
 			if (ReadVTOC(_CX, 0x00, readbuf, 0) == 0) {
 				MEMCPY_2DOS(buf, readbuf + 702 + (_AL - 2) * 37,
 					    37);
@@ -321,6 +338,10 @@ int mscdex(void)
 			break;
 		}
 	case 0x05:		/* read vtoc */
+		if (!buf) {
+			CARRY;
+			break;
+		}
 		NOCARRY;
 		err = ReadVTOC(_CX, _DX, NULL, buf);
 		if (err) {
@@ -329,6 +350,10 @@ int mscdex(void)
 		};
 		break;
 	case 0x08:		/* read sectors */
+		if (!buf) {
+			CARRY;
+			break;
+		}
 		NOCARRY;
 		err = ReadSectors(_CX, (_SI << 16) + _DI, _DX, NULL, buf);
 		if (err) {
@@ -353,11 +378,19 @@ int mscdex(void)
 		_BX = (MSCDEX_VERSION_HIGH << 8) + MSCDEX_VERSION_LOW;
 		break;
 	case 0x0D:		/* get drives */
+		if (!buf) {
+			CARRY;
+			break;
+		}
 		for (i = 0; i < 4; i++)
 			if (cd_drives[i] != -1)
 				WRITE_BYTE(buf++, cd_drives[i]);
 		break;
 	case 0x0F:		/* Get directory entry */
+		if (!buf) {
+			CARRY;
+			break;
+		}
 		CARRY;
 		_AX =
 		    GetDirectoryEntry(_CL, _CH & 1, buf,
@@ -368,16 +401,22 @@ int mscdex(void)
 	case 0x10:
 		{
 			int driver = GetDriver(_CX);
-			if (driver >= 4)
+			if (!buf) {
+				_AX = 0xf;
+				CARRY;
 				break;
-			devname[7] = driver + '1';
-			dev = is_dos_device(devname);
-			seg = dev >> 16;
-			dev = SEGOFF2LINEAR(seg, dev & 0xffff);
-			strat = READ_WORD(dev + 6);
-			intr = READ_WORD(dev + 8);
-			fake_call_to(seg, intr);
-			fake_call_to(seg, strat);
+			}
+			CARRY;
+			if (driver >= 4) {
+				_AX = 0xf;
+				break;
+			}
+			WRITE_BYTE(buf + 1, driver);  // set SubUnit
+			strat = READ_WORD(buf + 6);
+			intr = READ_WORD(buf + 8);
+			fake_call_to(_ES, intr);
+			fake_call_to(_ES, strat);
+			NOCARRY;
 			break;
 		}
 	default:

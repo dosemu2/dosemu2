@@ -1,22 +1,23 @@
 Source: dosemu2
-Section: contrib/otherosfs
+Section: otherosfs
 Priority: optional
 Maintainer: Stas Sergeev <stsp@users.sourceforge.net>
-Standards-Version: 3.9.7
+Standards-Version: 4.1.5
 Build-Depends:
     git (>= 2.0),
     bash,
     autoconf,
     autotools-dev,
     automake,
+    make,
     coreutils,
-    realpath,
     linuxdoc-tools,
     bison,
-    perl,
     debhelper (>= 9~),
     flex,
+    gawk,
     sed,
+    findutils,
     libx11-dev,
     libxext-dev,
     libslang2-dev,
@@ -24,27 +25,35 @@ Build-Depends:
     libgpm-dev,
     libasound2-dev,
     libsdl2-dev,
+    libsdl2-ttf-dev,
+    libsdl2-image-dev,
+    libfontconfig1-dev,
     ladspa-sdk,
     libfluidsynth-dev,
     libao-dev,
-    libvdeplug-dev,
-    binutils-dev
-Homepage: http://stsp.github.io/dosemu2/
+    libieee1284-3-dev,
+    libslirp-dev,
+    libbsd-dev,
+    libreadline-dev,
+    libjson-c-dev,
+    binutils-dev,
+    pkg-config,
+    fdpp-dev
+Homepage: https://github.com/dosemu2/dosemu2
 
 Package: dosemu2
 Replaces: dosemu
 Conflicts: dosemu
 Architecture: i386 amd64
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Recommends: ladspa-sdk, ${shlibs-:Recommends}
-Suggests: fluid-soundfont-gm, vde2
+Depends:
+    ${misc:Depends},
+    ${shlibs:Depends},
+    udev (>= 240),
+    bash,
+    coreutils,
+    comcom32 (>= 0.1~alpha2)
+Recommends:${shlibs-:Recommends}, ladspa-sdk, gdb, kbd, fluid-soundfont-gm,
+  install-freedos
+Suggests: vde2, valgrind, install-otherdos
 Description: DOS Emulator for Linux
  dosemu2 is a virtual machine that allows you to run DOS programs under linux.
-
-Package: dosemu2-dbg
-Architecture: i386 amd64
-Section: debug
-Priority: optional
-Depends: dosemu2 (= ${binary:Version}), ${misc:Depends}
-Description: debugging symbols for dosemu2
- This package contains the debugging symbols for dosemu2.

@@ -1,0 +1,15 @@
+rem config.sys for DOSEMU + FreeDOS
+rem must be copied to C:\
+rem SWITCHES=/F
+DOS=UMB,HIGH
+dosdata=umb
+lastdrive=Z
+files=40
+stacks=0
+buffers=10
+device=d:\dosemu\emufs.sys
+device=d:\dosemu\umb.sys
+devicehigh=d:\dosemu\ems.sys
+devicehigh=d:\dosemu\cdrom.sys
+install=d:\dosemu\emufs.com
+shellhigh=command.com /e:1024 /k d:\fdautoem.bat

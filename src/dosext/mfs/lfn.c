@@ -4,10 +4,12 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-#include "config.h"
-
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <limits.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -18,13 +20,14 @@
 #include <dirent.h>
 #include <errno.h>
 #include <wctype.h>
-#include <sys/vfs.h>
 
 #include "emu.h"
+#include "redirect.h"
 #include "mfs.h"
 #include "mangle.h"
 #include "dos2linux.h"
 #include "bios.h"
+#include "int.h"
 #include "lfn.h"
 
 #define EOS '\0'
@@ -56,60 +59,20 @@ static time_t win_to_unix_time(unsigned long long wt)
 	return (wt / 10000000) - (369 * 365 + 89)*24*60*60ULL;
 }
 
-/* returns: NULL: error (error code in fd; 0: SFT not owned by DOSEMU
-   otherwise it return the fd and the filename
-*/
-static char *handle_to_filename(int handle, int *fd)
+/* XXX this just adds trailing / for compatibility.
+ * Adjust the code to not require that. */
+static int get_redirection_root1(int drive, char *presourceStr,
+		int resourceLength)
 {
-	struct PSP *p = MK_FP32(READ_WORDP((unsigned char *)&sda_cur_psp(sda)), 0);
-	unsigned int filetab;
-	unsigned int sp;
-	unsigned char *sft;
-	int dd, idx;
-	dosaddr_t spp;
-
-	struct sfttbl {
-		FAR_PTR sftt_next;
-		unsigned short sftt_count;
-		unsigned char sftt_table[1];
-	};
-
-	/* Look up the handle via the PSP */
-	*fd = HANDLE_INVALID;
-	if (handle >= READ_WORDP((unsigned char *)&p->max_open_files))
-		return NULL;
-
-	filetab = rFAR_PTR(unsigned int, READ_DWORDP((unsigned char *)&p->file_handles_ptr));
-	idx = READ_BYTE(filetab + handle);
-	if (idx == 0xff)
-		return NULL;
-
-	/* Get the SFT block that contains the SFT      */
-	sp = READ_DWORD(lol + 4);
-	sft = NULL;
-	while ( (sp & 0xFFFF) != 0xffff) {
-		spp = rFAR_PTR(dosaddr_t, sp);
-		if (idx < READ_WORD_S(spp, struct sfttbl, sftt_count)) {
-			/* finally, point to the right entry            */
-			sft = LINEAR2UNIX(READ_WORD_S(spp, struct sfttbl,
-				sftt_table[idx * sft_record_size]));
-			break;
+	int ret = get_redirection_root(drive, presourceStr, resourceLength - 1);
+	if (ret > 1) {
+		if (presourceStr) {
+			presourceStr[ret] = '/';
+			presourceStr[ret + 1] = '\0';
 		}
-		idx -= READ_WORD_S(spp, struct sfttbl, sftt_count);
-		sp = READ_DWORD_S(spp, struct sfttbl, sftt_next);
+		ret++;
 	}
-	if ( (sp & 0xFFFF) == 0xffff )
-		return NULL;
-
-	/* do we "own" the drive? */
-	*fd = 0;
-	dd = sft_device_info(sft) & 0x0d1f;
-	if (dd == 0 && (sft_device_info(sft) & 0x8000))
-		dd = MAX_DRIVE - 1;
-	if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root)
-		return NULL;
-
-	return sft_to_filename(sft, fd);
+	return ret;
 }
 
 static int close_dirhandle(int handle)
@@ -137,28 +100,45 @@ void close_dirhandles(unsigned psp)
 	}
 }
 
-static int vfat_search(char *dest, char *src, char *path, int alias)
+static int vfat_search(char *dest, const char *src, const char *_path, int alias)
 {
-	struct mfs_dir *dir = dos_opendir(path);
-	struct mfs_dirent *de;
-	if (dir == NULL)
-		return 0;
-	if (dir->dir == NULL) while ((de = dos_readdir(dir)) != NULL) {
-		d_printf("LFN: vfat_search %s %s %s %s\n", de->d_name,
-			 de->d_long_name, src, path);
-		if ((strcasecmp(de->d_long_name, src) == 0) ||
-		    (strcasecmp(de->d_name, src) == 0)) {
-			char *name = alias ? de->d_name : de->d_long_name;
-			if (!name_ufs_to_dos(dest, name) || alias) {
-				name_convert(dest, MANGLE);
-				strupperDOS(dest);
-			}
-			dos_closedir(dir);
-			return 1;
-		}
-	}
-	dos_closedir(dir);
-	return 0;
+  struct mfs_dir *dir;
+  struct mfs_dirent *de;
+  char *path, *slash;
+  int ret = 0;
+
+  d_printf("LFN: vfat_search src=%s path=%s alias=%d\n", src, _path, alias);
+
+  path = strdup(_path);
+  if (!path)
+    return 0;
+
+  slash = strrchr(path, '/');
+  if (!slash) {
+    free(path);
+    return 0;
+  }
+  *slash = '\0';
+
+  dir = dos_opendir(path);
+  free(path);
+  if (dir == NULL)
+    return 0;
+
+  if (dir->dir == NULL)
+    while ((de = dos_readdir(dir)) != NULL) {
+      d_printf("LFN: vfat_search %s %s\n", de->d_name, de->d_long_name);
+      if ((strcasecmp(de->d_long_name, src) == 0) || (strcasecmp(de->d_name, src) == 0)) {
+        strlcpy(dest, alias ? de->d_name : de->d_long_name, 260);
+        ret = 1;
+        break;
+      }
+    }
+  else
+    d_printf("LFN: vfat_search (not VFAT)\n");
+
+  dos_closedir(dir);
+  return ret;
 }
 
 /* input: fpath = unix path
@@ -166,24 +146,25 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 	  alias=1: mangle, alias=0: don't mangle
    output: dest = DOS path
 */
-int make_unmake_dos_mangled_path(char *dest, const char *fpath,
+static int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 					 int current_drive, int alias)
 {
 	char *src;
 	char *fpath2;
+	char root[MAX_RESOURCE_LENGTH_EXT];
+	int root_len = get_redirection_root1(current_drive, root, sizeof(root));
 	/* root ends with / and fpath may not, so -1 */
-	if (strncmp(fpath, drives[current_drive].root,
-			strlen(drives[current_drive].root) - 1) != 0)
+	if (root_len <= 0 || strncmp(fpath, root, root_len - 1) != 0)
 		return -1;
 	*dest++ = current_drive + 'A';
 	*dest++ = ':';
 	*dest = '\\';
-	if (strlen(fpath) <= strlen(drives[current_drive].root)) {
+	if (strlen(fpath) <= root_len) {
 		dest[1] = 0;
 		return 0;
 	}
 	fpath2 = strdup(fpath);
-	src = fpath2 + strlen(drives[current_drive].root);
+	src = fpath2 + root_len;
 	if (*src == '/') src++;
 	while (src != NULL && *src != '\0') {
 		char *src2 = strchr(src, '/');
@@ -285,278 +266,212 @@ static int parse_name(const char **src, char **cp, char *dest)
 	return -1;
 }
 
-static int truename(char *dest, const char *src, int allowwildcards)
+static int truename(char *dest, const char *src, int allowwildcards,
+	int *r_drv)
 {
-	int i;
-	int result;
-	int gotAnyWildcards = 0;
-	cds_t cds;
-	char *p = dest;	  /* dynamic pointer into dest */
-	char *rootPos;
-	char src0;
-	enum { DONT_ADD, ADD, ADD_UNLESS_LAST } addSep;
-	unsigned flags;
-	const char *froot = get_root(src);
+  int i;
+  int result;
+  int gotAnyWildcards = 0;
+  char *p = dest; /* dynamic pointer into dest */
+  char *rootPos;
+  char src0;
+  enum { DONT_ADD, ADD, ADD_UNLESS_LAST } addSep;
+  const char *froot = get_root(src);
 
-	d_printf("truename(%s)\n", src);
+  d_printf("truename(%s)\n", src);
 
-	/* In opposite of the TRUENAME shell command, an empty string is
-	   rejected by MS DOS 6 */
-	src0 = src[0];
-	if (src0 == '\0')
-		return -FILE_NOT_FOUND;
+  /* In opposite of the TRUENAME shell command, an empty string is
+     rejected by MS DOS 6 */
+  src0 = src[0];
+  if (src0 == '\0')
+    return -FILE_NOT_FOUND;
 
-	if (src0 == '\\' && src[1] == '\\') {
-		const char *unc_src = src;
-		/* Flag UNC paths and short circuit processing.	 Set current LDT   */
-		/* to sentinel (offset 0xFFFF) for redirector processing.	   */
-		d_printf("Truename: UNC detected\n");
-		do {
-			src0 = unc_src[0];
-			addChar(src0);
-			unc_src++;
-		} while (src0);
-		WRITE_DWORDP(&sda[sda_cds_off], 0xFFFFFFFF);
-		d_printf("Returning path: \"%s\"\n", dest);
-		/* Flag as network - drive bits are empty but shouldn't get */
-		/* referenced for network with empty current_ldt.	    */
-		return 0;
-	}
+  if (src0 == '\\' && src[1] == '\\') {
+    const char *unc_src = src;
+    /* Flag UNC paths and short circuit processing.	 Set current LDT   */
+    /* to sentinel (offset 0xFFFF) for redirector processing.	   */
+    d_printf("Truename: UNC detected\n");
+    do {
+      src0 = unc_src[0];
+      addChar(src0);
+      unc_src++;
+    } while (src0);
+    WRITE_DWORDP(&sda[sda_cds_off], 0xFFFFFFFF);
+    d_printf("Returning path: \"%s\"\n", dest);
+    /* Flag as network - drive bits are empty but shouldn't get */
+    /* referenced for network with empty current_ldt.	    */
+    return 0;
+  }
 
-	/* Do we have a drive?						*/
-	if (src[1] == ':')
-		result = toupperDOS(src0) - 'A';
-	else
-		result = sda_cur_drive(sda);
+  /* Do we have a drive?						*/
+  if (src[1] == ':')
+    result = toupperDOS(src0) - 'A';
+  else
+    result = sda_cur_drive(sda);
+  *r_drv = result;
 
-	if (result < 0 || result >= MAX_DRIVE || result >= lol_last_drive(lol))
-		return -PATH_NOT_FOUND;
+  if (result < 0 || result >= MAX_DRIVE || result >= get_lastdrive())
+    return -DISK_DRIVE_INVALID;
 
-	cds = drive_cds(result);
-	flags = cds_flags(cds);
+  /* LFN support is only for MFS drives, not Physical, Join or Subst */
+  if (get_redirection_root1(result, NULL, 0) <= 0)
+    return -DISK_DRIVE_INVALID;
 
-	/* Entry is disabled or JOINed drives are accessable by the path only */
-	if (!(flags & (CDS_FLAG_REMOTE | CDS_FLAG_READY)) || (flags & CDS_FLAG_JOIN) != 0)
-		return -PATH_NOT_FOUND;
+  // I wonder why it was necessary to update the current cds ptr in the sda
+  // WRITE_WORDP(&sda[sda_cds_off], lol_cdsfarptr(lol).offset + result * cds_record_size);
 
-	if (!drives[result].root) {
-		if (!(flags & CDS_FLAG_SUBST))
-			return result;
-		result = toupperDOS(cds_current_path(cds)[0]) - 'A';
-		if (result < 0 || result >= MAX_DRIVE ||
-		    result >= lol_last_drive(lol))
-			return -PATH_NOT_FOUND;
-		if (!drives[result].root)
-			return result;
-		flags = cds_flags(drive_cds(result));
-	}
+  dest[0] = result + 'A';
+  dest[1] = ':';
 
-	if (!(flags & CDS_FLAG_REMOTE))
-		return result;
+  /* Do we have a drive? */
+  if (src[1] == ':')
+    src += 2;
 
-	d_printf("CDS entry: #%u @%p (%u) '%s'\n", result, cds,
-		   cds_rootlen(cds), cds_current_path(cds));
-	WRITE_WORDP(&sda[sda_cds_off],
-		   lol_cdsfarptr(lol).offset + result * cds_record_size);
+  /* check for a device  */
+  dest[2] = '\\';
 
-	dest[0] = (result & 0x1f) + 'A';
-	dest[1] = ':';
+  froot = get_root(src);
+  if (is_dos_device(froot)) {
+    if (froot == src || froot == src + 5) {
+      if (froot == src + 5) {
+        int j;
+        memcpy(dest + 3, src, 5);
+        for (j = 0; j < 5; j++)
+          dest[3 + j] = toupperDOS(dest[3 + j]);
+        if (dest[3] == '/')
+          dest[3] = '\\';
+        if (dest[7] == '/')
+          dest[7] = '\\';
+      }
+      if (froot == src || memcmp(dest + 3, "\\DEV\\", 5) == 0) {
+        /* \dev\nul -> c:/nul */
+        dest[2] = '/';
+        src = froot;
+      }
+    }
+  }
 
-	/* Do we have a drive? */
-	if (src[1] == ':')
-		src += 2;
+  /* Make fully-qualified logical path */
+  /* register these two used characters and the \0 terminator byte */
+  /* we always append the current dir to stat the drive;
+     the only exceptions are devices without paths */
+  rootPos = p = dest + 2;
+  if (*p != '/') { /* i.e., it's a backslash! */
+    char curpath[MAX_PATH_LENGTH];
+    if (getCWD_r(result, curpath, MAX_PATH_LENGTH) == 0) {
+      d_printf("SUBSTing from: %s\n", curpath);
+      /* What to do now: the logical drive letter will be replaced by the hidden
+         portion of the associated path. This is necessary for NETWORK and
+         SUBST drives. For local drives it should not harm.
+         This is actually the reverse mechanism of JOINED drives. */
 
-	/* check for a device  */
-	dest[2] = '\\';
+      memcpy(dest, curpath, CDS_DEFAULT_ROOT_LEN);
 
-	froot = get_root(src);
-	if (is_dos_device(froot)) {
-		if (froot == src || froot == src + 5) {
-			if (froot == src + 5) {
-				int j;
-				memcpy(dest + 3, src, 5);
-				for (j = 0; j < 5; j++)
-					dest[3+j] = toupperDOS(dest[3+j]);
-				if (dest[3] == '/') dest[3] = '\\';
-				if (dest[7] == '/') dest[7] = '\\';
-			}
-			if (froot == src ||
-			    memcmp(dest + 3, "\\DEV\\", 5) == 0) {
-				/* \dev\nul -> c:/nul */
-				dest[2] = '/';
-				src = froot;
-			}
-		}
-	}
+      rootPos = p = dest + CDS_DEFAULT_ROOT_LEN;
+      *p = '\\'; /* force backslash! */
+      p++;
 
-	/* Make fully-qualified logical path */
-	/* register these two used characters and the \0 terminator byte */
-	/* we always append the current dir to stat the drive;
-	   the only exceptions are devices without paths */
-	rootPos = p = dest + 2;
-	if (*p != '/') { /* i.e., it's a backslash! */
-		d_printf("SUBSTing from: %s\n", cds_current_path(cds));
-/* What to do now: the logical drive letter will be replaced by the hidden
-   portion of the associated path. This is necessary for NETWORK and
-   SUBST drives. For local drives it should not harm.
-   This is actually the reverse mechanism of JOINED drives. */
+      if (curpath[CDS_DEFAULT_ROOT_LEN] == '\0')
+        p[0] = '\0';
+      else
+        strcpy(p, &curpath[CDS_DEFAULT_ROOT_LEN + 1]);
+      if (*src != '\\' && *src != '/')
+        p += strlen(p);
+      else /* skip the absolute path marker */
+        src++;
+      /* remove trailing separator */
+      if (p[-1] == '\\')
+        p--;
+    }
+  }
 
-		memcpy(dest, cds_current_path(cds), cds_rootlen(cds));
-		if (cds_flags(cds) & CDS_FLAG_SUBST) {
-			/* The drive had been changed --> update the CDS pointer */
-			if (dest[1] == ':') {
-				/* sanity check if this really
-				   is a local drive still */
-				unsigned i = toupperDOS(dest[0]) - 'A';
+  /* append the path specified in src */
+  addSep = ADD; /* add separator */
 
-				if (i < lol_last_drive(lol))
-					/* sanity check #2 */
-					result = (result & 0xffe0) | i;
-				}
-		}
-		rootPos = p = dest + cds_rootlen(cds);
-		*p = '\\'; /* force backslash! */
-		p++;
+  while (*src) {
+    /* New segment.	 If any wildcards in previous
+       segment(s), this is an invalid path. */
+    if (gotAnyWildcards)
+      return -PATH_NOT_FOUND;
+    switch (*src++) {
+      case '/':
+      case '\\': /* skip multiple separators (duplicated slashes) */
+        addSep = ADD;
+        break;
+      case '.': /* special directory component */
+        switch (*src) {
+          case '/':
+          case '\\':
+          case '\0':
+            /* current path -> ignore */
+            addSep = ADD_UNLESS_LAST;
+            /* If (/ or \) && no ++src
+               --> addSep = ADD next turn */
+            continue; /* next char */
+          case '.':   /* maybe ".." entry */
+          another_dot:
+            switch (src[1]) {
+              case '/':
+              case '\\':
+              case '\0':
+              case '.':
+                /* remove last path component */
+                while (*--p != '\\')
+                  if (p <= rootPos) /* already on root */
+                    return -PATH_NOT_FOUND;
+                /* the separator was removed -> add it again */
+                ++src; /* skip the second dot */
+                if (*src == '.')
+                  goto another_dot;
+                /* If / or \, next turn will find them and
+                   assign addSep = ADD */
+                addSep = ADD_UNLESS_LAST;
+                continue; /* next char */
+            }
+        }
+      default: /* normal component */
+        if (addSep != DONT_ADD) {
+          /* append backslash */
+          addChar(*rootPos);
+          addSep = DONT_ADD;
+        }
 
-		if (cds_current_path(cds)[cds_rootlen(cds)] == '\0')
-			p[0] = '\0';
-		else
-			strcpy(p, cds_current_path(cds) + cds_rootlen(cds) + 1);
-		if (*src != '\\' && *src != '/')
-			p += strlen(p);
-		else /* skip the absolute path marker */
-			src++;
-		/* remove trailing separator */
-		if (p[-1] == '\\') p--;
-	}
+        --src;
+        /* first character skipped in switch() */
+        i = parse_name(&src, &p, dest);
+        if (i == -1)
+          PATH_ERROR;
+        if (i & PNE_WILDCARD)
+          gotAnyWildcards = TRUE;
+        --src; /* terminator or separator was skipped */
+        break;
+    }
+  }
+  if (gotAnyWildcards && !allowwildcards)
+    return -PATH_NOT_FOUND;
+  if (addSep == ADD || p == dest + 2) {
+    /* MS DOS preserves a trailing '\\', so an access to "C:\\DOS\\"
+       or "CDS.C\\" fails. */
+    /* But don't add the separator, if the last component was ".." */
+    /* we must also add a seperator if dest = "c:" */
+    addChar('\\');
+  }
 
-	/* append the path specified in src */
-	addSep = ADD;			/* add separator */
+  *p = '\0'; /* add the string terminator */
 
-	while(*src) {
-		/* New segment.	 If any wildcards in previous
-		   segment(s), this is an invalid path. */
-		if (gotAnyWildcards)
-			return -PATH_NOT_FOUND;
-		switch(*src++)
-		{
-		case '/':
-		case '\\':	/* skip multiple separators (duplicated slashes) */
-			addSep = ADD;
-			break;
-		case '.':	/* special directory component */
-			switch(*src)
-			{
-			case '/':
-			case '\\':
-			case '\0':
-				/* current path -> ignore */
-				addSep = ADD_UNLESS_LAST;
-				/* If (/ or \) && no ++src
-				   --> addSep = ADD next turn */
-				continue;	/* next char */
-			case '.':	/* maybe ".." entry */
-			another_dot:
-				switch(src[1])
-				{
-				case '/':
-				case '\\':
-				case '\0':
-				case '.':
-					/* remove last path component */
-					while(*--p != '\\')
-						if (p <= rootPos) /* already on root */
-							return -PATH_NOT_FOUND;
-					/* the separator was removed -> add it again */
-					++src;		/* skip the second dot */
-					if (*src == '.')
-						goto another_dot;
-					/* If / or \, next turn will find them and
-					   assign addSep = ADD */
-					addSep = ADD_UNLESS_LAST;
-					continue;	/* next char */
-				}
-			}
-		default:	/* normal component */
-			if (addSep != DONT_ADD) {
-				/* append backslash */
-				addChar(*rootPos);
-				addSep = DONT_ADD;
-			}
+  d_printf("Absolute logical path: \"%s\"\n", dest);
 
-			--src;
-			/* first character skipped in switch() */
-			i = parse_name(&src, &p, dest);
-			if (i == -1)
-				PATH_ERROR;
-			if (i & PNE_WILDCARD)
-				gotAnyWildcards = TRUE;
-			--src;			/* terminator or separator was skipped */
-			break;
-		}
-	}
-	if (gotAnyWildcards && !allowwildcards)
-		return -PATH_NOT_FOUND;
-	if (addSep == ADD || p == dest + 2) {
-		/* MS DOS preserves a trailing '\\', so an access to "C:\\DOS\\"
-		   or "CDS.C\\" fails. */
-		/* But don't add the separator, if the last component was ".." */
-		/* we must also add a seperator if dest = "c:" */
-		addChar('\\');
-	}
+  return 0;
 
-	*p = '\0';				/* add the string terminator */
-
-	d_printf("Absolute logical path: \"%s\"\n", dest);
-
-	/* look for any JOINed drives */
-	if (dest[2] != '/' && lol_njoined_off && lol_njoined(lol)) {
-		cds_t cdsp = cds_base;
-		for(i = 0; i < lol_last_drive(lol); ++i, cdsp += cds_record_size) {
-			/* How many bytes must match */
-			size_t j = strlen(cds_current_path(cdsp));
-			/* the last component must end before the backslash
-			   offset and the path the drive is joined to leads
-			   the logical path */
-			if ((cds_flags(cdsp) & CDS_FLAG_JOIN)
-			    && (dest[j] == '\\' || dest[j] == '\0')
-			    && memcmp(dest, cds_current_path(cdsp), j) == 0) {
-				/* JOINed drive found */
-				dest[0] = i + 'A'; /* index is physical here */
-				dest[1] = ':';
-				if (dest[j] == '\0') {/* Reduce to rootdirec */
-					dest[2] = '\\';
-					dest[3] = 0;
-					/* move the relative path right behind
-					   the drive letter */
-				}
-				else if (j != 2) {
-					strcpy(dest + 2, dest + j);
-				}
-				result = (result & 0xffe0) | i;
-				WRITE_WORDP(&sda[sda_cds_off],
-					   lol_cdsfarptr(lol).offset +
-					   (cdsp - cds_base));
-				d_printf("JOINed path: \"%s\"\n", dest);
-				return result;
-			}
-		}
-		/* nothing found => continue normally */
-	}
-	d_printf("Physical path: \"%s\"\n", dest);
-	return result;
-
- errRet:
-	/* The error is either PATHNOTFND or FILENOTFND
-	   depending on if it is not the last component */
-	return strchr(src, '/') == 0 && strchr(src, '\\') == 0
-		? -FILE_NOT_FOUND
-		: -PATH_NOT_FOUND;
+errRet:
+  /* The error is either PATHNOTFND or FILENOTFND
+     depending on if it is not the last component */
+  return strchr(src, '/') == 0 && strchr(src, '\\') == 0 ? -FILE_NOT_FOUND : -PATH_NOT_FOUND;
 }
 
-static inline int build_ufs_path(char *ufs, const char *path, int drive)
+static inline void build_ufs_path(char *ufs, const char *path, int drive)
 {
-	return build_ufs_path_(ufs, path, drive, 0);
+	build_ufs_path_(ufs, path, drive, 0);
 }
 
 static int lfn_error(int errorcode)
@@ -569,32 +484,39 @@ static int lfn_error(int errorcode)
 
 static int build_truename(char *dest, const char *src, int mode)
 {
-	int dd;
+	int dd = -1;
+	int err;
 
 	d_printf("LFN: build_posix_path: %s\n", src);
-	dd = truename(dest, src, mode);
+	err = truename(dest, src, mode, &dd);
 
-	if (dd < 0) {
-		lfn_error(-dd);
+	switch (err) {
+	case 0:
+		break;
+	case -DISK_DRIVE_INVALID:
+		assert(dd >= 0);
+		if (get_redirection_root1(dd, NULL, 0) <= 0)
+			return -2;
+		/* no break */
+	default:
+		lfn_error(-err);
 		return -1;
 	}
 
-	if (src[0] == '\\' && src[1] == '\\') {
-		if (strncasecmp(src, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) != 0)
-			return  -2;
-		return MAX_DRIVE - 1;
-	}
-
-	if (dd >= MAX_DRIVE || !drives[dd].root)
+	if (src[0] == '\\' && src[1] == '\\')
 		return -2;
 
-	if (!((cds_flags(drive_cds(dd))) & CDS_FLAG_REMOTE) ||
-	    !drives[dd & 0x1f].root)
+	if (dd < 0 || dd >= MAX_DRIVE || get_redirection_root1(dd, NULL, 0) <= 0)
 		return -2;
+
+#if 0 // Not sure what this is for?
+	if (!((cds_flags(drive_cds(dd))) & CDS_FLAG_REMOTE) || !drives[dd & 0x1f].root)
+		return -2;
+#endif
 	return dd;
 }
 
-int build_posix_path(char *dest, const char *src, int allowwildcards)
+static int build_posix_path(char *dest, const char *src, int allowwildcards)
 {
 	char filename[PATH_MAX];
 	int dd;
@@ -691,7 +613,8 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 		return 0;
 
 	if (!strcmp(de->d_long_name,".") || !strcmp(de->d_long_name,"..")) {
-		if (strlen(dir->dirbase) <= drives[dir->drive].root_len)
+		if (strlen(dir->dirbase) <=
+				get_redirection_root1(dir->drive, NULL, 0))
 			return 0;
 	}
 
@@ -716,7 +639,7 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 		}
 	}
 	dest = SEGOFF2LINEAR(_ES, _DI);
-	attrs = get_dos_attr(fpath, st.st_mode, is_hidden(de->d_long_name));
+	attrs = get_dos_attr(fpath, st.st_mode);
 	ret = make_finddata(fpath, attrs, &st, name_lfn, name_8_3, dest);
 	free(fpath);
 	return ret;
@@ -766,16 +689,9 @@ static int make_finddata(const char *fpath, uint8_t attrs,
 
 static void call_dos_helper(int ah)
 {
-	unsigned int ssp = SEGOFF2LINEAR(_SS, 0);
-	unsigned int sp = _SP;
+	fake_call_to(LFN_HELPER_SEG, LFN_HELPER_OFF);
 	_AH = ah;
-	pushw(ssp, sp, _CS);
-	pushw(ssp, sp, _IP);
-	_SP -= 4;
-	_CS = LFN_HELPER_SEG;
-	_IP = LFN_HELPER_OFF;
 }
-
 
 static int wildcard_delete(char *fpath, int drive)
 {
@@ -784,24 +700,24 @@ static int wildcard_delete(char *fpath, int drive)
 	struct stat st;
 	unsigned dirattr = _CX;
 	char *pattern, *slash;
-	int errcode;
+	int doserr;
 
 	slash = strrchr(fpath, '/');
-	d_printf("LFN: posix:%s\n", fpath);
+	d_printf("LFN: posix:'%s'\n", fpath);
 	if (slash - 2 > fpath && slash[-2] == '/' && slash[-1] == '.')
 		slash -= 2;
 	*slash = '\0';
 	if (slash == fpath)
 		strcpy(fpath, "/");
 	/* XXX check for device (special dir entry) */
-	if (!find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
-		Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+	if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL) || is_dos_device(fpath)) {
+		d_printf("LFN: Get failed: '%s'\n", fpath);
 		return lfn_error(PATH_NOT_FOUND);
 	}
 	slash = fpath + strlen(fpath);
 	dir = dos_opendir(fpath);
 	if (dir == NULL) {
-		Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+		d_printf("LFN: Get failed: '%s'\n", fpath);
 		free(dir);
 		return lfn_error(PATH_NOT_FOUND);
 	}
@@ -809,50 +725,41 @@ static int wildcard_delete(char *fpath, int drive)
 	name_ufs_to_dos(pattern, slash + 1);
 	strupperDOS(pattern);
 
-	d_printf("LFN: wildcard delete %s %s %x\n", pattern, fpath, dirattr);
-	errcode = FILE_NOT_FOUND;
+	d_printf("LFN: wildcard delete '%s' '%s' %x\n", pattern, fpath, dirattr);
+	doserr = FILE_NOT_FOUND;
 	while ((de = dos_readdir(dir))) {
 		char name_8_3[PATH_MAX];
 		char name_lfn[PATH_MAX];
+
 		if (lfn_sfn_match(pattern, de, name_lfn, name_8_3) == 0) {
 			*slash = '/';
 			strcpy(slash + 1, de->d_long_name);
 
-			d_printf("LFN: wildcard delete %s\n", fpath);
-			stat(fpath, &st);
-			/* don't remove directories */
-			if (st.st_mode & S_IFDIR)
-				continue;
+			d_printf("LFN: wildcard delete '%s'\n", fpath);
 
+			/* don't remove directories */
 			if ((dirattr >> 8) & DIRECTORY)
 				continue;
-#if 0
-			if (access(fpath, W_OK) == -1) {
-				errcode = EACCES;
-			} else {
-				errcode = unlink(fpath) ? errno : 0;
+
+			if (unlink(fpath) == -1) {
+				int unixerr = errno;
+
+				if (unixerr == EISDIR)
+					continue;
+
+				d_printf("LFN: Delete failed(%s) '%s'\n", strerror(unixerr), fpath);
+				doserr = (unixerr == EACCES) ? ACCESS_DENIED : FILE_NOT_FOUND;
+				break;
 			}
-#else
-			errcode = unlink(fpath);
-#endif
-			if (errcode != 0) {
-				Debug0((dbg_fd, "Delete failed(%s) %s\n",
-					strerror(errno), fpath));
-				free(pattern);
-				dos_closedir(dir);
-				if (errcode == EACCES) {
-					return lfn_error(ACCESS_DENIED);
-				} else {
-					return lfn_error(FILE_NOT_FOUND);
-				}
-			}
-			Debug0((dbg_fd, "Deleted %s\n", fpath));
+			d_printf("LFN: Deleted '%s'\n", fpath);
+			doserr = 0;
 		}
 	}
+
 	free(pattern);
 	dos_closedir(dir);
-	if (errcode)
-		return lfn_error(errcode);
+	if (doserr)
+		return lfn_error(doserr);
 	return 1;
 }
 
@@ -887,7 +794,7 @@ static int mfs_lfn_(void)
 
 	d_printf("LFN: doing LFN!, AX=%x DL=%x\n", _AX, _DL);
 	NOCARRY;
-
+#if 0
 	if (_AH == 0x57) {
 		char *filename;
 		int fd;
@@ -895,7 +802,7 @@ static int mfs_lfn_(void)
 		if (_AL < 4 || _AL > 7) return 0;
 		filename = handle_to_filename(_BX, &fd);
 		if (filename == NULL)
-			return fd ? lfn_error(fd) : 0;
+			return 0;
 
 		if (fstat(fd, &st))
 			return lfn_error(HANDLE_INVALID);
@@ -921,32 +828,9 @@ static int mfs_lfn_(void)
 			return 1;
 		}
 		return 1;
-	} else if (_AH == 0x73) {
-		unsigned int spc, bps, free, tot;
-
-		if (_AL != 3) return 0;
-
-		d_printf("LFN: Get disk space %s\n", src);
-		drive = build_posix_path(fpath, src, 0);
-		if (drive < 0)
-			return drive + 2;
-		if (!find_file(fpath, &st, drive, NULL)|| !S_ISDIR(st.st_mode))
-			return lfn_error(PATH_NOT_FOUND);
-		if (!dos_get_disk_space(fpath, &free, &tot, &spc, &bps))
-			return lfn_error(PATH_NOT_FOUND);
-
-		WRITE_DWORD(dest, 0x24);
-		WRITE_DWORD(dest + 0x4, spc);
-		WRITE_DWORD(dest + 0x8, bps);
-		WRITE_DWORD(dest + 0xc, free);
-		WRITE_DWORD(dest + 0x10, tot);
-		WRITE_DWORD(dest + 0x14, free * spc);
-		WRITE_DWORD(dest + 0x18, tot * spc);
-		WRITE_DWORD(dest + 0x1c, free);
-		WRITE_DWORD(dest + 0x20, tot);
-		return 1;
 	}
 	/* else _AH == 0x71 */
+#endif
 	switch (_AL) {
 	case 0x0D: /* reset drive, nothing to do */
 		break;
@@ -962,13 +846,13 @@ static int mfs_lfn_(void)
 		break;
 	case 0x3b: /* chdir */
 	{
-		char *d = MK_FP32(BIOSSEG, LFN_short_name - (char *)bios_f000);
+		char *d = MK_FP32(BIOSSEG, LFN_short_name);
 		Debug0((dbg_fd, "set directory to: %s\n", src));
-		d_printf("LFN: chdir %s %zd\n", src, strlen(src));
+		d_printf("LFN: chdir '%s'\n", src);
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
-		if (!find_file(fpath, &st, drive, NULL)|| !S_ISDIR(st.st_mode))
+		if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL)|| !S_ISDIR(st.st_mode))
 			return lfn_error(PATH_NOT_FOUND);
 		make_unmake_dos_mangled_path(d, fpath, drive, 1);
 		d_printf("LFN: New CWD will be %s\n", d);
@@ -979,38 +863,45 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, _SI);
 		if (drive < 0)
 			return drive + 2;
-		if (drives[drive].read_only)
+		if (is_redirection_ro(drive))
 			return lfn_error(ACCESS_DENIED);
 		if (is_dos_device(fpath))
 			return lfn_error(FILE_NOT_FOUND);
 		if (_SI == 1)
 			return wildcard_delete(fpath, drive);
-		if (!find_file(fpath, &st, drive, &doserrno))
+		if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), &doserrno))
 			return lfn_error(doserrno);
 		d_printf("LFN: deleting %s\n", fpath);
 		if (unlink(fpath) != 0)
 			return lfn_error(FILE_NOT_FOUND);
+		break;
+	case 0x42: /* long seek (EDR-DOS compatible) */
+		fake_call_to(LFN_HELPER_SEG, LFN_42_HELPER_OFF);
 		break;
 	case 0x43: /* get/set file attributes */
 		d_printf("LFN: attribute %s %d\n", src, _BL);
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
-		if (drives[drive].read_only && (_BL < 8) && (_BL & 1))
+		if (is_redirection_ro(drive) && (_BL < 8) && (_BL & 1))
 			return lfn_error(ACCESS_DENIED);
-		if (!find_file(fpath, &st, drive, &doserrno) ||
-		    is_dos_device(fpath)) {
-			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+		if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), &doserrno) || is_dos_device(fpath)) {
+			d_printf("LFN: Get failed: '%s'\n", fpath);
 			return lfn_error(doserrno);
 		}
 		utimbuf.actime = st.st_atime;
 		utimbuf.modtime = st.st_mtime;
 		switch (_BL) {
 		case 0: /* retrieve attributes */
-			_CX = get_dos_attr(fpath, st.st_mode,is_hidden(fpath));
+			_CX = get_dos_attr(fpath, st.st_mode);
 			break;
 		case 1: /* set attributes */
-			if (set_dos_attr(fpath, st.st_mode, _CX) != 0)
+			if (!(st.st_mode & S_IWGRP))
+				return lfn_error(ACCESS_DENIED);
+			/* allow changing attrs only on files, not dirs */
+			if (!S_ISREG(st.st_mode))
+				break;
+			if (set_dos_attr(fpath, _CX) != 0)
 				return lfn_error(ACCESS_DENIED);
 			break;
 		case 2: /* get physical size of uncompressed file */
@@ -1051,17 +942,16 @@ static int mfs_lfn_(void)
 			drive = _DL - 1;
 		if (drive < 0 || drive >= MAX_DRIVE)
 			return lfn_error(DISK_DRIVE_INVALID);
-		if (!drives[drive].root)
+		if (get_redirection_root1(drive, NULL, 0) <= 0)
 			return 0;
 
-		cwd = cds_current_path(drive_cds(drive));
+		cwd = getCWD(drive);
 		dest = SEGOFF2LINEAR(_DS, _SI);
 		build_ufs_path(fpath, cwd, drive);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
-		find_file(fpath, &st, drive, NULL);
+		find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
-		d_printf("LFN: %p %d %#x %s\n", drive_cds(drive), drive, dest,
-			 fpath+drives[drive].root_len);
+		d_printf("LFN: %d %#x %s\n", drive, dest, fpath+get_redirection_root1(drive, NULL, 0));
 		make_unmake_dos_mangled_path(fpath2, fpath, drive, 0);
 		MEMCPY_2DOS(dest, fpath2 + 3, strlen(fpath2 + 3) + 1);
 		break;
@@ -1109,15 +999,14 @@ static int mfs_lfn_(void)
 		}
 
 		/* XXX check for device (special dir entry) */
-		if (!find_file(dir->dirbase, &st, drive, NULL) ||
-		    is_dos_device(fpath)) {
-			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+		if (!find_file(dir->dirbase, &st, get_redirection_root1(drive, NULL, 0), NULL) || is_dos_device(fpath)) {
+			d_printf("LFN: Get failed: '%s'\n", fpath);
 			free(dir);
 			return lfn_error(NO_MORE_FILES);
 		}
 		dir->dir = dos_opendir(dir->dirbase);
 		if (dir->dir == NULL) {
-			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+			d_printf("LFN: Get failed: '%s'\n", fpath);
 			free(dir);
 			return lfn_error(NO_MORE_FILES);
 		}
@@ -1167,7 +1056,7 @@ static int mfs_lfn_(void)
 			return drive2 + 2;
 		if (drive != drive2)
 			return lfn_error(NOT_SAME_DEV);
-		rc = dos_rename(fpath, fpath2, drive, 1);
+		rc = dos_rename_lfn(fpath, fpath2, drive);
 		if (rc)
 			return lfn_error(rc);
 		break;
@@ -1192,23 +1081,23 @@ static int mfs_lfn_(void)
 		if (drive < 0)
 			return drive + 2;
 
-		d_printf("LFN: %s %s\n", fpath, drives[drive].root);
+		d_printf("LFN: %s\n", fpath);
 
 		if (_CL == 1 || _CL == 2) {
 			build_ufs_path(fpath, filename, drive);
-			if (!find_file(fpath, &st, drive, &doserrno))
+			if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), &doserrno))
 				return lfn_error(doserrno);
 			make_unmake_dos_mangled_path(filename, fpath, drive, 2 - _CL);
 		} else {
 			strupperDOS(filename);
 		}
-		d_printf("LFN: %s %s\n", filename, drives[drive].root);
+		d_printf("LFN: %s\n", filename);
 		MEMCPY_2DOS(dest, filename, strlen(filename) + 1);
 		break;
 	}
 	case 0x6c: /* create/open */
 	{
-		char *d = MK_FP32(BIOSSEG, LFN_short_name - (char *)bios_f000);
+		char *d = MK_FP32(BIOSSEG, LFN_short_name);
 		src = MK_FP32(_DS, _SI);
 		d_printf("LFN: open %s\n", src);
 		drive = build_posix_path(fpath, src, 0);
@@ -1218,15 +1107,15 @@ static int mfs_lfn_(void)
 			strcpy(d, strrchr(fpath, '/') + 1);
 		} else {
 			slash = strrchr(fpath, '/');
-			strcpy(fpath2, slash);
+			strlcpy(fpath2, slash, sizeof(fpath2));
 			*slash = '\0';
 			if (slash != fpath &&
-			    !find_file(fpath, &st, drive, NULL))
+			    !find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL))
 				return lfn_error(PATH_NOT_FOUND);
 			strcat(fpath, fpath2);
-			if (!find_file(fpath, &st, drive, NULL) &&
+			if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL) &&
 			    (_DX & 0x10)) {
-				if (drives[drive].read_only)
+				if (is_redirection_ro(drive))
 					return lfn_error(ACCESS_DENIED);
 				strcpy(lfn_create_fpath, fpath);
 			}
@@ -1251,42 +1140,9 @@ static int mfs_lfn_(void)
 	case 0xa1: /* findclose */
 		d_printf("LFN: findclose %x\n", _BX);
 		return close_dirhandle(_BX);
-	case 0xa6: { /* get file info by handle */
-		int fd;
-		char *filename;
-		unsigned long long wtime;
-		unsigned int buffer = SEGOFF2LINEAR(_DS, _DX);
-
-		d_printf("LFN: get file info by handle %x\n", _BX);
-		filename = handle_to_filename(_BX, &fd);
-		if (filename == NULL)
-			return fd ? lfn_error(fd) : 0;
-
-		if (fstat(fd, &st))
-			return lfn_error(HANDLE_INVALID);
-		d_printf("LFN: handle function for BX=%x, path=%s, fd=%d\n",
-			 _BX, filename, fd);
-
-		WRITE_DWORD(buffer, get_dos_attr_fd(fd, st.st_mode,
-						    is_hidden(filename)));
-		wtime = unix_to_win_time(st.st_ctime);
-		WRITE_DWORD(buffer + 4, wtime);
-		WRITE_DWORD(buffer + 8, wtime >> 32);
-		wtime = unix_to_win_time(st.st_atime);
-		WRITE_DWORD(buffer + 0xc, wtime);
-		WRITE_DWORD(buffer + 0x10, wtime >> 32);
-		wtime = unix_to_win_time(st.st_mtime);
-		WRITE_DWORD(buffer + 0x14, wtime);
-		WRITE_DWORD(buffer + 0x18, wtime >> 32);
-		WRITE_DWORD(buffer + 0x1c, st.st_dev); /*volume serial number*/
-		WRITE_DWORD(buffer + 0x20, (unsigned long long)st.st_size >> 32);
-		WRITE_DWORD(buffer + 0x24, st.st_size);
-		WRITE_DWORD(buffer + 0x28, st.st_nlink);
-		/* fileid*/
-		WRITE_DWORD(buffer + 0x2c, (unsigned long long)st.st_ino >> 32);
-		WRITE_DWORD(buffer + 0x30, st.st_ino);
-		return 0;
-	}
+	case 0xa6: /* get file info by handle */
+		fake_call_to(LFN_HELPER_SEG, LFN_A6_HELPER_OFF);
+		break;
 	case 0xa7: /* file time to DOS time and v.v. */
 		if (_BL == 0) {
 			src = MK_FP32(_DS, _SI);

@@ -1,0 +1,117 @@
+#
+# spec file template for dosemu2
+#
+# Written by Mateusz Viste, stsp
+#
+
+Name: {{{ git_dir_name }}}
+Version: {{{ git_dir_version }}}
+Release: 1%{?dist}
+Summary: The DOS emulator for Linux
+
+Group: System/Emulator
+
+License: GPLv2+
+URL: https://github.com/dosemu2/dosemu2
+VCS: {{{ git_dir_vcs }}}
+Source0: {{{ git_dir_archive }}}
+
+BuildRequires: SDL2-devel
+BuildRequires: SDL2_ttf-devel
+BuildRequires: SDL2_image-devel
+BuildRequires: fontconfig-devel
+BuildRequires: libXext-devel
+BuildRequires: alsa-lib-devel
+BuildRequires: fluidsynth-devel
+BuildRequires: gpm-devel
+BuildRequires: libao-devel
+BuildRequires: ladspa-devel
+BuildRequires: slang-devel
+BuildRequires: libslirp-devel
+BuildRequires: libieee1284-devel
+BuildRequires: libbsd-devel
+BuildRequires: gcc
+BuildRequires: bison
+BuildRequires: flex
+BuildRequires: gawk
+BuildRequires: autoconf
+BuildRequires: automake
+BuildRequires: make
+BuildRequires: sed
+BuildRequires: bash
+BuildRequires: findutils
+BuildRequires: git >= 2.0
+BuildRequires: bdftopcf
+BuildRequires: mkfontscale
+BuildRequires: linuxdoc-tools
+BuildRequires: coreutils
+BuildRequires: readline-devel
+BuildRequires: json-c-devel
+BuildRequires: binutils-devel
+BuildRequires: pkgconf-pkg-config
+BuildRequires: fdpp-devel
+
+# require udev with kvm support
+Requires:   systemd-udev >= 234
+# our startup script is bash-specific
+Requires:   bash
+Requires:   coreutils
+Requires:   comcom32
+Recommends: fluid-soundfont-gm
+Suggests:   timidity++ >= 2.14.0
+Recommends: ladspa
+# ncurses-base is for terminfo
+Recommends: ncurses-base
+Recommends: gdb
+Recommends: kbd
+Suggests:   valgrind
+Recommends: install-freedos
+Suggests:   install-otherdos
+
+# cannot coexist with dosemu1
+Conflicts:  dosemu
+
+%description
+DOSEMU2 stands for DOS Emulation, and allows you to run DOS and many
+DOS programs, including many DPMI applications such as DOOM and Windows 3.1,
+under Linux.
+
+%prep
+{{{ git_dir_setup_macro }}}
+
+%build
+./autogen.sh
+./configure --prefix=%{_prefix} --libdir=%{_libdir} \
+	--sysconfdir=%{_sysconfdir} --docdir=%{_docdir}/%{name} \
+	--enable-debug --disable-xbacktrace
+# can't use %%configure because of this:
+# https://bugzilla.redhat.com/show_bug.cgi?id=1343892
+# additionally have to use double-percent for comments:
+# https://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/Packagers_Guide/chap-Packagers_Guide-Spec_File_Reference-Comments.html
+#%%configure
+make %{?_smp_mflags}
+
+%check
+
+%install
+mkdir -p %{buildroot}%{_sysconfdir}/X11/fontpath.d
+make DESTDIR=%{buildroot} install
+
+%files
+%defattr(-,root,root)
+%{_bindir}/*
+%{_mandir}/man1/*
+%lang(ru) %dir %{_mandir}/ru
+%lang(ru) %dir %{_mandir}/ru/man1
+%lang(ru) %{_mandir}/ru/man1/*
+%{_libdir}/dosemu
+%{_datadir}/dosemu
+%{_datadir}/applications/dosemu.desktop
+%{_datadir}/fonts/oldschool
+%{_sysconfdir}/X11/fontpath.d/dosemu2*
+%doc %{_docdir}/dosemu2
+%dir %{_sysconfdir}/dosemu
+%config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
+
+%changelog
+{{{ git_dir_changelog since_tag=dosemu2-2.0pre6-dev }}}

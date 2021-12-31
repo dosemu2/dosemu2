@@ -104,6 +104,18 @@ t_keynum validate_keynum(t_keynum key)
 	case NUM_F10:
 	case NUM_F11:
 	case NUM_F12:
+	case NUM_F13:
+	case NUM_F14:
+	case NUM_F15:
+	case NUM_F16:
+	case NUM_F17:
+	case NUM_F18:
+	case NUM_F19:
+	case NUM_F20:
+	case NUM_F21:
+	case NUM_F22:
+	case NUM_F23:
+	case NUM_F24:
 
 	/* cursor block */
 
@@ -122,6 +134,12 @@ t_keynum validate_keynum(t_keynum key)
 	case NUM_LWIN:
 	case NUM_RWIN:
 	case NUM_MENU:
+
+	/* Multimedia/misc keys */
+	case NUM_MUTE:
+	case NUM_VOLUMEDOWN:
+	case NUM_VOLUMEUP:
+	case NUM_AC_BOOKMARKS:
 
 	/* Dual scancode keys */
 	case NUM_PRTSCR_SYSRQ:

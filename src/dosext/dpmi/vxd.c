@@ -19,14 +19,13 @@
  */
 
 #include "emu.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "dpmisel.h"
 #include "bios.h"
 #include "timers.h"
 #include "vxd.h"
 #include "windefs.h"
-
-#include <asm/ldt.h>
+#include <Asm/ldt.h>
 #include <fcntl.h>
 #include <memory.h>
 #include <stdarg.h>
@@ -37,7 +36,7 @@
 
 static UINT W32S_offset = 0;
 
-void get_VXD_entry( struct sigcontext *scp )
+void get_VXD_entry( sigcontext_t *scp )
 {
     switch (_LWORD(ebx)) {
 	case 0x01:
@@ -1820,7 +1819,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 }
 #endif
 
-void vxd_call(struct sigcontext *scp)
+void vxd_call(sigcontext_t *scp)
 {
     if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_VMM)) {
       D_printf("DPMI: VMM VxD called, ax=%#x\n", _LWORD(eax));

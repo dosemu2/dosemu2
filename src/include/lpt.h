@@ -23,7 +23,7 @@ struct printer {
   int opened;
   int remaining;
 
-  Bit8u data, status, control;
+  Bit8u data, control, status;
 };
 
 /* public functions */

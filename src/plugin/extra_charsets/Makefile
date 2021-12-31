@@ -5,7 +5,7 @@
 #
 
 top_builddir=../../..
-include $(top_builddir)/Makefile.conf
+include ../plugins_simp.mak
 ALL_CPPFLAGS += -I$(top_srcdir)/src/include/translate
 
 CFILES = bg-mik.c cp1125.c cp1251.c cp737.c cp773.c cp775.c cp855.c cp857.c \
@@ -15,4 +15,4 @@ koi8-ru.c koi8-u.c mazovia.c
 
 all: lib
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post

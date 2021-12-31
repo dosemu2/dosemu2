@@ -73,7 +73,7 @@ static int midomunt_init(void *arg)
 
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
-#ifdef HAVE_PTHREAD_SETNAME_NP
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
     pthread_setname_np(syn_thr, "dosemu: munt");
 #endif
     pcm_stream = pcm_allocate_stream(MUNT_CHANNELS, "MIDI-MT32",
@@ -154,7 +154,7 @@ static void process_samples(long long now, int min_buf)
 {
     int nframes, retry;
     double period, mf_time_cur;
-    mf_time_cur = pcm_time_lock(pcm_stream);
+    mf_time_cur = pcm_get_stream_time(pcm_stream);
     do {
 	retry = 0;
 	period = pcm_frame_period_us(munt_srate);
@@ -170,7 +170,6 @@ static void process_samples(long long now, int min_buf)
 		S_printf("MIDI: processed %i samples with munt\n", nframes);
 	}
     } while (retry);
-    pcm_time_unlock(pcm_stream);
 }
 
 static void *synth_thread(void *arg)
@@ -202,18 +201,35 @@ static int midomunt_cfg(void *arg)
     return pcm_parse_cfg(config.midi_driver, midomunt_name);
 }
 
-static const struct midi_out_plugin midomunt = {
+static const struct midi_out_plugin midomunt
+#ifdef __cplusplus
+{
+    midomunt_name,
+    midomunt_longname,
+    midomunt_cfg,
+    midomunt_init,
+    midomunt_done,
+    MIDI_W_PCM | MIDI_W_PREFERRED,
+    midomunt_write,
+    midomunt_stop,
+    midomunt_run,
+    ST_MT32,
+    0
+};
+#else
+= {
     .name = midomunt_name,
     .longname = midomunt_longname,
+    .get_cfg = midomunt_cfg,
     .open = midomunt_init,
     .close = midomunt_done,
+    .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
     .write = midomunt_write,
     .stop = midomunt_stop,
     .run = midomunt_run,
-    .get_cfg = midomunt_cfg,
     .stype = ST_MT32,
-    .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
 };
+#endif
 
 CONSTRUCTOR(static void midomunt_register(void))
 {

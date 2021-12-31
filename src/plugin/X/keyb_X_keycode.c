@@ -5,11 +5,12 @@
  */
 
 #include <string.h>
+#include <limits.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
-#include "config.h"
+#include "x_config.hh"
 #include "keyboard/keyboard.h"
 #include "keyboard/keyb_clients.h"
 #include "emu.h"
@@ -22,6 +23,9 @@
 #include <X11/XKBlib.h>
 #include <X11/extensions/XKBgeom.h>
 #endif
+
+static XIM im;
+static XIC ic;
 
 struct X_keyb_config {
 	char *X_keysym;
@@ -80,7 +84,7 @@ static void X_print_atom(Display *display, Atom atom)
 
 static void display_x_components(Display *display)
 {
-#if HAVE_XKB
+#ifdef HAVE_XKB
 	XkbComponentNamesRec names = {
 		"*","*", "*", "*", "*", "*"
 	};
@@ -133,7 +137,7 @@ static void display_x_components(Display *display)
 }
 static void display_x_keyboard(Display *display)
 {
-#if HAVE_XKB
+#ifdef HAVE_XKB
 	int i;
 	XkbDescPtr desc;
 	XkbNamesPtr names;
@@ -256,8 +260,8 @@ static void display_x_keyboard(Display *display)
 
 #endif
 
-#if HAVE_XKB
-static int XkbFindKeycodeByName(XkbDescPtr xkb,char *name,Bool use_aliases)
+#ifdef HAVE_XKB
+static int XkbFindKeycodeByName(XkbDescPtr xkb, const char *name,Bool use_aliases)
 {
 	register int	i;
 
@@ -301,7 +305,7 @@ static int XkbFindKeycodeByName(XkbDescPtr xkb,char *name,Bool use_aliases)
  */
 static const struct {
 	t_keynum keynum;
-	char *keycode_name;
+	const char *keycode_name;
 } keynum_from_keycode[] =
 {
 	/* shift keys */
@@ -478,7 +482,7 @@ KeyCode keynum_to_keycode(t_keynum keynum)
 
 static Boolean setup_keycode_to_keynum_mapping(Display *display)
 {
-#if HAVE_XKB
+#ifdef HAVE_XKB
 	int i;
 	XkbDescPtr desc;
 	desc = XkbGetKeyboard(display, XkbAllComponentsMask,
@@ -518,7 +522,7 @@ static void setup_keycode_to_keynum(void *p, t_unicode dosemu_keysym,
 	t_keynum keynum;
 	t_modifiers modifiers;
 	int map;
-	xkey = *((KeySym *)str);
+	xkey = *((const KeySym *)str);
 	keynum = keysym_to_keynum(dosemu_keysym, &modifiers);
 	xcode = XKeysymToKeycode(display, xkey);
 	// Use only plain and shifted keys for layout detection, and
@@ -589,6 +593,10 @@ void X_keycode_initialize(Display *display)
 		}
 	}
 #endif
+
+	im = XOpenIM(display, NULL, NULL, NULL);
+	ic = XCreateIC(im, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
+		NULL);
 }
 
 static void put_keycode(int make, int keycode, t_keysym sym)
@@ -599,6 +607,56 @@ static void put_keycode(int make, int keycode, t_keysym sym)
 		return;
 	move_keynum(make, keynum, sym);
 }
+
+static void put_keycode_grp(int make, int keycode, int mods)
+{
+	t_keysym keynum;
+	keynum = KEYCODE_TO_KEYNUM(keycode);
+	if (keynum == NUM_VOID)
+		return;
+#ifdef HAVE_XKB
+	move_keynum_grp(make, keynum, XkbGroupForCoreState(mods));
+#else
+	move_keynum(make, keynum, DKY_VOID);
+#endif
+}
+
+#ifdef HAVE_XKB
+static t_unicode Xkb_lookup_key(Display *display, XKeyEvent *e)
+{
+	t_unicode key = DKY_VOID;
+	KeySym xkey = XK_VoidSymbol;
+	unsigned int modifiers = 0;
+	unsigned int rem_mods;
+	char chars[MB_LEN_MAX];
+	struct char_set_state cs;
+	int rc;
+	struct modifier_info X_mi = X_get_modifier_info();
+
+	rc = XkbLookupKeySym(display, e->keycode, e->state, &modifiers, &xkey);
+	if (!rc)
+		return DKY_VOID;
+	rem_mods = e->state & ~modifiers;
+	/* XXX alt is not represented in a sym and doesn't return error
+	 * from XkbTranslateKeySym(), so disable it by hands. :( */
+	if (rem_mods & (X_mi.AltMask | X_mi.AltGrMask))
+		return DKY_VOID;
+	/* XXX Ctrl-Enter seems to be misconfigured:
+	 * https://github.com/stsp/dosemu2/issues/864
+	 * Disable it for now. */
+	if (xkey == XK_Return && (rem_mods & ControlMask))
+		return DKY_VOID;
+	rc = Xutf8LookupString(ic, e, chars, MB_LEN_MAX, NULL, NULL);
+	if (!rc)
+		return DKY_VOID;
+
+	init_charset_state(&cs, lookup_charset("utf8"));
+	charset_to_unicode(&cs, &key,
+		(const unsigned char *)chars, MB_LEN_MAX);
+	cleanup_charset_state(&cs);
+	return key;
+}
+#endif
 
 #if 0
 void X_keycode_process_keys(XKeymapEvent *e)
@@ -634,6 +692,7 @@ void X_keycode_process_key(Display *display, XKeyEvent *e)
 	struct mapped_X_event event;
 #endif
 	Boolean make;
+
 	if (!X_keycode_initialized) {
 		X_keycode_initialize(display);
 	}
@@ -643,12 +702,24 @@ void X_keycode_process_key(Display *display, XKeyEvent *e)
 #endif
 	make = e->type == KeyPress;
 	X_sync_shiftstate(make, e->keycode, e->state);
+	if (!config.layout_auto) {
+		/* use classic X_keycode mode from dosemu1.
+		 * We don't need xkb here as we are only interested
+		 * in a symbol group. */
+		put_keycode_grp(make, e->keycode, e->state);
+		return;
+	}
 #ifdef HAVE_XKB
-	key = Xkb_lookup_key(display, e->keycode, e->state);
+	key = Xkb_lookup_key(display, e);
 #else
 	map_X_event(display, e, &event);
 	key = event.key;
 #endif
-	put_keycode(make, e->keycode, key);
-	return;
+	if (KEYCODE_TO_KEYNUM(e->keycode) == NUM_L_SHIFT ||
+			KEYCODE_TO_KEYNUM(e->keycode) == NUM_R_SHIFT)
+		X_force_mouse_cursor(make);
+	if (key == DKY_VOID)
+		put_keycode_grp(make, e->keycode, e->state);
+	else
+		put_keycode(make, e->keycode, key);
 }

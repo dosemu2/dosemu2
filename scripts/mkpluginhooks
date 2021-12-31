@@ -1,0 +1,66 @@
+#! /bin/sh
+
+HEADERS="config"
+
+TOP=$(realpath `dirname $0`/..)
+PLUG=plugin
+SRCDIR=$TOP/src/$PLUG
+DESTDIR=src/$PLUG
+INC=$DESTDIR/include
+PREF=plugin_
+HDR=$PREF$HEADERS.hh
+SHDR=$PREF$HEADERS.h
+CONF=config
+CONFIGURE=configure.ac
+
+PDIRS="$(cd $SRCDIR; find . -maxdepth 1 ! -name include ! -path . -type d -exec basename {} \; | LC_ALL=C sort)"
+
+gendummy() {
+  for i in $HEADERS; do
+    if [ "$1" = "clean" ]; then
+      rm -f $INC/$HDR
+    else
+      echo -n "" >$INC/$HDR.$$
+    fi
+  done
+}
+
+if [ "$1" = "clean" ]; then
+  gendummy clean
+  rm -rf $INC
+fi
+
+if [ "$1" = "clean" ]; then
+  rm -f $DESTDIR/*/config/plugin_enable
+  exit 0
+fi
+
+mkdir -p $INC
+
+if [ "$1" = "" ]; then gendummy; fi
+
+if [ ! -d $SRCDIR ]; then
+  exit 1
+fi
+
+
+if [ "$PDIRS" != " " ]; then
+  for d in $PDIRS; do
+    # Test if this plugin is enabled
+    if [ -f $DESTDIR/$d/$CONF/${PREF}enable ] && \
+	[ -f $SRCDIR/$d/Makefile ]; then
+      enable=`cat $DESTDIR/$d/$CONF/${PREF}enable`
+    else
+      enable=no
+    fi
+    if [ "$enable" = "yes" ]; then
+        # Plugin special headers...
+        for h in $HEADERS; do
+          if [ -f $SRCDIR/$d/$CONF/$SHDR ]; then
+            echo "#include \"../$PLUG/$d/$CONF/$SHDR\"" >>$INC/$HDR.$$
+          fi
+        done
+    fi
+  done
+  mv $INC/$HDR.$$ $INC/$HDR
+fi

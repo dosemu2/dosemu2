@@ -51,27 +51,20 @@ void register_mouse_client(struct mouse_client *mouse)
 	Mouse[mclnt_num++].clnt = mouse;
 }
 
-#define mouse_client_f(t, f) \
-t mouse_client_##f(void) \
+#define mouse_client_f(t, f, p, c) \
+t mouse_client_##f(p) \
 { \
 	int i; \
 	for (i = 0; i < mclnt_num; i++) { \
 		if (!Mouse[i].initialized || !Mouse[i].clnt->f) \
 			continue; \
-		Mouse[i].clnt->f(); \
+		Mouse[i].clnt->f c; \
 	} \
 }
-mouse_client_f(void, close)
-mouse_client_f(void, post_init)
-void mouse_client_show_cursor(int yes)
-{
-	int i;
-	for (i = 0; i < mclnt_num; i++) {
-		if (!Mouse[i].initialized || !Mouse[i].clnt->show_cursor)
-			continue;
-		Mouse[i].clnt->show_cursor(yes);
-	}
-}
+mouse_client_f(void, close, void, ())
+mouse_client_f(void, post_init, void, ())
+mouse_client_f(void, show_cursor, int yes, (yes))
+mouse_client_f(void, reset, void, ())
 
 void register_mouse_driver(struct mouse_drv *mouse)
 {
@@ -117,7 +110,8 @@ static void mouse_client_init(void)
   int i;
 
 #ifdef USE_GPM
-  load_plugin("gpm");
+  if (config.term)
+    load_plugin("gpm");
 #endif
   register_mouse_client(&Mouse_raw);
   register_mouse_client(&Mouse_none);
@@ -148,7 +142,7 @@ void dosemu_mouse_init(void)
 }
 
 #define AR(...) (__VA_ARGS__, m->udata)
-#define MOUSE_DO(n, DEF, ARGS) \
+#define _MOUSE_DO(n, DEF, ARGS) \
 void mouse_##n DEF \
 { \
   struct mouse_drv_wrp *m; \
@@ -157,22 +151,28 @@ void mouse_##n DEF \
     if (!m->initialized) \
       continue; \
     d = m->drv; \
-    if (d->n && d->accepts(m->udata)) \
-	d->n AR ARGS; \
+    if (d->n && d->accepts(from, m->udata)) \
+	d->n ARGS; \
   } \
 }
-MOUSE_DO(move_buttons, (int lbutton, int mbutton, int rbutton),
+#define MOUSE_DO(n, DEF, ARGS) _MOUSE_DO(n, DEF, AR ARGS)
+#define MOUSE_DO0(n) _MOUSE_DO(n, (void), ())
+MOUSE_DO(move_button, (int num, int press, int from),
+	(num, press))
+MOUSE_DO(move_buttons, (int lbutton, int mbutton, int rbutton, int from),
 	(lbutton, mbutton, rbutton))
-MOUSE_DO(move_wheel, (int dy), (dy))
-MOUSE_DO(move_relative, (int dx, int dy, int x_range, int y_range),
+MOUSE_DO(move_wheel, (int dy, int from), (dy))
+MOUSE_DO(move_relative, (int dx, int dy, int x_range, int y_range, int from),
 	(dx, dy, x_range, y_range))
-MOUSE_DO(move_mickeys, (int dx, int dy), (dx, dy))
-MOUSE_DO(move_absolute, (int x, int y, int x_range, int y_range),
-	(x, y, x_range, y_range))
-MOUSE_DO(drag_to_corner, (int x_range, int y_range), (x_range, y_range))
-MOUSE_DO(enable_native_cursor, (int flag), (flag))
+MOUSE_DO(move_mickeys, (int dx, int dy, int from), (dx, dy))
+MOUSE_DO(move_absolute, (int x, int y, int x_range, int y_range, int vis,
+	int from),
+	(x, y, x_range, y_range, vis))
+MOUSE_DO(drag_to_corner, (int x_range, int y_range, int from),
+	(x_range, y_range))
+MOUSE_DO(enable_native_cursor, (int flag, int from), (flag))
 
-int mousedrv_accepts(const char *id)
+int mousedrv_accepts(const char *id, int from)
 {
   struct mouse_drv_wrp *m;
   for (m = mdrv; m; m = m->next) {
@@ -183,7 +183,7 @@ int mousedrv_accepts(const char *id)
     if (strcmp(d->name, id) != 0)
       continue;
     if (d->accepts)
-	return d->accepts(m->udata);
+      return d->accepts(from, m->udata);
   }
   return 0;
 }
@@ -205,6 +205,8 @@ void mouse_##n##_id DID DEF \
 	d->n AR ARGS; \
   } \
 }
+MOUSE_ID_DO(move_button, (int num, int press),
+	(num, press))
 MOUSE_ID_DO(move_buttons, (int lbutton, int mbutton, int rbutton),
 	(lbutton, mbutton, rbutton))
 MOUSE_ID_DO(move_wheel, (int dy), (dy))

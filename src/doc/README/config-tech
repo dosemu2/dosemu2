@@ -13,21 +13,21 @@ updated on Mar 20, 1998.
 <para>
 Most of DOSEMU configuration is done during runtime and per default it
 expects the system wide configuration file /etc/dosemu.conf optionally
-followed by the users ~/.dosemurc and additional configurations statements
+followed by the user's ~/.dosemu/.dosemurc and additional configurations statements
 on the commandline (-I option). The builtin configuration file of a DEXE
 file is passed using the -I technique, hence the rules of -I apply.
 </para>
 
 <para>
-In fact /etc/dosemu.conf and ~/.dosemurc (which have identical syntax)
+In fact /etc/dosemu.conf and ~/.dosemu/.dosemurc (which have identical syntax)
 are included by the systemwide configuration script
 /var/lib/dosemu/global.conf, but as a normal user you won't ever think on
-editing this, only dosemu.conf and your personal ~/.dosemurc.
+editing this, only dosemu.conf and your personal ~/.dosemu/.dosemurc.
 </para>
 
 <para>
 In DOSEMU prior to 0.97.5 the private configuration file was called ~/.dosrc
-(not to be confused with the new ~/.dosemurc). This will work as expected
+(not to be confused with the new ~/.dosemu/.dosemurc). This will work as expected
 formerly, but is subject to be nolonger supported in the near future.
 This (old) ~/.dosrc is processed <emphasis>after</emphasis> global.conf and follows (same
 as -I) the syntax of global.conf.
@@ -35,7 +35,7 @@ as -I) the syntax of global.conf.
 
 <para>
 The first file expected (and interpreted) before any other configuration
-(such as global.conf, dosemu.conf and ~/.dosemurc) is /etc/dosemu.users.
+(such as global.conf, dosemu.conf and ~/.dosemu/.dosemurc) is /etc/dosemu.users.
 If /etc/dosemu.users doesn't exist, DOSEMU check for /etc/dosemu/dosemu.users,
 this makes people happy, which prefer to have to configuration stuff in
 a separate directory under /etc.
@@ -96,12 +96,12 @@ This is done via setting configuration variables.
 <para>
 After /etc/dosemu.users /etc/dosemu.conf (via global.conf) is interpreted,
 and only during global.conf parsing access to all configuration options is
-allowed. Your personal ~/.dosemurc is included directly after dosemu.conf,
+allowed. Your personal ~/.dosemu/.dosemurc is included directly after dosemu.conf,
 but has less access rights (in fact the lowest level), all variables you
-define within ~/.dosemurc transparently are prefixed with `dosemu_' such
+define within ~/.dosemu/.dosemurc transparently are prefixed with `dosemu_' such
 that the normal namespace cannot be polluted (and a hacker cannot overwrite
 security relevant enviroment variables). Within global.conf only those
-~/.dosemurc created variables, that are needed are taken over and may
+~/.dosemu/.dosemurc created variables, that are needed are taken over and may
 overwrite those defined in /etc/dosemu.conf.
 </para>
 

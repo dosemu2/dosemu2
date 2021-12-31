@@ -13,7 +13,6 @@
  *
  */
 
-#include "config.h"
 #include "emu.h"
 #include "init.h"
 #include "iodev.h"

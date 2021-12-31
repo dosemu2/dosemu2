@@ -5,18 +5,18 @@
 #
 
 top_builddir=../../..
-include $(top_builddir)/Makefile.conf
--include Makefile.conf
+include ../plugins.mak
 
 ALL_CFLAGS+=$(DL_CFLAGS) $(LIBAOCFL)
 CFILES=snd_o_ao.c snd_o_ao_file.c ao_init.c
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_libao.so
+ALL_CFLAGS += -fPIC
 endif
 
-include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common.post
 
 ifdef USE_DL_PLUGINS
-$(BINPATH)/bin/libplugin_libao.so: $(OBJS)
+$(BINPATH)/bin/libplugin_libao.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(LIBAOLIB)
 endif

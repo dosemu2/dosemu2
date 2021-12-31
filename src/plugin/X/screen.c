@@ -53,7 +53,7 @@ static void get_selection_targets(Display *display)
   targets[STRING_TARGET] = XA_STRING;
 }
 
-static char *get_selection_string(char *charset)
+static char *get_selection_string(const char *charset)
 {
 	struct char_set_state paste_state;
 	struct char_set *paste_charset;
@@ -121,7 +121,8 @@ static void send_selection(Display *display, Time time, Window requestor, Atom t
 		 target == targets[TEXT_TARGET]) {
 		/* from
 		http://www.pps.jussieu.fr/~jch/software/UTF8_STRING/UTF8_STRING.text */
-		char *send_text, *charset;
+		char *send_text;
+		const char *charset;
 		if (target == targets[UTF8_TARGET])
 			charset = "utf8";
 		else if (target == targets[STRING_TARGET])
@@ -198,7 +199,7 @@ static void scr_paste_primary(Display *dpy,Window window,int property,int Delete
   unsigned char *data;
 
   static Atom tries[] = { UTF8_TARGET, COMPOUND_TARGET, STRING_TARGET };
-  char *charsets[] = { "utf8", "iso2022", "iso8859-1" };
+  const char *charsets[] = { "utf8", "iso2022", "iso8859-1" };
 
   X_printf("X: mouse paste received\n" );
   if (property == None)

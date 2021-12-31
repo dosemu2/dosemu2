@@ -9,14 +9,7 @@
 /* so put anything need read-write into BIOSSEG and anything read-only */
 /* to ROMBIOSSEG  */
 
-#ifndef BIOSSEG
-#define BIOSSEG		0xf000
-#endif
-
 #define ROM_BIOS_SELFTEST	0xe05b
-#define ROM_BIOS_EXIT		0xe2b0
-
-#define GET_RETCODE_HELPER	0xe2c6
 
 #define INT09_SEG	BIOSSEG
 #define INT09_OFF	0xe987		/* for 100% IBM compatibility */
@@ -26,63 +19,45 @@
 /* at BIOSSEG.  therefore use BIOSSEG and compensate for the offset. */
 /* Memory required is about 2000 bytes, beware! */
 #define PKTDRV_SEG	(BIOSSEG)
-#define PKTDRV_OFF	0xf140
 #define PKTDRV_ADD	((PKTDRV_SEG << 4) + PKTDRV_OFF)
 
 #define LFN_HELPER_SEG	BIOSSEG
-#define LFN_HELPER_OFF	0xf230
 #define LFN_HELPER_ADD	((LFN_HELPER_SEG << 4) + LFN_HELPER_OFF)
 
 /* don't change these for now, they're hardwired! */
 #define Mouse_SEG       (BIOSSEG-1)
-#define Mouse_ROUTINE_OFF  (0xe2e0+0x10)
-#define Mouse_INT_OFF	(INT_OFF(0x33) + 0x10)
-#define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
-
-#define EOI_OFF         0xf100
-#define EOI2_OFF        0xf110
+#define Mouse_INT_OFF	(MOUSE_INT33_OFF + 0x10)
+#define Mouse_ROUTINE  ((BIOSSEG << 4)+Mouse_ROUTINE_OFF)
 
 /* intercept-stub for dosdebugger (catches INT21/AX=4B00 */
 #define DBGload_SEG BIOSSEG
-#define DBGload_OFF 0xf330
 
 #define DOSEMU_LMHEAP_SEG  BIOSSEG
-#define DOSEMU_LMHEAP_OFF  0x4000
-#define DOSEMU_LMHEAP_SIZE 0x8000
+#define DOSEMU_LMHEAP_OFF  0xa000
+#define DOSEMU_LMHEAP_SIZE 0x4000
 
 #ifndef ROMBIOSSEG
 #define ROMBIOSSEG	0xf800
 #endif
 
-#define IRET_SEG	ROMBIOSSEG
-#define IRET_OFF	0x62df
-
-/* EMS origin must be at 0 */
-#define EMS_SEG		(ROMBIOSSEG+0x100)
-#define EMS_OFF		0x0000
-#define EMS_ADD		((EMS_SEG << 4) + EMS_OFF)
+#define IRET_SEG	BIOSSEG
 
 #define EMM_SEGMENT             (config.ems_frame)
 
-#define IPX_SEG		ROMBIOSSEG
-#define IPX_OFF		0x6310
+#define IPX_SEG		BIOSSEG
 #define IPX_ADD		((IPX_SEG << 4) + IPX_OFF)
 
-#define INT08_SEG	ROMBIOSSEG
-#define INT08_OFF	0x7ea5
+#define INT08_SEG	BIOSSEG
 #define INT08_ADD	((INT08_SEG << 4) + INT08_OFF)
 
-#define INT70_SEG	ROMBIOSSEG
-#define INT70_OFF	0x63f0
+#define INT70_SEG	BIOSSEG
 #define INT70_ADD	((INT70_SEG << 4) + INT70_OFF)
 
 /* IRQ9->IRQ2 default redirector */
-#define INT71_SEG	ROMBIOSSEG
-#define INT71_OFF	0x7ee7
+#define INT71_SEG	BIOSSEG
 #define INT71_ADD	((INT71_SEG << 4) + INT71_OFF)
 
-#define INT75_SEG	ROMBIOSSEG
-#define INT75_OFF	0x7e98
+#define INT75_SEG	BIOSSEG
 #define INT75_ADD	((INT75_SEG << 4) + INT75_OFF)
 
 #define INT1E_SEG	ROMBIOSSEG
@@ -102,35 +77,18 @@
 /* This was in BIOSSEG (a) so we could write old_int10,
  * when it made a difference...
  */
-#define INT10_WATCHER_SEG	ROMBIOSSEG
-#define INT10_WATCHER_OFF	0x6330
-#ifdef X86_EMULATOR
-#define CPUEMU_WATCHER_SEG	ROMBIOSSEG
-#define CPUEMU_WATCHER_OFF	0x6390
-#define CPUEMUI10_ADD		((CPUEMU_WATCHER_SEG << 4) +\
-				  CPUEMU_WATCHER_OFF + 11)
-#endif
+#define INT10_WATCHER_SEG	BIOSSEG
 
 /* This inline interrupt is used for FCB open calls */
-#define FCB_HLP_SEG	ROMBIOSSEG
-#define FCB_HLP_OFF	0x6320
+#define FCB_HLP_SEG	BIOSSEG
 #define FCB_HLP_ADD	((INTE7_SEG << 4) + INTE7_OFF)
 
-#define DPMI_SEG	ROMBIOSSEG
-#define DPMI_OFF	0x4800		/* need at least 512 bytes */
+#define DPMI_SEG	BIOSSEG
 #define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
 
-#define DOS_LONG_READ_SEG BIOSSEG
-#define DOS_LONG_READ_OFF 0xF400
-#define DOS_LONG_WRITE_SEG BIOSSEG
-#define DOS_LONG_WRITE_OFF 0xF4A0
-
 #define INT_RVC_SEG BIOSSEG
-#define INT_RVC_21_OFF 0xF500
-#define INT_RVC_2f_OFF 0xF580
 
-#define XMSControl_SEG  ROMBIOSSEG
-#define XMSControl_OFF  0x4C40
+#define XMSControl_SEG  BIOSSEG
 #define XMSControl_ADD  ((XMSControl_SEG << 4)+XMSControl_OFF+5)
 
 /* For int15 0xc0 */
@@ -141,9 +99,9 @@
 /*
  * HLT block
  */
-#define BIOS_HLT_BLK_SEG   0xfc00
+#define BIOS_HLT_BLK_SEG   (BIOSSEG + (bios_hlt_blk >> 4))
 #define BIOS_HLT_BLK       (BIOS_HLT_BLK_SEG << 4)
-#define BIOS_HLT_BLK_SIZE  0x00800
+#define BIOS_HLT_BLK_SIZE  0x00400
 
 #define EMSControl_SEG  BIOS_HLT_BLK_SEG
 #define IPXEsrEnd_SEG   BIOS_HLT_BLK_SEG
@@ -152,8 +110,6 @@
 #define VBIOS_START	(SEGOFF2LINEAR(config.vbios_seg,0))
 /*#define VBIOS_SIZE	(64*1024)*/
 #define VBIOS_SIZE	(config.vbios_size)
-#define GFX_CHARS	0xffa6e
-#define GFXCHAR_SIZE	1400
 
 /* Memory adresses for all common video adapters */
 
@@ -192,15 +148,16 @@
 
 #include "types.h"
 #include <assert.h>
+#include <string.h>
 
 typedef uint32_t dosaddr_t;
 
 u_short INT_OFF(u_char i);
-#define CBACK_SEG BIOS_HLT_BLK_SEG
-extern Bit16u CBACK_OFF;
+#define CBACK_SEG SREG(cs)
+#define CBACK_OFF LWORD(eip)
 
 /* memcheck memory conflict finder definitions */
-int  memcheck_addtype(unsigned char map_char, char *name);
+int  memcheck_addtype(unsigned char map_char, const char *name);
 void memcheck_reserve(unsigned char map_char, dosaddr_t addr_start,
     uint32_t size);
 int memcheck_map_reserve(unsigned char map_char, dosaddr_t addr_start,
@@ -231,7 +188,7 @@ extern unsigned char *mem_base;
 #define LINP(a) ((unsigned char *)(uintptr_t)(a))
 static inline unsigned char *MEM_BASE32(dosaddr_t a)
 {
-    uint32_t off = (uint32_t)(uintptr_t)(mem_base + a);
+    uint32_t off = (uint32_t)((uintptr_t)mem_base + a);
     return LINP(off);
 }
 static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
@@ -249,7 +206,7 @@ static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
    It is set "const" to help GCC optimize accesses. In reality it is set only
    once, at startup
 */
-extern char *lowmem_base;
+extern uint8_t *lowmem_base;
 
 #define UNIX_READ_BYTE(addr)		(*(Bit8u *) (addr))
 #define UNIX_WRITE_BYTE(addr, val)	(*(Bit8u *) (addr) = (val) )

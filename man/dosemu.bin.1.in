@@ -134,19 +134,22 @@ boot from floppy disk A (does not need to be a real floppy disk, see below)
 .I -B
 boot from floppy disk B (does not need to be a real floppy disk, see below)
 .TP
-.I -C
-boot from hard disk C (does not need to be a real hard disk or even an 
-msdos filesystem, see below) 
+.I -C[num]
+boot from hard disk C. If num is specified, the appropriate drive will
+become C first. For example, -C1 means rename D to C, then boot from it.
 .TP
-.I -c
+.I -c[d]
 use direct Console video (must be at the console, requires special
 privileges, and
 .I -s
 ).
-.TP
-.I -d
+.br
+.I -cd
 detach from current virtual console or tty and attach to the first free
 virtual console
+.TP
+.I -d path
+mount host path as an extra DOS drive. Can be specified multiple times.
 .TP
 .I -E dos-command
 Run DOS command when starting DOSEMU.
@@ -160,7 +163,7 @@ will run /home/joeuser/dosemu/freedos/bin/xcopy.exe with 2 arguments.
 Note: this only works if your autoexec.bat contains "system \-e"
 command.
 .TP
-.I -K unix_path
+.I -K unix_path[:dos_path]
 Specify unix path for the program running with \-E.
 You can omit \-E and specify the full unix path with \-K, but passing
 command-line arguments via \-K is not recommended and may be removed
@@ -168,18 +171,8 @@ in the future. The following may nevertheless work:
 .nf
 dosemu -K "/home/joeuser/dosemu/freedos/bin/xcopy.exe my_file my_dir"
 .fi
-.TP
-.I -U number
-Make the <number> of path components passed with \-K, available to
-DOS program. For example,
-.nf
-dosemu -K "/home/joeuser/dosemu/freedos/bin/xcopy.exe" -U 3
-.fi
-means that xcopy.exe will be started under the path with 3 components,
-namely,
-.nf
-X:\\dosemu\\freedos\\bin
-.fi
+If dos_path is specified, then it is used as a current directory when
+invoking the command.
 .TP
 .I -T
 Don't terminate DOSEMU after running the command specified either
@@ -191,12 +184,9 @@ with -E or -K switches.
 .br
 Note: only works in dumb terminal mode currently.
 .TP
-.I -k
-use RAW console Keyboard (must be at the console)
-.TP
-.I -F
-Parse this config-script instead of the built-in global.conf file
-(you need to run as root on suid DOSEMU for this)
+.I -k[str]
+Set keyboard input type. Plain -k or -kr sets RAW console Keyboard
+(must be at the console). Use -kt for TTY and -ks for STDIO inputs.
 .TP
 .I --Fusers
 Bypass dosemu.users and take this file instead (only accepted when
@@ -210,25 +200,14 @@ Bypass the default DOSEMU_LIB_DIR (as maybe defined in dosemu.users)
 and use this directory instead.
 .TP
 .I --Fimagedir
-Bypass the default directory for bootdirectory and hdimages (DOSEMU_HDIMAGE_DIR)
+Bypass the default directory for bootdirectory and hdimages (DOSEMU_IMAGE_DIR)
 and use this directory instead.
 .TP
 .I -f
 Parse this config-file instead of .dosemurc
 .TP
 .I -n
-Bypass (don't use) dosemu.users and dosemu.conf (only accepted when
-.B dosemu.bin
-is
-.I not
-suid-root).
-.TP
-.I -u
-set a user configuration variable. An
-.B u_
-is prefixed to the name to avoid name clashes. This variable then can be
-checked in dosemu.conf or global.conf to do some special
-configuration.
+Bypass (don't use) user's config .dosemurc.
 .TP
 .I -L
 Load and start a DEXE file (special preconfigured bootable hdimage
@@ -317,14 +296,20 @@ DIRECT HARDWARE ACCESS TO DOS PROGRAMS MAY GIVE THESE THE ABILITY
 TO LOCK YOUR COMPUTER, OR (IN RARE CASES) EVEN DAMAGE HARDWARE.
 ONLY TRUSTED LOCAL USERS SHOULD BE GIVEN THIS TYPE OF ACCESS.
 .TP
-.I -t
-terminal mode: run using the S-Lang library
+.I -t[de]
+terminal mode: run using the S-Lang library by default, or, if 'd'
+is specified - use "dumb" terminal mode. If 'de' is specified,
+use stderr in dumb terminal mode, except for the output of the
+program started with -E that still goes to stdout.
 .TP
 .I -V
 use direct console video with VGA graphics and use the native graphics 
 card's BIOS (must be at the console, requires special privileges, and
 .I -s
 ).
+.TP
+.I -Y
+trace DOS boot ([Y/N] prompt for config.sys lines)
 .TP
 .I -w
 toggle windowed/fullscreen mode in X
@@ -452,7 +437,7 @@ parses this string from left to right.
  E  EMS			x  XMS			M  DPMI
  n  IPX network	P  Pkt-driver		S  SOUND
  r  PIC			T  IO-tracing		Z  PCI-BIOS
- A  ASPI driver	Q  mapping driver
+ A  ASPI driver	Q  mapping driver	F  MMIO
 
 Any debugging classes following a 
 .I \+ 
@@ -653,7 +638,7 @@ code.
 .I @docdir@/README.*
 Various documentation.
 .TP
-.I QuickStart, README and INSTALL
+.I README and INSTALL
 To set up
 .B DOSEMU
 quickly.

@@ -28,8 +28,6 @@
 #define MAX_SER 16
 #define NUM_COMS 4
 
-extern int no_local_video; /* used by virtual port code */
-
 typedef struct {
   				/*   MAIN VARIABLES  */
   char *dev;			/* String to hold path to device file */
@@ -37,7 +35,7 @@ typedef struct {
   ioport_t base_port;		/* Base port address handled by device */
   ioport_t end_port;		/* Base port address handled by device */
   int irq;			/* IRQ line handled by device */
-  boolean virtual;		/* virtual modem */
+  boolean virt;		/* virtual modem */
   boolean vmodem;		/* virtual modem attached */
   boolean pseudo;		/* pseudo-tty is used */
   boolean low_latency;		/* set low_latency mode */

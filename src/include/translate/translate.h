@@ -119,7 +119,7 @@ void foreach_character_mapping(struct char_set *set,
 	void *callback_data, foreach_callback_t callback);
 
 /* char set registration & lookup */
-struct char_set *lookup_charset(char *name);
+struct char_set *lookup_charset(const char *name);
 struct char_set *lookup_charset_piece(
 	const char *final_chars, int len, int chars_count, int bytes_per_char);
 int register_charset(struct char_set *set);
@@ -155,24 +155,30 @@ size_t character_count(const struct char_set_state *in_state, const char *str,
 size_t charset_to_unicode_string(
 	struct char_set_state *state,
 	t_unicode *dst,
-	const char **src, size_t src_len);
+	const char **src, size_t src_len,
+	size_t dst_len);
+size_t unicode_to_charset_string(
+	struct char_set_state *state,
+	char *dst,
+	const t_unicode **src,
+	size_t src_len, size_t dst_len);
 
 /* convert a Unicode string to a possibly multibyte string;
    result is malloc'ed so needs to be free'ed.
  */
-char *unicode_string_to_charset(const wchar_t *unistr, char *charset);
+char *unicode_string_to_charset(const wchar_t *unistr, const char *charset);
 
 /* return the number of unicode character in str */
 size_t unicode_len(t_unicode *str);
 
 /* convert a unicode string value into a number: see strtol */
-extern long int unicode_to_long (const t_unicode *ptr,
+extern long int unicode_to_long (t_unicode *ptr,
 	t_unicode **endptr, int base);
 
 
 struct translate_config_t {
        struct char_set *video_mem_charset;  /* character set emulated dos display is in (single byte) */
-       struct char_set *keyb_config_charset;  /* character set keypresses are translated into (single byte)*/
+#define keyb_config_charset dos_charset  /* character set keypresses are translated into (single byte)*/
        struct char_set *output_charset;  /* character set users terminal is in (single byte) */
        struct char_set *keyb_charset;  /* character set keyboard input comes in */
        struct char_set *dos_charset;   /* character set used for DOS filesystem */

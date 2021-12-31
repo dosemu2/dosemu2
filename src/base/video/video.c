@@ -15,7 +15,6 @@
 #include <sys/ioctl.h>
 #include <assert.h>
 
-#include "config.h"
 #include "emu.h"
 #include "int.h"
 #include "bios.h"
@@ -180,6 +179,7 @@ static void init_video_none(void)
     Video=&Video_none;
     config.term = 1;
     config.dumb_video = 1;
+    setbuf(stdout, NULL);
 }
 
 /*
@@ -196,13 +196,29 @@ static int video_init(void)
   if (!config.term && config.cardtype != CARD_NONE && using_kms())
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
-#if 0
-    /* sdl2 is hopeless on KMS - disable */
+#if SDL_SUPPORT
     warn("KMS detected: using SDL mode.\n");
+    load_plugin("sdl");
     config.sdl = 1;
+    Video = video_get("sdl");
+    if (Video) {
+      config.X = 1;	// for compatibility, to be removed
+      config.X_fullscreen = 1;
+      config.X_fixed_aspect = 0;
+      config.console_keyb = KEYB_OTHER;
+      goto done;
+    } else {
+      error("failed to load sdl plugin\n");
+    }
 #else
+#if USE_SLANG
     warn("KMS detected: using terminal mode.\n");
     config.term = 1;
+#else
+    error("KMS detected but neither SDL nor slang are built.\n");
+    init_video_none();
+    goto done;
+#endif
 #endif
   }
 
@@ -219,14 +235,16 @@ static int video_init(void)
     Video = video_get("sdl");
     if (Video) {
       config.X = 1;	// for compatibility, to be removed
-      config.mouse.type = MOUSE_SDL;
+    } else {
+      error("failed to load sdl plugin\n");
     }
   } else if (config.X) {
     load_plugin("X");
     Video = video_get("X");
     if (Video) {
 	config.X = 1;
-	config.mouse.type = MOUSE_X;
+    } else {
+      error("failed to load X plugin\n");
     }
   }
   else if (config.vga) {
@@ -246,6 +264,7 @@ static int video_init(void)
       }
   }
 
+done:
   if (Video && Video->priv_init) {
     int err = Video->priv_init();          /* call the specific init routine */
     if (err) {
@@ -263,8 +282,6 @@ static int video_init(void)
 }
 
 void video_early_close(void) {
-  if (!video_initialized)
-    return;
   v_printf("VID: video_early_close() called\n");
   if (Video && Video->early_close) {
     Video->early_close();
@@ -276,8 +293,6 @@ void video_early_close(void) {
 }
 
 void video_close(void) {
-  if (!video_initialized)
-    return;
   v_printf("VID: video_close() called\n");
   if (Video && Video->close) {
     Video->close();
@@ -289,7 +304,7 @@ void video_close(void) {
  * into memory at <mstart>
  */
 int
-load_file(char *name, int foffset, unsigned char *mstart, int msize)
+load_file(const char *name, int foffset, unsigned char *mstart, int msize)
 {
   int fd;
 
@@ -300,6 +315,11 @@ load_file(char *name, int foffset, unsigned char *mstart, int msize)
   }
   else
     fd = open(name, O_RDONLY);
+
+  if (fd == -1) {
+    v_printf("VID: load_file() fd invalid\n");
+    return -1;
+  }
 
   (void)DOS_SYSCALL(lseek(fd, foffset, SEEK_SET));
   (void)RPT_SYSCALL(read(fd, mstart, msize));
@@ -367,6 +387,8 @@ void video_config_init(void)
 static void init_video_term(void)
 {
 #ifdef USE_SLANG
+  config.X = 0;
+  config.console_keyb = KEYB_OTHER;
   load_plugin("term");
   Video = video_get("term");
   if (!Video) {
@@ -449,7 +471,6 @@ void video_post_init(void)
             leavedos(3);
           }
           config.X = 1;
-          config.mouse.type = MOUSE_X;
           c_printf("VID: Video set to Video_X\n");
         }
       }
@@ -466,6 +487,8 @@ void video_post_init(void)
   if (!Video) {
     error("Unable to initialize video subsystem\n");
     leavedos(3);
+    /* leavedos does not exit immediately. */
+    return;
   }
 
   if (!config.vga) {

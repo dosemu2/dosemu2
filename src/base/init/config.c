@@ -1,13 +1,15 @@
-#include "config.h"
-
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <fcntl.h>
 #include <errno.h>
+#include <limits.h>
 #include <sys/utsname.h>
 
 #include "version.h"
@@ -25,11 +27,11 @@
 #include "dosemu_config.h"
 #include "init.h"
 #include "disks.h"
-#include "userhook.h"
 #include "pktdrvr.h"
 #include "speaker.h"
 #include "sound/sound.h"
 #include "keyboard/keyb_clients.h"
+#include "translate/dosemu_charset.h"
 #include "dos2linux.h"
 #include "utilities.h"
 #ifdef X86_EMULATOR
@@ -61,29 +63,36 @@ int dosemu_proc_self_maps_fd = -1;
 static void     check_for_env_autoexec_or_config(void);
 static void     usage(char *basename);
 
-char *config_script_name = DEFAULT_CONFIG_SCRIPT;
-char *config_script_path = 0;
-char *dosemu_users_file_path = "/etc/" DOSEMU_USERS;
-char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
-char *dosemu_rundir_path = "~/" LOCALDIR_BASE_NAME "/run";
-char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
+const char *config_script_name = DEFAULT_CONFIG_SCRIPT;
+const char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
+const char *dosemu_rundir_path = "~/" LOCALDIR_BASE_NAME "/run";
+const char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
 
-char dosemulib_default[] = DOSEMULIB_DEFAULT;
-char *dosemu_lib_dir_path = dosemulib_default;
-char dosemuhdimage_default[] = DOSEMUHDIMAGE_DEFAULT;
-char *dosemu_hdimage_dir_path = dosemuhdimage_default;
+const char *dosemu_lib_dir_path = DOSEMULIB_DEFAULT;
+const char *dosemu_plugin_dir_path = DOSEMUPLUGINDIR;
+const char *commands_path = DOSEMUCMDS_DEFAULT;
+const char *dosemu_image_dir_path = DOSEMUIMAGE_DEFAULT;
+const char *dosemu_drive_c_path = DRIVE_C_DEFAULT;
 char keymaploadbase_default[] = DOSEMULIB_DEFAULT "/";
 char *keymap_load_base_path = keymaploadbase_default;
-char *keymap_dir_path = "keymap/";
-char *owner_tty_locks = "uucp";
-char *tty_locks_dir_path = "/var/lock";
-char *tty_locks_name_path = "LCK..";
-char *dexe_load_path = dosemuhdimage_default;
-char *dosemu_midi_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI;
-char *dosemu_midi_in_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN;
+const char *keymap_dir_path = "keymap/";
+const char *owner_tty_locks = "uucp";
+const char *tty_locks_dir_path = "/var/lock";
+const char *tty_locks_name_path = "LCK..";
+const char *dosemu_midi_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI;
+const char *dosemu_midi_in_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN;
 char *dosemu_map_file_name;
-char *fddir_default = DOSEMULIB_DEFAULT "/" FREEDOS_DIR;
+char *fddir_default;
+char *comcom_dir;
+char *fddir_boot;
+char *xbat_dir;
 struct config_info config;
+
+#define STRING_STORE_SIZE 10
+struct cfg_string_store {
+    struct string_store base;
+    char *strings[STRING_STORE_SIZE];
+} cfg_store = { { .num = STRING_STORE_SIZE } };
 
 /*
  * DANG_BEGIN_FUNCTION cpu_override
@@ -131,7 +140,7 @@ static void log_dump_printf(const char *fmt, ...)
 
 void dump_config_status(void (*printfunc)(const char *, ...))
 {
-    char *s;
+    const char *s;
     void (*print)(const char *, ...) = (printfunc ? printfunc : dump_printf);
 
     if (!printfunc) {
@@ -162,9 +171,6 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("pci %d\nrdtsc %d\nmathco %d\nsmp %d\n",
                  config.pci, config.rdtsc, config.mathco, config.smp);
     (*print)("cpuspeed %d\n", config.CPUSpeedInMhz);
-#ifdef X86_EMULATOR
-    (*print)("cpuemu %d\n", config.cpuemu);
-#endif
 
     if (config_check_only) mapping_init();
     (*print)("mappingdriver %s\n", config.mappingdriver ? config.mappingdriver : "auto");
@@ -203,11 +209,12 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("X_winsize_y %d\nX_gamma %d\nX_fullscreen %d\nvgaemu_memsize 0x%x\n",
         config.X_winsize_y, config.X_gamma, config.X_fullscreen,
 	     config.vgaemu_memsize);
-    (*print)("SDL_hwrend %d\n", config.sdl_hwrend);
+    (*print)("SDL_hwrend %d\nSDL_fonts \"%s\"\n",
+        config.sdl_hwrend, config.sdl_fonts);
     (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
-    (*print)("X_keycode %d\nX_font \"%s\"\n",
-        config.X_keycode, config.X_font);
+    (*print)("X_font \"%s\"\n", config.X_font);
+    (*print)("vga_fonts %i\n", config.vga_fonts);
     (*print)("X_mgrab_key \"%s\"\n",  config.X_mgrab_key);
     (*print)("X_background_pause %d\n", config.X_background_pause);
 
@@ -244,12 +251,12 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.update, config.freq);
     (*print)("tty_lockdir \"%s\"\ntty_lockfile \"%s\"\nconfig.tty_lockbinary %d\n",
         config.tty_lockdir, config.tty_lockfile, config.tty_lockbinary);
-    (*print)("num_ser %d\nnum_lpt %d\nfastfloppy %d\nfull_file_locks %d\n",
-        config.num_ser, config.num_lpt, config.fastfloppy, config.full_file_locks);
+    (*print)("num_ser %d\nnum_lpt %d\nfastfloppy %d\nfile_lock_limit %d\n",
+        config.num_ser, config.num_lpt, config.fastfloppy, config.file_lock_limit);
     (*print)("emusys \"%s\"\n",
         (config.emusys ? config.emusys : ""));
-    (*print)("dosbanner %d\nvbios_post %d\ndetach %d\n",
-        config.dosbanner, config.vbios_post, config.detach);
+    (*print)("vbios_post %d\ndetach %d\n",
+        config.vbios_post, config.detach);
     (*print)("debugout \"%s\"\n",
         (config.debugout ? config.debugout : ""));
     {
@@ -305,6 +312,10 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
         config.joy_device[0], config.joy_device[1], config.joy_dos_min, config.joy_dos_max, config.joy_granularity, config.joy_latency);
+    (*print)("\nFS:\nset_int_hooks %i\nforce_int_revect %i\nforce_fs_redirect %i\n\n",
+        config.int_hooks, config.force_revect, config.force_redir);
+
+    (*print)("\nMMIO:\nmmio_tracing %i\n\n", config.mmio_tracing);
 
     if (!printfunc) {
       (*print)("\n--------------end of runtime configuration dump -------------\n");
@@ -315,7 +326,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 static void
 open_terminal_pipe(char *path)
 {
-    terminal_fd = DOS_SYSCALL(open(path, O_RDWR));
+    terminal_fd = DOS_SYSCALL(open(path, O_RDWR | O_CLOEXEC));
     if (terminal_fd == -1) {
 	terminal_pipe = 0;
 	error("open_terminal_pipe failed - cannot open %s!\n", path);
@@ -347,7 +358,192 @@ static void our_envs_init(void)
     setenv("DOSEMU_UID", buf, 1);
 }
 
-static int find_option(char *option, int argc, char **argv)
+static int check_comcom(const char *dir)
+{
+  char *path;
+  int err;
+
+  path = assemble_path(dir, "command.com");
+  err = access(path, R_OK);
+  free(path);
+  if (err == 0)
+    return 1;
+  path = assemble_path(dir, "comcom32.exe");
+  err = access(path, R_OK);
+  free(path);
+  if (err == 0)
+    error("comcom32 found in %s but command.com symlink is missing\n", dir);
+  return 0;
+}
+
+static void comcom_hook(struct sys_dsc *sfiles, fatfs_t *fat)
+{
+  char buf[1024];
+  char *comcom;
+  ssize_t res;
+  const char *dir = fatfs_get_host_dir(fat);
+
+  if (strcmp(dir, comcom_dir) == 0) {
+    sfiles[CMD_IDX].flags |= FLG_COMCOM32;
+    return;
+  }
+  comcom = assemble_path(dir, "command.com");
+  res = readlink(comcom, buf, sizeof(buf));
+  free(comcom);
+  if (res == -1)
+    return;
+  if (strncmp(buf, comcom_dir, strlen(comcom_dir)) != 0)
+    return;
+  sfiles[CMD_IDX].flags |= FLG_COMCOM32;
+}
+
+static int check_freedos(const char *xdir)
+{
+  char *fboot, *fdir;
+  fboot = assemble_path(xdir, FDBOOT_DIR);
+  if (access(fboot, R_OK | X_OK) != 0) {
+    free(fboot);
+    return 0;
+  }
+  fdir = assemble_path(xdir, FREEDOS_DIR);
+  if (access(fdir, R_OK | X_OK) != 0) {
+    free(fboot);
+    free(fdir);
+    return 0;
+  }
+
+  fddir_boot = fboot;
+  fddir_default = fdir;
+  return 1;
+}
+
+static int check_bat(const char *xdir)
+{
+  char *bdir;
+  bdir = assemble_path(xdir, XBAT_DIR);
+  if (access(bdir, R_OK | X_OK) != 0) {
+    free(bdir);
+    return 0;
+  }
+  xbat_dir = bdir;
+  return 1;
+}
+
+#ifdef USE_FDPP
+static int fdpp_l;
+void fdpp_loaded(void)
+{
+    fdpp_l++;
+}
+#endif
+
+static void set_freedos_dir(void)
+{
+  const char *ccdir;
+  int loaded = 0;
+  const char *xdir = getenv("DOSEMU2_EXTRAS_DIR");
+  const char *xdirs[] = {
+    "/usr/share/dosemu2-extras",
+    "/usr/local/share/dosemu2-extras",
+    "/opt/dosemu2-extras",			/* gentoo */
+    NULL,
+  };
+#ifdef USE_FDPP
+  if (load_plugin("fdpp")) {
+    loaded = fdpp_l;
+    c_printf("fdpp: plugin loaded: %i\n", loaded);
+  } else {
+    error("can't load fdpp\n");
+  }
+#else
+  warn("fdpp support is not compiled in.\n");
+#endif
+
+  if (xdir && access(xdir, R_OK | X_OK) != 0) {
+    error("DOSEMU2_EXTRAS_DIR set incorrectly\n");
+    xdir = NULL;
+  }
+  if (!loaded) {  // no fdpp
+    if (xdir && check_freedos(xdir)) {
+      config.try_freedos = 1;
+    } else {
+      int i;
+      for (i = 0; xdirs[i]; i++) {
+        if (access(xdirs[i], R_OK | X_OK) == 0 && check_freedos(xdirs[i])) {
+          config.try_freedos = 1;
+          loaded++;
+          break;
+        }
+      }
+    }
+  }
+  if (!loaded)  // neither fdpp nor freedos
+    return;
+
+  ccdir = getenv("DOSEMU2_COMCOM_DIR");
+  if (ccdir && access(ccdir, R_OK | X_OK) == 0 && check_comcom(ccdir)) {
+    comcom_dir = strdup(ccdir);
+  } else {
+    const char *comcom[] = {
+      "/usr/share/comcom32",
+      "/usr/local/share/comcom32",
+      "/opt/comcom32",			/* gentoo */
+      NULL,
+    };
+    int i;
+    for (i = 0; comcom[i]; i++) {
+      if (access(comcom[i], R_OK | X_OK) == 0 && check_comcom(comcom[i])) {
+        comcom_dir = strdup(comcom[i]);
+        break;
+      }
+    }
+  }
+  if (comcom_dir)
+    fatfs_set_sys_hook(comcom_hook);
+
+  if (!fddir_default && !comcom_dir)
+    error("Neither freecom nor comcom32 installation found.\n"
+        "Use DOSEMU2_EXTRAS_DIR env var to specify location of freedos\n"
+        "or DOSEMU2_COMCOM_DIR env var for alternative location of comcom32\n");
+
+  if (!xdir || !check_bat(xdir)) {
+    int i;
+    for (i = 0; xdirs[i]; i++) {
+      if (access(xdirs[i], R_OK | X_OK) == 0 && check_bat(xdirs[i]))
+        break;
+    }
+  }
+}
+
+static void move_dosemu_lib_dir(void)
+{
+  char *old_cmd_path;
+
+  setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
+  set_freedos_dir();
+  if (access(commands_path, R_OK | X_OK) != 0) {
+    error("dosemu2 commands not found at %s\n", commands_path);
+    commands_path = NULL;
+  }
+  old_cmd_path = assemble_path(dosemu_lib_dir_path, "dosemu2-cmds-0.1");
+  if (access(old_cmd_path, R_OK | X_OK) == 0)
+    setenv("DOSEMU_COMMANDS_DIR", old_cmd_path, 1);
+  else if (commands_path)
+    setenv("DOSEMU_COMMANDS_DIR", commands_path, 1);
+  free(old_cmd_path);
+
+  if (keymap_load_base_path != keymaploadbase_default)
+    free(keymap_load_base_path);
+  keymap_load_base_path = assemble_path(dosemu_lib_dir_path, "");
+
+  setenv("DOSEMU_IMAGE_DIR", dosemu_image_dir_path, 1);
+  LOCALDIR = get_dosemu_local_home();
+  RUNDIR = mkdir_under(LOCALDIR, "run");
+  DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI);
+  DOSEMU_MIDI_IN_PATH = assemble_path(RUNDIR, DOSEMU_MIDI_IN);
+}
+
+static int find_option(const char *option, int argc, char **argv)
 {
   int i;
   if (argc <=1 ) return 0;
@@ -374,15 +570,16 @@ static int option_delete(int option, int *argc, char **argv)
  * Please keep "getopt_string", secure_option_preparse(), config_init(),
  * usage() and the manpage in sync!
  */
-static char * get_option(char *key, int with_arg, int *argc, char **argv)
+static char * get_option(const char *key, int with_arg, int *argc,
+    char **argv)
 {
   char *p;
   char *basename;
   int o = find_option(key, *argc, argv);
   if (!o) return 0;
   o = option_delete(o, argc, argv);
-  if (!with_arg) return "";
-  if (!with_arg || o >= *argc) return "";
+  if (!with_arg) return NULL;
+  if (!with_arg || o >= *argc) return NULL;
   if (argv[o][0] == '-') {
     basename = strrchr(argv[0], '/');   /* parse the program name */
     basename = basename ? basename + 1 : argv[0];
@@ -394,46 +591,107 @@ static char * get_option(char *key, int with_arg, int *argc, char **argv)
   return p;
 }
 
+static char *path_expand(char *path)
+{
+  char buf[PATH_MAX];
+  char *p, *pp;
+
+  buf[0] = '\0';
+  for (pp = path, p = strchr(path, '%'); p; pp = p + 2, p = strchr(pp, '%')) {
+    int len = strlen(buf);
+    if (p > pp)
+      snprintf(buf + len, sizeof(buf) - len, "%.*s", (int)(p - pp), pp);
+    switch (p[1]) {
+    case 'I':
+      strlcat(buf, DOSEMUIMAGE_DEFAULT, sizeof(buf));
+      break;
+    default:
+      error("Unknown substitution %%%c\n", p[1]);
+      return NULL;
+    }
+  }
+  strlcat(buf, pp, sizeof(buf));
+  return expand_path(buf);
+}
+
 void secure_option_preparse(int *argc, char **argv)
 {
   char *opt;
-  int runningsuid = can_do_root_stuff && !under_root_login;
+  int cnt;
 
-  if (runningsuid) unsetenv("DOSEMU_LAX_CHECKING");
-  else setenv("DOSEMU_LAX_CHECKING", "on", 1);
-
-  if (*argc <=1 ) return;
-
-  opt = get_option("--Fusers", 1, argc, argv);
-  if (opt && opt[0]) {
-    if (runningsuid) {
-      fprintf(stderr, "Bypassing /etc/dosemu.users not allowed %s\n",
-	      using_sudo ? "with sudo" : "for suid-root");
-      exit(0);
+  do {
+    cnt = 0;
+    opt = get_option("--Flibdir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_lib_dir_path, opt1);
+        dosemu_lib_dir_path = opt1;
+        cnt++;
+      } else {
+        error("--Flibdir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
     }
-    DOSEMU_USERS_FILE = opt;
-  }
 
-  opt = get_option("--Flibdir", 1, argc, argv);
-  if (opt && opt[0]) {
-    dosemu_lib_dir_path = opt;
-  }
-
-  opt = get_option("--Fimagedir", 1, argc, argv);
-  if (opt && opt[0]) {
-    dosemu_hdimage_dir_path = opt;
-  }
-
-  /* "-Xn" is enough to throw this parser off :( */
-  opt = get_option("-n", 0, argc, argv);
-  if (opt) {
-    if (runningsuid) {
-      fprintf(stderr, "The -n option to bypass the system configuration files "
-	      "is not allowed with sudo/suid-root\n");
-      exit(0);
+    opt = get_option("--Fplugindir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_plugin_dir_path, opt1);
+        dosemu_plugin_dir_path = opt1;
+        cnt++;
+      } else {
+        error("--Fplugindir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
     }
-    DOSEMU_USERS_FILE = NULL;
-  }
+
+    opt = get_option("--Fcmddir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, commands_path, opt1);
+        commands_path = opt1;
+        cnt++;
+      } else {
+        error("--Fcmddir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
+    }
+
+    opt = get_option("--Fimagedir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_image_dir_path, opt1);
+        dosemu_image_dir_path = opt1;
+        cnt++;
+      } else {
+        error("--Fimagedir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
+    }
+
+    opt = get_option("--Fdrive_c", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_drive_c_path, opt1);
+        dosemu_drive_c_path = opt1;
+        config.alt_drv_c = 1;
+        cnt++;
+      } else {
+        error("--Fdrive_c: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
+    }
+  } while (cnt);
 }
 
 static void read_cpu_info(void)
@@ -466,7 +724,7 @@ static void read_cpu_info(void)
 #endif
 #ifdef __i386__
         if (cpuflags && (strstr(cpuflags, "fxsr")) &&
-	    sizeof(vm86_fpu_state) == (112+512)) {
+	    sizeof(*vm86_fpu_state) == (112+512)) {
           config.cpufxsr = 1;
 	  if (cpuflags && strstr(cpuflags, "sse"))
 	    config.cpusse = 1;
@@ -531,7 +789,10 @@ static void read_cpu_info(void)
         error("Unknown CPU type!\n");
 	/* config.realcpu is set to CPU_386 at this point */
     }
-    config.mathco = strcmp(get_proc_string_by_key("fpu"), "yes") == 0;
+    if (config.mathco) {
+      const char *s = get_proc_string_by_key("fpu");
+      config.mathco = s && (strcmp(s, "yes") == 0);
+    }
     reset_proc_bufferptr();
     k = 0;
     while (get_proc_string_by_key("processor")) {
@@ -546,6 +807,20 @@ static void read_cpu_info(void)
 
 static void config_post_process(void)
 {
+#ifdef X86_EMULATOR
+    char buf[256];
+    size_t n;
+    FILE *f = popen("uname -r", "r");
+    n = fread(buf, 1, sizeof(buf) - 1, f);
+    buf[n >= 0 ? n : 0] = 0;
+    if (strstr(buf, "Microsoft") != NULL) {
+	c_printf("CONF: Running on Windows, SIM CPUEMU enabled\n");
+	config.cpusim = 1;
+	config.cpu_vm = CPUVM_EMU;
+	config.cpu_vm_dpmi = CPUVM_EMU;
+    }
+    pclose(f);
+#endif
     config.realcpu = CPU_386;
     if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
 	read_cpu_info();
@@ -553,12 +828,11 @@ static void config_post_process(void)
 	vm86s.cpu_type = config.realcpu;
 	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",(int)vm86s.cpu_type);
     }
-    if (config.cpu_vm != CPUVM_EMU) {
-      config.cpuemu = 0;
-    } else if (config.cpuemu == 0) {
-	config.cpuemu = 3;
-	c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
-    }
+    if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+      error("@Security warning: native DPMI mode is insecure, "
+          "adjust $_cpu_vm_dpmi\n");
+    c_printf("CONF: V86 cpu vm set to %d\n", config.cpu_vm);
+    c_printf("CONF: DPMI cpu vm set to %d\n", config.cpu_vm_dpmi);
     if (config.rdtsc) {
 	if (config.smp) {
 		c_printf("CONF: Denying use of pentium timer on SMP machine\n");
@@ -569,24 +843,22 @@ static void config_post_process(void)
 		config.rdtsc = 0;
 	}
     }
+    if (!config.dpmi)
+	config.dpmi_lin_rsv_size = 0;
+
     /* console scrub */
     if (!Video && getenv("DISPLAY") && !config.X && !config.term &&
         config.cardtype != CARD_NONE) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
 #ifdef SDL_SUPPORT
-	if (config.X_font && config.X_font[0])
-#endif
-	{
+	config.sdl = 1;
+	config.sdl_sound = 1;
+#else
 #ifdef X_SUPPORT
-	    config.X = 1;
+	config.X = 1;
 #endif
-#ifdef SDL_SUPPORT
-	} else {
-	    config.sdl = 1;
-	    config.sdl_sound = 1;
 #endif
-	}
     }
 #ifdef USE_CONSOLE_PLUGIN
     if (on_console()) {
@@ -635,13 +907,13 @@ static void config_post_process(void)
     }
     if (config.umb_a0 == -1) {
 	config.umb_a0 = config.term;
+#if 0
 	if (config.umb_a0) {
 	    warn("work around FreeDOS UMB bug\n");
 	    config.umb_a0++;
 	}
+#endif
     }
-    if (!config.dpmi)
-	config.pm_dos_api = 0;
 
     /* page-align memory sizes */
     config.ext_mem &= ~3;
@@ -661,11 +933,17 @@ static void config_post_process(void)
 
     /* Speaker scrub */
 #ifdef X86_EMULATOR
-    if (config.cpuemu && config.speaker==SPKR_NATIVE) {
+    if (IS_EMU() && config.speaker==SPKR_NATIVE) {
 	c_printf("SPEAKER: can`t use native mode with cpu-emu\n");
 	config.speaker=SPKR_EMULATED;
     }
 #endif
+
+    /* for now they can't work together */
+    if (config.ne2k && config.pktdrv) {
+        c_printf("CONF: Warning: disabling packet driver because of ne2k\n");
+        config.pktdrv = 0;
+    }
 
     check_for_env_autoexec_or_config();
 
@@ -673,18 +951,19 @@ static void config_post_process(void)
         c_printf("CONF: Warning: PCI requires root, disabled\n");
         config.pci = 0;
     }
-/* what purpose did the below serve? these vars are needed for an installer */
-#if 0
-    if (dosemu_lib_dir_path != dosemulib_default)
-        free(dosemu_lib_dir_path);
-    dosemu_lib_dir_path = NULL;
-    if (dosemu_hdimage_dir_path != dosemuhdimage_default)
-        free(dosemu_hdimage_dir_path);
-    dosemu_hdimage_dir_path = NULL;
-    if (keymap_load_base_path != keymaploadbase_default)
-        free(keymap_load_base_path);
-    keymap_load_base_path = NULL;
-    dexe_load_path = NULL;
+
+    if (!config.internal_cset) {
+#ifdef LOCALE_PLUGIN
+        /* json plugin loads locale settings */
+        load_plugin("json");
+#else
+        set_internal_charset("cp437");
+#endif
+    }
+
+#ifdef USE_IEEE1284
+    if (config.opl2lpt_device)
+        load_plugin("lpt");
 #endif
 }
 
@@ -773,12 +1052,18 @@ void
 config_init(int argc, char **argv)
 {
     int             c=0;
+#define I_MAX 5
+    int             i_incr[I_MAX] = {};
+    int             i_found = 0;
+    int             i_cur;
     int             can_do_root_stuff_enabled = 0;
     char           *confname = NULL;
     char           *dosrcname = NULL;
+    int             nodosrc = 0;
     char           *basename;
+    int             err;
     const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:hI:i::K:k::L:M:mNOo:P:qSsTt::u:VvwXx:U:"
+       "23456ABC::c::D:d:E:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -798,8 +1083,6 @@ config_init(int argc, char **argv)
 
     /* options get parsed twice so show our own errors and only once */
     opterr = 0;
-    if (strcmp(config_script_name, DEFAULT_CONFIG_SCRIPT))
-      confname = config_script_path;
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	switch (c) {
 	case 's':
@@ -812,70 +1095,40 @@ config_init(int argc, char **argv)
 	    usage(basename);
 	    exit(0);
 	    break;
-	case 'H': {
-	    dosdebug_flags = strtoul(optarg,0,0) & 255;
-#if 0
-	    if (!dosdebug_flags) dosdebug_flags = DBGF_WAIT_ON_STARTUP;
-#endif
-	    break;
-            }
-	case 'F':
-	    if (get_orig_uid()) {
-		FILE *f;
-		if (!get_orig_euid()) {
-		    /* we are running suid root as user */
-		    fprintf(stderr, "Sorry, -F option not allowed here\n");
-		    exit(1);
-		}
-		f=fopen(optarg, "r");
-		if (!f) {
-		  fprintf(stderr, "Sorry, no access to configuration script %s\n", optarg);
-		  exit(1);
-		}
-		fclose(f);
-	    }
-	    confname = optarg;
-	    break;
 	case 'f':
-	    {
-		FILE *f;
-		f=fopen(optarg, "r");
-		if (!f) {
-		  fprintf(stderr, "Sorry, no access to user configuration file %s\n", optarg);
-		  exit(1);
-		}
-		fclose(f);
-	        dosrcname = optarg;
-	    }
+	    dosrcname = path_expand(optarg);
 	    break;
 	case 'I':
-	    commandline_statements = optarg;
+	    assert(i_found < I_MAX);
+	    commandline_statements = strdup(optarg);
+	    if (commandline_statements[0] == '\'') {
+		commandline_statements[0] = ' ';
+		while (commandline_statements[strlen(commandline_statements) - 1] != '\'') {
+		    commandline_statements = realloc(commandline_statements,
+			    strlen(commandline_statements) + 1 +
+			    strlen(argv[optind]) + 1);
+		    strcat(commandline_statements, " ");
+		    strcat(commandline_statements, argv[optind]);
+		    optind++;
+		    i_incr[i_found]++;
+		}
+		commandline_statements[strlen(commandline_statements) - 1] = 0;
+	    }
+	    i_found++;
 	    break;
-	case 'i':
-	    if (optarg)
-		config.install = optarg;
-	    else
-		config.install = fddir_default;
-	    break;
-	case 'd':
-	    config.detach = 1;
-	    break;
-	case 'D':
-	    parse_debugflags(optarg, 1);
-	    break;
-	case 'O':
-	    fprintf(stderr, "using stderr for debug-output\n");
-	    dbg_fd = stderr;
+	case 'c':
+	    config.console_video = 1;
+	    config.vga = 0;	// why?
+	    if (optarg && optarg[0] == 'd')
+		config.detach = 1;
 	    break;
 	case 'o':
 	    config.debugout = strdup(optarg);
+	    if (strcmp(optarg, "-") == 0)
+		dbg_fd = stderr;
 	    break;
-	case 'u': {
-		char *s=malloc(strlen(optarg)+3);
-		s[0]='u'; s[1]='_';
-		strcpy(s+2,optarg);
-		define_config_variable(s);
-	    }
+	case 'n':
+	    nodosrc = 1;
 	    break;
 	case 'v':
 	    printf("dosemu2-" VERSTR "\n");
@@ -892,29 +1145,31 @@ config_init(int argc, char **argv)
     	fprintf(stderr,"\nRunning privileged (%s) in full feature mode\n",
 		using_sudo ? "via sudo" : "suid-root");
 
-    if (dbg_fd == 0) {
-        if (config.debugout == NULL) {
-            char *home = getenv("HOME");
-            if (home) {
-                const static char *debugout = "/.dosemu/boot.log";
-                config.debugout = malloc(strlen(home) + strlen(debugout) + 1);
-                strcpy(config.debugout, home);
-                strcat(config.debugout, debugout);
-            }
-        }
-        if (config.debugout != NULL) {
-            dbg_fd = fopen(config.debugout, "w");
-            if (!dbg_fd) {
-                fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
-                exit(1);
-            }
-            setlinebuf(dbg_fd);
-        }
-    }
-
+    stdio_init();		/* initialize stdio & open debug file */
     if (config_check_only) set_debug_level('c',1);
 
-    parse_config(confname,dosrcname);
+    move_dosemu_lib_dir();
+    confname = assemble_path(DOSEMU_CONF_DIR, DOSEMU_CONF);
+    if (access(confname, R_OK) == -1) {
+	free(confname);
+	confname = NULL;
+    }
+    if (!nodosrc) {
+	if (!dosrcname) {
+	    dosrcname = assemble_path(dosemu_localdir_path, DOSEMU_RC);
+	    if (access(dosrcname, R_OK) == -1) {
+		free(dosrcname);
+		dosrcname = get_path_in_HOME(DOSEMU_RC);
+	    }
+	}
+	if (access(dosrcname, R_OK) == -1) {
+	    free(dosrcname);
+	    dosrcname = NULL;
+	}
+    }
+    parse_config(confname, dosrcname);
+    free(confname);
+    free(dosrcname);
 
     if (config.exitearly && !config_check_only)
 	exit(0);
@@ -922,23 +1177,60 @@ config_init(int argc, char **argv)
     /* default settings before processing cmdline */
     config.exit_on_cmd = 1;
 
+    i_cur = 0;
 #ifdef __linux__
     optind = 0;
 #endif
     opterr = 0;
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	switch (c) {
-	case 'F':		/* previously parsed config file argument */
 	case 'f':
-	case 'H':
-	case 'I':
-	case 'i':
-	case 'd':
+	case 'c':
 	case 'o':
-	case 'O':
 	case 'L':
-	case 'u':
+	case 'n':
 	case 's':
+	    break;
+	case 'd': {
+	    char *p = strdup(optarg);
+	    char *d = strchr(p, ':');
+	    int ro = 0;
+	    int cd = 0;
+	    int grp = 0;
+	    if (d) {
+		switch (d[1]) {
+		case 'R':
+		case 'r':
+		    ro++;
+		    break;
+		case 'C':
+		case 'c':
+		    cd++;
+		    break;
+		case 'G':
+		case 'g':
+		    grp++;
+		    break;
+		}
+		*d = '\0';
+	    }
+	    err = add_extra_drive(p, ro, cd, grp);
+	    free(p);
+	    if (err)
+		config.exitearly = 1;
+	    break;
+	}
+	case 'H': {
+#ifdef USE_MHPDBG
+	    dosdebug_flags = strtoul(optarg,0,0) & 255;
+#else
+	    error("debugger support not compiled in\n");
+#endif
+	    break;
+            }
+	case 'I':
+	    assert(i_cur < i_found);
+	    optind += i_incr[i_cur++];
 	    break;
 	case '2': case '3': case '4': case '5': case '6':
 	    {
@@ -954,17 +1246,17 @@ config_init(int argc, char **argv)
 	case 'g': /* obsolete "graphics" option */
 	    break;
 	case 'A':
-	    if (!dexe_running) config.hdiskboot = 0;
+	    config.hdiskboot = 0;
 	    break;
 	case 'B':
-	    if (!dexe_running) config.hdiskboot = 1;
+	    config.hdiskboot = 1;
 	    break;
 	case 'C':
 	    config.hdiskboot = 2;
-	    break;
-	case 'c':
-	    config.console_video = 1;
-	    config.vga = 0;
+	    if (optarg && isdigit(optarg[0]) && optarg[0] > '0') {
+		config.hdiskboot += optarg[0] - '0';
+		config.swap_bootdrv = 1;
+	    }
 	    break;
 	case 'k':
 	    if (optarg) {
@@ -978,18 +1270,25 @@ config_init(int argc, char **argv)
 		case 'r':
 		    config.console_keyb = KEYB_RAW;
 		    break;
+		case 'o':
+		    config.console_keyb = KEYB_OTHER;
+		    break;
 		}
 	    } else {
 		config.console_keyb = KEYB_RAW;
 	    }
 	    break;
 	case 't':
-	    /* terminal mode */
-	    config.X = config.console_video = 0;
-	    config.term = 1;
+	    if (!optarg || optarg[0] != ':') {
+		/* terminal mode */
+		config.X = config.console_video = 0;
+		config.term = 1;
+	    }
 	    if (optarg) {
-		if (optarg[0] =='d')
+		if (strchr(optarg, 'd'))
 		    config.dumb_video = 1;
+		if (strchr(optarg, 'e'))
+		    config.tty_stderr = 1;
 	    }
 	    break;
 	case 'X':
@@ -1020,6 +1319,9 @@ config_init(int argc, char **argv)
 	    if (config.mem_size > 640)
 		config.mem_size = 640;
 	    break;
+	case 'Y':
+	    config.dos_trace = 1;
+	    break;
 	case 'N':
 	    warn("DOS will not be started\n");
 	    config.exitearly = 1;
@@ -1045,16 +1347,19 @@ config_init(int argc, char **argv)
 	    g_printf("DOS command given on command line: %s\n", optarg);
 	    config.dos_cmd = optarg;
 	    break;
-	case 'K':
+	case 'K': {
+	    char *p;
 	    g_printf("Unix path set to %s\n", optarg);
-	    config.unix_path = optarg;
-	    break;
-	case 'U': {
-	    int n;
-	    sscanf(optarg, "%i%n", &config.cdup, &n);
-	    if (n != strlen(optarg)) {
-		fprintf(stderr, "Number expected after -U\n\r");
-		exit(1);
+	    config.unix_path = strdup(optarg);
+	    p = strchr(config.unix_path, ':');
+	    if (p) {
+		*p = '\0';
+		config.dos_path = strdup(p + 1);
+	    }
+	    if (!exists_dir(config.unix_path) && !exists_file(config.unix_path)) {
+		error("Path %s does not exist\n", config.unix_path);
+		config.exitearly = 1;
+		break;
 	    }
 	    break;
 	}
@@ -1128,62 +1433,118 @@ usage(char *basename)
     fprintf(stderr,
 	"dosemu-" VERSTR "\n\n"
 	"USAGE:\n"
-	"  %s [options] [ [-E] linux path or dos command ]\n"
+	"  %s [options] [-K linux path] [-E dos command]\n"
 	"\n"
 	"    -2,3,4,5,6 choose 286, 386, 486 or 586 or 686 CPU\n"
 	"    -A boot from first defined floppy disk (A)\n"
 	"    -B boot from second defined floppy disk (B) (#)\n"
 	"    -C boot from first defined hard disk (C)\n"
 	"    -c use PC console video (!%%)\n"
-	"    -d detach console\n"
 	"    -X run in X Window (#)\n"
 	"    -S run in SDL (#)\n"
     , basename);
     print_debug_usage(stderr);
     fprintf(stderr,
-	"    -E STRING pass DOS command on command line (but don't exit afterwards)\n"
+	"    -E STRING pass DOS command on command line\n"
+	"    -d DIR - mount DIR as a drive under DOS\n"
 	"    -e SIZE enable SIZE K EMS RAM\n"
-	"    -F use File as global config-file\n"
 	"    -f use dosrcFile as user config-file\n"
 	"    --Fusers bypass /etc/dosemu.users (^^)\n"
 	"    --Flibdir change keymap and FreeDOS location\n"
 	"    --Fimagedir bypass systemwide boot path\n"
-	"    -n bypass the system configuration file (^^)\n"
+	"    -n bypass the user configuration file (.dosemurc)\n"
 	"    -L load and execute DEXE File\n"
 	"    -I insert config statements (on commandline)\n"
 	"    -i[bootdir] (re-)install a DOS from bootdir or interactively\n"
 	"    -h display this help\n"
 	"    -H wait for dosdebug terminal at startup and pass dflags\n"
 	"    -k use PC console keyboard (!)\n"
+	"    -K Specify unix path for program running with -E\n"
 	"    -M set memory size to SIZE kilobytes (!)\n"
 	"    -m toggle internal mouse driver\n"
 	"    -N No boot of DOS\n"
-	"    -O write debug messages to stderr\n"
 	"    -o FILE put debug messages in file\n"
 	"    -P copy debugging output to FILE\n"
 	"    -p stop for prompting with a non-fatal configuration problem\n"
 	"    -s enable direct hardware access (full feature) (!%%)\n"
+	"    -T don't exit after executing -E command\n"
 	"    -t use terminal (S-Lang) mode\n"
-	"    -u set user configuration variable 'confvar' prefixed by 'u_'.\n"
 	"    -V use BIOS-VGA video modes (!#%%)\n"
 	"    -v display version\n"
 	"    -w toggle windowed/fullscreen mode in X\n"
 	"    -x SIZE enable SIZE K XMS RAM\n"
-	"    -U PIPES calls init_uhook(PIPES) (??\?)\n"  /* "??)" is a trigraph */
+	"    -Y interactive boot\n"
 	"\n"
 	"    (!) BE CAREFUL! READ THE DOCS FIRST!\n"
 	"    (%%) require DOSEMU be run as root (i.e. suid)\n"
 	"    (^^) require DOSEMU not be run as root (i.e. not suid)\n"
 	"    (#) options do not fully work yet\n"
 	"\n");
-    if(!strcmp (basename, "dos") || !strcmp (basename, "dosemu")) {
-        fprintf (stderr,
-            "  x%s [options]   == %s [options] -X\n"
-            "\n",
-            basename, basename);
-    }
     fprintf(stderr,
 	"  %s --help\n"
 	"  %s --version    print version of dosemu (and show this help)\n",
         basename, basename);
 }
+
+
+	/* charset */
+static struct char_set *get_charset(const char *name)
+{
+	struct char_set *charset;
+
+	charset = lookup_charset(name);
+	if (!charset) {
+		error("Can't find charset %s", name);
+	}
+	return charset;
+
+}
+
+void set_external_charset(const char *charset_name)
+{
+	struct char_set *charset;
+	charset = get_charset(charset_name);
+	if (!charset) {
+		error("charset %s not available\n", charset_name);
+		return;
+	}
+	charset = get_terminal_charset(charset);
+	if (charset) {
+		if (!trconfig.output_charset) {
+			trconfig.output_charset = charset;
+		}
+		if (!trconfig.keyb_charset) {
+			trconfig.keyb_charset = charset;
+		}
+	}
+
+	config.external_cset = charset_name;
+}
+
+void set_internal_charset(const char *charset_name)
+{
+	struct char_set *charset_video, *charset_config;
+	charset_video = get_charset(charset_name);
+	if (!charset_video) {
+		error("charset %s not available\n", charset_name);
+		return;
+	}
+	if (!is_display_charset(charset_video)) {
+		error("%s not suitable as an internal charset", charset_name);
+	}
+	charset_config = get_terminal_charset(charset_video);
+	if (charset_video) {
+		trconfig.video_mem_charset = charset_video;
+	}
+#if 0
+	if (charset_config) {
+		trconfig.keyb_config_charset = charset_config;
+	}
+#endif
+	if (charset_config) {
+		trconfig.dos_charset = charset_config;
+	}
+
+	config.internal_cset = charset_name;
+}
+

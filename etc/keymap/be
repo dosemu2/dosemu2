@@ -1,5 +1,5 @@
 #keytable be
-keytable keyb-user {
+keytable "keyb-user" {
   0=
      0,27,"&",130,34,39,"(",21,138,"!",128,133,")-",127,9,
      "azertyuiop",dcircum,"$",13,0,"qs",

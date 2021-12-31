@@ -57,27 +57,23 @@ extern void e_priv_iopl(int);
 #define CeS_SIGACT	0x02	/* signal active mask */
 #define CeS_RPIC	0x04	/* pic asks for interruption */
 #define CeS_STI		0x08	/* IF active was popped */
-#define CeS_LOCK	0x800	/* cycle lock (pop ss; pop sp et sim.) */
+#define CeS_MOVSS	0x10	/* mov ss or pop ss interpreted */
+#define CeS_INHI	0x800	/* inhibit interrupts(pop ss; pop sp et sim.) */
 #define CeS_TRAP	0x1000	/* INT01 Sstep active */
 #define CeS_DRTRAP	0x2000	/* Debug Registers active */
 
 extern int IsV86Emu;
 extern int IsDpmiEmu;
 
-extern volatile int CEmuStat;
-extern volatile int InCompiledCode;
-
 void enter_cpu_emu(void);
 void leave_cpu_emu(void);
 void avltr_destroy(void);
 int e_vm86(void);
 
-#define FLUSH_TREE	if (config.cpuemu>1) avltr_destroy()
-
 /* called from dpmi.c */
 void emu_mhp_SetTypebyte (unsigned short selector, int typebyte);
 unsigned short emu_do_LAR (unsigned short selector);
-char *e_scp_disasm(struct sigcontext *scp, int pmode);
+char *e_scp_disasm(sigcontext_t *scp, int pmode);
 
 /* called from mfs.c, fatfs.c and some places that memcpy */
 #ifdef X86_EMULATOR
@@ -85,6 +81,7 @@ void e_invalidate(unsigned data, int cnt);
 void e_invalidate_full(unsigned data, int cnt);
 #else
 #define e_invalidate(x,y)
+#define e_invalidate_full(x,y)
 #endif
 
 /* called from cpu.c */
@@ -92,20 +89,24 @@ void init_emu_cpu (void);
 void reset_emu_cpu (void);
 
 /* called/used from dpmi.c */
-int e_dpmi(struct sigcontext *scp);
-void e_dpmi_b0x(int op,struct sigcontext *scp);
+int e_dpmi(sigcontext_t *scp);
+void e_dpmi_b0x(int op,sigcontext_t *scp);
 extern int in_dpmi_emu;
 
+/* called from emu-ldt.c */
+void InvalidateSegs(void);
+
 /* called from sigsegv.c */
-int e_emu_pagefault(struct sigcontext *scp, int pmode);
-int e_handle_pagefault(struct sigcontext *scp);
-int e_handle_fault(struct sigcontext *scp);
+int e_emu_pagefault(sigcontext_t *scp, int pmode);
+int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp);
+int e_handle_fault(sigcontext_t *scp);
+int e_in_compiled_code(void);
 
 /* called from signal.c */
 #ifdef X86_EMULATOR
-int e_gen_sigalrm(struct sigcontext *scp);
+void e_gen_sigalrm(sigcontext_t *scp);
 #else
-#define e_gen_sigalrm(x) 1
+#define e_gen_sigalrm(x)
 #endif
 
 #endif	/*DOSEMU_CPUEMU_H*/

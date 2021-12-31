@@ -1,0 +1,2 @@
+#define JSON_SUPPORT 1
+#define LOCALE_PLUGIN 1

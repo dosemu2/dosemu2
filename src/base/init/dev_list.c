@@ -21,7 +21,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "config.h"
 
 #include "emu.h"
 #include "iodev.h"
@@ -36,15 +35,16 @@
 #include "dma.h"
 #include "dosemu_debug.h"
 #include "pktdrvr.h"
+#include "ne2000.h"
 #include "ipx.h"
 #include "sound.h"
 #include "joystick.h"
 #include "emm.h"
 #include "xms.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 
 struct io_dev_struct {
-  const char * name;
+  const char *name;
   void (* init_func)(void);
   void (* reset_func)(void);
   void (* term_func)(void);
@@ -53,7 +53,7 @@ struct io_dev_struct {
 
 #define MAX_DEVICES_OWNED 50
 struct owned_devices_struct {
-  char * dev_names[MAX_DEVICES_OWNED];
+  const char *dev_names[MAX_DEVICES_OWNED];
   int devs_owned;
 } owned_devices[MAX_IO_DEVICES];
 
@@ -63,7 +63,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "pit",     NULL,         pit_reset,     NULL },
   { "cmos",    cmos_init,    cmos_reset,    NULL },
   { "video",   video_post_init, NULL, NULL },
-  { "internal_mouse",  dosemu_mouse_init,  dosemu_mouse_reset, dosemu_mouse_close },
+  { "internal_mouse",  dosemu_mouse_init,   NULL, dosemu_mouse_close },
   { "serial",  serial_init,  serial_reset,  serial_close },
   { "pic",     pic_init,     pic_reset,     NULL },
   { "chipset", chipset_init, NULL,          NULL },
@@ -80,12 +80,14 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "sound",   sound_init,   sound_reset,   sound_done },
   { "joystick", joy_init,    joy_reset,     joy_term },
 #ifdef IPX
-  { "ipx",      ipx_init,    NULL,          NULL },
+  { "ipx",      ipx_init,    NULL,          ipx_close },
 #endif
   { "packet driver", pkt_init, pkt_reset,   pkt_term },
+  { "ne2000",  ne2000_init,  ne2000_reset,  ne2000_done },
   { "ems",     ems_init,     ems_reset,     NULL },
   { "xms",     xms_init,     xms_reset,     NULL },
   { "dpmi",    dpmi_setup,   dpmi_reset,    NULL },
+  { "cdrom",   NULL,         NULL,          cdrom_done },
   { NULL,      NULL,         NULL,          NULL }
 };
 
@@ -121,7 +123,7 @@ void iodev_term(void)
       ptr->term_func();
 }
 
-void iodev_register(char *name,
+void iodev_register(const char *name,
 	void (*init_func)(void),
 	void (*reset_func)(void),
 	void (*term_func)(void))
@@ -147,7 +149,7 @@ void iodev_register(char *name,
 	return;
 }
 
-void iodev_unregiseter(char *name)
+void iodev_unregister(const char *name)
 {
 	struct io_dev_struct *ptr;
 	for(ptr = io_devices; ptr < &io_devices[MAX_IO_DEVICES -1]; ptr++) {
@@ -161,7 +163,7 @@ void iodev_unregiseter(char *name)
 	}
 }
 
-static int find_device_owner(char *dev_name)
+static int find_device_owner(const char *dev_name)
 {
 	int i, j;
 	for(i = 0; i < MAX_IO_DEVICES - 1; i++) {
@@ -172,7 +174,7 @@ static int find_device_owner(char *dev_name)
 	return -1;
 }
 
-void iodev_add_device(char *dev_name)
+void iodev_add_device(const char *dev_name)
 {
 	int dev_own;
 	if (current_device == -1) {

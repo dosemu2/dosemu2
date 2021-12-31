@@ -20,16 +20,12 @@ AC_ARG_ENABLE(aotest, [  --disable-aotest       Do not try to compile and run a 
     AO_LIBS="-L$ao_libraries"
   elif test "x$ao_prefix" != "x"; then
     AO_LIBS="-L$ao_prefix/lib"
-  elif test "x$prefix" != "xNONE"; then
-    AO_LIBS="-L$prefix/lib"
   fi
 
   if test "x$ao_includes" != "x" ; then
     AO_CFLAGS="-I$ao_includes"
   elif test "x$ao_prefix" != "x"; then
     AO_CFLAGS="-I$ao_prefix/include"
-  elif test "x$prefix" != "xNONE"; then
-    AO_CFLAGS="-I$prefix/include"
   fi
 
   # see where dl* and friends live

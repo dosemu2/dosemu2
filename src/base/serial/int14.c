@@ -30,7 +30,6 @@
 #include <termios.h>
 
 /* Other includes that may be needed for this serial code */
-#include "config.h"
 #include "emu.h"
 #include "serial.h"
 #include "ser_defs.h"
@@ -98,6 +97,12 @@ int int14(void)
   case 0:		/* Initialize serial port. */
     if (com[num].fossil_active) {
       fossil_int14(num);
+      break;
+    }
+
+    if (com_cfg[num].mouse && ((LO(ax) & 0xE0) != 0x80)) {
+      s_printf("SER%d: INT14 0x0: Deny init of the mouse port\n", num);
+      LWORD(eax) = 0xff00;
       break;
     }
 
@@ -193,10 +198,17 @@ int int14(void)
       clear_IF();
     }
 #endif
-    if ((read_LSR(num) & UART_LSR_DR) && (read_MSR(num) & UART_MSR_DSR)) {
+    if ((read_LSR(num) & UART_LSR_DR)) {
+      int dsr = (read_MSR(num) & UART_MSR_DSR);
       LO(ax) = read_char(num);		/* Read character */
-      HI(ax) = read_LSR(num) & ~0x80;	/* Character was received */
-      s_printf("SER%d: INT14 0x2: Read char 0x%x\n",num,LO(ax));
+      HI(ax) = read_LSR(num);	/* Character was received */
+      if (dsr) {
+        HI(ax) &= ~0x80;
+        s_printf("SER%d: INT14 0x2: Read char 0x%x\n",num,LO(ax));
+      } else {
+        HI(ax) |= 0x80;
+        s_printf("SER%d: INT14 0x2: Read but no DSR.\n",num);
+      }
     }
     else {
       HI(ax) = read_LSR(num) | 0x80;	/* Timeout */
@@ -240,12 +252,12 @@ void serial_mem_setup(void)
    */
   for (num = 0; num < config.num_ser; num++) {
     if ((com_cfg[num].real_comport >= 1) && (com_cfg[num].real_comport <= 4)) {
-      WRITE_WORD(0x400 + (com_cfg[num].real_comport-1)*2, com_cfg[num].base_port);
+      WRITE_WORD(BIOS_BASE_ADDRESS_COM1 + (com_cfg[num].real_comport-1)*2, com_cfg[num].base_port);
 
       /* Debugging to determine whether memory location was written properly */
       s_printf("SER%d: BIOS memory location %p has value of %#x\n", num,
-	       ((u_short *) (0x400) + (com_cfg[num].real_comport-1))
-	       ,READ_WORD(0x400 + 2*(com_cfg[num].real_comport-1)));
+	       ((u_short *) (BIOS_BASE_ADDRESS_COM1) + (com_cfg[num].real_comport-1))
+	       ,READ_WORD(BIOS_BASE_ADDRESS_COM1 + 2*(com_cfg[num].real_comport-1)));
     }
   }
 }

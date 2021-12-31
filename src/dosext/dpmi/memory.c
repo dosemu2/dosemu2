@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>		/* for memcpy */
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>		/* for MREMAP_MAYMOVE */
@@ -31,27 +32,57 @@
 #include "utilities.h"
 #include "mapping.h"
 #include "smalloc.h"
-#include "dpmi.h"
+#include "emudpmi.h"
 #include "dpmisel.h"
 #include "dmemory.h"
+#include "cpu-emu.h"
 
 #ifndef PAGE_SHIFT
 #define PAGE_SHIFT		12
 #endif
 
-unsigned long dpmi_total_memory; /* total memory  of this session */
-unsigned long dpmi_free_memory;           /* how many bytes memory client */
-unsigned long pm_block_handle_used;       /* tracking handle */
+#define ATTR_SHR 4
+
+unsigned int dpmi_total_memory; /* total memory  of this session */
+static unsigned int mem_allocd;           /* how many bytes memory client */
+unsigned int pm_block_handle_used;       /* tracking handle */
 
 static smpool mem_pool;
+static smpool lin_pool;
 static void *dpmi_lin_rsv_base;
 static void *dpmi_base;
+static const int dpmi_reserved_space = 4 * 1024 * 1024; // reserve 4Mb
+static int extra_mf;
 
+void dpmi_set_map_flags(int cap)
+{
+    extra_mf = cap;
+}
+
+static int in_rsv_pool(dosaddr_t base, unsigned int size)
+{
+    if (!dpmi_lin_rsv_base)
+	return 0;
+    if (base >= DOSADDR_REL(dpmi_lin_rsv_base) &&
+	    base < DOSADDR_REL(dpmi_lin_rsv_base) +
+	    dpmi_lin_mem_rsv()) {
+	if (base + size <= DOSADDR_REL(dpmi_lin_rsv_base) +
+		dpmi_lin_mem_rsv())
+	    return 1;
+	return -1;
+    }
+    return 0;
+}
 
 void dpmi_set_mem_bases(void *rsv_base, void *main_base)
 {
     dpmi_lin_rsv_base = rsv_base;
     dpmi_base = main_base;
+    /* Elite First Encounters setup.exe insists on reserve
+     * area being writable... */
+    if (config.no_null_checks && rsv_base)
+        mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(rsv_base),
+                dpmi_lin_mem_rsv(), PROT_READ | PROT_WRITE);
     c_printf("DPMI memory mapped to %p (reserve) and to %p (main)\n",
         rsv_base, main_base);
 }
@@ -66,6 +97,7 @@ static dpmi_pm_block * alloc_pm_block(dpmi_pm_block_root *root, unsigned long si
     dpmi_pm_block *p = malloc(sizeof(dpmi_pm_block));
     if(!p)
 	return NULL;
+    memset(p, 0, sizeof(*p));
     p->attrs = malloc((size >> PAGE_SHIFT) * sizeof(u_short));
     if(!p->attrs) {
 	free(p);
@@ -88,21 +120,24 @@ static void * realloc_pm_block(dpmi_pm_block *block, unsigned long newsize)
 /* free_pm_block free a dpmi_pm_block struct and delete it from list */
 static int free_pm_block(dpmi_pm_block_root *root, dpmi_pm_block *p)
 {
-    dpmi_pm_block *tmp;
+    dpmi_pm_block *tmp = NULL;
+    dpmi_pm_block *next;
     if (!p) return -1;
-    if (p == root->first_pm_block) {
-	root->first_pm_block = p -> next;
-	free(p->attrs);
-	free(p);
-	return 0;
+    if (p != root->first_pm_block) {
+	for(tmp = root->first_pm_block; tmp; tmp = tmp->next)
+	    if (tmp -> next == p)
+		break;
+	if (!tmp) return -1;
     }
-    for(tmp = root->first_pm_block; tmp; tmp = tmp->next)
-	if (tmp -> next == p)
-	    break;
-    if (!tmp) return -1;
-    tmp -> next = p -> next;	/* delete it from list */
+    next = p->next;
     free(p->attrs);
+    free(p->shmname);
+    free(p->rshmname);
     free(p);
+    if (tmp)
+	tmp->next = next;
+    else
+	root->first_pm_block = next;
     return 0;
 }
 
@@ -110,25 +145,51 @@ static int free_pm_block(dpmi_pm_block_root *root, dpmi_pm_block *p)
 dpmi_pm_block *lookup_pm_block(dpmi_pm_block_root *root, unsigned long h)
 {
     dpmi_pm_block *tmp;
-    for(tmp = root->first_pm_block; tmp; tmp = tmp->next)
+    for(tmp = root->first_pm_block; tmp; tmp = tmp->next) {
 	if (tmp -> handle == h)
 	    return tmp;
-    return 0;
+    }
+    return NULL;
 }
 
 dpmi_pm_block *lookup_pm_block_by_addr(dpmi_pm_block_root *root,
 	dosaddr_t addr)
 {
     dpmi_pm_block *tmp;
-    for(tmp = root->first_pm_block; tmp; tmp = tmp->next)
+    for(tmp = root->first_pm_block; tmp; tmp = tmp->next) {
 	if (addr >= tmp->base && addr < tmp->base + tmp->size)
 	    return tmp;
-    return 0;
+    }
+    return NULL;
+}
+
+dpmi_pm_block *lookup_pm_block_by_shmname(dpmi_pm_block_root *root,
+	const char *shmname)
+{
+    dpmi_pm_block *tmp;
+    for(tmp = root->first_pm_block; tmp; tmp = tmp->next) {
+	if (tmp->shmname && strcmp(tmp->shmname, shmname) == 0)
+	    return tmp;
+    }
+    return NULL;
+}
+
+int count_shm_blocks(dpmi_pm_block_root *root, const char *sname)
+{
+    int cnt = 0;
+    dpmi_pm_block *tmp;
+    for(tmp = root->first_pm_block; tmp; tmp = tmp->next) {
+	if (!tmp->shmname)
+	    continue;
+	if (strcmp(tmp->shmname, sname) == 0)
+	    cnt++;
+    }
+    return cnt;
 }
 
 static int commit(void *ptr, size_t size)
 {
-  if (mprotect(ptr, size,
+  if (mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(ptr), size,
 	PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
     return 0;
   return 1;
@@ -136,18 +197,20 @@ static int commit(void *ptr, size_t size)
 
 static int uncommit(void *ptr, size_t size)
 {
-  if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH,
-	DOSADDR_REL(ptr), size, PROT_NONE) == MAP_FAILED)
+  if (mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(ptr), size, PROT_NONE) == -1)
     return 0;
   return 1;
 }
 
 unsigned long dpmi_mem_size(void)
 {
+    if (!config.dpmi)
+	return 0;
     return PAGE_ALIGN(config.dpmi * 1024) +
       PAGE_ALIGN(DPMI_pm_stack_size * DPMI_MAX_CLIENTS) +
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) +
       PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) +
+      dpmi_reserved_space +
       (5 << PAGE_SHIFT); /* 5 extra pages */
 }
 
@@ -160,90 +223,165 @@ void dump_maps(void)
     system(buf);
 }
 
+int dpmi_lin_mem_rsv(void)
+{
+    assert(dpmi_lin_rsv_base || !config.dpmi_lin_rsv_size);
+    return config.dpmi_lin_rsv_size * 1024;
+}
+
+int dpmi_lin_mem_free(void)
+{
+    if (!dpmi_lin_rsv_base)
+	return 0;
+    return smget_free_space(&lin_pool);
+}
+
 int dpmi_alloc_pool(void)
 {
     uint32_t memsize = dpmi_mem_size();
     c_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, dpmi_base);
     /* Create DPMI pool */
     sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit);
+    if (dpmi_lin_rsv_base)
+	sminit_com(&lin_pool, dpmi_lin_rsv_base, dpmi_lin_mem_rsv(),
+		commit, uncommit);
     dpmi_total_memory = config.dpmi * 1024;
 
-    D_printf("DPMI: dpmi_free_memory available 0x%lx\n", dpmi_total_memory);
+    D_printf("DPMI: dpmi_free_memory available 0x%x\n", dpmi_total_memory);
     return 0;
 }
 
 void dpmi_free_pool(void)
 {
-    smdestroy(&mem_pool);
+    int leak = smdestroy(&mem_pool);
+    if (leak)
+	error("DPMI: leaked %i bytes (main pool)\n", leak);
+    if (dpmi_lin_rsv_base) {
+	leak = smdestroy(&lin_pool);
+	if (leak)
+	    error("DPMI: leaked %i bytes (lin pool)\n", leak);
+    }
 }
 
-static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
+static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
 {
-    int prot, change = 0, com = attr & 7, old_com = old_attr & 7;
+    us old_attr = *old_attr_p;
+    int prot, change = 0, com = attr & 3, old_com = old_attr & 1;
 
     switch (com) {
       case 0:
         D_printf("UnCom");
         if (old_com == 1) {
           D_printf("[!]");
-          dpmi_free_memory += PAGE_SIZE;
+          assert(mem_allocd >= PAGE_SIZE);
+          mem_allocd -= PAGE_SIZE;
           change = 1;
         }
         D_printf(" ");
+        *old_attr_p &= ~7;
         break;
       case 1:
         D_printf("Com");
         if (old_com == 0) {
           D_printf("[!]");
-          if (dpmi_free_memory < PAGE_SIZE) {
+          if (dpmi_free_memory() < PAGE_SIZE) {
             D_printf("\nERROR: Memory limit reached, cannot commit page\n");
             return 0;
           }
-          dpmi_free_memory -= PAGE_SIZE;
+          mem_allocd += PAGE_SIZE;
           change = 1;
         }
         D_printf(" ");
+        *old_attr_p &= ~7;
+        *old_attr_p |= 1;
 	break;
       case 2:
         D_printf("N/A-2 ");
         break;
       case 3:
         D_printf("Att only ");
+        com = old_com;
         break;
       default:
         D_printf("N/A-%i ", com);
         break;
     }
+    com &= 1;
     prot = PROT_READ | PROT_EXEC;
+    D_printf("RW(%i)", !!(old_attr & 8));
     if (attr & 8) {
-      D_printf("RW(X)");
       if (!(old_attr & 8)) {
-        D_printf("[!]");
+        if (!com && !old_com) {
+          D_printf(" Not changing RW(+) on uncommitted page\n");
+          return 0;
+        }
+        D_printf("[+]");
         change = 1;
+        *old_attr_p |= 8;
       }
       D_printf(" ");
       prot |= PROT_WRITE;
     } else {
-      D_printf("R/O(X)");
       if (old_attr & 8) {
-        D_printf("[!]");
+#if 0
+        /* DPMI spec says that RW bit can only be changed on committed
+         * page, but some apps (Elite First Encounter) is changing it
+         * also on uncommitted. */
+        if (!com && !old_com) {
+          D_printf(" Not changing RW(-) on uncommitted page\n");
+          return 0;
+        }
+#endif
+        D_printf("[-]");
         change = 1;
+        *old_attr_p &= ~8;
       }
       D_printf(" ");
     }
-    if (attr & 16) D_printf("Set-ACC ");
-    else D_printf("Not-Set-ACC ");
+    D_printf("NX(%i)", !!(old_attr & 0x80));
+    if (attr & 0x80) {
+      if (!(old_attr & 0x80)) {
+        if (!com) {
+          D_printf(" Not changing NX(+) on uncommitted page\n");
+          return 0;
+        }
+        D_printf("[+]");
+        change = 1;
+        *old_attr_p |= 0x80;
+      }
+      D_printf(" ");
+      prot &= ~PROT_EXEC;
+    } else {
+      if (old_attr & 0x80) {
+        if (!com) {
+          D_printf(" Not changing NX(-) on uncommitted page\n");
+          return 0;
+        }
+        D_printf("[-]");
+        change = 1;
+        *old_attr_p &= ~0x80;
+      }
+      D_printf(" ");
+    }
+    if (attr & 16) {
+      D_printf("Set-ACC ");
+      *old_attr_p &= 0x0f;
+      *old_attr_p |= attr & 0xf0;
+    } else {
+      D_printf("Not-Set-ACC ");
+    }
 
     D_printf("Addr=%#x\n", ptr);
 
     if (change) {
+      e_invalidate_full(ptr, PAGE_SIZE);
       if (com) {
-        if (mprotect(MEM_BASE32(ptr), PAGE_SIZE, prot) == -1) {
-          D_printf("mprotect() failed: %s\n", strerror(errno));
+        if (mprotect_mapping(MAPPING_DPMI, ptr, PAGE_SIZE, prot) == -1) {
+          leavedos(2);
           return 0;
         }
       } else {
-	if (!uncommit(MEM_BASE32(ptr), PAGE_SIZE)) {
+        if (mprotect_mapping(MAPPING_DPMI, ptr, PAGE_SIZE, PROT_NONE) == -1) {
           D_printf("mmap() failed: %s\n", strerror(errno));
           return 0;
         }
@@ -263,9 +401,13 @@ static int SetPageAttributes(dpmi_pm_block *block, int offs, us attrs[], int cou
     if (*attr == attrs[i]) {
       continue;
     }
+    if ((*attr & ATTR_SHR) && ((attrs[i] & 7) != 3)) {
+      D_printf("Disallow change type of shared page\n");
+      return 0;
+    }
     D_printf("%i\t", i);
     if (!SetAttribsForPage(block->base + offs + (i << PAGE_SHIFT),
-	attrs[i], *attr))
+	attrs[i], attr))
       return 0;
   }
   return 1;
@@ -275,8 +417,10 @@ static void restore_page_protection(dpmi_pm_block *block)
 {
   int i;
   for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
-    if ((block->attrs[i] & 7) == 0)
-      uncommit(MEM_BASE32(block->base + (i << PAGE_SHIFT)), PAGE_SIZE);
+    if ((block->attrs[i] & 7) == 0) {
+      mprotect_mapping(MAPPING_DPMI,
+            block->base + (i << PAGE_SHIFT), PAGE_SIZE, PROT_NONE);
+    }
   }
 }
 
@@ -288,7 +432,7 @@ dpmi_pm_block * DPMI_malloc(dpmi_pm_block_root *root, unsigned int size)
 
    /* aligned size to PAGE size */
     size = PAGE_ALIGN(size);
-    if (size > dpmi_free_memory)
+    if (size > dpmi_total_memory - mem_allocd + dpmi_reserved_space)
 	return NULL;
     if ((block = alloc_pm_block(root, size)) == NULL)
 	return NULL;
@@ -301,7 +445,7 @@ dpmi_pm_block * DPMI_malloc(dpmi_pm_block_root *root, unsigned int size)
     block->linear = 0;
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = 9;
-    dpmi_free_memory -= size;
+    mem_allocd += size;
     block->handle = pm_block_handle_used++;
     block->size = size;
     return block;
@@ -314,6 +458,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     dpmi_pm_block *block;
     unsigned char *realbase;
     int i;
+    int inp = 0;
     int cap = MAPPING_DPMI | MAPPING_SCRATCH;
 
    /* aligned size to PAGE size */
@@ -322,32 +467,90 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	return NULL;
     if (base == 0)
 	base = -1;
-    else if (base < DOSADDR_REL(dpmi_lin_rsv_base) ||
-	    base >= DOSADDR_REL(dpmi_lin_rsv_base) +
-	    config.dpmi_lin_rsv_size * 1024)
-	cap |= MAPPING_NOOVERLAP;
-    if (committed && size > dpmi_free_memory)
+    else {
+	/* fixed allocation */
+	if (base < LOWMEM_SIZE + HMASIZE) {
+	    D_printf("DPMI: failing lin alloc to lowmem %x, size %x\n",
+		    base, size);
+	    return NULL;
+	}
+	/* disallow last page allocs as our code is full of potential
+	 * integer overflows, plus MAP_FAILED should be invalid ptr */
+	if ((uint64_t)base + size > (uint32_t)PAGE_MASK) {
+	    D_printf("DPMI: failing lin alloc to %x, size %x\n", base, size);
+	    return NULL;
+	}
+	inp = in_rsv_pool(base, size);
+	if (inp == -1)
+	    return NULL;
+	if (!inp)
+	    cap |= MAPPING_NOOVERLAP;
+    }
+    if (committed && size > dpmi_free_memory())
 	return NULL;
     if ((block = alloc_pm_block(root, size)) == NULL)
 	return NULL;
 
-    /* base is just a hint here (no MAP_FIXED). If vma-space is
-       available the hint will be block->base */
-    realbase = mmap_mapping(cap,
-	base, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
-    if (realbase == MAP_FAILED) {
-	free_pm_block(root, block);
-	return NULL;
+    if (inp) {
+	realbase = smalloc_fixed(&lin_pool, MEM_BASE32(base), size);
+	if (realbase == NULL) {
+	    free_pm_block(root, block);
+	    return NULL;
+	}
+    } else {
+	realbase = mmap_mapping(cap | extra_mf,
+	    base, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
+	if (realbase == MAP_FAILED) {
+	    free_pm_block(root, block);
+	    return NULL;
+	}
     }
     block->base = DOSADDR_REL(realbase);
     block->linear = 1;
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = committed ? 9 : 8;
     if (committed)
-	dpmi_free_memory -= size;
+	mem_allocd += size;
     block->handle = pm_block_handle_used++;
     block->size = size;
     return block;
+}
+
+dpmi_pm_block * DPMI_mapHWRam(dpmi_pm_block_root *root,
+  dosaddr_t hwaddr, unsigned int size)
+{
+    dpmi_pm_block *block;
+    dosaddr_t vbase;
+    int i;
+
+    vbase = get_hardware_ram(hwaddr, size);
+    if (vbase == -1)
+	return NULL;
+    if ((block = alloc_pm_block(root, size)) == NULL)
+	return NULL;
+    block->base = vbase;
+    block->linear = 1;
+    block->hwram = 1;
+    for (i = 0; i < size >> PAGE_SHIFT; i++)
+	block->attrs[i] = 9;
+    block->handle = pm_block_handle_used++;
+    block->size = size;
+    return block;
+}
+
+static void do_unmap_hwram(dpmi_pm_block_root *root, dpmi_pm_block *block)
+{
+    /* nothing to do? */
+    free_pm_block(root, block);
+}
+
+int DPMI_unmapHWRam(dpmi_pm_block_root *root, dosaddr_t vbase)
+{
+    dpmi_pm_block *block = lookup_pm_block_by_addr(root, vbase);
+    if (!block)
+	return -1;
+    do_unmap_hwram(root, block);
+    return 0;
 }
 
 int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
@@ -357,16 +560,109 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 
     if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -1;
+    if (block->hwram || block->shmname) {
+	error("DPMI: wrong free, %i\n", block->hwram);
+	return -1;
+    }
+    e_invalidate_full(block->base, block->size);
     if (block->linear) {
-	munmap(MEM_BASE32(block->base), block->size);
+	int inp = in_rsv_pool(block->base, block->size);
+	assert(inp != -1);
+	if (inp)
+	    smfree(&lin_pool, MEM_BASE32(block->base));
+	else
+	    munmap(MEM_BASE32(block->base), block->size);
     } else {
 	smfree(&mem_pool, MEM_BASE32(block->base));
     }
     for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
-	if ((block->attrs[i] & 7) == 1)    // if committed page, account it
-	    dpmi_free_memory += PAGE_SIZE;
+	if ((block->attrs[i] & 7) == 1) {   // if committed page, account it
+	    assert(mem_allocd >= PAGE_SIZE);
+	    mem_allocd -= PAGE_SIZE;
+	}
     }
     free_pm_block(root, block);
+    return 0;
+}
+
+dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
+        char *name, unsigned int size, unsigned int shmsize, int flags)
+{
+#ifdef HAVE_SHM_OPEN
+    int i;
+    int fd;
+    dpmi_pm_block *ptr;
+    void *addr;
+    char *shmname;
+    int init = 0;
+    int oflags = O_RDWR;
+    int prot = PROT_READ | PROT_WRITE;
+
+    if (!size)		// DPMI spec says this is allowed - no thanks
+        return NULL;
+    size = PAGE_ALIGN(size);
+    if (shmsize) {
+        assert(!(shmsize & (PAGE_SIZE - 1)));
+        if (size > shmsize)
+            size = shmsize;
+    } else {
+        init = 1;
+        shmsize = size;
+    }
+
+    asprintf(&shmname, "/dosemu_dpmishm_%d_%s", getpid(), name);
+    if (init)
+        oflags |= O_CREAT;
+    fd = shm_open(shmname, oflags, S_IRUSR | S_IWUSR);
+    if (fd == -1) {
+        perror("shm_open()");
+        error("shared memory unavailable, exiting\n");
+        leavedos(2);
+        return NULL;
+    }
+    if (init)
+        ftruncate(fd, shmsize);
+    if (!(flags & SHM_NOEXEC))
+        prot |= PROT_EXEC;
+    addr = mmap_file_ux(MAPPING_DPMI | extra_mf,
+            NULL, size, prot, MAP_SHARED | MAP_32BIT, fd);
+    close(fd);
+    if (addr == MAP_FAILED) {
+        perror("mmap()");
+        error("shared memory map failed, exiting\n");
+        leavedos(2);
+        return NULL;
+    }
+    ptr = alloc_pm_block(root, size);
+    if (!ptr)
+        return NULL;
+    for (i = 0; i < (size >> PAGE_SHIFT); i++)
+        ptr->attrs[i] = 0x09 | ATTR_SHR;	// RW, shared, present
+    ptr->base = DOSADDR_REL(addr);
+    ptr->size = size;
+    ptr->shmsize = shmsize;
+    ptr->linear = 1;
+    ptr->handle = pm_block_handle_used++;
+    ptr->shmname = strdup(name);
+    ptr->rshmname = shmname;
+    D_printf("DPMI: map shm %s\n", ptr->shmname);
+    return ptr;
+#else
+    return NULL;
+#endif
+}
+
+int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
+{
+    dpmi_pm_block *ptr = lookup_pm_block(root, handle);
+    if (!ptr || !(ptr->attrs[0] & ATTR_SHR))
+        return -1;
+    munmap_mapping(MAPPING_DPMI | MAPPING_IMMEDIATE, ptr->base, ptr->size);
+    if (unlnk) {
+        D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
+        shm_unlink(ptr->rshmname);
+    }
+    free_pm_block(root, ptr);
     return 0;
 }
 
@@ -381,12 +677,15 @@ static void finish_realloc(dpmi_pm_block *block, unsigned long newsize,
 	for (i = npages; i < new_npages; i++)
 	    block->attrs[i] = committed ? 9 : 8;
 	if (committed) {
-	    dpmi_free_memory -= newsize - block->size;
+	    mem_allocd += newsize - block->size;
 	}
     } else {
-	for (i = new_npages; i < npages; i++)
-	    if ((block->attrs[i] & 7) == 1)
-		dpmi_free_memory += PAGE_SIZE;
+	for (i = new_npages; i < npages; i++) {
+	    if ((block->attrs[i] & 7) == 1) {
+		assert(mem_allocd >= PAGE_SIZE);
+		mem_allocd -= PAGE_SIZE;
+	    }
+	}
 	realloc_pm_block(block, newsize);
     }
 }
@@ -410,14 +709,15 @@ dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
     if (newsize == block -> size)     /* do nothing */
 	return block;
 
-    if ((newsize > block -> size) &&
-	((newsize - block -> size) > dpmi_free_memory)) {
+    if ((newsize > block->size) &&
+	((newsize - block->size) > dpmi_free_memory())) {
 	D_printf("DPMI: DPMIrealloc failed: Not enough dpmi memory\n");
 	return NULL;
     }
 
     /* realloc needs full access to the old block */
-    mprotect(MEM_BASE32(block->base), block->size,
+    e_invalidate_full(block->base, block->size);
+    mprotect_mapping(MAPPING_DPMI, block->base, block->size,
         PROT_READ | PROT_WRITE | PROT_EXEC);
     if (!(ptr = smrealloc(&mem_pool, MEM_BASE32(block->base), newsize)))
 	return NULL;
@@ -434,6 +734,7 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
 {
     dpmi_pm_block *block;
     unsigned char *ptr;
+    int inp;
 
     if (!newsize)	/* DPMI spec. says resize to 0 is an error */
 	return NULL;
@@ -446,11 +747,11 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
 
    /* aligned newsize to PAGE size */
     newsize = PAGE_ALIGN(newsize);
-    if (newsize == block -> size)     /* do nothing */
+    if (newsize == block->size)     /* do nothing */
 	return block;
 
     if ((newsize > block -> size) && committed &&
-	((newsize - block -> size) > dpmi_free_memory)) {
+	((newsize - block->size) > dpmi_free_memory())) {
 	D_printf("DPMI: DPMIrealloc failed: Not enough dpmi memory\n");
 	return NULL;
     }
@@ -459,13 +760,23 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     * We have to make sure the whole region have the same protection, so that
     * it can be merged into a single VMA. Otherwise mremap() will fail!
     */
-    mprotect(MEM_BASE32(block->base), block->size,
+    e_invalidate_full(block->base, block->size);
+    mprotect_mapping(MAPPING_DPMI, block->base, block->size,
       PROT_READ | PROT_WRITE | PROT_EXEC);
-    ptr = mremap(MEM_BASE32(block->base), block->size, newsize,
-      MREMAP_MAYMOVE);
-    if (ptr == MAP_FAILED) {
-	restore_page_protection(block);
-	return NULL;
+    inp = in_rsv_pool(block->base, block->size);
+    assert(inp != -1);
+    if (inp) {
+	ptr = smrealloc(&lin_pool, MEM_BASE32(block->base), newsize);
+	if (ptr == NULL) {
+	    restore_page_protection(block);
+	    return NULL;
+	}
+    } else {
+	ptr = mremap_mapping(MAPPING_DPMI, block->base, block->size, newsize);
+	if (ptr == MAP_FAILED) {
+	    restore_page_protection(block);
+	    return NULL;
+	}
     }
 
     finish_realloc(block, newsize, committed);
@@ -479,7 +790,12 @@ void DPMI_freeAll(dpmi_pm_block_root *root)
 {
     dpmi_pm_block **p = &root->first_pm_block;
     while(*p) {
-	DPMI_free(root, (*p)->handle);
+	if ((*p)->hwram)
+	    do_unmap_hwram(root, *p);
+	else if ((*p)->shmname)
+	    DPMI_freeShared(root, (*p)->handle, 1);
+	else
+	    DPMI_free(root, (*p)->handle);
     }
 }
 
@@ -497,6 +813,7 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
     if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -2;
 
+    e_invalidate_full(block->base + offset, cnt*PAGE_SIZE);
     if (alias_mapping(MAPPING_LOWMEM, block->base + offset, cnt*PAGE_SIZE,
        PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(low_addr)) == -1) {
 
@@ -523,7 +840,6 @@ int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
   if (!SetPageAttributes(block, offs, attrs, count))
     return 0;
 
-  memcpy(block->attrs + (offs >> PAGE_SHIFT), attrs, count * sizeof(u_short));
   return 1;
 }
 
@@ -531,10 +847,21 @@ int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
   int offs, us attrs[], int count)
 {
   dpmi_pm_block *block;
+  int i;
 
   if ((block = lookup_pm_block(root, handle)) == NULL)
     return 0;
 
   memcpy(attrs, block->attrs + (offs >> PAGE_SHIFT), count * sizeof(u_short));
+  for (i = 0; i < count; i++)
+    attrs[i] &= ~0x10;	// acc/dirty not supported
   return 1;
+}
+
+int dpmi_free_memory(void)
+{
+  /* allocated > total means reserved space is being used */
+  if (mem_allocd >= dpmi_total_memory)
+    return 0;
+  return (dpmi_total_memory - mem_allocd);
 }

@@ -222,7 +222,7 @@ static int dev_printer_write(int prnum, Bit8u outchar)
 
 static int pipe_printer_write(int prnum, Bit8u outchar)
 {
-  return write(lpt[prnum].file.to_child, &outchar, 1);;
+  return write(lpt[prnum].file.to_child, &outchar, 1);
 }
 
 int printer_write(int prnum, Bit8u outchar)

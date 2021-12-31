@@ -1,13 +1,17 @@
 #! /bin/sh
 
-srcdir="`dirname "$0"`"
-CONF_FILE="$srcdir"/compiletime-settings
+srcdir="`dirname "$0" | xargs realpath`"
+CONF_FILE=compiletime-settings
+if [ ! -f configure.ac ]; then
+    [ -f $CONF_FILE ] || cp "$srcdir"/$CONF_FILE .
+    [ -f $CONF_FILE.devel ] || cp "$srcdir"/$CONF_FILE.devel .
+fi
 
 if [ "$1" != "" ]; then
   if [ "${1#--}" = "$1" -a "${1#*=}" = "$1" ]; then
     CONF_FILE=$1
     if [ "$CONF_FILE" = "-d" ]; then
-      CONF_FILE="$srcdir"/compiletime-settings.devel
+      CONF_FILE=compiletime-settings.devel
     fi
     shift
   fi
@@ -18,21 +22,24 @@ if [ ! -f $CONF_FILE ]; then
   exit 1
 fi
 
+CONF=`cat $CONF_FILE`
+CONF=`echo -n "$CONF"| sed '/^config {/d' | sed '/^}/d' | tr '\n' ' ' `
+
 SUFFIX=""
 while [ "$#" != "0" ]; do
   case "$1" in
     --enable-plugin*)
       EXTRA_PLUGINS="$EXTRA_PLUGINS,${1#*=}"
       ;;
-    *)
+    --*)
       SUFFIX="$SUFFIX $1"
+      ;;
+    *)
+      CONF="$CONF `echo $1 | tr '=' ' '`"
       ;;
     esac
     shift
 done
-
-CONF=`cat $CONF_FILE`
-CONF=`echo -n "$CONF"| sed '/^config {/d' | sed '/^}/d' | tr '\n' ' ' `
 
 set $CONF
 
@@ -53,17 +60,35 @@ while [ "$1" != "" ]; do
     asan)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-asan"; fi
       ;;
+    ubsan)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-ubsan"; fi
+      ;;
     system-wa)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-system-wa"; fi
+      ;;
+    cpuemu)
+      if [ "$2" = "off" ]; then STRING="$STRING --disable-cpuemu"; fi
       ;;
     dlplugins)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-dlplugins"; fi
       ;;
-    x11fontdir|syshdimagedir)
+    x11fontdir)
       STRING="$STRING --with-$1=$2"
       ;;
     fdtarball)
-      STRING="$STRING --with-$1=`realpath "$srcdir"/$2`"
+      STRING="$STRING --with-$1=$srcdir/$2"
+      ;;
+    fdpp-build-path)
+      FDPP_STR="$FDPP_STR --with-$1=$2"
+      ;;
+    fdpp-include-path)
+      FDPP_STR="$FDPP_STR --with-$1=$2"
+      ;;
+    fdpp)
+      if [ "$2" = "off" ]; then
+        STRING="$STRING --disable-fdpp";
+        PLUGIN=`echo "$PLUGIN" | sed -e s/fdpp//`;
+      fi
       ;;
     docdir|mandir|datadir|libdir|sysconfdir|bindir|prefix)
       STRING="$STRING --$1=`echo $2`"
@@ -91,7 +116,7 @@ while [ "$1" != "" ]; do
       plugin=${1#plugin_}
       if [ "$2" = "on" ]; then PLUGIN="$PLUGIN,$plugin"; fi
       if [ "$2" = "off" ]; then
-          PLUGIN=`echo "$PLUGIN" | sed s/$plugin//`;
+          PLUGIN=`echo "$PLUGIN" | sed -e s/$plugin// -e s/,,/,/`;
       fi
       ;;
     *)
@@ -102,7 +127,12 @@ while [ "$1" != "" ]; do
 done
 
 [ -f "$srcdir"/configure ] || "$srcdir"/autogen.sh || exit $?
+make "$srcdir"/configure
 
 STRING="$STRING --enable-plugins=$PLUGIN,$EXTRA_PLUGINS"
+if [ -n "$FDPP_STR" ]; then
+  FDPP_STR=`echo $FDPP_STR | sed 's/^ *//'`
+  STRING="$STRING --with-plugin-options=fdpp,\"$FDPP_STR\""
+fi
 echo exec "$srcdir"/configure $STRING $SUFFIX
 eval exec "$srcdir"/configure $STRING $SUFFIX

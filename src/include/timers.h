@@ -48,7 +48,10 @@ void reset_idle(int val);
 void alarm_idle(void);
 void trigger_idle(void);
 int idle(int threshold1, int threshold, int threshold2, const char *who);
+int idle_enable(int threshold1, int threshold, int threshold2,
+    const char *who);
 void dosemu_sleep(void);
+void cpu_idle(void);
 
 /* --------------------------------------------------------------------- */
 /*	New unified timing macros with/without Pentium rdtsc - AV 8/97	 */
@@ -105,10 +108,7 @@ static inline hitimer_t GETTSC(void) {
 }
 
 #define CPUtoUS() _mul64x32_(GETTSC(), config.cpu_spd)
-
-static inline hitimer_t TSCtoUS(register hitimer_t t) {
-	return _mul64x32_(t, config.cpu_spd);
-}
+#define TSCtoUS(t) _mul64x32_(t, config.cpu_spd)
 
 /* 1 us granularity */
 extern hitimer_t GETusTIME(int sc);
@@ -137,5 +137,6 @@ extern void initialize_timers(void);
 extern void get_time_init(void);
 extern void cputime_late_init(void);
 extern void do_sound(Bit16u period);
+void int_yield(void);
 
 #endif /* DOSEMU_TIMERS_H */

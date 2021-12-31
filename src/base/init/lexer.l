@@ -36,7 +36,6 @@
 #include <sys/stat.h>                    /* structure stat       */
 #include <unistd.h>                      /* prototype for stat() */
 
-#include "config.h"
 #include "emu.h"
 #include "cpu.h"
 #include "disks.h"
@@ -112,42 +111,9 @@ static int cachefile_nr(FILE *f)
 	return CACHEFILES_MAX+1;
 }
 
-#define YY_INPUT(buf,result,max_size) \
-  if (!yyin) { \
-    if (yy_vbuffer && yy_vbuffer[0]) { \
-      buf[(max_size)-1]=0; \
-      strncpy(buf,yy_vbuffer,max_size); \
-      if (buf[(max_size)-1]) { \
-        yy_vbuffer+=max_size; \
-        result=max_size; \
-      } \
-      else { \
-        result=strlen(buf); \
-        yy_vbuffer=0; \
-      } \
-    } \
-    else result=0; \
-  } \
-  else { \
-    if ( YY_CURRENT_BUFFER->yy_is_interactive ) { \
-      int c = getc( yyin ); \
-      result = c == EOF ? 0 : 1; \
-      buf[0] = (char) c; \
-    } \
-    else { \
-      int cfile = cachefile_nr(yyin); \
-      if (cfile < CACHEFILES_MAX) { \
-        result = cachefile_read(buf, max_size, cfile); \
-      } \
-      else { \
-	if (yyin == dev_null_files[MACROFILE]) { \
-	  result = macrofile_read(buf, max_size); \
-	} \
-        else if ( ((result = fread( buf, 1, max_size, yyin )) == 0) && ferror( yyin ) ) \
-                  YY_FATAL_ERROR( "input in flex scanner failed" ); \
-      } \
-    } \
-  }
+#define YY_INPUT(buf,result,max_size) { \
+    result = do_yy_input(buf, max_size); \
+}
 
 /*
  * We are intercepting the yylex() function calls from the parser
@@ -169,7 +135,7 @@ static int cachefile_read(char *buf, int size, int cfile);
 static int cachefile_wrap(void);
 static int macrofile_read(char *buf, int size);
 static int macrofile_wrap(void);
-
+static int do_yy_input(char *buf, int max_size);
 
 #else /* not USE_LOOP_HANDLING */
 
@@ -259,15 +225,6 @@ STRQUOTELESS	({LETTER}|[/\.\~])({ALPHNUM}|[_\~@\-\+:\./])*
 "define"		RETURN(DEFINE);
 "undef"			RETURN(UNDEF);
 "checkuservar"		RETURN(CHECKUSERVAR);
-"enter_user_scope"	MAY_BE {
-			  yylval->i_value = include_stack_ptr+1;
-			  return(ENTER_USER_SPACE);
-			}
-"leave_user_scope"	MAY_BE {
-			  yylval->i_value = include_stack_ptr+1;
-			  return(LEAVE_USER_SPACE);
-			}
-
 
 	/* boolean values */
 on			RETURN(L_ON);
@@ -340,9 +297,9 @@ exprtest		RETURN(EXPRTEST);
 feature			RETURN(FEATURE);
 abort			RETURN(ABORT);
 warn			RETURN(WARN);
+error			RETURN(ERROR);
 x			RETURN(L_X);
 sdl			RETURN(L_SDL);
-dosbanner		RETURN(DOSBANNER);
 fastfloppy		RETURN(FASTFLOPPY);
 timer			RETURN(TIMER);
 hogthreshold		RETURN(HOGTHRESH);
@@ -350,6 +307,7 @@ speaker			RETURN(SPEAKER);
 ipxsupport		RETURN(IPXSUPPORT);
 ipx_network		RETURN(IPXNETWORK);
 pktdriver		RETURN(PKTDRIVER);
+ne2k			RETURN(NE2K);
 debug			RETURN(DEBUG);
 mouse			RETURN(MOUSE);
 serial			RETURN(SERIAL);
@@ -379,14 +337,19 @@ ext_mem			RETURN(EXT_MEM);
 ports			RETURN(PORTS);
 trace			RETURN(TRACE);
 clear			RETURN(CLEAR);
+trace_mmio		RETURN(TRACE_MMIO);
 sillyint		RETURN(SILLYINT);
 irqpassing		RETURN(SILLYINT);
 hardware_ram		RETURN(HARDWARE_RAM);
 disk			RETURN(DISK);
 printer			RETURN(PRINTER);
 emusys                  RETURN(EMUSYS);
-full_file_locks		RETURN(FULL_FILE_LOCKS);
+file_lock_limit		RETURN(FILE_LOCK_LIMIT);
 lfn_support		RETURN(LFN_SUPPORT);
+force_int_revect	RETURN(FINT_REVECT);
+set_int_hooks		RETURN(SET_INT_HOOKS);
+trace_irets		RETURN(TRACE_IRETS);
+force_fs_redirect	RETURN(FFS_REDIR);
 ttylocks		RETURN(TTYLOCKS);
 sound_emu               RETURN(L_SOUND);
 oss_options             RETURN(L_SND_OSS);
@@ -412,14 +375,11 @@ native			RETURN(NATIVE);
 
 	/* cpuemu values */
 
+cpu_vm			RETURN(CPU_VM);
+cpu_vm_dpmi		RETURN(CPU_VM_DPMI);
+kvm			RETURN(KVM);
 cpuemu			RETURN(CPUEMU);
 vm86			RETURN(VM86);
-full			RETURN(FULL);
-vm86sim			RETURN(VM86SIM);
-fullsim			RETURN(FULLSIM);
-
-cpu_vm			RETURN(CPU_VM);
-kvm			RETURN(KVM);
 
 	/* disk keywords */
 hdimage			RETURN(HDIMAGE);
@@ -431,7 +391,8 @@ threeinch		RETURN(THREEINCH);
 threeinch_2880		RETURN(THREEINCH_2880);
 threeinch_720		RETURN(THREEINCH_720);
 fiveinch		RETURN(FIVEINCH);
-fiveinch_360	RETURN(FIVEINCH_360);
+fiveinch_360		RETURN(FIVEINCH_360);
+boot			RETURN(BOOT);
 sectors			RETURN(SECTORS);
 cylinders		RETURN(CYLINDERS);
 tracks			RETURN(TRACKS);
@@ -443,16 +404,13 @@ diskcyl4096		RETURN(DISKCYL4096);
 hdtype1			RETURN(HDTYPE1);
 hdtype2			RETURN(HDTYPE2);
 hdtype9			RETURN(HDTYPE9);
+default_drives		RETURN(DEFAULT_DRIVES);
+skip_drives		RETURN(SKIP_DRIVES);
 
 	/* keyboard */
 ctrl			RETURN(CTRL_MAP);
 shift_alt		RETURN(SHIFT_ALT_MAP);
 ctrl_alt		RETURN(CTRL_ALT_MAP);
-
-tr                      MAY_BE { yylval->i_value = KEYB_TR;
-                                return(KEYB_LAYOUT); }
-
-
 keytable		RETURN(KEYTABLE);
 layout			RETURN(LAYOUT);
 rawkeyboard		RETURN(RAWKEYBOARD);
@@ -474,57 +432,6 @@ dcedilla		RETURN(DCEDILLA);
 diota			RETURN(DIOTA);
 dogonek			RETURN(DOGONEK);
 dcaron			RETURN(DCARON);
-
-
-finnish			MAY_BE { yylval->i_value = KEYB_FINNISH;
-			  return(KEYB_LAYOUT); }
-finnish-latin1		MAY_BE { yylval->i_value = KEYB_FINNISH_LATIN1;
-			  return(KEYB_LAYOUT); }
-us			MAY_BE { yylval->i_value = KEYB_US; return(KEYB_LAYOUT); }
-uk			MAY_BE { yylval->i_value = KEYB_UK; return(KEYB_LAYOUT); }
-de			MAY_BE { yylval->i_value = KEYB_DE; return(KEYB_LAYOUT); }
-de-latin1		MAY_BE { yylval->i_value = KEYB_DE_LATIN1;
-			  return(KEYB_LAYOUT); }
-fr			MAY_BE { yylval->i_value = KEYB_FR; return(KEYB_LAYOUT); }
-fr-latin1		MAY_BE { yylval->i_value = KEYB_FR_LATIN1;
-			  return(KEYB_LAYOUT); }
-dk			MAY_BE { yylval->i_value = KEYB_DK; return(KEYB_LAYOUT); }
-dk-latin1		MAY_BE { yylval->i_value = KEYB_DK_LATIN1;
-			  return(KEYB_LAYOUT); }
-keyb-no			MAY_BE { yylval->i_value = KEYB_NO; return(KEYB_LAYOUT); }
-no-latin1		MAY_BE { yylval->i_value = KEYB_NO_LATIN1;
-			  return(KEYB_LAYOUT); }
-dvorak			MAY_BE { yylval->i_value = KEYB_DVORAK; return(KEYB_LAYOUT); }
-sg			MAY_BE { yylval->i_value = KEYB_SG; return(KEYB_LAYOUT); }
-sg-latin1		MAY_BE { yylval->i_value = KEYB_SG_LATIN1;
-			  return(KEYB_LAYOUT); }
-sf			MAY_BE { yylval->i_value = KEYB_SF; return(KEYB_LAYOUT); }
-sf-latin1		MAY_BE { yylval->i_value = KEYB_SF_LATIN1;
-			  return(KEYB_LAYOUT); }
-es			MAY_BE { yylval->i_value = KEYB_ES; return(KEYB_LAYOUT); }
-es-latin1		MAY_BE { yylval->i_value = KEYB_ES_LATIN1;
-			  return(KEYB_LAYOUT); }
-be			MAY_BE { yylval->i_value = KEYB_BE; return(KEYB_LAYOUT); }
-po			MAY_BE { yylval->i_value = KEYB_PO; return(KEYB_LAYOUT); }
-it			MAY_BE { yylval->i_value = KEYB_IT; return(KEYB_LAYOUT); }
-sw			MAY_BE { yylval->i_value = KEYB_SW; return(KEYB_LAYOUT); }
-hu			MAY_BE { yylval->i_value = KEYB_HU; return(KEYB_LAYOUT); }
-hu-cwi			MAY_BE { yylval->i_value = KEYB_HU_CWI; return(KEYB_LAYOUT); }
-hu-latin2		MAY_BE { yylval->i_value = KEYB_HU_LATIN2;
-			  return(KEYB_LAYOUT); }
-jp106			MAY_BE { yylval->i_value = KEYB_JP106; return(KEYB_LAYOUT); }
-pl			MAY_BE { yylval->i_value = KEYB_PL; return(KEYB_LAYOUT); }
-hr-cp852		MAY_BE { yylval->i_value = KEYB_HR_CP852;
-			  return(KEYB_LAYOUT); }
-cz-qwerty		MAY_BE { yylval->i_value = KEYB_CZ_QWERTY;
-			  return(KEYB_LAYOUT); }
-cz-qwertz		MAY_BE { yylval->i_value = KEYB_CZ_QWERTZ;
-			  return(KEYB_LAYOUT); }
-hr-latin2		MAY_BE { yylval->i_value = KEYB_HR_LATIN2;
-			  return(KEYB_LAYOUT); }
-ru 			MAY_BE { yylval->i_value = KEYB_RU; 
-				return(KEYB_LAYOUT); }
-keyb-user		MAY_BE { yylval->i_value = KEYB_USER; return(KEYB_LAYOUT); }
 
 	/* serial stuff */
 
@@ -551,6 +458,7 @@ charset			RETURN(CHARSET);
 xterm_title		RETURN(XTERM_TITLE);
 color			RETURN(COLOR);
 escchar			RETURN(ESCCHAR);
+size			RETURN(SIZE);
 
 	/* mouse types */
 
@@ -589,6 +497,7 @@ vbios_mmap		RETURN(VBIOS_MMAP);
 vbios_seg		RETURN(VBIOS_SEG);
 vbios_size		RETURN(VBIOS_SIZE_TOK);
 vbios_post		RETURN(VBIOS_POST);
+vga_fonts		RETURN(VGA_FONTS);
 dualmon			RETURN(DUALMON);
 forcevtswitch		RETURN(FORCE_VT_SWITCH);
 pci			RETURN(PCI);
@@ -602,7 +511,6 @@ display			RETURN(L_DISPLAY);
 title			RETURN(L_TITLE);
 title_show_appname      RETURN(X_TITLE_SHOW_APPNAME);
 icon_name		RETURN(ICON_NAME);
-keycode			RETURN(X_KEYCODE);
 blinkrate		RETURN(X_BLINKRATE);
 sharecmap		RETURN(X_SHARECMAP);
 mitshm                  RETURN(X_MITSHM);
@@ -623,7 +531,8 @@ background_pause	RETURN(X_BACKGROUND_PAUSE);
 fullscreen		RETURN(X_FULLSCREEN);
 
 	/* SDL stuff */
-hwrend			RETURN(SDL_HWREND);
+sdl_hwrend		RETURN(SDL_HWREND);
+sdl_fonts		RETURN(SDL_FONTS);
 
         /* Sound stuff */
 
@@ -638,6 +547,8 @@ mpu_irq_mt32            RETURN(MPU_IRQ_MT32);
 sound_driver		RETURN(SOUND_DRIVER);
 midi_driver		RETURN(MIDI_DRIVER);
 munt_roms		RETURN(MUNT_ROMS);
+opl2lpt_dev		RETURN(OPL2LPT_DEV);
+opl2lpt_type		RETURN(OPL2LPT_TYPE);
 snd_plugin_params	RETURN(SND_PLUGIN_PARAMS);
 pcm_hpf			RETURN(PCM_HPF);
 midi_file		RETURN(MIDI_FILE);
@@ -692,12 +603,6 @@ range			RETURN(RANGE);
 fast			RETURN(FAST);
 slow			RETURN(SLOW);
 
-	/* dexe stuff */
-dexe			RETURN(DEXE);
-allowdisk		RETURN(ALLOWDISK);
-forcexdos		RETURN(FORCEXDOS);
-xdosonly		RETURN(XDOSONLY);
-
 	/* ASPI driver */
 aspi			RETURN(ASPI);
 devicetype		RETURN(DEVICETYPE);
@@ -711,6 +616,12 @@ timemode		RETURN(TIMEMODE);
 external		RETURN(EXTERNAL);
 internal		RETURN(INTERNAL);
 
+
+	/* perms */
+unix_exec		RETURN(UEXEC);
+lredir_paths		RETURN(LPATHS);
+
+hostfs_drives		RETURN(HDRIVES);
 
 	/* strings */
 
@@ -799,7 +710,7 @@ static void enter_includefile(char * fname)
       fname=fname_;
     }
   }
-  new_yyin = fopen( fname, "r" );
+  new_yyin = fopen( fname, "re" );
   if ( ! new_yyin ) {
     yyerror("cannot open includefile %s", fname);
     return;
@@ -899,12 +810,12 @@ OUR_YY_DECL
 {
 	int ret;
 
-	ret = real_yylex(yylval);
+	ret = real_yylex(&yylval);
 
         if (__loop_handling__ >0) {
 		/* we respawn yylex in a loop, while filling the cache files */
 		while (__loop_handling__ >0) {
-			ret = real_yylex(yylval);
+			ret = real_yylex(&yylval);
 			if (ret == YY_NULL) {
 				__loop_handling__ = 0;
 				close_cachefile_write(savebufwptr);
@@ -915,7 +826,7 @@ OUR_YY_DECL
 			}
 		}
 		/* and again, to get the first token again */
-		ret = real_yylex(yylval);
+		ret = real_yylex(&yylval);
 	}
 	return(ret);
 }
@@ -928,7 +839,7 @@ static void free_savebuffer(void)
 	savebufwptr = 0;
 }
 
-static void dumpout(char *s, int len)
+static void dumpout(const char *s, int len)
 {
 	if ((savebufwptr + len) > savebufsize) {
 		do {
@@ -1051,7 +962,7 @@ static void enter_cachefile(int cfile)
 		include_fnames[include_stack_ptr] = strdup(cf->origfname);
 	else	include_fnames[include_stack_ptr] = 0;
 	line_count = cf->firstline;
-	dev_null_files[cachefilecurrent] = yyin = fopen("/dev/null", "r");
+	dev_null_files[cachefilecurrent] = yyin = fopen("/dev/null", "re");
 	include_stack[include_stack_ptr] = yy_create_buffer( yyin, cf->stop - cf->start +2);
 	yy_switch_to_buffer(include_stack[include_stack_ptr]);
 }
@@ -1204,7 +1115,7 @@ static void enter_macrofile(char *variable)
 	include_stack_ptr++;
 	include_macbuf[include_stack_ptr] =
 		include_fnames[include_stack_ptr] = strdup(macrobuffer);
-	dev_null_files[MACROFILE] = yyin = fopen("/dev/null", "r");
+	dev_null_files[MACROFILE] = yyin = fopen("/dev/null", "re");
 	include_stack[include_stack_ptr] = yy_create_buffer( yyin, strlen(macrobuffer) +2);
 	yy_switch_to_buffer(include_stack[include_stack_ptr]);
 }
@@ -1239,6 +1150,45 @@ static int macrofile_read(char *buf, int size)
 	return size;
 }
 
-
+static int do_yy_input(char *buf, int max_size)
+{
+  int result;
+  if (!yyin) {
+    if (yy_vbuffer && yy_vbuffer[0]) {
+      buf[(max_size)-1]=0;
+      strncpy(buf,yy_vbuffer,max_size);
+      if (buf[(max_size)-1]) {
+        yy_vbuffer+=max_size;
+        result=max_size;
+      }
+      else {
+        result=strlen(buf);
+        yy_vbuffer=0;
+      }
+    }
+    else result=0;
+  }
+  else {
+    if ( YY_CURRENT_BUFFER->yy_is_interactive ) {
+      int c = getc( yyin );
+      result = c == EOF ? 0 : 1;
+      buf[0] = (char) c;
+    }
+    else {
+      int cfile = cachefile_nr(yyin);
+      if (cfile < CACHEFILES_MAX) {
+        result = cachefile_read(buf, max_size, cfile);
+      }
+      else {
+	if (yyin == dev_null_files[MACROFILE]) {
+	  result = macrofile_read(buf, max_size);
+	}
+        else if ( ((result = fread( buf, 1, max_size, yyin )) == 0) && ferror( yyin ) )
+                  YY_FATAL_ERROR( "input in flex scanner failed" );
+      }
+    }
+  }
+  return result;
+}
 
 #endif /* USE_LOOP_HANDLING */
