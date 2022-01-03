@@ -1125,6 +1125,9 @@ config_init(int argc, char **argv)
 	case 'o': {
 	    char *tmp = strdup(optarg);
 	    char *p = strstr(tmp, ".%");
+
+	    free(config.debugout);
+	    config.debugout = NULL;
 	    if (!p) {
 		config.debugout = tmp;
 	    } else {
