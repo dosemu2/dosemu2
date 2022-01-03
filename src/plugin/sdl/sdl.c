@@ -869,6 +869,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     }
     /* set window size again to avoid crash, huh? */
     SDL_SetWindowSize(window, w_x_res, w_y_res);
+  } else {
+    SDL_GetWindowSize(window, &w_x_res, &w_y_res);
   }
   if (config.X_fixed_aspect) {
     if (!is_text)
