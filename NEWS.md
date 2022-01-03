@@ -19,9 +19,11 @@ Summary of user-visible changes:
   needed features. Exposing features in a secure manner (rather than
   to simply declare them insecure and disable) was a challenge.
 * Added KVM-assisted acceleration to DPMI (@bartoldeman).
+* Added TTF support (@andrewbird)
 * Implemented region locking and share support in MFS. One of the
   most requested/missed feature of dosemu1 times.
 * Implemented $_trace_mmio option (@dos4boss)
 * Lots of speed-ups to simx86 (@bartoldeman)
+* Lots of i18n work.
 * musl support
 * Added lots of CI tests (@andrewbird)
