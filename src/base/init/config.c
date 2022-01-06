@@ -1206,9 +1206,11 @@ config_init(int argc, char **argv)
 	case 'f':
 	case 'c':
 	case 'o':
-	case 'L':
 	case 'n':
 	case 's':
+	    break;
+	case 'L':
+	    dbug_printf("%s\n", optarg);
 	    break;
 	case 'd': {
 	    char *p = strdup(optarg);
