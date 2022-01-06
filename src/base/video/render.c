@@ -57,6 +57,7 @@ struct render_wrp {
     struct bitmap_desc dst_image[MAX_RENDERS];
 };
 static struct render_wrp Render;
+static int initialized;
 
 __attribute__((warn_unused_result))
 static int render_lock(void)
@@ -270,19 +271,27 @@ int render_init(void)
 #endif
   assert(!err);
 #endif
+  initialized++;
   return err;
 }
 
 /*
  * Free resources associated with remap_obj.
  */
-void remapper_done(void)
+void render_done(void)
 {
+  if (!initialized)
+    return;
+  initialized--;
 #if RENDER_THREADED
   pthread_cancel(render_thr);
   pthread_join(render_thr, NULL);
   sem_destroy(&render_sem);
 #endif
+}
+
+void remapper_done(void)
+{
   done_text_mapper();
   if (Render.text_remap)
     remap_done(Render.text_remap);
