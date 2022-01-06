@@ -1122,11 +1122,30 @@ config_init(int argc, char **argv)
 	    if (optarg && optarg[0] == 'd')
 		config.detach = 1;
 	    break;
-	case 'o':
-	    config.debugout = strdup(optarg);
+	case 'o': {
+	    char *tmp = strdup(optarg);
+	    char *p = strstr(tmp, ".%");
+
+	    free(config.debugout);
+	    config.debugout = NULL;
+	    if (!p) {
+		config.debugout = tmp;
+	    } else {
+		*p = '\0';
+		switch (p[2]) {
+		    case 'P':
+			asprintf(&config.debugout, "%s.%i", tmp, getpid());
+			break;
+		    default:
+			error("Unknown suffix %s\n", p + 1);
+			break;
+		}
+		free(tmp);
+	    }
 	    if (strcmp(optarg, "-") == 0)
 		dbg_fd = stderr;
 	    break;
+	}
 	case 'n':
 	    nodosrc = 1;
 	    break;

@@ -456,6 +456,15 @@ void SDL_close(void)
 static void do_redraw(void)
 {
   pthread_mutex_lock(&rend_mtx);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+  SDL_RenderClear(renderer);
+  if (!surface) {
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+    SDL_RenderCopy(renderer, texture_ttf, NULL, NULL);
+#endif
+  } else {
+    SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
+  }
   SDL_RenderPresent(renderer);
   pthread_mutex_unlock(&rend_mtx);
 }
@@ -733,14 +742,11 @@ static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
   }
   pthread_mutex_unlock(&rects_mtx);
   SDL_SetRenderTarget(renderer, NULL);
-  SDL_RenderCopy(renderer, tex, NULL, NULL);
 }
 
 static void do_rend(void)
 {
   pthread_mutex_lock(&rend_mtx);
-  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-  SDL_RenderClear(renderer);
   if (!surface) {
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
     do_rend_rects(&ttf_char_rng, texture_ttf);
@@ -869,6 +875,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     }
     /* set window size again to avoid crash, huh? */
     SDL_SetWindowSize(window, w_x_res, w_y_res);
+  } else {
+    SDL_GetWindowSize(window, &w_x_res, &w_y_res);
   }
   if (config.X_fixed_aspect) {
     if (!is_text)
