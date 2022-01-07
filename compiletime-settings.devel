@@ -1,6 +1,7 @@
 config {
   experimental on
   debug on
+  asan on
   ubsan on
   system-wa off
   sysconfdir /etc
