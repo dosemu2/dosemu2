@@ -67,6 +67,7 @@ static struct pcl_ctx_ops ctx_ops = {
 };
 #endif
 
+#if WANT_MCONTEXT
 static int mctx_get_context(struct s_co_ctx *ctx)
 {
 	return getmcontext((m_ucontext_t *)ctx->cc);
@@ -104,9 +105,12 @@ static struct pcl_ctx_ops mctx_ops = {
 	.set_context = mctx_set_context,
 	.swap_context = mctx_swap_context,
 };
+#endif
 
 static struct pcl_ctx_ops *ops_arr[] = {
+#if WANT_MCONTEXT
 	/*[PCL_C_MC] = */&mctx_ops,
+#endif
 #if WANT_UCONTEXT
 	/*[PCL_C_UC] = */&ctx_ops,
 #endif
@@ -124,8 +128,10 @@ int ctx_init(enum CoBackend b, struct pcl_ctx_ops **ops)
 int ctx_sizeof(enum CoBackend b)
 {
 	switch (b) {
+#if WANT_MCONTEXT
 	case PCL_C_MC:
 		return sizeof(m_ucontext_t);
+#endif
 #if WANT_UCONTEXT
 	case PCL_C_UC:
 		return sizeof(ucontext_t);

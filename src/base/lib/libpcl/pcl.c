@@ -23,24 +23,12 @@
  *  Davide Libenzi <davidel@xmailserver.org>
  *
  */
-
-#define WANT_ASAN 1
-#ifdef __clang__
-#define HAS_FEATURE(x) __has_feature(x)
-#else
-#define HAS_FEATURE(x) 0
-#endif
-#if (defined(__SANITIZE_ADDRESS__) || HAS_FEATURE(address_sanitizer)) && WANT_ASAN
-#define USE_ASAN 1
-#else
-#define USE_ASAN 0
-#endif
+#include "pcl.h"
 #if USE_ASAN
 #include <sanitizer/asan_interface.h>
 #endif
 #include <stdio.h>
 #include <stdlib.h>
-#include "pcl.h"
 #include "pcl_private.h"
 #include "pcl_ctx.h"
 

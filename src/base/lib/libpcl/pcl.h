@@ -32,13 +32,33 @@
 typedef void *coroutine_t;
 typedef void *cohandle_t;
 
-#define WANT_UCONTEXT 0
+#define WANT_ASAN 1
+#ifdef __clang__
+#define HAS_FEATURE(x) __has_feature(x)
+#else
+#define HAS_FEATURE(x) 0
+#endif
+#if (defined(__SANITIZE_ADDRESS__) || HAS_FEATURE(address_sanitizer)) && WANT_ASAN
+#define USE_ASAN 1
+#else
+#define USE_ASAN 0
+#endif
 
-enum CoBackend {PCL_C_MC,
+#define WANT_UCONTEXT 1
+#define WANT_MCONTEXT !USE_ASAN
+
+enum CoBackend {
+#if WANT_MCONTEXT
+    PCL_C_MC,
+#endif
 #if WANT_UCONTEXT
     PCL_C_UC,
 #endif
-    PCL_C_MAX };
+    PCL_C_MAX,
+};
+#if !WANT_MCONTEXT
+#define PCL_C_MC PCL_C_UC
+#endif
 
 PCLXC cohandle_t co_thread_init(enum CoBackend b);
 PCLXC void co_thread_cleanup(cohandle_t handle);
