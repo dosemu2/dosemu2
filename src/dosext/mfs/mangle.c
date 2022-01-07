@@ -74,7 +74,7 @@ FAR_PTR is_dos_device(const char *path)
   int cnt;
 
   /* C:\DEV notation is allowed */
-  fname = strrchr(path, '\\');
+  fname = memrchr(path, '\\', 8);
   if (fname)
     fname++;
   else
