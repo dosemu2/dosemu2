@@ -1829,7 +1829,7 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
  *
  * DANG_END_REMARK
  */
-  if (is_dos_device(mname)) {
+  if (is_dos_device8(mname)) {
     dir_list = make_dir_list(1);
     entry = make_entry(dir_list);
 
@@ -2635,7 +2635,7 @@ compare(char *fname, char *fext, char *mname, char *mext)
     }
   }
   /* if got here then name matches */
-  if (is_dos_device(mname))
+  if (is_dos_device8(mname))
     return (TRUE);
 
   /* match ext next */

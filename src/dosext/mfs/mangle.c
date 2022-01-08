@@ -64,7 +64,7 @@ static int str_checksum(char *s)
 check if a name is a special msdos reserved name:
 the name is either a full Unix name or an 8 character candidate
 ****************************************************************************/
-FAR_PTR is_dos_device(const char *path)
+dosaddr_t is_dos_device(const char *path)
 {
   char *p;
   const char *fname;
@@ -143,6 +143,14 @@ FAR_PTR is_dos_device(const char *path)
   return 0;
 }
 
+dosaddr_t is_dos_device8(const char *fname)
+{
+  dosaddr_t ret;
+  char *fpath = strndup(fname, 8);
+  ret = is_dos_device(fpath);
+  free(fpath);
+  return ret;
+}
 
 /****************************************************************************
 return True if a name is in 8.3 dos format
