@@ -959,11 +959,8 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
 #endif
 
   if(offset < 0) len += offset, offset = 0;
-  if(len <= 0) return ra;
 
-  ra.width = ro->dst_width;
-
-  switch(ro->dst_mode) {
+  switch(ro->src_mode) {
     case MODE_TRUE_15:
     case MODE_TRUE_16: pixel_size = 2; break;
     case MODE_TRUE_24: pixel_size = 3; break;
@@ -972,6 +969,7 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
     case MODE_PSEUDO_8:
     default: pixel_size = 1;
   }
+  if (len < pixel_size) return ra;
 
   i1 = offset / ro->src_scan_len;
   i2 = (offset % ro->src_scan_len) / pixel_size;
@@ -983,6 +981,8 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
   if(i1 >= ro->src_height || i1 > j1) return ra;
   if(j2 >= ro->src_width) j1++, j2 = 0;
   if(j1 >= ro->src_height) j1 = ro->src_height, j2 = 0;
+
+  ra.width = ro->dst_width;
 
   if (ro->remap_func_flags & (RFF_REMAP_RECT | RFF_REMAP_LINES)) {
     ro->src_offset = i1 * ro->src_scan_len;
@@ -1211,8 +1211,6 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
   if(offset < 0) len += offset, offset = 0;
   if(len <= 0) return ra;
 
-  ra.width = ro->dst_width;
-
   i1 = offset / ro->src_scan_len;
   i2 = offset % ro->src_scan_len;
   j1 = (offset + len) / ro->src_scan_len;
@@ -1232,6 +1230,8 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
   if(i1 >= ro->src_height || i1 > j1) return ra;
   if(j2 >= ro->src_width) j1++, j2 = 0;
   if(j1 >= ro->src_height) j1 = ro->src_height, j2 = 0;
+
+  ra.width = ro->dst_width;
 
   if(
     (ro->remap_func_flags & RFF_REMAP_RECT) ||
