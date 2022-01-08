@@ -38,9 +38,3 @@ int swapmcontext(m_ucontext_t *oucp, const m_ucontext_t *ucp)
 		setmcontext(ucp);
 	return 0;
 }
-
-int getmcontext(struct m_ucontext *u)
-{
-	memset(&u->uc_mcontext, 0, sizeof u->uc_mcontext);
-	return _getmcontext(&u->uc_mcontext);
-}
