@@ -5,6 +5,14 @@ and a very large chunks of dosemu2 architecture were written and
 stabilized. Hopefully it would be possible to do more frequent
 releases in the future and avoid such a long development cycles.
 
+Note: because of the new architecture in place, we suggest to
+re-install dosemu completely. I.e. erase your old ~/.dosemu
+/etc/dosemu and ~/.dosemurc. Compatibility mode (to run old setups)
+is present but may require some manual adjustments. Also note that
+compatibility mode means a reduced feature set. If you insist on
+an old setup but dosemu2 doesn't pick it up properly, don't hesitate
+to ask for help on our github discussions page.
+
 Summary of user-visible changes:
 * fdpp is now our default OS. It is a 64bit DOS core that boots under
   dosemu2 and allows to work without installing any DOS. Of course
