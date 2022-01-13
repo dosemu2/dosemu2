@@ -63,6 +63,9 @@ while [ "$1" != "" ]; do
     ubsan)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-ubsan"; fi
       ;;
+    optimize)
+      if [ "$2" = "off" ]; then STRING="$STRING --disable-optimization"; fi
+      ;;
     system-wa)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-system-wa"; fi
       ;;

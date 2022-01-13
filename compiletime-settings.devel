@@ -3,6 +3,7 @@ config {
   debug on
   asan on
   ubsan on
+  optimize off
   system-wa off
   sysconfdir /etc
   fdtarball dosemu-freedos-1.0-bin.tgz

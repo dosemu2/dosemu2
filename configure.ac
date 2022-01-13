@@ -337,6 +337,10 @@ AC_ARG_ENABLE(debug,
                AS_HELP_STRING([--enable-debug], [compile with debug info]))
 if test "$enable_debug" = "yes"; then
   AC_MSG_NOTICE(Compiling with debug info...)
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -ggdb3"
+  if test "$use_clang" = "yes" ; then
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fdebug-macro"
+  fi
   AC_ARG_ENABLE(xbacktrace, AS_HELP_STRING([--enable-xbacktrace],
     [enable extended backtrace functionality]))
   if test "$enable_xbacktrace" = "yes"; then
@@ -484,17 +488,20 @@ if test "$enable_profile" = "yes"; then
     AC_MSG_NOTICE(enabling profiling)
 fi
 
-if test "$enable_debug" = "yes" ; then
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -ggdb3"
-  if test -z "$CFLAGS" ; then
+AC_ARG_ENABLE(optimization,
+               AS_HELP_STRING([--disable-optimization], [disable optimization]))
+if test "$enable_optimization" = "no" ; then
+  if test "$enable_debug" = "yes"; then
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Og"
+    AC_MSG_NOTICE(optimization set to -Og)
+  else
     # simx86 is too slow on gcc without -O
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O0"
-  fi
-  if test "$use_clang" = "yes" ; then
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fdebug-macro"
+    AC_MSG_NOTICE(optimization set to -O0)
   fi
 elif test -z "$CFLAGS" ; then
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
+  AC_MSG_NOTICE(optimization set to -O2)
 fi
 
 DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"
