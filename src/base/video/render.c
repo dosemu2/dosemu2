@@ -739,15 +739,16 @@ static int find_rmcalls(int sidx)
 struct remap_object *remap_init(int dst_mode, int features,
         const ColorSpaceDesc *color_space)
 {
-  void *rm;
+  void *rm = NULL;
   struct remap_object *ro;
-  struct remap_calls *calls;
+  struct remap_calls *calls = NULL;
   int i = -1;
   do {
     i = find_rmcalls(i);
     if (i == -1)
       break;
     calls = rmcalls[i].calls;
+    assert(calls);
     rm = calls->init(dst_mode, features, color_space, config.X_gamma);
     if (!rm)
       v_printf("remapper %i \"%s\" failed for mode %x\n",

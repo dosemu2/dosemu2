@@ -349,7 +349,7 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
 
 static void munmap_mapping_kmem(int cap, dosaddr_t addr, size_t mapsize)
 {
-  int i, rc;
+  int i, rc = 0;
 
   Q__printf("MAPPING: unmap kmem, cap=%s, target=%x, size=%zx\n",
 	cap, addr, mapsize);
