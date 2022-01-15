@@ -53,4 +53,11 @@ or
 
 - sudo make install
 
-You can now start dosemu2 using "dosemu".
+You can now start dosemu2 by typing "dosemu". But if you didn't install
+comcom32, dosemu2 may not find command.com. We recommend to install
+the pre-compiled comcom32 package either from PPA or COPR. Or you can
+instead download it from here:
+https://dosemu2.github.io/comcom32/files/comcom32.zip
+unzip to ~/.dosemu/drive_c and symlink as command.com.
+You may not want to build comcom32 from sources unless you know how
+to install djgpp.
