@@ -7,7 +7,7 @@
 Name: {{{ git_dir_name }}}
 Version: {{{ git_dir_version }}}
 Release: 1%{?dist}
-Summary: The DOS emulator for Linux
+Summary: fast and secure DOS emulator
 
 Group: System/Emulator
 
@@ -72,9 +72,8 @@ Suggests:   install-otherdos
 Conflicts:  dosemu
 
 %description
-DOSEMU2 stands for DOS Emulation, and allows you to run DOS and many
-DOS programs, including many DPMI applications such as DOOM and Windows 3.1,
-under Linux.
+dosemu2 is an emulator for running DOS programs under linux.
+It can also serve as a VM to boot various DOSes.
 
 %prep
 {{{ git_dir_setup_macro }}}
