@@ -285,7 +285,7 @@ printer_init(void)
       lpt[i].fops = dev_pfops;
     else if (lpt[i].prtcmd)
       lpt[i].fops = pipe_pfops;
-    if (i >= min(config.num_lpt, NUM_LPTS)) lpt[i].base_port = 0;
+    if (i >= _min(config.num_lpt, NUM_LPTS)) lpt[i].base_port = 0;
 
     if (lpt[i].base_port != 0) {
       io_device.start_addr = lpt[i].base_port;

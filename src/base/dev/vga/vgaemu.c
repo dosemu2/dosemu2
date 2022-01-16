@@ -2851,7 +2851,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         int horizontal_display_end = vga.crtc.data[0x1] + 1;
 	int horizontal_blanking_start = vga.crtc.data[0x2] + 1;
 	int multiplier = 9 - (vga.seq.data[1] & 1);
-	int width = min(horizontal_display_end, horizontal_blanking_start) *
+	int width = _min(horizontal_display_end, horizontal_blanking_start) *
 	  multiplier;
 	if ((vga.width != width) || (vga.char_width != multiplier)) {
 	  vga.width = width;
@@ -2926,7 +2926,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vertical_multiplier = char_height << ((vga.crtc.data[0x9] & 0x80) >> 7);
       /* see VGADOC: CGA is special for reg 9 */
       if(vga.mode_type == CGA) vertical_multiplier = char_height;
-      height = (min(vertical_blanking_start, vertical_display_end) + 1) /
+      height = (_min(vertical_blanking_start, vertical_display_end) + 1) /
 	vertical_multiplier;
       vga_msg("vgaemu_adj_cfg: vertical_total = %d\n", vertical_total);
       vga_msg("vgaemu_adj_cfg: vertical_retrace_start = %d\n", vertical_retrace_start);
@@ -2992,7 +2992,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       }
       if (vga.width % multiplier != 0) /* special user defined mode? */
 	return;
-      width = min(horizontal_display_end, horizontal_blanking_start) *
+      width = _min(horizontal_display_end, horizontal_blanking_start) *
 	multiplier;
       vga_msg("vgaemu_adj_cfg: horizontal_total = %d\n", horizontal_total);
       vga_msg("vgaemu_adj_cfg: horizontal_retrace_start = %d\n", horizontal_retrace_start);
@@ -3005,7 +3005,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       if ((vga.width != width) || (vga.char_width != multiplier)) {
         vga.width = width;
         vga.char_width = (multiplier >= 8) ? multiplier : 8;
-	vga.text_width = min(horizontal_display_end, horizontal_blanking_start);
+	vga.text_width = _min(horizontal_display_end, horizontal_blanking_start);
         vga.reconfig.display = 1;
 	vga.reconfig.re_init = 1;
       }

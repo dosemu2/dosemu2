@@ -458,9 +458,9 @@ static void update_graphics_screen(void)
   display_end = vga.display_start + vga.scan_len * vga.height;
   if (vga.line_compare < vga.height) {
     unsigned wrap2 = vga.display_start + vga.scan_len * vga.line_compare;
-    wrap = min(vga.mem.wrap, wrap2);
+    wrap = _min(vga.mem.wrap, wrap2);
   } else {
-    wrap = min(vga.mem.wrap, display_end);
+    wrap = _min(vga.mem.wrap, display_end);
   }
 
   update_graphics_loop(vga.display_start, wrap, 0, 0, &veut);

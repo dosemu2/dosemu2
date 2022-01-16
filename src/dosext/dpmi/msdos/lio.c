@@ -139,7 +139,7 @@ static void lrhlp_thr(void *arg)
         do_int_call(scp, is_32, 0x21, &_rmreg);
     }
     while (len) {
-        int to_read = min(len, 0xffff);
+        int to_read = _min(len, 0xffff);
         int rd;
         X_RMREG(ecx) = to_read;
         X_RMREG(eax) = 0x3f00;
@@ -152,7 +152,7 @@ static void lrhlp_thr(void *arg)
             D_printf("MSDOS: read eof\n");
             break;
         }
-        rd = min(X_RMREG(eax), to_read);
+        rd = _min(X_RMREG(eax), to_read);
         memcpy_dos2dos(buf + done, dos_buf, rd);
         done += rd;
         len -= rd;
@@ -202,7 +202,7 @@ static void lwhlp_thr(void *arg)
         do_int_call(scp, is_32, 0x21, &_rmreg);
     }
     while (len) {
-        int to_write = min(len, 0xffff);
+        int to_write = _min(len, 0xffff);
         int wr;
         memcpy_dos2dos(dos_buf, buf + done, to_write);
         X_RMREG(ecx) = to_write;
@@ -216,7 +216,7 @@ static void lwhlp_thr(void *arg)
             D_printf("MSDOS: write error, disk full?\n");
             break;
         }
-        wr = min(X_RMREG(eax), to_write);
+        wr = _min(X_RMREG(eax), to_write);
         done += wr;
         len -= wr;
         if (wr < to_write) {

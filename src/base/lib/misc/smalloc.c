@@ -30,7 +30,7 @@
 
 #define POOL_USED(p) (p->mn.used || p->mn.next)
 #ifndef min
-#define min(x, y) ((x) < (y) ? (x) : (y))
+#define _min(x, y) ((x) < (y) ? (x) : (y))
 #endif
 
 static void smerror_dummy(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
@@ -370,7 +370,7 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
   if (pmn && !pmn->used && pmn->size + mn->size +
 	(nmn->used ? 0 : nmn->size) >= size) {
     /* move to prev memnode */
-    size_t psize = min(size, pmn->size);
+    size_t psize = _min(size, pmn->size);
     if (!sm_commit_simple(mp, pmn->mem_area, psize))
       return NULL;
     if (size > pmn->size + mn->size) {

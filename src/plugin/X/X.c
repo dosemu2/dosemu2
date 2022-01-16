@@ -2376,8 +2376,8 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
     nh = w_y_res;
   }
 
-  mx = min(mouse_x, nw - 1);
-  my = min(mouse_y, nh - 1);
+  mx = _min(mouse_x, nw - 1);
+  my = _min(mouse_y, nh - 1);
   shift_x = 0;
   shift_y = 0;
   if(vga.mode_class == TEXT && !use_bitmap_font) {

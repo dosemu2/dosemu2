@@ -70,8 +70,8 @@ static inline void bios_mem_setup(void)
    * configured number of floppy disks
    */
   CONF_NFLOP(bios_configuration, config.fdisks);
-  CONF_NSER(bios_configuration, min(config.num_ser, NUM_COMS));
-  CONF_NLPT(bios_configuration, min(config.num_lpt, NUM_LPTS));
+  CONF_NSER(bios_configuration, _min(config.num_ser, NUM_COMS));
+  CONF_NLPT(bios_configuration, _min(config.num_lpt, NUM_LPTS));
   if (config.mouse.intdrv)
     bios_configuration |= CONF_MOUSE;
 

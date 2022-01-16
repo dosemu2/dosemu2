@@ -1613,7 +1613,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 	SET_RMREG(ds, rm_seg);
 	src = GetSegmentBase(_ds);
 	dst = SEGOFF2LINEAR(rm_seg, 0);
-	len = min((int) (GetSegmentLimit(_ds) + 1), 0x10000);
+	len = _min((int) (GetSegmentLimit(_ds) + 1), 0x10000);
 	D_printf
 	    ("MSDOS: whole segment of DS at %x copy to DOS at %x for %#x\n",
 	     src, dst, len);
@@ -1626,7 +1626,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 	SET_RMREG(es, rm_seg);
 	src = GetSegmentBase(_es);
 	dst = SEGOFF2LINEAR(rm_seg, 0);
-	len = min((int) (GetSegmentLimit(_es) + 1), 0x10000);
+	len = _min((int) (GetSegmentLimit(_es) + 1), 0x10000);
 	D_printf
 	    ("MSDOS: whole segment of ES at %x copy to DOS at %x for %#x\n",
 	     src, dst, len);
@@ -1689,7 +1689,7 @@ int msdos_post_extender(sigcontext_t *scp,
 	my_ds = rm_seg;
 	src = SEGOFF2LINEAR(my_ds, 0);
 	dst = GetSegmentBase(_ds);
-	len = min((int) (GetSegmentLimit(_ds) + 1), 0x10000);
+	len = _min((int) (GetSegmentLimit(_ds) + 1), 0x10000);
 	D_printf("MSDOS: DS seg at %x copy back at %x for %#x\n",
 		 src, dst, len);
 	memcpy_dos2dos(dst, src, len);
@@ -1702,7 +1702,7 @@ int msdos_post_extender(sigcontext_t *scp,
 	my_es = rm_seg;
 	src = SEGOFF2LINEAR(my_es, 0);
 	dst = GetSegmentBase(_es);
-	len = min((int) (GetSegmentLimit(_es) + 1), 0x10000);
+	len = _min((int) (GetSegmentLimit(_es) + 1), 0x10000);
 	D_printf("MSDOS: ES seg at %x copy back at %x for %#x\n",
 		 src, dst, len);
 	memcpy_dos2dos(dst, src, len);

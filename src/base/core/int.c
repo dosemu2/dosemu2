@@ -592,7 +592,7 @@ static int dos_helper(int stk_offs, int revect)
 		uint8_t *stk, *new_stk;
 		switch (LWORD(ebx)) {
 		case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
-		    to_copy = min(64, (0x10000 - _SP) & 0xffff);
+		    to_copy = _min(64, (0x10000 - _SP) & 0xffff);
 		    switched = get_rm_stack(&new_ss, &new_sp,
 			    ((uint64_t)to_copy << 32) | ((unsigned)_SS << 16) |
 			    _SP);
@@ -1434,7 +1434,7 @@ static int msdos(void)
 	    switch (LO(ax)) {
 	    case 0x00:
 	    case 0x01:
-		snprintf(cmdname, min(sizeof cmdname, args->len + 1), "%s", args->s);
+		snprintf(cmdname, _min(sizeof cmdname, args->len + 1), "%s", args->s);
 		ds_printf
 		    ("INT21 4B: load/execute program=\"%s\", L(cmdline=\"%s\")=%i\n",
 		     str, cmdname, args->len);
@@ -2939,7 +2939,7 @@ static int int2f(int stk_offs, int revect)
 	    title_hint[8] = 0;
 hint_done:
 
-	    len = min(str->len, (unsigned char) (TITLE_APPNAME_MAXLEN - 1));
+	    len = _min(str->len, (unsigned char) (TITLE_APPNAME_MAXLEN - 1));
 	    memcpy(cmdname, str->s, len);
 	    cmdname[len] = 0;
 	    ptr = cmdname + strspn(cmdname, " \t");

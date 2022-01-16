@@ -176,7 +176,7 @@ static u_char emm_error;
 
 static int handle_total, emm_allocated;
 static Bit32u EMSAPMAP_ret_OFF;
-#define saved_phys_pages min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
+#define saved_phys_pages _min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
 static Bit32u phys_pages;
 #define cnv_start_seg (0xa000 - 0x400 * config.ems_cnv_pages)
 #define cnv_pages_start config.ems_uma_pages

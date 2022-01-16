@@ -1494,8 +1494,8 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text,
                                            text_colors[ATTR_BG(attr)]);
   d.rect.x = font_width * x;  /* font_width/height needs to be under font mtx */
   d.rect.y = font_height * y; /* height plus spacing to next line */
-  d.rect.w = min(srf->w, font_width * len);
-  d.rect.h = min(srf->h, font_height);
+  d.rect.w = _min(srf->w, font_width * len);
+  d.rect.h = _min(srf->h, font_height);
   pthread_mutex_unlock(&sdl_font_mtx);
   free(s);
   if (!srf) {

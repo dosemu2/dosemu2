@@ -444,7 +444,7 @@ int read_fat(fatfs_t *f, unsigned pos, unsigned char *buf)
       bioffs = 0;
     }
     buf[i] |= (u1 << nbit) & 0xff;
-    wb = min(8 - nbit, lnb);
+    wb = _min(8 - nbit, lnb);
     u1 >>= wb;
     lnb -= wb;
     nbit += wb;

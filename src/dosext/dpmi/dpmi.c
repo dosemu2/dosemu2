@@ -1835,7 +1835,7 @@ int DPMI_get_save_restore_address(far_t *raddr, struct pmaddr_s *paddr)
       raddr->offset = DPMI_OFF + HLT_OFF(DPMI_save_restore_rm);
       paddr->selector = dpmi_sel();
       paddr->offset = DPMI_SEL_OFF(DPMI_save_restore_pm);
-      return max(sizeof(struct RealModeCallStructure), 52); /* size to hold all registers */
+      return _max(sizeof(struct RealModeCallStructure), 52); /* size to hold all registers */
 }
 
 int DPMI_allocate_specific_ldt_descriptor(unsigned short selector)

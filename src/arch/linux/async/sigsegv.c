@@ -356,8 +356,8 @@ void print_exception_info(sigcontext_t *scp)
       unsigned char *csp;
       int ps = getpagesize();
       unsigned pa = _rip & (ps - 1);
-      int sub = min(pa, 10);
-      int sup = min(ps - pa, 10);
+      int sub = _min(pa, 10);
+      int sup = _min(ps - pa, 10);
       error("@Invalid opcode\n");
       error("@Opcodes: ");
       csp = (unsigned char *) _rip - sub;

@@ -328,7 +328,7 @@ void reset_redraw_text_screen(void)
     if (vga.text_height > MAX_LINES)
       vga.text_height = MAX_LINES;
   }
-  compare = min(vga.text_height, vga.line_compare) * vga.scan_len;
+  compare = _min(vga.text_height, vga.line_compare) * vga.scan_len;
   memcpy(prev_screen, vga.mem.base + location_to_memoffs(0), compare);
   memcpy(&prev_screen[compare / 2], vga.mem.base,
 	 vga.scan_len * vga.text_height - compare);
