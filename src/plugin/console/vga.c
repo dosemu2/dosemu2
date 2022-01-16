@@ -563,13 +563,11 @@ static void set_console_video(void)
      * cause set_dos_video() and set_linux_video() to use the modecr
      * settings.  We have to first find them here.
      */
-  int permtest = 0;
-
   if (config.mapped_bios) {
-	permtest |= vga_ioperm(0x3b4, 0x3bc - 0x3b4 + 1);
-	permtest |= vga_ioperm(0x3c0, 0x3df - 0x3c0 + 1);
+	vga_ioperm(0x3b4, 0x3bc - 0x3b4 + 1);
+	vga_ioperm(0x3c0, 0x3df - 0x3c0 + 1);
   }
-  permtest |= vga_ioperm(0x3bf, 1);
+  vga_ioperm(0x3bf, 1);
 }
 
 static int vga_initialize(void)
