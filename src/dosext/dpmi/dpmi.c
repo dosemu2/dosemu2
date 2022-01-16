@@ -1641,7 +1641,7 @@ int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 static int get_dr(pid_t pid, int i, unsigned int *dri)
 {
   *dri = ptrace(PTRACE_PEEKUSER, pid,
-		(void *)offsetof(struct user, u_debugreg[i]), 0);
+		(void *)(offsetof(struct user, u_debugreg) + sizeof(int) * i), 0);
   D_printf("DPMI: ptrace peek user dr%d=%x\n", i, *dri);
   return *dri != -1 || errno == 0;
 }
@@ -1649,7 +1649,7 @@ static int get_dr(pid_t pid, int i, unsigned int *dri)
 static int set_dr(pid_t pid, int i, unsigned long dri)
 {
   int r = ptrace(PTRACE_POKEUSER, pid,
-		 (void *)offsetof(struct user, u_debugreg[i]), (void *)dri);
+		 (void *)(offsetof(struct user, u_debugreg) + sizeof(int) * i), (void *)dri);
   D_printf("DPMI: ptrace poke user r=%d dr%d=%lx\n", r, i, dri);
   return r == 0;
 }
