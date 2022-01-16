@@ -122,7 +122,7 @@ static const struct pcm_player player
     sdlsnd_start,
     sdlsnd_stop,
     0,
-    .id = PCM_ID_P,
+    PCM_ID_P,
     0
 };
 #else

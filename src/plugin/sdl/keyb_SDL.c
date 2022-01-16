@@ -92,7 +92,7 @@ void SDL_process_key_text(SDL_KeyboardEvent keyevent,
 	int rc;
 	SDL_Keysym keysym = keyevent.keysym;
 	SDL_Scancode scan = keysym.scancode;
-	t_keynum keynum = sdl2_scancode_to_keynum[scan];
+	t_keynum keynum = sdl2_scancode_to_keynum(scan);
 
 	if (keynum == NUM_VOID) {
 		error("SDL: unknown scancode %x\n", scan);
@@ -118,7 +118,7 @@ void SDL_process_key_press(SDL_KeyboardEvent keyevent)
 {
 	SDL_Keysym keysym = keyevent.keysym;
 	SDL_Scancode scan = keysym.scancode;
-	t_keynum keynum = sdl2_scancode_to_keynum[scan];
+	t_keynum keynum = sdl2_scancode_to_keynum(scan);
 
 	if (keynum == NUM_VOID) {
 		error("SDL: unknown scancode %x\n", scan);
@@ -135,7 +135,7 @@ void SDL_process_key_release(SDL_KeyboardEvent keyevent)
 {
 	SDL_Keysym keysym = keyevent.keysym;
 	SDL_Scancode scan = keysym.scancode;
-	t_keynum keynum = sdl2_scancode_to_keynum[scan];
+	t_keynum keynum = sdl2_scancode_to_keynum(scan);
 
 	if (keynum == NUM_VOID) {
 		error("SDL: unknown scancode %x\n", scan);
