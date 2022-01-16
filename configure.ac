@@ -18,6 +18,38 @@ AC_DEFINE(HAVE_STD_C11)
 AC_PROG_CPP
 AC_USE_SYSTEM_EXTENSIONS
 
+AC_MSG_CHECKING([for $CC actually being clang])
+if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
+  AC_MSG_RESULT([yes])
+  AC_MSG_CHECKING([for clang >= 3.7])
+  clang_ver=`$CC -v 2>&1 | grep version | sed 's/.*version //' | cut -d " " -f 1`
+  clang_maj=`echo $clang_ver | cut -d "." -f 1`
+  clang_mid=`echo $clang_ver | cut -d "." -f 2`
+  if test $clang_maj -ge 3 -a $clang_mid -ge 7 -o $clang_maj -ge 4 ; then
+    AC_MSG_RESULT([yes, $clang_ver])
+  else
+    AC_MSG_RESULT([no, $clang_ver])
+    AC_MSG_ERROR([Need clang-3.7 or newer, or use gcc instead])
+  fi
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -Wno-incompatible-pointer-types \
+    -Wno-address-of-packed-member"
+  LDFLAGS="$LDFLAGS -Wno-unused-command-line-argument"
+  use_clang="yes"
+else
+  CCAS="$CC"
+  AC_MSG_RESULT([no])
+  use_clang="no"
+
+  AC_MSG_CHECKING([for $CC actually being c++])
+  if "$CC" -v 2>&1 | grep 'COLLECT_GCC=g++' >/dev/null; then
+    AC_MSG_RESULT([yes, using -fpermissive])
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpermissive"
+  else
+    AC_MSG_RESULT([no])
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions"
+  fi
+fi
+
 AC_PATH_PROG([AS], [as])
 if test -z "$AS"; then
   AC_MSG_ERROR(as not found)
@@ -180,8 +212,8 @@ AC_SUBST(CONFIG_HOST)
 
 machine=`"$CC" -dumpmachine | cut -d- -f1`
 
-DOSEMU_CPPFLAGS="-imacros config.hh"
-DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
+DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -imacros config.hh"
+DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wall -Wstrict-prototypes -Wmissing-declarations \
 -Wnested-externs -fms-extensions -pthread \
 -Wno-unused-result -Wcast-qual -Wwrite-strings"
 AX_CHECK_COMPILE_FLAG([-Waddress-of-packed-member],
@@ -422,38 +454,6 @@ if test "$with_target_cpu" = ""; then
 else
   AC_MSG_NOTICE(Compiling with specified target CPU...)
   target_cpu=$with_target_cpu
-fi
-
-AC_MSG_CHECKING([for $CC actually being clang])
-if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
-  AC_MSG_RESULT([yes])
-  AC_MSG_CHECKING([for clang >= 3.7])
-  clang_ver=`$CC -v 2>&1 | grep version | sed 's/.*version //' | cut -d " " -f 1`
-  clang_maj=`echo $clang_ver | cut -d "." -f 1`
-  clang_mid=`echo $clang_ver | cut -d "." -f 2`
-  if test $clang_maj -ge 3 -a $clang_mid -ge 7 -o $clang_maj -ge 4 ; then
-    AC_MSG_RESULT([yes, $clang_ver])
-  else
-    AC_MSG_RESULT([no, $clang_ver])
-    AC_MSG_ERROR([Need clang-3.7 or newer, or use gcc instead])
-  fi
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -Wno-incompatible-pointer-types \
-    -Wno-address-of-packed-member"
-  LDFLAGS="$LDFLAGS -Wno-unused-command-line-argument"
-  use_clang="yes"
-else
-  CCAS="$CC"
-  AC_MSG_RESULT([no])
-  use_clang="no"
-
-  AC_MSG_CHECKING([for $CC actually being c++])
-  if "$CC" -v 2>&1 | grep 'COLLECT_GCC=g++' >/dev/null; then
-    AC_MSG_RESULT([yes, using -fpermissive])
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpermissive"
-  else
-    AC_MSG_RESULT([no])
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions"
-  fi
 fi
 
 if test "$machine" = "x86_64" -a "$with_target_bits" != "32" -a \
