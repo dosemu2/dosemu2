@@ -145,7 +145,7 @@ static void render_rect_add(int rend_idx, RectArea rect)
  * The attribute is the VGA color/mono text attribute.
  */
 static void bitmap_draw_string(void *opaque, int x, int y,
-    unsigned char *text, int len, Bit8u attr)
+    const char *text, int len, Bit8u attr)
 {
   struct remap_object **obj = opaque;
   struct bitmap_desc src_image;

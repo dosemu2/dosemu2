@@ -167,7 +167,7 @@ static SDL_Keycode mgrab_key = SDLK_HOME;
 
 #define CONFIG_SDL_SELECTION 1
 
-static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text,
+static void SDL_draw_string(void *opaque, int x, int y, const char *text,
     int len, Bit8u attr);
 static void SDL_draw_line(void *opaque, int x, int y, float ul, int len,
     Bit8u attr);
@@ -1456,7 +1456,7 @@ static void sdl_scrub(void)
 }
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text,
+static void SDL_draw_string(void *opaque, int x, int y, const char *text,
     int len, Bit8u attr)
 {
   char *s;
@@ -1468,14 +1468,14 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text,
   v_printf("SDL_draw_string\n");
 
   init_charset_state(&state, trconfig.video_mem_charset);
-  characters = character_count(&state, (char *)text, len);
+  characters = character_count(&state, text, len);
   if (characters == -1) {
     v_printf("SDL: invalid char count\n");
     return;
   }
   str = malloc(sizeof(t_unicode) * (characters + 1));
 
-  charset_to_unicode_string(&state, str, (const char **)&text, len, characters + 1);
+  charset_to_unicode_string(&state, str, &text, len, characters + 1);
   cleanup_charset_state(&state);
 
   s = unicode_string_to_charset((wchar_t *)str, "utf8");

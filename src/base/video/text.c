@@ -136,7 +136,7 @@ static void draw_string(int x, int y, unsigned char *text, int len,
   x_deb2("X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
 	 len, x, y, (unsigned) attr);
   for (i = 0; i < num_texts; i++) {
-    u_char charbuff[MAX_COLUMNS], *p;
+    char charbuff[MAX_COLUMNS], *p;
 
     if (Text[i]->flags & TEXTF_DISABLED)
       continue;
@@ -516,7 +516,7 @@ void done_text_mapper(void)
   free(text_canvas);
 }
 
-struct bitmap_desc convert_bitmap_string(int x, int y, unsigned char *text,
+struct bitmap_desc convert_bitmap_string(int x, int y, const char *text,
 					 int len, Bit8u attr)
 {
   unsigned src, height, xx, yy, cc, srcp, srcp2, bits;
