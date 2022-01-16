@@ -278,6 +278,7 @@ typedef struct config_info {
        struct keytable_entry *altkeytable;
        const char *internal_cset;
        const char *external_cset;
+       int country;
 
        unsigned short detach;
        char *debugout;

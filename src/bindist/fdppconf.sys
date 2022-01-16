@@ -1,5 +1,6 @@
 rem config.sys for DOSEMU2 + FDPP
 SWITCHES=#0
+COUNTRY=#1
 CHAIN=@userhook.sys
 DOS=UMB,HIGH
 dosdata=umb
