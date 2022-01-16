@@ -136,7 +136,10 @@ static void hlp_fill_rest(struct dos_helper_s *h,
 
 struct pmaddr_s doshlp_get_entry(struct dos_helper_s *h)
 {
-    struct pmaddr_s ret = { .selector = dpmi_sel(), .offset = h->entry };
+    struct pmaddr_s ret = {
+	    .offset = h->entry,
+	    .selector = dpmi_sel(),
+	};
     return ret;
 }
 
@@ -537,8 +540,8 @@ static void do_restore(sigcontext_t *scp, sigcontext_t *sa)
 void doshlp_quit_dpmi(sigcontext_t *scp)
 {
     struct pmaddr_s pma = {
-	.selector = dpmi_sel(),
 	.offset = DPMI_SEL_OFF(DPMI_msdos),
+	.selector = dpmi_sel(),
     };
     coopth_leave();
     do_iret(scp);
