@@ -364,15 +364,11 @@ unsigned long get_linux_ticks(int set_cmos, int *day_rollover)
 
 	long ds70, isec;
 	long long tt;	/* Needs > 32 bits for intermediate product! */
-	long long lint;
 	struct timeval tv;
 	int year;
 	struct tm *tm;
 
 	gettimeofday(&tv, NULL);
-
-	lint = ((long long)(unsigned long)tv.tv_sec) * 1000;
-	lint += tv.tv_usec / 1000;
 
 	tm = localtime(&tv.tv_sec);
 	if(tm == NULL) return -1;
