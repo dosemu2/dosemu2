@@ -2900,8 +2900,8 @@ err:
       unsigned addr, size;
       dpmi_pm_block *blk;
 
-      addr = ((uint32_t)_LWORD(ebx)) << 16 | (_LWORD(ecx));
-      size = ((uint32_t)_LWORD(esi)) << 16 | (_LWORD(edi));
+      addr = ((uint32_t)_LWORD(ebx) << 16) | (_LWORD(ecx));
+      size = ((uint32_t)_LWORD(esi) << 16) | (_LWORD(edi));
 
       D_printf("DPMI: Map Physical Memory, addr=%#08x size=%#x\n", addr, size);
 
@@ -2920,7 +2920,7 @@ err:
   case 0x0801: {	/* free Physical Address Mapping */
       size_t vbase;
       int rc;
-      vbase = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
+      vbase = (_LWORD(ebx) << 16) | (_LWORD(ecx));
       D_printf("DPMI: Unmap Physical Memory, vbase=%#08zx\n", vbase);
       rc = DPMI_unmapHWRam(&DPMI_CLIENT.pm_block_root, vbase);
       if (rc == -1) {
