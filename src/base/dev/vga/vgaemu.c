@@ -1674,7 +1674,8 @@ int vga_emu_pre_init(void)
     vga_msg("vga_emu_init: linear frame buffer (lfb) disabled\n");
   }
 
-  if((vga.mem.dirty_map = (unsigned char *) malloc(vga.mem.pages)) == NULL) {
+  /* alloc more pages because vgaemu_dirty_page() does weird things */
+  if((vga.mem.dirty_map = (unsigned char *) malloc(vga.mem.pages | 0xff)) == NULL) {
     vga_msg("vga_emu_init: not enough memory for dirty map\n");
     config.exitearly = 1;
     return 1;
