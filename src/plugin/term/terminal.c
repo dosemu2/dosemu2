@@ -794,7 +794,7 @@ static void term_write_nchars_utf8(const char *text, int len, Bit8u attr)
    const char *text_end = text + len;
 
    for (bufp = buf; text < text_end; bufp += bufp[3], text++)
-      memcpy(bufp, The_Charset + *text, 4);
+      memcpy(bufp, &The_Charset[(unsigned char)*text], 4);
    SLsmg_write_nchars(buf, bufp - buf);
 }
 
