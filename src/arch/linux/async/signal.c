@@ -1058,6 +1058,8 @@ static void SIGALRM_call(void *arg)
   }
 
   uncache_time();
+  /* inject timer before anything else */
+  timer_tick();
   process_callbacks();
 
   if ((pic_sys_time-cnt10) >= (PIT_TICK_RATE/100) || dosemu_frozen) {
@@ -1071,7 +1073,6 @@ static void SIGALRM_call(void *arg)
 
   if (config.rdtsc)
     update_cputime_TSCBase();
-  timer_tick();
 
 #if 0
 /*
