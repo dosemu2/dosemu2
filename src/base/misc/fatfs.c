@@ -121,7 +121,9 @@ static const uint64_t RXN_D = (1 << RXND_IDX);
 static const uint64_t MOS_D = IX(MOSB, MOSD);
 static const uint64_t FDO_D = (1 << IPL_IDX);
 static const uint64_t FD_D = (1 << KER_IDX);
+#ifdef USE_FDPP
 static const uint64_t FDP_D = (1 << FDP_IDX);
+#endif
 
 static const uint64_t OLDPCD_D = (PC_D | (1 << 25));
 static const uint64_t NEWPCD_D = (PC_D | (1 << 26));
