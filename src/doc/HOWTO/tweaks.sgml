@@ -315,4 +315,17 @@ Apply the following patch to lexicon.exe:
 </sect2>
 </sect1>
 
+<sect1>
+<title>Test Drive 2</title>
+<sect2>
+<title>
+Game doesn't start, just returns to command prompt.
+</title>
+<para>
+Test Drive 2 only works from drives up to F:. In most dosemu2 setups,
+these drive letters are occupied. Solution is to copy the game to C:.
+</para>
+</sect2>
+</sect1>
+
 </article>
