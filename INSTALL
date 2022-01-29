@@ -1,4 +1,4 @@
-dosemu2 installation instructions (from source)
+building and installing dosemu2 from sources
 ==============================================
 
 -> REQUIREMENTS for dosemu2:
@@ -47,21 +47,17 @@ or
     make
   in that directory.
 
+- If you want dosemu2 executable with debug info, then add -d parameter
+  to default-configure on the previous step. But expect the debug build
+  to work considerably slower than the release build!
+
 - sudo make install
 
-You can now start dosemu2 using "dosemu".
-
---------------------------------------------------------------------------
-2.  Want to use a different configuration ?
---------------------------------------------------------------------------
-
-Runtime configuration variables can be stored in the file ~/.dosemu/.dosemurc.
-This file overrides the dosemu.conf file which is usually either in
-/etc/dosemu or in /etc. By default, most error and debug messages are
-logged to the file ~/.dosemu/boot.log.
-
-If you want a dosemu2 executable with development settings (debug info,
-experimental features, and so on) then it is easier to use the file 
-compiletime-settings.devel -- you can use it by running
-	./default-configure -d
-(*not* ./configure -d) prior to running make.
+You can now start dosemu2 by typing "dosemu". But if you didn't install
+comcom32, dosemu2 may not find command.com. We recommend to install
+the pre-compiled comcom32 package either from PPA or COPR. Or you can
+instead download it from here:
+https://dosemu2.github.io/comcom32/files/comcom32.zip
+unzip to ~/.dosemu/drive_c and symlink as command.com.
+You may not want to build comcom32 from sources unless you know how
+to install djgpp.

@@ -199,9 +199,10 @@ int vdeslirp_add_unixfwd(struct vdeslirp *slirp, char *path,
 		struct in_addr *guest_addr, int guest_port) {
 	struct slirp_request req = {
 		.tag = SLIRP_ADD_UNIXFWD,
+		.ptrarg = path,
 		.guest_addr = guest_addr,
 		.guest_port = guest_port,
-		.ptrarg = path };
+	};
 	return slirp_send_req(slirp, &req);
 }
 
@@ -326,10 +327,10 @@ static int vdeslirp_add_poll(int fd, int events, void *opaque) {
 	struct vdeslirp *slirp = opaque;
 	if (slirp->pfd_len >= slirp->pfd_size) {
 		int newsize = slirp->pfd_size + LIBSLIRP_POLLFD_SIZE_INCREASE;
-		struct pollfd *new = realloc(slirp->pfd, newsize *
+		struct pollfd *_new = realloc(slirp->pfd, newsize *
 				sizeof(struct pollfd));
-		if (new) {
-			slirp->pfd = new;
+		if (_new) {
+			slirp->pfd = _new;
 			slirp->pfd_size = newsize;
 		}
 	}

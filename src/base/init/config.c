@@ -1206,9 +1206,11 @@ config_init(int argc, char **argv)
 	case 'f':
 	case 'c':
 	case 'o':
-	case 'L':
 	case 'n':
 	case 's':
+	    break;
+	case 'L':
+	    dbug_printf("%s\n", optarg);
 	    break;
 	case 'd': {
 	    char *p = strdup(optarg);
@@ -1567,3 +1569,7 @@ void set_internal_charset(const char *charset_name)
 	config.internal_cset = charset_name;
 }
 
+void set_country_code(int cntry)
+{
+	config.country = cntry;
+}

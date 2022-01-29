@@ -118,10 +118,11 @@ static unsigned int dpmimode=1, saved_dpmimode=1;
 #define IN_DPMI  (in_dpmi_pm() && dpmimode)
 
 #define MAXSYM 10000
+enum SType {DYN, ABS};
 static struct {
   uint16_t seg;
   uint16_t off;
-  enum {DYN, ABS} type;
+  enum SType type;
   char name[49];
 } user_symbol[MAXSYM];
 int user_symbol_num;

@@ -204,8 +204,8 @@ union g_reg {
 
 #define _LWORD(reg)	LO_WORD(_##reg)
 #define _HWORD(reg)	HI_WORD(_##reg)
-#define _LWORD_(reg)	LO_WORD_(_##reg, const)
-#define _HWORD_(reg)	HI_WORD_(_##reg, const)
+#define _LWORD_(reg)	((unsigned)LO_WORD_(_##reg, const))
+#define _HWORD_(reg)	((unsigned)HI_WORD_(_##reg, const))
 
 /* this is used like: SEG_ADR((char *), es, bx) */
 #define SEG_ADR(type, seg, reg)  type(LINEAR2UNIX(SEGOFF2LINEAR(SREG(seg), LWORD(e##reg))))

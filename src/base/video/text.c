@@ -136,7 +136,7 @@ static void draw_string(int x, int y, unsigned char *text, int len,
   x_deb2("X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
 	 len, x, y, (unsigned) attr);
   for (i = 0; i < num_texts; i++) {
-    u_char charbuff[MAX_COLUMNS], *p;
+    char charbuff[MAX_COLUMNS], *p;
 
     if (Text[i]->flags & TEXTF_DISABLED)
       continue;
@@ -328,7 +328,7 @@ void reset_redraw_text_screen(void)
     if (vga.text_height > MAX_LINES)
       vga.text_height = MAX_LINES;
   }
-  compare = min(vga.text_height, vga.line_compare) * vga.scan_len;
+  compare = _min(vga.text_height, vga.line_compare) * vga.scan_len;
   memcpy(prev_screen, vga.mem.base + location_to_memoffs(0), compare);
   memcpy(&prev_screen[compare / 2], vga.mem.base,
 	 vga.scan_len * vga.text_height - compare);
@@ -516,7 +516,7 @@ void done_text_mapper(void)
   free(text_canvas);
 }
 
-struct bitmap_desc convert_bitmap_string(int x, int y, unsigned char *text,
+struct bitmap_desc convert_bitmap_string(int x, int y, const char *text,
 					 int len, Bit8u attr)
 {
   unsigned src, height, xx, yy, cc, srcp, srcp2, bits;

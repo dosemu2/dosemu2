@@ -55,12 +55,12 @@ static __inline__ int power_of_2_sqrt(int val)
 	return 1 << (res >> 1);
 }
 
-#define min(x,y) ({ \
+#define _min(x,y) ({ \
 	typeof(x) _x = (x);	\
 	typeof(y) _y = (y);	\
 	_x < _y ? _x : _y; })
 
-#define max(x,y) ({ \
+#define _max(x,y) ({ \
 	typeof(x) _x = (x);	\
 	typeof(y) _y = (y);	\
 	_x > _y ? _x : _y; })

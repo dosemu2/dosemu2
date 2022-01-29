@@ -73,7 +73,7 @@
 #define FOSSIL_RX_BUFFER_SIZE RX_BUFFER_SIZE
 #define FOSSIL_RX_BUF_BYTES(num) RX_BUF_BYTES(num)
 #define FOSSIL_TX_BUFFER_SIZE 64
-#define FOSSIL_TX_BUF_BYTES(num) min(TX_BUF_BYTES(num), FOSSIL_TX_BUFFER_SIZE)
+#define FOSSIL_TX_BUF_BYTES(num) _min(TX_BUF_BYTES(num), FOSSIL_TX_BUFFER_SIZE)
 
 /* This flag indicates that the DOS part of the emulation, FOSSIL.COM,
  * is loaded. This module does nothing as long as this flag is false,

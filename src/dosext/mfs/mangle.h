@@ -40,6 +40,7 @@ typedef char pstring[1024];
 
 /* prototypes */
 extern dosaddr_t is_dos_device(const char *fname);
+extern dosaddr_t is_dos_device8(const char *fname);
 extern BOOL do_fwd_mangled_map(char *s, char *MangledMap);
 extern BOOL name_convert(char *Name,BOOL mangle);
 extern BOOL is_mangled(const char *s);

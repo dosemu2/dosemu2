@@ -62,7 +62,7 @@ static void set_gc_attr(Bit8u attr)
  * Draw a non-bitmap text string.
  * The attribute is the VGA color/mono text attribute.
  */
-static void X_draw_string(void *opaque, int x, int y, unsigned char *text,
+static void X_draw_string(void *opaque, int x, int y, const char *text,
     int len, Bit8u attr)
 {
   set_gc_attr(attr);
@@ -70,12 +70,12 @@ static void X_draw_string(void *opaque, int x, int y, unsigned char *text,
     text_display, text_window, text_gc,
     font_width * x,
     font_height * y + font_shift,
-    (char *)text,
+    text,
     len
     );
 }
 
-static void X_draw_string16(void *opaque, int x, int y, unsigned char *text,
+static void X_draw_string16(void *opaque, int x, int y, const char *text,
     int len, Bit8u attr)
 {
   XChar2b buff[len];
@@ -87,7 +87,7 @@ static void X_draw_string16(void *opaque, int x, int y, unsigned char *text,
   init_charset_state(&state, trconfig.video_mem_charset);
   d = font->max_char_or_byte2 - font->min_char_or_byte2 + 1;
   for (i = 0; i < len; i++) {
-    if (charset_to_unicode(&state, &uni, &text[i], 1) != 1)
+    if (charset_to_unicode(&state, &uni, (const unsigned char *)&text[i], 1) != 1)
       break;
     buff[i].byte1 = uni / d + font->min_byte1;
     buff[i].byte2 = uni % d + font->min_char_or_byte2;

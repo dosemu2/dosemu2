@@ -109,7 +109,7 @@ void extmem_copy(unsigned dst, unsigned src, unsigned len)
     if (d < edge && d + dlen > edge)
       dlen = edge - d;
 
-    clen = min(slen, dlen);
+    clen = _min(slen, dlen);
     x_printf("INT15: copy 0x%x bytes from %#x to %#x%s\n",
       clen, s, d, clen != len ? " (split)" : "");
     if (d < edge) {

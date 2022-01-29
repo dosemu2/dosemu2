@@ -57,6 +57,7 @@ struct render_wrp {
     struct bitmap_desc dst_image[MAX_RENDERS];
 };
 static struct render_wrp Render;
+static int initialized;
 
 __attribute__((warn_unused_result))
 static int render_lock(void)
@@ -144,7 +145,7 @@ static void render_rect_add(int rend_idx, RectArea rect)
  * The attribute is the VGA color/mono text attribute.
  */
 static void bitmap_draw_string(void *opaque, int x, int y,
-    unsigned char *text, int len, Bit8u attr)
+    const char *text, int len, Bit8u attr)
 {
   struct remap_object **obj = opaque;
   struct bitmap_desc src_image;
@@ -270,19 +271,27 @@ int render_init(void)
 #endif
   assert(!err);
 #endif
+  initialized++;
   return err;
 }
 
 /*
  * Free resources associated with remap_obj.
  */
-void remapper_done(void)
+void render_done(void)
 {
+  if (!initialized)
+    return;
+  initialized--;
 #if RENDER_THREADED
   pthread_cancel(render_thr);
   pthread_join(render_thr, NULL);
   sem_destroy(&render_sem);
 #endif
+}
+
+void remapper_done(void)
+{
   done_text_mapper();
   if (Render.text_remap)
     remap_done(Render.text_remap);
@@ -449,9 +458,9 @@ static void update_graphics_screen(void)
   display_end = vga.display_start + vga.scan_len * vga.height;
   if (vga.line_compare < vga.height) {
     unsigned wrap2 = vga.display_start + vga.scan_len * vga.line_compare;
-    wrap = min(vga.mem.wrap, wrap2);
+    wrap = _min(vga.mem.wrap, wrap2);
   } else {
-    wrap = min(vga.mem.wrap, display_end);
+    wrap = _min(vga.mem.wrap, display_end);
   }
 
   update_graphics_loop(vga.display_start, wrap, 0, 0, &veut);
@@ -730,15 +739,16 @@ static int find_rmcalls(int sidx)
 struct remap_object *remap_init(int dst_mode, int features,
         const ColorSpaceDesc *color_space)
 {
-  void *rm;
+  void *rm = NULL;
   struct remap_object *ro;
-  struct remap_calls *calls;
+  struct remap_calls *calls = NULL;
   int i = -1;
   do {
     i = find_rmcalls(i);
     if (i == -1)
       break;
     calls = rmcalls[i].calls;
+    assert(calls);
     rm = calls->init(dst_mode, features, color_space, config.X_gamma);
     if (!rm)
       v_printf("remapper %i \"%s\" failed for mode %x\n",

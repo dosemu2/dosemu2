@@ -20,7 +20,7 @@ extern Boolean have_focus;
 struct text_system
 {
    /* function to draw a string in text mode using attribute attr */
-   void (*Draw_string)(void *opaque, int x, int y , unsigned char *s, int len, Bit8u attr);
+   void (*Draw_string)(void *opaque, int x, int y, const char *s, int len, Bit8u attr);
    void (*Draw_line)(void *opaque, int x, int y, float pos, int len, Bit8u attr);
    void (*Draw_cursor)(void *opaque, int x, int y, Bit8u attr, int first, int last, Boolean focus);
    void (*SetPalette) (void *opaque, DAC_entry *color, int index);
@@ -47,7 +47,7 @@ void dirty_text_screen(void);
 int text_is_dirty(void);
 void init_text_mapper(int image_mode, int features, ColorSpaceDesc *csd);
 void done_text_mapper(void);
-struct bitmap_desc convert_bitmap_string(int x, int y, unsigned char *text,
+struct bitmap_desc convert_bitmap_string(int x, int y, const char *text,
       int len, Bit8u attr);
 void update_text_screen(void);
 void text_gain_focus(void);

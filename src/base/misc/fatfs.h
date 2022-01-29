@@ -53,11 +53,13 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 #define FATFS_EXPORTS _FATFS_EXPORTS
 #endif
 
+#define F_EXTRN(n) extern const int FATFS_##n
 #ifndef FATFS_IMPL
-#define XPRT(n) extern const int FATFS_##n;
+#define XPRT(n) F_EXTRN(n);
 FATFS_EXPORTS
 #else
-#define XPRT(n) const int FATFS_##n = n;
+#define XPRT(n) F_EXTRN(n); \
+    const int FATFS_##n = n;
 #endif
 
 #endif

@@ -7,7 +7,7 @@
 #ifndef MCONTEXT_H
 #define MCONTEXT_H
 
-#include <ucontext.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,7 +47,14 @@ static inline int setmcontext(const struct m_ucontext *u)
 {
 	return _setmcontext(&u->uc_mcontext);
 }
-extern int getmcontext(struct m_ucontext *u);
+/* getmcontext() MUST be inlined, or it will grab the context
+ * of its own stack frame */
+static inline __attribute__((always_inline))
+int getmcontext(struct m_ucontext *u)
+{
+	memset(&u->uc_mcontext, 0, sizeof u->uc_mcontext);
+	return _getmcontext(&u->uc_mcontext);
+}
 extern int swapmcontext(m_ucontext_t*, const m_ucontext_t*);
 extern void makemcontext(m_ucontext_t*, void(*)(void*), void*);
 

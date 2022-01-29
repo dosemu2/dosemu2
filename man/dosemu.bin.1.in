@@ -31,10 +31,6 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .I file
 ]
 [
-.B \-L
-.I dexefile
-]
-[
 .B \-u
 .I confvar
 ]
@@ -209,9 +205,8 @@ Parse this config-file instead of .dosemurc
 .I -n
 Bypass (don't use) user's config .dosemurc.
 .TP
-.I -L
-Load and start a DEXE file (special preconfigured bootable hdimage
-containing just one DOS application)
+.I -L <log_string>
+Writes provided <log_string> to a log.
 .TP
 .I -I
 Parse the string behind

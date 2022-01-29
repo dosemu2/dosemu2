@@ -205,8 +205,8 @@ int _dpmi_set_extended_exception_handler_vector_rm(sigcontext_t *scp, int is_32,
 int _dpmi_simulate_real_mode_interrupt(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *_regs)
 {			/* DPMI 0.9 AX=0300 */
     struct pmaddr_s pma = {
-	.selector = dpmi_sel(),
 	.offset = DPMI_SEL_OFF(DPMI_call),
+	.selector = dpmi_sel(),
     };
     sigcontext_t sa = *scp;
     __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
@@ -230,8 +230,8 @@ int _dpmi_simulate_real_mode_interrupt(sigcontext_t *scp, int is_32, int _vector
 int _dpmi_int(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *_regs)
 { /* like above, but sets ss sp fl */	/* DPMI 0.9 AX=0300 */
     struct pmaddr_s pma = {
-	.selector = dpmi_sel(),
 	.offset = DPMI_SEL_OFF(DPMI_call),
+	.selector = dpmi_sel(),
     };
     sigcontext_t sa = *scp;
     __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
@@ -258,8 +258,8 @@ int _dpmi_int(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *_regs)
 int _dpmi_simulate_real_mode_procedure_retf(sigcontext_t *scp, int is_32, __dpmi_regs *_regs)
 {				/* DPMI 0.9 AX=0301 */
     struct pmaddr_s pma = {
-	.selector = dpmi_sel(),
 	.offset = DPMI_SEL_OFF(DPMI_call),
+	.selector = dpmi_sel(),
     };
     sigcontext_t sa = *scp;
     __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
@@ -289,8 +289,8 @@ int _dpmi_simulate_real_mode_procedure_retf_stack(sigcontext_t *scp, int is_32, 
 int _dpmi_simulate_real_mode_procedure_iret(sigcontext_t *scp, int is_32, __dpmi_regs *_regs)
 {				/* DPMI 0.9 AX=0302 */
     struct pmaddr_s pma = {
-	.selector = dpmi_sel(),
 	.offset = DPMI_SEL_OFF(DPMI_call),
+	.selector = dpmi_sel(),
     };
     sigcontext_t sa = *scp;
     __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));

@@ -2660,7 +2660,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	GenBufSize = 0;
 	for (i=0; i<CurrIMeta; i++)
 	    GenBufSize += I0[i].ngen * MAX_GEND_BYTES_PER_OP;
-	mall_req = GenBufSize + offsetof(CodeBuf, meta[nap]) + 32;// 32 for tail
+	mall_req = GenBufSize + offsetof(CodeBuf, meta) + sizeof(Addr2Pc) * nap + 32;// 32 for tail
 	GenCodeBuf = dlmalloc(mall_req);
 	/* actual code buffer starts from here */
 	BaseGenBuf = CodePtr = (unsigned char *)&GenCodeBuf->meta[nap];
@@ -2732,7 +2732,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	I0->totlen = CodePtr - BaseGenBuf;
 
 	/* shrink buffer to what is actually needed */
-	mall_req = I0->totlen + offsetof(CodeBuf, meta[nap]);
+	mall_req = I0->totlen + offsetof(CodeBuf, meta) + sizeof(Addr2Pc) * nap;
 	GenCodeBuf = dlrealloc(GenCodeBuf, mall_req);
 	if (debug_level('e')>3)
 		e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
@@ -3161,6 +3161,9 @@ asm(".text\n"
     "do_seq_start:\n"
     "push "R_REG(dx)"\n"
     "jmp *"R_REG(ax)"\n");
+#ifdef __cplusplus
+extern "C"
+#endif
 void do_seq_start(void);
 static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 		unsigned char *ecpu, unsigned char *SeqStart)

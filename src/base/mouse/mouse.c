@@ -1166,8 +1166,8 @@ static void scale_coords3(int x, int y, int x_range, int y_range,
 
 	get_scale_range(&mx_range, &my_range);
 	scale_coords2(x, y, x_range, y_range, mx_range, my_range,
-			min(speed_x, mice->init_speed_x),
-			min(speed_y, mice->init_speed_y), s_x, s_y);
+			_min(speed_x, mice->init_speed_x),
+			_min(speed_y, mice->init_speed_y), s_x, s_y);
 }
 
 static void scale_coords(int x, int y, int x_range, int y_range,
@@ -1179,8 +1179,8 @@ static void scale_coords(int x, int y, int x_range, int y_range,
 	scale_coords2(x, y, x_range, y_range, mx_range, my_range,
 		/* simcity hack: only handle cursor speed-ups but ignore
 		 * slow-downs. */
-		min(mouse.speed_x, mice->init_speed_x),
-		min(mouse.speed_y, mice->init_speed_y), s_x, s_y);
+		_min(mouse.speed_x, mice->init_speed_x),
+		_min(mouse.speed_y, mice->init_speed_y), s_x, s_y);
 }
 
 static void mouse_reset(void)

@@ -281,7 +281,8 @@ done:
   return 0;
 }
 
-void video_early_close(void) {
+void video_early_close(void)
+{
   v_printf("VID: video_early_close() called\n");
   if (Video && Video->early_close) {
     Video->early_close();
@@ -292,8 +293,10 @@ void video_early_close(void) {
    * update_screen() at the same time. */
 }
 
-void video_close(void) {
+void video_close(void)
+{
   v_printf("VID: video_close() called\n");
+  render_done();
   if (Video && Video->close) {
     Video->close();
     v_printf("VID: video_close()->Video->close() called\n");

@@ -14,7 +14,7 @@ void makemcontext(m_ucontext_t *ucp, void (*func)(void*), void *arg)
 {
 	uintptr_t *sp;
 
-	sp = ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size/sizeof(*ucp->uc_stack.ss_sp);
+	sp = (uintptr_t *)((unsigned char *)ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size);
 	sp = (void*)((uintptr_t)sp - (uintptr_t)sp%16); /* 16-align for OS X */
 #ifdef __i386__
 	sp -= 3;	// alignment
@@ -37,10 +37,4 @@ int swapmcontext(m_ucontext_t *oucp, const m_ucontext_t *ucp)
 	if(getmcontext(oucp) == 0)
 		setmcontext(ucp);
 	return 0;
-}
-
-int getmcontext(struct m_ucontext *u)
-{
-	memset(&u->uc_mcontext, 0, sizeof u->uc_mcontext);
-	return _getmcontext(&u->uc_mcontext);
 }

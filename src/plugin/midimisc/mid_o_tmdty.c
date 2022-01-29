@@ -195,7 +195,7 @@ static int midotmdty_check_ready(char *buf, int size, int verb)
     FD_ZERO(&rfds);
     FD_SET(ctrl_sock_in, &rfds);
     FD_SET(ctrl_sock_out, &rfds);
-    ctrl_sock_max = max(ctrl_sock_in, ctrl_sock_out);
+    ctrl_sock_max = _max(ctrl_sock_in, ctrl_sock_out);
     tv.tv_sec = 3;
     tv.tv_usec = 0;
     while ((selret = select(ctrl_sock_max + 1, &rfds, NULL, NULL, &tv)) > 0) {

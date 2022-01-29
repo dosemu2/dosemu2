@@ -8,5 +8,6 @@ int is_display_charset(struct char_set *set);
 
 void set_external_charset(const char *charset_name);
 void set_internal_charset(const char *charset_name);
+void set_country_code(int cntry);
 
 #endif /* DOSEMU_CHARSET_H */

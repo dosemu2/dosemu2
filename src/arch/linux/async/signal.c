@@ -758,9 +758,14 @@ static void sigstack_init(void)
 
   /* sigaltstack_wa is optional. See if we need it. */
   /* .ss_flags is signed int and SS_AUTODISARM is a sign bit :( */
+  stack_t dummy2;
   stack_t dummy = { .ss_flags = (int)(SS_DISABLE | SS_AUTODISARM) };
-  int err = dosemu_sigaltstack(&dummy, NULL);
+  int err = dosemu_sigaltstack(&dummy, &dummy2);
   int errno_save = errno;
+
+  /* needs to drop SS_AUTODISARM or asan will fail. See
+   * https://github.com/dosemu2/dosemu2/issues/1576 */
+  dosemu_sigaltstack(&dummy2, NULL);
 #if SIGALTSTACK_WA
   if ((err && errno_save == EINVAL)
 #ifdef __i386__
@@ -1053,6 +1058,8 @@ static void SIGALRM_call(void *arg)
   }
 
   uncache_time();
+  /* inject timer before anything else */
+  timer_tick();
   process_callbacks();
 
   if ((pic_sys_time-cnt10) >= (PIT_TICK_RATE/100) || dosemu_frozen) {
@@ -1066,7 +1073,6 @@ static void SIGALRM_call(void *arg)
 
   if (config.rdtsc)
     update_cputime_TSCBase();
-  timer_tick();
 
 #if 0
 /*

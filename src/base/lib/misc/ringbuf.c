@@ -231,7 +231,7 @@ static size_t sqcalc_avail(struct seqbuf *seq)
 	return SQ_PSUB(seq->tail, cur);
     avail1 = seq->len - SQ_PSUB(cur, seq->beg);
     avail2 = SQ_PSUB(seq->tail, seq->beg);
-    return max(avail1, avail2);
+    return _max(avail1, avail2);
 }
 
 int seqbuf_write(struct seqbuf *seq, const void *buffer, size_t len)

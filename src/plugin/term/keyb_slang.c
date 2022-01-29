@@ -652,7 +652,6 @@ static int init_slang_keymaps(void)
 {
 	SLKeyMap_List_Type *m;
 	char buf[5];
-	unsigned long esc_scan;
 	char * term;
 	char * kf21;
 
@@ -666,9 +665,6 @@ static int init_slang_keymaps(void)
 	{
 		config.term_esc_char = 30;
 	}
-	/* escape characters are identity mapped in unicode. */
-	esc_scan = config.term_esc_char;
-	esc_scan |= CTRL_MASK;
 
 	keyb_state.Esc_Char = config.term_esc_char + '@';
 

@@ -130,7 +130,6 @@ static SDL_Color text_colors[16];
 #define TTF_CHARS_MAX 10000
 static struct rng_s ttf_char_rng;
 static SDL_Texture *texture_ttf;
-static struct text_system Text_SDL;
 #endif
 struct rect_desc {
   SDL_Rect rect;
@@ -167,6 +166,27 @@ static int current_mode_class;
 static SDL_Keycode mgrab_key = SDLK_HOME;
 
 #define CONFIG_SDL_SELECTION 1
+
+static void SDL_draw_string(void *opaque, int x, int y, const char *text,
+    int len, Bit8u attr);
+static void SDL_draw_line(void *opaque, int x, int y, float ul, int len,
+    Bit8u attr);
+static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
+    int start, int end, Boolean focus);
+static void SDL_set_text_palette(void *opaque, DAC_entry *col, int i);
+static void SDL_text_lock(void *opaque);
+static void SDL_text_unlock(void *opaque);
+static struct text_system Text_SDL =
+{
+  SDL_draw_string,
+  SDL_draw_line,
+  SDL_draw_text_cursor,
+  SDL_set_text_palette,
+  SDL_text_lock,
+  SDL_text_unlock,
+  NULL,
+  "sdl",
+};
 
 /* separate done call-back for video-unrelated things (eg audio) */
 static void SDL_done(void)
@@ -1074,7 +1094,7 @@ static int SDL_change_config(unsigned item, void *buf)
   case CHG_FONT: {
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
     char *p;
-    while ((p = strchr(buf, '_')))
+    while ((p = strchr((const char *)buf, '_')))
       *p = ' ';
     if (!sdl_load_font(buf)) {
       error("xmode: font %s not found\n", (char *)buf);
@@ -1436,7 +1456,7 @@ static void sdl_scrub(void)
 }
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text,
+static void SDL_draw_string(void *opaque, int x, int y, const char *text,
     int len, Bit8u attr)
 {
   char *s;
@@ -1448,14 +1468,14 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text,
   v_printf("SDL_draw_string\n");
 
   init_charset_state(&state, trconfig.video_mem_charset);
-  characters = character_count(&state, (char *)text, len);
+  characters = character_count(&state, text, len);
   if (characters == -1) {
     v_printf("SDL: invalid char count\n");
     return;
   }
   str = malloc(sizeof(t_unicode) * (characters + 1));
 
-  charset_to_unicode_string(&state, str, (const char **)&text, len, characters + 1);
+  charset_to_unicode_string(&state, str, &text, len, characters + 1);
   cleanup_charset_state(&state);
 
   s = unicode_string_to_charset((wchar_t *)str, "utf8");
@@ -1474,8 +1494,8 @@ static void SDL_draw_string(void *opaque, int x, int y, unsigned char *text,
                                            text_colors[ATTR_BG(attr)]);
   d.rect.x = font_width * x;  /* font_width/height needs to be under font mtx */
   d.rect.y = font_height * y; /* height plus spacing to next line */
-  d.rect.w = min(srf->w, font_width * len);
-  d.rect.h = min(srf->h, font_height);
+  d.rect.w = _min(srf->w, font_width * len);
+  d.rect.h = _min(srf->h, font_height);
   pthread_mutex_unlock(&sdl_font_mtx);
   free(s);
   if (!srf) {
@@ -1638,18 +1658,6 @@ static void SDL_text_unlock(void *opaque)
 {
 }
 
-
-static struct text_system Text_SDL =
-{
-  SDL_draw_string,
-  SDL_draw_line,
-  SDL_draw_text_cursor,
-  SDL_set_text_palette,
-  SDL_text_lock,
-  SDL_text_unlock,
-  NULL,
-  "sdl",
-};
 #endif
 
 CONSTRUCTOR(static void init(void))

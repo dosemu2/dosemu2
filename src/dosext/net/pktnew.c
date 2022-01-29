@@ -316,7 +316,7 @@ static int pkt_int(void)
 		    if (hdlp->cls == LO(ax) && /* same class? */
 			!memcmp(hdlp->packet_type, /* same type? (prefix) */
 				SEG_ADR((char *),ds,si),
-				min(LWORD(ecx), hdlp->packet_type_len)))
+				_min(LWORD(ecx), hdlp->packet_type_len)))
 		    {
 			HI(dx) = E_TYPE_INUSE;
 			CARRY;

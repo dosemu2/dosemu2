@@ -1641,7 +1641,7 @@ int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 static int get_dr(pid_t pid, int i, unsigned int *dri)
 {
   *dri = ptrace(PTRACE_PEEKUSER, pid,
-		(void *)offsetof(struct user, u_debugreg[i]), 0);
+		(void *)(offsetof(struct user, u_debugreg) + sizeof(int) * i), 0);
   D_printf("DPMI: ptrace peek user dr%d=%x\n", i, *dri);
   return *dri != -1 || errno == 0;
 }
@@ -1649,7 +1649,7 @@ static int get_dr(pid_t pid, int i, unsigned int *dri)
 static int set_dr(pid_t pid, int i, unsigned long dri)
 {
   int r = ptrace(PTRACE_POKEUSER, pid,
-		 (void *)offsetof(struct user, u_debugreg[i]), (void *)dri);
+		 (void *)(offsetof(struct user, u_debugreg) + sizeof(int) * i), (void *)dri);
   D_printf("DPMI: ptrace poke user r=%d dr%d=%lx\n", r, i, dri);
   return r == 0;
 }
@@ -1718,7 +1718,7 @@ static int dpmi_debug_breakpoint(int op, sigcontext_t *scp)
 	if(get_dr(pid, 7, &dr7)) for (i=0; i<4; i++) {
 	  if ((~dr7 >> (i*2)) & 3) {
 	    unsigned mask;
-	    if (!set_dr(pid, i, (_LWORD(ebx) << 16) | _LWORD(ecx))) {
+	    if (!set_dr(pid, i, (_LWORD_(ebx) << 16) | _LWORD_(ecx))) {
 	      err = 0x25;
 	      break;
 	    }
@@ -1835,7 +1835,7 @@ int DPMI_get_save_restore_address(far_t *raddr, struct pmaddr_s *paddr)
       raddr->offset = DPMI_OFF + HLT_OFF(DPMI_save_restore_rm);
       paddr->selector = dpmi_sel();
       paddr->offset = DPMI_SEL_OFF(DPMI_save_restore_pm);
-      return max(sizeof(struct RealModeCallStructure), 52); /* size to hold all registers */
+      return _max(sizeof(struct RealModeCallStructure), 52); /* size to hold all registers */
 }
 
 int DPMI_allocate_specific_ldt_descriptor(unsigned short selector)
@@ -2858,7 +2858,7 @@ err:
   }
 
   case 0x0d01: {	/* Free Shared Memory */
-    int err = DPMIFreeShared((_LWORD(esi) << 16) | _LWORD(edi));
+    int err = DPMIFreeShared((_LWORD_(esi) << 16) | _LWORD_(edi));
     if (err) {
       _eflags |= CF;
       _LWORD(eax) = 0x8023;
@@ -2900,8 +2900,8 @@ err:
       unsigned addr, size;
       dpmi_pm_block *blk;
 
-      addr = ((uint32_t)_LWORD(ebx)) << 16 | (_LWORD(ecx));
-      size = ((uint32_t)_LWORD(esi)) << 16 | (_LWORD(edi));
+      addr = (_LWORD_(ebx) << 16) | (_LWORD_(ecx));
+      size = (_LWORD_(esi) << 16) | (_LWORD_(edi));
 
       D_printf("DPMI: Map Physical Memory, addr=%#08x size=%#x\n", addr, size);
 
@@ -2920,7 +2920,7 @@ err:
   case 0x0801: {	/* free Physical Address Mapping */
       size_t vbase;
       int rc;
-      vbase = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
+      vbase = (_LWORD_(ebx) << 16) | (_LWORD_(ecx));
       D_printf("DPMI: Unmap Physical Memory, vbase=%#08zx\n", vbase);
       rc = DPMI_unmapHWRam(&DPMI_CLIENT.pm_block_root, vbase);
       if (rc == -1) {
@@ -4018,7 +4018,7 @@ static void do_pm_cpu_exception(sigcontext_t *scp, INTDESC entry)
 
     *--ssp = (old_ss << 16) | (unsigned short) old_esp;
     *--ssp = ((unsigned short) dpmi_flags_to_stack(_eflags) << 16) | _cs;
-    *--ssp = ((unsigned)_LWORD(eip) << 16) | _err;
+    *--ssp = (_LWORD_(eip) << 16) | _err;
     *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
   }
   ADD_16_32(_esp, -0x58);
@@ -4121,7 +4121,7 @@ static void do_legacy_cpu_exception(sigcontext_t *scp, INTDESC entry)
     *--ssp = old_esp >> 16;  // save high esp word or it can be corrupted
     *--ssp = (old_ss << 16) | (unsigned short) old_esp;
     *--ssp = ((unsigned short) dpmi_flags_to_stack(_eflags) << 16) | _cs;
-    *--ssp = ((unsigned)_LWORD(eip) << 16) | _err;
+    *--ssp = (_LWORD_(eip) << 16) | _err;
     *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
     ADD_16_32(_esp, -0x14);
   }

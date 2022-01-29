@@ -33,12 +33,12 @@
  ***************************************************************************/
 
 #include <stddef.h>
+#include <stdlib.h>
+#include <math.h>
 #include "dos2linux.h"
 #include "emu86.h"
 #include "codegen.h"
 #include "codegen-sim.h"
-#include <stdlib.h>
-#include <math.h>
 
 int (*Fp87_op)(int exop, int reg);
 static int Fp87_op_sim(int exop, int reg);

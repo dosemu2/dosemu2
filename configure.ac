@@ -18,6 +18,38 @@ AC_DEFINE(HAVE_STD_C11)
 AC_PROG_CPP
 AC_USE_SYSTEM_EXTENSIONS
 
+AC_MSG_CHECKING([for $CC actually being clang])
+if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
+  AC_MSG_RESULT([yes])
+  AC_MSG_CHECKING([for clang >= 3.7])
+  clang_ver=`$CC -v 2>&1 | grep version | sed 's/.*version //' | cut -d " " -f 1`
+  clang_maj=`echo $clang_ver | cut -d "." -f 1`
+  clang_mid=`echo $clang_ver | cut -d "." -f 2`
+  if test $clang_maj -ge 3 -a $clang_mid -ge 7 -o $clang_maj -ge 4 ; then
+    AC_MSG_RESULT([yes, $clang_ver])
+  else
+    AC_MSG_RESULT([no, $clang_ver])
+    AC_MSG_ERROR([Need clang-3.7 or newer, or use gcc instead])
+  fi
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -Wno-incompatible-pointer-types \
+    -Wno-address-of-packed-member"
+  LDFLAGS="$LDFLAGS -Wno-unused-command-line-argument"
+  use_clang="yes"
+else
+  CCAS="$CC"
+  AC_MSG_RESULT([no])
+  use_clang="no"
+
+  AC_MSG_CHECKING([for $CC actually being c++])
+  if "$CC" -v 2>&1 | grep "g++" | grep "COLLECT_GCC" >/dev/null; then
+    AC_MSG_RESULT([yes, using -fpermissive])
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpermissive"
+  else
+    AC_MSG_RESULT([no])
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions"
+  fi
+fi
+
 AC_PATH_PROG([AS], [as])
 if test -z "$AS"; then
   AC_MSG_ERROR(as not found)
@@ -180,8 +212,8 @@ AC_SUBST(CONFIG_HOST)
 
 machine=`"$CC" -dumpmachine | cut -d- -f1`
 
-DOSEMU_CPPFLAGS="-imacros config.hh"
-DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations \
+DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -imacros config.hh"
+DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wall -Wstrict-prototypes -Wmissing-declarations \
 -Wnested-externs -fms-extensions -pthread \
 -Wno-unused-result -Wcast-qual -Wwrite-strings"
 AX_CHECK_COMPILE_FLAG([-Waddress-of-packed-member],
@@ -337,6 +369,10 @@ AC_ARG_ENABLE(debug,
                AS_HELP_STRING([--enable-debug], [compile with debug info]))
 if test "$enable_debug" = "yes"; then
   AC_MSG_NOTICE(Compiling with debug info...)
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -ggdb3"
+  if test "$use_clang" = "yes" ; then
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fdebug-macro"
+  fi
   AC_ARG_ENABLE(xbacktrace, AS_HELP_STRING([--enable-xbacktrace],
     [enable extended backtrace functionality]))
   if test "$enable_xbacktrace" = "yes"; then
@@ -420,38 +456,6 @@ else
   target_cpu=$with_target_cpu
 fi
 
-AC_MSG_CHECKING([for $CC actually being clang])
-if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
-  AC_MSG_RESULT([yes])
-  AC_MSG_CHECKING([for clang >= 3.7])
-  clang_ver=`$CC -v 2>&1 | grep version | sed 's/.*version //' | cut -d " " -f 1`
-  clang_maj=`echo $clang_ver | cut -d "." -f 1`
-  clang_mid=`echo $clang_ver | cut -d "." -f 2`
-  if test $clang_maj -ge 3 -a $clang_mid -ge 7 -o $clang_maj -ge 4 ; then
-    AC_MSG_RESULT([yes, $clang_ver])
-  else
-    AC_MSG_RESULT([no, $clang_ver])
-    AC_MSG_ERROR([Need clang-3.7 or newer, or use gcc instead])
-  fi
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -Wno-incompatible-pointer-types \
-    -Wno-address-of-packed-member"
-  LDFLAGS="$LDFLAGS -Wno-unused-command-line-argument"
-  use_clang="yes"
-else
-  CCAS="$CC"
-  AC_MSG_RESULT([no])
-  use_clang="no"
-
-  AC_MSG_CHECKING([for $CC actually being c++])
-  if "$CC" -v 2>&1 | grep 'COLLECT_GCC=g++' >/dev/null; then
-    AC_MSG_RESULT([yes, using -fpermissive])
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpermissive"
-  else
-    AC_MSG_RESULT([no])
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions"
-  fi
-fi
-
 if test "$machine" = "x86_64" -a "$with_target_bits" != "32" -a \
 	"$enable_profile" != "yes"; then
     AC_MSG_NOTICE(Compiling as PIE for $machine...)
@@ -484,17 +488,20 @@ if test "$enable_profile" = "yes"; then
     AC_MSG_NOTICE(enabling profiling)
 fi
 
-if test "$enable_debug" = "yes" ; then
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -ggdb3"
-  if test -z "$CFLAGS" ; then
+AC_ARG_ENABLE(optimization,
+               AS_HELP_STRING([--disable-optimization], [disable optimization]))
+if test "$enable_optimization" = "no" ; then
+  if test "$enable_debug" = "yes"; then
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Og"
+    AC_MSG_NOTICE(optimization set to -Og)
+  else
     # simx86 is too slow on gcc without -O
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O0"
-  fi
-  if test "$use_clang" = "yes" ; then
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fdebug-macro"
+    AC_MSG_NOTICE(optimization set to -O0)
   fi
 elif test -z "$CFLAGS" ; then
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
+  AC_MSG_NOTICE(optimization set to -O2)
 fi
 
 DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"

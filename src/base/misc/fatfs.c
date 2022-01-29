@@ -111,32 +111,34 @@ void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *))
 }
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
-#define MS_D IX(IO, MSD)
-#define DR_D IX(DRB, DRD)
-#define PC_D IX(IBMB, IBMD)
-#define EDR_D IX(EDRB, EDRD)
-#define RXO_D IX(RXOB, RXOD)
-#define RXM_D IX(RXMB, RXMD)
-#define RXN_D (1 << RXND_IDX)
-#define MOS_D IX(MOSB, MOSD)
-#define FDO_D (1 << IPL_IDX)
-#define FD_D (1 << KER_IDX)
-#define FDP_D (1 << FDP_IDX)
+static const uint64_t MS_D = IX(IO, MSD);
+static const uint64_t DR_D = IX(DRB, DRD);
+static const uint64_t PC_D = IX(IBMB, IBMD);
+static const uint64_t EDR_D = IX(EDRB, EDRD);
+static const uint64_t RXO_D = IX(RXOB, RXOD);
+static const uint64_t RXM_D = IX(RXMB, RXMD);
+static const uint64_t RXN_D = (1 << RXND_IDX);
+static const uint64_t MOS_D = IX(MOSB, MOSD);
+static const uint64_t FDO_D = (1 << IPL_IDX);
+static const uint64_t FD_D = (1 << KER_IDX);
+#ifdef USE_FDPP
+static const uint64_t FDP_D = (1 << FDP_IDX);
+#endif
 
-#define OLDPCD_D (PC_D | (1 << 25))
-#define NEWPCD_D (PC_D | (1 << 26))
-#define OLDDRD_D DR_D
+static const uint64_t OLDPCD_D = (PC_D | (1 << 25));
+static const uint64_t NEWPCD_D = (PC_D | (1 << 26));
+static const uint64_t OLDDRD_D = DR_D;
 /* Most DR-DOS versions have the same filenames as PC-DOS for compatibility
  * reasons but have larger file sizes which defeats the PC-DOS old/new logic,
  * so we need a special case */
-#define MIDDRD_D (PC_D | (1 << 27))
-#define ENHDRD_D EDR_D
+static const uint64_t MIDDRD_D = (PC_D | (1 << 27));
+static const uint64_t ENHDRD_D = EDR_D;
 
-#define OLDMSD_D (MS_D | (1 << 28))
-#define NECMSD_D (MS_D | (1 << 29))
-#define MIDMSD_D (MS_D | (1 << 30))
-#define NEWMSD_D (MS_D | (1ULL << 31))
-#define OLDMOS_D (MOS_D | (1ULL << 32))
+static const uint64_t OLDMSD_D = (MS_D | (1 << 28));
+static const uint64_t NECMSD_D = (MS_D | (1 << 29));
+static const uint64_t MIDMSD_D = (MS_D | (1 << 30));
+static const uint64_t NEWMSD_D = (MS_D | (1ULL << 31));
+static const uint64_t OLDMOS_D = (MOS_D | (1ULL << 32));
 
 FATFS_EXPORTS
 
@@ -444,7 +446,7 @@ int read_fat(fatfs_t *f, unsigned pos, unsigned char *buf)
       bioffs = 0;
     }
     buf[i] |= (u1 << nbit) & 0xff;
-    wb = min(8 - nbit, lnb);
+    wb = _min(8 - nbit, lnb);
     u1 >>= wb;
     lnb -= wb;
     nbit += wb;

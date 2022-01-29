@@ -97,7 +97,7 @@ static struct video_system Video_term = {
    "term"
 };
 
-static void term_draw_string(void *opaque, int x, int y, unsigned char *text,
+static void term_draw_string(void *opaque, int x, int y, const char *text,
     int len, Bit8u attr);
 static void term_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
     int first, int last, Boolean focus);
@@ -153,9 +153,9 @@ static int *Attribute_Map;
    mb1 != 0 in utf8 mode means that mb1 is in the alternate character set.
  */
 static unsigned char The_Charset[256][4];
-static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr);
-static void term_write_nchars_utf8(unsigned char *text, int len, Bit8u attr);
-static void (*term_write_nchars)(unsigned char *, int, Bit8u) = term_write_nchars_utf8;
+static void term_write_nchars_8bit(const char *text, int len, Bit8u attr);
+static void term_write_nchars_utf8(const char *text, int len, Bit8u attr);
+static void (*term_write_nchars)(const char *, int, Bit8u) = term_write_nchars_utf8;
 
 /* I think this is what is assumed. */
 static int Rows = 25;
@@ -737,11 +737,11 @@ static int slang_update (void)
    return 1;
 }
 
-static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr)
+static void term_write_nchars_8bit(const char *text, int len, Bit8u attr)
 {
    char buf[len + 1];
    char *bufp;
-   unsigned char *text_end;
+   const char *text_end;
 
    text_end = text + len;
 
@@ -758,7 +758,7 @@ static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr)
    /* we can't use the ACS when blinking */
    if (SLtt_Use_Blink_For_ACS) {
       for (bufp = buf; text < text_end; bufp++, text++)
-         *bufp = The_Charset[*text][0];
+         *bufp = The_Charset[(unsigned char)*text][0];
       SLsmg_write_nchars(buf, bufp - buf);
       SLsmg_refresh ();
       return;
@@ -770,14 +770,14 @@ static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr)
 
    while (text < text_end) {
       for (bufp = buf; text < text_end; bufp++, text++) {
-	 if (The_Charset[*text][1] != '\0') break;
-         *bufp = The_Charset[*text][0];
+	 if (The_Charset[(unsigned char)*text][1] != '\0') break;
+         *bufp = The_Charset[(unsigned char)*text][0];
       }
       SLsmg_write_nchars(buf, bufp - buf);
       if (text >= text_end) break;
       /* print ACS characters */
       for (bufp = buf; text < text_end; bufp++, text++) {
-	 unsigned char ch = The_Charset[*text][1];
+	 unsigned char ch = The_Charset[(unsigned char)*text][1];
 	 if (ch == '\0') break;
          *bufp = ch;
       }
@@ -787,18 +787,18 @@ static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr)
    }
 }
 
-static void term_write_nchars_utf8(unsigned char *text, int len, Bit8u attr)
+static void term_write_nchars_utf8(const char *text, int len, Bit8u attr)
 {
    char buf[(len + 1) * 3];
    char *bufp;
-   unsigned char *text_end = text + len;
+   const char *text_end = text + len;
 
    for (bufp = buf; text < text_end; bufp += bufp[3], text++)
-      memcpy(bufp, The_Charset + *text, 4);
+      memcpy(bufp, &The_Charset[(unsigned char)*text], 4);
    SLsmg_write_nchars(buf, bufp - buf);
 }
 
-static void term_draw_string(void *opaque, int x, int y, unsigned char *text,
+static void term_draw_string(void *opaque, int x, int y, const char *text,
     int len, Bit8u attr)
 {
    int this_obj = Attribute_Map[attr];

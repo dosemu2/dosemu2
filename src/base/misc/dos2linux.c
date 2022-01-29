@@ -794,7 +794,7 @@ void memcpy_2unix(void *dest, dosaddr_t src, size_t n)
     /* EMS can produce the non-contig mapping. We need to iterate it
      * page-by-page or use a separate alias window... */
     dosaddr_t bound = (src & PAGE_MASK) + PAGE_SIZE;
-    size_t to_copy = min(n, bound - src);
+    size_t to_copy = _min(n, bound - src);
     MEMCPY_2UNIX(dest, src, to_copy);
     src += to_copy;
     dest += to_copy;
@@ -810,7 +810,7 @@ void memcpy_2dos(dosaddr_t dest, const void *src, size_t n)
     e_invalidate(dest, n);
     while (n) {
       dosaddr_t bound = (dest & PAGE_MASK) + PAGE_SIZE;
-      size_t to_copy = min(n, bound - dest);
+      size_t to_copy = _min(n, bound - dest);
       MEMCPY_2DOS(dest, src, to_copy);
       src += to_copy;
       dest += to_copy;
@@ -827,7 +827,7 @@ void memset_dos(dosaddr_t dest, char ch, size_t n)
     e_invalidate(dest, n);
     while (n) {
       dosaddr_t bound = (dest & PAGE_MASK) + PAGE_SIZE;
-      size_t to_copy = min(n, bound - dest);
+      size_t to_copy = _min(n, bound - dest);
       MEMSET_DOS(dest, ch, to_copy);
       dest += to_copy;
       n -= to_copy;
@@ -849,8 +849,8 @@ void memmove_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n)
     while (n) {
       dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
       dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
-      size_t to_copy1 = min(bound1 - src, bound2 - dest);
-      size_t to_copy = min(n, to_copy1);
+      size_t to_copy1 = _min(bound1 - src, bound2 - dest);
+      size_t to_copy = _min(n, to_copy1);
       MEMMOVE_DOS2DOS(dest, src, to_copy);
       src += to_copy;
       dest += to_copy;
@@ -871,8 +871,8 @@ void memcpy_dos2dos(unsigned dest, unsigned src, size_t n)
     while (n) {
       dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
       dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
-      size_t to_copy1 = min(bound1 - src, bound2 - dest);
-      size_t to_copy = min(n, to_copy1);
+      size_t to_copy1 = _min(bound1 - src, bound2 - dest);
+      size_t to_copy = _min(n, to_copy1);
       MEMCPY_DOS2DOS(dest, src, to_copy);
       src += to_copy;
       dest += to_copy;
@@ -1088,7 +1088,7 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 	if (LWORD(eflags) & CF) {
 		com_errno = LWORD(eax);
 	} else {
-		memcpy(buf32, s, min(size, LWORD(eax)));
+		memcpy(buf32, s, _min(size, LWORD(eax)));
 		ret = LWORD(eax);
 	}
 	post_msdos();
