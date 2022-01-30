@@ -553,12 +553,8 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
 	LO(ax) = 0;
 	if (eject_allowed) {
 	    if (ioctl(cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
-		if (ioctl(cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {	/* no disk in drive */
-		    LWORD(ebx) = audio_status.status | 0x800;
+		    audio_status.status &= 0x100;    // no subchannel control
 		    C_printf("CDROM: subch failed: %s\n", strerror(errno));
-		    break;
-		} else
-		    cdrom_reset();
 	    }
 	}
 	/* disk in drive */
