@@ -400,6 +400,7 @@ int mscdex(void)
 		break;
 	case 0x10:
 		{
+			uint16_t seg;
 			int driver = GetDriver(_CX);
 			if (!buf) {
 				_AX = 0xf;
@@ -408,14 +409,31 @@ int mscdex(void)
 			}
 			CARRY;
 			if (driver >= 4) {
+#if 0
+				_AX = 0xf;
+#else
+				/* Ultimate Domain game puts junk into CH,
+				 * which leads to a wrong drive. We can
+				 * either clean CH ourselves or not return
+				 * an error here. */
+				NOCARRY;
+#endif
+				break;
+			}
+			devname[7] = driver + '1';
+			dev = is_dos_device(devname);
+			if (!dev) {
 				_AX = 0xf;
 				break;
 			}
+			seg = dev >> 16;
+			dev = SEGOFF2LINEAR(seg, dev & 0xffff);
 			WRITE_BYTE(buf + 1, driver);  // set SubUnit
-			strat = READ_WORD(buf + 6);
-			intr = READ_WORD(buf + 8);
-			fake_call_to(_ES, intr);
-			fake_call_to(_ES, strat);
+			/* call driver with req buf in ES:BX */
+			strat = READ_WORD(dev + 6);
+			intr = READ_WORD(dev + 8);
+			fake_call_to(seg, intr);
+			fake_call_to(seg, strat);
 			NOCARRY;
 			break;
 		}
