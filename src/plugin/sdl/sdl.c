@@ -138,6 +138,7 @@ struct rect_desc {
 static int font_width, font_height;
 static int win_width, win_height;
 static int real_win_width, real_win_height;
+static int desired_win_width, desired_win_height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
 static int use_ttf_font;
@@ -877,6 +878,10 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     is_text = 1;
   }
 
+  /* remember desired params before adjusting to real window */
+  desired_win_width = w_x_res;
+  desired_win_height = w_y_res;
+
   flags = SDL_GetWindowFlags(window);
   if (!(flags & (SDL_WINDOW_MAXIMIZED | SDL_WINDOW_FULLSCREEN_DESKTOP))) {
     int nw_x_res, nw_y_res;
@@ -1039,6 +1044,7 @@ static void toggle_fullscreen_mode(void)
     v_printf("SDL: entering windowed mode!\n");
     pthread_mutex_lock(&rend_mtx);
     SDL_SetWindowFullscreen(window, 0);
+    SDL_SetWindowSize(window, desired_win_width, desired_win_height);
     pthread_mutex_unlock(&rend_mtx);
     if (force_grab && grab_active) {
       window_grab(0, 0);
