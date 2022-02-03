@@ -1030,6 +1030,8 @@ static void toggle_grab(int kbd)
 
 static void toggle_fullscreen_mode(void)
 {
+  if (!initialized)
+    return;
   config.X_fullscreen = !config.X_fullscreen;
   if (config.X_fullscreen) {
     v_printf("SDL: entering fullscreen mode\n");
