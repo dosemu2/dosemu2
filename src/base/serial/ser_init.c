@@ -50,7 +50,6 @@
 int no_local_video = 0;
 serial_t com_cfg[MAX_SER];
 com_t com[MAX_SER];
-static u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
 struct ser_dmx {
   ioport_t port;
   Bit8u def_val;
@@ -284,15 +283,6 @@ static void do_ser_init(int num)
   /* FOSSIL emulation is inactive at startup. */
   com[num].fossil_active = FALSE;
 
-  /* convert irq number to pic_ilevel number and set up interrupt
-   * if irq is invalid, no interrupt will be assigned
-   */
-  if(!irq_source_num[com_cfg[num].irq]) {
-    s_printf("SER%d: enabling interrupt %d\n", num, com[num].interrupt);
-    pic_seti(com[num].interrupt, NULL, 0, NULL);
-  }
-  irq_source_num[com_cfg[num].irq]++;
-
   /*** The following is where the real initialization begins ***/
 
   /* Tell the port manager that we exist and that we're alive */
@@ -304,8 +294,7 @@ static void do_ser_init(int num)
   io_device.write_portd = NULL;
   io_device.start_addr  = com_cfg[num].base_port;
   io_device.end_addr    = com_cfg[num].end_port;
-  io_device.irq         = (irq_source_num[com_cfg[num].irq] == 1 ?
-                           com_cfg[num].irq : EMU_NO_IRQ);
+  io_device.irq         = EMU_NO_IRQ;  // shared, don't check for conflicts
   io_device.fd		= -1;
   io_device.handler_name = default_com[num].handler_name;
   port_register_handler(io_device, 0);
