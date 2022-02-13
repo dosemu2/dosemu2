@@ -73,7 +73,7 @@ static int Insert_Type(int, int, Bit8u *);
 static int Remove_Type(int);
 int Find_Handle(u_char *buf);
 static void printbuf(const char *, struct ethhdr *);
-static int pkt_check_receive(int ilevel);
+static int pkt_receive(void);
 static void pkt_receiver_callback(void);
 static void pkt_receiver_callback_thr(void *arg);
 static void pkt_register_net_fd_and_mode(int fd, int mode);
@@ -166,7 +166,7 @@ pkt_init(void)
     p_stats = MK_FP32(BIOSSEG, PKTDRV_stats);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
-    pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
+    pic_seti(PIC_NET, NULL, 0, pkt_receiver_callback);
 
     /* fill other global data */
 
@@ -572,8 +572,10 @@ Remove_Type(int handle)
 
 static void pkt_receiver_callback(void)
 {
-    assert(p_helper_size);
-    coopth_start(PKTRcvCall_TID, NULL);
+    if (pkt_receive()) {
+      assert(p_helper_size);
+      coopth_start(PKTRcvCall_TID, NULL);
+    }
 }
 
 static void pkt_receiver_callback_thr(void *arg)
@@ -682,13 +684,6 @@ static int pkt_receive(void)
         return 0;
     }
     return 0;
-}
-
-static int pkt_check_receive(int ilevel)
-{
-  if (pkt_receive())
-    return 1;	/* run IRQ */
-  return 0;
 }
 
 /*  Find_Handle does type demultiplexing.
