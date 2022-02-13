@@ -289,7 +289,7 @@ static void do_ser_init(int num)
    */
   if(!irq_source_num[com_cfg[num].irq]) {
     s_printf("SER%d: enabling interrupt %d\n", num, com[num].interrupt);
-    pic_seti(com[num].interrupt, pic_serial_run, 0, NULL);
+    pic_seti(com[num].interrupt, NULL, 0, NULL);
   }
   irq_source_num[com_cfg[num].irq]++;
 

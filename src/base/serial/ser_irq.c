@@ -243,14 +243,12 @@ void linestat_engine(int num)           /* Internal Line Status processing */
  * This function is the serial interrupts scheduler.  Its purpose is to
  * update interrupt status and/or invoke a requested serial interrupt.
  * If interrupts are not enabled, the Interrupt Identification Register
- * is still updated and the function returns.  See pic_serial_run() below
- * it is executed right at the instant the interrupt is actually invoked.
+ * is still updated and the function returns.
  *
  * Since it is not possible to run the interrupt on the spot, it triggers
  * the interrupt via the pic_request() function (which is in pic.c)
  * and sets a flag that an interrupt is going to be occur soon.
  *
- * Please read pic_serial_run() for more information about interrupts.
  * [num = port, int_requested = the requested serial interrupt]
  *
  * DANG_END_FUNCTION
@@ -283,43 +281,6 @@ void serial_int_engine(int num, int int_requested)
     if(s3_printf) s_printf("SER%d: Interrupt %d (%d) cannot be requested: enable=%d IER=0x%x\n",
         num, com[num].interrupt, com[num].int_condition, INT_ENAB(num), com[num].IER);
 }
-
-
-/* DANG_BEGIN_FUNCTION pic_serial_run
- *
- * This function is called by the priority iunterrupt controller when a
- * serial interrupt occurs.  It executes the highest priority serial
- * interrupt for that port. (Priority order is: RLSI, RDI, THRI, MSI)
- *
- * Because it is theoretically possible for things to change between the
- * interrupt trigger and the actual interrupt, some checks must be
- * repeated.
- *
- * DANG_END_FUNCTION
- */
-int pic_serial_run(int ilevel)
-{
-  int i, ret = 0;
-
-  for (i = 0; i < config.num_ser; i++) {
-    if (com[i].interrupt != ilevel)
-      continue;
-    if (INT_REQUEST(i))
-      ret++;
-  }
-
-  if(s2_printf) s_printf("SER: ---BEGIN INTERRUPT---\n");
-
-  if (!ret) {
-    s_printf("SER: Interrupt Error: cancelled serial interrupt!\n");
-    /* No interrupt flagged?  Then the interrupt was cancelled sometime
-     * after the interrupt was flagged, but before pic_serial_run executed.
-     * DANG_FIXTHIS how do we cancel a PIC interrupt, when we have come this far?
-     */
-  }
-  return ret;
-}
-
 
 
 /**************************************************************************/
