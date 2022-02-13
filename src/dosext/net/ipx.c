@@ -57,6 +57,8 @@ static void AESTimerTick(void);
 static void ipx_recv_esr_call_thr(void *arg);
 static void ipx_aes_esr_call_thr(void *arg);
 static void do_int7a(void);
+static int ipx_receive(void);
+static int IPXCheckForAESReady(void);
 
 /* DANG_FIXTHIS - get a real value for my address !! */
 static unsigned char MyAddress[10] =
@@ -137,8 +139,8 @@ void ipx_init(void)
         config.ipx_net);
     return;
   }
-  pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
-  pic_seti(PIC_IPX_AES, IPXCheckForAESReady, 0, ipx_aes_esr_call);
+  pic_seti(PIC_IPX, NULL, 0, ipx_recv_esr_call);
+  pic_seti(PIC_IPX_AES, NULL, 0, ipx_aes_esr_call);
 
   recv_tid = coopth_create("IPX receiver callback", ipx_recv_esr_call_thr);
   aes_tid = coopth_create("IPX aes callback", ipx_aes_esr_call_thr);
@@ -492,8 +494,10 @@ static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
 
 static void ipx_recv_esr_call_thr(void *arg)
 {
-  n_printf("IPX: Calling receive ESR\n");
-  ipx_esr_call(recvECB, ESR_CALLOUT_IPX);
+  if (ipx_receive()) {
+    n_printf("IPX: Calling receive ESR\n");
+    ipx_esr_call(recvECB, ESR_CALLOUT_IPX);
+  }
 }
 
 static void ipx_recv_esr_call(void)
@@ -509,7 +513,8 @@ static void ipx_aes_esr_call_thr(void *arg)
 
 static void ipx_aes_esr_call(void)
 {
-  coopth_start(aes_tid, NULL);
+  if (IPXCheckForAESReady())
+    coopth_start(aes_tid, NULL);
 }
 
 static u_char IPXSendPacket(far_t ECBPtr)
@@ -831,7 +836,7 @@ static int IPXReceivePacket(ipx_socket_t * s)
   return 0;
 }
 
-int IPXCheckForAESReady(int ilevel)
+static int IPXCheckForAESReady(void)
 {
   ipx_socket_t *s;
   far_t ECBPtr;
@@ -881,7 +886,7 @@ static void IPXRelinquishControl(void)
   idle_enable(0, 5, 0, "IPX");
 }
 
-int ipx_receive(int ilevel)
+static int ipx_receive(void)
 {
   /* DOS program has given us a time slice */
   /* let's use this as an opportunity to poll outstanding listens */

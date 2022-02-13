@@ -120,8 +120,6 @@ ipx_socket_t;
 
 extern void ipx_init(void);
 extern int IPXInt2FHandler(void);
-extern int ipx_receive(int ilevel);
-extern int IPXCheckForAESReady(int ilevel);
 extern void ipx_send_esr_call(void);
 extern int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks );
 extern void ipx_close(void);
