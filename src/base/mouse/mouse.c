@@ -2247,6 +2247,11 @@ static void mouse_curtick(void)
   mouse_update_cursor(0);
 }
 
+static void do_mouse_irq(void)
+{
+  fake_int_to(BIOSSEG, Mouse_ROUTINE_OFF);
+}
+
 /*
  * DANG_BEGIN_FUNCTION mouse_init
  *
@@ -2292,7 +2297,7 @@ static int int33_mouse_init(void)
   mouse.exc_lx = mouse.exc_ux = -1;
   mouse.exc_ly = mouse.exc_uy = -1;
 
-  pic_seti(PIC_IMOUSE, NULL, 0, NULL);
+  pic_seti(PIC_IMOUSE, NULL, 0, do_mouse_irq);
   sigalrm_register_handler(mouse_curtick);
 
   m_printf("MOUSE: INIT complete\n");

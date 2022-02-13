@@ -110,8 +110,6 @@ IRET_OFF:
 
         .globl Mouse_ROUTINE_OFF
 Mouse_ROUTINE_OFF:
-
-	/* This is the int74 handler */
 	pushw	%ax	/* save everything */
 	pushw	%bx
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
@@ -119,7 +117,7 @@ Mouse_ROUTINE_OFF:
 	int	$DOS_HELPER_INT
 	popw	%bx
 	popw	%ax
-	ljmp $BIOSSEG, $EOI2_OFF
+	iret
 
 /* ----------------------------------------------------------------- */
 	.globl IPX_OFF
