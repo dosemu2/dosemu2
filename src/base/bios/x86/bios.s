@@ -120,13 +120,6 @@ Mouse_ROUTINE_OFF:
 	iret
 
 /* ----------------------------------------------------------------- */
-	.globl IPX_OFF
-IPX_OFF:
-ipx_handler:
-	int	$0x7a
-	lret
-
-/* ----------------------------------------------------------------- */
 		/* This is an int e7 used for FCB opens */
 	.globl FCB_HLP_OFF
 FCB_HLP_OFF:

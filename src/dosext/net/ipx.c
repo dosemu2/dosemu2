@@ -29,6 +29,7 @@
 #include "sig.h"
 #include "cpu.h"
 #include "int.h"
+#include "hlt.h"
 #include "emudpmi.h"
 #include "bios.h"
 #include "coopth.h"
@@ -46,6 +47,7 @@ static u_char IPXCancelEvent(far_t ECBPtr);
 static void ipx_recv_esr_call(void);
 static void ipx_aes_esr_call(void);
 static int recv_tid, aes_tid;
+static uint16_t ipx_hlt;
 
 static ipx_socket_t *ipx_socket_list = NULL;
 /* hopefully these static ECBs will not cause races... */
@@ -54,6 +56,7 @@ static far_t aesECB;
 static void AESTimerTick(void);
 static void ipx_recv_esr_call_thr(void *arg);
 static void ipx_aes_esr_call_thr(void *arg);
+static void do_int7a(void);
 
 /* DANG_FIXTHIS - get a real value for my address !! */
 static unsigned char MyAddress[10] =
@@ -115,9 +118,16 @@ static int GetMyAddress(unsigned long ipx_net, unsigned char *MyAddress)
   return(0);
 }
 
+static void ipx_call(uint16_t idx, HLT_ARG(arg))
+{
+  do_int7a();
+}
+
 void ipx_init(void)
 {
   int ccode;
+  emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+
   if (!config.ipxsup)
     return;
   ccode = GetMyAddress(config.ipx_net, MyAddress);
@@ -133,6 +143,10 @@ void ipx_init(void)
   recv_tid = coopth_create("IPX receiver callback", ipx_recv_esr_call_thr);
   aes_tid = coopth_create("IPX aes callback", ipx_aes_esr_call_thr);
 
+  hlt_hdlr.name = "ipx";
+  hlt_hdlr.func = ipx_call;
+  ipx_hlt = hlt_register_handler_vm86(hlt_hdlr);
+
   sigalrm_register_handler(AESTimerTick);
 }
 
@@ -144,10 +158,10 @@ void ipx_init(void)
 int IPXInt2FHandler(void)
 {
   LO(ax) = 0xff;
-  SREG(es) = IPX_SEG;
-  LWORD(edi) = IPX_OFF;
+  SREG(es) = BIOS_HLT_BLK_SEG;
+  LWORD(edi) = ipx_hlt;
   n_printf("IPX: request for IPX far call handler address %x:%x\n",
-	   IPX_SEG, IPX_OFF);
+	   BIOS_HLT_BLK_SEG, ipx_hlt);
   return 1;
 }
 
@@ -915,6 +929,12 @@ int ipx_receive(int ilevel)
 
 int ipx_int7a(void)
 {
+  do_int7a();
+  return 1;
+}
+
+static void do_int7a(void)
+{
   u_short port;			/* port here means DOS IPX socket */
   u_short newPort;
   u_char *AddrPtr;
@@ -1047,7 +1067,6 @@ int ipx_int7a(void)
     n_printf("IPX: Unimplemented function.\n");
     break;
   }
-  return 1;
 }
 
 /* ipx_close is called on DOSEMU shutdown */

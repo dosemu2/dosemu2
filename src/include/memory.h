@@ -44,9 +44,6 @@
 
 #define EMM_SEGMENT             (config.ems_frame)
 
-#define IPX_SEG		BIOSSEG
-#define IPX_ADD		((IPX_SEG << 4) + IPX_OFF)
-
 #define INT08_SEG	BIOSSEG
 #define INT08_ADD	((INT08_SEG << 4) + INT08_OFF)
 
