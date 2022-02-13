@@ -1534,8 +1534,6 @@ static void vgaemu_register_ports(void)
   io_device.write_portw = (void (*)(ioport_t, Bit16u)) VGA_emulate_outw;
   io_device.read_portd = NULL;
   io_device.write_portd = NULL;
-  io_device.irq = EMU_NO_IRQ;
-  io_device.fd = -1;
 
   /* register VGAEmu */
   io_device.handler_name = "VGAEmu VGA Controller";

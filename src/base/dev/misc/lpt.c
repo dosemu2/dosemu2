@@ -270,8 +270,6 @@ printer_init(void)
   io_device.read_portd   = NULL;
   io_device.write_portd  = NULL;
   io_device.handler_name = "Parallel printer";
-  io_device.irq          = EMU_NO_IRQ;
-  io_device.fd           = -1;
 
   for (i = 0; i < NUM_PRINTERS; i++) {
     lpt[i].initialized = 0;

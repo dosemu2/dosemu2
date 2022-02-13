@@ -306,8 +306,6 @@ void cpu_setup(void)
   io_dev.write_portw = NULL;
   io_dev.read_portd = NULL;
   io_dev.write_portd = NULL;
-  io_dev.irq = PIC_IRQ13;
-  io_dev.fd = -1;
   io_dev.start_addr = 0xf0;
   io_dev.end_addr = 0xff;
   io_dev.handler_name = "Math Coprocessor";

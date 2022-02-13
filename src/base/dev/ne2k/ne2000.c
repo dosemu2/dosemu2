@@ -223,8 +223,6 @@ void ne2000_init(void)
     io_device.handler_name = "NE2000 Emulation";
     io_device.start_addr = /* config.ne2000_base */ NE2000_IOBASE;
     io_device.end_addr = /* config.ne2000_base */ NE2000_IOBASE + 0x1f;
-    io_device.irq = /* config.ne2000_irq */ NE2000_IRQ;
-    io_device.fd = -1;
     if (port_register_handler(io_device, 0) != 0) {
         N_printf("NE2000: Error registering NE2000 port handler\n");
         ne2000_done();

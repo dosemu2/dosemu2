@@ -462,8 +462,6 @@ void dma_init(void)
     io_device.write_portw = NULL;
     io_device.read_portd = NULL;
     io_device.write_portd = NULL;
-    io_device.irq = EMU_NO_IRQ;
-    io_device.fd = -1;
 
     /*
      * XT Controller

@@ -409,8 +409,6 @@ int pci_setup (void)
     io_device.write_portw = std_port_outw;
     io_device.read_portd = std_port_ind;
     io_device.write_portd = std_port_outd;
-    io_device.irq = EMU_NO_IRQ;
-    io_device.fd = -1;
 
     if (pciConfigType->name[0] == '1') {
       io_device.handler_name = "PCI Config Type 1";
@@ -601,8 +599,6 @@ pciRec *pciemu_setup(unsigned long cls)
     io_device.write_portw = pciemu_port_outw;
     io_device.read_portd = pciemu_port_ind;
     io_device.write_portd = pciemu_port_outd;
-    io_device.irq = EMU_NO_IRQ;
-    io_device.fd = -1;
 
     io_device.handler_name = "PCI Emulated Config";
     io_device.start_addr = PCI_CONF_ADDR;

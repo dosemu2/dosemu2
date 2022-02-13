@@ -14,16 +14,6 @@
 #define IO_WRITE 2
 #define IO_RDWR	 (IO_READ | IO_WRITE)
 
-
-/*
- * number of IRQ lines supported.  In an ISA PC there are two
- * PIC chips cascaded together.  each has 8 IRQ lines, so there
- * should be 16 IRQ's total
- */
-#define EMU_MAX_IRQS 16
-
-#define EMU_NO_IRQ   0xffff
-
 /* Hey, stranger, there is one too many of us in this town! */
 typedef struct {
   Bit8u         (* read_portb)(ioport_t port);
@@ -35,7 +25,6 @@ typedef struct {
   const char    *handler_name;
   ioport_t      start_addr;
   ioport_t      end_addr;
-  int           irq, fd;
 } emu_iodev_t;
 
 typedef struct {
@@ -46,7 +35,6 @@ typedef struct {
   Bit32u (*read_portd) (ioport_t port_addr);
   void   (*write_portd) (ioport_t port_addr, Bit32u dword);
   const char *handler_name;
-  int    irq, fd;
 } _port_handler;
 
 extern int in_crit_section;

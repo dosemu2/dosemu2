@@ -603,14 +603,11 @@ void pit_init(void)
   io_device.handler_name = "8254 Timer0";
   io_device.start_addr   = 0x0040;
   io_device.end_addr     = 0x0040;
-  io_device.irq          = 0;
-  io_device.fd = -1;
   port_register_handler(io_device, 0);
 
   io_device.handler_name = "8254 Timer1";
   io_device.start_addr = 0x0041;
   io_device.end_addr = 0x0041;
-  io_device.irq = EMU_NO_IRQ;
   port_register_handler(io_device, 0);
 
   io_device.handler_name = "8254 Timer2";

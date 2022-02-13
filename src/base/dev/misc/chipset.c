@@ -38,8 +38,6 @@ void chipset_init(void)
   io_dev.write_portw = NULL;
   io_dev.read_portd = NULL;
   io_dev.write_portd = NULL;
-  io_dev.irq = EMU_NO_IRQ;
-  io_dev.fd = -1;
   io_dev.start_addr = 0x92;
   io_dev.end_addr = 0x92;
   io_dev.handler_name = "Chipset Control Port A";

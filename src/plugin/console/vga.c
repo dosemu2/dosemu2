@@ -527,8 +527,6 @@ static void pcivga_init(void)
       v_printf("PCIVGA: found IO region at %#lx [%#lx]\n", base, size);
 
       /* register PCI VGA ports */
-      io_device.irq = EMU_NO_IRQ;
-      io_device.fd = -1;
       io_device.handler_name = "std port io";
       io_device.start_addr = base;
       io_device.end_addr = base + size;
@@ -549,8 +547,6 @@ static int vga_ioperm(unsigned base, int len)
     error("ioperm() %x,%i failed\n", base, len);
   /* even if ioperm failed, we register handler that will forward
    * the requests to portserver */
-  io_device.irq = EMU_NO_IRQ;
-  io_device.fd = -1;
   io_device.handler_name = "std port io";
   io_device.start_addr = base;
   io_device.end_addr = base + len - 1;

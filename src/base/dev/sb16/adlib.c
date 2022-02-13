@@ -143,8 +143,6 @@ void opl3_init(void)
     io_device.handler_name = "OPL3";
     io_device.start_addr = ADLIB_BASE;
     io_device.end_addr = ADLIB_BASE + 3;
-    io_device.irq = EMU_NO_IRQ;
-    io_device.fd = -1;
     if (port_register_handler(io_device, 0) != 0) {
 	error("ADLIB: Cannot registering port handler\n");
     }

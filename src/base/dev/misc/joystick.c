@@ -573,8 +573,6 @@ void joy_init (void)
 	io_device.handler_name = "Joystick Port Emulation";
 	io_device.start_addr   = 0x200;
 	io_device.end_addr     = 0x20F;
-	io_device.irq          = EMU_NO_IRQ;
-	io_device.fd           = -1;
 
 	if (port_register_handler (io_device, 0) != 0)
 	{

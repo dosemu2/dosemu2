@@ -407,14 +407,11 @@ void keyb_8042_init(void)
   io_device.handler_name = "8042 Keyboard data";
   io_device.start_addr   = 0x0060;
   io_device.end_addr     = 0x0060;
-  io_device.irq          = 1;
-  io_device.fd 	   = -1;
   port_register_handler(io_device, 0);
 
   io_device.handler_name = "8042 Keyboard command";
   io_device.start_addr   = 0x0064;
   io_device.end_addr     = 0x0064;
-  io_device.irq 	 = EMU_NO_IRQ;
   port_register_handler(io_device, 0);
 
   io_device.handler_name = "Keyboard controller port B";

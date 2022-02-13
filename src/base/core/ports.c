@@ -61,8 +61,6 @@ static pid_t portserver_pid = 0;
 
 static unsigned char port_handles;	/* number of io_handler's */
 
-static const char *irq_handler_name[EMU_MAX_IRQS];
-
 int in_crit_section = 0;
 static const char *crit_sect_caller;
 
@@ -790,8 +788,6 @@ int port_init(void)
 	  port_handler[i].write_portw  = NULL;
 	  port_handler[i].read_portd   = NULL;
 	  port_handler[i].write_portd  = NULL;
-	  port_handler[i].irq = EMU_NO_IRQ;
-	  port_handler[i].fd = -1;
 	}
 
   /* handle 0 maps to the unmapped IO device handler.  Basically any
@@ -1011,21 +1007,11 @@ void port_exit(void)
 
 void release_ports (void)
 {
-	int i;
-
-	for (i=0; i < port_handles; i++) {
-		if (port_handler[i].fd >= 2) {
-			close(port_handler[i].fd);
-/* DANG_FIXTHIS we should free the name but we are going to exit anyway
- */
-/*			free(port_handler[i].handler_name); */
-		}
-	}
 	memset (port_handle_table, NO_HANDLE, sizeof(port_handle_table));
 	memset (port_andmask, 0xff, sizeof(port_andmask));
 	memset (port_ormask, 0, sizeof(port_ormask));
 
-  }
+}
 
 /* ---------------------------------------------------------------------- */
 /*
@@ -1040,12 +1026,6 @@ int port_register_handler(emu_iodev_t device, int flags)
 {
     int handle, i;
 
-    if (device.irq != EMU_NO_IRQ && device.irq >= EMU_MAX_IRQS) {
-	dbug_printf("PORT: IO device %s registered with IRQ=%d above %u\n",
-	      device.handler_name, device.irq, EMU_MAX_IRQS - 1);
-	return 1;
-    }
-
     /* first find existing handle for function or create new one */
     for (handle=0; handle < port_handles; handle++) {
 	if (!strcmp(port_handler[handle].handler_name, device.handler_name))
@@ -1059,14 +1039,6 @@ int port_register_handler(emu_iodev_t device, int flags)
 		leavedos(77);
 	}
 
-	if (device.irq != EMU_NO_IRQ && irq_handler_name[device.irq]) {
-		error("PORT: IRQ %d conflict.  IO devices %s & %s\n",
-		      device.irq, irq_handler_name[device.irq], device.handler_name);
-		if (device.fd) close(device.fd);
-		return 2;
-	}
-	if (device.irq != EMU_NO_IRQ && device.irq < EMU_MAX_IRQS)
-		irq_handler_name[device.irq] = device.handler_name;
 	port_handles++;
 
 	/*
@@ -1085,8 +1057,6 @@ int port_register_handler(emu_iodev_t device, int flags)
 	port_handler[handle].write_portd =
 		(device.write_portd? : port_not_avail_outd);
 	port_handler[handle].handler_name = device.handler_name;
-	port_handler[handle].irq = device.irq;
-	port_handler[handle].fd = -1;
     }
 
   /* change table to reflect new handler id for that address */
@@ -1095,7 +1065,6 @@ int port_register_handler(emu_iodev_t device, int flags)
 		error("PORT: conflicting devices: %s & %s for port %#x\n",
 		      port_handler[handle].handler_name,
 		      EMU_HANDLER(i).handler_name, i);
-		if (device.fd) close(device.fd);
 		return 4;
 	}
 	port_handle_table[i] = handle;
@@ -1103,9 +1072,9 @@ int port_register_handler(emu_iodev_t device, int flags)
 		set_bit(i, portfast_map);
     }
 
-    i_printf("PORT: registered \"%s\" handle 0x%02x [0x%04x-0x%04x] fd=%d\n",
+    i_printf("PORT: registered \"%s\" handle 0x%02x [0x%04x-0x%04x]\n",
 	port_handler[handle].handler_name, handle, device.start_addr,
-	device.end_addr, device.fd);
+	device.end_addr);
 
     if (flags & PORT_FAST) {
 	i_printf("PORT: trying to give fast access to ports [0x%04x-0x%04x]\n",
@@ -1129,14 +1098,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	Bit8u andmask, int portspeed, char *device)
 {
 	static emu_iodev_t io_device;
-	FILE *fp;
-	unsigned int beg, end, newbeg, newend;
-	size_t len;
-	ssize_t bytes;
-	char *line, *portname, lock_file[64];
-	unsigned char mapped;
-	char *devrname;
-	int fd, usemasks = 0;
+	int usemasks = 0;
 	unsigned int flags = 0;
 
         if (!can_do_root_stuff) {
@@ -1154,117 +1116,6 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 			usemasks = 1;
 	}
 
-	/* SIDOC_BEGIN_REMARK
-	 * find out whether the port address request is available;
-	 * this way, try to deny uncoordinated access
-	 *
-	 * If it is not listed in /proc/ioports, register them
-	 * (we need some syscall to do so bo 960609)...
-	 * (we have a module to do so AV 970813)
-	 * if it is registered, we need the name of a device to open
-	 * if we can't open it, we disallow access to that port
-	 * SIDOC_END_REMARK
-	 */
-	if ((fp = fopen("/proc/ioports", "r")) == NULL) {
-		i_printf("PORT: can't open /proc/ioports\n");
-		return FALSE;
-	}
-	mapped = beg = end = len = 0;
-	portname = line = NULL;
-	while ((bytes = getline(&line, &len, fp)) != -1) {
-		int i;
-		if (bytes > 0 && line[bytes-1] == '\n')
-			line[bytes-1] = '\0';
-		if (sscanf(line, "%x-%x : %n", &newbeg, &newend, &i) < 2)
-			break;
-		if (mapped) {
-			/* only break if no overlap with previous line */
-			if (newend > end) break;
-			free(portname);
-			mapped = 0;
-		}
-		beg = newbeg;
-		end = newend;
-		if ((start <= end) && ((start+size) > beg)) {
-			/* ports are besetzt, try to open the according device */
-			portname = strdup(&line[i]);
-			mapped = 1;
-		}
-	}
-	fclose (fp);
-
-	if (mapped) {
-		const char *name = portname ? portname : "";
-		i_printf("PORT: range 0x%04x-0x%04x already registered as %s\n",
-			 beg, end, name);
-		if (!strncasecmp(name,"dosemu",6)) return FALSE;
-		if (device==NULL || *device==0) {
-			i_printf ("PORT: no device specified for %s\n", name);
-			return FALSE;
-		}
-		free (portname);
-	}
-
-	io_device.fd = -1;
-	if (device && *device) {
-		/* SIDOC_BEGIN_REMARK
-		 * We need to check if our required port range is in use
-		 * by some device. So we look into proc/ioports to check
-		 * the addresses. Fine, but at this point we must supply
-		 * a device name ourselves, and we can't check from here
-		 * if it's the right one. The device is then open and left
-		 * open until dosemu ends; for the rest, in the original
-		 * code the device wasn't used, just locked, and only then
-		 * port access was granted.
-		 * SIDOC_END_REMARK
-		 */
-		int devperm;
-
-		devrname=strrchr(device,'/');
-		if (devrname==NULL) devrname=device; else devrname++;
-		sprintf(lock_file, "%s/%s%s", PATH_LOCKD, NAME_LOCKF, devrname);
-
-		switch (permission) {
-			case IO_READ:	devperm = O_RDONLY;
-					flags |= PORT_DEV_RD;
-					break;
-			case IO_WRITE:	devperm = O_WRONLY;
-					flags |= PORT_DEV_WR;
-					break;
-			default:	devperm = O_RDWR;
-					flags |= (PORT_DEV_RD|PORT_DEV_WR);
-		}
-		io_device.fd = open(device, devperm);
-		if (io_device.fd == -1) {
-			switch (errno) {
-			case EBUSY:
-				i_printf("PORT: Device %s busy\n", device);
-				return FALSE;
-			case EACCES:
-				i_printf("PORT: Device %s, access not allowed\n", device);
-				return FALSE;
-			case ENOENT:
-			case ENXIO:
-				i_printf("PORT: No such Device '%s'\n", device);
-				return FALSE;
-			default:
-				i_printf("PORT: Device %s error %d\n", device, errno);
-				return FALSE;
-			}
-		}
-
-		fd = open(lock_file, O_RDONLY);
-		if (fd >= 0) {
-			close(fd);
-			i_printf("PORT: Device %s is locked\n", device);
-			return FALSE;
-		}
-
-		i_printf("PORT: Device %s opened successfully = %d\n", device,
-			io_device.fd);
-
-	}
-
 	if (permission == IO_RDWR)
 		io_device.handler_name = "std port io";
 	else if (permission == IO_READ)
@@ -1274,7 +1125,6 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 
 	io_device.start_addr   = start;
 	io_device.end_addr     = start + size - 1;
-	io_device.irq          = EMU_NO_IRQ;
 
 	if (usemasks) {
 		port_andmask[start] = andmask;

@@ -124,8 +124,6 @@ static int init_dmxs(void)
     io_device.write_portd = NULL;
     io_device.start_addr  = dmxs[i].port;
     io_device.end_addr    = dmxs[i].port;
-    io_device.irq         = EMU_NO_IRQ;
-    io_device.fd          = -1;
     io_device.handler_name = dmxs[i].name;
     port_register_handler(io_device, 0);
     s_printf("SER: added demux at port %#x\n", dmxs[i].port);
@@ -294,8 +292,6 @@ static void do_ser_init(int num)
   io_device.write_portd = NULL;
   io_device.start_addr  = com_cfg[num].base_port;
   io_device.end_addr    = com_cfg[num].end_port;
-  io_device.irq         = EMU_NO_IRQ;  // shared, don't check for conflicts
-  io_device.fd		= -1;
   io_device.handler_name = default_com[num].handler_name;
   port_register_handler(io_device, 0);
 

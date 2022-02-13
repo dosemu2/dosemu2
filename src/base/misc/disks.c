@@ -1180,8 +1180,6 @@ disk_init(void)
     io_device.handler_name = "Floppy Drive";
     io_device.start_addr   = 0x03F0;
     io_device.end_addr     = 0x03F7;
-    io_device.irq          = 6;
-    io_device.fd           = -1;
     port_register_handler(io_device, 0);
   }
 

@@ -974,8 +974,6 @@ void pic_init(void)
   io_device.handler_name = "8259 PIC0";
   io_device.start_addr   = 0x0020;
   io_device.end_addr     = 0x0021;
-  io_device.irq          = EMU_NO_IRQ;
-  io_device.fd = -1;
   port_register_handler(io_device, 0);
 
   io_device.handler_name = "8259 PIC1";
