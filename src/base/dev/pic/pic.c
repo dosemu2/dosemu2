@@ -149,7 +149,7 @@ static void pic_activate(void);
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
 static unsigned long pic_irq2_ivec = 0;
 
-unsigned long pic_irq_list[] = {PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
+unsigned pic_irq_list[] = {PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
                                PIC_IRQ4,  PIC_IRQ5,  PIC_IRQ6,  PIC_IRQ7,
                                PIC_IRQ8,  PIC_IRQ9,  PIC_IRQ10, PIC_IRQ11,
                                PIC_IRQ12, PIC_IRQ13, PIC_IRQ14, PIC_IRQ15};

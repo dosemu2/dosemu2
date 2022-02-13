@@ -58,7 +58,7 @@
 #define PIC_IPX_AES 18     /*  IPX AES Signal */
 
 #define PIC_IMOUSE PIC_IRQ12 /*  internal mouse driver       */
-extern unsigned long pic_irq_list[16];
+extern unsigned pic_irq_list[16];
 extern hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
 extern hitimer_t pic_sys_time;     /* system time set by pic_watch */
 extern hitimer_t pic_itime[33];
