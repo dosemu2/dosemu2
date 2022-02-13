@@ -234,9 +234,6 @@ void ne2000_init(void)
     /* init control defaults */
     s->irq = pic_irq_list[NE2000_IRQ];
 
-    /* We let DOSEMU handle the interrupt */
-    pic_seti(s->irq, NULL, 0, NULL);
-
     /* Connect up the receiver */
     add_to_io_select(s->fdnet, ne2000_receive_req_async, NULL);
 
