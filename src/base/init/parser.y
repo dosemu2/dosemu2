@@ -100,7 +100,6 @@ static int ports_permission = IO_RDWR;
 static unsigned int ports_ormask = 0;
 static unsigned int ports_andmask = 0xFFFF;
 static unsigned int portspeed = 0;
-static char dev_name[255]= "";
 
 static int errors = 0;
 static int warnings = 0;
@@ -1596,13 +1595,13 @@ port_flag	: INTEGER
 	           {
 		   c_printf("CONF: I/O port 0x%04x\n", (unsigned short)$1);
 	           allow_io($1, 1, ports_permission, ports_ormask,
-	                    ports_andmask, portspeed, (char*)dev_name);
+	                    ports_andmask, portspeed);
 		   if (portspeed) portspeed += ((portspeed>0) ? 1 : -1);
 	           }
 		| '(' expression ')'
 	           {
 	           allow_io($2, 1, ports_permission, ports_ormask,
-	                    ports_andmask, portspeed, (char*)dev_name);
+	                    ports_andmask, portspeed);
 		   if (portspeed) portspeed += ((portspeed>0) ? 1 : -1);
 	           }
 		| RANGE INTEGER INTEGER
@@ -1611,9 +1610,8 @@ port_flag	: INTEGER
 		   c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
 			    (unsigned short)$2, (unsigned short)$3);
 		   allow_io($2, $3 - $2 + 1, ports_permission, ports_ormask,
-			    ports_andmask, portspeed, (char*)dev_name);
+			    ports_andmask, portspeed);
 		   portspeed=0;
-		   strcpy(dev_name,"");
 		   }
 		| RANGE expression ',' expression
 		   {
@@ -1621,9 +1619,8 @@ port_flag	: INTEGER
 		   c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
 			    (unsigned short)$2, (unsigned short)$4);
 		   allow_io($2, $4 - $2 + 1, ports_permission, ports_ormask,
-			    ports_andmask, portspeed, (char*)dev_name);
+			    ports_andmask, portspeed);
 		   portspeed=0;
-		   strcpy(dev_name,"");
 		   }
 		| RDONLY		{ ports_permission = IO_READ; }
 		| WRONLY		{ ports_permission = IO_WRITE; }
@@ -1632,7 +1629,7 @@ port_flag	: INTEGER
 		| ANDMASK expression	{ ports_andmask = $2; }
                 | FAST	                { portspeed = 1; }
                 | SLOW	                { portspeed = -1; }
-                | DEVICE string_expr         { strcpy(dev_name,$2); free($2); } 
+                | DEVICE string_expr    { /* compatibility */ free($2); }
 		| STRING
 		    { yyerror("unrecognized port command '%s'", $1);
 		      free($1); }

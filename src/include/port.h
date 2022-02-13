@@ -172,7 +172,7 @@ extern unsigned char port_ormask[];
 
 extern int     port_init(void);
 extern int     port_register_handler(emu_iodev_t info, int);
-extern Boolean port_allow_io(ioport_t, Bit16u, int, Bit8u, Bit8u, int, char *);
+extern Boolean port_allow_io(ioport_t, Bit16u, int, Bit8u, Bit8u, int);
 extern int     set_ioperm(int start, int size, int flag);
 
 extern void init_port_traceing(void);
