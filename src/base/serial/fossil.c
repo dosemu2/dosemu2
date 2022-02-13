@@ -84,12 +84,18 @@ boolean fossil_initialised = FALSE;
 static u_short irq_hlt;
 static void fossil_irq(Bit16u idx, HLT_ARG(arg));
 
-static void fossil_init(void)
+void fossil_init(void)
 {
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
   hlt_hdlr.name       = "fossil isr";
   hlt_hdlr.func       = fossil_irq;
+  hlt_hdlr.len        = 2;
   irq_hlt = hlt_register_handler_vm86(hlt_hdlr);
+}
+
+static void fossil_setup(void)
+{
+  int i;
 
   fossil_initialised = TRUE;
 
@@ -103,15 +109,20 @@ static void fossil_init(void)
   // Out
   SREG(ds) = FOSSIL_SEG;
   LWORD(edx) = FOSSIL_isr;
+
+  for (i = 0; i < config.num_ser; i++)
+    com[i].fossil_active = FALSE;
 }
 
 static void fossil_irq(Bit16u idx, HLT_ARG(arg))
 {
   int i;
   uint8_t iir, lsr;
-  s_printf("FOSSIL: got irq\n");
+  int inum = idx + 3;
+
+  s_printf("FOSSIL: got irq %i\n", inum);
   for (i = 0; i < config.num_ser; i++) {
-    if (com[i].opened <= 0)
+    if (com[i].opened <= 0 || com_cfg[i].irq != inum)
       continue;
     iir = read_IIR(i);
     switch (iir & UART_IIR_CND_MASK) {
@@ -216,12 +227,17 @@ void fossil_int14(int num)
   case 0x1c: {
     uint8_t imr, imr1;
     fossil_info_t *fi;
+    int ioff = com_cfg[num].irq - 3;
 
     assert(sizeof(*fi) == 19);
 
-    /* Do nothing if TSR isn't installed. */
-    if (!fossil_initialised)
+    /* Do nothing if TSR isn't installed or already initialized. */
+    if (!fossil_initialised || com[num].fossil_active)
       return;
+    if (ioff > 1) {
+      error("COM%i irq misconfigured, %i\n", num, com_cfg[num].irq);
+      return;
+    }
     com[num].fossil_active = TRUE;
     LWORD(eax) = FOSSIL_MAGIC;
     HI(bx) = FOSSIL_REVISION;
@@ -235,13 +251,17 @@ void fossil_int14(int num)
     /* init IRQs, set disabled */
     write_MCR(num, com[num].MCR | UART_MCR_OUT2);
     write_IER(num, 0);
-    com[num].ivec.segment = ISEG(com[num].interrupt);
-    com[num].ivec.offset = IOFF(com[num].interrupt);
-    SETIVEC(com[num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt);
-    imr = imr1 = port_inb(0x21);
-    imr &= ~(1 << com_cfg[num].irq);
-    if (imr != imr1)
+    /* interrupts are shared, don't set twice */
+    if (ISEG(com[num].interrupt) != BIOS_HLT_BLK_SEG ||
+        IOFF(com[num].interrupt) != irq_hlt + ioff) {
+      com[num].ivec.segment = ISEG(com[num].interrupt);
+      com[num].ivec.offset = IOFF(com[num].interrupt);
+      SETIVEC(com[num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt + ioff);
+      imr = imr1 = port_inb(0x21);
+      imr &= ~(1 << com_cfg[num].irq);
+      if (imr != imr1)
 	port_outb(0x21, imr);
+    }
     com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
 
     /* Initialize FOSSIL driver info. This is used by the function 0x1b
@@ -598,7 +618,7 @@ void serial_helper(void)
 
       old_seg = SREG(es);
       old_off = LWORD(ebx);
-      fossil_init();
+      fossil_setup();
       NOCARRY;
       s_printf("SER: FOSSIL: installation, ES:BX=%04x:%04x => DS:DX=%04x:%04x\n",
                old_seg, old_off, SREG(ds), LWORD(edx));

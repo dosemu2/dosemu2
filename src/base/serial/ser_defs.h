@@ -428,6 +428,8 @@ int ser_close(int num);
 int uart_fill(int num);
 int serial_get_msr(int num);
 
+void fossil_init(void);
+
 struct serial_drv {
   void (*rx_buffer_dump)(com_t *com);
   void (*tx_buffer_dump)(com_t *com);

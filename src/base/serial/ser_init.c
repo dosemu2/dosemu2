@@ -402,7 +402,7 @@ void serial_init(void)
   }
 
   init_dmxs();
-
+  fossil_init();
   sigalrm_register_handler(serial_run);
 }
 
