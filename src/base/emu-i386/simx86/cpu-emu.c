@@ -86,8 +86,6 @@ volatile int InCompiledCode = 0;
 
 unsigned int trans_addr, return_addr;	// PC
 
-static void e_gen_sigprof(sigcontext_t *scp, siginfo_t *si);
-
 #ifdef DEBUG_TREE
 FILE *tLog = NULL;
 #endif
@@ -740,9 +738,6 @@ void reset_emu_cpu(void)
 
 void init_emu_cpu(void)
 {
-  struct itimerval itv;
-  unsigned int realdelta = config.update / TIMER_DIVISOR;
-
   eTimeCorrect = 0;		// full backtime stretch
 #ifdef HOST_ARCH_X86
   if (!CONFIG_CPUSIM)
@@ -810,19 +805,6 @@ void init_emu_cpu(void)
   TheCPU.stub_read_32 = stub_read_32;
 #endif
 
-  /* Only set the timer (for internal debug purposes only)
-   if ITIMER_PROF is not already set for gprof.
-   */
-  getitimer(ITIMER_PROF, &itv);
-  if (itv.it_interval.tv_sec == 0 && itv.it_interval.tv_usec == 0 &&
-	itv.it_interval.tv_sec == 0 && itv.it_interval.tv_usec == 0) {
-    itv.it_interval.tv_usec = realdelta;
-    itv.it_value.tv_usec = realdelta;
-    e_printf("TIME: using %d usec for updating PROF timer\n", realdelta);
-    setitimer(ITIMER_VIRTUAL, &itv, NULL);
-    registersig(SIGVTALRM, e_gen_sigprof);
-  }
-
   Running = 1;
 }
 
@@ -862,13 +844,6 @@ void e_gen_sigalrm(sigcontext_t *scp)
 	/* here we return back to dosemu */
 	return;
 }
-
-static void e_gen_sigprof(sigcontext_t *scp, siginfo_t *si)
-{
-	e_sigpa_count -= sigEMUdelta;
-	TheCPU.sigprof_pending += 1;
-}
-
 
 void enter_cpu_emu(void)
 {

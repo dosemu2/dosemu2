@@ -894,9 +894,6 @@ signal_pre_init(void)
 //  newsetqsig(SIGHUP, leavedos_emerg);
 //  newsetqsig(SIGTERM, leavedos_emerg);
   /* below ones are initialized by other subsystems */
-#ifdef X86_EMULATOR
-  setup_nf_sig(SIGVTALRM);
-#endif
   setup_nf_sig(SIG_ACQUIRE);
   setup_nf_sig(SIG_RELEASE);
   setup_nf_sig(SIGWINCH);
