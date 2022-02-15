@@ -62,12 +62,6 @@ extern int kernel_version_code;
 
 extern FILE *dbg_fd;
 
-struct callback_s {
-  void (*func)(void *);
-  void *arg;
-  const char *name;
-};
-
 #if 0
 /*
  * 1) this stuff is unused

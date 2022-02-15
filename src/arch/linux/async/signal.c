@@ -146,6 +146,12 @@ struct sigalrm_hndl {
 static struct sigalrm_hndl alrm_hndl[MAX_SIGALRM_HANDLERS];
 static int alrm_hndl_num;
 
+struct callback_s {
+  void (*func)(void *);
+  void *arg;
+  const char *name;
+};
+
 static sigset_t q_mask;
 static sigset_t nonfatal_q_mask;
 static sigset_t fatal_q_mask;
