@@ -924,6 +924,16 @@ static void setxy(int x, int y)
 	mouse.unsc_y = get_unsc_y(y);
 }
 
+/* change pos from software preserving coord reminders */
+static void setxy_sw(int x, int y)
+{
+	int rem_x = mouse.unsc_x % get_unsc_x(1 << mouse.xshift);
+	int rem_y = mouse.unsc_y % get_unsc_y(1 << mouse.yshift);
+
+	mouse.unsc_x = get_unsc_x(mouse_roundx(x)) + rem_x;
+	mouse.unsc_y = get_unsc_y(mouse_roundy(y)) + rem_y;
+}
+
 static int get_unsc_mk_x(int dx)
 {
 	return dx * mouse.px_range;
@@ -1290,18 +1300,7 @@ mouse_pos(void)
 void
 mouse_setpos(void)
 {
-  /* disable the hack below, it is likely no longer needed. -stsp */
-#if 0
-  /* WP reads mickeys, and then sets the cursor position to make certain
-   * it doesn't loose any mickeys.  This will catch that case, and keeps
-   * us from breaking all apps under X that set the mouse position.
-   */
-  if (last_mouse_call_read_mickeys && mice->use_absolute) {
-    m_printf("MOUSE: ignoring 'set cursor pos' in X with no grab active\n");
-    return;
-  }
-#endif
-  setxy(LWORD(ecx), LWORD(edx));
+  setxy_sw(LWORD(ecx), LWORD(edx));
   mouse_clip_coords();
   mouse_hide_on_exclusion();
   if (mouse.cursor_on >= 0) {
