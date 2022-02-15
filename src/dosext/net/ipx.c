@@ -494,15 +494,14 @@ static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
 
 static void ipx_recv_esr_call_thr(void *arg)
 {
-  if (ipx_receive()) {
-    n_printf("IPX: Calling receive ESR\n");
-    ipx_esr_call(recvECB, ESR_CALLOUT_IPX);
-  }
+  n_printf("IPX: Calling receive ESR\n");
+  ipx_esr_call(recvECB, ESR_CALLOUT_IPX);
 }
 
 static void ipx_recv_esr_call(void)
 {
-  coopth_start(recv_tid, NULL);
+  if (ipx_receive())
+    coopth_start(recv_tid, NULL);
 }
 
 static void ipx_aes_esr_call_thr(void *arg)
