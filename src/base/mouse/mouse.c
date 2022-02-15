@@ -33,6 +33,8 @@
 #define INIT_SPEED_X 8
 #define INIT_SPEED_Y 16
 
+static void reset_scale(void);
+
 static int mickeyx(void)
 {
 	return (mouse.unscm_x / (mouse.px_range * 8));
@@ -260,6 +262,7 @@ mouse_helper(struct vm86_regs *regs)
   case 8:				/* set minimum internal resolution */
     mouse.min_max_x = LO_WORD(regs->ecx);
     mouse.min_max_y = LO_WORD(regs->edx);
+    reset_scale();
     break;
   case 9:				/* set cursor visibility */
     mouse_client_show_cursor(!!regs->ecx);
