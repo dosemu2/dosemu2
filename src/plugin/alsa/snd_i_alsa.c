@@ -43,7 +43,7 @@ static int num_pfds;
 #define _FMT(x) SND_##x
 #define FMT(x) _FMT(x)
 
-static void alsain_async(void *arg)
+static void alsain_async(int fd, void *arg)
 {
     sndbuf_t buf[16384][SNDBUF_CHANS];
     int n, pollret;

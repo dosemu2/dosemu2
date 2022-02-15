@@ -149,7 +149,7 @@ static int dev_printer_open(int prnum)
   return 0;
 }
 
-static void pipe_callback(void *arg)
+static void pipe_callback(int fd, void *arg)
 {
   char buf[1024];
   int num = (long)arg;

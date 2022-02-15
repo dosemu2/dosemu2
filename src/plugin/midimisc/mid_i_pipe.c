@@ -35,7 +35,7 @@
 static int pipe_fd = -1;
 #define midipipe_name "MIDI Input: named pipe"
 
-static void midipipe_io(void *arg)
+static void midipipe_io(int fd, void *arg)
 {
     unsigned char buf[1024];
     int n, selret;

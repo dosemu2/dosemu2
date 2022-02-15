@@ -315,7 +315,7 @@ static void printIPXHeader(IPXPacket_t * IPXHeader)
   }
 }
 
-static void ipx_async_callback(void *arg)
+static void ipx_async_callback(int fd, void *arg)
 {
   n_printf("IPX: requesting receiver IRQ\n");
   pic_request(PIC_IPX);

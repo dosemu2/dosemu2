@@ -48,8 +48,13 @@
 #define PAGE_SIZE       4096
 #endif
 
+struct io_callback_s {
+  void (*func)(int, void *);
+  void *arg;
+  const char *name;
+};
 #define MAX_FD 1024
-static struct callback_s io_callback_func[MAX_FD];
+static struct io_callback_s io_callback_func[MAX_FD];
 static fd_set fds_sigio;
 
 #if defined(SIG)
@@ -123,7 +128,7 @@ io_select(void)
         if (FD_ISSET(i, &fds) && io_callback_func[i].func) {
 	  g_printf("GEN: fd %i has data for %s\n", i,
 		io_callback_func[i].name);
-	  io_callback_func[i].func(io_callback_func[i].arg);
+	  io_callback_func[i].func(i, io_callback_func[i].arg);
 	}
       }
       reset_idle(0);
@@ -145,7 +150,7 @@ io_select(void)
  * DANG_END_FUNCTION
  */
 void
-add_to_io_select_new(int new_fd, void (*func)(void *), void *arg,
+add_to_io_select_new(int new_fd, void (*func)(int, void *), void *arg,
 	const char *name)
 {
     int flags;

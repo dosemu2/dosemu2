@@ -1421,7 +1421,7 @@ static void _do_slang_getkeys(void)
 	}
 }
 
-static void do_slang_getkeys(void *arg)
+static void do_slang_getkeys(int fd, void *arg)
 {
 	_do_slang_getkeys();
 }
@@ -1468,7 +1468,7 @@ static void exit_pc_scancode_mode(void)
  *
  * DANG_END_FUNCTION
  */
-static void do_pc_scancode_getkeys(void *arg)
+static void do_pc_scancode_getkeys(int fd, void *arg)
 {
 	if (read_some_keys() <= 0) {
 		return;

@@ -175,7 +175,7 @@ Bit8u ne2000_io_read8(ioport_t port);
 void ne2000_io_write8(ioport_t port, Bit8u value);
 static void ne2000_irq_activate(int);
 
-static void ne2000_receive_req_async(void *arg);
+static void ne2000_receive_req_async(int fd, void *arg);
 static size_t ne2000_receive(NE2000State *s, const uint8_t *buf, size_t size_);
 
 #ifdef DEBUG_NE2000
@@ -340,7 +340,7 @@ static int ne2000_ether_recv(NE2000State *s, uint8_t *buf, int bufsiz)
     return ret;
 }
 
-static void ne2000_receive_req_async(void *arg)
+static void ne2000_receive_req_async(int fd, void *arg)
 {
     NE2000State *s = &ne2000state;
     uint8_t mybuf[MAX_ETH_FRAME_SIZE];

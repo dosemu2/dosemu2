@@ -474,7 +474,7 @@ static int tty_uart_fill(com_t *com)
   return size;
 }
 
-static void async_serial_run(void *arg)
+static void async_serial_run(int fd, void *arg)
 {
   com_t *com = arg;
   int size;

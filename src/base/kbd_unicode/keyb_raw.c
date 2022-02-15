@@ -96,7 +96,7 @@ static int use_move_key(t_keysym key)
 	return result;
 }
 
-static void do_raw_getkeys(void *arg)
+static void do_raw_getkeys(int fd, void *arg)
 {
   int i,count;
   char buf[KBBUF_SIZE];

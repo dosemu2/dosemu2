@@ -63,7 +63,7 @@ static int pcm_stream, pcm_running;
 
 static void midotmdty_reset(void);
 
-static void midotmdty_io(void *arg)
+static void midotmdty_io(int fd, void *arg)
 {
     sndbuf_t buf[16384][SNDBUF_CHANS];
     int n, selret, fmt;

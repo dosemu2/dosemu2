@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include "keyb_clients.h"
 
-static void none_run(void *arg);
+static void none_run(int fd, void *arg);
 
 /* DANG_BEGIN_FUNCTION none_probe
  *
@@ -38,7 +38,7 @@ static void none_close(void)
 	remove_from_io_select(STDIN_FILENO);
 }
 
-static void none_run(void *arg)
+static void none_run(int fd, void *arg)
 {
 	char buf[256];
 	int rc;

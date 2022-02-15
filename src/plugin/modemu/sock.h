@@ -15,5 +15,5 @@ sockDial(void);
 int sockConnectStart(void);
 
 #ifdef DOSEMU
-void modemu_async_callback(void *arg);
+void modemu_async_callback(int fd, void *arg);
 #endif

@@ -429,7 +429,7 @@ extern void leavedos_from_thread(int code);
 #define _leavedos_main(n, s) __leavedos_main_wrp(n, s, __func__, __LINE__)
 extern void __leavedos_main_wrp(int code, int sig, const char *s, int num);
 extern void check_leavedos(void);
-extern void add_to_io_select_new(int, void(*)(void *), void *,
+extern void add_to_io_select_new(int, void(*)(int, void *), void *,
 	const char *name);
 #define add_to_io_select(fd, func, arg) \
 	add_to_io_select_new(fd, func, arg, #func)

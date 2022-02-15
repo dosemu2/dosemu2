@@ -508,7 +508,7 @@ static void pkt_hlt(Bit16u idx, HLT_ARG(arg))
     pkt_int();
 }
 
-static void pkt_receive_req_async(void *arg)
+static void pkt_receive_req_async(int fd, void *arg)
 {
 	pic_request(PIC_NET);
 }

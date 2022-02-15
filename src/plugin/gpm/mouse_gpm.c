@@ -17,7 +17,7 @@
 #include "init.h"
 #include "vc.h"
 
-static void gpm_getevent(void *arg)
+static void gpm_getevent(int fd, void *arg)
 {
 	static unsigned char buttons;
 	Gpm_Event ev;

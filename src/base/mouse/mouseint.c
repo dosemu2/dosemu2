@@ -447,7 +447,7 @@ static void DOSEMUSetMouseSpeed(int old, int _new, unsigned cflag)
 	}
 }
 
-static void raw_mouse_getevent(void *arg)
+static void raw_mouse_getevent(int fd, void *arg)
 {
 	#define MOUSE_BUFFER 8
 	unsigned char rBuf[MOUSE_BUFFER];

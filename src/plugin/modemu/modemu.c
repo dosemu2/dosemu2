@@ -667,7 +667,7 @@ int run_modemu(void)
 #ifdef DOSEMU
 static int initialized;
 
-void modemu_async_callback(void *arg)
+void modemu_async_callback(int fd, void *arg)
 {
     run_modemu();
 }

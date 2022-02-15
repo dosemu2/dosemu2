@@ -130,7 +130,7 @@ int vmhp_log_intercept(int flg, const char *fmt, va_list args)
   return 0;
 }
 
-static void mhp_input_async(void *arg)
+static void mhp_input_async(int fd, void *arg)
 {
   mhp_input();
 }
