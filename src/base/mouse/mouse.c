@@ -1025,24 +1025,17 @@ static void reset_scale(void)
  *
  * DANG_END_REMARK
  */
+  mouse.xshift = 0;
+  mouse.yshift = 0;
+  while ((mouse_current_video.width << mouse.xshift) < mouse.min_max_x)
+    mouse.xshift++;
+  while ((mouse_current_video.height << mouse.yshift) < mouse.min_max_y)
+    mouse.yshift++;
 
   if (mouse_current_video.textgraph == 'T') {
-    mouse.xshift = 3;
-    mouse.yshift = 3;
-    if (mouse_current_video.width == 40) {
-	    mouse.xshift = 4;
-    }
     mouse.gfx_cursor = FALSE;
   } else {
     mouse.gfx_cursor = TRUE;
-    mouse.xshift = 0;
-    mouse.yshift = 0;
-    while ((mouse_current_video.width << mouse.xshift) < mouse.min_max_x) {
-      mouse.xshift++;
-    }
-    while ((mouse_current_video.height << mouse.yshift) < mouse.min_max_y) {
-      mouse.yshift++;
-    }
     define_graphics_cursor(default_graphscreenmask,default_graphcursormask);
   }
 
