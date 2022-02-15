@@ -475,8 +475,8 @@ EXTERN struct vec_t *ivecs;
 #endif
 
 #define IVEC(i) ((ISEG(i)<<4) + IOFF(i))
-#define SETIVEC(i, seg, ofs)	{ WRITE_WORD(i * 4 + 2, seg); \
-				  WRITE_WORD(i * 4, ofs); }
+#define SETIVEC(i, seg, ofs)	do { WRITE_WORD(i * 4 + 2, seg); \
+				  WRITE_WORD(i * 4, ofs); } while (0)
 
 #define OP_IRET			0xcf
 

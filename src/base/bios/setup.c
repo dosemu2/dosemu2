@@ -143,16 +143,14 @@ static void bios_setup(void)
       }
     }
 
-    /* interrupts >= 0xc0 are scratch (BIOS stack),
-       unless defined by DOSEMU */
-    if ((i & 0xf8) == 0x60 || (i >= 0x78 && i < 0xc0)) { /* user interrupts */
-	/* show also EMS (int0x67) as disabled */
-	SETIVEC(i, 0, 0);
-    } else if ((i & 0xf8) == 0x68) {
+    /* interrupts >= 0xc0 are NULL unless defined by DOSEMU */
+    SETIVEC(i, 0, 0);
+    /* 0x68-0x6f are usually set to iret */
+    if ((i & 0xf8) == 0x68)
 	SETIVEC(i, IRET_SEG, IRET_OFF);
-    } else if (i < 0x78 || i == DOS_HELPER_INT || i == 0xe7) {
+    else if (i < 0x60 || (i >= 0x70 && i < 0x78) ||
+	    i == DOS_HELPER_INT || i == 0xe7)
 	SETIVEC(i, BIOSSEG, INT_OFF(i));
-    }
   }
 
   /* Let kernel handle this, no need to return to DOSEMU */
