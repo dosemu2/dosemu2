@@ -25,7 +25,7 @@ $(BINPATH)/bin/libplugin_XKmaps.so: $(OBJS) | $(BINPATH)/bin
 endif
 
 _x_config.h.in: $(srcdir)/configure.ac
-	autoheader
+	autoheader -f
 x_config.hh: _x_config.h.in configure
 	./configure
 

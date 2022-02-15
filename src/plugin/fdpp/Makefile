@@ -27,7 +27,7 @@ $(BINPATH)/bin/libplugin_fdpp.so: $(OBJS) | $(BINPATH)/bin
 endif
 
 _fdppconf.h.in: $(srcdir)/configure.ac
-	autoheader
+	autoheader -f
 fdppconf.hh: _fdppconf.h.in configure
 	./configure
 
