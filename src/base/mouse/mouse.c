@@ -2078,9 +2078,9 @@ static void call_int33_mouse_event_handler(void)
     mouse.wmcount = 0;
 
     /* jump to mouse cs:ip */
-    m_printf("MOUSE: event %d, x %d, y %d, mx %d, my %d, b %x\n",
-	     mouse_events, get_mx(), get_my(), mickeyx(), mickeyy(),
-	     LWORD(ebx));
+    m_printf("MOUSE: event %d, x %d(%d), y %d(%d), mx %d, my %d, b %x\n",
+	     mouse_events, MOUSE_RX, get_mx(), MOUSE_RY, get_my(), mickeyx(),
+	     mickeyy(), LWORD(ebx));
     m_printf("MOUSE: .........jumping to %04x:%04x\n", mouse.cs, mouse.ip);
     SREG(ds) = mouse.cs;		/* put DS in user routine */
     do_call_back(mouse.cs, mouse.ip);
