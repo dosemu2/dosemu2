@@ -50,6 +50,7 @@ static int recv_tid, aes_tid;
 static uint16_t ipx_hlt;
 
 static ipx_socket_t *ipx_socket_list = NULL;
+static fd_set act_fds;
 /* hopefully these static ECBs will not cause races... */
 static far_t recvECB;
 static far_t aesECB;
@@ -150,6 +151,8 @@ void ipx_init(void)
   ipx_hlt = hlt_register_handler_vm86(hlt_hdlr);
 
   sigalrm_register_handler(AESTimerTick);
+
+  FD_ZERO(&act_fds);
 }
 
 /*************************
@@ -317,6 +320,9 @@ static void printIPXHeader(IPXPacket_t * IPXHeader)
 
 static void ipx_async_callback(int fd, void *arg)
 {
+  fd_set *fds = arg;
+
+  FD_SET(fd, fds);
   n_printf("IPX: requesting receiver IRQ\n");
   pic_request(PIC_IPX);
 }
@@ -395,7 +401,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
 
   /* if we successfully bound to this port, then record it */
   ipx_insert_socket(port, /* PSP */ 0, sock);
-  add_to_io_select(sock, ipx_async_callback, NULL);
+  add_to_io_select(sock, ipx_async_callback, &act_fds);
   n_printf("IPX: successfully opened socket %i, %04x\n", sock, port);
   *newPort = port;
   return (RCODE_SUCCESS);
@@ -725,22 +731,6 @@ static void AESTimerTick(void)
   }
 }
 
-static int ipx_fdset(fd_set * set)
-{
-  ipx_socket_t *s;
-  int max_fd = -1;
-
-  s = ipx_socket_list;
-  while (s != NULL) {
-    FD_SET(s->fd, set);
-    if (s->fd > max_fd)
-      max_fd = s->fd;
-    s = s->next;
-  }
-
-  return max_fd;
-}
-
 static int ScatterFragmentData(int size, unsigned char *buffer, ECB_t * ECB,
                                struct sockaddr_ipx *sipx)
 {
@@ -873,6 +863,7 @@ static ipx_socket_t *check_ipx_ready(fd_set * set)
   while (s) {
     /* DANG_FIXTHIS - for now, just pick up one listen per poll, because we can only set up one ESR callout per relinquish */
     if (FD_ISSET(s->fd, set)) {
+      FD_CLR(s->fd, set);
       break;
     }
     s = s->next;
@@ -887,46 +878,16 @@ static void IPXRelinquishControl(void)
 
 static int ipx_receive(void)
 {
-  /* DOS program has given us a time slice */
-  /* let's use this as an opportunity to poll outstanding listens */
-  fd_set fds;
-  int selrtn;
-  int max_fd;
   ipx_socket_t *s;
-  far_t ECBPtr;
-  struct timeval timeout;
 
-  FD_ZERO(&fds);
-
-  max_fd = ipx_fdset(&fds);
-  if (max_fd == -1)
-    return 0;
-
-  timeout.tv_sec = 0;
-  timeout.tv_usec = 0;
-  n_printf("IPX: select\n");
-
-  switch ((selrtn = select(max_fd + 1, &fds, NULL, NULL, &timeout))) {
-  case 0:			/* none ready */
-    /*			n_printf("IPX: no receives ready\n"); */
-    break;
-
-  case -1:			/* error (not EINTR) */
-    error("bad ipc_select: %s\n", strerror(errno));
-    break;
-
-  default:			/* has at least 1 descriptor ready */
-    n_printf("IPX: receive ready (%i), checking fd\n", selrtn);
-    if ((s = check_ipx_ready(&fds))) {
-      ECBPtr = s->listenList;
-      if (IPXReceivePacket(s)) {
-        if (FARt_PTR2(ECBp->ESRAddress)) {
-          recvECB = ECBPtr;
-          return 1;	/* run IRQ */
-        }
+  if ((s = check_ipx_ready(&act_fds))) {
+    far_t ECBPtr = s->listenList;
+    if (IPXReceivePacket(s)) {
+      if (FARt_PTR2(ECBp->ESRAddress)) {
+        recvECB = ECBPtr;
+        return 1;	/* run IRQ */
       }
     }
-    break;
   }
   return 0;
 }
