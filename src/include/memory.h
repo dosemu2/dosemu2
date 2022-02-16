@@ -27,7 +27,6 @@
 /* don't change these for now, they're hardwired! */
 #define Mouse_SEG       (BIOSSEG-1)
 #define Mouse_INT_OFF	(MOUSE_INT33_OFF + 0x10)
-#define Mouse_ROUTINE  ((BIOSSEG << 4)+Mouse_ROUTINE_OFF)
 
 /* intercept-stub for dosdebugger (catches INT21/AX=4B00 */
 #define DBGload_SEG BIOSSEG

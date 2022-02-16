@@ -10,6 +10,8 @@
 #include "video.h"		/* video base address */
 #include "serial.h"
 #include "timers.h"
+#include "virq.h"
+#include "coopth.h"
 #include "utilities.h"
 #include "doshelpers.h"
 #include "lowmem.h"
@@ -32,6 +34,8 @@
 #define MOUSE_MINY 0
 #define INIT_SPEED_X 8
 #define INIT_SPEED_Y 16
+
+static int mouse_tid;
 
 static void reset_scale(void);
 
@@ -142,7 +146,6 @@ static void mouse_delta(int);
 static int mouse_clip_coords(void);
 static void mouse_hide_on_exclusion(void);
 
-static void call_mouse_event_handler(void);
 static int mouse_events = 0;
 struct dragged_hack {
   int cnt, skipped;
@@ -303,10 +306,6 @@ mouse_helper(struct vm86_regs *regs)
 	m_printf("MOUSE: normalizing hide count, %i\n", mouse.cursor_on);
 	mouse.cursor_on = -1;
     }
-    break;
-  case 0xf2:
-    m_printf("MOUSE int74 helper\n");
-    call_mouse_event_handler();
     break;
   case 0xff:
     m_printf("MOUSE Checking InternalDriver presence !!\n");
@@ -2007,7 +2006,7 @@ void
 mouse_delta(int event)
 {
 	mouse_events |= event;
-	pic_request(PIC_IMOUSE);
+	virq_raise(VIRQ_MOUSE);
 	reset_idle(0);
 }
 
@@ -2106,7 +2105,7 @@ static void call_int33_mouse_event_handler(void)
 }
 
 /* this function is called from int74 via inte6 */
-static void call_mouse_event_handler(void)
+static void call_mouse_event_handler(void *arg)
 {
   int handled = 0;
 
@@ -2242,9 +2241,15 @@ static void mouse_curtick(void)
   mouse_update_cursor(0);
 }
 
-static void do_mouse_irq(void)
+static enum VirqSwRet do_mouse_irq(void *arg)
 {
-  fake_int_to(BIOSSEG, Mouse_ROUTINE_OFF);
+  int ret = VIRQ_SWRET_DONE;
+
+  if (mouse_events) {
+    coopth_start(mouse_tid, NULL);
+    ret = VIRQ_SWRET_BH;
+  }
+  return ret;
 }
 
 /*
@@ -2292,7 +2297,9 @@ static int int33_mouse_init(void)
   mouse.exc_lx = mouse.exc_ux = -1;
   mouse.exc_ly = mouse.exc_uy = -1;
 
-  pic_seti(PIC_IMOUSE, NULL, 0, do_mouse_irq);
+  /* TODO: use hw handler too to demonstrate all virq capabilities! */
+  virq_register(VIRQ_MOUSE, NULL, do_mouse_irq, NULL);
+  mouse_tid = coopth_create("mouse", call_mouse_event_handler);
   sigalrm_register_handler(mouse_curtick);
 
   m_printf("MOUSE: INIT complete\n");

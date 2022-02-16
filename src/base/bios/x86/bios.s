@@ -108,17 +108,6 @@ GET_RETCODE_HELPER:
 IRET_OFF:
 	iret
 
-        .globl Mouse_ROUTINE_OFF
-Mouse_ROUTINE_OFF:
-	pushw	%ax	/* save everything */
-	pushw	%bx
-	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
-	movw	$0xf2,%bx	/* call the user or PS/2 hook */
-	int	$DOS_HELPER_INT
-	popw	%bx
-	popw	%ax
-	iret
-
 /* ----------------------------------------------------------------- */
 		/* This is an int e7 used for FCB opens */
 	.globl FCB_HLP_OFF

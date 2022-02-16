@@ -176,8 +176,8 @@ static unsigned long pic0_isr;          /* interrupt in-service register */
 static unsigned int pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
 static unsigned long pic_irqall = 0xfffe;       /* bits for all IRQs set. */
 
-static unsigned long pic0_imr = 0xf800;  /* interrupt mask register, pic0 */
-static unsigned long pic1_imr = 0x0660;         /* interrupt mask register, pic1 */
+static unsigned long pic0_imr = 0x0000;  /* interrupt mask register, pic0 */
+static unsigned long pic1_imr = 0x0000;         /* interrupt mask register, pic1 */
 static unsigned long pic_imr = 0xfff8;          /* interrupt mask register */
 static unsigned int pic_vm86_count = 0;   /* count of times 'round the vm86 loop*/
 static unsigned int pic_dpmi_count = 0;   /* count of times 'round the dpmi loop*/
