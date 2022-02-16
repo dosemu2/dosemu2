@@ -191,7 +191,9 @@ struct mouse_drv {
 };
 
 void register_mouse_driver(struct mouse_drv *mouse);
+void register_mouse_driver_buffered(struct mouse_drv *mouse);
 void mousedrv_set_udata(const char *name, void *udata);
+int mousedrv_process_fifo(const char *name);
 
 void mouse_move_button(int num, int press, int from);
 void mouse_move_buttons(int lbutton, int mbutton, int rbutton, int from);

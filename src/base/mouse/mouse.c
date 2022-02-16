@@ -2006,7 +2006,6 @@ void
 mouse_delta(int event)
 {
 	mouse_events |= event;
-	virq_raise(VIRQ_MOUSE);
 	reset_idle(0);
 }
 
@@ -2252,6 +2251,12 @@ static enum VirqSwRet do_mouse_irq(void *arg)
   return ret;
 }
 
+static enum VirqHwRet do_mouse_fifo(void *arg)
+{
+  int cnt = mousedrv_process_fifo("int33 mouse");
+  return (cnt ? VIRQ_HWRET_CONT : VIRQ_HWRET_DONE);
+}
+
 /*
  * DANG_BEGIN_FUNCTION mouse_init
  *
@@ -2297,8 +2302,7 @@ static int int33_mouse_init(void)
   mouse.exc_lx = mouse.exc_ux = -1;
   mouse.exc_ly = mouse.exc_uy = -1;
 
-  /* TODO: use hw handler too to demonstrate all virq capabilities! */
-  virq_register(VIRQ_MOUSE, NULL, do_mouse_irq, NULL);
+  virq_register(VIRQ_MOUSE, do_mouse_fifo, do_mouse_irq, NULL);
   mouse_tid = coopth_create("mouse", call_mouse_event_handler);
   sigalrm_register_handler(mouse_curtick);
 
@@ -2306,7 +2310,7 @@ static int int33_mouse_init(void)
   return 1;
 }
 
-static int int33_mouse_accepts(int from, void *udata)
+static int do_accepts(int from, void *udata)
 {
   if (!mice->intdrv)
     return 0;
@@ -2318,6 +2322,14 @@ static int int33_mouse_accepts(int from, void *udata)
   if (mice->type != mice->dev_type)
     return (from == mice->type);
   return 1;
+}
+
+static int int33_mouse_accepts(int from, void *udata)
+{
+  int rc = do_accepts(from, udata);
+  if (rc)
+    virq_raise(VIRQ_MOUSE);
+  return rc;
 }
 
 void mouse_late_init(void)
@@ -2370,5 +2382,5 @@ struct mouse_drv int33_mouse = {
 
 CONSTRUCTOR(static void int33_mouse_register(void))
 {
-  register_mouse_driver(&int33_mouse);
+  register_mouse_driver_buffered(&int33_mouse);
 }
