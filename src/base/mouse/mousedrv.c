@@ -85,7 +85,7 @@ void register_mouse_driver(struct mouse_drv *mouse)
 void mousedrv_set_udata(const char *name, void *udata)
 {
 	struct mouse_drv_wrp *m;
-	for (m = mdrv; m->next; m = m->next) {
+	for (m = mdrv; m; m = m->next) {
 		if (strcmp(name, m->drv->name) == 0) {
 			m->udata = udata;
 			break;
