@@ -2310,7 +2310,7 @@ static int int33_mouse_init(void)
   return 1;
 }
 
-static int do_accepts(int from, void *udata)
+static int int33_mouse_accepts(int from, void *udata)
 {
   if (!mice->intdrv)
     return 0;
@@ -2324,12 +2324,9 @@ static int do_accepts(int from, void *udata)
   return 1;
 }
 
-static int int33_mouse_accepts(int from, void *udata)
+static void fifo_notify(void *udata)
 {
-  int rc = do_accepts(from, udata);
-  if (rc)
-    virq_raise(VIRQ_MOUSE);
-  return rc;
+  virq_raise(VIRQ_MOUSE);
 }
 
 void mouse_late_init(void)
@@ -2382,5 +2379,5 @@ struct mouse_drv int33_mouse = {
 
 CONSTRUCTOR(static void int33_mouse_register(void))
 {
-  register_mouse_driver_buffered(&int33_mouse);
+  register_mouse_driver_buffered(&int33_mouse, fifo_notify);
 }

@@ -29,13 +29,20 @@
 #include "mouse.h"
 
 
+struct bdrv_s {
+  struct mouse_drv *drv;
+  void *udata;
+  struct rng_s buf;
+  void (*callback)(void *);
+  void **arg_p;
+};
+
 struct mouse_drv_wrp {
   struct mouse_drv *drv;
   struct mouse_drv_wrp *next;
   void *udata;
   int initialized;
-  struct mouse_drv_wrp *bdrv;
-  struct rng_s buf;
+  struct bdrv_s bdrv;
 };
 static struct mouse_drv_wrp *mdrv;
 
@@ -92,7 +99,7 @@ static struct mouse_drv_wrp *do_create_driver(struct mouse_drv *mouse)
 
 	ms = malloc(sizeof(*ms));
 	ms->drv = mouse;
-	ms->bdrv = NULL;
+	ms->bdrv.drv = NULL;
 	ms->udata = NULL;
 	ms->initialized = 0;
 	ms->next = NULL;
@@ -123,13 +130,18 @@ void mousedrv_set_udata(const char *name, void *udata)
 	}
 }
 
+static void fifo_mdrv_add(struct bdrv_s *r, struct mbuf_s *b)
+{
+  if (!rng_put(&r->buf, b))
+    error("mouse queue overflow\n");
+  r->callback(*r->arg_p);
+}
+
 #define MOUSE_BO(n, DEF, ...) \
 static void fifo_mdrv_##n DEF \
 { \
   struct mbuf_s b = { MID_##n, {__VA_ARGS__} }; \
-  struct rng_s *r = udata; \
-  if (!rng_put(r, &b)) \
-    error("mouse queue overflow\n"); \
+  fifo_mdrv_add(udata, &b); \
 }
 
 MOUSE_BO(move_button, (int num, int press, void *udata),
@@ -160,12 +172,14 @@ struct mouse_drv fifo_mdrv = {
     .name = "fifo helper",
 };
 
-static void fifo_mdrv_init(struct mouse_drv_wrp *m)
+static void fifo_mdrv_init(struct mouse_drv_wrp *m, void (*cb)(void *))
 {
 #define M_FIFO_LEN 1024
-    m->bdrv = do_create_driver(&fifo_mdrv);
-    rng_init(&m->bdrv->buf, M_FIFO_LEN, sizeof(struct mbuf_s));
-    m->bdrv->udata = &m->bdrv->buf;
+    m->bdrv.drv = &fifo_mdrv;
+    rng_init(&m->bdrv.buf, M_FIFO_LEN, sizeof(struct mbuf_s));
+    m->bdrv.udata = &m->bdrv;
+    m->bdrv.callback = cb;
+    m->bdrv.arg_p = &m->udata;
 }
 
 static int do_process_fifo(struct mouse_drv_wrp *m)
@@ -173,8 +187,8 @@ static int do_process_fifo(struct mouse_drv_wrp *m)
     struct mbuf_s b;
     struct mouse_drv *d = m->drv;
 
-    assert(m->bdrv);
-    if (!rng_get(&m->bdrv->buf, &b))
+    assert(m->bdrv.drv);
+    if (!rng_get(&m->bdrv.buf, &b))
         return 0;
     switch (b.id) {
 #define MP(n, ...) \
@@ -191,7 +205,7 @@ static int do_process_fifo(struct mouse_drv_wrp *m)
     MP(drag_to_corner, b.args[0], b.args[1]);
     MP(enable_native_cursor, b.args[0]);
     }
-    return rng_count(&m->bdrv->buf);
+    return rng_count(&m->bdrv.buf);
 }
 
 int mousedrv_process_fifo(const char *name)
@@ -204,12 +218,13 @@ int mousedrv_process_fifo(const char *name)
     return 0;
 }
 
-void register_mouse_driver_buffered(struct mouse_drv *mouse)
+void register_mouse_driver_buffered(struct mouse_drv *mouse,
+	void (*cb)(void *))
 {
 	struct mouse_drv_wrp *m, *ms;
 
 	ms = do_create_driver(mouse);
-	fifo_mdrv_init(ms);
+	fifo_mdrv_init(ms, cb);
 	if (mdrv == NULL) {
 		mdrv = ms;
 	} else {
@@ -276,8 +291,8 @@ void mouse_##n DEF \
     if (!m->initialized) \
       continue; \
     d = m->drv; \
-    b = m->bdrv ? m->bdrv->drv : d; \
-    ud = m->bdrv ? m->bdrv->udata : m->udata; \
+    b = m->bdrv.drv ?: d; \
+    ud = m->bdrv.drv ? m->bdrv.udata : m->udata; \
     if (d->n && d->accepts(from, m->udata)) \
 	b->n(__VA_ARGS__, ud); \
   } \
