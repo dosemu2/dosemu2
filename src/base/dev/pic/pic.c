@@ -598,7 +598,6 @@ void run_irqs(void)
 {
        int local_pic_ilevel, ret;
 
-       pic_activate();
        if (!pic_isset_IF()) {
 	    if (pic_pending()) {
 #if 0
@@ -946,6 +945,8 @@ void pic_sched(int ilevel, int interval)
     pic_print(2,"Scheduling lvl= ",ilevel,mesg);
     pic_print2(2,"pic_itime set to ",pic_itime[ilevel],"");
   }
+
+  pic_activate();
 }
 
 int CAN_SLEEP(void)
