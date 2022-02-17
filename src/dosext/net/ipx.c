@@ -30,6 +30,7 @@
 #include "cpu.h"
 #include "int.h"
 #include "hlt.h"
+#include "virq.h"
 #include "emudpmi.h"
 #include "bios.h"
 #include "coopth.h"
@@ -44,8 +45,8 @@
 
 /* declare some function prototypes */
 static u_char IPXCancelEvent(far_t ECBPtr);
-static void ipx_recv_esr_call(void);
-static void ipx_aes_esr_call(void);
+static enum VirqSwRet ipx_recv_esr_call(void *arg);
+static enum VirqSwRet ipx_aes_esr_call(void *arg);
 static int recv_tid, aes_tid;
 static uint16_t ipx_hlt;
 
@@ -58,8 +59,8 @@ static void AESTimerTick(void);
 static void ipx_recv_esr_call_thr(void *arg);
 static void ipx_aes_esr_call_thr(void *arg);
 static void do_int7a(void);
-static int ipx_receive(void);
-static int IPXCheckForAESReady(void);
+static enum VirqHwRet ipx_receive(void *arg);
+static enum VirqHwRet IPXCheckForAESReady(void *arg);
 
 /* DANG_FIXTHIS - get a real value for my address !! */
 static unsigned char MyAddress[10] =
@@ -140,8 +141,8 @@ void ipx_init(void)
         config.ipx_net);
     return;
   }
-  pic_seti(PIC_IPX, NULL, 0, ipx_recv_esr_call);
-  pic_seti(PIC_IPX_AES, NULL, 0, ipx_aes_esr_call);
+  virq_register(VIRQ_IPX, ipx_receive, ipx_recv_esr_call, NULL);
+  virq_register(VIRQ_IPX_AES, IPXCheckForAESReady, ipx_aes_esr_call, NULL);
 
   recv_tid = coopth_create("IPX receiver callback", ipx_recv_esr_call_thr);
   aes_tid = coopth_create("IPX aes callback", ipx_aes_esr_call_thr);
@@ -324,7 +325,7 @@ static void ipx_async_callback(int fd, void *arg)
 
   FD_SET(fd, fds);
   n_printf("IPX: requesting receiver IRQ\n");
-  pic_request(PIC_IPX);
+  virq_raise(VIRQ_IPX);
 }
 
 static u_char IPXOpenSocket(u_short port, u_short * newPort)
@@ -502,24 +503,32 @@ static void ipx_recv_esr_call_thr(void *arg)
 {
   n_printf("IPX: Calling receive ESR\n");
   ipx_esr_call(recvECB, ESR_CALLOUT_IPX);
+  recvECB = FAR_NULL;
 }
 
-static void ipx_recv_esr_call(void)
+static enum VirqSwRet ipx_recv_esr_call(void *arg)
 {
-  if (ipx_receive())
+  if (recvECB.segment) {
     coopth_start(recv_tid, NULL);
+    return VIRQ_SWRET_BH;
+  }
+  return VIRQ_SWRET_DONE;
 }
 
 static void ipx_aes_esr_call_thr(void *arg)
 {
   n_printf("IPX: Calling AES ESR\n");
   ipx_esr_call(aesECB, ESR_CALLOUT_AES);
+  aesECB = FAR_NULL;
 }
 
-static void ipx_aes_esr_call(void)
+static enum VirqSwRet ipx_aes_esr_call(void *arg)
 {
-  if (IPXCheckForAESReady())
+  if (aesECB.segment) {
     coopth_start(aes_tid, NULL);
+    return VIRQ_SWRET_BH;
+  }
+  return VIRQ_SWRET_DONE;
 }
 
 static u_char IPXSendPacket(far_t ECBPtr)
@@ -721,7 +730,7 @@ static void AESTimerTick(void)
 		 ECB->TimeLeft, ECB);
 	if (ECB->TimeLeft == 0) {
 	  /* now setup to call the ESR for this event */
-	  pic_request(PIC_IPX_AES);
+	  virq_raise(VIRQ_IPX_AES);
 	  return;
 	}
       }
@@ -825,7 +834,7 @@ static int IPXReceivePacket(ipx_socket_t * s)
   return 0;
 }
 
-static int IPXCheckForAESReady(void)
+static enum VirqHwRet IPXCheckForAESReady(void *arg)
 {
   ipx_socket_t *s;
   far_t ECBPtr;
@@ -846,14 +855,14 @@ static int IPXCheckForAESReady(void)
 	  if (rcode == RCODE_SUCCESS) {
 	    ECBp->CompletionCode = CC_SUCCESS;
 	  }
-	  return 1;	/* run IRQ */
+	  return VIRQ_HWRET_CONT;
 	}
 	ECBPtr = ECBp->Link;
       }
     }
     s = s->next;
   }
-  return 0;
+  return VIRQ_HWRET_DONE;
 }
 
 static ipx_socket_t *check_ipx_ready(fd_set * set)
@@ -876,7 +885,7 @@ static void IPXRelinquishControl(void)
   idle_enable(0, 5, 0, "IPX");
 }
 
-static int ipx_receive(void)
+static enum VirqHwRet ipx_receive(void *arg)
 {
   ipx_socket_t *s;
 
@@ -885,11 +894,11 @@ static int ipx_receive(void)
     if (IPXReceivePacket(s)) {
       if (FARt_PTR2(ECBp->ESRAddress)) {
         recvECB = ECBPtr;
-        return 1;	/* run IRQ */
+        return VIRQ_HWRET_CONT;
       }
     }
   }
-  return 0;
+  return VIRQ_HWRET_DONE;
 }
 
 int ipx_int7a(void)

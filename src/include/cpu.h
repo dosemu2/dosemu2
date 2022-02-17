@@ -220,6 +220,7 @@ typedef struct {
   u_short offset;
   u_short segment;
 } far_t;
+#define FAR_NULL (far_t){0,0}
 #define MK_FP16(s,o)		((((unsigned int)(s)) << 16) | ((o) & 0xffff))
 #define MK_FP(f)		MK_FP16(f.segment, f.offset)
 #define FP_OFF16(far_ptr)	((far_ptr) & 0xffff)
