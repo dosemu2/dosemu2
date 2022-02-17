@@ -279,11 +279,12 @@ static void pit_latch(int latch)
       if (latch == 0) {
 	/* when current time is greater than irq time, call pic_request
 	   which will then point pic_itime to next interrupt */
-
+#if 0
 	if (((p->mode&0x40)==0) && (pic_sys_time > pic_itime[PIC_IRQ0])) {
 	  if (pic_request(PIC_IRQ0)==PIC_REQ_OK)
 	   { r_printf("PIT: pit_latch, pic_request IRQ0 mode 2/3\n"); }
 	}
+#endif
 	/* while current time is less than next irq time, ticks decrease;
          * ticks can go out of bounds or negative when the interrupt
          * is lost or pending */
