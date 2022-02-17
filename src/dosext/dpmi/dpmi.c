@@ -760,6 +760,11 @@ int FreeDescriptor(unsigned short selector)
     D_printf("DPMI: Cannot free system descriptor.\n");
     return -1;
   }
+  if (Segments[ldt_entry].used != current_client + 1) {
+    D_printf("DPMI: Not freeing descriptor from client %x by %x\n",
+        Segments[ldt_entry].used, current_client + 1);
+    return -1;
+  }
   ret = SetSelector(selector, 0, 0, 0, MODIFY_LDT_CONTENTS_DATA, 1, 0, 1, 0);
   Segments[ldt_entry].used = 0;
   ldt_bitmap_update(selector, 1);
