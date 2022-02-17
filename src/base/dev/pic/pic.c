@@ -598,7 +598,6 @@ void run_irqs(void)
 {
        int local_pic_ilevel, ret;
 
-       /* don't allow HW interrupts in force trace mode */
        pic_activate();
        if (!pic_isset_IF()) {
 	    if (pic_pending()) {
@@ -731,17 +730,10 @@ static char buf[81];
      pic_print(2,"Requested irq lvl ",    inum, " pending  ");
       }
     pic_pirr|=(1<<inum);
-    if(pic_itime[inum] == pic_ltime[inum]) {
-       pic_print(2,"pic_itime and pic_ltime for timer ",inum," matched!");
-       pic_itime[inum] = pic_itime[32];
-    }
-    pic_ltime[inum] = pic_itime[inum];
   }
   else {
     pic_print(2,"Requested irq lvl ",    inum, " successfully");
     pic_irr|=(1<<inum);
-    if(pic_itime[inum] == pic_ltime[inum]) pic_itime[inum] = pic_itime[32];
-    pic_ltime[inum] = pic_itime[inum];
     ret=PIC_REQ_OK;
   }
   if (debug_level('r') >2) {
@@ -888,8 +880,11 @@ static void pic_activate(void)
          if (pic_itime[timer] != pic_ltime[timer]) {
                if ((earliest == NEVER) || (pic_itime[timer] < earliest))
                     earliest = pic_itime[timer];
+               pic_ltime[timer] = pic_itime[timer];
                pic_request(timer);
                ++count;
+         } else {
+               pic_print(2,"pic_itime and pic_ltime for timer ",timer," matched!");
          }
       }
    }
