@@ -45,7 +45,7 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include "libpacket.h"
-#include "pic.h"
+#include "virq.h"
 #include "coopth.h"
 #include "hlt.h"
 #include "utilities.h"
@@ -74,7 +74,8 @@ static int Remove_Type(int);
 int Find_Handle(u_char *buf);
 static void printbuf(const char *, struct ethhdr *);
 static int pkt_receive(void);
-static void pkt_receiver_callback(void);
+static enum VirqHwRet pkt_virq_receive(void *arg);
+static enum VirqSwRet pkt_receiver_callback(void *arg);
 static void pkt_receiver_callback_thr(void *arg);
 static void pkt_register_net_fd_and_mode(int fd, int mode);
 static Bit32u PKTRcvCall_TID;
@@ -166,7 +167,7 @@ pkt_init(void)
     p_stats = MK_FP32(BIOSSEG, PKTDRV_stats);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
-    pic_seti(PIC_NET, NULL, 0, pkt_receiver_callback);
+    virq_register(VIRQ_PKT, pkt_virq_receive, pkt_receiver_callback, NULL);
 
     /* fill other global data */
 
@@ -510,7 +511,7 @@ static void pkt_hlt(Bit16u idx, HLT_ARG(arg))
 
 static void pkt_receive_req_async(int fd, void *arg)
 {
-	pic_request(PIC_NET);
+    virq_raise(VIRQ_PKT);
 }
 
 static void pkt_register_net_fd_and_mode(int fd, int mode)
@@ -570,12 +571,13 @@ Remove_Type(int handle)
     return 0;
 }
 
-static void pkt_receiver_callback(void)
+static enum VirqSwRet pkt_receiver_callback(void *arg)
 {
-    if (pkt_receive()) {
-      assert(p_helper_size);
-      coopth_start(PKTRcvCall_TID, NULL);
+    if (p_helper_size) {
+        coopth_start(PKTRcvCall_TID, NULL);
+        return VIRQ_SWRET_BH;
     }
+    return VIRQ_SWRET_DONE;
 }
 
 static void pkt_receiver_callback_thr(void *arg)
@@ -601,9 +603,6 @@ static void pkt_receiver_callback_thr(void *arg)
 out:
     p_helper_size = 0;
     REGS = rcv_saved_regs;
-
-    /* check for next frame */
-    pic_request(PIC_NET);
 }
 
 static int pkt_receive(void)
@@ -684,6 +683,11 @@ static int pkt_receive(void)
         return 0;
     }
     return 0;
+}
+
+static enum VirqHwRet pkt_virq_receive(void *arg)
+{
+    return (pkt_receive() ? VIRQ_HWRET_CONT : VIRQ_HWRET_DONE);
 }
 
 /*  Find_Handle does type demultiplexing.
