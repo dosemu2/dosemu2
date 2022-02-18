@@ -1077,20 +1077,6 @@ static void SIGALRM_call(void *arg)
   if (config.rdtsc)
     update_cputime_TSCBase();
 
-#if 0
-/*
- * DANG_BEGIN_REMARK
- *  Check for keyboard coming from client
- *  For now, first byte is interrupt requests from Client
- * DANG_END_REMARK
- */
- if (*(u_char *)(shared_qf_memory + CLIENT_REQUEST_FLAG_AREA) & 0x40) {
-   k_printf("KBD: Client sent key\n");
-   pic_request (PIC_IRQ1);
-   *(u_char *)(shared_qf_memory + CLIENT_REQUEST_FLAG_AREA) &=  ~0x40;
- }
-#endif
-
   io_select();	/* we need this in order to catch lost SIGIOs */
 
   alarm_idle();
