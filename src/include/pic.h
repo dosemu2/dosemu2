@@ -92,14 +92,18 @@ void run_irqs(void);                                  /* run requested irqs */
 #define PIC_REQ_PEND	(-1)
 int pic_request(int inum);                            /* interrupt trigger */
 void pic_untrigger(int inum);                          /* interrupt untrigger */
-void pic_watch(hitimer_u *s_time);    /* interrupt pending watchdog timer */
 int pic_pending(void);			/* inform caller if interrupt is pending */
 int pic_irq_active(int num);
 int pic_irq_masked(int num);
-void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 /* The following are too simple to be anything but in-line */
 
 #define pic_set_mask pic_imr=(pic0_imr|pic1_imr|pic_iflag)
+#define pic_print(code,s1,v1,s2)        if (debug_level('r')>code){p_pic_print(s1,v1,s2);}
+#define pic_print2(code,s1,v1,s2) \
+	if (debug_level('r')>code){ \
+		log_printf(1, "PIC: %s%"PRIu64"%s\n", s1, v1, s2); \
+	}
+void p_pic_print(const char *s1, int v1, const char *s2);
 
 int CAN_SLEEP(void);
 

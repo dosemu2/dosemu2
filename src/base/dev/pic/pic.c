@@ -140,10 +140,6 @@
 #include "ipx.h"
 #include "pic.h"
 
-#undef us
-#define us unsigned
-static void pic_activate(void);
-
 #define TIMER0_FLOOD_THRESHOLD 50000
 
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
@@ -171,19 +167,6 @@ static unsigned int pic_vm86_count = 0;   /* count of times 'round the vm86 loop
 static unsigned int pic_dpmi_count = 0;   /* count of times 'round the dpmi loop*/
 static unsigned long pic1_mask = 0x07f8; /* bits set for pic1 levels */
 static unsigned long   pic_smm = 0;      /* 32=>special mask mode, 0 otherwise */
-
-static   hitimer_t pic_ltime[33] =     /* timeof last pic request honored */
-                {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER};
-         hitimer_t pic_itime[33] =     /* time to trigger next interrupt */
-                {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER};
 
 #define PNULL	(void *) 0
 static struct lvldef pic_iinfo[32] = {
@@ -277,12 +260,8 @@ static unsigned char pic1_cmd;
 #define pic_print2(code,s1,v1,s2)
 #else
 #define pic_print(code,s1,v1,s2)	if (debug_level('r')>code){p_pic_print(s1,v1,s2);}
-#define pic_print2(code,s1,v1,s2) \
-	if (debug_level('r')>code){ \
-		log_printf(1, "PIC: %s%"PRIu64"%s\n", s1, v1, s2); \
-	}
 
-static void p_pic_print(const char *s1, int v1, const char *s2)
+void p_pic_print(const char *s1, int v1, const char *s2)
 {
   static int oldi = 0, header_count = 0;
   int pic_ilevel = find_bit(pic_isr);
@@ -755,34 +734,6 @@ void pic_untrigger(int inum)
     pic_print(2,"Requested irq lvl ", inum, " untriggered");
 }
 
-/* DANG_BEGIN_FUNCTION pic_watch
- *
- * pic_watch is a watchdog timer for pending interrupts.  If pic_iret
- * somehow fails to activate a pending interrupt request for 2 consecutive
- * timer ticks, pic_watch will activate them anyway.  pic_watch is called
- * ONLY by timer_tick, the interval timer signal handler, so the two functions
- * will probably be merged.
- *
- * DANG_END_FUNCTION
- */
-void pic_watch(hitimer_u *s_time)
-{
-  hitimer_t t_time;
-
-/*  calculate new sys_time
- *  values are kept modulo 2^32 (exactly 1 hour)
- */
-  t_time = s_time->td;
-
-  /* check for any freshly initiated timers, and sync them to s_time */
-  pic_print2(2,"pic_itime[1]= ",pic_itime[1]," ");
-  pic_sys_time=t_time + (t_time == NEVER);
-  pic_print2(2,"pic_sys_time set to ",pic_sys_time," ");
-  pic_dos_time = pic_itime[32];
-
-  pic_activate();
-}
-
 static int pic_get_ilevel_masked(uint8_t mask)
 {
     int local_pic_ilevel, old_ilevel;
@@ -828,99 +779,6 @@ int pic_irq_active(int num)
 int pic_irq_masked(int num)
 {
     return test_bit(num, &pic_imr);
-}
-
-/* DANG_BEGIN_FUNCTION pic_activate
- *
- * pic_activate requests any interrupts whose scheduled time has arrived.
- * anything after pic_dos_time and before pic_sys_time is activated.
- * pic_dos_time is advanced to the earliest time scheduled.
- * DANG_END_FUNCTION
- */
-static void pic_activate(void)
-{
-  hitimer_t earliest;
-  int timer, count;
-
-  if (pic_pending())
-    return;
-
-/*if(pic_irr&~pic_imr) return;*/
-   earliest = pic_sys_time;
-   count = 0;
-   for (timer=0; timer<32; ++timer) {
-      if ((pic_itime[timer] != NEVER) && (pic_itime[timer] < pic_sys_time)) {
-         if (pic_itime[timer] != pic_ltime[timer]) {
-               if ((earliest == NEVER) || (pic_itime[timer] < earliest))
-                    earliest = pic_itime[timer];
-               pic_ltime[timer] = pic_itime[timer];
-               pic_request(timer);
-               ++count;
-         } else {
-               pic_print(2,"pic_itime and pic_ltime for timer ",timer," matched!");
-         }
-      }
-   }
-   if(count) pic_print(2,"Activated ",count, " interrupts.");
-   pic_print2(2,"Activate ++ dos time to ",earliest, " ");
-   pic_print2(2,"pic_sys_time is ",pic_sys_time," ");
-   pic_itime[32] = earliest;
-   if (count)
-      pic_dos_time = earliest;
-}
-
-/* DANG_BEGIN_FUNCTION pic_sched
- * pic_sched schedules an interrupt for activation after a designated
- * time interval.  The time measurement is in unis of 1193047/second,
- * the same rate as the pit counters.  This is convenient for timer
- * emulation, but can also be used for pacing other functions, such as
- * serial emulation, incoming keystrokes, or video updates.  Some sample
- * intervals:
- *
- * rate/sec:	5	7.5	11	13.45	15	30	60
- * interval:	238608	159072	108459	88702	79536	39768	19884
- *
- * rate/sec:	120	180	200	240	360	480	720
- * interval:	9942	6628	5965	4971	3314	2485	1657
- *
- * rate/sec:	960	1440	1920	2880	3840	5760	11520
- * interval:	1243	829	621	414	311	207	103
- *
- * pic_sched expects two parameters: an interrupt level and an interval.
- * To assure proper repeat scheduling, pic_sched should be called from
- * within the interrupt handler for the same interrupt.  The maximum
- * interval is 15 minutes (0x3fffffff).
- * DANG_END_FUNCTION
- */
-
-void pic_sched(int ilevel, int interval)
-{
-  char mesg[35];
-
- /* default for interval is 65536 (=54.9ms)
-  * There's a problem with too small time intervals - an interrupt can
-  * be continuously scheduled, without letting any time to process other
-  * code.
-  *
-  * BIG WARNING - in non-periodic timer modes pit[0].cntr goes to -1
-  *	at the end of the interval - was this the reason for the following
-  *	[1u-15sec] range check?
-  */
-  if(interval > 0 && interval < 0x3fffffff) {
-     if(pic_ltime[ilevel]==NEVER) {
-	pic_itime[ilevel] = pic_itime[32] + interval;
-     } else {
-	pic_itime[ilevel] = pic_itime[ilevel] + interval;
-     }
-  }
-  if (debug_level('r') > 2) {
-    /* avoid going through sprintf for non-debugging */
-    sprintf(mesg,", delay= %d.",interval);
-    pic_print(2,"Scheduling lvl= ",ilevel,mesg);
-    pic_print2(2,"pic_itime set to ",pic_itime[ilevel],"");
-  }
-
-  pic_activate();
 }
 
 int CAN_SLEEP(void)
