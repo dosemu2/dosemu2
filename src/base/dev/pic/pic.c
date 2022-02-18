@@ -718,7 +718,7 @@ int pic_request(int inum)
 static char buf[81];
   int ret=PIC_REQ_NOP;
 
-  if ((pic_irr|pic_isr)&(1<<inum))
+  if (pic_irr & (1 << inum))
     {
     if (pic_pirr&(1<<inum)){
      ret=PIC_REQ_LOST;
