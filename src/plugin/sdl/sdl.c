@@ -357,9 +357,14 @@ static int SDL_init(void)
   use_bitmap_font = 1;
 
   /* hints are set before renderer is created */
-  if (config.X_lin_filt || config.X_bilin_filt) {
-    v_printf("SDL: enabling scaling filter\n");
+  if (config.X_bilin_filt) {
+    v_printf("SDL: enabling scaling filter \"best\"\n");
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
+  } else if (config.X_lin_filt) {
+    v_printf("SDL: enabling scaling filter \"linear\"\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+  } else {
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
   }
 #if SDL_VERSION_ATLEAST(2,0,10)
   SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
