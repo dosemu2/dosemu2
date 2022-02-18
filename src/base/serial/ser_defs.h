@@ -446,4 +446,6 @@ struct serial_drv {
   const char *name;
 };
 
+#define COM_INTERRUPT(num) (com_cfg[num].irq + 8)
+
 #endif /* SER_DEFS_H */

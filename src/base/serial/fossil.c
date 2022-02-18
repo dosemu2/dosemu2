@@ -228,6 +228,7 @@ void fossil_int14(int num)
     uint8_t imr, imr1;
     fossil_info_t *fi;
     int ioff = com_cfg[num].irq - 3;
+    int inum = COM_INTERRUPT(num);
 
     assert(sizeof(*fi) == 19);
 
@@ -252,11 +253,10 @@ void fossil_int14(int num)
     write_MCR(num, com[num].MCR | UART_MCR_OUT2);
     write_IER(num, 0);
     /* interrupts are shared, don't set twice */
-    if (ISEG(com[num].interrupt) != BIOS_HLT_BLK_SEG ||
-        IOFF(com[num].interrupt) != irq_hlt + ioff) {
-      com[num].ivec.segment = ISEG(com[num].interrupt);
-      com[num].ivec.offset = IOFF(com[num].interrupt);
-      SETIVEC(com[num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt + ioff);
+    if (ISEG(inum) != BIOS_HLT_BLK_SEG || IOFF(inum) != irq_hlt + ioff) {
+      com[num].ivec.segment = ISEG(inum);
+      com[num].ivec.offset = IOFF(inum);
+      SETIVEC(inum, BIOS_HLT_BLK_SEG, irq_hlt + ioff);
       imr = imr1 = port_inb(0x21);
       imr &= ~(1 << com_cfg[num].irq);
       if (imr != imr1)
@@ -293,7 +293,7 @@ void fossil_int14(int num)
     imr = port_inb(0x21);
     imr |= (1 << com_cfg[num].irq);
     port_outb(0x21, imr);
-    SETIVEC(com[num].interrupt, com[num].ivec.segment, com[num].ivec.offset);
+    SETIVEC(COM_INTERRUPT(num), com[num].ivec.segment, com[num].ivec.offset);
     com[num].fossil_active = FALSE;
     /* Note: the FIFO values aren't restored. Hopefully nobody notices... */
     s_printf("SER%d: FOSSIL 0x%02x: Emulation deactivated\n", num, req);

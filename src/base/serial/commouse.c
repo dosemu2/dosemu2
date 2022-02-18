@@ -45,6 +45,7 @@
 #define write_IER(num, byte)  write_reg((num), UART_IER, (byte))
 
 #define _com_num config.mouse.com
+#define COM_INTR COM_INTERRUPT(_com_num)
 static u_short irq_hlt;
 static void com_irq(Bit16u idx, HLT_ARG(arg));
 
@@ -165,7 +166,7 @@ static int com_mouse_reset(void)
     return -1;
   }
 
-  SETIVEC(com[_com_num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt);
+  SETIVEC(COM_INTR, BIOS_HLT_BLK_SEG, irq_hlt);
   write_MCR(_com_num, com[_com_num].MCR | UART_MCR_OUT2);
   imr = imr1 = port_inb(0x21);
   imr &= ~(1 << com_cfg[_com_num].irq);
@@ -184,8 +185,8 @@ static void com_mouse_post_init(void)
   if (_com_num == -1)
     return;
   mouse_enable_native_cursor_id(1, "int33 mouse");
-  com[_com_num].ivec.segment = ISEG(com[_com_num].interrupt);
-  com[_com_num].ivec.offset = IOFF(com[_com_num].interrupt);
+  com[_com_num].ivec.segment = ISEG(COM_INTR);
+  com[_com_num].ivec.offset = IOFF(COM_INTR);
   com_mouse_reset();
 }
 
