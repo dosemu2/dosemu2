@@ -69,7 +69,6 @@
  *   config.num_ser         Number of serial ports active.
  *   com[x].base_port       The base port address of emulated serial port.
  *   com[x].real_comport    The COM port number.
- *   com[x].interrupt       The PIC interrupt level (based on IRQ number)
  *   com[x].mouse           Flag  mouse (to enable extended features)
  *   com[x].fd              File descriptor for port device
  *   com[x].dev[]           Filename of port port device
@@ -351,7 +350,6 @@ typedef struct {
   u_char rx_fifo_trigger;	/* Receive Fifo trigger value */
   int rx_fifo_size;		/* Size of receive FIFO to emulate */
   				/*   MISCELLANEOUS  */
-  int interrupt;		/* IRQ line handled by device */
   u_char int_condition;		/* Interrupt Condition flags - TX/RX/MS/LS */
 
   /* The following are serial port registers */

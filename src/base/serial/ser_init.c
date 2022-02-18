@@ -257,7 +257,6 @@ static void do_ser_init(int num)
     /* Define it depending on using standard irqs */
     com_cfg[num].irq = default_com[com_cfg[num].real_comport-1].irq;
   }
-  com[num].interrupt = pic_irq_list[com_cfg[num].irq];
 
   if (com_cfg[num].base_port == 0) {		/* Is base port undefined? */
     /* Define it depending on using standard addrs */
@@ -297,7 +296,7 @@ static void do_ser_init(int num)
 
   /* Information about serial port added to debug file */
   s_printf("SER%d: COM%d, intlevel=%d, base=0x%x, device=%s\n",
-        num, com_cfg[num].real_comport, com[num].interrupt,
+        num, com_cfg[num].real_comport, com_cfg[num].irq,
         com_cfg[num].base_port, com_cfg[num].dev);
 #if 0
   /* first call to serial timer update func to initialize the timer */
