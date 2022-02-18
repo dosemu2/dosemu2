@@ -156,18 +156,6 @@ unsigned pic_irq_list[] = {PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
 hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
 hitimer_t pic_sys_time;     /* system time set by pic_watch */
 
-/*
- * pic_pirr contains a bit set for each interrupt which has attempted to
- * re-trigger.
- *
- * pic_icount is an attempt to count active interrupts.  Pending (pic_pirr)
- * interrupts are released when pic_icount gets back to zero (as designed).
- * Haven't looked how it is now, this is one thing others have played with.
- *
- * pic_watch() has the primary job of releasing interrupts when a stack switch
- * occurs.
- */
-
 /* PIC "registers", plus a few more */
 
 static unsigned long pic_irr;          /* interrupt request register */
@@ -183,8 +171,6 @@ static unsigned int pic_vm86_count = 0;   /* count of times 'round the vm86 loop
 static unsigned int pic_dpmi_count = 0;   /* count of times 'round the dpmi loop*/
 static unsigned long pic1_mask = 0x07f8; /* bits set for pic1 levels */
 static unsigned long   pic_smm = 0;      /* 32=>special mask mode, 0 otherwise */
-
-static unsigned long   pic_pirr;         /* pending requests: ->irr when icount==0 */
 
 static   hitimer_t pic_ltime[33] =     /* timeof last pic request honored */
                 {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
@@ -630,6 +616,7 @@ void run_irqs(void)
         */
        if((local_pic_ilevel = pic_get_ilevel()) != -1) { /* if something to do*/
                pic_print(1, "Running irq lvl ", local_pic_ilevel, "");
+               /* Clear bit before callback to allow callback to set it again */
                clear_bit(local_pic_ilevel, &pic_irr);
 	       /* pic_isr bit is set in do_irq() */
                ret = (pic_iinfo[local_pic_ilevel].func ?
@@ -718,17 +705,9 @@ int pic_request(int inum)
 static char buf[81];
   int ret=PIC_REQ_NOP;
 
-  if (pic_irr & (1 << inum))
-    {
-    if (pic_pirr&(1<<inum)){
-     ret=PIC_REQ_LOST;
-     pic_print(2,"Requested irq lvl ",    inum, " lost     ");
-      }
-    else {
-     ret=PIC_REQ_PEND;
-     pic_print(2,"Requested irq lvl ",    inum, " pending  ");
-      }
-    pic_pirr|=(1<<inum);
+  if (pic_irr & (1 << inum)) {
+    pic_print(2,"Requested irq lvl ",    inum, " lost     ");
+    ret=PIC_REQ_LOST;
   }
   else {
     pic_print(2,"Requested irq lvl ",    inum, " successfully");
@@ -746,7 +725,7 @@ static char buf[81];
 
 void pic_untrigger(int inum)
 {
-    if (!((pic_irr | pic_pirr) & (1<<inum)))
+    if (!(pic_irr & (1 << inum)))
       return;
     /* Note: untriggering works similar in both edge and level modes.
      * In fact, these modes are very similar in that IRR bits mirror
@@ -772,7 +751,6 @@ void pic_untrigger(int inum)
      * mode the IRR bit gets cleared when IRQ line goes down, so at
      * INTA time there will be nothing to read from IRR.
      */
-    pic_pirr &= ~(1<<inum);
     pic_irr &= ~(1<<inum);
     pic_print(2,"Requested irq lvl ", inum, " untriggered");
 }
@@ -863,13 +841,9 @@ static void pic_activate(void)
 {
   hitimer_t earliest;
   int timer, count;
-  unsigned pic_newirr;
 
   if (pic_pending())
     return;
-  pic_newirr = pic_pirr & ~(pic_irr | pic_isr);
-  pic_irr |= pic_newirr;
-  pic_pirr &= ~pic_newirr;
 
 /*if(pic_irr&~pic_imr) return;*/
    earliest = pic_sys_time;
