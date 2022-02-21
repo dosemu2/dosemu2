@@ -746,10 +746,6 @@ static int pic_get_ilevel_masked(uint8_t mask)
        is active (ie. pic_smm == 32, and local_pic_level is always <= 31) */
     if (local_pic_ilevel >= old_ilevel + pic_smm)  /* priority check */
 	return -1;
-    /* HACK to not allow timer IRQ to interrupt anything else */
-    if (old_ilevel != -1 && (local_pic_ilevel == PIC_IRQ0 ||
-                             local_pic_ilevel == PIC_IRQ8))
-	return -1;
     return local_pic_ilevel;
 }
 
