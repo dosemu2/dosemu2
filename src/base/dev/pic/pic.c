@@ -812,3 +812,15 @@ void pic_reset(void)
 {
   pic_set_mask;
 }
+
+/* PIC extensions */
+
+Bit8u pic0_get_base(void)
+{
+  return pic_iinfo[PIC_IRQ0].ivec;
+}
+
+Bit8u pic1_get_base(void)
+{
+  return pic_iinfo[PIC_IRQ8].ivec;
+}

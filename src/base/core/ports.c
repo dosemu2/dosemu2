@@ -1065,6 +1065,7 @@ int port_register_handler(emu_iodev_t device, int flags)
 		error("PORT: conflicting devices: %s & %s for port %#x\n",
 		      port_handler[handle].handler_name,
 		      EMU_HANDLER(i).handler_name, i);
+		config.exitearly = 1;
 		return 4;
 	}
 	port_handle_table[i] = handle;

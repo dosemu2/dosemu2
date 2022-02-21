@@ -43,6 +43,7 @@
 #include "xms.h"
 #include "emudpmi.h"
 #include "virq.h"
+#include "vtmr.h"
 
 struct io_dev_struct {
   const char *name;
@@ -61,7 +62,6 @@ struct owned_devices_struct {
 static int current_device = -1;
 
 static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
-  { "pit",     NULL,         pit_reset,     NULL },
   { "cmos",    cmos_init,    cmos_reset,    NULL },
   { "video",   video_post_init, NULL, NULL },
   { "internal_mouse",  dosemu_mouse_init,   NULL, dosemu_mouse_close },
@@ -69,6 +69,8 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "pic",     pic_init,     pic_reset,     NULL },
   { "chipset", chipset_init, NULL,          NULL },
   { "virq",    virq_init,    virq_reset,    NULL },
+  { "vtmr",    vtmr_init,    vtmr_reset,    NULL },
+  { "pit",     pit_init,     pit_reset,     NULL },
   { "lpt",     printer_init, NULL,	    NULL },
   { "dma",     dma_init,     dma_reset,     NULL },
 #if 0

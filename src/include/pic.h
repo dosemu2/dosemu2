@@ -82,6 +82,8 @@ void write_pic1(ioport_t port, Bit8u value); /* write to PIC 1 */
 Bit8u read_pic0(ioport_t port);             /* read from PIC 0 */
 Bit8u read_pic1(ioport_t port);             /* read from PIC 1 */
 void pic_seti(unsigned int, int (*)(int), unsigned int, void (*)(void));
+Bit8u pic0_get_base(void);
+Bit8u pic1_get_base(void);
                                        /* set function and interrupt vector */
 void run_irqs(void);                                  /* run requested irqs */
 #define pic_run() run_irqs()   /* the right way to call run_irqs */

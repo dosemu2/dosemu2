@@ -57,6 +57,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "cpu-emu.h"
 #include "emu-ldt.h"
 #include "kvm.h"
+#include "vtmr.h"
 #include "dnative.h"
 #include "dpmi_api.h"
 
@@ -130,6 +131,7 @@ struct DPMIclient_struct {
   int RSP_state, RSP_installed;
   int win3x_mode;
   Bit8u imr;
+  Bit8u orig_imr;
   #define DF_PHARLAP 1
   Bit32u feature_flags;
   uint16_t initial_psp;
@@ -3181,7 +3183,7 @@ static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
   if (DPMI_CLIENT.in_dpmi_pm_stack) {
     error("DPMI: Warning: trying to leave DPMI when in_dpmi_pm_stack=%i\n",
         DPMI_CLIENT.in_dpmi_pm_stack);
-    port_outb(0x21, DPMI_CLIENT.imr);
+    port_outb(0x21, DPMI_CLIENT.orig_imr);
     DPMI_CLIENT.in_dpmi_pm_stack = 0;
   }
 
@@ -3351,6 +3353,7 @@ void run_pm_int(int i)
   old_esp = _esp;
   sp = enter_lpms(&DPMI_CLIENT.stack_frame);
   imr = port_inb(0x21);
+  DPMI_CLIENT.imr = imr;
 
   D_printf("DPMI: Calling protected mode handler for int 0x%02x\n", i);
   if (DPMI_CLIENT.is_32) {
@@ -3648,6 +3651,7 @@ void dpmi_init(void)
   int inherit_idt;
   sigcontext_t *scp;
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+  DPMI_INTDESC desc;
 
   CARRY;
 
@@ -3700,7 +3704,6 @@ void dpmi_init(void)
     inherit_idt = 0;
 
   for (i=0;i<0x100;i++) {
-    DPMI_INTDESC desc;
     if (inherit_idt) {
       desc.offset32 = PREV_DPMI_CLIENT.Interrupt_Table[i].offset;
       desc.selector = PREV_DPMI_CLIENT.Interrupt_Table[i].selector;
@@ -3710,7 +3713,11 @@ void dpmi_init(void)
     }
     dpmi_set_interrupt_vector(i, desc);
   }
-  DPMI_CLIENT.imr = port_inb(0x21);
+  desc.selector = dpmi_sel();
+  desc.offset32 = DPMI_SEL_OFF(DPMI_vtmr_irq);
+  dpmi_set_interrupt_vector(VTMR_INTERRUPT, desc);
+
+  DPMI_CLIENT.orig_imr = port_inb(0x21);
 
   for (i=0;i<0x20;i++) {
     if (inherit_idt) {
@@ -4466,6 +4473,17 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	    /* app terminated */
 	    dpmi_soft_cleanup();
 	  }
+
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_irq)) {
+          int masked = (DPMI_CLIENT.imr & 1);
+          vtmr_pre_irq_dpmi(masked);
+          if (masked)
+            _eflags |= CF;
+          else
+            _eflags &= ~CF;
+
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_post_irq)) {
+          vtmr_post_irq_dpmi();
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);

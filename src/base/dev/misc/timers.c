@@ -33,11 +33,11 @@
 
 #include "emu.h"
 #include "port.h"
-#include "timers.h"
 #include "iodev.h"
 #include "int.h"
-#include "pic.h"
 #include "emudpmi.h"
+#include "vtmr.h"
+#include "timers.h"
 
 #undef  DEBUG_PIT
 #undef  ONE_MINUTE_TEST
@@ -543,7 +543,7 @@ static void pic_activate(void)
                if ((earliest == NEVER) || (pic_itime[timer] < earliest))
                     earliest = pic_itime[timer];
                pic_ltime[timer] = pic_itime[timer];
-               pic_request(timer);
+               vtmr_raise(timer);
                ++count;
          } else {
                pic_print(2,"pic_itime and pic_ltime for timer ",timer," matched!");
@@ -556,6 +556,13 @@ static void pic_activate(void)
    pic_itime[32] = earliest;
    if (count)
       pic_dos_time = earliest;
+}
+
+int timer_get_vpend(int timer)
+{
+    if (timer != 0 || pit[timer].cntr == 0 || pic_itime[timer] > pic_sys_time)
+        return 0;
+    return ((pic_sys_time - pic_itime[timer]) / pit[timer].cntr + 1);
 }
 
 /* DANG_BEGIN_FUNCTION pic_sched
@@ -597,7 +604,7 @@ static void pic_sched(int ilevel, int interval)
   */
   if(interval > 0 && interval < 0x3fffffff) {
      if(pic_ltime[ilevel]==NEVER) {
-	pic_itime[ilevel] = pic_itime[32] + interval;
+	pic_itime[ilevel] = pic_sys_time + interval;
      } else {
 	pic_itime[ilevel] = pic_itime[ilevel] + interval;
      }
@@ -640,32 +647,9 @@ static void pic_watch(hitimer_u *s_time)
   pic_activate();
 }
 
-/* DANG_BEGIN_FUNCTION timer_int_engine
- *
- * This is experimental TIMER-IRQ CHAIN code!
- * This is a function to determine whether it is time to invoke a
- * new timer irq 0 event.  Normally it is 18 times a second, but
- * many video games set it to 100 times per second or more.  Since
- * the kernel cannot keep an accurate timer interrupt, the job of this
- * routine is to perform a chained timer irq 0 right after the previous
- * timer irq 0.  This routine should, ideally, be called right after
- * the end of a timer irq, if possible.
- *
- * This would speed up high frequency timer interrupts if this code
- * can be converted into an assembly macro equivalent!
- *
- * PLEASE NOTE
- *
- * This code has been replaced by interrupt scheduling code in pic.
- * The result is that we simply call pic_sched and run the dos interrupt.
- * If the new code causes no problems, I'll revise this section permanently.
- *
- * DANG_END_FUNCTION
- */
-static int timer_int_engine(int ilevel)
+void timer_irq_ack(int timer)
 {
- pic_sched(PIC_IRQ0,pit[0].cntr);
- return 1;
+ pic_sched(timer, pit[timer].cntr);
 }
 
 /* reads/writes to the speaker control port (0x61)
@@ -766,9 +750,6 @@ void pit_init(void)
   io_device.end_addr     = 0x0047;
   port_register_handler(io_device, 0);
 #endif
-
-  pic_seti(PIC_IRQ0, timer_int_engine, 0, NULL);  /* do_irq0 in pic.c */
-  pic_request(PIC_IRQ0);  /* start timer */
 }
 
 void pit_reset(void)
@@ -817,4 +798,6 @@ void pit_reset(void)
   timer_handle = timer_create(pit_timer_func, NULL, pit_timer_usecs(0x10000));
 #endif
   port61 = 0x0c;
+
+  vtmr_raise(0);  /* start timer */
 }
