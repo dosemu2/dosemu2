@@ -365,7 +365,6 @@ static void clear_screen(void)
     set_cursor_pos(s, 0, 0);
 }
 
-#if 0
 /* return number of vertical scanlines based on the bytes at
    40:88 and 40:89 */
 static int get_text_scanlines(void)
@@ -380,7 +379,6 @@ static int get_text_scanlines(void)
     return 400;
   return 480;
 }
-#endif
 
 /* set number of vertical scanlines at the bytes at
    40:88 and 40:89 */
@@ -474,6 +472,28 @@ boolean set_video_mode(int mode)
   if((vmi = vga_emu_find_mode(mode, NULL)) == NULL) {
     i10_msg("set_video_mode: undefined video mode\n");
     return 0;
+  }
+  if (vmi->mode_class == TEXT) {
+    vga_mode_info *vmi2 = vmi;
+    vga_mode_info *vmi_best = vmi;
+    int ts = get_text_scanlines();
+    int delta = ts - vmi2->height;
+
+    i10_msg("look for mode with scan=%i font_height=%i\n",
+        ts, READ_BYTE(BIOS_FONT_HEIGHT));
+    while ((vmi2 = vga_emu_find_mode(mode, vmi2))) {
+      if (vmi2->height > ts ||
+          vmi2->char_height != READ_BYTE(BIOS_FONT_HEIGHT))
+        continue;
+      if (delta < 0 || ts - vmi2->height < delta) {
+        i10_msg("better mode found: %ix%i %ix%i scan=%i\n",
+            vmi2->text_width, vmi2->text_height,
+            vmi2->char_width, vmi2->char_height,
+            vmi2->height);
+        vmi_best = vmi2;
+      }
+      vmi = vmi_best;
+    }
   }
   if (vmi->mode_class == GRAPH && config.term) {
     error("Cannot set graphics mode under terminal!\n");
@@ -589,6 +609,9 @@ boolean set_video_mode(int mode)
 	port_outw(port, 0x12 | (((vmi->height-1) & 0xff) << 8));
       }
       WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE(co, li));
+      WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+      WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
+      WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
     } else {
       unsigned page_size = roundUpToNextPowerOfTwo(
 	    (vga.scan_len * vga.height) | 0xfff);
@@ -596,9 +619,6 @@ boolean set_video_mode(int mode)
         page_size = vga.mem.bank_pages * 4096;
       WRITE_WORD(BIOS_VIDEO_MEMORY_USED, page_size);
     }
-    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
-    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
-    WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
   }
   set_cursor_shape(vmi->type == TEXT_MONO ? 0x0b0d : 0x0607);
 
@@ -622,7 +642,6 @@ boolean set_video_mode(int mode)
 
   SETIVEC(0x43, 0xc000, u);
 
-  set_text_scanlines(vmi->height);
   return 1;
 }
 
