@@ -370,13 +370,13 @@ static void clear_screen(void)
    40:88 and 40:89 */
 static int get_text_scanlines(void)
 {
-  int info = READ_WORD(BIOS_VIDEO_INFO_2);
+  int info = READ_BYTE(BIOS_VIDEO_INFO_2);
   v_printf("scanlines=%x\n", info);
-  if ((info & 1) == 0)
+  if ((info & 0x80) && !(info & 0x10))
     return 200;
-  if ((info & 0x1000) == 0)
+  if (!(info & 0x80) && !(info & 0x10))
     return 350;
-  if ((info & 0x8000) == 0)
+  if (!(info & 0x80))
     return 400;
   return 480;
 }
@@ -386,18 +386,17 @@ static int get_text_scanlines(void)
    40:88 and 40:89 */
 static void set_text_scanlines(int lines)
 {
-  int info = READ_WORD(BIOS_VIDEO_INFO_2) & ~0x9001;
+  int info = READ_BYTE(BIOS_VIDEO_INFO_2) & ~0x90;
   if (lines == 200)
-    info |= 0x8000;
+    info |= 0x80;
   else {
-    info |= 1;
     if (lines == 400)
-      info |= 0x1000;
+      info |= 0x10;
     else if (lines == 480)
-      info |= 0x9000;
+      info |= 0x90;
   }
   v_printf("scanlines=%x %d\n", info, lines);
-  WRITE_WORD(BIOS_VIDEO_INFO_2, info);
+  WRITE_BYTE(BIOS_VIDEO_INFO_2, info);
 }
 
 static int adjust_font_size(int vga_font_height)
