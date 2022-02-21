@@ -491,6 +491,7 @@ boolean set_video_mode(int mode)
             vmi2->char_width, vmi2->char_height,
             vmi2->height);
         vmi_best = vmi2;
+        delta = ts - vmi2->height;
       }
       vmi = vmi_best;
     }
