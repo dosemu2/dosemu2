@@ -68,6 +68,10 @@ static int current_client;
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
+#define DEFAULT_INT(i) ( \
+    DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel() && \
+    DPMI_CLIENT.Interrupt_Table[i].offset < DPMI_SEL_OFF(DPMI_sel_end))
+
 #define _isset_IF() (!!(_eflags & IF))
 #define dpmi_cli() (_eflags &= ~IF)
 #define dpmi_sti() (_eflags |= IF)
@@ -1369,7 +1373,7 @@ static void update_kvm_idt(void)
   int i;
 
   for (i = 0; i < 0x100; i++) {
-    if (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel() || i < 0x20)
+    if (DEFAULT_INT(i) || i < 0x20)
       kvm_set_idt_default(i);
     else
       kvm_set_idt(i, DPMI_CLIENT.Interrupt_Table[i].selector,
@@ -1547,7 +1551,7 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
         else
 #endif
         /* first 0x20 int handlers clash with exception handlers */
-        if (desc.selector == dpmi_sel() || num < 0x20)
+        if (DEFAULT_INT(num) || num < 0x20)
             kvm_set_idt_default(num);
         else
             kvm_set_idt(num, desc.selector, desc.offset32, DPMI_CLIENT.is_32,
@@ -3333,7 +3337,7 @@ void run_pm_int(int i)
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_pm=0x%02x\n",i,in_dpmi_pm());
 
-  if (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel()) {
+  if (DEFAULT_INT(i)) {
 
     D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
 
@@ -3427,7 +3431,7 @@ static void run_pm_dos_int(int i)
 
   D_printf("DPMI: run_pm_dos_int(0x%02x) called\n",i);
 
-  if (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel()) {
+  if (DEFAULT_INT(i)) {
     far_t iaddr;
     D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
     switch (i) {
@@ -3954,8 +3958,7 @@ static void do_default_cpu_exception(sigcontext_t *scp, int trapno)
 
     /* Route the 0.9 exception to protected-mode interrupt handler or
      * terminate the client if the one is not installed. */
-    if (trapno == 6 || trapno >= 8 ||
-        DPMI_CLIENT.Interrupt_Table[trapno].selector == dpmi_sel()) {
+    if (trapno == 6 || trapno >= 8 || DEFAULT_INT(trapno)) {
       cpu_exception_rm(scp, trapno);
       return;
     }
@@ -4040,7 +4043,7 @@ int dpmi_realmode_exception(unsigned trapno, unsigned err, dosaddr_t cr2)
   sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
   unsigned int *ssp;
 
-  if (DPMI_CLIENT.Exception_Table_RM[trapno].selector == dpmi_sel())
+  if (DEFAULT_INT(trapno))
     return 0;
 
   save_pm_regs(&DPMI_CLIENT.stack_frame);
@@ -4540,9 +4543,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 #endif
       /* Bypass the int instruction */
       _eip += 2;
-      if (DPMI_CLIENT.Interrupt_Table[inum].selector == dpmi_sel() &&
-	    DPMI_CLIENT.Interrupt_Table[inum].offset <
-	    DPMI_SEL_OFF(DPMI_sel_end)) {
+      if (DEFAULT_INT(inum)) {
 	do_dpmi_int(scp, inum);
       } else {
         us cs2 = _cs;
