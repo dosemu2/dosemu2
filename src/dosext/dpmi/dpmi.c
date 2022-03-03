@@ -4198,6 +4198,50 @@ static void do_dpmi_iret(sigcontext_t *scp, void * const sp)
   }
 }
 
+static void return_from_pmint(sigcontext_t *scp, void * const sp)
+{
+  unsigned char imr;
+  leave_lpms(scp);
+      D_printf("DPMI: Return from hardware interrupt handler, "
+    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
+  if (DPMI_CLIENT.is_32) {
+    unsigned int *ssp = sp;
+    int pm;
+    _eip = *ssp++;
+    _cs = *ssp++;
+    _eflags = dpmi_flags_from_stack_r0(*ssp++);
+    _esp = *ssp++;
+    _ss = *ssp++;
+    pm = *ssp++;
+    if (pm > 1) {
+      error("DPMI: HW interrupt stack corrupted\n");
+      leavedos(38);
+    }
+    dpmi_set_pm(pm);
+    ssp++;
+    imr = *ssp++;
+  } else {
+    unsigned short *ssp = sp;
+    int pm;
+    _LWORD(eip) = *ssp++;
+    _cs = *ssp++;
+    _eflags = dpmi_flags_from_stack_r0(*ssp++);
+    _LWORD(esp) = *ssp++;
+    _ss = *ssp++;
+    pm = *ssp++;
+    if (pm > 1) {
+      error("DPMI: HW interrupt stack corrupted\n");
+      leavedos(38);
+    }
+    dpmi_set_pm(pm);
+    _HWORD(esp) = *ssp++;
+    imr = *ssp++;
+  }
+  in_dpmi_irq--;
+  port_outb(0x21, imr);
+  dpmi_sti();
+}
+
 static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 {
       _eip += 1;
@@ -4256,46 +4300,7 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
           }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
-	  unsigned char imr;
-	  leave_lpms(scp);
-          D_printf("DPMI: Return from hardware interrupt handler, "
-	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
-	  if (DPMI_CLIENT.is_32) {
-	    unsigned int *ssp = sp;
-	    int pm;
-	    _eip = *ssp++;
-	    _cs = *ssp++;
-	    _eflags = dpmi_flags_from_stack_r0(*ssp++);
-	    _esp = *ssp++;
-	    _ss = *ssp++;
-	    pm = *ssp++;
-	    if (pm > 1) {
-	      error("DPMI: HW interrupt stack corrupted\n");
-	      leavedos(38);
-	    }
-	    dpmi_set_pm(pm);
-	    ssp++;
-	    imr = *ssp++;
-	  } else {
-	    unsigned short *ssp = sp;
-	    int pm;
-	    _LWORD(eip) = *ssp++;
-	    _cs = *ssp++;
-	    _eflags = dpmi_flags_from_stack_r0(*ssp++);
-	    _LWORD(esp) = *ssp++;
-	    _ss = *ssp++;
-	    pm = *ssp++;
-	    if (pm > 1) {
-	      error("DPMI: HW interrupt stack corrupted\n");
-	      leavedos(38);
-	    }
-	    dpmi_set_pm(pm);
-	    _HWORD(esp) = *ssp++;
-	    imr = *ssp++;
-	  }
-	  in_dpmi_irq--;
-	  port_outb(0x21, imr);
-	  dpmi_sti();
+          return_from_pmint(scp, sp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_exception)) {
 	  return_from_exception(scp);
@@ -4617,6 +4622,13 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
         D_printf("DPMI: sti\n");
       _eip += 1;
       dpmi_sti();
+      /* sti/iret must be atomic, no IRQs within */
+      if (lina[1] == 0xcf) {
+        do_dpmi_iret(scp, sp);
+        sp = SEL_ADR(_ss, _esp);
+        if (_cs == dpmi_sel() && _eip == DPMI_SEL_OFF(DPMI_return_from_pm))
+          return_from_pmint(scp, sp);
+      }
       break;
 
     default:
