@@ -266,7 +266,6 @@ void memory_init(void)
  */
 void device_init(void)
 {
-  pit_init();		/* for native speaker */
   video_config_init();	/* privileged part of video init */
   keyb_priv_init();
   mouse_priv_init();

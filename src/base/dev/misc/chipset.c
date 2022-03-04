@@ -28,18 +28,43 @@ static void port92h_io_write(ioport_t port, Bit8u val)
   set_a20(enA20);
 }
 
+static Bit8u picext_io_read(ioport_t port)
+{
+  Bit8u val = 0xff;
+
+  switch (port) {
+  case PIC0_VECBASE_PORT:
+    val = pic0_get_base();
+    break;
+  case PIC1_VECBASE_PORT:
+    val = pic1_get_base();
+    break;
+  }
+  return val;
+}
+
 void chipset_init(void)
 {
-  emu_iodev_t io_dev;
+  emu_iodev_t io_dev = {};
 
   io_dev.read_portb = port92h_io_read;
   io_dev.write_portb = port92h_io_write;
-  io_dev.read_portw = NULL;
-  io_dev.write_portw = NULL;
-  io_dev.read_portd = NULL;
-  io_dev.write_portd = NULL;
   io_dev.start_addr = 0x92;
   io_dev.end_addr = 0x92;
   io_dev.handler_name = "Chipset Control Port A";
+  port_register_handler(io_dev, 0);
+
+  memset(&io_dev, 0, sizeof(io_dev));
+  io_dev.read_portb = picext_io_read;
+  io_dev.start_addr = PIC0_EXTPORT_START;
+  io_dev.end_addr = PIC0_EXTPORT_START + PICx_EXT_PORTS;
+  io_dev.handler_name = "PIC0 extensions";
+  port_register_handler(io_dev, 0);
+
+  memset(&io_dev, 0, sizeof(io_dev));
+  io_dev.read_portb = picext_io_read;
+  io_dev.start_addr = PIC1_EXTPORT_START;
+  io_dev.end_addr = PIC1_EXTPORT_START + PICx_EXT_PORTS;
+  io_dev.handler_name = "PIC1 extensions";
   port_register_handler(io_dev, 0);
 }

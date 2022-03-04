@@ -101,7 +101,6 @@ DPMI_return_from_LDTcall:
 	.globl DPMI_return_from_LDTExitCall
 DPMI_return_from_LDTExitCall:
 	hlt
-/* ======================= Addr = dpmi_sel():0172 */
 	.globl DPMI_sel_end
 DPMI_sel_end:
 
@@ -230,6 +229,21 @@ DPMI_call:
 DPMI_msdos:
 	int $0x21
 	lretl
+
+	.globl DPMI_vtmr_irq
+DPMI_vtmr_irq:
+	hlt
+	jc 1f
+	int $8
+	# IRQ0 is not requested at that point (its not used at all).
+	# We disable interrupts and then allow timer to tick.
+	cli
+1:
+	.globl DPMI_vtmr_post_irq
+DPMI_vtmr_post_irq:
+	hlt
+	sti
+	iretl
 
 	.globl DPMI_sel_code_end
 DPMI_sel_code_end:
