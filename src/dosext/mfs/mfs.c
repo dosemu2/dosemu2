@@ -3420,6 +3420,7 @@ static int lock_file_region(int fd, int lck, long long start,
     unsigned long len)
 {
   struct flock fl;
+  int ret;
 
   /* make data visible before releasing the lock */
   if (!lck)
@@ -3436,20 +3437,36 @@ static int lock_file_region(int fd, int lck, long long start,
   fl.l_type = (lck ? F_WRLCK : F_UNLCK);
   fl.l_start = start;
   fl.l_len = len;
-  return lock_set(fd, &fl);
+  /* needs to lock against I/O operations in another process */
+  ret = flock(fd, LOCK_EX);
+  if (ret)
+    return -1;
+  ret = lock_set(fd, &fl);
+  flock(fd, LOCK_UN);
+  return ret;
 }
 
 static int region_lock_offs(int fd, long long start, unsigned long len)
 {
   struct flock fl;
+  int ret;
 
   fl.l_type = F_WRLCK;
   fl.l_start = start;
   fl.l_len = len;
+  /* needs to lock against lock changes in another process */
+  ret = flock(fd, LOCK_EX);
+  if (ret)
+    return -1;
   lock_get(fd, &fl);
   if (fl.l_type == F_UNLCK)
     return len;
   return (fl.l_start - start);
+}
+
+static void region_unlock_offs(int fd)
+{
+  flock(fd, LOCK_UN);
 }
 
 /* returns pointer to the basename of fpath */
@@ -4038,6 +4055,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 
     case READ_FILE: { /* 0x08 */
       int return_val;
+      int locked = 0;
+
       cnt = sft_fd(sft);
       if (cnt >= MAX_OPENED_FILES)
           return FALSE;
@@ -4054,6 +4073,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         int cnt1 = cnt;
         if (f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
           cnt1 = region_lock_offs(f->fd, f->seek, cnt);
+          if (cnt1 != -1)
+            locked++;
         }
         assert(cnt1 <= cnt);
 #if 1
@@ -4061,6 +4082,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 #else
         if (cnt1 < cnt) {  // partial reads not allowed
 #endif
+          if (locked)
+            region_unlock_offs(f->fd);
           Debug0((dbg_fd, "error, region already locked\n"));
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
@@ -4072,12 +4095,16 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
       s_pos = lseek(f->fd, f->seek, SEEK_SET);
       if (s_pos < 0 && errno != ESPIPE) {
+        if (locked)
+          region_unlock_offs(f->fd);
         SETWORD(&state->ecx, 0);
         return TRUE;
       }
       Debug0((dbg_fd, "Actual pos %"PRIu64"\n", (uint64_t)s_pos));
 
       ret = dos_read(f->fd, dta, cnt);
+      if (locked)
+        region_unlock_offs(f->fd);
 
       Debug0((dbg_fd, "Read returned : %d\n", ret));
       if (ret < 0) {
@@ -4104,7 +4131,9 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       return (return_val);
     }
 
-    case WRITE_FILE: /* 0x09 */
+    case WRITE_FILE: { /* 0x09 */
+      int locked = 0;
+
       cnt = sft_fd(sft);
       if (cnt >= MAX_OPENED_FILES)
           return FALSE;
@@ -4140,6 +4169,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         int cnt1 = cnt;
         if (f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
           cnt1 = region_lock_offs(f->fd, f->seek, cnt);
+          if (cnt1 != -1)
+            locked++;
         }
         assert(cnt1 <= cnt);
 #if 1
@@ -4147,6 +4178,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 #else
         if (cnt1 < cnt) {  // partial writes not allowed
 #endif
+          if (locked)
+            region_unlock_offs(f->fd);
           Debug0((dbg_fd, "error, region already locked\n"));
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
@@ -4155,6 +4188,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 
         s_pos = lseek(f->fd, f->seek, SEEK_SET);
         if (s_pos < 0 && errno != ESPIPE) {
+          if (locked)
+            region_unlock_offs(f->fd);
           SETWORD(&state->ecx, 0);
           return TRUE;
         }
@@ -4162,6 +4197,9 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         Debug0((dbg_fd, "fsize = %"PRIx64", fseek = %"PRIx64", dta = %#x, cnt = %x\n",
                       f->size, f->seek, dta, (int)cnt));
         ret = dos_write(f->fd, dta, cnt);
+        if (locked)
+          region_unlock_offs(f->fd);
+
         if (ret < 0) {
           Debug0((dbg_fd, "Write Failed : %s\n", strerror(errno)));
           SETWORD(&state->eax, ACCESS_DENIED);
@@ -4182,6 +4220,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       if (fstat(f->fd, &f->st) == 0)
         time_to_dos(f->st.st_mtime, &sft_date(sft), &sft_time(sft));
       return TRUE;
+    }
 
     case GET_DISK_SPACE: { /* 0x0c */
 #ifdef USE_DF_AND_AFS_STUFF
