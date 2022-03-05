@@ -72,6 +72,9 @@ static int current_client;
 #define DEFAULT_INT(i) ( \
     DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel() && \
     DPMI_CLIENT.Interrupt_Table[i].offset < DPMI_SEL_OFF(DPMI_sel_end))
+#define DEFAULT_INT_EX(i) ( \
+    DPMI_CLIENT.DPMIInterrupt_Table[dpmi_pm][i].selector == dpmi_sel() && \
+    DPMI_CLIENT.DPMIInterrupt_Table[dpmi_pm][i].offset < DPMI_SEL_OFF(DPMI_sel_end))
 
 #define _isset_IF() (!!(_eflags & IF))
 #define dpmi_cli() (_eflags &= ~IF)
@@ -121,7 +124,8 @@ struct DPMIclient_struct {
   RealModeCallBack realModeCallBack[DPMI_MAX_RMCBS];
   Bit16u rmcb_seg;
   Bit16u rmcb_off;
-  INTDESC Interrupt_Table[0x100];
+  INTDESC DPMIInterrupt_Table[2][0x100];
+#define Interrupt_Table DPMIInterrupt_Table[1]
   INTDESC Exception_Table[0x20];
   INTDESC Exception_Table_PM[0x20];
   INTDESC Exception_Table_RM[0x20];
@@ -1540,10 +1544,11 @@ DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num)
     return desc;
 }
 
-void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
+static void dpmi_set_interrupt_vector_pm(unsigned char num, DPMI_INTDESC desc)
 {
-    DPMI_CLIENT.Interrupt_Table[num].selector = desc.selector;
-    DPMI_CLIENT.Interrupt_Table[num].offset = desc.offset32;
+    DPMI_CLIENT.DPMIInterrupt_Table[1][num].selector = desc.selector;
+    DPMI_CLIENT.DPMIInterrupt_Table[1][num].offset = desc.offset32;
+
     switch (config.cpu_vm_dpmi) {
       case CPUVM_KVM:
         /* KVM: we can directly use the IDT but don't do it when debugging */
@@ -1566,6 +1571,18 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
     }
     D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%x\n", num,
       desc.selector, desc.offset32);
+}
+
+static void dpmi_set_interrupt_vector_rm(unsigned char num, DPMI_INTDESC desc)
+{
+    DPMI_CLIENT.DPMIInterrupt_Table[0][num].selector = desc.selector;
+    DPMI_CLIENT.DPMIInterrupt_Table[0][num].offset = desc.offset32;
+}
+
+void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
+{
+    dpmi_set_interrupt_vector_rm(num, desc);
+    dpmi_set_interrupt_vector_pm(num, desc);
 }
 
 DPMI_INTDESC dpmi_get_exception_handler(unsigned char num)
@@ -3339,10 +3356,8 @@ void run_pm_int(int i)
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_pm=0x%02x\n",i,in_dpmi_pm());
 
-  if (DEFAULT_INT(i)) {
-
+  if (DEFAULT_INT_EX(i)) {
     D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
-
     if (in_dpmi_pm())
       fake_pm_int();
     real_run_int(i);
@@ -3392,8 +3407,8 @@ void run_pm_int(int i)
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
     LO_WORD(_esp) -= 22;
   }
-  _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
-  _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
+  _cs = DPMI_CLIENT.DPMIInterrupt_Table[dpmi_pm][i].selector;
+  _eip = DPMI_CLIENT.DPMIInterrupt_Table[dpmi_pm][i].offset;
   dpmi_set_pm(1);
   in_dpmi_irq++;
 
@@ -3705,17 +3720,21 @@ void dpmi_init(void)
 
   for (i=0;i<0x100;i++) {
     if (inherit_idt) {
-      desc.offset32 = PREV_DPMI_CLIENT.Interrupt_Table[i].offset;
-      desc.selector = PREV_DPMI_CLIENT.Interrupt_Table[i].selector;
+      desc.offset32 = PREV_DPMI_CLIENT.DPMIInterrupt_Table[0][i].offset;
+      desc.selector = PREV_DPMI_CLIENT.DPMIInterrupt_Table[0][i].selector;
+      dpmi_set_interrupt_vector_rm(i, desc);
+      desc.offset32 = PREV_DPMI_CLIENT.DPMIInterrupt_Table[1][i].offset;
+      desc.selector = PREV_DPMI_CLIENT.DPMIInterrupt_Table[1][i].selector;
+      dpmi_set_interrupt_vector_pm(i, desc);
     } else {
       desc.offset32 = DPMI_SEL_OFF(DPMI_interrupt) + i;
       desc.selector = dpmi_sel();
+      dpmi_set_interrupt_vector(i, desc);
     }
-    dpmi_set_interrupt_vector(i, desc);
   }
   desc.selector = dpmi_sel();
   desc.offset32 = DPMI_SEL_OFF(DPMI_vtmr_irq);
-  dpmi_set_interrupt_vector(VTMR_INTERRUPT, desc);
+  dpmi_set_interrupt_vector_pm(VTMR_INTERRUPT, desc);
 
   DPMI_CLIENT.orig_imr = port_inb(0x21);
 
