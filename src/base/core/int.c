@@ -391,8 +391,7 @@ static int dos_helper(int stk_offs, int revect)
 	break;
 
     case DOS_HELPER_PRINT_STRING:	/* PRINT STRING ES:DX */
-	g_printf("DOS likes us to print a string\n");
-	ds_printf("DOS to EMU: \"%s\"\n", SEG_ADR((char *), es, dx));
+	dbug_printf("DOS to EMU: \"%s\"\n", SEG_ADR((char *), es, dx));
 	break;
 
     case DOS_HELPER_ADJUST_IOPERMS:	/* SET IOPERMS: bx=start, cx=range,
