@@ -4476,14 +4476,15 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_irq)) {
           int masked = (DPMI_CLIENT.imr & 1);
-          vtmr_pre_irq_dpmi(masked);
+          vtmr_pre_irq_dpmi();
           if (masked)
             _eflags |= CF;
           else
             _eflags &= ~CF;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_post_irq)) {
-          vtmr_post_irq_dpmi();
+          int masked = (DPMI_CLIENT.imr & 1);
+          vtmr_post_irq_dpmi(masked);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);

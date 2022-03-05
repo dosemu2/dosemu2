@@ -65,10 +65,15 @@ static void vtmr_ack_write(ioport_t port, Bit8u value)
     last_acked = value;
 }
 
-static void do_pre(void)
+static void half_eoi(void)
 {
-    /* FIXME: use polling mode instead! */
     port_outb(0xa0, 0x20);
+}
+
+static void full_eoi(void)
+{
+    port_outb(0xa0, 0x20);
+    port_outb(0x20, 0x20);
 }
 
 static void do_ack(void)
@@ -83,30 +88,27 @@ static void vtmr_handler(uint16_t idx, HLT_ARG(arg))
 {
     uint8_t imr = port_inb(0x21);
 
+    do_ack();
     if (imr & 1) {
-        do_ack();
         do_eoi2_iret();
     } else {
         uint8_t inum = port_inb(PIC0_VECBASE_PORT);
-        do_pre();
-        do_ack();
+        half_eoi();
         jmp_to(ISEG(inum), IOFF(inum));
     }
 }
 
-void vtmr_pre_irq_dpmi(int masked)
-{
-    if (masked) {
-        port_outb(0xa0, 0x20);
-        port_outb(0x20, 0x20);
-    } else {
-        do_pre();
-    }
-}
-
-void vtmr_post_irq_dpmi(void)
+void vtmr_pre_irq_dpmi(void)
 {
     do_ack();
+}
+
+void vtmr_post_irq_dpmi(int masked)
+{
+    if (masked)
+        full_eoi();
+    else
+        half_eoi();
 }
 
 void vtmr_init(void)
