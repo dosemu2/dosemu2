@@ -593,14 +593,16 @@ XMSControl_OFF:
 
 	.globl EOI_OFF
 EOI_OFF:
+	cli
 	pushw	%ax
-        movb    $0x20,%al
-        outb    %al,$0x20		/* flag interrupt complete	*/
+	movb    $0x20,%al
+	outb    %al,$0x20		/* flag interrupt complete	*/
 	popw	%ax
 	iret
 
 	.globl EOI2_OFF
 EOI2_OFF:
+	cli
 	pushw	%ax
 	movb    $0x20,%al
 	outb    %al,$0xa0
