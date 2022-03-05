@@ -132,12 +132,11 @@
 #include <sys/time.h>
 #include "cpu.h"
 #include "emu.h"
-#include "timers.h"
 #include "iodev.h"
 #include "emudpmi.h"
 #include "serial.h"
 #include "int.h"
-#include "ipx.h"
+#include "vtmr.h"
 #include "pic.h"
 
 #define TIMER0_FLOOD_THRESHOLD 50000
@@ -406,7 +405,8 @@ if(!port){                          /* icw1, ocw2, ocw3 */
 	 * https://github.com/stsp/dosemu2/issues/99
 	 * Need to check also IMR because DPMI uses another hack
 	 * that masks the IRQs. */
-       if (ilevel == PIC_IRQ0 && isset_IF() && !(pic_imr & (1 << ilevel))) {
+       if ((ilevel == PIC_IRQ0 || ilevel == pic_irq_list[VTMR_IRQ]) &&
+           isset_IF() && !(pic_imr & (1 << ilevel))) {
          r_printf("PIC: disabling interrupts to avoid reentrancy\n");
          clear_IF_timed();
        }

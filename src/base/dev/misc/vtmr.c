@@ -38,7 +38,6 @@
 #define VTMR_IRR_PORT (VTMR_FIRST_PORT + 2)
 #define VTMR_ACK_PORT (VTMR_FIRST_PORT + 3)
 #define VTMR_TOTAL_PORTS 4
-#define VTMR_IRQ_NUM 0xb
 
 static uint16_t vtmr_irr;
 static uint8_t last_acked;
@@ -132,7 +131,7 @@ void vtmr_init(void)
 void vtmr_reset(void)
 {
     vtmr_irr = 0;
-    pic_untrigger(pic_irq_list[VTMR_IRQ_NUM]);
+    pic_untrigger(pic_irq_list[VTMR_IRQ]);
 }
 
 void vtmr_setup(void)
@@ -145,7 +144,7 @@ void vtmr_raise(int vtmr_num)
     if (vtmr_num >= 8 || (vtmr_irr & (1 << vtmr_num)))
         return;
     vtmr_irr |= (1 << vtmr_num);
-    pic_request(pic_irq_list[VTMR_IRQ_NUM]);
+    pic_request(pic_irq_list[VTMR_IRQ]);
 }
 
 static void vtmr_lower(int vtmr_num)
@@ -153,5 +152,5 @@ static void vtmr_lower(int vtmr_num)
     if (vtmr_num >= 8 || !(vtmr_irr & (1 << vtmr_num)))
         return;
     vtmr_irr &= ~(1 << vtmr_num);
-    pic_untrigger(pic_irq_list[VTMR_IRQ_NUM]);
+    pic_untrigger(pic_irq_list[VTMR_IRQ]);
 }
