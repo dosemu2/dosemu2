@@ -601,11 +601,10 @@ void leavedos_from_sig(int sig)
 
 static void leavedos_sig(int sig)
 {
-  dbug_printf("Terminating on signal %i\n", sig);
+  /* do not log anything from a sighandler or it may hang */
   SIGNAL_save(leavedos_call, &sig, sizeof(sig), __func__);
   /* abort current sighandlers */
   if (in_handle_signals) {
-    g_printf("Interrupting active signal handlers\n");
     in_handle_signals = 0;
   }
 }
