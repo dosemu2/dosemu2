@@ -734,7 +734,7 @@ void sig_ctx_restore(int tid, void *arg, void *arg2)
 static void signal_thr_post(int tid, void *arg, void *arg2)
 {
   if (!in_handle_signals) {
-    dosemu_error("in_handle_signals=0\n");
+    dbug_printf("in_handle_signals=0\n");
     return;
   }
   in_handle_signals--;
