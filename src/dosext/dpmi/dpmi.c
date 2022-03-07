@@ -134,7 +134,7 @@ struct DPMIclient_struct {
   unsigned short RSP_cs[DPMI_MAX_CLIENTS], RSP_ds[DPMI_MAX_CLIENTS];
   int RSP_state, RSP_installed;
   int win3x_mode;
-  Bit8u imr;
+  Bit8u imr[2];
   Bit8u orig_imr;
   #define DF_PHARLAP 1
   Bit32u feature_flags;
@@ -3368,7 +3368,8 @@ void run_pm_int(int i)
   old_esp = _esp;
   sp = enter_lpms(&DPMI_CLIENT.stack_frame);
   imr = port_inb(0x21);
-  DPMI_CLIENT.imr = imr;
+  DPMI_CLIENT.imr[0] = imr;
+  DPMI_CLIENT.imr[1] = port_inb(0xa1);
 
   D_printf("DPMI: Calling protected mode handler for int 0x%02x\n", i);
   if (DPMI_CLIENT.is_32) {
@@ -4494,15 +4495,14 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	  }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_irq)) {
-          int masked = (DPMI_CLIENT.imr & 1);
-          vtmr_pre_irq_dpmi();
+          int masked = vtmr_pre_irq_dpmi(DPMI_CLIENT.imr);
           if (masked)
             _eflags |= CF;
           else
             _eflags &= ~CF;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_post_irq)) {
-          int masked = (DPMI_CLIENT.imr & 1);
+          int masked = !!(_eflags & CF);
           vtmr_post_irq_dpmi(masked);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {

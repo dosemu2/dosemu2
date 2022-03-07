@@ -53,7 +53,6 @@ int idle_enable(int threshold1, int threshold, int threshold2,
 void dosemu_sleep(void);
 void cpu_idle(void);
 int timer_get_vpend(int timer);
-void timer_irq_ack(int timer);
 
 /* --------------------------------------------------------------------- */
 /*	New unified timing macros with/without Pentium rdtsc - AV 8/97	 */

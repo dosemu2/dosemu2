@@ -647,9 +647,9 @@ static void pic_watch(hitimer_u *s_time)
   pic_activate();
 }
 
-void timer_irq_ack(int timer)
+static void timer_irq_ack(void)
 {
- pic_sched(timer, pit[timer].cntr);
+  pic_sched(0, pit[0].cntr);
 }
 
 /* reads/writes to the speaker control port (0x61)
@@ -710,6 +710,11 @@ void spkr_io_write(ioport_t port, Bit8u value) {
    }
 }
 
+static int is_masked(uint8_t *imr)
+{
+    return (imr[0] & 1);
+}
+
 void pit_init(void)
 {
   emu_iodev_t  io_device;
@@ -750,6 +755,8 @@ void pit_init(void)
   io_device.end_addr     = 0x0047;
   port_register_handler(io_device, 0);
 #endif
+
+  vtmr_register(VTMR_PIT, timer_irq_ack, is_masked, 0);
 }
 
 void pit_reset(void)
@@ -794,9 +801,6 @@ void pit_reset(void)
   pit[3].read_state  = 3;
   pit[3].write_state = 3;
 
-#if 0
-  timer_handle = timer_create(pit_timer_func, NULL, pit_timer_usecs(0x10000));
-#endif
   port61 = 0x0c;
 
   vtmr_raise(0);  /* start timer */

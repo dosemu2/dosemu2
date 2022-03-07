@@ -238,6 +238,7 @@ DPMI_vtmr_irq:
 	# IRQ0 is not requested at that point (its not used at all).
 	# We disable interrupts and then allow timer to tick.
 	cli
+	clc
 1:
 	.globl DPMI_vtmr_post_irq
 DPMI_vtmr_post_irq:

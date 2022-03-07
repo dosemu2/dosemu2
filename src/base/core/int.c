@@ -3396,6 +3396,12 @@ void do_eoi2_iret(void)
     _IP = EOI2_OFF;
 }
 
+void do_iret(void)
+{
+    _CS = BIOSSEG;
+    _IP = IRET_OFF;
+}
+
 static void rvc_int_pre(int tid, void *arg, void *arg2)
 {
     coopth_push_user_data(tid, (void *) (long) get_FLAGS(REG(eflags)));

@@ -106,7 +106,7 @@ static void do_retf(sigcontext_t *scp)
     }
 }
 
-static void do_iret(sigcontext_t *scp)
+static void do_dpmi_iret(sigcontext_t *scp)
 {
     int is_32 = msdos.is_32();
     void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
@@ -190,7 +190,7 @@ static void iret2far(int tid, void *arg, void *arg2)
     pma.selector = _cs;
     pma.offset = _eip;
     coopth_push_user_data(tid, (void *)(uintptr_t)_eflags);
-    do_iret(scp);
+    do_dpmi_iret(scp);
     do_callf(scp, pma);
     if (debug_level('M') >= 9)
 	D_printf("iret2far %s\n", DPMI_show_state(scp));
@@ -544,7 +544,7 @@ void doshlp_quit_dpmi(sigcontext_t *scp)
 	.selector = dpmi_sel(),
     };
     coopth_leave();
-    do_iret(scp);
+    do_dpmi_iret(scp);
     _eax = 0x4c01;
     do_callf(scp, pma);
 }
@@ -639,7 +639,7 @@ void msdoshlp_init(int (*is_32)(void), int len)
 #ifdef DOSEMU
     hlt_state = hlt_init(DPMI_SEL_OFF(MSDOS_hlt_end) -
 	    DPMI_SEL_OFF(MSDOS_hlt_start));
-    doshlp_setup_m(&ext_helper, "msdos ext thr", exthlp_thr, do_iret,
+    doshlp_setup_m(&ext_helper, "msdos ext thr", exthlp_thr, do_dpmi_iret,
 	    len);
     exechlp_setup();
     termhlp_setup();

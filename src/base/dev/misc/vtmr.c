@@ -43,6 +43,14 @@ static uint16_t vtmr_irr;
 static uint8_t last_acked;
 static uint16_t vtmr_hlt;
 
+struct vthandler {
+    void (*handler)(void);
+    int (*is_masked)(uint8_t *);
+    unsigned flags;
+    uint8_t irq;
+};
+struct vthandler vth[VTMR_MAX];
+
 static void vtmr_lower(int vtmr_num);
 
 static Bit8u vtmr_irr_read(ioport_t port)
@@ -57,10 +65,10 @@ static Bit16u vtmr_vpend_read(ioport_t port)
 
 static void vtmr_ack_write(ioport_t port, Bit8u value)
 {
-    if (value >= 8)
+    if (value >= VTMR_MAX || !vth[value].handler)
         return;
     vtmr_lower(value);
-    timer_irq_ack(value);
+    vth[value].handler();
     last_acked = value;
 }
 
@@ -75,31 +83,53 @@ static void full_eoi(void)
     port_outb(0x20, 0x20);
 }
 
-static void do_ack(void)
+static int do_ack(void)
 {
     uint8_t irr = port_inb(VTMR_IRR_PORT);
     int timer = find_bit(irr);
 
     port_outb(VTMR_ACK_PORT, timer);
+    return timer;
+}
+
+static void do_ret(void)
+{
+    clear_IF();
+    half_eoi();
+    do_iret();
 }
 
 static void vtmr_handler(uint16_t idx, HLT_ARG(arg))
 {
-    uint8_t imr = port_inb(0x21);
+    uint8_t imr[2];
+    int timer;
 
-    do_ack();
-    if (imr & 1) {
+    if (idx == 1) {
+        do_ret();
+        return;
+    }
+
+    imr[0] = port_inb(0x21);
+    imr[1] = port_inb(0xa1);
+    timer = do_ack();
+    if (vth[timer].is_masked(imr)) {
         do_eoi2_iret();
     } else {
         uint8_t inum = port_inb(PIC0_VECBASE_PORT);
-        half_eoi();
-        jmp_to(ISEG(inum), IOFF(inum));
+        if (vth[timer].flags & VTMR_FLG_TWEAKED) {
+            _IP++;  // skip hlt
+            fake_int_to(ISEG(inum), IOFF(inum));
+        } else {
+            half_eoi();
+            jmp_to(ISEG(inum), IOFF(inum));
+        }
     }
 }
 
-void vtmr_pre_irq_dpmi(void)
+int vtmr_pre_irq_dpmi(uint8_t *imr)
 {
-    do_ack();
+    int timer = do_ack();
+    return vth[timer].is_masked(imr);
 }
 
 void vtmr_post_irq_dpmi(int masked)
@@ -125,6 +155,7 @@ void vtmr_init(void)
 
     hlt_hdlr.name = "vtmr";
     hlt_hdlr.func = vtmr_handler;
+    hlt_hdlr.len = 2;
     vtmr_hlt = hlt_register_handler_vm86(hlt_hdlr);
 }
 
@@ -141,16 +172,27 @@ void vtmr_setup(void)
 
 void vtmr_raise(int vtmr_num)
 {
-    if (vtmr_num >= 8 || (vtmr_irr & (1 << vtmr_num)))
+    if (vtmr_num >= VTMR_MAX || (vtmr_irr & (1 << vtmr_num)))
         return;
     vtmr_irr |= (1 << vtmr_num);
-    pic_request(pic_irq_list[VTMR_IRQ]);
+    pic_request(pic_irq_list[vth[vtmr_num].irq]);
 }
 
 static void vtmr_lower(int vtmr_num)
 {
-    if (vtmr_num >= 8 || !(vtmr_irr & (1 << vtmr_num)))
+    if (vtmr_num >= VTMR_MAX || !(vtmr_irr & (1 << vtmr_num)))
         return;
     vtmr_irr &= ~(1 << vtmr_num);
-    pic_untrigger(pic_irq_list[VTMR_IRQ]);
+    pic_untrigger(pic_irq_list[vth[vtmr_num].irq]);
+}
+
+void vtmr_register(int timer, void (*handler)(void),
+        int (*is_masked)(uint8_t *), unsigned flags)
+{
+    struct vthandler *vt = &vth[timer];
+    assert(timer < VTMR_MAX);
+    vt->handler = handler;
+    vt->is_masked = is_masked;
+    vt->flags = flags;
+    vt->irq = VTMR_IRQ;
 }
