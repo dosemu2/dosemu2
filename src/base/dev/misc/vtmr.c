@@ -51,7 +51,7 @@ struct vthandler {
 };
 struct vthandler vth[VTMR_MAX];
 
-static void vtmr_lower(int vtmr_num);
+static void vtmr_lower(int timer);
 
 static Bit8u vtmr_irr_read(ioport_t port)
 {
@@ -176,20 +176,20 @@ void vtmr_setup(void)
     SETIVEC(VTMR_INTERRUPT, BIOS_HLT_BLK_SEG, vtmr_hlt);
 }
 
-void vtmr_raise(int vtmr_num)
+void vtmr_raise(int timer)
 {
-    if (vtmr_num >= VTMR_MAX || (vtmr_irr & (1 << vtmr_num)))
+    if (timer >= VTMR_MAX || (vtmr_irr & (1 << timer)))
         return;
-    vtmr_irr |= (1 << vtmr_num);
-    pic_request(pic_irq_list[vth[vtmr_num].irq]);
+    vtmr_irr |= (1 << timer);
+    pic_request(pic_irq_list[vth[timer].irq]);
 }
 
-static void vtmr_lower(int vtmr_num)
+static void vtmr_lower(int timer)
 {
-    if (vtmr_num >= VTMR_MAX || !(vtmr_irr & (1 << vtmr_num)))
+    if (timer >= VTMR_MAX || !(vtmr_irr & (1 << timer)))
         return;
-    vtmr_irr &= ~(1 << vtmr_num);
-    pic_untrigger(pic_irq_list[vth[vtmr_num].irq]);
+    vtmr_irr &= ~(1 << timer);
+    pic_untrigger(pic_irq_list[vth[timer].irq]);
 }
 
 void vtmr_register(int timer, void (*handler)(void), unsigned flags)
