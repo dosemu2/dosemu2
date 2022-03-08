@@ -48,6 +48,7 @@ struct vthandler {
     unsigned flags;
     uint8_t irq;
     uint8_t orig_irq;
+    uint8_t interrupt;
 };
 struct vthandler vth[VTMR_MAX];
 
@@ -161,19 +162,29 @@ void vtmr_init(void)
 
     hlt_hdlr.name = "vtmr";
     hlt_hdlr.func = vtmr_handler;
-    hlt_hdlr.len = 2;
+    hlt_hdlr.len = VTMR_MAX * 2;
     vtmr_hlt = hlt_register_handler_vm86(hlt_hdlr);
 }
 
 void vtmr_reset(void)
 {
+    int i;
+
     vtmr_irr = 0;
-    pic_untrigger(pic_irq_list[VTMR_IRQ]);
+    for (i = 0; i < VTMR_MAX; i++) {
+        if (vth[i].irq)
+            pic_untrigger(pic_irq_list[vth[i].irq]);
+    }
 }
 
 void vtmr_setup(void)
 {
-    SETIVEC(VTMR_INTERRUPT, BIOS_HLT_BLK_SEG, vtmr_hlt);
+    int i;
+
+    for (i = 0; i < VTMR_MAX; i++) {
+        if (vth[i].interrupt)
+            SETIVEC(vth[i].interrupt, BIOS_HLT_BLK_SEG, vtmr_hlt + 2 * i);
+    }
 }
 
 void vtmr_raise(int timer)
@@ -200,4 +211,5 @@ void vtmr_register(int timer, void (*handler)(void), unsigned flags)
     vt->flags = flags;
     vt->irq = VTMR_IRQ;
     vt->orig_irq = 0;
+    vt->interrupt = VTMR_INTERRUPT;
 }
