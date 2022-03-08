@@ -43,6 +43,7 @@
 #include "xms.h"
 #include "emudpmi.h"
 #include "virq.h"
+#include "vint.h"
 #include "vtmr.h"
 
 struct io_dev_struct {
@@ -69,6 +70,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "pic",     pic_init,     pic_reset,     NULL },
   { "chipset", chipset_init, NULL,          NULL },
   { "virq",    virq_init,    virq_reset,    NULL },
+  { "vint",    vint_init,    NULL,          NULL },
   { "vtmr",    vtmr_init,    vtmr_reset,    NULL },
   { "pit",     pit_init,     pit_reset,     NULL },
   { "lpt",     printer_init, NULL,	    NULL },

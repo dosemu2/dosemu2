@@ -16,7 +16,7 @@
 #include "int.h"
 #include "iodev.h"
 #include "virq.h"
-#include "vtmr.h"
+#include "vint.h"
 #include "emm.h"
 #include "xms.h"
 #include "hma.h"
@@ -105,7 +105,7 @@ static void late_init_thr(void *arg)
   /* if something else is to be added here,
    * add the "late_init" member into dev_list instead */
   virq_setup();
-  vtmr_setup();
+  vint_setup();
   video_late_init();
   mouse_late_init();
   mouse_client_post_init();
