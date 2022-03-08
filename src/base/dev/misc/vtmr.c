@@ -45,9 +45,9 @@ static uint16_t vtmr_hlt;
 
 struct vthandler {
     void (*handler)(void);
-    int (*is_masked)(uint8_t *);
     unsigned flags;
     uint8_t irq;
+    uint8_t orig_irq;
 };
 struct vthandler vth[VTMR_MAX];
 
@@ -99,6 +99,12 @@ static void do_ret(void)
     do_iret();
 }
 
+static int is_masked(int timer, uint8_t *imr)
+{
+    uint16_t real_imr = (imr[1] << 8) | imr[0];
+    return (real_imr & (1 << vth[timer].orig_irq));
+}
+
 static void vtmr_handler(uint16_t idx, HLT_ARG(arg))
 {
     uint8_t imr[2];
@@ -112,7 +118,7 @@ static void vtmr_handler(uint16_t idx, HLT_ARG(arg))
     imr[0] = port_inb(0x21);
     imr[1] = port_inb(0xa1);
     timer = do_ack();
-    if (vth[timer].is_masked(imr)) {
+    if (is_masked(timer, imr)) {
         do_eoi2_iret();
     } else {
         uint8_t inum = port_inb(PIC0_VECBASE_PORT);
@@ -129,7 +135,7 @@ static void vtmr_handler(uint16_t idx, HLT_ARG(arg))
 int vtmr_pre_irq_dpmi(uint8_t *imr)
 {
     int timer = do_ack();
-    return vth[timer].is_masked(imr);
+    return is_masked(timer, imr);
 }
 
 void vtmr_post_irq_dpmi(int masked)
@@ -186,13 +192,12 @@ static void vtmr_lower(int vtmr_num)
     pic_untrigger(pic_irq_list[vth[vtmr_num].irq]);
 }
 
-void vtmr_register(int timer, void (*handler)(void),
-        int (*is_masked)(uint8_t *), unsigned flags)
+void vtmr_register(int timer, void (*handler)(void), unsigned flags)
 {
     struct vthandler *vt = &vth[timer];
     assert(timer < VTMR_MAX);
     vt->handler = handler;
-    vt->is_masked = is_masked;
     vt->flags = flags;
     vt->irq = VTMR_IRQ;
+    vt->orig_irq = 0;
 }

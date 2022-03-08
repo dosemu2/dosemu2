@@ -710,11 +710,6 @@ void spkr_io_write(ioport_t port, Bit8u value) {
    }
 }
 
-static int is_masked(uint8_t *imr)
-{
-    return (imr[0] & 1);
-}
-
 void pit_init(void)
 {
   emu_iodev_t  io_device;
@@ -756,7 +751,7 @@ void pit_init(void)
   port_register_handler(io_device, 0);
 #endif
 
-  vtmr_register(VTMR_PIT, timer_irq_ack, is_masked, 0);
+  vtmr_register(VTMR_PIT, timer_irq_ack, 0);
 }
 
 void pit_reset(void)
