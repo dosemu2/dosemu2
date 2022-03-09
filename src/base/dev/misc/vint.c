@@ -40,7 +40,7 @@ static uint16_t vint_hlt;
 #define IMR1_MASK(n) (1 << (vih[n].irq - 8))
 
 struct vihandler {
-    void (*handler)(void);
+    void (*handler)(int);
     uint8_t irq;
     uint8_t orig_irq;
     uint8_t interrupt;
@@ -75,12 +75,13 @@ static void do_ret(int vi_num)
 int vint_is_masked(int vi_num, uint8_t *imr)
 {
     uint16_t real_imr = (imr[1] << 8) | imr[0];
-    return (real_imr & (1 << vih[vi_num].orig_irq));
+    return !!(real_imr & (1 << vih[vi_num].orig_irq));
 }
 
 static void vint_handler(uint16_t idx, HLT_ARG(arg))
 {
     uint8_t imr[2];
+    int masked;
     int vi_num = idx >> 1;
 
     if (idx & 1) {
@@ -90,9 +91,10 @@ static void vint_handler(uint16_t idx, HLT_ARG(arg))
 
     imr[0] = port_inb(0x21);
     imr[1] = port_inb(0xa1);
+    masked = vint_is_masked(vi_num, imr);
     if (vih[vi_num].handler)
-        vih[vi_num].handler();
-    if (vint_is_masked(vi_num, imr)) {
+        vih[vi_num].handler(masked);
+    if (masked) {
         do_eoi2_iret();
     } else {
         uint8_t irq = vih[vi_num].orig_irq;
@@ -142,7 +144,7 @@ void vint_setup(void)
     }
 }
 
-int vint_register(void (*handler)(void), int irq, int orig_irq, int inum)
+int vint_register(void (*handler)(int), int irq, int orig_irq, int inum)
 {
     struct vihandler *vi = &vih[vi_used];
     assert(vi_used < VINT_MAX);

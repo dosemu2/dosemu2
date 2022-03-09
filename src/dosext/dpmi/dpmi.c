@@ -58,6 +58,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "emu-ldt.h"
 #include "kvm.h"
 #include "vtmr.h"
+#include "vint.h"
 #include "dnative.h"
 #include "dpmi_api.h"
 
@@ -3736,6 +3737,9 @@ void dpmi_init(void)
   desc.selector = dpmi_sel();
   desc.offset32 = DPMI_SEL_OFF(DPMI_vtmr_irq);
   dpmi_set_interrupt_vector_pm(VTMR_INTERRUPT, desc);
+  desc.selector = dpmi_sel();
+  desc.offset32 = DPMI_SEL_OFF(DPMI_vrtc_irq);
+  dpmi_set_interrupt_vector_pm(VRTC_INTERRUPT, desc);
 
   DPMI_CLIENT.orig_imr = port_inb(0x21);
 
@@ -4504,6 +4508,17 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_post_irq)) {
           int masked = !!(_eflags & CF);
           vtmr_post_irq_dpmi(masked);
+
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_vrtc_irq)) {
+          int masked = vrtc_pre_irq_dpmi(DPMI_CLIENT.imr);
+          if (masked)
+            _eflags |= CF;
+          else
+            _eflags &= ~CF;
+
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_vrtc_post_irq)) {
+          int masked = !!(_eflags & CF);
+          vrtc_post_irq_dpmi(masked);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);

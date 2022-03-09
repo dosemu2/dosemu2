@@ -64,6 +64,7 @@ extern void  pit_reset(void);
 #define SECS_PER_YEAR    31557600    /* any trivia buffs? */
 
 extern void  rtc_init(void);
+extern void  rtc_setup(void);
 extern void  rtc_reset(void);
 extern void  rtc_update(void);
 

@@ -136,7 +136,7 @@
 #include "emudpmi.h"
 #include "serial.h"
 #include "int.h"
-#include "vtmr.h"
+#include "vint.h"
 #include "pic.h"
 
 #define TIMER0_FLOOD_THRESHOLD 50000

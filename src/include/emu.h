@@ -355,6 +355,8 @@ typedef struct config_info {
 
         char *opl2lpt_device;
         int opl2lpt_type;
+
+        int timer_tweaks;
 } config_t;
 
 

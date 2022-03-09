@@ -17,13 +17,14 @@
 #include "disks.h"
 #include "timers.h"
 #include "int.h"
+#include "vint.h"
 #include "iodev.h"
 
 long   sys_base_ticks = 0;
 long   usr_delta_ticks = 0;
 unsigned long   last_ticks = 0;
 static unsigned long long q_ticks_m = 0;
-
+static int vint;
 
 static int rtc_get_rate(Bit8u div)
 {
@@ -60,7 +61,7 @@ void rtc_run(void)
       if (debug_level('h') > 7)
         h_printf("RTC: periodic IRQ, queued=%lli, added=%lli\n",
 	    (long long)q_ticks_m, (long long)ticks_m);
-      pic_request(PIC_IRQ8);
+      pic_request(config.timer_tweaks ? pic_irq_list[VRTC_IRQ] : PIC_IRQ8);
     }
     if (!(old_c & 0x40))
       q_ticks_m -= 1000000;
@@ -262,16 +263,54 @@ void rtc_update (void)	/* called every 1s from SIGALRM */
  * Initialise the RTC. Key work is now in get_linux_ticks() where we initialise
  * all of the RTC time/date fields, and only zero the alarm stuff here.
  */
-void rtc_init (void)
+void rtc_setup(void)
 {
-  usr_delta_ticks = 0;
-  last_ticks = sys_base_ticks = get_linux_ticks(1, NULL);
-
   SET_CMOS(CMOS_HOURALRM, 0);
   SET_CMOS(CMOS_MINALRM,  0);
   SET_CMOS(CMOS_SECALRM,  0);
 }
 
+#define VRTC_IRQ_PORT 0x610
+
+static void vrtc_irq_write(ioport_t port, Bit8u val)
+{
+  if (val)
+    pic_request(PIC_IRQ8);
+  else
+    pic_untrigger(PIC_IRQ8);
+}
+
+static void rtc_vint(int masked)
+{
+  port_outb(VRTC_IRQ_PORT, masked);
+}
+
+void rtc_init(void)
+{
+  emu_iodev_t io_dev = {};
+
+  io_dev.write_portb = vrtc_irq_write;
+  io_dev.start_addr = VRTC_IRQ_PORT;
+  io_dev.end_addr = VRTC_IRQ_PORT;
+  io_dev.handler_name = "virtual RTC";
+  port_register_handler(io_dev, 0);
+
+  usr_delta_ticks = 0;
+  last_ticks = sys_base_ticks = get_linux_ticks(1, NULL);
+
+  vint = vint_register(rtc_vint, VRTC_IRQ, 8, VRTC_INTERRUPT);
+  vint_set_tweaked(vint, 1, 0);
+}
+
+int vrtc_pre_irq_dpmi(uint8_t *imr)
+{
+    return vint_is_masked(vint, imr);
+}
+
+void vrtc_post_irq_dpmi(int masked)
+{
+    vint_post_irq_dpmi(vint, masked);
+}
 
 /* ========================================================================= */
 

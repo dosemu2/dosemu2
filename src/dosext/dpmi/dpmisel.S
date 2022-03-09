@@ -230,21 +230,26 @@ DPMI_msdos:
 	int $0x21
 	lretl
 
-	.globl DPMI_vtmr_irq
-DPMI_vtmr_irq:
+.macro vint name inum
+	.globl DPMI_\name\()_irq
+DPMI_\name\()_irq:
 	hlt
 	jc 1f
-	int $8
+	int $\inum
 	# IRQ0 is not requested at that point (its not used at all).
 	# We disable interrupts and then allow timer to tick.
 	cli
 	clc
 1:
-	.globl DPMI_vtmr_post_irq
-DPMI_vtmr_post_irq:
+	.globl DPMI_\name\()_post_irq
+DPMI_\name\()_post_irq:
 	hlt
 	sti
 	iretl
+.endm
+
+	vint vtmr 8
+	vint vrtc 0x70
 
 	.globl DPMI_sel_code_end
 DPMI_sel_code_end:
