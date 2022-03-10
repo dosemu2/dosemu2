@@ -343,4 +343,19 @@ $_timer_tweaks = (on)
 </sect2>
 </sect1>
 
+<sect1>
+<title>Street Fighter 2</title>
+<sect2>
+<title>
+Game crashes on intro screen.
+</title>
+<para>
+Solution: set
+<screen>
+$_timer_tweaks = (on)
+</screen>
+</para>
+</sect2>
+</sect1>
+
 </article>
