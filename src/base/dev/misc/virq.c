@@ -100,7 +100,7 @@ void virq_init(void)
     io_dev.write_portb = virq_hwc_write;
     io_dev.read_portw = virq_irr_read;
     io_dev.start_addr = VIRQ_IRR_PORT;
-    io_dev.end_addr = VIRQ_IRR_PORT + VIRQ_TOTAL_PORTS;
+    io_dev.end_addr = VIRQ_IRR_PORT + VIRQ_TOTAL_PORTS - 1;
     io_dev.handler_name = "virtual IRQ router";
     port_register_handler(io_dev, 0);
 

@@ -69,7 +69,7 @@ static void vtmr_ack_write(ioport_t port, Bit8u value)
     last_acked = value;
 }
 
-static void do_ack(void)
+static void do_ack(int masked)
 {
     uint8_t irr = port_inb(VTMR_IRR_PORT);
     int timer = find_bit(irr);
@@ -79,8 +79,9 @@ static void do_ack(void)
 
 int vtmr_pre_irq_dpmi(uint8_t *imr)
 {
-    do_ack();
-    return vint_is_masked(vth[VTMR_PIT].vint, imr);
+    int masked = vint_is_masked(vth[VTMR_PIT].vint, imr);
+    do_ack(masked);
+    return masked;
 }
 
 void vtmr_post_irq_dpmi(int masked)
@@ -96,7 +97,7 @@ void vtmr_init(void)
     io_dev.read_portb = vtmr_irr_read;
     io_dev.read_portw = vtmr_vpend_read;
     io_dev.start_addr = VTMR_FIRST_PORT;
-    io_dev.end_addr = VTMR_FIRST_PORT + VTMR_TOTAL_PORTS;
+    io_dev.end_addr = VTMR_FIRST_PORT + VTMR_TOTAL_PORTS - 1;
     io_dev.handler_name = "virtual timer";
     port_register_handler(io_dev, 0);
 }
@@ -129,4 +130,5 @@ void vtmr_register(int timer, void (*handler)(void), unsigned flags)
     assert(timer < VTMR_MAX);
     vt->handler = handler;
     vt->vint = vint_register(do_ack, VTMR_IRQ, 0, VTMR_INTERRUPT);
+    vint_set_tweaked(vt->vint, config.timer_tweaks, 0);
 }

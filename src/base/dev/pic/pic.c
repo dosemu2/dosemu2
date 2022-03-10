@@ -136,7 +136,7 @@
 #include "emudpmi.h"
 #include "serial.h"
 #include "int.h"
-#include "vtmr.h"
+#include "vint.h"
 #include "pic.h"
 
 #define TIMER0_FLOOD_THRESHOLD 50000
@@ -398,7 +398,7 @@ if(!port){                          /* icw1, ocw2, ocw3 */
   else if((value&0xb8) == 0x20) {    /* ocw2 */
        clear_bit(ilevel,&pic0_isr);  /* the famous outb20 */
        pic_print(1,"EOI resetting bit ",ilevel, " on pic0");
-#if 1
+#if 0
 	/* XXX hack: to avoid timer interrupt re-entrancy,
 	 * we try to disable interrupts in a hope IRET will re-enable
 	 * them. This fixes Tetris Classic problem:

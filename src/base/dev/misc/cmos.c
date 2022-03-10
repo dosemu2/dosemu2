@@ -104,7 +104,7 @@ void cmos_init(void)
   for (i = 0; i < 64; i++)
     cmos.subst[i] = cmos.flag[i] = 0;
 
-  rtc_init();
+  rtc_setup();
 
   /* CMOS floppies...is this correct? */
   SET_CMOS(CMOS_DISKTYPE,

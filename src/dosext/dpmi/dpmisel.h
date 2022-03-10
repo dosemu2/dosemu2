@@ -45,6 +45,8 @@ extern unsigned char	DPMI_rm_exception[];
 extern unsigned char	DPMI_interrupt[];
 extern unsigned char	DPMI_vtmr_irq[];
 extern unsigned char	DPMI_vtmr_post_irq[];
+extern unsigned char	DPMI_vrtc_irq[];
+extern unsigned char	DPMI_vrtc_post_irq[];
 extern unsigned char	DPMI_sel_end[];
 
 extern unsigned char	DPMI_VXD_start[];

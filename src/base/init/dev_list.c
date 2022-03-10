@@ -73,6 +73,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "vint",    vint_init,    NULL,          NULL },
   { "vtmr",    vtmr_init,    vtmr_reset,    NULL },
   { "pit",     pit_init,     pit_reset,     NULL },
+  { "rtc",     rtc_init,     NULL,          NULL },
   { "lpt",     printer_init, NULL,	    NULL },
   { "dma",     dma_init,     dma_reset,     NULL },
 #if 0

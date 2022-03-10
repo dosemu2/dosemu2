@@ -310,6 +310,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("pcm_hpf %i\nmidi_file %s\nwav_file %s\n",
 	config.pcm_hpf, config.midi_file, config.wav_file);
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
+    (*print)("\ntimer_tweaks %d\n", config.timer_tweaks);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
         config.joy_device[0], config.joy_device[1], config.joy_dos_min, config.joy_dos_max, config.joy_granularity, config.joy_latency);
     (*print)("\nFS:\nset_int_hooks %i\nforce_int_revect %i\nforce_fs_redirect %i\n\n",

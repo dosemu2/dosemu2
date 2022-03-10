@@ -57,14 +57,14 @@ void chipset_init(void)
   memset(&io_dev, 0, sizeof(io_dev));
   io_dev.read_portb = picext_io_read;
   io_dev.start_addr = PIC0_EXTPORT_START;
-  io_dev.end_addr = PIC0_EXTPORT_START + PICx_EXT_PORTS;
+  io_dev.end_addr = PIC0_EXTPORT_START + PICx_EXT_PORTS - 1;
   io_dev.handler_name = "PIC0 extensions";
   port_register_handler(io_dev, 0);
 
   memset(&io_dev, 0, sizeof(io_dev));
   io_dev.read_portb = picext_io_read;
   io_dev.start_addr = PIC1_EXTPORT_START;
-  io_dev.end_addr = PIC1_EXTPORT_START + PICx_EXT_PORTS;
+  io_dev.end_addr = PIC1_EXTPORT_START + PICx_EXT_PORTS - 1;
   io_dev.handler_name = "PIC1 extensions";
   port_register_handler(io_dev, 0);
 }

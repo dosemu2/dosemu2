@@ -611,6 +611,7 @@ target			RETURN(TARGET);
 	/* hacks */
 cli_timeout		RETURN(CLI_TIMEOUT);
 timemode		RETURN(TIMEMODE);
+timer_tweaks		RETURN(TIMER_TWEAKS);
 
 	/* charset stuff */
 external		RETURN(EXTERNAL);

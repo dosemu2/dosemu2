@@ -311,8 +311,7 @@ enum {
 	/* joystick */
 %token JOYSTICK JOY_DEVICE JOY_DOS_MIN JOY_DOS_MAX JOY_GRANULARITY JOY_LATENCY
 	/* Hacks */
-%token CLI_TIMEOUT
-%token TIMEMODE
+%token CLI_TIMEOUT TIMEMODE TIMER_TWEAKS
 
 	/* we know we have 1 shift/reduce conflict :-( 
 	 * and tell the parser to ignore that */
@@ -804,6 +803,8 @@ line:		CHARSET '{' charset_flags '}' {}
 		    c_printf("CONF: time mode = '%s'\n", $2);
 		    free($2);
 		    }
+		| TIMER_TWEAKS bool
+		    { config.timer_tweaks = ($2 != 0); }
 		| UEXEC string_expr
 		    { free(config.unix_exec); config.unix_exec = $2; }
 		| LPATHS string_expr
