@@ -328,4 +328,19 @@ these drive letters are occupied. Solution is to copy the game to C:.
 </sect2>
 </sect1>
 
+<sect1>
+<title>Tetris Classic</title>
+<sect2>
+<title>
+Game is too slow.
+</title>
+<para>
+Solution: set
+<screen>
+$_timer_tweaks = (on)
+</screen>
+</para>
+</sect2>
+</sect1>
+
 </article>
