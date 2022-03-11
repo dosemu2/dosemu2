@@ -26,7 +26,6 @@
 #include "pic.h"
 #include "cpu.h"
 #include "int.h"
-#include "bitops.h"
 #include "emu.h"
 #include "timers.h"
 #include "chipset.h"
@@ -43,10 +42,22 @@ static uint16_t vtmr_irr;
 static uint8_t last_acked;
 
 struct vthandler {
-    void (*handler)(void);
+    void (*handler)(int);
     int vint;
 };
 struct vthandler vth[VTMR_MAX];
+
+struct vint_presets {
+    uint8_t irq;
+    uint8_t orig_irq;
+    uint8_t interrupt;
+};
+static struct vint_presets vip[VTMR_MAX] = {
+    [VTMR_PIT] = { .irq = VTMR_IRQ, .orig_irq = 0,
+            .interrupt = VTMR_INTERRUPT },
+    [VTMR_RTC] = { .irq = VRTC_IRQ, .orig_irq = 8,
+            .interrupt = VRTC_INTERRUPT },
+};
 
 static void vtmr_lower(int timer);
 
@@ -62,31 +73,57 @@ static Bit16u vtmr_vpend_read(ioport_t port)
 
 static void vtmr_ack_write(ioport_t port, Bit8u value)
 {
-    if (value >= VTMR_MAX || !vth[value].handler)
+    int masked = (value >> 7) & 1;
+    int timer = value & 0x7f;
+
+    if (timer >= VTMR_MAX)
         return;
-    vtmr_lower(value);
-    vth[value].handler();
-    last_acked = value;
+    vtmr_lower(timer);
+    if (vth[timer].handler)
+        vth[timer].handler(masked);
+    h_printf("vtmr: ACK on %i, irr=%x\n", timer, vtmr_irr);
+    last_acked = timer;
 }
 
-static void do_ack(int masked)
+static void do_ack(int timer, int masked)
 {
-    uint8_t irr = port_inb(VTMR_IRR_PORT);
-    int timer = find_bit(irr);
+    port_outb(VTMR_ACK_PORT, timer | (masked << 7));
+}
 
-    port_outb(VTMR_ACK_PORT, timer);
+static void ack_handler(int vint, int masked)
+{
+    int i;
+
+    for (i = 0; i < VTMR_MAX; i++) {
+        if (vth[i].vint == vint) {
+            do_ack(i, masked);
+            break;
+        }
+    }
 }
 
 int vtmr_pre_irq_dpmi(uint8_t *imr)
 {
     int masked = vint_is_masked(vth[VTMR_PIT].vint, imr);
-    do_ack(masked);
+    do_ack(VTMR_PIT, masked);
     return masked;
 }
 
 void vtmr_post_irq_dpmi(int masked)
 {
     vint_post_irq_dpmi(vth[VTMR_PIT].vint, masked);
+}
+
+int vrtc_pre_irq_dpmi(uint8_t *imr)
+{
+    int masked = vint_is_masked(vth[VTMR_RTC].vint, imr);
+    do_ack(VTMR_RTC, masked);
+    return masked;
+}
+
+void vrtc_post_irq_dpmi(int masked)
+{
+    vint_post_irq_dpmi(vth[VTMR_RTC].vint, masked);
 }
 
 void vtmr_init(void)
@@ -104,16 +141,20 @@ void vtmr_init(void)
 
 void vtmr_reset(void)
 {
+    int i;
+
     vtmr_irr = 0;
-    pic_untrigger(pic_irq_list[VTMR_IRQ]);
+    for (i = 0; i < VTMR_MAX; i++)
+      pic_untrigger(pic_irq_list[vip[i].irq]);
 }
 
 void vtmr_raise(int timer)
 {
-    if (timer >= VTMR_MAX || (vtmr_irr & (1 << timer)))
+    if (timer >= VTMR_MAX)
         return;
+    assert(!(vtmr_irr & (1 << timer)));
     vtmr_irr |= (1 << timer);
-    pic_request(pic_irq_list[VTMR_IRQ]);
+    pic_request(pic_irq_list[vip[timer].irq]);
 }
 
 static void vtmr_lower(int timer)
@@ -121,14 +162,20 @@ static void vtmr_lower(int timer)
     if (timer >= VTMR_MAX || !(vtmr_irr & (1 << timer)))
         return;
     vtmr_irr &= ~(1 << timer);
-    pic_untrigger(pic_irq_list[VTMR_IRQ]);
+    pic_untrigger(pic_irq_list[vip[timer].irq]);
 }
 
-void vtmr_register(int timer, void (*handler)(void), unsigned flags)
+void vtmr_register(int timer, void (*handler)(int))
 {
     struct vthandler *vt = &vth[timer];
+    struct vint_presets *vp = &vip[timer];
     assert(timer < VTMR_MAX);
     vt->handler = handler;
-    vt->vint = vint_register(do_ack, VTMR_IRQ, 0, VTMR_INTERRUPT);
-    vint_set_tweaked(vt->vint, config.timer_tweaks, 0);
+    vt->vint = vint_register(ack_handler, vp->irq, vp->orig_irq,
+                             vp->interrupt);
+}
+
+void vtmr_set_tweaked(int timer, int on, unsigned flags)
+{
+    vint_set_tweaked(vth[timer].vint, on, flags);
 }

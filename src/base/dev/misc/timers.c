@@ -612,7 +612,7 @@ static void pic_sched(int ilevel, int interval)
   if (debug_level('r') > 2) {
     /* avoid going through sprintf for non-debugging */
     sprintf(mesg,", delay= %d.",interval);
-    pic_print(2,"Scheduling lvl= ",ilevel,mesg);
+    pic_print(2,"Scheduling timer ",ilevel,mesg);
     pic_print2(2,"pic_itime set to ",pic_itime[ilevel],"");
   }
 
@@ -647,7 +647,7 @@ static void pic_watch(hitimer_u *s_time)
   pic_activate();
 }
 
-static void timer_irq_ack(void)
+static void timer_irq_ack(int masked)
 {
   pic_sched(0, pit[0].cntr);
 }
@@ -751,7 +751,8 @@ void pit_init(void)
   port_register_handler(io_device, 0);
 #endif
 
-  vtmr_register(VTMR_PIT, timer_irq_ack, 0);
+  vtmr_register(VTMR_PIT, timer_irq_ack);
+  vtmr_set_tweaked(VTMR_PIT, config.timer_tweaks, 0);
 }
 
 void pit_reset(void)
