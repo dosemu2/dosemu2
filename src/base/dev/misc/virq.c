@@ -114,7 +114,7 @@ void virq_init(void)
 void virq_reset(void)
 {
     virq_irr = 0;
-    pic_untrigger(pic_irq_list[VIRQ_IRQ_NUM]);
+    pic_untrigger(VIRQ_IRQ_NUM);
 }
 
 void virq_setup(void)
@@ -127,7 +127,7 @@ void virq_raise(int virq_num)
     if (virq_num >= VIRQ_MAX || (virq_irr & (1 << virq_num)))
         return;
     virq_irr |= (1 << virq_num);
-    pic_request(pic_irq_list[VIRQ_IRQ_NUM]);
+    pic_request(VIRQ_IRQ_NUM);
 }
 
 static void virq_lower(int virq_num)
@@ -135,7 +135,7 @@ static void virq_lower(int virq_num)
     if (virq_num >= VIRQ_MAX || !(virq_irr & (1 << virq_num)))
         return;
     virq_irr &= ~(1 << virq_num);
-    pic_untrigger(pic_irq_list[VIRQ_IRQ_NUM]);
+    pic_untrigger(VIRQ_IRQ_NUM);
 }
 
 void virq_register(int virq_num, enum VirqHwRet (*hw_handler)(void *),

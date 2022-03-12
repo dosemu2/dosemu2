@@ -142,7 +142,7 @@ static void dosemu_fault1(int signum, sigcontext_t *scp)
     if (_trapno == 0x10) {
       dbug_printf("coprocessor exception, calling IRQ13\n");
       print_exception_info(scp);
-      pic_request(PIC_IRQ13);
+      pic_request(13);
       dpmi_return(scp, DPMI_RET_DOSEMU);
       return;
     }

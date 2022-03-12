@@ -2,15 +2,7 @@
 top_builddir=../../../..
 include $(top_builddir)/Makefile.conf
 
-
-CFILES = pic.c
-HFILES = 
-DEPENDS= pic.d
-
-ALL = $(CFILES) $(HFILES) README.pic
-
-OBJS = pic.o
-
+CFILES = pic.c irq.c i8259.c i8259_common.c
 
 all: lib
 

@@ -223,7 +223,7 @@ void int_check_queue(void)
 #if KBD_PIC_HACK
    /* HACK - extra sentinel needed, timing is not
     * a reliable measure under heavy loads */
-   if (pic_irq_active(PIC_IRQ1))
+   if (pic_irq_active(1))
       return;
 #endif
 

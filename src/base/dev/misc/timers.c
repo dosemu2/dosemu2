@@ -49,6 +49,7 @@ static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
 static hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
 hitimer_t pic_sys_time;     /* system time set by pic_watch */
 
+#define NEVER -1
 static hitimer_t pic_ltime[33] =     /* timeof last pic request honored */
                 {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
@@ -305,7 +306,7 @@ static void pit_latch(int latch)
 	/* while current time is less than next irq time, ticks decrease;
          * ticks can go out of bounds or negative when the interrupt
          * is lost or pending */
-	ticks = (pic_itime[PIC_IRQ0] - pic_sys_time) % p->cntr;
+	ticks = (pic_itime[VTMR_PIT] - pic_sys_time) % p->cntr;
       } else {
 	ticks = p->cntr - (pic_sys_time % p->cntr);
       }
@@ -548,13 +549,13 @@ static void pic_activate(void)
                vtmr_raise(timer);
                ++count;
          } else {
-               pic_print(2,"pic_itime and pic_ltime for timer ",timer," matched!");
+               r_printf("pic_itime and pic_ltime for timer %i matched!\n", timer);
          }
       }
    }
-   if(count) pic_print(2,"Activated ",count, " interrupts.");
-   pic_print2(2,"Activate ++ dos time to ",earliest, " ");
-   pic_print2(2,"pic_sys_time is ",pic_sys_time," ");
+   if(count) r_printf("Activated %i interrupts.\n", count);
+   r_printf("Activate ++ dos time to %li\n", earliest);
+   r_printf("pic_sys_time is %li\n", pic_sys_time);
    pic_itime[32] = earliest;
    if (count)
       pic_dos_time = earliest;
@@ -614,8 +615,8 @@ static void pic_sched(int ilevel, int interval)
   if (debug_level('r') > 2) {
     /* avoid going through sprintf for non-debugging */
     sprintf(mesg,", delay= %d.",interval);
-    pic_print(2,"Scheduling timer ",ilevel,mesg);
-    pic_print2(2,"pic_itime set to ",pic_itime[ilevel],"");
+    r_printf("Scheduling timer %i%s\n", ilevel, mesg);
+    r_printf("pic_itime set to %li\n", pic_itime[ilevel]);
   }
 
   pic_activate();
@@ -641,9 +642,9 @@ static void pic_watch(hitimer_u *s_time)
   t_time = s_time->td;
 
   /* check for any freshly initiated timers, and sync them to s_time */
-  pic_print2(2,"pic_itime[1]= ",pic_itime[1]," ");
+  r_printf("pic_itime[1]=%li\n", pic_itime[1]);
   pic_sys_time=t_time + (t_time == NEVER);
-  pic_print2(2,"pic_sys_time set to ",pic_sys_time," ");
+  r_printf("pic_sys_time set to %li\n", pic_sys_time);
   pic_dos_time = pic_itime[32];
 
   pic_activate();

@@ -693,7 +693,7 @@ void SIG_init(void)
 		    g_printf("Gonna monitor the IRQ %d you requested\n", irq);
 		    sg->fd = -1;
 		    sg->irq = irq;
-		    g_printf("SIG: IRQ%d, enabling PIC-level %ld\n", irq, pic_irq_list[irq]);
+		    g_printf("SIG: IRQ%d\n", irq);
 		    sg++;
 		}
 	    }

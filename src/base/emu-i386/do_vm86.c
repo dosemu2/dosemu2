@@ -72,7 +72,7 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
     return 0;
 
   case 0x10: /* coprocessor error */
-    pic_request(PIC_IRQ13); /* this is the 386 way of signalling this */
+    pic_request(13); /* this is the 386 way of signalling this */
     return 0;
 
   case 0x11: /* alignment check */
@@ -650,6 +650,41 @@ void vm86_helper(void)
   coopth_run();
 }
 
+void pic_run(void)
+{
+    int inum;
+
+    if (!pic_pending())
+        return;
+
+    if (!isset_IF()) {
+#if 0
+        /* try to detect timer flood, and not set VIP if it is there.
+         * See https://github.com/stsp/dosemu2/issues/918
+         */
+        if (pic_sys_time < pic_dos_time +
+                               TIMER0_FLOOD_THRESHOLD ||
+                               pic_pending_masked(1 << PIC_IRQ0))
+            set_VIP();
+        else
+            r_printf("PIC: timer flood work-around\n");
+#else
+        /* the above work-around regresses goblins2, see
+         * https://github.com/dosemu2/dosemu2/issues/1300
+         */
+        set_VIP();
+#endif
+        return;                      /* exit if ints are disabled */
+    }
+    clear_VIP();
+
+    inum = pic_get_inum();
+    if (dpmi_active())
+        run_pm_int(inum);
+    else
+        real_run_int(inum);
+}
+
 /*
  * DANG_BEGIN_FUNCTION loopstep_run_vm86
  *
@@ -675,7 +710,8 @@ void loopstep_run_vm86(void)
     if (mhpdbg_is_stopped())
 	return;
 #endif
-    pic_run();		/* trigger any hardware interrupts requested */
+    if (!in_dpmi_pm())
+	pic_run();		/* trigger any hardware interrupts requested */
 }
 
 int do_call_back(Bit16u cs, Bit16u ip)

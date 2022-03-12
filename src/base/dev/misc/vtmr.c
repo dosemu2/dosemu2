@@ -104,9 +104,9 @@ static void vtmr_io_write(ioport_t port, Bit8u value)
         if (!masked) {
             vtmr_irr |= msk;
             if (!(vtmr_imr & msk))
-                pic_request(pic_irq_list[vip[timer].irq]);
+                pic_request(vip[timer].irq);
         } else {
-            pic_request(pic_irq_list[vip[timer].orig_irq]);
+            pic_request(vip[timer].orig_irq);
             coopth_add_post_handler(post_req, (void *)(uintptr_t)timer);
         }
         h_printf("vtmr: REQ on %i, irr=%x, masked=%i\n", timer, vtmr_irr,
@@ -116,14 +116,14 @@ static void vtmr_io_write(ioport_t port, Bit8u value)
         if (!(vtmr_imr & msk)) {
             vtmr_imr |= msk;
             if (vtmr_irr & msk)
-                pic_untrigger(pic_irq_list[vip[timer].irq]);
+                pic_untrigger(vip[timer].irq);
         }
         break;
     case VTMR_UNMASK_PORT:
         if (vtmr_imr & msk) {
             vtmr_imr &= ~msk;
             if (vtmr_irr & msk)
-                pic_request(pic_irq_list[vip[timer].irq]);
+                pic_request(vip[timer].irq);
         }
         break;
     case VTMR_ACK_PORT:
@@ -249,7 +249,7 @@ void vtmr_reset(void)
     vtmr_imr = 0;
     vtmr_pirr = 0;
     for (i = 0; i < VTMR_MAX; i++)
-      pic_untrigger(pic_irq_list[vip[i].irq]);
+      pic_untrigger(vip[i].irq);
 }
 
 void vtmr_raise(int timer)
@@ -268,7 +268,7 @@ static void vtmr_lower(int timer)
     if (timer >= VTMR_MAX || !(vtmr_irr & (1 << timer)))
         return;
     vtmr_irr &= ~(1 << timer);
-    pic_untrigger(pic_irq_list[vip[timer].irq]);
+    pic_untrigger(vip[timer].irq);
 }
 
 void vtmr_register(int timer, void (*handler)(int))

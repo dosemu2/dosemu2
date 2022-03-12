@@ -65,7 +65,7 @@ static inline int process_interrupt(SillyG_t *sg)
 
   if ((irq = sg->irq) != 0) {
     h_printf("INTERRUPT: 0x%02x\n", irq);
-    ret=(pic_request(pic_irq_list[irq])!=PIC_REQ_LOST);
+    pic_request(irq);
   }
   return ret;
 }

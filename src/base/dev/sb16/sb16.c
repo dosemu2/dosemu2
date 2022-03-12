@@ -389,9 +389,9 @@ static int sb_irq_active(int type)
 static void sb_request_irq(int type)
 {
     if (type & SB_IRQ_DSP)
-	pic_request(pic_irq_list[sb_get_dsp_irq_num()]);
+	pic_request(sb_get_dsp_irq_num());
     if (type & SB_IRQ_MPU401)
-	pic_request(pic_irq_list[get_mpu401_irq_num()]);
+	pic_request(get_mpu401_irq_num());
 }
 
 static void sb_activate_irq(int type)
@@ -423,11 +423,11 @@ static void sb_deactivate_irq(int type)
 	    ((!!(sb.mixer_regs[0x82] & SB_IRQ_MPU401)) << mpu_irq);
     if (type & SB_IRQ_DSP) {
 	if (!(act_map & (1 << sb_get_dsp_irq_num())))
-	    pic_untrigger(pic_irq_list[sb_get_dsp_irq_num()]);
+	    pic_untrigger(sb_get_dsp_irq_num());
     }
     if (type & SB_IRQ_MPU401) {
 	if (!(act_map & (1 << mpu_irq)))
-	    pic_untrigger(pic_irq_list[mpu_irq]);
+	    pic_untrigger(mpu_irq);
     }
 }
 
