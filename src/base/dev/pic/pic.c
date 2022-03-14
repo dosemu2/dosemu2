@@ -122,7 +122,7 @@
  */
 
 #include <stdio.h>
-#include <inttypes.h>
+#include <stdint.h>
 
 #include "port.h"
 #include "hlt.h"
@@ -139,8 +139,6 @@
 #include "vtmr.h"
 #include "pic.h"
 
-#define TIMER0_FLOOD_THRESHOLD 50000
-
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
 static unsigned long pic_irq2_ivec = 0;
 
@@ -148,8 +146,6 @@ unsigned pic_irq_list[] = {PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
                                PIC_IRQ4,  PIC_IRQ5,  PIC_IRQ6,  PIC_IRQ7,
                                PIC_IRQ8,  PIC_IRQ9,  PIC_IRQ10, PIC_IRQ11,
                                PIC_IRQ12, PIC_IRQ13, PIC_IRQ14, PIC_IRQ15};
-hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
-hitimer_t pic_sys_time;     /* system time set by pic_watch */
 
 /* PIC "registers", plus a few more */
 
@@ -777,12 +773,6 @@ int pic_irq_masked(int num)
     return test_bit(num, &pic_imr);
 }
 
-int CAN_SLEEP(void)
-{
-  return (!(pic_isr || (REG(eflags) & VIP) || signal_pending() ||
-    (pic_sys_time > pic_dos_time + TIMER0_FLOOD_THRESHOLD) || in_leavedos));
-}
-
 void pic_init(void)
 {
   /* do any one-time initialization of the PIC */
@@ -823,4 +813,9 @@ Bit8u pic0_get_base(void)
 Bit8u pic1_get_base(void)
 {
   return pic_iinfo[PIC_IRQ8].ivec;
+}
+
+unsigned pic_get_isr(void)
+{
+  return pic_isr;
 }

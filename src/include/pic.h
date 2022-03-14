@@ -59,9 +59,6 @@
 #define PIC_IMOUSE 19      /*  internal mouse driver       */
 
 extern unsigned pic_irq_list[16];
-extern hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
-extern hitimer_t pic_sys_time;     /* system time set by pic_watch */
-extern hitimer_t pic_itime[33];
 
 /* IRQ definitions.  Each entry specifies the emulator routine to call, and
    the dos interrupt vector to use.  pic_iinfo.func is set by pic_seti(),
@@ -84,6 +81,7 @@ Bit8u read_pic1(ioport_t port);             /* read from PIC 1 */
 void pic_seti(unsigned int, int (*)(int), unsigned int, void (*)(void));
 Bit8u pic0_get_base(void);
 Bit8u pic1_get_base(void);
+unsigned pic_get_isr(void);
                                        /* set function and interrupt vector */
 void run_irqs(void);                                  /* run requested irqs */
 #define pic_run() run_irqs()   /* the right way to call run_irqs */
@@ -106,8 +104,6 @@ int pic_irq_masked(int num);
 		log_printf(1, "PIC: %s%"PRIu64"%s\n", s1, v1, s2); \
 	}
 void p_pic_print(const char *s1, int v1, const char *s2);
-
-int CAN_SLEEP(void);
 
 extern void pic_reset(void);
 extern void pic_init(void);

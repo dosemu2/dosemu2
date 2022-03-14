@@ -54,6 +54,8 @@ void dosemu_sleep(void);
 void cpu_idle(void);
 int timer_get_vpend(int timer);
 
+int CAN_SLEEP(void);
+
 /* --------------------------------------------------------------------- */
 /*	New unified timing macros with/without Pentium rdtsc - AV 8/97	 */
 /* --------------------------------------------------------------------- */
@@ -129,6 +131,7 @@ void freeze_dosemu(void);
 void unfreeze_dosemu(void);
 extern int dosemu_frozen;
 extern int dosemu_user_froze;
+extern hitimer_t pic_sys_time;
 
 /* --------------------------------------------------------------------- */
 

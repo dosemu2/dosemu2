@@ -46,6 +46,21 @@ pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
 
 static u_long timer_div;          /* used by timer int code */
 static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
+static hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
+hitimer_t pic_sys_time;     /* system time set by pic_watch */
+
+static hitimer_t pic_ltime[33] =     /* timeof last pic request honored */
+                {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
+                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
+                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
+                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
+                 NEVER};
+static hitimer_t pic_itime[33] =     /* time to trigger next interrupt */
+                {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
+                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
+                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
+                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
+                 NEVER};
 
 static Bit8u port61 = 0x0c;
 
@@ -506,19 +521,6 @@ void pit_control_outp(ioport_t port, Bit8u val)
   }
 }
 
-static   hitimer_t pic_ltime[33] =     /* timeof last pic request honored */
-                {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER};
-         hitimer_t pic_itime[33] =     /* time to trigger next interrupt */
-                {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER};
-
 /* DANG_BEGIN_FUNCTION pic_activate
  *
  * pic_activate requests any interrupts whose scheduled time has arrived.
@@ -800,4 +802,12 @@ void pit_reset(void)
   port61 = 0x0c;
 
   vtmr_raise(0);  /* start timer */
+}
+
+#define TIMER0_FLOOD_THRESHOLD 50000
+
+int CAN_SLEEP(void)
+{
+  return (!(pic_get_isr() || (REG(eflags) & VIP) || signal_pending() ||
+    (pic_sys_time > pic_dos_time + TIMER0_FLOOD_THRESHOLD) || in_leavedos));
 }
