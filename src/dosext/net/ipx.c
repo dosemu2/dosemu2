@@ -124,6 +124,7 @@ static int GetMyAddress(unsigned long ipx_net, unsigned char *MyAddress)
 
 static void ipx_call(uint16_t idx, HLT_ARG(arg))
 {
+  fake_retf();
   do_int7a();
 }
 
