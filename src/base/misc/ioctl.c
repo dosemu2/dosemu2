@@ -201,7 +201,7 @@ void remove_from_io_select(int new_fd)
             fcntl(new_fd, F_SETOWN, NULL) == -1 ||
             fcntl(new_fd, F_SETFL, flags & ~O_ASYNC) == -1) {
 	error("remove_from_io_select: Fcntl failed\n");
-	leavedos(76);
+	return;
     }
     FD_CLR(new_fd, &fds_sigio);
     g_printf("GEN: fd=%d removed from select SIGIO\n", new_fd);
