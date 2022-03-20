@@ -34,7 +34,8 @@
 #define VIRQ_IRR_PORT 0x50a
 #define VIRQ_HWC_PORT (VIRQ_IRR_PORT + 2)
 #define VIRQ_TOTAL_PORTS 3
-#define VIRQ_IRQ_NUM 0xa
+#define VIRQ_IRQ_NUM 0xf
+#define VIRQ_INTERRUPT (VIRQ_IRQ_NUM - 8 + 0x70)
 
 static uint16_t virq_irr;
 static uint16_t virq_hlt;
@@ -117,7 +118,7 @@ void virq_reset(void)
 
 void virq_setup(void)
 {
-    SETIVEC(0x72, BIOS_HLT_BLK_SEG, virq_hlt);
+    SETIVEC(VIRQ_INTERRUPT, BIOS_HLT_BLK_SEG, virq_hlt);
 }
 
 void virq_raise(int virq_num)
