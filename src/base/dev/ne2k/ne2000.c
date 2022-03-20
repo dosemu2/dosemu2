@@ -286,7 +286,8 @@ void ne2000_done(void)
 
     N_printf("NE2000: ne2000_done()\n");
 
-    close(s->fdnet);
+    remove_from_io_select(s->fdnet);
+    CloseNetworkLink(s->fdnet);
     s->fdnet = -1;
 }
 
