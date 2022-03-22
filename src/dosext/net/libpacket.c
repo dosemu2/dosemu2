@@ -474,6 +474,18 @@ void LibpacketInit(void)
 #endif
 #endif
 	early_fd = -1;
+
+	if (config.vnet == VNET_TYPE_AUTO) {
+#ifdef USE_SLIRP
+		config.vnet = VNET_TYPE_SLIRP;
+#else
+#ifdef USE_VDE
+		config.vnet = VNET_TYPE_VDE;
+#else
+		config.vnet = VNET_TYPE_TAP;
+#endif
+#endif
+	}
 	/* Open sockets only for priv configs */
 	switch (config.vnet) {
 	case VNET_TYPE_ETH:
@@ -483,21 +495,6 @@ void LibpacketInit(void)
 			error("PKT: Cannot open %s: %s\n", config.ethdev, strerror(errno));
 		else
 			pd_printf("PKT: eth backend enabled, dev=%s\n", config.ethdev);
-		break;
-	case VNET_TYPE_AUTO:
-	case VNET_TYPE_SLIRP:
-		ret = Open_sockets("slirp", VNET_TYPE_SLIRP);
-		if (ret < 0) {
-			if (config.vnet != VNET_TYPE_AUTO) {
-				error("PKT: Cannot open slirp\n");
-			} else {
-				pd_printf("PKT: Cannot open slirp\n");
-			}
-		} else {
-			if (config.vnet == VNET_TYPE_AUTO)
-				config.vnet = VNET_TYPE_SLIRP;
-			pd_printf("PKT: slirp backend enabled\n");
-		}
 		break;
 	case VNET_TYPE_TAP: {
 		char devname[256];
