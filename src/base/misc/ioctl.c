@@ -55,6 +55,7 @@ struct io_callback_s {
 };
 #define MAX_FD 1024
 static struct io_callback_s io_callback_func[MAX_FD];
+static struct io_callback_s io_callback_stash[MAX_FD];
 static fd_set fds_sigio;
 
 #if defined(SIG)
@@ -161,15 +162,19 @@ add_to_io_select_new(int new_fd, void (*func)(int, void *), void *arg,
 	leavedos(76);
     }
 
-    if ((flags = fcntl(new_fd, F_GETFL)) == -1 ||
-            fcntl(new_fd, F_SETOWN, getpid()) == -1 ||
-            fcntl(new_fd, F_SETFL, flags | O_ASYNC) == -1 ||
-            fcntl(new_fd, F_SETFD, FD_CLOEXEC) == -1) {
-	error("add_to_io_select_new: Fcntl failed\n");
-	leavedos(76);
+    io_callback_stash[new_fd] = io_callback_func[new_fd];
+
+    if (!io_callback_func[new_fd].func) {
+	if ((flags = fcntl(new_fd, F_GETFL)) == -1 ||
+                fcntl(new_fd, F_SETOWN, getpid()) == -1 ||
+                fcntl(new_fd, F_SETFL, flags | O_ASYNC) == -1 ||
+                fcntl(new_fd, F_SETFD, FD_CLOEXEC) == -1) {
+	    error("add_to_io_select_new: Fcntl failed\n");
+	    leavedos(76);
+	}
+	FD_SET(new_fd, &fds_sigio);
     }
 
-    FD_SET(new_fd, &fds_sigio);
     g_printf("GEN: fd=%d gets SIGIO for %s\n", new_fd, name);
     io_callback_func[new_fd].func = func;
     io_callback_func[new_fd].arg = arg;
@@ -189,23 +194,28 @@ add_to_io_select_new(int new_fd, void (*func)(int, void *), void *arg,
  *
  * DANG_END_FUNCTION
  */
-void remove_from_io_select(int new_fd)
+void remove_from_io_select(int fd)
 {
     int flags;
 
-    if (new_fd < 0) {
-	g_printf("GEN: removing bogus fd %d (ignoring)\n", new_fd);
+    if (fd < 0) {
+	g_printf("GEN: removing bogus fd %d (ignoring)\n", fd);
 	return;
     }
-    if ((flags = fcntl(new_fd, F_GETFL)) == -1 ||
-            fcntl(new_fd, F_SETOWN, NULL) == -1 ||
-            fcntl(new_fd, F_SETFL, flags & ~O_ASYNC) == -1) {
-	error("remove_from_io_select: Fcntl failed\n");
-	return;
+
+    io_callback_func[fd] = io_callback_stash[fd];
+    io_callback_stash[fd].func = NULL;
+
+    if (!io_callback_func[fd].func) {
+	if ((flags = fcntl(fd, F_GETFL)) == -1 ||
+                fcntl(fd, F_SETOWN, NULL) == -1 ||
+                fcntl(fd, F_SETFL, flags & ~O_ASYNC) == -1) {
+	    error("remove_from_io_select: Fcntl failed\n");
+	    return;
+	}
+	FD_CLR(fd, &fds_sigio);
+	g_printf("GEN: fd=%d removed from select SIGIO\n", fd);
     }
-    FD_CLR(new_fd, &fds_sigio);
-    g_printf("GEN: fd=%d removed from select SIGIO\n", new_fd);
-    io_callback_func[new_fd].func = NULL;
 }
 
 void ioselect_done(void)

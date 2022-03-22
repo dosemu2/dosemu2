@@ -232,9 +232,6 @@ void ne2000_init(void)
     /* init control defaults */
     s->irq = pic_irq_list[NE2000_IRQ];
 
-    /* Connect up the receiver */
-    add_to_io_select(s->fdnet, ne2000_receive_req_async, NULL);
-
     N_printf("NE2000: Initialisation - Base 0x%03x, IRQ %d\n", NE2000_IOBASE, NE2000_IRQ);
 }
 
@@ -249,6 +246,7 @@ static void _ne2000_reset(NE2000State *s)
     N_printf("NE2000: ne2000_reset()\n");
 
     s->isr = ENISR_RESET;
+    s->cmd = E8390_STOP;
     s->mem[0] = NE2000_EADDR0;
     s->mem[1] = NE2000_EADDR1;
     s->mem[2] = NE2000_EADDR2;
@@ -286,7 +284,8 @@ void ne2000_done(void)
 
     N_printf("NE2000: ne2000_done()\n");
 
-    remove_from_io_select(s->fdnet);
+    if (!(s->cmd & E8390_STOP))
+        remove_from_io_select(s->fdnet);
     CloseNetworkLink(s->fdnet);
     s->fdnet = -1;
 }
@@ -498,9 +497,14 @@ static void ne2000_ioport_write(NE2000State *s, uint32_t addr, uint32_t val)
     N_printf("NE2000: write addr=0x%x val=0x%02x\n", addr, val);
 #endif
     if (addr == E8390_CMD) {
+        uint32_t old_cmd = s->cmd;
         /* control register */
         s->cmd = val;
         if (!(val & E8390_STOP)) { /* START bit makes no sense on RTL8029... */
+            if (old_cmd & E8390_STOP) {
+                N_printf("NE2000: enable receiver\n");
+                add_to_io_select(s->fdnet, ne2000_receive_req_async, NULL);
+            }
             s->isr &= ~ENISR_RESET;
             /* test specific case: zero length transfer */
             if ((val & (E8390_RREAD | E8390_RWRITE)) &&
@@ -522,6 +526,11 @@ static void ne2000_ioport_write(NE2000State *s, uint32_t addr, uint32_t val)
                 s->isr |= ENISR_TX;
                 s->cmd &= ~E8390_TRANS;
                 ne2000_update_irq(s);
+            }
+        } else {
+            if (!(old_cmd & E8390_STOP)) {
+                N_printf("NE2000: disable receiver\n");
+                remove_from_io_select(s->fdnet);
             }
         }
     } else {
