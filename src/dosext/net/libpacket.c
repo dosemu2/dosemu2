@@ -50,6 +50,7 @@ static struct pkt_ops *ops[VNET_TYPE_MAX];
 static int pkt_flags;
 static int early_fd;
 static int rcv_mode;
+static int open_cnt;
 
 /* Should return a unique ID corresponding to this invocation of
    dosemu not clashing with other dosemus. We use a random value and
@@ -175,6 +176,7 @@ int OpenNetworkLink(void (*cbk)(int, int))
 	int ret = -1;
 	struct pkt_ops *o;
 
+	open_cnt++;
 	assert(early_fd != 0);
 	if (early_fd != -1) {
 		cbk(early_fd, rcv_mode);
@@ -195,7 +197,7 @@ int OpenNetworkLink(void (*cbk)(int, int))
 		if (!o)
 			ret = -1;
 		else
-			ret = o->open("slirp", cbk);
+			ret = o->open("slirp", set_fd);
 		if (ret < 0) {
 			if (config.vnet == VNET_TYPE_AUTO)
 				warn("PKT: Cannot run slirp\n");
@@ -219,7 +221,7 @@ int OpenNetworkLink(void (*cbk)(int, int))
 		if (!o)
 			ret = -1;
 		else
-			ret = o->open(config.vdeswitch, cbk);
+			ret = o->open(config.vdeswitch, set_fd);
 		if (ret < 0) {
 			if (config.vnet == VNET_TYPE_AUTO)
 				warn("PKT: Cannot run VDE %s\n", pr_dev);
@@ -233,6 +235,8 @@ int OpenNetworkLink(void (*cbk)(int, int))
 		break;
 	}
 	}
+	if (ret != -1)
+		cbk(early_fd, rcv_mode);
 	return ret;
 }
 
@@ -247,7 +251,8 @@ static void CloseNetworkLinkEth(int pkt_fd)
 
 void CloseNetworkLink(int pkt_fd)
 {
-	find_ops(config.vnet)->close(pkt_fd);
+	if (--open_cnt == 0)
+		find_ops(config.vnet)->close(pkt_fd);
 }
 
 /*
