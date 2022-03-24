@@ -177,6 +177,7 @@ static void ne2000_irq_activate(int);
 
 static void ne2000_receive_req_async(int fd, void *arg);
 static size_t ne2000_receive(NE2000State *s, const uint8_t *buf, size_t size_);
+static int ne2000_buffer_full(NE2000State *s);
 
 #ifdef DEBUG_NE2000
 static void N_printhdr(uint8_t *buf);
@@ -345,6 +346,11 @@ static void ne2000_receive_req_async(int fd, void *arg)
     NE2000State *s = &ne2000state;
     uint8_t mybuf[MAX_ETH_FRAME_SIZE];
     int ret;
+
+    if (ne2000_buffer_full(s)) {
+        N_printf("NE2000: ne2000_receive_req_async() called but buffer full\n");
+        return;
+    }
 
     N_printf("NE2000: ne2000_receive_req_async() called\n");
 
