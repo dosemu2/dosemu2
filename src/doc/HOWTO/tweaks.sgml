@@ -358,4 +358,19 @@ $_timer_tweaks = (on)
 </sect2>
 </sect1>
 
+<sect1>
+<title>Game Wizard (GW)</title>
+<sect2>
+<title>
+Hangs on start.
+</title>
+<para>
+Solution: set
+<screen>
+$_dos_up = (off)
+</screen>
+</para>
+</sect2>
+</sect1>
+
 </article>
