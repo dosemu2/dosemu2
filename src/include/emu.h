@@ -263,6 +263,7 @@ typedef struct config_info {
        int dpmi, pm_dos_api, no_null_checks;
        uint32_t dpmi_lin_rsv_base;
        uint32_t dpmi_lin_rsv_size;
+       int dos_up;
 
        int sillyint;            /* IRQ numbers for Silly Interrupt Generator
        				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */

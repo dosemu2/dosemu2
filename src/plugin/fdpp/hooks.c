@@ -109,25 +109,24 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     hndl = FdppKernelLoad(fddir, &krnl_len, &bss);
     if (!hndl)
         return -1;
-#if 1
-#define HEAP_SZ 1024
-    kptr = lowmem_alloc_aligned(16, krnl_len + HEAP_SZ);
-    daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
-    assert(!(daddr & 15));
-    heap_seg = 0x90;  // for low heap
-    seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
-    khigh++;
-    hhigh++;
-#else
-    /* alternative layout for testing */
+    if (config.dos_up) {
+#define HEAP_SZ_SMALL 1024
+        kptr = lowmem_alloc_aligned(16, krnl_len + HEAP_SZ_SMALL);
+        daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
+        assert(!(daddr & 15));
+        heap_seg = 0x90;  // for low heap
+        seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
+        khigh++;
+        hhigh++;
+    } else {
 #define HEAP_SZ (1024*3)
-    kptr = lowmem_alloc_aligned(16, HEAP_SZ);
-    daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
-    assert(!(daddr & 15));
-    heap_seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
-    seg = 0x60;
-    hhigh++;
-#endif
+        kptr = lowmem_alloc_aligned(16, HEAP_SZ);
+        daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
+        assert(!(daddr & 15));
+        heap_seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
+        seg = 0x90;
+        hhigh++;
+    }
     krnl = FdppKernelReloc(hndl, seg);
     if (!krnl)
         return -1;
