@@ -36,11 +36,12 @@ static int vi_used;
 static uint16_t vint_hlt;
 
 /* TODO: use PIC's poll mode and remove this masking hack */
-#define USE_MASKING(n) (vih[n].orig_irq >= 8)
+#define ON_PIC1(n) (vih[n].orig_irq >= 8)
 #define IMR1_MASK(n) (1 << (vih[n].irq - 8))
 
 struct vihandler {
     void (*handler)(int, int);
+    void (*mask)(int, int);
     uint8_t irq;
     uint8_t orig_irq;
     uint8_t interrupt;
@@ -63,12 +64,7 @@ static void full_eoi(void)
 static void do_ret(int vi_num)
 {
     clear_IF();
-    if (USE_MASKING(vi_num)) {
-        uint8_t imr1 = port_inb(0xa1);
-        port_outb(0xa1, imr1 & ~IMR1_MASK(vi_num));
-    } else {
-        half_eoi();
-    }
+    vih[vi_num].mask(vi_num, 0);
     do_iret();
 }
 
@@ -92,35 +88,32 @@ static void vint_handler(uint16_t idx, HLT_ARG(arg))
     imr[0] = port_inb(0x21);
     imr[1] = port_inb(0xa1);
     masked = vint_is_masked(vi_num, imr);
-    if (vih[vi_num].handler)
-        vih[vi_num].handler(vi_num, masked);
     if (masked) {
         do_eoi2_iret();
     } else {
         uint8_t irq = vih[vi_num].orig_irq;
         uint16_t port = (irq >= 8 ? PIC1_VECBASE_PORT : PIC0_VECBASE_PORT);
         uint8_t inum = port_inb(port) + (irq & 7);
+        if (!ON_PIC1(vi_num))
+            half_eoi();
         if (vih[vi_num].tweaked) {
             _IP++;  // skip hlt
             fake_int_to(ISEG(inum), IOFF(inum));
-            if (USE_MASKING(vi_num)) {
-                int irq = vih[vi_num].irq;
-                assert(irq > 8 && irq < 16);
-                port_outb(0xa1, imr[1] | IMR1_MASK(vi_num));
-            }
+            vih[vi_num].mask(vi_num, 1);
         } else {
-            if (!USE_MASKING(vi_num))
-                half_eoi();
             jmp_to(ISEG(inum), IOFF(inum));
         }
     }
+
+    if (vih[vi_num].handler)
+        vih[vi_num].handler(vi_num, masked);
 }
 
 void vint_post_irq_dpmi(int vi_num, int masked)
 {
     if (masked)
         full_eoi();
-    else if (!USE_MASKING(vi_num))
+    else if (!ON_PIC1(vi_num))
         half_eoi();
 }
 
@@ -144,11 +137,14 @@ void vint_setup(void)
     }
 }
 
-int vint_register(void (*handler)(int, int), int irq, int orig_irq, int inum)
+int vint_register(void (*ack_handler)(int, int),
+                  void (*mask_handler)(int, int),
+                  int irq, int orig_irq, int inum)
 {
     struct vihandler *vi = &vih[vi_used];
     assert(vi_used < VINT_MAX);
-    vi->handler = handler;
+    vi->handler = ack_handler;
+    vi->mask = mask_handler;
     vi->irq = irq;
     vi->orig_irq = orig_irq;
     vi->interrupt = inum;

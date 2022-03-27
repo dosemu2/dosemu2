@@ -277,8 +277,6 @@ static void rtc_vint(int masked)
 {
   if (masked)
     pic_request(PIC_IRQ8);
-  else
-    pic_untrigger(PIC_IRQ8);
 }
 
 void rtc_init(void)
