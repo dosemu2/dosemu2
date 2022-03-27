@@ -293,7 +293,7 @@ static int emu_to_pic0(int flags)
     /* move bits 7654 3xxx xxxx 210x to xxxx xxxx 7654 3210          */
     /* where 76543210 are final 8 bits and x = don't care            */
     int pic1 = ((flags & 0b11111111000) ? 4 : 0);
-    return (((flags >> 1) & 3) | pic1 | (flags >> 8));
+    return (((flags >> 1) & 3) | pic1 | ((flags >> 8) & 0xf8));
 }
 
 static int pic0_to_emu(char flags)
