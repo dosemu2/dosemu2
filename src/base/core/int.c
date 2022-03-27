@@ -36,6 +36,7 @@
 #include "hma.h"
 #include "xms.h"
 #include "int.h"
+#include "vint.h"
 #include "dos2linux.h"
 #include "video.h"
 #include "priv.h"
@@ -2788,6 +2789,9 @@ static void dos_post_boot(void)
     if (!post_boot) {
 	post_boot = 1;
 	post_boot_unrevect();
+	/* call vint_setup() again to avoid DOS STACKS hooks, see
+	 * https://github.com/dosemu2/dosemu2/issues/1607 */
+	vint_setup();
 	if (config.force_redir) {
 	    if (!redir_state) {
 		redir_it();
