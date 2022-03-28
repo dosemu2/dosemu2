@@ -800,7 +800,11 @@ void pit_reset(void)
   pit[3].write_state = 3;
 
   port61 = 0x0c;
+}
 
+void pit_late_init(void)
+{
+  pic_ltime[0] = pic_itime[0] = pic_sys_time;
   vtmr_raise(0);  /* start timer */
 }
 

@@ -53,6 +53,7 @@ int idle_enable(int threshold1, int threshold, int threshold2,
 void dosemu_sleep(void);
 void cpu_idle(void);
 int timer_get_vpend(int timer);
+void pit_late_init(void);
 
 int CAN_SLEEP(void);
 

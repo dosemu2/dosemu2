@@ -106,6 +106,7 @@ static void late_init_thr(void *arg)
    * add the "late_init" member into dev_list instead */
   virq_setup();
   vint_setup();
+  pit_late_init();
   video_late_init();
   mouse_late_init();
   mouse_client_post_init();
