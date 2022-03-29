@@ -4235,7 +4235,7 @@ static void do_dpmi_iret(sigcontext_t *scp, void * const sp)
   }
 }
 
-static void return_from_pmint(sigcontext_t *scp, void * const sp)
+static void return_from_hwint(sigcontext_t *scp, void * const sp)
 {
   unsigned char imr;
   leave_lpms(scp);
@@ -4337,7 +4337,7 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
           }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
-          return_from_pmint(scp, sp);
+          return_from_hwint(scp, sp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_exception)) {
 	  return_from_exception(scp);
@@ -4557,7 +4557,20 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	  int intr = _eip-1-DPMI_SEL_OFF(DPMI_interrupt);
 	  D_printf("DPMI: default protected mode interrupthandler 0x%02x called\n",intr);
 	  do_dpmi_iret(scp, sp);
-	  do_dpmi_int(scp, intr);
+	  sp = SEL_ADR(_ss, _esp);
+	  /* Most progs actually jump to prev handler, not call it.
+	   * See if this is the case. */
+	  if (_cs == dpmi_sel() && _eip == DPMI_SEL_OFF(DPMI_return_from_pm)) {
+	    if (debug_level('M')>=9)
+	      D_printf("DPMI: jump to prev handler in hwint, going to RM\n");
+	    return_from_hwint(scp, sp);
+	    /* do similar to run_pm_int() */
+	    if (in_dpmi_pm())
+	      fake_pm_int();
+	    real_run_int(intr);
+	  } else {
+	    do_dpmi_int(scp, intr);
+	  }
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_VXD_start)) &&
 		(_eip<1+DPMI_SEL_OFF(DPMI_VXD_end))) {
@@ -4683,10 +4696,15 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
       dpmi_sti();
       /* sti/iret must be atomic, no IRQs within */
       if (lina[1] == 0xcf) {
+        if (debug_level('M')>=9)
+          D_printf("DPMI: sti/iret detected\n");
         do_dpmi_iret(scp, sp);
         sp = SEL_ADR(_ss, _esp);
-        if (_cs == dpmi_sel() && _eip == DPMI_SEL_OFF(DPMI_return_from_pm))
-          return_from_pmint(scp, sp);
+        if (_cs == dpmi_sel() && _eip == DPMI_SEL_OFF(DPMI_return_from_pm)) {
+          if (debug_level('M')>=9)
+            D_printf("DPMI: sti/iret of hwint\n");
+          return_from_hwint(scp, sp);
+        }
       }
       break;
 
