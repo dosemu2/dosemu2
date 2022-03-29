@@ -108,6 +108,9 @@ struct msdos_struct {
     u_short ldt_alias_winos2;
     struct seg_sel seg_sel_map[MAX_CNVS];
     int ext__thunk_16_32;
+
+    DPMI_INTDESC int_head;
+    int int_offs[num_ints];
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 static int msdos_client_num = 0;
@@ -183,8 +186,8 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
     unsigned short envp;
     struct pmaddr_s pma;
     DPMI_INTDESC desc;
-    int i;
     int int_offs[num_ints];
+    int i;
 
     msdos_client_num++;
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
@@ -208,27 +211,31 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	callbacks_init(MSDOS_CLIENT.rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
 	MSDOS_CLIENT.rmcb_alloced = 1;
 
-	for (i = 0; i < num_ints; i++)
-	    MSDOS_CLIENT.prev_ihandler[i] = dpmi_get_interrupt_vector(ints[i]);
 	pma = get_pmrm_handler_m(MSDOS_EXT_CALL, msdos_ext_call,
 	    get_prev_ext, msdos_ext_ret, get_xbuf_seg, NULL,
 	    num_ints, int_offs);
 	desc.selector = pma.selector;
 	desc.offset32 = pma.offset;
-	for (i = 0; i < num_ints; i++) {
-	    DPMI_INTDESC desc2 = desc;
-	    desc2.offset32 += int_offs[i];
-	    dpmi_set_interrupt_vector(ints[i], desc2);
-	}
+	MSDOS_CLIENT.int_head = desc;
+	memcpy(MSDOS_CLIENT.int_offs, int_offs, sizeof(int_offs));
     } else {
 	assert(msdos_client_num >= 2);
 	MSDOS_CLIENT.rmcb_sel = msdos_client[msdos_client_num - 2].rmcb_sel;
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
 		sizeof(MSDOS_CLIENT.rmcbs));
-
-	for (i = 0; i < num_ints; i++)
-	    MSDOS_CLIENT.prev_ihandler[i] =
-		    msdos_client[msdos_client_num - 2].prev_ihandler[i];
+	MSDOS_CLIENT.int_head = msdos_client[msdos_client_num - 2].int_head;
+	memcpy(MSDOS_CLIENT.int_offs,
+		msdos_client[msdos_client_num - 2].int_offs, sizeof(int_offs));
+	desc = MSDOS_CLIENT.int_head;
+	memcpy(int_offs, MSDOS_CLIENT.int_offs, sizeof(int_offs));
+    }
+    for (i = 0; i < num_ints; i++) {
+	DPMI_INTDESC desc2 = desc;
+	MSDOS_CLIENT.prev_ihandler[i] = dpmi_get_interrupt_vector(ints[i]);
+	desc2.offset32 += int_offs[i];
+	assert(MSDOS_CLIENT.prev_ihandler[i].selector == desc2.selector &&
+		MSDOS_CLIENT.prev_ihandler[i].offset32 != desc2.offset32);
+	dpmi_set_interrupt_vector(ints[i], desc2);
     }
     if (msdos_client_num == 1)
 	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();

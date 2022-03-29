@@ -69,14 +69,9 @@ static int current_client;
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
-static uint8_t int_map[256];
-
 #define DEFAULT_INT(i) ( \
     DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel() && \
     DPMI_CLIENT.Interrupt_Table[i].offset < DPMI_SEL_OFF(DPMI_sel_end))
-#define DEFAULT_INT_EX(i) ( \
-    DPMI_CLIENT.DPMIInterrupt_Table[!DEFAULT_INT(int_map[i])][i].selector == dpmi_sel() && \
-    DPMI_CLIENT.DPMIInterrupt_Table[!DEFAULT_INT(int_map[i])][i].offset < DPMI_SEL_OFF(DPMI_sel_end))
 
 #define _isset_IF() (!!(_eflags & IF))
 #define dpmi_cli() (_eflags &= ~IF)
@@ -126,8 +121,7 @@ struct DPMIclient_struct {
   RealModeCallBack realModeCallBack[DPMI_MAX_RMCBS];
   Bit16u rmcb_seg;
   Bit16u rmcb_off;
-  INTDESC DPMIInterrupt_Table[2][0x100];
-#define Interrupt_Table DPMIInterrupt_Table[1]
+  INTDESC Interrupt_Table[0x100];
   INTDESC Exception_Table[0x20];
   INTDESC Exception_Table_PM[0x20];
   INTDESC Exception_Table_RM[0x20];
@@ -142,6 +136,9 @@ struct DPMIclient_struct {
   Bit32u feature_flags;
   uint16_t initial_psp;
   uint16_t int23_psp;
+
+  DPMI_INTDESC vtmr_prev;
+  DPMI_INTDESC vrtc_prev;
 };
 
 struct RSPcall_s {
@@ -1546,11 +1543,10 @@ DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num)
     return desc;
 }
 
-static void dpmi_set_interrupt_vector_pm(unsigned char num, DPMI_INTDESC desc)
+void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
 {
-    DPMI_CLIENT.DPMIInterrupt_Table[1][num].selector = desc.selector;
-    DPMI_CLIENT.DPMIInterrupt_Table[1][num].offset = desc.offset32;
-
+    DPMI_CLIENT.Interrupt_Table[num].selector = desc.selector;
+    DPMI_CLIENT.Interrupt_Table[num].offset = desc.offset32;
     switch (config.cpu_vm_dpmi) {
       case CPUVM_KVM:
         /* KVM: we can directly use the IDT but don't do it when debugging */
@@ -1573,18 +1569,6 @@ static void dpmi_set_interrupt_vector_pm(unsigned char num, DPMI_INTDESC desc)
     }
     D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%x\n", num,
       desc.selector, desc.offset32);
-}
-
-static void dpmi_set_interrupt_vector_rm(unsigned char num, DPMI_INTDESC desc)
-{
-    DPMI_CLIENT.DPMIInterrupt_Table[0][num].selector = desc.selector;
-    DPMI_CLIENT.DPMIInterrupt_Table[0][num].offset = desc.offset32;
-}
-
-void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
-{
-    dpmi_set_interrupt_vector_rm(num, desc);
-    dpmi_set_interrupt_vector_pm(num, desc);
 }
 
 DPMI_INTDESC dpmi_get_exception_handler(unsigned char num)
@@ -3358,7 +3342,7 @@ void run_pm_int(int i)
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_pm=0x%02x\n",i,in_dpmi_pm());
 
-  if (DEFAULT_INT_EX(i)) {
+  if (DEFAULT_INT(i)) {
     D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
     if (in_dpmi_pm())
       fake_pm_int();
@@ -3410,8 +3394,8 @@ void run_pm_int(int i)
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
     LO_WORD(_esp) -= 22;
   }
-  _cs = DPMI_CLIENT.DPMIInterrupt_Table[dpmi_pm][i].selector;
-  _eip = DPMI_CLIENT.DPMIInterrupt_Table[dpmi_pm][i].offset;
+  _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
+  _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
   dpmi_set_pm(1);
   in_dpmi_irq++;
 
@@ -3539,11 +3523,6 @@ void dpmi_setup(void)
     if (!config.dpmi) return;
 
     dpmi_set_map_flags(0);
-
-    for (i = 0; i < ARRAY_SIZE(int_map); i++)
-        int_map[i] = i;
-    int_map[VTMR_INTERRUPT] = 8;
-    int_map[VRTC_INTERRUPT] = 0x70;
 
     get_ldt(ldt_buffer);
     memset(Segments, 0, sizeof(Segments));
@@ -3727,25 +3706,26 @@ void dpmi_init(void)
     inherit_idt = 0;
 
   for (i=0;i<0x100;i++) {
-    if (inherit_idt) {
-      desc.offset32 = PREV_DPMI_CLIENT.DPMIInterrupt_Table[0][i].offset;
-      desc.selector = PREV_DPMI_CLIENT.DPMIInterrupt_Table[0][i].selector;
-      dpmi_set_interrupt_vector_rm(i, desc);
-      desc.offset32 = PREV_DPMI_CLIENT.DPMIInterrupt_Table[1][i].offset;
-      desc.selector = PREV_DPMI_CLIENT.DPMIInterrupt_Table[1][i].selector;
-      dpmi_set_interrupt_vector_pm(i, desc);
+    if (inherit_idt &&
+        /* do not inherit internal vectors */
+        PREV_DPMI_CLIENT.Interrupt_Table[i].selector != dpmi_sel()) {
+      desc.offset32 = PREV_DPMI_CLIENT.Interrupt_Table[i].offset;
+      desc.selector = PREV_DPMI_CLIENT.Interrupt_Table[i].selector;
     } else {
       desc.offset32 = DPMI_SEL_OFF(DPMI_interrupt) + i;
       desc.selector = dpmi_sel();
-      dpmi_set_interrupt_vector(i, desc);
     }
+    dpmi_set_interrupt_vector(i, desc);
   }
+
+  DPMI_CLIENT.vtmr_prev = dpmi_get_interrupt_vector(VTMR_INTERRUPT);
   desc.selector = dpmi_sel();
   desc.offset32 = DPMI_SEL_OFF(DPMI_vtmr_irq);
-  dpmi_set_interrupt_vector_pm(VTMR_INTERRUPT, desc);
+  dpmi_set_interrupt_vector(VTMR_INTERRUPT, desc);
+  DPMI_CLIENT.vrtc_prev = dpmi_get_interrupt_vector(VRTC_INTERRUPT);
   desc.selector = dpmi_sel();
   desc.offset32 = DPMI_SEL_OFF(DPMI_vrtc_irq);
-  dpmi_set_interrupt_vector_pm(VRTC_INTERRUPT, desc);
+  dpmi_set_interrupt_vector(VRTC_INTERRUPT, desc);
 
   DPMI_CLIENT.orig_imr = port_inb(0x21);
 
@@ -4235,7 +4215,7 @@ static void do_dpmi_iret(sigcontext_t *scp, void * const sp)
   }
 }
 
-static void return_from_pmint(sigcontext_t *scp, void * const sp)
+static void return_from_hwint(sigcontext_t *scp, void * const sp)
 {
   unsigned char imr;
   leave_lpms(scp);
@@ -4337,7 +4317,7 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
           }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
-          return_from_pmint(scp, sp);
+          return_from_hwint(scp, sp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_exception)) {
 	  return_from_exception(scp);
@@ -4505,22 +4485,34 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	  }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_irq)) {
-          int masked = vtmr_pre_irq_dpmi(DPMI_CLIENT.imr);
-          if (masked)
-            _eflags |= CF;
-          else
-            _eflags &= ~CF;
+          if (DEFAULT_INT(8)) {
+            /* just jump to default entry that leads us to RM */
+            _cs = DPMI_CLIENT.vtmr_prev.selector;
+            _eip = DPMI_CLIENT.vtmr_prev.offset32;
+          } else {
+            int masked = vtmr_pre_irq_dpmi(DPMI_CLIENT.imr);
+            if (masked)
+              _eflags |= CF;
+            else
+              _eflags &= ~CF;
+          }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_post_irq)) {
           int masked = !!(_eflags & CF);
           vtmr_post_irq_dpmi(masked);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vrtc_irq)) {
-          int masked = vrtc_pre_irq_dpmi(DPMI_CLIENT.imr);
-          if (masked)
-            _eflags |= CF;
-          else
-            _eflags &= ~CF;
+          if (DEFAULT_INT(0x70)) {
+            /* just jump to default entry that leads us to RM */
+            _cs = DPMI_CLIENT.vrtc_prev.selector;
+            _eip = DPMI_CLIENT.vrtc_prev.offset32;
+          } else {
+            int masked = vrtc_pre_irq_dpmi(DPMI_CLIENT.imr);
+            if (masked)
+              _eflags |= CF;
+            else
+              _eflags &= ~CF;
+          }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vrtc_post_irq)) {
           int masked = !!(_eflags & CF);
@@ -4557,7 +4549,20 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	  int intr = _eip-1-DPMI_SEL_OFF(DPMI_interrupt);
 	  D_printf("DPMI: default protected mode interrupthandler 0x%02x called\n",intr);
 	  do_dpmi_iret(scp, sp);
-	  do_dpmi_int(scp, intr);
+	  sp = SEL_ADR(_ss, _esp);
+	  /* Most progs actually jump to prev handler, not call it.
+	   * See if this is the case. */
+	  if (_cs == dpmi_sel() && _eip == DPMI_SEL_OFF(DPMI_return_from_pm)) {
+	    if (debug_level('M')>=9)
+	      D_printf("DPMI: jump to prev handler in hwint, going to RM\n");
+	    return_from_hwint(scp, sp);
+	    /* do similar to run_pm_int() */
+	    if (in_dpmi_pm())
+	      fake_pm_int();
+	    real_run_int(intr);
+	  } else {
+	    do_dpmi_int(scp, intr);
+	  }
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_VXD_start)) &&
 		(_eip<1+DPMI_SEL_OFF(DPMI_VXD_end))) {
@@ -4683,10 +4688,15 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
       dpmi_sti();
       /* sti/iret must be atomic, no IRQs within */
       if (lina[1] == 0xcf) {
+        if (debug_level('M')>=9)
+          D_printf("DPMI: sti/iret detected\n");
         do_dpmi_iret(scp, sp);
         sp = SEL_ADR(_ss, _esp);
-        if (_cs == dpmi_sel() && _eip == DPMI_SEL_OFF(DPMI_return_from_pm))
-          return_from_pmint(scp, sp);
+        if (_cs == dpmi_sel() && _eip == DPMI_SEL_OFF(DPMI_return_from_pm)) {
+          if (debug_level('M')>=9)
+            D_printf("DPMI: sti/iret of hwint\n");
+          return_from_hwint(scp, sp);
+        }
       }
       break;
 
