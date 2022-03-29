@@ -32,7 +32,7 @@ SUFFIX=""
 while [ $# -gt 0 ] ; do
   case "$1" in
     -dumb)
-      OPTS="$OPTS -td -kt"
+      OPTS="$OPTS -td -ks"
       exec 4>&2 2>~/.dosemu/stderr.log.$BASHPID
       shift
       ;;
