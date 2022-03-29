@@ -3703,7 +3703,9 @@ void dpmi_init(void)
     inherit_idt = 0;
 
   for (i=0;i<0x100;i++) {
-    if (inherit_idt) {
+    if (inherit_idt &&
+        /* do not inherit internal vectors */
+        PREV_DPMI_CLIENT.Interrupt_Table[i].selector != dpmi_sel()) {
       desc.offset32 = PREV_DPMI_CLIENT.Interrupt_Table[i].offset;
       desc.selector = PREV_DPMI_CLIENT.Interrupt_Table[i].selector;
     } else {
