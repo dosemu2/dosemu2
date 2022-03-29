@@ -69,14 +69,12 @@ static int current_client;
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
-static uint8_t int_map[256];
-
 #define DEFAULT_INT(i) ( \
     DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel() && \
     DPMI_CLIENT.Interrupt_Table[i].offset < DPMI_SEL_OFF(DPMI_sel_end))
 #define DEFAULT_INT_EX(i) ( \
-    DPMI_CLIENT.DPMIInterrupt_Table[!DEFAULT_INT(int_map[i])][i].selector == dpmi_sel() && \
-    DPMI_CLIENT.DPMIInterrupt_Table[!DEFAULT_INT(int_map[i])][i].offset < DPMI_SEL_OFF(DPMI_sel_end))
+    DPMI_CLIENT.DPMIInterrupt_Table[dpmi_pm][i].selector == dpmi_sel() && \
+    DPMI_CLIENT.DPMIInterrupt_Table[dpmi_pm][i].offset < DPMI_SEL_OFF(DPMI_sel_end))
 
 #define _isset_IF() (!!(_eflags & IF))
 #define dpmi_cli() (_eflags &= ~IF)
@@ -3539,11 +3537,6 @@ void dpmi_setup(void)
     if (!config.dpmi) return;
 
     dpmi_set_map_flags(0);
-
-    for (i = 0; i < ARRAY_SIZE(int_map); i++)
-        int_map[i] = i;
-    int_map[VTMR_INTERRUPT] = 8;
-    int_map[VRTC_INTERRUPT] = 0x70;
 
     get_ldt(ldt_buffer);
     memset(Segments, 0, sizeof(Segments));
