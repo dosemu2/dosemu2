@@ -77,7 +77,7 @@
 #endif
 
 #ifdef __x86_64__
-  #define SIGRETURN_WA_DEFAULT 1
+  #define SIGRETURN_WA_DEFAULT WANT_SIGRETURN_WA
 #else
   #define SIGRETURN_WA_DEFAULT 0
 #endif

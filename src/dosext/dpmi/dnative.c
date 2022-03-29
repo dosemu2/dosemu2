@@ -41,6 +41,7 @@ static struct sigaction emu_tmp_act;
 static int in_dpmi_thr;
 static int dpmi_thr_running;
 
+#if WANT_SIGRETURN_WA
 #ifdef __x86_64__
 static unsigned int *iret_frame;
 
@@ -84,7 +85,7 @@ void dpmi_iret_unwind(sigcontext_t * scp)
     _ss = iret_frame[4];
 }
 #endif
-
+#endif
 
 static void dpmi_thr(void *arg);
 
@@ -198,6 +199,7 @@ void native_dpmi_setup(void)
 {
     co_handle = co_thread_init(PCL_C_MC);
 
+#if WANT_SIGRETURN_WA
 #ifdef __x86_64__
     {
         unsigned int i, j;
@@ -221,6 +223,7 @@ void native_dpmi_setup(void)
             leavedos(0x24);
         }
     }
+#endif
 #endif
 }
 

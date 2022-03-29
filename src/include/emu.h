@@ -497,4 +497,6 @@ extern int hlt_unregister_handler_vm86(Bit16u start_addr);
 
 extern const char *Path_cdrom[];
 
+#define WANT_SIGRETURN_WA 0
+
 #endif /* EMU_H */
