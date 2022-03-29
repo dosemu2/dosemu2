@@ -3358,7 +3358,7 @@ void run_pm_int(int i)
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_pm=0x%02x\n",i,in_dpmi_pm());
 
-  if (DEFAULT_INT_EX(i)) {
+  if (DEFAULT_INT(i)) {
     D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
     if (in_dpmi_pm())
       fake_pm_int();
@@ -3410,8 +3410,8 @@ void run_pm_int(int i)
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
     LO_WORD(_esp) -= 22;
   }
-  _cs = DPMI_CLIENT.DPMIInterrupt_Table[dpmi_pm][i].selector;
-  _eip = DPMI_CLIENT.DPMIInterrupt_Table[dpmi_pm][i].offset;
+  _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
+  _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
   dpmi_set_pm(1);
   in_dpmi_irq++;
 
@@ -4505,22 +4505,34 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	  }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_irq)) {
-          int masked = vtmr_pre_irq_dpmi(DPMI_CLIENT.imr);
-          if (masked)
-            _eflags |= CF;
-          else
-            _eflags &= ~CF;
+          if (DEFAULT_INT(8)) {
+            /* just jump to default entry that leads us to RM */
+            _cs = dpmi_sel();
+            _eip = DPMI_SEL_OFF(DPMI_interrupt) + VTMR_INTERRUPT;
+          } else {
+            int masked = vtmr_pre_irq_dpmi(DPMI_CLIENT.imr);
+            if (masked)
+              _eflags |= CF;
+            else
+              _eflags &= ~CF;
+          }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_post_irq)) {
           int masked = !!(_eflags & CF);
           vtmr_post_irq_dpmi(masked);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vrtc_irq)) {
-          int masked = vrtc_pre_irq_dpmi(DPMI_CLIENT.imr);
-          if (masked)
-            _eflags |= CF;
-          else
-            _eflags &= ~CF;
+          if (DEFAULT_INT(0x70)) {
+            /* just jump to default entry that leads us to RM */
+            _cs = dpmi_sel();
+            _eip = DPMI_SEL_OFF(DPMI_interrupt) + VRTC_INTERRUPT;
+          } else {
+            int masked = vrtc_pre_irq_dpmi(DPMI_CLIENT.imr);
+            if (masked)
+              _eflags |= CF;
+            else
+              _eflags &= ~CF;
+          }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vrtc_post_irq)) {
           int masked = !!(_eflags & CF);
