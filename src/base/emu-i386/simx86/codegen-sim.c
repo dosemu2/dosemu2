@@ -2044,26 +2044,24 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case O_PUSH: {
+		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE0("O_PUSH");
 		if (mode & DATA16) {
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 2;
-			SR1.d &= CPULONG(Ofs_STACKM);
+			SR1.d &= stackm;
 			write_word(AR2.d + SR1.d, DR1.w.l);
-			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		else {
-			long stackm = CPULONG(Ofs_STACKM);
-			long tesp;
 			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d = (tesp = CPULONG(Ofs_ESP)) - 4;
+			SR1.d = CPULONG(Ofs_ESP) - 4;
 			SR1.d &= stackm;
 			write_dword(AR2.d + SR1.d, DR1.d);
-#if 0	/* keep high 16-bits of ESP in small-stack mode */
-			SR1.d |= (tesp & ~stackm);
-#endif
-			CPULONG(Ofs_ESP) = SR1.d;
 		}
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
+#endif
+		CPULONG(Ofs_ESP) = SR1.d;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
@@ -2076,19 +2074,23 @@ void Gen_sim(int op, int mode, ...)
 
 	case O_PUSH2: {
 		signed char o = Offs_From_Arg();
+		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_PUSH2",o);
 		if (mode & DATA16) {
 			DR1.w.l = CPUWORD(o);
 			SR1.d -= 2;
-			SR1.d &= CPULONG(Ofs_STACKM);
+			SR1.d &= stackm;
 			write_word(AR2.d + SR1.d, DR1.w.l);
 		}
 		else {
 			DR1.d = CPULONG(o);
 			SR1.d -= 4;
-			SR1.d &= CPULONG(Ofs_STACKM);
+			SR1.d &= stackm;
 			write_dword(AR2.d + SR1.d, DR1.d);
 		}
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
+#endif
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
@@ -2098,6 +2100,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case O_PUSH2F: {
+		unsigned long stackm = CPULONG(Ofs_STACKM);
 		int ftmp;
 		GTRACE0("O_PUSHF");
 		FlagSync_All();
@@ -2109,36 +2112,42 @@ void Gen_sim(int op, int mode, ...)
 		AR2.d = CPULONG(Ofs_XSS);
 		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
-			SR1.d = (SR1.d - 2) & CPULONG(Ofs_STACKM);
+			SR1.d = (SR1.d - 2) & stackm;
 			write_word(AR2.d + SR1.d, ftmp);
 		}
 		else {
-			SR1.d = (SR1.d - 4) & CPULONG(Ofs_STACKM);
+			SR1.d = (SR1.d - 4) & stackm;
 			write_dword(AR2.d + SR1.d, ftmp);
 		}
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
+#endif
 		CPULONG(Ofs_ESP) = SR1.d;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",ftmp);
 		} break;
 
 	case O_PUSHI: {
 		int v = va_arg(ap, int);
+		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE3("O_PUSHI",0xff,0xff,v);
 		if (mode & DATA16) {
 			DR1.w.l = (short)v;
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 2;
-			SR1.d &= CPULONG(Ofs_STACKM);
+			SR1.d &= stackm;
 			write_word(AR2.d + SR1.d, DR1.w.l);
-			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		else {
 			DR1.d = v;
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 4;
-			SR1.d &= CPULONG(Ofs_STACKM);
+			SR1.d &= stackm;
 			write_dword(AR2.d + SR1.d, DR1.d);
-			CPULONG(Ofs_ESP) = SR1.d;
 		}
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
+#endif
+		CPULONG(Ofs_ESP) = SR1.d;
 		} break;
 
 	case O_POP: {
@@ -2154,23 +2163,21 @@ void Gen_sim(int op, int mode, ...)
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;
 #endif
-			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		else {
-			long tesp;
 			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d = tesp = CPULONG(Ofs_ESP);
+			SR1.d = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
 			DR1.d = read_dword(AR2.d + SR1.d);
 			SR1.d += 4 + imm16;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;
 #endif
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			SR1.d |= (tesp & ~stackm);
-#endif
-			CPULONG(Ofs_ESP) = SR1.d;
 		}
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
+#endif
+		CPULONG(Ofs_ESP) = SR1.d;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
@@ -2198,10 +2205,10 @@ void Gen_sim(int op, int mode, ...)
 			if (!(mode & MPOPRM))
 				CPULONG(o) = DR1.d;
 			SR1.d += 4;
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
 		}
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
+#endif
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
@@ -2223,7 +2230,6 @@ void Gen_sim(int op, int mode, ...)
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;
 #endif
-			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		else {
 			SR1.d = CPULONG(Ofs_EBP);
@@ -2235,11 +2241,12 @@ void Gen_sim(int op, int mode, ...)
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;
 #endif
+		}
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
+		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
 #endif
-			CPULONG(Ofs_ESP) = SR1.d;
-		} }
+		CPULONG(Ofs_ESP) = SR1.d;
+		}
 		break;
 
 	case O_INT: {
