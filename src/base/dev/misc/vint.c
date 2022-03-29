@@ -98,7 +98,7 @@ static void vint_handler(uint16_t idx, HLT_ARG(arg))
             half_eoi();
         if (vih[vi_num].tweaked) {
             _IP++;  // skip hlt
-            fake_int_to(ISEG(inum), IOFF(inum));
+            real_run_int(inum);
             vih[vi_num].mask(vi_num, 1);
         } else {
             jmp_to(ISEG(inum), IOFF(inum));
