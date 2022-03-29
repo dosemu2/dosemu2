@@ -136,6 +136,9 @@ struct DPMIclient_struct {
   Bit32u feature_flags;
   uint16_t initial_psp;
   uint16_t int23_psp;
+
+  DPMI_INTDESC vtmr_prev;
+  DPMI_INTDESC vrtc_prev;
 };
 
 struct RSPcall_s {
@@ -3714,9 +3717,12 @@ void dpmi_init(void)
     }
     dpmi_set_interrupt_vector(i, desc);
   }
+
+  DPMI_CLIENT.vtmr_prev = dpmi_get_interrupt_vector(VTMR_INTERRUPT);
   desc.selector = dpmi_sel();
   desc.offset32 = DPMI_SEL_OFF(DPMI_vtmr_irq);
   dpmi_set_interrupt_vector(VTMR_INTERRUPT, desc);
+  DPMI_CLIENT.vrtc_prev = dpmi_get_interrupt_vector(VRTC_INTERRUPT);
   desc.selector = dpmi_sel();
   desc.offset32 = DPMI_SEL_OFF(DPMI_vrtc_irq);
   dpmi_set_interrupt_vector(VRTC_INTERRUPT, desc);
@@ -4481,8 +4487,8 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_irq)) {
           if (DEFAULT_INT(8)) {
             /* just jump to default entry that leads us to RM */
-            _cs = dpmi_sel();
-            _eip = DPMI_SEL_OFF(DPMI_interrupt) + VTMR_INTERRUPT;
+            _cs = DPMI_CLIENT.vtmr_prev.selector;
+            _eip = DPMI_CLIENT.vtmr_prev.offset32;
           } else {
             int masked = vtmr_pre_irq_dpmi(DPMI_CLIENT.imr);
             if (masked)
@@ -4498,8 +4504,8 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vrtc_irq)) {
           if (DEFAULT_INT(0x70)) {
             /* just jump to default entry that leads us to RM */
-            _cs = dpmi_sel();
-            _eip = DPMI_SEL_OFF(DPMI_interrupt) + VRTC_INTERRUPT;
+            _cs = DPMI_CLIENT.vrtc_prev.selector;
+            _eip = DPMI_CLIENT.vrtc_prev.offset32;
           } else {
             int masked = vrtc_pre_irq_dpmi(DPMI_CLIENT.imr);
             if (masked)
