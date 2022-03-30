@@ -21,7 +21,7 @@ char *emu_disasm(unsigned int ip)
 {
    static char buf[512];
 #ifdef USE_MHPDBG
-   char frmtbuf[256];
+   char frmtbuf[1024];
    int rc, i;
    unsigned int cp;
    char *p;
