@@ -544,8 +544,12 @@ static void __leavedos_main(int code, int sig)
 
     flush_log();
 
+    if (sig < 0)
+      code = -sig;
+    else if (sig > 0)
+      code = sig + 128;
     /* We don't need to use _exit() here; this is the graceful exit path. */
-    exit(sig ? sig + 128 : code);
+    exit(code);
 }
 
 void __leavedos_main_wrp(int code, int sig, const char *s, int num)

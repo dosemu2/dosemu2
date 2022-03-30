@@ -143,7 +143,8 @@ void dpmi_return(sigcontext_t * scp, int retcode)
         dosemu_error("Return to dosemu requested within dosemu context\n");
         return;
     }
-    copy_to_emu(dpmi_get_scp(), scp);
+    if (retcode != DPMI_RET_EXIT)
+        copy_to_emu(dpmi_get_scp(), scp);
     dpmi_ret_val = retcode;
     signal_return_to_dosemu();
     co_resume(co_handle);
