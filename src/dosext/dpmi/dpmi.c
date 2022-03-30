@@ -527,6 +527,8 @@ static int _dpmi_control(void)
 
     do {
       ret = do_dpmi_switch(scp);
+      if (ret == DPMI_RET_EXIT)
+        break;
       if (ret == DPMI_RET_FAULT) {
         ret = dpmi_fault1(scp);
         scp = &DPMI_CLIENT.stack_frame;  // update, could change
