@@ -498,7 +498,6 @@ void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
 	  "work-around in dosemu is not enabled.\n");
     dpmi_return(scp, DPMI_RET_EXIT);
     leavedos_sig(-1);
-    return;
 #endif
   }
 
