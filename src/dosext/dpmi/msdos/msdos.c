@@ -2085,7 +2085,9 @@ int msdos_post_extender(sigcontext_t *scp,
     case 0x33:			/* mouse */
 	switch (ax) {
 	case 0x09:		/* Set Mouse Graphics Cursor */
-	case 0x14:		/* swap call back */
+	case 0x0c:		/* set call back */
+	case 0x14:		/* swap call back, results already set
+				 * in pre_extender() so here only preserve */
 	    PRESERVE1(edx);
 	    break;
 	case 0x19:		/* Get User Alternate Interrupt Address */
