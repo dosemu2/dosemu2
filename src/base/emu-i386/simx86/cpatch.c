@@ -494,6 +494,9 @@ int Cpatch(sigcontext_t *scp)
 	else {
 	    JSRPATCH(p,Ofs_stub_stk_32); p+=3;
 	}
+#ifdef KEEP_ESP
+	p += 10;
+#endif
 	/* check for optimized multiple register push */
 	if (p[0]==0x89) return 1; //O_PUSH3
 	p += 9;
@@ -502,7 +505,7 @@ int Cpatch(sigcontext_t *scp)
 	v = *((int *)p) & 0xffffff;
 	/* extra check: should not fail */
 	if (v!=0x0e0489) {
-	    dbug_printf("CPUEMU: stack patch failure, fix source code!\n");
+	    dbug_printf("CPUEMU: stack patch failure, fix source code! %x\n", v);
 	    return 1;
 	}
     }

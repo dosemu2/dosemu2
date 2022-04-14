@@ -2185,6 +2185,16 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// movw %%ax,(%%esi,%%ecx,1)
 			0x66,0x89,0x04,0x0e,
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+			// movl StackMask(%%ebx),%%edx
+			0x8b,0x53,Ofs_STACKM,
+			// notl %%edx
+			0xf7,0xd2,
+			// andl Ofs_ESP(%%ebx),%%edx
+			0x23,0x53,Ofs_ESP,
+			// orl %%edx,%%ecx
+			0x09,0xd1,
+#endif
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
@@ -2201,6 +2211,16 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// movl %%eax,(%%esi,%%ecx,1)
 			0x89,0x04,0x0e,
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+			// movl StackMask(%%ebx),%%edx
+			0x8b,0x53,Ofs_STACKM,
+			// notl %%edx
+			0xf7,0xd2,
+			// andl Ofs_ESP(%%ebx),%%edx
+			0x23,0x53,Ofs_ESP,
+			// orl %%edx,%%ecx
+			0x09,0xd1,
+#endif
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
