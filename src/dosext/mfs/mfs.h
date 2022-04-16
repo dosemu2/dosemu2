@@ -29,7 +29,7 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 
 #define FALSE 0
 #define TRUE 1
-#define UNCHANGED 2
+//#define UNCHANGED 2
 #define REDIRECT 3
 
 #define dbg_fd -1

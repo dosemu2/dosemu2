@@ -1601,8 +1601,6 @@ int mfs_redirector(struct vm86_regs *regs, char *stk, int revect)
     Debug0((dbg_fd, "Finished dos_fs_redirect\n"));
     regs->eflags &= ~CF;
     return 1;
-  case UNCHANGED:
-    return 1;
   case REDIRECT:
     if (!revect) {
       Debug0((dbg_fd, "dos_fs_redirect unhandled, failing\n"));
@@ -4520,7 +4518,6 @@ do_open_existing:
       if (FCBcall) {
         Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
         fake_call_to(FCB_HLP_SEG, FCB_HLP_OFF);
-        return UNCHANGED;
       }
 
       return TRUE;
@@ -4635,7 +4632,6 @@ do_create_truncate:
       if (FCBcall) {
         Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
         fake_call_to(FCB_HLP_SEG, FCB_HLP_OFF);
-        return UNCHANGED;
       }
       return TRUE;
 
