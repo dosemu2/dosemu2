@@ -554,7 +554,7 @@ static void image_auto(struct disk *dp)
     dp->heads = 255;
     dp->sectors = 63;
     if (dp->num_secs % (dp->heads * dp->sectors) ) {
-      error("hdimage size is not cylinder-aligned (%"PRIu64" sectors), truncated!\n",
+      d_printf("hdimage size is not cylinder-aligned (%"PRIu64" sectors), truncated!\n",
 	    dp->num_secs % (dp->heads * dp->sectors) );
     }
     dp->tracks = (dp->num_secs /* + (dp->heads * dp->sectors - 1) */ )
