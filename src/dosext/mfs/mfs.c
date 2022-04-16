@@ -4538,7 +4538,7 @@ do_open_existing:
       /* make it a byte - we thus ignore the new bit */
       attr &= 0xFF;
       if (attr & DIRECTORY)
-        return REDIRECT;
+        return FALSE;
 
       Debug0((dbg_fd, "Create truncate file %s attr=%x\n", filename1, attr));
       build_ufs_path(fpath, filename1, drive);
@@ -4871,7 +4871,7 @@ do_create_truncate:
       hlist_pop_psp(state->ds);
       if (config.lfn)
         close_dirhandles(state->ds);
-      return REDIRECT;
+      return TRUE;
 
     case CONTROL_REDIRECT: { /* 0x1e */
       u_short subfunc = *(u_short *)stk;
