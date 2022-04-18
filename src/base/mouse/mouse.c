@@ -1082,6 +1082,8 @@ mouse_reset_to_current_video_mode(void)
   mouse.sens_x = 100;
   mouse.sens_y = 100;
   mouse.threshold = 200;
+  mouse.px_abs = 0;
+  mouse.py_abs = 0;
 
  /*
   * Here we make sure text modes are resolved properly, according to the
