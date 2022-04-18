@@ -122,7 +122,7 @@ static void do_move_abs(int x, int y, int x_range, int y_range, int vis);
 
 /* mouse movement functions */
 static void mouse_reset(void);
-static void mouse_do_cur(int callback), mouse_update_cursor(int clipped);
+static void mouse_do_cur(int callback), mouse_update_cursor(void);
 static void mouse_reset_to_current_video_mode(void);
 
 static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void *udata);
@@ -642,7 +642,7 @@ mouse_int(void)
   }
 
   if (mouse.cursor_on == 0)
-     mouse_update_cursor(0);
+     mouse_update_cursor();
 
   return 1;
 }
@@ -1700,7 +1700,7 @@ static void mouse_hide_on_exclusion(void)
   }
 }
 
-static void mouse_move(int clipped)
+static void mouse_move(void)
 {
   /* delayed visibility change */
   if (mouse.visibility_changed) {
@@ -1709,7 +1709,7 @@ static void mouse_move(int clipped)
   }
 
   mouse_hide_on_exclusion();
-  mouse_update_cursor(clipped);
+  mouse_update_cursor();
 
   m_printf("MOUSE: move: x=%d,y=%d\n", get_mx(), get_my());
 
@@ -1861,7 +1861,7 @@ static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 	 * update the event mask
 	 */
 	if (dx || dy)
-	   mouse_move(0);
+	   mouse_move();
 }
 
 static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
@@ -1877,7 +1877,7 @@ static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
 	 * update the event mask
 	 */
 	if (dx || dy)
-	   mouse_move(0);
+	   mouse_move();
 }
 
 static int move_abs_mickeys(int dx, int dy, int x_range, int y_range)
@@ -1941,7 +1941,7 @@ static void do_move_abs(int x, int y, int x_range, int y_range, int vis)
 	 * update the event mask
 	 */
 	if (moved)
-		mouse_move(0);
+		mouse_move();
 }
 
 static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
@@ -2161,12 +2161,12 @@ static void mouse_do_cur(int callback)
 
 /* conditionally update the mouse cursor only if it's changed position. */
 static void
-mouse_update_cursor(int clipped)
+mouse_update_cursor(void)
 {
 	/* sigh, too many programs seem to expect the mouse cursor
 		to magically redraw itself, so we'll bend to their will... */
 	if (MOUSE_RX != mouse.oldrx || MOUSE_RY != mouse.oldry) {
-		mouse_do_cur(clipped);
+		mouse_do_cur(0);
 		mouse.oldrx = MOUSE_RX;
 		mouse.oldry = MOUSE_RY;
 	}
@@ -2244,7 +2244,7 @@ static void mouse_curtick(void)
 
   /* we used to do an unconditional update here, but that causes a
   	distracting flicker in the mouse cursor. */
-  mouse_update_cursor(0);
+  mouse_update_cursor();
 }
 
 static enum VirqSwRet do_mouse_irq(void *arg)

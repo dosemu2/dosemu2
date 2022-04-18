@@ -36,8 +36,8 @@ enum {  MOUSE_NONE = -1,
 #define DELTA_LEFTBUP		4	/* released */
 #define DELTA_RIGHTBDOWN	8
 #define DELTA_RIGHTBUP		16
-#define DELTA_MIDDLEBDOWN  32
-#define DELTA_MIDDLEBUP    64
+#define DELTA_MIDDLEBDOWN	32
+#define DELTA_MIDDLEBUP		64
 #define DELTA_WHEEL		128
 
 #define HEIGHT 16
