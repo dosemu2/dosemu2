@@ -39,6 +39,7 @@ enum {  MOUSE_NONE = -1,
 #define DELTA_MIDDLEBDOWN	32
 #define DELTA_MIDDLEBUP		64
 #define DELTA_WHEEL		128
+#define DELTA_ABSOLUTE		256
 
 #define HEIGHT 16
 #define PLANES 4

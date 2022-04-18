@@ -1700,7 +1700,7 @@ static void mouse_hide_on_exclusion(void)
   }
 }
 
-static void mouse_move(void)
+static void mouse_move(int abs)
 {
   /* delayed visibility change */
   if (mouse.visibility_changed) {
@@ -1713,7 +1713,7 @@ static void mouse_move(void)
 
   m_printf("MOUSE: move: x=%d,y=%d\n", get_mx(), get_my());
 
-  mouse_delta(DELTA_CURSOR);
+  mouse_delta(DELTA_CURSOR | (abs ? DELTA_ABSOLUTE : 0));
 }
 
 static void mouse_lb(void)
@@ -1861,7 +1861,7 @@ static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 	 * update the event mask
 	 */
 	if (dx || dy)
-	   mouse_move();
+	   mouse_move(0);
 }
 
 static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
@@ -1877,7 +1877,7 @@ static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
 	 * update the event mask
 	 */
 	if (dx || dy)
-	   mouse_move();
+	   mouse_move(0);
 }
 
 static int move_abs_mickeys(int dx, int dy, int x_range, int y_range)
@@ -1941,7 +1941,7 @@ static void do_move_abs(int x, int y, int x_range, int y_range, int vis)
 	 * update the event mask
 	 */
 	if (moved)
-		mouse_move();
+		mouse_move(1);
 }
 
 static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
