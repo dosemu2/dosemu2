@@ -47,7 +47,7 @@
 static u_char IPXCancelEvent(far_t ECBPtr);
 static enum VirqSwRet ipx_recv_esr_call(void *arg);
 static enum VirqSwRet ipx_aes_esr_call(void *arg);
-static int recv_tid, aes_tid;
+static int recv_tid, aes_tid, int7a_tid;
 static uint16_t ipx_hlt;
 
 static ipx_socket_t *ipx_socket_list = NULL;
@@ -122,10 +122,15 @@ static int GetMyAddress(unsigned long ipx_net, unsigned char *MyAddress)
   return(0);
 }
 
+static void ipx_int7a_thr(void *arg)
+{
+  do_int7a();
+}
+
 static void ipx_call(uint16_t idx, HLT_ARG(arg))
 {
   fake_retf();
-  do_int7a();
+  coopth_start(int7a_tid, NULL);
 }
 
 void ipx_init(void)
@@ -147,6 +152,7 @@ void ipx_init(void)
 
   recv_tid = coopth_create("IPX receiver callback", ipx_recv_esr_call_thr);
   aes_tid = coopth_create("IPX aes callback", ipx_aes_esr_call_thr);
+  int7a_tid = coopth_create("IPX int7a", ipx_int7a_thr);
 
   hlt_hdlr.name = "ipx";
   hlt_hdlr.func = ipx_call;
