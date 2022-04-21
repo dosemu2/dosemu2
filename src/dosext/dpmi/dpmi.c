@@ -4615,6 +4615,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 #endif
       /* Bypass the int instruction */
       _eip += 2;
+      _err = 0;
       if (DEFAULT_INT(inum)) {
 	do_dpmi_int(scp, inum);
       } else {
@@ -4800,6 +4801,12 @@ static int dpmi_fault1(sigcontext_t *scp)
        * DOS memory or for termination - no other cases I hope? */
       if (ldt_bitmap_cnt && in_dpmi_pm())
         dpmi_ldt_call(scp);
+      lina = (unsigned char *) SEL_ADR(_cs, _eip);
+      sp = SEL_ADR(_ss, _esp);
+      if (*lina == 0xf4 && in_dpmi_pm()) {
+        D_printf("DPMI: more hlt to handle\n");
+        dpmi_gpf_simple(scp, lina, sp, &ret);
+      }
       return ret;
     }
 
