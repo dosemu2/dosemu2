@@ -241,7 +241,7 @@ int dpmi_isset_IF(void)
 static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
 {
   unsigned long p;
-  if (is_32)
+  if (is_32 && Segments[sel >> 3].is_32)
     p = GetSegmentBase(sel) + reg;
   else
     p = GetSegmentBase(sel) + LO_WORD(reg);
