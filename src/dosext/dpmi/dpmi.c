@@ -240,7 +240,7 @@ int dpmi_isset_IF(void)
 
 static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
 {
-  unsigned long p;
+  dosaddr_t p;
   if (is_32)
     p = GetSegmentBase(sel) + reg;
   else
@@ -294,7 +294,7 @@ int get_ldt(void *buffer)
 #endif
 }
 
-static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
+static int set_ldt_entry(int entry, dosaddr_t base, unsigned int limit,
 	      int seg_32bit_flag, int contents, int read_only_flag,
 	      int limit_in_pages_flag, int seg_not_present, int useable)
 {
@@ -483,7 +483,7 @@ int dpmi_write_access(dosaddr_t addr)
 
 /* client_esp return the proper value of client\'s esp, if scp != 0, */
 /* get esp from scp, otherwise get esp from dpmi_stack_frame         */
-static inline unsigned long client_esp(sigcontext_t *scp)
+static inline uint32_t client_esp(sigcontext_t *scp)
 {
     if (scp == NULL)
 	scp = &DPMI_CLIENT.stack_frame;
@@ -793,7 +793,7 @@ static void FreeAllDescriptors(void)
 
 int ConvertSegmentToDescriptor(unsigned short segment)
 {
-  unsigned long baseaddr = segment << 4;
+  dosaddr_t baseaddr = segment << 4;
   unsigned short selector;
   int i, ldt_entry;
   D_printf("DPMI: convert seg %#x to desc\n", segment);
@@ -803,7 +803,7 @@ int ConvertSegmentToDescriptor(unsigned short segment)
       D_printf("DPMI: found descriptor at %#x\n", (i<<3) | 0x0007);
       return (i<<3) | 0x0007;
     }
-  D_printf("DPMI: SEG at base=%#lx not found, allocate a new one\n", baseaddr);
+  D_printf("DPMI: SEG at base=%#x not found, allocate a new one\n", baseaddr);
   if (!(selector = AllocateDescriptors(1))) return 0;
   if (SetSelector(selector, baseaddr, 0xffff, 0,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
@@ -972,11 +972,11 @@ unsigned int GetSegmentLimit(unsigned short selector)
   return limit;
 }
 
-int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
+int SetSegmentBaseAddress(unsigned short selector, dosaddr_t baseaddr)
 {
   unsigned short ldt_entry = selector >> 3;
   int ret;
-  D_printf("DPMI: SetSegmentBaseAddress[0x%04x;0x%04x] 0x%08lx\n", ldt_entry, selector, baseaddr);
+  D_printf("DPMI: SetSegmentBaseAddress[0x%04x;0x%04x] 0x%08x\n", ldt_entry, selector, baseaddr);
   if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
     return -1;
   Segments[ldt_entry].base_addr = baseaddr;
@@ -1192,7 +1192,7 @@ static void restore_context_nofpu(sigcontext_t *d, sigcontext_t *s)
 static void *enter_lpms(sigcontext_t *scp)
 {
   unsigned short pmstack_sel;
-  unsigned long pmstack_esp;
+  uint32_t pmstack_esp;
   if (!DPMI_CLIENT.in_dpmi_pm_stack) {
     D_printf("DPMI: Switching to locked stack\n");
     pmstack_sel = DPMI_CLIENT.PMSTACK_SEL;
@@ -1598,7 +1598,7 @@ dpmi_pm_block DPMImalloc(unsigned long size)
 	return *ptr;
     return dummy;
 }
-dpmi_pm_block DPMImallocLinear(unsigned long base, unsigned long size, int committed)
+dpmi_pm_block DPMImallocLinear(dosaddr_t base, unsigned long size, int committed)
 {
     dpmi_pm_block dummy, *ptr;
     memset(&dummy, 0, sizeof(dummy));
@@ -1637,7 +1637,7 @@ void DPMIfreeAll(void)
 }
 
 int DPMIMapConventionalMemory(unsigned long handle, unsigned long offset,
-			  unsigned long low_addr, unsigned long cnt)
+			  dosaddr_t low_addr, unsigned long cnt)
 {
     return DPMI_MapConventionalMemory(&DPMI_CLIENT.pm_block_root,
 	handle, offset, low_addr, cnt);
@@ -2649,8 +2649,8 @@ err:
 	}
 	D_printf("DPMI: realloc attempt for siz 0x%08x\n", newsize);
 	D_printf("      realloc returns address %#x\n", block.base);
-	_LWORD(ecx) = (unsigned long)(block.base) & 0xffff;
-	_LWORD(ebx) = ((unsigned long)(block.base) >> 16) & 0xffff;
+	_LWORD(ecx) = (dosaddr_t)(block.base) & 0xffff;
+	_LWORD(ebx) = ((dosaddr_t)(block.base) >> 16) & 0xffff;
     }
     break;
   case 0x0504:			/* Allocate linear mem, 1.0 */
@@ -2690,7 +2690,8 @@ err:
 	unsigned long newsize, handle;
 	dpmi_pm_block *old_block, block;
 	unsigned short *sel_array;
-	unsigned long old_base, old_len;
+	dosaddr_t old_base;
+	unsigned old_len;
 
 /* JES Unsure of ASSUMING sel_array OK to be nit to NULL */
 	sel_array = NULL;
@@ -2711,7 +2712,7 @@ err:
 	    _LWORD(eax) = 0x8023; /* invalid handle */
 	    break;
 	}
-	old_base = (unsigned long)old_block->base;
+	old_base = (dosaddr_t)old_block->base;
 	old_len = old_block->size;
 
 	if(_edx & 0x2) {		/* update descriptor required */
@@ -2724,12 +2725,12 @@ err:
 	    _eflags |= CF;
 	    break;
 	}
-	_ebx = (unsigned long)block.base;
+	_ebx = (dosaddr_t)block.base;
 	_esi = block.handle;
 	if(_edx & 0x2)	{	/* update descriptor required */
 	    int i;
 	    unsigned short sel;
-	    unsigned long sel_base;
+	    dosaddr_t sel_base;
 	    for(i=0; i< _edi; i++) {
 		sel = sel_array[i];
 		if (Segments[sel >> 3].used == 0)
@@ -2746,7 +2747,7 @@ err:
 		    ( sel_base < (old_base+old_len)))
 		    SetSegmentBaseAddress(sel,
 					  Segments[sel>>3].base_addr +
-					  (unsigned long)block.base -
+					  (dosaddr_t)block.base -
 					  old_base);
 	    }
 	}
@@ -2754,7 +2755,8 @@ err:
     break;
   case 0x0509:			/* Map conventional memory,1.0 */
     {
-	unsigned long low_addr, handle, offset;
+	dosaddr_t low_addr;
+	unsigned handle, offset;
 
 	handle = _esi;
 	low_addr = _edx;
@@ -2772,7 +2774,7 @@ err:
 	    break;
 	}
 
-	D_printf("DPMI: Map conventional mem for handle %ld, offset %lx at low address %lx\n", handle, offset, low_addr);
+	D_printf("DPMI: Map conventional mem for handle %d, offset %x at low address %x\n", handle, offset, low_addr);
 	switch (DPMIMapConventionalMemory(handle, offset, low_addr, _ecx)) {
 	  case -2:
 	    _eflags |= CF;
@@ -3072,7 +3074,7 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating)
 {
   unsigned char *code, *data;
   void *sp;
-  unsigned long eip;
+  uint32_t eip;
   if (DPMI_CLIENT.is_32) {
     if ((RSP_callbacks[num].call.code32[5] & 0x88) != 0x88)
       return;
@@ -3433,7 +3435,7 @@ void run_pm_int(int i)
 static void run_pm_dos_int(int i)
 {
   void  *sp;
-  unsigned long ret_eip;
+  uint32_t ret_eip;
   sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
 
   D_printf("DPMI: run_pm_dos_int(0x%02x) called\n",i);
@@ -3798,7 +3800,7 @@ void dpmi_init(void)
   }
 
   if (!(CS = AllocateDescriptors(1))) goto err;
-  if (SetSelector(CS, (unsigned long) (my_cs << 4), 0xffff, 0,
+  if (SetSelector(CS, (dosaddr_t) (my_cs << 4), 0xffff, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
   if (!(SS = ConvertSegmentToDescriptor(SREG(ss)))) goto err;
@@ -4058,7 +4060,7 @@ static void do_pm_cpu_exception(sigcontext_t *scp, INTDESC entry)
   _eflags &= ~(TF | NT | AC);
 }
 
-int dpmi_realmode_exception(unsigned trapno, unsigned err, dosaddr_t cr2)
+int dpmi_realmode_exception(unsigned trapno, unsigned err, uint32_t cr2)
 {
   sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
   unsigned int *ssp;
@@ -4620,7 +4622,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	do_dpmi_int(scp, inum);
       } else {
         us cs2 = _cs;
-        unsigned long eip2 = _eip;
+        uint32_t eip2 = _eip;
 	if (debug_level('M')>=9)
           D_printf("DPMI: int 0x%x\n", lina[1]);
 	make_iret_frame(scp, sp, _cs, _eip);
@@ -4630,7 +4632,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 	_eflags &= ~(TF | NT | AC);
 	_cs = DPMI_CLIENT.Interrupt_Table[inum].selector;
 	_eip = DPMI_CLIENT.Interrupt_Table[inum].offset;
-	D_printf("DPMI: call inthandler %#02x(%#04x) at %#04x:%#08x\n\t\tret=%#04x:%#08lx\n",
+	D_printf("DPMI: call inthandler %#02x(%#04x) at %#04x:%#08x\n\t\tret=%#04x:%#08x\n",
 		inum, _LWORD(eax), _cs, _eip, cs2, eip2);
 	if ((inum == 0x2f)&&((_LWORD(eax)==
 			      0xfb42)||(_LWORD(eax)==0xfb43)))
@@ -5187,7 +5189,8 @@ void dpmi_realmode_hlt(unsigned int lina)
     dpmi_set_pm(1);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos_memory)) {
-    unsigned long length, base;
+    unsigned length;
+    dosaddr_t base;
     unsigned short begin_selector, num_descs;
     int i;
 
@@ -5288,16 +5291,16 @@ done:
     unsigned short *buffer = LINEAR2UNIX(buf);
     if (LO(ax)==0) {
       D_printf("DPMI: save protected mode registers\n");
-      *(unsigned long *)buffer = _eflags, buffer += 2;
-      *(unsigned long *)buffer = _eax, buffer += 2;
-      *(unsigned long *)buffer = _ebx, buffer += 2;
-      *(unsigned long *)buffer = _ecx, buffer += 2;
-      *(unsigned long *)buffer = _edx, buffer += 2;
-      *(unsigned long *)buffer = _esi, buffer += 2;
-      *(unsigned long *)buffer = _edi, buffer += 2;
-      *(unsigned long *)buffer = _esp, buffer += 2;
-      *(unsigned long *)buffer = _ebp, buffer += 2;
-      *(unsigned long *)buffer = _eip, buffer += 2;
+      *(uint32_t *)buffer = _eflags, buffer += 2;
+      *(uint32_t *)buffer = _eax, buffer += 2;
+      *(uint32_t *)buffer = _ebx, buffer += 2;
+      *(uint32_t *)buffer = _ecx, buffer += 2;
+      *(uint32_t *)buffer = _edx, buffer += 2;
+      *(uint32_t *)buffer = _esi, buffer += 2;
+      *(uint32_t *)buffer = _edi, buffer += 2;
+      *(uint32_t *)buffer = _esp, buffer += 2;
+      *(uint32_t *)buffer = _ebp, buffer += 2;
+      *(uint32_t *)buffer = _eip, buffer += 2;
       /* 10 regs, 40 bytes */
       *buffer++ = _cs;
       *buffer++ = _ds;
@@ -5310,16 +5313,16 @@ done:
        * so the segment regs are saved as 2-bytes. */
     } else {
       D_printf("DPMI: restore protected mode registers\n");
-      _eflags = *(unsigned long *)buffer, buffer += 2;
-      _eax = *(unsigned long *)buffer, buffer += 2;
-      _ebx = *(unsigned long *)buffer, buffer += 2;
-      _ecx = *(unsigned long *)buffer, buffer += 2;
-      _edx = *(unsigned long *)buffer, buffer += 2;
-      _esi = *(unsigned long *)buffer, buffer += 2;
-      _edi = *(unsigned long *)buffer, buffer += 2;
-      _esp = *(unsigned long *)buffer, buffer += 2;
-      _ebp = *(unsigned long *)buffer, buffer += 2;
-      _eip = *(unsigned long *)buffer, buffer += 2;
+      _eflags = *(uint32_t *)buffer, buffer += 2;
+      _eax = *(uint32_t *)buffer, buffer += 2;
+      _ebx = *(uint32_t *)buffer, buffer += 2;
+      _ecx = *(uint32_t *)buffer, buffer += 2;
+      _edx = *(uint32_t *)buffer, buffer += 2;
+      _esi = *(uint32_t *)buffer, buffer += 2;
+      _edi = *(uint32_t *)buffer, buffer += 2;
+      _esp = *(uint32_t *)buffer, buffer += 2;
+      _ebp = *(uint32_t *)buffer, buffer += 2;
+      _eip = *(uint32_t *)buffer, buffer += 2;
       /* 10 regs, 40 bytes */
       _cs =  *buffer++;
       _ds =  *buffer++;
@@ -5415,7 +5418,7 @@ void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp)
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
 }
 
-unsigned long dpmi_mhp_getreg(regnum_t regnum)
+uint32_t dpmi_mhp_getreg(regnum_t regnum)
 {
   sigcontext_t *scp;
 
@@ -5454,7 +5457,7 @@ unsigned long dpmi_mhp_getreg(regnum_t regnum)
   return -1; // keep compiler happy, control never reaches here
 }
 
-void dpmi_mhp_setreg(regnum_t regnum, unsigned long val)
+void dpmi_mhp_setreg(regnum_t regnum, uint32_t val)
 {
   sigcontext_t *scp;
 
