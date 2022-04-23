@@ -483,14 +483,20 @@ int dpmi_write_access(dosaddr_t addr)
 
 /* client_esp return the proper value of client\'s esp, if scp != 0, */
 /* get esp from scp, otherwise get esp from dpmi_stack_frame         */
-static inline uint32_t client_esp(sigcontext_t *scp)
+static uint32_t client_esp(sigcontext_t *scp)
 {
-    if (scp == NULL)
-	scp = &DPMI_CLIENT.stack_frame;
     if( Segments[_ss >> 3].is_32)
 	return _esp;
     else
 	return (_esp)&0xffff;
+}
+
+static uint32_t client_eip(sigcontext_t *scp)
+{
+    if( Segments[_cs >> 3].is_32)
+	return _eip;
+    else
+	return (_eip)&0xffff;
 }
 
 static int do_dpmi_switch(sigcontext_t *scp)
@@ -5662,7 +5668,7 @@ char *DPMI_show_state(sigcontext_t *scp)
     else {
       /* LDT */
       csp2 = SEL_ADR(_cs, _eip);
-      daddr = GetSegmentBase(_cs) + D_16_32(_eip);
+      daddr = GetSegmentBase(_cs) + client_eip(scp);
     }
     /* We have a problem here, if we get a page fault or any kind of
      * 'not present' error and then we try accessing the code/stack
@@ -5705,7 +5711,7 @@ char *DPMI_show_state(sigcontext_t *scp)
       else {
         /* LDT */
 	ssp2 = SEL_ADR(_ss, _esp);
-	saddr = GetSegmentBase(_ss) + D_16_32(_esp);
+	saddr = GetSegmentBase(_ss) + client_esp(scp);
       }
       #define SSPP (ssp2 - 10)
       pos += sprintf(buf + pos, "STACK: ");
