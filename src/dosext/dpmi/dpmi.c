@@ -4807,11 +4807,13 @@ static int dpmi_fault1(sigcontext_t *scp)
     if (dpmi_gpf_simple(scp, csp, sp, &ret)) {
       /* can go to RM with LDT changes, either for
        * DOS memory or for termination - no other cases I hope? */
-      if (ldt_bitmap_cnt && in_dpmi_pm())
+      if (!in_dpmi_pm())
+        return ret;
+      if (ldt_bitmap_cnt)
         dpmi_ldt_call(scp);
       lina = (unsigned char *) SEL_ADR(_cs, _eip);
       sp = SEL_ADR(_ss, _esp);
-      if (*lina == 0xf4 && in_dpmi_pm()) {
+      if (*lina == 0xf4) {
         D_printf("DPMI: more hlt to handle\n");
         dpmi_gpf_simple(scp, lina, sp, &ret);
       }
