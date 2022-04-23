@@ -37,7 +37,7 @@ static smpool apool;
 
 static void do_callf(sigcontext_t *scp, int is_32, struct pmaddr_s pma)
 {
-    void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
+    void *sp = SEL_ADR(_ss, _esp);
     if (is_32) {
 	unsigned int *ssp = sp;
 	*--ssp = _cs;

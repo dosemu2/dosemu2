@@ -92,7 +92,7 @@ static void *hlt_state;
 static void do_retf(sigcontext_t *scp)
 {
     int is_32 = msdos.is_32();
-    void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
+    void *sp = SEL_ADR(_ss, _esp);
     if (is_32) {
 	unsigned int *ssp = sp;
 	_eip = *ssp++;
@@ -109,7 +109,7 @@ static void do_retf(sigcontext_t *scp)
 static void do_dpmi_iret(sigcontext_t *scp)
 {
     int is_32 = msdos.is_32();
-    void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
+    void *sp = SEL_ADR(_ss, _esp);
     if (is_32) {
 	unsigned int *ssp = sp;
 	_eip = *ssp++;
@@ -165,7 +165,7 @@ void doshlp_setup_retf(struct dos_helper_s *h, const char *name,
 static void do_callf(sigcontext_t *scp, struct pmaddr_s pma)
 {
     int is_32 = msdos.is_32();
-    void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
+    void *sp = SEL_ADR(_ss, _esp);
     if (is_32) {
 	unsigned int *ssp = sp;
 	*--ssp = _cs;
@@ -200,7 +200,7 @@ static void iret2far(int tid, void *arg, void *arg2)
 static void make_iret_frame(sigcontext_t *scp, struct pmaddr_s pma)
 {
     int is_32 = msdos.is_32();
-    void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
+    void *sp = SEL_ADR(_ss, _esp);
 
     if (is_32) {
 	unsigned int *ssp = sp;
