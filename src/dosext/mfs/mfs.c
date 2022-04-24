@@ -282,6 +282,7 @@ struct file_fd
   struct stat st;
   int is_writable;
   int write_allowed;
+  int share_mode;
   uint64_t seek;
   uint64_t size;
   int lock_cnt;
@@ -499,6 +500,7 @@ static int do_mfs_creat(struct file_fd *f, const char *dname,
 
     f->fd = fd;
     f->dir_fd = dir_fd;
+    f->share_mode = 0;
     f->write_allowed = 1;
     f->is_writable = 1;
     return 0;
@@ -698,6 +700,7 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
     f->st = *st;
     f->fd = fd;
     f->dir_fd = dir_fd;
+    f->share_mode = share_mode;
     assert(is_writable >= write_requested);
     f->write_allowed = write_requested;
     f->is_writable = is_writable;
@@ -769,7 +772,7 @@ static int mfs_unlink(char *name)
     if (!slash)
         return FILE_NOT_FOUND;
     f = do_find_fd(name);
-    if (f)
+    if (f && f->share_mode)
         return ACCESS_DENIED;
     fname = slash + 1;
     *slash = '\0';
@@ -813,7 +816,7 @@ static int mfs_setattr(char *name, int attr)
     if (!slash)
         return FILE_NOT_FOUND;
     f = do_find_fd(name);
-    if (f)
+    if (f && f->share_mode)
         return ACCESS_DENIED;
     fname = slash + 1;
     fullname = strdup(name);
