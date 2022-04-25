@@ -737,7 +737,7 @@ static struct file_fd *mfs_open(char *name, int flags, struct stat *st,
     return f;
 }
 
-static int do_mfs_unlink(const char *dname, const char *fname)
+static int do_mfs_unlink(const char *dname, const char *fname, int force)
 {
     int dir_fd, err, rc;
     int locked = 0;
@@ -753,8 +753,10 @@ static int do_mfs_unlink(const char *dname, const char *fname)
         case 0:
             break;
         case 1:
-            close(dir_fd);
-            return ACCESS_DENIED;
+            if (!force) {
+                close(dir_fd);
+                return ACCESS_DENIED;
+            }
     }
     err = unlinkat(dir_fd, fname, 0);
     close(dir_fd);
@@ -776,13 +778,13 @@ static int mfs_unlink(char *name)
         return ACCESS_DENIED;
     fname = slash + 1;
     *slash = '\0';
-    err = do_mfs_unlink(name, fname);
+    err = do_mfs_unlink(name, fname, f && !f->share_mode);
     *slash = '/';
     return err;
 }
 
 static int do_mfs_setattr(const char *dname, const char *fname,
-        const char *fullname, int attr)
+        const char *fullname, int attr, int force)
 {
     int dir_fd, err, rc;
     int locked = 0;
@@ -798,8 +800,10 @@ static int do_mfs_setattr(const char *dname, const char *fname,
         case 0:
             break;
         case 1:
-            close(dir_fd);
-            return ACCESS_DENIED;
+            if (!force) {
+                close(dir_fd);
+                return ACCESS_DENIED;
+            }
     }
     err = set_dos_xattr(fullname, attr);
     close(dir_fd);
@@ -821,7 +825,7 @@ static int mfs_setattr(char *name, int attr)
     fname = slash + 1;
     fullname = strdup(name);
     *slash = '\0';
-    err = do_mfs_setattr(name, fname, fullname, attr);
+    err = do_mfs_setattr(name, fname, fullname, attr, f && !f->share_mode);
     *slash = '/';
     free(fullname);
     return err;
