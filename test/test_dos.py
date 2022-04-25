@@ -4579,7 +4579,7 @@ $_floppy_a = ""
         """FAT DOSv3 share open twice"""
         ds3_share_open_twice(self, "FAT")
 
-    def xtest_mfs_ds3_share_open_delete_ds2(self):
+    def test_mfs_ds3_share_open_delete_ds2(self):
         """MFS DOSv3 share open delete DOSv2"""
         ds3_share_open_access(self, "MFS", "DELPTH")
 
@@ -4587,7 +4587,7 @@ $_floppy_a = ""
         """FAT DOSv3 share open delete DOSv2"""
         ds3_share_open_access(self, "FAT", "DELPTH")
 
-    def xtest_mfs_ds3_share_open_delete_fcb(self):
+    def test_mfs_ds3_share_open_delete_fcb(self):
         """MFS DOSv3 share open delete FCB"""
         ds3_share_open_access(self, "MFS", "DELFCB")
 
@@ -4611,7 +4611,7 @@ $_floppy_a = ""
         """FAT DOSv3 share open rename FCB"""
         ds3_share_open_access(self, "FAT", "RENFCB")
 
-    def xtest_mfs_ds3_share_open_setfattrs(self):
+    def test_mfs_ds3_share_open_setfattrs(self):
         """MFS DOSv3 share open set file attrs DOSv2"""
         ds3_share_open_access(self, "MFS", "SETATT")
 
@@ -5050,9 +5050,6 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
         cls.actions = {
             "test_floppy_img": UNSUPPORTED,
             "test_floppy_vfs": UNSUPPORTED,
-            "test_fat_ds3_share_open_delete_ds2": KNOWNFAIL,
-            "test_fat_ds3_share_open_delete_fcb": KNOWNFAIL,
-            "test_fat_ds3_share_open_setfattrs": KNOWNFAIL,
         }
 
         # Use the default files that FDPP installed

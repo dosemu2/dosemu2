@@ -364,7 +364,7 @@ int main(int argc, char *argv[]) {
 
     return self.runDosemu("testit.bat", config=config, timeout=60)
 
-DELRENTESTS = (
+TESTS_TWO_PROCESS_FAT = (
     ("SH_COMPAT", "R" , "DENY"),
     ("SH_COMPAT", "W" , "DENY"),
     ("SH_COMPAT", "RW", "DENY"),
@@ -386,14 +386,24 @@ DELRENTESTS = (
     ("SH_DENYNO", "RW", "DENY"),
 )
 
+# SH_COMPAT makes no sense on network drive, see
+# https://github.com/dosemu2/dosemu2/pull/1623#issuecomment-1108776612
+TESTS_TWO_PROCESS_MFS = tuple(TESTS_TWO_PROCESS_FAT)[3:]
+
+
 def _check_single_result(self, results, t):
     m = re.search("FAIL:\('%s', '%s', '%s'\)\[.*\]" % t, results)
     if m:
         self.fail(msg=m.group(0))
 
 def ds3_share_open_access(self, fstype, testtype):
-    results = _run_all(self, fstype, DELRENTESTS, testtype)
-    for t in DELRENTESTS:
+    if fstype == "MFS":
+        tests = TESTS_TWO_PROCESS_MFS
+    else:       # FAT
+        tests = TESTS_TWO_PROCESS_FAT
+
+    results = _run_all(self, fstype, tests, testtype)
+    for t in tests:
         with self.subTest(t=t):
             _check_single_result(self, results, t)
     self.assertIn("rem tests complete", results)
