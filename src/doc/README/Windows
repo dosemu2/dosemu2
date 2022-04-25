@@ -13,13 +13,12 @@ a few caveats however, and if you have some problems, read on.
 <para>
 In Windows, the mouse cursor is not always in sync with the native X
 mouse cursor. This problem can be easily avoided by enabling mouse grab.
-There also exist an alternative mouse driver specially written to
-work in ungrabbed mode:
-<ulink url="https://github.com/stsp/win31-mouse-driver/tree/master/out">
-https://github.com/stsp/win31-mouse-driver/tree/master/out
-</ulink>.
-This driver is not limited to use with dosemu2: it can be used with
-any other emulator and under bare-metal machine.
+There also exist an
+<ulink url="https://depot.javispedro.com/vbox/vbados/vbados.zip">
+alternative mouse driver
+</ulink>
+specially written to work in ungrabbed mode under many emulators or
+on a real machine.
 </para>
 </sect2>
 
