@@ -1,7 +1,7 @@
 import re
 
 
-def _run_all(self, fstype, tests, testtype):
+def _run_all(self, numprocs, fstype, tests, testtype):
     testdir = self.mkworkdir('d')
 
     share = "rem Internal share" if self.version == "FDPP kernel" else "c:\\share"
@@ -9,7 +9,10 @@ def _run_all(self, fstype, tests, testtype):
     tfile = "set LFN=n\r\n" + "d:\r\n" + share + "\r\n"
     for t in tests:
         args = t + (testtype,)
-        tfile += ("c:\\shardlrn primary %s %s %s %s\r\n" % args)
+        if numprocs == "ONE":
+            tfile += ("c:\\shardlrn single %s %s %s %s\r\n" % args)
+        else:
+            tfile += ("c:\\shardlrn primary %s %s %s %s\r\n" % args)
     tfile += "rem tests complete\r\n"
     tfile += "rem end\r\n"
 
@@ -66,8 +69,13 @@ unsigned short openmode(const char *s) {
 int main(int argc, char *argv[]) {
   int handle;
   int ret;
-  int primary = -1;
-  unsigned short prismode, priomode;
+  enum {
+    PRIMARY,
+    SECONDARY,
+    SINGLE,
+  } ptype;
+
+  unsigned short smode, omode;
   enum {
     DELFCB,
     RENFCB,
@@ -77,27 +85,29 @@ int main(int argc, char *argv[]) {
   } testmode;
 
   if (argc < 6) {
-    printf("FAIL: Missing arguments (primary|secondary) prismode priomode expected (DELFCB|RENFCB|DELPTH|RENPTH|SETATT)\n");
+    printf("FAIL: Missing arguments (primary|secondary|single) sharemode openmode expected (DELFCB|RENFCB|DELPTH|RENPTH|SETATT)\n");
     return -2;
   }
 
   if (strcmp(argv[1], "primary") == 0)
-    primary = 1;
-  if (strcmp(argv[1], "secondary") == 0)
-    primary = 0;
-  if (primary < 0) {
-    printf("FAIL: Invalid argument (primary|secondary)\n");
+    ptype = PRIMARY;
+  else if (strcmp(argv[1], "secondary") == 0)
+    ptype = SECONDARY;
+  else if (strcmp(argv[1], "single") == 0)
+    ptype = SINGLE;
+  else {
+    printf("FAIL: Invalid argument (primary|secondary|single)\n");
     return -2;
   }
 
-  prismode = sharemode(argv[2]);
-  if (prismode == 0xff) {
-    printf("FAIL: Invalid argument prismode '%s'\n", argv[2]);
+  smode = sharemode(argv[2]);
+  if (smode == 0xff) {
+    printf("FAIL: Invalid argument sharemode '%s'\n", argv[2]);
     return -2;
   }
-  priomode = openmode(argv[3]);
-  if (priomode == 0xff) {
-    printf("FAIL: Invalid argument priomode '%s'\n", argv[3]);
+  omode = openmode(argv[3]);
+  if (omode == 0xff) {
+    printf("FAIL: Invalid argument openmode '%s'\n", argv[3]);
     return -2;
   }
 
@@ -121,8 +131,8 @@ int main(int argc, char *argv[]) {
   // Print results in consistent format
   // FAIL:("SH_DENYNO", "RW", "ALLOW")[secondary denied]
 
-  if (primary) {
-    unsigned short mode = prismode | priomode;
+  if (ptype == PRIMARY || ptype == SINGLE) {
+    unsigned short mode = smode | omode;
 
     // remove the source file so we can create it anew
     unlink(FN1 "." FE1);
@@ -146,12 +156,19 @@ int main(int argc, char *argv[]) {
     }
 //    printf("INFO: primary: File was opened with mode 0x%04x\n", mode);
 
+  }
+
+  if (ptype == PRIMARY) {
+
     // Now start second copy
     spawnlp(P_WAIT, argv[0], argv[0], "secondary", argv[2], argv[3], argv[4], argv[5], NULL);
 
     _dos_close(handle);
+    return 0;
+  }
 
-  } else { // secondary
+  if (ptype == SECONDARY || ptype == SINGLE) {
+
     switch(testmode) {
 
       case DELFCB: {
@@ -330,7 +347,7 @@ int main(int argc, char *argv[]) {
         break;
       }
 
-    }
+    } // switch
 
     if (ret != 0) {
       if (strcmp(argv[4], "DENY") == 0) {
@@ -351,6 +368,10 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if (ptype == SINGLE) {
+    _dos_close(handle);
+  }
+
   return 0;
 }
 """)
@@ -363,6 +384,28 @@ int main(int argc, char *argv[]) {
         config += """$_hdimage = "dXXXXs/c:hdtype1 %s +1"\n""" % name
 
     return self.runDosemu("testit.bat", config=config, timeout=60)
+
+TESTS_ONE_PROCESS = (
+    ("SH_COMPAT", "R" , "ALLOW"),
+    ("SH_COMPAT", "W" , "ALLOW"),
+    ("SH_COMPAT", "RW", "ALLOW"),
+
+    ("SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYRW", "RW", "DENY"),
+
+    ("SH_DENYWR", "R" , "DENY"),
+    ("SH_DENYWR", "W" , "DENY"),
+    ("SH_DENYWR", "RW", "DENY"),
+
+    ("SH_DENYRD", "R" , "DENY"),
+    ("SH_DENYRD", "W" , "DENY"),
+    ("SH_DENYRD", "RW", "DENY"),
+
+    ("SH_DENYNO", "R" , "DENY"),
+    ("SH_DENYNO", "W" , "DENY"),
+    ("SH_DENYNO", "RW", "DENY"),
+)
 
 TESTS_TWO_PROCESS_FAT = (
     ("SH_COMPAT", "R" , "DENY"),
@@ -396,13 +439,16 @@ def _check_single_result(self, results, t):
     if m:
         self.fail(msg=m.group(0))
 
-def ds3_share_open_access(self, fstype, testtype):
-    if fstype == "MFS":
-        tests = TESTS_TWO_PROCESS_MFS
-    else:       # FAT
-        tests = TESTS_TWO_PROCESS_FAT
+def ds3_share_open_access(self, numprocs, fstype, testtype):
+    if numprocs == "ONE":
+        tests = TESTS_ONE_PROCESS
+    else:         # TWO
+        if fstype == "MFS":
+            tests = TESTS_TWO_PROCESS_MFS
+        else:       # FAT
+            tests = TESTS_TWO_PROCESS_FAT
 
-    results = _run_all(self, fstype, tests, testtype)
+    results = _run_all(self, numprocs, fstype, tests, testtype)
     for t in tests:
         with self.subTest(t=t):
             _check_single_result(self, results, t)

@@ -4579,45 +4579,85 @@ $_floppy_a = ""
         """FAT DOSv3 share open twice"""
         ds3_share_open_twice(self, "FAT")
 
+    def test_mfs_ds3_share_open_delete_one_process_ds2(self):
+        """MFS DOSv3 share open delete one process DOSv2"""
+        ds3_share_open_access(self, "ONE", "MFS", "DELPTH")
+
+    def test_fat_ds3_share_open_delete_one_process_ds2(self):
+        """FAT DOSv3 share open delete one process DOSv2"""
+        ds3_share_open_access(self, "ONE", "FAT", "DELPTH")
+
+    def test_mfs_ds3_share_open_delete_one_process_fcb(self):
+        """MFS DOSv3 share open delete one process FCB"""
+        ds3_share_open_access(self, "ONE", "MFS", "DELFCB")
+
+    def test_fat_ds3_share_open_delete_one_process_fcb(self):
+        """FAT DOSv3 share open delete one process FCB"""
+        ds3_share_open_access(self, "ONE", "FAT", "DELFCB")
+
+    def test_mfs_ds3_share_open_rename_one_process_ds2(self):
+        """MFS DOSv3 share open rename one process DOSv2"""
+        ds3_share_open_access(self, "ONE", "MFS", "RENPTH")
+
+    def test_fat_ds3_share_open_rename_one_process_ds2(self):
+        """FAT DOSv3 share open rename one process DOSv2"""
+        ds3_share_open_access(self, "ONE", "FAT", "RENPTH")
+
+    def test_mfs_ds3_share_open_rename_one_process_fcb(self):
+        """MFS DOSv3 share open rename one process FCB"""
+        ds3_share_open_access(self, "ONE", "MFS", "RENFCB")
+
+    def test_fat_ds3_share_open_rename_one_process_fcb(self):
+        """FAT DOSv3 share open rename one process FCB"""
+        ds3_share_open_access(self, "ONE", "FAT", "RENFCB")
+
+    def test_mfs_ds3_share_open_setfattrs_one_process(self):
+        """MFS DOSv3 share open set file attrs one process DOSv2"""
+        ds3_share_open_access(self, "ONE", "MFS", "SETATT")
+
+    def test_fat_ds3_share_open_setfattrs_one_process(self):
+        """FAT DOSv3 share open set file attrs one process DOSv2"""
+        ds3_share_open_access(self, "ONE", "FAT", "SETATT")
+
     def test_mfs_ds3_share_open_delete_two_process_ds2(self):
         """MFS DOSv3 share open delete two process DOSv2"""
-        ds3_share_open_access(self, "MFS", "DELPTH")
+        ds3_share_open_access(self, "TWO", "MFS", "DELPTH")
 
     def test_fat_ds3_share_open_delete_two_process_ds2(self):
         """FAT DOSv3 share open delete two process DOSv2"""
-        ds3_share_open_access(self, "FAT", "DELPTH")
+        ds3_share_open_access(self, "TWO", "FAT", "DELPTH")
 
     def test_mfs_ds3_share_open_delete_two_process_fcb(self):
         """MFS DOSv3 share open delete two process FCB"""
-        ds3_share_open_access(self, "MFS", "DELFCB")
+        ds3_share_open_access(self, "TWO", "MFS", "DELFCB")
 
     def test_fat_ds3_share_open_delete_two_process_fcb(self):
         """FAT DOSv3 share open delete two process FCB"""
-        ds3_share_open_access(self, "FAT", "DELFCB")
+        ds3_share_open_access(self, "TWO", "FAT", "DELFCB")
 
     def test_mfs_ds3_share_open_rename_two_process_ds2(self):
         """MFS DOSv3 share open rename two process DOSv2"""
-        ds3_share_open_access(self, "MFS", "RENPTH")
+        ds3_share_open_access(self, "TWO", "MFS", "RENPTH")
 
     def test_fat_ds3_share_open_rename_two_process_ds2(self):
         """FAT DOSv3 share open rename two process DOSv2"""
-        ds3_share_open_access(self, "FAT", "RENPTH")
+        ds3_share_open_access(self, "TWO", "FAT", "RENPTH")
 
     def test_mfs_ds3_share_open_rename_two_process_fcb(self):
         """MFS DOSv3 share open rename two process FCB"""
-        ds3_share_open_access(self, "MFS", "RENFCB")
+        ds3_share_open_access(self, "TWO", "MFS", "RENFCB")
 
     def test_fat_ds3_share_open_rename_two_process_fcb(self):
         """FAT DOSv3 share open rename two process FCB"""
-        ds3_share_open_access(self, "FAT", "RENFCB")
+        ds3_share_open_access(self, "TWO", "FAT", "RENFCB")
 
     def test_mfs_ds3_share_open_setfattrs_two_process(self):
         """MFS DOSv3 share open set file attrs two process DOSv2"""
-        ds3_share_open_access(self, "MFS", "SETATT")
+        ds3_share_open_access(self, "TWO", "MFS", "SETATT")
 
     def test_fat_ds3_share_open_setfattrs_two_process(self):
         """FAT DOSv3 share open set file attrs two process DOSv2"""
-        ds3_share_open_access(self, "FAT", "SETATT")
+        ds3_share_open_access(self, "TWO", "FAT", "SETATT")
 
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
         if ('kvm' in cpu_vm or 'kvm' in cpu_vm_dpmi) and not access("/dev/kvm", W_OK|R_OK):
