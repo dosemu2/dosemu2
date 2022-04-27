@@ -283,6 +283,7 @@ struct file_fd
   int is_writable;
   int write_allowed;
   int share_mode;
+  u_short psp;
   uint64_t seek;
   uint64_t size;
   int lock_cnt;
@@ -501,6 +502,7 @@ static int do_mfs_creat(struct file_fd *f, const char *dname,
     f->fd = fd;
     f->dir_fd = dir_fd;
     f->share_mode = 0;
+    f->psp = sda_cur_psp(sda);
     f->write_allowed = 1;
     f->is_writable = 1;
     return 0;
@@ -701,6 +703,7 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
     f->fd = fd;
     f->dir_fd = dir_fd;
     f->share_mode = share_mode;
+    f->psp = sda_cur_psp(sda);
     assert(is_writable >= write_requested);
     f->write_allowed = write_requested;
     f->is_writable = is_writable;
@@ -774,11 +777,12 @@ static int mfs_unlink(char *name)
     if (!slash)
         return FILE_NOT_FOUND;
     f = do_find_fd(name);
-    if (f && f->share_mode)
+    if (f && (f->share_mode || f->psp != sda_cur_psp(sda)))
         return ACCESS_DENIED;
     fname = slash + 1;
     *slash = '\0';
-    err = do_mfs_unlink(name, fname, f && !f->share_mode);
+    err = do_mfs_unlink(name, fname, f && !f->share_mode &&
+        f->psp == sda_cur_psp(sda));
     *slash = '/';
     return err;
 }
@@ -820,19 +824,20 @@ static int mfs_setattr(char *name, int attr)
     if (!slash)
         return FILE_NOT_FOUND;
     f = do_find_fd(name);
-    if (f && f->share_mode)
+    if (f && (f->share_mode || f->psp != sda_cur_psp(sda)))
         return ACCESS_DENIED;
     fname = slash + 1;
     fullname = strdup(name);
     *slash = '\0';
-    err = do_mfs_setattr(name, fname, fullname, attr, f && !f->share_mode);
+    err = do_mfs_setattr(name, fname, fullname, attr, f && !f->share_mode &&
+        f->psp == sda_cur_psp(sda));
     *slash = '/';
     free(fullname);
     return err;
 }
 
 static int do_mfs_rename(const char *dname, const char *fname,
-        const char *fname2)
+        const char *fname2, int force)
 {
     int dir_fd, err, rc;
     int locked = 0;
@@ -848,8 +853,10 @@ static int do_mfs_rename(const char *dname, const char *fname,
         case 0:
             break;
         case 1:
-            close(dir_fd);
-            return ACCESS_DENIED;
+            if (!force) {
+                close(dir_fd);
+                return ACCESS_DENIED;
+            }
     }
 #ifdef HAVE_RENAMEAT2
     err = renameat2(dir_fd, fname, -1, fname2, RENAME_NOREPLACE);
@@ -879,11 +886,12 @@ static int mfs_rename(char *name, char *name2)
     if (!slash)
         return FILE_NOT_FOUND;
     f = do_find_fd(name);
-    if (f)
+    if (f && (f->share_mode || f->psp != sda_cur_psp(sda)))
         return ACCESS_DENIED;
     fname = slash + 1;
     *slash = '\0';
-    err = do_mfs_rename(name, fname, name2);
+    err = do_mfs_rename(name, fname, name2, f && !f->share_mode &&
+        f->psp == sda_cur_psp(sda));
     *slash = '/';
     return err;
 }
