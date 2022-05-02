@@ -57,6 +57,7 @@ Requires:   systemd-udev >= 234
 # our startup script is bash-specific
 Requires:   bash
 Requires:   coreutils
+Requires:   fdpp
 Requires:   comcom32
 Recommends: fluid-soundfont-gm
 Suggests:   timidity++ >= 2.14.0
