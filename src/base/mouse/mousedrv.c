@@ -133,7 +133,7 @@ void mousedrv_set_udata(const char *name, void *udata)
 static void fifo_mdrv_add(struct bdrv_s *r, struct mbuf_s *b)
 {
   if (!rng_put(&r->buf, b))
-    error("mouse queue overflow\n");
+    m_printf("mouse queue overflow\n");
   r->callback(*r->arg_p);
 }
 
@@ -174,7 +174,7 @@ struct mouse_drv fifo_mdrv = {
 
 static void fifo_mdrv_init(struct mouse_drv_wrp *m, void (*cb)(void *))
 {
-#define M_FIFO_LEN 1024
+#define M_FIFO_LEN 8
     m->bdrv.drv = &fifo_mdrv;
     rng_init(&m->bdrv.buf, M_FIFO_LEN, sizeof(struct mbuf_s));
     m->bdrv.udata = &m->bdrv;
