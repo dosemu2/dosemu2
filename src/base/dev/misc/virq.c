@@ -83,6 +83,7 @@ static void virq_handler(uint16_t idx, HLT_ARG(arg))
             if (rc == VIRQ_SWRET_BH) {
                 assert(_IP != virq_hlt);
                 /* If BH is scheduled, we just return and switch back later. */
+                set_IF();
                 return;
             }
         } else {
