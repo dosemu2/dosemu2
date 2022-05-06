@@ -220,7 +220,10 @@ void pic_ioport_write(PICCommonState *s, hwaddr addr64,
 
     trace_pic_ioport_write(s->master, addr, val);
 
-    if (addr == 0) {
+    if (s->poll) {  // dosemu2 mod: poll extension
+        pic_intack(s, val);
+        s->poll = 0;
+    } else if (addr == 0) {
         if (val & 0x10) {
             pic_init_reset(s);
             s->init_state = 1;
