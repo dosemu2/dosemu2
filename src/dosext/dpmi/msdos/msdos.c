@@ -233,7 +233,7 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	DPMI_INTDESC desc2 = desc;
 	MSDOS_CLIENT.prev_ihandler[i] = dpmi_get_interrupt_vector(ints[i]);
 	desc2.offset32 += int_offs[i];
-	assert(MSDOS_CLIENT.prev_ihandler[i].selector == desc2.selector &&
+	assert(MSDOS_CLIENT.prev_ihandler[i].selector != desc2.selector ||
 		MSDOS_CLIENT.prev_ihandler[i].offset32 != desc2.offset32);
 	dpmi_set_interrupt_vector(ints[i], desc2);
     }
