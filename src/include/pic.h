@@ -1,109 +1,17 @@
 #ifndef PIC_H
 #define PIC_H
 
-/* Priority Interrupt Controller Emulation
-   Copyright (C) 1994, J. Lawrence Stephan  jlarry@delanet.com
-
-   This software is distributed under the terms of the GNU General Public
-   License, there are NO WARRANTIES, expressed or implied.  Use at your own
-   risk.  Use of this software as a part of any product is permitted only
-   if that  product is also distributed under the terms of the GNU General
-   Public  License.
-
-
-
- Definitions for 8259A programmable Interrupt Controller Emulation
-
-
-  IRQ priority levels.  These are in order of priority, lowest number has
-   highest priority.  Levels 16 - 30 are available for use, but currently
-   have no fixed assignment.  They are extras for the convenience of dosemu.
-   31 is tentatively reserved for a watchdog timer  (stall alarm).
-
-   IRQ2 does not exist.  A PCs IRQ2 line is actually connected to IRQ9.  The
-   bios for IRQ9 does an int1a, then sends an EOI to the second PIC. ( This
-   is simulated in the PIC code if IRQ9 points to the bios segment.)  For
-   this reason there is no PIC_IRQ2.
-
-*/
-
-/* Values from 16 - 31 are available for assignment if not already
- * assigned below.  They can be used to activate dos interrupts not
- * associated to the hardware pic controllers, or simply to activate
- * other dosemu code.  This is best used to initiate non-signal dosemu
- * code from within a signal handler.
- */
-
-
 #include "types.h"
-#define NEVER 0x8000000000000000ULL
-#define PIC_NMI   0        /*  non-maskable interrupt 0x02 */
-#define PIC_IRQ0  1        /*  timer -    usually int 0x08 */
-#define PIC_IRQ1  2        /*  keyboard - usually int 0x09 */
-#define PIC_IRQ8  3        /*  real-time clock "  int 0x70 */
-#define PIC_IRQ9  4        /*  int 0x71 revectors to  0x0a */
-#define PIC_IRQ10 5        /*             usually int 0x72 */
-#define PIC_IRQ11 6        /*             usually int 0x73 */
-#define PIC_IRQ12 7        /*  PS/2 mouse,usually int 0x74 */
-#define PIC_IRQ13 8        /*             usually int 0x75 */
-#define PIC_IRQ14 9        /*  disk       usually int 0x76 */
-#define PIC_IRQ15 10       /*             usually int 0x77 */
-#define PIC_IRQ3  11       /*  COM 2      usually int 0x0b */
-#define PIC_IRQ4  12       /*  COM 1      usually int 0x0c */
-#define PIC_IRQ5  13       /*  LPT 2      usually int 0x0d */
-#define PIC_IRQ6  14       /*  floppy     usually int 0x0e */
-#define PIC_IRQ7  15       /*  LPT 1      usually int 0x0f */
-#define PIC_NET   16       /*  packet receive check - no dos equivalent */
-#define PIC_IPX    17      /*  IPX Signal */
-#define PIC_IPX_AES 18     /*  IPX AES Signal */
-#define PIC_IMOUSE 19      /*  internal mouse driver       */
 
-extern unsigned pic_irq_list[16];
-
-/* IRQ definitions.  Each entry specifies the emulator routine to call, and
-   the dos interrupt vector to use.  pic_iinfo.func is set by pic_seti(),
-   as are the interrupt vectors for all but [1] through [15], which  may be
-   changed by the ICW2 command from dos. (Some dos extenders do this.) */
-
-struct lvldef {
-       int (*func)(int);
-       void (*callback)(void);
-       int    ivec;
-};
-
-/* function definitions - level refers to irq priority level defined above  */
-/* port = 0 or 1     value = 0 - 0xff   level = 0 - 31    ivec = 0 - 0xff   */
-
-void write_pic0(ioport_t port, Bit8u value); /* write to PIC 0 */
-void write_pic1(ioport_t port, Bit8u value); /* write to PIC 1 */
-Bit8u read_pic0(ioport_t port);             /* read from PIC 0 */
-Bit8u read_pic1(ioport_t port);             /* read from PIC 1 */
-void pic_seti(unsigned int, int (*)(int), unsigned int, void (*)(void));
 Bit8u pic0_get_base(void);
 Bit8u pic1_get_base(void);
 unsigned pic_get_isr(void);
                                        /* set function and interrupt vector */
-void run_irqs(void);                                  /* run requested irqs */
-#define pic_run() run_irqs()   /* the right way to call run_irqs */
-
-#define PIC_REQ_NOP	0
-#define PIC_REQ_OK	1
-#define PIC_REQ_LOST	(-2)
-#define PIC_REQ_PEND	(-1)
-int pic_request(int inum);                            /* interrupt trigger */
+void pic_request(int inum);                            /* interrupt trigger */
 void pic_untrigger(int inum);                          /* interrupt untrigger */
 int pic_pending(void);			/* inform caller if interrupt is pending */
 int pic_irq_active(int num);
-int pic_irq_masked(int num);
-/* The following are too simple to be anything but in-line */
-
-#define pic_set_mask pic_imr=(pic0_imr|pic1_imr|pic_iflag)
-#define pic_print(code,s1,v1,s2)        if (debug_level('r')>code){p_pic_print(s1,v1,s2);}
-#define pic_print2(code,s1,v1,s2) \
-	if (debug_level('r')>code){ \
-		log_printf(1, "PIC: %s%"PRIu64"%s\n", s1, v1, s2); \
-	}
-void p_pic_print(const char *s1, int v1, const char *s2);
+int pic_get_inum(void);
 
 extern void pic_reset(void);
 extern void pic_init(void);

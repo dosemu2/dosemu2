@@ -231,7 +231,7 @@ void ne2000_init(void)
     }
 
     /* init control defaults */
-    s->irq = pic_irq_list[NE2000_IRQ];
+    s->irq = NE2000_IRQ;
 
     N_printf("NE2000: Initialisation - Base 0x%03x, IRQ %d\n", NE2000_IOBASE, NE2000_IRQ);
 }

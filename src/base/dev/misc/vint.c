@@ -35,9 +35,7 @@
 static int vi_used;
 static uint16_t vint_hlt;
 
-/* TODO: use PIC's poll mode and remove this masking hack */
 #define ON_PIC1(n) (vih[n].orig_irq >= 8)
-#define IMR1_MASK(n) (1 << (vih[n].irq - 8))
 
 struct vihandler {
     void (*handler)(int, int);
@@ -50,9 +48,18 @@ struct vihandler {
 };
 struct vihandler vih[VINT_MAX];
 
-static void half_eoi(void)
+static void poll_pic0(uint8_t irq)
 {
-    port_outb(0xa0, 0x20);
+    port_outb(0x20, 0x0c); // OCW3, enter poll mode
+    port_outb(0x20, irq);  // extension, may not work on real PIC
+}
+
+static void poll_pic1(uint8_t irq)
+{
+    port_outb(0x20, 0x0c); // OCW3, enter poll mode
+    port_outb(0x20, 2);    // extension, may not work on real PIC
+    port_outb(0xa0, 0x0c);
+    port_outb(0xa0, irq - 8);
 }
 
 static void full_eoi(void)
@@ -94,8 +101,11 @@ static void vint_handler(uint16_t idx, HLT_ARG(arg))
         uint8_t irq = vih[vi_num].orig_irq;
         uint16_t port = (irq >= 8 ? PIC1_VECBASE_PORT : PIC0_VECBASE_PORT);
         uint8_t inum = port_inb(port) + (irq & 7);
-        if (!ON_PIC1(vi_num))
-            half_eoi();
+        full_eoi();
+        if (ON_PIC1(vi_num))
+            poll_pic1(irq);
+        else
+            poll_pic0(irq);
         if (vih[vi_num].tweaked) {
             _IP++;  // skip hlt
             real_run_int(inum);
@@ -111,10 +121,14 @@ static void vint_handler(uint16_t idx, HLT_ARG(arg))
 
 void vint_post_irq_dpmi(int vi_num, int masked)
 {
-    if (masked)
-        full_eoi();
-    else if (!ON_PIC1(vi_num))
-        half_eoi();
+    full_eoi();
+    if (!masked) {
+        uint8_t irq = vih[vi_num].orig_irq;
+        if (ON_PIC1(vi_num))
+            poll_pic1(irq);
+        else
+            poll_pic0(irq);
+    }
 }
 
 void vint_init(void)

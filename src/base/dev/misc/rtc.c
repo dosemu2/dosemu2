@@ -64,7 +64,7 @@ void rtc_run(void)
       if (config.timer_tweaks)
         vtmr_raise(VTMR_RTC);
       else
-        pic_request(PIC_IRQ8);
+        pic_request(8);
     }
     if (!(old_c & 0x40))
       q_ticks_m -= 1000000;
@@ -105,7 +105,7 @@ Bit8u rtc_read(Bit8u reg)
     if (debug_level('h') > 8)
       h_printf("RTC: Read C=%hhx\n", ret);
     SET_CMOS(CMOS_STATUSC, 0);
-    pic_untrigger(PIC_IRQ8);
+    pic_untrigger(8);
     rtc_run();
     break;
   }
@@ -178,7 +178,7 @@ static void rtc_alarm_check (void)
         if ((GET_CMOS(CMOS_STATUSB) & 0x20) && !(GET_CMOS(CMOS_STATUSC) & 0x80)) {
 	  SET_CMOS(CMOS_STATUSC, GET_CMOS(CMOS_STATUSC) | 0x80);
           h_printf("RTC: alarm IRQ\n");
-	  pic_request(PIC_IRQ8);
+	  pic_request(8);
         }
       }
     }
@@ -256,7 +256,7 @@ void rtc_update (void)	/* called every 1s from SIGALRM */
   if ((GET_CMOS(CMOS_STATUSB) & 0x10) && !(GET_CMOS(CMOS_STATUSC) & 0x80)) {
     SET_CMOS(CMOS_STATUSC, GET_CMOS(CMOS_STATUSC) | 0x80);
     h_printf("RTC: update IRQ\n");
-    pic_request(PIC_IRQ8);
+    pic_request(8);
   }
 
   SET_CMOS(CMOS_STATUSA, GET_CMOS(CMOS_STATUSA)&~0x80);
@@ -276,7 +276,7 @@ void rtc_setup(void)
 static void rtc_vint(int masked)
 {
   if (masked)
-    pic_request(PIC_IRQ8);
+    pic_request(8);
 }
 
 void rtc_init(void)

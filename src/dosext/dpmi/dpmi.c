@@ -181,6 +181,7 @@ static void make_retf_frame(sigcontext_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
 static void make_xretf_frame(sigcontext_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
+static void do_pm_int(sigcontext_t *scp, int i);
 static uint32_t ldt_bitmap[LDT_ENTRIES / 32];
 static int ldt_bitmap_cnt;
 typedef struct {
@@ -526,12 +527,27 @@ static int do_dpmi_switch(sigcontext_t *scp)
   return ret;
 }
 
+static void dpmi_pic_run(sigcontext_t *scp)
+{
+  int inum;
+
+  if (!_isset_IF() || !pic_pending())
+    return;
+  inum = pic_get_inum();
+  do_pm_int(scp, inum);
+}
+
 static int _dpmi_control(void)
 {
     int ret;
     sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
 
     do {
+      dpmi_pic_run(scp);
+      if (!in_dpmi_pm()) {
+        ret = DPMI_RET_DOSEMU;
+        break;
+      }
       ret = do_dpmi_switch(scp);
       if (ret == DPMI_RET_EXIT)
         break;
@@ -553,18 +569,17 @@ static int _dpmi_control(void)
         break;
       }
 #endif
-      if (ret == DPMI_RET_CLIENT) {
+
+      if (!in_dpmi_pm()) {
+        ret = DPMI_RET_DOSEMU;
+      } else if (ret == DPMI_RET_CLIENT && !return_requested) {
         uncache_time();
         hardware_run();
       }
-
-      if (!in_dpmi_pm() || (ret == DPMI_RET_CLIENT &&
-          ((_isset_IF() && pic_pending()) || return_requested))) {
-        return_requested = 0;
+      if (return_requested)
         ret = DPMI_RET_DOSEMU;
-        break;
-      }
     } while (ret == DPMI_RET_CLIENT);
+    return_requested = 0;
     if (debug_level('M') >= 8)
       D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#x\n",
             _cs, _eip, _ss, _esp, _eflags);
@@ -3342,13 +3357,12 @@ static void do_dpmi_int(sigcontext_t *scp, int i)
  * DANG_END_FUNCTION
  */
 
-void run_pm_int(int i)
+static void do_pm_int(sigcontext_t *scp, int i)
 {
   void *sp;
   unsigned short old_ss;
   unsigned int old_esp;
   unsigned char imr;
-  sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_pm=0x%02x\n",i,in_dpmi_pm());
 
@@ -3429,6 +3443,11 @@ void run_pm_int(int i)
 #ifdef USE_MHPDBG
   mhp_debug(DBG_INTx + (i << 8), 0, 0);
 #endif
+}
+
+void run_pm_int(int i)
+{
+   do_pm_int(&DPMI_CLIENT.stack_frame, i);
 }
 
 /* DANG_BEGIN_FUNCTION run_pm_dos_int
@@ -4498,6 +4517,7 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_irq)) {
           if (DEFAULT_INT(8)) {
             /* just jump to default entry that leads us to RM */
+            D_printf("VTMR: jump to RM handler\n");
             _cs = DPMI_CLIENT.vtmr_prev.selector;
             _eip = DPMI_CLIENT.vtmr_prev.offset32;
           } else {
@@ -4506,15 +4526,18 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
               _eflags |= CF;
             else
               _eflags &= ~CF;
+            D_printf("VTMR: running PM handler, masked=%i\n", masked);
           }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vtmr_post_irq)) {
           int masked = !!(_eflags & CF);
           vtmr_post_irq_dpmi(masked);
+          D_printf("VTMR: return from PM handler\n");
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vrtc_irq)) {
           if (DEFAULT_INT(0x70)) {
             /* just jump to default entry that leads us to RM */
+            D_printf("VRTC: jump to RM handler\n");
             _cs = DPMI_CLIENT.vrtc_prev.selector;
             _eip = DPMI_CLIENT.vrtc_prev.offset32;
           } else {
@@ -4523,11 +4546,13 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
               _eflags |= CF;
             else
               _eflags &= ~CF;
+            D_printf("VRTC: running PM handler, masked=%i\n", masked);
           }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_vrtc_post_irq)) {
           int masked = !!(_eflags & CF);
           vrtc_post_irq_dpmi(masked);
+          D_printf("VRTC: return from PM handler\n");
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);

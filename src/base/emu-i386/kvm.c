@@ -1089,7 +1089,7 @@ int kvm_dpmi(sigcontext_t *scp)
 #endif
         dbug_printf("coprocessor exception, calling IRQ13\n");
         print_exception_info(scp);
-        pic_request(PIC_IRQ13);
+        pic_request(13);
         ret = DPMI_RET_DOSEMU;
       } else if (_trapno == 0x0e &&
 	    (vga_emu_fault(monitor->cr2, _err, scp) == True || (

@@ -716,4 +716,6 @@ enum { es_INDEX, cs_INDEX, ss_INDEX, ds_INDEX, fs_INDEX, gs_INDEX,
 
 extern int is_cli;
 
+void pic_run(void);
+
 #endif /* CPU_H */

@@ -76,7 +76,7 @@ void output_byte_8042(Bit8u value)
    port60_ready=1;
    if (keyb_ctrl_command & 0x01) {    /* if interrupt enabled */
       k_printf("8042: scheduling IRQ1\n");
-      pic_request(PIC_IRQ1);
+      pic_request(1);
    }
    else
       k_printf("8042: interrupt flag OFF!\n");
@@ -303,7 +303,7 @@ static Bit8u read_port60(void)
   if (kbd_disabled && last_read_valid) {
     r = last_read_data;
     if (port60_ready && (keyb_ctrl_command & 0x01))    /* if interrupt enabled */
-      pic_request(PIC_IRQ1);
+      pic_request(1);
   } else {
     r = port60_buffer;
     port60_ready = 0;
@@ -351,7 +351,7 @@ Bit8u keyb_io_read(ioport_t port)
   case 0x60:
     r = read_port60();
     if (!port60_ready)
-      pic_untrigger(PIC_IRQ1);
+      pic_untrigger(1);
     k_printf("8042: read port 0x60 read=0x%02x\n",r);
     break;
 
