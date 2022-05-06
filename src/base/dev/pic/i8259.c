@@ -135,6 +135,7 @@ void pic_set_irq(PICCommonState *s, int irq, int level)
             }
             s->last_irr |= mask;
         } else {
+            s->irr &= ~mask; // dosemu2 mod: clear IRR bit even in edge mode
             s->last_irr &= ~mask;
         }
     }
