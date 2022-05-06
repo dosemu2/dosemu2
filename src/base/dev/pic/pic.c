@@ -55,6 +55,16 @@ static Bit8u read_pic1(ioport_t port)
     return ret;
 }
 
+static Bit8u read_elcr(ioport_t port)
+{
+    return elcr_ioport_read(&pic[port & 1], port & 1, 1);
+}
+
+static void write_elcr(ioport_t port, Bit8u value)
+{
+    elcr_ioport_write(&pic[port & 1], port & 1, value, 1);
+}
+
 void pic_request(int irq)
 {
     PICCommonState *p = pic;
@@ -120,12 +130,22 @@ void pic_init(void)
     io_device.write_portb  = write_pic1;
     port_register_handler(io_device, 0);
 
+    io_device.handler_name = "ELCR";
+    io_device.start_addr = 0x04D0;
+    io_device.end_addr   = 0x04D1;
+    io_device.read_portb   = read_elcr;
+    io_device.write_portb  = write_elcr;
+    port_register_handler(io_device, 0);
+
     /* set up cascading bits */
     pic[0].master = 1;
     pic[1].int_out[0] = &pic[1]._int_out;
     pic[1]._int_out.handler = set_irq_level;
     pic[1]._int_out.opaque = &pic[0];
     pic[1]._int_out.n = 2;
+    /* set up qemu extensions */
+    pic[0].elcr_mask = 0xf8;
+    pic[1].elcr_mask = 0xde;
 }
 
 void pic_reset(void)
