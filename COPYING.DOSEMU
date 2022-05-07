@@ -44,7 +44,35 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 
---- The Mach DOS Emulator
+--- The QEMU emulator, before July 2013
+    (src/base/dev/pic/*, src/base/dev/ne2k/ne2000.c)
+
+The following points clarify the QEMU license:
+
+1) QEMU as a whole is released under the GNU General Public License
+
+2) Parts of QEMU have specific licenses which are compatible with the
+GNU General Public License. Hence each source file contains its own
+licensing information.
+
+Many hardware device emulation sources are released under the BSD license.
+
+3) The Tiny Code Generator (TCG) is released under the BSD license
+   (see license headers in files).
+
+4) QEMU is a trademark of Fabrice Bellard.
+
+Fabrice Bellard.
+
+dosemu2 note: in July 2013 QEMU license was updated to state GPLv2-only:
+-1) QEMU as a whole is released under the GNU General Public License
++1) QEMU as a whole is released under the GNU General Public License,
++version 2.
+
+Therefore we take care to remove all changes done since that date,
+while porting QEMU sources to dosemu2.
+
+--- The Mach DOS Emulator (mfs.c, emm.c, emufs.s)
 
 Copyright (c) 1991 Carnegie Mellon University
 All Rights Reserved.
@@ -69,7 +97,7 @@ Carnegie Mellon requests users of this software to return to
 any improvements or extensions that they make and grant Carnegie Mellon
 the rights to redistribute these changes.
 
---- XFree86 (mouse code)
+--- XFree86 (src/base/mouse/mouseint.c)
 
 Copyright 1990,91 by Thomas Roell, Dinkelscherben, Germany.
 Copyright 1993 by David Dawes <dawes@physics.su.oz.au>
@@ -93,14 +121,14 @@ RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
 CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
---- Doug Lea's malloc in src/base/misc/dlmalloc.c
+--- Doug Lea's malloc in src/base/lib/misc/dlmalloc.c
 
 This is a version (aka dlmalloc) of malloc/free/realloc written by
 Doug Lea and released to the public domain, as explained at
 http://creativecommons.org/licenses/publicdomain.  Send questions,
 comments, complaints, performance data, etc to dl@cs.oswego.edu
 
---- The VGA fonts in src/env/video/vgafonts.c (copyleft_vgafonts.txt)
+--- The VGA fonts in src/base/dev/vga/vgafonts.c (copyleft_vgafonts.txt)
 
 This *compilation* is (c) Copyright 1991,1992 Joseph (Yossi) Gil.
 Permission is granted to use and redistribute the files comprising
