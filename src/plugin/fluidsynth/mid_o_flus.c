@@ -80,9 +80,9 @@ static int midoflus_init(void *arg)
     fluid_settings_setnum(settings, "synth.gain", flus_gain);
     fluid_settings_setnum(settings, "synth.sample-rate", flus_srate);
     ret = fluid_settings_dupstr(settings, "synth.default-soundfont", &sfont);
-    if (ret == 0 || access(sfont, R_OK) != 0) {
+    if (ret == FLUID_FAILED || access(sfont, R_OK) != 0) {
 	int i = 0;
-	if (ret == 0)
+	if (ret == FLUID_FAILED)
 	    warn("Your fluidsynth is too old\n");
 	else
 	    warn("fluidsynth sound font unavailable at %s\n", sfont);
