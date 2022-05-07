@@ -79,12 +79,24 @@ static int midoflus_init(void *arg)
     fluid_settings_setint(settings, "synth.lock-memory", 0);
     fluid_settings_setnum(settings, "synth.gain", flus_gain);
     fluid_settings_setnum(settings, "synth.sample-rate", flus_srate);
-    ret = fluid_settings_dupstr(settings, "synth.default-soundfont", &sfont);
-    if (ret == FLUID_FAILED || access(sfont, R_OK) != 0) {
-	int i = 0;
+    if (config.fluid_sfont && config.fluid_sfont[0]) {
+	if (access(config.fluid_sfont, R_OK) == 0) {
+	    sfont = strdup(config.fluid_sfont);
+	    ret = FLUID_OK;
+	} else {
+	    error("soundfont %s missing\n", config.fluid_sfont);
+	    ret = FLUID_FAILED;
+	}
+    } else {
+	ret = fluid_settings_dupstr(settings, "synth.default-soundfont",
+		&sfont);
 	if (ret == FLUID_FAILED)
 	    warn("Your fluidsynth is too old\n");
-	else
+    }
+    if (ret == FLUID_FAILED || access(sfont, R_OK) != 0) {
+	int i = 0;
+
+	if (sfont)
 	    warn("fluidsynth sound font unavailable at %s\n", sfont);
 	free(sfont);
 	while (def_sfonts[i]) {

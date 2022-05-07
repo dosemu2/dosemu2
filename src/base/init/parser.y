@@ -301,7 +301,7 @@ enum {
 %token HARDWARE_RAM
         /* Sound Emulation */
 %token SB_BASE SB_IRQ SB_DMA SB_HDMA MPU_BASE MPU_IRQ MPU_IRQ_MT32 MIDI_SYNTH
-%token SOUND_DRIVER MIDI_DRIVER MUNT_ROMS OPL2LPT_DEV OPL2LPT_TYPE
+%token SOUND_DRIVER MIDI_DRIVER FLUID_SFONT MUNT_ROMS OPL2LPT_DEV OPL2LPT_TYPE
 %token SND_PLUGIN_PARAMS PCM_HPF MIDI_FILE WAV_FILE
 	/* CD-ROM */
 %token CDROM
@@ -1130,6 +1130,7 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| MPU_IRQ_MT32 expression	{ config.mpu401_irq_mt32 = $2; }
 		| SOUND_DRIVER string_expr	{ free(config.sound_driver); config.sound_driver = $2; }
 		| MIDI_DRIVER string_expr	{ free(config.midi_driver); config.midi_driver = $2; }
+		| FLUID_SFONT string_expr	{ free(config.fluid_sfont); config.fluid_sfont = $2; }
 		| MUNT_ROMS string_expr
 			{
 				free(config.munt_roms_dir);
