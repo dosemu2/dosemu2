@@ -165,12 +165,17 @@ static void midoalsav_write(unsigned char val)
     snd_rawmidi_write(handle_v, &val, 1);
 }
 
+static int midoalsav_cfg(void *arg)
+{
+    return pcm_parse_cfg(config.midi_driver, midoalsav_name);
+}
+
 static const struct midi_out_plugin midoalsa_v
 #ifdef __cplusplus
 {
     midoalsav_name,
     midoalsav_longname,
-    midoalsa_cfg,
+    midoalsav_cfg,
     midoalsav_init,
     midoalsav_done,
     0,
@@ -183,7 +188,7 @@ static const struct midi_out_plugin midoalsa_v
 = {
     .name = midoalsav_name,
     .longname = midoalsav_longname,
-    .get_cfg = midoalsa_cfg,
+    .get_cfg = midoalsav_cfg,
     .open = midoalsav_init,
     .close = midoalsav_done,
     .write = midoalsav_write,
