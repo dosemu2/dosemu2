@@ -1435,9 +1435,9 @@ char *pcm_parse_params(const char *string, const char *name, const char *param)
     assert(l > 0);
     p = strstr(string, buf);
     free(buf);
-    if (p && (p == string || p[-1] == ',')) {
+    if (p && (p == string || p[-1] == ' ')) {
 	char *val = strdup(p + l);
-	char *c = strchr(val, ',');
+	char *c = strchr(val, ' ');
 	if (c)
 	    *c = 0;
 	pcm_printf("PCM: Param \"%s\" for driver \"%s\": %s\n", param, name, val);
