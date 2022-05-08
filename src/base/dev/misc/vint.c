@@ -52,6 +52,8 @@ static void poll_pic0(uint8_t irq)
 {
     port_outb(0x20, 0x0c); // OCW3, enter poll mode
     port_outb(0x20, irq);  // extension, may not work on real PIC
+    /* see if it worked */
+    assert(pic_get_isr() & (1 << irq));
 }
 
 static void poll_pic1(uint8_t irq)
@@ -60,6 +62,8 @@ static void poll_pic1(uint8_t irq)
     port_outb(0x20, 2);    // extension, may not work on real PIC
     port_outb(0xa0, 0x0c);
     port_outb(0xa0, irq - 8);
+    /* see if it worked */
+    assert((pic_get_isr() & ((1 << irq) | 4)) == ((1 << irq) | 4));
 }
 
 static void full_eoi(void)
