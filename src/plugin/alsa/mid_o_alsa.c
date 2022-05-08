@@ -34,15 +34,22 @@ static snd_rawmidi_t *handle, *handle_v;
 static const char *device_name_param = "dev_name";
 static const char *device = "default";
 static const char *device_v = "virtual";
+static const char *cur_dev;
 
 static int midoalsa_open(snd_rawmidi_t **handle_p, const char *dev_name)
 {
     int err;
+    cur_dev = dev_name; // for logging only
     err = snd_rawmidi_open(NULL, handle_p, dev_name,
 			   SND_RAWMIDI_NONBLOCK | SND_RAWMIDI_SYNC);
     if (err) {
 	S_printf("%s: unable to open %s for writing: %s\n",
 		 midoalsa_name, dev_name, snd_strerror(err));
+	if (err == -2) {
+	    error("@snd-virmidi module not loaded or device \"%s\" not configured\n",
+		    dev_name);
+	    error("@see \"amidi -l\" for the list of midi devices\n");
+	}
 	return 0;
     }
     /* NONBLOCK flag is needed only so that open() not to block forever */
@@ -59,18 +66,18 @@ static void alsa_log_handler(const char *file, int line, const char *function,
 
     va_start(arg, fmt);
 
-    l = snprintf(s, sizeof(s), "%s (ALSA lib): %s:%i:(%s) ",
-            midoalsa_name, file, line, function);
-    if(err && l >= 0)
-        l += snprintf(s+l, sizeof(s)-l, ": %s ", snd_strerror(err));
+    l = snprintf(s, sizeof(s), "%s:%s (ALSA err %i): ",
+            midoalsa_name, cur_dev, err);
     if (l >= 0)
         l += vsnprintf(s+l, sizeof(s)-l, fmt, arg);
+    if(err && l >= 0)
+        l += snprintf(s+l, sizeof(s)-l, ": %s", snd_strerror(err));
 
     s[sizeof(s)-1] = '\0';
 
     va_end(arg);
 
-    if (err && !config.quiet)
+    if (/*err && */!config.quiet)
         error("%s\n", s);
     else
         warn("%s\n", s);
