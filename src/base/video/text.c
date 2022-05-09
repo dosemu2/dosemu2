@@ -236,8 +236,8 @@ static void draw_cursor(void)
       if (Text[i]->flags & TEXTF_DISABLED)
         continue;
       Text[i]->Draw_cursor(Text[i]->opaque, x, y, XATTR(cursor),
-		      CURSOR_START(vga.crtc.cursor_shape),
-		      CURSOR_END(vga.crtc.cursor_shape), have_focus);
+		      CURSOR_START(vga.crtc.cursor_shape) & 0x1f,
+		      CURSOR_END(vga.crtc.cursor_shape) & 0x1f, have_focus);
     }
   }
 }

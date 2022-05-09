@@ -1612,6 +1612,8 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
     rect.y = 0;
     rect.w = font_width;
     rect.h = cend - cstart + 1;
+    if (rect.h < 0)
+      rect.h = -rect.h;
     d.rect.x = font_width * x;
     d.rect.y = font_height * y + cstart;
     d.rect.w = font_width;
