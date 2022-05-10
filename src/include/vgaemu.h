@@ -436,6 +436,7 @@ typedef struct {
   vga_gfx_type gfx;
   vga_misc_type misc;
   vga_herc_type herc;
+  uint8_t backup_font[256 * 32];
 } vga_type;
 
 

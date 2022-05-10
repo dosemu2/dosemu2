@@ -639,6 +639,7 @@ boolean set_video_mode(int mode)
              vga_font_height);
     vga_ROM_to_RAM(vga_font_height, 0); /* 0 is default bank */
     i10_msg("activated font bank 0\n");
+    memcpy(vga.backup_font, vga.mem.base + 0x20000, 256 * 32);
   }
 
   SETIVEC(0x43, 0xc000, u);
