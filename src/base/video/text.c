@@ -312,6 +312,7 @@ struct bitmap_desc draw_bitmap_line(int x, int y, float ul, int linelen,
   return BMP(text_canvas, vga.width, vga.height, vga.width);
 }
 
+#if 0
 void reset_redraw_text_screen(void)
 {
   unsigned compare;
@@ -333,6 +334,7 @@ void reset_redraw_text_screen(void)
   memcpy(&prev_screen[compare / 2], vga.mem.base,
 	 vga.scan_len * vga.text_height - compare);
 }
+#endif
 
 static void refresh_text_pal(DAC_entry * col, int index, void *udata)
 {

@@ -42,7 +42,6 @@ struct bitmap_desc draw_bitmap_cursor(int x, int y, Bit8u attr, int start,
 struct bitmap_desc draw_bitmap_line(int x, int y, float ul, int len,
       Bit8u attr);
 void blink_cursor(void);
-void reset_redraw_text_screen(void);
 void dirty_text_screen(void);
 int text_is_dirty(void);
 void init_text_mapper(int image_mode, int features, ColorSpaceDesc *csd);

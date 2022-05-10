@@ -351,7 +351,7 @@ static void unlock_surface(void)
 static void SDL_reset_redraw_text_screen(void)
 {
   if(!is_mapped) return;
-  reset_redraw_text_screen();
+//  reset_redraw_text_screen();
 }
 
 static void SDL_redraw_text_screen(void)
