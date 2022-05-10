@@ -78,7 +78,7 @@ void stdio_init(void)
             strcat(config.debugout, debugout);
         }
     }
-    if (config.debugout != NULL) {
+    if (config.debugout && config.debugout[0] != '-') {
         dbg_fd = fopen(config.debugout, "we");
         if (!dbg_fd)
             error("can't open \"%s\" for writing\n", config.debugout);
