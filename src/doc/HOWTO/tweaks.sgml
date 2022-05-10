@@ -118,6 +118,21 @@ $_umb_f0 = (off)
 in your dosemu.conf or .dosemurc.
 </para>
 </sect2>
+<sect2>
+<title>
+Sound is crackling.
+</title>
+<para>
+Solution: set
+<screen>
+$_dos_up = (off)
+</screen>
+in your dosemu.conf or .dosemurc.
+The only "explanation" we can provide, is a conspiracy theory that
+prehistoric is trying to slander third-party DOSes that put LoL/SDA
+to UMB.
+</para>
+</sect2>
 </sect1>
 
 <sect1>
