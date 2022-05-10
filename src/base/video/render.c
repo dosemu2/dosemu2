@@ -58,6 +58,7 @@ struct render_wrp {
 };
 static struct render_wrp Render;
 static int initialized;
+static int cur_mode_class;
 
 __attribute__((warn_unused_result))
 static int render_lock(void)
@@ -331,6 +332,11 @@ static void refresh_graphics_palette(void)
     dirty_all_video_pages();
 }
 
+static int font_is_changed(void)
+{
+  return memcmp(vga.backup_font, vga.mem.base + 0x20000, 256 * 32);
+}
+
 static int suitable_mode_class(void)
 {
   /* Add more checks here.
@@ -338,7 +344,7 @@ static int suitable_mode_class(void)
   if (vga.char_width < 8 || vga.char_width > 9 || vga.char_height != 16)
     return GRAPH;
   /* check if font wasn't changed */
-  if (memcmp(vga.backup_font, vga.mem.base + 0x20000, 256 * 32) != 0)
+  if (font_is_changed())
     return GRAPH;
   return TEXT;
 }
@@ -570,9 +576,13 @@ int render_update_vidmode(void)
 {
   int ret = 0;
   if (Video->setmode) {
+    struct vid_mode_params vmp;
     pthread_rwlock_wrlock(&mode_mtx);
-    ret = Video->setmode(get_mode_parameters());
+    vmp = get_mode_parameters();
+    ret = Video->setmode(vmp);
     pthread_rwlock_unlock(&mode_mtx);
+    if (ret)
+      cur_mode_class = vmp.mode_class;
   }
   return ret;
 }
@@ -603,7 +613,9 @@ int update_screen(void)
   int upd = render_is_updating();
 
   /* update vidmode before doing any rendering. */
-  if(vga.reconfig.display) {
+  if(vga.reconfig.display || (cur_mode_class == TEXT && font_is_changed()) ||
+      (vga.mode_class == TEXT && cur_mode_class == GRAPH &&
+      !font_is_changed())) {
     if (upd)
       return 1;
     v_printf(

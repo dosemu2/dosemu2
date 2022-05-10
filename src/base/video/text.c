@@ -55,6 +55,7 @@ static int blink_count = 8;
 static int need_redraw_cursor;
 static unsigned char *text_canvas;
 static ushort prev_screen[MAX_COLUMNS * MAX_LINES];	/* pointer to currently displayed screen   */
+static u_char prev_font[256 * 32];
 
 #if CONFIG_SELECTION
 static int sel_start_row = -1, sel_end_row =
@@ -425,11 +426,18 @@ static void text_redraw_text_screen(void)
     } while (x < vga.text_width);
     oldsp += vga.scan_len / 2 - vga.text_width;
   }
+
+  memcpy(prev_font, vga.mem.base + 0x20000, 256 * 32);
 }
 
 void dirty_text_screen(void)
 {
   memset(prev_screen, 0xff, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
+}
+
+static int text_font_changed(void)
+{
+  return memcmp(prev_font, vga.mem.base + 0x20000, 256 * 32);
 }
 
 int text_is_dirty(void)
@@ -441,8 +449,11 @@ int text_is_dirty(void)
 	memoffs_to_location(vga.crtc.cursor_location) !=
 	prev_cursor_location)
     return 1;
-  sp = vga.mem.base + location_to_memoffs(0);
 
+  if (text_font_changed())
+    return 1;
+
+  sp = vga.mem.base + location_to_memoffs(0);
   if (vga.text_height <= vga.line_compare)
     return memcmp(prev_screen, sp,
 		  vga.text_width * vga.text_height * sizeof(ushort));
@@ -737,6 +748,8 @@ void update_text_screen(void)
 	redraw_cursor();
     }
   }
+
+  memcpy(prev_font, vga.mem.base + 0x20000, 256 * 32);
 }
 
 void text_lose_focus()
