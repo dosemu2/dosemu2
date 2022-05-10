@@ -4682,6 +4682,7 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
         hlt_cnt++;
         if (!dpmi_pm)
           break;
+        scp = &DPMI_CLIENT.stack_frame;  // update, could change
         lina = (unsigned char *) SEL_ADR(_cs, _eip);
         sp = SEL_ADR(_ss, _esp);
       } while (*lina == 0xf4);
@@ -4834,6 +4835,7 @@ static int dpmi_fault1(sigcontext_t *scp)
        * DOS memory or for termination - no other cases I hope? */
       if (!in_dpmi_pm())
         return ret;
+      scp = &DPMI_CLIENT.stack_frame;  // update, could change
       if (ldt_bitmap_cnt)
         dpmi_ldt_call(scp);
       lina = (unsigned char *) SEL_ADR(_cs, _eip);
