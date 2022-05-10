@@ -152,6 +152,9 @@ void rm_stack_enter(void)
 
 void rm_stack_leave(void)
 {
+	int old_tf = isset_TF();
 	put_rm_stack(NULL);
 	REGS = rm_regs_stack[in_rm_stack];
+	if (old_tf)
+		set_TF();
 }
