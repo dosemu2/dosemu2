@@ -810,7 +810,8 @@ int SDL_set_videomode(struct vid_mode_params vmp)
       ("SDL: set_videomode: 0x%x (%s), size %d x %d (%d x %d pixel)\n",
        video_mode, vmp.mode_class ? "GRAPH" : "TEXT",
        vmp.text_width, vmp.text_height, vmp.x_res, vmp.y_res);
-  if (win_width == vmp.x_res && win_height == vmp.y_res) {
+  if (win_width == vmp.x_res && win_height == vmp.y_res &&
+      current_mode_class == vmp.mode_class) {
     v_printf("SDL: same mode, not changing\n");
     return 1;
   }
