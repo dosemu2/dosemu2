@@ -1621,6 +1621,7 @@ int mfs_redirector(struct vm86_regs *regs, char *stk, int revect)
       Debug0((dbg_fd, "dos_fs_redirect unhandled, failing\n"));
       regs->eflags |= CF;
       SETWORD(&regs->eax, FORMAT_INVALID);
+      return 1;
     }
     return 0;
   }
