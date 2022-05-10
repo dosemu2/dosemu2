@@ -44,7 +44,6 @@
 #define midoflus_name "flus"
 #define midoflus_longname "MIDI Output: FluidSynth device"
 static const int flus_format = PCM_FORMAT_S16_LE;
-static const float flus_gain = 1;
 static const float flus_srate = 44100.0;
 #define FLUS_CHANNELS 2
 #define FLUS_MAX_BUF 512
@@ -77,7 +76,7 @@ static int midoflus_init(void *arg)
 
     settings = new_fluid_settings();
     fluid_settings_setint(settings, "synth.lock-memory", 0);
-    fluid_settings_setnum(settings, "synth.gain", flus_gain);
+    fluid_settings_setnum(settings, "synth.gain", config.fluid_volume / 10.0);
     fluid_settings_setnum(settings, "synth.sample-rate", flus_srate);
     if (config.fluid_sfont && config.fluid_sfont[0]) {
 	if (access(config.fluid_sfont, R_OK) == 0) {

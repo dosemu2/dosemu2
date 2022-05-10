@@ -548,6 +548,7 @@ mpu_irq_mt32            RETURN(MPU_IRQ_MT32);
 sound_driver		RETURN(SOUND_DRIVER);
 midi_driver		RETURN(MIDI_DRIVER);
 fluid_sfont		RETURN(FLUID_SFONT);
+fluid_volume		RETURN(FLUID_VOLUME);
 munt_roms		RETURN(MUNT_ROMS);
 opl2lpt_dev		RETURN(OPL2LPT_DEV);
 opl2lpt_type		RETURN(OPL2LPT_TYPE);
