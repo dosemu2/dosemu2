@@ -1233,13 +1233,14 @@ static void SDL_handle_events(void)
 	if (config.X_background_pause && !dosemu_user_froze)
 	  freeze_dosemu();
 	break;
-
-      case SDL_WINDOWEVENT_SIZE_CHANGED:
-        v_printf("SDL: window size changed to %dx%d\n", event.window.data1, event.window.data2);
-        break;
-
+#if 0
+      /* same as SIZE_CHANGED, but is often not sent */
       case SDL_WINDOWEVENT_RESIZED:
         v_printf("SDL: window resized %dx%d\n", event.window.data1, event.window.data2);
+        break;
+#endif
+      case SDL_WINDOWEVENT_SIZE_CHANGED:
+        v_printf("SDL: window size changed to %dx%d\n", event.window.data1, event.window.data2);
         real_win_width = event.window.data1;
         real_win_height = event.window.data2;
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
