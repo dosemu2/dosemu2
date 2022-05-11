@@ -418,6 +418,10 @@ static int prepare_ems_frame(sigcontext_t *scp)
 	int phys_total, uma_total;
 	int i;
 	phys_total = emm_get_mpa_len(scp, MSDOS_CLIENT.is_32);
+	if (phys_total == -1) {
+	    error("MSDOS: EMS is disabled\n");
+	    return -1;
+	}
 	if (phys_total < 4 || phys_total > EMM_MAX_PHYS) {
 	    error("MSDOS: EMS has %i phys pages\n", phys_total);
 	    return -1;
