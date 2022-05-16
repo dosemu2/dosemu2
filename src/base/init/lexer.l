@@ -476,6 +476,7 @@ imps2			RETURN(IMPS2);
 internaldriver		RETURN(INTERNALDRIVER);
 emulate3buttons		RETURN(EMULATE3BUTTONS);
 cleardtr		RETURN(CLEARDTR);
+mouse_ungrab_tweak	RETURN(UNGRAB_TWEAK);
 
 	/* video stuff - sorry for Matrox but MGA was already used */
 

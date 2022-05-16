@@ -43,6 +43,7 @@ int xmode_main(int argc, char **argv)
       "  -winsize <width> <height>    set initial graphics window size\n"
       "  -bpause on|off   pause DOSEMU if the window loses focus\n"
       "  -fullscreen on|off           fullscreen mode\n"
+      "  -mouse-ungrab-tweak on|off   fix coords problems in ungrabbed mode\n"
     );
     return 0;
   }
@@ -143,6 +144,15 @@ int xmode_main(int argc, char **argv)
 	l = 1;
 
       X_change_config(CHG_FULLSCREEN, &l);
+      argc -= 2; argv += 2;
+    }
+    else if (!strcmp(*argv, "-mouse-ungrab-tweak") && argc >= 2) {
+      if (strequalDOS (argv [1], "OFF") || strequalDOS (argv [1], "0"))
+	l = 0;
+      else
+	l = 1;
+
+      config.mouse.ignore_speed = l;
       argc -= 2; argv += 2;
     }
     else {

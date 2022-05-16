@@ -965,8 +965,13 @@ static void add_mickey_coords(long long udx, long long udy)
 
 static void get_scale_range(int *mx_range, int *my_range)
 {
-	*mx_range = mouse.maxx - MOUSE_MINX +1;
-	*my_range = mouse.maxy - MOUSE_MINY +1;
+	if (config.mouse.ignore_speed) {
+		*mx_range = _max(mouse.maxx, mouse.virtual_maxx) - MOUSE_MINX + 1;
+		*my_range = _max(mouse.maxy, mouse.virtual_maxy) - MOUSE_MINY + 1;
+	} else {
+		*mx_range = mouse.maxx - MOUSE_MINX + 1;
+		*my_range = mouse.maxy - MOUSE_MINY + 1;
+	}
 }
 
 static void add_mk(int dx, int dy)
@@ -1164,7 +1169,7 @@ static void scale_coords2(int x, int y, int x_range, int y_range,
 	/* if cursor is not visible we need to take into
 	 * account the user's speed. If it is visible, then
 	 * in ungrabbed mode we have to ignore user's speed. */
-	if (mouse.cursor_on < 0)
+	if (!config.mouse.ignore_speed && mouse.cursor_on < 0)
 		scale_coords_spd(x, y, x_range, y_range,
 			mx_range, my_range, speed_x, speed_y,
 			s_x, s_y);

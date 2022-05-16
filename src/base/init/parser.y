@@ -262,7 +262,7 @@ enum {
 %token BASE IRQ DEVICE CHARSET BAUDRATE VIRTUAL VMODEM PSEUDO RTSCTS LOWLAT PCCOM
 	/* mouse */
 %token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2 IMPS2
-%token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
+%token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR UNGRAB_TWEAK
 	/* x-windows */
 %token L_DISPLAY L_TITLE X_TITLE_SHOW_APPNAME ICON_NAME X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
 %token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE
@@ -1362,6 +1362,10 @@ mouse_flag	: DEVICE string_expr	{ free(mptr->dev); mptr->dev = $2; }
 		  {
 		  mptr->dev_type = MOUSE_BUSMOUSE;
 		  mptr->flags = 0;
+		  }
+		| UNGRAB_TWEAK bool
+		  {
+		  mptr->ignore_speed = ($2!=0);
 		  }
 		| STRING
 		    { yyerror("unrecognized mouse flag '%s'", $1); free($1); }
