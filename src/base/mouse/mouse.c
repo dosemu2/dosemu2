@@ -237,8 +237,8 @@ mouse_helper(struct vm86_regs *regs)
       SETHIGH(regs->ebx, 0x10);		/* We are currently in Microsoft Mode */
     else
       SETHIGH(regs->ebx, 0x20);		/* We are currently in PC Mouse Mode */
-    SETLO_BYTE(regs->ecx, mouse.speed_x);
-    SETHIGH(regs->ecx, mouse.speed_y);
+    SETLO_BYTE(regs->ecx, mice->init_speed_x);
+    SETHIGH(regs->ecx, mice->init_speed_y);
     SETLO_BYTE(regs->edx, mice->ignorevesa);
     break;
   case 4:				/* Set vertical speed */

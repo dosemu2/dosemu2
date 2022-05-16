@@ -173,8 +173,10 @@ int emumouse_main(int argc, char *argv[])
       case 'y':
 	i++;
 	if (i == argc) {
-	  printf("ERROR! No value for \"y\" found.\n");
-	  return(1);
+	  SETWORD(regs.ebx, 0x0003);
+	  mouse_helper(&regs);
+	  printf("  Vertical Speed   (Y) - %d\n", HI_BYTE_d(regs.ecx));
+	  break;
 	}
 	value = atoi(argv[i]);
 	printf("Selecting vertical speed to %d.\n", value);
@@ -191,8 +193,10 @@ int emumouse_main(int argc, char *argv[])
       case 'x':
 	i++;
 	if (i == argc) {
-	  printf("ERROR! No value for \"x\" found.\n");
-	  return(1);
+	  SETWORD(regs.ebx, 0x0003);
+	  mouse_helper(&regs);
+	  printf("  Horizontal Speed (X) - %d\n", LO_BYTE_d(regs.ecx));
+	  break;
 	}
 	value = atoi(argv[i]);
 	printf("Selecting horizontal speed to %d.\n", value);
