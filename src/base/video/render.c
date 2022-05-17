@@ -341,7 +341,7 @@ static int suitable_mode_class(void)
 {
   /* Add more checks here.
    * Need to treat any weird text mode as gfx. */
-  if (vga.char_width < 8 || vga.char_width > 9 || vga.char_height != 16)
+  if (vga.char_width < 8 || vga.char_width > 9 || vga.char_height < 8)
     return GRAPH;
   /* check if font wasn't changed */
   if (font_is_changed())
