@@ -1029,6 +1029,31 @@ static void window_grab(int on, int kbd)
   SDL_change_config(CHG_TITLE, NULL);
 }
 
+static void window_size_changed(int w, int h)
+{
+        v_printf("SDL: window size changed to %dx%d\n", w, h);
+        real_win_width = w;
+        real_win_height = h;
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+        if (MODE_CLASS() == TEXT) {
+          pthread_mutex_lock(&rend_mtx);
+          setup_ttf_winsize(w, h);
+          pthread_mutex_unlock(&rend_mtx);
+        }
+#endif
+
+	/* very strange things happen: if renderer size was explicitly
+	 * set, SDL reports mouse coords relative to that. Otherwise
+	 * it reports mouse coords relative to the window. */
+	SDL_RenderGetLogicalSize(renderer, &m_x_res, &m_y_res);
+	if (!m_x_res || !m_y_res) {
+	  m_x_res = w;
+	  m_y_res = h;
+	}
+	update_mouse_coords();
+	SDL_redraw();
+}
+
 static void toggle_grab(int kbd)
 {
   window_grab(grab_active ^ 1, kbd);
@@ -1240,27 +1265,7 @@ static void SDL_handle_events(void)
         break;
 #endif
       case SDL_WINDOWEVENT_SIZE_CHANGED:
-        v_printf("SDL: window size changed to %dx%d\n", event.window.data1, event.window.data2);
-        real_win_width = event.window.data1;
-        real_win_height = event.window.data2;
-#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
-        if (MODE_CLASS() == TEXT) {
-          pthread_mutex_lock(&rend_mtx);
-          setup_ttf_winsize(event.window.data1, event.window.data2);
-          pthread_mutex_unlock(&rend_mtx);
-        }
-#endif
-
-	/* very strange things happen: if renderer size was explicitly
-	 * set, SDL reports mouse coords relative to that. Otherwise
-	 * it reports mouse coords relative to the window. */
-	SDL_RenderGetLogicalSize(renderer, &m_x_res, &m_y_res);
-	if (!m_x_res || !m_y_res) {
-	  m_x_res = event.window.data1;
-	  m_y_res = event.window.data2;
-	}
-	update_mouse_coords();
-	SDL_redraw();
+	window_size_changed(event.window.data1, event.window.data2);
 	break;
 
       case SDL_WINDOWEVENT_EXPOSED:
