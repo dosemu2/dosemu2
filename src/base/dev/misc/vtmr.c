@@ -106,6 +106,7 @@ static void vtmr_io_write(ioport_t port, Bit8u value)
             if (!(vtmr_imr & msk))
                 pic_request(vip[timer].irq);
         } else {
+            pic_untrigger(vip[timer].orig_irq);
             pic_request(vip[timer].orig_irq);
             coopth_add_post_handler(post_req, (void *)(uintptr_t)timer);
         }
