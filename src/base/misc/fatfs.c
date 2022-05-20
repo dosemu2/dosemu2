@@ -95,6 +95,7 @@ static int read_dir(fatfs_t *, unsigned, unsigned, unsigned,
 	unsigned char *buf);
 static unsigned next_cluster(fatfs_t *, unsigned);
 static void build_boot_blk(fatfs_t *m, unsigned char *b);
+static void handle_kernelcommandline(uint16_t stackseg, uint16_t stackbp);
 
 static uint64_t sys_type;
 static int sys_done;
@@ -108,6 +109,14 @@ void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *))
 {
     assert(sys_hooks_used < MAX_HOOKS);
     sys_hook[sys_hooks_used++] = hook;
+}
+
+void set_kernelcommandline(char *s)
+{
+  if (config.kernelcommandline) {
+    free(config.kernelcommandline);
+  }
+  config.kernelcommandline = strdup(s);
 }
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
@@ -1595,6 +1604,23 @@ unsigned next_cluster(fatfs_t *f, unsigned clu)
   return clu + 1;
 }
 
+static void handle_kernelcommandline(uint16_t stackseg, uint16_t stackbp) {
+  if (config.kernelcommandline
+    && strcmp(config.kernelcommandline, "@none@") != 0
+    && stackbp >= (256 + 0x114)) {
+    char *string_pointer;
+    uint16_t * clsignature;
+    LWORD(esp) = stackbp - 0x114;
+    clsignature = (uint16_t *)
+      LINEAR2UNIX(SEGOFF2LINEAR(stackseg, stackbp - 0x14));
+    *clsignature = 'C' + 'L' * 256;
+    string_pointer = (char *)
+      LINEAR2UNIX(SEGOFF2LINEAR(stackseg, stackbp - 0x114));
+    strncpy(string_pointer, config.kernelcommandline, 256);
+    string_pointer[255] = 0;
+  }
+}
+
 /*
  * This will be called by dos_helper (base/async/int.c)
  * when the bootsector is executed.
@@ -1751,8 +1777,9 @@ void mimic_boot_blk(void)
       SREG(cs)  = seg;
       LWORD(eip) = ofs;
 
+      handle_kernelcommandline(0x1FE0, 0x7C00);
       /* load boot sector to stack */
-      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _SP)));
+      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00)));	/* load BPB */
       break;
 
     case RXO_D:
@@ -1790,6 +1817,7 @@ void mimic_boot_blk(void)
       LWORD(esp) = 0x7C00 - sizeof(*lsv);	/* -> lsv */
       SREG(cs)  = seg;
       LWORD(eip) = ofs;
+      handle_kernelcommandline(0x1FE0, 0x7C00);
 
       read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(0x1FE0, 0x7C00)));	/* load BPB */
       /* RxDOS.3 load protocol note:

@@ -272,6 +272,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         (*print) ("keytable not setup yet\n");
     }
     (*print)("pre_stroke \"%s\"\n", (config.pre_stroke ? config.pre_stroke : ""));
+    (*print)("kernelcommandline \"%s\"\n",
+	(config.kernelcommandline ? config.kernelcommandline : "@none@"));
     (*print)("irqpassing= ");
     if (config.sillyint) {
       int i;

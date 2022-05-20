@@ -252,6 +252,7 @@ enum {
 	/* keyboard */
 %token RAWKEYBOARD
 %token PRESTROKE
+%token KERNELCOMMANDLINE
 %token KEYTABLE SHIFT_MAP ALT_MAP NUMPAD_MAP DUMP LAYOUT
 %token DGRAVE DACUTE DCIRCUM DTILDE DBREVE DABOVED DDIARES DABOVER DDACUTE DCEDILLA DIOTA DOGONEK DCARON
 	/* ipx */
@@ -728,6 +729,12 @@ line:		CHARSET '{' charset_flags '}' {}
 		    {
 		    append_pre_strokes($2);
 		    c_printf("CONF: appending pre-strokes '%s'\n", $2);
+		    free($2);
+		    }
+		| KERNELCOMMANDLINE string_expr
+		    {
+		    set_kernelcommandline($2);
+		    c_printf("CONF: setting kernel command line '%s'\n", $2);
 		    free($2);
 		    }
 		| KEYTABLE DUMP string_expr {

@@ -30,6 +30,7 @@ struct sys_dsc {
 #define FLG_NOREAD 8
 
 void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *));
+void set_kernelcommandline(char *s);
 
 enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
        IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX,

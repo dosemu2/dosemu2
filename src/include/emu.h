@@ -278,6 +278,7 @@ typedef struct config_info {
        unsigned short detach;
        char *debugout;
        char *pre_stroke;        /* pointer to keyboard pre strokes */
+	char * kernelcommandline;
 
        /* Lock File business */
        int file_lock_limit;

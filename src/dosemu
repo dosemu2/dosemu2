@@ -24,7 +24,7 @@ USAGE:
 THISDIR="$PWD"
 ARG0="$0"
 
-unset STRING_I USE_SUDO INPUT OPTS
+unset STRING_I USE_SUDO INPUT KERNELCOMMANDLINE OPTS
 
 mkdir -p ~/.dosemu
 
@@ -82,6 +82,14 @@ while [ $# -gt 0 ] ; do
       INPUT=1
       if [ -n "$2" -a -n "${2%%-*}" ]; then
         STRING_I="$STRING_I keystroke "'"'"$2"'"'
+        shift
+      fi
+      shift
+      ;;
+    -kernelcommandline)
+      KERNELCOMMANDLINE=1
+      if [ -n "$2" ]; then
+        STRING_I="$STRING_I kernelcommandline "'"'"$2"'"'
         shift
       fi
       shift

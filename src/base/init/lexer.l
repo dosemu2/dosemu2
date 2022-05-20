@@ -313,6 +313,7 @@ mouse			RETURN(MOUSE);
 serial			RETURN(SERIAL);
 keyboard		RETURN(KEYBOARD);
 keystroke		RETURN(PRESTROKE);
+kernelcommandline	RETURN(KERNELCOMMANDLINE);
 terminal		RETURN(TERMINAL);
 video			RETURN(VIDEO);
 emuretrace		RETURN(EMURETRACE);
