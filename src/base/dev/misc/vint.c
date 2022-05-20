@@ -112,9 +112,11 @@ static void vint_handler(uint16_t idx, HLT_ARG(arg))
             poll_pic0(irq);
         if (vih[vi_num].tweaked) {
             _IP++;  // skip hlt
+            h_printf("vint: call to inum %x\n", inum);
             real_run_int(inum);
             vih[vi_num].mask(vi_num, 1);
         } else {
+            h_printf("vint: jump to inum %x\n", inum);
             jmp_to(ISEG(inum), IOFF(inum));
         }
     }

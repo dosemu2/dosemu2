@@ -33,12 +33,16 @@ static void write_pic0(ioport_t port, Bit8u value)
 {
     r_printf("PIC0: write 0x%x --> 0x%x\n", value, port);
     pic_ioport_write(&pic[0], port - 0x20, value, 1);
+    r_printf("PIC0: isr=%x imr=%x irr=%x\n",
+            pic[0].isr, pic[0].imr, pic[0].irr);
 }
 
 static void write_pic1(ioport_t port, Bit8u value)
 {
     r_printf("PIC1: write 0x%x --> 0x%x\n", value, port);
     pic_ioport_write(&pic[1], port - 0xa0, value, 1);
+    r_printf("PIC1: isr=%x imr=%x irr=%x\n",
+            pic[1].isr, pic[1].imr, pic[1].irr);
 }
 
 static Bit8u read_pic0(ioport_t port)
@@ -69,24 +73,28 @@ void pic_request(int irq)
 {
     PICCommonState *p = pic;
 
-    r_printf("PIC: Requested irq lvl %i\n", irq);
+    r_printf("PIC: Requested irq lvl %x\n", irq);
     if (irq >= 8) {
         irq -= 8;
         p++;
     }
     pic_set_irq(p, irq, 1);
+    r_printf("PIC%i: isr=%x imr=%x irr=%x\n",
+            p->master ? 0 : 1, p->isr, p->imr, p->irr);
 }
 
 void pic_untrigger(int irq)
 {
     PICCommonState *p = pic;
 
-    r_printf("PIC: irq lvl %i untriggered\n", irq);
+    r_printf("PIC: irq lvl %x untriggered\n", irq);
     if (irq >= 8) {
         irq -= 8;
         p++;
     }
     pic_set_irq(p, irq, 0);
+    r_printf("PIC%i: isr=%x imr=%x irr=%x\n",
+            p->master ? 0 : 1, p->isr, p->imr, p->irr);
 }
 
 int pic_get_inum(void)
