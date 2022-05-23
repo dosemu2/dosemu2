@@ -3899,10 +3899,10 @@ err:
 
 void dpmi_sigio(sigcontext_t *scp)
 {
-  if (DPMIValidSelector(_cs)) {
-    switch (config.cpu_vm_dpmi) {
+  switch (config.cpu_vm_dpmi) {
     case CPUVM_NATIVE:
-      dpmi_return(scp, DPMI_RET_DOSEMU);
+      if (DPMIValidSelector(_cs))
+        dpmi_return(scp, DPMI_RET_DOSEMU);
       break;
     case CPUVM_EMU:
       /* compiled code can't check signal_pending() so we hint it */
@@ -3911,7 +3911,6 @@ void dpmi_sigio(sigcontext_t *scp)
     case CPUVM_KVM:
       /* nothing, kvm.c checks signal_pending() */
       break;
-    }
   }
 }
 
