@@ -3900,12 +3900,18 @@ err:
 void dpmi_sigio(sigcontext_t *scp)
 {
   if (DPMIValidSelector(_cs)) {
-/* DANG_FIXTHIS We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
-/*
-   Because IF is not set by popf and because dosemu have to do some background
-   job (like DMA transfer) regardless whether IF is set or not.
-*/
-    dpmi_return(scp, DPMI_RET_DOSEMU);
+    switch (config.cpu_vm_dpmi) {
+    case CPUVM_NATIVE:
+      dpmi_return(scp, DPMI_RET_DOSEMU);
+      break;
+    case CPUVM_EMU:
+      /* compiled code can't check signal_pending() so we hint it */
+      e_gen_sigalrm(scp);
+      break;
+    case CPUVM_KVM:
+      /* nothing, kvm.c checks signal_pending() */
+      break;
+    }
   }
 }
 

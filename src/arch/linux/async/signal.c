@@ -1192,7 +1192,6 @@ static void sigasync0_std(int sig, sigcontext_t *scp, siginfo_t *si)
     error("handler for sig %i not registered\n", sig);
     return;
   }
-  e_gen_sigalrm(scp);
   SIGNAL_save(asighandlers[sig], NULL, 0, __func__);
   if (!in_vm86)
     dpmi_sigio(scp);
