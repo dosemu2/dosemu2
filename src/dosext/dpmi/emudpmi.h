@@ -240,8 +240,6 @@ extern void dpmi_reset(void);
 extern void dpmi_done(void);
 extern int get_ldt(void *buffer);
 void dpmi_return(sigcontext_t *scp, int retcode);
-void dpmi_return_request(void);
-int dpmi_check_return(void);
 void dpmi_init(void);
 void copy_to_dpmi(sigcontext_t *d, sigcontext_t *s);
 void copy_to_emu(sigcontext_t *d, sigcontext_t *s);
@@ -347,11 +345,6 @@ static inline unsigned long dpmi_mem_size(void)
 }
 
 static inline int dpmi_fault(sigcontext_t *scp)
-{
-    return 0;
-}
-
-static inline int dpmi_check_return(sigcontext_t *scp)
 {
     return 0;
 }

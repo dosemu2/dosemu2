@@ -97,7 +97,6 @@ static int dpmi_is_cli;
 static unsigned char *cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char *current_cli;
 static int cli_blacklisted = 0;
-static int return_requested = 0;
 static int find_cli_in_blacklist(unsigned char *addr);
 static void add_cli_to_blacklist(unsigned char *addr);
 #ifdef USE_MHPDBG
@@ -572,14 +571,14 @@ static int _dpmi_control(void)
 
       if (!in_dpmi_pm()) {
         ret = DPMI_RET_DOSEMU;
-      } else if (ret == DPMI_RET_CLIENT && !return_requested) {
+      } else if (ret == DPMI_RET_CLIENT) {
         uncache_time();
         hardware_run();
+        handle_signals();
+        if (!in_dpmi_pm())
+          ret = DPMI_RET_DOSEMU;
       }
-      if (return_requested)
-        ret = DPMI_RET_DOSEMU;
     } while (ret == DPMI_RET_CLIENT);
-    return_requested = 0;
     if (debug_level('M') >= 8)
       D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#x\n",
             _cs, _eip, _ss, _esp, _eflags);
@@ -3526,10 +3525,6 @@ void run_dpmi(void)
 #ifdef USE_MHPDBG
     int retcode;
 #endif
-    if (return_requested) {
-      return_requested = 0;
-      return;
-    }
 #ifdef USE_MHPDBG
     if (mhpdbg_is_stopped())
       return;
@@ -5591,16 +5586,6 @@ static int find_cli_in_blacklist(unsigned char *cur_cli)
       return 1;
   }
   return 0;
-}
-
-void dpmi_return_request(void)
-{
-  return_requested = 1;
-}
-
-int dpmi_check_return(void)
-{
-  return return_requested ? DPMI_RET_DOSEMU : DPMI_RET_CLIENT;
 }
 
 int in_dpmi_pm(void)

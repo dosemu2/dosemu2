@@ -137,7 +137,7 @@ static void dosemu_fault1(int signum, sigcontext_t *scp)
        * careful with async signals and sas_wa */
       signal_restore_async_sigs();
       if (rc == True)
-        ret = dpmi_check_return();
+        ret = DPMI_RET_CLIENT;
     }
     if (_trapno == 0x10) {
       dbug_printf("coprocessor exception, calling IRQ13\n");
@@ -150,7 +150,7 @@ static void dosemu_fault1(int signum, sigcontext_t *scp)
     /* Not in dosemu code: dpmi_fault() will handle that */
     if (ret == DPMI_RET_FAULT)
       ret = dpmi_fault(scp);
-    if (ret != DPMI_RET_CLIENT)
+    if (signal_pending() || ret != DPMI_RET_CLIENT)
       dpmi_return(scp, ret);
     return;
   }

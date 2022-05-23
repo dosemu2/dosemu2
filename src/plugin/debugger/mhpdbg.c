@@ -367,8 +367,6 @@ void mhp_intercept(const char *msg, const char *logflags)
    mhp_cmd("r0");
    mhp_send();
    if (!(dosdebug_flags & DBGF_IN_LEAVEDOS)) {
-     if (in_dpmi_pm())
-       dpmi_return_request();
      if (logflags)
        mhp_intercept_log(logflags, 1);
      return;

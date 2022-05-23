@@ -1137,8 +1137,6 @@ void SIGNAL_save(void (*signal_call)(void *), void *arg, size_t len,
     memcpy(signal_queue[SIGNAL_tail].arg, arg, len);
   signal_queue[SIGNAL_tail].name = name;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
-  if (in_dpmi_pm())
-    dpmi_return_request();
 }
 
 

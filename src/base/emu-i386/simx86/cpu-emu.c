@@ -1179,22 +1179,19 @@ int e_dpmi(sigcontext_t *scp)
 
     if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
 	if (debug_level('e')>2) e_printf("DPMI sigpending = %d\n",signal_pending());
-	if (signal_pending()) {
-	    retval = DPMI_RET_DOSEMU;
-	}
     }
     else if (xval==EXCP_GOBACK) {
         retval = DPMI_RET_DOSEMU;
     }
     else if (xval == EXCP0E_PAGE && vga_emu_fault(DOSADDR_REL(LINP(_cr2)),_err,scp)==True) {
-	retval = dpmi_check_return();
+	retval = DPMI_RET_CLIENT;
     } else {
 	if (debug_level('e')) TotalTime += (GETTSC() - tt0);
 	retval = dpmi_fault(scp);
 	if (debug_level('e')) tt0 = GETTSC();
     }
   }
-  while (retval == DPMI_RET_CLIENT);
+  while (!signal_pending() && retval == DPMI_RET_CLIENT);
   /* ------ OUTER LOOP -- exit to user level ---------------------- */
 
   if (debug_level('e')) {
