@@ -162,6 +162,7 @@ static int pre_initialized = 0;
 static int wait_kup;
 static int copypaste;
 static int current_mode_class;
+static int border_on = 1;
 #define MODE_CLASS() ((current_mode_class == GRAPH || use_bitmap_font ) ? \
     GRAPH : TEXT)
 static SDL_Keycode mgrab_key = SDLK_HOME;
@@ -1317,6 +1318,10 @@ static void SDL_handle_events(void)
 	     * full-screen switch. We need to filter them out to prevent
 	     * the infinite switching loop. */
 	    wait_kup = 1;
+	    break;
+	  } else if (keysym.sym == SDLK_b && !config.X_fullscreen) {
+	    border_on ^= 1;
+	    SDL_SetWindowBordered(window, border_on);
 	    break;
 	  }
 	}
