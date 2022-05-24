@@ -162,7 +162,7 @@ static int pre_initialized = 0;
 static int wait_kup;
 static int copypaste;
 static int current_mode_class;
-static int border_on = 1;
+static int border_on;
 #define MODE_CLASS() ((current_mode_class == GRAPH || use_bitmap_font ) ? \
     GRAPH : TEXT)
 static SDL_Keycode mgrab_key = SDLK_HOME;
@@ -371,6 +371,12 @@ static int SDL_init(void)
   SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
 #endif
   flags |= SDL_WINDOW_RESIZABLE;
+  if (!config.sdl_wcontrols) {
+    flags |= SDL_WINDOW_BORDERLESS;
+    border_on = 0;
+  } else {
+    border_on = 1;
+  }
 #if 0
   /* some SDL bug prevents resizing if the window was created with this
    * flag. And leaving full-screen mode doesn't help.

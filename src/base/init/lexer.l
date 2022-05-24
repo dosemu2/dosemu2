@@ -535,6 +535,7 @@ fullscreen		RETURN(X_FULLSCREEN);
 	/* SDL stuff */
 sdl_hwrend		RETURN(SDL_HWREND);
 sdl_fonts		RETURN(SDL_FONTS);
+sdl_wcontrols		RETURN(SDL_WCONTROLS);
 
         /* Sound stuff */
 
