@@ -388,7 +388,7 @@ int tun_alloc(char *dev)
       enter_priv_on();
       err = ioctl(fd, TUNSETIFF, (void *) &ifr);
       leave_priv_setting();
-      if (err < 0 ) {
+      if (err < 0) {
          close(fd);
          return err;
       }
