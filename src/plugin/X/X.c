@@ -543,6 +543,35 @@ void X_register_speaker(Display *display)
 #endif
 }
 
+static void
+SetWindowBordered(Display *display, Window window, int border)
+{
+    /*
+     * this code used to check for KWM_WIN_DECORATION, but KDE hasn't
+     *  supported it for years and years. It now respects _MOTIF_WM_HINTS.
+     *  Gnome is similar: just use the Motif atom.
+     */
+
+    Atom WM_HINTS = XInternAtom(display, "_MOTIF_WM_HINTS", True);
+    if (WM_HINTS != None) {
+        /* Hints used by Motif compliant window managers */
+        struct
+        {
+            unsigned long flags;
+            unsigned long functions;
+            unsigned long decorations;
+            long input_mode;
+            unsigned long status;
+        } MWMHints = {
+            (1L << 1), 0, border ? 1 : 0, 0, 0
+        };
+
+        XChangeProperty(display, window, WM_HINTS, WM_HINTS, 32,
+                        PropModeReplace, (unsigned char *) &MWMHints,
+                        sizeof(MWMHints) / sizeof(long));
+    }
+}
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -699,6 +728,8 @@ int X_init()
     KeyPressMask | KeyReleaseMask | KeymapStateMask | FocusChangeMask;
   XChangeWindowAttributes(display, mainwindow, CWEventMask, &attr);
   XChangeWindowAttributes(display, fullscreenwindow, CWEventMask, &attr);
+
+  SetWindowBordered(display, mainwindow, config.sdl_wcontrols);
 
   attr.event_mask =
     ButtonPressMask | ButtonReleaseMask |
