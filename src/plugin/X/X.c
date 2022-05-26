@@ -390,6 +390,35 @@ static int X_unmap_mode = -1;
 static Atom comm_atom = None;
 static Boolean kdos_client = FALSE;    	/* started by kdos */
 
+/* Hints used by Motif compliant window managers */
+enum {
+  MWM_HINTS_FUNCTIONS = (1L << 0),
+
+  MWM_FUNC_ALL = (1L << 0),
+  MWM_FUNC_RESIZE = (1L << 1),
+  MWM_FUNC_MOVE = (1L << 2),
+  MWM_FUNC_MINIMIZE = (1L << 3),
+  MWM_FUNC_MAXIMIZE = (1L << 4),
+  MWM_FUNC_CLOSE = (1L << 5),
+
+  MWM_HINTS_DECORATIONS = (1L << 1),
+
+  MWM_DECOR_ALL = (1L << 0),
+  MWM_DECOR_BORDER = (1L << 1),
+  MWM_DECOR_RESIZEH = (1L << 2),
+  MWM_DECOR_TITLE = (1L << 3),
+  MWM_DECOR_MENU = (1L << 4),
+  MWM_DECOR_MINIMIZE = (1L << 5),
+  MWM_DECOR_MAXIMIZE = (1L << 6),
+};
+
+struct MWMHints {
+  unsigned long flags;
+  unsigned long functions;
+  unsigned long decorations;
+  long input_mode;
+  unsigned long status;
+};
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -543,33 +572,18 @@ void X_register_speaker(Display *display)
 #endif
 }
 
-static void
-SetWindowBordered(Display *display, Window window, int border)
+static void SetWindowMotifOptions(Display *display, Window window)
 {
-    /*
-     * this code used to check for KWM_WIN_DECORATION, but KDE hasn't
-     *  supported it for years and years. It now respects _MOTIF_WM_HINTS.
-     *  Gnome is similar: just use the Motif atom.
-     */
+  Atom wm_hints = XInternAtom(display, "_MOTIF_WM_HINTS", True);
+  if (wm_hints != None && config.X_noclose) {
+    struct MWMHints hints = {0};
 
-    Atom WM_HINTS = XInternAtom(display, "_MOTIF_WM_HINTS", True);
-    if (WM_HINTS != None) {
-        /* Hints used by Motif compliant window managers */
-        struct
-        {
-            unsigned long flags;
-            unsigned long functions;
-            unsigned long decorations;
-            long input_mode;
-            unsigned long status;
-        } MWMHints = {
-            (1L << 1), 0, border ? 1 : 0, 0, 0
-        };
-
-        XChangeProperty(display, window, WM_HINTS, WM_HINTS, 32,
-                        PropModeReplace, (unsigned char *) &MWMHints,
-                        sizeof(MWMHints) / sizeof(long));
-    }
+    hints.flags = MWM_HINTS_FUNCTIONS;
+    hints.functions = (MWM_FUNC_RESIZE | MWM_FUNC_MOVE | MWM_FUNC_MINIMIZE | MWM_FUNC_MAXIMIZE);
+    XChangeProperty(display, window, wm_hints, wm_hints, 32,
+                    PropModeReplace, (unsigned char *)&hints,
+                    sizeof(hints) / sizeof(long));
+  }
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -729,7 +743,8 @@ int X_init()
   XChangeWindowAttributes(display, mainwindow, CWEventMask, &attr);
   XChangeWindowAttributes(display, fullscreenwindow, CWEventMask, &attr);
 
-  SetWindowBordered(display, mainwindow, config.sdl_wcontrols);
+
+  SetWindowMotifOptions(display, mainwindow);
 
   attr.event_mask =
     ButtonPressMask | ButtonReleaseMask |
