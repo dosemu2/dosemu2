@@ -813,7 +813,7 @@ void init_emu_cpu(void)
  * asynchronous signals because without it any badly-behaved pgm
  * can stop us forever.
  */
-void e_gen_sigalrm(sigcontext_t *scp)
+void e_gen_sigalrm(void)
 {
 	if(!IS_EMU())
 	    return;

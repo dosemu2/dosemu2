@@ -104,9 +104,9 @@ int e_in_compiled_code(void);
 
 /* called from signal.c */
 #ifdef X86_EMULATOR
-void e_gen_sigalrm(sigcontext_t *scp);
+void e_gen_sigalrm(void);
 #else
-#define e_gen_sigalrm(x)
+#define e_gen_sigalrm()
 #endif
 
 #endif	/*DOSEMU_CPUEMU_H*/

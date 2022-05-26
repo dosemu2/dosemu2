@@ -579,6 +579,14 @@ static void cleanup_child(void *arg)
     chld_hndl[i].handler();
 }
 
+static void sigbreak(sigcontext_t *scp)
+{
+  if (!in_vm86)
+    dpmi_sigio(scp);
+  else if (config.cpu_vm == CPUVM_EMU)
+    e_gen_sigalrm();
+}
+
 /* this cleaning up is necessary to avoid the port server becoming
    a zombie process */
 static void sig_child(sigcontext_t *scp, siginfo_t *si)
@@ -616,8 +624,7 @@ __attribute__((noinline))
 static void _leavedos_signal(int sig, sigcontext_t *scp)
 {
   leavedos_sig(sig);
-  if (!in_vm86)
-    dpmi_sigio(scp);
+  sigbreak(scp);
 }
 
 SIG_PROTO_PFX
@@ -1193,8 +1200,7 @@ static void sigasync0_std(int sig, sigcontext_t *scp, siginfo_t *si)
     return;
   }
   SIGNAL_save(asighandlers[sig], NULL, 0, __func__);
-  if (!in_vm86)
-    dpmi_sigio(scp);
+  sigbreak(scp);
 }
 
 SIG_PROTO_PFX

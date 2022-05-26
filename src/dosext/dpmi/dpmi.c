@@ -3906,7 +3906,7 @@ void dpmi_sigio(sigcontext_t *scp)
       break;
     case CPUVM_EMU:
       /* compiled code can't check signal_pending() so we hint it */
-      e_gen_sigalrm(scp);
+      e_gen_sigalrm();
       break;
     case CPUVM_KVM:
       /* nothing, kvm.c checks signal_pending() */
