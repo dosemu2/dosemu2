@@ -69,6 +69,16 @@ static void write_elcr(ioport_t port, Bit8u value)
     elcr_ioport_write(&pic[port & 1], port & 1, value, 1);
 }
 
+static Bit8u read_firr(ioport_t port)
+{
+    return pic[port & 1].fake_irr;
+}
+
+static void write_firr(ioport_t port, Bit8u value)
+{
+    pic[port & 1].fake_irr = value;
+}
+
 void pic_request(int irq)
 {
     PICCommonState *p = pic;
@@ -143,6 +153,13 @@ void pic_init(void)
     io_device.end_addr   = 0x04D1;
     io_device.read_portb   = read_elcr;
     io_device.write_portb  = write_elcr;
+    port_register_handler(io_device, 0);
+
+    io_device.handler_name = "fake irr";
+    io_device.start_addr = 0x04D2;
+    io_device.end_addr   = 0x04D3;
+    io_device.read_portb   = read_firr;
+    io_device.write_portb  = write_firr;
     port_register_handler(io_device, 0);
 
     /* set up cascading bits */

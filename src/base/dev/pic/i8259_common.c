@@ -48,6 +48,7 @@ void pic_reset_common(PICCommonState *s)
     s->init4 = 0;
     s->single_mode = 0;
     /* Note: ELCR is not reset */
+    s->fake_irr = 0;
 }
 
 void pic_stat_update_irq(int irq, int level)
