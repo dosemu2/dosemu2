@@ -1084,7 +1084,12 @@ static void ua_str(const char *str)
 	else
     if (c == '%') {
       c = *str++;
-      percent(c, *str++);
+      if (!c)
+        break;
+      percent(c, *str);
+      if (!*str)
+        break;
+      str++;
     } else {
       uputchar(c);
     }
