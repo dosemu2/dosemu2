@@ -204,6 +204,7 @@ typedef struct config_info {
        int     X_lfb;			/* support VESA LFB modes */
        int     X_pm_interface;		/* support protected mode interface */
        int     X_background_pause;	/* pause xdosemu if it loses focus */
+       boolean X_noclose;		/* hide the window close button, disable close menu entry */
        boolean sdl_hwrend;		/* accelerate SDL with OpenGL */
        boolean sdl_wcontrols;		/* enable window controls */
        char    *sdl_fonts;		/* TTF font used in SDL2 */

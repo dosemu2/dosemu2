@@ -219,6 +219,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("vga_fonts %i\n", config.vga_fonts);
     (*print)("X_mgrab_key \"%s\"\n",  config.X_mgrab_key);
     (*print)("X_background_pause %d\n", config.X_background_pause);
+    (*print)("X_noclose %d\n", config.X_noclose);
 
     switch (config.chipset) {
       case PLAINVGA: s = "plainvga"; break;

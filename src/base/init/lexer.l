@@ -531,6 +531,7 @@ pm_interface		RETURN(X_PM_INTERFACE);
 mgrab_key		RETURN(X_MGRAB_KEY);
 background_pause	RETURN(X_BACKGROUND_PAUSE);
 fullscreen		RETURN(X_FULLSCREEN);
+noclose			RETURN(X_NOCLOSE);
 
 	/* SDL stuff */
 sdl_hwrend		RETURN(SDL_HWREND);
