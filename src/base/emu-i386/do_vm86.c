@@ -609,13 +609,14 @@ static void run_vm86(void)
 	if (mhpdbg.active)
 	    mhp_debug(DBG_PRE_VM86, 0, 0);
 #endif
-	if (isset_IF() && isset_VIP())
-	    return;
-	if (signal_pending())
-	    return;
 	/* if thread wants some sleep, we can't fuck it in a busy loop */
-	if (coopth_wants_sleep_vm86())
-	    return;
+	if (coopth_wants_sleep_vm86()) {
+	    pic_run();                     // try to awake
+	    if (in_dpmi_pm())
+		return;
+	    if (coopth_wants_sleep_vm86()) // not awaken?
+		return;
+	}
 	/* some subsystems doesn't want this optimization loop as well */
 	if (retval == HLT_RET_SPECIAL)
 	    return;
@@ -633,6 +634,10 @@ static void run_vm86(void)
 			_ESI, _EDI, _ES, _EFLAGS);
 	}
     }
+    pic_run();		/* trigger any hardware interrupts requested */
+    if (in_dpmi_pm())
+	return;
+
 #ifdef USE_MHPDBG
     if (mhpdbg.active)
 	mhp_debug(DBG_PRE_VM86, 0, 0);
@@ -710,8 +715,6 @@ void loopstep_run_vm86(void)
     if (mhpdbg_is_stopped())
 	return;
 #endif
-    if (!in_dpmi_pm())
-	pic_run();		/* trigger any hardware interrupts requested */
 }
 
 int do_call_back(Bit16u cs, Bit16u ip)
