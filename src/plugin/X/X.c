@@ -1571,7 +1571,8 @@ static int __X_handle_events(XEvent *e)
 	   */
 	  if(e->xclient.message_type == proto_atom && *e->xclient.data.l == delete_atom) {
 	    X_printf("X: got window delete message\n");
-	    /* XXX - Is it ok to call this from a SIGALRM handler? */
+	    if (config.X_noclose)
+	      break;
 	    return -1;
 	  }
 
