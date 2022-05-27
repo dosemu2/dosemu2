@@ -445,8 +445,7 @@ void int_yield(void)
    * asm volatile("sti ; nop ; rep ; nop ; cli ; cld" : : :"memory");
    */
   set_IF();
-  pic_run();
-  coopth_sched_cond();
+  coopth_yield();
   clear_IF();
 }
 

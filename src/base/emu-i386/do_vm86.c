@@ -52,6 +52,8 @@
 #include "vgaemu.h"
 #include "sig.h"
 
+static void pic_run(void);
+
 int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
 {
 #ifdef USE_MHPDBG
@@ -655,7 +657,7 @@ void vm86_helper(void)
   coopth_run();
 }
 
-void pic_run(void)
+static void pic_run(void)
 {
     int inum;
 
