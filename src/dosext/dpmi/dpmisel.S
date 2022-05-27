@@ -244,7 +244,12 @@ DPMI_\name\()_irq:
 	.globl DPMI_\name\()_post_irq
 DPMI_\name\()_post_irq:
 	hlt
-	sti
+	/* DPMI spec suggests STI before IRET.
+	 * But if the handler was called by some other handler,
+	 * then STI should not be done, as the caller's handler would
+	 * then be interrupted.
+	 * dosemu2 does not require STI before IRET.
+	 * (STI is only required before POPF in dosemu2) */
 	iretl
 .endm
 
