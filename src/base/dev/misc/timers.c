@@ -44,8 +44,6 @@
 
 pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
 
-static u_long timer_div;          /* used by timer int code */
-static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
 static hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
 hitimer_t pic_sys_time;     /* system time set by pic_watch */
 
@@ -66,8 +64,6 @@ static hitimer_t pic_itime[33] =     /* time to trigger next interrupt */
 static Bit8u port61 = 0x0c;
 
 int is_cli;
-
-static void pic_watch(hitimer_u *s_time);
 
 /*
  * DANG_BEGIN_FUNCTION initialize_timers
@@ -110,11 +106,6 @@ void initialize_timers(void)
   pit[2].read_state  = 3;
   pit[2].write_state = 3;
 
-  ticks_accum   = 0;
-  timer_div     = (pit[0].cntr * 10000) / PIT_TICK_RATE;
-
-  timer_tick();  /* a starting tick! */
-
   port61 = 0x0c;
 }
 
@@ -130,31 +121,6 @@ void initialize_timers(void)
  */
 void timer_tick(void)
 {
-#ifdef ONE_MINUTE_TEST
-  static int dbug_count = 0;
-#endif
-  hitimer_u tp;
-  u_long time_curr;
-  static u_long time_old = 0;       /* Preserve value for next call */
-
-  /* Get system time in ticks */
-  tp.td = GETtickTIME(0);
-#ifdef ONE_MINUTE_TEST
-  if (++dbug_count > 6000) leavedos(0);
-#endif
-
-  /* compute the number of 100ticks since we started */
-  time_curr  = (tp.td - pit[0].time.td) / 100;
-
-  /* Reset old timer value to 0 if time_curr wrapped around back to 0 */
-  if (time_curr < time_old) time_old = 0;
-
-  /* Compute number of 100ticks ticks since the last time this function ran */
-  ticks_accum += (time_curr - time_old);
-
-  /* Save old value of the timer */
-  time_old = time_curr;
-
   if (config.cli_timeout && is_cli) {
     if (isset_IF()) {
       is_cli = 0;
@@ -165,9 +131,6 @@ void timer_tick(void)
     }
   }
   dpmi_timer();
-
-  /* test for stuck interrupts, trigger any scheduled interrupts */
-  pic_watch(&tp);
 }
 
 
@@ -427,22 +390,6 @@ void pit_outp(ioport_t port, Bit8u val)
       pit[port].cntr = pit[port].write_latch;
 
     pit[port].time.td = GETtickTIME(0);
-
-    if (port == 0) {
-      ticks_accum   = 0;
-      timer_div     = (pit[0].cntr * 10000) / PIT_TICK_RATE;
-      if (timer_div == 0)
-	timer_div = 1;
-#if 1
-      i_printf("timer_interrupt_rate count %i, requested %.3g Hz, granted %.3g Hz\n",
-	       pit[0].cntr, PIT_TICK_RATE/(double)pit[0].cntr, 10000.0/timer_div);
-#endif
-    }
-#if 0
-    else if (port == 2 && config.speaker == SPKR_EMULATED) {
-      do_sound(pit[2].write_latch & 0xffff);
-    }
-#endif
   }
 }
 
@@ -632,17 +579,17 @@ static void pic_sched(int ilevel, int interval)
  *
  * DANG_END_FUNCTION
  */
-static void pic_watch(hitimer_u *s_time)
+void pic_watch(void)
 {
   hitimer_t t_time;
 
 /*  calculate new sys_time
  *  values are kept modulo 2^32 (exactly 1 hour)
  */
-  t_time = s_time->td;
+  t_time = GETtickTIME(0);
 
   /* check for any freshly initiated timers, and sync them to s_time */
-  r_printf("pic_itime[1]=%li\n", pic_itime[1]);
+  r_printf("pic_itime[0]=%li\n", pic_itime[0]);
   pic_sys_time=t_time + (t_time == NEVER);
   r_printf("pic_sys_time set to %li\n", pic_sys_time);
   pic_dos_time = pic_itime[32];
