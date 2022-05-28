@@ -62,6 +62,9 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>			/* RxDOS.3 lsv uses types */
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 
 #include "int.h"
 #include "disks.h"
@@ -295,7 +298,9 @@ void fatfs_init(struct disk *dp)
   memcpy(f->sfiles, i_sfiles, sizeof(f->sfiles));
   strcpy(config_sys, real_config_sys);
   if (config.emusys) {
-    strcpy(strrchr(config_sys, '.') + 1, config.emusys);
+    char *p = strrchr(config_sys, '.');
+    if (p && p - config_sys <= 8)
+      strlcpy(p + 1, config.emusys, 4);
     strupperDOS(config_sys);
   }
   for (i = 0; i < sys_hooks_used; i++)
