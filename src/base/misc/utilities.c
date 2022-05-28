@@ -627,7 +627,7 @@ void subst_file_ext(char *ptr)
 	if (toupperDOS(ptr[0]) == 'D') ptr++;
 #endif
         ext_fix(config.emusys);
-        snprintf(config_name, sizeof(config_name), "CONFIG.%-3s", config.emusys);
+        snprintf(config_name, sizeof(config_name), "CONFIG.%-.3s", config.emusys);
         if (subst_sys == 1 && !strequalDOS(ptr, config_name) &&
             !strequalDOS(ptr, "CONFIG.SYS")) {
             subst_sys = 0;
