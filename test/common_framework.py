@@ -402,7 +402,7 @@ class BaseTestCase(object):
             with open(self.logfiles['xpt'][0], "w") as f:
                 f.write(e.output.decode('ASCII'))
 
-        return ret
+        return str(ret)
 
 
 class MyTestResult(unittest.TextTestResult):
