@@ -249,10 +249,15 @@ static int do_execute_cmdline(int parent)
   char *vars, drv = e_drv;
   int ret = 0, first = 0;
 
-  if (!e_drv && config.unix_path) {
-    int err = setupDOSCommand(config.dos_path, &drv);
-    if (err)
-      return err;
+  /* Multiple invocations are possible due to freecom bug.
+   * First in a command.com's context and second in a separate process.
+   * If e_drv is not set then this is a first invocation. */
+  if (!e_drv) {
+    if (config.unix_path) {
+      int err = setupDOSCommand(config.dos_path, &drv);
+      if (err)
+        return err;
+    }
     e_drv = drv;  // store for later -p
     first = 1;
   }
