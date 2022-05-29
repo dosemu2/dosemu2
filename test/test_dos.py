@@ -4876,6 +4876,30 @@ $_floppy_a = ""
             msg = "Output file(s) missing %s\n" % str(missing)
             raise self.failureException(msg)
 
+    def test_passing_environment_variable(self):
+        """Passing Environment Variable to DOS"""
+
+        tstring1 = "0123456789aBcDeF"
+
+        self.mkfile("testit.bat", """\
+@ECHO=on
+ECHO %TESTVAR1%
+rem end
+""", newline="\r\n")
+
+        args = ["TESTVAR1=" + tstring1, "-q", "-E", "testit.bat"]
+        results = self.runDosemuCmdline(args, config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        if results == 'Timeout':
+            raise self.failureException("Timeout:\n")
+
+        self.assertIn("rem end", results, msg="Test incomplete:\n")
+
+        self.assertIn(tstring1, results)
+
 
 class DRDOS701TestCase(OurTestCase, unittest.TestCase):
     # OpenDOS 7.01
