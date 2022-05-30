@@ -102,6 +102,7 @@ static void do_raw_getkeys(int fd, void *arg)
   char buf[KBBUF_SIZE];
 
   count = RPT_SYSCALL(read(kbd_fd, buf, KBBUF_SIZE - 1));
+  ioselect_complete(fd);
   k_printf("KBD(raw): do_raw_getkeys() found %d characters (Raw)\n", count);
   if (count == -1) {
     k_printf("KBD(raw): do_raw_getkeys(): keyboard read failed!\n");

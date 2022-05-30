@@ -43,6 +43,7 @@ static void none_run(int fd, void *arg)
 	char buf[256];
 	int rc;
 	rc = read(STDIN_FILENO, buf, sizeof(buf));
+	ioselect_complete(fd);
 	if (rc > 0)
 		paste_text(buf, rc, "utf8");
 }

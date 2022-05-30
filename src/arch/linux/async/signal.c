@@ -1085,8 +1085,6 @@ static void SIGALRM_call(void *arg)
   if (config.rdtsc)
     update_cputime_TSCBase();
 
-  io_select();	/* we need this in order to catch lost SIGIOs */
-
   alarm_idle();
 
   /* Here we 'type in' prestrokes from commandline, as long as there are any
@@ -1148,21 +1146,9 @@ void SIGNAL_save(void (*signal_call)(void *), void *arg, size_t len,
 }
 
 
-/*
- * DANG_BEGIN_FUNCTION SIGIO_call
- *
- * description:
- *  Whenever I/O occurs on devices allowing SIGIO to occur, DOSEMU
- * will be flagged to run this call which inturn checks which
- * fd(s) was set and execute the proper routine to get the I/O
- * from that device.
- *
- * DANG_END_FUNCTION
- *
- */
 static void SIGIO_call(void *arg){
   /* Call select to see if any I/O is ready on devices */
-  io_select();
+  irq_select();
 }
 
 __attribute__((noinline))

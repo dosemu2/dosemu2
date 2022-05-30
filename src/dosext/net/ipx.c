@@ -903,6 +903,8 @@ static enum VirqHwRet ipx_receive(void *arg)
         recvECB = ECBPtr;
         return VIRQ_HWRET_CONT;
       }
+    } else {
+      ioselect_complete(s->fd);
     }
   }
   return VIRQ_HWRET_DONE;

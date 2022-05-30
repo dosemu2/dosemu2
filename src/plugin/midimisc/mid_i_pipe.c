@@ -57,6 +57,7 @@ static void midipipe_io(int fd, void *arg)
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
     }
+    ioselect_complete(fd);
 }
 
 static int midipipe_init(void *arg)

@@ -799,6 +799,7 @@ static int read_some_keys(void)
 	offs = keyb_state.kbp - keyb_state.kbbuf;
 	cc = read(keyb_state.kbd_fd, &keyb_state.kbp[keyb_state.kbcount],
 			KBBUF_SIZE - keyb_state.kbcount - offs);
+	ioselect_complete(keyb_state.kbd_fd);
 	k_printf("KBD: cc found %d characters (Xlate)\n", cc);
 	if (cc > 0)
 		keyb_state.kbcount += cc;

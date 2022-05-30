@@ -394,7 +394,7 @@ extern int int10(void);
 extern int int13(void);
 extern int int16(void);
 extern int int17(void);
-extern void io_select(void);
+extern void irq_select(void);
 extern int pd_receive_packet(void);
 extern int printer_tick(u_long);
 extern void floppy_tick(void);
@@ -434,6 +434,8 @@ extern void add_to_io_select_new(int, void(*)(int, void *), void *,
 #define add_to_io_select(fd, func, arg) \
 	add_to_io_select_new(fd, func, arg, #func)
 extern void remove_from_io_select(int);
+extern void ioselect_complete(int fd);
+extern void ioselect_init(void);
 extern void ioselect_done(void);
 
 /*

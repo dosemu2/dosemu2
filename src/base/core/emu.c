@@ -352,6 +352,7 @@ int main(int argc, char **argv, char * const *envp)
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/
     memory_init();		/* initialize the memory contents */
+    ioselect_init();
     /* iodev_init() can load plugins, like SDL, that can spawn a thread.
      * This must be done before initializing signals, or problems ensue.
      * This also must be done when the signals are blocked, so after
