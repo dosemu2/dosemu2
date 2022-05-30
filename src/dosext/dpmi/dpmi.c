@@ -4228,6 +4228,7 @@ static void do_dpmi_retf(sigcontext_t *scp, void * const sp)
   }
 }
 
+/* rough iret emulation for HW handlers only */
 static void do_dpmi_iret(sigcontext_t *scp, void * const sp)
 {
   if (DPMI_CLIENT.is_32) {
@@ -4242,6 +4243,32 @@ static void do_dpmi_iret(sigcontext_t *scp, void * const sp)
     _cs = *ssp++;
     _eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
     _LWORD(esp) += 6;
+  }
+}
+
+/* more precise iret emulation suitable for SW handlers */
+static void emu_dpmi_iret(sigcontext_t *scp, void * const sp)
+{
+  int stk32 = Segments[_ss >> 3].is_32;
+
+  if (Segments[_cs >> 3].is_32) {
+    unsigned int *ssp = sp;
+    _eip = *ssp++;
+    _cs = *ssp++;
+    _eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
+    if (stk32)
+      _esp += 12;
+    else
+      _LWORD(esp) += 12;
+  } else {
+    unsigned short *ssp = sp;
+    _LWORD(eip) = *ssp++;
+    _cs = *ssp++;
+    _eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
+    if (stk32)
+      _esp += 6;
+    else
+      _LWORD(esp) += 6;
   }
 }
 
@@ -4728,7 +4755,9 @@ static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
       if (lina[1] == 0xcf) {
         if (debug_level('M')>=9)
           D_printf("DPMI: sti/iret detected\n");
-        do_dpmi_iret(scp, sp);
+        /* This may not be our HW inthandler, but some user's sw interrupt.
+         * Needs to call emu_dpmi_iret() that emulates iret more precisely. */
+        emu_dpmi_iret(scp, sp);
         sp = SEL_ADR(_ss, _esp);
         if (_cs == dpmi_sel() && _eip == DPMI_SEL_OFF(DPMI_return_from_pm)) {
           if (debug_level('M')>=9)
