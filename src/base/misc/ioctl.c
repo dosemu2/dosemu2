@@ -51,7 +51,6 @@ struct io_callback_s {
   void *arg;
   const char *name;
   int fd;
-#define IOFLG_IMMED 1
   unsigned flags;
 };
 #define MAX_FD 1024
@@ -103,6 +102,9 @@ static int numselectfd;
 static int syncpipe[2];
 static pthread_t io_thr;
 static pthread_mutex_t fun_mtx = PTHREAD_MUTEX_INITIALIZER;
+static int blk_wait;
+static pthread_cond_t blk_cnd = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t blk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static void ioselect_demux(void *arg)
 {
@@ -125,10 +127,14 @@ static void io_select(void)
   int selrtn, i;
   fd_set fds = fds_sigio;
 
+  pthread_mutex_lock(&blk_mtx);
   for (i = 0; i < MAX_FD; i++) {
     if (FD_ISSET(i, &fds_masked))
       FD_CLR(i, &fds);
   }
+  blk_wait = 0;
+  pthread_mutex_unlock(&blk_mtx);
+  pthread_cond_signal(&blk_cnd);
 
   pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
   selrtn = RPT_SYSCALL(select(numselectfd + 1, &fds, NULL, NULL, NULL));
@@ -172,7 +178,7 @@ static void io_select(void)
  */
 void
 add_to_io_select_new(int new_fd, void (*func)(int, void *), void *arg,
-	const char *name)
+	unsigned flags, const char *name)
 {
     struct io_callback_s *f = &io_callback_func[new_fd];
 
@@ -189,6 +195,7 @@ add_to_io_select_new(int new_fd, void (*func)(int, void *), void *arg,
     f->arg = arg;
     f->name = name;
     f->fd = new_fd;
+    f->flags = flags;
     pthread_mutex_unlock(&fun_mtx);
 
     if (new_fd > numselectfd)
@@ -232,10 +239,35 @@ void remove_from_io_select(int fd)
     }
 }
 
-void ioselect_complete(int fd)
+static void do_unmask(int fd)
 {
+    pthread_mutex_lock(&blk_mtx);
     FD_CLR(fd, &fds_masked);
     write(syncpipe[1], "=", 1);
+    pthread_mutex_unlock(&blk_mtx);
+}
+
+void ioselect_complete(int fd)
+{
+    do_unmask(fd);
+}
+
+void ioselect_block(int fd)
+{
+    assert(io_callback_func[fd].flags & IOFLG_IMMED);
+    pthread_mutex_lock(&blk_mtx);
+    FD_SET(fd, &fds_masked);
+    blk_wait = 1;
+    write(syncpipe[1], "=", 1);
+    while (blk_wait)
+        pthread_cond_wait(&blk_cnd, &blk_mtx);
+    pthread_mutex_unlock(&blk_mtx);
+}
+
+void ioselect_unblock(int fd)
+{
+    assert(io_callback_func[fd].flags & IOFLG_IMMED);
+    do_unmask(fd);
 }
 
 static void *ioselect_thread(void *arg)

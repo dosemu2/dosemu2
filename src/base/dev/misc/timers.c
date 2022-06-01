@@ -37,23 +37,35 @@
 #include "int.h"
 #include "emudpmi.h"
 #include "vtmr.h"
+#include "evtimer.h"
 #include "timers.h"
 
 #undef  DEBUG_PIT
 #undef  ONE_MINUTE_TEST
 
-pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
+/*******************************************************************
+ * Programmable Interrupt Timer (PIT) chip                         *
+ *******************************************************************/
 
-static hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
+typedef struct {
+  Bit16u         read_state;
+  Bit16u         write_state;
+  Bit8u          mode, outpin;
+  Bit32u         read_latch;
+  Bit16u         write_latch;
+  Bit32s         cntr;
+  hitimer_u time;
+  uint64_t q_ticks;
+  void *evtmr;
+  int tmr_skip;
+} pit_latch_struct;
+
+static pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
+
 hitimer_t pic_sys_time;     /* system time set by pic_watch */
+static int irq0_cnt;
 
 #define NEVER -1
-static hitimer_t pic_ltime[33] =     /* timeof last pic request honored */
-                {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
-                 NEVER};
 static hitimer_t pic_itime[33] =     /* time to trigger next interrupt */
                 {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
@@ -61,53 +73,17 @@ static hitimer_t pic_itime[33] =     /* time to trigger next interrupt */
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER};
 
+static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
+{
+    return (__int128_t)a * b / c;
+}
+
+#define TICKS_TO_NS(t) muldiv64(t, NANOSECONDS_PER_SECOND, PIT_TICK_RATE)
+#define NS_TO_TICKS(n) muldiv64(n, PIT_TICK_RATE, NANOSECONDS_PER_SECOND)
+
 static Bit8u port61 = 0x0c;
 
 int is_cli;
-
-/*
- * DANG_BEGIN_FUNCTION initialize_timers
- *
- * description:
- * ensure the 0x40 port timer is initially set correctly
- *
- * DANG_END_FUNCTION
- */
-void initialize_timers(void)
-{
-  hitimer_t cur_time;
-
-  cur_time = GETtickTIME(0);
-
-  pit[0].mode        = 3;
-  pit[0].outpin      = 0;
-  pit[0].cntr        = 0x10000;
-  pit[0].time.td     = cur_time;
-  pit[0].read_latch  = -1;
-  pit[0].write_latch = 0;
-  pit[0].read_state  = 3;
-  pit[0].write_state = 3;
-
-  pit[1].mode        = 2;
-  pit[1].outpin      = 0;
-  pit[1].cntr        = 18;
-  pit[1].time.td     = cur_time;
-  pit[1].read_latch  = -1;
-  pit[1].write_latch = 18;
-  pit[1].read_state  = 3;
-  pit[1].write_state = 3;
-
-  pit[2].mode        = 0;
-  pit[2].outpin      = 0;
-  pit[2].cntr        = -1;
-  pit[2].time.td     = cur_time;
-  pit[2].read_latch  = -1;
-  pit[2].write_latch = 0;
-  pit[2].read_state  = 3;
-  pit[2].write_state = 3;
-
-  port61 = 0x0c;
-}
 
 /*
  * DANG_BEGIN_FUNCTION timer_tick
@@ -121,6 +97,8 @@ void initialize_timers(void)
  */
 void timer_tick(void)
 {
+  pic_sys_time = GETtickTIME(0);
+
   if (config.cli_timeout && is_cli) {
     if (isset_IF()) {
       is_cli = 0;
@@ -190,11 +168,10 @@ void do_sound(Bit16u period)
 	}
 }
 
-
-static void pit_latch(int latch)
+static void _pit_latch(int latch, uint64_t cur)
 {
   hitimer_u cur_time;
-  u_long ticks=0;
+  long ticks=0;
   pit_latch_struct *p = &pit[latch];
 
   /* check for special 'read latch status' mode */
@@ -216,7 +193,7 @@ static void pit_latch(int latch)
     return;	/* let bit 7 on */
   }
 
-  cur_time.td = GETtickTIME(0);
+  cur_time.td = cur;
 
   if ((p->mode & 2)==0) {
     /* non-periodical modes 0,1,4,5 - used mainly by games
@@ -232,7 +209,7 @@ static void pit_latch(int latch)
       /* should have been initialized to the value in write_latch */
 
       if (p->cntr != -1) {
-	ticks = (cur_time.td - p->time.td);
+	ticks = NS_TO_TICKS(cur_time.td - p->time.td);
 
 	if (ticks > p->cntr) {	/* time has elapsed */
 	  if ((p->mode&0x40)==0)
@@ -253,14 +230,10 @@ static void pit_latch(int latch)
     /* mode 6 -- ??? */
     /* mode 3 -- square-wave generator, countdown by 2 */
     /* mode 7 -- ??? */
-      pic_sys_time = cur_time.td;	/* full counter */
-    /* NEVER is a special invalid value... skip it if found */
-      pic_sys_time += (pic_sys_time == NEVER);
-
       if (latch == 0) {
+#if 0
 	/* when current time is greater than irq time, call pic_request
 	   which will then point pic_itime to next interrupt */
-#if 0
 	if (((p->mode&0x40)==0) && (pic_sys_time > pic_itime[PIC_IRQ0])) {
 	  if (pic_request(PIC_IRQ0)==PIC_REQ_OK)
 	   { r_printf("PIT: pit_latch, pic_request IRQ0 mode 2/3\n"); }
@@ -269,9 +242,15 @@ static void pit_latch(int latch)
 	/* while current time is less than next irq time, ticks decrease;
          * ticks can go out of bounds or negative when the interrupt
          * is lost or pending */
-	ticks = (pic_itime[VTMR_PIT] - pic_sys_time) % p->cntr;
+	if (cur > pic_itime[latch]) {
+	  ticks = 1;
+	} else {
+	  ticks = NS_TO_TICKS(pic_itime[latch] - cur) + 1;
+	  if (ticks > p->cntr)
+	    ticks = 0;  // should not be here
+	}
       } else {
-	ticks = p->cntr - (pic_sys_time % p->cntr);
+	ticks = p->cntr - (cur % p->cntr);
       }
 
       if ((p->mode & 3)==3) {
@@ -295,6 +274,25 @@ static void pit_latch(int latch)
   i_printf("PIT%d: ticks=%lx latch=%x pin=%d\n",latch,ticks,
 	p->read_latch,(p->outpin!=0));
 #endif
+}
+
+static void pit_latch(int latch)
+{
+  uint64_t cur_time;
+
+  evtimer_block(pit[latch].evtmr);
+  cur_time = evtimer_gettime(pit[latch].evtmr);
+  /* if timer is lagging we run it by hands */
+  if (!pit[latch].q_ticks && cur_time > pic_itime[latch]) {
+    /* timer thread blocked, we can increment vars w/o sync/atomics */
+    pit[latch].tmr_skip++;
+    pit[latch].q_ticks++;
+    vtmr_raise(VTMR_PIT);
+    pic_itime[latch] += TICKS_TO_NS(pit[latch].cntr);
+    pit[latch].time.td = cur_time;
+  }
+  _pit_latch(latch, cur_time);
+  evtimer_unblock(pit[latch].evtmr);
 }
 
 /* This is called also by port 0x61 - some programs can use timer #2
@@ -385,11 +383,13 @@ void pit_outp(ioport_t port, Bit8u val)
 
   if (pit[port].write_state != 0) {
     if (pit[port].write_latch == 0)
-      pit[port].cntr = 0x10000;
+      pit[port].cntr = 0xffff;
     else
       pit[port].cntr = pit[port].write_latch;
 
-    pit[port].time.td = GETtickTIME(0);
+    evtimer_set_rel(pit[port].evtmr, TICKS_TO_NS(pit[port].cntr), 1);
+    pit[port].time.td = evtimer_gettime(pit[port].evtmr);
+    pic_itime[port] = pit[port].time.td + TICKS_TO_NS(pit[port].cntr);
   }
 }
 
@@ -445,7 +445,7 @@ void pit_control_outp(ioport_t port, Bit8u val)
           /* set the time base for the counter - safety code for programs
            * which use a non-periodical mode without reloading the counter
            */
-          pit[latch].time.td = GETtickTIME(0);
+          pit[latch].time.td = evtimer_gettime(pit[latch].evtmr);
         }
       }
 #ifdef DEBUG_PIT
@@ -469,137 +469,43 @@ void pit_control_outp(ioport_t port, Bit8u val)
   }
 }
 
-/* DANG_BEGIN_FUNCTION pic_activate
- *
- * pic_activate requests any interrupts whose scheduled time has arrived.
- * anything after pic_dos_time and before pic_sys_time is activated.
- * pic_dos_time is advanced to the earliest time scheduled.
- * DANG_END_FUNCTION
- */
-static void pic_activate(void)
+static void timer_raise(void *arg)
 {
-  hitimer_t earliest;
-  int timer, count;
+  vtmr_raise(VTMR_PIT);
+  pic_itime[0] += TICKS_TO_NS(pit[0].cntr);
+  pit[0].time.td = evtimer_gettime(pit[0].evtmr);
+}
 
-  if (pic_pending())
+static void timer_activate(uint64_t ticks, void *arg)
+{
+  int pit_num = (uintptr_t)arg;
+  uint64_t q;
+
+  if (pit[pit_num].tmr_skip) {
+    pit[pit_num].tmr_skip--;
     return;
-
-/*if(pic_irr&~pic_imr) return;*/
-   earliest = pic_sys_time;
-   count = 0;
-   for (timer=0; timer<32; ++timer) {
-      if ((pic_itime[timer] != NEVER) && (pic_itime[timer] < pic_sys_time)) {
-         if (pic_itime[timer] != pic_ltime[timer]) {
-               if ((earliest == NEVER) || (pic_itime[timer] < earliest))
-                    earliest = pic_itime[timer];
-               pic_ltime[timer] = pic_itime[timer];
-               vtmr_raise(timer);
-               ++count;
-         } else {
-               r_printf("pic_itime and pic_ltime for timer %i matched!\n", timer);
-         }
-      }
-   }
-   if(count) r_printf("Activated %i interrupts.\n", count);
-   r_printf("Activate ++ dos time to %li\n", earliest);
-   r_printf("pic_sys_time is %li\n", pic_sys_time);
-   pic_itime[32] = earliest;
-   if (count)
-      pic_dos_time = earliest;
-}
-
-int timer_get_vpend(int timer)
-{
-    if (timer != 0 || pit[timer].cntr == 0 || pic_itime[timer] > pic_sys_time)
-        return 0;
-    return ((pic_sys_time - pic_itime[timer]) / pit[timer].cntr + 1);
-}
-
-/* DANG_BEGIN_FUNCTION pic_sched
- * pic_sched schedules an interrupt for activation after a designated
- * time interval.  The time measurement is in unis of 1193047/second,
- * the same rate as the pit counters.  This is convenient for timer
- * emulation, but can also be used for pacing other functions, such as
- * serial emulation, incoming keystrokes, or video updates.  Some sample
- * intervals:
- *
- * rate/sec:	5	7.5	11	13.45	15	30	60
- * interval:	238608	159072	108459	88702	79536	39768	19884
- *
- * rate/sec:	120	180	200	240	360	480	720
- * interval:	9942	6628	5965	4971	3314	2485	1657
- *
- * rate/sec:	960	1440	1920	2880	3840	5760	11520
- * interval:	1243	829	621	414	311	207	103
- *
- * pic_sched expects two parameters: an interrupt level and an interval.
- * To assure proper repeat scheduling, pic_sched should be called from
- * within the interrupt handler for the same interrupt.  The maximum
- * interval is 15 minutes (0x3fffffff).
- * DANG_END_FUNCTION
- */
-
-static void pic_sched(int ilevel, int interval)
-{
-  char mesg[35];
-
- /* default for interval is 65536 (=54.9ms)
-  * There's a problem with too small time intervals - an interrupt can
-  * be continuously scheduled, without letting any time to process other
-  * code.
-  *
-  * BIG WARNING - in non-periodic timer modes pit[0].cntr goes to -1
-  *	at the end of the interval - was this the reason for the following
-  *	[1u-15sec] range check?
-  */
-  if(interval > 0 && interval < 0x3fffffff) {
-     if(pic_ltime[ilevel]==NEVER) {
-	pic_itime[ilevel] = pic_sys_time + interval;
-     } else {
-	pic_itime[ilevel] = pic_itime[ilevel] + interval;
-     }
   }
-  if (debug_level('r') > 2) {
-    /* avoid going through sprintf for non-debugging */
-    sprintf(mesg,", delay= %d.",interval);
-    r_printf("Scheduling timer %i%s\n", ilevel, mesg);
-    r_printf("pic_itime set to %li\n", pic_itime[ilevel]);
+  q = __sync_fetch_and_add(&pit[pit_num].q_ticks, ticks);
+  if (pit_num) {
+    pit[pit_num].time.td = evtimer_gettime(pit[pit_num].evtmr);
+    h_printf("PIT: timer %i expired\n", pit_num);
+    return;
   }
-
-  pic_activate();
-}
-
-/* DANG_BEGIN_FUNCTION pic_watch
- *
- * pic_watch is a watchdog timer for pending interrupts.  If pic_iret
- * somehow fails to activate a pending interrupt request for 2 consecutive
- * timer ticks, pic_watch will activate them anyway.  pic_watch is called
- * ONLY by timer_tick, the interval timer signal handler, so the two functions
- * will probably be merged.
- *
- * DANG_END_FUNCTION
- */
-void pic_watch(void)
-{
-  hitimer_t t_time;
-
-/*  calculate new sys_time
- *  values are kept modulo 2^32 (exactly 1 hour)
- */
-  t_time = GETtickTIME(0);
-
-  /* check for any freshly initiated timers, and sync them to s_time */
-  r_printf("pic_itime[0]=%li\n", pic_itime[0]);
-  pic_sys_time=t_time + (t_time == NEVER);
-  r_printf("pic_sys_time set to %li\n", pic_sys_time);
-  pic_dos_time = pic_itime[32];
-
-  pic_activate();
+  /* running in timer thread */
+  /* TODO: make vtmr thread-safe, remove this inter-thread call-back! */
+  if (!q)
+    add_thread_callback(timer_raise, NULL, "pit");
 }
 
 static void timer_irq_ack(int masked)
 {
-  pic_sched(0, pit[0].cntr);
+  uint64_t q = __sync_sub_and_fetch(&pit[0].q_ticks, 1);
+
+  if (q) {
+    vtmr_raise(VTMR_PIT);
+    pic_itime[0] += TICKS_TO_NS(pit[0].cntr);
+  }
+  irq0_cnt++;
 }
 
 /* reads/writes to the speaker control port (0x61)
@@ -703,63 +609,69 @@ void pit_init(void)
 
   vtmr_register(VTMR_PIT, timer_irq_ack);
   vtmr_set_tweaked(VTMR_PIT, config.timer_tweaks, 0);
+
+  pit[0].evtmr = evtimer_create(timer_activate, (void *)(uintptr_t)0);
+  pit[1].evtmr = evtimer_create(timer_activate, (void *)(uintptr_t)1);
+  pit[2].evtmr = evtimer_create(timer_activate, (void *)(uintptr_t)2);
 }
 
 void pit_reset(void)
 {
-  hitimer_t cur_time;
-
-  cur_time = GETtickTIME(0);
-
   pit[0].mode        = 3;
   pit[0].outpin      = 0;
-  pit[0].cntr        = 0x10000;
-  pit[0].time.td     = cur_time;
+  pit[0].cntr        = 0xffff;
+  pit[0].time.td     = 0;
   pit[0].read_latch  = 0xffffffff;
   pit[0].write_latch = 0;
   pit[0].read_state  = 3;
   pit[0].write_state = 3;
+  evtimer_stop(pit[0].evtmr);
 
   pit[1].mode        = 2;
   pit[1].outpin      = 0;
   pit[1].cntr        = 18;
-  pit[1].time.td     = cur_time;
+  pit[1].time.td     = 0;
   pit[1].read_latch  = 0xffffffff;
   pit[1].write_latch = 18;
   pit[1].read_state  = 3;
   pit[1].write_state = 3;
+  evtimer_stop(pit[1].evtmr);
 
   pit[2].mode        = 0;
   pit[2].outpin      = 0;
-  pit[2].cntr        = 0x10000;
-  pit[2].time.td     = cur_time;
+  pit[2].cntr        = 0xffff;
+  pit[2].time.td     = 0;
   pit[2].read_latch  = 0xffffffff;
   pit[2].write_latch = 0;
   pit[2].read_state  = 3;
   pit[2].write_state = 3;
+  evtimer_stop(pit[2].evtmr);
 
   pit[3].mode        = 0;
   pit[3].outpin      = 0;
-  pit[3].cntr        = 0x10000;
-  pit[3].time.td     = cur_time;
+  pit[3].cntr        = 0xffff;
+  pit[3].time.td     = 0;
   pit[3].read_latch  = 0xffffffff;
   pit[3].write_latch = 0;
   pit[3].read_state  = 3;
   pit[3].write_state = 3;
 
   port61 = 0x0c;
+
+  pic_sys_time = GETtickTIME(0);
 }
 
 void pit_late_init(void)
 {
-  pic_ltime[0] = pic_itime[0] = pic_sys_time;
-  vtmr_raise(0);  /* start timer */
+  evtimer_set_rel(pit[0].evtmr, TICKS_TO_NS(pit[0].cntr), 1);
+  pit[0].time.td = evtimer_gettime(pit[0].evtmr);
+  pic_itime[0] = pit[0].time.td + TICKS_TO_NS(pit[0].cntr);
 }
 
-#define TIMER0_FLOOD_THRESHOLD 50000
+#define TIMER0_FLOOD_THRESHOLD 50
 
 int CAN_SLEEP(void)
 {
   return (!(pic_get_isr() || (REG(eflags) & VIP) || signal_pending() ||
-    (pic_sys_time > pic_dos_time + TIMER0_FLOOD_THRESHOLD) || in_leavedos));
+    (pit[0].q_ticks > TIMER0_FLOOD_THRESHOLD) || in_leavedos));
 }

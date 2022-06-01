@@ -19,21 +19,6 @@ extern void iodev_register(const char *name, void (*init_func)(void),
 	void (*reset_func)(void), void (*term_func)(void));
 void iodev_unregister(const char *name);
 void iodev_add_device(const char *dev_name);
-/*******************************************************************
- * Programmable Interrupt Timer (PIT) chip                         *
- *******************************************************************/
-
-typedef struct {
-  Bit16u         read_state;
-  Bit16u         write_state;
-  Bit8u          mode, outpin;
-  Bit32u         read_latch;
-  Bit16u         write_latch;
-  Bit32s         cntr;
-  hitimer_u	 time;
-} pit_latch_struct;
-
-extern pit_latch_struct pit[PIT_TIMERS];
 
 extern void  pit_init(void);
 extern void  pit_reset(void);

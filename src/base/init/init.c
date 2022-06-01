@@ -94,19 +94,6 @@ void stdio_init(void)
 }
 
 /*
- * DANG_BEGIN_FUNCTION time_setting_init
- *
- * description:
- *  Beats me
- *
- * DANG_END_FUNCTION
- */
-void time_setting_init(void)
-{
-  initialize_timers();
-}
-
-/*
  * DANG_BEGIN_FUNCTION timer_interrupt_init
  *
  * description:

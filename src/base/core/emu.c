@@ -314,7 +314,6 @@ int main(int argc, char **argv, char * const *envp)
     get_time_init();
     print_version();            /* log version information */
     memcheck_init();
-    time_setting_init();	/* get the startup time */
     /* threads can be created only after signal_pre_init() so
      * it should be above device_init(), iodev_init(), cpu_setup() etc */
     signal_pre_init();          /* initialize sig's & sig handlers */

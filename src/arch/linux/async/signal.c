@@ -1070,7 +1070,6 @@ static void SIGALRM_call(void *arg)
   uncache_time();
   timer_tick();
   /* deliver timer irqs */
-  pic_watch();
   process_callbacks();
 
   if ((pic_sys_time-cnt10) >= (PIT_TICK_RATE/100) || dosemu_frozen) {
