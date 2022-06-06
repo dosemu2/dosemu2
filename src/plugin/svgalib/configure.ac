@@ -21,5 +21,4 @@ if test "$use_svgalib" = "no"; then
     AC_MSG_ERROR([Your svgalib is too old.])
 fi
 
-AC_SUBST(LIBS)
 AC_OUTPUT

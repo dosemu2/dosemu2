@@ -3,6 +3,4 @@ AC_INIT
 AC_CONFIG_FILES([Makefile.conf])
 AM_PATH_ALSA(0,,
     AC_MSG_ERROR([alsa development libs not found]))
-AC_SUBST(ALSA_CFLAGS)
-AC_SUBST(ALSA_LIBS)
 AC_OUTPUT
