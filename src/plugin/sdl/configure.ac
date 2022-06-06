@@ -3,9 +3,9 @@ AC_INIT
 
 dnl Check for SDL
 SDL_VERSION=2.0.6
-AM_PATH_SDL2($SDL_VERSION,,
+PKG_CHECK_MODULES(SDL, [sdl2 >= $SDL_VERSION],, [
 	    AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!])
-)
+])
 
 dnl Check for SDL2_ttf
 PKG_CHECK_MODULES(SDL2_TTF, [SDL2_ttf], [
