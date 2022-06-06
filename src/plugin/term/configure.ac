@@ -3,6 +3,4 @@ AC_INIT
 AC_CONFIG_FILES([Makefile.conf])
 PKG_CHECK_MODULES([SLANG], [slang],,
     AC_MSG_ERROR([slang development headers not found]))
-AC_SUBST(SLANG_CFLAGS)
-AC_SUBST(SLANG_LIBS)
 AC_OUTPUT

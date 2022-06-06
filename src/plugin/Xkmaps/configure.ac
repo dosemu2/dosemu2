@@ -9,8 +9,6 @@ AC_CHECK_HEADER(X11/XKBlib.h, AC_DEFINE(HAVE_XKB,1))
 PKG_CHECK_MODULES([X11], [x11],,
     AC_MSG_ERROR([X development libraries not installed]))
 AC_MSG_NOTICE(Compiling with X support...)
-AC_SUBST(X11_CFLAGS)
-AC_SUBST(X11_LIBS)
 
 AC_OUTPUT
 
