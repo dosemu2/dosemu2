@@ -160,7 +160,7 @@ fi
 get_binary "$0"
 
 if [ "`id -ur`" -eq 0 ]; then
-  echo "Running dosemu2 as root is highly discouraged"
+  echo "Running dosemu2 with root privs is only possible with: $(basename $0) -s"
   exit 1
 fi
 
