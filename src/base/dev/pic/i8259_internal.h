@@ -53,6 +53,7 @@ struct PICCommonState {
     uint32_t master; /* reflects /SP input pin */
     uint32_t iobase;
     uint32_t elcr_addr;
+    uint8_t fake_irr; /* dosemu2 extension */
 };
 
 void pic_reset_common(PICCommonState *s);

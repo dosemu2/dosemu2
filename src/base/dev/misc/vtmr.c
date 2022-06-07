@@ -221,8 +221,11 @@ static void vtmr_smi(void *arg)
     uint16_t pirr = port_inw(VTMR_VPEND_PORT);
 
     while ((timer = find_bit(pirr)) != -1) {
+        int masked = vtmr_is_masked(timer);
         pirr &= ~(1 << timer);
-        port_outb(VTMR_REQUEST_PORT, timer | (vtmr_is_masked(timer) << 7));
+        port_outb(VTMR_REQUEST_PORT, timer | (masked << 7));
+        if (!masked)
+            port_outb(0x4d2, 1);  // set fake IRR
     }
 }
 

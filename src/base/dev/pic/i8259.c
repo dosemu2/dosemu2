@@ -221,6 +221,7 @@ void pic_ioport_write(PICCommonState *s, hwaddr addr64,
     trace_pic_ioport_write(s->master, addr, val);
 
     if (s->poll) {  // dosemu2 mod: poll extension
+        s->fake_irr &= ~(1 << val);
         pic_intack(s, val);
         s->poll = 0;
     } else if (addr == 0) {
@@ -327,7 +328,7 @@ uint64_t pic_ioport_read(PICCommonState *s, hwaddr addr, unsigned size)
             if (s->read_reg_select) {
                 ret = s->isr;
             } else {
-                ret = s->irr;
+                ret = s->irr | s->fake_irr;
             }
         } else {
             ret = s->imr;
