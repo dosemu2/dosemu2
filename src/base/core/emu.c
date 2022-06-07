@@ -314,7 +314,6 @@ int main(int argc, char **argv, char * const *envp)
     get_time_init();
     print_version();            /* log version information */
     memcheck_init();
-    time_setting_init();	/* get the startup time */
     /* threads can be created only after signal_pre_init() so
      * it should be above device_init(), iodev_init(), cpu_setup() etc */
     signal_pre_init();          /* initialize sig's & sig handlers */
@@ -352,6 +351,7 @@ int main(int argc, char **argv, char * const *envp)
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/
     memory_init();		/* initialize the memory contents */
+    ioselect_init();
     /* iodev_init() can load plugins, like SDL, that can spawn a thread.
      * This must be done before initializing signals, or problems ensue.
      * This also must be done when the signals are blocked, so after

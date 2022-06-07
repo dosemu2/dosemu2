@@ -287,10 +287,12 @@ onlineMode(void)
 	if (FD_ISSET(sock.fd, &rfds)) {
 	    sockBufRead();
 	    sockReadLoop();
+	    ioselect_complete(sock.fd);
 	}
 	if (FD_ISSET(tty.rfd, &rfds)) {
 	    ttyBufRead();
 	    ttyReadLoop();
+	    ioselect_complete(tty.rfd);
 	}
     }
     return 0;

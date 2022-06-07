@@ -456,6 +456,7 @@ static void raw_mouse_getevent(int fd, void *arg)
 	int nBytes;
 
 	nBytes = RPT_SYSCALL(read(mice->fd, rBuf, MOUSE_BUFFER));
+	ioselect_complete(fd);
 	if (nBytes <= 0)
 	  return;
 	m_printf("MOUSE: Read %d bytes.\n", nBytes);

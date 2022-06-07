@@ -460,6 +460,7 @@ static int tty_uart_fill(com_t *com)
   size = RPT_SYSCALL(read(com->fd,
                               &com->rx_buf[com->rx_buf_end],
                               RX_BUFFER_SIZE - com->rx_buf_end));
+  ioselect_complete(com->fd);
   if (size <= 0)
     return 0;
   if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n", com->num,

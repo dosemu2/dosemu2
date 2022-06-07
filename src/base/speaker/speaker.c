@@ -175,7 +175,7 @@ void speaker_resume (void)
 		port_safe_outb (0x61, saved_port_val);	/* restore timer & speaker bits */
 		break;
 	case SPKR_EMULATED:
-		do_sound (pit [2].write_latch & 0xffff);
+//		do_sound(pit[2].write_latch & 0xffff);
 		break;
 	case SPKR_OFF:
 		break;

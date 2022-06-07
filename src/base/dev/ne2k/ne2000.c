@@ -331,6 +331,7 @@ static int ne2000_ether_recv(NE2000State *s, uint8_t *buf, int bufsiz)
     }
 
     ret = read(s->fdnet, buf, bufsiz);
+    ioselect_complete(s->fdnet);
     if (ret < 0) {
         N_printf("NE2000: ne2000_ether_recv() read failed\n");
         return -1;

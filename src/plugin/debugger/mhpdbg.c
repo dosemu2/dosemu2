@@ -207,6 +207,7 @@ void mhp_input()
     return;
 
   mhpdbg.nbytes = read(mhpdbg.fdin, mhpdbg.recvbuf, SRSIZE);
+  ioselect_complete(mhpdbg.fdin);
 
   if (mhpdbg.nbytes == -1)
     return;

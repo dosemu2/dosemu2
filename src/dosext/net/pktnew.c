@@ -687,7 +687,11 @@ static int pkt_receive(void)
 
 static enum VirqHwRet pkt_virq_receive(void *arg)
 {
-    return (pkt_receive() ? VIRQ_HWRET_CONT : VIRQ_HWRET_DONE);
+    int rc = pkt_receive();
+    if (rc)
+        return VIRQ_HWRET_CONT;
+    ioselect_complete(pkt_fd);
+    return VIRQ_HWRET_DONE;
 }
 
 /*  Find_Handle does type demultiplexing.

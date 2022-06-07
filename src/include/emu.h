@@ -394,7 +394,7 @@ extern int int10(void);
 extern int int13(void);
 extern int int16(void);
 extern int int17(void);
-extern void io_select(void);
+extern void irq_select(void);
 extern int pd_receive_packet(void);
 extern int printer_tick(u_long);
 extern void floppy_tick(void);
@@ -429,11 +429,18 @@ extern void leavedos_from_thread(int code);
 #define _leavedos_main(n, s) __leavedos_main_wrp(n, s, __func__, __LINE__)
 extern void __leavedos_main_wrp(int code, int sig, const char *s, int num);
 extern void check_leavedos(void);
+#define IOFLG_IMMED 1
 extern void add_to_io_select_new(int, void(*)(int, void *), void *,
-	const char *name);
+	unsigned flags, const char *name);
 #define add_to_io_select(fd, func, arg) \
-	add_to_io_select_new(fd, func, arg, #func)
+	add_to_io_select_new(fd, func, arg, 0, #func)
+#define add_to_io_select_threaded(fd, func, arg) \
+	add_to_io_select_new(fd, func, arg, IOFLG_IMMED, #func)
 extern void remove_from_io_select(int);
+extern void ioselect_complete(int fd);
+extern void ioselect_block(int fd);
+extern void ioselect_unblock(int fd);
+extern void ioselect_init(void);
 extern void ioselect_done(void);
 
 /*
@@ -463,7 +470,6 @@ extern void memory_init(void);
 extern void map_video_bios(void);
 extern void map_custom_bios(void);
 extern void stdio_init(void);
-extern void time_setting_init(void);
 extern void timer_interrupt_init(void);
 extern void low_mem_init(void);
 extern void print_version(void);

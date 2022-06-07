@@ -10,7 +10,6 @@
 #define TIMER_DIVISOR   6
 
 extern void timer_tick(void);
-extern void pic_watch(void);
 extern Bit8u pit_inp(ioport_t);
 extern void pit_outp(ioport_t, Bit8u);
 
@@ -139,7 +138,6 @@ extern hitimer_t pic_sys_time;
 
 extern Bit8u pit_control_inp(ioport_t);
 extern void pit_control_outp(ioport_t port, Bit8u val);
-extern void initialize_timers(void);
 extern void get_time_init(void);
 extern void cputime_late_init(void);
 extern void do_sound(Bit16u period);
