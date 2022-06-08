@@ -36,6 +36,7 @@ from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_memory_ems_borland import memory_ems_borland
 from func_mfs_findfile import mfs_findfile
 from func_mfs_truename import mfs_truename
+from func_pit_mode_2 import pit_mode_2
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
 SYSTYPE_DRDOS_ORIGINAL = "Original DR-DOS"
@@ -4899,6 +4900,10 @@ $_floppy_a = ""
         self.assertIn("rem end", results, msg="Test incomplete:\n")
 
         self.assertIn(tstring1, results)
+
+    def test_pit_mode_2(self):
+        """PIT Mode 2"""
+        pit_mode_2(self)
 
 
 class DRDOS701TestCase(OurTestCase, unittest.TestCase):
