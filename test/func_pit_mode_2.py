@@ -7,7 +7,7 @@ def pit_mode_2(self):
     self.mkfile("testit.bat", """\
 pitmode2
 rem end
-""")
+""", newline="\r\n")
 
 # compile sources
     self.mkcom_with_ia16("pitmode2", r"""
