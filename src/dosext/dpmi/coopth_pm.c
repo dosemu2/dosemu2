@@ -54,7 +54,7 @@ static int is_active(int tid, int idx)
     return (_cs == dpmi_sel() && _eip == coopthpm_pth[idx].hlt_off);
 }
 
-static int to_sleep(void)
+static int to_sleep(int tid)
 {
     if (!dpmi_isset_IF()) {
 	dosemu_error("sleep with interrupts disabled\n");

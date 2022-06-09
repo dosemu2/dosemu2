@@ -29,6 +29,7 @@
 #include "coopth_be.h"
 
 struct co_vm86 {
+    struct vm86_regs *regs;
     Bit16u hlt_off;
     void (*post)(void);
 };
@@ -50,34 +51,42 @@ static int do_start_custom(int tid);
 
 static int is_active(int tid, int idx)
 {
-    return (SREG(cs) == BIOS_HLT_BLK_SEG &&
-	    LWORD(eip) == coopth86_pth[idx].hlt_off);
+    struct vm86_regs *regs = coopth86[tid].regs;
+
+    return (regs->cs == BIOS_HLT_BLK_SEG &&
+	    LO_WORD(regs->eip) == coopth86_pth[idx].hlt_off);
 }
 
 static void do_callf(int tid, int idx)
 {
+    struct vm86_regs *regs = coopth86[tid].regs;
+
     if (ctx_is_valid) {
 	int ok = ctx_is_valid();
 	if (!ok)
 	    dosemu_error("coopth: unsafe context switch\n");
     }
-    coopth86_pth[idx].ret_cs = SREG(cs);
-    coopth86_pth[idx].ret_ip = LWORD(eip);
-    SREG(cs) = BIOS_HLT_BLK_SEG;
+    coopth86_pth[idx].ret_cs = regs->cs;
+    coopth86_pth[idx].ret_ip = LO_WORD(regs->eip);
+    regs->cs = BIOS_HLT_BLK_SEG;
     assert(coopth86[tid].hlt_off != INVALID_HLT);
-    LWORD(eip) = coopth86[tid].hlt_off;
+    LO_WORD(regs->eip) = coopth86[tid].hlt_off;
 }
 
 static void do_retf(int tid, int idx)
 {
-    SREG(cs) = coopth86_pth[idx].ret_cs;
-    LWORD(eip) = coopth86_pth[idx].ret_ip;
+    struct vm86_regs *regs = coopth86[tid].regs;
+
+    regs->cs = coopth86_pth[idx].ret_cs;
+    LO_WORD(regs->eip) = coopth86_pth[idx].ret_ip;
     coopth86_pth[idx].hlt_off = INVALID_HLT;
 }
 
-static int to_sleep(void)
+static int to_sleep(int tid)
 {
-    if (!isset_IF()) {
+    struct vm86_regs *regs = coopth86[tid].regs;
+
+    if (!(regs->eflags & VIF)) {
 	dosemu_error("sleep with interrupts disabled\n");
 	return 0;
     }
@@ -122,12 +131,13 @@ static void coopth_hlt(Bit16u offs, HLT_ARG(arg))
 static void coopth_auto_hlt(Bit16u offs, HLT_ARG(arg))
 {
     struct co_vm86 *thr = arg;
+    struct vm86_regs *regs = thr->regs;
     int tid = thr - coopth86;
 
     assert(tid >= 0 && tid < MAX_COOPTHREADS);
     switch (offs) {
     case 0:
-	LWORD(eip)++;  // skip hlt
+	LO_WORD(regs->eip)++;  // skip hlt
 	do_start_custom(tid);
 	break;
     case 1: {
@@ -163,6 +173,7 @@ int coopth_create(const char *name, coopth_func_t func)
 	return -1;
     thr = &coopth86[num];
     thr->hlt_off = register_handler(name, coopth_hlt, thr, 1);
+    thr->regs = &REGS;
     return num;
 }
 
@@ -179,6 +190,7 @@ int coopth_create_multi(const char *name, int len, coopth_func_t func)
     for (i = 0; i < len; i++) {
 	thr = &coopth86[num + i];
 	thr->hlt_off = hlt_off + i;
+	thr->regs = &REGS;
     }
     return num;
 }
@@ -197,6 +209,7 @@ int coopth_create_vm86(const char *name, coopth_func_t func,
     ret = register_handler(name, coopth_auto_hlt, thr, 2);
     thr->hlt_off = ret;  // for some future unregister
     thr->post = post;
+    thr->regs = &REGS;
     *hlt_off = ret;
     return num;
 }
@@ -204,7 +217,8 @@ int coopth_create_vm86(const char *name, coopth_func_t func,
 int coopth_start(int tid, void *arg)
 {
     struct cstart_ret ret = coopth_start_internal(tid, arg, do_retf);
-    uint64_t dbg = ((uint64_t)REG(eax) << 32) | REG(ebx);
+    struct vm86_regs *regs = coopth86[tid].regs;
+    uint64_t dbg = ((uint64_t)regs->eax << 32) | regs->ebx;
 
     if (ret.idx == -1)
 	return -1;
@@ -220,13 +234,14 @@ int coopth_start(int tid, void *arg)
 static int do_start_custom(int tid)
 {
     int idx = coopth_start_custom_internal(tid, NULL);
-    uint64_t dbg = ((uint64_t)REG(eax) << 32) | REG(ebx);
+    struct vm86_regs *regs = coopth86[tid].regs;
+    uint64_t dbg = ((uint64_t)regs->eax << 32) | regs->ebx;
 
     if (idx == -1)
 	return -1;
-    assert(SREG(cs) == BIOS_HLT_BLK_SEG);
+    assert(regs->cs == BIOS_HLT_BLK_SEG);
     assert(coopth86_pth[idx].hlt_off == INVALID_HLT);
-    coopth86_pth[idx].hlt_off = LWORD(eip);
+    coopth86_pth[idx].hlt_off = LO_WORD(regs->eip);
     coopth86_pth[idx].dbg = dbg;
     return 0;
 }

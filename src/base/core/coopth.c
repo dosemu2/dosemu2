@@ -1146,7 +1146,7 @@ void coopth_sleep(void)
 
     assert(_coopth_is_in_thread());
     if (!is_detached())
-	coopthreads[tid].ops->to_sleep();
+	coopthreads[tid].ops->to_sleep(tid);
     switch_state(COOPTH_SLEEP);
     check_cancel_chk();
 }

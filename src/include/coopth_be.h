@@ -25,7 +25,7 @@ struct coopth_be_ops {
     void (*callf)(int tid, int idx);
     void (*retf)(int tid, int idx);
     void (*prep)(int tid, int idx);
-    int (*to_sleep)(void);
+    int (*to_sleep)(int tid);
     void (*sleep)(void);
     uint64_t (*get_dbg_val)(int tid, int idx);
     unsigned id;
