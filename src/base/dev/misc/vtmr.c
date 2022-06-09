@@ -100,7 +100,6 @@ static void vtmr_io_write(ioport_t port, Bit8u value)
         return;
     switch (port) {
     case VTMR_REQUEST_PORT:
-        vtmr_pirr &= ~msk;
         if (!masked) {
             vtmr_irr |= msk;
             if (!(vtmr_imr & msk))
