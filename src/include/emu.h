@@ -51,7 +51,7 @@ union vm86_union
   struct vm86plus_struct vm86compat;
 };
 
-extern union vm86_union vm86u;
+extern __thread union vm86_union vm86u;
 #define vm86s (vm86u.vm86ps)
 
 int signal_pending(void);
@@ -97,6 +97,7 @@ extern FILE *real_stderr;
 void dos_ctrl_alt_del(void);	/* disabled */
 
 extern void vm86_helper(void);
+extern void run_vm86(void);
 extern void loopstep_run_vm86(void);
 extern int do_call_back(Bit16u cs, Bit16u ip);
 extern int do_int_call_back(int intno);

@@ -469,13 +469,6 @@ void pit_control_outp(ioport_t port, Bit8u val)
   }
 }
 
-static void timer_raise(void *arg)
-{
-  vtmr_raise(VTMR_PIT);
-  pic_itime[0] += TICKS_TO_NS(pit[0].cntr);
-  pit[0].time.td = evtimer_gettime(pit[0].evtmr);
-}
-
 static void timer_activate(uint64_t ticks, void *arg)
 {
   int pit_num = (uintptr_t)arg;
@@ -491,10 +484,11 @@ static void timer_activate(uint64_t ticks, void *arg)
     h_printf("PIT: timer %i expired\n", pit_num);
     return;
   }
-  /* running in timer thread */
-  /* TODO: make vtmr thread-safe, remove this inter-thread call-back! */
-  if (!q)
-    add_thread_callback(timer_raise, NULL, "pit");
+  if (!q) {
+    vtmr_raise(VTMR_PIT);
+    pic_itime[0] += TICKS_TO_NS(pit[0].cntr);
+    pit[0].time.td = evtimer_gettime(pit[0].evtmr);
+  }
 }
 
 static void timer_irq_ack(int masked)

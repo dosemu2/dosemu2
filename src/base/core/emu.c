@@ -102,7 +102,7 @@ static int can_leavedos;
 static int leavedos_code;
 static int leavedos_called;
 static pthread_mutex_t ld_mtx = PTHREAD_MUTEX_INITIALIZER;
-union vm86_union vm86u;
+__thread union vm86_union vm86u;
 
 volatile __thread int fault_cnt;
 volatile int in_vm86;
@@ -470,8 +470,13 @@ static void __leavedos_main(int code, int sig)
 {
     int i;
 
+    /* stop io thread first */
+    ioselect_done();
+    /* then stop device threads, which also stops any remaining vm86() uses */
+    iodev_term();
 #ifdef USE_MHPDBG
     g_printf("closing debugger pipes\n");
+    /* after vm86() is no longer used, we can do this */
     mhp_close();
 #endif
     /* async signals must be disabled after coopthreads are joined, but
@@ -502,9 +507,6 @@ static void __leavedos_main(int code, int sig)
     free(vm86_hlt_state);
 
     SIG_close();
-
-    g_printf("calling keyboard_close\n");
-    iodev_term();
 
 #if defined(X86_EMULATOR)
     /* if we are here with config.cpuemu>1 something went wrong... */
@@ -537,7 +539,6 @@ static void __leavedos_main(int code, int sig)
 
     g_printf("calling close_all_printers\n");
     close_all_printers();
-    ioselect_done();
 
     for (i = 0; i < exit_hndl_num; i++)
       exit_hndl[i].handler();

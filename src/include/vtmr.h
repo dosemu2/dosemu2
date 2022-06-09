@@ -4,6 +4,7 @@
 enum { VTMR_PIT, VTMR_RTC, VTMR_MAX };
 
 void vtmr_init(void);
+void vtmr_done(void);
 void vtmr_reset(void);
 void vtmr_raise(int vtmr_num);
 void vtmr_register(int timer, void (*handler)(int));

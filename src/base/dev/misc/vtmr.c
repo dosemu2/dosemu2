@@ -19,15 +19,22 @@
  *
  * Author: Stas Sergeev.
  *
+ * Note: this code shows how to run coopth in a separate thread.
+ * Many things are written here just as an example.
+ * Perhaps in the future the example should be moved elsewhere.
  */
 #include <stdint.h>
 #include <assert.h>
+#include <pthread.h>
+#include <semaphore.h>
 #include "port.h"
 #include "pic.h"
 #include "cpu.h"
 #include "int.h"
 #include "coopth.h"
 #include "bitops.h"
+#include "lowmem.h"
+#include "hlt.h"
 #include "emu.h"
 #include "timers.h"
 #include "chipset.h"
@@ -49,9 +56,15 @@ static uint16_t vtmr_pirr;
 static uint8_t last_acked;
 static int smi_tid;
 
+static pthread_t vtmr_thr;
+static sem_t vtmr_sem;
+static char *rmstack;
+static uint16_t hlt_off;
+
 struct vthandler {
     void (*handler)(int);
     int vint;
+    sem_t done_sem;
 };
 struct vthandler vth[VTMR_MAX];
 
@@ -67,8 +80,6 @@ static struct vint_presets vip[VTMR_MAX] = {
             .interrupt = VRTC_INTERRUPT },
 };
 
-static void vtmr_lower(int timer);
-
 static Bit8u vtmr_irr_read(ioport_t port)
 {
     return vtmr_irr;
@@ -76,9 +87,8 @@ static Bit8u vtmr_irr_read(ioport_t port)
 
 static Bit16u vtmr_vpend_read(ioport_t port)
 {
-    Bit16u ret = vtmr_pirr;
-    vtmr_pirr = 0;
-    return ret;
+    /* clang has __atomic_swap() */
+    return __atomic_exchange_n(&vtmr_pirr, 0, __ATOMIC_ACQ_REL);
 }
 
 static void post_req(void *arg)
@@ -101,33 +111,41 @@ static void vtmr_io_write(ioport_t port, Bit8u value)
     switch (port) {
     case VTMR_REQUEST_PORT:
         if (!masked) {
-            vtmr_irr |= msk;
-            if (!(vtmr_imr & msk))
-                pic_request(vip[timer].irq);
+            uint16_t irr = __sync_fetch_and_or(&vtmr_irr, msk);
+            if (!(irr & msk)) {
+                if (!(vtmr_imr & msk))
+                    pic_request(vip[timer].irq);
+            } else {
+                error("vtmr %i already requested\n", timer);
+            }
         } else {
             pic_untrigger(vip[timer].orig_irq);
             pic_request(vip[timer].orig_irq);
             coopth_add_post_handler(post_req, (void *)(uintptr_t)timer);
         }
+        sem_post(&vth[timer].done_sem);
         h_printf("vtmr: REQ on %i, irr=%x, masked=%i\n", timer, vtmr_irr,
                 masked);
         break;
-    case VTMR_MASK_PORT:
-        if (!(vtmr_imr & msk)) {
-            vtmr_imr |= msk;
+    case VTMR_MASK_PORT: {
+        uint16_t imr = __sync_fetch_and_or(&vtmr_imr, msk);
+        if (!(imr & msk)) {
             if (vtmr_irr & msk)
                 pic_untrigger(vip[timer].irq);
         }
         break;
-    case VTMR_UNMASK_PORT:
-        if (vtmr_imr & msk) {
-            vtmr_imr &= ~msk;
+    }
+    case VTMR_UNMASK_PORT: {
+        uint16_t imr = __sync_fetch_and_and(&vtmr_imr, ~msk);
+        if (imr & msk) {
             if (vtmr_irr & msk)
                 pic_request(vip[timer].irq);
         }
         break;
+    }
     case VTMR_ACK_PORT:
-        vtmr_lower(timer);
+        __sync_fetch_and_and(&vtmr_irr, ~msk);
+        pic_untrigger(vip[timer].irq);
         if (vth[timer].handler)
             vth[timer].handler(masked);
         h_printf("vtmr: ACK on %i, irr=%x\n", timer, vtmr_irr);
@@ -228,9 +246,45 @@ static void vtmr_smi(void *arg)
     }
 }
 
+static void thr_cleanup(void *arg)
+{
+    coopth_done();
+    lowmem_free(rmstack);
+}
+
+#define RMSTACK_SIZE 32
+
+static void *vtmr_thread(void *arg)
+{
+    /* init coopth in new thread */
+    coopth_init();
+    pthread_cleanup_push(thr_cleanup, NULL);
+    smi_tid = coopth_create("vtmr smi", vtmr_smi);
+    cpu_reset();
+    _SS = DOSEMU_LMHEAP_SEG;
+    _SP = DOSEMU_LMHEAP_OFFS_OF(rmstack) + RMSTACK_SIZE;
+    _CS = BIOS_HLT_BLK_SEG;
+    _IP = hlt_off;
+    clear_IF();
+
+    /* run our fake core */
+    while (1)
+        run_vm86();
+    pthread_cleanup_pop(1);
+    return NULL;
+}
+
+static void vtmr_hlt(Bit16u idx, HLT_ARG(arg))
+{
+    sem_wait(&vtmr_sem);
+    coopth_start(smi_tid, NULL);
+}
+
 void vtmr_init(void)
 {
     emu_iodev_t io_dev = {};
+    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+    int i;
 
     io_dev.write_portb = vtmr_io_write;
     io_dev.read_portb = vtmr_irr_read;
@@ -240,8 +294,21 @@ void vtmr_init(void)
     io_dev.handler_name = "virtual timer";
     port_register_handler(io_dev, 0);
 
-    smi_tid = coopth_create("vtmr smi", vtmr_smi);
-    coopth_set_ctx_handlers(smi_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
+    rmstack = lowmem_alloc(RMSTACK_SIZE);
+    hlt_hdlr.name = "vtmr sleep";
+    hlt_hdlr.func = vtmr_hlt;
+    hlt_off = hlt_register_handler_vm86(hlt_hdlr);
+
+    sem_init(&vtmr_sem, 0, 0);
+    for (i = 0; i < VTMR_MAX; i++)
+      sem_init(&vth[i].done_sem, 0, 0);
+    pthread_create(&vtmr_thr, NULL, vtmr_thread, NULL);
+}
+
+void vtmr_done(void)
+{
+    pthread_cancel(vtmr_thr);
+    pthread_join(vtmr_thr, NULL);
 }
 
 void vtmr_reset(void)
@@ -257,21 +324,16 @@ void vtmr_reset(void)
 
 void vtmr_raise(int timer)
 {
-    uint16_t pirr = vtmr_pirr;
+    uint16_t pirr;
+    uint16_t mask = 1 << timer;
 
-    if (timer >= VTMR_MAX || ((vtmr_pirr | vtmr_irr) & (1 << timer)))
+    if (timer >= VTMR_MAX)
         return;
-    vtmr_pirr |= (1 << timer);
-    if (!pirr)
-        coopth_start(smi_tid, NULL);
-}
-
-static void vtmr_lower(int timer)
-{
-    if (timer >= VTMR_MAX || !(vtmr_irr & (1 << timer)))
-        return;
-    vtmr_irr &= ~(1 << timer);
-    pic_untrigger(vip[timer].irq);
+    pirr = __sync_fetch_and_or(&vtmr_pirr, mask);
+    if (!(pirr & mask)) {
+        sem_post(&vtmr_sem);
+        sem_wait(&vth[timer].done_sem);
+    }
 }
 
 void vtmr_register(int timer, void (*handler)(int))
