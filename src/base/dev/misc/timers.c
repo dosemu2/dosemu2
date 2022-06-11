@@ -288,8 +288,8 @@ static void pit_latch(int latch)
     pit[latch].tmr_skip++;
     pit[latch].q_ticks++;
     vtmr_raise(VTMR_PIT);
+    pit[latch].time.td = pic_itime[latch];
     pic_itime[latch] += TICKS_TO_NS(pit[latch].cntr);
-    pit[latch].time.td = cur_time;
   }
   _pit_latch(latch, cur_time);
   evtimer_unblock(pit[latch].evtmr);
@@ -388,8 +388,8 @@ void pit_outp(ioport_t port, Bit8u val)
       pit[port].cntr = pit[port].write_latch;
 
     evtimer_set_rel(pit[port].evtmr, TICKS_TO_NS(pit[port].cntr), 1);
-    pit[port].time.td = evtimer_gettime(pit[port].evtmr);
-    pic_itime[port] = pit[port].time.td + TICKS_TO_NS(pit[port].cntr);
+    pit[port].time.td = 0;
+    pic_itime[port] = TICKS_TO_NS(pit[port].cntr);
   }
 }
 
@@ -486,8 +486,8 @@ static void timer_activate(uint64_t ticks, void *arg)
   }
   if (!q) {
     vtmr_raise(VTMR_PIT);
+    pit[0].time.td = pic_itime[0];
     pic_itime[0] += TICKS_TO_NS(pit[0].cntr);
-    pit[0].time.td = evtimer_gettime(pit[0].evtmr);
   }
 }
 
@@ -497,6 +497,7 @@ static void timer_irq_ack(int masked)
 
   if (q) {
     vtmr_raise(VTMR_PIT);
+    pit[0].time.td = pic_itime[0];
     pic_itime[0] += TICKS_TO_NS(pit[0].cntr);
   }
   irq0_cnt++;
@@ -658,8 +659,8 @@ void pit_reset(void)
 void pit_late_init(void)
 {
   evtimer_set_rel(pit[0].evtmr, TICKS_TO_NS(pit[0].cntr), 1);
-  pit[0].time.td = evtimer_gettime(pit[0].evtmr);
-  pic_itime[0] = pit[0].time.td + TICKS_TO_NS(pit[0].cntr);
+  pit[0].time.td = 0;
+  pic_itime[0] = TICKS_TO_NS(pit[0].cntr);
 }
 
 #define TIMER0_FLOOD_THRESHOLD 50
