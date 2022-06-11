@@ -301,7 +301,7 @@ void vtmr_init(void)
 
     sem_init(&vtmr_sem, 0, 0);
     for (i = 0; i < VTMR_MAX; i++)
-      sem_init(&vth[i].done_sem, 0, 0);
+        sem_init(&vth[i].done_sem, 0, 0);
     pthread_create(&vtmr_thr, NULL, vtmr_thread, NULL);
 }
 
@@ -319,7 +319,7 @@ void vtmr_reset(void)
     vtmr_imr = 0;
     vtmr_pirr = 0;
     for (i = 0; i < VTMR_MAX; i++)
-      pic_untrigger(vip[i].irq);
+        pic_untrigger(vip[i].irq);
 }
 
 void vtmr_raise(int timer)

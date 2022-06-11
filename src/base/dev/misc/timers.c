@@ -55,7 +55,7 @@ typedef struct {
   Bit16u         write_latch;
   Bit32s         cntr;
   hitimer_u time;
-  uint64_t q_ticks;
+  uint32_t q_ticks;
   void *evtmr;
   int tmr_skip;
 } pit_latch_struct;
@@ -283,11 +283,14 @@ static void pit_latch(int latch)
   evtimer_block(pit[latch].evtmr);
   cur_time = evtimer_gettime(pit[latch].evtmr);
   /* if timer is lagging we run it by hands */
-  if (!pit[latch].q_ticks && cur_time > pic_itime[latch]) {
+  if (cur_time > pic_itime[latch] &&
+      __sync_bool_compare_and_swap(&pit[latch].q_ticks, 0, 1)) {
     /* timer thread blocked, we can increment vars w/o sync/atomics */
     pit[latch].tmr_skip++;
-    pit[latch].q_ticks++;
-    vtmr_raise(VTMR_PIT);
+    if (!latch)
+        vtmr_raise(VTMR_PIT);
+    else
+        pit[latch].q_ticks--;
     pit[latch].time.td = pic_itime[latch];
     pic_itime[latch] += TICKS_TO_NS(pit[latch].cntr);
   }
@@ -472,16 +475,20 @@ void pit_control_outp(ioport_t port, Bit8u val)
 static void timer_activate(uint64_t ticks, void *arg)
 {
   int pit_num = (uintptr_t)arg;
-  uint64_t q;
+  uint32_t q;
 
   if (pit[pit_num].tmr_skip) {
     pit[pit_num].tmr_skip--;
     return;
   }
+  if (!ticks) {
+    error("0 ticks on PIT\n");
+    return;
+  }
   q = __sync_fetch_and_add(&pit[pit_num].q_ticks, ticks);
+  h_printf("PIT: timer %i expired, %i\n", pit_num, q);
   if (pit_num) {
     pit[pit_num].time.td = evtimer_gettime(pit[pit_num].evtmr);
-    h_printf("PIT: timer %i expired\n", pit_num);
     return;
   }
   if (!q) {
@@ -493,7 +500,9 @@ static void timer_activate(uint64_t ticks, void *arg)
 
 static void timer_irq_ack(int masked)
 {
-  uint64_t q = __sync_sub_and_fetch(&pit[0].q_ticks, 1);
+  uint32_t q = __sync_sub_and_fetch(&pit[0].q_ticks, 1);
+
+  h_printf("PIT: timer 0 acknowledged\n");
 
   if (q) {
     vtmr_raise(VTMR_PIT);
