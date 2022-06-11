@@ -1,7 +1,7 @@
 config {
   experimental on
   debug on
-  asan on
+  asan off
   ubsan on
   optimize off
   system-wa off
