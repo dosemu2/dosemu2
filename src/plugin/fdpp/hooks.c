@@ -139,6 +139,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
 		    bss->ent[i].len);
 	free(bss);
     }
+    FdppKernelFree(hndl);
     err = fdpp_boot(plt, krnl, krnl_len, seg, khigh, heap_seg, HEAP_SZ, hhigh,
 	    boot_sec);
     if (err)

@@ -146,6 +146,7 @@ static void charset_init(void)
 done:
     free(l2);
     free(path);
+    json_object_put(jobj);
 }
 
 CONSTRUCTOR(static void init(void))
