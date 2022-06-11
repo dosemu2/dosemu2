@@ -408,6 +408,7 @@ AC_ARG_ENABLE(profile,
                AS_HELP_STRING([--enable-profile], [compile with profile info]))
 
 AC_ARG_ENABLE(asan, [AS_HELP_STRING(--enable-asan, [enable address sanitizer])])
+AC_ARG_ENABLE(lsan, [AS_HELP_STRING(--enable-lsan, [enable leak sanitizer])])
 AC_ARG_ENABLE(tsan, [AS_HELP_STRING(--enable-tsan, [enable thread sanitizer])])
 AC_ARG_ENABLE(ubsan, [AS_HELP_STRING(--enable-ubsan, [enable UB sanitizer])])
 
@@ -474,6 +475,13 @@ if test "$enable_asan" = "yes"; then
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fsanitize=address"
     LDFLAGS="$LDFLAGS -fsanitize=address"
     AC_MSG_NOTICE(enabling address sanitizer)
+  ])
+fi
+if test "$enable_lsan" = "yes"; then
+  AX_CHECK_LINK_FLAG([-fsanitize=leak], [
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fsanitize=leak"
+    LDFLAGS="$LDFLAGS -fsanitize=leak"
+    AC_MSG_NOTICE(enabling leak sanitizer)
   ])
 fi
 if test "$enable_tsan" = "yes"; then
