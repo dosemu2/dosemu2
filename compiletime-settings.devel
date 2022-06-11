@@ -2,7 +2,7 @@ config {
   experimental on
   debug on
   asan off
-  lsan off
+  lsan on
   tsan off
   ubsan on
   optimize off

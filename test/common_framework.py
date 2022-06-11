@@ -397,6 +397,14 @@ class BaseTestCase(object):
             ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT)
             with open(self.logfiles['xpt'][0], "w") as f:
                 f.write(ret.decode('ASCII'))
+        except CalledProcessError as e:
+            output = e.output.decode('ASCII')
+            if e.returncode == 23 and 'LeakSanitizer' in output:
+                ret = output
+                with open(self.logfiles['xpt'][0], "w") as f:
+                    f.write(output)
+            else:
+                raise
         except TimeoutExpired as e:
             ret = 'Timeout'
             with open(self.logfiles['xpt'][0], "w") as f:
