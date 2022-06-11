@@ -393,16 +393,20 @@ class BaseTestCase(object):
         if config is not None:
             self.mkfile("dosemu.conf", config, dname=self.imagedir, mode="a")
 
+        self.logfiles['xpt'][1] = "output.log"
         try:
-            ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT)
-            with open(self.logfiles['xpt'][0], "w") as f:
-                f.write(ret.decode('ASCII'))
+            ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT).decode('ASCII')
+            self.logfiles['xpt'][0].write_text(ret)
+        except CalledProcessError as e:
+            ret = e.output.decode('ASCII')
+            ret += '\nNonZeroReturn:%d\n' % e.returncode
+            self.logfiles['xpt'][0].write_text(ret)
         except TimeoutExpired as e:
-            ret = 'Timeout'
-            with open(self.logfiles['xpt'][0], "w") as f:
-                f.write(e.output.decode('ASCII'))
+            ret = e.output.decode('ASCII')
+            ret += '\nTimeout:%d seconds\n' % timeout
+            self.logfiles['xpt'][0].write_text(ret)
 
-        return str(ret)
+        return ret
 
 
 class MyTestResult(unittest.TextTestResult):
