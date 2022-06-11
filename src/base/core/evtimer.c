@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <sys/timerfd.h>
 #include <time.h>
+#include <pthread.h>
 #ifdef HAVE_LIBBSD
 #include <bsd/sys/time.h>
 #endif
@@ -38,6 +39,7 @@ struct evtimer {
     void *arg;
     clockid_t clk_id;
     struct timespec start;
+    pthread_mutex_t start_mtx;
 };
 
 static void evhandler(int fd, void *arg)
@@ -66,6 +68,7 @@ void *evtimer_create(void (*cbk)(uint64_t ticks, void *), void *arg)
     t->callback = cbk;
     t->arg = arg;
     t->clk_id = id;
+    pthread_mutex_init(&t->start_mtx, NULL);
     add_to_io_select_threaded(fd, evhandler, t);
     return t;
 }
@@ -83,16 +86,19 @@ void evtimer_set_rel(void *tmr, uint64_t ns, int periodic)
 {
     struct evtimer *t = tmr;
     struct itimerspec i = {};
-    struct timespec rel, abs;
+    struct timespec rel, abs, start;
 
     rel.tv_sec = ns / NANOSECONDS_PER_SECOND;
     rel.tv_nsec = ns % NANOSECONDS_PER_SECOND;
     if (periodic)
         i.it_interval = rel;
-    clock_gettime(t->clk_id, &t->start);
-    timespecadd(&t->start, &rel, &abs);
+    clock_gettime(t->clk_id, &start);
+    timespecadd(&start, &rel, &abs);
     i.it_value = abs;
     timerfd_settime(t->fd, TFD_TIMER_ABSTIME, &i, NULL);
+    pthread_mutex_lock(&t->start_mtx);
+    t->start = start;
+    pthread_mutex_unlock(&t->start_mtx);
 }
 
 uint64_t evtimer_gettime(void *tmr)
@@ -101,7 +107,9 @@ uint64_t evtimer_gettime(void *tmr)
     struct timespec rel, abs;
 
     clock_gettime(t->clk_id, &abs);
+    pthread_mutex_lock(&t->start_mtx);
     timespecsub(&abs, &t->start, &rel);
+    pthread_mutex_unlock(&t->start_mtx);
     return (rel.tv_sec * NANOSECONDS_PER_SECOND + rel.tv_nsec);
 }
 
@@ -109,9 +117,13 @@ void evtimer_stop(void *tmr)
 {
     struct evtimer *t = tmr;
     struct itimerspec i = {};
+    struct timespec start;
 
     timerfd_settime(t->fd, 0, &i, NULL);
-    clock_gettime(t->clk_id, &t->start);
+    clock_gettime(t->clk_id, &start);
+    pthread_mutex_lock(&t->start_mtx);
+    t->start = start;
+    pthread_mutex_unlock(&t->start_mtx);
 }
 
 void evtimer_block(void *tmr)

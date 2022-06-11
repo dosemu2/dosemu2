@@ -60,6 +60,12 @@ while [ "$1" != "" ]; do
     asan)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-asan"; fi
       ;;
+    lsan)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-lsan"; fi
+      ;;
+    tsan)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-tsan"; fi
+      ;;
     ubsan)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-ubsan"; fi
       ;;

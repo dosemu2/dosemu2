@@ -578,7 +578,7 @@ static void _do_vm86(void)
  *
  * DANG_END_FUNCTION
  */
-static void run_vm86(void)
+void run_vm86(void)
 {
     int retval, cnt;
 

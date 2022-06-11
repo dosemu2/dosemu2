@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <assert.h>
+#include <pthread.h>
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
 #endif
@@ -126,22 +127,23 @@ struct coopth_t {
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
     struct coopth_per_thread_t *post_pth;
     const struct coopth_be_ops *ops;
+    pthread_t pthread;
 };
 
-static cohandle_t co_handle;
+static __thread cohandle_t co_handle;
 static struct coopth_t coopthreads[MAX_COOPTHREADS];
 static int coopth_num;
-static int thread_running;
-static int joinable_running;
-static int left_running;
+static __thread int thread_running;
+static __thread int joinable_running;
+static __thread int left_running;
 #define DETACHED_RUNNING (thread_running - joinable_running - left_running)
-static int threads_joinable;
-static int threads_left;
-static int threads_total;
+static __thread int threads_joinable;
+static __thread int threads_left;
+static __thread int threads_total;
 #define MAX_ACT_THRS 10
-static int threads_active;
-static int active_tids[MAX_ACT_THRS];
-static void (*nothread_notifier)(void);
+static __thread int threads_active;
+static __thread int active_tids[MAX_ACT_THRS];
+static __thread void (*nothread_notifier)(void);
 
 static void coopth_callf_chk(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
@@ -567,7 +569,7 @@ int coopth_create_internal(const char *name, coopth_func_t func,
     struct coopth_t *thr;
 
     assert(coopth_num < MAX_COOPTHREADS);
-    num = coopth_num++;
+    num = __sync_fetch_and_add(&coopth_num, 1);
     thr = &coopthreads[num];
     thr->name = name;
     thr->cur_thr = 0;
@@ -576,6 +578,7 @@ int coopth_create_internal(const char *name, coopth_func_t func,
     thr->len = 1;
     thr->func = func;
     thr->ops = ops;
+    thr->pthread = pthread_self();
     call_prep(thr);
     return num;
 }
@@ -588,7 +591,7 @@ int coopth_create_multi_internal(const char *name, int len,
 
     assert(len && coopth_num + len <= MAX_COOPTHREADS);
     num = coopth_num;
-    coopth_num += len;
+    __sync_fetch_and_add(&coopth_num, len);
     for (i = 0; i < len; i++) {
 	struct coopth_t *thr = &coopthreads[num + i];
 	thr->name = name;
@@ -598,6 +601,7 @@ int coopth_create_multi_internal(const char *name, int len,
 	thr->len = (i == 0 ? len : 1);
 	thr->func = func;
 	thr->ops = ops;
+	thr->pthread = pthread_self();
 	call_prep(thr);
     }
     return num;
@@ -1422,6 +1426,9 @@ again:
     for (i = 0; i < coopth_num; i++) {
 	struct coopth_t *thr = &coopthreads[i];
 	int j;
+
+	if (!pthread_equal(thr->pthread, pthread_self()))
+	    continue;
 	/* dont free own thread */
 	if (thdata && *thdata->tid == i)
 	    continue;
