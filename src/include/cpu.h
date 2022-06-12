@@ -43,6 +43,8 @@
 #define READ_SEG_REG(reg) (REGS.reg)
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
 
+#define MAY_ALIAS __attribute__((may_alias))
+
 union dword {
   Bit32u d;
   struct { Bit16u l, h; } w;
@@ -52,12 +54,12 @@ union dword {
   unsigned long ul;
 #endif
   struct { Bit8u l, h, b2, b3; } b;
-};
+} MAY_ALIAS;
 
 union word {
   Bit16u w;
   struct { Bit8u l, h; } b;
-};
+} MAY_ALIAS;
 
 #ifndef __linux__
 #define __ctx(fld) fld
@@ -123,7 +125,7 @@ union g_reg {
   uint32_t d[1];
   uint16_t w[2];
 #endif
-};
+} MAY_ALIAS;
 
 #define DWORD__(reg, c)	(((c union g_reg *)&(reg))->d[0])
 /* vxd.c redefines DWORD */
