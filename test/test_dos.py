@@ -4867,6 +4867,11 @@ $_floppy_a = ""
 
     def test_pit_mode_2(self):
         """PIT Mode 2"""
+        if environ.get("SKIP_EXPENSIVE"):
+            self.skipTest("expensive test")
+        if environ.get("SKIP_UNCERTAIN"):
+            self.skipTest("uncertain test")
+
         pit_mode_2(self)
 
 
