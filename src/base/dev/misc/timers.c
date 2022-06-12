@@ -75,7 +75,7 @@ static hitimer_t pic_itime[33] =     /* time to trigger next interrupt */
 
 static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
 {
-    return (__int128_t)a * b / c;
+    return (__int128__)a * b / c;
 }
 
 #define TICKS_TO_NS(t) muldiv64(t, NANOSECONDS_PER_SECOND, PIT_TICK_RATE)
