@@ -1537,7 +1537,7 @@ void set_external_charset(const char *charset_name)
 		}
 	}
 
-	config.external_cset = charset_name;
+	config.external_cset = strdup(charset_name);
 }
 
 void set_internal_charset(const char *charset_name)
@@ -1564,7 +1564,7 @@ void set_internal_charset(const char *charset_name)
 		trconfig.dos_charset = charset_config;
 	}
 
-	config.internal_cset = charset_name;
+	config.internal_cset = strdup(charset_name);
 }
 
 void set_country_code(int cntry)
