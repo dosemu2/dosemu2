@@ -98,13 +98,14 @@ void irq_select(void)
 /*  */
 /* io_select @@@  24576 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/base/misc/dosio.c --> src/base/misc/ioctl.c  */
 
-static int numselectfd;
+static int max_fd;
 static int syncpipe[2];
 static pthread_t io_thr;
 static pthread_mutex_t fun_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int blk_wait;
 static pthread_cond_t blk_cnd = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t blk_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t fds_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static void ioselect_demux(void *arg)
 {
@@ -125,10 +126,16 @@ static void ioselect_demux(void *arg)
 static void io_select(void)
 {
   int selrtn, i;
-  fd_set fds = fds_sigio;
+  fd_set fds;
+  int nfds;
+
+  pthread_mutex_lock(&fds_mtx);
+  fds = fds_sigio;
+  nfds = max_fd + 1;
+  pthread_mutex_unlock(&fds_mtx);
 
   pthread_mutex_lock(&blk_mtx);
-  for (i = 0; i < MAX_FD; i++) {
+  for (i = 0; i < nfds; i++) {
     if (FD_ISSET(i, &fds_masked))
       FD_CLR(i, &fds);
   }
@@ -137,7 +144,7 @@ static void io_select(void)
   pthread_cond_signal(&blk_cnd);
 
   pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-  selrtn = RPT_SYSCALL(select(numselectfd + 1, &fds, NULL, NULL, NULL));
+  selrtn = RPT_SYSCALL(select(nfds, &fds, NULL, NULL, NULL));
   pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
   switch (selrtn) {
@@ -149,7 +156,7 @@ static void io_select(void)
       break;
 
     default:			/* has at least 1 descriptor ready */
-      for(i = 0; i < numselectfd; i++) {
+      for(i = 0; i < nfds; i++) {
         if (FD_ISSET(i, &fds)) {
           if (io_callback_func[i].flags & IOFLG_IMMED) {
             io_callback_func[i].func(i, io_callback_func[i].arg);
@@ -198,13 +205,14 @@ add_to_io_select_new(int new_fd, void (*func)(int, void *), void *arg,
     f->flags = flags;
     pthread_mutex_unlock(&fun_mtx);
 
-    if (new_fd > numselectfd)
-        numselectfd = new_fd;
+    pthread_mutex_lock(&fds_mtx);
+    if (new_fd > max_fd)
+        max_fd = new_fd;
+    FD_SET(new_fd, &fds_sigio);
+    pthread_mutex_unlock(&fds_mtx);
 
-    if (!io_callback_stash[new_fd].func) {
-	FD_SET(new_fd, &fds_sigio);
+    if (!io_callback_stash[new_fd].func)
 	write(syncpipe[1], "+", 1);
-    }
 }
 
 /*
@@ -233,7 +241,9 @@ void remove_from_io_select(int fd)
     io_callback_stash[fd].func = NULL;
 
     if (!io_callback_func[fd].func) {
+	pthread_mutex_lock(&fds_mtx);
 	FD_CLR(fd, &fds_sigio);
+	pthread_mutex_unlock(&fds_mtx);
 	write(syncpipe[1], "-", 1);
 	g_printf("GEN: fd=%d removed from select SIGIO\n", fd);
     }
@@ -301,7 +311,7 @@ void ioselect_init(void)
     f->name = "syncpipe";
     f->fd = syncpipe[0];
     f->flags = IOFLG_IMMED;
-    numselectfd = syncpipe[0];
+    max_fd = syncpipe[0];
     FD_SET(syncpipe[0], &fds_sigio);
     pthread_create(&io_thr, NULL, ioselect_thread, NULL);
 }
