@@ -560,8 +560,12 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 
     if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -1;
-    if (block->hwram || block->shmname) {
-	error("DPMI: wrong free, %i\n", block->hwram);
+    if (block->hwram) {
+	error("DPMI: wrong free hwram, %i\n", block->hwram);
+	return -1;
+    }
+    if (block->shmname) {
+	error("DPMI: wrong free smem, %s\n", block->shmname);
 	return -1;
     }
     e_invalidate_full(block->base, block->size);

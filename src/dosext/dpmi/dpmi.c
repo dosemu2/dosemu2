@@ -1629,6 +1629,13 @@ dpmi_pm_block DPMImallocLinear(dosaddr_t base, unsigned long size, int committed
 }
 int DPMIfree(unsigned long handle)
 {
+    dpmi_pm_block *ptr;
+
+    ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
+    if (!ptr)
+	return -1;
+    if (ptr->shmname)  // syndicate game
+	return DPMIFreeShared(handle);
     return DPMI_free(&DPMI_CLIENT.pm_block_root, handle);
 }
 dpmi_pm_block DPMIrealloc(unsigned long handle, unsigned long size)
@@ -1914,6 +1921,7 @@ int DPMIAllocateShared(struct SHM_desc *shm)
 {
     char *name = SEL_ADR_CLNT(shm->name_selector, shm->name_offset32,
 	    DPMI_CLIENT.is_32);
+    D_printf("DPMI: allocate shared region %s\n", name);
     dpmi_pm_block *ptr = DPMI_mallocShared(&DPMI_CLIENT.pm_block_root, name,
 	    shm->req_len, get_shm_size(name), shm->flags);
     if (!ptr)
@@ -1933,6 +1941,7 @@ int DPMIFreeShared(uint32_t handle)
     if (!ptr)
 	return -1;
     cnt = count_shms(ptr->shmname);
+    D_printf("DPMI: free shared region %s, ref=%i\n", ptr->shmname, cnt);
     return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle, cnt == 1);
 }
 
