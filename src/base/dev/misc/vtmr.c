@@ -62,7 +62,7 @@ static char *rmstack;
 static uint16_t hlt_off;
 
 struct vthandler {
-    void (*handler)(int);
+    int (*handler)(int);
     int vint;
     sem_t done_sem;
 };
@@ -80,6 +80,8 @@ static struct vint_presets vip[VTMR_MAX] = {
             .interrupt = VRTC_INTERRUPT },
 };
 
+static int do_vtmr_raise(int timer);
+
 static Bit8u vtmr_irr_read(ioport_t port)
 {
     return vtmr_irr;
@@ -95,8 +97,11 @@ static void post_req(void *arg)
 {
     int timer = (uintptr_t)arg;
 
-    if (vth[timer].handler)
-        vth[timer].handler(0);
+    if (vth[timer].handler) {
+        int rc = vth[timer].handler(0);
+        if (rc)
+            do_vtmr_raise(timer);
+    }
     h_printf("vtmr: post-REQ on %i, irr=%x\n", timer, vtmr_irr);
 }
 
@@ -146,8 +151,11 @@ static void vtmr_io_write(ioport_t port, Bit8u value)
     case VTMR_ACK_PORT:
         __sync_fetch_and_and(&vtmr_irr, ~msk);
         pic_untrigger(vip[timer].irq);
-        if (vth[timer].handler)
-            vth[timer].handler(masked);
+        if (vth[timer].handler) {
+            int rc = vth[timer].handler(masked);
+            if (rc)
+                do_vtmr_raise(timer);
+        }
         h_printf("vtmr: ACK on %i, irr=%x\n", timer, vtmr_irr);
         last_acked = timer;
         break;
@@ -322,21 +330,34 @@ void vtmr_reset(void)
         pic_untrigger(vip[i].irq);
 }
 
-void vtmr_raise(int timer)
+static int do_vtmr_raise(int timer)
 {
     uint16_t pirr;
     uint16_t mask = 1 << timer;
 
     if (timer >= VTMR_MAX)
-        return;
+        return 0;
+    h_printf("vtmr: raise timer %i\n", timer);
     pirr = __sync_fetch_and_or(&vtmr_pirr, mask);
     if (!(pirr & mask)) {
+        h_printf("vtmr: posting timer event\n");
         sem_post(&vtmr_sem);
+        return 1;
+    }
+    return 0;
+}
+
+void vtmr_raise(int timer)
+{
+    int rc = do_vtmr_raise(timer);
+
+    if (rc) {
         sem_wait(&vth[timer].done_sem);
+        h_printf("vtmr: timer event accepted\n");
     }
 }
 
-void vtmr_register(int timer, void (*handler)(int))
+void vtmr_register(int timer, int (*handler)(int))
 {
     struct vthandler *vt = &vth[timer];
     struct vint_presets *vp = &vip[timer];

@@ -390,7 +390,11 @@ void pit_outp(ioport_t port, Bit8u val)
     else
       pit[port].cntr = pit[port].write_latch;
 
-    evtimer_set_rel(pit[port].evtmr, TICKS_TO_NS(pit[port].cntr), 1);
+    if (!port)
+      evtimer_set_rel(pit[port].evtmr, TICKS_TO_NS(pit[port].cntr), 1);
+    else
+      evtimer_stop(pit[port].evtmr);
+    h_printf("PIT: timer %i set to %i ticks\n", port, pit[port].cntr);
     pit[port].time.td = 0;
     pic_itime[port] = TICKS_TO_NS(pit[port].cntr);
   }
@@ -498,18 +502,20 @@ static void timer_activate(uint64_t ticks, void *arg)
   }
 }
 
-static void timer_irq_ack(int masked)
+static int timer_irq_ack(int masked)
 {
   uint32_t q = __sync_sub_and_fetch(&pit[0].q_ticks, 1);
+  int ret = 0;
 
-  h_printf("PIT: timer 0 acknowledged\n");
+  h_printf("PIT: timer 0 acknowledged, %i\n", q);
 
   if (q) {
-    vtmr_raise(VTMR_PIT);
     pit[0].time.td = pic_itime[0];
     pic_itime[0] += TICKS_TO_NS(pit[0].cntr);
+    ret = 1;
   }
   irq0_cnt++;
+  return ret;
 }
 
 /* reads/writes to the speaker control port (0x61)

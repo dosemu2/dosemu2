@@ -273,10 +273,11 @@ void rtc_setup(void)
   SET_CMOS(CMOS_SECALRM,  0);
 }
 
-static void rtc_vint(int masked)
+static int rtc_vint(int masked)
 {
   if (masked)
     pic_request(8);
+  return 0;
 }
 
 void rtc_init(void)
