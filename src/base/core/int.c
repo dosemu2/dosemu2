@@ -1083,6 +1083,8 @@ static void set_ticks(unsigned long new_ticks)
 
 static int int1a(void)
 {
+    int_yield();
+
     switch (HI(ax)) {
 
 /*
