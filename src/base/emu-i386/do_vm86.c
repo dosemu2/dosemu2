@@ -661,8 +661,10 @@ static void pic_run(void)
 {
     int inum;
 
-    if (!pic_pending())
+    if (!pic_pending()) {
+        clear_VIP();
         return;
+    }
 
     if (!isset_IF()) {
 #if 0
