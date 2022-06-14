@@ -3740,9 +3740,7 @@ void dpmi_init(void)
     inherit_idt = 0;
 
   for (i=0;i<0x100;i++) {
-    if (inherit_idt &&
-        /* do not inherit internal vectors */
-        PREV_DPMI_CLIENT.Interrupt_Table[i].selector != dpmi_sel()) {
+    if (inherit_idt) {
       desc.offset32 = PREV_DPMI_CLIENT.Interrupt_Table[i].offset;
       desc.selector = PREV_DPMI_CLIENT.Interrupt_Table[i].selector;
     } else {
@@ -3752,11 +3750,17 @@ void dpmi_init(void)
     dpmi_set_interrupt_vector(i, desc);
   }
 
-  DPMI_CLIENT.vtmr_prev = dpmi_get_interrupt_vector(VTMR_INTERRUPT);
+  /* vtmr interrupts are not inherited */
+  desc.selector = dpmi_sel();
+  desc.offset32 = DPMI_SEL_OFF(DPMI_interrupt) + VTMR_INTERRUPT;
+  DPMI_CLIENT.vtmr_prev = desc;
   desc.selector = dpmi_sel();
   desc.offset32 = DPMI_SEL_OFF(DPMI_vtmr_irq);
   dpmi_set_interrupt_vector(VTMR_INTERRUPT, desc);
-  DPMI_CLIENT.vrtc_prev = dpmi_get_interrupt_vector(VRTC_INTERRUPT);
+
+  desc.selector = dpmi_sel();
+  desc.offset32 = DPMI_SEL_OFF(DPMI_interrupt) + VRTC_INTERRUPT;
+  DPMI_CLIENT.vrtc_prev = desc;
   desc.selector = dpmi_sel();
   desc.offset32 = DPMI_SEL_OFF(DPMI_vrtc_irq);
   dpmi_set_interrupt_vector(VRTC_INTERRUPT, desc);
