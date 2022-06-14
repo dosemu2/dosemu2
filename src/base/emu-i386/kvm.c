@@ -33,6 +33,7 @@
 
 #include "kvm.h"
 #include "emu.h"
+#include "timers.h"
 #include "emu-ldt.h"
 #include "cpu-emu.h"
 #include "vgaemu.h"
@@ -306,7 +307,7 @@ void init_kvm_monitor(void)
 	       sizeof(monitor->code), PROT_READ | PROT_EXEC);
 
   sregs.cr0 |= X86_CR0_PE | X86_CR0_PG | X86_CR0_NE | X86_CR0_ET;
-  sregs.cr4 |= X86_CR4_VME;
+//  sregs.cr4 |= X86_CR4_VME;
 
   /* setup registers to point to VM86 monitor */
   sregs.cs.base = 0;
@@ -700,9 +701,17 @@ static int kvm_handle_vm86_fault(struct vm86_regs *regs, unsigned int cpu_type)
     break;
   }
 
-  case 0xfa: /* CLI (non-VME) */
-    regs->eflags &= ~X86_EFLAGS_VIF;
+  case 0xfa: { /* CLI (non-VME) */
+    int sig = timers_run();
+    if (sig && (regs->eflags & X86_EFLAGS_VIF)) {
+//      error("timer signalled\n");
+      ip--;
+      ret = VM86_PICRETURN;
+    } else {
+      regs->eflags &= ~X86_EFLAGS_VIF;
+    }
     break;
+  }
 
   case 0xfb: /* STI */
     /* must have VIP set in VME, otherwise does not trap */

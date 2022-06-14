@@ -276,11 +276,11 @@ static void _pit_latch(int latch, uint64_t cur)
 #endif
 }
 
-static void pit_latch(int latch)
+static int do_check_timer(int latch, uint64_t *r_time)
 {
   uint64_t cur_time;
+  int ret = 0;
 
-  evtimer_block(pit[latch].evtmr);
   cur_time = evtimer_gettime(pit[latch].evtmr);
   /* if timer is lagging we run it by hands */
   if (cur_time > pic_itime[latch] &&
@@ -293,7 +293,32 @@ static void pit_latch(int latch)
         pit[latch].q_ticks--;
     pit[latch].time.td = pic_itime[latch];
     pic_itime[latch] += TICKS_TO_NS(pit[latch].cntr);
+//if (r_time) error("ticks %lx %li\n", NS_TO_TICKS(cur_time - pit[latch].time.td),
+//cur_time - pit[latch].time.td);
+    ret = 1;
   }
+
+  if (r_time)
+    *r_time = cur_time;
+  return ret;
+}
+
+int timers_run(void)
+{
+  int ret;
+
+  evtimer_block(pit[0].evtmr);
+  ret = do_check_timer(0, NULL);
+  evtimer_unblock(pit[0].evtmr);
+  return ret;
+}
+
+static void pit_latch(int latch)
+{
+  uint64_t cur_time;
+
+  evtimer_block(pit[latch].evtmr);
+  do_check_timer(latch, &cur_time);
   _pit_latch(latch, cur_time);
   evtimer_unblock(pit[latch].evtmr);
 }
