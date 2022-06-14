@@ -314,6 +314,9 @@ void ioselect_init(void)
     max_fd = syncpipe[0];
     FD_SET(syncpipe[0], &fds_sigio);
     pthread_create(&io_thr, NULL, ioselect_thread, NULL);
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
+    pthread_setname_np(io_thr, "dosemu: io");
+#endif
 }
 
 void ioselect_done(void)

@@ -311,6 +311,9 @@ void vtmr_init(void)
     for (i = 0; i < VTMR_MAX; i++)
         sem_init(&vth[i].done_sem, 0, 0);
     pthread_create(&vtmr_thr, NULL, vtmr_thread, NULL);
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
+    pthread_setname_np(vtmr_thr, "dosemu: vtmr");
+#endif
 }
 
 void vtmr_done(void)
