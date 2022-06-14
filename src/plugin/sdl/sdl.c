@@ -224,8 +224,10 @@ static int SDL_priv_init(void)
   SDL_pre_init();
   /* RENDER_DRIVER hint appears to be the hint for video init,
    * not CreateRenderer */
-  if (!config.sdl_hwrend)
+  if (!config.sdl_hwrend) {
       SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+      SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
+  }
   enter_priv_on();
   ret = SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   leave_priv_setting();
