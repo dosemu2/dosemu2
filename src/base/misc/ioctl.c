@@ -300,6 +300,7 @@ static void do_syncpipe(int fd, void *arg)
 void ioselect_init(void)
 {
     struct io_callback_s *f;
+    struct sched_param parm = { .sched_priority = 1 };
 
     FD_ZERO(&fds_sigio);
     FD_ZERO(&fds_masked);
@@ -314,6 +315,7 @@ void ioselect_init(void)
     max_fd = syncpipe[0];
     FD_SET(syncpipe[0], &fds_sigio);
     pthread_create(&io_thr, NULL, ioselect_thread, NULL);
+    pthread_setschedparam(io_thr, SCHED_FIFO, &parm);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
     pthread_setname_np(io_thr, "dosemu: io");
 #endif
