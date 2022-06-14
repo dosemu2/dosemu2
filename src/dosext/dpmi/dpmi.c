@@ -4657,11 +4657,29 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
       }
 }
 
+static void unprot_stack_page(sigcontext_t *scp)
+{
+  dosaddr_t p;
+
+  if (Segments[_ss >> 3].is_32)
+    p = GetSegmentBase(_ss) + _esp;
+  else
+    p = GetSegmentBase(_ss) + _LWORD(esp);
+
+  e_invalidate(p & PAGE_MASK, PAGE_SIZE);
+  /* if ptr is on page boundary, then unprot also page below */
+  if (!(p & (PAGE_SIZE - 1)))
+    e_invalidate(p - PAGE_SIZE, PAGE_SIZE);
+}
+
 static int dpmi_gpf_simple(sigcontext_t *scp, uint8_t *lina, void *sp, int *rv)
 {
     int hlt_cnt = 0;
 
     *rv = DPMI_RET_CLIENT;
+
+    unprot_stack_page(scp);
+
     if ((_err & 7) == 2) {			/* int xx */
       int inum = _err >> 3;
       if (inum != lina[1]) {
