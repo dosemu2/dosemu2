@@ -4793,7 +4793,7 @@ $_ignore_djgpp_null_derefs = (off)
         i86root = self.imagedir / 'i86root.git'
 
         args = ["git", "clone", "-q"]
-        args += ["--single-branch", "--branch=20220222"]
+        args += ["--single-branch", "--branch=20220613"]
         args += [i86repo, str(i86root)]
         call(args, stdout=DEVNULL, stderr=DEVNULL)
 
