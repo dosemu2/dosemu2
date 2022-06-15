@@ -137,9 +137,7 @@ static void printer_io_write(ioport_t port, Bit8u value)
 
 static int dev_printer_open(int prnum)
 {
-  int um = umask(026);
   lpt[prnum].dev_fd = open(lpt[prnum].dev, O_WRONLY);
-  umask(um);
   if (lpt[prnum].dev_fd == -1) {
     error("LPT%i: error opening %s: %s\n", prnum+1, lpt[prnum].dev,
 	strerror(errno));

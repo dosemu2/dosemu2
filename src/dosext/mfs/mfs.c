@@ -1538,15 +1538,9 @@ init_all_drives(void)
 
 void mfs_reset(void)
 {
-  int process_mask;
-
   emufs_loaded = FALSE;
   mfs_enabled = FALSE;
   init_all_drives();
-  process_mask = umask(0);
-  /* we need all group perms */
-  process_mask &= ~S_IRWXG;
-  umask(process_mask);
 }
 
 int mfs_define_drive(const char *path)
