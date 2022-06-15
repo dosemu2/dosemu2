@@ -192,6 +192,9 @@ static void bios_setup(void)
   port_outb(0xa0, 0x10);   // ICW1
   port_outb(0xa1, 0x70);   // ICW2, set irq to 0x70
   port_outb(0xa1, 2);      // ICW3s, master uses irq2
+  /* mask out SB irqs or Blood game crashes */
+  if (config.sound)
+    port_outb(0x21, (1 << config.sb_irq) | port_inb(0x21));
 
   /* Install new handler for video-interrupt into bios_f000_int10ptr,
    * for video initialization at f800:4200
