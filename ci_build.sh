@@ -30,7 +30,7 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
 mk-build-deps --install --root-cmd sudo
 
 export PKG_CONFIG_PATH=${LOCALFDPPINST}/lib/pkgconfig
-./default-configure -d
+CC=clang ./default-configure -d
 make
 
 # Install the FAT mount helper
