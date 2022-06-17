@@ -899,14 +899,12 @@ static enum VirqHwRet ipx_receive(void *arg)
   if ((s = check_ipx_ready(&act_fds))) {
     far_t ECBPtr = s->listenList;
     if (IPXReceivePacket(s)) {
-      if (FARt_PTR2(ECBp->ESRAddress)) {
+      if (FARt_PTR2(ECBp->ESRAddress))
         recvECB = ECBPtr;
-        return VIRQ_HWRET_CONT;
-      }
-    } else {
-      ioselect_complete(s->fd);
+      return VIRQ_HWRET_CONT;
     }
   }
+  ioselect_complete(s->fd);
   return VIRQ_HWRET_DONE;
 }
 
