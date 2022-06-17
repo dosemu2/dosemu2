@@ -62,7 +62,7 @@ rpm: dosemu2.spec.rpkg
 	rpkg local
 
 deb:
-	debuild -i -us -uc -b
+	debuild -e CC=clang -i -us -uc -b
 
 changelog:
 	if [ -d $(top_srcdir)/.git -o -f $(top_srcdir)/.git ]; then \
