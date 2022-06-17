@@ -8,40 +8,11 @@ sudo apt update -q
 
 sudo apt install -y \
   acl \
+  devscripts \
+  equivs \
   comcom32 \
   git \
   bash \
-  autoconf \
-  autotools-dev \
-  automake \
-  coreutils \
-  linuxdoc-tools \
-  bison \
-  flex \
-  gawk \
-  sed \
-  libbsd-dev \
-  libx11-dev \
-  libxext-dev \
-  libslang2-dev \
-  xfonts-utils \
-  libgpm-dev \
-  libasound2-dev \
-  libsdl2-dev \
-  libsdl2-ttf-dev \
-  libfontconfig1-dev \
-  libsdl1.2-dev \
-  ladspa-sdk \
-  libfluidsynth-dev \
-  libao-dev \
-  libieee1284-3-dev \
-  libreadline-dev \
-  libjson-c-dev \
-  libslirp-dev \
-  binutils-dev \
-  libelf-dev \
-  pkg-config \
-  clang \
   nasm \
   python3-cpuinfo \
   python3-pexpect \
