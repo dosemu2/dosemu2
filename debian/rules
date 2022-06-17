@@ -1,6 +1,7 @@
 #!/usr/bin/make -f
 
 export DH_ALWAYS_EXCLUDE=fonts.dir:fonts.alias
+export CC=clang
 
 %:
 	dh $@ --parallel --builddirectory=build
