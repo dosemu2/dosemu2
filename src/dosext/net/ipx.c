@@ -879,7 +879,6 @@ static ipx_socket_t *check_ipx_ready(fd_set * set)
   while (s) {
     /* DANG_FIXTHIS - for now, just pick up one listen per poll, because we can only set up one ESR callout per relinquish */
     if (FD_ISSET(s->fd, set)) {
-      FD_CLR(s->fd, set);
       break;
     }
     s = s->next;
@@ -898,13 +897,26 @@ static enum VirqHwRet ipx_receive(void *arg)
 
   if ((s = check_ipx_ready(&act_fds))) {
     far_t ECBPtr = s->listenList;
+
     if (IPXReceivePacket(s)) {
       if (FARt_PTR2(ECBp->ESRAddress))
         recvECB = ECBPtr;
       return VIRQ_HWRET_CONT;
     }
+    ioselect_complete(s->fd);
+    FD_CLR(s->fd, &act_fds);
+    n_printf("IPX: completed fd %i\n", s->fd);
+  } else {
+    int i;
+
+    for (i = 0; i < FD_SETSIZE; i++) {
+      if (FD_ISSET(i, &act_fds)) {
+        ioselect_complete(i);
+        FD_CLR(i, &act_fds);
+        n_printf("IPX: completed stalled fd %i\n", i);
+      }
+    }
   }
-  ioselect_complete(s->fd);
   return VIRQ_HWRET_DONE;
 }
 

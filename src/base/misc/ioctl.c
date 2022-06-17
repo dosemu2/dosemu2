@@ -53,7 +53,7 @@ struct io_callback_s {
   int fd;
   unsigned flags;
 };
-#define MAX_FD 1024
+#define MAX_FD FD_SETSIZE
 static struct io_callback_s io_callback_func[MAX_FD];
 static struct io_callback_s io_callback_stash[MAX_FD];
 static fd_set fds_sigio;
