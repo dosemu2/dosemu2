@@ -156,7 +156,7 @@ install:
 	  fi; \
 	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)
-	for i in NEWS THANKS BUGS; do \
+	for i in NEWS.md THANKS BUGS; do \
 	    $(INSTALL) -m 0644 $(REALTOPDIR)/$$i $(DESTDIR)$(docdir); \
 	done
 	$(INSTALL) -m 0644 $(top_builddir)/changelog $(DESTDIR)$(docdir)
