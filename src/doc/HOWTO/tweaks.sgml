@@ -388,4 +388,20 @@ $_dos_up = (off)
 </sect2>
 </sect1>
 
+<sect1>
+<title>Seven Cities of Gold</title>
+<sect2>
+<title>
+Game hangs on start-up
+</title>
+<para>
+Apply the following patch to 7cities.exe:
+<screen>
+000049DE: 72 90
+000049DF: D8 90
+</screen>
+</para>
+</sect2>
+</sect1>
+
 </article>
