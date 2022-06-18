@@ -44,6 +44,7 @@ TEST_BINARIES = (
     'TEST_EMM286.tar',
     'TEST_CRYNWR.tar',
     'TEST_MTCP.tar',
+    'TEST_JAPHETH.tar',
 )
 
 
