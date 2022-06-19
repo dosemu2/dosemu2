@@ -1685,6 +1685,8 @@ static void mhp_disasm(int argc, char * argv[])
        refseg = seg;
        rc = dis_8086(buf+bytesdone, frmtbuf, def_size, &ref,
                   (IN_DPMI ? GetSegmentBase(refseg) : refseg * 16));
+       if (bytesdone + rc > 256)
+           break;
        for (i=0;i<rc;i++) {
 	   if(def_size&4)
 	     sprintf(&bytebuf[i*2], "%02X", UNIX_READ_BYTE((uintptr_t)buf+bytesdone+i) );
