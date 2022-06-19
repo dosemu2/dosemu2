@@ -39,8 +39,7 @@ Build-Depends:
     binutils-dev,
     pkg-config,
     fdpp-dev,
-    clang,
-    llvm-13-linker-tools | llvm-12-linker-tools
+    clang
 Homepage: https://github.com/dosemu2/dosemu2
 
 Package: dosemu2
