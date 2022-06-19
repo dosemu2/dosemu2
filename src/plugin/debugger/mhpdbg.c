@@ -34,7 +34,7 @@
 #define MHP_PRIVATE
 #include "mhpdbg.h"
 
-struct mhpdbg mhpdbg;
+__thread struct mhpdbg mhpdbg;
 unsigned long dosdebug_flags;
 
 static void vmhp_printf(const char *fmt, va_list args);
