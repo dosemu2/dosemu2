@@ -10,7 +10,6 @@ Build-Depends:
     autotools-dev,
     automake,
     make,
-    coreutils,
     linuxdoc-tools,
     bison,
     debhelper (>= 9~),
@@ -51,7 +50,6 @@ Depends:
     ${shlibs:Depends},
     udev (>= 240),
     bash,
-    coreutils,
     fdpp,
     comcom32 (>= 0.1~alpha2)
 Recommends:${shlibs-:Recommends}, ladspa-sdk, gdb, kbd, fluid-soundfont-gm,
