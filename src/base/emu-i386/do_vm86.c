@@ -495,7 +495,7 @@ static void _do_vm86(void)
 {
     int retval;
 #ifdef USE_MHPDBG
-    int dret;
+    int dret = 0;
 #endif
 
     if (isset_IF() && isset_VIP()) {
@@ -544,14 +544,17 @@ static void _do_vm86(void)
 	break;
     case VM86_INTx:
 #ifdef USE_MHPDBG
-	dret = mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 1, 0);
+	if (mhpdbg.active)
+	    dret = mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 1, 0);
 	if (!dret)
 #endif
 	    do_int(VM86_ARG(retval));
 	break;
     case VM86_TRAP:
 #ifdef USE_MHPDBG
-	if(!mhp_debug(DBG_TRAP + (VM86_ARG(retval) << 8), 0, 0))
+	if (mhpdbg.active)
+	    dret = mhp_debug(DBG_TRAP + (VM86_ARG(retval) << 8), 0, 0);
+	if (!dret)
 #endif
 	   do_int(VM86_ARG(retval));
 	break;
