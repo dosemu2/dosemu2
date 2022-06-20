@@ -819,7 +819,7 @@ static int IPXReceivePacket(ipx_socket_t * s)
   socklen_t sz;
 
   sz = sizeof(ipxs);
-  size = recvfrom(s->fd, buffer, sizeof(buffer), 0, (struct sockaddr*)&ipxs, &sz);
+  size = recvfrom(s->fd, buffer, sizeof(buffer), MSG_DONTWAIT, (struct sockaddr*)&ipxs, &sz);
   n_printf("IPX: received %d bytes of data\n", size);
   if (size > 0 && s->listenCount) {
     ECBPtr = s->listenList;
