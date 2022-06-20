@@ -22,5 +22,6 @@ sudo apt install -y \
   valgrind \
   gcc-ia16-elf \
   libi86-ia16-elf \
+  libi86-testsuite-ia16-elf \
   gcc-multilib \
   dos2unix

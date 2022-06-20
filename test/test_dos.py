@@ -11,7 +11,7 @@ from os import statvfs, uname, utime, rename, environ, access, R_OK, W_OK
 from os.path import exists, isdir, join
 from pathlib import Path
 from shutil import copy
-from subprocess import call, check_call, CalledProcessError, DEVNULL, TimeoutExpired
+from subprocess import call, check_call, CalledProcessError, DEVNULL
 from sys import argv, exit, modules
 from time import mktime
 
@@ -33,6 +33,7 @@ from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
 from func_lfs_file_info import lfs_file_info
 from func_lfs_file_seek_tell import lfs_file_seek_tell
+from func_libi86_testsuite import libi86_create_items
 from func_memory_ems_borland import memory_ems_borland
 from func_mfs_findfile import mfs_findfile
 from func_mfs_truename import mfs_truename
@@ -4784,60 +4785,6 @@ $_ignore_djgpp_null_derefs = (off)
         cpu_trap_flag(self, 'kvm')
     test_cpu_trap_flag_kvm.cputest = True
 
-    def test_libi86_build(self):
-        """libi86 build and test script"""
-        if environ.get("SKIP_EXPENSIVE"):
-            self.skipTest("expensive test")
-
-        i86repo = 'https://github.com/tkchia/libi86.git'
-        i86root = self.imagedir / 'i86root.git'
-
-        args = ["git", "clone", "-q"]
-        args += ["--single-branch", "--branch=20220613"]
-        args += [i86repo, str(i86root)]
-        call(args, stdout=DEVNULL, stderr=DEVNULL)
-
-        self.mkfile("dosemu.conf", """\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""", dname=self.imagedir, mode="a")
-
-        dose = self.topdir / "bin" / "dosemu"
-        opts = '-f {0}/dosemu.conf -n --Fimagedir {0}'.format(self.imagedir)
-
-        build = i86root / "build-xxxx"
-        build.mkdir()
-
-        if environ.get("CC"):
-            del environ["CC"]
-
-        # logfiles
-        #  - dosemu log not applicable as libi86 test suite invokes dosemu multiple times
-        #  - libi86 test suite has its own log file called 'testsuite.log'
-        #    which contains configure, build, and test. We will present it as
-        #    our usual output log
-        #  - expect log is not present as it's run non-interactively
-        self.logfiles['log'][1] = "testsuite.log"
-        del self.logfiles['xpt']
-
-        check_call(['../configure', '--host=ia16-elf', '--disable-elks-libc'],
-                        cwd=build, env=environ, stdout=DEVNULL, stderr=DEVNULL)
-
-        check_call(['make'], cwd=build, env=environ, stdout=DEVNULL, stderr=DEVNULL)
-
-        try:
-            environ["TESTSUITEFLAGS"] = "--x-test-underlying --x-with-dosemu=%s --x-with-dosemu-options=\"%s\"" % (dose, opts)
-            starttime = datetime.utcnow()
-            check_call(['make', 'check'],
-                    cwd=build, env=environ, timeout=900, stdout=DEVNULL, stderr=DEVNULL)
-            self.duration = datetime.utcnow() - starttime
-        except CalledProcessError:
-            copy(build / "tests" / "testsuite.log", self.logfiles['log'][0])
-            raise self.failureException("Test error") from None
-        except TimeoutExpired:
-            copy(build / "tests" / "testsuite.log", self.logfiles['log'][0])
-            raise self.failureException("Test timeout") from None
-
     def test_pcmos_build(self):
         """PC-MOS build script"""
         if environ.get("SKIP_EXPENSIVE"):
@@ -5132,6 +5079,9 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
 
 
 if __name__ == '__main__':
+
+    # Dynamically create libi86 tests
+    libi86_create_items(OurTestCase)
 
     tests = [t[0] for t in
             inspect.getmembers(OurTestCase, predicate=inspect.isfunction)
