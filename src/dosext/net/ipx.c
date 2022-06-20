@@ -911,9 +911,9 @@ static enum VirqHwRet ipx_receive(void *arg)
 
     for (i = 0; i < FD_SETSIZE; i++) {
       if (FD_ISSET(i, &act_fds)) {
-        ioselect_complete(i);
+        remove_from_io_select(i);
         FD_CLR(i, &act_fds);
-        n_printf("IPX: completed stalled fd %i\n", i);
+        error("IPX: removing stalled fd %i\n", i);
       }
     }
   }
