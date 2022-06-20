@@ -53,7 +53,6 @@
 static uint16_t vtmr_irr;
 static uint16_t vtmr_imr;
 static uint16_t vtmr_pirr;
-static uint8_t last_acked;
 static int smi_tid;
 
 static pthread_t vtmr_thr;
@@ -157,7 +156,6 @@ static void vtmr_io_write(ioport_t port, Bit8u value)
                 do_vtmr_raise(timer);
         }
         h_printf("vtmr: ACK on %i, irr=%x\n", timer, vtmr_irr);
-        last_acked = timer;
         break;
     }
 
