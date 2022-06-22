@@ -31,6 +31,7 @@ from func_ds3_lock_twice import ds3_lock_twice
 from func_ds3_lock_writable import ds3_lock_writable
 from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
+from func_install_freedos import install_freedos
 from func_lfs_file_info import lfs_file_info
 from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
@@ -4782,6 +4783,13 @@ $_ignore_djgpp_null_derefs = (off)
         """CPU Trap Flag KVM"""
         cpu_trap_flag(self, 'kvm')
     test_cpu_trap_flag_kvm.cputest = True
+
+    def test_install_freedos(self):
+        """Install FreeDOS (Check download)"""
+        if environ.get("SKIP_EXPENSIVE"):
+            self.skipTest("expensive test")
+
+        install_freedos(self)
 
     def test_pcmos_build(self):
         """PC-MOS build script"""

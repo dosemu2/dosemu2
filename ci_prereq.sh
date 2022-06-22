@@ -16,6 +16,7 @@ sudo apt install -y \
   nasm \
   python3-cpuinfo \
   python3-pexpect \
+  python3-tqdm \
   gcc-djgpp \
   qemu-system-common \
   gdb \
