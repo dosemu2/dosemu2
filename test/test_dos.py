@@ -4816,8 +4816,9 @@ $_ignore_djgpp_null_derefs = (off)
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
-        if results == 'Timeout':
-            raise self.failureException("Timeout:\n")
+
+        self.assertNotIn('Timeout', results)
+        self.assertNotIn('NonZeroReturn', results)
 
         missing = [str(x.relative_to(mosroot)) for x in outfiles if not x.exists()]
         if len(missing):
@@ -4841,15 +4842,36 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
 
-        if results == 'Timeout':
-            raise self.failureException("Timeout:\n")
-
+        self.assertNotIn('Timeout', results)
+        self.assertNotIn('NonZeroReturn', results)
         self.assertIn("rem end", results, msg="Test incomplete:\n")
-
         self.assertIn(tstring1, results)
+
+    def test_passing_dos_errorlevel_back(self):
+        """Passing DOS Errorlevel back"""
+
+        self.mkcom_with_ia16("justerro", r"""
+int main(int argc, char *argv[])
+{
+  return 53;
+}
+""")
+
+        results = self.runDosemuCmdline(["-q", "-E", "justerro.com"], config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        self.assertNotIn('Timeout', results)
+        self.assertIn('NonZeroReturn:53', results)
 
     def test_pit_mode_2(self):
         """PIT Mode 2"""
+        if environ.get("SKIP_EXPENSIVE"):
+            self.skipTest("expensive test")
+        if environ.get("SKIP_UNCERTAIN"):
+            self.skipTest("uncertain test")
+
         pit_mode_2(self)
 
 
@@ -4894,6 +4916,7 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
             "test_floppy_vfs": KNOWNFAIL,
             "test_pcmos_build": KNOWNFAIL,
+            "test_passing_dos_errorlevel_back": KNOWNFAIL,
         }
 
         cls.setUpClassPost()
@@ -4986,6 +5009,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_memory_emm286_borland": KNOWNFAIL,
             "test_pcmos_build": KNOWNFAIL,
             "test_libi86_build": KNOWNFAIL,
+            "test_passing_dos_errorlevel_back": KNOWNFAIL,
         }
 
         cls.setUpClassPost()
@@ -5032,6 +5056,9 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         cls.images = [
             ("boot-floppy.img", "14b8310910bf19d6e375298f3b06da7ffdec9932"),
         ]
+        cls.actions = {
+            "test_passing_dos_errorlevel_back": KNOWNFAIL,
+        }
 
         cls.setUpClassPost()
 

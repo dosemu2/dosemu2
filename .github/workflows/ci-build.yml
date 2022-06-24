@@ -1,5 +1,7 @@
 name: Build
 on:
+  schedule:
+    - cron: '23 23 * * 0' # 23:23 Every Sunday
   pull_request:
     types:
       - opened
@@ -33,6 +35,12 @@ jobs:
         key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-build-${{ env.cache-name }}-
+
+    - name: env vars
+      if: (contains(github.event.head_commit.message, '[full ci]') == false) && (github.event_name != 'schedule')
+      run: |
+        echo "SKIP_EXPENSIVE=1" >> $GITHUB_ENV
+        echo "SKIP_UNCERTAIN=1" >> $GITHUB_ENV
 
     - name: test
       id: test
