@@ -79,7 +79,7 @@ struct mhpdbg
    unsigned char intxxtab[32];
 };
 
-extern __thread struct mhpdbg mhpdbg;
+extern __TLS struct mhpdbg mhpdbg;
 
 #ifdef MHP_PRIVATE
 

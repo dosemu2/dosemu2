@@ -1,4 +1,3 @@
-#include "mhpdbg.h"
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
 /* WARNING: This may not work in BSD, because it was written for Linux! */
@@ -21,6 +20,7 @@
 #include <limits.h>
 
 #include "emu.h"
+#include "mhpdbg.h"
 #ifdef __linux__
 #include "sys_vm86.h"
 #endif

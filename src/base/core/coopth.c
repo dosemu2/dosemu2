@@ -34,6 +34,7 @@
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
 #endif
+#include "emu.h"
 #include "utilities.h"
 #include "libpcl/pcl.h"
 #include "coopth.h"
@@ -130,20 +131,20 @@ struct coopth_t {
     pthread_t pthread;
 };
 
-static __thread cohandle_t co_handle;
+static __TLS cohandle_t co_handle;
 static struct coopth_t coopthreads[MAX_COOPTHREADS];
 static int coopth_num;
-static __thread int thread_running;
-static __thread int joinable_running;
-static __thread int left_running;
+static __TLS int thread_running;
+static __TLS int joinable_running;
+static __TLS int left_running;
 #define DETACHED_RUNNING (thread_running - joinable_running - left_running)
-static __thread int threads_joinable;
-static __thread int threads_left;
-static __thread int threads_total;
+static __TLS int threads_joinable;
+static __TLS int threads_left;
+static __TLS int threads_total;
 #define MAX_ACT_THRS 10
-static __thread int threads_active;
-static __thread int active_tids[MAX_ACT_THRS];
-static __thread void (*nothread_notifier)(void);
+static __TLS int threads_active;
+static __TLS int active_tids[MAX_ACT_THRS];
+static __TLS void (*nothread_notifier)(void);
 
 static void coopth_callf_chk(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);

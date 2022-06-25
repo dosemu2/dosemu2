@@ -57,11 +57,11 @@
 
 #include "version.h"
 #include "memory.h"
-#include "mhpdbg.h"
 #include "debug.h"
 
 #include "emu.h"
 
+#include "mhpdbg.h"
 #include "bios.h"
 #include "video.h"
 #include "timers.h"
@@ -102,7 +102,7 @@ static int can_leavedos;
 static int leavedos_code;
 static int leavedos_called;
 static pthread_mutex_t ld_mtx = PTHREAD_MUTEX_INITIALIZER;
-__thread union vm86_union vm86u;
+__TLS union vm86_union vm86u;
 
 volatile __thread int fault_cnt;
 volatile int in_vm86;

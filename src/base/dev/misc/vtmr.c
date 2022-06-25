@@ -53,12 +53,14 @@
 static uint16_t vtmr_irr;
 static uint16_t vtmr_imr;
 static uint16_t vtmr_pirr;
-static int smi_tid;
 
 static pthread_t vtmr_thr;
 static sem_t vtmr_sem;
+#if MULTICORE_EXAMPLE
+static int smi_tid;
 static char *rmstack;
 static uint16_t hlt_off;
+#endif
 
 struct vthandler {
     int (*handler)(int);
@@ -252,16 +254,19 @@ static void vtmr_smi(void *arg)
     }
 }
 
+#if MULTICORE_EXAMPLE
 static void thr_cleanup(void *arg)
 {
     coopth_done();
     lowmem_free(rmstack);
 }
+#endif
 
 #define RMSTACK_SIZE 32
 
 static void *vtmr_thread(void *arg)
 {
+#if MULTICORE_EXAMPLE
     /* init coopth in new thread */
     coopth_init();
     pthread_cleanup_push(thr_cleanup, NULL);
@@ -277,19 +282,29 @@ static void *vtmr_thread(void *arg)
     while (1)
         run_vm86();
     pthread_cleanup_pop(1);
+#else
+    while (1) {
+        sem_wait(&vtmr_sem);
+        vtmr_smi(NULL);
+    }
+#endif
     return NULL;
 }
 
+#if MULTICORE_EXAMPLE
 static void vtmr_hlt(Bit16u idx, HLT_ARG(arg))
 {
     sem_wait(&vtmr_sem);
     coopth_start(smi_tid, NULL);
 }
+#endif
 
 void vtmr_init(void)
 {
     emu_iodev_t io_dev = {};
+#if MULTICORE_EXAMPLE
     emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+#endif
     int i;
 
     io_dev.write_portb = vtmr_io_write;
@@ -300,10 +315,12 @@ void vtmr_init(void)
     io_dev.handler_name = "virtual timer";
     port_register_handler(io_dev, 0);
 
+#if MULTICORE_EXAMPLE
     rmstack = lowmem_alloc(RMSTACK_SIZE);
     hlt_hdlr.name = "vtmr sleep";
     hlt_hdlr.func = vtmr_hlt;
     hlt_off = hlt_register_handler_vm86(hlt_hdlr);
+#endif
 
     sem_init(&vtmr_sem, 0, 0);
     for (i = 0; i < VTMR_MAX; i++)

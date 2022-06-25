@@ -45,7 +45,7 @@ struct co_vm86_pth {
 static struct co_vm86 coopth86[MAX_COOPTHREADS];
 static struct co_vm86_pth coopth86_pth[COOPTH_POOL_SIZE];
 
-static __thread int (*ctx_is_valid)(void);
+static __TLS int (*ctx_is_valid)(void);
 
 static int do_start_custom(int tid);
 

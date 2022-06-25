@@ -14,6 +14,13 @@
 #include "mouse.h"
 #include "dosemu_config.h"
 
+#define MULTICORE_EXAMPLE 0
+#if MULTICORE_EXAMPLE
+#define __TLS __thread
+#else
+#define __TLS
+#endif
+
 extern char * const *dosemu_envp;
 
 struct eflags_fs_gs {
@@ -51,7 +58,7 @@ union vm86_union
   struct vm86plus_struct vm86compat;
 };
 
-extern __thread union vm86_union vm86u;
+extern __TLS union vm86_union vm86u;
 #define vm86s (vm86u.vm86ps)
 
 int signal_pending(void);

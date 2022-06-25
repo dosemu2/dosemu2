@@ -19,7 +19,6 @@
 #include <sys/ioctl.h>
 #include "memory.h"
 
-#include "mhpdbg.h"
 #include "emu.h"
 #ifdef __linux__
 #include "sys_vm86.h"
