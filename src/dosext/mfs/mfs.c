@@ -1665,7 +1665,8 @@ void extract_filename(const char *filename, char *name, char *ext)
   }
 
   memcpy(name, filename, _min(8, slen));
-  if (dot_pos++) {
+  if (dot_pos) {
+    dot_pos++;
     size_t elen = strlen(dot_pos);
     memcpy(ext, dot_pos, _min(3, elen));
   }
