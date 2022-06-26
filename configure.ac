@@ -473,7 +473,10 @@ fi
 if test "$enable_asan" = "yes"; then
   AX_CHECK_LINK_FLAG([-fsanitize=address], [
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fsanitize=address"
-    LDFLAGS="$LDFLAGS -fsanitize=address"
+    # working around this bug:
+    # https://github.com/google/sanitizers/issues/934
+    # Linking to libstdc++ seems to be the cure.
+    LDFLAGS="$LDFLAGS -fsanitize=address -lstdc++"
     AC_MSG_NOTICE(enabling address sanitizer)
   ])
 fi
