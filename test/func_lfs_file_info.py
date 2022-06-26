@@ -131,11 +131,19 @@ $_lredir_paths = "%s"
     # Check the obvious fields
     self.assertNotIn("Error: ", results)
 
-    t = re.search(r'fsize_hi.*0x([0-9a-f]+)', results)
+    r1 = re.compile(r'fsize_hi.*0x([0-9a-f]+)')
+    self.assertRegex(results, r1)
+    t = r1.search(results)
     fsize_hi = int(t.group(1), 16)
-    t = re.search(r'fsize_lo.*0x([0-9a-f]+)', results)
+
+    r2 = re.compile(r'fsize_lo.*0x([0-9a-f]+)')
+    self.assertRegex(results, r2)
+    t = r2.search(results)
     fsize_lo = int(t.group(1), 16)
-    t = re.search(r'numlinks.*0x([0-9a-f]+)', results)
+
+    r3 = re.compile(r'numlinks.*0x([0-9a-f]+)')
+    self.assertRegex(results, r3)
+    t = r3.search(results)
     numlinks = int(t.group(1), 16)
 
     self.assertEqual(fsize_hi, fsize >> 32)

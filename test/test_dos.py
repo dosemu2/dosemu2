@@ -4105,9 +4105,14 @@ $_floppy_a = ""
         lfs_total = fsinfo.f_blocks * fsinfo.f_bsize
         lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
 
-        t = re.search(r'total_bytes\((\d+)\)', results)
+        r1 = re.compile(r'total_bytes\((\d+)\)')
+        self.assertRegex(results, r1)
+        t = r1.search(results)
         dfs_total = int(t.group(1))
-        a = re.search(r'avail_bytes\((\d+)\)', results)
+
+        r2 = re.compile(r'avail_bytes\((\d+)\)')
+        self.assertRegex(results, r2)
+        a = r2.search(results)
         dfs_avail = int(a.group(1))
 
 # see if we are within 5% of the values obtained from Linux
