@@ -4674,29 +4674,20 @@ $_floppy_a = ""
 
         edir = self.topdir / "test" / "cpu"
 
-        try:
-            check_call(['make', '-C', str(edir), 'all'], stdout=DEVNULL, stderr=DEVNULL)
-        except CalledProcessError as e:
-            self.skipTest("Unable to build test binaries '%s'" % e)
+        # build test binaries
+        check_call(['make', '-C', str(edir), 'clean', 'all'], stdout=DEVNULL, stderr=DEVNULL)
         copy(edir / "dosbin.exe", self.workdir / "dosbin.exe")
 
         reffile = "reffile.log"
         dosfile = "dosfile.log"
 
-        # reference file
-        try:
-            with open(self.topdir / reffile, "w") as f:
-               check_call([str(edir / 'native32'), '--common-tests'],
-                            stdout=f, stderr=DEVNULL)
-        except CalledProcessError as e:
-            self.skipTest("Host reference file error '%s'" % e)
+        # create reference file
+        with open(self.topdir / reffile, "w") as f:
+           check_call([str(edir / 'native32'), '--common-tests'], stdout=f, stderr=DEVNULL)
 
         refoutput = []
-        try:
-            with open(self.topdir / reffile, "r") as f:
-                refoutput = f.readlines()
-        except FileNotFoundError as e:
-            self.fail("Could not open reference file error '%s'" % e)
+        with open(self.topdir / reffile, "r") as f:
+            refoutput = f.readlines()
 
         # output from dos under test
         self.mkfile("testit.bat", """\
@@ -4718,6 +4709,8 @@ $_ignore_djgpp_null_derefs = (off)
             with open(self.workdir / dosfile, "r") as f:
                 dosoutput = f.readlines()
         except FileNotFoundError:
+            pass
+        if not dosoutput:
             self.fail("DOS output file not found")
 
         # Compare DOS output to reference file
