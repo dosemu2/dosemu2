@@ -291,11 +291,13 @@ DIRECT HARDWARE ACCESS TO DOS PROGRAMS MAY GIVE THESE THE ABILITY
 TO LOCK YOUR COMPUTER, OR (IN RARE CASES) EVEN DAMAGE HARDWARE.
 ONLY TRUSTED LOCAL USERS SHOULD BE GIVEN THIS TYPE OF ACCESS.
 .TP
-.I -t[de]
+.I -t[de[flag]]
 terminal mode: run using the S-Lang library by default, or, if 'd'
 is specified - use "dumb" terminal mode. If 'de' is specified,
 use stderr in dumb terminal mode, except for the output of the
-program started with -E that still goes to stdout.
+program started with -E that still goes to stdout. If 'de2' is
+specified (flag==2), then also the output of -E-started program
+goes to stderr.
 .TP
 .I -V
 use direct console video with VGA graphics and use the native graphics 

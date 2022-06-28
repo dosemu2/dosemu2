@@ -73,7 +73,7 @@ int system_main(int argc, char **argv)
     case 'e':
       /* Execute the DOS command given in dosemu command line with -E or -K */
       is_e = 1;
-      if (!no_local_video)
+      if (!no_local_video && config.tty_stderr == 1)
         config.tty_stderr = 0;  // output of -E goes to stdout
       break;
     case 'r':

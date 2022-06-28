@@ -1304,10 +1304,15 @@ config_init(int argc, char **argv)
 		config.term = 1;
 	    }
 	    if (optarg) {
+		char *opt_e;
 		if (strchr(optarg, 'd'))
 		    config.dumb_video = 1;
-		if (strchr(optarg, 'e'))
-		    config.tty_stderr = 1;
+		if ((opt_e = strchr(optarg, 'e'))) {
+		    if (isdigit(opt_e[1]))
+			config.tty_stderr = opt_e[1] - '0';
+		    else
+			config.tty_stderr = 1;
+		}
 	    }
 	    break;
 	case 'X':
