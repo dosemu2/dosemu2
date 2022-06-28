@@ -30,6 +30,9 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
 mk-build-deps --install --root-cmd sudo
 
 export PKG_CONFIG_PATH=${LOCALFDPPINST}/lib/pkgconfig
+if [ "${SUBTYPE}" = "asan" ] ; then
+  sed -i 's/asan off/asan on/g' compiletime-settings.devel
+fi
 CC=clang ./default-configure -d
 make
 
