@@ -5006,7 +5006,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_command_com_keyword_exist": KNOWNFAIL,
             "test_memory_emm286_borland": KNOWNFAIL,
             "test_pcmos_build": KNOWNFAIL,
-            "test_libi86_build": KNOWNFAIL,
+            r"test_libi86_item_\d+": KNOWNFAIL,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
         }
 

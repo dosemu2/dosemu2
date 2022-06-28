@@ -109,12 +109,15 @@ class BaseTestCase(object):
         pass
 
     def setUp(self):
-        if self.actions.get(self._testMethodName) == SKIP:
-            self.skipTest("")
-        elif self.actions.get(self._testMethodName) == KNOWNFAIL:
-            self.skipTest("known failure")
-        elif self.actions.get(self._testMethodName) == UNSUPPORTED:
-            self.skipTest("unsupported")
+        # Process and skip actions
+        for key, value in self.actions.items():
+            if re.match(key, self._testMethodName):
+                d = {
+                    SKIP: "",
+                    KNOWNFAIL: "known failure",
+                    UNSUPPORTED: "unsupported",
+                }
+                self.skipTest(d.get(value, "unknown key"))
 
         for p in self.imagedir.iterdir():
             if p.is_dir():
