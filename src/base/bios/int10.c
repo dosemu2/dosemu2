@@ -267,7 +267,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
     unsigned char buff[MB_LEN_MAX + 1];
     int num, i;
 
-    if (no_local_video)
+    if (no_local_video && !config.tty_stderr)
       return;
 
     init_charset_state(&term_state, trconfig.output_charset);
