@@ -13,7 +13,11 @@ def libi86_create_items(testcase):
 
     # Enumerate the tests
     tests = []
-    listing = check_output([TESTSUITE, '--list'])
+    try:
+        listing = check_output([TESTSUITE, '--list'])
+    except FileNotFoundError:
+        print('libi86-testsuite-ia16-elf not installed - skipping those\n')
+        return
     for l in listing.split(b'\n'):
         # b'  12: bios.h.at:83       _bios_equiplist'
         t = re.search("\s*(\d+): (.+):\d+\s+([^']+)", str(l))

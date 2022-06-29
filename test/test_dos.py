@@ -4105,9 +4105,14 @@ $_floppy_a = ""
         lfs_total = fsinfo.f_blocks * fsinfo.f_bsize
         lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
 
-        t = re.search(r'total_bytes\((\d+)\)', results)
+        r1 = re.compile(r'total_bytes\((\d+)\)')
+        self.assertRegex(results, r1)
+        t = r1.search(results)
         dfs_total = int(t.group(1))
-        a = re.search(r'avail_bytes\((\d+)\)', results)
+
+        r2 = re.compile(r'avail_bytes\((\d+)\)')
+        self.assertRegex(results, r2)
+        a = r2.search(results)
         dfs_avail = int(a.group(1))
 
 # see if we are within 5% of the values obtained from Linux
@@ -4669,29 +4674,20 @@ $_floppy_a = ""
 
         edir = self.topdir / "test" / "cpu"
 
-        try:
-            check_call(['make', '-C', str(edir), 'all'], stdout=DEVNULL, stderr=DEVNULL)
-        except CalledProcessError as e:
-            self.skipTest("Unable to build test binaries '%s'" % e)
+        # build test binaries
+        check_call(['make', '-C', str(edir), 'clean', 'all'], stdout=DEVNULL, stderr=DEVNULL)
         copy(edir / "dosbin.exe", self.workdir / "dosbin.exe")
 
         reffile = "reffile.log"
         dosfile = "dosfile.log"
 
-        # reference file
-        try:
-            with open(self.topdir / reffile, "w") as f:
-               check_call([str(edir / 'native32'), '--common-tests'],
-                            stdout=f, stderr=DEVNULL)
-        except CalledProcessError as e:
-            self.skipTest("Host reference file error '%s'" % e)
+        # create reference file
+        with open(self.topdir / reffile, "w") as f:
+           check_call([str(edir / 'native32'), '--common-tests'], stdout=f, stderr=DEVNULL)
 
         refoutput = []
-        try:
-            with open(self.topdir / reffile, "r") as f:
-                refoutput = f.readlines()
-        except FileNotFoundError as e:
-            self.fail("Could not open reference file error '%s'" % e)
+        with open(self.topdir / reffile, "r") as f:
+            refoutput = f.readlines()
 
         # output from dos under test
         self.mkfile("testit.bat", """\
@@ -4713,6 +4709,8 @@ $_ignore_djgpp_null_derefs = (off)
             with open(self.workdir / dosfile, "r") as f:
                 dosoutput = f.readlines()
         except FileNotFoundError:
+            pass
+        if not dosoutput:
             self.fail("DOS output file not found")
 
         # Compare DOS output to reference file
@@ -4901,17 +4899,10 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
             ("boot-floppy.img", "d38fb2dba30185ce510cf3366bd71a1cbc2635da"),
         ]
         cls.actions = {
-            "test_fat_ds3_share_open_setfattrs": KNOWNFAIL,
-            "test_fat_fcb_rename_simple": KNOWNFAIL,
-            "test_fat_fcb_rename_wild_1": KNOWNFAIL,
-            "test_fat_fcb_rename_wild_2": KNOWNFAIL,
-            "test_fat_fcb_rename_wild_3": KNOWNFAIL,
-            "test_fat_fcb_rename_wild_4": KNOWNFAIL,
-            "test_mfs_fcb_rename_simple": KNOWNFAIL,
-            "test_mfs_fcb_rename_wild_1": KNOWNFAIL,
-            "test_mfs_fcb_rename_wild_2": KNOWNFAIL,
-            "test_mfs_fcb_rename_wild_3": KNOWNFAIL,
-            "test_mfs_fcb_rename_wild_4": KNOWNFAIL,
+            r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
+            r"test_..._ds3_share_open_rename_one_process_fcb": KNOWNFAIL,
+            r"test_..._fcb_rename_simple": KNOWNFAIL,
+            r"test_..._fcb_rename_wild_\d": KNOWNFAIL,
             "test_mfs_truename_ufs_sfn": KNOWNFAIL,
             "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
             "test_floppy_vfs": KNOWNFAIL,
@@ -4998,17 +4989,14 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_findfile_vfat_linux_mounted_lfn": KNOWNFAIL,
             "test_mfs_findfile_vfat_linux_mounted_sfn": KNOWNFAIL,
             "test_fat_ds3_share_open_twice": KNOWNFAIL,
-            "test_fat_ds3_share_open_delete_ds2": KNOWNFAIL,
-            "test_fat_ds3_share_open_delete_fcb": KNOWNFAIL,
-            "test_fat_ds3_share_open_rename_ds2": KNOWNFAIL,
-            "test_fat_ds3_share_open_rename_fcb": KNOWNFAIL,
-            "test_mfs_ds3_share_open_rename_fcb": KNOWNFAIL,
-            "test_fat_ds3_share_open_setfattrs": KNOWNFAIL,
+            r"test_fat_ds3_share_open_(delete|rename)_.*": KNOWNFAIL,
+            r"test_mfs_ds3_share_open_rename_(one|two)_process_fcb": KNOWNFAIL,
+            r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
             "test_create_new_psp": KNOWNFAIL,
             "test_command_com_keyword_exist": KNOWNFAIL,
             "test_memory_emm286_borland": KNOWNFAIL,
             "test_pcmos_build": KNOWNFAIL,
-            "test_libi86_build": KNOWNFAIL,
+            r"test_libi86_item_\d+": KNOWNFAIL,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
         }
 

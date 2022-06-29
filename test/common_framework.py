@@ -109,12 +109,15 @@ class BaseTestCase(object):
         pass
 
     def setUp(self):
-        if self.actions.get(self._testMethodName) == SKIP:
-            self.skipTest("")
-        elif self.actions.get(self._testMethodName) == KNOWNFAIL:
-            self.skipTest("known failure")
-        elif self.actions.get(self._testMethodName) == UNSUPPORTED:
-            self.skipTest("unsupported")
+        # Process and skip actions
+        for key, value in self.actions.items():
+            if re.match(key, self._testMethodName):
+                d = {
+                    SKIP: "",
+                    KNOWNFAIL: "known failure",
+                    UNSUPPORTED: "unsupported",
+                }
+                self.skipTest(d.get(value, "unknown key"))
 
         for p in self.imagedir.iterdir():
             if p.is_dir():
@@ -428,14 +431,15 @@ class MyTestResult(unittest.TextTestResult):
         test.firstsub = True
         test.msg = None
 
-    def addFailure(self, test, err):
-        if self.showAll:
-            self.stream.writeln("FAIL")
-        elif self.dots:
-            self.stream.write('F')
-            self.stream.flush()
-        self.failures.append((test, self.gather_info_for_failure(err, test)))
-        self._mirrorOutput = True
+    def _is_relevant_tb_level(self, tb):
+        return '__unittest' in tb.tb_frame.f_globals
+
+    def _count_relevant_tb_levels(self, tb):
+        length = 0
+        while tb and not self._is_relevant_tb_level(tb):
+            length += 1
+            tb = tb.tb_next
+        return length
 
     def gather_info_for_failure(self, err, test):
         """Gather traceback, stdout, stderr, dosemu and expect logs"""
@@ -492,6 +496,15 @@ class MyTestResult(unittest.TextTestResult):
                 msgLines.append("File not present\n")
 
         return ''.join(msgLines)
+
+    def addFailure(self, test, err):
+        if self.showAll:
+            self.stream.writeln("FAIL")
+        elif self.dots:
+            self.stream.write('F')
+            self.stream.flush()
+        self.failures.append((test, self.gather_info_for_failure(err, test)))
+        self._mirrorOutput = True
 
     def addSuccess(self, test):
         super(unittest.TextTestResult, self).addSuccess(test)
