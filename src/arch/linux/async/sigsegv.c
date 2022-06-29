@@ -119,25 +119,6 @@ static void dosemu_fault1(int signum, sigcontext_t *scp)
   if (DPMIValidSelector(_cs)) {
     int ret = DPMI_RET_FAULT;
     assert(config.cpu_vm_dpmi == CPUVM_NATIVE);
-    if (_trapno == 0x0e) {
-      int rc;
-      dosaddr_t cr2 = DOSADDR_REL(LINP(_cr2));
-#ifdef X86_EMULATOR
-#ifdef HOST_ARCH_X86
-     /* DPMI code touches cpuemu prot */
-      if (EMU_V86() && !CONFIG_CPUSIM &&
-	  e_handle_pagefault(cr2, _err, scp))
-        return;
-#endif
-#endif
-      signal_unblock_async_sigs();
-      rc = vga_emu_fault(cr2, _err, scp);
-      /* going for dpmi_fault() or deinit_handler(),
-       * careful with async signals and sas_wa */
-      signal_restore_async_sigs();
-      if (rc == True)
-        ret = DPMI_RET_CLIENT;
-    }
     if (_trapno == 0x10) {
       dbug_printf("coprocessor exception, calling IRQ13\n");
       print_exception_info(scp);

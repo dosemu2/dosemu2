@@ -551,6 +551,25 @@ static int _dpmi_control(void)
       if (ret == DPMI_RET_EXIT)
         break;
       if (ret == DPMI_RET_FAULT) {
+        if (_trapno == 0x0e) {
+          int rc;
+          dosaddr_t cr2 = DOSADDR_REL(LINP(_cr2));
+#ifdef X86_EMULATOR
+#ifdef HOST_ARCH_X86
+         /* DPMI code touches cpuemu prot */
+          if (EMU_V86() && !CONFIG_CPUSIM &&
+	      e_handle_pagefault(cr2, _err, scp))
+            continue;
+#endif
+#endif
+          signal_unblock_async_sigs();
+          rc = vga_emu_fault(cr2, _err, scp);
+          /* going for dpmi_fault() or deinit_handler(),
+           * careful with async signals and sas_wa */
+          signal_restore_async_sigs();
+          if (rc == True)
+            continue;
+        }
         ret = dpmi_fault1(scp);
         scp = &DPMI_CLIENT.stack_frame;  // update, could change
       }
