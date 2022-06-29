@@ -633,6 +633,8 @@ boolean set_video_mode(int mode)
     default:
       u = vgaemu_bios.font_8;
   }
+  SETIVEC(0x43, 0xc000, u);
+  WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
 
   if (using_text_mode()) {
     v_printf("INT10: X_set_video_mode: 8x%d ROM font -> bank 0\n",
@@ -640,8 +642,6 @@ boolean set_video_mode(int mode)
     vga_ROM_to_RAM(vga_font_height, 0); /* 0 is default bank */
     i10_msg("activated font bank 0\n");
   }
-
-  SETIVEC(0x43, 0xc000, u);
 
   return 1;
 }
