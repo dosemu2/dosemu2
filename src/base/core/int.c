@@ -1766,7 +1766,7 @@ static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
     di_printf("int_rvc 0x21 call for ax=0x%04x %x\n", LWORD(eax), old_ax);
 
     CARRY;
-    switch (HI_BYTE_d(old_ax)) {
+    switch (HI_BYTE(old_ax)) {
     case 0x71:
 	if (LWORD(eax) != 0x7100)
 	    break;
