@@ -22,6 +22,7 @@
  */
 #include <stdint.h>
 #include <assert.h>
+#include <pthread.h>
 #include "port.h"
 #include "pic.h"
 #include "hlt.h"
@@ -38,6 +39,7 @@
 #define VIRQ_INTERRUPT (VIRQ_IRQ_NUM - 8 + 0x70)
 
 static uint16_t virq_irr;
+static pthread_mutex_t irr_mtx = PTHREAD_MUTEX_INITIALIZER;
 static uint16_t virq_hlt;
 
 struct vhandler_s {
@@ -51,7 +53,12 @@ static void virq_lower(int virq_num);
 
 static Bit16u virq_irr_read(ioport_t port)
 {
-    return virq_irr;
+    uint16_t irr;
+
+    pthread_mutex_lock(&irr_mtx);
+    irr = virq_irr;
+    pthread_mutex_unlock(&irr_mtx);
+    return irr;
 }
 
 static void virq_hwc_write(ioport_t port, Bit8u value)
@@ -124,18 +131,32 @@ void virq_setup(void)
 
 void virq_raise(int virq_num)
 {
-    if (virq_num >= VIRQ_MAX || (virq_irr & (1 << virq_num)))
-        return;
-    virq_irr |= (1 << virq_num);
-    pic_request(VIRQ_IRQ_NUM);
+    uint16_t irr;
+    uint16_t mask = 1 << virq_num;
+
+    assert(virq_num < VIRQ_MAX);
+    pthread_mutex_lock(&irr_mtx);
+    /* __sync_fetch_and_or() */
+    irr = virq_irr;
+    virq_irr |= mask;
+    if (!irr)
+        pic_request(VIRQ_IRQ_NUM);
+    pthread_mutex_unlock(&irr_mtx);
 }
 
 static void virq_lower(int virq_num)
 {
-    if (virq_num >= VIRQ_MAX || !(virq_irr & (1 << virq_num)))
-        return;
-    virq_irr &= ~(1 << virq_num);
-    pic_untrigger(VIRQ_IRQ_NUM);
+    uint16_t irr;
+    uint16_t mask = 1 << virq_num;
+
+    assert(virq_num < VIRQ_MAX);
+    pthread_mutex_lock(&irr_mtx);
+    /* __sync_and_and_fetch() */
+    virq_irr &= ~mask;
+    irr = virq_irr;
+    if (!irr)
+        pic_untrigger(VIRQ_IRQ_NUM);
+    pthread_mutex_unlock(&irr_mtx);
 }
 
 void virq_register(int virq_num, enum VirqHwRet (*hw_handler)(void *),

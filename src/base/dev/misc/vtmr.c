@@ -33,8 +33,10 @@
 #include "int.h"
 #include "coopth.h"
 #include "bitops.h"
+#if MULTICORE_EXAMPLE
 #include "lowmem.h"
 #include "hlt.h"
+#endif
 #include "emu.h"
 #include "timers.h"
 #include "chipset.h"
@@ -353,8 +355,7 @@ static int do_vtmr_raise(int timer)
     uint16_t pirr;
     uint16_t mask = 1 << timer;
 
-    if (timer >= VTMR_MAX)
-        return 0;
+    assert(timer < VTMR_MAX);
     h_printf("vtmr: raise timer %i\n", timer);
     pirr = __sync_fetch_and_or(&vtmr_pirr, mask);
     if (!(pirr & mask)) {
