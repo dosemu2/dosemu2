@@ -562,11 +562,13 @@ static int _dpmi_control(void)
             continue;
 #endif
 #endif
-          signal_unblock_async_sigs();
+          if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+            signal_unblock_async_sigs();
           rc = vga_emu_fault(cr2, _err, scp);
           /* going for dpmi_fault() or deinit_handler(),
            * careful with async signals and sas_wa */
-          signal_restore_async_sigs();
+          if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+            signal_restore_async_sigs();
           if (rc == True)
             continue;
         }
