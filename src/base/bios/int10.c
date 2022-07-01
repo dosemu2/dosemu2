@@ -610,9 +610,6 @@ boolean set_video_mode(int mode)
 	port_outw(port, 0x12 | (((vmi->height-1) & 0xff) << 8));
       }
       WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE(co, li));
-      WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
-      WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
-      WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
     } else {
       unsigned page_size = roundUpToNextPowerOfTwo(
 	    (vga.scan_len * vga.height) | 0xfff);
@@ -620,6 +617,8 @@ boolean set_video_mode(int mode)
         page_size = vga.mem.bank_pages * 4096;
       WRITE_WORD(BIOS_VIDEO_MEMORY_USED, page_size);
     }
+    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
+    WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
   }
   set_cursor_shape(vmi->type == TEXT_MONO ? 0x0b0d : 0x0607);
 
