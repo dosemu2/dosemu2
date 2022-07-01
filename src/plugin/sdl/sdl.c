@@ -1616,8 +1616,6 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
     rect.h = font_height;
     d.rect.x = font_width * x;
     d.rect.y = font_height * y;
-    d.rect.w = font_width;
-    d.rect.h = font_height;
   } else {
     int cstart, cend;
 
@@ -1632,13 +1630,11 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
     rect.y = 0;
     rect.w = font_width;
     rect.h = cend - cstart + 1;
-    if (rect.h < 0)
-      rect.h = -rect.h;
     d.rect.x = font_width * x;
     d.rect.y = font_height * y + cstart;
-    d.rect.w = font_width;
-    d.rect.h = cend - cstart + 1;
   }
+  d.rect.w = rect.w;
+  d.rect.h = rect.h;
 
   pthread_mutex_lock(&rend_mtx);
   d.tex = CreateTextureTarget(rect.w, rect.h, 0);

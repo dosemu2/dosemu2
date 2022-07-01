@@ -227,7 +227,7 @@ static void restore_cell(unsigned cursor_location)
  */
 static void draw_cursor(void)
 {
-  int x, y, i;
+  int x, y, i, cs, ce;
 
   if (check_cursor_location
       (memoffs_to_location(vga.crtc.cursor_location), &x, &y)
@@ -236,9 +236,14 @@ static void draw_cursor(void)
     for (i = 0; i < num_texts; i++) {
       if (Text[i]->flags & TEXTF_DISABLED)
         continue;
+      cs = CURSOR_START(vga.crtc.cursor_shape) & 0x1f;
+      ce = CURSOR_END(vga.crtc.cursor_shape) & 0x1f;
+      if (cs > ce)
+        ce = (CURSOR_END(vga.crtc.cursor_shape) + vga.char_height) & 0x1f;
+      if (cs > ce)
+        return;
       Text[i]->Draw_cursor(Text[i]->opaque, x, y, XATTR(cursor),
-		      CURSOR_START(vga.crtc.cursor_shape) & 0x1f,
-		      CURSOR_END(vga.crtc.cursor_shape) & 0x1f, have_focus);
+		      cs, ce, have_focus);
     }
   }
 }
