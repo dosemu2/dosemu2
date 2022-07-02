@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <pthread.h>
 #include "emu.h"
 #include "serial.h"
 #include "utilities.h"
@@ -33,6 +34,7 @@ struct bdrv_s {
   struct mouse_drv *drv;
   void *udata;
   struct rng_s buf;
+  pthread_mutex_t buf_mtx;
   void (*callback)(void *);
   void **arg_p;
 };
@@ -132,7 +134,12 @@ void mousedrv_set_udata(const char *name, void *udata)
 
 static void fifo_mdrv_add(struct bdrv_s *r, struct mbuf_s *b)
 {
-  if (!rng_put(&r->buf, b))
+  int rc;
+
+  pthread_mutex_lock(&r->buf_mtx);
+  rc = rng_put(&r->buf, b);
+  pthread_mutex_unlock(&r->buf_mtx);
+  if (!rc)
     m_printf("mouse queue overflow\n");
   r->callback(*r->arg_p);
 }
@@ -177,6 +184,7 @@ static void fifo_mdrv_init(struct mouse_drv_wrp *m, void (*cb)(void *))
 #define M_FIFO_LEN 8
     m->bdrv.drv = &fifo_mdrv;
     rng_init(&m->bdrv.buf, M_FIFO_LEN, sizeof(struct mbuf_s));
+    pthread_mutex_init(&m->bdrv.buf_mtx, NULL);
     m->bdrv.udata = &m->bdrv;
     m->bdrv.callback = cb;
     m->bdrv.arg_p = &m->udata;
@@ -184,11 +192,15 @@ static void fifo_mdrv_init(struct mouse_drv_wrp *m, void (*cb)(void *))
 
 static int do_process_fifo(struct mouse_drv_wrp *m)
 {
+    int rc;
     struct mbuf_s b;
     struct mouse_drv *d = m->drv;
 
     assert(m->bdrv.drv);
-    if (!rng_get(&m->bdrv.buf, &b))
+    pthread_mutex_lock(&m->bdrv.buf_mtx);
+    rc = rng_get(&m->bdrv.buf, &b);
+    pthread_mutex_unlock(&m->bdrv.buf_mtx);
+    if (!rc)
         return 0;
     switch (b.id) {
 #define MP(n, ...) \
