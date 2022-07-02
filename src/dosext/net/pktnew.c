@@ -517,7 +517,7 @@ static void pkt_receive_req_async(int fd, void *arg)
 static void pkt_register_net_fd_and_mode(int fd, int mode)
 {
     pkt_fd = fd;
-    add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
+    add_to_io_select_threaded(pkt_fd, pkt_receive_req_async, NULL);
     receive_mode = mode;
     local_receive_mode = mode;
     pd_printf("PKT: detected receive mode %i\n", mode);
