@@ -91,7 +91,7 @@ static int gpm_init(void)
 		return FALSE;
 	}
 
-	add_to_io_select(fd, gpm_getevent, NULL);
+	add_to_io_select_threaded(fd, gpm_getevent, NULL);
 	m_printf("GPM MOUSE: Using GPM Mouse\n");
 	return TRUE;
 }
