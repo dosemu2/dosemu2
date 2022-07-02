@@ -2228,7 +2228,11 @@ static void vga_emu_setup_mode_table()
 
 vga_mode_info *vga_emu_find_mode(int mode, vga_mode_info* vmi)
 {
-  vga_mode_info *vmi_end = vgaemu_bios.vga_mode_table + vgaemu_bios.mode_table_length;
+  vga_mode_info *vmi_end;
+
+  if (!vgaemu_bios.vga_mode_table)
+    return NULL;
+  vmi_end = vgaemu_bios.vga_mode_table + vgaemu_bios.mode_table_length;
 
   if(mode != -1) {
     mode &= 0x3fff;
