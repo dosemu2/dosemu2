@@ -23,6 +23,7 @@
 #include "ipx_wrp.h"
 #include <netinet/in.h>
 #include <errno.h>
+#include <pthread.h>
 
 #include "emu.h"
 #include "timers.h"
@@ -52,6 +53,7 @@ static uint16_t ipx_hlt;
 
 static ipx_socket_t *ipx_socket_list = NULL;
 static fd_set act_fds;
+static pthread_mutex_t fds_mtx = PTHREAD_MUTEX_INITIALIZER;
 /* hopefully these static ECBs will not cause races... */
 static far_t recvECB;
 static far_t aesECB;
@@ -330,7 +332,9 @@ static void ipx_async_callback(int fd, void *arg)
 {
   fd_set *fds = arg;
 
+  pthread_mutex_lock(&fds_mtx);
   FD_SET(fd, fds);
+  pthread_mutex_unlock(&fds_mtx);
   n_printf("IPX: requesting receiver IRQ\n");
   virq_raise(VIRQ_IPX);
 }
@@ -409,7 +413,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
 
   /* if we successfully bound to this port, then record it */
   ipx_insert_socket(port, /* PSP */ 0, sock);
-  add_to_io_select(sock, ipx_async_callback, &act_fds);
+  add_to_io_select_threaded(sock, ipx_async_callback, &act_fds);
   n_printf("IPX: successfully opened socket %i, %04x\n", sock, port);
   *newPort = port;
   return (RCODE_SUCCESS);
@@ -891,7 +895,7 @@ static void IPXRelinquishControl(void)
   idle_enable(0, 5, 0, "IPX");
 }
 
-static enum VirqHwRet ipx_receive(void *arg)
+static enum VirqHwRet _ipx_receive(void *arg)
 {
   ipx_socket_t *s;
 
@@ -918,6 +922,16 @@ static enum VirqHwRet ipx_receive(void *arg)
     }
   }
   return VIRQ_HWRET_DONE;
+}
+
+static enum VirqHwRet ipx_receive(void *arg)
+{
+  enum VirqHwRet ret;
+
+  pthread_mutex_lock(&fds_mtx);
+  ret = _ipx_receive(arg);
+  pthread_mutex_unlock(&fds_mtx);
+  return ret;
 }
 
 int ipx_int7a(void)
