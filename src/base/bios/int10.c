@@ -115,12 +115,21 @@ static void crt_outw(unsigned index, unsigned value)
 
 static void set_cursor_pos(unsigned page, int x, int y)
 {
-  unsigned co;
+  unsigned co, old_y;
 
+  old_y = get_bios_cursor_y_position(page);
   set_bios_cursor_x_position(page, x);
   set_bios_cursor_y_position(page, y);
   co = READ_WORD(BIOS_SCREEN_COLUMNS);
   crt_outw(0xe, READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS)/2 + y * co + x);
+  if (config.dumb_video && y > old_y) {
+    int i;
+
+    if (no_local_video && !config.tty_stderr)
+      return;
+    for (i = 0; i < y - old_y; i++)
+      fputc('\n', config.tty_stderr ? stderr : stdout);
+  }
 }
 
 static inline void set_cursor_shape(ushort shape) {
@@ -934,7 +943,16 @@ int int10(void) /* with dualmon */
           "rep char: page %u, char 0x%02x '%c', attr 0x%02x\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' ', LO(bx)
       );
-      vgaemu_repeat_char_attr(LO(ax), HI(bx), LO(bx), LWORD(ecx));
+      if (config.dumb_video) {
+        int i;
+
+        if (no_local_video && !config.tty_stderr)
+          break;
+        for (i = 0; i < LWORD(ecx); i++)
+          fputc(LO(ax), config.tty_stderr ? stderr : stdout);
+      } else {
+        vgaemu_repeat_char_attr(LO(ax), HI(bx), LO(bx), LWORD(ecx));
+      }
       break;
 
     case 0x0a:		/* write char */
