@@ -3026,8 +3026,11 @@ hint_done:
 
 
 	case 0x83:
-	    if (dpmi_active() && win3x_mode != INACTIVE)
-		LWORD(ebx) = 0;	/* W95: number of virtual machine */
+	    if (dpmi_active() && win3x_mode != INACTIVE) {
+		LWORD(ebx) = 1;	/* W95: number of virtual machine */
+		return 1;
+	    }
+	    break;
 	case 0x81:		/* W95: enter critical section */
 	    if (dpmi_active() && win3x_mode != INACTIVE) {
 		D_printf("WIN: enter critical section\n");
