@@ -7,6 +7,7 @@ void vtmr_init(void);
 void vtmr_done(void);
 void vtmr_reset(void);
 void vtmr_raise(int vtmr_num);
+void vtmr_sync(int vtmr_num);
 void vtmr_register(int timer, int (*handler)(int));
 void vtmr_set_tweaked(int timer, int on, unsigned flags);
 

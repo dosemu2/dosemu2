@@ -295,6 +295,7 @@ static void pit_latch(int latch)
     pic_itime[latch] += TICKS_TO_NS(pit[latch].cntr);
   }
   _pit_latch(latch, cur_time);
+  vtmr_sync(VTMR_PIT);
   evtimer_unblock(pit[latch].evtmr);
 }
 

@@ -110,6 +110,9 @@ Bit8u rtc_read(Bit8u reg)
     break;
   }
 
+  /* below slows down streetfighter2 game so commented out */
+//  vtmr_sync(VTMR_RTC);
+
   return ret;
 }
 

@@ -67,7 +67,9 @@ static uint16_t hlt_off;
 struct vthandler {
     int (*handler)(int);
     int vint;
-    sem_t done_sem;
+    int done_pred;
+    pthread_mutex_t done_mtx;
+    pthread_cond_t done_cnd;
 };
 struct vthandler vth[VTMR_MAX];
 
@@ -129,7 +131,6 @@ static void vtmr_io_write(ioport_t port, Bit8u value)
             pic_request(vip[timer].orig_irq);
             post_req(timer);
         }
-        sem_post(&vth[timer].done_sem);
         h_printf("vtmr: REQ on %i, irr=%x, masked=%i\n", timer, vtmr_irr,
                 masked);
         break;
@@ -251,6 +252,10 @@ static void vtmr_smi(void *arg)
         port_outb(VTMR_REQUEST_PORT, timer | (masked << 7));
         if (!masked)
             port_outb(0x4d2, 1);  // set fake IRR
+        pthread_mutex_lock(&vth[timer].done_mtx);
+        vth[timer].done_pred = 1;
+        pthread_mutex_unlock(&vth[timer].done_mtx);
+        pthread_cond_signal(&vth[timer].done_cnd);
     }
 }
 
@@ -323,8 +328,11 @@ void vtmr_init(void)
 #endif
 
     sem_init(&vtmr_sem, 0, 0);
-    for (i = 0; i < VTMR_MAX; i++)
-        sem_init(&vth[i].done_sem, 0, 0);
+    for (i = 0; i < VTMR_MAX; i++) {
+        pthread_mutex_init(&vth[i].done_mtx, NULL);
+        pthread_cond_init(&vth[i].done_cnd, NULL);
+        vth[i].done_pred = 1;
+    }
     pthread_create(&vtmr_thr, NULL, vtmr_thread, NULL);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
     pthread_setname_np(vtmr_thr, "dosemu: vtmr");
@@ -366,12 +374,27 @@ static int do_vtmr_raise(int timer)
 
 void vtmr_raise(int timer)
 {
-    int rc = do_vtmr_raise(timer);
+    int rc;
 
-    if (rc) {
-        sem_wait(&vth[timer].done_sem);
-        h_printf("vtmr: timer event accepted\n");
+    pthread_mutex_lock(&vth[timer].done_mtx);
+    vth[timer].done_pred = 0;
+    pthread_mutex_unlock(&vth[timer].done_mtx);
+
+    rc = do_vtmr_raise(timer);
+    if (!rc) {
+        pthread_mutex_lock(&vth[timer].done_mtx);
+        vth[timer].done_pred = 1;
+        pthread_mutex_unlock(&vth[timer].done_mtx);
+        pthread_cond_signal(&vth[timer].done_cnd);
     }
+}
+
+void vtmr_sync(int timer)
+{
+    pthread_mutex_lock(&vth[timer].done_mtx);
+    while (!vth[timer].done_pred)
+        pthread_cond_wait(&vth[timer].done_cnd, &vth[timer].done_mtx);
+    pthread_mutex_unlock(&vth[timer].done_mtx);
 }
 
 void vtmr_register(int timer, int (*handler)(int))
