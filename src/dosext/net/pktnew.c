@@ -690,7 +690,7 @@ static enum VirqHwRet pkt_virq_receive(void *arg)
     int rc = pkt_receive();
     if (rc)
         return VIRQ_HWRET_CONT;
-    ioselect_complete(pkt_fd);
+//    ioselect_complete(pkt_fd);
     return VIRQ_HWRET_DONE;
 }
 

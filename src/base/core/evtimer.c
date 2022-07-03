@@ -51,7 +51,7 @@ static void evhandler(int fd, void *arg)
     rc = read(fd, &ticks, sizeof(ticks));
     if (rc == sizeof(ticks)) {
         t->callback(ticks, t->arg);
-        ioselect_complete(fd);
+//        ioselect_complete(fd);
     }
 }
 

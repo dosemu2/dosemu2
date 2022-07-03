@@ -907,7 +907,7 @@ static enum VirqHwRet _ipx_receive(void *arg)
         recvECB = ECBPtr;
       return VIRQ_HWRET_CONT;
     }
-    ioselect_complete(s->fd);
+//    ioselect_complete(s->fd);
     FD_CLR(s->fd, &act_fds);
     n_printf("IPX: completed fd %i\n", s->fd);
   } else {

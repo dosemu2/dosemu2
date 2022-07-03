@@ -30,7 +30,7 @@ static void gpm_getevent(int fd, void *arg)
 	if (select(gpm_fd + 1, &mfds, NULL, NULL, &tv) <= 0)
 		return;
 	Gpm_GetEvent((void*)&ev);
-	ioselect_complete(gpm_fd);
+//	ioselect_complete(gpm_fd);
 	type = GPM_BARE_EVENTS(ev.type);
 	m_printf("MOUSE: Get GPM Event, %d\n", type);
 	switch (type) {
