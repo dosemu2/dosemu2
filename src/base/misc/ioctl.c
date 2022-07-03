@@ -101,8 +101,6 @@ static int max_fd;
 static int syncpipe[2];
 static pthread_t io_thr;
 static pthread_mutex_t fun_mtx = PTHREAD_MUTEX_INITIALIZER;
-static int blk_wait;
-static pthread_cond_t blk_cnd = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t blk_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t fds_mtx = PTHREAD_MUTEX_INITIALIZER;
 
@@ -138,9 +136,7 @@ static void io_select(void)
     if (FD_ISSET(i, &fds_masked))
       FD_CLR(i, &fds);
   }
-  blk_wait = 0;
   pthread_mutex_unlock(&blk_mtx);
-  pthread_cond_signal(&blk_cnd);
 
   pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
   selrtn = RPT_SYSCALL(select(nfds, &fds, NULL, NULL, NULL));
@@ -155,7 +151,10 @@ static void io_select(void)
       break;
 
     default:			/* has at least 1 descriptor ready */
+      pthread_mutex_lock(&blk_mtx);
       for(i = 0; i < nfds; i++) {
+        if (FD_ISSET(i, &fds_masked))
+          continue;
         if (FD_ISSET(i, &fds)) {
           if (io_callback_func[i].flags & IOFLG_IMMED) {
             io_callback_func[i].func(i, io_callback_func[i].arg);
@@ -165,6 +164,7 @@ static void io_select(void)
           }
         }
       }
+      pthread_mutex_unlock(&blk_mtx);
       break;
   }
 }
@@ -266,10 +266,6 @@ void ioselect_block(int fd)
     assert(io_callback_func[fd].flags & IOFLG_IMMED);
     pthread_mutex_lock(&blk_mtx);
     FD_SET(fd, &fds_masked);
-    blk_wait = 1;
-    write(syncpipe[1], "=", 1);
-    while (blk_wait)
-        pthread_cond_wait(&blk_cnd, &blk_mtx);
     pthread_mutex_unlock(&blk_mtx);
 }
 
