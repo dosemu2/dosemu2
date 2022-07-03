@@ -314,7 +314,11 @@ uint64_t pic_ioport_read(PICCommonState *s, hwaddr addr, unsigned size)
 {
     int ret;
 
+#if 0
     if (s->poll) {
+#else
+    if (s->poll && addr == 0) {  // dosemu2 mod
+#endif
         ret = pic_get_irq(s);
         if (ret >= 0) {
             pic_intack(s, ret);
