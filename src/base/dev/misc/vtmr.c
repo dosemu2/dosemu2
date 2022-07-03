@@ -31,13 +31,13 @@
 #include "pic.h"
 #include "cpu.h"
 #include "int.h"
-#include "coopth.h"
 #include "bitops.h"
+#include "emu.h"
 #if MULTICORE_EXAMPLE
+#include "coopth.h"
 #include "lowmem.h"
 #include "hlt.h"
 #endif
-#include "emu.h"
 #include "timers.h"
 #include "chipset.h"
 #include "vint.h"
@@ -96,10 +96,8 @@ static Bit16u vtmr_vpend_read(ioport_t port)
     return __atomic_exchange_n(&vtmr_pirr, 0, __ATOMIC_ACQ_REL);
 }
 
-static void post_req(void *arg)
+static void post_req(int timer)
 {
-    int timer = (uintptr_t)arg;
-
     if (vth[timer].handler) {
         int rc = vth[timer].handler(0);
         if (rc)
@@ -129,7 +127,7 @@ static void vtmr_io_write(ioport_t port, Bit8u value)
         } else {
             pic_untrigger(vip[timer].orig_irq);
             pic_request(vip[timer].orig_irq);
-            coopth_add_post_handler(post_req, (void *)(uintptr_t)timer);
+            post_req(timer);
         }
         sem_post(&vth[timer].done_sem);
         h_printf("vtmr: REQ on %i, irr=%x, masked=%i\n", timer, vtmr_irr,
