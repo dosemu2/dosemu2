@@ -152,7 +152,7 @@ static void io_select(void)
 
     default:			/* has at least 1 descriptor ready */
       pthread_mutex_lock(&blk_mtx);
-      for(i = 0; i < nfds; i++) {
+      for (i = 0; i < nfds; i++) {
         if (FD_ISSET(i, &fds_masked))
           continue;
         if (FD_ISSET(i, &fds)) {
@@ -252,8 +252,8 @@ static void do_unmask(int fd)
 {
     pthread_mutex_lock(&blk_mtx);
     FD_CLR(fd, &fds_masked);
-    write(syncpipe[1], "=", 1);
     pthread_mutex_unlock(&blk_mtx);
+    write(syncpipe[1], "=", 1);
 }
 
 void ioselect_complete(int fd)
@@ -288,8 +288,8 @@ static void *ioselect_thread(void *arg)
 
 static void do_syncpipe(int fd, void *arg)
 {
-    char buf;
-    read(fd, &buf, 1);
+    char buf[4096];
+    read(fd, buf, sizeof(buf));
 }
 
 void ioselect_init(void)
