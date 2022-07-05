@@ -750,7 +750,7 @@ static inline void pop(unsigned *val, x86_regs *x86)
   if (x86->_32bit)
     x86->esp += x86->operand_size;
   else
-    SP += x86->operand_size;
+    LO_WORD(x86->esp) += x86->operand_size;
   *val = (x86->operand_size == 4 ? instr_read_dword(mem) : instr_read_word(mem));
 }
 

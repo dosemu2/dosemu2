@@ -32,11 +32,11 @@
 #include "instr_dec.h"
 
 typedef struct x86_ins {
-  int _32bit:1;	/* 16/32 bit code */
+  unsigned _32bit:1;	/* 16/32 bit code */
   unsigned address_size; /* in bytes so either 4 or 2 */
   unsigned operand_size;
   int rep;
-  int ds:1, es:1, fs:1, gs:1, cs:1, ss:1;
+  unsigned ds:1, es:1, fs:1, gs:1, cs:1, ss:1;
 } x86_ins;
 
 #define R_WORD(a) LO_WORD(a)
@@ -53,7 +53,7 @@ static uint32_t x86_pop(sigcontext_t *scp, x86_ins *x86)
   if (x86->_32bit)
     _esp += x86->operand_size;
   else
-    SP += x86->operand_size;
+    _LWORD(esp) += x86->operand_size;
   return (x86->operand_size == 4 ? READ_DWORDP(mem) : READ_WORDP(mem));
 }
 
