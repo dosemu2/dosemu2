@@ -672,6 +672,14 @@ static int need_xbuf(int intr, u_short ax, u_short cx)
     case 0x26:			/* Absolute Disk write */
 	return 1;
 
+    case 0x2f:
+	switch (ax) {
+	    case 0x168a:	/* DPMI extensions. Buffer required
+	                         * for a check. */
+		return 1;
+	}
+	break;
+
     case 0x33:
 	switch (ax) {
 	    case 0x09:		/* Set Mouse Graphics Cursor */
@@ -696,8 +704,11 @@ static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg)
     int intr = ints[off];
     if (need_xbuf(intr, _LWORD(eax), _LWORD(ecx))) {
 	int err = prepare_ems_frame(scp);
-	if (err)
+	if (err) {
+	    if (intr == 0x2f && _LWORD(eax) == 0x168a)
+		return 0;
 	    return (unsigned short)-1;
+	}
 	return trans_buffer_seg();
     }
     switch (intr) {
@@ -1523,6 +1534,13 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    _ebx = MSDOS_CLIENT.ldt_alias;
 	    return MSDOS_DONE;
 	case 0x168a:
+	    /* we don't need EMS here so unmap */
+	    if (ems_frame_mapped)
+		restore_ems_frame(scp);
+	    if (!rm_seg) {
+		_eflags |= CF;
+		return MSDOS_DONE;
+	    }
 	    get_ext_API(scp);
 	    if (_eflags & CF)
 		return MSDOS_PM;
