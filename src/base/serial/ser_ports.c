@@ -68,6 +68,8 @@ static void clear_int_cond(int num, u_char val)
   com[num].int_condition &= ~val;
   /* reset IIR too, to recalculate later */
   com[num].IIR.mask = 0;
+  if (!INT_REQUEST(num))
+    pic_untrigger(com_cfg[num].irq);
 }
 
 static void recalc_IIR(int num)
@@ -474,11 +476,6 @@ put_mcr(int num, int val)
         uart_clear_fifo(num,UART_FCR_CLEAR_CMD);
     }
 
-    /* Set interrupt enable flag according to OUT2 bit in MCR */
-    if (INT_ENAB(num)) {
-      if(s3_printf) s_printf("SER%d: Update interrupt status after MCR update\n",num);
-    }
-
     /* Force RTS & DTR reinitialization if the loopback state has changed */
     if (UART_MCR_LOOP) changed |= UART_MCR_RTS | UART_MCR_DTR;
 
@@ -492,6 +489,14 @@ put_mcr(int num, int val)
     if ((changed & UART_MCR_RTS) && !com_cfg[num].system_rtscts) {
       if(s1_printf) s_printf("SER%d: MCR: RTS -> %d\n",num,(val & UART_MCR_RTS));
       serial_rts(num, !!(val & UART_MCR_RTS));
+    }
+
+    /* Set interrupt enable flag according to OUT2 bit in MCR */
+    if (INT_ENAB(num)) {
+      if(s3_printf) s_printf("SER%d: Update interrupt status after MCR update\n",num);
+      serial_int_engine(num, 0);
+    } else {
+      pic_untrigger(com_cfg[num].irq);
     }
   }
 }
@@ -699,6 +704,8 @@ do_serial_out(int num, ioport_t address, int val)
         com[num].int_condition |= TX_INTR;	// is this needed?
       }
       com[num].IER = (val & UART_IER_VALID);	/* Write to IER */
+      if (!INT_REQUEST(num))
+        pic_untrigger(com_cfg[num].irq);
       if(s1_printf) s_printf("SER%d: Write IER = 0x%x\n", num, val);
       if (tflg)
         serial_int_engine(num, 0);
