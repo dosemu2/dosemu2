@@ -74,6 +74,7 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
     return 0;
 
   case 0x10: /* coprocessor error */
+    pic_untrigger(13);
     pic_request(13); /* this is the 386 way of signalling this */
     return 0;
 
