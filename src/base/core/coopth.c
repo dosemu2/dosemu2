@@ -824,12 +824,7 @@ static int detach_sw(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	/* this is special: thread already finished, can't be ran */
 	do_del_thread(thr, pth);
 	return 1;
-    case idx_LEAVE:
-    case idx_SCHED:
-    case idx_ATTACH:
-    case idx_AWAKEN:
-    case idx_YIELD:
-    case idx_WAIT:
+    default:
 	sw_list[pth->st.sw_idx](thr, pth);
 	break;
     }
