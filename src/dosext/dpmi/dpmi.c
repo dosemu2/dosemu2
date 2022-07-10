@@ -5870,7 +5870,8 @@ char *DPMI_show_state(sigcontext_t *scp)
 
 void dpmi_timer(void)
 {
-  if (dpmi_pm && config.cli_timeout && dpmi_is_cli) {
+  if (dpmi_pm && !DPMI_CLIENT.in_dpmi_pm_stack &&
+      config.cli_timeout && dpmi_is_cli) {
     sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
     /*
      XXX as IF is not set by popf, we have to set it explicitly after a
