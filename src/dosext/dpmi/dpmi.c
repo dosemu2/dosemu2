@@ -74,6 +74,7 @@ static int current_client;
     DPMI_CLIENT.Interrupt_Table[i].offset < DPMI_SEL_OFF(DPMI_sel_end))
 
 #define _isset_IF() (!!(_eflags & IF))
+#define _isset_TF() (!!(_eflags & TF))
 #define dpmi_cli() (_eflags &= ~IF)
 #define dpmi_sti() (_eflags |= IF)
 
@@ -4309,6 +4310,9 @@ static void emu_dpmi_iret(sigcontext_t *scp, void * const sp)
 
 static void return_from_hwint(sigcontext_t *scp, void * const sp)
 {
+#ifdef USE_MHPDBG
+  int tf = _isset_TF();
+#endif
   unsigned char imr;
   leave_lpms(scp);
       D_printf("DPMI: Return from hardware interrupt handler, "
@@ -4349,6 +4353,11 @@ static void return_from_hwint(sigcontext_t *scp, void * const sp)
   in_dpmi_irq--;
   port_outb(0x21, imr);
   dpmi_sti();
+#ifdef USE_MHPDBG
+  /* allow tracing from PM hwints */
+  if (mhpdbg.active && tf)
+    _eflags |= TF;
+#endif
 }
 
 static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
