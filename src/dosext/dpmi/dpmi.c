@@ -2538,6 +2538,11 @@ err:
       int i;
 
       D_printf("DPMI: RealModeCallStructure at %p\n", rmreg);
+      if (rmreg->ss == SREG(ss)) {
+        D_printf("DPMI: ERROR: bad rm stack requested, %x:%x\n",
+            rmreg->ss, rmreg->sp);
+        rmreg->ss = rmreg->sp = 0;
+      }
       if (rmreg->ss == 0 && rmreg->sp == 0)
         rmask &= ~((1 << esp_INDEX) | (1 << ss_INDEX));
       DPMI_restore_rm_regs(rmreg, rmask);
@@ -5298,6 +5303,7 @@ void dpmi_realmode_hlt(unsigned int lina)
       lina < DPMI_ADD + HLT_OFF(DPMI_return_from_realmode) +
       DPMI_MAX_CLIENTS) {
     int i = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_realmode));
+    struct RealModeCallStructure *rmreg = SEL_ADR_X(_es, _edi);
     D_printf("DPMI: Return from Real Mode Procedure, clnt=%i\n", i);
 #if SHOWREGS
     if (debug_level('M') > 5)
@@ -5307,7 +5313,12 @@ void dpmi_realmode_hlt(unsigned int lina)
     scp = &DPMI_CLIENT.stack_frame;	// refresh after post_rm_call()
     /* remove passed arguments */
     LWORD(esp) += 2 * _LWORD(ecx);
-    DPMI_save_rm_regs(SEL_ADR_X(_es, _edi));
+    DPMI_save_rm_regs(rmreg);
+#if 0
+    /* Some progs forget to reset stack for subsequent calls, which
+     * leads to problems. So we can reset. But leave as-is for now. */
+    rmreg->ss = rmreg->sp = 0;
+#endif
     restore_rm_regs();
     dpmi_set_pm(1);
 
