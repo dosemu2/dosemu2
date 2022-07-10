@@ -4229,10 +4229,6 @@ static void do_legacy_cpu_exception(sigcontext_t *scp, INTDESC entry)
 
 static void do_cpu_exception(sigcontext_t *scp)
 {
-#ifdef USE_MHPDBG
-  if (_trapno == 0xd)
-    mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
-#endif
   D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#"PRI_RG", err=%#x\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
   if (debug_level('M') > 5)
