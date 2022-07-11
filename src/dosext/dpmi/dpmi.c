@@ -1289,7 +1289,7 @@ static void leave_lpms(sigcontext_t *scp)
  * register words in protected mode, and zero out high register
  * words in real mode. The preserving may be needed because some
  * realmode int handlers may trash the high register words. */
-static void pm_to_rm_regs(sigcontext_t *scp, unsigned int mask)
+static void pm_to_rm_regs(sigcontext_t *scp, unsigned mask)
 {
   if (mask & (1 << eflags_INDEX))
     REG(eflags) = flags_to_e_rm(_eflags);
@@ -1309,7 +1309,7 @@ static void pm_to_rm_regs(sigcontext_t *scp, unsigned int mask)
     REG(ebp) = D_16_32(_ebp);
 }
 
-static void rm_to_pm_regs(sigcontext_t *scp, unsigned int mask)
+static void rm_to_pm_regs(sigcontext_t *scp, unsigned mask)
 {
   /* NDN insists on full 32bit copy. It sets up its own
    * int handlers in real mode, using those not covered
@@ -1340,27 +1340,39 @@ static void rm_to_pm_regs(sigcontext_t *scp, unsigned int mask)
 
 /* the below are used by DPMI API realmode services, and should
  * be able to pass full 32bit register values. */
-static void DPMI_save_rm_regs(struct RealModeCallStructure *rmreg)
+static void DPMI_save_rm_regs(struct RealModeCallStructure *rmreg,
+    unsigned mask)
 {
-    rmreg->edi = REG(edi);
-    rmreg->esi = REG(esi);
-    rmreg->ebp = REG(ebp);
-    rmreg->ebx = REG(ebx);
-    rmreg->edx = REG(edx);
-    rmreg->ecx = REG(ecx);
-    rmreg->eax = REG(eax);
-    rmreg->flags = get_FLAGS(REG(eflags));
-    rmreg->es = SREG(es);
-    rmreg->ds = SREG(ds);
-    rmreg->fs = SREG(fs);
-    rmreg->gs = SREG(gs);
-    rmreg->cs = SREG(cs);
-    rmreg->ip = LWORD(eip);
-    rmreg->ss = SREG(ss);
-    rmreg->sp = LWORD(esp);
+#define RMR(x) \
+    if (mask & (1 << x##_INDEX)) \
+	rmreg->x = REG(x);
+#define SRMR(x) \
+    if (mask & (1 << x##_INDEX)) \
+	rmreg->x = SREG(x);
+    RMR(edi);
+    RMR(esi);
+    RMR(ebp);
+    RMR(ebx);
+    RMR(edx);
+    RMR(ecx);
+    RMR(eax);
+    if (mask & (1 << eflags_INDEX))
+	rmreg->flags = get_FLAGS(REG(eflags));
+    SRMR(es);
+    SRMR(ds);
+    SRMR(fs);
+    SRMR(gs);
+    if (mask & (1 << eip_INDEX))
+	rmreg->ip = LWORD(eip);
+    SRMR(cs);
+    if (mask & (1 << esp_INDEX))
+	rmreg->sp = LWORD(esp);
+    SRMR(ss);
+#undef RMR
+#undef SRMR
 }
 
-static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, int mask)
+static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, unsigned mask)
 {
 #define RMR(x) \
     if (mask & (1 << x##_INDEX)) \
@@ -1387,6 +1399,8 @@ static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, int mask)
     if (mask & (1 << esp_INDEX))
 	LWORD(esp) = rmreg->sp;
     SRMR(ss);
+#undef RMR
+#undef SRMR
 }
 
 static void save_rm_regs(void)
@@ -1395,7 +1409,7 @@ static void save_rm_regs(void)
     error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
     leavedos(25);
   }
-  DPMI_save_rm_regs(&DPMI_rm_stack[DPMI_rm_procedure_running]);
+  DPMI_save_rm_regs(&DPMI_rm_stack[DPMI_rm_procedure_running], ~0);
   DPMI_rm_procedure_running++;
   if (DPMI_CLIENT.in_dpmi_rm_stack++ < DPMI_rm_stacks) {
     D_printf("DPMI: switching to realmode stack, in_dpmi_rm_stack=%i\n",
@@ -2544,7 +2558,7 @@ err:
 
       D_printf("DPMI: RealModeCallStructure at %p\n", rmreg);
       if (rmreg->ss == SREG(ss)) {
-        D_printf("DPMI: ERROR: bad rm stack requested, %x:%x\n",
+        error("DPMI: ERROR: bad rm stack requested, %x:%x\n",
             rmreg->ss, rmreg->sp);
         rmreg->ss = rmreg->sp = 0;
       }
@@ -3100,7 +3114,7 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
 
     D_printf("DPMI: Real Mode Callback for #%i address of client %i (from %i)\n",
       num, rmcb_client, current_client);
-    DPMI_save_rm_regs(DPMIclient[rmcb_client].realModeCallBack[num].rmreg);
+    DPMI_save_rm_regs(DPMIclient[rmcb_client].realModeCallBack[num].rmreg, ~0);
     save_pm_regs(scp);
     sp = enter_lpms(scp);
 
@@ -4390,7 +4404,7 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_save_restore_pm)) {
 	  if (_LO(ax)==0) {
             D_printf("DPMI: save real mode registers\n");
-            DPMI_save_rm_regs(SEL_ADR_X(_es, _edi));
+            DPMI_save_rm_regs(SEL_ADR_X(_es, _edi), ~0);
 	  } else {
             D_printf("DPMI: restore real mode registers\n");
             DPMI_restore_rm_regs(SEL_ADR_X(_es, _edi), ~0);
@@ -5322,12 +5336,9 @@ void dpmi_realmode_hlt(unsigned int lina)
     scp = &DPMI_CLIENT.stack_frame;	// refresh after post_rm_call()
     /* remove passed arguments */
     LWORD(esp) += 2 * _LWORD(ecx);
-    DPMI_save_rm_regs(rmreg);
-#if 0
     /* Some progs forget to reset stack for subsequent calls, which
-     * leads to problems. So we can reset. But leave as-is for now. */
-    rmreg->ss = rmreg->sp = 0;
-#endif
+     * leads to problems. So we do not modify stack address. */
+    DPMI_save_rm_regs(rmreg, ~((1 << ss_INDEX) | (1 << esp_INDEX)));
     restore_rm_regs();
     dpmi_set_pm(1);
 
