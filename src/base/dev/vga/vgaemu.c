@@ -800,7 +800,7 @@ unsigned vga_read_dword(dosaddr_t addr)
 {
   if (!vga.inst_emu)
     return READ_DWORD(addr);
-  return vga_read_word(addr) | vga_read_word(addr + 2) << 16;
+  return vga_read_word(addr) | (unsigned)vga_read_word(addr + 2) << 16;
 }
 
 static dosaddr_t vga_get_mem_base_offset(dosaddr_t addr)
