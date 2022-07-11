@@ -294,7 +294,8 @@ static void mhp_pre_vm86(void)
 {
     if (!mhpdbg.active)
 	return;
-    if (isset_TF() && !in_dpmi_pm()) {
+    if ((!in_dpmi_pm() && isset_TF()) ||
+	    (in_dpmi_pm() && dpmi_mhp_issetTF())) {
 	if (mhpdbgc.trapip != mhp_getcsip_value()) {
 	    mhpdbgc.trapcmd = 0;
 	    mhpdbgc.stopped = 1;

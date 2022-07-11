@@ -170,6 +170,7 @@ void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off);
 void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off);
 int dpmi_mhp_getcsdefault(void);
 int dpmi_mhp_setTF(int on);
+int dpmi_mhp_issetTF(void);
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp);
 uint32_t dpmi_mhp_getreg(regnum_t regnum);
 void dpmi_mhp_setreg(regnum_t regnum, uint32_t val);

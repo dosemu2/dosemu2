@@ -548,6 +548,10 @@ static int _dpmi_control(void)
         ret = DPMI_RET_DOSEMU;
         break;
       }
+#ifdef USE_MHPDBG
+      if (mhpdbg.active)
+        mhp_debug(DBG_PRE_VM86, 0, 0);
+#endif
       ret = do_dpmi_switch(scp);
       if (ret == DPMI_RET_EXIT)
         break;
@@ -5668,6 +5672,15 @@ int dpmi_mhp_setTF(int on)
   if (on) _eflags |=TF;
   else _eflags &=~TF;
   return 1;
+}
+
+int dpmi_mhp_issetTF(void)
+{
+  sigcontext_t *scp;
+  if (!in_dpmi_pm())
+    return 0;
+  scp=&DPMI_CLIENT.stack_frame;
+  return !!(_eflags & TF);
 }
 
 #endif /* dosdebug support */
