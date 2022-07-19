@@ -753,10 +753,13 @@ static int init_slang_keymaps(void)
 	}
 
 	/*
-	 * Now add one more for the esc character so that sending it twice sends
-	 * it.
+	 * Now add one more for the esc character so that sending it 3times
+	 * sends it.
+	 * Note that 2 escs are not enough because some terminals prefix
+	 * Alt-fX sequences with 2 escs, see
+	 * https://github.com/dosemu2/dosemu2/issues/1735
 	 */
-	SLkm_define_key("^[^[", (VOID *) DKY_ESC, m);
+	SLkm_define_key("^[^[^[", (VOID *) DKY_ESC, m);
 	if (slang_get_error())
 		return -1;
 
