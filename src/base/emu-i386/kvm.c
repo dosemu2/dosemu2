@@ -942,8 +942,12 @@ static void kvm_vme_tf_popf_fixup(struct vm86_regs *regs)
    * We check for popf and assume it tried to clear TF.
    * */
   if (READ_BYTE(SEGOFF2LINEAR(regs->cs, regs->eip - 1)) == 0x9d) {
-    error("KVM: applying TF fixup\n");
-    regs->eflags &= ~X86_EFLAGS_TF;
+    if (!config.test_mode) {
+      error("KVM: applying TF fixup\n");
+      regs->eflags &= ~X86_EFLAGS_TF;
+    } else {
+      error("KVM: not applying TF fixup (test mode)\n");
+    }
   }
 }
 

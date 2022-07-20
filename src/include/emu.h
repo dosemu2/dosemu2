@@ -370,6 +370,7 @@ typedef struct config_info {
         int opl2lpt_type;
 
         int timer_tweaks;
+        int test_mode;
 } config_t;
 
 

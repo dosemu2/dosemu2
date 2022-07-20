@@ -34,11 +34,20 @@ _start16:
     movw    $0x2501, %ax
     movw    $int1, %dx
     int     $0x21
+
+    movw    $0x14, %ax
+    movw    $1, %bx
+    int     $0xe6
+
     pushw   $0x3003
     pushw   $0x3303
     popfw
     popfw
     nop
+
+    movw    $0x14, %ax
+    movw    $0, %bx
+    int     $0xe6
 
     movb    $0x9, %ah              # print string
     movw    $result, %dx
@@ -69,7 +78,7 @@ cnt:
         return
 
     # check for fixup
-    fixupmsg = "KVM: applying TF fixup"
+    fixupmsg = "KVM: not applying TF fixup"
     knownbad = (
         'AMD FX(tm)-8350 Eight-Core Processor',
     )

@@ -506,6 +506,10 @@ static int dos_helper(int stk_offs, int revect)
 	config.hogthreshold = LWORD(ebx);
 	break;
 
+    case DOS_HELPER_TEST_MODE:
+	config.test_mode = LO(bx);
+	return 1;
+
     case DOS_HELPER_MFS_HELPER:
 	mfs_inte6();
 	return 1;
