@@ -98,6 +98,8 @@ struct pkt_ops {
     int (*get_MTU)(void);
     ssize_t (*pkt_read)(int fd, void *buf, size_t count);
     ssize_t (*pkt_write)(int fd, const void *buf, size_t count);
+#define PFLG_ASYNC 1
+    unsigned flags;
 };
 
 extern int pkt_register_backend(struct pkt_ops *o);

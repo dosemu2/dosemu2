@@ -174,7 +174,9 @@ static int Open_sockets(const char *name, int vnet)
 int OpenNetworkLink(void (*cbk)(int, int))
 {
 	int ret = -1;
-	struct pkt_ops *o;
+	struct pkt_ops *o = NULL;
+#define CB() ((o->flags & PFLG_ASYNC) ? cbk : set_fd)
+#define BAD_OPS() (!o || ((o->flags & PFLG_ASYNC) && open_cnt > 1))
 
 	open_cnt++;
 	assert(early_fd != 0);
@@ -194,12 +196,12 @@ int OpenNetworkLink(void (*cbk)(int, int))
 			break;
 		}
 		o = find_ops(VNET_TYPE_SLIRP);
-		if (!o)
+		if (BAD_OPS())
 			ret = -1;
 		else
-			ret = o->open("slirp", set_fd);
+			ret = o->open("slirp", CB());
 		if (ret < 0) {
-			if (config.vnet == VNET_TYPE_AUTO)
+			if (config.vnet == VNET_TYPE_AUTO || open_cnt > 1)
 				warn("PKT: Cannot run slirp\n");
 			else
 				error("Unable to run slirp\n");
@@ -218,12 +220,12 @@ int OpenNetworkLink(void (*cbk)(int, int))
 			break;
 		}
 		o = find_ops(VNET_TYPE_VDE);
-		if (!o)
+		if (BAD_OPS())
 			ret = -1;
 		else
-			ret = o->open(config.vdeswitch, set_fd);
+			ret = o->open(config.vdeswitch, CB());
 		if (ret < 0) {
-			if (config.vnet == VNET_TYPE_AUTO)
+			if (config.vnet == VNET_TYPE_AUTO || open_cnt > 1)
 				warn("PKT: Cannot run VDE %s\n", pr_dev);
 			else
 				error("Unable to run VDE %s\n", pr_dev);
@@ -235,8 +237,10 @@ int OpenNetworkLink(void (*cbk)(int, int))
 		break;
 	}
 	}
-	if (ret != -1)
+	if (ret != -1 && o && !(o->flags & PFLG_ASYNC))
 		cbk(early_fd, rcv_mode);
+	if (ret == -1)
+		open_cnt--;
 	return ret;
 }
 
@@ -251,6 +255,8 @@ static void CloseNetworkLinkEth(int pkt_fd)
 
 void CloseNetworkLink(int pkt_fd)
 {
+	if (!open_cnt)
+		return;
 	if (--open_cnt == 0)
 		find_ops(config.vnet)->close(pkt_fd);
 }
