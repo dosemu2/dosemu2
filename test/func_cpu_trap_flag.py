@@ -1,3 +1,5 @@
+import re
+
 from cpuinfo import get_cpu_info
 from os import access, R_OK, W_OK
 
@@ -72,15 +74,24 @@ cnt:
 
     results = self.runDosemu("testit.bat", config=config)
 
-    self.assertIn("Result is (1)", results)
+    # Extract the result value
+    r1 = re.compile(r'Result is \((\d+)\)')
+    self.assertRegex(results, r1)
+    t = r1.search(results)
+    rval = int(t.group(1), 10)
+
+    # Some unknown error in the test
+    self.assertNotEqual(rval, 0, results)
 
     if cpu_vm != 'kvm':
+        self.assertEqual(rval, 1, results)
         return
 
     # check for fixup
     fixupmsg = "KVM: not applying TF fixup"
     knownbad = (
         'AMD FX(tm)-8350 Eight-Core Processor',
+        'AMD A10-7870K Radeon R7, 12 Compute Cores 4C+8G',
     )
 
     # get log content
@@ -97,11 +108,11 @@ cnt:
         except KeyError:
             name = str(cpu)
 
-    if name in knownbad:
-        if fixupmsg in results or fixupmsg in logcontents:
+    if rval == 1:
+        if name in knownbad:
+            self.fail("Unexpected success with cpu '%s'" % name)
+    elif rval > 1 or fixupmsg in results or fixupmsg in logcontents:
+        if name in knownbad:
             self.setMessage("known bad cpu '%s'" % name)
         else:
-            self.fail("Unexpected success with cpu '%s'" % name)
-    else:
-        if fixupmsg in results or fixupmsg in logcontents:
             self.fail("Fail with unknown cpu '%s'" % name)
