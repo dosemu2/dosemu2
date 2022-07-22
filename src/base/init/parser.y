@@ -103,8 +103,6 @@ static unsigned int portspeed = 0;
 
 static int errors = 0;
 static int warnings = 0;
-static int priv_lvl = 0;
-
 
 static char *file_being_parsed;
 
@@ -588,8 +586,6 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		| EMURETRACE bool
 		    {
-		    if ($2 && !config.emuretrace && priv_lvl)
-		      yyerror("Can not modify video port access in user config file");
 		    config.emuretrace = ($2!=0);
 		    c_printf("CONF: emu_retrace %s\n", ($2) ? "on" : "off");
 		    }
@@ -793,10 +789,6 @@ line:		CHARSET '{' charset_flags '}' {}
 		      }
 		    }
 		| HARDWARE_RAM
-                    {
-		    if (priv_lvl)
-		      yyerror("Can not change hardware ram access settings in user config file");
-		    }
                    '{' hardware_ram_flags '}'
 		| FEATURE '{' expression '=' expression '}'
 		    {
@@ -1938,8 +1930,6 @@ static void stop_mouse(void)
 
 static void start_ports(void)
 {
-  if (priv_lvl)
-    yyerror("Can not change port privileges in user config file");
   ports_permission = IO_RDWR;
   ports_ormask = 0;
   ports_andmask = 0xFFFF;
@@ -1974,9 +1964,6 @@ static void start_video(void)
 
 static void stop_video(void)
 {
-  if (priv_lvl)
-    config.console_video = 0;
-
   if ((config.cardtype != CARD_VGA) || !config.console_video) {
     config.vga = 0;
   }
@@ -2656,10 +2643,6 @@ int parse_config(const char *confname, const char *dosrcname)
 #endif
 
   define_config_variable(PARSER_VERSION_STRING);
-
-  /* privileged options allowed? */
-  priv_lvl = !under_root_login && can_do_root_stuff;
-
   define_config_variable("c_system");
 
   yy_vbuffer = dosemu_conf;
@@ -2689,8 +2672,6 @@ int parse_config(const char *confname, const char *dosrcname)
   undefine_config_variable("c_system");
 
   /* Now we parse any commandline statements from option '-I'
-   * We do this under priv_lvl set above, so we have the same secure level
-   * as with .dosrc
    */
 
   if (commandline_statements) {
@@ -2732,12 +2713,6 @@ char *get_config_variable(const char *name)
 
 int define_config_variable(const char *name)
 {
-  if (priv_lvl) {
-    if (strcmp(name, CONFNAME_V3USED) && strncmp(name, "u_", 2)) {
-      c_printf("CONF: not enough privilege to define config variable %s\n", name);
-      return 0;
-    }
-  }
   if (!get_config_variable(name)) {
     if (config_variables_count < MAX_CONFIGVARIABLES) {
       config_variables[config_variables_count++] = strdup(name);
@@ -2753,12 +2728,6 @@ int define_config_variable(const char *name)
 
 static int undefine_config_variable(const char *name)
 {
-  if (priv_lvl) {
-    if (strncmp(name, "u_", 2)) {
-      c_printf("CONF: not enough privilege to undefine config variable %s\n", name);
-      return 0;
-    }
-  }
   if (get_config_variable(name)) {
     int i;
     if (!strcmp(name, CONFNAME_V3USED)) parser_version_3_style_used = 0;
