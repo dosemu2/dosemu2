@@ -132,7 +132,8 @@ static void set_cursor_pos(unsigned page, int x, int y)
   }
 }
 
-static inline void set_cursor_shape(ushort shape) {
+static void set_cursor_shape(ushort shape)
+{
    int cs,ce;
    cshape cursor_shape;
    cursor_shape.w = shape;
@@ -629,7 +630,6 @@ boolean set_video_mode(int mode)
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
     WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
   }
-  set_cursor_shape(vmi->type == TEXT_MONO ? 0x0b0d : 0x0607);
 
   switch(vga_font_height) {
     case 14:
@@ -642,7 +642,8 @@ boolean set_video_mode(int mode)
       u = vgaemu_bios.font_8;
   }
   SETIVEC(0x43, 0xc000, u);
-  WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+  WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height); // before set_cursor_shape()
+  set_cursor_shape(vmi->type == TEXT_MONO ? 0x0b0d : 0x0607);
 
   if (using_text_mode()) {
     v_printf("INT10: X_set_video_mode: 8x%d ROM font -> bank 0\n",
