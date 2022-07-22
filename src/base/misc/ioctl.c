@@ -318,13 +318,7 @@ void ioselect_init(void)
 
 void ioselect_done(void)
 {
-    int i;
-
     pthread_cancel(io_thr);
     pthread_join(io_thr, NULL);
-    for (i = 0; i < MAX_FD; i++) {
-	if (io_callback_func[i].func)
-	    close(i);
-    }
     close(syncpipe[1]);
 }
