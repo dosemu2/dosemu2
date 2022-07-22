@@ -91,6 +91,7 @@ struct pci_funcs {
 void pci_bios(void);
 int pcibios_init(void);
 pciRec *pcibios_find_class(unsigned long cls,  int num);
+pciRec *pcibios_find_primary_vga(void);
 pciRec *pcibios_find_bdf(unsigned short bdf);
 
 struct pci_funcs *pci_check_conf(void);

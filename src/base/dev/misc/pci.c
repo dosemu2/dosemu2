@@ -583,7 +583,8 @@ pciRec *pciemu_setup(unsigned long cls)
     Z_printf("PCI: initializing, class=%lx\n", cls);
     pcibios_init();
   }
-  pci = pcibios_find_class(cls, 0);
+//  pci = pcibios_find_class(cls, 0);
+  pci = pcibios_find_primary_vga();  // XXX
   if (pci == NULL) {
     Z_printf("PCI: class %lx not found\n", cls);
     return pci;

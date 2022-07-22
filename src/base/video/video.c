@@ -105,7 +105,7 @@ static int using_kms(void)
 
     if (!on_console()) return 0;	// not using KMS under X
     if (!pcibios_init()) return 0;
-    pcirec = pcibios_find_class(PCI_CLASS_DISPLAY_VGA << 8, 0);
+    pcirec = pcibios_find_primary_vga();
     if (!pcirec) return 0;
 
     bus = pcirec->bdf >> 8;

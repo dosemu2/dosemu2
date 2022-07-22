@@ -259,6 +259,17 @@ pciRec *pcibios_find_class(unsigned long cls,  int num)
     return NULL;
 }
 
+pciRec *pcibios_find_primary_vga(void)
+{
+    int i = 0;
+    pciRec *ret;
+
+    do {
+        ret = pcibios_find_class(PCI_CLASS_DISPLAY_VGA << 8, i++);
+    } while (ret && !ret->enabled);
+    return ret;
+}
+
 pciRec *pcibios_find_bdf(unsigned short bdf)
 {
     pciPtr pci = pciList;
@@ -431,15 +442,17 @@ interpretCfgSpace(unsigned int *pciheader,unsigned int *pcibuses,int busidx,
 {
     static const char *typestr[] = { "MEM", "IO", "ROM" };
     int tmp, i;
+    uint16_t command;
 
     pciPtr pciTmp = (pciPtr)malloc(sizeof(pciRec));
     pciTmp->next = pciList;
     pciList = pciTmp;
-    pciTmp->enabled = config.pci;
     pciTmp->bdf = pcibuses[busidx] << 8 | dev << 3 | func;
     pciTmp->vendor = pciheader[0] & 0xffff;
     pciTmp->device = pciheader[0] >> 16;
+    command = pciheader[1] & 0xffff;
     pciTmp->cls = pciheader[0x02] >> 8;
+    pciTmp->enabled = ((command & 3) == 3);
     if (PCI_BRIDGE_CLASS(pciTmp->cls))  {
 	if (PCI_BRIDGE_PCI_CLASS(pciTmp->cls)) { /*PCI-PCI*/
 	    Z_printf("PCI-PCI bridge:\n");

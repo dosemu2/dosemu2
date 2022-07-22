@@ -508,7 +508,7 @@ static void pcivga_init(void)
        for VGA BIOSes to use */
     pcirec = pciemu_setup(PCI_CLASS_DISPLAY_VGA << 8);
   else
-    pcirec = pcibios_find_class(PCI_CLASS_DISPLAY_VGA << 8, 0);
+    pcirec = pcibios_find_primary_vga();
   if (!pcirec) {
     /* only set pci_video=0 if no PCI is available. Otherwise
        it's set by default */
