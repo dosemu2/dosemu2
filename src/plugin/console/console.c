@@ -75,7 +75,6 @@ static int console_post_init(void)
 
   vc_post_init();
   set_vc_screen_page();
-  set_process_control();
   k_printf("KBD: Taking mouse control\n");  /* Actually only in KD_GRAPHICS... */
   /* Some escape sequences don't work in KD_GRAPHICS... */
   kdmode = config.vga? KD_GRAPHICS: KD_TEXT;
@@ -161,6 +160,7 @@ static int console_init(void)
 
   if (config.detach)
     consolenum = detach();
+  set_process_control();
   return 0;
 }
 
