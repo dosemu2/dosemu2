@@ -550,6 +550,8 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
   if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_VGAEMU|MAPPING_KMEM|MAPPING_KVM|
       MAPPING_IMMEDIATE)))
     return;
+  if (cap & MAPPING_KMEM)
+    cap |= MAPPING_KVM_UC;
   if (cap & MAPPING_INIT_LOWRAM) {
     targ = 0;
   }
@@ -595,11 +597,10 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
       monitor->pte[page] |= PG_PRESENT | PG_RW | PG_USER;
     else if (protect & PROT_READ)
       monitor->pte[page] |= PG_PRESENT | PG_USER;
-    if (cap & MAPPING_KVM) {
+    if (cap & MAPPING_KVM)
       monitor->pte[page] &= ~PG_USER;
-      if (cap & MAPPING_KVM_UC)
-        monitor->pte[page] |= PG_DC;
-    }
+    if (cap & MAPPING_KVM_UC)
+      monitor->pte[page] |= PG_DC;
   }
 
   mprotected_kvm = 1;
