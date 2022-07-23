@@ -4,10 +4,10 @@ include ../plugins_simp.mak
 D:=$(top_builddir)/commands/dosemu
 D1:=$(BINPATH)/commands
 
-COM2:=$(D)/isemu.com $(D)/fossil.com
+COM2:=$(D)/isemu.com
 SYS:=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/aspi.sys $(D)/umb.sys
 OBJS:=$(subst $(D)/,,$(COM2:.com=.o) $(SYS:.sys=.o))
-XSFILES = aspi.s cdrom.s ems.s emufs.s fossil.s isemu.s umb.s
+XSFILES = aspi.s cdrom.s ems.s emufs.s isemu.s umb.s
 
 all: $(COM2) $(SYS)
 $(COM2) $(SYS): | $(top_builddir)/commands
