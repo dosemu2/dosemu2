@@ -398,6 +398,8 @@ void pit_outp(ioport_t port, Bit8u val)
     h_printf("PIT: timer %i set to %i ticks\n", port, pit[port].cntr);
     pit[port].time.td = 0;
     pic_itime[port] = TICKS_TO_NS(pit[port].cntr);
+    if (port == 2 && (port61 & 3) == 3)
+      do_sound(pit[port].cntr);
   }
 }
 
