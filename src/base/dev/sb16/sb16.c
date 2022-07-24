@@ -42,7 +42,7 @@
 #include "sb16.h"
 #include <string.h>
 
-static int sb_irq_tab[] = { 2, 5, 7, 10 };
+static int sb_irq_tab[] = { 9 /* 2 actually */, 5, 7, 10 };
 static int sb_dma_tab[] = { 0, 1, 3 };
 static int sb_hdma_tab[] = { 5, 6, 7 };
 
