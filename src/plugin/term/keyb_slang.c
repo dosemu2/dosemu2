@@ -1250,8 +1250,7 @@ static int get_modifiers(void)
 
 static void do_slang_pending(void)
 {
-	if (keyb_state.KeyNot_Ready && (keyb_state.Keystr_Len == 1) &&
-			(*keyb_state.kbp == 27) && keyb_state.kbcount == 1) {
+	if (keyb_state.KeyNot_Ready && *keyb_state.kbp == 27) {
 #if 0
 #define THE_TIMEOUT 750000L
 #else
@@ -1259,11 +1258,27 @@ static void do_slang_pending(void)
 #endif
 		hitimer_t t_dif = GETusTIME(0) - keyb_state.t_start;
 		if (t_dif >= THE_TIMEOUT) {
-			k_printf("KBD: slang got single ESC\n");
-			keyb_state.kbcount--;	/* update count */
-			keyb_state.kbp++;
-			slang_send_scancode(keyb_state.Shift_Flags, DKY_ESC);
-			keyb_state.KeyNot_Ready = 0;
+			t_unicode symbol = DKY_VOID;
+			size_t result;
+			switch (keyb_state.kbcount) {
+			case 1:
+				k_printf("KBD: slang got single ESC\n");
+				slang_send_scancode(keyb_state.Shift_Flags, DKY_ESC);
+				keyb_state.KeyNot_Ready = 0;
+				break;
+			case 2:
+				result = charset_to_unicode(&keyb_state.translate_state,
+					&symbol, keyb_state.kbp + 1, keyb_state.kbcount - 1);
+				if (result > 0)
+					slang_send_scancode(keyb_state.Shift_Flags | ALT_MASK, symbol);
+				keyb_state.KeyNot_Ready = 0;
+				break;
+			default:
+				error("term: timeout after %i chars\n", keyb_state.kbcount);
+				break;
+			}
+			keyb_state.kbp += keyb_state.kbcount;
+			keyb_state.kbcount = 0;
 		}
 	}
 	/* do_slang_getkeys() throttles pasting. So we call it here in
