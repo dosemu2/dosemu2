@@ -148,23 +148,32 @@ static void bios_setup(void)
       }
     }
 
-    /* interrupts >= 0xc0 are NULL unless defined by DOSEMU */
-    SETIVEC(i, 0, 0);
-    /* 0x68-0x6f are usually set to iret */
-    if ((i & 0xf8) == 0x68)
-	SETIVEC(i, IRET_SEG, IRET_OFF);
-    else if (i < 0x60 || (i >= 0x70 && i < 0x78) ||
-	    i == DOS_HELPER_INT || i == 0xe7)
-	SETIVEC(i, BIOSSEG, INT_OFF(i));
+    switch (i) {
+    case 0x60 ... 0x67:
+    case 0x79 ... 0xff:
+      /* interrupts >= 0xc0 are NULL unless defined by DOSEMU */
+      SETIVEC(i, 0, 0);
+      break;
+    case 0x68 ... 0x6f:
+      /* 0x68-0x6f are usually set to iret */
+      SETIVEC(i, IRET_SEG, IRET_OFF);
+      break;
+    case 0x70 ... 0x78:
+      SETIVEC(i, BIOSSEG, EOI2_OFF);
+      break;
+    case 0 ... 7:
+    case 0x10 ... 0x5f:
+      SETIVEC(i, BIOSSEG, INT_OFF(i));
+      break;
+    case 8 ... 0x0f:
+      SETIVEC(i, BIOSSEG, EOI_OFF);
+      break;
+    }
   }
 
-  /* Let kernel handle this, no need to return to DOSEMU */
- #if 0
-  SETIVEC(0x1c, BIOSSEG + 0x10, INT_OFF(0x1c) +2 - 0x100);
- #endif
-
+  SETIVEC(DOS_HELPER_INT, BIOSSEG, INT_OFF(DOS_HELPER_INT));
+  SETIVEC(0xe7, BIOSSEG, INT_OFF(0xe7));
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
-  SETIVEC(0x0a, BIOSSEG, EOI_OFF);
   SETIVEC(0x08, INT08_SEG, INT08_OFF);
   /* 0x30 and 0x31 are not vectors, they are the 5-byte long jump.
    * While 0x30 is overwritten entirely, only one byte is overwritten
