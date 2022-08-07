@@ -4,7 +4,7 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-/* 	MS-DOS API translator for DOSEMU\'s DPMI Server
+/* 	MS-DOS API translator for DOSEMU's DPMI Server
  *
  * DANG_BEGIN_MODULE msdos.c
  *
@@ -651,7 +651,7 @@ static int need_xbuf(int intr, u_short ax, u_short cx)
 		case 0x4F:	/* find next file */
 		case 0x47:	/* get cur dir */
 		case 0x60:	/* canonicalize filename */
-		case 0x6c:	/* extended open/create */
+		case 0x6c:	/* extended open/creat */
 		case 0xA0:	/* get volume info */
 		    return 1;
 	    }
@@ -1071,7 +1071,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 	case 0x21 ... 0x24:
 	case 0x27:
 	case 0x28:
-	    error("MS-DOS: Unsupported function 0x%x\n", _HI(ax));
+	    error("MSDOS: Unsupported function 0x%x\n", _HI(ax));
 	    _HI(ax) = 0xff;
 	    return MSDOS_DONE;
 	case 0x11:
@@ -1130,7 +1130,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 		par_seg = segment;
 		segment += 2;
 #if 0
-		/* now the envrionment segment */
+		/* now the environment segment */
 		sel = READ_WORD(SEGOFF2LINEAR(par_seg, 0));
 		WRITE_WORD(SEGOFF2LINEAR(par_seg, 0), segment);
 		MEMCPY_2DOS(SEGOFF2LINEAR(segment, 0),	/* 4K envr. */
@@ -1158,7 +1158,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 		MEMSET_DOS(SEGOFF2LINEAR(segment, 0), 0, 0x30);
 		segment += 3;
 
-		/* then the enviroment seg */
+		/* then the environment seg */
 		if (get_env_sel())
 		    write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
 
@@ -1433,7 +1433,7 @@ int msdos_pre_extender(sigcontext_t *scp,
 		    dst = msdos_seg2lin(rm_seg);
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
 		    break;
-		case 0x6c:	/* extended open/create */
+		case 0x6c:	/* extended open/creat */
 		    SET_RMREG(ds, rm_seg);
 		    SET_RMLWORD(si, 0);
 		    src = SEL_ADR_X(_ds, _esi, MSDOS_CLIENT.is_32);
@@ -1742,7 +1742,7 @@ int msdos_post_extender(sigcontext_t *scp,
     switch (intr) {
     case 0x10:			/* video */
 	if (ax == 0x1130) {
-	    /* get current character generator infor */
+	    /* get current character generator info */
 	    TRANSLATE_S(es);
 	}
 	break;
@@ -2006,7 +2006,7 @@ int msdos_post_extender(sigcontext_t *scp,
 		break;
 	    case 0x4E:
 		PRESERVE1(edx);
-		/* fall thru */
+		/* fall through */
 	    case 0x4F:
 		PRESERVE1(edi);
 		if (RMREG(flags) & CF)

@@ -832,7 +832,7 @@ void vc_post_init(void)
   vcr_tid = coopth_create("vc release", __SIGRELEASE_call);
   coopth_set_permanent_post_handler(vc_tid, vc_switch_done);
   coopth_set_permanent_post_handler(vcr_tid, vc_switch_done);
-  /* we dont use detached thread here to avoid the DOS code
+  /* we don't use detached thread here to avoid the DOS code
    * from running concurrently with video mem saving. Another
    * solution (simpler one) is to rely on freeze_dosemu() and
    * use the detached thread here. */

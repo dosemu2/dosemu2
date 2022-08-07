@@ -2591,7 +2591,7 @@ void test_sse_comi(double a1, double b1)
 }
 
 /* Force %xmm0 usage to avoid the case where both register index are 0
-   to test intruction decoding more extensively */
+   to test instruction decoding more extensively */
 #define CVT_OP_XMM2MMX(op)\
 {\
     asm volatile (#op " %1, %0" : "=y" (r.q[0]) : "x" (a.dq) \
@@ -3084,7 +3084,7 @@ int main(int argc, char **argv)
     if (argc >= 2 && strcmp(argv[1], "--common-tests") == 0)
         return 0;
 
-// tests that will probabaly never produce the same output on different platforms
+// tests that will probably never produce the same output on different platforms
     test_exceptions();
     test_enter();
 

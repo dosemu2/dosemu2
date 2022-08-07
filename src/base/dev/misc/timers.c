@@ -9,7 +9,7 @@
  * REMARK
  * This is the timer emulation for DOSEMU.  It emulates the Programmable
  * Interval Timer (PIT), and also handles IRQ0 interrupt events.
- * A lot of animation and video game software are dependant on this module
+ * A lot of animation and video game software are dependent on this module
  * for high frequency timer interrupts (IRQ0).
  *
  * This code will actually generate 18.2 DOS interrupts/second (the code
@@ -148,7 +148,7 @@ void do_sound(Bit16u period)
 	 *
 	 * But if you set it too low, then sounds can be cut off - clarence
 	 */
-	static const unsigned sound_duration = 30000;  /* in miliseconds */
+	static const unsigned sound_duration = 30000;  /* in milliseconds */
 	switch (port61 & 3) {
 	case 3:		/* speaker on & speaker control through timer channel 2 */
 		if ((pit[2].mode == 2) || (pit[2].mode == 3)) {		/* is this test needed? */

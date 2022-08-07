@@ -86,7 +86,7 @@ int int14(void)
   int temp;
 
   /* Translate the requested COM port number in the DL register, into
-   * the necessary arbritary port number system used throughout this module.
+   * the necessary arbitrary port number system used throughout this module.
    */
   for(num = 0; num < config.num_ser; num++)
     if (com_cfg[num].real_comport == (LO(dx)+1)) break;

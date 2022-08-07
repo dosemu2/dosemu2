@@ -27,7 +27,7 @@
  * Additional copyright notes:
  *
  * 1. The kernel-level vm86 handling was taken out of the Linux kernel
- *  (linux/arch/i386/kernel/vm86.c). This code originaly was written by
+ *  (linux/arch/i386/kernel/vm86.c). This code originally was written by
  *  Linus Torvalds with later enhancements by Lutz Molgedey and Hans Lermen.
  *
  * 2. The tree handling routines were adapted from libavl:
@@ -919,7 +919,7 @@ static int TraverseAndClean(void)
  * The code is linearly stored in the CodeBuf and its associated structures
  * are in the InstrMeta array. We allocate a buffer and copy the code, then
  * we copy the sequence data from the head element of InstrMeta. In this
- * process we lose all the correspondances between original code and compiled
+ * process we lose all the correspondences between original code and compiled
  * code addresses. At the end, we reset both CodeBuf and InstrMeta to prepare
  * for a new sequence.
  */
@@ -986,7 +986,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   findtree_cache[key&FINDTREE_CACHE_HASH_MASK] = nG;
 
   /* allocate the extra memory used by the node. This includes the
-   * translated code plus the table of correspondances between source
+   * translated code plus the table of correspondences between source
    * and translated addresses.
    * The first longword of the memory block is special; it stores a
    * back-pointer to the node. This because nodes can be moved in

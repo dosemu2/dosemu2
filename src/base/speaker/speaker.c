@@ -13,7 +13,7 @@
  *
  * Actuall emulation is done in src/base/dev/misc/timers.c in do_sound.
  *
- * Currenly emulation is only done when the new keyboard is enabled but with a
+ * Currently emulation is only done when the new keyboard is enabled but with a
  * little extra work it should be possible to enable it for the old keyboard
  * code if necessary.
  *
@@ -30,7 +30,7 @@
  * 'speaker_on' always overrides whatever previous speaker sound was previously
  * given.  No mixing happens.
  *
- * For code that wants to implement speaker emulation.  The recommeded method
+ * For code that wants to implement speaker emulation.  The recommended method
  * is to add a file in src/base/speaker with the necessary code.  Declare it's
  * methods in speaker.h (or somewhere accessible to your code).  And call
  *

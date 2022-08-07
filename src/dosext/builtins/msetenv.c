@@ -42,7 +42,7 @@ static char *envptr(int *size, int parent_p)
 
 /*
    msetenv - place an environment variable in command.com's copy of
-             the envrionment.
+             the environment.
 */
 
 static int com_msetenv(const char *variable, const char *value, int parent_p)
@@ -84,7 +84,7 @@ static int com_msetenv(const char *variable, const char *value, int parent_p)
         tail_sz += strlen(cp + 2) + 1;
 
     /*
-       If the variable fits, shovel it in at the end of the envrionment.
+       If the variable fits, shovel it in at the end of the environment.
     */
     if (size - (env2 - env1) - tail_sz >= len) {
         memmove(env2 + len, env2, tail_sz);
@@ -136,7 +136,7 @@ int mresize_env(int size_plus)
     else
         error("no env frame\n");
     if (err)
-        error("cant free env frame\n");
+        error("can't free env frame\n");
     psp->envir_frame = new_env;
     return 0;
 }

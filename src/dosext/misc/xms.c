@@ -575,7 +575,7 @@ void xms_control(void)
   }
  }
  /* If this is the UMB request which came via the external himem.sys,
-  * dont pass it back. */
+  * don't pass it back. */
  if (!intdrv) {
    if (is_umb_fn)
      LWORD(esp) += 4;

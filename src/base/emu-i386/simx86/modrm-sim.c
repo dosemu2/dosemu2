@@ -27,7 +27,7 @@
  * Additional copyright notes:
  *
  * 1. The kernel-level vm86 handling was taken out of the Linux kernel
- *  (linux/arch/i386/kernel/vm86.c). This code originaly was written by
+ *  (linux/arch/i386/kernel/vm86.c). This code originally was written by
  *  Linus Torvalds with later enhancements by Lutz Molgedey and Hans Lermen.
  *
  ***************************************************************************/
@@ -37,7 +37,7 @@
 #include "codegen-sim.h"
 
 /*
- * Why this one? It is only a duplicate of modrm-gen but it interpretes
+ * Why this one? It is only a duplicate of modrm-gen but it interprets
  * addresses instead of compiling them. After some headaches I decided
  * that it was better to have a duplicate than to parse,compile,execute,
  * find the node,delete it etc.

@@ -111,7 +111,7 @@ static int load_and_run_DOS_program(const char *command, const char *cmdline)
 	BMEM(pa4)->fcb2 = MK_FARt(com_psp_seg(), offsetof(struct PSP, FCB2));
 	SREG(es) = DOSEMU_LMHEAP_SEG;
 	LWORD(ebx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(pa4));
-	/* path of programm to load */
+	/* path of program to load */
 	SREG(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(cmd));
 
@@ -509,7 +509,7 @@ int commands_plugin_inte6(void)
 		if (p)
 			*p = '\0';
 	}
-//	assert(psp->cmdline_len < sizeof(cmdbuf)); // len uint8_t, cant assert
+//	assert(psp->cmdline_len < sizeof(cmdbuf)); // len uint8_t, can't assert
 	memcpy(cmdbuf, psp->cmdline, psp->cmdline_len);
 	cmdbuf[psp->cmdline_len] = '\0';
 	if (pool_used >= MAX_NESTING) {

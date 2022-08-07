@@ -241,7 +241,7 @@ static int sb_dma_autoinit(void)
     if (!sb.dma_cmd)
 	error("SB: used inactive DMA (ai)\n");
 #if 0
-    /* if speaker state is not consistent with direction, dont autoinit - correct? */
+    /* if speaker state is not consistent with direction, don't autoinit - correct? */
     if (!(sb_dma_input() ^ sb.speaker))
 	return 0;
 #endif
@@ -1935,7 +1935,7 @@ void sound_init(void)
 	return;
     sb.dspio = dspio_init();
     if (!sb.dspio) {
-	error("dspio faild\n");
+	error("dspio failed\n");
 	leavedos(93);
     }
     sb_init();

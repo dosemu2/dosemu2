@@ -509,7 +509,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
 		= cdrom_subchnl.cdsc_absaddr.msf.minute * 60 * 75
 		+ cdrom_subchnl.cdsc_absaddr.msf.second * 75
 		+ cdrom_subchnl.cdsc_absaddr.msf.frame - 150;
-	} else {		/* red book adressing */
+	} else {		/* red book addressing */
 	    *CALC_PTR(req_buf, MSCD_LOCH_LOCATION + 3, u_char) = 0;
 	    *CALC_PTR(req_buf, MSCD_LOCH_LOCATION + 2, u_char) =
 		cdrom_subchnl.cdsc_absaddr.msf.minute;

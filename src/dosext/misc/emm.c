@@ -915,7 +915,7 @@ reallocate_pages(struct vm86_regs * state)
       /*
        * Here we come, when reallocation would lead to a ZERO sized block.
        * This would be bad for mremap(), because this is equal to munmap()
-       * We destroy the objekt instead
+       * We destroy the object instead
        */
       destroy_memory_object(handle_info[handle].object,handle_info[handle].numpages*EMM_PAGE_SIZE);
       handle_info[handle].object = 0;

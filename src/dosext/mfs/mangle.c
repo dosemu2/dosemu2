@@ -173,7 +173,7 @@ static BOOL is_8_3(char *fname)
      This Translation may be more or less relaxed depending
      the Windows application. */
 
-  /* %%% A nice improvment to name mangling would be to translate
+  /* %%% A nice improvement to name mangling would be to translate
      filename to ANSI charset on the smb server host */
 
   {
@@ -380,7 +380,7 @@ static void init_chartest( void )
  *
  *  Notes:  The input name is *not* tested for 8.3 compliance.  This must be
  *          done separately.  This function returns true if the name contains
- *          a magic character followed by excactly two characters from the
+ *          a magic character followed by exactly two characters from the
  *          basechars list (above), which in turn are followed either by the
  *          nul (end of string) byte or a dot (extension) or by a '/' (end of
  *          a directory name).
@@ -569,7 +569,7 @@ static char *mangled_match(char *s, /* This is null terminated */
   if (!*sp && !*pp)             /* End of pattern. */
     return matching_bit;        /* Simple match.  Return empty string. */
   if (*pp == '*') {
-    pp++;                       /* Always interrested in the chacter */
+    pp++;                       /* Always interested in the character */
                                 /* after the '*' */
     if (!*pp) {                 /* It is at the end of the pattern. */
       StrnCpy(matching_bit, s, sp-s);

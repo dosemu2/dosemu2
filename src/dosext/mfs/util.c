@@ -175,7 +175,7 @@ char *strlowerDOS(char *src)
   return s;
 }
 
-/* locale-independent routins      */
+/* locale-independent routines      */
 
 /***************************************************************************
 line strncpy but always null terminates. Make sure there is room!

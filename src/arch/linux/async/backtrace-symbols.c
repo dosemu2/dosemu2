@@ -145,7 +145,7 @@ static char** translate_addresses_buf(bfd * abfd, bfd_vma *addr, int naddr)
 	char *buf = &b;
 	int len = 0;
 	char **ret_buf = NULL;
-	/* iterate over the formating twice.
+	/* iterate over the formatting twice.
 	 * the first time we count how much space we need
 	 * the second time we do the actual printing */
 	for (state=Count; state<=Print; state++) {

@@ -38,7 +38,7 @@
  /* Note:
   *  While it is very bad to hard code keys, dos has already
   *  hard coded the shift keys, the number pad keys, and
-  *  virtually everthing but the letter keys.  Dosemu cannot
+  *  virtually everything but the letter keys.  Dosemu cannot
   *  remove this hard coding without confusing dos programs.
   *  The point of dosemu's configurability is primarily to
   *  allow non-us keyboards to work as they would in dos.  Not
@@ -510,7 +510,7 @@ static void dump_translate_rules(struct scancode_translate_rules *rules)
 #endif
 
 /* FIXME: I need external input for ctrl mappings!
- * I have a clever hack that get's it right most of the time,
+ * I have a clever hack that gets it right most of the time,
  * but it's not quite right.  Also some ctrl keys are hardwired to
  * their position on a US keyboard.
  */
@@ -867,7 +867,7 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 	/* Note:
 	 *  While it is very bad to hard code keys, dos has already
 	 *  hard coded the shift keys, the number pad keys, and
-	 *  virtually everthing but the letter keys.  Dosemu cannot
+	 *  virtually everything but the letter keys.  Dosemu cannot
 	 *  remove this hard coding without confusing dos programs.
 	 *  The point of dosemu's configurability is primarily to
 	 *  allow non-us keyboards to work as they would in dos.  Not
@@ -1310,7 +1310,7 @@ t_keynum compute_functional_keynum(Boolean make, t_keynum keynum,
 {
 	unsigned char *keys = keystate->keys;
 	Boolean old_make;
-	/* first handle the virutal keys */
+	/* first handle the virtual keys */
 	switch(keynum) {
 	case NUM_PRTSCR_SYSRQ:
 		/* If the key is already pressed find out what key it
@@ -1402,7 +1402,7 @@ static void update_keypressed_state(Boolean make, t_keynum keynum,
 	}
 }
 
-/* additionaly strings */
+/* additionally strings */
 #define SCN_FAKE_L_SHIFT	0xe02a
 #define SCN_FAKE_R_SHIFT	0xe036
 #define SCN_PAUSE		0xe11d45
@@ -1516,7 +1516,7 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 	 * the numlock state.  Since I depend on being able to
 	 * pretranslate the keyboard for cut and paste, I'll just use
 	 * my expected numlock state.
-	 * At any rate this is just a heuristic, and not garanteed to
+	 * At any rate this is just a heuristic, and not guaranteed to
 	 * be correct so any reasonable approximation should be fine.
 	 */
 			Boolean num_state = !!(state->shiftstate & NUM_LOCK);
@@ -1745,7 +1745,7 @@ t_keynum compute_keynum(Boolean *make_ret,
  * translate_key takes a keysym event and calculates the appropriate
  * bios translation.
  *
- * As a side effect translate_key updates the apropriate pieces of state
+ * As a side effect translate_key updates the appropriate pieces of state
  * to reflect the current keyboard state.
  *
  * Calling translate_key twice on the same data is likely to be hazardous.
@@ -1802,7 +1802,7 @@ Bit16u translate_key(Boolean make, t_keynum key,
 
 
 
-/* typing a specifc character */
+/* typing a specific character */
 
 
 /* get the logical modifiers from the keyboard state */
@@ -2131,7 +2131,7 @@ void put_rawkey(t_rawkeycode code)
  *
  * Applications using int16h will always see the appropriate ASCII code
  * for the given keyboard key and the current keyboard state.  All the
- * chracter translation is done for you to keep from reporting
+ * character translation is done for you to keep from reporting
  * inconsistent key events.
  *
  * An emulated hardware scancode is also sent to port60h.
@@ -2219,7 +2219,7 @@ t_keynum keysym_to_keynum(t_keysym key, t_modifiers * modifiers)
  *
  * Applications using int16h will always see the appropriate ASCII code
  * for the given keyboard key and the current keyboard state.  All the
- * chracter translation is done for you to keep from reporting
+ * character translation is done for you to keep from reporting
  * inconsistent key events.
  *
  * An emulated hardware scancode is also sent to port60h.
@@ -2297,7 +2297,7 @@ void put_symbol(Boolean make, t_keysym sym)
  *
  * For cases where the symbol can only be created by an alt# combination
  * or by pressing a dead key (Basically any case where more than one
- * key is requried, after setting the shiftstate) it gives up and just
+ * key is required, after setting the shiftstate) it gives up and just
  * sends the symbol.
  *
  * Note that you have to send both MAKE (press) and BREAK (release) events.
@@ -2322,8 +2322,8 @@ void put_modified_symbol(Boolean make, t_modifiers modifiers, t_keysym sym)
  * This is intended to be used in conjunction with set_shiftstate
  * to sync up a shiftstate with a source of key events.
  *
- * With the addition of this function the keyboard inteface is clean enough
- * so if needed a completly different translation engine can be dropped in
+ * With the addition of this function the keyboard interface is clean enough
+ * so if needed a completely different translation engine can be dropped in
  * to support a totally different environment (windows or whatever).
  *
  * DANG_END_FUNCTION

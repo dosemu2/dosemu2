@@ -373,7 +373,7 @@ static int dos_helper(int stk_offs, int revect)
 	LWORD(eax) = DOS_HELPER_MAGIC;
 	LWORD(ebx) = VERSION_NUM * 0x100 + SUBLEVEL;	/* major version 0.49 -> 0049 */
 	/* The patch level in the form n.n is a float...
-	 * ...we let GCC at compiletime translate it to 0xHHLL, HH=major, LL=minor.
+	 * ...we let GCC at compile time translate it to 0xHHLL, HH=major, LL=minor.
 	 * This way we avoid usage of float instructions.
 	 */
 	LWORD(ecx) = REVISION;
@@ -2872,7 +2872,7 @@ done:
 
 static unsigned short do_get_psp(int parent)
 {
-    /* dont care about parent, as command.com is primary */
+    /* don't care about parent, as command.com is primary */
     return sda_cur_psp(sda);
 }
 

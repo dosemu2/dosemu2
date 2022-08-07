@@ -992,7 +992,7 @@ static void do_int7a(void)
     ECBPtr.segment = SREG(es);
     ECBPtr.offset = LWORD(esi);
     n_printf("IPX: send packet ECB at %p\n", ECBp);
-    /* What the hell is the async send? Do it synchroniously! */
+    /* What the hell is the async send? Do it synchronously! */
     ret = IPXSendPacket(ECBPtr);
     if ((ret == RCODE_SUCCESS) && FARt_PTR2(ECBp->ESRAddress))
       ipx_esr_call(ECBPtr, ESR_CALLOUT_IPX);

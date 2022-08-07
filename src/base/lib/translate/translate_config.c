@@ -10,7 +10,7 @@
 #include "video.h"
 #include "utilities.h"
 
-struct translate_config_t trconfig; /* Intialized to nulls */
+struct translate_config_t trconfig; /* Initialized to nulls */
 
 static void config_translate_scrub(void)
 {

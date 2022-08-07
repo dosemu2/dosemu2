@@ -58,7 +58,7 @@ static int pop_priv(saved_priv_status *privs)
     leavedos(99);
   }
 #ifdef PRIV_TESTING
-  c_printf("PRIV: poping %d privs_ptr=%p\n", *privs, privs);
+  c_printf("PRIV: popping %d privs_ptr=%p\n", *privs, privs);
 #endif
   ret = (int)*privs;
   *privs = PRIV_MAGIC;

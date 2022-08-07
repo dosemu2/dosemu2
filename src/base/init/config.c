@@ -112,10 +112,10 @@ int cpu_override (int cpu)
 	    return CPU_286;
 	case 5: case 6:
 	    return CPU_586;
-	/* fall thru */
+	/* fall through */
 	case 4:
 	    return CPU_486;
-	/* fall thru */
+	/* fall through */
 	case 3:
 	    return CPU_386;
     }
@@ -784,9 +784,9 @@ static void read_cpu_info(void)
             }
           }
         }
-        /* fall thru */
+        /* fall through */
       case 4: config.realcpu = CPU_486;
-        /* fall thru */
+        /* fall through */
       case 3:
       	break;
       default:

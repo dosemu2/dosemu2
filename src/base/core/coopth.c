@@ -1306,7 +1306,7 @@ again:
 	struct coopth_per_thread_t *pth = current_thr(thr);
 	if (!pth->data.attached)
 	    continue;
-	/* dont cancel own thread */
+	/* don't cancel own thread */
 	assert(!thdata || *thdata->tid != tid);
 	do_cancel(thr, pth);
 	do_detach(thr, pth);
@@ -1400,7 +1400,7 @@ again:
 	int tid = active_tids[i];
 	struct coopth_t *thr = &coopthreads[tid];
 	struct coopth_per_thread_t *pth = current_thr(thr);
-	/* dont cancel own thread */
+	/* don't cancel own thread */
 	if (thdata && *thdata->tid == tid)
 	    continue;
 	if (!pth->data.attached) {
@@ -1425,7 +1425,7 @@ again:
 
 	if (!pthread_equal(thr->pthread, pthread_self()))
 	    continue;
-	/* dont free own thread */
+	/* don't free own thread */
 	if (thdata && *thdata->tid == i)
 	    continue;
 	for (j = thr->cur_thr; j < thr->max_thr; j++) {

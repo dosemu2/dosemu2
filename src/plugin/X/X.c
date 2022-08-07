@@ -137,7 +137,7 @@
  * 1998/12/12: Palette/font changes in text modes improved.
  * -- sw
  *
- * 1999/01/05: Splitted X_update_screen() into two separate parts.
+ * 1999/01/05: Split X_update_screen() into two separate parts.
  * -- sw
  *
  * 1998/11/07: Updated Steffen's code to newest X.c :

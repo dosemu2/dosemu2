@@ -19,7 +19,7 @@
 
 static int use_sgr;
 
-/* old XTERM MOUSE suport by M.Laak */
+/* old XTERM MOUSE support by M.Laak */
 static int xtermmouse_get_event_old(Bit8u *kbp, int kbcount)
 {
 	int btn;

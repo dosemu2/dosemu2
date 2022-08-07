@@ -93,7 +93,7 @@ static void foreach_terminal_callback(void *callback_data,
 {
 	struct foreach_terminal_state *state = callback_data;
 	if ((byte_len == 1) && ((bytes[0] <= 0x20) || (bytes[0] == 0x7f))) {
-		/* supress translations for the control characters.. */
+		/* suppress translations for the control characters.. */
 		return;
 	}
 	state->callback(state->callback_data, symbol, bytes, byte_len);
@@ -127,7 +127,7 @@ struct char_set_operations terminal_charset_ops = {
 };
 
 /*
- * Terminal Charset managment
+ * Terminal Charset management
  * ===========================
  */
 

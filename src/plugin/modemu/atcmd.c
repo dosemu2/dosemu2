@@ -332,7 +332,7 @@ atcmdPQ(void)
 }
 
 /* %Rn */
-/* n: 0(cooked?? mode) or 1(raw mode: 8bit thru, no IAC handling) */
+/* n: 0(cooked?? mode) or 1(raw mode: 8bit through, no IAC handling) */
 /* overrides %B and %L settings */
 int
 atcmdPR(const char *s)
@@ -346,7 +346,7 @@ atcmdPR(const char *s)
 }
 
 /* %Tn */
-/* n: 0(dont support telnet term-type option) or */
+/* n: 0(don't support telnet term-type option) or */
 /*    1(send $TERM for term-type option request) */
 int
 atcmdPT(const char *s)
@@ -394,7 +394,7 @@ atcmdPTSet(const char *s)
 /* %Vn */
 /* n: 0-255 */
 /*    bit0: output misc info to make up for less descriptive ATX0 indication */
-/*    bit1: output telnet option negotioation */
+/*    bit1: output telnet option negotiation */
 int
 atcmdPV(const char *s)
 {

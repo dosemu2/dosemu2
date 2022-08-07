@@ -66,7 +66,7 @@ static int no_real_terminal(void)
   if ( term == NULL
        || !strcmp(term,"dumb")        /* most cron's have this */
        || !strcmp(term,"none")        /* ... some have this */
-       || !strcmp(term,"dosemu-none") /* ... when called recursivly */
+       || !strcmp(term,"dosemu-none") /* ... when called recursively */
        ) {
     /*
      * We assume we are running without a terminal (e.g. in a cronjob).

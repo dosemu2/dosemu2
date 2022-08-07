@@ -25,7 +25,7 @@
  * - No posting routine possible - reentrancy needed for posting, since the
  *   posting routine may call ASPI services
  * - Blocking read/write to/from /dev/sg? used
- * - Too few sense bytes returned (16 instead of 18). This is a limitiation
+ * - Too few sense bytes returned (16 instead of 18). This is a limitation
  *     from the sg driver.
  * - SCSI timeout may need to be increased - formatting a DAT tape may take some time
  *     set to 5 minutes for now.
@@ -781,7 +781,7 @@ static Bit16u ASPI_Inquiry(SRB_HaInquiry16 *p)
   if (p->SRB_55AASignature == 0xAA55) {
     /* we got an Extended Host Adapter Inquiry command */
     p->SRB_55AASignature = 0x55AA; /* reverse the order to indicate we are
-    				    * we've set the extention */
+                                    * we've set the extension */
     if (p->SRB_ExtBufferSize < 2) {
        /* oops, that shouldn't happen */
        p->SRB_ExtBufferSize = 0;

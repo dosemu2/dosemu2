@@ -31,7 +31,7 @@
 //   - rombios.c of plex86
 //
 //  This VGA Bios contains fonts from :
-//   - fntcol16.zip (c) by Joseph Gil avalable at :
+//   - fntcol16.zip (c) by Joseph Gil available at :
 //      ftp://ftp.simtel.net/pub/simtelnet/msdos/screen/fntcol16.zip
 //     These fonts are public domain
 //

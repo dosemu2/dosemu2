@@ -9,7 +9,7 @@
  * DANG_BEGIN_MODULE
  *
  * REMARK
- * FAT filesytem emulation (read-only) for DOSEMU.
+ * FAT filesystem emulation (read-only) for DOSEMU.
  * /REMARK
  * DANG_END_MODULE
  *

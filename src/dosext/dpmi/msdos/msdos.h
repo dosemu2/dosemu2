@@ -1,4 +1,4 @@
-/* 	MS-DOS API translator for DOSEMU\'s DPMI Server
+/* 	MS-DOS API translator for DOSEMU's DPMI Server
  *
  * DANG_BEGIN_MODULE msdos.h
  *

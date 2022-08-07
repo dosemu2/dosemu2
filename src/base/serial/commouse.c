@@ -82,7 +82,7 @@ static void com_irq(Bit16u idx, HLT_ARG(arg))
       while (read_LSR(_com_num) & UART_LSR_DR) {
         val = read_char(_com_num);
         /*
-         * talk to int33 explicitly as we dont want to talk
+         * talk to int33 explicitly as we don't want to talk
          * to for example sermouse.c
          */
         DOSEMUMouseProtocol(&val, 1, MOUSE_MS3BUTTON, "int33 mouse");

@@ -1174,7 +1174,7 @@ static int joy_linux_read_axis_new_threaded (const int joynum, const int axis,
  * whether or not you have a joystick?
  *
  * I have never seen a real BIOS set the Carry Flag on this call, even
- * on a computer without a joystick -- so to mimick what happens in the
+ * on a computer without a joystick -- so to mimic what happens in the
  * real world, I just clear the Carry Flag regardless of whether the user
  * has a joystick or not.  This could be incorrect behaviour so it may
  * have to be changed in the future.
@@ -1201,7 +1201,7 @@ static int joy_linux_read_axis_new_threaded (const int joynum, const int axis,
  *
  * Because of this, it returns the joystick axis values with the same
  * range as port 0x201 BUT the range for a real BIOS varies between
- * computers as it is dependant on how it reads from the port
+ * computers as it is dependent on how it reads from the port
  * (hopefully this won't cause any problems).
  *
  * DANG_END_FUNCTION

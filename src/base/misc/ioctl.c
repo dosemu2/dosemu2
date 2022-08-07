@@ -173,7 +173,7 @@ static void io_select(void)
  * DANG_BEGIN_FUNCTION add_to_io_select
  *
  * arguments:
- * fd - File handle to add to select statment
+ * fd - File handle to add to select statement
  * want_sigio - want SIGIO (1) if it's available, or not (0).
  *
  * description:
@@ -218,7 +218,7 @@ add_to_io_select_new(int new_fd, void (*func)(int, void *), void *arg,
  * DANG_BEGIN_FUNCTION remove_from_io_select
  *
  * arguments:
- * fd - File handle to remove from select statment.
+ * fd - File handle to remove from select statement.
  * used_sigio - used SIGIO (1) if it's available, or not (0).
  *
  * description:

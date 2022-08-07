@@ -32,7 +32,7 @@ void HMA_MAP(int HMA)
   int ret;
   /* destroy simx86 memory protections first */
   e_invalidate_full(HMAAREA, HMASIZE);
-  /* Note: MAPPING_HMA is magic, dont be confused by src==dst==HMAAREA here */
+  /* Note: MAPPING_HMA is magic, don't be confused by src==dst==HMAAREA here */
   off_t src = HMA ? HMAAREA : 0;
   x_printf("Entering HMA_MAP with HMA=%d\n", HMA);
   ret = alias_mapping(MAPPING_HMA, HMAAREA, HMASIZE,

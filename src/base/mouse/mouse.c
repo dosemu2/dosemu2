@@ -1021,7 +1021,7 @@ static void reset_scale(void)
  * returns yourself.
  *
  * To handle programs written by programmers who weren't so cautious a
- * doctrine of least suprise has been implemented.
+ * doctrine of least surprise has been implemented.
  *
  * As much as possible do the same as a standard dos mouse driver in the
  * original vga modes 0,1,2,3,4,5,6,7,13,14,15,16,17,18,19.
@@ -1462,7 +1462,7 @@ mouse_set_gcur(void)
   memcpy((void *)mouse.graphscreenmask,ptr,32);
   memcpy((void *)mouse.graphcursormask,ptr+16,32);
 
-  /* compile it so that it can acutally be drawn. */
+  /* compile it so that it can actually be drawn. */
   define_graphics_cursor(mouse.graphscreenmask, mouse.graphcursormask);
 }
 
@@ -1915,7 +1915,7 @@ static int move_abs_coords(int x, int y, int x_range, int y_range, int vis)
 		mouse.x_delta = mouse.y_delta = 0;
 	clipped = mouse_clip_coords2(new_x + mouse.x_delta,
 		    new_y + mouse.y_delta, &c_x, &c_y);
-	/* we dont allow DOS prog to grab mouse pointer by locking it
+	/* we don't allow DOS prog to grab mouse pointer by locking it
 	 * inside a clipping region. So just update deltas. If cursor
 	 * is visible, we always try to keep them at 0. */
 	if (clipped) {
@@ -2286,7 +2286,7 @@ static int int33_mouse_init(void)
 
   /* set minimum internal resolution
    * 640x200 is a long standing dosemu default
-   * although I accidentally broke it broke it by flipping my X & Y coordiantes.
+   * although I accidentally broke it broke it by flipping my X & Y coordinates.
    * -- Eric Biederman 29 May 2000
    */
   mouse.min_max_x = 640;
@@ -2332,7 +2332,7 @@ static int int33_mouse_accepts(int from, void *udata)
    * and nothing else. Those events ignore .accepts member. */
   if (mice->com != -1)
     return 0;
-  /* for 2 mices see if source is ours */
+  /* for 2 mice see if source is ours */
   if (mice->type != mice->dev_type)
     return (from == mice->type);
   return 1;

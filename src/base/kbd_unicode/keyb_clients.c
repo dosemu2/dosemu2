@@ -116,7 +116,7 @@ void register_keyboard_client(struct keyboard_client *keyboard)
  * First it calls the probe method to see if it should use the client,
  * Then it call init to set that client up.
  *
- * If probe or init fails it trys another client.
+ * If probe or init fails it tries another client.
  *
  * Eventually falling back to Keyboard_none a dummy client, which does nothing.
  *

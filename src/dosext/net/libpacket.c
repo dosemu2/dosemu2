@@ -3,7 +3,7 @@
  *	Placed under the GNU LGPL.
  *
  *	First cut at a library of handy support routines. Comments, additions
- *	and bug fixes greatfully received.
+ *	and bug fixes gratefully received.
  *
  *	(c) 1994 Alan Cox	iiitac@pyr.swan.ac.uk	GW4PTS@GB7SWN
  */
