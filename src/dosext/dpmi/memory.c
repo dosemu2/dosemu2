@@ -15,7 +15,7 @@
  * assert(size1 > size2 || addr2 >= addr1);
  *
  * This last assumption is not always true with the recent linux kernels
- * (2.6.7-mm2 here). Thats why we have to allocate the pool and manage
+ * (2.6.7-mm2 here). That's why we have to allocate the pool and manage
  * the memory ourselves.
  */
 

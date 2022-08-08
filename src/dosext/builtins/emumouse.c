@@ -62,7 +62,7 @@ static int usage(void)
   printf("Valid range for \"value\" is from 1 (fastest) to 255 (slowest).\n\n");
   printf("Example: EMUMOUSE r a x 10 i\n");
   printf("reset, fixed speed setting, set horizontal speed to 10 and show current\n");
-  printf("  configuraton of the mouse\n\n");
+  printf("  configuration of the mouse\n\n");
 
   return 0;
 }

@@ -677,7 +677,7 @@ static BOOL WINAPI VirtualUnlock(LPVOID a,SIZE_T b)
  * This means especially that the flat code/data selectors get actually
  * allocated with base 0x0, so that flat offsets and (real) linear addresses
  * do again agree!  In fact, every call e.g. of a Win32s VxD service now
- * has all pointer arguments (which are offsets in the flat data segement)
+ * has all pointer arguments (which are offsets in the flat data segment)
  * first reduced by 0x10000 by the W32SKRNL glue code, and then again
  * increased by 0x10000 by *our* code.
  *
@@ -761,7 +761,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * and StackLinearToSegmented for the byte sequence '0F 01 04'
          * (this is the opcode of 'sgdt [si]'). We then search backwards
          * from this address for the last occurrence of 'CB' (retf) that marks
-         * the end of the preceeding function. The following byte (which
+         * the end of the preceding function. The following byte (which
          * should now be the first byte of the function we are looking for)
          * will be replaced by 'CB' (retf).
          *

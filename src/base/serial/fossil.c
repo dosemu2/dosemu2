@@ -197,7 +197,7 @@ void fossil_int14(int num)
 	/* the previous read was probably interrupted by ^C... */
 	s_printf("SER%d: FOSSIL 0x02: Read with wait interrupted??\n", num);
 	coopth_ensure_sleeping(com[num].fossil_blkrd_tid);
-	/* to avoid resouce leakage, we just kill it the unsafe way */
+	/* to avoid resource leakage, we just kill it the unsafe way */
 	coopth_cancel(com[num].fossil_blkrd_tid);
 	coopth_unsafe_detach(com[num].fossil_blkrd_tid, __FILE__);
 	com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;

@@ -86,7 +86,7 @@ version 1.2 8th may 1993
 
       made some changes to get_dir() which make the redirector MUCH faster.
       It no longer stat's every file when searching for a file. This
-      is most noticible when you have a long dos path.
+      is most noticeable when you have a long dos path.
 
       also added profiling. This is supported by profile.c and profile.h.
 
@@ -99,7 +99,7 @@ version 1.2 7th may 1993
       now done drive by drive which should be better
 
       also fixed for MS-DOS 6. It turned out that the problem was that
-      an earlier speculative dos 6 compatability patch I did managed to get
+      an earlier speculative dos 6 compatibility patch I did managed to get
       lost in all the 0.49v? ungrades. re-applying it fixed the problem.
       *grumble*. While I was doing that I fixed up non-cds filename finding
       (which should never be used anyway as we have a valid cds), and added
@@ -1834,7 +1834,7 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
 /* DANG_BEGIN_REMARK
  *
  * Added compares to device so that newer versions of Foxpro which test directories
- * using xx\yy\device perform closer to whats DOS does.
+ * using xx\yy\device perform closer to what DOS does.
  *
  * DANG_END_REMARK
  */
@@ -2808,7 +2808,7 @@ static inline void hlist_pop(int indx, unsigned psp)
        --se);
   hlists.tos = se - hlists.stack + 1;
 
-  Debug0((dbg_fd, "hlist_pop: %d poped=%d PSP=%d\n",
+  Debug0((dbg_fd, "hlist_pop: %d popped=%d PSP=%d\n",
 		 hlists.tos, indx, psp));
 }
 
@@ -2854,7 +2854,7 @@ static inline void hlist_watch_pop(unsigned psp)
       continue;
 
     if (se->seq < 0) {
-      se_del = NULL;	/* we have found a gap, it is not neccessary ... */
+      se_del = NULL;	/* we have found a gap, it is not necessary ... */
       break;
     }
 
@@ -3026,7 +3026,7 @@ static int GetRedirection(struct vm86_regs *state, int rSize, int subfunc)
     }
   }
 #if 0
-  /* if we dont own this index, pass down */
+  /* if we don't own this index, pass down */
   redirected_drives = WORD(state->ebx) - index;
   SETWORD(&state->ebx, index);
   Debug0((dbg_fd, "GetRedirect passing index of %d, Total redirected=%d\n", index, redirected_drives));

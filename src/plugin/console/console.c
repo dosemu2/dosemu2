@@ -54,7 +54,7 @@ static void console_update_cursor(void)
       fprintf(stdout,"\033[%d;%dH",ypos+1,xpos+1);
   }
   else {
-    /* Disable blinking if it hasnt already */
+    /* Disable blinking if it hasn't already */
     if (oldblink)
       fprintf(stdout,"\033[?25l");
   }

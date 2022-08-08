@@ -2627,7 +2627,7 @@ err:
         _eflags |= CF;
     }
     break;
-  case 0x0305: {	/* Get State Save/Restore Adresses */
+  case 0x0305: {	/* Get State Save/Restore Addresses */
       far_t raddr;
       struct pmaddr_s paddr;
       _LWORD(eax) = DPMI_get_save_restore_address(&raddr, &paddr);
@@ -2637,7 +2637,7 @@ err:
       _edi = paddr.offset;
     break;
   }
-  case 0x0306:	/* Get Raw Mode Switch Adresses */
+  case 0x0306:	/* Get Raw Mode Switch Addresses */
       _LWORD(ebx) = DPMI_SEG;
       _LWORD(ecx) = DPMI_OFF + HLT_OFF(DPMI_raw_mode_switch_rm);
       _LWORD(esi) = dpmi_sel();
@@ -3983,7 +3983,7 @@ static void return_from_exception(sigcontext_t *scp)
 
   if (DPMI_CLIENT.is_32) {
     unsigned int *ssp = sp;
-    /* poping error code */
+    /* popping error code */
     ssp++;
     _eip = *ssp++;
     _cs = *ssp++;
@@ -3992,7 +3992,7 @@ static void return_from_exception(sigcontext_t *scp)
     _ss = *ssp++;
   } else {
     unsigned short *ssp = sp;
-    /* poping error code */
+    /* popping error code */
     ssp++;
     _LWORD(eip) = *ssp++;
     _cs = *ssp++;
@@ -4046,7 +4046,7 @@ static void do_default_cpu_exception(sigcontext_t *scp, int trapno)
 #endif
 
 #ifdef USE_MHPDBG
-    mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
+    mhp_intercept("\nCPU Exception occurred, invoking dosdebug\n\n", "+9M");
 #endif
     if ((_trapno != 0x3 && _trapno != 0x1)
 #ifdef X86_EMULATOR
@@ -4468,7 +4468,7 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	  dpmi_set_pm(0);
 	  if (DPMI_CLIENT.is_32) {
 	    unsigned int *ssp = sp;
-	    /* poping error code */
+	    /* popping error code */
 	    ssp++;
 	    _IP = *ssp++;
 	    _CS = *ssp++;
@@ -4477,7 +4477,7 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
 	    _SS = *ssp++;
 	  } else {
 	    unsigned short *ssp = sp;
-	    /* poping error code */
+	    /* popping error code */
 	    ssp++;
 	    _IP = *ssp++;
 	    _CS = *ssp++;
@@ -5277,7 +5277,7 @@ int dpmi_fault(sigcontext_t *scp)
    * Also clear the AC flag to prevent it from re-occuring.
    */
   if (_trapno == 0x11) {
-    g_printf("Exception 0x11 occured, clearing AC\n");
+    g_printf("Exception 0x11 occurred, clearing AC\n");
     _eflags &= ~AC;
     return DPMI_RET_CLIENT;
   }

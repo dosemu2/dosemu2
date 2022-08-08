@@ -86,7 +86,7 @@ static void viewconf(void)
     exit(1);
   }
   close(fd);
-  printf("\ncontents of imbedded .dosrc:\n\n");
+  printf("\ncontents of embedded .dosrc:\n\n");
   fwrite(buf, size, 1, stdout);
 }
 

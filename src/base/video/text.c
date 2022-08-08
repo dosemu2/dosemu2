@@ -401,7 +401,7 @@ static void text_redraw_text_screen(void)
   refresh_text_palette();
 
   if (vga.text_width > MAX_COLUMNS) {
-    x_msg("X_redraw_text_screen: unable to handle %d colums\n",
+    x_msg("X_redraw_text_screen: unable to handle %d columns\n",
 	  vga.text_width);
     return;
   }
@@ -586,7 +586,7 @@ struct bitmap_desc convert_bitmap_string(int x, int y, const char *text,
     len = vga.width / vga.char_width - x;
   }
 
-  /* would use vgaemu_xy2ofs, but not useable for US, NOW! */
+  /* would use vgaemu_xy2ofs, but not usable for US, NOW! */
   srcp = vga.width * y * height;
   srcp += x * vga.char_width;
 

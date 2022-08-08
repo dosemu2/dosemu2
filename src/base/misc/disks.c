@@ -50,13 +50,13 @@ static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr);
 #if 1
 #  define FLUSHDISK(dp) flush_disk(dp)
 #else
-#  define FLUSHDISK(dp) if (dp && dp->removeable && !config.fastfloppy) \
+#  define FLUSHDISK(dp) if (dp && dp->removable && !config.fastfloppy) \
     ioctl(dp->fdesc, FDFLUSH, 0)
 #endif
 
 static void flush_disk(struct disk *dp)
 {
-  if (dp && dp->removeable && dp->fdesc >= 0) {
+  if (dp && dp->removable && dp->fdesc >= 0) {
     if (dp->type == IMAGE || (dp->type == FLOPPY && !config.fastfloppy)) {
       close(dp->fdesc);
       dp->fdesc = -1;
@@ -1010,7 +1010,7 @@ disk_close(void)
 
   if (!disks_initiated) return;  /* just to be safe */
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
-    if (dp->removeable && dp->fdesc >= 0) {
+    if (dp->removable && dp->fdesc >= 0) {
       d_printf("DISK: Closing disk %s\n",dp->dev_name);
       (void) close(dp->fdesc);
       dp->fdesc = -1;
@@ -1024,7 +1024,7 @@ static void disk_sync(void)
 
   if (!disks_initiated) return;  /* just to be safe */
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
-    if (dp->removeable && dp->fdesc >= 0) {
+    if (dp->removable && dp->fdesc >= 0) {
       d_printf("DISK: Syncing disk %s\n",dp->dev_name);
       (void) fsync(dp->fdesc);
     }
@@ -1052,7 +1052,7 @@ disk_open(struct disk *dp)
    * This made opening writeprotected floppies impossible :-(
    *                                                  -- Hans, 990112
    */
-  if ( /*!dp->removeable &&*/ (dp->fdesc < 0)) {
+  if ( /*!dp->removable &&*/ (dp->fdesc < 0)) {
     if (errno == EROFS || errno == ENODEV) {
       dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY | O_CLOEXEC));
       if (dp->fdesc < 0) {
@@ -1187,7 +1187,7 @@ disk_init(void)
     dp = &disktab[i];
     dp->fdesc = -1;
     dp->floppy = 1;
-    dp->removeable = 1;
+    dp->removable = 1;
     dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
   }
 
@@ -1238,7 +1238,7 @@ static void disk_reset2(void)
     } else if (S_ISDIR(stbuf.st_mode)) {
       d_printf("dev %s is a directory\n", dp->dev_name);
       dp->type = DIR_TYPE;
-      dp->removeable = 0;
+      dp->removable = 0;
     } else {
       error("dev %s is wrong type\n", dp->dev_name);
       config.exitearly = 1;
@@ -1272,14 +1272,14 @@ static void disk_reset2(void)
         config.exitearly = 1;
       }
     }
-    dp->removeable = 0;
+    dp->removable = 0;
 
     /* HACK: if unspecified geometry (-1) then try to get it from kernel.
        May only work on WD compatible disks (MFM/RLL/ESDI/IDE). */
     if (dp->sectors == -1)
       disk_fptrs[dp->type].autosense(dp);
 
-    /* do all the necesary dirtiness to get this disk working
+    /* do all the necessary dirtiness to get this disk working
      * (mostly for the partition type)
      */
     disk_fptrs[dp->type].setup(dp);
@@ -1467,7 +1467,7 @@ int int13(void)
        * on it. We count it down in INT08 (bios.S) --SW, --Hans, --Bart
        */
       case 0: case 2: case 3: case 5: case 10: case 11: case 0x42: case 0x43:
-        WRITE_BYTE(BIOS_MOTOR_TIMEOUT, 37);  /* set timout to 2 seconds */
+        WRITE_BYTE(BIOS_MOTOR_TIMEOUT, 37);  /* set timeout to 2 seconds */
         break;
     }
   } else {
@@ -1555,7 +1555,7 @@ int int13(void)
     }
     else if (res & 511) {	/* must read multiple of 512 bytes */
       error("sector_corrupt 1, return = %d!\n", res);
-      HI(ax) = DERR_BADSEC;	/* sector corrrupt */
+      HI(ax) = DERR_BADSEC;	/* sector corrupt */
       CARRY;
       break;
     }
@@ -1784,7 +1784,7 @@ int int13(void)
     HI(ax) = DERR_BADCMD;
     break;
 
-  case 0x0A:			/* We dont have access to ECC info */
+  case 0x0A:			/* We don't have access to ECC info */
   case 0x0B:
     CARRY;
     HI(ax) = DERR_BADCMD;	/* unsupported opn. */
@@ -1810,7 +1810,7 @@ int int13(void)
   case 0x11:			/* Recalibrate */
     disk = LO(dx);
     if (disk < 0x80 || disk >= 0x80 + HDISKS) {
-      /* Controller didnt respond */
+      /* Controller didn't respond */
       HI(ax) = DERR_CONTROLLER;
       CARRY;
       break;
@@ -1874,10 +1874,10 @@ int int13(void)
 
   case 0x16:
     /* get disk change status - hard - by claiming
-	 our disks dont have a changed line we are kind of ok */
+	 our disks don't have a changed line we are kind of ok */
     warn("int13: CHECK DISKCHANGE LINE\n");
     disk = LO(dx);
-    if (disk >= FDISKS || disktab[disk].removeable) {
+    if (disk >= FDISKS || disktab[disk].removable) {
       d_printf("int13: DISK CHANGED\n");
       CARRY;
       /* REG(eax)&=0xFF;
@@ -1903,7 +1903,7 @@ int int13(void)
     track = HI(cx) + ((LO(cx) & 0xc0) << 2);
     sect = LO(cx) & 0x3f;
     d_printf("disk: set media type %x failed, %d sectors, %d tracks\n", disk, sect, track);
-    HI(ax) = DERR_BADCMD;	/* function not avilable */
+    HI(ax) = DERR_BADCMD;	/* function not available */
     CARRY;
     break;
 
@@ -1970,7 +1970,7 @@ int int13(void)
     }
     else if (res & 511) {	/* must read multiple of 512 bytes */
       error("sector_corrupt 1, return = %d!\n", res);
-      HI(ax) = DERR_BADSEC;	/* sector corrrupt */
+      HI(ax) = DERR_BADSEC;	/* sector corrupt */
       CARRY;
       break;
     }
@@ -2040,7 +2040,7 @@ int int13(void)
     }
     else if (res & 511) {	/* must read multiple of 512 bytes */
       error("sector_corrupt 1, return = %d!\n", res);
-      HI(ax) = DERR_BADSEC;	/* sector corrrupt */
+      HI(ax) = DERR_BADSEC;	/* sector corrupt */
       CARRY;
       break;
     }

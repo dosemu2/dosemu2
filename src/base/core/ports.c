@@ -736,7 +736,7 @@ static void special_port_outb(ioport_t port, Bit8u byte)
 		 * This way we avoid extra port accesses when the program
 		 * is only looking for the sync bits, and we don't miss
 		 * the case where the read to 0x3da is used to reset the
-		 * index/data flipflop for port 0x3c0. Futher accesses to
+		 * index/data flipflop for port 0x3c0. Further accesses to
 		 * port 0x3c0 are handled at full speed.
 		 *
 		 * SIDOC_END_REMARK
@@ -869,7 +869,7 @@ static void portserver_exit(void)
 	leavedos(1);
 }
 
-/* port server: this function runs in a seperate process from the main
+/* port server: this function runs in a separate process from the main
    DOSEMU. This enables the main DOSEMU to drop root privileges. The
    server can do that as well: by setting iopl(3).
    Maybe this server should wrap DOSEMU rather than be forked from

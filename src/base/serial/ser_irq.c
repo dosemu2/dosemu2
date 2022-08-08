@@ -41,7 +41,7 @@
  * In short, the serial timer ensures that the serial emulation runs
  * more smoothly, and does not put a heavy load on the system.
  */
-/* NOTE: with the async notifications we dont need that any more.
+/* NOTE: with the async notifications we don't need that any more.
  * Disabled  -- stsp
  */
 #if 0
@@ -52,7 +52,7 @@ void serial_timer_update(void)
   unsigned long elapsed;	/* No of 115200ths seconds elapsed */
   int i;
 
-  /* Get system time.  PLEASE DONT CHANGE THIS LINE, unless you can
+  /* Get system time.  PLEASE DON'T CHANGE THIS LINE, unless you can
    * _guarantee_ that the substitute/stored timer value _is_ up to date
    * at _this_ instant!  (i.e: vm86s exit time did not not work well)
    */
@@ -145,7 +145,7 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
  * http://lkml.indiana.edu/hypermail/linux/kernel/1210.1/01456.html
  * Disable it for now.
  *
- * ... and reenable thanks to this patch:
+ * ... and re-enable thanks to this patch:
  * https://lkml.org/lkml/2013/5/5/49
  */
       if (com[num].tx_cnt)
@@ -221,7 +221,7 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
  * there will be justification for a simple Line Status housekeeping
  * function whose purpose is to detect an error condition (mainly a
  * break signal sent from the remote) and generate a hardware interrupt
- * on its occurance (RLSI).
+ * on its occurrence (RLSI).
  *
  * DANG_BEGIN_REMARK
  * Linux code hackers: How do I detect a break signal without having

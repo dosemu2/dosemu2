@@ -29,7 +29,7 @@
 
 
 /*************************************************************************/
-/*                 MISCELLANOUS serial support functions                 */
+/*                 MISCELLANEOUS serial support functions                */
 /*************************************************************************/
 
 /* This is a function used for translating a bit to a different bit,
@@ -132,7 +132,7 @@ void uart_clear_fifo(int num, int fifo)
     com[num].rx_buf_start = 0;		/* Beginning of rec FIFO queue */
     com[num].rx_buf_end = 0;		/* End of rec FIFO queue */
     com[num].IIR.flg.cti = 0;		/* clear timeout */
-    com[num].rx_timeout = 0;		/* Receive intr already occured */
+    com[num].rx_timeout = 0;		/* Receive intr already occurred */
     clear_int_cond(num, LS_INTR | RX_INTR);  /* Clear LS/RX conds */
     rx_buffer_dump(num);		/* Clear receive buffer */
   }
@@ -275,7 +275,7 @@ static void put_tx(int num, char val)
   /* Update the transmit timer */
   com[num].tx_timer += com[num].tx_char_time;
 #endif
-  clear_int_cond(num, TX_INTR);	/* TX interrupt condition satisifed */
+  clear_int_cond(num, TX_INTR);	/* TX interrupt condition satisfied */
 
   /* Loop-back writes.  Parity is currently not calculated.  No
    * UART diagnostics programs including COMTEST.EXE, that I tried,

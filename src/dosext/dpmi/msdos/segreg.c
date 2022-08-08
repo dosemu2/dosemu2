@@ -83,7 +83,7 @@ static enum MfRet msdos_sel_fault(sigcontext_t *scp)
     if (ValidAndUsedSelector(segment)) {
 	/*
 	 * The selector itself is OK, but the descriptor (type) is not.
-	 * We cannot fix this! So just give up immediately and dont
+	 * We cannot fix this! So just give up immediately and don't
 	 * screw up the context.
 	 */
 	D_printf("MSDOS: msdos_fault: Illegal use of selector %#x\n",

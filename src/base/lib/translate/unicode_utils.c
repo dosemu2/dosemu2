@@ -23,7 +23,7 @@ size_t character_count(const struct char_set_state *in_state, const char *str,
 	do {
 		consumed = charset_to_unicode(&state, &temp, (const unsigned char *)str, max_str_len);
 		if (consumed == (size_t) -1) {
-			/* An error occured abort */
+			/* An error occurred abort */
 			if (characters == 0) {
 				characters = (size_t) -1;
 			}
@@ -52,7 +52,7 @@ size_t charset_to_unicode_string(struct char_set_state *state,
 	do {
 		consumed = charset_to_unicode(state, dst, (const unsigned char *)*src, src_len);
 		if (consumed == (size_t) -1) {
-			/* An error occured abort */
+			/* An error occurred abort */
 			if (characters == 0) {
 				characters = (size_t) -1;
 			}
@@ -86,7 +86,7 @@ size_t unicode_to_charset_string(struct char_set_state *state,
 		produced = unicode_to_charset(state, **src,
 				(unsigned char *)dst, dst_len);
 		if (produced == (size_t) -1) {
-			/* An error occured abort */
+			/* An error occurred abort */
 			if (characters == 0) {
 				characters = (size_t) -1;
 			}

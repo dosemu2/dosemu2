@@ -18,7 +18,7 @@ void X_speaker_on(void *gp, unsigned ms, unsigned short period)
 	Display *display = gp;
 
 #if 0
-	/* Turn off the previos sound, I hope */
+	/* Turn off the previous sound, I hope */
 	new_state.bell_pitch = 0;
 	new_state.bell_duration = 0;
 	XChangeKeyboardControl(display, KBBellDuration | KBBellPitch, &new_state);
@@ -28,7 +28,7 @@ void X_speaker_on(void *gp, unsigned ms, unsigned short period)
 	/* Make the sound I want */
 	new_state.bell_pitch = speaker_period_to_Hz(period);
 	/* Prohibit a crashing X server by not allowing to go higher than
-	 * 32767 kHz. Since the X server interpretes the pitch as a short int
+	 * 32767 kHz. Since the X server interprets the pitch as a short int
 	 */
 	if (new_state.bell_pitch >= 0x8000) new_state.bell_pitch = 0x7fff;
 	new_state.bell_duration = ms;

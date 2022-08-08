@@ -351,7 +351,7 @@ void mouse_##n##_id DID DEF \
     d = m->drv; \
     if (strcmp(d->name, id) != 0) \
       continue; \
-    /* not checking for .accpets */ \
+    /* not checking for .accepts */ \
     if (d->n) \
 	d->n(__VA_ARGS__, m->udata); \
   } \

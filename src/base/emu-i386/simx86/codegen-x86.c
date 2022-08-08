@@ -27,7 +27,7 @@
  * Additional copyright notes:
  *
  * 1. The kernel-level vm86 handling was taken out of the Linux kernel
- *  (linux/arch/i386/kernel/vm86.c). This code originaly was written by
+ *  (linux/arch/i386/kernel/vm86.c). This code originally was written by
  *  Linus Torvalds with later enhancements by Lutz Molgedey and Hans Lermen.
  *
  ***************************************************************************/

@@ -791,7 +791,7 @@ static void sigstack_init(void)
   {
     need_sas_wa = 1;
     warn("Enabling sigaltstack() work-around\n");
-    /* for SAS WA block all signals. If we dont, there is a
+    /* for SAS WA block all signals. If we don't, there is a
      * race that the signal can come after we switched to backup stack
      * but before we disabled sigaltstack. We unblock the fatal signals
      * later, only right before switching back to dosemu. */
@@ -942,7 +942,7 @@ signal_init(void)
     if (kernel_version_code < KERNEL_VERSION(4, 6, 0)) {
       need_sr_wa = 1;
       warn("Enabling sigreturn() work-around for old kernel\n");
-      /* block all sigs for SR WA. If we dont, the signal can come before
+      /* block all sigs for SR WA. If we don't, the signal can come before
        * SS is saved, but we can't restore SS on signal exit. */
       block_all_sigs = 1;
     }
@@ -1014,7 +1014,7 @@ int signal_pending(void)
  *  Due to signals happening at any time, the actual work to be done
  * because a signal occurs is done here in a serial fashion.
  *
- * The concept, should this eventualy work, is that a signal should only
+ * The concept, should this eventually work, is that a signal should only
  * flag that it has occurred and let DOSEMU deal with it in an orderly
  * fashion as it executes the rest of it's code.
  *

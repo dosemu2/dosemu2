@@ -260,7 +260,7 @@ telOptHandle(int cmd, int opt)
 	if (tostp->pending) {
 	    tostp->pending = 0;
 	    if (tostp->req == mustNegate)
-		return 1; /* requirment didn't meet */
+		return 1; /* requirement didn't meet */
 	    if (tostp->state == !reqState) { /* this may not happen */
 		tostp->state = reqState;
 		putOptCmd(posiResCmd, opt); /* positive response */

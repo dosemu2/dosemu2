@@ -217,7 +217,7 @@ static const char *get_root(const char * fname)
 	register unsigned length = strlen(fname);
 	char c;
 
-	/* now back up to first path seperator or start */
+	/* now back up to first path separator or start */
 	fname += length;
 	while (length) {
 		length--;
@@ -453,7 +453,7 @@ static int truename(char *dest, const char *src, int allowwildcards,
     /* MS DOS preserves a trailing '\\', so an access to "C:\\DOS\\"
        or "CDS.C\\" fails. */
     /* But don't add the separator, if the last component was ".." */
-    /* we must also add a seperator if dest = "c:" */
+    /* we must also add a separator if dest = "c:" */
     addChar('\\');
   }
 
@@ -530,7 +530,7 @@ static int build_posix_path(char *dest, const char *src, int allowwildcards)
 }
 
 
-/* wildcard match routine, losely based upon the GLIBC fnmatch
+/* wildcard match routine, loosely based upon the GLIBC fnmatch
    routine */
 static int recur_match(const char *pattern, const char *string)
 {

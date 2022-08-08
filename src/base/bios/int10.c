@@ -19,7 +19,7 @@
  * changed int10() to make graphics work with X.
  *
  * 1998/04/05: Put some work into set_video_mode() (made it
- * more VGA comaptible) and removed new_set_video_mode().
+ * more VGA compatible) and removed new_set_video_mode().
  * Removed (useless) global variable "gfx_mode".
  * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
@@ -35,7 +35,7 @@
  * cursor shape is now initialized during mode set.
  * -- sw
  *
- * 2000/05/18: Splitted int10() into a X and non-X part. Reworked to X part so
+ * 2000/05/18: Split int10() into a X and non-X part. Reworked to X part so
  * that it supports fonts in gfx modes.
  * -- sw
  *
@@ -88,7 +88,7 @@ unsigned screen_adr(int page)
 
 /* this maps the cursor shape given by int10, fn1 to the actually
    displayed cursor start&end values in cursor_shape. This seems
-   to be typical IBM Black Compatiblity Magic.
+   to be typical IBM Black Compatibility Magic.
    I modeled it approximately from the behaviour of my own
    VGA's BIOS.
    I'm not sure if it is correct for start=end and for font_heights
@@ -1030,7 +1030,7 @@ int int10(void) /* with dualmon */
       HI(ax) = co & 0xff;
       HI(bx) = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
       i10_deb(
-        "get video mode: mode 0x%02x, page %u, %u colums\n",
+        "get video mode: mode 0x%02x, page %u, %u columns\n",
         LO(ax), HI(bx), HI(ax)
       );
       break;

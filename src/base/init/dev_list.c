@@ -136,7 +136,7 @@ void iodev_register(const char *name,
 	for(ptr = io_devices; ptr < &io_devices[MAX_IO_DEVICES -1]; ptr++) {
 		if (ptr->name) {
 			if (strcmp(ptr->name, name) == 0) {
-				g_printf("IODEV: %s already registred\n",
+				g_printf("IODEV: %s already registered\n",
 					name);
 				return;
 			}

@@ -335,7 +335,7 @@ static void set_char_set (void)
 		v_printf("mapping: %x -> %04x -> %.*s (len=%zu,acs=%x)\n", i, uni,
 			 (int)result, buff, result, result == 1 && buff[1] ? buff[1] : 0);
 
-		/* If we have any non control charcters in 0x80 - 0x9f
+		/* If we have any non control characters in 0x80 - 0x9f
 		 * set up  the slang code up so we can send them.
 		 */
 		if (result > 1 || (buff[0] >= 0x80 && buff[0] <= 0x9f

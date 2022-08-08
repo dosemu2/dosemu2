@@ -114,7 +114,7 @@ struct disk {
   disk_t type;			/* type of file: image, partition, disk */
   off_t header;			/* compensation for opt. pre-disk header */
   int fdesc;			/* file descriptor */
-  int removeable;		/* real removable drive, can disappear */
+  int removable;		/* real removable drive, can disappear */
   int floppy;			/* emulating floppy */
   int timeout;			/* seconds between floppy timeouts */
   struct partition part_info;	/* neato partition info */

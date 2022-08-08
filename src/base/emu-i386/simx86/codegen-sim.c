@@ -27,7 +27,7 @@
  * Additional copyright notes:
  *
  * 1. The kernel-level vm86 handling was taken out of the Linux kernel
- *  (linux/arch/i386/kernel/vm86.c). This code originaly was written by
+ *  (linux/arch/i386/kernel/vm86.c). This code originally was written by
  *  Linus Torvalds with later enhancements by Lutz Molgedey and Hans Lermen.
  *
  ***************************************************************************/
@@ -2778,7 +2778,7 @@ void Gen_sim(int op, int mode, ...)
 		if (shc>1) RFL.mode |= IGNOVF;
 		} break;
 
-	case O_RDTSC: {		// dont trust this one
+	case O_RDTSC: {		// don't trust this one
 		hitimer_u t0, t1;
 		GTRACE0("O_RDTSC");
 		t0.td = GETTSC();

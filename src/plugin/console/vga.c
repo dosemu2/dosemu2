@@ -100,7 +100,7 @@ static void dosemu_vga_screenoff(void)
   port_out(0x00, SEQ_I);
   port_out(0x01, SEQ_D);
 
-  /* turn off screen for faster VGA memory acces */
+  /* turn off screen for faster VGA memory access */
   port_out(0x01, SEQ_I);
   port_out(port_in(SEQ_D) | 0x20, SEQ_D);
 

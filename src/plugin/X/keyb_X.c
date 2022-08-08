@@ -191,7 +191,7 @@ void X_sync_shiftstate(Boolean make, KeyCode kc, unsigned int e_state)
 
 	/* caps&num&scroll lock are special in the core X protocol: press/release means
 	   turning lock on/off, not pressing/releasing the key.
-	   With XKB they are no longer special.  To handle it correclty every time,
+	   With XKB they are no longer special.  To handle it correctly every time,
 	   and to make the code simple we just sync up the shiftstates before the
 	   keys are pressed.
 	   Note:
@@ -293,7 +293,7 @@ void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 #ifdef HAVE_XKB
 	else {
 		xkey = XK_VoidSymbol;
-		modifiers = 0; /* get set to the modifers to clear... */
+		modifiers = 0; /* get set to the modifiers to clear... */
 
 		XkbLookupKeySym(display, e->keycode, e->state, &modifiers, &xkey);
 		modifiers = e->state & (~modifiers);

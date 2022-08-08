@@ -352,8 +352,8 @@ void rtc_init(void)
  * to be used for both the INT-1A AH=0 function (get ticks) and the AH=2 or 4 (get RTC time/date)
  * without confusing the once per day roll-over count.
  *
- * In addition, should the LINUX time go backwards over midnight (very unfortunate occurance, but
- * it is just possible if ntpdate was used to get things correct at once, rather then the ntm deamon
+ * In addition, should the LINUX time go backwards over midnight (very unfortunate occurrence, but
+ * it is just possible if ntpdate was used to get things correct at once, rather then the ntm daemon
  * running to slew time to correctness slowly) it will hold the DOS notion of time at 00:00:00
  * until the LINUX time crosses the midnight boundary again, but without producing two day counts.
  *
@@ -364,11 +364,11 @@ void rtc_init(void)
  *	day_rollover	: Non-NULL pointer if checking for the day crossing for INT-1A AH=0 use.
  *
  * The return value is the DOS 'ticks' from 00:00:00 for this day.
- * An error results in -1 retun (e.g. from problems converting time, perhaps bad TZ environment).
+ * An error results in -1 return (e.g. from problems converting time, perhaps bad TZ environment).
  *
  * NOTE: A check in the freedos source shows a *slightly* different value for the nominal tick count
  * spanning one day, compared to the PIT_TICK_RATE value in timers.h (which is correct, I think). So
- * if you compile with the freedos values for 100% time conversion compatability with it, that is fine
+ * if you compile with the freedos values for 100% time conversion compatibility with it, that is fine
  * but if you compile with the 'correct' PIT_TICK_RATE value, it limits it near midnight so freedos
  * never gets a value corresponding equal to, or more than, 24 hours.
  *

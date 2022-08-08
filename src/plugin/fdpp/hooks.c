@@ -174,7 +174,7 @@ int do_fdpp_call(uint16_t seg, uint16_t off)
     clnup_tids[num_clnup_tids++] = coopth_get_tid();
     coopth_cancel_disable();
     rc = do_call_back(seg, off);
-    /* re-enable cancelability only if it was not canceled already */
+    /* re-enable cancellability only if it was not canceled already */
     if (rc == 0)
 	coopth_cancel_enable();
     else

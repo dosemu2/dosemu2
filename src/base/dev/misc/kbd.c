@@ -64,7 +64,7 @@
  * one keypress or release event. [The exception are the braindead
  * 0xe02a / 0xe0aa shift key emulation codes the keyboard processor
  * 'decorates' some kinds of keyboard events, which for convenience
- * are treated as seperate events.]
+ * are treated as separate events.]
  * Each queue entry holds a up to 4 bytes of raw keycodes for the
  * port 60h emulation, along with a 2-byte translated int16h keycode
  * and the shift state after this event was processed.
@@ -98,7 +98,7 @@ static inline Boolean queue_full(struct keyboard_queue *q)
 }
 
 /*
- * this has to work even if the variables are uninitailized!
+ * this has to work even if the variables are uninitialized!
  */
 void clear_queue(struct keyboard_queue *q)
 {

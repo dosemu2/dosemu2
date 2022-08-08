@@ -1,5 +1,5 @@
 /*
- * Various sundry utilites for dos emulator.
+ * Various sundry utilities for dos emulator.
  *
  */
 #include "emu.h"

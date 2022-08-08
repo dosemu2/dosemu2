@@ -273,7 +273,7 @@ onlineMode(void)
 		perror("select()");
 		return 0;
 	    }
-	    /* fall thru */
+	    /* fall through */
 	case 0:
 	    return 2;
 	}
