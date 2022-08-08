@@ -15,7 +15,8 @@ on:
 jobs:
   scheduled_asan:
     name: Scheduled (ASAN)
-    if: github.event_name == 'schedule'
+    if: (github.event_name == 'schedule' &&
+         github.repository_owner == 'dosemu2')
 
     uses: ./.github/workflows/ci-build.yml
     with:
@@ -25,7 +26,8 @@ jobs:
 
   scheduled_full:
     name: Scheduled (FULL)
-    if: github.event_name == 'schedule'
+    if: (github.event_name == 'schedule' &&
+         github.repository_owner == 'dosemu2')
 
     uses: ./.github/workflows/ci-build.yml
     with:
