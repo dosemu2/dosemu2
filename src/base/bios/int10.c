@@ -128,7 +128,7 @@ static void set_cursor_pos(unsigned page, int x, int y)
     if (no_local_video && !config.tty_stderr)
       return;
     for (i = 0; i < y - old_y; i++)
-      fputc('\n', config.tty_stderr ? stderr : stdout);
+      fputs("\r\n", config.tty_stderr ? stderr : stdout);
   }
 }
 
