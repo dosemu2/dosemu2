@@ -945,12 +945,15 @@ int int10(void) /* with dualmon */
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' ', LO(bx)
       );
       if (config.dumb_video) {
+        FILE *f = config.tty_stderr ? stderr : stdout;
         int i;
 
         if (no_local_video && !config.tty_stderr)
           break;
         for (i = 0; i < LWORD(ecx); i++)
-          fputc(LO(ax), config.tty_stderr ? stderr : stdout);
+          fputc(LO(ax), f);
+        /* cursor must not move when printing */
+        fputc('\r', f);
       } else {
         vgaemu_repeat_char_attr(LO(ax), HI(bx), LO(bx), LWORD(ecx));
       }
