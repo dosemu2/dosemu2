@@ -5337,8 +5337,9 @@ void dpmi_realmode_hlt(unsigned int lina)
     /* remove passed arguments */
     LWORD(esp) += 2 * _LWORD(ecx);
     /* Some progs forget to reset stack for subsequent calls, which
-     * leads to problems. So we do not modify stack address. */
-    DPMI_save_rm_regs(rmreg, ~((1 << ss_INDEX) | (1 << esp_INDEX)));
+     * leads to problems. DPMI-1.0 spec says to not modify cs,ip,ss,sp. */
+    DPMI_save_rm_regs(rmreg, ~((1 << ss_INDEX) | (1 << esp_INDEX) |
+        (1 << cs_INDEX) | (1 << eip_INDEX)));
     restore_rm_regs();
     dpmi_set_pm(1);
 
