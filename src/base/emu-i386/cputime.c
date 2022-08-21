@@ -396,7 +396,7 @@ void dosemu_sleep(void)
    inner loop applies. Heuristic idlers (int16/ah=1, mouse)
    need the two loops -- the outer loop can be reset using
    reset_idle */
-static int _idle(int threshold1, int threshold, int threshold2,
+static void _idle(int threshold1, int threshold, int threshold2,
     const char *who, int enable_ints)
 {
   static int trigger = 0;
@@ -414,6 +414,7 @@ static int _idle(int threshold1, int threshold, int threshold2,
 	coopth_wait();
 	if (enable_ints && !old_if)
 	    clear_IF();
+	ret = 1;
 	pthread_mutex_lock(&trigger_mtx);
 	trigger = 0;
 	if (debug_level('g') > 5)
@@ -421,22 +422,22 @@ static int _idle(int threshold1, int threshold, int threshold2,
       }
       if (trigger1 > 0)
 	trigger1--;
-      if (trigger == 0)
-	ret = 1;
     }
     pthread_mutex_unlock(&trigger_mtx);
   }
-  return ret;
+
+  if (!ret && enable_ints && !old_if)
+    int_yield();
 }
 
-int idle(int threshold1, int threshold, int threshold2, const char *who)
+void idle(int threshold1, int threshold, int threshold2, const char *who)
 {
-  return _idle(threshold1, threshold, threshold2, who, 0);
+  _idle(threshold1, threshold, threshold2, who, 0);
 }
 
-int idle_enable(int threshold1, int threshold, int threshold2, const char *who)
+void idle_enable(int threshold1, int threshold, int threshold2, const char *who)
 {
-  return _idle(threshold1, threshold, threshold2, who, 1);
+  _idle(threshold1, threshold, threshold2, who, 1);
 }
 
 void int_yield(void)

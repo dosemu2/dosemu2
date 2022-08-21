@@ -47,8 +47,8 @@ extern void pit_outp(ioport_t, Bit8u);
 void reset_idle(int val);
 void alarm_idle(void);
 void trigger_idle(void);
-int idle(int threshold1, int threshold, int threshold2, const char *who);
-int idle_enable(int threshold1, int threshold, int threshold2,
+void idle(int threshold1, int threshold, int threshold2, const char *who);
+void idle_enable(int threshold1, int threshold, int threshold2,
     const char *who);
 void dosemu_sleep(void);
 void cpu_idle(void);
