@@ -1250,7 +1250,7 @@ static void mhp_ivec(int argc, char *argv[])
   }
 }
 
-static void print_mcb(struct MCB *mcb, uint16_t seg)
+static void print_mcb(struct MCB *mcb, uint32_t seg)
 {
   int lnk;
   const char *name = get_name_from_mcb(mcb, &lnk);
@@ -1315,7 +1315,7 @@ static void print_dscb(struct DSCB *dscb)
 static void mhp_mcbs(int argc, char *argv[])
 {
   struct MCB *mcb;
-  uint16_t seg;
+  uint32_t seg;
   int uma, hdr;
   struct DSCB *dscb;
   uint16_t dsseg;

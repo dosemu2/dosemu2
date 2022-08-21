@@ -236,7 +236,7 @@ enum {
 %token MATHCO CPU CPUSPEED RDTSC BOOTDRIVE SWAP_BOOTDRIVE
 %token L_XMS L_DPMI DPMI_LIN_RSV_BASE DPMI_LIN_RSV_SIZE PM_DOS_API NO_NULL_CHECKS
 %token PORTS DISK DOSMEM EXT_MEM
-%token L_EMS UMB_A0 UMB_B0 UMB_F0 DOS_UP
+%token L_EMS UMB_A0 UMB_B0 UMB_F0 UMB_HMA DOS_UP
 %token EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
 %token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FILE_LOCK_LIMIT
 %token ABORT WARN ERROR
@@ -609,6 +609,11 @@ line:		CHARSET '{' charset_flags '}' {}
 		    {
 		    config.umb_f0 = ($2!=0);
 		    if ($2 > 0) c_printf("CONF: umb at 0f0000: %s\n", ($2) ? "on" : "off");
+		    }
+		| UMB_HMA bool
+		    {
+		    config.umb_hma = ($2!=0);
+		    if ($2 > 0) c_printf("CONF: umb at HMA: %s\n", ($2) ? "on" : "off");
 		    }
 		| DOS_UP bool
 		    {

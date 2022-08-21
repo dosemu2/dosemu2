@@ -102,7 +102,6 @@ umb_setup(int umb_ems)
 {
   dosaddr_t addr_start;
   uint32_t size;
-//  int i;
 
   memcheck_addtype('U', "Upper Memory Block (UMB, XMS 3.0)");
 
@@ -281,6 +280,29 @@ static void xms_helper_init(void)
   smdestroy(&mp);
   sminit(&mp, ext_mem_base, config.xms_size * 1024);
   smregister_error_notifier(&mp, xx_printf);
+
+  if (config.umb_hma) {
+    dosaddr_t addr_start;
+    uint32_t size;
+
+    if (!a20_global)
+      set_a20(1);
+    a20_global = 1;
+    freeHMA = 0;
+#if 0
+    /* This corrupts top 16 bytes of the bios. */
+    addr_start = SEGOFF2LINEAR(0xffff, 0);
+    size = 0x10000;
+#else
+    /* This requires MCB in HMA which only fdpp supports. */
+    addr_start = SEGOFF2LINEAR(0xffff, 0x10);
+    size = 0xfff0;
+#endif
+    assert(umbs_used < UMBS);
+    sminit(&umbs[umbs_used], MEM_BASE32(addr_start), size);
+    smregister_error_notifier(&umbs[umbs_used], xx_printf);
+    umbs_used++;
+  }
 }
 
 void xms_helper(void)
@@ -416,6 +438,8 @@ void xms_control(void)
 	Debug0((dbg_fd, "Allocate UMB Success\n"));
 	XMS_RET(0);
 	LWORD(ebx) = addr >> 4;
+	if (addr > 0xfffff)
+	  CARRY;
 	LWORD(edx) = size >> 4;
 	Debug0((dbg_fd, "umb_allocated: %#x:%#x\n", addr, size));
       }

@@ -326,6 +326,7 @@ xms			RETURN(L_XMS);
 umb_a0			RETURN(UMB_A0);
 umb_b0			RETURN(UMB_B0);
 umb_f0			RETURN(UMB_F0);
+umb_hma			RETURN(UMB_HMA);
 dos_up			RETURN(DOS_UP);
 ems			RETURN(L_EMS);
 dpmi			RETURN(L_DPMI);
