@@ -88,6 +88,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     uint16_t seg;
     uint16_t heap_seg;
     uint16_t daddr;
+    int heap_sz;
     int khigh = 0;
     int hhigh = 0;
 
@@ -110,8 +111,8 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     if (!hndl)
         return -1;
     if (config.dos_up) {
-#define HEAP_SZ_SMALL 1024
-        kptr = lowmem_alloc_aligned(16, krnl_len + HEAP_SZ_SMALL);
+        heap_sz = 1024;
+        kptr = lowmem_alloc_aligned(16, krnl_len + heap_sz);
         daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
         assert(!(daddr & 15));
         heap_seg = 0x90;  // for low heap
@@ -119,8 +120,8 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
         khigh++;
         hhigh++;
     } else {
-#define HEAP_SZ (1024*3)
-        kptr = lowmem_alloc_aligned(16, HEAP_SZ);
+        heap_sz = 1024 * 3;
+        kptr = lowmem_alloc_aligned(16, heap_sz);
         daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
         assert(!(daddr & 15));
         heap_seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
@@ -140,7 +141,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
 	free(bss);
     }
     FdppKernelFree(hndl);
-    err = fdpp_boot(plt, krnl, krnl_len, seg, khigh, heap_seg, HEAP_SZ, hhigh,
+    err = fdpp_boot(plt, krnl, krnl_len, seg, khigh, heap_seg, heap_sz, hhigh,
 	    boot_sec);
     if (err)
 	return err;
