@@ -58,6 +58,7 @@ static char RCSxms[] = "$Id$";
 #define	 XMS_RESIZE_EXTENDED_MEMORY_BLOCK 0x0f
 #define	 XMS_ALLOCATE_UMB		0x10
 #define	 XMS_DEALLOCATE_UMB		0x11
+#define	 XMS_REALLOCATE_UMB		0x12
 
 #define	HIGH_MEMORY_IN_USE		0x92
 #define	HIGH_MEMORY_NOT_ALLOCATED	0x93
@@ -433,7 +434,7 @@ void xms_control(void)
       break;
     }
 
-  case 0x12:
+  case XMS_REALLOCATE_UMB:
     is_umb_fn = 1;
     x_printf("XMS realloc UMB segment 0x%04x size 0x%04x\n",
 	     LWORD(edx), LWORD(ebx));
@@ -443,7 +444,7 @@ void xms_control(void)
 
  if (intdrv && !is_umb_fn) {
   switch (HI(ax)) {
-  case 0:			/* Get XMS Version Number */
+  case XMS_GET_VERSION:			/* Get XMS Version Number */
     LWORD(eax) = XMS_VERSION;
     LWORD(ebx) = XMS_DRIVER_VERSION;
     LWORD(edx) = 1;		/* HMA exists */
@@ -451,7 +452,7 @@ void xms_control(void)
 	     LWORD(eax), LWORD(ebx));
     break;
 
-  case 1:			/* Request High Memory Area */
+  case XMS_ALLOCATE_HIGH_MEMORY: /* Request High Memory Area */
     x_printf("XMS request HMA size 0x%04x\n", LWORD(edx));
     if (freeHMA) {
       x_printf("XMS: allocating HMA size 0x%04x\n", LWORD(edx));
@@ -464,7 +465,7 @@ void xms_control(void)
     }
     break;
 
-  case 2:			/* Release High Memory Area */
+  case XMS_FREE_HIGH_MEMORY:	/* Release High Memory Area */
     x_printf("XMS release HMA\n");
     if (freeHMA) {
       x_printf("XMS: HMA already free\n");
@@ -477,7 +478,7 @@ void xms_control(void)
     }
     break;
 
-  case 3:			/* Global Enable A20 */
+  case XMS_GLOBAL_ENABLE_A20:			/* Global Enable A20 */
     x_printf("XMS global enable A20\n");
     if (!a20_global)
       set_a20(1);		/* map in HMA */
@@ -485,7 +486,7 @@ void xms_control(void)
     XMS_RET(0);			/* no error */
     break;
 
-  case 4:			/* Global Disable A20 */
+  case XMS_GLOBAL_DISABLE_A20:			/* Global Disable A20 */
     x_printf("XMS global disable A20\n");
     if (a20_global)
       set_a20(0);
@@ -493,7 +494,7 @@ void xms_control(void)
     XMS_RET(0);			/* no error */
     break;
 
-  case 5:			/* Local Enable A20 */
+  case XMS_LOCAL_ENABLE_A20:			/* Local Enable A20 */
     x_printf("XMS LOCAL enable A20\n");
     if (!a20_local)
       set_a20(1);
@@ -501,7 +502,7 @@ void xms_control(void)
     XMS_RET(0);			/* no error */
     break;
 
-  case 6:			/* Local Disable A20 */
+  case XMS_LOCAL_DISABLE_A20:			/* Local Disable A20 */
     x_printf("XMS LOCAL disable A20\n");
     if (a20_local)
       a20_local--;
@@ -513,58 +514,58 @@ void xms_control(void)
     /* DOS, if loaded as "dos=high,umb" will continually poll
 	  * the A20 line.
           */
-  case 7:			/* Query A20 */
+  case XMS_QUERY_A20:			/* Query A20 */
     LWORD(eax) = a20 ? 1 : 0;
     LO(bx) = 0;			/* no error */
     break;
 
-  case 8:			/* Query Free Extended Memory */
+  case XMS_QUERY_FREE_EXTENDED_MEMORY:	/* Query Free Extended Memory */
     xms_query_freemem(OLDXMS);
     break;
 
-  case 9:			/* Allocate Extended Memory Block */
+  case XMS_ALLOCATE_EXTENDED_MEMORY:	/* Allocate Extended Memory Block */
     XMS_RET(xms_allocate_EMB(OLDXMS));
     break;
 
-  case 0xa:			/* Free Extended Memory Block */
+  case XMS_FREE_EXTENDED_MEMORY:	/* Free Extended Memory Block */
     XMS_RET(xms_free_EMB());
     break;
 
-  case 0xb:			/* Move Extended Memory Block */
+  case XMS_MOVE_EXTENDED_MEMORY_BLOCK:	/* Move Extended Memory Block */
     XMS_RET(xms_move_EMB());
     break;
 
-  case 0xc:			/* Lock Extended Memory Block */
+  case XMS_LOCK_EXTENDED_MEMORY_BLOCK:	/* Lock Extended Memory Block */
     XMS_RET(xms_lock_EMB(1));
     break;
 
-  case 0xd:			/* Unlock Extended Memory Block */
+  case XMS_UNLOCK_EXTENDED_MEMORY_BLOCK: /* Unlock Extended Memory Block */
     XMS_RET(xms_lock_EMB(0));
     break;
 
-  case 0xe:			/* Get EMB Handle Information */
+  case XMS_GET_EMB_HANDLE_INFORMATION:	/* Get EMB Handle Information */
     XMS_RET(xms_EMB_info(OLDXMS));
     break;
 
-  case 0xf:			/* Reallocate Extended Memory Block */
+  case XMS_RESIZE_EXTENDED_MEMORY_BLOCK: /* Reallocate Extended Memory Block */
     XMS_RET(xms_realloc_EMB(OLDXMS));
     break;
 
     /* the functions below are the newer, 32-bit XMS 3.0 interface */
 
-  case 0x88:			/* Query Any Free Extended Memory */
+  case 0x80|XMS_QUERY_FREE_EXTENDED_MEMORY: /* Query Any Free Extended Memory */
     xms_query_freemem(NEWXMS);
     break;
 
-  case 0x89:			/* Allocate Extended Memory */
+  case 0x80|XMS_ALLOCATE_EXTENDED_MEMORY:	/* Allocate Extended Memory */
     XMS_RET(xms_allocate_EMB(NEWXMS));
     break;
 
-  case 0x8e:			/* Get EMB Handle Information */
+  case 0x80|XMS_GET_EMB_HANDLE_INFORMATION: /* Get EMB Handle Information */
     XMS_RET(xms_EMB_info(NEWXMS));
     break;
 
-  case 0x8f:			/* Reallocate EMB */
+  case 0x80|XMS_RESIZE_EXTENDED_MEMORY_BLOCK:	/* Reallocate EMB */
     XMS_RET(xms_realloc_EMB(NEWXMS));
     break;
 
