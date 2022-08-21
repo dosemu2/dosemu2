@@ -218,7 +218,7 @@ static inline void exprintb(unsigned char val,char *bf,unsigned int pos)
 
 char *e_print_regs(void)
 {
-	static char buf[300];
+	static char buf[sizeof(eregbuf) + 300];
 	char *p = buf;
 	char *q = eregbuf;
 
