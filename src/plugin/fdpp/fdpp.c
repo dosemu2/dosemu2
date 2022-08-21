@@ -22,7 +22,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 30
+#if FDPP_API_VER != 31
 #error wrong fdpp version
 #endif
 #include "emu.h"
