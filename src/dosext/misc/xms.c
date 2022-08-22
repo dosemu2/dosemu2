@@ -280,7 +280,7 @@ static void xms_helper_init(void)
   smdestroy(&mp);
   sminit(&mp, ext_mem_base, config.xms_size * 1024);
   smregister_error_notifier(&mp, xx_printf);
-
+#if 0
   if (config.umb_hma) {
     dosaddr_t addr_start;
     uint32_t size;
@@ -303,6 +303,7 @@ static void xms_helper_init(void)
     smregister_error_notifier(&umbs[umbs_used], xx_printf);
     umbs_used++;
   }
+#endif
 }
 
 void xms_helper(void)
