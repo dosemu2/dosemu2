@@ -4547,7 +4547,7 @@ do_open_existing:
 
       /* make it a byte - we thus ignore the new bit */
       attr &= 0xFF;
-      if (attr & DIRECTORY)
+      if (attr & (DIRECTORY | VOLUME_LABEL))
         return FALSE;
 
       Debug0((dbg_fd, "Create truncate file %s attr=%x\n", filename1, attr));
@@ -4679,10 +4679,7 @@ do_create_truncate:
         memcpy(sdb_file_ext(sdb), fext, 3);
         sdb_file_attr(sdb) = VOLUME_LABEL;
         sdb_dir_entry(sdb) = 0x0;
-
-        /* We fill the hlist for labels not here,
-         * we do it a few lines later. --ms
-         */
+        return TRUE;
       }
 
       bs_pos = getbasename(fpath);
@@ -4709,16 +4706,6 @@ do_create_truncate:
       hlists.stack[hlist_index].seq = ++hlists.seq; /* new watch stamp --ms */
       hlist_set_watch(sda_cur_psp(sda));
 
-      /*
-       * This is the right place to leave this stuff for volume labels. --ms
-       */
-      if (((attr & (VOLUME_LABEL | DIRECTORY)) == VOLUME_LABEL) &&
-          strncmp(sdb_template_name(sdb), "????????", 8) == 0 &&
-          strncmp(sdb_template_ext(sdb), "???", 3) == 0) {
-        Debug0((dbg_fd, "DONE LABEL!!\n"));
-
-        return TRUE;
-      }
       return find_again(1, drive, fpath, hlist, state, sdb);
     }
 
