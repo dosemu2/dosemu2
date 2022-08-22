@@ -33,7 +33,7 @@
 static smpool mp;
 unsigned char *dosemu_lmheap_base;
 static void *rm_stack;
-#define RM_STACK_SIZE 0x400
+#define RM_STACK_SIZE 0x200
 
 static void do_sm_error(int prio, const char *fmt, ...)
 {
