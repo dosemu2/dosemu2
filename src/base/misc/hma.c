@@ -27,7 +27,7 @@
 unsigned char *ext_mem_base = NULL;
 int a20;
 
-void HMA_MAP(int HMA)
+static void HMA_MAP(int HMA)
 {
   int ret;
   /* destroy simx86 memory protections first */
@@ -45,9 +45,10 @@ void HMA_MAP(int HMA)
   x_printf("HMA: mapped\n");
 }
 
-void
-set_a20(int enableHMA)
+void set_a20(int enableHMA)
 {
+  if (!config.hma)
+    return;
   if (a20 == enableHMA) {
     g_printf("WARNING: redundant %s of A20!\n", enableHMA ? "enabling" :
 	  "disabling");

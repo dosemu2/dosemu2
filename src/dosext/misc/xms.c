@@ -265,7 +265,7 @@ static void xms_helper_init(void)
   config.xms_size = EXTMEM_SIZE >> 10;
   x_printf("XMS: initializing XMS... %d handles\n", NUM_HANDLES);
 
-  freeHMA = 1;
+  freeHMA = config.hma;
   a20_global = a20_local = 0;
 
   if (!config.xms_size)
@@ -498,7 +498,7 @@ void xms_control(void)
     }
     else {
       x_printf("XMS: freeing HMA\n");
-      freeHMA = 1;
+      freeHMA = config.hma;
       XMS_RET(0);			/* no error */
     }
     break;
