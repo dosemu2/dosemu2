@@ -5039,6 +5039,114 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         self.mkfile("version.bat", "ver\r\nrem end\r\n")
 
 
+class MSDOS700TestCase(OurTestCase, unittest.TestCase):
+    # badged Win95 RTM at winworldpc.com
+
+    @classmethod
+    def setUpClass(cls):
+        super(MSDOS700TestCase, cls).setUpClass()
+        cls.version = "Windows 95. [Version 4.00.950]"
+        cls.prettyname = "MS-DOS-7.00"
+        cls.files = [
+            ("io.sys", "22924f93dd0f9ea6a4624ccdd1bbcdf5eb43a308"),
+            ("msdos.sys", "f5d01c68d518f4b8b2482d3815af8bb88003831d"),
+            ("command.com", "67696207c3963a0dc9afab8cf37dbdb966c1f663"),
+        ]
+        cls.systype = SYSTYPE_MSDOS_NEW
+        cls.autoexec = "autoemu.bat"
+        cls.bootblocks = [
+            ("boot-306-4-17.blk", "8c016e339ca6b8126fd2026ed3a7eeeb6cbb8903"),
+            ("boot-615-4-17.blk", "b6fdddbfb37442a2762d5897de1aa7d7a694286a"),
+            ("boot-900-15-17.blk", "8c1243481112f320f2a5f557f30db11174fe7e3d"),
+        ]
+        cls.images = [
+            ("boot-floppy.img", ""),
+        ]
+
+        cls.setUpClassPost()
+
+    def setUpDosAutoexec(self):
+        # Use the (almost) standard shipped config
+        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        self.mkfile(self.autoexec, contents, newline="\r\n")
+
+    def setUpDosConfig(self):
+        # Link back to std dosemu commands and scripts
+        p = self.workdir / "dosemu"
+        p.symlink_to(self.topdir / "commands" / "dosemu")
+
+        # Use the (almost) standard shipped config
+        contents = (self.topdir / "src" / "bindist" / "c" / self.confsys).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
+        self.mkfile(self.confsys, contents, newline="\r\n")
+
+    def setUpDosVersion(self):
+        self.mkfile("version.bat", "ver\r\nrem end\r\n")
+
+        # Disable the logo here or we get blank screen
+        self.mkfile("msdos.sys", """
+[Options]
+BootGUI=0
+Logo=0
+""", newline="\r\n")
+
+
+class MSDOS710TestCase(OurTestCase, unittest.TestCase):
+    # badged CDU (Chinese DOS Union) at winworldpc.com
+
+    @classmethod
+    def setUpClass(cls):
+        super(MSDOS710TestCase, cls).setUpClass()
+        cls.version = "MS-DOS 7.1 [Version 7.10.1999]"
+        cls.prettyname = "MS-DOS-7.10"
+        cls.files = [
+            ("io.sys", "8c586b1bf38fc2042f2383ca873283a466be2f44"),
+            ("msdos.sys", "cd1e6103ce9cdebbc7a5611df13ff4fbd5e2159c"),
+            ("command.com", "f6547d81e625a784633c059e536e90ee45532202"),
+        ]
+        cls.systype = SYSTYPE_MSDOS_NEW
+        cls.autoexec = "autoemu.bat"
+        cls.bootblocks = [
+            ("boot-306-4-17.blk", "0f520de6e2a33ef8fd336b2844957689fc1060e9"),
+            ("boot-615-4-17.blk", "5e49a8ee7747191d87a2214cc0281736262687b9"),
+            ("boot-900-15-17.blk", "2c29d06909c7d5ca46a3ca26ddde9287a11ef315"),
+        ]
+        cls.images = [
+            ("boot-floppy.img", ""),
+        ]
+
+        cls.setUpClassPost()
+
+    def setUpDosAutoexec(self):
+        # Use the (almost) standard shipped config
+        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        self.mkfile(self.autoexec, contents, newline="\r\n")
+
+    def setUpDosConfig(self):
+        # Link back to std dosemu commands and scripts
+        p = self.workdir / "dosemu"
+        p.symlink_to(self.topdir / "commands" / "dosemu")
+
+        # Use the (almost) standard shipped config
+        contents = (self.topdir / "src" / "bindist" / "c" / self.confsys).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
+        self.mkfile(self.confsys, contents, newline="\r\n")
+
+    def setUpDosVersion(self):
+        self.mkfile("version.bat", "ver\r\nrem end\r\n")
+
+        # Disable the logo here or we get blank screen
+        self.mkfile("msdos.sys", """
+[Options]
+BootGUI=0
+Logo=0
+""", newline="\r\n")
+
+
 class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
 
     @classmethod

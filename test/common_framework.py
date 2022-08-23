@@ -40,6 +40,8 @@ TEST_BINARIES = (
     'DR-DOS-7.01.tar',
     'FR-DOS-1.20.tar',
     'MS-DOS-6.22.tar',
+    'MS-DOS-7.00.tar',
+    'MS-DOS-7.10.tar',
     'VARIOUS.tar',
     'TEST_EMM286.tar',
     'TEST_CRYNWR.tar',
