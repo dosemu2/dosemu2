@@ -1933,6 +1933,22 @@ static int int19(void)
     return 1;
 }
 
+/* Interrogate DOS for HMA start (Win95+) */
+static void init_hma(void)
+{
+  pre_msdos();
+
+  LWORD(eax) = 0x4a04;
+  do_int_call_back(0x2f);
+  if (LWORD(eax) == 0) {
+    hma_start = MK_FP32(SREG(es), LWORD(edi));
+  } else {
+    hma_start = NULL;
+  }
+
+  post_msdos();
+}
+
 static uint16_t DoRedirectDevice(char *dStr, char *sStr,
                         uint8_t deviceType, uint16_t deviceOptions,
                         uint16_t userValue)
@@ -2784,6 +2800,7 @@ void dos_post_boot_reset(void)
     if (clnup_handler)
 	clnup_handler();
     clnup_handler = NULL;
+    hma_start = NULL;
 }
 
 static void dos_post_boot(void)
@@ -2802,6 +2819,12 @@ static void dos_post_boot(void)
 		enable_redirect();
 	    }
 	}
+        /*
+         * Let's set up the hma start address for dosdebug use. There's no
+         * specific reason it should be here other than it needs to be done
+         * sometime after DOS has started.
+         */
+        init_hma();
     }
 }
 

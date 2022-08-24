@@ -70,6 +70,8 @@
 
 #define makeaddr(x,y) ((((unsigned int)x) << 4) + (unsigned int)y)
 
+struct HMCB *hma_start;
+
 /* prototypes */
 static void mhp_regs  (int, char *[]);
 static void mhp_r0    (int, char *[]);
@@ -1313,19 +1315,36 @@ static void print_dscb(struct DSCB *dscb)
       dscb->size, dscb->stype, stnam);
 }
 
+static const char *hma_id_to_name(uint16_t id)
+{
+  switch (id) {
+    case 0x0000:
+      return "FREE";
+    case 0x0001:
+      return "DOS";
+    case 0xFF33:
+      return "IO.SYS";
+    case 0xFFFF:
+      return "MSDOS.SYS";
+  }
+  return NULL;
+}
+
 static void mhp_mcbs(int argc, char *argv[])
 {
   struct MCB *mcb;
   uint32_t seg;
-  int uma, hdr;
+  int uma, hdr, cnt;
   struct DSCB *dscb;
   uint16_t dsseg;
+  struct HMCB *hmcb, *htmp;
 
   if (!lol) {
     mhp_printf("DOS's LOL not set\n");
     return;
   }
 
+  // LOW and UMA
   for (seg = READ_WORD(lol - 2), mcb = MK_FP32(seg, 0), uma = 0, hdr = 1;
        mcb->id == 'M' || mcb->id == 'Z';
        seg += (1 + mcb->size), mcb = MK_FP32(seg, 0)) {
@@ -1350,6 +1369,37 @@ static void mhp_mcbs(int argc, char *argv[])
         break;
       uma = 1;
       hdr = 1;
+    }
+  }
+
+  // HMA
+  for (hmcb = hma_start, cnt = 0; hmcb && cnt < 50; cnt++) {
+    uint16_t hoff = (void *)hmcb - MK_FP32(0xffff, 0);
+    const char *name;
+    char buf[32];
+
+    if (hmcb->signature == HMCB_SIG && hmcb->next < 0xfff0) {
+      htmp = MK_FP32(0xffff, hmcb->next);
+      if (htmp->signature == HMCB_SIG) {
+        // Seemingly we have a valid HMA MCB
+        if (cnt == 0) {
+          mhp_printf("\nADDR(HMA) PARAS  OWNER\n");
+        }
+
+        name = hma_id_to_name(hmcb->owner);
+        if (!name)
+          name = get_mcb_name_walk_chain(hmcb->owner, 0);
+        if (!name) {
+          snprintf(buf, sizeof buf, "%04x", hmcb->owner);
+          name = buf;
+        }
+
+        mhp_printf("ffff:%04x 0x%04x [%s]\n", hoff, hmcb->size / 16, name);
+      } else if (hmcb->next == 0) {
+        mhp_printf("ffff:%04x (END)\n", hoff);
+        break;
+      }
+      hmcb = htmp;
     }
   }
 }

@@ -18,6 +18,17 @@ struct MCB {
 	char name[8];			/* 8 */
 } __attribute__((packed));
 
+#define HMCB_SIG 0x534d
+struct HMCB {
+  uint16_t signature;  // "MS"
+  uint16_t owner;      // 0000=free, 0001=DOS, FF33=IO.SYS, FFFF=MSDOS.SYS
+  uint16_t size;       // bytes not including this header
+  uint16_t next;       // offset of next memory block in segment FFFFh, or 0000h if last
+  uint8_t reserved[8]; // unused (explicitly set to 0 for MS-DOS 7.10)
+} __attribute__((packed));
+
+extern struct HMCB *hma_start;
+
 struct DSCB {
   char stype;           /* 0 (subsegment type)
                           'D'  device driver
