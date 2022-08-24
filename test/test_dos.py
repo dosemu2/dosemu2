@@ -36,7 +36,8 @@ from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
 from func_memory_dpmi_japheth import memory_dpmi_japheth
 from func_memory_ems_borland import memory_ems_borland
-from func_memory_hma import memory_hma_freespace, memory_hma_alloc, memory_hma_a20
+from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_a20,
+                             memory_hma_alloc3, memory_hma_chain)
 from func_mfs_findfile import mfs_findfile
 from func_mfs_truename import mfs_truename
 from func_network import network_pktdriver_mtcp
@@ -3232,20 +3233,30 @@ $_floppy_a = ""
         """Memory EMS (Borland)"""
         memory_ems_borland(self)
 
-    def test_memory_hma_alloc(self):
-        """Memory HMA allocation"""
-        memory_hma_alloc(self)
-    test_memory_hma_alloc.hmatest = True
-
     def test_memory_hma_a20(self):
         """Memory HMA a20 toggle"""
         memory_hma_a20(self)
     test_memory_hma_a20.hmatest = True
 
+    def test_memory_hma_alloc(self):
+        """Memory HMA allocation"""
+        memory_hma_alloc(self)
+    test_memory_hma_alloc.hmatest = True
+
+    def test_memory_hma_alloc3(self):
+        """Memory HMA alloc/resize/dealloc"""
+        memory_hma_alloc3(self)
+    test_memory_hma_alloc3.hmatest = True
+
     def test_memory_hma_freespace(self):
         """Memory HMA freespace"""
         memory_hma_freespace(self)
     test_memory_hma_freespace.hmatest = True
+
+    def test_memory_hma_chain(self):
+        """Memory HMA get chain"""
+        memory_hma_chain(self)
+    test_memory_hma_chain.hmatest = True
 
     def test_floppy_img(self):
         """Floppy image file"""
@@ -4873,6 +4884,8 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_truename_ufs_sfn": KNOWNFAIL,
             "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
             "test_floppy_vfs": KNOWNFAIL,
+            "test_memory_hma_alloc3": UNSUPPORTED,
+            "test_memory_hma_chain": UNSUPPORTED,
             "test_pcmos_build": KNOWNFAIL,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
         }
@@ -4963,6 +4976,8 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_command_com_keyword_exist": KNOWNFAIL,
             "test_memory_emm286_borland": KNOWNFAIL,
             "test_memory_hma_alloc": KNOWNFAIL,
+            "test_memory_hma_alloc3": UNSUPPORTED,
+            "test_memory_hma_chain": UNSUPPORTED,
             "test_pcmos_build": KNOWNFAIL,
             r"test_libi86_item_\d+": KNOWNFAIL,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
@@ -5013,6 +5028,8 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
             ("boot-floppy.img", "14b8310910bf19d6e375298f3b06da7ffdec9932"),
         ]
         cls.actions = {
+            "test_memory_hma_alloc3": UNSUPPORTED,
+            "test_memory_hma_chain": UNSUPPORTED,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
         }
 
