@@ -5006,6 +5006,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_create_new_psp": KNOWNFAIL,
             "test_command_com_keyword_exist": KNOWNFAIL,
             "test_memory_emm286_borland": KNOWNFAIL,
+            "test_memory_hma_alloc": KNOWNFAIL,
             "test_pcmos_build": KNOWNFAIL,
             r"test_libi86_item_\d+": KNOWNFAIL,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
