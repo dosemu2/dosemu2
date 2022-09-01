@@ -773,12 +773,12 @@ static void sigstack_init(void)
   /* .ss_flags is signed int and SS_AUTODISARM is a sign bit :( */
   stack_t dummy2;
   stack_t dummy = { .ss_flags = (int)(SS_DISABLE | SS_AUTODISARM) };
-  int err = dosemu_sigaltstack(&dummy, &dummy2);
+  int err = sigaltstack(&dummy, &dummy2);
   int errno_save = errno;
 
   /* needs to drop SS_AUTODISARM or asan will fail. See
    * https://github.com/dosemu2/dosemu2/issues/1576 */
-  dosemu_sigaltstack(&dummy2, NULL);
+  sigaltstack(&dummy2, NULL);
 #if SIGALTSTACK_WA
   if ((err && errno_save == EINVAL)
 #ifdef __i386__
@@ -1307,7 +1307,7 @@ static void signal_sas_wa(void)
 
   ss.ss_flags = SS_DISABLE;
   /* sas will re-enable itself when returning from sighandler */
-  err = dosemu_sigaltstack(&ss, NULL);
+  err = sigaltstack(&ss, NULL);
   if (err)
     perror("sigaltstack");
 
@@ -1344,10 +1344,6 @@ void signal_set_altstack(int on)
     stk.ss_flags = SS_ONSTACK | SS_AUTODISARM;
 #endif
     err = sigaltstack(&stk, NULL);
-    if (err && errno == EINVAL) {
-      /* work-around for musl that doesn't accept extension flags */
-      err = dosemu_sigaltstack(&stk, NULL);
-    }
   }
   if (err) {
     error("sigaltstack(0x%x) returned %i, %s\n",

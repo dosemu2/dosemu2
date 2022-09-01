@@ -39,19 +39,6 @@ static inline int dosemu_arch_prctl(int code, void *addr)
 }
 #endif
 
-#if defined(__linux__)
-/* replace sigaltstack() to avoid musl bugs */
-static inline int dosemu_sigaltstack(const stack_t *ss, stack_t *oss)
-{
-  return syscall(SYS_sigaltstack, ss, oss);
-}
-#else
-static inline int dosemu_sigaltstack(const stack_t *ss, stack_t *oss)
-{
-  return sigaltstack(ss, oss);
-}
-#endif
-
 extern void add_thread_callback(void (*cb)(void *), void *arg, const char *name);
 extern void SIG_init(void);
 extern void SIG_close(void);
