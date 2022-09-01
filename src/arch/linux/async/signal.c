@@ -45,6 +45,10 @@
 #include "cpu-emu.h"
 #include "sig.h"
 
+/* sigaltstack work-around */
+#ifdef HAVE_LINUX_SIGNAL_H
+#include <linux/signal.h>
+#endif
 #define SIGALTSTACK_WA_DEFAULT 1
 #if SIGALTSTACK_WA_DEFAULT
   #ifdef DISABLE_SYSTEM_WA
@@ -76,6 +80,10 @@
 #define SS_AUTODISARM  (1U << 31)    /* disable sas during sighandling */
 #endif
 
+/* sigreturn work-around */
+#ifdef HAVE_ASM_UCONTEXT_H
+#include <asm/ucontext.h>
+#endif
 #ifdef __x86_64__
   #define SIGRETURN_WA_DEFAULT WANT_SIGRETURN_WA
 #else
