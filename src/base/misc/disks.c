@@ -471,108 +471,6 @@ static int set_floppy_chs_by_size(off_t s, struct disk *dp) {
   return 1;
 }
 
-static void image_auto(struct disk *dp)
-{
-  uint32_t magic;
-  uint64_t filesize;
-  struct image_header header;
-  unsigned char sect[0x200];
-  struct stat st;
-
-  d_printf("IMAGE auto-sensing\n");
-
-  if (dp->fdesc == -1) {
-    warn("WARNING: image filedesc not open\n");
-    dp->fdesc = open(dp->dev_name, (dp->rdonly ? O_RDONLY : O_RDWR) | O_CLOEXEC);
-    if (dp->fdesc == -1) {
-      /* We should check whether errno is EROFS, but if not the next open will
-         fail again and the following lseek will throw us out of dos. So we win
-         a very tiny amount of time in case it works. Also, if for some reason
-         this does work (should be impossible), we can at least try to
-         continue. (again how sick can you get :-) )
-       */
-      dp->fdesc = open(dp->dev_name, O_RDONLY | O_CLOEXEC);
-      dp->rdonly = 1;
-    }
-  }
-
-  if (dp->fdesc == -1) {
-    warn("WARNING: image filedesc still not open\n");
-    leavedos(19);
-    return;
-  }
-
-  if (dp->floppy) {
-
-    if (fstat(dp->fdesc, &st) < 0) {
-      d_printf("IMAGE auto couldn't stat disk file %s\n", dp->dev_name);
-      leavedos(19);
-      return;
-    }
-    if (!(set_floppy_chs_by_size(st.st_size, dp) ||
-          set_floppy_chs_by_type(dp->default_cmos, dp)) ){
-      d_printf("IMAGE auto set floppy geometry %s\n", dp->dev_name);
-      leavedos(19);
-      return;
-    }
-    dp->start = 0;
-    dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
-
-    d_printf("IMAGE auto floppy %s; t=%d, h=%d, s=%d\n",
-             dp->dev_name, dp->tracks, dp->heads, dp->sectors);
-    return;
-  }
-
-  // Hard disk image
-
-  lseek(dp->fdesc, 0, SEEK_SET);
-  if (RPT_SYSCALL(read(dp->fdesc, &header, sizeof(header))) != sizeof(header)) {
-    error("could not read full header in image_init\n");
-    leavedos(19);
-  }
-  lseek(dp->fdesc, 0, SEEK_SET);
-  if (RPT_SYSCALL(read(dp->fdesc, sect, sizeof(sect))) != sizeof(sect)) {
-    error("could not read full header in image_init\n");
-    leavedos(19);
-  }
-
-  memcpy(&magic, header.sig, 4);
-  if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0 ||
-      (magic == DEXE_MAGIC) ) {
-    dp->heads = header.heads;
-    dp->sectors = header.sectors;
-    dp->tracks = header.cylinders;
-    dp->header = header.header_end;
-    dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
-  } else if (sect[510] == 0x55 && sect[511] == 0xaa) {
-    filesize = lseek(dp->fdesc, 0, SEEK_END);
-    if (filesize & (SECTOR_SIZE - 1) ) {
-      error("hdimage size is not sector-aligned (%"PRIu64" bytes), truncated!\n",
-	    filesize & (SECTOR_SIZE - 1) );
-    }
-    dp->num_secs = (filesize /* + SECTOR_SIZE - 1 */ ) / SECTOR_SIZE;
-    dp->heads = 255;
-    dp->sectors = 63;
-    if (dp->num_secs % (dp->heads * dp->sectors) ) {
-      d_printf("hdimage size is not cylinder-aligned (%"PRIu64" sectors), truncated!\n",
-	    dp->num_secs % (dp->heads * dp->sectors) );
-    }
-    dp->tracks = (dp->num_secs /* + (dp->heads * dp->sectors - 1) */ )
-		  / (dp->heads * dp->sectors);
-		/* round down number of sectors and number of tracks */
-    dp->header = 0;
-  } else {
-    error("IMAGE %s header lacks magic string - cannot autosense!\n",
-          dp->dev_name);
-    leavedos(20);
-  }
-
-  d_printf("IMAGE auto disk %s; num_secs=%"PRIu64", t=%d, h=%d, s=%d, off=%ld\n",
-           dp->dev_name, dp->num_secs,
-           dp->tracks, dp->heads, dp->sectors,
-           (long) dp->header);
-}
-
 static void hdisk_auto(struct disk *dp)
 {
 #ifdef __linux__
@@ -819,6 +717,108 @@ static void dir_setup(struct disk *dp)
   }
 
   dp->fatfs = NULL;
+}
+
+static void image_auto(struct disk *dp)
+{
+  uint32_t magic;
+  uint64_t filesize;
+  struct image_header header;
+  unsigned char sect[0x200];
+  struct stat st;
+
+  d_printf("IMAGE auto-sensing\n");
+
+  if (dp->fdesc == -1) {
+    warn("WARNING: image filedesc not open\n");
+    dp->fdesc = open(dp->dev_name, (dp->rdonly ? O_RDONLY : O_RDWR) | O_CLOEXEC);
+    if (dp->fdesc == -1) {
+      /* We should check whether errno is EROFS, but if not the next open will
+         fail again and the following lseek will throw us out of dos. So we win
+         a very tiny amount of time in case it works. Also, if for some reason
+         this does work (should be impossible), we can at least try to
+         continue. (again how sick can you get :-) )
+       */
+      dp->fdesc = open(dp->dev_name, O_RDONLY | O_CLOEXEC);
+      dp->rdonly = 1;
+    }
+  }
+
+  if (dp->fdesc == -1) {
+    warn("WARNING: image filedesc still not open\n");
+    leavedos(19);
+    return;
+  }
+
+  if (dp->floppy) {
+
+    if (fstat(dp->fdesc, &st) < 0) {
+      d_printf("IMAGE auto couldn't stat disk file %s\n", dp->dev_name);
+      leavedos(19);
+      return;
+    }
+    if (!(set_floppy_chs_by_size(st.st_size, dp) ||
+          set_floppy_chs_by_type(dp->default_cmos, dp)) ){
+      d_printf("IMAGE auto set floppy geometry %s\n", dp->dev_name);
+      leavedos(19);
+      return;
+    }
+    dp->start = 0;
+    dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
+
+    d_printf("IMAGE auto floppy %s; t=%d, h=%d, s=%d\n",
+             dp->dev_name, dp->tracks, dp->heads, dp->sectors);
+    return;
+  }
+
+  // Hard disk image
+
+  lseek(dp->fdesc, 0, SEEK_SET);
+  if (RPT_SYSCALL(read(dp->fdesc, &header, sizeof(header))) != sizeof(header)) {
+    error("could not read full header in image_init\n");
+    leavedos(19);
+  }
+  lseek(dp->fdesc, 0, SEEK_SET);
+  if (RPT_SYSCALL(read(dp->fdesc, sect, sizeof(sect))) != sizeof(sect)) {
+    error("could not read full header in image_init\n");
+    leavedos(19);
+  }
+
+  memcpy(&magic, header.sig, 4);
+  if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0 ||
+      (magic == DEXE_MAGIC) ) {
+    dp->heads = header.heads;
+    dp->sectors = header.sectors;
+    dp->tracks = header.cylinders;
+    dp->header = header.header_end;
+    dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
+  } else if (sect[510] == 0x55 && sect[511] == 0xaa) {
+    filesize = lseek(dp->fdesc, 0, SEEK_END);
+    if (filesize & (SECTOR_SIZE - 1) ) {
+      error("hdimage size is not sector-aligned (%"PRIu64" bytes), truncated!\n",
+	    filesize & (SECTOR_SIZE - 1) );
+    }
+    dp->num_secs = (filesize /* + SECTOR_SIZE - 1 */ ) / SECTOR_SIZE;
+    dp->heads = 255;
+    dp->sectors = 63;
+    if (dp->num_secs % (dp->heads * dp->sectors) ) {
+      d_printf("hdimage size is not cylinder-aligned (%"PRIu64" sectors), truncated!\n",
+	    dp->num_secs % (dp->heads * dp->sectors) );
+    }
+    dp->tracks = (dp->num_secs /* + (dp->heads * dp->sectors - 1) */ )
+		  / (dp->heads * dp->sectors);
+		/* round down number of sectors and number of tracks */
+    dp->header = 0;
+  } else {
+    error("IMAGE %s header lacks magic string - cannot autosense!\n",
+          dp->dev_name);
+    leavedos(20);
+  }
+
+  d_printf("IMAGE auto disk %s; num_secs=%"PRIu64", t=%d, h=%d, s=%d, off=%ld\n",
+           dp->dev_name, dp->num_secs,
+           dp->tracks, dp->heads, dp->sectors,
+           (long) dp->header);
 }
 
 static void image_setup(struct disk *dp)
