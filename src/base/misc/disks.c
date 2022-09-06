@@ -100,7 +100,6 @@ struct disk_fptr {
 };
 
 static void image_auto(struct disk *);
-static void image_setup(struct disk *);
 
 static void hdisk_auto(struct disk *);
 static void hdisk_setup(struct disk *);
@@ -109,18 +108,19 @@ static void floppy_auto(struct disk *);
 static void floppy_setup(struct disk *);
 
 static void partition_auto(struct disk *);
-static void partition_setup(struct disk *);
 
 static void dir_auto(struct disk *);
 static void dir_setup(struct disk *);
 
+static void MBR_setup(struct disk *);
+static void VBR_setup(struct disk *);
 
 static struct disk_fptr disk_fptrs[NUM_DTYPES] =
 {
-  {image_auto, image_setup},
+  {image_auto, MBR_setup},
   {hdisk_auto, hdisk_setup},
   {floppy_auto, floppy_setup},
-  {partition_auto, partition_setup},
+  {partition_auto, VBR_setup},
   {dir_auto, dir_setup}
 };
 
@@ -265,7 +265,7 @@ read_sectors(const struct disk *dp, unsigned buffer, uint64_t sector,
     int mbroff = pos + dp->start * SECTOR_SIZE;
     int mbrread = 0;
 
-    if(!(dp->type == PARTITION || dp->type == DIR_TYPE)) {
+    if (!(dp->type == PARTITION || dp->type == DIR_TYPE)) {
       error("negative offset on non-partition disk type\n");
       return -DERR_NOTFOUND;
     }
@@ -781,9 +781,14 @@ static void image_auto(struct disk *dp)
 {
   uint32_t magic;
   uint64_t filesize;
-  struct image_header header;
-  unsigned char sect[0x200];
   struct stat st;
+  union {
+    char buf[512];
+    struct image_header header;
+    struct on_disk_mbr mbr;
+    struct on_disk_vbr vbr;
+  } sect0;
+  static_assert(sizeof(sect0) == 512, "bad sect0 size");
 
   d_printf("IMAGE auto-sensing\n");
 
@@ -832,25 +837,50 @@ static void image_auto(struct disk *dp)
   // Hard disk image
 
   lseek(dp->fdesc, 0, SEEK_SET);
-  if (RPT_SYSCALL(read(dp->fdesc, &header, sizeof(header))) != sizeof(header)) {
-    error("could not read full header in image_init\n");
-    leavedos(19);
-  }
-  lseek(dp->fdesc, 0, SEEK_SET);
-  if (RPT_SYSCALL(read(dp->fdesc, sect, sizeof(sect))) != sizeof(sect)) {
-    error("could not read full header in image_init\n");
+  if (RPT_SYSCALL(read(dp->fdesc, &sect0.buf, sizeof(sect0))) != sizeof(sect0)) {
+    error("could not read sector 0 in image_init\n");
     leavedos(19);
   }
 
-  memcpy(&magic, header.sig, 4);
-  if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0 ||
+  memcpy(&magic, sect0.header.sig, 4);
+  if (strncmp(sect0.header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0 ||
       (magic == DEXE_MAGIC) ) {
-    dp->heads = header.heads;
-    dp->sectors = header.sectors;
-    dp->tracks = header.cylinders;
-    dp->header = header.header_end;
+    d_printf("  Dosemu header found, image will contain whole disk\n");
+    dp->heads = sect0.header.heads;
+    dp->sectors = sect0.header.sectors;
+    dp->tracks = sect0.header.cylinders;
+    dp->header = sect0.header.header_end;
     dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
-  } else if (sect[510] == 0x55 && sect[511] == 0xaa) {
+
+  } else if (sect0.vbr.signature == VBR_SIG &&
+             sect0.vbr.u.bpb.media_type == 0xf8 && sect0.vbr.u.bpb.num_fats == 2) { /* VBR */
+    d_printf("  VBR found, image is a filesystem\n");
+
+    if (sect0.vbr.u.bpb.num_sectors_small == 0 && (
+        sect0.vbr.u.bpb.v340_400_signature == BPB_SIG_V340 ||
+        sect0.vbr.u.bpb.v340_400_signature == BPB_SIG_V400))
+      dp->num_secs = sect0.vbr.u.bpb.v331_400_num_sectors_large;
+    else if (sect0.vbr.u.bpb7.num_sectors_small == 0 && (
+        sect0.vbr.u.bpb7.signature == BPB_SIG_V7_SHORT ||
+        sect0.vbr.u.bpb7.signature == BPB_SIG_V7_LONG))
+      dp->num_secs = sect0.vbr.u.bpb7.num_sectors_large;
+    else
+      dp->num_secs = sect0.vbr.u.bpb.num_sectors_small;
+    dp->heads = sect0.vbr.u.bpb.num_heads;
+    dp->sectors = sect0.vbr.u.bpb.sectors_per_track;
+
+    // Must also set these for build_pi input in setup phase
+    dp->start = dp->sectors; // one cylinder for mbr + alignment
+    dp->num_secs += dp->start;
+    dp->tracks = dp->num_secs / dp->sectors / dp->heads;
+    dp->header = 0;
+
+    dp->type = PARTITION;  // VBR_setup() will subsequently be run
+    dp->part_image = 1;
+
+  } else if (sect0.mbr.signature == MBR_SIG) {                             /* MBR */
+    d_printf("  MBR found, image contains partitions\n");
+
     filesize = lseek(dp->fdesc, 0, SEEK_END);
     if (filesize & (SECTOR_SIZE - 1) ) {
       error("hdimage size is not sector-aligned (%"PRIu64" bytes), truncated!\n",
@@ -867,6 +897,7 @@ static void image_auto(struct disk *dp)
 		  / (dp->heads * dp->sectors);
 		/* round down number of sectors and number of tracks */
     dp->header = 0;
+
   } else {
     error("IMAGE %s header lacks magic string - cannot autosense!\n",
           dp->dev_name);
@@ -879,28 +910,36 @@ static void image_auto(struct disk *dp)
            (long) dp->header);
 }
 
-static void image_setup(struct disk *dp)
+static void MBR_setup(struct disk *dp)
 {
   ssize_t rd;
-  int ret;
+  int ret, i;
 
   if (dp->floppy) {
     return;
   }
 
+  /* Disk / Image already has MBR */
   dp->part_info.number = 1;
-
   ret = lseek(dp->fdesc, dp->header, SEEK_SET);
   if (ret == -1) {
-    error("image_setup: Can't seek '%s'\n", dp->dev_name);
+    error("MBR_setup: Can't seek '%s'\n", dp->dev_name);
+    leavedos(35);
+  }
+  rd = read(dp->fdesc, &dp->part_info.mbr, sizeof(dp->part_info.mbr));
+  if (rd != sizeof(dp->part_info.mbr)) {
+    error("MBR_setup: Can't read MBR from '%s'\n", dp->dev_name);
     leavedos(35);
   }
 
-  rd = read(dp->fdesc, &dp->part_info.mbr, sizeof(dp->part_info.mbr));
-  if (rd != sizeof(dp->part_info.mbr)) {
-    error("image_setup: Can't read MBR from '%s'\n", dp->dev_name);
-    leavedos(35);
+  d_printf("MBR_setup: %s:\n", dp->dev_name);
+
+  for (i = 0; i < 4; i++) {
+    if (dp->part_info.mbr.partition[i].OS_type)
+      print_partition_entry(&dp->part_info.mbr.partition[i]);
   }
+
+  print_disk_structure(dp);
 }
 
 static void partition_auto(struct disk *dp)
@@ -966,11 +1005,11 @@ static void partition_auto(struct disk *dp)
   dp->header = 0;
 }
 
-static void partition_setup(struct disk *dp)
+static void VBR_setup(struct disk *dp)
 {
   struct on_disk_vbr vbr;
 
-  d_printf("PARTITION SETUP for %s\n", dp->dev_name);
+  d_printf("VBR setup for %s\n", dp->dev_name);
 
   if (dp->floppy) {
     return;
@@ -983,7 +1022,7 @@ static void partition_setup(struct disk *dp)
 
   lseek(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, &vbr, sizeof(vbr))) != sizeof(vbr)) {
-    d_printf("  bpb could not be read\n");
+    d_printf("  BPB could not be read\n");
   } else {
     print_bpb(&vbr.u.bpb);
   }
