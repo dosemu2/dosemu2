@@ -382,24 +382,32 @@ kbd_do_pause:
 kbd_do_break:				/* CTRL-BREAK pressed		*/
 	movw	$0x100,%ax
 	call	store_key
+	call	kbd_EOI
+	sti
 	int	$0x1b			/* call BREAK interrupt		*/
-	jmp	kbd_done
+	jmp	kbd_done2
 
 kbd_do_prtscr:				/* PRINT SCREEN pressed		*/
+	call	kbd_EOI
+	sti
 	int	$0x05
-	jmp	kbd_done
+	jmp	kbd_done2
 
 kbd_do_sysrq_make:			/* Alt-SYSRQ pressed		*/
 	orb	$4,KEYBOARD_FLAGS_2	/* set sysrq bit */
+	call	kbd_EOI
+	sti
 	movw	$0x8500,%ax
 	int	$0x15
-	jmp	kbd_done
+	jmp	kbd_done2
 
 kbd_do_sysrq_break:			/* ALT-SYSRQ released		*/
 	andb	$~4,KEYBOARD_FLAGS_2	/* clear sysrq bit */
+	call	kbd_EOI
+	sti
 	movw	$0x8501,%ax
 	int	$0x15
-	jmp	kbd_done
+	jmp	kbd_done2
 
 kbd_do_CAD:
 	call	kbd_EOI
