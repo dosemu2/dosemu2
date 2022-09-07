@@ -471,6 +471,73 @@ static int set_floppy_chs_by_size(off_t s, struct disk *dp) {
   return 1;
 }
 
+#ifdef DISK_DEBUG
+
+static void print_bpb(struct on_disk_bpb *bpb)
+{
+  d_printf("  bpb\n");
+  d_printf("    bytes_per_sector %u\n", bpb->bytes_per_sector);
+  d_printf("    sectors_per_cluster %u\n", bpb->sectors_per_cluster);
+  d_printf("    reserved_sectors %u\n", bpb->reserved_sectors);
+  d_printf("    num_fats %u\n", bpb->num_fats);
+  d_printf("    num_root_entries %u\n", bpb->num_root_entries);
+  d_printf("    num_sectors_small %u\n", bpb->num_sectors_small);
+  d_printf("    media_type %x\n", bpb->media_type);
+  d_printf("    sectors_per_fat %u\n", bpb->sectors_per_fat);
+  d_printf("    sectors_per_track %u\n", bpb->sectors_per_track);
+  d_printf("    num_heads %u\n", bpb->num_heads);
+  // assume v331+
+  if (bpb->num_sectors_small == 0) {
+    d_printf("    v331_400_hidden_sectors %u\n", bpb->v331_400_hidden_sectors);
+    d_printf("    v331_400_num_sectors_large %u\n", bpb->v331_400_num_sectors_large);
+  }
+  // assume v340+
+  if (bpb->v340_400_signature == BPB_SIG_V340 || bpb->v340_400_signature == BPB_SIG_V400) {
+    d_printf("    v340_400_drive_number %x\n", bpb->v340_400_drive_number);
+    d_printf("    v340_400_flags %x\n", bpb->v340_400_flags);
+    d_printf("    v340_400_signature %x\n", bpb->v340_400_signature);
+    d_printf("    v340_400_serial_number %x\n", bpb->v340_400_serial_number);
+  }
+
+  if (bpb->v340_400_signature == BPB_SIG_V400) {
+    d_printf("    v400_vol_label '%.11s'\n", bpb->v400_vol_label);
+    d_printf("    v400_fat_type '%.8s'\n", bpb->v400_fat_type);
+  }
+}
+
+static void print_disk_structure(struct disk *dp)
+{
+  d_printf("  disk structure\n");
+  d_printf("    rdonly=%d\n", dp->rdonly);
+  d_printf("    boot=%d\n", dp->boot);
+  d_printf("    sectors=%d(0x%x)\n", dp->sectors, dp->sectors);
+  d_printf("    heads=%d(0x%x)\n", dp->heads, dp->heads);
+  d_printf("    tracks=%d(0x%x)\n", dp->tracks, dp->tracks);
+  d_printf("    start=%lu(0x%lx)\n", dp->start, dp->start);
+  d_printf("    num_secs=%"PRIu64"(0x%"PRIx64")\n", dp->num_secs, dp->num_secs);
+  d_printf("    drive_num=0x%02x\n", dp->drive_num);
+  d_printf("    header=%lld\n", (long long int)dp->header);
+}
+
+#else
+#define print_bpb(x)
+#define print_disk_structure(x)
+#endif
+
+static void print_partition_entry(struct on_disk_partition *p)
+{
+  d_printf("  partition entry\n");
+  d_printf("    beg head %u, sec %u, cyl %u / end head %u, sec %u, cyl %u\n",
+	   p->start_head, p->start_sector,
+	   PTBL_HL_GET(p, start_track),
+	   p->end_head, p->end_sector,
+	   PTBL_HL_GET(p, end_track));
+  d_printf("    pre_secs %u, num_secs %u(0x%x)\n",
+	   p->num_sect_preceding,
+	   p->num_sectors, p->num_sectors);
+  d_printf("    type 0x%02x, bootflag 0x%02x\n", p->OS_type, p->bootflag);
+}
+
 static void hdisk_auto(struct disk *dp)
 {
 #ifdef __linux__
@@ -604,22 +671,22 @@ static void dir_auto(struct disk *dp)
         dp->tracks = 306;
         dp->heads = 4;
         dp->sectors = 17;
-        d_printf("DISK: Forcing IBM disk type 1\n");
+        d_printf("DIR: Forcing IBM disk type 1\n");
         break;
       case 2:
         dp->tracks = 615;
         dp->heads = 4;
         dp->sectors = 17;
-        d_printf("DISK: Forcing IBM disk type 2\n");
+        d_printf("DIR: Forcing IBM disk type 2\n");
         break;
       case 9:
         dp->tracks = 900;
         dp->heads = 15;
         dp->sectors = 17;
-        d_printf("DISK: Forcing IBM disk type 9\n");
+        d_printf("DIR: Forcing IBM disk type 9\n");
         break;
       default:
-        d_printf("DISK: Invalid disk type (%d)\n", dp->hdtype);
+        d_printf("DIR: Invalid disk type (%d)\n", dp->hdtype);
         config.exitearly = 1;
         break;
     }
@@ -705,15 +772,8 @@ static void dir_setup(struct disk *dp)
     mbr[SECTOR_SIZE - 2] = 0x55;
     mbr[SECTOR_SIZE - 1] = 0xaa;
 
-    d_printf("DIR partition setup for directory %s\n", dp->dev_name);
-
-    d_printf("DIR partition table entry for device %s is:\n", dp->dev_name);
-    d_printf("beg head %d, sec %d, cyl %d = end head %d, sec %d, cyl %d\n",
-             p.start_head, p.start_sector, PTBL_HL_GET(&p, start_track),
-             p.end_head, p.end_sector, PTBL_HL_GET(&p, end_track));
-    d_printf("pre_secs %d, num_secs %d = %x, -dp->header %ld = 0x%lx\n",
-             p.num_sect_preceding, p.num_sectors, p.num_sectors,
-             (long) -dp->header, (unsigned long) -dp->header);
+    d_printf("DIR setup disk %s:\n", dp->dev_name);
+    print_partition_entry(&p);
   }
 
   dp->fatfs = NULL;
@@ -929,15 +989,7 @@ static void partition_setup(struct disk *dp)
 	 dp->part_info.mbr + PART_INFO_START + (PART_INFO_LEN * (PNUM - 1)),
 	   PART_INFO_LEN);
 
-  d_printf("beg head %d, sec %d, cyl %d = end head %d, sec %d, cyl %d\n",
-	   p.start_head, p.start_sector,
-	   PTBL_HL_GET(&p, start_track),
-	   p.end_head, p.end_sector,
-	   PTBL_HL_GET(&p, end_track));
-  d_printf("pre_secs %d, num_secs %d = %x, -dp->header %ld = 0x%lx\n",
-	   p.num_sect_preceding, p.num_sectors,
-	   p.num_sectors,
-	   (long) -dp->header, (unsigned long) -dp->header);
+  print_partition_entry(&p);
 
   /* XXX - make sure there is only 1 partition by zero'ing out others */
   for (i = 1; i <= 3; i++) {
