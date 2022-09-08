@@ -744,7 +744,7 @@ line:		CHARSET '{' charset_flags '}' {}
 		  '{' trace_mmio_flags '}'
 		| DISK
 		    { start_disk(); }
-		  '{' disk_flags '}'
+		  '{' disk_type disk_flags '}'
 		    { stop_disk(DISK); }
 		| L_FLOPPY
 		    { start_floppy(); }
@@ -1539,7 +1539,7 @@ floppy_flag	: READONLY              { dptr->rdonly = 1; }
 		| error
 		;
 
-disk_flags	: disk_flag
+disk_flags	:
 		| disk_flags disk_flag
 		;
 disk_flag	: READONLY		{ dptr->rdonly = 1; }
@@ -1552,7 +1552,12 @@ disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		| TRACKS expression	{ dptr->tracks = $2; }
 		| HEADS expression		{ dptr->heads = $2; }
 		| OFFSET expression	{ dptr->header = $2; }
-		| HDIMAGE string_expr
+		| STRING
+		    { yyerror("unrecognized disk flag '%s'\n", $1); free($1); }
+		| error
+		;
+
+disk_type	: HDIMAGE string_expr
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a harddisk-image file given.");
@@ -1582,7 +1587,7 @@ disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		  dptr->dev_name = $2;
 		  }
 		| STRING
-		    { yyerror("unrecognized disk flag '%s'\n", $1); free($1); }
+		    { yyerror("unrecognized disk type '%s'\n", $1); free($1); }
 		| error
 		;
 
