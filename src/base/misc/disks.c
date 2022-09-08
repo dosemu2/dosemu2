@@ -961,9 +961,18 @@ static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr)
   long	end;		/* last sector number offset		*/
   unsigned char	*p;	/* ptr to part table entry to create	*/
 
-  if (ioctl(dp->fdesc, BLKGETSIZE, &length)) {
-    error("calling ioctl BLKGETSIZE for PARTITION %s\n", dp->dev_name);
-    leavedos(22);
+  if (!dp->part_image) {
+    if (ioctl(dp->fdesc, BLKGETSIZE, &length)) {
+      error("calling ioctl BLKGETSIZE for PARTITION %s\n", dp->dev_name);
+      leavedos(22);
+    }
+  } else {
+    struct stat sb;
+    if (fstat(dp->fdesc, &sb)) {
+      error("calling ioctl BLKGETSIZE for PARTITION %s\n", dp->dev_name);
+      leavedos(22);
+    }
+    length = sb.st_size;
   }
 #define SECPERCYL	(dp->heads * dp->sectors)
 #define CYL(s)		((s)/SECPERCYL)			/* 0-based */

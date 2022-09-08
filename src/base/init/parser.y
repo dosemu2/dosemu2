@@ -1552,6 +1552,7 @@ disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		| TRACKS expression	{ dptr->tracks = $2; }
 		| HEADS expression		{ dptr->heads = $2; }
 		| OFFSET expression	{ dptr->header = $2; }
+		| L_PARTITION		{ dptr->part_image = 1; }
 		| STRING
 		    { yyerror("unrecognized disk flag '%s'\n", $1); free($1); }
 		| error
@@ -2250,6 +2251,9 @@ static void stop_disk(int token)
     }
 #endif
   }
+
+  if (dptr->type == IMAGE && dptr->part_image)
+    dptr->type = PARTITION; // image of a partition
 
   if (dptr->type == IMAGE) {
     char buf[HEADER_SIZE];
