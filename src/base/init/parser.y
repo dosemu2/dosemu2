@@ -1552,19 +1552,6 @@ disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		| TRACKS expression	{ dptr->tracks = $2; }
 		| HEADS expression		{ dptr->heads = $2; }
 		| OFFSET expression	{ dptr->header = $2; }
-		| DEVICE string_expr
-		  {
-		  if (dptr->dev_name != NULL)
-		    yyerror("Two names for a disk-image file or device given.");
-		  free(dptr->dev_name);
-		  dptr->dev_name = $2;
-		  }
-		| L_FILE string_expr
-		  {
-		  if (dptr->dev_name != NULL)
-		    yyerror("Two names for a disk-image file or device given.");
-		  dptr->dev_name = $2;
-		  }
 		| HDIMAGE string_expr
 		  {
 		  if (dptr->dev_name != NULL)
