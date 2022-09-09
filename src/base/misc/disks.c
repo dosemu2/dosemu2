@@ -75,10 +75,6 @@ struct disk hdisktab[MAX_HDISKS];
 #define FDISKS config.fdisks
 #define HDISKS config.hdisks
 
-#ifdef __linux__
-static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr);
-#endif
-
 #if 1
 #  define FLUSHDISK(dp) flush_disk(dp)
 #else
@@ -758,15 +754,6 @@ static struct on_disk_partition build_pi(struct disk *dp)
   return p;
 }
 
-#ifdef __linux__
-static void update_disk_geometry(struct disk *dp, struct on_disk_partition *p)
-{
-  dp->heads = p->end_head + 1;
-  dp->sectors = p->end_sector;
-  dp->tracks = PTBL_HL_GET(p, end_track) + 1;
-}
-#endif
-
 static void dir_setup(struct disk *dp)
 {
   struct on_disk_mbr *mbr;
@@ -929,163 +916,101 @@ static void image_setup(struct disk *dp)
   }
 }
 
-/* XXX - relies upon a file of SECTOR_SIZE in PARTITION_PATH that which
- *       contains the MBR (first sector) of the drive (i.e. /dev/hda).
- *       only works for /dev/hda1 right now, and only allows one
- *       partition, which must begin at head 1, sec 1, cyl 0 (i.e. linear
- *       sector 2, the second one).
- *       Also, it eats memory proportional to the number of sectors before
- *       the start of the partition.
- */
-
 static void partition_auto(struct disk *dp)
 {
+  struct on_disk_vbr vbr;
+
   d_printf("PARTITION auto\n");
-}
-
-static void partition_setup(struct disk *dp)
-{
-#ifdef __linux__
-  int part_fd, i;
-  unsigned char tmp_mbr[SECTOR_SIZE];
-  char *hd_name;
-  struct on_disk_partition p;
-
-#define PNUM dp->part_info.number
-
-  /* PNUM is 1-based */
-
-  d_printf("PARTITION SETUP for %s\n", dp->dev_name);
-
-  hd_name = strdup(dp->dev_name);
-  hd_name[8] = '\0';			/* i.e.  /dev/hda6 -> /dev/hda */
-
-  part_fd = SILENT_DOS_SYSCALL(open(hd_name, O_RDONLY | O_CLOEXEC));
-  if (part_fd == -1) {
-    if (dp->floppy) {
-      free(hd_name);
-      return;
-    }
-    PNUM = 1;
-    set_part_ent(dp, tmp_mbr);
-    tmp_mbr[0x1fe] = 0x55;
-    tmp_mbr[0x1ff] = 0xaa;
-  } else {
-    (void)RPT_SYSCALL(read(part_fd, tmp_mbr, SECTOR_SIZE));
-    close(part_fd);
-    d_printf("Using MBR from %s for PARTITION %s (part#=%d).\n",
-             hd_name, dp->dev_name, PNUM);
-  }
-  free(hd_name);
-
-  /* check for logical partition, if so simulate as primary part#1 */
-  if (PNUM > 4 ) {
-    d_printf("LOGICAL PARTITION - will be simulated as physical partition 1\n");
-    PNUM = 1;
-    set_part_ent(dp, tmp_mbr);
-  }
-  memcpy(&p, tmp_mbr + 0x1be, sizeof(p));
-  update_disk_geometry(dp, &p);
-
-  /* HelpPC is wrong about the location of num_secs; it says 0xb! */
-
-  /* head should be zero-based, but isn't in the partition table.
-   * sector should be zero-based, and is.
-   */
-#if 0
-  dp->header = -(DISK_OFFSET(dp, dp->part_info.p.start_head - 1,
-			     dp->part_info.p.start_sector,
-			     dp->part_info.p.start_track) +
-		 (SECTOR_SIZE * (dp->part_info.p.num_sect_preceding - 1)));
-#else
-  dp->start = p.num_sect_preceding;
-#endif
-
-  dp->part_info.mbr_size = SECTOR_SIZE;
-  dp->part_info.mbr = malloc(dp->part_info.mbr_size);
-  memcpy(dp->part_info.mbr, tmp_mbr, dp->part_info.mbr_size);
-
-  /* want this to be the first & only partition on the virtual disk */
-  if (PNUM != 1)
-    memcpy(dp->part_info.mbr + PART_INFO_START,
-	 dp->part_info.mbr + PART_INFO_START + (PART_INFO_LEN * (PNUM - 1)),
-	   PART_INFO_LEN);
-
-  print_partition_entry(&p);
-
-  /* XXX - make sure there is only 1 partition by zero'ing out others */
-  for (i = 1; i <= 3; i++) {
-    d_printf("DESTROYING any traces of partition %d\n", i + 1);
-    memset(dp->part_info.mbr + PART_INFO_START + (i * PART_INFO_LEN),
-	   0, PART_INFO_LEN);
-  }
-#endif
-}
-
-/* XXX - this function constructs a primary partition table entry for the device
- *       dp->dev_name which should be a logical DOS partition. This is done by
- *       knowing the preceding sectors & length in sectors, and the geometry
- *       of the drive. The physical h/s/c start and end are calculated and
- *       put in the dp->part_info.number'th entry in the part table.
- */
-#ifdef __linux__
-static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr)
-{
-  long	length;		/* partition length in sectors		*/
-  long	end;		/* last sector number offset		*/
-  unsigned char	*p;	/* ptr to part table entry to create	*/
 
   if (!dp->part_image) {
+#ifdef __linux__
+    unsigned long length;
     if (ioctl(dp->fdesc, BLKGETSIZE, &length)) {
       error("calling ioctl BLKGETSIZE for PARTITION %s\n", dp->dev_name);
       leavedos(22);
     }
+    dp->num_secs = length;
+#else
+    error("no support for block device PARTITION on non linux platforms\n");
+    leavedos(22);
+#endif
   } else {
     struct stat sb;
     if (fstat(dp->fdesc, &sb)) {
-      error("calling ioctl BLKGETSIZE for PARTITION %s\n", dp->dev_name);
+      error("calling ioctl FSTAT for PARTITION(image) %s\n", dp->dev_name);
       leavedos(22);
     }
-    length = sb.st_size;
+    dp->num_secs = sb.st_size / SECTOR_SIZE;
   }
-#define SECPERCYL	(dp->heads * dp->sectors)
-#define CYL(s)		((s)/SECPERCYL)			/* 0-based */
-#define HEAD(s)		(((s)%SECPERCYL)/dp->sectors)	/* 0-based */
-#define SECT(s)		(((s)%dp->sectors)+1)		/* 1-based */
 
-  d_printf("SET_PART_ENT: making part table entry for device %s,\n",
-	dp->dev_name);
-  d_printf("Calculated physical start: head=%4ld sect=%4ld cyl=%4ld,\n",
-	HEAD(dp->start), SECT(dp->start), CYL(dp->start));
-  end = dp->start+length-1;
-  d_printf("Calculated physical end:   head=%4ld sect=%4ld cyl=%4ld.\n",
-	HEAD(end), SECT(end), CYL(end));
-
-  /* get address of where to put new part table entry */
-  p = tmp_mbr + PART_INFO_START + (PART_INFO_LEN * (dp->part_info.number-1));
-
-  /* initialize with LBA values */
-  p[1] = p[5] = 254;
-  p[2] = p[6] = 255;
-  p[3] = p[7] = 255;
-  p[4] = 0xe;
-
-  p[0] = PART_BOOT;						/* bootable  */
-  if (CYL(dp->start) <= 1023) {
-    p[1] = HEAD(dp->start);					/* beg head  */
-    p[2] = SECT(dp->start) | ((CYL(dp->start) >> 2) & 0xC0);	/* beg sect  */
-    p[3] = CYL(dp->start) & 0xFF;				/* beg cyl   */
+  lseek(dp->fdesc, 0, SEEK_SET);
+  if (RPT_SYSCALL(read(dp->fdesc, &vbr, sizeof(vbr))) != sizeof(vbr)) {
+    error("could not read first sector PARTITION %s\n", dp->dev_name);
+    leavedos(22);
   }
-  if (CYL(end) <= 1023) {
-    p[4] = (length < 32*1024*1024/SECTOR_SIZE)? 0x04 : 0x06;	/* dos sysid */
-    p[5] = HEAD(end);						/* end head  */
-    p[6] = SECT(end) | ((CYL(end) >> 2) & 0xC0);		/* end sect  */
-    p[7] = CYL(end) & 0xFF;					/* end cyl   */
+
+  if (vbr.signature == VBR_SIG &&
+      vbr.bpb.media_type == 0xf8 && vbr.bpb.num_fats == 2) {
+
+    d_printf("VBR found, we have a filesystem on PARTITION %s\n", dp->dev_name);
+
+    if (vbr.bpb.num_sectors_small == 0 && (
+        vbr.bpb.v340_400_signature == BPB_SIG_V340 ||
+        vbr.bpb.v340_400_signature == BPB_SIG_V400))
+      dp->num_secs = vbr.bpb.v331_400_num_sectors_large;
+    else if (vbr.bpb7.num_sectors_small == 0 && (
+        vbr.bpb7.signature == BPB_SIG_V7_SHORT ||
+        vbr.bpb7.signature == BPB_SIG_V7_LONG))
+      dp->num_secs = vbr.bpb7.num_sectors_large;
+    else
+      dp->num_secs = vbr.bpb.num_sectors_small;
+    dp->heads = vbr.bpb.num_heads;
+    dp->sectors = vbr.bpb.sectors_per_track;
+
+  } else {
+    dp->heads = 254;
+    dp->sectors = 255;
   }
-  *((uint32_t *)(p+8)) = dp->start;				/* pre sects */
-  *((uint32_t *)(p+12)) = length;				/* len sects */
+
+  // Must also set these for build_pi input in setup phase
+  dp->start = dp->sectors; // one cylinder for mbr + alignment
+  dp->tracks = dp->num_secs / dp->sectors / dp->heads;
+
+  dp->header = 0;
 }
-#endif
+
+static void partition_setup(struct disk *dp)
+{
+  struct on_disk_mbr *mbr;
+  struct on_disk_vbr vbr;
+
+  d_printf("PARTITION SETUP for %s\n", dp->dev_name);
+
+  if (dp->floppy) {
+    return;
+  }
+
+  dp->part_info.number = 1;
+  dp->part_info.mbr_size = sizeof(*mbr);
+  dp->part_info.mbr = malloc(dp->part_info.mbr_size);
+  mbr = (struct on_disk_mbr *)dp->part_info.mbr;
+
+  memset(mbr, 0, sizeof(*mbr));
+  memcpy(mbr->code, mbr_boot_code, sizeof(mbr_boot_code));
+  mbr->partition[0] = build_pi(dp);
+  mbr->signature = MBR_SIG;
+
+  lseek(dp->fdesc, 0, SEEK_SET);
+  if (RPT_SYSCALL(read(dp->fdesc, &vbr, sizeof(vbr))) != sizeof(vbr)) {
+    d_printf("  bpb could not be read\n");
+  } else {
+    print_bpb(&vbr.bpb);
+  }
+
+  print_partition_entry(&mbr->partition[0]);
+  print_disk_structure(dp);
+}
+
 void
 disk_close(void)
 {
