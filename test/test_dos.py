@@ -35,7 +35,7 @@ from func_lfs_file_info import lfs_file_info
 from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
 from func_memory_ems_borland import memory_ems_borland
-from func_memory_hma import memory_hma_freespace, memory_hma_alloc
+from func_memory_hma import memory_hma_freespace, memory_hma_alloc, memory_hma_a20
 from func_mfs_findfile import mfs_findfile
 from func_mfs_truename import mfs_truename
 from func_pit_mode_2 import pit_mode_2
@@ -3295,6 +3295,11 @@ $_floppy_a = ""
         """Memory HMA allocation"""
         memory_hma_alloc(self)
     test_memory_hma_alloc.hmatest = True
+
+    def test_memory_hma_a20(self):
+        """Memory HMA a20 toggle"""
+        memory_hma_a20(self)
+    test_memory_hma_a20.hmatest = True
 
     def test_memory_hma_freespace(self):
         """Memory HMA freespace"""
