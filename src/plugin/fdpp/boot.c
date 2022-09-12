@@ -117,8 +117,9 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
 	}
     });
 
-    env_len += sprintf(env + env_len, "#0 :SWITCHES=/F%s",
-	    config.dos_trace ? "/Y" : "");
+    env_len += sprintf(env + env_len, "#0 :SWITCHES=/F/T%s",
+	    config.dos_trace ? "/Y" : ""
+    );
     env_len++;
     if (config.country) {
 	env_len += sprintf(env + env_len, "#1 :COUNTRY=%i,%i",
