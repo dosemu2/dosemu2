@@ -135,16 +135,6 @@ struct pkt_statistics *p_stats;
 
 /************************************************************************/
 
-/* initialize the packet driver interface (called at startup) */
-void pkt_priv_init(void)
-{
-    if (!config.pktdrv)
-      return;
-
-    /* initialize the globals */
-    LibpacketInit();
-}
-
 void
 pkt_init(void)
 {

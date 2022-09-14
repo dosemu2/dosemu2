@@ -188,13 +188,6 @@ static void init_cbk(int fd, int mode)
     ne2000state.fdnet = fd;
 }
 
-void ne2000_priv_init(void)
-{
-    if (!config.ne2k)
-        return;
-    LibpacketInit();
-}
-
 void ne2000_init(void)
 {
     NE2000State *s = &ne2000state;
