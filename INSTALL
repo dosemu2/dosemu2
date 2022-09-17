@@ -6,7 +6,7 @@ building and installing dosemu2 from sources
       https://code.launchpad.net/~dosemu2/+archive/ubuntu/ppa
       of from COPR:
       https://copr.fedorainfracloud.org/coprs/stsp/dosemu2/
-    - gcc >= 3.3 or clang >= 3.7.0
+    - gcc >= 8.1 or clang >= 3.7.0
     - glibc >= 2.20
     - linux >= 3.16 for x86-64, >= 4.7 recommended.
       With older version than 3.16 there may be some problems
