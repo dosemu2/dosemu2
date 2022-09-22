@@ -120,13 +120,15 @@ void virq_init(void)
 
 void virq_reset(void)
 {
-    virq_irr = 0;
     pic_untrigger(VIRQ_IRQ_NUM);
 }
 
 void virq_setup(void)
 {
     SETIVEC(VIRQ_INTERRUPT, BIOS_HLT_BLK_SEG, virq_hlt);
+    /* re-assert irqs */
+    if (virq_irr)
+        pic_request(VIRQ_IRQ_NUM);
 }
 
 void virq_raise(int virq_num)
