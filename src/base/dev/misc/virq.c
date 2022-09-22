@@ -40,6 +40,7 @@
 
 static uint16_t virq_irr;
 static pthread_mutex_t irr_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t hndl_mtx = PTHREAD_MUTEX_INITIALIZER;
 static uint16_t virq_hlt;
 
 struct vhandler_s {
@@ -68,10 +69,12 @@ static void virq_hwc_write(ioport_t port, Bit8u value)
 
     assert(value < VIRQ_MAX);
     vh = &vhandlers[value];
+    pthread_mutex_lock(&hndl_mtx);
     if (vh->hw_handler)
         rc = vh->hw_handler(vh->arg);
     if (rc == VIRQ_HWRET_DONE)
         virq_lower(value);
+    pthread_mutex_unlock(&hndl_mtx);
 }
 
 static void virq_handler(uint16_t idx, HLT_ARG(arg))
@@ -137,6 +140,7 @@ void virq_raise(int virq_num)
     uint16_t mask = 1 << virq_num;
 
     assert(virq_num < VIRQ_MAX);
+    pthread_mutex_lock(&hndl_mtx);
     pthread_mutex_lock(&irr_mtx);
     /* __sync_fetch_and_or() */
     irr = virq_irr;
@@ -144,6 +148,7 @@ void virq_raise(int virq_num)
     if (!irr)
         pic_request(VIRQ_IRQ_NUM);
     pthread_mutex_unlock(&irr_mtx);
+    pthread_mutex_unlock(&hndl_mtx);
 }
 
 static void virq_lower(int virq_num)
