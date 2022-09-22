@@ -157,6 +157,8 @@ static void io_select(void)
           continue;
         if (FD_ISSET(i, &fds)) {
           if (io_callback_func[i].flags & IOFLG_IMMED) {
+            if (io_callback_func[i].flags & IOFLG_MASKED)
+              FD_SET(i, &fds_masked);
             io_callback_func[i].func(i, io_callback_func[i].arg);
           } else {
             FD_SET(i, &fds_masked);

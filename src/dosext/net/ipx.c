@@ -413,7 +413,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
 
   /* if we successfully bound to this port, then record it */
   ipx_insert_socket(port, /* PSP */ 0, sock);
-  add_to_io_select_threaded(sock, ipx_async_callback, &act_fds);
+  add_to_io_select_masked(sock, ipx_async_callback, &act_fds);
   n_printf("IPX: successfully opened socket %i, %04x\n", sock, port);
   *newPort = port;
   return (RCODE_SUCCESS);
@@ -907,7 +907,7 @@ static enum VirqHwRet _ipx_receive(void *arg)
         recvECB = ECBPtr;
       return VIRQ_HWRET_CONT;
     }
-//    ioselect_complete(s->fd);
+    ioselect_complete(s->fd);
     FD_CLR(s->fd, &act_fds);
     n_printf("IPX: completed fd %i\n", s->fd);
   } else {
