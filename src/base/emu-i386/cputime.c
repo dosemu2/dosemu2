@@ -384,6 +384,14 @@ void trigger_idle(void)
   pthread_mutex_unlock(&trigger_mtx);
 }
 
+void untrigger_idle(void)
+{
+  pthread_mutex_lock(&trigger_mtx);
+  if (trigger1 > 0)
+    trigger1--;
+  pthread_mutex_unlock(&trigger_mtx);
+}
+
 void dosemu_sleep(void)
 {
   sigset_t mask;

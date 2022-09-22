@@ -169,7 +169,7 @@ void CRTC_write_value(unsigned char data)
 
   crtc_deb2("CRTC_write_value: crtc[0x%02x] = 0x%02x\n", ind, u);
 
-  reset_idle(1);
+  untrigger_idle();
 
   if(vga.crtc.readonly) {
     /* read only regs 00h-07h with the exception of bit4 in 07h */
