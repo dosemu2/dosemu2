@@ -73,11 +73,12 @@ $(LIB): $(OBJS) $(GENOBJS) | $(BINPATH)/lib
 
 .PHONY:	clean realclean lib echo all install default
 
+# Use wildcards instead of OBJS and DEPENDS because they may depend on
+# a make target. The reason is that on clean we do not include Makefile.conf.
 clean::
-	-rm -f $(OBJS) $(LIB) $(GENSRC) $(DEPENDS) $(GENHDRS) configure *~
+	-rm -f *.o $(LIB) $(GENSRC) *.d $(GENHDRS) configure *~
 
 realclean:: clean
-	rm -f $(DEPENDS)
 	rm -rf autom4te*.cache
 	rm -f Makefile.conf config.log config.status configure aclocal.m4
 	rm -rf plugin/include
