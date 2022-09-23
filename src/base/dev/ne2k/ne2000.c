@@ -469,6 +469,7 @@ static size_t ne2000_receive(NE2000State *s, const uint8_t *buf, size_t size_)
 static void ne2000_ioport_write(NE2000State *s, uint32_t addr, uint32_t val)
 {
     int offset, page, index;
+    int old_full = ne2000_buffer_full(s);
 
     N_printf("NE2000: ne2000_ioport_write()\n");
 
@@ -572,6 +573,10 @@ static void ne2000_ioport_write(NE2000State *s, uint32_t addr, uint32_t val)
             break;
         }
     }
+
+    /* flush if buffer was full */
+    if (old_full && !ne2000_buffer_full(s))
+        ioselect_complete(s->fdnet);
 }
 
 static uint32_t ne2000_ioport_read(NE2000State *s, uint32_t addr)
