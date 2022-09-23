@@ -38,6 +38,8 @@ fi
 
   [ -f VARIOUS.tar ] || wget ${THOST}/VARIOUS.tar
   [ -f TEST_EMM286.tar ] || wget ${THOST}/TEST_EMM286.tar
+  [ -f TEST_CRYNWR.tar ] || wget ${THOST}/TEST_CRYNWR.tar
+  [ -f TEST_MTCP.tar ] || wget ${THOST}/TEST_MTCP.tar
 )
 
 echo
@@ -50,7 +52,6 @@ echo "====================================================="
 # python3 test/test_dos.py FRDOS120TestCase
 # single test example
 # python3 test/test_dos.py FRDOS120TestCase.test_mfs_fcb_rename_wild_1
-
 
 if [ "${CI_EVENT}" = "cron" ] && [ "${TRAVIS}" = "true" ] ; then
   ARGS="--require-attr=cputest"

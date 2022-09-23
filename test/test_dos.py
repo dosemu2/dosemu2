@@ -38,6 +38,7 @@ from func_memory_ems_borland import memory_ems_borland
 from func_memory_hma import memory_hma_freespace, memory_hma_alloc, memory_hma_a20
 from func_mfs_findfile import mfs_findfile
 from func_mfs_truename import mfs_truename
+from func_network import network_pktdriver_mtcp
 from func_pit_mode_2 import pit_mode_2
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
@@ -4681,6 +4682,16 @@ $_floppy_a = ""
     def test_fat_ds3_share_open_setfattrs_two_process(self):
         """FAT DOSv3 share open set file attrs two process DOSv2"""
         ds3_share_open_access(self, "TWO", "FAT", "SETATT")
+
+    def test_network_pktdriver_mtcp_builtin(self):
+        """ Network pktdriver mTCP built-in"""
+        network_pktdriver_mtcp(self, 'builtin')
+    test_network_pktdriver_mtcp_builtin.nettest = True
+
+    def test_network_pktdriver_mtcp_ne2000(self):
+        """ Network pktdriver mTCP NE2000"""
+        network_pktdriver_mtcp(self, 'ne2000')
+    test_network_pktdriver_mtcp_ne2000.nettest = True
 
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
         if ('kvm' in cpu_vm or 'kvm' in cpu_vm_dpmi) and not access("/dev/kvm", W_OK|R_OK):
