@@ -301,27 +301,7 @@ static void ne2000_ether_send(NE2000State *s, uint8_t *buf, int len)
 
 static int ne2000_ether_recv(NE2000State *s, uint8_t *buf, int bufsiz)
 {
-    struct timeval tv;
-    fd_set readset;
     int ret;
-
-    tv.tv_sec = 0;
-    tv.tv_usec = 0;
-
-    /* anything ready? */
-    FD_ZERO(&readset);
-    FD_SET(s->fdnet, &readset);
-
-    /* anything ready? */
-    if (select(s->fdnet + 1, &readset, NULL, NULL, &tv) <= 0) {
-        N_printf("NE2000: ne2000_ether_recv() select failed\n");
-        return -1;
-    }
-
-    if (!FD_ISSET(s->fdnet, &readset)) {
-        N_printf("NE2000: ne2000_ether_recv() nothing to read\n");
-        return -1;
-    }
 
     ret = read(s->fdnet, buf, bufsiz);
     ioselect_complete(s->fdnet);
