@@ -34,7 +34,8 @@
 
 #define VIRQ_IRR_PORT 0x50a
 #define VIRQ_HWC_PORT (VIRQ_IRR_PORT + 2)
-#define VIRQ_TOTAL_PORTS 3
+#define VIRQ_RST_PORT (VIRQ_IRR_PORT + 3)
+#define VIRQ_TOTAL_PORTS 4
 #define VIRQ_IRQ_NUM 0xf
 #define VIRQ_INTERRUPT (VIRQ_IRQ_NUM - 8 + 0x70)
 
@@ -67,14 +68,28 @@ static void virq_hwc_write(ioport_t port, Bit8u value)
     struct vhandler_s *vh;
     enum VirqHwRet rc = VIRQ_HWRET_DONE;
 
-    assert(value < VIRQ_MAX);
-    vh = &vhandlers[value];
-    pthread_mutex_lock(&hndl_mtx);
-    if (vh->hw_handler)
-        rc = vh->hw_handler(vh->arg);
-    if (rc == VIRQ_HWRET_DONE)
-        virq_lower(value);
-    pthread_mutex_unlock(&hndl_mtx);
+    switch (port) {
+    case VIRQ_RST_PORT:
+        switch (value) {
+        case 1:
+            /* re-assert irqs */
+            if (virq_irr)
+                pic_request(VIRQ_IRQ_NUM);
+            break;
+        }
+        break;
+
+    case VIRQ_HWC_PORT:
+        assert(value < VIRQ_MAX);
+        vh = &vhandlers[value];
+        pthread_mutex_lock(&hndl_mtx);
+        if (vh->hw_handler)
+            rc = vh->hw_handler(vh->arg);
+        if (rc == VIRQ_HWRET_DONE)
+            virq_lower(value);
+        pthread_mutex_unlock(&hndl_mtx);
+        break;
+    }
 }
 
 static void virq_handler(uint16_t idx, HLT_ARG(arg))
@@ -129,9 +144,7 @@ void virq_reset(void)
 void virq_setup(void)
 {
     SETIVEC(VIRQ_INTERRUPT, BIOS_HLT_BLK_SEG, virq_hlt);
-    /* re-assert irqs */
-    if (virq_irr)
-        pic_request(VIRQ_IRQ_NUM);
+    port_outb(VIRQ_RST_PORT, 1);
 }
 
 void virq_raise(int virq_num)
