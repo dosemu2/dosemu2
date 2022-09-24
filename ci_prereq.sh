@@ -24,4 +24,7 @@ sudo apt install -y \
   libi86-ia16-elf \
   libi86-testsuite-ia16-elf \
   gcc-multilib \
-  dos2unix
+  dos2unix \
+  bridge-utils \
+  libvirt-daemon \
+  libvirt-daemon-system

@@ -32,6 +32,8 @@ VFAT_FIMAGE = "/img/dosemu.img"
 VFAT_HELPER = "/bin/dosemu_fat_mount.sh"
 VFAT_MNTPNT = "/mnt/dosemu"
 
+TAP_HELPER = "/bin/dosemu_tap_interface.sh"
+
 
 def mkstring(length):
     return ''.join(random.choice(string.hexdigits) for x in range(length))
@@ -55,11 +57,26 @@ def setup_vfat_mounted_image(self):
     except (CalledProcessError, TimeoutExpired):
         self.skipTest("mount helper ineffective")
 
+
 def teardown_vfat_mounted_image(self):
     if not exists(VFAT_HELPER):
         self.skipTest("mount helper not installed")
 
     check_call(["sudo", VFAT_HELPER, "umount"], stderr=STDOUT)
+
+
+def setup_tap_interface(self):
+    if not exists(TAP_HELPER):
+        self.skipTest("tap interface helper not installed")
+
+    check_call(["sudo", TAP_HELPER, "setup"], stderr=STDOUT)
+
+
+def teardown_tap_interface(self):
+    if not exists(TAP_HELPER):
+        self.skipTest("tap interface helper not installed")
+
+    check_call(["sudo", TAP_HELPER, "teardown"], stderr=STDOUT)
 
 
 class BaseTestCase(object):
