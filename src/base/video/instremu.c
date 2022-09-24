@@ -706,8 +706,9 @@ unsigned instr_shift(unsigned op, unsigned op1, unsigned op2, unsigned size, uns
     if (op2 > 0) {
       instr_flags(result, smask, eflags);
       *eflags &= ~(CF|OF);
-      *eflags |= ((op1 >> (width-op2))&CF) |
-        ((((op1 >> (width-1)) ^ (op1 >> (width-2))) << 11) & OF);
+      if (width >= op2)
+        *eflags |= (op1 >> (width-op2)) & CF;
+      *eflags |= (((op1 >> (width-1)) ^ (op1 >> (width-2))) << 11) & OF;
     }
     return result;
   case 5: /* shr */
