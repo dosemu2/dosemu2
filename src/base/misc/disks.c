@@ -1210,11 +1210,6 @@ disk_init(void)
 
 static void disk_reset2(void)
 {
-#ifdef SILLY_GET_GEOMETRY
-  int s;
-  char buf[512], label[12];
-#endif
-
   struct stat stbuf;
   struct disk *dp;
   int i;
@@ -1292,52 +1287,6 @@ static void disk_reset2(void)
      * (mostly for the partition type)
      */
     disk_fptrs[dp->type].setup(dp);
-
-    /* this really doesn't make sense...where the disk geometry
-     * is in reality given for the actual disk (i.e. /dev/hda)
-     * NOT the partition (i.e. /dev/hda1), the code below returns
-     * the values for the partition.
-     *
-     * don't use this code...it's stupid.
-     */
-#ifdef SILLY_GET_GEOMETRY
-    if (RPT_SYSCALL(read(dp->fdesc, buf, 512)) != 512) {
-      error("can't read disk info of %s\n", dp->dev_name);
-      config.exitearly = 1;
-    }
-
-    dp->sectors = *(us *) & buf[0x18];	/* sectors per track */
-    dp->heads = *(us *) & buf[0x1a];	/* heads */
-
-    /* for partitions <= 32MB, the number of sectors is at offset 19.
-     * since DOS 4.0, larger partitions have the # of sectors as a long
-     * at offset 32, and the number at 19 is set to 0
-     */
-    s = *(us *) & buf[19];
-    if (!s) {
-      s = *(uint32_t *) &buf[32];
-      d_printf("DISK: zero # secs, so DOS 4 # secs = %d\n", s);
-    }
-    s += *(us *) & buf[28];	/* + hidden sectors */
-
-    dp->num_secs = s;
-    dp->tracks = s / (dp->sectors * dp->heads);
-
-    d_printf("DISK read_info disk %s; h=%d, s=%d, t=%d, #=%d, hid=%d\n",
-	     dp->dev_name, dp->heads, dp->sectors, dp->tracks,
-	     s, *(us *) & buf[28]);
-
-    /* print serial # and label (DOS 4+ only) */
-    memcpy(label, &buf[0x2b], 11);
-    label[11] = 0;
-    g_printf("VOLUME serial #: 0x%08x, LABEL: %s\n",
-	     *(unsigned int *) &buf[39], label);
-
-    if (s % (dp->sectors * dp->heads) != 0) {
-      error("incorrect track number of %s\n", dp->dev_name);
-      /* leavedos(28); */
-    }
-#endif
   });
 }
 
