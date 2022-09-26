@@ -69,9 +69,9 @@ static int current_client;
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
-#define DEFAULT_INT(i) ( \
-    DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel() && \
-    DPMI_CLIENT.Interrupt_Table[i].offset < DPMI_SEL_OFF(DPMI_sel_end))
+#define DEFAULT_INT(i) (!DPMI_CLIENT.Interrupt_Table[i].selector || \
+    (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel() && \
+    DPMI_CLIENT.Interrupt_Table[i].offset < DPMI_SEL_OFF(DPMI_sel_end)))
 
 #define _isset_IF() (!!(_eflags & IF))
 #define _isset_TF() (!!(_eflags & TF))
