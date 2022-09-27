@@ -195,9 +195,9 @@ static void dump_disk_blks(unsigned tb, int count, int ssiz)
 int read_mbr(const struct disk *dp, unsigned buffer)
 {
   /* copy the MBR... */
-  e_invalidate(buffer, dp->part_info.mbr_size);
-  memcpy_2dos(buffer, dp->part_info.mbr, dp->part_info.mbr_size);
-  return dp->part_info.mbr_size;
+  e_invalidate(buffer, sizeof(dp->part_info.mbr));
+  memcpy_2dos(buffer, &dp->part_info.mbr, sizeof(dp->part_info.mbr));
+  return sizeof(dp->part_info.mbr);
 }
 
 /* read_sectors
@@ -279,11 +279,11 @@ read_sectors(const struct disk *dp, unsigned buffer, uint64_t sector,
      */
 
     /* copy the MBR... */
-    if(mbroff < dp->part_info.mbr_size) {
-      mbrread = dp->part_info.mbr_size - mbroff;
+    if(mbroff < sizeof(dp->part_info.mbr)) {
+      mbrread = sizeof(dp->part_info.mbr) - mbroff;
       mbrread = mbrread > readsize ? readsize : mbrread;
       e_invalidate(buffer, mbrread);
-      memcpy_2dos(buffer, dp->part_info.mbr + mbroff, mbrread);
+      memcpy_2dos(buffer, (const uint8_t *)&dp->part_info.mbr + mbroff, mbrread);
       d_printf("read 0x%lx bytes from MBR, ofs = 0x%lx (0x%lx bytes left)\n",
         (unsigned long) mbrread, (unsigned long) mbroff, (unsigned long) (readsize - mbrread)
       );
@@ -756,8 +756,6 @@ static struct on_disk_partition build_pi(struct disk *dp)
 
 static void dir_setup(struct disk *dp)
 {
-  struct on_disk_mbr *mbr;
-
   int i = strlen(dp->dev_name);
   while (--i >= 0)
     if (dp->dev_name[i] == '/')
@@ -765,23 +763,14 @@ static void dir_setup(struct disk *dp)
     else
       break;
 
-  if (dp->floppy) {
-    dp->part_info.mbr_size = 0;
-    dp->part_info.mbr = NULL;
-
-  } else {
+  if (!dp->floppy) {
     dp->part_info.number = 1;
-    dp->part_info.mbr_size = sizeof(*mbr);
-    dp->part_info.mbr = malloc(dp->part_info.mbr_size);
-    mbr = (struct on_disk_mbr *)dp->part_info.mbr;
-
-    memset(mbr, 0, sizeof(*mbr));
-    memcpy(mbr->code, mbr_boot_code, sizeof(mbr_boot_code));
-    mbr->partition[0] = build_pi(dp);
-    mbr->signature = MBR_SIG;
+    memcpy(&dp->part_info.mbr.code, &mbr_boot_code, sizeof(mbr_boot_code));
+    dp->part_info.mbr.partition[0] = build_pi(dp);
+    dp->part_info.mbr.signature = MBR_SIG;
 
     d_printf("DIR setup disk %s:\n", dp->dev_name);
-    print_partition_entry(&mbr->partition[0]);
+    print_partition_entry(&dp->part_info.mbr.partition[0]);
     print_disk_structure(dp);
   }
 
@@ -900,8 +889,6 @@ static void image_setup(struct disk *dp)
   }
 
   dp->part_info.number = 1;
-  dp->part_info.mbr_size = SECTOR_SIZE;
-  dp->part_info.mbr = malloc(dp->part_info.mbr_size);
 
   ret = lseek(dp->fdesc, dp->header, SEEK_SET);
   if (ret == -1) {
@@ -909,8 +896,8 @@ static void image_setup(struct disk *dp)
     leavedos(35);
   }
 
-  rd = read(dp->fdesc, dp->part_info.mbr, dp->part_info.mbr_size);
-  if (rd != dp->part_info.mbr_size) {
+  rd = read(dp->fdesc, &dp->part_info.mbr, sizeof(dp->part_info.mbr));
+  if (rd != sizeof(dp->part_info.mbr)) {
     error("image_setup: Can't read MBR from '%s'\n", dp->dev_name);
     leavedos(35);
   }
@@ -981,7 +968,6 @@ static void partition_auto(struct disk *dp)
 
 static void partition_setup(struct disk *dp)
 {
-  struct on_disk_mbr *mbr;
   struct on_disk_vbr vbr;
 
   d_printf("PARTITION SETUP for %s\n", dp->dev_name);
@@ -991,14 +977,9 @@ static void partition_setup(struct disk *dp)
   }
 
   dp->part_info.number = 1;
-  dp->part_info.mbr_size = sizeof(*mbr);
-  dp->part_info.mbr = malloc(dp->part_info.mbr_size);
-  mbr = (struct on_disk_mbr *)dp->part_info.mbr;
-
-  memset(mbr, 0, sizeof(*mbr));
-  memcpy(mbr->code, mbr_boot_code, sizeof(mbr_boot_code));
-  mbr->partition[0] = build_pi(dp);
-  mbr->signature = MBR_SIG;
+  memcpy(&dp->part_info.mbr.code, &mbr_boot_code, sizeof(mbr_boot_code));
+  dp->part_info.mbr.partition[0] = build_pi(dp);
+  dp->part_info.mbr.signature = MBR_SIG;
 
   lseek(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, &vbr, sizeof(vbr))) != sizeof(vbr)) {
@@ -1007,7 +988,7 @@ static void partition_setup(struct disk *dp)
     print_bpb(&vbr.bpb);
   }
 
-  print_partition_entry(&mbr->partition[0]);
+  print_partition_entry(&dp->part_info.mbr.partition[0]);
   print_disk_structure(dp);
 }
 
@@ -1338,16 +1319,13 @@ static void hdisk_reset(int num)
 
 int disk_is_bootable(const struct disk *dp)
 {
-  uint8_t *p;
   switch (dp->type) {
     case DIR_TYPE:
       return fatfs_is_bootable(dp->fatfs);
     case IMAGE:
       if (dp->floppy)
         return 1;
-      p = dp->part_info.mbr + PART_INFO_START +
-        (PART_INFO_LEN * (dp->part_info.number-1));
-      return (p[0] == PART_BOOT);
+      return dp->part_info.mbr.partition[dp->part_info.number - 1].bootflag == PART_BOOT;
     default:		// fsck on other types
       return 1;
   }

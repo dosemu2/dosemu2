@@ -120,12 +120,6 @@ struct on_disk_partition {
 static_assert(sizeof(struct on_disk_partition) == 16,
 		"on_disk_partition size is incorrect");
 
-struct partition {
-  int number;
-  unsigned char *mbr;		/* fake Master Boot Record */
-  int mbr_size;			/* usu. 1 sector */
-};
-
 struct on_disk_mbr {
   uint8_t code[PART_INFO_START];
   struct on_disk_partition partition[4];
@@ -145,6 +139,11 @@ struct on_disk_vbr {
 } __attribute__((packed));
 static_assert(sizeof(struct on_disk_vbr) == 512,
 		"on_disk_vbr size is incorrect");
+
+struct partition {
+  int number;
+  struct on_disk_mbr mbr;	/* fake Master Boot Record */
+};
 
 /* CMOS types for the floppies */
 typedef enum {
