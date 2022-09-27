@@ -36,6 +36,38 @@
 #include "redirect.h"
 #include "cpu-emu.h"
 
+static uint8_t mbr_boot_code[] = {
+  /*
+   * Present the usual start to the code in an MBR
+
+     jmp short @1
+     nop
+   */
+  0xeb,
+  0x01,
+  0x90,
+  /*
+   @1:
+     mov ax,0fffeh
+     int 0e6h
+   */
+  0xb8,
+  DOS_HELPER_MBR,
+  0xff,
+  0xcd,
+  DOS_HELPER_INT,
+  /*
+   * This is an instruction that we never execute and is present only to
+   * convince Norton Disk Doctor that we are a valid mbr
+
+     int 0x13
+   */
+  0xcd,
+  0x13,
+};
+static_assert(sizeof(mbr_boot_code) < PART_INFO_START,
+    "mbr_boot_code size is incorrect");
+
 static int disks_initiated = 0;
 struct disk disktab[MAX_FDISKS];
 struct disk hdisktab[MAX_HDISKS];
@@ -694,6 +726,9 @@ static void dir_auto(struct disk *dp)
   }
 
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
+
+  dp->header = 0;
+
   d_printf(
     "DIR auto disk %s; h=%d, s=%d, t=%d, start=%ld\n",
     dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start
@@ -734,46 +769,33 @@ static void update_disk_geometry(struct disk *dp, struct on_disk_partition *p)
 
 static void dir_setup(struct disk *dp)
 {
-  unsigned char *mbr;
-  struct partition *pi = &dp->part_info;
+  struct on_disk_mbr *mbr;
+
   int i = strlen(dp->dev_name);
+  while (--i >= 0)
+    if (dp->dev_name[i] == '/')
+      dp->dev_name[i] = 0;
+    else
+      break;
 
-  while(--i >= 0) if(dp->dev_name[i] == '/') dp->dev_name[i] = 0; else break;
-
-  dp->header = 0;
   if (dp->floppy) {
-    pi->mbr_size = 0;
-    pi->mbr = NULL;
+    dp->part_info.mbr_size = 0;
+    dp->part_info.mbr = NULL;
+
   } else {
-    struct on_disk_partition *mp, p;
-    p = build_pi(dp);
-    pi->mbr_size = SECTOR_SIZE;
-    pi->mbr = malloc(pi->mbr_size);
-    mbr = pi->mbr;
-    mp = (struct on_disk_partition *)&mbr[PART_INFO_START];
+    dp->part_info.number = 1;
+    dp->part_info.mbr_size = sizeof(*mbr);
+    dp->part_info.mbr = malloc(dp->part_info.mbr_size);
+    mbr = (struct on_disk_mbr *)dp->part_info.mbr;
 
-    memset(mbr, 0, SECTOR_SIZE);
-    /*
-     * mov ax,0fffeh
-     * int 0e6h
-     */
-    mbr[0x00] = 0xb8;
-    mbr[0x01] = DOS_HELPER_MBR;
-    mbr[0x02] = 0xff;
-    mbr[0x03] = 0xcd;
-    mbr[0x04] = DOS_HELPER_INT;
-
-    /* This is an instruction that we never execute and is present only to
-     * convince Norton Disk Doctor that we are a valid mbr */
-    mbr[0x05] = 0xcd; /* int 0x13 */
-    mbr[0x06] = 0x13;
-
-    *mp = p;
-    mbr[SECTOR_SIZE - 2] = 0x55;
-    mbr[SECTOR_SIZE - 1] = 0xaa;
+    memset(mbr, 0, sizeof(*mbr));
+    memcpy(mbr->code, mbr_boot_code, sizeof(mbr_boot_code));
+    mbr->partition[0] = build_pi(dp);
+    mbr->signature = MBR_SIG;
 
     d_printf("DIR setup disk %s:\n", dp->dev_name);
-    print_partition_entry(&p);
+    print_partition_entry(&mbr->partition[0]);
+    print_disk_structure(dp);
   }
 
   dp->fatfs = NULL;
