@@ -8,11 +8,13 @@
 #include "fatfs.h"
 #define PART_INFO_START		0x1be	/* offset in MBR for partition table */
 #define PART_INFO_LEN		0x10	/* size of each partition record */
-#define PART_SIG		0x55aa	/* magic signature */
+#define MBR_SIG			0xaa55	/* magic signature */
+#define VBR_SIG			0xaa55	/* magic signature */
 
 #define PART_NOBOOT	0
 #define PART_BOOT	0x80
 
+#include <assert.h>
 #include <stdint.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -60,6 +62,41 @@ struct on_disk_bpb {
   char v400_vol_label[11];
   char v400_fat_type[8];
 } __attribute__((packed));
+static_assert(sizeof(struct on_disk_bpb) == 51,
+		"on_disk_bpb size is incorrect");
+
+struct on_disk_bpb7 {
+  uint16_t bytes_per_sector;
+  uint8_t sectors_per_cluster;
+  uint16_t reserved_sectors;
+  uint8_t num_fats;
+  uint16_t num_root_entries;
+  uint16_t num_sectors_small;
+  uint8_t media_type;
+  uint16_t sectors_per_fat;
+  uint16_t sectors_per_track;
+  uint16_t num_heads;
+  uint32_t hidden_sectors;
+  uint32_t num_sectors_large; // this and above are v3.31 equivalent
+
+  uint32_t logical_sectors_per_fat;
+  uint16_t mirroring_flags;
+  uint16_t version;
+  uint32_t root_directory_cluster;
+  uint16_t information_sector;
+  uint16_t backup_sector;
+  char boot_file_name[12];
+  uint8_t drive_number;
+  uint8_t flags;
+#define BPB_SIG_V7_SHORT 0x28
+#define BPB_SIG_V7_LONG 0x29
+  uint8_t signature;
+  uint32_t serial_number;
+  char long_vol_label[11];
+  char long_fat_type[8];
+} __attribute__((packed));
+static_assert(sizeof(struct on_disk_bpb7) == 79,
+		"on_disk_bpb7 size is incorrect");
 
 #define PTBL_HL_SET(p, f, v) do { \
   (p)->f##_hi = (v) >> 8; \
@@ -80,11 +117,32 @@ struct on_disk_partition {
   unsigned int num_sect_preceding;	/* starting sector counting from 0 */
   unsigned int num_sectors;		/* nr of sectors in partition */
 } __attribute__((packed));
+static_assert(sizeof(struct on_disk_partition) == 16,
+		"on_disk_partition size is incorrect");
+
+struct on_disk_mbr {
+  uint8_t code[PART_INFO_START];
+  struct on_disk_partition partition[4];
+  uint16_t signature;           /* MBR_SIG 0xaa55 */
+} __attribute__((packed));
+static_assert(sizeof(struct on_disk_mbr) == 512,
+		"on_disk_mbr size is incorrect");
+
+struct on_disk_vbr {
+  uint8_t code[0x0b];
+  union ubpb {
+    struct on_disk_bpb bpb;
+    struct on_disk_bpb7 bpb7;
+  };
+  uint8_t pad[0x200 - 0x0b - sizeof(union ubpb) - 0x02];
+  uint16_t signature;           /* VBR_SIG 0xaa55 */
+} __attribute__((packed));
+static_assert(sizeof(struct on_disk_vbr) == 512,
+		"on_disk_vbr size is incorrect");
 
 struct partition {
   int number;
-  unsigned char *mbr;		/* fake Master Boot Record */
-  int mbr_size;			/* usu. 1 sector */
+  struct on_disk_mbr mbr;	/* fake Master Boot Record */
 };
 
 /* CMOS types for the floppies */

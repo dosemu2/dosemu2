@@ -181,13 +181,8 @@ static void process_master_boot_record(void)
      *    SS:BP,DS:SI pointing to the boot partition entry within 0:600 MBR
      *    DI = 0x7dfe
      */
-    struct mbr {
-	char code[PART_INFO_START];
-	struct on_disk_partition partition[4];
-	unsigned short bootmagic;
-    } __attribute__ ((packed));
-    struct mbr *mbr = LOWMEM(0x600);
-    struct mbr *bootrec = LOWMEM(0x7c00);
+    struct on_disk_mbr *mbr = LOWMEM(0x600);
+    struct on_disk_mbr *bootrec = LOWMEM(0x7c00);
     int i;
     unsigned offs;
 
@@ -211,13 +206,13 @@ static void process_master_boot_record(void)
     LWORD(eax) = 0x0201;	/* read one sector */
     LWORD(ebx) = 0x7c00;	/* target offset, ES is 0 */
     do_int_call_back(0x13);
-    if ((REG(eflags) & CF) || (bootrec->bootmagic != 0xaa55)) {
+    if ((REG(eflags) & CF) || (bootrec->signature != MBR_SIG)) {
 	/* error while booting */
 	error("error on reading bootsector, Leaving DOS...\n");
 	leavedos(99);
     }
 
-    offs = 0x600 + offsetof(struct mbr, partition) + sizeof(mbr->partition[0]) * i;
+    offs = 0x600 + offsetof(struct on_disk_mbr, partition) + sizeof(mbr->partition[0]) * i;
     coopth_add_post_handler(mbr_jmp, (void *) (long) offs);
 }
 
