@@ -815,6 +815,9 @@ static void *render_thread(void *arg)
 
 int SDL_set_videomode(struct vid_mode_params vmp)
 {
+  SDL_DisplayMode mode;
+  int x_res, y_res, w_x_res, w_y_res;
+
   v_printf
       ("SDL: set_videomode: 0x%x (%s), size %d x %d (%d x %d pixel)\n",
        video_mode, vmp.mode_class ? "GRAPH" : "TEXT",
@@ -824,11 +827,24 @@ int SDL_set_videomode(struct vid_mode_params vmp)
     v_printf("SDL: same mode, not changing\n");
     return 1;
   }
-  if (vmp.mode_class == TEXT && !use_bitmap_font)
-    SDL_change_mode(0, 0, vmp.text_width * font_width,
-		      vmp.text_height * font_height);
-  else
-    SDL_change_mode(vmp.x_res, vmp.y_res, vmp.w_x_res, vmp.w_y_res);
+  if (vmp.mode_class == TEXT && !use_bitmap_font) {
+    x_res = 0;
+    y_res = 0;
+    w_x_res = vmp.text_width * font_width;
+    w_y_res = vmp.text_height * font_height;
+  } else {
+    x_res = vmp.x_res;
+    y_res = vmp.y_res;
+    w_x_res = vmp.w_x_res;
+    w_y_res = vmp.w_y_res;
+  }
+  SDL_GetDesktopDisplayMode(0, &mode);
+  if (mode.w >= w_x_res * 3 && mode.h >= w_y_res * 3) {
+    /* upscale a bit */
+    w_x_res *= 2;
+    w_y_res *= 2;
+  }
+  SDL_change_mode(x_res, y_res, w_x_res, w_y_res);
 
   current_mode_class = vmp.mode_class;
   return 1;
