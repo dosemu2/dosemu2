@@ -12,7 +12,7 @@ endif
 REALTOPDIR ?= $(abspath $(srcdir))
 
 $(REALTOPDIR)/configure: $(REALTOPDIR)/configure.ac
-	cd $(@D) && autoreconf -v -I m4
+	cd $(@D) && autoreconf --install -v -I m4
 
 Makefile.conf config.status src/include/config.hh etc/dosemu.desktop: \
 		$(REALTOPDIR)/configure

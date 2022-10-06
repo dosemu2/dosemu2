@@ -38,10 +38,10 @@ include $(REALTOPDIR)/src/Makefile.common
 vpath UnicodeCrunchedAttributes $(srcdir)
 
 crunch_UnicodeData: crunch_UnicodeData.c
-	$(CC) $(INCDIR) -o $@ $<
+	$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $(INCDIR) -o $@ $<
 
 make_attributes: make_attributes.c
-	$(CC) $(INCDIR) -o $@ $<
+	$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $(INCDIR) -o $@ $<
 
 keysym_attributes.c: UnicodeCrunchedAttributes make_attributes
 	./make_attributes < $< > $@
