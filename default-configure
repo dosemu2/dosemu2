@@ -135,7 +135,7 @@ while [ "$1" != "" ]; do
   shift; shift;
 done
 
-[ -f "$srcdir"/configure ] || "$srcdir"/autogen.sh || exit $?
+[ -f "$srcdir"/install-sh ] || "$srcdir"/autogen.sh || exit $?
 make "$srcdir"/configure
 
 STRING="$STRING --enable-plugins=$PLUGIN,$EXTRA_PLUGINS"

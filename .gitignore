@@ -1,10 +1,10 @@
-install-sh
-install-sh~
+/install-sh
+/config.status
+/config.sub
 *.d
 *.o
 configure
 config.log
-config.status
 aclocal.m4
 autom4te.cache
 Makefile.conf
