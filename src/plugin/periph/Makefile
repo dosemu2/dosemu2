@@ -10,7 +10,7 @@ XSFILES=bootsect.s bootnorm.s
 SRC=$(CFILES)
 OBJ1=hdinfo
 OBJ2=putrom dexeconfig scsicheck dosctrl vbioscheck
-OBJ=$(OBJ1) $(BINPATH)/bin/mkfatimage16 $(BINPATH)/bin/mkhdimage
+OBJ=$(BINPATH)/bin/mkfatimage16 $(BINPATH)/bin/mkhdimage
 
 ALL_CPPFLAGS += -I.
 
