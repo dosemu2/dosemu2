@@ -467,6 +467,9 @@ static int file_is_opened(int dir_fd, const char *name, int *r_err)
 
     err = fstatat(dir_fd, name, &st, 0);
     if (err) {
+        /* check for dangling symlink */
+        if (fstatat(dir_fd, name, &st, AT_SYMLINK_NOFOLLOW) == 0)
+            return 0;
         *r_err = FILE_NOT_FOUND;
         return -1;
     }
@@ -2555,7 +2558,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno)
   }
 
   /* first see if the path exists as is */
-  if (stat(fpath, st) == 0) {
+  if (lstat(fpath, st) == 0) {
     Debug0((dbg_fd, "file exists as is\n"));
     return (TRUE);
   }
@@ -2576,7 +2579,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno)
     slash2 = strchr(slash1 + 1, '/');
     if (slash2)
       *slash2 = 0;
-    if (stat(fpath, st) == 0) {
+    if (lstat(fpath, st) == 0) {
       /* the file exists as is */
       if (st->st_mode & S_IFDIR || !slash2) {
 	if (slash2)
@@ -2618,7 +2621,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno)
   }
 
   /* we've found the file - now stat it */
-  if (stat(fpath, st) != 0) {
+  if (lstat(fpath, st) != 0) {
     Debug0((dbg_fd, "find_file(): can't stat %s\n", fpath));
     return (FALSE);
   }
@@ -4414,7 +4417,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       cnt = strlen(fpath);
       de = &dir_list->de[0];
       for (i = 0; i < dir_list->nr_entries; i++, de++) {
-        if ((de->mode & S_IFMT) == S_IFREG) {
+        if ((de->mode & S_IFMT) == S_IFREG || (de->mode & S_IFMT) == S_IFLNK ||
+                (de->mode & S_IFMT) == 0) {
           struct stat st;
           strcpy(fpath + cnt, de->d_name);
           if (find_file(fpath, &st, drives[drive].root_len, NULL)) {
