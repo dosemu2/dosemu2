@@ -73,7 +73,6 @@ static int midoflus_init(void *arg)
 	"/usr/share/sounds/sf2/FluidR3_GM.sf2.flac",	// ubuntu
 	"/usr/share/sounds/sf2/FluidR3_GM.sf2",		// debian
 	NULL };
-    int use_defsf = 0;
 
     settings = new_fluid_settings();
     fluid_settings_setint(settings, "synth.lock-memory", 0);
@@ -85,40 +84,39 @@ static int midoflus_init(void *arg)
 	    ret = FLUID_OK;
 	} else {
 	    error("soundfont %s missing\n", config.fluid_sfont);
-	    ret = FLUID_FAILED;
+	    goto err1;
 	}
     } else {
 	ret = fluid_settings_dupstr(settings, "synth.default-soundfont",
 		&sfont);
-	if (ret == FLUID_FAILED)
-	    warn("Your fluidsynth is too old\n");
-    }
-    if (ret == FLUID_FAILED || access(sfont, R_OK) != 0) {
-	int i = 0;
-
-	if (sfont)
-	    warn("fluidsynth sound font unavailable at %s\n", sfont);
-	free(sfont);
-	while (def_sfonts[i]) {
-	    if (access(def_sfonts[i], R_OK) == 0) {
-		sfont = strdup(def_sfonts[i]);
-		use_defsf = 1;
-		break;
-	    }
-	    i++;
+	if (ret == FLUID_FAILED) {
+	    error("Your fluidsynth is too old\n");
+	} else if (access(sfont, R_OK) != 0) {
+	    error("fluidsynth sound font unavailable at %s\n", sfont);
+	    free(sfont);
+	    sfont = NULL;
 	}
-	if (!use_defsf) {
-	    error("Your fluidsynth is too old and soundfonts not found\n");
-	    goto err1;
+	if (!sfont) {
+	    int i = 0;
+
+	    while (def_sfonts[i]) {
+		if (access(def_sfonts[i], R_OK) == 0) {
+		    sfont = strdup(def_sfonts[i]);
+		    break;
+		}
+		i++;
+	    }
+	    if (!sfont) {
+		error("soundfonts not found\n");
+		goto err1;
+	    }
 	}
     }
 
     synth = new_fluid_synth(settings);
     ret = fluid_synth_sfload(synth, sfont, TRUE);
     if (ret == FLUID_FAILED) {
-	warn("fluidsynth: cannot load soundfont %s\n", sfont);
-	if (use_defsf)
-	    error("Your fluidsynth is too old\n");
+	error("fluidsynth: cannot load soundfont %s\n", sfont);
 	free(sfont);
 	goto err2;
     }
