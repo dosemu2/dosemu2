@@ -7,7 +7,7 @@ export CC=clang
 	dh $@ --parallel --builddirectory=build
 
 override_dh_autoreconf:
-	dh_autoreconf autoreconf -- -f -i -I m4
+	./autogen.sh
 
 override_dh_auto_configure:
 	dh_auto_configure -O--parallel -- \
