@@ -34,6 +34,18 @@ VFAT_MNTPNT = "/mnt/dosemu"
 
 TAP_HELPER = "/bin/dosemu_tap_interface.sh"
 
+# Get any test binaries we need
+TEST_BINARY_HOST = "http://www.spheresystems.co.uk/test-binaries"
+TEST_BINARIES = (
+    'DR-DOS-7.01.tar',
+    'FR-DOS-1.20.tar',
+    'MS-DOS-6.22.tar',
+    'VARIOUS.tar',
+    'TEST_EMM286.tar',
+    'TEST_CRYNWR.tar',
+    'TEST_MTCP.tar',
+)
+
 
 def mkstring(length):
     return ''.join(random.choice(string.hexdigits) for x in range(length))
@@ -79,6 +91,23 @@ def teardown_tap_interface(self):
     check_call(["sudo", TAP_HELPER, "teardown"], stderr=STDOUT)
 
 
+def get_test_binaries():
+    tbindir = Path('.').resolve() / BINSDIR
+
+    if tbindir.is_symlink():
+        tbindir = tbindir.resolve()
+    if not tbindir.exists():
+        tbindir.mkdir()
+
+    for tfile in TEST_BINARIES:
+        if not Path(tbindir / tfile).exists():
+            check_call([
+                "wget",
+                "--no-verbose",
+                TEST_BINARY_HOST + '/' + tfile,
+            ], stderr=STDOUT, cwd=tbindir)
+
+
 class BaseTestCase(object):
 
     @classmethod
@@ -117,9 +146,11 @@ class BaseTestCase(object):
         if cls.tarfile is None:
             cls.tarfile = cls.prettyname + ".tar"
 
-        if cls.tarfile != "" and not exists(join(BINSDIR, cls.tarfile)):
-            raise unittest.SkipTest(
-                    "TestCase %s binary not available" % cls.prettyname)
+        if cls.tarfile != "":
+            if cls.tarfile not in TEST_BINARIES:
+                exit("\nUpdate tuple TEST_BINARIES for '%s'\n" % cls.prettyname)
+            if not exists(join(BINSDIR, cls.tarfile)):
+                exit("\nMissing test binary file, please run test/test_dos.py --get-test-binaries\n")
 
     @classmethod
     def tearDownClass(cls):
