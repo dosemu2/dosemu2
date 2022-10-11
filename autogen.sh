@@ -4,7 +4,7 @@ DIR=$(dirname $0 | xargs realpath)
 echo "Generating toplevel configure script in $DIR..."
 
 check_scr() {
-  [ -f $DIR/$1 ] || ln -s scripts/$1 $DIR/$1
+  [ -f $DIR/$1 ] || cp $DIR/scripts/$1 $DIR/$1
 }
 
 rm -f aclocal.m4
