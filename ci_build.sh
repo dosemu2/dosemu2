@@ -26,6 +26,15 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
   make clean all install PREFIX=${LOCALFDPPINST}
 )
 
+# Remove some unnecessary Github installed stuff to save disk space
+# See https://github.com/actions/runner-images/issues/2840#issuecomment-790492173
+echo Disk space before tidyup ; df -h .
+sudo rm -rf /usr/share/dotnet
+sudo rm -rf /opt/ghc
+sudo rm -rf "/usr/local/share/boost"
+sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+echo Disk space after tidyup ; df -h .
+
 # Install the build dependancies based Dosemu's debian/control file
 mk-build-deps --install --root-cmd sudo
 
