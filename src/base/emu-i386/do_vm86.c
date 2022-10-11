@@ -88,7 +88,7 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
   case 0x06: /* invalid_op */
     {
       unsigned char *csp;
-      dbug_printf("SIGILL while in vm86(): %04x:%04x\n", SREG(cs), LWORD(eip));
+      error_once("SIGILL while in vm86(): %04x:%04x\n", SREG(cs), LWORD(eip));
       if (config.vga && SREG(cs) == config.vbios_seg) {
 	if (!config.vbios_post)
 	  error("Fault in VBIOS code, try setting $_vbios_post=(1)\n");
