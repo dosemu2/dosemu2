@@ -1,7 +1,7 @@
 language: c
 
 sudo: true
-dist: focal
+dist: jammy
 
 if: type = cron
 
