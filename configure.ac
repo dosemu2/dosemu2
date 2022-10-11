@@ -55,7 +55,7 @@ AC_PATH_PROG([AS], [as])
 if test -z "$AS"; then
   AC_MSG_ERROR(as not found)
 fi
-AC_PATH_PROG([XAS], [i386-elf-as])
+AC_PATH_PROG([XAS], [i686-linux-gnu-as])
 if test -z "$XAS"; then
   XAS="$AS"
   XASFLAGS=--32
@@ -64,11 +64,11 @@ AC_PATH_PROG([LD], [ld])
 if test -z "$LD"; then
   AC_MSG_ERROR(ld not found)
 fi
-AC_PATH_PROG([AS_LD], [i386-elf-ld])
+AC_PATH_PROG([AS_LD], [i686-linux-gnu-ld])
 if test -z "$AS_LD"; then
   AS_LD="$LD"
 fi
-AC_PATH_PROGS([OBJCOPY], [i386-elf-objcopy objcopy])
+AC_PATH_PROGS([OBJCOPY], [i686-linux-gnu-objcopy objcopy])
 if test -z "$OBJCOPY"; then
   AC_MSG_ERROR(objcopy not found)
 fi
