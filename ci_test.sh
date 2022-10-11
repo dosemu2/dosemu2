@@ -2,10 +2,6 @@
 
 set -e
 
-# Get any test binaries we need
-TBINS="test-binaries"
-THOST="http://www.spheresystems.co.uk/test-binaries"
-
 if [ "${TRAVIS}" = "true" ] ; then
   export CI="true"
   export CI_BRANCH="${TRAVIS_BRANCH}"
@@ -23,24 +19,14 @@ elif [ "${GITHUB_ACTIONS}" = "true" ] ; then
   fi
 fi
 
+TBINS="test-binaries"
 if [ "${CI}" = "true" ] ; then
   [ -d "${HOME}"/cache ] || mkdir "${HOME}"/cache
   [ -h "${TBINS}" ] || ln -s "${HOME}"/cache "${TBINS}"
 else
   [ -d "${TBINS}"] || mkdir "${TBINS}"
 fi
-
-(
-  cd "${TBINS}" || exit 1
-  [ -f DR-DOS-7.01.tar ] || wget ${THOST}/DR-DOS-7.01.tar
-  [ -f FR-DOS-1.20.tar ] || wget ${THOST}/FR-DOS-1.20.tar
-  [ -f MS-DOS-6.22.tar ] || wget ${THOST}/MS-DOS-6.22.tar
-
-  [ -f VARIOUS.tar ] || wget ${THOST}/VARIOUS.tar
-  [ -f TEST_EMM286.tar ] || wget ${THOST}/TEST_EMM286.tar
-  [ -f TEST_CRYNWR.tar ] || wget ${THOST}/TEST_CRYNWR.tar
-  [ -f TEST_MTCP.tar ] || wget ${THOST}/TEST_MTCP.tar
-)
+python3 test/test_dos.py --get-test-binaries
 
 echo
 echo "====================================================="

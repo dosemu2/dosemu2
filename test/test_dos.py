@@ -15,7 +15,7 @@ from subprocess import call, check_call, CalledProcessError, DEVNULL
 from sys import argv, exit, modules
 from time import mktime
 
-from common_framework import (BaseTestCase, main, mkstring,
+from common_framework import (BaseTestCase, get_test_binaries, main, mkstring,
                               IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
 from func_cpu_trap_flag import cpu_trap_flag
@@ -5157,7 +5157,10 @@ if __name__ == '__main__':
 
     if len(argv) > 1:
         if argv[1] == "--help":
-            print("Usage: %s [--help | --list-cases | --list-tests] | [--require-attr=STRING TestCase ...] | [TestCase[.testname] ...]" % argv[0])
+            print("Usage: %s [--help | --get-test-binaries | --list-cases | --list-tests] | [--require-attr=STRING TestCase ...] | [TestCase[.testname] ...]" % argv[0])
+            exit(0)
+        elif argv[1] == "--get-test-binaries":
+            get_test_binaries()
             exit(0)
         elif argv[1] == "--list-cases":
             for m in cases:
