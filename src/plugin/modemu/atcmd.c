@@ -381,7 +381,7 @@ atcmdPT(const char *s)
 int
 atcmdPTSet(const char *s)
 {
-    char buf[PT_MAX];
+    char buf[PT_MAX + 1];
     sscanf(s+4, "%" LIT(PT_MAX) "[^\"]", buf);
     /*strncpy(atcmd.pt.str, s+3, PT_MAX);*/
     atcmd.pt.len = strlen(buf);
