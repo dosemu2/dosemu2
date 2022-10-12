@@ -2559,6 +2559,8 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno)
 
   /* first see if the path exists as is */
   if (lstat(fpath, st) == 0) {
+    /* get data about an actual file, unless dangling symlink */
+    stat(fpath, st);
     Debug0((dbg_fd, "file exists as is\n"));
     return (TRUE);
   }
@@ -2579,7 +2581,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno)
     slash2 = strchr(slash1 + 1, '/');
     if (slash2)
       *slash2 = 0;
-    if (lstat(fpath, st) == 0) {
+    if (stat(fpath, st) == 0) {
       /* the file exists as is */
       if (st->st_mode & S_IFDIR || !slash2) {
 	if (slash2)
@@ -2625,6 +2627,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno)
     Debug0((dbg_fd, "find_file(): can't stat %s\n", fpath));
     return (FALSE);
   }
+  stat(fpath, st);
 
   Debug0((dbg_fd, "found file %s\n", fpath));
   return (TRUE);
