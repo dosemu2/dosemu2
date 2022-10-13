@@ -10,7 +10,7 @@ include ../plugins.mak
 CFILES = X_keymaps.c X_keysyms.c
 GENHDRS = x_config.hh
 
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_XKmaps.so
 ALL_CFLAGS += -fPIC
 endif
@@ -19,7 +19,7 @@ include $(REALTOPDIR)/src/Makefile.common.post
 
 ALL_CFLAGS+=$(DL_CFLAGS) -I$(srcdir)/include $(X_CFLAGS)
 
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_XKmaps.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(X_LIBS)
 endif

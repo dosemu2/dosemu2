@@ -9,14 +9,14 @@ include ../plugins.mak
 
 ALL_CFLAGS+=$(DL_CFLAGS)
 CFILES=vde.c
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_vde.so
 ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post
 
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_vde.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(VDELIB)
 endif

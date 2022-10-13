@@ -230,7 +230,7 @@ AC_ARG_ENABLE(dlplugins,
 if test "$enable_dlplugins" != "no"; then
               AC_MSG_NOTICE(Using dynamically loaded plugins...)
               AC_DEFINE(USE_DL_PLUGINS)
-              USE_DL_PLUGINS="USE_DL_PLUGINS=1"
+              USE_DL_PLUGINS=1
               AC_SUBST(USE_DL_PLUGINS)
               DOSBIN_LDFLAGS="-rdynamic"
               AC_SUBST(DOSBIN_LDFLAGS)
@@ -443,7 +443,7 @@ if test "$enable_cpuemu" != "no"; then
 	AC_MSG_RESULT([supported])
 	AC_MSG_NOTICE(Compiling with x86 emulator)
 	AC_DEFINE_UNQUOTED(X86_EMULATOR)
-	X86_EMULATOR="X86_EMULATOR=1"
+	X86_EMULATOR=1
 	AC_SUBST(X86_EMULATOR)
     ],
     [

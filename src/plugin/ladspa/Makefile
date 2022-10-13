@@ -14,14 +14,14 @@ CFILES = load.c ladspa.c
 OBJS=$(CFILES:.c=.o)
 DEPENDS=$(CFILES:.c=.d)
 
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_ladspa.so
 ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post
 
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_ladspa.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(LADSPA_LDFLAGS)
 endif

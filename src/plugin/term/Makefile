@@ -11,14 +11,14 @@ ALL_CFLAGS+=$(DL_CFLAGS) -DENABLE_SLFUTURE_CONST
 ALL_CPPFLAGS+=$(SLANGINC)
 CFILES=term_core.c terminal.c keyb_slang.c mouse_xterm.c
 
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_term.so
 ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post
 
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_term.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $(OBJS) $(SLANGLIB)
 endif

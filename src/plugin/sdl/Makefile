@@ -12,7 +12,7 @@ CFILES=sdl.c keyb_SDL.c snd_o_SDL.c
 OBJS=$(CFILES:.c=.o)
 DEPENDS=$(CFILES:.c=.d)
 
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_sdl.so
 ALL_CFLAGS += -fPIC
 endif
@@ -21,7 +21,7 @@ include $(REALTOPDIR)/src/Makefile.common.post
 
 ALL_CPPFLAGS += $(SDL_CFLAGS) -I$(srcdir)/../X
 
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_sdl.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(SDL_LIBS)
 endif

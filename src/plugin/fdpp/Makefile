@@ -14,14 +14,14 @@ CFILES += vgdbg.c
 ALL_CFLAGS += $(VG_CFLAGS)
 endif
 GENHDRS = fdppconf.hh
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_fdpp.so
 ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post
 
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_fdpp.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(FDPPLIB)
 endif

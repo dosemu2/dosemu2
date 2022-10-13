@@ -70,8 +70,8 @@ RANLIB:=@RANLIB@
 
 PACKAGE_NAME:=@PACKAGE_TARNAME@
 
-@USE_DL_PLUGINS@
-@X86_EMULATOR@
+USE_DL_PLUGINS := @USE_DL_PLUGINS@
+X86_EMULATOR := @X86_EMULATOR@
 DNATIVE := @DNATIVE@
 
 INSTALL:=@INSTALL@
@@ -97,7 +97,7 @@ BINPATH:=$(top_builddir)/$(THISVERSION)
 RELEASE_DATE="@RELEASE_DATE@"
 REVISION:=$(shell cd $(top_srcdir) && ./getversion -r)
 
-ifdef USE_DL_PLUGINS
+ifeq ($(USE_DL_PLUGINS),1)
 DL_CFLAGS:=-fPIC
 else
 -include $(top_builddir)/src/plugin/*/Makefile.conf

@@ -23,7 +23,7 @@ SBEMU=base/dev/sb16 base/sound
 # This is defined when the CPU emulator is required. You should
 # re-configure, rather than just change this.
 #
-ifdef X86_EMULATOR
+ifeq ($(X86_EMULATOR),1)
 XCPUEMU=base/emu-i386/simx86
 endif
 
