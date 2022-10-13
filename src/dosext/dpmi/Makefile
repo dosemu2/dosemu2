@@ -7,6 +7,6 @@ SFILES = dpmisel.S
 ALL_CPPFLAGS += -I$(REALTOPDIR)/src/dosext/dpmi/msdos \
     -DDOSEMU
 
-all:  lib
+all: lib
 
 include $(REALTOPDIR)/src/Makefile.common

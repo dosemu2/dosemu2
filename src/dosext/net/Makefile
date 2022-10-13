@@ -27,7 +27,7 @@ ALL = $(CFILES) $(HFILES) libpacket.c.multi libpacket.c.single \
 	pktnew.c.multi pktnew.c.single README
 
 
-all:  lib
+all: lib
 
 install:
 

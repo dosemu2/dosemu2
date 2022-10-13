@@ -14,11 +14,11 @@ TECHSECTIONS = config-tech port-io vif newnewkbd newkbd \
 	HOGTHRESHOLD priv timing pentium DANG-tech mkfatimage16 doc sound-tech \
 	dma pic dosdebug serial recover net cpuemu mfsnls
 
-all:    $(HTML)
+all: $(HTML)
 
-txt:    $(TXT)
+txt: $(TXT)
 
-html:   $(HTML)
+html: $(HTML)
 
 %.txt: %.sgml
 #	sgml2txt 2>/dev/null $<
