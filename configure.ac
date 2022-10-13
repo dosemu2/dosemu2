@@ -464,16 +464,16 @@ else
   target_cpu=$with_target_cpu
 fi
 
-if test "$machine" = "x86_64" -a "$with_target_bits" != "32" -a \
-	"$enable_profile" != "yes"; then
-    AC_MSG_NOTICE(Compiling as PIE for $machine...)
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
-    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
-else
+if test "$machine" = "i386" -o "$with_target_bits" = "32" -o \
+	"$enable_profile" = "yes"; then
     AC_MSG_NOTICE(Compiling as non-PIE...)
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fno-pie"
     AX_CHECK_COMPILE_FLAG([-no-pie],
       [DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -no-pie"])
+else
+    AC_MSG_NOTICE(Compiling as PIE for $machine...)
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
+    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
 fi
 
 if test "$enable_asan" = "yes"; then
