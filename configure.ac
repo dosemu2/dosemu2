@@ -476,6 +476,13 @@ else
     DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
 fi
 
+if test "$machine" = "i386" -o "$machine" = "x86_64"; then
+    AC_MSG_NOTICE([Enabling native DPMI support...])
+    AC_DEFINE(DNATIVE)
+    DNATIVE=1
+    AC_SUBST(DNATIVE)
+fi
+
 if test "$enable_asan" = "yes"; then
   AX_CHECK_LINK_FLAG([-fsanitize=address], [
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fsanitize=address"
@@ -621,6 +628,9 @@ AH_TEMPLATE([HAVE_BACKTRACE],
 
 AH_TEMPLATE([X86_EMULATOR],
 [ Define this to use the X86 CPU emulator ])
+
+AH_TEMPLATE([DNATIVE],
+[ Define this to enable native DPMI back-end ])
 
 AH_TEMPLATE([DISABLE_SYSTEM_WA],
 [ Define this to disable system-specific work-arounds that are

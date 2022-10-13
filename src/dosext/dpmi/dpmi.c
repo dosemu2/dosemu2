@@ -3691,7 +3691,9 @@ void dpmi_setup(void)
       break;
     case CPUVM_NATIVE:
       warn("Using native DPMI control\n");
-      native_dpmi_setup();
+      err = native_dpmi_setup();
+      if (err)
+        goto err;
       break;
     case CPUVM_EMU:
       warn("Using DPMI with CPU emulator\n");
@@ -3702,9 +3704,9 @@ void dpmi_setup(void)
     return;
 
 err:
-    error("DPMI initialization failed, disabling\n");
+    error("DPMI initialization failed, exiting\n");
 err2:
-    config.dpmi = 0;
+    config.exitearly = 1;
 }
 
 void dpmi_reset(void)

@@ -199,7 +199,7 @@ static void dpmi_thr(void *arg)
     in_dpmi_thr--;
 }
 
-void native_dpmi_setup(void)
+int native_dpmi_setup(void)
 {
     co_handle = co_thread_init(PCL_C_MC);
 
@@ -224,11 +224,12 @@ void native_dpmi_setup(void)
       out:
         if (iret_frame != addr) {
             error("Can't find DPMI iret page, leaving\n");
-            leavedos(0x24);
+            return -1;
         }
     }
 #endif
 #endif
+    return 0;
 }
 
 void native_dpmi_done(void)

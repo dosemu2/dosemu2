@@ -131,12 +131,6 @@ typedef enum {
 } regnum_t;
 
 void dpmi_get_entry_point(void);
-#ifdef __x86_64__
-extern void dpmi_iret_setup(sigcontext_t *scp);
-extern void dpmi_iret_unwind(sigcontext_t *scp);
-#else
-#define dpmi_iret_setup(x)
-#endif
 int dpmi_fault(sigcontext_t *scp);
 void dpmi_realmode_hlt(unsigned int lina);
 void run_pm_int(int inum);
@@ -239,7 +233,6 @@ extern void dpmi_setup(void);
 extern void dpmi_reset(void);
 extern void dpmi_done(void);
 extern int get_ldt(void *buffer);
-void dpmi_return(sigcontext_t *scp, int retcode);
 void dpmi_init(void);
 void copy_to_dpmi(sigcontext_t *d, sigcontext_t *s);
 void copy_to_emu(sigcontext_t *d, sigcontext_t *s);
@@ -387,17 +380,9 @@ static inline void dpmi_get_entry_point(void)
 {
 }
 
-static inline void dpmi_iret_unwind(sigcontext_t *scp)
-{
-}
-
 static inline char *DPMI_show_state(sigcontext_t *scp)
 {
     return "";
-}
-
-static inline void dpmi_iret_setup(sigcontext_t *scp)
-{
 }
 
 static inline void dpmi_return_request(void)

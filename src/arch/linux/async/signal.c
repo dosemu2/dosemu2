@@ -31,6 +31,7 @@
 #include "lowmem.h"
 #include "coopth.h"
 #include "emudpmi.h"
+#include "dnative.h"
 #include "pic.h"
 #include "ipx.h"
 #include "pktdrvr.h"
