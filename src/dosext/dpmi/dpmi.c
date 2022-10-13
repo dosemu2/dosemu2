@@ -3955,23 +3955,6 @@ err:
   set_client_num(in_dpmi - 1);
 }
 
-void dpmi_sigio(sigcontext_t *scp)
-{
-  switch (config.cpu_vm_dpmi) {
-    case CPUVM_NATIVE:
-      if (DPMIValidSelector(_cs))
-        dpmi_return(scp, DPMI_RET_DOSEMU);
-      break;
-    case CPUVM_EMU:
-      /* compiled code can't check signal_pending() so we hint it */
-      e_gen_sigalrm();
-      break;
-    case CPUVM_KVM:
-      /* nothing, kvm.c checks signal_pending() */
-      break;
-  }
-}
-
 static void return_from_exception(sigcontext_t *scp)
 {
   void *sp;

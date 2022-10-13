@@ -200,7 +200,6 @@ int dpmi_read_access(dosaddr_t addr);
 int dpmi_write_access(dosaddr_t addr);
 
 extern char *DPMI_show_state(sigcontext_t *scp);
-extern void dpmi_sigio(sigcontext_t *scp);
 extern void run_dpmi(void);
 
 extern int ConvertSegmentToDescriptor(unsigned short segment);
@@ -368,10 +367,6 @@ static inline int DPMIValidSelector(unsigned short selector)
 static inline sigcontext_t *dpmi_get_scp(void)
 {
     return NULL;
-}
-
-static inline void dpmi_sigio(sigcontext_t *scp)
-{
 }
 
 static inline unsigned int GetSegmentLimit(unsigned short sel)

@@ -589,10 +589,23 @@ static void cleanup_child(void *arg)
 
 static void sigbreak(sigcontext_t *scp)
 {
-  if (!in_vm86)
-    dpmi_sigio(scp);
-  else if (config.cpu_vm == CPUVM_EMU)
+  if (!in_vm86) {
+    switch (config.cpu_vm_dpmi) {
+      case CPUVM_NATIVE:
+        if (DPMIValidSelector(_cs))
+          dpmi_return(scp, DPMI_RET_DOSEMU);
+        break;
+      case CPUVM_EMU:
+        /* compiled code can't check signal_pending() so we hint it */
+        e_gen_sigalrm();
+        break;
+      case CPUVM_KVM:
+        /* nothing, kvm.c checks signal_pending() */
+        break;
+    }
+  } else if (config.cpu_vm == CPUVM_EMU) {
     e_gen_sigalrm();
+  }
 }
 
 /* this cleaning up is necessary to avoid the port server becoming
