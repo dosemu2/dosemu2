@@ -113,7 +113,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
         return -1;
     if (config.dos_up) {
         int to_hma = (xms_helper_init_ext() && config.dos_up == 2);
-        heap_sz = to_hma ? 0 : 1024 * 4;
+        heap_sz = to_hma ? 0 : 1024 * 3;
         kptr = lowmem_alloc_aligned(16, krnl_len + heap_sz);
         daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
         assert(!(daddr & 15));
@@ -122,7 +122,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
         khigh++;
         hhigh = to_hma + 1;
     } else {
-        heap_sz = 1024 * 7;
+        heap_sz = 1024 * 6;
         kptr = lowmem_alloc_aligned(16, heap_sz);
         daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
         assert(!(daddr & 15));
