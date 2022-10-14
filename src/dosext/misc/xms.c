@@ -252,14 +252,12 @@ int xms_intdrv(void)
   return intdrv;
 }
 
-static void xms_helper_init(void)
+static int xms_helper_init(void)
 {
   int i;
 
-  NOCARRY;	/* report success */
-
   if (intdrv)
-    return;
+    return 1;
   intdrv = 1;
 
   config.xms_size = EXTMEM_SIZE >> 10;
@@ -269,7 +267,7 @@ static void xms_helper_init(void)
   a20_global = a20_local = 0;
 
   if (!config.xms_size)
-    return;
+    return 0;
   handle_count = 0;
   for (i = 0; i < NUM_HANDLES; i++) {
     if (handles[i].valid && handles[i].addr)
@@ -280,30 +278,13 @@ static void xms_helper_init(void)
   smdestroy(&mp);
   sminit(&mp, ext_mem_base, config.xms_size * 1024);
   smregister_error_notifier(&mp, xx_printf);
-#if 0
-  if (config.umb_hma) {
-    dosaddr_t addr_start;
-    uint32_t size;
+  return 1;
+}
 
-    if (!a20_global)
-      set_a20(1);
-    a20_global = 1;
-    freeHMA = 0;
-#if 0
-    /* This corrupts top 16 bytes of the bios. */
-    addr_start = SEGOFF2LINEAR(0xffff, 0);
-    size = 0x10000;
-#else
-    /* This requires MCB in HMA which only fdpp supports. */
-    addr_start = SEGOFF2LINEAR(0xffff, 0x10);
-    size = 0xfff0;
-#endif
-    assert(umbs_used < UMBS);
-    sminit(&umbs[umbs_used], MEM_BASE32(addr_start), size);
-    smregister_error_notifier(&umbs[umbs_used], xx_printf);
-    umbs_used++;
-  }
-#endif
+int xms_helper_init_ext(void)
+{
+  assert(!intdrv);
+  return (xms_helper_init() && freeHMA);
 }
 
 void xms_helper(void)
@@ -313,7 +294,9 @@ void xms_helper(void)
   switch (HI(ax)) {
 
   case XMS_HELPER_XMS_INIT:
-    xms_helper_init();
+    NOCARRY;
+    if (!xms_helper_init())
+      CARRY;
     break;
 
   case XMS_HELPER_GET_ENTRY_POINT:

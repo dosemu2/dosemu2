@@ -24,7 +24,7 @@
 #include "int.h"
 #include "disks.h"
 #include <fdpp/bprm.h>
-#if BPRM_VER != 6
+#if BPRM_VER != 7
 #error wrong bprm version
 #endif
 #include "boot.h"
@@ -48,6 +48,8 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
 	bprm.Flags |= FDPP_FL_KERNEL_HIGH;
     if (hhigh)
 	bprm.Flags |= FDPP_FL_HEAP_HIGH;
+    if (hhigh == 2)
+	bprm.Flags |= FDPP_FL_HEAP_HMA;
     bprm.InitEnvSeg = env_seg;
 
     bprm.DriveMask = config.drives_mask;

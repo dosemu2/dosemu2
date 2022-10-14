@@ -617,7 +617,7 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		| DOS_UP bool
 		    {
-		    config.dos_up = ($2!=0);
+		    config.dos_up = $2;
 		    if ($2 > 0) c_printf("CONF: dos_up: %s\n", ($2) ? "on" : "off");
 		    }
 		| L_DPMI int_bool

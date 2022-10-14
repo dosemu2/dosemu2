@@ -194,7 +194,7 @@ static void process_master_boot_record(void)
     }
     if (i >= 4) {
 	/* aiee... no bootflags sets */
-	p_dos_str("\n\rno bootflag set, Leaving DOS...\n\r");
+	error("no bootflag set, Leaving DOS...\n");
 	leavedos(99);
     }
     LO(dx) = 0x80;		/* drive C:, DOS boots only from C: */

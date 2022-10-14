@@ -27,6 +27,7 @@
 #include "cpu.h"
 #include "int.h"
 #include "lowmem.h"
+#include "xms.h"
 #include "fatfs.h"
 #include "coopth.h"
 #include "doshelpers.h"
@@ -111,14 +112,15 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     if (!hndl)
         return -1;
     if (config.dos_up) {
-        heap_sz = 1024 * 4;
+        int to_hma = (xms_helper_init_ext() && config.dos_up == 2);
+        heap_sz = to_hma ? 0 : 1024 * 4;
         kptr = lowmem_alloc_aligned(16, krnl_len + heap_sz);
         daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
         assert(!(daddr & 15));
         heap_seg = 0x90;  // for low heap
         seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
         khigh++;
-        hhigh++;
+        hhigh = to_hma + 1;
     } else {
         heap_sz = 1024 * 7;
         kptr = lowmem_alloc_aligned(16, heap_sz);

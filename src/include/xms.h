@@ -55,6 +55,7 @@ void xms_reset(void);
 void xms_helper(void);
 void xms_control(void);
 int xms_intdrv(void);
+int xms_helper_init_ext(void);
 #endif
 
 #endif /* XMS_H */
