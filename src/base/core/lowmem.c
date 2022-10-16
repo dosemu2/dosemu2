@@ -158,3 +158,21 @@ void rm_stack_leave(void)
 	if (old_tf)
 		set_TF();
 }
+
+#define LMHEAP_OFF 0xa000
+#define LMHEAP_SIZE 0x4000
+
+static uint16_t lmheap_add(void)
+{
+	return (config.dos_up == 2 ? FDPP_LMHEAP_ADD : 0);
+}
+
+uint16_t lmheap_off(void)
+{
+	return LMHEAP_OFF + lmheap_add();
+}
+
+uint16_t lmheap_size(void)
+{
+	return LMHEAP_SIZE - lmheap_add();
+}

@@ -32,8 +32,8 @@
 #define DBGload_SEG BIOSSEG
 
 #define DOSEMU_LMHEAP_SEG  BIOSSEG
-#define DOSEMU_LMHEAP_OFF  0xa000
-#define DOSEMU_LMHEAP_SIZE 0x4000
+#define DOSEMU_LMHEAP_OFF  lmheap_off()
+#define DOSEMU_LMHEAP_SIZE lmheap_size()
 
 #ifndef ROMBIOSSEG
 #define ROMBIOSSEG	0xf800
@@ -151,6 +151,10 @@ typedef uint32_t dosaddr_t;
 u_short INT_OFF(u_char i);
 #define CBACK_SEG SREG(cs)
 #define CBACK_OFF LWORD(eip)
+
+uint16_t lmheap_off(void);
+uint16_t lmheap_size(void);
+#define FDPP_LMHEAP_ADD (1024 * 3)
 
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, const char *name);
