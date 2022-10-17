@@ -465,7 +465,7 @@ int dpmi_is_valid_range(dosaddr_t addr, int len)
     return 0;
   for (i = (addr - blk->base) >> PAGE_SHIFT;
        i < (PAGE_ALIGN(addr + len - 1) - blk->base) >> PAGE_SHIFT; i++)
-    if ((blk->attrs[i] & 7) != 1)
+    if ((blk->attrs[i] & 1) != 1)
       return 0;
   return 1;
 }

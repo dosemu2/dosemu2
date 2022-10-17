@@ -417,7 +417,7 @@ static void restore_page_protection(dpmi_pm_block *block)
 {
   int i;
   for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
-    if ((block->attrs[i] & 7) == 0) {
+    if ((block->attrs[i] & 1) == 0) {
       mprotect_mapping(MAPPING_DPMI,
             block->base + (i << PAGE_SHIFT), PAGE_SIZE, PROT_NONE);
     }
@@ -580,7 +580,7 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	smfree(&mem_pool, MEM_BASE32(block->base));
     }
     for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
-	if ((block->attrs[i] & 7) == 1) {   // if committed page, account it
+	if ((block->attrs[i] & 7) == 1) {   // if committed priv page, account it
 	    assert(mem_allocd >= PAGE_SIZE);
 	    mem_allocd -= PAGE_SIZE;
 	}
