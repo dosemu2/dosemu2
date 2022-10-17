@@ -1,6 +1,6 @@
 name: Manual ASAN
-on:                                                                             
-  workflow_dispatch:                                                            
+on:
+  workflow_dispatch:
 
 jobs:
   manual_asan:
