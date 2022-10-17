@@ -238,7 +238,6 @@ xms_reset(void)
   }
   config.xms_size = 0;
   intdrv = 0;
-  ext_hooked_hma = 0;
 }
 
 static void xx_printf(int prio, const char *fmt, ...)
@@ -265,7 +264,8 @@ static int xms_helper_init(void)
   config.xms_size = EXTMEM_SIZE >> 10;
   x_printf("XMS: initializing XMS... %d handles\n", NUM_HANDLES);
 
-  freeHMA = config.hma;
+  freeHMA = (config.hma && !ext_hooked_hma);
+  ext_hooked_hma = 0;
   a20_global = a20_local = 0;
 
   if (!config.xms_size)
@@ -297,10 +297,6 @@ void xms_helper(void)
   switch (HI(ax)) {
 
   case XMS_HELPER_XMS_INIT:
-    if (ext_hooked_hma) {
-      error("HMA externally hooked\n");
-      xms_reset();
-    }
     if (!xms_helper_init())
       CARRY;
     break;
