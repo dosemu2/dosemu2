@@ -112,7 +112,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     if (!hndl)
         return -1;
     if (config.dos_up) {
-        int to_hma = (xms_helper_init_ext() && config.dos_up == 2);
+        int to_hma = (config.dos_up == 2 && xms_helper_init_ext());
         heap_sz = to_hma ? 0 : FDPP_LMHEAP_ADD;
         kptr = lowmem_alloc_aligned(16, krnl_len + heap_sz);
         daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
