@@ -70,6 +70,7 @@ static int a20_local, a20_global, freeHMA;	/* is HMA free? */
 static struct Handle handles[NUM_HANDLES];
 static int handle_count;
 static int intdrv;
+static int ext_hooked_hma;
 
 void show_emm(struct EMM);
 static unsigned char xms_query_freemem(int), xms_allocate_EMB(int), xms_free_EMB(void),
@@ -237,6 +238,7 @@ xms_reset(void)
   }
   config.xms_size = 0;
   intdrv = 0;
+  ext_hooked_hma = 0;
 }
 
 static void xx_printf(int prio, const char *fmt, ...)
@@ -284,7 +286,8 @@ static int xms_helper_init(void)
 int xms_helper_init_ext(void)
 {
   assert(!intdrv);
-  return (xms_helper_init() && freeHMA);
+  ext_hooked_hma = (xms_helper_init() && freeHMA);
+  return ext_hooked_hma;
 }
 
 void xms_helper(void)
@@ -294,7 +297,10 @@ void xms_helper(void)
   switch (HI(ax)) {
 
   case XMS_HELPER_XMS_INIT:
-    NOCARRY;
+    if (ext_hooked_hma) {
+      error("HMA externally hooked\n");
+      xms_reset();
+    }
     if (!xms_helper_init())
       CARRY;
     break;
@@ -466,6 +472,8 @@ void xms_control(void)
       x_printf("XMS: allocating HMA size 0x%04x\n", LWORD(edx));
       freeHMA = 0;
       XMS_RET(0);			/* no error */
+      if (ext_hooked_hma)  // drop external hma hook
+        xms_reset();
     }
     else {
       x_printf("XMS: HMA already allocated\n");
