@@ -1,0 +1,12 @@
+name: Manual Normal
+on:
+  workflow_dispatch:
+
+jobs:
+  manual_normal:
+    name: Manual (Normal)
+    uses: ./.github/workflows/ci-build.yml
+    with:
+      jobtype: 'manual'
+      subtype: ''
+      runtype: 'normal'

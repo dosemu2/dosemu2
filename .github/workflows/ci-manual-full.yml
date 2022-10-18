@@ -1,0 +1,12 @@
+name: Manual FULL
+on:
+  workflow_dispatch:
+
+jobs:
+  manual_full:
+    name: Manual (FULL)
+    uses: ./.github/workflows/ci-build.yml
+    with:
+      jobtype: 'manual'
+      subtype: ''
+      runtype: 'full'
