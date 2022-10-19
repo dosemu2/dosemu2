@@ -3094,6 +3094,7 @@ $_floppy_a = ""
         self.assertRegex(results, r"Calling real mode procedure which called callback successful")
         self.assertRegex(results, r"Child process terminated okay, back in real mode")
         self.assertNotIn("fail", results)
+    test_memory_dpmi_ecm_alloc.dpmitest=True
 
     def test_memory_dpmi_ecm_mini(self):
         """Memory DPMI (ECM) mini"""
@@ -3109,6 +3110,7 @@ $_floppy_a = ""
         self.assertRegex(results, r"32-bit code segment breakpoint at")
         self.assertRegex(results, r"Welcome in 32-bit protected mode")
         self.assertNotIn("fail", results)
+    test_memory_dpmi_ecm_mini.dpmitest=True
 
     def test_memory_dpmi_ecm_modeswitch(self):
         """Memory DPMI (ECM) Mode Switch"""
@@ -3126,6 +3128,7 @@ $_floppy_a = ""
         self.assertRegex(results, r"Mode-switched to real mode")
         self.assertRegex(results, r"In protected mode again")
         self.assertNotIn("fail", results)
+    test_memory_dpmi_ecm_modeswitch.dpmitest=True
 
     def test_memory_dpmi_ecm_psp(self):
         """Memory DPMI (ECM) psp"""
@@ -3149,42 +3152,52 @@ $_floppy_a = ""
         self.assertRegex(results, r"Calling real mode procedure which called callback successful")
         self.assertRegex(results, r"Child process terminated okay, back in real mode")
         self.assertNotIn("fail", results)
+    test_memory_dpmi_ecm_psp.dpmitest=True
 
     def test_memory_dpmi_japheth(self):
         """Memory DPMI (Japheth) ''"""
         memory_dpmi_japheth(self, '')
+    test_memory_dpmi_japheth.dpmitest=True
 
     def test_memory_dpmi_japheth_c(self):
         """Memory DPMI (Japheth) '-c'"""
         memory_dpmi_japheth(self, '-c')
+    test_memory_dpmi_japheth_c.dpmitest=True
 
     def test_memory_dpmi_japheth_d(self):
         """Memory DPMI (Japheth) '-d'"""
         memory_dpmi_japheth(self, '-d')
+    test_memory_dpmi_japheth_d.dpmitest=True
 
     def test_memory_dpmi_japheth_e(self):
         """Memory DPMI (Japheth) '-e'"""
         memory_dpmi_japheth(self, '-e')
+    test_memory_dpmi_japheth_e.dpmitest=True
 
     def test_memory_dpmi_japheth_i(self):
         """Memory DPMI (Japheth) '-i'"""
         memory_dpmi_japheth(self, '-i')
+    test_memory_dpmi_japheth_i.dpmitest=True
 
     def test_memory_dpmi_japheth_m(self):
         """Memory DPMI (Japheth) '-m'"""
         memory_dpmi_japheth(self, '-m')
+    test_memory_dpmi_japheth_m.dpmitest=True
 
     def test_memory_dpmi_japheth_r(self):
         """Memory DPMI (Japheth) '-r'"""
         memory_dpmi_japheth(self, '-r')
+    test_memory_dpmi_japheth_r.dpmitest=True
 
     def test_memory_dpmi_japheth_t(self):
         """Memory DPMI (Japheth) '-t'"""
         memory_dpmi_japheth(self, '-t')
+    test_memory_dpmi_japheth_t.dpmitest=True
 
     def test_memory_dpmi_japheth_z(self):
         """Memory DPMI (Japheth) '-z'"""
         memory_dpmi_japheth(self, '-z')
+    test_memory_dpmi_japheth_z.dpmitest=True
 
     def test_memory_emm286_borland(self):
         """Memory EMM286 (Borland)"""
