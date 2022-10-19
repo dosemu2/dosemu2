@@ -383,7 +383,7 @@ class BaseTestCase(object):
                 f.write(c[2])
 
     def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=5,
-                    interactions=[]):
+                    eofisok=False, interactions=[]):
         # Note: if debugging is turned on then times increase 10x
         dbin = "bin/dosemu"
         args = ["-f", str(self.imagedir / "dosemu.conf"),
@@ -413,7 +413,10 @@ class BaseTestCase(object):
                     child.send(resp[1])
                     if outfile is None:
                         ret += child.before.decode('ASCII', 'replace')
-                child.expect(['rem end'], timeout=timeout)
+                trms = ['rem end',]
+                if eofisok:
+                    trms += [pexpect.EOF,]
+                child.expect(trms, timeout=timeout)
                 if outfile is None:
                     ret += child.before.decode('ASCII', 'replace')
                 else:
