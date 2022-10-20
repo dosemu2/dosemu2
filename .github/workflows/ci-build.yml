@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: package install
       run: ./ci_prereq.sh
@@ -31,7 +31,7 @@ jobs:
       run: ./ci_build.sh
 
     - name: cache binaries
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       env:
         cache-name: test-binaries
       with:
@@ -50,7 +50,7 @@ jobs:
 
     - name: upload failure logs
       if: ${{ always() && (steps.test.outcome == 'failure') }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: failure-logs
         path: test_*
