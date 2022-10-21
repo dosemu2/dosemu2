@@ -238,6 +238,14 @@ xms_reset(void)
   }
   config.xms_size = 0;
   intdrv = 0;
+  freeHMA = 0;
+  ext_hooked_hma = 0;
+}
+
+static void xms_local_reset(void)
+{
+  config.xms_size = 0;
+  intdrv = 0;
 }
 
 static void xx_printf(int prio, const char *fmt, ...)
@@ -469,7 +477,7 @@ void xms_control(void)
       freeHMA = 0;
       XMS_RET(0);			/* no error */
       if (ext_hooked_hma)  // drop external hma hook
-        xms_reset();
+        xms_local_reset();
     }
     else {
       x_printf("XMS: HMA already allocated\n");
