@@ -246,7 +246,7 @@ class BaseTestCase(object):
 
         with open(basename + ".c", "w") as f:
             f.write(content)
-        check_call(["ia16-elf-gcc", "-mcmodel=small",
+        check_call(["ia16-elf-gcc", "-mcmodel=tiny",
                     "-o", basename + ".com", basename + ".c", "-li86"])
 
     def mkexe_with_djgpp(self, fname, content, dname=None):

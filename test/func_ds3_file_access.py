@@ -31,7 +31,7 @@ void __far __interrupt (*oldint24)(void);
 
 volatile uint16_t int24_ax;
 
-void __far __interrupt myint24(void); /* Prototype */
+void __far __interrupt __attribute__ ((near_section)) myint24(void); /* Prototype */
 __asm (
   "myint24:\n"
   "  pushw %bp\n"
