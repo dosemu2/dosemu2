@@ -75,7 +75,7 @@ while [ $# -gt 0 ] ; do
       # Note: this switches to dumb mode rather than to work with
       # -dumb because -dumb expects to redirect only errors to the
       # log file, not the whole dosemu output of stderr.
-      OPTS="$OPTS -tde -kt"
+      OPTS="$OPTS -tde -ks"
       exec 2>/dev/null
       shift
       ;;
