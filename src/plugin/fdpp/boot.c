@@ -128,6 +128,11 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
 		config.country, atoi(config.internal_cset + 2));
 	env_len++;
     }
+    env_len += sprintf(env + env_len, "#2 =command.com /e:384%s /k "
+	    "%%FDPP_AUTOEXEC%%",
+	    config.dos_cmd ? "" : " /p"
+    );
+    env_len++;
 
     if (fddir_default) {
 	struct disk *dsk = hdisk_find_by_path(fddir_default);
