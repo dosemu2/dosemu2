@@ -40,6 +40,8 @@ TEST_BINARIES = (
     'DR-DOS-7.01.tar',
     'FR-DOS-1.20.tar',
     'MS-DOS-6.22.tar',
+    'MS-DOS-7.00.tar',
+    'MS-DOS-7.10.tar',
     'VARIOUS.tar',
     'TEST_EMM286.tar',
     'TEST_CRYNWR.tar',
@@ -246,7 +248,7 @@ class BaseTestCase(object):
 
         with open(basename + ".c", "w") as f:
             f.write(content)
-        check_call(["ia16-elf-gcc", "-mcmodel=small",
+        check_call(["ia16-elf-gcc", "-mcmodel=tiny",
                     "-o", basename + ".com", basename + ".c", "-li86"])
 
     def mkexe_with_djgpp(self, fname, content, dname=None):
