@@ -1109,9 +1109,9 @@ static const char *get_name_from_mcb(struct MCB *mcb, int *is_lnk)
   p1 = mcb;
   p2 = MK_FP32(p1->owner_psp - 1, 0);
   if (p1 == p2) {
-    if (!is_printable(p1->name))
-      goto out;
     strlcpy(name, p1->name, 8 + 1); // Source not null terminated if 8 chars
+    if (!is_printable(name))
+      goto out;
     return name;
   }
 
@@ -1119,9 +1119,9 @@ static const char *get_name_from_mcb(struct MCB *mcb, int *is_lnk)
   p1 = MK_FP32(mcb->owner_psp - 1, 0);
   p2 = MK_FP32(p1->owner_psp - 1, 0);
   if (p1 == p2) {
-    if (!is_printable(p1->name))
-      goto out;
     strlcpy(name, p1->name, 8 + 1); // Source not null terminated if 8 chars
+    if (!is_printable(name))
+      goto out;
     strlcat(name, " - ", sizeof name);
     strlcat(name, get_type_from_mcb(mcb), sizeof name);
     return name;
