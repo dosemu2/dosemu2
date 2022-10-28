@@ -17,6 +17,7 @@ sudo apt install -y \
   python3-cpuinfo \
   python3-pexpect \
   gcc-djgpp \
+  djgpp-dev \
   qemu-system-common \
   gdb \
   valgrind \

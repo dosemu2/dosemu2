@@ -60,6 +60,12 @@ case "${RUNTYPE}" in
     ;;
 esac
 
+# CC is set on Travis and can confuse compilation during tests
+unset CC
+
+# Make cpu tests here so that we see any failures
+make -C test/cpu clean all
+
 python3 test/test_dos.py ${ARGS}
 
 for i in test_*.*.*.log ; do
