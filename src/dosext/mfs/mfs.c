@@ -4275,7 +4275,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
             free = 65535;
 
           /* Ralf Brown says: AH=media ID byte - can we let it at 0 here? */
-          SETWORD(&state->eax, spc);
+          SETLOW(&state->eax, spc);
+          SETHIGH(&state->eax, 0);
           SETWORD(&state->edx, free);
           SETWORD(&state->ecx, bps);
           SETWORD(&state->ebx, tot);
