@@ -253,7 +253,8 @@ static int emufs_loaded = FALSE;
 #define PRINTER_MODE  		0x25	/* Used in DOS 3.1+ */
 #define EXTENDED_ATTRIBUTES	0x2d	/* Used in DOS 4.x */
 #define MULTIPURPOSE_OPEN	0x2e	/* Used in DOS 4.0+ */
-#define LONG_SEEK		0x42	/* extension */
+#define LONG_SEEK_OLD		0x42	/* extension */
+#define LONG_SEEK		0xc2	/* extension */
 #define GET_LARGE_FILE_INFO	0xa6	/* extension */
 
 #define EOS		'\0'
@@ -1171,7 +1172,8 @@ select_drive(struct vm86_regs *state, int *drive)
   case LOCK_UNLOCK_FILE_REGION:	/* 0xa */
   case UNLOCK_FILE_REGION_OLD:	/* 0xb */
   case SEEK_FROM_EOF:		/* 0x21 */
-  case LONG_SEEK:		/* 0x42 */
+  case LONG_SEEK_OLD:		/* 0x42 */
+  case LONG_SEEK:		/* 0xc2 */
   case GET_LARGE_FILE_INFO:	/* 0xa6 */
     {
       sft_t sft = (u_char *) Addr(state, es, edi);
@@ -5018,6 +5020,7 @@ do_create_truncate:
       Debug0((dbg_fd, "Passing %d to PRINTER SETUP CALL\n", (int)WORD(state->ebx)));
       return REDIRECT;
 
+    case LONG_SEEK_OLD:
     case LONG_SEEK: {
       uint64_t seek;
       d_printf("MFS: long seek\n");
