@@ -143,5 +143,10 @@ if [ -n "$FDPP_STR" ]; then
   FDPP_STR=`echo $FDPP_STR | sed 's/^ *//'`
   STRING="$STRING --with-plugin-options=fdpp,\"$FDPP_STR\""
 fi
+
+if [ -z "$CC" ] && which ccache; then
+    echo "Enabling ccache use"
+    export CC="ccache cc"
+fi
 echo exec "$srcdir"/configure $STRING $SUFFIX
 eval exec "$srcdir"/configure $STRING $SUFFIX
