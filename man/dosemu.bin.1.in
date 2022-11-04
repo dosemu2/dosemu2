@@ -64,7 +64,7 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 ]
 [
 .B \-i
-.I \h'-1'[bootdir]
+.I \h'-1' input_data
 ]
 [
 .B \-U
@@ -234,15 +234,12 @@ because it is expected to be
 .I one
 argument.
 .TP
-.I -i[bootdir]
-launched as part of a systemwide installation, this option (re-)installs
-a DOS that is used in DOSEMU (this can be the DOSEMU distributed
-FreeDOS  or any proprietary DOS, which is bootable via fatfs).
-.I bootdir
-is the base name of a directory. The symbolic link ~/.dosemu/drives/c
-will be changed to point to this directory.
-Re-installing is only rarely necessary, since in practise the symbolic
-link(s) will automatically point to updated files.
+.I -i input_data
+Type
+.I input_data
+on the emulated keyboard. Use \\r for Enter. Various other special escapes
+are available, for example you can insert pauses with "\\p10;" where
+10 is a delay in tens of milliseconds.
 .TP
 .I -D
 specify which Debugging messages to allow/suppress

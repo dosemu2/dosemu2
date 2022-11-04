@@ -1061,7 +1061,7 @@ config_init(int argc, char **argv)
     char           *basename;
     int             err;
     const char * const getopt_string =
-       "23456ABC::c::D:d:E:e:f:H:hI:K:k::L:M:mNno:P:qSsTt::VvwXx:Y"
+       "23456ABC::c::D:d:E:e:f:H:hi:I:K:k::L:M:mNno:P:qSsTt::VvwXx:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -1247,6 +1247,9 @@ config_init(int argc, char **argv)
 #endif
 	    break;
             }
+	case 'i':
+	    append_pre_strokes(optarg);
+	    break;
 	case 'I':
 	    assert(i_cur < i_found);
 	    optind += i_incr[i_cur++];

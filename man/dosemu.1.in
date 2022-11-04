@@ -15,10 +15,6 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 .B \-s
 ]
 [
-.B \-install
-.I [ bootdir ]
-]
-[
 .B args
 ]
 .PP
@@ -34,10 +30,6 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 .B \-s
 ]
 [
-.B \-install
-.I [ bootdir ]
-]
-[
 .B args
 ]
 .SH DESCRIPTION
@@ -47,9 +39,6 @@ is the wrapper script for
 (1)
 which invokes the Linux dos emulator, also known as
 .BR DOSEMU .
-The wrapper also takes care of (eventually) installing the private instance of
-.BR DOSEMU
-in the user's $HOME, if this doesn't exist.
 .br
 
 .SH OPTIONS
@@ -83,17 +72,7 @@ of the string look at README.txt.
 Invoke dosemu via sudo. This is necessary to get access to certain I/O ports
 and to get graphics on the Linux console. Please refer to the documentation
 (INSTALL and README.txt) to see which files need to be adjusted before
-attempting this. 
-.TP
-.I -install [ bootdir ]
-launched as part of a systemwide installation, this option (re-)installs
-a DOS that is used in DOSEMU (this can be the DOSEMU distributed
-FreeDOS  or any proprietary DOS, which is bootable via fatfs).
-.I bootdir
-is the base name of a directory. The symbolic link ~/.dosemu/drives/c
-will be changed to point to this directory.
-Re-installing is only rarely necessary, since in practise the symbolic
-link(s) will automatically point to updated files.
+attempting this.
 .TP
 .I --version
 print version of dosemu and list of available options.
