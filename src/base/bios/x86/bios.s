@@ -715,8 +715,9 @@ LFN_42_A6_HELPER_COMMON:
         movw	$0x1216, %ax
         int	$0x2f
         jc	1f
-        stc
         popw	%ax		/* restore function number */
+        orb	$0x80, %al	/* add extension bit */
+        stc
         int	$0x2f
         jmp	3f
 1:
