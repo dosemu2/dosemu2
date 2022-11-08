@@ -3,9 +3,7 @@
 
 #include "sig.h"
 #include "memory.h"
-#undef _POSIX_SOURCE
-#undef _regs
-#include "stub/dpmi.h"
+#include "djdpmi.h"
 
 void	_dpmi_yield(sigcontext_t *scp, int is_32);									/* INT 0x2F AX=1680 */
 
@@ -43,13 +41,13 @@ int	_dpmi_get_extended_exception_handler_vector_rm(sigcontext_t *scp, int is_32,
 int	_dpmi_set_extended_exception_handler_vector_pm(sigcontext_t *scp, int is_32, int _vector, __dpmi_paddr *_address);	/* DPMI 1.0 AX=0212 */
 int	_dpmi_set_extended_exception_handler_vector_rm(sigcontext_t *scp, int is_32, int _vector, __dpmi_paddr *_address);	/* DPMI 1.0 AX=0213 */
 
-int	_dpmi_simulate_real_mode_interrupt(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *_regs);			/* DPMI 0.9 AX=0300 */
-int	_dpmi_int(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *_regs); /* like above, but sets ss sp fl */	/* DPMI 0.9 AX=0300 */
+int	_dpmi_simulate_real_mode_interrupt(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *__regs);			/* DPMI 0.9 AX=0300 */
+int	_dpmi_int(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *__regs); /* like above, but sets ss sp fl */	/* DPMI 0.9 AX=0300 */
 
-int	_dpmi_simulate_real_mode_procedure_retf(sigcontext_t *scp, int is_32, __dpmi_regs *_regs);				/* DPMI 0.9 AX=0301 */
-int	_dpmi_simulate_real_mode_procedure_retf_stack(sigcontext_t *scp, int is_32, __dpmi_regs *_regs, int stack_words_to_copy, const void *stack_data); /* DPMI 0.9 AX=0301 */
-int	_dpmi_simulate_real_mode_procedure_iret(sigcontext_t *scp, int is_32, __dpmi_regs *_regs);				/* DPMI 0.9 AX=0302 */
-int	_dpmi_allocate_real_mode_callback(sigcontext_t *scp, int is_32, void (*_handler)(void), __dpmi_regs *_regs, __dpmi_raddr *_ret); /* DPMI 0.9 AX=0303 */
+int	_dpmi_simulate_real_mode_procedure_retf(sigcontext_t *scp, int is_32, __dpmi_regs *__regs);				/* DPMI 0.9 AX=0301 */
+int	_dpmi_simulate_real_mode_procedure_retf_stack(sigcontext_t *scp, int is_32, __dpmi_regs *__regs, int stack_words_to_copy, const void *stack_data); /* DPMI 0.9 AX=0301 */
+int	_dpmi_simulate_real_mode_procedure_iret(sigcontext_t *scp, int is_32, __dpmi_regs *__regs);				/* DPMI 0.9 AX=0302 */
+int	_dpmi_allocate_real_mode_callback(sigcontext_t *scp, int is_32, void (*_handler)(void), __dpmi_regs *__regs, __dpmi_raddr *_ret); /* DPMI 0.9 AX=0303 */
 int	_dpmi_free_real_mode_callback(sigcontext_t *scp, int is_32, __dpmi_raddr *_addr);					/* DPMI 0.9 AX=0304 */
 int	_dpmi_get_state_save_restore_addr(sigcontext_t *scp, int is_32, __dpmi_raddr *_rm, __dpmi_paddr *_pm);		/* DPMI 0.9 AX=0305 */
 int	_dpmi_get_raw_mode_switch_addr(sigcontext_t *scp, int is_32, __dpmi_raddr *_rm, __dpmi_paddr *_pm);			/* DPMI 0.9 AX=0306 */

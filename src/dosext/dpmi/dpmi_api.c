@@ -202,7 +202,7 @@ int _dpmi_set_extended_exception_handler_vector_rm(sigcontext_t *scp, int is_32,
     return 0;
 }
 
-int _dpmi_simulate_real_mode_interrupt(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *_regs)
+int _dpmi_simulate_real_mode_interrupt(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
 {			/* DPMI 0.9 AX=0300 */
     struct pmaddr_s pma = {
 	.offset = DPMI_SEL_OFF(DPMI_call),
@@ -216,18 +216,18 @@ int _dpmi_simulate_real_mode_interrupt(sigcontext_t *scp, int is_32, int _vector
     _ecx = 0;
     _es = data_sel;
     _edi = POOL_OFS(regs);
-    memcpy(regs, _regs, sizeof(*regs));
+    memcpy(regs, __regs, sizeof(*regs));
     do_callf(scp, is_32, pma);
     D_printf("MSDOS: sched to dos thread for int 0x%x\n", _vector);
     coopth_sched();
     D_printf("MSDOS: return from dos thread\n");
-    memcpy(_regs, regs, sizeof(*regs));
+    memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
     *scp = sa;
     return 0;
 }
 
-int _dpmi_int(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *_regs)
+int _dpmi_int(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
 { /* like above, but sets ss sp fl */	/* DPMI 0.9 AX=0300 */
     struct pmaddr_s pma = {
 	.offset = DPMI_SEL_OFF(DPMI_call),
@@ -241,21 +241,21 @@ int _dpmi_int(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *_regs)
     _ecx = 0;
     _es = data_sel;
     _edi = POOL_OFS(regs);
-    _regs->x.ss = __dpmi_int_ss;
-    _regs->x.sp = __dpmi_int_sp;
-    _regs->x.flags = __dpmi_int_flags;
-    memcpy(regs, _regs, sizeof(*regs));
+    __regs->x.ss = __dpmi_int_ss;
+    __regs->x.sp = __dpmi_int_sp;
+    __regs->x.flags = __dpmi_int_flags;
+    memcpy(regs, __regs, sizeof(*regs));
     do_callf(scp, is_32, pma);
     D_printf("MSDOS: sched to dos thread for int 0x%x\n", _vector);
     coopth_sched();
     D_printf("MSDOS: return from dos thread\n");
-    memcpy(_regs, regs, sizeof(*regs));
+    memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
     *scp = sa;
     return 0;
 }
 
-int _dpmi_simulate_real_mode_procedure_retf(sigcontext_t *scp, int is_32, __dpmi_regs *_regs)
+int _dpmi_simulate_real_mode_procedure_retf(sigcontext_t *scp, int is_32, __dpmi_regs *__regs)
 {				/* DPMI 0.9 AX=0301 */
     struct pmaddr_s pma = {
 	.offset = DPMI_SEL_OFF(DPMI_call),
@@ -269,24 +269,24 @@ int _dpmi_simulate_real_mode_procedure_retf(sigcontext_t *scp, int is_32, __dpmi
     _ecx = 0;
     _es = data_sel;
     _edi = POOL_OFS(regs);
-    memcpy(regs, _regs, sizeof(*regs));
+    memcpy(regs, __regs, sizeof(*regs));
     do_callf(scp, is_32, pma);
     D_printf("MSDOS: sched to dos thread for call to %x:%x\n",
-	    _regs->x.cs, _regs->x.ip);
+	    __regs->x.cs, __regs->x.ip);
     coopth_sched();
     D_printf("MSDOS: return from dos thread\n");
-    memcpy(_regs, regs, sizeof(*regs));
+    memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
     *scp = sa;
     return 0;
 }
 
-int _dpmi_simulate_real_mode_procedure_retf_stack(sigcontext_t *scp, int is_32, __dpmi_regs *_regs, int stack_words_to_copy, const void *stack_data)
+int _dpmi_simulate_real_mode_procedure_retf_stack(sigcontext_t *scp, int is_32, __dpmi_regs *__regs, int stack_words_to_copy, const void *stack_data)
 { /* DPMI 0.9 AX=0301 */
     return 0;
 }
 
-int _dpmi_simulate_real_mode_procedure_iret(sigcontext_t *scp, int is_32, __dpmi_regs *_regs)
+int _dpmi_simulate_real_mode_procedure_iret(sigcontext_t *scp, int is_32, __dpmi_regs *__regs)
 {				/* DPMI 0.9 AX=0302 */
     struct pmaddr_s pma = {
 	.offset = DPMI_SEL_OFF(DPMI_call),
@@ -300,19 +300,19 @@ int _dpmi_simulate_real_mode_procedure_iret(sigcontext_t *scp, int is_32, __dpmi
     _ecx = 0;
     _es = data_sel;
     _edi = POOL_OFS(regs);
-    memcpy(regs, _regs, sizeof(*regs));
+    memcpy(regs, __regs, sizeof(*regs));
     do_callf(scp, is_32, pma);
     D_printf("MSDOS: sched to dos thread for call to %x:%x\n",
-	    _regs->x.cs, _regs->x.ip);
+	    __regs->x.cs, __regs->x.ip);
     coopth_sched();
     D_printf("MSDOS: return from dos thread\n");
-    memcpy(_regs, regs, sizeof(*regs));
+    memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
     *scp = sa;
     return 0;
 }
 
-int _dpmi_allocate_real_mode_callback(sigcontext_t *scp, int is_32, void (*_handler)(void), __dpmi_regs *_regs, __dpmi_raddr *_ret)
+int _dpmi_allocate_real_mode_callback(sigcontext_t *scp, int is_32, void (*_handler)(void), __dpmi_regs *__regs, __dpmi_raddr *_ret)
 { /* DPMI 0.9 AX=0303 */
     return 0;
 }
