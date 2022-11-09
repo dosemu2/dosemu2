@@ -25,7 +25,7 @@ def memory_hma_freespace(self):
 
 int main(int argc, char *argv[])
 {
-  union REGS r;
+  union REGS r = {};
   struct SREGS rs;
   int ret = 0;
 
@@ -74,7 +74,7 @@ def memory_hma_alloc(self):
 
 int main(int argc, char *argv[])
 {
-  union REGS r;
+  union REGS r = {};
   struct SREGS rs;
   int ret = 0;
 
@@ -165,7 +165,7 @@ DL = subfunction
 
 int main(int argc, char *argv[])
 {
-  union REGS r;
+  union REGS r = {};
   struct SREGS rs;
   int ret;
   struct HMCB hmcb;
@@ -393,7 +393,7 @@ struct HMCB {
 
 int main(int argc, char *argv[])
 {
-  union REGS r;
+  union REGS r = {};
   struct SREGS rs;
   int ret;
   struct HMCB hmcb;
