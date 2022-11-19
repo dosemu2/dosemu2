@@ -39,7 +39,7 @@ echo "====================================================="
 # single test example
 # python3 test/test_dos.py FRDOS120TestCase.test_mfs_fcb_rename_wild_1
 
-if [ "${CI_EVENT}" = "cron" ] && [ "${TRAVIS}" = "true" ] ; then
+if [ "${TRAVIS}" = "true" ] ; then
   ARGS="--require-attr=cputest"
 else
   ARGS=""
