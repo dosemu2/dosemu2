@@ -33,7 +33,9 @@ from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
 from func_lfn_voln_info import lfn_voln_info
 from func_lfs_disk_info import lfs_disk_info
-from func_label_create import label_create, label_create_noduplicate
+from func_label_create import (label_create, label_create_on_lfns,
+                                label_create_noduplicate, label_create_nonrootdir,
+                                label_delete_wildcard, label_delete_recreate)
 from func_lfs_file_info import lfs_file_info
 from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
@@ -819,6 +821,11 @@ altdta:
         """FAT FCB label create directory afterwards"""
         label_create(self, "FAT", 'postdir')
     test_fat_label_create_postdir.labeltest = True
+
+    def test_fat_label_create_on_lfns(self):
+        """FAT FCB label create on top of LFNs"""
+        label_create_on_lfns(self)
+    test_fat_label_create_on_lfns.labeltest = True
 
     def test_fat_label_create_noduplicate(self):
         """FAT FCB label create no duplicate"""
@@ -4924,6 +4931,7 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
             "test_fat_label_create_bpb12": KNOWNFAIL,
             "test_fat_label_create_bpb16": KNOWNFAIL,
             "test_fat_label_create_bpb32": UNSUPPORTED,
+            "test_fat_label_create_on_lfns": UNSUPPORTED,
         }
 
         cls.setUpClassPost()
@@ -5154,6 +5162,7 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
             "test_memory_hma_chain": UNSUPPORTED,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
             "test_fat_label_create_bpb32": UNSUPPORTED,
+            "test_fat_label_create_on_lfns": UNSUPPORTED,
         }
 
         cls.setUpClassPost()

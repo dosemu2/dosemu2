@@ -1,5 +1,7 @@
 # Note label setting is currently disabled on MFS
 
+from subprocess import check_output, STDOUT
+
 from common_framework import IMAGEDIR
 
 
@@ -260,3 +262,415 @@ int main(int argc, char *argv[])
     self.assertIn("PASS: Operation success", results)
     self.assertRegex(results, "Volume in drive [Dd] is INITIAL")
     self.assertIn("INFO: Denied duplicate creation (0xff)", results)
+
+def label_create_nonrootdir(self, fstype):
+    testdir = self.mkworkdir('d')
+
+    if fstype == "MFS":
+        config = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+    else:       # FAT
+        config = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s:partition +1"
+$_floppy_a = ""
+""" % self.mkimage_vbr("12", cwd=testdir)
+
+    self.mkfile("testit.bat", """\
+d:
+cd \\
+mkdir x
+cd x
+c:\\labnonrt
+DIR
+rem end
+""", newline="\r\n")
+
+    self.mkcom_with_ia16("labnonrt", r"""
+
+#include <dos.h>
+#include <stdio.h>
+#include <string.h>
+
+struct {
+  uint8_t sig;
+  uint8_t pad[5];
+  uint8_t attr;
+  struct _fcb x;
+  /*
+    char _fcb_drive;
+    char _fcb_name[8];
+    char _fcb_ext[3];
+    short _fcb_curblk;
+    short _fcb_recsize;
+    long _fcb_filsize;
+    short _fcb_date;
+    char _fcb_resv[10];
+    char _fcb_currec;
+    long _fcb_random;
+  */
+} __attribute__((packed)) xfcb;
+
+
+int main(int argc, char *argv[])
+{
+  union REGS r = {};
+
+  xfcb.sig = 0xff;
+  xfcb.attr = _A_VOLID;
+  xfcb.x._fcb_drive = 0;
+
+  memcpy(xfcb.x._fcb_name, "TEST LAB", 8);      // create in non root
+  memcpy(xfcb.x._fcb_ext, "EL1", 3);
+  r.x.ax = 0x1600;
+  r.x.dx = FP_OFF(&xfcb);
+  intdos(&r, &r);
+  if (r.h.al == 0) {
+    printf("INFO: Allowed non root creation\n");
+    r.x.ax = 0x1000;                            // close
+    r.x.dx = FP_OFF(&xfcb);
+    intdos(&r, &r);
+    /* don't check result, there's nothing we can do about it. */
+  } else {
+    printf("FAIL: Denied non root creation (0x%02x)\n", r.h.al);
+    return 1;
+  }
+
+  printf("PASS: Operation success\n");
+  return 0;
+}
+
+""")
+
+    results = self.runDosemu("testit.bat", config=config)
+
+    self.assertIn("PASS: Operation success", results)
+    self.assertRegex(results, "Volume in drive [Dd] is TEST LABEL1")
+    self.assertNotIn("FAIL: Denied non root creation", results)
+
+
+def label_delete_wildcard(self, fstype):
+    testdir = self.mkworkdir('d')
+
+    if fstype == "MFS":
+        config = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+    else:       # FAT
+        config = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s:partition +1"
+$_floppy_a = ""
+""" % self.mkimage_vbr("12", cwd=testdir)
+
+    self.mkfile("testit.bat", """\
+d:
+c:\\labdelw
+DIR
+rem end
+""", newline="\r\n")
+
+    self.mkcom_with_ia16("labdelw", r"""
+
+#include <dos.h>
+#include <stdio.h>
+#include <string.h>
+
+struct {
+  uint8_t sig;
+  uint8_t pad[5];
+  uint8_t attr;
+  struct _fcb x;
+  /*
+    char _fcb_drive;
+    char _fcb_name[8];
+    char _fcb_ext[3];
+    short _fcb_curblk;
+    short _fcb_recsize;
+    long _fcb_filsize;
+    short _fcb_date;
+    char _fcb_resv[10];
+    char _fcb_currec;
+    long _fcb_random;
+  */
+} __attribute__((packed)) xfcb;
+
+
+int main(int argc, char *argv[])
+{
+  union REGS r = {};
+
+  xfcb.sig = 0xff;
+  xfcb.attr = _A_VOLID;
+  xfcb.x._fcb_drive = 0;
+
+  memcpy(xfcb.x._fcb_name, "????????", 8);      // delete
+  memcpy(xfcb.x._fcb_ext, "???", 3);
+  r.x.ax = 0x1300;
+  r.x.dx = FP_OFF(&xfcb);
+  intdos(&r, &r);
+  /* don't check result, there might not be anything to delete */
+
+  memcpy(xfcb.x._fcb_name, "INITIAL ", 8);      // create
+  memcpy(xfcb.x._fcb_ext, "   ", 3);
+  r.x.ax = 0x1600;
+  r.x.dx = FP_OFF(&xfcb);
+  intdos(&r, &r);
+  if (r.h.al != 0) {
+    printf("FAIL: On initial creation\n");
+    return 1;
+  }
+
+  r.x.ax = 0x1000;                              // close
+  r.x.dx = FP_OFF(&xfcb);
+  intdos(&r, &r);
+  if (r.h.al != 0) {
+    printf("FAIL: On initial close\n");
+    return 1;
+  }
+
+  memcpy(xfcb.x._fcb_name, "????????", 8);      // delete with wildcard
+  memcpy(xfcb.x._fcb_ext, "???", 3);
+  r.x.ax = 0x1300;
+  r.x.dx = FP_OFF(&xfcb);
+  intdos(&r, &r);
+  if (r.h.al != 0) {
+    printf("FAIL: On delete with wildcard\n");
+    return 1;
+  }
+
+  printf("PASS: Operation success\n");
+  return 0;
+}
+
+""")
+
+    results = self.runDosemu("testit.bat", config=config)
+
+    self.assertIn("PASS: Operation success", results)
+    self.assertRegex(results, "Volume.*(has no|does not have a) label")
+    self.assertNotIn("FAIL:", results)
+
+
+def label_delete_recreate(self, fstype):
+    testdir = self.mkworkdir('d')
+
+    if fstype == "MFS":
+        config = """\
+$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
+$_floppy_a = ""
+"""
+    else:       # FAT
+        config = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s:partition +1"
+$_floppy_a = ""
+""" % self.mkimage_vbr("12", cwd=testdir)
+
+    self.mkfile("testit.bat", """\
+d:
+c:\\labdelr
+DIR
+rem end
+""", newline="\r\n")
+
+    self.mkcom_with_ia16("labdelr", r"""
+
+#include <dos.h>
+#include <stdio.h>
+#include <string.h>
+
+struct {
+  uint8_t sig;
+  uint8_t pad[5];
+  uint8_t attr;
+  struct _fcb x;
+  /*
+    char _fcb_drive;
+    char _fcb_name[8];
+    char _fcb_ext[3];
+    short _fcb_curblk;
+    short _fcb_recsize;
+    long _fcb_filsize;
+    short _fcb_date;
+    char _fcb_resv[10];
+    char _fcb_currec;
+    long _fcb_random;
+  */
+} __attribute__((packed)) xfcb;
+
+
+int main(int argc, char *argv[])
+{
+  union REGS r = {};
+
+  xfcb.sig = 0xff;
+  xfcb.attr = _A_VOLID;
+  xfcb.x._fcb_drive = 0;
+
+  /* it's very important that the disk has never had a label before */
+
+  memcpy(xfcb.x._fcb_name, "INITIAL ", 8);      // create
+  memcpy(xfcb.x._fcb_ext, "   ", 3);
+  r.x.ax = 0x1600;
+  r.x.dx = FP_OFF(&xfcb);
+  intdos(&r, &r);
+  if (r.h.al != 0) {
+    printf("FAIL: On initial creation\n");
+    return 1;
+  }
+
+  r.x.ax = 0x1000;                              // close
+  r.x.dx = FP_OFF(&xfcb);
+  intdos(&r, &r);
+  if (r.h.al != 0) {
+    printf("FAIL: On initial close\n");
+    return 1;
+  }
+
+  memcpy(xfcb.x._fcb_name, "????????", 8);      // delete with wildcard
+  memcpy(xfcb.x._fcb_ext, "???", 3);
+  r.x.ax = 0x1300;
+  r.x.dx = FP_OFF(&xfcb);
+  intdos(&r, &r);
+  if (r.h.al != 0) {
+    printf("FAIL: On delete with wildcard\n");
+    return 1;
+  }
+
+  memcpy(xfcb.x._fcb_name, "RECREATI", 8);      // recreation
+  memcpy(xfcb.x._fcb_ext, "ON ", 3);
+  r.x.ax = 0x1600;
+  r.x.dx = FP_OFF(&xfcb);
+  intdos(&r, &r);
+  if (r.h.al != 0) {
+    printf("FAIL: On recreation\n");
+    return 1;
+  }
+
+  printf("PASS: Operation success\n");
+  return 0;
+}
+
+""")
+
+    results = self.runDosemu("testit.bat", config=config)
+
+    self.assertIn("PASS: Operation success", results)
+    self.assertRegex(results, "Volume in drive [Dd] is RECREATION")
+    self.assertNotIn("FAIL:", results)
+
+
+def label_create_on_lfns(self):
+    testdir = self.mkworkdir('d')
+
+    names = [
+        "This Is A Long Filename.tXt",
+        "simple_but_long_filename.txt",
+    ]
+    for n in names:
+        f2 = testdir / n
+        f2.write_text("HELLO THERE\n")
+    n3 = "LFNdirectory"
+    f3 = testdir / n3
+    f3.mkdir()
+    names += [n3,]
+
+    image = self.mkimage_vbr("12", lfn=True, cwd=testdir)
+    config = """\
+$_hdimage = "dXXXXs/c:hdtype1 %s:partition +1"
+$_floppy_a = ""
+""" % image
+
+    self.mkfile("testit.bat", """\
+d:
+c:\\labclfns
+rem end
+""", newline="\r\n")
+
+    self.mkcom_with_ia16("labclfns", r"""
+
+#include <dos.h>
+#include <stdio.h>
+#include <string.h>
+
+struct {
+  uint8_t sig;
+  uint8_t pad[5];
+  uint8_t attr;
+  struct _fcb x;
+  /*
+    char _fcb_drive;
+    char _fcb_name[8];
+    char _fcb_ext[3];
+    short _fcb_curblk;
+    short _fcb_recsize;
+    long _fcb_filsize;
+    short _fcb_date;
+    char _fcb_resv[10];
+    char _fcb_currec;
+    long _fcb_random;
+  */
+} __attribute__((packed)) xfcb;
+
+
+int main(int argc, char *argv[])
+{
+  union REGS r = {};
+
+  xfcb.sig = 0xff;
+  xfcb.attr = _A_VOLID;
+  xfcb.x._fcb_drive = 0;
+
+  /* It's very important that the disk has no existing label */
+
+  /* We shouldn't error if the volume has any LFNs */
+  memcpy(xfcb.x._fcb_name, "INITIAL ", 8);      // create
+  memcpy(xfcb.x._fcb_ext, "   ", 3);
+  r.x.ax = 0x1600;
+  r.x.dx = FP_OFF(&xfcb);
+  intdos(&r, &r);
+  if (r.h.al != 0) {
+    printf("FAIL: On initial creation\n");
+    return 1;
+  }
+
+  r.x.ax = 0x1000;                              // close
+  r.x.dx = FP_OFF(&xfcb);
+  intdos(&r, &r);
+  if (r.h.al != 0) {
+    printf("FAIL: On initial close\n");
+    return 1;
+  }
+
+  printf("INFO: Label was created successfully\n");
+
+  /* We should be able to delete the label without affecting the LFNs */
+  memcpy(xfcb.x._fcb_name, "????????", 8);      // delete with wildcard
+  memcpy(xfcb.x._fcb_ext, "???", 3);
+  r.x.ax = 0x1300;
+  r.x.dx = FP_OFF(&xfcb);
+  intdos(&r, &r);
+  if (r.h.al != 0) {
+    printf("FAIL: On delete with wildcard\n");
+    return 1;
+  }
+
+  printf("INFO: Label was deleted successfully\n");
+
+  printf("PASS: Operation success\n");
+  return 0;
+}
+
+""")
+
+    results = self.runDosemu("testit.bat", config=config)
+
+    self.assertIn("PASS: Operation success", results)
+    self.assertNotIn("FAIL:", results)
+
+    # Check afterwards with mtools that each lfn still exists
+    args = ['mdir', '-i', str(self.imagedir / image)]
+    output = check_output(args, timeout=5, stderr=STDOUT).decode('ASCII')
+    for n in names:
+        self.assertIn(n, output)
