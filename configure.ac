@@ -373,7 +373,7 @@ dnl Do compilation for GDB
 HAVE_LIBBFD=0
 AC_ARG_ENABLE(debug,
                AS_HELP_STRING([--enable-debug], [compile with debug info]))
-if test "$enable_debug" = "yes"; then
+if test "$enable_debug" != "no"; then
   AC_MSG_NOTICE(Compiling with debug info...)
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -ggdb3"
   if test "$use_clang" = "yes" ; then
