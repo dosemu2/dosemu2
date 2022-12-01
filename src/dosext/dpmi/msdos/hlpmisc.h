@@ -1,3 +1,10 @@
+#ifndef HLPMISC_H
+#define HLPMISC_H
+
+#include "cpu.h"
+#include "djdpmi.h"
+#include "emudpmi.h"
+
 #ifdef DOSEMU
 #define RMREG(r) (rmreg->x.r)
 #define RMLWORD(r) (rmreg->x.r)
@@ -53,3 +60,7 @@ static inline void rm_to_pm_regs(sigcontext_t *scp,
 #define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
 #define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
 #define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), RMREG(rg) = (val))
+
+void do_call_to(sigcontext_t *scp, int is_32, far_t dst, __dpmi_regs *rmreg);
+
+#endif

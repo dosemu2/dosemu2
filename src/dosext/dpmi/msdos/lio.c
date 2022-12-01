@@ -92,14 +92,14 @@ void msdos_lr_helper(sigcontext_t *scp, int is_32,
 	unsigned short rm_seg, void (*post)(sigcontext_t *))
 {
     liohlp_setup(DOSHLP_LR, is_32, rm_seg, post);
-    do_callf(scp, is_32, doshlp_get_entry(&helpers[DOSHLP_LR]));
+    do_callf(scp, is_32, doshlp_get_entry(helpers[DOSHLP_LR].entry));
 }
 
 void msdos_lw_helper(sigcontext_t *scp, int is_32,
 	unsigned short rm_seg, void (*post)(sigcontext_t *))
 {
     liohlp_setup(DOSHLP_LW, is_32, rm_seg, post);
-    do_callf(scp, is_32, doshlp_get_entry(&helpers[DOSHLP_LW]));
+    do_callf(scp, is_32, doshlp_get_entry(helpers[DOSHLP_LW].entry));
 }
 
 static void do_int_call(sigcontext_t *scp, int is_32, int num,

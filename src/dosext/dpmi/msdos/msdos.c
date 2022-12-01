@@ -4,7 +4,7 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-/* 	MS-DOS API translator for DOSEMU's DPMI Server
+/* MS-DOS API translator for DOSEMU's DPMI Server
  *
  * DANG_BEGIN_MODULE msdos.c
  *

@@ -134,10 +134,10 @@ static void hlp_fill_rest(struct dos_helper_s *h,
     h->rm_arg = rm_arg;
 }
 
-struct pmaddr_s doshlp_get_entry(struct dos_helper_s *h)
+struct pmaddr_s doshlp_get_entry(unsigned entry)
 {
     struct pmaddr_s ret = {
-	    .offset = h->entry,
+	    .offset = entry,
 	    .selector = dpmi_sel(),
 	};
     return ret;
@@ -404,7 +404,7 @@ struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	h = &ext_helper;
 	hlp_fill_rest(h, rm_seg, rm_arg);
 	memcpy(r_offs, h->e_offs, len * sizeof(r_offs[0]));
-	ret = doshlp_get_entry(h);
+	ret = doshlp_get_entry(h->entry);
 	break;
     default:
 	dosemu_error("unknown pmrm handler\n");

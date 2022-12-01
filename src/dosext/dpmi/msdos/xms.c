@@ -73,17 +73,13 @@ static void msdos_post_xms(sigcontext_t *scp,
     *r_mask = rm_mask;
 }
 
-static far_t xms_call(const sigcontext_t *scp,
+static void xms_call(const sigcontext_t *scp,
 	__dpmi_regs *rmreg, unsigned short rm_seg)
 {
-    far_t XMS_call = get_xms_call();
     int rmask = (1 << cs_INDEX) |
 	(1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
-    D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
-	     XMS_call.segment, XMS_call.offset);
     msdos_pre_xms(scp, rmreg, rm_seg, &rmask);
     pm_to_rm_regs(scp, rmreg, ~rmask);
-    return XMS_call;
 }
 
 static void xms_ret(sigcontext_t *scp, const __dpmi_regs *rmreg)
@@ -94,16 +90,6 @@ static void xms_ret(sigcontext_t *scp, const __dpmi_regs *rmreg)
     D_printf("MSDOS: XMS call return\n");
 }
 
-static void do_call_to(sigcontext_t *scp, int is_32, far_t dst,
-		__dpmi_regs *rmreg)
-{
-    RMREG(ss) = 0;
-    RMREG(sp) = 0;
-    RMREG(cs) = dst.segment;
-    RMREG(ip) = dst.offset;
-    _dpmi_simulate_real_mode_procedure_retf(scp, is_32, rmreg);
-}
-
 static void xmshlp_thr(void *arg)
 {
     sigcontext_t *scp = arg;
@@ -111,17 +97,16 @@ static void xmshlp_thr(void *arg)
     __dpmi_regs rmreg = {};
     unsigned short rm_seg = helper.rm_seg(scp, 0, helper.rm_arg);
     int is_32 = msdos_is_32();
-    far_t XMS_call;
 
-    XMS_call = xms_call(scp, &rmreg, rm_seg);
-    do_call_to(scp, is_32, XMS_call, &rmreg);
+    xms_call(scp, &rmreg, rm_seg);
+    do_call_to(scp, is_32, get_xms_call(), &rmreg);
     *scp = sa;
     xms_ret(scp, &rmreg);
 }
 
 struct pmaddr_s get_xms_handler(void)
 {
-    return doshlp_get_entry(&helper);
+    return doshlp_get_entry(helper.entry);
 }
 
 void xmshlp_init(void)
