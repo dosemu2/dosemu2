@@ -543,6 +543,10 @@ static int _dpmi_control(void)
     sigcontext_t *scp = &DPMI_CLIENT.stack_frame;
 
     do {
+#ifdef USE_MHPDBG
+      if (mhpdbg.active)
+        mhp_debug(DBG_POLL, 0, 0);
+#endif
       dpmi_pic_run(scp);
       if (!in_dpmi_pm()) {
         ret = DPMI_RET_DOSEMU;
