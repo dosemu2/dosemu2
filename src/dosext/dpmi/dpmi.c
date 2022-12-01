@@ -1022,6 +1022,13 @@ unsigned int GetSegmentLimit(unsigned short selector)
   return limit;
 }
 
+unsigned int GetSegmentType(unsigned short selector)
+{
+  if (!ValidAndUsedSelector(selector))
+    return 0;
+  return Segments[selector >> 3].type;
+}
+
 int SetSegmentBaseAddress(unsigned short selector, dosaddr_t baseaddr)
 {
   unsigned short ldt_entry = selector >> 3;

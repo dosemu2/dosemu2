@@ -187,6 +187,7 @@ void GetFreeMemoryInformation(unsigned int *lp);
 int GetDescriptor(u_short selector, unsigned int *lp);
 unsigned int GetSegmentBase(unsigned short sel);
 unsigned int GetSegmentLimit(unsigned short sel);
+unsigned int GetSegmentType(unsigned short selector);
 int CheckSelectors(sigcontext_t *scp, int in_dosemu);
 int ValidAndUsedSelector(unsigned int selector);
 int dpmi_is_valid_range(dosaddr_t addr, int len);
@@ -363,6 +364,11 @@ static inline sigcontext_t *dpmi_get_scp(void)
 }
 
 static inline unsigned int GetSegmentLimit(unsigned short sel)
+{
+    return 0;
+}
+
+static inline unsigned int GetSegmentType(unsigned short selector)
 {
     return 0;
 }

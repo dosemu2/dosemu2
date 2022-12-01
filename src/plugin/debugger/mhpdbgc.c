@@ -63,6 +63,7 @@
 #include "dis8086.h"
 #include "dos2linux.h"
 #include "kvm.h"
+#include "Asm/ldt.h"
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
@@ -1950,7 +1951,7 @@ static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1,
    base_addr = GetSegmentBase(seg1);
    limit = GetSegmentLimit(seg1);
 
-   if (off1 >= limit) {
+   if (off1 > limit && GetSegmentType(seg1) != MODIFY_LDT_CONTENTS_STACK) {
      mhp_printf("offset %x exceeds segment limit %x\n", off1, limit);
      return 0;
    }
