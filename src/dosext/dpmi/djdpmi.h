@@ -1,3 +1,5 @@
+#ifndef DJDPMI_H
+#define DJDPMI_H
 /* ripped from djgpp's dpmi.h */
 
 #include <stdint.h>
@@ -121,3 +123,5 @@ typedef struct {
   unsigned short reserved1;
   ULONG reserved2;
 } __dpmi_shminfo;
+
+#endif

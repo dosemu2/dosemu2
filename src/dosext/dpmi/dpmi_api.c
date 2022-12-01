@@ -255,10 +255,15 @@ int _dpmi_int(sigcontext_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
     return 0;
 }
 
-int _dpmi_simulate_real_mode_procedure_retf(sigcontext_t *scp, int is_32, __dpmi_regs *__regs)
+static void do_procedure_retf(sigcontext_t *scp,
+	int is_32, __dpmi_regs *__regs, int words)
 {				/* DPMI 0.9 AX=0301 */
     struct pmaddr_s pma = {
-	.offset = DPMI_SEL_OFF(DPMI_call),
+	.offset = DPMI_SEL_OFF(DPMI_call_args),
+	.selector = dpmi_sel(),
+    };
+    struct pmaddr_s pma16 = {
+	.offset = DPMI_SEL_OFF(DPMI_call_args16),
 	.selector = dpmi_sel(),
     };
     sigcontext_t sa = *scp;
@@ -266,11 +271,11 @@ int _dpmi_simulate_real_mode_procedure_retf(sigcontext_t *scp, int is_32, __dpmi
 
     _eax = 0x301;
     _ebx = 0;
-    _ecx = 0;
+    _ecx = words;
     _es = data_sel;
     _edi = POOL_OFS(regs);
     memcpy(regs, __regs, sizeof(*regs));
-    do_callf(scp, is_32, pma);
+    do_callf(scp, is_32, is_32 ? pma : pma16);
     D_printf("MSDOS: sched to dos thread for call to %x:%x\n",
 	    __regs->x.cs, __regs->x.ip);
     coopth_sched();
@@ -278,11 +283,33 @@ int _dpmi_simulate_real_mode_procedure_retf(sigcontext_t *scp, int is_32, __dpmi
     memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
     *scp = sa;
+}
+
+int _dpmi_simulate_real_mode_procedure_retf(sigcontext_t *scp, int is_32,
+	__dpmi_regs *__regs)
+{				/* DPMI 0.9 AX=0301 */
+    do_procedure_retf(scp, is_32, __regs, 0);
     return 0;
 }
 
-int _dpmi_simulate_real_mode_procedure_retf_stack(sigcontext_t *scp, int is_32, __dpmi_regs *__regs, int stack_words_to_copy, const void *stack_data)
+int _dpmi_simulate_real_mode_procedure_retf_stack(sigcontext_t *scp, int is_32,
+	__dpmi_regs *__regs, int stack_words_to_copy, const void *stack_data)
 { /* DPMI 0.9 AX=0301 */
+    unsigned short *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
+    const unsigned short *d = stack_data;
+    int i;
+
+    for (i = 0; i < stack_words_to_copy; i++)
+	*--sp = d[stack_words_to_copy - 1 - i];
+    if (is_32)
+	_esp -= stack_words_to_copy * 2;
+    else
+	_LWORD(esp) -= stack_words_to_copy * 2;
+    do_procedure_retf(scp, is_32, __regs, stack_words_to_copy);
+    if (is_32)
+	_esp += stack_words_to_copy * 2;
+    else
+	_LWORD(esp) += stack_words_to_copy * 2;
     return 0;
 }
 

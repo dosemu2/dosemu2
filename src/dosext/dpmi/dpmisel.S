@@ -8,6 +8,7 @@
 #include "macros86.h"
 
 	.section .text
+.code32
 
 #ifdef __x86_64__
 	.globl DPMI_iret
@@ -225,6 +226,54 @@ DPMI_VXD_end:
 DPMI_call:
 	int $0x31
 	lretl
+	.globl DPMI_call_args
+DPMI_call_args:
+	pushl %ebp
+	movl %esp, %ebp
+	pushl %ecx
+	pushl %edx
+	movl %ecx, %edx
+	jcxz 2f
+1:
+	pushw 12-2(%ebp,%ecx,2)
+	loop 1b
+	movl %edx, %ecx
+2:
+	int $0x31
+	movl -4(%ebp), %ecx
+	shll $1, %ecx
+	addl %ecx, %esp
+	popl %edx
+	popl %ecx
+	popl %ebp
+	lretl
+	.globl DPMI_call_args16
+DPMI_call_args16:
+.code16
+	pushw %bp
+	movw %sp, %bp
+	pushw %cx
+	pushw %dx
+	pushw %si
+	movw %cx, %dx
+	jcxz 2f
+1:
+	movw %cx, %si
+	shlw $1, %si
+	pushw 6-2(%bp,%si)
+	loop 1b
+	movw %dx, %cx
+2:
+	int $0x31
+	movw -2(%bp), %cx
+	shlw $1, %cx
+	addw %cx, %sp
+	popw %si
+	popw %dx
+	popw %cx
+	popw %bp
+	lretw
+.code32
 	.globl DPMI_msdos
 DPMI_msdos:
 	int $0x21
