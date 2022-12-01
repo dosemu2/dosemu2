@@ -1565,10 +1565,10 @@ static void do_ret_from_int(int inum, const char *pfx)
     ssp = SEGOFF2LINEAR(SREG(ss), 0);
     sp = LWORD(esp);
 
-    _SP += 6;
     _IP = popw(ssp, sp);
     _CS = popw(ssp, sp);
     flgs = popw(ssp, sp);
+    _SP += 6;
     if (flgs & IF)
 	set_IF();
     else
@@ -3382,10 +3382,10 @@ void fake_iret(void)
     ssp = SEGOFF2LINEAR(SREG(ss), 0);
     sp = LWORD(esp);
 
-    _SP += 6;
     _IP = popw(ssp, sp);
     _CS = popw(ssp, sp);
     set_FLAGS(popw(ssp, sp));
+    _SP += 6;
 #ifdef USE_MHPDBG
     if (mhpdbg.active && old_tf)
 	set_TF();
