@@ -17,6 +17,7 @@ void dpmi_iret_unwind(sigcontext_t *scp);
 
 static inline int native_dpmi_setup(void)
 {
+    error("Native DPMI not compiled in\n");
     return -1;
 }
 
