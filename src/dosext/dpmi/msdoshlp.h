@@ -5,10 +5,12 @@
 #include "sig.h"
 #endif
 #include "cpu.h"
+#include "hlt.h"
 #include "emudpmi.h"
+#include "djdpmi.h"
 
 enum MsdOpIds { MSDOS_FAULT, MSDOS_PAGEFAULT, API_CALL, API_WINOS2_CALL,
-	MSDOS_LDT_CALL16, MSDOS_LDT_CALL32, MSDOS_EXT_CALL };
+	MSDOS_LDT_CALL16, MSDOS_LDT_CALL32, MSDOS_EXT_CALL, DPMIENT_RET };
 
 enum { MSDOS_NONE, MSDOS_RMINT, MSDOS_RM, MSDOS_PM, MSDOS_DONE };
 enum { POSTEXT_NONE, POSTEXT_PUSH };
@@ -43,7 +45,9 @@ struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	unsigned short, int),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg, int len, int r_offs[]);
+void doshlp_register_post_handler(enum MsdOpIds id, void (*h)(sigcontext_t *));
 far_t get_exec_helper(void);
+far_t get_dpmient_helper(void);
 far_t get_term_helper(void);
 
 void msdoshlp_init(int (*is_32)(void), int len);
@@ -59,10 +63,14 @@ void doshlp_setup_retf(struct dos_helper_s *h,
 	const char *name, void (*thr)(void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg);
+unsigned doshlp_setup_simple(const char *name, emu_hlt_func fn);
 
 struct pmaddr_s doshlp_get_entry(unsigned entry);
 
 void doshlp_quit_dpmi(sigcontext_t *scp);
 int doshlp_idle(void);
+void doshlp_dpmient(sigcontext_t *scp,
+	int is_32, const __dpmi_regs *__regs, int words);
+void dpmienthlp_post(sigcontext_t *scp);
 
 #endif

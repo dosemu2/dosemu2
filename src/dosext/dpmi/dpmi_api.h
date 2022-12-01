@@ -107,5 +107,7 @@ int	_dpmi_get_coprocessor_status(sigcontext_t *scp, int is_32);							/* DPMI 1.
 int	_dpmi_set_coprocessor_emulation(sigcontext_t *scp, int is_32, int _flags);						/* DPMI 1.0 AX=0e01 */
 
 void dpmi_api_init(uint16_t selector, dosaddr_t  pool, int pool_size);
+struct pmaddr_s dpmi_api_alloc(int size, const void *buf);
+void dpmi_api_free(struct pmaddr_s addr);
 
 #endif

@@ -80,6 +80,8 @@ extern unsigned char	MSDOS_rmcb_ret0[];
 extern unsigned char	MSDOS_rmcb_ret1[];
 extern unsigned char	MSDOS_rmcb_ret2[];
 extern unsigned char	MSDOS_rmcb_call_end[];
+extern unsigned char	MSDOS_dpmient[];
+extern unsigned char	MSDOS_dpmiret[];
 extern unsigned char	MSDOS_hlt_start[];
 extern unsigned char	MSDOS_hlt_end[];
 extern unsigned char	MSDOS_pmc_end[];

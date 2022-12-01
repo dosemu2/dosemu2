@@ -63,6 +63,7 @@ struct msdos_ops {
     struct pext_ret (*ext_ret)(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg, unsigned short rm_seg,
 	int off);
+    void (*dpmient_ret_handler)(sigcontext_t *scp);
     void (*rmcb_handler[MAX_CBKS])(sigcontext_t *scp,
 	const struct RealModeCallStructure *rmreg, int is_32, void *arg);
     void *rmcb_arg[MAX_CBKS];
@@ -80,11 +81,20 @@ struct exec_helper_s {
     far_t s_r;
     u_char len;
 };
+struct dpmient_helper_s {
+    int tid;
+    far_t entry;
+    int ttid;
+    far_t term;
+    unsigned short mseg;
+    struct pmaddr_s regs;
+};
 struct rm_helper_s {
     far_t entry;
 };
 static struct dos_helper_s ext_helper;
 static struct exec_helper_s exec_helper;
+static struct dpmient_helper_s dpmient_helper;
 static struct rm_helper_s term_helper;
 
 static void *hlt_state;
@@ -160,6 +170,15 @@ void doshlp_setup_retf(struct dos_helper_s *h, const char *name,
 {
     doshlp_setup(h, name, thr, do_retf);
     hlp_fill_rest(h, rm_seg, rm_arg);
+}
+
+unsigned doshlp_setup_simple(const char *name, emu_hlt_func fn)
+{
+    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+    hlt_hdlr.name = name;
+    hlt_hdlr.func = fn;
+    return hlt_register_handler(hlt_state, hlt_hdlr) +
+	DPMI_SEL_OFF(MSDOS_hlt_start);
 }
 
 static void do_callf(sigcontext_t *scp, struct pmaddr_s pma)
@@ -275,6 +294,122 @@ static void exechlp_thr(void *arg)
     LWORD(esp) += exec_helper.len;
 }
 
+void doshlp_dpmient(sigcontext_t *scp,
+	int is_32, const __dpmi_regs *__regs, int words)
+{
+    struct pmaddr_s pma16 = {
+	.offset = DPMI_SEL_OFF(MSDOS_dpmient),
+	.selector = dpmi_sel(),
+    };
+    struct pmaddr_s regs = dpmi_api_alloc(sizeof(*__regs), __regs);
+
+    dpmient_helper.regs = regs;
+    _eax = 0x301;
+    _ebx = 0;
+    _ecx = words;
+    _es = regs.selector;
+    _edi = regs.offset;
+    _cs = pma16.selector;
+    _eip = pma16.offset;
+}
+
+void dpmienthlp_post(sigcontext_t *scp)
+{
+    dpmi_api_free(dpmient_helper.regs);
+}
+
+static void dpmienthlp_thr(void *arg)
+{
+    unsigned short dseg;
+    unsigned short psp_seg;
+    struct PSP *psp;
+    struct PSP *old_psp;
+    far_t dpmient;
+    far_t latched_stk;
+    int is_if;
+    int esp_delta;
+    dosaddr_t ssp = SEGOFF2LINEAR(SREG(ss), 0);
+    unsigned short args = LWORD(esp) + 4;
+    struct vm86_regs saved_regs = REGS;
+
+    D_printf("dpmient helper realmode\n");
+    /* query DPMI */
+    LWORD(eax) = 0x1687;
+    NOCARRY;
+    do_int_call_back(0x2f);
+    /* make sure 32bit DPMI is supported */
+    if (isset_CF() || LWORD(eax) != 0 || !(LWORD(ebx) & 1)) {
+	error("1687 failed, %x %x\n", LWORD(eax), LWORD(ebx));
+	CARRY;
+	return;
+    }
+    dpmient.segment = SREG(es);
+    dpmient.offset = LWORD(edi);
+    /* get PSP */
+    HI(ax) = 0x62;
+    do_int_call_back(0x21);
+    old_psp = SEG2UNIX(LWORD(ebx));
+    /* alloc memory */
+    HI(ax) = 0x48;
+    LWORD(ebx) = 0x10 + LWORD(esi);	// PSP + DPMI
+    do_int_call_back(0x21);
+    if (isset_CF()) {
+	error("dos malloc failed\n");
+	return;
+    }
+    dpmient_helper.mseg = LWORD(eax);
+    psp_seg = LWORD(eax);
+    psp = SEG2UNIX(psp_seg);
+    dseg = LWORD(eax) + 0x10;
+    /* create & set PSP */
+    is_if = isset_IF();
+    clear_IF();
+    HI(ax) = 0x55;
+    LWORD(edx) = psp_seg;
+    LWORD(esi) = 0;	// who cares?
+    do_int_call_back(0x21);
+    /* bad hack: latch int21 stack under disabled ints */
+    latched_stk = rFAR_FARt(old_psp->system_stack);
+    esp_delta = LWORD(esp) - latched_stk.offset;
+    LWORD(esp) = latched_stk.offset;
+    if (is_if)
+	set_IF();
+    if (esp_delta < 24 || latched_stk.segment != SREG(ss))
+	error("bad stack, %i %x %x\n", esp_delta, latched_stk.segment,
+	       SREG(ss));
+    /* put our return address there */
+    psp->int22_copy = MK_FP16(dpmient_helper.term.segment,
+	dpmient_helper.term.offset);
+    /* copy 2 args */
+    LWORD(esp) -= 4;
+    MEMCPY_DOS2DOS(ssp + LWORD(esp), ssp + args, 4);
+    /* push entry to args */
+    pushw(ssp, LWORD(esp), dpmient.segment);
+    pushw(ssp, LWORD(esp), dpmient.offset);
+    /* restore regs */
+#define R(x) LWORD(x) = saved_regs.x
+    R(eax); R(ebx); R(ecx); R(edx); R(esi); R(edi); R(ebp);
+    /* load dpmi args */
+    HWORD(esp) = 0;
+    SREG(es) = dseg;
+    /* jump to asm helper */
+    coopth_leave();
+    jmp_to(BIOSSEG, DPMIENT_SWITCH_HELPER);
+}
+
+static void dpmienthlp_term(void *arg)
+{
+    D_printf("dpmientry: client terminated\n");
+    /* free allocated mem */
+    HI(ax) = 0x49;
+    SREG(es) = dpmient_helper.mseg;
+    do_int_call_back(0x21);
+    /* go out */
+    coopth_leave();
+    NOCARRY;
+    fake_retf();
+}
+
 static void termhlp_proc(Bit16u idx, HLT_ARG(arg))
 {
     struct PSP *psp = SEG2UNIX(LWORD(esi));
@@ -291,6 +426,18 @@ static void exechlp_setup(void)
     exec_helper.entry.segment = BIOS_HLT_BLK_SEG;
     exec_helper.tid = coopth_create_vm86("msdos exec thr",
 		exechlp_thr, fake_iret, &exec_helper.entry.offset);
+#endif
+}
+
+static void dpmienthlp_setup(void)
+{
+#ifdef DOSEMU
+    dpmient_helper.entry.segment = BIOS_HLT_BLK_SEG;
+    dpmient_helper.tid = coopth_create_vm86("msdos dpmient thr",
+		dpmienthlp_thr, fake_retf, &dpmient_helper.entry.offset);
+    dpmient_helper.term.segment = BIOS_HLT_BLK_SEG;
+    dpmient_helper.ttid = coopth_create_vm86("msdos dpmiterm thr",
+		dpmienthlp_term, fake_retf, &dpmient_helper.term.offset);
 #endif
 }
 
@@ -414,11 +561,29 @@ struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
     return ret;
 }
 
+void doshlp_register_post_handler(enum MsdOpIds id,
+	void (*handler)(sigcontext_t *))
+{
+    switch (id) {
+    case DPMIENT_RET:
+	msdos.dpmient_ret_handler = handler;
+	break;
+    default:
+	dosemu_error("unknown post handler\n");
+	break;
+    }
+}
+
 far_t get_exec_helper(void)
 {
     struct pmaddr_s pma;
     exec_helper.len = DPMI_get_save_restore_address(&exec_helper.s_r, &pma);
     return exec_helper.entry;
+}
+
+far_t get_dpmient_helper(void)
+{
+    return dpmient_helper.entry;
 }
 
 far_t get_term_helper(void)
@@ -461,6 +626,8 @@ void msdos_pm_call(sigcontext_t *scp)
 	msdos.ldt_update_call16(scp, NULL);
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_LDT_call32)) {
 	msdos.ldt_update_call32(scp, NULL);
+    } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_dpmiret)) {
+	msdos.dpmient_ret_handler(scp);
     } else if (_eip >= 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_start) &&
 	    _eip < 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_end)) {
 	int idx, ret;
@@ -642,6 +809,7 @@ void msdoshlp_init(int (*is_32)(void), int len)
     doshlp_setup_m(&ext_helper, "msdos ext thr", exthlp_thr, do_dpmi_iret,
 	    len);
     exechlp_setup();
+    dpmienthlp_setup();
     termhlp_setup();
 #endif
 }

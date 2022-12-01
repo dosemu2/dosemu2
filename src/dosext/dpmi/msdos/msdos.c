@@ -34,6 +34,7 @@
 #include "emudpmi.h"
 #include "emm_msdos.h"
 #include "xms_msdos.h"
+#include "dpmient.h"
 #include "lio.h"
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
@@ -159,6 +160,7 @@ void msdos_setup(void)
     msdoshlp_init(msdos_is_32, num_ints);
     lio_init();
     xmshlp_init();
+    dpmienthlp_init();
 }
 
 void msdos_reset(void)
@@ -1529,6 +1531,22 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    if (doshlp_idle())
 		_LO(ax) = 0;
 	    return MSDOS_DONE;
+	case 0x1687: {
+	    struct pmaddr_s pma;
+	    /* supported only for 16bit clients */
+	    if (MSDOS_CLIENT.is_32)
+		return MSDOS_NONE;
+	    _LWORD(eax) = 0;
+	    _LWORD(ebx) = 1;
+	    _LWORD(ecx) = 4;
+	    _HI(dx) = DPMI_VERSION;
+	    _LO(dx) = DPMI_DRIVER_VERSION;
+	    _LWORD(esi) = 0;
+	    pma = get_dpmient_handler();
+	    _es = pma.selector;
+	    _LWORD(edi) = pma.offset;
+	    return MSDOS_DONE;
+	}
 	case 0x1688:
 	    _eax = 0;
 	    _ebx = MSDOS_CLIENT.ldt_alias;

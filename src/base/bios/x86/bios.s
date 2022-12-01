@@ -763,6 +763,48 @@ DBGload_OFF:
 	/* and give control to the program */
 	ljmp    *%cs:DBGload_CSIP
 
+.macro alias_desc off
+	pushw %bp
+	movw %sp, %bp
+	pushal
+	/* create alias */
+	movw $0xa, %ax
+	movw \off(%bp), %bx
+	int $0x31
+	movw %ax, \off(%bp)
+	testw $1, -4(%bp)	/* ax */
+	jz 1f
+	/* need to set 32bit */
+	movzwl %ax, %eax
+	larl %eax, %ecx
+	jnz 1f
+	shrl $8, %ecx
+	orb $0x40, %ch
+	movw %ax, %bx
+	/* set access rights word */
+	movw $9, %ax
+	int $0x31
+	movw \off(%bp), %ax
+1:
+	/* set limit to 0xffff */
+	movw %ax, %bx
+	movw $8, %ax
+	movw $0, %cx
+	movw $0xffff, %dx
+	int $0x31
+	popal
+	popw %bp
+.endm
+
+	.globl DPMIENT_SWITCH_HELPER
+DPMIENT_SWITCH_HELPER:
+	lcallw *(%esp)
+	alias_desc 8
+	lssw 4(%esp), %sp
+	alias_desc 2
+	popw %ds
+	lretw
+
 /* ======================= INT_REVECT macro */
 .macro int_rvc inum
 /* header start for IBM'S INTERRUPT-SHARING PROTOCOL */

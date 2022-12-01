@@ -157,6 +157,18 @@ MSDOS_rmcb_ret2:
 	iretl
 	.globl MSDOS_rmcb_call_end
 MSDOS_rmcb_call_end:
+
+	.globl MSDOS_dpmient
+MSDOS_dpmient:
+	int $0x31
+	.globl MSDOS_dpmiret
+MSDOS_dpmiret:
+	hlt
+.code16
+	movw $0x4c00, %ax
+	int $0x21
+.code32
+
 	.globl MSDOS_hlt_start
 MSDOS_hlt_start:
 	FILL_OPCODE 32,hlt

@@ -34,6 +34,7 @@ static unsigned char *pool_base;
 static smpool apool;
 
 #define POOL_OFS(p) ((unsigned char *)(p) - pool_base)
+#define POOL_PTR(o) (pool_base + (o))
 
 static void do_callf(sigcontext_t *scp, int is_32, struct pmaddr_s pma)
 {
@@ -565,4 +566,25 @@ void dpmi_api_init(uint16_t selector, dosaddr_t pool, int pool_size)
     data_sel = selector;
     pool_base = MEM_BASE32(pool);
     sminit(&apool, pool_base, pool_size);
+}
+
+struct pmaddr_s dpmi_api_alloc(int size, const void *buf)
+{
+    struct pmaddr_s ret = {};
+    void *ptr = smalloc(&apool, size);
+    if (!ptr)
+	return ret;
+    memcpy(ptr, buf, size);
+    ret.selector = data_sel;
+    ret.offset = POOL_OFS(ptr);
+    return ret;
+}
+
+void dpmi_api_free(struct pmaddr_s addr)
+{
+    if (addr.selector != data_sel) {
+	error("bad ptr\n");
+	return;
+    }
+    smfree(&apool, POOL_PTR(addr.offset));
 }
