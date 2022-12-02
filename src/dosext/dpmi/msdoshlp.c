@@ -143,7 +143,7 @@ struct pmaddr_s doshlp_get_entry(unsigned entry)
     return ret;
 }
 
-static void doshlp_setup(struct dos_helper_s *h, const char *name,
+void doshlp_setup(struct dos_helper_s *h, const char *name,
 	void (*thr)(void *), void (*post)(sigcontext_t *))
 {
 #ifdef DOSEMU
@@ -547,6 +547,17 @@ void doshlp_quit_dpmi(sigcontext_t *scp)
     do_dpmi_iret(scp);
     _eax = 0x4c01;
     do_callf(scp, pma);
+}
+
+void doshlp_call_reinit(sigcontext_t *scp)
+{
+    struct pmaddr_s pma = {
+	.offset = DPMI_SEL_OFF(DPMI_reinit),
+	.selector = dpmi_sel(),
+    };
+
+    do_callf(scp, pma);
+    coopth_sched();
 }
 
 static void do_int_to(sigcontext_t *scp, int is_32, far_t dst,

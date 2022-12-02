@@ -59,10 +59,14 @@ void doshlp_setup_retf(struct dos_helper_s *h,
 	const char *name, void (*thr)(void *),
 	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
 	void *rm_arg);
+void doshlp_setup(struct dos_helper_s *h,
+	const char *name, void (*thr)(void *),
+	void (*post)(sigcontext_t *));
 
 struct pmaddr_s doshlp_get_entry(unsigned entry);
 
 void doshlp_quit_dpmi(sigcontext_t *scp);
+void doshlp_call_reinit(sigcontext_t *scp);
 int doshlp_idle(void);
 
 #endif

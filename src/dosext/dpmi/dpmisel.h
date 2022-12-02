@@ -47,6 +47,7 @@ extern unsigned char	DPMI_vtmr_irq[];
 extern unsigned char	DPMI_vtmr_post_irq[];
 extern unsigned char	DPMI_vrtc_irq[];
 extern unsigned char	DPMI_vrtc_post_irq[];
+extern unsigned char	DPMI_reinit[];
 extern unsigned char	DPMI_sel_end[];
 
 extern unsigned char	DPMI_VXD_start[];

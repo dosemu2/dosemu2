@@ -104,6 +104,7 @@ static void add_cli_to_blacklist(unsigned char *addr);
 static int dpmi_mhp_intxx_check(sigcontext_t *scp, int intno);
 #endif
 static int dpmi_fault1(sigcontext_t *scp);
+static void do_dpmi_retf(sigcontext_t *scp, void * const sp);
 static far_t s_i1c, s_i23, s_i24;
 
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
@@ -135,6 +136,7 @@ struct DPMIclient_struct {
   #define DF_PHARLAP 1
   Bit32u feature_flags;
   uint16_t initial_psp;
+  uint16_t psp_sel;
   uint16_t int23_psp;
 
   DPMI_INTDESC vtmr_prev;
@@ -1096,6 +1098,15 @@ int SetDescriptorAccessRights(unsigned short selector, unsigned short acc_rights
   return ret;
 }
 
+static int GetDescriptorAccessRights(unsigned short selector,
+	unsigned short *acc_rights)
+{
+  if (!ValidAndUsedSelector(selector))
+    return -1; /* invalid selector 8022 */
+  memcpy(acc_rights, &ldt_buffer[(selector & 0xfff8) + 5], 2);
+  return 0;
+}
+
 unsigned short CreateAliasDescriptor(unsigned short selector)
 {
   us ds_selector;
@@ -1543,6 +1554,10 @@ static void get_ext_API(sigcontext_t *scp)
 	_LO(ax) = 0;
 	_es = dpmi_sel();
 	_edi = DPMI_SEL_OFF(DPMI_API_extension);
+      } else if (!strcmp("DPMI_REINIT", ptr)) {
+	_LO(ax) = 0;
+	_es = dpmi_sel();
+	_edi = DPMI_SEL_OFF(DPMI_reinit);
       } else {
 	if (!(_LWORD(eax)==0x168a))
 	  _eax = 0x8001;
@@ -3734,6 +3749,96 @@ void dpmi_reset(void)
 	msdos_reset();
 }
 
+static void setup_int_exc(int inherit_idt)
+{
+  int i;
+  DPMI_INTDESC desc;
+
+  for (i=0;i<0x100;i++) {
+    if (inherit_idt) {
+      desc.offset32 = PREV_DPMI_CLIENT.Interrupt_Table[i].offset;
+      desc.selector = PREV_DPMI_CLIENT.Interrupt_Table[i].selector;
+    } else {
+      desc.offset32 = DPMI_SEL_OFF(DPMI_interrupt) + i;
+      desc.selector = dpmi_sel();
+    }
+    dpmi_set_interrupt_vector(i, desc);
+  }
+
+  /* vtmr interrupts are not inherited */
+  desc.selector = dpmi_sel();
+  desc.offset32 = DPMI_SEL_OFF(DPMI_interrupt) + VTMR_INTERRUPT;
+  DPMI_CLIENT.vtmr_prev = desc;
+  desc.selector = dpmi_sel();
+  desc.offset32 = DPMI_SEL_OFF(DPMI_vtmr_irq);
+  dpmi_set_interrupt_vector(VTMR_INTERRUPT, desc);
+
+  desc.selector = dpmi_sel();
+  desc.offset32 = DPMI_SEL_OFF(DPMI_interrupt) + VRTC_INTERRUPT;
+  DPMI_CLIENT.vrtc_prev = desc;
+  desc.selector = dpmi_sel();
+  desc.offset32 = DPMI_SEL_OFF(DPMI_vrtc_irq);
+  dpmi_set_interrupt_vector(VRTC_INTERRUPT, desc);
+
+  for (i=0;i<0x20;i++) {
+    if (inherit_idt) {
+      DPMI_CLIENT.Exception_Table[i].offset = PREV_DPMI_CLIENT.Exception_Table[i].offset;
+      DPMI_CLIENT.Exception_Table[i].selector = PREV_DPMI_CLIENT.Exception_Table[i].selector;
+    } else {
+      DPMI_CLIENT.Exception_Table[i].offset = DPMI_SEL_OFF(DPMI_exception) + i;
+      DPMI_CLIENT.Exception_Table[i].selector = dpmi_sel();
+    }
+    DPMI_CLIENT.Exception_Table_PM[i].offset = DPMI_SEL_OFF(DPMI_ext_exception) + i;
+    DPMI_CLIENT.Exception_Table_PM[i].selector = dpmi_sel();
+    DPMI_CLIENT.Exception_Table_RM[i].offset = DPMI_SEL_OFF(DPMI_rm_exception) + i;
+    DPMI_CLIENT.Exception_Table_RM[i].selector = dpmi_sel();
+  }
+}
+
+static void dpmi_reinit(sigcontext_t *scp)
+{
+  unsigned short DS, ES, SS, rights;
+
+  _eflags |= CF;
+  D_printf("DPMI: reinit called, %i %i\n", _LWORD(eax), DPMI_CLIENT.is_32);
+  D_printf("%s", DPMI_show_state(scp));
+  do_dpmi_retf(scp, SEL_ADR(_ss, _esp));
+
+  if ((_LWORD(eax) & 1) == DPMI_CLIENT.is_32) {
+    _eflags &= ~CF;
+    return;
+  }
+  if (DPMI_CLIENT.is_32)
+    return;
+
+  DPMI_CLIENT.is_32 = 1;
+  DS = CreateAliasDescriptor(_ds);
+  SetSegmentLimit(DS, 0xffff);
+  GetDescriptorAccessRights(DS, &rights);
+  SetDescriptorAccessRights(DS, rights | 0x4000);	// 32bit
+  if (_ss == _ds) {
+    SS = DS;
+  } else {
+    SS = CreateAliasDescriptor(_ss);
+    SetSegmentLimit(SS, 0xffff);
+    GetDescriptorAccessRights(SS, &rights);
+    SetDescriptorAccessRights(SS, rights | 0x4000);	// 32bit
+  }
+  ES = DPMI_CLIENT.psp_sel;
+
+  setup_int_exc(0);
+
+  _ds = DS;
+  _es = ES;
+  _ss = SS;
+  /* if came from coopth, we need to hack CS here and use custom
+   * ret16 helper in msdos.c */
+  if (_cs == _dpmi_sel16)
+    _cs = _dpmi_sel32;
+  _eflags &= ~CF;
+  D_printf("%s", DPMI_show_state(scp));
+}
+
 void dpmi_init(void)
 {
   /* Holding spots for REGS and Return Code */
@@ -3744,7 +3849,6 @@ void dpmi_init(void)
   int inherit_idt;
   sigcontext_t *scp;
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-  DPMI_INTDESC desc;
 
   CARRY;
 
@@ -3797,47 +3901,9 @@ void dpmi_init(void)
   else
     inherit_idt = 0;
 
-  for (i=0;i<0x100;i++) {
-    if (inherit_idt) {
-      desc.offset32 = PREV_DPMI_CLIENT.Interrupt_Table[i].offset;
-      desc.selector = PREV_DPMI_CLIENT.Interrupt_Table[i].selector;
-    } else {
-      desc.offset32 = DPMI_SEL_OFF(DPMI_interrupt) + i;
-      desc.selector = dpmi_sel();
-    }
-    dpmi_set_interrupt_vector(i, desc);
-  }
-
-  /* vtmr interrupts are not inherited */
-  desc.selector = dpmi_sel();
-  desc.offset32 = DPMI_SEL_OFF(DPMI_interrupt) + VTMR_INTERRUPT;
-  DPMI_CLIENT.vtmr_prev = desc;
-  desc.selector = dpmi_sel();
-  desc.offset32 = DPMI_SEL_OFF(DPMI_vtmr_irq);
-  dpmi_set_interrupt_vector(VTMR_INTERRUPT, desc);
-
-  desc.selector = dpmi_sel();
-  desc.offset32 = DPMI_SEL_OFF(DPMI_interrupt) + VRTC_INTERRUPT;
-  DPMI_CLIENT.vrtc_prev = desc;
-  desc.selector = dpmi_sel();
-  desc.offset32 = DPMI_SEL_OFF(DPMI_vrtc_irq);
-  dpmi_set_interrupt_vector(VRTC_INTERRUPT, desc);
+  setup_int_exc(inherit_idt);
 
   DPMI_CLIENT.orig_imr = port_inb(0x21);
-
-  for (i=0;i<0x20;i++) {
-    if (inherit_idt) {
-      DPMI_CLIENT.Exception_Table[i].offset = PREV_DPMI_CLIENT.Exception_Table[i].offset;
-      DPMI_CLIENT.Exception_Table[i].selector = PREV_DPMI_CLIENT.Exception_Table[i].selector;
-    } else {
-      DPMI_CLIENT.Exception_Table[i].offset = DPMI_SEL_OFF(DPMI_exception) + i;
-      DPMI_CLIENT.Exception_Table[i].selector = dpmi_sel();
-    }
-    DPMI_CLIENT.Exception_Table_PM[i].offset = DPMI_SEL_OFF(DPMI_ext_exception) + i;
-    DPMI_CLIENT.Exception_Table_PM[i].selector = dpmi_sel();
-    DPMI_CLIENT.Exception_Table_RM[i].offset = DPMI_SEL_OFF(DPMI_rm_exception) + i;
-    DPMI_CLIENT.Exception_Table_RM[i].selector = dpmi_sel();
-  }
 
   hlt_hdlr.name = "DPMI rm cb";
   hlt_hdlr.len = DPMI_MAX_RMCBS;
@@ -3900,6 +3966,7 @@ void dpmi_init(void)
   if (!(ES = AllocateDescriptors(1))) goto err;
   SetSegmentBaseAddress(ES, psp << 4);
   SetSegmentLimit(ES, 0xff);
+  DPMI_CLIENT.psp_sel = ES;
 
   if (debug_level('M')) {
     print_ldt();
@@ -4638,6 +4705,9 @@ static void do_dpmi_hlt(sigcontext_t *scp, uint8_t *lina, void *sp)
           int masked = !!(_eflags & CF);
           vrtc_post_irq_dpmi(masked);
           D_printf("VRTC: return from PM handler\n");
+
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_reinit)) {
+          dpmi_reinit(scp);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);

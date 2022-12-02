@@ -119,6 +119,8 @@ static int ems_frame_mapped;
 static int ems_handle;
 #define MSDOS_EMS_PAGES 4
 
+static struct dos_helper_s reinit_hlp;
+
 static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg);
 
 static void *cbk_args(int idx)
@@ -154,11 +156,23 @@ static unsigned short trans_buffer_seg(void)
 
 int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
 
+static void reinit_thr(void *arg);
+
+static void do_retf16(sigcontext_t *scp)
+{
+    void *sp = SEL_ADR_CLNT(_ss, _esp, 0);
+    unsigned short *ssp = sp;
+    _LWORD(eip) = *ssp++;
+    _cs = *ssp++;
+    _LWORD(esp) += 4;
+}
+
 void msdos_setup(void)
 {
     msdoshlp_init(msdos_is_32, num_ints);
     lio_init();
     xmshlp_init();
+    doshlp_setup(&reinit_hlp, "msdos reinit thr", reinit_thr, do_retf16);
 }
 
 void msdos_reset(void)
@@ -181,36 +195,14 @@ static void *get_prev_fault(void) { return &MSDOS_CLIENT.prev_fault; }
 static void *get_prev_pfault(void) { return &MSDOS_CLIENT.prev_pagefault; }
 static void *get_prev_ext(int off) { return &MSDOS_CLIENT.prev_ihandler[off]; }
 
-void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
+static void setup_int_exc(int inherit_idt)
 {
-    unsigned short envp;
     struct pmaddr_s pma;
     DPMI_INTDESC desc;
     int i;
 
-    msdos_client_num++;
-    memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
-    MSDOS_CLIENT.is_32 = is_32;
-    MSDOS_CLIENT.lowmem_seg = mseg;
-    MSDOS_CLIENT.current_psp = psp;
-    /* convert environment pointer to a descriptor */
-    envp = get_env_sel();
-    if (envp) {
-	write_env_sel(ConvertSegmentToDescriptor(envp));
-	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
-		 envp, get_env_sel());
-    }
-    if (msdos_client_num == 1 ||
-	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
+    if (!inherit_idt) {
 	int int_offs[num_ints];
-	int len = sizeof(struct RealModeCallStructure);
-	dosaddr_t rmcb_mem = msdos_malloc(len);
-
-	MSDOS_CLIENT.rmcb_sel = AllocateDescriptors(1);
-	SetSegmentBaseAddress(MSDOS_CLIENT.rmcb_sel, rmcb_mem);
-	SetSegmentLimit(MSDOS_CLIENT.rmcb_sel, len - 1);
-	callbacks_init(MSDOS_CLIENT.rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
-	MSDOS_CLIENT.rmcb_alloced = 1;
 
 	pma = get_pmrm_handler_m(MSDOS_EXT_CALL, msdos_ext_call,
 	    get_prev_ext, msdos_ext_ret, get_xbuf_seg, NULL,
@@ -227,10 +219,6 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	    dpmi_set_interrupt_vector(ints[i], desc2);
 	}
     } else {
-	assert(msdos_client_num >= 2);
-	MSDOS_CLIENT.rmcb_sel = msdos_client[msdos_client_num - 2].rmcb_sel;
-	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
-		sizeof(MSDOS_CLIENT.rmcbs));
 	memcpy(MSDOS_CLIENT.prev_ihandler,
 		msdos_client[msdos_client_num - 2].prev_ihandler,
 		sizeof(MSDOS_CLIENT.prev_ihandler));
@@ -239,15 +227,6 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 		msdos_client[msdos_client_num - 2].int_offs,
 		sizeof(MSDOS_CLIENT.int_offs));
     }
-    if (msdos_client_num == 1)
-	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
-    else
-	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 2].ldt_alias;
-    MSDOS_CLIENT.ldt_alias_winos2 = CreateAliasDescriptor(
-	    MSDOS_CLIENT.ldt_alias);
-    SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
-    SetSegmentLimit(MSDOS_CLIENT.ldt_alias_winos2,
-	    LDT_ENTRIES * LDT_ENTRY_SIZE - 1);
 
     MSDOS_CLIENT.prev_fault = dpmi_get_pm_exc_addr(0xd);
     pma = get_pm_handler(MSDOS_FAULT, msdos_fault_handler, get_prev_fault);
@@ -261,6 +240,54 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
     desc.selector = pma.selector;
     desc.offset32 = pma.offset;
     dpmi_set_pm_exc_addr(0xe, desc);
+}
+
+void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
+{
+    unsigned short envp;
+    int inherit_idt;
+
+    msdos_client_num++;
+    memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
+    MSDOS_CLIENT.is_32 = is_32;
+    MSDOS_CLIENT.lowmem_seg = mseg;
+    MSDOS_CLIENT.current_psp = psp;
+    /* convert environment pointer to a descriptor */
+    envp = get_env_sel();
+    if (envp) {
+	write_env_sel(ConvertSegmentToDescriptor(envp));
+	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
+		 envp, get_env_sel());
+    }
+    if (msdos_client_num == 1 ||
+	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
+	int len = sizeof(struct RealModeCallStructure);
+	dosaddr_t rmcb_mem = msdos_malloc(len);
+
+	MSDOS_CLIENT.rmcb_sel = AllocateDescriptors(1);
+	SetSegmentBaseAddress(MSDOS_CLIENT.rmcb_sel, rmcb_mem);
+	SetSegmentLimit(MSDOS_CLIENT.rmcb_sel, len - 1);
+	callbacks_init(MSDOS_CLIENT.rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
+	MSDOS_CLIENT.rmcb_alloced = 1;
+    } else {
+	assert(msdos_client_num >= 2);
+	MSDOS_CLIENT.rmcb_sel = msdos_client[msdos_client_num - 2].rmcb_sel;
+	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
+		sizeof(MSDOS_CLIENT.rmcbs));
+    }
+    if (msdos_client_num == 1)
+	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
+    else
+	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 2].ldt_alias;
+    MSDOS_CLIENT.ldt_alias_winos2 = CreateAliasDescriptor(
+	    MSDOS_CLIENT.ldt_alias);
+    SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
+    SetSegmentLimit(MSDOS_CLIENT.ldt_alias_winos2,
+	    LDT_ENTRIES * LDT_ENTRY_SIZE - 1);
+
+    inherit_idt = (msdos_client_num > 1 &&
+	    msdos_client[msdos_client_num - 2].is_32 == is_32);
+    setup_int_exc(inherit_idt);
 
     D_printf("MSDOS: init %i, ldt_alias=0x%x winos2_alias=0x%x\n",
               msdos_client_num, MSDOS_CLIENT.ldt_alias,
@@ -315,6 +342,24 @@ void msdos_done(void)
 void msdos_set_client(int num)
 {
     msdos_client_num = num + 1;
+}
+
+static void reinit_thr(void *arg)
+{
+    sigcontext_t *scp = arg;
+    int is_32 = (_LWORD(eax) & 1);
+
+    _eflags |= CF;
+    if (MSDOS_CLIENT.is_32 == is_32) {
+	_eflags &= ~CF;
+	return;
+    }
+    if (MSDOS_CLIENT.is_32)
+	return;
+    doshlp_call_reinit(scp);
+    MSDOS_CLIENT.is_32 = is_32;
+    setup_int_exc(0);
+    _eflags &= ~CF;
 }
 
 int msdos_get_lowmem_size(void)
@@ -1529,6 +1574,22 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    if (doshlp_idle())
 		_LO(ax) = 0;
 	    return MSDOS_DONE;
+	case 0x1687: {
+	    struct pmaddr_s pma;
+	    /* supported only for 16bit clients */
+	    if (MSDOS_CLIENT.is_32)
+		return MSDOS_NONE;
+	    _LWORD(eax) = 0;
+	    _LWORD(ebx) = 1;
+	    _LWORD(ecx) = 4;
+	    _HI(dx) = DPMI_VERSION;
+	    _LO(dx) = DPMI_DRIVER_VERSION;
+	    _LWORD(esi) = 0;
+	    pma = doshlp_get_entry(reinit_hlp.entry);
+	    _es = pma.selector;
+	    _LWORD(edi) = pma.offset;
+	    return MSDOS_DONE;
+	}
 	case 0x1688:
 	    _eax = 0;
 	    _ebx = MSDOS_CLIENT.ldt_alias;
