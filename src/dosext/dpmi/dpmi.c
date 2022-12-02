@@ -276,12 +276,12 @@ int get_ldt(void *buffer)
   int i, ret;
   struct ldt_descriptor *dp;
   if (config.cpu_vm_dpmi != CPUVM_NATIVE)
-	return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
-  ret = modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+	return emu_modify_ldt(LDT_READ, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+  ret = modify_ldt(LDT_READ, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
   /* do emu_modify_ldt even if modify_ldt fails, so cpu_vm_dpmi fallbacks can
      still work */
   if (ret != LDT_ENTRIES * LDT_ENTRY_SIZE)
-    return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+    return emu_modify_ldt(LDT_READ, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
   for (i = 0, dp = buffer; i < LDT_ENTRIES; i++, dp++) {
     unsigned int base_addr = DT_BASE(dp);
     if (base_addr || DT_LIMIT(dp)) {
@@ -291,7 +291,7 @@ int get_ldt(void *buffer)
   }
   return ret;
 #else
-  return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+  return emu_modify_ldt(LDT_READ, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
 #endif
 }
 

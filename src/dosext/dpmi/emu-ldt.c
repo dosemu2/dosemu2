@@ -150,13 +150,13 @@ int emu_modify_ldt(int func, void *ptr, unsigned long bytecount)
 		func, bytecount, lptr[0], lptr[1], lptr[2], lptr[3] ); }
 #endif
 	switch (func) {
-	case 0:
+	case LDT_READ:
 		ret = emu_read_ldt((char *)ptr, bytecount);
 		break;
-	case 1:
+	case LDT_WRITE_OLD:
 		ret = emu_write_ldt(ptr, bytecount, 1);
 		break;
-	case 0x11:
+	case LDT_WRITE:
 		ret = emu_write_ldt(ptr, bytecount, 0);
 		break;
 	}
