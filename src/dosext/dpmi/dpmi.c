@@ -3187,7 +3187,8 @@ static void rmcb_hlt(Bit16u off, HLT_ARG(arg))
     dpmi_realmode_callback((long)arg, off);
 }
 
-static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating)
+static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating,
+	int inh_or_prv)
 {
   unsigned char *code, *data;
   void *sp;
@@ -3230,10 +3231,8 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating)
   _eip = eip;
   _eax = terminating;
   _ebx = current_client;
-  if (terminating)
-    _ecx = current_client - 1;       // extension! (can be -1)
-  else
-    _ecx = -1;
+  /* extension: ecx has inherit_idt flag on startup and prev client on term */
+  _ecx = inh_or_prv;
 }
 
 static void dpmi_cleanup(void)
@@ -3314,10 +3313,13 @@ static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
   }
 
   if (DPMI_CLIENT.RSP_state == 0) {
+    int prv = in_dpmi - 1;
+    if (prv == current_client)
+      prv--;
     DPMI_CLIENT.RSP_state = 1;
     for (i = 0; i < DPMI_CLIENT.RSP_num; i++) {
       D_printf("DPMI: Calling RSP %i for termination\n", i);
-      dpmi_RSP_call(scp, i, 1);
+      dpmi_RSP_call(scp, i, 1, prv);
     }
   }
 
@@ -4038,7 +4040,7 @@ void dpmi_init(void)
   DPMI_CLIENT.RSP_num = RSP_num;
   for (i = 0; i < DPMI_CLIENT.RSP_num; i++) {
     D_printf("DPMI: Calling RSP %i\n", i);
-    dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0);
+    dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0, inherit_idt);
   }
   dpmi_ldt_call(scp);
 
