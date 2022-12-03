@@ -4022,7 +4022,7 @@ void dpmi_init(void)
 
   DPMI_CLIENT.win3x_mode = win3x_mode;
   if (config.pm_dos_api)
-    msdos_init(DPMI_CLIENT.is_32,
+    msdos_init(current_client, DPMI_CLIENT.is_32,
       DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs, psp,
       inherit_idt);
   if (in_dpmi == 1) {

@@ -68,7 +68,7 @@ static unsigned short EMM_SEG;
 #define API_16_32(x) (API_32(scp) ? (x) : (x) & 0xffff)
 #define SEL_ADR_X(s, a, u) SEL_ADR_CLNT(s, a, API_32(scp))
 #define D_16_32(reg) API_16_32(reg)
-#define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
+#define MSDOS_CLIENT (msdos_client[msdos_client_num])
 #define CURRENT_PSP MSDOS_CLIENT.current_psp
 
 static const int ints[] = { 0x10, 0x15, 0x20, 0x21, 0x25, 0x26, 0x28,
@@ -112,7 +112,7 @@ struct msdos_struct {
     int int_offs[num_ints];
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
-static int msdos_client_num = 0;
+static int msdos_client_num;
 
 static int ems_frame_mapped;
 static int ems_handle;
@@ -221,11 +221,11 @@ static void setup_int_exc(int inherit_idt)
 	}
     } else {
 	memcpy(MSDOS_CLIENT.prev_ihandler,
-		msdos_client[msdos_client_num - 2].prev_ihandler,
+		msdos_client[msdos_client_num - 1].prev_ihandler,
 		sizeof(MSDOS_CLIENT.prev_ihandler));
-	MSDOS_CLIENT.int_head = msdos_client[msdos_client_num - 2].int_head;
+	MSDOS_CLIENT.int_head = msdos_client[msdos_client_num - 1].int_head;
 	memcpy(MSDOS_CLIENT.int_offs,
-		msdos_client[msdos_client_num - 2].int_offs,
+		msdos_client[msdos_client_num - 1].int_offs,
 		sizeof(MSDOS_CLIENT.int_offs));
     }
 
@@ -243,12 +243,12 @@ static void setup_int_exc(int inherit_idt)
     dpmi_set_pm_exc_addr(0xe, desc);
 }
 
-void msdos_init(int is_32, unsigned short mseg, unsigned short psp,
+void msdos_init(int num, int is_32, unsigned short mseg, unsigned short psp,
 	int inherit_idt)
 {
     unsigned short envp;
 
-    msdos_client_num++;
+    msdos_client_num = num;
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
     MSDOS_CLIENT.is_32 = is_32;
     MSDOS_CLIENT.lowmem_seg = mseg;
@@ -260,7 +260,7 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp,
 	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
 		 envp, get_env_sel());
     }
-    if (msdos_client_num == 1) {
+    if (msdos_client_num == 0) {
 	int len = sizeof(struct RealModeCallStructure);
 	rmcb_mem = msdos_malloc(len);
 	rmcb_sel = AllocateDescriptors(1);
@@ -269,15 +269,15 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp,
 
 	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
     } else {
-	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 2].ldt_alias;
+	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 1].ldt_alias;
     }
-    if (msdos_client_num == 1 ||
-	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
+    if (msdos_client_num == 0 ||
+	    msdos_client[msdos_client_num - 1].is_32 != is_32) {
 	callbacks_init(rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
 	MSDOS_CLIENT.rmcb_alloced = 1;
     } else {
-	assert(msdos_client_num >= 2);
-	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
+	assert(msdos_client_num >= 1);
+	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 1].rmcbs,
 		sizeof(MSDOS_CLIENT.rmcbs));
     }
     MSDOS_CLIENT.ldt_alias_winos2 = CreateAliasDescriptor(
@@ -328,7 +328,7 @@ void msdos_done(int prev)
 	callbacks_done(MSDOS_CLIENT.rmcbs);
     if (get_env_sel())
 	write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
-    if (msdos_client_num == 1) {
+    if (msdos_client_num == 0) {
 	msdos_ldt_done();
 	FreeDescriptor(rmcb_sel);
 	msdos_free(rmcb_mem);
@@ -336,12 +336,12 @@ void msdos_done(int prev)
     msdos_free_descriptors();
     msdos_free_mem();
     D_printf("MSDOS: done, %i --> %i\n", msdos_client_num, prev);
-    msdos_client_num = prev + 1;
+    msdos_client_num = prev;
 }
 
 void msdos_set_client(int num)
 {
-    msdos_client_num = num + 1;
+    msdos_client_num = num;
 }
 
 static void reinit_thr(void *arg)
