@@ -102,7 +102,6 @@ struct msdos_struct {
     unsigned short lowmem_seg;
     dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
     far_t rmcbs[MAX_RMCBS];
-    unsigned short rmcb_sel;
     int rmcb_alloced;
     u_short ldt_alias;
     u_short ldt_alias_winos2;
@@ -119,6 +118,7 @@ static int ems_frame_mapped;
 static int ems_handle;
 #define MSDOS_EMS_PAGES 4
 
+static unsigned short rmcb_sel;
 static struct dos_helper_s reinit_hlp;
 
 static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg);
@@ -259,26 +259,26 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
 		 envp, get_env_sel());
     }
-    if (msdos_client_num == 1 ||
-	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
+    if (msdos_client_num == 1) {
 	int len = sizeof(struct RealModeCallStructure);
 	dosaddr_t rmcb_mem = msdos_malloc(len);
+	rmcb_sel = AllocateDescriptors(1);
+	SetSegmentBaseAddress(rmcb_sel, rmcb_mem);
+	SetSegmentLimit(rmcb_sel, len - 1);
 
-	MSDOS_CLIENT.rmcb_sel = AllocateDescriptors(1);
-	SetSegmentBaseAddress(MSDOS_CLIENT.rmcb_sel, rmcb_mem);
-	SetSegmentLimit(MSDOS_CLIENT.rmcb_sel, len - 1);
-	callbacks_init(MSDOS_CLIENT.rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
+	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
+    } else {
+	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 2].ldt_alias;
+    }
+    if (msdos_client_num == 1 ||
+	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
+	callbacks_init(rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
 	MSDOS_CLIENT.rmcb_alloced = 1;
     } else {
 	assert(msdos_client_num >= 2);
-	MSDOS_CLIENT.rmcb_sel = msdos_client[msdos_client_num - 2].rmcb_sel;
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
 		sizeof(MSDOS_CLIENT.rmcbs));
     }
-    if (msdos_client_num == 1)
-	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
-    else
-	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 2].ldt_alias;
     MSDOS_CLIENT.ldt_alias_winos2 = CreateAliasDescriptor(
 	    MSDOS_CLIENT.ldt_alias);
     SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
@@ -325,14 +325,14 @@ void msdos_done(void)
 
     for (i = 0; i < num_ints; i++)
 	dpmi_set_interrupt_vector(ints[i], MSDOS_CLIENT.prev_ihandler[i]);
-    if (MSDOS_CLIENT.rmcb_alloced) {
+    if (MSDOS_CLIENT.rmcb_alloced)
 	callbacks_done(MSDOS_CLIENT.rmcbs);
-	FreeDescriptor(MSDOS_CLIENT.rmcb_sel);
-    }
     if (get_env_sel())
 	write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
-    if (msdos_client_num == 1)
+    if (msdos_client_num == 1) {
 	msdos_ldt_done();
+	FreeDescriptor(rmcb_sel);
+    }
     msdos_free_descriptors();
     msdos_free_mem();
     msdos_client_num--;
