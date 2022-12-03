@@ -577,7 +577,8 @@ static int _dpmi_control(void)
             continue;
         }
         ret = dpmi_fault1(scp);
-        scp = &DPMI_CLIENT.stack_frame;  // update, could change
+        if (in_dpmi_pm())
+          scp = &DPMI_CLIENT.stack_frame;  // update, could change
       }
 #if 0
       /* allow dynamically switch from native to something else */
