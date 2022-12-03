@@ -119,6 +119,7 @@ static int ems_handle;
 #define MSDOS_EMS_PAGES 4
 
 static unsigned short rmcb_sel;
+static dosaddr_t rmcb_mem;
 static struct dos_helper_s reinit_hlp;
 
 static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg);
@@ -261,7 +262,7 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
     }
     if (msdos_client_num == 1) {
 	int len = sizeof(struct RealModeCallStructure);
-	dosaddr_t rmcb_mem = msdos_malloc(len);
+	rmcb_mem = msdos_malloc(len);
 	rmcb_sel = AllocateDescriptors(1);
 	SetSegmentBaseAddress(rmcb_sel, rmcb_mem);
 	SetSegmentLimit(rmcb_sel, len - 1);
@@ -332,6 +333,7 @@ void msdos_done(void)
     if (msdos_client_num == 1) {
 	msdos_ldt_done();
 	FreeDescriptor(rmcb_sel);
+	msdos_free(rmcb_mem);
     }
     msdos_free_descriptors();
     msdos_free_mem();
