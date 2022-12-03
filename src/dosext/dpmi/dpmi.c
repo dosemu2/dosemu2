@@ -141,6 +141,8 @@ struct DPMIclient_struct {
 
   DPMI_INTDESC vtmr_prev;
   DPMI_INTDESC vrtc_prev;
+
+  int RSP_num;
 };
 
 struct RSP_s {
@@ -3312,7 +3314,7 @@ static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
 
   if (DPMI_CLIENT.RSP_state == 0) {
     DPMI_CLIENT.RSP_state = 1;
-    for (i = 0; i < RSP_num; i++) {
+    for (i = 0; i < DPMI_CLIENT.RSP_num; i++) {
       D_printf("DPMI: Calling RSP %i for termination\n", i);
       dpmi_RSP_call(scp, i, 1);
     }
@@ -4031,7 +4033,10 @@ void dpmi_init(void)
 
   dpmi_set_pm(1);
 
-  for (i = 0; i < RSP_num; i++) {
+  /* remember RSP_num on start, so that if some are added later, they
+   * not to trigger on termination */
+  DPMI_CLIENT.RSP_num = RSP_num;
+  for (i = 0; i < DPMI_CLIENT.RSP_num; i++) {
     D_printf("DPMI: Calling RSP %i\n", i);
     dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0);
   }
