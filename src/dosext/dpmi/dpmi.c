@@ -5823,8 +5823,9 @@ int dpmi_active(void)
 
 void dpmi_done(void)
 {
-  D_printf("DPMI: finalizing\n");
+  int i;
 
+  D_printf("DPMI: finalizing\n");
   current_client = in_dpmi - 1;
   while (in_dpmi) {
     if (in_dpmi_pm())
@@ -5832,6 +5833,8 @@ void dpmi_done(void)
     dpmi_cleanup();
   }
 
+  for (i = 0; i < RSP_num; i++)
+    DPMI_freeAll(&RSP_callbacks[i].pm_block_root);
   DPMI_freeAll(&host_pm_block_root);
   dpmi_free_pool();
 
