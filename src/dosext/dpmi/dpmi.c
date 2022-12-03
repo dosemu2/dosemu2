@@ -1477,20 +1477,25 @@ static void set_client_num(int num)
   if (!in_dpmi)
     return;
   current_client = num;
-  msdos_set_client(num);
   finish_clnt_switch();
+  msdos_set_client(num);
 }
 
-static void post_rm_call(int old_client)
+static int post_rm_call(int old_client)
 {
+  int ret = 0;
+
   assert(old_client <= in_dpmi - 1);
   assert(DPMI_rm_procedure_running);
   if (old_client != current_client) {
     /* 32rtm returned w/o terminating (stayed resident).
      * We switch to the prev client here. */
     D_printf("DPMI: client switch %i --> %i\n", current_client, old_client);
-    set_client_num(old_client);
+    current_client = old_client;
+    finish_clnt_switch();
+    ret = 1;
   }
+  return ret;
 }
 
 static void save_pm_regs(sigcontext_t *scp)
@@ -5405,25 +5410,29 @@ void dpmi_realmode_hlt(unsigned int lina)
   } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_return_from_rmint) &&
       lina < DPMI_ADD + HLT_OFF(DPMI_return_from_rmint) + DPMI_MAX_CLIENTS) {
     int i = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_rmint));
-    post_rm_call(i);
-    scp = &DPMI_CLIENT.stack_frame;     // refresh after post_rm_call()
+    int changed = post_rm_call(i);
+    if (changed)
+      scp = &DPMI_CLIENT.stack_frame;     // refresh after post_rm_call()
     D_printf("DPMI: Return from RM Interrupt, client=%i\n", i);
     rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
     restore_rm_regs();
     dpmi_set_pm(1);
+    if (changed)
+      msdos_set_client(current_client);
 
   } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_return_from_realmode) &&
       lina < DPMI_ADD + HLT_OFF(DPMI_return_from_realmode) +
       DPMI_MAX_CLIENTS) {
     int i = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_realmode));
     struct RealModeCallStructure *rmreg = SEL_ADR_X(_es, _edi);
+    int changed = post_rm_call(i);
+    if (changed)
+      scp = &DPMI_CLIENT.stack_frame;     // refresh after post_rm_call()
     D_printf("DPMI: Return from Real Mode Procedure, clnt=%i\n", i);
 #if SHOWREGS
     if (debug_level('M') > 5)
       show_regs();
 #endif
-    post_rm_call(i);
-    scp = &DPMI_CLIENT.stack_frame;	// refresh after post_rm_call()
     /* remove passed arguments */
     LWORD(esp) += 2 * _LWORD(ecx);
     /* Some progs forget to reset stack for subsequent calls, which
@@ -5432,6 +5441,8 @@ void dpmi_realmode_hlt(unsigned int lina)
         (1 << cs_INDEX) | (1 << eip_INDEX)));
     restore_rm_regs();
     dpmi_set_pm(1);
+    if (changed)
+      msdos_set_client(current_client);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos_memory)) {
     unsigned length;
