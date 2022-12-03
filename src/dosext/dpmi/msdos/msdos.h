@@ -20,7 +20,7 @@ void msdos_setup(void);
 void msdos_reset(void);
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp,
     int inherit_idt);
-void msdos_done(void);
+void msdos_done(int prev);
 void msdos_set_client(int num);
 int msdos_get_lowmem_size(void);
 

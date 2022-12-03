@@ -318,7 +318,7 @@ static void msdos_free_descriptors(void)
     FreeDescriptor(MSDOS_CLIENT.ldt_alias_winos2);
 }
 
-void msdos_done(void)
+void msdos_done(int prev)
 {
     int i;
 
@@ -335,8 +335,8 @@ void msdos_done(void)
     }
     msdos_free_descriptors();
     msdos_free_mem();
-    msdos_client_num--;
-    D_printf("MSDOS: done, %i\n", msdos_client_num);
+    D_printf("MSDOS: done, %i --> %i\n", msdos_client_num, prev);
+    msdos_client_num = prev + 1;
 }
 
 void msdos_set_client(int num)

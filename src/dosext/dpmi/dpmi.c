@@ -1472,15 +1472,6 @@ static void finish_clnt_switch(void)
     update_kvm_idt();
 }
 
-static void set_client_num(int num)
-{
-  if (!in_dpmi)
-    return;
-  current_client = num;
-  finish_clnt_switch();
-  msdos_set_client(num);
-}
-
 static int post_rm_call(int old_client)
 {
   int ret = 0;
@@ -2642,8 +2633,11 @@ err:
 	  break;
       }
       /* 32rtm work-around */
-      if (current_client != in_dpmi - 1)
-        set_client_num(in_dpmi - 1);
+      if (current_client != in_dpmi - 1) {
+        current_client = in_dpmi - 1;
+        finish_clnt_switch();
+        msdos_set_client(current_client);
+      }
 
 /* --------------------------------------------------- 0x300:
      RM |  FC90C   |
@@ -3240,16 +3234,26 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating,
   _ecx = inh_or_prv;
 }
 
+static int prev_clnt(void)
+{
+  int prv = in_dpmi - 1;
+  if (prv == current_client)
+    prv--;
+  return prv;
+}
+
 static void dpmi_cleanup(void)
 {
   D_printf("DPMI: cleanup\n");
   if (in_dpmi_pm())
     dosemu_error("Quitting DPMI while in_dpmi_pm\n");
+  if (config.pm_dos_api)
+    msdos_done(prev_clnt());
   if (current_client != in_dpmi - 1) {
     error("DPMI: termination of non-last client\n");
     /* leave the leak.
      * TODO: fixing that leak is a lot of work, in particular
-     * msdos_done() would be out of sync and FreeAllDescriptors()
+     * FreeAllDescriptors()
      * will need to use "current_client" instead of "in_dpmi"
      * to wipe only the needed descs.
      * That happens only if the one started 32rtm by some tool like
@@ -3259,11 +3263,10 @@ static void dpmi_cleanup(void)
      * Starting 32rtm by hands may go here if you terminate the
      * parent DPMI shell (comcom32), but nobody does that.
      * Lets say this is a very pathological case for a big code surgery. */
-    set_client_num(in_dpmi - 1);
+    current_client = in_dpmi - 1;
+    finish_clnt_switch();
     return;
   }
-  if (config.pm_dos_api)
-    msdos_done();
   FreeAllDescriptors();
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   hlt_unregister_handler_vm86(DPMI_CLIENT.rmcb_off);
@@ -3318,9 +3321,7 @@ static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
   }
 
   if (DPMI_CLIENT.RSP_state == 0) {
-    int prv = in_dpmi - 1;
-    if (prv == current_client)
-      prv--;
+    int prv = prev_clnt();
     DPMI_CLIENT.RSP_state = 1;
     for (i = 0; i < DPMI_CLIENT.RSP_num; i++) {
       D_printf("DPMI: Calling RSP %i for termination\n", i);
