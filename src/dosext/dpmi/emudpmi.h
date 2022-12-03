@@ -254,6 +254,18 @@ sigcontext_t *dpmi_get_scp(void);
 
 int dpmi_realmode_exception(unsigned trapno, unsigned err, dosaddr_t cr2);
 
+struct RSPcall_s {
+  unsigned char data16[8];
+  unsigned char code16[8];
+  unsigned short ip;
+  unsigned short reserved;
+  unsigned char data32[8];
+  unsigned char code32[8];
+  unsigned int eip;
+};
+
+int dpmi_install_rsp(struct RSPcall_s *callback);
+
 #endif // __ASSEMBLER__
 #else
 #define DPMI_MAX_CLIENTS 0

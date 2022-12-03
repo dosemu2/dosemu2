@@ -143,15 +143,6 @@ struct DPMIclient_struct {
   DPMI_INTDESC vrtc_prev;
 };
 
-struct RSPcall_s {
-  unsigned char data16[8];
-  unsigned char code16[8];
-  unsigned short ip;
-  unsigned short reserved;
-  unsigned char data32[8];
-  unsigned char code32[8];
-  unsigned int eip;
-};
 struct RSP_s {
   struct RSPcall_s call;
   dpmi_pm_block_root pm_block_root;
@@ -2259,6 +2250,23 @@ static void dpmi_ldt_exitcall(sigcontext_t *scp)
     ldt_process_end_b(scp, call, &state);
 }
 
+static int do_install_rsp(struct RSPcall_s *callback)
+{
+    if (RSP_num >= DPMI_MAX_CLIENTS)
+	return -1;
+    RSP_callbacks[RSP_num].call = *callback;
+    return 0;
+}
+
+int dpmi_install_rsp(struct RSPcall_s *callback)
+{
+    int err = do_install_rsp(callback);
+    if (err)
+	return err;
+    RSP_num++;
+    return 0;
+}
+
 static void do_int31(sigcontext_t *scp)
 {
 #if 0
@@ -2958,12 +2966,11 @@ err:
 
   case 0x0c00:	/* Install Resident Service Provider Callback */
     {
-      struct RSPcall_s *callback = SEL_ADR_X(_es, _edi);
-      if (RSP_num >= DPMI_MAX_CLIENTS) {
+      int err = do_install_rsp(SEL_ADR_X(_es, _edi));
+      if (err) {
         _eflags |= CF;
 	_LWORD(eax) = 0x8015;
       } else {
-        RSP_callbacks[RSP_num].call = *callback;
         DPMI_CLIENT.RSP_installed = 1;
         D_printf("installed Resident Service Provider Callback %i\n", RSP_num);
       }
@@ -3182,6 +3189,7 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating)
   unsigned char *code, *data;
   void *sp;
   uint32_t eip;
+
   if (DPMI_CLIENT.is_32) {
     if ((RSP_callbacks[num].call.code32[5] & 0x88) != 0x88)
       return;
