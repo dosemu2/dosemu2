@@ -4015,7 +4015,8 @@ void dpmi_init(void)
   DPMI_CLIENT.win3x_mode = win3x_mode;
   if (config.pm_dos_api)
     msdos_init(DPMI_CLIENT.is_32,
-      DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs, psp);
+      DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs, psp,
+      inherit_idt);
   if (in_dpmi == 1) {
     s_i1c.segment = ISEG(0x1c);
     s_i1c.offset  = IOFF(0x1c);

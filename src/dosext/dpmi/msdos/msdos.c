@@ -243,10 +243,10 @@ static void setup_int_exc(int inherit_idt)
     dpmi_set_pm_exc_addr(0xe, desc);
 }
 
-void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
+void msdos_init(int is_32, unsigned short mseg, unsigned short psp,
+	int inherit_idt)
 {
     unsigned short envp;
-    int inherit_idt;
 
     msdos_client_num++;
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
@@ -286,8 +286,6 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
     SetSegmentLimit(MSDOS_CLIENT.ldt_alias_winos2,
 	    LDT_ENTRIES * LDT_ENTRY_SIZE - 1);
 
-    inherit_idt = (msdos_client_num > 1 &&
-	    msdos_client[msdos_client_num - 2].is_32 == is_32);
     setup_int_exc(inherit_idt);
 
     D_printf("MSDOS: init %i, ldt_alias=0x%x winos2_alias=0x%x\n",
