@@ -1470,14 +1470,21 @@ static void update_kvm_idt(void)
   }
 }
 
+static void finish_clnt_switch(void)
+{
+  if (!in_dpmi)
+    return;
+  if (config.cpu_vm_dpmi == CPUVM_KVM)
+    update_kvm_idt();
+}
+
 static void set_client_num(int num)
 {
   if (!in_dpmi)
     return;
   current_client = num;
   msdos_set_client(num);
-  if (config.cpu_vm_dpmi == CPUVM_KVM)
-    update_kvm_idt();
+  finish_clnt_switch();
 }
 
 static void post_rm_call(int old_client)
@@ -3259,7 +3266,8 @@ static void dpmi_cleanup(void)
   cli_blacklisted = 0;
   dpmi_is_cli = 0;
   in_dpmi--;
-  set_client_num(in_dpmi - 1);
+  current_client = in_dpmi - 1;
+  finish_clnt_switch();
 }
 
 static void dpmi_soft_cleanup(void)
@@ -3296,7 +3304,7 @@ static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
 
   if (DPMI_CLIENT.RSP_state == 0) {
     DPMI_CLIENT.RSP_state = 1;
-    for (i = 0;i < RSP_num; i++) {
+    for (i = 0; i < RSP_num; i++) {
       D_printf("DPMI: Calling RSP %i for termination\n", i);
       dpmi_RSP_call(scp, i, 1);
     }
@@ -4032,7 +4040,8 @@ err:
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   DPMIfreeAll();
   in_dpmi--;
-  set_client_num(in_dpmi - 1);
+  current_client--;
+  finish_clnt_switch();
 }
 
 static void return_from_exception(sigcontext_t *scp)
