@@ -3186,6 +3186,16 @@ static void rmcb_hlt(Bit16u off, HLT_ARG(arg))
     dpmi_realmode_callback((long)arg, off);
 }
 
+static int is_same_desc(unsigned short sel, unsigned desc[2])
+{
+    unsigned lp[2];
+
+    GetDescriptor(sel, lp);
+    lp[1] &= ~0x1f0100;
+    desc[1] &= ~0x1f0100;
+    return (memcmp(lp, desc, 8) == 0);
+}
+
 static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating,
 	int inh_or_prv)
 {
@@ -3208,8 +3218,14 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating,
   }
 
   if (!terminating) {
-    DPMI_CLIENT.RSP_cs[num] = AllocateDescriptors(1);
-    SetDescriptor(DPMI_CLIENT.RSP_cs[num], (unsigned int *)code);
+    if (is_same_desc(_dpmi_sel16, (unsigned *)code)) {
+      DPMI_CLIENT.RSP_cs[num] = _dpmi_sel16;
+    } else if (is_same_desc(_dpmi_sel32, (unsigned *)code)) {
+      DPMI_CLIENT.RSP_cs[num] = _dpmi_sel32;
+    } else {
+      DPMI_CLIENT.RSP_cs[num] = AllocateDescriptors(1);
+      SetDescriptor(DPMI_CLIENT.RSP_cs[num], (unsigned int *)code);
+    }
     if ((data[5] & 0x88) == 0x80) {
       DPMI_CLIENT.RSP_ds[num] = AllocateDescriptors(1);
       SetDescriptor(DPMI_CLIENT.RSP_ds[num], (unsigned int *)data);
