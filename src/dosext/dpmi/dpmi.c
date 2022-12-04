@@ -655,7 +655,7 @@ void dpmi_get_entry_point(void)
     REG(edi) = DPMI_OFF;
 
     /* private data */
-    LWORD(esi) = DPMI_private_paragraphs + msdos_get_lowmem_size();
+    LWORD(esi) = DPMI_private_paragraphs;
 
     D_printf("DPMI entry returned, needs %#x lowmem paragraphs (%i)\n",
 	    LWORD(esi), LWORD(esi) << 4);
@@ -3268,8 +3268,6 @@ static void dpmi_cleanup(void)
   /* restore env seg */
   if (DPMI_CLIENT.envp)
     WRITE_WORD(SEGOFF2LINEAR(DPMI_CLIENT.initial_psp, 0x2c), DPMI_CLIENT.envp);
-  if (config.pm_dos_api)
-    msdos_done(prev_clnt());
   if (current_client != in_dpmi - 1) {
     error("DPMI: termination of non-last client\n");
     /* leave the leak.
@@ -4064,10 +4062,6 @@ void dpmi_init(void)
     _eflags |= IOPL_MASK;
 
   DPMI_CLIENT.win3x_mode = win3x_mode;
-  if (config.pm_dos_api)
-    msdos_init(current_client, DPMI_CLIENT.is_32,
-      DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs, psp,
-      inherit_idt);
   if (in_dpmi == 1) {
     s_i1c.segment = ISEG(0x1c);
     s_i1c.offset  = IOFF(0x1c);
@@ -6037,9 +6031,11 @@ char *DPMI_show_state(sigcontext_t *scp)
       pos += sprintf(buf + pos, "GPF on selector 0x%x base=%08x lim=%x\n",
           sel, GetSegmentBase(sel), GetSegmentLimit(sel));
 #if WITH_DPMI
-      msd_dsc = msdos_describe_selector(sel);
-      if (msd_dsc)
-        pos += sprintf(buf + pos, "MSDOS selector: %s\n", msd_dsc);
+      if (config.pm_dos_api && DPMI_CLIENT.RSP_num) {
+        msd_dsc = msdos_describe_selector(sel);
+        if (msd_dsc)
+          pos += sprintf(buf + pos, "MSDOS selector: %s\n", msd_dsc);
+      }
 #endif
     }
 
