@@ -3798,6 +3798,10 @@ void dpmi_reset(void)
     }
     ldt_mon_on = 0;
     ldt_bitmap_cnt = 0;
+    DPMI_rm_procedure_running = 0;
+    DPMI_pm_procedure_running = 0;
+    in_dpmi_irq = 0;
+    cli_blacklisted = 0;
 }
 
 static void setup_int_exc(int inherit_idt)
