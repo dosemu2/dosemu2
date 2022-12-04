@@ -3845,6 +3845,7 @@ static void setup_int_exc(int inherit_idt)
 static void dpmi_reinit(sigcontext_t *scp)
 {
   unsigned short DS, ES, SS, rights;
+  int i;
 
   _eflags |= CF;
   D_printf("DPMI: reinit called, %i %i\n", _LWORD(eax), DPMI_CLIENT.is_32);
@@ -3882,6 +3883,12 @@ static void dpmi_reinit(sigcontext_t *scp)
    * ret16 helper in msdos.c */
   if (_cs == _dpmi_sel16)
     _cs = _dpmi_sel32;
+  /* also hack CS for RSP */
+  for (i = 0; i < DPMI_CLIENT.RSP_num; i++) {
+    if (DPMI_CLIENT.RSP_cs[i] == _dpmi_sel16)
+      DPMI_CLIENT.RSP_cs[i] = _dpmi_sel32;
+  }
+
   _eflags &= ~CF;
   D_printf("%s", DPMI_show_state(scp));
 }
