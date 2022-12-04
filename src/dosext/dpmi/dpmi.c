@@ -2039,6 +2039,7 @@ void dpmi_ext_set_ldt_monitor32(DPMI_INTDESC call, uint16_t d32)
 void dpmi_ext_ldt_monitor_enable(int on)
 {
     ldt_mon_on = on;
+    ldt_bitmap_cnt = 0;
 }
 
 static void _do_ldt_call(sigcontext_t *scp, ldt_calldesc call, int ent,
@@ -3785,7 +3786,6 @@ err2:
 void dpmi_reset(void)
 {
     RSP_num = 0;
-    ldt_mon_on = 0;
     if (config.pm_dos_api)
 	msdos_reset();
     current_client = in_dpmi - 1;
@@ -3796,6 +3796,8 @@ void dpmi_reset(void)
 	    native_dpmi_exit(&DPMI_CLIENT.stack_frame);
 	dpmi_cleanup();
     }
+    ldt_mon_on = 0;
+    ldt_bitmap_cnt = 0;
 }
 
 static void setup_int_exc(int inherit_idt)
