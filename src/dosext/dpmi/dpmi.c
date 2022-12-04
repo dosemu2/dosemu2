@@ -3784,6 +3784,10 @@ err2:
 
 void dpmi_reset(void)
 {
+    RSP_num = 0;
+    ldt_mon_on = 0;
+    if (config.pm_dos_api)
+	msdos_reset();
     current_client = in_dpmi - 1;
     while (in_dpmi) {
 	if (in_dpmi_pm())
@@ -3792,8 +3796,6 @@ void dpmi_reset(void)
 	    native_dpmi_exit(&DPMI_CLIENT.stack_frame);
 	dpmi_cleanup();
     }
-    if (config.pm_dos_api)
-	msdos_reset();
 }
 
 static void setup_int_exc(int inherit_idt)
