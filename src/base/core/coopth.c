@@ -1071,13 +1071,6 @@ static int check_cancel(void)
     return -1;		/* never reached */
 }
 
-static void check_cancel_chk(void)
-{
-    /* normal (non-disabled) cancellation case */
-    int can = check_cancel();
-    assert(!can);
-}
-
 static struct coopth_t *on_thread(unsigned id)
 {
     int i;
@@ -1101,11 +1094,13 @@ static int current_active(void)
     return thr->ops->is_active(CIDX2(tid, thr->cur_thr - 1));
 }
 
-void coopth_yield(void)
+int coopth_yield(void)
 {
     assert(_coopth_is_in_thread());
     switch_state(COOPTH_YIELD);
-    check_cancel_chk();
+    if (check_cancel())
+	return -1;
+    return 1;
 }
 
 int coopth_sched(void)
@@ -1132,15 +1127,17 @@ int coopth_sched_cond(void)
     return 1;
 }
 
-void coopth_wait(void)
+int coopth_wait(void)
 {
     assert(_coopth_is_in_thread());
     ensure_attached();
     switch_state(COOPTH_WAIT);
-    check_cancel_chk();
+    if (check_cancel())
+	return -1;
+    return 1;
 }
 
-void coopth_sleep(void)
+int coopth_sleep(void)
 {
     int tid = coopth_get_tid();
 
@@ -1148,7 +1145,9 @@ void coopth_sleep(void)
     if (!is_detached())
 	coopthreads[tid].ops->to_sleep(tid);
     switch_state(COOPTH_SLEEP);
-    check_cancel_chk();
+    if (check_cancel())
+	return -1;
+    return 1;
 }
 
 static void ensure_single(struct coopth_thrdata_t *thdata)
@@ -1455,7 +1454,7 @@ void coopth_set_nothread_notifier(void (*notifier)(void))
     nothread_notifier = notifier;
 }
 
-void coopth_cancel_disable(void)
+void coopth_cancel_disable_cur(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -1463,7 +1462,7 @@ void coopth_cancel_disable(void)
     thdata->canc_disabled = 1;
 }
 
-void coopth_cancel_enable(void)
+void coopth_cancel_enable_cur(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());

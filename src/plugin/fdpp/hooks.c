@@ -175,11 +175,11 @@ int do_fdpp_call(uint16_t seg, uint16_t off)
 
     assert(num_clnup_tids < MAX_CLNUP_TIDS);
     clnup_tids[num_clnup_tids++] = coopth_get_tid();
-    coopth_cancel_disable();
+    coopth_cancel_disable_cur();
     rc = do_call_back(seg, off);
     /* re-enable cancellability only if it was not canceled already */
     if (rc == 0)
-	coopth_cancel_enable();
+	coopth_cancel_enable_cur();
     else
 	ret = ASM_CALL_ABORT;
     num_clnup_tids--;
