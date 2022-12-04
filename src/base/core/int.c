@@ -1921,6 +1921,7 @@ static int int19(void)
     coopth_leave();
     if (clnup_handler)
 	clnup_handler();
+    clnup_handler = NULL;
     stal = coopth_flush_vm86();
     if (stal) {
         error("stalled %i threads on reboot\n", stal);
