@@ -638,6 +638,7 @@ void pit_reset(void)
   pit[0].write_latch = 0;
   pit[0].read_state  = 3;
   pit[0].write_state = 3;
+  pit[0].q_ticks     = 0;
   evtimer_stop(pit[0].evtmr);
 
   pit[1].mode        = 2;
@@ -648,6 +649,7 @@ void pit_reset(void)
   pit[1].write_latch = 18;
   pit[1].read_state  = 3;
   pit[1].write_state = 3;
+  pit[1].q_ticks     = 0;
   evtimer_stop(pit[1].evtmr);
 
   pit[2].mode        = 0;
@@ -658,6 +660,7 @@ void pit_reset(void)
   pit[2].write_latch = 0;
   pit[2].read_state  = 3;
   pit[2].write_state = 3;
+  pit[2].q_ticks     = 0;
   evtimer_stop(pit[2].evtmr);
 
   pit[3].mode        = 0;
