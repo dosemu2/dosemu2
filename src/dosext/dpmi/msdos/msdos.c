@@ -246,20 +246,11 @@ static void setup_int_exc(int inherit_idt)
 void msdos_init(int num, int is_32, unsigned short mseg, unsigned short psp,
 	int inherit_idt)
 {
-    unsigned short envp;
-
     msdos_client_num = num;
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
     MSDOS_CLIENT.is_32 = is_32;
     MSDOS_CLIENT.lowmem_seg = mseg;
     MSDOS_CLIENT.current_psp = psp;
-    /* convert environment pointer to a descriptor */
-    envp = get_env_sel();
-    if (envp) {
-	write_env_sel(ConvertSegmentToDescriptor(envp));
-	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
-		 envp, get_env_sel());
-    }
     if (msdos_client_num == 0) {
 	int len = sizeof(struct RealModeCallStructure);
 	rmcb_mem = msdos_malloc(len);
@@ -326,8 +317,6 @@ void msdos_done(int prev)
 	dpmi_set_interrupt_vector(ints[i], MSDOS_CLIENT.prev_ihandler[i]);
     if (MSDOS_CLIENT.rmcb_alloced)
 	callbacks_done(MSDOS_CLIENT.rmcbs);
-    if (get_env_sel())
-	write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
     if (msdos_client_num == 0) {
 	msdos_ldt_done();
 	FreeDescriptor(rmcb_sel);

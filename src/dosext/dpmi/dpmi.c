@@ -138,6 +138,7 @@ struct DPMIclient_struct {
   uint16_t initial_psp;
   uint16_t psp_sel;
   uint16_t int23_psp;
+  uint16_t envp;
 
   DPMI_INTDESC vtmr_prev;
   DPMI_INTDESC vrtc_prev;
@@ -3263,6 +3264,9 @@ static void dpmi_cleanup(void)
   D_printf("DPMI: cleanup\n");
   if (in_dpmi_pm())
     dosemu_error("Quitting DPMI while in_dpmi_pm\n");
+  /* restore env seg */
+  if (DPMI_CLIENT.envp)
+    WRITE_WORD(SEGOFF2LINEAR(DPMI_CLIENT.initial_psp, 0x2c), DPMI_CLIENT.envp);
   if (config.pm_dos_api)
     msdos_done(prev_clnt());
   if (current_client != in_dpmi - 1) {
@@ -4008,6 +4012,14 @@ void dpmi_init(void)
   SetSegmentBaseAddress(ES, psp << 4);
   SetSegmentLimit(ES, 0xff);
   DPMI_CLIENT.psp_sel = ES;
+  /* convert environment pointer to a descriptor */
+  DPMI_CLIENT.envp = READ_WORD(SEGOFF2LINEAR(psp, 0x2c));
+  if (DPMI_CLIENT.envp) {
+    unsigned short env_sel = ConvertSegmentToDescriptor(DPMI_CLIENT.envp);
+    WRITE_WORD(SEGOFF2LINEAR(psp, 0x2c), env_sel);
+    D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
+		 DPMI_CLIENT.envp, env_sel);
+  }
 
   if (debug_level('M')) {
     print_ldt();
