@@ -39,6 +39,7 @@
 #include "redirect.h"
 #include "plugin_config.h"
 #include "msetenv.h"
+#include "system.h"
 #include "builtins.h"
 
 /* hope 2K is enough */
@@ -555,4 +556,5 @@ int commands_plugin_inte6_set_retcode(void)
 void commands_plugin_inte6_reset(void)
 {
 	pool_used = 0;
+	system_com_reset();
 }

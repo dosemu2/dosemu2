@@ -55,6 +55,12 @@ static char e_drv;
 static int vars_parsed;
 static int *drv_num_p;
 
+void system_com_reset(void)
+{
+    e_drv = 0;
+    vars_parsed = 0;
+}
+
 int system_main(int argc, char **argv)
 {
   char c;

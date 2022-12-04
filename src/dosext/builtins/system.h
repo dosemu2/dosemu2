@@ -6,4 +6,4 @@
  */
 
 int system_main(int argc, char **argv);
-
+void system_com_reset(void);
