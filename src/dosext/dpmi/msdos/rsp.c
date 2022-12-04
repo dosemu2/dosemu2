@@ -101,6 +101,9 @@ static void do_common_start(sigcontext_t *scp, int is_32)
 	msdos_done(_LWORD(ecx));
 	put_dos_mem(scp, is_32, mseg);
 	break;
+    case 2:
+	msdos_set_client(_LWORD(ebx));
+	break;
     default:
 	error("unsupported rsp %i\n", _LWORD(eax));
 	break;

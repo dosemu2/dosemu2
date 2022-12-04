@@ -18,6 +18,5 @@
 
 void msdos_setup(void);
 void msdos_reset(void);
-void msdos_set_client(int num);
 
 #endif
