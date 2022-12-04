@@ -163,7 +163,7 @@ MSDOS_rmcb_ret2:
 MSDOS_rmcb_call_end:
 	.globl MSDOS_hlt_start
 MSDOS_hlt_start:
-	FILL_OPCODE 32,hlt
+	FILL_OPCODE 64,hlt
 	.globl MSDOS_hlt_end
 MSDOS_hlt_end:
 	.globl MSDOS_pmc_end
