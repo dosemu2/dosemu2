@@ -22,7 +22,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <fdpp/thunks.h>
-#if FDPP_API_VER != 31
+#if FDPP_API_VER != 32
 #error wrong fdpp version
 #endif
 #include "emu.h"
@@ -132,28 +132,22 @@ static uint8_t *fdpp_so2lin(uint16_t seg, uint16_t off)
 
 static int fdpp_ping(void)
 {
+    int rc = 0;
     if (signal_pending())
-	coopth_yield();
-#if 0
-    if (GETusTIME(0) - watchdog > 1000000) {
-	watchdog = GETusTIME(0);	// just once
-	error("fdpp hang, rebooting\n");
-	coopth_leave();
-	dos_ctrl_alt_del();
-	return -1;
-    }
-#endif
-    return 0;
+	rc = fdpp_coopth_yield();
+    return rc;
 }
 
-static void fdpp_relax(void)
+static int fdpp_relax(void)
 {
+    int rc;
     int ii = isset_IF();
 
     set_IF();
-    coopth_wait();
+    rc = fdpp_coopth_wait();
     if (!ii)
 	clear_IF();
+    return rc;
 }
 
 static void fdpp_debug(const char *msg)

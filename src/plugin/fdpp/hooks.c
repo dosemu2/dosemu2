@@ -185,3 +185,26 @@ int do_fdpp_call(uint16_t seg, uint16_t off)
     num_clnup_tids--;
     return ret;
 }
+
+static int do_coopth_wrp(int (*cbk)(void))
+{
+    int rc;
+    assert(num_clnup_tids < MAX_CLNUP_TIDS);
+    clnup_tids[num_clnup_tids++] = coopth_get_tid();
+    coopth_cancel_disable_cur();
+    rc = cbk();
+    if (rc != -1)
+	coopth_cancel_enable_cur();
+    num_clnup_tids--;
+    return rc;
+}
+
+int fdpp_coopth_wait(void)
+{
+    return do_coopth_wrp(coopth_wait);
+}
+
+int fdpp_coopth_yield(void)
+{
+    return do_coopth_wrp(coopth_yield);
+}
