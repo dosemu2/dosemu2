@@ -656,6 +656,7 @@ void run_vm86(void)
 void vm86_helper(void)
 {
   assert(!in_dpmi_pm());
+  clear_VIP();
   _do_vm86();
   handle_signals();
   coopth_run();
