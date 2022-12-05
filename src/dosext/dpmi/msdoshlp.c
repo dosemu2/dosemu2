@@ -143,6 +143,24 @@ struct pmaddr_s doshlp_get_entry(unsigned entry)
     return ret;
 }
 
+struct pmaddr_s doshlp_get_entry16(unsigned entry)
+{
+    struct pmaddr_s ret = {
+	    .offset = entry,
+	    .selector = dpmi_sel16(),
+	};
+    return ret;
+}
+
+struct pmaddr_s doshlp_get_entry32(unsigned entry)
+{
+    struct pmaddr_s ret = {
+	    .offset = entry,
+	    .selector = dpmi_sel32(),
+	};
+    return ret;
+}
+
 void doshlp_setup(struct dos_helper_s *h, const char *name,
 	void (*thr)(void *), void (*post)(sigcontext_t *))
 {

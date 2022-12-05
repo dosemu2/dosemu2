@@ -35,6 +35,7 @@
 #include "emm_msdos.h"
 #include "xms_msdos.h"
 #include "lio.h"
+#include "rsp.h"
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
 #include "callbacks.h"
@@ -110,9 +111,11 @@ struct msdos_struct {
 
     DPMI_INTDESC int_head;
     int int_offs[num_ints];
+    int used;
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 static int msdos_client_num;
+static int msdos_client_max;
 
 static int ems_frame_mapped;
 static int ems_handle;
@@ -174,12 +177,24 @@ void msdos_setup(void)
     lio_init();
     xmshlp_init();
     doshlp_setup(&reinit_hlp, "msdos reinit thr", reinit_thr, do_retf16);
+    rsp_setup();
 }
 
 void msdos_reset(void)
 {
+    while (msdos_client_max > 0) {
+	int prev;
+	assert(msdos_client[msdos_client_max - 1].used);
+	msdos_client_num = msdos_client_max - 1;
+	prev = msdos_client_num - 1;
+	while (prev >= 0 && !msdos_client[prev].used)
+	    prev--;
+	msdos_done(prev);
+    }
     ems_handle = -1;
     ems_frame_mapped = 0;
+
+    rsp_init();
 }
 
 static char *msdos_seg2lin(uint16_t seg)
@@ -246,12 +261,18 @@ static void setup_int_exc(int inherit_idt)
 void msdos_init(int num, int is_32, unsigned short mseg, unsigned short psp,
 	int inherit_idt)
 {
+    int first = (msdos_client_num < 0 ||
+	msdos_client_num >= DPMI_MAX_CLIENTS ||
+	!msdos_client[msdos_client_num].used);
     msdos_client_num = num;
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
+    MSDOS_CLIENT.used = 1;
+    if (msdos_client_max <= msdos_client_num)
+	msdos_client_max = msdos_client_num + 1;
     MSDOS_CLIENT.is_32 = is_32;
     MSDOS_CLIENT.lowmem_seg = mseg;
     MSDOS_CLIENT.current_psp = psp;
-    if (msdos_client_num == 0) {
+    if (first) {
 	int len = sizeof(struct RealModeCallStructure);
 	rmcb_mem = msdos_malloc(len);
 	rmcb_sel = AllocateDescriptors(1);
@@ -262,8 +283,7 @@ void msdos_init(int num, int is_32, unsigned short mseg, unsigned short psp,
     } else {
 	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 1].ldt_alias;
     }
-    if (msdos_client_num == 0 ||
-	    msdos_client[msdos_client_num - 1].is_32 != is_32) {
+    if (first || msdos_client[msdos_client_num - 1].is_32 != is_32) {
 	callbacks_init(rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
 	MSDOS_CLIENT.rmcb_alloced = 1;
     } else {
@@ -317,13 +337,16 @@ void msdos_done(int prev)
 	dpmi_set_interrupt_vector(ints[i], MSDOS_CLIENT.prev_ihandler[i]);
     if (MSDOS_CLIENT.rmcb_alloced)
 	callbacks_done(MSDOS_CLIENT.rmcbs);
-    if (msdos_client_num == 0) {
+    if (prev < 0 || prev >= DPMI_MAX_CLIENTS || !msdos_client[prev].used) {
 	msdos_ldt_done();
 	FreeDescriptor(rmcb_sel);
 	msdos_free(rmcb_mem);
     }
     msdos_free_descriptors();
     msdos_free_mem();
+    MSDOS_CLIENT.used = 0;
+    while (msdos_client_max > 0 && !msdos_client[msdos_client_max - 1].used)
+	msdos_client_max--;
     D_printf("MSDOS: done, %i --> %i\n", msdos_client_num, prev);
     msdos_client_num = prev;
 }
@@ -351,9 +374,14 @@ static void reinit_thr(void *arg)
     _eflags &= ~CF;
 }
 
-int msdos_get_lowmem_size(void)
+unsigned short msdos_get_lowmem_size(void)
 {
     return DTA_Para_SIZE + Scratch_Para_SIZE;
+}
+
+unsigned short msdos_get_lowmem_para(void)
+{
+    return MSDOS_CLIENT.lowmem_seg;
 }
 
 unsigned short ConvertSegmentToDescriptor_lim(unsigned short segment,

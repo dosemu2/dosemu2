@@ -178,6 +178,7 @@ static void make_retf_frame(sigcontext_t *scp, void *sp,
 static void make_xretf_frame(sigcontext_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
 static void do_pm_int(sigcontext_t *scp, int i);
+static void msdos_set_client(sigcontext_t *scp, int num);
 static uint32_t ldt_bitmap[LDT_ENTRIES / 32];
 static int ldt_bitmap_cnt;
 typedef struct {
@@ -655,7 +656,7 @@ void dpmi_get_entry_point(void)
     REG(edi) = DPMI_OFF;
 
     /* private data */
-    LWORD(esi) = DPMI_private_paragraphs + msdos_get_lowmem_size();
+    LWORD(esi) = DPMI_private_paragraphs;
 
     D_printf("DPMI entry returned, needs %#x lowmem paragraphs (%i)\n",
 	    LWORD(esi), LWORD(esi) << 4);
@@ -2638,7 +2639,7 @@ err:
       if (current_client != in_dpmi - 1) {
         current_client = in_dpmi - 1;
         finish_clnt_switch();
-        msdos_set_client(current_client);
+        msdos_set_client(scp, current_client);
       }
 
 /* --------------------------------------------------- 0x300:
@@ -3198,8 +3199,8 @@ static int is_same_desc(unsigned short sel, unsigned desc[2])
     return (memcmp(lp, desc, 8) == 0);
 }
 
-static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating,
-	int inh_or_prv)
+static void do_RSP_call(sigcontext_t *scp, int num, int clnt,
+	int terminating, int inh_or_prv)
 {
   unsigned char *code, *data;
   void *sp;
@@ -3247,9 +3248,25 @@ static void dpmi_RSP_call(sigcontext_t *scp, int num, int terminating,
   _cs = DPMI_CLIENT.RSP_cs[num];
   _eip = eip;
   _eax = terminating;
-  _ebx = current_client;
+  _ebx = clnt;
   /* extension: ecx has inherit_idt flag on startup and prev client on term */
   _ecx = inh_or_prv;
+}
+
+static void dpmi_RSP_call(sigcontext_t *scp, int clnt, int terminating,
+	int inh_or_prv)
+{
+    int i;
+
+    for (i = 0; i < DPMI_CLIENT.RSP_num; i++) {
+	D_printf("DPMI: Calling RSP %i for %i\n", i, terminating);
+	do_RSP_call(scp, i, clnt, terminating, inh_or_prv);
+    }
+}
+
+static void msdos_set_client(sigcontext_t *scp, int num)
+{
+    dpmi_RSP_call(scp, num, 2, -1);
 }
 
 static int prev_clnt(void)
@@ -3268,8 +3285,6 @@ static void dpmi_cleanup(void)
   /* restore env seg */
   if (DPMI_CLIENT.envp)
     WRITE_WORD(SEGOFF2LINEAR(DPMI_CLIENT.initial_psp, 0x2c), DPMI_CLIENT.envp);
-  if (config.pm_dos_api)
-    msdos_done(prev_clnt());
   if (current_client != in_dpmi - 1) {
     error("DPMI: termination of non-last client\n");
     /* leave the leak.
@@ -3326,7 +3341,6 @@ static void dpmi_soft_cleanup(void)
 static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
     int tsr, unsigned short tsr_para, int dos_exit)
 {
-  int i;
   int have_tsr = tsr && DPMI_CLIENT.RSP_installed;
 
   /* this is checked in dpmi_cleanup */
@@ -3344,10 +3358,7 @@ static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
   if (DPMI_CLIENT.RSP_state == 0) {
     int prv = prev_clnt();
     DPMI_CLIENT.RSP_state = 1;
-    for (i = 0; i < DPMI_CLIENT.RSP_num; i++) {
-      D_printf("DPMI: Calling RSP %i for termination\n", i);
-      dpmi_RSP_call(scp, i, 1, prv);
-    }
+    dpmi_RSP_call(scp, current_client, 1, prv);
   }
 
   if (have_tsr) {
@@ -4064,10 +4075,6 @@ void dpmi_init(void)
     _eflags |= IOPL_MASK;
 
   DPMI_CLIENT.win3x_mode = win3x_mode;
-  if (config.pm_dos_api)
-    msdos_init(current_client, DPMI_CLIENT.is_32,
-      DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs, psp,
-      inherit_idt);
   if (in_dpmi == 1) {
     s_i1c.segment = ISEG(0x1c);
     s_i1c.offset  = IOFF(0x1c);
@@ -4087,10 +4094,7 @@ void dpmi_init(void)
   /* remember RSP_num on start, so that if some are added later, they
    * not to trigger on termination */
   DPMI_CLIENT.RSP_num = RSP_num;
-  for (i = 0; i < DPMI_CLIENT.RSP_num; i++) {
-    D_printf("DPMI: Calling RSP %i\n", i);
-    dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0, inherit_idt);
-  }
+  dpmi_RSP_call(&DPMI_CLIENT.stack_frame, current_client, 0, inherit_idt);
   dpmi_ldt_call(scp);
 
   return; /* return immediately to the main loop */
@@ -5462,7 +5466,7 @@ void dpmi_realmode_hlt(unsigned int lina)
     restore_rm_regs();
     dpmi_set_pm(1);
     if (changed)
-      msdos_set_client(current_client);
+      msdos_set_client(scp, current_client);
 
   } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_return_from_realmode) &&
       lina < DPMI_ADD + HLT_OFF(DPMI_return_from_realmode) +
@@ -5486,7 +5490,7 @@ void dpmi_realmode_hlt(unsigned int lina)
     restore_rm_regs();
     dpmi_set_pm(1);
     if (changed)
-      msdos_set_client(current_client);
+      msdos_set_client(scp, current_client);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos_memory)) {
     unsigned length;
@@ -6037,9 +6041,11 @@ char *DPMI_show_state(sigcontext_t *scp)
       pos += sprintf(buf + pos, "GPF on selector 0x%x base=%08x lim=%x\n",
           sel, GetSegmentBase(sel), GetSegmentLimit(sel));
 #if WITH_DPMI
-      msd_dsc = msdos_describe_selector(sel);
-      if (msd_dsc)
-        pos += sprintf(buf + pos, "MSDOS selector: %s\n", msd_dsc);
+      if (config.pm_dos_api && DPMI_CLIENT.RSP_num) {
+        msd_dsc = msdos_describe_selector(sel);
+        if (msd_dsc)
+          pos += sprintf(buf + pos, "MSDOS selector: %s\n", msd_dsc);
+      }
 #endif
     }
 
