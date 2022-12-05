@@ -1541,6 +1541,14 @@ init_all_drives(void)
 
 void mfs_reset(void)
 {
+  int i;
+
+  for (i = 0; i < MAX_OPENED_FILES; i++) {
+    struct file_fd *f = &open_files[i];
+    if (f->name)
+      mfs_close(f);
+  }
+
   emufs_loaded = FALSE;
   mfs_enabled = FALSE;
   init_all_drives();
