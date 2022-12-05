@@ -58,8 +58,6 @@ void coopth_run(void);
 void coopth_run_tid(int tid);
 int coopth_wants_sleep_vm86(void);
 void coopth_set_ctx_checker_vm86(int (*checker)(void));
-void coopth_cancel_disable(int tid);
-void coopth_cancel_enable(int tid);
 void coopth_cancel_disable_cur(void);
 void coopth_cancel_enable_cur(void);
 void coopth_dump(int all);
