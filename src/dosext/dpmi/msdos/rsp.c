@@ -131,7 +131,7 @@ void rsp_setup(void)
 void rsp_init(void)
 {
     struct pmaddr_s rsp16, rsp32;
-    struct RSPcall_s rsp;
+    struct RSPcall_s rsp = {};
     int err;
 
     rsp16 = doshlp_get_entry16(hlp16.entry);
@@ -143,6 +143,7 @@ void rsp_init(void)
     assert(!err);
     rsp.eip = rsp32.offset;
     /* FIXME: maybe fill data descs too? */
+    rsp.flags |= 1;	// enable switch_client extension
     err = dpmi_install_rsp(&rsp);
     assert(!err);
 }

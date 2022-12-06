@@ -3206,6 +3206,8 @@ static void do_RSP_call(sigcontext_t *scp, int num, int clnt,
   void *sp;
   uint32_t eip;
 
+  if (terminating > 1 && !(RSP_callbacks[num].call.flags & 1))
+    return;	// client doesn't support such call
   if (DPMI_CLIENT.is_32) {
     if ((RSP_callbacks[num].call.code32[5] & 0x88) != 0x88)
       return;

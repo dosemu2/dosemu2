@@ -258,7 +258,7 @@ struct RSPcall_s {
   unsigned char data16[8];
   unsigned char code16[8];
   unsigned short ip;
-  unsigned short reserved;
+  unsigned short flags;	// extension
   unsigned char data32[8];
   unsigned char code32[8];
   unsigned int eip;
