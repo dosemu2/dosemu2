@@ -3939,7 +3939,7 @@ void dpmi_init(void)
   memset(&DPMI_CLIENT, 0, sizeof(DPMI_CLIENT));
   dpmi_is_cli = 0;
 
-  DPMI_CLIENT.is_32 = LWORD(eax) ? 1 : 0;
+  DPMI_CLIENT.is_32 = (LWORD(eax) & 1);
   D_printf("DPMI: initializing client %i, %s\n", current_client,
       DPMI_CLIENT.is_32 ? "32bit" : "16bit");
 

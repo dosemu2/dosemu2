@@ -1597,7 +1597,10 @@ int msdos_pre_extender(sigcontext_t *scp,
 	    if (MSDOS_CLIENT.is_32)
 		return MSDOS_NONE;
 	    _LWORD(eax) = 0;
-	    _LWORD(ebx) = 1;
+	    /* 32bit DPMI supported (0x1), entering from
+	     * 16bit-PM supported (0x100), entering from
+	     * 32bit-PM not supported (could use 0x200 for that) */
+	    _LWORD(ebx) = 1 | 0x100;
 	    _LWORD(ecx) = 4;
 	    _HI(dx) = DPMI_VERSION;
 	    _LO(dx) = DPMI_DRIVER_VERSION;
