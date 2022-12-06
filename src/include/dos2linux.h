@@ -204,7 +204,7 @@ typedef u_char *sft_t;
 #define	sft_name(sft)		( (char    *)&sft[sft_name_off])
 #define	sft_ext(sft)		( (char    *)&sft[sft_ext_off])
 
-#define	sft_fd(sft)		(*(u_char *)&sft[sft_fd_off])
+#define	sft_fd(sft)		(*(u_short *)&sft[sft_fd_off])
 
 typedef u_char *cds_t;
 
