@@ -927,7 +927,9 @@ void leave_cpu_emu(void)
 		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
 			IOFF(0x10)=INT10_WATCHER_OFF;
 #endif
+#ifdef HOST_ARCH_X86
 		EndGen();
+#endif
 #ifdef DEBUG_TREE
 		fclose(tLog); tLog = NULL;
 #endif

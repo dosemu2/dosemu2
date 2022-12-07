@@ -42,7 +42,7 @@ extern void e_priv_iopl(int);
 #define CPUEMU_DIRECT_IO
 #endif
 
-#if defined(__i386__) || defined(__x86_64__)
+#ifdef X86_JIT
 #define HOST_ARCH_X86
 #define CONFIG_CPUSIM config.cpusim
 #else
@@ -76,7 +76,7 @@ unsigned short emu_do_LAR (unsigned short selector);
 char *e_scp_disasm(sigcontext_t *scp, int pmode);
 
 /* called from mfs.c, fatfs.c and some places that memcpy */
-#ifdef X86_EMULATOR
+#ifdef X86_JIT
 void e_invalidate(unsigned data, int cnt);
 void e_invalidate_full(unsigned data, int cnt);
 #else
@@ -96,17 +96,24 @@ extern int in_dpmi_emu;
 /* called from emu-ldt.c */
 void InvalidateSegs(void);
 
+#ifdef X86_JIT
 /* called from sigsegv.c */
 int e_emu_pagefault(sigcontext_t *scp, int pmode);
 int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp);
 int e_handle_fault(sigcontext_t *scp);
-int e_in_compiled_code(void);
+#else
+#define e_emu_pagefault(scp, pmode) 0
+#define e_handle_pagefault(addr, err, scp) 0
+#define e_handle_fault(scp) 0
+#endif
 
-/* called from signal.c */
 #ifdef X86_EMULATOR
+/* called from signal.c */
+int e_in_compiled_code(void);
 void e_gen_sigalrm(void);
 #else
 #define e_gen_sigalrm()
+#define e_in_compiled_code() 0
 #endif
 
 #endif	/*DOSEMU_CPUEMU_H*/

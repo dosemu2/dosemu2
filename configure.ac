@@ -150,7 +150,6 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([
     ])],
     [
 	AC_MSG_RESULT([yes])
-	AC_MSG_NOTICE(Compiling with x86 emulator)
 	AC_DEFINE(HAVE_ASSIGNABLE_STDERR)
     ],
     [
@@ -429,29 +428,36 @@ dnl CPU emulator
 AC_ARG_ENABLE(cpuemu, [AS_HELP_STRING([--disable-cpuemu],
         [do NOT compile with optional x86 emulation code])])
 if test "$enable_cpuemu" != "no"; then
-  AC_MSG_CHECKING([for __attribute__((force_align_arg_pointer))])
-  AX_SAVE_FLAGS([attr_check2])
-  CFLAGS="-Wall -Werror"
-  AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+  AC_MSG_NOTICE(Compiling with x86 emulator)
+  AC_DEFINE(X86_EMULATOR)
+  X86_EMULATOR=1
+  AC_SUBST(X86_EMULATOR)
+
+  if test "$machine" = "i386" -o "$machine" = "x86_64"; then
+    AC_MSG_CHECKING([for __attribute__((force_align_arg_pointer))])
+    AX_SAVE_FLAGS([attr_check2])
+    CFLAGS="-Wall -Werror"
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 	void foo(void);
 	__attribute__((force_align_arg_pointer))
 	void foo(void)
 	{
 	}
-    ])],
-    [
+      ])],
+      [
 	AC_MSG_RESULT([supported])
-	AC_MSG_NOTICE(Compiling with x86 emulator)
-	AC_DEFINE_UNQUOTED(X86_EMULATOR)
-	X86_EMULATOR=1
-	AC_SUBST(X86_EMULATOR)
-    ],
-    [
+	AC_MSG_NOTICE(Compiling with x86 JIT)
+	AC_DEFINE(X86_JIT)
+	X86_JIT=1
+	AC_SUBST(X86_JIT)
+      ],
+      [
 	AC_MSG_RESULT([unsupported])
-	AC_MSG_WARN(Compiling without x86 emulator)
-    ]
-  )
-  AX_RESTORE_FLAGS([attr_check2])
+	AC_MSG_WARN(Compiling without x86 JIT)
+      ]
+    )
+    AX_RESTORE_FLAGS([attr_check2])
+  fi
 fi
 
 AC_ARG_WITH(target_cpu, [AS_HELP_STRING([--with-target-cpu=CPU],
@@ -634,6 +640,9 @@ AH_TEMPLATE([HAVE_BACKTRACE],
 
 AH_TEMPLATE([X86_EMULATOR],
 [ Define this to use the X86 CPU emulator ])
+
+AH_TEMPLATE([X86_JIT],
+[ Define this to use the X86 JIT ])
 
 AH_TEMPLATE([DNATIVE],
 [ Define this to enable native DPMI back-end ])
