@@ -79,11 +79,18 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
  *	from P0, abort the current instruction and resume the parsing
  *	loop at P2.
  */
-#define	CODE_FLUSH()	{ if (CONFIG_CPUSIM || CurrIMeta>0) {\
+#ifdef HOST_ARCH_X86
+#define CODE_FLUSH()	{ if (CONFIG_CPUSIM || CurrIMeta>0) {\
 			  unsigned int P2 = CloseAndExec(P0, mode, __LINE__);\
 			  if (TheCPU.err) return P2;\
 			  if (!CONFIG_CPUSIM && P2 != P0) { PC=P2; continue; }\
 			} NewNode=0; }
+#else
+#define CODE_FLUSH()	{ \
+			  unsigned int P2 = CloseAndExec(P0, mode, __LINE__);\
+			  if (TheCPU.err) return P2;\
+			  NewNode=0; }
+#endif
 
 #define UNPREFIX(m)	((m)&~(DATA16|ADDR16))|(basemode&(DATA16|ADDR16))
 
@@ -233,8 +240,10 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		    }
 		    if (CONFIG_CPUSIM)
 			Gen(JB_LINK, mode, opc, P2, j_t, j_nt);
+#ifdef HOST_ARCH_X86
 		    else
 			Gen(JB_LINK, mode, opc, P2, j_t, j_nt, &InstrMeta[0].clink);
+#endif
 		}
 		else {
 		    if (dsp == pskip) {
@@ -250,8 +259,10 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		    /* forward jump or backward jump >=256 bytes */
 		    if (CONFIG_CPUSIM)
 			Gen(JF_LINK, mode, opc, P2, j_t, j_nt);
+#ifdef HOST_ARCH_X86
 		    else
 			Gen(JF_LINK, mode, opc, P2, j_t, j_nt, &InstrMeta[0].clink);
+#endif
 		}
 		break;
 	case JMPld: {   /* uncond jmp far */
@@ -276,8 +287,10 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		if (dsp < 0) mode |= CKSIGN;
 		if (CONFIG_CPUSIM)
 		    Gen(JMP_LINK, mode, opc, j_t, d_nt);
+#ifdef HOST_ARCH_X86
 		else
 		    Gen(JMP_LINK, mode, opc, j_t, d_nt, &InstrMeta[0].clink);
+#endif
 		break;
 	case CALLl: {   /* call far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
@@ -290,8 +303,10 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	case CALLd:    /* call, unfortunately also uses JMP_LINK */
 		if (CONFIG_CPUSIM)
 		    Gen(JMP_LINK, mode, opc, j_t, d_nt);
+#ifdef HOST_ARCH_X86
 		else
 		    Gen(JMP_LINK, mode, opc, j_t, d_nt, &InstrMeta[0].clink);
+#endif
 		break;
 	case LOOP: case LOOPZ_LOOPE: case LOOPNZ_LOOPNE:
 		if (dsp == 0) {
@@ -308,8 +323,10 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		}
 		if (CONFIG_CPUSIM)
 		    Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
+#ifdef HOST_ARCH_X86
 		else
 		    Gen(JLOOP_LINK, mode, opc, j_t, j_nt, &InstrMeta[0].clink);
+#endif
 		break;
 	case RETl: case RETlisp: case JMPli: case CALLli: // far ret, indirect
 	case INT:
@@ -320,8 +337,10 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	case RET: case RETisp: case JMPi: case CALLi: // ret, indirect
 		if (CONFIG_CPUSIM)
 			Gen(JMP_INDIRECT, mode);
+#ifdef HOST_ARCH_X86
 		else
 			Gen(JMP_INDIRECT, mode, &InstrMeta[0].clink);
+#endif
 		break;
 	default: dbug_printf("JumpGen: unknown condition\n");
 		break;
@@ -1304,7 +1323,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*9b*/	case oWAIT:
 /*90*/	case NOP:	//if (!IsCodeInBuf()) Gen(L_NOP, mode);
-			if (CurrIMeta<0) Gen(L_NOP, mode); else TheCPU.mode|=SKIPOP;
+#if 1
+			Gen(L_NOP, mode);
+#else
+			TheCPU.mode|=SKIPOP;
+#endif
 			PC++;
 			if (!(EFLAGS & TF))
 			    while (Fetch(PC)==NOP) PC++;
@@ -2128,8 +2151,8 @@ repag0:
 			if ((EFLAGS & TF) && !(repmod & (MREP|MREPNE))) {
 				/* with TF set, we simulate REP and maybe back
 				   up IP */
-				int rc = 0;
 #ifdef HOST_ARCH_X86
+				int rc = 0;
 				if (!CONFIG_CPUSIM) {
 					NewIMeta(P0, &rc);
 					CODE_FLUSH();
@@ -2157,9 +2180,11 @@ repag0:
 			CODE_FLUSH();
 			goto not_permitted;
 /*f5*/	case CMC:	PC++;
+#if 0
 			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
 				EFLAGS ^= EFLAGS_CF;
 			else
+#endif
 				Gen(O_SETFL, mode, CMC);
 			break;
 /*f6*/	case GRP1brm: {
@@ -2239,15 +2264,19 @@ repag0:
 			} }
 			break;
 /*f8*/	case CLC:	PC++;
+#if 0
 			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
 				EFLAGS &= ~EFLAGS_CF;
 			else
+#endif
 				Gen(O_SETFL, mode, CLC);
 			break;
 /*f9*/	case STC:	PC++;
+#if 0
 			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
 				EFLAGS |= EFLAGS_CF;
 			else
+#endif
 				Gen(O_SETFL, mode, STC);
 			break;
 /*fa*/	case CLI:
@@ -2306,19 +2335,23 @@ repag0:
 			PC++;
 			break;
 /*fc*/	case CLD:	PC++;
+#if 0
 			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1)) {
 				EFLAGS &= ~EFLAGS_DF;
 				TheCPU.df_increments = 0x040201;
 			}
 			else
+#endif
 				Gen(O_SETFL, mode, CLD);
 			break;
 /*fd*/	case STD:	PC++;
+#if 0
 			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1)) {
 				EFLAGS |= EFLAGS_DF;
 				TheCPU.df_increments = 0xfcfeff;
 			}
 			else
+#endif
 				Gen(O_SETFL, mode, STD);
 			break;
 /*fe*/	case GRP2brm:	/* only INC and DEC are legal on bytes */
