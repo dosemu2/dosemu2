@@ -34,7 +34,13 @@ typedef void *cohandle_t;
 
 #define WANT_UCONTEXT 1
 
-enum CoBackend {PCL_C_MC,
+enum CoBackend {
+#ifdef MCONTEXT
+    PCL_C_MC,
+#else
+/* our libmcontext doesn't yet support aarch64 */
+#define PCL_C_MC PCL_C_UC
+#endif
 #if WANT_UCONTEXT
     PCL_C_UC,
 #endif

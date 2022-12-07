@@ -482,6 +482,12 @@ if test "$machine" = "i386" -o "$machine" = "x86_64"; then
     DNATIVE=1
     AC_SUBST(DNATIVE)
 fi
+if test "$machine" != "aarch64"; then
+    AC_MSG_NOTICE([Enabling fast context switching...])
+    AC_DEFINE(MCONTEXT)
+    MCONTEXT=1
+    AC_SUBST(MCONTEXT)
+fi
 
 if test "$enable_asan" = "yes"; then
   AX_CHECK_LINK_FLAG([-fsanitize=address], [
@@ -631,6 +637,9 @@ AH_TEMPLATE([X86_EMULATOR],
 
 AH_TEMPLATE([DNATIVE],
 [ Define this to enable native DPMI back-end ])
+
+AH_TEMPLATE([MCONTEXT],
+[ Define this to enable libmcontext use ])
 
 AH_TEMPLATE([DISABLE_SYSTEM_WA],
 [ Define this to disable system-specific work-arounds that are
