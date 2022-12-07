@@ -597,7 +597,7 @@ extern uint16_t _trapno;
 #define _trapno (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[0])
 #define __fpstate (scp->fpregs)
 #define PRI_RG  "llx"
-#else
+#elif defined(__i386__)
 #define _es     (scp->gregs[REG_ES])
 #define _ds     (scp->gregs[REG_DS])
 #define _es_    (scp->gregs[REG_ES])
@@ -648,6 +648,8 @@ extern uint16_t _trapno;
 #define _trapno (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[0])
 #define __fpstate (scp->fpregs)
 #define PRI_RG  PRIx32
+#else
+#error unsupported arch
 #endif
 #ifdef __x86_64__
 #define get_edi(s)    DWORD_(get_rdi(s))
