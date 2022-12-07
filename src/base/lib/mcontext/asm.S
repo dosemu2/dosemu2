@@ -1,18 +1,70 @@
-/* This code is taken from libtask library.
- * Rip-off done by stsp for dosemu2 project.
- * Original copyrights below. */
-
 /* Copyright (c) 2005-2006 Russ Cox, MIT; see COPYRIGHT */
 
+#if defined(__FreeBSD__) && defined(__i386__) && __FreeBSD__ < 5
+#define NEEDX86CONTEXT 1
+#define SET setmcontext
+#define GET getmcontext
+#endif
+
+#if defined(__OpenBSD__) && defined(__i386__)
+#define NEEDX86CONTEXT 1
+#define SET setmcontext
+#define GET getmcontext
+#endif
+
+#if defined(__APPLE__)
 #if defined(__i386__)
-.globl _setmcontext
-_setmcontext:
+#define NEEDX86CONTEXT 1
+#define SET _setmcontext
+#define GET _getmcontext
+#elif defined(__x86_64__)
+#define NEEDAMD64CONTEXT 1
+#define SET _setmcontext
+#define GET _getmcontext
+#elif defined(__arm__)
+#define NEEDARMCONTEXT 1
+#define SET _setmcontext
+#define GET _getmcontext
+#else
+#define NEEDPOWERCONTEXT 1
+#define SET __setmcontext
+#define GET __getmcontext
+#endif
+#endif
+
+#if defined(__linux__)
+#if defined(__i386__)
+#define NEEDX86CONTEXT 1
+#define SET _setmcontext
+#define GET _getmcontext
+#elif defined(__x86_64__)
+#define NEEDAMD64CONTEXT 1
+#define SET _setmcontext
+#define GET _getmcontext
+#elif defined(__arm__)
+#define NEEDARMCONTEXT 1
+#define SET setmcontext
+#define GET getmcontext
+#elif defined(__mips__)
+#define NEEDMIPSCONTEXT 1
+#define SET setmcontext
+#define GET getmcontext
+#else
+#define NEEDPOWERCONTEXT 1
+#define SET __setmcontext
+#define GET __getmcontext
+#endif
+#endif
+
+#ifdef NEEDX86CONTEXT
+.globl SET
+SET:
 	movl	4(%esp), %eax
 
-	mov	8(%eax), %fs
-	mov	12(%eax), %es
-	mov	16(%eax), %ds
-	mov	76(%eax), %ss
+	movl	8(%eax), %fs
+	movl	12(%eax), %es
+	movl	16(%eax), %ds
+	movl	76(%eax), %ss
 	movl	20(%eax), %edi
 	movl	24(%eax), %esi
 	movl	28(%eax), %ebp
@@ -25,14 +77,14 @@ _setmcontext:
 	movl	48(%eax), %eax
 	ret
 
-.globl _getmcontext
-_getmcontext:
+.globl GET
+GET:
 	movl	4(%esp), %eax
 
-	mov	%fs, 8(%eax)
-	mov	%es, 12(%eax)
-	mov	%ds, 16(%eax)
-	mov	%ss, 76(%eax)
+	movl	%fs, 8(%eax)
+	movl	%es, 12(%eax)
+	movl	%ds, 16(%eax)
+	movl	%ss, 76(%eax)
 	movl	%edi, 20(%eax)
 	movl	%esi, 24(%eax)
 	movl	%ebp, 28(%eax)
@@ -49,15 +101,11 @@ _getmcontext:
 	movl	44(%eax), %ecx	/* restore %ecx */
 	movl	$0, %eax
 	ret
-
-#ifdef __ELF__
-.section .note.GNU-stack,"",%progbits
-#endif
 #endif
 
-#if defined(__x86_64__)
-.globl _setmcontext
-_setmcontext:
+#ifdef NEEDAMD64CONTEXT
+.globl SET
+SET:
 	movq	16(%rdi), %rsi
 	movq	24(%rdi), %rdx
 	movq	32(%rdi), %rcx
@@ -77,8 +125,8 @@ _setmcontext:
 	movq	8(%rdi), %rdi
 	ret
 
-.globl _getmcontext
-_getmcontext:
+.globl GET
+GET:
 	movq	%rdi, 8(%rdi)
 	movq	%rsi, 16(%rdi)
 	movq	%rdx, 24(%rdi)
@@ -103,8 +151,196 @@ _getmcontext:
 	movq	32(%rdi), %rcx	/* restore %rcx */
 	movq	$0, %rax
 	ret
+#endif
+
+#ifdef NEEDPOWERCONTEXT
+/* get FPR and VR use flags with sc 0x7FF3 */
+/* get vsave with mfspr reg, 256 */
+
+.text
+.align 2
+
+.globl GET
+GET:				/* xxx: instruction scheduling */
+	mflr	r0
+	mfcr	r5
+	mfctr	r6
+	mfxer	r7
+	stw	r0, 0*4(r3)
+	stw	r5, 1*4(r3)
+	stw	r6, 2*4(r3)
+	stw	r7, 3*4(r3)
+
+	stw	r1, 4*4(r3)
+	stw	r2, 5*4(r3)
+	li	r5, 1			/* return value for setmcontext */
+	stw	r5, 6*4(r3)
+
+	stw	r13, (0+7)*4(r3)	/* callee-save GPRs */
+	stw	r14, (1+7)*4(r3)	/* xxx: block move */
+	stw	r15, (2+7)*4(r3)
+	stw	r16, (3+7)*4(r3)
+	stw	r17, (4+7)*4(r3)
+	stw	r18, (5+7)*4(r3)
+	stw	r19, (6+7)*4(r3)
+	stw	r20, (7+7)*4(r3)
+	stw	r21, (8+7)*4(r3)
+	stw	r22, (9+7)*4(r3)
+	stw	r23, (10+7)*4(r3)
+	stw	r24, (11+7)*4(r3)
+	stw	r25, (12+7)*4(r3)
+	stw	r26, (13+7)*4(r3)
+	stw	r27, (14+7)*4(r3)
+	stw	r28, (15+7)*4(r3)
+	stw	r29, (16+7)*4(r3)
+	stw	r30, (17+7)*4(r3)
+	stw	r31, (18+7)*4(r3)
+
+	li	r3, 0			/* return */
+	blr
+
+.globl SET
+SET:
+	lwz	r13, (0+7)*4(r3)	/* callee-save GPRs */
+	lwz	r14, (1+7)*4(r3)	/* xxx: block move */
+	lwz	r15, (2+7)*4(r3)
+	lwz	r16, (3+7)*4(r3)
+	lwz	r17, (4+7)*4(r3)
+	lwz	r18, (5+7)*4(r3)
+	lwz	r19, (6+7)*4(r3)
+	lwz	r20, (7+7)*4(r3)
+	lwz	r21, (8+7)*4(r3)
+	lwz	r22, (9+7)*4(r3)
+	lwz	r23, (10+7)*4(r3)
+	lwz	r24, (11+7)*4(r3)
+	lwz	r25, (12+7)*4(r3)
+	lwz	r26, (13+7)*4(r3)
+	lwz	r27, (14+7)*4(r3)
+	lwz	r28, (15+7)*4(r3)
+	lwz	r29, (16+7)*4(r3)
+	lwz	r30, (17+7)*4(r3)
+	lwz	r31, (18+7)*4(r3)
+
+	lwz	r1, 4*4(r3)
+	lwz	r2, 5*4(r3)
+
+	lwz	r0, 0*4(r3)
+	mtlr	r0
+	lwz	r0, 1*4(r3)
+	mtcr	r0			/* mtcrf 0xFF, r0 */
+	lwz	r0, 2*4(r3)
+	mtctr	r0
+	lwz	r0, 3*4(r3)
+	mtxer	r0
+
+	lwz	r3,	6*4(r3)
+	blr
+#endif
+
+#ifdef NEEDARMCONTEXT
+.globl GET
+GET:
+	str	r1, [r0,#4]
+	str	r2, [r0,#8]
+	str	r3, [r0,#12]
+	str	r4, [r0,#16]
+	str	r5, [r0,#20]
+	str	r6, [r0,#24]
+	str	r7, [r0,#28]
+	str	r8, [r0,#32]
+	str	r9, [r0,#36]
+	str	r10, [r0,#40]
+	str	r11, [r0,#44]
+	str	r12, [r0,#48]
+	str	r13, [r0,#52]
+	str	r14, [r0,#56]
+	/* store 1 as r0-to-restore */
+	mov	r1, #1
+	str	r1, [r0]
+	/* return 0 */
+	mov	r0, #0
+	mov	pc, lr
+
+.globl SET
+SET:
+	ldr	r1, [r0,#4]
+	ldr	r2, [r0,#8]
+	ldr	r3, [r0,#12]
+	ldr	r4, [r0,#16]
+	ldr	r5, [r0,#20]
+	ldr	r6, [r0,#24]
+	ldr	r7, [r0,#28]
+	ldr	r8, [r0,#32]
+	ldr	r9, [r0,#36]
+	ldr	r10, [r0,#40]
+	ldr	r11, [r0,#44]
+	ldr	r12, [r0,#48]
+	ldr	r13, [r0,#52]
+	ldr	r14, [r0,#56]
+	ldr	r0, [r0]
+	mov	pc, lr
+#endif
+
+#ifdef NEEDMIPSCONTEXT
+.globl GET
+GET:
+	sw	$4, 24($4)
+	sw	$5, 28($4)
+	sw	$6, 32($4)
+	sw	$7, 36($4)
+
+	sw	$16, 72($4)
+	sw	$17, 76($4)
+	sw	$18, 80($4)
+	sw	$19, 84($4)
+	sw	$20, 88($4)
+	sw	$21, 92($4)
+	sw	$22, 96($4)
+	sw	$23, 100($4)
+
+	sw	$28, 120($4)	/* gp */
+	sw	$29, 124($4)	/* sp */
+	sw	$30, 128($4)	/* fp */
+	sw	$31, 132($4)	/* ra */
+
+	xor	$2, $2, $2
+	j	$31
+	nop
+
+.globl SET
+SET:
+	lw	$16, 72($4)
+	lw	$17, 76($4)
+	lw	$18, 80($4)
+	lw	$19, 84($4)
+	lw	$20, 88($4)
+	lw	$21, 92($4)
+	lw	$22, 96($4)
+	lw	$23, 100($4)
+
+	lw	$28, 120($4)	/* gp */
+	lw	$29, 124($4)	/* sp */
+	lw	$30, 128($4)	/* fp */
+
+	/*
+	 * If we set $31 directly and j $31,
+	 * we would loose the outer return address.
+	 * Use a temporary register, then.
+	 */
+	lw	$8, 132($4)		/* ra */
+
+	/*  bug: not setting the pc causes a bus error */
+	lw	$25, 132($4)	/* pc */
+
+	lw	$5, 28($4)
+	lw	$6, 32($4)
+	lw	$7, 36($4)
+	lw	$4, 24($4)
+
+	j	$8
+	nop
+#endif
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits
-#endif
 #endif

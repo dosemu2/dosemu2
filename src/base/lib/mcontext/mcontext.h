@@ -20,6 +20,10 @@ typedef struct m_ucontext m_ucontext_t;
 #		include "386-ucontext.h"
 #	elif defined(__x86_64__)
 #		include "amd64-ucontext.h"
+#	elif defined(__arm__)
+#		include "arm-ucontext.h"
+#	elif defined (__power__)
+#		include "power-ucontext.h"
 #	else
 #		error Unsupported arch
 #	endif
