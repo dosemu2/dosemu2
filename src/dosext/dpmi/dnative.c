@@ -27,6 +27,8 @@
 #include "dosemu_debug.h"
 #include "utilities.h"
 #include "emu.h"
+#include "vgaemu.h"
+#include "cpu-emu.h"
 #include "mapping.h"
 #include "emudpmi.h"
 #include "dpmisel.h"
@@ -89,6 +91,27 @@ void dpmi_iret_unwind(sigcontext_t * scp)
 
 static void dpmi_thr(void *arg);
 
+static int handle_pf(sigcontext_t *scp)
+{
+    int rc;
+    dosaddr_t cr2 = DOSADDR_REL(LINP(_cr2));
+#ifdef X86_EMULATOR
+#ifdef HOST_ARCH_X86
+    /* DPMI code touches cpuemu prot */
+    if (IS_EMU() && !CONFIG_CPUSIM && e_handle_pagefault(cr2, _err, scp))
+        return DPMI_RET_CLIENT;
+#endif
+#endif
+    signal_unblock_async_sigs();
+    rc = vga_emu_fault(cr2, _err, scp);
+    /* going for dpmi_fault() or deinit_handler(),
+     * careful with async signals and sas_wa */
+    signal_restore_async_sigs();
+    if (rc == True)
+        return DPMI_RET_CLIENT;
+    return DPMI_RET_FAULT;
+}
+
 /* ======================================================================== */
 /*
  * DANG_BEGIN_FUNCTION native_dpmi_control
@@ -118,6 +141,8 @@ int native_dpmi_control(sigcontext_t *scp)
     if (!saved_IF)
         _eflags &= ~IF;
     _eflags &= ~VIF;
+    if (dpmi_ret_val == DPMI_RET_FAULT && _trapno == 0x0e)
+        dpmi_ret_val = handle_pf(scp);
     /* we may return here with sighandler's signal mask.
      * This is done for speed-up. dpmi_control() restores the mask. */
     return dpmi_ret_val;
