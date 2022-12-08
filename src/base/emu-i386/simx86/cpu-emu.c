@@ -138,7 +138,7 @@ FILE *aLog = NULL;
  * 20	unsigned short gs, __gsh;
  * --------------------------------------------------------------
  */
-sigcontext_t e_scp; /* initialized to 0 */
+cpuctx_t e_scp; /* initialized to 0 */
 
 /* ======================================================================= */
 
@@ -263,7 +263,7 @@ char *e_print_regs(void)
 #define GetSegmentBaseAddress(s)	GetSegmentBase(s)
 #define IsSegment32(s)			dpmi_segment_is32(s)
 
-char *e_print_scp_regs(sigcontext_t *scp, int pmode)
+char *e_print_scp_regs(cpuctx_t *scp, int pmode)
 {
 	static char buf[300];
 	unsigned short *stk;
@@ -332,7 +332,7 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
 }
 
 #ifdef TRACE_DPMI
-char *e_scp_disasm(sigcontext_t *scp, int pmode)
+char *e_scp_disasm(cpuctx_t *scp, int pmode)
 {
    static char insrep = 0;
    static unsigned char buf[1024];
@@ -574,7 +574,7 @@ void Cpu2Reg (void)
 
 /* ======================================================================= */
 
-static void Scp2Cpu (sigcontext_t *scp)
+static void Scp2Cpu (cpuctx_t *scp)
 {
   TheCPU.eax = _eax;
   TheCPU.ebx = _ebx;
@@ -607,7 +607,7 @@ static void Scp2Cpu (sigcontext_t *scp)
 /*
  * Build a sigcontext structure to enter fault handling from DPMI
  */
-static void Cpu2Scp (sigcontext_t *scp, int trapno)
+static void Cpu2Scp (cpuctx_t *scp, int trapno)
 {
   if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08x dpm=%08x fl=%08x\n",
 	_eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags);
@@ -667,7 +667,7 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
 /*
  * Enter emulator in DPMI mode (context_switch)
  */
-static int Scp2CpuD(sigcontext_t *scp)
+static int Scp2CpuD(cpuctx_t *scp)
 {
   unsigned char big; int mode=0;
 
@@ -1066,7 +1066,7 @@ int e_vm86(void)
 /* ======================================================================= */
 
 
-int e_dpmi(sigcontext_t *scp)
+int e_dpmi(cpuctx_t *scp)
 {
   int xval,retval,mode;
 
@@ -1132,7 +1132,7 @@ int e_dpmi(sigcontext_t *scp)
     else if (xval == EXCP0E_PAGE && vga_emu_fault(DOSADDR_REL(LINP(_cr2)),_err,scp)==True) {
 	retval = DPMI_RET_CLIENT;
     } else {
-	retval = dpmi_fault(scp);
+	retval = DPMI_RET_FAULT;
     }
   }
   while (!signal_pending() && retval == DPMI_RET_CLIENT);
@@ -1145,7 +1145,7 @@ int e_dpmi(sigcontext_t *scp)
 /* ======================================================================= */
 /* file: src/cwsdpmi/exphdlr.c */
 
-void e_dpmi_b0x(int op,sigcontext_t *scp)
+void e_dpmi_b0x(int op,cpuctx_t *scp)
 {
   switch (op) {
     case 0: {	/* set */

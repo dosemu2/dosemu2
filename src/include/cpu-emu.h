@@ -73,7 +73,7 @@ int e_vm86(void);
 /* called from dpmi.c */
 void emu_mhp_SetTypebyte (unsigned short selector, int typebyte);
 unsigned short emu_do_LAR (unsigned short selector);
-char *e_scp_disasm(sigcontext_t *scp, int pmode);
+char *e_scp_disasm(cpuctx_t *scp, int pmode);
 
 /* called from mfs.c, fatfs.c and some places that memcpy */
 #ifdef X86_JIT
@@ -91,8 +91,8 @@ void init_emu_cpu (void);
 void reset_emu_cpu (void);
 
 /* called/used from dpmi.c */
-int e_dpmi(sigcontext_t *scp);
-void e_dpmi_b0x(int op,sigcontext_t *scp);
+int e_dpmi(cpuctx_t *scp);
+void e_dpmi_b0x(int op,cpuctx_t *scp);
 extern int in_dpmi_emu;
 
 /* called from emu-ldt.c */

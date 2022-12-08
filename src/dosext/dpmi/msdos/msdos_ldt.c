@@ -52,7 +52,7 @@ static unsigned short d16, d32;
 
 static void msdos_ldt_update(int selector, int num);
 
-static void msdos_ldt_handler(sigcontext_t *scp, void *arg)
+static void msdos_ldt_handler(cpuctx_t *scp, void *arg)
 {
     msdos_ldt_update(_LWORD(ebx), _LWORD(ecx));
 }
@@ -145,7 +145,7 @@ void msdos_ldt_done(void)
     DPMIFreeShared(ldt_h);
 }
 
-int msdos_ldt_fault(sigcontext_t *scp, uint16_t sel)
+int msdos_ldt_fault(cpuctx_t *scp, uint16_t sel)
 {
     unsigned limit;
 #if LDT_UPDATE_LIM
@@ -199,7 +199,7 @@ static void msdos_ldt_update(int selector, int num)
   }
 }
 
-static void direct_ldt_write(sigcontext_t *scp, int offset,
+static void direct_ldt_write(cpuctx_t *scp, int offset,
     char *buffer, int length)
 {
   int ldt_entry = offset / LDT_ENTRY_SIZE;
@@ -266,7 +266,7 @@ int msdos_ldt_access(unsigned char *cr2)
     return cr2 >= ldt_alias && cr2 < ldt_alias + LDT_ENTRIES * LDT_ENTRY_SIZE;
 }
 
-void msdos_ldt_write(sigcontext_t *scp, uint32_t op, int len,
+void msdos_ldt_write(cpuctx_t *scp, uint32_t op, int len,
     unsigned char *cr2)
 {
     if (!len) {
@@ -277,7 +277,7 @@ void msdos_ldt_write(sigcontext_t *scp, uint32_t op, int len,
     direct_ldt_write(scp, cr2 - ldt_alias, (char *)&op, len);
 }
 
-int msdos_ldt_pagefault(sigcontext_t *scp)
+int msdos_ldt_pagefault(cpuctx_t *scp)
 {
     uint32_t op;
     int len;

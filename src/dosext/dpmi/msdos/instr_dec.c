@@ -239,7 +239,7 @@ static int _instr_len(unsigned char *p, int is_32)
   return p - p0;
 }
 
-static uint32_t x86_pop(sigcontext_t *scp, x86_ins *x86)
+static uint32_t x86_pop(cpuctx_t *scp, x86_ins *x86)
 {
   unsigned ss_base = GetSegmentBase(_ss);
   unsigned char *mem = MEM_BASE32(ss_base + (_esp & wordmask[(x86->_32bit+1)*2]));
@@ -250,7 +250,7 @@ static uint32_t x86_pop(sigcontext_t *scp, x86_ins *x86)
   return (x86->operand_size == 4 ? READ_DWORDP(mem) : READ_WORDP(mem));
 }
 
-static int x86_handle_prefixes(sigcontext_t *scp, unsigned cs_base,
+static int x86_handle_prefixes(cpuctx_t *scp, unsigned cs_base,
 	x86_ins *x86)
 {
   unsigned eip = _eip;
@@ -314,7 +314,7 @@ static int x86_handle_prefixes(sigcontext_t *scp, unsigned cs_base,
   return prefix;
 }
 
-int decode_segreg(sigcontext_t *scp)
+int decode_segreg(cpuctx_t *scp)
 {
   unsigned cs, eip;
   unsigned char *csp, *orig_csp;
@@ -411,7 +411,7 @@ int decode_segreg(sigcontext_t *scp)
   return ret;
 }
 
-uint16_t decode_selector(sigcontext_t *scp)
+uint16_t decode_selector(cpuctx_t *scp)
 {
     unsigned cs;
     int pfx;
@@ -434,7 +434,7 @@ uint16_t decode_selector(sigcontext_t *scp)
     return _ds;
 }
 
-static uint8_t reg8(sigcontext_t *scp, int reg)
+static uint8_t reg8(cpuctx_t *scp, int reg)
 {
 #define RG8(x, r) ((_e##x >> ((r & 4) << 1)) & 0xff)
     switch (reg & 3) {
@@ -450,7 +450,7 @@ static uint8_t reg8(sigcontext_t *scp, int reg)
     return -1;
 }
 
-static uint32_t reg(sigcontext_t *scp, int reg)
+static uint32_t reg(cpuctx_t *scp, int reg)
 {
     switch (reg & 7) {
     case 0:
@@ -473,7 +473,7 @@ static uint32_t reg(sigcontext_t *scp, int reg)
     return -1;
 }
 
-int decode_memop(sigcontext_t *scp, uint32_t *op, unsigned char *cr2)
+int decode_memop(cpuctx_t *scp, uint32_t *op, unsigned char *cr2)
 {
     unsigned cs, eip, seg_base;
     unsigned char *csp, *orig_csp;

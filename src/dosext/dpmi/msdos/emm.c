@@ -34,7 +34,7 @@
 
 #define EMM_INT                 0x67
 
-int emm_allocate_handle(sigcontext_t *scp, int is_32, int pages_needed)
+int emm_allocate_handle(cpuctx_t *scp, int is_32, int pages_needed)
 {
   __dpmi_regs regs = {0};
   regs.h.ah = ALLOCATE_PAGES;
@@ -45,7 +45,7 @@ int emm_allocate_handle(sigcontext_t *scp, int is_32, int pages_needed)
   return regs.x.dx;
 }
 
-int emm_save_handle_state(sigcontext_t *scp, int is_32, int handle)
+int emm_save_handle_state(cpuctx_t *scp, int is_32, int handle)
 {
   __dpmi_regs regs = {0};
   regs.h.ah = SAVE_PAGE_MAP;
@@ -56,7 +56,7 @@ int emm_save_handle_state(sigcontext_t *scp, int is_32, int handle)
   return 0;
 }
 
-int emm_restore_handle_state(sigcontext_t *scp, int is_32, int handle)
+int emm_restore_handle_state(cpuctx_t *scp, int is_32, int handle)
 {
   __dpmi_regs regs = {0};
   regs.h.ah = RESTORE_PAGE_MAP;
@@ -67,7 +67,7 @@ int emm_restore_handle_state(sigcontext_t *scp, int is_32, int handle)
   return 0;
 }
 
-int emm_map_unmap_multi(sigcontext_t *scp, int is_32, const u_short *array,
+int emm_map_unmap_multi(cpuctx_t *scp, int is_32, const u_short *array,
     int handle, int map_len)
 {
   uint16_t buf_seg = get_scratch_seg();
@@ -89,7 +89,7 @@ int emm_map_unmap_multi(sigcontext_t *scp, int is_32, const u_short *array,
   return 0;
 }
 
-int emm_get_mpa_len(sigcontext_t *scp, int is_32)
+int emm_get_mpa_len(cpuctx_t *scp, int is_32)
 {
   __dpmi_regs regs = {0};
   regs.h.ah = GET_MPA_ARRAY;
@@ -100,7 +100,7 @@ int emm_get_mpa_len(sigcontext_t *scp, int is_32)
   return regs.x.cx;
 }
 
-int emm_get_mpa_array(sigcontext_t *scp, int is_32,
+int emm_get_mpa_array(cpuctx_t *scp, int is_32,
     struct emm_phys_page_desc *array, int max_len)
 {
   uint16_t buf_seg = get_scratch_seg();

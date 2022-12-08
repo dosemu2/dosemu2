@@ -371,8 +371,8 @@ void emu_mhp_SetTypebyte (unsigned short selector, int typebyte)
 
 int emu_ldt_write(unsigned char *paddr, uint32_t op, int len)
 {
-	static sigcontext_t sc = {0};
-	sigcontext_t *scp = &sc;
+	static cpuctx_t sc = {0};
+	cpuctx_t *scp = &sc;
 
 	if (!(msdos_ldt_access(paddr)))
 		return 0;

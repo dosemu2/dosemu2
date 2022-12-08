@@ -133,7 +133,6 @@ typedef enum {
 } regnum_t;
 
 void dpmi_get_entry_point(void);
-int dpmi_fault(sigcontext_t *scp);
 void dpmi_realmode_hlt(unsigned int lina);
 void run_pm_int(int inum);
 void fake_pm_int(void);
@@ -145,7 +144,7 @@ int dpmi_isset_IF(void);
 /* currently eflags are stored with IF reflecting the actual interrupt state,
  * so no translation is needed */
 #define dpmi_flags_to_stack(flags) (flags)
-static inline unsigned dpmi_flags_from_stack_iret(const sigcontext_t *scp,
+static inline unsigned dpmi_flags_from_stack_iret(const cpuctx_t *scp,
     unsigned flags)
 {
   int iopl = ((_eflags_ & IOPL_MASK) >> IOPL_SHIFT);
@@ -190,13 +189,13 @@ int GetDescriptor(u_short selector, unsigned int *lp);
 unsigned int GetSegmentBase(unsigned short sel);
 unsigned int GetSegmentLimit(unsigned short sel);
 unsigned int GetSegmentType(unsigned short selector);
-int CheckSelectors(sigcontext_t *scp, int in_dosemu);
+int CheckSelectors(cpuctx_t *scp, int in_dosemu);
 int ValidAndUsedSelector(unsigned int selector);
 int dpmi_is_valid_range(dosaddr_t addr, int len);
 int dpmi_read_access(dosaddr_t addr);
 int dpmi_write_access(dosaddr_t addr);
 
-extern char *DPMI_show_state(sigcontext_t *scp);
+extern char *DPMI_show_state(cpuctx_t *scp);
 extern void run_dpmi(void);
 
 extern int ConvertSegmentToDescriptor(unsigned short segment);
@@ -219,7 +218,7 @@ extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned in
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable);
 extern int SetDescriptor(unsigned short selector, unsigned int *lp);
 extern int FreeDescriptor(unsigned short selector);
-extern void FreeSegRegs(sigcontext_t *scp, unsigned short selector);
+extern void FreeSegRegs(cpuctx_t *scp, unsigned short selector);
 extern far_t DPMI_allocate_realmode_callback(u_short sel, int offs, u_short rm_sel,
 	int rm_offs);
 extern int DPMI_free_realmode_callback(u_short seg, u_short off);
@@ -237,9 +236,6 @@ extern void dpmi_reset(void);
 extern void dpmi_done(void);
 extern int get_ldt(void *buffer);
 void dpmi_init(void);
-void copy_to_dpmi(sigcontext_t *d, sigcontext_t *s);
-void copy_to_emu(sigcontext_t *d, sigcontext_t *s);
-void copy_context(sigcontext_t *d, sigcontext_t *s);
 extern unsigned short dpmi_sel(void);
 extern unsigned short dpmi_sel16(void);
 extern unsigned short dpmi_sel32(void);
@@ -250,7 +246,7 @@ void dump_maps(void);
 int DPMIValidSelector(unsigned short selector);
 uint8_t *dpmi_get_ldt_buffer(void);
 
-sigcontext_t *dpmi_get_scp(void);
+cpuctx_t *dpmi_get_scp(void);
 
 int dpmi_realmode_exception(unsigned trapno, unsigned err, dosaddr_t cr2);
 
@@ -375,7 +371,7 @@ static inline int DPMIValidSelector(unsigned short selector)
     return 0;
 }
 
-static inline sigcontext_t *dpmi_get_scp(void)
+static inline cpuctx_t *dpmi_get_scp(void)
 {
     return NULL;
 }
@@ -403,7 +399,7 @@ static inline void dpmi_get_entry_point(void)
 {
 }
 
-static inline char *DPMI_show_state(sigcontext_t *scp)
+static inline char *DPMI_show_state(cpuctx_t *scp)
 {
     return "";
 }

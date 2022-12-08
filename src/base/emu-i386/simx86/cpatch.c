@@ -466,7 +466,7 @@ int Cpatch(sigcontext_t *scp)
     unsigned char *p;
     int w16;
     unsigned int v;
-    unsigned char *eip = (unsigned char *)_rip;
+    unsigned char *eip = (unsigned char *)_scp_rip;
 
     if (in_cpatch)
 	return 0;
@@ -477,7 +477,7 @@ int Cpatch(sigcontext_t *scp)
 	if (debug_level('e')>1) e_printf("### REP patch at %p\n",eip);
 	p-=2;
 	G2M(0xff,0x13,p); /* call (%ebx) */
-	_rip -= 2; /* make sure call (%ebx) is performed the first time */
+	_scp_rip -= 2; /* make sure call (%ebx) is performed the first time */
 	return 1;
     }
 

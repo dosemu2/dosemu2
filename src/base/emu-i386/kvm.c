@@ -1006,7 +1006,7 @@ int kvm_vm86(struct vm86_struct *info)
 }
 
 /* Emulate do_dpmi_control() using KVM */
-int kvm_dpmi(sigcontext_t *scp)
+int kvm_dpmi(cpuctx_t *scp)
 {
   struct vm86_regs *regs;
   int ret;
@@ -1097,7 +1097,7 @@ int kvm_dpmi(sigcontext_t *scp)
         __fpstate->datasel = _ds;
 #endif
         dbug_printf("coprocessor exception, calling IRQ13\n");
-        print_exception_info(scp);
+//        print_exception_info(scp);
         pic_untrigger(13);
         pic_request(13);
         ret = DPMI_RET_DOSEMU;
@@ -1107,7 +1107,7 @@ int kvm_dpmi(sigcontext_t *scp)
 	    e_invalidate_page_full(monitor->cr2))))
 	ret = DPMI_RET_CLIENT;
       else
-	ret = dpmi_fault(scp);
+	ret = DPMI_RET_FAULT;
     }
   } while (!signal_pending() && ret == DPMI_RET_CLIENT);
   return ret;

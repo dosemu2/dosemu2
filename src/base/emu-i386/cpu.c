@@ -108,7 +108,7 @@ static void fpu_reset(void);
  * DANG_END_FUNCTION
  *
  */
-int cpu_trap_0f (unsigned char *csp, sigcontext_t *scp)
+int cpu_trap_0f (unsigned char *csp, cpuctx_t *scp)
 {
 	int increment_ip = 0;
 	g_printf("CPU: TRAP op 0F %02x %02x\n",csp[1],csp[2]);

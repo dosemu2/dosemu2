@@ -469,6 +469,8 @@ EXTERN struct vec_t *ivecs;
 #define WORD(i) (unsigned short)(i)
 */
 
+typedef mcontext_t cpuctx_t;
+
 #ifdef __APPLE__
 extern uint16_t _es;
 extern uint16_t _ds;
@@ -554,6 +556,10 @@ extern uint16_t _trapno;
 #define get_fs(s)     (((union g_reg *)&(s)->gregs[REG_CSGSFS])->w[2])
 #define get_gs(s)     (((union g_reg *)&(s)->gregs[REG_CSGSFS])->w[1])
 #define get_cs(s)     (((union g_reg *)&(s)->gregs[REG_CSGSFS])->w[0])
+#define get_trapno(s) (((union g_reg *)&((s)->gregs[REG_TRAPNO]))->w[0])
+#define get_err(s)    DWORD_((s)->gregs[REG_ERR])
+#define get_cr2(s)    ((s)->gregs[REG_CR2])
+#define get_fpstate(s) ((s)->fpregs)
 #define _rdi    get_rdi(scp)
 #define _rsi    get_rsi(scp)
 #define _rbp    get_rbp(scp)
@@ -596,6 +602,10 @@ extern uint16_t _trapno;
 #define get_fs(s)     ((s)->gregs[REG_FS])
 #define get_gs(s)     ((s)->gregs[REG_GS])
 #define get_cs(s)     ((s)->gregs[REG_CS])
+#define get_trapno(s) (((union g_reg *)&((s)->gregs[REG_TRAPNO]))->w[0])
+#define get_err(s)    DWORD_((s)->gregs[REG_ERR])
+#define get_cr2(s)    (((union dword *)&(s)->cr2)->d)
+#define get_fpstate(s) ((s)->fpregs)
 #define _edi    get_edi(scp)
 #define _esi    get_esi(scp)
 #define _ebp    get_ebp(scp)
@@ -684,7 +694,7 @@ void show_ints(int, int);
 char *emu_disasm(unsigned int ip);
 void dump_state(void);
 
-int cpu_trap_0f (unsigned char *, sigcontext_t *);
+int cpu_trap_0f (unsigned char *, cpuctx_t *);
 
 #ifndef PAGE_MASK
 #define PAGE_MASK	(~(PAGE_SIZE-1))

@@ -11,7 +11,7 @@
 #define X_RMREG(r) (rmreg->d.r)
 #endif
 
-static inline void pm_to_rm_regs(const sigcontext_t *scp,
+static inline void pm_to_rm_regs(const cpuctx_t *scp,
 			  __dpmi_regs *rmreg, unsigned int mask)
 {
   if (mask & (1 << eflags_INDEX))
@@ -32,7 +32,7 @@ static inline void pm_to_rm_regs(const sigcontext_t *scp,
     X_RMREG(ebp) = _LWORD_(ebp_);
 }
 
-static inline void rm_to_pm_regs(sigcontext_t *scp,
+static inline void rm_to_pm_regs(cpuctx_t *scp,
 			  const __dpmi_regs *rmreg, unsigned int mask)
 {
     /* WARNING - realmode flags can contain the dreadful NT flag
@@ -61,6 +61,6 @@ static inline void rm_to_pm_regs(sigcontext_t *scp,
 #define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
 #define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), RMREG(rg) = (val))
 
-void do_call_to(sigcontext_t *scp, int is_32, far_t dst, __dpmi_regs *rmreg);
+void do_call_to(cpuctx_t *scp, int is_32, far_t dst, __dpmi_regs *rmreg);
 
 #endif

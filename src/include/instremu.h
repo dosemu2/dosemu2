@@ -3,8 +3,8 @@
 
 #ifdef INSTREMU
 int instr_len(unsigned char *, int);
-int instr_emu(sigcontext_t *scp, int pmode, int cnt);
-int decode_modify_segreg_insn(sigcontext_t *scp, int pmode,
+int instr_emu(cpuctx_t *scp, int pmode, int cnt);
+int decode_modify_segreg_insn(cpuctx_t *scp, int pmode,
     unsigned int *new_val);
 unsigned char instr_binary_byte(unsigned char op, unsigned char op1,
                                    unsigned char op2, unsigned *eflags);

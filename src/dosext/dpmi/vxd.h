@@ -4,5 +4,5 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-void get_VXD_entry( sigcontext_t *scp );
-void vxd_call(sigcontext_t *scp);
+void get_VXD_entry(cpuctx_t *scp );
+void vxd_call(cpuctx_t *scp);

@@ -170,8 +170,8 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 	vga.mem.graph_size) {	/* unmapped VGA area */
 #ifdef HOST_ARCH_X86
       if (!CONFIG_CPUSIM) {
-	u = jitx86_instr_len((unsigned char *)_rip);
-	_rip += u;
+	u = jitx86_instr_len((unsigned char *)_scp_rip);
+	_scp_rip += u;
       }
 #endif
       if (u==0) {
@@ -184,11 +184,11 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
     else if (page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) {	/* ROM area */
 #ifdef HOST_ARCH_X86
       if (!CONFIG_CPUSIM) {
-	u = jitx86_instr_len((unsigned char *)_rip);
-	_rip += u;
+	u = jitx86_instr_len((unsigned char *)_scp_rip);
+	_scp_rip += u;
       }
 #endif
-      if (u==0 || (_err&2)==0) {
+      if (u==0 || (_scp_err&2)==0) {
         e_printf("eVGAEmuFault: unknown instruction, converting ROM to RAM at 0x%05x\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
 /**/	leavedos_main(0x5641);
@@ -203,14 +203,14 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
   }
 
   if (vga_page < vga.mem.pages) {
-/**/  e_printf("eVGAEmuFault: trying %08x, a=%08"PRI_RG"\n",*((int *)_rip),_rdi);
+/**/  e_printf("eVGAEmuFault: trying %08x\n",*((int *)_scp_rip));
     /* try CPatch, which should not fail */
     if (Cpatch(scp))
       return 1;
   }
 
-  error("eVGAEmuFault: unimplemented decode instr at %08"PRI_RG": %08x\n",
-	_rip, *((int *)_rip));
+  error("eVGAEmuFault: unimplemented decode instr at %08lx: %08x\n",
+	_scp_rip, *((int *)_scp_rip));
   leavedos_from_sig(0x5643);
   return 0;
 }
@@ -232,27 +232,27 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 int e_emu_pagefault(sigcontext_t *scp, int pmode)
 {
     if (InCompiledCode) {
-	dosaddr_t cr2 = DOSADDR_REL(LINP(_cr2));
+	dosaddr_t cr2 = DOSADDR_REL(LINP(_scp_cr2));
 	if (e_vgaemu_fault(scp, cr2 >> 12) == 1)
 	    return 1;
 
 #ifdef HOST_ARCH_X86
-	if (e_handle_pagefault(cr2, _err, scp))
+	if (e_handle_pagefault(cr2, _scp_err, scp))
 	    return 1;
 #endif
 	/* use CPatch for LDT page faults, which should not fail */
-	if (msdos_ldt_access((unsigned char *)_cr2) && Cpatch(scp))
+	if (msdos_ldt_access((unsigned char *)_scp_cr2) && Cpatch(scp))
 	    return 1;
-	TheCPU.scp_err = _err;
+	TheCPU.scp_err = _scp_err;
 	/* save eip, eflags, and do a "ret" out of compiled code */
 	TheCPU.err = EXCP0E_PAGE;
-	_eax = FindPC((unsigned char *)_rip);
-	e_printf("FindPC: found %x\n",_eax);
-	_edx = *(long *)_rsp; // flags
-	_rsp += sizeof(long);
-	TheCPU.cr2 = _cr2;
-	_rip = *(long *)_rsp;
-	_rsp += sizeof(long);
+	_scp_eax = FindPC((unsigned char *)_scp_rip);
+	e_printf("FindPC: found %lx\n",_scp_rax);
+	_scp_edx = *(long *)_scp_rsp; // flags
+	_scp_rsp += sizeof(long);
+	TheCPU.cr2 = _scp_cr2;
+	_scp_rip = *(long *)_scp_rsp;
+	_scp_rsp += sizeof(long);
 	return 1;
     }
     return 0;
