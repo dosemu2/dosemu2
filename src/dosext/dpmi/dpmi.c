@@ -1162,17 +1162,12 @@ void GetFreeMemoryInformation(unsigned int *lp)
 
 static void save_context_nofpu(cpuctx_t *d, cpuctx_t *s)
 {
-  *d = *s;
-  assert(d->fpregs);
-  d->fpregs = NULL;
+  memcpy(d, s, REGS_SIZE);
 }
 
 static void restore_context_nofpu(cpuctx_t *d, cpuctx_t *s)
 {
-  fpregset_t fptr = d->fpregs;
-  assert(fptr && !s->fpregs);
-  *d = *s;
-  d->fpregs = fptr;
+  memcpy(d, s, REGS_SIZE);  // copy w/o fpstate
 }
 
 static void *enter_lpms(cpuctx_t *scp)
@@ -3247,9 +3242,8 @@ static void dpmi_cleanup(void)
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   hlt_unregister_handler_vm86(DPMI_CLIENT.rmcb_off);
   if (!DPMI_CLIENT.RSP_installed) {
-    cpuctx_t *scp = &DPMI_CLIENT.stack_frame;
     DPMIfreeAll();
-    free(__fpstate);
+//    free(__fpstate);
   }
 
   if (win3x_mode != INACTIVE) {
@@ -4005,7 +3999,7 @@ void dpmi_init(void)
   _gs	= 0;
 #ifdef __linux__
   /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
-  __fpstate = aligned_alloc(16, sizeof(*__fpstate));
+//  __fpstate = aligned_alloc(16, sizeof(*__fpstate));
   *__fpstate = *vm86_fpu_state;
 #endif
   NOCARRY;

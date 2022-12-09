@@ -601,7 +601,8 @@ static void Scp2Cpu (cpuctx_t *scp)
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
   /* __fpstate is loaded later on demand for JIT, not used for simulator */
-  TheCPU.fpstate = __fpstate;
+  TheCPU.fpstate = &TheCPU._fpstate;
+  TheCPU._fpstate = *__fpstate;
 }
 
 /*
@@ -641,7 +642,10 @@ static void Cpu2Scp (cpuctx_t *scp, int trapno)
    */
   if (!TheCPU.err) _err = 0;		//???
   if (TheCPU.fpstate == NULL) {
-    if (!CONFIG_CPUSIM) savefpstate(*__fpstate);
+    if (!CONFIG_CPUSIM) {
+      savefpstate(TheCPU._fpstate);
+      *get_fpstate(scp) = TheCPU._fpstate;
+    }
     /* there is no real need to save and restore the FPU state of the
        emulator itself: savefpstate (fnsave) also resets the current FPU
        state using fninit; fesetenv then restores trapping of division by

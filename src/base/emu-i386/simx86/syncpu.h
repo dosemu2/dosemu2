@@ -158,6 +158,7 @@ typedef struct {
 
 	/* should be moved to TSS once implemented */
 	struct revectored_struct int_revectored;
+	struct _libc_fpstate _fpstate __attribute__((aligned(16)));
 } SynCPU;
 
 union _SynCPU {

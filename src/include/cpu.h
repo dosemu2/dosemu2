@@ -490,9 +490,10 @@ struct pm_regs {
 	unsigned trapno;
 	unsigned err;
 	unsigned long cr2;
-	struct _libc_fpstate *fpregs;
+	struct _libc_fpstate fpregs;
 };
 typedef struct pm_regs cpuctx_t;
+#define REGS_SIZE offsetof(struct pm_regs, fpregs)
 
 #define _es     (scp->es)
 #define _ds     (scp->ds)
@@ -517,7 +518,7 @@ typedef struct pm_regs cpuctx_t;
 #define get_trapno(s) ((s)->trapno)
 #define get_err(s)    ((s)->err)
 #define get_cr2(s)    ((s)->cr2)
-#define get_fpstate(s) ((s)->fpregs)
+#define get_fpstate(s) (&(s)->fpregs)
 #define _edi    get_edi(scp)
 #define _esi    get_esi(scp)
 #define _ebp    get_ebp(scp)
@@ -546,7 +547,7 @@ typedef struct pm_regs cpuctx_t;
 #define _eflags_ (scp->eflags)
 #define _cr2    (scp->cr2)
 #define _trapno (scp->trapno)
-#define __fpstate (scp->fpregs)
+#define __fpstate (&scp->fpregs)
 /* compatibility */
 #define _rdi    _edi
 #define _rsi    _esi

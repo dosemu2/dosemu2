@@ -85,7 +85,8 @@ static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
   _C(trapno);
   _C(err);
   _C(cr2);
-  _scp_fpstate = (struct _fpstate *)get_fpstate(s);
+  if (scp->fpstate)
+    memcpy(scp->fpstate, get_fpstate(s), sizeof(struct _fpstate));
 }
 
 static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
@@ -110,7 +111,8 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
   _D(trapno);
   _D(err);
   _D(cr2);
-  memcpy(get_fpstate(d), _scp_fpstate, sizeof(*get_fpstate(d)));
+  if (scp->fpstate)
+    memcpy(get_fpstate(d), _scp_fpstate, sizeof(*get_fpstate(d)));
 }
 
 #if WANT_SIGRETURN_WA
