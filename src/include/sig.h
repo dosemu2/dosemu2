@@ -50,6 +50,46 @@ extern void SIG_close(void);
 
 typedef struct sigcontext sigcontext_t;
 
+#if defined(__FreeBSD__)
+#ifdef __x86_64__
+#define _scp_rax scp->mc_rax
+#define _scp_rbx scp->mc_rbx
+#define _scp_rcx scp->mc_rcx
+#define _scp_rdx scp->mc_rdx
+#define _scp_rbp scp->mc_rbp
+#define _scp_rsp scp->mc_rsp
+#define _scp_rsi scp->mc_rsi
+#define _scp_rdi scp->mc_rdi
+#define _scp_rip scp->mc_rip
+#define _scp_eflags (*(unsigned *)&scp->mc_rflags)
+#define _scp_eflags_ (*(const unsigned *)&scp->mc_rflags)
+#define _scp_cr2 (*(uint64_t *)&scp->mc_spare[0])
+#else
+#define _scp_eax scp->mc_eax
+#define _scp_ebx scp->mc_ebx
+#define _scp_ecx scp->mc_ecx
+#define _scp_edx scp->mc_edx
+#define _scp_ebp scp->mc_ebp
+#define _scp_esp scp->mc_esp
+#define _scp_esi scp->mc_esi
+#define _scp_edi scp->mc_edi
+#define _scp_eip scp->mc_eip
+#define _scp_eflags scp->mc_eflags
+#define _scp_eflags_ scp->mc_eflags
+#define _scp_cr2 scp->mc_spare[0]
+#endif
+#define _cs (*(unsigned *)&scp->mc_cs)
+#define _ds (*(unsigned *)&scp->mc_ds)
+#define _es (*(unsigned *)&scp->mc_es)
+#define _ds_ (*(const unsigned *)&scp->mc_ds)
+#define _es_ (*(const unsigned *)&scp->mc_es)
+#define _fs (*(unsigned *)&scp->mc_fs)
+#define _gs (*(unsigned *)&scp->mc_gs)
+#define _ss (*(unsigned *)&scp->mc_ss)
+#define _trapno scp->mc_trapno
+#define _err (*(unsigned *)&scp->mc_err)
+#define __fpstate scp->mc_fpstate
+#elif defined(__linux__)
 #define _scp_gs     (scp->gs)
 #define _scp_fs     (scp->fs)
 #ifdef __x86_64__
@@ -112,6 +152,7 @@ typedef struct sigcontext sigcontext_t;
 #define _scp_rsp _scp_esp
 #define _scp_rax _scp_eax
 #endif
+#endif  // __linux__
 
 extern void SIGNAL_save( void (*signal_call)(void *), void *arg, size_t size,
 	const char *name );

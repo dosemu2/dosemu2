@@ -471,71 +471,7 @@ EXTERN struct vec_t *ivecs;
 
 typedef mcontext_t cpuctx_t;
 
-#ifdef __APPLE__
-extern uint16_t _es;
-extern uint16_t _ds;
-#define _rdi    ((*scp)->__ss.__rdi)
-#define _rsi    ((*scp)->__ss.__rsi)
-#define _rbp    ((*scp)->__ss.__rbp)
-#define _rsp    ((*scp)->__ss.__rsp)
-#define _rbx    ((*scp)->__ss.__rbx)
-#define _rdx    ((*scp)->__ss.__rdx)
-#define _rcx    ((*scp)->__ss.__rcx)
-#define _rax    ((*scp)->__ss.__rax)
-#define _rip    ((*scp)->__ss.__rip)
-extern uint16_t _cs;
-extern uint16_t _gs;
-extern uint16_t _fs;
-extern uint16_t _ss;
-extern uint64_t _err;
-extern uint64_t _eflags;
-#define _eflags_ _eflags
-extern uint64_t _cr2;
-extern uint16_t _trapno;
-#define __fpstate (&(*scp)->__fs)
-#define PRI_RG  PRIx64
-#elif defined(__FreeBSD__)
-#ifdef __x86_64__
-#define _rax scp->mc_rax
-#define _rbx scp->mc_rbx
-#define _rcx scp->mc_rcx
-#define _rdx scp->mc_rdx
-#define _rbp scp->mc_rbp
-#define _rsp scp->mc_rsp
-#define _rsi scp->mc_rsi
-#define _rdi scp->mc_rdi
-#define _rip scp->mc_rip
-#define _eflags (*(unsigned *)&scp->mc_rflags)
-#define _eflags_ (*(const unsigned *)&scp->mc_rflags)
-#define _cr2 (*(uint64_t *)&scp->mc_spare[0])
-#define PRI_RG PRIx64
-#else
-#define _eax scp->mc_eax
-#define _ebx scp->mc_ebx
-#define _ecx scp->mc_ecx
-#define _edx scp->mc_edx
-#define _ebp scp->mc_ebp
-#define _esp scp->mc_esp
-#define _esi scp->mc_esi
-#define _edi scp->mc_edi
-#define _eip scp->mc_eip
-#define _eflags scp->mc_eflags
-#define _eflags_ scp->mc_eflags
-#define _cr2 scp->mc_spare[0]
-#define PRI_RG PRIx32
-#endif
-#define _cs (*(unsigned *)&scp->mc_cs)
-#define _ds (*(unsigned *)&scp->mc_ds)
-#define _es (*(unsigned *)&scp->mc_es)
-#define _ds_ (*(const unsigned *)&scp->mc_ds)
-#define _es_ (*(const unsigned *)&scp->mc_es)
-#define _fs (*(unsigned *)&scp->mc_fs)
-#define _gs (*(unsigned *)&scp->mc_gs)
-#define _ss (*(unsigned *)&scp->mc_ss)
-#define _trapno scp->mc_trapno
-#define _err (*(unsigned *)&scp->mc_err)
-#define __fpstate scp->mc_fpstate
-#elif defined(__x86_64__)
+#if defined(__x86_64__)
 #define _es     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
 #define _ds     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[2])
 #define _es_    (((const union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
