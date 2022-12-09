@@ -269,10 +269,10 @@ char *e_print_scp_regs(cpuctx_t *scp, int pmode)
 	unsigned short *stk;
 	int i, j;
 
-	i = sprintf(buf, "RAX: %08"PRI_RG"  RBX: %08"PRI_RG"  RCX: %08"PRI_RG"  RDX: %08"PRI_RG
+	i = sprintf(buf, "RAX: %08x  RBX: %08x  RCX: %08x  RDX: %08x"
 		"  VFLAGS(h): %08x\n",
 		_rax, _rbx, _rcx, _rdx, _eflags);
-	i += sprintf(buf + i, "RSI: %08"PRI_RG"  RDI: %08"PRI_RG"  RBP: %08"PRI_RG"  RSP: %08"PRI_RG"\n",
+	i += sprintf(buf + i, "RSI: %08x  RDI: %08x  RBP: %08x  RSP: %08x\n",
 		_rsi, _rdi, _rbp, _rsp);
 	i += sprintf(buf + i, "CS: %04x  DS: %04x  ES: %04x  FS: %04x  GS: %04x  SS: %04x\n",
 		_cs, _ds, _es, _fs, _gs, _ss);

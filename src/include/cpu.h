@@ -469,78 +469,54 @@ EXTERN struct vec_t *ivecs;
 #define WORD(i) (unsigned short)(i)
 */
 
-typedef mcontext_t cpuctx_t;
+struct pm_regs {
+	unsigned ebx;
+	unsigned ecx;
+	unsigned edx;
+	unsigned esi;
+	unsigned edi;
+	unsigned ebp;
+	unsigned eax;
+	unsigned eip;
+	unsigned short cs;
+	unsigned eflags;
+	unsigned esp;
+	unsigned short ss;
+	unsigned short es;
+	unsigned short ds;
+	unsigned short fs;
+	unsigned short gs;
 
-#if defined(__x86_64__)
-#define _es     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
-#define _ds     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[2])
-#define _es_    (((const union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[1])
-#define _ds_    (((const union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[2])
-#define get_rdi(s)    ((s)->gregs[REG_RDI])
-#define get_rsi(s)    ((s)->gregs[REG_RSI])
-#define get_rbp(s)    ((s)->gregs[REG_RBP])
-#define get_rsp(s)    ((s)->gregs[REG_RSP])
-#define get_rbx(s)    ((s)->gregs[REG_RBX])
-#define get_rdx(s)    ((s)->gregs[REG_RDX])
-#define get_rcx(s)    ((s)->gregs[REG_RCX])
-#define get_rax(s)    ((s)->gregs[REG_RAX])
-#define get_rip(s)    ((s)->gregs[REG_RIP])
-#define get_rflags(s) ((s)->gregs[REG_EFL])
-#define get_es(s)     (((union g_reg *)&((s)->gregs[REG_TRAPNO]))->w[1])
-#define get_ds(s)     (((union g_reg *)&((s)->gregs[REG_TRAPNO]))->w[2])
-#define get_ss(s)     (((union g_reg *)&(s)->gregs[REG_CSGSFS])->w[3])
-#define get_fs(s)     (((union g_reg *)&(s)->gregs[REG_CSGSFS])->w[2])
-#define get_gs(s)     (((union g_reg *)&(s)->gregs[REG_CSGSFS])->w[1])
-#define get_cs(s)     (((union g_reg *)&(s)->gregs[REG_CSGSFS])->w[0])
-#define get_trapno(s) (((union g_reg *)&((s)->gregs[REG_TRAPNO]))->w[0])
-#define get_err(s)    DWORD_((s)->gregs[REG_ERR])
-#define get_cr2(s)    ((s)->gregs[REG_CR2])
-#define get_fpstate(s) ((s)->fpregs)
-#define _rdi    get_rdi(scp)
-#define _rsi    get_rsi(scp)
-#define _rbp    get_rbp(scp)
-#define _rsp    get_rsp(scp)
-#define _rbx    get_rbx(scp)
-#define _rdx    get_rdx(scp)
-#define _rcx    get_rcx(scp)
-#define _rax    get_rax(scp)
-#define _rip    get_rip(scp)
-#define _cs     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[0])
-#define _cs_    (((const union g_reg *)&scp->gregs[REG_CSGSFS])->w[0])
-#define _gs     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[1])
-#define _fs     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[2])
-#define _ss     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[3])
-#define _err    DWORD_(scp->gregs[REG_ERR])
-#define _eflags DWORD_(scp->gregs[REG_EFL])
-#define _eflags_ DWORD__(scp->gregs[REG_EFL], const)
-#define _cr2    (scp->gregs[REG_CR2])
-#define _trapno (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[0])
-#define __fpstate (scp->fpregs)
-#define PRI_RG  "llx"
-#elif defined(__i386__)
-#define _es     (scp->gregs[REG_ES])
-#define _ds     (scp->gregs[REG_DS])
-#define _es_    (scp->gregs[REG_ES])
-#define _ds_    (scp->gregs[REG_DS])
-#define get_edi(s)    (*(uint32_t *)&(s)->gregs[REG_EDI])
-#define get_esi(s)    (*(uint32_t *)&(s)->gregs[REG_ESI])
-#define get_ebp(s)    (*(uint32_t *)&(s)->gregs[REG_EBP])
-#define get_esp(s)    (*(uint32_t *)&(s)->gregs[REG_ESP])
-#define get_ebx(s)    (*(uint32_t *)&(s)->gregs[REG_EBX])
-#define get_edx(s)    (*(uint32_t *)&(s)->gregs[REG_EDX])
-#define get_ecx(s)    (*(uint32_t *)&(s)->gregs[REG_ECX])
-#define get_eax(s)    (*(uint32_t *)&(s)->gregs[REG_EAX])
-#define get_eip(s)    (*(uint32_t *)&(s)->gregs[REG_EIP])
-#define get_eflags(s) (*(uint32_t *)&(s)->gregs[REG_EFL])
-#define get_es(s)     ((s)->gregs[REG_ES])
-#define get_ds(s)     ((s)->gregs[REG_DS])
-#define get_ss(s)     ((s)->gregs[REG_SS])
-#define get_fs(s)     ((s)->gregs[REG_FS])
-#define get_gs(s)     ((s)->gregs[REG_GS])
-#define get_cs(s)     ((s)->gregs[REG_CS])
-#define get_trapno(s) (((union g_reg *)&((s)->gregs[REG_TRAPNO]))->w[0])
-#define get_err(s)    DWORD_((s)->gregs[REG_ERR])
-#define get_cr2(s)    (((union dword *)&(s)->cr2)->d)
+	unsigned trapno;
+	unsigned err;
+	unsigned long cr2;
+	struct _libc_fpstate *fpregs;
+};
+typedef struct pm_regs cpuctx_t;
+
+#define _es     (scp->es)
+#define _ds     (scp->ds)
+#define _es_    (scp->es)
+#define _ds_    (scp->ds)
+#define get_edi(s)    ((s)->edi)
+#define get_esi(s)    ((s)->esi)
+#define get_ebp(s)    ((s)->ebp)
+#define get_esp(s)    ((s)->esp)
+#define get_ebx(s)    ((s)->ebx)
+#define get_edx(s)    ((s)->edx)
+#define get_ecx(s)    ((s)->ecx)
+#define get_eax(s)    ((s)->eax)
+#define get_eip(s)    ((s)->eip)
+#define get_eflags(s) ((s)->eflags)
+#define get_es(s)     ((s)->es)
+#define get_ds(s)     ((s)->ds)
+#define get_ss(s)     ((s)->ss)
+#define get_fs(s)     ((s)->fs)
+#define get_gs(s)     ((s)->gs)
+#define get_cs(s)     ((s)->cs)
+#define get_trapno(s) ((s)->trapno)
+#define get_err(s)    ((s)->err)
+#define get_cr2(s)    ((s)->cr2)
 #define get_fpstate(s) ((s)->fpregs)
 #define _edi    get_edi(scp)
 #define _esi    get_esi(scp)
@@ -551,66 +527,26 @@ typedef mcontext_t cpuctx_t;
 #define _ecx    get_ecx(scp)
 #define _eax    get_eax(scp)
 #define _eip    get_eip(scp)
-#define _edi_   (*(const uint32_t *)&scp->gregs[REG_EDI])
-#define _esi_   (*(const uint32_t *)&scp->gregs[REG_ESI])
-#define _ebp_   (*(const uint32_t *)&scp->gregs[REG_EBP])
-#define _esp_   (*(const uint32_t *)&scp->gregs[REG_ESP])
-#define _ebx_   (*(const uint32_t *)&scp->gregs[REG_EBX])
-#define _edx_   (*(const uint32_t *)&scp->gregs[REG_EDX])
-#define _ecx_   (*(const uint32_t *)&scp->gregs[REG_ECX])
-#define _eax_   (*(const uint32_t *)&scp->gregs[REG_EAX])
-#define _eip_   (*(const uint32_t *)&scp->gregs[REG_EIP])
-#define _cs     (scp->gregs[REG_CS])
-#define _cs_    (scp->gregs[REG_CS])
-#define _gs     (scp->gregs[REG_GS])
-#define _fs     (scp->gregs[REG_FS])
-#define _ss     (scp->gregs[REG_SS])
-#define _err    (scp->gregs[REG_ERR])
-#define _eflags (scp->gregs[REG_EFL])
-#define _eflags_ (scp->gregs[REG_EFL])
-#define _cr2    (((union dword *)&scp->cr2)->d)
-#define _trapno (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[0])
+#define _edi_   (scp->edi)
+#define _esi_   (scp->esi)
+#define _ebp_   (scp->ebp)
+#define _esp_   (scp->esp)
+#define _ebx_   (scp->ebx)
+#define _edx_   (scp->edx)
+#define _ecx_   (scp->ecx)
+#define _eax_   (scp->eax)
+#define _eip_   (scp->eip)
+#define _cs     (scp->cs)
+#define _cs_    (scp->cs)
+#define _gs     (scp->gs)
+#define _fs     (scp->fs)
+#define _ss     (scp->ss)
+#define _err    (scp->err)
+#define _eflags (scp->eflags)
+#define _eflags_ (scp->eflags)
+#define _cr2    (scp->cr2)
+#define _trapno (scp->trapno)
 #define __fpstate (scp->fpregs)
-#define PRI_RG  PRIx32
-#else
-#error unsupported arch
-#endif
-#ifdef __x86_64__
-#define get_edi(s)    DWORD_(get_rdi(s))
-#define get_esi(s)    DWORD_(get_rsi(s))
-#define get_ebp(s)    DWORD_(get_rbp(s))
-#define get_esp(s)    DWORD_(get_rsp(s))
-#define get_ebx(s)    DWORD_(get_rbx(s))
-#define get_edx(s)    DWORD_(get_rdx(s))
-#define get_ecx(s)    DWORD_(get_rcx(s))
-#define get_eax(s)    DWORD_(get_rax(s))
-#define get_eip(s)    DWORD_(get_rip(s))
-#define get_eax(s)    DWORD_(get_rax(s))
-#define get_eip(s)    DWORD_(get_rip(s))
-#define get_eflags(s) DWORD_(get_rflags(s))
-#define _edi    DWORD_(get_rdi(scp))
-#define _esi    DWORD_(get_rsi(scp))
-#define _ebp    DWORD_(get_rbp(scp))
-#define _esp    DWORD_(get_rsp(scp))
-#define _ebx    DWORD_(get_rbx(scp))
-#define _edx    DWORD_(get_rdx(scp))
-#define _ecx    DWORD_(get_rcx(scp))
-#define _eax    DWORD_(get_rax(scp))
-#define _eip    DWORD_(get_rip(scp))
-#define _eax    DWORD_(get_rax(scp))
-#define _eip    DWORD_(get_rip(scp))
-#define _edi_   DWORD__(_rdi, const)
-#define _esi_   DWORD__(_rsi, const)
-#define _ebp_   DWORD__(_rbp, const)
-#define _esp_   DWORD__(_rsp, const)
-#define _ebx_   DWORD__(_rbx, const)
-#define _edx_   DWORD__(_rdx, const)
-#define _ecx_   DWORD__(_rcx, const)
-#define _eax_   DWORD__(_rax, const)
-#define _eip_   DWORD__(_rip, const)
-#define _eax_   DWORD__(_rax, const)
-#define _eip_   DWORD__(_rip, const)
-#else
 /* compatibility */
 #define _rdi    _edi
 #define _rsi    _esi
@@ -623,7 +559,6 @@ typedef mcontext_t cpuctx_t;
 #define _rip    _eip
 #define _rax    _eax
 #define _rip    _eip
-#endif
 
 void show_regs(void);
 void show_ints(int, int);
