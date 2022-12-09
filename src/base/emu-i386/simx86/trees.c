@@ -1282,34 +1282,8 @@ quit:
 
 
 /////////////////////////////////////////////////////////////////////////////
-
-void e_invalidate(unsigned data, int cnt)
+static void do_invalidate(unsigned data, int cnt)
 {
-	if (!IS_EMU())
-		return;
-	/* nothing to invalidate if there are no page protections */
-	if (!e_querymprotrange(data, cnt))
-		return;
-	/* for low mappings only invalidate if code, not if data */
-	if (LINEAR2UNIX(data) != MEM_BASE32(data)) {
-#ifdef HOST_ARCH_X86
-		if (!CONFIG_CPUSIM && e_querymark(data, cnt))
-			// no need to invalidate the whole page here,
-			// as the page does not need to be unprotected
-			InvalidateNodeRange(data, cnt, 0);
-#endif
-		return;
-	}
-	e_invalidate_full(data, cnt);
-}
-
-/* invalidate and unprotect even if we hit only data.
- * Needed if we are about to destroy the page protection by other means.
- * Otherwise use e_invalidate() */
-void e_invalidate_full(unsigned data, int cnt)
-{
-	if (!IS_EMU())
-		return;
 	cnt = PAGE_ALIGN(data+cnt-1) - (data & PAGE_MASK);
 	data &= PAGE_MASK;
 #ifdef HOST_ARCH_X86
@@ -1317,6 +1291,56 @@ void e_invalidate_full(unsigned data, int cnt)
 		InvalidateNodeRange(data, cnt, 0);
 #endif
 	invalidate_unprotected_page_cache(data, cnt);
+}
+
+int e_invalidate(unsigned data, int cnt)
+{
+	if (!IS_EMU())
+		return 0;
+	/* nothing to invalidate if there are no page protections */
+	if (!e_querymprotrange(data, cnt))
+		return 0;
+	/* for low mappings only invalidate if code, not if data */
+	if (LINEAR2UNIX(data) != MEM_BASE32(data)) {
+#ifdef HOST_ARCH_X86
+		if (!CONFIG_CPUSIM && e_querymark(data, cnt)) {
+			// no need to invalidate the whole page here,
+			// as the page does not need to be unprotected
+			InvalidateNodeRange(data, cnt, 0);
+			return 1;
+		}
+#endif
+		return 0;
+	}
+	do_invalidate(data, cnt);
+	return 1;
+}
+
+/* invalidate and unprotect even if we hit only data.
+ * Needed if we are about to destroy the page protection by other means.
+ * Otherwise use e_invalidate() */
+int e_invalidate_full(unsigned data, int cnt)
+{
+	if (!IS_EMU())
+		return 0;
+	/* nothing to invalidate if there are no page protections */
+	if (!e_querymprotrange(data, cnt))
+		return 0;
+	do_invalidate(data, cnt);
+	return 1;
+}
+
+int e_invalidate_page_full(unsigned data)
+{
+	int cnt = PAGE_SIZE;
+	if (!IS_EMU())
+		return 0;
+	data &= PAGE_MASK;
+	/* nothing to invalidate if there are no page protections */
+	if (!e_querymprotrange(data, cnt))
+		return 0;
+	do_invalidate(data, cnt);
+	return 1;
 }
 
 /////////////////////////////////////////////////////////////////////////////

@@ -144,17 +144,18 @@ static void dosemu_fault1(int signum, sigcontext_t *scp)
      * 1. Compiled code touches VGA prot
      * 2. Compiled code touches cpuemu prot
      * 3. Compiled code touches DPMI prot
-     * 4. fullsim code touches DPMI prot
+     * 4. reserved, was "fullsim code touches DPMI prot", but fullsim
+     *    no longer faults since commit 70ca014459
      * 5. dosemu code touches cpuemu prot (bug)
      * Compiled code means dpmi-jit, otherwise vm86 not here.
      */
     if (_trapno == 0x0e) {
-      /* cases 1, 2, 3, 4 */
+      /* cases 1, 2, 3 */
       if ((in_vm86 || EMU_DPMI()) && e_emu_pagefault(scp, !in_vm86))
         return;
+      /* case 5, any jit, bug */
       if (!CONFIG_CPUSIM &&
 	  e_handle_pagefault(DOSADDR_REL(LINP(_cr2)), _err, scp)) {
-        /* case 5, any jit, bug */
         dosemu_error("touched jit-protected page%s\n",
                      in_vm86 ? " in vm86-emu" : "");
         return;

@@ -994,7 +994,7 @@ int kvm_vm86(struct vm86_struct *info)
     if (trapno == 0x0e &&
 	(vga_emu_fault(monitor->cr2, err, NULL) == True || (
 	 config.cpu_vm_dpmi == CPUVM_EMU && !config.cpusim &&
-	 e_handle_pagefault(monitor->cr2, err, NULL))))
+	 e_invalidate_page_full(monitor->cr2))))
       return vm86_ret;
     vm86_fault(trapno, err, monitor->cr2);
   }
@@ -1100,7 +1100,7 @@ int kvm_dpmi(sigcontext_t *scp)
       } else if (_trapno == 0x0e &&
 	    (vga_emu_fault(monitor->cr2, _err, scp) == True || (
 	    config.cpu_vm == CPUVM_EMU && !config.cpusim &&
-	    e_handle_pagefault(monitor->cr2, _err, scp))))
+	    e_invalidate_page_full(monitor->cr2))))
 	ret = DPMI_RET_CLIENT;
       else
 	ret = dpmi_fault(scp);

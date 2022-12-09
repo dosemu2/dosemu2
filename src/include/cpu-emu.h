@@ -77,11 +77,13 @@ char *e_scp_disasm(sigcontext_t *scp, int pmode);
 
 /* called from mfs.c, fatfs.c and some places that memcpy */
 #ifdef X86_JIT
-void e_invalidate(unsigned data, int cnt);
-void e_invalidate_full(unsigned data, int cnt);
+int e_invalidate(unsigned data, int cnt);
+int e_invalidate_full(unsigned data, int cnt);
+int e_invalidate_page_full(unsigned data);
 #else
-#define e_invalidate(x,y)
-#define e_invalidate_full(x,y)
+#define e_invalidate(x,y) 0
+#define e_invalidate_full(x,y) 0
+#define e_invalidate_page_full(x,y) 0
 #endif
 
 /* called from cpu.c */
