@@ -61,10 +61,10 @@
 SET:
 	movl	4(%esp), %eax
 
-	movl	8(%eax), %fs
-	movl	12(%eax), %es
-	movl	16(%eax), %ds
-	movl	76(%eax), %ss
+	mov	8(%eax), %fs
+	mov	12(%eax), %es
+	mov	16(%eax), %ds
+	mov	76(%eax), %ss
 	movl	20(%eax), %edi
 	movl	24(%eax), %esi
 	movl	28(%eax), %ebp
@@ -81,10 +81,10 @@ SET:
 GET:
 	movl	4(%esp), %eax
 
-	movl	%fs, 8(%eax)
-	movl	%es, 12(%eax)
-	movl	%ds, 16(%eax)
-	movl	%ss, 76(%eax)
+	mov	%fs, 8(%eax)
+	mov	%es, 12(%eax)
+	mov	%ds, 16(%eax)
+	mov	%ss, 76(%eax)
 	movl	%edi, 20(%eax)
 	movl	%esi, 24(%eax)
 	movl	%ebp, 28(%eax)
