@@ -258,7 +258,10 @@ struct RSPcall_s {
   unsigned char data16[8];
   unsigned char code16[8];
   unsigned short ip;
-  unsigned short flags;	// extension
+#define RSP_F_SW 1	// switch_client extension
+#define RSP_F_LOWMEM 2	// extra lowmem extension
+  unsigned char flags;	// extension
+  unsigned char para;	// extension
   unsigned char data32[8];
   unsigned char code32[8];
   unsigned int eip;

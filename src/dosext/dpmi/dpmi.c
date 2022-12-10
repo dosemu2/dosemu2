@@ -148,6 +148,7 @@ struct DPMIclient_struct {
 struct RSP_s {
   struct RSPcall_s call;
   dpmi_pm_block_root pm_block_root;
+  unsigned short lm_para_off;
 };
 
 #define DPMI_max_rec_pm_func 16
@@ -178,6 +179,8 @@ static void make_xretf_frame(sigcontext_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
 static void do_pm_int(sigcontext_t *scp, int i);
 static void msdos_set_client(sigcontext_t *scp, int num);
+static int rsp_get_para(void);
+
 static uint32_t ldt_bitmap[LDT_ENTRIES / 32];
 static int ldt_bitmap_cnt;
 typedef struct {
@@ -634,7 +637,7 @@ void dpmi_get_entry_point(void)
     REG(edi) = DPMI_OFF;
 
     /* private data */
-    LWORD(esi) = DPMI_private_paragraphs;
+    LWORD(esi) = DPMI_private_paragraphs + rsp_get_para();
 
     D_printf("DPMI entry returned, needs %#x lowmem paragraphs (%i)\n",
 	    LWORD(esi), LWORD(esi) << 4);
@@ -2234,6 +2237,7 @@ static int do_install_rsp(struct RSPcall_s *callback)
 {
     if (RSP_num >= DPMI_MAX_CLIENTS)
 	return -1;
+    RSP_callbacks[RSP_num].lm_para_off = rsp_get_para();
     RSP_callbacks[RSP_num].call = *callback;
     return 0;
 }
@@ -3184,7 +3188,7 @@ static void do_RSP_call(sigcontext_t *scp, int num, int clnt,
   void *sp;
   uint32_t eip;
 
-  if (terminating > 1 && !(RSP_callbacks[num].call.flags & 1))
+  if (terminating > 1 && !(RSP_callbacks[num].call.flags & RSP_F_SW))
     return;	// client doesn't support such call
   if (DPMI_CLIENT.is_32) {
     if ((RSP_callbacks[num].call.code32[5] & 0x88) != 0x88)
@@ -3231,6 +3235,8 @@ static void do_RSP_call(sigcontext_t *scp, int num, int clnt,
   _ebx = clnt;
   /* extension: ecx has inherit_idt flag on startup and prev client on term */
   _ecx = inh_or_prv;
+  _edx = DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs +
+	RSP_callbacks[num].lm_para_off;
 }
 
 static void dpmi_RSP_call(sigcontext_t *scp, int clnt, int terminating,
@@ -3242,6 +3248,18 @@ static void dpmi_RSP_call(sigcontext_t *scp, int clnt, int terminating,
 	D_printf("DPMI: Calling RSP %i for %i\n", i, terminating);
 	do_RSP_call(scp, i, clnt, terminating, inh_or_prv);
     }
+}
+
+static int rsp_get_para(void)
+{
+    int i, cnt = 0;
+
+    for (i = 0; i < RSP_num; i++) {
+	if (RSP_callbacks[i].call.flags & RSP_F_LOWMEM)
+	    cnt += RSP_callbacks[i].call.para;
+    }
+    D_printf("DPMI: added 0x%x para for RSP\n", cnt);
+    return cnt;
 }
 
 static void msdos_set_client(sigcontext_t *scp, int num)

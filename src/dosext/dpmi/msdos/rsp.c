@@ -60,46 +60,17 @@ static unsigned short get_psp(sigcontext_t *scp, int is_32)
     return r.x.bx;
 }
 
-static unsigned short get_dos_mem(sigcontext_t *scp, int is_32,
-	unsigned short size)
-{
-    __dpmi_regs r = {};
-
-    r.h.ah = 0x48;
-    r.x.bx = size;
-    _dpmi_simulate_real_mode_interrupt(scp, is_32, 0x21, &r);
-    if (r.x.flags & CF) {
-	error("get_dos_mem failed\n");
-	return 0;
-    }
-    return r.x.ax;
-}
-
-static void put_dos_mem(sigcontext_t *scp, int is_32, unsigned short para)
-{
-    __dpmi_regs r = {};
-
-    r.h.ah = 0x49;
-    r.x.es = para;
-    _dpmi_simulate_real_mode_interrupt(scp, is_32, 0x21, &r);
-    if (r.x.flags & CF)
-	error("put_dos_mem failed\n");
-}
-
 static void do_common_start(sigcontext_t *scp, int is_32)
 {
-    unsigned short psp, mseg;
+    unsigned short psp;
 
     switch (_LWORD(eax)) {
     case 0:
 	psp = get_psp(scp, is_32);
-	mseg = get_dos_mem(scp, is_32, msdos_get_lowmem_size());
-	msdos_init(_LWORD(ebx), is_32, mseg, psp, _LWORD(ecx));
+	msdos_init(_LWORD(ebx), is_32, _LWORD(edx), psp, _LWORD(ecx));
 	break;
     case 1:
-	mseg = msdos_get_lowmem_para();
 	msdos_done(_LWORD(ecx));
-	put_dos_mem(scp, is_32, mseg);
 	break;
     case 2:
 	msdos_set_client(_LWORD(ebx));
@@ -143,7 +114,8 @@ void rsp_init(void)
     assert(!err);
     rsp.eip = rsp32.offset;
     /* FIXME: maybe fill data descs too? */
-    rsp.flags |= 1;	// enable switch_client extension
+    rsp.flags = RSP_F_SW | RSP_F_LOWMEM;
+    rsp.para = msdos_get_lowmem_size();
     err = dpmi_install_rsp(&rsp);
     assert(!err);
 }
