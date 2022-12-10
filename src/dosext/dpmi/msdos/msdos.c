@@ -35,7 +35,6 @@
 #include "emm_msdos.h"
 #include "xms_msdos.h"
 #include "lio.h"
-#include "rsp.h"
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
 #include "callbacks.h"
@@ -126,6 +125,12 @@ static dosaddr_t rmcb_mem;
 static struct dos_helper_s reinit_hlp;
 
 static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg);
+static void rsp_init(void);
+static unsigned short msdos_get_lowmem_size(void);
+static void msdos_init(int num, int is_32, unsigned short mseg,
+	unsigned short psp, int inherit_idt);
+static void msdos_done(int prev);
+static void msdos_set_client(int num);
 
 static void *cbk_args(int idx)
 {
@@ -177,7 +182,6 @@ void msdos_setup(void)
     lio_init();
     xmshlp_init();
     doshlp_setup(&reinit_hlp, "msdos reinit thr", reinit_thr, do_retf16);
-    rsp_setup();
 }
 
 void msdos_reset(void)
@@ -258,8 +262,8 @@ static void setup_int_exc(int inherit_idt)
     dpmi_set_pm_exc_addr(0xe, desc);
 }
 
-void msdos_init(int num, int is_32, unsigned short mseg, unsigned short psp,
-	int inherit_idt)
+static void msdos_init(int num, int is_32, unsigned short mseg,
+	unsigned short psp, int inherit_idt)
 {
     int first = (msdos_client_num < 0 ||
 	msdos_client_num >= DPMI_MAX_CLIENTS ||
@@ -329,7 +333,7 @@ static void msdos_free_descriptors(void)
     FreeDescriptor(MSDOS_CLIENT.ldt_alias_winos2);
 }
 
-void msdos_done(int prev)
+static void msdos_done(int prev)
 {
     int i;
 
@@ -351,9 +355,58 @@ void msdos_done(int prev)
     msdos_client_num = prev;
 }
 
-void msdos_set_client(int num)
+static void msdos_set_client(int num)
 {
     msdos_client_num = num;
+}
+
+static void do_common_start(sigcontext_t *scp, int is_32)
+{
+    switch (_LWORD(eax)) {
+    case 0:
+	msdos_init(_LWORD(ebx), is_32, _LWORD(edx), _LWORD(esi), _LWORD(ecx));
+	break;
+    case 1:
+	msdos_done(_LWORD(ecx));
+	break;
+    case 2:
+	msdos_set_client(_LWORD(ebx));
+	break;
+    default:
+	error("unsupported rsp %i\n", _LWORD(eax));
+	break;
+    }
+}
+
+static void do_start16(sigcontext_t *scp, void *arg)
+{
+    do_common_start(scp, 0);
+}
+
+static void do_start32(sigcontext_t *scp, void *arg)
+{
+    do_common_start(scp, 1);
+}
+
+static void rsp_init(void)
+{
+    struct pmaddr_s rsp16, rsp32;
+    struct RSPcall_s rsp = {};
+    int err;
+
+    rsp16 = get_pm_handler(MSDOS_RSP_CALL16, do_start16, NULL);
+    rsp32 = get_pm_handler(MSDOS_RSP_CALL32, do_start32, NULL);
+    err = GetDescriptor(rsp16.selector, (unsigned *)rsp.code16);
+    assert(!err);
+    rsp.ip = rsp16.offset;
+    err = GetDescriptor(rsp32.selector, (unsigned *)rsp.code32);
+    assert(!err);
+    rsp.eip = rsp32.offset;
+    /* FIXME: maybe fill data descs too? */
+    rsp.flags = RSP_F_SW | RSP_F_LOWMEM;
+    rsp.para = msdos_get_lowmem_size();
+    err = dpmi_install_rsp(&rsp);
+    assert(!err);
 }
 
 static void reinit_thr(void *arg)
@@ -374,14 +427,9 @@ static void reinit_thr(void *arg)
     _eflags &= ~CF;
 }
 
-unsigned short msdos_get_lowmem_size(void)
+static unsigned short msdos_get_lowmem_size(void)
 {
     return DTA_Para_SIZE + Scratch_Para_SIZE;
-}
-
-unsigned short msdos_get_lowmem_para(void)
-{
-    return MSDOS_CLIENT.lowmem_seg;
 }
 
 unsigned short ConvertSegmentToDescriptor_lim(unsigned short segment,

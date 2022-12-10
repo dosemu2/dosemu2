@@ -135,6 +135,14 @@ MSDOS_LDT_call16:
 MSDOS_LDT_call32:
 	hlt
 	lretl
+	.globl MSDOS_RSP_call16
+MSDOS_RSP_call16:
+	hlt
+	lretl
+	.globl MSDOS_RSP_call32
+MSDOS_RSP_call32:
+	hlt
+	lretl
 
 	.globl MSDOS_rmcb_call_start
 MSDOS_rmcb_call_start:

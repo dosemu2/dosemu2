@@ -73,6 +73,8 @@ extern unsigned char	MSDOS_API_call[];
 extern unsigned char	MSDOS_API_WINOS2_call[];
 extern unsigned char	MSDOS_LDT_call16[];
 extern unsigned char	MSDOS_LDT_call32[];
+extern unsigned char	MSDOS_RSP_call16[];
+extern unsigned char	MSDOS_RSP_call32[];
 extern unsigned char	MSDOS_rmcb_call_start[];
 extern unsigned char	MSDOS_rmcb_call0[];
 extern unsigned char	MSDOS_rmcb_call1[];

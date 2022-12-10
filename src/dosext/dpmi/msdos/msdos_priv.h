@@ -23,11 +23,5 @@ unsigned short get_scratch_seg(void);
 unsigned short scratch_seg(sigcontext_t *scp, int off, void *arg);
 far_t get_xms_call(void);
 int msdos_is_32(void);
-void msdos_init(int num, int is_32, unsigned short mseg, unsigned short psp,
-    int inherit_idt);
-void msdos_done(int prev);
-void msdos_set_client(int num);
-unsigned short msdos_get_lowmem_size(void);
-unsigned short msdos_get_lowmem_para(void);
 
 #endif
