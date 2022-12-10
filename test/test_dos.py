@@ -11,7 +11,7 @@ from os import statvfs, uname, utime, rename, environ, access, R_OK, W_OK
 from os.path import exists, isdir, join
 from pathlib import Path
 from shutil import copy
-from subprocess import call, check_call, CalledProcessError, DEVNULL
+from subprocess import call, check_call, CalledProcessError, DEVNULL, run
 from sys import argv, exit, modules
 from time import mktime
 
@@ -4769,7 +4769,10 @@ $_ignore_djgpp_null_derefs = (off)
         mosrepo = 'https://github.com/roelandjansen/pcmos386v501.git'
         mosroot = self.imagedir / 'pcmos.git'
 
-        call(["git", "clone", "-q", "--depth=1", mosrepo, str(mosroot)])
+        try:
+            run(["git", "clone", "-q", "--depth=1", mosrepo, str(mosroot)], check=True)
+        except CalledProcessError:
+            self.skipTest("repository unavailable")
 
         outfiles = [mosroot / 'SOURCES/src/latest' / x for x in [
             '$286n.sys', '$386.sys', '$all.sys', '$arnet.sys',
