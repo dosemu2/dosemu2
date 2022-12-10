@@ -47,27 +47,11 @@ static void do_retf(sigcontext_t *scp)
     }
 }
 
-static unsigned short get_psp(sigcontext_t *scp, int is_32)
-{
-    __dpmi_regs r = {};
-
-    r.h.ah = 0x62;
-    _dpmi_simulate_real_mode_interrupt(scp, is_32, 0x21, &r);
-    if (r.x.flags & CF) {
-	error("get_psp failed\n");
-	return 0;
-    }
-    return r.x.bx;
-}
-
 static void do_common_start(sigcontext_t *scp, int is_32)
 {
-    unsigned short psp;
-
     switch (_LWORD(eax)) {
     case 0:
-	psp = get_psp(scp, is_32);
-	msdos_init(_LWORD(ebx), is_32, _LWORD(edx), psp, _LWORD(ecx));
+	msdos_init(_LWORD(ebx), is_32, _LWORD(edx), _LWORD(esi), _LWORD(ecx));
 	break;
     case 1:
 	msdos_done(_LWORD(ecx));

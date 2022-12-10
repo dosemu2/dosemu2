@@ -3237,6 +3237,7 @@ static void do_RSP_call(sigcontext_t *scp, int num, int clnt,
   _ecx = inh_or_prv;
   _edx = DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs +
 	RSP_callbacks[num].lm_para_off;
+  _esi = DPMI_CLIENT.initial_psp;
 }
 
 static void dpmi_RSP_call(sigcontext_t *scp, int clnt, int terminating,
