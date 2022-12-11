@@ -93,7 +93,7 @@ static unsigned int TRs[2] =
 #endif
 
 /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
-fpregset_t vm86_fpu_state;
+struct emu_fpstate vm86_fpu_state __attribute__((aligned(16)));
 fenv_t dosemu_fenv;
 static void fpu_reset(void);
 
@@ -242,13 +242,13 @@ static void fpu_init(void)
 static void fpu_reset(void)
 {
 #ifdef __x86_64__
-  vm86_fpu_state->cwd = 0x0040;
-  vm86_fpu_state->swd = 0;
-  vm86_fpu_state->ftw = 0x5555;       //bochs
+  vm86_fpu_state.cwd = 0x0040;
+  vm86_fpu_state.swd = 0;
+  vm86_fpu_state.ftw = 0x5555;       //bochs
 #else
-  vm86_fpu_state->cw = 0x40;
-  vm86_fpu_state->sw = 0;
-  vm86_fpu_state->tag = 0x5555;       // bochs
+  vm86_fpu_state.cw = 0x40;
+  vm86_fpu_state.sw = 0;
+  vm86_fpu_state.tag = 0x5555;       // bochs
 #endif
 }
 
@@ -263,9 +263,9 @@ static void fpu_io_write(ioport_t port, Bit8u val)
   case 0xf0:
     /* not sure about this */
 #ifdef __x86_64__
-    vm86_fpu_state->swd &= ~0x8000;
+    vm86_fpu_state.swd &= ~0x8000;
 #else
-    vm86_fpu_state->sw &= ~0x8000;
+    vm86_fpu_state.sw &= ~0x8000;
 #endif
     break;
   case 0xf1:
@@ -300,8 +300,7 @@ void cpu_setup(void)
   io_dev.handler_name = "Math Coprocessor";
   port_register_handler(io_dev, 0);
 
-  vm86_fpu_state = aligned_alloc(16, sizeof(*vm86_fpu_state));
-  savefpstate(*vm86_fpu_state);
+  savefpstate(vm86_fpu_state);
 #ifdef FE_NOMASK_ENV
   feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 #endif

@@ -85,8 +85,9 @@ static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
   _C(trapno);
   _C(err);
   _C(cr2);
-  if (scp->fpstate)
-    memcpy(scp->fpstate, get_fpstate(s), sizeof(struct _fpstate));
+  static_assert(sizeof(struct _fpstate) == sizeof(vm86_fpu_state),
+		"size mismatch");
+  scp->fpstate = (struct _fpstate *)&vm86_fpu_state;
 }
 
 static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
@@ -111,8 +112,11 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
   _D(trapno);
   _D(err);
   _D(cr2);
-  if (scp->fpstate)
-    memcpy(get_fpstate(d), _scp_fpstate, sizeof(*get_fpstate(d)));
+  if (scp->fpstate && scp->fpstate != (struct _fpstate *)&vm86_fpu_state) {
+    static_assert(sizeof(struct _fpstate) == sizeof(vm86_fpu_state),
+		"size mismatch");
+    memcpy(&vm86_fpu_state, scp->fpstate, sizeof(struct _fpstate));
+  }
 }
 
 #if WANT_SIGRETURN_WA

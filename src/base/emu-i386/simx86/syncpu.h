@@ -147,18 +147,17 @@ typedef struct {
 	unsigned short TR_SEL;
 	DTR  TR;
 
-	/* if not NULL, points to emulated FPU state
-	   if NULL, emulator uses FPU instructions, so flags that
-	   dosemu needs to restore its own FPU environment. */
-	fpregset_t fpstate;
-
 	void (*stub_read_8)(void);
 	void (*stub_read_16)(void);
 	void (*stub_read_32)(void);
 
 	/* should be moved to TSS once implemented */
 	struct revectored_struct int_revectored;
-	struct _libc_fpstate _fpstate __attribute__((aligned(16)));
+
+	/* if not NULL, points to emulated FPU state
+	   if NULL, emulator uses FPU instructions, so flags that
+	   dosemu needs to restore its own FPU environment. */
+	emu_fpregset_t fpstate;
 } SynCPU;
 
 union _SynCPU {

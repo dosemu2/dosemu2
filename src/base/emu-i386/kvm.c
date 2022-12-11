@@ -1075,6 +1075,7 @@ int kvm_dpmi(cpuctx_t *scp)
       }
 
       if (_trapno == 0x10) {
+#if 0
         struct kvm_fpu fpu;
         ioctl(vcpufd, KVM_GET_FPU, &fpu);
 #ifdef __x86_64__
@@ -1096,8 +1097,9 @@ int kvm_dpmi(cpuctx_t *scp)
         __fpstate->dataoff = fpu.last_dp;
         __fpstate->datasel = _ds;
 #endif
+        print_exception_info(scp);
+#endif
         dbug_printf("coprocessor exception, calling IRQ13\n");
-//        print_exception_info(scp);
         pic_untrigger(13);
         pic_request(13);
         ret = DPMI_RET_DOSEMU;

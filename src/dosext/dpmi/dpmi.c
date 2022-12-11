@@ -3997,11 +3997,6 @@ void dpmi_init(void)
   _es	= ES;
   _fs	= 0;
   _gs	= 0;
-#ifdef __linux__
-  /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
-//  __fpstate = aligned_alloc(16, sizeof(*__fpstate));
-  *__fpstate = *vm86_fpu_state;
-#endif
   NOCARRY;
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
   /* on cpu-emu we work with IOPL=3 to avoid doom work-around */
@@ -4611,7 +4606,6 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	    DPMI_CLIENT.in_dpmi_pm_stack);
 
 	  pm_to_rm_regs(scp, ~0);
-	  old_ctx.fpregs = scp->fpregs;
 	  restore_pm_regs(&old_ctx);
 	  curscp = scp;
 	  scp = &old_ctx;

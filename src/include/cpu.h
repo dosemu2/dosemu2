@@ -61,22 +61,20 @@ union word {
   struct { Bit8u l, h; } b;
 } MAY_ALIAS;
 
-#ifndef __linux__
 #define __ctx(fld) fld
 #ifdef __x86_64__
 /* taken from glibc, don't blame me :) */
-typedef long long int greg_t;
-struct _libc_fpxreg
+struct __fpxreg
 {
   unsigned short int __ctx(significand)[4];
   unsigned short int __ctx(exponent);
   unsigned short int __glibc_reserved1[3];
 };
-struct _libc_xmmreg
+struct __xmmreg
 {
   __uint32_t	__ctx(element)[4];
 };
-struct _libc_fpstate
+struct emu_fpstate
 {
   /* 64-bit FXSAVE format.  */
   uint16_t		__ctx(cwd);
@@ -87,20 +85,17 @@ struct _libc_fpstate
   uint64_t		__ctx(rdp);
   uint32_t		__ctx(mxcsr);
   uint32_t		__ctx(mxcr_mask);
-  struct _libc_fpxreg	_st[8];
-  struct _libc_xmmreg	_xmm[16];
+  struct __fpxreg	_st[8];
+  struct __xmmreg	_xmm[16];
   uint32_t		__glibc_reserved1[24];
 };
-/* Structure to describe FPU registers.  */
-typedef struct _libc_fpstate *fpregset_t;
 #else
-typedef int greg_t;
-struct _libc_fpreg
+struct __fpreg
 {
   unsigned short int __ctx(significand)[4];
   unsigned short int __ctx(exponent);
 };
-struct _libc_fpstate
+struct emu_fpstate
 {
   unsigned long int __ctx(cw);
   unsigned long int __ctx(sw);
@@ -109,11 +104,12 @@ struct _libc_fpstate
   unsigned long int __ctx(cssel);
   unsigned long int __ctx(dataoff);
   unsigned long int __ctx(datasel);
-  struct _libc_fpreg _st[8];
+  struct __fpreg _st[8];
   unsigned long int __ctx(status);
 };
 #endif
-#endif
+/* Structure to describe FPU registers.  */
+typedef struct emu_fpstate *emu_fpregset_t;
 
 union g_reg {
   greg_t reg;
@@ -245,7 +241,7 @@ static inline dosaddr_t FAR2ADDR(far_t ptr) {
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
 
-extern fpregset_t vm86_fpu_state;
+extern struct emu_fpstate vm86_fpu_state;
 extern fenv_t dosemu_fenv;
 
 /*
@@ -490,10 +486,9 @@ struct pm_regs {
 	unsigned trapno;
 	unsigned err;
 	unsigned long cr2;
-	struct _libc_fpstate fpregs;
 };
 typedef struct pm_regs cpuctx_t;
-#define REGS_SIZE offsetof(struct pm_regs, fpregs)
+#define REGS_SIZE offsetof(struct pm_regs, trapno)
 
 #define _es     (scp->es)
 #define _ds     (scp->ds)
@@ -518,7 +513,6 @@ typedef struct pm_regs cpuctx_t;
 #define get_trapno(s) ((s)->trapno)
 #define get_err(s)    ((s)->err)
 #define get_cr2(s)    ((s)->cr2)
-#define get_fpstate(s) (&(s)->fpregs)
 #define _edi    get_edi(scp)
 #define _esi    get_esi(scp)
 #define _ebp    get_ebp(scp)
@@ -547,7 +541,6 @@ typedef struct pm_regs cpuctx_t;
 #define _eflags_ (scp->eflags)
 #define _cr2    (scp->cr2)
 #define _trapno (scp->trapno)
-#define __fpstate (&scp->fpregs)
 /* compatibility */
 #define _rdi    _edi
 #define _rsi    _esi
