@@ -206,9 +206,6 @@ static void setup_fonts(void)
  *
  * DANG_END_FUNCTION
  */
-
-#include "bios_data.xxd"
-
 void map_custom_bios(void)
 {
   unsigned int ptr;
@@ -218,7 +215,7 @@ void map_custom_bios(void)
   /* Copy the BIOS into DOS memory */
   ptr = SEGOFF2LINEAR(BIOSSEG, bios_data_start);
   e_invalidate(ptr, DOSEMU_BIOS_SIZE());
-  MEMCPY_2DOS(ptr, bios_data, DOSEMU_BIOS_SIZE());
+  MEMCPY_2DOS(ptr, _binary_bios_o_bin_start, DOSEMU_BIOS_SIZE());
   setup_fonts();
   /* Initialise the ROM-BIOS graphic font (lower half only) */
   MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);

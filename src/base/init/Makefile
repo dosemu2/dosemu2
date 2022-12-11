@@ -22,10 +22,6 @@ OBJS=parser.o lex.yy.o $(CFILES:.c=.o)
 
 all: lib
 
-init.o: $(top_builddir)/src/base/bios/x86/bios_data.xxd
-
-install:
-
 dosemu_c.c : $(top_srcdir)/etc/dosemu.conf
 	echo 'char dosemu_conf[] = \' > $@
 	sed -e 's/^# $$_/$$_/g' \

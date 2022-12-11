@@ -4,7 +4,7 @@ include $(top_builddir)/Makefile.conf
 CFILES=cpu.c do_vm86.c cputime.c kvm.c coopth_vm86.c
 
 
-SFILES=kvmmon.S
+SSFILES = kvmmon.SS
 
 include $(REALTOPDIR)/src/Makefile.common
 

@@ -68,14 +68,21 @@ AC_PATH_PROG([AS_LD], [i686-linux-gnu-ld])
 if test -z "$AS_LD"; then
   AS_LD="$LD"
 fi
-AC_PATH_PROGS([OBJCOPY], [i686-linux-gnu-objcopy objcopy])
+AC_PATH_PROG([OBJCOPY], [objcopy])
 if test -z "$OBJCOPY"; then
   AC_MSG_ERROR(objcopy not found)
+fi
+O_BDFARCH=`$OBJCOPY --info | head -n 2 | tail -n 1`
+AC_PATH_PROG([XOBJCOPY], [i686-linux-gnu-objcopy])
+if test -z "$XOBJCOPY"; then
+  XOBJCOPY="$OBJCOPY"
 fi
 AC_SUBST(AS)
 AC_SUBST(XAS)
 AC_SUBST(AS_LD)
 AC_SUBST(OBJCOPY)
+AC_SUBST(XOBJCOPY)
+AC_SUBST(O_BDFARCH)
 
 AC_ARG_WITH(target-bits-32, [AS_HELP_STRING([--with-target-bits-32],
     [build for 32bit target (multilib in case of x86_64 host)])],

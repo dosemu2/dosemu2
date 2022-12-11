@@ -2,7 +2,7 @@ top_builddir=../../../..
 include $(top_builddir)/Makefile.conf
 
 CFILES = context.c
-SFILES = asm.S
+SSFILES = asm.SS
 
 all: lib
 

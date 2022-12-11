@@ -49,6 +49,8 @@ _ORG(0xe000)
 	_ORG(ROM_BIOS_SELFTEST)
 /* COMPAS FE05B		jmp to POST */
 /* COMPAS FE05E-FE2C2	reserved */
+	.global _start
+_start:
 	hlt
 	sti
 

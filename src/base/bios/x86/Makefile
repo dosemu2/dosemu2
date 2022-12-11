@@ -2,35 +2,25 @@ top_builddir=../../../..
 include $(top_builddir)/Makefile.conf
 
 GENSRC = bios_symbols.c
-XSFILES = bios.s
-BIOS_START = 0xe000
-ALL_CPPFLAGS += -DBIOS_START=$(BIOS_START)
+SFILES = bios.S
+bios_S_START = 0xe000
+ALL_CPPFLAGS += -DBIOS_START=$(bios_S_START)
 
 all: lib
-# unused target, for testing
-everyth: lib bios_offsets.hh bios_data.xxd
 
 include $(REALTOPDIR)/src/Makefile.common
 
 # to support parallel build, we need a separate .o and .elf for every gen target
-bios0.o bios1.o bios2.o: $(srcdir)/bios.s $(srcdir)/Makefile $(top_builddir)/src/include/version.hh
+bios1.o bios2.o: $(srcdir)/bios.S $(srcdir)/Makefile $(top_builddir)/src/include/version.hh
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(XAS) $(XASFLAGS) -o $@
 
-.INTERMEDIATE: bios_data bios0.elf bios1.elf bios2.elf bios0.o bios1.o bios2.o
-
-bios_data: bios0.elf
-	$(OBJCOPY) -j .text -O binary $< $@
+.INTERMEDIATE: bios1.elf bios2.elf bios1.o bios2.o
 
 # Makefile defines BIOS_START so add to deps
 bios%.elf: bios%.o $(srcdir)/Makefile
 	# formal intermediate filename is necessary for xxd to name structure
-	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=$(BIOS_START) -e bios_data_start -Map bios.map -o $@ $<
+	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=$(bios_S_START) -e bios_data_start -Map bios.map -o $@ $<
 	chmod -x $@
-
-bios_data.xxd: bios_data
-	echo "const char *bios_data = \"\\" >$@
-	hexdump -v -e '"\\" "x" 1/1 "%02X"' $< >>$@
-	echo "\";" >>$@
 
 bios_symbols.c: bios1.elf
 	nm -g -n $< | gawk '\
@@ -76,4 +66,4 @@ bios_offsets.hh: bios2.elf
 		' > $@ || (rm -f $@ ; false)
 
 clean::
-	rm -f *.o *.d bios_symbols.c bios_offsets.hh bios_data.xxd bios_data bios*.elf bios.map
+	rm -f *.o *.d bios_symbols.c bios_offsets.hh bios*.elf bios.map

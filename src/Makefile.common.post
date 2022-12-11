@@ -1,17 +1,16 @@
 ifndef OBJS
-OBJS=$(CFILES:.c=.o) $(SFILES:.S=.o)
+OBJS=$(CFILES:.c=.o) $(SFILES:.S=.o) $(XSFILES:.s=.o) $(SSFILES:.SS=.o)
 endif
 
 GENOBJS = $(GENSRC:.c=.o)
 
 ifndef DEPENDS
-DEPENDS=$(OBJS:.o=.d) $(XSFILES:.s=.d)
+DEPENDS=$(OBJS:.o=.d)
 endif
 
 GENERATED = $(top_builddir)/src/include/version.hh \
     $(top_builddir)/src/plugin/include/plugin_config.hh \
-    $(top_builddir)/src/base/bios/x86/bios_offsets.hh \
-    $(top_builddir)/src/base/bios/x86/bios_data.xxd
+    $(top_builddir)/src/base/bios/x86/bios_offsets.hh
 
 ifneq ($(GENHDRS),)
 GENERATED += $(GENHDRS)
@@ -60,9 +59,8 @@ $(top_builddir)/src/include/version.hh: $(top_builddir)/Makefile.conf $(REALTOPD
 	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
 	echo "#endif /* VERSION_H */" >> $@
 
-$(top_builddir)/src/base/bios/x86/bios_offsets.hh \
-    $(top_builddir)/src/base/bios/x86/bios_data.xxd : \
-    $(REALTOPDIR)/src/base/bios/x86/bios.s \
+$(top_builddir)/src/base/bios/x86/bios_offsets.hh: \
+    $(REALTOPDIR)/src/base/bios/x86/bios.S \
     $(top_builddir)/src/include/version.hh
 	$(MAKE) -C $(top_builddir)/src/base/bios/x86 SUBDIR=base/bios/x86 $(notdir $@)
 
@@ -89,10 +87,21 @@ $(GENOBJS): $(GENSRC)
 %.o: %.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
-$(XSFILES:.s=.o): %.o: %.s $(top_builddir)/src/include/version.hh
+%.o: %.s $(top_builddir)/src/include/version.hh
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(XAS) $(XASFLAGS) -o $@
 
+VS = $(subst .,_,$(1))_START
+
 %.o: %.S $(top_builddir)/src/include/version.hh
+	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(XAS) $(XASFLAGS) -o _$@
+	$(AS_LD) $(AS_LDFLAGS) -static $(if $($(call VS,$<)), \
+		--section-start .text=$($(call VS,$<))) -o $@.elf _$@
+	$(XOBJCOPY) -j .text -O binary $@.elf $@.bin
+	$(OBJCOPY) -I binary -O $(O_BDFARCH) \
+		--add-section .note.GNU-stack=/dev/null $@.bin $@
+	$(RM) -f _$@ $@.bin $@.elf
+
+%.o: %.SS
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) $(ASFLAGS) -o $@
 
 ifndef CLEANING
