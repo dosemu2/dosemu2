@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#include "bios_offsets.hh"
+#include "bios_offsets.h"
 #define DOSEMU_BIOS_SIZE() (bios_f000_end - bios_data_start + 1)
 
 /*
