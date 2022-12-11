@@ -96,23 +96,9 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 
 /* --------------------------------------------------------------------- */
 
-extern void update_cputime_TSCBase(void);
 extern hitimer_u ZeroTimeBase;
 extern hitimer_t t_vretrace;
 
-static inline hitimer_t GETTSC(void) {
-	hitimer_t d;
-#ifdef __x86_64__
-	unsigned int lo, hi;
-	asm volatile("rdtsc" : "=a" (lo), "=d" (hi));
-	d = lo | ((unsigned long)hi << 32);
-#else
-	__asm__ __volatile__ ("rdtsc" : "=A" (d));
-#endif
-	return d;
-}
-
-#define CPUtoUS() _mul64x32_(GETTSC(), config.cpu_spd)
 #define TSCtoUS(t) _mul64x32_(t, config.cpu_spd)
 
 /* 1 us granularity */
@@ -125,7 +111,6 @@ extern hitimer_t GETtickTIME(int sc);
 int stop_cputime (int);
 int restart_cputime (int);
 extern int cpu_time_stop;	/* for dosdebug */
-int bogospeed(unsigned long *spus, unsigned long *sptick);
 void uncache_time(void);
 
 void freeze_dosemu_manual(void);

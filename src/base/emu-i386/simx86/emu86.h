@@ -661,19 +661,6 @@ extern hitimer_t GenTime, LinkTime;
 
 /////////////////////////////////////////////////////////////////////////////
 
-extern int eTimeCorrect;
-
-/* the amount of stretching (backtracing in time) to perform must be
- * empirically determined. The full backtrace is maybe too much since
- * we synchronize on the slower emulated time, while not stretching
- * makes the time going too fast for the emulator. 1/2 is probably a
- * good compromise, but it depends on the target machine too.
- */
-#define E_TIME_STRETCH	if (eTimeCorrect>=0) { hitimer_t t0=GETTSC();\
-   if (t0 > TheCPU.EMUtime) \
-     ZeroTimeBase.td += (TSCtoUS(t0 - TheCPU.EMUtime) >> eTimeCorrect);\
-			  TheCPU.EMUtime = t0; }
-
 #ifndef min
 #define min(a,b)	((a)<(b)?(a):(b))
 #endif

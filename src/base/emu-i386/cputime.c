@@ -82,8 +82,6 @@ static hitimer_t (*RAWcpuTIME)(void);
 
 hitimer_u ZeroTimeBase = { 0 };
 static hitimer_t (*GETcpuTIME)(void);
-static hitimer_u ZeroTSCBase = { 0 };
-static hitimer_t C4Base = 0;
 static hitimer_t LastTimeRead = 0;
 static hitimer_t StopTimeBase = 0;
 int cpu_time_stop = 0;
@@ -131,11 +129,6 @@ void uncache_time(void)
   pthread_mutex_unlock(&ctime_mtx);
 }
 
-static hitimer_t rawP5time(void)
-{
-  return CPUtoUS();
-}
-
 /*
  * SIDOC_BEGIN_FUNCTION GETcpuTIME
  *
@@ -150,21 +143,6 @@ static hitimer_t getC4time(void)
 {
   if (cpu_time_stop) return LastTimeRead;
   return (rawC4time() - ZeroTimeBase.td);
-}
-
-/* this routine is called from the sigalrm handler to
-   update the TSC base */
-void update_cputime_TSCBase(void)
-{
-  if (cpu_time_stop) return;
-  C4Base = getC4time();
-  ZeroTSCBase.td = GETTSC();
-}
-
-static hitimer_t getP5time(void)
-{
-  if (cpu_time_stop) return LastTimeRead;
-  return TSCtoUS(GETTSC() - ZeroTSCBase.td) + C4Base;
 }
 
 /*
@@ -208,26 +186,12 @@ hitimer_t GETusSYSTIME(void)
 }
 
 
-void get_time_init (void)
+void get_time_init(void)
 {
   ZeroTimeBase.td = rawC4time();
-  if ((config.realcpu > CPU_486) && config.rdtsc) {
-    /* we are here if: a 586/686 was detected at startup, we are not
-     * on a SMP machine and the user didn't say 'rdtsc off'. But
-     * we could have an emulated CPU < 586, this doesn't affect timing
-     * but only flags processing (& other features) */
-    RAWcpuTIME = rawP5time;		/* in usecs */
-    GETcpuTIME = getP5time;		/* in usecs */
-    ZeroTSCBase.td = GETTSC();
-    g_printf("TIMER: using pentium timing\n");
-  }
-  else {
-    /* we are here on all other cases: real CPU < 586, SMP machines,
-     * 'rdtsc off' into config file */
-    RAWcpuTIME = rawC4time;		/* in usecs */
-    GETcpuTIME = getC4time;		/* in usecs */
-    g_printf("TIMER: using clock_gettime(CLOCK_MONOTONIC)\n");
-  }
+  RAWcpuTIME = rawC4time;		/* in usecs */
+  GETcpuTIME = getC4time;		/* in usecs */
+  g_printf("TIMER: using clock_gettime(CLOCK_MONOTONIC)\n");
 }
 
 void cputime_late_init(void)
@@ -255,8 +219,6 @@ int restart_cputime (int quiet)
   if (!cpu_time_stop) return 1;
   if (!quiet) dbug_printf("RESTART TIME\n");
   cpu_time_stop = 0;
-  if (ZeroTSCBase.td)
-    update_cputime_TSCBase();
   ZeroTimeBase.td += RAWcpuTIME() - StopTimeBase;
   return 0;
 }
@@ -299,62 +261,6 @@ void unfreeze_dosemu(void)
 
   if (Video && Video->change_config)
     Video->change_config (CHG_TITLE, NULL);
-}
-
-
-/* --------------------------------------------------------------------- */
-
-static int getmhz(void)
-{
-	struct timeval tv1,tv2;
-	hitimer_t a,b;
-        unsigned long a0, a1, b0, b1;
-
-	gettimeofday(&tv1, NULL);
-	__asm__ __volatile__ ("rdtsc"
-		:"=a" (a0),
-		 "=d" (a1));
-/*	for (j=0; j<10000000; j++);*/	/* 500ms on a P5-100 */
-	usleep(50000);
-	gettimeofday(&tv2, NULL);
-	__asm__ __volatile__ ("rdtsc"
-		:"=a" (b0),
-		 "=d" (b1));
-	b = (((hitimer_t)b1 << 32) | b0) - (((hitimer_t)a1 << 32) | a0);
-	a = (tv2.tv_sec*1000000 + tv2.tv_usec) -
-	    (tv1.tv_sec*1000000 + tv1.tv_usec);
-	return (int)((b*4096)/a);
-}
-
-/*
- * bogospeed is called when a CPU >486 is detected at startup, or when
- * the user specifies -5 or -6 on the command line (provided (s)he HAS
- * a >486 CPU). The name comes from the previous use of BogoMIPS from
- * /proc/cpuinfo; the value returned must NOT be bogus...
- */
-int bogospeed(unsigned long *spus, unsigned long *sptick)
-{
-	int mlt, dvs;
-
-	if (config.realcpu < CPU_586) {
-		fprintf(stderr,"You can't access 586 features on CPU=%d\n",
-			config.realcpu);
-		exit(1);
-	}
-
-	mlt = 4096; dvs = getmhz();
-
-	/* speed division factor to get 1us from CPU clocks - for
-	 * details on fast division see timers.h */
-	*spus = (LLF_US*mlt)/dvs;
-
-	/* speed division factor to get 838ns from CPU clocks */
-	*sptick = (LLF_TICKS*mlt)/dvs;
-
-	config.CPUSpeedInMhz = dvs/mlt;
-	fprintf (stderr,"CPU speed set to %d MHz\n",(dvs/mlt));
-/*	fprintf (stderr,"CPU speed factors %ld,%ld\n",*spus,*sptick); */
-	return 0;
 }
 
 /* idle functions to let hogthreshold do its work .... */

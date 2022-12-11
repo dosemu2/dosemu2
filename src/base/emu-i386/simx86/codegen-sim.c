@@ -2779,6 +2779,7 @@ void Gen_sim(int op, int mode, ...)
 		} break;
 
 	case O_RDTSC: {		// don't trust this one
+#if 0
 		hitimer_u t0, t1;
 		GTRACE0("O_RDTSC");
 		t0.td = GETTSC();
@@ -2788,6 +2789,9 @@ void Gen_sim(int op, int mode, ...)
 		}
 		CPULONG(Ofs_EAX) = t0.t.tl;
 		CPULONG(Ofs_EDX) = t0.t.th;
+#else
+		error("rdtsc not implemented\n");
+#endif
 		}
 		break;
 
@@ -2972,8 +2976,6 @@ static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln)
 		CEmuStat|=CeS_SIGPEND;
 	    TheCPU.sigalrm_pending = 0;
 	}
-	if (eTimeCorrect >= 0)
-	    TheCPU.EMUtime = GETTSC();
 	if (P0 == (unsigned)-1)
 		return PC;
 	ret = P0;

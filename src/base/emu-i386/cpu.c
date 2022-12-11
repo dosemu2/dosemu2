@@ -120,18 +120,7 @@ int cpu_trap_0f (unsigned char *csp, sigcontext_t *scp)
 	else if (csp[1] == 0x31) {
 		/* ref: Van Gilluwe, "The Undocumented PC". The program
 		 * 'cpurdtsc.exe' traps here */
-#ifdef X86_EMULATOR
-		if (EMU_V86() && config.rdtsc) {
-		  REG(eax) = (unsigned long)TheCPU.EMUtime;
-		  REG(edx) = (unsigned long)(TheCPU.EMUtime>>32);
-		} else
-#endif
-		if (vm86s.cpu_type >= CPU_586) {
-		  __asm__ __volatile__ ("rdtsc" \
-			:"=a" (REG(eax)),  \
-			 "=d" (REG(edx)));
-		}
-		else {
+		{
 		  struct timeval tv;
 		  unsigned long long t;
 

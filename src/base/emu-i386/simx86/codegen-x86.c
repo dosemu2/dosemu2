@@ -2095,6 +2095,7 @@ shrot0:
 	case O_RDTSC: {
 		// rdtsc
 		G2(0x310f,Cp);
+#if 0
 		if (eTimeCorrect >= 0) {
 			// movl	%%eax,%%ecx
 			// movl	%%edx,%%edi
@@ -2120,6 +2121,7 @@ shrot0:
 			G3M(0x89,0x43,Ofs_ETIME,Cp);
 			G3M(0x89,0x53,Ofs_ETIME+4,Cp);
 		}
+#endif
 		// movl %%eax,Ofs_EAX(%%ebx)
 		// movl %%edx,Ofs_EDX(%%ebx)
 		G3M(0x89,0x43,Ofs_EAX,Cp);
@@ -3305,11 +3307,6 @@ unsigned int Exec_x86(TNode *G, int ln)
 	unsigned int ePC;
 	unsigned short seqflg = G->flags;
 	unsigned char *SeqStart = G->addr;
-	hitimer_u TimeEndExec;
-
-#ifdef PROFILE
-	if (debug_level('e')) TotalNodesExecd++;
-#endif
 
 	ecpu = CPUOFFS(0);
 	if (debug_level('e')>1) {
@@ -3333,21 +3330,7 @@ unsigned int Exec_x86(TNode *G, int ln)
 	}
 
 	flg = Exec_x86_pre(ecpu);
-
-	if (eTimeCorrect >= 0)
-		__asm__ __volatile__ (
-"			rdtsc\n"
-			: "=a"(TimeStartExec.t.tl),"=d"(TimeStartExec.t.th)
-		);
-
 	ePC = Exec_x86_asm(&mem_ref, &flg, ecpu, SeqStart);
-
-	if (eTimeCorrect >= 0)
-		__asm__ __volatile__ (
-"			rdtsc\n"
-			: "=a"(TimeEndExec.t.tl),"=d"(TimeEndExec.t.th)
-		);
-
 	Exec_x86_post(flg, mem_ref);
 
 	/* was there at least one FP op in the sequence? */
@@ -3365,11 +3348,6 @@ unsigned int Exec_x86(TNode *G, int ln)
 		}
 	}
 
-
-	if (eTimeCorrect >= 0) {
-	    TimeEndExec.td -= TimeStartExec.td;
-	    TheCPU.EMUtime += TimeEndExec.td;
-	}
 	if (debug_level('e')) {
 #ifdef PROFILE
 	    ExecTime += TimeEndExec.td;

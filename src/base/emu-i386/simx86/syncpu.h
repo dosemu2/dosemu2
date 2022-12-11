@@ -54,7 +54,7 @@ typedef struct {
 /* ------------------------------------------------ */
 /*80*/  long double   *fpregs;
 /*84*/  PADDING32BIT(1)
-/*88*/	unsigned long long EMUtime;
+/*88*/	unsigned long long reserve;
 /*90*/	SDTR gs_cache;
 /*9c*/	SDTR fs_cache;
 /*a8*/	SDTR es_cache;
@@ -208,7 +208,7 @@ extern union _SynCPU TheCPU_union;
 #define Ofs_CR0		(unsigned char)(offsetof(SynCPU,cr[0])-SCBASE)
 #define Ofs_CR2		(unsigned char)(offsetof(SynCPU,cr2)-SCBASE)
 #define Ofs_STACKM	(unsigned char)(offsetof(SynCPU,StackMask)-SCBASE)
-#define Ofs_ETIME	(unsigned char)(offsetof(SynCPU,EMUtime)-SCBASE)
+//#define Ofs_ETIME	(unsigned char)(offsetof(SynCPU,EMUtime)-SCBASE)
 #define Ofs_RZERO	(unsigned char)(offsetof(SynCPU,rzero)-SCBASE)
 #define Ofs_SIGAPEND	(unsigned char)(offsetof(SynCPU,sigalrm_pending)-SCBASE)
 #define Ofs_SIGFPEND	(unsigned char)(offsetof(SynCPU,sigprof_pending)-SCBASE)
