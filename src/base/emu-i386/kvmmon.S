@@ -23,6 +23,8 @@
 	.section .text
 	.code32
 
+	.global _start
+_start:  // dummy
 	.globl kvm_mon_start
 kvm_mon_start:
 

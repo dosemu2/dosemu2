@@ -52,9 +52,12 @@
 #define RETURN_MASK ((SAFE_MASK | 0x28 | X86_EFLAGS_FIXED) & \
                      ~X86_EFLAGS_RF) // 0x244dff
 
-extern char kvm_mon_start[];
-extern char kvm_mon_hlt[];
-extern char kvm_mon_end[];
+extern char _binary_kvmmon_o_bin_end[];
+extern char _binary_kvmmon_o_bin_size[];
+extern char _binary_kvmmon_o_bin_start[];
+extern const unsigned kvm_mon_start;
+extern const unsigned kvm_mon_hlt;
+extern const unsigned kvm_mon_end;
 
 /* V86/DPMI monitor structure to run code in V86 mode with VME enabled
    or DPMI clients inside KVM
@@ -293,7 +296,8 @@ void init_kvm_monitor(void)
     monitor->idt[i].present = 1;
   }
   assert(kvm_mon_end - kvm_mon_start <= sizeof(monitor->code));
-  memcpy(monitor->code, kvm_mon_start, kvm_mon_end - kvm_mon_start);
+  memcpy(monitor->code, _binary_kvmmon_o_bin_start,
+    _binary_kvmmon_o_bin_end - _binary_kvmmon_o_bin_start);
 
   /* setup paging */
   sregs.cr3 = sregs.tr.base + offsetof(struct monitor, pde);
