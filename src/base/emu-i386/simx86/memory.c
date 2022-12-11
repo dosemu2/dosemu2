@@ -106,8 +106,8 @@ static int AddMpMap(unsigned int addr, unsigned int aend, int onoff)
 		M->mega = (page>>8);
 	    }
 	    if (bp < 32) {
-		bs |= (((unsigned)(onoff? set_bit(page&255, M->pagemap) :
-			    clear_bit(page&255, M->pagemap)) & 1) << bp);
+		bs |= (((unsigned)(onoff? test_and_set_bit(page&255, M->pagemap) :
+			    test_and_clear_bit(page&255, M->pagemap)) & 1) << bp);
 		bp++;
 	    }
 	    if (debug_level('e')>1) {
