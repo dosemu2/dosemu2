@@ -275,7 +275,7 @@ AC_CHECK_LIB(pthread, pthread_create,,[
 )
 AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 
-AC_CHECK_HEADERS([sys/kd.h scsi/sg.h linux/cdrom.h])
+AC_CHECK_HEADERS([sys/kd.h scsi/sg.h linux/cdrom.h sys/io.h])
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h netpacket/packet.h])
 AC_CHECK_HEADERS([asm/ucontext.h],,, [
   #include <ucontext.h>

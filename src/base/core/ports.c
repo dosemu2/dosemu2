@@ -29,7 +29,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-#ifdef __linux__
+#ifdef HAVE_SYS_IO_H
 #include <sys/io.h>
 #endif
 #include <sys/types.h>
@@ -1150,7 +1150,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 int
 set_ioperm(int start, int size, int flag)
 {
-#ifdef __linux__
+#ifdef HAVE_SYS_IO_H
 	PRIV_SAVE_AREA
 	int tmp;
 

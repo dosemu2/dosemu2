@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <grp.h>
-#ifdef __linux__
+#ifdef HAVE_SYS_IO_H
 #include <sys/io.h>
 #endif
 #include "emu.h"
@@ -138,7 +138,7 @@ int real_leave_priv_setting(saved_priv_status *privs)
 
 int priv_iopl(int pl)
 {
-#ifdef __linux__
+#ifdef HAVE_SYS_IO_H
   int ret;
   if (PRIVS_ARE_OFF) {
     _priv_on();
