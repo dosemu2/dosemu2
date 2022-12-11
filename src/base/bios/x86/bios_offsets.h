@@ -1,5 +1,4 @@
 extern const unsigned bios_data_start;
-extern const unsigned _start;
 extern const unsigned ROM_BIOS_EXIT;
 extern const unsigned GET_RETCODE_HELPER;
 extern const unsigned IRET_OFF;
