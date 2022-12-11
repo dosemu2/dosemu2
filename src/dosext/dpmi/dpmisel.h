@@ -9,18 +9,7 @@
 
 #define DPMI_SEL_OFF(x) (x-DPMI_sel_code_start)
 
-#ifdef __x86_64__
-#ifdef __cplusplus
-extern "C" {
-#endif
-extern void		DPMI_iret(void);
-#ifdef __cplusplus
-};
-#endif
-#endif
-
 extern unsigned char	DPMI_sel_code_start[];
-
 extern unsigned char	DPMI_save_restore_pm[];
 extern unsigned char	DPMI_raw_mode_switch_pm[];
 extern unsigned char	DPMI_return_from_rm_callback[];

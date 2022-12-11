@@ -47,6 +47,14 @@ static int dpmi_thr_running;
 #ifdef __x86_64__
 static unsigned int *iret_frame;
 
+asm("\n\
+	.globl DPMI_iret\n\
+	.type DPMI_iret,@function\n\
+DPMI_iret:\n\
+	iretl\n\
+");
+extern void DPMI_iret(void);
+
 static void iret_frame_setup(sigcontext_t * scp)
 {
     /* set up a frame to get back to DPMI via iret. The kernel does not save
