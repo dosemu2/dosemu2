@@ -30,6 +30,8 @@
 
 
 	.code32
+	.global _start
+_start:  // dummy
 
 /*
  * We simply call our own BIOS via int 0x10, ax = 0x4fxx but use

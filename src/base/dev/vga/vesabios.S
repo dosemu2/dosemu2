@@ -64,8 +64,8 @@
 
 .code16
 .text
-	.globl	_start16
-_start16:
+	.globl _start
+_start:
 
 		.globl vgaemu_bios_start
 		.globl vgaemu_bios_prod_name

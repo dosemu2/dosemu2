@@ -9,7 +9,7 @@ ifdef USE_SVGALIB
 VCFILES = svgalib.c
 endif
 
-SSFILES  = vesabios_pm.SS vesabios.SS
+SFILES  = vesabios_pm.S vesabios.S
 CFILES = miscemu.c vgaemu.c vesa.c dacemu.c attremu.c seqemu.c crtcemu.c \
          gfxemu.c hercemu.c vgafonts.c
 

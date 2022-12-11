@@ -111,7 +111,7 @@ void vbe_pre_init(void)
   int i;
   vga_mode_info *vmi = NULL;
   unsigned int dos_vga_bios = SEGOFF2LINEAR(0xc000,0x0000);
-  int bios_ptr = (char *) vgaemu_bios_end - (char *) vgaemu_bios_start;
+  int bios_ptr = vgaemu_bios_end - vgaemu_bios_start;
 
   static struct {
     unsigned char modes[3];
@@ -133,12 +133,12 @@ void vbe_pre_init(void)
   };
 
   MEMSET_DOS(dos_vga_bios, 0, VBE_BIOS_MAXPAGES << 12);	/* one page */
-  MEMCPY_2DOS(dos_vga_bios, vgaemu_bios_start, bios_ptr);
+  MEMCPY_2DOS(dos_vga_bios, _binary_vesabios_o_bin_start, bios_ptr);
 
-  vgaemu_bios.prod_name = (char *) vgaemu_bios_prod_name - (char *) vgaemu_bios_start;
+  vgaemu_bios.prod_name = vgaemu_bios_prod_name - vgaemu_bios_start;
 
   if (Video->setmode) {
-    i = (char *) vgaemu_bios_pm_interface_end - (char *) vgaemu_bios_pm_interface;
+    i = vgaemu_bios_pm_interface_end - vgaemu_bios_pm_interface;
 
     if(i + bios_ptr > (VBE_BIOS_MAXPAGES << 12) - 8) {
       error("VBE: vbe_init: protected mode interface to large, disabling\n");
@@ -148,7 +148,7 @@ void vbe_pre_init(void)
 
     vgaemu_bios.vbe_pm_interface_len = i;
     vgaemu_bios.vbe_pm_interface = bios_ptr;
-    MEMCPY_2DOS(dos_vga_bios + bios_ptr, vgaemu_bios_pm_interface, i);
+    MEMCPY_2DOS(dos_vga_bios + bios_ptr, _binary_vesabios_pm_o_bin_start, i);
     bios_ptr += i;
 
     bios_ptr = (bios_ptr + 3) & ~3;
@@ -482,7 +482,7 @@ static int vbe_mode_info(unsigned mode, unsigned int vbemodeinfo)
     vbemi.WinASeg = vmi->buffer_start;		/* segment address */
     vbemi.WinBSeg = 0;				/* not supported */
 
-    vbemi.WinFuncPtr = MK_FP16(0xc000, (char *) vgaemu_bios_win_func - (char *) vgaemu_bios_start);
+    vbemi.WinFuncPtr = MK_FP16(0xc000, vgaemu_bios_win_func - vgaemu_bios_start);
 
     vbemi.BytesPLine = scan_len;
     if(vmi->mode_class == GRAPH) {
