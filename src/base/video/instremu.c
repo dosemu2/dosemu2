@@ -353,7 +353,7 @@ int instr_len(unsigned char *p, int is_32)
 }
 
 
-unsigned arg_len(unsigned char *p, int asp)
+static unsigned arg_len(unsigned char *p, int asp)
 {
   unsigned u = 0, m, s = 0;
 
