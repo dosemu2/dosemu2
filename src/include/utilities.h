@@ -27,7 +27,6 @@ char *get_proc_string_by_key(const char *key);
 void advance_proc_bufferptr(void);
 void reset_proc_bufferptr(void);
 int get_proc_intvalue_by_key(const char *key);
-int integer_sqrt(int x);
 int exists_dir(const char *name);
 int exists_file(const char *name);
 void subst_file_ext(char *ptr);
@@ -42,18 +41,6 @@ char *readlink_malloc (const char *filename);
 void dosemu_error(const char *fmt, ...) FORMAT(printf, 1, 2);
 void *load_plugin(const char *plugin_name);
 void close_plugin(void *handle);
-
-/* returns y = sqrt(x), for y*y beeing a power of 2 below x
- */
-static __inline__ int power_of_2_sqrt(int val)
-{
-	register int res;
-	__asm__ __volatile__(" \
-		bsrl	%2,%0\n \
-	" : "=r" (res) : "0" ((int)-1), "r" (val) );
-	if (res <0) return 0;
-	return 1 << (res >> 1);
-}
 
 #define _min(x,y) ({ \
 	typeof(x) _x = (x);	\

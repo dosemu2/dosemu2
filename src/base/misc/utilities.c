@@ -439,25 +439,6 @@ int get_proc_intvalue_by_key(const char *key)
   return -1; /* just to make GCC happy */
 }
 
-
-int integer_sqrt(int x)
-{
-	unsigned y;
-	int delta;
-
-	if (x < 1) return 0;
-	if (x <= 1) return 1;
-        y = power_of_2_sqrt(x);
-	if ((y*y) == x) return y;
-	delta = y >> 1;
-	while (delta) {
-		y += delta;
-		if (y*y > x) y -= delta;
-		delta >>= 1;
-	}
-	return y;
-}
-
 int exists_dir(const char *name)
 {
 	struct stat st;
