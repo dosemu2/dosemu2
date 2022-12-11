@@ -3715,8 +3715,8 @@ void dpmi_setup(void)
       error("DPMI: can't allocate memory for DPMI host helper code\n");
       goto err2;
     }
-    MEMCPY_2DOS(block->base, DPMI_sel_code_start,
-		DPMI_sel_code_end-DPMI_sel_code_start);
+    MEMCPY_2DOS(block->base, _binary_dpmisel_o_bin_start,
+		_binary_dpmisel_o_bin_end - _binary_dpmisel_o_bin_start);
     err = SetSelector(_dpmi_sel16, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0);

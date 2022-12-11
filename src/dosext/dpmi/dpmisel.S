@@ -312,6 +312,8 @@ DPMI_\name\()_post_irq:
 
 	.globl DPMI_sel_code_end
 DPMI_sel_code_end:
+	.global _start
+_start: // dummy
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits

@@ -5,7 +5,7 @@ CFILES = dpmi.c memory.c emu-ldt.c msdoshlp.c vxd.c coopth_pm.c dpmi_api.c
 ifeq ($(DNATIVE),1)
 CFILES += dnative.c
 endif
-SSFILES = dpmisel.SS
+SFILES = dpmisel.S
 ALL_CPPFLAGS += -I$(REALTOPDIR)/src/dosext/dpmi/msdos \
     -DDOSEMU
 
