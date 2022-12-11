@@ -6,6 +6,9 @@
 #ifndef _PORT_H
 #define _PORT_H
 
+#ifdef HAVE_SYS_IO_H
+#include <sys/io.h>
+#endif
 #include "types.h"
 #include "priv.h"
 
@@ -41,41 +44,49 @@ extern int in_crit_section;
 
 static __inline__ void port_real_outb(ioport_t port, Bit8u value)
 {
-  __asm__ __volatile__ ("outb %0,%1"
-		    ::"a" ((Bit8u) value), "d"((Bit16u) port));
+#ifdef HAVE_SYS_IO_H
+  outb(value, port);
+#endif
 }
 
 static __inline__ Bit8u port_real_inb(ioport_t port)
 {
-  Bit8u _v;
-  __asm__ __volatile__ ("inb %1,%0"
-		    :"=a" (_v):"d"((Bit16u) port));
+  Bit8u _v = 0;
+#ifdef HAVE_SYS_IO_H
+  _v = inb(port);
+#endif
   return _v;
 }
 
 static __inline__ void port_real_outw(ioport_t port, Bit16u value)
 {
-  __asm__ __volatile__ ("outw %0,%1" :: "a" ((Bit16u) value),
-		"d" ((Bit16u) port));
+#ifdef HAVE_SYS_IO_H
+  outw(value, port);
+#endif
 }
 
 static __inline__ Bit16u port_real_inw(ioport_t port)
 {
-  Bit16u _v;
-  __asm__ __volatile__ ("inw %1,%0":"=a" (_v) : "d" ((Bit16u) port));
+  Bit16u _v = 0;
+#ifdef HAVE_SYS_IO_H
+  _v = inw(port);
+#endif
   return _v;
 }
 
 static __inline__ void port_real_outd(ioport_t port, Bit32u value)
 {
-  __asm__ __volatile__ ("outl %0,%1" : : "a" (value),
-		"d" ((Bit16u) port));
+#ifdef HAVE_SYS_IO_H
+  outl(value, port);
+#endif
 }
 
 static __inline__ Bit32u port_real_ind(ioport_t port)
 {
-  Bit32u _v;
-  __asm__ __volatile__ ("inl %1,%0":"=a" (_v) : "d" ((Bit16u) port));
+  Bit32u _v = 0;
+#ifdef HAVE_SYS_IO_H
+  _v = inl(port);
+#endif
   return _v;
 }
 
@@ -115,19 +126,6 @@ extern void port_exit(void);
 
 extern unsigned char emu_io_bitmap[];
 
-/* avoid potential clashes with <sys/io.h> */
-#undef inb
-#undef inw
-#undef ind
-#undef outb
-#undef outw
-#undef outd
-#define inb			port_inb
-#define inw			port_inw
-#define ind			port_ind
-#define outb			port_outb
-#define outw			port_outw
-#define outd			port_outd
 #define safe_port_in_byte	std_port_inb
 #define safe_port_out_byte	std_port_outb
 #define port_safe_inb		std_port_inb

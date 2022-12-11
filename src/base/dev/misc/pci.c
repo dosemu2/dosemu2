@@ -367,7 +367,7 @@ struct pci_funcs *pci_check_conf(void)
       port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
       port_real_outb(PCI_MODE2_FORWARD_REG, 0x00);
       m = (inb(PCI_MODE2_ENABLE_REG) == 0x00 &&
-	   inb(PCI_MODE2_FORWARD_REG) == 0x00) ? &pci_cfg2 : NULL;
+	   port_inb(PCI_MODE2_FORWARD_REG) == 0x00) ? &pci_cfg2 : NULL;
     }
 
     priv_iopl(0);

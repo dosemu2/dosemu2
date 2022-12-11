@@ -1596,7 +1596,7 @@ int int10(void) /* with dualmon */
 	  for (ind = 0; ind < 25; ind++)
 	    port_outw(crtc, ind | (buf[0x0a+ind] << 8));
 	  /* select crtc base address */
-	  outb(MISC_OUTPUT_W, (inb(MISC_OUTPUT_R) & ~0x01) | (crtc == 0x3d4));
+	  port_outb(MISC_OUTPUT_W, (inb(MISC_OUTPUT_R) & ~0x01) | (crtc == 0x3d4));
 	  /* reset flipflop ! */
 	  port_inb(crtc + 0x6);
 	  for (ind = 0; ind < 20; ind++) {

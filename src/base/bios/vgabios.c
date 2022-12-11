@@ -97,12 +97,12 @@ Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u nbcols,Bit8u cheight)
 
  src=ysrc*cheight*nbcols+xstart+vstart;
  dest=ydest*cheight*nbcols+xstart+vstart;
- outw(VGAREG_GRDC_ADDRESS, 0x0105);
+ port_outw(VGAREG_GRDC_ADDRESS, 0x0105);
  for(i=0;i<cheight;i++)
   {
    memcpyb(0xa000,dest+i*nbcols,0xa000,src+i*nbcols,cols);
   }
- outw(VGAREG_GRDC_ADDRESS, 0x0005);
+ port_outw(VGAREG_GRDC_ADDRESS, 0x0005);
 }
 
 // --------------------------------------------------------------------------------------------
@@ -113,12 +113,12 @@ Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u nbcols,Bit8u cheight,Bit8u attr)
  Bit8u i;
 
  dest=ystart*cheight*nbcols+xstart+vstart;
- outw(VGAREG_GRDC_ADDRESS, 0x0205);
+ port_outw(VGAREG_GRDC_ADDRESS, 0x0205);
  for(i=0;i<cheight;i++)
   {
    memsetb(0xa000,dest+i*nbcols,attr,cols);
   }
- outw(VGAREG_GRDC_ADDRESS, 0x0005);
+ port_outw(VGAREG_GRDC_ADDRESS, 0x0005);
 }
 
 // --------------------------------------------------------------------------------------------
@@ -231,9 +231,9 @@ Bit8u dir)
      case PLANAR1:
        if(nblines==0&&rul==0&&cul==0&&rlr==nbrows-1&&clr==nbcols-1)
         {
-         outw(VGAREG_GRDC_ADDRESS, 0x0205);
+         port_outw(VGAREG_GRDC_ADDRESS, 0x0205);
          memsetb(vmi->buffer_start,address,attr,nbrows*nbcols*cheight);
-         outw(VGAREG_GRDC_ADDRESS, 0x0005);
+         port_outw(VGAREG_GRDC_ADDRESS, 0x0005);
         }
        else
         {// if Scroll up
@@ -346,15 +346,15 @@ static void write_gfx_char_pl4(Bit16u vstart,Bit8u car,Bit8u attr,
  fdata = MEM_BASE32(IVEC(0x43));
  addr=xcurs+ycurs*cheight*nbcols+vstart;
  src = car * cheight;
- outw(VGAREG_SEQU_ADDRESS, 0x0f02);
- outw(VGAREG_GRDC_ADDRESS, 0x0205);
+ port_outw(VGAREG_SEQU_ADDRESS, 0x0f02);
+ port_outw(VGAREG_GRDC_ADDRESS, 0x0205);
  if(attr&0x80)
   {
-   outw(VGAREG_GRDC_ADDRESS, 0x1803);
+   port_outw(VGAREG_GRDC_ADDRESS, 0x1803);
   }
  else
   {
-   outw(VGAREG_GRDC_ADDRESS, 0x0003);
+   port_outw(VGAREG_GRDC_ADDRESS, 0x0003);
   }
  for(i=0;i<cheight;i++)
   {
@@ -362,7 +362,7 @@ static void write_gfx_char_pl4(Bit16u vstart,Bit8u car,Bit8u attr,
    for(j=0;j<8;j++)
     {
      mask=0x80>>j;
-     outw(VGAREG_GRDC_ADDRESS, (mask << 8) | 0x08);
+     port_outw(VGAREG_GRDC_ADDRESS, (mask << 8) | 0x08);
      read_byte(0xa000,dest);
      if(fdata[src+i]&mask)
       {
@@ -385,9 +385,9 @@ ASM_START
   out dx, ax
 ASM_END
 #else
-  outw(VGAREG_GRDC_ADDRESS, 0xff08);
-  outw(VGAREG_GRDC_ADDRESS, 0x0005);
-  outw(VGAREG_GRDC_ADDRESS, 0x0003);
+  port_outw(VGAREG_GRDC_ADDRESS, 0xff08);
+  port_outw(VGAREG_GRDC_ADDRESS, 0x0005);
+  port_outw(VGAREG_GRDC_ADDRESS, 0x0003);
 #endif
 }
 
@@ -531,10 +531,10 @@ static void biosfn_set_cursor_pos(Bit8u page,Bit16u cursor)
 
    // CRTC regs 0x0e and 0x0f
    crtc_addr=read_word(BIOSMEM_SEG,BIOSMEM_CRTC_ADDRESS);
-   outb(crtc_addr,0x0e);
-   outb(crtc_addr+1,(address&0xff00)>>8);
-   outb(crtc_addr,0x0f);
-   outb(crtc_addr+1,address&0x00ff);
+   port_outb(crtc_addr,0x0e);
+   port_outb(crtc_addr+1,(address&0xff00)>>8);
+   port_outb(crtc_addr,0x0f);
+   port_outb(crtc_addr+1,address&0x00ff);
   }
 }
 
@@ -851,12 +851,12 @@ static void biosfn_write_pixel(Bit8u BH,Bit8u AL,Bit16u CX,Bit16u DX)
      addr = CX/8+DX*read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)+
        READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
      mask = 0x80 >> (CX & 0x07);
-     outw(VGAREG_GRDC_ADDRESS, (mask << 8) | 0x08);
-     outw(VGAREG_GRDC_ADDRESS, 0x0205);
+     port_outw(VGAREG_GRDC_ADDRESS, (mask << 8) | 0x08);
+     port_outw(VGAREG_GRDC_ADDRESS, 0x0205);
      data = read_byte(0xa000,addr);
      if (AL & 0x80)
       {
-       outw(VGAREG_GRDC_ADDRESS, 0x1803);
+       port_outw(VGAREG_GRDC_ADDRESS, 0x1803);
       }
      write_byte(0xa000,addr,AL);
 #if 0
@@ -870,9 +870,9 @@ ASM_START
      out dx, ax
 ASM_END
 #else
-     outw(VGAREG_GRDC_ADDRESS, 0xff08);
-     outw(VGAREG_GRDC_ADDRESS, 0x0005);
-     outw(VGAREG_GRDC_ADDRESS, 0x0003);
+     port_outw(VGAREG_GRDC_ADDRESS, 0xff08);
+     port_outw(VGAREG_GRDC_ADDRESS, 0x0005);
+     port_outw(VGAREG_GRDC_ADDRESS, 0x0003);
 #endif
      break;
    case CGA:
@@ -947,7 +947,7 @@ static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
      attr = 0x00;
      for(i=0;i<4;i++)
       {
-       outw(VGAREG_GRDC_ADDRESS, (i << 8) | 0x04);
+       port_outw(VGAREG_GRDC_ADDRESS, (i << 8) | 0x04);
        data = read_byte(0xa000,addr) & mask;
        if (data > 0) attr |= (0x01 << i);
       }

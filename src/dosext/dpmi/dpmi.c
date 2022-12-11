@@ -5223,55 +5223,55 @@ static int dpmi_fault1(sigcontext_t *scp)
     case 0xe5:			/* inw xx, ind xx */
       if (debug_level('M')>=9)
         D_printf("DPMI: in%s xx\n", OSIZE_IS_32 ? "d" : "w");
-      if (OSIZE_IS_32) _eax = ind((int) csp[0]);
-      else _LWORD(eax) = inw((int) csp[0]);
+      if (OSIZE_IS_32) _eax = port_ind((int) csp[0]);
+      else _LWORD(eax) = port_inw((int) csp[0]);
       LWORD32(eip, += 2);
       break;
     case 0xe4:			/* inb xx */
       if (debug_level('M')>=9)
         D_printf("DPMI: inb xx\n");
       _LWORD(eax) &= ~0xff;
-      _LWORD(eax) |= inb((int) csp[0]);
+      _LWORD(eax) |= port_inb((int) csp[0]);
       LWORD32(eip, += 2);
       break;
     case 0xed:			/* inw dx */
       if (debug_level('M')>=9)
         D_printf("DPMI: in%s dx\n", OSIZE_IS_32 ? "d" : "w");
-      if (OSIZE_IS_32) _eax = ind(_LWORD(edx));
-      else _LWORD(eax) = inw(_LWORD(edx));
+      if (OSIZE_IS_32) _eax = port_ind(_LWORD(edx));
+      else _LWORD(eax) = port_inw(_LWORD(edx));
       LWORD32(eip,++);
       break;
     case 0xec:			/* inb dx */
       if (debug_level('M')>=9)
         D_printf("DPMI: inb dx\n");
       _LWORD(eax) &= ~0xff;
-      _LWORD(eax) |= inb(_LWORD(edx));
+      _LWORD(eax) |= port_inb(_LWORD(edx));
       LWORD32(eip, += 1);
       break;
     case 0xe7:			/* outw xx */
       if (debug_level('M')>=9)
         D_printf("DPMI: out%s xx\n", OSIZE_IS_32 ? "d" : "w");
-      if (OSIZE_IS_32) outd((int)csp[0], _eax);
-      else outw((int)csp[0], _LWORD(eax));
+      if (OSIZE_IS_32) port_outd((int)csp[0], _eax);
+      else port_outw((int)csp[0], _LWORD(eax));
       LWORD32(eip, += 2);
       break;
     case 0xe6:			/* outb xx */
       if (debug_level('M')>=9)
         D_printf("DPMI: outb xx\n");
-      outb((int) csp[0], _LO(ax));
+      port_outb((int) csp[0], _LO(ax));
       LWORD32(eip, += 2);
       break;
     case 0xef:			/* outw dx */
       if (debug_level('M')>=9)
         D_printf("DPMI: out%s dx\n", OSIZE_IS_32 ? "d" : "w");
-      if (OSIZE_IS_32) outd(_LWORD(edx), _eax);
-      else outw(_LWORD(edx), _LWORD(eax));
+      if (OSIZE_IS_32) port_outd(_LWORD(edx), _eax);
+      else port_outw(_LWORD(edx), _LWORD(eax));
       LWORD32(eip, += 1);
       break;
     case 0xee:			/* outb dx */
       if (debug_level('M')>=9)
         D_printf("DPMI: outb dx\n");
-      outb(_LWORD(edx), _LO(ax));
+      port_outb(_LWORD(edx), _LO(ax));
       LWORD32(eip, += 1);
       break;
 

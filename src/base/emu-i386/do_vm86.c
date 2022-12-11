@@ -345,48 +345,48 @@ static int handle_GP_fault(void)
 
   case 0xe5:			/* inw xx, ind xx */
     LWORD(eip) += 2;
-    if (prefix66) REG(eax) = ind((int) csp[1]);
-    else LWORD(eax) = inw((int) csp[1]);
+    if (prefix66) REG(eax) = port_ind((int) csp[1]);
+    else LWORD(eax) = port_inw((int) csp[1]);
     break;
 
   case 0xe4:			/* inb xx */
     LWORD(eip) += 2;
     LWORD(eax) &= ~0xff;
-    LWORD(eax) |= inb((int) csp[1]);
+    LWORD(eax) |= port_inb((int) csp[1]);
     break;
 
   case 0xed:			/* inw dx, ind dx */
     LWORD(eip)++;
-    if (prefix66) REG(eax) = ind(LWORD(edx));
-    else LWORD(eax) = inw(LWORD(edx));
+    if (prefix66) REG(eax) = port_ind(LWORD(edx));
+    else LWORD(eax) = port_inw(LWORD(edx));
     break;
 
   case 0xec:			/* inb dx */
     LWORD(eip)++;
     LWORD(eax) &= ~0xff;
-    LWORD(eax) |= inb(LWORD(edx));
+    LWORD(eax) |= port_inb(LWORD(edx));
     break;
 
   case 0xe7:			/* outw xx */
     LWORD(eip) += 2;
-    if (prefix66) outd((int)csp[1], REG(eax));
-    else outw((int)csp[1], LWORD(eax));
+    if (prefix66) port_outd((int)csp[1], REG(eax));
+    else port_outw((int)csp[1], LWORD(eax));
     break;
 
   case 0xe6:			/* outb xx */
     LWORD(eip) += 2;
-    outb((int) csp[1], LO(ax));
+    port_outb((int) csp[1], LO(ax));
     break;
 
   case 0xef:			/* outw dx, outd dx */
     LWORD(eip)++;
-    if (prefix66) outd(LWORD(edx), REG(eax));
-    else outw(LWORD(edx), LWORD(eax));
+    if (prefix66) port_outd(LWORD(edx), REG(eax));
+    else port_outw(LWORD(edx), LWORD(eax));
     break;
 
   case 0xee:			/* outb dx */
     LWORD(eip)++;
-    outb(LWORD(edx), LO(ax));
+    port_outb(LWORD(edx), LO(ax));
     break;
 
   case 0xf4:			/* hlt...I use it for various things,
