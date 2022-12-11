@@ -343,31 +343,6 @@ extern fenv_t dosemu_fenv;
 	} while(0)
 #endif
 
-static __inline__ void set_revectored(int nr, struct revectored_struct * bitmap)
-{
-	__asm__ __volatile__("btsl %1,%0"
-		: /* no output */
-		:"m" (*bitmap),"r" (nr));
-}
-
-static __inline__ void reset_revectored(int nr, struct revectored_struct * bitmap)
-{
-	__asm__ __volatile__("btrl %1,%0"
-		: /* no output */
-		:"m" (*bitmap),"r" (nr));
-}
-
-static __inline__ int is_revectored(int nr, struct revectored_struct * bitmap)
-{
-	uint8_t ret;
-	__asm__ __volatile__(
-			    "btl %2,%1\n"
-			    "setcb %0\n"
-		: "=r"(ret)
-		:"m" (*bitmap),"r" (nr));
-	return ret;
-}
-
 /* flags */
 #define CF  (1 <<  0)
 #define PF  (1 <<  2)

@@ -441,7 +441,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	        clear_bit(i, mhpdbg.intxxtab);
 	        if (test_bit(i, mhpdbgc.intxxalt)) {
 	          clear_bit(i, mhpdbgc.intxxalt);
-	          reset_revectored(i, &vm86s.int_revectored);
+	          clear_bit(i, &vm86s.int_revectored);
 	        }
 	      }
 	    }

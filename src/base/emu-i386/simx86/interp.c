@@ -1816,7 +1816,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (V86MODE() && !(TheCPU.cr[4] & CR4_VME) && IOPL<3)
 				goto not_permitted;
 			if (V86MODE() && (TheCPU.cr[4] & CR4_VME) &&
-			    !is_revectored(inum, &vm86s.int_revectored)) {
+			    !test_bit(inum, &vm86s.int_revectored)) {
 				uint32_t segoffs;
 				segoffs = read_dword(inum << 2);
 				if (CONFIG_CPUSIM) FlagSync_All();

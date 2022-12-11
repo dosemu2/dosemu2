@@ -1679,9 +1679,9 @@ static far_t int##x##_unrevect(uint16_t seg, uint16_t offs) \
     return ret; \
   int##x##_hooked = 1; \
   di_printf("int_rvc: unrevect 0x%s\n", #x); \
-  if (is_revectored(0x##x, &vm86s.int_revectored)) { \
+  if (test_bit(0x##x, &vm86s.int_revectored)) { \
     assert(!mhp_revectored(0x##x)); \
-    reset_revectored(0x##x, &vm86s.int_revectored); \
+    clear_bit(0x##x, &vm86s.int_revectored); \
   } else { \
     di_printf("int_rvc: revectoring of 0x%s was not enabled\n", #x); \
   } \
@@ -1696,7 +1696,7 @@ static int int##x##_unrevect_simple(void) \
     return 0; \
   int##x##_hooked = 1; \
   di_printf("int_rvc: unrevect 0x%s\n", #x); \
-  reset_revectored(0x##x, &vm86s.int_revectored); \
+  clear_bit(0x##x, &vm86s.int_revectored); \
   int##x##_rvc_setup(); \
   SETIVEC(0x##x, INT_RVC_SEG, INT_RVC_##x##_OFF); \
   return 1; \
@@ -3270,7 +3270,7 @@ void do_int(int i)
     }
 #endif
 
-    if (is_revectored(i, &vm86s.int_revectored) && !mhp_revectored(i)) {
+    if (test_bit(i, &vm86s.int_revectored) && !mhp_revectored(i)) {
 	assert(int_handlers[i].interrupt_function[REVECT]);
 	if (debug_level('#') > 2)
 	    debug_int("Do rvc", i);
@@ -3484,7 +3484,7 @@ static void revect_setup(void)
     if (config.force_revect != 0) {
 	for (i = 0; i < 0x100; i++) {
 	    if (int_handlers[i].interrupt_function[REVECT])
-		set_revectored(i, &vm86s.int_revectored);
+		set_bit(i, &vm86s.int_revectored);
 	}
     }
 
@@ -3737,7 +3737,7 @@ far_t get_int_vector(int vec)
 {
     far_t addr;
 
-    if (is_revectored(vec, &vm86s.int_revectored)) {
+    if (test_bit(vec, &vm86s.int_revectored)) {
 	addr.segment = INT_RVC_SEG;
 	switch (vec) {
 	case 0x21:

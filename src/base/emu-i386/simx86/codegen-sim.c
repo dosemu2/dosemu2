@@ -2252,7 +2252,7 @@ void Gen_sim(int op, int mode, ...)
 	case O_INT: {
 		unsigned char intno = va_arg(ap, int);
 		// Check bitmap, GPF if revectored
-		if (is_revectored(intno, &TheCPU.int_revectored)) {
+		if (test_bit(intno, &TheCPU.int_revectored)) {
 			P0 = va_arg(ap, dosaddr_t);
 			TheCPU.err = EXCP0D_GPF;
 		}

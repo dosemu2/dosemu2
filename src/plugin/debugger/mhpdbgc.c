@@ -2113,7 +2113,7 @@ static void mhp_bpint(int argc, char * argv[])
    set_bit(num, mhpdbg.intxxtab);
    if (!test_bit(num, &vm86s.int_revectored)) {
      set_bit(num, mhpdbgc.intxxalt);
-     set_revectored(num, &vm86s.int_revectored);
+     set_bit(num, &vm86s.int_revectored);
    }
    if (num == 0x21)
      mhpdbgc.int21_count++;
@@ -2141,7 +2141,7 @@ static void mhp_bcint(int argc, char * argv[])
    clear_bit(num, mhpdbg.intxxtab);
    if (test_bit(num, mhpdbgc.intxxalt)) {
      clear_bit(num, mhpdbgc.intxxalt);
-     reset_revectored(num, &vm86s.int_revectored);
+     clear_bit(num, &vm86s.int_revectored);
    }
    if (num == 0x21)
      mhpdbgc.int21_count--;
@@ -2236,7 +2236,7 @@ static void mhp_bpload(int argc, char * argv[])
      set_bit(i, mhpdbg.intxxtab);
      if (!test_bit(i, &vm86s.int_revectored)) {
           set_bit(i, mhpdbgc.intxxalt);
-          set_revectored(i, &vm86s.int_revectored);
+          set_bit(i, &vm86s.int_revectored);
      }
    }
    mhpdbgc.int21_count++;
