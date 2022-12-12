@@ -84,7 +84,7 @@ $(GENOBJS): $(GENSRC)
 %.o: %.s $(top_builddir)/src/include/version.hh
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(XAS) $(XASFLAGS) -o $@
 
-VS = $(subst .,_,$(1))_START
+VS = $(subst .,_,$(notdir $(1)))_START
 
 %.o: %.S $(top_builddir)/src/include/version.hh
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(XAS) $(XASFLAGS) -o _$@
