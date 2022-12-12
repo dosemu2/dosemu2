@@ -83,7 +83,7 @@ int e_invalidate_page_full(unsigned data);
 #else
 #define e_invalidate(x,y) 0
 #define e_invalidate_full(x,y) 0
-#define e_invalidate_page_full(x,y) 0
+#define e_invalidate_page_full(x) 0
 #endif
 
 /* called from cpu.c */
