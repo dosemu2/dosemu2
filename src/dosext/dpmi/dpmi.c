@@ -224,7 +224,7 @@ static int dpmi_not_supported;
 static void quit_dpmi(sigcontext_t *scp, unsigned short errcode,
     int tsr, unsigned short tsr_para, int dos_exit);
 
-#ifdef __linux__
+#ifdef DNATIVE
 #define modify_ldt dosemu_modify_ldt
 static inline int modify_ldt(int func, void *ptr, unsigned long bytecount)
 {
@@ -271,7 +271,7 @@ void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg, int is_32)
 
 int get_ldt(void *buffer)
 {
-#ifdef __linux__
+#ifdef DNATIVE
   int i, ret;
   struct ldt_descriptor *dp;
   if (config.cpu_vm_dpmi != CPUVM_NATIVE)
@@ -314,7 +314,7 @@ static int set_ldt_entry(int entry, dosaddr_t base, unsigned int limit,
   ldt_info.limit_in_pages = limit_in_pages_flag;
   ldt_info.seg_not_present = seg_not_present;
   ldt_info.useable = useable;
-#ifdef __linux__
+#ifdef DNATIVE
   if (config.cpu_vm_dpmi == CPUVM_NATIVE)
   {
     /* NOTE: the real LDT in kernel space uses the real addresses, but
@@ -1726,7 +1726,7 @@ int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 	handle, offs, attrs, count);
 }
 
-#ifdef __linux__
+#ifdef DNATIVE
 static int get_dr(pid_t pid, int i, unsigned int *dri)
 {
   *dri = ptrace(PTRACE_PEEKUSER, pid,
@@ -1746,7 +1746,7 @@ static int set_dr(pid_t pid, int i, unsigned long dri)
 
 static int dpmi_debug_breakpoint(int op, sigcontext_t *scp)
 {
-#ifdef __linux__
+#ifdef DNATIVE
   pid_t pid, vpid;
   int err, r, status;
 
