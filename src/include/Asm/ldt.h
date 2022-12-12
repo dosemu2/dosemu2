@@ -4,9 +4,6 @@
  *
  * Definitions of structures used with the modify_ldt system call.
  */
-#ifdef __linux__
-#include <asm/ldt.h>
-#else
 #ifndef _ASM_X86_LDT_H
 #define _ASM_X86_LDT_H
 
@@ -49,4 +46,3 @@ struct user_desc {
 
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_X86_LDT_H */
-#endif
