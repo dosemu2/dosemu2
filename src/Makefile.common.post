@@ -110,8 +110,8 @@ VS = $(subst .,_,$(1))_START
 		}\
 		' > $@_offsets.c
 	$(CC) -c -o $@_offsets.o $@_offsets.c
-	$(LD) -r -o $@ $@_ $@_offsets.o
-	$(RM) -f _$@ $@_ $@.bin $@.elf $@_offsets.c $@_offsets.o
+	$(AS_LD) -r -o $@ $@_ $@_offsets.o
+	$(RM) _$@ $@_ $@.bin $@.elf $@_offsets.c $@_offsets.o
 
 %.o: %.SS
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) $(ASFLAGS) -o $@
