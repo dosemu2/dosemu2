@@ -15,12 +15,6 @@
 
 #include "xmode.h"
 
-#define printf  com_printf
-#define fprintf	com_fprintf
-#undef	stderr
-#define stderr	com_stderr
-#define intr    com_intr
-
 static int X_change_config(unsigned, void *);
 
 int xmode_main(int argc, char **argv)
@@ -31,7 +25,7 @@ int xmode_main(int argc, char **argv)
 
   argv++;
   if(!--argc) {
-    fprintf(stderr,
+    com_fprintf(com_stderr,
       "usage: xmode <some arguments>\n"
       "  -mode <mode>     activate graphics/text mode\n"
       "  -title <name>    set name of emulator (in window title)\n"
@@ -78,7 +72,7 @@ int xmode_main(int argc, char **argv)
     else if(!strcmp(*argv, "-map") && argc >= 2) {
       l = strtol(argv[1], &p, 0);
       if(argv[1] == p) {
-        fprintf(stderr, "invalid mode number \"%s\"\n", argv[1]);
+        com_fprintf(com_stderr, "invalid mode number \"%s\"\n", argv[1]);
         return 2;
       }
       X_change_config(CHG_MAP, &l);
@@ -87,7 +81,7 @@ int xmode_main(int argc, char **argv)
     else if(!strcmp(*argv, "-unmap") && argc >= 2) {
       l = strtol(argv[1], &p, 0);
       if(argv[1] == p) {
-        fprintf(stderr, "invalid mode number \"%s\"\n", argv[1]);
+        com_fprintf(com_stderr, "invalid mode number \"%s\"\n", argv[1]);
         return 2;
       }
       X_change_config(CHG_UNMAP, &l);
@@ -96,12 +90,12 @@ int xmode_main(int argc, char **argv)
     else if(!strcmp(*argv, "-winsize") && argc >= 3) {
       ll[0] = strtol(argv[1], &p, 0);
       if(argv[1] == p) {
-        fprintf(stderr, "invalid width \"%s\"\n", argv[1]);
+        com_fprintf(com_stderr, "invalid width \"%s\"\n", argv[1]);
         return 2;
       }
       ll[1] = strtol(argv[2], &p, 0);
       if(argv[2] == p) {
-        fprintf(stderr, "invalid height \"%s\"\n", argv[2]);
+        com_fprintf(com_stderr, "invalid height \"%s\"\n", argv[2]);
         return 2;
       }
       X_change_config(CHG_WINSIZE, ll);
@@ -110,7 +104,7 @@ int xmode_main(int argc, char **argv)
     else if(!strcmp(*argv, "-mode") && argc >= 2) {
       l = strtol(argv[1], &p, 0);
       if(argv[1] == p) {
-        fprintf(stderr, "invalid mode number \"%s\"\n", argv[1]);
+        com_fprintf(com_stderr, "invalid mode number \"%s\"\n", argv[1]);
         return 2;
       }
       if(l & ~0xff) {
@@ -118,13 +112,13 @@ int xmode_main(int argc, char **argv)
 
         r.r_bx = l & 0xffff;
         r.r_ax = 0x4f02;
-        intr(0x10, &r);
+        com_intr(0x10, &r);
       }
       else {
         struct REGPACK r = REGPACK_INIT;
 
         r.r_ax = l & 0xff;
-        intr(0x10, &r);
+        com_intr(0x10, &r);
       }
       argc -= 2; argv += 2;
     }
@@ -156,7 +150,7 @@ int xmode_main(int argc, char **argv)
       argc -= 2; argv += 2;
     }
     else {
-      fprintf(stderr, "Don't know what to do with argument \"%s\"; aborting here.\n", *argv);
+      com_fprintf(com_stderr, "Don't know what to do with argument \"%s\"; aborting here.\n", *argv);
       return 2;
     }
   }

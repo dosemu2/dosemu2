@@ -44,11 +44,6 @@
 
 #include "dosdbg.h"
 
-#define printf  com_printf
-#define FP_OFF(x) DOSEMU_LMHEAP_OFFS_OF(x)
-#define FP_SEG(x) DOSEMU_LMHEAP_SEG
-
-
 typedef unsigned char uint8;
 typedef unsigned int uint16;
 
@@ -59,19 +54,19 @@ typedef unsigned int uint16;
 
 static void Usage(void)
 {
-    printf("Usage: EMUCONF [string|HELP]\n");
-    printf("If no string is specified, then EMUCONF will show the current debug settings.\n");
-    printf("  If HELP is specified, then this screen is displayed.  Otherwise <string>\n");
-    printf("  is parsed and used to change the current debug settings.\n\n");
-    printf("<string> can contain letters, and the '+' and '-' characters.\n");
-    printf("  Letters denote specific message classes, except for 'a' which is\n");
-    printf("  shorthand for all classes\n\n");
-    printf("Any classes following a '+', up until the end of string or a '-',\n");
-    printf("  will be turned on.  Likewise, any classes following a '-', to the\n");
-    printf("  end of string or a '+' will be turned off.\n\n");
-    printf("The character 'a' acts like a string of all possible debugging classes,\n");
-    printf("  so \"-a\" turns all message off, and \"+a-RW\" would turn all messages\n");
-    printf("  on except for disk Read and Write messages.");
+    com_printf("Usage: EMUCONF [string|HELP]\n");
+    com_printf("If no string is specified, then EMUCONF will show the current debug settings.\n");
+    com_printf("  If HELP is specified, then this screen is displayed.  Otherwise <string>\n");
+    com_printf("  is parsed and used to change the current debug settings.\n\n");
+    com_printf("<string> can contain letters, and the '+' and '-' characters.\n");
+    com_printf("  Letters denote specific message classes, except for 'a' which is\n");
+    com_printf("  shorthand for all classes\n\n");
+    com_printf("Any classes following a '+', up until the end of string or a '-',\n");
+    com_printf("  will be turned on.  Likewise, any classes following a '-', to the\n");
+    com_printf("  end of string or a '+' will be turned off.\n\n");
+    com_printf("The character 'a' acts like a string of all possible debugging classes,\n");
+    com_printf("  so \"-a\" turns all message off, and \"+a-RW\" would turn all messages\n");
+    com_printf("  on except for disk Read and Write messages.");
 }
 
 static uint16 SetDebugString(char *debugStr)
@@ -83,12 +78,12 @@ static void ShowDebugString(void)
 {
   char s[1024];
 
-  printf("Current debug message class settings:\n");
+  com_printf("Current debug message class settings:\n");
 
   if (!GetDebugInfoHelper(s, sizeof s))
-    printf("Warning: output truncated!\n");
+    com_printf("Warning: output truncated!\n");
 
-  printf("%s\n", s);
+  com_printf("%s\n", s);
 }
 
 static uint16 ParseAndSetDebugString(char *userDebugStr)
@@ -140,7 +135,7 @@ static uint16 ParseAndSetDebugString(char *userDebugStr)
     ccode = SetDebugString(debugStr);
 
     if (ccode == 0) {
-         printf("Debug settings were adjusted...\n");
+         com_printf("Debug settings were adjusted...\n");
          ShowDebugString();
     }
 
