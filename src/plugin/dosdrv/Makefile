@@ -20,7 +20,7 @@ $(COM2) $(SYS): | $(top_builddir)/commands
 
 .PRECIOUS: $(D1)/%
 $(D1)/%: %.elf
-	objcopy -j .text -O binary $< $(D1)/$(@F)
+	$(XOBJCOPY) -j .text -O binary $< $(D1)/$(@F)
 	chmod -x $@
 
 $(D)/%: $(D1)/%

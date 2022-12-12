@@ -22,7 +22,7 @@ boot%.elf: boot%.o
 	chmod -x $@
 
 boot%.bin: boot%.elf
-	$(OBJCOPY) -j .text -O binary $< $@
+	$(XOBJCOPY) -j .text -O binary $< $@
 
 boot%.xxd: boot%.bin
 	echo "const char boot$*_code[] = \"\\" >$@
