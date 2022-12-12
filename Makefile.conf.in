@@ -43,6 +43,7 @@ LIBS:=@LIBS@
 CC:=@CC@
 CPP:=@CPP@
 LD:=@CC@
+HOST_LD:=@LD@
 AS:=@AS@
 XAS:=@XAS@
 AS_LD:=@AS_LD@
