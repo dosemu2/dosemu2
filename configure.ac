@@ -494,6 +494,9 @@ if test "$machine" = "i386" -o "$machine" = "x86_64"; then
     AC_DEFINE(DNATIVE)
     DNATIVE=1
     AC_SUBST(DNATIVE)
+    AC_DEFINE(INSTREMU)
+    INSTREMU=1
+    AC_SUBST(INSTREMU)
 fi
 if test "$machine" != "aarch64"; then
     AC_MSG_NOTICE([Enabling fast context switching...])
@@ -653,6 +656,9 @@ AH_TEMPLATE([X86_JIT],
 
 AH_TEMPLATE([DNATIVE],
 [ Define this to enable native DPMI back-end ])
+
+AH_TEMPLATE([INSTREMU],
+[ Define this to enable instremu instruction emulator ])
 
 AH_TEMPLATE([MCONTEXT],
 [ Define this to enable libmcontext use ])
