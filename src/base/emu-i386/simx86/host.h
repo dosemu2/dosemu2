@@ -108,7 +108,6 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 
 /////////////////////////////////////////////////////////////////////////////
 
-#if defined(i386)||defined(__i386)||defined(__i386__)||defined(__x86_64__)
 #ifdef USE_BOUND
 /* `Fetch` is for CODE reads, `Get`/`Put` is for DATA.
  *  WARNING - BOUND uses SIGNED limits!! */
@@ -173,8 +172,8 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 #define GetDLong(a)	read_dword(a)
 #define DataGetWL_U(m,a) ((m)&DATA16? GetDWord(a):GetDLong(a))
 #define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(int)GetDLong(a))
-#endif
 
+#if 0
 #if defined(ppc)||defined(__ppc)||defined(__ppc__)
 #define Fetch(a)	*((unsigned char *)(a))
 #define FetchW(a)	ppc_pswap2((int)(a))
@@ -190,7 +189,6 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 #define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(int)GetDLong(a))
 #endif
 
-#if 0
 /* general-purpose */
 //static inline unsigned short pswap2(long a) {
 //	register unsigned char *p = (unsigned char *)a;
