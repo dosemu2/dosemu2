@@ -59,11 +59,6 @@ hitimer_t GenTime, LinkTime;
 static hitimer_t TotalTime;
 static int iniflag = 0;
 
-static hitimer_t sigEMUtime = 0;
-static hitimer_t lastEMUsig = 0;
-static unsigned long sigEMUdelta = 0;
-int eTimeCorrect;
-
 /* This needs to be merged someday with 'mode' */
 volatile int CEmuStat = 0;
 
@@ -738,14 +733,6 @@ void reset_emu_cpu(void)
 
 void init_emu_cpu(void)
 {
-  eTimeCorrect = 0;		// full backtime stretch
-#ifdef HOST_ARCH_X86
-  if (!CONFIG_CPUSIM)
-    eTimeCorrect = 1;		// 1/2 backtime stretch
-#endif
-  if (!config.rdtsc)
-    eTimeCorrect = -1;		// if we can't trust the TSC for time keeping
-				// then don't use it to stretch either
   if (Ofs_END > 128) {
     error("CPUEMU: Ofs_END is too large, %i\n", Ofs_END);
     config.exitearly = 1;
@@ -821,28 +808,7 @@ void e_gen_sigalrm(void)
 	/* here we come from the kernel with cs==UCODESEL, as
 	 * the passed context is that of dosemu, NOT that of the
 	 * emulated CPU! */
-
-	e_sigpa_count += sigEMUdelta;
-	if (!in_vm86_emu && !in_dpmi_emu) {	/* if into dosemu itself */
-	    if (eTimeCorrect >= 0) {
-		TheCPU.EMUtime = GETTSC();	/* resync emulator time  */
-		sigEMUtime = TheCPU.EMUtime;	/* and generate signal   */
-	    }
-	}
-	else {
-	    TheCPU.sigalrm_pending = 1;		/* tested by loops  */
-	}
-	if (eTimeCorrect < 0)
-		return;
-	else if (TheCPU.EMUtime >= sigEMUtime) {
-		lastEMUsig = TheCPU.EMUtime;
-		sigEMUtime += sigEMUdelta;
-		/* we can't call sigalrm() because of the way the
-		 * context parameter is passed. */
-		return;	/* -> signal_save */
-	}
-	/* here we return back to dosemu */
-	return;
+	TheCPU.sigalrm_pending = 1;		/* tested by loops  */
 }
 
 void enter_cpu_emu(void)
@@ -853,11 +819,6 @@ void enter_cpu_emu(void)
 	   to the segment bases */
 	TheCPU.mem_base = CONFIG_CPUSIM ? 0 : (uintptr_t)mem_base;
 
-	if (eTimeCorrect >= 0) {
-		TheCPU.EMUtime = GETTSC();
-		sigEMUdelta = realdelta*config.CPUSpeedInMhz;
-		sigEMUtime = TheCPU.EMUtime + sigEMUdelta;
-	}
 	if (debug_level('e')) {
 		TotalTime = 0;
 #ifdef PROFILE
@@ -987,7 +948,6 @@ static const char *retdescs[] =
 
 int e_vm86(void)
 {
-  hitimer_t tt0 = 0;
   int xval,retval,mode;
 #ifdef SKIP_VM86_TRACE
   int demusav;
@@ -1004,7 +964,6 @@ int e_vm86(void)
   TheCPU.StackMask = 0x0000ffff;
   /* FPU state is loaded later on demand for JIT, not used for simulator */
   TheCPU.fpstate = vm86_fpu_state;
-  if (eTimeCorrect >= 0) TheCPU.EMUtime = GETTSC();
 #ifdef SKIP_VM86_TRACE
   demusav=debug_level('e'); if (debug_level('e')) set_debug_level('e', 1);
 #endif
@@ -1047,7 +1006,6 @@ int e_vm86(void)
     if (debug_level('e')>1) e_printf("---------------------\n\t   EMU86: EXCP %#x\n", xval-1);
 
     retval = -1;
-    E_TIME_STRETCH;
 
     if (xval==EXCP_SIGNAL) {	/* coming here for async interruptions */
 	if (CEmuStat & (CeS_SIGPEND|CeS_SIGACT))
@@ -1081,9 +1039,7 @@ int e_vm86(void)
 	      }
 	    default: {
 		/* FAULT, handled via signal callback */
-		if (debug_level('e')) TotalTime += (GETTSC() - tt0);
 		vm86_fault(xval-1, TheCPU.scp_err, DOSADDR_REL(LINP(TheCPU.cr2)));
-		if (debug_level('e')) tt0 = GETTSC();
 		retval = VM86_SIGNAL;
 		break;
 	    }
@@ -1104,14 +1060,6 @@ int e_vm86(void)
 #ifdef SKIP_VM86_TRACE
   set_debug_level('e',demusav);
 #endif
-  if (debug_level('e')) {
-    TotalTime += (GETTSC() - tt0);
-    /* this time should become >0 only when dosemu was descheduled
-     * during a vm86/dpmi call. It will be necessary to subtract this
-     * value from ZeroBase to account for the elapsed time, maybe. */
-    if (debug_level('e')>1)
-      dbug_printf("Sys timers d=%d\n",e_sigpa_count);
-  }
   return retval;
 }
 
@@ -1120,14 +1068,11 @@ int e_vm86(void)
 
 int e_dpmi(sigcontext_t *scp)
 {
-  volatile hitimer_t tt0 = 0;
   int xval,retval,mode;
 
   if (iniflag==0) enter_cpu_emu();
 
-  if (debug_level('e')) tt0 = GETTSC();
   e_sigpa_count = 0;
-  if (eTimeCorrect >= 0) TheCPU.EMUtime = GETTSC();
   /* make clear we are in PM now */
   TheCPU.cr[0] |= 1;
 
@@ -1177,7 +1122,6 @@ int e_dpmi(sigcontext_t *scp)
     Cpu2Scp (scp, xval-1);
 
     retval = DPMI_RET_CLIENT;
-    E_TIME_STRETCH;
 
     if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
 	if (debug_level('e')>2) e_printf("DPMI sigpending = %d\n",signal_pending());
@@ -1188,19 +1132,12 @@ int e_dpmi(sigcontext_t *scp)
     else if (xval == EXCP0E_PAGE && vga_emu_fault(DOSADDR_REL(LINP(_cr2)),_err,scp)==True) {
 	retval = DPMI_RET_CLIENT;
     } else {
-	if (debug_level('e')) TotalTime += (GETTSC() - tt0);
 	retval = dpmi_fault(scp);
-	if (debug_level('e')) tt0 = GETTSC();
     }
   }
   while (!signal_pending() && retval == DPMI_RET_CLIENT);
   /* ------ OUTER LOOP -- exit to user level ---------------------- */
 
-  if (debug_level('e')) {
-    dbug_printf("DPM86: retval=%#x\n", retval);
-    TotalTime += (GETTSC() - tt0);
-    dbug_printf("Sys timers d=%d\n",e_sigpa_count);
-  }
   return retval;
 }
 

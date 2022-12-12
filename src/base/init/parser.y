@@ -233,7 +233,7 @@ enum {
 %token FASTFLOPPY HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
 %token ETHDEV TAPDEV VDESWITCH SLIRPARGS VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
-%token MATHCO CPU CPUSPEED RDTSC BOOTDRIVE SWAP_BOOTDRIVE
+%token MATHCO CPU CPUSPEED BOOTDRIVE SWAP_BOOTDRIVE
 %token L_XMS L_DPMI DPMI_LIN_RSV_BASE DPMI_LIN_RSV_SIZE PM_DOS_API NO_NULL_CHECKS
 %token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS UMB_A0 UMB_B0 UMB_F0 HMA DOS_UP
@@ -504,12 +504,6 @@ line:		CHARSET '{' charset_flags '}' {}
 			}
 #endif
 			}
-		| RDTSC bool
-		    {
-			config.rdtsc = ($2!=0);
-			c_printf("CONF: %sabling use of pentium timer\n",
-				(config.rdtsc?"En":"Dis"));
-		    }
 		| PCI bool
 		    {
 		      config.pci_video = ($2!=0);

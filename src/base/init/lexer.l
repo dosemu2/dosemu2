@@ -319,7 +319,6 @@ emuretrace		RETURN(EMURETRACE);
 mathco			RETURN(MATHCO);
 cpu			RETURN(CPU);
 cpuspeed		RETURN(CPUSPEED);
-rdtsc			RETURN(RDTSC);
 bootdrive		RETURN(BOOTDRIVE);
 swap_bootdrive		RETURN(SWAP_BOOTDRIVE);
 xms			RETURN(L_XMS);

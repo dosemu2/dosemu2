@@ -862,16 +862,9 @@ static int TraverseAndClean(void)
 {
   int cnt = 0;
   TNode *G;
-  static hitimer_t bT = 0;
-#ifdef PROFILE
-  hitimer_t t0 = 0;
-
-  if (debug_level('e')) t0 = GETTSC();
-#endif
   if (Traverser.init == 0) {
       Traverser.p = G = &CollectTree.root;
       Traverser.init = 1;
-      if (debug_level('e')>2) bT = GETTSC();
   }
   else
       G = Traverser.p;
@@ -879,11 +872,6 @@ static int TraverseAndClean(void)
   /* walk to next node */
   G = NEXTNODE(G);
   if (G == &CollectTree.root) {
-      if (debug_level('e')>2) {
-          hitimer_t bt1 = GETTSC();
-          dbug_printf("*\tRestart traversing n=%d %16lld\n",ninodes,(long long)(bt1-bT));
-          bT = bt1;
-      }
       G = NEXTNODE(G);
       if (G == &CollectTree.root)
           return 0;
@@ -1458,7 +1446,7 @@ void CollectStat (void)
 	int i, m = 0;
 #ifdef SHOW_STAT
 	int csm = config.CPUSpeedInMhz*1000;
-	xCST[cstx].a = TheCPU.EMUtime;
+//	xCST[cstx].a = TheCPU.EMUtime;
 	xCST[cstx].s = TheCPU.sigprof_pending;
 	xCST[cstx].b = ninodes;
 	xCST[cstx].c = NodesParsed;

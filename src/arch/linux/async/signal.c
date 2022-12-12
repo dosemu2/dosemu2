@@ -1103,9 +1103,6 @@ static void SIGALRM_call(void *arg)
   for (i = 0; i < alrm_hndl_num; i++)
     alrm_hndl[i].handler();
 
-  if (config.rdtsc)
-    update_cputime_TSCBase();
-
   alarm_idle();
 
   /* Here we 'type in' prestrokes from commandline, as long as there are any

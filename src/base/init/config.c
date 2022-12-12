@@ -168,8 +168,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("CPUclock %g MHz\ncpu_spd 0x%lx\ncpu_tick_spd 0x%lx\n",
 	(((double)LLF_US)/config.cpu_spd), config.cpu_spd, config.cpu_tick_spd);
 
-    (*print)("pci %d\nrdtsc %d\nmathco %d\nsmp %d\n",
-                 config.pci, config.rdtsc, config.mathco, config.smp);
+    (*print)("pci %d\nmathco %d\nsmp %d\n",
+                 config.pci, config.mathco, config.smp);
     (*print)("cpuspeed %d\n", config.CPUSpeedInMhz);
 
     if (config_check_only) mapping_init();
@@ -778,11 +778,6 @@ static void read_cpu_info(void)
 	  }
 	  else
 	    cpuflags=0;
-	  if (!cpuflags) {
-            if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
-              break;
-            }
-          }
         }
         /* fall through */
       case 4: config.realcpu = CPU_486;
@@ -826,7 +821,7 @@ static void config_post_process(void)
     pclose(f);
 #endif
     config.realcpu = CPU_386;
-    if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
+    if (vm86s.cpu_type > config.realcpu || config.mathco)
 	read_cpu_info();
     if (vm86s.cpu_type > config.realcpu) {
 	vm86s.cpu_type = config.realcpu;
@@ -837,16 +832,6 @@ static void config_post_process(void)
           "adjust $_cpu_vm_dpmi\n");
     c_printf("CONF: V86 cpu vm set to %d\n", config.cpu_vm);
     c_printf("CONF: DPMI cpu vm set to %d\n", config.cpu_vm_dpmi);
-    if (config.rdtsc) {
-	if (config.smp) {
-		c_printf("CONF: Denying use of pentium timer on SMP machine\n");
-		config.rdtsc = 0;
-	}
-	if (config.realcpu < CPU_586) {
-		c_printf("CONF: Ignoring 'rdtsc' statement\n");
-		config.rdtsc = 0;
-	}
-    }
     if (!config.dpmi)
 	config.dpmi_lin_rsv_size = 0;
 

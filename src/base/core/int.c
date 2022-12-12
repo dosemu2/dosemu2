@@ -663,10 +663,7 @@ static int dos_helper(int stk_offs, int revect)
 
     case DOS_HELPER_GET_CPU_SPEED:
 	{
-	    if (config.rdtsc)
-		REG(eax) = (LLF_US << 16) / config.cpu_spd;
-	    else
-		REG(eax) = 0;
+	    REG(eax) = 0;
 	    break;
 	}
 

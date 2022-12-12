@@ -416,7 +416,7 @@ static unsigned int FindExecCode(unsigned int PC)
 #elif !defined(ASM_DUMP)
 		/* try fast inner loop if nothing special is going on */
 		if (!(CEmuStat & (CeS_INHI|CeS_MOVSS)) &&
-		    !debug_level('e') && eTimeCorrect < 0 &&
+		    !debug_level('e') &&
 		    GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)))
 			PC = Exec_x86_fast(G);
 		else
@@ -2600,7 +2600,6 @@ repag0:
 /*e4*/	case INb: {
 			unsigned short a;
 			CODE_FLUSH();
-			E_TIME_STRETCH;		// for PIT
 			/* there's no reason to compile this, as most of
 			 * the ports under 0x100 are emulated by dosemu */
 			a = Fetch(PC+1);
@@ -2667,7 +2666,6 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = Fetch(PC+1);
-			if ((a&0xfc)==0x40) E_TIME_STRETCH;	// for PIT
 			/* there's no reason to compile this, as most of
 			 * the ports under 0x100 are emulated by dosemu */
 			if (!test_ioperm(a)) goto not_permitted;
@@ -3357,11 +3355,6 @@ repag0:
 					NewNode = 1;
 				}
 			}
-		}
-		else
-		{
-		    if (eTimeCorrect >= 0)
-			TheCPU.EMUtime += FAKE_INS_TIME;
 		}
 
 		/* check segment boundaries. TODO for prot mode */
