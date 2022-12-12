@@ -857,7 +857,8 @@ int ValidAndUsedSelector(unsigned int selector)
 
 static inline int check_verr(unsigned short selector)
 {
-  int ret;
+  int ret = 0;
+#ifdef DNATIVE
   asm volatile(
     "verrw %%ax\n"
     "jz 1f\n"
@@ -865,6 +866,7 @@ static inline int check_verr(unsigned short selector)
     "1:\n"
     : "=a"(ret)
     : "a"(selector));
+#endif
   return ret;
 }
 
@@ -1102,8 +1104,6 @@ unsigned short CreateAliasDescriptor(unsigned short selector)
 
 int GetDescriptor(us selector, unsigned int *lp)
 {
-  int typebyte;
-  unsigned char *type_ptr;
   if (!ValidAndUsedSelector(selector))
     return -1; /* invalid value 8021 */
   get_ldt(ldt_buffer);  // update the buffer
