@@ -70,7 +70,7 @@
 
 #define makeaddr(x,y) ((((unsigned int)x) << 4) + (unsigned int)y)
 
-struct HMCB *hma_start;
+static struct HMCB *hma_start;
 
 /* prototypes */
 static void mhp_regs  (int, char *[]);
@@ -370,6 +370,27 @@ static int check_for_stopped(void)
     mhp_send();
   }
   return mhpdbgc.stopped;
+}
+
+/* Interrogate DOS for HMA start (Win95+) */
+void mhp_init_hma(void)
+{
+  pre_msdos();
+
+  LWORD(eax) = 0x4a04;
+  do_int_call_back(0x2f);
+  if (LWORD(eax) == 0) {
+    hma_start = MK_FP32(SREG(es), LWORD(edi));
+  } else {
+    hma_start = NULL;
+  }
+
+  post_msdos();
+}
+
+void mhp_reset_hma(void)
+{
+  hma_start = NULL;
 }
 
 int mhp_usermap_load_gnuld(const char *fname, uint16_t origin)

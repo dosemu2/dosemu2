@@ -27,8 +27,6 @@ struct HMCB {
   uint8_t reserved[8]; // unused (explicitly set to 0 for MS-DOS 7.10)
 } __attribute__((packed));
 
-extern struct HMCB *hma_start;
-
 struct DSCB {
   char stype;           /* 0 (subsegment type)
                           'D'  device driver
