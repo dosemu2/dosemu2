@@ -19,7 +19,7 @@
 
 #include "emu.h"
 
-#ifdef __linux__
+#ifdef USE_KVM
 /* kvm functions */
 int init_kvm_cpu(void);
 void init_kvm_monitor(void);

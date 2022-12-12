@@ -494,9 +494,14 @@ if test "$machine" = "i386" -o "$machine" = "x86_64"; then
     AC_DEFINE(DNATIVE)
     DNATIVE=1
     AC_SUBST(DNATIVE)
+
     AC_DEFINE(INSTREMU)
     INSTREMU=1
     AC_SUBST(INSTREMU)
+
+    AC_DEFINE(USE_KVM)
+    KVM=1
+    AC_SUBST(KVM)
 fi
 if test "$machine" != "aarch64"; then
     AC_MSG_NOTICE([Enabling fast context switching...])
@@ -659,6 +664,9 @@ AH_TEMPLATE([DNATIVE],
 
 AH_TEMPLATE([INSTREMU],
 [ Define this to enable instremu instruction emulator ])
+
+AH_TEMPLATE([USE_KVM],
+[ Define this to enable kvm support ])
 
 AH_TEMPLATE([MCONTEXT],
 [ Define this to enable libmcontext use ])
