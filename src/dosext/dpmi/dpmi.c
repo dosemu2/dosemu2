@@ -1080,6 +1080,7 @@ static int GetDescriptorAccessRights(unsigned short selector,
 {
   if (!ValidAndUsedSelector(selector))
     return -1; /* invalid selector 8022 */
+  get_ldt(ldt_buffer);  // update the buffer
   memcpy(acc_rights, &ldt_buffer[(selector & 0xfff8) + 5], 2);
   return 0;
 }
@@ -1099,50 +1100,14 @@ unsigned short CreateAliasDescriptor(unsigned short selector)
   return ds_selector;
 }
 
-static inline int do_LAR(us selector)
-{
-  int ret;
-#ifdef X86_EMULATOR
-  if (config.cpu_vm_dpmi != CPUVM_NATIVE)
-    return emu_do_LAR(selector);
-  else
-#endif
-    asm volatile(
-      "larw %%ax,%%ax\n"
-      "jz 1f\n"
-      "xorl %%eax,%%eax\n"
-      "1: shrl $8,%%eax\n"
-      : "=a"(ret)
-      : "a"(selector)
-    );
-  return ret;
-}
-
 int GetDescriptor(us selector, unsigned int *lp)
 {
   int typebyte;
   unsigned char *type_ptr;
   if (!ValidAndUsedSelector(selector))
     return -1; /* invalid value 8021 */
+  get_ldt(ldt_buffer);  // update the buffer
   memcpy((unsigned char *)lp, &ldt_buffer[selector & 0xfff8], LDT_ENTRY_SIZE);
-  /* DANG_BEGIN_REMARK
-   * Hopefully the below LAR can serve as a replacement for the KERNEL_LDT,
-   * which we are abandoning now. Especially the 'accessed-bit' will get
-   * updated in the ldt-cache with the code below.
-   * Most DPMI-clients fortunately _are_ using LAR also to get this info,
-   * however, some do not. Some of those which do _not_, at least use the
-   * DPMI-GetDescriptor function, so this may solve the problem.
-   *                      (Hans Lermen, July 1996)
-   * DANG_END_REMARK
-   */
-  if (!Segments[selector >> 3].not_present) {
-    typebyte = do_LAR(selector);
-    type_ptr = ((unsigned char *)lp) + 5;
-    if (typebyte != *type_ptr) {
-	D_printf("DPMI: change type only in local selector\n");
-	*type_ptr=typebyte;
-    }
-  }
   D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08x%08x\n",
     selector >> 3, selector, lp[1], lp[0]);
   return 0;
