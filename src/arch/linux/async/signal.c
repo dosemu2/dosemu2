@@ -1284,19 +1284,6 @@ static void async_call(void *arg)
   process_callbacks();
 }
 
-static int saved_fc;
-
-void signal_switch_to_dosemu(void)
-{
-  saved_fc = fault_cnt;
-  fault_cnt = 0;
-}
-
-void signal_switch_to_dpmi(void)
-{
-  fault_cnt = saved_fc;
-}
-
 #if SIGALTSTACK_WA
 static void signal_sas_wa(void)
 {
@@ -1333,6 +1320,20 @@ static void signal_sas_wa(void)
   setmcontext(&hack);
 }
 #endif
+
+#ifdef DNATIVE
+static int saved_fc;
+
+void signal_switch_to_dosemu(void)
+{
+  saved_fc = fault_cnt;
+  fault_cnt = 0;
+}
+
+void signal_switch_to_dpmi(void)
+{
+  fault_cnt = saved_fc;
+}
 
 void signal_return_to_dosemu(void)
 {
@@ -1384,6 +1385,7 @@ void signal_restore_async_sigs(void)
    * interrupted after changing %fs, we are in troubles */
   sigprocmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
 }
+#endif
 
 /* similar to above, but to call from non-signal context */
 void signal_block_async_nosig(sigset_t *old_mask)
