@@ -288,6 +288,7 @@ extern char OpSizeBit[];
 #define OPSIZE(m) (OpSize[(m)&(DATA16|MBYTE)])
 #define OPSIZEBIT(m) (OpSizeBit[(m)&(DATA16|MBYTE)])
 
+#ifdef X86_JIT
 int Cpatch(sigcontext_t *scp);
 int UnCpatch(unsigned char *eip);
 void stub_rep(void) asm ("stub_rep__");
@@ -299,5 +300,6 @@ void stub_wri_32(void) asm ("stub_wri_32__");
 void stub_read_8 (void) asm ("stub_read_8__" );
 void stub_read_16(void) asm ("stub_read_16__");
 void stub_read_32(void) asm ("stub_read_32__");
+#endif
 
 #endif
