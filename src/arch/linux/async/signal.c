@@ -392,6 +392,7 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
     return;
   }
 
+#ifdef DNATIVE
 #if SIGRETURN_WA
   if (need_sr_wa && !DPMIValidSelector(_scp_cs))
     dpmi_iret_unwind(scp);
@@ -428,6 +429,7 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
     dosemu_arch_prctl(ARCH_SET_FS, eflags_fs_gs.fsbase);
   if (!eflags_fs_gs.gs && eflags_fs_gs.gsbase)
     dosemu_arch_prctl(ARCH_SET_GS, eflags_fs_gs.gsbase);
+#endif
 #endif
 }
 
@@ -477,6 +479,7 @@ void init_handler(sigcontext_t *scp, unsigned long uc_flags)
 SIG_PROTO_PFX
 void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
 {
+#ifdef DNATIVE
 #ifdef X86_EMULATOR
   /* in fullsim mode nothing to do */
   if (CONFIG_CPUSIM && EMU_DPMI())
@@ -517,6 +520,7 @@ void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
 
   loadregister(ds, _scp_ds);
   loadregister(es, _scp_es);
+#endif
 #endif
 }
 
