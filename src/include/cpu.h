@@ -287,6 +287,7 @@ extern fenv_t dosemu_fenv;
 		(__res1 << 16) | __res0; \
 	})
 
+#if defined(__x86_64__) || defined (__i386__)
 #define loadflags(value) asm volatile("push %0 ; popf"::"g" (value): "cc" )
 
 #define getflags() \
@@ -312,6 +313,13 @@ extern fenv_t dosemu_fenv;
 		asm volatile("mov %%" #reg ",%0":"=rm" (__value)); \
 		__value; \
 	})
+#else
+#define loadflags(value)
+#define getflags() 0
+#define loadregister(reg, value)
+#define getregister(reg) 0
+#define getsegment(reg) 0
+#endif
 
 #if defined(__x86_64__)
 #define loadfpstate(value) \
