@@ -277,7 +277,11 @@ void InitGen(void);
 int  NewIMeta(int npc, int *rc);
 extern void (*Gen)(int op, int mode, ...);
 extern void (*AddrGen)(int op, int mode, ...);
+#if defined(HOST_ARCH_X86)
 extern int  (*Fp87_op)(int exop, int reg);
+#else
+#define Fp87_op(exop, reg) 0
+#endif
 extern unsigned int (*CloseAndExec)(unsigned int PC, int mode, int ln);
 void EndGen(void);
 //
