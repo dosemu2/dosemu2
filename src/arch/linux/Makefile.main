@@ -32,6 +32,9 @@ LIBMC = base/lib/mcontext
 endif
 
 DPMI = dosext/dpmi dosext/dpmi/msdos
+ifeq ($(DNATIVE),1)
+DPMI += dosext/dpmi/dnative
+endif
 
 _LIBSUBDIRS=base/video base/dev/vga base/core base/kbd_unicode \
 	arch/linux/async arch/linux/mapping $(LIBMC) \

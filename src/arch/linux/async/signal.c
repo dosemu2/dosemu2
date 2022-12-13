@@ -50,7 +50,7 @@
 #ifdef HAVE_LINUX_SIGNAL_H
 #include <linux/signal.h>
 #endif
-#define SIGALTSTACK_WA_DEFAULT 1
+#define SIGALTSTACK_WA_DEFAULT DNATIVE
 #if SIGALTSTACK_WA_DEFAULT
   #ifdef DISABLE_SYSTEM_WA
     #ifdef SS_AUTODISARM
@@ -86,7 +86,7 @@
 #include <asm/ucontext.h>
 #endif
 #ifdef __x86_64__
-  #define SIGRETURN_WA_DEFAULT WANT_SIGRETURN_WA
+  #define SIGRETURN_WA_DEFAULT DNATIVE
 #else
   #define SIGRETURN_WA_DEFAULT 0
 #endif
@@ -934,12 +934,14 @@ signal_pre_init(void)
   setup_nf_sig(SIGWINCH);
   fixupsig(SIGPROF);
   /* call that after all non-fatal sigs set up */
+#ifdef DNATIVE
   newsetsig(SIGILL, dosemu_fault);
   newsetsig(SIGFPE, dosemu_fault);
   newsetsig(SIGTRAP, dosemu_fault);
   newsetsig(SIGBUS, dosemu_fault);
-  newsetsig(SIGABRT, abort_signal);
   newsetsig(SIGSEGV, dosemu_fault);
+#endif
+  newsetsig(SIGABRT, abort_signal);
 
   /* block async signals so that threads inherit the blockage */
   sigprocmask(SIG_BLOCK, &q_mask, NULL);

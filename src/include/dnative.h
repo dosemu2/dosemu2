@@ -3,4 +3,4 @@
  *
  * for details see file COPYING in the DOSEMU distribution
  */
-#include "../dosext/dpmi/dnative.h"
+#include "../dosext/dpmi/dnative/dnative.h"

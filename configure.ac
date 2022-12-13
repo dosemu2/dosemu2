@@ -490,11 +490,14 @@ else
 fi
 
 if test "$machine" = "i386" -o "$machine" = "x86_64"; then
-    AC_MSG_NOTICE([Enabling native DPMI support...])
-    AC_DEFINE(DNATIVE)
-    DNATIVE=1
-    AC_SUBST(DNATIVE)
-
+    AC_ARG_ENABLE(dnative, [AS_HELP_STRING([--disable-dnative],
+        [do NOT compile with native DPMI support])])
+    if test "$enable_dnative" != "no"; then
+      AC_MSG_NOTICE([Enabling native DPMI support...])
+      AC_DEFINE(DNATIVE)
+      DNATIVE=1
+      AC_SUBST(DNATIVE)
+    fi
     AC_DEFINE(INSTREMU)
     INSTREMU=1
     AC_SUBST(INSTREMU)

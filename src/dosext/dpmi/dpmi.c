@@ -57,7 +57,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "emu-ldt.h"
 #include "kvm.h"
 #include "vtmr.h"
-#include "dnative.h"
+#include "dnative/dnative.h"
 #include "dpmi_api.h"
 
 #define SHOWREGS 1
