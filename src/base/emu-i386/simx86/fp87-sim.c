@@ -64,19 +64,6 @@ static unsigned short WFRS;
 
 static long double _fparea[8];
 
-/*
- * This function is only here for looking at the generated binary code
- * with objdump.
- */
-static void _test_(void) __attribute__((used));
-
-static void _test_(void)
-{
-	__asm__ __volatile__ (" \
-		nop \
-		" : : : "memory" );
-}
-
 void init_emu_npu (void)
 {
 	int i;
@@ -93,18 +80,33 @@ void init_emu_npu (void)
 	TheCPU.fpstt = 0;
 	TheCPU.fpuc  = 0x37f;
 	TheCPU.fptag = 0xffff;
-	__asm__ __volatile__ ("fninit");
 	WFR0 = WFR1 = 0.0;
 }
 
 static void ftest(long double d)
 {
 	register unsigned short fps;
-	__asm__ __volatile__ (
-	"fldt	%1\n"
-	"fxam\n"
-	"fnstsw\n"
-	"fstp	%%st(0)" : "=a"(fps) : "m"(d) );
+	// https://www.felixcloutier.com/x86/fxam
+	// bits in status word: c0:8, c1:9, c2:10, c3:14
+	switch(fpclassify(d)) {
+	case FP_NAN:
+		fps = 0x100;
+		break;
+	case FP_INFINITE:
+		fps = 0x500;
+		break;
+	case FP_ZERO:
+		fps = 0x4000;
+		break;
+	case FP_SUBNORMAL:
+		fps = 0x4400;
+		break;
+	case FP_NORMAL:
+	default:
+		fps = 0x400;
+		break;
+	}
+	if (signbit(d)) fps |= 0x200;
 	TheCPU.fpus = (fps&0xc7df)|(TheCPU.fpstt<<11);
 }
 
@@ -649,14 +651,12 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //	63.3*	DB 11000011	FINIT
 		   case 2:		/* FCLEX */
 			TheCPU.fpus &= 0x7f00;
-			__asm__ __volatile__ ("fnclex");
 			break;
 		   case 3:		/* FINIT */
 			TheCPU.fpus  = 0;
 			TheCPU.fpstt = 0;
 			TheCPU.fpuc  = 0x37f;
 			TheCPU.fptag = 0xffff;
-			__asm__ __volatile__ ("fninit");
 			WFR0 = WFR1 = 0.0;
 			break;
 		   default: /* FNENI,FNDISI: 8087 */
@@ -996,7 +996,6 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			TheCPU.fpstt = 0;
 			TheCPU.fpuc  = 0x37f;
 			TheCPU.fptag = 0xffff;
-			__asm__ __volatile__ ("fninit");
 			WFR0 = WFR1 = 0.0;
 		    }
 		   }
