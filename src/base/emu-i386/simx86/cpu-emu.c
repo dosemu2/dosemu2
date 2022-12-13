@@ -775,10 +775,6 @@ void init_emu_cpu(void)
   InitGen_sim();
 #endif
 
-  if (config.realcpu < CPU_586) {
-    fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");
-    leavedos_main(0);
-  }
   IDT = NULL;
   if (GDT==NULL) {
 	/* The GDT is not really used (yet?) but some instructions
