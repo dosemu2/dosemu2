@@ -35,7 +35,8 @@ Build-Depends:
     binutils-dev,
     pkg-config,
     fdpp-dev,
-    clang
+    clang,
+    binutils-i686-linux-gnu
 Homepage: https://github.com/dosemu2/dosemu2
 
 Package: dosemu2
