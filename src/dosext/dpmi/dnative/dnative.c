@@ -119,60 +119,6 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
   }
 }
 
-#if WANT_SIGRETURN_WA
-#ifdef __x86_64__
-static unsigned int *iret_frame;
-
-asm("\n\
-	.globl DPMI_iret\n\
-	.type DPMI_iret,@function\n\
-DPMI_iret:\n\
-	iretl\n\
-");
-extern void DPMI_iret(void);
-
-static void iret_frame_setup(sigcontext_t * scp)
-{
-    /* set up a frame to get back to DPMI via iret. The kernel does not save
-       %ss, and the SYSCALL instruction in sigreturn() destroys it.
-
-       IRET pops off everything in 64-bit mode even if the privilege
-       does not change which is nice, but clobbers the high 48 bits
-       of rsp if the DPMI client uses a 16-bit stack which is not so
-       nice (see EMUfailure.txt). Setting %rsp to 0x100000000 so that
-       bits 16-31 are zero works around this problem, as DPMI code
-       can't see bits 32-63 anyway.
-     */
-
-    iret_frame[0] = _scp_eip;
-    iret_frame[1] = _scp_cs;
-    iret_frame[2] = _scp_eflags;
-    iret_frame[3] = _scp_esp;
-    iret_frame[4] = _scp_ss;
-    _scp_rsp = (unsigned long) iret_frame;
-}
-
-void dpmi_iret_setup(sigcontext_t * scp)
-{
-    iret_frame_setup(scp);
-    _scp_eflags &= ~TF;
-    _scp_rip = (unsigned long) DPMI_iret;
-    _scp_cs = getsegment(cs);
-}
-
-void dpmi_iret_unwind(sigcontext_t * scp)
-{
-    if (_scp_rip != (unsigned long) DPMI_iret)
-        return;
-    _scp_eip = iret_frame[0];
-    _scp_cs = iret_frame[1];
-    _scp_eflags = iret_frame[2];
-    _scp_esp = iret_frame[3];
-    _scp_ss = iret_frame[4];
-}
-#endif
-#endif
-
 static void dpmi_thr(void *arg);
 
 static int handle_pf(cpuctx_t *scp)

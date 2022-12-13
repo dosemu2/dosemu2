@@ -10,8 +10,6 @@ int native_dpmi_exit(cpuctx_t *scp);
 void native_dpmi_enter(void);
 void native_dpmi_leave(void);
 void dpmi_return(sigcontext_t *scp, int retcode);
-void dpmi_iret_setup(sigcontext_t *scp);
-void dpmi_iret_unwind(sigcontext_t *scp);
 
 #else
 
@@ -44,14 +42,6 @@ static inline void native_dpmi_leave(void)
 }
 
 static inline void dpmi_return(sigcontext_t *scp, int retcode)
-{
-}
-
-static inline void dpmi_iret_setup(sigcontext_t *scp)
-{
-}
-
-static inline void dpmi_iret_unwind(sigcontext_t *scp)
 {
 }
 
