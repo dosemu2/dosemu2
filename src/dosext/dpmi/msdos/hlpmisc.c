@@ -1,7 +1,7 @@
 #include "dpmi_api.h"
 #include "hlpmisc.h"
 
-void do_call_to(sigcontext_t *scp, int is_32, far_t dst, __dpmi_regs *rmreg)
+void do_call_to(cpuctx_t *scp, int is_32, far_t dst, __dpmi_regs *rmreg)
 {
     RMREG(ss) = 0;
     RMREG(sp) = 0;

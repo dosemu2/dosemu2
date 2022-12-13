@@ -138,7 +138,7 @@ FILE *aLog = NULL;
  * 20	unsigned short gs, __gsh;
  * --------------------------------------------------------------
  */
-sigcontext_t e_scp; /* initialized to 0 */
+cpuctx_t e_scp; /* initialized to 0 */
 
 /* ======================================================================= */
 
@@ -263,16 +263,16 @@ char *e_print_regs(void)
 #define GetSegmentBaseAddress(s)	GetSegmentBase(s)
 #define IsSegment32(s)			dpmi_segment_is32(s)
 
-char *e_print_scp_regs(sigcontext_t *scp, int pmode)
+char *e_print_scp_regs(cpuctx_t *scp, int pmode)
 {
 	static char buf[300];
 	unsigned short *stk;
 	int i, j;
 
-	i = sprintf(buf, "RAX: %08"PRI_RG"  RBX: %08"PRI_RG"  RCX: %08"PRI_RG"  RDX: %08"PRI_RG
+	i = sprintf(buf, "RAX: %08x  RBX: %08x  RCX: %08x  RDX: %08x"
 		"  VFLAGS(h): %08x\n",
 		_rax, _rbx, _rcx, _rdx, _eflags);
-	i += sprintf(buf + i, "RSI: %08"PRI_RG"  RDI: %08"PRI_RG"  RBP: %08"PRI_RG"  RSP: %08"PRI_RG"\n",
+	i += sprintf(buf + i, "RSI: %08x  RDI: %08x  RBP: %08x  RSP: %08x\n",
 		_rsi, _rdi, _rbp, _rsp);
 	i += sprintf(buf + i, "CS: %04x  DS: %04x  ES: %04x  FS: %04x  GS: %04x  SS: %04x\n",
 		_cs, _ds, _es, _fs, _gs, _ss);
@@ -332,7 +332,7 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
 }
 
 #ifdef TRACE_DPMI
-char *e_scp_disasm(sigcontext_t *scp, int pmode)
+char *e_scp_disasm(cpuctx_t *scp, int pmode)
 {
    static char insrep = 0;
    static unsigned char buf[1024];
@@ -523,6 +523,8 @@ static void Reg2Cpu (int mode)
   SetSegReal(SREG(gs),Ofs_GS);
   trans_addr     = LONG_CS + TheCPU.eip;
 
+  /* FPU state is loaded later on demand for JIT, not used for simulator */
+  TheCPU.fpstate = &vm86_fpu_state;
   if (debug_level('e')>1) {
 	if (debug_level('e')==9) e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n%s\n",
 		REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,
@@ -567,6 +569,14 @@ void Cpu2Reg (void)
     clear_IF();
   REG(eflags) |= EFLAGS_IF;
 
+  if (TheCPU.fpstate == NULL) {
+    if (!CONFIG_CPUSIM)
+      savefpstate(vm86_fpu_state);
+#ifdef HOST_ARCH_X86
+    fesetenv(&dosemu_fenv);
+#endif
+  }
+
   if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08x dpm=%08x emu=%08x\n",
 	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 }
@@ -574,7 +584,7 @@ void Cpu2Reg (void)
 
 /* ======================================================================= */
 
-static void Scp2Cpu (sigcontext_t *scp)
+static void Scp2Cpu (cpuctx_t *scp)
 {
   TheCPU.eax = _eax;
   TheCPU.ebx = _ebx;
@@ -600,14 +610,13 @@ static void Scp2Cpu (sigcontext_t *scp)
   TheCPU.cr2 = _cr2;
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
-  /* __fpstate is loaded later on demand for JIT, not used for simulator */
-  TheCPU.fpstate = __fpstate;
+  TheCPU.fpstate = &vm86_fpu_state;
 }
 
 /*
  * Build a sigcontext structure to enter fault handling from DPMI
  */
-static void Cpu2Scp (sigcontext_t *scp, int trapno)
+static void Cpu2Scp (cpuctx_t *scp, int trapno)
 {
   if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08x dpm=%08x fl=%08x\n",
 	_eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags);
@@ -641,14 +650,17 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
    */
   if (!TheCPU.err) _err = 0;		//???
   if (TheCPU.fpstate == NULL) {
-    if (!CONFIG_CPUSIM) savefpstate(*__fpstate);
+    if (!CONFIG_CPUSIM)
+      savefpstate(vm86_fpu_state);
     /* there is no real need to save and restore the FPU state of the
        emulator itself: savefpstate (fnsave) also resets the current FPU
        state using fninit; fesetenv then restores trapping of division by
        zero and overflow which is good enough for calling FPU-using
        routines.
     */
+#ifdef HOST_ARCH_X86
     fesetenv(&dosemu_fenv);
+#endif
   }
 
   /* push running flags - same as eflags, RF is cosmetic */
@@ -667,7 +679,7 @@ static void Cpu2Scp (sigcontext_t *scp, int trapno)
 /*
  * Enter emulator in DPMI mode (context_switch)
  */
-static int Scp2CpuD(sigcontext_t *scp)
+static int Scp2CpuD(cpuctx_t *scp)
 {
   unsigned char big; int mode=0;
 
@@ -962,8 +974,6 @@ int e_vm86(void)
   e_sigpa_count = 0;
   mode = ADDR16 | DATA16 | MREALA;
   TheCPU.StackMask = 0x0000ffff;
-  /* FPU state is loaded later on demand for JIT, not used for simulator */
-  TheCPU.fpstate = vm86_fpu_state;
 #ifdef SKIP_VM86_TRACE
   demusav=debug_level('e'); if (debug_level('e')) set_debug_level('e', 1);
 #endif
@@ -1049,11 +1059,6 @@ int e_vm86(void)
   while (retval < 0);
   /* ------ OUTER LOOP -- exit to user level ---------------------- */
 
-  if (TheCPU.fpstate == NULL) {
-    if (!CONFIG_CPUSIM) savefpstate(*vm86_fpu_state);
-    fesetenv(&dosemu_fenv);
-  }
-
   if (debug_level('e')>1)
     e_printf("EMU86: retval=%s\n", retdescs[retval&7]);
 
@@ -1066,7 +1071,7 @@ int e_vm86(void)
 /* ======================================================================= */
 
 
-int e_dpmi(sigcontext_t *scp)
+int e_dpmi(cpuctx_t *scp)
 {
   int xval,retval,mode;
 
@@ -1132,7 +1137,7 @@ int e_dpmi(sigcontext_t *scp)
     else if (xval == EXCP0E_PAGE && vga_emu_fault(DOSADDR_REL(LINP(_cr2)),_err,scp)==True) {
 	retval = DPMI_RET_CLIENT;
     } else {
-	retval = dpmi_fault(scp);
+	retval = DPMI_RET_FAULT;
     }
   }
   while (!signal_pending() && retval == DPMI_RET_CLIENT);
@@ -1145,7 +1150,7 @@ int e_dpmi(sigcontext_t *scp)
 /* ======================================================================= */
 /* file: src/cwsdpmi/exphdlr.c */
 
-void e_dpmi_b0x(int op,sigcontext_t *scp)
+void e_dpmi_b0x(int op,cpuctx_t *scp)
 {
   switch (op) {
     case 0: {	/* set */

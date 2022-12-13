@@ -3,13 +3,13 @@
 
 #include <assert.h>
 
-void msdos_api_call(sigcontext_t *scp, void *arg);
-void msdos_api_winos2_call(sigcontext_t *scp, void *arg);
+void msdos_api_call(cpuctx_t *scp, void *arg);
+void msdos_api_winos2_call(cpuctx_t *scp, void *arg);
 
-struct pmrm_ret msdos_ext_call(sigcontext_t *scp,
+struct pmrm_ret msdos_ext_call(cpuctx_t *scp,
 	struct RealModeCallStructure *rmreg,
 	unsigned short rm_seg, void *(*arg)(int), int off);
-struct pext_ret msdos_ext_ret(sigcontext_t *scp,
+struct pext_ret msdos_ext_ret(cpuctx_t *scp,
 	const struct RealModeCallStructure *rmreg,
 	unsigned short rm_seg, int off);
 

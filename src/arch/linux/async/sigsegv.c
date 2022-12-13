@@ -28,23 +28,22 @@
 #include "dosemu_config.h"
 #include "sig.h"
 
-/*
- * All of the functions in this module need to be declared with
- *   __attribute__((no_instrument_function))
- * so that they can safely handle signals that occur in DPMI context when
- * DOSEMU is built with the "-pg" gcc flag (which enables instrumentation for
- * gprof profiling).
- *
- * The reason for this is that mcount(), implicitly called from functions
- * instrumented with "-pg", requires access to thread-local state, and on x86,
- * TLS is implemented using the GS to refer to a segment in which the
- * thread-local variables are stored.
- *
- * However, in DPMI context, GS does not refer to this segment, and the kernel
- * does not (cannot?) restore it to do so when it invokes a signal handler, so
- * we must prevent mcount() from being called at all in this context.
- */
+static void print_exception_info(sigcontext_t *scp);
 
+static int dpmi_fault(sigcontext_t *scp)
+{
+  /* If this is an exception 0x11, we have to ignore it. The reason is that
+   * under real DOS the AM bit of CR0 is not set.
+   * Also clear the AC flag to prevent it from re-occuring.
+   */
+  if (_scp_trapno == 0x11) {
+    g_printf("Exception 0x11 occurred, clearing AC\n");
+    _scp_eflags &= ~AC;
+    return DPMI_RET_CLIENT;
+  }
+
+  return DPMI_RET_FAULT;	// process the rest in dosemu context
+}
 
 /*
  * DANG_BEGIN_FUNCTION dosemu_fault(int, sigcontext_t);
@@ -64,9 +63,9 @@
 static void dosemu_fault1(int signum, sigcontext_t *scp)
 {
   if (fault_cnt > 1) {
-    error("Fault handler re-entered! signal=%i _trapno=0x%X\n",
-      signum, _trapno);
-    if (!in_vm86 && !DPMIValidSelector(_cs)) {
+    error("Fault handler re-entered! signal=%i _trapno=0x%lx\n",
+      signum, _scp_ltrapno);
+    if (!in_vm86 && !DPMIValidSelector(_scp_cs)) {
       gdb_debug();
       _exit(43);
     } else {
@@ -76,18 +75,18 @@ static void dosemu_fault1(int signum, sigcontext_t *scp)
     goto bad;
   }
 #ifdef __x86_64__
-  if (_trapno == 0x0e && _cr2 > 0xffffffff)
+  if (_scp_trapno == 0x0e && _scp_cr2 > 0xffffffff)
   {
 #ifdef X86_EMULATOR
     if (IS_EMU() && !CONFIG_CPUSIM && e_in_compiled_code()) {
       int i;
       /* dosemu_error() will SIGSEGV in backtrace(). */
-      error("JIT fault accessing invalid address 0x%08"PRI_RG", "
-          "RIP=0x%08"PRI_RG"\n", _cr2, _rip);
-      if (mapping_find_hole(_rip, _rip + 64, 1) == MAP_FAILED) {
+      error("JIT fault accessing invalid address 0x%08lx, "
+          "RIP=0x%08lx\n", _scp_cr2, _scp_rip);
+      if (mapping_find_hole(_scp_rip, _scp_rip + 64, 1) == MAP_FAILED) {
         error("@Generated code dump:\n");
         for (i = 0; i < 64; i++) {
-          error("@ %02x", *(unsigned char *)(_rip + i));
+          error("@ %02x", *(unsigned char *)(_scp_rip + i));
           if ((i & 15) == 15)
             error("@\n");
         }
@@ -95,32 +94,32 @@ static void dosemu_fault1(int signum, sigcontext_t *scp)
       goto bad;
     }
 #endif
-    dosemu_error("Accessing invalid address 0x%08"PRI_RG"\n", _cr2);
+    dosemu_error("Accessing invalid address 0x%08lx\n", _scp_cr2);
     goto bad;
   }
 #endif
 
 
 #ifdef __i386__
-  /* case 1: note that _cr2 must be 0-based */
+  /* case 1: note that _scp_cr2 must be 0-based */
   if (in_vm86 && config.cpu_vm == CPUVM_VM86) {
-    if (_trapno == 0x0e) {
+    if (_scp_trapno == 0x0e) {
       /* we can get to instremu from here, so unblock SIGALRM & friends.
        * It is needed to interrupt instremu when it runs for too long. */
       signal_unblock_async_sigs();
-      if (vga_emu_fault(_cr2, _err, NULL) == True)
+      if (vga_emu_fault(_scp_cr2, _scp_err, NULL) == True)
         return;
     }
-    vm86_fault(_trapno, _err, _cr2);
+    vm86_fault(_scp_trapno, _scp_err, _scp_cr2);
     return;
   }
 #endif
 
   /* case 2: At first let's find out where we came from */
-  if (DPMIValidSelector(_cs)) {
+  if (DPMIValidSelector(_scp_cs)) {
     int ret = DPMI_RET_FAULT;
     assert(config.cpu_vm_dpmi == CPUVM_NATIVE);
-    if (_trapno == 0x10) {
+    if (_scp_trapno == 0x10) {
       dbug_printf("coprocessor exception, calling IRQ13\n");
       print_exception_info(scp);
       pic_untrigger(13);
@@ -149,13 +148,13 @@ static void dosemu_fault1(int signum, sigcontext_t *scp)
      * 5. dosemu code touches cpuemu prot (bug)
      * Compiled code means dpmi-jit, otherwise vm86 not here.
      */
-    if (_trapno == 0x0e) {
+    if (_scp_trapno == 0x0e) {
       /* cases 1, 2, 3 */
       if ((in_vm86 || EMU_DPMI()) && e_emu_pagefault(scp, !in_vm86))
         return;
       /* case 5, any jit, bug */
       if (!CONFIG_CPUSIM &&
-	  e_handle_pagefault(DOSADDR_REL(LINP(_cr2)), _err, scp)) {
+	  e_handle_pagefault(DOSADDR_REL(LINP(_scp_cr2)), _scp_err, scp)) {
         dosemu_error("touched jit-protected page%s\n",
                      in_vm86 ? " in vm86-emu" : "");
         return;
@@ -182,13 +181,13 @@ bad:
     unsigned char *fsbase, *gsbase;
 #endif
     error("cpu exception in dosemu code outside of %s!\n"
-	  "sig: %i trapno: 0x%02x  errorcode: 0x%08x  cr2: 0x%08"PRI_RG"\n"
-	  "eip: 0x%08"PRI_RG"  esp: 0x%08"PRI_RG"  eflags: 0x%08x\n"
+	  "sig: %i trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
+	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n"
 	  "fs: 0x%04x  gs: 0x%04x\n",
 	  (in_dpmi_pm() ? "DPMI client" : "VM86()"),
-	  signum, _trapno, _err, _cr2,
-	  _rip, _rsp, _eflags, _cs, _ds, _es, _ss, _fs, _gs);
+	  signum, _scp_ltrapno, _scp_lerr, _scp_cr2,
+	  _scp_rip, _scp_rsp, _scp_lflags, _scp_cs, _scp_ds, _scp_es, _scp_ss, _scp_fs, _scp_gs);
 #ifdef __x86_64__
     dosemu_arch_prctl(ARCH_GET_FS, &fsbase);
     dosemu_arch_prctl(ARCH_GET_GS, &gsbase);
@@ -207,7 +206,7 @@ bad:
 #endif
     gdb_debug();
 
-    if (DPMIValidSelector(_cs))
+    if (DPMIValidSelector(_scp_cs))
       print_exception_info(scp);
     if (in_vm86)
 	show_regs();
@@ -242,10 +241,10 @@ static void dosemu_fault0(int signum, sigcontext_t *scp)
 #if defined(HAVE_PTHREAD_GETNAME_NP) && defined(__GLIBC__)
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("thread %s got signal %i, cr2=%llx\n", name, signum,
-	(unsigned long long)_cr2);
+	(unsigned long long)_scp_cr2);
 #else
     dosemu_error("thread got signal %i, cr2=%llx\n", signum,
-	(unsigned long long)_cr2);
+	(unsigned long long)_scp_cr2);
 #endif
     signal(signum, SIG_DFL);
     pthread_kill(tid, signum);  // dump core
@@ -267,8 +266,8 @@ static void dosemu_fault0(int signum, sigcontext_t *scp)
 #endif
 
   if (debug_level('g')>7)
-    g_printf("Entering fault handler, signal=%i _trapno=0x%X\n",
-      signum, _trapno);
+    g_printf("Entering fault handler, signal=%i _trapno=0x%lx\n",
+      signum, _scp_ltrapno);
 
   dosemu_fault1(signum, scp);
 
@@ -280,14 +279,14 @@ SIG_PROTO_PFX
 void dosemu_fault(int signum, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
+  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
   /* need to call init_handler() before any syscall.
    * Additionally, TLS access should be done in a separate no-inline
    * function, so that gcc not to move the TLS access around init_handler(). */
   init_handler(scp, uct->uc_flags);
 #if defined(__FreeBSD__)
   /* freebsd does not provide cr2 */
-  _cr2 = (uintptr_t)si->si_addr;
+  _scp_cr2 = (uintptr_t)si->si_addr;
 #endif
   fault_cnt++;
   dosemu_fault0(signum, scp);
@@ -304,11 +303,11 @@ void dosemu_fault(int signum, siginfo_t *si, void *uc)
  * DANG_END_FUNCTION
  *
  */
-void print_exception_info(sigcontext_t *scp)
+static void print_exception_info(sigcontext_t *scp)
 {
   int i;
 
-  switch(_trapno)
+  switch(_scp_trapno)
     {
     case 0:
       error("@Division by zero\n");
@@ -338,12 +337,12 @@ void print_exception_info(sigcontext_t *scp)
     case 6: {
       unsigned char *csp;
       int ps = getpagesize();
-      unsigned pa = _rip & (ps - 1);
+      unsigned pa = _scp_rip & (ps - 1);
       int sub = _min(pa, 10);
       int sup = _min(ps - pa, 10);
       error("@Invalid opcode\n");
       error("@Opcodes: ");
-      csp = (unsigned char *) _rip - sub;
+      csp = (unsigned char *) _scp_rip - sub;
       for (i = 0; i < 10 - sub; i++)
         error("@XX ");
       for (i = 0; i < sub; i++)
@@ -378,16 +377,16 @@ void print_exception_info(sigcontext_t *scp)
 
     case 0xa:
       error("@Invalid TSS\n");
-      if(_err & 0x02)
+      if(_scp_err & 0x02)
 	error("@IDT");
-      else if(_err & 0x04)
+      else if(_scp_err & 0x04)
 	error("@LDT");
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
+      error("@ selector: 0x%04x\n", (unsigned)((_scp_err >> 3) & 0x1fff ));
 
-      if(_err & 0x01)
+      if(_scp_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
       else
 	error("@Exception was caused by DOSEMU\n");
@@ -400,16 +399,16 @@ void print_exception_info(sigcontext_t *scp)
        * blocks, so I don't have to edit some dirty constructions to
        * generate one block of code. (Erik Mouw)
        */
-      if(_err & 0x02)
+      if(_scp_err & 0x02)
 	error("@IDT");
-      else if(_err & 0x04)
+      else if(_scp_err & 0x04)
 	error("@LDT");
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
+      error("@ selector: 0x%04x\n", (unsigned)((_scp_err >> 3) & 0x1fff ));
 
-      if(_err & 0x01)
+      if(_scp_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
       else
 	error("@Exception was caused by DOSEMU\n");
@@ -427,16 +426,16 @@ void print_exception_info(sigcontext_t *scp)
        * blocks, so I don't have to edit some dirty constructions to
        * generate one block of code. (Erik Mouw)
        */
-      if(_err & 0x02)
+      if(_scp_err & 0x02)
 	error("@IDT");
-      else if(_err & 0x04)
+      else if(_scp_err & 0x04)
 	error("@LDT");
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
+      error("@ selector: 0x%04x\n", (unsigned)((_scp_err >> 3) & 0x1fff ));
 
-      if(_err & 0x01)
+      if(_scp_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
       else
 	error("@Exception was caused by DOSEMU\n");
@@ -445,21 +444,21 @@ void print_exception_info(sigcontext_t *scp)
 
     case 0xe:
       error("@Page fault: ");
-      if(_err & 0x02)
+      if(_scp_err & 0x02)
 	error("@write");
       else
 	error("@read");
 
-      error("@ instruction to linear address: 0x%08"PRI_RG"\n", _cr2);
+      error("@ instruction to linear address: 0x%08lx\n", _scp_cr2);
 
       error("@CPU was in ");
-      if(_err & 0x04)
+      if(_scp_err & 0x04)
 	error("@user mode\n");
       else
 	error("@supervisor mode\n");
 
       error("@Exception was caused by ");
-      if(_err & 0x01)
+      if(_scp_err & 0x01)
 	error("@insufficient privilege\n");
       else
 	error("@non-available page\n");
@@ -468,11 +467,11 @@ void print_exception_info(sigcontext_t *scp)
    case 0x10: {
       int i, n;
       unsigned short sw;
-      fpregset_t p = __fpstate;
+      struct _fpstate *p = _scp_fpstate;
       error ("@Coprocessor Error:\n");
 #ifdef __x86_64__
       error ("@cwd=%04x swd=%04x ftw=%04x\n", p->cwd, p->swd, p->ftw);
-      error ("@cs:rip=%04x:%08lx ds:data=%04x:%08lx\n",	_cs,p->rip,_ds,p->rdp);
+      error ("@cs:rip=%04x:%08lx ds:data=%04x:%08lx\n",	_scp_cs,p->rip,_scp_ds,p->rdp);
       sw = p->swd;
 #else
       error ("@cw=%04x sw=%04x tag=%04x\n",
@@ -506,7 +505,7 @@ void print_exception_info(sigcontext_t *scp)
 #ifdef __x86_64__
       int i;
       unsigned mxcsr;
-      fpregset_t p = __fpstate;
+      struct _fpstate *p = _scp_fpstate;
       error ("@SIMD Floating-Point Exception:\n");
       mxcsr = p->mxcsr;
       error ("@mxcsr=%08x, mxcr_mask=%08x\n",mxcsr,(unsigned)(p->mxcr_mask));

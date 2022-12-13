@@ -1,9 +1,6 @@
 #ifndef _VM86_COMPAT_H
 #define _VM86_COMPAT_H
 
-#ifdef __i386__
-#include <asm/vm86.h>
-#else
 #include <Asm/processor-flags.h>
 
 /*
@@ -64,22 +61,22 @@ struct vm86_regs {
 /*
  * normal regs, with special meaning for the segment descriptors..
  */
-	int ebx;
-	int ecx;
-	int edx;
-	int esi;
-	int edi;
-	int ebp;
-	int eax;
-	int __null_ds;
-	int __null_es;
-	int __null_fs;
-	int __null_gs;
-	int orig_eax;
-	int eip;
+	unsigned ebx;
+	unsigned ecx;
+	unsigned edx;
+	unsigned esi;
+	unsigned edi;
+	unsigned ebp;
+	unsigned eax;
+	unsigned __null_ds;
+	unsigned __null_es;
+	unsigned __null_fs;
+	unsigned __null_gs;
+	unsigned orig_eax;
+	unsigned eip;
 	unsigned short cs, __csh;
-	int eflags;
-	int esp;
+	unsigned eflags;
+	unsigned esp;
 	unsigned short ss, __ssh;
 /*
  * these are specific to v86 mode:
@@ -139,6 +136,4 @@ struct vm86plus_struct {
 #define VIF_MASK	0x00080000	/* virtual interrupt flag */
 #define VIP_MASK	0x00100000	/* virtual interrupt pending */
 #define ID_MASK		0x00200000
-#endif
-
 #endif

@@ -24,7 +24,7 @@
 int init_kvm_cpu(void);
 void init_kvm_monitor(void);
 int kvm_vm86(struct vm86_struct *info);
-int kvm_dpmi(sigcontext_t *scp);
+int kvm_dpmi(cpuctx_t *scp);
 void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect);
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect);
 void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize);
@@ -39,7 +39,7 @@ void kvm_done(void);
 static inline int init_kvm_cpu(void) { return -1; }
 static inline void init_kvm_monitor(void) {}
 static inline int kvm_vm86(struct vm86_struct *info) { return -1; }
-static inline int kvm_dpmi(sigcontext_t *scp) { return -1; }
+static inline int kvm_dpmi(cpuctx_t *scp) { return -1; }
 static inline void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect) {}
 static inline void mmap_kvm(int cap, void *addr, size_t mapsize, int protect) {}
 static inline void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize) {}

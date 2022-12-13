@@ -38,9 +38,9 @@
 #include "msdos_priv.h"
 #include "segreg_priv.h"
 
-static enum MfRet msdos_sel_fault(sigcontext_t *scp)
+static enum MfRet msdos_sel_fault(cpuctx_t *scp)
 {
-    sigcontext_t new_sct;
+    cpuctx_t new_sct;
     int reg;
     unsigned int segment;
     unsigned short desc;
@@ -134,7 +134,7 @@ static enum MfRet msdos_sel_fault(sigcontext_t *scp)
     return MFR_HANDLED;
 }
 
-static int msdos_fault(sigcontext_t *scp)
+static int msdos_fault(cpuctx_t *scp)
 {
     enum MfRet ret;
     uint16_t sel;
@@ -160,7 +160,7 @@ static int msdos_fault(sigcontext_t *scp)
     return 0;
 }
 
-static void decode_exc(sigcontext_t *scp, const unsigned int *ssp)
+static void decode_exc(cpuctx_t *scp, const unsigned int *ssp)
 {
     ssp += 8+2; // skip legacy frame and cs:eip
     _err = *ssp++;
@@ -176,7 +176,7 @@ static void decode_exc(sigcontext_t *scp, const unsigned int *ssp)
     _cr2 = *ssp++;
 }
 
-static void encode_exc(sigcontext_t *scp, unsigned int *ssp)
+static void encode_exc(cpuctx_t *scp, unsigned int *ssp)
 {
     ssp += 8+2; // skip legacy frame and cs:eip
     ssp++;  // err
@@ -191,7 +191,7 @@ static void encode_exc(sigcontext_t *scp, unsigned int *ssp)
     *ssp++ = _gs;
 }
 
-static void copy_gp(sigcontext_t *scp, sigcontext_t *src)
+static void copy_gp(cpuctx_t *scp, cpuctx_t *src)
 {
 #define CP_R(r) _##r = get_##r(src)
     CP_R(eax);
@@ -203,11 +203,11 @@ static void copy_gp(sigcontext_t *scp, sigcontext_t *src)
     CP_R(ebp);
 }
 
-static void do_fault(sigcontext_t *scp, const DPMI_INTDESC *pma,
-    int (*cbk)(sigcontext_t *))
+static void do_fault(cpuctx_t *scp, const DPMI_INTDESC *pma,
+    int (*cbk)(cpuctx_t *))
 {
     unsigned int *ssp;
-    sigcontext_t new_sct;
+    cpuctx_t new_sct;
 
     new_sct = *scp;
     ssp = SEL_ADR(_ss,_esp);
@@ -232,13 +232,13 @@ static void do_fault(sigcontext_t *scp, const DPMI_INTDESC *pma,
     _esp += 0x20; // skip legacy frame
 }
 
-void msdos_fault_handler(sigcontext_t *scp, void *arg)
+void msdos_fault_handler(cpuctx_t *scp, void *arg)
 {
     void *(*cb)(void) = arg;
     do_fault(scp, cb(), msdos_fault);
 }
 
-void msdos_pagefault_handler(sigcontext_t *scp, void *arg)
+void msdos_pagefault_handler(cpuctx_t *scp, void *arg)
 {
     void *(*cb)(void) = arg;
     do_fault(scp, cb(), msdos_ldt_pagefault);

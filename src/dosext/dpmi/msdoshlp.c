@@ -46,29 +46,29 @@
 
 #define MAX_CBKS 3
 struct msdos_ops {
-    void (*fault)(sigcontext_t *scp, void *arg);
+    void (*fault)(cpuctx_t *scp, void *arg);
     void *fault_arg;
-    void (*pagefault)(sigcontext_t *scp, void *arg);
+    void (*pagefault)(cpuctx_t *scp, void *arg);
     void *pagefault_arg;
-    void (*api_call)(sigcontext_t *scp, void *arg);
+    void (*api_call)(cpuctx_t *scp, void *arg);
     void *api_arg;
-    void (*api_winos2_call)(sigcontext_t *scp, void *arg);
+    void (*api_winos2_call)(cpuctx_t *scp, void *arg);
     void *api_winos2_arg;
-    void (*ldt_update_call16)(sigcontext_t *scp, void *arg);
-    void (*ldt_update_call32)(sigcontext_t *scp, void *arg);
-    void (*rsp_call16)(sigcontext_t *scp, void *arg);
-    void (*rsp_call32)(sigcontext_t *scp, void *arg);
-    struct pmrm_ret (*ext_call)(sigcontext_t *scp,
+    void (*ldt_update_call16)(cpuctx_t *scp, void *arg);
+    void (*ldt_update_call32)(cpuctx_t *scp, void *arg);
+    void (*rsp_call16)(cpuctx_t *scp, void *arg);
+    void (*rsp_call32)(cpuctx_t *scp, void *arg);
+    struct pmrm_ret (*ext_call)(cpuctx_t *scp,
 	struct RealModeCallStructure *rmreg, unsigned short rm_seg,
 	void *(*arg)(int), int off);
     void *(*ext_arg)(int);
-    struct pext_ret (*ext_ret)(sigcontext_t *scp,
+    struct pext_ret (*ext_ret)(cpuctx_t *scp,
 	const struct RealModeCallStructure *rmreg, unsigned short rm_seg,
 	int off);
-    void (*rmcb_handler[MAX_CBKS])(sigcontext_t *scp,
+    void (*rmcb_handler[MAX_CBKS])(cpuctx_t *scp,
 	const struct RealModeCallStructure *rmreg, int is_32, void *arg);
     void *rmcb_arg[MAX_CBKS];
-    void (*rmcb_ret_handler[MAX_CBKS])(sigcontext_t *scp,
+    void (*rmcb_ret_handler[MAX_CBKS])(cpuctx_t *scp,
 	struct RealModeCallStructure *rmreg, int is_32);
     int (*is_32)(void);
     u_short cb_es;
@@ -91,7 +91,7 @@ static struct rm_helper_s term_helper;
 
 static void *hlt_state;
 
-static void do_retf(sigcontext_t *scp)
+static void do_retf(cpuctx_t *scp)
 {
     int is_32 = msdos.is_32();
     void *sp = SEL_ADR(_ss, _esp);
@@ -108,7 +108,7 @@ static void do_retf(sigcontext_t *scp)
     }
 }
 
-static void do_dpmi_iret(sigcontext_t *scp)
+static void do_dpmi_iret(cpuctx_t *scp)
 {
     int is_32 = msdos.is_32();
     void *sp = SEL_ADR(_ss, _esp);
@@ -130,7 +130,7 @@ static void do_dpmi_iret(sigcontext_t *scp)
 }
 
 static void hlp_fill_rest(struct dos_helper_s *h,
-	unsigned short (*rm_seg)(sigcontext_t *, int, void *), void *rm_arg)
+	unsigned short (*rm_seg)(cpuctx_t *, int, void *), void *rm_arg)
 {
     h->rm_seg = rm_seg;
     h->rm_arg = rm_arg;
@@ -164,7 +164,7 @@ struct pmaddr_s doshlp_get_entry32(unsigned entry)
 }
 
 void doshlp_setup(struct dos_helper_s *h, const char *name,
-	void (*thr)(void *), void (*post)(sigcontext_t *))
+	void (*thr)(void *), void (*post)(cpuctx_t *))
 {
 #ifdef DOSEMU
     h->tid = coopth_create_pm(name, thr, post, hlt_state,
@@ -175,14 +175,14 @@ void doshlp_setup(struct dos_helper_s *h, const char *name,
 
 void doshlp_setup_retf(struct dos_helper_s *h, const char *name,
 	void (*thr)(void *),
-	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
+	unsigned short (*rm_seg)(cpuctx_t *, int, void *),
 	void *rm_arg)
 {
     doshlp_setup(h, name, thr, do_retf);
     hlp_fill_rest(h, rm_seg, rm_arg);
 }
 
-static void do_callf(sigcontext_t *scp, struct pmaddr_s pma)
+static void do_callf(cpuctx_t *scp, struct pmaddr_s pma)
 {
     int is_32 = msdos.is_32();
     void *sp = SEL_ADR(_ss, _esp);
@@ -204,7 +204,7 @@ static void do_callf(sigcontext_t *scp, struct pmaddr_s pma)
 #ifdef DOSEMU
 static void iret2far(int tid, void *arg, void *arg2)
 {
-    sigcontext_t *scp = arg2;
+    cpuctx_t *scp = arg2;
     struct pmaddr_s pma;
 
     pma.selector = _cs;
@@ -217,7 +217,7 @@ static void iret2far(int tid, void *arg, void *arg2)
 }
 #endif
 
-static void make_iret_frame(sigcontext_t *scp, struct pmaddr_s pma)
+static void make_iret_frame(cpuctx_t *scp, struct pmaddr_s pma)
 {
     int is_32 = msdos.is_32();
     void *sp = SEL_ADR(_ss, _esp);
@@ -242,7 +242,7 @@ static void make_iret_frame(sigcontext_t *scp, struct pmaddr_s pma)
 #ifdef DOSEMU
 static void far2iret(int tid, void *arg, void *arg2)
 {
-    sigcontext_t *scp = arg2;
+    cpuctx_t *scp = arg2;
     void *udata = coopth_pop_user_data(tid);
     struct pmaddr_s pma;
 
@@ -257,7 +257,7 @@ static void far2iret(int tid, void *arg, void *arg2)
 #endif
 
 static void doshlp_setup_m(struct dos_helper_s *h, const char *name,
-	void (*thr)(void *), void (*post)(sigcontext_t *), int len)
+	void (*thr)(void *), void (*post)(cpuctx_t *), int len)
 {
 #ifdef DOSEMU
     h->tid = coopth_create_pm_multi(name, thr, post, hlt_state,
@@ -338,10 +338,10 @@ static int get_cb(int num)
     return 0;
 }
 
-struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
+struct pmaddr_s get_pmcb_handler(void (*handler)(cpuctx_t *,
 	const struct RealModeCallStructure *, int, void *),
 	void *arg,
-	void (*ret_handler)(sigcontext_t *,
+	void (*ret_handler)(cpuctx_t *,
 	struct RealModeCallStructure *, int),
 	int num)
 {
@@ -356,7 +356,7 @@ struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
 }
 
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
-	void (*handler)(sigcontext_t *, void *), void *arg)
+	void (*handler)(cpuctx_t *, void *), void *arg)
 {
     struct pmaddr_s ret;
     switch (id) {
@@ -414,13 +414,13 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 
 struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	struct pmrm_ret (*handler)(
-	sigcontext_t *, struct RealModeCallStructure *,
+	cpuctx_t *, struct RealModeCallStructure *,
 	unsigned short, void *(*)(int), int),
 	void *(*arg)(int),
 	struct pext_ret (*ret_handler)(
-	sigcontext_t *, const struct RealModeCallStructure *,
+	cpuctx_t *, const struct RealModeCallStructure *,
 	unsigned short, int),
-	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
+	unsigned short (*rm_seg)(cpuctx_t *, int, void *),
 	void *rm_arg, int len, int r_offs[])
 {
     struct dos_helper_s *h;
@@ -457,7 +457,7 @@ far_t get_term_helper(void)
 }
 
 #ifdef DOSEMU
-static void run_call_handler(int idx, sigcontext_t *scp)
+static void run_call_handler(int idx, cpuctx_t *scp)
 {
     int is_32 = msdos.is_32();
     struct RealModeCallStructure *rmreg =
@@ -467,7 +467,7 @@ static void run_call_handler(int idx, sigcontext_t *scp)
     msdos.rmcb_handler[idx](scp, rmreg, is_32, msdos.rmcb_arg[idx]);
 }
 
-static void run_ret_handler(int idx, sigcontext_t *scp)
+static void run_ret_handler(int idx, cpuctx_t *scp)
 {
     int is_32 = msdos.is_32();
     struct RealModeCallStructure *rmreg =
@@ -477,7 +477,7 @@ static void run_ret_handler(int idx, sigcontext_t *scp)
     _edi = msdos.cb_edi;
 }
 
-void msdos_pm_call(sigcontext_t *scp)
+void msdos_pm_call(cpuctx_t *scp)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_fault)) {
 	msdos.fault(scp, msdos.fault_arg);
@@ -534,7 +534,7 @@ void msdos_pm_call(sigcontext_t *scp)
 }
 #endif
 
-static void do_int_call(sigcontext_t *scp, int is_32, int num,
+static void do_int_call(cpuctx_t *scp, int is_32, int num,
 	struct RealModeCallStructure *rmreg)
 {
     RMREG(ss) = 0;
@@ -542,7 +542,7 @@ static void do_int_call(sigcontext_t *scp, int is_32, int num,
     _dpmi_simulate_real_mode_interrupt(scp, is_32, num, (__dpmi_regs *)rmreg);
 }
 
-static void copy_rest(sigcontext_t *scp, sigcontext_t *src)
+static void copy_rest(cpuctx_t *scp, cpuctx_t *src)
 {
 #define CP_R(r) _##r = get_##r(src)
     CP_R(eax);
@@ -554,7 +554,7 @@ static void copy_rest(sigcontext_t *scp, sigcontext_t *src)
     CP_R(es);
 }
 
-static void do_restore(sigcontext_t *scp, sigcontext_t *sa)
+static void do_restore(cpuctx_t *scp, cpuctx_t *sa)
 {
     /* make sure most things did not change */
 #define _CHK(r) assert(_##r == get_##r(sa))
@@ -571,7 +571,7 @@ static void do_restore(sigcontext_t *scp, sigcontext_t *sa)
     copy_rest(scp, sa);
 }
 
-void doshlp_quit_dpmi(sigcontext_t *scp)
+void doshlp_quit_dpmi(cpuctx_t *scp)
 {
     struct pmaddr_s pma = {
 	.offset = DPMI_SEL_OFF(DPMI_msdos),
@@ -583,7 +583,7 @@ void doshlp_quit_dpmi(sigcontext_t *scp)
     do_callf(scp, pma);
 }
 
-void doshlp_call_reinit(sigcontext_t *scp)
+void doshlp_call_reinit(cpuctx_t *scp)
 {
     struct pmaddr_s pma = {
 	.offset = DPMI_SEL_OFF(DPMI_reinit),
@@ -594,7 +594,7 @@ void doshlp_call_reinit(sigcontext_t *scp)
     coopth_sched();
 }
 
-static void do_int_to(sigcontext_t *scp, int is_32, far_t dst,
+static void do_int_to(cpuctx_t *scp, int is_32, far_t dst,
 		struct RealModeCallStructure *rmreg)
 {
     RMREG(ss) = 0;
@@ -605,7 +605,7 @@ static void do_int_to(sigcontext_t *scp, int is_32, far_t dst,
 }
 
 struct postext_args {
-    sigcontext_t *scp;
+    cpuctx_t *scp;
     unsigned arg;
 };
 
@@ -614,7 +614,7 @@ static struct postext_args pargs;
 static void do_post_push(void *arg)
 {
     struct postext_args *args = arg;
-    sigcontext_t *scp = args->scp;
+    cpuctx_t *scp = args->scp;
     int is_32 = msdos.is_32();
     if (is_32) {
         _esp -= 4;
@@ -630,8 +630,8 @@ static void do_post_push(void *arg)
 #ifdef DOSEMU
 static void exthlp_thr(void *arg)
 {
-    sigcontext_t *scp = arg;
-    sigcontext_t sa = *scp;
+    cpuctx_t *scp = arg;
+    cpuctx_t sa = *scp;
     struct dos_helper_s *hlp = &ext_helper;
     struct RealModeCallStructure rmreg = {};
     int off = coopth_get_tid() - hlp->tid;

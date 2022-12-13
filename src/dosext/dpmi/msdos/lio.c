@@ -38,7 +38,7 @@ static struct dos_helper_s helpers[LIOHLP_MAX];
 
 struct liohlp_priv {
     unsigned short rm_seg;
-    void (*post)(sigcontext_t *);
+    void (*post)(cpuctx_t *);
     int is_32;
 };
 static struct liohlp_priv lio_priv[LIOHLP_MAX];
@@ -54,14 +54,14 @@ static const struct hlp_hndl hlp_thr[LIOHLP_MAX] = {
     { lwhlp_thr, "msdos lw thr" },
 };
 
-static unsigned short lio_rmseg(sigcontext_t *scp, int off, void *arg)
+static unsigned short lio_rmseg(cpuctx_t *scp, int off, void *arg)
 {
     struct liohlp_priv *h = arg;
     return h->rm_seg;
 }
 
 static void liohlp_setup(int hlp, int is_32,
-	unsigned short rm_seg, void (*post)(sigcontext_t *))
+	unsigned short rm_seg, void (*post)(cpuctx_t *))
 {
     struct liohlp_priv *h = &lio_priv[hlp];
 
@@ -70,7 +70,7 @@ static void liohlp_setup(int hlp, int is_32,
     h->is_32 = is_32;
 }
 
-static void do_callf(sigcontext_t *scp, int is_32, struct pmaddr_s pma)
+static void do_callf(cpuctx_t *scp, int is_32, struct pmaddr_s pma)
 {
     void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
     if (is_32) {
@@ -88,21 +88,21 @@ static void do_callf(sigcontext_t *scp, int is_32, struct pmaddr_s pma)
     _eip = pma.offset;
 }
 
-void msdos_lr_helper(sigcontext_t *scp, int is_32,
-	unsigned short rm_seg, void (*post)(sigcontext_t *))
+void msdos_lr_helper(cpuctx_t *scp, int is_32,
+	unsigned short rm_seg, void (*post)(cpuctx_t *))
 {
     liohlp_setup(DOSHLP_LR, is_32, rm_seg, post);
     do_callf(scp, is_32, doshlp_get_entry(helpers[DOSHLP_LR].entry));
 }
 
-void msdos_lw_helper(sigcontext_t *scp, int is_32,
-	unsigned short rm_seg, void (*post)(sigcontext_t *))
+void msdos_lw_helper(cpuctx_t *scp, int is_32,
+	unsigned short rm_seg, void (*post)(cpuctx_t *))
 {
     liohlp_setup(DOSHLP_LW, is_32, rm_seg, post);
     do_callf(scp, is_32, doshlp_get_entry(helpers[DOSHLP_LW].entry));
 }
 
-static void do_int_call(sigcontext_t *scp, int is_32, int num,
+static void do_int_call(cpuctx_t *scp, int is_32, int num,
 	__dpmi_regs *rmreg)
 {
     RMREG(ss) = 0;
@@ -112,8 +112,8 @@ static void do_int_call(sigcontext_t *scp, int is_32, int num,
 
 static void lrhlp_thr(void *arg)
 {
-    sigcontext_t *scp = arg;
-    sigcontext_t sa = *scp;
+    cpuctx_t *scp = arg;
+    cpuctx_t sa = *scp;
     struct liohlp_priv *hlp = &lio_priv[DOSHLP_LR];
     __dpmi_regs _rmreg = {};
     __dpmi_regs *rmreg = &_rmreg;
@@ -175,8 +175,8 @@ static void lrhlp_thr(void *arg)
 
 static void lwhlp_thr(void *arg)
 {
-    sigcontext_t *scp = arg;
-    sigcontext_t sa = *scp;
+    cpuctx_t *scp = arg;
+    cpuctx_t sa = *scp;
     struct liohlp_priv *hlp = &lio_priv[DOSHLP_LW];
     __dpmi_regs _rmreg = {};
     __dpmi_regs *rmreg = &_rmreg;

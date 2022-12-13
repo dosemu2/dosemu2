@@ -124,7 +124,7 @@ static unsigned short rmcb_sel;
 static dosaddr_t rmcb_mem;
 static struct dos_helper_s reinit_hlp;
 
-static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg);
+static unsigned short get_xbuf_seg(cpuctx_t *scp, int off, void *arg);
 static void rsp_init(void);
 static unsigned short msdos_get_lowmem_size(void);
 static void msdos_init(int num, int is_32, unsigned short mseg,
@@ -167,7 +167,7 @@ int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
 
 static void reinit_thr(void *arg);
 
-static void do_retf16(sigcontext_t *scp)
+static void do_retf16(cpuctx_t *scp)
 {
     void *sp = SEL_ADR_CLNT(_ss, _esp, 0);
     unsigned short *ssp = sp;
@@ -360,7 +360,7 @@ static void msdos_set_client(int num)
     msdos_client_num = num;
 }
 
-static void do_common_start(sigcontext_t *scp, int is_32)
+static void do_common_start(cpuctx_t *scp, int is_32)
 {
     switch (_LWORD(eax)) {
     case 0:
@@ -378,12 +378,12 @@ static void do_common_start(sigcontext_t *scp, int is_32)
     }
 }
 
-static void do_start16(sigcontext_t *scp, void *arg)
+static void do_start16(cpuctx_t *scp, void *arg)
 {
     do_common_start(scp, 0);
 }
 
-static void do_start32(sigcontext_t *scp, void *arg)
+static void do_start32(cpuctx_t *scp, void *arg)
 {
     do_common_start(scp, 1);
 }
@@ -411,7 +411,7 @@ static void rsp_init(void)
 
 static void reinit_thr(void *arg)
 {
-    sigcontext_t *scp = arg;
+    cpuctx_t *scp = arg;
     int is_32 = (_LWORD(eax) & 1);
 
     _eflags |= CF;
@@ -515,7 +515,7 @@ static unsigned int msdos_realloc(unsigned int addr, unsigned int new_size)
     return block.base;
 }
 
-static int prepare_ems_frame(sigcontext_t *scp)
+static int prepare_ems_frame(cpuctx_t *scp)
 {
     static const u_short ems_map_simple[MSDOS_EMS_PAGES * 2] =
 	    { 0, 0, 1, 1, 2, 2, 3, 3 };
@@ -571,7 +571,7 @@ static int prepare_ems_frame(sigcontext_t *scp)
     return 0;
 }
 
-static void restore_ems_frame(sigcontext_t *scp)
+static void restore_ems_frame(cpuctx_t *scp)
 {
     if (!ems_frame_mapped) {
 	dosemu_error("unmapping not mapped EMS frame\n");
@@ -586,7 +586,7 @@ static void restore_ems_frame(sigcontext_t *scp)
 static void *get_ldt_alias(void) { return &MSDOS_CLIENT.ldt_alias; }
 static void *get_winos2_alias(void) { return &MSDOS_CLIENT.ldt_alias_winos2; }
 
-static void get_ext_API(sigcontext_t *scp)
+static void get_ext_API(cpuctx_t *scp)
 {
     struct pmaddr_s pma;
     char *ptr = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
@@ -809,7 +809,7 @@ static int need_xbuf(int intr, u_short ax, u_short cx)
     return 0;
 }
 
-static unsigned short get_xbuf_seg(sigcontext_t *scp, int off, void *arg)
+static unsigned short get_xbuf_seg(cpuctx_t *scp, int off, void *arg)
 {
     int intr = ints[off];
     if (need_xbuf(intr, _LWORD(eax), _LWORD(ecx))) {
@@ -875,7 +875,7 @@ static int in_dos_space(unsigned short sel, unsigned long off)
 #define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
 #define SET_RMLWORD(rg, val) (E_RMPRESERVE1(rg), X_RMREG(e##rg) = (val))
 
-static void old_dos_terminate(sigcontext_t *scp, int i,
+static void old_dos_terminate(cpuctx_t *scp, int i,
 			      struct RealModeCallStructure *rmreg, int *rmask)
 {
     unsigned short psp_seg_sel, parent_psp = 0;
@@ -937,7 +937,7 @@ static void old_dos_terminate(sigcontext_t *scp, int i,
     *rmask = rm_mask;
 }
 
-static int do_abs_rw(sigcontext_t *scp, struct RealModeCallStructure *rmreg,
+static int do_abs_rw(cpuctx_t *scp, struct RealModeCallStructure *rmreg,
 		unsigned short rm_seg, int *r_mask, uint8_t *src, int is_w)
 {
     int rm_mask = *r_mask;
@@ -979,7 +979,7 @@ static int do_abs_rw(sigcontext_t *scp, struct RealModeCallStructure *rmreg,
  *
  * DANG_END_FUNCTION
  */
-int msdos_pre_extender(sigcontext_t *scp,
+int msdos_pre_extender(cpuctx_t *scp,
 			       struct RealModeCallStructure *rmreg,
 			       int intr, unsigned short rm_seg,
 			       int *r_mask, far_t *r_rma)
@@ -1801,7 +1801,7 @@ int msdos_pre_extender(sigcontext_t *scp,
     RMLWORD(reg)])
 
 far_t get_xms_call(void) { return MSDOS_CLIENT.XMS_call; }
-unsigned short scratch_seg(sigcontext_t *scp, int off, void *arg)
+unsigned short scratch_seg(cpuctx_t *scp, int off, void *arg)
 {
     return SCRATCH_SEG;
 }
@@ -1817,7 +1817,7 @@ unsigned short scratch_seg(sigcontext_t *scp, int off, void *arg)
  * DANG_END_FUNCTION
  */
 
-int msdos_post_extender(sigcontext_t *scp,
+int msdos_post_extender(cpuctx_t *scp,
 				const struct RealModeCallStructure *rmreg,
 				int intr, unsigned short rm_seg, int *rmask,
 				unsigned *arg)

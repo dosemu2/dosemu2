@@ -302,7 +302,7 @@ static void fixup_handler(int sig, siginfo_t *si, void *uc)
 {
 	struct sigaction *sa;
 	ucontext_t *uct = uc;
-	sigcontext_t *scp = &uct->uc_mcontext;
+	sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
 	init_handler(scp, 1);
 	sa = &sacts[sig];
 	if (sa->sa_flags & SA_SIGINFO) {
@@ -345,13 +345,13 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
      (using the 3 high words of the trapno field).
      fs and gs are set to 0 in the sigcontext, so we also need
      to save those ourselves */
-  _ds = getsegment(ds);
-  _es = getsegment(es);
+  _scp_ds = getsegment(ds);
+  _scp_es = getsegment(es);
   if (!(uc_flags & UC_SIGCONTEXT_SS))
-    _ss = getsegment(ss);
-  _fs = getsegment(fs);
-  _gs = getsegment(gs);
-  if (config.cpu_vm_dpmi == CPUVM_NATIVE && _cs == 0) {
+    _scp_ss = getsegment(ss);
+  _scp_fs = getsegment(fs);
+  _scp_gs = getsegment(gs);
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE && _scp_cs == 0) {
       if (config.dpmi
 #ifdef X86_EMULATOR
 	    && !EMU_DPMI()
@@ -370,7 +370,7 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
       }
 #ifdef X86_EMULATOR
       config.cpu_vm = CPUVM_EMU;
-      _cs = getsegment(cs);
+      _scp_cs = getsegment(cs);
 #else
       leavedos_sig(45);
 #endif
@@ -393,7 +393,7 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
   }
 
 #if SIGRETURN_WA
-  if (need_sr_wa && !DPMIValidSelector(_cs))
+  if (need_sr_wa && !DPMIValidSelector(_scp_cs))
     dpmi_iret_unwind(scp);
 #endif
 
@@ -401,13 +401,13 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
   /* for async signals need to restore fs/gs even if dosemu code
    * was interrupted, because it can be interrupted in a switching
    * routine when fs or gs are already switched but cs is not */
-  if (!DPMIValidSelector(_cs) && !async)
+  if (!DPMIValidSelector(_scp_cs) && !async)
     return;
 #else
   /* as DIRECT_DPMI_SWITCH support is now removed, the above comment
    * applies only to DPMI_iret, which is now unwound.
    * We don't need to restore segregs for async signals any more. */
-  if (!DPMIValidSelector(_cs))
+  if (!DPMIValidSelector(_scp_cs))
     return;
 #endif
 
@@ -458,7 +458,7 @@ void init_handler(sigcontext_t *scp, unsigned long uc_flags)
   /* for SAS WA we unblock the fatal signals even later if we came
    * from DPMI, as then we'll be switching stacks which is racy when
    * async signals enabled. */
-  if (need_sas_wa && DPMIValidSelector(_cs))
+  if (need_sas_wa && DPMIValidSelector(_scp_cs))
     return;
 #endif
   /* either came from dosemu/vm86 or having SS_AUTODISARM -
@@ -483,7 +483,7 @@ void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
     return;
 #endif
 
-  if (!DPMIValidSelector(_cs))
+  if (!DPMIValidSelector(_scp_cs))
     return;
 
 #ifdef __x86_64__
@@ -510,13 +510,13 @@ void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
 #endif
   }
 
-  if (_fs != getsegment(fs))
-    loadregister(fs, _fs);
-  if (_gs != getsegment(gs))
-    loadregister(gs, _gs);
+  if (_scp_fs != getsegment(fs))
+    loadregister(fs, _scp_fs);
+  if (_scp_gs != getsegment(gs))
+    loadregister(gs, _scp_gs);
 
-  loadregister(ds, _ds);
-  loadregister(es, _es);
+  loadregister(ds, _scp_ds);
+  loadregister(es, _scp_es);
 #endif
 }
 
@@ -593,7 +593,7 @@ static void sigbreak(sigcontext_t *scp)
   if (!in_vm86) {
     switch (config.cpu_vm_dpmi) {
       case CPUVM_NATIVE:
-        if (DPMIValidSelector(_cs))
+        if (DPMIValidSelector(_scp_cs))
           dpmi_return(scp, DPMI_RET_DOSEMU);
         break;
       case CPUVM_EMU:
@@ -653,7 +653,7 @@ SIG_PROTO_PFX
 static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
+  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
   init_handler(scp, uct->uc_flags);
   signal(sig, SIG_DFL);
   _leavedos_signal(sig, scp);
@@ -666,7 +666,7 @@ SIG_PROTO_PFX
 static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
+  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
   init_handler(scp, uct->uc_flags);
   leavedos_from_sig(sig);
   deinit_handler(scp, &uct->uc_flags);
@@ -677,7 +677,7 @@ SIG_PROTO_PFX
 static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
+  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
   init_handler(scp, uct->uc_flags);
   gdb_debug();
   _exit(sig);
@@ -1212,7 +1212,7 @@ SIG_PROTO_PFX
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
+  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
   init_handler(scp, uct->uc_flags);
   sigasync0(sig, scp, si);
   deinit_handler(scp, &uct->uc_flags);
@@ -1222,7 +1222,7 @@ SIG_PROTO_PFX
 static void sigasync_std(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
+  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
   init_handler(scp, uct->uc_flags);
   sigasync0_std(sig, scp, si);
   deinit_handler(scp, &uct->uc_flags);

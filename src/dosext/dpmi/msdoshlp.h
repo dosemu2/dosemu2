@@ -15,16 +15,16 @@ enum MsdOpIds { MSDOS_FAULT, MSDOS_PAGEFAULT, API_CALL, API_WINOS2_CALL,
 enum { MSDOS_NONE, MSDOS_RMINT, MSDOS_RM, MSDOS_PM, MSDOS_DONE };
 enum { POSTEXT_NONE, POSTEXT_PUSH };
 
-void msdos_pm_call(sigcontext_t *scp);
+void msdos_pm_call(cpuctx_t *scp);
 
-struct pmaddr_s get_pmcb_handler(void (*handler)(sigcontext_t *,
+struct pmaddr_s get_pmcb_handler(void (*handler)(cpuctx_t *,
 	const struct RealModeCallStructure *, int, void *),
 	void *arg,
-	void (*ret_handler)(sigcontext_t *,
+	void (*ret_handler)(cpuctx_t *,
 	struct RealModeCallStructure *, int),
 	int num);
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
-	void (*handler)(sigcontext_t *, void *), void *arg);
+	void (*handler)(cpuctx_t *, void *), void *arg);
 struct pmrm_ret {
     int ret;
     far_t faddr;
@@ -37,13 +37,13 @@ struct pext_ret {
 };
 struct pmaddr_s get_pmrm_handler_m(enum MsdOpIds id,
 	struct pmrm_ret (*handler)(
-	sigcontext_t *, struct RealModeCallStructure *,
+	cpuctx_t *, struct RealModeCallStructure *,
 	unsigned short, void *(*)(int), int),
 	void *(*arg)(int),
 	struct pext_ret (*ret_handler)(
-	sigcontext_t *, const struct RealModeCallStructure *,
+	cpuctx_t *, const struct RealModeCallStructure *,
 	unsigned short, int),
-	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
+	unsigned short (*rm_seg)(cpuctx_t *, int, void *),
 	void *rm_arg, int len, int r_offs[]);
 far_t get_exec_helper(void);
 far_t get_term_helper(void);
@@ -53,24 +53,24 @@ void msdoshlp_init(int (*is_32)(void), int len);
 struct dos_helper_s {
     int tid;
     unsigned entry;
-    unsigned short (*rm_seg)(sigcontext_t *, int, void *);
+    unsigned short (*rm_seg)(cpuctx_t *, int, void *);
     void *rm_arg;
     int e_offs[256];
 };
 void doshlp_setup_retf(struct dos_helper_s *h,
 	const char *name, void (*thr)(void *),
-	unsigned short (*rm_seg)(sigcontext_t *, int, void *),
+	unsigned short (*rm_seg)(cpuctx_t *, int, void *),
 	void *rm_arg);
 void doshlp_setup(struct dos_helper_s *h,
 	const char *name, void (*thr)(void *),
-	void (*post)(sigcontext_t *));
+	void (*post)(cpuctx_t *));
 
 struct pmaddr_s doshlp_get_entry(unsigned entry);
 struct pmaddr_s doshlp_get_entry16(unsigned entry);
 struct pmaddr_s doshlp_get_entry32(unsigned entry);
 
-void doshlp_quit_dpmi(sigcontext_t *scp);
-void doshlp_call_reinit(sigcontext_t *scp);
+void doshlp_quit_dpmi(cpuctx_t *scp);
+void doshlp_call_reinit(cpuctx_t *scp);
 int doshlp_idle(void);
 
 #endif

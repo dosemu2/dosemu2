@@ -39,8 +39,6 @@
 #include "trees.h"
 #include "vgaemu.h"
 
-#define HOST_ARCH_X86
-
 #define TAILSIZE	7
 #define TAILFIX		1
 

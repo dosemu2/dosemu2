@@ -48,7 +48,111 @@ extern void SIG_close(void);
 #define SIG_ACQUIRE     SIGUSR2
 #define SIG_THREAD_NOTIFY (SIGRTMIN + 0)
 
-typedef mcontext_t sigcontext_t;
+typedef struct sigcontext sigcontext_t;
+
+#if defined(__FreeBSD__)
+#ifdef __x86_64__
+#define _scp_rax scp->mc_rax
+#define _scp_rbx scp->mc_rbx
+#define _scp_rcx scp->mc_rcx
+#define _scp_rdx scp->mc_rdx
+#define _scp_rbp scp->mc_rbp
+#define _scp_rsp scp->mc_rsp
+#define _scp_rsi scp->mc_rsi
+#define _scp_rdi scp->mc_rdi
+#define _scp_rip scp->mc_rip
+#define _scp_eflags (*(unsigned *)&scp->mc_rflags)
+#define _scp_eflags_ (*(const unsigned *)&scp->mc_rflags)
+#define _scp_cr2 (*(uint64_t *)&scp->mc_spare[0])
+#else
+#define _scp_eax scp->mc_eax
+#define _scp_ebx scp->mc_ebx
+#define _scp_ecx scp->mc_ecx
+#define _scp_edx scp->mc_edx
+#define _scp_ebp scp->mc_ebp
+#define _scp_esp scp->mc_esp
+#define _scp_esi scp->mc_esi
+#define _scp_edi scp->mc_edi
+#define _scp_eip scp->mc_eip
+#define _scp_eflags scp->mc_eflags
+#define _scp_eflags_ scp->mc_eflags
+#define _scp_cr2 scp->mc_spare[0]
+#endif
+#define _cs (*(unsigned *)&scp->mc_cs)
+#define _ds (*(unsigned *)&scp->mc_ds)
+#define _es (*(unsigned *)&scp->mc_es)
+#define _ds_ (*(const unsigned *)&scp->mc_ds)
+#define _es_ (*(const unsigned *)&scp->mc_es)
+#define _fs (*(unsigned *)&scp->mc_fs)
+#define _gs (*(unsigned *)&scp->mc_gs)
+#define _ss (*(unsigned *)&scp->mc_ss)
+#define _trapno scp->mc_trapno
+#define _err (*(unsigned *)&scp->mc_err)
+#define __fpstate scp->mc_fpstate
+#elif defined(__linux__)
+#define _scp_gs     (scp->gs)
+#define _scp_fs     (scp->fs)
+#ifdef __x86_64__
+#define _scp_es     HI_WORD(scp->trapno)
+#define _scp_ds     (((union g_reg *)&(scp->trapno))->w[2])
+#define _scp_rdi    (scp->rdi)
+#define _scp_rsi    (scp->rsi)
+#define _scp_rbp    (scp->rbp)
+#define _scp_rsp    (scp->rsp)
+#define _scp_rbx    (scp->rbx)
+#define _scp_rdx    (scp->rdx)
+#define _scp_rcx    (scp->rcx)
+#define _scp_rax    (scp->rax)
+#define _scp_rip    (scp->rip)
+#define _scp_ss     (scp->__pad0)
+#define _scp_edi    DWORD_(_scp_rdi)
+#define _scp_esi    DWORD_(_scp_rsi)
+#define _scp_ebp    DWORD_(_scp_rbp)
+#define _scp_esp    DWORD_(_scp_rsp)
+#define _scp_ebx    DWORD_(_scp_rbx)
+#define _scp_edx    DWORD_(_scp_rdx)
+#define _scp_ecx    DWORD_(_scp_rcx)
+#define _scp_eax    DWORD_(_scp_rax)
+#define _scp_eip    DWORD_(_scp_rip)
+#define _scp_eax    DWORD_(_scp_rax)
+#define _scp_eip    DWORD_(_scp_rip)
+#define _scp_err    LO_WORD(scp->err)
+#define _scp_lerr   (unsigned long)LO_WORD(scp->err)
+#define _scp_trapno LO_WORD(scp->trapno)
+#define _scp_ltrapno (unsigned long)LO_WORD(scp->trapno)
+#define _scp_cs     LO_WORD(scp->cs)
+#define _scp_eflags LO_WORD(scp->eflags)
+#define _scp_lflags (unsigned long)LO_WORD(scp->eflags)
+#define _scp_cr2    (scp->cr2)
+#define _scp_fpstate (scp->fpstate)
+#else
+#define _scp_es     (scp->es)
+#define _scp_ds     (scp->ds)
+#define _scp_edi    (scp->edi)
+#define _scp_esi    (scp->esi)
+#define _scp_ebp    (scp->ebp)
+#define _scp_esp    (scp->esp)
+#define _scp_ebx    (scp->ebx)
+#define _scp_edx    (scp->edx)
+#define _scp_ecx    (scp->ecx)
+#define _scp_eax    (scp->eax)
+#define _scp_eip    (scp->eip)
+#define _scp_ss     (scp->ss)
+#define _scp_err    (scp->err)
+#define _scp_lerr   (scp->err)
+#define _scp_trapno (scp->trapno)
+#define _scp_ltrapno (scp->trapno)
+#define _scp_cs     (scp->cs)
+#define _scp_eflags (scp->eflags)
+#define _scp_lflags (scp->eflags)
+#define _scp_cr2    (scp->cr2)
+#define _scp_fpstate (scp->fpstate)
+/* some compat */
+#define _scp_rip _scp_eip
+#define _scp_rsp _scp_esp
+#define _scp_rax _scp_eax
+#endif
+#endif  // __linux__
 
 extern void SIGNAL_save( void (*signal_call)(void *), void *arg, size_t size,
 	const char *name );
@@ -68,7 +172,6 @@ extern void init_handler(sigcontext_t *scp, unsigned long uc_flags);
 extern void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags);
 
 extern void dosemu_fault(int, siginfo_t *, void *);
-extern void print_exception_info(sigcontext_t *scp);
 void signal_block_async_nosig(sigset_t *old_mask);
 
 extern pthread_t dosemu_pthread_self;

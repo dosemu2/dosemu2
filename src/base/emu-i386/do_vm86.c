@@ -446,7 +446,7 @@ static int true_vm86(union vm86_union *x)
     int ret;
     uint32_t old_flags = REG(eflags);
 
-    loadfpstate(*vm86_fpu_state);
+    loadfpstate(vm86_fpu_state);
 again:
 #if 0
     ret = vm86(&x->vm86ps);
@@ -464,7 +464,7 @@ again:
      * TODO: check kernel version */
     REG(eflags) |= (old_flags & VIP);
 
-    savefpstate(*vm86_fpu_state);
+    savefpstate(vm86_fpu_state);
     /* there is no real need to save and restore the FPU state of the
        emulator itself: savefpstate (fnsave) also resets the current FPU
        state using fninit; fesetenv then restores trapping of division by

@@ -29,7 +29,7 @@
 
 static struct dos_helper_s helper;
 
-static void msdos_pre_xms(const sigcontext_t *scp,
+static void msdos_pre_xms(const cpuctx_t *scp,
 	__dpmi_regs *rmreg, unsigned short rm_seg, int *r_mask)
 {
     int rm_mask = *r_mask;
@@ -52,7 +52,7 @@ static void msdos_pre_xms(const sigcontext_t *scp,
     *r_mask = rm_mask;
 }
 
-static void msdos_post_xms(sigcontext_t *scp,
+static void msdos_post_xms(cpuctx_t *scp,
 	const __dpmi_regs *rmreg, int *r_mask)
 {
     int rm_mask = *r_mask;
@@ -73,7 +73,7 @@ static void msdos_post_xms(sigcontext_t *scp,
     *r_mask = rm_mask;
 }
 
-static void xms_call(const sigcontext_t *scp,
+static void xms_call(const cpuctx_t *scp,
 	__dpmi_regs *rmreg, unsigned short rm_seg)
 {
     int rmask = (1 << cs_INDEX) |
@@ -82,7 +82,7 @@ static void xms_call(const sigcontext_t *scp,
     pm_to_rm_regs(scp, rmreg, ~rmask);
 }
 
-static void xms_ret(sigcontext_t *scp, const __dpmi_regs *rmreg)
+static void xms_ret(cpuctx_t *scp, const __dpmi_regs *rmreg)
 {
     int rmask = 0;
     msdos_post_xms(scp, rmreg, &rmask);
@@ -92,8 +92,8 @@ static void xms_ret(sigcontext_t *scp, const __dpmi_regs *rmreg)
 
 static void xmshlp_thr(void *arg)
 {
-    sigcontext_t *scp = arg;
-    sigcontext_t sa = *scp;
+    cpuctx_t *scp = arg;
+    cpuctx_t sa = *scp;
     __dpmi_regs rmreg = {};
     unsigned short rm_seg = helper.rm_seg(scp, 0, helper.rm_arg);
     int is_32 = msdos_is_32();

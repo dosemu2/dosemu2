@@ -5,8 +5,8 @@
 
 int native_dpmi_setup(void);
 void native_dpmi_done(void);
-int native_dpmi_control(sigcontext_t *scp);
-int native_dpmi_exit(sigcontext_t *scp);
+int native_dpmi_control(cpuctx_t *scp);
+int native_dpmi_exit(cpuctx_t *scp);
 void native_dpmi_enter(void);
 void native_dpmi_leave(void);
 void dpmi_return(sigcontext_t *scp, int retcode);
@@ -25,12 +25,12 @@ static inline void native_dpmi_done(void)
 {
 }
 
-static inline int native_dpmi_control(sigcontext_t *scp)
+static inline int native_dpmi_control(cpuctx_t *scp)
 {
     return 0;
 }
 
-static inline int native_dpmi_exit(sigcontext_t *scp)
+static inline int native_dpmi_exit(cpuctx_t *scp)
 {
     return 0;
 }

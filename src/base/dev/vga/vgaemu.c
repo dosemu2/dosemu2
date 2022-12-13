@@ -1018,7 +1018,7 @@ void vga_memsetl(dosaddr_t dst, unsigned val, size_t len)
  *
  */
 
-int vga_emu_fault(dosaddr_t lin_addr, unsigned err, sigcontext_t *scp)
+int vga_emu_fault(dosaddr_t lin_addr, unsigned err, cpuctx_t *scp)
 {
   int i, j, pmode = scp != NULL;
   unsigned page_fault, vga_page = 0, u;

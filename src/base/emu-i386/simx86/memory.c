@@ -412,21 +412,21 @@ int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 #ifdef PROFILE
 	if (debug_level('e')) PageFaults++;
 #endif
-	in_dosemu = !(InCompiledCode || in_vm86 || DPMIValidSelector(_cs));
+	in_dosemu = !(InCompiledCode || in_vm86 || DPMIValidSelector(_scp_cs));
 	if (in_vm86)
 		p = SEG_ADR((unsigned char *), cs, ip);
-	else if (DPMIValidSelector(_cs))
-		p = (unsigned char *)MEM_BASE32(GetSegmentBase(_cs) + _rip);
+	else if (DPMIValidSelector(_scp_cs))
+		p = (unsigned char *)MEM_BASE32(GetSegmentBase(_scp_cs) + _scp_rip);
 	else
-		p = (unsigned char *) _rip;
+		p = (unsigned char *) _scp_rip;
 	if (debug_level('e')>1 || in_dosemu) {
 		v = *((int *)p);
 		__asm__("bswap %0" : "=r" (v) : "0" (v));
 		e_printf("Faulting ops: %08x\n",v);
 
 		if (!InCompiledCode) {
-			unsigned int cs = in_vm86 ? _CS : _cs;
-			greg_t eip = in_vm86 ? _IP : _rip;
+			unsigned int cs = in_vm86 ? _CS : _scp_cs;
+			greg_t eip = in_vm86 ? _IP : _scp_rip;
 			e_printf("*\tFault out of %scode, cs:eip=%x:%llx,"
 				    " cr2=%x, fault_cnt=%d\n",
 				    in_dosemu ? "DOSEMU " : "",
@@ -459,16 +459,16 @@ int e_handle_fault(sigcontext_t *scp)
 	if (!InCompiledCode)
 		return 0;
 	/* page-faults are handled not here and only DE remains */
-	if (_trapno != 0) {
-		error("Fault %i in jit-compiled code\n", _trapno);
+	if (_scp_trapno != 0) {
+		error("Fault %li in jit-compiled code\n", _scp_ltrapno);
 		return 0;
 	}
-	TheCPU.err = EXCP00_DIVZ + _trapno;
-	_eax = TheCPU.cr2;
-	_edx = _eflags;
-	TheCPU.cr2 = _cr2;
-	_rip = *(long *)_rsp;
-	_rsp += sizeof(long);
+	TheCPU.err = EXCP00_DIVZ + _scp_trapno;
+	_scp_eax = TheCPU.cr2;
+	_scp_edx = _scp_eflags;
+	TheCPU.cr2 = _scp_cr2;
+	_scp_rip = *(long *)_scp_rsp;
+	_scp_rsp += sizeof(long);
 	return 1;
 }
 #endif

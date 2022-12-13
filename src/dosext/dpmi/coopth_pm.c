@@ -35,7 +35,7 @@
 struct co_pm {
     Bit16u hlt_off;
     unsigned offs;
-    void (*post)(sigcontext_t *);
+    void (*post)(cpuctx_t *);
     int leader:1;
 };
 
@@ -50,7 +50,7 @@ static struct co_pm_pth coopthpm_pth[COOPTH_POOL_SIZE];
 
 static int is_active(int tid, int idx)
 {
-    sigcontext_t *scp = dpmi_get_scp();
+    cpuctx_t *scp = dpmi_get_scp();
     return (_cs == dpmi_sel() && _eip == coopthpm_pth[idx].hlt_off);
 }
 
@@ -90,7 +90,7 @@ static const struct coopth_be_ops ops = {
     .id = COOPTH_BE_PM,
 };
 
-static int do_start_custom(int tid, sigcontext_t *scp)
+static int do_start_custom(int tid, cpuctx_t *scp)
 {
     int idx = coopth_start_custom_internal(tid, scp);
     if (idx == -1)
@@ -102,7 +102,7 @@ static int do_start_custom(int tid, sigcontext_t *scp)
 
 static void coopth_auto_hlt_pm(Bit16u offs, void *sc, void *arg)
 {
-    sigcontext_t *scp = sc;
+    cpuctx_t *scp = sc;
     struct co_pm *thr = arg;
     int tid = (thr - coopthpm) + (offs >> 1);
 
@@ -138,7 +138,7 @@ static int register_handler(void *hlt_state, const char *name,
 }
 
 int coopth_create_pm(const char *name, coopth_func_t func,
-	void (*post)(sigcontext_t *), void *hlt_state, unsigned offs,
+	void (*post)(cpuctx_t *), void *hlt_state, unsigned offs,
 	unsigned int *hlt_off)
 {
     int num;
@@ -159,7 +159,7 @@ int coopth_create_pm(const char *name, coopth_func_t func,
 }
 
 int coopth_create_pm_multi(const char *name, coopth_func_t func,
-	void (*post)(sigcontext_t *), void *hlt_state, unsigned offs,
+	void (*post)(cpuctx_t *), void *hlt_state, unsigned offs,
 	int len, unsigned int *hlt_off, int r_offs[])
 {
     int num;

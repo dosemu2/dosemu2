@@ -2383,7 +2383,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   return 1;
 }
 
-static void scp_to_x86_regs(x86_regs *x86, sigcontext_t *scp, int pmode)
+static void scp_to_x86_regs(x86_regs *x86, cpuctx_t *scp, int pmode)
 {
   if(pmode) {
     x86->eax = _eax;
@@ -2438,7 +2438,7 @@ static void scp_to_x86_regs(x86_regs *x86, sigcontext_t *scp, int pmode)
   prepare_x86(x86);
 }
 
-static void x86_regs_to_scp(x86_regs *x86, sigcontext_t *scp, int pmode)
+static void x86_regs_to_scp(x86_regs *x86, cpuctx_t *scp, int pmode)
 {
   if(pmode) {
     _cs = x86->cs;
@@ -2480,14 +2480,14 @@ static void x86_regs_to_scp(x86_regs *x86, sigcontext_t *scp, int pmode)
  * state in the x86 structure.
  *
  * arguments:
- * scp - A pointer to a sigcontext_t holding some relevant data.
+ * scp - A pointer to a cpuctx_t holding some relevant data.
  * pmode - flags protected mode
  * cnt - number of instructions to be simulated
  *
  * DANG_END_FUNCTION
  */
 
-int instr_emu(sigcontext_t *scp, int pmode, int cnt)
+int instr_emu(cpuctx_t *scp, int pmode, int cnt)
 {
 #if DEBUG_INSTR >= 1
   int refseg, rc;
@@ -2528,7 +2528,7 @@ int instr_emu(sigcontext_t *scp, int pmode, int cnt)
   return True;
 }
 
-int decode_modify_segreg_insn(sigcontext_t *scp, int pmode,
+int decode_modify_segreg_insn(cpuctx_t *scp, int pmode,
     unsigned int *new_val)
 {
   struct rm mem = {};
