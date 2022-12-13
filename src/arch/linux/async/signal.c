@@ -597,8 +597,10 @@ static void sigbreak(sigcontext_t *scp)
   if (!in_vm86) {
     switch (config.cpu_vm_dpmi) {
       case CPUVM_NATIVE:
+#ifdef DNATIVE
         if (DPMIValidSelector(_scp_cs))
           dpmi_return(scp, DPMI_RET_DOSEMU);
+#endif
         break;
       case CPUVM_EMU:
         /* compiled code can't check signal_pending() so we hint it */
