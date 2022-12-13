@@ -205,15 +205,9 @@
 // returns 2(16 bit), 4(32 bit)
 #define BT24(bpos, mode) (4 - (((mode) << (1-(bpos))) & 2))
 
-static __inline__ int FastLog2(register int v)
+static __inline__ int FastLog2(int v)
 {
-	register int temp;
-	__asm__ ("bsr	%1,%0\n \
-		jnz	1f\n \
-		xor	%0,%0\n \
-1: 		" \
-		: "=a"(temp) : "g"(v) );
-	return temp;
+	return fls(v) - 1;
 }
 
 /////////////////////////////////////////////////////////////////////////////
