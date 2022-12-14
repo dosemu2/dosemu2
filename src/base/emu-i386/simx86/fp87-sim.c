@@ -760,14 +760,13 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			break;
 		   case 4:		/* FXTRACT */
 	   		WFR0 = *ST0;
-			__asm__ __volatile__ (
-			"fldt	%3\n"
-			"fxtract\n"
-			"fnstsw	%2\n"
-			"fstpt	%1\n"
-			"fstpt	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
+			{
+				int exp;
+				WFR1 = frexpl(WFR0, &exp) * 2;
+				WFR0 = logbl(WFR0);
+			}
 			*ST0 = WFR0; DECFSPP;
-			fssync();
+			ftest();
 			*ST0 = WFR1;
 			break;
 		   case 5:		/* FPREM1 */
@@ -815,14 +814,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 5:		/* FSCALE */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
-			__asm__ __volatile__ (
-			"fldt	%2\n"
-			"fldt	%3\n"
-			"fscale\n"
-			"fnstsw	%1\n"
-			"fstpt	%0\n"
-			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
-			fssync();
+			WFR0 = ldexpl(WFR0, truncl(WFR1));
+			ftest();
 			*ST0 = WFR0;
 			break;
 		   case 1:		/* FYL2XP1 */
