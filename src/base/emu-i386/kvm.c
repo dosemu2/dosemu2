@@ -898,7 +898,7 @@ static unsigned int kvm_run(struct vm86_regs *regs)
       exit_reason = KVM_EXIT_INTR;
       break;
     } else if (ret != 0) {
-      error("KVM: KVM_RUN failed: %s", strerror(errn));
+      error("KVM: KVM_RUN failed: %s\n", strerror(errn));
       leavedos_main(99);
     }
 
