@@ -32,11 +32,14 @@
 #include "disks.h"
 //#include "doshelpers.h"
 
-#include "bootnorm.xxd"
-#include "bootsect.xxd"
-
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
+extern char _binary_bootnorm_o_bin_end[];
+extern char _binary_bootnorm_o_bin_size[];
+extern char _binary_bootnorm_o_bin_start[];
+extern char _binary_bootsect_o_bin_end[];
+extern char _binary_bootsect_o_bin_size[];
+extern char _binary_bootsect_o_bin_start[];
 
 /* These can be changed -- at least in theory. In practise, it doesn't
  * seem to work very well (I don't know why).
@@ -395,7 +398,8 @@ int main(int argc, char *argv[])
   }
   /* Write our master boot record */
   clear_buffer();
-  memcpy(buffer, bootnorm_code, MIN(sizeof(buffer), sizeof(bootnorm_code)));
+  memcpy(buffer, _binary_bootnorm_o_bin_start,
+    MIN(sizeof(buffer), _binary_bootnorm_o_bin_end-_binary_bootnorm_o_bin_start));
 #if 0
   buffer[0] = 0xeb;                     /* Jump to dosemu exit code. */
   buffer[1] = 0x3c;                     /* (jmp 62; nop) */
@@ -441,7 +445,8 @@ int main(int argc, char *argv[])
   }
   if (!bootsect_file) {
     clear_buffer();
-    memcpy(buffer, bootsect_code, MIN(sizeof(buffer), sizeof(bootsect_code)));
+    memcpy(buffer, _binary_bootsect_o_bin_start,
+        MIN(sizeof(buffer), _binary_bootsect_o_bin_end-_binary_bootsect_o_bin_start));
   }
 
   bpb = (struct on_disk_bpb *) &buffer[0x0b];

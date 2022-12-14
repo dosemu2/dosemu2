@@ -6,7 +6,7 @@ IDEST=/var/lib
 
 CFILES=hdinfo.c mkhdimage.c putrom.c mkfatimage16.c \
     dexeconfig.c scsicheck.c dosctrl.c vbioscheck.c
-XSFILES=bootsect.s bootnorm.s
+SFILES = bootsect.S bootnorm.S
 SRC=$(CFILES)
 OBJ1=hdinfo
 OBJ2=putrom dexeconfig scsicheck dosctrl vbioscheck
@@ -16,22 +16,9 @@ ALL_CPPFLAGS += -I.
 
 all: $(OBJ)
 
-boot%.elf: boot%.o
-	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0x0000 \
-		-e _start16 -Map boot$*.map -o $@ $<
-	chmod -x $@
+include $(REALTOPDIR)/src/Makefile.common.post
 
-boot%.bin: boot%.elf
-	$(XOBJCOPY) -j .text -O binary $< $@
-
-boot%.xxd: boot%.bin
-	echo "const char boot$*_code[] = \"\\" >$@
-	hexdump -v -e '"\\" "x" 1/1 "%02X"' $< >>$@
-	echo "\";" >>$@
-
-mkfatimage16.o: bootsect.xxd bootnorm.xxd
-
-$(BINPATH)/bin/mkfatimage16: mkfatimage16.o | $(BINPATH)/bin
+$(BINPATH)/bin/mkfatimage16: mkfatimage16.o $(SFILES:.S=.o) | $(BINPATH)/bin
 	$(LD) $(ALL_LDFLAGS) $^ -o $@
 
 $(BINPATH)/bin/mkhdimage: mkhdimage.o | $(BINPATH)/bin
@@ -50,10 +37,8 @@ install:
 
 clean::
 	rm -f $(OBJ) $(OBJ2) *.o mkfatimage16 mkhdimage
-	rm -f *.out *.xxd *.map
+	rm -f *.map
 
 realclean:: clean
-
-include $(REALTOPDIR)/src/Makefile.common.post
 
 NO_LIB = 1

@@ -2,12 +2,11 @@
 # normal DOS boot sector
 #
 
-.intel_syntax noprefix
 .text
 .code16
 
-.globl  _start16
-_start16:
+.global  _start
+_start:
 
 #-----------------------------------------------------------------------
 #   ENTRY (copied from freedos bootsector)
@@ -19,38 +18,39 @@ _start16:
 
 real_start:     cli
                 cld
-                xor     ax, ax
-                mov     ds, ax
-                mov     bp, 0x7c00
-                mov     ss, ax          # initialize stack
-                lea     sp, [bp-0x20]
+                xorw    %ax,%ax
+                movw    %ax,%ds
+                movw    $0x7c00,%bp
+                movw    %ax,%ss         # initialize stack
+                leaw    -0x20(%bp),%sp
                 sti
 
-                mov     ax, 0x1FE0
-                mov     es, ax
-                mov     si, bp
-                mov     di, bp
-                mov     cx, 0x0100
-                rep     movsw
+                movw    $0x1FE0,%ax
+                movw    %ax,%es
+                movw    %bp,%si
+                movw    %bp,%di
+                movw    $0x0100,%cx
+                rep
+                movsw
 
-                jmp     0x1FE0:0x7c00+ cont-real_start
+                jmp     $0x1FE0,$0x7c00+ cont-real_start
 
-cont:           mov     ds, ax
-                mov     ss, ax
-                xor     ax,ax
-                mov     es,ax
+cont:           movw    %ax,%ds
+                movw    %ax,%ss
+                xorw    %ax,%ax
+                movw    %ax,%es
 
 #               call    print
 #               db      "FreeDOS MBR...",0
 
 
                                                                                  # search for active partition
-                lea di, [bp+0x1be] # start of partition table
+                leaw 0x1be(%bp),%di # start of partition table
 test_next_for_active:
-                test byte ptr [di],0x80
+                testb $0x80,(%di)
                 jne  active_partition_found
-                add  di,0x10                    # next table
-                cmp  di, 0x7c00+0x1fe# scanned beyond end of table ??
+                addw $0x10,%di                  # next table
+                cmpw $0x7c00+0x1fe,%di # scanned beyond end of table ??
                 jb  test_next_for_active
 
 #*****************************************************************
@@ -87,14 +87,14 @@ active_partition_found:
 
                 jc  trouble_reading_drive
 
-                cmp word ptr [es:0x7c00+0x1fe],0xaa55
+                cmpw $0xaa55,%es:0x7c00+0x1fe
                 jne invalid_partition_code
 
 #               call print
 #               db '.jump DOS..',0
 
-                mov si, di                 # ds:si -> booted partition entry
-                jmp 0x0:0x7c00             # and jump to boot sector code
+                movw %di,%si               # ds:si -> booted partition entry
+                jmp $0x0,$0x7c00             # and jump to boot sector code
 
 
 #*****************************
@@ -106,34 +106,34 @@ active_partition_found:
 
 read_boot_sector:
                 #  /* check for LBA support */
-                mov bx,0x55aa
-                mov ah,0x41
-                int 0x13
+                movw $0x55aa,%bx
+                movb $0x41,%ah
+                int $0x13
 
                 jc  StandardBios    #  if (regs.b.x != 0xaa55 || (regs.flags & 0x01))
-                cmp bx,0xaa55       #    goto StandardBios#
+                cmpw $0xaa55,%bx    #    goto StandardBios;
                 jne StandardBios
 
                               #  /* if DAP cannot be used, don't use LBA */
                               #  /* if ((regs.c.x & 1) == 0) */
-                              #  /*  goto StandardBios# */
-                test cl,1
+                              #  /*  goto StandardBios; */
+                testb $1,%cl
                 jz StandardBios
 
-        jmp short LBABios
+        jmp LBABios
 
 
 
 #struct _bios_LBA_address_packet            /* Used to access a hard disk via LBA */
 #{
-#  unsigned char packet_size#    /* size of this packet...set to 16  */
-#  unsigned char reserved_1#     /* set to 0...unused                */
-#  unsigned char number_of_blocks#       /* 0 < number_of_blocks < 128       */
-#  unsigned char reserved_2#     /* set to 0...unused                */
-#  UBYTE far *buffer_address#    /* addr of transfer buffer          */
-#  unsigned long block_address#  /* LBA address                      */
-#  unsigned long block_address_high#     /* high bytes of LBA addr...unused  */
-#}#
+#  unsigned char packet_size;    /* size of this packet...set to 16  */
+#  unsigned char reserved_1;     /* set to 0...unused                */
+#  unsigned char number_of_blocks;       /* 0 < number_of_blocks < 128       */
+#  unsigned char reserved_2;     /* set to 0...unused                */
+#  UBYTE far *buffer_address;    /* addr of transfer buffer          */
+#  unsigned long block_address;  /* LBA address                      */
+#  unsigned long block_address_high;     /* high bytes of LBA addr...unused  */
+#};
 
 _bios_LBA_address_packet:
         .byte 0x10
@@ -151,15 +151,15 @@ _bios_LBA_high:
 
 LBABios:
                                                 # copy start address of partition to DAP
-        mov ax,[di+8]
-        mov [0x7c00+ (_bios_LBA_low-real_start)],ax
-        mov ax,[di+8+2]
-        mov [0x7c00+ (_bios_LBA_high-real_start)],ax
+        movw 8(%di),%ax
+        movw %ax,0x7c00+ _bios_LBA_low-real_start
+        movw 8+2(%di),%ax
+        movw %ax,0x7c00+ _bios_LBA_high-real_start
 
-    mov ax,0x4200               #  regs.a.x = LBA_READ#
-    mov si,0x7c00+ (_bios_LBA_address_packet-real_start)# regs.si = FP_OFF(&dap)#
+        movw $0x4200,%ax            #  regs.a.x = LBA_READ;
+        mov $0x7c00+ _bios_LBA_address_packet-real_start,%si
 
-        int 0x13
+        int $0x13
         ret
 
 #*****************************************************************
@@ -170,15 +170,15 @@ StandardBios:
 #       .byte 'standard BIOS',0
 
 
-    mov ax,0x0204                       #  regs.a.x = 0x0201#
-    mov bx,0x7c00                       #  regs.b.x = FP_OFF(buffer)#
-        mov cx,[di+2]                   #      regs.c.x =
+    movw $0x0204,%ax                    #  regs.a.x = 0x0201;
+    movw $0x7c00,%bx                    #  regs.b.x = FP_OFF(buffer);
+        movw 2(%di),%cx                 #      regs.c.x =
                                                 # ((chs.Cylinder & 0xff) << 8) + ((chs.Cylinder & 0x300) >> 2) +
-                                                # chs.Sector#
-                                                # that was easy #-)
-    mov dh,[di+1]                       #  regs.d.b.h = chs.Head#
-                                                #  regs.es = FP_SEG(buffer)#
-        int 0x13
+                                                # chs.Sector;
+                                                # that was easy ;-)
+    movb 1(%di),%dh                     #  regs.d.b.h = chs.Head;
+                                                #  regs.es = FP_SEG(buffer);
+        int $0x13
         ret
 
 
@@ -187,13 +187,13 @@ StandardBios:
 # prints text after call to this function.
 
 print_1char:
-                xor   bx, bx                   # video page 0
-                mov   ah, 0x0E                 # else print it
-                int   0x10                     # via TTY mode
-print:          pop   si                       # this is the first character
+                xorw  %bx,%bx                  # video page 0
+                movb  $0x0E,%ah                # else print it
+                int   $0x10                    # via TTY mode
+print:          popw  %si                      # this is the first character
 print1:         lodsb                          # get token
-                push  si                       # stack up potential return address
-                cmp   al, 0                    # end of string?
+                pushw %si                      # stack up potential return address
+                cmpb  $0,%al                   # end of string?
                 jne   print_1char              # until done
                 ret                            # and jump to it
 

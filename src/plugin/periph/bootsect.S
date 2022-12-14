@@ -8,8 +8,8 @@
 .code16	
 .text
 
-.globl  _start16
-_start16:
+.globl  _start
+_start:
 
 head:
 
