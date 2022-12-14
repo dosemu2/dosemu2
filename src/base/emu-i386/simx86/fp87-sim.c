@@ -741,27 +741,22 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 3:		/* FPATAN */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
-			__asm__ __volatile__ (
-			"fldt	%2\n"
-			"fldt	%3\n"
-			"fpatan\n"
-			"fnstsw	%1\n"
-			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
+			WFR0 = atan2l(WFR1, WFR0);
 			INCFSPP;
-			fssync();
+			ftest();
 			*ST0 = WFR0;
 			break;
 		   case 2:		/* FPTAN */
 	   		WFR0 = *ST0;
-			__asm__ __volatile__ (
-			"fldt	%3\n"
-			"fptan\n"
-			"fnstsw	%2\n"
-			"fstpt	%1\n"
-			"fstpt	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
+			if (isfinite(WFR0) && fabsl(WFR0) >= 1ULL<<63) {
+				TheCPU.fpus |= 0x400;
+				break;
+			}
+			WFR0 = tanl(WFR0);
 			*ST0 = WFR0; DECFSPP;
-			fssync();
-			*ST0 = WFR1;
+			ftest();
+			TheCPU.fpus &= ~0x400;
+			*ST0 = 1.0;
 			break;
 		   case 4:		/* FXTRACT */
 	   		WFR0 = *ST0;
@@ -861,34 +856,37 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			break;
 		   case 6:		/* FSIN */
 	   		WFR0 = *ST0;
-			__asm__ __volatile__ (
-			"fldt	%2\n"
-			"fsin\n"
-			"fnstsw	%1\n"
-			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
-			fssync();
+			if (isfinite(WFR0) && fabsl(WFR0) >= 1ULL<<63) {
+				TheCPU.fpus |= 0x400;
+				break;
+			}
+			WFR0 = sinl(WFR0);
+			ftest();
+			TheCPU.fpus &= ~0x400;
 			*ST0 = WFR0;
 			break;
 		   case 7:		/* FCOS */
 	   		WFR0 = *ST0;
-			__asm__ __volatile__ (
-			"fldt	%2\n"
-			"fcos\n"
-			"fnstsw	%1\n"
-			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
-			fssync();
+			if (isfinite(WFR0) && fabsl(WFR0) >= 1ULL<<63) {
+				TheCPU.fpus |= 0x400;
+				break;
+			}
+			WFR0 = cosl(WFR0);
+			ftest();
+			TheCPU.fpus &= ~0x400;
 			*ST0 = WFR0;
 			break;
 		   case 3:		/* FSINCOS */
 	   		WFR0 = *ST0;
-			__asm__ __volatile__ (
-			"fldt	%3\n"
-			"fsincos\n"
-			"fnstsw	%2\n"
-			"fstpt	%1\n"
-			"fstpt	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
+			if (isfinite(WFR0) && fabsl(WFR0) >= 1ULL<<63) {
+				TheCPU.fpus |= 0x400;
+				break;
+			}
+			WFR1 = cosl(WFR0);
+			WFR0 = sinl(WFR0);
 			*ST0 = WFR0; DECFSPP;
-			fssync();
+			ftest();
+			TheCPU.fpus &= ~0x400;
 			*ST0 = WFR1;
 			break;
 		   }
