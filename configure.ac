@@ -53,14 +53,24 @@ fi
 
 AC_PATH_PROG([AS], [as])
 if test -z "$AS"; then
-  AC_MSG_ERROR(as not found)
+  AC_PATH_PROG([AS], [clang])
+  if test -z "$AS"; then
+    AC_MSG_ERROR(as not found)
+  fi
+  AC_MSG_NOTICE(Using clang as as...)
+  clang_as_as=1
+  ASFLAGS="-xassembler -c -"
 fi
 AC_PATH_PROG([XAS], [i686-linux-gnu-as])
 if test -z "$XAS"; then
   XAS="$AS"
-  XASFLAGS=--32
+  if test "$clang_as_as" = "1"; then
+    XASFLAGS="$ASFLAGS -m32"
+  else
+    XASFLAGS="$ASFLAGS --32"
+  fi
 fi
-AC_PATH_PROG([LD], [ld])
+AC_PATH_PROGS([LD], [ld ld.lld])
 if test -z "$LD"; then
   AC_MSG_ERROR(ld not found)
 fi
@@ -70,9 +80,14 @@ if test -z "$AS_LD"; then
 fi
 AC_PATH_PROG([OBJCOPY], [objcopy])
 if test -z "$OBJCOPY"; then
-  AC_MSG_ERROR(objcopy not found)
+  AC_PATH_PROG([OBJCOPY], [llvm-objcopy])
+  if test -z "$OBJCOPY"; then
+    AC_MSG_ERROR(objcopy not found)
+  fi
+  O_BDFARCH="elf64-x86-64"
+else
+  O_BDFARCH=`$OBJCOPY --info | head -n 2 | tail -n 1`
 fi
-O_BDFARCH=`$OBJCOPY --info | head -n 2 | tail -n 1`
 AC_PATH_PROG([XOBJCOPY], [i686-linux-gnu-objcopy])
 if test -z "$XOBJCOPY"; then
   XOBJCOPY="$OBJCOPY"
