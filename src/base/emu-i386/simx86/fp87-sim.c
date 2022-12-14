@@ -840,12 +840,13 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			break;
 		   case 2:		/* FSQRT */
 	   		WFR0 = *ST0;
-			__asm__ __volatile__ (
-			"fldt	%2\n"
-			"fsqrt\n"
-			"fnstsw	%1\n"
-			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
-			fssync();
+			if (signbit(WFR0) && WFR0 != -0.0) {
+				WFR0 = -NAN;
+				TheCPU.fpus |= 0x1;
+			} else {
+				WFR0 = sqrtl(WFR0);
+				ftest();
+			}
 			*ST0 = WFR0;
 			break;
 		   case 4:		/* FRNDINT */
