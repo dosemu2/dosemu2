@@ -310,14 +310,22 @@ void cpu_setup(void)
   orig_vm_dpmi = config.cpu_vm_dpmi;
   if (config.cpu_vm == -1)
     config.cpu_vm =
-#ifdef __x86_64__
+#if defined(__x86_64__)
 	CPUVM_KVM
-#else
+#elif defined(__i386__)
 	CPUVM_VM86
+#else
+	CPUVM_EMU
 #endif
 	;
   if (config.cpu_vm_dpmi == -1)
-    config.cpu_vm_dpmi = CPUVM_KVM;
+    config.cpu_vm_dpmi =
+#if defined(__x86_64__) || defined(__i386__)
+	CPUVM_KVM
+#else
+	CPUVM_EMU
+#endif
+	;
 
   if ((config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) &&
       !init_kvm_cpu()) {
