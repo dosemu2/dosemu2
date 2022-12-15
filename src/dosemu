@@ -178,6 +178,7 @@ fi
 # for address sanitizer
 export ASAN_OPTIONS='handle_segv=0:abort_on_error=1:detect_leaks=0'
 export LSAN_OPTIONS='report_objects=1:fast_unwind_on_malloc=0:exitcode=0'
+export UBSAN_OPTIONS='print_stacktrace=1'
 
 eval "set -- $SUFFIX"
 COMMAND="$SUDO $SUDOOPTS $DBG $BINARY -o $LOG_FILE $OPTS"
