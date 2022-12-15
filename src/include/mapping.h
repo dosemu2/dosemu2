@@ -14,6 +14,7 @@
 
 #include <sys/mman.h>
 #include "memory.h"
+#include "cpu-emu.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
@@ -54,6 +55,14 @@
 #define MAPPING_SINGLE		0x080000
 #define MAPPING_NULL		0x100000
 #define MAPPING_NOOVERLAP	0x200000
+
+#ifdef __x86_64__
+/* FIXME: JIT should support 64bit mem_base */
+#define _MAP_32BIT ((config.cpu_vm_dpmi == CPUVM_NATIVE || \
+    (IS_EMU() && !CONFIG_CPUSIM)) ? MAP_32BIT : 0)
+#else
+#define _MAP_32BIT 0
+#endif
 
 typedef int open_mapping_type(int cap);
 int open_mapping (int cap);

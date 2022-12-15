@@ -3,6 +3,7 @@
 
 #include <signal.h>
 #include "bitops.h"
+#include "cpu.h"
 
 extern void e_priv_iopl(int);
 #define test_ioperm(a)	(test_bit((a),emu_io_bitmap))
