@@ -614,6 +614,12 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         shmsize = size;
     }
 
+    addr = smalloc(&lin_pool, size);
+    if (!addr) {
+        error("unable to alloc %x for shm %s\n", size, name);
+        return NULL;
+    }
+
     asprintf(&shmname, "/dosemu_dpmishm_%d_%s", getpid(), name);
     if (init)
         oflags |= O_CREAT;
@@ -628,12 +634,8 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         ftruncate(fd, shmsize);
     if (!(flags & SHM_NOEXEC))
         prot |= PROT_EXEC;
-    addr = mmap_file_ux(MAPPING_DPMI | extra_mf,
-            NULL, size, prot, MAP_SHARED
-#ifdef __x86_64__
-            | MAP_32BIT
-#endif
-            , fd);
+    /* this mem is already mapped to KVM so we use plain mmap() */
+    addr = mmap(addr, size, prot, MAP_SHARED | MAP_FIXED, fd, 0);
     close(fd);
     if (addr == MAP_FAILED) {
         perror("mmap()");
@@ -642,8 +644,11 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         return NULL;
     }
     ptr = alloc_pm_block(root, size);
-    if (!ptr)
+    if (!ptr) {
+        error("pm block alloc failed, exiting\n");
+        leavedos(2);
         return NULL;
+    }
     for (i = 0; i < (size >> PAGE_SHIFT); i++)
         ptr->attrs[i] = 0x09 | ATTR_SHR;	// RW, shared, present
     ptr->base = DOSADDR_REL(addr);
@@ -665,7 +670,9 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !(ptr->attrs[0] & ATTR_SHR))
         return -1;
-    munmap_mapping(MAPPING_DPMI | MAPPING_IMMEDIATE, ptr->base, ptr->size);
+    mmap(MEM_BASE32(ptr->base), ptr->size, PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS, -1, 0);
+    smfree(&lin_pool, MEM_BASE32(ptr->base));
     if (unlnk) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
         shm_unlink(ptr->rshmname);
