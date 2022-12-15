@@ -5,7 +5,7 @@
 
 #include <stdbool.h>
 
-#ifdef __x86_64__
+#ifdef __LP64__
 #define BITS_PER_LONG 64
 #else
 #define BITS_PER_LONG 32
