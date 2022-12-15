@@ -40,9 +40,7 @@
 #include <linux/version.h>
 #endif
 
-#ifndef __x86_64__
-#undef MAP_32BIT
-#define MAP_32BIT 0
+#ifdef __i386__
 enum { MEM_BASE, VM86_BASE, MAX_BASES };
 #else
 enum { MEM_BASE, MAX_BASES };
@@ -165,11 +163,16 @@ static int map_find(struct mem_map_struct *map, int max,
 
 static inline unsigned char *MEM_BASE32x(dosaddr_t a, int base)
 {
-  uint32_t off;
+  uintptr_t off;
+  uintptr_t baddr = (uintptr_t)mem_bases[base];
   if (mem_bases[base] == MAP_FAILED)
     return MAP_FAILED;
   assert(a < LOWMEM_SIZE + HMASIZE || base == MEM_BASE);
-  off = (uint32_t)((uintptr_t)mem_bases[base] + a);
+#if 0
+  off = (uint32_t)(baddr + a) | (baddr & ~0xffffffffUL);
+#else
+  off = baddr + a;
+#endif
   return LINP(off);
 }
 
@@ -253,7 +256,7 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
   /* use MAP_32BIT also for MAPPING_INIT_LOWRAM until simx86 is 64bit-safe */
   if (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)) {
     target = mmap(NULL, mapsize, protect,
-		MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+		MAP_PRIVATE | MAP_ANONYMOUS | _MAP_32BIT, -1, 0);
     if (target == MAP_FAILED) {
       error("mmap MAP_32BIT failed, %s\n", strerror(errno));
       return MAP_FAILED;
@@ -333,7 +336,7 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
 
   if (targ == (dosaddr_t)-1) {
     target = mmap(NULL, mapsize, PROT_READ | PROT_WRITE,
-                MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+                MAP_PRIVATE | MAP_ANONYMOUS | _MAP_32BIT, -1, 0);
     if (target == MAP_FAILED) {
       error("mmap MAP_32BIT failed, %s\n", strerror(errno));
       return target;
@@ -406,7 +409,7 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 #ifdef __x86_64__
   if (flags == 0 &&
       (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM|MAPPING_KVM)))
-    flags = MAP_32BIT;
+    flags = _MAP_32BIT;
 #endif
   addr = mmap(target, mapsize, protect,
 		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
@@ -672,7 +675,7 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
     if (cap & MAPPING_LOWMEM) {
       int i;
       for (i = 0; i < MAX_BASES; i++) {
-        addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
+        addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | _MAP_32BIT,
 		mem_fd, source);
         if (addr == MAP_FAILED) {
           close_kmem();
@@ -681,7 +684,7 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
         kmem_map[kmem_mappings].base[i] = addr;
       }
     } else {
-      addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
+      addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | _MAP_32BIT,
 		mem_fd, source);
       if (addr == MAP_FAILED) {
         close_kmem();
@@ -689,7 +692,7 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
       }
       kmem_map[kmem_mappings].base[MEM_BASE] = addr;
     }
-    addr2 = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
+    addr2 = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | _MAP_32BIT,
 		mem_fd, source);
     close_kmem();
     if (addr2 == MAP_FAILED)

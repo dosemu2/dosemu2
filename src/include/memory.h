@@ -188,7 +188,12 @@ extern unsigned char *mem_base;
 #define LINP(a) ((unsigned char *)(uintptr_t)(a))
 static inline unsigned char *MEM_BASE32(dosaddr_t a)
 {
-    uint32_t off = (uint32_t)((uintptr_t)mem_base + a);
+    uintptr_t baddr = (uintptr_t)mem_base;
+#if 0
+    uintptr_t off = (uint32_t)(baddr + a) | (baddr & ~0xffffffffUL);
+#else
+    uintptr_t off = baddr + a;
+#endif
     return LINP(off);
 }
 static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
