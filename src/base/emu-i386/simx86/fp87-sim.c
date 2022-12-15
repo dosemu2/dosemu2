@@ -44,7 +44,6 @@ int (*Fp87_op)(int exop, int reg);
 static int Fp87_op_sim(int exop, int reg);
 
 static long double WFR0, WFR1;
-static unsigned short WFRS;
 
 #define S_next(r)	(((r)+1)&7)
 #define S_prev(r)	(((r)-1)&7)
@@ -121,11 +120,6 @@ static void ftest(void)
 	if (exceptions & FE_UNDERFLOW) fps |= 0x10;
 	if (exceptions & FE_INEXACT) fps |= 0x20;
 	TheCPU.fpus = (fps&0xc7df)|(TheCPU.fpstt<<11);
-}
-
-static inline void fssync(void)
-{
-	TheCPU.fpus = (WFRS&0xc7df)|(TheCPU.fpstt<<11);
 }
 
 /* round long double to integer depending on rounding mode */
@@ -717,25 +711,24 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //	71.7	D9 11110111	FINCSTP
 		   case 0:		/* F2XM1 */
 	   		WFR0 = *ST0;
-			__asm__ __volatile__ (
-			"fldt	%2\n"
-			"f2xm1\n"
-			"fnstsw	%1\n"
-			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
-			fssync();
+			WFR0 = exp2l(WFR0) - 1.0;
+			ftest();
 			*ST0 = WFR0;
 			break;
 		   case 1:		/* FYL2X */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
-			__asm__ __volatile__ (
-			"fldt	%2\n"
-			"fldt	%3\n"
-			"fyl2x\n"
-			"fnstsw	%1\n"
-			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
+			if (WFR0 < 0.0) {
+				WFR0 = -NAN;
+				TheCPU.fpus |= 0x1;
+			} else if (WFR0 == 0.0) {
+				WFR0 = -INFINITY;
+				TheCPU.fpus |= 0x4;
+			} else {
+				WFR0 = WFR1 * log2l(WFR0);
+				ftest();
+			}
 			INCFSPP;
-			fssync();
 			*ST0 = WFR0;
 			break;
 		   case 3:		/* FPATAN */
@@ -851,14 +844,10 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 1:		/* FYL2XP1 */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
-			__asm__ __volatile__ (
-			"fldt	%2\n"
-			"fldt	%3\n"
-			"fyl2xp1\n"
-			"fnstsw	%1\n"
-			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
+			if (WFR0 > -1.0)
+				WFR0 = WFR1 * log2l(WFR0 + 1.0);
 			INCFSPP;
-			fssync();
+			ftest();
 			*ST0 = WFR0;
 			break;
 		   case 2:		/* FSQRT */
