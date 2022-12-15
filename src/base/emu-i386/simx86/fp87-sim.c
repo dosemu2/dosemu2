@@ -112,7 +112,7 @@ static void fxam(long double d)
 
 static void ftest(void)
 {
-	unsigned short fps = TheCPU.fpus & ~0x3f;
+	unsigned short fps = TheCPU.fpus;
 	int exceptions = fetestexcept(FE_ALL_EXCEPT);
 	if (exceptions & FE_INVALID) fps |= 0x1;
 	if (exceptions & FE_DIVBYZERO) fps |= 0x4;
