@@ -772,14 +772,29 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 5:		/* FPREM1 */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
-			__asm__ __volatile__ (
-			"fldt	%2\n"
-			"fldt	%3\n"
-			"fprem1\n"
-			"fnstsw	%1\n"
-			"fstpt	%0\n"
-			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
-			fssync();
+			TheCPU.fpus &= ~0x4700;
+			if (!isfinite(WFR0) || isnan(WFR1) || WFR1 == 0.0) {
+				WFR0 = remainderl(WFR0, WFR1);
+			} else if (isfinite(WFR1) && WFR0 != 0.0) {
+				int d = ilogbl(WFR0) - ilogbl(WFR1);
+				if (d < 64) {
+					unsigned iq;
+					iq = fabsl(nearbyintl(WFR0 / WFR1));
+					WFR0 = remainderl(WFR0, WFR1);
+					TheCPU.fpus |= ((iq & 1) <<  (9-0)) |
+						       ((iq & 2) << (14-1)) |
+						       ((iq & 4) <<  (8-2));
+				} else {
+					int n = (d & 0x1f) | 0x20;
+					long double q;
+					long double ld0 = WFR0;
+					q = truncl(WFR0 / ldexpl(WFR1, d - n));
+					WFR0 -= ldexpl(WFR1 * q, d - n);
+					if (WFR0 == 0.0 && ld0 < 0) WFR0 = -WFR0;
+					TheCPU.fpus |= 0x400;
+				}
+			}
+			ftest();
 			*ST0 = WFR0;
 			break;
 		   case 6:		/* FDECSTP */
@@ -801,14 +816,29 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 0:		/* FPREM */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
-			__asm__ __volatile__ (
-			"fldt	%2\n"
-			"fldt	%3\n"
-			"fprem\n"
-			"fnstsw	%1\n"
-			"fstpt	%0\n"
-			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
-			fssync();
+			TheCPU.fpus &= ~0x4700;
+			if (!isfinite(WFR0) || isnan(WFR1) || WFR1 == 0.0) {
+				WFR0 = fmodl(WFR0, WFR1);
+			} else if (isfinite(WFR1) && WFR0 != 0.0) {
+				int d = ilogbl(WFR0) - ilogbl(WFR1);
+				if (d < 64) {
+					unsigned iq;
+					iq = fabsl(truncl(WFR0 / WFR1));
+					WFR0 = fmodl(WFR0, WFR1);
+					TheCPU.fpus |= ((iq & 1) <<  (9-0)) |
+						       ((iq & 2) << (14-1)) |
+						       ((iq & 4) <<  (8-2));
+				} else {
+					int n = (d & 0x1f) | 0x20;
+					long double q;
+					long double ld0 = WFR0;
+					q = truncl(WFR0 / ldexpl(WFR1, d - n));
+					WFR0 -= ldexpl(WFR1 * q, d - n);
+					if (WFR0 == 0.0 && ld0 < 0) WFR0 = -WFR0;
+					TheCPU.fpus |= 0x400;
+				}
+			}
+			ftest();
 			*ST0 = WFR0;
 			break;
 		   case 5:		/* FSCALE */
