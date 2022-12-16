@@ -161,19 +161,22 @@ static int map_find(struct mem_map_struct *map, int max,
 }
 #endif
 
-static inline unsigned char *MEM_BASE32x(dosaddr_t a, int base)
+static unsigned char *MEM_BASE32x(dosaddr_t a, int base)
 {
   uintptr_t off;
   uintptr_t baddr = (uintptr_t)mem_bases[base];
   if (mem_bases[base] == MAP_FAILED)
     return MAP_FAILED;
   assert(a < LOWMEM_SIZE + HMASIZE || base == MEM_BASE);
-#if 0
-  off = (uint32_t)(baddr + a) | (baddr & ~0xffffffffUL);
-#else
   off = baddr + a;
-#endif
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+    off &= 0xffffffff;
   return LINP(off);
+}
+
+unsigned char *MEM_BASE32(dosaddr_t a)
+{
+    return MEM_BASE32x(a, MEM_BASE);
 }
 
 #ifdef __linux__
