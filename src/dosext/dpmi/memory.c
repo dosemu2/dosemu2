@@ -667,11 +667,13 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
 
 int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
 {
+    int err;
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !(ptr->attrs[0] & ATTR_SHR))
         return -1;
-    mmap(MEM_BASE32(ptr->base), ptr->size, PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS, -1, 0);
+    err = restore_mapping(MAPPING_DPMI, ptr->base, ptr->size);
+    if (err)
+        error("restore_mapping() failed\n");
     smfree(&mem_pool, MEM_BASE32(ptr->base));
     if (unlnk) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);

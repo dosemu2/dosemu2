@@ -390,6 +390,8 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 {
   void *addr;
   int flags = (target != (void *)-1) ? MAP_FIXED : 0;
+  /* assume fixed mappings are already visible to kvm unless marked immediate */
+  int update_kvm = ((target == (void *)-1) || (cap & MAPPING_IMMEDIATE));
 
   if (cap & MAPPING_NOOVERLAP) {
     if (target == (void *)-1) {
@@ -428,7 +430,7 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
       return MAP_FAILED;
     }
   }
-  if (is_kvm_map(cap))
+  if (update_kvm && is_kvm_map(cap))
     /* Map guest memory in KVM */
     mmap_kvm(cap, addr, mapsize, protect);
 
@@ -479,6 +481,18 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
     update_aliasmap(targ, mapsize, addr);
   Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
   return addr;
+}
+
+/* Restore mapping previously broken by direct mmap() call. */
+int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
+{
+  void *addr;
+  void *target;
+  assert((cap & MAPPING_DPMI) && (targ != (dosaddr_t)-1));
+  target = MEM_BASE32(targ);
+  addr = do_mmap_mapping(cap, MEM_BASE32(targ), mapsize,
+        PROT_READ | PROT_WRITE);
+  return (addr == target ? 0 : -1);
 }
 
 static void *do_mremap_grow(int cap, dosaddr_t from, size_t old_size,

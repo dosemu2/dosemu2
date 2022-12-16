@@ -92,6 +92,7 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source);
 
 int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize);
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect);
+int restore_mapping(int cap, dosaddr_t targ, size_t mapsize);
 
 struct mappingdrivers {
   const char *key;
