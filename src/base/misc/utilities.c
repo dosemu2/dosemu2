@@ -1021,6 +1021,7 @@ static cookie_io_functions_t tee_ops = {
     .close = tee_close,
 };
 
+#ifdef HAVE_FOPENCOOKIE
 FILE *fstream_tee(FILE *orig, FILE *copy)
 {
     FILE *f;
@@ -1033,3 +1034,4 @@ FILE *fstream_tee(FILE *orig, FILE *copy)
     setbuf(f, NULL);
     return f;
 }
+#endif
