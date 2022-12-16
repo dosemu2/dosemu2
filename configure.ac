@@ -182,10 +182,20 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 AC_CHECK_LIB(rt, shm_open)
 dnl below defines HAVE_xxx so needed even if AC_CHECK_LIB() succeeded
 AC_CHECK_FUNCS([shm_open memfd_create renameat2])
+AC_CHECK_FUNCS([setxattr getxattr],, [
+  AC_MSG_ERROR([xattrs not available, your glibc is too old])
+])
+AC_CHECK_FUNC([mremap],, [
+  AC_MSG_ERROR([mremap not available, your glibc is too old])
+])
 
 AC_CHECK_DECLS([F_OFD_SETLK],, [
   AC_MSG_ERROR([F_OFD_SETLK not available, your glibc is too old])
   ], [[#include <fcntl.h>]]
+)
+AC_CHECK_DECLS([MREMAP_MAYMOVE],, [
+  AC_MSG_ERROR([MREMAP_MAYMOVE not available, your glibc is too old])
+  ], [[#include <sys/mman.h>]]
 )
 
 PKG_CHECK_MODULES([LIBBSD], [libbsd], [
