@@ -2704,20 +2704,20 @@ void Gen_sim(int op, int mode, ...)
 				DR2.d &= 0x1f;
 		}
 		if ((mode & RM_REG) || o1 >= 0x20) {
-		    switch (o1) {
-		    case 0x03: case 0x20: flg = test_bit(DR2.d, &DR1.d); break;
-		    case 0x0b: case 0x28: flg = test_and_set_bit(DR2.d, &DR1.d); break;
-		    case 0x13: case 0x30: flg = test_and_clear_bit(DR2.d, &DR1.d); break;
-		    case 0x1b: case 0x38: flg = test_and_change_bit(DR2.d, &DR1.d); break;
-		    default: flg = 2;
+		    if ((o1 & ~0x18) == 0x03 || (o1 & ~0x18) == 0x20) {
+			SET_CF((DR1.d >> DR2.d) & 1);
+			switch (o1 & 0x18) {
+			case 0x00: break;
+			case 0x08: DR1.d |= 1U << DR2.d; break;
+			case 0x10: DR1.d &= ~(1U << DR2.d); break;
+			case 0x18: DR1.d ^= 1U << DR2.d; break;
+			default: break;
+			}
 		    }
 		} else {
 		    /* add bit offset to effective address */
 		    AR1.d += (mode&DATA16) ? 2*(DR2.d>>4) : 4*(DR2.d>>5);
-		    break;
 		}
-		if (flg != 2)
-			SET_CF(flg&1);
 		} break;
 	case O_SHFD: {
 		unsigned char l_r = (unsigned char)va_arg(ap,int)&8;
