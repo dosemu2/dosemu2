@@ -596,7 +596,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     int i;
     int fd;
     dpmi_pm_block *ptr;
-    void *addr;
+    void *addr, *addr2;
     char *shmname;
     int init = 0;
     int oflags = O_RDWR;
@@ -614,7 +614,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         shmsize = size;
     }
 
-    addr = smalloc(&lin_pool, size);
+    addr = smalloc(&mem_pool, size);
     if (!addr) {
         error("unable to alloc %x for shm %s\n", size, name);
         return NULL;
@@ -635,11 +635,11 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     if (!(flags & SHM_NOEXEC))
         prot |= PROT_EXEC;
     /* this mem is already mapped to KVM so we use plain mmap() */
-    addr = mmap(addr, size, prot, MAP_SHARED | MAP_FIXED, fd, 0);
+    addr2 = mmap(addr, size, prot, MAP_SHARED | MAP_FIXED, fd, 0);
     close(fd);
-    if (addr == MAP_FAILED) {
+    if (addr2 != addr) {
         perror("mmap()");
-        error("shared memory map failed, exiting\n");
+        error("shared memory map failed %p %p, exiting\n", addr2, addr);
         leavedos(2);
         return NULL;
     }
@@ -672,7 +672,7 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
         return -1;
     mmap(MEM_BASE32(ptr->base), ptr->size, PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS, -1, 0);
-    smfree(&lin_pool, MEM_BASE32(ptr->base));
+    smfree(&mem_pool, MEM_BASE32(ptr->base));
     if (unlnk) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
         shm_unlink(ptr->rshmname);
