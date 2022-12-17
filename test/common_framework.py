@@ -263,6 +263,18 @@ class BaseTestCase(object):
         check_call(["i586-pc-msdosdjgpp-gcc",
                     "-o", basename + ".exe", basename + ".c"])
 
+    def mkcom_with_nasm(self, fname, content, dname=None):
+        if dname is None:
+            p = self.workdir
+        else:
+            p = Path(dname).resolve()
+        basename = p / fname
+
+        sfile = basename.with_suffix('.asm')
+        sfile.write_text(content)
+        ofile = basename.with_suffix('.com')
+        check_call(["nasm", "-f", "bin", "-o", str(ofile), str(sfile)])
+
     def mkfile(self, fname, content, dname=None, mode="w", newline=None):
         if dname is None:
             p = self.workdir / fname
