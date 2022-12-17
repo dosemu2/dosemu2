@@ -9,7 +9,7 @@ def cpu_trap_flag(self, cpu_vm):
         raise ValueError('invalid argument')
 
     if cpu_vm == "kvm" and not access("/dev/kvm", W_OK|R_OK):
-        self.skipTest("No KVM available")
+        self.skipTest("requires KVM")
 
     config = """
     $_hdimage = "dXXXXs/c:hdtype1 +1"

@@ -4672,43 +4672,39 @@ $_floppy_a = ""
         ds3_share_open_access(self, "TWO", "FAT", "SETATT")
 
     def test_network_pktdriver_mtcp_builtin(self):
-        """ Network pktdriver mTCP built-in"""
+        """Network pktdriver mTCP built-in"""
         network_pktdriver_mtcp(self, 'builtin')
     test_network_pktdriver_mtcp_builtin.nettest = True
 
     def test_network_pktdriver_mtcp_ne2000(self):
-        """ Network pktdriver mTCP NE2000"""
+        """Network pktdriver mTCP NE2000"""
         network_pktdriver_mtcp(self, 'ne2000')
     test_network_pktdriver_mtcp_ne2000.nettest = True
 
     def _test_cpu(self, cpu_vm, cpu_vm_dpmi, cpu_emu):
         if ('kvm' in cpu_vm or 'kvm' in cpu_vm_dpmi) and not access("/dev/kvm", W_OK|R_OK):
-            self.skipTest("No KVM available")
-        if cpu_vm == 'vm86' and uname()[4] == 'x86_64':
-            self.skipTest("x86_64 doesn't support native vm86()")
+            self.skipTest("requires KVM")
+        if cpu_vm == 'vm86' and uname()[4] != 'i686':
+            self.skipTest("native vm86() only on 32bit x86")
 
         edir = self.topdir / "test" / "cpu"
 
-        # build test binaries
-        check_call(['make', '-C', str(edir), 'clean', 'all'], stdout=DEVNULL, stderr=DEVNULL)
-        copy(edir / "dosbin.exe", self.workdir / "dosbin.exe")
-
-        reffile = "reffile.log"
-        dosfile = "dosfile.log"
-
-        # create reference file
-        with open(self.topdir / reffile, "w") as f:
-           check_call([str(edir / 'native32'), '--common-tests'], stdout=f, stderr=DEVNULL)
-
+        # Native reference file is now checked in to git and will
+        # only need to be updated if the test source changes
+        reffile = edir / "reffile.log"
         refoutput = []
-        with open(self.topdir / reffile, "r") as f:
+        with reffile.open("r") as f:
             refoutput = f.readlines()
 
-        # output from dos under test
+        # DOS test binary is built as part of normal build process
+        copy(edir / "dosbin.exe", self.workdir / "dosbin.exe")
+        dosfile = self.workdir / "dosfile.log"
+
+        # output from DOS under test
         self.mkfile("testit.bat", """\
 dosbin --common-tests > %s
 rem end
-""" % dosfile, newline="\r\n")
+""" % dosfile.name, newline="\r\n")
 
         self.runDosemu("testit.bat", timeout=20, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
@@ -4721,7 +4717,7 @@ $_ignore_djgpp_null_derefs = (off)
 
         dosoutput = []
         try:
-            with open(self.workdir / dosfile, "r") as f:
+            with dosfile.open("r") as f:
                 dosoutput = f.readlines()
         except FileNotFoundError:
             pass
@@ -4734,57 +4730,57 @@ $_ignore_djgpp_null_derefs = (off)
             self.fail('differences detected\n' + ''.join(list(diff)))
 
     def test_cpu_1_vm86native(self):
-        """CPU test: native vm86 + native DPMI (i386 only)"""
+        """CPU native vm86 + native DPMI (i386 only)"""
         self._test_cpu("vm86", "native", 0)
     test_cpu_1_vm86native.cputest = True
 
     def test_cpu_2_jitnative(self):
-        """CPU test: JIT vm86 + native DPMI"""
+        """CPU JIT vm86 + native DPMI"""
         self._test_cpu("emulated", "native", 0)
     test_cpu_2_jitnative.cputest = True
 
     def test_cpu_jitkvm(self):
-        """CPU test: JIT vm86 + KVM DPMI"""
+        """CPU JIT vm86 + KVM DPMI"""
         self._test_cpu("emulated", "kvm", 0)
     test_cpu_jitkvm.cputest = True
 
     def test_cpu_simnative(self):
-        """CPU test: simulated vm86 + native DPMI"""
+        """CPU simulated vm86 + native DPMI"""
         self._test_cpu("emulated", "native", 1)
     test_cpu_simnative.cputest = True
 
     def test_cpu_simkvm(self):
-        """CPU test: simulated vm86 + KVM DPMI"""
+        """CPU simulated vm86 + KVM DPMI"""
         self._test_cpu("emulated", "kvm", 1)
     test_cpu_simkvm.cputest = True
 
     def test_cpu_kvmnative(self):
-        """CPU test: KVM vm86 + native DPMI"""
+        """CPU KVM vm86 + native DPMI"""
         self._test_cpu("kvm", "native", 0)
     test_cpu_kvmnative.cputest = True
 
     def test_cpu_kvm(self):
-        """CPU test: KVM vm86 + KVM DPMI"""
+        """CPU KVM vm86 + KVM DPMI"""
         self._test_cpu("kvm", "kvm", 0)
     test_cpu_kvm.cputest = True
 
     def test_cpu_kvmjit(self):
-        """CPU test: KVM vm86 + JIT DPMI"""
+        """CPU KVM vm86 + JIT DPMI"""
         self._test_cpu("kvm", "emulated", 0)
     test_cpu_kvmjit.cputest = True
 
     def test_cpu_kvmsim(self):
-        """CPU test: KVM vm86 + simulated DPMI"""
+        """CPU KVM vm86 + simulated DPMI"""
         self._test_cpu("kvm", "emulated", 1)
     test_cpu_kvmsim.cputest = True
 
     def test_cpu_jit(self):
-        """CPU test: JIT vm86 + JIT DPMI"""
+        """CPU JIT vm86 + JIT DPMI"""
         self._test_cpu("emulated", "emulated", 0)
     test_cpu_jit.cputest = True
 
     def test_cpu_sim(self):
-        """CPU test: simulated vm86 + simulated DPMI"""
+        """CPU simulated vm86 + simulated DPMI"""
         self._test_cpu("emulated", "emulated", 1)
     test_cpu_sim.cputest = True
 
