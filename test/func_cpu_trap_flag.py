@@ -23,53 +23,56 @@ rem end
 """, newline="\r\n")
 
     # compile sources
-    self.mkcom_with_gas("cputrapf", r"""
-.text
-.code16
+    self.mkcom_with_nasm("cputrapf", r"""
 
-    .globl  _start16
-_start16:
+bits 16
+cpu 386
 
-    push    %cs
-    pop     %ds
+org 100h
 
-    movw    $0x2501, %ax
-    movw    $int1, %dx
-    int     $0x21
+section .text
 
-    movw    $0x14, %ax
-    movw    $1, %bx
-    int     $0xe6
+    push    cs
+    pop     ds
 
-    pushw   $0x3003
-    pushw   $0x3303
-    popfw
-    popfw
+    mov     ax, 2501h
+    mov     dx, int1
+    int     21h
+
+    mov     ax, 14h
+    mov     bx, 1
+    int     0xe6
+
+    push    3003h
+    push    3303h
+    popf
+    popf
     nop
 
-    movw    $0x14, %ax
-    movw    $0, %bx
-    int     $0xe6
+    mov     ax, 14h
+    mov     bx, 0
+    int     0xe6
 
-    movb    $0x9, %ah              # print string
-    movw    $result, %dx
-    int     $0x21
+    mov     ah, 9              ; print string
+    mov     dx, result
+    int     21h
 
 exit:
-    movw    $0x4c00, %ax
-    int     $0x21
+    mov     ax, 4c00h
+    int     21h
     ret
 
 int1:
-    incb    %cs:cnt
+    inc     byte [cs:result.cnt]
     iret
 
-result:
-    .ascii "Result is ("
-cnt:
-    .byte '0'
-    .ascii ")\r\n$"
+section .data
 
+result:
+    db "Result is ("
+.cnt:
+    db '0'
+    db ')',13,10,'$'
 """)
 
     results = self.runDosemu("testit.bat", config=config)
