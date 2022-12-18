@@ -205,6 +205,8 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		if (!(mode & MLEA)) {
 			// addl offs(%%ebx),%%edi (seg reg offset)
 			G3M(0x03,0x7b,IG->p0,Cp);
+			// addl MEMBASE(%%ebx),%%edi
+			G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 		}
 		break;
 	case A_DI_1: {			// base(32), {imm}, reg
@@ -228,6 +230,8 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		if (!(mode & MLEA)) {
 			// addl offs(%%ebx),%%edi (seg reg offset)
 			G3M(0x03,0x7b,IG->p0,Cp);
+			// addl MEMBASE(%%ebx),%%edi
+			G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 		} }
 		break;
 	case A_DI_2: {			// base(32), {imm}, reg, reg, {shift}
@@ -262,6 +266,8 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		if (!(mode & MLEA)) {
 			// addl offs(%%ebx),%%edi (seg reg offset)
 			G3M(0x03,0x7b,IG->p0,Cp);
+			// addl MEMBASE(%%ebx),%%edi
+			G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 		} }
 		break;
 	case A_DI_2D: {			// modrm_sibd, 32-bit mode
@@ -282,6 +288,8 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		if (!(mode & MLEA)) {
 			// addl offs(%%ebx),%%edi (seg reg offset)
 			G3M(0x03,0x7b,IG->ovds,Cp);
+			// addl MEMBASE(%%ebx),%%edi
+			G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 		} }
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
@@ -289,8 +297,6 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		G4M(0x0f,0xb7,0x43,IG->p0,Cp);
 		// shll $4,%%eax
 		G3M(0xc1,0xe0,0x04,Cp);
-		// addl Ofs_MEMBASE(%%ebx),%%eax
-		G3M(0x03,0x43,Ofs_MEMBASE,Cp);
 		// movl %%eax,ofs(%%ebx)
 		G3M(0x89,0x43,IG->p1,Cp);
 		// addl $0xffff,%eax
@@ -432,8 +438,6 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		G4M(0x66,0x89,0x43,IG->p0,Cp);
 		// shll $4,%%eax
 		G3M(0xc1,0xe0,0x04,Cp);
-		// addl Ofs_MEMBASE(%%ebx),%%eax
-		G3M(0x03,0x43,Ofs_MEMBASE,Cp);
 		// movl %%eax,ofs(%%ebx)
 		G3M(0x89,0x43,IG->p1,Cp);
 		// addl $0xffff,%eax
@@ -964,6 +968,8 @@ arith1:
 	case O_XLAT:
 		// movl OVERR_DS(%%ebx),%%edi
 		G2(0x7b8b,Cp); G1(IG->ovds,Cp);
+		// addl MEMBASE(%%ebx),%%edi
+		G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 		// movzbl Ofs_AL(%%ebx),%%ecx
 		G4M(0x0f,0xb6,0x4b,Ofs_AL,Cp);
 		// movl Ofs_EBX(%%ebx),%%eax
@@ -1121,6 +1127,8 @@ shrot0:
 		const unsigned char pseq16[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP,
 			// leal -2(%%ecx),%%ecx
@@ -1147,6 +1155,8 @@ shrot0:
 		const unsigned char pseq32[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP,
 			// leal -4(%%ecx),%%ecx
@@ -1180,7 +1190,9 @@ shrot0:
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP,
 			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS
+			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 		};
 		GNX(Cp, pseq, sizeof(pseq));
 		} break;
@@ -1244,10 +1256,12 @@ shrot0:
 		const unsigned char pseqpre[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP,
 			// leal -4(%%ecx),%%ecx
-/*08*/			0x8d,0x49,0xfc,
+/*11*/			0x8d,0x49,0xfc,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movl (%%esp),%%edx	(get flags on stack)
@@ -1275,7 +1289,7 @@ shrot0:
 #endif
 		unsigned char *q=Cp;
 		GNX(Cp, pseqpre, sizeof(pseqpre));
-		if (mode&DATA16) q[8] = 0xfe; /* use -2 in lea ins */
+		if (mode&DATA16) q[11] = 0xfe; /* use -2 in lea ins */
 #if 0		// unused "extended PVI", if used should move to separate op
 		if (!V86MODE() && IOPL < 3 && (TheCPU.cr[4] & CR4_PVI)) {
 		    /* This solves the DOSX 'System test 8' error.
@@ -1324,6 +1338,8 @@ shrot0:
 /*00*/			0xb8,0,0,0,0,
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP,
 			// leal -2(%%ecx),%%ecx
@@ -1350,6 +1366,8 @@ shrot0:
 /*00*/			0xb8,0,0,0,0,
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP,
 			// leal -4(%%ecx),%%ecx
@@ -1388,6 +1406,8 @@ shrot0:
 		const unsigned char pseq16[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP,
 			// andl StackMask(%%ebx),%%ecx
@@ -1395,7 +1415,7 @@ shrot0:
 			// movw (%%esi,%%ecx,1),%%ax
 			0x66,0x8b,0x04,0x0e,
 			// leal 2(%%ecx),%%ecx
-/*0d*/			0x8d,0x89,0x02,0x00,0x00,0x00,
+/*10*/			0x8d,0x89,0x02,0x00,0x00,0x00,
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
@@ -1416,6 +1436,8 @@ shrot0:
 		const unsigned char pseq32[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP,
 			// andl StackMask(%%ebx),%%ecx
@@ -1423,7 +1445,7 @@ shrot0:
 			// movl (%%esi,%%ecx,1),%%eax
 			0x90,0x8b,0x04,0x0e,
 			// leal 4(%%ecx),%%ecx
-/*0d*/			0x8d,0x89,0x04,0x00,0x00,0x00,
+/*10*/			0x8d,0x89,0x04,0x00,0x00,0x00,
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
@@ -1451,7 +1473,7 @@ shrot0:
 		q = Cp; GNX(Cp, p, sz);
 		if (mode&MRETISP)
 			/* adjust stack after pop */
-			*(int32_t *)(q+0xf) += IG->p0;
+			*(int32_t *)(q+0x12) += IG->p0;
 		} break;
 
 /* POP derived (sub-)sequences: */
@@ -1459,6 +1481,8 @@ shrot0:
 		const unsigned char pseq[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP
 		};
@@ -1540,6 +1564,8 @@ shrot0:
 			0x0f,0xb7,0x4b,Ofs_EBP,
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movw (%%esi,%%ecx,1),%%ax
@@ -1570,6 +1596,8 @@ shrot0:
 			0x8b,0x4b,Ofs_EBP,
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movl (%%esi,%%ecx,1),%%eax
@@ -1665,6 +1693,8 @@ shrot0:
 			}
 			// addl OVERR_DS(%%ebx),%%e[sd]i
 			G3M(0x03,modrm,IG->ovds,Cp);
+			// addl MEMBASE(%%ebx),%%e[sd]i
+			G3M(0x03,modrm,Ofs_MEMBASE,Cp);
 		    }
 		    if (mode&MOVSDST) {
 			// movzwl Ofs_DI(%%ebx),%%edi
@@ -1697,6 +1727,8 @@ shrot0:
 			}
 			// addl Ofs_XES(%%ebx),%%edi
 			G3M(0x03,0x7b,Ofs_XES,Cp);
+			// addl Ofs_MEMBASE(%%ebx),%%edi
+			G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 		    }
 		    if (mode&(MREP|MREPNE)) {
 			/* Address overflow detection */
@@ -1759,12 +1791,16 @@ shrot0:
 		    if (mode&MOVSSRC) {
 			// movl OVERR_DS(%%ebx),%%e[sd]i
 			G3M(0x8b,modrm,IG->ovds,Cp);
+			// addl MEMBASE(%%ebx),%%e[sd]i
+			G3M(0x03,modrm,Ofs_MEMBASE,Cp);
 			// addl Ofs_ESI(%%ebx),%%e[sd]i
 			G3M(0x03,modrm,Ofs_ESI,Cp);
 		    }
 		    if (mode&MOVSDST) {
 			// movl Ofs_XES(%%ebx),%%edi
 			G3M(0x8b,0x7b,Ofs_XES,Cp);
+			// addl Ofs_MEMBASE(%%ebx),%%edi
+			G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 			// addl Ofs_EDI(%%ebx),%%edi
 			G3M(0x03,0x7b,Ofs_EDI,Cp);
 		    }
@@ -1908,6 +1944,8 @@ shrot0:
 			// esi = base1 + CPU_(e)SI +- n
 			// subl OVERR_DS(%%ebx),%%esi
 			G2(0x732b,Cp); G1(IG->ovds,Cp);
+			// subl MEMBASE(%%ebx),%%esi
+			G3M(0x2b,0x73,Ofs_MEMBASE,Cp);
 			// movw %%si,Ofs_SI(%%ebx)
 			G4M(0x66,0x89,0x73,Ofs_SI,Cp);
 		    }
@@ -1915,6 +1953,8 @@ shrot0:
 			// edi = base2 + CPU_(e)DI +- n
 			// subl Ofs_XES(%%ebx),%%edi
 			G3M(0x2b,0x7b,Ofs_XES,Cp);
+			// subl Ofs_MEMBASE(%%ebx),%%edi
+			G3M(0x2b,0x7b,Ofs_MEMBASE,Cp);
 			// movw %%di,Ofs_DI(%%ebx)
 			G4M(0x66,0x89,0x7b,Ofs_DI,Cp);
 		    }
@@ -1939,6 +1979,8 @@ shrot0:
 			// esi = base1 + CPU_(e)SI +- n
 			// subl OVERR_DS(%%ebx),%%esi
 			G2(0x732b,Cp); G1(IG->ovds,Cp);
+			// subl MEMBASE(%%ebx),%%esi
+			G3M(0x2b,0x73,Ofs_MEMBASE,Cp);
 			// movl %%esi,Ofs_ESI(%%ebx)
 			G3M(0x89,0x73,Ofs_ESI,Cp);
 		    }
@@ -1946,6 +1988,8 @@ shrot0:
 			// edi = base2 + CPU_(e)DI +- n
 			// subl Ofs_XES(%%ebx),%%edi
 			G3M(0x2b,0x7b,Ofs_XES,Cp);
+			// subl Ofs_MEMBASE(%%ebx),%%edi
+			G3M(0x2b,0x7b,Ofs_MEMBASE,Cp);
 			// movl %%edi,Ofs_EDI(%%ebx)
 			G3M(0x89,0x7b,Ofs_EDI,Cp);
 		    }
@@ -2166,8 +2210,6 @@ shrot0:
 			G3M(0x0f,0xb7,0xc0,Cp);
 		// addl Ofs_XCS(%%ebx),%%eax
 		G3M(0x03,0x43,Ofs_XCS,Cp);
-		// subl Ofs_MEMBASE(%%ebx),%%eax
-		G3M(0x2b,0x43,Ofs_MEMBASE,Cp);
 		// pop %%edx; ret
 		G2M(0x5a,0xc3,Cp);
 		}
@@ -2179,6 +2221,8 @@ shrot0:
 /*00*/			0xb8,0,0,0,0,
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP,
 			// leal -2(%%ecx),%%ecx
@@ -2205,6 +2249,8 @@ shrot0:
 /*00*/			0xb8,0,0,0,0,
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
+			// addl Ofs_MEMBASE(%%ebx),%%esi
+			0x03,0x73,Ofs_MEMBASE,
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP,
 			// leal -4(%%ecx),%%ecx

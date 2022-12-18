@@ -293,12 +293,12 @@ extern union _SynCPU TheCPU_union;
 #define FS_DTR		TheCPU.fs_cache
 #define GS_DTR		TheCPU.gs_cache
 
-#define LONG_CS		(TheCPU.cs_cache.BoundL - TheCPU.mem_base)
-#define LONG_DS		(TheCPU.ds_cache.BoundL - TheCPU.mem_base)
-#define LONG_ES		(TheCPU.es_cache.BoundL - TheCPU.mem_base)
-#define LONG_SS		(TheCPU.ss_cache.BoundL - TheCPU.mem_base)
-#define LONG_FS		(TheCPU.fs_cache.BoundL - TheCPU.mem_base)
-#define LONG_GS		(TheCPU.gs_cache.BoundL - TheCPU.mem_base)
+#define LONG_CS		TheCPU.cs_cache.BoundL
+#define LONG_DS		TheCPU.ds_cache.BoundL
+#define LONG_ES		TheCPU.es_cache.BoundL
+#define LONG_SS		TheCPU.ss_cache.BoundL
+#define LONG_FS		TheCPU.fs_cache.BoundL
+#define LONG_GS		TheCPU.gs_cache.BoundL
 
 extern char OVERR_DS, OVERR_SS;
 

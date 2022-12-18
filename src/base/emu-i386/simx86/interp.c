@@ -1639,7 +1639,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			TheCPU.err = MAKESEG(mode, Ofs_CS, jcs);
 			if (TheCPU.err) {
 			    TheCPU.cs = ocs;
-			    TheCPU.cs_cache.BoundL = TheCPU.mem_base + xcs;
+			    TheCPU.cs_cache.BoundL = xcs;
 			    // should not change
 			    return P0;
 			}
@@ -1715,9 +1715,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				// subtract AllocSize from ESP via
 				// "lea -allocsize(%esp), %esp"
 				if (allocsize) {
-					AddrGen(A_DI_1, 0,
+					AddrGen(A_DI_1,
 						mode|MLEA|((mode&DATA16)?ADDR16:0)|IMMED,
-						-allocsize, Ofs_ESP);
+						0, -allocsize, Ofs_ESP);
 					Gen(S_DI_R, mode, Ofs_ESP);
 				}
 			}
@@ -2486,7 +2486,7 @@ repag0:
 					TheCPU.err = MAKESEG(mode, Ofs_CS, jcs);
 					if (TheCPU.err) {
 					    TheCPU.cs = ocs;
-					    TheCPU.cs_cache.BoundL = TheCPU.mem_base + xcs;
+					    TheCPU.cs_cache.BoundL = xcs;
 					    // should not change
 					    return P0;
 					}
