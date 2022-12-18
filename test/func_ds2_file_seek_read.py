@@ -30,166 +30,169 @@ rem end
 """ % ename, newline="\r\n")
 
     # compile sources
-    self.mkcom_with_gas(ename, r"""
-.text
-.code16
+    self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x3c00, %%ax			# create file
-    movw    $0, %%cx
-    movw    $fname, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
+
+    mov     ax, 3c00h			; create file
+    mov     cx, 0
+    mov     dx, fname
+    int     21h
     jc      prfailcreate
 
-    movw    %%ax, fhndl
+    mov     word [fhndl], ax
 
-    movw    $0x4000, %%ax			# write testdata
-    movw    fhndl, %%bx
-    movw    $fdatalen, %%cx
-    movw    $fdata, %%dx
-    int     $0x21
+    mov     ax, 4000h			; write testdata
+    mov     bx, word [fhndl]
+    mov     cx, fdatalen
+    mov     dx, fdata
+    int     21h
     jc      prfailwrite
-    cmpw    $fdatalen, %%ax
+    cmp     ax, fdatalen
     jne     prnumwrite
 
-    movw    $0x3e00, %%ax			# close file
-    movw    fhndl, %%bx
-    int     $0x21
+    mov     ax, 3e00h			; close file
+    mov     bx, word [fhndl]
+    int     21h
 
-    movw    $0x3d00, %%ax			# open file readonly
-    movw    $fname, %%dx
-    int     $0x21
+    mov     ax, 3d00h			; open file readonly
+    mov     dx, fname
+    int     21h
     jc      prfailopen
 
-    movw    %%ax, fhndl
+    mov     word [fhndl], ax
 
-    movw    $0x3f00, %%ax			# read from file to middle
-    movw    fhndl, %%bx
-    movw    $16, %%cx
-    movw    $ftemp, %%dx
-    int     $0x21
+    mov     ax, 3f00h			; read from file to middle
+    mov     bx, word [fhndl]
+    mov     cx, 16
+    mov     dx, ftemp
+    int     21h
     jc      prfailread
-    cmpw    $16, %%ax
+    cmp     ax, 16
     jne     prnumread
 
-    movw    $0x%x, %%ax		    	# seek from whence to somewhere
-    movw    fhndl, %%bx
-    movw    $seekval, %%si
-    movw    %%ds:2(%%si), %%cx
-    movw    %%ds:0(%%si), %%dx
-    int     $0x21
+    mov     ax, %xh		    	; seek from whence to somewhere
+    mov     bx, word [fhndl]
+    mov     si, seekval
+    mov     cx, [ds:si + 2]
+    mov     dx, [ds:si]
+    int     21h
     jc      prcarryset
 
-    movw    $0x3f00, %%ax			# read 4 chars from new position
-    movw    fhndl, %%bx
-    movw    $4, %%cx
-    movw    $fdata2, %%dx
-    int     $0x21
+    mov     ax, 3f00h			; read 4 chars from new position
+    mov     bx, word [fhndl]
+    mov     cx, 4
+    mov     dx, fdata2
+    int     21h
     jc      prfailread2
-    cmpw    $4, %%ax
+    cmp     ax, 4
     jne     prnumread2
 
     jmp     prsucc
 
 prfailcreate:
-    movw    $failcreate, %%dx
-    jmp     1f
+    mov     dx, failcreate
+    jmp     @1
 
 prfailwrite:
-    movw    $failwrite, %%dx
-    jmp     2f
+    mov     dx, failwrite
+    jmp     @2
 
 prnumwrite:
-    movw    $numwrite, %%dx
-    jmp     2f
+    mov     dx, numwrite
+    jmp     @2
 
 prfailopen:
-    movw    $failopen, %%dx
-    jmp     1f
+    mov     dx, failopen
+    jmp     @1
 
 prfailread:
-    movw    $failread, %%dx
-    jmp     2f
+    mov     dx, failread
+    jmp     @2
 
 prnumread:
-    movw    $numread, %%dx
-    jmp     2f
+    mov     dx, numread
+    jmp     @2
 
 prcarryset:
-    movw    $carryset, %%dx
-    jmp     2f
+    mov     dx, carryset
+    jmp     @2
 
 prfailread2:
-    movw    $failread2, %%dx
-    jmp     2f
+    mov     dx, failread2
+    jmp     @2
 
 prnumread2:
-    movw    $numread2, %%dx
-    jmp     2f
+    mov     dx, numread2
+    jmp     @2
 
 prsucc:
-    movb    $')',  (fdata2 + 4)
-    movb    $'\r', (fdata2 + 5)
-    movb    $'\n', (fdata2 + 6)
-    movb    $'$',  (fdata2 + 7)
-    movw    $success, %%dx
-    jmp     2f
+    mov     byte [fdata2 + 4], ')'
+    mov     byte [fdata2 + 5], 13
+    mov     byte [fdata2 + 6], 10
+    mov     byte [fdata2 + 7], '$'
+    mov     dx, success
+    jmp     @2
 
-2:
-    movw    $0x3e00, %%ax			# close file
-    movw    fhndl, %%bx
-    int     $0x21
+@2:
+    mov     ax, 3e00h			; close file
+    mov     bx, word [fhndl]
+    int     21h
 
-1:
-    movb    $0x9, %%ah              # print string
-    int     $0x21
+@1:
+    mov     ah, 9               ; print string
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 seekval:
-    .long   %d
+    dd   %d
 
 fname:
-    .asciz  "%s"
+    db  "%s", 0
 
 fhndl:
-    .word   0
+    dw   0
 
 fdata:
-    .ascii  "%s"
-fdatalen = (. - fdata)
+    db   "%s"
+fdatalen equ $ - fdata
 
 success:
-    .ascii  "Operation Success("
+    db  "Operation Success("
 fdata2:
-    .space  64
+    times 64 db 0
 ftemp:
-    .space  64
+    times 64 db 0
 failcreate:
-    .ascii  "Create Operation Failed\r\n$"
+    db "Create Operation Failed",13,10,'$'
 failwrite:
-    .ascii  "Write Operation Failed\r\n$"
+    db "Write Operation Failed",13,10,'$'
 numwrite:
-    .ascii  "Write Incorrect Length\r\n$"
+    db "Write Incorrect Length",13,10,'$'
 failopen:
-    .ascii  "Open Operation Failed\r\n$"
+    db  "Open Operation Failed",13,10,'$'
 failread:
-    .ascii  "Read Operation Failed\r\n$"
+    db  "Read Operation Failed",13,10,'$'
 numread:
-    .ascii  "Read Not 16 Chars\r\n$"
+    db  "Read Not 16 Chars",13,10,'$'
 carryset:
-    .ascii  "Seek Carry Set\r\n$"
+    db  "Seek Carry Set",13,10,'$'
 failread2:
-    .ascii  "Read2 Operation Failed\r\n$"
+    db  "Read2 Operation Failed",13,10,'$'
 numread2:
-    .ascii  "Read2 Not 4 Chars\r\n$"
+    db  "Read2 Not 4 Chars",13,10,'$'
 
 """ % (dosfunc, seekval, "test.fil", testdata))
 
