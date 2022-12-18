@@ -29,135 +29,138 @@ rem end
     }[testfunc]
 
     # compile sources
-    self.mkcom_with_gas(ename, r"""
-.text
-.code16
+    self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x3c00, %%ax			# create file
-    movw    $0, %%cx
-    movw    $fname, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
+
+    mov     ax, 3c00h			; create file
+    mov     cx, 0
+    mov     dx, fname
+    int     21h
     jc      prfailcreate
 
-    movw    %%ax, fhndl
+    mov     word [fhndl], ax
 
-    movw    $0x1000, %%cx           # number of 512 byte chunks
+    mov     cx, 1000h           ; number of 512 byte chunks
 
-1:
-    pushw   %%cx
-    movw    $0x4000, %%ax			# write testdata
-    movw    fhndl, %%bx
-    movw    $fdatalen, %%cx
-    movw    $fdata, %%dx
-    int     $0x21
-    popw    %%cx
+@1:
+    push    cx
+    mov     ax, 4000h			; write testdata
+    mov     bx, word [fhndl]
+    mov     cx, fdatalen
+    mov     dx, fdata
+    int     21h
+    pop     cx
     jc      prfailwrite
-    cmpw    $fdatalen, %%ax
+    cmp     ax, fdatalen
     jne     prnumwrite
-    loop 1b
+    loop @1
 
-    movw    $0x%x, %%ax             # seek from whence to somewhere
-    movw    fhndl, %%bx
-    movw    $seekval, %%si
-    movw    %%ds:2(%%si), %%cx
-    movw    %%ds:0(%%si), %%dx
-    int     $0x21
+    mov     ax, %xh              ; seek from whence to somewhere
+    mov     bx, word [fhndl]
+    mov     si, seekval
+    mov     cx, word [ds:si + 2]
+    mov     dx, word [ds:si]
+    int     21h
     jc      prcarryset
 
-    shll    $16, %%edx              # compare the resultant position
-    movw    %%ax, %%dx
-    movl    expected, %%ecx
-    cmpl    %%edx, %%ecx
+    shl     edx, 16              ; compare the resultant position
+    mov     dx, ax
+    mov     ecx, long [expected]
+    cmp     ecx, edx
     jne     prfailcompare
 
     jmp     prsucc
 
 prfailcreate:
-    movw    $failcreate, %%dx
-    jmp     1f
+    mov     dx, failcreate
+    jmp     @3
 
 prfailwrite:
-    movw    $failwrite, %%dx
-    jmp     2f
+    mov     dx, failwrite
+    jmp     @2
 
 prnumwrite:
-    movw    $numwrite, %%dx
-    jmp     2f
+    mov     dx, numwrite
+    jmp     @2
 
 prcarryset:
-    movw    $carryset, %%dx
-    jmp     2f
+    mov     dx, carryset
+    jmp     @2
 
 prfailcompare:
-    movw    $failcompare, %%dx
-    jmp     2f
+    mov     dx, failcompare
+    jmp     @2
 
 prsucc:
-    movw    $success, %%dx
-    jmp     2f
+    mov     dx, success
+    jmp     @2
 
-2:
-    movw    $0x3e00, %%ax			# close file
-    movw    fhndl, %%bx
-    int     $0x21
+@2:
+    mov     ax, 3e00h			; close file
+    mov     bx, word [fhndl]
+    int     21h
 
-1:
-    movb    $0x9, %%ah              # print string
-    int     $0x21
+@3:
+    mov     ah, 9               ; print string
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 seekval:
-    .long   %d
+    dd   %d
 
 expected:
-    .long   %d
+    dd   %d
 
 fname:
-    .asciz  "test.fil"
+    db   "test.fil", 0
 
 fhndl:
-    .word   0
+    dw   0
 
 fdata:
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-    .ascii  "0123456789abcdefFEDCBA9876543210"
-fdatalen = (. - fdata)
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+    db  "0123456789abcdefFEDCBA9876543210"
+fdatalen equ $ - fdata
 
 success:
-    .ascii  "Operation Success\r\n$"
+    db  "Operation Success",13,10,'$'
 failcreate:
-    .ascii  "Create Operation Failed\r\n$"
+    db  "Create Operation Failed",13,10,'$'
 failwrite:
-    .ascii  "Write Operation Failed\r\n$"
+    db  "Write Operation Failed",13,10,'$'
 numwrite:
-    .ascii  "Write Incorrect Length\r\n$"
+    db  "Write Incorrect Length",13,10,'$'
 carryset:
-    .ascii  "Seek Carry Set\r\n$"
+    db  "Seek Carry Set",13,10,'$'
 failcompare:
-    .ascii  "File Position Incorrect\r\n$"
+    db  "File Position Incorrect",13,10,'$'
 
 """ % (dosfunc, seekval, expected))
 
