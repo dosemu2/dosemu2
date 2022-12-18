@@ -122,6 +122,30 @@ DPMI_iret:\n\
 ");
 extern void DPMI_iret(void);
 
+static void iret_frame_alloc(void)
+{
+    unsigned int i, j;
+    void *addr;
+    /* search for page with bits 16-31 clear within first 47 bits
+       of address space */
+    for (i = 1; i < 0x8000; i++) {
+        for (j = 0; j < 0x10000; j += PAGE_SIZE) {
+            addr = (void *) (i * 0x100000000UL + j);
+            iret_frame =
+                mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_NOOVERLAP,
+                                addr, PAGE_SIZE,
+                                    PROT_READ | PROT_WRITE);
+            if (iret_frame != MAP_FAILED)
+                goto out;
+        }
+    }
+out:
+    if (iret_frame != addr) {
+        error("Can't find DPMI iret page, leaving\n");
+        config.exitearly = 1;
+    }
+}
+
 static void iret_frame_setup(sigcontext_t * scp)
 {
     /* set up a frame to get back to DPMI via iret. The kernel does not save
@@ -1008,6 +1032,12 @@ signal_pre_init(void)
 #ifdef __linux__
   prctl(PR_SET_PDEATHSIG, SIGQUIT);
 #endif
+
+#if SIGRETURN_WA
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+    iret_frame_alloc();
+#endif
+
   dosemu_pthread_self = pthread_self();
   rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 }

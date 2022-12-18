@@ -257,33 +257,6 @@ static void dpmi_thr(void *arg)
 int native_dpmi_setup(void)
 {
     co_handle = co_thread_init(PCL_C_MC);
-
-#if WANT_SIGRETURN_WA
-#ifdef __x86_64__
-    {
-        unsigned int i, j;
-        void *addr;
-        /* search for page with bits 16-31 clear within first 47 bits
-           of address space */
-        for (i = 1; i < 0x8000; i++) {
-            for (j = 0; j < 0x10000; j += PAGE_SIZE) {
-                addr = (void *) (i * 0x100000000UL + j);
-                iret_frame =
-                    mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-                                    addr, PAGE_SIZE,
-                                    PROT_READ | PROT_WRITE);
-                if (iret_frame != MAP_FAILED)
-                    goto out;
-            }
-        }
-      out:
-        if (iret_frame != addr) {
-            error("Can't find DPMI iret page, leaving\n");
-            return -1;
-        }
-    }
-#endif
-#endif
     return 0;
 }
 
