@@ -245,14 +245,11 @@ asmlinkage void stk_32(unsigned char *paddr, Bit32u value)
 	in_cpatch--;
 }
 
-asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
+asmlinkage void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 {
-	dosaddr_t addr;
-
 	in_cpatch++;
 	assert(InCompiledCode);
 	InCompiledCode--;
-	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 1, eip);
 	InCompiledCode++;
 	if (!emu_ldt_write(addr, value, 1)) {
@@ -264,14 +261,11 @@ asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 	in_cpatch--;
 }
 
-asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
+asmlinkage void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 {
-	dosaddr_t addr;
-
 	in_cpatch++;
 	assert(InCompiledCode);
 	InCompiledCode--;
-	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 2, eip);
 	InCompiledCode++;
 	if (!emu_ldt_write(addr, value, 2)) {
@@ -283,14 +277,11 @@ asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 	in_cpatch--;
 }
 
-asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
+asmlinkage void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 {
-	dosaddr_t addr;
-
 	in_cpatch++;
 	assert(InCompiledCode);
 	InCompiledCode--;
-	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 4, eip);
 	InCompiledCode++;
 	if (!emu_ldt_write(addr, value, 4)) {
@@ -302,21 +293,18 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 	in_cpatch--;
 }
 
-asmlinkage Bit8u read_8(unsigned char *paddr)
+asmlinkage Bit8u read_8(dosaddr_t addr)
 {
-	dosaddr_t addr = DOSADDR_REL(paddr);
 	return vga_read_access(addr) ? vga_read(addr) : READ_BYTE(addr);
 }
 
-asmlinkage Bit16u read_16(unsigned char *paddr)
+asmlinkage Bit16u read_16(dosaddr_t addr)
 {
-	dosaddr_t addr = DOSADDR_REL(paddr);
 	return vga_read_access(addr) ? vga_read_word(addr) : READ_WORD(addr);
 }
 
-asmlinkage Bit32u read_32(unsigned char *paddr)
+asmlinkage Bit32u read_32(dosaddr_t addr)
 {
-	dosaddr_t addr = DOSADDR_REL(paddr);
 	return vga_read_access(addr) ? vga_read_dword(addr) : READ_DWORD(addr);
 }
 
@@ -509,33 +497,33 @@ int Cpatch(sigcontext_t *scp)
 	    return 1;
 	}
     }
-    if (v==0x900788) {		// movb %%al,(%%edi)
-	// we have a sequence:	88 07 90
+    if (v==0x2f0488) {		// movb %%al,(%%edi,%%ebp,1)
+	// we have a sequence:	88 04 2f
 	if (debug_level('e')>1) e_printf("### Byte write patch at %p\n",eip);
 	JSRPATCH(p,Ofs_stub_wri_8);
 	return 1;
     }
-    if ((v&0xffff)==0x0789) {	// mov %%{e}ax,(%%edi)
-	// we have a sequence:	89 07 90
-	//		or	66 89 07
+    if (v==0x2f0489) {		// mov %%{e}ax,(%%edi,%%ebp,1)
+	// we have a sequence:	89 04 2f
+	//		or	66 89 04 2f
 	if (debug_level('e')>1) e_printf("### Word/Long write patch at %p\n",eip);
 	if (w16) {
-	    p--; JSRPATCH(p,Ofs_stub_wri_16);
+	    p--; JSRPATCH(p,Ofs_stub_wri_16); p[3] = 0x90;
 	}
 	else {
 	    JSRPATCH(p,Ofs_stub_wri_32);
 	}
 	return 1;
     }
-    if (v==0x90078a) {		// movb (%%edi),%%al
-	// we have a sequence:	8a 07 90 90 90 90
+    if (v==0x2f048a) {		// movb (%%edi,%%ebp,1),%%al
+	// we have a sequence:	8a 04 2f 90 90 90
 	if (debug_level('e')>1) e_printf("### Byte read patch at %p\n",eip);
 	JSRPATCHL(p,Ofs_stub_read_8);
 	return 1;
     }
-    if ((v&0xffff)==0x078b) {	// mov %%{e}ax,(%%edi)
-	// we have a sequence:	8b 07 90 90 90 90
-	//		or	66 8b 07 90 90 90
+    if (v==0x2f048b) {		// mov (%%edi,%%ebp,1),%%{e}ax
+	// we have a sequence:	8b 04 2f 90 90 90
+	//		or	66 8b 04 2f 90 90
 	if (debug_level('e')>1) e_printf("### Word/Long read patch at %p\n",eip);
 	if (w16) {
 	    p--; JSRPATCHL(p,Ofs_stub_read_16);
@@ -564,13 +552,13 @@ int UnCpatch(unsigned char *eip)
     }
     else if (p[1] == 0x53) {
 	if ((unsigned char)p[2] == Ofs_stub_wri_8) {
-	    *((short *)p) = 0x0788; p[2] = 0x90;
+	    *((short *)p) = 0x0488; p[2] = 0x2f;
 	}
 	else if ((unsigned char)p[2] == Ofs_stub_wri_16) {
-	    *p++ = 0x66; *((short *)p) = 0x0789;
+	    *p++ = 0x66; *((short *)p) = 0x0488; p[3] = 0x2f;
 	}
 	else if ((unsigned char)p[2] == Ofs_stub_wri_32) {
-	    *((short *)p) = 0x0789; p[2] = 0x90;
+	    *((short *)p) = 0x0489; p[2] = 0x2f;
 	}
 	else if ((unsigned char)p[2] == Ofs_stub_stk_16) {
 	    *((int *)p) = 0x0e048966;

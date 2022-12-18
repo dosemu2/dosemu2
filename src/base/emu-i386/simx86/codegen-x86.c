@@ -83,17 +83,19 @@
 /***************************************************************************
  *
  * Registers on enter:
- *	ebx		pointer to SynCPU (must not be changed)
- *	[esp]		cpu->eflags
+ *	ebx/rbx		pointer to SynCPU (must not be changed)
+ *	ebp/rbp		memory base address (mem_base)
+ *	[esp/rsp]	cpu->eflags
  *
- * Registers used by the 32-bit machine:
+ * Registers used by the 32/64-bit machine:
  *	eax		scratch, data
- *	ebx		pointer to SynCPU (must not be changed)
+ *	ebx/rbx		pointer to SynCPU (must not be changed)
  *	ecx		scratch, address/count
  *	edx		scratch, data
  *	esi		scratch, address
  *	edi		memory/register address
- *	esp		not modified
+ *	ebp/rbp		memory base address (mem_base)
+ *	esp/rsp		not modified
  *	flags		modified
  *
  * Registers on exit:
@@ -204,8 +206,6 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		if (!(mode & MLEA)) {
 			// addl offs(%%ebx),%%edi (seg reg offset)
 			G3M(0x03,0x7b,IG->p0,Cp);
-			// addl MEMBASE(%%ebx),%%edi
-			G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 		}
 		break;
 	case A_DI_1: {			// base(32), {imm}, reg
@@ -229,8 +229,6 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		if (!(mode & MLEA)) {
 			// addl offs(%%ebx),%%edi (seg reg offset)
 			G3M(0x03,0x7b,IG->p0,Cp);
-			// addl MEMBASE(%%ebx),%%edi
-			G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 		} }
 		break;
 	case A_DI_2: {			// base(32), {imm}, reg, reg, {shift}
@@ -265,8 +263,6 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		if (!(mode & MLEA)) {
 			// addl offs(%%ebx),%%edi (seg reg offset)
 			G3M(0x03,0x7b,IG->p0,Cp);
-			// addl MEMBASE(%%ebx),%%edi
-			G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 		} }
 		break;
 	case A_DI_2D: {			// modrm_sibd, 32-bit mode
@@ -287,8 +283,6 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		if (!(mode & MLEA)) {
 			// addl offs(%%ebx),%%edi (seg reg offset)
 			G3M(0x03,0x7b,IG->ovds,Cp);
-			// addl MEMBASE(%%ebx),%%edi
-			G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 		} }
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
@@ -422,8 +416,8 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		break;
 
 	case L_LXS1: {
-		// mov{wl} (%%edi),%%{e}ax
-		Gen66(mode,Cp); G2M(0x8b,0x07,Cp);
+		// mov{wl} (%%edi,%%ebp,1),%%{e}ax
+		Gen66(mode,Cp); G3M(0x8b,0x04,0x2f,Cp);
 		// mov{wl} %%{e}ax,offs(%%ebx)
 		Gen66(mode,Cp);	G3M(0x89,0x43,IG->p0,Cp);
 		// leal {2|4}(%%edi),%%edi
@@ -431,8 +425,8 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		}
 		break;
 	case L_LXS2: {	/* real mode segment base from segment value */
-		// movzwl (%%edi),%%eax
-		G3M(0x0f,0xb7,0x07,Cp);
+		// movzwl (%%edi,%%ebp,1),%%eax
+		G4M(0x0f,0xb7,0x04,0x2f,Cp);
 		// movw %%ax,ofs(%%ebx)
 		G4M(0x66,0x89,0x43,IG->p0,Cp);
 		// shll $4,%%eax
@@ -452,15 +446,15 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 
 	case L_DI_R1:
 		if (mode&(MBYTE|MBYTX)) {
-		    G2(0x078a,Cp); G1(0x90,Cp);
+		    G3(0x2f048a,Cp); G1(0x90,Cp);
 		}
 		else if (mode&DATA16) {
-		    G1(0x66,Cp); G2(0x078b,Cp);
+		    G1(0x66,Cp); G3(0x2f048b,Cp);
 		}
 		else {
-		    G2(0x078b,Cp); G1(0x90,Cp);
+		    G3(0x2f048b,Cp); G1(0x90,Cp);
 		}
-		G3(0x909090,Cp);
+		G2(0x9090,Cp);
 		break;
 	case S_DI:
 		if (mode&MBYTE) {
@@ -967,8 +961,6 @@ arith1:
 	case O_XLAT:
 		// movl OVERR_DS(%%ebx),%%edi
 		G2(0x7b8b,Cp); G1(IG->ovds,Cp);
-		// addl MEMBASE(%%ebx),%%edi
-		G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 		// movzbl Ofs_AL(%%ebx),%%ecx
 		G4M(0x0f,0xb6,0x4b,Ofs_AL,Cp);
 		// movl Ofs_EBX(%%ebx),%%eax
@@ -1631,7 +1623,7 @@ shrot0:
 	case O_INT: {
 		unsigned char intno = IG->p0;
 		int jpc = IG->p1;
-		// Check bitmap, GPF if revectored, else use mem_base+intno*4
+		// Check bitmap, GPF if revectored, else use intno*4
 		// bt intno,Ofs_int_revectored(%ebx)
 		// Code offset of TheCPU.int_revectored.__map[intno>>5]
 		// as Ofs_int_revectored[intno>>3] aligned to 4.
@@ -1646,8 +1638,8 @@ shrot0:
 		// movl {exit_addr},%%eax; pop %%edx; ret
 		G1(0xb8,Cp); G4(jpc,Cp); G2M(0x5a,0xc3,Cp);
 		// address to call in edi
-		// movl $(MEM_BASE+inum*4), %edi
-		G1(0xbf,Cp); G4(TheCPU.mem_base+intno*4, Cp);
+		// movl $(inum*4), %edi
+		G1(0xbf,Cp); G4(intno*4, Cp);
 		break;
 		}
 
@@ -1692,8 +1684,10 @@ shrot0:
 			}
 			// addl OVERR_DS(%%ebx),%%e[sd]i
 			G3M(0x03,modrm,IG->ovds,Cp);
-			// addl MEMBASE(%%ebx),%%e[sd]i
-			G3M(0x03,modrm,Ofs_MEMBASE,Cp);
+			if (mode&(MREP|MREPNE)) {
+			    // addl MEMBASE(%%ebx),%%e[sd]i
+			    G3M(0x03,modrm,Ofs_MEMBASE,Cp);
+			}
 		    }
 		    if (mode&MOVSDST) {
 			// movzwl Ofs_DI(%%ebx),%%edi
@@ -1726,8 +1720,10 @@ shrot0:
 			}
 			// addl Ofs_XES(%%ebx),%%edi
 			G3M(0x03,0x7b,Ofs_XES,Cp);
-			// addl Ofs_MEMBASE(%%ebx),%%edi
-			G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
+			if (mode&(MREP|MREPNE)) {
+			    // addl Ofs_MEMBASE(%%ebx),%%e[sd]i
+			    G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
+			}
 		    }
 		    if (mode&(MREP|MREPNE)) {
 			/* Address overflow detection */
@@ -1790,22 +1786,26 @@ shrot0:
 		    if (mode&MOVSSRC) {
 			// movl OVERR_DS(%%ebx),%%e[sd]i
 			G3M(0x8b,modrm,IG->ovds,Cp);
-			// addl MEMBASE(%%ebx),%%e[sd]i
-			G3M(0x03,modrm,Ofs_MEMBASE,Cp);
 			// addl Ofs_ESI(%%ebx),%%e[sd]i
 			G3M(0x03,modrm,Ofs_ESI,Cp);
 		    }
 		    if (mode&MOVSDST) {
 			// movl Ofs_XES(%%ebx),%%edi
 			G3M(0x8b,0x7b,Ofs_XES,Cp);
-			// addl Ofs_MEMBASE(%%ebx),%%edi
-			G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
 			// addl Ofs_EDI(%%ebx),%%edi
 			G3M(0x03,0x7b,Ofs_EDI,Cp);
 		    }
 		    if (mode&(MREP|MREPNE)) {
 			// movl Ofs_ECX(%%ebx),%%ecx
 			G3M(0x8b,0x4b,Ofs_ECX,Cp);
+			if (mode&MOVSSRC) {
+			    // addl Ofs_MEMBASE(%%ebx),%%e[sd]i
+			    G3M(0x03,modrm,Ofs_MEMBASE,Cp);
+			}
+			if (mode&MOVSDST) {
+			    // addl Ofs_MEMBASE(%%ebx),%%edi
+			    G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
+			}
 		    }
 		} }
 		break;
@@ -1861,17 +1861,17 @@ shrot0:
 			// assumes eax=(%%esi)
 			// mov %%eax, %%edx
 			G2M(0x89,0xc2,Cp);
-			// mov (%%edi), %%{e}a[xl]
+			// mov (%%edi,%%ebp,1), %%{e}a[xl]
 			if (mode&MBYTE) {
-				G2(0x078a,Cp); G1(0x90,Cp);
+				G4M(0x8a,0x04,0x2f,0x90,Cp);
 			}
 			else if (mode&DATA16) {
-				G1(0x66,Cp); G2(0x078b,Cp);
+				G4M(0x66,0x8b,0x04,0x2f,Cp);
 			}
 			else {
-				G2(0x078b,Cp); G1(0x90,Cp);
+				G4M(0x8b,0x04,0x2f,0x90,Cp);
 			}
-			G3(0x909090,Cp);
+			G2(0x9090,Cp);
 			// cmp %%eax, %%edx
 			if (mode&MBYTE) {
 				G2M(0x38,0xc2,Cp);
@@ -3338,13 +3338,19 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 		"movq	%%rsp,%%r12\n"
 		"addq	$-128,%%rsp\n"	/* go below red zone		*/
 		"andq	$~15,%%rsp\n"	/* 16-byte stack alignment	*/
+		"push	"RE_REG(bp)"\n"
 #endif
+		"push	"RE_REG(bp)"\n"
+		"mov	%7, "RE_REG(bp)"\n"
 		"call	*%6\n"		/* call SeqStart                */
+		"pop	"RE_REG(bp)"\n"
 #ifdef __x86_64__
+		"pop	"RE_REG(bp)"\n"
 		"movq	%%r12,%%rsp\n"
 #endif
 		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref)
-		: "b"(ecpu),"d"(*flg),"a"(SeqStart),"R"(do_seq_start)
+		: "b"(ecpu),"d"(*flg),"a"(SeqStart),"R"(do_seq_start),
+		  "m"(mem_base)
 		: "memory", "cc", "ecx", "esi" EXEC_CLOBBERS
 	);
 	InCompiledCode = 0;

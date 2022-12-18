@@ -194,13 +194,13 @@ unsigned char *Fp87_op_x86(unsigned char *CodePtr, int exop, int reg)
 //	3B	DB xx111nnn	FSTP	ext
 //	3F	DF xx111nnn	FISTP	qw
 fp_mem:
-		G2M(0xd8+(exop&7),(exop&0x38)|7,Cp);	// Fop (edi)
+		G3M(0xd8+(exop&7),(exop&0x38)|4,0x2f,Cp);	// Fop (edi,ebp,1)
 		break;
 
 /*29*/	case 0x29:
 //*	29	D9 xx101nnn	FLDCW	2b
-		// movw	(edi),ax
-		G3(0x078b66,Cp);
+		// movw	(edi,ebp,1),ax
+		G4(0x2f048b66,Cp);
 		// movl	eax,ecx
 		G2(0xc189,Cp);
 		// orb 0x3f,al
@@ -228,8 +228,8 @@ fp_mem:
 		G2(0xc808,Cp);
 		// movw	ax,FPUC(ebx)
 		G3(0x438966,Cp); G1(Ofs_FPUC,Cp);
-		// movw ax,(edi)
-		G3(0x078966,Cp);
+		// movw ax,(edi,ebp,1)
+		G4(0x2f048966,Cp);
 		break;
 
 /*3d*/	case 0x3d: goto fp_mem;

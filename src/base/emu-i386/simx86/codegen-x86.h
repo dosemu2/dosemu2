@@ -50,8 +50,8 @@ extern unsigned int Exec_x86_fast(TNode *G);
 
 /////////////////////////////////////////////////////////////////////////////
 
-#define STD_WRITE_B	G3M(0x88,0x07,0x90,Cp);
-#define STD_WRITE_WL(m)	G3((m)&DATA16?0x078966:0x900789,Cp)
+#define STD_WRITE_B	G3M(0x88,0x04,0x2f,Cp);
+#define STD_WRITE_WL(m)	Gen66(m,Cp); G3M(0x89,0x04,0x2f,Cp)
 
 #define GenAddECX(o)	if (((o) > -128) && ((o) < 128)) {\
 			G2(0xc183,Cp); G1((o),Cp); } else {\
