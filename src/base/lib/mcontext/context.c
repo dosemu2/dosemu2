@@ -16,6 +16,13 @@ void makemcontext(m_ucontext_t *ucp, void (*func)(void*), void *arg)
 
 	sp = (uintptr_t *)((unsigned char *)ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size);
 	sp = (void*)((uintptr_t)sp - (uintptr_t)sp%16); /* 16-align for OS X */
+
+#ifdef __aarch64__
+        ucp->uc_mcontext.regs[19] = (uintptr_t) ucp->uc_link;
+        ucp->uc_mcontext.sp = (uintptr_t) sp;
+        ucp->uc_mcontext.pc = (uintptr_t) func;
+        ucp->uc_mcontext.regs[0] = (uint64_t)arg;
+#else
 #ifdef __i386__
 	sp -= 3;	// alignment
 	*--sp = (uintptr_t)arg;
@@ -29,6 +36,7 @@ void makemcontext(m_ucontext_t *ucp, void (*func)(void*), void *arg)
 #else
 	ucp->uc_mcontext.mc_rip = (uintptr_t)func;
 	ucp->uc_mcontext.mc_rsp = (uintptr_t)sp;
+#endif
 #endif
 }
 

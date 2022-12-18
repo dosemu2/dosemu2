@@ -22,6 +22,8 @@ typedef struct m_ucontext m_ucontext_t;
 #		include "amd64-ucontext.h"
 #	elif defined(__arm__)
 #		include "arm-ucontext.h"
+#	elif defined(__aarch64__)
+#		include "aarch64-ucontext.h"
 #	elif defined (__power__)
 #		include "power-ucontext.h"
 #	else

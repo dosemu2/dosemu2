@@ -41,6 +41,10 @@
 #define NEEDAMD64CONTEXT 1
 #define SET _setmcontext
 #define GET _getmcontext
+#elif defined(__aarch64__)
+#define NEEDAARCH64CONTEXT 1
+#define SET _setmcontext
+#define GET _getmcontext
 #elif defined(__arm__)
 #define NEEDARMCONTEXT 1
 #define SET setmcontext
@@ -279,6 +283,114 @@ SET:
 	ldr	r14, [r0,#56]
 	ldr	r0, [r0]
 	mov	pc, lr
+#endif
+
+#ifdef NEEDAARCH64CONTEXT
+
+/* Size of an X regiser in bytes. */
+#define SZREG                8
+
+/* Size of a V register in bytes. */
+#define SZVREG              16
+
+#define oX0 8
+#define oSP 8*32
+#define oPC 8*33
+#define oPSTATE 8*34
+
+/* Save current context.
+
+   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+
+   This file is part of the GNU C Library.
+
+   The GNU C Library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation; either version 2.1 of the
+   License, or (at your option) any later version.
+
+   The GNU C Library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU C Library; if not, see
+   <https://www.gnu.org/licenses/>.  */
+.globl GET
+GET:
+	/* The saved context will return to the getcontext() call point
+	   with a return value of 1 -stsp (glibc uses 0) */
+	mov	x2, 1
+	str	x2,	  [x0, oX0 +  0 * SZREG]
+
+	/* x0-x18 seems to be caller-save, glibc doesn't save them...
+	 * though it does actually save x18, strange. -stsp */
+	stp	x18, x19, [x0, oX0 + 18 * SZREG]
+	stp	x20, x21, [x0, oX0 + 20 * SZREG]
+	stp	x22, x23, [x0, oX0 + 22 * SZREG]
+	stp	x24, x25, [x0, oX0 + 24 * SZREG]
+	stp	x26, x27, [x0, oX0 + 26 * SZREG]
+	stp	x28, x29, [x0, oX0 + 28 * SZREG]
+	str     x30,      [x0, oX0 + 30 * SZREG]
+
+	/* Place LR into the saved PC, this will ensure that when
+	   switching to this saved context with setcontext() control
+	   will pass back to the caller of getcontext(), we have
+	   already arrange to return the appropriate return value in x0
+	   above.  */
+	str	x30, [x0, oPC]
+
+	/* Save the current SP */
+	mov	x2, sp
+	str     x2, [x0, oSP]
+
+	/* Initialize the pstate.  */
+	str	xzr, [x0, oPSTATE]
+
+	/* Return 0 for success */
+	mov	x0, 0
+	ret
+
+/* Set current context.
+
+   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+
+   This file is part of the GNU C Library.
+
+   The GNU C Library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation; either version 2.1 of the
+   License, or (at your option) any later version.
+
+   The GNU C Library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU C Library; if not, see
+   <https://www.gnu.org/licenses/>.  */
+.globl SET
+SET:
+	ldp	x18, x19, [x0, oX0 + 18 * SZREG]
+	ldp	x20, x21, [x0, oX0 + 20 * SZREG]
+	ldp	x22, x23, [x0, oX0 + 22 * SZREG]
+	ldp	x24, x25, [x0, oX0 + 24 * SZREG]
+	ldp	x26, x27, [x0, oX0 + 26 * SZREG]
+	ldp	x28, x29, [x0, oX0 + 28 * SZREG]
+	ldr     x30,      [x0, oX0 + 30 * SZREG]
+	ldr     x2, [x0, oSP]
+	mov	sp, x2
+
+	ldr     x16, [x0, oPC]
+	/* Restore arg registers.  */
+	ldp	x2, x3, [x0, oX0 + 2 * SZREG]
+	ldp	x4, x5, [x0, oX0 + 4 * SZREG]
+	ldp	x6, x7, [x0, oX0 + 6 * SZREG]
+	ldp	x0, x1, [x0, oX0 + 0 * SZREG]
+	/* Jump to the new pc value.  */
+	br	x16
 #endif
 
 #ifdef NEEDMIPSCONTEXT
