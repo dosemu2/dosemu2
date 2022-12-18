@@ -535,7 +535,10 @@ if test "$machine" = "i386" -o "$machine" = "x86_64"; then
     KVM=1
     AC_SUBST(KVM)
 fi
-if test "$machine" != "aarch64"; then
+
+AC_ARG_ENABLE(mcontext,
+               AS_HELP_STRING([--disable-mcontext], [disable fast context switch]))
+if test "$enable_mcontext" != "no"; then
     AC_MSG_NOTICE([Enabling fast context switching...])
     AC_DEFINE(MCONTEXT)
     MCONTEXT=1
