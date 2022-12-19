@@ -217,28 +217,22 @@ done:
 
 /* ======================================================================= */
 
-asmlinkage void stk_16(unsigned char *paddr, Bit16u value)
+asmlinkage void stk_16(dosaddr_t addr, Bit16u value)
 {
-	dosaddr_t addr;
-
 	in_cpatch++;
 	assert(InCompiledCode);
 	InCompiledCode--;
-	addr = DOSADDR_REL(paddr);
 	e_invalidate(addr, 2);
 	WRITE_WORD(addr, value);
 	InCompiledCode++;
 	in_cpatch--;
 }
 
-asmlinkage void stk_32(unsigned char *paddr, Bit32u value)
+asmlinkage void stk_32(dosaddr_t addr, Bit32u value)
 {
-	dosaddr_t addr;
-
 	in_cpatch++;
 	assert(InCompiledCode);
 	InCompiledCode--;
-	addr = DOSADDR_REL(paddr);
 	e_invalidate(addr, 4);
 	WRITE_DWORD(addr, value);
 	InCompiledCode++;
@@ -317,9 +311,8 @@ asmlinkage Bit32u read_32(dosaddr_t addr)
 
 #define STUB_STK(cfunc) \
 "		pushal\n \
-		leal	(%esi,%ecx,1),%edi\n \
 		pushl	%eax\n \
-		pushl	%edi\n \
+		pushl	%edx\n \
 		call	"#cfunc"\n \
 		addl	$8,%esp\n \
 		popal\n \
@@ -374,7 +367,7 @@ asm (
 "		pushq	%rdx\n" \
 "		pushq	%rdi\n" \
 "		pushq	%rsi\n" \
-"		leal	(%rsi,%rcx,1),%edi\n" \
+"		movl	%edx,%edi\n" \
 "		movl	%eax,%esi\n" \
 					/* pass base address in %rdi */ \
 "		call	"#cfunc"\n" \
@@ -471,10 +464,10 @@ int Cpatch(sigcontext_t *scp)
 
     if (*p==0x66) w16=1,p++; else w16=0;
     v = *((int *)p) & 0xffffff;
-    while (v==0x0e0489) {		// stack: never fail
-	// mov %%{e}ax,(%%esi,%%ecx,1)
-	// we have a sequence:	66 89 04 0e
-	//		or	89 04 0e
+    while (v==0x2a0489) {		// stack: never fail
+	// mov %%{e}ax,(%%edx,%%ebp,1)
+	// we have a sequence:	66 89 04 2a
+	//		or	89 04 2a
 	if (debug_level('e')>1) e_printf("### Stack patch at %p\n",p);
 	if (w16) {
 	    p--; JSRPATCH(p,Ofs_stub_stk_16); p[3] = 0x90; p+=4;
@@ -487,12 +480,12 @@ int Cpatch(sigcontext_t *scp)
 #endif
 	/* check for optimized multiple register push */
 	if (p[0]==0x89) return 1; //O_PUSH3
-	p += 9;
+	p += 12;
 	if (p[0]==0xff) return 1; // already JSRPATCH'ed
 	if (*p==0x66) w16=1,p++; else w16=0;
 	v = *((int *)p) & 0xffffff;
 	/* extra check: should not fail */
-	if (v!=0x0e0489) {
+	if (v!=0x2a0489) {
 	    dbug_printf("CPUEMU: stack patch failure, fix source code! %x\n", v);
 	    return 1;
 	}
@@ -561,10 +554,10 @@ int UnCpatch(unsigned char *eip)
 	    *((short *)p) = 0x0489; p[2] = 0x2f;
 	}
 	else if ((unsigned char)p[2] == Ofs_stub_stk_16) {
-	    *((int *)p) = 0x0e048966;
+	    *((int *)p) = 0x2a048966;
 	}
 	else if ((unsigned char)p[2] == Ofs_stub_stk_32) {
-	    *((short *)p) = 0x0489; p[2] = 0x0e;
+	    *((short *)p) = 0x0489; p[2] = 0x2a;
 	}
 	else return 1;
     }
