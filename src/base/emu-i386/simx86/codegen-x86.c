@@ -1650,6 +1650,7 @@ shrot0:
 	case O_MOVS_SetA: {
 		/* use edi for loads unless MOVSDST or REP is set */
 		unsigned char modrm = mode&(MREP|MREPNE|MOVSDST) ? 0x73 : 0x7b;
+		unsigned char modrm2 = mode&(MREP|MREPNE|MOVSDST) ? 0xee : 0xef;
 		if (mode&ADDR16) {
 		    /* The CX load has to be before the address reloads */
 		    if (mode&(MREP|MREPNE)) {
@@ -1689,8 +1690,8 @@ shrot0:
 			// addl OVERR_DS(%%ebx),%%e[sd]i
 			G3M(0x03,modrm,IG->ovds,Cp);
 			if (mode&(MREP|MREPNE)) {
-			    // addl MEMBASE(%%ebx),%%e[sd]i
-			    G3M(0x03,modrm,Ofs_MEMBASE,Cp);
+			    // addl %%[re]bp,%%[re][sd]i
+			    Gen48(Cp); G2M(0x01,modrm2,Cp);
 			}
 		    }
 		    if (mode&MOVSDST) {
@@ -1725,8 +1726,8 @@ shrot0:
 			// addl Ofs_XES(%%ebx),%%edi
 			G3M(0x03,0x7b,Ofs_XES,Cp);
 			if (mode&(MREP|MREPNE)) {
-			    // addl Ofs_MEMBASE(%%ebx),%%e[sd]i
-			    G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
+			    // addl %%[re]bp,%%[re]di
+			    Gen48(Cp); G2M(0x01,0xef,Cp);
 			}
 		    }
 		    if (mode&(MREP|MREPNE)) {
@@ -1803,12 +1804,12 @@ shrot0:
 			// movl Ofs_ECX(%%ebx),%%ecx
 			G3M(0x8b,0x4b,Ofs_ECX,Cp);
 			if (mode&MOVSSRC) {
-			    // addl Ofs_MEMBASE(%%ebx),%%e[sd]i
-			    G3M(0x03,modrm,Ofs_MEMBASE,Cp);
+			    // addl %%[re]bp,%%[re][sd]i
+			    Gen48(Cp); G2M(0x01,modrm2,Cp);
 			}
 			if (mode&MOVSDST) {
-			    // addl Ofs_MEMBASE(%%ebx),%%edi
-			    G3M(0x03,0x7b,Ofs_MEMBASE,Cp);
+			    // addl %%[re]bp,%%[re]di
+			    Gen48(Cp); G2M(0x01,0xef,Cp);
 			}
 		    }
 		} }
@@ -1945,19 +1946,19 @@ shrot0:
 		    }
 		    if (mode&MOVSSRC) {
 			// esi = base1 + CPU_(e)SI +- n
+			// subl %%[re]bp,%%[re]si
+			Gen48(Cp); G2M(0x29,0xee,Cp);
 			// subl OVERR_DS(%%ebx),%%esi
 			G2(0x732b,Cp); G1(IG->ovds,Cp);
-			// subl MEMBASE(%%ebx),%%esi
-			G3M(0x2b,0x73,Ofs_MEMBASE,Cp);
 			// movw %%si,Ofs_SI(%%ebx)
 			G4M(0x66,0x89,0x73,Ofs_SI,Cp);
 		    }
 		    if (mode&MOVSDST) {
 			// edi = base2 + CPU_(e)DI +- n
+			// subl %%[re]bp,%%[re]di
+			Gen48(Cp); G2M(0x29,0xef,Cp);
 			// subl Ofs_XES(%%ebx),%%edi
 			G3M(0x2b,0x7b,Ofs_XES,Cp);
-			// subl Ofs_MEMBASE(%%ebx),%%edi
-			G3M(0x2b,0x7b,Ofs_MEMBASE,Cp);
 			// movw %%di,Ofs_DI(%%ebx)
 			G4M(0x66,0x89,0x7b,Ofs_DI,Cp);
 		    }
@@ -1980,19 +1981,19 @@ shrot0:
 		    }
 		    if (mode&MOVSSRC) {
 			// esi = base1 + CPU_(e)SI +- n
+			// subl %%[re]bp,%%[re]si
+			Gen48(Cp); G2M(0x29,0xee,Cp);
 			// subl OVERR_DS(%%ebx),%%esi
 			G2(0x732b,Cp); G1(IG->ovds,Cp);
-			// subl MEMBASE(%%ebx),%%esi
-			G3M(0x2b,0x73,Ofs_MEMBASE,Cp);
 			// movl %%esi,Ofs_ESI(%%ebx)
 			G3M(0x89,0x73,Ofs_ESI,Cp);
 		    }
 		    if (mode&MOVSDST) {
 			// edi = base2 + CPU_(e)DI +- n
+			// subl %%[re]bp,%%[re]di
+			Gen48(Cp); G2M(0x29,0xef,Cp);
 			// subl Ofs_XES(%%ebx),%%edi
 			G3M(0x2b,0x7b,Ofs_XES,Cp);
-			// subl Ofs_MEMBASE(%%ebx),%%edi
-			G3M(0x2b,0x7b,Ofs_MEMBASE,Cp);
 			// movl %%edi,Ofs_EDI(%%ebx)
 			G3M(0x89,0x7b,Ofs_EDI,Cp);
 		    }

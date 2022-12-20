@@ -86,6 +86,13 @@ extern unsigned int Exec_x86_fast(TNode *G);
 #define Gen66(mode, Cp) \
 	*(Cp)=OPERoverride; Cp+=BTA(BitDATA16, mode)
 
+// 64-bit operand size REX byte
+#ifdef __x86_64__
+#define Gen48(Cp) G1(0x48,Cp)
+#else
+#define Gen48(Cp)
+#endif
+
 // 'no-jump' version, tricky (depends on bit position)
 #define G2_4(mode, val, Cp) \
 	*((int *)(Cp))=(val); Cp+=BT24(BitDATA16, mode)
