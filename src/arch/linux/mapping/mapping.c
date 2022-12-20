@@ -384,8 +384,8 @@ static void munmap_mapping_kmem(int cap, dosaddr_t addr, size_t mapsize)
 
 static int mapping_is_hole(void *start, size_t size)
 {
-  unsigned beg = (uintptr_t)start;
-  unsigned end = beg + size;
+  uintptr_t beg = (uintptr_t)start;
+  uintptr_t end = beg + size;
   return (mapping_find_hole(beg, end, size) == start);
 }
 
@@ -464,6 +464,15 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x\n",
 	cap, target, mapsize, protect);
+#ifdef __LP64__
+  if (targ == (dosaddr_t)-1 && _MAP_32BIT == 0) {
+    /* make sure it's allocated within DOS addressable range */
+    target = mapping_find_hole((uintptr_t)MEM_BASE32(0),
+			       (uintptr_t)MEM_BASE32(0xffffffff), mapsize);
+    if (target == MAP_FAILED)
+      return MAP_FAILED;
+  }
+#endif
   if (!(cap & MAPPING_INIT_LOWRAM) && targ != (dosaddr_t)-1) {
 #ifdef __linux__
     int ku;
