@@ -491,8 +491,9 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     if ((block = alloc_pm_block(root, size)) == NULL)
 	return NULL;
 
-    if (inp) {
-	realbase = smalloc_fixed(&lin_pool, MEM_BASE32(base), size);
+    if (inp || base == -1) {
+	realbase = inp ? smalloc_fixed(&lin_pool, MEM_BASE32(base), size) :
+	    smalloc(&lin_pool, size);
 	if (realbase == NULL) {
 	    free_pm_block(root, block);
 	    return NULL;
