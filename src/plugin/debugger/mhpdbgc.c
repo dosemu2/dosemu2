@@ -2214,8 +2214,10 @@ static void mhp_bcint(int argc, char * argv[])
      clear_bit(num, mhpdbgc.intxxalt);
      clear_bit(num, &vm86s.int_revectored);
    }
-   if (num == 0x21)
-     mhpdbgc.int21_count--;
+   if (num == 0x21) {
+      mhpdbgc.int21_count--;
+      mhpdbgc.bpload = 0;
+   }
 
    return;
 }
@@ -2303,7 +2305,7 @@ static void mhp_bpload(int argc, char * argv[])
    }
    mhpdbgc.bpload=1;
    {
-     volatile register int i=0x21; /* beware, set_bit-macro has wrong constraints */
+     int i = 0x21;
      set_bit(i, mhpdbg.intxxtab);
      if (!test_bit(i, &vm86s.int_revectored)) {
           set_bit(i, mhpdbgc.intxxalt);
