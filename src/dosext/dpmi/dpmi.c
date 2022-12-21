@@ -1419,12 +1419,19 @@ static void save_pm_regs(cpuctx_t *scp)
 
 static void restore_pm_regs(cpuctx_t *scp)
 {
+#ifdef USE_MHPDBG
+  int tf = _isset_TF();
+#endif
   if (DPMI_pm_procedure_running > DPMI_max_rec_pm_func ||
     DPMI_pm_procedure_running < 1) {
     error("DPMI: DPMI_pm_procedure_running = 0x%x\n",DPMI_pm_procedure_running);
     leavedos(25);
   }
   restore_context_nofpu(scp, &DPMI_pm_stack[--DPMI_pm_procedure_running]);
+#ifdef USE_MHPDBG
+  if (mhpdbg.active && tf && !_isset_TF())
+    _eflags |= TF;
+#endif
 }
 
 static void __fake_pm_int(cpuctx_t *scp)
