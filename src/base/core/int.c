@@ -3593,10 +3593,15 @@ void setup_interrupts(void)
 
 void int_try_disable_revect(void)
 {
+    int i;
+
     if (config.force_revect != -1)
 	return;
     config.force_revect = 0;
-    memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
+    for (i = 0; i < 256; i++) {
+	if (test_bit(i, &vm86s.int_revectored) && !mhp_revectored(i))
+	    clear_bit(i, &vm86s.int_revectored);
+    }
 }
 
 void update_xtitle(void)
