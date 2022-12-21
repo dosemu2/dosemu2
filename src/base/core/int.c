@@ -1677,8 +1677,10 @@ static far_t int##x##_unrevect(uint16_t seg, uint16_t offs) \
   int##x##_hooked = 1; \
   di_printf("int_rvc: unrevect 0x%s\n", #x); \
   if (test_bit(0x##x, &vm86s.int_revectored)) { \
-    assert(!mhp_revectored(0x##x)); \
-    clear_bit(0x##x, &vm86s.int_revectored); \
+    if (!mhp_revectored(0x##x)) \
+      clear_bit(0x##x, &vm86s.int_revectored); \
+    else \
+        mhp_adjust_revectored(0x##x); \
   } else { \
     di_printf("int_rvc: revectoring of 0x%s was not enabled\n", #x); \
   } \

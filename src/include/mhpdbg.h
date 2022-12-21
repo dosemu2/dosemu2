@@ -58,10 +58,14 @@ void mhp_init_hma(void);
 void mhp_reset_hma(void);
 #ifdef USE_MHPDBG
 int mhp_revectored(int inum);
+void mhp_adjust_revectored(int inum);
 #else
 static inline int mhp_revectored(int inum)
 {
     return 0;
+}
+void mhp_adjust_revectored(int inum)
+{
 }
 #endif
 
