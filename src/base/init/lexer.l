@@ -329,7 +329,7 @@ hma			RETURN(HMA);
 dos_up			RETURN(DOS_UP);
 ems			RETURN(L_EMS);
 dpmi			RETURN(L_DPMI);
-dpmi_lin_rsv_base	RETURN(DPMI_LIN_RSV_BASE);
+dpmi_base		RETURN(DPMI_BASE);
 dpmi_lin_rsv_size	RETURN(DPMI_LIN_RSV_SIZE);
 pm_dos_api		RETURN(PM_DOS_API);
 ignore_djgpp_null_derefs RETURN(NO_NULL_CHECKS);

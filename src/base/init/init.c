@@ -38,10 +38,13 @@
 #include "cpu-emu.h"
 #include "kvm.h"
 #include "mapping.h"
+#include "smalloc.h"
 #include "vgaemu.h"
 #include "cpi.h"
 
 #define GFX_CHARS       0xffa6e
+
+smpool main_pool;
 
 #if 0
 static inline void dbug_dumpivec(void)
@@ -255,44 +258,6 @@ void device_init(void)
   mouse_priv_init();
 }
 
-static void *mem_reserve_contig(uint32_t size, uint32_t dpmi_size,
-	void **base2)
-{
-  void *result;
-  int cap = MAPPING_INIT_LOWRAM | MAPPING_SCRATCH | MAPPING_DPMI;
-  result = mmap_mapping_ux(cap, (void *)-1, size + dpmi_size, PROT_NONE);
-  if (result == MAP_FAILED)
-    return result;
-
-  *base2 = result + size;
-  return result;
-}
-
-static void *mem_reserve_split(uint32_t size, uint32_t dpmi_size, void **base2)
-{
-  void *result;
-  void *dpmi_base;
-
-  /* lowmem_base is not yet available, so use _ux version */
-  result = mmap_mapping_ux(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH,
-      (void *)-1, size, PROT_NONE);
-  if (result == MAP_FAILED)
-    return result;
-  if (!config.dpmi)
-    return result;
-  assert(config.dpmi_lin_rsv_base != (dosaddr_t)-1);
-  dpmi_base = (void*)(((uintptr_t)result + config.dpmi_lin_rsv_base) & 0xffffffff);
-  dpmi_base = mmap_mapping_ux(MAPPING_DPMI | MAPPING_SCRATCH |
-      MAPPING_NOOVERLAP, dpmi_base, dpmi_size, PROT_NONE);
-  if (dpmi_base == MAP_FAILED) {
-    perror ("DPMI mmap");
-    exit(EXIT_FAILURE);
-  }
-
-  *base2 = dpmi_base;
-  return result;
-}
-
 /*
  * DANG_BEGIN_FUNCTION mem_reserve
  *
@@ -302,17 +267,14 @@ static void *mem_reserve_split(uint32_t size, uint32_t dpmi_size, void **base2)
  *  1) 0-based mapping: one map at 0 of 1088k, the rest below 1G
  *     This is only used for i386 + vm86() (not KVM/CPUEMU)
  *  2) non-zero-based mapping: one combined mmap, everything below 4G
- *  3) config.dpmi_lin_rsv_base is set: honour it
  *
  * DANG_END_FUNCTION
  */
-static void *mem_reserve(void **base2, void **r_dpmi_base)
+static void *mem_reserve(uint32_t memsize, uint32_t dpmi_size)
 {
   void *result;
-  void *dpmi_base;
-  uint32_t memsize = LOWMEM_SIZE + HMASIZE;
-  uint32_t dpmi_size = PAGE_ALIGN(config.dpmi_lin_rsv_size * 1024);
-  uint32_t dpmi_memsize = dpmi_mem_size();
+  int cap = MAPPING_INIT_LOWRAM | MAPPING_SCRATCH | MAPPING_DPMI;
+  int prot = PROT_READ | PROT_WRITE;
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
@@ -344,20 +306,11 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
   }
 #endif
 
-  if (config.dpmi && config.dpmi_lin_rsv_base == (dosaddr_t)-1) { /* contiguous memory */
-    result = mem_reserve_contig(memsize, dpmi_size + dpmi_memsize, base2);
-    dpmi_base = *base2 + dpmi_size;
-  } else {
-    result = mem_reserve_split(memsize + dpmi_memsize, dpmi_size, base2);
-    dpmi_base = result + memsize;
-  }
+  result = mmap_mapping_ux(cap, (void *)-1, memsize + dpmi_size, prot);
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
-  if (!config.dpmi)
-    dpmi_base = NULL;
-  *r_dpmi_base = dpmi_base;
   return result;
 }
 
@@ -371,8 +324,10 @@ static void *mem_reserve(void **base2, void **r_dpmi_base)
  */
 void low_mem_init(void)
 {
-  void *lowmem, *base2 = MAP_FAILED, *dpmi_base = MAP_FAILED;
+  void *lowmem, *ptr;
   int result;
+  uint32_t memsize = LOWMEM_SIZE + HMASIZE;
+  uint32_t dpmi_size = dpmi_lin_mem_rsv();
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
@@ -382,7 +337,7 @@ void low_mem_init(void)
     leavedos(98);
   }
 
-  mem_base = mem_reserve(&base2, &dpmi_base);
+  mem_base = mem_reserve(memsize, dpmi_size);
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     init_kvm_monitor();
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
@@ -392,8 +347,14 @@ void low_mem_init(void)
     exit(EXIT_FAILURE);
   }
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
-  if (config.dpmi)
-    dpmi_set_mem_bases(base2, dpmi_base);
+
+  sminit(&main_pool, mem_base, memsize + dpmi_size);
+  ptr = smalloc(&main_pool, memsize);
+  assert(ptr == mem_base);
+  if (config.dpmi) {
+    ptr = smalloc(&main_pool, dpmi_mem_size(ptr + memsize));
+    dpmi_set_mem_base(ptr);
+  }
 
   /* R/O protect 0xf0000-0xf4000 */
   if (!config.umb_f0)
