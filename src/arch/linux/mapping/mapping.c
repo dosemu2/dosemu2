@@ -384,8 +384,8 @@ static void munmap_mapping_kmem(int cap, dosaddr_t addr, size_t mapsize)
 
 static int mapping_is_hole(void *start, size_t size)
 {
-  unsigned beg = (uintptr_t)start;
-  unsigned end = beg + size;
+  uintptr_t beg = (uintptr_t)start;
+  uintptr_t end = beg + size;
   return (mapping_find_hole(beg, end, size) == start);
 }
 
