@@ -51,6 +51,7 @@ static smpool mem_pool;
 static smpool lin_pool;
 static void *dpmi_lin_rsv_base;
 static void *dpmi_base;
+static uint32_t low_rsv;
 static const int dpmi_reserved_space = 4 * 1024 * 1024; // reserve 4Mb
 static int extra_mf;
 
@@ -64,27 +65,17 @@ static int in_rsv_pool(dosaddr_t base, unsigned int size)
     if (!dpmi_lin_rsv_base)
 	return 0;
     if (base >= DOSADDR_REL(dpmi_lin_rsv_base) &&
-	    base < DOSADDR_REL(dpmi_lin_rsv_base) +
-	    dpmi_lin_mem_rsv()) {
-	if (base + size <= DOSADDR_REL(dpmi_lin_rsv_base) +
-		dpmi_lin_mem_rsv())
+	base + size <= DOSADDR_REL(dpmi_lin_rsv_base) + low_rsv)
 	    return 1;
-	return -1;
-    }
     return 0;
 }
 
-void dpmi_set_mem_bases(void *rsv_base, void *main_base)
+void dpmi_set_mem_base(void *rsv_base)
 {
     dpmi_lin_rsv_base = rsv_base;
-    dpmi_base = main_base;
-    /* Elite First Encounters setup.exe insists on reserve
-     * area being writable... */
-    if (config.no_null_checks && rsv_base)
-        mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(rsv_base),
-                dpmi_lin_mem_rsv(), PROT_READ | PROT_WRITE);
-    c_printf("DPMI memory mapped to %p (reserve) and to %p (main)\n",
-        rsv_base, main_base);
+    dpmi_base = MEM_BASE32(config.dpmi_base);
+    low_rsv = dpmi_base - dpmi_lin_rsv_base;
+    c_printf("DPMI memory mapped to %p (reserve)\n", rsv_base);
 }
 
 /* utility routines */
@@ -202,7 +193,7 @@ static int uncommit(void *ptr, size_t size)
   return 1;
 }
 
-unsigned long dpmi_mem_size(void)
+static unsigned long _dpmi_mem_size(void)
 {
     if (!config.dpmi)
 	return 0;
@@ -212,6 +203,14 @@ unsigned long dpmi_mem_size(void)
       PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) +
       dpmi_reserved_space +
       (5 << PAGE_SHIFT); /* 5 extra pages */
+}
+
+unsigned long dpmi_mem_size(void *rsv_base)
+{
+    int rsv = MEM_BASE32(config.dpmi_base) - (unsigned char *)rsv_base;
+    if (!config.dpmi || rsv < 4096)
+	return 0;
+    return PAGE_ALIGN(_dpmi_mem_size() + rsv);
 }
 
 void dump_maps(void)
@@ -225,8 +224,9 @@ void dump_maps(void)
 
 int dpmi_lin_mem_rsv(void)
 {
-    assert(dpmi_lin_rsv_base || !config.dpmi_lin_rsv_size);
-    return config.dpmi_lin_rsv_size * 1024;
+    if (!config.dpmi)
+	return 0;
+    return PAGE_ALIGN(config.dpmi_lin_rsv_size * 1024);
 }
 
 int dpmi_lin_mem_free(void)
@@ -238,29 +238,42 @@ int dpmi_lin_mem_free(void)
 
 int dpmi_alloc_pool(void)
 {
-    uint32_t memsize = dpmi_mem_size();
+    uint32_t memsize = _dpmi_mem_size();
+
+    if (dpmi_base < dpmi_lin_rsv_base || dpmi_base + memsize >
+	    dpmi_lin_rsv_base + dpmi_lin_mem_rsv()) {
+        error("$_dpmi or $_dpmi_base setting out of range\n");
+        return -1;
+    }
     c_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, dpmi_base);
     /* Create DPMI pool */
     sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit);
-    if (dpmi_lin_rsv_base)
-	sminit_com(&lin_pool, dpmi_lin_rsv_base, dpmi_lin_mem_rsv(),
-		commit, uncommit);
+    sminit_com(&lin_pool, dpmi_lin_rsv_base, low_rsv, commit, uncommit);
     dpmi_total_memory = config.dpmi * 1024;
 
+    mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
+                memsize + low_rsv, PROT_NONE);
+    /* Elite First Encounters setup.exe insists on low reserve
+     * area being writable... */
+    if (config.no_null_checks) {
+        mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
+                low_rsv, PROT_READ | PROT_WRITE);
+    }
     D_printf("DPMI: dpmi_free_memory available 0x%x\n", dpmi_total_memory);
     return 0;
 }
 
 void dpmi_free_pool(void)
 {
+    uint32_t memsize = _dpmi_mem_size() + low_rsv;
     int leak = smdestroy(&mem_pool);
     if (leak)
 	error("DPMI: leaked %i bytes (main pool)\n", leak);
-    if (dpmi_lin_rsv_base) {
-	leak = smdestroy(&lin_pool);
-	if (leak)
-	    error("DPMI: leaked %i bytes (lin pool)\n", leak);
-    }
+    leak = smdestroy(&lin_pool);
+    if (leak)
+	error("DPMI: leaked %i bytes (lin pool)\n", leak);
+    mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
+                memsize, PROT_READ | PROT_WRITE);
 }
 
 static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
@@ -459,7 +472,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     unsigned char *realbase;
     int i;
     int inp = 0;
-    int cap = MAPPING_DPMI | MAPPING_SCRATCH;
+    int cap = MAPPING_DPMI | MAPPING_SCRATCH | extra_mf;
 
    /* aligned size to PAGE size */
     size = PAGE_ALIGN(size);
@@ -493,17 +506,17 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 
     if (inp) {
 	realbase = smalloc_fixed(&lin_pool, MEM_BASE32(base), size);
-	if (realbase == NULL) {
-	    free_pm_block(root, block);
-	    return NULL;
-	}
+    } else if (base == -1) {
+	realbase = smalloc(&main_pool, size);
     } else {
-	realbase = mmap_mapping(cap | extra_mf,
-	    base, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
-	if (realbase == MAP_FAILED) {
-	    free_pm_block(root, block);
-	    return NULL;
-	}
+	realbase = smalloc_fixed(&main_pool, MEM_BASE32(base), size);
+	if (realbase)
+	    mprotect_mapping(cap, base, size, committed ?
+		PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
+    }
+    if (realbase == NULL) {
+	free_pm_block(root, block);
+	return NULL;
     }
     block->base = DOSADDR_REL(realbase);
     block->linear = 1;
@@ -557,6 +570,7 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 {
     dpmi_pm_block *block;
     int i;
+    int cap = MAPPING_DPMI | extra_mf;
 
     if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -1;
@@ -574,8 +588,11 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	assert(inp != -1);
 	if (inp)
 	    smfree(&lin_pool, MEM_BASE32(block->base));
-	else
-	    munmap(MEM_BASE32(block->base), block->size);
+	else {
+	    mprotect_mapping(cap, block->base, block->size,
+		    PROT_READ | PROT_WRITE);
+	    smfree(&main_pool, MEM_BASE32(block->base));
+	}
     } else {
 	smfree(&mem_pool, MEM_BASE32(block->base));
     }

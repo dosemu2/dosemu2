@@ -270,7 +270,7 @@ typedef struct config_info {
        unsigned int ems_frame;
        int ems_uma_pages, ems_cnv_pages;
        int dpmi, pm_dos_api, no_null_checks;
-       uint32_t dpmi_lin_rsv_base;
+       uint32_t dpmi_base;
        uint32_t dpmi_lin_rsv_size;
        int dos_up;
 
@@ -515,5 +515,7 @@ extern Bit16u hlt_register_handler_vm86(emu_hlt_t handler);
 extern int hlt_unregister_handler_vm86(Bit16u start_addr);
 
 extern const char *Path_cdrom[];
+
+extern struct mempool main_pool;
 
 #endif /* EMU_H */
