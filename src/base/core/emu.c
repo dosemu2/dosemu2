@@ -548,6 +548,8 @@ static void __leavedos_main(int code, int sig)
       code = -sig;
     else if (sig > 0)
       code = sig + 128;
+    else
+      code &= 0x7f;
     /* We don't need to use _exit() here; this is the graceful exit path. */
     exit(code);
 }
