@@ -30,7 +30,6 @@
 #include "dos2linux.h"
 #include "kvm.h"
 #include "mapping.h"
-#include "smalloc.h"
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -252,18 +251,8 @@ static int is_kvm_map(int cap)
   return (!(cap & MAPPING_DPMI));
 }
 
-void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
+void *alias_mapping_high(int cap, void *target, size_t mapsize, int protect, void *source)
 {
-  void *target = (void *)-1;
-
-  if (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)) {
-    target = smalloc(&main_pool, mapsize);
-    if (!target) {
-      error("OOM for alias_mapping_high, %s\n", strerror(errno));
-      return MAP_FAILED;
-    }
-  }
-
   target = mappingdriver->alias(cap, target, mapsize, protect, source);
   if (target == MAP_FAILED)
     return target;

@@ -911,7 +911,7 @@ static void sigstack_init(void)
       config.exitearly = 1;
       return;
     }
-    backup_stack = alias_mapping_high(MAPPING_OTHER, SIGSTACK_SIZE,
+    backup_stack = alias_mapping_high(MAPPING_OTHER, (void *)-1, SIGSTACK_SIZE,
 	PROT_READ | PROT_WRITE, cstack);
     if (backup_stack == MAP_FAILED) {
       error("Unable to allocate stack\n");

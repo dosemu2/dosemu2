@@ -275,6 +275,7 @@
 #include "utilities.h"
 #include "instremu.h"
 #include "cpu-emu.h"
+#include "smalloc.h"
 
 /* table with video mode definitions */
 #include "vgaemu_modelist.h"
@@ -1657,9 +1658,13 @@ int vga_emu_pre_init(void)
 
   vga.mem.lfb_base = 0;
   if(config.X_lfb) {
-    unsigned char *p = alias_mapping_high(MAPPING_VGAEMU,
-				vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
-    if(p == MAP_FAILED) {
+    /* TODO: move allocation to DPMI_mapHWRam */
+    unsigned char *p = smalloc(&main_pool, vga.mem.size);
+    if(p != NULL) {
+      p = alias_mapping_high(MAPPING_VGAEMU, p,
+			     vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
+    }
+    if(p == NULL || p == MAP_FAILED) {
       vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
       config.exitearly = 1;
       return 1;
@@ -1743,9 +1748,10 @@ static int vga_emu_post_init(void)
 }
 
 
-void vga_emu_done()
+void vga_emu_done(void)
 {
-  /* We should probably do something here - but what ? -- sw */
+  /* TODO: move deallocation to DPMI_unmapHWRam */
+  smfree(&main_pool, MEM_BASE32(vga.mem.lfb_base));
 }
 
 
