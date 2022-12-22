@@ -649,111 +649,114 @@ rem end
 """ % (testdata, ename), newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x1a00, %%ax			# set DTA
-    movw    $altdta, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
 
-    movw    $0x2f00, %%ax			# get DTA address in ES:BX
-    int     $0x21
-    movw    %%cs, %%ax
-    movw    %%es, %%dx
-    cmpw    %%ax, %%dx
+    mov     ax, 1a00h			; set DTA
+    mov     dx, altdta
+    int     21h
+
+    mov     ax, 2f00h			; get DTA address in ES:BX
+    int     21h
+    mov     ax, cs
+    mov     dx, es
+    cmp     dx, ax
     jne     prfaildtaset
-    cmpw    $altdta, %%bx
+    cmp     bx, altdta
     jne     prfaildtaset
 
-    movw    $0x0f00, %%ax			# open file
-    movw    $fcb, %%dx
-    int     $0x21
-    cmpb    $0, %%al
+    mov     ax, 0f00h			; open file
+    mov     dx, fcb
+    int     21h
+    cmp     al, 0
     jne     prfailopen
 
-    movw    $0x1400, %%ax			# read from file
-    movw    $fcb, %%dx
-    int     $0x21
-    cmpb    $03, %%al				# partial read
+    mov     ax, 1400h			; read from file
+    mov     dx, fcb
+    int     21h
+    cmp     al, 3				; partial read
     jne     prfailread
 
     jmp     prsucc
 
 prfaildtaset:
-    movw    $faildtaset, %%dx
-    jmp     1f
+    mov     dx, faildtaset
+    jmp     @1
 
 prfailopen:
-    movw    $failopen, %%dx
-    jmp     1f
+    mov     dx, failopen
+    jmp     @1
 
 prfailread:
-    movw    $0x1000, %%ax			# close file
-    movw    $fcb, %%dx
-    int     $0x21
-    movw    $failread, %%dx
-    jmp     1f
+    mov     ax, 1000h			; close file
+    mov     dx, fcb
+    int     21h
+    mov     dx, failread
+    jmp     @1
 
 prsucc:
-    movw    $succstart, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succstart
+    mov     ah, 9
+    int     21h
 
-    movw    $0x2f00, %%ax			# get DTA address in ES:BX
-    int     $0x21
+    mov     ax, 2f00h			; get DTA address in ES:BX
+    int     21h
 
-    movb    $'$', %%es:%d(%%bx)		# terminate
-    push    %%es
-    pop     %%ds
-    movw    %%bx, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     byte [es:bx+%d], '$'; terminate
+    push    es
+    pop     ds
+    mov     dx, bx
+    mov     ah, 9
+    int     21h
 
-    movw    $0x1000, %%ax			# close file
-    movw    $fcb, %%dx
-    int     $0x21
+    mov     ax, 1000h			; close file
+    mov     dx, fcb
+    int     21h
 
-    push    %%cs
-    pop     %%ds
-    movw    $succend, %%dx
+    push    cs
+    pop     ds
+    mov     dx, succend
 
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fcb:
-    .byte   0          # 0 default drive
+    db  0          ; 0 default drive
 fn1:
-    .ascii  "% -8s"    # 8 bytes
+    db  "% -8s"    ; 8 bytes
 fe1:
-    .ascii  "% -3s"    # 3 bytes
+    db  "% -3s"    ; 3 bytes
 wk1:
-    .space  24
+    times 24 db 0
 
 succstart:
-    .ascii  "Operation Success($"
+    db  "Operation Success($"
 succend:
-    .ascii  ")\r\n$"
+    db  ')',13,10,'$'
 faildtaset:
-    .ascii  "Set DTA Operation Failed\r\n$"
+    db  "Set DTA Operation Failed",13,10,'$'
 failopen:
-    .ascii  "Open Operation Failed\r\n$"
+    db  "Open Operation Failed",13,10,'$'
 failread:
-    .ascii  "Read Operation Failed\r\n$"
+    db  "Read Operation Failed",13,10,'$'
 
 altdta:
-    .space  128
+    times 128 db 0
 
 """ % (len(testdata), "test", "fil"))
 
