@@ -30,6 +30,7 @@
 #include "dos2linux.h"
 #include "kvm.h"
 #include "mapping.h"
+#include "smalloc.h"
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -255,17 +256,13 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 {
   void *target = (void *)-1;
 
-#ifdef __x86_64__
-  /* use MAP_32BIT also for MAPPING_INIT_LOWRAM until simx86 is 64bit-safe */
   if (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)) {
-    target = mmap(NULL, mapsize, protect,
-		MAP_PRIVATE | MAP_ANONYMOUS | _MAP_32BIT, -1, 0);
-    if (target == MAP_FAILED) {
-      error("mmap MAP_32BIT failed, %s\n", strerror(errno));
+    target = smalloc(&main_pool, mapsize);
+    if (!target) {
+      error("OOM for alias_mapping_high, %s\n", strerror(errno));
       return MAP_FAILED;
     }
   }
-#endif
 
   target = mappingdriver->alias(cap, target, mapsize, protect, source);
   if (target == MAP_FAILED)
@@ -884,7 +881,7 @@ int unmap_hardware_ram(char type)
   return rc;
 }
 
-int register_hardware_ram(int type, unsigned int base, unsigned int size)
+int register_hardware_ram(int type, dosaddr_t base, unsigned int size)
 {
   struct hardware_ram *hw;
 
