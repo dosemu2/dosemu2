@@ -1224,9 +1224,9 @@ int vga_emu_protect_page(unsigned page, int prot)
     vga.mem.lfb_base_page &&
     page >= vga.mem.lfb_base_page &&
     page < vga.mem.lfb_base_page + vga.mem.pages) {
-    unsigned char *p;
-    p = &vga.mem.lfb_base[(page - vga.mem.lfb_base_page) << 12];
-    i = mprotect_mapping(MAPPING_VGAEMU, DOSADDR_REL(p), 1 << 12, sys_prot);
+    dosaddr_t p;
+    p = vga.mem.lfb_base + ((page - vga.mem.lfb_base_page) << 12);
+    i = mprotect_mapping(MAPPING_VGAEMU, p, 1 << 12, sys_prot);
   }
   else {
     i = mprotect_mapping(MAPPING_VGAEMU | MAPPING_LOWMEM, page << 12, 1 << 12, sys_prot);
@@ -1655,7 +1655,7 @@ int vga_emu_pre_init(void)
   mprotect(vga.mem.base, PAGE_SIZE, PROT_NONE);
   vga.mem.base += PAGE_SIZE;
 
-  vga.mem.lfb_base = NULL;
+  vga.mem.lfb_base = 0;
   if(config.X_lfb) {
     unsigned char *p = alias_mapping_high(MAPPING_VGAEMU,
 				vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
@@ -1664,11 +1664,11 @@ int vga_emu_pre_init(void)
       config.exitearly = 1;
       return 1;
     } else {
-      vga.mem.lfb_base = p;
+      vga.mem.lfb_base = DOSADDR_REL(p);
     }
   }
 
-  if(vga.mem.lfb_base == NULL) {
+  if(vga.mem.lfb_base == 0) {
     vga_msg("vga_emu_init: linear frame buffer (lfb) disabled\n");
   }
 
@@ -1701,9 +1701,9 @@ int vga_emu_pre_init(void)
 
   vga.mem.bank = vga.mem.bank_pages = 0;
 
-  if(vga.mem.lfb_base != NULL) {
+  if(vga.mem.lfb_base != 0) {
     memcheck_addtype('e', "VGAEMU LFB");
-    register_hardware_ram('e', (uintptr_t)vga.mem.lfb_base, vga.mem.size);
+    register_hardware_ram('e', vga.mem.lfb_base, vga.mem.size);
   }
 
   return vga_emu_post_init();
@@ -1713,10 +1713,9 @@ static int vga_emu_post_init(void)
 {
   int i;
 
-  if(vga.mem.lfb_base != NULL) {
-    dosaddr_t lfb_base = DOSADDR_REL(vga.mem.lfb_base);
-    vga.mem.lfb_base_page = lfb_base >> 12;
-    map_hardware_ram_manual((uintptr_t)vga.mem.lfb_base, lfb_base);
+  if(vga.mem.lfb_base != 0) {
+    vga.mem.lfb_base_page = vga.mem.lfb_base >> 12;
+    map_hardware_ram_manual(vga.mem.lfb_base, vga.mem.lfb_base);
   }
   vga_emu_setup_mode_table();
 
