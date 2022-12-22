@@ -272,45 +272,48 @@ rem end
 """ % (PRGFIL_SFN, ename), newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-# get cwd
-    movw    $%s, %%ax
-    movb    $0, %%dl
-    movw    $curdir, %%si
-    int     $0x21
+    push    cs
+    pop     ds
 
-    push    %%ds
-    pop     %%es
-    movw    %%si, %%di
+; get cwd
+    mov     ax, %s
+    mov     dl, 0
+    mov     si, curdir
+    int     21h
 
-    movw    $128, %%cx
-    movb    $0, %%al
+    push    ds
+    pop     es
+    mov     di, si
+
+    mov     cx, 128
+    mov     al, 0
     cld
     repne   scasb
-    movb    $')', -1(%%di)
-    movb    $'$', (%%di)
+    mov     byte [di-1], ')'
+    mov     byte [di], '$'
 
-    movb    $0x9, %%ah
-    movw    $pcurdir, %%dx
-    int     $0x21
+    mov     ah, 9
+    mov     dx, pcurdir
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 pcurdir:
-    .byte '('
+    db '('
 curdir:
-    .fill 128, 1, '$'
+    times 128 db '$'
 
 """ % cwdnum)
 
