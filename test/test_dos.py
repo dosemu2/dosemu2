@@ -115,76 +115,79 @@ rem end
 
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $%s, %%ax
-    movw    $dname, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
+
+    mov     ax, %s
+    mov     dx, dname
+    int     21h
 
     jnc     prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    jmp     1f
+    mov     dx, failmsg
+    jmp     @1
 prsucc:
-    movw    $succmsg, %%dx
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succmsg
+@1:
+    mov     ah, 9
+    int     21h
 
-    movw    $%s, %%ax
-    cmpw    $0x7147, %%ax
+    mov     ax, %s
+    cmp     ax, 0x7147
     je      prcwd
-    cmpw    $0x4700, %%ax
+    cmp     ax, 0x4700
     je      prcwd
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
 
 prcwd:
-# get cwd
-    movb    $0, %%dl
-    movw    $curdir, %%si
-    int     $0x21
+; get cwd
+    mov     dl, 0
+    mov     si, curdir
+    int     21h
 
-    push    %%ds
-    pop     %%es
-    movw    %%si, %%di
+    push    ds
+    pop     es
+    mov     di, si
 
-    movw    $128, %%cx
-    movb    $0, %%al
+    mov     cx, 128
+    mov     al, 0
     cld
     repne   scasb
-    movb    $')', -1(%%di)
-    movb    $'$', (%%di)
+    mov     byte [di-1], ')'
+    mov     byte [di], '$'
 
-    movb    $0x9, %%ah
-    movw    $pcurdir, %%dx
-    int     $0x21
+    mov     ah, 9
+    mov     dx, pcurdir
+    int     21h
 
     jmp     exit
 
+section .data
+
 dname:
-    .asciz  "%s"
+    db  "%s",0
 
 succmsg:
-    .ascii  "Directory Operation Success\r\n$"
+    db  "Directory Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Directory Operation Failed\r\n$"
+    db  "Directory Operation Failed",13,10,'$'
 
 pcurdir:
-    .byte '('
+    db '('
 curdir:
-    .fill 128, 1, '$'
+    times 128 db '$'
 
 """ % (intnum, cwdnum, testname))
 
