@@ -255,7 +255,6 @@ static int is_kvm_map(int cap)
 void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 {
   void *target = (void *)-1;
-  int update_kvm = 1;
 
   if (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)) {
     target = smalloc(&main_pool, mapsize);
@@ -263,15 +262,9 @@ void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
       error("OOM for alias_mapping_high, %s\n", strerror(errno));
       return MAP_FAILED;
     }
-    update_kvm = 0;  // already mapped to kvm
   }
 
-  target = mappingdriver->alias(cap, target, mapsize, protect, source);
-  if (target == MAP_FAILED)
-    return target;
-  if (update_kvm && is_kvm_map(cap))
-    mmap_kvm(cap, target, mapsize, protect);
-  return target;
+  return mappingdriver->alias(cap, target, mapsize, protect, source);
 }
 
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
