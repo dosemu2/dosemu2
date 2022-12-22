@@ -800,98 +800,99 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push %%cs
-    popw %%ds
+section .text
 
-    movw    $0x1600, %%ax           # create file
-    movw    $fcb, %%dx
-    int     $0x21
-    cmpb    $0, %%al
+    push    cs
+    pop     ds
+
+    mov     ax, 1600h           ; create file
+    mov     dx, fcb
+    int     21h
+    cmp     al, 0
     jne     prfailopen
 
-    movw    $data, %%si             # copy data to DTA
-    movw    $0x2f00, %%ax           # get DTA address in ES:BX
-    int     $0x21
-    movw    %%bx, %%di
-    movw    $DATALEN, %%cx
+    mov     si, data            ; copy data to DTA
+    mov     ax, 2f00h           ; get DTA address in ES:BX
+    int     21h
+    mov     di, bx
+    mov     cx, datalen
     cld
     repnz movsb
 
-    movw    $0x1500, %%ax           # write to file
-    movw    $fcb, %%dx
-    movw    $DATALEN, flrs          # only the significant part
-    int     $0x21
-    cmpb    $0, %%al
+    mov     ax, 1500h           ; write to file
+    mov     dx, fcb
+    mov     word [flrs], datalen; only the significant part
+    int     21h
+    cmp     al , 0
     jne     prfailwrite
 
-    movw    $donewrite, %%dx
-    jmp     2f
+    mov     dx, donewrite
+    jmp     @2
 
 prfailwrite:
-    movw    $failwrite, %%dx
-    jmp     2f
+    mov     dx, failwrite
+    jmp     @2
 
 prfailopen:
-    movw    $failopen, %%dx
-    jmp     1f
+    mov     dx, failopen
+    jmp     @1
 
-2:
-    movw    $0x1000, %%ax           # close file
-    push    %%dx
-    movw    $fcb, %%dx
-    int     $0x21
-    popw    %%dx
+@2:
+    mov     ax, 1000h           ; close file
+    push    dx
+    mov     dx, fcb
+    int     21h
+    pop     dx
 
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 data:
-    .ascii  "Operation Success(%s)\r\n"
-dend:
-DATALEN = (dend - data)
-    .ascii  "$"   # for printing
+    db  "Operation Success(%s)",13,10,'$'
+datalen equ $ - data - 1
 
 fcb:
-    .byte   0          # 0 default drive
+    db  0          ; 0 default drive
 fn1:
-    .ascii  "% -8s"    # 8 bytes
+    db  "% -8s"    ; 8 bytes
 fe1:
-    .ascii  "% -3s"    # 3 bytes
+    db  "% -3s"    ; 3 bytes
 fcbn:
-    .word 0
+    dw  0
 flrs:
-    .word 0
+    dw  0
 ffsz:
-    .long 0
+    dd  0
 fdlw:
-    .word 0
+    dw  0
 ftlw:
-    .word 0
+    dw  0
 res8:
-    .space 8
+    times 8 db 0
 fcbr:
-    .byte 0
+    db  0
 frrn:
-    .long 0
+    dd  0
 
 failopen:
-    .ascii  "Open Operation Failed\r\n$"
+    db  "Open Operation Failed",13,10,'$'
 failwrite:
-    .ascii  "Write Operation Failed\r\n$"
+    db  "Write Operation Failed",13,10,'$'
 donewrite:
-    .ascii  "Write Operation Done\r\n$"
+    db  "Write Operation Done",13,10,'$'
 
 """ % (testdata, "test", "fil"))
 
