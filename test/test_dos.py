@@ -360,109 +360,111 @@ rem end
 
         # compile sources
 
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %cs
-    pop     %ds
+section .text
 
-# Get current drive and store its letter in fspath
-    movw    $0x1900, %ax
-    int     $0x21
-    addb    $'A', %al
-    movb    %al, fspath
+    push    cs
+    pop     ds
 
-# Get Volume info
-#    Windows95 - LONG FILENAME - GET VOLUME INFORMATION
-#
-#    Call:
-#      AX = 71A0h
-#      DS:DX -> ASCIZ root name (e.g. "C:\")
-#      ES:DI -> buffer for file system name
-#      CX = size of ES:DI buffer
-#
-#    Return:
-#      CF clear if successful
-#        AX destroyed (0000h and 0200h seen)
-#        BX = file system flags (see #01783)
-#        CX = maximum length of file name [usually 255]
-#        DX = maximum length of path [usually 260]
-#        ES:DI buffer filled (ASCIZ, e.g. "FAT","NTFS","CDFS")
-#
-#      CF set on error
-#        AX = error code
-#          7100h if function not supported
+; Get current drive and store its letter in fspath
+    mov     ax, 1900h
+    int     21h
+    add     al, 'A'
+    mov     byte [fspath], al
 
-    movw    $0x71a0, %ax
-    movw    $fspath, %dx  # ds:dx
-    movw    $fstype, %di  # es:di
-    movw    $fstypelen, %cx
+; Get Volume info
+;    Windows95 - LONG FILENAME - GET VOLUME INFORMATION
+;
+;    Call:
+;      AX = 71A0h
+;      DS:DX -> ASCIZ root name (e.g. "C:\")
+;      ES:DI -> buffer for file system name
+;      CX = size of ES:DI buffer
+;
+;    Return:
+;      CF clear if successful
+;        AX destroyed (0000h and 0200h seen)
+;        BX = file system flags (see ;01783)
+;        CX = maximum length of file name [usually 255]
+;        DX = maximum length of path [usually 260]
+;        ES:DI buffer filled (ASCIZ, e.g. "FAT","NTFS","CDFS")
+;
+;      CF set on error
+;        AX = error code
+;          7100h if function not supported
+
+    mov     ax, 71a0h
+    mov     dx, fspath ; ds:dx
+    mov     di, fstype ; es:di
+    mov     cx, fstypelen
     stc
-    int     $0x21
+    int     21h
 
     jc      chkfail
 
-    cmpb    $'$', fstype
+    cmp     byte [fstype], '$'
     je      prnofstype
 
 prsuccess:
-    movw    $fstype, %di
-    movw    fstypelen, %cx
-    movb    $0, %al
+    mov     di, fstype
+    mov     cx, fstypelen
+    mov     al, 0
     cld
     repne   scasb
-    movb    $')', -1(%di)
-    movb    $'\r',  (%di)
-    movb    $'\n', 1(%di)
-    movb    $'$',  2(%di)
-    movw    $success, %dx
+    mov     byte [di-1], ')'
+    mov     byte [di], 13
+    mov     byte [di+1], 10
+    mov     byte [di+2], '$'
+    mov     dx, success
     jmp     exit
 
 prnofstype:
-    movw    $nofstype, %dx
+    mov     dx, nofstype
     jmp     exit
 
 prnotsupported:
-    movw    $notsupported, %dx
+    mov     dx, notsupported
     jmp     exit
 
 prcarryset:
-    movw    $carryset, %dx
+    mov     dx, carryset
     jmp     exit
 
 chkfail:
-    cmpw    $0x7100, %ax
+    cmp     ax, 7100h
     jne     prcarryset
 
     jmp     prnotsupported
 
 exit:
-    movb    $0x9, %ah
-    int     $0x21
+    mov     ah, 9
+    int     21h
 
-    movb    $0x4c, %ah
-    int $0x21
+    mov     ah, 4ch
+    int 21h
+
+section .data
 
 carryset:
-    .ascii  "Carry Set\r\n$"
+    db  "Carry Set",13,10,'$'
 notsupported:
-    .ascii  "Not Supported(AX=0x7100)\r\n$"
+    db  "Not Supported(AX=0x7100)",13,10,'$'
 nofstype:
-    .ascii  "Carry Not Set But No Filesystem Type\r\n$"
+    db  "Carry Not Set But No Filesystem Type",13,10,'$'
 success:
-    .ascii  "Operation Success("
+    db  "Operation Success("
 fstype:
-    .fill 32, 1, '$'
-fstypelen = (. - fstype)
+    times 32 db '$'
+fstypelen equ $ - fstype
 successend:
-    .space 4
+    times 4 db 0
 fspath:
-    .asciz "?:\\"
-
+    db  "?:\", 0
 """)
 
         results = self.runDosemu("testit.bat", config=config)
