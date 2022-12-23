@@ -1202,49 +1202,52 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x1300, %%ax
-    movw    $fcb, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
 
-    cmpb    $0, %%al
+    mov     ax, 1300h
+    mov     dx, fcb
+    int     21h
+
+    cmp     al, 0
     je      prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    jmp     1f
+    mov     dx, failmsg
+    jmp     @1
 prsucc:
-    movw    $succmsg, %%dx
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succmsg
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fcb:
-    .byte   0       # 0 default drive
+    db  0       ; 0 default drive
 fn1:
-    .ascii  "% -8s"    # 8 bytes
+    db  "% -8s"    ; 8 bytes
 fe1:
-    .ascii  "% -3s"    # 3 bytes
+    db  "% -3s"    ; 3 bytes
 wk1:
-    .space  25
+    times 25 db 0
 
 succmsg:
-    .ascii  "Delete Operation Success$"
+    db  "Delete Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Delete Operation Failed$"
+    db  "Delete Operation Failed",13,10,'$'
 
 """ % (fn1, fe1))
 
