@@ -1984,46 +1984,49 @@ rem end
 """ % (extrad, ename), newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
-    push    %%cs
-    pop     %%es
+section .text
 
-    movw    $0x5600, %%ax
-    movw    $src, %%dx
-    movw    $dst, %%di
-    int     $0x21
+    push    cs
+    pop     ds
+    push    cs
+    pop     es
+
+    mov     ax, 5600h
+    mov     dx, src
+    mov     di, dst
+    int     21h
     jnc     prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    jmp     1f
+    mov     dx, failmsg
+    jmp     @1
 prsucc:
-    movw    $succmsg, %%dx
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succmsg
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 src:
-    .asciz  "%s"    # Full path
+    db  "%s",0    ; Full path
 dst:
-    .asciz  "%s"    # Full path
+    db  "%s",0    ; Full path
 
 succmsg:
-    .ascii  "Rename Operation Success$"
+    db  "Rename Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Rename Operation Failed$"
+    db  "Rename Operation Failed",13,10,'$'
 
 """ % (fn1 + "." + fe1, fn2 + "." + fe2))
 
