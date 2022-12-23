@@ -1393,99 +1393,102 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    # Get DTA -> ES:BX
-    movw    $0x2f00, %%ax
-    int     $0x21
-    pushw   %%es
-    pushw   %%bx
-    popl    pdta
+    push    cs
+    pop     ds
 
-    # FindFirst
+    ; Get DTA -> ES:BX
+    mov     ax, 2f00h
+    int     21h
+    push    es
+    push    bx
+    pop     long [pdta]
+
+    ; FindFirst
 findfirst:
-    movw    $0x1100, %%ax
-    movw    $fcb, %%dx
-    int     $0x21
+    mov     ax, 1100h
+    mov     dx, fcb
+    int     21h
 
-    cmpb    $0, %%al
+    cmp     al, 0
     je      prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, failmsg
+    mov     ah, 9
+    int     21h
     jmp     exit
 
 prsucc:
-    movw    $succmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succmsg
+    mov     ah, 9
+    int     21h
 
 prfilename:
-    push    %%ds
-    lds     pdta, %%si
-    inc     %%si
+    push    ds
+    lds     si, [pdta]
+    inc     si
 
-    push    %%cs
-    pop     %%es
-    movw    $prires, %%di
-    inc     %%di
+    push    cs
+    pop     es
+    mov     di, prires
+    inc     di
 
-    movw    $11, %%cx
+    mov     cx, 11
     cld
     repne   movsb
 
-    pop     %%ds
-    movw    $prires, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    pop     ds
+    mov     dx, prires
+    mov     ah, 9
+    int     21h
 
-    # FindNext
+    ; FindNext
 findnext:
-    movw    $0x1200, %%ax
-    movw    $fcb, %%dx
-    int     $0x21
+    mov     ax, 1200h
+    mov     dx, fcb
+    int     21h
 
-    cmpb    $0, %%al
+    cmp     al, 0
     je      prfilename
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fcb:
-    .byte   0       # 0 default drive
+    db  0       ; 0 default drive
 fn1:
-    .ascii  "% -8s"    # 8 bytes
+    db  "% -8s"    ; 8 bytes
 fe1:
-    .ascii  "% -3s"    # 3 bytes
+    db  "% -3s"    ; 3 bytes
 wk1:
-    .space  25
+    times 25 db 0
 
 pdta:
-    .long   0
+    dd   0
 
 prires:
-    .ascii  "("
+    db  "("
 fname:
-    .space  8, 20
+    times 8 db 20
 fext:
-    .space  3, 20
-    .ascii  ")\r\n$"
+    times 3 db 20
+    db  ')',13,10,'$'
 
 succmsg:
-    .ascii  "Find Operation Success\r\n$"
+    db  "Find Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Find Operation Failed\r\n$"
+    db  "Find Operation Failed",13,10,'$'
 
 """ % (fn1, fe1))
 
