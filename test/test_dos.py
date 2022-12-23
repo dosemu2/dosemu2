@@ -2274,101 +2274,100 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    # Get DTA -> ES:BX
-    movw    $0x2f00, %%ax
-    int     $0x21
-    pushw   %%es
-    pushw   %%bx
-    popl    pdta
+    push    cs
+    pop     ds
 
-    # FindFirst
+    ; Get DTA -> ES:BX
+    mov     ax, 2f00h
+    int     21h
+    push    es
+    push    bx
+    pop     long [pdta]
+
+    ; FindFirst
 findfirst:
-    movw    $0x4e00, %%ax
-    movw    $0, %%cx
-    movw    $fpatn, %%dx
-    int     $0x21
+    mov     ax, 4e00h
+    mov     cx, 0
+    mov     dx, fpatn
+    int     21h
     jnc     prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, failmsg
+    mov     ah, 9
+    int     21h
     jmp     exit
 
 prsucc:
-    movw    $succmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succmsg
+    mov     ah, 9
+    int     21h
 
 prfilename:
-    push    %%ds
-    lds     pdta, %%ax
-    addw    $0x1e, %%ax
-    movw    %%ax, %%si
+    push    ds
+    lds     ax, [pdta]
+    add     ax, 1eh
+    mov     si, ax
 
-    push    %%cs
-    pop     %%es
-    movw    $(prires + 1), %%di
+    push    cs
+    pop     es
+    mov     di, prires + 1
 
-    movw    $13, %%cx
+    mov     cx, 13
     cld
 
-1:
-    cmpb    $0, %%ds:(%%si)
-    je     2f
+@1:
+    cmp     byte [ds:si], 0
+    je      @2
 
     movsb
-    loop    1b
+    loop    @1
 
-2:
-    movb    $')',  %%es:(%%di)
-    inc     %%di
-    movb    $'\r', %%es:(%%di)
-    inc     %%di
-    movb    $'\n', %%es:(%%di)
-    inc     %%di
-    movb    $'$',  %%es:(%%di)
-    inc     %%di
+@2:
+    mov     byte [es:di], ')'
+    mov     byte [es:di + 1], 13
+    mov     byte [es:di + 2], 10
+    mov     byte [es:di + 3], '$'
 
-    pop     %%ds
-    movw    $prires, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    pop     ds
+    mov     dx, prires
+    mov     ah, 9
+    int     21h
 
-    # FindNext
+    ; FindNext
 findnext:
-    movw    $0x4f00, %%ax
-    int     $0x21
+    mov     ax, 4f00h
+    int     21h
     jnc     prfilename
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fpatn:
-    .asciz "%s"
+    db  "%s",0
 
 pdta:
-    .long   0
+    dd  0
 
 prires:
-    .ascii  "("
-    .space  32
+    db  "("
+    times 32 db 0
 
 succmsg:
-    .ascii  "Findfirst Operation Success\r\n$"
+    db  "Findfirst Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Findfirst Operation Failed\r\n$"
+    db  "Findfirst Operation Failed",13,10,'$'
 
 """ % (fn1 + "." + fe1))
 
