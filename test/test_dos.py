@@ -2463,42 +2463,42 @@ $_floppy_a = ""
 
         ename = "ds2fndfi"
 
-        ATTR = "$0x00"
+        ATTR = "0x00"
 
         if testname == "file_exists":
-            FSPEC = r"\\fileexst.ext"
+            FSPEC = r"\fileexst.ext"
         elif testname == "file_exists_as_dir":
-            FSPEC = r"\\fileexst.ext\\somefile.ext"
+            FSPEC = r"\fileexst.ext\somefile.ext"
         elif testname == "file_not_found":
-            FSPEC = r"\\Notfname.ext"
+            FSPEC = r"\Notfname.ext"
         elif testname == "no_more_files":
-            FSPEC = r"\\????????.??x"
+            FSPEC = r"\????????.??x"
         elif testname == "path_not_found_wc":
-            FSPEC = r"\\NotDir\\????????.???"
+            FSPEC = r"\NotDir\????????.???"
         elif testname == "path_not_found_pl":
-            FSPEC = r"\\NotDir\\plainfil.txt"
+            FSPEC = r"\NotDir\plainfil.txt"
         elif testname == "path_exists_empty":
-            FSPEC = r"\\DirExist"
+            FSPEC = r"\DirExist"
         elif testname == "path_exists_not_empty":
-            FSPEC = r"\\DirExis2"
+            FSPEC = r"\DirExis2"
         elif testname == "path_exists_file_not_dir":
-            FSPEC = r"\\DirExis2\\fileexst.ext"
-            ATTR = "$0x10"
+            FSPEC = r"\DirExis2\fileexst.ext"
+            ATTR = "0x10"
         elif testname == "dir_exists_pl":
-            FSPEC = r"\\DirExis2"
-            ATTR = "$0x10"
+            FSPEC = r"\DirExis2"
+            ATTR = "0x10"
         elif testname == "dir_exists_wc":
-            FSPEC = r"\\Di?Exis?"
-            ATTR = "$0x10"
+            FSPEC = r"\Di?Exis?"
+            ATTR = "0x10"
         elif testname == "dir_not_exists_pl":
-            FSPEC = r"\\dirNOTex"
-            ATTR = "$0x10"
+            FSPEC = r"\dirNOTex"
+            ATTR = "0x10"
         elif testname == "dir_not_exists_wc":
-            FSPEC = r"\\dirNOTex\\wi??card.???"
-            ATTR = "$0x10"
+            FSPEC = r"\dirNOTex\wi??card.???"
+            ATTR = "0x10"
         elif testname == "dir_not_exists_fn":
-            FSPEC = r"\\dirNOTex\\somefile.ext"
-            ATTR = "$0x10"
+            FSPEC = r"\dirNOTex\somefile.ext"
+            ATTR = "0x10"
 
         self.mkfile("testit.bat", """\
 d:
@@ -2512,74 +2512,77 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x4e00, %%ax
-    movw    %s, %%cx
-    movw    $fspec, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
+
+    mov     ax, 4e00h
+    mov     cx, %s
+    mov     dx, fspec
+    int     21h
 
     jnc     prsucc
 
-    cmpw    $0x02, %%ax
+    cmp     ax, 2
     je      fail02
 
-    cmpw    $0x03, %%ax
+    cmp     ax, 3
     je      fail03
 
-    cmpw    $0x12, %%ax
+    cmp     ax, 12h
     je      fail12
 
     jmp     genfail
 
 fail02:
-    movw    $filenotfound, %%dx
-    jmp     1f
+    mov     dx, filenotfound
+    jmp     @1
 
 fail03:
-    movw    $pathnotfoundmsg, %%dx
-    jmp     1f
+    mov     dx, pathnotfoundmsg
+    jmp     @1
 
 fail12:
-    movw    $nomoremsg, %%dx
-    jmp     1f
+    mov     dx, nomoremsg
+    jmp     @1
 
 genfail:
-    movw    $genfailmsg, %%dx
-    jmp     1f
+    mov     dx, genfailmsg
+    jmp     @1
 
 prsucc:
-    movw    $succmsg, %%dx
+    mov     dx, succmsg
 
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fspec:
-    .asciz  "%s"    # Full path
+    db  "%s",0    ; Full path
 
 succmsg:
-    .ascii  "FindFirst Operation Success\r\n$"
+    db  "FindFirst Operation Success",13,10,'$'
 filenotfound:
-    .ascii  "FindFirst Operation Returned FILE_NOT_FOUND(0x02)\r\n$"
+    db  "FindFirst Operation Returned FILE_NOT_FOUND(0x02)",13,10,'$'
 pathnotfoundmsg:
-    .ascii  "FindFirst Operation Returned PATH_NOT_FOUND(0x03)\r\n$"
+    db  "FindFirst Operation Returned PATH_NOT_FOUND(0x03)",13,10,'$'
 nomoremsg:
-    .ascii  "FindFirst Operation Returned NO_MORE_FILES(0x12)\r\n$"
+    db  "FindFirst Operation Returned NO_MORE_FILES(0x12)",13,10,'$'
 genfailmsg:
-    .ascii  "FindFirst Operation Returned Unexpected Errorcode\r\n$"
+    db  "FindFirst Operation Returned Unexpected Errorcode",13,10,'$'
 
 """ % (ATTR, FSPEC))
 
