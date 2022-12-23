@@ -2903,117 +2903,118 @@ rem end
 """ % (ename, cmdline), newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-# designate target segment
-    push    %%cs
-    pop     %%ax
-    addw    $0x0200, %%ax
-    movw    %%ax, %%es
+section .text
 
-# create PSP in memory
-    movw    %%es, %%dx
-    movw    $0x2600, %%ax
-    int     $0x21
+; designate target segment
+    push    cs
+    pop     ax
+    add     ax, 0200h
+    mov     es, ax
 
-# see if the exit field is set
-    cmpw    $0x20cd, %%es:(0x0000)
+; create PSP in memory
+    mov     dx, es
+    mov     ax, 2600h
+    int     21h
+
+; see if the exit field is set
+    cmp     word [es:0000], 20cdh
     jne     extfail
 
-# see if the parent PSP is zero
-    cmpw    $0x0000, %%es:(0x0016)
+; see if the parent PSP is zero
+    cmp     word [es:0016h], 0
     je      pntzero
 
-# see if the parent PSP points to a PSP
-    push    %%es
-    pushw   %%es:(0x0016)
-    pop     %%es
-    cmpw    $0x20cd, %%es:(0x0000)
-    pop     %%es
+; see if the parent PSP points to a PSP
+    push    es
+    push    word [es:0016h]
+    pop     es
+    cmp     word [es:0000h], 20cdh
+    pop     es
     jne     pntnpsp
 
-# see if the 'INT 21,RETF' is there
-    cmpw    $0x21cd, %%es:(0x0050)
+; see if the 'INT 21,RETF' is there
+    cmp     word [es:0050h], 21cdh
     jne     int21ms
-    cmpb    $0xcb, %%es:(0x0052)
+    cmp     byte [es:0052h], 0cbh
     jne     int21ms
 
-# see if the cmdtail is there
-    movzx   %%es:(0x0080), %%cx
-    cmpw    $%d, %%cx
+; see if the cmdtail is there
+    movzx   cx, byte [es:0080h]
+    cmp     cx, %d
     jne     cmdlngth
 
-    inc     %%cx
-    mov     $cmdline, %%si
-    mov     $0x0081, %%di
+    inc     cx
+    mov     si, cmdline
+    mov     di, 81h
     cld
     repe    cmpsb
     jne     cmdtail
 
 success:
-    movw    $successmsg, %%dx
+    mov     dx, successmsg
     jmp     exit
 
 extfail:
-    movw    $extfailmsg, %%dx
+    mov     dx, extfailmsg
     jmp     exit
 
 pntzero:
-    movw    $pntzeromsg, %%dx
+    mov     dx, pntzeromsg
     jmp     exit
 
 pntnpsp:
-    movw    $pntnpspmsg, %%dx
+    mov     dx, pntnpspmsg
     jmp     exit
 
 int21ms:
-    movw    $int21msmsg, %%dx
+    mov     dx, int21msmsg
     jmp     exit
 
 cmdlngth:
-    movw    $cmdlngthmsg, %%dx
+    mov     dx, cmdlngthmsg
     jmp     exit
 
 cmdtail:
-    movw    $cmdtailmsg, %%dx
+    mov     dx, cmdtailmsg
     jmp     exit
 
 exit:
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     ah, 9
+    int     21h
 
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
 
 extfailmsg:
-    .ascii  "PSP exit field not set to CD20\r\n$"
+    db  "PSP exit field not set to CD20",13,10,'$'
 
 pntzeromsg:
-    .ascii  "PSP parent is zero\r\n$"
+    db  "PSP parent is zero",13,10,'$'
 
 pntnpspmsg:
-    .ascii  "PSP parent doesn't point to a PSP\r\n$"
+    db  "PSP parent doesn't point to a PSP",13,10,'$'
 
 int21msmsg:
-    .ascii  "PSP is missing INT21, RETF\r\n$"
+    db  "PSP is missing INT21, RETF",13,10,'$'
 
 cmdlngthmsg:
-    .ascii  "PSP has incorrect command length\r\n$"
+    db  "PSP has incorrect command length",13,10,'$'
 
 cmdtailmsg:
-    .ascii  "PSP has incorrect command tail\r\n$"
+    db  "PSP has incorrect command tail",13,10,'$'
 
 successmsg:
-    .ascii  "PSP structure okay\r\n$"
+    db  "PSP structure okay",13,10,'$'
 
-# 05 20 54 45 53 54 0d
+; 05 20 54 45 53 54 0d
 cmdline:
-    .ascii " %s\r"
+    db " %s",13
 
 """ % (1 + len(cmdline), cmdline))
 
