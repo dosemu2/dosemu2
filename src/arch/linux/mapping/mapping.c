@@ -207,12 +207,12 @@ static dosaddr_t kmem_unmap_single(int cap, int idx)
   return kmem_map[idx].dst;
 }
 
-static int kmem_unmap_mapping(int cap, dosaddr_t addr, int mapsize)
+// counts number of kmem mappings, only used for assert
+static int kmem_mapped(dosaddr_t addr, int mapsize)
 {
   int i, cnt = 0;
 
   while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 1)) != -1) {
-    kmem_unmap_single(cap, i);
     cnt++;
   }
   return cnt;
@@ -271,18 +271,12 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
 {
   void *target, *addr;
   int i;
-#ifdef __linux__
-  int ku;
-#endif
 
   assert(targ != (dosaddr_t)-1);
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
 	cap, targ, mapsize, protect, source);
-  /* for non-zero INIT_LOWRAM the target is a hint */
 #ifdef __linux__
-  ku = kmem_unmap_mapping(cap, targ, mapsize);
-  if (ku)
-    dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
+  assert(kmem_mapped(targ, mapsize) == 0);
 #endif
   if (cap & MAPPING_INIT_LOWRAM) {
     mem_bases[MEM_BASE] = mem_base;
@@ -330,11 +324,10 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
   }
 
   if (targ == (dosaddr_t)-1) {
-    target = mmap(NULL, mapsize, PROT_READ | PROT_WRITE,
-                MAP_PRIVATE | MAP_ANONYMOUS | _MAP_32BIT, -1, 0);
-    if (target == MAP_FAILED) {
-      error("mmap MAP_32BIT failed, %s\n", strerror(errno));
-      return target;
+    target = smalloc(&main_pool, mapsize);
+    if (!target) {
+      error("OOM for mmap_mapping_kmem, %s\n", strerror(errno));
+      return MAP_FAILED;
     }
     targ = DOSADDR_REL(target);
   } else {
@@ -354,8 +347,6 @@ static void munmap_mapping_kmem(int cap, dosaddr_t addr, size_t mapsize)
 
   while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 1)) != -1) {
     dosaddr_t old_vbase = kmem_unmap_single(cap, i);
-    if (!(cap & MAPPING_SCRATCH))
-      continue;
     if (old_vbase < LOWMEM_SIZE) {
       rc = alias_mapping(MAPPING_LOWMEM, old_vbase, mapsize,
 	    PROT_READ | PROT_WRITE, LOWMEM(old_vbase));
@@ -365,6 +356,8 @@ static void munmap_mapping_kmem(int cap, dosaddr_t addr, size_t mapsize)
           PROT_READ | PROT_WRITE);
       if (p == MAP_FAILED)
         rc = -1;
+      else
+	smfree(&main_pool, p);
     }
     if (rc == -1) {
       error("failure unmapping kmem region\n");
@@ -457,15 +450,10 @@ void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x\n",
 	cap, target, mapsize, protect);
   if (!(cap & MAPPING_INIT_LOWRAM) && targ != (dosaddr_t)-1) {
-#ifdef __linux__
-    int ku;
-#endif
     /* for lowram we use alias_mapping() instead */
     assert(targ >= LOWMEM_SIZE);
 #ifdef __linux__
-    ku = kmem_unmap_mapping(cap, targ, mapsize);
-    if (ku)
-      dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
+    assert(kmem_mapped(targ, mapsize) == 0);
 #endif
   }
 
@@ -684,7 +672,7 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
     if (cap & MAPPING_LOWMEM) {
       int i;
       for (i = 0; i < MAX_BASES; i++) {
-        addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | _MAP_32BIT,
+        addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED,
 		mem_fd, source);
         if (addr == MAP_FAILED) {
           close_kmem();
@@ -693,7 +681,7 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
         kmem_map[kmem_mappings].base[i] = addr;
       }
     } else {
-      addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | _MAP_32BIT,
+      addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED,
 		mem_fd, source);
       if (addr == MAP_FAILED) {
         close_kmem();
@@ -701,7 +689,7 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
       }
       kmem_map[kmem_mappings].base[MEM_BASE] = addr;
     }
-    addr2 = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | _MAP_32BIT,
+    addr2 = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED,
 		mem_fd, source);
     close_kmem();
     if (addr2 == MAP_FAILED)
@@ -759,11 +747,7 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
 int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
 #ifdef __linux__
-  int ku;
-  /* First of all remap the kmem mappings */
-  ku = kmem_unmap_mapping(cap, targ, mapsize);
-  if (ku)
-    dosemu_error("Found %i kmem mappings at %#x\n", ku, targ);
+  assert(kmem_mapped(targ, mapsize) == 0);
 #endif
   munmap(MEM_BASE32(targ), mapsize);
   if (is_kvm_map(cap))
