@@ -218,27 +218,6 @@ class BaseTestCase(object):
 
 # helpers
 
-    def mkcom_with_gas(self, fname, content, dname=None):
-        if dname is None:
-            p = self.workdir
-        else:
-            p = Path(dname).resolve()
-        basename = str(p / fname)
-
-        with open(basename + ".S", "w") as f:
-            f.write(content)
-        check_call(["as", "-o", basename + ".o", basename + ".S"])
-        check_call(["gcc",
-                    "-static",
-                    "-Wl,--section-start=.text=0x100,-e,_start16", "-nostdlib",
-                    "-o", basename + ".com.elf",
-                    basename + ".o"])
-        check_call(["objcopy",
-                    "-j", ".text", "-O", "binary",
-                    basename + ".com.elf",
-                    basename + ".com"])
-        check_call(["rm", basename + ".o", basename + ".com.elf"])
-
     def mkcom_with_ia16(self, fname, content, dname=None):
         if dname is None:
             p = self.workdir
