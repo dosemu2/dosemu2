@@ -1606,104 +1606,107 @@ rem end
 """ % (testdata, ename), newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x3d00, %%ax			# open file readonly
-    movw    $fname, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
+
+    mov     ax, 3d00h			; open file readonly
+    mov     dx, fname
+    int     21h
     jc      prfailopen
 
-    movw    %%ax, fhndl
+    mov     word [fhndl], ax
 
-    movw    $0x3f00, %%ax			# read from file, should be partial (35)
-    movw    fhndl, %%bx
-    movw    $64, %%cx
-    movw    $fdata, %%dx
-    int     $0x21
+    mov     ax, 3f00h			; read from file, should be partial (35)
+    mov     bx, word [fhndl]
+    mov     cx, 64
+    mov     dx, fdata
+    int     21h
     jc      prfailread
-    cmpw    $35, %%ax
+    cmp     ax, 35
     jne     prnumread
 
-    movw    $0x3f00, %%ax			# read from file again to get EOF
-    movw    fhndl, %%bx
-    movw    $64, %%cx
-    movw    $fdata, %%dx
-    int     $0x21
+    mov     ax, 3f00h			; read from file again to get EOF
+    mov     bx, word [fhndl]
+    mov     cx, 64
+    mov     dx, fdata
+    int     21h
     jc      prcarryset
-    cmpw    $0, %%ax
+    cmp     ax, 0
     jne     praxnotzero
 
     jmp     prsucc
 
 prfailopen:
-    movw    $failopen, %%dx
-    jmp     1f
+    mov     dx, failopen
+    jmp     @1
 
 prfailread:
-    movw    $failread, %%dx
-    jmp     2f
+    mov     dx, failread
+    jmp     @2
 
 prnumread:
-    movw    $numread, %%dx
-    jmp     2f
+    mov     dx, numread
+    jmp     @2
 
 praxnotzero:
-    movw    $axnotzero, %%dx
-    jmp     2f
+    mov     dx, axnotzero
+    jmp     @2
 
 prcarryset:
-    movw    $carryset, %%dx
-    jmp     2f
+    mov     dx, carryset
+    jmp     @2
 
 prsucc:
-    movb    $')',  (fdata + 32)
-    movb    $'\r', (fdata + 33)
-    movb    $'\n', (fdata + 34)
-    movb    $'$',  (fdata + 35)
-    movw    $success, %%dx
-    jmp     2f
+    mov     byte [fdata + 32], ')'
+    mov     byte [fdata + 33], 13
+    mov     byte [fdata + 34], 10
+    mov     byte [fdata + 35], '$'
+    mov     dx, success
+    jmp     @2
 
-2:
-    movw    $0x3e00, %%ax			# close file
-    movw    fhndl, %%bx
-    int     $0x21
+@2:
+    mov     ax, 3e00h			; close file
+    mov     bx, word [fhndl]
+    int     21h
 
-1:
-    movb    $0x9, %%ah              # print string
-    int     $0x21
+@1:
+    mov     ah, 9               ; print string
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fname:
-    .asciz  "%s"
+    db  "%s",0
 
 fhndl:
-    .word   0
+    dw  0
 
 success:
-    .ascii  "Operation Success("
+    db  "Operation Success("
 fdata:
-    .space  64
+    times 64 db 0
 failopen:
-    .ascii  "Open Operation Failed\r\n$"
+    db  "Open Operation Failed",13,10,'$'
 failread:
-    .ascii  "Read Operation Failed\r\n$"
+    db  "Read Operation Failed",13,10,'$'
 numread:
-    .ascii  "Partial Read Not 35 Chars\r\n$"
+    db  "Partial Read Not 35 Chars",13,10,'$'
 carryset:
-    .ascii  "Carry Set at EOF\r\n$"
+    db  "Carry Set at EOF",13,10,'$'
 axnotzero:
-    .ascii  "AX Not Zero at EOF\r\n$"
+    db  "AX Not Zero at EOF",13,10,'$'
 
 """ % "test.fil")
 
