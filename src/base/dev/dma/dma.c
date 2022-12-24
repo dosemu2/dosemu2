@@ -126,7 +126,7 @@ static void dma_update_DRQ(int dma_idx, int chan_idx)
 static void dma_process_channel(int dma_idx, int chan_idx)
 {
     struct dma_channel *chan = &dma[dma_idx].chans[chan_idx];
-    void *addr = physaddr_to_unixaddr(
+    void *addr = dosaddr_to_unixaddr(
 	    (chan->page << 16) | (chan->cur_addr.value << dma_idx));
 
     /* first, do the transfer */

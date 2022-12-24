@@ -113,14 +113,6 @@ void *dosaddr_to_unixaddr(unsigned int addr)
   return MEM_BASE32(addr);
 }
 
-void *physaddr_to_unixaddr(unsigned int addr)
-{
-  if (addr < LOWMEM_SIZE + HMASIZE)
-    return dosaddr_to_unixaddr(addr);
-  /* XXX something other than XMS? */
-  return &ext_mem_base[addr - (LOWMEM_SIZE + HMASIZE)];
-}
-
 #ifdef __linux__
 static int map_find_idx(struct mem_map_struct *map, int max, off_t addr)
 {
