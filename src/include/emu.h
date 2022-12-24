@@ -517,5 +517,6 @@ extern int hlt_unregister_handler_vm86(Bit16u start_addr);
 extern const char *Path_cdrom[];
 
 extern struct mempool main_pool;
+extern struct mempool lin_pool;
 
 #endif /* EMU_H */

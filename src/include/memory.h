@@ -184,6 +184,7 @@ void *physaddr_to_unixaddr(dosaddr_t addr);
    give NULL pointer protection.
 */
 extern unsigned char *mem_base;
+#define ext_mem_base (mem_base + LOWMEM_SIZE + HMASIZE)
 
 #define LINP(a) ((unsigned char *)(uintptr_t)(a))
 unsigned char *MEM_BASE32(dosaddr_t a);

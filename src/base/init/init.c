@@ -45,6 +45,7 @@
 #define GFX_CHARS       0xffa6e
 
 smpool main_pool;
+smpool lin_pool;
 
 #if 0
 static inline void dbug_dumpivec(void)
@@ -328,6 +329,7 @@ void low_mem_init(void)
   int result;
   uint32_t memsize = LOWMEM_SIZE + HMASIZE;
   uint32_t dpmi_size = dpmi_lin_mem_rsv();
+  int32_t dpmi_rsv_low = config.dpmi_base;
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
@@ -351,8 +353,30 @@ void low_mem_init(void)
   sminit(&main_pool, mem_base, memsize + dpmi_size);
   ptr = smalloc(&main_pool, memsize);
   assert(ptr == mem_base);
+  dpmi_rsv_low -= memsize;
+  if (config.ext_mem) {
+    ptr = smalloc(&main_pool, EXTMEM_SIZE);
+    if (!ptr) {
+        error("failure to allocate ext mem\n");
+        config.exitearly = 1;
+        return;
+    }
+    x_printf("Ext.Mem of size 0x%x at %p\n", EXTMEM_SIZE, ext_mem_base);
+    memcheck_addtype('x', "Extended memory (HMA+XMS)");
+    memcheck_reserve('x', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE);
+    dpmi_rsv_low -= EXTMEM_SIZE;
+  }
+  if (dpmi_rsv_low <= 0) {
+    error("overlap between $_dpmi_base and $_ext_mem\n");
+    config.exitearly = 1;
+    return;
+  }
+  ptr = smalloc(&main_pool, dpmi_rsv_low);
+  assert(ptr);
+  sminit(&lin_pool, ptr, dpmi_rsv_low); // for fixed allocs of dpmi and xms
   if (config.dpmi) {
-    ptr = smalloc(&main_pool, dpmi_mem_size(ptr + memsize));
+    void *dpmi_base = smalloc(&main_pool, dpmi_mem_size());
+    assert(DOSADDR_REL(dpmi_base) == config.dpmi_base);
     dpmi_set_mem_base(ptr);
   }
 

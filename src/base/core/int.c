@@ -923,10 +923,7 @@ static int int15(void)
 	}
 
     case 0x88:
-	if (xms_intdrv())
-	    LWORD(eax) = 0;
-	else
-	    LWORD(eax) = (EXTMEM_SIZE + HMASIZE) >> 10;
+	LWORD(eax) = (EXTMEM_SIZE + HMASIZE) >> 10;
 	NOCARRY;
 	break;
 

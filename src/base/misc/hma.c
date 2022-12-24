@@ -24,7 +24,6 @@
 
 #define HMAAREA 0x100000
 
-unsigned char *ext_mem_base = NULL;
 int a20;
 
 static void HMA_MAP(int HMA)
@@ -76,13 +75,8 @@ void HMA_init(void)
     return;
   }
   a20 = 0;
-  if (config.ext_mem) {
-    ext_mem_base = mmap_mapping(MAPPING_EXTMEM | MAPPING_SCRATCH, -1,
-      EXTMEM_SIZE, PROT_READ | PROT_WRITE);
-    x_printf("Ext.Mem of size 0x%x at %p\n", EXTMEM_SIZE, ext_mem_base);
-    memcheck_addtype('x', "Extended memory (HMA+XMS)");
-    memcheck_reserve('x', LOWMEM_SIZE, HMASIZE + EXTMEM_SIZE);
-  }
+  memcheck_addtype('H', "HMA");
+  memcheck_reserve('H', LOWMEM_SIZE, HMASIZE);
 }
 
 

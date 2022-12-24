@@ -65,7 +65,8 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
         leavedos(2);
         return NULL;
       }
-    }
+    } else
+      perror("mmap()");
   }
 #if 1
   Q_printf("MAPPING: alias_map, fileoffs %llx to %p size %zx, result %p\n",
@@ -94,6 +95,7 @@ static int open_mapping_f(int cap)
  				/* VGAEMU */
     mapsize += config.vgaemu_memsize ? config.vgaemu_memsize : 1024;
     mapsize += config.ems_size;	/* EMS */
+    mapsize += config.xms_size;	/* XMS */
     mapsize += LOWMEM_SIZE >> 10; /* Low Mem */
     estsize = mapsize;
 				/* keep heap fragmentation in mind */

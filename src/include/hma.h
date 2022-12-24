@@ -8,7 +8,6 @@
 #define __HMA_H
 
 extern int a20;
-extern unsigned char *ext_mem_base;
 void set_a20(int);
 void extmem_copy(unsigned dst, unsigned src, unsigned len);
 

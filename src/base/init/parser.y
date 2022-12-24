@@ -643,6 +643,11 @@ line:		CHARSET '{' charset_flags '}' {}
 		| EXT_MEM int_bool
 		    {
 		    if ($2>=0) config.ext_mem = $2;
+		    if ($2 > 0) c_printf("CONF: %dk bytes int15 ext memory\n", $2);
+		    }
+		| L_XMS int_bool
+		    {
+		    if ($2>=0) config.xms_size = $2;
 		    if ($2 > 0) c_printf("CONF: %dk bytes XMS memory\n", $2);
 		    }
 		| MATHCO bool		{ config.mathco = ($2!=0); }
