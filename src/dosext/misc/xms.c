@@ -71,6 +71,7 @@ static struct Handle handles[NUM_HANDLES];
 static int handle_count;
 static int intdrv;
 static int ext_hooked_hma;
+static unsigned char *xms_base;
 
 void show_emm(struct EMM);
 static unsigned char xms_query_freemem(int), xms_allocate_EMB(int), xms_free_EMB(void),
@@ -212,21 +213,21 @@ static unsigned xms_alloc(unsigned size)
   unsigned char *ptr = smalloc_aligned(&mp, PAGE_SIZE, size);
   if (!ptr)
     return 0;
-  return ptr - ext_mem_base + LOWMEM_SIZE + HMASIZE;
+  return ptr - xms_base;
 }
 
 static unsigned xms_realloc(unsigned dosptr, unsigned size)
 {
-  unsigned char *optr = &ext_mem_base[dosptr - (LOWMEM_SIZE + HMASIZE)];
+  unsigned char *optr = &xms_base[dosptr];
   unsigned char *ptr = smrealloc(&mp, optr, size);
   if (!ptr)
     return 0;
-  return ptr - ext_mem_base + LOWMEM_SIZE + HMASIZE;
+  return ptr - xms_base;
 }
 
 static void xms_free(unsigned addr)
 {
-  smfree(&mp, &ext_mem_base[addr - (LOWMEM_SIZE + HMASIZE)]);
+  smfree(&mp, &xms_base[addr]);
 }
 
 void
@@ -278,6 +279,7 @@ static int xms_helper_init(void)
 
   if (!config.xms_size)
     return 0;
+  xms_base = ext_mem_base;  // TODO!
   handle_count = 0;
   for (i = 0; i < NUM_HANDLES; i++) {
     if (handles[i].valid && handles[i].addr)
@@ -286,7 +288,7 @@ static int xms_helper_init(void)
   }
 
   smdestroy(&mp);
-  sminit(&mp, ext_mem_base, config.xms_size * 1024);
+  sminit(&mp, xms_base, config.xms_size * 1024);
   smregister_error_notifier(&mp, xx_printf);
   return 1;
 }
@@ -693,7 +695,7 @@ xms_query_freemem(int api)
   else {
     REG(eax) = largest;
     REG(edx) = subtotal;
-    REG(ecx) = (config.xms_size * 1024 + LOWMEM_SIZE + HMASIZE) - 1;
+    REG(ecx) = main_pool.size - 1;
     x_printf("XMS query free memory(new): %dK %dK\n",
 	     REG(eax), REG(edx));
   }
@@ -784,6 +786,7 @@ static unsigned char
 xms_move_EMB(void)
 {
   unsigned int src, dest;
+  void *s, *d;
   struct EMM e;
 
   MEMCPY_2UNIX(&e, SEGOFF2LINEAR(SREG(ds), LWORD(esi)), sizeof e);
@@ -792,6 +795,9 @@ xms_move_EMB(void)
 
   if (e.SourceHandle == 0) {
     src = SEGOFF2LINEAR(e.SourceOffset >> 16, e.SourceOffset & 0xffff);
+    if (src + e.Length > LOWMEM_SIZE + HMASIZE)
+      return 0xa7;              /* invalid Length */
+    s = LINEAR2UNIX(src);
   }
   else {
     if (e.SourceHandle >= NUM_HANDLES || handles[e.SourceHandle].valid == 0) {
@@ -803,10 +809,14 @@ xms_move_EMB(void)
       return 0xa4;              /* invalid source offset */
     if (src + e.Length > handles[e.SourceHandle].addr + handles[e.SourceHandle].size)
       return 0xa7;              /* invalid Length */
+    s = xms_base + src;
   }
 
   if (e.DestHandle == 0) {
     dest = SEGOFF2LINEAR(e.DestOffset >> 16, e.DestOffset & 0xffff);
+    if (dest + e.Length > LOWMEM_SIZE + HMASIZE)
+      return 0xa7;              /* invalid Length */
+    d = LINEAR2UNIX(dest);
   }
   else {
     if (handles[e.DestHandle].valid == 0) {
@@ -819,11 +829,12 @@ xms_move_EMB(void)
     if (dest + e.Length > handles[e.DestHandle].addr + handles[e.DestHandle].size) {
       return 0xa7;		/* invalid Length */
     }
+    d = xms_base + dest;
   }
 
   x_printf("XMS: block move from %#x to %#x len 0x%x\n",
 	   src, dest, e.Length);
-  extmem_copy(dest, src, e.Length);
+  memcpy(d, s, e.Length);
   x_printf("XMS: block move done\n");
 
   return 0;
