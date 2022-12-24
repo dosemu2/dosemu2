@@ -282,12 +282,15 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
     smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
     return NULL;
   }
+  /* power of 2 align */
+  assert(__builtin_popcount(align) == 1);
   align--;
   if (!(mn = smfind_free_area(mp, size + align))) {
     do_smerror(get_oom_pr(mp, size), mp,
 	    "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
+  /* insert small node to align the start */
   iptr = (uintptr_t)mn->mem_area;
   delta = ((iptr | align) - iptr + 1) & align;
   if (delta) {
@@ -295,6 +298,8 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
     mn = mn->next;
     assert(!mn->used && mn->size >= size);
   }
+  /* align also end */
+  size = (size + align) & ~align;
   if (!sm_commit_simple(mp, mn->mem_area, size))
     return NULL;
   mn->used = 1;
