@@ -70,68 +70,72 @@ $_lredir_paths = "/mnt/dosemu"
     self.mkfile("testit.bat", batchfile, newline="\r\n")
 
     # compile sources
-    self.mkcom_with_gas(ename, r"""
-.text
-.code16
+    self.mkcom_with_nasm(ename, r"""
 
-    .globl  _start16
-_start16:
+bits 16
+cpu 386
 
-    push    %%cs
-    pop     %%ds
-    push    %%cs
-    pop     %%es
+org 100h
 
-    movw    $%s, %%ax
-    movw    $%s, %%cx
-    movw    $src, %%si
-    movw    $dst, %%di
-    int     $0x21
+section .text
 
-    movw    $128, %%cx
-    movb    $0, %%al
+    push    cs
+    pop     ds
+    push    cs
+    pop     es
+
+    mov     ax, %s
+    mov     cx, %s
+    mov     si, src
+    mov     di, dst
+    int     21h
+
+    mov     cx, 128
+    mov     al, 0
     cld
     repne   scasb
-    movb    $')', -1(%%di)
-    movb    $'$', (%%di)
+    mov     byte [di-1], ')'
+    mov     byte [di], '$'
 
     jnc     prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     ah, 9
+    mov     dx, failmsg
+    int     21h
 
     jmp     exit
 
 prsucc:
-    movw    $succmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     ah, 9
+    mov     dx, succmsg
+    int     21h
 
 prresult:
-    movb    $0x9, %%ah
-    movw    $pdst, %%dx
-    int     $0x21
+    mov     ah, 9
+    mov     dx, pdst
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4Ch
+    int     21h
+
+section .data
 
 src:
-    .asciz  "%s"
+    db "%s", 0
 
 succmsg:
-    .ascii  "Directory Operation Success\r\n$"
+    db  "Directory Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Directory Operation Failed\r\n$"
+    db  "Directory Operation Failed",13,10,'$'
 
 pdst:
-    .byte '('
+    db '('
 dst:
-    .fill 128, 1, '$'
+    times 128 db '$'
 
-""" % (intnum, qtype, instring.replace("\\", "\\\\")))
+""" % (intnum, qtype, instring))
 
     results = self.runDosemu("testit.bat", config=config)
 

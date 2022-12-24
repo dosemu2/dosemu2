@@ -115,76 +115,79 @@ rem end
 
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $%s, %%ax
-    movw    $dname, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
+
+    mov     ax, %s
+    mov     dx, dname
+    int     21h
 
     jnc     prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    jmp     1f
+    mov     dx, failmsg
+    jmp     @1
 prsucc:
-    movw    $succmsg, %%dx
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succmsg
+@1:
+    mov     ah, 9
+    int     21h
 
-    movw    $%s, %%ax
-    cmpw    $0x7147, %%ax
+    mov     ax, %s
+    cmp     ax, 0x7147
     je      prcwd
-    cmpw    $0x4700, %%ax
+    cmp     ax, 0x4700
     je      prcwd
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
 
 prcwd:
-# get cwd
-    movb    $0, %%dl
-    movw    $curdir, %%si
-    int     $0x21
+; get cwd
+    mov     dl, 0
+    mov     si, curdir
+    int     21h
 
-    push    %%ds
-    pop     %%es
-    movw    %%si, %%di
+    push    ds
+    pop     es
+    mov     di, si
 
-    movw    $128, %%cx
-    movb    $0, %%al
+    mov     cx, 128
+    mov     al, 0
     cld
     repne   scasb
-    movb    $')', -1(%%di)
-    movb    $'$', (%%di)
+    mov     byte [di-1], ')'
+    mov     byte [di], '$'
 
-    movb    $0x9, %%ah
-    movw    $pcurdir, %%dx
-    int     $0x21
+    mov     ah, 9
+    mov     dx, pcurdir
+    int     21h
 
     jmp     exit
 
+section .data
+
 dname:
-    .asciz  "%s"
+    db  "%s",0
 
 succmsg:
-    .ascii  "Directory Operation Success\r\n$"
+    db  "Directory Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Directory Operation Failed\r\n$"
+    db  "Directory Operation Failed",13,10,'$'
 
 pcurdir:
-    .byte '('
+    db '('
 curdir:
-    .fill 128, 1, '$'
+    times 128 db '$'
 
 """ % (intnum, cwdnum, testname))
 
@@ -269,45 +272,48 @@ rem end
 """ % (PRGFIL_SFN, ename), newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-# get cwd
-    movw    $%s, %%ax
-    movb    $0, %%dl
-    movw    $curdir, %%si
-    int     $0x21
+    push    cs
+    pop     ds
 
-    push    %%ds
-    pop     %%es
-    movw    %%si, %%di
+; get cwd
+    mov     ax, %s
+    mov     dl, 0
+    mov     si, curdir
+    int     21h
 
-    movw    $128, %%cx
-    movb    $0, %%al
+    push    ds
+    pop     es
+    mov     di, si
+
+    mov     cx, 128
+    mov     al, 0
     cld
     repne   scasb
-    movb    $')', -1(%%di)
-    movb    $'$', (%%di)
+    mov     byte [di-1], ')'
+    mov     byte [di], '$'
 
-    movb    $0x9, %%ah
-    movw    $pcurdir, %%dx
-    int     $0x21
+    mov     ah, 9
+    mov     dx, pcurdir
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 pcurdir:
-    .byte '('
+    db '('
 curdir:
-    .fill 128, 1, '$'
+    times 128 db '$'
 
 """ % cwdnum)
 
@@ -354,109 +360,111 @@ rem end
 
         # compile sources
 
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %cs
-    pop     %ds
+section .text
 
-# Get current drive and store its letter in fspath
-    movw    $0x1900, %ax
-    int     $0x21
-    addb    $'A', %al
-    movb    %al, fspath
+    push    cs
+    pop     ds
 
-# Get Volume info
-#    Windows95 - LONG FILENAME - GET VOLUME INFORMATION
-#
-#    Call:
-#      AX = 71A0h
-#      DS:DX -> ASCIZ root name (e.g. "C:\")
-#      ES:DI -> buffer for file system name
-#      CX = size of ES:DI buffer
-#
-#    Return:
-#      CF clear if successful
-#        AX destroyed (0000h and 0200h seen)
-#        BX = file system flags (see #01783)
-#        CX = maximum length of file name [usually 255]
-#        DX = maximum length of path [usually 260]
-#        ES:DI buffer filled (ASCIZ, e.g. "FAT","NTFS","CDFS")
-#
-#      CF set on error
-#        AX = error code
-#          7100h if function not supported
+; Get current drive and store its letter in fspath
+    mov     ax, 1900h
+    int     21h
+    add     al, 'A'
+    mov     byte [fspath], al
 
-    movw    $0x71a0, %ax
-    movw    $fspath, %dx  # ds:dx
-    movw    $fstype, %di  # es:di
-    movw    $fstypelen, %cx
+; Get Volume info
+;    Windows95 - LONG FILENAME - GET VOLUME INFORMATION
+;
+;    Call:
+;      AX = 71A0h
+;      DS:DX -> ASCIZ root name (e.g. "C:\")
+;      ES:DI -> buffer for file system name
+;      CX = size of ES:DI buffer
+;
+;    Return:
+;      CF clear if successful
+;        AX destroyed (0000h and 0200h seen)
+;        BX = file system flags (see ;01783)
+;        CX = maximum length of file name [usually 255]
+;        DX = maximum length of path [usually 260]
+;        ES:DI buffer filled (ASCIZ, e.g. "FAT","NTFS","CDFS")
+;
+;      CF set on error
+;        AX = error code
+;          7100h if function not supported
+
+    mov     ax, 71a0h
+    mov     dx, fspath ; ds:dx
+    mov     di, fstype ; es:di
+    mov     cx, fstypelen
     stc
-    int     $0x21
+    int     21h
 
     jc      chkfail
 
-    cmpb    $'$', fstype
+    cmp     byte [fstype], '$'
     je      prnofstype
 
 prsuccess:
-    movw    $fstype, %di
-    movw    fstypelen, %cx
-    movb    $0, %al
+    mov     di, fstype
+    mov     cx, fstypelen
+    mov     al, 0
     cld
     repne   scasb
-    movb    $')', -1(%di)
-    movb    $'\r',  (%di)
-    movb    $'\n', 1(%di)
-    movb    $'$',  2(%di)
-    movw    $success, %dx
+    mov     byte [di-1], ')'
+    mov     byte [di], 13
+    mov     byte [di+1], 10
+    mov     byte [di+2], '$'
+    mov     dx, success
     jmp     exit
 
 prnofstype:
-    movw    $nofstype, %dx
+    mov     dx, nofstype
     jmp     exit
 
 prnotsupported:
-    movw    $notsupported, %dx
+    mov     dx, notsupported
     jmp     exit
 
 prcarryset:
-    movw    $carryset, %dx
+    mov     dx, carryset
     jmp     exit
 
 chkfail:
-    cmpw    $0x7100, %ax
+    cmp     ax, 7100h
     jne     prcarryset
 
     jmp     prnotsupported
 
 exit:
-    movb    $0x9, %ah
-    int     $0x21
+    mov     ah, 9
+    int     21h
 
-    movb    $0x4c, %ah
-    int $0x21
+    mov     ah, 4ch
+    int 21h
+
+section .data
 
 carryset:
-    .ascii  "Carry Set\r\n$"
+    db  "Carry Set",13,10,'$'
 notsupported:
-    .ascii  "Not Supported(AX=0x7100)\r\n$"
+    db  "Not Supported(AX=0x7100)",13,10,'$'
 nofstype:
-    .ascii  "Carry Not Set But No Filesystem Type\r\n$"
+    db  "Carry Not Set But No Filesystem Type",13,10,'$'
 success:
-    .ascii  "Operation Success("
+    db  "Operation Success("
 fstype:
-    .fill 32, 1, '$'
-fstypelen = (. - fstype)
+    times 32 db '$'
+fstypelen equ $ - fstype
 successend:
-    .space 4
+    times 4 db 0
 fspath:
-    .asciz "?:\\"
-
+    db  "?:\", 0
 """)
 
         results = self.runDosemu("testit.bat", config=config)
@@ -512,90 +520,92 @@ rem end
 """ % (testdata, ename), newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
+    push    cs
+    pop     ds
 
-    movw    $0x0f00, %%ax			# open file
-    movw    $fcb, %%dx
-    int     $0x21
-    cmpb    $0, %%al
+    mov     ax, 0f00h			; open file
+    mov     dx, fcb
+    int     21h
+    cmp     al, 0
     jne     prfailopen
 
-    movw    $0x1400, %%ax			# read from file
-    movw    $fcb, %%dx
-    int     $0x21
-    cmpb    $03, %%al				# partial read
+    mov     ax, 1400h			; read from file
+    mov     dx, fcb
+    int     21h
+    cmp     al, 3               ; partial read
     jne     prfailread
 
     jmp     prsucc
 
 prfailopen:
-    movw    $failopen, %%dx
-    jmp     1f
+    mov     dx, failopen
+    jmp     @1
 
 prfailread:
-    movw    $0x1000, %%ax			# close file
-    movw    $fcb, %%dx
-    int     $0x21
-    movw    $failread, %%dx
-    jmp     1f
+    mov     ax, 1000h			; close file
+    mov     dx, fcb
+    int     21h
+    mov     dx, failread
+    jmp     @1
 
 prsucc:
-    movw    $succstart, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succstart
+    mov     ah, 9
+    int     21h
 
-    movw    $0x2f00, %%ax			# get DTA address in ES:BX
-    int     $0x21
+    mov     ax, 2f00h			; get DTA address in ES:BX
+    int     21h
 
-    movb    $'$', %%es:%d(%%bx)		# terminate
-    push    %%es
-    pop     %%ds
-    movw    %%bx, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     byte [es:bx+%d], '$'; terminate
+    push    es
+    pop     ds
+    mov     dx, bx
+    mov     ah, 9
+    int     21h
 
-    movw    $0x1000, %%ax			# close file
-    movw    $fcb, %%dx
-    int     $0x21
+    mov     ax, 1000h			; close file
+    mov     dx, fcb
+    int     21h
 
-    push    %%cs
-    pop     %%ds
-    movw    $succend, %%dx
+    push    cs
+    pop     ds
+    mov     dx, succend
 
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fcb:
-    .byte   0          # 0 default drive
+    db  0          ; 0 default drive
 fn1:
-    .ascii  "% -8s"    # 8 bytes
+    db  "% -8s"    ; 8 bytes
 fe1:
-    .ascii  "% -3s"    # 3 bytes
+    db  "% -3s"    ; 3 bytes
 wk1:
-    .space  24
+    times 24 db 0
 
 succstart:
-    .ascii  "Operation Success($"
+    db  "Operation Success($"
 succend:
-    .ascii  ")\r\n$"
+    db  ')',13,10,'$'
 failopen:
-    .ascii  "Open Operation Failed\r\n$"
+    db  "Open Operation Failed",13,10,'$'
 failread:
-    .ascii  "Read Operation Failed\r\n$"
+    db  "Read Operation Failed",13,10,'$'
 
 """ % (len(testdata), "test", "fil"))
 
@@ -639,111 +649,114 @@ rem end
 """ % (testdata, ename), newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x1a00, %%ax			# set DTA
-    movw    $altdta, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
 
-    movw    $0x2f00, %%ax			# get DTA address in ES:BX
-    int     $0x21
-    movw    %%cs, %%ax
-    movw    %%es, %%dx
-    cmpw    %%ax, %%dx
+    mov     ax, 1a00h			; set DTA
+    mov     dx, altdta
+    int     21h
+
+    mov     ax, 2f00h			; get DTA address in ES:BX
+    int     21h
+    mov     ax, cs
+    mov     dx, es
+    cmp     dx, ax
     jne     prfaildtaset
-    cmpw    $altdta, %%bx
+    cmp     bx, altdta
     jne     prfaildtaset
 
-    movw    $0x0f00, %%ax			# open file
-    movw    $fcb, %%dx
-    int     $0x21
-    cmpb    $0, %%al
+    mov     ax, 0f00h			; open file
+    mov     dx, fcb
+    int     21h
+    cmp     al, 0
     jne     prfailopen
 
-    movw    $0x1400, %%ax			# read from file
-    movw    $fcb, %%dx
-    int     $0x21
-    cmpb    $03, %%al				# partial read
+    mov     ax, 1400h			; read from file
+    mov     dx, fcb
+    int     21h
+    cmp     al, 3				; partial read
     jne     prfailread
 
     jmp     prsucc
 
 prfaildtaset:
-    movw    $faildtaset, %%dx
-    jmp     1f
+    mov     dx, faildtaset
+    jmp     @1
 
 prfailopen:
-    movw    $failopen, %%dx
-    jmp     1f
+    mov     dx, failopen
+    jmp     @1
 
 prfailread:
-    movw    $0x1000, %%ax			# close file
-    movw    $fcb, %%dx
-    int     $0x21
-    movw    $failread, %%dx
-    jmp     1f
+    mov     ax, 1000h			; close file
+    mov     dx, fcb
+    int     21h
+    mov     dx, failread
+    jmp     @1
 
 prsucc:
-    movw    $succstart, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succstart
+    mov     ah, 9
+    int     21h
 
-    movw    $0x2f00, %%ax			# get DTA address in ES:BX
-    int     $0x21
+    mov     ax, 2f00h			; get DTA address in ES:BX
+    int     21h
 
-    movb    $'$', %%es:%d(%%bx)		# terminate
-    push    %%es
-    pop     %%ds
-    movw    %%bx, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     byte [es:bx+%d], '$'; terminate
+    push    es
+    pop     ds
+    mov     dx, bx
+    mov     ah, 9
+    int     21h
 
-    movw    $0x1000, %%ax			# close file
-    movw    $fcb, %%dx
-    int     $0x21
+    mov     ax, 1000h			; close file
+    mov     dx, fcb
+    int     21h
 
-    push    %%cs
-    pop     %%ds
-    movw    $succend, %%dx
+    push    cs
+    pop     ds
+    mov     dx, succend
 
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fcb:
-    .byte   0          # 0 default drive
+    db  0          ; 0 default drive
 fn1:
-    .ascii  "% -8s"    # 8 bytes
+    db  "% -8s"    ; 8 bytes
 fe1:
-    .ascii  "% -3s"    # 3 bytes
+    db  "% -3s"    ; 3 bytes
 wk1:
-    .space  24
+    times 24 db 0
 
 succstart:
-    .ascii  "Operation Success($"
+    db  "Operation Success($"
 succend:
-    .ascii  ")\r\n$"
+    db  ')',13,10,'$'
 faildtaset:
-    .ascii  "Set DTA Operation Failed\r\n$"
+    db  "Set DTA Operation Failed",13,10,'$'
 failopen:
-    .ascii  "Open Operation Failed\r\n$"
+    db  "Open Operation Failed",13,10,'$'
 failread:
-    .ascii  "Read Operation Failed\r\n$"
+    db  "Read Operation Failed",13,10,'$'
 
 altdta:
-    .space  128
+    times 128 db 0
 
 """ % (len(testdata), "test", "fil"))
 
@@ -787,98 +800,99 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push %%cs
-    popw %%ds
+section .text
 
-    movw    $0x1600, %%ax           # create file
-    movw    $fcb, %%dx
-    int     $0x21
-    cmpb    $0, %%al
+    push    cs
+    pop     ds
+
+    mov     ax, 1600h           ; create file
+    mov     dx, fcb
+    int     21h
+    cmp     al, 0
     jne     prfailopen
 
-    movw    $data, %%si             # copy data to DTA
-    movw    $0x2f00, %%ax           # get DTA address in ES:BX
-    int     $0x21
-    movw    %%bx, %%di
-    movw    $DATALEN, %%cx
+    mov     si, data            ; copy data to DTA
+    mov     ax, 2f00h           ; get DTA address in ES:BX
+    int     21h
+    mov     di, bx
+    mov     cx, datalen
     cld
     repnz movsb
 
-    movw    $0x1500, %%ax           # write to file
-    movw    $fcb, %%dx
-    movw    $DATALEN, flrs          # only the significant part
-    int     $0x21
-    cmpb    $0, %%al
+    mov     ax, 1500h           ; write to file
+    mov     dx, fcb
+    mov     word [flrs], datalen; only the significant part
+    int     21h
+    cmp     al , 0
     jne     prfailwrite
 
-    movw    $donewrite, %%dx
-    jmp     2f
+    mov     dx, donewrite
+    jmp     @2
 
 prfailwrite:
-    movw    $failwrite, %%dx
-    jmp     2f
+    mov     dx, failwrite
+    jmp     @2
 
 prfailopen:
-    movw    $failopen, %%dx
-    jmp     1f
+    mov     dx, failopen
+    jmp     @1
 
-2:
-    movw    $0x1000, %%ax           # close file
-    push    %%dx
-    movw    $fcb, %%dx
-    int     $0x21
-    popw    %%dx
+@2:
+    mov     ax, 1000h           ; close file
+    push    dx
+    mov     dx, fcb
+    int     21h
+    pop     dx
 
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 data:
-    .ascii  "Operation Success(%s)\r\n"
-dend:
-DATALEN = (dend - data)
-    .ascii  "$"   # for printing
+    db  "Operation Success(%s)",13,10,'$'
+datalen equ $ - data - 1
 
 fcb:
-    .byte   0          # 0 default drive
+    db  0          ; 0 default drive
 fn1:
-    .ascii  "% -8s"    # 8 bytes
+    db  "% -8s"    ; 8 bytes
 fe1:
-    .ascii  "% -3s"    # 3 bytes
+    db  "% -3s"    ; 3 bytes
 fcbn:
-    .word 0
+    dw  0
 flrs:
-    .word 0
+    dw  0
 ffsz:
-    .long 0
+    dd  0
 fdlw:
-    .word 0
+    dw  0
 ftlw:
-    .word 0
+    dw  0
 res8:
-    .space 8
+    times 8 db 0
 fcbr:
-    .byte 0
+    db  0
 frrn:
-    .long 0
+    dd  0
 
 failopen:
-    .ascii  "Open Operation Failed\r\n$"
+    db  "Open Operation Failed",13,10,'$'
 failwrite:
-    .ascii  "Write Operation Failed\r\n$"
+    db  "Write Operation Failed",13,10,'$'
 donewrite:
-    .ascii  "Write Operation Done\r\n$"
+    db  "Write Operation Done",13,10,'$'
 
 """ % (testdata, "test", "fil"))
 
@@ -968,55 +982,58 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x1700, %%ax
-    movw    $fcb, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
 
-    cmpb    $0, %%al
+    mov     ax, 1700h
+    mov     dx, fcb
+    int     21h
+
+    cmp     al, 0
     je      prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    jmp     1f
+    mov     dx, failmsg
+    jmp     @1
 prsucc:
-    movw    $succmsg, %%dx
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succmsg
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fcb:
-    .byte   0       # 0 default drive
+    db  0          ; 0 default drive
 fn1:
-    .ascii  "% -8s"    # 8 bytes
+    db  "% -8s"    ; 8 bytes
 fe1:
-    .ascii  "% -3s"    # 3 bytes
+    db  "% -3s"    ; 3 bytes
 wk1:
-    .space  5
+    times 5 db 0
 fn2:
-    .ascii  "% -8s"    # 8 bytes
+    db  "% -8s"    ; 8 bytes
 fe2:
-    .ascii  "% -3s"    # 3 bytes
+    db  "% -3s"    ; 3 bytes
 wk2:
-    .space  16
+    times 16 db 0
 
 succmsg:
-    .ascii  "Rename Operation Success$"
+    db  "Rename Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Rename Operation Failed$"
+    db  "Rename Operation Failed",13,10,'$'
 
 """ % (fn1, fe1, fn2, fe2))
 
@@ -1185,49 +1202,52 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x1300, %%ax
-    movw    $fcb, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
 
-    cmpb    $0, %%al
+    mov     ax, 1300h
+    mov     dx, fcb
+    int     21h
+
+    cmp     al, 0
     je      prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    jmp     1f
+    mov     dx, failmsg
+    jmp     @1
 prsucc:
-    movw    $succmsg, %%dx
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succmsg
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fcb:
-    .byte   0       # 0 default drive
+    db  0       ; 0 default drive
 fn1:
-    .ascii  "% -8s"    # 8 bytes
+    db  "% -8s"    ; 8 bytes
 fe1:
-    .ascii  "% -3s"    # 3 bytes
+    db  "% -3s"    ; 3 bytes
 wk1:
-    .space  25
+    times 25 db 0
 
 succmsg:
-    .ascii  "Delete Operation Success$"
+    db  "Delete Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Delete Operation Failed$"
+    db  "Delete Operation Failed",13,10,'$'
 
 """ % (fn1, fe1))
 
@@ -1373,99 +1393,102 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    # Get DTA -> ES:BX
-    movw    $0x2f00, %%ax
-    int     $0x21
-    pushw   %%es
-    pushw   %%bx
-    popl    pdta
+    push    cs
+    pop     ds
 
-    # FindFirst
+    ; Get DTA -> ES:BX
+    mov     ax, 2f00h
+    int     21h
+    push    es
+    push    bx
+    pop     long [pdta]
+
+    ; FindFirst
 findfirst:
-    movw    $0x1100, %%ax
-    movw    $fcb, %%dx
-    int     $0x21
+    mov     ax, 1100h
+    mov     dx, fcb
+    int     21h
 
-    cmpb    $0, %%al
+    cmp     al, 0
     je      prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, failmsg
+    mov     ah, 9
+    int     21h
     jmp     exit
 
 prsucc:
-    movw    $succmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succmsg
+    mov     ah, 9
+    int     21h
 
 prfilename:
-    push    %%ds
-    lds     pdta, %%si
-    inc     %%si
+    push    ds
+    lds     si, [pdta]
+    inc     si
 
-    push    %%cs
-    pop     %%es
-    movw    $prires, %%di
-    inc     %%di
+    push    cs
+    pop     es
+    mov     di, prires
+    inc     di
 
-    movw    $11, %%cx
+    mov     cx, 11
     cld
     repne   movsb
 
-    pop     %%ds
-    movw    $prires, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    pop     ds
+    mov     dx, prires
+    mov     ah, 9
+    int     21h
 
-    # FindNext
+    ; FindNext
 findnext:
-    movw    $0x1200, %%ax
-    movw    $fcb, %%dx
-    int     $0x21
+    mov     ax, 1200h
+    mov     dx, fcb
+    int     21h
 
-    cmpb    $0, %%al
+    cmp     al, 0
     je      prfilename
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fcb:
-    .byte   0       # 0 default drive
+    db  0       ; 0 default drive
 fn1:
-    .ascii  "% -8s"    # 8 bytes
+    db  "% -8s"    ; 8 bytes
 fe1:
-    .ascii  "% -3s"    # 3 bytes
+    db  "% -3s"    ; 3 bytes
 wk1:
-    .space  25
+    times 25 db 0
 
 pdta:
-    .long   0
+    dd   0
 
 prires:
-    .ascii  "("
+    db  "("
 fname:
-    .space  8, 20
+    times 8 db 20
 fext:
-    .space  3, 20
-    .ascii  ")\r\n$"
+    times 3 db 20
+    db  ')',13,10,'$'
 
 succmsg:
-    .ascii  "Find Operation Success\r\n$"
+    db  "Find Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Find Operation Failed\r\n$"
+    db  "Find Operation Failed",13,10,'$'
 
 """ % (fn1, fe1))
 
@@ -1583,104 +1606,107 @@ rem end
 """ % (testdata, ename), newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x3d00, %%ax			# open file readonly
-    movw    $fname, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
+
+    mov     ax, 3d00h			; open file readonly
+    mov     dx, fname
+    int     21h
     jc      prfailopen
 
-    movw    %%ax, fhndl
+    mov     word [fhndl], ax
 
-    movw    $0x3f00, %%ax			# read from file, should be partial (35)
-    movw    fhndl, %%bx
-    movw    $64, %%cx
-    movw    $fdata, %%dx
-    int     $0x21
+    mov     ax, 3f00h			; read from file, should be partial (35)
+    mov     bx, word [fhndl]
+    mov     cx, 64
+    mov     dx, fdata
+    int     21h
     jc      prfailread
-    cmpw    $35, %%ax
+    cmp     ax, 35
     jne     prnumread
 
-    movw    $0x3f00, %%ax			# read from file again to get EOF
-    movw    fhndl, %%bx
-    movw    $64, %%cx
-    movw    $fdata, %%dx
-    int     $0x21
+    mov     ax, 3f00h			; read from file again to get EOF
+    mov     bx, word [fhndl]
+    mov     cx, 64
+    mov     dx, fdata
+    int     21h
     jc      prcarryset
-    cmpw    $0, %%ax
+    cmp     ax, 0
     jne     praxnotzero
 
     jmp     prsucc
 
 prfailopen:
-    movw    $failopen, %%dx
-    jmp     1f
+    mov     dx, failopen
+    jmp     @1
 
 prfailread:
-    movw    $failread, %%dx
-    jmp     2f
+    mov     dx, failread
+    jmp     @2
 
 prnumread:
-    movw    $numread, %%dx
-    jmp     2f
+    mov     dx, numread
+    jmp     @2
 
 praxnotzero:
-    movw    $axnotzero, %%dx
-    jmp     2f
+    mov     dx, axnotzero
+    jmp     @2
 
 prcarryset:
-    movw    $carryset, %%dx
-    jmp     2f
+    mov     dx, carryset
+    jmp     @2
 
 prsucc:
-    movb    $')',  (fdata + 32)
-    movb    $'\r', (fdata + 33)
-    movb    $'\n', (fdata + 34)
-    movb    $'$',  (fdata + 35)
-    movw    $success, %%dx
-    jmp     2f
+    mov     byte [fdata + 32], ')'
+    mov     byte [fdata + 33], 13
+    mov     byte [fdata + 34], 10
+    mov     byte [fdata + 35], '$'
+    mov     dx, success
+    jmp     @2
 
-2:
-    movw    $0x3e00, %%ax			# close file
-    movw    fhndl, %%bx
-    int     $0x21
+@2:
+    mov     ax, 3e00h			; close file
+    mov     bx, word [fhndl]
+    int     21h
 
-1:
-    movb    $0x9, %%ah              # print string
-    int     $0x21
+@1:
+    mov     ah, 9               ; print string
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fname:
-    .asciz  "%s"
+    db  "%s",0
 
 fhndl:
-    .word   0
+    dw  0
 
 success:
-    .ascii  "Operation Success("
+    db  "Operation Success("
 fdata:
-    .space  64
+    times 64 db 0
 failopen:
-    .ascii  "Open Operation Failed\r\n$"
+    db  "Open Operation Failed",13,10,'$'
 failread:
-    .ascii  "Read Operation Failed\r\n$"
+    db  "Read Operation Failed",13,10,'$'
 numread:
-    .ascii  "Partial Read Not 35 Chars\r\n$"
+    db  "Partial Read Not 35 Chars",13,10,'$'
 carryset:
-    .ascii  "Carry Set at EOF\r\n$"
+    db  "Carry Set at EOF",13,10,'$'
 axnotzero:
-    .ascii  "AX Not Zero at EOF\r\n$"
+    db  "AX Not Zero at EOF",13,10,'$'
 
 """ % "test.fil")
 
@@ -1727,105 +1753,108 @@ rem end
 """ % (testdata, ename), newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x1a00, %%ax			# set DTA
-    movw    $altdta, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
 
-    movw    $0x2f00, %%ax			# get DTA address in ES:BX
-    int     $0x21
-    movw    %%cs, %%ax
-    movw    %%es, %%dx
-    cmpw    %%ax, %%dx
+    mov     ax, 1a00h			; set DTA
+    mov     dx, altdta
+    int     21h
+
+    mov     ax, 2f00h			; get DTA address in ES:BX
+    int     21h
+    mov     ax, cs
+    mov     dx, es
+    cmp     dx, ax
     jne     prfaildtaset
-    cmpw    $altdta, %%bx
+    cmp     bx, altdta
     jne     prfaildtaset
 
-    movw    $0x3d00, %%ax			# open file readonly
-    movw    $fname, %%dx
-    int     $0x21
+    mov     ax, 3d00h			; open file readonly
+    mov     dx, fname
+    int     21h
     jc      prfailopen
 
-    movw    %%ax, fhndl
+    mov     word [fhndl], ax
 
-    movw    $0x3f00, %%ax			# read from file, should be partial (35)
-    movw    fhndl, %%bx
-    movw    $64, %%cx
-    movw    $fdata, %%dx
-    int     $0x21
+    mov     ax, 3f00h			; read from file, should be partial (35)
+    mov     bx, word [fhndl]
+    mov     cx, 64
+    mov     dx, fdata
+    int     21h
     jc      prfailread
-    cmpw    $35, %%ax
+    cmp     ax, 35
     jne     prnumread
 
     jmp     prsucc
 
 prfaildtaset:
-    movw    $faildtaset, %%dx
-    jmp     1f
+    mov     dx, faildtaset
+    jmp     @1
 
 prfailopen:
-    movw    $failopen, %%dx
-    jmp     1f
+    mov     dx, failopen
+    jmp     @1
 
 prfailread:
-    movw    $failread, %%dx
-    jmp     2f
+    mov     dx, failread
+    jmp     @2
 
 prnumread:
-    movw    $numread, %%dx
-    jmp     2f
+    mov     dx, numread
+    jmp     @2
 
 prsucc:
-    movb    $')',  (fdata + 32)
-    movb    $'\r', (fdata + 33)
-    movb    $'\n', (fdata + 34)
-    movb    $'$',  (fdata + 35)
-    movw    $success, %%dx
-    jmp     2f
+    mov     byte [fdata + 32], ')'
+    mov     byte [fdata + 33], 13
+    mov     byte [fdata + 34], 10
+    mov     byte [fdata + 35], '$'
+    mov     dx, success
+    jmp     @2
 
-2:
-    movw    $0x3e00, %%ax			# close file
-    movw    fhndl, %%bx
-    int     $0x21
+@2:
+    mov     ax, 3e00h			; close file
+    mov     bx, word [fhndl]
+    int     21h
 
-1:
-    movb    $0x9, %%ah              # print string
-    int     $0x21
+@1:
+    mov     ah, 9               ; print string
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fname:
-    .asciz  "%s"
+    db  "%s",0
 
 fhndl:
-    .word   0
+    dw  0
 
 success:
-    .ascii  "Operation Success("
+    db  "Operation Success("
 fdata:
-    .space  64
+    times 64 db 0
 faildtaset:
-    .ascii  "Set DTA Operation Failed\r\n$"
+    db  "Set DTA Operation Failed",13,10,'$'
 failopen:
-    .ascii  "Open Operation Failed\r\n$"
+    db  "Open Operation Failed",13,10,'$'
 failread:
-    .ascii  "Read Operation Failed\r\n$"
+    db  "Read Operation Failed",13,10,'$'
 numread:
-    .ascii  "Partial Read Not 35 Chars\r\n$"
+    db  "Partial Read Not 35 Chars",13,10,'$'
 
 altdta:
-    .space  128
+    times 128 db 0
 
 """ % "test.fil")
 
@@ -1955,46 +1984,49 @@ rem end
 """ % (extrad, ename), newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
-    push    %%cs
-    pop     %%es
+section .text
 
-    movw    $0x5600, %%ax
-    movw    $src, %%dx
-    movw    $dst, %%di
-    int     $0x21
+    push    cs
+    pop     ds
+    push    cs
+    pop     es
+
+    mov     ax, 5600h
+    mov     dx, src
+    mov     di, dst
+    int     21h
     jnc     prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    jmp     1f
+    mov     dx, failmsg
+    jmp     @1
 prsucc:
-    movw    $succmsg, %%dx
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succmsg
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 src:
-    .asciz  "%s"    # Full path
+    db  "%s",0    ; Full path
 dst:
-    .asciz  "%s"    # Full path
+    db  "%s",0    ; Full path
 
 succmsg:
-    .ascii  "Rename Operation Success$"
+    db  "Rename Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Rename Operation Failed$"
+    db  "Rename Operation Failed",13,10,'$'
 
 """ % (fn1 + "." + fe1, fn2 + "." + fe2))
 
@@ -2117,41 +2149,44 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x4100, %%ax
-    movw    $src, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
+
+    mov     ax, 4100h
+    mov     dx, src
+    int     21h
     jnc     prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    jmp     1f
+    mov     dx, failmsg
+    jmp     @1
 prsucc:
-    movw    $succmsg, %%dx
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succmsg
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 src:
-    .asciz  "%s"    # Full path
+    db  "%s",0    ; Full path
 
 succmsg:
-    .ascii  "Delete Operation Success$"
+    db  "Delete Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Delete Operation Failed$"
+    db  "Delete Operation Failed",13,10,'$'
 
 """ % (fn1 + "." + fe1))
 
@@ -2239,101 +2274,100 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    # Get DTA -> ES:BX
-    movw    $0x2f00, %%ax
-    int     $0x21
-    pushw   %%es
-    pushw   %%bx
-    popl    pdta
+    push    cs
+    pop     ds
 
-    # FindFirst
+    ; Get DTA -> ES:BX
+    mov     ax, 2f00h
+    int     21h
+    push    es
+    push    bx
+    pop     long [pdta]
+
+    ; FindFirst
 findfirst:
-    movw    $0x4e00, %%ax
-    movw    $0, %%cx
-    movw    $fpatn, %%dx
-    int     $0x21
+    mov     ax, 4e00h
+    mov     cx, 0
+    mov     dx, fpatn
+    int     21h
     jnc     prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, failmsg
+    mov     ah, 9
+    int     21h
     jmp     exit
 
 prsucc:
-    movw    $succmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, succmsg
+    mov     ah, 9
+    int     21h
 
 prfilename:
-    push    %%ds
-    lds     pdta, %%ax
-    addw    $0x1e, %%ax
-    movw    %%ax, %%si
+    push    ds
+    lds     ax, [pdta]
+    add     ax, 1eh
+    mov     si, ax
 
-    push    %%cs
-    pop     %%es
-    movw    $(prires + 1), %%di
+    push    cs
+    pop     es
+    mov     di, prires + 1
 
-    movw    $13, %%cx
+    mov     cx, 13
     cld
 
-1:
-    cmpb    $0, %%ds:(%%si)
-    je     2f
+@1:
+    cmp     byte [ds:si], 0
+    je      @2
 
     movsb
-    loop    1b
+    loop    @1
 
-2:
-    movb    $')',  %%es:(%%di)
-    inc     %%di
-    movb    $'\r', %%es:(%%di)
-    inc     %%di
-    movb    $'\n', %%es:(%%di)
-    inc     %%di
-    movb    $'$',  %%es:(%%di)
-    inc     %%di
+@2:
+    mov     byte [es:di], ')'
+    mov     byte [es:di + 1], 13
+    mov     byte [es:di + 2], 10
+    mov     byte [es:di + 3], '$'
 
-    pop     %%ds
-    movw    $prires, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    pop     ds
+    mov     dx, prires
+    mov     ah, 9
+    int     21h
 
-    # FindNext
+    ; FindNext
 findnext:
-    movw    $0x4f00, %%ax
-    int     $0x21
+    mov     ax, 4f00h
+    int     21h
     jnc     prfilename
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fpatn:
-    .asciz "%s"
+    db  "%s",0
 
 pdta:
-    .long   0
+    dd  0
 
 prires:
-    .ascii  "("
-    .space  32
+    db  "("
+    times 32 db 0
 
 succmsg:
-    .ascii  "Findfirst Operation Success\r\n$"
+    db  "Findfirst Operation Success",13,10,'$'
 failmsg:
-    .ascii  "Findfirst Operation Failed\r\n$"
+    db  "Findfirst Operation Failed",13,10,'$'
 
 """ % (fn1 + "." + fe1))
 
@@ -2429,42 +2463,42 @@ $_floppy_a = ""
 
         ename = "ds2fndfi"
 
-        ATTR = "$0x00"
+        ATTR = "0x00"
 
         if testname == "file_exists":
-            FSPEC = r"\\fileexst.ext"
+            FSPEC = r"\fileexst.ext"
         elif testname == "file_exists_as_dir":
-            FSPEC = r"\\fileexst.ext\\somefile.ext"
+            FSPEC = r"\fileexst.ext\somefile.ext"
         elif testname == "file_not_found":
-            FSPEC = r"\\Notfname.ext"
+            FSPEC = r"\Notfname.ext"
         elif testname == "no_more_files":
-            FSPEC = r"\\????????.??x"
+            FSPEC = r"\????????.??x"
         elif testname == "path_not_found_wc":
-            FSPEC = r"\\NotDir\\????????.???"
+            FSPEC = r"\NotDir\????????.???"
         elif testname == "path_not_found_pl":
-            FSPEC = r"\\NotDir\\plainfil.txt"
+            FSPEC = r"\NotDir\plainfil.txt"
         elif testname == "path_exists_empty":
-            FSPEC = r"\\DirExist"
+            FSPEC = r"\DirExist"
         elif testname == "path_exists_not_empty":
-            FSPEC = r"\\DirExis2"
+            FSPEC = r"\DirExis2"
         elif testname == "path_exists_file_not_dir":
-            FSPEC = r"\\DirExis2\\fileexst.ext"
-            ATTR = "$0x10"
+            FSPEC = r"\DirExis2\fileexst.ext"
+            ATTR = "0x10"
         elif testname == "dir_exists_pl":
-            FSPEC = r"\\DirExis2"
-            ATTR = "$0x10"
+            FSPEC = r"\DirExis2"
+            ATTR = "0x10"
         elif testname == "dir_exists_wc":
-            FSPEC = r"\\Di?Exis?"
-            ATTR = "$0x10"
+            FSPEC = r"\Di?Exis?"
+            ATTR = "0x10"
         elif testname == "dir_not_exists_pl":
-            FSPEC = r"\\dirNOTex"
-            ATTR = "$0x10"
+            FSPEC = r"\dirNOTex"
+            ATTR = "0x10"
         elif testname == "dir_not_exists_wc":
-            FSPEC = r"\\dirNOTex\\wi??card.???"
-            ATTR = "$0x10"
+            FSPEC = r"\dirNOTex\wi??card.???"
+            ATTR = "0x10"
         elif testname == "dir_not_exists_fn":
-            FSPEC = r"\\dirNOTex\\somefile.ext"
-            ATTR = "$0x10"
+            FSPEC = r"\dirNOTex\somefile.ext"
+            ATTR = "0x10"
 
         self.mkfile("testit.bat", """\
 d:
@@ -2478,74 +2512,77 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    movw    $0x4e00, %%ax
-    movw    %s, %%cx
-    movw    $fspec, %%dx
-    int     $0x21
+    push    cs
+    pop     ds
+
+    mov     ax, 4e00h
+    mov     cx, %s
+    mov     dx, fspec
+    int     21h
 
     jnc     prsucc
 
-    cmpw    $0x02, %%ax
+    cmp     ax, 2
     je      fail02
 
-    cmpw    $0x03, %%ax
+    cmp     ax, 3
     je      fail03
 
-    cmpw    $0x12, %%ax
+    cmp     ax, 12h
     je      fail12
 
     jmp     genfail
 
 fail02:
-    movw    $filenotfound, %%dx
-    jmp     1f
+    mov     dx, filenotfound
+    jmp     @1
 
 fail03:
-    movw    $pathnotfoundmsg, %%dx
-    jmp     1f
+    mov     dx, pathnotfoundmsg
+    jmp     @1
 
 fail12:
-    movw    $nomoremsg, %%dx
-    jmp     1f
+    mov     dx, nomoremsg
+    jmp     @1
 
 genfail:
-    movw    $genfailmsg, %%dx
-    jmp     1f
+    mov     dx, genfailmsg
+    jmp     @1
 
 prsucc:
-    movw    $succmsg, %%dx
+    mov     dx, succmsg
 
-1:
-    movb    $0x9, %%ah
-    int     $0x21
+@1:
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fspec:
-    .asciz  "%s"    # Full path
+    db  "%s",0    ; Full path
 
 succmsg:
-    .ascii  "FindFirst Operation Success\r\n$"
+    db  "FindFirst Operation Success",13,10,'$'
 filenotfound:
-    .ascii  "FindFirst Operation Returned FILE_NOT_FOUND(0x02)\r\n$"
+    db  "FindFirst Operation Returned FILE_NOT_FOUND(0x02)",13,10,'$'
 pathnotfoundmsg:
-    .ascii  "FindFirst Operation Returned PATH_NOT_FOUND(0x03)\r\n$"
+    db  "FindFirst Operation Returned PATH_NOT_FOUND(0x03)",13,10,'$'
 nomoremsg:
-    .ascii  "FindFirst Operation Returned NO_MORE_FILES(0x12)\r\n$"
+    db  "FindFirst Operation Returned NO_MORE_FILES(0x12)",13,10,'$'
 genfailmsg:
-    .ascii  "FindFirst Operation Returned Unexpected Errorcode\r\n$"
+    db  "FindFirst Operation Returned Unexpected Errorcode",13,10,'$'
 
 """ % (ATTR, FSPEC))
 
@@ -2720,114 +2757,113 @@ rem end
 """ % ename, newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-    push    %%cs
-    pop     %%ds
+section .text
 
-    # Get DTA -> ES:BX
-    movw    $0x2f00, %%ax
-    int     $0x21
-    pushw   %%es
-    pushw   %%bx
-    popl    pdta
+    push    cs
+    pop     ds
 
-    # First FindFirst
-    movw    $0x4e00, %%ax
-    movw    $0, %%cx
-    movw    $fwild, %%dx
-    int     $0x21
+    ; Get DTA -> ES:BX
+    mov     ax, 2f00h
+    int     21h
+    push    es
+    push    bx
+    pop     long [pdta]
 
-    # Set alternate DTA
-    movw    $0x1a00, %%ax
-    movw    $altdta, %%dx
-    int     $0x21
+    ; First FindFirst
+    mov     ax, 4e00h
+    mov     cx, 0
+    mov     dx, fwild
+    int     21h
 
-    # Second FindFirst
-    movw    $0x4e00, %%ax
-    movw    $0, %%cx
-    movw    $fsmpl, %%dx
-    int     $0x21
+    ; Set alternate DTA
+    mov     ax, 1a00h
+    mov     dx, altdta
+    int     21h
 
-    # Set default DTA
-    movw    $0x1a00, %%ax
-    lds     pdta, %%dx
-    int     $0x21
+    ; Second FindFirst
+    mov     ax, 4e00h
+    mov     cx, 0
+    mov     dx, fsmpl
+    int     21h
 
-    # FindNext
-    movw    $0x4f00, %%ax
-    int     $0x21
+    ; Set default DTA
+    mov     ax, 1a00h
+    lds     dx, [pdta]
+    int     21h
+
+    ; FindNext
+    mov     ax, 4f00h
+    int     21h
     jnc     prsucc
 
 prfail:
-    movw    $failmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     dx, failmsg
+    mov     ah, 9
+    int     21h
     jmp     exit
 
 prsucc:
-    push    %%ds
-    lds     pdta, %%ax
-    addw    $0x1e, %%ax
-    movw    %%ax, %%si
+    push    ds
+    lds     ax, [pdta]
+    add     ax, 1eh
+    mov     si, ax
 
-    push    %%cs
-    pop     %%es
-    movw    $(prires + 1), %%di
+    push    cs
+    pop     es
+    mov     di, prires + 1
 
-    movw    $13, %%cx
+    mov     cx, 13
     cld
 
-1:
-    cmpb    $0, %%ds:(%%si)
-    je     2f
+@1:
+    cmp     byte [ds:si], 0
+    je      @2
 
     movsb
-    loop    1b
+    loop    @1
 
-2:
-    movb    $')',  %%es:(%%di)
-    inc     %%di
-    movb    $'\r', %%es:(%%di)
-    inc     %%di
-    movb    $'\n', %%es:(%%di)
-    inc     %%di
-    movb    $'$',  %%es:(%%di)
-    inc     %%di
+@2:
+    mov     byte [es:di], ')'
+    mov     byte [es:di + 1], 13
+    mov     byte [es:di + 2], 10
+    mov     byte [es:di + 3], '$'
 
-    pop     %%ds
-    movw    $succmsg, %%dx
-    movb    $0x9, %%ah
-    int     $0x21
+    pop     ds
+    mov     dx, succmsg
+    mov     ah, 9
+    int     21h
 
 exit:
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
+
+section .data
 
 fwild:
-    .asciz "a*.txt"
+    db "a*.txt",0
 fsmpl:
-    .asciz "%s"
+    db "%s",0
 
 altdta:
-    .space  0x80
+    times 0x80 db 0
 
 pdta:
-    .long   0
+    dd  0
 
 succmsg:
-    .ascii  "Findnext Operation Success"
+    db  "Findnext Operation Success"
 prires:
-    .ascii  "("
-    .space  32
+    db  "("
+    times 32 db 0
 
 failmsg:
-    .ascii  "Findnext Operation Failed\r\n$"
+    db  "Findnext Operation Failed",13,10,'$'
 
 """ % fsmpl)
 
@@ -2867,117 +2903,118 @@ rem end
 """ % (ename, cmdline), newline="\r\n")
 
         # compile sources
-        self.mkcom_with_gas(ename, r"""
-.text
-.code16
+        self.mkcom_with_nasm(ename, r"""
+bits 16
+cpu 386
 
-    .globl  _start16
-_start16:
+org 100h
 
-# designate target segment
-    push    %%cs
-    pop     %%ax
-    addw    $0x0200, %%ax
-    movw    %%ax, %%es
+section .text
 
-# create PSP in memory
-    movw    %%es, %%dx
-    movw    $0x2600, %%ax
-    int     $0x21
+; designate target segment
+    push    cs
+    pop     ax
+    add     ax, 0200h
+    mov     es, ax
 
-# see if the exit field is set
-    cmpw    $0x20cd, %%es:(0x0000)
+; create PSP in memory
+    mov     dx, es
+    mov     ax, 2600h
+    int     21h
+
+; see if the exit field is set
+    cmp     word [es:0000], 20cdh
     jne     extfail
 
-# see if the parent PSP is zero
-    cmpw    $0x0000, %%es:(0x0016)
+; see if the parent PSP is zero
+    cmp     word [es:0016h], 0
     je      pntzero
 
-# see if the parent PSP points to a PSP
-    push    %%es
-    pushw   %%es:(0x0016)
-    pop     %%es
-    cmpw    $0x20cd, %%es:(0x0000)
-    pop     %%es
+; see if the parent PSP points to a PSP
+    push    es
+    push    word [es:0016h]
+    pop     es
+    cmp     word [es:0000h], 20cdh
+    pop     es
     jne     pntnpsp
 
-# see if the 'INT 21,RETF' is there
-    cmpw    $0x21cd, %%es:(0x0050)
+; see if the 'INT 21,RETF' is there
+    cmp     word [es:0050h], 21cdh
     jne     int21ms
-    cmpb    $0xcb, %%es:(0x0052)
+    cmp     byte [es:0052h], 0cbh
     jne     int21ms
 
-# see if the cmdtail is there
-    movzx   %%es:(0x0080), %%cx
-    cmpw    $%d, %%cx
+; see if the cmdtail is there
+    movzx   cx, byte [es:0080h]
+    cmp     cx, %d
     jne     cmdlngth
 
-    inc     %%cx
-    mov     $cmdline, %%si
-    mov     $0x0081, %%di
+    inc     cx
+    mov     si, cmdline
+    mov     di, 81h
     cld
     repe    cmpsb
     jne     cmdtail
 
 success:
-    movw    $successmsg, %%dx
+    mov     dx, successmsg
     jmp     exit
 
 extfail:
-    movw    $extfailmsg, %%dx
+    mov     dx, extfailmsg
     jmp     exit
 
 pntzero:
-    movw    $pntzeromsg, %%dx
+    mov     dx, pntzeromsg
     jmp     exit
 
 pntnpsp:
-    movw    $pntnpspmsg, %%dx
+    mov     dx, pntnpspmsg
     jmp     exit
 
 int21ms:
-    movw    $int21msmsg, %%dx
+    mov     dx, int21msmsg
     jmp     exit
 
 cmdlngth:
-    movw    $cmdlngthmsg, %%dx
+    mov     dx, cmdlngthmsg
     jmp     exit
 
 cmdtail:
-    movw    $cmdtailmsg, %%dx
+    mov     dx, cmdtailmsg
     jmp     exit
 
 exit:
-    movb    $0x9, %%ah
-    int     $0x21
+    mov     ah, 9
+    int     21h
 
-    movb    $0x4c, %%ah
-    int     $0x21
+    mov     ah, 4ch
+    int     21h
 
 extfailmsg:
-    .ascii  "PSP exit field not set to CD20\r\n$"
+    db  "PSP exit field not set to CD20",13,10,'$'
 
 pntzeromsg:
-    .ascii  "PSP parent is zero\r\n$"
+    db  "PSP parent is zero",13,10,'$'
 
 pntnpspmsg:
-    .ascii  "PSP parent doesn't point to a PSP\r\n$"
+    db  "PSP parent doesn't point to a PSP",13,10,'$'
 
 int21msmsg:
-    .ascii  "PSP is missing INT21, RETF\r\n$"
+    db  "PSP is missing INT21, RETF",13,10,'$'
 
 cmdlngthmsg:
-    .ascii  "PSP has incorrect command length\r\n$"
+    db  "PSP has incorrect command length",13,10,'$'
 
 cmdtailmsg:
-    .ascii  "PSP has incorrect command tail\r\n$"
+    db  "PSP has incorrect command tail",13,10,'$'
 
 successmsg:
-    .ascii  "PSP structure okay\r\n$"
+    db  "PSP structure okay",13,10,'$'
 
-# 05 20 54 45 53 54 0d
+; 05 20 54 45 53 54 0d
 cmdline:
-    .ascii " %s\r"
+    db " %s",13
 
 """ % (1 + len(cmdline), cmdline))
 
