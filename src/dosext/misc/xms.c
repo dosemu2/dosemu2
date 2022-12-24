@@ -219,7 +219,7 @@ static unsigned xms_alloc(unsigned size)
 static unsigned xms_realloc(unsigned dosptr, unsigned size)
 {
   unsigned char *optr = &xms_base[dosptr];
-  unsigned char *ptr = smrealloc(&mp, optr, size);
+  unsigned char *ptr = smrealloc_aligned(&mp, optr, PAGE_SIZE, size);
   if (!ptr)
     return 0;
   return ptr - xms_base;

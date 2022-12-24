@@ -452,6 +452,54 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
   return mn->mem_area;
 }
 
+void *smrealloc_aligned(struct mempool *mp, void *ptr, int align, size_t size)
+{
+  struct memnode *mn, *pmn;
+  int al = align - 1;
+  assert(__builtin_popcount(align) == 1);
+  if (!ptr)
+    return smalloc_aligned(mp, align, size);
+  if (!(mn = find_mn(mp, (unsigned char *)ptr, &pmn))) {
+    smerror(mp, "SMALLOC: bad pointer passed to smrealloc()\n");
+    return NULL;
+  }
+  if (!mn->used) {
+    smerror(mp, "SMALLOC: attempt to realloc the not allocated region\n");
+    return NULL;
+  }
+  if (size == 0) {
+    smfree(mp, ptr);
+    return NULL;
+  }
+  size = (size + al) & ~al;
+  if (size == mn->size)
+    return ptr;
+  if (size < mn->size) {
+    /* shrink */
+    sm_uncommit(mp, mn->mem_area + size, mn->size - size);
+    mntruncate(mn, size);
+  } else {
+    /* grow */
+    struct memnode *nmn = mn->next;
+    if (nmn && !nmn->used && mn->size + nmn->size >= size) {
+      /* expand by shrinking next memnode */
+      if (!sm_commit_simple(mp, nmn->mem_area, size - mn->size))
+        return NULL;
+      memset(nmn->mem_area, 0, size - mn->size);
+      mntruncate(mn, size);
+    } else {
+      /* lazy impl */
+      struct memnode *new_mn = sm_alloc_aligned(mp, align, size);
+      if (!new_mn)
+        return NULL;
+      memcpy(new_mn->mem_area, mn->mem_area, mn->size);
+      smfree(mp, mn->mem_area);
+    }
+  }
+  assert(mn->size == size);
+  return mn->mem_area;
+}
+
 int sminit(struct mempool *mp, void *start, size_t size)
 {
   mp->size = size;
