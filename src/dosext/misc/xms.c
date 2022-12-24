@@ -209,7 +209,7 @@ static smpool mp;
 
 static unsigned xms_alloc(unsigned size)
 {
-  unsigned char *ptr = smalloc(&mp, size);
+  unsigned char *ptr = smalloc_aligned(&mp, PAGE_SIZE, size);
   if (!ptr)
     return 0;
   return ptr - ext_mem_base + LOWMEM_SIZE + HMASIZE;
@@ -666,17 +666,12 @@ xms_query_freemem(int api)
   totalBytes = 0;
   for (h = FIRST_HANDLE; h < NUM_HANDLES; h++) {
     if (ValidHandle(h))
-      totalBytes += handles[h].size;
+      totalBytes += PAGE_ALIGN(handles[h].size);
   }
-
+  /* xms_size is page-aligned in config.c */
   subtotal = config.xms_size - (totalBytes / 1024);
-  if (debug_level('x')) {
-    if (smget_free_space(&mp) != subtotal * 1024)
-      x_printf("XMS smalloc mismatch!!!\n");
-  }
   /* total free is max allowable XMS - the number of K already allocated */
-
-  largest = smget_largest_free_area(&mp) / 1024;
+  largest = (smget_largest_free_area(&mp) & PAGE_MASK) / 1024;
 
   if (api == OLDXMS) {
     /* old XMS API uses only AX, while new API uses EAX. make
