@@ -80,7 +80,6 @@ struct Handle {
   unsigned short int num;
   void *addr;
   unsigned int size;
-  int valid;
   int lockcount;
   dosaddr_t dst;
 };
@@ -273,13 +272,30 @@ static void unmap_EMB(dosaddr_t base, unsigned size)
   smfree(&lin_pool, MEM_BASE32(base));
 }
 
+static void do_free_EMB(int h)
+{
+    if (handles[h].dst)
+      unmap_EMB(handles[h].dst, handles[h].size);
+    handles[h].dst = 0;
+    if (handles[h].addr)
+      xms_free(handles[h].addr, handles[h].size);
+    handles[h].addr = NULL;
+}
+
 void
 xms_reset(void)
 {
+  int i;
+
   if (umbs_used) {
     umb_free_all();
     memcheck_map_free('U');
   }
+
+  for (i = 0; i < NUM_HANDLES; i++)
+    do_free_EMB(i);
+  handle_count = 0;
+  totalBytes = 0;
   intdrv = 0;
   freeHMA = 0;
   ext_hooked_hma = 0;
@@ -305,8 +321,6 @@ int xms_intdrv(void)
 
 static int xms_helper_init(void)
 {
-  int i;
-
   if (intdrv)
     return 1;
 
@@ -318,13 +332,6 @@ static int xms_helper_init(void)
 
   if (!config.xms_size)
     return 0;
-  handle_count = 0;
-  for (i = 0; i < NUM_HANDLES; i++) {
-    if (handles[i].valid && handles[i].addr)
-      xms_free(handles[i].addr, handles[i].size);
-    handles[i].valid = 0;
-  }
-  totalBytes = 0;
   intdrv = 1;
   return 1;
 }
@@ -653,7 +660,7 @@ FindFreeHandle(int start)
 
   /* first free handle is 1 */
   for (i = start; (i < NUM_HANDLES) && (h == 0); i++) {
-    if (!handles[i].valid) {
+    if (!handles[i].addr) {
       x_printf("XMS: found free handle: %d\n", i);
       h = i;
       break;
@@ -667,7 +674,7 @@ FindFreeHandle(int start)
 static int
 ValidHandle(unsigned short h)
 {
-  if ((h < NUM_HANDLES) && (handles[h].valid))
+  if ((h < NUM_HANDLES) && (handles[h].addr))
     return 1;
   else
     return 0;
@@ -767,7 +774,6 @@ xms_allocate_EMB(int api)
     totalBytes += size;
   }
   handles[h].num = h;
-  handles[h].valid = 1;
   handles[h].size = size;
   handles[h].addr = addr;
 
@@ -800,14 +806,8 @@ xms_free_EMB(void)
     return 0xa2;
   }
   else {
-    if (handles[h].addr) {
-      totalBytes -= handles[h].size;
-      xms_free(handles[h].addr, handles[h].size);
-    }
-    else
-      x_printf("XMS WARNING: freeing handle w/no address, size 0x%08x\n",
-	       handles[h].size);
-    handles[h].valid = 0;
+    totalBytes -= handles[h].size;
+    do_free_EMB(h);
     handle_count--;
 
     x_printf("XMS: free'd EMB %d\n", h);
@@ -833,7 +833,7 @@ xms_move_EMB(void)
     s = LINEAR2UNIX(src);
   }
   else {
-    if (e.SourceHandle >= NUM_HANDLES || handles[e.SourceHandle].valid == 0) {
+    if (e.SourceHandle >= NUM_HANDLES || !handles[e.SourceHandle].addr) {
       x_printf("XMS: invalid source handle\n");
       return 0xa3;
     }
@@ -851,7 +851,7 @@ xms_move_EMB(void)
     d = LINEAR2UNIX(dest);
   }
   else {
-    if (handles[e.DestHandle].valid == 0) {
+    if (!handles[e.DestHandle].addr) {
       x_printf("XMS: invalid dest handle\n");
       return 0xa5;
     }
