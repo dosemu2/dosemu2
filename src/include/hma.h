@@ -9,6 +9,5 @@
 
 extern int a20;
 void set_a20(int);
-void extmem_copy(unsigned dst, unsigned src, unsigned len);
 
 #endif

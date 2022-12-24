@@ -361,7 +361,7 @@ void low_mem_init(void)
         config.exitearly = 1;
         return;
     }
-    x_printf("Ext.Mem of size 0x%x at %p\n", EXTMEM_SIZE, ext_mem_base);
+    x_printf("Ext.Mem of size 0x%x\n", EXTMEM_SIZE);
     memcheck_addtype('x', "Extended memory (HMA+XMS)");
     memcheck_reserve('x', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE);
     dpmi_rsv_low -= EXTMEM_SIZE;
