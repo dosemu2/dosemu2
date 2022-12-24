@@ -406,6 +406,7 @@ void xms_control(void)
 {
   int is_umb_fn = 0;
 
+ clear_ZF();
  /* First do the UMB functions */
  switch (HI(ax)) {
   case XMS_ALLOCATE_UMB:
@@ -601,12 +602,12 @@ void xms_control(void)
   * don't pass it back. */
  if (!intdrv) {
    if (is_umb_fn)
-     LWORD(esp) += 4;
+     set_ZF();  // tell our hook to skip external himem call
    else
      x_printf("XMS: skipping external request, ax=0x%04x, dx=0x%04x\n",
 	      LWORD(eax), LWORD(edx));
  }
- LWORD(eip)++;
+ LWORD(eip)++;  // skip hlt in bios.s
 }
 
 static int

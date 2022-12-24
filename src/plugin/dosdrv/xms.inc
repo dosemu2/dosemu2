@@ -23,11 +23,19 @@ XMSHook:
 1:	lcall	*%cs:OldXMSCall
 	lret
 
+NewXMSCall:	.long 0
+
+NewXMSHook:
+	lcall *%cs:NewXMSCall  /* call dosemus xms */
+	jnz	1f
+	add	$4, %sp  /* skip one ret frame to bypass himem */
+1:	lret
+
 InitCodeStart:		/* all the below code gets discarded after init */
 
 HimemHook_Start:
-	.byte 0x9a	/* lcall */
-	NewXMSCall:	.long 0
+	/* $0 gets patched with %cs */
+	lcall $0,$NewXMSHook
 HimemHook_End:
 
 HookHimem:
@@ -82,9 +90,11 @@ HookHimem:
 	movw	%es, %ax
 	cmpw	%ax, OldXMSCall+2
 	je	27f
-	/* patch the hook with new addr */
+	/* save the new addr */
 	movw	%bx, NewXMSCall
 	movw	%es, NewXMSCall+2
+	/* patch the hook with our cs */
+	movw	%cs, HimemHook_Start+3
 	/* now install the hook */
 	movw	OldXMSCall, %di
 	movw	OldXMSCall+2, %es
