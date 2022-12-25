@@ -214,6 +214,20 @@ static struct memnode *smfind_free_area(struct mempool *mp, size_t size)
   return NULL;
 }
 
+static struct memnode *smfind_free_area_topdown(struct mempool *mp,
+    unsigned char *top, size_t size)
+{
+  struct memnode *mn;
+  struct memnode *mn1 = NULL;
+  for (mn = &mp->mn; mn; mn = mn->next) {
+    if (mn->mem_area + size > top)
+      break;
+    if (!mn->used && mn->size >= size)
+      mn1 = mn;
+  }
+  return mn1;
+}
+
 static struct memnode *sm_alloc_mn(struct mempool *mp, size_t size)
 {
   struct memnode *mn;
@@ -309,6 +323,51 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
   return mn;
 }
 
+static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
+    unsigned char *top, size_t align, size_t size)
+{
+  struct memnode *mn;
+  int delta;
+  uintptr_t iptr;
+  if (!size || align < 2) {
+    smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
+    return NULL;
+  }
+  /* power of 2 align */
+  assert(__builtin_popcount(align) == 1);
+  align--;
+  if (!(mn = smfind_free_area_topdown(mp, top, size + align))) {
+    do_smerror(get_oom_pr(mp, size), mp,
+	    "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
+    return NULL;
+  }
+  /* insert small node to align the end */
+  iptr = ((uintptr_t)mn->mem_area + mn->size) & ~align;
+  if (iptr > (uintptr_t)top)
+    iptr = (uintptr_t)top & ~align;
+  delta = (uintptr_t)mn->mem_area + mn->size - iptr;
+  if (delta) {
+    mntruncate(mn, mn->size - delta);
+    assert(!mn->used && mn->size >= size);
+  }
+  size = (size + align) & ~align;
+  iptr -= size;
+  delta = iptr - (uintptr_t)mn->mem_area;
+  if (delta) {
+    assert(delta > 0);
+    mntruncate(mn, delta);
+    mn = mn->next;
+    assert(!mn->used && mn->size >= size);
+  }
+  if (!sm_commit_simple(mp, mn->mem_area, size))
+    return NULL;
+  mn->used = 1;
+  mntruncate(mn, size);
+  assert(mn->size == size);
+  memset(mn->mem_area, 0, size);
+  return mn;
+}
+
 void *smalloc(struct mempool *mp, size_t size)
 {
   struct memnode *mn = sm_alloc_mn(mp, size);
@@ -329,6 +388,16 @@ void *smalloc_fixed(struct mempool *mp, void *ptr, size_t size)
 void *smalloc_aligned(struct mempool *mp, size_t align, size_t size)
 {
   struct memnode *mn = sm_alloc_aligned(mp, align, size);
+  if (!mn)
+    return NULL;
+  assert(((uintptr_t)mn->mem_area & (align - 1)) == 0);
+  return mn->mem_area;
+}
+
+void *smalloc_aligned_topdown(struct mempool *mp, unsigned char *top,
+    size_t align, size_t size)
+{
+  struct memnode *mn = sm_alloc_aligned_topdown(mp, top, align, size);
   if (!mn)
     return NULL;
   assert(((uintptr_t)mn->mem_area & (align - 1)) == 0);

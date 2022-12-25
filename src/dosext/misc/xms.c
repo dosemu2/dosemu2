@@ -248,8 +248,13 @@ static void xms_free(void *addr, unsigned osize)
 static dosaddr_t map_EMB(void *addr, unsigned size)
 {
   int err;
-  void *ptr = smalloc_aligned(&lin_pool, PAGE_SIZE, size);
+  void *ptr;
   dosaddr_t ret;
+
+  /* Use top-down strategy to not collide with HX's linear allocs to 4Mb.
+   * Confine XMS maps within 16Mb as progs set up DMA to XMS (Goblins3). */
+  ptr = smalloc_aligned_topdown(&lin_pool, MEM_BASE32(0x1000000), PAGE_SIZE,
+      size);
   if (!ptr) {
     error("error allocating %i bytes for xms\n", size);
     return 0;
