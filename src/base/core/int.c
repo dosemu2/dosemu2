@@ -913,7 +913,7 @@ static int int15(void)
 		/* Have to enable a20 before moving */
 		if (!a20)
 		    set_a20(1);
-		extmem_copy(dst_addr, src_addr, length);
+		memcpy_dos2dos(dst_addr, src_addr, length);
 		if (old_a20 != a20)
 		    set_a20(old_a20);
 		LWORD(eax) = 0;
@@ -923,10 +923,7 @@ static int int15(void)
 	}
 
     case 0x88:
-	if (xms_intdrv())
-	    LWORD(eax) = 0;
-	else
-	    LWORD(eax) = (EXTMEM_SIZE + HMASIZE) >> 10;
+	LWORD(eax) = (EXTMEM_SIZE + HMASIZE) >> 10;
 	NOCARRY;
 	break;
 

@@ -29,27 +29,6 @@
 #define NEWXMS          2
 
 #ifndef __ASSEMBLER__
-struct __attribute__ ((__packed__)) EMM {
-   unsigned int Length;
-   unsigned short SourceHandle;
-   unsigned int SourceOffset;
-   unsigned short DestHandle;
-   unsigned int DestOffset;
-} ;
-
-struct Handle {
-  unsigned short int num;
-  unsigned int addr;
-  unsigned int size;
-  int valid;
-  int lockcount;
-};
-
-struct UMB {
-  unsigned short segment, size;
-  int used;
-};
-
 void xms_init(void);
 void xms_reset(void);
 void xms_helper(void);

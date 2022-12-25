@@ -48,7 +48,6 @@ static unsigned int mem_allocd;           /* how many bytes memory client */
 unsigned int pm_block_handle_used;       /* tracking handle */
 
 static smpool mem_pool;
-static smpool lin_pool;
 static void *dpmi_lin_rsv_base;
 static void *dpmi_base;
 static uint32_t low_rsv;
@@ -193,7 +192,7 @@ static int uncommit(void *ptr, size_t size)
   return 1;
 }
 
-static unsigned long _dpmi_mem_size(void)
+unsigned long dpmi_mem_size(void)
 {
     if (!config.dpmi)
 	return 0;
@@ -203,14 +202,6 @@ static unsigned long _dpmi_mem_size(void)
       PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) +
       dpmi_reserved_space +
       (5 << PAGE_SHIFT); /* 5 extra pages */
-}
-
-unsigned long dpmi_mem_size(void *rsv_base)
-{
-    int rsv = MEM_BASE32(config.dpmi_base) - (unsigned char *)rsv_base;
-    if (!config.dpmi || rsv < 4096)
-	return 0;
-    return PAGE_ALIGN(_dpmi_mem_size() + rsv);
 }
 
 void dump_maps(void)
@@ -238,7 +229,7 @@ int dpmi_lin_mem_free(void)
 
 int dpmi_alloc_pool(void)
 {
-    uint32_t memsize = _dpmi_mem_size();
+    uint32_t memsize = dpmi_mem_size();
 
     if (dpmi_base < dpmi_lin_rsv_base || dpmi_base + memsize >
 	    dpmi_lin_rsv_base + dpmi_lin_mem_rsv()) {
@@ -248,32 +239,18 @@ int dpmi_alloc_pool(void)
     c_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, dpmi_base);
     /* Create DPMI pool */
     sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit);
-    sminit_com(&lin_pool, dpmi_lin_rsv_base, low_rsv, commit, uncommit);
     dpmi_total_memory = config.dpmi * 1024;
 
-    mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
-                memsize + low_rsv, PROT_NONE);
-    /* Elite First Encounters setup.exe insists on low reserve
-     * area being writable... */
-    if (config.no_null_checks) {
-        mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
-                low_rsv, PROT_READ | PROT_WRITE);
-    }
+    mprotect_mapping(MAPPING_DPMI, config.dpmi_base, memsize, PROT_NONE);
     D_printf("DPMI: dpmi_free_memory available 0x%x\n", dpmi_total_memory);
     return 0;
 }
 
 void dpmi_free_pool(void)
 {
-    uint32_t memsize = _dpmi_mem_size() + low_rsv;
     int leak = smdestroy(&mem_pool);
     if (leak)
 	error("DPMI: leaked %i bytes (main pool)\n", leak);
-    leak = smdestroy(&lin_pool);
-    if (leak)
-	error("DPMI: leaked %i bytes (lin pool)\n", leak);
-    mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
-                memsize, PROT_READ | PROT_WRITE);
 }
 
 static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)

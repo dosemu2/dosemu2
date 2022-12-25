@@ -282,12 +282,15 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
     smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
     return NULL;
   }
+  /* power of 2 align */
+  assert(__builtin_popcount(align) == 1);
   align--;
   if (!(mn = smfind_free_area(mp, size + align))) {
     do_smerror(get_oom_pr(mp, size), mp,
 	    "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
+  /* insert small node to align the start */
   iptr = (uintptr_t)mn->mem_area;
   delta = ((iptr | align) - iptr + 1) & align;
   if (delta) {
@@ -295,6 +298,8 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
     mn = mn->next;
     assert(!mn->used && mn->size >= size);
   }
+  /* align also end */
+  size = (size + align) & ~align;
   if (!sm_commit_simple(mp, mn->mem_area, size))
     return NULL;
   mn->used = 1;
@@ -441,6 +446,54 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
       mn = sm_realloc_alloc_mn(mp, pmn, mn, nmn, size);
       if (!mn)
         return NULL;
+    }
+  }
+  assert(mn->size == size);
+  return mn->mem_area;
+}
+
+void *smrealloc_aligned(struct mempool *mp, void *ptr, int align, size_t size)
+{
+  struct memnode *mn, *pmn;
+  int al = align - 1;
+  assert(__builtin_popcount(align) == 1);
+  if (!ptr)
+    return smalloc_aligned(mp, align, size);
+  if (!(mn = find_mn(mp, (unsigned char *)ptr, &pmn))) {
+    smerror(mp, "SMALLOC: bad pointer passed to smrealloc()\n");
+    return NULL;
+  }
+  if (!mn->used) {
+    smerror(mp, "SMALLOC: attempt to realloc the not allocated region\n");
+    return NULL;
+  }
+  if (size == 0) {
+    smfree(mp, ptr);
+    return NULL;
+  }
+  size = (size + al) & ~al;
+  if (size == mn->size)
+    return ptr;
+  if (size < mn->size) {
+    /* shrink */
+    sm_uncommit(mp, mn->mem_area + size, mn->size - size);
+    mntruncate(mn, size);
+  } else {
+    /* grow */
+    struct memnode *nmn = mn->next;
+    if (nmn && !nmn->used && mn->size + nmn->size >= size) {
+      /* expand by shrinking next memnode */
+      if (!sm_commit_simple(mp, nmn->mem_area, size - mn->size))
+        return NULL;
+      memset(nmn->mem_area, 0, size - mn->size);
+      mntruncate(mn, size);
+    } else {
+      /* lazy impl */
+      struct memnode *new_mn = sm_alloc_aligned(mp, align, size);
+      if (!new_mn)
+        return NULL;
+      memcpy(new_mn->mem_area, mn->mem_area, mn->size);
+      smfree(mp, mn->mem_area);
     }
   }
   assert(mn->size == size);
