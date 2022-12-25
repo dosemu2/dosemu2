@@ -4847,7 +4847,7 @@ $_floppy_a = ""
         tstring1 = "0123456789aBcDeF"
 
         self.mkfile("testit.bat", """\
-@ECHO=on
+@ECHO on
 ECHO %TESTVAR1%
 rem end
 """, newline="\r\n")
