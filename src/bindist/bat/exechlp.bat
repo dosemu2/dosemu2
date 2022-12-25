@@ -5,7 +5,9 @@ if not "%DOSEMU_SYS_DRV%" == "" %DOSEMU_SYS_DRV%:
 if ERRORLEVEL 1 exitemu 1
 if not "%DOSEMU_SYS_DIR%" == "" cd %DOSEMU_SYS_DIR%
 if ERRORLEVEL 1 exitemu 1
-lh %COMSPEC% /E:1024 /C %DOSEMU_SYS_CMD%
+set SHELL_CALL_DEFAULT=1
+lh %DOSEMU_SYS_CMD%
+set SHELL_CALL_DEFAULT=
 if "%DOSEMU_EXIT%" == "1" exitemu %ERRORLEVEL%
 C:
 :done
