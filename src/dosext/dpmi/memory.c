@@ -563,9 +563,14 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
     if (block->linear) {
 	int inp = in_rsv_pool(block->base, block->size);
 	assert(inp != -1);
-	if (inp)
+	if (inp) {
+#if 1
+	    /* remove this when lin_pool returned back to dpmi */
+	    mprotect_mapping(cap, block->base, block->size,
+		    PROT_READ | PROT_WRITE);
+#endif
 	    smfree(&lin_pool, MEM_BASE32(block->base));
-	else {
+	} else {
 	    mprotect_mapping(cap, block->base, block->size,
 		    PROT_READ | PROT_WRITE);
 	    smfree(&main_pool, MEM_BASE32(block->base));
@@ -776,18 +781,11 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
       PROT_READ | PROT_WRITE | PROT_EXEC);
     inp = in_rsv_pool(block->base, block->size);
     assert(inp != -1);
-    if (inp) {
-	ptr = smrealloc(&lin_pool, MEM_BASE32(block->base), newsize);
-	if (ptr == NULL) {
-	    restore_page_protection(block);
-	    return NULL;
-	}
-    } else {
-	ptr = mremap_mapping(MAPPING_DPMI, block->base, block->size, newsize);
-	if (ptr == MAP_FAILED) {
-	    restore_page_protection(block);
-	    return NULL;
-	}
+    ptr = smrealloc(inp ? &lin_pool : &main_pool, MEM_BASE32(block->base),
+		newsize);
+    if (ptr == NULL) {
+	restore_page_protection(block);
+	return NULL;
     }
 
     finish_realloc(block, newsize, committed);
