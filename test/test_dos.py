@@ -3249,7 +3249,7 @@ $_floppy_a = ""
         # Modify the config.sys
         contents = (self.workdir / self.confsys).read_text()
         contents = re.sub(r"device=(c:\\)?dosemu\\umb.sys", r"device=\1dosemu\\umb.sys /full", contents)
-        contents = re.sub(r"devicehigh=(c:\\)?dosemu\\ems.sys", r"devicehigh=c:\\emm286.exe 4096", contents)
+        contents = re.sub(r"devicehigh=(c:\\)?dosemu\\ems.sys", r"devicehigh=c:\\emm286.exe 2048", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
 
         self.mkfile("testit.bat", """\
