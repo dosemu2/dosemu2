@@ -46,14 +46,14 @@ static int dpmi_thr_running;
 static void copy_context(sigcontext_t *d, sigcontext_t *s)
 {
 #ifdef __linux__
-  struct _fpstate *fptr = d->fpstate;
+  fpregset_t fptr = d->fpregs;
 #endif
   *d = *s;
 #ifdef __linux__
-  if (fptr == s->fpstate)
+  if (fptr == s->fpregs)
     dosemu_error("Copy FPU context between the same locations?\n");
-  *fptr = *s->fpstate;
-  d->fpstate = fptr;
+  *fptr = *s->fpregs;
+  d->fpregs = fptr;
 #endif
 }
 
@@ -62,8 +62,8 @@ static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
 #ifdef __x86_64__
   /* needs to clear high part of RIP and RSP because AMD CPUs
    * check whole 64bit regs against 32bit CS and SS limits on iret */
-  scp->rip = 0;
-  scp->rsp = 0;
+  _scp_rip = 0;
+  _scp_rsp = 0;
 #endif
 #define _C(x) _scp_##x = get_##x(s)
   _C(es);
@@ -85,9 +85,9 @@ static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
   _C(trapno);
   _C(err);
   _C(cr2);
-  static_assert(sizeof(struct _fpstate) == sizeof(vm86_fpu_state),
+  static_assert(sizeof(*scp->fpregs) == sizeof(vm86_fpu_state),
 		"size mismatch");
-  scp->fpstate = (struct _fpstate *)&vm86_fpu_state;
+  scp->fpregs = (fpregset_t)&vm86_fpu_state;
 }
 
 static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
@@ -112,10 +112,10 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
   _D(trapno);
   _D(err);
   _D(cr2);
-  if (scp->fpstate && scp->fpstate != (struct _fpstate *)&vm86_fpu_state) {
-    static_assert(sizeof(struct _fpstate) == sizeof(vm86_fpu_state),
+  if (scp->fpregs && scp->fpregs != (fpregset_t)&vm86_fpu_state) {
+    static_assert(sizeof(*scp->fpregs) == sizeof(vm86_fpu_state),
 		"size mismatch");
-    memcpy(&vm86_fpu_state, scp->fpstate, sizeof(struct _fpstate));
+    memcpy(&vm86_fpu_state, scp->fpregs, sizeof(*scp->fpregs));
   }
 }
 
@@ -216,9 +216,9 @@ void dpmi_return(sigcontext_t *scp, int retcode)
 static void dpmi_switch_sa(int sig, siginfo_t * inf, void *uc)
 {
     ucontext_t *uct = uc;
-    sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
+    sigcontext_t *scp = &uct->uc_mcontext;
 #ifdef __linux__
-    emu_stack_frame.fpstate = aligned_alloc(16, sizeof(*_scp_fpstate));
+    emu_stack_frame.fpregs = aligned_alloc(16, sizeof(*_scp_fpstate));
 #endif
     copy_context(&emu_stack_frame, scp);
     copy_to_dpmi(scp, dpmi_get_scp());
@@ -243,7 +243,7 @@ static void indirect_dpmi_transfer(void)
     /* and we are back */
     signal_set_altstack(0);
 #ifdef __linux__
-    free(emu_stack_frame.fpstate);
+    free(emu_stack_frame.fpregs);
 #endif
 }
 

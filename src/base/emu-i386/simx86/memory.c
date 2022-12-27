@@ -460,7 +460,7 @@ int e_handle_fault(sigcontext_t *scp)
 		return 0;
 	/* page-faults are handled not here and only DE remains */
 	if (_scp_trapno != 0) {
-		error("Fault %li in jit-compiled code\n", _scp_ltrapno);
+		error("Fault %i in jit-compiled code\n", _scp_trapno);
 		return 0;
 	}
 	TheCPU.err = EXCP00_DIVZ + _scp_trapno;

@@ -63,8 +63,8 @@ static int dpmi_fault(sigcontext_t *scp)
 static void dosemu_fault1(int signum, sigcontext_t *scp)
 {
   if (fault_cnt > 1) {
-    error("Fault handler re-entered! signal=%i _trapno=0x%lx\n",
-      signum, _scp_ltrapno);
+    error("Fault handler re-entered! signal=%i _trapno=0x%x\n",
+      signum, _scp_trapno);
     if (!in_vm86 && !DPMIValidSelector(_scp_cs)) {
       gdb_debug();
       _exit(43);
@@ -81,8 +81,8 @@ static void dosemu_fault1(int signum, sigcontext_t *scp)
     if (IS_EMU() && !CONFIG_CPUSIM && e_in_compiled_code()) {
       int i;
       /* dosemu_error() will SIGSEGV in backtrace(). */
-      error("JIT fault accessing invalid address 0x%08lx, "
-          "RIP=0x%08lx\n", _scp_cr2, _scp_rip);
+      error("JIT fault accessing invalid address 0x%08"PRI_RG", "
+          "RIP=0x%08"PRI_RG"\n", _scp_cr2, _scp_rip);
       if (mapping_find_hole(_scp_rip, _scp_rip + 64, 1) == MAP_FAILED) {
         error("@Generated code dump:\n");
         for (i = 0; i < 64; i++) {
@@ -94,7 +94,7 @@ static void dosemu_fault1(int signum, sigcontext_t *scp)
       goto bad;
     }
 #endif
-    dosemu_error("Accessing invalid address 0x%08lx\n", _scp_cr2);
+    dosemu_error("Accessing invalid address 0x%08"PRI_RG"\n", _scp_cr2);
     goto bad;
   }
 #endif
@@ -181,13 +181,13 @@ bad:
     unsigned char *fsbase, *gsbase;
 #endif
     error("cpu exception in dosemu code outside of %s!\n"
-	  "sig: %i trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
-	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
+	  "sig: %i trapno: 0x%02x  errorcode: 0x%08x  cr2: 0x%08"PRI_RG"\n"
+	  "eip: 0x%08"PRI_RG"  esp: 0x%08"PRI_RG"  eflags: 0x%08x\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n"
 	  "fs: 0x%04x  gs: 0x%04x\n",
 	  (in_dpmi_pm() ? "DPMI client" : "VM86()"),
-	  signum, _scp_ltrapno, _scp_lerr, _scp_cr2,
-	  _scp_rip, _scp_rsp, _scp_lflags, _scp_cs, _scp_ds, _scp_es, _scp_ss, _scp_fs, _scp_gs);
+	  signum, _scp_trapno, _scp_err, _scp_cr2,
+	  _scp_rip, _scp_rsp, _scp_eflags, _scp_cs, _scp_ds, _scp_es, _scp_ss, _scp_fs, _scp_gs);
 #ifdef __x86_64__
     dosemu_arch_prctl(ARCH_GET_FS, &fsbase);
     dosemu_arch_prctl(ARCH_GET_GS, &gsbase);
@@ -266,8 +266,8 @@ static void dosemu_fault0(int signum, sigcontext_t *scp)
 #endif
 
   if (debug_level('g')>7)
-    g_printf("Entering fault handler, signal=%i _trapno=0x%lx\n",
-      signum, _scp_ltrapno);
+    g_printf("Entering fault handler, signal=%i _trapno=0x%x\n",
+      signum, _scp_trapno);
 
   dosemu_fault1(signum, scp);
 
@@ -279,7 +279,7 @@ SIG_PROTO_PFX
 void dosemu_fault(int signum, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
-  sigcontext_t *scp = (sigcontext_t *)&uct->uc_mcontext;
+  sigcontext_t *scp = &uct->uc_mcontext;
   /* need to call init_handler() before any syscall.
    * Additionally, TLS access should be done in a separate no-inline
    * function, so that gcc not to move the TLS access around init_handler(). */
@@ -449,7 +449,7 @@ static void print_exception_info(sigcontext_t *scp)
       else
 	error("@read");
 
-      error("@ instruction to linear address: 0x%08lx\n", _scp_cr2);
+      error("@ instruction to linear address: 0x%08"PRI_RG"\n", _scp_cr2);
 
       error("@CPU was in ");
       if(_scp_err & 0x04)
@@ -467,7 +467,7 @@ static void print_exception_info(sigcontext_t *scp)
    case 0x10: {
       int i, n;
       unsigned short sw;
-      struct _fpstate *p = _scp_fpstate;
+      fpregset_t p = _scp_fpstate;
       error ("@Coprocessor Error:\n");
 #ifdef __x86_64__
       error ("@cwd=%04x swd=%04x ftw=%04x\n", p->cwd, p->swd, p->ftw);
@@ -505,7 +505,7 @@ static void print_exception_info(sigcontext_t *scp)
 #ifdef __x86_64__
       int i;
       unsigned mxcsr;
-      struct _fpstate *p = _scp_fpstate;
+      fpregset_t p = _scp_fpstate;
       error ("@SIMD Floating-Point Exception:\n");
       mxcsr = p->mxcsr;
       error ("@mxcsr=%08x, mxcr_mask=%08x\n",mxcsr,(unsigned)(p->mxcr_mask));
