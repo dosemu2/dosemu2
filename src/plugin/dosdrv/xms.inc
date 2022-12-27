@@ -15,28 +15,22 @@ Int2f:
 	movw	$XMSHook, %bx
 	iret
 
+NewXMSCall:	.long 0
+
 XMSHook:
 	jmp 1f
 	nop
 	nop
 	nop
-1:	lcall	*%cs:OldXMSCall
+1:
+	lcall	*%cs:NewXMSCall  /* call dosemus xms */
+	jz	2f
+	ljmp	*%cs:OldXMSCall
+2:
 	lret
 
-NewXMSCall:	.long 0
-
-NewXMSHook:
-	lcall *%cs:NewXMSCall  /* call dosemus xms */
-	jnz	1f
-	add	$4, %sp  /* skip one ret frame to bypass himem */
-1:	lret
 
 InitCodeStart:		/* all the below code gets discarded after init */
-
-HimemHook_Start:
-	/* $0 gets patched with %cs */
-	lcall $0,$NewXMSHook
-HimemHook_End:
 
 HookHimem:
 	pushw	%es
@@ -93,14 +87,6 @@ HookHimem:
 	/* save the new addr */
 	movw	%bx, NewXMSCall
 	movw	%es, NewXMSCall+2
-	/* patch the hook with our cs */
-	movw	%cs, HimemHook_Start+3
-	/* now install the hook */
-	movw	OldXMSCall, %di
-	movw	OldXMSCall+2, %es
-	movw	$HimemHook_Start, %si
-	movw	$(HimemHook_End - HimemHook_Start), %cx
-	rep	movsb
 	/* install int2f hook */
 	movb	$0x35, %ah
 	movb	$0x2f, %al
