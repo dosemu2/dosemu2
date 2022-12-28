@@ -27,7 +27,7 @@ def libi86_create_items(testcase):
     def create_test(test):
         def do_test_libi86(self):
             libi86_test_item(self, test[0])
-        docstring = """libi86 test % 3s %s""" % (test[0], test[2])
+        docstring = """libi86 item % 3s %s""" % (test[0], test[2])
         setattr(do_test_libi86, '__doc__', docstring)
         setattr(do_test_libi86, 'libi86test', True)
         return do_test_libi86
