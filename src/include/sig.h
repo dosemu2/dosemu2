@@ -48,7 +48,7 @@ extern void SIG_close(void);
 #define SIG_ACQUIRE     SIGUSR2
 #define SIG_THREAD_NOTIFY (SIGRTMIN + 0)
 
-typedef struct sigcontext sigcontext_t;
+typedef mcontext_t sigcontext_t;
 
 #if defined(__FreeBSD__)
 #ifdef __x86_64__
@@ -64,6 +64,7 @@ typedef struct sigcontext sigcontext_t;
 #define _scp_eflags (*(unsigned *)&scp->mc_rflags)
 #define _scp_eflags_ (*(const unsigned *)&scp->mc_rflags)
 #define _scp_cr2 (*(uint64_t *)&scp->mc_spare[0])
+#define PRI_RG PRIx64
 #else
 #define _scp_eax scp->mc_eax
 #define _scp_ebx scp->mc_ebx
@@ -77,80 +78,68 @@ typedef struct sigcontext sigcontext_t;
 #define _scp_eflags scp->mc_eflags
 #define _scp_eflags_ scp->mc_eflags
 #define _scp_cr2 scp->mc_spare[0]
+#define PRI_RG PRIx32
 #endif
-#define _cs (*(unsigned *)&scp->mc_cs)
-#define _ds (*(unsigned *)&scp->mc_ds)
-#define _es (*(unsigned *)&scp->mc_es)
-#define _ds_ (*(const unsigned *)&scp->mc_ds)
-#define _es_ (*(const unsigned *)&scp->mc_es)
-#define _fs (*(unsigned *)&scp->mc_fs)
-#define _gs (*(unsigned *)&scp->mc_gs)
-#define _ss (*(unsigned *)&scp->mc_ss)
-#define _trapno scp->mc_trapno
-#define _err (*(unsigned *)&scp->mc_err)
-#define __fpstate scp->mc_fpstate
+#define _scp_cs (*(unsigned *)&scp->mc_cs)
+#define _scp_ds (*(unsigned *)&scp->mc_ds)
+#define _scp_es (*(unsigned *)&scp->mc_es)
+#define _scp_ds_ (*(const unsigned *)&scp->mc_ds)
+#define _scp_es_ (*(const unsigned *)&scp->mc_es)
+#define _scp_fs (*(unsigned *)&scp->mc_fs)
+#define _scp_gs (*(unsigned *)&scp->mc_gs)
+#define _scp_ss (*(unsigned *)&scp->mc_ss)
+#define _scp_trapno scp->mc_trapno
+#define _scp_err (*(unsigned *)&scp->mc_err)
+#define _scp_fpstate scp->mc_fpstate
 #elif defined(__linux__)
-#define _scp_gs     (scp->gs)
-#define _scp_fs     (scp->fs)
+#define _scp_fpstate (scp->fpregs)
 #ifdef __x86_64__
-#define _scp_es     HI_WORD(scp->trapno)
-#define _scp_ds     (((union g_reg *)&(scp->trapno))->w[2])
-#define _scp_rdi    (scp->rdi)
-#define _scp_rsi    (scp->rsi)
-#define _scp_rbp    (scp->rbp)
-#define _scp_rsp    (scp->rsp)
-#define _scp_rbx    (scp->rbx)
-#define _scp_rdx    (scp->rdx)
-#define _scp_rcx    (scp->rcx)
-#define _scp_rax    (scp->rax)
-#define _scp_rip    (scp->rip)
-#define _scp_ss     (scp->__pad0)
-#define _scp_edi    DWORD_(_scp_rdi)
-#define _scp_esi    DWORD_(_scp_rsi)
-#define _scp_ebp    DWORD_(_scp_rbp)
+#define _scp_es     HI_WORD(scp->gregs[REG_TRAPNO])
+#define _scp_ds     (((union g_reg *)&(scp->gregs[REG_TRAPNO]))->w[2])
+#define _scp_rip    (scp->gregs[REG_RIP])
+#define _scp_rsp    (scp->gregs[REG_RSP])
+#define _scp_edi    DWORD_(scp->gregs[REG_RDI])
+#define _scp_esi    DWORD_(scp->gregs[REG_RSI])
+#define _scp_ebp    DWORD_(scp->gregs[REG_RBP])
+#define _scp_ebx    DWORD_(scp->gregs[REG_RBX])
+#define _scp_edx    DWORD_(scp->gregs[REG_RDX])
+#define _scp_ecx    DWORD_(scp->gregs[REG_RCX])
+#define _scp_eax    DWORD_(scp->gregs[REG_RAX])
+#define _scp_eip    DWORD_(_scp_rip)
 #define _scp_esp    DWORD_(_scp_rsp)
-#define _scp_ebx    DWORD_(_scp_rbx)
-#define _scp_edx    DWORD_(_scp_rdx)
-#define _scp_ecx    DWORD_(_scp_rcx)
-#define _scp_eax    DWORD_(_scp_rax)
-#define _scp_eip    DWORD_(_scp_rip)
-#define _scp_eax    DWORD_(_scp_rax)
-#define _scp_eip    DWORD_(_scp_rip)
-#define _scp_err    LO_WORD(scp->err)
-#define _scp_lerr   (unsigned long)LO_WORD(scp->err)
-#define _scp_trapno LO_WORD(scp->trapno)
-#define _scp_ltrapno (unsigned long)LO_WORD(scp->trapno)
-#define _scp_cs     LO_WORD(scp->cs)
-#define _scp_eflags LO_WORD(scp->eflags)
-#define _scp_lflags (unsigned long)LO_WORD(scp->eflags)
-#define _scp_cr2    (scp->cr2)
-#define _scp_fpstate (scp->fpstate)
+#define _scp_err    LO_WORD(scp->gregs[REG_ERR])
+#define _scp_trapno LO_WORD(scp->gregs[REG_TRAPNO])
+#define _scp_cs     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[0])
+#define _scp_gs     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[1])
+#define _scp_fs     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[2])
+#define _scp_ss     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[3])
+#define _scp_eflags LO_WORD(scp->gregs[REG_EFL])
+#define _scp_cr2    (scp->gregs[REG_CR2])
+#define PRI_RG  "llx"
 #else
-#define _scp_es     (scp->es)
-#define _scp_ds     (scp->ds)
-#define _scp_edi    (scp->edi)
-#define _scp_esi    (scp->esi)
-#define _scp_ebp    (scp->ebp)
-#define _scp_esp    (scp->esp)
-#define _scp_ebx    (scp->ebx)
-#define _scp_edx    (scp->edx)
-#define _scp_ecx    (scp->ecx)
-#define _scp_eax    (scp->eax)
-#define _scp_eip    (scp->eip)
-#define _scp_ss     (scp->ss)
-#define _scp_err    (scp->err)
-#define _scp_lerr   (scp->err)
-#define _scp_trapno (scp->trapno)
-#define _scp_ltrapno (scp->trapno)
-#define _scp_cs     (scp->cs)
-#define _scp_eflags (scp->eflags)
-#define _scp_lflags (scp->eflags)
-#define _scp_cr2    (scp->cr2)
-#define _scp_fpstate (scp->fpstate)
+#define _scp_es     (scp->gregs[REG_ES])
+#define _scp_ds     (scp->gregs[REG_DS])
+#define _scp_edi    (scp->gregs[REG_EDI])
+#define _scp_esi    (scp->gregs[REG_ESI])
+#define _scp_ebp    (scp->gregs[REG_EBP])
+#define _scp_esp    (scp->gregs[REG_ESP])
+#define _scp_ebx    (scp->gregs[REG_EBX])
+#define _scp_edx    (scp->gregs[REG_EDX])
+#define _scp_ecx    (scp->gregs[REG_ECX])
+#define _scp_eax    (scp->gregs[REG_EAX])
+#define _scp_eip    (scp->gregs[REG_EIP])
+#define _scp_cs     (scp->gregs[REG_CS])
+#define _scp_gs     (scp->gregs[REG_GS])
+#define _scp_fs     (scp->gregs[REG_FS])
+#define _scp_ss     (scp->gregs[REG_SS])
+#define _scp_err    (scp->gregs[REG_ERR])
+#define _scp_trapno (scp->gregs[REG_TRAPNO])
+#define _scp_eflags (scp->gregs[REG_EFL])
+#define _scp_cr2    (((union dword *)&scp->cr2)->d)
+#define PRI_RG PRIx32
 /* some compat */
 #define _scp_rip _scp_eip
 #define _scp_rsp _scp_esp
-#define _scp_rax _scp_eax
 #endif
 #endif  // __linux__
 

@@ -209,7 +209,7 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
       return 1;
   }
 
-  error("eVGAEmuFault: unimplemented decode instr at %08lx: %08x\n",
+  error("eVGAEmuFault: unimplemented decode instr at %08"PRI_RG": %08x\n",
 	_scp_rip, *((int *)_scp_rip));
   leavedos_from_sig(0x5643);
   return 0;
@@ -247,7 +247,7 @@ int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	/* save eip, eflags, and do a "ret" out of compiled code */
 	TheCPU.err = EXCP0E_PAGE;
 	_scp_eax = FindPC((unsigned char *)_scp_rip);
-	e_printf("FindPC: found %lx\n",_scp_rax);
+	e_printf("FindPC: found %x\n",_scp_eax);
 	_scp_edx = *(long *)_scp_rsp; // flags
 	_scp_rsp += sizeof(long);
 	TheCPU.cr2 = _scp_cr2;
