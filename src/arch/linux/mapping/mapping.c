@@ -25,7 +25,7 @@
  */
 
 #include "emu.h"
-#include "hma.h"
+#include "xms.h"
 #include "utilities.h"
 #include "dos2linux.h"
 #include "kvm.h"
@@ -110,6 +110,17 @@ void *dosaddr_to_unixaddr(unsigned int addr)
   if (addr < LOWMEM_SIZE + HMASIZE && aliasmap[addr >> PAGE_SHIFT])
     return aliasmap[addr >> PAGE_SHIFT] + (addr & (PAGE_SIZE - 1));
   return MEM_BASE32(addr);
+}
+
+void *physaddr_to_unixaddr(unsigned int addr)
+{
+  if (addr < LOWMEM_SIZE + HMASIZE)
+    return dosaddr_to_unixaddr(addr);
+  if (addr < xms_base)
+    return LOWMEM(addr);
+  if (addr < xms_base + config.xms_map_size)
+    return xms_resolve_physaddr(addr);
+  return MAP_FAILED;
 }
 
 #ifdef __linux__

@@ -126,8 +126,8 @@ static void dma_update_DRQ(int dma_idx, int chan_idx)
 static void dma_process_channel(int dma_idx, int chan_idx)
 {
     struct dma_channel *chan = &dma[dma_idx].chans[chan_idx];
-    void *addr = dosaddr_to_unixaddr(
-	    (chan->page << 16) | (chan->cur_addr.value << dma_idx));
+    unsigned pa = (chan->page << 16) | (chan->cur_addr.value << dma_idx);
+    void *addr = physaddr_to_unixaddr(pa);
 
     /* first, do the transfer */
     switch (DMA_TRANSFER_OP(chan->mode)) {
@@ -135,10 +135,21 @@ static void dma_process_channel(int dma_idx, int chan_idx)
 	q_printf("DMA: verify mode does nothing\n");
 	break;
     case WRITE:
-	memcpy(addr, dma_data_bus, 1 << dma_idx);
+	if (addr != MAP_FAILED)
+	    memcpy(addr, dma_data_bus, 1 << dma_idx);
+	else {
+	    error_once0("DMA: write to unmapped address\n");
+	    q_printf("DMA: write to unmapped address %#x\n", pa);
+	}
 	break;
     case READ:
-	memcpy(dma_data_bus, addr, 1 << dma_idx);
+	if (addr != MAP_FAILED)
+	    memcpy(dma_data_bus, addr, 1 << dma_idx);
+	else {
+	    error_once0("DMA: read from unmapped address\n");
+	    q_printf("DMA: read from unmapped address %#x\n", pa);
+	    memset(dma_data_bus, 0xff, sizeof(dma_data_bus));
+	}
 	break;
     case INVALID:
 	q_printf("DMA: invalid mode does nothing\n");

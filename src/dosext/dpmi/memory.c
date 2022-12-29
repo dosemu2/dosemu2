@@ -48,6 +48,7 @@ static unsigned int mem_allocd;           /* how many bytes memory client */
 unsigned int pm_block_handle_used;       /* tracking handle */
 
 static smpool mem_pool;
+static smpool lin_pool;
 static void *dpmi_lin_rsv_base;
 static void *dpmi_base;
 static uint32_t low_rsv;
@@ -239,18 +240,32 @@ int dpmi_alloc_pool(void)
     c_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, dpmi_base);
     /* Create DPMI pool */
     sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit);
+    sminit_com(&lin_pool, dpmi_lin_rsv_base, low_rsv, commit, uncommit);
     dpmi_total_memory = config.dpmi * 1024;
 
-    mprotect_mapping(MAPPING_DPMI, config.dpmi_base, memsize, PROT_NONE);
+    mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
+                memsize + low_rsv, PROT_NONE);
+    /* Elite First Encounters setup.exe insists on low reserve
+     * area being writable... */
+    if (config.no_null_checks) {
+        mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
+                low_rsv, PROT_READ | PROT_WRITE);
+    }
     D_printf("DPMI: dpmi_free_memory available 0x%x\n", dpmi_total_memory);
     return 0;
 }
 
 void dpmi_free_pool(void)
 {
+    uint32_t memsize = dpmi_mem_size() + low_rsv;
     int leak = smdestroy(&mem_pool);
     if (leak)
 	error("DPMI: leaked %i bytes (main pool)\n", leak);
+    leak = smdestroy(&lin_pool);
+    if (leak)
+	error("DPMI: leaked %i bytes (lin pool)\n", leak);
+    mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
+                memsize, PROT_READ | PROT_WRITE);
 }
 
 static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
@@ -564,11 +579,6 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	int inp = in_rsv_pool(block->base, block->size);
 	assert(inp != -1);
 	if (inp) {
-#if 1
-	    /* remove this when lin_pool returned back to dpmi */
-	    mprotect_mapping(cap, block->base, block->size,
-		    PROT_READ | PROT_WRITE);
-#endif
 	    smfree(&lin_pool, MEM_BASE32(block->base));
 	} else {
 	    mprotect_mapping(cap, block->base, block->size,

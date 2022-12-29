@@ -265,7 +265,7 @@ typedef struct config_info {
 
        int hogthreshold;
 
-       int mem_size, ext_mem, xms_size, ems_size;
+       int mem_size, ext_mem, xms_size, xms_map_size, ems_size;
        int umb_a0, umb_b0, umb_f0, hma;
        unsigned int ems_frame;
        int ems_uma_pages, ems_cnv_pages;
@@ -517,6 +517,5 @@ extern int hlt_unregister_handler_vm86(Bit16u start_addr);
 extern const char *Path_cdrom[];
 
 extern struct mempool main_pool;
-extern struct mempool lin_pool;
 
 #endif /* EMU_H */

@@ -883,6 +883,9 @@ static int int15(void)
 	    unsigned src_addr, dst_addr;
 	    unsigned src_limit, dst_limit;
 	    unsigned int length;
+	    void *s, *d;
+	    unsigned int old_a20 = a20;
+
 	    lp = SEG_ADR((unsigned int *), es, si);
 	    lp += 4;
 	    src_addr = (*lp >> 16) & 0x0000FFFF;
@@ -908,14 +911,46 @@ static int int15(void)
 		x_printf("block move failed\n");
 		LWORD(eax) = 0x0200;
 		CARRY;
+		break;
+	    }
+	    /* Have to enable a20 before translating addresses */
+	    if (!a20)
+		set_a20(1);
+	    while (length) {
+		/* avoid crossing page boundaries */
+		int s_al = PAGE_ALIGN(src_addr) - src_addr;
+		int d_al = PAGE_ALIGN(dst_addr) - dst_addr;
+		int todo;
+
+		if (!s_al)
+		    s_al += PAGE_SIZE;
+		if (!d_al)
+		    d_al += PAGE_SIZE;
+		todo = _min(s_al, d_al);
+		todo = _min(todo, length);
+		x_printf("int 15: copy subblock: src=%#x dst=%#x len=%#x\n",
+		     src_addr, dst_addr, todo);
+		s = physaddr_to_unixaddr(src_addr);
+		if (s == MAP_FAILED) {
+		    error("error mapping %x to addr\n", src_addr);
+		    break;
+		}
+		d = physaddr_to_unixaddr(dst_addr);
+		if (d == MAP_FAILED) {
+		    error("error mapping %x to addr\n", dst_addr);
+		    break;
+		}
+		memcpy(d, s, todo);
+		src_addr += todo;
+		dst_addr += todo;
+		length -= todo;
+	    }
+	    if (old_a20 != a20)
+		set_a20(old_a20);
+	    if (length) {
+		LWORD(eax) = 0x0200;
+		CARRY;
 	    } else {
-		unsigned int old_a20 = a20;
-		/* Have to enable a20 before moving */
-		if (!a20)
-		    set_a20(1);
-		memcpy_dos2dos(dst_addr, src_addr, length);
-		if (old_a20 != a20)
-		    set_a20(old_a20);
 		LWORD(eax) = 0;
 		NOCARRY;
 	    }

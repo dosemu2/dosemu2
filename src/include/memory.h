@@ -139,6 +139,7 @@
 #define HMASIZE (64*1024)
 #define LOWMEM_SIZE 0x100000
 #define EXTMEM_SIZE ((unsigned)(config.ext_mem << 10))
+#define xms_base (LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE)
 
 #ifndef __ASSEMBLER__
 
@@ -175,6 +176,11 @@ void memcheck_type_init(void);
 extern struct system_memory_map *system_memory_map;
 extern size_t system_memory_map_size;
 void *dosaddr_to_unixaddr(dosaddr_t addr);
+void *physaddr_to_unixaddr(unsigned addr);
+
+#ifndef MAP_FAILED
+#define MAP_FAILED (void*)-1
+#endif
 //void *lowmemp(const unsigned char *ptr);
 
 /* This is the global mem_base pointer: *all* memory is with respect
