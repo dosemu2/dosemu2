@@ -53,7 +53,6 @@ struct mem_map_struct {
   void *base[MAX_BASES];
   dosaddr_t dst;
   int len;
-  int mapped;
 };
 
 #ifdef __linux__
@@ -133,7 +132,7 @@ static int map_find(struct mem_map_struct *map, int max,
   int idx = -1;
   dosaddr_t max_addr = addr + size;
   for (i = 0; i < max; i++) {
-    if (!map[i].dst || !map[i].len || map[i].mapped != mapped)
+    if (!map[i].dst || !map[i].len || (map[i].dst != -1) != mapped)
       continue;
     dst = map[i].dst;
     dst1 = dst + map[i].len;
@@ -175,6 +174,7 @@ unsigned char *MEM_BASE32(dosaddr_t a)
 #ifdef __linux__
 static dosaddr_t kmem_unmap_single(int cap, int idx)
 {
+  dosaddr_t ret;
   if (cap & MAPPING_LOWMEM) {
     int i;
     for(i = 0; i < MAX_BASES; i++) {
@@ -194,9 +194,10 @@ static dosaddr_t kmem_unmap_single(int cap, int idx)
 	       kmem_map[idx].len, MREMAP_MAYMOVE | MREMAP_FIXED,
 	       kmem_map[idx].base[MEM_BASE]);
   }
-  kmem_map[idx].mapped = 0;
   update_aliasmap(kmem_map[idx].dst, kmem_map[idx].len, NULL);
-  return kmem_map[idx].dst;
+  ret = kmem_map[idx].dst;
+  kmem_map[idx].dst = -1;
+  return ret;
 }
 
 // counts number of kmem mappings, only used for assert
@@ -227,7 +228,6 @@ static void kmem_map_single(int cap, int idx, dosaddr_t targ)
         MREMAP_MAYMOVE | MREMAP_FIXED, MEM_BASE32(targ));
   }
   kmem_map[idx].dst = targ;
-  kmem_map[idx].mapped = 1;
   update_aliasmap(targ, kmem_map[idx].len, kmem_map[idx].bkp_base);
 }
 #endif
@@ -691,7 +691,6 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
     kmem_map[kmem_mappings].bkp_base = addr2;
     kmem_map[kmem_mappings].dst = -1;
     kmem_map[kmem_mappings].len = mapsize;
-    kmem_map[kmem_mappings].mapped = 0;
     kmem_mappings++;
     Q_printf("MAPPING: region allocated at %p\n", addr);
     return addr;
