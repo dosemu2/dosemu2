@@ -418,6 +418,18 @@ static void print_ldt(void)
   _print_dt(buffer, MAX_SELECTORS, 1);
 }
 
+static void leave_backend(int be, int pm)
+{
+  if (be == CPUVM_KVM)
+    kvm_leave(pm);
+}
+
+static void enter_backend(int be, int pm)
+{
+  if (be == CPUVM_KVM)
+    kvm_enter(pm);
+}
+
 static void dpmi_set_pm(int pm)
 {
   assert(pm <= 1);
@@ -427,6 +439,10 @@ static void dpmi_set_pm(int pm)
     return;
   }
   dpmi_pm = pm;
+  if (config.cpu_vm != config.cpu_vm_dpmi) {
+    leave_backend(pm ? config.cpu_vm : config.cpu_vm_dpmi, !pm);
+    enter_backend(!pm ? config.cpu_vm : config.cpu_vm_dpmi, pm);
+  }
 }
 
 static dpmi_pm_block *lookup_pm_blocks_by_addr(dosaddr_t addr)
@@ -3320,6 +3336,8 @@ static void quit_dpmi(cpuctx_t *scp, unsigned short errcode,
   }
   if (!in_dpmi_pm())
     dpmi_soft_cleanup();
+
+  port_outb(0xf1, 0); /* reset FPU */
 
   if (dos_exit) {
     if (!have_tsr || !tsr_para) {

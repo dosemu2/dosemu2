@@ -59,9 +59,17 @@ kvm_mon_main:
         push %ebx
         mov %cr2,%eax
         push %eax
+#if 0
+        subl $0x200,%esp
+        fxsave (%esp)
+#endif
 	.globl kvm_mon_hlt
 kvm_mon_hlt:
         hlt
+#if 0
+        fxrstor (%esp)
+        addl $0x200,%esp
+#endif
         pop %eax
         pop %ebx
         pop %ecx
