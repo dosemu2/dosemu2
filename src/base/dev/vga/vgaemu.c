@@ -1657,14 +1657,14 @@ int vga_emu_pre_init(void)
 
   vga.mem.lfb_base = 0;
   if(config.X_lfb) {
-    unsigned char *p = alias_mapping_high(MAPPING_VGAEMU,
+    dosaddr_t p = alias_mapping_high(MAPPING_VGAEMU,
 				vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
-    if(p == MAP_FAILED) {
+    if(p == (dosaddr_t)-1) {
       vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
       config.exitearly = 1;
       return 1;
     } else {
-      vga.mem.lfb_base = DOSADDR_REL(p);
+      vga.mem.lfb_base = p;
     }
   }
 
