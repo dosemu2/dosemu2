@@ -1703,7 +1703,8 @@ int vga_emu_pre_init(void)
 
   if(vga.mem.lfb_base != 0) {
     memcheck_addtype('e', "VGAEMU LFB");
-    register_hardware_ram('e', vga.mem.lfb_base, vga.mem.size);
+    register_hardware_ram_virtual('e', vga.mem.lfb_base, vga.mem.size,
+	    vga.mem.base, vga.mem.lfb_base);
   }
 
   return vga_emu_post_init();
@@ -1715,7 +1716,6 @@ static int vga_emu_post_init(void)
 
   if(vga.mem.lfb_base != 0) {
     vga.mem.lfb_base_page = vga.mem.lfb_base >> 12;
-    map_hardware_ram_manual(vga.mem.lfb_base, vga.mem.lfb_base);
   }
   vga_emu_setup_mode_table();
 

@@ -270,17 +270,23 @@ static struct pava map_EMB(void *addr, unsigned size, unsigned handle)
     leavedos(2);
   }
   ret.pa = xms_base + (page << PAGE_SHIFT);
+  register_hardware_ram_virtual('x', ret.pa, size, addr, ret.va);
   return ret;
 }
 
 static void unmap_EMB(struct pava base, unsigned size)
 {
+  int err = unregister_hardware_ram_virtual(base.pa);
+  if (err)
+    error("error unregistering hwram at %#x\n", base.pa);
   /* don't unmap, just overmap with scratch page */
   mmap_mapping(MAPPING_OTHER | MAPPING_SCRATCH, base.va, PAGE_ALIGN(size),
         PROT_READ | PROT_WRITE);
   pgafree(pgapool, (base.pa - xms_base) >> PAGE_SHIFT);
 }
 
+#if 0
+/* unused */
 void *xms_resolve_physaddr(unsigned addr)
 {
   struct pgrm m;
@@ -292,6 +298,7 @@ void *xms_resolve_physaddr(unsigned addr)
   return (handles[m.id].addr + (m.pgoff << PAGE_SHIFT) +
       (addr & (PAGE_SIZE - 1)));
 }
+#endif
 
 static void do_free_EMB(int h)
 {

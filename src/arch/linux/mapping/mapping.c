@@ -114,12 +114,11 @@ void *dosaddr_to_unixaddr(unsigned int addr)
 
 void *physaddr_to_unixaddr(unsigned int addr)
 {
+  void *hwr = get_hardware_uaddr(addr);
+  if (hwr != MAP_FAILED)
+    return hwr;
   if (addr < LOWMEM_SIZE + HMASIZE)
     return dosaddr_to_unixaddr(addr);
-  if (addr < xms_base)
-    return LOWMEM(addr);
-  if (addr < xms_base + config.xms_map_size)
-    return xms_resolve_physaddr(addr);
   return MAP_FAILED;
 }
 
@@ -723,8 +722,8 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
     kmem_map[kmem_mappings].dst = -1;
     kmem_map[kmem_mappings].len = mapsize;
     kmem_mappings++;
-    Q_printf("MAPPING: region allocated at %p\n", addr);
-    return addr;
+    Q_printf("MAPPING: region allocated at %p\n", addr2);
+    return addr2;
 }
 #endif
 
@@ -783,6 +782,7 @@ struct hardware_ram {
   dosaddr_t vbase;
   size_t size;
   int type;
+  void *uaddr;
   struct hardware_ram *next;
 };
 
@@ -823,12 +823,12 @@ void init_hardware_ram(void)
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     int cap = MAPPING_KMEM;
+    if (hw->uaddr)  /* virtual hardware ram mapped later */
+      continue;
     if (hw->default_vbase != (dosaddr_t)-1)
       cap |= MAPPING_LOWMEM;
-    if (hw->type == 'e')  /* virtual hardware ram mapped later */
-      continue;
 #ifdef __linux__
-    alloc_mapping_kmem(cap, hw->size, hw->base);
+    hw->uaddr = alloc_mapping_kmem(cap, hw->size, hw->base);
 #endif
     if (do_map_hwram(hw) == -1)
       return;
@@ -846,19 +846,6 @@ int map_hardware_ram(char type)
       return -1;
   }
   return 0;
-}
-
-int map_hardware_ram_manual(size_t base, dosaddr_t vbase)
-{
-  struct hardware_ram *hw;
-
-  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
-    if (hw->base != base)
-      continue;
-    hw->vbase = vbase;
-    return 0;
-  }
-  return -1;
 }
 
 int unmap_hardware_ram(char type)
@@ -882,11 +869,12 @@ int unmap_hardware_ram(char type)
   return rc;
 }
 
-int register_hardware_ram(int type, dosaddr_t base, unsigned int size)
+static int do_register_hwram(int type, dosaddr_t base, unsigned size,
+	void *uaddr, dosaddr_t va)
 {
   struct hardware_ram *hw;
 
-  if (!can_do_root_stuff && type != 'e') {
+  if (!can_do_root_stuff && !uaddr) {
     dosemu_error("can't use hardware ram in low feature (non-suid root) DOSEMU\n");
     return 0;
   }
@@ -897,14 +885,43 @@ int register_hardware_ram(int type, dosaddr_t base, unsigned int size)
     hw->default_vbase = hw->base;
   else
     hw->default_vbase = -1;
-  hw->vbase = -1;
+  hw->vbase = va;
   hw->size = size;
   hw->type = type;
+  hw->uaddr = uaddr;
   hw->next = hardware_ram;
   hardware_ram = hw;
-  if (base >= LOWMEM_SIZE || type == 'h')
+  if (!uaddr && (base >= LOWMEM_SIZE || type == 'h'))
     memcheck_reserve(type, base, size);
   return 1;
+}
+
+int register_hardware_ram(int type, dosaddr_t base, unsigned int size)
+{
+  return do_register_hwram(type, base, size, NULL, -1);
+}
+
+int register_hardware_ram_virtual(int type, dosaddr_t base, unsigned int size,
+	void *uaddr, dosaddr_t va)
+{
+  return do_register_hwram(type, base, size, uaddr, va);
+}
+
+int unregister_hardware_ram_virtual(dosaddr_t base)
+{
+  struct hardware_ram *hw, *phw;
+
+  for (phw = NULL, hw = hardware_ram; hw != NULL; phw = hw, hw = hw->next) {
+    if (hw->base == base) {
+      if (phw)
+        phw->next = hw->next;
+      else
+        hardware_ram = hw->next;
+      free(hw);
+      return 0;
+    }
+  }
+  return -1;
 }
 
 /* given physical address addr, gives the corresponding vbase or -1 */
@@ -918,6 +935,18 @@ unsigned get_hardware_ram(unsigned addr, uint32_t size)
       return hw->vbase + addr - hw->base;
   }
   return -1;
+}
+
+void *get_hardware_uaddr(unsigned addr)
+{
+  struct hardware_ram *hw;
+
+  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+    if (hw->vbase != -1 &&
+	hw->base <= addr && addr < hw->base + hw->size)
+      return hw->uaddr + addr - hw->base;
+  }
+  return MAP_FAILED;
 }
 
 void list_hardware_ram(void (*print)(const char *, ...))

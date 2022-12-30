@@ -387,6 +387,9 @@ void low_mem_init(void)
       config.exitearly = 1;
       return;
     }
+    /* memsize == base */
+    register_hardware_ram_virtual('m', memsize, EXTMEM_SIZE, lowmem + memsize,
+	    addr);
     x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE, addr);
   }
 
