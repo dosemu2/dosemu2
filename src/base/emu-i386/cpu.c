@@ -241,15 +241,15 @@ static void fpu_init(void)
 
 static void fpu_reset(void)
 {
-#ifdef __x86_64__
-  vm86_fpu_state.cwd = 0x0040;
-  vm86_fpu_state.swd = 0;
-  vm86_fpu_state.ftw = 0x5555;       //bochs
-#else
-  vm86_fpu_state.cw = 0x40;
-  vm86_fpu_state.sw = 0;
-  vm86_fpu_state.tag = 0x5555;       // bochs
-#endif
+  if (emu_fpstate_get_type(&vm86_fpu_state) == EMU_FPSTATE_FXSAVE) {
+    vm86_fpu_state.fxsave.cwd = 0x0040;
+    vm86_fpu_state.fxsave.swd = 0;
+    vm86_fpu_state.fxsave.ftw = 0x5555;       //bochs
+  } else {
+    vm86_fpu_state.fsave.cw = 0x40;
+    vm86_fpu_state.fsave.sw = 0;
+    vm86_fpu_state.fsave.tag = 0x5555;       // bochs
+  }
 }
 
 static Bit8u fpu_io_read(ioport_t port)
@@ -262,11 +262,10 @@ static void fpu_io_write(ioport_t port, Bit8u val)
   switch (port) {
   case 0xf0:
     /* not sure about this */
-#ifdef __x86_64__
-    vm86_fpu_state.swd &= ~0x8000;
-#else
-    vm86_fpu_state.sw &= ~0x8000;
-#endif
+    if (emu_fpstate_get_type(&vm86_fpu_state) == EMU_FPSTATE_FXSAVE)
+      vm86_fpu_state.fxsave.swd &= ~0x8000;
+    else
+      vm86_fpu_state.fsave.sw &= ~0x8000;
     break;
   case 0xf1:
     fpu_reset();
@@ -300,6 +299,9 @@ void cpu_setup(void)
   io_dev.handler_name = "Math Coprocessor";
   port_register_handler(io_dev, 0);
 
+  /* default: use fxsave state;
+     savefpstate will switch to fsave state if needed */
+  emu_fpstate_set_type(&vm86_fpu_state, EMU_FPSTATE_FXSAVE);
   savefpstate(vm86_fpu_state);
 #ifdef FE_NOMASK_ENV
   feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);

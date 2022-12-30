@@ -3321,6 +3321,8 @@ static void quit_dpmi(cpuctx_t *scp, unsigned short errcode,
   if (!in_dpmi_pm())
     dpmi_soft_cleanup();
 
+  port_outb(0xf1, 0); /* reset FPU */
+
   if (dos_exit) {
     if (!have_tsr || !tsr_para) {
       HI(ax) = 0x4c;

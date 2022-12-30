@@ -61,55 +61,52 @@ union word {
   struct { Bit8u l, h; } b;
 } MAY_ALIAS;
 
-#define __ctx(fld) fld
-#ifdef __x86_64__
-/* taken from glibc, don't blame me :) */
-struct __fpxreg
-{
-  unsigned short int __ctx(significand)[4];
-  unsigned short int __ctx(exponent);
-  unsigned short int __glibc_reserved1[3];
-};
-struct __xmmreg
-{
-  __uint32_t	__ctx(element)[4];
-};
 struct emu_fpstate
 {
-  /* 64-bit FXSAVE format.  */
-  uint16_t		__ctx(cwd);
-  uint16_t		__ctx(swd);
-  uint16_t		__ctx(ftw);
-  uint16_t		__ctx(fop);
-  uint64_t		__ctx(rip);
-  uint64_t		__ctx(rdp);
-  uint32_t		__ctx(mxcsr);
-  uint32_t		__ctx(mxcr_mask);
-  struct __fpxreg	_st[8];
-  struct __xmmreg	_xmm[16];
-  uint32_t		__glibc_reserved1[24];
+  union {
+    struct {
+      uint32_t		cw;
+      uint32_t		sw;
+      uint32_t		tag;
+      uint32_t		ipoff;
+      uint32_t		cssel;
+      uint32_t		dataoff;
+      uint32_t		datasel;
+      struct { uint16_t element[5]; } st[8];
+    } fsave;
+    struct emu_fpxstate {
+      /* 32-bit FXSAVE format */
+      uint16_t		cwd;
+      uint16_t		swd;
+      uint16_t		ftw;
+      uint16_t		fop;
+      uint32_t		fip;
+      uint32_t		fcs;
+      uint32_t		fdp;
+      uint32_t		fds;
+      uint32_t		mxcsr;
+      uint32_t		mxcr_mask;
+      struct { uint32_t element[4]; } st[8];
+      struct { uint32_t element[4]; } xmm[8];
+      uint32_t		reserved[56];
+    } fxsave;
+  };
+  int size; /* size not including reserved elements */
+  /* if size equals sizeof(fsave), then fsave union field is used */
 };
-#else
-struct __fpreg
-{
-  unsigned short int __ctx(significand)[4];
-  unsigned short int __ctx(exponent);
-};
-struct emu_fpstate
-{
-  unsigned long int __ctx(cw);
-  unsigned long int __ctx(sw);
-  unsigned long int __ctx(tag);
-  unsigned long int __ctx(ipoff);
-  unsigned long int __ctx(cssel);
-  unsigned long int __ctx(dataoff);
-  unsigned long int __ctx(datasel);
-  struct __fpreg _st[8];
-  unsigned long int __ctx(status);
-};
-#endif
 /* Structure to describe FPU registers.  */
 typedef struct emu_fpstate *emu_fpregset_t;
+enum emu_fpstate_type {EMU_FPSTATE_FSAVE, EMU_FPSTATE_FXSAVE};
+static inline enum emu_fpstate_type emu_fpstate_get_type(emu_fpregset_t p)
+{
+  return p->size == sizeof(p->fsave) ? EMU_FPSTATE_FSAVE : EMU_FPSTATE_FXSAVE;
+}
+static inline void emu_fpstate_set_type(emu_fpregset_t p,
+					enum emu_fpstate_type type)
+{
+  p->size = type == EMU_FPSTATE_FSAVE ? sizeof(p->fsave) :
+    offsetof(struct emu_fpxstate, xmm[8]);
+}
 
 union g_reg {
   greg_t reg;
@@ -330,18 +327,19 @@ extern fenv_t dosemu_fenv;
 #elif defined (__i386__)
 #define loadfpstate(value) \
 	do { \
-		if (config.cpufxsr) \
-			asm volatile("fxrstor %0\n" :: \
-				    "m"(*((char *)&value+112))); \
+		if (emu_fpstate_get_type(&(value)) == EMU_FPSTATE_FXSAVE) \
+			asm volatile("fxrstor %0\n" :: "m"(value)); \
 		else \
 			asm volatile("frstor %0\n" :: "m"(value)); \
 	} while(0)
 
 #define savefpstate(value) \
 	do { \
+		emu_fpstate_set_type(&(value), EMU_FPSTATE_FSAVE); \
 		if (config.cpufxsr) { \
+			emu_fpstate_set_type(&(value), EMU_FPSTATE_FXSAVE); \
 			asm volatile("fxsave %0; fninit\n" : \
-				     "=m"(*((char *)&value+112))); \
+				     "=m"(value)); \
 		} else \
 			asm volatile("fnsave %0; fwait\n" : "=m"(value)); \
 	} while(0)
