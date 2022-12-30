@@ -853,6 +853,10 @@ xms_move_EMB(void)
   x_printf("XMS move extended memory block\n");
   show_emm(e);
 
+  /* Length must be even, XMS spec says, tested on himem too. */
+  if (e.Length & 1)
+    return 0xa7;
+
   if (e.SourceHandle == 0) {
     src = SEGOFF2LINEAR(e.SourceOffset >> 16, e.SourceOffset & 0xffff);
     if (src + e.Length > LOWMEM_SIZE + HMASIZE)
