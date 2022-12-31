@@ -244,19 +244,30 @@ static int is_kvm_map(int cap)
   return (!(cap & MAPPING_DPMI));
 }
 
-void *alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
+void *alias_mapping_ux(int cap, size_t mapsize, int protect, void *source)
 {
   void *target = (void *)-1;
-
-  if (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)) {
-    target = smalloc(&main_pool, mapsize);
-    if (!target) {
-      error("OOM for alias_mapping_high, %s\n", strerror(errno));
-      return MAP_FAILED;
-    }
-  }
-
   return mappingdriver->alias(cap, target, mapsize, protect, source);
+}
+
+dosaddr_t alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
+{
+  dosaddr_t targ;
+  void *addr2;
+  void *addr = smalloc(&main_pool, mapsize);
+  if (!addr) {
+    error("OOM for alias_mapping_high, %s\n", strerror(errno));
+    return -1;
+  }
+  addr2 = mappingdriver->alias(cap, addr, mapsize, protect, source);
+  if (addr2 != addr)
+    return -1;
+  Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
+  targ = DOSADDR_REL(addr);
+  if (is_kvm_map(cap))
+    mprotect_kvm(cap, targ, mapsize, protect);
+
+  return targ;
 }
 
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
