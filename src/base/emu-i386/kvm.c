@@ -217,8 +217,10 @@ void init_kvm_monitor(void)
     return;
 
   /* create monitor structure in memory */
-  monitor = mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_KVM, (void *)-1,
+  monitor = mmap_mapping_ux(MAPPING_SCRATCH|MAPPING_KVM, (void *)-1,
 			    sizeof(*monitor), PROT_READ | PROT_WRITE);
+  mmap_kvm(MAPPING_SCRATCH|MAPPING_KVM, monitor, sizeof(*monitor),
+	PROT_READ | PROT_WRITE);
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
 
@@ -583,7 +585,8 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
   else
     check_overlap_kvm(targ, mapsize);
   slot = mmap_kvm_no_overlap(targ, addr, mapsize);
-  mprotect_kvm(cap, targ, mapsize, protect);
+  if (!(cap & MAPPING_KVM))
+    mprotect_kvm(cap, targ, mapsize, protect);
   /* update EPT if needed */
   if (cap & MAPPING_IMMEDIATE)
     set_kvm_memory_region(&maps[slot]);

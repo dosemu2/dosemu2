@@ -419,7 +419,16 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 
 void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect)
 {
-  return do_mmap_mapping(cap, target, mapsize, protect);
+  int flags = (target != (void *)-1) ? MAP_FIXED : 0;
+  /* TODO: remove this once Bart's patches are merged */
+#ifdef __x86_64__
+  if (flags == 0 &&
+      (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM|MAPPING_KVM)))
+    flags = _MAP_32BIT;
+#endif
+  if (target == (void *)-1) target = NULL;
+  return mmap(target, mapsize, protect,
+		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
 }
 
 void *mmap_file_ux(int cap, void *target, size_t mapsize, int protect,
