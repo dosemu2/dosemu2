@@ -342,6 +342,7 @@ void low_mem_init(void)
   mem_base = mem_reserve(memsize, dpmi_size);
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     init_kvm_monitor();
+  sminit(&main_pool, mem_base, memsize + dpmi_size);
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (result == -1) {
@@ -350,7 +351,6 @@ void low_mem_init(void)
   }
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
-  sminit(&main_pool, mem_base, memsize + dpmi_size);
   ptr = smalloc(&main_pool, memsize);
   assert(ptr == mem_base);
   dpmi_rsv_low -= memsize;
