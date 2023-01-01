@@ -464,30 +464,6 @@ void *mmap_file_ux(int cap, void *target, size_t mapsize, int protect,
   return addr;
 }
 
-void *mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
-{
-  void *addr;
-  void *target = ((targ == (dosaddr_t)-1) ? (void *)-1 : MEM_BASE32(targ));
-
-  Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x\n",
-	cap, target, mapsize, protect);
-  if (!(cap & MAPPING_INIT_LOWRAM) && targ != (dosaddr_t)-1) {
-    /* for lowram we use alias_mapping() instead */
-    assert(targ >= LOWMEM_SIZE);
-#ifdef __linux__
-    assert(kmem_mapped(targ, mapsize) == 0);
-#endif
-  }
-
-  addr = do_mmap_mapping(cap, target, mapsize, protect);
-  if (addr == MAP_FAILED)
-    return MAP_FAILED;
-  if (targ != (dosaddr_t)-1)
-    update_aliasmap(targ, mapsize, addr);
-  Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
-  return addr;
-}
-
 /* Restore mapping previously broken by direct mmap() call. */
 int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
