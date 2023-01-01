@@ -330,18 +330,10 @@ void low_mem_init(void)
   uint32_t memsize = LOWMEM_SIZE + HMASIZE;
   uint32_t dpmi_size = dpmi_lin_mem_rsv();
   int32_t dpmi_rsv_low = config.dpmi_base;
-  const uint32_t mem_1M = 1024 * 1024;
-  const uint32_t mem_16M = mem_1M * 16;
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
-  /* reserve 1Mb for XMS mappings */
-  if (memsize + EXTMEM_SIZE > mem_16M - mem_1M) {
-    error("$_ext_mem too large\n");
-    leavedos(98);
-    return;
-  }
-  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, memsize + EXTMEM_SIZE);
+  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, memsize);
   if (lowmem == MAP_FAILED) {
     perror("LOWRAM alloc");
     leavedos(98);
@@ -362,9 +354,6 @@ void low_mem_init(void)
   }
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
-  if (config.xms_size)
-    config.xms_map_size = (mem_16M - (memsize + EXTMEM_SIZE)) & PAGE_MASK;
-
   ptr = smalloc(&main_pool, memsize);
   assert(ptr == mem_base);
   dpmi_rsv_low -= memsize;
@@ -380,16 +369,20 @@ void low_mem_init(void)
   }
 
   if (config.ext_mem) {
+    ptr = alloc_mapping(MAPPING_EXTMEM, EXTMEM_SIZE);
+    if (ptr == MAP_FAILED) {
+      perror("ext_mem alloc");
+      leavedos(98);
+    }
     addr = alias_mapping_high(MAPPING_EXTMEM, EXTMEM_SIZE,
-		 PROT_READ | PROT_WRITE, lowmem + memsize);
+		 PROT_READ | PROT_WRITE, ptr);
     if (addr == (dosaddr_t)-1) {
       error("failure to allocate ext mem\n");
       config.exitearly = 1;
       return;
     }
     /* memsize == base */
-    register_hardware_ram_virtual('m', memsize, EXTMEM_SIZE, lowmem + memsize,
-	    addr);
+    register_hardware_ram_virtual('m', memsize, EXTMEM_SIZE, ptr, addr);
     x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE, addr);
   }
 
