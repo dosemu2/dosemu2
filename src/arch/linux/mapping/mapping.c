@@ -495,9 +495,24 @@ int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
   void *target;
   assert((cap & MAPPING_DPMI) && (targ != (dosaddr_t)-1));
   target = MEM_BASE32(targ);
-  addr = do_mmap_mapping(cap, MEM_BASE32(targ), mapsize,
-        PROT_READ | PROT_WRITE);
+  addr = do_mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
   return (addr == target ? 0 : -1);
+}
+
+int unalias_mapping_high(int cap, dosaddr_t targ, size_t mapsize)
+{
+  void *addr;
+  void *target;
+  int ret = 0;
+
+  target = MEM_BASE32(targ);
+  addr = do_mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
+  if (addr != target) {
+    dosemu_error("mmap error\n");
+    ret = -1;
+  }
+  ret |= smfree(&main_pool, target);
+  return ret;
 }
 
 static void *do_mremap_grow(int cap, dosaddr_t from, size_t old_size,

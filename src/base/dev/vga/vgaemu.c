@@ -1745,7 +1745,8 @@ static int vga_emu_post_init(void)
 
 void vga_emu_done()
 {
-  /* We should probably do something here - but what ? -- sw */
+  if (vga.mem.lfb_base)
+    unalias_mapping_high(MAPPING_VGAEMU, vga.mem.lfb_base, vga.mem.size);
 }
 
 

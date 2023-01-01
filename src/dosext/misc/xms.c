@@ -279,9 +279,7 @@ static void unmap_EMB(struct pava base, unsigned size)
   int err = unregister_hardware_ram_virtual(base.pa);
   if (err)
     error("error unregistering hwram at %#x\n", base.pa);
-  /* don't unmap, just overmap with scratch page */
-  mmap_mapping(MAPPING_OTHER | MAPPING_SCRATCH, base.va, PAGE_ALIGN(size),
-        PROT_READ | PROT_WRITE);
+  unalias_mapping_high(MAPPING_OTHER, base.va, PAGE_ALIGN(size));
   pgafree(pgapool, (base.pa - xms_base) >> PAGE_SHIFT);
 }
 
