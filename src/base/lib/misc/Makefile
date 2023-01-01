@@ -2,7 +2,7 @@
 top_builddir=../../../..
 include $(top_builddir)/Makefile.conf
 
-CFILES = smalloc.c dlmalloc.c ringbuf.c cpi.c
+CFILES = smalloc.c pgalloc.c dlmalloc.c ringbuf.c cpi.c
 
 include $(REALTOPDIR)/src/Makefile.common
 

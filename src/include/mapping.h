@@ -119,10 +119,13 @@ void mapping_close(void);
 
 void init_hardware_ram(void);
 int map_hardware_ram(char type);
-int map_hardware_ram_manual(size_t base, dosaddr_t vbase);
 int unmap_hardware_ram(char type);
 int register_hardware_ram(int type, dosaddr_t base, unsigned size);
+int register_hardware_ram_virtual(int type, dosaddr_t base, unsigned size,
+    void *uaddr, dosaddr_t va);
+int unregister_hardware_ram_virtual(dosaddr_t base);
 unsigned get_hardware_ram(unsigned addr, uint32_t size);
+void *get_hardware_uaddr(unsigned addr);
 void list_hardware_ram(void (*print)(const char *, ...));
 void *mapping_find_hole(unsigned long start, unsigned long stop,
 	unsigned long size);

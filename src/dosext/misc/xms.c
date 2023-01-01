@@ -32,8 +32,10 @@
 #include "emm.h"
 #include "mapping.h"
 #include "dos2linux.h"
+#include "utilities.h"
 #include "cpu-emu.h"
 #include "smalloc.h"
+#include "pgalloc.h"
 
 #undef  DEBUG_XMS
 
@@ -76,12 +78,17 @@ struct __attribute__ ((__packed__)) EMM {
    unsigned int DestOffset;
 };
 
+struct pava {
+  unsigned pa;
+  dosaddr_t va;
+};
+
 struct Handle {
   unsigned short int num;
   void *addr;
   unsigned int size;
   int lockcount;
-  dosaddr_t dst;
+  struct pava dst;
 };
 
 static struct Handle handles[NUM_HANDLES];
@@ -89,6 +96,7 @@ static int handle_count;
 static int intdrv;
 static int ext_hooked_hma;
 static int totalBytes;
+static void *pgapool;
 
 void show_emm(struct EMM);
 static unsigned char xms_query_freemem(int), xms_allocate_EMB(int), xms_free_EMB(void),
@@ -245,43 +253,58 @@ static void xms_free(void *addr, unsigned osize)
   free_mapping(MAPPING_OTHER, addr, PAGE_ALIGN(osize));
 }
 
-static dosaddr_t map_EMB(void *addr, unsigned size)
+static struct pava map_EMB(void *addr, unsigned size, unsigned handle)
 {
-  int err;
-  void *ptr;
-  dosaddr_t ret;
+  int page;
+  struct pava ret = {};
 
-  /* Use top-down strategy to not collide with HX's linear allocs to 4Mb.
-   * Confine XMS maps within 16Mb as progs set up DMA to XMS (Goblins3). */
-  ptr = smalloc_aligned_topdown(&lin_pool, MEM_BASE32(0x1000000), PAGE_SIZE,
-      size);
-  if (!ptr) {
+  page = pgaalloc(pgapool, PAGE_ALIGN(size) >> PAGE_SHIFT, handle);
+  if (page < 0) {
     error("error allocating %i bytes for xms\n", size);
-    return 0;
+    return ret;
   }
-  ret = DOSADDR_REL(ptr);
-  err = alias_mapping(MAPPING_OTHER, ret, PAGE_ALIGN(size),
-	PROT_READ | PROT_WRITE, addr);
-  if (err) {
-    error("error mapping %p to %x for xms\n", addr, ret);
-    return 0;
+  ret.va = alias_mapping_high(MAPPING_EXTMEM, PAGE_ALIGN(size),
+		 PROT_READ | PROT_WRITE, addr);
+  if (ret.va == (dosaddr_t)-1) {
+    error("failure to map xms\n");
+    leavedos(2);
   }
+  ret.pa = xms_base + (page << PAGE_SHIFT);
+  register_hardware_ram_virtual('x', ret.pa, size, addr, ret.va);
   return ret;
 }
 
-static void unmap_EMB(dosaddr_t base, unsigned size)
+static void unmap_EMB(struct pava base, unsigned size)
 {
+  int err = unregister_hardware_ram_virtual(base.pa);
+  if (err)
+    error("error unregistering hwram at %#x\n", base.pa);
   /* don't unmap, just overmap with scratch page */
-  mmap_mapping(MAPPING_OTHER | MAPPING_SCRATCH, base, PAGE_ALIGN(size),
+  mmap_mapping(MAPPING_OTHER | MAPPING_SCRATCH, base.va, PAGE_ALIGN(size),
         PROT_READ | PROT_WRITE);
-  smfree(&lin_pool, MEM_BASE32(base));
+  pgafree(pgapool, (base.pa - xms_base) >> PAGE_SHIFT);
 }
+
+#if 0
+/* unused */
+void *xms_resolve_physaddr(unsigned addr)
+{
+  struct pgrm m;
+  assert(addr >= xms_base && addr < xms_base + config.xms_map_size);
+  m = pgarmap(pgapool, (addr - xms_base) >> PAGE_SHIFT);
+  if (m.pgoff == -1)
+    return MAP_FAILED;
+  assert(m.id >= 0 && m.id < NUM_HANDLES && handles[m.id].addr);
+  return (handles[m.id].addr + (m.pgoff << PAGE_SHIFT) +
+      (addr & (PAGE_SIZE - 1)));
+}
+#endif
 
 static void do_free_EMB(int h)
 {
-    if (handles[h].dst)
+    if (handles[h].dst.pa)
       unmap_EMB(handles[h].dst, handles[h].size);
-    handles[h].dst = 0;
+    handles[h].dst.pa = 0;
     if (handles[h].addr)
       xms_free(handles[h].addr, handles[h].size);
     handles[h].addr = NULL;
@@ -304,6 +327,7 @@ xms_reset(void)
   intdrv = 0;
   freeHMA = 0;
   ext_hooked_hma = 0;
+  pgareset(pgapool);
 }
 
 static void xms_local_reset(void)
@@ -433,9 +457,14 @@ void xms_helper(void)
   }
 }
 
-void
-xms_init(void)
+void xms_init(void)
 {
+  pgapool = pgainit(config.xms_map_size >> PAGE_SHIFT);
+}
+
+void xms_done(void)
+{
+  pgadone(pgapool);
 }
 
 static void XMS_RET(int err)
@@ -712,7 +741,8 @@ xms_query_freemem(int api)
   /* xms_size is page-aligned in config.c */
   subtotal = config.xms_size - (totalBytes / 1024);
   /* total free is max allowable XMS - the number of K already allocated */
-  largest = subtotal;
+  largest = pgaavail_largest(pgapool) * 4;
+  largest = largest ? _min(largest, subtotal) : subtotal;
 
   if (api == OLDXMS) {
     /* old XMS API uses only AX, while new API uses EAX. make
@@ -831,6 +861,10 @@ xms_move_EMB(void)
   x_printf("XMS move extended memory block\n");
   show_emm(e);
 
+  /* Length must be even, XMS spec says, tested on himem too. */
+  if (e.Length & 1)
+    return 0xa7;
+
   if (e.SourceHandle == 0) {
     src = SEGOFF2LINEAR(e.SourceOffset >> 16, e.SourceOffset & 0xffff);
     if (src + e.Length > LOWMEM_SIZE + HMASIZE)
@@ -880,19 +914,12 @@ static unsigned char
 xms_lock_EMB(int flag)
 {
   int h = LWORD(edx);
-  dosaddr_t addr;
-
-  if (flag)
-    x_printf("XMS lock EMB %d\n", h);
-  else
-    x_printf("XMS unlock EMB %d\n", h);
+  struct pava addr;
 
   if (ValidHandle(h)) {
     /* flag=1 locks, flag=0 unlocks */
 
-    if (flag)
-      handles[h].lockcount++;
-    else {
+    if (!flag) {
       if (handles[h].lockcount)
         handles[h].lockcount--;
       else {
@@ -900,17 +927,24 @@ xms_lock_EMB(int flag)
         return 0xaa;		/* Block is not locked */
       }
       if (!handles[h].lockcount) {
+        x_printf("XMS unlock EMB %d --> %#x\n", h, handles[h].dst.pa);
         unmap_EMB(handles[h].dst, handles[h].size);
-        handles[h].dst = 0;
+        handles[h].dst.pa = 0;
       }
       return 0;
     }
 
-    addr = map_EMB(handles[h].addr, handles[h].size);
-    handles[h].dst = addr;
-    LWORD(edx) = addr >> 16;
-    LWORD(ebx) = addr & 0xffff;
-    return 0;
+    addr = map_EMB(handles[h].addr, handles[h].size, h);
+    if (addr.pa) {
+      handles[h].lockcount++;
+      x_printf("XMS lock EMB %d --> %#x, va=%x\n", h, addr.pa, addr.va);
+      handles[h].dst = addr;
+      LWORD(edx) = addr.pa >> 16;
+      LWORD(ebx) = addr.pa & 0xffff;
+      return 0;
+    }
+    x_printf("XMS lock EMB %d failed\n", h);
+    return 0xad;  /* lock failed */
   }
   else {
     x_printf("XMS: invalid handle %d, can't (un)lock\n", h);

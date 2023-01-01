@@ -2194,6 +2194,21 @@ int dpmi_install_rsp(struct RSPcall_s *callback)
     return 0;
 }
 
+dosaddr_t DPMIMapHWRam(unsigned addr, unsigned size)
+{
+    dpmi_pm_block *blk = DPMI_mapHWRam(&DPMI_CLIENT.pm_block_root, addr, size);
+    D_printf("DPMI: Map Physical Memory, addr=%#08x size=%#x\n", addr, size);
+    if (!blk)
+	return -1;
+    return blk->base;
+}
+
+int DPMIUnmapHWRam(dosaddr_t vbase)
+{
+    D_printf("DPMI: Unmap Physical Memory, vbase=%#08x\n", vbase);
+    return DPMI_unmapHWRam(&DPMI_CLIENT.pm_block_root, vbase);
+}
+
 static void do_int31(cpuctx_t *scp)
 {
 #if 0
@@ -2960,20 +2975,18 @@ err:
 
   case 0x0800: {	/* create Physical Address Mapping */
       unsigned addr, size;
-      dpmi_pm_block *blk;
+      dosaddr_t base;
 
       addr = (_LWORD_(ebx) << 16) | (_LWORD_(ecx));
       size = (_LWORD_(esi) << 16) | (_LWORD_(edi));
 
-      D_printf("DPMI: Map Physical Memory, addr=%#08x size=%#x\n", addr, size);
-
-      blk = DPMI_mapHWRam(&DPMI_CLIENT.pm_block_root, addr, size);
-      if (!blk) {
+      base = DPMIMapHWRam(addr, size);
+      if (base == (unsigned)-1) {
 	_eflags |= CF;
 	break;
       }
-      _LWORD(ebx) = blk->base >> 16;
-      _LWORD(ecx) = blk->base;
+      _LWORD(ebx) = base >> 16;
+      _LWORD(ecx) = base;
       D_printf("DPMI: getting physical memory area at 0x%x, size 0x%x, "
 		     "ret=%#x:%#x\n",
 	       addr, size, _LWORD(ebx), _LWORD(ecx));
@@ -2983,8 +2996,7 @@ err:
       size_t vbase;
       int rc;
       vbase = (_LWORD_(ebx) << 16) | (_LWORD_(ecx));
-      D_printf("DPMI: Unmap Physical Memory, vbase=%#08zx\n", vbase);
-      rc = DPMI_unmapHWRam(&DPMI_CLIENT.pm_block_root, vbase);
+      rc = DPMIUnmapHWRam(vbase);
       if (rc == -1) {
 	_eflags |= CF;
 	break;

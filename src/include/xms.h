@@ -30,11 +30,13 @@
 
 #ifndef __ASSEMBLER__
 void xms_init(void);
+void xms_done(void);
 void xms_reset(void);
 void xms_helper(void);
 void xms_control(void);
 int xms_intdrv(void);
 int xms_helper_init_ext(void);
+void *xms_resolve_physaddr(unsigned addr);
 #endif
 
 #endif /* XMS_H */

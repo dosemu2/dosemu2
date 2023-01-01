@@ -38,6 +38,7 @@ from func_memory_dpmi_japheth import memory_dpmi_japheth
 from func_memory_ems_borland import memory_ems_borland
 from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_a20,
                              memory_hma_alloc3, memory_hma_chain)
+from func_memory_xms import memory_xms
 from func_mfs_findfile import mfs_findfile
 from func_mfs_truename import mfs_truename
 from func_network import network_pktdriver_mtcp
@@ -3294,6 +3295,11 @@ $_floppy_a = ""
         """Memory HMA get chain"""
         memory_hma_chain(self)
     test_memory_hma_chain.hmatest = True
+
+    def test_memory_xms(self):
+        """Memory XMS"""
+        memory_xms(self)
+    test_memory_xms.xmstest = True
 
     def test_floppy_img(self):
         """Floppy image file"""
