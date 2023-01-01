@@ -741,7 +741,8 @@ xms_query_freemem(int api)
   /* xms_size is page-aligned in config.c */
   subtotal = config.xms_size - (totalBytes / 1024);
   /* total free is max allowable XMS - the number of K already allocated */
-  largest = _min(config.xms_map_size / 1024, subtotal);
+  largest = pgaavail_largest(pgapool) * 4;
+  largest = largest ? _min(largest, subtotal) : subtotal;
 
   if (api == OLDXMS) {
     /* old XMS API uses only AX, while new API uses EAX. make

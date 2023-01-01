@@ -92,6 +92,23 @@ void pgafree(void *pool, unsigned page)
     while (page < p[0] && p[page] > 0);
 }
 
+int pgaavail_largest(void *pool)
+{
+    int *p = pool;
+    int i, max = 0;
+
+    for (i = 1; i < p[0]; i++) {
+        if (p[i] == 0) {
+            int j;
+            for (j = i + 1; j < p[0] && p[j] == 0; j++);
+            if (j - i > max)
+                max = j - i;
+            i = j;
+        }
+    }
+    return max;
+}
+
 struct pgrm pgarmap(void *pool, unsigned page)
 {
     struct pgrm ret = { -1, -1 };
