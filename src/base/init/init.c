@@ -45,6 +45,8 @@
 #define GFX_CHARS       0xffa6e
 
 smpool main_pool;
+unsigned char *extmem_base;
+dosaddr_t extmem_vbase;
 
 #if 0
 static inline void dbug_dumpivec(void)
@@ -381,9 +383,9 @@ void low_mem_init(void)
       config.exitearly = 1;
       return;
     }
-    /* memsize == base */
-    register_hardware_ram_virtual('m', memsize, EXTMEM_SIZE, ptr, addr);
     x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE, addr);
+    extmem_base = ptr;
+    extmem_vbase = addr;
   }
 
   /* R/O protect 0xf0000-0xf4000 */
