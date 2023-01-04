@@ -418,9 +418,16 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		int i;
 		WFR0 = *ST0;
 		round_double();
-		b = WFR0;
-		write_byte(p+9, b < 0 ? 0x80 : 0);
-		b = llabs(b);
+		if (isnan(WFR0) || fabsl(WFR0) >= 1000000000000000000.0L) {
+			/* store packed BCD indefinite value */
+			write_dword(p, 0);
+			write_word(p+4, 0);
+			write_dword(p+6, 0xffffc000u);
+			INCFSPP;
+			break;
+		}
+		write_byte(p+9, signbit(WFR0) ? 0x80 : 0);
+		b = llabs(WFR0);
 		for (i=0; i < 9; i++) {
 			uint8_t u = b % 10;
 			b /= 10;
