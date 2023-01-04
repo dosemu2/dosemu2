@@ -853,7 +853,20 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 5:		/* FSCALE */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
-			WFR0 = ldexpl(WFR0, truncl(WFR1));
+			if (isnan(WFR1) ||
+			    (WFR0 == 0.0 && isinf(WFR1) == 1) ||
+			    (isinf(WFR0) && isinf(WFR1) == -1))
+				WFR0 = WFR1 = NAN;
+			else if (isfinite(WFR0)) {
+				int inf = isinf(WFR1);
+				if (inf == 1)
+					WFR0 = WFR0 > 0 ? INFINITY : -INFINITY;
+				else if (inf == -1)
+					WFR0 = WFR0 > 0 ? 0.0 : -0.0;
+			}
+			if (WFR1 >= INT_MAX) WFR1 = INT_MAX;
+			if (WFR1 <= INT_MIN) WFR1 = INT_MIN;
+			WFR0 = ldexpl(WFR0, WFR1);
 			ftest();
 			*ST0 = WFR0;
 			break;
