@@ -135,7 +135,7 @@ static void fxam(long double d)
 		break;
 	}
 	if (signbit(d)) fps |= 0x200;
-	TheCPU.fpus = (fps&0xc7df)|(TheCPU.fpstt<<11);
+	TheCPU.fpus = (fps&0xc7ff)|(TheCPU.fpstt<<11);
 }
 
 static void ftest(void)
@@ -147,7 +147,7 @@ static void ftest(void)
 	if (exceptions & FE_OVERFLOW) fps |= 0x8;
 	if (exceptions & FE_UNDERFLOW) fps |= 0x10;
 	if (exceptions & FE_INEXACT) fps |= 0x20;
-	TheCPU.fpus = (fps&0xc7df)|(TheCPU.fpstt<<11);
+	TheCPU.fpus = (fps&0xc7ff)|(TheCPU.fpstt<<11);
 }
 
 /* round long double to integer depending on rounding mode */
