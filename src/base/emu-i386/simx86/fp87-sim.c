@@ -40,6 +40,20 @@
 #include "codegen.h"
 #include "codegen-sim.h"
 
+// These are GNU extensions, so define them here if not already
+#ifndef M_PIl
+#define M_PIl 3.141592653589793238462643383279502884L
+#endif
+#ifndef M_LN2l
+#define M_LN2l 0.693147180559945309417232121458176568L
+#endif
+#ifndef M_LN10l
+#define M_LN10l 2.302585092994045684017991454684364208L
+#endif
+#ifndef M_LOG2El
+#define M_LOG2El 1.442695040888963407359924681001892137L
+#endif
+
 int (*Fp87_op)(int exop, int reg);
 static int Fp87_op_sim(int exop, int reg);
 
@@ -689,11 +703,11 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			DECFSPP;
 			switch (reg) {
 			case 0: WFR0 = 1.0; break;
-			case 1: WFR0 = M_LN10/M_LN2; break;
-			case 2: WFR0 = M_LOG2E; break;
-			case 3: WFR0 = M_PI; break;
-			case 4: WFR0 = M_LN2/M_LN10; break;
-			case 5: WFR0 = M_LN2; break;
+			case 1: WFR0 = M_LN10l/M_LN2l; break;
+			case 2: WFR0 = M_LOG2El; break;
+			case 3: WFR0 = M_PIl; break;
+			case 4: WFR0 = M_LN2l/M_LN10l; break;
+			case 5: WFR0 = M_LN2l; break;
 			case 6: WFR0 = 0.0; break;
 			default: goto fp_notok;
 			}
