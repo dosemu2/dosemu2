@@ -88,7 +88,9 @@ static void fxam(long double d)
 
 	// https://www.felixcloutier.com/x86/fxam
 	// bits in status word: c0:8, c1:9, c2:10, c3:14
-	switch(fpclassify(d)) {
+	if (!iscanonical(d))
+		fps |= isnan(d) ? 0x0 : 0x4400; // pseudo normal/denormal
+	else switch(fpclassify(d)) {
 	case FP_NAN:
 		fps |= 0x100;
 		break;
