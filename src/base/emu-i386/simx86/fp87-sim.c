@@ -96,6 +96,16 @@ void init_emu_npu (void)
 	WFR0 = WFR1 = 0.0;
 }
 
+void fp87_set_rounding(void)
+{
+	switch (TheCPU.fpuc & 0xc00) {
+	case 0x000: fesetround(FE_TONEAREST); break;
+	case 0x400: fesetround(FE_DOWNWARD); break;
+	case 0x800: fesetround(FE_UPWARD); break;
+	default:    fesetround(FE_TOWARDZERO); break;
+	}
+}
+
 static void fxam(long double d)
 {
 	unsigned short fps = TheCPU.fpus & ~0x4700;
@@ -443,6 +453,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 /*29*/	case 0x29:
 //*	29	D9 xx101nnn	FLDCW	2b
 		TheCPU.fpuc = read_word(AR1.d) | 0x40;
+		fp87_set_rounding();
 		break;
 /*39*/	case 0x39:
 //*	39	D9 xx111nnn	FSTCW	2b
@@ -685,6 +696,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			TheCPU.fpstt = 0;
 			TheCPU.fpuc  = 0x37f;
 			TheCPU.fptag = 0xffff;
+			fp87_set_rounding();
 			feclearexcept(FE_ALL_EXCEPT);
 			WFR0 = WFR1 = 0.0;
 			break;
@@ -942,6 +954,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //	25	DD xx100nnn	FRSTOR	94/108byte
 		    dosaddr_t p = TheCPU.mem_ref, q;
 		    TheCPU.fpuc = read_word(p) | 0x40;
+		    fp87_set_rounding();
 		    if (reg&DATA16) {
 			TheCPU.fpus = read_word(p+2); TheCPU.fptag = read_word(p+4);
 			q = p+14;
@@ -1055,6 +1068,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			TheCPU.fpstt = 0;
 			TheCPU.fpuc  = 0x37f;
 			TheCPU.fptag = 0xffff;
+			fp87_set_rounding();
 			feclearexcept(FE_ALL_EXCEPT);
 			WFR0 = WFR1 = 0.0;
 		    }

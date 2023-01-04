@@ -2728,11 +2728,13 @@ repag0:
 #ifdef HOST_ARCH_X86
 			if (TheCPU.fpstate) {
 				/* For simulator, only need to mask all
-				   exceptions; for JIT, load emulated FPU state
+				   exceptions, and set rounding properly;
+				   for JIT, load emulated FPU state
 				   into real FPU */
-				if (CONFIG_CPUSIM)
+				if (CONFIG_CPUSIM) {
 					fesetenv(FE_DFL_ENV);
-				else
+					fp87_set_rounding();
+				} else
 					loadfpstate(*TheCPU.fpstate);
 				TheCPU.fpstate = NULL;
 			}

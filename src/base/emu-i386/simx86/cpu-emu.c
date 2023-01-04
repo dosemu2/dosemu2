@@ -572,9 +572,7 @@ void Cpu2Reg (void)
   if (TheCPU.fpstate == NULL) {
     if (!CONFIG_CPUSIM)
       savefpstate(vm86_fpu_state);
-#ifdef HOST_ARCH_X86
     fesetenv(&dosemu_fenv);
-#endif
   }
 
   if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08x dpm=%08x emu=%08x\n",
@@ -658,9 +656,7 @@ static void Cpu2Scp (cpuctx_t *scp, int trapno)
        zero and overflow which is good enough for calling FPU-using
        routines.
     */
-#ifdef HOST_ARCH_X86
     fesetenv(&dosemu_fenv);
-#endif
   }
 
   /* push running flags - same as eflags, RF is cosmetic */
