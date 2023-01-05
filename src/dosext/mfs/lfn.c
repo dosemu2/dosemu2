@@ -100,39 +100,28 @@ void close_dirhandles(unsigned psp)
 	}
 }
 
-static int vfat_search(char *dest, const char *src, const char *_path, int alias)
+static int vfat_search(char *dest, const char *src, const char *path, int alias)
 {
   struct mfs_dir *dir;
   struct mfs_dirent *de;
-  char *path, *slash;
   int ret = 0;
 
-  d_printf("LFN: vfat_search src=%s path=%s alias=%d\n", src, _path, alias);
-
-  path = strdup(_path);
-  if (!path)
-    return 0;
-
-  slash = strrchr(path, '/');
-  if (!slash) {
-    free(path);
-    return 0;
-  }
-  *slash = '\0';
+  d_printf("LFN: vfat_search src=%s path=%s alias=%d\n", src, path, alias);
 
   dir = dos_opendir(path);
-  free(path);
   if (dir == NULL)
     return 0;
 
   if (dir->dir == NULL)
     while ((de = dos_readdir(dir)) != NULL) {
-      d_printf("LFN: vfat_search %s %s\n", de->d_name, de->d_long_name);
+      d_printf("LFN: vfat_search (short='%s', long='%s')", de->d_name, de->d_long_name);
       if ((strcasecmp(de->d_long_name, src) == 0) || (strcasecmp(de->d_name, src) == 0)) {
         strlcpy(dest, alias ? de->d_name : de->d_long_name, 260);
         ret = 1;
+        d_printf(" matched\n");
         break;
       }
+      d_printf("\n");
     }
   else
     d_printf("LFN: vfat_search (not VFAT)\n");
@@ -152,8 +141,13 @@ static int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 	char *src;
 	char *fpath2;
 	char root[MAX_RESOURCE_LENGTH_EXT];
-	int root_len = get_redirection_root1(current_drive, root, sizeof(root));
+	int root_len;
+
+	d_printf("LFN: make_unmake_dos_mangled_path fpath='%s', drive='%c', alias='%d'\n",
+			fpath, current_drive + 'A', alias);
+
 	/* root ends with / and fpath may not, so -1 */
+	root_len = get_redirection_root1(current_drive, root, sizeof(root));
 	if (root_len <= 0 || strncmp(fpath, root, root_len - 1) != 0)
 		return -1;
 	*dest++ = current_drive + 'A';
@@ -166,10 +160,11 @@ static int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 	fpath2 = strdup(fpath);
 	src = fpath2 + root_len;
 	if (*src == '/') src++;
+
 	while (src != NULL && *src != '\0') {
 		char *src2 = strchr(src, '/');
 		if (src2 == src) break;
-		if (src - 1 > fpath)
+		if (src - 1 > fpath2)
 			src[-1] = '\0';
 		if (src2 != NULL)
 			*src2++ = '\0';
@@ -185,7 +180,7 @@ static int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 		}
 		dest += strlen(dest);
 		*dest = '\\';
-		if (src - 1 > fpath)
+		if (src - 1 > fpath2)
 			src[-1] = '/';
 		src = src2;
 	}
