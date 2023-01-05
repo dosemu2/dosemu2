@@ -152,8 +152,13 @@ static int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 	char *src;
 	char *fpath2;
 	char root[MAX_RESOURCE_LENGTH_EXT];
-	int root_len = get_redirection_root1(current_drive, root, sizeof(root));
+	int root_len;
+
+	d_printf("LFN: make_unmake_dos_mangled_path fpath='%s', drive='%c', alias='%d'\n",
+			fpath, current_drive + 'A', alias);
+
 	/* root ends with / and fpath may not, so -1 */
+	root_len = get_redirection_root1(current_drive, root, sizeof(root));
 	if (root_len <= 0 || strncmp(fpath, root, root_len - 1) != 0)
 		return -1;
 	*dest++ = current_drive + 'A';
@@ -166,10 +171,11 @@ static int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 	fpath2 = strdup(fpath);
 	src = fpath2 + root_len;
 	if (*src == '/') src++;
+
 	while (src != NULL && *src != '\0') {
 		char *src2 = strchr(src, '/');
 		if (src2 == src) break;
-		if (src - 1 > fpath)
+		if (src - 1 > fpath2)
 			src[-1] = '\0';
 		if (src2 != NULL)
 			*src2++ = '\0';
@@ -185,7 +191,7 @@ static int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 		}
 		dest += strlen(dest);
 		*dest = '\\';
-		if (src - 1 > fpath)
+		if (src - 1 > fpath2)
 			src[-1] = '/';
 		src = src2;
 	}
