@@ -100,39 +100,28 @@ void close_dirhandles(unsigned psp)
 	}
 }
 
-static int vfat_search(char *dest, const char *src, const char *_path, int alias)
+static int vfat_search(char *dest, const char *src, const char *path, int alias)
 {
   struct mfs_dir *dir;
   struct mfs_dirent *de;
-  char *path, *slash;
   int ret = 0;
 
-  d_printf("LFN: vfat_search src=%s path=%s alias=%d\n", src, _path, alias);
-
-  path = strdup(_path);
-  if (!path)
-    return 0;
-
-  slash = strrchr(path, '/');
-  if (!slash) {
-    free(path);
-    return 0;
-  }
-  *slash = '\0';
+  d_printf("LFN: vfat_search src=%s path=%s alias=%d\n", src, path, alias);
 
   dir = dos_opendir(path);
-  free(path);
   if (dir == NULL)
     return 0;
 
   if (dir->dir == NULL)
     while ((de = dos_readdir(dir)) != NULL) {
-      d_printf("LFN: vfat_search %s %s\n", de->d_name, de->d_long_name);
+      d_printf("LFN: vfat_search (short='%s', long='%s')", de->d_name, de->d_long_name);
       if ((strcasecmp(de->d_long_name, src) == 0) || (strcasecmp(de->d_name, src) == 0)) {
         strlcpy(dest, alias ? de->d_name : de->d_long_name, 260);
         ret = 1;
+        d_printf(" matched\n");
         break;
       }
+      d_printf("\n");
     }
   else
     d_printf("LFN: vfat_search (not VFAT)\n");
