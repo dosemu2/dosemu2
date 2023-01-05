@@ -3558,21 +3558,33 @@ $_floppy_a = ""
             ("FILE", "verylongfilename2.txt"),
             ("FILE", "space embedded filename.txt"),
             ("FILE", "MixedCaseFilename.ext"),
+            ("DIR", "test/1234567890987654321"),
+            ("DIR", "abcdefgfedcba/1234567890987654321"),
+            ("FILE", "1234567890987654321/abcdefgfedcba.txt"),
+            ("FILE", "1234567890987654321/abcdefclash.txt"),
         )
         tests = (
-            ("LFN1", "X:\\verylongfilename.txt",        "X:\\VERYLO~1.TXT"),
-            ("LFN1", "X:\\verylongfilename2.txt",       "X:\\VERYLO~2.TXT"),
-            ("LFN1", "X:\\space embedded filename.txt", "X:\\SPACEE~1.TXT"),
-            ("LFN1", "X:\\MixedCaseFilename.ext",       "X:\\MIXEDC~1.EXT"),
+            ("LFN1", r"X:\verylongfilename.txt",                  r"X:\VERYLO~1.TXT"),
+            ("LFN1", r"X:\verylongfilename2.txt",                 r"X:\VERYLO~2.TXT"),
+            ("LFN1", r"X:\space embedded filename.txt",           r"X:\SPACEE~1.TXT"),
+            ("LFN1", r"X:\MixedCaseFilename.ext",                 r"X:\MIXEDC~1.EXT"),
+            ("LFN1", r"X:\test\1234567890987654321",              r"X:\TEST\123456~1"),
+            ("LFN1", r"X:\abcdefgfedcba\1234567890987654321",     r"X:\ABCDEF~1\123456~1"),
+            ("LFN1", r"X:\1234567890987654321\abcdefgfedcba.txt", r"X:\123456~1\ABCDEF~1.TXT"),
+            ("LFN1", r"X:\1234567890987654321\abcdefclash.txt",   r"X:\123456~1\ABCDEF~2.TXT"),
 
-            ("LFN2", "X:\\VERYLO~1.TXT", "X:\\verylongfilename.txt"),
-            ("LFN2", "X:\\VERYLO~2.TXT", "X:\\verylongfilename2.txt"),
-            ("LFN2", "X:\\SPACEE~1.TXT", "X:\\space embedded filename.txt"),
-            ("LFN2", "X:\\MIXEDC~1.EXT", "X:\\MixedCaseFilename.ext"),
+            ("LFN2", r"X:\VERYLO~1.TXT",          r"X:\verylongfilename.txt"),
+            ("LFN2", r"X:\VERYLO~2.TXT",          r"X:\verylongfilename2.txt"),
+            ("LFN2", r"X:\SPACEE~1.TXT",          r"X:\space embedded filename.txt"),
+            ("LFN2", r"X:\MIXEDC~1.EXT",          r"X:\MixedCaseFilename.ext"),
+            ("LFN2", r"X:\TEST\123456~1",         r"X:\test\1234567890987654321"),
+            ("LFN2", r"X:\ABCDEF~1\123456~1",     r"X:\abcdefgfedcba\1234567890987654321"),
+            ("LFN2", r"X:\123456~1\ABCDEF~1.TXT", r"X:\1234567890987654321\abcdefgfedcba.txt"),
+            ("LFN2", r"X:\123456~1\ABCDEF~2.TXT", r"X:\1234567890987654321\abcdefclash.txt"),
 
-            ("LFN0", "X:\\progra~1",      "X:\\PROGRA~1"),
-            ("LFN1", "X:\\Program Files", "X:\\PROGRA~1"),
-            ("LFN2", "X:\\PROGRA~1",      "X:\\Program Files"),
+            ("LFN0", r"X:\progra~1",      r"X:\PROGRA~1"),
+            ("LFN1", r"X:\Program Files", r"X:\PROGRA~1"),
+            ("LFN2", r"X:\PROGRA~1",      r"X:\Program Files"),
         )
         for t in tests:
             with self.subTest(t=t):
@@ -3587,14 +3599,22 @@ $_floppy_a = ""
             ("FILE", "verylongfilename2.txt"),
             ("FILE", "space embedded filename.txt"),
             ("FILE", "MixedCaseFilename.ext"),
+            ("DIR", "test/1234567890987654321"),
+            ("DIR", "abcdefgfedcba/1234567890987654321"),
+            ("FILE", "654321fedcba/abcdef123456.txt"),
+            ("FILE", "654321fedcba/abcdefclash.txt"),
         )
         tests = (
-            ("SFN", "X:\\testname", "X:\\TESTNAME"),
-            ("SFN", "d:\\shrtname.txt", "D:\\SHRTNAME.TXT"),
-            ("SFN", "X:\\verylo~1.txt", "X:\\VERYLO~1.TXT"),
-            ("SFN", "X:\\verylo~2.txt", "X:\\VERYLO~2.TXT"),
-            ("SFN", "X:\\spacee~1.txt", "X:\\SPACEE~1.TXT"),
-            ("SFN", "X:\\mixedc~1.ext", "X:\\MIXEDC~1.EXT"),
+            ("SFN", r"X:\testname",          r"X:\TESTNAME"),
+            ("SFN", r"d:\shrtname.txt",      r"D:\SHRTNAME.TXT"),
+            ("SFN", r"X:\verylo~1.txt",      r"X:\VERYLO~1.TXT"),
+            ("SFN", r"X:\verylo~2.txt",      r"X:\VERYLO~2.TXT"),
+            ("SFN", r"X:\spacee~1.txt",      r"X:\SPACEE~1.TXT"),
+            ("SFN", r"X:\mixedc~1.ext",      r"X:\MIXEDC~1.EXT"),
+            ("SFN", r"X:\test\123456~1",     r"X:\TEST\123456~1"),
+            ("SFN", r"X:\abcdef~1\123456~1", r"X:\ABCDEF~1\123456~1"),
+            ("SFN", r"X:\654321~1\abcdef~1", r"X:\654321~1\ABCDEF~1"),
+            ("SFN", r"X:\654321~1\abcdef~2", r"X:\654321~1\ABCDEF~2"),
         )
         for t in tests:
             with self.subTest(t=t):

@@ -1,5 +1,4 @@
-from os import makedirs
-from os.path import join
+from pathlib import Path
 
 from common_framework import (VFAT_MNTPNT,
                               setup_vfat_mounted_image, teardown_vfat_mounted_image)
@@ -9,8 +8,8 @@ def mfs_truename(self, fstype, tocreate, nametype, instring, expected):
     ename = "mfstruen"
 
     if fstype == "UFS":
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir, exist_ok=True)
+        testdir = Path("test-imagedir/dXXXXs/d")
+        testdir.mkdir(parents=True, exist_ok=True)
 
         batchfile = """\
 %s
@@ -23,7 +22,7 @@ $_floppy_a = ""
 """
 
     elif fstype == "VFAT":
-        testdir = VFAT_MNTPNT
+        testdir = Path(VFAT_MNTPNT)
         setup_vfat_mounted_image(self)
 
         batchfile = """\
@@ -45,11 +44,12 @@ $_lredir_paths = "/mnt/dosemu"
 
 # Make test files and directory names
     for i in tocreate:
+        p = testdir / i[1]
         if i[0] == "FILE":
-            with open(join(testdir, i[1]), "w") as f:
-                f.write("Some data")
+            p.parents[0].mkdir(parents=True, exist_ok=True)
+            p.write_text("Some data")
         elif i[0] == "DIR":
-            makedirs(join(testdir, i[1]), exist_ok=True)
+            p.mkdir(parents=True, exist_ok=True)
 
     if nametype == "LFN0":
         intnum = "0x7160"
