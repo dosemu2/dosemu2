@@ -39,6 +39,7 @@ TEST_BINARY_HOST = "http://www.spheresystems.co.uk/test-binaries"
 TEST_BINARIES = (
     'DR-DOS-7.01.tar',
     'FR-DOS-1.20.tar',
+    'FR-DOS-1.30.tar',
     'MS-DOS-6.22.tar',
     'MS-DOS-7.00.tar',
     'MS-DOS-7.10.tar',
