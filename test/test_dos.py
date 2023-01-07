@@ -38,6 +38,7 @@ from func_memory_dpmi_japheth import memory_dpmi_japheth
 from func_memory_ems_borland import memory_ems_borland
 from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_a20,
                              memory_hma_alloc3, memory_hma_chain)
+from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
 from func_mfs_findfile import mfs_findfile
 from func_mfs_truename import mfs_truename
@@ -3301,6 +3302,11 @@ $_floppy_a = ""
         memory_xms(self)
     test_memory_xms.xmstest = True
 
+    def test_memory_uma_strategy(self):
+        """Memory UMA Strategy"""
+        memory_uma_strategy(self)
+    test_memory_uma_strategy.umatest = True
+
     def test_floppy_img(self):
         """Floppy image file"""
         # Note: image must have
@@ -5040,6 +5046,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_memory_hma_alloc": KNOWNFAIL,
             "test_memory_hma_alloc3": UNSUPPORTED,
             "test_memory_hma_chain": UNSUPPORTED,
+            "test_memory_uma_strategy": KNOWNFAIL,
             "test_pcmos_build": KNOWNFAIL,
             r"test_libi86_item_\d+": KNOWNFAIL,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
