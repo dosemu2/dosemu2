@@ -127,6 +127,10 @@ while [ $# -gt 0 ] ; do
       DBG="gdb --args"
       shift
       ;;
+    -perf)
+      DBG="perf record --call-graph dwarf --"
+      shift
+      ;;
     *)
       # this should avoid avoid resulting substitution odds
       SUFFIX="$SUFFIX \"$1\""
