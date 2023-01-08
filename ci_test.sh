@@ -47,7 +47,7 @@ fi
 
 case "${RUNTYPE}" in
   "full")
-    ARGS="${ARGS} PPDOSGITTestCase MSDOS622TestCase FRDOS120TestCase DRDOS701TestCase"
+    ARGS="${ARGS} PPDOSGITTestCase MSDOS622TestCase FRDOS130TestCase DRDOS701TestCase"
     ;;
   "normal")
     ARGS="${ARGS} PPDOSGITTestCase MSDOS622TestCase"

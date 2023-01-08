@@ -5072,6 +5072,77 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
         self.mkfile(self.confsys, contents, newline="\r\n")
 
 
+class FRDOS130TestCase(OurTestCase, unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super(FRDOS130TestCase, cls).setUpClass()
+        cls.version = "FreeDOS kernel 2043"
+        cls.prettyname = "FR-DOS-1.30"
+        cls.files = [
+            ("kernel.sys", "2bdf90c8bc8c0406cfa01349265bf782507af016"),
+            ("command.com", "15abab3d3ee4a50449517131a13b2c5164610582"),
+            ("share.com", "cadc29d49115cb3a250f90921cca345e7c427464"),
+        ]
+        cls.systype = SYSTYPE_FRDOS_NEW
+        cls.autoexec = "fdautoem.bat"
+        cls.confsys = "fdconfig.sys"
+        cls.bootblocks = [
+            ("boot-306-4-17.blk", "0092a320500d7a8359d40bddc48f592686745aed"),
+            ("boot-615-4-17.blk", "2b757178c7ba97f8a439c83dc627d61c2d6b3cf6"),
+            ("boot-900-15-17.blk", "8cd7adeff4a0265e8a8e20f7942672c677cbc891"),
+        ]
+        cls.images = [
+            ("boot-floppy.img", "7b68b4dc2de5891bb3700816d8e1a323e8d150bb"),
+        ]
+        cls.actions = {
+            "test_command_com_keyword_exist": KNOWNFAIL,
+            "test_create_new_psp": KNOWNFAIL,
+            "test_fat_ds3_lock_readlckd": KNOWNFAIL,
+            "test_fat_ds3_lock_two_handles": KNOWNFAIL,
+            "test_fat_ds3_lock_writable": KNOWNFAIL,
+            r"test_fat_ds3_share_open_(delete|rename)_.*": KNOWNFAIL,
+            r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
+            "test_fat_ds3_share_open_twice": KNOWNFAIL,
+            "test_fat_fcb_find_wild_1": KNOWNFAIL,
+            "test_fat_fcb_find_wild_2": KNOWNFAIL,
+            "test_fat_fcb_find_wild_3": KNOWNFAIL,
+            "test_fat_fcb_rename_wild_1": KNOWNFAIL,
+            "test_fat_fcb_rename_wild_2": KNOWNFAIL,
+            "test_fat_fcb_rename_wild_3": KNOWNFAIL,
+            "test_fat_fcb_rename_wild_4": KNOWNFAIL,
+            "test_memory_emm286_borland": KNOWNFAIL,
+            "test_memory_hma_alloc": KNOWNFAIL,
+            "test_memory_hma_alloc3": UNSUPPORTED,
+            "test_memory_hma_chain": UNSUPPORTED,
+            "test_memory_uma_strategy": KNOWNFAIL,
+            "test_mfs_fcb_rename_wild_1": KNOWNFAIL,
+            "test_mfs_fcb_rename_wild_2": KNOWNFAIL,
+            "test_mfs_fcb_rename_wild_3": KNOWNFAIL,
+            "test_mfs_fcb_rename_wild_4": KNOWNFAIL,
+            "test_passing_dos_errorlevel_back": KNOWNFAIL,
+        }
+
+        cls.setUpClassPost()
+
+    def setUpDosAutoexec(self):
+        # Use the (almost) standard shipped config
+        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        self.mkfile(self.autoexec, contents, newline="\r\n")
+
+    def setUpDosConfig(self):
+        # Link back to std dosemu commands and scripts
+        p = self.workdir / "dosemu"
+        p.symlink_to(self.topdir / "commands" / "dosemu")
+
+        # Use the (almost) standard shipped config
+        contents = (self.topdir / "src" / "bindist" / "c" / self.confsys).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
+        self.mkfile(self.confsys, contents, newline="\r\n")
+
+
 class MSDOS622TestCase(OurTestCase, unittest.TestCase):
 
     @classmethod
