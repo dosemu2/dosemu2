@@ -94,7 +94,7 @@ static void idle_hlt_thr(void *arg);
 static hitimer_t do_gettime(void)
 {
   struct timespec tv;
-  int err = clock_gettime(CLOCK_MONOTONIC, &tv);
+  int err = clock_gettime(CLOCK_MONOTONIC_COARSE, &tv);
   if (err) {
     error("Cannot get time!\n");
     leavedos(49);
