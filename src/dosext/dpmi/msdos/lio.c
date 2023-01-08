@@ -170,7 +170,8 @@ static void lrhlp_thr(void *arg)
         _eflags &= ~CF;
         _eax = done;
     }
-    lio_priv[DOSHLP_LR].post(scp);
+    if (lio_priv[DOSHLP_LR].post)
+        lio_priv[DOSHLP_LR].post(scp);
 }
 
 static void lwhlp_thr(void *arg)
@@ -233,7 +234,8 @@ static void lwhlp_thr(void *arg)
         _eflags &= ~CF;
         _eax = done;
     }
-    lio_priv[DOSHLP_LW].post(scp);
+    if (lio_priv[DOSHLP_LW].post)
+        lio_priv[DOSHLP_LW].post(scp);
 }
 
 void lio_init(void)

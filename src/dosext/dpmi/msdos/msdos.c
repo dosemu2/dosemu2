@@ -61,7 +61,8 @@ static unsigned short EMM_SEG;
 #define DTA_Para_SIZE 8
 #define Scratch_Para_ADD (DTA_Para_ADD + DTA_Para_SIZE)
 #define EXEC_Para_SIZE 30
-#define Scratch_Para_SIZE 30
+#define Scratch_Para_SIZE 32 // 512 bytes
+#define Scratch_SIZE (Scratch_Para_SIZE << 4)
 
 #define API_32(scp) (MSDOS_CLIENT.is_32 || (MSDOS_CLIENT.ext__thunk_16_32 && \
     msdos_ldt_is32(_cs_)))
@@ -614,7 +615,7 @@ static void get_ext_API(cpuctx_t *scp)
     }
 }
 
-static int need_copy_dseg(int intr, u_short ax, u_short cx)
+static int need_copy_dseg(int intr, u_short ax, u_long cx)
 {
     switch (intr) {
     case 0x21:
@@ -637,7 +638,7 @@ static int need_copy_dseg(int intr, u_short ax, u_short cx)
 	break;
     case 0x25:			/* Absolute Disk Read */
     case 0x26:			/* Absolute Disk write */
-	return (cx != 0xffff);
+	return ((cx & 0xffff) != 0xffff);
     }
 
     return 0;
@@ -699,7 +700,7 @@ static int need_copy_eseg(int intr, u_short ax)
     return 0;
 }
 
-static int need_xbuf(int intr, u_short ax, u_short cx)
+static int need_xbuf(int intr, u_short ax, u_long cx)
 {
     if (need_copy_dseg(intr, ax, cx) || need_copy_eseg(intr, ax))
 	return 1;
@@ -726,11 +727,12 @@ static int need_xbuf(int intr, u_short ax, u_short cx)
 	case 0x4e:		/* find first */
 	case 0x5b:		/* Create */
 	case 0x38:		/* get country info */
-	case 0x3f:		/* dos read */
-	case 0x40:		/* DOS Write */
 	case 0x53:		/* Generate Drive Parameter Table  */
 	case 0x56:		/* rename file */
 	    return 1;
+	case 0x3f:		/* dos read */
+	case 0x40:		/* dos write */
+	    return (cx > Scratch_SIZE);
 	case 0x5d:		/* share & misc  */
 	    return (LO_BYTE(ax) <= 0x05 || LO_BYTE(ax) == 0x0a);
 	case 0x5f:		/* redirection */
@@ -812,7 +814,7 @@ static int need_xbuf(int intr, u_short ax, u_short cx)
 static unsigned short get_xbuf_seg(cpuctx_t *scp, int off, void *arg)
 {
     int intr = ints[off];
-    if (need_xbuf(intr, _LWORD(eax), _LWORD(ecx))) {
+    if (need_xbuf(intr, _LWORD(eax), D_16_32(_ecx))) {
 	int err = prepare_ems_frame(scp);
 	if (err) {
 	    if (intr == 0x2f && _LWORD(eax) == 0x168a)
@@ -824,6 +826,9 @@ static unsigned short get_xbuf_seg(cpuctx_t *scp, int off, void *arg)
     switch (intr) {
     case 0x21:
 	switch (_HI(ax)) {
+	case 0x3f:          /* small dos read */
+	case 0x40:          /* small dos write */
+	    return SCRATCH_SEG;
 	case 0x4b:          /* exec */
 	    return EXEC_SEG;
 	case 0x71:
@@ -1365,11 +1370,11 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    break;
 	case 0x3f:		/* dos read */
 	    msdos_lr_helper(scp, MSDOS_CLIENT.is_32,
-		    rm_seg, restore_ems_frame);
+		    rm_seg, ems_frame_mapped ? restore_ems_frame : NULL);
 	    return MSDOS_DONE;
 	case 0x40:		/* dos write */
 	    msdos_lw_helper(scp, MSDOS_CLIENT.is_32,
-		    rm_seg, restore_ems_frame);
+		    rm_seg, ems_frame_mapped ? restore_ems_frame : NULL);
 	    return MSDOS_DONE;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    {
