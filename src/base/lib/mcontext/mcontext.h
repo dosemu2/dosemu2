@@ -58,7 +58,8 @@ static inline int setmcontext(const struct m_ucontext *u)
 static inline __attribute__((always_inline))
 int getmcontext(struct m_ucontext *u)
 {
-	memset(&u->uc_mcontext, 0, sizeof u->uc_mcontext);
+	/* called so frequently that memset() is expensive */
+//	memset(&u->uc_mcontext, 0, sizeof u->uc_mcontext);
 	return _getmcontext(&u->uc_mcontext);
 }
 extern int swapmcontext(m_ucontext_t*, const m_ucontext_t*);
