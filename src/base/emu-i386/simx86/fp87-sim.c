@@ -803,24 +803,25 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
 			TheCPU.fpus &= ~0x4700;
-			if (!isfinite(WFR0) || isnan(WFR1) || WFR1 == 0.0) {
+			if (!isfinite(WFR0) || WFR0 == 0.0 ||
+			    !isfinite(WFR1) || WFR1 == 0.0)
 				WFR0 = remainderl(WFR0, WFR1);
-			} else if (isfinite(WFR1) && WFR0 != 0.0) {
+			else {
 				int d = ilogbl(WFR0) - ilogbl(WFR1);
 				if (d < 64) {
-					unsigned iq;
-					iq = fabsl(nearbyintl(WFR0 / WFR1));
+					int iq;
+					/* result from remquol not exactly the
+					   same as remainderl in some strange
+					   edge cases */
+					remquol(WFR0, WFR1, &iq);
+					iq = abs(iq);
 					WFR0 = remainderl(WFR0, WFR1);
 					TheCPU.fpus |= ((iq & 1) <<  (9-0)) |
 						       ((iq & 2) << (14-1)) |
 						       ((iq & 4) <<  (8-2));
 				} else {
 					int n = (d & 0x1f) | 0x20;
-					long double q;
-					long double ld0 = WFR0;
-					q = truncl(WFR0 / ldexpl(WFR1, d - n));
-					WFR0 -= ldexpl(WFR1 * q, d - n);
-					if (WFR0 == 0.0 && ld0 < 0) WFR0 = -WFR0;
+					WFR0 = fmodl(WFR0, ldexpl(WFR1, d - n));
 					TheCPU.fpus |= 0x400;
 				}
 			}
@@ -847,24 +848,25 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
 			TheCPU.fpus &= ~0x4700;
-			if (!isfinite(WFR0) || isnan(WFR1) || WFR1 == 0.0) {
+			if (!isfinite(WFR0) || WFR0 == 0.0 ||
+			    !isfinite(WFR1) || WFR1 == 0.0)
 				WFR0 = fmodl(WFR0, WFR1);
-			} else if (isfinite(WFR1) && WFR0 != 0.0) {
+			else {
 				int d = ilogbl(WFR0) - ilogbl(WFR1);
 				if (d < 64) {
 					unsigned iq;
-					iq = fabsl(truncl(WFR0 / WFR1));
+					int roundingmode = fegetround();
+					fesetround(FE_TOWARDZERO);
+					iq = (uint64_t)fabsl(nearbyintl(WFR0 / WFR1));
+					fesetround(roundingmode);
+					feclearexcept(FE_ALL_EXCEPT);
 					WFR0 = fmodl(WFR0, WFR1);
 					TheCPU.fpus |= ((iq & 1) <<  (9-0)) |
 						       ((iq & 2) << (14-1)) |
 						       ((iq & 4) <<  (8-2));
 				} else {
 					int n = (d & 0x1f) | 0x20;
-					long double q;
-					long double ld0 = WFR0;
-					q = truncl(WFR0 / ldexpl(WFR1, d - n));
-					WFR0 -= ldexpl(WFR1 * q, d - n);
-					if (WFR0 == 0.0 && ld0 < 0) WFR0 = -WFR0;
+					WFR0 = fmodl(WFR0, ldexpl(WFR1, d - n));
 					TheCPU.fpus |= 0x400;
 				}
 			}
