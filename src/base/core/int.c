@@ -2443,7 +2443,9 @@ static int redir_one_drive(const char *path, int ro, int cdrom, int prm,
   int drv = find_free_drive();
   if (drv < 0) {
     error("no free drives\n");
-    if (config.boot_dos == FATFS_FD_D) {
+    if (get_lastdrive() < 7)
+      error("@Set LASTDRIVE=Z in your fdconfig.sys\n");
+    else if (config.boot_dos == FATFS_FD_D) {
       error("@-d/-K is not supported with this freedos version\n");
       leavedos(26);
     }
@@ -2453,7 +2455,9 @@ static int redir_one_drive(const char *path, int ro, int cdrom, int prm,
       grp ? REDIR_F_GRP : 0);
   if (ret != CC_SUCCESS) {
     error("INT21: redirecting %s failed (err = %d)\n", path, ret);
-    if (config.boot_dos == FATFS_FD_D && (ret == 0x55 /* duplicate redirect */
+    if (get_lastdrive() < 7)
+      error("@Set LASTDRIVE=Z in your fdconfig.sys\n");
+    else if (config.boot_dos == FATFS_FD_D && (ret == 0x55 /* duplicate redirect */
         || ret == 0xf /* invalid drive */)) {
       error("-d/-K is not supported with this freedos version\n");
       leavedos(26);
