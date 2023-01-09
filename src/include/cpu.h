@@ -323,10 +323,10 @@ extern fenv_t dosemu_fenv;
 
 #if defined(__x86_64__)
 #define loadfpstate(value) \
-	asm volatile("fxrstor64  %0\n" :: "m"(value))
+	asm volatile("fxrstor64 %0\n" :: "m"(value))
 
 #define savefpstate(value) \
-	asm volatile("fxsave64 %0; fninit\n": "=m"(value))
+	asm volatile("fxsave64 %0\n": "=m"(value))
 #elif defined (__i386__)
 #define loadfpstate(value) \
 	do { \
@@ -340,7 +340,7 @@ extern fenv_t dosemu_fenv;
 #define savefpstate(value) \
 	do { \
 		if (config.cpufxsr) { \
-			asm volatile("fxsave %0; fninit\n" : \
+			asm volatile("fxsave %0\n" : \
 				     "=m"(*((char *)&value+112))); \
 		} else \
 			asm volatile("fnsave %0; fwait\n" : "=m"(value)); \
