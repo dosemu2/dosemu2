@@ -150,17 +150,6 @@ static void ftest(void)
 	TheCPU.fpus = (fps&0xc7ff)|(TheCPU.fpstt<<11);
 }
 
-/* round long double to integer depending on rounding mode */
-static inline void round_double(void)
-{
-	switch (TheCPU.fpuc & 0xc00) {
-	case 0x000: WFR0 = rintl(WFR0); break;
-	case 0x400: WFR0 = floorl(WFR0); break;
-	case 0x800: WFR0 = ceill(WFR0); break;
-	default:    WFR0 = truncl(WFR0); break;
-	}
-}
-
 static float read_float(dosaddr_t addr)
 {
 	union { uint32_t u32; float f; } x = {.u32 = read_dword(addr)};
@@ -390,7 +379,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		case 0x1b:
 		case 0x17:
 		case 0x1f: {
-			round_double();
+			WFR0 = rintl(WFR0);
 			if (exop & 4) {
 			    if (isnan(WFR0) || isinf(WFR0) ||
 				WFR0 < (long double)-0x8000 ||
@@ -417,7 +406,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		long long b;
 		int i;
 		WFR0 = *ST0;
-		round_double();
+		WFR0 = rintl(WFR0);
 		if (isnan(WFR0) || fabsl(WFR0) >= 1000000000000000000.0L) {
 			/* store packed BCD indefinite value */
 			write_dword(p, 0);
@@ -446,7 +435,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 /*3f*/	case 0x3f: {
 //	3F	DF xx111nnn	FISTP	qw
 		WFR0 = *ST0;
-		round_double();
+		WFR0 = rintl(WFR0);
 		if (isnan(WFR0) || isinf(WFR0) ||
 		    WFR0 < (long double)(long long)0x8000000000000000ULL ||
 		    WFR0 > (long double)(long long)0x7fffffffffffffffULL) {
@@ -915,7 +904,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			break;
 		   case 4:		/* FRNDINT */
 	   		WFR0 = *ST0;
-			round_double();
+			WFR0 = rintl(WFR0);
 			ftest();
 			*ST0 = WFR0;
 			break;
