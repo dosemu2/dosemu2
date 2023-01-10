@@ -727,8 +727,7 @@ static void read_cpu_info(void)
         }
 #endif
 #ifdef __i386__
-        if (cpuflags && (strstr(cpuflags, "fxsr")) &&
-	    sizeof(vm86_fpu_state) == (112+512)) {
+        if (cpuflags && (strstr(cpuflags, "fxsr"))) {
           config.cpufxsr = 1;
 	  if (cpuflags && strstr(cpuflags, "sse"))
 	    config.cpusse = 1;

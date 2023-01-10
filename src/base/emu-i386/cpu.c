@@ -93,7 +93,7 @@ static unsigned int TRs[2] =
 #endif
 
 /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
-struct emu_fpstate vm86_fpu_state __attribute__((aligned(16)));
+emu_fpstate vm86_fpu_state __attribute__((aligned(16)));
 fenv_t dosemu_fenv;
 static void fpu_reset(void);
 
@@ -241,15 +241,11 @@ static void fpu_init(void)
 
 static void fpu_reset(void)
 {
-#ifdef __x86_64__
   vm86_fpu_state.cwd = 0x0040;
   vm86_fpu_state.swd = 0;
   vm86_fpu_state.ftw = 0x5555;       //bochs
-#else
-  vm86_fpu_state.cw = 0x40;
-  vm86_fpu_state.sw = 0;
-  vm86_fpu_state.tag = 0x5555;       // bochs
-#endif
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+    kvm_update_fpu();
 }
 
 static Bit8u fpu_io_read(ioport_t port)
@@ -262,11 +258,7 @@ static void fpu_io_write(ioport_t port, Bit8u val)
   switch (port) {
   case 0xf0:
     /* not sure about this */
-#ifdef __x86_64__
     vm86_fpu_state.swd &= ~0x8000;
-#else
-    vm86_fpu_state.sw &= ~0x8000;
-#endif
     break;
   case 0xf1:
     fpu_reset();
@@ -374,4 +366,71 @@ void cpu_setup(void)
   }
   init_emu_cpu();
 #endif
+}
+
+
+void fxsave_to_fsave(const struct emu_fpxstate *fxsave, struct emu_fsave *fptr)
+{
+  unsigned int tmp;
+  int i;
+
+  fptr->cw = fxsave->cwd | 0xffff0000u;
+  fptr->sw = fxsave->swd | 0xffff0000u;
+  /* Expand the valid bits */
+  tmp = fxsave->ftw;			/* 00000000VVVVVVVV */
+  tmp = (tmp | (tmp << 4)) & 0x0f0f;	/* 0000VVVV0000VVVV */
+  tmp = (tmp | (tmp << 2)) & 0x3333;	/* 00VV00VV00VV00VV */
+  tmp = (tmp | (tmp << 1)) & 0x5555;	/* 0V0V0V0V0V0V0V0V */
+  /* Transform each bit from 1 to 00 (valid) or 0 to 11 (empty).
+     The kernel will convert it back, so no need to worry about zero
+     and special states 01 and 10. */
+  tmp = ~(tmp | (tmp << 1));
+  fptr->tag = tmp | 0xffff0000u;
+  fptr->ipoff = fxsave->fip;
+  fptr->cssel = (uint16_t)fxsave->fcs | ((uint32_t)fxsave->fop << 16);
+  fptr->dataoff = fxsave->fdp;
+  fptr->datasel = fxsave->fds;
+  for (i = 0; i < 8; i++)
+    memcpy(&fptr->st[i], &fxsave->st[i], sizeof(fptr->st[i]));
+}
+
+/*
+ * FPU tag word conversions.
+ */
+static unsigned short twd_i387_to_fxsr(unsigned short twd)
+{
+	unsigned int tmp; /* to avoid 16 bit prefixes in the code */
+
+	/* Transform each pair of bits into 01 (valid) or 00 (empty) */
+	tmp = ~twd;
+	tmp = (tmp | (tmp>>1)) & 0x5555; /* 0V0V0V0V0V0V0V0V */
+	/* and move the valid bits to the lower byte. */
+	tmp = (tmp | (tmp >> 1)) & 0x3333; /* 00VV00VV00VV00VV */
+	tmp = (tmp | (tmp >> 2)) & 0x0f0f; /* 0000VVVV0000VVVV */
+	tmp = (tmp | (tmp >> 4)) & 0x00ff; /* 00000000VVVVVVVV */
+
+	return tmp;
+}
+
+/* NOTE: this function does NOT memset the "unused" fxsave fields.
+ * We preserve the previous fxsave context. */
+void fsave_to_fxsave(const struct emu_fsave *fptr, struct emu_fpxstate *fxsave)
+
+{
+	int i;
+
+	fxsave->cwd = fptr->cw;
+	fxsave->swd = fptr->sw;
+	fxsave->ftw = twd_i387_to_fxsr(fptr->tag);
+	fxsave->fop = (uint16_t) ((uint32_t) fptr->cssel >> 16);
+	fxsave->fip = fptr->ipoff;
+	fxsave->fcs = (fptr->cssel & 0xffff);
+	fxsave->fdp = fptr->dataoff;
+	fxsave->fds = fptr->datasel;
+
+	for (i = 0; i < 8; ++i) {
+		/* fxsave's regs are larger so memset first */
+		memset(&fxsave->st[i], 0, sizeof(fxsave->st[0]));
+		memcpy(&fxsave->st[i], &fptr->st[i], sizeof(fptr->st[0]));
+	}
 }
