@@ -770,7 +770,7 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 //	71.7	D9 11110111	FINCSTP
 		   case 0:		/* F2XM1 */
 	   		WFR0 = *ST0;
-			WFR0 = exp2l(WFR0) - 1.0;
+			WFR0 = expm1l(WFR0*M_LN2l);
 			*ST0 = WFR0;
 			break;
 		   case 1:		/* FYL2X */
@@ -780,7 +780,7 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 				WFR0 = -NAN;
 				TheCPU.fpus |= FPUS_IE;
 			} else if (WFR0 == 0.0) {
-				WFR0 = -INFINITY;
+				WFR0 = signbit(WFR1) ? INFINITY : -INFINITY;
 				TheCPU.fpus |= FPUS_ZE;
 			} else {
 				WFR0 = WFR1 * log2l(WFR0);
@@ -912,7 +912,7 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
 			if (WFR0 > -1.0)
-				WFR0 = WFR1 * log2l(WFR0 + 1.0);
+				WFR0 = (WFR1 / M_LN2l) * log1pl(WFR0);
 			INCFSPP;
 			*ST0 = WFR0;
 			break;
