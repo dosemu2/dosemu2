@@ -61,55 +61,45 @@ union word {
   struct { Bit8u l, h; } b;
 } MAY_ALIAS;
 
-#define __ctx(fld) fld
-#ifdef __x86_64__
-/* taken from glibc, don't blame me :) */
-struct __fpxreg
-{
-  unsigned short int __ctx(significand)[4];
-  unsigned short int __ctx(exponent);
-  unsigned short int __glibc_reserved1[3];
+struct emu_fsave {
+  uint32_t		cw;
+  uint32_t		sw;
+  uint32_t		tag;
+  uint32_t		ipoff;
+  uint32_t		cssel;
+  uint32_t		dataoff;
+  uint32_t		datasel;
+  struct { uint16_t element[5]; } st[8];
 };
-struct __xmmreg
-{
-  __uint32_t	__ctx(element)[4];
+
+struct emu_fpxstate {
+  /* 32-bit FXSAVE format in 64bit mode (same as in 32bit mode but more xmms) */
+  uint16_t		cwd;
+  uint16_t		swd;
+  uint16_t		ftw;
+  uint16_t		fop;
+  uint32_t		fip;
+  uint32_t		fcs;
+  uint32_t		fdp;
+  uint32_t		fds;
+  uint32_t		mxcsr;
+  uint32_t		mxcr_mask;
+  struct { uint32_t element[4]; } st[8];
+  struct { uint32_t element[4]; } xmm[16];
+  struct { uint32_t element[4]; } reserved[3];
+  struct { uint32_t element[4]; } scratch[3];
 };
-struct emu_fpstate
-{
-  /* 64-bit FXSAVE format.  */
-  uint16_t		__ctx(cwd);
-  uint16_t		__ctx(swd);
-  uint16_t		__ctx(ftw);
-  uint16_t		__ctx(fop);
-  uint64_t		__ctx(rip);
-  uint64_t		__ctx(rdp);
-  uint32_t		__ctx(mxcsr);
-  uint32_t		__ctx(mxcr_mask);
-  struct __fpxreg	_st[8];
-  struct __xmmreg	_xmm[16];
-  uint32_t		__glibc_reserved1[24];
-};
-#else
-struct __fpreg
-{
-  unsigned short int __ctx(significand)[4];
-  unsigned short int __ctx(exponent);
-};
-struct emu_fpstate
-{
-  unsigned long int __ctx(cw);
-  unsigned long int __ctx(sw);
-  unsigned long int __ctx(tag);
-  unsigned long int __ctx(ipoff);
-  unsigned long int __ctx(cssel);
-  unsigned long int __ctx(dataoff);
-  unsigned long int __ctx(datasel);
-  struct __fpreg _st[8];
-  unsigned long int __ctx(status);
-};
-#endif
+
+static_assert(sizeof(struct emu_fpxstate) == 512, "size mismatch");
+
+void fxsave_to_fsave(const struct emu_fpxstate *fxsave,
+    struct emu_fsave *fptr);
+void fsave_to_fxsave(const struct emu_fsave *fptr,
+    struct emu_fpxstate *fxsave);
+
 /* Structure to describe FPU registers.  */
-typedef struct emu_fpstate *emu_fpregset_t;
+typedef struct emu_fpxstate emu_fpstate;
+typedef emu_fpstate *emu_fpregset_t;
 
 union g_reg {
   greg_t reg;
@@ -241,7 +231,7 @@ static inline dosaddr_t FAR2ADDR(far_t ptr) {
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
 
-extern struct emu_fpstate vm86_fpu_state;
+extern emu_fpstate vm86_fpu_state;
 extern fenv_t dosemu_fenv;
 
 /*
@@ -321,30 +311,37 @@ extern fenv_t dosemu_fenv;
 #define getsegment(reg) 0
 #endif
 
+static inline void loadfpstate_legacy(emu_fpstate *buf)
+{
+	struct emu_fsave fsave;
+	fxsave_to_fsave(buf, &fsave);
+	asm volatile("frstor %0\n" :: "m"(fsave));
+}
+
+static inline void savefpstate_legacy(emu_fpstate *buf)
+{
+	struct emu_fsave fsave;
+	asm volatile("fnsave %0; fwait\n" : "=m"(fsave));
+	fsave_to_fxsave(&fsave, buf);
+}
+
 #if defined(__x86_64__)
-#define loadfpstate(value) \
-	asm volatile("fxrstor64 %0\n" :: "m"(value))
-
-#define savefpstate(value) \
-	asm volatile("fxsave64 %0\n": "=m"(value))
+/* use 32bit versions */
+#define loadfpstate(value) asm volatile("fxrstor %0\n" :: "m"(value))
+#define savefpstate(value) asm volatile("fxsave %0\n" : "=m"(value))
 #elif defined (__i386__)
-#define loadfpstate(value) \
-	do { \
-		if (config.cpufxsr) \
-			asm volatile("fxrstor %0\n" :: \
-				    "m"(*((char *)&value+112))); \
-		else \
-			asm volatile("frstor %0\n" :: "m"(value)); \
-	} while(0)
-
-#define savefpstate(value) \
-	do { \
-		if (config.cpufxsr) { \
-			asm volatile("fxsave %0\n" : \
-				     "=m"(*((char *)&value+112))); \
-		} else \
-			asm volatile("fnsave %0; fwait\n" : "=m"(value)); \
-	} while(0)
+#define loadfpstate(value) do { \
+	if (config.cpufxsr) \
+		asm volatile("fxrstor %0\n" :: "m"(value)); \
+	else \
+		loadfpstate_legacy(&value); \
+} while (0)
+#define savefpstate(value) do { \
+	if (config.cpufxsr) \
+		asm volatile("fxsave %0\n" : "=m"(value)); \
+	else \
+		savefpstate_legacy(&value); \
+}
 #else
 #define loadfpstate(value)
 #define savefpstate(value)

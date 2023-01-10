@@ -34,6 +34,7 @@
 #include "dpmisel.h"
 #include "dnative.h"
 
+#define EMU_X86_FXSR_MAGIC	0x0000
 static coroutine_t dpmi_tid;
 static cohandle_t co_handle;
 static int dpmi_ret_val;
@@ -46,16 +47,35 @@ static int dpmi_thr_running;
 static void copy_context(sigcontext_t *d, sigcontext_t *s)
 {
 #ifdef __linux__
+  /* keep pointer to FPU state the same */
   fpregset_t fptr = d->fpregs;
 #endif
   *d = *s;
 #ifdef __linux__
-  if (fptr == s->fpregs)
-    dosemu_error("Copy FPU context between the same locations?\n");
-  *fptr = *s->fpregs;
   d->fpregs = fptr;
 #endif
 }
+
+#ifdef __i386__
+/* On i386 only, if SSE is available (i.e. since the Pentium III),
+   the kernel will use FXSAVE to save FPU state, then put the following
+   on the signal stack:
+   * FXSAVE format converted to FSAVE format (108 bytes)
+   * status and magic field where magic == X86_FXSR_MAGIC (4 bytes)
+   * FXSAVE format (512 bytes), which can be used directly by our loadfpstate
+   However, when restoring FPU state it will only use the mxcsr and xmm
+   fields from the FXSAVE format, and take everything else from the FSAVE
+   format, so we must "undo" the kernel logic and put those fields into the
+   FSAVE region.
+   see also arch/x86/kernel/fpu/regset.c in Linux kernel */
+static void convert_from_fxsr(fpregset_t fptr,
+			      const struct emu_fpxstate *fxsave)
+{
+  static_assert(sizeof(*fptr) == sizeof(struct emu_fsave),
+		  "size mismatch");
+  fxsave_to_fsave(fxsave, (struct emu_fsave *)fptr);
+}
+#endif
 
 static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
 {
@@ -85,9 +105,21 @@ static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
   _C(trapno);
   _C(err);
   _C(cr2);
-  static_assert(sizeof(*scp->fpregs) == sizeof(vm86_fpu_state),
-		"size mismatch");
-  scp->fpregs = (fpregset_t)&vm86_fpu_state;
+
+  if (scp->fpregs) {
+    void *fpregs = scp->fpregs;
+#ifdef __x86_64__
+    static_assert(sizeof(*scp->fpregs) == sizeof(vm86_fpu_state),
+		  "size mismatch");
+#else
+    /* i386: convert fxsave state to fsave state */
+    convert_from_fxsr(scp->fpregs, &vm86_fpu_state);
+    if ((scp->fpregs->status >> 16) != EMU_X86_FXSR_MAGIC)
+      return;
+    fpregs = &scp->fpregs->status + 1;
+#endif
+    memcpy(fpregs, &vm86_fpu_state, sizeof(vm86_fpu_state));
+  }
 }
 
 static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
@@ -112,10 +144,21 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
   _D(trapno);
   _D(err);
   _D(cr2);
-  if (scp->fpregs && scp->fpregs != (fpregset_t)&vm86_fpu_state) {
+  if (scp->fpregs) {
+    void *fpregs = scp->fpregs;
+#ifdef __x86_64__
     static_assert(sizeof(*scp->fpregs) == sizeof(vm86_fpu_state),
 		"size mismatch");
-    memcpy(&vm86_fpu_state, scp->fpregs, sizeof(*scp->fpregs));
+#else
+    if ((scp->fpregs->status >> 16) == EMU_X86_FXSR_MAGIC)
+      fpregs = &scp->fpregs->status + 1;
+    else {
+      static struct emu_fpxstate tmp;
+      fsave_to_fxsave(fpregs, &tmp);
+      fpregs = &tmp;
+    }
+#endif
+    memcpy(&vm86_fpu_state, fpregs, sizeof(vm86_fpu_state));
   }
 }
 
@@ -200,15 +243,18 @@ void dpmi_return(sigcontext_t *scp, int retcode)
     }
     dpmi_ret_val = retcode;
     if (retcode == DPMI_RET_EXIT) {
-        *scp = emu_stack_frame;
+        copy_context(scp, &emu_stack_frame);
         return;
     }
     copy_to_emu(dpmi_get_scp(), scp);
+    /* signal handlers start with clean FPU state, but we unmask
+       overflow/division by zero in main code */
+    fesetenv(&dosemu_fenv);
     signal_return_to_dosemu();
     co_resume(co_handle);
     signal_return_to_dpmi();
     if (dpmi_ret_val == DPMI_RET_EXIT)
-        *scp = emu_stack_frame;
+        copy_context(scp, &emu_stack_frame);
     else
         copy_to_dpmi(scp, dpmi_get_scp());
 }
@@ -217,9 +263,6 @@ static void dpmi_switch_sa(int sig, siginfo_t * inf, void *uc)
 {
     ucontext_t *uct = uc;
     sigcontext_t *scp = &uct->uc_mcontext;
-#ifdef __linux__
-    emu_stack_frame.fpregs = aligned_alloc(16, sizeof(*_scp_fpstate));
-#endif
     copy_context(&emu_stack_frame, scp);
     copy_to_dpmi(scp, dpmi_get_scp());
     sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
@@ -242,9 +285,8 @@ static void indirect_dpmi_transfer(void)
     pthread_kill(pthread_self(), DPMI_TMP_SIG);
     /* and we are back */
     signal_set_altstack(0);
-#ifdef __linux__
-    free(emu_stack_frame.fpregs);
-#endif
+    /* we inherited FPU state from DPMI, so put back to DOSEMU state */
+    fesetenv(&dosemu_fenv);
 }
 
 static void dpmi_thr(void *arg)

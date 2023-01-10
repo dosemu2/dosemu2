@@ -117,9 +117,13 @@ static struct monitor {
     unsigned char padding2[0x3000-0x2200
 	-IDT_ENTRIES*sizeof(Gatedesc)
 	-sizeof(unsigned int)
+	-sizeof(unsigned int)*2
+	-sizeof(struct emu_fpxstate)
 	-sizeof(struct vm86_regs)];          /* 2308 */
-    unsigned int cr2;         /* Fault stack at 2FA8 */
+    unsigned int cr2;         /* Fault stack at 2DA0 */
     struct vm86_regs regs;
+    unsigned padding[2];
+    struct emu_fpxstate fpstate;             /* 2e00 */
     /* 3000: page directory, 4000: page table */
     unsigned int pde[PAGE_SIZE/sizeof(unsigned int)];
     unsigned int pte[(PAGE_SIZE*PAGE_SIZE)/sizeof(unsigned int)
@@ -346,6 +350,11 @@ static int init_kvm_vcpu(void)
   error("kernel is too old, KVM unsupported\n");
   return 0;
 #endif
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_XSAVE);
+  if (ret <= 0) {
+    error("KVM: XSAVE unsupported %x\n", ret);
+    return 0;
+  }
 
   /* this call is only there to shut up the kernel saying
      "KVM_SET_TSS_ADDR need to be called before entering vcpu"
@@ -776,6 +785,35 @@ static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
   seg->unusable = !desc->present;
 }
 
+void kvm_update_fpu(void)
+{
+  struct kvm_xsave fpu = {};
+  int ret;
+
+  memcpy(fpu.region, &vm86_fpu_state, sizeof(vm86_fpu_state));
+  ret = ioctl(vcpufd, KVM_SET_XSAVE, &fpu);
+  if (ret == -1) {
+    perror("KVM: KVM_SET_XSAVE");
+    leavedos_main(99);
+  }
+}
+
+void kvm_enter(int pm)
+{
+  kvm_update_fpu();
+}
+
+void kvm_leave(int pm)
+{
+  struct kvm_xsave fpu;
+  int ret = ioctl(vcpufd, KVM_GET_XSAVE, &fpu);
+  if (ret == -1) {
+    perror("KVM: KVM_GET_XSAVE");
+    leavedos_main(99);
+  }
+  memcpy(&vm86_fpu_state, fpu.region, sizeof(vm86_fpu_state));
+}
+
 static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
 {
   int ret = ioctl(vcpufd, KVM_GET_REGS, kregs);
@@ -827,11 +865,12 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
 }
 
 /* Inner loop for KVM, runs until HLT or signal */
-static unsigned int kvm_run(struct vm86_regs *regs)
+static unsigned int kvm_run(void)
 {
   unsigned int exit_reason = 0;
   struct kvm_regs kregs = {};
   static struct vm86_regs saved_regs;
+  struct vm86_regs *regs = &monitor->regs;
 
   if (run->exit_reason != KVM_EXIT_HLT &&
       memcmp(regs, &saved_regs, sizeof(*regs))) {
@@ -852,7 +891,7 @@ static unsigned int kvm_run(struct vm86_regs *regs)
     kregs.rflags = regs->eflags;
     ret = ioctl(vcpufd, KVM_SET_REGS, &kregs);
     if (ret == -1) {
-      perror("KVM: KVM_GET_REGS");
+      perror("KVM: KVM_SET_REGS");
       leavedos_main(99);
     }
 
@@ -980,6 +1019,9 @@ int kvm_vm86(struct vm86_struct *info)
 
   regs = &monitor->regs;
   *regs = info->regs;
+#if 0
+  memcpy(&monitor->fpstate, &vm86_fpu_state, sizeof(vm86_fpu_state));
+#endif
   monitor->int_revectored = info->int_revectored;
   monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
 
@@ -987,7 +1029,7 @@ int kvm_vm86(struct vm86_struct *info)
   regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
 
   do {
-    exit_reason = kvm_run(regs);
+    exit_reason = kvm_run();
 
     vm86_ret = VM86_SIGNAL;
     if (exit_reason != KVM_EXIT_HLT) break;
@@ -1007,6 +1049,10 @@ int kvm_vm86(struct vm86_struct *info)
 
   info->regs = *regs;
   info->regs.eflags |= X86_EFLAGS_IOPL;
+#if 0
+  /* we do not update fpstate for performance reasons */
+  memcpy(&vm86_fpu_state, &monitor->fpstate, sizeof(vm86_fpu_state));
+#endif
   if (vm86_ret == VM86_SIGNAL && exit_reason == KVM_EXIT_HLT) {
     unsigned trapno = (regs->orig_eax >> 16) & 0xff;
     unsigned err = regs->orig_eax & 0xffff;
@@ -1029,7 +1075,9 @@ int kvm_dpmi(cpuctx_t *scp)
 
   monitor->tss.esp0 = offsetof(struct monitor, regs) +
     offsetof(struct vm86_regs, es);
-
+#if 0
+  memcpy(&monitor->fpstate, &vm86_fpu_state, sizeof(vm86_fpu_state));
+#endif
   regs = &monitor->regs;
   do {
     regs->eax = _eax;
@@ -1054,7 +1102,7 @@ int kvm_dpmi(cpuctx_t *scp)
             X86_EFLAGS_IF);
     regs->eflags |= X86_EFLAGS_FIXED;
 
-    exit_reason = kvm_run(regs);
+    exit_reason = kvm_run();
 
     _eax = regs->eax;
     _ebx = regs->ebx;
@@ -1074,6 +1122,11 @@ int kvm_dpmi(cpuctx_t *scp)
     _gs = regs->__null_gs;
 
     _eflags = regs->eflags;
+
+#if 0
+  /* we do not update fpstate for performance reasons */
+  memcpy(&vm86_fpu_state, &monitor->fpstate, sizeof(vm86_fpu_state));
+#endif
 
     ret = DPMI_RET_DOSEMU; /* mirroring sigio/sigalrm */
     if (exit_reason == KVM_EXIT_HLT) {
