@@ -70,6 +70,7 @@ struct emu_fsave {
   uint32_t		dataoff;
   uint32_t		datasel;
   struct { uint16_t element[5]; } st[8];
+  uint32_t		status;
 };
 
 struct emu_fpxstate {
@@ -341,7 +342,7 @@ static inline void savefpstate_legacy(emu_fpstate *buf)
 		asm volatile("fxsave %0\n" : "=m"(value)); \
 	else \
 		savefpstate_legacy(&value); \
-}
+} while (0)
 #else
 #define loadfpstate(value)
 #define savefpstate(value)
