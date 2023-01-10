@@ -275,6 +275,7 @@ extern int  (*Fp87_op)(int exop, int reg);
 extern unsigned int (*CloseAndExec)(unsigned int PC, int mode, int ln);
 void EndGen(void);
 extern void fp87_set_rounding(void);
+extern void fp87_save_except(void);
 //
 extern unsigned char InterOps[];
 extern char RmIsReg[];

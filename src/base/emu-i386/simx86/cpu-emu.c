@@ -572,6 +572,8 @@ void Cpu2Reg (void)
   if (TheCPU.fpstate == NULL) {
     if (!CONFIG_CPUSIM)
       savefpstate(vm86_fpu_state);
+    else
+      fp87_save_except();
     fesetenv(&dosemu_fenv);
   }
 
@@ -650,6 +652,8 @@ static void Cpu2Scp (cpuctx_t *scp, int trapno)
   if (TheCPU.fpstate == NULL) {
     if (!CONFIG_CPUSIM)
       savefpstate(vm86_fpu_state);
+    else
+      fp87_save_except();
     /* there is no real need to save and restore the FPU state of the
        emulator itself: savefpstate (fnsave) also resets the current FPU
        state using fninit; fesetenv then restores trapping of division by
