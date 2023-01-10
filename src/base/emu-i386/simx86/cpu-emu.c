@@ -572,9 +572,9 @@ void Cpu2Reg (void)
   if (TheCPU.fpstate == NULL) {
     if (!CONFIG_CPUSIM)
       savefpstate(vm86_fpu_state);
-#ifdef HOST_ARCH_X86
+    else
+      fp87_save_except();
     fesetenv(&dosemu_fenv);
-#endif
   }
 
   if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08x dpm=%08x emu=%08x\n",
@@ -652,15 +652,15 @@ static void Cpu2Scp (cpuctx_t *scp, int trapno)
   if (TheCPU.fpstate == NULL) {
     if (!CONFIG_CPUSIM)
       savefpstate(vm86_fpu_state);
+    else
+      fp87_save_except();
     /* there is no real need to save and restore the FPU state of the
        emulator itself: savefpstate (fnsave) also resets the current FPU
        state using fninit; fesetenv then restores trapping of division by
        zero and overflow which is good enough for calling FPU-using
        routines.
     */
-#ifdef HOST_ARCH_X86
     fesetenv(&dosemu_fenv);
-#endif
   }
 
   /* push running flags - same as eflags, RF is cosmetic */

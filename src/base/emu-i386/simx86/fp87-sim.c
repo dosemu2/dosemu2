@@ -40,6 +40,37 @@
 #include "codegen.h"
 #include "codegen-sim.h"
 
+#define FPUS_IE (1 << 0)
+#define FPUS_DE (1 << 1)
+#define FPUS_ZE (1 << 2)
+#define FPUS_OE (1 << 3)
+#define FPUS_UE (1 << 4)
+#define FPUS_PE (1 << 5)
+#define FPUS_SF (1 << 6)
+#define FPUS_ES (1 << 7)
+#define FPUS_C0 (1 << 8)
+#define FPUS_C1 (1 << 9)
+#define FPUS_C2 (1 << 10)
+#define FPUS_TOP ((1 << 11) | (1 << 12) | (1 << 13))
+#define FPUS_TOP_BIT 11
+#define FPUS_C3 (1 << 14)
+#define FPUS_B  (1 << 15)
+#define FPUS_C  (FPUS_C0 | FPUS_C1 | FPUS_C2 | FPUS_C3)
+
+// These are GNU extensions, so define them here if not already
+#ifndef M_PIl
+#define M_PIl 3.141592653589793238462643383279502884L
+#endif
+#ifndef M_LN2l
+#define M_LN2l 0.693147180559945309417232121458176568L
+#endif
+#ifndef M_LN10l
+#define M_LN10l 2.302585092994045684017991454684364208L
+#endif
+#ifndef M_LOG2El
+#define M_LOG2El 1.442695040888963407359924681001892137L
+#endif
+
 int (*Fp87_op)(int exop, int reg);
 static int Fp87_op_sim(int exop, int reg);
 
@@ -55,7 +86,7 @@ static long double WFR0, WFR1;
 /* Note: 0 / special values for tag word are only done for FSTENV and FSAVE */
 #define FREETAG(n)	TheCPU.fptag |= (3 << 2*S_reg(TheCPU.fpstt,n))
 #define UNFREETAG(n)	TheCPU.fptag &= ~(3 << 2*S_reg(TheCPU.fpstt,n))
-#define SYNCFSP		TheCPU.fpus=(TheCPU.fpus&0xc7ff)|(TheCPU.fpstt<<11)
+#define SYNCFSP		TheCPU.fpus=(TheCPU.fpus&~FPUS_TOP)|(TheCPU.fpstt<<FPUS_TOP_BIT)
 #define INCFSP		TheCPU.fpstt=S_next(TheCPU.fpstt),SYNCFSP
 #define INCFSPP		FREETAG(0),TheCPU.fpstt=S_next(TheCPU.fpstt),SYNCFSP
 #define DECFSP		TheCPU.fpstt=S_prev(TheCPU.fpstt),SYNCFSP
@@ -82,55 +113,65 @@ void init_emu_npu (void)
 	WFR0 = WFR1 = 0.0;
 }
 
+void fp87_set_rounding(void)
+{
+	switch (TheCPU.fpuc & 0xc00) {
+	case 0x000: fesetround(FE_TONEAREST); break;
+	case 0x400: fesetround(FE_DOWNWARD); break;
+	case 0x800: fesetround(FE_UPWARD); break;
+	default:    fesetround(FE_TOWARDZERO); break;
+	}
+}
+
 static void fxam(long double d)
 {
-	unsigned short fps = TheCPU.fpus & ~0x4700;
+	unsigned short fps = TheCPU.fpus & ~FPUS_C;
 
 	// https://www.felixcloutier.com/x86/fxam
 	// bits in status word: c0:8, c1:9, c2:10, c3:14
-	switch(fpclassify(d)) {
+	// isnan() sets FE_INVALID for signaling NaNs, but fxam does not
+	fp87_save_except();
+	if (((TheCPU.fptag >> 2*S_reg(TheCPU.fpstt,0)) & 3) == 3)
+		fps |= 0x4100; // empty
+	else if (!iscanonical(d))
+		fps |= isnan(d) ? 0x0 : 0x4400; // pseudo normal/denormal
+	else switch(fpclassify(d)) {
 	case FP_NAN:
-		fps |= 0x100;
+		fps |= FPUS_C0;
 		break;
 	case FP_INFINITE:
-		fps |= 0x500;
+		fps |= FPUS_C0 | FPUS_C2;
 		break;
 	case FP_ZERO:
-		fps |= 0x4000;
+		fps |= FPUS_C3;
 		break;
 	case FP_SUBNORMAL:
-		fps |= 0x4400;
+		fps |= FPUS_C2 | FPUS_C3;
 		break;
 	case FP_NORMAL:
 	default:
-		fps |= 0x400;
+		fps |= FPUS_C2;
 		break;
 	}
-	if (signbit(d)) fps |= 0x200;
-	TheCPU.fpus = (fps&0xc7df)|(TheCPU.fpstt<<11);
+	if (signbit(d)) fps |= FPUS_C1;
+	TheCPU.fpus = (fps&~FPUS_TOP)|(TheCPU.fpstt<<FPUS_TOP_BIT);
+	feclearexcept(FE_ALL_EXCEPT);
 }
 
-static void ftest(void)
+/* we keep the masked exception state on the native FPU except if
+   access to the status word is needed (FSTSW/FSTENV/FSAVE)
+   and if some emulator code can cause exceptions, in which case
+   we need to save before and clear after */
+void fp87_save_except(void)
 {
 	unsigned short fps = TheCPU.fpus;
 	int exceptions = fetestexcept(FE_ALL_EXCEPT);
-	if (exceptions & FE_INVALID) fps |= 0x1;
-	if (exceptions & FE_DIVBYZERO) fps |= 0x4;
-	if (exceptions & FE_OVERFLOW) fps |= 0x8;
-	if (exceptions & FE_UNDERFLOW) fps |= 0x10;
-	if (exceptions & FE_INEXACT) fps |= 0x20;
-	TheCPU.fpus = (fps&0xc7df)|(TheCPU.fpstt<<11);
-}
-
-/* round long double to integer depending on rounding mode */
-static inline void round_double(void)
-{
-	switch (TheCPU.fpuc & 0xc00) {
-	case 0x000: WFR0 = rintl(WFR0); break;
-	case 0x400: WFR0 = floorl(WFR0); break;
-	case 0x800: WFR0 = ceill(WFR0); break;
-	default:    WFR0 = truncl(WFR0); break;
-	}
+	if (exceptions & FE_INVALID) fps |= FPUS_IE;
+	if (exceptions & FE_DIVBYZERO) fps |= FPUS_ZE;
+	if (exceptions & FE_OVERFLOW) fps |= FPUS_OE;
+	if (exceptions & FE_UNDERFLOW) fps |= FPUS_UE;
+	if (exceptions & FE_INEXACT) fps |= FPUS_PE;
+	TheCPU.fpus = (fps&~FPUS_TOP)|(TheCPU.fpstt<<FPUS_TOP_BIT);
 }
 
 static float read_float(dosaddr_t addr)
@@ -300,7 +341,6 @@ static int Fp87_op_sim(int exop, int reg)
 		case 0x3c: WFR0 = (long double)read_double(AR1.d) / WFR0; break;
 		case 0x3e: WFR0 = (long double)(int16_t)read_word(AR1.d) / WFR0; break;
 		}
-		ftest();
 		*ST0 = WFR0;
 		break;
 
@@ -346,13 +386,14 @@ static int Fp87_op_sim(int exop, int reg)
 		case 0x1c: WFR1 = (long double)read_double(AR1.d); goto fcom00;
 		case 0x16:
 		case 0x1e: WFR1 = (long double)(int16_t)read_word(AR1.d);
-fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 			if (WFR0 < WFR1)
-			    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+			    TheCPU.fpus |= FPUS_C0;
 				else if (WFR0 == WFR1)
-				    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+				    TheCPU.fpus |= FPUS_C3;
 				else if (WFR0 > WFR1);  /* do nothing */
-			        else /* not comparable */ TheCPU.fpus |= 0x4500;
+			        else /* not comparable */
+				    TheCPU.fpus |= FPUS_C0 | FPUS_C2 | FPUS_C3;
 			    break;
 		case 0x11:
 		case 0x19: write_float(AR1.d, WFR0); break;
@@ -362,22 +403,26 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		case 0x1b:
 		case 0x17:
 		case 0x1f: {
-			round_double();
+			WFR0 = nearbyintl(WFR0);
 			if (exop & 4) {
 			    if (isnan(WFR0) || isinf(WFR0) ||
 				WFR0 < (long double)-0x8000 ||
 				WFR0 > (long double)0x7fff) {
-				TheCPU.fpus |= 1;
+				TheCPU.fpus |= FPUS_IE;
 				WFR0 = (long double)-0x8000;
 			    }
+			    else if (WFR0 != *ST0) /* flag inexact */
+				TheCPU.fpus |= FPUS_PE;
 			    write_word(AR1.d, (int16_t)WFR0); break;
 			}
 			if (isnan(WFR0) || isinf(WFR0) ||
 			    WFR0 < -(long double)0x80000000 ||
 			    WFR0 >  (long double)0x7fffffff) {
-			    TheCPU.fpus |= 1;
+			    TheCPU.fpus |= FPUS_IE;
 			    WFR0 = -(long double)0x80000000;
 			}
+			else if (WFR0 != *ST0) /* flag inexact */
+			    TheCPU.fpus |= FPUS_PE;
 			write_dword(AR1.d, (int32_t)WFR0); break; }
 		}
 		if (exop&8) INCFSPP;
@@ -389,10 +434,20 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		long long b;
 		int i;
 		WFR0 = *ST0;
-		round_double();
-		b = WFR0;
-		write_byte(p+9, b < 0 ? 0x80 : 0);
-		b = llabs(b);
+		WFR0 = nearbyintl(WFR0);
+		if (isnan(WFR0) || fabsl(WFR0) >= 1000000000000000000.0L) {
+			/* store packed BCD indefinite value */
+			write_dword(p, 0);
+			write_word(p+4, 0);
+			write_dword(p+6, 0xffffc000u);
+			TheCPU.fpus |= FPUS_IE;
+			INCFSPP;
+			break;
+		}
+		else if (WFR0 != *ST0)
+			TheCPU.fpus |= FPUS_PE;
+		write_byte(p+9, signbit(WFR0) ? 0x80 : 0);
+		b = llabs(WFR0);
 		for (i=0; i < 9; i++) {
 			uint8_t u = b % 10;
 			b /= 10;
@@ -411,13 +466,15 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 /*3f*/	case 0x3f: {
 //	3F	DF xx111nnn	FISTP	qw
 		WFR0 = *ST0;
-		round_double();
+		WFR0 = nearbyintl(WFR0);
 		if (isnan(WFR0) || isinf(WFR0) ||
 		    WFR0 < (long double)(long long)0x8000000000000000ULL ||
 		    WFR0 > (long double)(long long)0x7fffffffffffffffULL) {
-		    TheCPU.fpus |= 1;
+		    TheCPU.fpus |= FPUS_IE;
 		    WFR0 = (long double)(long long)0x8000000000000000ULL;
 		}
+		else if (WFR0 != *ST0)
+		    TheCPU.fpus |= FPUS_PE;
 		write_qword(AR1.d, (int64_t)WFR0);
 		INCFSPP;
 		}
@@ -425,6 +482,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 /*29*/	case 0x29:
 //*	29	D9 xx101nnn	FLDCW	2b
 		TheCPU.fpuc = read_word(AR1.d) | 0x40;
+		fp87_set_rounding();
 		break;
 /*39*/	case 0x39:
 //*	39	D9 xx111nnn	FSTCW	2b
@@ -442,6 +500,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		// shll	11,ecx
 		// orl	ecx,eax
 		SYNCFSP;
+		fp87_save_except();
 		if (exop==0x3d) {
 			// movw	ax,(edi)
 			write_word(AR1.d, TheCPU.fpus);
@@ -473,7 +532,6 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		case 0x70: WFR0 /= WFR1; break;
 		case 0x78: WFR0  = WFR1 / WFR0; break;
 		}
-		ftest();
 		*ST0 = WFR0;
 		break;
 
@@ -483,13 +541,14 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //*	58	D8 11011nnn	FCOMP	st,st(n)
 		WFR0 = *ST0;
 		WFR1 = *STn(reg);
-		TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+		TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 		if (WFR0 < WFR1)
-		    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+		    TheCPU.fpus |= FPUS_C0;
 			else if (WFR0 == WFR1)
-			    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+			    TheCPU.fpus |= FPUS_C3;
 			else if (WFR0 > WFR1); /* do nothing */
-			else /* not comparable */ TheCPU.fpus |= 0x4500;
+			else /* not comparable */
+			    TheCPU.fpus |= FPUS_C0 | FPUS_C2 | FPUS_C3;
 		if (exop&8) INCFSPP;
 		break;
 
@@ -501,13 +560,13 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //	6A.1	DA 11101001	FUCOMPP
 		WFR0 = *ST0;
 		WFR1 = *STn(reg);
-		TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-		if (WFR0 < WFR1)
-		    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+		TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
+		if (isnan(WFR0) || isnan(WFR1)) /* avoids FE_INVALID for QNaN */
+		    TheCPU.fpus |= FPUS_C0 | FPUS_C2 | FPUS_C3;
+		else if (WFR0 < WFR1)
+		    TheCPU.fpus |= FPUS_C0;
 			else if (WFR0 == WFR1)
-			    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
-			else if (WFR0 > WFR1); /* do nothing */
-			else /* not comparable */ TheCPU.fpus |= 0x4500;
+			    TheCPU.fpus |= FPUS_C3;
 		if (exop==0x6a) INCFSPP;
 		if (exop>=0x6a) INCFSPP;
 		break;
@@ -521,13 +580,14 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //	5E.1	DE 11011001	FCOMPP
 			WFR0 = *ST0;
 			WFR1 = *ST1;
-			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 			if (WFR0 < WFR1)
-			    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+			    TheCPU.fpus |= FPUS_C0;
 				else if (WFR0 == WFR1)
-				    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+				    TheCPU.fpus |= FPUS_C3;
 				else if (WFR0 > WFR1); /* do nothing */
-				else /* not comparable */ TheCPU.fpus |= 0x4500;
+				else /* not comparable */
+				    TheCPU.fpus |= FPUS_C0 | FPUS_C2 | FPUS_C3;
 			INCFSPP;
 			INCFSPP;
 		   }
@@ -552,7 +612,6 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		}
 		*STn(reg) = WFR1;
 		if (exop&2) INCFSPP;
-		ftest();
 		break;
 
 /*64*/	case 0x64:
@@ -585,7 +644,6 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		}
 		*STn(reg) = WFR1;
 		if (exop&2) INCFSPP;
-		ftest();
 		break;
 
 /*41*/	case 0x41:
@@ -634,17 +692,18 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		WFR0 = *ST0;
 		switch(reg) {
 		   case 0:		/* FCHS */
-			TheCPU.fpus &= ~0x200;
+			TheCPU.fpus &= ~FPUS_C1;
 			WFR0 = -WFR0; break;
 		   case 1:		/* FABS */
-			TheCPU.fpus &= ~0x200;
+			TheCPU.fpus &= ~FPUS_C1;
 			WFR0 = fabsl(WFR0); break;
 		   case 4:		/* FTST */
-			TheCPU.fpus &= (~0x4700);
-			if (WFR0 < 0.0) TheCPU.fpus |= 0x100;
-			  else if (WFR0 == 0.0) TheCPU.fpus |= 0x4000;
+			TheCPU.fpus &= ~FPUS_C;
+			if (WFR0 < 0.0) TheCPU.fpus |= FPUS_C0;
+			  else if (WFR0 == 0.0) TheCPU.fpus |= FPUS_C3;
 			  else if (WFR0 > 0.0); /* do nothing; */
-			  else /* not comparable */ TheCPU.fpus |= 0x4500;
+			  else /* not comparable */
+				TheCPU.fpus |= FPUS_C0 | FPUS_C2 | FPUS_C3;
 			break;
 		   case 5:		/* FXAM */
 			fxam(WFR0);
@@ -659,7 +718,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //	63.2*	DB 11000010	FCLEX
 //	63.3*	DB 11000011	FINIT
 		   case 2:		/* FCLEX */
-			TheCPU.fpus &= 0x7f00;
+			TheCPU.fpus &= (FPUS_C | FPUS_TOP);
 			feclearexcept(FE_ALL_EXCEPT);
 			break;
 		   case 3:		/* FINIT */
@@ -667,6 +726,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			TheCPU.fpstt = 0;
 			TheCPU.fpuc  = 0x37f;
 			TheCPU.fptag = 0xffff;
+			fp87_set_rounding();
 			feclearexcept(FE_ALL_EXCEPT);
 			WFR0 = WFR1 = 0.0;
 			break;
@@ -687,15 +747,14 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			DECFSPP;
 			switch (reg) {
 			case 0: WFR0 = 1.0; break;
-			case 1: WFR0 = M_LN10/M_LN2; break;
-			case 2: WFR0 = M_LOG2E; break;
-			case 3: WFR0 = M_PI; break;
-			case 4: WFR0 = M_LN2/M_LN10; break;
-			case 5: WFR0 = M_LN2; break;
+			case 1: WFR0 = M_LN10l/M_LN2l; break;
+			case 2: WFR0 = M_LOG2El; break;
+			case 3: WFR0 = M_PIl; break;
+			case 4: WFR0 = M_LN2l/M_LN10l; break;
+			case 5: WFR0 = M_LN2l; break;
 			case 6: WFR0 = 0.0; break;
 			default: goto fp_notok;
 			}
-			ftest();
 			*ST0 = WFR0;
 		   }
 		   break;
@@ -711,8 +770,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //	71.7	D9 11110111	FINCSTP
 		   case 0:		/* F2XM1 */
 	   		WFR0 = *ST0;
-			WFR0 = exp2l(WFR0) - 1.0;
-			ftest();
+			WFR0 = expm1l(WFR0*M_LN2l);
 			*ST0 = WFR0;
 			break;
 		   case 1:		/* FYL2X */
@@ -720,13 +778,12 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			WFR1 = *ST1;
 			if (WFR0 < 0.0) {
 				WFR0 = -NAN;
-				TheCPU.fpus |= 0x1;
+				TheCPU.fpus |= FPUS_IE;
 			} else if (WFR0 == 0.0) {
-				WFR0 = -INFINITY;
-				TheCPU.fpus |= 0x4;
+				WFR0 = signbit(WFR1) ? INFINITY : -INFINITY;
+				TheCPU.fpus |= FPUS_ZE;
 			} else {
 				WFR0 = WFR1 * log2l(WFR0);
-				ftest();
 			}
 			INCFSPP;
 			*ST0 = WFR0;
@@ -736,19 +793,17 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			WFR1 = *ST1;
 			WFR0 = atan2l(WFR1, WFR0);
 			INCFSPP;
-			ftest();
 			*ST0 = WFR0;
 			break;
 		   case 2:		/* FPTAN */
 	   		WFR0 = *ST0;
 			if (isfinite(WFR0) && fabsl(WFR0) >= 1ULL<<63) {
-				TheCPU.fpus |= 0x400;
+				TheCPU.fpus |= FPUS_C2;
 				break;
 			}
 			WFR0 = tanl(WFR0);
 			*ST0 = WFR0; DECFSPP;
-			ftest();
-			TheCPU.fpus &= ~0x400;
+			TheCPU.fpus &= ~FPUS_C2;
 			*ST0 = 1.0;
 			break;
 		   case 4:		/* FXTRACT */
@@ -759,35 +814,34 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 				WFR0 = logbl(WFR0);
 			}
 			*ST0 = WFR0; DECFSPP;
-			ftest();
 			*ST0 = WFR1;
 			break;
 		   case 5:		/* FPREM1 */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
-			TheCPU.fpus &= ~0x4700;
-			if (!isfinite(WFR0) || isnan(WFR1) || WFR1 == 0.0) {
+			TheCPU.fpus &= ~FPUS_C;
+			if (!isfinite(WFR0) || WFR0 == 0.0 ||
+			    !isfinite(WFR1) || WFR1 == 0.0)
 				WFR0 = remainderl(WFR0, WFR1);
-			} else if (isfinite(WFR1) && WFR0 != 0.0) {
+			else {
 				int d = ilogbl(WFR0) - ilogbl(WFR1);
 				if (d < 64) {
-					unsigned iq;
-					iq = fabsl(nearbyintl(WFR0 / WFR1));
+					int iq;
+					/* result from remquol not exactly the
+					   same as remainderl in some strange
+					   edge cases */
+					remquol(WFR0, WFR1, &iq);
+					iq = abs(iq);
 					WFR0 = remainderl(WFR0, WFR1);
 					TheCPU.fpus |= ((iq & 1) <<  (9-0)) |
 						       ((iq & 2) << (14-1)) |
 						       ((iq & 4) <<  (8-2));
 				} else {
 					int n = (d & 0x1f) | 0x20;
-					long double q;
-					long double ld0 = WFR0;
-					q = truncl(WFR0 / ldexpl(WFR1, d - n));
-					WFR0 -= ldexpl(WFR1 * q, d - n);
-					if (WFR0 == 0.0 && ld0 < 0) WFR0 = -WFR0;
-					TheCPU.fpus |= 0x400;
+					WFR0 = fmodl(WFR0, ldexpl(WFR1, d - n));
+					TheCPU.fpus |= FPUS_C2;
 				}
 			}
-			ftest();
 			*ST0 = WFR0;
 			break;
 		   case 6:		/* FDECSTP */
@@ -809,97 +863,104 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 0:		/* FPREM */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
-			TheCPU.fpus &= ~0x4700;
-			if (!isfinite(WFR0) || isnan(WFR1) || WFR1 == 0.0) {
+			TheCPU.fpus &= ~FPUS_C;
+			if (!isfinite(WFR0) || WFR0 == 0.0 ||
+			    !isfinite(WFR1) || WFR1 == 0.0)
 				WFR0 = fmodl(WFR0, WFR1);
-			} else if (isfinite(WFR1) && WFR0 != 0.0) {
+			else {
 				int d = ilogbl(WFR0) - ilogbl(WFR1);
 				if (d < 64) {
 					unsigned iq;
-					iq = fabsl(truncl(WFR0 / WFR1));
+					int roundingmode = fegetround();
+					fp87_save_except();
+					fesetround(FE_TOWARDZERO);
+					iq = (uint64_t)fabsl(nearbyintl(WFR0 / WFR1));
+					fesetround(roundingmode);
+					feclearexcept(FE_ALL_EXCEPT);
 					WFR0 = fmodl(WFR0, WFR1);
 					TheCPU.fpus |= ((iq & 1) <<  (9-0)) |
 						       ((iq & 2) << (14-1)) |
 						       ((iq & 4) <<  (8-2));
 				} else {
 					int n = (d & 0x1f) | 0x20;
-					long double q;
-					long double ld0 = WFR0;
-					q = truncl(WFR0 / ldexpl(WFR1, d - n));
-					WFR0 -= ldexpl(WFR1 * q, d - n);
-					if (WFR0 == 0.0 && ld0 < 0) WFR0 = -WFR0;
-					TheCPU.fpus |= 0x400;
+					WFR0 = fmodl(WFR0, ldexpl(WFR1, d - n));
+					TheCPU.fpus |= FPUS_C2;
 				}
 			}
-			ftest();
 			*ST0 = WFR0;
 			break;
 		   case 5:		/* FSCALE */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
-			WFR0 = ldexpl(WFR0, truncl(WFR1));
-			ftest();
+			if (isnan(WFR1) ||
+			    (WFR0 == 0.0 && isinf(WFR1) == 1) ||
+			    (isinf(WFR0) && isinf(WFR1) == -1))
+				WFR0 = WFR1 = NAN;
+			else if (isfinite(WFR0)) {
+				int inf = isinf(WFR1);
+				if (inf == 1)
+					WFR0 = WFR0 > 0 ? INFINITY : -INFINITY;
+				else if (inf == -1)
+					WFR0 = WFR0 > 0 ? 0.0 : -0.0;
+			}
+			if (WFR1 >= INT_MAX) WFR1 = INT_MAX;
+			if (WFR1 <= INT_MIN) WFR1 = INT_MIN;
+			WFR0 = ldexpl(WFR0, WFR1);
 			*ST0 = WFR0;
 			break;
 		   case 1:		/* FYL2XP1 */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
 			if (WFR0 > -1.0)
-				WFR0 = WFR1 * log2l(WFR0 + 1.0);
+				WFR0 = (WFR1 / M_LN2l) * log1pl(WFR0);
 			INCFSPP;
-			ftest();
 			*ST0 = WFR0;
 			break;
 		   case 2:		/* FSQRT */
 	   		WFR0 = *ST0;
 			if (signbit(WFR0) && WFR0 != -0.0) {
+				if (!isnan(WFR0)) TheCPU.fpus |= FPUS_IE;
 				WFR0 = -NAN;
-				TheCPU.fpus |= 0x1;
 			} else {
 				WFR0 = sqrtl(WFR0);
-				ftest();
 			}
 			*ST0 = WFR0;
 			break;
 		   case 4:		/* FRNDINT */
 	   		WFR0 = *ST0;
-			round_double();
-			ftest();
+			WFR0 = rintl(WFR0);
 			*ST0 = WFR0;
 			break;
 		   case 6:		/* FSIN */
 	   		WFR0 = *ST0;
 			if (isfinite(WFR0) && fabsl(WFR0) >= 1ULL<<63) {
-				TheCPU.fpus |= 0x400;
+				TheCPU.fpus |= FPUS_C2;
 				break;
 			}
 			WFR0 = sinl(WFR0);
-			ftest();
-			TheCPU.fpus &= ~0x400;
+			TheCPU.fpus &= ~FPUS_C2;
 			*ST0 = WFR0;
 			break;
 		   case 7:		/* FCOS */
 	   		WFR0 = *ST0;
 			if (isfinite(WFR0) && fabsl(WFR0) >= 1ULL<<63) {
-				TheCPU.fpus |= 0x400;
+				TheCPU.fpus |= FPUS_C2;
 				break;
 			}
 			WFR0 = cosl(WFR0);
-			ftest();
-			TheCPU.fpus &= ~0x400;
+			TheCPU.fpus &= ~FPUS_C2;
 			*ST0 = WFR0;
 			break;
 		   case 3:		/* FSINCOS */
 	   		WFR0 = *ST0;
 			if (isfinite(WFR0) && fabsl(WFR0) >= 1ULL<<63) {
-				TheCPU.fpus |= 0x400;
+				TheCPU.fpus |= FPUS_C2;
 				break;
 			}
 			WFR1 = cosl(WFR0);
 			WFR0 = sinl(WFR0);
 			*ST0 = WFR0; DECFSPP;
-			ftest();
-			TheCPU.fpus &= ~0x400;
+			TheCPU.fpus &= ~FPUS_C2;
 			*ST0 = WFR1;
 			break;
 		   }
@@ -911,6 +972,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //	25	DD xx100nnn	FRSTOR	94/108byte
 		    dosaddr_t p = TheCPU.mem_ref, q;
 		    TheCPU.fpuc = read_word(p) | 0x40;
+		    feclearexcept(FE_ALL_EXCEPT);
+		    fp87_set_rounding();
 		    if (reg&DATA16) {
 			TheCPU.fpus = read_word(p+2); TheCPU.fptag = read_word(p+4);
 			q = p+14;
@@ -919,7 +982,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			TheCPU.fpus = read_word(p+4); TheCPU.fptag = read_word(p+8);
 			q = p+28;
 		    }
-		    TheCPU.fpstt = (TheCPU.fpus>>11)&7;
+		    TheCPU.fpstt = (TheCPU.fpus>>FPUS_TOP_BIT)&7;
 		    if (exop==0x25) {
 			int i, k;
 			k = TheCPU.fpstt;
@@ -981,7 +1044,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		    unsigned fptag, ntag;
 //*	31	D9 xx110nnn	FSTENV	14/28byte
 //	35	DD xx110nnn	FSAVE	94/108byte
-		    TheCPU.fpus = (TheCPU.fpus & ~0x3800) | (TheCPU.fpstt<<11);
+		    fp87_save_except();
+		    TheCPU.fpus = (TheCPU.fpus & ~FPUS_TOP) | (TheCPU.fpstt<<FPUS_TOP_BIT);
 //
 		    fptag = TheCPU.fptag; ntag=0;
 		    for (i=7; i>=0; --i) {
@@ -1024,6 +1088,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			TheCPU.fpstt = 0;
 			TheCPU.fpuc  = 0x37f;
 			TheCPU.fptag = 0xffff;
+			fp87_set_rounding();
 			feclearexcept(FE_ALL_EXCEPT);
 			WFR0 = WFR1 = 0.0;
 		    }
