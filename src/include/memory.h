@@ -178,6 +178,7 @@ extern struct system_memory_map *system_memory_map;
 extern size_t system_memory_map_size;
 void *dosaddr_to_unixaddr(dosaddr_t addr);
 void *physaddr_to_unixaddr(unsigned addr);
+dosaddr_t physaddr_to_dosaddr(unsigned addr, int len);
 
 #ifndef MAP_FAILED
 #define MAP_FAILED (void*)-1

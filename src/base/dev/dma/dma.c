@@ -32,6 +32,7 @@
 #include "utilities.h"
 #include "port.h"
 #include "timers.h"
+#include "cpu-emu.h"
 #include "dma.h"
 #include "dmaregs.h"
 #include <string.h>
@@ -135,9 +136,10 @@ static void dma_process_channel(int dma_idx, int chan_idx)
 	q_printf("DMA: verify mode does nothing\n");
 	break;
     case WRITE:
-	if (addr != MAP_FAILED)
+	if (addr != MAP_FAILED) {
+	    e_invalidate_pa(pa, 1 << dma_idx);
 	    memcpy(addr, dma_data_bus, 1 << dma_idx);
-	else {
+	} else {
 	    error_once0("DMA: write to unmapped address\n");
 	    q_printf("DMA: write to unmapped address %#x\n", pa);
 	}

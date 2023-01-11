@@ -1305,6 +1305,14 @@ int e_invalidate(unsigned data, int cnt)
 	return 1;
 }
 
+int e_invalidate_pa(unsigned pa, int cnt)
+{
+    dosaddr_t addr = physaddr_to_dosaddr(pa, cnt);
+    if (addr == (dosaddr_t)-1)
+	return 0;
+    return e_invalidate(addr, cnt);
+}
+
 /* invalidate and unprotect even if we hit only data.
  * Needed if we are about to destroy the page protection by other means.
  * Otherwise use e_invalidate() */

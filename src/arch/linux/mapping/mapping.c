@@ -122,6 +122,16 @@ void *physaddr_to_unixaddr(unsigned int addr)
   return MAP_FAILED;
 }
 
+dosaddr_t physaddr_to_dosaddr(unsigned int addr, int len)
+{
+  dosaddr_t ret = get_hardware_ram(addr, len);
+  if (ret != (dosaddr_t)-1)
+    return ret;
+  if (addr + len <= LOWMEM_SIZE + HMASIZE)
+    return addr;
+  return -1;
+}
+
 #ifdef __linux__
 static int map_find_idx(struct mem_map_struct *map, int max, off_t addr)
 {

@@ -940,6 +940,7 @@ static int int15(void)
 		    error("error mapping %x to addr\n", dst_addr);
 		    break;
 		}
+		e_invalidate_pa(dst_addr, todo);
 		memcpy(d, s, todo);
 		src_addr += todo;
 		dst_addr += todo;
