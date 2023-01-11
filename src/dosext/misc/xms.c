@@ -279,6 +279,7 @@ static void unmap_EMB(struct pava base, unsigned size)
   int err = unregister_hardware_ram_virtual(base.pa);
   if (err)
     error("error unregistering hwram at %#x\n", base.pa);
+  e_invalidate_full(base.va, PAGE_ALIGN(size));
   unalias_mapping_high(MAPPING_OTHER, base.va, PAGE_ALIGN(size));
   pgafree(pgapool, (base.pa - xms_base) >> PAGE_SHIFT);
 }
@@ -895,6 +896,7 @@ xms_move_EMB(void)
     dest = SEGOFF2LINEAR(e.DestOffset >> 16, e.DestOffset & 0xffff);
     if (dest + e.Length > LOWMEM_SIZE + HMASIZE)
       return 0xa7;              /* invalid Length */
+    e_invalidate(dest, e.Length);
     d = LINEAR2UNIX(dest);
   }
   else {
@@ -907,6 +909,8 @@ xms_move_EMB(void)
     if (e.DestOffset + e.Length > handles[e.DestHandle].size) {
       return 0xa7;		/* invalid Length */
     }
+    if (handles[e.DestHandle].dst.pa) // .pa is set if mapped, invalidate on va
+      e_invalidate(handles[e.DestHandle].dst.va, e.Length);
     d = handles[e.DestHandle].addr + e.DestOffset;
   }
 
