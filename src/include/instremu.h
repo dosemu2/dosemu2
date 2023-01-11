@@ -2,7 +2,7 @@
 #define INSTREMU_H
 
 #ifdef INSTREMU
-int instr_len(unsigned char *, int);
+int instr_len(unsigned char *ptr, int is_32);
 int instr_emu(cpuctx_t *scp, int pmode, int cnt);
 int decode_modify_segreg_insn(cpuctx_t *scp, int pmode,
     unsigned int *new_val);
@@ -13,7 +13,7 @@ unsigned instr_binary_word(unsigned op, unsigned op1,
 unsigned instr_binary_dword(unsigned op, unsigned op1,
                                    unsigned op2, unsigned *eflags);
 #else
-static inline int instr_len(unsigned char *, int)
+static inline int instr_len(unsigned char *ptr, int is_32)
 {
     return 0;
 }
