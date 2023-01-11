@@ -910,7 +910,7 @@ xms_move_EMB(void)
       return 0xa7;		/* invalid Length */
     }
     if (handles[e.DestHandle].dst.pa) // .pa is set if mapped, invalidate on va
-      e_invalidate(handles[e.DestHandle].dst.va, e.Length);
+      e_invalidate(handles[e.DestHandle].dst.va + e.DestOffset, e.Length);
     d = handles[e.DestHandle].addr + e.DestOffset;
   }
 
