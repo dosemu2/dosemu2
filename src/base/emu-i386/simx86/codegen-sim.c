@@ -73,8 +73,8 @@
 
 void (*Gen)(int op, int mode, ...);
 void (*AddrGen)(int op, int mode, ...);
-unsigned int (*CloseAndExec)(unsigned int PC, int mode, int ln);
-static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln);
+unsigned int (*CloseAndExec)(unsigned int PC, int mode);
+static unsigned int CloseAndExec_sim(unsigned int PC, int mode);
 
 int UseLinker = 0;
 
@@ -2947,13 +2947,13 @@ void Gen_sim(int op, int mode, ...)
 /////////////////////////////////////////////////////////////////////////////
 
 
-static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln)
+static unsigned int CloseAndExec_sim(unsigned int PC, int mode)
 {
 	unsigned int ret;
 	if (debug_level('e')>1) {
 	    if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");
 	    if (debug_level('e')>2) {
-		e_printf("== (%04d) == Closing sequence at %08x\n",ln,PC);
+		e_printf("==== Closing sequence at %08x\n", PC);
 	    }
 #if defined(SINGLESTEP)||defined(SINGLEBLOCK)
 	    dbug_printf("\n%s",e_print_regs());

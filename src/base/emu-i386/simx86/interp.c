@@ -81,13 +81,13 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
  */
 #ifdef HOST_ARCH_X86
 #define CODE_FLUSH()	{ if (CONFIG_CPUSIM || CurrIMeta>0) {\
-			  unsigned int P2 = CloseAndExec(P0, mode, __LINE__);\
+			  unsigned int P2 = CloseAndExec(P0, mode);\
 			  if (TheCPU.err) return P2;\
 			  if (!CONFIG_CPUSIM && P2 != P0) { PC=P2; continue; }\
 			} NewNode=0; }
 #else
 #define CODE_FLUSH()	{ \
-			  unsigned int P2 = CloseAndExec(P0, mode, __LINE__);\
+			  unsigned int P2 = CloseAndExec(P0, mode);\
 			  if (TheCPU.err) return P2;\
 			  NewNode=0; }
 #endif
@@ -356,7 +356,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	if (_P1 == (unsigned)-1) { \
 		if (!CONFIG_CPUSIM) \
 			NewIMeta(P0, &_rc); \
-		_P1 = CloseAndExec(_P0, mode, __LINE__); \
+		_P1 = CloseAndExec(_P0, mode); \
 		NewNode=0; \
 	} \
 	_P1; \
@@ -415,7 +415,7 @@ static unsigned int FindExecCode(unsigned int PC)
 			PC = Exec_x86_fast(G);
 		else
 #endif
-			PC = Exec_x86(G, __LINE__);
+			PC = Exec_x86(G);
 		if (G->seqlen == 0) {
 			error("CPU-EMU: Zero-len code node?\n");
 			break;

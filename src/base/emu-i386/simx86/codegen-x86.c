@@ -117,7 +117,7 @@
 
 static void Gen_x86(int op, int mode, ...);
 static void AddrGen_x86(int op, int mode, ...);
-static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln);
+static unsigned int CloseAndExec_x86(unsigned int PC, int mode);
 
 hitimer_u TimeStartExec;
 static TNode *LastXNode = NULL;
@@ -3235,7 +3235,7 @@ void NodeUnlinker(TNode *G)
  *
  */
 
-static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
+static unsigned int CloseAndExec_x86(unsigned int PC, int mode)
 {
 	IMeta *I0;
 	TNode *G;
@@ -3250,7 +3250,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	I0 = &InstrMeta[0];
 
 	if (debug_level('e')>2) {
-		e_printf("== (%d) == Closing sequence at %08x\n",ln,PC);
+		e_printf("==== Closing sequence at %08x\n", PC);
 	}
 
 	GenCodeBuf = ProduceCode(PC, I0);
@@ -3273,7 +3273,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	G->mode = mode;
 	/* check links INSIDE current node */
 	NodeLinker(G, G);
-	return Exec_x86(G, ln);
+	return Exec_x86(G);
 }
 
 static unsigned int Exec_x86_pre(unsigned char *ecpu)
@@ -3345,7 +3345,7 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 	return ePC;
 }
 
-unsigned int Exec_x86(TNode *G, int ln)
+unsigned int Exec_x86(TNode *G)
 {
 	unsigned long flg;
 	unsigned char *ecpu;
@@ -3357,8 +3357,8 @@ unsigned int Exec_x86(TNode *G, int ln)
 	ecpu = CPUOFFS(0);
 	if (debug_level('e')>1) {
 		if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");
-		e_printf("== (%d) == Executing code at %p flg=%04x\n",
-			ln,SeqStart,seqflg);
+		e_printf("==== Executing code at %p flg=%04x\n",
+			SeqStart,seqflg);
 	}
 #ifdef ASM_DUMP
 	fprintf(aLog,"%p: exec\n",G->key);
