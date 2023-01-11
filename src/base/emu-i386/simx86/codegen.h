@@ -272,7 +272,7 @@ int  NewIMeta(int npc, int *rc);
 extern void (*Gen)(int op, int mode, ...);
 extern void (*AddrGen)(int op, int mode, ...);
 extern int  (*Fp87_op)(int exop, int reg);
-extern unsigned int (*CloseAndExec)(unsigned int PC, int mode, int ln);
+extern unsigned int (*CloseAndExec)(unsigned int PC, int mode);
 void EndGen(void);
 extern void fp87_set_rounding(void);
 extern void fp87_save_except(void);

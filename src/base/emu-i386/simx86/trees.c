@@ -1170,10 +1170,11 @@ static void BreakNode(TNode *G, unsigned char *eip)
   e_printf("============ Node %08x break failed\n",G->key);
 }
 
-static TNode *DoDelNode(int key)
+static TNode *DoDelNode(TNode *G)
 {
-  avltr_delete(key);
-  Traverser.init = 0;
+  if (Traverser.p == G)
+    Traverser.p = NEXTNODE(G);
+  avltr_delete(G->key);
   return CollectTree.root.link[0];
 }
 
@@ -1207,7 +1208,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	if (G2 == &CollectTree.root || G2->key > al) {
 	  if (G->alive <= 0) {
 	    /* remove dead node as it may be overlapped by good one */
-	    G = DoDelNode(G->key);
+	    G = DoDelNode(G);
 	    continue;
 	  }
 	  break;
@@ -1215,7 +1216,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
       }
       else {
 	if (G->alive <= 0) {
-	  G = DoDelNode(G->key);
+	  G = DoDelNode(G);
 	  continue;
 	}
 	break;

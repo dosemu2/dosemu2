@@ -244,6 +244,8 @@ int e_querymark(unsigned int addr, size_t len)
 		mask = ~0ULL;
 		if (idx == sizeof(M->subpage)/sizeof(M->subpage[0])) {
 			M = M->next;
+			if (!M)
+				return 0;
 			idx = 0;
 		}
 	}
