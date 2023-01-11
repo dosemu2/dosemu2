@@ -447,7 +447,7 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 		else if (WFR0 != *ST0)
 			TheCPU.fpus |= FPUS_PE;
 		write_byte(p+9, signbit(WFR0) ? 0x80 : 0);
-		b = llabs(WFR0);
+		b = fabsl(WFR0);
 		for (i=0; i < 9; i++) {
 			uint8_t u = b % 10;
 			b /= 10;
