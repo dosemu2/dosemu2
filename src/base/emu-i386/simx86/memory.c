@@ -168,6 +168,7 @@ int e_markpage(unsigned int addr, size_t len)
 		dbug_printf("MARK from %08x to %08x for %08x\n",
 			    abeg<<CGRAN,((aend+1)<<CGRAN)-1,addr);
 	while (M && abeg <= aend) {
+		assert(!test_bit(abeg&CGRMASK, M->subpage));
 		set_bit(abeg&CGRMASK, M->subpage);
 		abeg++;
 		if ((abeg&CGRMASK) == 0)
