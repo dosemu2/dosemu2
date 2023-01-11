@@ -177,12 +177,23 @@ static void do_retf16(cpuctx_t *scp)
     _LWORD(esp) += 4;
 }
 
+static void do_retf32(cpuctx_t *scp)
+{
+    void *sp = SEL_ADR_CLNT(_ss, _esp, 1);
+    unsigned *ssp = sp;
+    _eip = *ssp++;
+    _cs = *ssp++;
+    _esp += 8;
+}
+
 void msdos_setup(void)
 {
     msdoshlp_init(msdos_is_32, num_ints);
     lio_init();
     xmshlp_init();
-    doshlp_setup(&reinit_hlp, "msdos reinit thr", reinit_thr, do_retf16);
+    /* bitness may change on reinit so we specify particular retf version */
+    doshlp_setup(&reinit_hlp, "msdos reinit thr", reinit_thr,
+            MSDOS_CLIENT.is_32 ? do_retf32 : do_retf16);
 }
 
 void msdos_reset(void)
@@ -416,11 +427,9 @@ static void reinit_thr(void *arg)
     int is_32 = (_LWORD(eax) & 1);
 
     _eflags |= CF;
-    if (MSDOS_CLIENT.is_32 == is_32) {
+    if (MSDOS_CLIENT.is_32 == is_32)
 	_eflags &= ~CF;
-	return;
-    }
-    if (MSDOS_CLIENT.is_32)
+    else if (MSDOS_CLIENT.is_32)
 	return;
     doshlp_call_reinit(scp);
     MSDOS_CLIENT.is_32 = is_32;
@@ -1646,14 +1655,11 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    return MSDOS_DONE;
 	case 0x1687: {
 	    struct pmaddr_s pma;
-	    /* supported only for 16bit clients */
-	    if (MSDOS_CLIENT.is_32)
-		return MSDOS_NONE;
 	    _LWORD(eax) = 0;
-	    /* 32bit DPMI supported (0x1), entering from
-	     * 16bit-PM supported (0x100), entering from
-	     * 32bit-PM not supported (could use 0x200 for that) */
-	    _LWORD(ebx) = 1 | 0x100;
+	    /* 32bit DPMI supported (0x1),
+	     * entering from 16bit-PM supported (0x100),
+	     * entering from 32bit-PM supported (0x200) */
+	    _LWORD(ebx) = 1 | 0x300;
 	    _LWORD(ecx) = 4;
 	    _HI(dx) = DPMI_VERSION;
 	    _LO(dx) = DPMI_DRIVER_VERSION;

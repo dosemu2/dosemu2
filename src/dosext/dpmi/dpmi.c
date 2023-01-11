@@ -3842,11 +3842,9 @@ static void dpmi_reinit(cpuctx_t *scp)
   D_printf("%s", DPMI_show_state(scp));
   do_dpmi_retf(scp, SEL_ADR(_ss, _esp));
 
-  if ((_LWORD(eax) & 1) == DPMI_CLIENT.is_32) {
+  if ((_LWORD(eax) & 1) == DPMI_CLIENT.is_32)
     _eflags &= ~CF;
-    return;
-  }
-  if (DPMI_CLIENT.is_32)
+  else if (DPMI_CLIENT.is_32)
     return;
 
   DPMI_CLIENT.is_32 = 1;
