@@ -3847,18 +3847,24 @@ static void dpmi_reinit(cpuctx_t *scp)
   else if (DPMI_CLIENT.is_32)
     return;
 
-  DPMI_CLIENT.is_32 = 1;
+  DPMI_CLIENT.is_32 = (_LWORD(eax) & 1);
   DS = CreateAliasDescriptor(_ds);
   SetSegmentLimit(DS, 0xffff);
   GetDescriptorAccessRights(DS, &rights);
-  SetDescriptorAccessRights(DS, rights | 0x4000);	// 32bit
+  if (DPMI_CLIENT.is_32)
+    SetDescriptorAccessRights(DS, rights | 0x4000);	// 32bit
+  else
+    SetDescriptorAccessRights(DS, rights & ~0x4000);	// 16bit
   if (_ss == _ds) {
     SS = DS;
   } else {
     SS = CreateAliasDescriptor(_ss);
     SetSegmentLimit(SS, 0xffff);
     GetDescriptorAccessRights(SS, &rights);
-    SetDescriptorAccessRights(SS, rights | 0x4000);	// 32bit
+    if (DPMI_CLIENT.is_32)
+      SetDescriptorAccessRights(SS, rights | 0x4000);	// 32bit
+    else
+      SetDescriptorAccessRights(SS, rights & ~0x4000);	// 16bit
   }
   ES = DPMI_CLIENT.psp_sel;
 
