@@ -70,6 +70,16 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
 	if (m&DATA16) CPUWORD(o)=v; else CPULONG(o)=v;
 }
 
+static unsigned int DoCloseAndExec(unsigned int PC, int mode)
+{
+    if (!CONFIG_CPUSIM) {
+	unsigned P0 = InstrMeta[0].npc;
+	if (e_querymark(P0, PC - P0))
+	    InvalidateNodeRange(P0, PC - P0, NULL);
+    }
+    return CloseAndExec(PC, mode);
+}
+
 /*
  * close any pending instruction in the code cache and execute the
  * current sequence.
@@ -81,7 +91,7 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
  */
 #ifdef HOST_ARCH_X86
 #define CODE_FLUSH()	{ if (CONFIG_CPUSIM || CurrIMeta>0) {\
-			  unsigned int P2 = CloseAndExec(P0, mode);\
+			  unsigned int P2 = DoCloseAndExec(P0, mode);\
 			  if (TheCPU.err) return P2;\
 			  if (!CONFIG_CPUSIM && P2 != P0) { PC=P2; continue; }\
 			} NewNode=0; }
@@ -356,7 +366,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	if (_P1 == (unsigned)-1) { \
 		if (!CONFIG_CPUSIM) \
 			NewIMeta(P0, &_rc); \
-		_P1 = CloseAndExec(_P0, mode); \
+		_P1 = DoCloseAndExec(_P0, mode); \
 		NewNode=0; \
 	} \
 	_P1; \
