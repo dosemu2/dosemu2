@@ -64,7 +64,7 @@ static inline int mhp_revectored(int inum)
 {
     return 0;
 }
-void mhp_adjust_revectored(int inum)
+static inline void mhp_adjust_revectored(int inum)
 {
 }
 #endif
