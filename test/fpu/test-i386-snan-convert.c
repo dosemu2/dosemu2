@@ -59,5 +59,9 @@ int main(void)
         printf("FAIL: long double -> double\n");
         ret = 1;
     }
+
+    if (ret == 0)
+        printf("PASS: all tests\n");
+
     return ret;
 }

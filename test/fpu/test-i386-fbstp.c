@@ -136,5 +136,9 @@ int main(void)
         printf("FAIL: fbstp invalid 4\n");
         ret = 1;
     }
+
+    if (ret == 0)
+        printf("PASS: all tests\n");
+
     return ret;
 }

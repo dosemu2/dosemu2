@@ -104,5 +104,9 @@ int main(void)
         printf("FAIL: fscale single-precision\n");
         ret = 1;
     }
+
+    if (ret == 0)
+        printf("PASS: all tests\n");
+
     return ret;
 }

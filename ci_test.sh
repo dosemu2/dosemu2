@@ -63,8 +63,9 @@ esac
 # CC is set on Travis and can confuse compilation during tests
 unset CC
 
-# Make cpu tests here so that we see any failures
+# Make CPU/FPU tests here so that we see any failures
 make -C test/cpu clean all
+make -C test/fpu clean all
 
 python3 test/test_dos.py ${ARGS}
 
