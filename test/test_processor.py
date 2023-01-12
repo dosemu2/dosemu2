@@ -8,6 +8,7 @@ from common_os import ppdosgit
 from func_build_freecom import build_freecom
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
+from fpu.qemu import fpu_create_items
 
 
 class OurTestCase(BaseTestCase):
@@ -33,8 +34,9 @@ class EMUTestCase(ppdosgit(OurTestCase, { })):
 
 if __name__ == '__main__':
 
-    # Make cpu tests here so that we see any failures
+    # Make tests here so that we see any failures
     check_call(["make", "--quiet", "-C", "test/cpu", "clean", "all"])
+    check_call(["make", "--quiet", "-C", "test/fpu", "clean", "all"])
 
     cases = [
         EMUTestCase,
@@ -44,6 +46,7 @@ if __name__ == '__main__':
     # Dynamically create tests
     for tc in cases:
         cpu_create_items(tc)
+        fpu_create_items(tc)
 
     xargv = main_setup(cases)
     main(xargv)
