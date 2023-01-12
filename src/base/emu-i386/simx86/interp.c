@@ -72,11 +72,13 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
 
 static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 {
+#ifdef HOST_ARCH_X86
     if (!CONFIG_CPUSIM) {
 	unsigned P0 = InstrMeta[0].npc;
 	if (e_querymark(P0, PC - P0))
 	    InvalidateNodeRange(P0, PC - P0, NULL);
     }
+#endif
     return CloseAndExec(PC, mode);
 }
 
