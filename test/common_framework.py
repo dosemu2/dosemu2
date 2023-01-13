@@ -114,6 +114,8 @@ def get_test_binaries():
 
 class BaseTestCase(object):
 
+    attrs = []
+
     @classmethod
     def setUpClass(cls):
         cls.topdir = Path('.').resolve()
