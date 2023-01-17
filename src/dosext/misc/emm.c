@@ -60,6 +60,7 @@
 #include "utilities.h"
 #include "int.h"
 #include "hlt.h"
+#include "kvm.h"
 
 #define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
@@ -115,6 +116,7 @@
 #define ALTERNATE_MAP_REGISTER  0x5B	/* V4.0 */
 #define PREPARE_FOR_WARMBOOT    0x5C	/* V4.0 */
 #define OS_SET_FUNCTION	        0x5D	/* V4.0 */
+#define VCPI_INTERFACE          0xDE
 
 #define GET_ATT			0
 #define SET_ATT			1
@@ -1851,10 +1853,82 @@ os_set_function(struct vm86_regs * state)
 
 /* end of EMS 4.0 functions */
 
+static void vcpi_interface(struct vm86_regs *state)
+{
+  E_printf("VCPI, eax=%x\n", state->eax);
+  switch (LO_BYTE(state->eax)) {
+  case 0x00:
+    /* VCPI is present, version 1.0 */
+    SETHI_BYTE(state->eax, 0x00);
+    SETLO_BYTE(state->ebx, 0x00);
+    SETHI_BYTE(state->ebx, 0x01);
+    break;
+  case 0x01: /* get protected mode interface */
+    {
+      dosaddr_t pagetable = SEGOFF2LINEAR(state->es, LO_WORD(state->edi));
+      dosaddr_t gdt = SEGOFF2LINEAR(state->ds, LO_WORD(state->esi));
+      unsigned pages;
+      SETHI_BYTE(state->eax, 0x00);
+      state->ebx = kvm_vcpi_get_pmi(pagetable, gdt, &pages);
+      SETLO_WORD(state->edi, LO_WORD(state->edi) + pages*4);
+    }
+    break;
+  case 0x02: /* get maximum physical memory address */
+    SETHI_BYTE(state->eax, 0x00);
+    state->edx = 0;
+    break;
+  case 0x03: /* get number of free 4k pages */
+    SETHI_BYTE(state->eax, 0x00);
+    state->edx = 0; /* use XMS only */
+    break;
+  case 0x04: /* allocate a 4k page */
+    state->edx = 0xffffffff;
+    SETHI_BYTE(state->eax, EMM_OUT_OF_LOG);
+    break;
+  case 0x05: /* free a 4k page */
+    SETHI_BYTE(state->eax, EMM_LOG_OUT_RAN);
+    break;
+  case 0x06: /* get physical address of 4k page in 1st MB */
+    if (LO_WORD(state->ecx) < 1024*1024/PAGE_SIZE) {
+      SETHI_BYTE(state->eax, 0x00);
+      state->edx = LO_WORD(state->ecx) << PAGE_SHIFT;
+    }
+    else {
+      SETHI_BYTE(state->eax, EMM_ILL_PHYS);
+    }
+    break;
+#if 0
+  case 0x07:
+    { ebx=readcr0;}
+  case 0x08:
+    { fill_es_di_withdr0_dr7_not45(); }
+  case 0x09:
+    { load_debug_regs_from_es_di(); }
+#endif
+  case 0x0a: /*Get 8259A Interrupt Vector Mappings */
+    SETHI_BYTE(state->eax, 0x00);
+    SETLO_WORD(state->ebx, 0x08);
+    SETLO_WORD(state->ecx, 0x70);
+    break;
+#if 0
+  case 0x0b: /* Set 8259A Interrupt Vector Mappings */
+    {};
+#endif
+  case 0x0c: /* switch to pm!! */
+    E_printf("VCPI: switch to PM: cs:eip=%04x:%08x\n",
+	     READ_WORD(state->esi+0x14), READ_DWORD(state->esi+0x10));
+    kvm_vcpi_pm_switch(state->esi);
+    break;
+  default:
+    NOFUNC();
+    break;
+  }
+}
+
 int
 ems_fn(struct vm86_regs *state)
 {
-  if (!phys_pages)
+  if (!phys_pages && HI_BYTE_d(state->eax) != VCPI_INTERFACE)
     return 0;
 
   switch (HI_BYTE_d(state->eax)) {
@@ -2215,6 +2289,12 @@ ems_fn(struct vm86_regs *state)
 		SETHI_BYTE(&(state->ebx), 0x01);
 		break;
 */
+  case VCPI_INTERFACE:
+    if (!config.dpmi) {
+      vcpi_interface(state);
+      break;
+    }
+    /* fall through */
 
   default:{
       Kdebug1((dbg_fd,

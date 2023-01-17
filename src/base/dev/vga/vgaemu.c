@@ -1211,6 +1211,8 @@ int vga_emu_protect_page(unsigned page, int prot)
     return 0;
 
   sys_prot = prot == RW ? VGA_EMU_RW_PROT : prot == RO ? VGA_EMU_RO_PROT : VGA_EMU_NONE_PROT;
+  // XXX disable VGA page protections for VCPI for now
+  if (config.cpu_vm == CPUVM_KVM && !config.dpmi) sys_prot = VGA_EMU_RW_PROT;
 
   if(vgaemu_prot_ok(page, sys_prot)) {
     vga_deb2_map(
@@ -1459,6 +1461,8 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
       prot = VGA_EMU_RW_PROT;
       break;
   }
+  // XXX disable instremu for VCPI for now
+  if (config.cpu_vm == CPUVM_KVM && !config.dpmi) prot = VGA_EMU_RW_PROT;
 
   i = 0;
   pthread_mutex_lock(&prot_mtx);
