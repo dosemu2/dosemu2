@@ -628,6 +628,11 @@ int update_screen(void)
     vga.reconfig.display = 0;
     vga_emu_update_unlock();
   }
+  else if (config.cpu_vm == CPUVM_KVM && !config.dpmi) {
+    vga_emu_update_lock();
+    dirty_all_video_pages();
+    vga_emu_update_unlock();
+  }
 
 #if !RENDER_THREADED
   do_rend_gfx();
