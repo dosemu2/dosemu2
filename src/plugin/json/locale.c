@@ -138,7 +138,7 @@ static void charset_init(void)
     else
         error("Can't find codepage for \"%s\".\n"
               "Please add the mapping to locales.conf and send patch.\n",
-              l2);
+              lang);
     cntry = json_get_country_for_lang(obj2, l2);
     if (cntry != -1)
         set_country_code(cntry);
