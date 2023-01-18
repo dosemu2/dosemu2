@@ -326,7 +326,6 @@ void low_mem_init(void)
 {
   void *lowmem, *ptr;
   int result;
-  dosaddr_t addr;
   uint32_t memsize = LOWMEM_SIZE + HMASIZE;
   uint32_t dpmi_size = dpmi_lin_mem_rsv();
   int32_t dpmi_rsv_low = config.dpmi_base;
@@ -368,7 +367,7 @@ void low_mem_init(void)
   ptr = smalloc(&main_pool, memsize);
   assert(ptr == mem_base);
   dpmi_rsv_low -= memsize;
-  if (dpmi_rsv_low <= 0) {
+  if (dpmi_rsv_low < EXTMEM_SIZE) {
     error("$_dpmi_base is too small\n");
     config.exitearly = 1;
     return;
@@ -380,17 +379,11 @@ void low_mem_init(void)
   }
 
   if (config.ext_mem) {
-    addr = alias_mapping_high(MAPPING_EXTMEM, EXTMEM_SIZE,
-		 PROT_READ | PROT_WRITE, lowmem + memsize);
-    if (addr == (dosaddr_t)-1) {
-      error("failure to allocate ext mem\n");
-      config.exitearly = 1;
-      return;
-    }
-    /* memsize == base */
-    register_hardware_ram_virtual('m', memsize, EXTMEM_SIZE, lowmem + memsize,
-	    addr);
-    x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE, addr);
+    /* memsize == base
+     * Use dpmi_rsv_low as ext_mem. */
+    register_hardware_ram_virtual('m', memsize, EXTMEM_SIZE,
+	    MEM_BASE32(memsize), memsize);
+    x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE, result + memsize);
   }
 
   /* R/O protect 0xf0000-0xf4000 */

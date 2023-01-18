@@ -193,6 +193,22 @@ static int uncommit(void *ptr, size_t size)
   return 1;
 }
 
+static int commit_x(void *ptr, size_t size)
+{
+  if (mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(ptr), size,
+	PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
+    return 0;
+  return 1;
+}
+
+static int uncommit_x(void *ptr, size_t size)
+{
+  if (mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(ptr), size,
+	PROT_READ | PROT_WRITE) == -1)
+    return 0;
+  return 1;
+}
+
 unsigned long dpmi_mem_size(void)
 {
     if (!config.dpmi)
@@ -240,17 +256,9 @@ int dpmi_alloc_pool(void)
     c_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, dpmi_base);
     /* Create DPMI pool */
     sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit);
-    sminit_com(&lin_pool, dpmi_lin_rsv_base, low_rsv, commit, uncommit);
+    sminit_com(&lin_pool, dpmi_lin_rsv_base, low_rsv, commit_x, uncommit_x);
     dpmi_total_memory = config.dpmi * 1024;
 
-    mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
-                memsize + low_rsv, PROT_NONE);
-    /* Elite First Encounters setup.exe insists on low reserve
-     * area being writable... */
-    if (config.no_null_checks) {
-        mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
-                low_rsv, PROT_READ | PROT_WRITE);
-    }
     D_printf("DPMI: dpmi_free_memory available 0x%x\n", dpmi_total_memory);
     return 0;
 }
