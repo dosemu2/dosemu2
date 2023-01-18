@@ -959,7 +959,7 @@ static int int15(void)
 	}
 
     case 0x88:
-	LWORD(eax) = xms_intdrv() ? 0 : (EXTMEM_SIZE + HMASIZE) >> 10;
+	LWORD(eax) = (EXTMEM_SIZE + HMASIZE) >> 10;
 	NOCARRY;
 	break;
 
@@ -1041,7 +1041,7 @@ static int int15(void)
 		-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
 #endif
 	    if (LO(ax) == 1) {
-	    Bit32u mem = xms_intdrv() ? 0 : (EXTMEM_SIZE + HMASIZE) >> 10;
+	    Bit32u mem = (EXTMEM_SIZE + HMASIZE) >> 10;
 	    if (mem < 0x3c00) {
 		LWORD(eax) = mem;
 		LWORD(ebx) = 0;

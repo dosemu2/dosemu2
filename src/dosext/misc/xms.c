@@ -360,12 +360,6 @@ static int xms_helper_init(void)
 
   if (!config.xms_size)
     return 0;
-  if (config.ext_mem) {
-    /* remove the mapping for external himem.sys */
-    int err = unregister_hardware_ram_virtual(LOWMEM_SIZE + HMASIZE);
-    if (err)
-      error("error unregistering ext_mem\n");
-  }
   intdrv = 1;
   return 1;
 }
@@ -464,7 +458,7 @@ void xms_helper(void)
 
 void xms_init(void)
 {
-  pgapool = pgainit(xms_map_size >> PAGE_SHIFT);
+  pgapool = pgainit(config.xms_map_size >> PAGE_SHIFT);
 }
 
 void xms_done(void)
