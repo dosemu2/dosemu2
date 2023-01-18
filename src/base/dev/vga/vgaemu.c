@@ -817,12 +817,21 @@ static dosaddr_t vga_get_mem_base_offset(dosaddr_t addr)
   return (dosaddr_t)-1;
 }
 
-void vga_mark_dirty(dosaddr_t vga_addr, int len)
+static void vga_mark_dirty(dosaddr_t vga_addr, int len)
 {
   unsigned vga_page;
+  pthread_mutex_lock(&prot_mtx);
   for (vga_page = vga_addr >> PAGE_SHIFT;
        vga_page <= (vga_addr + len - 1) >> PAGE_SHIFT; vga_page++)
-    vgaemu_dirty_page(vga_page, 1);
+    _vgaemu_dirty_page(vga_page, 1);
+  pthread_mutex_unlock(&prot_mtx);
+}
+
+void vga_mark_dirty_dosaddr(dosaddr_t addr, int len)
+{
+  dosaddr_t vga_addr = vga_get_mem_base_offset(addr);
+  if (addr == (dosaddr_t)-1) return;
+  vga_mark_dirty(vga_addr, len);
 }
 
 void vga_write(dosaddr_t addr, unsigned char val)
@@ -1440,7 +1449,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 {
   unsigned u;
   vga_mapping_type *vmt;
-  int prot, i;
+  int prot, i, cap;
 
   if(mapping >= VGAEMU_MAX_MAPPINGS) return 1;
 
@@ -1462,13 +1471,17 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
       break;
   }
   // XXX disable instremu for VCPI for now
-  if (config.cpu_vm == CPUVM_KVM && !config.dpmi) prot = VGA_EMU_RW_PROT;
+  cap = MAPPING_VGAEMU;
+  if (config.cpu_vm == CPUVM_KVM && !config.dpmi) {
+    prot = VGA_EMU_RW_PROT;
+    cap |= MAPPING_LOG_DIRTY|MAPPING_IMMEDIATE;
+  }
 
   i = 0;
   pthread_mutex_lock(&prot_mtx);
   _vga_kvm_sync_dirty_map(mapping);
   if (mapping == VGAEMU_MAP_BANK_MODE)
-    i = alias_mapping(MAPPING_VGAEMU,
+    i = alias_mapping(cap,
       vmt->base_page << 12, vmt->pages << 12,
       prot, vga.mem.base + (first_page << 12));
   else if (config.cpu_vm_dpmi != CPUVM_KVM)

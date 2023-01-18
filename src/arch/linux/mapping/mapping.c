@@ -320,8 +320,10 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
     Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
   }
   update_aliasmap(targ, mapsize, source);
-  if (is_kvm_map(cap))
-    mprotect_kvm(cap, targ, mapsize, protect);
+  if (is_kvm_map(cap)) {
+    if (cap & MAPPING_LOG_DIRTY) mmap_kvm(cap, MEM_BASE32(targ), mapsize, protect);
+    else mprotect_kvm(cap, targ, mapsize, protect);
+  }
 
   return 0;
 }

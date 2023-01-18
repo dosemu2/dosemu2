@@ -938,6 +938,39 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
   return 1;
 }
 
+void kvm_sync_vga_dirty_map(void)
+{
+  int slot;
+  struct kvm_dirty_log dirty_log = {0};
+  unsigned int bitmap = 0;
+  dosaddr_t size = 0;
+  dosaddr_t addr = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << PAGE_SHIFT;
+
+  for (slot = 0; slot < MAXSLOT; slot++)
+    if (maps[slot].guest_phys_addr == addr) break;
+
+  dirty_log.slot = slot;
+  dirty_log.dirty_bitmap = &bitmap;
+  ioctl(vmfd, KVM_GET_DIRTY_LOG, &dirty_log);
+  Q_printf("KVM: VGA dirty bitmap=%x: ", bitmap);
+  for (;;) {
+    if (bitmap & 1) {
+      size += PAGE_SIZE;
+    } else {
+      if (size) {
+	vga_mark_dirty_dosaddr(addr, size);
+	Q_printf(" (%x:%x)", addr, size);
+	addr += size;
+	size = 0;
+      }
+      if (bitmap == 0) break;
+      addr += PAGE_SIZE;
+    }
+    bitmap >>= 1;
+  }
+  Q_printf("\n");
+}
+
 /* Inner loop for KVM, runs until HLT or signal */
 static unsigned int kvm_run(void)
 {
