@@ -309,7 +309,8 @@ static void do_free_EMB(int h)
     handles[h].addr = NULL;
 }
 
-void xms_reset(void)
+void
+xms_reset(void)
 {
   int i;
 
@@ -326,11 +327,6 @@ void xms_reset(void)
   freeHMA = 0;
   ext_hooked_hma = 0;
   pgareset(pgapool);
-  if (config.ext_mem) {
-    /* Register mem for himem.sys. Unregister later if internal driver loaded. */
-    register_hardware_ram_virtual('m', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE,
-	extmem_base, extmem_vbase);
-  }
 }
 
 static void xms_local_reset(void)

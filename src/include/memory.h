@@ -210,8 +210,6 @@ static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
    once, at startup
 */
 extern uint8_t *lowmem_base;
-extern uint8_t *extmem_base;
-extern dosaddr_t extmem_vbase;
 
 #define UNIX_READ_BYTE(addr)		(*(Bit8u *) (addr))
 #define UNIX_WRITE_BYTE(addr, val)	(*(Bit8u *) (addr) = (val) )
