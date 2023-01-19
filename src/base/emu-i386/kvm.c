@@ -621,6 +621,8 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
   assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_KVM|MAPPING_VGAEMU));
   /* with KVM we need to manually remove/shrink existing mappings */
   do_munmap_kvm(targ, mapsize);
+ if ((cap & MAPPING_VGAEMU) && protect == PROT_NONE)
+    return; // MMIO buffer, not mapped
   mmap_kvm_no_overlap(targ, addr, mapsize, 0);
   if (!(cap & MAPPING_KVM))
     mprotect_kvm(cap, targ, mapsize, protect);
@@ -1093,6 +1095,25 @@ static unsigned int kvm_run(void)
 	  case 4:
 	    port_outd(run->io.port, data->d[0]);
 	    break;
+	  }
+	}
+	break;
+      }
+    case KVM_EXIT_MMIO:
+      { /* only applies to VCPI; vm86/DPMI give page faults */
+	dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
+	unsigned char *data = run->mmio.data;
+	if (run->mmio.is_write) {
+	  switch(run->mmio.len) {
+	  case 1: vga_write(addr, data[0]); break;
+	  case 2: vga_write_word(addr, *(uint16_t*)data); break;
+	  case 4: vga_write_dword(addr, *(uint32_t*)data); break;
+	  }
+	} else {
+	  switch(run->mmio.len) {
+	  case 1: data[0] = vga_read(addr); break;
+	  case 2: *(uint16_t*)data = vga_read_word(addr); break;
+	  case 4: *(uint32_t*)data = vga_read_dword(addr); break;
 	  }
 	}
 	break;

@@ -57,7 +57,6 @@
 #define MAPPING_SINGLE		0x080000
 #define MAPPING_NULL		0x100000
 #define MAPPING_NOOVERLAP	0x200000
-#define MAPPING_LOG_DIRTY	0x400000
 
 #ifdef __x86_64__
 /* FIXME: JIT should support 64bit mem_base */

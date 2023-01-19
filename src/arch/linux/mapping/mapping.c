@@ -321,7 +321,9 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
   }
   update_aliasmap(targ, mapsize, source);
   if (is_kvm_map(cap)) {
-    if (cap & MAPPING_LOG_DIRTY) mmap_kvm(cap, MEM_BASE32(targ), mapsize, protect);
+    if ((cap & (MAPPING_VGAEMU|MAPPING_IMMEDIATE)) ==
+	(MAPPING_VGAEMU|MAPPING_IMMEDIATE))
+      mmap_kvm(cap, MEM_BASE32(targ), mapsize, protect);
     else mprotect_kvm(cap, targ, mapsize, protect);
   }
 
