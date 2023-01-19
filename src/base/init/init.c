@@ -330,6 +330,7 @@ void low_mem_init(void)
   uint32_t dpmi_size = dpmi_lin_mem_rsv();
   int32_t dpmi_rsv_low = config.dpmi_base;
   const uint32_t mem_1M = 1024 * 1024;
+  /* 16Mb limit is for being in reach of DMAc */
   const uint32_t mem_16M = mem_1M * 16;
 
   open_mapping(MAPPING_INIT_LOWRAM);
@@ -367,7 +368,7 @@ void low_mem_init(void)
   ptr = smalloc(&main_pool, memsize);
   assert(ptr == mem_base);
   dpmi_rsv_low -= memsize;
-  if (dpmi_rsv_low < EXTMEM_SIZE) {
+  if (dpmi_rsv_low < EXTMEM_SIZE + config.xms_map_size) {
     error("$_dpmi_base is too small\n");
     config.exitearly = 1;
     return;

@@ -255,7 +255,7 @@ static void xms_free(void *addr, unsigned osize)
 
 static struct pava map_EMB(void *addr, unsigned size, unsigned handle)
 {
-  int page;
+  int page, rc;
   struct pava ret = {};
 
   page = pgaalloc(pgapool, PAGE_ALIGN(size) >> PAGE_SHIFT, handle);
@@ -263,13 +263,14 @@ static struct pava map_EMB(void *addr, unsigned size, unsigned handle)
     error("error allocating %i bytes for xms\n", size);
     return ret;
   }
-  ret.va = alias_mapping_high(MAPPING_EXTMEM, PAGE_ALIGN(size),
+  ret.pa = xms_base + (page << PAGE_SHIFT);
+  rc = alias_mapping(MAPPING_EXTMEM, ret.pa, PAGE_ALIGN(size),
 		 PROT_READ | PROT_WRITE, addr);
-  if (ret.va == (dosaddr_t)-1) {
+  if (rc == -1) {
     error("failure to map xms\n");
     leavedos(2);
   }
-  ret.pa = xms_base + (page << PAGE_SHIFT);
+  ret.va = ret.pa; // identity mapped
   register_hardware_ram_virtual('x', ret.pa, size, addr, ret.va);
   return ret;
 }
@@ -280,7 +281,7 @@ static void unmap_EMB(struct pava base, unsigned size)
   if (err)
     error("error unregistering hwram at %#x\n", base.pa);
   e_invalidate_full(base.va, PAGE_ALIGN(size));
-  unalias_mapping_high(MAPPING_OTHER, base.va, PAGE_ALIGN(size));
+  restore_mapping(MAPPING_DPMI, base.va, PAGE_ALIGN(size));
   pgafree(pgapool, (base.pa - xms_base) >> PAGE_SHIFT);
 }
 
