@@ -162,6 +162,7 @@ static struct kvm_cpuid2 *cpuid;
 /* fpu vme de pse tsc msr mce cx8 */
 #define CPUID_FEATURES_EDX 0x1bf
 static struct kvm_run *run;
+static struct kvm_coalesced_mmio_ring *coalesced_mmio_ring;
 static int kvmfd, vmfd, vcpufd;
 static struct kvm_sregs sregs;
 
@@ -621,8 +622,23 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
   assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_KVM|MAPPING_VGAEMU));
   /* with KVM we need to manually remove/shrink existing mappings */
   do_munmap_kvm(targ, mapsize);
- if ((cap & MAPPING_VGAEMU) && protect == PROT_NONE)
-    return; // MMIO buffer, not mapped
+  if ((cap & MAPPING_VGAEMU) && protect == PROT_NONE) {
+    struct kvm_coalesced_mmio_zone mmio_zone = {};
+    int ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
+    if (ret <= 0) {
+      warn("KVM: COALESCED_MMIO unsupported %x\n", ret);
+      return;
+    }
+    coalesced_mmio_ring = (void *)run + ret * PAGE_SIZE;
+    mmio_zone.addr = targ;
+    mmio_zone.size = mapsize;
+    if (protect == PROT_NONE) {
+      ioctl(vmfd, KVM_REGISTER_COALESCED_MMIO, &mmio_zone);
+      return; // MMIO buffer, not mapped
+    }
+    coalesced_mmio_ring = NULL;
+    ioctl(vmfd, KVM_UNREGISTER_COALESCED_MMIO, &mmio_zone);
+  }
   mmap_kvm_no_overlap(targ, addr, mapsize, 0);
   if (!(cap & MAPPING_KVM))
     mprotect_kvm(cap, targ, mapsize, protect);
@@ -1044,6 +1060,24 @@ static unsigned int kvm_run(void)
     */
     if (ret != 0 && ret != -1)
       error("KVM: strange return %i, errno=%i\n", ret, errn);
+
+    /* flush coalesced MMIO buffer */
+    if (coalesced_mmio_ring) {
+      while (coalesced_mmio_ring->first != coalesced_mmio_ring->last) {
+	struct kvm_coalesced_mmio *cm =
+	  &coalesced_mmio_ring->coalesced_mmio[coalesced_mmio_ring->first];
+	dosaddr_t addr = cm->phys_addr;
+	unsigned char *data = cm->data;
+	switch(cm->len) {
+	case 1: vga_write(addr, data[0]); break;
+	case 2: vga_write_word(addr, *(uint16_t*)data); break;
+	case 4: vga_write_dword(addr, *(uint32_t*)data); break;
+	}
+	coalesced_mmio_ring->first++;
+	coalesced_mmio_ring->first %= KVM_COALESCED_MMIO_MAX;
+      }
+    }
+
     if (ret == -1 && errn == EINTR) {
       if (!kvm_post_run(regs, &kregs))
         continue;
