@@ -622,22 +622,47 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
   assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_KVM|MAPPING_VGAEMU));
   /* with KVM we need to manually remove/shrink existing mappings */
   do_munmap_kvm(targ, mapsize);
-  if ((cap & MAPPING_VGAEMU) && protect == PROT_NONE) {
+  if (cap & MAPPING_VGAEMU) {
     struct kvm_coalesced_mmio_zone mmio_zone = {};
+    int coalesced_ioctl;
     int ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
     if (ret <= 0) {
       warn("KVM: COALESCED_MMIO unsupported %x\n", ret);
       return;
     }
-    coalesced_mmio_ring = (void *)run + ret * PAGE_SIZE;
+    if (protect == PROT_NONE) {
+      coalesced_mmio_ring = (void *)run + ret * PAGE_SIZE;
+      coalesced_ioctl = KVM_REGISTER_COALESCED_MMIO;
+    } else {
+      coalesced_mmio_ring = NULL;
+      coalesced_ioctl = KVM_UNREGISTER_COALESCED_MMIO;
+    }
     mmio_zone.addr = targ;
     mmio_zone.size = mapsize;
-    if (protect == PROT_NONE) {
-      ioctl(vmfd, KVM_REGISTER_COALESCED_MMIO, &mmio_zone);
-      return; // MMIO buffer, not mapped
+    mmio_zone.pio = 0;
+    ioctl(vmfd, coalesced_ioctl, &mmio_zone);
+    ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_PIO);
+    if (ret <= 0) {
+      warn("KVM: COALESCED_PIO unsupported %x\n", ret);
+    } else {
+      mmio_zone.pio = 1;
+      mmio_zone.addr = 0x3b0;
+      mmio_zone.size = 0xc;
+      ioctl(vmfd, coalesced_ioctl, &mmio_zone);
+      mmio_zone.addr = HERC_CFG_SWITCH;/* 0x3bf */
+      mmio_zone.size = 1;
+      ioctl(vmfd, coalesced_ioctl, &mmio_zone);
+      mmio_zone.addr = VGA_BASE;       /* 0x3c0 to 0x3cf */
+      mmio_zone.size = 0x10;
+      ioctl(vmfd, coalesced_ioctl, &mmio_zone);
+      mmio_zone.addr = CRTC_INDEX;     /* 0x3d4, 0x3d5 */
+      mmio_zone.size = CRTC_DATA - CRTC_INDEX + 1;
+      ioctl(vmfd, coalesced_ioctl, &mmio_zone);
+      mmio_zone.addr = INPUT_STATUS_1; /* 0x3da */
+      mmio_zone.size = 1;
+      ioctl(vmfd, coalesced_ioctl, &mmio_zone);
     }
-    coalesced_mmio_ring = NULL;
-    ioctl(vmfd, KVM_UNREGISTER_COALESCED_MMIO, &mmio_zone);
+    if (protect == PROT_NONE) return; // MMIO buffer, not mapped
   }
   mmap_kvm_no_overlap(targ, addr, mapsize, 0);
   if (!(cap & MAPPING_KVM))
@@ -1068,10 +1093,15 @@ static unsigned int kvm_run(void)
 	  &coalesced_mmio_ring->coalesced_mmio[coalesced_mmio_ring->first];
 	dosaddr_t addr = cm->phys_addr;
 	unsigned char *data = cm->data;
-	switch(cm->len) {
-	case 1: vga_write(addr, data[0]); break;
-	case 2: vga_write_word(addr, *(uint16_t*)data); break;
-	case 4: vga_write_dword(addr, *(uint32_t*)data); break;
+	if (cm->pio) switch(cm->len) {
+	  case 1: VGA_emulate_outb(addr, data[0]); break;
+	  case 2: VGA_emulate_outw(addr, *(uint16_t*)data); break;
+	  case 4: VGA_emulate_outw(addr, *(uint16_t*)data);
+	          VGA_emulate_outw(addr, *(uint16_t*)(data+2)); break;
+	} else switch(cm->len) {
+	  case 1: vga_write(addr, data[0]); break;
+	  case 2: vga_write_word(addr, *(uint16_t*)data); break;
+	  case 4: vga_write_dword(addr, *(uint32_t*)data); break;
 	}
 	coalesced_mmio_ring->first++;
 	coalesced_mmio_ring->first %= KVM_COALESCED_MMIO_MAX;
