@@ -179,7 +179,8 @@ static unsigned char *MEM_BASE32x(dosaddr_t a, int base)
   uintptr_t baddr = (uintptr_t)mem_bases[base];
   if (mem_bases[base] == MAP_FAILED)
     return MAP_FAILED;
-  assert(a < LOWMEM_SIZE + HMASIZE || base == MEM_BASE);
+  if (a >= LOWMEM_SIZE + HMASIZE && base != MEM_BASE)
+    return MAP_FAILED;
   off = baddr + a;
   if (config.cpu_vm_dpmi == CPUVM_NATIVE)
     off &= 0xffffffff;
@@ -292,7 +293,6 @@ dosaddr_t alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
 {
-  void *target, *addr;
   int i;
 
   assert(targ != (dosaddr_t)-1);
@@ -308,7 +308,9 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
       mem_bases[VM86_BASE] = 0;
 #endif
   }
+
   for (i = 0; i < MAX_BASES; i++) {
+    void *target, *addr;
     target = MEM_BASE32x(targ, i);
     if (target == MAP_FAILED)
       continue;
@@ -317,8 +319,7 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
       return -1;
     Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
   }
-  if (targ != (dosaddr_t)-1)
-    update_aliasmap(targ, mapsize, source);
+  update_aliasmap(targ, mapsize, source);
   if (is_kvm_map(cap))
     mprotect_kvm(cap, targ, mapsize, protect);
 
@@ -1044,4 +1045,22 @@ void *mapping_find_hole(unsigned long start, unsigned long stop,
     if (ret != 2)
 	return MAP_FAILED;
     return (void *)pend;
+}
+
+int mcommit(void *ptr, size_t size)
+{
+  dosaddr_t targ = DOSADDR_REL(ptr);
+  int cap = (targ >= LOWMEM_SIZE + HMASIZE ? MAPPING_DPMI : MAPPING_LOWMEM);
+  if (mprotect_mapping(cap, targ, size, PROT_READ | PROT_WRITE) == -1)
+    return 0;
+  return 1;
+}
+
+int muncommit(void *ptr, size_t size)
+{
+  dosaddr_t targ = DOSADDR_REL(ptr);
+  int cap = (targ >= LOWMEM_SIZE + HMASIZE ? MAPPING_DPMI : MAPPING_LOWMEM);
+  if (mprotect_mapping(cap, targ, size, PROT_NONE) == -1)
+    return 0;
+  return 1;
 }

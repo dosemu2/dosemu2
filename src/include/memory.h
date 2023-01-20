@@ -139,8 +139,7 @@
 #define HMASIZE (64*1024)
 #define LOWMEM_SIZE 0x100000
 #define EXTMEM_SIZE ((unsigned)(config.ext_mem << 10))
-#define xms_base (LOWMEM_SIZE + HMASIZE)
-#define xms_map_size (1024 * 1024 * 16 - xms_base)
+#define xms_base (LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE)
 
 #ifndef __ASSEMBLER__
 
@@ -210,8 +209,6 @@ static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
    once, at startup
 */
 extern uint8_t *lowmem_base;
-extern uint8_t *extmem_base;
-extern dosaddr_t extmem_vbase;
 
 #define UNIX_READ_BYTE(addr)		(*(Bit8u *) (addr))
 #define UNIX_WRITE_BYTE(addr, val)	(*(Bit8u *) (addr) = (val) )
