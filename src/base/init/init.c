@@ -274,7 +274,7 @@ static void *mem_reserve(uint32_t memsize, uint32_t dpmi_size)
 {
   void *result;
   int cap = MAPPING_INIT_LOWRAM | MAPPING_SCRATCH | MAPPING_DPMI;
-  int prot = PROT_READ | PROT_WRITE;
+  int prot = PROT_NONE;
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
@@ -353,7 +353,6 @@ void low_mem_init(void)
     mmap_kvm(MAPPING_INIT_LOWRAM, mem_base, memsize + dpmi_size,
 	    PROT_READ | PROT_WRITE);
   }
-  sminit(&main_pool, mem_base, memsize + dpmi_size);
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, memsize,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (result == -1) {
@@ -365,8 +364,12 @@ void low_mem_init(void)
   if (config.xms_size)
     config.xms_map_size = (mem_16M - (memsize + EXTMEM_SIZE)) & PAGE_MASK;
 
+  sminit_com(&main_pool, mem_base, memsize + dpmi_size, mcommit, muncommit);
   ptr = smalloc(&main_pool, memsize);
   assert(ptr == mem_base);
+  /* smalloc uses PROT_READ | PROT_WRITE, needs to add PROT_EXEC here */
+  mprotect_mapping(MAPPING_LOWMEM, 0, memsize, PROT_READ | PROT_WRITE |
+      PROT_EXEC);
   dpmi_rsv_low -= memsize;
   if (dpmi_rsv_low < EXTMEM_SIZE + config.xms_map_size) {
     error("$_dpmi_base is too small\n");

@@ -130,4 +130,7 @@ void list_hardware_ram(void (*print)(const char *, ...));
 void *mapping_find_hole(unsigned long start, unsigned long stop,
 	unsigned long size);
 
+int mcommit(void *ptr, size_t size);
+int muncommit(void *ptr, size_t size);
+
 #endif /* _MAPPING_H_ */

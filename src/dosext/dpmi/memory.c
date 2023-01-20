@@ -504,20 +504,18 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     if ((block = alloc_pm_block(root, size)) == NULL)
 	return NULL;
 
-    if (inp) {
+    if (inp)
 	realbase = smalloc_fixed(&lin_pool, MEM_BASE32(base), size);
-    } else if (base == -1) {
+    else if (base == -1)
 	realbase = smalloc(&main_pool, size);
-    } else {
+    else
 	realbase = smalloc_fixed(&main_pool, MEM_BASE32(base), size);
-	if (realbase)
-	    mprotect_mapping(cap, base, size, committed ?
-		PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
-    }
     if (realbase == NULL) {
 	free_pm_block(root, block);
 	return NULL;
     }
+    mprotect_mapping(cap, base, size, committed ?
+		PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
     block->base = DOSADDR_REL(realbase);
     block->linear = 1;
     for (i = 0; i < size >> PAGE_SHIFT; i++)
@@ -809,6 +807,9 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     finish_realloc(block, newsize, committed);
     block->base = DOSADDR_REL(ptr);
     block->size = newsize;
+    /* restore_page_protection() will set proper prots */
+    mprotect_mapping(MAPPING_DPMI, block->base, block->size,
+		PROT_READ | PROT_WRITE | PROT_EXEC);
     restore_page_protection(block);
     return block;
 }

@@ -1046,3 +1046,21 @@ void *mapping_find_hole(unsigned long start, unsigned long stop,
 	return MAP_FAILED;
     return (void *)pend;
 }
+
+int mcommit(void *ptr, size_t size)
+{
+  dosaddr_t targ = DOSADDR_REL(ptr);
+  int cap = (targ >= LOWMEM_SIZE + HMASIZE ? MAPPING_DPMI : MAPPING_LOWMEM);
+  if (mprotect_mapping(cap, targ, size, PROT_READ | PROT_WRITE) == -1)
+    return 0;
+  return 1;
+}
+
+int muncommit(void *ptr, size_t size)
+{
+  dosaddr_t targ = DOSADDR_REL(ptr);
+  int cap = (targ >= LOWMEM_SIZE + HMASIZE ? MAPPING_DPMI : MAPPING_LOWMEM);
+  if (mprotect_mapping(cap, targ, size, PROT_NONE) == -1)
+    return 0;
+  return 1;
+}
