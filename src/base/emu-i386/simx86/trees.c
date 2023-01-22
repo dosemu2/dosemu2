@@ -1282,13 +1282,13 @@ static void do_invalidate(unsigned data, int cnt)
 	invalidate_unprotected_page_cache(data, cnt);
 }
 
-int e_invalidate(unsigned data, int cnt)
+void e_invalidate(unsigned data, int cnt)
 {
 	if (!IS_EMU())
-		return 0;
+		return;
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
-		return 0;
+		return;
 	/* for low mappings only invalidate if code, not if data */
 	if (LINEAR2UNIX(data) != MEM_BASE32(data)) {
 #ifdef HOST_ARCH_X86
@@ -1296,35 +1296,33 @@ int e_invalidate(unsigned data, int cnt)
 			// no need to invalidate the whole page here,
 			// as the page does not need to be unprotected
 			InvalidateNodeRange(data, cnt, 0);
-			return 1;
+			return;
 		}
 #endif
-		return 0;
+		return;
 	}
 	do_invalidate(data, cnt);
-	return 1;
 }
 
-int e_invalidate_pa(unsigned pa, int cnt)
+void e_invalidate_pa(unsigned pa, int cnt)
 {
     dosaddr_t addr = physaddr_to_dosaddr(pa, cnt);
     if (addr == (dosaddr_t)-1)
-	return 0;
-    return e_invalidate(addr, cnt);
+	return;
+    e_invalidate(addr, cnt);
 }
 
 /* invalidate and unprotect even if we hit only data.
  * Needed if we are about to destroy the page protection by other means.
  * Otherwise use e_invalidate() */
-int e_invalidate_full(unsigned data, int cnt)
+void e_invalidate_full(unsigned data, int cnt)
 {
 	if (!IS_EMU())
-		return 0;
+		return;
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
-		return 0;
+		return;
 	do_invalidate(data, cnt);
-	return 1;
 }
 
 int e_invalidate_page_full(unsigned data)
