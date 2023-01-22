@@ -180,9 +180,13 @@ int count_shm_blocks(dpmi_pm_block_root *root, const char *sname)
 
 static int commit(void *ptr, size_t size)
 {
+  int err;
   if (mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(ptr), size,
 	PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
     return 0;
+  err = madvise(ptr, size, MADV_POPULATE_WRITE);
+  if (err)
+    perror("madvise()");
   return 1;
 }
 
