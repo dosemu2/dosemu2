@@ -17,7 +17,7 @@ static inline int instr_len(unsigned char *ptr, int is_32)
 {
     return 0;
 }
-static inline int instr_emu(sigcontext_t *scp, int pmode, int cnt)
+static inline int instr_emu(cpuctx_t *scp, int pmode, int cnt)
 {
     return 0;
 }
