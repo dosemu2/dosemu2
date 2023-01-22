@@ -81,6 +81,15 @@ static void discardtempfile(void)
   tmpfile_fd = -1;
 }
 
+static int commit(void *ptr, size_t size)
+{
+  int err;
+  err = madvise(ptr, size, MADV_POPULATE_WRITE);
+  if (err)
+    perror("madvise()");
+  return 1;
+}
+
 static int open_mapping_f(int cap)
 {
     int mapsize, estsize, padsize;
@@ -128,7 +137,7 @@ static int open_mapping_f(int cap)
     mprotect(mpool, mapsize, PROT_READ|PROT_WRITE);
     Q_printf("MAPPING: open, mpool (min %dK) is %d Kbytes at %p-%p\n",
 		estsize, mapsize/1024, mpool, mpool+mapsize-1);
-    sminit(&pgmpool, mpool, mapsize);
+    sminit_com(&pgmpool, mpool, mapsize, commit, NULL);
 
   /*
    * Now handle individual cases.
