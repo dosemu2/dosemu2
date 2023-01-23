@@ -420,14 +420,26 @@ static void print_ldt(void)
 
 static void leave_backend(int be, int pm)
 {
-  if (be == CPUVM_KVM)
+  switch(be) {
+  case CPUVM_KVM:
     kvm_leave(pm);
+    break;
+  case CPUVM_NATIVE:
+    native_dpmi_leave_to_vm86();
+    break;
+  }
 }
 
 static void enter_backend(int be, int pm)
 {
-  if (be == CPUVM_KVM)
+  switch(be) {
+  case CPUVM_KVM:
     kvm_enter(pm);
+    break;
+  case CPUVM_NATIVE:
+    native_dpmi_enter_from_vm86();
+    break;
+  }
 }
 
 static void dpmi_set_pm(int pm)
