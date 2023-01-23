@@ -373,6 +373,12 @@ void kvm_reset_to_vm86(void)
     warn("Using V86 mode inside KVM\n");
 }
 
+static inline int kvm_in_vcpi(void)
+{
+  return !(monitor->regs.eflags & X86_EFLAGS_VM) &&
+    monitor->tss.esp0 == offsetof(struct monitor, regs) + sizeof(monitor->regs);
+}
+
 /* Initialize KVM and memory mappings */
 static int init_kvm_vcpu(void)
 {
@@ -1022,7 +1028,7 @@ static unsigned int kvm_run(void)
   static struct vm86_regs saved_regs;
   struct vm86_regs *regs = &monitor->regs;
 
-  if (((regs->eflags & X86_EFLAGS_VM) || config.dpmi) && // not VCPI
+  if (!kvm_in_vcpi() &&
       run->exit_reason != KVM_EXIT_HLT &&
       memcmp(regs, &saved_regs, sizeof(*regs))) {
     /* Only set registers if changes happened, usually
@@ -1244,9 +1250,9 @@ int kvm_vm86(struct vm86_struct *info)
   memcpy(&monitor->fpstate, &vm86_fpu_state, sizeof(vm86_fpu_state));
 #endif
   monitor->int_revectored = info->int_revectored;
-  monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
 
-  if ((regs->eflags & X86_EFLAGS_VM) || config.dpmi) {
+  if (!kvm_in_vcpi()) {
+    monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
     *regs = info->regs;
     regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
     regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;

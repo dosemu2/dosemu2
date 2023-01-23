@@ -2290,10 +2290,8 @@ ems_fn(struct vm86_regs *state)
 		break;
 */
   case VCPI_INTERFACE:
-    if (!config.dpmi) {
-      vcpi_interface(state);
-      break;
-    }
+    vcpi_interface(state);
+    break;
     /* fall through */
 
   default:{
