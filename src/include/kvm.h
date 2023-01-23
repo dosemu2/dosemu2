@@ -27,8 +27,9 @@ int kvm_dpmi(cpuctx_t *scp);
 void kvm_reset_to_vm86(void);
 void kvm_vcpi_pm_switch(dosaddr_t addr);
 dosaddr_t kvm_vcpi_get_pmi(dosaddr_t pagetable, dosaddr_t gdt, unsigned *pages);
-void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect);
+int mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect);
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ);
+void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize);
 void set_kvm_memory_regions(void);
 void kvm_set_dirty_log(dosaddr_t base, dosaddr_t size);
 void kvm_get_dirty_map(dosaddr_t base, unsigned char *bitmap);
@@ -49,8 +50,8 @@ static inline int kvm_dpmi(cpuctx_t *scp) { return -1; }
 static inline void kvm_reset_to_vm86(void) {}
 static inline void kvm_vcpi_pm_switch(dosaddr_t addr) {}
 static inline dosaddr_t kvm_vcpi_get_pmi(dosaddr_t pagetable, dosaddr_t gdt, unsigned *pages) {return 0;}
-static inline void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect) {}
-static inline void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ) {}
+static inline int mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect) {return 0;}
+static inline void mmap_kvm(int cap, void *addr, size_t mapsize, int protect) {}
 static inline void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize) {}
 static inline void set_kvm_memory_regions(void) {}
 static inline void kvm_set_dirty_log(dosaddr_t base, dosaddr_t size) {}

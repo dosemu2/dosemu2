@@ -519,8 +519,9 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 
   Q__printf("MAPPING: mprotect, cap=%s, targ=%x, size=%zx, protect=%x\n",
 	cap, targ, mapsize, protect);
-  if (is_kvm_map(cap))
-    mprotect_kvm(cap, targ, mapsize, protect);
+  if (is_kvm_map(cap) &&
+      mprotect_kvm(cap, targ, mapsize, protect) != 0)
+    return 0;
   if (!(cap & MAPPING_LOWMEM)) {
     ret = mprotect(MEM_BASE32(targ), mapsize, protect);
     if (ret)

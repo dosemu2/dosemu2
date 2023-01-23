@@ -1447,7 +1447,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 {
   unsigned u;
   vga_mapping_type *vmt;
-  int prot, i, cap;
+  int prot, i;
 
   if(mapping >= VGAEMU_MAX_MAPPINGS) return 1;
 
@@ -1468,16 +1468,12 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
       prot = VGA_EMU_RW_PROT;
       break;
   }
-  cap = MAPPING_VGAEMU;
-  if (config.cpu_vm == CPUVM_KVM && !config.dpmi) {
-    cap |= MAPPING_IMMEDIATE;
-  }
 
   i = 0;
   pthread_mutex_lock(&prot_mtx);
   _vga_kvm_sync_dirty_map(mapping);
   if (mapping == VGAEMU_MAP_BANK_MODE)
-    i = alias_mapping(cap,
+    i = alias_mapping(MAPPING_VGAEMU|MAPPING_IMMEDIATE,
       vmt->base_page << 12, vmt->pages << 12,
       prot, vga.mem.base + (first_page << 12));
   else if (config.cpu_vm_dpmi != CPUVM_KVM)

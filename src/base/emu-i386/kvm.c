@@ -628,7 +628,7 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
   assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_KVM|MAPPING_VGAEMU));
   /* with KVM we need to manually remove/shrink existing mappings */
   do_munmap_kvm(targ, mapsize);
-  if (cap & MAPPING_VGAEMU) {
+  if ((cap & MAPPING_VGAEMU) && kvm_in_vcpi())
     struct kvm_coalesced_mmio_zone mmio_zone = {};
     int coalesced_ioctl;
     int ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
@@ -675,7 +675,7 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
     mprotect_kvm(cap, targ, mapsize, protect);
 }
 
-void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
+int mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
   size_t pagesize = sysconf(_SC_PAGESIZE);
   unsigned int start = targ / pagesize;
@@ -685,17 +685,17 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 
   if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
 	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
-	       MAPPING_EXTMEM))) return;
+	       MAPPING_EXTMEM))) return 0;
 
   p = kvm_get_memory_region(targ, mapsize);
-  if (!p) return;
+  if (!p) return 0;
 
   /* never apply write-protect to regions with dirty logging */
   if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
       (p->flags & KVM_MEM_LOG_DIRTY_PAGES))
-    return;
+    return 0;
 
-  if (monitor == NULL) return;
+  if (monitor == NULL) return 0;
 
   Q_printf("KVM: protecting %x:%zx with prot %x\n", targ, mapsize, protect);
 
@@ -998,6 +998,7 @@ void kvm_sync_vga_dirty_map(void)
   for (slot = 0; slot < MAXSLOT; slot++)
     if (maps[slot].guest_phys_addr == addr) break;
 
+  if (slot == MAXSLOT || maps[slot].flags != KVM_MEM_LOG_DIRTY_PAGES) return;
   dirty_log.slot = slot;
   dirty_log.dirty_bitmap = &bitmap;
   ioctl(vmfd, KVM_GET_DIRTY_LOG, &dirty_log);
@@ -1446,6 +1447,8 @@ dosaddr_t kvm_vcpi_get_pmi(dosaddr_t pagetable, dosaddr_t gdt, unsigned *pages)
 
 void kvm_vcpi_pm_switch(dosaddr_t addr)
 {
+  int slot;
+
   /* clear VIF during VCPI PM execution so cs:eip isn't touched, inject
      interrupts instead */
   clear_IF();
@@ -1453,6 +1456,16 @@ void kvm_vcpi_pm_switch(dosaddr_t addr)
   monitor->regs.eip =
     (VCPI_CODE_PAGE << 12) + (kvm_mon_vcpi_pm_jmp - (kvm_mon_start + 2*PAGE_SIZE));
   monitor->regs.eflags &= ~(X86_EFLAGS_VM | X86_EFLAGS_IF);
+
+  addr = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << PAGE_SHIFT;
+  for (slot = 0; slot < MAXSLOT; slot++) {
+    if (maps[slot].guest_phys_addr == addr &&
+	maps[slot].memory_size > 0 &&
+	maps[slot].flags != KVM_MEM_LOG_DIRTY_PAGES) {
+      vgaemu_map_bank();
+      break;
+    }
+  }
 }
 
 void kvm_done(void)
