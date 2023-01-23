@@ -191,7 +191,8 @@ static char sem_name[256];
 
 static void pty_thr(void)
 {
-    char buf[128];
+#define MAX_LEN 1024
+    char buf[MAX_LEN];
     fd_set rfds;
     struct timeval tv;
     int retval, rd, wr;
@@ -229,7 +230,6 @@ static void pty_thr(void)
 		const char *p = buf;
 		buf[rd] = 0;
 		while (*p) {
-		    #define MAX_LEN 256
 		    t_unicode uni[MAX_LEN];
 		    const t_unicode *u = uni;
 		    char buf2[MAX_LEN * MB_LEN_MAX];
