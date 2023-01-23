@@ -1055,7 +1055,7 @@ int mcommit(void *ptr, size_t size)
   err = mprotect_mapping(cap, targ, size, PROT_READ | PROT_WRITE);
   if (err == -1)
     return 0;
-#ifdef HAVE_DECL_MADV_POPULATE_WRITE
+#if HAVE_DECL_MADV_POPULATE_WRITE
   err = madvise(ptr, size, MADV_POPULATE_WRITE);
   if (err)
     perror("madvise()");
