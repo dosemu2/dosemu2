@@ -369,7 +369,7 @@ char *skip_white_and_delim(char *s, int delim);
 #define _post_msdos() REGS = _saved_regs
 #define post_msdos() REGS = _saved_regs; } while(0)
 void call_msdos(void);
-int com_doswrite(int dosfilefd, char *buf32, u_short size);
+int com_doswrite(int dosfilefd, const char *buf32, u_short size);
 int com_dosread(int dosfilefd, char *buf32, u_short size);
 int com_dosreadcon(char *buf32, u_short size);
 int com_doswritecon(const char *buf32, u_short size);

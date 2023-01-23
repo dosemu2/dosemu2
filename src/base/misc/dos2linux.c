@@ -1028,7 +1028,7 @@ void call_msdos(void)
 	do_int_call_back(0x21);
 }
 
-int com_doswrite(int dosfilefd, char *buf32, u_short size)
+int com_doswrite(int dosfilefd, const char *buf32, u_short size)
 {
 	char *s;
 	u_short int23_seg, int23_off;
@@ -1117,46 +1117,12 @@ int com_dosreadcon(char *buf32, u_short size)
 
 int com_doswritecon(const char *buf32, u_short size)
 {
-	u_short rd;
-
-	if (!size)
-		return 0;
-	pre_msdos();
-	for (rd = 0; rd < size; rd++) {
-		LWORD(eax) = 0x600;
-		LO(dx) = buf32[rd];
-		call_msdos();
-	}
-	post_msdos();
-	return rd;
+	return com_doswrite(STDOUT_FILENO, buf32, size);
 }
 
 int com_dosprint(const char *buf32)
 {
-	char *s;
-	u_short int23_seg, int23_off, size;
-	size = strlen(buf32);
-	if (!size) return 0;
-	com_errno = 8;
-	s = lowmem_alloc(size);
-	if (!s) return -1;
-	memcpy(s, buf32, size);
-	pre_msdos();
-	LWORD(ebx) = STDOUT_FILENO;
-	LWORD(ecx) = size;
-	SREG(ds) = DOSEMU_LMHEAP_SEG;
-	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
-	HI(ax) = 0x40;
-	/* write() can be interrupted with ^C. Therefore we set int0x23 here
-	 * so that even in this case it will return to the proper place. */
-	int23_seg = ISEG(0x23);
-	int23_off = IOFF(0x23);
-	SETIVEC(0x23, CBACK_SEG, CBACK_OFF);
-	call_msdos();	/* call MSDOS */
-	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
-	post_msdos();
-	lowmem_free(s);
-	return size;
+	return com_doswritecon(buf32, strlen(buf32));
 }
 
 int com_dosopen(const char *name, int flags)
