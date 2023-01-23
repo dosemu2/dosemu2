@@ -249,7 +249,7 @@ static void pty_thr(void)
 	    break;
 	}
 	if (pty_done)
-	    return;
+	    break;
 
 	wr = com_dosreadcon(buf, sizeof(buf));
 	if (wr > 0)
