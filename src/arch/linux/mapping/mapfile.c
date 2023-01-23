@@ -83,10 +83,11 @@ static void discardtempfile(void)
 
 static int commit(void *ptr, size_t size)
 {
-  int err;
-  err = madvise(ptr, size, MADV_POPULATE_WRITE);
+#ifdef HAVE_DECL_MADV_POPULATE_WRITE
+  int err = madvise(ptr, size, MADV_POPULATE_WRITE);
   if (err)
     perror("madvise()");
+#endif
   return 1;
 }
 

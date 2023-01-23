@@ -184,9 +184,11 @@ static int commit(void *ptr, size_t size)
   if (mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(ptr), size,
 	PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
     return 0;
+#ifdef HAVE_DECL_MADV_POPULATE_WRITE
   err = madvise(ptr, size, MADV_POPULATE_WRITE);
   if (err)
     perror("madvise()");
+#endif
   return 1;
 }
 
