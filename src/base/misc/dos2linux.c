@@ -124,6 +124,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <pthread.h>
 #ifdef __GLIBC__
 #include <alloca.h>
 #endif
@@ -147,6 +148,7 @@
 #include "../../dosext/mfs/lfn.h"
 #include "../../dosext/mfs/mfs.h"
 #include "mmio_tracing.h"
+#include "spscq.h"
 
 #define com_stderr      2
 
@@ -188,44 +190,44 @@ static int pty_done;
 static int cbrk;
 static sem_t *pty_sem;
 static char sem_name[256];
+static sem_t rd_sem;
+static pthread_t reader;
+static void *queue;
+
+static void *rd_thread(void *arg)
+{
+    while (1) {
+        sem_wait(&rd_sem);
+        while (1) {
+            void *ptr;
+            unsigned len;
+            ssize_t rd;
+
+            ptr = spscq_write_area(queue, &len);
+            rd = read(pty_fd, ptr, len);
+            if (rd <= 0)
+                break;
+            spscq_commit_write(queue, rd);
+        }
+        __atomic_store_n(&pty_done, 1, __ATOMIC_RELEASE);
+    }
+    return NULL;
+}
 
 static void pty_thr(void)
 {
-#define MAX_LEN 1024
+#define MAX_LEN (1024+1)
     char buf[MAX_LEN];
-    fd_set rfds;
-    struct timeval tv;
-    int retval, rd, wr;
+    int rd, wr;
     struct char_set_state kstate;
     struct char_set_state dstate;
 
     init_charset_state(&kstate, trconfig.keyb_charset);
     init_charset_state(&dstate, trconfig.dos_charset);
+    sem_post(&rd_sem);
     while (1) {
-	rd = wr = 0;
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-	FD_ZERO(&rfds);
-	FD_SET(pty_fd, &rfds);
-	retval = RPT_SYSCALL(select(pty_fd + 1, &rfds, NULL, NULL, &tv));
-	switch (retval) {
-	case -1:
-	    g_printf("run_unix_command(): select error %s\n", strerror(errno));
-	    pty_done++;
-	    break;
-	case 0:
-	    break;
-	default:
-	    /* one of the pipes has data, or EOF */
-	    rd = RPT_SYSCALL(read(pty_fd, buf, sizeof(buf) - 1));
-	    switch (rd) {
-	    case -1:
-		g_printf("run_unix_command(): read error %s\n", strerror(errno));
-		/* no break */
-	    case 0:
-		pty_done++;
-		break;
-	    default: {
+	rd = spscq_read(queue, buf, sizeof(buf) - 1);
+	if (rd > 0) {
 		int rc;
 		const char *p = buf;
 		buf[rd] = 0;
@@ -243,15 +245,11 @@ static void pty_thr(void)
 			break;
 		    com_doswritecon(buf2, rc);
 		}
-		break;
-	    }
-	    }
-	    break;
 	}
-	if (pty_done)
+	if (__atomic_load_n(&pty_done, __ATOMIC_ACQUIRE))
 	    break;
 
-	wr = com_dosreadcon(buf, sizeof(buf));
+	wr = com_dosreadcon(buf, sizeof(buf) - 1);
 	if (wr > 0)
 	    write(pty_fd, buf, wr);
 
@@ -278,14 +276,21 @@ int dos2tty_init(void)
         error("sem_open failed %s\n", strerror(errno));
         return -1;
     }
+    sem_init(&rd_sem, 0, 0);
+    queue = spscq_init(1024 * 64); // 64K queue
+    pthread_create(&reader, NULL, rd_thread, queue);
     return 0;
 }
 
 void dos2tty_done(void)
 {
+    pthread_cancel(reader);
+    pthread_join(reader, NULL);
+    spscq_done(queue);
     close(pty_fd);
     sem_close(pty_sem);
     sem_unlink(sem_name);
+    sem_destroy(&rd_sem);
 }
 
 static int dos2tty_open(void)
