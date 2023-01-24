@@ -394,7 +394,7 @@ int strequalDOS(const char *s1, const char *s2);
 char *strstrDOS(char *haystack, const char *upneedle);
 int name_ufs_to_dos(char *dest, const char *src);
 
-int dos2tty_init(void);
+void dos2tty_init(void);
 void dos2tty_done(void);
 
 #endif /* DOS2LINUX_H */

@@ -357,7 +357,6 @@ int main(int argc, char **argv, char * const *envp)
      * the signal_pre_init(), which right now blocks the signals. */
     iodev_init();		/* initialize devices */
     init_all_DOS_tables();	/* longest init function! needs to be optimized */
-    dos2tty_init();
     signal_init();              /* initialize sig's & sig handlers */
     if (config.exitearly) {
       dbug_printf("Leaving DOS before booting\n");
@@ -453,7 +452,6 @@ void __leavedos(int code, int sig, const char *s, int num)
     coopth_abandon();
     /* close coopthreads-related stuff first */
     dpmi_done();
-    dos2tty_done();
     if (!config.exitearly) {  // in exitearly case nothing to join
       /* try to clean up threads */
       tmp = coopth_flush_vm86();

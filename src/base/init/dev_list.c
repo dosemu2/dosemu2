@@ -45,6 +45,7 @@
 #include "virq.h"
 #include "vint.h"
 #include "vtmr.h"
+#include "dos2linux.h"
 
 struct io_dev_struct {
   const char *name;
@@ -92,6 +93,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "xms",     xms_init,     xms_reset,     xms_done },
   { "dpmi",    dpmi_setup,   dpmi_reset,    NULL },
   { "cdrom",   NULL,         NULL,          cdrom_done },
+  { "dos2tty", dos2tty_init, NULL,          dos2tty_done },
   { NULL,      NULL,         NULL,          NULL }
 };
 

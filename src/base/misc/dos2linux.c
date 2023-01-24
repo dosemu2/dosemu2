@@ -260,13 +260,13 @@ static void pty_thr(void)
     cleanup_charset_state(&dstate);
 }
 
-int dos2tty_init(void)
+void dos2tty_init(void)
 {
     pty_fd = posix_openpt(O_RDWR);
     if (pty_fd == -1)
     {
         error("openpt failed %s\n", strerror(errno));
-        return -1;
+        return;
     }
     unlockpt(pty_fd);
     snprintf(sem_name, sizeof(sem_name), "/dosemu_pty_sem_%i", getpid());
@@ -274,12 +274,11 @@ int dos2tty_init(void)
     if (!pty_sem)
     {
         error("sem_open failed %s\n", strerror(errno));
-        return -1;
+        return;
     }
     sem_init(&rd_sem, 0, 0);
     queue = spscq_init(1024 * 64); // 64K queue
     pthread_create(&reader, NULL, rd_thread, queue);
-    return 0;
 }
 
 void dos2tty_done(void)
