@@ -383,6 +383,11 @@ int main(int argc, char **argv, char * const *envp)
     case CPUVM_EMU:
       e_enter();
       break;
+#ifdef __i386__
+    case CPUVM_VM86:
+      true_vm86_enter();
+      break;
+#endif
     }
     can_leavedos = 1;
 

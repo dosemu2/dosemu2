@@ -441,12 +441,18 @@ static int handle_GP_hlt(void)
 }
 
 #ifdef __i386__
+/* avoid converting to and from fxsave when staying in vm86 */
+static struct emu_fsave true_vm86_fsave;
+
 static int true_vm86(union vm86_union *x)
 {
     int ret;
     uint32_t old_flags = REG(eflags);
 
-    loadfpstate(vm86_fpu_state);
+    if (config.cpufxsr)
+        loadfxsave(vm86_fpu_state);
+    else
+        loadfsave(true_vm86_fsave);
 again:
 #if 0
     ret = vm86(&x->vm86ps);
@@ -464,7 +470,10 @@ again:
      * TODO: check kernel version */
     REG(eflags) |= (old_flags & VIP);
 
-    savefpstate(vm86_fpu_state);
+    if (config.cpufxsr)
+        savefxsave(vm86_fpu_state);
+    else
+        savefsave(true_vm86_fsave);
     /* there is no real need to save and restore the FPU state of the
        emulator itself: savefpstate (fnsave) also resets the current FPU
        state using fninit; fesetenv then restores trapping of division by
@@ -473,6 +482,18 @@ again:
     */
     fesetenv(&dosemu_fenv);
     return ret;
+}
+
+void true_vm86_enter(void)
+{
+    if (!config.cpufxsr)
+        fxsave_to_fsave(&vm86_fpu_state, &true_vm86_fsave);
+}
+
+void true_vm86_leave(void)
+{
+    if (!config.cpufxsr)
+        fsave_to_fxsave(&true_vm86_fsave, &vm86_fpu_state);
 }
 #endif
 

@@ -430,6 +430,11 @@ static void leave_backend(int be, int pm)
   case CPUVM_EMU:
     e_leave();
     break;
+#ifdef __i386__
+  case CPUVM_VM86:
+    true_vm86_leave();
+    break;
+#endif
   }
 }
 
@@ -445,6 +450,11 @@ static void enter_backend(int be, int pm)
   case CPUVM_EMU:
     e_enter();
     break;
+#ifdef __i386__
+  case CPUVM_VM86:
+    true_vm86_enter();
+    break;
+#endif
   }
 }
 

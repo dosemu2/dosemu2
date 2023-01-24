@@ -304,42 +304,50 @@ extern fenv_t dosemu_fenv;
 		asm volatile("mov %%" #reg ",%0":"=rm" (__value)); \
 		__value; \
 	})
+#define loadfsave(value) asm volatile("frstor %0\n" :: "m"(value))
+#define savefsave(value) asm volatile("fnsave %0; fwait\n" : "=m"(value))
+/* use 32bit versions */
+#define loadfxsave(value) asm volatile("fxrstor %0\n" :: "m"(value))
+#define savefxsave(value) asm volatile("fxsave %0\n" : "=m"(value))
 #else
 #define loadflags(value)
 #define getflags() 0
 #define loadregister(reg, value)
 #define getregister(reg) 0
 #define getsegment(reg) 0
+#define loadfsave(value)
+#define savefsave(value)
+#define loadfxsave(value)
+#define savefxsave(value)
 #endif
 
 static inline void loadfpstate_legacy(emu_fpstate *buf)
 {
 	struct emu_fsave fsave;
 	fxsave_to_fsave(buf, &fsave);
-	asm volatile("frstor %0\n" :: "m"(fsave));
+	loadfsave(fsave);
 }
 
 static inline void savefpstate_legacy(emu_fpstate *buf)
 {
 	struct emu_fsave fsave;
-	asm volatile("fnsave %0; fwait\n" : "=m"(fsave));
+	savefsave(fsave);
 	fsave_to_fxsave(&fsave, buf);
 }
 
 #if defined(__x86_64__)
-/* use 32bit versions */
-#define loadfpstate(value) asm volatile("fxrstor %0\n" :: "m"(value))
-#define savefpstate(value) asm volatile("fxsave %0\n" : "=m"(value))
+#define loadfpstate(value) loadfxsave(value)
+#define savefpstate(value) savefxsave(value)
 #elif defined (__i386__)
 #define loadfpstate(value) do { \
 	if (config.cpufxsr) \
-		asm volatile("fxrstor %0\n" :: "m"(value)); \
+		loadfxsave(value); \
 	else \
 		loadfpstate_legacy(&value); \
 } while (0)
 #define savefpstate(value) do { \
 	if (config.cpufxsr) \
-		asm volatile("fxsave %0\n" : "=m"(value)); \
+		savefxsave(value); \
 	else \
 		savefpstate_legacy(&value); \
 } while (0)
