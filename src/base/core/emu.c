@@ -468,7 +468,9 @@ static void __leavedos_main(int code, int sig)
 {
     int i;
 
-    /* stop io thread first */
+    /* async signals must be disabled first or pthread_cancel() hangs on arm */
+    signal_done();
+    /* now safe to stop io thread */
     ioselect_done();
     /* then stop device threads, which also stops any remaining vm86() uses */
     iodev_term();
@@ -477,9 +479,6 @@ static void __leavedos_main(int code, int sig)
     /* after vm86() is no longer used, we can do this */
     mhp_close();
 #endif
-    /* async signals must be disabled after coopthreads are joined, but
-     * before coopth_done(). */
-    signal_done();
     /* now it is safe to shut down coopth. Can be done any later, if need be */
     coopth_done();
     dbug_printf("coopthreads stopped\n");
