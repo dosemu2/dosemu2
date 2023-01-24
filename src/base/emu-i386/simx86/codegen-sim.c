@@ -2972,9 +2972,10 @@ static unsigned int CloseAndExec_sim(unsigned int PC, int mode)
 	}
 
 	if (!(CEmuStat & CeS_INHI)) {
-	    if (signal_pending())
+	    if (TheCPU.sigalrm_pending) {
 		CEmuStat|=CeS_SIGPEND;
-	    TheCPU.sigalrm_pending = 0;
+		TheCPU.sigalrm_pending = 0;
+	    }
 	}
 	if (P0 == (unsigned)-1)
 		return PC;

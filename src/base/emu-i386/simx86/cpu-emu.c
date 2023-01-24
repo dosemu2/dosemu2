@@ -1125,7 +1125,7 @@ int e_dpmi(cpuctx_t *scp)
     retval = DPMI_RET_CLIENT;
 
     if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
-	if (debug_level('e')>2) e_printf("DPMI sigpending = %d\n",signal_pending());
+        retval = DPMI_RET_DOSEMU;
     }
     else if (xval==EXCP_GOBACK) {
         retval = DPMI_RET_DOSEMU;
@@ -1136,7 +1136,7 @@ int e_dpmi(cpuctx_t *scp)
 	retval = DPMI_RET_FAULT;
     }
   }
-  while (!signal_pending() && retval == DPMI_RET_CLIENT);
+  while (retval == DPMI_RET_CLIENT);
   /* ------ OUTER LOOP -- exit to user level ---------------------- */
 
   return retval;

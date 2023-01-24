@@ -3422,15 +3422,10 @@ unsigned int Exec_x86(TNode *G)
 		CEmuStat &= ~CeS_TRAP;
 	} else {
 		CEmuStat &= ~(CeS_INHI|CeS_MOVSS);
-		if (signal_pending()) {
+		if (TheCPU.sigalrm_pending) {
 			CEmuStat|=CeS_SIGPEND;
+			TheCPU.sigalrm_pending = 0;
 		}
-		/* sigalrm_pending at this point can be:
-		 *  0 - if there was no signal
-		 *  1 - if there was a signal
-		 * .. so reset it for next try
-		 */
-		TheCPU.sigalrm_pending = 0;
 	}
 
 #if defined(SINGLESTEP)
@@ -3481,7 +3476,7 @@ unsigned int Exec_x86_fast(TNode *G)
 				NodeLinker(LastXNode, G);
 			LastXNode = G;
 		}
-		if (signal_pending()) {
+		if (TheCPU.sigalrm_pending) {
 			CEmuStat|=CeS_SIGPEND;
 			break;
 		}
