@@ -1135,6 +1135,7 @@ int signal_pending(void)
  */
 void handle_signals(void)
 {
+  process_callbacks();
   while (signal_pending() && !in_handle_signals) {
     in_handle_signals++;
     coopth_start(sh_tid, NULL);
@@ -1181,8 +1182,6 @@ static void SIGALRM_call(void *arg)
 
   uncache_time();
   timer_tick();
-  /* deliver timer irqs */
-  process_callbacks();
 
   if ((pic_sys_time-cnt10) >= (PIT_TICK_RATE/100) || dosemu_frozen) {
     cnt10 = pic_sys_time;
@@ -1352,7 +1351,11 @@ void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
     if (!i)
       error("callback queue overflow, %s\n", name);
   }
-  pthread_kill(dosemu_pthread_self, SIG_THREAD_NOTIFY);
+  /* FIXME: remove the hack below */
+  if (config.cpu_vm == CPUVM_EMU && config.cpu_vm_dpmi == CPUVM_EMU)
+    e_gen_sigalrm();
+  else
+    pthread_kill(dosemu_pthread_self, SIG_THREAD_NOTIFY);
 }
 
 static void process_callbacks(void)
