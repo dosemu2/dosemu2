@@ -427,6 +427,9 @@ static void leave_backend(int be, int pm)
   case CPUVM_NATIVE:
     native_dpmi_leave_to_vm86();
     break;
+  case CPUVM_EMU:
+    e_leave();
+    break;
   }
 }
 
@@ -438,6 +441,9 @@ static void enter_backend(int be, int pm)
     break;
   case CPUVM_NATIVE:
     native_dpmi_enter_from_vm86();
+    break;
+  case CPUVM_EMU:
+    e_enter();
     break;
   }
 }

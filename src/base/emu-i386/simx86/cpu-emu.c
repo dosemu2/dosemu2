@@ -581,6 +581,24 @@ void Cpu2Reg (void)
 	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 }
 
+void e_enter(void)
+{
+  if (CONFIG_CPUSIM)
+    fp87_load_fpstate(&vm86_fpu_state);
+  else {
+    // unmasked exception settings are emulated
+    TheCPU.fpuc = vm86_fpu_state.cwd;
+    vm86_fpu_state.cwd |= 0x3f;
+  }
+}
+
+void e_leave(void)
+{
+  if (CONFIG_CPUSIM)
+    fp87_save_fpstate(&vm86_fpu_state);
+  else
+    vm86_fpu_state.cwd = (vm86_fpu_state.cwd & ~0x3f) | (TheCPU.fpuc & 0x3f);
+}
 
 /* ======================================================================= */
 

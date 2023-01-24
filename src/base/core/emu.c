@@ -376,8 +376,14 @@ int main(int argc, char **argv, char * const *envp)
       set_kvm_memory_regions();
 
     cpu_reset();
-    if (config.cpu_vm == CPUVM_KVM)
+    switch(config.cpu_vm) {
+    case CPUVM_KVM:
       kvm_enter(0);
+      break;
+    case CPUVM_EMU:
+      e_enter();
+      break;
+    }
     can_leavedos = 1;
 
     while (!fatalerr && !config.exitearly) {

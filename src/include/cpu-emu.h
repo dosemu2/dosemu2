@@ -97,6 +97,8 @@ void reset_emu_cpu (void);
 int e_dpmi(cpuctx_t *scp);
 void e_dpmi_b0x(int op,cpuctx_t *scp);
 extern int in_dpmi_emu;
+void e_enter(void);
+void e_leave(void);
 
 /* called from emu-ldt.c */
 void InvalidateSegs(void);

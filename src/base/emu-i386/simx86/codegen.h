@@ -276,6 +276,8 @@ extern unsigned int (*CloseAndExec)(unsigned int PC, int mode);
 void EndGen(void);
 extern void fp87_set_rounding(void);
 extern void fp87_save_except(void);
+extern void fp87_save_fpstate(emu_fpstate *);
+extern void fp87_load_fpstate(const emu_fpstate *);
 //
 extern unsigned char InterOps[];
 extern char RmIsReg[];
