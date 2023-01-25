@@ -1395,7 +1395,7 @@ static void mhp_mcbs(int argc, char *argv[])
 
   // HMA
   for (hmcb = hma_start, cnt = 0; hmcb && cnt < 50; cnt++) {
-    uint16_t hoff = (void *)hmcb - MK_FP32(0xffff, 0);
+    uint16_t hoff = (uintptr_t)hmcb - (uintptr_t)MK_FP32(0xffff, 0);
     const char *name;
     char buf[32];
 
