@@ -39,7 +39,7 @@ extern unsigned long dosdebug_flags;
 #define DBGF_IN_LEAVEDOS	   0x40000000
 
 
-unsigned int mhp_debug(enum dosdebug_event, unsigned int, unsigned int);
+unsigned int mhp_debug(unsigned, unsigned int, unsigned int);
 void mhp_send(void);
 void mhp_input(void);
 void mhp_close(void);
@@ -137,7 +137,7 @@ struct mhpdbgc
 {
    int stopped;
    int want_to_stop;
-   enum dosdebug_event currcode;
+   unsigned currcode;
    int trapcmd;
    int trapip; /* ip that we were on when we started the "tracei" command */
    int bpload;
