@@ -125,6 +125,9 @@ void fp87_set_rounding(void)
 
 static void fxam(long double d)
 {
+#ifndef iscanonical
+#define iscanonical(x) 1
+#endif
 	unsigned short fps = TheCPU.fpus & ~FPUS_C;
 
 	// https://www.felixcloutier.com/x86/fxam
