@@ -468,7 +468,7 @@ static void dpmi_set_pm(int pm)
   }
   dpmi_pm = pm;
   if (config.cpu_vm != config.cpu_vm_dpmi) {
-    emu_fpstate fpstate;
+    static emu_fpstate fpstate;
     leave_backend(pm ? config.cpu_vm : config.cpu_vm_dpmi, !pm, &fpstate);
     enter_backend(!pm ? config.cpu_vm : config.cpu_vm_dpmi, pm, &fpstate);
   }
