@@ -783,12 +783,12 @@ static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
   seg->unusable = !desc->present;
 }
 
-void kvm_update_fpu(void)
+void kvm_update_fpu(const emu_fpstate *fpstate)
 {
   struct kvm_xsave fpu = {};
   int ret;
 
-  memcpy(fpu.region, &vm86_fpu_state, sizeof(vm86_fpu_state));
+  memcpy(fpu.region, fpstate, sizeof(*fpstate));
   ret = ioctl(vcpufd, KVM_SET_XSAVE, &fpu);
   if (ret == -1) {
     perror("KVM: KVM_SET_XSAVE");
@@ -796,12 +796,12 @@ void kvm_update_fpu(void)
   }
 }
 
-void kvm_enter(int pm)
+void kvm_enter(int pm, const emu_fpstate *fpstate)
 {
-  kvm_update_fpu();
+  kvm_update_fpu(fpstate);
 }
 
-void kvm_leave(int pm)
+void kvm_leave(int pm, emu_fpstate *fpstate)
 {
   struct kvm_xsave fpu;
   int ret = ioctl(vcpufd, KVM_GET_XSAVE, &fpu);
@@ -809,7 +809,7 @@ void kvm_leave(int pm)
     perror("KVM: KVM_GET_XSAVE");
     leavedos_main(99);
   }
-  memcpy(&vm86_fpu_state, fpu.region, sizeof(vm86_fpu_state));
+  memcpy(fpstate, fpu.region, sizeof(*fpstate));
 }
 
 static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)

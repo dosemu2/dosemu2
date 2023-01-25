@@ -232,7 +232,6 @@ static inline dosaddr_t FAR2ADDR(far_t ptr) {
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
 
-extern emu_fpstate vm86_fpu_state;
 extern fenv_t dosemu_fenv;
 
 /*

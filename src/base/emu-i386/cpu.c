@@ -35,6 +35,7 @@
 #include "emudpmi.h"
 #include "priv.h"
 #include "kvm.h"
+#include "dnative.h"
 
 #ifdef X86_EMULATOR
 #include "simx86/syncpu.h"
@@ -92,8 +93,6 @@ static unsigned int TRs[2] =
 };
 #endif
 
-/* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
-emu_fpstate vm86_fpu_state __attribute__((aligned(16)));
 fenv_t dosemu_fenv;
 static void fpu_reset(void);
 
@@ -241,11 +240,25 @@ static void fpu_init(void)
 
 static void fpu_reset(void)
 {
-  vm86_fpu_state.cwd = 0x0040;
-  vm86_fpu_state.swd = 0;
-  vm86_fpu_state.ftw = 0x5555;       //bochs
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
-    kvm_update_fpu();
+  emu_fpstate vm86_fpu_state;
+  int cpu_vm;
+
+  memset(&vm86_fpu_state, 0, sizeof vm86_fpu_state);
+  vm86_fpu_state.cwd = 0x0040;       //bochs
+  vm86_fpu_state.ftw = 0xff;         //all valid (-> 0x5555 in fsave tag)
+  cpu_vm = in_dpmi_pm() ? config.cpu_vm_dpmi : config.cpu_vm;
+  switch(cpu_vm) {
+  case CPUVM_KVM:
+    kvm_update_fpu(&vm86_fpu_state);
+  case CPUVM_EMU:
+    e_update_fpu(&vm86_fpu_state);
+  case CPUVM_NATIVE:
+    native_dpmi_update_fpu(&vm86_fpu_state);
+#ifdef __i386__
+  case CPUVM_VM86:
+    true_vm86_update_fpu(&vm86_fpu_state);
+#endif
+  }
 }
 
 static Bit8u fpu_io_read(ioport_t port)
@@ -291,7 +304,6 @@ void cpu_setup(void)
   io_dev.handler_name = "Math Coprocessor";
   port_register_handler(io_dev, 0);
 
-  savefpstate(vm86_fpu_state);
 #ifdef FE_NOMASK_ENV
   feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 #endif

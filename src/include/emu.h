@@ -104,8 +104,9 @@ extern FILE *real_stderr;
 void dos_ctrl_alt_del(void);	/* disabled */
 
 extern void vm86_helper(void);
-extern void true_vm86_enter(void);
-extern void true_vm86_leave(void);
+extern void true_vm86_enter(const emu_fpstate *fpstate);
+extern void true_vm86_leave(emu_fpstate *fpstate);
+extern void true_vm86_update_fpu(const emu_fpstate *fpstate);
 extern void run_vm86(void);
 extern void loopstep_run_vm86(void);
 extern int do_call_back(Bit16u cs, Bit16u ip);

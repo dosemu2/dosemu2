@@ -442,6 +442,8 @@ static int handle_GP_hlt(void)
 #ifdef __i386__
 /* avoid converting to and from fxsave when staying in vm86 */
 static struct emu_fsave true_vm86_fsave;
+/* this needs to be paragraph aligned for fxrstor/fxsave */
+static struct emu_fpxstate true_vm86_fxsave __attribute__((aligned(16)));
 
 static int true_vm86(union vm86_union *x)
 {
@@ -449,7 +451,7 @@ static int true_vm86(union vm86_union *x)
     uint32_t old_flags = REG(eflags);
 
     if (config.cpufxsr)
-        loadfxsave(vm86_fpu_state);
+        loadfxsave(true_vm86_fxsave);
     else
         loadfsave(true_vm86_fsave);
 again:
@@ -470,7 +472,7 @@ again:
     REG(eflags) |= (old_flags & VIP);
 
     if (config.cpufxsr)
-        savefxsave(vm86_fpu_state);
+        savefxsave(true_vm86_fxsave);
     else
         savefsave(true_vm86_fsave);
     /* there is no real need to save and restore the FPU state of the
@@ -483,16 +485,25 @@ again:
     return ret;
 }
 
-void true_vm86_enter(void)
+void true_vm86_update_fpu(const emu_fpstate *fpstate)
 {
-    if (!config.cpufxsr)
-        fxsave_to_fsave(&vm86_fpu_state, &true_vm86_fsave);
+    if (config.cpufxsr)
+        true_vm86_fxsave = *fpstate;
+    else
+        fxsave_to_fsave(fpstate, &true_vm86_fsave);
 }
 
-void true_vm86_leave(void)
+void true_vm86_enter(const emu_fpstate *fpstate)
 {
-    if (!config.cpufxsr)
-        fsave_to_fxsave(&true_vm86_fsave, &vm86_fpu_state);
+    true_vm86_update_fpu(fpstate);
+}
+
+void true_vm86_leave(emu_fpstate *fpstate)
+{
+    if (config.cpufxsr)
+        *fpstate = true_vm86_fxsave;
+    else
+        fsave_to_fxsave(&true_vm86_fsave, fpstate);
 }
 #endif
 

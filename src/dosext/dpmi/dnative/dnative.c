@@ -109,22 +109,27 @@ static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
   scp_fpregs = NULL;
 }
 
-void native_dpmi_enter_from_vm86(void)
+void native_dpmi_update_fpu(const emu_fpstate *fpstate)
 {
   if (scp_fpregs) {
     void *fpregs = scp_fpregs;
 #ifdef __x86_64__
-    static_assert(sizeof(*scp_fpregs) == sizeof(vm86_fpu_state),
+    static_assert(sizeof(*scp_fpregs) == sizeof(*fpstate),
 		  "size mismatch");
 #else
     /* i386: convert fxsave state to fsave state */
-    convert_from_fxsr(scp_fpregs, &vm86_fpu_state);
+    convert_from_fxsr(scp_fpregs, fpstate);
     if ((scp_fpregs->status >> 16) != EMU_X86_FXSR_MAGIC)
       return;
     fpregs = &scp_fpregs->status + 1;
 #endif
-    memcpy(fpregs, &vm86_fpu_state, sizeof(vm86_fpu_state));
+    memcpy(fpregs, fpstate, sizeof(*fpstate));
   }
+}
+
+void native_dpmi_enter_from_vm86(const emu_fpstate *fpstate)
+{
+  native_dpmi_update_fpu(fpstate);
 }
 
 static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
@@ -152,12 +157,12 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
   scp_fpregs = scp->fpregs;
 }
 
-void native_dpmi_leave_to_vm86(void)
+void native_dpmi_leave_to_vm86(emu_fpstate *fpstate)
 {
   if (scp_fpregs) {
     void *fpregs = scp_fpregs;
 #ifdef __x86_64__
-    static_assert(sizeof(*scp_fpregs) == sizeof(vm86_fpu_state),
+    static_assert(sizeof(*scp_fpregs) == sizeof(*fpstate),
 		"size mismatch");
 #else
     if ((scp_fpregs->status >> 16) == EMU_X86_FXSR_MAGIC)
@@ -167,7 +172,7 @@ void native_dpmi_leave_to_vm86(void)
       return;
     }
 #endif
-    memcpy(&vm86_fpu_state, fpregs, sizeof(vm86_fpu_state));
+    memcpy(fpstate, fpregs, sizeof(*fpstate));
   }
 }
 

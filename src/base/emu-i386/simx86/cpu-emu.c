@@ -524,7 +524,7 @@ static void Reg2Cpu (int mode)
   trans_addr     = LONG_CS + TheCPU.eip;
 
   /* FPU state is loaded later on demand for JIT, not used for simulator */
-  TheCPU.fpstate = &vm86_fpu_state;
+  TheCPU.fpstate = &TheCPU._fpstate;
   if (debug_level('e')>1) {
 	if (debug_level('e')==9) e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n%s\n",
 		REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,
@@ -571,7 +571,7 @@ void Cpu2Reg (void)
 
   if (TheCPU.fpstate == NULL) {
     if (!CONFIG_CPUSIM)
-      savefpstate(vm86_fpu_state);
+      savefpstate(TheCPU._fpstate);
     else
       fp87_save_except();
     fesetenv(&dosemu_fenv);
@@ -581,23 +581,31 @@ void Cpu2Reg (void)
 	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 }
 
-void e_enter(void)
+void e_update_fpu(const emu_fpstate *fpstate)
 {
   if (CONFIG_CPUSIM)
-    fp87_load_fpstate(&vm86_fpu_state);
+    fp87_load_fpstate(fpstate);
   else {
     // unmasked exception settings are emulated
-    TheCPU.fpuc = vm86_fpu_state.cwd;
-    vm86_fpu_state.cwd |= 0x3f;
+    TheCPU.fpuc = fpstate->cwd;
+    TheCPU._fpstate = *fpstate;
+    TheCPU._fpstate.cwd |= 0x3f;
   }
 }
 
-void e_leave(void)
+void e_enter(const emu_fpstate *fpstate)
+{
+  e_update_fpu(fpstate);
+}
+
+void e_leave(emu_fpstate *fpstate)
 {
   if (CONFIG_CPUSIM)
-    fp87_save_fpstate(&vm86_fpu_state);
-  else
-    vm86_fpu_state.cwd = (vm86_fpu_state.cwd & ~0x3f) | (TheCPU.fpuc & 0x3f);
+    fp87_save_fpstate(fpstate);
+  else {
+    *fpstate = TheCPU._fpstate;
+    fpstate->cwd = (fpstate->cwd & ~0x3f) | (TheCPU.fpuc & 0x3f);
+  }
 }
 
 /* ======================================================================= */
@@ -628,7 +636,7 @@ static void Scp2Cpu (cpuctx_t *scp)
   TheCPU.cr2 = _cr2;
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
-  TheCPU.fpstate = &vm86_fpu_state;
+  TheCPU.fpstate = &TheCPU._fpstate;
 }
 
 /*
@@ -669,7 +677,7 @@ static void Cpu2Scp (cpuctx_t *scp, int trapno)
   if (!TheCPU.err) _err = 0;		//???
   if (TheCPU.fpstate == NULL) {
     if (!CONFIG_CPUSIM)
-      savefpstate(vm86_fpu_state);
+      savefpstate(TheCPU._fpstate);
     else
       fp87_save_except();
     /* there is no real need to save and restore the FPU state of the

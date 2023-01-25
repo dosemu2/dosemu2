@@ -33,9 +33,9 @@ void set_kvm_memory_regions(void);
 void kvm_set_idt_default(int i);
 void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32, int tg);
 
-void kvm_enter(int pm);
-void kvm_leave(int pm);
-void kvm_update_fpu(void);
+void kvm_enter(int pm, const emu_fpstate *fpstate);
+void kvm_leave(int pm, emu_fpstate *fpstate);
+void kvm_update_fpu(const emu_fpstate *fpstate);
 
 void kvm_done(void);
 
@@ -51,9 +51,9 @@ static inline void set_kvm_memory_regions(void) {}
 static inline void kvm_set_idt_default(int i) {}
 static inline void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32,
     int tg) {}
-static inline void kvm_enter(int pm) {}
-static inline void kvm_leave(int pm) {}
-static inline void kvm_update_fpu(void) {}
+static inline void kvm_enter(int pm, const emu_fpstate *fpstate) {}
+static inline void kvm_leave(int pm, emu_fpstate *fpstate) {}
+static inline void kvm_update_fpu(const emu_fpstate *fpstate) {}
 static inline void kvm_done(void) {}
 #endif
 

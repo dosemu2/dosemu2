@@ -418,41 +418,41 @@ static void print_ldt(void)
   _print_dt(buffer, MAX_SELECTORS, 1);
 }
 
-static void leave_backend(int be, int pm)
+static void leave_backend(int be, int pm, emu_fpstate *fpstate)
 {
   switch(be) {
   case CPUVM_KVM:
-    kvm_leave(pm);
+    kvm_leave(pm, fpstate);
     break;
   case CPUVM_NATIVE:
-    native_dpmi_leave_to_vm86();
+    native_dpmi_leave_to_vm86(fpstate);
     break;
   case CPUVM_EMU:
-    e_leave();
+    e_leave(fpstate);
     break;
 #ifdef __i386__
   case CPUVM_VM86:
-    true_vm86_leave();
+    true_vm86_leave(fpstate);
     break;
 #endif
   }
 }
 
-static void enter_backend(int be, int pm)
+static void enter_backend(int be, int pm, const emu_fpstate *fpstate)
 {
   switch(be) {
   case CPUVM_KVM:
-    kvm_enter(pm);
+    kvm_enter(pm, fpstate);
     break;
   case CPUVM_NATIVE:
-    native_dpmi_enter_from_vm86();
+    native_dpmi_enter_from_vm86(fpstate);
     break;
   case CPUVM_EMU:
-    e_enter();
+    e_enter(fpstate);
     break;
 #ifdef __i386__
   case CPUVM_VM86:
-    true_vm86_enter();
+    true_vm86_enter(fpstate);
     break;
 #endif
   }
@@ -468,8 +468,9 @@ static void dpmi_set_pm(int pm)
   }
   dpmi_pm = pm;
   if (config.cpu_vm != config.cpu_vm_dpmi) {
-    leave_backend(pm ? config.cpu_vm : config.cpu_vm_dpmi, !pm);
-    enter_backend(!pm ? config.cpu_vm : config.cpu_vm_dpmi, pm);
+    emu_fpstate fpstate;
+    leave_backend(pm ? config.cpu_vm : config.cpu_vm_dpmi, !pm, &fpstate);
+    enter_backend(!pm ? config.cpu_vm : config.cpu_vm_dpmi, pm, &fpstate);
   }
 }
 
