@@ -55,6 +55,8 @@
 #include "render.h"
 #include "vgaemu.h"
 #include "emudpmi.h"
+#include "vesabios_pm_offsets.h"
+#include "vesabios_offsets.h"
 #include "vesa.h"
 #include "int.h"
 

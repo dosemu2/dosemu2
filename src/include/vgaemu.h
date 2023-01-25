@@ -49,6 +49,8 @@
 
 #if !defined __VGAEMU_H
 #define __VGAEMU_H
+#include <stddef.h>
+#include "cpu.h"
 
 /*
  * Definition of video mode classes.
@@ -663,16 +665,10 @@ extern unsigned char vga_rom_16_alt[1];
 extern char _binary_vesabios_o_bin_end[];
 extern char _binary_vesabios_o_bin_size[];
 extern char _binary_vesabios_o_bin_start[];
-extern const unsigned vgaemu_bios_start;
-extern const unsigned vgaemu_bios_prod_name;
-extern const unsigned vgaemu_bios_win_func;
-extern const unsigned vgaemu_bios_end;
 
 extern char _binary_vesabios_pm_o_bin_end[];
 extern char _binary_vesabios_pm_o_bin_size[];
 extern char _binary_vesabios_pm_o_bin_start[];
-extern const unsigned vgaemu_bios_pm_interface;
-extern const unsigned vgaemu_bios_pm_interface_end;
 
 #ifdef __cplusplus
 };

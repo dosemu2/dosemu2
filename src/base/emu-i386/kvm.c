@@ -32,6 +32,7 @@
 #include <linux/kvm.h>
 
 #include "kvm.h"
+#include "kvmmon_offsets.h"
 #include "emu.h"
 #include "emu-ldt.h"
 #include "cpu-emu.h"
@@ -55,9 +56,6 @@
 extern char _binary_kvmmon_o_bin_end[];
 extern char _binary_kvmmon_o_bin_size[];
 extern char _binary_kvmmon_o_bin_start[];
-extern const unsigned kvm_mon_start;
-extern const unsigned kvm_mon_hlt;
-extern const unsigned kvm_mon_end;
 
 /* V86/DPMI monitor structure to run code in V86 mode with VME enabled
    or DPMI clients inside KVM
