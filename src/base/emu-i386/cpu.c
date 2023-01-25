@@ -257,8 +257,11 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
 {
   switch (port) {
   case 0xf0:
-    /* not sure about this */
-    vm86_fpu_state.swd &= ~0x8000;
+    /* We need to check if the FPU exception is pending, and set IGNNE
+     * if it is, before untriggering an IRQ. But we don't (and probably
+     * can't) emulate IGNNE properly. So the trick is to do fnclex in
+     * bios.S, then untrigger IRQ unconditionally. */
+    pic_untrigger(13); /* done by default via int75 handler in bios.S */
     break;
   case 0xf1:
     fpu_reset();
