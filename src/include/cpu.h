@@ -73,6 +73,12 @@ struct emu_fsave {
   uint32_t		status;
 };
 
+struct emu_fpxreg {
+  uint16_t		significand[4];
+  uint16_t		exponent;
+  uint16_t		reserved[3];
+};
+
 struct emu_fpxstate {
   /* 32-bit FXSAVE format in 64bit mode (same as in 32bit mode but more xmms) */
   uint16_t		cwd;
@@ -85,7 +91,7 @@ struct emu_fpxstate {
   uint32_t		fds;
   uint32_t		mxcsr;
   uint32_t		mxcr_mask;
-  struct { uint32_t element[4]; } st[8];
+  struct emu_fpxreg	st[8];
   struct { uint32_t element[4]; } xmm[16];
   struct { uint32_t element[4]; } reserved[3];
   struct { uint32_t element[4]; } scratch[3];

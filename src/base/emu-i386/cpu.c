@@ -379,24 +379,59 @@ void cpu_setup(void)
 #endif
 }
 
+#define FP_EXP_TAG_VALID	0
+#define FP_EXP_TAG_ZERO		1
+#define FP_EXP_TAG_SPECIAL	2
+#define FP_EXP_TAG_EMPTY	3
+
+static inline uint32_t twd_fxsr_to_i387(const struct emu_fpxstate *fxsave)
+{
+	const struct emu_fpxreg *st;
+	uint32_t tos = (fxsave->swd >> 11) & 7;
+	uint32_t twd = (unsigned long) fxsave->ftw;
+	uint32_t tag;
+	uint32_t ret = 0xffff0000u;
+	int i;
+
+	for (i = 0; i < 8; i++, twd >>= 1) {
+		if (twd & 0x1) {
+			st = &fxsave->st[(i - tos) & 7];
+
+			switch (st->exponent & 0x7fff) {
+			case 0x7fff:
+				tag = FP_EXP_TAG_SPECIAL;
+				break;
+			case 0x0000:
+				if (!st->significand[0] &&
+				    !st->significand[1] &&
+				    !st->significand[2] &&
+				    !st->significand[3])
+					tag = FP_EXP_TAG_ZERO;
+				else
+					tag = FP_EXP_TAG_SPECIAL;
+				break;
+			default:
+				if (st->significand[3] & 0x8000)
+					tag = FP_EXP_TAG_VALID;
+				else
+					tag = FP_EXP_TAG_SPECIAL;
+				break;
+			}
+		} else {
+			tag = FP_EXP_TAG_EMPTY;
+		}
+		ret |= tag << (2 * i);
+	}
+	return ret;
+}
 
 void fxsave_to_fsave(const struct emu_fpxstate *fxsave, struct emu_fsave *fptr)
 {
-  unsigned int tmp;
   int i;
 
   fptr->cw = fxsave->cwd | 0xffff0000u;
   fptr->sw = fxsave->swd | 0xffff0000u;
-  /* Expand the valid bits */
-  tmp = fxsave->ftw;			/* 00000000VVVVVVVV */
-  tmp = (tmp | (tmp << 4)) & 0x0f0f;	/* 0000VVVV0000VVVV */
-  tmp = (tmp | (tmp << 2)) & 0x3333;	/* 00VV00VV00VV00VV */
-  tmp = (tmp | (tmp << 1)) & 0x5555;	/* 0V0V0V0V0V0V0V0V */
-  /* Transform each bit from 1 to 00 (valid) or 0 to 11 (empty).
-     The kernel will convert it back, so no need to worry about zero
-     and special states 01 and 10. */
-  tmp = ~(tmp | (tmp << 1));
-  fptr->tag = tmp | 0xffff0000u;
+  fptr->tag = twd_fxsr_to_i387(fxsave);
   fptr->ipoff = fxsave->fip;
   fptr->cssel = (uint16_t)fxsave->fcs | ((uint32_t)fxsave->fop << 16);
   fptr->dataoff = fxsave->fdp;
