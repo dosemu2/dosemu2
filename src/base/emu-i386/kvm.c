@@ -1166,7 +1166,6 @@ int kvm_dpmi(cpuctx_t *scp)
         print_exception_info(scp);
 #endif
         dbug_printf("coprocessor exception, calling IRQ13\n");
-        pic_untrigger(13);
         pic_request(13);
         ret = DPMI_RET_DOSEMU;
       } else if (_trapno == 0x0e &&

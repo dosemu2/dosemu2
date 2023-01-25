@@ -257,8 +257,7 @@ static void fpu_io_write(ioport_t port, Bit8u val)
 {
   switch (port) {
   case 0xf0:
-    /* not sure about this */
-    vm86_fpu_state.swd &= ~0x8000;
+    pic_untrigger(13); /* done by default via int75 handler in bios.S */
     break;
   case 0xf1:
     fpu_reset();
