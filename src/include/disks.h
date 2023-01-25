@@ -128,12 +128,14 @@ struct on_disk_mbr {
 static_assert(sizeof(struct on_disk_mbr) == 512,
 		"on_disk_mbr size is incorrect");
 
+union ubpb {
+  struct on_disk_bpb bpb;
+  struct on_disk_bpb7 bpb7;
+};
+
 struct on_disk_vbr {
   uint8_t code[0x0b];
-  union ubpb {
-    struct on_disk_bpb bpb;
-    struct on_disk_bpb7 bpb7;
-  };
+  union ubpb u;
   uint8_t pad[0x200 - 0x0b - sizeof(union ubpb) - 0x02];
   uint16_t signature;           /* VBR_SIG 0xaa55 */
 } __attribute__((packed));

@@ -937,22 +937,22 @@ static void partition_auto(struct disk *dp)
   }
 
   if (vbr.signature == VBR_SIG &&
-      vbr.bpb.media_type == 0xf8 && vbr.bpb.num_fats == 2) {
+      vbr.u.bpb.media_type == 0xf8 && vbr.u.bpb.num_fats == 2) {
 
     d_printf("VBR found, we have a filesystem on PARTITION %s\n", dp->dev_name);
 
-    if (vbr.bpb.num_sectors_small == 0 && (
-        vbr.bpb.v340_400_signature == BPB_SIG_V340 ||
-        vbr.bpb.v340_400_signature == BPB_SIG_V400))
-      dp->num_secs = vbr.bpb.v331_400_num_sectors_large;
-    else if (vbr.bpb7.num_sectors_small == 0 && (
-        vbr.bpb7.signature == BPB_SIG_V7_SHORT ||
-        vbr.bpb7.signature == BPB_SIG_V7_LONG))
-      dp->num_secs = vbr.bpb7.num_sectors_large;
+    if (vbr.u.bpb.num_sectors_small == 0 && (
+        vbr.u.bpb.v340_400_signature == BPB_SIG_V340 ||
+        vbr.u.bpb.v340_400_signature == BPB_SIG_V400))
+      dp->num_secs = vbr.u.bpb.v331_400_num_sectors_large;
+    else if (vbr.u.bpb7.num_sectors_small == 0 && (
+        vbr.u.bpb7.signature == BPB_SIG_V7_SHORT ||
+        vbr.u.bpb7.signature == BPB_SIG_V7_LONG))
+      dp->num_secs = vbr.u.bpb7.num_sectors_large;
     else
-      dp->num_secs = vbr.bpb.num_sectors_small;
-    dp->heads = vbr.bpb.num_heads;
-    dp->sectors = vbr.bpb.sectors_per_track;
+      dp->num_secs = vbr.u.bpb.num_sectors_small;
+    dp->heads = vbr.u.bpb.num_heads;
+    dp->sectors = vbr.u.bpb.sectors_per_track;
 
   } else {
     dp->heads = 254;
@@ -985,7 +985,7 @@ static void partition_setup(struct disk *dp)
   if (RPT_SYSCALL(read(dp->fdesc, &vbr, sizeof(vbr))) != sizeof(vbr)) {
     d_printf("  bpb could not be read\n");
   } else {
-    print_bpb(&vbr.bpb);
+    print_bpb(&vbr.u.bpb);
   }
 
   print_partition_entry(&dp->part_info.mbr.partition[0]);

@@ -49,8 +49,8 @@ unsigned int pm_block_handle_used;       /* tracking handle */
 
 static smpool mem_pool;
 static smpool lin_pool;
-static void *dpmi_lin_rsv_base;
-static void *dpmi_base;
+static unsigned char *dpmi_lin_rsv_base;
+static unsigned char *dpmi_base;
 static uint32_t low_rsv;
 static const int dpmi_reserved_space = 4 * 1024 * 1024; // reserve 4Mb
 static int extra_mf;

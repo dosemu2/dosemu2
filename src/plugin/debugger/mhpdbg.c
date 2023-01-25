@@ -396,7 +396,7 @@ void mhp_adjust_revectored(int inum)
     set_bit(inum, mhpdbgc.intxxalt);
 }
 
-unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned int parm2)
+unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
 {
   int rtncd = 0;
 #if 0
