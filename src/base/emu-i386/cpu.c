@@ -238,27 +238,56 @@ static void fpu_init(void)
 }
 #endif
 
+void get_fpu_state(emu_fpstate *fpstate)
+{
+  int cpu_vm = in_dpmi_pm() ? config.cpu_vm_dpmi : config.cpu_vm;
+  switch(cpu_vm) {
+  case CPUVM_KVM:
+    kvm_get_fpu_state(fpstate);
+    break;
+  case CPUVM_NATIVE:
+    native_dpmi_get_fpu_state(fpstate);
+    break;
+  case CPUVM_EMU:
+    e_get_fpu_state(fpstate);
+    break;
+#ifdef __i386__
+  case CPUVM_VM86:
+    true_vm86_get_fpu_state(fpstate);
+    break;
+#endif
+  }
+}
+
+void set_fpu_state(const emu_fpstate *fpstate)
+{
+  int cpu_vm = in_dpmi_pm() ? config.cpu_vm_dpmi : config.cpu_vm;
+  switch(cpu_vm) {
+  case CPUVM_KVM:
+    kvm_set_fpu_state(fpstate);
+    break;
+  case CPUVM_NATIVE:
+    native_dpmi_set_fpu_state(fpstate);
+    break;
+  case CPUVM_EMU:
+    e_set_fpu_state(fpstate);
+    break;
+#ifdef __i386__
+  case CPUVM_VM86:
+    true_vm86_set_fpu_state(fpstate);
+    break;
+#endif
+  }
+}
+
 static void fpu_reset(void)
 {
   emu_fpstate vm86_fpu_state;
-  int cpu_vm;
 
   memset(&vm86_fpu_state, 0, sizeof vm86_fpu_state);
   vm86_fpu_state.cwd = 0x0040;       //bochs
   vm86_fpu_state.ftw = 0xff;         //all valid (-> 0x5555 in fsave tag)
-  cpu_vm = in_dpmi_pm() ? config.cpu_vm_dpmi : config.cpu_vm;
-  switch(cpu_vm) {
-  case CPUVM_KVM:
-    kvm_update_fpu(&vm86_fpu_state);
-  case CPUVM_EMU:
-    e_update_fpu(&vm86_fpu_state);
-  case CPUVM_NATIVE:
-    native_dpmi_update_fpu(&vm86_fpu_state);
-#ifdef __i386__
-  case CPUVM_VM86:
-    true_vm86_update_fpu(&vm86_fpu_state);
-#endif
-  }
+  set_fpu_state(&vm86_fpu_state);
 }
 
 static Bit8u fpu_io_read(ioport_t port)

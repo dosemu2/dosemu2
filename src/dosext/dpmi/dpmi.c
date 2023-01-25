@@ -418,60 +418,22 @@ static void print_ldt(void)
   _print_dt(buffer, MAX_SELECTORS, 1);
 }
 
-static void leave_backend(int be, int pm, emu_fpstate *fpstate)
-{
-  switch(be) {
-  case CPUVM_KVM:
-    kvm_leave(pm, fpstate);
-    break;
-  case CPUVM_NATIVE:
-    native_dpmi_leave_to_vm86(fpstate);
-    break;
-  case CPUVM_EMU:
-    e_leave(fpstate);
-    break;
-#ifdef __i386__
-  case CPUVM_VM86:
-    true_vm86_leave(fpstate);
-    break;
-#endif
-  }
-}
-
-static void enter_backend(int be, int pm, const emu_fpstate *fpstate)
-{
-  switch(be) {
-  case CPUVM_KVM:
-    kvm_enter(pm, fpstate);
-    break;
-  case CPUVM_NATIVE:
-    native_dpmi_enter_from_vm86(fpstate);
-    break;
-  case CPUVM_EMU:
-    e_enter(fpstate);
-    break;
-#ifdef __i386__
-  case CPUVM_VM86:
-    true_vm86_enter(fpstate);
-    break;
-#endif
-  }
-}
-
 static void dpmi_set_pm(int pm)
 {
+  static emu_fpstate fpstate;
   assert(pm <= 1);
   if (pm == dpmi_pm) {
     if (!pm)
       dosemu_error("DPMI: switch from real to real mode?\n");
     return;
   }
-  dpmi_pm = pm;
   if (config.cpu_vm != config.cpu_vm_dpmi) {
-    static emu_fpstate fpstate;
-    leave_backend(pm ? config.cpu_vm : config.cpu_vm_dpmi, !pm, &fpstate);
-    enter_backend(!pm ? config.cpu_vm : config.cpu_vm_dpmi, pm, &fpstate);
+    get_fpu_state(&fpstate);
+    dpmi_pm = pm;
+    set_fpu_state(&fpstate);
   }
+  else
+    dpmi_pm = pm;
 }
 
 static dpmi_pm_block *lookup_pm_blocks_by_addr(dosaddr_t addr)

@@ -108,6 +108,9 @@ void fsave_to_fxsave(const struct emu_fsave *fptr,
 typedef struct emu_fpxstate emu_fpstate;
 typedef emu_fpstate *emu_fpregset_t;
 
+void get_fpu_state(emu_fpstate *);
+void set_fpu_state(const emu_fpstate *);
+
 union g_reg {
   greg_t reg;
 #ifdef __x86_64__

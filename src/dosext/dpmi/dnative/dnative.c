@@ -109,7 +109,7 @@ static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
   scp_fpregs = NULL;
 }
 
-void native_dpmi_update_fpu(const emu_fpstate *fpstate)
+void native_dpmi_set_fpu_state(const emu_fpstate *fpstate)
 {
   if (scp_fpregs) {
     void *fpregs = scp_fpregs;
@@ -125,11 +125,6 @@ void native_dpmi_update_fpu(const emu_fpstate *fpstate)
 #endif
     memcpy(fpregs, fpstate, sizeof(*fpstate));
   }
-}
-
-void native_dpmi_enter_from_vm86(const emu_fpstate *fpstate)
-{
-  native_dpmi_update_fpu(fpstate);
 }
 
 static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
@@ -157,7 +152,7 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
   scp_fpregs = scp->fpregs;
 }
 
-void native_dpmi_leave_to_vm86(emu_fpstate *fpstate)
+void native_dpmi_get_fpu_state(emu_fpstate *fpstate)
 {
   if (scp_fpregs) {
     void *fpregs = scp_fpregs;

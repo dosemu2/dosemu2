@@ -783,7 +783,7 @@ static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
   seg->unusable = !desc->present;
 }
 
-void kvm_update_fpu(const emu_fpstate *fpstate)
+void kvm_set_fpu_state(const emu_fpstate *fpstate)
 {
   struct kvm_xsave fpu = {};
   int ret;
@@ -796,12 +796,7 @@ void kvm_update_fpu(const emu_fpstate *fpstate)
   }
 }
 
-void kvm_enter(int pm, const emu_fpstate *fpstate)
-{
-  kvm_update_fpu(fpstate);
-}
-
-void kvm_leave(int pm, emu_fpstate *fpstate)
+void kvm_get_fpu_state(emu_fpstate *fpstate)
 {
   struct kvm_xsave fpu;
   int ret = ioctl(vcpufd, KVM_GET_XSAVE, &fpu);

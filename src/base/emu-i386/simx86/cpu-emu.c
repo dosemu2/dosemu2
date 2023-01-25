@@ -581,7 +581,7 @@ void Cpu2Reg (void)
 	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 }
 
-void e_update_fpu(const emu_fpstate *fpstate)
+void e_set_fpu_state(const emu_fpstate *fpstate)
 {
   if (CONFIG_CPUSIM)
     fp87_load_fpstate(fpstate);
@@ -593,12 +593,7 @@ void e_update_fpu(const emu_fpstate *fpstate)
   }
 }
 
-void e_enter(const emu_fpstate *fpstate)
-{
-  e_update_fpu(fpstate);
-}
-
-void e_leave(emu_fpstate *fpstate)
+void e_get_fpu_state(emu_fpstate *fpstate)
 {
   if (CONFIG_CPUSIM)
     fp87_save_fpstate(fpstate);
