@@ -735,6 +735,11 @@ void *alloc_mapping(int cap, size_t mapsize)
 
   Q__printf("MAPPING: alloc, cap=%s size=%#zx\n", cap, mapsize);
   addr = mappingdriver->alloc(cap, mapsize);
+  if (!addr) {
+    error("failed to alloc %zx\n", mapsize);
+    leavedos(2);
+    return NULL;
+  }
   mprotect(addr, mapsize, PROT_READ | PROT_WRITE);
 
   if (cap & MAPPING_INIT_LOWRAM) {
