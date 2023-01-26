@@ -2,6 +2,7 @@
 #define UTILITIES_H
 
 #include <sys/types.h>
+#include <semaphore.h>
 #include "dosemu_debug.h"
 
 struct cmd_db {
@@ -105,10 +106,15 @@ int replace_string(struct string_store *store, const char *old, char *str);
 #ifdef HAVE_FOPENCOOKIE
 FILE *fstream_tee(FILE *orig, FILE *copy);
 #endif
+
 #define cond_wait(c, m) { \
     pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, m); \
     pthread_cond_wait(c, m); \
     pthread_cleanup_pop(0); \
 }
+
+pid_t run_external_command(const char *path, int argc,
+        char * const *argv,
+        int use_stdin, int close_from, int pty_fd, sem_t *pty_sem);
 
 #endif /* UTILITIES_H */

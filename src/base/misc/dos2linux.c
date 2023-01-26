@@ -292,23 +292,6 @@ void dos2tty_done(void)
     sem_destroy(&rd_sem);
 }
 
-static int dos2tty_open(void)
-{
-    int err, pts_fd;
-    err = grantpt(pty_fd);
-    if (err) {
-	error("grantpt failed: %s\n", strerror(errno));
-	return err;
-    }
-    pts_fd = open(ptsname(pty_fd), O_RDWR | O_CLOEXEC);
-    if (pts_fd == -1) {
-	error("pts open failed: %s\n", strerror(errno));
-	return -1;
-    }
-    sem_post(pty_sem);
-    return pts_fd;
-}
-
 static void dos2tty_start(void)
 {
     char a;
@@ -332,62 +315,11 @@ static void dos2tty_stop(void)
 }
 
 static int do_run_cmd(const char *path, int argc, char * const *argv,
-        int use_stdin, int close_from)
+        int use_stdin, int close_from, int pty_fd, sem_t *pty_sem)
 {
-    sigset_t set, oset;
-    int pid, status, retval, wt;
-    int pts_fd;
-    struct timespec to = { 0, 0 };
-
-    signal_block_async_nosig(&oset);
-    sigprocmask(SIG_SETMASK, NULL, &set);
-    /* fork child */
-    switch ((pid = fork())) {
-    case -1: /* failed */
-	sigprocmask(SIG_SETMASK, &oset, NULL);
-	g_printf("run_unix_command(): fork() failed\n");
-	return -1;
-    case 0: /* child */
-	priv_drop();
-	setsid();	// will have ctty
-	/* open pts _after_ setsid, or it won't became a ctty */
-	pts_fd = dos2tty_open();
-	if (pts_fd == -1) {
-	    error("run_unix_command(): open pts failed %s\n", strerror(errno));
-	    _exit(EXIT_FAILURE);
-	}
-	close(0);
-	close(1);
-	close(2);
-	if (use_stdin)
-	    dup(pts_fd);
-	else
-	    open("/dev/null", O_RDONLY);
-	dup(pts_fd);
-	dup(pts_fd);
-	close(pts_fd);
-	close(pty_fd);
-#ifdef HAVE_LIBBSD
-	if (close_from != -1)
-	    closefrom(close_from);
-#else
-#warning no closefrom()
-#endif
-	/* close signals, then unblock */
-	signal_done();
-	/* flush pending signals */
-	do {
-	    wt = sigtimedwait(&set, NULL, &to);
-	} while (wt != -1);
-	sigprocmask(SIG_SETMASK, &oset, NULL);
-
-	retval = execve(path, argv, dosemu_envp);	/* execute command */
-	error("exec failed: %s\n", strerror(errno));
-	_exit(retval);
-	break;
-    }
-    sigprocmask(SIG_SETMASK, &oset, NULL);
-
+    int status, retval;
+    pid_t pid = run_external_command(path, argc, argv, use_stdin, close_from,
+	    pty_fd, pty_sem);
     assert(!isset_IF());
     dos2tty_start();
     while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
@@ -431,7 +363,7 @@ int run_unix_command(int argc, char **argv)
     }
 
     g_printf("UNIX: run %s, %i args\n", path, argc);
-    return do_run_cmd(path, argc, argv, 1, -1);
+    return do_run_cmd(path, argc, argv, 1, -1, pty_fd, pty_sem);
 }
 
 /* no PATH searching, no arguments allowed, no stdin, no inherited fds */
@@ -450,7 +382,7 @@ int run_unix_secure(char *prg)
     argv[0] = prg;
     argv[1] = NULL;	/* no args allowed */
     g_printf("UNIX: run_secure %s '%s'\n", path, prg);
-    ret = do_run_cmd(path, 1, argv, 0, STDERR_FILENO + 1);
+    ret = do_run_cmd(path, 1, argv, 0, STDERR_FILENO + 1, pty_fd, pty_sem);
     free(path);
     return ret;
 }

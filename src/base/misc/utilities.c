@@ -1035,3 +1035,81 @@ FILE *fstream_tee(FILE *orig, FILE *copy)
     return f;
 }
 #endif
+
+static int pts_open(int pty_fd, sem_t *pty_sem)
+{
+    int err, pts_fd;
+
+    setsid();	// will have ctty
+    /* open pts _after_ setsid, or it won't became a ctty */
+    err = grantpt(pty_fd);
+    if (err) {
+	error("grantpt failed: %s\n", strerror(errno));
+	return err;
+    }
+    pts_fd = open(ptsname(pty_fd), O_RDWR | O_CLOEXEC);
+    if (pts_fd == -1) {
+	error("pts open failed: %s\n", strerror(errno));
+	return -1;
+    }
+    sem_post(pty_sem);
+    return pts_fd;
+}
+
+pid_t run_external_command(const char *path, int argc, char * const *argv,
+        int use_stdin, int close_from, int pty_fd, sem_t *pty_sem)
+{
+    pid_t pid;
+    int wt, retval;
+    sigset_t set, oset;
+    int pts_fd;
+    struct timespec to = { 0, 0 };
+
+    signal_block_async_nosig(&oset);
+    sigprocmask(SIG_SETMASK, NULL, &set);
+    /* fork child */
+    switch ((pid = fork())) {
+    case -1: /* failed */
+	sigprocmask(SIG_SETMASK, &oset, NULL);
+	g_printf("run_unix_command(): fork() failed\n");
+	return -1;
+    case 0: /* child */
+	priv_drop();
+	pts_fd = pts_open(pty_fd, pty_sem);
+	if (pts_fd == -1) {
+	    error("run_unix_command(): open pts failed %s\n", strerror(errno));
+	    _exit(EXIT_FAILURE);
+	}
+	close(0);
+	close(1);
+	close(2);
+	if (use_stdin)
+	    dup(pts_fd);
+	else
+	    open("/dev/null", O_RDONLY);
+	dup(pts_fd);
+	dup(pts_fd);
+	close(pts_fd);
+	close(pty_fd);
+#ifdef HAVE_LIBBSD
+	if (close_from != -1)
+	    closefrom(close_from);
+#else
+#warning no closefrom()
+#endif
+	/* close signals, then unblock */
+	signal_done();
+	/* flush pending signals */
+	do {
+	    wt = sigtimedwait(&set, NULL, &to);
+	} while (wt != -1);
+	sigprocmask(SIG_SETMASK, &oset, NULL);
+
+	retval = execve(path, argv, dosemu_envp);	/* execute command */
+	error("exec failed: %s\n", strerror(errno));
+	_exit(retval);
+	break;
+    }
+    sigprocmask(SIG_SETMASK, &oset, NULL);
+    return pid;
+}
