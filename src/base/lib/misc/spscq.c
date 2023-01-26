@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include "utilities.h"
 #include "spscq.h"
 
 struct spscq {
@@ -56,7 +57,7 @@ void *spscq_write_area(void *arg, unsigned *r_len)
     unsigned wr_pos, top;
     pthread_mutex_lock(&q->wr_mtx);
     while (q->fillup == q->size)
-        pthread_cond_wait(&q->wr_cnd, &q->wr_mtx);
+        cond_wait(&q->wr_cnd, &q->wr_mtx);
     wr_pos = q->rd_pos + q->fillup;
     if (wr_pos >= q->size) {
         wr_pos -= q->size;
@@ -85,7 +86,6 @@ int spscq_read(void *arg, void *buf, unsigned len)
     pthread_mutex_lock(&q->wr_mtx);
     if (q->fillup) {
         unsigned ret;
-#define _min(x, y) ((x) < (y) ? (x) : (y))
         ret = _min(q->fillup, q->size - q->rd_pos);
         ret = _min(ret, len);
         memcpy(buf, q->data + q->rd_pos, ret);

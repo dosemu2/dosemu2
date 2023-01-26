@@ -38,6 +38,7 @@
 #include "lowmem.h"
 #include "hlt.h"
 #endif
+#include "utilities.h"
 #include "timers.h"
 #include "chipset.h"
 #include "vint.h"
@@ -393,7 +394,7 @@ void vtmr_sync(int timer)
 {
     pthread_mutex_lock(&vth[timer].done_mtx);
     while (!vth[timer].done_pred)
-        pthread_cond_wait(&vth[timer].done_cnd, &vth[timer].done_mtx);
+        cond_wait(&vth[timer].done_cnd, &vth[timer].done_mtx);
     pthread_mutex_unlock(&vth[timer].done_mtx);
 }
 
