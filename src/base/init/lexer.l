@@ -448,6 +448,7 @@ pseudo			RETURN(PSEUDO);
 rtscts			RETURN(RTSCTS);
 low_latency		RETURN(LOWLAT);
 pccom			RETURN(PCCOM);
+exec			RETURN(EXEC);
 
 	/* lock file stuff */
 directory              RETURN(DIRECTORY);

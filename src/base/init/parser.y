@@ -257,7 +257,8 @@ enum {
         /* lock files */
 %token DIRECTORY NAMESTUB BINARY
 	/* serial */
-%token BASE IRQ DEVICE CHARSET BAUDRATE VIRTUAL VMODEM PSEUDO RTSCTS LOWLAT PCCOM
+%token BASE IRQ DEVICE CHARSET BAUDRATE VIRTUAL VMODEM PSEUDO RTSCTS LOWLAT
+%token PCCOM EXEC
 	/* mouse */
 %token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2 IMPS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR UNGRAB_TWEAK
@@ -1464,6 +1465,8 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 		| IRQ expression		{ sptr->irq = $2; }
 		| MOUSE			{ sptr->mouse = 1;
 					  config.num_serial_mices++; }
+		| EXEC string_expr	  { free(sptr->exec);
+					    sptr->exec = strdup($2); }
 		| STRING
 		    { yyerror("unrecognized serial flag '%s'", $1); free($1); }
 		| error

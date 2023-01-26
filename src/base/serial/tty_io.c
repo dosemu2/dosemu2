@@ -22,10 +22,9 @@
 #include <errno.h>
 #include <string.h>
 #include <pwd.h>
-#if 0
-#include <linux/serial.h>
-#endif
+#include <semaphore.h>
 #include "emu.h"
+#include "utilities.h"
 #include "dosemu_config.h"
 #include "ser_defs.h"
 #include "tty_io.h"
@@ -561,6 +560,47 @@ static int ser_open_existing(com_t *com)
   return 0;
 }
 
+static sem_t *pty_sem;
+static char sem_name[256];
+
+static int pty_init(void)
+{
+    int pty_fd = posix_openpt(O_RDWR);
+    if (pty_fd == -1)
+    {
+        error("openpt failed %s\n", strerror(errno));
+        return -1;
+    }
+    unlockpt(pty_fd);
+    snprintf(sem_name, sizeof(sem_name), "/dosemu_serpty_sem_%i", getpid());
+    pty_sem = sem_open(sem_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
+    if (!pty_sem)
+    {
+        error("sem_open failed %s\n", strerror(errno));
+        return -1;
+    }
+    fcntl(pty_fd, F_SETFL, O_NONBLOCK);
+    return pty_fd;
+}
+
+static void pty_exit(void)
+{
+    error("pty process terminated\n");
+    leavedos(2);
+}
+
+static int pty_open(const char *cmd)
+{
+  const char *argv[] = { "sh", "-c", cmd, NULL };
+  const int argc = 4;
+  int pty_fd = pty_init();
+  pid_t pid = run_external_command("/bin/sh", argc, (char * const *)argv,
+      1, -1, pty_fd, pty_sem);
+  sigchld_register_handler(pid, pty_exit);
+  com->fd = pty_fd;
+  return pty_fd;
+}
+
 /* This function opens ONE serial port for DOSEMU.  Normally called only
  * by do_ser_init below.   [num = port, return = file descriptor]
  */
@@ -568,6 +608,8 @@ static int tty_open(com_t *com)
 {
   int err;
 
+  if (com->cfg->exec)
+    return pty_open(com->cfg->exec);
   if (com->fd != -1)
     return -1;
   s_printf("SER%d: Running ser_open, %s, fd=%d\n", com->num,
