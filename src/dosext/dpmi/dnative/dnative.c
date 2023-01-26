@@ -153,9 +153,8 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
     if ((scp->fpregs->status >> 16) == EMU_X86_FXSR_MAGIC)
       fpregs = &scp->fpregs->status + 1;
     else {
-      static struct emu_fpxstate tmp;
-      fsave_to_fxsave(fpregs, &tmp);
-      fpregs = &tmp;
+      fsave_to_fxsave(fpregs, &vm86_fpu_state);
+      return;
     }
 #endif
     memcpy(&vm86_fpu_state, fpregs, sizeof(vm86_fpu_state));
