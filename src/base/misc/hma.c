@@ -69,7 +69,7 @@ void HMA_init(void)
   int ret = alias_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
     PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(0));
   if (ret == -1) {
-    x_printf("HMA: Mapping HMA to HMAAREA %#x unsuccessful: %s\n",
+    error("HMA: Mapping HMA to HMAAREA %#x unsuccessful: %s\n",
 	       HMAAREA, strerror(errno));
     config.exitearly = 1;
     return;

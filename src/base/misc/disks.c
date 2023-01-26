@@ -714,7 +714,7 @@ static void dir_auto(struct disk *dp)
         d_printf("DIR: Forcing IBM disk type 9\n");
         break;
       default:
-        d_printf("DIR: Invalid disk type (%d)\n", dp->hdtype);
+        error("DIR: Invalid disk type (%d)\n", dp->hdtype);
         config.exitearly = 1;
         break;
     }

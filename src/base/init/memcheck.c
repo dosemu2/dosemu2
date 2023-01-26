@@ -42,7 +42,7 @@ int memcheck_addtype(unsigned char map_char, const char *name)
 {
   if (mem_names[map_char] != NULL) {
     if (strcmp(mem_names[map_char], name) != 0) {
-      c_printf("CONF: memcheck, conflicting map type '%c' defined for '%s' \
+      error("CONF: memcheck, conflicting map type '%c' defined for '%s' \
 & '%s'\n", map_char, mem_names[map_char], name);
       config.exitearly = 1;
     }

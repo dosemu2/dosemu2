@@ -1647,7 +1647,7 @@ int vga_emu_pre_init(void)
 
   vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size + PAGE_SIZE);
   if(vga.mem.base == MAP_FAILED) {
-    vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
+    error("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     config.exitearly = 1;
     return 1;
   }
@@ -1660,7 +1660,7 @@ int vga_emu_pre_init(void)
     dosaddr_t p = alias_mapping_high(MAPPING_VGAEMU,
 				vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
     if(p == (dosaddr_t)-1) {
-      vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
+      error("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
       config.exitearly = 1;
       return 1;
     } else {
@@ -1674,7 +1674,7 @@ int vga_emu_pre_init(void)
 
   /* alloc more pages because vgaemu_dirty_page() does weird things */
   if((vga.mem.dirty_map = (unsigned char *) malloc(vga.mem.pages | 0xff)) == NULL) {
-    vga_msg("vga_emu_init: not enough memory for dirty map\n");
+    error("vga_emu_init: not enough memory for dirty map\n");
     config.exitearly = 1;
     return 1;
   }
@@ -1684,7 +1684,7 @@ int vga_emu_pre_init(void)
     (vga.mem.prot_map0 = malloc(vgaemu_bios.pages + 0xc0 - 0xa0)) == NULL ||
     (vga.mem.prot_map1 = (unsigned char *) malloc(vga.mem.pages)) == NULL
   ) {
-    vga_msg("vga_emu_init: not enough memory for protection map\n");
+    error("vga_emu_init: not enough memory for protection map\n");
     config.exitearly = 1;
     return 1;
   }
