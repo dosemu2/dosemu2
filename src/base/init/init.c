@@ -341,7 +341,7 @@ void low_mem_init(void)
     leavedos(98);
     return;
   }
-  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, memsize + EXTMEM_SIZE);
+  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, memsize);
   if (lowmem == MAP_FAILED) {
     perror("LOWRAM alloc");
     leavedos(98);
