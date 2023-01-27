@@ -42,7 +42,7 @@
 #include "doshelpers.h"
 #include "builtins.h"
 
-#include "dosdbg.h"
+#include "emuconf.h"
 
 typedef unsigned char uint8;
 typedef unsigned int uint16;

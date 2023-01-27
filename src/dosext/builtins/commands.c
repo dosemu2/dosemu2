@@ -38,7 +38,7 @@
 #include "xmode.h"
 #include "unix.h"
 #include "system.h"
-#include "dosdbg.h"
+#include "emuconf.h"
 #include "blaster.h"
 #include "fossil.h"
 
