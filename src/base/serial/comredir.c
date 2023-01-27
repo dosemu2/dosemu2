@@ -113,10 +113,17 @@ static void comredir_thr(void *arg)
   case UART_IIR_RDI: {
     struct vm86_regs saved_regs = REGS;
     while (read_LSR(i) & UART_LSR_DR) {
+      unsigned char c = read_char(i);
       _AH = 0x0e;
-      _AL = read_char(i);
+      _AL = c;
       _BX = 0;
       do_int_call_back(0x10);
+      if (c == '\r') {
+        _AH = 0x0e;
+        _AL = '\n';
+        _BX = 0;
+        do_int_call_back(0x10);
+      }
     }
     REGS = saved_regs;
     break;
@@ -139,8 +146,12 @@ static void int15_thr(void *arg)
   if (!isset_CF())
     return;
   clear_CF();
-  if (!(_AL & 0x80))
-    write_char(com_num - 1, get_bios_key(_AL));
+  if (!(_AL & 0x80)) {
+    unsigned char c = get_bios_key(_AL);
+    write_char(com_num - 1, c);
+    if (c == '\r')
+      write_char(com_num - 1, '\n');
+  }
 }
 
 static void int15_irq(Bit16u idx, HLT_ARG(arg))
