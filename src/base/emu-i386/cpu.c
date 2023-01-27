@@ -413,7 +413,7 @@ void cpu_setup(void)
 #define FP_EXP_TAG_SPECIAL	2
 #define FP_EXP_TAG_EMPTY	3
 
-static inline uint32_t twd_fxsr_to_i387(const struct emu_fpxstate *fxsave)
+static inline uint32_t twd_fxsr_to_i387(const struct emu_fpstate *fxsave)
 {
 	const struct emu_fpxreg *st;
 	uint32_t tos = (fxsave->swd >> 11) & 7;
@@ -454,7 +454,7 @@ static inline uint32_t twd_fxsr_to_i387(const struct emu_fpxstate *fxsave)
 	return ret;
 }
 
-void fxsave_to_fsave(const struct emu_fpxstate *fxsave, struct emu_fsave *fptr)
+void fxsave_to_fsave(const struct emu_fpstate *fxsave, struct emu_fsave *fptr)
 {
   int i;
 
@@ -489,7 +489,7 @@ static unsigned short twd_i387_to_fxsr(unsigned short twd)
 
 /* NOTE: this function does NOT memset the "unused" fxsave fields.
  * We preserve the previous fxsave context. */
-void fsave_to_fxsave(const struct emu_fsave *fptr, struct emu_fpxstate *fxsave)
+void fsave_to_fxsave(const struct emu_fsave *fptr, struct emu_fpstate *fxsave)
 
 {
 	int i;

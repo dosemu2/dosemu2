@@ -70,7 +70,7 @@ static void copy_context(sigcontext_t *d, sigcontext_t *s)
    FSAVE region.
    see also arch/x86/kernel/fpu/regset.c in Linux kernel */
 static void convert_from_fxsr(fpregset_t fptr,
-			      const struct emu_fpxstate *fxsave)
+			      const struct emu_fpstate *fxsave)
 {
   static_assert(sizeof(*fptr) == sizeof(struct emu_fsave),
 		  "size mismatch");
@@ -78,7 +78,7 @@ static void convert_from_fxsr(fpregset_t fptr,
 }
 
 /* since the kernel may not be able to keep SSE state, keep it here */
-static struct emu_fpxstate fxsave_state_holder_i386;
+static struct emu_fpstate fxsave_state_holder_i386;
 #endif
 
 static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
@@ -117,7 +117,7 @@ void native_dpmi_set_fpu_state(const emu_fpstate *fpstate)
   if (scp_fpregs) {
     void *fpregs = scp_fpregs;
 #ifdef __x86_64__
-    static_assert(sizeof(*scp_fpregs) == sizeof(*fpstate),
+    static_assert(offsetof(struct _fpstate, _xmm[8]) == sizeof(*fpstate),
 		  "size mismatch");
 #else
     /* i386: convert fxsave state to fsave state */
@@ -161,7 +161,7 @@ void native_dpmi_get_fpu_state(emu_fpstate *fpstate)
   if (scp_fpregs) {
     void *fpregs = scp_fpregs;
 #ifdef __x86_64__
-    static_assert(sizeof(*scp_fpregs) == sizeof(*fpstate),
+    static_assert(offsetof(struct _fpstate, _xmm[8]) == sizeof(*fpstate),
 		"size mismatch");
 #else
     if ((scp_fpregs->status >> 16) == EMU_X86_FXSR_MAGIC)

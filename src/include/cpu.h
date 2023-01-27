@@ -79,8 +79,8 @@ struct emu_fpxreg {
   uint16_t		reserved[3];
 };
 
-struct emu_fpxstate {
-  /* 32-bit FXSAVE format in 64bit mode (same as in 32bit mode but more xmms) */
+struct emu_fpstate {
+  /* first 288 bytes of 32-bit FXSAVE format in 64bit mode */
   uint16_t		cwd;
   uint16_t		swd;
   uint16_t		ftw;
@@ -92,20 +92,25 @@ struct emu_fpxstate {
   uint32_t		mxcsr;
   uint32_t		mxcr_mask;
   struct emu_fpxreg	st[8];
-  struct { uint32_t element[4]; } xmm[16];
-  struct { uint32_t element[4]; } reserved[3];
-  struct { uint32_t element[4]; } scratch[3];
+  struct { uint32_t element[4]; } xmm[8];
+};
+
+struct emu_fpxstate {
+  /* 32-bit FXSAVE format in 64bit mode (same as in 32bit mode but more xmms)
+     This struct is only used with explicit fxsave/fxrstor instructions */
+  struct emu_fpstate	emu_fpstate;
+  unsigned char padding[512 - sizeof(struct emu_fpstate)];
 };
 
 static_assert(sizeof(struct emu_fpxstate) == 512, "size mismatch");
 
-void fxsave_to_fsave(const struct emu_fpxstate *fxsave,
+void fxsave_to_fsave(const struct emu_fpstate *fxsave,
     struct emu_fsave *fptr);
 void fsave_to_fxsave(const struct emu_fsave *fptr,
-    struct emu_fpxstate *fxsave);
+    struct emu_fpstate *fxsave);
 
 /* Structure to describe FPU registers.  */
-typedef struct emu_fpxstate emu_fpstate;
+typedef struct emu_fpstate emu_fpstate;
 typedef emu_fpstate *emu_fpregset_t;
 
 void get_fpu_state(emu_fpstate *);
@@ -329,18 +334,18 @@ extern fenv_t dosemu_fenv;
 #define savefxsave(value)
 #endif
 
-static inline void loadfpstate_legacy(emu_fpstate *buf)
+static inline void loadfpstate_legacy(struct emu_fpxstate *buf)
 {
 	struct emu_fsave fsave;
-	fxsave_to_fsave(buf, &fsave);
+	fxsave_to_fsave(&buf->emu_fpstate, &fsave);
 	loadfsave(fsave);
 }
 
-static inline void savefpstate_legacy(emu_fpstate *buf)
+static inline void savefpstate_legacy(struct emu_fpxstate *buf)
 {
 	struct emu_fsave fsave;
 	savefsave(fsave);
-	fsave_to_fxsave(&fsave, buf);
+	fsave_to_fxsave(&fsave, &buf->emu_fpstate);
 }
 
 #if defined(__x86_64__)
