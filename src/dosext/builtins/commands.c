@@ -268,6 +268,21 @@ static int emufs_main(int argc, char **argv)
 	return ret;
 }
 
+static int comredir_main(int argc, char **argv)
+{
+  struct REGPACK r = REGPACK_INIT;
+
+  if (argc < 2) {
+    com_printf("usage: comredir <com_num>\n");
+    return 1;
+  }
+
+  r.r_ax = (DOS_HELPER_SERIAL_HELPER | (DOS_SUBHELPER_SERIAL_COMREDIR_INIT << 8)) & 0xffff;
+  r.r_bx = atoi(argv[1]);
+  com_intr(DOS_HELPER_INT, &r);
+  return 0;
+}
+
 CONSTRUCTOR(static void commands_plugin_init(void))
 {
 	register_com_program("EMUDPMI", emudpmi_main);
@@ -284,4 +299,5 @@ CONSTRUCTOR(static void commands_plugin_init(void))
 	register_com_program("EMUFS", emufs_main);
 	register_com_program("EMUSOUND", emusound_main);
 	register_com_program("FOSSIL", fossil_main);
+	register_com_program("COMREDIR", comredir_main);
 }

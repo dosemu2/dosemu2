@@ -36,29 +36,6 @@
 #include "timers.h"
 #include "coopth.h"
 
-/* These macros are shortcuts to access various serial port registers:
- *   read_char		Read character
- *   read_LCR		Read Line Control Register
- *   read_LSR		Read Line Status Register
- *   read_MSR		Read Modem Status Register
- *   write_char		Transmit character
- *   write_DLL		Write Baudrate Divisor Latch LSB value
- *   write_DLM		Write Baudrate Divisor Latch MSB value
- *   write_LCR		Write Line Control Register
- *   write_MCR		Write Modem Control Register
- */
-#define read_char(num)        do_serial_in(num, com_cfg[num].base_port)
-#define read_LCR(num)         do_serial_in(num, com_cfg[num].base_port + 3)
-#define read_MCR(num)         do_serial_in(num, com_cfg[num].base_port + 4)
-#define read_LSR(num)         do_serial_in(num, com_cfg[num].base_port + 5)
-#define read_MSR(num)         do_serial_in(num, com_cfg[num].base_port + 6)
-#define write_char(num, byte) do_serial_out(num, com_cfg[num].base_port, byte)
-#define write_DLL(num, byte)  do_serial_out(num, com_cfg[num].base_port, byte)
-#define write_DLM(num, byte)  do_serial_out(num, com_cfg[num].base_port + 1, byte)
-#define write_LCR(num, byte)  do_serial_out(num, com_cfg[num].base_port + 3, byte)
-#define write_MCR(num, byte)  do_serial_out(num, com_cfg[num].base_port + 4, byte)
-
-
 /* The following function sets the speed of the serial port.
  * num is the index, and speed is a baudrate divisor value.
  */

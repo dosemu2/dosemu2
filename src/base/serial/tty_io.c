@@ -588,6 +588,7 @@ static void pty_exit(void)
 
 static int pty_open(serial_t *ser, const char *cmd)
 {
+  struct termios t;
   const char *argv[] = { "sh", "-c", cmd, NULL };
   const int argc = 4;
   int pty_fd = pty_init(ser);
@@ -599,6 +600,8 @@ static int pty_open(serial_t *ser, const char *cmd)
   sem_wait(ser->pty_sem);
   sigchld_register_handler(pid, pty_exit);
   ser->pty_pid = pid;
+  cfmakeraw(&t);
+  tcsetattr(pty_fd, TCSANOW, &t);
   return pty_fd;
 }
 

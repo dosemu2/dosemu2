@@ -46,6 +46,7 @@
 #include "sermouse.h"
 #include "utilities.h"	/* due to getpwnam */
 #include "iodev.h"
+#include "comredir.h"
 
 int no_local_video = 0;
 serial_t com_cfg[MAX_SER];
@@ -317,6 +318,7 @@ void serial_reset(void)
     ser_reset_dev(num);
 
   fossil_initialised = FALSE;
+  comredir_reset();
 }
 
 /* DANG_BEGIN_FUNCTION serial_run
@@ -387,6 +389,7 @@ void serial_init(void)
 
   init_dmxs();
   fossil_init();
+  comredir_init();
   sigalrm_register_handler(serial_run);
 }
 

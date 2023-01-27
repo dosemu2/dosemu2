@@ -16,7 +16,7 @@ COM = $(D)/generic.com
 STUBSYMLINK = $(D)/eject.com $(D)/exitemu.com $(D)/speed.com $(D)/emudrv.com \
   $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/emuconf.com \
   $(D)/unix.com $(D)/system.com $(D)/emusound.com \
-  $(D)/emudpmi.com $(D)/emufs.com $(D)/fossil.com
+  $(D)/emudpmi.com $(D)/emufs.com $(D)/fossil.com $(D)/comredir.com
 
 all: lib $(COM) $(STUBSYMLINK)
 $(COM): | $(top_builddir)/commands

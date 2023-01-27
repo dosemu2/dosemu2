@@ -446,4 +446,20 @@ struct serial_drv {
 
 #define COM_INTERRUPT(num) (com_cfg[num].irq + 8)
 
+#define read_reg(num, offset) do_serial_in((num), com_cfg[(num)].base_port + (offset))
+#define read_char(num)        read_reg((num), UART_RX)
+#define read_LCR(num)         read_reg((num), UART_LCR)
+#define read_MCR(num)         read_reg((num), UART_MCR)
+#define read_LSR(num)         read_reg((num), UART_LSR)
+#define read_MSR(num)         read_reg((num), UART_MSR)
+#define read_IIR(num)         read_reg((num), UART_IIR)
+#define write_reg(num, offset, byte) do_serial_out((num), com_cfg[(num)].base_port + (offset), (byte))
+#define write_char(num, byte) write_reg((num), UART_TX, (byte))
+#define write_DLL(num, byte)  write_reg((num), UART_DLL, (byte))
+#define write_DLM(num, byte)  write_reg((num), UART_DLM, (byte))
+#define write_FCR(num, byte)  write_reg((num), UART_FCR, (byte))
+#define write_LCR(num, byte)  write_reg((num), UART_LCR, (byte))
+#define write_MCR(num, byte)  write_reg((num), UART_MCR, (byte))
+#define write_IER(num, byte)  write_reg((num), UART_IER, (byte))
+
 #endif /* SER_DEFS_H */
