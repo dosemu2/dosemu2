@@ -560,10 +560,7 @@ static int ser_open_existing(com_t *com)
   return 0;
 }
 
-static sem_t *pty_sem;
-static char sem_name[256];
-
-static int pty_init(void)
+static int pty_init(serial_t *ser)
 {
     int pty_fd = posix_openpt(O_RDWR);
     if (pty_fd == -1)
@@ -572,9 +569,9 @@ static int pty_init(void)
         return -1;
     }
     unlockpt(pty_fd);
-    snprintf(sem_name, sizeof(sem_name), "/dosemu_serpty_sem_%i", getpid());
-    pty_sem = sem_open(sem_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
-    if (!pty_sem)
+    snprintf(ser->sem_name, sizeof(ser->sem_name), "/dosemu_serpty_sem_%i", getpid());
+    ser->pty_sem = sem_open(ser->sem_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
+    if (!ser->pty_sem)
     {
         error("sem_open failed %s\n", strerror(errno));
         return -1;
@@ -589,16 +586,26 @@ static void pty_exit(void)
     leavedos(2);
 }
 
-static int pty_open(const char *cmd)
+static int pty_open(serial_t *ser, const char *cmd)
 {
   const char *argv[] = { "sh", "-c", cmd, NULL };
   const int argc = 4;
-  int pty_fd = pty_init();
-  pid_t pid = run_external_command("/bin/sh", argc, (char * const *)argv,
-      1, -1, pty_fd, pty_sem);
+  int pty_fd = pty_init(ser);
+  pid_t pid = run_external_command("/bin/sh", argc, argv,
+      1, -1, pty_fd, ser->pty_sem);
+  if (pid == -1)
+    return -1;
+  /* wait for slave to open pts */
+  sem_wait(ser->pty_sem);
   sigchld_register_handler(pid, pty_exit);
-  com->fd = pty_fd;
+  ser->pty_pid = pid;
   return pty_fd;
+}
+
+static int pty_close(serial_t *ser, int fd)
+{
+  sigchld_enable_handler(ser->pty_pid, 0);
+  return close(fd);
 }
 
 /* This function opens ONE serial port for DOSEMU.  Normally called only
@@ -608,8 +615,13 @@ static int tty_open(com_t *com)
 {
   int err;
 
-  if (com->cfg->exec)
-    return pty_open(com->cfg->exec);
+  if (com->cfg->exec) {
+    com->fd = pty_open(com->cfg, com->cfg->exec);
+    if (com->fd == -1)
+      return -1;
+    add_to_io_select(com->fd, async_serial_run, (void *)com);
+    return com->fd;
+  }
   if (com->fd != -1)
     return -1;
   s_printf("SER%d: Running ser_open, %s, fd=%d\n", com->num,
@@ -673,11 +685,16 @@ fail_unlock:
  */
 static int tty_close(com_t *com)
 {
-  int i;
+  int ret;
   if (com->fd < 0)
     return -1;
   s_printf("SER%d: Running ser_close\n", com->num);
   remove_from_io_select(com->fd);
+  if (com->cfg->exec) {
+    ret = pty_close(com->cfg, com->fd);
+    com->fd = -1;
+    return ret;
+  }
 
   /* save current dosemu settings of the file and restore the old settings
    * before closing the file down.
@@ -686,7 +703,7 @@ static int tty_close(com_t *com)
     RPT_SYSCALL(tcgetattr(com->fd, &com->newset));
     RPT_SYSCALL(tcsetattr(com->fd, TCSANOW, &com->oldset));
   }
-  i = RPT_SYSCALL(close(com->fd));
+  ret = RPT_SYSCALL(close(com->fd));
   com->fd = -1;
 
   /* Clear the lockfile from DOSEMU */
@@ -694,7 +711,7 @@ static int tty_close(com_t *com)
     if (tty_lock(com->cfg->dev, 0) >= 0)
       com->dev_locked = FALSE;
   }
-  return (i);
+  return ret;
 }
 
 static int tty_get_msr(com_t *com)

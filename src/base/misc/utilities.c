@@ -907,7 +907,7 @@ strlcpy(char *dst, const char *src, size_t dsize)
 
 /* Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com> */
 /* modified by stsp */
-char *findprog(char *prog, const char *pathc)
+const char *findprog(const char *prog, const char *pathc)
 {
 	static char filename[PATH_MAX];
 	char *p;
@@ -1056,7 +1056,7 @@ static int pts_open(int pty_fd, sem_t *pty_sem)
     return pts_fd;
 }
 
-pid_t run_external_command(const char *path, int argc, char * const *argv,
+pid_t run_external_command(const char *path, int argc, const char **argv,
         int use_stdin, int close_from, int pty_fd, sem_t *pty_sem)
 {
     pid_t pid;
@@ -1104,8 +1104,10 @@ pid_t run_external_command(const char *path, int argc, char * const *argv,
 	    wt = sigtimedwait(&set, NULL, &to);
 	} while (wt != -1);
 	sigprocmask(SIG_SETMASK, &oset, NULL);
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
 	retval = execve(path, argv, dosemu_envp);	/* execute command */
+#pragma GCC diagnostic pop
 	error("exec failed: %s\n", strerror(errno));
 	_exit(retval);
 	break;

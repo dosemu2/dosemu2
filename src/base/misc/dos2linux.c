@@ -314,7 +314,7 @@ static void dos2tty_stop(void)
     com_setcbreak(cbrk);
 }
 
-static int do_run_cmd(const char *path, int argc, char * const *argv,
+static int do_run_cmd(const char *path, int argc, const char **argv,
         int use_stdin, int close_from, int pty_fd, sem_t *pty_sem)
 {
     int status, retval;
@@ -333,7 +333,7 @@ static int do_run_cmd(const char *path, int argc, char * const *argv,
     return WEXITSTATUS(status);
 }
 
-int run_unix_command(int argc, char **argv)
+int run_unix_command(int argc, const char **argv)
 {
     const char *path;
     char *p;
@@ -367,10 +367,10 @@ int run_unix_command(int argc, char **argv)
 }
 
 /* no PATH searching, no arguments allowed, no stdin, no inherited fds */
-int run_unix_secure(char *prg)
+int run_unix_secure(const char *prg)
 {
     char *path;
-    char *argv[2];
+    const char *argv[2];
     int ret;
 
     path = assemble_path(DOSEMULIBEXEC_DEFAULT, prg);
@@ -382,7 +382,8 @@ int run_unix_secure(char *prg)
     argv[0] = prg;
     argv[1] = NULL;	/* no args allowed */
     g_printf("UNIX: run_secure %s '%s'\n", path, prg);
-    ret = do_run_cmd(path, 1, argv, 0, STDERR_FILENO + 1, pty_fd, pty_sem);
+    ret = do_run_cmd(path, 1, argv, 0, STDERR_FILENO + 1,
+	    pty_fd, pty_sem);
     free(path);
     return ret;
 }

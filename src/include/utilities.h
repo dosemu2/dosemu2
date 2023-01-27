@@ -83,7 +83,7 @@ int popen2(const char *cmdline, struct popen2 *childinfo);
 int popen2_custom(const char *cmdline, struct popen2 *childinfo);
 int pclose2(struct popen2 *childinfo);
 
-char *findprog(char *prog, const char *path);
+const char *findprog(const char *prog, const char *path);
 
 #define DLSYM_ASSERT(h, s) ({ \
     void *__sym = dlsym(h, s); \
@@ -114,7 +114,7 @@ FILE *fstream_tee(FILE *orig, FILE *copy);
 }
 
 pid_t run_external_command(const char *path, int argc,
-        char * const *argv,
+        const char **argv,
         int use_stdin, int close_from, int pty_fd, sem_t *pty_sem);
 
 #endif /* UTILITIES_H */

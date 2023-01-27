@@ -69,7 +69,10 @@ int unix_main(int argc, char **argv)
       }
       return run_unix_secure(argv[optind]);
     }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
     return run_unix_command(argc - optind, argv + optind);
+#pragma GCC diagnostic pop
   }
 
   return 0;

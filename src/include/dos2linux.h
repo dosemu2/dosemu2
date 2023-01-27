@@ -319,8 +319,8 @@ extern far_t get_nuldev(void);
 extern char *misc_e6_options (void);
 extern void misc_e6_store_options(char *str);
 
-int run_unix_command(int argc, char **argv);
-int run_unix_secure(char *prg);
+int run_unix_command(int argc, const char **argv);
+int run_unix_secure(const char *prg);
 extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
 
 void show_welcome_screen(void);
