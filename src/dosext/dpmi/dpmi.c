@@ -420,7 +420,7 @@ static void print_ldt(void)
 
 static void dpmi_set_pm(int pm)
 {
-  static emu_fpstate fpstate;
+  emu_fpstate fpstate;
   assert(pm <= 1);
   if (pm == dpmi_pm) {
     if (!pm)

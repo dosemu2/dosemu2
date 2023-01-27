@@ -487,17 +487,15 @@ again:
 
 void true_vm86_set_fpu_state(const emu_fpstate *fpstate)
 {
-    if (config.cpufxsr)
-        true_vm86_fxsave = *fpstate;
-    else
+    true_vm86_fxsave = *fpstate;
+    if (!config.cpufxsr)
         fxsave_to_fsave(fpstate, &true_vm86_fsave);
 }
 
 void true_vm86_get_fpu_state(emu_fpstate *fpstate)
 {
-    if (config.cpufxsr)
-        *fpstate = true_vm86_fxsave;
-    else
+    *fpstate = true_vm86_fxsave;
+    if (!config.cpufxsr)
         fsave_to_fxsave(&true_vm86_fsave, fpstate);
 }
 #endif

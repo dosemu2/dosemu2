@@ -583,24 +583,23 @@ void Cpu2Reg (void)
 
 void e_set_fpu_state(const emu_fpstate *fpstate)
 {
+  TheCPU._fpstate = *fpstate;
   if (CONFIG_CPUSIM)
     fp87_load_fpstate(fpstate);
   else {
     // unmasked exception settings are emulated
     TheCPU.fpuc = fpstate->cwd;
-    TheCPU._fpstate = *fpstate;
     TheCPU._fpstate.cwd |= 0x3f;
   }
 }
 
 void e_get_fpu_state(emu_fpstate *fpstate)
 {
+  *fpstate = TheCPU._fpstate;
   if (CONFIG_CPUSIM)
     fp87_save_fpstate(fpstate);
-  else {
-    *fpstate = TheCPU._fpstate;
+  else
     fpstate->cwd = (fpstate->cwd & ~0x3f) | (TheCPU.fpuc & 0x3f);
-  }
 }
 
 /* ======================================================================= */

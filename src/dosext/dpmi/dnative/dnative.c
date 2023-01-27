@@ -76,6 +76,9 @@ static void convert_from_fxsr(fpregset_t fptr,
 		  "size mismatch");
   fxsave_to_fsave(fxsave, (struct emu_fsave *)fptr);
 }
+
+/* since the kernel may not be able to keep SSE state, keep it here */
+static struct emu_fpxstate fxsave_state_holder_i386;
 #endif
 
 static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
@@ -119,9 +122,10 @@ void native_dpmi_set_fpu_state(const emu_fpstate *fpstate)
 #else
     /* i386: convert fxsave state to fsave state */
     convert_from_fxsr(scp_fpregs, fpstate);
-    if ((scp_fpregs->status >> 16) != EMU_X86_FXSR_MAGIC)
-      return;
-    fpregs = &scp_fpregs->status + 1;
+    if ((scp_fpregs->status >> 16) == EMU_X86_FXSR_MAGIC)
+      fpregs = &scp_fpregs->status + 1;
+    else
+      fpregs = &fxsave_state_holder_i386;
 #endif
     memcpy(fpregs, fpstate, sizeof(*fpstate));
   }
@@ -163,8 +167,8 @@ void native_dpmi_get_fpu_state(emu_fpstate *fpstate)
     if ((scp_fpregs->status >> 16) == EMU_X86_FXSR_MAGIC)
       fpregs = &scp_fpregs->status + 1;
     else {
-      fsave_to_fxsave(fpregs, &vm86_fpu_state);
-      return;
+      fsave_to_fxsave(fpregs, &fxsave_state_holder_i386);
+      fpregs = &fxsave_state_holder_i386;
     }
 #endif
     memcpy(fpstate, fpregs, sizeof(*fpstate));
