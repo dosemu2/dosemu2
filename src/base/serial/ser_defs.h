@@ -335,8 +335,8 @@ typedef struct {
   int num;
   int fd;			/* File descriptor of device */
   int opened;
+  int wr_fd;
   boolean is_file;
-  boolean ro;
   boolean dev_locked;           /* Flag to indicate that device is locked */
   boolean fossil_active;	/* Flag: FOSSIL emulation active */
   fossil_info_t fossil_info;	/* FOSSIL driver info structure */

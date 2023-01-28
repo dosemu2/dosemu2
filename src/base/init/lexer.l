@@ -449,6 +449,7 @@ rtscts			RETURN(RTSCTS);
 low_latency		RETURN(LOWLAT);
 pccom			RETURN(PCCOM);
 exec			RETURN(EXEC);
+wrfile			RETURN(WRFILE);
 
 	/* lock file stuff */
 directory              RETURN(DIRECTORY);

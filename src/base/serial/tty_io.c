@@ -229,9 +229,11 @@ static int tty_brkctl(com_t *com, int brkflg)
 
 static ssize_t tty_write(com_t *com, char *buf, size_t len)
 {
-  if (com->ro)
+  int fd;
+  if (com->cfg->ro && com->wr_fd == -1)
     return len;
-  return RPT_SYSCALL(write(com->fd, buf, len));   /* Attempt char xmit */
+  fd = (com->wr_fd == -1 ? com->fd : com->wr_fd);
+  return RPT_SYSCALL(write(fd, buf, len));   /* Attempt char xmit */
 }
 
 static int tty_dtr(com_t *com, int flag)
@@ -500,18 +502,16 @@ static int ser_open_existing(com_t *com)
     s_printf("SER%i: %s is fifo, setting pseudo flag\n", com->num,
 	    com->cfg->dev);
     com->is_file = TRUE;
-    com->ro = TRUE;
     com->cfg->pseudo = TRUE;
     oflags |= O_RDONLY;
     io_sel = 1;
   } else {
-    com->ro = FALSE;
     if (S_ISREG(st.st_mode)) {
       s_printf("SER%i: %s is file, setting pseudo flag\n", com->num,
 	    com->cfg->dev);
       com->is_file = TRUE;
       com->cfg->pseudo = TRUE;
-      oflags |= O_WRONLY | O_APPEND;
+      oflags |= O_RDONLY;
     } else {
       oflags |= O_RDWR;
       io_sel = 1;
@@ -618,6 +618,7 @@ static int tty_open(com_t *com)
 {
   int err;
 
+  com->wr_fd = -1;
   if (com->cfg->exec) {
     com->fd = pty_open(com, com->cfg->exec);
     if (com->fd == -1)
@@ -669,6 +670,13 @@ static int tty_open(com_t *com)
       goto fail_unlock;
     }
   }
+  if (com->cfg->wrfile) {
+    com->wr_fd = open(com->cfg->wrfile, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (com->wr_fd == -1) {
+      error("SER%i: unable to open or create for write %s\n", com->num, com->cfg->dev);
+      goto fail_unlock;
+    }
+  }
 
   modstat_engine(com->num);
   return com->fd;
@@ -691,6 +699,10 @@ static int tty_close(com_t *com)
   int ret;
   if (com->fd < 0)
     return -1;
+  if (com->wr_fd != -1) {
+    close(com->wr_fd);
+    com->wr_fd = -1;
+  }
   s_printf("SER%d: Running ser_close\n", com->num);
   remove_from_io_select(com->fd);
   if (com->cfg->exec) {
