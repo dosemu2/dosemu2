@@ -114,6 +114,12 @@ static void comredir_thr(void *arg)
     struct vm86_regs saved_regs = REGS;
     while (read_LSR(i) & UART_LSR_DR) {
       unsigned char c = read_char(i);
+      if (c == '\n') {
+        _AH = 0x0e;
+        _AL = '\r';
+        _BX = 0;
+        do_int_call_back(0x10);
+      }
       _AH = 0x0e;
       _AL = c;
       _BX = 0;
