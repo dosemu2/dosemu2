@@ -623,6 +623,7 @@ static int tty_open(com_t *com)
     com->fd = pty_open(com, com->cfg->exec);
     if (com->fd == -1)
       return -1;
+    com->cfg->pseudo = TRUE;
     add_to_io_select(com->fd, async_serial_run, (void *)com);
     return com->fd;
   }
