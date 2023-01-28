@@ -35,6 +35,7 @@
 #include "comredir.h"
 
 static int com_num;
+static int com_num_wr;
 static far_t old_ivec;
 static u_short irq_hlt;
 static int redir_tid;
@@ -58,7 +59,7 @@ void comredir_init(void)
   int15_tid = coopth_create("comint15 thr", int15_thr);
 }
 
-void comredir_setup(int num)
+void comredir_setup(int num, int num_wr)
 {
   if (num > 0 && num <= 4) {
     struct vm86_regs saved_regs = REGS;
@@ -72,6 +73,11 @@ void comredir_setup(int num)
     _AX = 0b11100011;  // 8N1
     _DX = i;
     do_int_call_back(0x14);
+    if (num_wr != num) {
+      _AX = 0b11100011;  // 8N1
+      _DX = num_wr - 1;
+      do_int_call_back(0x14);
+    }
     REGS = saved_regs;
     write_MCR(i, com[i].MCR | UART_MCR_OUT2);
     write_IER(i, UART_IER_RDI);
@@ -93,6 +99,7 @@ void comredir_setup(int num)
     SETIVEC(0x15, old_int15.segment, old_int15.offset);
   }
   com_num = num;
+  com_num_wr = num_wr;
 }
 
 void comredir_reset(void)
@@ -154,9 +161,9 @@ static void int15_thr(void *arg)
   clear_CF();
   if (!(_AL & 0x80)) {
     unsigned char c = get_bios_key(_AL);
-    write_char(com_num - 1, c);
+    write_char(com_num_wr - 1, c);
     if (c == '\r')
-      write_char(com_num - 1, '\n');
+      write_char(com_num_wr - 1, '\n');
   }
 }
 

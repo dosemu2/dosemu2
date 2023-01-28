@@ -47,6 +47,7 @@
 #include "utilities.h"	/* due to getpwnam */
 #include "iodev.h"
 #include "comredir.h"
+#include "nullmm.h"
 
 int no_local_video = 0;
 serial_t com_cfg[MAX_SER];
@@ -377,7 +378,8 @@ void serial_init(void)
     com[i].fd = -1;
     com[i].opened = 0;
     com[i].dev_locked = FALSE;
-    com[i].drv = com_cfg[i].mouse ? &serm_drv : &tty_drv;
+    com[i].drv = com_cfg[i].mouse ? &serm_drv :
+	    (com_cfg[i].nullmm ? &nullmm_drv : &tty_drv);
 
     /* Serial port init is skipped if the port is used for a mouse, and
      * dosemu is running in Xwindows, or not at the console.  This is due

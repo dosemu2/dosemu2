@@ -273,12 +273,16 @@ static int comredir_main(int argc, char **argv)
   struct REGPACK r = REGPACK_INIT;
 
   if (argc < 2) {
-    com_printf("usage: comredir <com_num>\n");
+    com_printf("usage: comredir <com_num> [<com_num_wr>]\n");
     return 1;
   }
 
   r.r_ax = (DOS_HELPER_SERIAL_HELPER | (DOS_SUBHELPER_SERIAL_COMREDIR_INIT << 8)) & 0xffff;
   r.r_bx = atoi(argv[1]);
+  if (argc > 2)
+    r.r_cx = atoi(argv[2]);
+  else
+    r.r_cx = r.r_bx;
   com_intr(DOS_HELPER_INT, &r);
   return 0;
 }

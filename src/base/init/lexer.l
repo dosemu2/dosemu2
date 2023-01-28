@@ -450,6 +450,7 @@ low_latency		RETURN(LOWLAT);
 pccom			RETURN(PCCOM);
 exec			RETURN(EXEC);
 wrfile			RETURN(WRFILE);
+nullmodem		RETURN(NULLMM);
 
 	/* lock file stuff */
 directory              RETURN(DIRECTORY);
