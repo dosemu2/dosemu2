@@ -179,7 +179,7 @@ static int midotmdty_preinit(void)
     ctrl_sock_in = tmdty_pipe_in[0];
     ctrl_sock_out = tmdty_pipe_out[1];
     /* no handler, default handler does waitpid() */
-    sigchld_register_handler(tmdty_pid, NULL);
+    sigchld_register_handler(tmdty_pid, NULL, NULL);
 
     return TRUE;
 

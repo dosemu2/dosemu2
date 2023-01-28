@@ -218,7 +218,8 @@ static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 #define MAX_SIGCHLD_HANDLERS 10
 struct sigchld_hndl {
   pid_t pid;
-  void (*handler)(void);
+  void (*handler)(void*);
+  void *arg;
   int enabled;
 };
 static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
@@ -606,7 +607,7 @@ static void leavedos_call(void *arg)
   _leavedos_sig(*sig);
 }
 
-int sigchld_register_handler(pid_t pid, void (*handler)(void))
+int sigchld_register_handler(pid_t pid, void (*handler)(void*), void *arg)
 {
   int i;
   for (i = 0; i < chd_hndl_num; i++) {
@@ -623,6 +624,7 @@ int sigchld_register_handler(pid_t pid, void (*handler)(void))
     chd_hndl_num++;
   }
   chld_hndl[i].handler = handler;
+  chld_hndl[i].arg = arg;
   chld_hndl[i].pid = pid;
   chld_hndl[i].enabled = 1;
   return 0;
@@ -630,7 +632,7 @@ int sigchld_register_handler(pid_t pid, void (*handler)(void))
 
 int sigchld_enable_cleanup(pid_t pid)
 {
-  return sigchld_register_handler(pid, NULL);
+  return sigchld_register_handler(pid, NULL, NULL);
 }
 
 int sigchld_enable_handler(pid_t pid, int on)
@@ -665,7 +667,7 @@ static void cleanup_child(void *arg)
   /* SIGCHLD handler is one-shot, disarm */
   chld_hndl[i].pid = 0;
   if (chld_hndl[i].handler)
-    chld_hndl[i].handler();
+    chld_hndl[i].handler(chld_hndl[i].arg);
 }
 
 static void sigbreak(sigcontext_t *scp)

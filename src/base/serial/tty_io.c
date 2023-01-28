@@ -580,10 +580,13 @@ static int pty_init(com_t *com)
     return pty_fd;
 }
 
-static void pty_exit(void)
+static int tty_close(com_t *com);
+
+static void pty_exit(void *arg)
 {
-    error("pty process terminated\n");
-    leavedos(2);
+  com_t *com = arg;
+  error("pty process terminated\n");
+  tty_close(com);
 }
 
 static int pty_open(com_t *com, const char *cmd)
@@ -598,7 +601,7 @@ static int pty_open(com_t *com, const char *cmd)
     return -1;
   /* wait for slave to open pts */
   sem_wait(com->pty_sem);
-  sigchld_register_handler(pid, pty_exit);
+  sigchld_register_handler(pid, pty_exit, com);
   com->pty_pid = pid;
   cfmakeraw(&t);
   tcsetattr(pty_fd, TCSANOW, &t);

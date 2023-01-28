@@ -39,7 +39,7 @@ static VDECONN *vde;
 static struct popen2 vdesw, slirp;
 static pthread_t open_thr;
 
-static void vde_exit(void)
+static void vde_exit(void *arg)
 {
     error("vde failed, exiting\n");
     leavedos(35);
@@ -173,8 +173,8 @@ static void pkt_register_cb(void *arg)
 {
     struct cbk_data *cbkd = arg;
     vde = cbkd->vde;
-    sigchld_register_handler(vdesw.child_pid, vde_exit);
-    sigchld_register_handler(slirp.child_pid, vde_exit);
+    sigchld_register_handler(vdesw.child_pid, vde_exit, NULL);
+    sigchld_register_handler(slirp.child_pid, vde_exit, NULL);
     cbkd->cbk(vde_datafd(cbkd->vde), 6);
     free(cbkd);
 }

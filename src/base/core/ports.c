@@ -863,7 +863,7 @@ int port_init(void)
 	return port_handles;	/* unused but useful */
 }
 
-static void portserver_exit(void)
+static void portserver_exit(void *arg)
 {
 	error("port server terminated, exiting\n");
 	leavedos(1);
@@ -984,7 +984,7 @@ int extra_port_init(void)
                                 close(port_fd_in[1]);
                                 close(port_fd_out[0]);
                                 sigchld_register_handler(portserver_pid,
-                            		portserver_exit);
+                                    portserver_exit, NULL);
                                 break;
                         }
                 }
