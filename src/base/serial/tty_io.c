@@ -560,7 +560,7 @@ static int ser_open_existing(com_t *com)
   return 0;
 }
 
-static int pty_init(serial_t *ser)
+static int pty_init(com_t *com)
 {
     int pty_fd = posix_openpt(O_RDWR);
     if (pty_fd == -1)
@@ -569,9 +569,9 @@ static int pty_init(serial_t *ser)
         return -1;
     }
     unlockpt(pty_fd);
-    snprintf(ser->sem_name, sizeof(ser->sem_name), "/dosemu_serpty_sem_%i", getpid());
-    ser->pty_sem = sem_open(ser->sem_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
-    if (!ser->pty_sem)
+    snprintf(com->sem_name, sizeof(com->sem_name), "/dosemu_serpty_sem_%i", getpid());
+    com->pty_sem = sem_open(com->sem_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
+    if (!com->pty_sem)
     {
         error("sem_open failed %s\n", strerror(errno));
         return -1;
@@ -586,28 +586,28 @@ static void pty_exit(void)
     leavedos(2);
 }
 
-static int pty_open(serial_t *ser, const char *cmd)
+static int pty_open(com_t *com, const char *cmd)
 {
   struct termios t;
   const char *argv[] = { "sh", "-c", cmd, NULL };
   const int argc = 4;
-  int pty_fd = pty_init(ser);
+  int pty_fd = pty_init(com);
   pid_t pid = run_external_command("/bin/sh", argc, argv,
-      1, -1, pty_fd, ser->pty_sem);
+      1, -1, pty_fd, com->pty_sem);
   if (pid == -1)
     return -1;
   /* wait for slave to open pts */
-  sem_wait(ser->pty_sem);
+  sem_wait(com->pty_sem);
   sigchld_register_handler(pid, pty_exit);
-  ser->pty_pid = pid;
+  com->pty_pid = pid;
   cfmakeraw(&t);
   tcsetattr(pty_fd, TCSANOW, &t);
   return pty_fd;
 }
 
-static int pty_close(serial_t *ser, int fd)
+static int pty_close(com_t *com, int fd)
 {
-  sigchld_enable_handler(ser->pty_pid, 0);
+  sigchld_enable_handler(com->pty_pid, 0);
   return close(fd);
 }
 
@@ -619,7 +619,7 @@ static int tty_open(com_t *com)
   int err;
 
   if (com->cfg->exec) {
-    com->fd = pty_open(com->cfg, com->cfg->exec);
+    com->fd = pty_open(com, com->cfg->exec);
     if (com->fd == -1)
       return -1;
     add_to_io_select(com->fd, async_serial_run, (void *)com);
@@ -694,7 +694,7 @@ static int tty_close(com_t *com)
   s_printf("SER%d: Running ser_close\n", com->num);
   remove_from_io_select(com->fd);
   if (com->cfg->exec) {
-    ret = pty_close(com->cfg, com->fd);
+    ret = pty_close(com, com->fd);
     com->fd = -1;
     return ret;
   }

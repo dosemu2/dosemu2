@@ -34,9 +34,6 @@ typedef struct {
   				/*   MAIN VARIABLES  */
   char *dev;			/* String to hold path to device file */
   char *exec;                   /* String to the cmd to execute */
-  char sem_name[256];
-  sem_t *pty_sem;
-  pid_t pty_pid;
   int real_comport;		/* The actual COMx port number. 0 for invalid */
   ioport_t base_port;		/* Base port address handled by device */
   ioport_t end_port;		/* Base port address handled by device */
