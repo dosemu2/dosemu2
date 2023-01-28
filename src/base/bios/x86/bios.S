@@ -902,7 +902,12 @@ INT75_OFF:
 	outb %al, $0xa0
 	outb %al, $0x20
 	int $2		/* Bochs does this; RBIL says: redirected to INT 02 */
-        iret		/* by the BIOS, for compatibility with the PC */
+			/* by the BIOS, for compatibility with the PC */
+	fnclex		/* Clear FP exceptions just in case a hooked
+			   handler hasn't already done so, so we won't
+			   get stuck (in real mode IGNNE would prevent
+			   further exceptions but we don't emulate that) */
+	iret
 
 /* ----------------------------------------------------------------- */
 	.globl INT08_OFF
