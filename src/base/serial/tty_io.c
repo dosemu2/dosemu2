@@ -503,6 +503,8 @@ static int ser_open_existing(com_t *com)
 	    com->cfg->dev);
     com->is_file = TRUE;
     com->cfg->pseudo = TRUE;
+    /* force read-only to avoid SIGPIPE */
+    com->cfg->ro = TRUE;
     oflags |= O_RDONLY;
     io_sel = 1;
   } else {
