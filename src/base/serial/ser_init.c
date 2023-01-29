@@ -376,6 +376,7 @@ void serial_init(void)
     com[i].num = i;
     com[i].cfg = &com_cfg[i];
     com[i].fd = -1;
+    com[i].wr_fd = -1;
     com[i].opened = 0;
     com[i].dev_locked = FALSE;
     com[i].drv = com_cfg[i].mouse ? &serm_drv :

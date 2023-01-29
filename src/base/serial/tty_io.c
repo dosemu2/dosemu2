@@ -512,6 +512,8 @@ static int ser_open_existing(com_t *com)
       com->is_file = TRUE;
       com->cfg->pseudo = TRUE;
       oflags |= O_RDONLY;
+      if (!com->cfg->ro && !com->cfg->wrfile)
+        com->wr_fd = RPT_SYSCALL(open(com->cfg->dev, O_WRONLY | O_APPEND));
     } else {
       oflags |= O_RDWR;
       io_sel = 1;
@@ -621,7 +623,6 @@ static int tty_open(com_t *com)
 {
   int err;
 
-  com->wr_fd = -1;
   if (com->cfg->exec) {
     com->fd = pty_open(com, com->cfg->exec);
     if (com->fd == -1)
