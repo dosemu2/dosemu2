@@ -271,18 +271,39 @@ static int emufs_main(int argc, char **argv)
 static int comredir_main(int argc, char **argv)
 {
   struct REGPACK r = REGPACK_INIT;
+  int suppr = 0;
+  char c;
 
-  if (argc < 2) {
+  optind = 0;
+  while ((c = getopt(argc, argv, "hs")) != -1) {
+    switch (c) {
+      case 'h':
+        com_printf("comredir redirects console to com port\n");
+        com_printf("usage: comredir [-s] <com_num> [<com_num_wr>]\n");
+        com_printf("options:\n");
+        com_printf("\t-s - suppress console output from DOS programs\n");
+        com_printf("\t-h - this help\n");
+        return EXIT_SUCCESS;
+      case 's':
+        suppr++;
+        break;
+      default:
+        com_printf("Unknown option\n");
+        return EXIT_FAILURE;
+    }
+  }
+  if (argc - optind < 1) {
     com_printf("usage: comredir <com_num> [<com_num_wr>]\n");
     return 1;
   }
 
   r.r_ax = (DOS_HELPER_SERIAL_HELPER | (DOS_SUBHELPER_SERIAL_COMREDIR_INIT << 8)) & 0xffff;
-  r.r_bx = atoi(argv[1]);
-  if (argc > 2)
-    r.r_cx = atoi(argv[2]);
+  r.r_bx = atoi(argv[optind]);
+  if (argc - optind > 1)
+    r.r_cx = atoi(argv[optind + 1]);
   else
     r.r_cx = r.r_bx;
+  r.r_cx |= suppr << 8;
   com_intr(DOS_HELPER_INT, &r);
   return 0;
 }

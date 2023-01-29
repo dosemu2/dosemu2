@@ -30,6 +30,7 @@
 #include "coopth.h"
 #include "port.h"
 #include "keyboard/keyb_server.h"
+#include "dos2linux.h"
 #include "serial.h"
 #include "ser_defs.h"
 #include "comredir.h"
@@ -45,6 +46,9 @@ static u_short int15_hlt;
 static int int15_tid;
 static void int15_thr(void *arg);
 static void int15_irq(Bit16u idx, HLT_ARG(arg));
+static far_t old_int10;
+static void int10_irq(Bit16u idx, HLT_ARG(arg));
+static u_short int10_hlt;
 
 void comredir_init(void)
 {
@@ -53,19 +57,34 @@ void comredir_init(void)
   hlt_hdlr.func       = int15_irq;
   hlt_hdlr.len        = 1;
   int15_hlt = hlt_register_handler_vm86(hlt_hdlr);
+  hlt_hdlr.name       = "comint10 isr";
+  hlt_hdlr.func       = int10_irq;
+  hlt_hdlr.len        = 1;
+  int10_hlt = hlt_register_handler_vm86(hlt_hdlr);
 
   redir_tid = coopth_create_vm86("comredir thr", comredir_thr, do_eoi_iret,
                 &irq_hlt);
   int15_tid = coopth_create("comint15 thr", int15_thr);
 }
 
-void comredir_setup(int num, int num_wr)
+void comredir_setup(int num, int num_wr, int suppr)
 {
   if (num > 0 && num <= 4) {
     struct vm86_regs saved_regs = REGS;
     int i = num - 1;
     int intr = COM_INTERRUPT(i);
     unsigned char imr, imr1;
+
+    i = num - 1;
+    if (i >= config.num_ser) {
+      com_printf("comredir: com port %i not configured\n", num);
+      return;
+    }
+    if (num_wr - 1 >= config.num_ser) {
+      com_printf("comredir: com port %i not configured\n", num_wr);
+      return;
+    }
+    intr = COM_INTERRUPT(i);
     old_ivec.segment = ISEG(intr);
     old_ivec.offset = IOFF(intr);
     SETIVEC(intr, BIOS_HLT_BLK_SEG, irq_hlt);
@@ -89,7 +108,13 @@ void comredir_setup(int num, int num_wr)
 
     old_int15.segment = ISEG(0x15);
     old_int15.offset = IOFF(0x15);
-    SETIVEC(0x15, BIOS_HLT_BLK_SEG, int15_hlt);
+    if (num_wr)
+      SETIVEC(0x15, BIOS_HLT_BLK_SEG, int15_hlt);
+
+    old_int10.segment = ISEG(0x10);
+    old_int10.offset = IOFF(0x10);
+    if (suppr)
+      SETIVEC(0x10, BIOS_HLT_BLK_SEG, int10_hlt);
   } else {
     if (!com_num)
       return;
@@ -97,6 +122,7 @@ void comredir_setup(int num, int num_wr)
     write_IER(com_num - 1, 0);
     SETIVEC(intr, old_ivec.segment, old_ivec.offset);
     SETIVEC(0x15, old_int15.segment, old_int15.offset);
+    SETIVEC(0x10, old_int10.segment, old_int10.offset);
   }
   com_num = num;
   com_num_wr = num_wr;
@@ -105,6 +131,17 @@ void comredir_setup(int num, int num_wr)
 void comredir_reset(void)
 {
   com_num = 0;
+}
+
+static void do_int10(void)
+{
+  unsigned int ssp, sp;
+
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
+  sp = LWORD(esp);
+  pushw(ssp, sp, LWORD(eflags));
+  LWORD(esp) -= 2;
+  do_call_back(old_int10.segment, old_int10.offset);
 }
 
 static void comredir_thr(void *arg)
@@ -122,24 +159,24 @@ static void comredir_thr(void *arg)
     while (read_LSR(i) & UART_LSR_DR) {
       unsigned char c = read_char(i);
       if (c == 0x1a) {  // ^Z, exit
-        comredir_setup(0, 0);
+        comredir_setup(0, 0, 0);
         break;
       }
       if (c == '\n') {
         _AH = 0x0e;
         _AL = '\r';
         _BX = 0;
-        do_int_call_back(0x10);
+        do_int10();
       }
       _AH = 0x0e;
       _AL = c;
       _BX = 0;
-      do_int_call_back(0x10);
+      do_int10();
       if (c == '\r') {
         _AH = 0x0e;
         _AL = '\n';
         _BX = 0;
-        do_int_call_back(0x10);
+        do_int10();
       }
     }
     REGS = saved_regs;
@@ -179,4 +216,14 @@ static void int15_irq(Bit16u idx, HLT_ARG(arg))
   }
   fake_iret();
   coopth_start(int15_tid, NULL);
+}
+
+static void int10_irq(Bit16u idx, HLT_ARG(arg))
+{
+  /* suppress console output */
+  if (_AH == 9 || _AH == 0xe || _AH == 0x13 || _AH == 2) {
+    fake_iret();
+    return;
+  }
+  jmp_to(old_int10.segment, old_int10.offset);
 }

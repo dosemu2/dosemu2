@@ -599,7 +599,7 @@ void serial_helper(void)
       break;
 
     case DOS_SUBHELPER_SERIAL_COMREDIR_INIT:
-      comredir_setup(_BL, _CL);
+      comredir_setup(_BL, _CL, _CH);
       break;
 
     default:
