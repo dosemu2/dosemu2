@@ -421,9 +421,10 @@ put_lcr(int num, int val)
     serial_brkctl(num, !!(val & UART_LCR_SBC));
 
   /* obviously the writes to LCR (except BREAK state) would
-   * invalidate the rx fifo. We clear tx too. */
+   * invalidate the rx fifo on a real com port. Pseudo ports do not care. */
   if ((changed & ~UART_LCR_SBC) && !DLAB(num)) {
-    uart_clear_fifo(num, UART_FCR_CLEAR_CMD);
+    if (!com[num].cfg->pseudo)
+      uart_clear_fifo(num, UART_FCR_CLEAR_CMD);
     ser_termios(num);			/* Sets new line settings */
   }
 }
