@@ -75,6 +75,10 @@ void comredir_setup(int num, int num_wr, int suppr)
     int intr = COM_INTERRUPT(i);
     unsigned char imr, imr1;
 
+    if (com_num) {
+      com_printf("comredir is already active\n");
+      return;
+    }
     i = num - 1;
     if (i >= config.num_ser) {
       com_printf("comredir: com port %i not configured\n", num);
