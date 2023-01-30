@@ -49,6 +49,17 @@ static void int15_irq(Bit16u idx, HLT_ARG(arg));
 static far_t old_int10;
 static void int10_irq(Bit16u idx, HLT_ARG(arg));
 static u_short int10_hlt;
+static unsigned tflags;
+// suppress output
+#define TFLG_SUPPR 1
+// append NL to CR on output
+#define TFLG_OANL 2
+// prepend CR to NL on output
+#define TFLG_OPCR 4
+// append NL to CR on input
+#define TFLG_IANL 8
+// prepend CR to NL on input
+#define TFLG_IPCR 0x10
 
 void comredir_init(void)
 {
@@ -67,7 +78,7 @@ void comredir_init(void)
   int15_tid = coopth_create("comint15 thr", int15_thr);
 }
 
-void comredir_setup(int num, int num_wr, int suppr)
+void comredir_setup(int num, int num_wr, unsigned flags)
 {
   int i = 0, j = 0;
   if (num > 0 && num <= 4) {
@@ -118,7 +129,7 @@ void comredir_setup(int num, int num_wr, int suppr)
 
     old_int10.segment = ISEG(0x10);
     old_int10.offset = IOFF(0x10);
-    if (suppr)
+    if (flags & TFLG_SUPPR)
       SETIVEC(0x10, BIOS_HLT_BLK_SEG, int10_hlt);
   } else {
     if (!com_num)
@@ -131,6 +142,7 @@ void comredir_setup(int num, int num_wr, int suppr)
   }
   com_num = i + 1;
   com_num_wr = j + 1;
+  tflags = flags;
 }
 
 void comredir_reset(void)
@@ -167,7 +179,7 @@ static void comredir_thr(void *arg)
         comredir_setup(0, 0, 0);
         break;
       }
-      if (c == '\n') {
+      if ((tflags & TFLG_IPCR) && c == '\n') {
         _AH = 0x0e;
         _AL = '\r';
         _BX = 0;
@@ -177,7 +189,7 @@ static void comredir_thr(void *arg)
       _AL = c;
       _BX = 0;
       do_int10();
-      if (c == '\r') {
+      if ((tflags & TFLG_IANL) && c == '\r') {
         _AH = 0x0e;
         _AL = '\n';
         _BX = 0;
@@ -207,8 +219,10 @@ static void int15_thr(void *arg)
   clear_CF();
   if (!(_AL & 0x80)) {
     unsigned char c = get_bios_key(_AL);
+    if ((tflags & TFLG_OPCR) && c == '\n')
+      write_char(com_num_wr - 1, '\r');
     write_char(com_num_wr - 1, c);
-    if (c == '\r')
+    if ((tflags & TFLG_OANL) && c == '\r')
       write_char(com_num_wr - 1, '\n');
   }
 }

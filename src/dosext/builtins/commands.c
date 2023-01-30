@@ -271,21 +271,30 @@ static int emufs_main(int argc, char **argv)
 static int comredir_main(int argc, char **argv)
 {
   struct REGPACK r = REGPACK_INIT;
-  int suppr = 0;
+  int suppr = 0, flags = 0;
   char c;
 
   optind = 0;
-  while ((c = getopt(argc, argv, "hs")) != -1) {
+  while ((c = getopt(argc, argv, "hsf:")) != -1) {
     switch (c) {
       case 'h':
         com_printf("comredir redirects console to com port\n");
-        com_printf("usage: comredir [-s] <com_num> [<com_num_wr>]\n");
+        com_printf("usage: comredir [-s] [-f flags] <com_num> [<com_num_wr>]\n");
         com_printf("options:\n");
         com_printf("\t-s - suppress console output from DOS programs\n");
+        com_printf("\t-f - communication flags (ORed value of the below):\n");
+        com_printf("\t\t1 - suppress output (same as -s)\n");
+        com_printf("\t\t2 - append NL to CR on output\n");
+        com_printf("\t\t4 - prepend CR to NL on output\n");
+        com_printf("\t\t8 - append NL to CR on input\n");
+        com_printf("\t\t10h - prepend CR to NL on input\n");
         com_printf("\t-h - this help\n");
         return EXIT_SUCCESS;
       case 's':
         suppr++;
+        break;
+      case 'f':
+        flags = atoi(optarg);
         break;
       default:
         com_printf("Unknown option\n");
@@ -303,7 +312,9 @@ static int comredir_main(int argc, char **argv)
     r.r_cx = atoi(argv[optind + 1]);
   else
     r.r_cx = r.r_bx;
-  r.r_cx |= suppr << 8;
+  if (suppr)
+    r.r_cx |= 1 << 8;
+  r.r_cx |= flags << 8;
   com_intr(DOS_HELPER_INT, &r);
   return 0;
 }
