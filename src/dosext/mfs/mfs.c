@@ -4800,7 +4800,7 @@ do_create_truncate:
       char *dst = (char *)Addr(state, es, edi);
       char *slash;
       if (drive > PRINTER_BASE_DRIVE && drive < MAX_DRIVES) {
-        sprintf(dst, "%s\\%s", LINUX_PRN_RESOURCE, drives[drive].root);
+        snprintf(dst, 128, "%s\\%s", LINUX_PRN_RESOURCE, drives[drive].root);
         Debug0((dbg_fd, "Qualify Filename: %s -> %s\n", name, dst));
         return TRUE;
       }

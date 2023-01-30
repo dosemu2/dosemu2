@@ -73,13 +73,13 @@ dosaddr_t is_dos_device(const char *path)
   int i;
   int cnt;
 
+  fname = path;
   /* C:\DEV notation is allowed */
-  fname = strrchr(path, '\\');
-  if (fname)
-    fname++;
-  else
-    fname = path;
-
+  if (path[1] == ':') {
+    fname += 2;
+    if (fname[0] == '\\' || fname[0] == '/')
+      fname++;
+  }
   /*
    * LPTx e.t.c. is reserved no matter the path (e.g. .\LPT1 _is_ reserved),
    * but mfs.c sends an entire path.
