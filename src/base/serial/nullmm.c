@@ -73,8 +73,10 @@ static int nullmm_brkctl(com_t *com, int flag)
 
 static ssize_t nullmm_write(com_t *c, char *buf, size_t len)
 {
-  com_t *com2 = &com[c->cfg->nullmm - 1];
-  add_buf(com2, buf, len);
+  int idx = get_com_idx(c->cfg->nullmm);
+  if (idx == -1)
+    return -1;
+  add_buf(&com[idx], buf, len);
   return len;
 }
 
@@ -105,7 +107,11 @@ static int nullmm_uart_fill(com_t *com)
 
 static int nullmm_get_msr(com_t *c)
 {
-  com_t *com2 = &com[c->cfg->nullmm - 1];
+  com_t *com2;
+  int idx = get_com_idx(c->cfg->nullmm);
+  if (idx == -1)
+    return -1;
+  com2 = &com[idx];
   unsigned char msr = UART_MSR_DCD;
   if (com2->MCR & UART_MCR_DTR)
     msr |= UART_MSR_DSR;
