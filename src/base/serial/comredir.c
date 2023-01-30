@@ -219,11 +219,17 @@ static void int15_thr(void *arg)
   clear_CF();
   if (!(_AL & 0x80)) {
     unsigned char c = get_bios_key(_AL);
+    if (!c) {
+      set_CF();
+      return;
+    }
     if ((tflags & TFLG_OPCR) && c == '\n')
       write_char(com_num_wr - 1, '\r');
     write_char(com_num_wr - 1, c);
     if ((tflags & TFLG_OANL) && c == '\r')
       write_char(com_num_wr - 1, '\n');
+  } else {
+    set_CF();
   }
 }
 
