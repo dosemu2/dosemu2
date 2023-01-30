@@ -65,10 +65,9 @@ int int14(void)
   /* Translate the requested COM port number in the DL register, into
    * the necessary arbitrary port number system used throughout this module.
    */
-  for(num = 0; num < config.num_ser; num++)
-    if (com_cfg[num].real_comport == (LO(dx)+1)) break;
-
-  if (num >= config.num_ser) return 1;	/* Exit if not on supported port */
+  num = get_com_idx(LO(dx)+1);
+  if (num == -1)
+    return 1;	/* Exit if not on supported port */
 
   switch (HI(ax)) {
   case 0:		/* Initialize serial port. */

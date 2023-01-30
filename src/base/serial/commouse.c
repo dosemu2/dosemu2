@@ -41,11 +41,8 @@ static int com_mouse_init(void)
   int num;
   if (config.mouse.com_num == -1 || !config.mouse.intdrv)
     return 0;
-  for (num = 0; num < config.num_ser; num++) {
-    if (com_cfg[num].real_comport == config.mouse.com_num)
-      break;
-  }
-  if (num >= config.num_ser)
+  num = get_com_idx(config.mouse.com_num);
+  if (num == -1)
     return 0;
 
   _com_num = num;
