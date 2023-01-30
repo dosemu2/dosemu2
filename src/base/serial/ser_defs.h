@@ -465,4 +465,6 @@ struct serial_drv {
 #define write_MCR(num, byte)  write_reg((num), UART_MCR, (byte))
 #define write_IER(num, byte)  write_reg((num), UART_IER, (byte))
 
+int get_com_idx(int num);
+
 #endif /* SER_DEFS_H */

@@ -69,9 +69,9 @@ void comredir_init(void)
 
 void comredir_setup(int num, int num_wr, int suppr)
 {
+  int i = 0, j = 0;
   if (num > 0 && num <= 4) {
     struct vm86_regs saved_regs = REGS;
-    int i = num - 1;
     int intr = COM_INTERRUPT(i);
     unsigned char imr, imr1;
 
@@ -79,12 +79,13 @@ void comredir_setup(int num, int num_wr, int suppr)
       com_printf("comredir is already active\n");
       return;
     }
-    i = num - 1;
-    if (i >= config.num_ser) {
+    i = get_com_idx(num);
+    if (i == -1) {
       com_printf("comredir: com port %i not configured\n", num);
       return;
     }
-    if (num_wr - 1 >= config.num_ser) {
+    j = get_com_idx(num_wr);
+    if (j == -1) {
       com_printf("comredir: com port %i not configured\n", num_wr);
       return;
     }
@@ -128,8 +129,8 @@ void comredir_setup(int num, int num_wr, int suppr)
     SETIVEC(0x15, old_int15.segment, old_int15.offset);
     SETIVEC(0x10, old_int10.segment, old_int10.offset);
   }
-  com_num = num;
-  com_num_wr = num_wr;
+  com_num = i + 1;
+  com_num_wr = j + 1;
 }
 
 void comredir_reset(void)

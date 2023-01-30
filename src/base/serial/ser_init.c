@@ -415,6 +415,15 @@ void serial_close(void)
   }
 }
 
+int get_com_idx(int num)
+{
+  int i;
+  for (i = 0; i < config.num_ser; i++) {
+    if (com[i].cfg->real_comport == num)
+      return i;
+  }
+  return -1;
+}
 
 #define SER_FN0(rt, f) \
 rt f(int num) \
