@@ -384,7 +384,7 @@ static void lock_get(int fd, struct flock *fl)
   }
 }
 
-static int downgrade_dir_lock(int dir_fd, int fd, off_t start)
+static void downgrade_dir_lock(int dir_fd, int fd, off_t start)
 {
     struct flock fl;
     int err;
@@ -396,9 +396,8 @@ static int downgrade_dir_lock(int dir_fd, int fd, off_t start)
     err = lock_set(dir_fd, &fl);
     /* read lock should never fail (we put no write locks) */
     if (err)
-        error("MFS: read lock failed\n");
-    err |= flock(dir_fd, LOCK_UN);
-    return err;
+        error("MFS: read lock failed, %s\n", strerror(errno));
+    flock(dir_fd, LOCK_UN);
 }
 
 static int do_open_dir(const char *dname, int *locked)
@@ -496,11 +495,8 @@ static int do_mfs_creat(struct file_fd *f, const char *dname,
     err = fstat(fd, &f->st);
     if (err)
         goto err2;
-    if (locked) {
-        err = downgrade_dir_lock(dir_fd, fd, f->st.st_ino);
-        if (err)
-            goto err2;
-    }
+    if (locked)
+        downgrade_dir_lock(dir_fd, fd, f->st.st_ino);
 
     f->fd = fd;
     f->dir_fd = dir_fd;
@@ -696,11 +692,8 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
         *r_err = SHARING_VIOLATION;
         goto err2;
     }
-    if (locked) {
-        err = downgrade_dir_lock(dir_fd, fd, st->st_ino);
-        if (err)
-            goto err2;
-    }
+    if (locked)
+        downgrade_dir_lock(dir_fd, fd, st->st_ino);
 
     f->st = *st;
     f->fd = fd;
