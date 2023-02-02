@@ -398,26 +398,11 @@ static int mapping_is_hole(void *start, size_t size)
   return (mapping_find_hole(beg, end, size) == start);
 }
 
-static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
+static void *do_mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
-  void *addr;
-  int flags = (target != (void *)-1) ? MAP_FIXED : 0;
-  /* assume fixed mappings are already visible to kvm unless marked immediate */
-  int update_kvm = ((target == (void *)-1) || (cap & MAPPING_IMMEDIATE));
-
-  if (target == (void *)-1) target = NULL;
-#ifdef __x86_64__
-  if (flags == 0 &&
-      (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM|MAPPING_KVM)))
-    flags = _MAP_32BIT;
-#endif
-  addr = mmap(target, mapsize, protect,
-		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
-  if (update_kvm && is_kvm_map(cap))
-    /* Map guest memory in KVM */
-    mmap_kvm(cap, addr, mapsize, protect);
-
-  return addr;
+  assert(targ != (dosaddr_t)-1);
+  return mmap(MEM_BASE32(targ), mapsize, protect,
+		MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS, -1, 0);
 }
 
 void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect)
@@ -469,26 +454,22 @@ void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect)
 int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
   void *addr;
-  void *target;
   assert((cap & MAPPING_DPMI) && (targ != (dosaddr_t)-1));
-  target = MEM_BASE32(targ);
-  addr = do_mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
-  return (addr == target ? 0 : -1);
+  addr = do_mmap_mapping(cap, targ, mapsize, PROT_READ | PROT_WRITE);
+  return (addr == MEM_BASE32(targ) ? 0 : -1);
 }
 
 int unalias_mapping_high(int cap, dosaddr_t targ, size_t mapsize)
 {
   void *addr;
-  void *target;
   int ret = 0;
 
-  target = MEM_BASE32(targ);
-  addr = do_mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
-  if (addr != target) {
+  addr = do_mmap_mapping(cap, targ, mapsize, PROT_READ | PROT_WRITE);
+  if (addr != MEM_BASE32(targ)) {
     dosemu_error("mmap error\n");
     ret = -1;
   }
-  ret |= smfree(&main_pool, target);
+  ret |= smfree(&main_pool, addr);
   return ret;
 }
 
