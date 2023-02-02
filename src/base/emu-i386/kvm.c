@@ -554,14 +554,6 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
   }
 }
 
-void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize)
-{
-  if (cap & MAPPING_IMMEDIATE)
-    do_munmap_kvm(targ, mapsize);
-  else
-    check_overlap_kvm(targ, mapsize);
-}
-
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
 {
   dosaddr_t targ;
