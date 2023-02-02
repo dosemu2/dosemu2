@@ -351,7 +351,7 @@ void low_mem_init(void)
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) {
     init_kvm_monitor();
     mmap_kvm(MAPPING_INIT_LOWRAM, mem_base, memsize + dpmi_size,
-	    PROT_READ | PROT_WRITE);
+	    PROT_READ | PROT_WRITE, 0);
   }
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, memsize,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);

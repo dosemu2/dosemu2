@@ -221,8 +221,10 @@ void init_kvm_monitor(void)
   /* create monitor structure in memory */
   monitor = mmap_mapping_ux(MAPPING_SCRATCH|MAPPING_KVM, (void *)-1,
 			    sizeof(*monitor), PROT_READ | PROT_WRITE);
-  mmap_kvm(MAPPING_SCRATCH|MAPPING_KVM, monitor, sizeof(*monitor),
-	PROT_READ | PROT_WRITE);
+  /* exclude special regions for KVM-internal TSS and identity page */
+  mmap_kvm(MAPPING_SCRATCH|MAPPING_KVM, monitor,
+	offsetof(struct monitor, kvm_tss),
+	PROT_READ | PROT_WRITE, DOSADDR_REL((unsigned char *)monitor));
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
 
@@ -554,30 +556,15 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
   }
 }
 
-void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
+void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
 {
-  dosaddr_t targ;
   int slot;
 
-  if (cap == (MAPPING_DPMI|MAPPING_SCRATCH)) {
-    mprotect_kvm(cap, DOSADDR_REL(addr), mapsize, protect);
-    return;
-  }
   if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_VGAEMU|MAPPING_KMEM|MAPPING_KVM|
       MAPPING_IMMEDIATE)))
     return;
   if (cap & MAPPING_KMEM)
     cap |= MAPPING_KVM_UC;
-  if (cap & MAPPING_INIT_LOWRAM) {
-    targ = 0;
-  }
-  else {
-    targ = DOSADDR_REL(addr);
-    if (cap & MAPPING_KVM) {
-      /* exclude special regions for KVM-internal TSS and identity page */
-      mapsize = offsetof(struct monitor, kvm_tss);
-    }
-  }
   /* with KVM we need to manually remove/shrink existing mappings */
   if (cap & MAPPING_IMMEDIATE)
     do_munmap_kvm(targ, mapsize);
