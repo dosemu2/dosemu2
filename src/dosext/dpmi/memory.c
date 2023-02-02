@@ -53,12 +53,6 @@ static unsigned char *dpmi_lin_rsv_base;
 static unsigned char *dpmi_base;
 static uint32_t low_rsv;
 static const int dpmi_reserved_space = 4 * 1024 * 1024; // reserve 4Mb
-static int extra_mf;
-
-void dpmi_set_map_flags(int cap)
-{
-    extra_mf = cap;
-}
 
 static int in_rsv_pool(dosaddr_t base, unsigned int size)
 {
@@ -180,7 +174,9 @@ int count_shm_blocks(dpmi_pm_block_root *root, const char *sname)
 
 static int commit(void *ptr, size_t size)
 {
+#if HAVE_DECL_MADV_POPULATE_WRITE
   int err;
+#endif
   if (mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(ptr), size,
 	PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
     return 0;
@@ -478,7 +474,6 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     unsigned char *realbase;
     int i;
     int inp = 0;
-    int cap = MAPPING_DPMI | MAPPING_SCRATCH | extra_mf;
 
    /* aligned size to PAGE size */
     size = PAGE_ALIGN(size);
@@ -502,8 +497,6 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	inp = in_rsv_pool(base, size);
 	if (inp == -1)
 	    return NULL;
-	if (!inp)
-	    cap |= MAPPING_NOOVERLAP;
     }
     if (committed && size > dpmi_free_memory())
 	return NULL;
@@ -520,7 +513,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	free_pm_block(root, block);
 	return NULL;
     }
-    mprotect_mapping(cap, base, size, committed ?
+    mprotect_mapping(MAPPING_DPMI, base, size, committed ?
 		PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
     block->base = DOSADDR_REL(realbase);
     block->linear = 1;
@@ -574,7 +567,6 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 {
     dpmi_pm_block *block;
     int i;
-    int cap = MAPPING_DPMI | extra_mf;
 
     if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -1;
@@ -593,7 +585,7 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	if (inp) {
 	    smfree(&lin_pool, MEM_BASE32(block->base));
 	} else {
-	    mprotect_mapping(cap, block->base, block->size,
+	    mprotect_mapping(MAPPING_DPMI, block->base, block->size,
 		    PROT_READ | PROT_WRITE);
 	    smfree(&main_pool, MEM_BASE32(block->base));
 	}

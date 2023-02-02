@@ -3656,8 +3656,6 @@ void dpmi_setup(void)
 
     if (!config.dpmi) return;
 
-    dpmi_set_map_flags(0);
-
     get_ldt(ldt_buffer);
     memset(Segments, 0, sizeof(Segments));
     for (i = 0; i < MAX_SELECTORS; i++) {
@@ -3756,7 +3754,6 @@ void dpmi_setup(void)
       break;
     }
 
-    dpmi_set_map_flags(MAPPING_IMMEDIATE);
     return;
 
 err:
