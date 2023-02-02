@@ -405,6 +405,25 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
   /* assume fixed mappings are already visible to kvm unless marked immediate */
   int update_kvm = ((target == (void *)-1) || (cap & MAPPING_IMMEDIATE));
 
+  if (target == (void *)-1) target = NULL;
+#ifdef __x86_64__
+  if (flags == 0 &&
+      (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM|MAPPING_KVM)))
+    flags = _MAP_32BIT;
+#endif
+  addr = mmap(target, mapsize, protect,
+		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
+  if (update_kvm && is_kvm_map(cap))
+    /* Map guest memory in KVM */
+    mmap_kvm(cap, addr, mapsize, protect);
+
+  return addr;
+}
+
+void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect)
+{
+  void *addr;
+  int flags = (target != (void *)-1) ? MAP_FIXED : 0;
   if (cap & MAPPING_NOOVERLAP) {
     if (target == (void *)-1) {
       dosemu_error("spurious MAPPING_NOOVERLAP flag\n");
@@ -420,6 +439,7 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
       return MAP_FAILED;
   }
   if (target == (void *)-1) target = NULL;
+  /* TODO: remove this once Bart's patches are merged */
 #ifdef __x86_64__
   if (flags == 0 &&
       (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM|MAPPING_KVM)))
@@ -442,25 +462,7 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
       return MAP_FAILED;
     }
   }
-  if (update_kvm && is_kvm_map(cap))
-    /* Map guest memory in KVM */
-    mmap_kvm(cap, addr, mapsize, protect);
-
   return addr;
-}
-
-void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect)
-{
-  int flags = (target != (void *)-1) ? MAP_FIXED : 0;
-  /* TODO: remove this once Bart's patches are merged */
-#ifdef __x86_64__
-  if (flags == 0 &&
-      (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM|MAPPING_KVM)))
-    flags = _MAP_32BIT;
-#endif
-  if (target == (void *)-1) target = NULL;
-  return mmap(target, mapsize, protect,
-		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
 }
 
 /* Restore mapping previously broken by direct mmap() call. */
