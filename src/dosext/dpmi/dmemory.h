@@ -51,6 +51,5 @@ int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int o
 int dpmi_lin_mem_rsv(void);
 int dpmi_lin_mem_free(void);
 int dpmi_free_memory(void);
-void dpmi_set_map_flags(int cap);
 
 #endif

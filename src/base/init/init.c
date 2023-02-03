@@ -278,8 +278,8 @@ static void *mem_reserve(uint32_t memsize, uint32_t dpmi_size)
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
-    result = mmap_mapping_ux(MAPPING_NULL | MAPPING_SCRATCH,
-			     NULL, memsize, PROT_NONE);
+    result = mmap_mapping(MAPPING_NULL | MAPPING_SCRATCH,
+			  NULL, memsize, PROT_NONE);
     if (result == MAP_FAILED) {
       const char *msg =
 	"You can most likely avoid this problem by running\n"
@@ -306,7 +306,7 @@ static void *mem_reserve(uint32_t memsize, uint32_t dpmi_size)
   }
 #endif
 
-  result = mmap_mapping_ux(cap, (void *)-1, memsize + dpmi_size, prot);
+  result = mmap_mapping(cap, (void *)-1, memsize + dpmi_size, prot);
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
@@ -349,9 +349,9 @@ void low_mem_init(void)
 
   mem_base = mem_reserve(memsize, dpmi_size);
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) {
-    init_kvm_monitor();
+    init_kvm_monitor(memsize + dpmi_size);
     mmap_kvm(MAPPING_INIT_LOWRAM, mem_base, memsize + dpmi_size,
-	    PROT_READ | PROT_WRITE);
+	    PROT_READ | PROT_WRITE, 0);
   }
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, memsize,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);

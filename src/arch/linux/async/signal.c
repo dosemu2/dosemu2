@@ -132,9 +132,8 @@ static void iret_frame_alloc(void)
         for (j = 0; j < 0x10000; j += PAGE_SIZE) {
             addr = (void *) (i * 0x100000000UL + j);
             iret_frame =
-                mmap_mapping_ux(MAPPING_SCRATCH | MAPPING_NOOVERLAP,
-                                addr, PAGE_SIZE,
-                                    PROT_READ | PROT_WRITE);
+                mmap_mapping(MAPPING_SCRATCH | MAPPING_NOOVERLAP,
+                             addr, PAGE_SIZE, PROT_READ | PROT_WRITE);
             if (iret_frame != MAP_FAILED)
                 goto out;
         }

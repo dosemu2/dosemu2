@@ -22,12 +22,11 @@
 #ifdef USE_KVM
 /* kvm functions */
 int init_kvm_cpu(void);
-void init_kvm_monitor(void);
+void init_kvm_monitor(dosaddr_t monitor_dosaddr);
 int kvm_vm86(struct vm86_struct *info);
 int kvm_dpmi(cpuctx_t *scp);
 void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect);
-void mmap_kvm(int cap, void *addr, size_t mapsize, int protect);
-void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize);
+void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ);
 void set_kvm_memory_regions(void);
 
 void kvm_set_idt_default(int i);
@@ -41,11 +40,11 @@ void kvm_done(void);
 
 #else
 static inline int init_kvm_cpu(void) { return -1; }
-static inline void init_kvm_monitor(void) {}
+static inline void init_kvm_monitor(dosaddr_t monitor_dosaddr) {}
 static inline int kvm_vm86(struct vm86_struct *info) { return -1; }
 static inline int kvm_dpmi(cpuctx_t *scp) { return -1; }
 static inline void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect) {}
-static inline void mmap_kvm(int cap, void *addr, size_t mapsize, int protect) {}
+static inline void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ) {}
 static inline void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize) {}
 static inline void set_kvm_memory_regions(void) {}
 static inline void kvm_set_idt_default(int i) {}

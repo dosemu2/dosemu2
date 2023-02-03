@@ -376,7 +376,7 @@ static void munmap_mapping_kmem(int cap, dosaddr_t addr, size_t mapsize)
 	    PROT_READ | PROT_WRITE, LOWMEM(old_vbase));
     } else {
       unsigned char *p;
-      p = mmap_mapping_ux(MAPPING_SCRATCH, MEM_BASE32(old_vbase), mapsize,
+      p = mmap_mapping(MAPPING_SCRATCH, MEM_BASE32(old_vbase), mapsize,
           PROT_READ | PROT_WRITE);
       if (p == MAP_FAILED)
         rc = -1;
@@ -398,13 +398,10 @@ static int mapping_is_hole(void *start, size_t size)
   return (mapping_find_hole(beg, end, size) == start);
 }
 
-static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
+void *mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 {
   void *addr;
   int flags = (target != (void *)-1) ? MAP_FIXED : 0;
-  /* assume fixed mappings are already visible to kvm unless marked immediate */
-  int update_kvm = ((target == (void *)-1) || (cap & MAPPING_IMMEDIATE));
-
   if (cap & MAPPING_NOOVERLAP) {
     if (target == (void *)-1) {
       dosemu_error("spurious MAPPING_NOOVERLAP flag\n");
@@ -420,6 +417,7 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
       return MAP_FAILED;
   }
   if (target == (void *)-1) target = NULL;
+  /* TODO: remove this once Bart's patches are merged */
 #ifdef __x86_64__
   if (flags == 0 &&
       (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM|MAPPING_KVM)))
@@ -442,36 +440,6 @@ static void *do_mmap_mapping(int cap, void *target, size_t mapsize, int protect)
       return MAP_FAILED;
     }
   }
-  if (update_kvm && is_kvm_map(cap))
-    /* Map guest memory in KVM */
-    mmap_kvm(cap, addr, mapsize, protect);
-
-  return addr;
-}
-
-void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect)
-{
-  int flags = (target != (void *)-1) ? MAP_FIXED : 0;
-  /* TODO: remove this once Bart's patches are merged */
-#ifdef __x86_64__
-  if (flags == 0 &&
-      (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM|MAPPING_KVM)))
-    flags = _MAP_32BIT;
-#endif
-  if (target == (void *)-1) target = NULL;
-  return mmap(target, mapsize, protect,
-		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
-}
-
-void *mmap_file_ux(int cap, void *target, size_t mapsize, int protect,
-    int flags, int fd)
-{
-  void *addr = mmap(target, mapsize, protect, flags, fd, 0);
-  if (addr == MAP_FAILED)
-    return MAP_FAILED;
-  if (is_kvm_map(cap))
-    /* Map guest memory in KVM */
-    mmap_kvm(cap, addr, mapsize, protect);
   return addr;
 }
 
@@ -482,7 +450,7 @@ int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
   void *target;
   assert((cap & MAPPING_DPMI) && (targ != (dosaddr_t)-1));
   target = MEM_BASE32(targ);
-  addr = do_mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
+  addr = mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
   return (addr == target ? 0 : -1);
 }
 
@@ -493,51 +461,13 @@ int unalias_mapping_high(int cap, dosaddr_t targ, size_t mapsize)
   int ret = 0;
 
   target = MEM_BASE32(targ);
-  addr = do_mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
+  addr = mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
   if (addr != target) {
     dosemu_error("mmap error\n");
     ret = -1;
   }
   ret |= smfree(&main_pool, target);
   return ret;
-}
-
-static void *do_mremap_grow(int cap, dosaddr_t from, size_t old_size,
-    size_t new_size)
-{
-#ifdef __linux__
-  void *old_ptr = MEM_BASE32(from);
-  void *ptr = mremap(old_ptr, old_size, new_size, MREMAP_MAYMOVE);
-  Q__printf("MAPPING: remap(grow), cap=%s, from=%x, old=%zx, new=%zx, %p\n",
-	cap, from, old_size, new_size, ptr);
-  if (ptr == MAP_FAILED)
-    return MAP_FAILED;
-  if (is_kvm_map(cap)) {
-    munmap_kvm(cap | MAPPING_IMMEDIATE, from, old_size);
-    mmap_kvm(cap | MAPPING_IMMEDIATE, ptr, new_size,
-        PROT_READ | PROT_WRITE | PROT_EXEC);
-  }
-  return ptr;
-#else
-  return MAP_FAILED;
-#endif
-}
-
-void *mremap_mapping(int cap, dosaddr_t from, size_t old_size, size_t new_size)
-{
-  dosaddr_t unm;
-  assert(new_size != old_size && !(from & (PAGE_SIZE - 1)) &&
-      !(old_size & (PAGE_SIZE - 1)) && !(new_size & (PAGE_SIZE - 1)));
-  if (new_size > old_size)
-    return do_mremap_grow(cap, from, old_size, new_size);
-  /* shrink is simple */
-  Q__printf("MAPPING: remap(shrink), cap=%s, from=%x, old=%zx, new=%zx\n",
-	cap, from, old_size, new_size);
-  unm = from + new_size;
-  munmap(MEM_BASE32(unm), old_size - new_size);
-  if (is_kvm_map(cap))
-    munmap_kvm(cap | MAPPING_IMMEDIATE, unm, old_size - new_size);
-  return MEM_BASE32(from);
 }
 
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
@@ -770,17 +700,6 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
   if (!oldsize)
     dosemu_error("realloc_mapping() addr=%p, oldsize=0\n", addr);
   return mappingdriver->realloc(cap, addr, oldsize, newsize);
-}
-
-int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
-{
-#ifdef __linux__
-  assert(kmem_mapped(targ, mapsize) == 0);
-#endif
-  munmap(MEM_BASE32(targ), mapsize);
-  if (is_kvm_map(cap))
-    munmap_kvm(cap, targ, mapsize);
-  return 0;
 }
 
 struct hardware_ram {

@@ -173,7 +173,7 @@ void kvm_set_idt_default(int i)
 {
     if (i < 0x11)
         return;
-    set_idt_default(DOSADDR_REL((unsigned char *)monitor), i);
+    set_idt_default(sregs.tr.base, i);
 }
 
 static void set_idt(int i, uint16_t sel, uint32_t offs, int is_32, int tg)
@@ -211,7 +211,7 @@ static void kvm_set_desc(Descriptor *desc, struct kvm_segment *seg)
 }
 
 /* initialize KVM virtual machine monitor */
-void init_kvm_monitor(void)
+void init_kvm_monitor(dosaddr_t monitor_dosaddr)
 {
   int ret, i;
 
@@ -219,10 +219,12 @@ void init_kvm_monitor(void)
     return;
 
   /* create monitor structure in memory */
-  monitor = mmap_mapping_ux(MAPPING_SCRATCH|MAPPING_KVM, (void *)-1,
-			    sizeof(*monitor), PROT_READ | PROT_WRITE);
-  mmap_kvm(MAPPING_SCRATCH|MAPPING_KVM, monitor, sizeof(*monitor),
-	PROT_READ | PROT_WRITE);
+  monitor = mmap_mapping(MAPPING_SCRATCH|MAPPING_KVM, (void *)-1,
+			 sizeof(*monitor), PROT_READ | PROT_WRITE);
+  /* exclude special regions for KVM-internal TSS and identity page */
+  mmap_kvm(MAPPING_SCRATCH|MAPPING_KVM, monitor,
+	offsetof(struct monitor, kvm_tss),
+	PROT_READ | PROT_WRITE, monitor_dosaddr);
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
 
@@ -238,7 +240,7 @@ void init_kvm_monitor(void)
     return;
   }
 
-  sregs.tr.base = DOSADDR_REL((unsigned char *)monitor);
+  sregs.tr.base = monitor_dosaddr;
   sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE - 1;
   sregs.tr.selector = 0x18;
   sregs.tr.unusable = 0;
@@ -338,35 +340,19 @@ static int init_kvm_vcpu(void)
 {
   int ret, mmap_size;
 
-#ifdef KVM_CAP_SYNC_MMU
-  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SYNC_MMU);
-  if (ret <= 0) {
-    error("KVM: SYNC_MMU unsupported %x\n", ret);
-    return 0;
-  }
-#else
-  error("kernel is too old, KVM unsupported\n");
-  return 0;
-#endif
-  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_XSAVE);
-  if (ret <= 0) {
-    error("KVM: XSAVE unsupported %x\n", ret);
-    return 0;
-  }
-
   /* this call is only there to shut up the kernel saying
      "KVM_SET_TSS_ADDR need to be called before entering vcpu"
      this is only really needed if the vcpu is started in real mode and
      the kernel needs to emulate that using V86 mode, as is necessary
      on Nehalem and earlier Intel CPUs */
   ret = ioctl(vmfd, KVM_SET_TSS_ADDR,
-	      (unsigned long)DOSADDR_REL(monitor->kvm_tss));
+	      sregs.tr.base + offsetof(struct monitor, kvm_tss));
   if (ret == -1) {
     perror("KVM: KVM_SET_TSS_ADDR\n");
     return 0;
   }
 
-  uint64_t addr = DOSADDR_REL(monitor->kvm_identity_map);
+  uint64_t addr = sregs.tr.base + offsetof(struct monitor, kvm_identity_map);
   ret = ioctl(vmfd, KVM_SET_IDENTITY_MAP_ADDR, &addr);
   if (ret == -1) {
     perror("KVM: KVM_SET_IDENTITY_MAP_ADDR\n");
@@ -426,6 +412,33 @@ int init_kvm_cpu(void)
     return 0;
   }
 
+#if defined(KVM_CAP_SYNC_MMU) && defined(KVM_CAP_SET_IDENTITY_MAP_ADDR) && \
+  defined(KVM_CAP_SET_TSS_ADDR) && defined(KVM_CAP_XSAVE)
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SYNC_MMU);
+  if (ret <= 0) {
+    error("KVM: SYNC_MMU unsupported %x\n", ret);
+    goto errcap;
+  }
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SET_IDENTITY_MAP_ADDR);
+  if (ret <= 0) {
+    error("KVM: SET_IDENTITY_MAP_ADDR unsupported %x\n", ret);
+    goto errcap;
+  }
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SET_TSS_ADDR);
+  if (ret <= 0) {
+    error("KVM: SET_TSS_ADDR unsupported %x\n", ret);
+    goto errcap;
+  }
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_XSAVE);
+  if (ret <= 0) {
+    error("KVM: XSAVE unsupported %x\n", ret);
+    goto errcap;
+  }
+#else
+  error("kernel is too old, KVM unsupported\n");
+  goto errcap;
+#endif
+
   vmfd = ioctl(kvmfd, KVM_CREATE_VM, (unsigned long)0);
   if (vmfd == -1) {
     warn("KVM: KVM_CREATE_VM: %s\n", strerror(errno));
@@ -449,8 +462,11 @@ int init_kvm_cpu(void)
   return 1;
 
 err:
+  close(vmfd);
   free(cpuid);
   cpuid = NULL;
+errcap:
+  close(kvmfd);
   return 0;
 }
 
@@ -554,38 +570,11 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
   }
 }
 
-void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize)
+void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
 {
-  if (cap & MAPPING_IMMEDIATE)
-    do_munmap_kvm(targ, mapsize);
-  else
-    check_overlap_kvm(targ, mapsize);
-}
-
-void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
-{
-  dosaddr_t targ;
   int slot;
 
-  if (cap == (MAPPING_DPMI|MAPPING_SCRATCH)) {
-    mprotect_kvm(cap, DOSADDR_REL(addr), mapsize, protect);
-    return;
-  }
-  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_VGAEMU|MAPPING_KMEM|MAPPING_KVM|
-      MAPPING_IMMEDIATE)))
-    return;
-  if (cap & MAPPING_KMEM)
-    cap |= MAPPING_KVM_UC;
-  if (cap & MAPPING_INIT_LOWRAM) {
-    targ = 0;
-  }
-  else {
-    targ = DOSADDR_REL(addr);
-    if (cap & MAPPING_KVM) {
-      /* exclude special regions for KVM-internal TSS and identity page */
-      mapsize = offsetof(struct monitor, kvm_tss);
-    }
-  }
+  assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_KVM));
   /* with KVM we need to manually remove/shrink existing mappings */
   if (cap & MAPPING_IMMEDIATE)
     do_munmap_kvm(targ, mapsize);
@@ -625,8 +614,6 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
       monitor->pte[page] |= PG_PRESENT | PG_USER;
     if (cap & MAPPING_KVM)
       monitor->pte[page] &= ~PG_USER;
-    if (cap & MAPPING_KVM_UC)
-      monitor->pte[page] |= PG_DC;
   }
 
   mprotected_kvm = 1;

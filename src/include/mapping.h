@@ -46,7 +46,6 @@
 #define MAPPING_KVM		0x000800
 #define MAPPING_IMMEDIATE	0x001000
 #define MAPPING_CPUEMU		0x002000
-#define MAPPING_KVM_UC		0x004000
 
 /* usage as: (kind of mapping required) */
 #define MAPPING_KMEM		0x010000
@@ -79,11 +78,7 @@ void free_mapping (int cap, void *addr, size_t mapsize);
 typedef void *realloc_mapping_type(int cap, void *addr, size_t oldsize, size_t newsize);
 void *realloc_mapping (int cap, void *addr, size_t oldsize, size_t newsize);
 
-void *mremap_mapping(int cap, dosaddr_t from, size_t old_size,
-    size_t new_size);
-void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect);
-void *mmap_file_ux(int cap, void *target, size_t mapsize, int protect,
-    int flags, int fd);
+void *mmap_mapping(int cap, void *target, size_t mapsize, int protect);
 
 typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int protect, void *source);
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source);
