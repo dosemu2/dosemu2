@@ -561,8 +561,6 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
   int slot;
 
   assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_KVM));
-  if (cap & MAPPING_KMEM)
-    cap |= MAPPING_KVM_UC;
   /* with KVM we need to manually remove/shrink existing mappings */
   if (cap & MAPPING_IMMEDIATE)
     do_munmap_kvm(targ, mapsize);
@@ -602,8 +600,6 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
       monitor->pte[page] |= PG_PRESENT | PG_USER;
     if (cap & MAPPING_KVM)
       monitor->pte[page] &= ~PG_USER;
-    if (cap & MAPPING_KVM_UC)
-      monitor->pte[page] |= PG_DC;
   }
 
   mprotected_kvm = 1;
