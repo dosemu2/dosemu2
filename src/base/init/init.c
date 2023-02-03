@@ -349,7 +349,7 @@ void low_mem_init(void)
 
   mem_base = mem_reserve(memsize, dpmi_size);
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) {
-    init_kvm_monitor();
+    init_kvm_monitor(memsize + dpmi_size);
     mmap_kvm(MAPPING_INIT_LOWRAM, mem_base, memsize + dpmi_size,
 	    PROT_READ | PROT_WRITE, 0);
   }

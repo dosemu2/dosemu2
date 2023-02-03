@@ -173,7 +173,7 @@ void kvm_set_idt_default(int i)
 {
     if (i < 0x11)
         return;
-    set_idt_default(DOSADDR_REL((unsigned char *)monitor), i);
+    set_idt_default(sregs.tr.base, i);
 }
 
 static void set_idt(int i, uint16_t sel, uint32_t offs, int is_32, int tg)
@@ -211,7 +211,7 @@ static void kvm_set_desc(Descriptor *desc, struct kvm_segment *seg)
 }
 
 /* initialize KVM virtual machine monitor */
-void init_kvm_monitor(void)
+void init_kvm_monitor(dosaddr_t monitor_dosaddr)
 {
   int ret, i;
 
@@ -224,7 +224,7 @@ void init_kvm_monitor(void)
   /* exclude special regions for KVM-internal TSS and identity page */
   mmap_kvm(MAPPING_SCRATCH|MAPPING_KVM, monitor,
 	offsetof(struct monitor, kvm_tss),
-	PROT_READ | PROT_WRITE, DOSADDR_REL((unsigned char *)monitor));
+	PROT_READ | PROT_WRITE, monitor_dosaddr);
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
 
@@ -240,7 +240,7 @@ void init_kvm_monitor(void)
     return;
   }
 
-  sregs.tr.base = DOSADDR_REL((unsigned char *)monitor);
+  sregs.tr.base = monitor_dosaddr;
   sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE - 1;
   sregs.tr.selector = 0x18;
   sregs.tr.unusable = 0;
@@ -362,13 +362,13 @@ static int init_kvm_vcpu(void)
      the kernel needs to emulate that using V86 mode, as is necessary
      on Nehalem and earlier Intel CPUs */
   ret = ioctl(vmfd, KVM_SET_TSS_ADDR,
-	      (unsigned long)DOSADDR_REL(monitor->kvm_tss));
+	      sregs.tr.base + offsetof(struct monitor, kvm_tss));
   if (ret == -1) {
     perror("KVM: KVM_SET_TSS_ADDR\n");
     return 0;
   }
 
-  uint64_t addr = DOSADDR_REL(monitor->kvm_identity_map);
+  uint64_t addr = sregs.tr.base + offsetof(struct monitor, kvm_identity_map);
   ret = ioctl(vmfd, KVM_SET_IDENTITY_MAP_ADDR, &addr);
   if (ret == -1) {
     perror("KVM: KVM_SET_IDENTITY_MAP_ADDR\n");
