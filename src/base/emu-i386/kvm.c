@@ -219,8 +219,8 @@ void init_kvm_monitor(dosaddr_t monitor_dosaddr)
     return;
 
   /* create monitor structure in memory */
-  monitor = mmap_mapping_ux(MAPPING_SCRATCH|MAPPING_KVM, (void *)-1,
-			    sizeof(*monitor), PROT_READ | PROT_WRITE);
+  monitor = mmap_mapping(MAPPING_SCRATCH|MAPPING_KVM, (void *)-1,
+			 sizeof(*monitor), PROT_READ | PROT_WRITE);
   /* exclude special regions for KVM-internal TSS and identity page */
   mmap_kvm(MAPPING_SCRATCH|MAPPING_KVM, monitor,
 	offsetof(struct monitor, kvm_tss),

@@ -376,7 +376,7 @@ static void munmap_mapping_kmem(int cap, dosaddr_t addr, size_t mapsize)
 	    PROT_READ | PROT_WRITE, LOWMEM(old_vbase));
     } else {
       unsigned char *p;
-      p = mmap_mapping_ux(MAPPING_SCRATCH, MEM_BASE32(old_vbase), mapsize,
+      p = mmap_mapping(MAPPING_SCRATCH, MEM_BASE32(old_vbase), mapsize,
           PROT_READ | PROT_WRITE);
       if (p == MAP_FAILED)
         rc = -1;
@@ -398,14 +398,7 @@ static int mapping_is_hole(void *start, size_t size)
   return (mapping_find_hole(beg, end, size) == start);
 }
 
-static void *do_mmap_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
-{
-  assert(targ != (dosaddr_t)-1);
-  return mmap(MEM_BASE32(targ), mapsize, protect,
-		MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS, -1, 0);
-}
-
-void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect)
+void *mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 {
   void *addr;
   int flags = (target != (void *)-1) ? MAP_FIXED : 0;
@@ -454,22 +447,26 @@ void *mmap_mapping_ux(int cap, void *target, size_t mapsize, int protect)
 int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
   void *addr;
+  void *target;
   assert((cap & MAPPING_DPMI) && (targ != (dosaddr_t)-1));
-  addr = do_mmap_mapping(cap, targ, mapsize, PROT_READ | PROT_WRITE);
-  return (addr == MEM_BASE32(targ) ? 0 : -1);
+  target = MEM_BASE32(targ);
+  addr = mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
+  return (addr == target ? 0 : -1);
 }
 
 int unalias_mapping_high(int cap, dosaddr_t targ, size_t mapsize)
 {
   void *addr;
+  void *target;
   int ret = 0;
 
-  addr = do_mmap_mapping(cap, targ, mapsize, PROT_READ | PROT_WRITE);
-  if (addr != MEM_BASE32(targ)) {
+  target = MEM_BASE32(targ);
+  addr = mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
+  if (addr != target) {
     dosemu_error("mmap error\n");
     ret = -1;
   }
-  ret |= smfree(&main_pool, addr);
+  ret |= smfree(&main_pool, target);
   return ret;
 }
 
