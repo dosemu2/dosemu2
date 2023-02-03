@@ -340,32 +340,11 @@ static int init_kvm_vcpu(void)
 {
   int ret, mmap_size;
 
-#ifdef KVM_CAP_SYNC_MMU
-  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SYNC_MMU);
-  if (ret <= 0) {
-    error("KVM: SYNC_MMU unsupported %x\n", ret);
-    return 0;
-  }
-#else
-  error("kernel is too old, KVM unsupported\n");
-  return 0;
-#endif
-  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_XSAVE);
-  if (ret <= 0) {
-    error("KVM: XSAVE unsupported %x\n", ret);
-    return 0;
-  }
-
   /* this call is only there to shut up the kernel saying
      "KVM_SET_TSS_ADDR need to be called before entering vcpu"
      this is only really needed if the vcpu is started in real mode and
      the kernel needs to emulate that using V86 mode, as is necessary
      on Nehalem and earlier Intel CPUs */
-  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SET_TSS_ADDR);
-  if (ret <= 0) {
-    error("KVM: SET_TSS_ADDR unsupported %x\n", ret);
-    return 0;
-  }
   ret = ioctl(vmfd, KVM_SET_TSS_ADDR,
 	      sregs.tr.base + offsetof(struct monitor, kvm_tss));
   if (ret == -1) {
@@ -373,11 +352,6 @@ static int init_kvm_vcpu(void)
     return 0;
   }
 
-  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SET_IDENTITY_MAP_ADDR);
-  if (ret <= 0) {
-    error("KVM: SET_IDENTITY_MAP_ADDR unsupported %x\n", ret);
-    return 0;
-  }
   uint64_t addr = sregs.tr.base + offsetof(struct monitor, kvm_identity_map);
   ret = ioctl(vmfd, KVM_SET_IDENTITY_MAP_ADDR, &addr);
   if (ret == -1) {
@@ -438,6 +412,33 @@ int init_kvm_cpu(void)
     return 0;
   }
 
+#if defined(KVM_CAP_SYNC_MMU) && defined(KVM_CAP_SET_IDENTITY_MAP_ADDR) && \
+  defined(KVM_CAP_SET_TSS_ADDR) && defined(KVM_CAP_XSAVE)
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SYNC_MMU);
+  if (ret <= 0) {
+    error("KVM: SYNC_MMU unsupported %x\n", ret);
+    goto errcap;
+  }
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SET_IDENTITY_MAP_ADDR);
+  if (ret <= 0) {
+    error("KVM: SET_IDENTITY_MAP_ADDR unsupported %x\n", ret);
+    goto errcap;
+  }
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SET_TSS_ADDR);
+  if (ret <= 0) {
+    error("KVM: SET_TSS_ADDR unsupported %x\n", ret);
+    goto errcap;
+  }
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_XSAVE);
+  if (ret <= 0) {
+    error("KVM: XSAVE unsupported %x\n", ret);
+    goto errcap;
+  }
+#else
+  error("kernel is too old, KVM unsupported\n");
+  goto errcap;
+#endif
+
   vmfd = ioctl(kvmfd, KVM_CREATE_VM, (unsigned long)0);
   if (vmfd == -1) {
     warn("KVM: KVM_CREATE_VM: %s\n", strerror(errno));
@@ -461,8 +462,11 @@ int init_kvm_cpu(void)
   return 1;
 
 err:
+  close(vmfd);
   free(cpuid);
   cpuid = NULL;
+errcap:
+  close(kvmfd);
   return 0;
 }
 
