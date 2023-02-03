@@ -560,9 +560,7 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
 {
   int slot;
 
-  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_VGAEMU|MAPPING_KMEM|MAPPING_KVM|
-      MAPPING_IMMEDIATE)))
-    return;
+  assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_KVM));
   if (cap & MAPPING_KMEM)
     cap |= MAPPING_KVM_UC;
   /* with KVM we need to manually remove/shrink existing mappings */
