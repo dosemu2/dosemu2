@@ -361,6 +361,11 @@ static int init_kvm_vcpu(void)
      this is only really needed if the vcpu is started in real mode and
      the kernel needs to emulate that using V86 mode, as is necessary
      on Nehalem and earlier Intel CPUs */
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SET_TSS_ADDR);
+  if (ret <= 0) {
+    error("KVM: SET_TSS_ADDR unsupported %x\n", ret);
+    return 0;
+  }
   ret = ioctl(vmfd, KVM_SET_TSS_ADDR,
 	      sregs.tr.base + offsetof(struct monitor, kvm_tss));
   if (ret == -1) {
@@ -368,6 +373,11 @@ static int init_kvm_vcpu(void)
     return 0;
   }
 
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SET_IDENTITY_MAP_ADDR);
+  if (ret <= 0) {
+    error("KVM: SET_IDENTITY_MAP_ADDR unsupported %x\n", ret);
+    return 0;
+  }
   uint64_t addr = sregs.tr.base + offsetof(struct monitor, kvm_identity_map);
   ret = ioctl(vmfd, KVM_SET_IDENTITY_MAP_ADDR, &addr);
   if (ret == -1) {
