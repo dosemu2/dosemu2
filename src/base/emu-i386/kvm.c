@@ -145,7 +145,6 @@ static struct kvm_cpuid2 *cpuid;
 #define CPUID_FEATURES_EDX 0x1bf
 static struct kvm_run *run;
 static int kvmfd, vmfd, vcpufd;
-static volatile int mprotected_kvm = 0;
 static struct kvm_sregs sregs;
 
 #define MAXSLOT 400
@@ -612,8 +611,6 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
     if (cap & MAPPING_KVM)
       monitor->pte[page] &= ~PG_USER;
   }
-
-  mprotected_kvm = 1;
 }
 
 /* Enable dirty logging from base to base+size.
@@ -948,18 +945,7 @@ static unsigned int kvm_run(void)
           KVM is re-entered asking it to exit when interrupt injection is
           possible, then it exits with this code. This only happens if a signal
           occurs during execution of the monitor code in kvmmon.S.
-       4. ret==-1 and errno == EFAULT: this can happen if code in vgaemu.c
-          calls mprotect in parallel and the TLB is out of sync with the
-          actual page tables; if this happen we retry and it should not happen
-          again since the KVM exit/entry makes everything sync'ed.
     */
-    if (mprotected_kvm) { // case 4
-      mprotected_kvm = 0;
-      if (ret == -1 && errn == EFAULT) {
-	ret = ioctl(vcpufd, KVM_RUN, NULL);
-	errn = errno;
-      }
-    }
     if (ret != 0 && ret != -1)
       error("KVM: strange return %i, errno=%i\n", ret, errn);
     if (ret == -1 && errn == EINTR) {

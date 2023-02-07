@@ -484,18 +484,6 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
   int i, ret = -1;
 
-  /* it is important to r/o protect the KVM guest page tables BEFORE
-     calling mprotect as this function is called by parallel threads
-     (vgaemu.c:_vga_emu_update).
-     Otherwise the page can be r/w in the guest but r/o on the host which
-     causes KVM to exit with EFAULT when the guest writes there.
-     We do not need to worry about caching/TLBs because the kernel will
-     walk the guest page tables (see kernel:
-     Documentation/virtual/kvm/mmu.txt:
-     - if needed, walk the guest page tables to determine the guest translation
-       (gva->gpa or ngpa->gpa)
-       - if permissions are insufficient, reflect the fault back to the guest)
-  */
   Q__printf("MAPPING: mprotect, cap=%s, targ=%x, size=%zx, protect=%x\n",
 	cap, targ, mapsize, protect);
   if (is_kvm_map(cap))
