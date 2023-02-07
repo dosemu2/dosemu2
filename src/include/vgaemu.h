@@ -270,6 +270,7 @@ typedef struct {
   unsigned bank_pages;			/* size of a bank in pages */
   unsigned bank;			/* selected bank */
   unsigned char *dirty_map;		/* 1 == dirty */
+  unsigned char *dirty_bitmap;		/* filled in by KVM */
   unsigned char *prot_map0, *prot_map1;	/* prot flags per page */
   int planes;				/* 4 for PL4 and ModeX, 1 otherwise */
   int plane_pages;			/* pages per plane  */

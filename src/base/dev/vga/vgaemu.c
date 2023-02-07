@@ -260,6 +260,7 @@
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
+#include <limits.h>
 #include "cpu.h"		/* root@sjoerd: for context structure */
 #include "emu.h"
 #include "int.h"
@@ -275,6 +276,7 @@
 #include "utilities.h"
 #include "instremu.h"
 #include "cpu-emu.h"
+#include "kvm.h"
 
 /* table with video mode definitions */
 #include "vgaemu_modelist.h"
@@ -1204,6 +1206,10 @@ int vga_emu_protect_page(unsigned page, int prot)
   int i;
   int sys_prot;
 
+  /* don't call mprotect at all on LFB with KVM */
+  if (config.cpu_vm_dpmi == CPUVM_KVM && page >= vga.mem.lfb_base_page)
+    return 0;
+
   sys_prot = prot == RW ? VGA_EMU_RW_PROT : prot == RO ? VGA_EMU_RO_PROT : VGA_EMU_NONE_PROT;
 
   if(vgaemu_prot_ok(page, sys_prot)) {
@@ -1393,6 +1399,31 @@ int vga_emu_adjust_protection(unsigned page, unsigned mapped_page, int prot,
   return ret;
 }
 
+static void _vga_kvm_sync_dirty_map(unsigned mapping)
+{
+  unsigned i;
+  dosaddr_t base;
+
+  if (config.cpu_vm_dpmi != CPUVM_KVM) {
+    if (config.cpu_vm != CPUVM_KVM)
+      return;
+    if (mapping == VGAEMU_MAP_LFB_MODE)
+      return;
+  }
+
+  if (vga.inst_emu)
+    return;
+
+  base = vga.mem.map[mapping].base_page << PAGE_SHIFT;
+  if (base == 0)
+    return;
+
+  kvm_get_dirty_map(base, vga.mem.dirty_bitmap);
+  for (i = 0; i < vga.mem.map[mapping].pages; i++)
+    if (test_bit(i, vga.mem.dirty_bitmap))
+       _vgaemu_dirty_page(vga.mem.map[mapping].first_page + i, 1);
+}
+
 /*
  * Map the VGA memory.
  *
@@ -1431,6 +1462,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 
   i = 0;
   pthread_mutex_lock(&prot_mtx);
+  _vga_kvm_sync_dirty_map(mapping);
   if (mapping == VGAEMU_MAP_BANK_MODE)
     i = alias_mapping(MAPPING_VGAEMU,
       vmt->base_page << 12, vmt->pages << 12,
@@ -1495,10 +1527,8 @@ void vgaemu_reset_mapping()
   int prot, page, startpage, endpage;
 
   prot = VGA_EMU_RW_PROT;
-  startpage = (config.umb_a0 ? 0xb0 : 0xa0);
-  endpage = (config.umb_b0 ? 0xb0 : 0xb8);
-  vga.mem.graph_base = startpage << 12;
-  vga.mem.graph_size = (endpage << 12) - vga.mem.graph_base;
+  startpage = vga.mem.graph_base >> PAGE_SHIFT;
+  endpage = startpage + (vga.mem.graph_size >> PAGE_SHIFT);
   for(page = startpage; page < endpage; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
       page << 12, 1 << 12,
@@ -1678,6 +1708,11 @@ int vga_emu_pre_init(void)
     config.exitearly = 1;
     return 1;
   }
+  if((vga.mem.dirty_bitmap = (unsigned char *) malloc((vga.mem.pages+CHAR_BIT-1) / CHAR_BIT)) == NULL) {
+    error("vga_emu_init: not enough memory for dirty bit map\n");
+    config.exitearly = 1;
+    return 1;
+  }
   dirty_all_video_pages();		/* all need an update */
 
   if(
@@ -1701,10 +1736,27 @@ int vga_emu_pre_init(void)
 
   vga.mem.bank = vga.mem.bank_pages = 0;
 
+  vga.mem.graph_base = config.umb_a0 ? GRAPH_BASE + GRAPH_SIZE : GRAPH_BASE;
+  vga.mem.graph_size = (config.umb_b0 ? GRAPH_BASE + GRAPH_SIZE :
+			VGA_PHYS_TEXT_BASE) - vga.mem.graph_base;
+
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) {
+    if (vga.mem.graph_base + vga.mem.graph_size == VGA_PHYS_TEXT_BASE) {
+      /* contiguous */
+      kvm_set_dirty_log(vga.mem.graph_base, vga.mem.graph_size + VGA_TEXT_SIZE);
+    } else {
+      if (vga.mem.graph_size)
+	kvm_set_dirty_log(vga.mem.graph_base, vga.mem.graph_size);
+      kvm_set_dirty_log(VGA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
+    }
+  }
+
   if(vga.mem.lfb_base != 0) {
     memcheck_addtype('e', "VGAEMU LFB");
     register_hardware_ram_virtual('e', vga.mem.lfb_base, vga.mem.size,
 	    vga.mem.base, vga.mem.lfb_base);
+    if (config.cpu_vm_dpmi == CPUVM_KVM)
+      kvm_set_dirty_log(vga.mem.lfb_base, vga.mem.size);
   }
 
   return vga_emu_post_init();
@@ -2464,6 +2516,9 @@ static int __vga_emu_setmode(int mode, int width, int height)
 static int _is_dirty(void)
 {
   int i, ret = 0;
+
+  for(i = 0; i < VGAEMU_MAX_MAPPINGS; i++)
+    _vga_kvm_sync_dirty_map(i);
 
   if (vga.mem.dirty_map) {
     for (i = 0; i < vga.mem.pages; i++) {

@@ -27,6 +27,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <limits.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <linux/kvm.h>
@@ -470,6 +471,21 @@ errcap:
   return 0;
 }
 
+static struct kvm_userspace_memory_region *
+kvm_get_memory_region(dosaddr_t dosaddr, dosaddr_t size)
+{
+  int slot;
+  struct kvm_userspace_memory_region *p = &maps[0];
+
+  for (slot = 0; slot < MAXSLOT; slot++, p++)
+    if (p->guest_phys_addr <= dosaddr &&
+	dosaddr + size <= p->guest_phys_addr + p->memory_size)
+      break;
+
+  assert(slot < MAXSLOT);
+  return p;
+}
+
 static void set_kvm_memory_region(struct kvm_userspace_memory_region *region)
 {
   int ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, region);
@@ -502,7 +518,7 @@ void set_kvm_memory_regions(void)
   }
 }
 
-static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
+static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize, int flags)
 {
   struct kvm_userspace_memory_region *region;
   int slot;
@@ -522,8 +538,9 @@ static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
   region->guest_phys_addr = targ;
   region->userspace_addr = (uintptr_t)addr;
   region->memory_size = mapsize;
-  Q_printf("KVM: mapped guest %#x to host addr %p, size=%zx\n",
-	   targ, addr, mapsize);
+  region->flags = flags;
+  Q_printf("KVM: mapped guest %#x to host addr %p, size=%zx, LOG_DIRTY=%d\n",
+	   targ, addr, mapsize, flags == KVM_MEM_LOG_DIRTY_PAGES ? 1 : 0);
   /* NOTE: the actual EPT update is delayed to set_kvm_memory_regions */
 }
 
@@ -547,7 +564,7 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
 	mmap_kvm_no_overlap(targ + mapsize,
 			    (void *)((uintptr_t)region->userspace_addr +
 				     targ + mapsize - gpa),
-			    gpa + sz - (targ + mapsize));
+			    gpa + sz - (targ + mapsize), region->flags);
       }
     }
   }
@@ -558,7 +575,7 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
   assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_KVM));
   /* with KVM we need to manually remove/shrink existing mappings */
   do_munmap_kvm(targ, mapsize);
-  mmap_kvm_no_overlap(targ, addr, mapsize);
+  mmap_kvm_no_overlap(targ, addr, mapsize, 0);
   if (!(cap & MAPPING_KVM))
     mprotect_kvm(cap, targ, mapsize, protect);
 }
@@ -573,6 +590,11 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
 	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
 	       MAPPING_EXTMEM))) return;
+
+  /* never apply write-protect to regions with dirty logging */
+  if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
+      (kvm_get_memory_region(targ, mapsize)->flags == KVM_MEM_LOG_DIRTY_PAGES))
+    return;
 
   if (monitor == NULL) return;
 
@@ -592,6 +614,41 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   }
 
   mprotected_kvm = 1;
+}
+
+/* Enable dirty logging from base to base+size.
+ * This will not change the KVM-phys->host user space mapping itself but due
+ * to the way KVM works the memory slot typically needs to be split in 3 parts:
+ * 1. part without dirty log 2. part with dirty log 3. part without dirty log.
+ */
+void kvm_set_dirty_log(dosaddr_t base, dosaddr_t size)
+{
+  struct kvm_userspace_memory_region *p = kvm_get_memory_region(base, size);
+  void *addr = (void *)((uintptr_t)(p->userspace_addr +
+				    (base - p->guest_phys_addr)));
+  do_munmap_kvm(base, size);
+  mmap_kvm_no_overlap(base, addr, size, KVM_MEM_LOG_DIRTY_PAGES);
+}
+
+/* get dirty bitmap for memory region containing base.
+ * If base is not at the start of that region, the bitmap is shifted.
+ */
+void kvm_get_dirty_map(dosaddr_t base, unsigned char *bitmap)
+{
+  size_t bitmap_size;
+  struct kvm_dirty_log dirty_log = {0};
+  struct kvm_userspace_memory_region *p =
+    kvm_get_memory_region(base, PAGE_SIZE);
+
+  assert(p->flags == KVM_MEM_LOG_DIRTY_PAGES);
+  dirty_log.slot = p->slot;
+  dirty_log.dirty_bitmap = bitmap;
+  ioctl(vmfd, KVM_GET_DIRTY_LOG, &dirty_log);
+  bitmap_size = ((p->memory_size >> PAGE_SHIFT)+CHAR_BIT-1) / CHAR_BIT;
+  if (p->guest_phys_addr < base) {
+    int offset = ((base - p->guest_phys_addr) >> PAGE_SHIFT) / CHAR_BIT;
+    memmove(bitmap, bitmap + offset, bitmap_size - offset);
+  }
 }
 
 /* This function works like handle_vm86_fault in the Linux kernel,

@@ -318,10 +318,13 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
 
   for (i = 0; i < MAX_BASES; i++) {
     void *target, *addr;
+    int prot;
     target = MEM_BASE32x(targ, i);
     if (target == MAP_FAILED)
       continue;
-    addr = mappingdriver->alias(cap, target, mapsize, protect, source);
+    /* protections on KVM_BASE go via page tables in the VM, not mprotect */
+    prot = i == KVM_BASE ? (PROT_READ|PROT_WRITE|PROT_EXEC) : protect;
+    addr = mappingdriver->alias(cap, target, mapsize, prot, source);
     if (addr == MAP_FAILED)
       return -1;
     Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
@@ -505,7 +508,8 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   }
   for (i = 0; i < MAX_BASES; i++) {
     void *addr = MEM_BASE32x(targ, i);
-    if (addr == MAP_FAILED)
+    /* protections on KVM_BASE go via page tables in the VM, not mprotect */
+    if (addr == MAP_FAILED || i == KVM_BASE)
       continue;
     if (i != MEM_BASE && targ + mapsize > LOWMEM_SIZE + HMASIZE)
       mapsize = LOWMEM_SIZE + HMASIZE - targ;
