@@ -44,8 +44,7 @@
 #define MAPPING_INIT_LOWRAM	0x000200
 #define MAPPING_EXTMEM		0x000400
 #define MAPPING_KVM		0x000800
-#define MAPPING_IMMEDIATE	0x001000
-#define MAPPING_CPUEMU		0x002000
+#define MAPPING_CPUEMU		0x001000
 
 /* usage as: (kind of mapping required) */
 #define MAPPING_KMEM		0x010000
