@@ -502,7 +502,7 @@ void set_kvm_memory_regions(void)
   }
 }
 
-static int mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
+static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
 {
   struct kvm_userspace_memory_region *region;
   int slot;
@@ -524,27 +524,13 @@ static int mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
   region->memory_size = mapsize;
   Q_printf("KVM: mapped guest %#x to host addr %p, size=%zx\n",
 	   targ, addr, mapsize);
-  return slot;
-}
-
-static void check_overlap_kvm(dosaddr_t targ, size_t mapsize)
-{
-  /* unmaps KVM regions from targ to targ+mapsize, taking care of overlaps */
-  int slot;
-  for (slot = 0; slot < MAXSLOT; slot++) {
-    struct kvm_userspace_memory_region *region = &maps[slot];
-    size_t sz = region->memory_size;
-    unsigned gpa = region->guest_phys_addr;
-    if (sz > 0 && targ + mapsize > gpa && targ < gpa + sz) {
-      error("KVM: mapping inconsistency\n");
-      leavedos(99);
-    }
-  }
+  /* NOTE: the actual EPT update is delayed to set_kvm_memory_regions */
 }
 
 static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
 {
-  /* unmaps KVM regions from targ to targ+mapsize, taking care of overlaps */
+  /* unmaps KVM regions from targ to targ+mapsize, taking care of overlaps
+     NOTE: the actual EPT update is delayed to set_kvm_memory_regions */
   int slot;
   for (slot = 0; slot < MAXSLOT; slot++) {
     struct kvm_userspace_memory_region *region = &maps[slot];
@@ -553,18 +539,15 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
     if (sz > 0 && targ + mapsize > gpa && targ < gpa + sz) {
       /* overlap: first  unmap this mapping */
       region->memory_size = 0;
-      set_kvm_memory_region(region);
       /* may need to remap head or tail */
       if (gpa < targ) {
 	region->memory_size = targ - gpa;
-	set_kvm_memory_region(region);
       }
       if (gpa + sz > targ + mapsize) {
-	int slot2 = mmap_kvm_no_overlap(targ + mapsize,
+	mmap_kvm_no_overlap(targ + mapsize,
 			    (void *)((uintptr_t)region->userspace_addr +
 				     targ + mapsize - gpa),
 			    gpa + sz - (targ + mapsize));
-	set_kvm_memory_region(&maps[slot2]);
       }
     }
   }
@@ -572,20 +555,12 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
 
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
 {
-  int slot;
-
   assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_KVM));
   /* with KVM we need to manually remove/shrink existing mappings */
-  if (cap & MAPPING_IMMEDIATE)
-    do_munmap_kvm(targ, mapsize);
-  else
-    check_overlap_kvm(targ, mapsize);
-  slot = mmap_kvm_no_overlap(targ, addr, mapsize);
+  do_munmap_kvm(targ, mapsize);
+  mmap_kvm_no_overlap(targ, addr, mapsize);
   if (!(cap & MAPPING_KVM))
     mprotect_kvm(cap, targ, mapsize, protect);
-  /* update EPT if needed */
-  if (cap & MAPPING_IMMEDIATE)
-    set_kvm_memory_region(&maps[slot]);
 }
 
 void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
