@@ -42,9 +42,9 @@
 #endif
 
 #ifdef __i386__
-enum { MEM_BASE, VM86_BASE, MAX_BASES };
+enum { MEM_BASE, KVM_BASE, VM86_BASE, MAX_BASES };
 #else
-enum { MEM_BASE, MAX_BASES };
+enum { MEM_BASE, KVM_BASE, MAX_BASES };
 #endif
 
 struct mem_map_struct {
@@ -303,6 +303,13 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
 #endif
   if (cap & MAPPING_INIT_LOWRAM) {
     mem_bases[MEM_BASE] = mem_base;
+    if (is_kvm_map(cap)) {
+      void *kvm_base = mmap_mapping(cap, (void *)-1,  mapsize, protect);
+      if (kvm_base == MAP_FAILED)
+	return -1;
+      mmap_kvm(cap, kvm_base, mapsize, protect, 0);
+      mem_bases[KVM_BASE] = kvm_base;
+    }
 #ifdef __i386__
     if (config.cpu_vm == CPUVM_VM86)
       mem_bases[VM86_BASE] = 0;
@@ -500,6 +507,8 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
     void *addr = MEM_BASE32x(targ, i);
     if (addr == MAP_FAILED)
       continue;
+    if (i != MEM_BASE && targ + mapsize > LOWMEM_SIZE + HMASIZE)
+      mapsize = LOWMEM_SIZE + HMASIZE - targ;
     Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%zx, protect=%x\n",
 	cap, addr, mapsize, protect);
     ret = mprotect(addr, mapsize, protect);
