@@ -218,6 +218,9 @@ void init_kvm_monitor(dosaddr_t monitor_dosaddr)
   if (!cpuid)
     return;
 
+  /* align monitor to 2MB boundary */
+  monitor_dosaddr = HUGE_PAGE_ALIGN(monitor_dosaddr);
+
   /* create monitor structure in memory */
   monitor = mmap_mapping(MAPPING_SCRATCH|MAPPING_KVM, (void *)-1,
 			 sizeof(*monitor), PROT_READ | PROT_WRITE);

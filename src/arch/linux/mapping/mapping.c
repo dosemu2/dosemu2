@@ -408,6 +408,35 @@ static int mapping_is_hole(void *start, size_t size)
   return (mapping_find_hole(beg, end, size) == start);
 }
 
+// KVM api documentation recommends that the lower 21 bits of guest_phys_addr and
+// userspace_addr be identical, so align to a huge page boundary (2MB).
+// This also helps debugging, since subtracting hex numbers is much easier that way
+// for a human being.
+static void *do_mmap_huge_page_aligned(void *target, size_t mapsize, int protect, int flags)
+{
+  size_t edge;
+  unsigned char *addr = mmap(target, mapsize+ HUGE_PAGE_SIZE - PAGE_SIZE, protect,
+			     MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
+  if (addr == MAP_FAILED)
+    return addr;
+
+  /* align up to next 2MB */
+  edge = (unsigned char *)HUGE_PAGE_ALIGN((uintptr_t)addr) - addr;
+
+  /* trim front */
+  if (edge > 0)
+    munmap(addr, edge);
+
+  addr += edge;
+
+  /* trim back */
+  edge = HUGE_PAGE_SIZE - PAGE_SIZE - edge;
+  if (edge > 0)
+    munmap(&addr[mapsize], edge);
+
+  return addr;
+}
+
 void *mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 {
   void *addr;
@@ -433,7 +462,10 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect)
       (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM|MAPPING_KVM)))
     flags = _MAP_32BIT;
 #endif
-  addr = mmap(target, mapsize, protect,
+  if ((cap & (MAPPING_INIT_LOWRAM|MAPPING_KVM)) && !(flags & MAP_FIXED))
+    addr = do_mmap_huge_page_aligned(target, mapsize, protect, flags);
+  else
+    addr = mmap(target, mapsize, protect,
 		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
   if (addr == MAP_FAILED)
     return addr;

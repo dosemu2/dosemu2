@@ -24,6 +24,10 @@
 #endif
 #define EMM_PAGE_SIZE	(16*1024)
 
+#define HUGE_PAGE_SIZE ((uintptr_t)(2*1024*1024))
+#define HUGE_PAGE_MASK	(~(HUGE_PAGE_SIZE-1))
+#define HUGE_PAGE_ALIGN(addr)	(((addr)+HUGE_PAGE_SIZE-1)&HUGE_PAGE_MASK)
+
 #define Q__printf(f,cap,a...) ({\
   Q_printf(f,decode_mapping_cap(cap),##a); \
 })
