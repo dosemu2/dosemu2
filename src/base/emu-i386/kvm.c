@@ -487,7 +487,11 @@ kvm_get_memory_region(dosaddr_t dosaddr, dosaddr_t size)
 
 static void set_kvm_memory_region(struct kvm_userspace_memory_region *region)
 {
-  int ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, region);
+  int ret;
+  Q_printf("KVM: map slot=%d flags=%d dosaddr=0x%08llx size=0x%08llx unixaddr=0x%llx\n",
+	   region->slot, region->flags, region->guest_phys_addr,
+	   region->memory_size, region->userspace_addr);
+  ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, region);
   if (ret == -1) {
     perror("KVM: KVM_SET_USER_MEMORY_REGION");
     leavedos_main(99);
