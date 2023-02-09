@@ -150,7 +150,7 @@ static struct kvm_sregs sregs;
 #define MAXSLOT 400
 static struct kvm_userspace_memory_region maps[MAXSLOT];
 
-static int init_kvm_vcpu(void);
+static int init_kvm_vcpu(dosaddr_t monitor_dosaddr);
 
 static void set_idt_default(dosaddr_t mon, int i)
 {
@@ -228,7 +228,7 @@ void init_kvm_monitor(dosaddr_t monitor_dosaddr)
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
 
-  if (!init_kvm_vcpu()) {
+  if (!init_kvm_vcpu(monitor_dosaddr)) {
     leavedos(99);
     return;
   }
@@ -336,7 +336,7 @@ void init_kvm_monitor(dosaddr_t monitor_dosaddr)
 }
 
 /* Initialize KVM and memory mappings */
-static int init_kvm_vcpu(void)
+static int init_kvm_vcpu(dosaddr_t monitor_dosaddr)
 {
   int ret, mmap_size;
 
@@ -346,13 +346,13 @@ static int init_kvm_vcpu(void)
      the kernel needs to emulate that using V86 mode, as is necessary
      on Nehalem and earlier Intel CPUs */
   ret = ioctl(vmfd, KVM_SET_TSS_ADDR,
-	      sregs.tr.base + offsetof(struct monitor, kvm_tss));
+	      monitor_dosaddr + offsetof(struct monitor, kvm_tss));
   if (ret == -1) {
     perror("KVM: KVM_SET_TSS_ADDR\n");
     return 0;
   }
 
-  uint64_t addr = sregs.tr.base + offsetof(struct monitor, kvm_identity_map);
+  uint64_t addr = monitor_dosaddr + offsetof(struct monitor, kvm_identity_map);
   ret = ioctl(vmfd, KVM_SET_IDENTITY_MAP_ADDR, &addr);
   if (ret == -1) {
     perror("KVM: KVM_SET_IDENTITY_MAP_ADDR\n");
