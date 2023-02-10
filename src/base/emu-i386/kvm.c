@@ -478,14 +478,19 @@ kvm_get_memory_region(dosaddr_t dosaddr, dosaddr_t size)
 {
   int slot;
   struct kvm_userspace_memory_region *p = &maps[0];
+  struct kvm_userspace_memory_region *ret = NULL;
 
-  for (slot = 0; slot < MAXSLOT; slot++, p++)
+  for (slot = 0; slot < MAXSLOT; slot++, p++) {
     if (p->guest_phys_addr <= dosaddr &&
-	dosaddr + size <= p->guest_phys_addr + p->memory_size)
+	dosaddr + size <= p->guest_phys_addr + p->memory_size) {
+      ret = p;
       break;
-
-  assert(slot < MAXSLOT);
-  return p;
+    }
+  }
+  /* if we are on full kvm then there should be no missing slots */
+  if (config.cpu_vm == CPUVM_KVM && config.cpu_vm_dpmi == CPUVM_KVM)
+    assert(slot < MAXSLOT);
+  return ret;
 }
 
 static void set_kvm_memory_region(struct kvm_userspace_memory_region *region)
@@ -598,10 +603,13 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 	       MAPPING_EXTMEM))) return;
 
   /* never apply write-protect to regions with dirty logging */
-  if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
-      (kvm_get_memory_region(targ, mapsize)->flags == KVM_MEM_LOG_DIRTY_PAGES))
-    return;
+  if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ) {
+    struct kvm_userspace_memory_region *p =
+	    kvm_get_memory_region(targ, mapsize);
 
+    if (!p || (p->flags & KVM_MEM_LOG_DIRTY_PAGES))
+      return;
+  }
   if (monitor == NULL) return;
 
   Q_printf("KVM: protecting %x:%zx with prot %x\n", targ, mapsize, protect);
