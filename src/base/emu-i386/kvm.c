@@ -218,6 +218,9 @@ void init_kvm_monitor(dosaddr_t monitor_dosaddr)
   if (!cpuid)
     return;
 
+  /* align monitor to 2MB boundary */
+  monitor_dosaddr = HUGE_PAGE_ALIGN(monitor_dosaddr);
+
   /* create monitor structure in memory */
   monitor = mmap_mapping(MAPPING_SCRATCH|MAPPING_KVM, (void *)-1,
 			 sizeof(*monitor), PROT_READ | PROT_WRITE);
@@ -487,7 +490,11 @@ kvm_get_memory_region(dosaddr_t dosaddr, dosaddr_t size)
 
 static void set_kvm_memory_region(struct kvm_userspace_memory_region *region)
 {
-  int ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, region);
+  int ret;
+  Q_printf("KVM: map slot=%d flags=%d dosaddr=0x%08llx size=0x%08llx unixaddr=0x%llx\n",
+	   region->slot, region->flags, region->guest_phys_addr,
+	   region->memory_size, region->userspace_addr);
+  ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, region);
   if (ret == -1) {
     perror("KVM: KVM_SET_USER_MEMORY_REGION");
     leavedos_main(99);
