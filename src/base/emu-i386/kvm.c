@@ -597,19 +597,20 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   unsigned int start = targ / pagesize;
   unsigned int end = start + mapsize / pagesize;
   unsigned int page;
+  struct kvm_userspace_memory_region *p;
 
   if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
 	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
 	       MAPPING_EXTMEM))) return;
 
-  /* never apply write-protect to regions with dirty logging */
-  if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ) {
-    struct kvm_userspace_memory_region *p =
-	    kvm_get_memory_region(targ, mapsize);
+  p = kvm_get_memory_region(targ, mapsize);
+  if (!p) return;
 
-    if (!p || (p->flags & KVM_MEM_LOG_DIRTY_PAGES))
-      return;
-  }
+  /* never apply write-protect to regions with dirty logging */
+  if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
+      (p->flags & KVM_MEM_LOG_DIRTY_PAGES))
+    return;
+
   if (monitor == NULL) return;
 
   Q_printf("KVM: protecting %x:%zx with prot %x\n", targ, mapsize, protect);
