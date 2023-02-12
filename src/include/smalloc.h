@@ -41,6 +41,9 @@ int sminit(struct mempool *mp, void *start, size_t size);
 int sminit_com(struct mempool *mp, void *start, size_t size,
     int (*commit)(void *area, size_t size),
     int (*uncommit)(void *area, size_t size));
+int sminit_comu(struct mempool *mp, void *start, size_t size,
+    int (*commit)(void *area, size_t size),
+    int (*uncommit)(void *area, size_t size));
 void smfree_all(struct mempool *mp);
 int smdestroy(struct mempool *mp);
 size_t smget_free_space(struct mempool *mp);

@@ -583,16 +583,30 @@ int sminit(struct mempool *mp, void *start, size_t size)
   return 0;
 }
 
-int sminit_com(struct mempool *mp, void *start, size_t size,
+static int do_sminit_com(struct mempool *mp, void *start, size_t size,
     int (*commit)(void *area, size_t size),
-    int (*uncommit)(void *area, size_t size))
+    int (*uncommit)(void *area, size_t size), int do_uncommit)
 {
   sminit(mp, start, size);
   mp->commit = commit;
   mp->uncommit = uncommit;
-  if (uncommit)
+  if (uncommit && do_uncommit)
     uncommit(start, size);
   return 0;
+}
+
+int sminit_com(struct mempool *mp, void *start, size_t size,
+    int (*commit)(void *area, size_t size),
+    int (*uncommit)(void *area, size_t size))
+{
+  return do_sminit_com(mp, start, size, commit, uncommit, 1);
+}
+
+int sminit_comu(struct mempool *mp, void *start, size_t size,
+    int (*commit)(void *area, size_t size),
+    int (*uncommit)(void *area, size_t size))
+{
+  return do_sminit_com(mp, start, size, commit, uncommit, 0);
 }
 
 void smfree_all(struct mempool *mp)
