@@ -364,7 +364,7 @@ void low_mem_init(void)
   if (config.xms_size)
     config.xms_map_size = (mem_16M - (memsize + EXTMEM_SIZE)) & PAGE_MASK;
 
-  sminit_com(&main_pool, mem_base, memsize + dpmi_size, mcommit, muncommit);
+  sminit_comu(&main_pool, mem_base, memsize + dpmi_size, mcommit, muncommit);
   ptr = smalloc(&main_pool, memsize);
   assert(ptr == mem_base);
   /* smalloc uses PROT_READ | PROT_WRITE, needs to add PROT_EXEC here */
