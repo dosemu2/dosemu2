@@ -603,13 +603,17 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
 	       MAPPING_EXTMEM))) return;
 
-  p = kvm_get_memory_region(targ, mapsize);
-  if (!p) return;
+  /* don't apply this logic to mprotect covering multiple slots. There
+     is only one (from muncommit(), covering the whole main_pool). */
+  if (!(targ == 0 && mapsize > LOWMEM_SIZE + HMASIZE)) {
+    p = kvm_get_memory_region(targ, mapsize);
+    if (!p) return;
 
-  /* never apply write-protect to regions with dirty logging */
-  if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
-      (p->flags & KVM_MEM_LOG_DIRTY_PAGES))
-    return;
+    /* never apply write-protect to regions with dirty logging */
+    if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
+	(p->flags & KVM_MEM_LOG_DIRTY_PAGES))
+      return;
+  }
 
   if (monitor == NULL) return;
 
