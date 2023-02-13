@@ -225,7 +225,6 @@ typedef struct config_info {
        boolean X_keycode;	/* use keycode field of event structure */
        boolean exitearly;
        boolean quiet;
-       boolean exit_on_cmd;
        int     realcpu;
        boolean mathco, smp, cpuprefetcht0, cpufxsr, cpusse;
        boolean ipxsup;

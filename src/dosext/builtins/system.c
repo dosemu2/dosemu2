@@ -148,11 +148,9 @@ static int setupDOSCommand(const char *dos_path, char *r_drv)
   return (0);
 }
 
-static int do_system(const char *cmd, int terminate)
+static int do_system(const char *cmd)
 {
   dbug_printf ("About to Execute: %s\n", cmd);
-  if (terminate)
-    msetenv("DOSEMU_EXIT", "1");
   msetenv("DOSEMU_SYS_CMD", cmd);
   return (0);
 }
@@ -166,7 +164,7 @@ static int do_execute_dos(int argc, char **argv)
   cmd = getenv(argv[0]);
   if (!cmd)
     return (1);
-  return do_system(cmd, 0);
+  return do_system(cmd);
 }
 
 static void _do_parse_vars(char *str, char drv, int parent)
@@ -287,7 +285,7 @@ static int do_execute_cmdline(int parent)
     }
   }
   if (config.dos_cmd)
-    ret = do_system(config.dos_cmd, config.exit_on_cmd);
+    ret = do_system(config.dos_cmd);
   return ret;
 }
 

@@ -1044,6 +1044,7 @@ config_init(int argc, char **argv)
     int             nodosrc = 0;
     char           *basename;
     int             err;
+    int             was_exec = 0, was_T1 = 0;
     const char * const getopt_string =
        "23456ABC::c::D:d:E:e:f:H:hi:I:K:k::L:M:mNno:P:qSsT::t::VvwXx:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
@@ -1174,9 +1175,6 @@ config_init(int argc, char **argv)
 
     if (config.exitearly && !config_check_only)
 	exit(0);
-
-    /* default settings before processing cmdline */
-    config.exit_on_cmd = 1;
 
     i_cur = 0;
 #ifdef __linux__
@@ -1357,6 +1355,7 @@ config_init(int argc, char **argv)
 	case 'E':
 	    g_printf("DOS command given on command line: %s\n", optarg);
 	    config.dos_cmd = optarg;
+	    was_exec++;
 	    break;
 	case 'K': {
 	    char *p;
@@ -1372,11 +1371,12 @@ config_init(int argc, char **argv)
 		config.exitearly = 1;
 		break;
 	    }
+	    was_exec++;
 	    break;
 	}
 	case 'T':
 	    if (!optarg || strchr(optarg, '1'))
-	      config.exit_on_cmd = 0;
+	      was_T1++;
 	    if (!optarg || strchr(optarg, 'h'))
 	      misc_e6_store_options("SHELL_LOADHIGH_DEFAULT=1");
 	    break;
@@ -1391,6 +1391,10 @@ config_init(int argc, char **argv)
 	    exit(1);
 	}
     }
+
+    if (was_exec && !was_T1)
+      misc_e6_store_options("DOSEMU_EXIT=1");
+
     /* make-style env vars passing */
     while (optind < argc) {
 	if (strchr(argv[optind], '=') == NULL) {
