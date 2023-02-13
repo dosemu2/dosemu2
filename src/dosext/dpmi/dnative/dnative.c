@@ -43,6 +43,10 @@ static struct sigaction emu_tmp_act;
 #define DPMI_TMP_SIG SIGUSR1
 static int in_dpmi_thr;
 static int dpmi_thr_running;
+static struct emu_fpstate native_dpmi_fpstate;
+#ifdef __i386__
+static struct emu_fsave native_dpmi_fsave;
+#endif
 
 static void copy_context(sigcontext_t *d, sigcontext_t *s)
 {
@@ -68,12 +72,10 @@ static void copy_context(sigcontext_t *d, sigcontext_t *s)
    format, so we must "undo" the kernel logic and put those fields into the
    FSAVE region.
    see also arch/x86/kernel/fpu/regset.c in Linux kernel */
-static void convert_from_fxsr(fpregset_t fptr,
-			      const struct emu_fpxstate *fxsave)
+static void convert_from_fxsr(struct emu_fsave *fptr,
+			      const struct emu_fpstate *fxsave)
 {
-  static_assert(sizeof(*fptr) == sizeof(struct emu_fsave),
-		  "size mismatch");
-  fxsave_to_fsave(fxsave, (struct emu_fsave *)fptr);
+  fxsave_to_fsave(fxsave, fptr);
 }
 #endif
 
@@ -109,17 +111,27 @@ static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
   if (scp->fpregs) {
     void *fpregs = scp->fpregs;
 #ifdef __x86_64__
-    static_assert(sizeof(*scp->fpregs) == sizeof(vm86_fpu_state),
+    static_assert(offsetof(struct _fpstate, _xmm[8]) == sizeof(native_dpmi_fpstate),
 		  "size mismatch");
 #else
-    /* i386: convert fxsave state to fsave state */
-    convert_from_fxsr(scp->fpregs, &vm86_fpu_state);
+    static_assert(sizeof(*scp->fpregs) == sizeof(native_dpmi_fsave),
+		  "size mismatch");
+    memcpy(fpregs, &native_dpmi_fsave, sizeof(native_dpmi_fsave));
     if ((scp->fpregs->status >> 16) != EMU_X86_FXSR_MAGIC)
       return;
     fpregs = &scp->fpregs->status + 1;
 #endif
-    memcpy(fpregs, &vm86_fpu_state, sizeof(vm86_fpu_state));
+    memcpy(fpregs, &native_dpmi_fpstate, sizeof(native_dpmi_fpstate));
   }
+}
+
+void native_dpmi_set_fpu_state(const emu_fpstate *fpstate)
+{
+#ifdef __i386__
+  /* i386: convert fxsave state to fsave state */
+  convert_from_fxsr(&native_dpmi_fsave, fpstate);
+#endif
+  native_dpmi_fpstate = *fpstate;
 }
 
 static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
@@ -147,18 +159,25 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
   if (scp->fpregs) {
     void *fpregs = scp->fpregs;
 #ifdef __x86_64__
-    static_assert(sizeof(*scp->fpregs) == sizeof(vm86_fpu_state),
+    static_assert(offsetof(struct _fpstate, _xmm[8]) == sizeof(native_dpmi_fpstate),
 		"size mismatch");
 #else
-    if ((scp->fpregs->status >> 16) == EMU_X86_FXSR_MAGIC)
-      fpregs = &scp->fpregs->status + 1;
-    else {
-      fsave_to_fxsave(fpregs, &vm86_fpu_state);
+    memcpy(&native_dpmi_fsave, fpregs, sizeof(native_dpmi_fsave));
+    if ((scp->fpregs->status >> 16) != EMU_X86_FXSR_MAGIC)
       return;
-    }
+    fpregs = &scp->fpregs->status + 1;
 #endif
-    memcpy(&vm86_fpu_state, fpregs, sizeof(vm86_fpu_state));
+    memcpy(&native_dpmi_fpstate, fpregs, sizeof(native_dpmi_fpstate));
   }
+}
+
+void native_dpmi_get_fpu_state(emu_fpstate *fpstate)
+{
+  *fpstate = native_dpmi_fpstate;
+#ifdef __i386__
+  if ((native_dpmi_fsave.status >> 16) != EMU_X86_FXSR_MAGIC)
+    fsave_to_fxsave(&native_dpmi_fsave, fpstate);
+#endif
 }
 
 static void dpmi_thr(void *arg);

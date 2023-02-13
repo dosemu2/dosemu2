@@ -74,7 +74,6 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
     return 0;
 
   case 0x10: /* coprocessor error */
-    pic_untrigger(13);
     pic_request(13); /* this is the 386 way of signalling this */
     return 0;
 
@@ -441,12 +440,20 @@ static int handle_GP_hlt(void)
 }
 
 #ifdef __i386__
+/* avoid converting to and from fxsave when staying in vm86 */
+static struct emu_fsave true_vm86_fsave;
+/* this needs to be paragraph aligned for fxrstor/fxsave */
+static struct emu_fpxstate true_vm86_fxsave __attribute__((aligned(16)));
+
 static int true_vm86(union vm86_union *x)
 {
     int ret;
     uint32_t old_flags = REG(eflags);
 
-    loadfpstate(vm86_fpu_state);
+    if (config.cpufxsr)
+        loadfxsave(true_vm86_fxsave);
+    else
+        loadfsave(true_vm86_fsave);
 again:
 #if 0
     ret = vm86(&x->vm86ps);
@@ -464,7 +471,10 @@ again:
      * TODO: check kernel version */
     REG(eflags) |= (old_flags & VIP);
 
-    savefpstate(vm86_fpu_state);
+    if (config.cpufxsr)
+        savefxsave(true_vm86_fxsave);
+    else
+        savefsave(true_vm86_fsave);
     /* there is no real need to save and restore the FPU state of the
        emulator itself: savefpstate (fnsave) also resets the current FPU
        state using fninit; fesetenv then restores trapping of division by
@@ -473,6 +483,20 @@ again:
     */
     fesetenv(&dosemu_fenv);
     return ret;
+}
+
+void true_vm86_set_fpu_state(const emu_fpstate *fpstate)
+{
+    true_vm86_fxsave.emu_fpstate = *fpstate;
+    if (!config.cpufxsr)
+        fxsave_to_fsave(fpstate, &true_vm86_fsave);
+}
+
+void true_vm86_get_fpu_state(emu_fpstate *fpstate)
+{
+    *fpstate = true_vm86_fxsave.emu_fpstate;
+    if (!config.cpufxsr)
+        fsave_to_fxsave(&true_vm86_fsave, fpstate);
 }
 #endif
 

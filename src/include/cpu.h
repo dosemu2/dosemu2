@@ -73,8 +73,14 @@ struct emu_fsave {
   uint32_t		status;
 };
 
-struct emu_fpxstate {
-  /* 32-bit FXSAVE format in 64bit mode (same as in 32bit mode but more xmms) */
+struct emu_fpxreg {
+  uint16_t		significand[4];
+  uint16_t		exponent;
+  uint16_t		reserved[3];
+};
+
+struct emu_fpstate {
+  /* first 288 bytes of 32-bit FXSAVE format in 64bit mode */
   uint16_t		cwd;
   uint16_t		swd;
   uint16_t		ftw;
@@ -85,22 +91,30 @@ struct emu_fpxstate {
   uint32_t		fds;
   uint32_t		mxcsr;
   uint32_t		mxcr_mask;
-  struct { uint32_t element[4]; } st[8];
-  struct { uint32_t element[4]; } xmm[16];
-  struct { uint32_t element[4]; } reserved[3];
-  struct { uint32_t element[4]; } scratch[3];
+  struct emu_fpxreg	st[8];
+  struct { uint32_t element[4]; } xmm[8];
+};
+
+struct emu_fpxstate {
+  /* 32-bit FXSAVE format in 64bit mode (same as in 32bit mode but more xmms)
+     This struct is only used with explicit fxsave/fxrstor instructions */
+  struct emu_fpstate	emu_fpstate;
+  unsigned char padding[512 - sizeof(struct emu_fpstate)];
 };
 
 static_assert(sizeof(struct emu_fpxstate) == 512, "size mismatch");
 
-void fxsave_to_fsave(const struct emu_fpxstate *fxsave,
+void fxsave_to_fsave(const struct emu_fpstate *fxsave,
     struct emu_fsave *fptr);
 void fsave_to_fxsave(const struct emu_fsave *fptr,
-    struct emu_fpxstate *fxsave);
+    struct emu_fpstate *fxsave);
 
 /* Structure to describe FPU registers.  */
-typedef struct emu_fpxstate emu_fpstate;
+typedef struct emu_fpstate emu_fpstate;
 typedef emu_fpstate *emu_fpregset_t;
+
+void get_fpu_state(emu_fpstate *);
+void set_fpu_state(const emu_fpstate *);
 
 union g_reg {
   greg_t reg;
@@ -232,7 +246,6 @@ static inline dosaddr_t FAR2ADDR(far_t ptr) {
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
 
-extern emu_fpstate vm86_fpu_state;
 extern fenv_t dosemu_fenv;
 
 /*
@@ -304,42 +317,50 @@ extern fenv_t dosemu_fenv;
 		asm volatile("mov %%" #reg ",%0":"=rm" (__value)); \
 		__value; \
 	})
+#define loadfsave(value) asm volatile("frstor %0\n" :: "m"(value))
+#define savefsave(value) asm volatile("fnsave %0; fwait\n" : "=m"(value))
+/* use 32bit versions */
+#define loadfxsave(value) asm volatile("fxrstor %0\n" :: "m"(value))
+#define savefxsave(value) asm volatile("fxsave %0\n" : "=m"(value))
 #else
 #define loadflags(value)
 #define getflags() 0
 #define loadregister(reg, value)
 #define getregister(reg) 0
 #define getsegment(reg) 0
+#define loadfsave(value)
+#define savefsave(value)
+#define loadfxsave(value)
+#define savefxsave(value)
 #endif
 
-static inline void loadfpstate_legacy(emu_fpstate *buf)
+static inline void loadfpstate_legacy(struct emu_fpxstate *buf)
 {
 	struct emu_fsave fsave;
-	fxsave_to_fsave(buf, &fsave);
-	asm volatile("frstor %0\n" :: "m"(fsave));
+	fxsave_to_fsave(&buf->emu_fpstate, &fsave);
+	loadfsave(fsave);
 }
 
-static inline void savefpstate_legacy(emu_fpstate *buf)
+static inline void savefpstate_legacy(struct emu_fpxstate *buf)
 {
 	struct emu_fsave fsave;
-	asm volatile("fnsave %0; fwait\n" : "=m"(fsave));
-	fsave_to_fxsave(&fsave, buf);
+	savefsave(fsave);
+	fsave_to_fxsave(&fsave, &buf->emu_fpstate);
 }
 
 #if defined(__x86_64__)
-/* use 32bit versions */
-#define loadfpstate(value) asm volatile("fxrstor %0\n" :: "m"(value))
-#define savefpstate(value) asm volatile("fxsave %0\n" : "=m"(value))
+#define loadfpstate(value) loadfxsave(value)
+#define savefpstate(value) savefxsave(value)
 #elif defined (__i386__)
 #define loadfpstate(value) do { \
 	if (config.cpufxsr) \
-		asm volatile("fxrstor %0\n" :: "m"(value)); \
+		loadfxsave(value); \
 	else \
 		loadfpstate_legacy(&value); \
 } while (0)
 #define savefpstate(value) do { \
 	if (config.cpufxsr) \
-		asm volatile("fxsave %0\n" : "=m"(value)); \
+		savefxsave(value); \
 	else \
 		savefpstate_legacy(&value); \
 } while (0)

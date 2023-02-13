@@ -157,7 +157,8 @@ typedef struct {
 	/* if not NULL, points to emulated FPU state
 	   if NULL, emulator uses FPU instructions, so flags that
 	   dosemu needs to restore its own FPU environment. */
-	emu_fpregset_t fpstate;
+	struct emu_fpxstate *fpstate;
+	struct emu_fpxstate _fpstate __attribute__((aligned(16)));
 } SynCPU;
 
 union _SynCPU {

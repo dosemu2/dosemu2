@@ -35,6 +35,7 @@
 #include "emudpmi.h"
 #include "priv.h"
 #include "kvm.h"
+#include "dnative.h"
 
 #ifdef X86_EMULATOR
 #include "simx86/syncpu.h"
@@ -92,8 +93,6 @@ static unsigned int TRs[2] =
 };
 #endif
 
-/* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
-emu_fpstate vm86_fpu_state __attribute__((aligned(16)));
 fenv_t dosemu_fenv;
 static void fpu_reset(void);
 
@@ -239,13 +238,56 @@ static void fpu_init(void)
 }
 #endif
 
+void get_fpu_state(emu_fpstate *fpstate)
+{
+  int cpu_vm = in_dpmi_pm() ? config.cpu_vm_dpmi : config.cpu_vm;
+  switch(cpu_vm) {
+  case CPUVM_KVM:
+    kvm_get_fpu_state(fpstate);
+    break;
+  case CPUVM_NATIVE:
+    native_dpmi_get_fpu_state(fpstate);
+    break;
+  case CPUVM_EMU:
+    e_get_fpu_state(fpstate);
+    break;
+#ifdef __i386__
+  case CPUVM_VM86:
+    true_vm86_get_fpu_state(fpstate);
+    break;
+#endif
+  }
+}
+
+void set_fpu_state(const emu_fpstate *fpstate)
+{
+  int cpu_vm = in_dpmi_pm() ? config.cpu_vm_dpmi : config.cpu_vm;
+  switch(cpu_vm) {
+  case CPUVM_KVM:
+    kvm_set_fpu_state(fpstate);
+    break;
+  case CPUVM_NATIVE:
+    native_dpmi_set_fpu_state(fpstate);
+    break;
+  case CPUVM_EMU:
+    e_set_fpu_state(fpstate);
+    break;
+#ifdef __i386__
+  case CPUVM_VM86:
+    true_vm86_set_fpu_state(fpstate);
+    break;
+#endif
+  }
+}
+
 static void fpu_reset(void)
 {
-  vm86_fpu_state.cwd = 0x0040;
-  vm86_fpu_state.swd = 0;
-  vm86_fpu_state.ftw = 0x5555;       //bochs
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
-    kvm_update_fpu();
+  emu_fpstate vm86_fpu_state;
+
+  memset(&vm86_fpu_state, 0, sizeof vm86_fpu_state);
+  vm86_fpu_state.cwd = 0x0040;       //bochs
+  vm86_fpu_state.ftw = 0xff;         //all valid (-> 0x5555 in fsave tag)
+  set_fpu_state(&vm86_fpu_state);
 }
 
 static Bit8u fpu_io_read(ioport_t port)
@@ -257,8 +299,7 @@ static void fpu_io_write(ioport_t port, Bit8u val)
 {
   switch (port) {
   case 0xf0:
-    /* not sure about this */
-    vm86_fpu_state.swd &= ~0x8000;
+    pic_untrigger(13); /* done by default via int75 handler in bios.S */
     break;
   case 0xf1:
     fpu_reset();
@@ -292,7 +333,6 @@ void cpu_setup(void)
   io_dev.handler_name = "Math Coprocessor";
   port_register_handler(io_dev, 0);
 
-  savefpstate(vm86_fpu_state);
 #ifdef FE_NOMASK_ENV
   feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 #endif
@@ -368,24 +408,59 @@ void cpu_setup(void)
 #endif
 }
 
+#define FP_EXP_TAG_VALID	0
+#define FP_EXP_TAG_ZERO		1
+#define FP_EXP_TAG_SPECIAL	2
+#define FP_EXP_TAG_EMPTY	3
 
-void fxsave_to_fsave(const struct emu_fpxstate *fxsave, struct emu_fsave *fptr)
+static inline uint32_t twd_fxsr_to_i387(const struct emu_fpstate *fxsave)
 {
-  unsigned int tmp;
+	const struct emu_fpxreg *st;
+	uint32_t tos = (fxsave->swd >> 11) & 7;
+	uint32_t twd = (unsigned long) fxsave->ftw;
+	uint32_t tag;
+	uint32_t ret = 0xffff0000u;
+	int i;
+
+	for (i = 0; i < 8; i++, twd >>= 1) {
+		if (twd & 0x1) {
+			st = &fxsave->st[(i - tos) & 7];
+
+			switch (st->exponent & 0x7fff) {
+			case 0x7fff:
+				tag = FP_EXP_TAG_SPECIAL;
+				break;
+			case 0x0000:
+				if (!st->significand[0] &&
+				    !st->significand[1] &&
+				    !st->significand[2] &&
+				    !st->significand[3])
+					tag = FP_EXP_TAG_ZERO;
+				else
+					tag = FP_EXP_TAG_SPECIAL;
+				break;
+			default:
+				if (st->significand[3] & 0x8000)
+					tag = FP_EXP_TAG_VALID;
+				else
+					tag = FP_EXP_TAG_SPECIAL;
+				break;
+			}
+		} else {
+			tag = FP_EXP_TAG_EMPTY;
+		}
+		ret |= tag << (2 * i);
+	}
+	return ret;
+}
+
+void fxsave_to_fsave(const struct emu_fpstate *fxsave, struct emu_fsave *fptr)
+{
   int i;
 
   fptr->cw = fxsave->cwd | 0xffff0000u;
   fptr->sw = fxsave->swd | 0xffff0000u;
-  /* Expand the valid bits */
-  tmp = fxsave->ftw;			/* 00000000VVVVVVVV */
-  tmp = (tmp | (tmp << 4)) & 0x0f0f;	/* 0000VVVV0000VVVV */
-  tmp = (tmp | (tmp << 2)) & 0x3333;	/* 00VV00VV00VV00VV */
-  tmp = (tmp | (tmp << 1)) & 0x5555;	/* 0V0V0V0V0V0V0V0V */
-  /* Transform each bit from 1 to 00 (valid) or 0 to 11 (empty).
-     The kernel will convert it back, so no need to worry about zero
-     and special states 01 and 10. */
-  tmp = ~(tmp | (tmp << 1));
-  fptr->tag = tmp | 0xffff0000u;
+  fptr->tag = twd_fxsr_to_i387(fxsave);
   fptr->ipoff = fxsave->fip;
   fptr->cssel = (uint16_t)fxsave->fcs | ((uint32_t)fxsave->fop << 16);
   fptr->dataoff = fxsave->fdp;
@@ -414,7 +489,7 @@ static unsigned short twd_i387_to_fxsr(unsigned short twd)
 
 /* NOTE: this function does NOT memset the "unused" fxsave fields.
  * We preserve the previous fxsave context. */
-void fsave_to_fxsave(const struct emu_fsave *fptr, struct emu_fpxstate *fxsave)
+void fsave_to_fxsave(const struct emu_fsave *fptr, struct emu_fpstate *fxsave)
 
 {
 	int i;

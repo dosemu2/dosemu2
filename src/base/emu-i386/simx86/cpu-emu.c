@@ -524,7 +524,7 @@ static void Reg2Cpu (int mode)
   trans_addr     = LONG_CS + TheCPU.eip;
 
   /* FPU state is loaded later on demand for JIT, not used for simulator */
-  TheCPU.fpstate = &vm86_fpu_state;
+  TheCPU.fpstate = &TheCPU._fpstate;
   if (debug_level('e')>1) {
 	if (debug_level('e')==9) e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n%s\n",
 		REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,
@@ -571,7 +571,7 @@ void Cpu2Reg (void)
 
   if (TheCPU.fpstate == NULL) {
     if (!CONFIG_CPUSIM)
-      savefpstate(vm86_fpu_state);
+      savefpstate(TheCPU._fpstate);
     else
       fp87_save_except();
     fesetenv(&dosemu_fenv);
@@ -581,6 +581,26 @@ void Cpu2Reg (void)
 	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 }
 
+void e_set_fpu_state(const emu_fpstate *fpstate)
+{
+  TheCPU._fpstate.emu_fpstate = *fpstate;
+  if (CONFIG_CPUSIM)
+    fp87_load_fpstate(fpstate);
+  else {
+    // unmasked exception settings are emulated
+    TheCPU.fpuc = fpstate->cwd;
+    TheCPU._fpstate.emu_fpstate.cwd |= 0x3f;
+  }
+}
+
+void e_get_fpu_state(emu_fpstate *fpstate)
+{
+  *fpstate = TheCPU._fpstate.emu_fpstate;
+  if (CONFIG_CPUSIM)
+    fp87_save_fpstate(fpstate);
+  else
+    fpstate->cwd = (fpstate->cwd & ~0x3f) | (TheCPU.fpuc & 0x3f);
+}
 
 /* ======================================================================= */
 
@@ -610,7 +630,7 @@ static void Scp2Cpu (cpuctx_t *scp)
   TheCPU.cr2 = _cr2;
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
-  TheCPU.fpstate = &vm86_fpu_state;
+  TheCPU.fpstate = &TheCPU._fpstate;
 }
 
 /*
@@ -651,7 +671,7 @@ static void Cpu2Scp (cpuctx_t *scp, int trapno)
   if (!TheCPU.err) _err = 0;		//???
   if (TheCPU.fpstate == NULL) {
     if (!CONFIG_CPUSIM)
-      savefpstate(vm86_fpu_state);
+      savefpstate(TheCPU._fpstate);
     else
       fp87_save_except();
     /* there is no real need to save and restore the FPU state of the

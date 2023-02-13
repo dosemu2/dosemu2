@@ -418,31 +418,22 @@ static void print_ldt(void)
   _print_dt(buffer, MAX_SELECTORS, 1);
 }
 
-static void leave_backend(int be, int pm)
-{
-  if (be == CPUVM_KVM)
-    kvm_leave(pm);
-}
-
-static void enter_backend(int be, int pm)
-{
-  if (be == CPUVM_KVM)
-    kvm_enter(pm);
-}
-
 static void dpmi_set_pm(int pm)
 {
+  emu_fpstate fpstate;
   assert(pm <= 1);
   if (pm == dpmi_pm) {
     if (!pm)
       dosemu_error("DPMI: switch from real to real mode?\n");
     return;
   }
-  dpmi_pm = pm;
   if (config.cpu_vm != config.cpu_vm_dpmi) {
-    leave_backend(pm ? config.cpu_vm : config.cpu_vm_dpmi, !pm);
-    enter_backend(!pm ? config.cpu_vm : config.cpu_vm_dpmi, pm);
+    get_fpu_state(&fpstate);
+    dpmi_pm = pm;
+    set_fpu_state(&fpstate);
   }
+  else
+    dpmi_pm = pm;
 }
 
 static dpmi_pm_block *lookup_pm_blocks_by_addr(dosaddr_t addr)

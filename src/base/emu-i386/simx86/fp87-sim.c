@@ -177,6 +177,36 @@ void fp87_save_except(void)
 	TheCPU.fpus = (fps&~FPUS_TOP)|(TheCPU.fpstt<<FPUS_TOP_BIT);
 }
 
+void fp87_save_fpstate(emu_fpstate *fpstate)
+{
+	int i;
+	struct emu_fsave fsave;
+
+	fsave.cw = TheCPU.fpuc;
+	fsave.sw = TheCPU.fpus;
+	fsave.tag = TheCPU.fptag;
+	fsave.ipoff = 0;
+	fsave.cssel = 0;
+	fsave.dataoff = 0;
+	fsave.datasel = 0;
+	for (i=0; i<8; i++)
+		memcpy(&fsave.st[i], &TheCPU.fpregs[i], sizeof TheCPU.fpregs[i]);
+	fsave_to_fxsave(&fsave, fpstate);
+}
+
+void fp87_load_fpstate(const emu_fpstate *fpstate)
+{
+	int i;
+	struct emu_fsave fsave;
+
+	fxsave_to_fsave(fpstate, &fsave);
+	TheCPU.fpuc = fsave.cw;
+	TheCPU.fpus = fsave.sw;
+	TheCPU.fptag = fsave.tag;
+	for (i=0; i<8; i++)
+		memcpy(&TheCPU.fpregs[i], &fsave.st[i], sizeof TheCPU.fpregs[i]);
+}
+
 static float read_float(dosaddr_t addr)
 {
 	union { uint32_t u32; float f; } x = {.u32 = read_dword(addr)};

@@ -817,12 +817,12 @@ static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
   seg->unusable = !desc->present;
 }
 
-void kvm_update_fpu(void)
+void kvm_set_fpu_state(const emu_fpstate *fpstate)
 {
   struct kvm_xsave fpu = {};
   int ret;
 
-  memcpy(fpu.region, &vm86_fpu_state, sizeof(vm86_fpu_state));
+  memcpy(fpu.region, fpstate, sizeof(*fpstate));
   ret = ioctl(vcpufd, KVM_SET_XSAVE, &fpu);
   if (ret == -1) {
     perror("KVM: KVM_SET_XSAVE");
@@ -830,12 +830,7 @@ void kvm_update_fpu(void)
   }
 }
 
-void kvm_enter(int pm)
-{
-  kvm_update_fpu();
-}
-
-void kvm_leave(int pm)
+void kvm_get_fpu_state(emu_fpstate *fpstate)
 {
   struct kvm_xsave fpu;
   int ret = ioctl(vcpufd, KVM_GET_XSAVE, &fpu);
@@ -843,7 +838,7 @@ void kvm_leave(int pm)
     perror("KVM: KVM_GET_XSAVE");
     leavedos_main(99);
   }
-  memcpy(&vm86_fpu_state, fpu.region, sizeof(vm86_fpu_state));
+  memcpy(fpstate, fpu.region, sizeof(*fpstate));
 }
 
 static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
@@ -1189,7 +1184,6 @@ int kvm_dpmi(cpuctx_t *scp)
         print_exception_info(scp);
 #endif
         dbug_printf("coprocessor exception, calling IRQ13\n");
-        pic_untrigger(13);
         pic_request(13);
         ret = DPMI_RET_DOSEMU;
       } else if (_trapno == 0x0e &&
