@@ -317,7 +317,7 @@ extern int com_errno;
 extern far_t get_nuldev(void);
 
 extern char *misc_e6_options (void);
-extern void misc_e6_store_options(char *str);
+extern void misc_e6_store_options(const char *str);
 
 int run_unix_command(int argc, const char **argv);
 int run_unix_secure(const char *prg);

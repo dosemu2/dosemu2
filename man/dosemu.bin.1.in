@@ -170,9 +170,16 @@ dosemu -K "/home/joeuser/dosemu/freedos/bin/xcopy.exe my_file my_dir"
 If dos_path is specified, then it is used as a current directory when
 invoking the command.
 .TP
-.I -T
-Don't terminate DOSEMU after running the command specified either
+.I -T[flags]
+Sets flags for -E and -K commands. "flags" is the string of the
+following chars:
+
+1: don't terminate DOSEMU after running the command specified either
 with -E or -K.
+
+h: try to load the specified command into UMB (loadhigh).
+
+If -T is specified without flags, then "1h" flags string is assumed.
 .TP
 .I -q
 Quiet mode. Suppress all DOS output except that of the command specified

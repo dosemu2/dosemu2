@@ -167,7 +167,7 @@ char *misc_e6_options(void)
   return misc_dos_options;
 }
 
-void misc_e6_store_options(char *str)
+void misc_e6_store_options(const char *str)
 {
   size_t olen = 0;
   size_t slen = strlen(str);

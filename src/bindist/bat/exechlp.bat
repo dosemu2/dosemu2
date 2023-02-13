@@ -6,7 +6,6 @@ if ERRORLEVEL 1 exitemu 1
 if not "%DOSEMU_SYS_DIR%" == "" cd %DOSEMU_SYS_DIR%
 if ERRORLEVEL 1 exitemu 1
 if "%DOSEMU_SYS_CMD%" == "exit" goto cont
-if "%SHELL_LOADHIGH_DEFAULT%" == "" set SHELL_LOADHIGH_DEFAULT=1
 call %DOSEMU_SYS_CMD%
 set SHELL_LOADHIGH_DEFAULT=
 :cont

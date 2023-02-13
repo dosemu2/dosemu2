@@ -1045,7 +1045,7 @@ config_init(int argc, char **argv)
     char           *basename;
     int             err;
     const char * const getopt_string =
-       "23456ABC::c::D:d:E:e:f:H:hi:I:K:k::L:M:mNno:P:qSsTt::VvwXx:Y"
+       "23456ABC::c::D:d:E:e:f:H:hi:I:K:k::L:M:mNno:P:qSsT::t::VvwXx:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -1375,7 +1375,10 @@ config_init(int argc, char **argv)
 	    break;
 	}
 	case 'T':
-	    config.exit_on_cmd = 0;
+	    if (!optarg || strchr(optarg, '1'))
+	      config.exit_on_cmd = 0;
+	    if (!optarg || strchr(optarg, 'h'))
+	      misc_e6_store_options("SHELL_LOADHIGH_DEFAULT=1");
 	    break;
 	case 'q':
 	    config.quiet = 1;
@@ -1478,7 +1481,7 @@ usage(char *basename)
 	"    -P copy debugging output to FILE\n"
 	"    -p stop for prompting with a non-fatal configuration problem\n"
 	"    -s enable direct hardware access (full feature) (!%%)\n"
-	"    -T don't exit after executing -E command\n"
+	"    -T set flags for -E or -K options\n"
 	"    -t use terminal (S-Lang) mode\n"
 	"    -V use BIOS-VGA video modes (!#%%)\n"
 	"    -v display version\n"
