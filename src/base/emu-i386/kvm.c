@@ -515,15 +515,6 @@ void set_kvm_memory_regions(void)
 
   for (slot = 0; slot < MAXSLOT; slot++) {
     struct kvm_userspace_memory_region *p = &maps[slot];
-    if (p->memory_size != 0) {
-      if (config.cpu_vm_dpmi != CPUVM_KVM &&
-	  (void *)(uintptr_t)p->userspace_addr != monitor) {
-	if (p->guest_phys_addr > LOWMEM_SIZE + HMASIZE)
-	  p->memory_size = 0;
-	else if (p->guest_phys_addr + p->memory_size > LOWMEM_SIZE + HMASIZE)
-	  p->memory_size = LOWMEM_SIZE + HMASIZE - p->guest_phys_addr;
-      }
-    }
     if (p->memory_size != 0)
       set_kvm_memory_region(p);
   }
@@ -533,6 +524,15 @@ static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize, int f
 {
   struct kvm_userspace_memory_region *region;
   int slot;
+
+  if (config.cpu_vm_dpmi != CPUVM_KVM && addr != monitor) {
+    if (targ >= LOWMEM_SIZE + HMASIZE)
+      return;
+    if (targ + mapsize > LOWMEM_SIZE + HMASIZE)
+      mapsize = LOWMEM_SIZE + HMASIZE - targ;
+    if (mapsize == 0)
+      return;
+  }
 
   for (slot = 0; slot < MAXSLOT; slot++)
     if (maps[slot].memory_size == 0) break;
