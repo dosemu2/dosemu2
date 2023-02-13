@@ -311,6 +311,9 @@ static void *mem_reserve(uint32_t memsize, uint32_t dpmi_size)
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
+  if (config.cpu_vm_dpmi == CPUVM_KVM)
+    /* map only DPMI here, rest is done with KVM_BASE in alias_mapping */
+    mmap_kvm(cap, (unsigned char *)result + memsize, dpmi_size, prot, memsize);
   return result;
 }
 
@@ -348,11 +351,6 @@ void low_mem_init(void)
   }
 
   mem_base = mem_reserve(memsize, dpmi_size);
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) {
-    init_kvm_monitor(memsize + dpmi_size);
-    mmap_kvm(MAPPING_INIT_LOWRAM, mem_base, memsize + dpmi_size,
-	    PROT_READ | PROT_WRITE, 0);
-  }
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, memsize,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (result == -1) {
