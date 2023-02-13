@@ -140,6 +140,10 @@ static struct monitor {
     unsigned char kvm_identity_map[20*PAGE_SIZE];
 } *monitor;
 
+/* map the monitor high in physical/linear address space with some
+   room to spare (top - 16MB, monitor takes a little over 4MB) */
+#define MONITOR_DOSADDR 0xff000000
+
 static struct kvm_cpuid2 *cpuid;
 /* fpu vme de pse tsc msr mce cx8 */
 #define CPUID_FEATURES_EDX 0x1bf
@@ -150,7 +154,7 @@ static struct kvm_sregs sregs;
 #define MAXSLOT 400
 static struct kvm_userspace_memory_region maps[MAXSLOT];
 
-static int init_kvm_vcpu(dosaddr_t monitor_dosaddr);
+static int init_kvm_vcpu(void);
 
 static void set_idt_default(dosaddr_t mon, int i)
 {
@@ -211,15 +215,12 @@ static void kvm_set_desc(Descriptor *desc, struct kvm_segment *seg)
 }
 
 /* initialize KVM virtual machine monitor */
-void init_kvm_monitor(dosaddr_t monitor_dosaddr)
+static void init_kvm_monitor(void)
 {
   int ret, i;
 
   if (!cpuid)
     return;
-
-  /* align monitor to 2MB boundary */
-  monitor_dosaddr = HUGE_PAGE_ALIGN(monitor_dosaddr);
 
   /* create monitor structure in memory */
   monitor = mmap_mapping(MAPPING_SCRATCH|MAPPING_KVM, (void *)-1,
@@ -227,11 +228,11 @@ void init_kvm_monitor(dosaddr_t monitor_dosaddr)
   /* exclude special regions for KVM-internal TSS and identity page */
   mmap_kvm(MAPPING_SCRATCH|MAPPING_KVM, monitor,
 	offsetof(struct monitor, kvm_tss),
-	PROT_READ | PROT_WRITE, monitor_dosaddr);
+	PROT_READ | PROT_WRITE, MONITOR_DOSADDR);
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
 
-  if (!init_kvm_vcpu(monitor_dosaddr)) {
+  if (!init_kvm_vcpu()) {
     leavedos(99);
     return;
   }
@@ -243,7 +244,7 @@ void init_kvm_monitor(dosaddr_t monitor_dosaddr)
     return;
   }
 
-  sregs.tr.base = monitor_dosaddr;
+  sregs.tr.base = MONITOR_DOSADDR;
   sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE - 1;
   sregs.tr.selector = 0x18;
   sregs.tr.unusable = 0;
@@ -339,7 +340,7 @@ void init_kvm_monitor(dosaddr_t monitor_dosaddr)
 }
 
 /* Initialize KVM and memory mappings */
-static int init_kvm_vcpu(dosaddr_t monitor_dosaddr)
+static int init_kvm_vcpu(void)
 {
   int ret, mmap_size;
 
@@ -349,13 +350,13 @@ static int init_kvm_vcpu(dosaddr_t monitor_dosaddr)
      the kernel needs to emulate that using V86 mode, as is necessary
      on Nehalem and earlier Intel CPUs */
   ret = ioctl(vmfd, KVM_SET_TSS_ADDR,
-	      monitor_dosaddr + offsetof(struct monitor, kvm_tss));
+	      MONITOR_DOSADDR + offsetof(struct monitor, kvm_tss));
   if (ret == -1) {
     perror("KVM: KVM_SET_TSS_ADDR\n");
     return 0;
   }
 
-  uint64_t addr = monitor_dosaddr + offsetof(struct monitor, kvm_identity_map);
+  uint64_t addr = MONITOR_DOSADDR + offsetof(struct monitor, kvm_identity_map);
   ret = ioctl(vmfd, KVM_SET_IDENTITY_MAP_ADDR, &addr);
   if (ret == -1) {
     perror("KVM: KVM_SET_IDENTITY_MAP_ADDR\n");
@@ -462,6 +463,7 @@ int init_kvm_cpu(void)
     goto err;
   }
 
+  init_kvm_monitor();
   return 1;
 
 err:
@@ -515,15 +517,6 @@ void set_kvm_memory_regions(void)
 
   for (slot = 0; slot < MAXSLOT; slot++) {
     struct kvm_userspace_memory_region *p = &maps[slot];
-    if (p->memory_size != 0) {
-      if (config.cpu_vm_dpmi != CPUVM_KVM &&
-	  (void *)(uintptr_t)p->userspace_addr != monitor) {
-	if (p->guest_phys_addr > LOWMEM_SIZE + HMASIZE)
-	  p->memory_size = 0;
-	else if (p->guest_phys_addr + p->memory_size > LOWMEM_SIZE + HMASIZE)
-	  p->memory_size = LOWMEM_SIZE + HMASIZE - p->guest_phys_addr;
-      }
-    }
     if (p->memory_size != 0)
       set_kvm_memory_region(p);
   }
@@ -533,6 +526,15 @@ static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize, int f
 {
   struct kvm_userspace_memory_region *region;
   int slot;
+
+  if (config.cpu_vm_dpmi != CPUVM_KVM && addr != monitor) {
+    if (targ >= LOWMEM_SIZE + HMASIZE)
+      return;
+    if (targ + mapsize > LOWMEM_SIZE + HMASIZE)
+      mapsize = LOWMEM_SIZE + HMASIZE - targ;
+    if (mapsize == 0)
+      return;
+  }
 
   for (slot = 0; slot < MAXSLOT; slot++)
     if (maps[slot].memory_size == 0) break;
