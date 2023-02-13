@@ -55,7 +55,7 @@ static int OpenNetworkLinkSlirp(const char *name, void (*cbk)(int, int))
 	    sscanf(cmd, "%i %i", &pmin, &pmax);
 	    /* this is not a strict check, but default value is 1 0 */
 	    if (pmin > pmax)
-		error("userspace pings are disabled.\n"
+		warn("userspace pings are disabled.\n"
 		    "\tTo enable them, do as root:\n"
 		    "\techo 0 65535 > /proc/sys/net/ipv4/ping_group_range\n");
 	    pd_printf("PKT: ping_group_range is %s", cmd);
