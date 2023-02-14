@@ -2290,8 +2290,10 @@ ems_fn(struct vm86_regs *state)
 		break;
 */
   case VCPI_INTERFACE:
-    vcpi_interface(state);
-    break;
+    if (config.cpu_vm == CPUVM_KVM && config.cpu_vm_dpmi == CPUVM_KVM) {
+      vcpi_interface(state);
+      break;
+    }
     /* fall through */
 
   default:{
