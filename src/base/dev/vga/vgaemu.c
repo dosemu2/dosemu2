@@ -817,21 +817,12 @@ static dosaddr_t vga_get_mem_base_offset(dosaddr_t addr)
   return (dosaddr_t)-1;
 }
 
-static void vga_mark_dirty(dosaddr_t vga_addr, int len)
+void vga_mark_dirty(dosaddr_t vga_addr, int len)
 {
   unsigned vga_page;
-  pthread_mutex_lock(&prot_mtx);
   for (vga_page = vga_addr >> PAGE_SHIFT;
        vga_page <= (vga_addr + len - 1) >> PAGE_SHIFT; vga_page++)
-    _vgaemu_dirty_page(vga_page, 1);
-  pthread_mutex_unlock(&prot_mtx);
-}
-
-void vga_mark_dirty_dosaddr(dosaddr_t addr, int len)
-{
-  dosaddr_t vga_addr = vga_get_mem_base_offset(addr);
-  if (addr == (dosaddr_t)-1) return;
-  vga_mark_dirty(vga_addr, len);
+    vgaemu_dirty_page(vga_page, 1);
 }
 
 void vga_write(dosaddr_t addr, unsigned char val)
@@ -1473,7 +1464,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   pthread_mutex_lock(&prot_mtx);
   _vga_kvm_sync_dirty_map(mapping);
   if (mapping == VGAEMU_MAP_BANK_MODE)
-    i = alias_mapping(MAPPING_VGAEMU|MAPPING_IMMEDIATE,
+    i = alias_mapping(MAPPING_VGAEMU,
       vmt->base_page << 12, vmt->pages << 12,
       prot, vga.mem.base + (first_page << 12));
   else if (config.cpu_vm_dpmi != CPUVM_KVM)

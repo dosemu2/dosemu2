@@ -58,11 +58,6 @@
 extern char _binary_kvmmon_o_bin_end[];
 extern char _binary_kvmmon_o_bin_size[];
 extern char _binary_kvmmon_o_bin_start[];
-extern const unsigned kvm_mon_start;
-extern const unsigned kvm_mon_hlt;
-extern const unsigned kvm_mon_vcpi_pm_jmp;
-extern const unsigned kvm_mon_vcpi_pmi;
-extern const unsigned kvm_mon_end;
 
 /* V86/DPMI monitor structure to run code in V86 mode with VME enabled
    or DPMI clients inside KVM
@@ -628,7 +623,37 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
   assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_KVM|MAPPING_VGAEMU));
   /* with KVM we need to manually remove/shrink existing mappings */
   do_munmap_kvm(targ, mapsize);
-  if ((cap & MAPPING_VGAEMU) && kvm_in_vcpi())
+  mmap_kvm_no_overlap(targ, addr, mapsize, 0);
+  if (!(cap & MAPPING_KVM))
+    mprotect_kvm(cap, targ, mapsize, protect);
+}
+
+void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
+{
+  size_t pagesize = sysconf(_SC_PAGESIZE);
+  unsigned int start = targ / pagesize;
+  unsigned int end = start + mapsize / pagesize;
+  unsigned int page;
+  struct kvm_userspace_memory_region *p;
+
+  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
+	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
+	       MAPPING_EXTMEM))) return;
+
+  p = kvm_get_memory_region(targ, mapsize);
+  if (!p) return;
+
+  /* never apply write-protect to regions with dirty logging */
+  if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
+      (p->flags & KVM_MEM_LOG_DIRTY_PAGES))
+    return;
+
+  if (monitor == NULL) return;
+
+  if ((cap & MAPPING_VGAEMU) && kvm_in_vcpi() &&
+      ((coalesced_mmio_ring == NULL && protect == PROT_NONE) ||
+       (coalesced_mmio_ring && protect != PROT_NONE))) {
+    struct kvm_userspace_memory_region *region;
     struct kvm_coalesced_mmio_zone mmio_zone = {};
     int coalesced_ioctl;
     int ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
@@ -643,8 +668,9 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
       coalesced_mmio_ring = NULL;
       coalesced_ioctl = KVM_UNREGISTER_COALESCED_MMIO;
     }
-    mmio_zone.addr = targ;
-    mmio_zone.size = mapsize;
+    region = kvm_get_memory_region(targ, mapsize);
+    mmio_zone.addr = region->guest_phys_addr;
+    mmio_zone.size = region->memory_size;
     mmio_zone.pio = 0;
     ioctl(vmfd, coalesced_ioctl, &mmio_zone);
     ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_PIO);
@@ -668,34 +694,16 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
       mmio_zone.size = 1;
       ioctl(vmfd, coalesced_ioctl, &mmio_zone);
     }
-    if (protect == PROT_NONE) return; // MMIO buffer, not mapped
+    mmio_zone.size = region->memory_size;
+    if (protect == PROT_NONE)
+      // MMIO buffer, not mapped
+      region->memory_size = 0;
+    set_kvm_memory_region(region);
+    region->memory_size = mmio_zone.size;
+    return;
   }
-  mmap_kvm_no_overlap(targ, addr, mapsize, 0);
-  if (!(cap & MAPPING_KVM))
-    mprotect_kvm(cap, targ, mapsize, protect);
-}
-
-int mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
-{
-  size_t pagesize = sysconf(_SC_PAGESIZE);
-  unsigned int start = targ / pagesize;
-  unsigned int end = start + mapsize / pagesize;
-  unsigned int page;
-  struct kvm_userspace_memory_region *p;
-
-  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
-	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
-	       MAPPING_EXTMEM))) return 0;
-
-  p = kvm_get_memory_region(targ, mapsize);
-  if (!p) return 0;
-
-  /* never apply write-protect to regions with dirty logging */
-  if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
-      (p->flags & KVM_MEM_LOG_DIRTY_PAGES))
-    return 0;
-
-  if (monitor == NULL) return 0;
+  if ((cap & MAPPING_VGAEMU) && kvm_in_vcpi() && protect == PROT_NONE)
+    return;
 
   Q_printf("KVM: protecting %x:%zx with prot %x\n", targ, mapsize, protect);
 
@@ -941,7 +949,7 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
     leavedos_main(99);
   }
 
-  if (sregs.tr.base != DOSADDR_REL((unsigned char *)monitor)) {
+  if (sregs.tr.base != MONITOR_DOSADDR) {
     g_printf("KVM: interrupt in VCPI code\n");
     /* don't put VCPI register state in vm86_regs, use cs=0
        to show we were here */
@@ -985,40 +993,6 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
     regs->__null_gs = sregs.gs.selector;
   }
   return 1;
-}
-
-void kvm_sync_vga_dirty_map(void)
-{
-  int slot;
-  struct kvm_dirty_log dirty_log = {0};
-  unsigned int bitmap = 0;
-  dosaddr_t size = 0;
-  dosaddr_t addr = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << PAGE_SHIFT;
-
-  for (slot = 0; slot < MAXSLOT; slot++)
-    if (maps[slot].guest_phys_addr == addr) break;
-
-  if (slot == MAXSLOT || maps[slot].flags != KVM_MEM_LOG_DIRTY_PAGES) return;
-  dirty_log.slot = slot;
-  dirty_log.dirty_bitmap = &bitmap;
-  ioctl(vmfd, KVM_GET_DIRTY_LOG, &dirty_log);
-  Q_printf("KVM: VGA dirty bitmap=%x: ", bitmap);
-  for (;;) {
-    if (bitmap & 1) {
-      size += PAGE_SIZE;
-    } else {
-      if (size) {
-	vga_mark_dirty_dosaddr(addr, size);
-	Q_printf(" (%x:%x)", addr, size);
-	addr += size;
-	size = 0;
-      }
-      if (bitmap == 0) break;
-      addr += PAGE_SIZE;
-    }
-    bitmap >>= 1;
-  }
-  Q_printf("\n");
 }
 
 /* Inner loop for KVM, runs until HLT or signal */
@@ -1436,8 +1410,10 @@ int kvm_dpmi(cpuctx_t *scp)
 
 dosaddr_t kvm_vcpi_get_pmi(dosaddr_t pagetable, dosaddr_t gdt, unsigned *pages)
 {
-  monitor->pte[VCPI_CODE_PAGE] = DOSADDR_REL(&monitor->code[2*PAGE_SIZE]) | PG_PRESENT;
-  monitor->pte[VCPI_DATA_PAGE] = DOSADDR_REL(monitor->vcpi_data) | PG_PRESENT | PG_RW;
+  monitor->pte[VCPI_CODE_PAGE] = (MONITOR_DOSADDR +
+    offsetof(struct monitor, code) + 2*PAGE_SIZE) | PG_PRESENT;
+  monitor->pte[VCPI_DATA_PAGE] = (MONITOR_DOSADDR +
+    offsetof(struct monitor, vcpi_data)) | PG_PRESENT | PG_RW;
   *pages = VCPI_DATA_PAGE + 1;
   MEMCPY_2DOS(pagetable, monitor->pte, *pages*4);
   MEMCPY_2DOS(gdt, &monitor->gdt[1], sizeof(Descriptor));

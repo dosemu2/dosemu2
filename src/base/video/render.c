@@ -16,7 +16,6 @@
 #include "render.h"
 #include "video.h"
 #include "render_priv.h"
-#include "kvm.h"
 
 #define RENDER_THREADED 1
 #define TEXT_THREADED 1
@@ -627,11 +626,6 @@ int update_screen(void)
     render_update_vidmode();
     dirty_all_video_pages();
     vga.reconfig.display = 0;
-    vga_emu_update_unlock();
-  }
-  else if (config.cpu_vm == CPUVM_KVM && vga.mode_class == GRAPH) {
-    vga_emu_update_lock();
-    kvm_sync_vga_dirty_map();
     vga_emu_update_unlock();
   }
 
