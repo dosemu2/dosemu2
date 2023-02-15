@@ -1287,6 +1287,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
     struct pcm_holder *p = &plu[i];
     if (p->opened || p->failed ||
 	    (p->plugin->flags & PCM_F_EXPLICIT) ||
+	    (p->cfg_flags & PCM_CF_DISABLED) ||
 	    !(p->plugin->flags & PCM_F_PASSTHRU))
       continue;
     p->opened = SAFE_OPEN(p);
@@ -1305,6 +1306,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
       struct pcm_holder *p = &plu[i];
       if (p->opened || p->failed ||
 	    (p->plugin->flags & PCM_F_EXPLICIT) ||
+	    (p->cfg_flags & PCM_CF_DISABLED) ||
 	    (p->plugin->flags & PCM_F_PASSTHRU))
 	continue;
       if (p->plugin->weight > max_w) {
@@ -1418,6 +1420,11 @@ int pcm_parse_cfg(const char *string, const char *name)
 {
     char *p;
     int l;
+    char *on = pcm_parse_params(config.snd_plugin_params, name, "enabled");
+    if (on && on[0] == '0') {
+	pcm_printf("PCM: %s driver disabled in the config\n", name);
+	return PCM_CF_DISABLED;
+    }
     l = strlen(name);
     p = strstr(string, name);
     if (p && (p == string || p[-1] == ',') && (p[l] == 0 || p[l] == ',')) {
