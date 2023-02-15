@@ -1421,7 +1421,9 @@ int pcm_parse_cfg(const char *string, const char *name)
     char *p;
     int l;
     char *on = pcm_parse_params(config.snd_plugin_params, name, "enabled");
-    if (on && on[0] == '0') {
+    int off = (on && on[0] == '0');
+    free(on);
+    if (off) {
 	pcm_printf("PCM: %s driver disabled in the config\n", name);
 	return PCM_CF_DISABLED;
     }
