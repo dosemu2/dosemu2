@@ -61,6 +61,7 @@
 #include "int.h"
 #include "hlt.h"
 #include "kvm.h"
+#include "pgalloc.h"
 
 #define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
@@ -182,6 +183,12 @@ static Bit32u EMSAPMAP_ret_OFF;
 static Bit32u phys_pages;
 #define cnv_start_seg (0xa000 - 0x400 * config.ems_cnv_pages)
 #define cnv_pages_start config.ems_uma_pages
+
+#define EMM_PAGE_PAGES	(EMM_PAGE_SIZE / PAGE_SIZE)	// 4
+#define VCPI_TOTAL	(EMM_TOTAL * EMM_PAGE_PAGES)
+#define VCPI_BASE	(xms_base + config.xms_map_size) // should be at 16M
+static void *vcpi_pgapool;
+static int vcpi_allocated;
 
 static struct emm_record {
   u_short handle;
@@ -369,6 +376,11 @@ static inline void *realloc_memory_object(void *object, size_t oldsize, size_t b
   return addr;
 }
 
+static int emm_allocated_total(void)
+{
+  return emm_allocated + (vcpi_allocated + EMM_PAGE_PAGES - 1) / EMM_PAGE_PAGES;
+}
+
 static int emm_allocate_handle(int pages_needed)
 {
   int i, j;
@@ -383,7 +395,7 @@ static int emm_allocate_handle(int pages_needed)
     emm_error = EMM_OUT_OF_PHYS;
     return (EMM_ERROR);
   }
-  if (pages_needed > (EMM_TOTAL - emm_allocated)) {
+  if (pages_needed > (EMM_TOTAL - emm_allocated_total())) {
     E_printf("EMS: Out of free pages\n");
     emm_error = EMM_OUT_OF_LOG;
     return (EMM_ERROR);
@@ -880,7 +892,7 @@ reallocate_pages(struct vm86_regs * state)
   }
 
   diff = newcount-handle_info[handle].numpages;
-  if (emm_allocated+diff > EMM_TOTAL) {
+  if (emm_allocated_total()+diff > EMM_TOTAL) {
      Kdebug0((dbg_fd, "reallocate pages: maximum exceeded\n"));
      SETHI_BYTE(state->eax, EMM_OUT_OF_PHYS);
      return;
@@ -1574,10 +1586,10 @@ get_ems_hardinfo(struct vm86_regs * state)
         break;
       }
       case GET_RAW_PAGECOUNT:{
-        u_short left = EMM_TOTAL - emm_allocated;
+        u_short left = EMM_TOTAL - emm_allocated_total();
 
         Kdebug1((dbg_fd, "bios_emm: Get Raw Page Counts left=0x%x, t:0x%x, a:0x%x\n",
-	       left, EMM_TOTAL, emm_allocated));
+	       left, EMM_TOTAL, emm_allocated_total()));
 
         SETHI_BYTE(state->eax, EMM_NO_ERR);
         SETLO_WORD(state->ebx, left);
@@ -1853,9 +1865,14 @@ os_set_function(struct vm86_regs * state)
 
 /* end of EMS 4.0 functions */
 
+static int vcpi_allocated_total(void)
+{
+  return emm_allocated * EMM_PAGE_PAGES + vcpi_allocated;
+}
+
 static void vcpi_interface(struct vm86_regs *state)
 {
-  E_printf("VCPI, eax=%x\n", state->eax);
+  E_printf("VCPI: al=0x%02x\n", LO_BYTE(state->eax));
   switch (LO_BYTE(state->eax)) {
   case 0x00:
     /* VCPI is present, version 1.0 */
@@ -1875,18 +1892,50 @@ static void vcpi_interface(struct vm86_regs *state)
     break;
   case 0x02: /* get maximum physical memory address */
     SETHI_BYTE(state->eax, 0x00);
-    state->edx = 0;
+    state->edx = VCPI_BASE + (VCPI_TOTAL << PAGE_SHIFT);
     break;
   case 0x03: /* get number of free 4k pages */
     SETHI_BYTE(state->eax, 0x00);
-    state->edx = 0; /* use XMS only */
+    state->edx = VCPI_TOTAL - vcpi_allocated_total();
     break;
   case 0x04: /* allocate a 4k page */
     state->edx = 0xffffffff;
     SETHI_BYTE(state->eax, EMM_OUT_OF_LOG);
+    if (vcpi_allocated_total() >= VCPI_TOTAL) break;
+    if (vcpi_pgapool == NULL) {
+      /* we don't need to actually alias map into allocated EMS.
+	 memory, as we can just use physical RAM, and past
+	 XMS is available (=16MB). */
+      assert(VCPI_BASE == 16*1024*1024);
+      vcpi_pgapool = pgainit(VCPI_TOTAL - vcpi_allocated_total());
+      E_printf("VCPI: allocated pool at 0x%08x\n", VCPI_BASE);
+    }
+    if (vcpi_pgapool)
+    {
+      int page = pgaalloc(vcpi_pgapool, 1, 0);
+      if (page < 0) break;
+      vcpi_allocated++;
+      state->edx = VCPI_BASE + (page << PAGE_SHIFT);
+      SETHI_BYTE(state->eax, 0);
+      E_printf("VCPI: allocated page at 0x%08x\n", state->edx);
+    }
     break;
   case 0x05: /* free a 4k page */
     SETHI_BYTE(state->eax, EMM_LOG_OUT_RAN);
+    if (VCPI_BASE && vcpi_pgapool && vcpi_allocated &&
+	state->edx >= VCPI_BASE &&
+	state->edx < VCPI_BASE + (VCPI_TOTAL << PAGE_SHIFT)) {
+      dosaddr_t addr = state->edx & PAGE_MASK;
+      pgafree(vcpi_pgapool, (addr - VCPI_BASE) >> PAGE_SHIFT);
+      vcpi_allocated--;
+      E_printf("VCPI: freed page at 0x%08x\n", addr);
+      if (vcpi_allocated == 0) {
+	E_printf("VCPI: freed pool at 0x%08x\n", VCPI_BASE);
+	pgadone(vcpi_pgapool);
+	vcpi_pgapool = 0;
+      }
+      SETHI_BYTE(state->eax, 0);
+    }
     break;
   case 0x06: /* get physical address of 4k page in 1st MB */
     if (LO_WORD(state->ecx) < 1024*1024/PAGE_SIZE) {
@@ -1946,10 +1995,10 @@ ems_fn(struct vm86_regs *state)
       break;
     }
   case GET_PAGE_COUNTS:{	/* 0x42 */
-      u_short left = EMM_TOTAL - emm_allocated;
+      u_short left = EMM_TOTAL - emm_allocated_total();
 
       Kdebug1((dbg_fd, "bios_emm: Get Page Counts left=0x%x, t:0x%x, a:0x%x\n",
-	       left, EMM_TOTAL, emm_allocated));
+	       left, EMM_TOTAL, emm_allocated_total()));
 
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       SETLO_WORD(state->ebx, left);

@@ -1102,6 +1102,30 @@ static unsigned int kvm_run(void)
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
+      if (kvm_in_vcpi()) {
+	/* Protected mode VCPI interface AX=DE03,DE04,DE05 */
+	struct vm86_regs state = {0};
+	ret = ioctl(vcpufd, KVM_GET_REGS, &kregs);
+	if (ret == -1) {
+	  perror("KVM: KVM_GET_REGS");
+	  leavedos_main(99);
+	}
+	if (kregs.rip-1 != (VCPI_CODE_PAGE << PAGE_SHIFT) +
+	    (kvm_mon_vcpi_hlt - (kvm_mon_start + 2*PAGE_SIZE)))
+	  break;
+	state.eax = kregs.rax;
+	state.edx = kregs.rdx;
+	E_printf("VCPI: PM interface, AX=%x\n", state.eax & 0xffff);
+	ems_fn(&state);
+	kregs.rax = state.eax;
+	kregs.rdx = state.edx;
+	ret = ioctl(vcpufd, KVM_SET_REGS, &kregs);
+	if (ret == -1) {
+	  perror("KVM: KVM_SET_REGS");
+	  leavedos_main(99);
+	}
+	break;
+      }
       exit_reason = KVM_EXIT_HLT;
       break;
     case KVM_EXIT_IO:

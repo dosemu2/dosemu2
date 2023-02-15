@@ -116,25 +116,16 @@ kvm_mon_vcpi_pmi:
         cmpw $0xde0c,%ax
         je pm_to_v86
         cmpw $0xde03,%ax
-        je vcpi_de03
-        cmpw $0xde04,%ax
-        je vcpi_de04
+        jb vcpi_unsupported
         cmpw $0xde05,%ax
-        je vcpi_de05
-        mov $0x8f,%ah # unsupported
+        ja vcpi_unsupported
+	.globl kvm_mon_vcpi_hlt
+kvm_mon_vcpi_hlt:
+        hlt
         lret
 
-vcpi_de03: # Get Number of Free 4K Pages (0: let VCPI clients use XMS instead)
-        xorb %ah,%ah
-        xorl %edx,%edx
-        lret
-vcpi_de04: # Allocate a 4K page
-        movb $0x88,%ah
-        movl $0xffffffff,%edx
-        lret
-vcpi_de05: # Free a 4K page
-        movb $0x8a,%ah
-        movl $0xffffffff,%edx
+vcpi_unsupported:
+        mov $0x8f,%ah # unsupported
         lret
 
 pm_to_v86:
