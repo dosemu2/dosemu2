@@ -839,7 +839,7 @@ int SDL_set_videomode(struct vid_mode_params vmp)
     w_y_res = vmp.w_y_res;
   }
   SDL_GetDesktopDisplayMode(0, &mode);
-  if (mode.w >= w_x_res * 3 && mode.h >= w_y_res * 3) {
+  if (mode.w >= w_x_res * 2.5 && mode.h >= w_y_res * 2.5) {
     /* upscale a bit */
     w_x_res *= 2;
     w_y_res *= 2;
