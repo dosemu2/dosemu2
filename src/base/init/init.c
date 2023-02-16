@@ -330,8 +330,8 @@ void low_mem_init(void)
   void *lowmem, *ptr;
   int result;
   uint32_t memsize = LOWMEM_SIZE + HMASIZE;
-  uint32_t dpmi_size = dpmi_lin_mem_rsv();
-  int32_t dpmi_rsv_low = config.dpmi_base;
+  uint32_t dpmi_size = config.dpmi ? dpmi_lin_mem_rsv() : config.dpmi_base - memsize;
+  int32_t dpmi_rsv_low, phys_rsv;
   const uint32_t mem_1M = 1024 * 1024;
   /* 16Mb limit is for being in reach of DMAc */
   const uint32_t mem_16M = mem_1M * 16;
@@ -368,15 +368,17 @@ void low_mem_init(void)
   /* smalloc uses PROT_READ | PROT_WRITE, needs to add PROT_EXEC here */
   mprotect_mapping(MAPPING_LOWMEM, 0, memsize, PROT_READ | PROT_WRITE |
       PROT_EXEC);
-  dpmi_rsv_low -= memsize;
-  if (dpmi_rsv_low < EXTMEM_SIZE + config.xms_map_size) {
+  phys_rsv = EXTMEM_SIZE + config.xms_map_size;
+  if (config.dpmi_base < memsize + phys_rsv +
+			 (config.dpmi ? 0 : config.vgaemu_memsize * 1024)) {
     error("$_dpmi_base is too small\n");
     config.exitearly = 1;
     return;
   }
+  dpmi_rsv_low = config.dpmi ? (config.dpmi_base - (memsize + phys_rsv)) : 0;
+  ptr = smalloc(&main_pool, phys_rsv + dpmi_rsv_low + dpmi_mem_size());
+  assert(ptr);
   if (config.dpmi) {
-    ptr = smalloc(&main_pool, dpmi_rsv_low + dpmi_mem_size());
-    assert(ptr);
     dpmi_set_mem_base(ptr);
   }
 

@@ -103,7 +103,7 @@ static int open_mapping_f(int cap)
     /* first estimate the needed size of the mapfile */
     mapsize  = HMASIZE >> 10;	/* HMA */
  				/* VGAEMU */
-    mapsize += config.vgaemu_memsize ? config.vgaemu_memsize : 1024;
+    mapsize += config.vgaemu_memsize;
     mapsize += config.ems_size;	/* EMS */
     mapsize += config.xms_size;	/* XMS */
     mapsize += LOWMEM_SIZE >> 10; /* Low Mem */

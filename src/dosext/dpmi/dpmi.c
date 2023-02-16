@@ -3764,6 +3764,8 @@ err2:
 
 void dpmi_reset(void)
 {
+    if (!config.dpmi) return;
+
     RSP_num = 0;
     if (config.pm_dos_api)
 	msdos_reset();
@@ -5842,6 +5844,8 @@ int dpmi_active(void)
 void dpmi_done(void)
 {
   int i;
+
+  if (!config.dpmi) return;
 
   D_printf("DPMI: finalizing\n");
   current_client = in_dpmi - 1;
