@@ -1747,10 +1747,9 @@ int vga_emu_pre_init(void)
       kvm_set_dirty_log(VGA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
     }
   }
-
   if(vga.mem.lfb_base != 0) {
     memcheck_addtype('e', "VGAEMU LFB");
-    register_hardware_ram_virtual('e', vga.mem.lfb_base, vga.mem.size,
+    register_hardware_ram_virtual('e', VGAEMU_PHYS_LFB_BASE, vga.mem.size,
 	    vga.mem.base, vga.mem.lfb_base);
     if (config.cpu_vm_dpmi == CPUVM_KVM)
       kvm_set_dirty_log(vga.mem.lfb_base, vga.mem.size);
