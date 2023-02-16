@@ -496,8 +496,8 @@ static void update_cursor(void)
     return;
 
   blink_count = config.X_blinkrate;
-  blink_state = !blink_state;
-
+  if (blink_count)
+    blink_state ^= 1;
 
   if (blink_state)
     draw_cursor();
