@@ -372,7 +372,8 @@ static int SDL_init(void)
 #if SDL_VERSION_ATLEAST(2,0,10)
   SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");
 #endif
-  flags |= SDL_WINDOW_RESIZABLE;
+  if (!config.X_noresize)
+    flags |= SDL_WINDOW_RESIZABLE;
   if (!config.sdl_wcontrols) {
     flags |= SDL_WINDOW_BORDERLESS;
     border_on = 0;

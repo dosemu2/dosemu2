@@ -264,7 +264,8 @@ enum {
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR UNGRAB_TWEAK
 	/* x-windows */
 %token L_DISPLAY L_TITLE X_TITLE_SHOW_APPNAME ICON_NAME X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
-%token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE X_NOCLOSE
+%token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT
+%token X_WINSIZE X_NOCLOSE X_NORESIZE
 %token X_GAMMA X_FULLSCREEN VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY X_BACKGROUND_PAUSE
 	/* sdl */
 %token SDL_HWREND SDL_FONTS SDL_WCONTROLS
@@ -1093,7 +1094,8 @@ x_flag		: L_DISPLAY string_expr	{ free(config.X_display); config.X_display = $2;
                    }
 		| X_GAMMA expression  { config.X_gamma = $2; }
 		| X_FULLSCREEN bool   { config.X_fullscreen = $2; }
-		| X_NOCLOSE bool   { config.X_noclose = ($2!=0); }
+		| X_NOCLOSE bool      { config.X_noclose = ($2!=0); }
+		| X_NORESIZE bool     { config.X_noresize = ($2!=0); }
 		| VGAEMU_MEMSIZE expression	{ config.vgaemu_memsize = $2; }
 		| VESAMODE INTEGER INTEGER { set_vesamodes($2,$3,0);}
 		| VESAMODE INTEGER INTEGER INTEGER { set_vesamodes($2,$3,$4);}

@@ -458,6 +458,8 @@ static void create_ximage(void);
 static void destroy_ximage(void);
 static void put_ximage(int, int, unsigned, unsigned);
 static void resize_ximage(unsigned, unsigned);
+static void X_set_resizable(Display *display, Window window, int on,
+	int x_res, int y_res);
 
 /* video mode set/modify stuff */
 static int X_set_videomode(struct vid_mode_params vmp);
@@ -830,6 +832,7 @@ int X_init()
   }
 
   lock_window_size(w_x_res, w_y_res);
+  X_set_resizable(display, normalwindow, !config.X_noresize, w_x_res, w_y_res);
   /* don't map window if set */
   if(getenv("DOSEMU_HIDE_WINDOW") == NULL) {
     if (config.X_fullscreen) {
@@ -2106,7 +2109,7 @@ void resize_ximage(unsigned width, unsigned height)
   create_ximage();
 }
 
-void X_set_resizable(Display *display, Window window, int on,
+static void X_set_resizable(Display *display, Window window, int on,
 	int x_res, int y_res)
 {
   XSizeHints sh;
@@ -2139,7 +2142,7 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   sh.base_width = sh.width = sh.min_width = sh.max_width = wx_res;
   sh.base_height = sh.height = sh.min_height = sh.max_height = wy_res;
 
-  sh.flags = PSize  | PMinSize | PMaxSize | PBaseSize;
+  sh.flags = PSize | PBaseSize;
   if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
   if (use_bitmap_font) {
 #if 0
@@ -2150,10 +2153,6 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
     sh.flags &= ~PAspect;
 #endif
     sh.flags |= PResizeInc;
-    sh.max_width = 32767;
-    sh.max_height = 32767;
-    sh.min_width = 0;
-    sh.min_height = 0;
     sh.width_inc = 1;
     sh.height_inc = 1;
   }
@@ -2161,6 +2160,9 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   sh.min_aspect.y = wy_res;
   sh.max_aspect = sh.min_aspect;
   XSetNormalHints(display, normalwindow, &sh);
+  /* Seems XSetNormalHints() resets PMinSize|PMaxSize even if not asked to!
+   * Update them by hands. */
+  X_set_resizable(display, normalwindow, !config.X_noresize, w_x_res, w_y_res);
 
   x_fill = wx_res;
   y_fill = wy_res;
