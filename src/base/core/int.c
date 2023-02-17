@@ -554,7 +554,7 @@ static int dos_helper(int stk_offs, int revect)
 
     case DOS_HELPER_GARROT_HELPER:	/* Mouse garrot helper */
 	if (!LWORD(ebx))	/* Wait sub-function requested */
-	    idle_enable(0, 50, 0, "mouse_garrot");
+	    idle_enable(50, 0, "mouse_garrot");
 	else {			/* Get Hogthreshold value sub-function */
 	    LWORD(ebx) = config.hogthreshold;
 	    LWORD(eax) = config.hogthreshold;
@@ -788,7 +788,7 @@ static int int15(void)
     case 0x10:			/* TopView/DESQview */
 	switch (LO(ax)) {
 	case 0x00:{		/* giveup timeslice */
-		idle_enable(0, 100, 0, "topview");
+		idle_enable(100, 0, "topview");
 		break;
 	    }
 	}
@@ -1137,7 +1137,7 @@ increments AL so we *don't* lose a day if two consecutive midnights pass.
     case 0:			/* read time counter */
 	{
 	    int day_rollover;
-	    idle(50, 50, 0, "int1a:0");
+	    idle_enable(50, 0, "int1a:0");
 	    if (config.timemode == TM_LINUX) {
 		/* Set BIOS area flags to LINUX time computed values always */
 		last_ticks = get_linux_ticks(0, &day_rollover);
@@ -1449,7 +1449,7 @@ static int msdos(void)
 #endif
 
     case 0x2C:{		/* get time & date */
-	    idle(2, 100, 0, "dos_time");
+	    idle_enable(100, 0, "dos_time");
 	    return 0;
 	}
 
@@ -2855,7 +2855,7 @@ static void dos_post_boot(void)
 /* KEYBOARD BUSY LOOP */
 static int int28(void)
 {
-    idle_enable(0, 50, 0, "int28");
+    idle_enable(50, 0, "int28");
     return 1;
 }
 
@@ -3064,7 +3064,7 @@ hint_done:
 	    break;
 
 	case 0x80:	/* give up time slice */
-	    idle_enable(0, 100, 0, "int2f_idle_magic");
+	    idle_enable(100, 0, "int2f_idle_magic");
 	    if (config.hogthreshold) {
 		LO(ax) = 0;
 		return 1;

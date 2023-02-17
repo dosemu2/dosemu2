@@ -3399,7 +3399,7 @@ static void do_dpmi_int(cpuctx_t *scp, int i)
 	/* this is disabled. coopth currently can't handle delays
 	 * in protected mode... :( */
 	case 0x1680:	/* give up time slice */
-	  idle_enable(0, 100, 0, "int2f_idle_dpmi");
+	  idle_enable(100, 0, "int2f_idle_dpmi");
 	  if (config.hogthreshold)
 	    _LO(ax) = 0;
 	  return;

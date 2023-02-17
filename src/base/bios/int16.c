@@ -122,7 +122,7 @@ static unsigned check_key_available(int extended)
       trigger_idle();
     else
       reset_idle(0);
-    idle_enable(500, 20, 2, "int16");
+    idle_enable2(500, 20, 2, "int16");
   } else {
     reset_idle(1);
   }
