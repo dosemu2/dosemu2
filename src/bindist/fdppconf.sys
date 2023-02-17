@@ -1,7 +1,6 @@
 rem config.sys for DOSEMU2 + FDPP
 SWITCHES=#0
 COUNTRY=#1
-CHAIN=@userhook.sys
 DOS=UMB
 dosdata=umb
 lastdrive=Z
@@ -13,3 +12,4 @@ devicehigh=dosemu\emufs.sys /all
 devicehigh=dosemu\cdrom.sys
 set SHELL_ALLOW_EXIT=1
 shellhigh=#2
+CHAIN=@userhook.sys
