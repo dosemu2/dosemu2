@@ -892,7 +892,7 @@ static ipx_socket_t *check_ipx_ready(fd_set * set)
 
 static void IPXRelinquishControl(void)
 {
-  idle_enable(0, 5, 0, "IPX");
+  idle_enable(5, 0, "IPX");
 }
 
 static enum VirqHwRet _ipx_receive(void *arg)

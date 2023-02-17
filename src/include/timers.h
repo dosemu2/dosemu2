@@ -49,7 +49,8 @@ void alarm_idle(void);
 void trigger_idle(void);
 void untrigger_idle(void);
 void idle(int threshold1, int threshold, int threshold2, const char *who);
-void idle_enable(int threshold1, int threshold, int threshold2,
+void idle_enable(int threshold, int threshold2, const char *who);
+void idle_enable2(int threshold1, int threshold, int threshold2,
     const char *who);
 void dosemu_sleep(void);
 void cpu_idle(void);

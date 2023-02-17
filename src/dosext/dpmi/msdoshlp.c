@@ -694,7 +694,7 @@ void msdoshlp_init(int (*is_32)(void), int len)
 int doshlp_idle(void)
 {
 #ifdef DOSEMU
-    idle_enable(0, 100, 0, "int2f_idle_dpmi");
+    idle_enable(100, 0, "int2f_idle_dpmi");
     return config.hogthreshold;
 #else
     return 0;
