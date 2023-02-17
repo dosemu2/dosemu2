@@ -1096,7 +1096,7 @@ x_flag		: L_DISPLAY string_expr	{ free(config.X_display); config.X_display = $2;
 		| X_FULLSCREEN bool   { config.X_fullscreen = $2; }
 		| X_NOCLOSE bool      { config.X_noclose = ($2!=0); }
 		| X_NORESIZE bool     { config.X_noresize = ($2!=0); }
-		| VGAEMU_MEMSIZE expression	{ config.vgaemu_memsize = ($2 ? $2 : 1024); }
+		| VGAEMU_MEMSIZE expression	{ config.vgaemu_memsize = $2; }
 		| VESAMODE INTEGER INTEGER { set_vesamodes($2,$3,0);}
 		| VESAMODE INTEGER INTEGER INTEGER { set_vesamodes($2,$3,$4);}
 		| VESAMODE expression ',' expression { set_vesamodes($2,$4,0);}

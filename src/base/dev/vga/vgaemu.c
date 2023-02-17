@@ -3143,3 +3143,16 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vga_msg("vgaemu_adj_cfg: unknown item %u\n", what);
   }
 }
+
+static void vgaemu_config_scrub(void)
+{
+  if (config.vgaemu_memsize < 1024) {
+    error("VGA mem size must be at least 1024k\n");
+    config.vgaemu_memsize = 1024;
+  }
+}
+
+CONSTRUCTOR(static void init(void))
+{
+  register_config_scrub(vgaemu_config_scrub);
+}
