@@ -432,18 +432,18 @@ int serial_get_msr(int num);
 void fossil_init(void);
 
 struct serial_drv {
-  void (*rx_buffer_dump)(com_t *com);
-  void (*tx_buffer_dump)(com_t *com);
-  int (*serial_get_tx_queued)(com_t *com);
-  void (*ser_termios)(com_t *com);
-  int (*serial_brkctl)(com_t *com, int brkflg);
-  ssize_t (*serial_write)(com_t *com, char *buf, size_t len);
-  int (*serial_dtr)(com_t *com, int flag);
-  int (*serial_rts)(com_t *com, int flag);
-  int (*ser_open)(com_t *com);
-  int (*ser_close)(com_t *com);
-  int (*uart_fill)(com_t *com);
-  int (*serial_get_msr)(com_t *com);
+  void (*rx_buffer_dump)(com_t *c);
+  void (*tx_buffer_dump)(com_t *c);
+  int (*serial_get_tx_queued)(com_t *c);
+  void (*ser_termios)(com_t *c);
+  int (*serial_brkctl)(com_t *c, int brkflg);
+  ssize_t (*serial_write)(com_t *c, char *buf, size_t len);
+  int (*serial_dtr)(com_t *c, int flag);
+  int (*serial_rts)(com_t *c, int flag);
+  int (*ser_open)(com_t *c);
+  int (*ser_close)(com_t *c);
+  int (*uart_fill)(com_t *c);
+  int (*serial_get_msr)(com_t *c);
   const char *name;
 };
 

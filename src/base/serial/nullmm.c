@@ -26,47 +26,47 @@
 #include "ser_defs.h"
 #include "nullmm.h"
 
-static int add_buf(com_t *com, const char *buf, int len)
+static int add_buf(com_t *c, const char *buf, int len)
 {
-  if (RX_BUF_BYTES(com->num) + len > RX_BUFFER_SIZE) {
-    if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", com->num,
-        RX_BUF_BYTES(com->num));
+  if (RX_BUF_BYTES(c->num) + len > RX_BUFFER_SIZE) {
+    if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", c->num,
+        RX_BUF_BYTES(c->num));
     return 0;
   }
 
   /* Slide the buffer contents to the bottom */
-  rx_buffer_slide(com->num);
+  rx_buffer_slide(c->num);
 
-  memcpy(&com->rx_buf[com->rx_buf_end], buf, len);
+  memcpy(&c->rx_buf[c->rx_buf_end], buf, len);
   if (debug_level('s') >= 9) {
     int i;
     for (i = 0; i < len; i++)
-      s_printf("SER%d: Got mouse data byte: %#x\n", com->num,
-          com->rx_buf[com->rx_buf_end + i]);
+      s_printf("SER%d: Got mouse data byte: %#x\n", c->num,
+          c->rx_buf[c->rx_buf_end + i]);
   }
-  com->rx_buf_end += len;
-  receive_engine(com->num, len);
+  c->rx_buf_end += len;
+  receive_engine(c->num, len);
   return len;
 }
 
-static void nullmm_rx_buffer_dump(com_t *com)
+static void nullmm_rx_buffer_dump(com_t *c)
 {
 }
 
-static void nullmm_tx_buffer_dump(com_t *com)
+static void nullmm_tx_buffer_dump(com_t *c)
 {
 }
 
-static int nullmm_get_tx_queued(com_t *com)
+static int nullmm_get_tx_queued(com_t *c)
 {
   return 0;
 }
 
-static void nullmm_termios(com_t *com)
+static void nullmm_termios(com_t *c)
 {
 }
 
-static int nullmm_brkctl(com_t *com, int flag)
+static int nullmm_brkctl(com_t *c, int flag)
 {
   return 0;
 }
@@ -76,46 +76,45 @@ static ssize_t nullmm_write(com_t *c, char *buf, size_t len)
   int idx = get_com_idx(c->cfg->nullmm);
   if (idx == -1)
     return -1;
-  add_buf(&com[idx], buf, len);
-  return len;
+  return add_buf(&com[idx], buf, len);
 }
 
-static int nullmm_dtr(com_t *com, int flag)
+static int nullmm_dtr(com_t *c, int flag)
 {
   return 0;
 }
 
-static int nullmm_rts(com_t *com, int flag)
+static int nullmm_rts(com_t *c, int flag)
 {
   return 0;
 }
 
-static int nullmm_open(com_t *com)
+static int nullmm_open(com_t *c)
 {
   return 1;
 }
 
-static int nullmm_close(com_t *com)
+static int nullmm_close(com_t *c)
 {
   return 0;
 }
 
-static int nullmm_uart_fill(com_t *com)
+static int nullmm_uart_fill(com_t *c)
 {
   return 0;
 }
 
 static int nullmm_get_msr(com_t *c)
 {
-  com_t *com2;
+  com_t *c2;
   int idx = get_com_idx(c->cfg->nullmm);
   if (idx == -1)
     return -1;
-  com2 = &com[idx];
+  c2 = &com[idx];
   unsigned char msr = UART_MSR_DCD;
-  if (com2->MCR & UART_MCR_DTR)
+  if (c2->MCR & UART_MCR_DTR)
     msr |= UART_MSR_DSR;
-  if (com2->MCR & UART_MCR_RTS)
+  if (c2->MCR & UART_MCR_RTS)
     msr |= UART_MSR_CTS;
   return msr;
 }

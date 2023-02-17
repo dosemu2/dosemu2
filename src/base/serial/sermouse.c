@@ -52,46 +52,46 @@ static int limit_delta(int delta, int min, int max)
 
 static int ser_mouse_accepts(int from, void *udata)
 {
-  com_t *com = udata;
+  com_t *c = udata;
   if (!serm.opened)
     return 0;
-  if (!com) {
+  if (!c) {
     dosemu_error("sermouse NULL udata\n");
     return 0;
   }
   /* if commouse is used, we need to accept any events */
-  return (com->cfg->mouse && (config.mouse.dev_type == from ||
+  return (c->cfg->mouse && (config.mouse.dev_type == from ||
       config.mouse.com != -1));
 }
 
-static int add_buf(com_t *com, const char *buf, int len)
+static int add_buf(com_t *c, const char *buf, int len)
 {
   if (!serm.enabled || !serm.opened || serm.div != DIV_1200)
     return 0;
-  if (RX_BUF_BYTES(com->num) + len > RX_BUFFER_SIZE) {
-    if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", com->num,
-        RX_BUF_BYTES(com->num));
+  if (RX_BUF_BYTES(c->num) + len > RX_BUFFER_SIZE) {
+    if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", c->num,
+        RX_BUF_BYTES(c->num));
     return 0;
   }
 
   /* Slide the buffer contents to the bottom */
-  rx_buffer_slide(com->num);
+  rx_buffer_slide(c->num);
 
-  memcpy(&com->rx_buf[com->rx_buf_end], buf, len);
+  memcpy(&c->rx_buf[c->rx_buf_end], buf, len);
   if (debug_level('s') >= 9) {
     int i;
     for (i = 0; i < len; i++)
-      s_printf("SER%d: Got mouse data byte: %#x\n", com->num,
-          com->rx_buf[com->rx_buf_end + i]);
+      s_printf("SER%d: Got mouse data byte: %#x\n", c->num,
+          c->rx_buf[c->rx_buf_end + i]);
   }
-  com->rx_buf_end += len;
-  receive_engine(com->num, len);
+  c->rx_buf_end += len;
+  receive_engine(c->num, len);
   return len;
 }
 
 static void ser_mouse_move_button(int num, int press, void *udata)
 {
-  com_t *com = udata;
+  com_t *c = udata;
   char buf[3] = {0x40, 0, 0};
 
   s_printf("SERM: button %i %i\n", num, press);
@@ -123,13 +123,13 @@ static void ser_mouse_move_button(int num, int press, void *udata)
   }
   buf[0] |= serm.but;
 
-  add_buf(com, buf, sizeof(buf));
+  add_buf(c, buf, sizeof(buf));
 }
 
 static void ser_mouse_move_buttons(int lbutton, int mbutton, int rbutton,
 	void *udata)
 {
-  com_t *com = udata;
+  com_t *c = udata;
   char buf[3] = {0x40, 0, 0};
 
   if (serm.lb == lbutton && serm.mb == mbutton && serm.rb == rbutton)
@@ -146,7 +146,7 @@ static void ser_mouse_move_buttons(int lbutton, int mbutton, int rbutton,
   buf[0] |= serm.but;
   /* change in mbutton is signalled by sending the prev state */
 
-  add_buf(com, buf, sizeof(buf));
+  add_buf(c, buf, sizeof(buf));
 }
 
 static void ser_mouse_move_wheel(int dy, void *udata)
@@ -156,7 +156,7 @@ static void ser_mouse_move_wheel(int dy, void *udata)
 
 static void ser_mouse_move_mickeys(int dx, int dy, void *udata)
 {
-  com_t *com = udata;
+  com_t *c = udata;
   char buf[3] = {0x40, 0, 0};
 
   if (!dx && !dy)
@@ -171,7 +171,7 @@ static void ser_mouse_move_mickeys(int dx, int dy, void *udata)
   buf[2] = dy & ~0xC0;
   buf[0] |= (dy & 0xC0) >> 4;
 
-  add_buf(com, buf, sizeof(buf));
+  add_buf(c, buf, sizeof(buf));
 }
 
 static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
@@ -222,43 +222,43 @@ CONSTRUCTOR(static void serial_mouse_register(void))
 }
 
 
-static void serm_rx_buffer_dump(com_t *com)
+static void serm_rx_buffer_dump(com_t *c)
 {
 }
 
-static void serm_tx_buffer_dump(com_t *com)
+static void serm_tx_buffer_dump(com_t *c)
 {
 }
 
-static int serm_get_tx_queued(com_t *com)
+static int serm_get_tx_queued(com_t *c)
 {
   return 0;
 }
 
-static void serm_termios(com_t *com)
+static void serm_termios(com_t *c)
 {
-  serm.div = ((com->dlm << 8) | com->dll);
+  serm.div = ((c->dlm << 8) | c->dll);
   s_printf("SERM: set div to %i\n", serm.div);
 }
 
-static int serm_brkctl(com_t *com, int flag)
+static int serm_brkctl(com_t *c, int flag)
 {
   return 0;
 }
 
-static ssize_t serm_write(com_t *com, char *buf, size_t len)
+static ssize_t serm_write(com_t *c, char *buf, size_t len)
 {
   return 0;
 }
 
-static int serm_dtr(com_t *com, int flag)
+static int serm_dtr(com_t *c, int flag)
 {
   serm.enabled = flag;
-  modstat_engine(com->num);	// update DSR
+  modstat_engine(c->num);	// update DSR
   return 0;
 }
 
-static int serm_rts(com_t *com, int flag)
+static int serm_rts(com_t *c, int flag)
 {
   if (flag && !serm.nrst) {
     /* ctmouse wrongly expects "M" here. It doesn't work with "M3" */
@@ -267,43 +267,43 @@ static int serm_rts(com_t *com, int flag)
      * coming from the mouse, during initialization, usually right after
      * the LCR register is set, so this is why this line of code is here
      */
-    com->LSR |= UART_LSR_FE; 		/* Set framing error */
+    c->LSR |= UART_LSR_FE; 		/* Set framing error */
     if(s3_printf) s_printf("SERM: framing error\n");
-    rx_buffer_slide(com->num);
-    if (com->rx_buf_end >= com->rx_fifo_size) {
+    rx_buffer_slide(c->num);
+    if (c->rx_buf_end >= c->rx_fifo_size) {
       error("SERM: fifo overflow\n");
       return 0;
     }
-    com->rx_buf[com->rx_buf_end++] = 0;
-    serial_int_engine(com->num, LS_INTR);		/* Update interrupt status */
-    add_buf(com, id, strlen(id));
+    c->rx_buf[c->rx_buf_end++] = 0;
+    serial_int_engine(c->num, LS_INTR);		/* Update interrupt status */
+    add_buf(c, id, strlen(id));
   }
   serm.nrst = flag;
-  modstat_engine(com->num);	// update DSR
+  modstat_engine(c->num);	// update DSR
   return 0;
 }
 
-static int serm_open(com_t *com)
+static int serm_open(com_t *c)
 {
-  s_printf("SERM: open for port %i\n", com->num);
-  mousedrv_set_udata(ser_mouse.name, com);
+  s_printf("SERM: open for port %i\n", c->num);
+  mousedrv_set_udata(ser_mouse.name, c);
   serm.opened = 1;
   serm.but = 0;
   return 1;
 }
 
-static int serm_close(com_t *com)
+static int serm_close(com_t *c)
 {
   serm.opened = 0;
   return 0;
 }
 
-static int serm_uart_fill(com_t *com)
+static int serm_uart_fill(com_t *c)
 {
   return 0;
 }
 
-static int serm_get_msr(com_t *com)
+static int serm_get_msr(com_t *c)
 {
   return ((serm.enabled && serm.nrst) ? UART_MSR_DSR : 0);
 }
