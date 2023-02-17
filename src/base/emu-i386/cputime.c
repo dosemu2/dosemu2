@@ -349,9 +349,15 @@ void idle(int threshold1, int threshold, int threshold2, const char *who)
   _idle(threshold1, threshold, threshold2, who, 0);
 }
 
-void idle_enable(int threshold1, int threshold, int threshold2, const char *who)
+void idle_enable2(int threshold1, int threshold, int threshold2,
+	const char *who)
 {
   _idle(threshold1, threshold, threshold2, who, 1);
+}
+
+void idle_enable(int threshold, int threshold2, const char *who)
+{
+  _idle(0, threshold, threshold2, who, 1);
 }
 
 void int_yield(void)

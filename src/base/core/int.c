@@ -554,7 +554,7 @@ static int dos_helper(int stk_offs, int revect)
 
     case DOS_HELPER_GARROT_HELPER:	/* Mouse garrot helper */
 	if (!LWORD(ebx))	/* Wait sub-function requested */
-	    idle_enable(0, 50, 0, "mouse_garrot");
+	    idle_enable(50, 0, "mouse_garrot");
 	else {			/* Get Hogthreshold value sub-function */
 	    LWORD(ebx) = config.hogthreshold;
 	    LWORD(eax) = config.hogthreshold;
@@ -788,7 +788,7 @@ static int int15(void)
     case 0x10:			/* TopView/DESQview */
 	switch (LO(ax)) {
 	case 0x00:{		/* giveup timeslice */
-		idle_enable(0, 100, 0, "topview");
+		idle_enable(100, 0, "topview");
 		break;
 	    }
 	}
@@ -2855,7 +2855,7 @@ static void dos_post_boot(void)
 /* KEYBOARD BUSY LOOP */
 static int int28(void)
 {
-    idle_enable(0, 50, 0, "int28");
+    idle_enable(50, 0, "int28");
     return 1;
 }
 
@@ -3064,7 +3064,7 @@ hint_done:
 	    break;
 
 	case 0x80:	/* give up time slice */
-	    idle_enable(0, 100, 0, "int2f_idle_magic");
+	    idle_enable(100, 0, "int2f_idle_magic");
 	    if (config.hogthreshold) {
 		LO(ax) = 0;
 		return 1;
