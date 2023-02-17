@@ -585,7 +585,7 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
 
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
 {
-  assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_KVM));
+  assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_KVM|MAPPING_VGAEMU));
   /* with KVM we need to manually remove/shrink existing mappings */
   do_munmap_kvm(targ, mapsize);
   mmap_kvm_no_overlap(targ, addr, mapsize, 0);

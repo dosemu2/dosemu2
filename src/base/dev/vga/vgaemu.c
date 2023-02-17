@@ -1467,7 +1467,8 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
     i = alias_mapping(MAPPING_VGAEMU,
       vmt->base_page << 12, vmt->pages << 12,
       prot, vga.mem.base + (first_page << 12));
-  else /* LFB: mapped at init, just need to set protection */
+  else if (config.cpu_vm_dpmi != CPUVM_KVM)
+    /* LFB: mapped at init, just need to set protection */
     i = mprotect_mapping(MAPPING_VGAEMU, vmt->base_page << 12,
 			 vmt->pages << 12, prot);
 
@@ -1684,8 +1685,23 @@ int vga_emu_pre_init(void)
 
   vga.mem.lfb_base = 0;
   if(config.X_lfb) {
-    dosaddr_t p = alias_mapping_high(MAPPING_VGAEMU,
-				vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
+    dosaddr_t p = 0;
+    if (config.cpu_vm_dpmi == CPUVM_KVM) {
+      /* create mapping:
+	 Linear vga.mem.lfb_base=VGAEMU_PHYS_LFB_BASE=0xe0000000 ->
+	 physical 0xe0000000 ->	addr (hugepage aligned) -> vga.mem.base,
+	 so MEM_BASE32(vga.mem.lfb_base) is not a valid pointer. */
+      void *addr = alias_mapping_huge_page_aligned(MAPPING_VGAEMU,
+			     vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
+      p = (dosaddr_t)-1;
+      if (addr != MAP_FAILED) {
+	p = VGAEMU_PHYS_LFB_BASE;
+	mmap_kvm(MAPPING_VGAEMU, addr, vga.mem.size, VGA_EMU_RW_PROT, p);
+      }
+    } else if (config.dpmi) {
+      p = alias_mapping_high(MAPPING_VGAEMU,
+			     vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
+    }
     if(p == (dosaddr_t)-1) {
       error("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
       config.exitearly = 1;
@@ -1747,6 +1763,7 @@ int vga_emu_pre_init(void)
       kvm_set_dirty_log(VGA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
     }
   }
+
   if(vga.mem.lfb_base != 0) {
     memcheck_addtype('e', "VGAEMU LFB");
     register_hardware_ram_virtual('e', VGAEMU_PHYS_LFB_BASE, vga.mem.size,
@@ -1793,7 +1810,7 @@ static int vga_emu_post_init(void)
 
 void vga_emu_done()
 {
-  if (vga.mem.lfb_base)
+  if (vga.mem.lfb_base && config.dpmi)
     unalias_mapping_high(MAPPING_VGAEMU, vga.mem.lfb_base, vga.mem.size);
 }
 
