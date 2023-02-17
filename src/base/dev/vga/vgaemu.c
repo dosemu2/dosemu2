@@ -1664,10 +1664,7 @@ int vga_emu_pre_init(void)
 
   open_mapping(MAPPING_VGAEMU);
 
-  if(config.vgaemu_memsize)
-    vga.mem.size = config.vgaemu_memsize << 10;
-  else
-    vga.mem.size = 1024 << 10;
+  vga.mem.size = config.vgaemu_memsize << 10;
 
   /* force 256k granularity to prevent possible problems
    * (with 4-plane-modes, to be precise)

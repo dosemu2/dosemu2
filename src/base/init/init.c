@@ -263,14 +263,17 @@ void device_init(void)
  *
  * description:
  *  reserves address space seen by DOS and DPMI apps
- *   There are three possibilities:
- *  1) 0-based mapping: one map at 0 of 1088k, the rest below 1G
+ *   There are two possibilities:
+ *  1) 0-based mapping: one map at 0 of 1088k, and the combined map
+ *     below.
  *     This is only used for i386 + vm86() (not KVM/CPUEMU)
- *  2) non-zero-based mapping: one combined mmap, everything below 4G
+ *  2) non-zero-based mapping: one combined mmap.
+ *     Everything needs to be below 4G for native DPMI
+ *     (intrinsically) and JIT CPUEMU (for now)
  *
  * DANG_END_FUNCTION
  */
-static void *mem_reserve(uint32_t memsize, uint32_t dpmi_size)
+static void *mem_reserve(uint32_t memsize)
 {
   void *result;
   int cap = MAPPING_INIT_LOWRAM | MAPPING_SCRATCH | MAPPING_DPMI;
@@ -279,7 +282,7 @@ static void *mem_reserve(uint32_t memsize, uint32_t dpmi_size)
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
     result = mmap_mapping(MAPPING_NULL | MAPPING_SCRATCH,
-			  NULL, memsize, PROT_NONE);
+			  NULL, LOWMEM_SIZE + HMASIZE, PROT_NONE);
     if (result == MAP_FAILED) {
       const char *msg =
 	"You can most likely avoid this problem by running\n"
@@ -306,14 +309,15 @@ static void *mem_reserve(uint32_t memsize, uint32_t dpmi_size)
   }
 #endif
 
-  result = mmap_mapping(cap, (void *)-1, memsize + dpmi_size, prot);
+  result = mmap_mapping(cap, (void *)-1, memsize, prot);
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
   if (config.cpu_vm_dpmi == CPUVM_KVM)
-    /* map only DPMI here, rest is done with KVM_BASE in alias_mapping */
-    mmap_kvm(cap, (unsigned char *)result + memsize, dpmi_size, prot, memsize);
+    /* map only high memory here, rest is done with KVM_BASE in alias_mapping */
+    mmap_kvm(cap, (unsigned char *)result + LOWMEM_SIZE + HMASIZE,
+	     memsize - (LOWMEM_SIZE + HMASIZE), prot, LOWMEM_SIZE + HMASIZE);
   return result;
 }
 
@@ -329,9 +333,8 @@ void low_mem_init(void)
 {
   void *lowmem, *ptr;
   int result;
-  uint32_t memsize = LOWMEM_SIZE + HMASIZE;
-  uint32_t dpmi_size = dpmi_lin_mem_rsv();
-  int32_t dpmi_rsv_low = config.dpmi_base;
+  uint32_t memsize = config.dpmi ? LOWMEM_SIZE + HMASIZE + dpmi_lin_mem_rsv() : config.dpmi_base;
+  int32_t dpmi_rsv_low, phys_rsv;
   const uint32_t mem_1M = 1024 * 1024;
   /* 16Mb limit is for being in reach of DMAc */
   const uint32_t mem_16M = mem_1M * 16;
@@ -339,19 +342,19 @@ void low_mem_init(void)
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
   /* reserve 1Mb for XMS mappings */
-  if (memsize + EXTMEM_SIZE > mem_16M - mem_1M) {
+  if (LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE > mem_16M - mem_1M) {
     error("$_ext_mem too large\n");
     leavedos(98);
     return;
   }
-  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, memsize);
+  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE);
   if (lowmem == MAP_FAILED) {
     perror("LOWRAM alloc");
     leavedos(98);
   }
 
-  mem_base = mem_reserve(memsize, dpmi_size);
-  result = alias_mapping(MAPPING_INIT_LOWRAM, 0, memsize,
+  mem_base = mem_reserve(memsize);
+  result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (result == -1) {
     perror ("LOWRAM mmap");
@@ -360,32 +363,34 @@ void low_mem_init(void)
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
   if (config.xms_size)
-    config.xms_map_size = (mem_16M - (memsize + EXTMEM_SIZE)) & PAGE_MASK;
+    config.xms_map_size = (mem_16M - (LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE)) & PAGE_MASK;
 
-  sminit_comu(&main_pool, mem_base, memsize + dpmi_size, mcommit, muncommit);
-  ptr = smalloc(&main_pool, memsize);
+  sminit_comu(&main_pool, mem_base, memsize, mcommit, muncommit);
+  ptr = smalloc(&main_pool, LOWMEM_SIZE + HMASIZE);
   assert(ptr == mem_base);
   /* smalloc uses PROT_READ | PROT_WRITE, needs to add PROT_EXEC here */
-  mprotect_mapping(MAPPING_LOWMEM, 0, memsize, PROT_READ | PROT_WRITE |
+  mprotect_mapping(MAPPING_LOWMEM, 0, LOWMEM_SIZE + HMASIZE, PROT_READ | PROT_WRITE |
       PROT_EXEC);
-  dpmi_rsv_low -= memsize;
-  if (dpmi_rsv_low < EXTMEM_SIZE + config.xms_map_size) {
+  phys_rsv = EXTMEM_SIZE + config.xms_map_size;
+  if (config.dpmi_base < LOWMEM_SIZE + HMASIZE + phys_rsv +
+			 (config.dpmi ? 0 : config.vgaemu_memsize * 1024)) {
     error("$_dpmi_base is too small\n");
     config.exitearly = 1;
     return;
   }
+  dpmi_rsv_low = config.dpmi ? (config.dpmi_base - (LOWMEM_SIZE + HMASIZE + phys_rsv)) : 0;
+  ptr = smalloc(&main_pool, phys_rsv + dpmi_rsv_low + dpmi_mem_size());
+  assert(ptr);
   if (config.dpmi) {
-    ptr = smalloc(&main_pool, dpmi_rsv_low + dpmi_mem_size());
-    assert(ptr);
     dpmi_set_mem_base(ptr);
   }
 
   if (config.ext_mem) {
-    /* memsize == base
+    /* LOWMEM_SIZE + HMASIZE == base
      * Use dpmi_rsv_low as ext_mem. */
-    register_hardware_ram_virtual('m', memsize, EXTMEM_SIZE,
-	    MEM_BASE32(memsize), memsize);
-    x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE, result + memsize);
+    register_hardware_ram_virtual('m', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE,
+	    MEM_BASE32(LOWMEM_SIZE + HMASIZE), LOWMEM_SIZE + HMASIZE);
+    x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE, result + LOWMEM_SIZE + HMASIZE);
   }
 
   /* R/O protect 0xf0000-0xf4000 */
