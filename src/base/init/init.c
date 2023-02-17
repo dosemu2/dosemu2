@@ -309,7 +309,7 @@ static void *mem_reserve(uint32_t memsize)
   }
 #endif
 
-  result = mmap_mapping(cap, (void *)-1, memsize, prot);
+  result = mmap_mapping_huge_page_aligned(cap, memsize, prot);
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
@@ -354,7 +354,7 @@ void low_mem_init(void)
   }
 
   mem_base = mem_reserve(memsize);
-  result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
+  result = alias_mapping(MAPPING_LOWMEM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (result == -1) {
     perror ("LOWRAM mmap");

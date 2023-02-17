@@ -223,7 +223,7 @@ static void init_kvm_monitor(void)
     return;
 
   /* create monitor structure in memory */
-  monitor = mmap_mapping(MAPPING_SCRATCH|MAPPING_KVM, (void *)-1,
+  monitor = mmap_mapping_huge_page_aligned(MAPPING_SCRATCH|MAPPING_KVM,
 			 sizeof(*monitor), PROT_READ | PROT_WRITE);
   /* exclude special regions for KVM-internal TSS and identity page */
   mmap_kvm(MAPPING_SCRATCH|MAPPING_KVM, monitor,
@@ -585,7 +585,7 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
 
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
 {
-  assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_KVM));
+  assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_KVM));
   /* with KVM we need to manually remove/shrink existing mappings */
   do_munmap_kvm(targ, mapsize);
   mmap_kvm_no_overlap(targ, addr, mapsize, 0);
