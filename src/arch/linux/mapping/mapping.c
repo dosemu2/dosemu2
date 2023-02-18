@@ -63,6 +63,7 @@ static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
 
 static int init_done = 0;
 unsigned char *mem_base;
+uintptr_t mem_base_mask;
 static unsigned char *mem_bases[MAX_BASES];
 uint8_t *lowmem_base;
 
@@ -175,21 +176,13 @@ static int map_find(struct mem_map_struct *map, int max,
 
 static unsigned char *MEM_BASE32x(dosaddr_t a, int base)
 {
-  uintptr_t off;
-  uintptr_t baddr = (uintptr_t)mem_bases[base];
   if (mem_bases[base] == MAP_FAILED)
     return MAP_FAILED;
-  if (a >= LOWMEM_SIZE + HMASIZE && base != MEM_BASE)
+  if (base == MEM_BASE)
+    return MEM_BASE32(a);
+  if (a >= LOWMEM_SIZE + HMASIZE)
     return MAP_FAILED;
-  off = baddr + a;
-  if (config.cpu_vm_dpmi == CPUVM_NATIVE && base == MEM_BASE)
-    off &= 0xffffffff;
-  return LINP(off);
-}
-
-unsigned char *MEM_BASE32(dosaddr_t a)
-{
-    return MEM_BASE32x(a, MEM_BASE);
+  return &mem_bases[base][a];
 }
 
 #ifdef __linux__

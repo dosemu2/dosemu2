@@ -354,6 +354,10 @@ void low_mem_init(void)
   }
 
   mem_base = mem_reserve(memsize);
+  mem_base_mask = ~(uintptr_t)0;
+#ifdef __x86_64__
+  if (_MAP_32BIT) mem_base_mask = 0xffffffffu;
+#endif
   result = alias_mapping(MAPPING_LOWMEM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (result == -1) {
