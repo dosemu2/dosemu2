@@ -83,7 +83,7 @@ void comredir_setup(int num, int num_wr, unsigned flags)
   int i = -1, j = -1;
   if (num > 0 && num <= 4) {
     struct vm86_regs saved_regs = REGS;
-    int intr = COM_INTERRUPT(i);
+    int intr;
     unsigned char imr, imr1;
 
     if (com_num) {
