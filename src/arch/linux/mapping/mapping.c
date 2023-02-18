@@ -271,6 +271,17 @@ void *alias_mapping_ux(int cap, size_t mapsize, int protect, void *source)
   return mappingdriver->alias(cap, target, mapsize, protect, source);
 }
 
+void *alias_mapping_huge_page_aligned(int cap, size_t mapsize, int protect, void *source)
+{
+  void *addr = mmap_mapping_huge_page_aligned(cap, mapsize, PROT_NONE);
+  if (addr == MAP_FAILED ||
+      mappingdriver->alias(cap, addr, mapsize, protect, source) != addr)
+    return MAP_FAILED;
+
+  Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
+  return addr;
+}
+
 dosaddr_t alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
 {
   dosaddr_t targ;

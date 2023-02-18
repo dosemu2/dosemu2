@@ -243,6 +243,10 @@ typedef struct {
 #define VGAEMU_MAP_BANK_MODE	0
 #define VGAEMU_MAP_LFB_MODE	1
 
+/* Physical LFB base. With KVM this is actually used; without KVM this is
+   just a cookie, reported by the VESA VBE interface, that can be mapped using DPMI
+   int31/ax=0x0800 */
+#define VGAEMU_PHYS_LFB_BASE	0xe0000000
 
 typedef struct {
   unsigned base_page;			/* base address (in 4k) of mapping */

@@ -570,7 +570,7 @@ static int vbe_mode_info(unsigned mode, unsigned int vbemodeinfo)
 
     vbemi.DirectColor = 0;
     if(vmi->color_bits >= 8 && vga.mem.lfb_base_page)
-      vbemi.PhysBasePtr = vga.mem.lfb_base;	/* LFB support */
+      vbemi.PhysBasePtr = VGAEMU_PHYS_LFB_BASE;	/* LFB support */
 
     vbemi.OffScreenOfs = 0;
     vbemi.OffScreenMem = 0;
