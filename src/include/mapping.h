@@ -81,6 +81,7 @@ void free_mapping (int cap, void *addr, size_t mapsize);
 typedef void *realloc_mapping_type(int cap, void *addr, size_t oldsize, size_t newsize);
 void *realloc_mapping (int cap, void *addr, size_t oldsize, size_t newsize);
 
+void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect);
 void *mmap_mapping(int cap, void *target, size_t mapsize, int protect);
 
 typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int protect, void *source);

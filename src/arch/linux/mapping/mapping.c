@@ -182,7 +182,7 @@ static unsigned char *MEM_BASE32x(dosaddr_t a, int base)
   if (a >= LOWMEM_SIZE + HMASIZE && base != MEM_BASE)
     return MAP_FAILED;
   off = baddr + a;
-  if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE && base == MEM_BASE)
     off &= 0xffffffff;
   return LINP(off);
 }
@@ -301,20 +301,6 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
 #ifdef __linux__
   assert(kmem_mapped(targ, mapsize) == 0);
 #endif
-  if (cap & MAPPING_INIT_LOWRAM) {
-    mem_bases[MEM_BASE] = mem_base;
-    if (is_kvm_map(cap)) {
-      void *kvm_base = mmap_mapping(cap, (void *)-1,  mapsize, protect);
-      if (kvm_base == MAP_FAILED)
-	return -1;
-      mmap_kvm(cap, kvm_base, mapsize, protect, 0);
-      mem_bases[KVM_BASE] = kvm_base;
-    }
-#ifdef __i386__
-    if (config.cpu_vm == CPUVM_VM86)
-      mem_bases[VM86_BASE] = 0;
-#endif
-  }
 
   for (i = 0; i < MAX_BASES; i++) {
     void *target, *addr;
@@ -412,10 +398,11 @@ static int mapping_is_hole(void *start, size_t size)
 // userspace_addr be identical, so align to a huge page boundary (2MB).
 // This also helps debugging, since subtracting hex numbers is much easier that way
 // for a human being.
-static void *do_mmap_huge_page_aligned(void *target, size_t mapsize, int protect, int flags)
+void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect)
 {
   size_t edge;
-  unsigned char *addr = mmap(target, mapsize+ HUGE_PAGE_SIZE - PAGE_SIZE, protect,
+  int flags = (cap & MAPPING_INIT_LOWRAM) ? _MAP_32BIT : 0;
+  unsigned char *addr = mmap(NULL, mapsize + HUGE_PAGE_SIZE - PAGE_SIZE, protect,
 			     MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
   if (addr == MAP_FAILED)
     return addr;
@@ -434,53 +421,59 @@ static void *do_mmap_huge_page_aligned(void *target, size_t mapsize, int protect
   if (edge > 0)
     munmap(&addr[mapsize], edge);
 
+  if (cap & MAPPING_INIT_LOWRAM) {
+    mem_bases[MEM_BASE] = addr;
+    if (is_kvm_map(cap)) {
+      cap = MAPPING_LOWMEM;
+      mapsize = LOWMEM_SIZE + HMASIZE;
+      protect = PROT_READ|PROT_WRITE|PROT_EXEC;
+      void *kvm_base = mmap_mapping_huge_page_aligned(cap, mapsize, protect);
+      if (kvm_base == MAP_FAILED)
+	return kvm_base;
+      mmap_kvm(cap, kvm_base, mapsize, protect, 0);
+      mem_bases[KVM_BASE] = kvm_base;
+    }
+#ifdef __i386__
+    if (config.cpu_vm == CPUVM_VM86)
+      mem_bases[VM86_BASE] = 0;
+#endif
+  }
+
   return addr;
 }
 
 void *mmap_mapping(int cap, void *target, size_t mapsize, int protect)
 {
   void *addr;
-  int flags = (target != (void *)-1) ? MAP_FIXED : 0;
-  if (cap & MAPPING_NOOVERLAP) {
-    if (target == (void *)-1) {
-      dosemu_error("spurious MAPPING_NOOVERLAP flag\n");
-      cap &= ~MAPPING_NOOVERLAP;
-    } else if (target != NULL) {
-      flags &= ~MAP_FIXED;
+  int flags;
+
+  assert(target != (void *)-1);
+
+  /* not removing MAP_FIXED when mapping to 0 */
+  if ((cap & MAPPING_NULL) && !mapping_is_hole(target, mapsize))
+    return MAP_FAILED;
+
+  flags = (cap & MAPPING_NOOVERLAP) ?
 #ifdef MAP_FIXED_NOREPLACE
-      flags |= MAP_FIXED_NOREPLACE;
+    MAP_FIXED_NOREPLACE
+#else
+    0
 #endif
-    }
-    /* not removing MAP_FIXED when mapping to 0 */
-    else if (!mapping_is_hole(target, mapsize))
-      return MAP_FAILED;
-  }
-  if (target == (void *)-1) target = NULL;
-  /* TODO: remove this once Bart's patches are merged */
-#ifdef __x86_64__
-  if (flags == 0 &&
-      (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM|MAPPING_KVM)))
-    flags = _MAP_32BIT;
-#endif
-  if ((cap & (MAPPING_INIT_LOWRAM|MAPPING_KVM)) && !(flags & MAP_FIXED))
-    addr = do_mmap_huge_page_aligned(target, mapsize, protect, flags);
-  else
-    addr = mmap(target, mapsize, protect,
-		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
-  if (addr == MAP_FAILED)
-    return addr;
-  if (cap & MAPPING_NOOVERLAP) {
+    : MAP_FIXED;
+
+  addr = mmap(target, mapsize, protect,
+	      MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
+
+  if (addr != MAP_FAILED && addr != target) {
 #ifdef MAP_FIXED_NOREPLACE
 #ifdef __linux__
     /* under valgrind this flag doesn't work */
-    if (kernel_version_code >= KERNEL_VERSION(4, 17, 0) && addr != target)
+    if (kernel_version_code >= KERNEL_VERSION(4, 17, 0))
       error_once0("MAP_FIXED_NOREPLACE doesn't work\n");
 #endif
 #endif
-    if (addr != target) {
-      munmap(addr, mapsize);
-      return MAP_FAILED;
-    }
+    munmap(addr, mapsize);
+    return MAP_FAILED;
   }
   return addr;
 }
