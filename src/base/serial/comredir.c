@@ -161,6 +161,14 @@ static void do_int10(void)
   do_call_back(old_int10.segment, old_int10.offset);
 }
 
+static void do_char_out(char out)
+{
+  _AH = 0x0e;
+  _AL = out;
+  _BX = 0;
+  do_int10();
+}
+
 static void comredir_thr(void *arg)
 {
   int i = com_num - 1;
@@ -179,22 +187,11 @@ static void comredir_thr(void *arg)
         comredir_setup(0, 0, 0);
         break;
       }
-      if ((tflags & TFLG_IPCR) && c == '\n') {
-        _AH = 0x0e;
-        _AL = '\r';
-        _BX = 0;
-        do_int10();
-      }
-      _AH = 0x0e;
-      _AL = c;
-      _BX = 0;
-      do_int10();
-      if ((tflags & TFLG_IANL) && c == '\r') {
-        _AH = 0x0e;
-        _AL = '\n';
-        _BX = 0;
-        do_int10();
-      }
+      if ((tflags & TFLG_IPCR) && c == '\n')
+        do_char_out('\r');
+      do_char_out(c);
+      if ((tflags & TFLG_IANL) && c == '\r')
+        do_char_out('\n');
     }
     REGS = saved_regs;
     break;
@@ -221,6 +218,11 @@ static void int15_thr(void *arg)
     unsigned char c = get_bios_key(_AL);
     if (!c) {
       set_CF();
+      return;
+    }
+    if (c == 0x1a) {  // ^Z, exit
+      do_char_out(c);
+      comredir_setup(0, 0, 0);
       return;
     }
     if ((tflags & TFLG_OPCR) && c == '\n')
