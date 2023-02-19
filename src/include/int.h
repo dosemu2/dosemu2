@@ -41,7 +41,8 @@ void update_xtitle(void);
 
 void int42_hook(void);
 
-int *add_syscom_drive(char *path);
+void add_syscom_drive(char *path, uint8_t *user);
+void add_syscom_user(uint8_t *user);
 int add_extra_drive(char *path, int ro, int cd, int grp);
 int find_free_drive(void);
 uint16_t get_redirection(uint16_t redirIndex, char *deviceStr, int deviceSize,

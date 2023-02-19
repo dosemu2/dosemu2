@@ -87,6 +87,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     static far_t plt;
     static int initialized;
     uint16_t seg;
+    uint16_t bpseg;
     uint16_t heap_seg;
     uint16_t daddr;
     int heap_sz;
@@ -112,21 +113,25 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     if (!hndl)
         return -1;
     if (config.dos_up) {
+        int tot_sz;
         int to_hma = (config.dos_up == 2 && xms_helper_init_ext());
         heap_sz = to_hma ? 0 : FDPP_LMHEAP_ADD;
-        kptr = lowmem_alloc_aligned(16, krnl_len + heap_sz);
+        tot_sz = P2ALIGN(krnl_len + heap_sz, 16);
+        kptr = lowmem_alloc_aligned(16, tot_sz + fdpp_boot_xtra_space());
         daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
         assert(!(daddr & 15));
         heap_seg = 0x90;  // for low heap
         seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
+        bpseg = seg + (tot_sz >> 4);
         khigh++;
         hhigh = to_hma + 1;
     } else {
         heap_sz = 1024 * 6;
-        kptr = lowmem_alloc_aligned(16, heap_sz);
+        kptr = lowmem_alloc_aligned(16, heap_sz + fdpp_boot_xtra_space());
         daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
         assert(!(daddr & 15));
         heap_seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
+        bpseg = heap_seg + (heap_sz >> 4);
         seg = 0x90;
         hhigh++;
     }
@@ -144,7 +149,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     }
     FdppKernelFree(hndl);
     err = fdpp_boot(plt, krnl, krnl_len, seg, khigh, heap_seg, heap_sz, hhigh,
-	    boot_sec);
+	    boot_sec, bpseg);
     if (err)
 	return err;
     register_cleanup_handler(fdpp_cleanup);

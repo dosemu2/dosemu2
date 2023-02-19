@@ -24,16 +24,18 @@
 #include "int.h"
 #include "disks.h"
 #include <fdpp/bprm.h>
-#if BPRM_VER != 7
+#if BPRM_VER != 8
 #error wrong bprm version
 #endif
 #include "boot.h"
 
 int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
-        uint16_t heap_seg, int heap, int hhigh, unsigned char *boot_sec)
+        uint16_t heap_seg, int heap, int hhigh, unsigned char *boot_sec,
+        uint16_t bpseg)
 {
     int i;
     struct _bprm bprm = {};
+    struct _bprm_xtra *xtra = MK_FP32(bpseg, 0);
     uint16_t ofs = 0x0000;
     dosaddr_t loadaddress = SEGOFF2LINEAR(seg, ofs);
     uint16_t env_seg = FDPP_BS_SEG + (FDPP_BS_OFF >> 4) + 0x20;  // stack+bs
@@ -42,8 +44,10 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
     int warn_legacy_conf = 0;
 
     bprm.BprmLen = sizeof(bprm);
+    bprm.BprmVersion = BPRM_VER;
     bprm.HeapSize = heap;
     bprm.HeapSeg = heap_seg;
+    bprm.XtraSeg = bpseg;
     if (khigh)
 	bprm.Flags |= FDPP_FL_KERNEL_HIGH;
     if (hhigh)
@@ -59,8 +63,10 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
 	env_len += sprintf(env + env_len, "USERDRV=%c",
 		(config.drive_c_num & 0x7f) + 'C');
 	env_len++;
+	xtra->BootDrvNum = (config.drive_c_num & 0x7f) + 2;
     } else {
 	LO(bx) = 0x80;
+	xtra->BootDrvNum = 2;
     }
     FOR_EACH_HDISK(i, {
 	if (disk_root_contains(&hdisktab[i], CONF4_IDX)) {
@@ -175,6 +181,7 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
     /* try disable int hooks as well */
     if (config.int_hooks == -1)
 	config.int_hooks = config.force_revect;
+    add_syscom_user(&xtra->BootDrvNum);
 
     if (warn_legacy_conf) {
 	error("@Compatibility warning: CONFIG.SYS found on drive C: ");
@@ -185,4 +192,9 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
 	error("@to override fdpp entirely.\n");
     }
     return 0;
+}
+
+int fdpp_boot_xtra_space(void)
+{
+    return sizeof(struct _bprm_xtra);
 }

@@ -2057,8 +2057,10 @@ static int redir_printers(void)
 /* drive for -K (aka system.com) */
 struct drive_syscom {
     char *path;
-    int drv_num;
     int mfs_idx;
+#define SCUSERS 5
+    uint8_t *drv_num[SCUSERS];
+    int num_scusers;
 };
 static struct drive_syscom syscomdrv;
 /* drive for -d */
@@ -2080,14 +2082,18 @@ static int num_x_drives;
 
 #define REDIR_F_GRP 1
 
-int *add_syscom_drive(char *path)
+void add_syscom_drive(char *path, uint8_t *user)
 {
-    struct drive_syscom *drv = &syscomdrv;
-    assert(drv->drv_num == 0);
-    drv->path = expand_path(path);
-    drv->drv_num = -1;
-    drv->mfs_idx = mfs_define_drive(drv->path);
-    return &drv->drv_num;
+    assert(syscomdrv.num_scusers == 0);
+    syscomdrv.path = expand_path(path);
+    syscomdrv.mfs_idx = mfs_define_drive(syscomdrv.path);
+    syscomdrv.drv_num[0] = user;
+}
+
+void add_syscom_user(uint8_t *user)
+{
+    assert(1 + syscomdrv.num_scusers < SCUSERS);
+    syscomdrv.drv_num[1 + syscomdrv.num_scusers++] = user;
 }
 
 int add_extra_drive(char *path, int ro, int cd, int grp)
@@ -2633,13 +2639,15 @@ static void redir_extra_drives(void)
 {
   int i, ret, drv;
 
-  if (syscomdrv.drv_num != 0) {
+  if (syscomdrv.path) {
     drv = redir_one_drive(syscomdrv.path, 0, 0, 1, 0, syscomdrv.mfs_idx);
     if (drv < 0) {
       leavedos(26);
       return;
     }
-    syscomdrv.drv_num = drv;
+    /* notify all users about this drive */
+    for (i = 0; i < 1 + syscomdrv.num_scusers; i++)
+      *syscomdrv.drv_num[i] = drv;
   }
 
   for (i = 0; i < num_x_drives; i++) {
@@ -2820,6 +2828,7 @@ void dos_post_boot_reset(void)
     if (clnup_handler)
 	clnup_handler();
     clnup_handler = NULL;
+    syscomdrv.num_scusers = 0;
 #ifdef USE_MHPDBG
     mhp_reset_hma();
 #endif

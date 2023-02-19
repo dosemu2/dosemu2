@@ -53,7 +53,7 @@ static void do_parse_vars(const char *str, char drv, int parent);
 
 static char e_drv;
 static int vars_parsed;
-static int *drv_num_p;
+static uint8_t drive;
 
 void system_com_reset(void)
 {
@@ -131,7 +131,6 @@ static int usage(void)
 
 static int setupDOSCommand(const char *dos_path, char *r_drv)
 {
-  int drive = *drv_num_p;
   char drvStr[2];
 
   if (drive < 0) {
@@ -332,9 +331,7 @@ static void system_scrub(void)
       *p = 0;
     }
   }
-  drv_num_p = add_syscom_drive(config.unix_path);
-  if (!drv_num_p)
-    goto err;
+  add_syscom_drive(config.unix_path, &drive);
   return;
 
 err:
