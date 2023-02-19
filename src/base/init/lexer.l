@@ -328,6 +328,7 @@ umb_f0			RETURN(UMB_F0);
 hma			RETURN(HMA);
 dos_up			RETURN(DOS_UP);
 ems			RETURN(L_EMS);
+vcpi			RETURN(L_VCPI);
 dpmi			RETURN(L_DPMI);
 dpmi_base		RETURN(DPMI_BASE);
 dpmi_lin_rsv_size	RETURN(DPMI_LIN_RSV_SIZE);

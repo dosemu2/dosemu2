@@ -378,6 +378,7 @@ void low_mem_init(void)
   mprotect_mapping(MAPPING_LOWMEM, 0, LOWMEM_SIZE + HMASIZE, PROT_READ | PROT_WRITE |
       PROT_EXEC);
   phys_rsv = EXTMEM_SIZE + config.xms_map_size;
+  if (config.vcpi) phys_rsv += config.ems_size * 1024;
   if (config.dpmi_base < LOWMEM_SIZE + HMASIZE + phys_rsv) {
     error("$_dpmi_base is too small\n");
     config.exitearly = 1;

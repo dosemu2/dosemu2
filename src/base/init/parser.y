@@ -236,7 +236,7 @@ enum {
 %token MATHCO CPU CPUSPEED BOOTDRIVE SWAP_BOOTDRIVE
 %token L_XMS L_DPMI DPMI_BASE DPMI_LIN_RSV_SIZE PM_DOS_API NO_NULL_CHECKS
 %token PORTS DISK DOSMEM EXT_MEM
-%token L_EMS UMB_A0 UMB_B0 UMB_F0 HMA DOS_UP
+%token L_EMS L_VCPI UMB_A0 UMB_B0 UMB_F0 HMA DOS_UP
 %token EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
 %token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FILE_LOCK_LIMIT
 %token ABORT WARN ERROR
@@ -591,6 +591,7 @@ line:		CHARSET '{' charset_flags '}' {}
 		    if ($2 >= 0) config.ems_size = $2;
 		    if ($2 > 0) c_printf("CONF: %dk bytes EMS memory\n", $2);
 		    }
+		| L_VCPI int_bool	{ config.vcpi = ($2!=0); }
 		| UMB_A0 bool
 		    {
 		    config.umb_a0 = $2;

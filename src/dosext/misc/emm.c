@@ -186,7 +186,7 @@ static Bit32u phys_pages;
 
 #define EMM_PAGE_PAGES	(EMM_PAGE_SIZE / PAGE_SIZE)	// 4
 #define VCPI_TOTAL	(EMM_TOTAL * EMM_PAGE_PAGES)
-#define VCPI_BASE	(xms_base + config.xms_map_size) // should be at 16M
+#define VCPI_BASE	(xms_base + config.xms_map_size) // at 16M if $_xms!=(0)
 static void *vcpi_pgapool;
 static int vcpi_allocated;
 
@@ -1905,8 +1905,8 @@ static void vcpi_interface(struct vm86_regs *state)
     if (vcpi_pgapool == NULL) {
       /* we don't need to actually alias map into allocated EMS.
 	 memory, as we can just use physical RAM, and past
-	 XMS is available (=16MB). */
-      assert(VCPI_BASE == 16*1024*1024);
+	 XMS is available (at 16MB unless $_xms=(0)). */
+      assert(VCPI_BASE < 16*1024*1024);
       vcpi_pgapool = pgainit(VCPI_TOTAL - vcpi_allocated_total());
       E_printf("VCPI: allocated pool at 0x%08x\n", VCPI_BASE);
     }
@@ -2339,7 +2339,8 @@ ems_fn(struct vm86_regs *state)
 		break;
 */
   case VCPI_INTERFACE:
-    if (config.cpu_vm == CPUVM_KVM && config.cpu_vm_dpmi == CPUVM_KVM) {
+    if (config.cpu_vm == CPUVM_KVM && config.cpu_vm_dpmi == CPUVM_KVM &&
+	config.vcpi) {
       vcpi_interface(state);
       break;
     }
