@@ -190,9 +190,19 @@ dosaddr_t physaddr_to_dosaddr(unsigned addr, int len);
    give NULL pointer protection.
 */
 extern unsigned char *mem_base;
+extern uintptr_t mem_base_mask;
 
 #define LINP(a) ((unsigned char *)(uintptr_t)(a))
-unsigned char *MEM_BASE32(dosaddr_t a);
+static inline unsigned char *MEM_BASE32(dosaddr_t a) {
+#if defined(__i386__)
+  /* we want to wrap around 4G; &mem_base[a] may cause issues with UBSAN */
+  return LINP((uintptr_t)mem_base + a);
+#elif defined(__x86_64__)
+  return LINP(((uintptr_t)mem_base + a) & mem_base_mask);
+#else
+  return &mem_base[a];
+#endif
+}
 static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
 {
     return (a - mem_base);
