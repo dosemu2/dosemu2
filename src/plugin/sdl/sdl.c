@@ -963,6 +963,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     }
 #endif
     SDL_ShowWindow(window);
+    SDL_SetWindowResizable(window, !config.X_noresize);
     if (config.X_fullscreen) {
       SDL_RaiseWindow(window);
       render_gain_focus();
