@@ -68,7 +68,7 @@ while [ $# -gt 0 ] ; do
       else
         OPTS="$OPTS -n"
       fi
-      LOG_FILE=~/.dosemu/install/$1/boot.log
+      LOG_FILE=~/.dosemu/boot.$1.log
       shift
       ;;
     -quiet)
