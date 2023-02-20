@@ -1137,7 +1137,7 @@ increments AL so we *don't* lose a day if two consecutive midnights pass.
     case 0:			/* read time counter */
 	{
 	    int day_rollover;
-	    idle_enable(50, 0, "int1a:0");
+	    idle_enable2(50, 50, 0, "int1a:0");
 	    if (config.timemode == TM_LINUX) {
 		/* Set BIOS area flags to LINUX time computed values always */
 		last_ticks = get_linux_ticks(0, &day_rollover);

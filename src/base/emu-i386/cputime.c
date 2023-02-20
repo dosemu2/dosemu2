@@ -277,8 +277,7 @@ void reset_idle(int val)
 void alarm_idle(void)
 {
   pthread_mutex_lock(&trigger_mtx);
-  if (trigger1 < 0)
-    trigger1++;
+  trigger1++;
   pthread_mutex_unlock(&trigger_mtx);
 }
 
