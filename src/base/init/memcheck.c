@@ -137,7 +137,7 @@ void memcheck_reserve(unsigned char map_char, dosaddr_t addr_start,
   /* 'r' is dosemu heap. It is normally reserved, but fdpp can drill
    * the UMB holes in it, so mark as available. */
   memcheck_e820_reserve(addr_start, size,
-      !(map_char == 'd' || map_char == 'U' || map_char == 'x' ||
+      !(map_char == 'd' || map_char == 'U' || map_char == 'X' ||
         map_char == 'H' || map_char == 'r'));
 }
 

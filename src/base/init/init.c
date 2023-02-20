@@ -366,8 +366,10 @@ void low_mem_init(void)
   }
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
-  if (config.xms_size)
+  if (config.xms_size) {
     config.xms_map_size = (mem_16M - (LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE)) & PAGE_MASK;
+    memcheck_reserve('x', LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE, config.xms_map_size);
+  }
 
   sminit_comu(&main_pool, mem_base, memsize, mcommit, muncommit);
   ptr = smalloc(&main_pool, LOWMEM_SIZE + HMASIZE);
@@ -391,8 +393,10 @@ void low_mem_init(void)
   if (config.ext_mem) {
     /* LOWMEM_SIZE + HMASIZE == base
      * Use dpmi_rsv_low as ext_mem. */
-    register_hardware_ram_virtual('m', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE,
+    register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE,
 	    MEM_BASE32(LOWMEM_SIZE + HMASIZE), LOWMEM_SIZE + HMASIZE);
+    memcheck_addtype('X', "EXT MEM");
+    memcheck_reserve('X', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE);
     x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE, result + LOWMEM_SIZE + HMASIZE);
   }
 
