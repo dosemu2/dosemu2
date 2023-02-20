@@ -100,11 +100,19 @@ int memcheck_map_reserve(unsigned char map_char, dosaddr_t addr_start,
 void memcheck_e820_reserve(dosaddr_t addr_start, uint32_t size, int reserved)
 {
   struct system_memory_map *entry;
+  int len = system_memory_map_size / sizeof(*system_memory_map);
+  int i;
 
   system_memory_map_size += sizeof(*system_memory_map);
   system_memory_map = realloc(system_memory_map, system_memory_map_size);
-  entry = system_memory_map +
-    system_memory_map_size / sizeof(*system_memory_map) - 1;
+  for (i = 0; i < len; i++) {
+    if (addr_start < system_memory_map[i].base)
+      break;
+  }
+  if (i < len)
+    memmove(&system_memory_map[i + 1], &system_memory_map[i],
+        sizeof(*system_memory_map) * (len - i));
+  entry = system_memory_map + i;
   entry->base = addr_start;
   entry->hibase = 0;
   entry->length = size;
