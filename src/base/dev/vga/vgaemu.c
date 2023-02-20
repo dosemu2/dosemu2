@@ -1810,7 +1810,7 @@ static int vga_emu_post_init(void)
 
 void vga_emu_done()
 {
-  if (vga.mem.lfb_base && config.dpmi)
+  if (vga.mem.lfb_base && config.dpmi && config.cpu_vm_dpmi != CPUVM_KVM)
     unalias_mapping_high(MAPPING_VGAEMU, vga.mem.lfb_base, vga.mem.size);
 }
 
