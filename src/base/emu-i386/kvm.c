@@ -1468,6 +1468,25 @@ void kvm_vcpi_pm_switch(dosaddr_t addr)
   }
 }
 
+void kvm_getset_debugregs(uint32_t debugregs[8], int set)
+{
+  struct kvm_debugregs regs = {};
+
+  if (set) {
+    for (int i = 0; i < 4; i++)
+      regs.db[i] = debugregs[i];
+    regs.dr6 = debugregs[6];
+    regs.dr7 = debugregs[7];
+    ioctl(vmfd, KVM_SET_DEBUGREGS, &regs);
+  } else {
+    ioctl(vmfd, KVM_GET_DEBUGREGS, &regs);
+    for (int i = 0; i < 4; i++)
+      debugregs[i] = regs.db[i];
+    debugregs[6] = regs.dr6;
+    debugregs[7] = regs.dr7;
+  }
+}
+
 void kvm_done(void)
 {
   close(vcpufd);

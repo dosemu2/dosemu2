@@ -1949,11 +1949,17 @@ static void vcpi_interface(struct vm86_regs *state)
 #if 0
   case 0x07:
     { ebx=readcr0;}
-  case 0x08:
-    { fill_es_di_withdr0_dr7_not45(); }
-  case 0x09:
-    { load_debug_regs_from_es_di(); }
 #endif
+  case 0x08:
+  case 0x09:
+  {
+    uint32_t debugregs[8];
+    MEMCPY_2UNIX(debugregs, SEGOFF2LINEAR(state->es, LO_WORD(state->edi)),
+		 sizeof debugregs);
+    kvm_getset_debugregs(debugregs, LO_BYTE(state->eax) - 0x08);
+    SETHI_BYTE(state->eax, EMM_NO_ERR);
+    break;
+  }
   case 0x0a: /*Get 8259A Interrupt Vector Mappings */
     SETHI_BYTE(state->eax, 0x00);
     SETLO_WORD(state->ebx, 0x08);

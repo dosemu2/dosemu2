@@ -39,6 +39,7 @@ void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32, int tg);
 void kvm_enter(int pm);
 void kvm_leave(int pm);
 void kvm_update_fpu(void);
+void kvm_getset_debugregs(uint32_t debugregs[8], int set);
 
 void kvm_done(void);
 
@@ -61,6 +62,7 @@ static inline void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32,
 static inline void kvm_enter(int pm) {}
 static inline void kvm_leave(int pm) {}
 static inline void kvm_update_fpu(void) {}
+static inline void kvm_getset_debugregs(uint32_t debugregs[8], int set) {}
 static inline void kvm_done(void) {}
 #endif
 
