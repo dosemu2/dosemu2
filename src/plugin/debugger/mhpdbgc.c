@@ -375,14 +375,16 @@ static int check_for_stopped(void)
 /* Interrogate DOS for HMA start (Win95+) */
 void mhp_init_hma(void)
 {
+  hma_start = NULL;
   pre_msdos();
 
-  LWORD(eax) = 0x4a04;
-  do_int_call_back(0x2f);
-  if (LWORD(eax) == 0) {
-    hma_start = MK_FP32(SREG(es), LWORD(edi));
-  } else {
-    hma_start = NULL;
+  LWORD(eax) = 0x3306;
+  call_msdos();
+  if (HI(dx) & 0x10) {
+    LWORD(eax) = 0x4a04;
+    do_int_call_back(0x2f);
+    if (LWORD(eax) == 0)
+      hma_start = MK_FP32(SREG(es), LWORD(edi));
   }
 
   post_msdos();
