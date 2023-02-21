@@ -218,6 +218,8 @@ static struct handle_record {
   u_short saved_mappings_handle[EMM_MAX_SAVED_PHYS];
   u_short saved_mappings_logical[EMM_MAX_SAVED_PHYS];
   int saved_mapping;
+  int *vcpi_high_aliases;
+  int nvcpi_high_aliases;
 } handle_info[MAX_HANDLES];
 
 #define OS_HANDLE	0
@@ -231,6 +233,7 @@ static u_short os_allow=1;
 static inline int unmap_page(int);
 static int get_map_registers(struct emm_reg *buf, int pages);
 static void set_map_registers(const struct emm_reg *buf, int pages);
+static void vcpi_release_high_aliases(struct handle_record *hi);
 
 /* FIXME -- inline function */
 #define CHECK_OS_HANDLE(handle) \
@@ -443,7 +446,8 @@ static int emm_deallocate_handle(int handle)
   handle_info[handle].numpages = 0;
   handle_info[handle].active = 0;
   handle_info[handle].object = NULL;
-  CLEAR_HANDLE_NAME(handle_info[i].name);
+  vcpi_release_high_aliases(&handle_info[handle]);
+  CLEAR_HANDLE_NAME(handle_info[handle].name);
   handle_total--;
   emm_allocated -= numpages;
   return (TRUE);
@@ -920,6 +924,8 @@ reallocate_pages(struct vm86_regs * state)
     else {
      handle_info[handle].object = obj;
      handle_info[handle].numpages = newcount;
+     if (diff < 0)
+       vcpi_release_high_aliases(&handle_info[handle]);
      SETHI_BYTE(state->eax, EMM_NO_ERR);
     }
   }
@@ -934,6 +940,7 @@ reallocate_pages(struct vm86_regs * state)
       destroy_memory_object(handle_info[handle].object,handle_info[handle].numpages*EMM_PAGE_SIZE);
       handle_info[handle].object = 0;
       handle_info[handle].numpages = 0;
+      vcpi_release_high_aliases(&handle_info[handle]);
       SETHI_BYTE(state->eax, EMM_NO_ERR);
     }
     else {
@@ -1870,6 +1877,66 @@ static int vcpi_allocated_total(void)
   return emm_allocated * EMM_PAGE_PAGES + vcpi_allocated;
 }
 
+/* given a physical low EMS page (e.g 0=0xe000-0xe3ff), find
+   the logical EMS page and its corresponding memory.
+   Then allocate 4 pages (1 EMS page) in VCPI memory, and
+   alias map that area to the same place as the low EMS
+   page. Some VCPI applications use int67/de06 and the
+   resulting high page must be aliased and correspond to
+   a page table entry. Called by int67/de01 and de06.
+   Returns the DOS address of the new high alias map.
+ */
+static dosaddr_t vcpi_get_high_alias(int physical_page)
+{
+  int i, logical_page, vcpi_page;
+  struct handle_record *hi;
+
+  int handle = emm_map[physical_page].handle;
+  if (handle == NULL_HANDLE || handle == OS_HANDLE)
+    return 0;
+
+  hi = &handle_info[handle];
+  hi->vcpi_high_aliases = realloc(hi->vcpi_high_aliases,
+			   hi->numpages * sizeof(*hi->vcpi_high_aliases));
+  for (i = hi->nvcpi_high_aliases; i < hi->numpages; i++)
+    hi->vcpi_high_aliases[i] = -1;
+  hi->nvcpi_high_aliases = hi->numpages;
+
+  logical_page = emm_map[physical_page].logical_page;
+  vcpi_page = hi->vcpi_high_aliases[logical_page];
+  if (vcpi_page == -1) {
+    vcpi_page = pgaalloc(vcpi_pgapool, EMM_PAGE_PAGES, 0);
+    hi->vcpi_high_aliases[logical_page] = vcpi_page;
+    alias_mapping(MAPPING_EMS, VCPI_BASE + (vcpi_page << PAGE_SHIFT),
+		  EMM_PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC,
+		  hi->object + logical_page*EMM_PAGE_SIZE);
+  }
+  return VCPI_BASE + (vcpi_page << PAGE_SHIFT);
+}
+
+/* Restores (unaliases) the high memory mapped above for a
+   given handle. Called from regular EMS handle functions.
+   Either this unaliases everything, or starting at a non-zero
+   number for a shrinking remap. */
+static void vcpi_release_high_aliases(struct handle_record *hi)
+{
+  int i;
+  if (!config.vcpi || !hi->vcpi_high_aliases) return;
+
+  for (i = hi->numpages; i < hi->nvcpi_high_aliases; i++)
+    if (hi->vcpi_high_aliases[i] != -1) {
+      restore_mapping(MAPPING_EMS,
+		      VCPI_BASE + (hi->vcpi_high_aliases[i] << PAGE_SHIFT),
+		      EMM_PAGE_SIZE);
+      pgafree(vcpi_pgapool, hi->vcpi_high_aliases[i]);
+    }
+  hi->nvcpi_high_aliases = hi->numpages;
+  if (hi->nvcpi_high_aliases == 0) {
+    free(hi->vcpi_high_aliases);
+    hi->vcpi_high_aliases = NULL;
+  }
+}
+
 static void vcpi_interface(struct vm86_regs *state)
 {
   E_printf("VCPI: al=0x%02x\n", LO_BYTE(state->eax));
@@ -1888,6 +1955,15 @@ static void vcpi_interface(struct vm86_regs *state)
       SETHI_BYTE(state->eax, 0x00);
       state->ebx = kvm_vcpi_get_pmi(pagetable, gdt, &pages);
       SETLO_WORD(state->edi, LO_WORD(state->edi) + pages*4);
+      /* adjust page table so EMS mappings point to VCPI memory */
+      for (int phys = 0; phys < config.ems_uma_pages; phys++) {
+	dosaddr_t target = vcpi_get_high_alias(phys);
+	if (target) {
+	  int lowpage = PHYS_PAGE_ADDR(phys) >> PAGE_SHIFT;
+	  int prot = read_dword(pagetable + lowpage * 4) & (PAGE_SIZE - 1);
+	  write_dword(pagetable + lowpage * 4, target | prot);
+	}
+      }
     }
     break;
   case 0x02: /* get maximum physical memory address */
@@ -1901,17 +1977,11 @@ static void vcpi_interface(struct vm86_regs *state)
   case 0x04: /* allocate a 4k page */
     state->edx = 0xffffffff;
     SETHI_BYTE(state->eax, EMM_OUT_OF_LOG);
-    if (vcpi_allocated_total() >= VCPI_TOTAL) break;
-    if (vcpi_pgapool == NULL) {
+    if (vcpi_allocated_total() < VCPI_TOTAL) {
       /* we don't need to actually alias map into allocated EMS.
 	 memory, as we can just use physical RAM, and past
 	 XMS is available (at 16MB unless $_xms=(0)). */
-      assert(VCPI_BASE < 16*1024*1024);
-      vcpi_pgapool = pgainit(VCPI_TOTAL - vcpi_allocated_total());
-      E_printf("VCPI: allocated pool at 0x%08x\n", VCPI_BASE);
-    }
-    if (vcpi_pgapool)
-    {
+      assert(VCPI_BASE <= 16*1024*1024);
       int page = pgaalloc(vcpi_pgapool, 1, 0);
       if (page < 0) break;
       vcpi_allocated++;
@@ -1922,25 +1992,29 @@ static void vcpi_interface(struct vm86_regs *state)
     break;
   case 0x05: /* free a 4k page */
     SETHI_BYTE(state->eax, EMM_LOG_OUT_RAN);
-    if (VCPI_BASE && vcpi_pgapool && vcpi_allocated &&
+    if (VCPI_BASE && vcpi_allocated &&
 	state->edx >= VCPI_BASE &&
 	state->edx < VCPI_BASE + (VCPI_TOTAL << PAGE_SHIFT)) {
       dosaddr_t addr = state->edx & PAGE_MASK;
       pgafree(vcpi_pgapool, (addr - VCPI_BASE) >> PAGE_SHIFT);
       vcpi_allocated--;
       E_printf("VCPI: freed page at 0x%08x\n", addr);
-      if (vcpi_allocated == 0) {
-	E_printf("VCPI: freed pool at 0x%08x\n", VCPI_BASE);
-	pgadone(vcpi_pgapool);
-	vcpi_pgapool = 0;
-      }
       SETHI_BYTE(state->eax, 0);
     }
     break;
   case 0x06: /* get physical address of 4k page in 1st MB */
     if (LO_WORD(state->ecx) < 1024*1024/PAGE_SIZE) {
+      int seg = FP_SEG32(LO_WORD(state->ecx) << PAGE_SHIFT);
+      int phys = SEG_TO_PHYS(seg);
       SETHI_BYTE(state->eax, 0x00);
-      state->edx = LO_WORD(state->ecx) << PAGE_SHIFT;
+      state->edx = SEGOFF2LINEAR(seg, 0);
+      if (phys != -1) {
+	dosaddr_t target = vcpi_get_high_alias(phys);
+	if (target)
+	  state->edx = target + (state->edx - PHYS_PAGE_ADDR(phys));
+      }
+      E_printf("VCPI: low page=0x%02x physical address=0x%08x\n",
+	       LO_WORD(state->ecx), state->edx);
     }
     else {
       SETHI_BYTE(state->eax, EMM_ILL_PHYS);
@@ -2448,6 +2522,9 @@ void ems_init(void)
   for (i = 0; i < config.ems_cnv_pages; i++)
     emm_map[i + cnv_pages_start].phys_seg = cnv_start_seg + 0x400 * i;
   E_printf("EMS: initialized %i pages\n", phys_pages);
+
+  if (config.vcpi)
+    vcpi_pgapool = pgainit((config.ems_size * 1024) >> PAGE_SHIFT);
 
   ems_reset2();
 
