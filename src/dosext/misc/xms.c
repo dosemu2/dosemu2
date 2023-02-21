@@ -345,7 +345,13 @@ static void xx_printf(int prio, const char *fmt, ...)
 
 int xms_intdrv(void)
 {
-  return intdrv;
+  return (intdrv || ext_hooked_hma);
+}
+
+uint16_t xms_install_check(void)
+{
+  /* for ext_hooked_hma return special code which is recognized by our drv */
+  return (intdrv ? 0x80 : 0x8180);
 }
 
 static int xms_helper_init(void)

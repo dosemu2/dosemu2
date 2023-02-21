@@ -40,8 +40,12 @@ HookHimem:
 	/* check for the XMS driver */
 	movw	$0x4300, %ax
 	int	$0x2f
+	/* 0x8180 is a special code from dosemu2 asking to proceed */
+	cmpw	$0x8180, %ax
+	je	13f
 	cmpb	$0x80, %al
 	je	1f
+13:
 	/* no XMS driver - try to install internal driver */
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_XMS_INIT, %ah

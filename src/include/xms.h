@@ -35,6 +35,7 @@ void xms_reset(void);
 void xms_helper(void);
 void xms_control(void);
 int xms_intdrv(void);
+uint16_t xms_install_check(void);
 int xms_helper_init_ext(void);
 void *xms_resolve_physaddr(unsigned addr);
 #endif

@@ -3128,7 +3128,7 @@ hint_done:
 	switch (LO(ax)) {
 	case 0:		/* check for XMS */
 	    x_printf("Check for XMS\n");
-	    LO(ax) = 0x80;
+	    LWORD(eax) = xms_install_check();
 	    break;
 	case 0x10:
 	    x_printf("Get XMSControl address\n");
