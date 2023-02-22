@@ -1753,6 +1753,14 @@ static int exists(const char *name, const char *filename,
   return find_file(fullname, st, drives[drive].root_len, NULL);
 }
 
+static void set_32bit_size_or_position(uint32_t* sftfield, uint64_t fullvalue) {
+  if (fullvalue < 0x100000000) {
+    *sftfield = fullvalue;
+  } else {
+    *sftfield = 0xFFFFffff;
+  }
+}
+
 static void fill_entry(struct dir_ent *entry, const char *name, int drive)
 {
   char buf[PATH_MAX];
@@ -1773,7 +1781,7 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
     entry->attr = REGULAR_FILE;
   } else {
     entry->mode = sbuf.st_mode;
-    entry->size = sbuf.st_size;
+    set_32bit_size_or_position(&entry->size, sbuf.st_size);
     entry->time = sbuf.st_mtime;
     entry->attr = get_dos_attr(buf, entry->mode);
   }
@@ -1873,7 +1881,7 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
       memcpy(entry->ext, mext, 3);
       strcpy(entry->d_name, buf);
       entry->mode = sbuf.st_mode;
-      entry->size = sbuf.st_size;
+      set_32bit_size_or_position(&entry->size, sbuf.st_size);
       entry->time = sbuf.st_mtime;
       entry->attr = get_dos_attr(buf, entry->mode);
     }
@@ -3832,14 +3840,6 @@ static u_short unix_access_mode(struct stat *st, int drive, u_short dos_mode)
     unix_mode = O_RDONLY;
   }
   return unix_mode;
-}
-
-static void set_32bit_size_or_position(uint32_t* sftfield, uint64_t fullvalue) {
-  if (fullvalue < 0x100000000) {
-    *sftfield = fullvalue;
-  } else {
-    *sftfield = 0xFFFFffff;
-  }
 }
 
 static void do_update_sft(struct file_fd *f, char *fname, char *fext,

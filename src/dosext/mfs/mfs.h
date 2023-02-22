@@ -241,7 +241,7 @@ struct dir_ent {
   char d_name[256];             /* unix name as in readdir */
   u_short mode;			/* unix st_mode value */
   u_short long_path;            /* directory has long path */
-  int size;			/* size of file */
+  uint32_t size;		/* size of file */
   time_t time;			/* st_mtime */
   int attr;
 };
