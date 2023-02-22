@@ -628,31 +628,10 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
     mprotect_kvm(cap, targ, mapsize, protect);
 }
 
-void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
+static void kvm_manage_mmio(dosaddr_t targ, size_t mapsize, int protect)
 {
-  size_t pagesize = sysconf(_SC_PAGESIZE);
-  unsigned int start = targ / pagesize;
-  unsigned int end = start + mapsize / pagesize;
-  unsigned int page;
-  struct kvm_userspace_memory_region *p;
-
-  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
-	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
-	       MAPPING_EXTMEM))) return;
-
-  p = kvm_get_memory_region(targ, mapsize);
-  if (!p) return;
-
-  /* never apply write-protect to regions with dirty logging */
-  if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
-      (p->flags & KVM_MEM_LOG_DIRTY_PAGES))
-    return;
-
-  if (monitor == NULL) return;
-
-  if ((cap & MAPPING_VGAEMU) && kvm_in_vcpi() &&
-      ((coalesced_mmio_ring == NULL && protect == PROT_NONE) ||
-       (coalesced_mmio_ring && protect != PROT_NONE))) {
+  if ((coalesced_mmio_ring == NULL && protect == PROT_NONE) ||
+      (coalesced_mmio_ring && protect != PROT_NONE)) {
     struct kvm_userspace_memory_region *region;
     struct kvm_coalesced_mmio_zone mmio_zone = {};
     int coalesced_ioctl;
@@ -700,10 +679,36 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
       region->memory_size = 0;
     set_kvm_memory_region(region);
     region->memory_size = mmio_zone.size;
-    return;
   }
-  if ((cap & MAPPING_VGAEMU) && kvm_in_vcpi() && protect == PROT_NONE)
+}
+
+void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
+{
+  size_t pagesize = sysconf(_SC_PAGESIZE);
+  unsigned int start = targ / pagesize;
+  unsigned int end = start + mapsize / pagesize;
+  unsigned int page;
+  struct kvm_userspace_memory_region *p;
+
+  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
+	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
+	       MAPPING_EXTMEM))) return;
+
+  p = kvm_get_memory_region(targ, mapsize);
+  if (!p) return;
+
+  /* never apply write-protect to regions with dirty logging */
+  if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
+      (p->flags & KVM_MEM_LOG_DIRTY_PAGES))
     return;
+
+  if (monitor == NULL) return;
+
+  if ((cap & MAPPING_VGAEMU) && kvm_in_vcpi()) {
+    kvm_manage_mmio(targ, mapsize, protect);
+    if (protect == PROT_NONE)
+      return;
+  }
 
   Q_printf("KVM: protecting %x:%zx with prot %x\n", targ, mapsize, protect);
 
@@ -1457,13 +1462,13 @@ void kvm_vcpi_pm_switch(dosaddr_t addr)
     (VCPI_CODE_PAGE << 12) + (kvm_mon_vcpi_pm_jmp - (kvm_mon_start + 2*PAGE_SIZE));
   monitor->regs.eflags &= ~(X86_EFLAGS_VM | X86_EFLAGS_IF);
 
-  addr = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << PAGE_SHIFT;
+  /* convert any PROT_NONE VGA buffers to MMIO */
   for (slot = 0; slot < MAXSLOT; slot++) {
-    if (maps[slot].guest_phys_addr == addr &&
-	maps[slot].memory_size > 0 &&
-	maps[slot].flags != KVM_MEM_LOG_DIRTY_PAGES) {
-      vgaemu_map_bank();
-      break;
+    if (maps[slot].memory_size > 0 &&
+	maps[slot].flags == KVM_MEM_LOG_DIRTY_PAGES) {
+      dosaddr_t phys = maps[slot].guest_phys_addr;
+      if ((monitor->pte[phys >> PAGE_SHIFT] & (PG_PRESENT|PG_RW|PG_USER)) == 0)
+	kvm_manage_mmio(phys, maps[slot].memory_size, PROT_NONE);
     }
   }
 }
