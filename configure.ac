@@ -396,9 +396,9 @@ AC_ARG_ENABLE(system_wa,
   AS_HELP_STRING([--disable-system-wa], [compile without system-specific
   work-arounds (mostly for linux kernel) that are not needed on this system]))
 AS_IF([test "x$enable_system_wa" = "xno"], [
-  AC_MSG_NOTICE(Disasbling system-specific work-arounds)
+  AC_MSG_NOTICE(Disabling system-specific work-arounds)
   AC_DEFINE(DISABLE_SYSTEM_WA)
-  AS_IF([test -z "$WARN_OUTDATED_WA" -a -z "$NOWARN_UNDISABLED_WA"], [
+  AS_IF([test -z "$WARN_OUTDATED_WA" -a -n "$WARN_UNDISABLED_WA"], [
     AC_DEFINE(WARN_UNDISABLED_WA)])
 ])
 AS_IF([test -n "$WARN_OUTDATED_WA"], [
