@@ -1960,8 +1960,11 @@ static void vcpi_interface(struct vm86_regs *state)
 	dosaddr_t target = vcpi_get_high_alias(phys);
 	if (target) {
 	  int lowpage = PHYS_PAGE_ADDR(phys) >> PAGE_SHIFT;
-	  int prot = read_dword(pagetable + lowpage * 4) & (PAGE_SIZE - 1);
-	  write_dword(pagetable + lowpage * 4, target | prot);
+	  int i;
+	  for (i = 0; i < EMM_PAGE_PAGES; i++, lowpage++, target += PAGE_SIZE) {
+	    int prot = read_dword(pagetable + lowpage * 4) & (PAGE_SIZE - 1);
+	    write_dword(pagetable + lowpage * 4, target | prot);
+	  }
 	}
       }
     }
