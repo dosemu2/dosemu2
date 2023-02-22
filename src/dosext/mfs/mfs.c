@@ -3556,6 +3556,14 @@ static int dos_would_allow(char *fpath, const char *op, int equal)
   return TRUE;
 }
 
+static void set_32bit_size_or_position(uint32_t* sftfield, uint64_t fullvalue) {
+  if (fullvalue < 0x100000000) {
+    *sftfield = fullvalue;
+  } else {
+    *sftfield = 0xFFFFffff;
+  }
+}
+
 static int find_again(int firstfind, int drive, char *fpath,
 			    struct dir_list *hlist, struct vm86_regs *state, sdb_t sdb)
 {
@@ -3590,7 +3598,7 @@ static int find_again(int firstfind, int drive, char *fpath,
     time_to_dos(de->time,
 		&sdb_file_date(sdb),
 		&sdb_file_time(sdb));
-    sdb_file_size(sdb) = de->size;
+    set_32bit_size_or_position(&sdb_file_size(sdb), de->size);
     strncpy(sdb_file_name(sdb), de->name, 8);
     strncpy(sdb_file_ext(sdb), de->ext, 3);
 
@@ -3832,14 +3840,6 @@ static u_short unix_access_mode(struct stat *st, int drive, u_short dos_mode)
     unix_mode = O_RDONLY;
   }
   return unix_mode;
-}
-
-static void set_32bit_size_or_position(uint32_t* sftfield, uint64_t fullvalue) {
-  if (fullvalue < 0x100000000) {
-    *sftfield = fullvalue;
-  } else {
-    *sftfield = 0xFFFFffff;
-  }
 }
 
 static void do_update_sft(struct file_fd *f, char *fname, char *fext,
