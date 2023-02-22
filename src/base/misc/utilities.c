@@ -20,6 +20,9 @@
 #include <dlfcn.h>
 #include <pthread.h>
 #include <wordexp.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/unistd.h>
+#endif
 
 #include "bios.h"
 #include "timers.h"

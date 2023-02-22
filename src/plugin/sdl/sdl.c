@@ -169,6 +169,7 @@ static SDL_Keycode mgrab_key = SDLK_HOME;
 
 #define CONFIG_SDL_SELECTION 1
 
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
 static void SDL_draw_string(void *opaque, int x, int y, const char *text,
     int len, Bit8u attr);
 static void SDL_draw_line(void *opaque, int x, int y, float ul, int len,
@@ -189,6 +190,7 @@ static struct text_system Text_SDL =
   NULL,
   "sdl",
 };
+#endif
 
 /* separate done call-back for video-unrelated things (eg audio) */
 static void SDL_done(void)
