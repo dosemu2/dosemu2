@@ -286,7 +286,6 @@ void tty_char_out(unsigned char ch, int s, int attr)
       return;
     for (i = 0; i < num; i++)
       fputc(buff[i], config.tty_stderr ? stderr : stdout);
-    return;
   }
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
