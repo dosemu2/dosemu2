@@ -113,7 +113,7 @@ static void crt_outw(unsigned index, unsigned value)
   port_outw(port, (index + 1) | ((value & 0xff) << 8));
 }
 
-static void set_cursor_pos(unsigned page, int x, int y)
+static unsigned do_set_cursor_pos(unsigned page, int x, int y)
 {
   unsigned co, old_y;
 
@@ -122,6 +122,13 @@ static void set_cursor_pos(unsigned page, int x, int y)
   set_bios_cursor_y_position(page, y);
   co = READ_WORD(BIOS_SCREEN_COLUMNS);
   crt_outw(0xe, READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS)/2 + y * co + x);
+  return old_y;
+}
+
+static void set_cursor_pos(unsigned page, int x, int y)
+{
+  unsigned old_y = do_set_cursor_pos(page, x, y);
+
   if (config.dumb_video && y > old_y) {
     int i;
 
@@ -314,7 +321,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
     i10_deb("char_out: tab\n");
     do {
 	char_out(' ', s);
-  	xpos = get_bios_cursor_x_position(s);
+	xpos = get_bios_cursor_x_position(s);
     } while (xpos % 8 != 0);
     break;
 
@@ -349,7 +356,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
 		  vga_read(screen_adr(s) + 2*(ypos*co + xpos) + 1));
     }
   }
-  set_cursor_pos(s, xpos, ypos);
+  do_set_cursor_pos(s, xpos, ypos);
 }
 
 /* The following clears the screen buffer. It does it only to the screen
@@ -371,7 +378,7 @@ static void clear_screen(void)
        vga_write_word(schar, blank), lx++, schar+=2);
 
   for (s = 0; s < 8; s++)
-    set_cursor_pos(s, 0, 0);
+    do_set_cursor_pos(s, 0, 0);
 }
 
 /* return number of vertical scanlines based on the bytes at
