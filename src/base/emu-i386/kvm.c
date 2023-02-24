@@ -45,6 +45,7 @@
 #define X86_EFLAGS_FIXED 2
 #endif
 #include "emudpmi.h"
+#include "port.h"
 
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
                    X86_EFLAGS_AF|X86_EFLAGS_ZF|X86_EFLAGS_SF| \
@@ -66,13 +67,15 @@ extern char _binary_kvmmon_o_bin_start[];
         This stack contains a copy of the vm86_regs struct.
      b. An interrupt redirect bitmap copied from info->int_revectored
      c. I/O bitmap, for now set to trap all ints. Todo: sync with ioperm()
-   2. A GDT with 5 entries
+   2. A GDT with 7 entries
      0. 0 entry
      1. selector 8: flat CS
      2. selector 0x10: based SS (so the high bits of ESP are always 0,
         which avoids issues with IRET).
-     3. TSS
-     4. LDT
+     3. selector 0x18: TSS
+     4. selector 0x20: LDT
+     5. selector 0x28: 0-based DS selector for VCPI
+     6. selector 0x30: based SS for VCPI with high bits of ESP always 0
    3. An IDT with 256 (0x100) entries:
      a. 0x11 entries for CPU exceptions that can occur
      b. 0xef entries for software interrupts
@@ -86,10 +89,12 @@ extern char _binary_kvmmon_o_bin_start[];
  */
 
 #define TSS_IOPB_SIZE (65536 / 8)
-#define GDT_ENTRIES 5
-#define GDT_SS (GDT_ENTRIES - 3)
-#define GDT_TSS (GDT_ENTRIES - 2)
-#define GDT_LDT (GDT_ENTRIES - 1)
+#define GDT_ENTRIES 7
+#define GDT_SS (GDT_ENTRIES - 5)
+#define GDT_TSS (GDT_ENTRIES - 4)
+#define GDT_LDT (GDT_ENTRIES - 3)
+#define GDT_VCPI_DS (GDT_ENTRIES - 2)
+#define GDT_VCPI_SS (GDT_ENTRIES - 1)
 #undef IDT_ENTRIES
 #define IDT_ENTRIES 0x100
 
@@ -97,6 +102,9 @@ extern char _binary_kvmmon_o_bin_start[];
 #define PG_RW 2
 #define PG_USER 4
 #define PG_DC 0x10
+
+#define VCPI_CODE_PAGE 0x110
+#define VCPI_DATA_PAGE 0x111
 
 static struct monitor {
     Task tss;                                /* 0000 */
@@ -136,6 +144,7 @@ static struct monitor {
        415000 IDT common code start
        415024 IDT common code end
     */
+    unsigned char vcpi_data[PAGE_SIZE];
     unsigned char kvm_tss[3*PAGE_SIZE];
     unsigned char kvm_identity_map[20*PAGE_SIZE];
 } *monitor;
@@ -148,6 +157,7 @@ static struct kvm_cpuid2 *cpuid;
 /* fpu vme de pse tsc msr mce cx8 */
 #define CPUID_FEATURES_EDX 0x1bf
 static struct kvm_run *run;
+static struct kvm_coalesced_mmio_ring *coalesced_mmio_ring;
 static int kvmfd, vmfd, vcpufd;
 static struct kvm_sregs sregs;
 
@@ -217,7 +227,7 @@ static void kvm_set_desc(Descriptor *desc, struct kvm_segment *seg)
 /* initialize KVM virtual machine monitor */
 static void init_kvm_monitor(void)
 {
-  int ret, i;
+  int ret;
 
   if (!cpuid)
     return;
@@ -243,6 +253,18 @@ static void init_kvm_monitor(void)
     leavedos(99);
     return;
   }
+
+  kvm_reset_to_vm86();
+}
+
+/* reset to vm86, leaving VCPI if necessary. Called when setting up and
+   from leavedos. */
+void kvm_reset_to_vm86(void)
+{
+  int i;
+
+  if (monitor->regs.eflags & X86_EFLAGS_VM)
+    return;
 
   sregs.tr.base = MONITOR_DOSADDR;
   sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE - 1;
@@ -297,6 +319,11 @@ static void init_kvm_monitor(void)
    * Note: don't forget to clear TSS-busy bit before using that. */
   kvm_set_desc(&monitor->gdt[GDT_TSS], &sregs.tr);
   kvm_set_desc(&monitor->gdt[GDT_LDT], &sregs.ldt);
+  // data selector (0x28), for VCPI, 0-based, for DS
+  monitor->gdt[GDT_VCPI_DS].type = 2;
+  // based data selector (0x30), for VCPI, to get 16-bit ESP.
+  monitor->gdt[GDT_VCPI_SS].type = 2;
+  MKBASE(&monitor->gdt[GDT_VCPI_SS], VCPI_DATA_PAGE << PAGE_SHIFT);
 
   sregs.idt.base = sregs.tr.base + offsetof(struct monitor, idt);
   sregs.idt.limit = IDT_ENTRIES * sizeof(Gatedesc)-1;
@@ -335,8 +362,16 @@ static void init_kvm_monitor(void)
   sregs.ss.db = 1;
   sregs.ss.g = 1;
 
+  monitor->regs.eflags = X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+
   if (config.cpu_vm == CPUVM_KVM)
     warn("Using V86 mode inside KVM\n");
+}
+
+static inline int kvm_in_vcpi(void)
+{
+  return !(monitor->regs.eflags & X86_EFLAGS_VM) &&
+    monitor->tss.esp0 == offsetof(struct monitor, regs) + sizeof(monitor->regs);
 }
 
 /* Initialize KVM and memory mappings */
@@ -593,6 +628,60 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
     mprotect_kvm(cap, targ, mapsize, protect);
 }
 
+static void kvm_manage_mmio(dosaddr_t targ, size_t mapsize, int protect)
+{
+  if ((coalesced_mmio_ring == NULL && protect == PROT_NONE) ||
+      (coalesced_mmio_ring && protect != PROT_NONE)) {
+    struct kvm_userspace_memory_region *region;
+    struct kvm_coalesced_mmio_zone mmio_zone = {};
+    int coalesced_ioctl;
+    int ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
+    if (ret <= 0) {
+      warn("KVM: COALESCED_MMIO unsupported %x\n", ret);
+      return;
+    }
+    if (protect == PROT_NONE) {
+      coalesced_mmio_ring = (void *)run + ret * PAGE_SIZE;
+      coalesced_ioctl = KVM_REGISTER_COALESCED_MMIO;
+    } else {
+      coalesced_mmio_ring = NULL;
+      coalesced_ioctl = KVM_UNREGISTER_COALESCED_MMIO;
+    }
+    region = kvm_get_memory_region(targ, mapsize);
+    mmio_zone.addr = region->guest_phys_addr;
+    mmio_zone.size = region->memory_size;
+    mmio_zone.pio = 0;
+    ioctl(vmfd, coalesced_ioctl, &mmio_zone);
+    ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_PIO);
+    if (ret <= 0) {
+      warn("KVM: COALESCED_PIO unsupported %x\n", ret);
+    } else {
+      mmio_zone.pio = 1;
+      mmio_zone.addr = 0x3b0;
+      mmio_zone.size = 0xc;
+      ioctl(vmfd, coalesced_ioctl, &mmio_zone);
+      mmio_zone.addr = HERC_CFG_SWITCH;/* 0x3bf */
+      mmio_zone.size = 1;
+      ioctl(vmfd, coalesced_ioctl, &mmio_zone);
+      mmio_zone.addr = VGA_BASE;       /* 0x3c0 to 0x3cf */
+      mmio_zone.size = 0x10;
+      ioctl(vmfd, coalesced_ioctl, &mmio_zone);
+      mmio_zone.addr = CRTC_INDEX;     /* 0x3d4, 0x3d5 */
+      mmio_zone.size = CRTC_DATA - CRTC_INDEX + 1;
+      ioctl(vmfd, coalesced_ioctl, &mmio_zone);
+      mmio_zone.addr = INPUT_STATUS_1; /* 0x3da */
+      mmio_zone.size = 1;
+      ioctl(vmfd, coalesced_ioctl, &mmio_zone);
+    }
+    mmio_zone.size = region->memory_size;
+    if (protect == PROT_NONE)
+      // MMIO buffer, not mapped
+      region->memory_size = 0;
+    set_kvm_memory_region(region);
+    region->memory_size = mmio_zone.size;
+  }
+}
+
 void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
   size_t pagesize = sysconf(_SC_PAGESIZE);
@@ -614,6 +703,12 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
     return;
 
   if (monitor == NULL) return;
+
+  if ((cap & MAPPING_VGAEMU) && kvm_in_vcpi()) {
+    kvm_manage_mmio(targ, mapsize, protect);
+    if (protect == PROT_NONE)
+      return;
+  }
 
   Q_printf("KVM: protecting %x:%zx with prot %x\n", targ, mapsize, protect);
 
@@ -858,6 +953,15 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
     perror("KVM: KVM_GET_SREGS");
     leavedos_main(99);
   }
+
+  if (sregs.tr.base != MONITOR_DOSADDR) {
+    g_printf("KVM: interrupt in VCPI code\n");
+    /* don't put VCPI register state in vm86_regs, use cs=0
+       to show we were here */
+    regs->cs = 0;
+    return 1;
+  }
+
   /* don't interrupt GDT code */
   if (!(kregs->rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4)) {
     g_printf("KVM: interrupt in GDT code, resuming\n");
@@ -904,7 +1008,8 @@ static unsigned int kvm_run(void)
   static struct vm86_regs saved_regs;
   struct vm86_regs *regs = &monitor->regs;
 
-  if (run->exit_reason != KVM_EXIT_HLT &&
+  if (!kvm_in_vcpi() &&
+      run->exit_reason != KVM_EXIT_HLT &&
       memcmp(regs, &saved_regs, sizeof(*regs))) {
     /* Only set registers if changes happened, usually
        this means a hardware interrupt or sometimes
@@ -966,6 +1071,29 @@ static unsigned int kvm_run(void)
     */
     if (ret != 0 && ret != -1)
       error("KVM: strange return %i, errno=%i\n", ret, errn);
+
+    /* flush coalesced MMIO buffer */
+    if (coalesced_mmio_ring) {
+      while (coalesced_mmio_ring->first != coalesced_mmio_ring->last) {
+	struct kvm_coalesced_mmio *cm =
+	  &coalesced_mmio_ring->coalesced_mmio[coalesced_mmio_ring->first];
+	dosaddr_t addr = cm->phys_addr;
+	unsigned char *data = cm->data;
+	if (cm->pio) switch(cm->len) {
+	  case 1: VGA_emulate_outb(addr, data[0]); break;
+	  case 2: VGA_emulate_outw(addr, *(uint16_t*)data); break;
+	  case 4: VGA_emulate_outw(addr, *(uint16_t*)data);
+	          VGA_emulate_outw(addr, *(uint16_t*)(data+2)); break;
+	} else switch(cm->len) {
+	  case 1: vga_write(addr, data[0]); break;
+	  case 2: vga_write_word(addr, *(uint16_t*)data); break;
+	  case 4: vga_write_dword(addr, *(uint32_t*)data); break;
+	}
+	coalesced_mmio_ring->first++;
+	coalesced_mmio_ring->first %= KVM_COALESCED_MMIO_MAX;
+      }
+    }
+
     if (ret == -1 && errn == EINTR) {
       if (!kvm_post_run(regs, &kregs))
         continue;
@@ -979,8 +1107,91 @@ static unsigned int kvm_run(void)
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
+      if (kvm_in_vcpi()) {
+	/* Protected mode VCPI interface AX=DE03,DE04,DE05 */
+	struct vm86_regs state = {0};
+	ret = ioctl(vcpufd, KVM_GET_REGS, &kregs);
+	if (ret == -1) {
+	  perror("KVM: KVM_GET_REGS");
+	  leavedos_main(99);
+	}
+	if (kregs.rip-1 != (VCPI_CODE_PAGE << PAGE_SHIFT) +
+	    (kvm_mon_vcpi_hlt - (kvm_mon_start + 2*PAGE_SIZE)))
+	  break;
+	state.eax = kregs.rax;
+	state.edx = kregs.rdx;
+	E_printf("VCPI: PM interface, AX=%x\n", state.eax & 0xffff);
+	ems_fn(&state);
+	kregs.rax = state.eax;
+	kregs.rdx = state.edx;
+	ret = ioctl(vcpufd, KVM_SET_REGS, &kregs);
+	if (ret == -1) {
+	  perror("KVM: KVM_SET_REGS");
+	  leavedos_main(99);
+	}
+	break;
+      }
       exit_reason = KVM_EXIT_HLT;
       break;
+    case KVM_EXIT_IO:
+      { /* only applies to VCPI; vm86/DPMI GPF for I/O */
+	union data {
+	  Bit8u b[sizeof(*run)];
+	  Bit16u w[sizeof(*run)/2];
+	  Bit32u d[sizeof(*run)/4];
+	} *data = (union data *)((Bit8u *)run + run->io.data_offset);
+	if (run->io.count > 1) {
+	  g_printf("XXX: I/O for counts > 1 not implemented yet\n");
+	  leavedos_main(99);
+	}
+	switch(run->io.direction) {
+	case KVM_EXIT_IO_IN:
+	  switch(run->io.size) {
+	  case 1:
+	    data->b[0] = port_inb(run->io.port);
+	    break;
+	  case 2:
+	    data->w[0] = port_inw(run->io.port);
+	    break;
+	  case 4:
+	    data->d[0] = port_ind(run->io.port);
+	    break;
+	  }
+	  break;
+	case KVM_EXIT_IO_OUT:
+	  switch(run->io.size) {
+	  case 1:
+	    port_outb(run->io.port, data->b[0]);
+	    break;
+	  case 2:
+	    port_outw(run->io.port, data->w[0]);
+	    break;
+	  case 4:
+	    port_outd(run->io.port, data->d[0]);
+	    break;
+	  }
+	}
+	break;
+      }
+    case KVM_EXIT_MMIO:
+      { /* only applies to VCPI; vm86/DPMI give page faults */
+	dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
+	unsigned char *data = run->mmio.data;
+	if (run->mmio.is_write) {
+	  switch(run->mmio.len) {
+	  case 1: vga_write(addr, data[0]); break;
+	  case 2: vga_write_word(addr, *(uint16_t*)data); break;
+	  case 4: vga_write_dword(addr, *(uint32_t*)data); break;
+	  }
+	} else {
+	  switch(run->mmio.len) {
+	  case 1: data[0] = vga_read(addr); break;
+	  case 2: *(uint16_t*)data = vga_read_word(addr); break;
+	  case 4: *(uint32_t*)data = vga_read_dword(addr); break;
+	  }
+	}
+	break;
+      }
     case KVM_EXIT_IRQ_WINDOW_OPEN:
       run->request_interrupt_window = !run->ready_for_interrupt_injection;
       if (run->request_interrupt_window || !run->if_flag) break;
@@ -1039,15 +1250,30 @@ int kvm_vm86(struct vm86_struct *info)
   unsigned int trapno, exit_reason;
 
   regs = &monitor->regs;
-  *regs = info->regs;
 #if 0
   memcpy(&monitor->fpstate, &vm86_fpu_state, sizeof(vm86_fpu_state));
 #endif
   monitor->int_revectored = info->int_revectored;
-  monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
 
-  regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
-  regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+  if (!kvm_in_vcpi()) {
+    monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
+    *regs = info->regs;
+    regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
+    regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+  }
+  else if (regs->cs == 0) { // return to VCPI after signal
+    run->request_interrupt_window = 0;
+    if (pic_pending()) {
+      if (run->ready_for_interrupt_injection && run->if_flag) {
+	/* VCPI: use KVM_INTERRUPT instead of register manipulation */
+	struct kvm_interrupt ki = {.irq = pic_get_inum()};
+	g_printf("KVM: VCPI: injecting interrupt %#x\n", ki.irq);
+	ioctl(vcpufd, KVM_INTERRUPT, &ki);
+      } else {
+	run->request_interrupt_window = 1;
+      }
+    }
+  }
 
   do {
     exit_reason = kvm_run();
@@ -1067,6 +1293,13 @@ int kvm_vm86(struct vm86_struct *info)
     else if (trapno == 0xd)
       vm86_ret = kvm_handle_vm86_fault(regs, info->cpu_type);
   } while (vm86_ret == -1);
+
+  /* VCPI can either end in
+     1. signal in VCPI, with regs->cs=0, don't touch other regs, return here
+     2. signal in VM86, also with proper regs (kvm_run checks tr register)
+     3. HLT -> we're back in VM86 mode, with proper regs
+  */
+  if (!(regs->eflags & X86_EFLAGS_VM)) return vm86_ret;
 
   info->regs = *regs;
   info->regs.eflags |= X86_EFLAGS_IOPL;
@@ -1202,6 +1435,61 @@ int kvm_dpmi(cpuctx_t *scp)
     }
   } while (!signal_pending() && ret == DPMI_RET_CLIENT);
   return ret;
+}
+
+dosaddr_t kvm_vcpi_get_pmi(dosaddr_t pagetable, dosaddr_t gdt, unsigned *pages)
+{
+  monitor->pte[VCPI_CODE_PAGE] = (MONITOR_DOSADDR +
+    offsetof(struct monitor, code) + 2*PAGE_SIZE) | PG_PRESENT;
+  monitor->pte[VCPI_DATA_PAGE] = (MONITOR_DOSADDR +
+    offsetof(struct monitor, vcpi_data)) | PG_PRESENT | PG_RW;
+  *pages = VCPI_DATA_PAGE + 1;
+  MEMCPY_2DOS(pagetable, monitor->pte, *pages*4);
+  MEMCPY_2DOS(gdt, &monitor->gdt[1], sizeof(Descriptor));
+  MEMCPY_2DOS(gdt+8, &monitor->gdt[5], sizeof(Descriptor));
+  return (VCPI_CODE_PAGE << PAGE_SHIFT) + (kvm_mon_vcpi_pmi - (kvm_mon_start + 2*PAGE_SIZE));
+}
+
+void kvm_vcpi_pm_switch(dosaddr_t addr)
+{
+  int slot;
+
+  /* clear VIF during VCPI PM execution so cs:eip isn't touched, inject
+     interrupts instead */
+  clear_IF();
+  monitor->regs.cs = 0x8;
+  monitor->regs.eip =
+    (VCPI_CODE_PAGE << 12) + (kvm_mon_vcpi_pm_jmp - (kvm_mon_start + 2*PAGE_SIZE));
+  monitor->regs.eflags &= ~(X86_EFLAGS_VM | X86_EFLAGS_IF);
+
+  /* convert any PROT_NONE VGA buffers to MMIO */
+  for (slot = 0; slot < MAXSLOT; slot++) {
+    if (maps[slot].memory_size > 0 &&
+	maps[slot].flags == KVM_MEM_LOG_DIRTY_PAGES) {
+      dosaddr_t phys = maps[slot].guest_phys_addr;
+      if ((monitor->pte[phys >> PAGE_SHIFT] & (PG_PRESENT|PG_RW|PG_USER)) == 0)
+	kvm_manage_mmio(phys, maps[slot].memory_size, PROT_NONE);
+    }
+  }
+}
+
+void kvm_getset_debugregs(uint32_t debugregs[8], int set)
+{
+  struct kvm_debugregs regs = {};
+
+  if (set) {
+    for (int i = 0; i < 4; i++)
+      regs.db[i] = debugregs[i];
+    regs.dr6 = debugregs[6];
+    regs.dr7 = debugregs[7];
+    ioctl(vmfd, KVM_SET_DEBUGREGS, &regs);
+  } else {
+    ioctl(vmfd, KVM_GET_DEBUGREGS, &regs);
+    for (int i = 0; i < 4; i++)
+      debugregs[i] = regs.db[i];
+    debugregs[6] = regs.dr6;
+    debugregs[7] = regs.dr7;
+  }
 }
 
 void kvm_done(void)

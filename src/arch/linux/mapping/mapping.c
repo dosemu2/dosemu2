@@ -487,7 +487,7 @@ int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
   void *addr;
   void *target;
-  assert((cap & MAPPING_DPMI) && (targ != (dosaddr_t)-1));
+  assert((cap & (MAPPING_DPMI|MAPPING_EMS)) && (targ != (dosaddr_t)-1));
   target = MEM_BASE32(targ);
   addr = mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
   return (addr == target ? 0 : -1);

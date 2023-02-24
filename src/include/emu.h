@@ -269,6 +269,7 @@ typedef struct config_info {
        int umb_a0, umb_b0, umb_f0, hma;
        unsigned int ems_frame;
        int ems_uma_pages, ems_cnv_pages;
+       int vcpi;
        int dpmi, pm_dos_api, no_null_checks;
        uint32_t dpmi_base;
        uint32_t dpmi_lin_rsv_size;

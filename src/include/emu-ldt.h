@@ -31,7 +31,7 @@
 #define DT_BASE(dp)		(((uint32_t)(dp)->base_hi<<24) | ((dp)->base_mid<<16) | ((dp)->base_lo))
 #define DT_FLAGS(dp)		(*((unsigned short *)(((char *)(dp))+5))&0xf0ff)
 #define MKLIMIT(dp,l)		{(dp)->limit_lo=(l),(dp)->limit_hi=(l)>>16;}
-#define MKBASE(dp,b)		{(dp)->base_lo=(b),(dp)->base_mid=(b)>>16,(dp)->base_hi=(b)>>24;}
+#define MKBASE(dp,b)		{(dp)->base_lo=((b)&0xffffu),(dp)->base_mid=(b)>>16,(dp)->base_hi=(b)>>24;}
 
 /*
  *   segment descriptors - little endian
