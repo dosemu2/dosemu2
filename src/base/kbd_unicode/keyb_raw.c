@@ -149,20 +149,25 @@ static void print_termios(struct termios term)
 }
 #endif
 
-static inline void set_raw_mode(void)
+static int set_raw_mode(void)
 {
   struct termios buf = save_termios;
+  int err;
 
 #ifdef HAVE_SYS_KD_H
   if (config.console_keyb == KEYB_RAW) {
     k_printf("KBD(raw): Setting keyboard to RAW mode\n");
-    ioctl(kbd_fd, KDSKBMODE, K_RAW);
+    err = ioctl(kbd_fd, KDSKBMODE, K_RAW);
+    if (err)
+      return err;
   }
 #endif
   cfmakeraw(&buf);
   k_printf("KBD(raw): Setting TERMIOS Structure.\n");
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &buf) < 0)
+  if (tcsetattr(kbd_fd, TCSAFLUSH, &buf) < 0) {
     k_printf("KBD(raw): Setting TERMIOS structure failed.\n");
+    return -1;
+  }
 
 #if 0 /* debug code */
   if (tcgetattr(kbd_fd, &buf) < 0) {
@@ -170,6 +175,7 @@ static inline void set_raw_mode(void)
   }
   print_termios(buf);
 #endif
+  return 0;
 }
 
 /*
@@ -197,7 +203,8 @@ static int raw_keyboard_init(void)
     return FALSE;
   }
 
-  set_raw_mode();
+  if (set_raw_mode() == -1)
+    return FALSE;
 
   add_to_io_select(kbd_fd, do_raw_getkeys, NULL);
 

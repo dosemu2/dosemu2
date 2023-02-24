@@ -871,11 +871,11 @@ static void config_post_process(void)
 	    config.console_keyb =
 #ifdef USE_SLANG
 		    /* Slang will take over KEYB_OTHER */
-		    KEYB_OTHER
+		    KEYB_OTHER;
+		    load_plugin("term");
 #else
-		    KEYB_TTY
+		    KEYB_TTY;
 #endif
-	    ;
 	}
 	config.console_video = 0;
 	if (config.speaker == SPKR_NATIVE) {
@@ -1269,7 +1269,14 @@ config_init(int argc, char **argv)
 		    config.console_keyb = KEYB_STDIO;
 		    break;
 		case 't':
-		    config.console_keyb = KEYB_TTY;
+		    config.console_keyb =
+#ifdef USE_SLANG
+			/* Slang will take over KEYB_OTHER */
+			KEYB_OTHER;
+			load_plugin("term");
+#else
+			KEYB_TTY;
+#endif
 		    break;
 		case 'r':
 		    config.console_keyb = KEYB_RAW;
