@@ -193,6 +193,11 @@ static void store_key_in_buffer(void)
   LO(ax) = (store_key(LWORD(ecx)) ? 0 : 1);
 }
 
+static void get_kbd_features(void)
+{
+  _AX = 0x20;  /* enh kbd functionality, nothing else */
+}
+
 int int16(void)
 {
   switch(HI(ax))
@@ -218,6 +223,9 @@ int int16(void)
     break;
   case 5:
     store_key_in_buffer();
+    break;
+  case 0x9:
+    get_kbd_features();
     break;
   case 0x10:
     int_yield();
