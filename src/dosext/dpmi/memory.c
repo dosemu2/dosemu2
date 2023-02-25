@@ -267,7 +267,6 @@ int dpmi_alloc_pool(void)
 
 void dpmi_free_pool(void)
 {
-    uint32_t memsize = dpmi_mem_size() + low_rsv;
     int leak = smdestroy(&mem_pool);
     if (leak)
 	error("DPMI: leaked %i bytes (main pool)\n", leak);
@@ -275,7 +274,7 @@ void dpmi_free_pool(void)
     if (leak)
 	error("DPMI: leaked %i bytes (lin pool)\n", leak);
     mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
-                memsize, PROT_READ | PROT_WRITE);
+                low_rsv, PROT_READ | PROT_WRITE);
 }
 
 static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)

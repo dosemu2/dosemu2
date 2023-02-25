@@ -80,11 +80,13 @@ char *e_scp_disasm(cpuctx_t *scp, int pmode);
 #ifdef X86_JIT
 void e_invalidate(unsigned data, int cnt);
 void e_invalidate_full(unsigned data, int cnt);
+void e_invalidate_full_pa(unsigned data, int cnt);
 int e_invalidate_page_full(unsigned data);
 void e_invalidate_pa(unsigned data, int cnt);
 #else
 #define e_invalidate(x,y)
 #define e_invalidate_full(x,y)
+#define e_invalidate_full_pa(x,y)
 #define e_invalidate_page_full(x) 0
 #define e_invalidate_pa(x,y)
 #endif

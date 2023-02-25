@@ -314,11 +314,6 @@ static void *mem_reserve(uint32_t memsize)
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
-  if (config.cpu_vm_dpmi == CPUVM_KVM)
-    /* map only high memory here, rest is done with KVM_BASE in alias_mapping */
-    mmap_kvm(cap, LOWMEM_SIZE + HMASIZE, memsize - (LOWMEM_SIZE + HMASIZE),
-	     (unsigned char *)result + LOWMEM_SIZE + HMASIZE,
-	     LOWMEM_SIZE + HMASIZE, prot);
   return result;
 }
 
@@ -360,14 +355,15 @@ static void low_mem_init_config_scrub(void)
  */
 void low_mem_init(void)
 {
-  void *lowmem, *ptr;
+  unsigned char *lowmem, *ptr, *ptr2;
   int result;
   uint32_t memsize = config.dpmi ? LOWMEM_SIZE + HMASIZE + dpmi_lin_mem_rsv() : config.dpmi_base;
   int32_t dpmi_rsv_low, phys_rsv;
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
-  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE);
+  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE +
+	EXTMEM_SIZE);
   if (lowmem == MAP_FAILED) {
     perror("LOWRAM alloc");
     leavedos(98);
@@ -378,6 +374,7 @@ void low_mem_init(void)
 #ifdef __x86_64__
   if (_MAP_32BIT) mem_base_mask = 0xffffffffu;
 #endif
+  register_hardware_ram_virtual('L', 0, LOWMEM_SIZE + HMASIZE, 0);
   result = alias_mapping(MAPPING_LOWMEM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (result == -1) {
@@ -405,14 +402,34 @@ void low_mem_init(void)
   }
 
   if (config.ext_mem) {
-    /* LOWMEM_SIZE + HMASIZE == base
-     * Use dpmi_rsv_low as ext_mem. */
-    register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE,
-	    MEM_BASE32(LOWMEM_SIZE + HMASIZE), LOWMEM_SIZE + HMASIZE);
+    /* LOWMEM_SIZE + HMASIZE == base */
     memcheck_addtype('X', "EXT MEM");
     memcheck_reserve('X', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE);
     x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE, result + LOWMEM_SIZE + HMASIZE);
   }
+
+  ptr += phys_rsv + dpmi_rsv_low;
+  /* create non-identity mapping up to dpmi_base */
+  phys_rsv = config.dpmi_base - (LOWMEM_SIZE + HMASIZE);
+  ptr2 = smalloc_aligned_topdown(&main_pool, MEM_BASE32(memsize),
+	PAGE_SIZE, phys_rsv);
+  assert(ptr2);
+  /* establish alias access for int15 */
+  register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, phys_rsv,
+	    DOSADDR_REL(ptr2));
+  register_hardware_ram_virtual('U',  DOSADDR_REL(ptr2), phys_rsv,
+	    LOWMEM_SIZE + HMASIZE);
+  /* map dpmi+uncommitted space to kvm */
+  if (config.cpu_vm_dpmi == CPUVM_KVM) {
+    int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
+    mmap_kvm(MAPPING_INIT_LOWRAM, config.dpmi_base, ptr2 - ptr, ptr,
+	config.dpmi_base, prot);
+  }
+  /* create alias for dpmi */
+  result = alias_mapping(MAPPING_EXTMEM, DOSADDR_REL(ptr2), EXTMEM_SIZE,
+			 PROT_READ | PROT_WRITE,
+			 lowmem + LOWMEM_SIZE + HMASIZE);
+  assert(result != -1);
 
   /* R/O protect 0xf0000-0xf4000 */
   if (!config.umb_f0)

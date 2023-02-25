@@ -93,7 +93,8 @@ static int commit(void *ptr, size_t size)
 
 static int open_mapping_f(int cap)
 {
-    int mapsize, estsize, padsize;
+    int mapsize = 0;
+    int estsize, padsize;
 
     if (cap) Q_printf("MAPPING: open, cap=%s\n",
 	  decode_mapping_cap(cap));
@@ -101,12 +102,11 @@ static int open_mapping_f(int cap)
     padsize = 4*1024;
 
     /* first estimate the needed size of the mapfile */
-    mapsize  = HMASIZE >> 10;	/* HMA */
- 				/* VGAEMU */
     mapsize += config.vgaemu_memsize;
     mapsize += config.ems_size;	/* EMS */
     mapsize += config.xms_size;	/* XMS */
-    mapsize += LOWMEM_SIZE >> 10; /* Low Mem */
+    mapsize += config.ext_mem;	/* extended mem */
+    mapsize += (LOWMEM_SIZE + HMASIZE) >> 10; /* Low Mem */
     estsize = mapsize;
 				/* keep heap fragmentation in mind */
     mapsize += (mapsize/4 < padsize ? padsize : mapsize/4);

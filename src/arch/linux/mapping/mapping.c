@@ -179,10 +179,8 @@ static unsigned char *MEM_BASE32x(dosaddr_t a, int base)
 {
   if (mem_bases[base] == MAP_FAILED)
     return MAP_FAILED;
-  if (base == MEM_BASE)
+  if (base == MEM_BASE || a >= ALIAS_SIZE)
     return MEM_BASE32(a);
-  if (a >= ALIAS_SIZE)
-    return MAP_FAILED;
   return &mem_bases[base][a];
 }
 
@@ -415,7 +413,6 @@ void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect)
       void *kvm_base = mmap_mapping_huge_page_aligned(cap, mapsize, protect);
       if (kvm_base == MAP_FAILED)
 	return kvm_base;
-      mmap_kvm(cap, 0, mapsize, kvm_base, 0, protect);
       mem_bases[KVM_BASE] = kvm_base;
     }
 #ifdef __i386__
@@ -695,13 +692,29 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
   return mappingdriver->realloc(cap, addr, oldsize, newsize);
 }
 
+static void populate_aliasmap(unsigned char **map, unsigned char *addr,
+	int size)
+{
+  int i;
+
+  for (i = 0; i < size >> PAGE_SHIFT; i++)
+    map[i] = addr ? addr + (i << PAGE_SHIFT) : NULL;
+}
+
+static unsigned char **alloc_aliasmap(unsigned char *addr, int size)
+{
+  unsigned char **ret = malloc((size >> PAGE_SHIFT) * sizeof(*ret));
+  populate_aliasmap(ret, addr, size);
+  return ret;
+}
+
 struct hardware_ram {
   size_t base;
   dosaddr_t default_vbase;
   dosaddr_t vbase;
   size_t size;
   int type;
-  void *uaddr;
+  unsigned char **aliasmap;
   struct hardware_ram *next;
 };
 
@@ -739,15 +752,17 @@ static int do_map_hwram(struct hardware_ram *hw)
 void init_hardware_ram(void)
 {
   struct hardware_ram *hw;
+  unsigned char *uaddr;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     int cap = MAPPING_KMEM;
-    if (hw->uaddr)  /* virtual hardware ram mapped later */
+    if (hw->vbase != (dosaddr_t)-1)  /* virtual hardware ram mapped later */
       continue;
     if (hw->default_vbase != (dosaddr_t)-1)
       cap |= MAPPING_LOWMEM;
 #ifdef __linux__
-    hw->uaddr = alloc_mapping_kmem(cap, hw->size, hw->base);
+    uaddr = alloc_mapping_kmem(cap, hw->size, hw->base);
+    populate_aliasmap(hw->aliasmap, uaddr, hw->size);
 #endif
     if (do_map_hwram(hw) == -1)
       return;
@@ -788,7 +803,7 @@ int unmap_hardware_ram(char type)
   return rc;
 }
 
-static int do_register_hwram(int type, dosaddr_t base, unsigned size,
+static int do_register_hwram(int type, unsigned base, unsigned size,
 	void *uaddr, dosaddr_t va)
 {
   struct hardware_ram *hw;
@@ -807,7 +822,7 @@ static int do_register_hwram(int type, dosaddr_t base, unsigned size,
   hw->vbase = va;
   hw->size = size;
   hw->type = type;
-  hw->uaddr = uaddr;
+  hw->aliasmap = alloc_aliasmap(uaddr, size);
   hw->next = hardware_ram;
   hardware_ram = hw;
   if (!uaddr && (base >= LOWMEM_SIZE || type == 'h'))
@@ -815,15 +830,27 @@ static int do_register_hwram(int type, dosaddr_t base, unsigned size,
   return 1;
 }
 
-int register_hardware_ram(int type, dosaddr_t base, unsigned int size)
+int register_hardware_ram(int type, unsigned base, unsigned int size)
 {
   return do_register_hwram(type, base, size, NULL, -1);
 }
 
-int register_hardware_ram_virtual(int type, unsigned base, unsigned int size,
+void register_hardware_ram_virtual2(int type, unsigned base, unsigned int size,
 	void *uaddr, dosaddr_t va)
 {
-  return do_register_hwram(type, base, size, uaddr, va);
+  do_register_hwram(type, base, size, MEM_BASE32(va), va);
+  if (config.cpu_vm_dpmi == CPUVM_KVM ||
+      (config.cpu_vm == CPUVM_KVM && base + size <= LOWMEM_SIZE + HMASIZE)) {
+    int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
+    mmap_kvm(MAPPING_INIT_LOWRAM, base, size, uaddr, va, prot);
+  }
+}
+
+void register_hardware_ram_virtual(int type, unsigned base, unsigned int size,
+	dosaddr_t va)
+{
+  register_hardware_ram_virtual2(type, base, size,
+	MEM_BASE32x(va, KVM_BASE), va);
 }
 
 int unregister_hardware_ram_virtual(dosaddr_t base)
@@ -836,6 +863,7 @@ int unregister_hardware_ram_virtual(dosaddr_t base)
         phw->next = hw->next;
       else
         hardware_ram = hw->next;
+      free(hw->aliasmap);
       free(hw);
       return 0;
     }
@@ -865,14 +893,25 @@ dosaddr_t get_hardware_ram(unsigned addr, uint32_t size)
   return do_get_hardware_ram(addr, size, NULL);
 }
 
+static void hwram_update_aliasmap(struct hardware_ram *hw, unsigned addr,
+	int size, unsigned char *src)
+{
+  int off = addr - hw->base;
+  assert(!(off & (PAGE_SIZE - 1))); // page-aligned
+  assert(!(size & (PAGE_SIZE - 1))); // page-aligned
+  populate_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], src, size);
+}
+
 void *get_hardware_uaddr(unsigned addr)
 {
   struct hardware_ram *hw;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     if (hw->vbase != -1 &&
-	hw->base <= addr && addr < hw->base + hw->size)
-      return hw->uaddr + addr - hw->base;
+	hw->base <= addr && addr < hw->base + hw->size) {
+      int off = addr - hw->base;
+      return hw->aliasmap[off >> PAGE_SHIFT] + (off & (PAGE_SIZE - 1));
+    }
   }
   return MAP_FAILED;
 }
@@ -977,7 +1016,7 @@ int mcommit(void *ptr, size_t size)
 {
   int err;
   dosaddr_t targ = DOSADDR_REL(ptr);
-  int cap = (targ >= LOWMEM_SIZE + HMASIZE ? MAPPING_DPMI : MAPPING_LOWMEM);
+  int cap = MAPPING_INIT_LOWRAM;
   err = mprotect_mapping(cap, targ, size, PROT_READ | PROT_WRITE);
   if (err == -1)
     return 0;
@@ -992,7 +1031,7 @@ int mcommit(void *ptr, size_t size)
 int muncommit(void *ptr, size_t size)
 {
   dosaddr_t targ = DOSADDR_REL(ptr);
-  int cap = (targ >= LOWMEM_SIZE + HMASIZE ? MAPPING_DPMI : MAPPING_LOWMEM);
+  int cap = MAPPING_INIT_LOWRAM;
   if (mprotect_mapping(cap, targ, size, PROT_NONE) == -1)
     return 0;
   return 1;
@@ -1011,6 +1050,7 @@ int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
   if (addr2 == MAP_FAILED)
     return 0;
   assert(addr2 == MEM_BASE32(va));
+  hwram_update_aliasmap(hw, addr, mapsize, source);
   return 1;
 }
 
@@ -1022,5 +1062,6 @@ int unalias_mapping_pa(int cap, unsigned addr, size_t mapsize)
     return 0;
   assert(addr >= LOWMEM_SIZE + HMASIZE);
   restore_mapping(cap, va, mapsize);
+  hwram_update_aliasmap(hw, addr, mapsize, NULL);
   return 1;
 }
