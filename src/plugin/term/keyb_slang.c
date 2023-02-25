@@ -1591,6 +1591,8 @@ static int slang_keyb_init(void)
 	}
 	sigalrm_register_handler(do_slang_pending);
 
+	/* Enable cursor keys (DECCKM) */
+	printf("\033[?1h\r");
 	k_printf("KBD: slang_keyb_init() ok\n");
 	return TRUE;
 }
@@ -1609,6 +1611,7 @@ static void slang_keyb_close(void)
 	}
 	term_close();
 	cleanup_charset_state(&keyb_state.translate_state);
+	printf("\033[?1l\r");
 	if (exitstr) printf("%s", exitstr);
 }
 
