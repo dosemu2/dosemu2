@@ -8,6 +8,8 @@ dosdata=umb
 lastdrive=Z
 int0divz=off
 device=dosemu\umb.sys
+; hook for EMM driver
+CHAIN=@emmhook.sys
 devicehigh=dosemu\ems.sys
 rem emufs.sys /all replaces emufs.com
 devicehigh=dosemu\emufs.sys /all
