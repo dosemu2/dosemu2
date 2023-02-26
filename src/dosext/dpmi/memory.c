@@ -513,9 +513,9 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	free_pm_block(root, block);
 	return NULL;
     }
-    mprotect_mapping(MAPPING_DPMI, base, size, committed ?
-		PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
     block->base = DOSADDR_REL(realbase);
+    mprotect_mapping(MAPPING_DPMI, block->base, size, committed ?
+		PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE);
     block->linear = 1;
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = committed ? 9 : 8;
