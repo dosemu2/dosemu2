@@ -82,35 +82,34 @@ static struct mappingdrivers *mappingdrv[] = {
 
 static struct mappingdrivers *mappingdriver;
 
-/* The alias map is used to track alias mappings from the first 1MB + HMA
-   to the corresponding addresses in Linux address space (either lowmem,
-   vgaemu, or EMS). The DOS address (&mem_base[address]) may be r/w
-   protected by cpuemu or vgaemu, but the alias is never protected,
-   so it can be used to write without needing to unprotect and reprotect
-   afterwards.
-   If the alias is not used (hardware RAM from /dev/mem, or DPMI memory
-   (aliasing using fn 0x509 is safely ignored here)),
-   the address is identity-mapped to &mem_base[address].
-*/
 #define ALIAS_SIZE (LOWMEM_SIZE + HMASIZE)
-static unsigned char *aliasmap[ALIAS_SIZE/PAGE_SIZE];
+struct hardware_ram;
+static dosaddr_t do_get_hardware_ram(unsigned addr, uint32_t size,
+	struct hardware_ram **r_hw);
+static void hwram_update_aliasmap(struct hardware_ram *hw, unsigned addr,
+	int size, unsigned char *src);
 
 static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
 			    unsigned char *unixaddr)
 {
-  unsigned int dospage, i;
+  dosaddr_t addr2;
+  struct hardware_ram *hw;
 
   if (dosaddr >= ALIAS_SIZE)
     return;
-  dospage = dosaddr >> PAGE_SHIFT;
-  for (i = 0; i < mapsize >> PAGE_SHIFT; i++)
-    aliasmap[dospage + i] = unixaddr ? unixaddr + (i << PAGE_SHIFT) : NULL;
+  /* identity map below ALIAS_SIZE */
+  addr2 = do_get_hardware_ram(dosaddr, mapsize, &hw);
+  assert(addr2 == dosaddr);
+  hwram_update_aliasmap(hw, dosaddr, mapsize, unixaddr);
 }
 
-void *dosaddr_to_unixaddr(unsigned int addr)
+void *dosaddr_to_unixaddr(dosaddr_t addr)
 {
-  if (addr < ALIAS_SIZE && aliasmap[addr >> PAGE_SHIFT])
-    return aliasmap[addr >> PAGE_SHIFT] + (addr & (PAGE_SIZE - 1));
+  if (addr < ALIAS_SIZE) {
+    void *ret = get_hardware_uaddr(addr);
+    if (ret != MAP_FAILED)
+      return ret;
+  }
   return MEM_BASE32(addr);
 }
 
