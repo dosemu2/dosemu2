@@ -92,14 +92,15 @@ static struct mappingdrivers *mappingdriver;
    (aliasing using fn 0x509 is safely ignored here)),
    the address is identity-mapped to &mem_base[address].
 */
-static unsigned char *aliasmap[(LOWMEM_SIZE+HMASIZE)/PAGE_SIZE];
+#define ALIAS_SIZE (LOWMEM_SIZE + HMASIZE)
+static unsigned char *aliasmap[ALIAS_SIZE/PAGE_SIZE];
 
 static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
 			    unsigned char *unixaddr)
 {
   unsigned int dospage, i;
 
-  if (dosaddr >= LOWMEM_SIZE+HMASIZE)
+  if (dosaddr >= ALIAS_SIZE)
     return;
   dospage = dosaddr >> PAGE_SHIFT;
   for (i = 0; i < mapsize >> PAGE_SHIFT; i++)
@@ -108,7 +109,7 @@ static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
 
 void *dosaddr_to_unixaddr(unsigned int addr)
 {
-  if (addr < LOWMEM_SIZE + HMASIZE && aliasmap[addr >> PAGE_SHIFT])
+  if (addr < ALIAS_SIZE && aliasmap[addr >> PAGE_SHIFT])
     return aliasmap[addr >> PAGE_SHIFT] + (addr & (PAGE_SIZE - 1));
   return MEM_BASE32(addr);
 }
@@ -118,7 +119,7 @@ void *physaddr_to_unixaddr(unsigned int addr)
   void *hwr = get_hardware_uaddr(addr);
   if (hwr != MAP_FAILED)
     return hwr;
-  if (addr < LOWMEM_SIZE + HMASIZE)
+  if (addr < ALIAS_SIZE)
     return dosaddr_to_unixaddr(addr);
   return MAP_FAILED;
 }
@@ -128,7 +129,7 @@ dosaddr_t physaddr_to_dosaddr(unsigned int addr, int len)
   dosaddr_t ret = get_hardware_ram(addr, len);
   if (ret != (dosaddr_t)-1)
     return ret;
-  if (addr + len <= LOWMEM_SIZE + HMASIZE)
+  if (addr + len <= ALIAS_SIZE)
     return addr;
   return -1;
 }
@@ -180,7 +181,7 @@ static unsigned char *MEM_BASE32x(dosaddr_t a, int base)
     return MAP_FAILED;
   if (base == MEM_BASE)
     return MEM_BASE32(a);
-  if (a >= LOWMEM_SIZE + HMASIZE)
+  if (a >= ALIAS_SIZE)
     return MAP_FAILED;
   return &mem_bases[base][a];
 }
@@ -492,8 +493,7 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
     /* protections on KVM_BASE go via page tables in the VM, not mprotect */
     if (addr == MAP_FAILED || i == KVM_BASE)
       continue;
-    if (i != MEM_BASE && targ + mapsize > LOWMEM_SIZE + HMASIZE)
-      mapsize = LOWMEM_SIZE + HMASIZE - targ;
+    assert(i == MEM_BASE || targ + mapsize <= ALIAS_SIZE);
     Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%zx, protect=%x\n",
 	cap, addr, mapsize, protect);
     ret = mprotect(addr, mapsize, protect);
