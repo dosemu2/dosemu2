@@ -1696,7 +1696,7 @@ int vga_emu_pre_init(void)
       p = (dosaddr_t)-1;
       if (addr != MAP_FAILED) {
 	p = VGAEMU_PHYS_LFB_BASE;
-	mmap_kvm(MAPPING_VGAEMU, addr, vga.mem.size, VGA_EMU_RW_PROT, p);
+	mmap_kvm(MAPPING_VGAEMU, p, vga.mem.size, addr, p, VGA_EMU_RW_PROT);
       }
     } else if (config.dpmi) {
       p = alias_mapping_high(MAPPING_VGAEMU,
