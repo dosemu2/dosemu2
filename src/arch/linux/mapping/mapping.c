@@ -434,7 +434,7 @@ void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect)
       void *kvm_base = mmap_mapping_huge_page_aligned(cap, mapsize, protect);
       if (kvm_base == MAP_FAILED)
 	return kvm_base;
-      mmap_kvm(cap, kvm_base, mapsize, protect, 0);
+      mmap_kvm(cap, 0, mapsize, kvm_base, 0, protect);
       mem_bases[KVM_BASE] = kvm_base;
     }
 #ifdef __i386__

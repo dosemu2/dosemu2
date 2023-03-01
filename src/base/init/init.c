@@ -316,8 +316,9 @@ static void *mem_reserve(uint32_t memsize)
   }
   if (config.cpu_vm_dpmi == CPUVM_KVM)
     /* map only high memory here, rest is done with KVM_BASE in alias_mapping */
-    mmap_kvm(cap, (unsigned char *)result + LOWMEM_SIZE + HMASIZE,
-	     memsize - (LOWMEM_SIZE + HMASIZE), prot, LOWMEM_SIZE + HMASIZE);
+    mmap_kvm(cap, LOWMEM_SIZE + HMASIZE, memsize - (LOWMEM_SIZE + HMASIZE),
+	     (unsigned char *)result + LOWMEM_SIZE + HMASIZE,
+	     LOWMEM_SIZE + HMASIZE, prot);
   return result;
 }
 

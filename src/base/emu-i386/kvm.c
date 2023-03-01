@@ -225,10 +225,6 @@ static void init_kvm_monitor(void)
   /* create monitor structure in memory */
   monitor = mmap_mapping_huge_page_aligned(MAPPING_SCRATCH|MAPPING_KVM,
 			 sizeof(*monitor), PROT_READ | PROT_WRITE);
-  /* exclude special regions for KVM-internal TSS and identity page */
-  mmap_kvm(MAPPING_SCRATCH|MAPPING_KVM, monitor,
-	offsetof(struct monitor, kvm_tss),
-	PROT_READ | PROT_WRITE, MONITOR_DOSADDR);
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
 
@@ -314,8 +310,10 @@ static void init_kvm_monitor(void)
   /* base PDE; others derive from this one */
   monitor->pde[0] = (sregs.tr.base + offsetof(struct monitor, pte))
     | (PG_PRESENT | PG_RW | PG_USER);
-  mprotect_kvm(MAPPING_KVM, sregs.tr.base, offsetof(struct monitor, code),
-	       PROT_READ | PROT_WRITE);
+  /* exclude special regions for KVM-internal TSS and identity page */
+  mmap_kvm(MAPPING_SCRATCH|MAPPING_KVM, MONITOR_DOSADDR,
+	offsetof(struct monitor, kvm_tss),
+	monitor, MONITOR_DOSADDR, PROT_READ | PROT_WRITE);
   mprotect_kvm(MAPPING_KVM, sregs.tr.base + offsetof(struct monitor, code),
 	       sizeof(monitor->code), PROT_READ | PROT_EXEC);
 
@@ -583,14 +581,24 @@ static void do_munmap_kvm(dosaddr_t targ, size_t mapsize)
   }
 }
 
-void mmap_kvm(int cap, void *addr, size_t mapsize, int protect, dosaddr_t targ)
+void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t targ, int protect)
 {
+  size_t pagesize = sysconf(_SC_PAGESIZE);
+  unsigned int start = targ / pagesize;
+  unsigned int end = start + mapsize / pagesize;
+  unsigned int page;
+
   assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_KVM|MAPPING_VGAEMU));
   /* with KVM we need to manually remove/shrink existing mappings */
-  do_munmap_kvm(targ, mapsize);
-  mmap_kvm_no_overlap(targ, addr, mapsize, 0);
-  if (!(cap & MAPPING_KVM))
-    mprotect_kvm(cap, targ, mapsize, protect);
+  do_munmap_kvm(phys_addr, mapsize);
+  mmap_kvm_no_overlap(phys_addr, addr, mapsize, 0);
+  for (page = start; page < end; page++, phys_addr += pagesize) {
+    int pde_entry = page >> 10;
+    if (monitor->pde[pde_entry] == 0)
+      monitor->pde[pde_entry] = monitor->pde[0] + pde_entry*pagesize;
+    monitor->pte[page] = phys_addr;
+  }
+  mprotect_kvm(cap, targ, mapsize, protect);
 }
 
 void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
@@ -605,7 +613,7 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
 	       MAPPING_EXTMEM))) return;
 
-  p = kvm_get_memory_region(targ, mapsize);
+  p = kvm_get_memory_region(monitor->pte[start] & PAGE_MASK, mapsize);
   if (!p) return;
 
   /* never apply write-protect to regions with dirty logging */
@@ -618,10 +626,7 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   Q_printf("KVM: protecting %x:%zx with prot %x\n", targ, mapsize, protect);
 
   for (page = start; page < end; page++) {
-    int pde_entry = page >> 10;
-    if (monitor->pde[pde_entry] == 0)
-      monitor->pde[pde_entry] = monitor->pde[0] + pde_entry*pagesize;
-    monitor->pte[page] = page * pagesize;
+    monitor->pte[page] &= PAGE_MASK;
     if (protect & PROT_WRITE)
       monitor->pte[page] |= PG_PRESENT | PG_RW | PG_USER;
     else if (protect & PROT_READ)
