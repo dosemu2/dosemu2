@@ -24,9 +24,11 @@
 #include "int.h"
 #include "disks.h"
 #include <fdpp/bprm.h>
-#if BPRM_VER != 8
+#if BPRM_MIN_VER != 8
 #error wrong bprm version
 #endif
+/* currently supported version */
+#define BPRM_SUPP_VER 9
 #include "boot.h"
 
 int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
@@ -44,10 +46,13 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
     int warn_legacy_conf = 0;
 
     bprm.BprmLen = sizeof(bprm);
-    bprm.BprmVersion = BPRM_VER;
+    bprm.BprmVersion = BPRM_SUPP_VER;
     bprm.HeapSize = heap;
     bprm.HeapSeg = heap_seg;
     bprm.XtraSeg = bpseg;
+#if BPRM_VER >= 9
+    bprm.PredMask |= (!config.dumb_video << 0);
+#endif
     if (khigh)
 	bprm.Flags |= FDPP_FL_KERNEL_HIGH;
     if (hhigh)
