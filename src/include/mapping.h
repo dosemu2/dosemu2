@@ -86,9 +86,9 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect);
 
 typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int protect, void *source);
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source);
+int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect, void *source);
 void *alias_mapping_huge_page_aligned(int cap, size_t mapsize, int protect, void *source);
-dosaddr_t alias_mapping_high(int cap, size_t mapsize, int protect, void *source);
-int unalias_mapping_high(int cap, dosaddr_t targ, size_t mapsize);
+int unalias_mapping_pa(int cap, unsigned addr, size_t mapsize);
 void *alias_mapping_ux(int cap, size_t mapsize, int protect, void *source);
 
 int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize);
@@ -121,10 +121,10 @@ void init_hardware_ram(void);
 int map_hardware_ram(char type);
 int unmap_hardware_ram(char type);
 int register_hardware_ram(int type, dosaddr_t base, unsigned size);
-int register_hardware_ram_virtual(int type, dosaddr_t base, unsigned size,
+int register_hardware_ram_virtual(int type, unsigned base, unsigned size,
     void *uaddr, dosaddr_t va);
 int unregister_hardware_ram_virtual(dosaddr_t base);
-unsigned get_hardware_ram(unsigned addr, uint32_t size);
+dosaddr_t get_hardware_ram(unsigned addr, uint32_t size);
 void *get_hardware_uaddr(unsigned addr);
 void list_hardware_ram(void (*print)(const char *, ...));
 void *mapping_find_hole(unsigned long start, unsigned long stop,

@@ -275,26 +275,6 @@ void *alias_mapping_huge_page_aligned(int cap, size_t mapsize, int protect, void
   return addr;
 }
 
-dosaddr_t alias_mapping_high(int cap, size_t mapsize, int protect, void *source)
-{
-  dosaddr_t targ;
-  void *addr2;
-  void *addr = smalloc(&main_pool, mapsize);
-  if (!addr) {
-    error("OOM for alias_mapping_high, %s\n", strerror(errno));
-    return -1;
-  }
-  addr2 = mappingdriver->alias(cap, addr, mapsize, protect, source);
-  if (addr2 != addr)
-    return -1;
-  Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
-  targ = DOSADDR_REL(addr);
-  if (is_kvm_map(cap))
-    mprotect_kvm(cap, targ, mapsize, protect);
-
-  return targ;
-}
-
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
 {
   int i;
@@ -491,22 +471,6 @@ int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
   target = MEM_BASE32(targ);
   addr = mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
   return (addr == target ? 0 : -1);
-}
-
-int unalias_mapping_high(int cap, dosaddr_t targ, size_t mapsize)
-{
-  void *addr;
-  void *target;
-  int ret = 0;
-
-  target = MEM_BASE32(targ);
-  addr = mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
-  if (addr != target) {
-    dosemu_error("mmap error\n");
-    ret = -1;
-  }
-  ret |= smfree(&main_pool, target);
-  return ret;
 }
 
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
@@ -856,7 +820,7 @@ int register_hardware_ram(int type, dosaddr_t base, unsigned int size)
   return do_register_hwram(type, base, size, NULL, -1);
 }
 
-int register_hardware_ram_virtual(int type, dosaddr_t base, unsigned int size,
+int register_hardware_ram_virtual(int type, unsigned base, unsigned int size,
 	void *uaddr, dosaddr_t va)
 {
   return do_register_hwram(type, base, size, uaddr, va);
@@ -880,16 +844,25 @@ int unregister_hardware_ram_virtual(dosaddr_t base)
 }
 
 /* given physical address addr, gives the corresponding vbase or -1 */
-unsigned get_hardware_ram(unsigned addr, uint32_t size)
+static dosaddr_t do_get_hardware_ram(unsigned addr, uint32_t size,
+	struct hardware_ram **r_hw)
 {
   struct hardware_ram *hw;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     if (hw->vbase != -1 &&
-	hw->base <= addr && addr + size <= hw->base + hw->size)
+	hw->base <= addr && addr + size <= hw->base + hw->size) {
+	if (r_hw)
+	  *r_hw = hw;
       return hw->vbase + addr - hw->base;
+    }
   }
   return -1;
+}
+
+dosaddr_t get_hardware_ram(unsigned addr, uint32_t size)
+{
+  return do_get_hardware_ram(addr, size, NULL);
 }
 
 void *get_hardware_uaddr(unsigned addr)
@@ -1022,5 +995,32 @@ int muncommit(void *ptr, size_t size)
   int cap = (targ >= LOWMEM_SIZE + HMASIZE ? MAPPING_DPMI : MAPPING_LOWMEM);
   if (mprotect_mapping(cap, targ, size, PROT_NONE) == -1)
     return 0;
+  return 1;
+}
+
+int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
+       void *source)
+{
+  void *addr2;
+  struct hardware_ram *hw;
+  dosaddr_t va = do_get_hardware_ram(addr, mapsize, &hw);
+  if (va == (dosaddr_t)-1)
+    return 0;
+  assert(addr >= LOWMEM_SIZE + HMASIZE);
+  addr2 = mappingdriver->alias(cap, MEM_BASE32(va), mapsize, protect, source);
+  if (addr2 == MAP_FAILED)
+    return 0;
+  assert(addr2 == MEM_BASE32(va));
+  return 1;
+}
+
+int unalias_mapping_pa(int cap, unsigned addr, size_t mapsize)
+{
+  struct hardware_ram *hw;
+  dosaddr_t va = do_get_hardware_ram(addr, mapsize, &hw);
+  if (va == (dosaddr_t)-1)
+    return 0;
+  assert(addr >= LOWMEM_SIZE + HMASIZE);
+  restore_mapping(cap, va, mapsize);
   return 1;
 }
