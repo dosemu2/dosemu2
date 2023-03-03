@@ -277,6 +277,7 @@
 #include "instremu.h"
 #include "cpu-emu.h"
 #include "kvm.h"
+#include "smalloc.h"
 
 /* table with video mode definitions */
 #include "vgaemu_modelist.h"
@@ -1414,7 +1415,8 @@ static void _vga_kvm_sync_dirty_map(unsigned mapping)
   if (vga.inst_emu)
     return;
 
-  base = vga.mem.map[mapping].base_page << PAGE_SHIFT;
+  base = mapping == VGAEMU_MAP_LFB_MODE ? VGAEMU_PHYS_LFB_BASE :
+    vga.mem.map[mapping].base_page << PAGE_SHIFT;
   if (base == 0)
     return;
 
@@ -1683,38 +1685,6 @@ int vga_emu_pre_init(void)
   mprotect(vga.mem.base, PAGE_SIZE, PROT_NONE);
   vga.mem.base += PAGE_SIZE;
 
-  vga.mem.lfb_base = 0;
-  if(config.X_lfb) {
-    dosaddr_t p = 0;
-    if (config.cpu_vm_dpmi == CPUVM_KVM) {
-      /* create mapping:
-	 Linear vga.mem.lfb_base=VGAEMU_PHYS_LFB_BASE=0xe0000000 ->
-	 physical 0xe0000000 ->	addr (hugepage aligned) -> vga.mem.base,
-	 so MEM_BASE32(vga.mem.lfb_base) is not a valid pointer. */
-      void *addr = alias_mapping_huge_page_aligned(MAPPING_VGAEMU,
-			     vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
-      p = (dosaddr_t)-1;
-      if (addr != MAP_FAILED) {
-	p = VGAEMU_PHYS_LFB_BASE;
-	mmap_kvm(MAPPING_VGAEMU, p, vga.mem.size, addr, p, VGA_EMU_RW_PROT);
-      }
-    } else if (config.dpmi) {
-      p = alias_mapping_high(MAPPING_VGAEMU,
-			     vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
-    }
-    if(p == (dosaddr_t)-1) {
-      error("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
-      config.exitearly = 1;
-      return 1;
-    } else {
-      vga.mem.lfb_base = p;
-    }
-  }
-
-  if(vga.mem.lfb_base == 0) {
-    vga_msg("vga_emu_init: linear frame buffer (lfb) disabled\n");
-  }
-
   /* alloc more pages because vgaemu_dirty_page() does weird things */
   if((vga.mem.dirty_map = (unsigned char *) malloc(vga.mem.pages | 0xff)) == NULL) {
     error("vga_emu_init: not enough memory for dirty map\n");
@@ -1764,12 +1734,39 @@ int vga_emu_pre_init(void)
     }
   }
 
-  if(vga.mem.lfb_base != 0) {
-    memcheck_addtype('e', "VGAEMU LFB");
-    register_hardware_ram_virtual('e', VGAEMU_PHYS_LFB_BASE, vga.mem.size,
-	    vga.mem.base, vga.mem.lfb_base);
-    if (config.cpu_vm_dpmi == CPUVM_KVM)
-      kvm_set_dirty_log(vga.mem.lfb_base, vga.mem.size);
+  vga.mem.lfb_base = 0;
+  if (config.X_lfb && config.dpmi) {
+    void *addr = smalloc(&main_pool, vga.mem.size);
+    if (addr) {
+      vga.mem.lfb_base = DOSADDR_REL(addr);
+      memcheck_addtype('e', "VGAEMU LFB");
+      register_hardware_ram_virtual('e', VGAEMU_PHYS_LFB_BASE, vga.mem.size,
+				    vga.mem.base, vga.mem.lfb_base);
+      if (!alias_mapping_pa(MAPPING_VGAEMU, VGAEMU_PHYS_LFB_BASE,
+			    vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base))
+	addr = NULL;
+    }
+    if (addr && config.cpu_vm_dpmi == CPUVM_KVM) {
+      /* create mapping:
+	 Linear vga.mem.lfb_base -> phys VGAEMU_PHYS_LFB_BASE=0xe0000000 ->
+	 addr (hugepage aligned) -> vga.mem.base */
+      addr = alias_mapping_huge_page_aligned(MAPPING_VGAEMU, vga.mem.size,
+					     VGA_EMU_RW_PROT, vga.mem.base);
+      if (addr != MAP_FAILED) {
+	mmap_kvm(MAPPING_VGAEMU, VGAEMU_PHYS_LFB_BASE, vga.mem.size, addr,
+		 vga.mem.lfb_base, VGA_EMU_RW_PROT);
+	kvm_set_dirty_log(VGAEMU_PHYS_LFB_BASE, vga.mem.size);
+      }
+    }
+    if(addr == NULL || addr == MAP_FAILED) {
+      error("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
+      config.exitearly = 1;
+      return 1;
+    }
+  }
+
+  if(vga.mem.lfb_base == 0) {
+    vga_msg("vga_emu_init: linear frame buffer (lfb) disabled\n");
   }
 
   return vga_emu_post_init();
@@ -1810,8 +1807,11 @@ static int vga_emu_post_init(void)
 
 void vga_emu_done()
 {
-  if (vga.mem.lfb_base && config.dpmi && config.cpu_vm_dpmi != CPUVM_KVM)
-    unalias_mapping_high(MAPPING_VGAEMU, vga.mem.lfb_base, vga.mem.size);
+  if (vga.mem.lfb_base) {
+    unalias_mapping_pa(MAPPING_DPMI, VGAEMU_PHYS_LFB_BASE, vga.mem.size);
+    smfree(&main_pool, MEM_BASE32(vga.mem.lfb_base));
+    vga.mem.lfb_base = 0;
+  }
 }
 
 
