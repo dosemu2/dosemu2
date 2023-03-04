@@ -3518,113 +3518,189 @@ $_floppy_a = ""
         """MFS truename UFS LFN"""
         names_to_create = (
             ("DIR", "Program Files"),
-            ("FILE", "very long testname"),
-            ("FILE", "verylongtestname.txt"),
+            ("DIR", "RealDir2"),
+            ("DIR", "Sub"),
+            ("DIR", "Sub/RealDir"),
+            ("FILE", "Sub/Very Long realName"),
+            ("FILE", "Sub/verylongRealname.txt"),
+            ("FILE", "Sub/RealDir/Very Long realName"),
         )
-        tests = (
-# NOTE: not sure that the output should be UPCASED.
-            ("LFN0", "very long testname", "C:\\VERY LONG TESTNAME"),
-            ("LFN0", "d:\\verylongtestname.txt", "D:\\VERYLONGTESTNAME.TXT"),
-            ("LFN0", "d:\\very long testname", "D:\\VERY LONG TESTNAME"),
-            ("LFN0", "aux", "C:/AUX"),
-            ("LFN0", "d:very long testname", "D:\\VERY LONG TESTNAME"),
-# FAIL             ("LFN0", "d:\\fakedir\\very long testname", None),
+        tests = (  # Note: CurDrv == D:, CurDir == \Sub
 
-            ("LFN0", "D:\\PROGR~-I",      "D:\\PROGR~-I"),
-            ("LFN1", "D:\\Program Files", "D:\\PROGR~-I"),
-            ("LFN2", "D:\\PROGR~-I",      "D:\\Program Files"),
+            # These LFN 7160/0 tests are proven on Win98 and are seen
+            # to have the following rules:
+            # 1/ Any '..' are resolved.
+            # 2/ Any '.\' are stripped.
+            # 3/ If no drive specification, then default drive is prepended.
+            # 4/ If not absolute path, then current directory for drive
+            #    is inserted between drive and relative path.
+            # 5/ All path components (except final) are upcased.
+            # 6/ Final path component case is preserved from the request.
+            # 7/ No path component has to exist on the filesystem or
+            #    is checked against it and updated for case.
+
+            ("LFN0", r"aux",                                      r"D:/AUX"),
+            # D:\Sub exists as a directory
+            ("LFN0", r"nonExist",                                 r"D:\\SUB\\nonExist"),
+            ("LFN0", r"\\nonExist",                               r"D:\\nonExist"),
+            ("LFN0", r"\\Sub\\nonExist",                          r"D:\\SUB\\nonExist"),
+            ("LFN0", r"c:nonExist",                               r"C:\\nonExist"),
+            ("LFN0", r"c:\\nonExist",                             r"C:\\nonExist"),
+            ("LFN0", r"c:\\RootC\\nonExist",                      r"C:\\ROOTC\\nonExist"),
+            # Both D:\RealDir2 and D:\\Sub\\RealDir exist as directories
+            ("LFN0", r"d:realdir",                                r"D:\\SUB\\realdir"),
+            ("LFN0", r"d:\\realdir2",                             r"D:\\realdir2"),
+            ("LFN0", r"d:\\realdir2\\noNexist.TxT",               r"D:\\REALDIR2\\noNexist.TxT"),
+            # D:\Sub exists as a directory
+            ("LFN0", r"nonExist\\NewFile.txt",                    r"D:\\SUB\\NONEXIST\\NewFile.txt"),
+            ("LFN0", r"d:nonExist\\NewFile.txt",                  r"D:\\SUB\\NONEXIST\\NewFile.txt"),
+            ("LFN0", r"d:\\nonExist\\NewFile.txt",                r"D:\\NONEXIST\\NewFile.txt"),
+            ("LFN0", r"..\\Sub\\RealDir\\..\\NewFile.txt",        r"D:\\SUB\\NewFile.txt"),
+            # D:\Program Files exists as a directory
+            ("LFN0", r"D:\\progra~1",                             r"D:\\progra~1"),
+            ("LFN0", r"D:\\PROGRA~1",                             r"D:\\PROGRA~1"),
+            ("LFN0", r"D:\\program files",                        r"D:\\program files"),
+            ("LFN0", r"D:\\PROGRAM FILES",                        r"D:\\PROGRAM FILES"),
+            ("LFN0", r"D:\\Program Files",                        r"D:\\Program Files"),
+            ("LFN0", r"D:\\Program Files\\NewFile.txt",           r"D:\\PROGRAM FILES\\NewFile.txt"),
+            ("LFN0", r"D:\\Program Files\\NewFile.txt",           r"D:\\PROGRAM FILES\\NewFile.txt"),
+            ("LFN0", r"D:\\Program Files\\NonExist\\NewFile.txt", r"D:\\PROGRAM FILES\\NONEXIST\\NewFile.txt"),
+
+            ("LFN1", r"d:very long realname",                     r"D:\\SUB\\VERYL~CV"),
+            ("LFN1", r"d:\\very long realname",                   r"ERROR: invalid component"),
+            ("LFN1", r"d:\\Sub\\VERYLONGrEALNAME.TXT",            r"D:\\SUB\\VERYL~6S.TXT"),
+            ("LFN1", r"D:\\program files",                        r"D:\\PROGR~-I"),
+            ("LFN1", r"D:\\PROGRAM FILES",                        r"D:\\PROGR~-I"),
+            ("LFN1", r"D:\\Program Files",                        r"D:\\PROGR~-I"),
+
+            ("LFN2", r"D:\\SUB\\VERYL~CV",                        r"D:\\Sub\\Very Long realName"),
+            ("LFN2", r"D:\\SUB\\VERYL~6S.TXT",                    r"D:\\Sub\\verylongRealname.txt"),
+            ("LFN2", r"D:\\progr~-i",                             r"D:\\Program Files"),
+            ("LFN2", r"D:\\PROGR~-I",                             r"D:\\Program Files"),
         )
-        for t in tests:
-            with self.subTest(t=t):
-                mfs_truename(self, "UFS", names_to_create, *t)
+        mfs_truename(self, "UFS", names_to_create, tests)
 
     def test_mfs_truename_ufs_sfn(self):
         """MFS truename UFS SFN"""
         names_to_create = (
-            ("DIR", "testname"),
+            ("DIR", "Sub"),
+            ("DIR", "Sub/testname"),
             ("FILE", "shrtname.txt"),
         )
-        tests = (
-            ("SFN", "testname", "C:\\TESTNAME"),
-            ("SFN", "d:\\shrtname.txt", "D:\\SHRTNAME.TXT"),
-            ("SFN", "d:\\testname", "D:\\TESTNAME"),
-            ("SFN", "aux", "C:/AUX"),
-            ("SFN", "d:testname", "D:\\TESTNAME"),
-# FAIL            ("SFN", "d:\\fakedir\\testname", None),
+        tests = (  # Note: CurDrv == D:, CurDir == \SUB
+            ("SFN", r"aux", r"D:/AUX"),
+
+            ("SFN", r"fakename", r"D:\\SUB\\FAKENAME"),           # Non existent
+            ("SFN", r"\\fakename", r"D:\\FAKENAME"),              # Non existent
+            ("SFN", r"\\Sub\\fakename", r"D:\\SUB\\FAKENAME"),    # Non existent
+            ("SFN", r"c:fakename", r"C:\\FAKENAME"),              # Non existent
+            ("SFN", r"c:\\fakename", r"C:\\FAKENAME"),            # Non existent
+            ("SFN", r"c:\\Sub\\fakename", r"C:\\SUB\\FAKENAME"),  # Non existent
+
+            ("SFN", r"testname", r"D:\\SUB\\TESTNAME"),
+            ("SFN", r"\\Sub\\testname", r"D:\\SUB\\TESTNAME"),
+            ("SFN", r"d:testname", r"D:\\SUB\\TESTNAME"),
+            ("SFN", r"d:\\Sub\\testname", r"D:\\SUB\\TESTNAME"),
+
+            ("SFN", r"shrtname.txt", r"D:\\SUB\\SHRTNAME.TXT"),   # Non existent
+            ("SFN", r"\\shrtname.txt", r"D:\\SHRTNAME.TXT"),
+            ("SFN", r"d:shrtname.txt", r"D:\\SUB\\SHRTNAME.TXT"), # Non existent
+            ("SFN", r"d:\\shrtname.txt", r"D:\\SHRTNAME.TXT"),
         )
-        for t in tests:
-            with self.subTest(t=t):
-                mfs_truename(self, "UFS", names_to_create, *t)
+        mfs_truename(self, "UFS", names_to_create, tests)
 
     def test_mfs_truename_vfat_linux_mounted_lfn(self):
         """MFS truename VFAT Linux mounted LFN"""
         names_to_create = (
             ("DIR", "Program Files"),
-            ("FILE", "verylongfilename.txt"),
-            ("FILE", "verylongfilename2.txt"),
-            ("FILE", "space embedded filename.txt"),
-            ("FILE", "MixedCaseFilename.ext"),
-            ("DIR", "test/1234567890987654321"),
-            ("DIR", "abcdefgfedcba/1234567890987654321"),
-            ("FILE", "1234567890987654321/abcdefgfedcba.txt"),
-            ("FILE", "1234567890987654321/abcdefclash.txt"),
+            ("FILE", "lfnInRoot.tXt"),
+            ("FILE", "Sub/verylongfilename.txt"),
+            ("FILE", "Sub/verylongfilename2.txt"),
+            ("FILE", "Sub/space embedded filename.txt"),
+            ("FILE", "Sub/MixedCaseFilename.ext"),
+            ("DIR", "Sub/test/1234567890987654321"),
+            ("DIR", "Sub/abcdefgfedcba/1234567890987654321"),
+            ("FILE", "Sub/1234567890987654321/abcdefgfedcba.txt"),
+            ("FILE", "Sub/1234567890987654321/abcdefclash.txt"),
         )
         tests = (
-            ("LFN1", r"X:\verylongfilename.txt",                  r"X:\VERYLO~1.TXT"),
-            ("LFN1", r"X:\verylongfilename2.txt",                 r"X:\VERYLO~2.TXT"),
-            ("LFN1", r"X:\space embedded filename.txt",           r"X:\SPACEE~1.TXT"),
-            ("LFN1", r"X:\MixedCaseFilename.ext",                 r"X:\MIXEDC~1.EXT"),
-            ("LFN1", r"X:\test\1234567890987654321",              r"X:\TEST\123456~1"),
-            ("LFN1", r"X:\abcdefgfedcba\1234567890987654321",     r"X:\ABCDEF~1\123456~1"),
-            ("LFN1", r"X:\1234567890987654321\abcdefgfedcba.txt", r"X:\123456~1\ABCDEF~1.TXT"),
-            ("LFN1", r"X:\1234567890987654321\abcdefclash.txt",   r"X:\123456~1\ABCDEF~2.TXT"),
+            # Since Truename 0x7160/0 does not interact with the filesystem,
+            # the tests on UFS should give coverage, but just do a few for
+            # belt and braces.
+            ("LFN0", r"D:\\progra~1",                                    r"D:\\progra~1"),
+            ("LFN0", r"D:\\PROGRA~1",                                    r"D:\\PROGRA~1"),
+            ("LFN0", r"D:\\program files",                               r"D:\\program files"),
+            ("LFN0", r"D:\\PROGRAM FILES",                               r"D:\\PROGRAM FILES"),
+            ("LFN0", r"D:\\Program Files",                               r"D:\\Program Files"),
+            ("LFN0", r"D:\\Program Files\\NewFile.txt",                  r"D:\\PROGRAM FILES\\NewFile.txt"),
+            ("LFN0", r"D:\\Program Files\\NewFile.txt",                  r"D:\\PROGRAM FILES\\NewFile.txt"),
+            ("LFN0", r"D:\\Program Files\\NonExist\\NewFile.txt",        r"D:\\PROGRAM FILES\\NONEXIST\\NewFile.txt"),
 
-            ("LFN2", r"X:\VERYLO~1.TXT",          r"X:\verylongfilename.txt"),
-            ("LFN2", r"X:\VERYLO~2.TXT",          r"X:\verylongfilename2.txt"),
-            ("LFN2", r"X:\SPACEE~1.TXT",          r"X:\space embedded filename.txt"),
-            ("LFN2", r"X:\MIXEDC~1.EXT",          r"X:\MixedCaseFilename.ext"),
-            ("LFN2", r"X:\TEST\123456~1",         r"X:\test\1234567890987654321"),
-            ("LFN2", r"X:\ABCDEF~1\123456~1",     r"X:\abcdefgfedcba\1234567890987654321"),
-            ("LFN2", r"X:\123456~1\ABCDEF~1.TXT", r"X:\1234567890987654321\abcdefgfedcba.txt"),
-            ("LFN2", r"X:\123456~1\ABCDEF~2.TXT", r"X:\1234567890987654321\abcdefclash.txt"),
+            ("LFN1", r"X:\\lfnNotInRoot.tXt",                            r"ERROR: invalid component"),  # Non existent
+            ("LFN1", r"..\\lfnNotInRoot.tXt",                            r"ERROR: invalid component"),  # Non existent
+            ("LFN1", r"X:\\lfnInRoot.tXt",                               r"X:\\LFNINR~1.TXT"),
+            ("LFN1", r"..\\lfnInRoot.tXt",                               r"X:\\LFNINR~1.TXT"),
+            ("LFN1", r"..\\rootc\\..\\lfnInRoot.tXt",                    r"X:\\LFNINR~1.TXT"),
+            ("LFN1", r"X:\\sub\\verylongfilename.txt",                   r"X:\\SUB\\VERYLO~1.TXT"),
+            ("LFN1", r"X:\\sub\\verylongfilename2.txt",                  r"X:\\SUB\\VERYLO~2.TXT"),
+            ("LFN1", r"X:\\sub\\space embedded filename.txt",            r"X:\\SUB\\SPACEE~1.TXT"),
+            ("LFN1", r"X:\\sub\\MixedCaseFilename.ext",                  r"X:\\SUB\\MIXEDC~1.EXT"),
+            ("LFN1", r"X:\\sub\\test\\1234567890987654321",              r"X:\\SUB\\TEST\\123456~1"),
+            ("LFN1", r"X:\\sub\\abcdefgfedcba\\1234567890987654321",     r"X:\\SUB\\ABCDEF~1\\123456~1"),
+            ("LFN1", r"X:\\sub\\1234567890987654321\\abcdefgfedcba.txt", r"X:\\SUB\\123456~1\\ABCDEF~1.TXT"),
+            ("LFN1", r"X:\\sub\\1234567890987654321\\abcdefclash.txt",   r"X:\\SUB\\123456~1\\ABCDEF~2.TXT"),
+            ("LFN1", r"1234567890987654321\\abcdefclash.txt",            r"X:\\SUB\\123456~1\\ABCDEF~2.TXT"),
+            ("LFN1", r".\\1234567890987654321\\abcdefclash.txt",         r"X:\\SUB\\123456~1\\ABCDEF~2.TXT"),
+            ("LFN1", r"..\\sub\\1234567890987654321\\abcdefclash.txt",   r"X:\\SUB\\123456~1\\ABCDEF~2.TXT"),
+            ("LFN1", r"X:\\program files",                               r"X:\\PROGRA~1"),
+            ("LFN1", r"X:\\PROGRAM FILES",                               r"X:\\PROGRA~1"),
+            ("LFN1", r"X:\\Program Files",                               r"X:\\PROGRA~1"),
 
-            ("LFN0", r"X:\progra~1",      r"X:\PROGRA~1"),
-            ("LFN1", r"X:\Program Files", r"X:\PROGRA~1"),
-            ("LFN2", r"X:\PROGRA~1",      r"X:\Program Files"),
+            ("LFN2", r"X:\\LFNNOT~1.TXT",                                r"ERROR: invalid component"),  # Non existent
+            ("LFN2", r"X:\\LFNINR~1.TXT",                                r"X:\\lfnInRoot.tXt"),
+            ("LFN2", r"X:\\sub\\VERYLO~1.TXT",                           r"X:\\Sub\\verylongfilename.txt"),
+            ("LFN2", r"X:\\sub\\VERYLO~2.TXT",                           r"X:\\Sub\\verylongfilename2.txt"),
+            ("LFN2", r"X:\\sub\\SPACEE~1.TXT",                           r"X:\\Sub\\space embedded filename.txt"),
+            ("LFN2", r"X:\\sub\\MIXEDC~1.EXT",                           r"X:\\Sub\\MixedCaseFilename.ext"),
+            ("LFN2", r"X:\\sub\\TEST\\123456~1",                         r"X:\\Sub\\test\\1234567890987654321"),
+            ("LFN2", r"X:\\sub\\ABCDEF~1\\123456~1",                     r"X:\\Sub\\abcdefgfedcba\\1234567890987654321"),
+            ("LFN2", r"X:\\sub\\123456~1\\ABCDEF~1.TXT",                 r"X:\\Sub\\1234567890987654321\\abcdefgfedcba.txt"),
+            ("LFN2", r"X:\\sub\\123456~1\\ABCDEF~2.TXT",                 r"X:\\Sub\\1234567890987654321\\abcdefclash.txt"),
+            ("LFN2", r"X:\\progra~1",                                    r"X:\\Program Files"),
+            ("LFN2", r"X:\\PROGRA~1",                                    r"X:\\Program Files"),
+            ("LFN2", r"X:\\PROGRA~1",                                    r"X:\\Program Files"),
         )
-        for t in tests:
-            with self.subTest(t=t):
-                mfs_truename(self, "VFAT", names_to_create, *t)
+        mfs_truename(self, "VFAT", names_to_create, tests)
 
     def test_mfs_truename_vfat_linux_mounted_sfn(self):
         """MFS truename VFAT Linux mounted SFN"""
         names_to_create = (
             ("DIR", "testname"),
-            ("FILE", "shrtname.txt"),
-            ("FILE", "verylongfilename.txt"),
-            ("FILE", "verylongfilename2.txt"),
-            ("FILE", "space embedded filename.txt"),
-            ("FILE", "MixedCaseFilename.ext"),
-            ("DIR", "test/1234567890987654321"),
-            ("DIR", "abcdefgfedcba/1234567890987654321"),
-            ("FILE", "654321fedcba/abcdef123456.txt"),
-            ("FILE", "654321fedcba/abcdefclash.txt"),
+            ("FILE", "Sub/shrtname.txt"),
+            ("FILE", "Sub/verylongfilename.txt"),
+            ("FILE", "Sub/verylongfilename2.txt"),
+            ("FILE", "Sub/space embedded filename.txt"),
+            ("FILE", "Sub/MixedCaseFilename.ext"),
+            ("DIR", "Sub/test/1234567890987654321"),
+            ("DIR", "Sub/abcdefgfedcba/1234567890987654321"),
+            ("FILE", "Sub/654321fedcba/abcdef123456.txt"),
+            ("FILE", "Sub/654321fedcba/abcdefclash.txt"),
         )
-        tests = (
-            ("SFN", r"X:\testname",          r"X:\TESTNAME"),
-            ("SFN", r"d:\shrtname.txt",      r"D:\SHRTNAME.TXT"),
-            ("SFN", r"X:\verylo~1.txt",      r"X:\VERYLO~1.TXT"),
-            ("SFN", r"X:\verylo~2.txt",      r"X:\VERYLO~2.TXT"),
-            ("SFN", r"X:\spacee~1.txt",      r"X:\SPACEE~1.TXT"),
-            ("SFN", r"X:\mixedc~1.ext",      r"X:\MIXEDC~1.EXT"),
-            ("SFN", r"X:\test\123456~1",     r"X:\TEST\123456~1"),
-            ("SFN", r"X:\abcdef~1\123456~1", r"X:\ABCDEF~1\123456~1"),
-            ("SFN", r"X:\654321~1\abcdef~1", r"X:\654321~1\ABCDEF~1"),
-            ("SFN", r"X:\654321~1\abcdef~2", r"X:\654321~1\ABCDEF~2"),
+        tests = (  # Note: CurDrv == X:, CurDir == \SUB
+            ("SFN", r"X:\\testname",                r"X:\\TESTNAME"),
+            ("SFN", r"..\\testname",                r"X:\\TESTNAME"),
+            ("SFN", r"testname",                    r"X:\\SUB\\TESTNAME"),  # Non existent
+            ("SFN", r"X:\\sub\\shrtname.txt",       r"X:\\SUB\\SHRTNAME.TXT"),
+            ("SFN", r"X:\\sub\\verylo~1.txt",       r"X:\\SUB\\VERYLO~1.TXT"),
+            ("SFN", r"X:\\sub\\verylo~2.txt",       r"X:\\SUB\\VERYLO~2.TXT"),
+            ("SFN", r"X:\\sub\\spacee~1.txt",       r"X:\\SUB\\SPACEE~1.TXT"),
+            ("SFN", r"X:\\sub\\mixedc~1.ext",       r"X:\\SUB\\MIXEDC~1.EXT"),
+            ("SFN", r"X:\\sub\\test\\123456~1",     r"X:\\SUB\\TEST\\123456~1"),
+            ("SFN", r"X:\\sub\\abcdef~1\\123456~1", r"X:\\SUB\\ABCDEF~1\\123456~1"),
+            ("SFN", r"X:\\sub\\654321~1\\abcdef~1", r"X:\\SUB\\654321~1\\ABCDEF~1"),
+            ("SFN", r"X:\\sub\\654321~1\\abcdef~2", r"X:\\SUB\\654321~1\\ABCDEF~2"),
         )
-        for t in tests:
-            with self.subTest(t=t):
-                mfs_truename(self, "VFAT", names_to_create, *t)
+        mfs_truename(self, "VFAT", names_to_create, tests)
 
     def _test_mfs_file_read(self, nametype):
         if nametype == "LFN":
