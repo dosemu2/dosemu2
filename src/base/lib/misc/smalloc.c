@@ -32,6 +32,15 @@
 #ifndef min
 #define _min(x, y) ((x) < (y) ? (x) : (y))
 #endif
+#ifndef PAGE_SIZE
+#define PAGE_SIZE 4096
+#endif
+#ifndef PAGE_MASK
+#define PAGE_MASK (~(PAGE_SIZE-1))
+#endif
+#ifndef PAGE_ALIGN
+#define PAGE_ALIGN(addr) (((addr)+PAGE_SIZE-1)&PAGE_MASK)
+#endif
 
 static void smerror_dummy(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
 
@@ -99,11 +108,16 @@ static int get_oom_pr(struct mempool *mp, size_t size)
 
 static void sm_uncommit(struct mempool *mp, void *addr, size_t size)
 {
+    /* align address up and align down size */
+    uintptr_t a = (uintptr_t)addr;
+    uintptr_t aa = PAGE_ALIGN(a);
+    size_t aligned_size = (size - (aa - a)) & PAGE_MASK;
+    void *aligned_addr = (void *)aa;
     mp->avail += size;
     assert(mp->avail <= mp->size);
     if (!mp->uncommit)
       return;
-    mp->uncommit(addr, size);
+    mp->uncommit(aligned_addr, aligned_size);
 }
 
 static int __sm_commit(struct mempool *mp, void *addr, size_t size,
@@ -123,7 +137,12 @@ static int __sm_commit(struct mempool *mp, void *addr, size_t size,
 static int sm_commit(struct mempool *mp, void *addr, size_t size,
 	void *e_addr, size_t e_size)
 {
-    int ok = __sm_commit(mp, addr, size, e_addr, e_size);
+    /* align address down and align up size */
+    uintptr_t a = (uintptr_t)addr;
+    uintptr_t aa = a & PAGE_MASK;
+    size_t aligned_size = PAGE_ALIGN(size + (a - aa));
+    void *aligned_addr = (void *)aa;
+    int ok = __sm_commit(mp, aligned_addr, aligned_size, e_addr, e_size);
     if (ok) {
 	assert(mp->avail >= size);
 	mp->avail -= size;
@@ -312,8 +331,6 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
     mn = mn->next;
     assert(!mn->used && mn->size >= size);
   }
-  /* align also end */
-  size = (size + align) & ~align;
   if (!sm_commit_simple(mp, mn->mem_area, size))
     return NULL;
   mn->used = 1;
@@ -341,20 +358,11 @@ static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
 	    "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
-  /* insert small node to align the end */
-  iptr = ((uintptr_t)mn->mem_area + mn->size) & ~align;
-  if (iptr > (uintptr_t)top)
-    iptr = (uintptr_t)top & ~align;
-  delta = (uintptr_t)mn->mem_area + mn->size - iptr;
-  if (delta) {
-    mntruncate(mn, mn->size - delta);
-    assert(!mn->used && mn->size >= size);
-  }
-  size = (size + align) & ~align;
-  iptr -= size;
+  /* use top part of the found area */
+  iptr = ((uintptr_t)mn->mem_area + mn->size - size) & ~align;
+  assert(iptr >= (uintptr_t)mn->mem_area);
   delta = iptr - (uintptr_t)mn->mem_area;
   if (delta) {
-    assert(delta > 0);
     mntruncate(mn, delta);
     mn = mn->next;
     assert(!mn->used && mn->size >= size);
@@ -524,7 +532,6 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
 void *smrealloc_aligned(struct mempool *mp, void *ptr, int align, size_t size)
 {
   struct memnode *mn, *pmn;
-  int al = align - 1;
   assert(__builtin_popcount(align) == 1);
   if (!ptr)
     return smalloc_aligned(mp, align, size);
@@ -540,9 +547,12 @@ void *smrealloc_aligned(struct mempool *mp, void *ptr, int align, size_t size)
     smfree(mp, ptr);
     return NULL;
   }
-  size = (size + al) & ~al;
   if (size == mn->size)
     return ptr;
+  if ((uintptr_t)mn->mem_area & (align - 1)) {
+    smerror(mp, "SMALLOC: unaligned pointer passed to smrealloc_aligned()\n");
+    return NULL;
+  }
   if (size < mn->size) {
     /* shrink */
     sm_uncommit(mp, mn->mem_area + size, mn->size - size);
