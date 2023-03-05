@@ -266,7 +266,7 @@ static void close_mapping_file(int cap)
 
 static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
 {
-  int page, i;
+  int page, i, fixed = 0;
   struct file_mapping *p;
 
   Q__printf("MAPPING: alloc, cap=%s, mapsize=%zx\n", cap, mapsize);
@@ -275,9 +275,17 @@ static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
       break;
   assert(i < MAX_FILE_MAPPINGS);
   page = pgaalloc(pgmpool, mapsize >> PAGE_SHIFT, i);
-  if (page < 0 || mmap(target, mapsize, PROT_READ | PROT_WRITE,
-	   MAP_SHARED | MAP_FIXED, tmpfile_fd, page << PAGE_SHIFT) != target)
-    return NULL;
+  if (page < 0)
+    return MAP_FAILED;
+
+  if (target != (void *)-1)
+    fixed = MAP_FIXED;
+  else
+    target = NULL;
+  target = mmap(target, mapsize, PROT_READ | PROT_WRITE,
+		MAP_SHARED | fixed, tmpfile_fd, page << PAGE_SHIFT);
+  if (target == MAP_FAILED)
+    return MAP_FAILED;
 #if HAVE_DECL_MADV_POPULATE_WRITE
   {
     int err = madvise(target, mapsize, MADV_POPULATE_WRITE);

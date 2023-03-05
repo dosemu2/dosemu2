@@ -139,9 +139,15 @@ static void close_mapping_shm(int cap)
 
 static void *alloc_mapping_shm(int cap, size_t mapsize, void *target)
 {
+  int fixed = 0;
+
   Q__printf("MAPPING: alloc, cap=%s, mapsize=%zx\n", cap, mapsize);
+  if (target != (void *)-1)
+    fixed = MAP_FIXED;
+  else
+    target = NULL;
   return mmap(target, mapsize, PROT_READ | PROT_WRITE,
-    MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    MAP_SHARED | MAP_ANONYMOUS | fixed, -1, 0);
 }
 
 static void free_mapping_shm(int cap, void *addr, size_t mapsize)

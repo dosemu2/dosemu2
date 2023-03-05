@@ -653,9 +653,7 @@ void *alloc_mapping(int cap, size_t mapsize)
   void *addr;
 
   Q__printf("MAPPING: alloc, cap=%s size=%#zx\n", cap, mapsize);
-  addr = mmap(NULL, mapsize, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-  if (addr != MAP_FAILED)
-    addr = mappingdriver->alloc(cap, mapsize, addr);
+  addr = mappingdriver->alloc(cap, mapsize, (void *)-1);
   if (addr == MAP_FAILED) {
     error("failed to alloc %zx\n", mapsize);
     leavedos(2);
