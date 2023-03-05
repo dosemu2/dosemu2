@@ -346,6 +346,8 @@ static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
   struct memnode *mn;
   int delta;
   uintptr_t iptr;
+  uintptr_t min_top;
+  uintptr_t iend;
   if (!size || align < 2) {
     smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
     return NULL;
@@ -359,7 +361,12 @@ static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
     return NULL;
   }
   /* use top part of the found area */
-  iptr = ((uintptr_t)mn->mem_area + mn->size - size) & ~align;
+  min_top = _min((uintptr_t)mn->mem_area + mn->size, (uintptr_t)top);
+  iptr = (min_top - size) & ~align;
+  iend = iptr + size;
+  delta = (uintptr_t)mn->mem_area + mn->size - iend;
+  if (delta)
+    mntruncate(mn, mn->size - delta);
   assert(iptr >= (uintptr_t)mn->mem_area);
   delta = iptr - (uintptr_t)mn->mem_area;
   if (delta) {
