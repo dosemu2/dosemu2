@@ -121,8 +121,10 @@ void init_hardware_ram(void);
 int map_hardware_ram(char type);
 int unmap_hardware_ram(char type);
 int register_hardware_ram(int type, dosaddr_t base, unsigned size);
-int register_hardware_ram_virtual(int type, unsigned base, unsigned size,
-    void *uaddr, dosaddr_t va);
+void register_hardware_ram_virtual(int type, unsigned base, unsigned size,
+	dosaddr_t va);
+void register_hardware_ram_virtual2(int type, unsigned base, unsigned size,
+	void *uaddr, dosaddr_t va);
 int unregister_hardware_ram_virtual(dosaddr_t base);
 dosaddr_t get_hardware_ram(unsigned addr, uint32_t size);
 void *get_hardware_uaddr(unsigned addr);

@@ -78,17 +78,12 @@ struct __attribute__ ((__packed__)) EMM {
    unsigned int DestOffset;
 };
 
-struct pava {
-  unsigned pa;
-  dosaddr_t va;
-};
-
 struct Handle {
   unsigned short int num;
   void *addr;
   unsigned int size;
   int lockcount;
-  struct pava dst;
+  unsigned dst;
 };
 
 static struct Handle handles[NUM_HANDLES];
@@ -253,36 +248,31 @@ static void xms_free(void *addr, unsigned osize)
   free_mapping(MAPPING_OTHER, addr, PAGE_ALIGN(osize));
 }
 
-static struct pava map_EMB(void *addr, unsigned size, unsigned handle)
+static unsigned map_EMB(void *addr, unsigned size, unsigned handle)
 {
   int page, rc;
-  struct pava ret = {};
+  unsigned ret = 0;
 
   page = pgaalloc(pgapool, PAGE_ALIGN(size) >> PAGE_SHIFT, handle);
   if (page < 0) {
     error("error allocating %i bytes for xms\n", size);
     return ret;
   }
-  ret.pa = xms_base + (page << PAGE_SHIFT);
-  rc = alias_mapping(MAPPING_EXTMEM, ret.pa, PAGE_ALIGN(size),
+  ret = xms_base + (page << PAGE_SHIFT);
+  rc = alias_mapping_pa(MAPPING_EXTMEM, ret, PAGE_ALIGN(size),
 		 PROT_READ | PROT_WRITE, addr);
   if (rc == -1) {
     error("failure to map xms\n");
     leavedos(2);
   }
-  ret.va = ret.pa; // identity mapped
-  register_hardware_ram_virtual('x', ret.pa, size, addr, ret.va);
   return ret;
 }
 
-static void unmap_EMB(struct pava base, unsigned size)
+static void unmap_EMB(unsigned base, unsigned size)
 {
-  int err = unregister_hardware_ram_virtual(base.pa);
-  if (err)
-    error("error unregistering hwram at %#x\n", base.pa);
-  e_invalidate_full(base.va, PAGE_ALIGN(size));
-  restore_mapping(MAPPING_DPMI, base.va, PAGE_ALIGN(size));
-  pgafree(pgapool, (base.pa - xms_base) >> PAGE_SHIFT);
+  e_invalidate_full_pa(base, PAGE_ALIGN(size));
+  unalias_mapping_pa(MAPPING_DPMI, base, PAGE_ALIGN(size));
+  pgafree(pgapool, (base - xms_base) >> PAGE_SHIFT);
 }
 
 #if 0
@@ -302,9 +292,9 @@ void *xms_resolve_physaddr(unsigned addr)
 
 static void do_free_EMB(int h)
 {
-    if (handles[h].dst.pa)
+    if (handles[h].dst)
       unmap_EMB(handles[h].dst, handles[h].size);
-    handles[h].dst.pa = 0;
+    handles[h].dst = 0;
     if (handles[h].addr)
       xms_free(handles[h].addr, handles[h].size);
     handles[h].addr = NULL;
@@ -906,8 +896,8 @@ xms_move_EMB(void)
     if (e.DestOffset + e.Length > handles[e.DestHandle].size) {
       return 0xa7;		/* invalid Length */
     }
-    if (handles[e.DestHandle].dst.pa) // .pa is set if mapped, invalidate on va
-      e_invalidate(handles[e.DestHandle].dst.va + e.DestOffset, e.Length);
+    if (handles[e.DestHandle].dst) // .pa is set if mapped, invalidate on va
+      e_invalidate_pa(handles[e.DestHandle].dst + e.DestOffset, e.Length);
     d = handles[e.DestHandle].addr + e.DestOffset;
   }
 
@@ -923,7 +913,7 @@ static unsigned char
 xms_lock_EMB(int flag)
 {
   int h = LWORD(edx);
-  struct pava addr;
+  unsigned addr;
 
   if (ValidHandle(h)) {
     /* flag=1 locks, flag=0 unlocks */
@@ -936,20 +926,20 @@ xms_lock_EMB(int flag)
         return 0xaa;		/* Block is not locked */
       }
       if (!handles[h].lockcount) {
-        x_printf("XMS unlock EMB %d --> %#x\n", h, handles[h].dst.pa);
+        x_printf("XMS unlock EMB %d --> %#x\n", h, handles[h].dst);
         unmap_EMB(handles[h].dst, handles[h].size);
-        handles[h].dst.pa = 0;
+        handles[h].dst = 0;
       }
       return 0;
     }
 
     addr = map_EMB(handles[h].addr, handles[h].size, h);
-    if (addr.pa) {
+    if (addr) {
       handles[h].lockcount++;
-      x_printf("XMS lock EMB %d --> %#x, va=%x\n", h, addr.pa, addr.va);
+      x_printf("XMS lock EMB %d --> %#x\n", h, addr);
       handles[h].dst = addr;
-      LWORD(edx) = addr.pa >> 16;
-      LWORD(ebx) = addr.pa & 0xffff;
+      LWORD(edx) = addr >> 16;
+      LWORD(ebx) = addr & 0xffff;
       return 0;
     }
     x_printf("XMS lock EMB %d failed\n", h);

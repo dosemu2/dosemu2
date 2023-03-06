@@ -1740,24 +1740,14 @@ int vga_emu_pre_init(void)
     if (addr) {
       vga.mem.lfb_base = DOSADDR_REL(addr);
       memcheck_addtype('e', "VGAEMU LFB");
-      register_hardware_ram_virtual('e', VGAEMU_PHYS_LFB_BASE, vga.mem.size,
-				    vga.mem.base, vga.mem.lfb_base);
+      register_hardware_ram_virtual2('e', VGAEMU_PHYS_LFB_BASE, vga.mem.size,
+				     vga.mem.base, vga.mem.lfb_base);
       if (!alias_mapping_pa(MAPPING_VGAEMU, VGAEMU_PHYS_LFB_BASE,
 			    vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base))
 	addr = NULL;
     }
-    if (addr && config.cpu_vm_dpmi == CPUVM_KVM) {
-      /* create mapping:
-	 Linear vga.mem.lfb_base -> phys VGAEMU_PHYS_LFB_BASE=0xe0000000 ->
-	 addr (hugepage aligned) -> vga.mem.base */
-      addr = alias_mapping_huge_page_aligned(MAPPING_VGAEMU, vga.mem.size,
-					     VGA_EMU_RW_PROT, vga.mem.base);
-      if (addr != MAP_FAILED) {
-	mmap_kvm(MAPPING_VGAEMU, VGAEMU_PHYS_LFB_BASE, vga.mem.size, addr,
-		 vga.mem.lfb_base, VGA_EMU_RW_PROT);
+    if (addr && config.cpu_vm_dpmi == CPUVM_KVM)
 	kvm_set_dirty_log(VGAEMU_PHYS_LFB_BASE, vga.mem.size);
-      }
-    }
     if(addr == NULL || addr == MAP_FAILED) {
       error("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
       config.exitearly = 1;

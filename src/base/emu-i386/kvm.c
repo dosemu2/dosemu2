@@ -609,7 +609,7 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   unsigned int page;
   struct kvm_userspace_memory_region *p;
 
-  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
+  if (!(cap & (MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
 	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
 	       MAPPING_EXTMEM))) return;
 
