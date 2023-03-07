@@ -459,6 +459,8 @@ int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
   assert((cap & MAPPING_DPMI) && (targ != (dosaddr_t)-1));
   target = MEM_BASE32(targ);
   addr = mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
+  if (is_kvm_map(cap))
+    mprotect_kvm(cap, targ, mapsize, PROT_READ | PROT_WRITE);
   return (addr == target ? 0 : -1);
 }
 
@@ -1069,6 +1071,8 @@ int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
     return 0;
   assert(addr2 == MEM_BASE32(va));
   hwram_update_aliasmap(hw, addr, mapsize, source);
+  if (is_kvm_map(cap))
+    mprotect_kvm(cap, va, mapsize, protect);
   return 1;
 }
 
