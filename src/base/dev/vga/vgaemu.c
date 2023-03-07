@@ -1675,15 +1675,12 @@ int vga_emu_pre_init(void)
   vga.mem.size = (vga.mem.size + ((1 << 18) - 1)) & ~((1 << 18) - 1);
   vga.mem.pages = vga.mem.size >> 12;
 
-  vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size + PAGE_SIZE);
+  vga.mem.base = alloc_mapping_huge_page_aligned(MAPPING_VGAEMU, vga.mem.size);
   if(vga.mem.base == MAP_FAILED) {
     error("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     config.exitearly = 1;
     return 1;
   }
-  /* create guard page to trap bad things */
-  mprotect(vga.mem.base, PAGE_SIZE, PROT_NONE);
-  vga.mem.base += PAGE_SIZE;
 
   /* alloc more pages because vgaemu_dirty_page() does weird things */
   if((vga.mem.dirty_map = (unsigned char *) malloc(vga.mem.pages | 0xff)) == NULL) {

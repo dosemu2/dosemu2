@@ -74,6 +74,7 @@ void close_mapping(int cap);
 
 typedef void *alloc_mapping_type(int cap, size_t mapsize, void *target);
 void *alloc_mapping (int cap, size_t mapsize);
+void *alloc_mapping_huge_page_aligned (int cap, size_t mapsize);
 
 typedef void free_mapping_type(int cap, void *addr, size_t mapsize);
 void free_mapping (int cap, void *addr, size_t mapsize);
@@ -87,7 +88,6 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect);
 typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int protect, void *source);
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source);
 int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect, void *source);
-void *alias_mapping_huge_page_aligned(int cap, size_t mapsize, int protect, void *source);
 int unalias_mapping_pa(int cap, unsigned addr, size_t mapsize);
 void *alias_mapping_ux(int cap, size_t mapsize, int protect, void *source);
 
