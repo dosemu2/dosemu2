@@ -393,13 +393,6 @@ void low_mem_init(void)
   /* smalloc uses PROT_READ | PROT_WRITE, needs to add PROT_EXEC here */
   mprotect_mapping(MAPPING_LOWMEM, 0, LOWMEM_SIZE + HMASIZE, PROT_READ | PROT_WRITE |
       PROT_EXEC);
-  phys_rsv = EXTMEM_SIZE + config.xms_map_size;
-  dpmi_rsv_low = config.dpmi ? (config.dpmi_base - (LOWMEM_SIZE + HMASIZE + phys_rsv)) : 0;
-  ptr = smalloc(&main_pool, phys_rsv + dpmi_rsv_low + dpmi_mem_size());
-  assert(ptr);
-  if (config.dpmi) {
-    dpmi_set_mem_base(ptr);
-  }
 
   if (config.ext_mem) {
     /* LOWMEM_SIZE + HMASIZE == base */
@@ -416,17 +409,23 @@ void low_mem_init(void)
   /* establish alias access for int15 */
   register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, phys_rsv,
 	    DOSADDR_REL(ptr2));
-  /* map dpmi+uncommitted space to kvm */
-  if (config.dpmi && config.cpu_vm_dpmi == CPUVM_KVM) {
-    int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
-    mmap_kvm(MAPPING_INIT_LOWRAM, (unsigned)-1, ptr2 - ptr, ptr,
-	LOWMEM_SIZE + HMASIZE, prot);
+
+  if (config.dpmi) {
+    ptr = smalloc(&main_pool, config.dpmi_base - (LOWMEM_SIZE + HMASIZE) + dpmi_mem_size());
+    assert(ptr);
+    dpmi_set_mem_base(ptr);
+    /* map dpmi+uncommitted space to kvm */
+    if (config.cpu_vm_dpmi == CPUVM_KVM) {
+      int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
+      mmap_kvm(MAPPING_INIT_LOWRAM, (unsigned)-1, ptr2 - ptr, ptr,
+	       LOWMEM_SIZE + HMASIZE, prot);
+    }
+    /* create alias for dpmi */
+    result = alias_mapping(MAPPING_EXTMEM, DOSADDR_REL(ptr2), EXTMEM_SIZE,
+			   PROT_READ | PROT_WRITE,
+			   lowmem + LOWMEM_SIZE + HMASIZE);
+    assert(result != -1);
   }
-  /* create alias for dpmi */
-  result = alias_mapping(MAPPING_EXTMEM, DOSADDR_REL(ptr2), EXTMEM_SIZE,
-			 PROT_READ | PROT_WRITE,
-			 lowmem + LOWMEM_SIZE + HMASIZE);
-  assert(result != -1);
 
   /* R/O protect 0xf0000-0xf4000 */
   if (!config.umb_f0)
