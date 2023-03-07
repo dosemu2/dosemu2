@@ -167,6 +167,14 @@ char *strupperDOS(char *src)
   return s;
 }
 
+char *strnupperDOS(char *src, int n)
+{
+  char *s = src;
+  for (; n > 0 && *src; src++, n--)
+    *src = toupperDOS(*src);
+  return s;
+}
+
 char *strlowerDOS(char *src)
 {
   char *s = src;
@@ -175,21 +183,18 @@ char *strlowerDOS(char *src)
   return s;
 }
 
-/* locale-independent routines      */
-
-/***************************************************************************
-line strncpy but always null terminates. Make sure there is room!
-****************************************************************************/
-char *StrnCpy(char *dest,const char *src,int n)
+char *strnlowerDOS(char *src, int n)
 {
-  char *d = dest;
-  while (n-- && (*d++ = *src++)) ;
-  *d = 0;
-  return(dest);
+  char *s = src;
+  for (; n > 0 && *src; src++, n--)
+    *src = tolowerDOS(*src);
+  return s;
 }
 
+/* locale-independent routines      */
+
 /****************************************************************************
-prompte a dptr (to make it recently used)
+promote a dptr (to make it recently used)
 ****************************************************************************/
 void array_promote(char *array,int elsize,int element)
 {

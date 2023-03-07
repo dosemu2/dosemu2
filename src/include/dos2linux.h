@@ -389,7 +389,9 @@ extern unsigned short dos_to_unicode_table[0x100];
 #define toupperDOS(c) (upperDOS_table[(unsigned char)(c)])
 #define tolowerDOS(c) (lowerDOS_table[(unsigned char)(c)])
 char *strupperDOS(char *s);
+char *strnupperDOS(char *s, int n);
 char *strlowerDOS(char *s);
+char *strnlowerDOS(char *s, int n);
 #define iscntrlDOS(c) (((unsigned char)(c)) < 0x20)
 int strequalDOS(const char *s1, const char *s2);
 char *strstrDOS(char *haystack, const char *upneedle);

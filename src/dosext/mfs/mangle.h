@@ -63,7 +63,6 @@ int strcmpDOS(char *s1, char *s2);
 int strncasecmpDOS(char *s1, char *s2,int n);
 int strcasecmpDOS(char *s1, char *s2);
 
-char *StrnCpy(char *dest,const char *src,int n);
 void array_promote(char *array,int elsize,int element);
 
 

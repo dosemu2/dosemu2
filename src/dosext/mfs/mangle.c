@@ -312,7 +312,7 @@ BOOL check_mangled_stack(char *s, char *MangledMap)
   if (p)
     {
       check_extension = True;
-      StrnCpy(extension,p,4);
+      strlcpy(extension, p, sizeof(extension));
     }
 
   for (i=0;i<mangled_stack_len;i++)
@@ -550,7 +550,7 @@ static char *mangled_match(char *s, /* This is null terminated */
   char *match_start;            /* Where the matching bit starts. */
   pstring pat;
 
-  StrnCpy(pat, pattern, len);   /* Get pattern into a proper string! */
+  strlcpy(pat, pattern, len+1); /* Get pattern into a proper string! */
   strcpy(matching_bit,"");      /* Match but no star gets this. */
   pp = pat;                     /* Initialise the pointers. */
   sp = s;
@@ -572,7 +572,7 @@ static char *mangled_match(char *s, /* This is null terminated */
     pp++;                       /* Always interested in the character */
                                 /* after the '*' */
     if (!*pp) {                 /* It is at the end of the pattern. */
-      StrnCpy(matching_bit, s, sp-s);
+      strlcpy(matching_bit, s, sp-s+1);
       return matching_bit;
     } else {
       /* The next character in pattern must match a character further */
@@ -585,7 +585,7 @@ static char *mangled_match(char *s, /* This is null terminated */
         return NULL;
       } else {                  /* Still hope for a match. */
         /* Now sp should point to a matching character. */
-        StrnCpy(matching_bit, match_start, sp-match_start);
+        strlcpy(matching_bit, match_start, sp-match_start+1);
         /* Back to needing a stright match again. */
         while ((*sp)            /* Not the end of the string. */
                && (*pp)         /* Not the end of the pattern. */
@@ -737,7 +737,7 @@ static BOOL do_rev_mangled_map(char *s, char *MangledMap)
 	DEBUG(5,("Found a match\n"));
 	/* Substitute with the new name. */
 	ss = s;
-	StrnCpy(pattern, start_first, end_first-start_first);
+	strlcpy(pattern, start_first, end_first-start_first+1);
 	pp = pattern;
 	while ((*pp)              /* Not end of pattern. */
 	       && (*pp != '*'))   /* Not the wild bit. */
@@ -847,7 +847,7 @@ void unix_convert_83(char *s,char *home,BOOL mangle, char *MangledMap)
         *d++ = '\0';
         if (do_rev_mangled_map(component, MangledMap)) {
           pstring new_s;
-          StrnCpy(new_s, s, start-s);
+          strlcpy(new_s, s, start-s+1);
           strcat(new_s, component);
           strcat(new_s, p);
           strcpy(s, new_s);

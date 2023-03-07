@@ -1084,9 +1084,7 @@ static int mfs_lfn_(void)
 		} else {
 			char *lastslash = strrchr(filename, '\\');
 			if (lastslash) { /* Upcase but preserve the final component */
-				*lastslash = '\0';
-				strupperDOS(filename);
-				*lastslash = '\\';
+				strnupperDOS(filename, lastslash - filename);
 			} else if (filename[2] == '/') { /* Is a device name */
 				strupperDOS(filename);
 			}
@@ -1160,7 +1158,7 @@ static int mfs_lfn_(void)
 	case 0xa8: /* generate short filename */
 	{
 		src = MK_FP32(_DS, _SI);
-		StrnCpy(fpath, src, sizeof(fpath) - 1);
+		strlcpy(fpath, src, sizeof(fpath));
 		name_convert(fpath, MANGLE);
 		strupperDOS(fpath);
 		if (_DH == 0) {
