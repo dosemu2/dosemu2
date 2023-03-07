@@ -408,7 +408,6 @@ void low_mem_init(void)
     x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE, result + LOWMEM_SIZE + HMASIZE);
   }
 
-  ptr += phys_rsv + dpmi_rsv_low;
   /* create non-identity mapping up to dpmi_base */
   phys_rsv = config.dpmi_base - (LOWMEM_SIZE + HMASIZE);
   ptr2 = smalloc_aligned_topdown(&main_pool, MEM_BASE32(memsize),
@@ -417,13 +416,11 @@ void low_mem_init(void)
   /* establish alias access for int15 */
   register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, phys_rsv,
 	    DOSADDR_REL(ptr2));
-  register_hardware_ram_virtual('U',  DOSADDR_REL(ptr2), phys_rsv,
-	    LOWMEM_SIZE + HMASIZE);
   /* map dpmi+uncommitted space to kvm */
-  if (config.cpu_vm_dpmi == CPUVM_KVM) {
+  if (config.dpmi && config.cpu_vm_dpmi == CPUVM_KVM) {
     int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
     mmap_kvm(MAPPING_INIT_LOWRAM, (unsigned)-1, ptr2 - ptr, ptr,
-	config.dpmi_base, prot);
+	LOWMEM_SIZE + HMASIZE, prot);
   }
   /* create alias for dpmi */
   result = alias_mapping(MAPPING_EXTMEM, DOSADDR_REL(ptr2), EXTMEM_SIZE,
