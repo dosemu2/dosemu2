@@ -193,19 +193,8 @@ char *strnlowerDOS(char *src, int n)
 
 /* locale-independent routines      */
 
-/***************************************************************************
-line strncpy but always null terminates. Make sure there is room!
-****************************************************************************/
-char *StrnCpy(char *dest,const char *src,int n)
-{
-  char *d = dest;
-  while (n-- && (*d++ = *src++)) ;
-  *d = 0;
-  return(dest);
-}
-
 /****************************************************************************
-prompte a dptr (to make it recently used)
+promote a dptr (to make it recently used)
 ****************************************************************************/
 void array_promote(char *array,int elsize,int element)
 {
