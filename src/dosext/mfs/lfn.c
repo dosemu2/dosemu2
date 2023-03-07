@@ -482,7 +482,7 @@ static int build_truename(char *dest, const char *src, int mode)
 	int dd = -1;
 	int err;
 
-	d_printf("LFN: build_posix_path: %s\n", src);
+	d_printf("LFN: build_truename: %s\n", src);
 	err = truename(dest, src, mode, &dd);
 
 	switch (err) {
@@ -1062,7 +1062,7 @@ static int mfs_lfn_(void)
 		char filename[PATH_MAX];
 
 		src = MK_FP32(_DS, _SI);
-		d_printf("LFN: truename %s, cl=%d\n", src, _CL);
+		d_printf("LFN: truename cl=%d '%s'\n", _CL, src);
 		i = 0;
 		if (src[0] && src[1] == ':') i = 2;
 		for (; src[i]; i++) {
@@ -1076,17 +1076,22 @@ static int mfs_lfn_(void)
 		if (drive < 0)
 			return drive + 2;
 
-		d_printf("LFN: %s\n", fpath);
-
 		if (_CL == 1 || _CL == 2) {
 			build_ufs_path(fpath, filename, drive);
 			if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), &doserrno))
 				return lfn_error(doserrno);
 			make_unmake_dos_mangled_path(filename, fpath, drive, 2 - _CL);
 		} else {
-			strupperDOS(filename);
+			char *lastslash = strrchr(filename, '\\');
+			if (lastslash) { /* Upcase but preserve the final component */
+				*lastslash = '\0';
+				strupperDOS(filename);
+				*lastslash = '\\';
+			} else if (filename[2] == '/') { /* Is a device name */
+				strupperDOS(filename);
+			}
 		}
-		d_printf("LFN: %s\n", filename);
+		d_printf("LFN: truename result '%s'\n", filename);
 		MEMCPY_2DOS(dest, filename, strlen(filename) + 1);
 		break;
 	}
