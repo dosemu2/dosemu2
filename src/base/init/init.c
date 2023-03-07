@@ -362,7 +362,7 @@ void low_mem_init(void)
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
-  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE +
+  lowmem = alloc_mapping_huge_page_aligned(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE +
 	EXTMEM_SIZE);
   if (lowmem == MAP_FAILED) {
     perror("LOWRAM alloc");

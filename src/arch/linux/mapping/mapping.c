@@ -262,17 +262,6 @@ void *alias_mapping_ux(int cap, size_t mapsize, int protect, void *source)
   return mappingdriver->alias(cap, target, mapsize, protect, source);
 }
 
-void *alias_mapping_huge_page_aligned(int cap, size_t mapsize, int protect, void *source)
-{
-  void *addr = mmap_mapping_huge_page_aligned(cap, mapsize, PROT_NONE);
-  if (addr == MAP_FAILED ||
-      mappingdriver->alias(cap, addr, mapsize, protect, source) != addr)
-    return MAP_FAILED;
-
-  Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
-  return addr;
-}
-
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
 {
   int i;
@@ -384,22 +373,25 @@ void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect)
 {
   size_t edge;
   int flags = (cap & MAPPING_INIT_LOWRAM) ? _MAP_32BIT : 0;
-  unsigned char *addr = mmap(NULL, mapsize + HUGE_PAGE_SIZE - PAGE_SIZE, protect,
+  unsigned char *addr = mmap(NULL, mapsize + HUGE_PAGE_SIZE, protect,
 			     MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
   if (addr == MAP_FAILED)
     return addr;
 
   /* align up to next 2MB */
-  edge = (unsigned char *)HUGE_PAGE_ALIGN((uintptr_t)addr) - addr;
+  edge = (unsigned char *)HUGE_PAGE_ALIGN((uintptr_t)addr + PAGE_SIZE) - addr;
 
   /* trim front */
-  if (edge > 0)
-    munmap(addr, edge);
+  if (edge > PAGE_SIZE)
+    munmap(addr, edge - PAGE_SIZE);
+
+  /* create guard page to trap bad things */
+  mprotect(&addr[edge - PAGE_SIZE], PAGE_SIZE, PROT_NONE);
 
   addr += edge;
 
   /* trim back */
-  edge = HUGE_PAGE_SIZE - PAGE_SIZE - edge;
+  edge = HUGE_PAGE_SIZE - edge;
   if (edge > 0)
     munmap(&addr[mapsize], edge);
 
@@ -648,12 +640,9 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
 }
 #endif
 
-void *alloc_mapping(int cap, size_t mapsize)
+static void *do_alloc_mapping(int cap, size_t mapsize, void *addr)
 {
-  void *addr;
-
-  Q__printf("MAPPING: alloc, cap=%s size=%#zx\n", cap, mapsize);
-  addr = mappingdriver->alloc(cap, mapsize, (void *)-1);
+  addr = mappingdriver->alloc(cap, mapsize, addr);
   if (addr == MAP_FAILED) {
     error("failed to alloc %zx\n", mapsize);
     leavedos(2);
@@ -667,6 +656,20 @@ void *alloc_mapping(int cap, size_t mapsize)
   }
   Q__printf("MAPPING: %s allocated at %p\n", cap, addr);
   return addr;
+}
+
+void *alloc_mapping(int cap, size_t mapsize)
+{
+  Q__printf("MAPPING: alloc, cap=%s size=%#zx\n", cap, mapsize);
+  return do_alloc_mapping(cap, mapsize, (void *)-1);
+}
+
+void *alloc_mapping_huge_page_aligned(int cap, size_t mapsize)
+{
+  void *addr;
+  Q__printf("MAPPING: alloc_huge_page_aligned, cap=%s size=%#zx\n", cap, mapsize);
+  addr = mmap_mapping_huge_page_aligned(cap, mapsize, PROT_NONE);
+  return addr == MAP_FAILED ? MAP_FAILED : do_alloc_mapping(cap, mapsize, addr);
 }
 
 void free_mapping(int cap, void *addr, size_t mapsize)
