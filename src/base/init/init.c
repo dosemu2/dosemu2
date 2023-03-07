@@ -422,7 +422,7 @@ void low_mem_init(void)
   /* map dpmi+uncommitted space to kvm */
   if (config.cpu_vm_dpmi == CPUVM_KVM) {
     int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
-    mmap_kvm(MAPPING_INIT_LOWRAM, config.dpmi_base, ptr2 - ptr, ptr,
+    mmap_kvm(MAPPING_INIT_LOWRAM, (unsigned)-1, ptr2 - ptr, ptr,
 	config.dpmi_base, prot);
   }
   /* create alias for dpmi */
