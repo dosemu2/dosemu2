@@ -167,10 +167,26 @@ char *strupperDOS(char *src)
   return s;
 }
 
+char *strnupperDOS(char *src, int n)
+{
+  char *s = src;
+  for (; n > 0 && *src; src++, n--)
+    *src = toupperDOS(*src);
+  return s;
+}
+
 char *strlowerDOS(char *src)
 {
   char *s = src;
   for (; *src; src++)
+    *src = tolowerDOS(*src);
+  return s;
+}
+
+char *strnlowerDOS(char *src, int n)
+{
+  char *s = src;
+  for (; n > 0 && *src; src++, n--)
     *src = tolowerDOS(*src);
   return s;
 }

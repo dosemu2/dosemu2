@@ -1084,9 +1084,7 @@ static int mfs_lfn_(void)
 		} else {
 			char *lastslash = strrchr(filename, '\\');
 			if (lastslash) { /* Upcase but preserve the final component */
-				*lastslash = '\0';
-				strupperDOS(filename);
-				*lastslash = '\\';
+				strnupperDOS(filename, lastslash - filename);
 			} else if (filename[2] == '/') { /* Is a device name */
 				strupperDOS(filename);
 			}
