@@ -81,6 +81,32 @@ int pgaalloc(void *pool, unsigned npages, unsigned id)
     return idx - 1;
 }
 
+int pgaresize(void *pool, unsigned page, unsigned oldpages, unsigned newpages)
+{
+    int i;
+    int *p = pool;
+    page++;  // skip len
+    assert(page + oldpages < p[0]);
+    assert(page + newpages < p[0]);
+    assert(p[page] < 0);
+
+    if (newpages <= oldpages) { /* shrink */
+        for (i = newpages; i < oldpages; i++)
+             p[page+i] = 0;
+        return page;
+    }
+
+    /* check if we can expand */
+    for (i = oldpages; i < newpages; i++)
+         if (p[page+i])
+             return -1;
+
+    /* allocate the expansion */
+    for (i = oldpages; i < newpages; i++)
+         p[page+i] = i;
+    return page;
+}
+
 void pgafree(void *pool, unsigned page)
 {
     int *p = pool;

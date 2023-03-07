@@ -27,21 +27,42 @@
 
 #include "emu.h"
 #include "mapping.h"
-#include "smalloc.h"
+#include "pgalloc.h"
 #include "utilities.h"
 
 /* ------------------------------------------------------------ */
 
-static smpool pgmpool;
+static void *pgmpool;
 static int mpool_numpages = (32 * 1024) / 4;
-static char *mpool = 0;
 
 static int tmpfile_fd = -1;
+
+/* There are 255 EMS handles, 65 XMS handles, + 2 for lowmem + vgaemu
+   So 512 is definitely sufficient */
+#define MAX_FILE_MAPPINGS 512
+static struct file_mapping {
+  unsigned char *addr; /* pointer to allocated shared memory */
+  size_t size;
+  int page; /* page number in file */
+} file_mappings[MAX_FILE_MAPPINGS];
+
+static struct file_mapping *find_file_mapping(unsigned char *target)
+{
+  int i;
+  struct file_mapping *p = file_mappings;
+
+  for (i = 0; i < MAX_FILE_MAPPINGS; i++, p++)
+    if (p->size && target >= p->addr && target < &p->addr[p->size])
+      break;
+  assert(i < MAX_FILE_MAPPINGS);
+  return p;
+}
 
 static void *alias_mapping_file(int cap, void *target, size_t mapsize, int protect, void *source)
 {
   int fixed = 0;
-  off_t offs = (char *)source - mpool;
+  struct file_mapping *p = find_file_mapping(source);
+  off_t offs = (p->page << PAGE_SHIFT) + ((unsigned char *)source - p->addr);
   void *addr;
 
   if (offs < 0 || (offs+mapsize >= (mpool_numpages*PAGE_SIZE))) {
@@ -53,6 +74,10 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
     fixed = MAP_FIXED;
   else
     target = NULL;
+  /* /dev/shm may be mounted noexec, and then mounting PROT_EXEC fails.
+     However mprotect may work around this (maybe not in future kernels)
+     alloc_mappings can just be rw though.
+   */
   addr =  mmap(target, mapsize, protect, MAP_SHARED | fixed, tmpfile_fd, offs);
   if (addr == MAP_FAILED) {
     addr = mmap(target, mapsize, protect & ~PROT_EXEC, MAP_SHARED | fixed,
@@ -79,16 +104,6 @@ static void discardtempfile(void)
 {
   close(tmpfile_fd);
   tmpfile_fd = -1;
-}
-
-static int commit(void *ptr, size_t size)
-{
-#if HAVE_DECL_MADV_POPULATE_WRITE
-  int err = madvise(ptr, size, MADV_POPULATE_WRITE);
-  if (err)
-    perror("madvise()");
-#endif
-  return 1;
 }
 
 static int open_mapping_f(int cap)
@@ -121,24 +136,9 @@ static int open_mapping_f(int cap)
       if (!cap)return 0;
       leavedos(2);
     }
-    /* /dev/shm may be mounted noexec, and then mounting PROT_EXEC fails.
-       However mprotect may work around this (maybe not in future kernels)
-    */
-    mpool = mmap(0, mapsize, PROT_READ|PROT_WRITE,
-    		MAP_SHARED, tmpfile_fd, 0);
-    if (mpool == MAP_FAILED ||
-	mprotect(mpool, mapsize, PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
-      error("MAPPING: cannot mmap shared memory pool, %s\n", strerror(errno));
-      discardtempfile();
-      if (!cap)
-	return 0;
-      leavedos(2);
-    }
-    /* the memory pool itself can just be rw though */
-    mprotect(mpool, mapsize, PROT_READ|PROT_WRITE);
-    Q_printf("MAPPING: open, mpool (min %dK) is %d Kbytes at %p-%p\n",
-		estsize, mapsize/1024, mpool, mpool+mapsize-1);
-    sminit_com(&pgmpool, mpool, mapsize, commit, NULL);
+    Q_printf("MAPPING: open, mpool (min %dK) is %d Kbytes\n",
+		estsize, mapsize/1024);
+    pgmpool = pgainit(mpool_numpages);
 
   /*
    * Now handle individual cases.
@@ -258,47 +258,75 @@ static int open_mapping_mshm(int cap)
 static void close_mapping_file(int cap)
 {
   Q_printf("MAPPING: close, cap=%s\n", decode_mapping_cap(cap));
-  if (cap == MAPPING_ALL && tmpfile_fd != -1) discardtempfile();
+  if (cap == MAPPING_ALL && tmpfile_fd != -1) {
+    pgadone(pgmpool);
+    discardtempfile();
+  }
 }
 
-static void *alloc_mapping_file(int cap, size_t mapsize)
+static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
 {
+  int page, i;
+  struct file_mapping *p;
+
   Q__printf("MAPPING: alloc, cap=%s, mapsize=%zx\n", cap, mapsize);
-  return smalloc(&pgmpool, mapsize);
+  for (i = 0, p = file_mappings; i < MAX_FILE_MAPPINGS; i++, p++)
+    if (p->size == 0)
+      break;
+  assert(i < MAX_FILE_MAPPINGS);
+  page = pgaalloc(pgmpool, mapsize >> PAGE_SHIFT, i);
+  if (page < 0 || mmap(target, mapsize, PROT_READ | PROT_WRITE,
+	   MAP_SHARED | MAP_FIXED, tmpfile_fd, page << PAGE_SHIFT) != target)
+    return NULL;
+#if HAVE_DECL_MADV_POPULATE_WRITE
+  {
+    int err = madvise(target, mapsize, MADV_POPULATE_WRITE);
+    if (err)
+      perror("madvise()");
+  }
+#endif
+  p->addr = target;
+  p->size = mapsize;
+  p->page = page;
+  return target;
 }
 
 static void free_mapping_file(int cap, void *addr, size_t mapsize)
 /* NOTE: addr needs to be the same as what was supplied by alloc_mapping_file */
 {
+  struct file_mapping *p;
+
   Q__printf("MAPPING: free, cap=%s, addr=%p, mapsize=%zx\n",
 	cap, addr, mapsize);
-  smfree(&pgmpool, addr);
+  p = find_file_mapping(addr);
+  pgafree(pgmpool, p->page);
+  munmap(addr, mapsize);
+  p->size = 0;
 }
 
 /*
  * NOTE: DPMI relies on realloc_mapping() _not_ changing the address ('addr'),
  *       when shrinking the memory region.
  */
-static void *realloc_mapping_file(int cap, void *addr, size_t oldsize, size_t newsize)
+static void *resize_mapping_file(int cap, void *addr, size_t oldsize, size_t newsize)
 {
   Q__printf("MAPPING: realloc, cap=%s, addr=%p, oldsize=%zx, newsize=%zx\n",
 	cap, addr, oldsize, newsize);
   if (cap & (MAPPING_EMS | MAPPING_DPMI)) {
-    int size = smget_area_size(&pgmpool, addr);
-    void *addr_;
+    struct file_mapping *p = find_file_mapping(addr);
+    int size = p->size;
 
     if (!size || size != oldsize) return (void *)-1;
     if (size == newsize) return addr;
 		/* NOTE: smrealloc() does not change addr,
 		 *       when shrinking the memory region.
 		 */
-    addr_ = smrealloc(&pgmpool, addr, newsize);
-    if (!addr_) {
-      Q_printf("MAPPING: pgrealloc(0x%p,0x%zx,) failed\n",
-		addr, newsize);
-      return (void *)-1;
+    if (pgaresize(pgmpool, p->page, oldsize >> PAGE_SHIFT,
+		  newsize >> PAGE_SHIFT) == p->page) {
+      p->size = newsize;
+      p->addr = mremap(addr, oldsize, newsize, MREMAP_MAYMOVE);
+      return p->addr;
     }
-    return addr_;
   }
   return (void *)-1;
 }
@@ -311,7 +339,7 @@ struct mappingdrivers mappingdriver_shm = {
   close_mapping_file,
   alloc_mapping_file,
   free_mapping_file,
-  realloc_mapping_file,
+  resize_mapping_file,
   alias_mapping_file
 };
 #endif
@@ -324,7 +352,7 @@ struct mappingdrivers mappingdriver_mshm = {
   close_mapping_file,
   alloc_mapping_file,
   free_mapping_file,
-  realloc_mapping_file,
+  resize_mapping_file,
   alias_mapping_file
 };
 #endif
@@ -336,6 +364,6 @@ struct mappingdrivers mappingdriver_file = {
   close_mapping_file,
   alloc_mapping_file,
   free_mapping_file,
-  realloc_mapping_file,
+  resize_mapping_file,
   alias_mapping_file
 };
