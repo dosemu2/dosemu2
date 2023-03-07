@@ -137,11 +137,11 @@ static void close_mapping_shm(int cap)
   Q_printf("MAPPING: close, cap=%s\n", decode_mapping_cap(cap));
 }
 
-static void *alloc_mapping_shm(int cap, size_t mapsize)
+static void *alloc_mapping_shm(int cap, size_t mapsize, void *target)
 {
   Q__printf("MAPPING: alloc, cap=%s, mapsize=%zx\n", cap, mapsize);
-  return mmap(0, mapsize, PROT_READ | PROT_WRITE,
-    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+  return mmap(target, mapsize, PROT_READ | PROT_WRITE,
+    MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 }
 
 static void free_mapping_shm(int cap, void *addr, size_t mapsize)
@@ -152,23 +152,16 @@ static void free_mapping_shm(int cap, void *addr, size_t mapsize)
   munmap(addr, mapsize);
 }
 
-static void *realloc_mapping_shm(int cap, void *addr, size_t oldsize, size_t newsize)
+static void *resize_mapping_shm(int cap, void *addr, size_t oldsize, size_t newsize)
 {
-  void *ret;
-  Q__printf("MAPPING: realloc, cap=%s, addr=%p, oldsize=%zx, newsize=%zx\n",
+  Q__printf("MAPPING: resize, cap=%s, addr=%p, oldsize=%zx, newsize=%zx\n",
 	cap, addr, oldsize, newsize);
 
   if (newsize <= oldsize)
     return mremap(addr, oldsize, newsize, MREMAP_MAYMOVE);
 
-  /* we can't expand shared anonymous memory using mremap
-     so we must allocate a new region and memcpy to it */
-  ret = alloc_mapping_shm(cap, newsize);
-  if (ret != MAP_FAILED) {
-    memcpy(ret, addr, oldsize);
-    free_mapping_shm(cap, addr, oldsize);
-  }
-  return ret;
+  /* we can't expand shared anonymous memory using mremap */
+  return MAP_FAILED;
 }
 
 struct mappingdrivers mappingdriver_ashm = {
@@ -178,7 +171,7 @@ struct mappingdrivers mappingdriver_ashm = {
   close_mapping_shm,
   alloc_mapping_shm,
   free_mapping_shm,
-  realloc_mapping_shm,
+  resize_mapping_shm,
   alias_mapping_shm,
 };
 #endif

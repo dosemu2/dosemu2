@@ -72,13 +72,13 @@ int open_mapping (int cap);
 typedef void close_mapping_type(int cap);
 void close_mapping(int cap);
 
-typedef void *alloc_mapping_type(int cap, size_t mapsize);
+typedef void *alloc_mapping_type(int cap, size_t mapsize, void *target);
 void *alloc_mapping (int cap, size_t mapsize);
 
 typedef void free_mapping_type(int cap, void *addr, size_t mapsize);
 void free_mapping (int cap, void *addr, size_t mapsize);
 
-typedef void *realloc_mapping_type(int cap, void *addr, size_t oldsize, size_t newsize);
+typedef void *resize_mapping_type(int cap, void *addr, size_t oldsize, size_t newsize);
 void *realloc_mapping (int cap, void *addr, size_t oldsize, size_t newsize);
 
 void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect);
@@ -102,7 +102,7 @@ struct mappingdrivers {
   close_mapping_type *close;
   alloc_mapping_type *alloc;
   free_mapping_type *free;
-  realloc_mapping_type *realloc;
+  resize_mapping_type *resize;
   alias_mapping_type *alias;
 };
 char *decode_mapping_cap(int cap);

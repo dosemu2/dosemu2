@@ -653,8 +653,10 @@ void *alloc_mapping(int cap, size_t mapsize)
   void *addr;
 
   Q__printf("MAPPING: alloc, cap=%s size=%#zx\n", cap, mapsize);
-  addr = mappingdriver->alloc(cap, mapsize);
-  if (!addr) {
+  addr = mmap(NULL, mapsize, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  if (addr != MAP_FAILED)
+    addr = mappingdriver->alloc(cap, mapsize, addr);
+  if (addr == MAP_FAILED) {
     error("failed to alloc %zx\n", mapsize);
     leavedos(2);
     return NULL;
@@ -680,6 +682,8 @@ void free_mapping(int cap, void *addr, size_t mapsize)
 
 void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
 {
+  void *ret;
+
   if (!addr) {
     if (oldsize)  // no-no, realloc of the lowmem is not good too
       dosemu_error("realloc_mapping() called with addr=NULL, oldsize=%#zx\n", oldsize);
@@ -688,7 +692,21 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
   }
   if (!oldsize)
     dosemu_error("realloc_mapping() addr=%p, oldsize=0\n", addr);
-  return mappingdriver->realloc(cap, addr, oldsize, newsize);
+
+  ret = mappingdriver->resize(cap, addr, oldsize, newsize);
+  if (ret != MAP_FAILED)
+    return ret;
+
+  /* resize didn't work: we must allocate a new region and memcpy to it */
+  assert(newsize > oldsize);
+  ret = mmap(NULL, newsize, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  if (ret != MAP_FAILED)
+    ret = mappingdriver->alloc(cap, newsize, ret);
+  if (ret != MAP_FAILED) {
+    memcpy(ret, addr, oldsize);
+    mappingdriver->free(cap, addr, oldsize);
+  }
+  return ret;
 }
 
 static void populate_aliasmap(unsigned char **map, unsigned char *addr,
