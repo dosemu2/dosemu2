@@ -322,27 +322,22 @@ static void low_mem_init_config_scrub(void)
   const uint32_t mem_1M = 1024 * 1024;
   /* 16Mb limit is for being in reach of DMAc */
   const uint32_t mem_16M = mem_1M * 16;
-  uint32_t min_phys_rsv = LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE;
 
-  if (config.xms_size) {
+  if (config.xms_size &&
+      LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE + mem_1M > mem_16M) {
     /* reserve 1Mb for XMS mappings */
-    min_phys_rsv += mem_1M;
-    if (min_phys_rsv > mem_16M) {
-      error("$_ext_mem too large, please set to (%d) or lower, or set $_xms=(0)\n",
-	    (EXTMEM_SIZE - (min_phys_rsv - mem_16M)) / 1024);
-      config.exitearly = 1;
-      return;
-    }
-  }
-
-  if (min_phys_rsv > config.dpmi_base) {
-    error("$_dpmi_base is too small, please set to at least (0x%x)\n", min_phys_rsv);
+    error("$_ext_mem too large, please set to (%d) or lower, or set $_xms=(0)\n",
+	  (mem_16M - (LOWMEM_SIZE + HMASIZE + mem_1M)) / 1024);
     config.exitearly = 1;
     return;
   }
 
-  if (config.xms_size)
-    config.xms_map_size = (config.dpmi_base - (LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE)) & PAGE_MASK;
+  /* leave some space for HX at 0x400000 etc */
+  if (config.dpmi_base < mem_16M) {
+    error("$_dpmi_base is too small, please set to at least (0x%x)\n", mem_16M);
+    config.exitearly = 1;
+    return;
+  }
 }
 
 /*
@@ -357,8 +352,9 @@ void low_mem_init(void)
 {
   unsigned char *lowmem, *ptr, *ptr2;
   int result;
-  uint32_t memsize = config.dpmi ? LOWMEM_SIZE + HMASIZE + dpmi_lin_mem_rsv() : config.dpmi_base;
-  int32_t dpmi_rsv_low, phys_rsv;
+  int32_t phys_rsv = EXTMEM_SIZE + config.xms_size*1024;
+  uint32_t memsize = LOWMEM_SIZE + HMASIZE +
+    (config.dpmi ? dpmi_lin_mem_rsv() : phys_rsv + PAGE_SIZE);
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
@@ -384,7 +380,7 @@ void low_mem_init(void)
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
   if (config.xms_size) {
-    memcheck_reserve('x', LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE, config.xms_map_size);
+    memcheck_reserve('x', LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE, config.xms_size*1024);
   }
 
   sminit_comu(&main_pool, mem_base, memsize, mcommit, muncommit);
@@ -401,8 +397,7 @@ void low_mem_init(void)
     x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE, result + LOWMEM_SIZE + HMASIZE);
   }
 
-  /* create non-identity mapping up to dpmi_base */
-  phys_rsv = config.dpmi_base - (LOWMEM_SIZE + HMASIZE);
+  /* create non-identity mapping for extmem+XMS */
   ptr2 = smalloc_aligned_topdown(&main_pool, MEM_BASE32(memsize),
 	PAGE_SIZE, phys_rsv);
   assert(ptr2);

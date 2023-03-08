@@ -747,6 +747,8 @@ static int do_map_hwram(struct hardware_ram *hw)
   int cap = MAPPING_KMEM;
   if (hw->default_vbase != (dosaddr_t)-1)
     cap |= MAPPING_LOWMEM;
+  else if (!config.dpmi)
+    return 0;
   p = mmap_mapping_kmem(cap, hw->default_vbase, hw->size, hw->base);
   if (p == MAP_FAILED) {
     error("mmap error in map_hardware_ram %s\n", strerror (errno));
