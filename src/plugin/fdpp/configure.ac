@@ -21,9 +21,9 @@ AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
     if test "x$prefix" = xNONE; then
       if test "x$PKG_CONFIG_PATH" = x
       then
-        export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
+        export PKG_CONFIG_PATH="$ac_default_prefix/lib/pkgconfig"
       else
-        export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig"
+        export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$ac_default_prefix/lib/pkgconfig"
       fi
     fi
   ]
