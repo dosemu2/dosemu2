@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT
-AC_CONFIG_HEADER([_x_config.h])
+AC_CONFIG_HEADERS([_x_config.h])
 AC_CONFIG_FILES([Makefile.conf])
 
 dnl Check for the XKB extension to get reliable keyboard handling

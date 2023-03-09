@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT
-AC_CONFIG_HEADER(_fdppconf.h)
+AC_CONFIG_HEADERS([_fdppconf.h])
 AC_CONFIG_FILES([Makefile.conf])
 PKG_PROG_PKG_CONFIG
 AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
