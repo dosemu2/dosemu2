@@ -139,6 +139,7 @@
 #define HMASIZE (64*1024)
 #define LOWMEM_SIZE 0x100000
 #define EXTMEM_SIZE ((unsigned)(config.ext_mem << 10))
+#define XMS_SIZE ((unsigned)(config.xms_size << 10))
 #define xms_base (LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE)
 
 #ifndef __ASSEMBLER__

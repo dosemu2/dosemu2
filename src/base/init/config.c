@@ -184,8 +184,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.ems_size, config.ems_frame);
     (*print)("umb_a0 %i\numb_b0 %i\numb_f0 %i\ndos_up %i\n",
         config.umb_a0, config.umb_b0, config.umb_f0, config.dos_up);
-    (*print)("dpmi 0x%x\ndpmi_base 0x%x\ndpmi_lin_rsv_size 0x%x\npm_dos_api %i\nignore_djgpp_null_derefs %i\n",
-        config.dpmi, config.dpmi_base, config.dpmi_lin_rsv_size, config.pm_dos_api, config.no_null_checks);
+    (*print)("dpmi 0x%x\ndpmi_base 0x%x\npm_dos_api %i\nignore_djgpp_null_derefs %i\n",
+        config.dpmi, config.dpmi_base, config.pm_dos_api, config.no_null_checks);
     (*print)("mapped_bios %d\nvbios_file %s\n",
         config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
     (*print)("vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",
@@ -850,8 +850,6 @@ static void config_post_process(void)
           "adjust $_cpu_vm_dpmi\n");
     c_printf("CONF: V86 cpu vm set to %d\n", config.cpu_vm);
     c_printf("CONF: DPMI cpu vm set to %d\n", config.cpu_vm_dpmi);
-    if (!config.dpmi)
-	config.dpmi_lin_rsv_size = 0;
 
     /* console scrub */
     if (!Video && getenv("DISPLAY") && !config.X && !config.term &&
