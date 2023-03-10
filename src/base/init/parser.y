@@ -234,7 +234,7 @@ enum {
 %token ETHDEV TAPDEV VDESWITCH SLIRPARGS VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED BOOTDRIVE SWAP_BOOTDRIVE
-%token L_XMS L_DPMI DPMI_BASE DPMI_LIN_RSV_SIZE PM_DOS_API NO_NULL_CHECKS
+%token L_XMS L_DPMI DPMI_LIN_RSV_SIZE PM_DOS_API NO_NULL_CHECKS
 %token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS UMB_A0 UMB_B0 UMB_F0 HMA DOS_UP
 %token EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
@@ -620,11 +620,6 @@ line:		CHARSET '{' charset_flags '}' {}
 		    {
 		    if ($2>=0) config.dpmi = $2;
 		    c_printf("CONF: DPMI-Server %s (%#x)\n", ($2) ? "on" : "off", ($2));
-		    }
-		| DPMI_BASE int_bool
-		    {
-		    config.dpmi_base = $2;
-		    c_printf("CONF: DPMI base addr = %#x\n", $2);
 		    }
 		| DPMI_LIN_RSV_SIZE int_bool
 		    {

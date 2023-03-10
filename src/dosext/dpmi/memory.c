@@ -64,12 +64,12 @@ static int in_rsv_pool(dosaddr_t base, unsigned int size)
     return 0;
 }
 
-void dpmi_set_mem_base(void *rsv_base)
+void dpmi_set_mem_base(uint32_t lrsv, void *base)
 {
-    dpmi_lin_rsv_base = rsv_base;
-    dpmi_base = MEM_BASE32(config.dpmi_base);
-    low_rsv = dpmi_base - dpmi_lin_rsv_base;
-    c_printf("DPMI memory mapped to %p (reserve)\n", rsv_base);
+    dpmi_lin_rsv_base = MEM_BASE32(LOWMEM_SIZE + HMASIZE);
+    dpmi_base = base;
+    low_rsv = lrsv;
+    c_printf("DPMI memory mapped to %p\n", base);
 }
 
 /* utility routines */
