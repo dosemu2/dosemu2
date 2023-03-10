@@ -3379,7 +3379,10 @@ rem end
 
         testdir = self.mkworkdir('d')
 
-        name = self.mkimage(fat, cwd=testdir)
+        testfil = testdir / "there.txt"
+        testfil.write_text('there')
+
+        name = self.mkimage_vbr(fat, cwd=testdir)
 
         results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
@@ -3400,6 +3403,10 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
                 r"HELLO[\t ]+TXT[\t ]+8"
                 r"|"
                 r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s+8\s+HELLO.TXT")
+        self.assertRegex(results,
+                r"THERE[\t ]+TXT[\t ]+5"
+                r"|"
+                r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s+5\s+THERE.TXT")
 
     def test_fat12_img_d_writable(self):
         """FAT12 image file D writable"""
@@ -3408,6 +3415,14 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
     def test_fat16_img_d_writable(self):
         """FAT16 image file D writable"""
         self._test_fat_img_d_writable("16")
+
+    def test_fat16b_img_d_writable(self):
+        """FAT16B image file D writable"""
+        self._test_fat_img_d_writable("16b")
+
+    def test_fat32_img_d_writable(self):
+        """FAT32 image file D writable"""
+        self._test_fat_img_d_writable("32")
 
     def test_mfs_lredir_auto_hdc(self):
         """MFS lredir auto C drive redirection"""
@@ -5027,6 +5042,7 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
             r"test_..._fcb_rename_wild_\d": KNOWNFAIL,
             "test_mfs_truename_ufs_sfn": KNOWNFAIL,
             "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
+            "test_fat32_img_d_writable": UNSUPPORTED,
             "test_floppy_vfs": KNOWNFAIL,
             "test_memory_hma_alloc3": UNSUPPORTED,
             "test_memory_hma_chain": UNSUPPORTED,
@@ -5244,6 +5260,7 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
             ("boot-floppy.img", "14b8310910bf19d6e375298f3b06da7ffdec9932"),
         ]
         cls.actions = {
+            "test_fat32_img_d_writable": UNSUPPORTED,
             "test_memory_hma_alloc3": UNSUPPORTED,
             "test_memory_hma_chain": UNSUPPORTED,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
@@ -5295,6 +5312,9 @@ class MSDOS700TestCase(OurTestCase, unittest.TestCase):
         cls.images = [
             ("boot-floppy.img", ""),
         ]
+        cls.actions = {
+            "test_fat32_img_d_writable": UNSUPPORTED,
+        }
 
         cls.setUpClassPost()
 
@@ -5349,6 +5369,10 @@ class MSDOS710TestCase(OurTestCase, unittest.TestCase):
         cls.images = [
             ("boot-floppy.img", ""),
         ]
+
+        cls.actions = {
+            "test_fat32_img_d_writable": UNSUPPORTED,
+        }
 
         cls.setUpClassPost()
 
