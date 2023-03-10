@@ -322,8 +322,10 @@ static void low_mem_init_config_scrub(void)
   const uint32_t mem_1M = 1024 * 1024;
   /* 16Mb limit is for being in reach of DMAc */
   const uint32_t mem_16M = mem_1M * 16;
-  uint32_t min_phys_rsv = LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE;
+  uint32_t min_phys_rsv = LOWMEM_SIZE + EXTMEM_SIZE;
 
+  if (EXTMEM_SIZE < HMASIZE)
+    config.ext_mem = 64;
   if (config.xms_size) {
     /* reserve 1Mb for XMS mappings */
     min_phys_rsv += mem_1M;
@@ -342,7 +344,7 @@ static void low_mem_init_config_scrub(void)
   }
 
   if (config.xms_size)
-    config.xms_map_size = (config.dpmi_base - (LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE)) & PAGE_MASK;
+    config.xms_map_size = (config.dpmi_base - (LOWMEM_SIZE + EXTMEM_SIZE)) & PAGE_MASK;
 }
 
 /*
@@ -357,12 +359,12 @@ void low_mem_init(void)
 {
   unsigned char *lowmem, *ptr, *ptr2;
   int result;
-  uint32_t memsize = config.dpmi ? LOWMEM_SIZE + HMASIZE + dpmi_lin_mem_rsv() : config.dpmi_base;
+  uint32_t memsize = config.dpmi ? LOWMEM_SIZE + dpmi_lin_mem_rsv() : config.dpmi_base;
   int32_t dpmi_rsv_low, phys_rsv;
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
-  lowmem = alloc_mapping_huge_page_aligned(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE +
+  lowmem = alloc_mapping_huge_page_aligned(MAPPING_INIT_LOWRAM, LOWMEM_SIZE +
 	EXTMEM_SIZE);
   if (lowmem == MAP_FAILED) {
     perror("LOWRAM alloc");
@@ -384,7 +386,7 @@ void low_mem_init(void)
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
   if (config.xms_size) {
-    memcheck_reserve('x', LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE, config.xms_map_size);
+    memcheck_reserve('x', LOWMEM_SIZE + EXTMEM_SIZE, config.xms_map_size);
   }
 
   sminit_comu(&main_pool, mem_base, memsize, mcommit, muncommit);
@@ -393,7 +395,7 @@ void low_mem_init(void)
   /* smalloc uses PROT_READ | PROT_WRITE, needs to add PROT_EXEC here */
   mprotect_mapping(MAPPING_LOWMEM, 0, LOWMEM_SIZE + HMASIZE, PROT_READ | PROT_WRITE |
       PROT_EXEC);
-  phys_rsv = EXTMEM_SIZE + config.xms_map_size;
+  phys_rsv = EXTMEM_SIZE + config.xms_map_size - HMASIZE;
   dpmi_rsv_low = config.dpmi ? (config.dpmi_base - (LOWMEM_SIZE + HMASIZE + phys_rsv)) : 0;
   ptr = smalloc(&main_pool, phys_rsv + dpmi_rsv_low + dpmi_mem_size());
   assert(ptr);
@@ -401,12 +403,11 @@ void low_mem_init(void)
     dpmi_set_mem_base(ptr);
   }
 
-  if (config.ext_mem) {
-    /* LOWMEM_SIZE + HMASIZE == base */
-    memcheck_addtype('X', "EXT MEM");
-    memcheck_reserve('X', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE);
-    x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE, result + LOWMEM_SIZE + HMASIZE);
-  }
+  /* LOWMEM_SIZE + HMASIZE == base */
+  memcheck_addtype('X', "EXT MEM");
+  memcheck_reserve('X', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE - HMASIZE);
+  x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE - HMASIZE,
+      LOWMEM_SIZE + HMASIZE);
 
   ptr += phys_rsv + dpmi_rsv_low;
   /* create non-identity mapping up to dpmi_base */
@@ -426,7 +427,8 @@ void low_mem_init(void)
 	config.dpmi_base, prot);
   }
   /* create alias for dpmi */
-  result = alias_mapping(MAPPING_EXTMEM, DOSADDR_REL(ptr2), EXTMEM_SIZE,
+  result = alias_mapping(MAPPING_EXTMEM, DOSADDR_REL(ptr2),
+			 EXTMEM_SIZE - HMASIZE,
 			 PROT_READ | PROT_WRITE,
 			 lowmem + LOWMEM_SIZE + HMASIZE);
   assert(result != -1);
