@@ -613,7 +613,7 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
 	       MAPPING_EXTMEM))) return;
 
-  p = kvm_get_memory_region(monitor->pte[start] & PAGE_MASK, mapsize);
+  p = kvm_get_memory_region(monitor->pte[start] & PAGE_MASK, PAGE_SIZE);
   if (!p) return;
 
   /* never apply write-protect to regions with dirty logging */

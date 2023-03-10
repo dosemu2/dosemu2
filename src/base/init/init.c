@@ -336,6 +336,13 @@ static void low_mem_init_config_scrub(void)
       return;
     }
   }
+
+  min_phys_rsv = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
+  if (config.dpmi && min_phys_rsv > config.dpmi_base) {
+    error("$_dpmi_base is too small, please set to at least (0x%x)\n", min_phys_rsv);
+    config.exitearly = 1;
+    return;
+  }
 }
 
 /*
@@ -350,7 +357,7 @@ void low_mem_init(void)
 {
   unsigned char *lowmem, *ptr, *ptr2;
   int result;
-  uint32_t memsize = LOWMEM_SIZE + dpmi_lin_mem_rsv();
+  uint32_t memsize;
   int32_t phys_rsv, phys_low;
 
   open_mapping(MAPPING_INIT_LOWRAM);
@@ -362,6 +369,10 @@ void low_mem_init(void)
     leavedos(98);
   }
 
+  phys_low = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
+  memsize = phys_low;
+  if (config.dpmi)
+    memsize += config.dpmi_base + HUGE_PAGE_ALIGN(dpmi_mem_size());
   mem_base = mem_reserve(memsize);
   mem_base_mask = ~(uintptr_t)0;
 #ifdef __x86_64__
@@ -385,7 +396,6 @@ void low_mem_init(void)
   /* smalloc uses PROT_READ | PROT_WRITE, needs to add PROT_EXEC here */
   mprotect_mapping(MAPPING_LOWMEM, 0, LOWMEM_SIZE + HMASIZE, PROT_READ | PROT_WRITE |
       PROT_EXEC);
-  phys_low = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
   /* we have an uncommitted hole up to phys_low */
   ptr += phys_low;
   phys_rsv = phys_low - (LOWMEM_SIZE + HMASIZE);
@@ -394,9 +404,9 @@ void low_mem_init(void)
   assert(ptr2);
   if (config.dpmi) {
     void *dptr = smalloc_aligned_topdown(&main_pool, ptr2, PAGE_SIZE,
-	dpmi_mem_size());
+	ptr2 - MEM_BASE32(config.dpmi_base));
     assert(dptr);
-    dpmi_set_mem_base(dptr);
+    dpmi_set_mem_base();
     if (config.cpu_vm_dpmi == CPUVM_KVM) {
       /* map dpmi+uncommitted space to kvm */
       int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
@@ -413,14 +423,16 @@ void low_mem_init(void)
   /* establish ext_mem alias access for int15 */
   register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, phys_rsv,
 	    DOSADDR_REL(ptr2));
-  register_hardware_ram_virtual('U', DOSADDR_REL(ptr2), phys_rsv,
+  if (config.dpmi) {
+    register_hardware_ram_virtual('U', DOSADDR_REL(ptr2), phys_rsv,
 	    LOWMEM_SIZE + HMASIZE);
-  /* create ext_mem alias for dpmi */
-  result = alias_mapping(MAPPING_EXTMEM, DOSADDR_REL(ptr2),
+    /* create ext_mem alias for dpmi */
+    result = alias_mapping(MAPPING_EXTMEM, DOSADDR_REL(ptr2),
 			 EXTMEM_SIZE - HMASIZE,
 			 PROT_READ | PROT_WRITE,
 			 lowmem + LOWMEM_SIZE + HMASIZE);
-  assert(result != -1);
+    assert(result != -1);
+  }
 
   /* R/O protect 0xf0000-0xf4000 */
   if (!config.umb_f0)

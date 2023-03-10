@@ -240,7 +240,7 @@ extern unsigned short dpmi_sel(void);
 extern unsigned short dpmi_sel16(void);
 extern unsigned short dpmi_sel32(void);
 unsigned long dpmi_mem_size(void);
-void dpmi_set_mem_base(void *base);
+void dpmi_set_mem_base(void);
 void dump_maps(void);
 
 int DPMIValidSelector(unsigned short selector);
@@ -344,7 +344,7 @@ static inline int get_ldt(void *buffer)
     return -1;
 }
 
-static inline void dpmi_set_mem_base(void *base)
+static inline void dpmi_set_mem_base(void)
 {
 }
 

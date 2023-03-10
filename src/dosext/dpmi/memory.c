@@ -60,11 +60,11 @@ static int in_dpmi_pool(dosaddr_t base, unsigned int size)
     return 0;
 }
 
-void dpmi_set_mem_base(void *base)
+void dpmi_set_mem_base(void)
 {
     dpmi_lin_rsv_base = MEM_BASE32(LOWMEM_SIZE + HMASIZE);
-    dpmi_base = base;
-    c_printf("DPMI memory mapped to %p\n", base);
+    dpmi_base = MEM_BASE32(config.dpmi_base);
+    c_printf("DPMI memory mapped to %p\n", dpmi_base);
 }
 
 /* utility routines */
@@ -215,7 +215,7 @@ int dpmi_lin_mem_rsv(void)
 {
     if (!config.dpmi)
 	return 0;
-    return PAGE_ALIGN(config.dpmi_lin_rsv_size * 1024);
+    return PAGE_ALIGN(config.dpmi - (LOWMEM_SIZE + HMASIZE));
 }
 
 int dpmi_lin_mem_free(void)
@@ -229,7 +229,7 @@ int dpmi_alloc_pool(void)
 {
     uint32_t memsize = dpmi_mem_size();
 
-    if (dpmi_base < dpmi_lin_rsv_base || dpmi_base + memsize >
+    if (dpmi_base < dpmi_lin_rsv_base || dpmi_base <
 	    dpmi_lin_rsv_base + dpmi_lin_mem_rsv()) {
         error("$_dpmi or $_dpmi_base setting out of range\n");
         return -1;
