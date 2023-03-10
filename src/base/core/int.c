@@ -906,8 +906,8 @@ static int int15(void)
 		     src_addr, dst_addr, length);
 
 	    if (src_limit < length - 1 || dst_limit < length - 1 ||
-		src_addr + length > LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE ||
-		dst_addr + length > LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE) {
+		src_addr + length > LOWMEM_SIZE + EXTMEM_SIZE ||
+		dst_addr + length > LOWMEM_SIZE + EXTMEM_SIZE) {
 		x_printf("block move failed\n");
 		LWORD(eax) = 0x0200;
 		CARRY;
@@ -959,7 +959,7 @@ static int int15(void)
 	}
 
     case 0x88:
-	LWORD(eax) = (EXTMEM_SIZE + HMASIZE) >> 10;
+	LWORD(eax) = EXTMEM_SIZE >> 10;
 	NOCARRY;
 	break;
 
@@ -1041,7 +1041,7 @@ static int int15(void)
 		-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
 #endif
 	    if (LO(ax) == 1) {
-	    Bit32u mem = (EXTMEM_SIZE + HMASIZE) >> 10;
+	    Bit32u mem = EXTMEM_SIZE >> 10;
 	    if (mem < 0x3c00) {
 		LWORD(eax) = mem;
 		LWORD(ebx) = 0;
