@@ -39,8 +39,6 @@ static coroutine_t dpmi_tid;
 static cohandle_t co_handle;
 static int dpmi_ret_val;
 static sigcontext_t emu_stack_frame;
-static struct sigaction emu_tmp_act;
-#define DPMI_TMP_SIG SIGUSR1
 static int in_dpmi_thr;
 static int dpmi_thr_running;
 
@@ -258,25 +256,19 @@ void dpmi_return(sigcontext_t *scp, int retcode)
         copy_to_dpmi(scp, dpmi_get_scp());
 }
 
-static void dpmi_switch_sa(int sig, siginfo_t * inf, void *uc)
+void dpmi_switch_sa(int sig, siginfo_t * inf, void *uc)
 {
     ucontext_t *uct = uc;
     sigcontext_t *scp = &uct->uc_mcontext;
     copy_context(&emu_stack_frame, scp);
     copy_to_dpmi(scp, dpmi_get_scp());
-    sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
+    unsetsig(DPMI_TMP_SIG);
     deinit_handler(scp, &uct->uc_flags);
 }
 
 static void indirect_dpmi_transfer(void)
 {
-    struct sigaction act;
-
-    act.sa_flags = SA_SIGINFO;
-    sigfillset(&act.sa_mask);
-    sigdelset(&act.sa_mask, SIGSEGV);
-    act.sa_sigaction = dpmi_switch_sa;
-    sigaction(DPMI_TMP_SIG, &act, &emu_tmp_act);
+    signative_start();
     signal_set_altstack(1);
     /* for some absolutely unclear reason neither pthread_self() nor
      * pthread_kill() are the memory barriers. */
@@ -284,6 +276,7 @@ static void indirect_dpmi_transfer(void)
     pthread_kill(pthread_self(), DPMI_TMP_SIG);
     /* and we are back */
     signal_set_altstack(0);
+    signative_stop();
     /* we inherited FPU state from DPMI, so put back to DOSEMU state */
     fesetenv(&dosemu_fenv);
 }
