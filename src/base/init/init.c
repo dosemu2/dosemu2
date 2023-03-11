@@ -380,14 +380,15 @@ void low_mem_init(void)
     memcheck_reserve('x', LOWMEM_SIZE + EXTMEM_SIZE, XMS_SIZE);
 
   sminit_comu(&main_pool, mem_base, memsize, mcommit, muncommit);
-  phys_low = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
-  ptr = smalloc(&main_pool, phys_low);
+  ptr = smalloc(&main_pool, LOWMEM_SIZE + HMASIZE);
   assert(ptr == mem_base);
-  ptr += phys_low;
-  phys_rsv = phys_low - (LOWMEM_SIZE + HMASIZE);
   /* smalloc uses PROT_READ | PROT_WRITE, needs to add PROT_EXEC here */
   mprotect_mapping(MAPPING_LOWMEM, 0, LOWMEM_SIZE + HMASIZE, PROT_READ | PROT_WRITE |
       PROT_EXEC);
+  phys_low = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
+  /* we have an uncommitted hole up to phys_low */
+  ptr += phys_low;
+  phys_rsv = phys_low - (LOWMEM_SIZE + HMASIZE);
   /* create non-identity mapping up to phys_low */
   ptr2 = smalloc_aligned_topdown(&main_pool, NULL, PAGE_SIZE, phys_rsv);
   assert(ptr2);
@@ -395,7 +396,7 @@ void low_mem_init(void)
     void *dptr = smalloc_aligned_topdown(&main_pool, ptr2, PAGE_SIZE,
 	dpmi_mem_size());
     assert(dptr);
-    dpmi_set_mem_base(phys_rsv, dptr);
+    dpmi_set_mem_base(dptr);
     if (config.cpu_vm_dpmi == CPUVM_KVM) {
       /* map dpmi+uncommitted space to kvm */
       int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
