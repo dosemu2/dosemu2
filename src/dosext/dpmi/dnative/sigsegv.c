@@ -306,33 +306,8 @@ static void dosemu_fault1(int signum, sigcontext_t *scp)
 
 #ifdef X86_EMULATOR
   /* case 3 */
-  if (IS_EMU()) {
-    /* Possibilities:
-     * 1. Compiled code touches VGA prot
-     * 2. Compiled code touches cpuemu prot
-     * 3. Compiled code touches DPMI prot
-     * 4. reserved, was "fullsim code touches DPMI prot", but fullsim
-     *    no longer faults since commit 70ca014459
-     * 5. dosemu code touches cpuemu prot (bug)
-     * Compiled code means dpmi-jit, otherwise vm86 not here.
-     */
-    if (_scp_trapno == 0x0e) {
-      /* cases 1, 2, 3 */
-      if ((in_vm86 || EMU_DPMI()) && e_emu_pagefault(scp, !in_vm86))
-        return;
-      /* case 5, any jit, bug */
-      if (!CONFIG_CPUSIM &&
-	  e_handle_pagefault(DOSADDR_REL(LINP(_scp_cr2)), _scp_err, scp)) {
-        dosemu_error("touched jit-protected page%s\n",
-                     in_vm86 ? " in vm86-emu" : "");
-        return;
-      }
-    } else if ((in_vm86 || EMU_DPMI()) &&
-               !CONFIG_CPUSIM && e_handle_fault(scp)) {
-      /* compiled code can cause fault (usually DE, Divide Exception) */
-      return;
-    }
-  }
+  if (IS_EMU() && e_emu_fault(scp, in_vm86))
+    return;
 #endif
 
   /* case 4 */
@@ -444,7 +419,7 @@ static void dosemu_fault0(int signum, sigcontext_t *scp)
 }
 
 SIG_PROTO_PFX
-void dosemu_fault(int signum, siginfo_t *si, void *uc)
+static void dosemu_fault(int signum, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
@@ -1000,16 +975,44 @@ static void fixup_handler(int sig, siginfo_t *si, void *uc)
 	deinit_handler(scp, &uct->uc_flags);
 }
 
-void fixupsig(int sig)
+static void fixupsig(int sig)
 {
 	struct sigaction sa;
 	sigaction(sig, NULL, &sa);
+	sacts[sig] = sa;
 	if (sa.sa_handler == SIG_DFL || sa.sa_handler == SIG_IGN)
 		return;
-	sacts[sig] = sa;
 	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
 	sa.sa_sigaction = fixup_handler;
 	sigaction(sig, &sa, NULL);
+}
+
+void unsetsig(int sig)
+{
+	sigaction(sig, &sacts[sig], NULL);
+}
+
+static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
+{
+	struct sigaction sa;
+
+	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
+#ifdef __linux__
+	if (kernel_version_code >= KERNEL_VERSION(2, 6, 14))
+#endif
+		sa.sa_flags |= SA_NODEFER;
+	if (block_all_sigs)
+	{
+		/* initially block all async signals. */
+		sa.sa_mask = q_mask;
+	}
+	else
+	{
+		/* block all non-fatal async signals */
+		sa.sa_mask = nonfatal_q_mask;
+	}
+	sa.sa_sigaction = fun;
+	sigaction(sig, &sa, &sacts[sig]);
 }
 
 static int saved_fc;
@@ -1040,4 +1043,26 @@ void signal_return_to_dpmi(void)
 int signative_block_all_sigs(void)
 {
     return block_all_sigs;
+}
+
+void signative_start(void)
+{
+  fixupsig(SIGPROF);
+  /* call that after all non-fatal sigs set up */
+  newsetsig(SIGILL, dosemu_fault);
+  newsetsig(SIGFPE, dosemu_fault);
+  newsetsig(SIGTRAP, dosemu_fault);
+  newsetsig(SIGBUS, dosemu_fault);
+  newsetsig(SIGSEGV, dosemu_fault);
+  newsetsig(DPMI_TMP_SIG, dpmi_switch_sa);  // dont unset this on stop
+}
+
+void signative_stop(void)
+{
+  unsetsig(SIGPROF);
+  unsetsig(SIGILL);
+  unsetsig(SIGFPE);
+  unsetsig(SIGTRAP);
+  unsetsig(SIGBUS);
+  unsetsig(SIGSEGV);
 }

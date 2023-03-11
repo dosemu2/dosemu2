@@ -81,8 +81,8 @@ struct callback_s {
   const char *name;
 };
 
-static sigset_t q_mask;
-static sigset_t nonfatal_q_mask;
+sigset_t q_mask;
+sigset_t nonfatal_q_mask;
 static sigset_t fatal_q_mask;
 static int sig_inited;
 
@@ -126,7 +126,7 @@ static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 static void init_one_sig(int num, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
 	struct sigaction sa;
-
+#ifdef DNATIVE
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
 	if (signative_block_all_sigs())
 	{
@@ -138,6 +138,10 @@ static void init_one_sig(int num, void (*fun)(int sig, siginfo_t *si, void *uc))
 		/* block all non-fatal async signals */
 		sa.sa_mask = nonfatal_q_mask;
 	}
+#else
+	sa.sa_flags = SA_RESTART | SA_SIGINFO;
+	sa.sa_mask = nonfatal_q_mask;
+#endif
 	sa.sa_sigaction = fun;
 	sigaction(num, &sa, NULL);
 }
@@ -187,21 +191,9 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
 	struct sigaction sa;
 
-	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
-#ifdef __linux__
-	if (kernel_version_code >= KERNEL_VERSION(2, 6, 14))
-#endif
-		sa.sa_flags |= SA_NODEFER;
-	if (signative_block_all_sigs())
-	{
-		/* initially block all async signals. */
-		sa.sa_mask = q_mask;
-	}
-	else
-	{
-		/* block all non-fatal async signals */
-		sa.sa_mask = nonfatal_q_mask;
-	}
+	sa.sa_flags = SA_SIGINFO;
+	/* block all non-fatal async signals */
+	sa.sa_mask = nonfatal_q_mask;
 	sa.sa_sigaction = fun;
 	sigaction(sig, &sa, NULL);
 }
@@ -483,9 +475,19 @@ static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 SIG_PROTO_PFX
 static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
+  gdb_debug();
+  _exit(sig);
+}
+
+SIG_PROTO_PFX
+static void minsigsegv(int sig, siginfo_t *si, void *uc)
+{
+#ifdef X86_EMULATOR
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
-  init_handler(scp, uct->uc_flags);
+  if (IS_EMU() && e_emu_fault(scp, in_vm86))
+    return;
+#endif
   gdb_debug();
   _exit(sig);
 }
@@ -644,15 +646,12 @@ signal_pre_init(void)
   setup_nf_sig(SIG_ACQUIRE);
   setup_nf_sig(SIG_RELEASE);
   setup_nf_sig(SIGWINCH);
-#ifdef DNATIVE
-  fixupsig(SIGPROF);
   /* call that after all non-fatal sigs set up */
-  newsetsig(SIGILL, dosemu_fault);
-  newsetsig(SIGFPE, dosemu_fault);
-  newsetsig(SIGTRAP, dosemu_fault);
-  newsetsig(SIGBUS, dosemu_fault);
-  newsetsig(SIGSEGV, dosemu_fault);
-#endif
+  newsetsig(SIGILL, abort_signal);
+  newsetsig(SIGFPE, abort_signal);
+  newsetsig(SIGTRAP, abort_signal);
+  newsetsig(SIGBUS, abort_signal);
+  newsetsig(SIGSEGV, minsigsegv);
   newsetsig(SIGABRT, abort_signal);
 
   /* block async signals so that threads inherit the blockage */

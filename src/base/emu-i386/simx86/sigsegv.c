@@ -258,4 +258,34 @@ int e_emu_pagefault(sigcontext_t *scp, int pmode)
     return 0;
 }
 
+int e_emu_fault(sigcontext_t *scp, int in_vm86)
+{
+    /* Possibilities:
+     * 1. Compiled code touches VGA prot
+     * 2. Compiled code touches cpuemu prot
+     * 3. Compiled code touches DPMI prot
+     * 4. reserved, was "fullsim code touches DPMI prot", but fullsim
+     *    no longer faults since commit 70ca014459
+     * 5. dosemu code touches cpuemu prot (bug)
+     * Compiled code means dpmi-jit, otherwise vm86 not here.
+     */
+    if (_scp_trapno == 0x0e) {
+      /* cases 1, 2, 3 */
+      if ((in_vm86 || EMU_DPMI()) && e_emu_pagefault(scp, !in_vm86))
+        return 1;
+      /* case 5, any jit, bug */
+      if (!CONFIG_CPUSIM &&
+	  e_handle_pagefault(DOSADDR_REL(LINP(_scp_cr2)), _scp_err, scp)) {
+        dosemu_error("touched jit-protected page%s\n",
+                     in_vm86 ? " in vm86-emu" : "");
+        return 1;
+      }
+    } else if ((in_vm86 || EMU_DPMI()) &&
+               !CONFIG_CPUSIM && e_handle_fault(scp)) {
+      /* compiled code can cause fault (usually DE, Divide Exception) */
+      return 1;
+    }
+    return 0;
+}
+
 /* ======================================================================= */

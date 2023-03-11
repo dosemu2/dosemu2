@@ -10,6 +10,9 @@ int native_dpmi_exit(cpuctx_t *scp);
 void native_dpmi_enter(void);
 void native_dpmi_leave(void);
 void dpmi_return(sigcontext_t *scp, int retcode);
+void dpmi_switch_sa(int sig, siginfo_t * inf, void *uc);
+
+#define DPMI_TMP_SIG SIGUSR1
 
 #else
 

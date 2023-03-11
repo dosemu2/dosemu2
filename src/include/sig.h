@@ -161,7 +161,6 @@ extern void registersig_std(int sig, void (*handler)(void *));
 extern void init_handler(sigcontext_t *scp, unsigned long uc_flags);
 extern void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags);
 
-extern void dosemu_fault(int, siginfo_t *, void *);
 void signal_block_async_nosig(sigset_t *old_mask);
 void signal_unblock_fatal_sigs(void);
 void signal_unblock_async_sigs(void);
@@ -169,6 +168,8 @@ void signal_restore_async_sigs(void);
 void leavedos_sig(int sig);
 
 extern pthread_t dosemu_pthread_self;
+extern sigset_t q_mask;
+extern sigset_t nonfatal_q_mask;
 
 #ifdef DNATIVE
 void signal_switch_to_dosemu(void);
@@ -183,7 +184,9 @@ void signative_leave(sigcontext_t *scp, unsigned long *uc_flags);
 int signative_skip_unblock(sigcontext_t *scp);
 int signative_skip_ss(unsigned long uc_flags);
 int signative_block_all_sigs(void);
-void fixupsig(int sig);
+void signative_start(void);
+void signative_stop(void);
+void unsetsig(int sig);
 #else
 static inline void signal_switch_to_dosemu(void) {}
 static inline void signal_switch_to_dpmi(void) {}
@@ -197,7 +200,9 @@ static inline void signative_leave(sigcontext_t *scp, unsigned long *uc_flags) {
 static inline int signative_skip_unblock(sigcontext_t *scp) { return 0; }
 static inline int signative_skip_ss(unsigned long uc_flags) { return 1; }
 static inline int signative_block_all_sigs(void) { return 0; }
-static inline void fixupsig(int sig) {}
+static inline void signative_start(void) {}
+static inline void signative_stop(void) {}
+static inline void unsetsig(int sig) {}
 #endif
 
 #endif
