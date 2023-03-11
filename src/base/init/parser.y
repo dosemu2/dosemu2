@@ -2644,8 +2644,9 @@ static void do_parse(FILE *fp, const char *confname, const char *errtx)
   free(file_being_parsed);
 }
 
-int parse_config(const char *confname, const char *dosrcname)
+int parse_config(const char *confname, const char *dosrcname, int nodosrc)
 {
+  char *dosrc = NULL;
   FILE *fd;
 #if YYDEBUG != 0
   yydebug  = 1;
@@ -2665,15 +2666,51 @@ int parse_config(const char *confname, const char *dosrcname)
     }
     do_parse(fd, confname, "error in configuration file %s");
   }
-  if (dosrcname) {
+  move_dosemu_local_dir();
+  if (!nodosrc) {
+    char *newdosrc = NULL;
+    if (!dosrcname) {
+      dosrcname = getenv("_dosemurc");
+      newdosrc = assemble_path(dosemu_localdir_path, dosrcname);
+      if (access(newdosrc, R_OK) == -1)
+        dosrcname = NULL;
+      else
+        dosrcname = newdosrc;
+    }
+    if (!dosrcname) {
+      dosrc = assemble_path(dosemu_localdir_path, DOSEMU_RC);
+      if (access(dosrc, R_OK) == -1) {
+        free(dosrc);
+        dosrc = get_path_in_HOME(DOSEMU_RC);
+      } else if (newdosrc) {
+        error("config file %s missing.\n\tUsing %s\n"
+              "\tExecute `mv %s %s`\n\tto silence this error.\n",
+              newdosrc, dosrc, dosrc, newdosrc);
+      }
+      if (access(dosrc, R_OK) == -1) {
+        free(dosrc);
+        dosrc = NULL;
+      }
+    } else {
+      dosrc = strdup(dosrcname);
+    }
+    if (newdosrc) {
+      free(newdosrc);
+      newdosrc = NULL;
+    }
+  }
+  if (dosrc) {
     define_config_variable("c_user");
     yy_vbuffer = NULL;
-    fd = open_file(dosrcname);
+    fd = open_file(dosrc);
     if (!fd) {
-      fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n", dosrcname);
+      fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n",
+            dosrc);
+      free(dosrc);
       exit(1);
     }
-    do_parse(fd, dosrcname, "error in configuration file %s");
+    do_parse(fd, dosrc, "error in configuration file %s");
+    free(dosrc);
   }
   yy_vbuffer = global_conf;
   do_parse(NULL, "built-in global.conf", "error in built-in global.conf");

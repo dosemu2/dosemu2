@@ -519,6 +519,19 @@ static void set_freedos_dir(void)
   }
 }
 
+void move_dosemu_local_dir(void)
+{
+  const char *localdir = getenv("_local_dir");
+  if (localdir) {
+    const char *ldir = expand_path(localdir);
+    if (ldir)
+      dosemu_localdir_path = ldir;
+    else
+      error("local dir %s does not exist\n\tUsing %s\n", localdir,
+          dosemu_localdir_path);
+  }
+}
+
 static void move_dosemu_lib_dir(void)
 {
   char *old_cmd_path;
@@ -1162,20 +1175,7 @@ config_init(int argc, char **argv)
             confname = NULL;
         }
     }
-    if (!nodosrc) {
-	if (!dosrcname) {
-	    dosrcname = assemble_path(dosemu_localdir_path, DOSEMU_RC);
-	    if (access(dosrcname, R_OK) == -1) {
-		free(dosrcname);
-		dosrcname = get_path_in_HOME(DOSEMU_RC);
-	    }
-	}
-	if (access(dosrcname, R_OK) == -1) {
-	    free(dosrcname);
-	    dosrcname = NULL;
-	}
-    }
-    parse_config(confname, dosrcname);
+    parse_config(confname, dosrcname, nodosrc);
     free(confname);
     free(dosrcname);
 
