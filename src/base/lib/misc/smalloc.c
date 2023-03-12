@@ -247,27 +247,6 @@ static struct memnode *smfind_free_area_topdown(struct mempool *mp,
   return mn1;
 }
 
-static struct memnode *sm_alloc_mn(struct mempool *mp, size_t size)
-{
-  struct memnode *mn;
-  if (!size) {
-    smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
-    return NULL;
-  }
-  if (!(mn = smfind_free_area(mp, size))) {
-    do_smerror(get_oom_pr(mp, size), mp,
-	    "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
-    return NULL;
-  }
-  if (!sm_commit_simple(mp, mn->mem_area, size))
-    return NULL;
-  mn->used = 1;
-  mntruncate(mn, size);
-  assert(mn->size == size);
-  memset(mn->mem_area, 0, size);
-  return mn;
-}
-
 static struct memnode *sm_alloc_fixed(struct mempool *mp, void *ptr,
     size_t size)
 {
@@ -311,7 +290,7 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
   struct memnode *mn;
   int delta;
   uintptr_t iptr;
-  if (!size || align < 2) {
+  if (!size) {
     smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
     return NULL;
   }
@@ -340,6 +319,11 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
   return mn;
 }
 
+static struct memnode *sm_alloc_mn(struct mempool *mp, size_t size)
+{
+  return sm_alloc_aligned(mp, 1, size);
+}
+
 static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
     unsigned char *top, size_t align, size_t size)
 {
@@ -348,7 +332,7 @@ static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
   uintptr_t iptr;
   uintptr_t min_top;
   uintptr_t iend;
-  if (!size || align < 2) {
+  if (!size) {
     smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
     return NULL;
   }
