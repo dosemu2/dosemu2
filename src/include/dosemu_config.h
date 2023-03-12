@@ -51,7 +51,8 @@ extern int config_check_only;
 #define  DOSEMUCMDS_DEFAULT DOSEMULIB_DEFAULT "/" CMDS_SUFF
 #define  DOSEMULIBEXEC_DEFAULT  LIBEXECDIR "/dosemu"
 #define  DOSEMUIMAGE_DEFAULT "~/" LOCALDIR_BASE_NAME
-#define  DRIVE_C_DEFAULT    DOSEMUIMAGE_DEFAULT "/drive_c"
+#define  DRIVE_C_DIR        "drive_c"
+#define  DRIVE_C_DEFAULT    DOSEMUIMAGE_DEFAULT "/" DRIVE_C_DIR
 #define  DOSEMU_DRIVES_DIR  "drives"
 #define  RUNDIR_PREFIX      "/var/run/user"
 #define  DOSEMU_CONF_DIR       SYSCONFDIR "/" CONFSUBDIR
