@@ -524,7 +524,7 @@ static void set_freedos_dir(void)
 void move_dosemu_local_dir(void)
 {
   const char *localdir = getenv("_local_dir");
-  if (localdir) {
+  if (localdir && !dosemu_localdir_path) {
     char *ldir = expand_path(localdir);
     if (ldir)
       dosemu_localdir_path = ldir;
@@ -720,6 +720,21 @@ void secure_option_preparse(int *argc, char **argv)
       }
       free(opt);
     }
+
+    opt = get_option("--Flocaldir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        free(dosemu_localdir_path);
+        dosemu_localdir_path = opt1;
+        cnt++;
+      } else {
+        error("--Flocaldir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
+    }
+
   } while (cnt);
 }
 
