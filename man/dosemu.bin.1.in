@@ -207,10 +207,12 @@ Bypass the default directory for bootdirectory and hdimages (DOSEMU_IMAGE_DIR)
 and use this directory instead.
 .TP
 .I -f
-Parse this config-file instead of .dosemurc
+Parse this config-file instead of .dosemurc. If -n is also specified, then
+this config file is parsed instead of the primary dosemu.conf.
 .TP
 .I -n
-Bypass (don't use) user's config .dosemurc.
+Bypass (don't use) default user's config .dosemurc. The config specified
+with -f is still parsed, but in that case it replaces the main dosemu.conf.
 .TP
 .I -L <log_string>
 Writes provided <log_string> to a log.

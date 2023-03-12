@@ -1151,10 +1151,16 @@ config_init(int argc, char **argv)
     if (config_check_only) set_debug_level('c',1);
 
     move_dosemu_lib_dir();
-    confname = assemble_path(DOSEMU_CONF_DIR, DOSEMU_CONF);
-    if (access(confname, R_OK) == -1) {
-	free(confname);
-	confname = NULL;
+    if (nodosrc && dosrcname) {
+        c_printf("CONF: using %s as primary config\n", dosrcname);
+        confname = dosrcname;
+        dosrcname = NULL;
+    } else {
+        confname = assemble_path(DOSEMU_CONF_DIR, DOSEMU_CONF);
+        if (access(confname, R_OK) == -1) {
+            free(confname);
+            confname = NULL;
+        }
     }
     if (!nodosrc) {
 	if (!dosrcname) {
