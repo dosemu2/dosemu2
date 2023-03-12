@@ -271,14 +271,7 @@ static void dosemu_fault1(int signum, sigcontext_t *scp)
 #ifdef __i386__
   /* case 1: note that _scp_cr2 must be 0-based */
   if (in_vm86 && config.cpu_vm == CPUVM_VM86) {
-    if (_scp_trapno == 0x0e) {
-      /* we can get to instremu from here, so unblock SIGALRM & friends.
-       * It is needed to interrupt instremu when it runs for too long. */
-      signal_unblock_async_sigs();
-      if (vga_emu_fault(_scp_cr2, _scp_err, NULL) == True)
-        return;
-    }
-    vm86_fault(_scp_trapno, _scp_err, _scp_cr2);
+    true_vm86_fault(scp);
     return;
   }
 #endif
