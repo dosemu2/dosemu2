@@ -311,6 +311,7 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
   struct memnode *mn;
   int delta;
   uintptr_t iptr;
+  size_t aligned_size;
   if (!size || align < 2) {
     smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
     return NULL;
@@ -318,8 +319,9 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
   /* power of 2 align */
   assert(__builtin_popcount(align) == 1);
   align--;
-  if (!(mn = smfind_free_area(mp, size + align))) {
-    do_smerror(get_oom_pr(mp, size), mp,
+  aligned_size = (size + align) & ~align;
+  if (!(mn = smfind_free_area(mp, aligned_size))) {
+    do_smerror(get_oom_pr(mp, aligned_size), mp,
 	    "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
@@ -348,6 +350,7 @@ static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
   uintptr_t iptr;
   uintptr_t min_top;
   uintptr_t iend;
+  size_t aligned_size;
   if (!size || align < 2) {
     smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
     return NULL;
@@ -355,8 +358,9 @@ static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
   /* power of 2 align */
   assert(__builtin_popcount(align) == 1);
   align--;
-  if (!(mn = smfind_free_area_topdown(mp, top, size + align))) {
-    do_smerror(get_oom_pr(mp, size), mp,
+  aligned_size = (size + align) & ~align;
+  if (!(mn = smfind_free_area_topdown(mp, top, aligned_size))) {
+    do_smerror(get_oom_pr(mp, aligned_size), mp,
 	    "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
