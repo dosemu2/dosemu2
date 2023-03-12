@@ -474,6 +474,18 @@ again:
     fesetenv(&dosemu_fenv);
     return ret;
 }
+
+void true_vm86_fault(sigcontext_t *scp)
+{
+    if (_scp_trapno == 0x0e) {
+	/* we can get to instremu from here, so unblock SIGALRM & friends.
+	 * It is needed to interrupt instremu when it runs for too long. */
+	signal_unblock_async_sigs();
+	if (vga_emu_fault(_scp_cr2, _scp_err, NULL) == True)
+	    return;
+    }
+    vm86_fault(_scp_trapno, _scp_err, _scp_cr2);
+}
 #endif
 
 static int do_vm86(union vm86_union *x)

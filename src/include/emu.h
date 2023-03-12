@@ -36,6 +36,9 @@ extern struct eflags_fs_gs eflags_fs_gs;
 
 int vm86_init(void);
 int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2);
+#ifdef __i386__
+void true_vm86_fault(sigcontext_t *scp);
+#endif
 
 #define BIT(x)  	(1<<x)
 

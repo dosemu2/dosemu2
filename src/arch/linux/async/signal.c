@@ -480,13 +480,21 @@ static void abort_signal(int sig, siginfo_t *si, void *uc)
 }
 
 SIG_PROTO_PFX
-static void minsigsegv(int sig, siginfo_t *si, void *uc)
+static void minfault(int sig, siginfo_t *si, void *uc)
 {
-#ifdef X86_EMULATOR
+#if defined(__i386__) || defined(X86_EMULATOR)
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
+#ifdef __i386__
+  if (in_vm86 && config.cpu_vm == CPUVM_VM86) {
+    true_vm86_fault(scp);
+    return;
+  }
+#endif
+#ifdef X86_EMULATOR
   if (IS_EMU() && e_emu_fault(scp, in_vm86))
     return;
+#endif
 #endif
   gdb_debug();
   _exit(sig);
@@ -647,11 +655,17 @@ signal_pre_init(void)
   setup_nf_sig(SIG_RELEASE);
   setup_nf_sig(SIGWINCH);
   /* call that after all non-fatal sigs set up */
+#ifdef __i386__
+  newsetsig(SIGILL, minfault);
+  newsetsig(SIGTRAP, minfault);
+  newsetsig(SIGBUS, minfault);
+#else
   newsetsig(SIGILL, abort_signal);
-  newsetsig(SIGFPE, abort_signal);
   newsetsig(SIGTRAP, abort_signal);
   newsetsig(SIGBUS, abort_signal);
-  newsetsig(SIGSEGV, minsigsegv);
+#endif
+  newsetsig(SIGFPE, minfault);
+  newsetsig(SIGSEGV, minfault);
   newsetsig(SIGABRT, abort_signal);
 
   /* block async signals so that threads inherit the blockage */
