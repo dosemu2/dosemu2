@@ -86,6 +86,7 @@ char *fddir_default;
 char *comcom_dir;
 char *fddir_boot;
 char *xbat_dir;
+static char *dosemu_uid;
 struct config_info config;
 
 #define STRING_STORE_SIZE 10
@@ -360,6 +361,7 @@ static void our_envs_init(void)
     setenv("DOSEMU_EUID", buf, 1);
     sprintf(buf, "%d", getuid());
     setenv("DOSEMU_UID", buf, 1);
+    dosemu_uid = strdup(buf);
 }
 
 static int check_comcom(const char *dir)
@@ -519,9 +521,23 @@ static void set_freedos_dir(void)
   }
 }
 
+void move_dosemu_local_dir(void)
+{
+  const char *localdir = getenv("_local_dir");
+  if (localdir) {
+    const char *ldir = expand_path(localdir);
+    if (ldir)
+      dosemu_localdir_path = ldir;
+    else
+      error("local dir %s does not exist\n\tUsing %s\n", localdir,
+          dosemu_localdir_path);
+  }
+}
+
 static void move_dosemu_lib_dir(void)
 {
   char *old_cmd_path;
+  char *rp;
 
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
   set_freedos_dir();
@@ -542,7 +558,10 @@ static void move_dosemu_lib_dir(void)
 
   setenv("DOSEMU_IMAGE_DIR", dosemu_image_dir_path, 1);
   LOCALDIR = get_dosemu_local_home();
-  RUNDIR = mkdir_under(LOCALDIR, "run");
+
+  rp = assemble_path(RUNDIR_PREFIX, dosemu_uid);
+  RUNDIR = mkdir_under(rp, "dosemu2");
+  free(rp);
   DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI);
   DOSEMU_MIDI_IN_PATH = assemble_path(RUNDIR, DOSEMU_MIDI_IN);
 }
@@ -1151,25 +1170,18 @@ config_init(int argc, char **argv)
     if (config_check_only) set_debug_level('c',1);
 
     move_dosemu_lib_dir();
-    confname = assemble_path(DOSEMU_CONF_DIR, DOSEMU_CONF);
-    if (access(confname, R_OK) == -1) {
-	free(confname);
-	confname = NULL;
+    if (nodosrc && dosrcname) {
+        c_printf("CONF: using %s as primary config\n", dosrcname);
+        confname = dosrcname;
+        dosrcname = NULL;
+    } else {
+        confname = assemble_path(DOSEMU_CONF_DIR, DOSEMU_CONF);
+        if (access(confname, R_OK) == -1) {
+            free(confname);
+            confname = NULL;
+        }
     }
-    if (!nodosrc) {
-	if (!dosrcname) {
-	    dosrcname = assemble_path(dosemu_localdir_path, DOSEMU_RC);
-	    if (access(dosrcname, R_OK) == -1) {
-		free(dosrcname);
-		dosrcname = get_path_in_HOME(DOSEMU_RC);
-	    }
-	}
-	if (access(dosrcname, R_OK) == -1) {
-	    free(dosrcname);
-	    dosrcname = NULL;
-	}
-    }
-    parse_config(confname, dosrcname);
+    parse_config(confname, dosrcname, nodosrc);
     free(confname);
     free(dosrcname);
 

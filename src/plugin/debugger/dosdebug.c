@@ -29,7 +29,7 @@
 
 #include "utilities.h"
 
-#define    TMPFILE_VAR		"/var/run/dosemu."
+#define    TMPFILE_VAR		"/var/run/user/%i/dosemu2/dosemu."
 #define    TMPFILE_HOME		".dosemu/run/dosemu."
 
 #define MHP_BUFFERSIZE 8192
@@ -463,7 +463,9 @@ int main (int argc, char **argv)
       free(dosemu_tmpfile_pat);
     }
     if (dospid == -1) {
-      dospid=find_dosemu_pid(TMPFILE_VAR "dbgin.", 0);
+      char fname[256];
+      snprintf(fname, sizeof(fname), TMPFILE_VAR "dbgin.", getuid());
+      dospid = find_dosemu_pid(fname, 0);
     }
   }
   else dospid=strtol(argv[1], 0, 0);
@@ -491,10 +493,10 @@ int main (int argc, char **argv)
   if (fddbgout == -1) {
     /* if we cannot open pipe and we were trying $HOME/.dosemu/run directory,
        try with /var/run/dosemu directory */
-    ret = asprintf(&pipename_in, TMPFILE_VAR "dbgin.%d", dospid);
+    ret = asprintf(&pipename_in, TMPFILE_VAR "dbgin.%d", getuid(), dospid);
     assert(ret != -1);
 
-    ret = asprintf(&pipename_out, TMPFILE_VAR "dbgout.%d", dospid);
+    ret = asprintf(&pipename_out, TMPFILE_VAR "dbgout.%d", getuid(), dospid);
     assert(ret != -1);
 
     fddbgout = open(pipename_in, O_RDWR | O_NONBLOCK | O_CLOEXEC);
