@@ -710,8 +710,8 @@ static void enter_includefile(char * fname)
    */
   if (fname[0] != '/') {
     int i;
-    if (!strncmp(fname, KEYMAP_DIR, strlen(KEYMAP_DIR)))
-      strcpy(fname_, KEYMAP_LOAD_BASE_PATH);
+    if (!strncmp(fname, keymap_dir_path, strlen(keymap_dir_path)))
+      strcpy(fname_, keymap_load_base_path);
     else
       strcpy(fname_, include_fnames[include_stack_ptr]);
     i=strlen(fname_);

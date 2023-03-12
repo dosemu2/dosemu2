@@ -65,14 +65,14 @@ static void     usage(char *basename);
 
 const char *config_script_name = DEFAULT_CONFIG_SCRIPT;
 const char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
-const char *dosemu_rundir_path = "~/" LOCALDIR_BASE_NAME "/run";
-const char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
+const char *dosemu_rundir_path;
+const char *dosemu_localdir_path;
 
 const char *dosemu_lib_dir_path = DOSEMULIB_DEFAULT;
 const char *dosemu_plugin_dir_path = DOSEMUPLUGINDIR;
 const char *commands_path = DOSEMUCMDS_DEFAULT;
-const char *dosemu_image_dir_path = DOSEMUIMAGE_DEFAULT;
-const char *dosemu_drive_c_path = DRIVE_C_DEFAULT;
+const char *dosemu_image_dir_path;
+const char *dosemu_drive_c_path;
 char keymaploadbase_default[] = DOSEMULIB_DEFAULT "/";
 char *keymap_load_base_path = keymaploadbase_default;
 const char *keymap_dir_path = "keymap/";
@@ -524,14 +524,23 @@ static void set_freedos_dir(void)
 void move_dosemu_local_dir(void)
 {
   const char *localdir = getenv("_local_dir");
-  if (localdir) {
-    const char *ldir = expand_path(localdir);
+  if (localdir && !dosemu_localdir_path) {
+    char *ldir = expand_path(localdir);
     if (ldir)
       dosemu_localdir_path = ldir;
     else
       error("local dir %s does not exist\n\tUsing %s\n", localdir,
           dosemu_localdir_path);
   }
+  if (!dosemu_localdir_path)
+    dosemu_localdir_path = get_dosemu_local_home();
+
+  if (!dosemu_image_dir_path)
+    dosemu_image_dir_path = dosemu_localdir_path;
+  setenv("DOSEMU_IMAGE_DIR", dosemu_image_dir_path, 1);
+
+  if (!dosemu_drive_c_path)
+    dosemu_drive_c_path = assemble_path(dosemu_localdir_path, DRIVE_C_DIR);
 }
 
 static void move_dosemu_lib_dir(void)
@@ -556,14 +565,11 @@ static void move_dosemu_lib_dir(void)
     free(keymap_load_base_path);
   keymap_load_base_path = assemble_path(dosemu_lib_dir_path, "");
 
-  setenv("DOSEMU_IMAGE_DIR", dosemu_image_dir_path, 1);
-  LOCALDIR = get_dosemu_local_home();
-
   rp = assemble_path(RUNDIR_PREFIX, dosemu_uid);
-  RUNDIR = mkdir_under(rp, "dosemu2");
+  dosemu_rundir_path = mkdir_under(rp, "dosemu2");
   free(rp);
-  DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI);
-  DOSEMU_MIDI_IN_PATH = assemble_path(RUNDIR, DOSEMU_MIDI_IN);
+  dosemu_midi_path = assemble_path(dosemu_rundir_path, DOSEMU_MIDI);
+  dosemu_midi_in_path = assemble_path(dosemu_rundir_path, DOSEMU_MIDI_IN);
 }
 
 static int find_option(const char *option, int argc, char **argv)
@@ -690,7 +696,7 @@ void secure_option_preparse(int *argc, char **argv)
     if (opt && opt[0]) {
       char *opt1 = path_expand(opt);
       if (opt1) {
-        replace_string(CFG_STORE, dosemu_image_dir_path, opt1);
+        free(dosemu_image_dir_path);
         dosemu_image_dir_path = opt1;
         cnt++;
       } else {
@@ -704,7 +710,7 @@ void secure_option_preparse(int *argc, char **argv)
     if (opt && opt[0]) {
       char *opt1 = path_expand(opt);
       if (opt1) {
-        replace_string(CFG_STORE, dosemu_drive_c_path, opt1);
+        free(dosemu_drive_c_path);
         dosemu_drive_c_path = opt1;
         config.alt_drv_c = 1;
         cnt++;
@@ -714,6 +720,21 @@ void secure_option_preparse(int *argc, char **argv)
       }
       free(opt);
     }
+
+    opt = get_option("--Flocaldir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        free(dosemu_localdir_path);
+        dosemu_localdir_path = opt1;
+        cnt++;
+      } else {
+        error("--Flocaldir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
+    }
+
   } while (cnt);
 }
 

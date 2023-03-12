@@ -62,7 +62,7 @@ static void midipipe_io(int fd, void *arg)
 
 static int midipipe_init(void *arg)
 {
-    const char *name = DOSEMU_MIDI_IN_PATH;
+    const char *name = dosemu_midi_in_path;
     pipe_fd = RPT_SYSCALL(open(name, O_RDONLY | O_NONBLOCK));
     if (pipe_fd == -1) {
 	S_printf("%s: unable to open %s for reading: %s\n",
