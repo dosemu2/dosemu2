@@ -182,7 +182,9 @@ void signative_pre_init(void);
 void signative_enter(sigcontext_t *scp);
 void signative_leave(sigcontext_t *scp, unsigned long *uc_flags);
 int signative_skip_unblock(sigcontext_t *scp);
+#ifdef __x86_64__
 int signative_skip_ss(unsigned long uc_flags);
+#endif
 int signative_block_all_sigs(void);
 void signative_start(void);
 void signative_stop(void);
@@ -198,7 +200,9 @@ static inline void signative_pre_init(void) {}
 static inline void signative_enter(sigcontext_t *scp) {}
 static inline void signative_leave(sigcontext_t *scp, unsigned long *uc_flags) {}
 static inline int signative_skip_unblock(sigcontext_t *scp) { return 0; }
+#ifdef __x86_64__
 static inline int signative_skip_ss(unsigned long uc_flags) { return 1; }
+#endif
 static inline int signative_block_all_sigs(void) { return 0; }
 static inline void signative_start(void) {}
 static inline void signative_stop(void) {}

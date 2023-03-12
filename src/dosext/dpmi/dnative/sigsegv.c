@@ -952,10 +952,12 @@ int signative_skip_unblock(sigcontext_t *scp)
   return 0;
 }
 
+#ifdef __x86_64__
 int signative_skip_ss(unsigned long uc_flags)
 {
   return (uc_flags & UC_SIGCONTEXT_SS);
 }
+#endif
 
 SIG_PROTO_PFX
 static void fixup_handler(int sig, siginfo_t *si, void *uc)
