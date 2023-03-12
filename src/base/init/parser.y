@@ -420,7 +420,7 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		| DOSEMUMAP string_expr
 		    {
-		    DOSEMU_MAP_PATH = $2;
+		    dosemu_map_file_name = $2;
 		    c_printf("CONF: dosemu.map path = '%s'\n", $2);
 		    }
 		| MAPPINGDRIVER string_expr
@@ -1137,7 +1137,7 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| MUNT_ROMS string_expr
 			{
 				free(config.munt_roms_dir);
-				config.munt_roms_dir = concat_dir(LOCALDIR, $2);
+				config.munt_roms_dir = concat_dir(dosemu_localdir_path, $2);
 				free($2);
 			}
 		| OPL2LPT_DEV string_expr

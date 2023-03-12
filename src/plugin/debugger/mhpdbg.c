@@ -148,10 +148,10 @@ static void mhp_init(void)
   memset(&mhpdbg.intxxtab, 0, sizeof(mhpdbg.intxxtab));
   memset(&mhpdbgc.intxxalt, 0, sizeof(mhpdbgc.intxxalt));
 
-  retval = asprintf(&pipename_in, "%s/dosemu.dbgin.%d", RUNDIR, getpid());
+  retval = asprintf(&pipename_in, "%s/dosemu.dbgin.%d", dosemu_rundir_path, getpid());
   assert(retval != -1);
 
-  retval = asprintf(&pipename_out, "%s/dosemu.dbgout.%d", RUNDIR, getpid());
+  retval = asprintf(&pipename_out, "%s/dosemu.dbgout.%d", dosemu_rundir_path, getpid());
   assert(retval != -1);
 
   retval = mkfifo(pipename_in, S_IFIFO | 0600);

@@ -340,8 +340,8 @@ static int tty_lock(const char *path, int mode)
     }
 
     /* Make sure UUCP owns the lockfile.  Required by some packages. */
-    if ((pw = getpwnam(OWNER_LOCKS)) == NULL) {
-      error("tty: lock: UUCP user %s unknown!\n", OWNER_LOCKS);
+    if ((pw = getpwnam(owner_tty_locks)) == NULL) {
+      error("tty: lock: UUCP user %s unknown!\n", owner_tty_locks);
       return(0);        /* keep the lock anyway */
     }
 

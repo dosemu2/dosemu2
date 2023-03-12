@@ -557,13 +557,13 @@ static void move_dosemu_lib_dir(void)
   keymap_load_base_path = assemble_path(dosemu_lib_dir_path, "");
 
   setenv("DOSEMU_IMAGE_DIR", dosemu_image_dir_path, 1);
-  LOCALDIR = get_dosemu_local_home();
+  dosemu_localdir_path = get_dosemu_local_home();
 
   rp = assemble_path(RUNDIR_PREFIX, dosemu_uid);
-  RUNDIR = mkdir_under(rp, "dosemu2");
+  dosemu_rundir_path = mkdir_under(rp, "dosemu2");
   free(rp);
-  DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI);
-  DOSEMU_MIDI_IN_PATH = assemble_path(RUNDIR, DOSEMU_MIDI_IN);
+  dosemu_midi_path = assemble_path(dosemu_rundir_path, DOSEMU_MIDI);
+  dosemu_midi_in_path = assemble_path(dosemu_rundir_path, DOSEMU_MIDI_IN);
 }
 
 static int find_option(const char *option, int argc, char **argv)

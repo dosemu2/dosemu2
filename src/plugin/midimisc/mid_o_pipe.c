@@ -38,7 +38,7 @@ static int pipe_fd = -1;
 
 static int midopipe_init(void *arg)
 {
-    const char *name = DOSEMU_MIDI_PATH;
+    const char *name = dosemu_midi_path;
 
     if (mkfifo(name, 0666) == -1) {
         S_printf("Unable to mkfifo() '%s'\n", strerror(errno));
@@ -71,7 +71,7 @@ static void midopipe_write(unsigned char val)
 {
     /* Try again to open FIFO on each write in case some readers showed up. */
     if (pipe_fd == -1) {
-	pipe_fd = RPT_SYSCALL(open(DOSEMU_MIDI_PATH, O_WRONLY | O_CREAT | O_NONBLOCK, 0666));
+	pipe_fd = RPT_SYSCALL(open(dosemu_midi_path, O_WRONLY | O_CREAT | O_NONBLOCK, 0666));
 	if (pipe_fd == -1) {
 	    return;
 	}

@@ -54,6 +54,7 @@ extern int config_check_only;
 #define  DRIVE_C_DEFAULT    DOSEMUIMAGE_DEFAULT "/drive_c"
 #define  DOSEMU_DRIVES_DIR  "drives"
 #define  RUNDIR_PREFIX      "/var/run/user"
+#define  DOSEMU_CONF_DIR       SYSCONFDIR "/" CONFSUBDIR
 
 extern const char *config_script_name;
 extern const char *dosemu_loglevel_file_path;
@@ -80,19 +81,6 @@ extern const char *dosemu_midi_in_path;
 
 extern struct cfg_string_store cfg_store;
 #define CFG_STORE (struct string_store *)&cfg_store
-
-#define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path
-#define    RUNDIR                dosemu_rundir_path
-#define    LOCALDIR              dosemu_localdir_path
-#define    KEYMAP_LOAD_BASE_PATH keymap_load_base_path
-#define    KEYMAP_DIR            keymap_dir_path
-#define    OWNER_LOCKS           owner_tty_locks
-#define    PATH_LOCKD            tty_locks_dir_path
-#define    NAME_LOCKF            tty_locks_name_path
-#define    DOSEMU_MAP_PATH       dosemu_map_file_name
-#define    DOSEMU_MIDI_PATH      dosemu_midi_path
-#define    DOSEMU_MIDI_IN_PATH   dosemu_midi_in_path
-#define    DOSEMU_CONF_DIR       SYSCONFDIR "/" CONFSUBDIR
 
 extern char *dosemu_map_file_name;
 #endif
