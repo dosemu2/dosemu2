@@ -280,7 +280,7 @@ static void unmap_EMB(unsigned base, unsigned size)
 void *xms_resolve_physaddr(unsigned addr)
 {
   struct pgrm m;
-  assert(addr >= xms_base && addr < xms_base + config.xms_map_size);
+  assert(addr >= xms_base && addr < xms_base + XMS_SIZE);
   m = pgarmap(pgapool, (addr - xms_base) >> PAGE_SHIFT);
   if (m.pgoff == -1)
     return MAP_FAILED;
@@ -455,7 +455,7 @@ void xms_helper(void)
 
 void xms_init(void)
 {
-  pgapool = pgainit(config.xms_map_size >> PAGE_SHIFT);
+  pgapool = pgainit(XMS_SIZE >> PAGE_SHIFT);
 }
 
 void xms_done(void)

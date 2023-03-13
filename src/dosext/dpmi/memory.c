@@ -48,29 +48,9 @@ static unsigned int mem_allocd;           /* how many bytes memory client */
 unsigned int pm_block_handle_used;       /* tracking handle */
 
 static smpool mem_pool;
-static smpool lin_pool;
 static unsigned char *dpmi_lin_rsv_base;
 static unsigned char *dpmi_base;
-static uint32_t low_rsv;
 static const int dpmi_reserved_space = 4 * 1024 * 1024; // reserve 4Mb
-
-static int in_rsv_pool(dosaddr_t base, unsigned int size)
-{
-    if (!dpmi_lin_rsv_base)
-	return 0;
-    if (base >= DOSADDR_REL(dpmi_lin_rsv_base) &&
-	base + size <= DOSADDR_REL(dpmi_lin_rsv_base) + low_rsv)
-	    return 1;
-    return 0;
-}
-
-void dpmi_set_mem_base(void *rsv_base)
-{
-    dpmi_lin_rsv_base = rsv_base;
-    dpmi_base = MEM_BASE32(config.dpmi_base);
-    low_rsv = dpmi_base - dpmi_lin_rsv_base;
-    c_printf("DPMI memory mapped to %p (reserve)\n", rsv_base);
-}
 
 /* utility routines */
 
@@ -195,22 +175,6 @@ static int uncommit(void *ptr, size_t size)
   return 1;
 }
 
-static int commit_x(void *ptr, size_t size)
-{
-  if (mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(ptr), size,
-	PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
-    return 0;
-  return 1;
-}
-
-static int uncommit_x(void *ptr, size_t size)
-{
-  if (mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(ptr), size,
-	PROT_READ | PROT_WRITE) == -1)
-    return 0;
-  return 1;
-}
-
 unsigned long dpmi_mem_size(void)
 {
     if (!config.dpmi)
@@ -236,29 +200,25 @@ int dpmi_lin_mem_rsv(void)
 {
     if (!config.dpmi)
 	return 0;
-    return PAGE_ALIGN(config.dpmi_lin_rsv_size * 1024);
+    return PAGE_ALIGN(config.dpmi_base - (LOWMEM_SIZE + HMASIZE));
 }
 
 int dpmi_lin_mem_free(void)
 {
     if (!dpmi_lin_rsv_base)
 	return 0;
-    return smget_free_space(&lin_pool);
+    return smget_free_space(&main_pool);
 }
 
 int dpmi_alloc_pool(void)
 {
     uint32_t memsize = dpmi_mem_size();
 
-    if (dpmi_base < dpmi_lin_rsv_base || dpmi_base + memsize >
-	    dpmi_lin_rsv_base + dpmi_lin_mem_rsv()) {
-        error("$_dpmi or $_dpmi_base setting out of range\n");
-        return -1;
-    }
+    dpmi_lin_rsv_base = MEM_BASE32(LOWMEM_SIZE + HMASIZE);
+    dpmi_base = MEM_BASE32(config.dpmi_base);
     c_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, dpmi_base);
     /* Create DPMI pool */
     sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit);
-    sminit_com(&lin_pool, dpmi_lin_rsv_base, low_rsv, commit_x, uncommit_x);
     dpmi_total_memory = config.dpmi * 1024;
 
     D_printf("DPMI: dpmi_free_memory available 0x%x\n", dpmi_total_memory);
@@ -270,11 +230,6 @@ void dpmi_free_pool(void)
     int leak = smdestroy(&mem_pool);
     if (leak)
 	error("DPMI: leaked %i bytes (main pool)\n", leak);
-    leak = smdestroy(&lin_pool);
-    if (leak)
-	error("DPMI: leaked %i bytes (lin pool)\n", leak);
-    mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(dpmi_lin_rsv_base),
-                low_rsv, PROT_READ | PROT_WRITE);
 }
 
 static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
@@ -472,7 +427,6 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     dpmi_pm_block *block;
     unsigned char *realbase;
     int i;
-    int inp = 0;
 
    /* aligned size to PAGE size */
     size = PAGE_ALIGN(size);
@@ -482,30 +436,26 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	base = -1;
     else {
 	/* fixed allocation */
-	if (base < LOWMEM_SIZE + HMASIZE) {
+	if (base < DOSADDR_REL(dpmi_lin_rsv_base)) {
 	    D_printf("DPMI: failing lin alloc to lowmem %x, size %x\n",
 		    base, size);
 	    return NULL;
 	}
-	/* disallow last page allocs as our code is full of potential
-	 * integer overflows, plus MAP_FAILED should be invalid ptr */
-	if ((uint64_t)base + size > (uint32_t)PAGE_MASK) {
+	if ((uint64_t)base + size > DOSADDR_REL(dpmi_lin_rsv_base) +
+		dpmi_lin_mem_rsv()) {
 	    D_printf("DPMI: failing lin alloc to %x, size %x\n", base, size);
 	    return NULL;
 	}
-	inp = in_rsv_pool(base, size);
-	if (inp == -1)
-	    return NULL;
     }
     if (committed && size > dpmi_free_memory())
 	return NULL;
     if ((block = alloc_pm_block(root, size)) == NULL)
 	return NULL;
 
-    if (inp)
-	realbase = smalloc_fixed(&lin_pool, MEM_BASE32(base), size);
-    else if (base == -1)
-	realbase = smalloc(&main_pool, size);
+    if (base == -1)
+	realbase = smalloc_aligned_topdown(&main_pool,
+		&dpmi_lin_rsv_base[dpmi_lin_mem_rsv()],
+		PAGE_SIZE, size);
     else
 	realbase = smalloc_fixed(&main_pool, MEM_BASE32(base), size);
     if (realbase == NULL) {
@@ -579,15 +529,9 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
     }
     e_invalidate_full(block->base, block->size);
     if (block->linear) {
-	int inp = in_rsv_pool(block->base, block->size);
-	assert(inp != -1);
-	if (inp) {
-	    smfree(&lin_pool, MEM_BASE32(block->base));
-	} else {
-	    mprotect_mapping(MAPPING_DPMI, block->base, block->size,
+	mprotect_mapping(MAPPING_DPMI, block->base, block->size,
 		    PROT_READ | PROT_WRITE);
-	    smfree(&main_pool, MEM_BASE32(block->base));
-	}
+	smfree(&main_pool, MEM_BASE32(block->base));
     } else {
 	smfree(&mem_pool, MEM_BASE32(block->base));
     }
@@ -763,7 +707,6 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
 {
     dpmi_pm_block *block;
     unsigned char *ptr;
-    int inp;
 
     if (!newsize)	/* DPMI spec. says resize to 0 is an error */
 	return NULL;
@@ -792,10 +735,7 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     e_invalidate_full(block->base, block->size);
     mprotect_mapping(MAPPING_DPMI, block->base, block->size,
       PROT_READ | PROT_WRITE | PROT_EXEC);
-    inp = in_rsv_pool(block->base, block->size);
-    assert(inp != -1);
-    ptr = smrealloc(inp ? &lin_pool : &main_pool, MEM_BASE32(block->base),
-		newsize);
+    ptr = smrealloc(&main_pool, MEM_BASE32(block->base), newsize);
     if (ptr == NULL) {
 	restore_page_protection(block);
 	return NULL;

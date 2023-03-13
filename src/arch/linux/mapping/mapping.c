@@ -315,7 +315,7 @@ static void *mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
   }
 
   if (targ == (dosaddr_t)-1) {
-    target = smalloc(&main_pool, mapsize);
+    target = smalloc_aligned_topdown(&main_pool, NULL, PAGE_SIZE, mapsize);
     if (!target) {
       error("OOM for mmap_mapping_kmem, %s\n", strerror(errno));
       return MAP_FAILED;
@@ -747,6 +747,8 @@ static int do_map_hwram(struct hardware_ram *hw)
   int cap = MAPPING_KMEM;
   if (hw->default_vbase != (dosaddr_t)-1)
     cap |= MAPPING_LOWMEM;
+  else if (!config.dpmi)
+    return 0;
   p = mmap_mapping_kmem(cap, hw->default_vbase, hw->size, hw->base);
   if (p == MAP_FAILED) {
     error("mmap error in map_hardware_ram %s\n", strerror (errno));

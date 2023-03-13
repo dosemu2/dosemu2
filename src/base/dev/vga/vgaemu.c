@@ -1733,7 +1733,7 @@ int vga_emu_pre_init(void)
 
   vga.mem.lfb_base = 0;
   if (config.X_lfb && config.dpmi) {
-    void *addr = smalloc(&main_pool, vga.mem.size);
+    void *addr = smalloc_aligned_topdown(&main_pool, NULL, PAGE_SIZE, vga.mem.size);
     if (addr) {
       vga.mem.lfb_base = DOSADDR_REL(addr);
       memcheck_addtype('e', "VGAEMU LFB");
