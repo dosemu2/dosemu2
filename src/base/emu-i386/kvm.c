@@ -589,8 +589,24 @@ void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t
   unsigned int page;
 
   assert(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_KVM|MAPPING_VGAEMU));
-  /* with KVM we need to manually remove/shrink existing mappings */
-  do_munmap_kvm(phys_addr, mapsize);
+  if (phys_addr == (unsigned)-1) {
+    /* allocate some physical RAM */
+    int slot;
+    phys_addr = 0;
+    for (slot = 0; slot < MAXSLOT; slot++)
+      if (maps[slot].memory_size &&
+         maps[slot].guest_phys_addr >= LOWMEM_SIZE + HMASIZE &&
+         maps[slot].guest_phys_addr < 0x80000000U &&
+         maps[slot].guest_phys_addr + maps[slot].memory_size > phys_addr)
+       phys_addr = maps[slot].guest_phys_addr + maps[slot].memory_size;
+    assert(phys_addr > 0);
+    /* align this to get identical bits 0-20 with addr */
+    phys_addr = HUGE_PAGE_ALIGN(phys_addr - ((uintptr_t)addr & ~HUGE_PAGE_MASK)) |
+      ((uintptr_t)addr & ~HUGE_PAGE_MASK);
+  } else {
+    /* with KVM we need to manually remove/shrink existing mappings */
+    do_munmap_kvm(phys_addr, mapsize);
+  }
   mmap_kvm_no_overlap(phys_addr, addr, mapsize, 0);
   for (page = start; page < end; page++, phys_addr += pagesize) {
     int pde_entry = page >> 10;
