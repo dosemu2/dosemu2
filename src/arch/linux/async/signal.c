@@ -475,7 +475,7 @@ static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 SIG_PROTO_PFX
 static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
-  gdb_debug();
+  siginfo_debug(si);
   _exit(sig);
 }
 
@@ -496,7 +496,7 @@ static void minfault(int sig, siginfo_t *si, void *uc)
     return;
 #endif
 #endif
-  gdb_debug();
+  siginfo_debug(si);
   _exit(sig);
 }
 
