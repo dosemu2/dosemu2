@@ -388,6 +388,12 @@ void low_mem_init(void)
   }
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
+  /* LOWMEM_SIZE + HMASIZE == base */
+  memcheck_addtype('X', "EXT MEM");
+  memcheck_reserve('X', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE - HMASIZE);
+  x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE - HMASIZE,
+      LOWMEM_SIZE + HMASIZE);
+
   if (config.xms_size)
     memcheck_reserve('x', LOWMEM_SIZE + EXTMEM_SIZE, XMS_SIZE);
 
@@ -414,22 +420,12 @@ void low_mem_init(void)
     }
     /* unused hole for alignment */
     ptr2 += LOWMEM_SIZE + HMASIZE;
-  }
-
-  /* LOWMEM_SIZE + HMASIZE == base */
-  memcheck_addtype('X', "EXT MEM");
-  memcheck_reserve('X', LOWMEM_SIZE + HMASIZE, EXTMEM_SIZE - HMASIZE);
-  x_printf("Ext.Mem of size 0x%x at %#x\n", EXTMEM_SIZE - HMASIZE,
-      LOWMEM_SIZE + HMASIZE);
-
-  /* establish ext_mem alias access for int15 */
-  register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, phys_rsv,
-	    DOSADDR_REL(ptr2));
-  if (config.dpmi) {
     register_hardware_ram_virtual('U', DOSADDR_REL(ptr2), phys_rsv,
 	    LOWMEM_SIZE + HMASIZE);
   }
   /* create ext_mem alias for int15/dpmi */
+  register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, phys_rsv,
+	    DOSADDR_REL(ptr2));
   result = alias_mapping_pa(MAPPING_EXTMEM, LOWMEM_SIZE + HMASIZE,
 			 EXTMEM_SIZE - HMASIZE,
 			 PROT_READ | PROT_WRITE,
