@@ -228,13 +228,13 @@ static int dpmi_fault(sigcontext_t *scp)
  *
  * DANG_END_FUNCTION
  */
-static void dosemu_fault1(int signum, sigcontext_t *scp)
+static void dosemu_fault1(int signum, sigcontext_t *scp, const siginfo_t *si)
 {
   if (fault_cnt > 1) {
     error("Fault handler re-entered! signal=%i _trapno=0x%x\n",
       signum, _scp_trapno);
     if (!in_vm86 && !DPMIValidSelector(_scp_cs)) {
-      gdb_debug();
+      siginfo_debug(si);
       _exit(43);
     } else {
       error("BUG: Fault handler re-entered not within dosemu code! in_vm86=%i\n",
@@ -313,34 +313,7 @@ bad:
 /* All recovery attempts failed, going to die :( */
 
   {
-#ifdef __x86_64__
-    unsigned char *fsbase, *gsbase;
-#endif
-    error("cpu exception in dosemu code outside of %s!\n"
-	  "sig: %i trapno: 0x%02x  errorcode: 0x%08x  cr2: 0x%08"PRI_RG"\n"
-	  "eip: 0x%08"PRI_RG"  esp: 0x%08"PRI_RG"  eflags: 0x%08x\n"
-	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n"
-	  "fs: 0x%04x  gs: 0x%04x\n",
-	  (in_dpmi_pm() ? "DPMI client" : "VM86()"),
-	  signum, _scp_trapno, _scp_err, _scp_cr2,
-	  _scp_rip, _scp_rsp, _scp_eflags, _scp_cs, _scp_ds, _scp_es, _scp_ss, _scp_fs, _scp_gs);
-#ifdef __x86_64__
-    dosemu_arch_prctl(ARCH_GET_FS, &fsbase);
-    dosemu_arch_prctl(ARCH_GET_GS, &gsbase);
-    error("@fsbase: %p gsbase: %p\n", fsbase, gsbase);
-#endif
-    error("@\n");
-
-    error("Please install gdb, update dosemu from git, compile it with debug\n"
-        "info and make a bug report with the content of ~/.dosemu/boot.log at\n"
-"https://github.com/dosemu2/dosemu2/issues\n");
-    error("@Please provide any additional info you can, like the test-cases,\n"
-          "URLs and all the rest that fits.\n\n");
-#ifdef X86_EMULATOR
-    /* gdb_debug() will crash in jit code doing backtrace() */
-    if (!(IS_EMU() && !CONFIG_CPUSIM && e_in_compiled_code()))
-#endif
-    gdb_debug();
+    siginfo_debug(si);
 
     if (DPMIValidSelector(_scp_cs))
       print_exception_info(scp);
@@ -353,7 +326,7 @@ bad:
 
 /* noinline is to prevent gcc from moving TLS access around init_handler() */
 __attribute__((noinline))
-static void dosemu_fault0(int signum, sigcontext_t *scp)
+static void dosemu_fault0(int signum, sigcontext_t *scp, const siginfo_t *si)
 {
   pthread_t tid;
 
@@ -405,7 +378,7 @@ static void dosemu_fault0(int signum, sigcontext_t *scp)
     g_printf("Entering fault handler, signal=%i _trapno=0x%x\n",
       signum, _scp_trapno);
 
-  dosemu_fault1(signum, scp);
+  dosemu_fault1(signum, scp, si);
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
@@ -425,7 +398,7 @@ static void dosemu_fault(int signum, siginfo_t *si, void *uc)
   _scp_cr2 = (uintptr_t)si->si_addr;
 #endif
   fault_cnt++;
-  dosemu_fault0(signum, scp);
+  dosemu_fault0(signum, scp, si);
   fault_cnt--;
   deinit_handler(scp, &uct->uc_flags);
 }

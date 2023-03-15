@@ -1,6 +1,8 @@
 #include "emu.h"
 #include "dosemu_config.h"
 #include "debug.h"
+#include "emudpmi.h"
+#include "cpu-emu.h"
 #include "sig.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -212,8 +214,14 @@ void gdb_debug(void)
 #else
     /* the problem with the above is that gdb usually doesn't work
      * because of the security restrictions */
+    error("Please ");
     if (!ret)
-        error("Please install gdb!\n");
+        error("@install gdb, ");
+    error("@update dosemu from git, compile it with debug\n"
+        "info and make a bug report with the content of ~/.dosemu/boot.log at\n"
+"https://github.com/dosemu2/dosemu2/issues\n");
+    error("@Please provide any additional info you can, like the test-cases,\n"
+          "URLs and all the rest that fits.\n\n");
 #ifdef HAVE_BACKTRACE
     print_trace();
 #endif
@@ -222,4 +230,22 @@ void gdb_debug(void)
     fprintf(dbg_fd, "\n");
     fflush(dbg_fd);
     dump_state();
+}
+
+void siginfo_debug(const siginfo_t *si)
+{
+    error("@\n");
+    error("cpu exception in dosemu code outside of %s!\n",
+	  (in_dpmi_pm() ? "DPMI client" : "VM86()"));
+    psiginfo(si, "");
+    error("@\n");
+    dbug_printf("%s\nsig: %i code: 0x%02x  errno: 0x%08x  fault address: %p\n",
+	  strsignal(si->si_signo),
+	  si->si_signo, si->si_code, si->si_errno, si->si_addr);
+
+#ifdef X86_EMULATOR
+    /* gdb_debug() will crash in jit code doing backtrace() */
+    if (!(IS_EMU() && !CONFIG_CPUSIM && e_in_compiled_code()))
+#endif
+    gdb_debug();
 }
