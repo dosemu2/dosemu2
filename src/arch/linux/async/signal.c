@@ -199,8 +199,7 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 }
 
 /* init_handler puts the handler in a sane state that glibc
-   expects. That means restoring fs and gs for vm86 (necessary for
-   2.4 kernels) and fs, gs and eflags for DPMI. */
+   expects. That means restoring fs, gs and eflags for DPMI. */
 SIG_PROTO_PFX
 static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
 {
@@ -247,21 +246,6 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
 #endif
   }
 #endif
-
-  if (in_vm86) {
-#ifdef __i386__
-#ifdef X86_EMULATOR
-    if (config.cpu_vm != CPUVM_EMU)
-#endif
-      {
-	if (getsegment(fs) != eflags_fs_gs.fs)
-	  loadregister(fs, eflags_fs_gs.fs);
-	if (getsegment(gs) != eflags_fs_gs.gs)
-	  loadregister(gs, eflags_fs_gs.gs);
-      }
-#endif
-    return;
-  }
 
   signative_enter(scp);
 }
