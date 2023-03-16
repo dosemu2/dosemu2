@@ -31,6 +31,7 @@ from func_ds3_lock_twice import ds3_lock_twice
 from func_ds3_lock_writable import ds3_lock_writable
 from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
+from func_lfn_voln_info import lfn_voln_info
 from func_lfs_disk_info import lfs_disk_info
 from func_lfs_file_info import lfs_file_info
 from func_lfs_file_seek_tell import lfs_file_seek_tell
@@ -3927,78 +3928,17 @@ $_floppy_a = ""
         """MFS SFN file append"""
         self._test_mfs_file_write("SFN", "append")
 
-    def _test_lfn_volume_info(self, fstype):
-        if not fstype in ["MFS", "FAT"]:
-            self.fail("Incorrect argument")
-
-        self.mkfile("testit.bat", """\
-c:\\lfnvinfo D:\\
-rem end
-""", newline="\r\n")
-
-        testdir = self.mkworkdir('d')
-        self.mkfile("foo.dat", "some content", dname=testdir)
-
-        name = self.mkimage("16", cwd=testdir)
-
-        # compile sources
-        self.mkexe_with_djgpp("lfnvinfo", r"""
-#include <dir.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-
-int main(int argc, char *argv[]) {
-  int max_file_len, max_path_len;
-  char fsystype[32];
-  unsigned rval;
-
-  if (argc < 1) {
-    printf("missing volume argument e.g. 'C:\\'\n");
-    return 1;
-  }
-
-  rval = _get_volume_info(argv[1], &max_file_len, &max_path_len, fsystype);
-  if (rval == 0 && errno) {
-    printf("ERRNO(%d)\r\n", errno);
-    return 2;
-  }
-  if (rval == _FILESYS_UNKNOWN) {
-    printf("FILESYS_UNKNOWN(%d)\r\n", errno);
-    return 3;
-  }
-
-  printf("FSTYPE(%s), FILELEN(%d), PATHLEN(%d), BITS(0x%04x)\r\n",
-          fsystype, max_file_len, max_path_len, rval);
-
-  return 0;
-}
-""")
-
-        if fstype == "MFS":
-            hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1"
-        elif fstype == "FAT":
-            hdimage = "dXXXXs/c:hdtype1 %s" % name
-
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "%s +1"
-$_floppy_a = ""
-""" % hdimage)
-
-        if fstype == "MFS":
-            self.assertIn("FSTYPE(MFS)", results)
-        elif fstype == "FAT":
-            self.assertIn("ERRNO(27)", results)
-
     def test_lfn_volume_info_mfs(self):
         """LFN volume info on MFS"""
-        self._test_lfn_volume_info("MFS")
+        lfn_voln_info(self, "MFS")
 
-    def test_lfn_volume_info_fat_img(self):
-        """LFN volume info on FAT(img)"""
-        self._test_lfn_volume_info("FAT")
+    def test_lfn_volume_info_fat16(self):
+        """LFN volume info on FAT16"""
+        lfn_voln_info(self, "FAT16")
+
+    def test_lfn_volume_info_fat32(self):
+        """LFN volume info on FAT32"""
+        lfn_voln_info(self, "FAT32")
 
     def test_int21_disk_info(self):
         """INT21 disk info"""
@@ -4926,6 +4866,7 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_truename_ufs_sfn": KNOWNFAIL,
             "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
             "test_fat32_img_d_writable": UNSUPPORTED,
+            "test_lfn_volume_info_fat32": UNSUPPORTED,
             "test_lfs_disk_info_fat32": UNSUPPORTED,
             "test_floppy_vfs": KNOWNFAIL,
             "test_memory_hma_alloc3": UNSUPPORTED,
@@ -5145,6 +5086,7 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         ]
         cls.actions = {
             "test_fat32_img_d_writable": UNSUPPORTED,
+            "test_lfn_volume_info_fat32": UNSUPPORTED,
             "test_lfs_disk_info_fat32": UNSUPPORTED,
             "test_memory_hma_alloc3": UNSUPPORTED,
             "test_memory_hma_chain": UNSUPPORTED,
@@ -5199,6 +5141,7 @@ class MSDOS700TestCase(OurTestCase, unittest.TestCase):
         ]
         cls.actions = {
             "test_fat32_img_d_writable": UNSUPPORTED,
+            "test_lfn_volume_info_fat32": UNSUPPORTED,
             "test_lfs_disk_info_fat32": UNSUPPORTED,
             "test_lfs_disk_info_mfs": KNOWNFAIL,
         }
@@ -5259,6 +5202,7 @@ class MSDOS710TestCase(OurTestCase, unittest.TestCase):
 
         cls.actions = {
             "test_fat32_img_d_writable": UNSUPPORTED,
+            "test_lfn_volume_info_fat32": UNSUPPORTED,
             "test_lfs_disk_info_fat32": UNSUPPORTED,
         }
 
