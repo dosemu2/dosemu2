@@ -64,7 +64,10 @@ static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
 static int init_done = 0;
 unsigned char *mem_base;
 uintptr_t mem_base_mask;
-static unsigned char *mem_bases[MAX_BASES];
+static struct {
+  unsigned char *base;
+  size_t size;
+} mem_bases[MAX_BASES];
 uint8_t *lowmem_base;
 
 static struct mappingdrivers *mappingdrv[] = {
@@ -176,11 +179,9 @@ static int map_find(struct mem_map_struct *map, int max,
 
 static unsigned char *MEM_BASE32x(dosaddr_t a, int base)
 {
-  if (mem_bases[base] == MAP_FAILED)
+  if (mem_bases[base].base == MAP_FAILED || a >= mem_bases[base].size)
     return MAP_FAILED;
-  if (base == MEM_BASE || a >= ALIAS_SIZE)
-    return MEM_BASE32(a);
-  return &mem_bases[base][a];
+  return &mem_bases[base].base[a];
 }
 
 #ifdef __linux__
@@ -396,7 +397,8 @@ void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect)
     munmap(&addr[mapsize], edge);
 
   if (cap & MAPPING_INIT_LOWRAM) {
-    mem_bases[MEM_BASE] = addr;
+    mem_bases[MEM_BASE].base = addr;
+    mem_bases[MEM_BASE].size = mapsize;
     if (is_kvm_map(cap)) {
       cap = MAPPING_LOWMEM;
       mapsize = LOWMEM_SIZE + HMASIZE;
@@ -404,11 +406,14 @@ void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect)
       void *kvm_base = mmap_mapping_huge_page_aligned(cap, mapsize, protect);
       if (kvm_base == MAP_FAILED)
 	return kvm_base;
-      mem_bases[KVM_BASE] = kvm_base;
+      mem_bases[KVM_BASE].base = kvm_base;
+      mem_bases[KVM_BASE].size = mapsize;
     }
 #ifdef __i386__
-    if (config.cpu_vm == CPUVM_VM86)
-      mem_bases[VM86_BASE] = 0;
+    if (config.cpu_vm == CPUVM_VM86) {
+      mem_bases[VM86_BASE].base = 0;
+      mem_bases[VM86_BASE].size = ALIAS_SIZE;
+    }
 #endif
   }
 
@@ -538,8 +543,10 @@ void mapping_init(void)
     }
   }
 
-  for (i = 0; i < MAX_BASES; i++)
-    mem_bases[i] = MAP_FAILED;
+  for (i = 0; i < MAX_BASES; i++) {
+    mem_bases[i].base = MAP_FAILED;
+    mem_bases[i].size = 0;
+  }
 }
 
 /* this gets called on DOSEMU termination cleanup all mapping stuff */
@@ -871,8 +878,9 @@ void register_hardware_ram_virtual2(int type, unsigned base, unsigned int size,
 void register_hardware_ram_virtual(int type, unsigned base, unsigned int size,
 	dosaddr_t va)
 {
-  register_hardware_ram_virtual2(type, base, size,
-	MEM_BASE32x(va, KVM_BASE), va);
+  void *uaddr = base < mem_bases[KVM_BASE].size ?
+	MEM_BASE32x(base, KVM_BASE) : MEM_BASE32(va);
+  register_hardware_ram_virtual2(type, base, size, uaddr, va);
 }
 
 int unregister_hardware_ram_virtual(dosaddr_t base)
