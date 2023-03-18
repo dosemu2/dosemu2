@@ -126,22 +126,8 @@ static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 static void init_one_sig(int num, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
 	struct sigaction sa;
-#ifdef DNATIVE
-	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
-	if (signative_block_all_sigs())
-	{
-		/* initially block all async signals. */
-		sa.sa_mask = q_mask;
-	}
-	else
-	{
-		/* block all non-fatal async signals */
-		sa.sa_mask = nonfatal_q_mask;
-	}
-#else
 	sa.sa_flags = SA_RESTART | SA_SIGINFO;
 	sa.sa_mask = nonfatal_q_mask;
-#endif
 	sa.sa_sigaction = fun;
 	sigaction(num, &sa, NULL);
 }
@@ -423,8 +409,6 @@ void leavedos_sig(int sig)
   }
 }
 
-/* noinline is needed to prevent gcc from caching tls vars before
- * calling to init_handler() */
 __attribute__((noinline))
 static void _leavedos_signal(int sig, sigcontext_t *scp)
 {
@@ -437,10 +421,8 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
-  init_handler(scp, uct->uc_flags);
   signal(sig, SIG_DFL);
   _leavedos_signal(sig, scp);
-  deinit_handler(scp, &uct->uc_flags);
 }
 
 #if 0
@@ -450,9 +432,7 @@ static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
-  init_handler(scp, uct->uc_flags);
   leavedos_from_sig(sig);
-  deinit_handler(scp, &uct->uc_flags);
 }
 #endif
 
@@ -638,6 +618,7 @@ signal_pre_init(void)
   setup_nf_sig(SIG_ACQUIRE);
   setup_nf_sig(SIG_RELEASE);
   setup_nf_sig(SIGWINCH);
+  setup_nf_sig(SIGPROF);
   /* call that after all non-fatal sigs set up */
 #ifdef __i386__
   newsetsig(SIGILL, minfault);
@@ -913,9 +894,7 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
-  init_handler(scp, uct->uc_flags);
   sigasync0(sig, scp, si);
-  deinit_handler(scp, &uct->uc_flags);
 }
 
 SIG_PROTO_PFX
@@ -923,9 +902,7 @@ static void sigasync_std(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
-  init_handler(scp, uct->uc_flags);
   sigasync0_std(sig, scp, si);
-  deinit_handler(scp, &uct->uc_flags);
 }
 
 

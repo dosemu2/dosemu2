@@ -925,14 +925,12 @@ int signative_skip_ss(unsigned long uc_flags)
 }
 #endif
 
-SIG_PROTO_PFX
-static void fixup_handler(int sig, siginfo_t *si, void *uc)
+/* noinline is needed to prevent gcc from caching tls vars before
+ * calling to init_handler() */
+__attribute__((noinline))
+static void fixup_handler0(int sig, siginfo_t *si, void *uc)
 {
-	struct sigaction *sa;
-	ucontext_t *uct = uc;
-	sigcontext_t *scp = &uct->uc_mcontext;
-	init_handler(scp, 1);
-	sa = &sacts[sig];
+	struct sigaction *sa = &sacts[sig];
 	if (sa->sa_flags & SA_SIGINFO) {
 		sa->sa_sigaction(sig, si, uc);
 	} else {
@@ -940,6 +938,15 @@ static void fixup_handler(int sig, siginfo_t *si, void *uc)
 		hdlr_t hdlr = (hdlr_t)sa->sa_handler;
 		hdlr(sig, si, uc);
 	}
+}
+
+SIG_PROTO_PFX
+static void fixup_handler(int sig, siginfo_t *si, void *uc)
+{
+	ucontext_t *uct = uc;
+	sigcontext_t *scp = &uct->uc_mcontext;
+	init_handler(scp, uct->uc_flags);
+	fixup_handler0(sig, si, uc);
 	deinit_handler(scp, &uct->uc_flags);
 }
 
@@ -951,6 +958,10 @@ static void fixupsig(int sig)
 	if (sa.sa_handler == SIG_DFL || sa.sa_handler == SIG_IGN)
 		return;
 	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
+	if (signative_block_all_sigs())
+		/* initially block all async signals. */
+		sa.sa_mask = q_mask;
+	/* otherwise no additional blocking needed */
 	sa.sa_sigaction = fixup_handler;
 	sigaction(sig, &sa, NULL);
 }
@@ -1015,7 +1026,11 @@ int signative_block_all_sigs(void)
 
 void signative_start(void)
 {
-  fixupsig(SIGPROF);
+  int sig;
+
+  for (sig = 0; sig < NSIG; sig++)
+    if (sigismember(&q_mask, sig))
+      fixupsig(sig);
   /* call that after all non-fatal sigs set up */
   newsetsig(SIGILL, dosemu_fault);
   newsetsig(SIGFPE, dosemu_fault);
@@ -1027,7 +1042,11 @@ void signative_start(void)
 
 void signative_stop(void)
 {
-  unsetsig(SIGPROF);
+  int sig;
+
+  for (sig = 0; sig < NSIG; sig++)
+    if (sigismember(&q_mask, sig))
+      unsetsig(sig);
   unsetsig(SIGILL);
   unsetsig(SIGFPE);
   unsetsig(SIGTRAP);
