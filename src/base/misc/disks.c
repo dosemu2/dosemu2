@@ -961,8 +961,8 @@ static void partition_auto(struct disk *dp)
 
   // Must also set these for build_pi input in setup phase
   dp->start = dp->sectors; // one cylinder for mbr + alignment
+  dp->num_secs += dp->start;
   dp->tracks = dp->num_secs / dp->sectors / dp->heads;
-
   dp->header = 0;
 }
 
