@@ -7,11 +7,11 @@ import re
 
 from datetime import datetime
 from difflib import unified_diff
-from os import statvfs, uname, utime, rename, environ, access, R_OK, W_OK
+from os import statvfs, uname, utime, environ, access, R_OK, W_OK
 from os.path import exists, isdir, join
 from pathlib import Path
 from shutil import copy
-from subprocess import call, check_call, CalledProcessError, DEVNULL, run
+from subprocess import call, CalledProcessError, run
 from sys import argv, exit, modules
 from time import mktime
 
@@ -31,6 +31,8 @@ from func_ds3_lock_twice import ds3_lock_twice
 from func_ds3_lock_writable import ds3_lock_writable
 from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
+from func_lfn_voln_info import lfn_voln_info
+from func_lfs_disk_info import lfs_disk_info
 from func_lfs_file_info import lfs_file_info
 from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
@@ -3379,7 +3381,10 @@ rem end
 
         testdir = self.mkworkdir('d')
 
-        name = self.mkimage(fat, cwd=testdir)
+        testfil = testdir / "there.txt"
+        testfil.write_text('there')
+
+        name = self.mkimage_vbr(fat, cwd=testdir)
 
         results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
@@ -3400,6 +3405,10 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
                 r"HELLO[\t ]+TXT[\t ]+8"
                 r"|"
                 r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s+8\s+HELLO.TXT")
+        self.assertRegex(results,
+                r"THERE[\t ]+TXT[\t ]+5"
+                r"|"
+                r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s+5\s+THERE.TXT")
 
     def test_fat12_img_d_writable(self):
         """FAT12 image file D writable"""
@@ -3408,6 +3417,14 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
     def test_fat16_img_d_writable(self):
         """FAT16 image file D writable"""
         self._test_fat_img_d_writable("16")
+
+    def test_fat16b_img_d_writable(self):
+        """FAT16B image file D writable"""
+        self._test_fat_img_d_writable("16b")
+
+    def test_fat32_img_d_writable(self):
+        """FAT32 image file D writable"""
+        self._test_fat_img_d_writable("32")
 
     def test_mfs_lredir_auto_hdc(self):
         """MFS lredir auto C drive redirection"""
@@ -3911,204 +3928,17 @@ $_floppy_a = ""
         """MFS SFN file append"""
         self._test_mfs_file_write("SFN", "append")
 
-    def _test_lfn_volume_info(self, fstype):
-        if not fstype in ["MFS", "FAT"]:
-            self.fail("Incorrect argument")
-
-        self.mkfile("testit.bat", """\
-c:\\lfnvinfo D:\\
-rem end
-""", newline="\r\n")
-
-        testdir = self.mkworkdir('d')
-        self.mkfile("foo.dat", "some content", dname=testdir)
-
-        name = self.mkimage("16", cwd=testdir)
-
-        # compile sources
-        self.mkexe_with_djgpp("lfnvinfo", r"""
-#include <dir.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-
-int main(int argc, char *argv[]) {
-  int max_file_len, max_path_len;
-  char fsystype[32];
-  unsigned rval;
-
-  if (argc < 1) {
-    printf("missing volume argument e.g. 'C:\\'\n");
-    return 1;
-  }
-
-  rval = _get_volume_info(argv[1], &max_file_len, &max_path_len, fsystype);
-  if (rval == 0 && errno) {
-    printf("ERRNO(%d)\r\n", errno);
-    return 2;
-  }
-  if (rval == _FILESYS_UNKNOWN) {
-    printf("FILESYS_UNKNOWN(%d)\r\n", errno);
-    return 3;
-  }
-
-  printf("FSTYPE(%s), FILELEN(%d), PATHLEN(%d), BITS(0x%04x)\r\n",
-          fsystype, max_file_len, max_path_len, rval);
-
-  return 0;
-}
-""")
-
-        if fstype == "MFS":
-            hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1"
-        elif fstype == "FAT":
-            hdimage = "dXXXXs/c:hdtype1 %s" % name
-
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "%s +1"
-$_floppy_a = ""
-""" % hdimage)
-
-        if fstype == "MFS":
-            self.assertIn("FSTYPE(MFS)", results)
-        elif fstype == "FAT":
-            self.assertIn("ERRNO(27)", results)
-
     def test_lfn_volume_info_mfs(self):
         """LFN volume info on MFS"""
-        self._test_lfn_volume_info("MFS")
+        lfn_voln_info(self, "MFS")
 
-    def test_lfn_volume_info_fat_img(self):
-        """LFN volume info on FAT(img)"""
-        self._test_lfn_volume_info("FAT")
+    def test_lfn_volume_info_fat16(self):
+        """LFN volume info on FAT16"""
+        lfn_voln_info(self, "FAT16")
 
-    def test_fat32_disk_info(self):
-        """FAT32 disk info"""
-
-        path = "C:\\"
-
-        self.mkfile("testit.bat", """\
-c:\\fat32dif %s
-rem end
-""" % path, newline="\r\n")
-
-        # compile sources
-        self.mkexe_with_djgpp("fat32dif", r"""\
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-
-struct dinfo {
-  uint16_t size;
-  uint16_t version; // (0000h)
-  uint32_t spc;
-  uint32_t bps;
-  uint32_t avail_clusters;
-  uint32_t total_clusters;
-  uint32_t avail_sectors;
-  uint32_t total_sectors;
-  uint32_t avail_units;
-  uint32_t total_units;
-  char reserved[8];
-};
-
-#define MAXPATH 128
-
-int main(int argc, char *argv[]) {
-  struct dinfo df;
-  uint8_t carry;
-  uint16_t ax;
-  int len;
-
-  if (argc < 2) {
-    printf("path argument missing e.g. 'C:\\'\n");
-    return 3;
-  }
-
-  len = strlen(argv[1]) + 1;
-  if (len > MAXPATH) {
-    printf("path argument too long\n");
-    return 2;
-  }
-
-  /*
-    AX = 7303h
-    DS:DX -> ASCIZ string for drive ("C:\" or "\\SERVER\Share")
-    ES:DI -> buffer for extended free space structure (see #01789)
-    CX = length of buffer for extended free space
-
-    Return:
-    CF clear if successful
-    ES:DI buffer filled
-    CF set on error
-    AX = error code
-   */
-
-  asm volatile("stc\n"
-               "int $0x21\n"
-               "setc %0\n"
-               : "=r"(carry), "=a"(ax)
-               : "a"(0x7303), "d"(argv[1]), "D"(&df), "c"(sizeof(df))
-               : "cc", "memory");
-
-  if (carry) {
-    printf("Call failed (CARRY), AX = 0x%04x\n", ax);
-    return 1;
-  }
-
-  /* See if we have valid data */
-  if (df.size > sizeof(df)) {
-    printf("Call failed (Struct invalid), size = 0x%04x, version 0x%04x\n", df.size, df.version);
-    return 1;
-  }
-
-  printf("size                0x%04x\n", df.size);
-  printf("version             0x%04x\n", df.version);
-  printf("spc                 0x%08lx\n", df.spc);
-  printf("bps                 0x%08lx\n", df.bps);
-  printf("avail_clusters      0x%08lx\n", df.avail_clusters);
-  printf("total_clusters      0x%08lx\n", df.total_clusters);
-  printf("avail_sectors       0x%08lx\n", df.avail_sectors);
-  printf("total_sectors       0x%08lx\n", df.total_sectors);
-  printf("avail_units         0x%08lx\n", df.avail_units);
-  printf("total_units         0x%08lx\n", df.total_units);
-
-  printf("avail_bytes(%llu)\n",
-         (unsigned long long)df.spc * (unsigned long long)df.bps * (unsigned long long)df.avail_clusters);
-  printf("total_bytes(%llu)\n",
-         (unsigned long long)df.spc * (unsigned long long)df.bps * (unsigned long long)df.total_clusters);
-  return 0;
-}
-""")
-
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
-
-        self.assertNotIn("Call failed", results)
-
-        fsinfo = statvfs(self.workdir)
-        lfs_total = fsinfo.f_blocks * fsinfo.f_bsize
-        lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
-
-        t = re.search(r'total_bytes\((\d+)\)', results)
-        self.assertIsNotNone(t, "Unable to parse 'total_bytes'")
-        dfs_total = int(t.group(1))
-        a = re.search(r'avail_bytes\((\d+)\)', results)
-        self.assertIsNotNone(a, "Unable to parse 'avail_bytes'")
-        dfs_avail = int(a.group(1))
-
-# see if we are within 5% of the values obtained from Linux
-        msg = "total dos %d, linux %d" % (dfs_total, lfs_total)
-        self.assertLessEqual(dfs_total, lfs_total * 1.05, msg)
-        self.assertGreaterEqual(dfs_total, lfs_total * 0.95, msg)
-
-        msg = "avail dos %d, linux %d" % (dfs_avail, lfs_avail)
-        self.assertLessEqual(dfs_avail, lfs_avail * 1.05, msg)
-        self.assertGreaterEqual(dfs_avail, lfs_avail * 0.95, msg)
+    def test_lfn_volume_info_fat32(self):
+        """LFN volume info on FAT32"""
+        lfn_voln_info(self, "FAT32")
 
     def test_int21_disk_info(self):
         """INT21 disk info"""
@@ -4240,6 +4070,14 @@ $_floppy_a = ""
         msg = "avail dos %d, linux %d" % (dfs_avail, lfs_avail)
         self.assertLessEqual(dfs_avail, lfs_avail * 1.05, msg)
         self.assertGreaterEqual(dfs_avail, lfs_avail * 0.95, msg)
+
+    def test_lfs_disk_info_fat32(self):
+        """LFS disk info FAT32"""
+        lfs_disk_info(self, "FAT32")
+
+    def test_lfs_disk_info_mfs(self):
+        """LFS disk info MFS"""
+        lfs_disk_info(self, "MFS")
 
     def test_mfs_lfs_file_info_1MiB(self):
         """MFS LFS file info (1 MiB)"""
@@ -5027,6 +4865,9 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
             r"test_..._fcb_rename_wild_\d": KNOWNFAIL,
             "test_mfs_truename_ufs_sfn": KNOWNFAIL,
             "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
+            "test_fat32_img_d_writable": UNSUPPORTED,
+            "test_lfn_volume_info_fat32": UNSUPPORTED,
+            "test_lfs_disk_info_fat32": UNSUPPORTED,
             "test_floppy_vfs": KNOWNFAIL,
             "test_memory_hma_alloc3": UNSUPPORTED,
             "test_memory_hma_chain": UNSUPPORTED,
@@ -5244,6 +5085,9 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
             ("boot-floppy.img", "14b8310910bf19d6e375298f3b06da7ffdec9932"),
         ]
         cls.actions = {
+            "test_fat32_img_d_writable": UNSUPPORTED,
+            "test_lfn_volume_info_fat32": UNSUPPORTED,
+            "test_lfs_disk_info_fat32": UNSUPPORTED,
             "test_memory_hma_alloc3": UNSUPPORTED,
             "test_memory_hma_chain": UNSUPPORTED,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
@@ -5295,6 +5139,12 @@ class MSDOS700TestCase(OurTestCase, unittest.TestCase):
         cls.images = [
             ("boot-floppy.img", ""),
         ]
+        cls.actions = {
+            "test_fat32_img_d_writable": UNSUPPORTED,
+            "test_lfn_volume_info_fat32": UNSUPPORTED,
+            "test_lfs_disk_info_fat32": UNSUPPORTED,
+            "test_lfs_disk_info_mfs": KNOWNFAIL,
+        }
 
         cls.setUpClassPost()
 
@@ -5349,6 +5199,12 @@ class MSDOS710TestCase(OurTestCase, unittest.TestCase):
         cls.images = [
             ("boot-floppy.img", ""),
         ]
+
+        cls.actions = {
+            "test_fat32_img_d_writable": UNSUPPORTED,
+            "test_lfn_volume_info_fat32": UNSUPPORTED,
+            "test_lfs_disk_info_fat32": UNSUPPORTED,
+        }
 
         cls.setUpClassPost()
 

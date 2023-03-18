@@ -360,6 +360,44 @@ class BaseTestCase(object):
 
         return name
 
+    def mkimage_vbr(self, fat, lfn=False, cwd=None):
+        if fat == "12":
+            bcount = 306 * 4 * 17   # type 1
+        elif fat == "16":
+            bcount = 615 * 4 * 17   # type 2
+        elif fat == "16b":
+            bcount = 900 * 15 * 17  # type 9
+        elif fat == "32":
+            bcount = 524288         # 256 MiB
+        else:
+            raise ValueError
+        name = "fat%s.img" % fat
+
+        # mkfs.fat [OPTIONS] DEVICE [BLOCK-COUNT]
+        check_call(
+            ["mkfs",
+                "-t", ("fat", "vfat")[lfn],
+                "-C",
+                "-F", fat[0:2],
+                str(self.imagedir / name),
+                str(bcount)],
+            stdout=DEVNULL, stderr=DEVNULL)
+
+        if cwd is None:
+            cwd = self.workdir
+
+        # mcopy -i ../fat32.img -s -v * ::/
+        srcs = [str(f) for f in cwd.glob('*')]
+        if srcs:   # copy files
+            args = ["mcopy",
+                    "-i", str(self.imagedir / name),
+                    "-s"]
+            args += srcs
+            args += ["::/",]
+            check_call(args, cwd=cwd, stdout=DEVNULL, stderr=DEVNULL)
+
+        return name
+
     def patch(self, fname, changes, cwd=None):
         if cwd is None:
             cwd = self.workdir
