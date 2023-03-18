@@ -59,8 +59,8 @@ extern int config_check_only;
 
 extern const char *config_script_name;
 extern const char *dosemu_loglevel_file_path;
-extern const char *dosemu_rundir_path;
-extern const char *dosemu_localdir_path;
+extern char *dosemu_rundir_path;
+extern char *dosemu_localdir_path;
 
 extern char *fddir_default;
 extern char *comcom_dir;
@@ -69,8 +69,8 @@ extern char *xbat_dir;
 extern const char *commands_path;
 extern const char *dosemu_lib_dir_path;
 extern const char *dosemu_plugin_dir_path;
-extern const char *dosemu_image_dir_path;
-extern const char *dosemu_drive_c_path;
+extern char *dosemu_image_dir_path;
+extern char *dosemu_drive_c_path;
 extern char keymaploadbase_default[];
 extern char *keymap_load_base_path;
 extern const char *keymap_dir_path;

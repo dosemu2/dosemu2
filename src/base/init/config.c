@@ -65,14 +65,14 @@ static void     usage(char *basename);
 
 const char *config_script_name = DEFAULT_CONFIG_SCRIPT;
 const char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
-const char *dosemu_rundir_path;
-const char *dosemu_localdir_path;
+char *dosemu_rundir_path;
+char *dosemu_localdir_path;
 
 const char *dosemu_lib_dir_path = DOSEMULIB_DEFAULT;
 const char *dosemu_plugin_dir_path = DOSEMUPLUGINDIR;
 const char *commands_path = DOSEMUCMDS_DEFAULT;
-const char *dosemu_image_dir_path;
-const char *dosemu_drive_c_path;
+char *dosemu_image_dir_path;
+char *dosemu_drive_c_path;
 char keymaploadbase_default[] = DOSEMULIB_DEFAULT "/";
 char *keymap_load_base_path = keymaploadbase_default;
 const char *keymap_dir_path = "keymap/";

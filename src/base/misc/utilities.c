@@ -517,11 +517,14 @@ char *expand_path(const char *dir)
 	return s;
 }
 
-const char *mkdir_under(const char *basedir, const char *dir)
+char *mkdir_under(const char *basedir, const char *dir)
 {
-	const char *s = basedir;
+	char *s;
 
-	if (dir) s = assemble_path(basedir, dir);
+	if (dir)
+		s = assemble_path(basedir, dir);
+	else
+		s = strdup(basedir);
 	if (!exists_dir(s)) {
 		if (mkdir(s, S_IRWXU)) {
 			fprintf(stderr, "can't create local %s directory\n", s);
@@ -544,7 +547,7 @@ char *get_path_in_HOME(const char *path)
 	return assemble_path(home, path);
 }
 
-const char *get_dosemu_local_home(void)
+char *get_dosemu_local_home(void)
 {
 	return mkdir_under(get_path_in_HOME(".dosemu"), 0);
 }
