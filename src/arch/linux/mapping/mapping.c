@@ -277,6 +277,8 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
   for (i = 0; i < MAX_BASES; i++) {
     void *target, *addr;
     int prot;
+    /* only MEM_BASE maps virtual memory for high mem */
+    if (i != MEM_BASE && targ >= ALIAS_SIZE) continue;
     target = MEM_BASE32x(targ, i);
     if (target == MAP_FAILED)
       continue;
@@ -401,7 +403,7 @@ void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect)
     mem_bases[MEM_BASE].size = mapsize;
     if (is_kvm_map(cap)) {
       cap = MAPPING_LOWMEM;
-      mapsize = LOWMEM_SIZE + HMASIZE;
+      mapsize = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
       protect = PROT_READ|PROT_WRITE|PROT_EXEC;
       void *kvm_base = mmap_mapping_huge_page_aligned(cap, mapsize, protect);
       if (kvm_base == MAP_FAILED)
@@ -1076,6 +1078,15 @@ int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
   if (va == (dosaddr_t)-1)
     return 0;
   assert(addr >= LOWMEM_SIZE + HMASIZE);
+  if (is_kvm_map(cap)) {
+    addr2 = MEM_BASE32x(addr, KVM_BASE);
+    if (addr2 != MAP_FAILED) {
+      addr2 = mappingdriver->alias(cap, addr2, mapsize, protect, source);
+      if (addr2 == MAP_FAILED)
+	return 0;
+      assert(addr2 == MEM_BASE32x(addr, KVM_BASE));
+    }
+  }
   addr2 = mappingdriver->alias(cap, MEM_BASE32(va), mapsize, protect, source);
   if (addr2 == MAP_FAILED)
     return 0;
@@ -1095,5 +1106,10 @@ int unalias_mapping_pa(int cap, unsigned addr, size_t mapsize)
   assert(addr >= LOWMEM_SIZE + HMASIZE);
   restore_mapping(cap, va, mapsize);
   hwram_update_aliasmap(hw, addr, mapsize, NULL);
+  if (is_kvm_map(cap)) {
+    void *target = MEM_BASE32x(addr,KVM_BASE);
+    if (target != MAP_FAILED)
+      mmap_mapping(cap, target, mapsize, PROT_READ | PROT_WRITE);
+  }
   return 1;
 }
