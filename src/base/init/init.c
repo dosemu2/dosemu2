@@ -359,6 +359,7 @@ void low_mem_init(void)
   int result;
   uint32_t memsize;
   int32_t phys_rsv, phys_low;
+  dosaddr_t va;
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
@@ -373,7 +374,7 @@ void low_mem_init(void)
   if (config.dpmi)
     memsize = config.dpmi_base + dpmi_mem_size();
   else
-    memsize = phys_low;
+    memsize = LOWMEM_SIZE + HMASIZE;
   mem_base = mem_reserve(memsize);
   mem_base_mask = ~(uintptr_t)0;
 #ifdef __x86_64__
@@ -420,13 +421,16 @@ void low_mem_init(void)
     register_hardware_ram_virtual('U',
 	    HUGE_PAGE_ALIGN(memsize) + LOWMEM_SIZE + HMASIZE, phys_rsv,
 	    LOWMEM_SIZE + HMASIZE);
-  }
-  /* create non-identity mapping up to phys_low */
-  ptr2 = smalloc_topdown(&main_pool, phys_rsv);
-  assert(ptr2);
-  /* create ext_mem alias for int15/dpmi */
-  register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, phys_rsv,
-	    DOSADDR_REL(ptr2));
+    /* allocate ext_mem alias space for DPMI */
+    ptr2 = smalloc_topdown(&main_pool, phys_rsv);
+    assert(ptr2);
+    va = DOSADDR_REL(ptr2);
+  } else
+    /* no alias in main_pool without DPMI */
+    va = (dosaddr_t)-1;
+
+  /* create ext_mem alias for DPMI and associate to SHM for int15 */
+  register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, phys_rsv, va);
   result = alias_mapping_pa(MAPPING_EXTMEM, LOWMEM_SIZE + HMASIZE,
 			 EXTMEM_SIZE - HMASIZE,
 			 PROT_READ | PROT_WRITE,
