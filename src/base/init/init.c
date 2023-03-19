@@ -370,10 +370,10 @@ void low_mem_init(void)
   }
 
   phys_low = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
-  memsize = phys_low;
   if (config.dpmi)
-    /* LOWMEM_SIZE accounted twice for alignment */
-    memsize += config.dpmi_base + HUGE_PAGE_ALIGN(dpmi_mem_size());
+    memsize = config.dpmi_base + dpmi_mem_size();
+  else
+    memsize = phys_low;
   mem_base = mem_reserve(memsize);
   mem_base_mask = ~(uintptr_t)0;
 #ifdef __x86_64__
@@ -406,23 +406,24 @@ void low_mem_init(void)
   /* we have an uncommitted hole up to phys_low */
   ptr += phys_low;
   phys_rsv = phys_low - (LOWMEM_SIZE + HMASIZE);
-  /* create non-identity mapping up to phys_low */
-  ptr2 = smalloc_topdown(&main_pool, config.dpmi ? phys_low : phys_rsv);
-  assert(ptr2);
   if (config.dpmi) {
     void *dptr = smalloc_fixed(&main_pool, MEM_BASE32(config.dpmi_base),
         dpmi_mem_size());
     assert(dptr);
+    ptr2 = MEM_BASE32(memsize);
     if (config.cpu_vm_dpmi == CPUVM_KVM) {
       /* map dpmi+uncommitted space to kvm */
       int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
       mmap_kvm(MAPPING_INIT_LOWRAM, phys_low, ptr2 - ptr, ptr, phys_low, prot);
     }
-    /* unused hole for alignment */
-    ptr2 += LOWMEM_SIZE + HMASIZE;
-    register_hardware_ram_virtual('U', DOSADDR_REL(ptr2), phys_rsv,
+    /* unused hole in physical address space for alignment */
+    register_hardware_ram_virtual('U',
+	    HUGE_PAGE_ALIGN(memsize) + LOWMEM_SIZE + HMASIZE, phys_rsv,
 	    LOWMEM_SIZE + HMASIZE);
   }
+  /* create non-identity mapping up to phys_low */
+  ptr2 = smalloc_topdown(&main_pool, phys_rsv);
+  assert(ptr2);
   /* create ext_mem alias for int15/dpmi */
   register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, phys_rsv,
 	    DOSADDR_REL(ptr2));
