@@ -253,8 +253,11 @@ static int emufs_loaded = FALSE;
 #define PRINTER_MODE  		0x25	/* Used in DOS 3.1+ */
 #define EXTENDED_ATTRIBUTES	0x2d	/* Used in DOS 4.x */
 #define MULTIPURPOSE_OPEN	0x2e	/* Used in DOS 4.0+ */
-#define LONG_SEEK		0xc2	/* extension */
+
+#define GET_LARGE_DISK_SPACE	0xa3	/* extension */
 #define GET_LARGE_FILE_INFO	0xa6	/* extension */
+#define LONG_SEEK		0xc2	/* extension */
+
 
 #define EOS		'\0'
 #define	SLASH		'/'
@@ -978,6 +981,8 @@ static const char *redirector_op_to_str(uint8_t op) {
 
   if (op == LONG_SEEK)
     return "Long seek (extension)";
+  else if (op == GET_LARGE_DISK_SPACE)
+    return "Get large disk space (extension)";
   else if (op == GET_LARGE_FILE_INFO)
     return "Get large file info (extension)";
   else if (op > MULTIPURPOSE_OPEN)
@@ -1175,13 +1180,13 @@ select_drive(struct vm86_regs *state, int *drive)
 
   /* CDS in ES:DI */
   case GET_DISK_SPACE:		/* 0xc */
+  case GET_LARGE_DISK_SPACE:	/* 0xa3 */
     {
       cds_t esdi_cds = (cds_t) Addr(state, es, edi);
 
       dd = cds_drive(esdi_cds);
     }
     break;
-
 
   case FIND_NEXT:		/* 0x1c */
     {
@@ -4292,6 +4297,52 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       }
 #endif /* USE_DF_AND_AFS_STUFF */
       break;
+    }
+
+    case GET_LARGE_DISK_SPACE: /* 0xa3 */
+    {
+      cds_t tcds = Addr(state, es, edi);
+      char *name = cds_current_path(tcds);
+      uint64_t avail, total;
+      uint16_t blocksize;
+      int dd;
+      struct statfs fsbuf;
+
+      Debug0((dbg_fd, "Get Large Disk Space(INT2F/11a3)\n"));
+
+      if (!get_drive_from_path(name, &dd)) {
+        Debug0((dbg_fd, "Bad drive name '%s'\n", name));
+        break;
+      }
+
+      if (!drives[dd].root) {
+        Debug0((dbg_fd, "Drive not ours\n"));
+        break;
+      }
+
+      if (statfs(drives[dd].root, &fsbuf) == -1) {
+        Debug0((dbg_fd, "Can't stat root path '%s'\n", strerror(errno)));
+        SETWORD(&state->eax, DISK_DRIVE_INVALID);
+        return FALSE;
+      }
+
+      blocksize = 512;
+      total = (fsbuf.f_blocks * fsbuf.f_bsize) / blocksize;
+      avail = (fsbuf.f_bavail * fsbuf.f_bsize) / blocksize;
+      if (total > 0xffffffff) // Clamp to 2TB (with 512 byte blocks)
+        total = 0xffffffff;
+      if (avail > 0xffffffff)
+        avail = 0xffffffff;
+
+      SETWORD(&state->eax, (total >> 16) & 0xffff);
+      SETWORD(&state->ebx, (total) & 0xffff);
+      SETWORD(&state->ecx, (avail >> 16) & 0xffff);
+      SETWORD(&state->edx, (avail) & 0xffff);
+      SETWORD(&state->esi, blocksize);
+
+      Debug0((dbg_fd, "total blocks=%" PRIu64 ", free blocks=%" PRIu64 ", blocksize=%u\n", total, avail, blocksize));
+
+      return TRUE;
     }
 
     case SET_FILE_ATTRIBUTES: { /* 0x0e */
