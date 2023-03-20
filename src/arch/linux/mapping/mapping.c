@@ -89,21 +89,23 @@ static struct mappingdrivers *mappingdriver;
 struct hardware_ram;
 static dosaddr_t do_get_hardware_ram(unsigned addr, uint32_t size,
 	struct hardware_ram **r_hw);
+static unsigned do_find_hardware_ram(dosaddr_t va, uint32_t size,
+	struct hardware_ram **r_hw);
 static void hwram_update_aliasmap(struct hardware_ram *hw, unsigned addr,
 	int size, unsigned char *src);
 
 static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
 			    unsigned char *unixaddr)
 {
-  dosaddr_t addr2;
+  unsigned addr2;
   struct hardware_ram *hw;
 
-  if (dosaddr >= ALIAS_SIZE)
+  if (dosaddr >= mem_bases[MEM_BASE].size)
     return;
-  /* identity map below ALIAS_SIZE */
-  addr2 = do_get_hardware_ram(dosaddr, mapsize, &hw);
-  assert(addr2 == dosaddr);
-  hwram_update_aliasmap(hw, dosaddr, mapsize, unixaddr);
+  addr2 = do_find_hardware_ram(dosaddr, mapsize, &hw);
+  if (addr2 == (unsigned)-1)
+    return;
+  hwram_update_aliasmap(hw, addr2, mapsize, unixaddr);
 }
 
 void *dosaddr_to_unixaddr(dosaddr_t addr)
@@ -913,6 +915,23 @@ static dosaddr_t do_get_hardware_ram(unsigned addr, uint32_t size,
 	if (r_hw)
 	  *r_hw = hw;
       return hw->vbase + addr - hw->base;
+    }
+  }
+  return -1;
+}
+
+static unsigned do_find_hardware_ram(dosaddr_t va, uint32_t size,
+	struct hardware_ram **r_hw)
+{
+  struct hardware_ram *hw;
+
+  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+    if (hw->vbase == -1)
+      continue;
+    if (hw->vbase <= va && va + size <= hw->vbase + hw->size) {
+	if (r_hw)
+	  *r_hw = hw;
+      return hw->base + va - hw->vbase;
     }
   }
   return -1;
