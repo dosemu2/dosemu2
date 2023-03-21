@@ -96,8 +96,6 @@ static struct rng_s cbks;
 #define MAX_CBKS 1000
 static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-struct eflags_fs_gs eflags_fs_gs;
-
 static void (*sighandlers[NSIG])(sigcontext_t *, siginfo_t *);
 static void (*qsighandlers[NSIG])(int sig, siginfo_t *si, void *uc);
 static void (*asighandlers[NSIG])(void *arg);
@@ -476,30 +474,6 @@ static void signal_thr(void *arg)
 void
 signal_pre_init(void)
 {
-  /* initialize user data & code selector values (used by DPMI code) */
-  /* And save %fs, %gs for NPTL */
-  eflags_fs_gs.fs = getsegment(fs);
-  eflags_fs_gs.gs = getsegment(gs);
-  eflags_fs_gs.eflags = getflags();
-  dbug_printf("initial register values: fs: 0x%04x  gs: 0x%04x eflags: 0x%04lx\n",
-    eflags_fs_gs.fs, eflags_fs_gs.gs, eflags_fs_gs.eflags);
-#ifdef __x86_64__
-  eflags_fs_gs.ds = getsegment(ds);
-  eflags_fs_gs.es = getsegment(es);
-  eflags_fs_gs.ss = getsegment(ss);
-  /* get long fs and gs bases. If they are in the first 32 bits
-     normal 386-style fs/gs switching can happen so we can ignore
-     fsbase/gsbase */
-  dosemu_arch_prctl(ARCH_GET_FS, &eflags_fs_gs.fsbase);
-  if (((unsigned long)eflags_fs_gs.fsbase <= 0xffffffff) && eflags_fs_gs.fs)
-    eflags_fs_gs.fsbase = 0;
-  dosemu_arch_prctl(ARCH_GET_GS, &eflags_fs_gs.gsbase);
-  if (((unsigned long)eflags_fs_gs.gsbase <= 0xffffffff) && eflags_fs_gs.gs)
-    eflags_fs_gs.gsbase = 0;
-  dbug_printf("initial segment bases: fs: %p  gs: %p\n",
-    eflags_fs_gs.fsbase, eflags_fs_gs.gsbase);
-#endif
-
   /* first set up the blocking mask: registersig() and newsetqsig()
    * adds to it */
   sigemptyset(&q_mask);

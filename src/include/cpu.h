@@ -279,37 +279,14 @@ extern fenv_t dosemu_fenv;
 	})
 
 #if defined(__x86_64__) || defined (__i386__)
-#define loadflags(value) asm volatile("push %0 ; popf"::"g" (value): "cc" )
-
 #define getflags() \
 	({ \
 		unsigned long __value; \
 		asm volatile("pushf ; pop %0":"=g" (__value)); \
 		__value; \
 	})
-
-#define loadregister(reg, value) \
-	asm volatile("mov %0, %%" #reg ::"rm" (value))
-
-#define getregister(reg) \
-	({ \
-		unsigned long __value; \
-		asm volatile("mov %%" #reg ",%0":"=rm" (__value)); \
-		__value; \
-	})
-
-#define getsegment(reg) \
-	({ \
-		Bit16u __value; \
-		asm volatile("mov %%" #reg ",%0":"=rm" (__value)); \
-		__value; \
-	})
 #else
-#define loadflags(value)
 #define getflags() 0
-#define loadregister(reg, value)
-#define getregister(reg) 0
-#define getsegment(reg) 0
 #endif
 
 static inline void loadfpstate_legacy(emu_fpstate *buf)

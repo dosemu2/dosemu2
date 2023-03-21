@@ -94,6 +94,26 @@
   #define SIGRETURN_WA 0
 #endif
 
+#define loadflags(value) asm volatile("push %0 ; popf"::"g" (value): "cc" )
+
+#define loadregister(reg, value) \
+	asm volatile("mov %0, %%" #reg ::"rm" (value))
+
+#define getsegment(reg) \
+	({ \
+		Bit16u __value; \
+		asm volatile("mov %%" #reg ",%0":"=rm" (__value)); \
+		__value; \
+	})
+
+static struct eflags_fs_gs {
+  unsigned long eflags;
+  unsigned short fs, gs;
+#ifdef __x86_64__
+  unsigned char *fsbase, *gsbase;
+  unsigned short ds, es, ss;
+#endif
+} eflags_fs_gs;
 static void *cstack;
 static struct sigaction sacts[NSIG];
 static int block_all_sigs;
@@ -820,6 +840,30 @@ static void signal_sas_wa(void)
 
 void signative_pre_init(void)
 {
+  /* initialize user data & code selector values (used by DPMI code) */
+  /* And save %fs, %gs for NPTL */
+  eflags_fs_gs.fs = getsegment(fs);
+  eflags_fs_gs.gs = getsegment(gs);
+  eflags_fs_gs.eflags = getflags();
+  dbug_printf("initial register values: fs: 0x%04x  gs: 0x%04x eflags: 0x%04lx\n",
+    eflags_fs_gs.fs, eflags_fs_gs.gs, eflags_fs_gs.eflags);
+#ifdef __x86_64__
+  eflags_fs_gs.ds = getsegment(ds);
+  eflags_fs_gs.es = getsegment(es);
+  eflags_fs_gs.ss = getsegment(ss);
+  /* get long fs and gs bases. If they are in the first 32 bits
+     normal 386-style fs/gs switching can happen so we can ignore
+     fsbase/gsbase */
+  dosemu_arch_prctl(ARCH_GET_FS, &eflags_fs_gs.fsbase);
+  if (((unsigned long)eflags_fs_gs.fsbase <= 0xffffffff) && eflags_fs_gs.fs)
+    eflags_fs_gs.fsbase = 0;
+  dosemu_arch_prctl(ARCH_GET_GS, &eflags_fs_gs.gsbase);
+  if (((unsigned long)eflags_fs_gs.gsbase <= 0xffffffff) && eflags_fs_gs.gs)
+    eflags_fs_gs.gsbase = 0;
+  dbug_printf("initial segment bases: fs: %p  gs: %p\n",
+    eflags_fs_gs.fsbase, eflags_fs_gs.gsbase);
+#endif
+
 #if SIGRETURN_WA
   if (config.cpu_vm_dpmi == CPUVM_NATIVE)
     iret_frame_alloc();
