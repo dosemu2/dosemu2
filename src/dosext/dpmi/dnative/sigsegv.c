@@ -197,7 +197,6 @@ static void dpmi_iret_unwind(sigcontext_t * scp)
 #endif
 
 static void init_handler(sigcontext_t *scp, unsigned long uc_flags);
-static int signative_block_all_sigs(void);
 static void print_exception_info(sigcontext_t *scp);
 
 static int dpmi_fault(sigcontext_t *scp)
@@ -869,13 +868,6 @@ static void signative_enter(sigcontext_t *scp)
 #endif
 }
 
-#ifdef __x86_64__
-static int signative_skip_ss(unsigned long uc_flags)
-{
-  return (uc_flags & UC_SIGCONTEXT_SS);
-}
-#endif
-
 /* init_handler puts the handler in a sane state that glibc
    expects. That means restoring fs, gs and eflags for DPMI. */
 SIG_PROTO_PFX
@@ -895,7 +887,7 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
      to save those ourselves */
   _scp_ds = getsegment(ds);
   _scp_es = getsegment(es);
-  if (!signative_skip_ss(uc_flags))
+  if (!(uc_flags & UC_SIGCONTEXT_SS))
     _scp_ss = getsegment(ss);
   _scp_fs = getsegment(fs);
   _scp_gs = getsegment(gs);
@@ -928,17 +920,6 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
   signative_enter(scp);
 }
 
-static int signative_skip_unblock(sigcontext_t *scp)
-{
-#if SIGALTSTACK_WA
-  /* for SAS WA we unblock the fatal signals even later if we came
-   * from DPMI, as then we'll be switching stacks which is racy when
-   * async signals enabled. */
-  return (need_sas_wa && DPMIValidSelector(_scp_cs));
-#endif
-  return 0;
-}
-
 SIG_PROTO_PFX
 static void init_handler(sigcontext_t *scp, unsigned long uc_flags)
 {
@@ -960,10 +941,15 @@ static void init_handler(sigcontext_t *scp, unsigned long uc_flags)
    * Sync signals like SIGSEGV are never blocked.
    */
   __init_handler(scp, uc_flags);
-  if (!signative_block_all_sigs())
+  if (!block_all_sigs)
     return;
-  if (signative_skip_unblock(scp))
+#if SIGALTSTACK_WA
+  /* for SAS WA we unblock the fatal signals even later if we came
+   * from DPMI, as then we'll be switching stacks which is racy when
+   * async signals enabled. */
+  if (need_sas_wa && DPMIValidSelector(_scp_cs))
     return;
+#endif
   /* either came from dosemu/vm86 or having SS_AUTODISARM -
    * then we can unblock any signals we want. This is because
    * dosemu DOES NOT USE signal stack by itself. We switch to
@@ -1062,7 +1048,7 @@ static void fixupsig(int sig)
 	if (sa.sa_handler == SIG_DFL || sa.sa_handler == SIG_IGN)
 		return;
 	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
-	if (signative_block_all_sigs())
+	if (block_all_sigs)
 		/* initially block all async signals. */
 		sa.sa_mask = q_mask;
 	/* otherwise no additional blocking needed */
@@ -1121,11 +1107,6 @@ void signal_return_to_dosemu(void)
 
 void signal_return_to_dpmi(void)
 {
-}
-
-static int signative_block_all_sigs(void)
-{
-    return block_all_sigs;
 }
 
 void signative_start(void)
