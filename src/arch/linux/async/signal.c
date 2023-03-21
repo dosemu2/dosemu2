@@ -96,9 +96,7 @@ static struct rng_s cbks;
 #define MAX_CBKS 1000
 static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-struct eflags_fs_gs eflags_fs_gs;
-
-static void (*sighandlers[NSIG])(sigcontext_t *, siginfo_t *);
+static void (*sighandlers[NSIG])(siginfo_t *);
 static void (*qsighandlers[NSIG])(int sig, siginfo_t *si, void *uc);
 static void (*asighandlers[NSIG])(void *arg);
 
@@ -159,7 +157,7 @@ static void do_registersig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc
 }
 
 /* registers non-emergency async signals */
-void registersig(int sig, void (*fun)(sigcontext_t *, siginfo_t *))
+void registersig(int sig, void (*fun)(siginfo_t *))
 {
 	assert(fun && !sighandlers[sig]);
 	sighandlers[sig] = fun;
@@ -182,108 +180,6 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 	sa.sa_mask = nonfatal_q_mask;
 	sa.sa_sigaction = fun;
 	sigaction(sig, &sa, NULL);
-}
-
-/* init_handler puts the handler in a sane state that glibc
-   expects. That means restoring fs, gs and eflags for DPMI. */
-SIG_PROTO_PFX
-static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
-{
-  /*
-   * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
-   * forever, we must restore the eflags.
-   */
-  loadflags(eflags_fs_gs.eflags);
-
-#ifdef __x86_64__
-  /* ds,es, and ss are ignored in 64-bit mode and not present or
-     saved in the sigcontext, so we need to do it ourselves
-     (using the 3 high words of the trapno field).
-     fs and gs are set to 0 in the sigcontext, so we also need
-     to save those ourselves */
-  _scp_ds = getsegment(ds);
-  _scp_es = getsegment(es);
-  if (!signative_skip_ss(uc_flags))
-    _scp_ss = getsegment(ss);
-  _scp_fs = getsegment(fs);
-  _scp_gs = getsegment(gs);
-  if (config.cpu_vm_dpmi == CPUVM_NATIVE && _scp_cs == 0) {
-      if (config.dpmi
-#ifdef X86_EMULATOR
-	    && !EMU_DPMI()
-#endif
-	 ) {
-	fprintf(stderr, "Cannot run DPMI code natively ");
-#ifdef __linux__
-	if (kernel_version_code < KERNEL_VERSION(2, 6, 15))
-	  fprintf(stderr, "because your Linux kernel is older than version 2.6.15.\n");
-	else
-	  fprintf(stderr, "for unknown reasons.\nPlease contact linux-msdos@vger.kernel.org.\n");
-#endif
-#ifdef X86_EMULATOR
-	fprintf(stderr, "Set $_cpu_emu=\"full\" or \"fullsim\" to avoid this message.\n");
-#endif
-      }
-#ifdef X86_EMULATOR
-      config.cpu_vm = CPUVM_EMU;
-      _scp_cs = getsegment(cs);
-#else
-      leavedos_sig(45);
-#endif
-  }
-#endif
-
-  signative_enter(scp);
-}
-
-SIG_PROTO_PFX
-void init_handler(sigcontext_t *scp, unsigned long uc_flags)
-{
-  /* Async signals are initially blocked.
-   * If we don't block them, nested sighandler will clobber SS
-   * before we manage to save it.
-   * Even if the nested sighandler tries hard, it can't properly
-   * restore SS, at least until the proper sigreturn() support is in.
-   * For kernels that have the proper SS support, only nonfatal
-   * async signals are initially blocked. They need to be blocked
-   * because of sas wa and because they should not interrupt
-   * deinit_handler() after it changed %fs. In this case, however,
-   * we can block them later at the right places, but this will
-   * cost a syscall per every signal.
-   * Note: in 64bit mode some segment registers are neither saved nor
-   * restored by the signal dispatching code in kernel, so we have
-   * to restore them by hands.
-   * Note: most async signals are left blocked, we unblock only few.
-   * Sync signals like SIGSEGV are never blocked.
-   */
-  __init_handler(scp, uc_flags);
-  if (!signative_block_all_sigs())
-    return;
-  if (signative_skip_unblock(scp))
-    return;
-  /* either came from dosemu/vm86 or having SS_AUTODISARM -
-   * then we can unblock any signals we want. This is because
-   * dosemu DOES NOT USE signal stack by itself. We switch to
-   * dosemu via a direct context switch (including a stack switch),
-   * before which we make sure either SS_AUTODISARM or sas_wa worked.
-   * So we are here either on dosemu stack, or on autodisarmed SAS.
-   * For now leave nonfatal signals blocked as they are rarely needed
-   * inside sighandlers (needed only for instremu, see
-   * https://github.com/stsp/dosemu2/issues/477
-   * ) */
-  sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
-}
-
-SIG_PROTO_PFX
-void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
-{
-#ifdef X86_EMULATOR
-  /* in fullsim mode nothing to do */
-  if (CONFIG_CPUSIM && EMU_DPMI())
-    return;
-#endif
-
-  signative_leave(scp, uc_flags);
 }
 
 static void leavedos_call(void *arg)
@@ -355,15 +251,12 @@ static void cleanup_child(void *arg)
     chld_hndl[i].handler(chld_hndl[i].arg);
 }
 
-static void sigbreak(sigcontext_t *scp)
+static void sigbreak(void *uc)
 {
   if (!in_vm86) {
     switch (config.cpu_vm_dpmi) {
       case CPUVM_NATIVE:
-#ifdef DNATIVE
-        if (DPMIValidSelector(_scp_cs))
-          dpmi_return(scp, DPMI_RET_DOSEMU);
-#endif
+	signative_sigbreak(uc);
         break;
       case CPUVM_EMU:
         /* compiled code can't check signal_pending() so we hint it */
@@ -380,7 +273,7 @@ static void sigbreak(sigcontext_t *scp)
 
 /* this cleaning up is necessary to avoid the port server becoming
    a zombie process */
-static void sig_child(sigcontext_t *scp, siginfo_t *si)
+static void sig_child(siginfo_t *si)
 {
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
 }
@@ -409,20 +302,11 @@ void leavedos_sig(int sig)
   }
 }
 
-__attribute__((noinline))
-static void _leavedos_signal(int sig, sigcontext_t *scp)
-{
-  leavedos_sig(sig);
-  sigbreak(scp);
-}
-
-SIG_PROTO_PFX
 static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
-  ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
   signal(sig, SIG_DFL);
-  _leavedos_signal(sig, scp);
+  leavedos_sig(sig);
+  sigbreak(uc);
 }
 
 #if 0
@@ -430,8 +314,6 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 SIG_PROTO_PFX
 static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 {
-  ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
   leavedos_from_sig(sig);
 }
 #endif
@@ -578,30 +460,6 @@ static void signal_thr(void *arg)
 void
 signal_pre_init(void)
 {
-  /* initialize user data & code selector values (used by DPMI code) */
-  /* And save %fs, %gs for NPTL */
-  eflags_fs_gs.fs = getsegment(fs);
-  eflags_fs_gs.gs = getsegment(gs);
-  eflags_fs_gs.eflags = getflags();
-  dbug_printf("initial register values: fs: 0x%04x  gs: 0x%04x eflags: 0x%04lx\n",
-    eflags_fs_gs.fs, eflags_fs_gs.gs, eflags_fs_gs.eflags);
-#ifdef __x86_64__
-  eflags_fs_gs.ds = getsegment(ds);
-  eflags_fs_gs.es = getsegment(es);
-  eflags_fs_gs.ss = getsegment(ss);
-  /* get long fs and gs bases. If they are in the first 32 bits
-     normal 386-style fs/gs switching can happen so we can ignore
-     fsbase/gsbase */
-  dosemu_arch_prctl(ARCH_GET_FS, &eflags_fs_gs.fsbase);
-  if (((unsigned long)eflags_fs_gs.fsbase <= 0xffffffff) && eflags_fs_gs.fs)
-    eflags_fs_gs.fsbase = 0;
-  dosemu_arch_prctl(ARCH_GET_GS, &eflags_fs_gs.gsbase);
-  if (((unsigned long)eflags_fs_gs.gsbase <= 0xffffffff) && eflags_fs_gs.gs)
-    eflags_fs_gs.gsbase = 0;
-  dbug_printf("initial segment bases: fs: %p  gs: %p\n",
-    eflags_fs_gs.fsbase, eflags_fs_gs.gsbase);
-#endif
-
   /* first set up the blocking mask: registersig() and newsetqsig()
    * adds to it */
   sigemptyset(&q_mask);
@@ -644,7 +502,8 @@ signal_pre_init(void)
   dosemu_pthread_self = pthread_self();
   rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 
-  signative_pre_init();
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+    signative_pre_init();
 }
 
 void
@@ -850,8 +709,7 @@ static void SIGIO_call(void *arg){
   irq_select();
 }
 
-__attribute__((noinline))
-static void sigasync0(int sig, sigcontext_t *scp, siginfo_t *si)
+static void sigasync0(int sig)
 {
   pthread_t tid = pthread_self();
   if (!pthread_equal(tid, dosemu_pthread_self)) {
@@ -863,46 +721,24 @@ static void sigasync0(int sig, sigcontext_t *scp, siginfo_t *si)
     dosemu_error("Async signal %i from thread\n", sig);
 #endif
   }
-  if (sighandlers[sig])
-	  sighandlers[sig](scp, si);
 }
 
-__attribute__((noinline))
-static void sigasync0_std(int sig, sigcontext_t *scp, siginfo_t *si)
+static void sigasync(int sig, siginfo_t *si, void *uc)
 {
-  pthread_t tid = pthread_self();
-  if (!pthread_equal(tid, dosemu_pthread_self)) {
-#if defined(HAVE_PTHREAD_GETNAME_NP) && defined(__GLIBC__)
-    char name[128];
-    pthread_getname_np(tid, name, sizeof(name));
-    dosemu_error("Async signal %i from thread %s\n", sig, name);
-#else
-    dosemu_error("Async signal %i from thread\n", sig);
-#endif
-  }
+  sigasync0(sig);
+  if (sighandlers[sig])
+	  sighandlers[sig](si);
+}
 
+static void sigasync_std(int sig, siginfo_t *si, void *uc)
+{
+  sigasync0(sig);
   if (!asighandlers[sig]) {
     error("handler for sig %i not registered\n", sig);
     return;
   }
   SIGNAL_save(asighandlers[sig], NULL, 0, __func__);
-  sigbreak(scp);
-}
-
-SIG_PROTO_PFX
-static void sigasync(int sig, siginfo_t *si, void *uc)
-{
-  ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
-  sigasync0(sig, scp, si);
-}
-
-SIG_PROTO_PFX
-static void sigasync_std(int sig, siginfo_t *si, void *uc)
-{
-  ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
-  sigasync0_std(sig, scp, si);
+  sigbreak(uc);
 }
 
 

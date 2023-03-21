@@ -155,10 +155,8 @@ extern int sigchld_register_handler(pid_t pid, void (*handler)(void*),
 extern int sigchld_enable_cleanup(pid_t pid);
 extern int sigchld_enable_handler(pid_t pid, int on);
 extern int sigalrm_register_handler(void (*handler)(void));
-extern void registersig(int sig, void (*handler)(sigcontext_t *,
-	siginfo_t *));
+extern void registersig(int sig, void (*handler)(siginfo_t *));
 extern void registersig_std(int sig, void (*handler)(void *));
-extern void init_handler(sigcontext_t *scp, unsigned long uc_flags);
 extern void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags);
 
 void signal_block_async_nosig(sigset_t *old_mask);
@@ -179,13 +177,7 @@ void signal_return_to_dpmi(void);
 void signal_set_altstack(int on);
 void signative_init(void);
 void signative_pre_init(void);
-void signative_enter(sigcontext_t *scp);
-void signative_leave(sigcontext_t *scp, unsigned long *uc_flags);
-int signative_skip_unblock(sigcontext_t *scp);
-#ifdef __x86_64__
-int signative_skip_ss(unsigned long uc_flags);
-#endif
-int signative_block_all_sigs(void);
+void signative_sigbreak(void *uc);
 void signative_start(void);
 void signative_stop(void);
 void unsetsig(int sig);
@@ -197,13 +189,7 @@ static inline void signal_return_to_dpmi(void) {}
 static inline void signal_set_altstack(int on) {}
 static inline void signative_init(void) {}
 static inline void signative_pre_init(void) {}
-static inline void signative_enter(sigcontext_t *scp) {}
-static inline void signative_leave(sigcontext_t *scp, unsigned long *uc_flags) {}
-static inline int signative_skip_unblock(sigcontext_t *scp) { return 0; }
-#ifdef __x86_64__
-static inline int signative_skip_ss(unsigned long uc_flags) { return 1; }
-#endif
-static inline int signative_block_all_sigs(void) { return 0; }
+static inline void signative_sigbreak(void *uc) {}
 static inline void signative_start(void) {}
 static inline void signative_stop(void) {}
 static inline void unsetsig(int sig) {}

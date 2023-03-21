@@ -23,17 +23,6 @@
 
 extern char * const *dosemu_envp;
 
-struct eflags_fs_gs {
-  unsigned long eflags;
-  unsigned short fs, gs;
-#ifdef __x86_64__
-  unsigned char *fsbase, *gsbase;
-  unsigned short ds, es, ss;
-#endif
-};
-
-extern struct eflags_fs_gs eflags_fs_gs;
-
 int vm86_init(void);
 int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2);
 #ifdef __i386__

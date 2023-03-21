@@ -94,6 +94,26 @@
   #define SIGRETURN_WA 0
 #endif
 
+#define loadflags(value) asm volatile("push %0 ; popf"::"g" (value): "cc" )
+
+#define loadregister(reg, value) \
+	asm volatile("mov %0, %%" #reg ::"rm" (value))
+
+#define getsegment(reg) \
+	({ \
+		Bit16u __value; \
+		asm volatile("mov %%" #reg ",%0":"=rm" (__value)); \
+		__value; \
+	})
+
+static struct eflags_fs_gs {
+  unsigned long eflags;
+  unsigned short fs, gs;
+#ifdef __x86_64__
+  unsigned char *fsbase, *gsbase;
+  unsigned short ds, es, ss;
+#endif
+} eflags_fs_gs;
 static void *cstack;
 static struct sigaction sacts[NSIG];
 static int block_all_sigs;
@@ -196,6 +216,7 @@ static void dpmi_iret_unwind(sigcontext_t * scp)
 #endif
 #endif
 
+static void init_handler(sigcontext_t *scp, unsigned long uc_flags);
 static void print_exception_info(sigcontext_t *scp);
 
 static int dpmi_fault(sigcontext_t *scp)
@@ -819,14 +840,37 @@ static void signal_sas_wa(void)
 
 void signative_pre_init(void)
 {
+  /* initialize user data & code selector values (used by DPMI code) */
+  /* And save %fs, %gs for NPTL */
+  eflags_fs_gs.fs = getsegment(fs);
+  eflags_fs_gs.gs = getsegment(gs);
+  eflags_fs_gs.eflags = getflags();
+  dbug_printf("initial register values: fs: 0x%04x  gs: 0x%04x eflags: 0x%04lx\n",
+    eflags_fs_gs.fs, eflags_fs_gs.gs, eflags_fs_gs.eflags);
+#ifdef __x86_64__
+  eflags_fs_gs.ds = getsegment(ds);
+  eflags_fs_gs.es = getsegment(es);
+  eflags_fs_gs.ss = getsegment(ss);
+  /* get long fs and gs bases. If they are in the first 32 bits
+     normal 386-style fs/gs switching can happen so we can ignore
+     fsbase/gsbase */
+  dosemu_arch_prctl(ARCH_GET_FS, &eflags_fs_gs.fsbase);
+  if (((unsigned long)eflags_fs_gs.fsbase <= 0xffffffff) && eflags_fs_gs.fs)
+    eflags_fs_gs.fsbase = 0;
+  dosemu_arch_prctl(ARCH_GET_GS, &eflags_fs_gs.gsbase);
+  if (((unsigned long)eflags_fs_gs.gsbase <= 0xffffffff) && eflags_fs_gs.gs)
+    eflags_fs_gs.gsbase = 0;
+  dbug_printf("initial segment bases: fs: %p  gs: %p\n",
+    eflags_fs_gs.fsbase, eflags_fs_gs.gsbase);
+#endif
+
 #if SIGRETURN_WA
-  if (config.cpu_vm_dpmi == CPUVM_NATIVE)
-    iret_frame_alloc();
+  iret_frame_alloc();
 #endif
 }
 
 SIG_PROTO_PFX
-void signative_enter(sigcontext_t *scp)
+static void signative_enter(sigcontext_t *scp)
 {
 #if SIGRETURN_WA
   if (need_sr_wa && !DPMIValidSelector(_scp_cs))
@@ -867,8 +911,112 @@ void signative_enter(sigcontext_t *scp)
 #endif
 }
 
+/* init_handler puts the handler in a sane state that glibc
+   expects. That means restoring fs, gs and eflags for DPMI. */
 SIG_PROTO_PFX
-void signative_leave(sigcontext_t *scp, unsigned long *uc_flags)
+static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
+{
+  /*
+   * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
+   * forever, we must restore the eflags.
+   */
+  loadflags(eflags_fs_gs.eflags);
+
+#ifdef __x86_64__
+  /* ds,es, and ss are ignored in 64-bit mode and not present or
+     saved in the sigcontext, so we need to do it ourselves
+     (using the 3 high words of the trapno field).
+     fs and gs are set to 0 in the sigcontext, so we also need
+     to save those ourselves */
+  _scp_ds = getsegment(ds);
+  _scp_es = getsegment(es);
+  if (!(uc_flags & UC_SIGCONTEXT_SS))
+    _scp_ss = getsegment(ss);
+  _scp_fs = getsegment(fs);
+  _scp_gs = getsegment(gs);
+  if (_scp_cs == 0) {
+      if (config.dpmi
+#ifdef X86_EMULATOR
+	    && !EMU_DPMI()
+#endif
+	 ) {
+	fprintf(stderr, "Cannot run DPMI code natively ");
+#ifdef __linux__
+	if (kernel_version_code < KERNEL_VERSION(2, 6, 15))
+	  fprintf(stderr, "because your Linux kernel is older than version 2.6.15.\n");
+	else
+	  fprintf(stderr, "for unknown reasons.\nPlease contact linux-msdos@vger.kernel.org.\n");
+#endif
+#ifdef X86_EMULATOR
+	fprintf(stderr, "Set $_cpu_emu=\"full\" or \"fullsim\" to avoid this message.\n");
+#endif
+      }
+#ifdef X86_EMULATOR
+      config.cpu_vm = CPUVM_EMU;
+      _scp_cs = getsegment(cs);
+#else
+      leavedos_sig(45);
+#endif
+  }
+#endif
+
+  signative_enter(scp);
+  assert(config.cpu_vm_dpmi == CPUVM_NATIVE);
+}
+
+SIG_PROTO_PFX
+static void init_handler(sigcontext_t *scp, unsigned long uc_flags)
+{
+  /* Async signals are initially blocked.
+   * If we don't block them, nested sighandler will clobber SS
+   * before we manage to save it.
+   * Even if the nested sighandler tries hard, it can't properly
+   * restore SS, at least until the proper sigreturn() support is in.
+   * For kernels that have the proper SS support, only nonfatal
+   * async signals are initially blocked. They need to be blocked
+   * because of sas wa and because they should not interrupt
+   * deinit_handler() after it changed %fs. In this case, however,
+   * we can block them later at the right places, but this will
+   * cost a syscall per every signal.
+   * Note: in 64bit mode some segment registers are neither saved nor
+   * restored by the signal dispatching code in kernel, so we have
+   * to restore them by hands.
+   * Note: most async signals are left blocked, we unblock only few.
+   * Sync signals like SIGSEGV are never blocked.
+   */
+  __init_handler(scp, uc_flags);
+  if (!block_all_sigs)
+    return;
+#if SIGALTSTACK_WA
+  /* for SAS WA we unblock the fatal signals even later if we came
+   * from DPMI, as then we'll be switching stacks which is racy when
+   * async signals enabled. */
+  if (need_sas_wa && DPMIValidSelector(_scp_cs))
+    return;
+#endif
+  /* either came from dosemu/vm86 or having SS_AUTODISARM -
+   * then we can unblock any signals we want. This is because
+   * dosemu DOES NOT USE signal stack by itself. We switch to
+   * dosemu via a direct context switch (including a stack switch),
+   * before which we make sure either SS_AUTODISARM or sas_wa worked.
+   * So we are here either on dosemu stack, or on autodisarmed SAS.
+   * For now leave nonfatal signals blocked as they are rarely needed
+   * inside sighandlers (needed only for instremu, see
+   * https://github.com/stsp/dosemu2/issues/477
+   * ) */
+  signal_unblock_fatal_sigs();
+}
+
+void signative_sigbreak(void *uc)
+{
+  ucontext_t *uct = uc;
+  sigcontext_t *scp = &uct->uc_mcontext;
+  if (DPMIValidSelector(_scp_cs))
+    dpmi_return(scp, DPMI_RET_DOSEMU);
+}
+
+SIG_PROTO_PFX
+void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
 {
   if (!DPMIValidSelector(_scp_cs))
     return;
@@ -907,24 +1055,6 @@ void signative_leave(sigcontext_t *scp, unsigned long *uc_flags)
 #endif
 }
 
-int signative_skip_unblock(sigcontext_t *scp)
-{
-#if SIGALTSTACK_WA
-  /* for SAS WA we unblock the fatal signals even later if we came
-   * from DPMI, as then we'll be switching stacks which is racy when
-   * async signals enabled. */
-  return (need_sas_wa && DPMIValidSelector(_scp_cs));
-#endif
-  return 0;
-}
-
-#ifdef __x86_64__
-int signative_skip_ss(unsigned long uc_flags)
-{
-  return (uc_flags & UC_SIGCONTEXT_SS);
-}
-#endif
-
 /* noinline is needed to prevent gcc from caching tls vars before
  * calling to init_handler() */
 __attribute__((noinline))
@@ -958,7 +1088,7 @@ static void fixupsig(int sig)
 	if (sa.sa_handler == SIG_DFL || sa.sa_handler == SIG_IGN)
 		return;
 	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
-	if (signative_block_all_sigs())
+	if (block_all_sigs)
 		/* initially block all async signals. */
 		sa.sa_mask = q_mask;
 	/* otherwise no additional blocking needed */
@@ -1017,11 +1147,6 @@ void signal_return_to_dosemu(void)
 
 void signal_return_to_dpmi(void)
 {
-}
-
-int signative_block_all_sigs(void)
-{
-    return block_all_sigs;
 }
 
 void signative_start(void)
