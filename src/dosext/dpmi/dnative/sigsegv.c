@@ -865,8 +865,7 @@ void signative_pre_init(void)
 #endif
 
 #if SIGRETURN_WA
-  if (config.cpu_vm_dpmi == CPUVM_NATIVE)
-    iret_frame_alloc();
+  iret_frame_alloc();
 #endif
 }
 
@@ -935,7 +934,7 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
     _scp_ss = getsegment(ss);
   _scp_fs = getsegment(fs);
   _scp_gs = getsegment(gs);
-  if (config.cpu_vm_dpmi == CPUVM_NATIVE && _scp_cs == 0) {
+  if (_scp_cs == 0) {
       if (config.dpmi
 #ifdef X86_EMULATOR
 	    && !EMU_DPMI()
@@ -962,6 +961,7 @@ static void __init_handler(sigcontext_t *scp, unsigned long uc_flags)
 #endif
 
   signative_enter(scp);
+  assert(config.cpu_vm_dpmi == CPUVM_NATIVE);
 }
 
 SIG_PROTO_PFX
