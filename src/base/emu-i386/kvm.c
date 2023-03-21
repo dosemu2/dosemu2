@@ -534,6 +534,19 @@ static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize, int f
       return;
   }
 
+  for (slot = 0; slot < MAXSLOT; slot++) {
+    region = &maps[slot];
+    if (region->guest_phys_addr + region->memory_size == targ &&
+	region->userspace_addr + region->memory_size == (uintptr_t)addr &&
+	region->flags == flags) {
+      /* merge slots */
+      region->memory_size += mapsize;
+      Q_printf("KVM: merged mapped guest %#x to host addr %p, size=%zx, LOG_DIRTY=%d\n",
+	   targ, addr, mapsize, flags == KVM_MEM_LOG_DIRTY_PAGES ? 1 : 0);
+      return;
+    }
+  }
+
   for (slot = 0; slot < MAXSLOT; slot++)
     if (maps[slot].memory_size == 0) break;
 
@@ -592,6 +605,9 @@ void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t
   /* with KVM we need to manually remove/shrink existing mappings */
   do_munmap_kvm(phys_addr, mapsize);
   mmap_kvm_no_overlap(phys_addr, addr, mapsize, 0);
+  /* physical-only mapping, used when $_dpmi=(0) */
+  if (targ == (dosaddr_t)-1)
+    return;
   for (page = start; page < end; page++, phys_addr += pagesize) {
     int pde_entry = page >> 10;
     if (monitor->pde[pde_entry] == 0)
