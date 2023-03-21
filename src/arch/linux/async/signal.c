@@ -271,7 +271,7 @@ void init_handler(sigcontext_t *scp, unsigned long uc_flags)
    * inside sighandlers (needed only for instremu, see
    * https://github.com/stsp/dosemu2/issues/477
    * ) */
-  sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
+  signal_unblock_fatal_sigs();
 }
 
 SIG_PROTO_PFX
