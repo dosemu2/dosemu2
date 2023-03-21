@@ -1016,7 +1016,7 @@ void signative_sigbreak(void *uc)
 }
 
 SIG_PROTO_PFX
-static void signative_leave(sigcontext_t *scp, unsigned long *uc_flags)
+void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
 {
   if (!DPMIValidSelector(_scp_cs))
     return;
@@ -1053,18 +1053,6 @@ static void signative_leave(sigcontext_t *scp, unsigned long *uc_flags)
   loadregister(ds, _scp_ds);
   loadregister(es, _scp_es);
 #endif
-}
-
-SIG_PROTO_PFX
-void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags)
-{
-#ifdef X86_EMULATOR
-  /* in fullsim mode nothing to do */
-  if (CONFIG_CPUSIM && EMU_DPMI())
-    return;
-#endif
-
-  signative_leave(scp, uc_flags);
 }
 
 /* noinline is needed to prevent gcc from caching tls vars before
