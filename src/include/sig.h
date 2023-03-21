@@ -178,6 +178,7 @@ void signal_return_to_dpmi(void);
 void signal_set_altstack(int on);
 void signative_init(void);
 void signative_pre_init(void);
+void signative_sigbreak(void *uc);
 void signative_start(void);
 void signative_stop(void);
 void unsetsig(int sig);
@@ -189,6 +190,7 @@ static inline void signal_return_to_dpmi(void) {}
 static inline void signal_set_altstack(int on) {}
 static inline void signative_init(void) {}
 static inline void signative_pre_init(void) {}
+static inline void signative_sigbreak(void *uc) {}
 static inline void signative_start(void) {}
 static inline void signative_stop(void) {}
 static inline void unsetsig(int sig) {}

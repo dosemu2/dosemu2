@@ -251,15 +251,12 @@ static void cleanup_child(void *arg)
     chld_hndl[i].handler(chld_hndl[i].arg);
 }
 
-static void sigbreak(sigcontext_t *scp)
+static void sigbreak(void *uc)
 {
   if (!in_vm86) {
     switch (config.cpu_vm_dpmi) {
       case CPUVM_NATIVE:
-#ifdef DNATIVE
-        if (DPMIValidSelector(_scp_cs))
-          dpmi_return(scp, DPMI_RET_DOSEMU);
-#endif
+	signative_sigbreak(uc);
         break;
       case CPUVM_EMU:
         /* compiled code can't check signal_pending() so we hint it */
@@ -307,11 +304,9 @@ void leavedos_sig(int sig)
 
 static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
-  ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
   signal(sig, SIG_DFL);
   leavedos_sig(sig);
-  sigbreak(scp);
+  sigbreak(uc);
 }
 
 #if 0
@@ -319,8 +314,6 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 SIG_PROTO_PFX
 static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 {
-  ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
   leavedos_from_sig(sig);
 }
 #endif
@@ -741,16 +734,13 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
 
 static void sigasync_std(int sig, siginfo_t *si, void *uc)
 {
-  ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
-
   sigasync0(sig);
   if (!asighandlers[sig]) {
     error("handler for sig %i not registered\n", sig);
     return;
   }
   SIGNAL_save(asighandlers[sig], NULL, 0, __func__);
-  sigbreak(scp);
+  sigbreak(uc);
 }
 
 

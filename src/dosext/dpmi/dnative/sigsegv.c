@@ -1007,6 +1007,14 @@ static void init_handler(sigcontext_t *scp, unsigned long uc_flags)
   signal_unblock_fatal_sigs();
 }
 
+void signative_sigbreak(void *uc)
+{
+  ucontext_t *uct = uc;
+  sigcontext_t *scp = &uct->uc_mcontext;
+  if (DPMIValidSelector(_scp_cs))
+    dpmi_return(scp, DPMI_RET_DOSEMU);
+}
+
 SIG_PROTO_PFX
 static void signative_leave(sigcontext_t *scp, unsigned long *uc_flags)
 {
