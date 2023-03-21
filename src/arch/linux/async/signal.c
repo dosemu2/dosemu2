@@ -305,20 +305,13 @@ void leavedos_sig(int sig)
   }
 }
 
-__attribute__((noinline))
-static void _leavedos_signal(int sig, sigcontext_t *scp)
-{
-  leavedos_sig(sig);
-  sigbreak(scp);
-}
-
-SIG_PROTO_PFX
 static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
   signal(sig, SIG_DFL);
-  _leavedos_signal(sig, scp);
+  leavedos_sig(sig);
+  sigbreak(scp);
 }
 
 #if 0
@@ -722,8 +715,7 @@ static void SIGIO_call(void *arg){
   irq_select();
 }
 
-__attribute__((noinline))
-static void sigasync0(int sig, sigcontext_t *scp, siginfo_t *si)
+static void sigasync0(int sig)
 {
   pthread_t tid = pthread_self();
   if (!pthread_equal(tid, dosemu_pthread_self)) {
@@ -735,46 +727,30 @@ static void sigasync0(int sig, sigcontext_t *scp, siginfo_t *si)
     dosemu_error("Async signal %i from thread\n", sig);
 #endif
   }
+}
+
+static void sigasync(int sig, siginfo_t *si, void *uc)
+{
+  ucontext_t *uct = uc;
+  sigcontext_t *scp = &uct->uc_mcontext;
+
+  sigasync0(sig);
   if (sighandlers[sig])
 	  sighandlers[sig](scp, si);
 }
 
-__attribute__((noinline))
-static void sigasync0_std(int sig, sigcontext_t *scp, siginfo_t *si)
+static void sigasync_std(int sig, siginfo_t *si, void *uc)
 {
-  pthread_t tid = pthread_self();
-  if (!pthread_equal(tid, dosemu_pthread_self)) {
-#if defined(HAVE_PTHREAD_GETNAME_NP) && defined(__GLIBC__)
-    char name[128];
-    pthread_getname_np(tid, name, sizeof(name));
-    dosemu_error("Async signal %i from thread %s\n", sig, name);
-#else
-    dosemu_error("Async signal %i from thread\n", sig);
-#endif
-  }
+  ucontext_t *uct = uc;
+  sigcontext_t *scp = &uct->uc_mcontext;
 
+  sigasync0(sig);
   if (!asighandlers[sig]) {
     error("handler for sig %i not registered\n", sig);
     return;
   }
   SIGNAL_save(asighandlers[sig], NULL, 0, __func__);
   sigbreak(scp);
-}
-
-SIG_PROTO_PFX
-static void sigasync(int sig, siginfo_t *si, void *uc)
-{
-  ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
-  sigasync0(sig, scp, si);
-}
-
-SIG_PROTO_PFX
-static void sigasync_std(int sig, siginfo_t *si, void *uc)
-{
-  ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
-  sigasync0_std(sig, scp, si);
 }
 
 
