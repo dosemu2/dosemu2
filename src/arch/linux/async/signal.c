@@ -96,7 +96,7 @@ static struct rng_s cbks;
 #define MAX_CBKS 1000
 static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-static void (*sighandlers[NSIG])(sigcontext_t *, siginfo_t *);
+static void (*sighandlers[NSIG])(siginfo_t *);
 static void (*qsighandlers[NSIG])(int sig, siginfo_t *si, void *uc);
 static void (*asighandlers[NSIG])(void *arg);
 
@@ -157,7 +157,7 @@ static void do_registersig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc
 }
 
 /* registers non-emergency async signals */
-void registersig(int sig, void (*fun)(sigcontext_t *, siginfo_t *))
+void registersig(int sig, void (*fun)(siginfo_t *))
 {
 	assert(fun && !sighandlers[sig]);
 	sighandlers[sig] = fun;
@@ -273,7 +273,7 @@ static void sigbreak(void *uc)
 
 /* this cleaning up is necessary to avoid the port server becoming
    a zombie process */
-static void sig_child(sigcontext_t *scp, siginfo_t *si)
+static void sig_child(siginfo_t *si)
 {
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
 }
@@ -724,12 +724,9 @@ static void sigasync0(int sig)
 
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
-  ucontext_t *uct = uc;
-  sigcontext_t *scp = &uct->uc_mcontext;
-
   sigasync0(sig);
   if (sighandlers[sig])
-	  sighandlers[sig](scp, si);
+	  sighandlers[sig](si);
 }
 
 static void sigasync_std(int sig, siginfo_t *si, void *uc)
