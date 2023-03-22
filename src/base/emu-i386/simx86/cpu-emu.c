@@ -1045,7 +1045,7 @@ int e_vm86(void)
 	      }
 	    default: {
 		/* FAULT, handled via signal callback */
-		vm86_fault(xval-1, TheCPU.scp_err, DOSADDR_REL(LINP(TheCPU.cr2)));
+		vm86_fault(xval-1, TheCPU.scp_err, TheCPU.cr2);
 		retval = VM86_SIGNAL;
 		break;
 	    }
@@ -1130,7 +1130,7 @@ int e_dpmi(cpuctx_t *scp)
     else if (xval==EXCP_GOBACK) {
         retval = DPMI_RET_DOSEMU;
     }
-    else if (xval == EXCP0E_PAGE && vga_emu_fault(DOSADDR_REL(LINP(_cr2)),_err,scp)==True) {
+    else if (xval == EXCP0E_PAGE && vga_emu_fault(_cr2,_err,scp)==True) {
 	retval = DPMI_RET_CLIENT;
     } else {
 	retval = DPMI_RET_FAULT;

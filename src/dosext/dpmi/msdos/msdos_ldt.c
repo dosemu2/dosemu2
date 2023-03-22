@@ -35,7 +35,7 @@
 #define LDT_UPDATE_LIM 1
 
 static unsigned char *ldt_backbuf;
-static unsigned char *ldt_alias;
+static dosaddr_t ldt_alias;
 static uint32_t ldt_h;
 static uint32_t ldt_alias_h;
 static unsigned short dpmi_ldt_alias;
@@ -90,7 +90,7 @@ unsigned short msdos_ldt_init(void)
     ldt_alias_h = shm.handle;
     if (ldt_h == ldt_alias_h)
 	error("DPMI: problems allocating shm\n");
-    ldt_alias = MEM_BASE32(shm.addr);
+    ldt_alias = shm.addr;
     msdos_free(name);
     FreeDescriptor(name_sel);
     for (i = 0; i < npages; i++)
@@ -259,7 +259,7 @@ out:
   dpmi_ext_ldt_monitor_enable(1);
 }
 
-int msdos_ldt_access(unsigned char *cr2)
+int msdos_ldt_access(dosaddr_t cr2)
 {
     if (!ldt_alias)
         return 0;
@@ -267,7 +267,7 @@ int msdos_ldt_access(unsigned char *cr2)
 }
 
 void msdos_ldt_write(cpuctx_t *scp, uint32_t op, int len,
-    unsigned char *cr2)
+    dosaddr_t cr2)
 {
     if (!len) {
 	/* 0-len shouldn't fault, so can't be here */
@@ -281,7 +281,7 @@ int msdos_ldt_pagefault(cpuctx_t *scp)
 {
     uint32_t op;
     int len;
-    unsigned char *cr2 = MEM_BASE32(_cr2);
+    dosaddr_t cr2 = _cr2;
 
     if (!msdos_ldt_access(cr2))
 	return 0;

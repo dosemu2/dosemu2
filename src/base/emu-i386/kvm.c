@@ -1158,7 +1158,7 @@ int kvm_dpmi(cpuctx_t *scp)
     if (exit_reason == KVM_EXIT_HLT) {
       /* orig_eax >> 16 = exception number */
       /* orig_eax & 0xffff = error code */
-      _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
+      _cr2 = monitor->cr2;
       _trapno = (regs->orig_eax >> 16) & 0xff;
       _err = regs->orig_eax & 0xffff;
       if (_trapno > 0x10) {
