@@ -468,7 +468,7 @@ struct pm_regs {
 
 	unsigned trapno;
 	unsigned err;
-	unsigned long cr2;
+	dosaddr_t cr2;
 };
 typedef struct pm_regs cpuctx_t;
 #define REGS_SIZE offsetof(struct pm_regs, trapno)

@@ -4204,7 +4204,7 @@ static void do_pm_cpu_exception(cpuctx_t *scp, INTDESC entry)
 
   /* Extended exception stack frame - DPMI 1.0 */
   *--ssp = 0;	/* PTE */
-  *--ssp = DOSADDR_REL(LINP(_cr2));
+  *--ssp = _cr2;
   *--ssp = _gs;
   *--ssp = _fs;
   *--ssp = _ds;
@@ -4357,7 +4357,7 @@ static void do_legacy_cpu_exception(cpuctx_t *scp, INTDESC entry)
 
 static void do_cpu_exception(cpuctx_t *scp)
 {
-  D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#lx, err=%#x\n",
+  D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#x, err=%#x\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
   if (debug_level('M') > 5)
     D_printf("DPMI: %s\n", DPMI_show_state(scp));
@@ -5908,7 +5908,7 @@ char *DPMI_show_state(cpuctx_t *scp)
     unsigned char *csp2, *ssp2;
     dosaddr_t daddr, saddr;
     pos += sprintf(buf + pos, "eip: 0x%08x  esp: 0x%08x  eflags: 0x%08x\n"
-	     "\ttrapno: 0x%02x  errorcode: 0x%08x  cr2: 0x%08lx\n"
+	     "\ttrapno: 0x%02x  errorcode: 0x%08x  cr2: 0x%08x\n"
 	     "\tcs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n",
 	     _eip, _esp, _eflags, _trapno, _err, _cr2, _cs, _ds, _es, _ss, _fs, _gs);
     pos += sprintf(buf + pos, "EAX: %08x  EBX: %08x  ECX: %08x  EDX: %08x\n",

@@ -27,6 +27,7 @@
 #include "cpu.h"
 #include "dosemu_debug.h"
 #include "memory.h"
+#include "dos2linux.h"
 #include "emudpmi.h"
 #include "instremu.h"
 #include "instr_dec.h"
@@ -473,7 +474,7 @@ static uint32_t reg(cpuctx_t *scp, int reg)
     return -1;
 }
 
-int decode_memop(cpuctx_t *scp, uint32_t *op, unsigned char *cr2)
+int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
 {
     unsigned cs, eip, seg_base;
     unsigned char *csp, *orig_csp;
@@ -557,7 +558,7 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, unsigned char *cr2)
 
      case 0x80:		/* logical r/m8,imm8 */
      case 0x82:
-	*op = instr_binary_byte(csp[1] >> 3, *cr2,
+	*op = instr_binary_byte(csp[1] >> 3, read_byte(cr2),
 		orig_csp[inst_len - 1], (unsigned*)&_eflags);
 	ret = 1;
 	break;
@@ -565,12 +566,12 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, unsigned char *cr2)
     case 0x81:		/* logical r/m,imm */
 	switch (x86.operand_size) {
 	case 2:
-	    *op = instr_binary_word(csp[1] >> 3, *(uint16_t *)cr2,
+	    *op = instr_binary_word(csp[1] >> 3, read_word(cr2),
 		    *(uint16_t *)(orig_csp + inst_len - 2), (unsigned*)&_eflags);
 	    ret = 2;
 	    break;
 	case 4:
-	    *op = instr_binary_dword(csp[1] >> 3, *(uint32_t *)cr2,
+	    *op = instr_binary_dword(csp[1] >> 3, read_dword(cr2),
 		    *(uint32_t *)(orig_csp + inst_len - 4), (unsigned*)&_eflags);
 	    ret = 4;
 	    break;
@@ -580,12 +581,12 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, unsigned char *cr2)
     case 0x83:		/* logical r/m,imm8 */
 	switch (x86.operand_size) {
 	case 2:
-	    *op = instr_binary_word(csp[1] >> 3, *(uint16_t *)cr2,
+	    *op = instr_binary_word(csp[1] >> 3, read_word(cr2),
 		    (short)*(signed char *)(orig_csp + inst_len - 1), (unsigned*)&_eflags);
 	    ret = 2;
 	    break;
 	case 4:
-	    *op = instr_binary_dword(csp[1] >> 3, *(uint32_t *)cr2,
+	    *op = instr_binary_dword(csp[1] >> 3, read_dword(cr2),
 		    (int)*(signed char *)(orig_csp + inst_len - 1), (unsigned*)&_eflags);
 	    ret = 4;
 	    break;
@@ -716,7 +717,7 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, unsigned char *cr2)
     case 0x28:		/* sub r/m8,reg8 */
     case 0x30:		/* xor r/m8,reg8 */
 //    case 0x38:		/* cmp r/m8,reg8 */
-	*op = instr_binary_byte(csp[0] >> 3, *cr2,
+	*op = instr_binary_byte(csp[0] >> 3, read_byte(cr2),
 		reg8(scp, csp[1] >> 3), (unsigned*)&_eflags);
 	ret = 1;
 	break;
@@ -731,12 +732,12 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, unsigned char *cr2)
 //  case 0x39:		/* cmp r/m16,reg16 */
 	switch (x86.operand_size) {
 	case 2:
-	    *op = instr_binary_word(csp[0] >> 3, *(uint16_t *)cr2,
+	    *op = instr_binary_word(csp[0] >> 3, read_word(cr2),
 		    reg(scp, csp[1] >> 3), (unsigned*)&_eflags);
 	    ret = 2;
 	    break;
 	case 4:
-	    *op = instr_binary_dword(csp[0] >> 3, *(uint32_t *)cr2,
+	    *op = instr_binary_dword(csp[0] >> 3, read_dword(cr2),
 		    reg(scp, csp[1] >> 3), (unsigned*)&_eflags);
 	    ret = 4;
 	    break;
@@ -744,7 +745,7 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, unsigned char *cr2)
 	break;
 
     case 0xfe: /* inc/dec mem */
-	*op = *cr2;
+	*op = read_byte(cr2);
 	switch (csp[1] & 0x38) {
 	case 0:	/* inc */
 	    (*op)++;
@@ -764,11 +765,11 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, unsigned char *cr2)
 		uint32_t mask = 1 << (csp[4] & 0x1f);
 		switch (x86.operand_size) {
 		case 2:
-		    *op = *(uint16_t *)cr2;
+		    *op = read_word(cr2);
 		    ret = 2;
 		    break;
 		case 4:
-		    *op = *(uint32_t *)cr2;
+		    *op = read_dword(cr2);
 		    ret = 4;
 		    break;
 		}

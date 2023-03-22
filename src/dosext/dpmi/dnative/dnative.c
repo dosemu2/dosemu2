@@ -102,7 +102,7 @@ static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
   _C(eflags);
   _C(trapno);
   _C(err);
-  _C(cr2);
+  _scp_cr2 = (uintptr_t)MEM_BASE32(get_cr2(s));
 
   if (scp->fpregs) {
     void *fpregs = scp->fpregs;
@@ -141,7 +141,7 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
   _D(eflags);
   _D(trapno);
   _D(err);
-  _D(cr2);
+  get_cr2(d) = DOSADDR_REL(LINP(_scp_cr2));
   if (scp->fpregs) {
     void *fpregs = scp->fpregs;
 #ifdef __x86_64__
@@ -164,7 +164,7 @@ static void dpmi_thr(void *arg);
 static int handle_pf(cpuctx_t *scp)
 {
     int rc;
-    dosaddr_t cr2 = DOSADDR_REL(LINP(_cr2));
+    dosaddr_t cr2 = _cr2;
 #ifdef X86_EMULATOR
 #ifdef HOST_ARCH_X86
     /* DPMI code touches cpuemu prot */

@@ -241,7 +241,7 @@ int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	    return 1;
 #endif
 	/* use CPatch for LDT page faults, which should not fail */
-	if (msdos_ldt_access((unsigned char *)_scp_cr2) && Cpatch(scp))
+	if (msdos_ldt_access(cr2) && Cpatch(scp))
 	    return 1;
 	TheCPU.scp_err = _scp_err;
 	/* save eip, eflags, and do a "ret" out of compiled code */
@@ -250,7 +250,7 @@ int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	e_printf("FindPC: found %x\n",_scp_eax);
 	_scp_edx = *(long *)_scp_rsp; // flags
 	_scp_rsp += sizeof(long);
-	TheCPU.cr2 = _scp_cr2;
+	TheCPU.cr2 = cr2;
 	_scp_rip = *(long *)_scp_rsp;
 	_scp_rsp += sizeof(long);
 	return 1;

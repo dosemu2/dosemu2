@@ -369,20 +369,20 @@ void emu_mhp_SetTypebyte (unsigned short selector, int typebyte)
 
 /* ======================================================================= */
 
-int emu_ldt_write(unsigned char *paddr, uint32_t op, int len)
+int emu_ldt_write(dosaddr_t addr, uint32_t op, int len)
 {
 	static cpuctx_t sc = {0};
 	cpuctx_t *scp = &sc;
 
-	if (!(msdos_ldt_access(paddr)))
+	if (!(msdos_ldt_access(addr)))
 		return 0;
 
-	_cr2 = (uintptr_t)paddr;
+	_cr2 = addr;
 	_ds = TheCPU.ds;
 	_es = TheCPU.es;
 	_fs = TheCPU.fs;
 	_gs = TheCPU.gs;
-	msdos_ldt_write(scp, op, len, (unsigned char *)_cr2);
+	msdos_ldt_write(scp, op, len, _cr2);
 	if (_ds == 0) { TheCPU.ds = 0; SetSegProt(0,Ofs_DS,NULL,0); }
 	if (_es == 0) { TheCPU.es = 0; SetSegProt(0,Ofs_ES,NULL,0); }
 	if (_fs == 0) { TheCPU.fs = 0; SetSegProt(0,Ofs_FS,NULL,0); }
@@ -396,7 +396,7 @@ void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 		default_sim_pagefault_handler(addr, err, op, len);
 		return;
 	}
-	if ((err & 2) && emu_ldt_write(MEM_BASE32(addr), op, len))
+	if ((err & 2) && emu_ldt_write(addr, op, len))
 		return;
 	/* trigger an exception in DPMI */
 	TheCPU.err = EXCP0E_PAGE;

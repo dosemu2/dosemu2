@@ -255,7 +255,7 @@ asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 1, eip);
 	InCompiledCode++;
-	if (!emu_ldt_write(paddr, value, 1)) {
+	if (!emu_ldt_write(addr, value, 1)) {
 		if (vga_write_access(addr))
 			vga_write(addr, value);
 		else
@@ -274,7 +274,7 @@ asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 2, eip);
 	InCompiledCode++;
-	if (!emu_ldt_write(paddr, value, 2)) {
+	if (!emu_ldt_write(addr, value, 2)) {
 		if (vga_write_access(addr))
 			vga_write_word(addr, value);
 		else
@@ -293,7 +293,7 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 	addr = DOSADDR_REL(paddr);
 	m_munprotect(addr, 4, eip);
 	InCompiledCode++;
-	if (!emu_ldt_write(paddr, value, 4)) {
+	if (!emu_ldt_write(addr, value, 4)) {
 		if (vga_write_access(addr))
 			vga_write_dword(addr, value);
 		else
