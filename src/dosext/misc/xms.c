@@ -933,7 +933,10 @@ xms_lock_EMB(int flag)
       return 0;
     }
 
-    addr = map_EMB(handles[h].addr, handles[h].size, h);
+    if (handles[h].lockcount)
+      addr = handles[h].dst;
+    else
+      addr = map_EMB(handles[h].addr, handles[h].size, h);
     if (addr) {
       handles[h].lockcount++;
       x_printf("XMS lock EMB %d --> %#x\n", h, addr);
