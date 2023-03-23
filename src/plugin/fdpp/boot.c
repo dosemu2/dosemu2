@@ -139,9 +139,9 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
 		config.country, atoi(config.internal_cset + 2));
 	env_len++;
     }
-    env_len += sprintf(env + env_len, "#2 =command.com /e:384%s /k "
+    env_len += sprintf(env + env_len, "#2 =command.com /e:%s /k "
 	    "%%FDPP_AUTOEXEC%%",
-	    config.dos_cmd ? "" : " /p"
+	    config.dos_cmd ? "512" : "384 /p"
     );
     env_len++;
 
