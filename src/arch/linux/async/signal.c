@@ -465,7 +465,9 @@ signal_pre_init(void)
   sigemptyset(&q_mask);
   sigemptyset(&nonfatal_q_mask);
   registersig_std(SIGALRM, SIGALRM_call);
-  registersig_std(SIGIO, SIGIO_call);
+  /* SIGIO is only used for irqs from vm86 */
+  if (config.cpu_vm == CPUVM_VM86)
+    registersig_std(SIGIO, SIGIO_call);
   registersig_std(SIG_THREAD_NOTIFY, async_call);
   registersig(SIGCHLD, sig_child);
   newsetqsig(SIGQUIT, leavedos_signal);
