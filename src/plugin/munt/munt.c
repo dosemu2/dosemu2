@@ -60,7 +60,8 @@ static int midomunt_init(void *arg)
     strcat(p, "/MT32_CONTROL.ROM");
     ret = mt32emu_add_rom_file(ctx, p);
     if (ret != MT32EMU_RC_ADDED_CONTROL_ROM) {
-	error("MUNT: Can't find %s\n", p);
+	error("MUNT: Can't find %s\n"
+	      "\tYou may want to download mt32 roms.\n", p);
 	goto err;
     }
     strcpy(p, config.munt_roms_dir);

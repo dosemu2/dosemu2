@@ -734,7 +734,7 @@ static void *do_dlopen(const char *filename, int flags)
     handle = dlopen(filename, flags);
     if (handle)
 	return handle;
-    error("%s\n", dlerror());
+    error("%s: %s\n", filename, dlerror());
     return NULL;
 }
 
