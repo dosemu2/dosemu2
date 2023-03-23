@@ -4672,7 +4672,7 @@ $_ignore_djgpp_null_derefs = (off)
 
         # Compare DOS output to reference file
         if dosoutput != refoutput:
-            diff = unified_diff(refoutput, dosoutput, fromfile=reffile, tofile=dosfile)
+            diff = unified_diff(refoutput, dosoutput, fromfile=str(reffile), tofile=str(dosfile))
             self.fail('differences detected\n' + ''.join(list(diff)))
 
     def test_cpu_1_vm86native(self):
