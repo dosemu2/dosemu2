@@ -6,7 +6,7 @@ get_binary() {
     exit 1
   fi
   if [ "$BINDIR" == "$LOCAL_BUILD_PATH/$LOCAL_BIN_DIR" ]; then
-    [ -h ~/.fonts/dosemu2 ] || ln -sf "$LOCAL_BUILD_PATH/etc/ttf" ~/.fonts/dosemu2
+    [ -h ~/.fonts/dosemu2 ] || (mkdir -p ~/.fonts && ln -sf "$LOCAL_BUILD_PATH/etc/ttf" ~/.fonts/dosemu2)
     OPTS="$OPTS --Fcmddir "$LOCAL_BUILD_PATH/commands" \
         --Flibdir "$LOCAL_BUILD_PATH/etc" \
         --Fplugindir "$BINDIR" \
