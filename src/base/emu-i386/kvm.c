@@ -120,8 +120,9 @@ static struct monitor {
 	-sizeof(struct emu_fpxstate)
 	-sizeof(struct vm86_regs)];          /* 2308 */
     unsigned int cr2;         /* Fault stack at 2DA0 */
+    unsigned int cr3;  /* cr3 in (no TLB flush if 0) */
     struct vm86_regs regs;
-    unsigned padding[2];
+    unsigned padding[1];
     struct emu_fpxstate fpstate;             /* 2e00 */
     /* 3000: page directory, 4000: page table */
     unsigned int pde[PAGE_SIZE/sizeof(unsigned int)];
@@ -634,6 +635,7 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
     if (cap & MAPPING_KVM)
       monitor->pte[page] &= ~PG_USER;
   }
+  monitor->cr3 = sregs.cr3; /* Force TLB flush */
 }
 
 /* Enable dirty logging from base to base+size.

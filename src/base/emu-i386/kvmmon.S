@@ -57,6 +57,8 @@ kvm_mon_main:
         push %edx
         push %ecx
         push %ebx
+        /* cr3: mark as 0 to not reload by default */
+        pushl $0
         mov %cr2,%eax
         push %eax
 #if 0
@@ -71,6 +73,12 @@ kvm_mon_hlt:
         addl $0x200,%esp
 #endif
         pop %eax
+        pop %eax
+        or %eax,%eax
+        jz skip_cr3
+        /* flush TLB by reloading cr3 if nonzero (set by mprotect_kvm()) */
+        mov %eax,%cr3
+skip_cr3:
         pop %ebx
         pop %ecx
         pop %edx
