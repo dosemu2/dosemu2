@@ -45,7 +45,6 @@ else
   if "$CC" -v 2>&1 | grep "g++" | grep "COLLECT_GCC" >/dev/null; then
     AC_MSG_RESULT([yes, using -fpermissive])
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpermissive -Wno-narrowing"
-    AC_LANG(C++)
   else
     AC_MSG_RESULT([no])
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions"
