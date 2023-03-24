@@ -50,9 +50,6 @@ static Bit32s vibval_var2[BLOCKBUF_SIZE];
 //static Bit32s vibval_var3[BLOCKBUF_SIZE];
 //static Bit32s vibval_var4[BLOCKBUF_SIZE];
 
-// vibrato/trmolo value table pointers
-static Bit32s *vibval1, *vibval2, *vibval3, *vibval4;
-static Bit32s *tremval1, *tremval2, *tremval3, *tremval4;
 
 
 // key scale level lookup table
@@ -969,6 +966,9 @@ void opl_getsample(Bit16s* sndptr, Bits numsamples) {
 	// vibrato/tremolo lookup tables (global, to possibly be used by all operators)
 	Bit32s vib_lut[BLOCKBUF_SIZE];
 	Bit32s trem_lut[BLOCKBUF_SIZE];
+	// vibrato/trmolo value table pointers
+	Bit32s *vibval1, *vibval2, *vibval3, *vibval4;
+	Bit32s *tremval1, *tremval2, *tremval3, *tremval4;
 
 	Bits samples_to_process = numsamples;
 	Bits cursmp;
