@@ -37,7 +37,8 @@ struct DSCB {
                           'C'  BUFFERS EMS workspace area if BUFFERS /X is used
                           'B'  BUFFERS= storage area
                           'L'  LASTDRIVE= current directory structure array
-                          'S'  STACKS= code/data area, if present (see below) */
+                          'S'  STACKS= code/data area, if present (see below)
+                          'T'  Transition code (Dos7book.pdf pg 603) */
   uint16_t start;       /* 1 (segment) */
   uint16_t size;        /* 3 (paragraphs) */
   char padding[3];      /* 5 */
