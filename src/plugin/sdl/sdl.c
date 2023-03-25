@@ -355,12 +355,6 @@ static int SDL_init(void)
   SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 #endif
 
-  rc = 0;
-  if (config.sdl_fonts && config.sdl_fonts[0] && !config.vga_fonts)
-    rc = SDL_text_init();
-  use_ttf_font = rc;
-  use_bitmap_font = 1;
-
   /* hints are set before renderer is created */
   if (config.X_bilin_filt) {
     v_printf("SDL: enabling scaling filter \"best\"\n");
@@ -441,6 +435,12 @@ static int SDL_init(void)
 
   if (config.X_mgrab_key && config.X_mgrab_key[0])
     mgrab_key = SDL_GetKeyFromName(config.X_mgrab_key);
+
+  rc = 0;
+  if (config.sdl_fonts && config.sdl_fonts[0] && !config.vga_fonts)
+    rc = SDL_text_init();
+  use_ttf_font = rc;
+  use_bitmap_font = 1;
 
 #if THREADED_REND
   pthread_create(&rend_thr, NULL, render_thread, NULL);
