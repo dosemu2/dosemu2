@@ -1329,6 +1329,9 @@ static void print_dscb(struct DSCB *dscb)
     case 'S':
       stnam = "Stacks";
       break;
+    case 'T':
+      stnam = "Transition Code";
+      break;
     default:
       stnam = "Unknown Type";
       break;
