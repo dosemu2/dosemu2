@@ -172,6 +172,9 @@ int  memcheck_findhole(dosaddr_t *start_addr, uint32_t min_size,
     uint32_t max_size);
 int memcheck_is_reserved(dosaddr_t addr_start, uint32_t size,
 	unsigned char map_char);
+int memcheck_is_rom(dosaddr_t addr);
+int memcheck_is_hardware_ram(dosaddr_t addr);
+int memcheck_is_system_ram(dosaddr_t addr);
 void memcheck_dump(void);
 void memcheck_type_init(void);
 extern struct system_memory_map *system_memory_map;
