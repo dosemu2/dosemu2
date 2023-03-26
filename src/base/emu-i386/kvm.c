@@ -593,6 +593,9 @@ void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t
   /* with KVM we need to manually remove/shrink existing mappings */
   do_munmap_kvm(phys_addr, mapsize);
   mmap_kvm_no_overlap(phys_addr, addr, mapsize, 0);
+  /* monitor dirty pages on regular low ram for JIT */
+  if ((cap & MAPPING_LOWMEM) && IS_EMU() && !CONFIG_CPUSIM)
+    kvm_set_dirty_log(phys_addr, mapsize);
   for (page = start; page < end; page++, phys_addr += pagesize) {
     int pde_entry = page >> 10;
     if (monitor->pde[pde_entry] == 0)
@@ -851,6 +854,24 @@ void kvm_leave(int pm)
     leavedos_main(99);
   }
   memcpy(&vm86_fpu_state, fpu.region, sizeof(vm86_fpu_state));
+
+  /* collect and invalidate all touched low dirty pages with JIT code */
+  if (IS_EMU() && !CONFIG_CPUSIM) {
+    int slot;
+    struct kvm_userspace_memory_region *p = &maps[0];
+    for (slot = 0; slot < MAXSLOT; slot++, p++)
+      if (p->memory_size &&
+	  p->guest_phys_addr + p->memory_size <= LOWMEM_SIZE+HMASIZE &&
+	  (p->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
+	  memcheck_is_system_ram(p->guest_phys_addr)) {
+	unsigned char bitmap[(LOWMEM_SIZE+HMASIZE)/CHAR_BIT];
+	int i;
+	kvm_get_dirty_map(p->guest_phys_addr, bitmap);
+	for (i = 0; i < p->memory_size >> PAGE_SHIFT; i++)
+	  if (test_bit(i, bitmap))
+	    e_invalidate_page_full(p->guest_phys_addr + (i << PAGE_SHIFT));
+      }
+  }
 }
 
 static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
@@ -1085,9 +1106,7 @@ int kvm_vm86(struct vm86_struct *info)
     unsigned trapno = (regs->orig_eax >> 16) & 0xff;
     unsigned err = regs->orig_eax & 0xffff;
     if (trapno == 0x0e &&
-	(vga_emu_fault(monitor->cr2, err, NULL) == True || (
-	 config.cpu_vm_dpmi == CPUVM_EMU && !config.cpusim &&
-	 e_invalidate_page_full(monitor->cr2))))
+	(vga_emu_fault(monitor->cr2, err, NULL) == True))
       return vm86_ret;
     vm86_fault(trapno, err, monitor->cr2);
   }
@@ -1200,9 +1219,7 @@ int kvm_dpmi(cpuctx_t *scp)
         pic_request(13);
         ret = DPMI_RET_DOSEMU;
       } else if (_trapno == 0x0e &&
-	    (vga_emu_fault(monitor->cr2, _err, scp) == True || (
-	    config.cpu_vm == CPUVM_EMU && !config.cpusim &&
-	    e_invalidate_page_full(monitor->cr2))))
+	    (vga_emu_fault(monitor->cr2, _err, scp) == True))
 	ret = DPMI_RET_CLIENT;
       else
 	ret = DPMI_RET_FAULT;
