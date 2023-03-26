@@ -27,6 +27,7 @@ int kvm_dpmi(cpuctx_t *scp);
 void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect);
 void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t targ, int protect);
 void set_kvm_memory_regions(void);
+void kvm_set_readonly(dosaddr_t base, dosaddr_t size);
 void kvm_set_dirty_log(dosaddr_t base, dosaddr_t size);
 void kvm_get_dirty_map(dosaddr_t base, unsigned char *bitmap);
 
@@ -47,6 +48,7 @@ static inline void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int pro
 static inline void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t targ, int protect) {}
 static inline void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize) {}
 static inline void set_kvm_memory_regions(void) {}
+static inline void kvm_set_readonly(dosaddr_t base, dosaddr_t size) {}
 static inline void kvm_set_dirty_log(dosaddr_t base, dosaddr_t size) {}
 static inline void kvm_get_dirty_map(dosaddr_t base, unsigned char *bitmap) {}
 static inline void kvm_set_idt_default(int i) {}

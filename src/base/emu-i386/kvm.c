@@ -620,9 +620,9 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   p = kvm_get_memory_region(monitor->pte[start] & PAGE_MASK, PAGE_SIZE);
   if (!p) return;
 
-  /* never apply write-protect to regions with dirty logging */
+  /* never apply write-protect to regions with dirty logging or phys r/o */
   if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
-      (p->flags & KVM_MEM_LOG_DIRTY_PAGES))
+      (p->flags & (KVM_MEM_LOG_DIRTY_PAGES|KVM_MEM_READONLY)))
     return;
 
   if (monitor == NULL) return;
@@ -639,6 +639,15 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
       monitor->pte[page] &= ~PG_USER;
   }
   monitor->cr3 = sregs.cr3; /* Force TLB flush */
+}
+
+void kvm_set_readonly(dosaddr_t base, dosaddr_t size)
+{
+  struct kvm_userspace_memory_region *p = kvm_get_memory_region(base, size);
+  void *addr = (void *)((uintptr_t)(p->userspace_addr +
+				    (base - p->guest_phys_addr)));
+  do_munmap_kvm(base, size);
+  mmap_kvm_no_overlap(base, addr, size, KVM_MEM_READONLY);
 }
 
 /* Enable dirty logging from base to base+size.
@@ -991,6 +1000,7 @@ static unsigned int kvm_run(void)
           KVM is re-entered asking it to exit when interrupt injection is
           possible, then it exits with this code. This only happens if a signal
           occurs during execution of the monitor code in kvmmon.S.
+       4. KVM_EXIT_MMIO: when attempting to write to ROM
     */
     if (ret != 0 && ret != -1)
       error("KVM: strange return %i, errno=%i\n", ret, errn);
@@ -1008,6 +1018,9 @@ static unsigned int kvm_run(void)
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
       exit_reason = KVM_EXIT_HLT;
+      break;
+    case KVM_EXIT_MMIO:
+      /* for ROM: simply ignore the write and continue */
       break;
     case KVM_EXIT_IRQ_WINDOW_OPEN:
       run->request_interrupt_window = !run->ready_for_interrupt_injection;
