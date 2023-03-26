@@ -228,7 +228,10 @@ static int SDL_priv_init(void)
    * not CreateRenderer */
   if (!config.sdl_hwrend) {
       SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+      /* unaccelerated fb doesn't work with Wayland */
+#if 0
       SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
+#endif
   }
   enter_priv_on();
   ret = SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
