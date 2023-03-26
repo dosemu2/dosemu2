@@ -19,6 +19,7 @@ from common_framework import (BaseTestCase, get_test_binaries, main, mkstring,
                               IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
 from func_cpu_trap_flag import cpu_trap_flag
+from func_cpu_unaligned_xchg import cpu_unaligned_xchg
 from func_ds2_file_seek_tell import ds2_file_seek_tell
 from func_ds2_file_seek_read import ds2_file_seek_read
 from func_ds2_set_fattrs import ds2_set_fattrs
@@ -4739,6 +4740,16 @@ $_ignore_djgpp_null_derefs = (off)
         """CPU Trap Flag KVM"""
         cpu_trap_flag(self, 'kvm')
     test_cpu_trap_flag_kvm.cputest = True
+
+    def test_cpu_unaligned_xchg_emulated(self):
+        """CPU Unaligned xchg emulated"""
+        cpu_unaligned_xchg(self, 'emulated')
+    test_cpu_unaligned_xchg_emulated.cputest = True
+
+    def test_cpu_unaligned_xchg_kvm(self):
+        """CPU Unaligned xchg KVM"""
+        cpu_unaligned_xchg(self, 'kvm')
+    test_cpu_unaligned_xchg_kvm.cputest = True
 
     def test_pcmos_build(self):
         """PC-MOS build script"""
