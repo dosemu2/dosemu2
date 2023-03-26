@@ -1096,8 +1096,7 @@ int vga_emu_fault(dosaddr_t lin_addr, unsigned err, cpuctx_t *scp)
       }
       return True;
     }
-    else if((page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) ||
-	    (!config.umb_f0 && page_fault >= 0xf0 && page_fault < 0xf4)) {	/* ROM area */
+    else if(memcheck_is_rom(page_fault << PAGE_SHIFT)) {	/* ROM area */
       if (pmode) {
         u = instr_len((unsigned char *)SEL_ADR(_cs, _eip),
 	    dpmi_segment_is32(_cs));
@@ -1761,20 +1760,10 @@ int vga_emu_pre_init(void)
 
 static int vga_emu_post_init(void)
 {
-  int i;
-
   if(vga.mem.lfb_base != 0) {
     vga.mem.lfb_base_page = vga.mem.lfb_base >> 12;
   }
   vga_emu_setup_mode_table();
-
-  /*
-   * Make the VGA-BIOS ROM read-only; some dirty programs try to write to the ROM!
-   *
-   * Note: Unknown instructions will cause the write protection to be removed.
-   */
-  vga_msg("vga_emu_init: protecting ROM area 0xc0000 - 0x%05x\n", (0xc0 + vgaemu_bios.pages) << 12);
-  for(i = 0; i < vgaemu_bios.pages; i++) vga_emu_protect_page(0xc0 + i, RO);
 
   vgaemu_register_ports();
 

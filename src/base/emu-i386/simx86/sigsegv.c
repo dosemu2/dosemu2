@@ -181,7 +181,7 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
       }
       return 1;
     }
-    else if (page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) {	/* ROM area */
+    else if (memcheck_is_rom(page_fault << PAGE_SHIFT)) {	/* ROM area */
 #ifdef HOST_ARCH_X86
       if (!CONFIG_CPUSIM) {
 	u = jitx86_instr_len((unsigned char *)_scp_rip);

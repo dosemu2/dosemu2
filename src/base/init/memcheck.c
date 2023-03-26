@@ -5,6 +5,7 @@
 #include "emu.h"
 #include "utilities.h"
 #include "memory.h"
+#include "mapping.h"
 
 /* Notes:
  *   1.  leavedos() needs a real parameter
@@ -139,6 +140,9 @@ void memcheck_reserve(unsigned char map_char, dosaddr_t addr_start,
   memcheck_e820_reserve(addr_start, size,
       !(map_char == 'd' || map_char == 'U' || map_char == 'X' ||
         map_char == 'H' || map_char == 'r'));
+
+  if (memcheck_is_rom(addr_start))
+    mprotect_mapping(MAPPING_LOWMEM, addr_start, size, PROT_READ);
 }
 
 void memcheck_map_free(unsigned char map_char)
@@ -170,8 +174,6 @@ void memcheck_init(void)
 {
   memcheck_type_init();
   memcheck_reserve('d', 0x00000, config.mem_size*1024); /* dos memory  */
-  if (!config.umb_f0)
-    memcheck_reserve('r', 0xF0000, DOSEMU_LMHEAP_OFF);
   memcheck_reserve('r', 0xF0000 + DOSEMU_LMHEAP_OFF, DOSEMU_LMHEAP_SIZE);
   assert(DOSEMU_LMHEAP_OFF + DOSEMU_LMHEAP_SIZE == bios_data_start);
   /* dosemu bios */
@@ -212,6 +214,29 @@ int memcheck_is_reserved(dosaddr_t addr_start, uint32_t size,
     }
   }
   return TRUE;
+}
+
+int memcheck_is_rom(dosaddr_t addr)
+{
+  round_addr(&addr);
+  if (addr >= MEM_SIZE)
+    return 0;
+  return strchr("VR", mem_map[addr / GRAN_SIZE]) != NULL;
+}
+
+int memcheck_is_hardware_ram(dosaddr_t addr)
+{
+  round_addr(&addr);
+  if (addr >= MEM_SIZE)
+    return 0;
+  return strchr("evh", mem_map[addr / GRAN_SIZE]) != NULL;
+}
+
+int memcheck_is_system_ram(dosaddr_t addr)
+{
+  round_addr(&addr);
+  return !memcheck_is_rom(addr) &&
+    !memcheck_is_hardware_ram(addr);
 }
 
 int memcheck_findhole(dosaddr_t *start_addr, uint32_t min_size,

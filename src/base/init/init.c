@@ -437,8 +437,10 @@ void low_mem_init(void)
   }
 
   /* R/O protect 0xf0000-0xf4000 */
-  if (!config.umb_f0)
-    mprotect_mapping(MAPPING_LOWMEM, 0xf0000, 0x4000, PROT_READ);
+  if (!config.umb_f0) {
+    memcheck_addtype('R', "ROM at f000:0000 for $_umb_f0 = (off)");
+    memcheck_reserve('R', 0xF0000, DOSEMU_LMHEAP_OFF);
+  }
 }
 
 /*
