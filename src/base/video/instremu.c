@@ -91,6 +91,10 @@
 #define EFLAGS (R_DWORD(x86->eflags))
 #define FLAGS (R_WORD(EFLAGS))
 #define OP_JCC(cond) eip += (cond) ? 2 + *(signed char *)MEM_BASE32(cs + eip + 1) : 2; break;
+#define OP_JCC2(cond) eip += 1 + x86->operand_size + \
+    ((cond) ? (x86->operand_size == 4 ? \
+	       *(signed int *)MEM_BASE32(cs + eip + 1) : \
+	       *(signed short *)MEM_BASE32(cs + eip + 1)) : 0); break;
 
 /* assembly macros to speed up x86 on x86 emulation: the cpu helps us in setting
    the flags */
@@ -284,6 +288,9 @@ int instr_len(unsigned char *p, int is_32)
   if(*p == 0x0f) {
     p++;
     switch (*p) {
+    case 0x80 ... 0x8f:
+      p += osp ? 5 : 3;
+      return p - p0;
     case 0xba:
       p += 4;
       return p - p0;
@@ -1383,7 +1390,30 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     }
     break;
 
-  /* don't do 0x0f (extended instructions) for now */
+  case 0x0f:
+    eip++;
+    switch(*(unsigned char *)MEM_BASE32(cs + eip)) {
+    case 0x80: OP_JCC2(EFLAGS & OF);         /*jo*/
+    case 0x81: OP_JCC2(!(EFLAGS & OF));      /*jno*/
+    case 0x82: OP_JCC2(EFLAGS & CF);         /*jc*/
+    case 0x83: OP_JCC2(!(EFLAGS & CF));      /*jnc*/
+    case 0x84: OP_JCC2(EFLAGS & ZF);         /*jz*/
+    case 0x85: OP_JCC2(!(EFLAGS & ZF));      /*jnz*/
+    case 0x86: OP_JCC2(EFLAGS & (ZF|CF));    /*jbe*/
+    case 0x87: OP_JCC2(!(EFLAGS & (ZF|CF))); /*ja*/
+    case 0x88: OP_JCC2(EFLAGS & SF);         /*js*/
+    case 0x89: OP_JCC2(!(EFLAGS & SF));      /*jns*/
+    case 0x8a: OP_JCC2(EFLAGS & PF);         /*jp*/
+    case 0x8b: OP_JCC2(!(EFLAGS & PF));      /*jnp*/
+    case 0x8c: OP_JCC2((EFLAGS & SF)^((EFLAGS & OF)>>4))         /*jl*/
+    case 0x8d: OP_JCC2(!((EFLAGS & SF)^((EFLAGS & OF)>>4)))      /*jnl*/
+    case 0x8e: OP_JCC2((EFLAGS & (SF|ZF))^((EFLAGS & OF)>>4))    /*jle*/
+    case 0x8f: OP_JCC2(!((EFLAGS & (SF|ZF))^((EFLAGS & OF)>>4))) /*jg*/
+    default:
+      return 0;
+    }
+    break;
+
   /* 0x17 pop ss is a bit dangerous and rarely used */
 
   case 0x1f:		/* pop ds */
