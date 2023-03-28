@@ -192,7 +192,7 @@ static unsigned char clear_undef_bits(unsigned char i, unsigned char v)
  * DANG_END_FUNCTION
  *
  */
-void Attr_init()
+void Attr_init(void)
 {
   int i = 0, j;
 
@@ -284,7 +284,7 @@ void Attr_set_entry(unsigned char index, unsigned char value)
  * DANG_END_FUNCTION
  *
  */
-unsigned char Attr_read_value()
+unsigned char Attr_read_value(void)
 {
   unsigned i = vga.attr.index;
   unsigned char uc = i | vga.attr.cpu_video;
@@ -382,7 +382,7 @@ void Attr_write_value(unsigned char data)
  * DANG_END_FUNCTION
  *
  */
-unsigned char Attr_get_index()
+unsigned char Attr_get_index(void)
 {
   unsigned char uc = vga.attr.index | vga.attr.cpu_video;
 

@@ -2080,7 +2080,7 @@ static char* pretty_keysym(t_keysym d)
  * with the X keymap (if X is available) and chose the
  * best one.
  */
-void setup_default_keytable()
+void setup_default_keytable(void)
 {
   static const char *dt_name = "auto";
   static t_keysym

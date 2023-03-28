@@ -91,7 +91,7 @@ int open_console(void)
     return cons_fd;
 }
 
-int getfd()
+int getfd(void)
 {
     return cons_fd;
 }

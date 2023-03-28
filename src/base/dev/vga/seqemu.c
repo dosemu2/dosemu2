@@ -155,7 +155,7 @@ static void seq_map_select(unsigned data)
   vga.reconfig.re_init = 1;
 }
 
-void Seq_init()
+void Seq_init(void)
 {
   unsigned i, j = 15;
 
@@ -209,7 +209,7 @@ void Seq_set_index(unsigned char index)
 }
 
 
-unsigned char Seq_get_index()
+unsigned char Seq_get_index(void)
 {
   seq_deb2("Seq_get_index: 0x%02x\n", (unsigned) vga.seq.index);
 
@@ -328,7 +328,7 @@ void Seq_write_value(unsigned char data)
 }
 
 
-unsigned char Seq_read_value()
+unsigned char Seq_read_value(void)
 {
   unsigned char uc, uc1;
 

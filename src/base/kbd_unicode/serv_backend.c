@@ -44,7 +44,7 @@
  *    Interface to DOS (BIOS keyboard buffer/shiftstate flags)
  */
 
-void clear_bios_keybuf()
+void clear_bios_keybuf(void)
 {
    WRITE_WORD(BIOS_KEYBOARD_BUFFER_START,0x001e);
    WRITE_WORD(BIOS_KEYBOARD_BUFFER_END,  0x003e);

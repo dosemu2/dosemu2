@@ -72,7 +72,7 @@
  * DANG_END_FUNCTION
  *
  */
-void Herc_init()
+void Herc_init(void)
 {
   vga.herc.cfg_switch = 0;
   vga.herc.mode_ctrl = 0;
@@ -203,7 +203,7 @@ void Herc_set_mode_ctrl(unsigned char data)
  * DANG_END_FUNCTION
  *
  */
-unsigned char Herc_get_mode_ctrl()
+unsigned char Herc_get_mode_ctrl(void)
 {
   herc_deb("Herc_get_mode_ctrl: 0x%02x\n", (unsigned) vga.herc.mode_ctrl);
 

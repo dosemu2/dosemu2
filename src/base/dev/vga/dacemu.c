@@ -181,7 +181,7 @@ static _DAC_entry dac_vga[256] = {
  * DANG_END_FUNCTION
  *
  */
-void DAC_init()
+void DAC_init(void)
 {
   DAC_entry dac_zero = {True, 0, 0, 0}, de = dac_zero;
   int i;
@@ -403,7 +403,7 @@ void DAC_set_write_index(unsigned char index)
  * DANG_END_FUNCTION
  *
  */
-unsigned char DAC_read_value()
+unsigned char DAC_read_value(void)
 {
   unsigned char rv;
 
@@ -509,7 +509,7 @@ void DAC_write_value(unsigned char value)
  * DANG_END_FUNCTION
  *
  */
-unsigned char DAC_get_pel_mask()
+unsigned char DAC_get_pel_mask(void)
 {
   dac_deb("DAC_get_pel_mask: mask = 0x%02x\n", (unsigned) vga.dac.pel_mask);
 
@@ -549,7 +549,7 @@ void DAC_set_pel_mask(unsigned char mask)
  * DANG_END_FUNCTION
  *
  */
-unsigned char DAC_get_state()
+unsigned char DAC_get_state(void)
 {
   dac_deb("DAC_get_state: state = 0x%02x\n", vga.dac.state);
 

@@ -49,7 +49,7 @@ static void do_sm_error(int prio, const char *fmt, ...)
 	dbug_printf("%s\n", buf);
 }
 
-int lowmem_init()
+int lowmem_init(void)
 {
     dosemu_lmheap_base = MK_FP32(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFF);
     smregister_default_error_notifier(do_sm_error);

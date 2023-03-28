@@ -149,7 +149,7 @@ void CRTC_set_index(unsigned char index)
 }
 
 
-unsigned char CRTC_get_index()
+unsigned char CRTC_get_index(void)
 {
   crtc_deb2("CRTC_get_index: 0x%02x\n", (unsigned) vga.crtc.index);
 
@@ -328,7 +328,7 @@ void CRTC_write_value(unsigned char data)
 }
 
 
-unsigned char CRTC_read_value()
+unsigned char CRTC_read_value(void)
 {
   unsigned char uc;
 

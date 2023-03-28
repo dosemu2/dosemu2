@@ -86,7 +86,7 @@ hitimer_t t_vretrace = 0;		/* cf. base/dev/misc/timers.c */
  * DANG_END_FUNCTION
  *
  */
-void Misc_init()
+void Misc_init(void)
 {
   unsigned char u;
 
@@ -220,7 +220,7 @@ void Misc_set_color_select(unsigned char data)
  * DANG_END_FUNCTION
  *
  */
-unsigned char Misc_get_misc_output()
+unsigned char Misc_get_misc_output(void)
 {
   misc_deb("Misc_get_misc_output: 0x%02x\n", (unsigned) vga.misc.misc_output);
 
@@ -256,7 +256,7 @@ void Misc_set_feature_ctrl(unsigned char data)
  * DANG_END_FUNCTION
  *
  */
-unsigned char Misc_get_feature_ctrl()
+unsigned char Misc_get_feature_ctrl(void)
 {
   misc_deb("Misc_get_feature_ctrl: 0x%02x\n", (unsigned) vga.misc.feature_ctrl);
 
@@ -276,7 +276,7 @@ unsigned char Misc_get_feature_ctrl()
  * DANG_END_FUNCTION
  *
  */
-unsigned char Misc_get_input_status_0()
+unsigned char Misc_get_input_status_0(void)
 {
   unsigned char u = 0;
 
@@ -299,7 +299,7 @@ unsigned char Misc_get_input_status_0()
  * DANG_END_FUNCTION
  *
  */
-unsigned char Misc_get_input_status_1()
+unsigned char Misc_get_input_status_1(void)
 {
   /*
    * Graphic status - many programs will use this port to sync with

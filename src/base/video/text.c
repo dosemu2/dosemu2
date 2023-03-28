@@ -509,7 +509,7 @@ static void update_cursor(void)
  * Blink the cursor. Called from SIGALRM handler.
  * Do nothing in graphics modes.
  */
-void blink_cursor()
+void blink_cursor(void)
 {
   if (!have_focus)
     return;
@@ -757,7 +757,7 @@ void update_text_screen(void)
   memcpy(prev_font, vga.mem.base + 0x20000, 256 * 32);
 }
 
-void text_lose_focus()
+void text_lose_focus(void)
 {
   if (!have_focus)
     return;
@@ -767,7 +767,7 @@ void text_lose_focus()
   need_redraw_cursor = TRUE;
 }
 
-void text_gain_focus()
+void text_gain_focus(void)
 {
   if (have_focus)
     return;
@@ -843,7 +843,7 @@ void clear_selection_data(void)
  * Check if we should clear selection.
  * Clear if cursor is in or before selected area.
 */
-void clear_if_in_selection()
+void clear_if_in_selection(void)
 {
   unsigned cursor_row, cursor_col;
 
@@ -1028,7 +1028,7 @@ static void save_selection_data(void)
 /*
  * End of selection (button released).
  */
-t_unicode *end_selection()
+t_unicode *end_selection(void)
 {
   if (!doing_selection)
     return NULL;

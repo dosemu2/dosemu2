@@ -1781,7 +1781,7 @@ static int vga_emu_post_init(void)
 }
 
 
-void vga_emu_done()
+void vga_emu_done(void)
 {
   if (vga.mem.lfb_base) {
     unalias_mapping_pa(MAPPING_DPMI, VGAEMU_PHYS_LFB_BASE, vga.mem.size);
@@ -2134,7 +2134,7 @@ int vga_emu_setup_mode(vga_mode_info *vmi, int mode_index, unsigned width, unsig
  *
  */
 
-static void vga_emu_setup_mode_table()
+static void vga_emu_setup_mode_table(void)
 {
   int vbe_modes = (sizeof vga_mode_table) / (sizeof *vga_mode_table);
   int vbe_num = VBE_FIRST_OEM_MODE;
@@ -2530,7 +2530,7 @@ int vga_emu_setmode(int mode, int width, int height)
   return ret;
 }
 
-int vgaemu_map_bank()
+int vgaemu_map_bank(void)
 {
   int i, first;
 #if 0
@@ -2639,7 +2639,7 @@ int vga_emu_set_textsize(int width, int height)
  *
  */
 
-void dirty_all_video_pages()
+void dirty_all_video_pages(void)
 {
   pthread_mutex_lock(&prot_mtx);
   if (vga.mem.dirty_map)
@@ -2723,7 +2723,7 @@ int vgaemu_is_dirty(void)
  *
  */
 
-void dirty_all_vga_colors()
+void dirty_all_vga_colors(void)
 {
   int i;
 

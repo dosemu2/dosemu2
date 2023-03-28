@@ -255,7 +255,7 @@ void vbe_init(vgaemu_display_type *vedt)
  * DANG_END_FUNCTION
  */
 
-void do_vesa_int()
+void do_vesa_int(void)
 {
   int err_code = VBE_ERROR_GENERAL_FAIL;
 
@@ -634,7 +634,7 @@ static int vbe_set_mode(unsigned mode)
  *
  */
 
-static int vbe_get_mode()
+static int vbe_get_mode(void)
 {
 #ifdef DEBUG_VBE
   v_printf("VBE: [0x%02x] vbe_get_mode\n", (unsigned) _AL);

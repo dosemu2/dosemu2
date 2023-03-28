@@ -152,7 +152,7 @@ void GFX_set_index(unsigned char index)
 }
 
 
-unsigned char GFX_get_index()
+unsigned char GFX_get_index(void)
 {
   gfx_deb2("GFX_get_index: 0x%02x\n", (unsigned) vga.gfx.index);
 
@@ -320,7 +320,7 @@ void GFX_write_value(unsigned char data)
 }
 
 
-unsigned char GFX_read_value()
+unsigned char GFX_read_value(void)
 {
   unsigned char uc;
 
