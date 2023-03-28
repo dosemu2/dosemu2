@@ -873,7 +873,10 @@ void register_hardware_ram_virtual2(int type, unsigned base, unsigned int size,
   if (config.cpu_vm_dpmi == CPUVM_KVM ||
       (config.cpu_vm == CPUVM_KVM && base + size <= LOWMEM_SIZE + HMASIZE)) {
     int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
-    mmap_kvm(MAPPING_INIT_LOWRAM, base, size, uaddr, va, prot);
+    int cap = MAPPING_INIT_LOWRAM;
+    if (type == 'L')
+      cap |= MAPPING_LOWMEM;
+    mmap_kvm(cap, base, size, uaddr, va, prot);
   }
 }
 

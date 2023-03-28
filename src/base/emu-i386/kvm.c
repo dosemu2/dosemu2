@@ -593,6 +593,9 @@ void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t
   /* with KVM we need to manually remove/shrink existing mappings */
   do_munmap_kvm(phys_addr, mapsize);
   mmap_kvm_no_overlap(phys_addr, addr, mapsize, 0);
+  /* monitor dirty pages on regular low ram for JIT */
+  if ((cap & MAPPING_LOWMEM) && IS_EMU() && !CONFIG_CPUSIM)
+    kvm_set_dirty_log(phys_addr, mapsize);
   for (page = start; page < end; page++, phys_addr += pagesize) {
     int pde_entry = page >> 10;
     if (monitor->pde[pde_entry] == 0)
@@ -617,9 +620,9 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   p = kvm_get_memory_region(monitor->pte[start] & PAGE_MASK, PAGE_SIZE);
   if (!p) return;
 
-  /* never apply write-protect to regions with dirty logging */
+  /* never apply write-protect to regions with dirty logging or phys r/o */
   if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
-      (p->flags & KVM_MEM_LOG_DIRTY_PAGES))
+      (p->flags & (KVM_MEM_LOG_DIRTY_PAGES|KVM_MEM_READONLY)))
     return;
 
   if (monitor == NULL) return;
@@ -636,6 +639,15 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
       monitor->pte[page] &= ~PG_USER;
   }
   monitor->cr3 = sregs.cr3; /* Force TLB flush */
+}
+
+void kvm_set_readonly(dosaddr_t base, dosaddr_t size)
+{
+  struct kvm_userspace_memory_region *p = kvm_get_memory_region(base, size);
+  void *addr = (void *)((uintptr_t)(p->userspace_addr +
+				    (base - p->guest_phys_addr)));
+  do_munmap_kvm(base, size);
+  mmap_kvm_no_overlap(base, addr, size, KVM_MEM_READONLY);
 }
 
 /* Enable dirty logging from base to base+size.
@@ -851,6 +863,24 @@ void kvm_leave(int pm)
     leavedos_main(99);
   }
   memcpy(&vm86_fpu_state, fpu.region, sizeof(vm86_fpu_state));
+
+  /* collect and invalidate all touched low dirty pages with JIT code */
+  if (IS_EMU() && !CONFIG_CPUSIM) {
+    int slot;
+    struct kvm_userspace_memory_region *p = &maps[0];
+    for (slot = 0; slot < MAXSLOT; slot++, p++)
+      if (p->memory_size &&
+	  p->guest_phys_addr + p->memory_size <= LOWMEM_SIZE+HMASIZE &&
+	  (p->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
+	  memcheck_is_system_ram(p->guest_phys_addr)) {
+	unsigned char bitmap[(LOWMEM_SIZE+HMASIZE)/CHAR_BIT];
+	int i;
+	kvm_get_dirty_map(p->guest_phys_addr, bitmap);
+	for (i = 0; i < p->memory_size >> PAGE_SHIFT; i++)
+	  if (test_bit(i, bitmap))
+	    e_invalidate_page_full(p->guest_phys_addr + (i << PAGE_SHIFT));
+      }
+  }
 }
 
 static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
@@ -970,6 +1000,7 @@ static unsigned int kvm_run(void)
           KVM is re-entered asking it to exit when interrupt injection is
           possible, then it exits with this code. This only happens if a signal
           occurs during execution of the monitor code in kvmmon.S.
+       4. KVM_EXIT_MMIO: when attempting to write to ROM
     */
     if (ret != 0 && ret != -1)
       error("KVM: strange return %i, errno=%i\n", ret, errn);
@@ -987,6 +1018,9 @@ static unsigned int kvm_run(void)
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
       exit_reason = KVM_EXIT_HLT;
+      break;
+    case KVM_EXIT_MMIO:
+      /* for ROM: simply ignore the write and continue */
       break;
     case KVM_EXIT_IRQ_WINDOW_OPEN:
       run->request_interrupt_window = !run->ready_for_interrupt_injection;
@@ -1085,9 +1119,7 @@ int kvm_vm86(struct vm86_struct *info)
     unsigned trapno = (regs->orig_eax >> 16) & 0xff;
     unsigned err = regs->orig_eax & 0xffff;
     if (trapno == 0x0e &&
-	(vga_emu_fault(monitor->cr2, err, NULL) == True || (
-	 config.cpu_vm_dpmi == CPUVM_EMU && !config.cpusim &&
-	 e_invalidate_page_full(monitor->cr2))))
+	(vga_emu_fault(monitor->cr2, err, NULL) == True))
       return vm86_ret;
     vm86_fault(trapno, err, monitor->cr2);
   }
@@ -1200,9 +1232,7 @@ int kvm_dpmi(cpuctx_t *scp)
         pic_request(13);
         ret = DPMI_RET_DOSEMU;
       } else if (_trapno == 0x0e &&
-	    (vga_emu_fault(monitor->cr2, _err, scp) == True || (
-	    config.cpu_vm == CPUVM_EMU && !config.cpusim &&
-	    e_invalidate_page_full(monitor->cr2))))
+	    (vga_emu_fault(monitor->cr2, _err, scp) == True))
 	ret = DPMI_RET_CLIENT;
       else
 	ret = DPMI_RET_FAULT;

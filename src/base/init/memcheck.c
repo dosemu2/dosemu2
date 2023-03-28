@@ -141,8 +141,11 @@ void memcheck_reserve(unsigned char map_char, dosaddr_t addr_start,
       !(map_char == 'd' || map_char == 'U' || map_char == 'X' ||
         map_char == 'H' || map_char == 'r'));
 
-  if (memcheck_is_rom(addr_start))
+  if (memcheck_is_rom(addr_start)) {
     mprotect_mapping(MAPPING_LOWMEM, addr_start, size, PROT_READ);
+    if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+      kvm_set_readonly(addr_start, size);
+  }
 }
 
 void memcheck_map_free(unsigned char map_char)
