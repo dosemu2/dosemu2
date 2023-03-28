@@ -91,6 +91,10 @@
 #define EFLAGS (R_DWORD(x86->eflags))
 #define FLAGS (R_WORD(EFLAGS))
 #define OP_JCC(cond) eip += (cond) ? 2 + *(signed char *)MEM_BASE32(cs + eip + 1) : 2; break;
+#define OP_JCC2(cond) eip += 1 + x86->operand_size + \
+    ((cond) ? (x86->operand_size == 4 ? \
+	       *(signed int *)MEM_BASE32(cs + eip + 1) : \
+	       *(signed short *)MEM_BASE32(cs + eip + 1)) : 0); break;
 
 /* assembly macros to speed up x86 on x86 emulation: the cpu helps us in setting
    the flags */
@@ -284,8 +288,25 @@ int instr_len(unsigned char *p, int is_32)
   if(*p == 0x0f) {
     p++;
     switch (*p) {
+    case 0x80 ... 0x8f:
+      p += osp ? 5 : 3;
+      return p - p0;
+    case 0xa4:
+      p++;
+      p += (u = arg_len(p, asp));
+      if(!u) p = p0;
+      return p + 1 - p0;
     case 0xba:
       p += 4;
+      return p - p0;
+    case 0xa5:
+    case 0xb6:
+    case 0xb7:
+    case 0xbe:
+    case 0xbf:
+      p++;
+      p += (u = arg_len(p, asp));
+      if(!u) p = p0;
       return p - p0;
     default:
       /* not yet */
@@ -732,6 +753,30 @@ unsigned instr_shift(unsigned op, unsigned op1, unsigned op2, unsigned size, uns
   return 0;
 }
 
+static unsigned instr_double_shift(unsigned op1, unsigned op2, unsigned char shc,
+				   unsigned size, unsigned *eflags)
+{
+  unsigned result, carry;
+  unsigned width = size * 8;
+  unsigned mask = wordmask[size];
+  unsigned smask = (mask >> 1) + 1;
+  if (size == 2) {
+    result = (op1 << 16) | (op2 & 0xffff);
+    /* undocumented: works like rotate internally */
+    result = (result << shc) | (result >> (32-shc));
+    carry = result & CF;
+    result >>= 16;
+  } else {
+    uint64_t u64 = ((uint64_t)op1 << 32) | op2;
+    carry = (u64 >> (64-shc)) & CF;
+    result = (u64 << shc) >> 32;
+  }
+  instr_flags(result, smask, eflags);
+  *eflags &= ~(CF|OF);
+  *eflags |= ((((op1 >> (width-1)) ^ (op1 >> (width-2))) << 11) & OF) | carry;
+  return result;
+}
+
 static inline void push(unsigned val, x86_regs *x86)
 {
   struct rm mem = {};
@@ -1034,16 +1079,14 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   unsigned eip = x86->eip;
   unsigned cs = x86->cs_base;
 
-#if DEBUG_INSTR >= 2
-  {
-    int refseg, rc;
-    unsigned char frmtbuf[256];
+  if (debug_level('v') >= 9) {
+    unsigned int refseg;
+    char frmtbuf[256];
     refseg = x86->cs;
     dump_x86_regs(x86);
-    rc = dis_8086(MEM_BASE32(cs+eip), frmtbuf, x86->_32bit, &refseg, MEM_BASE32(cs));
+    dis_8086(cs+eip, frmtbuf, x86->_32bit ? 3 : 0, &refseg, cs);
     instr_deb("vga_emu_fault: about to simulate %d: %s\n", count, frmtbuf);
   }
-#endif
 
   if (x86->prefixes) {
     prepare_x86(x86);
@@ -1385,7 +1428,80 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     }
     break;
 
-  /* don't do 0x0f (extended instructions) for now */
+  case 0x0f:
+    eip++;
+    switch(*(unsigned char *)MEM_BASE32(cs + eip)) {
+    case 0x80: OP_JCC2(EFLAGS & OF);         /*jo*/
+    case 0x81: OP_JCC2(!(EFLAGS & OF));      /*jno*/
+    case 0x82: OP_JCC2(EFLAGS & CF);         /*jc*/
+    case 0x83: OP_JCC2(!(EFLAGS & CF));      /*jnc*/
+    case 0x84: OP_JCC2(EFLAGS & ZF);         /*jz*/
+    case 0x85: OP_JCC2(!(EFLAGS & ZF));      /*jnz*/
+    case 0x86: OP_JCC2(EFLAGS & (ZF|CF));    /*jbe*/
+    case 0x87: OP_JCC2(!(EFLAGS & (ZF|CF))); /*ja*/
+    case 0x88: OP_JCC2(EFLAGS & SF);         /*js*/
+    case 0x89: OP_JCC2(!(EFLAGS & SF));      /*jns*/
+    case 0x8a: OP_JCC2(EFLAGS & PF);         /*jp*/
+    case 0x8b: OP_JCC2(!(EFLAGS & PF));      /*jnp*/
+    case 0x8c: OP_JCC2((EFLAGS & SF)^((EFLAGS & OF)>>4))         /*jl*/
+    case 0x8d: OP_JCC2(!((EFLAGS & SF)^((EFLAGS & OF)>>4)))      /*jnl*/
+    case 0x8e: OP_JCC2((EFLAGS & (SF|ZF))^((EFLAGS & OF)>>4))    /*jle*/
+    case 0x8f: OP_JCC2(!((EFLAGS & (SF|ZF))^((EFLAGS & OF)>>4))) /*jg*/
+
+    case 0xa4: /* shld r/m, r, imm8 */
+      mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+      uc = *(unsigned char *)MEM_BASE32(cs + eip + inst_len + 2) & 31;
+      if (uc) {
+	unsigned op1 = x86->instr_read(mem);
+	unsigned op2 = *reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86);
+	und = instr_double_shift(op1, op2, uc, x86->operand_size, &EFLAGS);
+	x86->instr_write(mem, und);
+      }
+      eip += inst_len + 3; break;
+    case 0xa5: /* shld r/m, r, CL */
+      mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+      uc = CL & 31;
+      if (uc) {
+	unsigned op1 = x86->instr_read(mem);
+	unsigned op2 = *reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86);
+	und = instr_double_shift(op1, op2, uc, x86->operand_size, &EFLAGS);
+	x86->instr_write(mem, und);
+      }
+      eip += inst_len + 2; break;
+
+    case 0xb6:	/* movzx reg32,r/m8 */
+      uc = instr_read_byte(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len));
+      if (x86->operand_size == 2)
+	R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86)) = uc;
+      else
+	*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86) = uc;
+      eip += inst_len + 2; break;
+    case 0xb7:	/* movzx reg32,r/m16 */
+      uns = instr_read_word(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len));
+      if (x86->operand_size == 2)
+	R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86)) = uns;
+      else
+	*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86) = uns;
+      eip += inst_len + 2; break;
+    case 0xbe:	/* movsx reg32,r/m8 */
+      uc = instr_read_byte(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len));
+      if (x86->operand_size == 2)
+	R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86)) = (signed char)uc;
+      else
+	*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86) = (signed char)uc;
+      eip += inst_len + 2; break;
+    case 0xbf:	/* movsx reg32,r/m16 */
+      uns = instr_read_word(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len));
+      if (x86->operand_size == 2)
+	R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86)) = uns;
+      else
+	*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86) = (signed short)uns;
+      eip += inst_len + 2; break;
+    default:
+      return 0;
+    }
+    break;
+
   /* 0x17 pop ss is a bit dangerous and rarely used */
 
   case 0x1f:		/* pop ds */
@@ -2217,9 +2333,12 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
     switch (*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) {
     case 0x00: /* test mem word, imm */
-      if (x86->operand_size == 4) return 0;
-      instr_flags(instr_read_word(mem) & R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 2+inst_len)), 0x8000, &EFLAGS);
-      eip += inst_len + 4; break;
+      und = x86->instr_read(mem);
+      if (x86->operand_size == 4)
+	instr_flags(und & R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 2+inst_len)), 0x80000000, &EFLAGS);
+      else
+	instr_flags(und & R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 2+inst_len)), 0x8000, &EFLAGS);
+      eip += inst_len + x86->operand_size + 2; break;
     case 0x08: return 0;
     case 0x10: /*not word*/
       x86->instr_write(mem, ~x86->instr_read(mem));
@@ -2310,25 +2429,32 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     break;
 
   case 0xff:
-    if (x86->operand_size == 4) return 0;
     mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
-    uns = instr_read_word(mem);
+    und = x86->instr_read(mem);
     switch (*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) {
     case 0x00: /* inc */
       EFLAGS &= ~(OF|ZF|SF|PF|AF);
-      OPandFLAG0(unl, incw, uns, =r);
+      if (x86->operand_size == 2) {
+	OPandFLAG0(unl, incw, R_WORD(und), =r);
+      } else {
+	OPandFLAG0(unl, incl, und, =r);
+      }
       EFLAGS |= unl & (OF|ZF|SF|PF|AF);
-      instr_write_word(mem, uns);
+      x86->instr_write(mem, und);
       eip += inst_len + 2; break;
     case 0x08: /* dec */
       EFLAGS &= ~(OF|ZF|SF|PF|AF);
-      OPandFLAG0(unl, decw, uns, =r);
+      if (x86->operand_size == 2) {
+	OPandFLAG0(unl, decw, R_WORD(und), =r);
+      } else {
+	OPandFLAG0(unl, decl, und, =r);
+      }
       EFLAGS |= unl & (OF|ZF|SF|PF|AF);
-      instr_write_word(mem, uns);
+      x86->instr_write(mem, und);
       eip += inst_len + 2; break;
     case 0x10: /*call near*/
       push(eip + inst_len + 2, x86);
-      eip = uns;
+      eip = und;
       break;
 
     case 0x18: /*call far*/
@@ -2340,13 +2466,13 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         push(eip + inst_len + 2, x86);
         SREG(cs)  = x86->cs;
         x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
-        eip = uns;
+        eip = und;
         cs = x86->cs_base;
       }
       break;
 
     case 0x20: /*jmp near*/
-      eip = uns;
+      eip = und;
       break;
 
     case 0x28: /*jmp far*/
@@ -2356,13 +2482,13 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         x86->cs = instr_read_word(M(mem.m+2));
         SREG(cs)  = x86->cs;
         x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
-        eip = uns;
+        eip = und;
         cs = x86->cs_base;
       }
       break;
 
     case 0x30: /*push*/
-      push(uns, x86);
+      push(und, x86);
       eip += inst_len + 2; break;
     default:
       return 0;
@@ -2503,7 +2629,7 @@ int instr_emu(cpuctx_t *scp, int pmode, int cnt)
     if (!instr_sim(&x86, pmode)) {
       if (debug_level('v')) {
 #ifdef USE_MHPDBG
-        dosaddr_t cp = SEGOFF2LINEAR(x86.cs, x86.eip);
+        dosaddr_t cp = x86.cs_base + x86.eip;
         unsigned int ref;
         char frmtbuf[256];
         dis_8086(cp, frmtbuf, x86._32bit ? 3 : 0, &ref, x86.cs_base);
