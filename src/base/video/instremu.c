@@ -2308,25 +2308,32 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     break;
 
   case 0xff:
-    if (x86->operand_size == 4) return 0;
     mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
-    uns = instr_read_word(mem);
+    und = x86->instr_read(mem);
     switch (*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) {
     case 0x00: /* inc */
       EFLAGS &= ~(OF|ZF|SF|PF|AF);
-      OPandFLAG0(unl, incw, uns, =r);
+      if (x86->operand_size == 2) {
+	OPandFLAG0(unl, incw, R_WORD(und), =r);
+      } else {
+	OPandFLAG0(unl, incl, und, =r);
+      }
       EFLAGS |= unl & (OF|ZF|SF|PF|AF);
-      instr_write_word(mem, uns);
+      x86->instr_write(mem, und);
       eip += inst_len + 2; break;
     case 0x08: /* dec */
       EFLAGS &= ~(OF|ZF|SF|PF|AF);
-      OPandFLAG0(unl, decw, uns, =r);
+      if (x86->operand_size == 2) {
+	OPandFLAG0(unl, decw, R_WORD(und), =r);
+      } else {
+	OPandFLAG0(unl, decl, und, =r);
+      }
       EFLAGS |= unl & (OF|ZF|SF|PF|AF);
-      instr_write_word(mem, uns);
+      x86->instr_write(mem, und);
       eip += inst_len + 2; break;
     case 0x10: /*call near*/
       push(eip + inst_len + 2, x86);
-      eip = uns;
+      eip = und;
       break;
 
     case 0x18: /*call far*/
@@ -2338,13 +2345,13 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         push(eip + inst_len + 2, x86);
         SREG(cs)  = x86->cs;
         x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
-        eip = uns;
+        eip = und;
         cs = x86->cs_base;
       }
       break;
 
     case 0x20: /*jmp near*/
-      eip = uns;
+      eip = und;
       break;
 
     case 0x28: /*jmp far*/
@@ -2354,13 +2361,13 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         x86->cs = instr_read_word(M(mem.m+2));
         SREG(cs)  = x86->cs;
         x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
-        eip = uns;
+        eip = und;
         cs = x86->cs_base;
       }
       break;
 
     case 0x30: /*push*/
-      push(uns, x86);
+      push(und, x86);
       eip += inst_len + 2; break;
     default:
       return 0;
