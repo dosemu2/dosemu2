@@ -166,8 +166,8 @@ unsigned short dpmi_sel()
 {
   return DPMI_CLIENT.is_32 ? _dpmi_sel32 : _dpmi_sel16;
 }
-unsigned short dpmi_sel16() { return _dpmi_sel16; }
-unsigned short dpmi_sel32() { return _dpmi_sel32; }
+unsigned short dpmi_sel16(void) { return _dpmi_sel16; }
+unsigned short dpmi_sel32(void) { return _dpmi_sel32; }
 
 static int RSP_num = 0;
 static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];

@@ -598,7 +598,7 @@ static void SetWindowMotifOptions(Display *display, Window window)
  *
  * DANG_END_FUNCTION
  */
-int X_init()
+int X_init(void)
 {
   XGCValues gcv;
   XClassHint xch;
@@ -933,7 +933,7 @@ void X_close()
 /*
  * Collect some information about the X server.
  */
-void X_get_screen_info()
+void X_get_screen_info(void)
 {
   XImage *xi;
   const char *s;
@@ -1018,7 +1018,7 @@ void X_get_screen_info()
  *
  * DANG_END_FUNCTION
  */
-void X_shm_init()
+void X_shm_init(void)
 {
   int event_base, error_base, major_version, minor_version;
   Bool shared_pixmaps;
@@ -1053,7 +1053,7 @@ void X_shm_init()
  *
  * DANG_END_FUNCTION
  */
-void X_shm_done()
+void X_shm_done(void)
 {
   shm_ok = 0;
 }
@@ -1845,7 +1845,7 @@ static void *X_handle_events(void *arg)
  * allocation of a shared map fails for some reason, the code still tries
  * to get a private map (and will likely fail). -- sw
  */
-void graphics_cmap_init()
+void graphics_cmap_init(void)
 {
   /* Note: should really deallocate and reallocate our colours every time
    we switch graphic modes... --adm */
@@ -1894,7 +1894,7 @@ void graphics_cmap_init()
 /*
  * Create a private colormap. The colormap is *not* initialized.
  */
-int MakePrivateColormap()
+int MakePrivateColormap(void)
 {
   int i;
   unsigned long pixels[256];		/* ok, cmap_colors always <= 256 */
@@ -1915,7 +1915,7 @@ int MakePrivateColormap()
  * Create a shared colormap. The colormap's features are
  * described with a ColorSpaceDesc object (cf. graphics_cmap_init).
  */
-ColorSpaceDesc MakeSharedColormap()
+ColorSpaceDesc MakeSharedColormap(void)
 {
   ColorSpaceDesc csd;
   int i, j;
@@ -1992,7 +1992,7 @@ int try_cube(unsigned long *p, c_cube *c)
  * Create an image. Will use shared memory, if available.
  * The image is used in graphics modes only.
  */
-void create_ximage()
+void create_ximage(void)
 {
 #ifdef HAVE_MITSHM
   if(shm_ok) {
@@ -2064,7 +2064,7 @@ void create_ximage()
 /*
  * Destroy an image.
  */
-void destroy_ximage()
+void destroy_ximage(void)
 {
   if(ximage == NULL) return;
 
@@ -2333,7 +2333,7 @@ int X_set_videomode(struct vid_mode_params vmp)
 /*
  * Resize the X display to the appropriate size.
  */
-void X_resize_text_screen()
+void X_resize_text_screen(void)
 {
   if (!use_bitmap_font) {
     w_x_res = x_res = vga.text_width * font_width;
@@ -2441,7 +2441,7 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
   *new_height = nh;
 }
 
-void X_redraw_text_screen()
+void X_redraw_text_screen(void)
 {
   if(!is_mapped) return;
   redraw_text_screen();
@@ -2450,7 +2450,7 @@ void X_redraw_text_screen()
 /*
  * Load the mouse cursor shapes.
  */
-void load_cursor_shapes()
+void load_cursor_shapes(void)
 {
   Colormap cmap;
   XColor fg, bg;
@@ -2484,7 +2484,7 @@ void load_cursor_shapes()
 /*
  * Makes an invisible cursor (to be used when no cursor should be drawn).
  */
-Cursor create_invisible_cursor()
+Cursor create_invisible_cursor(void)
 {
   Pixmap mask;
   Cursor cursor;
@@ -2602,7 +2602,7 @@ void kdos_send_msg(char *buf)
   XSendEvent(display, parentwindow, False, 0, &e);
 }
 
-void kdos_close_msg()
+void kdos_close_msg(void)
 {
   char m[20] = { KDOS_CLOSE_MSG, };
   kdos_send_msg(m);

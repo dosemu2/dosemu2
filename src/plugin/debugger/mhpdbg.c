@@ -201,7 +201,7 @@ static void reopen_fdin(void)
     add_to_io_select(mhpdbg.fdin, mhp_input_async, NULL);
 }
 
-void mhp_input()
+void mhp_input(void)
 {
   if (mhpdbg.fdin == -1)
     return;

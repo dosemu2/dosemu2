@@ -1539,7 +1539,7 @@ mouse_version(void)
 }
 
 void
-mouse_disable_internaldriver()
+mouse_disable_internaldriver(void)
 {
   LWORD(eax) = 0x001F;
   SREG(es) = mouse.cs;
@@ -1552,7 +1552,7 @@ mouse_disable_internaldriver()
 }
 
 void
-mouse_enable_internaldriver()
+mouse_enable_internaldriver(void)
 {
   mouse.enabled = TRUE;
   mouse_client_show_cursor(mouse.cursor_on >= 0);

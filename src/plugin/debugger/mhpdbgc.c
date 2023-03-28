@@ -2531,7 +2531,7 @@ int mhp_bpchk(unsigned int a1)
     return bpchk(a1);
 }
 
-int mhp_getcsip_value()
+int mhp_getcsip_value(void)
 {
   dosaddr_t val;
   unsigned int seg, off, limit;

@@ -39,7 +39,7 @@ static int fluid_midi_event_length(unsigned char event);
  * @return New MIDI event structure or NULL when out of memory.
  */
 fluid_midi_event_t *
-new_fluid_midi_event ()
+new_fluid_midi_event (void)
 {
     fluid_midi_event_t* evt;
     evt = FLUID_NEW(fluid_midi_event_t);
@@ -303,7 +303,7 @@ fluid_midi_event_set_sysex(fluid_midi_event_t *evt, void *data, int size, int dy
  * new_fluid_midi_parser
  */
 fluid_midi_parser_t *
-new_fluid_midi_parser ()
+new_fluid_midi_parser (void)
 {
     fluid_midi_parser_t *parser;
     parser = FLUID_NEW(fluid_midi_parser_t);
