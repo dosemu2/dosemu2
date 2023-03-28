@@ -5,6 +5,7 @@
 #include "emu.h"
 #include "utilities.h"
 #include "memory.h"
+#include "kvm.h"
 #include "mapping.h"
 
 /* Notes:
