@@ -2215,9 +2215,12 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
     switch (*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) {
     case 0x00: /* test mem word, imm */
-      if (x86->operand_size == 4) return 0;
-      instr_flags(instr_read_word(mem) & R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 2+inst_len)), 0x8000, &EFLAGS);
-      eip += inst_len + 4; break;
+      und = x86->instr_read(mem);
+      if (x86->operand_size == 4)
+	instr_flags(und & R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 2+inst_len)), 0x80000000, &EFLAGS);
+      else
+	instr_flags(und & R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 2+inst_len)), 0x8000, &EFLAGS);
+      eip += inst_len + x86->operand_size + 2; break;
     case 0x08: return 0;
     case 0x10: /*not word*/
       x86->instr_write(mem, ~x86->instr_read(mem));
