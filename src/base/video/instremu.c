@@ -1034,16 +1034,14 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   unsigned eip = x86->eip;
   unsigned cs = x86->cs_base;
 
-#if DEBUG_INSTR >= 2
-  {
-    int refseg, rc;
-    unsigned char frmtbuf[256];
+  if (debug_level('v') >= 9) {
+    unsigned int refseg;
+    char frmtbuf[256];
     refseg = x86->cs;
     dump_x86_regs(x86);
-    rc = dis_8086(MEM_BASE32(cs+eip), frmtbuf, x86->_32bit, &refseg, MEM_BASE32(cs));
+    dis_8086(cs+eip, frmtbuf, x86->_32bit ? 3 : 0, &refseg, cs);
     instr_deb("vga_emu_fault: about to simulate %d: %s\n", count, frmtbuf);
   }
-#endif
 
   if (x86->prefixes) {
     prepare_x86(x86);
@@ -2503,7 +2501,7 @@ int instr_emu(cpuctx_t *scp, int pmode, int cnt)
     if (!instr_sim(&x86, pmode)) {
       if (debug_level('v')) {
 #ifdef USE_MHPDBG
-        dosaddr_t cp = SEGOFF2LINEAR(x86.cs, x86.eip);
+        dosaddr_t cp = x86.cs_base + x86.eip;
         unsigned int ref;
         char frmtbuf[256];
         dis_8086(cp, frmtbuf, x86._32bit ? 3 : 0, &ref, x86.cs_base);
