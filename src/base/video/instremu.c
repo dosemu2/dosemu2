@@ -294,6 +294,14 @@ int instr_len(unsigned char *p, int is_32)
     case 0xba:
       p += 4;
       return p - p0;
+    case 0xb6:
+    case 0xb7:
+    case 0xbe:
+    case 0xbf:
+      p++;
+      p += (u = arg_len(p, asp));
+      if(!u) p = p0;
+      return p - p0;
     default:
       /* not yet */
       error("unsupported instr_len %x %x\n", p[0], p[1]);
@@ -1409,6 +1417,35 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     case 0x8d: OP_JCC2(!((EFLAGS & SF)^((EFLAGS & OF)>>4)))      /*jnl*/
     case 0x8e: OP_JCC2((EFLAGS & (SF|ZF))^((EFLAGS & OF)>>4))    /*jle*/
     case 0x8f: OP_JCC2(!((EFLAGS & (SF|ZF))^((EFLAGS & OF)>>4))) /*jg*/
+
+    case 0xb6:	/* movzx reg32,r/m8 */
+      uc = instr_read_byte(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len));
+      if (x86->operand_size == 2)
+	R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86)) = uc;
+      else
+	*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86) = uc;
+      eip += inst_len + 2; break;
+    case 0xb7:	/* movzx reg32,r/m16 */
+      uns = instr_read_word(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len));
+      if (x86->operand_size == 2)
+	R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86)) = uns;
+      else
+	*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86) = uns;
+      eip += inst_len + 2; break;
+    case 0xbe:	/* movsx reg32,r/m8 */
+      uc = instr_read_byte(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len));
+      if (x86->operand_size == 2)
+	R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86)) = (signed char)uc;
+      else
+	*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86) = (signed char)uc;
+      eip += inst_len + 2; break;
+    case 0xbf:	/* movsx reg32,r/m16 */
+      uns = instr_read_word(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len));
+      if (x86->operand_size == 2)
+	R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86)) = uns;
+      else
+	*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86) = (signed short)uns;
+      eip += inst_len + 2; break;
     default:
       return 0;
     }
