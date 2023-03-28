@@ -291,9 +291,15 @@ int instr_len(unsigned char *p, int is_32)
     case 0x80 ... 0x8f:
       p += osp ? 5 : 3;
       return p - p0;
+    case 0xa4:
+      p++;
+      p += (u = arg_len(p, asp));
+      if(!u) p = p0;
+      return p + 1 - p0;
     case 0xba:
       p += 4;
       return p - p0;
+    case 0xa5:
     case 0xb6:
     case 0xb7:
     case 0xbe:
@@ -745,6 +751,30 @@ unsigned instr_shift(unsigned op, unsigned op1, unsigned op2, unsigned size, uns
     return result;
   }
   return 0;
+}
+
+static unsigned instr_double_shift(unsigned op1, unsigned op2, unsigned char shc,
+				   unsigned size, unsigned *eflags)
+{
+  unsigned result, carry;
+  unsigned width = size * 8;
+  unsigned mask = wordmask[size];
+  unsigned smask = (mask >> 1) + 1;
+  if (size == 2) {
+    result = (op1 << 16) | (op2 & 0xffff);
+    /* undocumented: works like rotate internally */
+    result = (result << shc) | (result >> (32-shc));
+    carry = result & CF;
+    result >>= 16;
+  } else {
+    uint64_t u64 = ((uint64_t)op1 << 32) | op2;
+    carry = (u64 >> (64-shc)) & CF;
+    result = (u64 << shc) >> 32;
+  }
+  instr_flags(result, smask, eflags);
+  *eflags &= ~(CF|OF);
+  *eflags |= ((((op1 >> (width-1)) ^ (op1 >> (width-2))) << 11) & OF) | carry;
+  return result;
 }
 
 static inline void push(unsigned val, x86_regs *x86)
@@ -1417,6 +1447,27 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     case 0x8d: OP_JCC2(!((EFLAGS & SF)^((EFLAGS & OF)>>4)))      /*jnl*/
     case 0x8e: OP_JCC2((EFLAGS & (SF|ZF))^((EFLAGS & OF)>>4))    /*jle*/
     case 0x8f: OP_JCC2(!((EFLAGS & (SF|ZF))^((EFLAGS & OF)>>4))) /*jg*/
+
+    case 0xa4: /* shld r/m, r, imm8 */
+      mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+      uc = *(unsigned char *)MEM_BASE32(cs + eip + inst_len + 2) & 31;
+      if (uc) {
+	unsigned op1 = x86->instr_read(mem);
+	unsigned op2 = *reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86);
+	und = instr_double_shift(op1, op2, uc, x86->operand_size, &EFLAGS);
+	x86->instr_write(mem, und);
+      }
+      eip += inst_len + 3; break;
+    case 0xa5: /* shld r/m, r, CL */
+      mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+      uc = CL & 31;
+      if (uc) {
+	unsigned op1 = x86->instr_read(mem);
+	unsigned op2 = *reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86);
+	und = instr_double_shift(op1, op2, uc, x86->operand_size, &EFLAGS);
+	x86->instr_write(mem, und);
+      }
+      eip += inst_len + 2; break;
 
     case 0xb6:	/* movzx reg32,r/m8 */
       uc = instr_read_byte(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len));
