@@ -162,7 +162,7 @@ static dpmi_pm_block_root host_pm_block_root;
 static uint8_t _ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 uint8_t *ldt_buffer = _ldt_buffer;
 static unsigned short _dpmi_sel16, _dpmi_sel32;
-unsigned short dpmi_sel()
+unsigned short dpmi_sel(void)
 {
   return DPMI_CLIENT.is_32 ? _dpmi_sel32 : _dpmi_sel16;
 }

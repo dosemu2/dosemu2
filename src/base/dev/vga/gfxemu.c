@@ -100,7 +100,7 @@ static unsigned char gfx_ival[16][2] = {
  * DANG_END_FUNCTION
  *
  */
-void GFX_init()
+void GFX_init(void)
 {
   unsigned i, j = 15;
 

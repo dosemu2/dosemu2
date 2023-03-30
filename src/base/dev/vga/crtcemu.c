@@ -89,7 +89,7 @@ static unsigned char crtc_ival[16][CRTC_MAX_INDEX + 1] = {
  * DANG_END_FUNCTION
  *
  */
-void CRTC_init()
+void CRTC_init(void)
 {
   unsigned i, j = 15;
 

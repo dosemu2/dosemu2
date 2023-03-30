@@ -1523,7 +1523,7 @@ static int vgaemu_unmap(unsigned page)
 /*
  * Put the vga memory mapping into a defined state.
  */
-void vgaemu_reset_mapping()
+void vgaemu_reset_mapping(void)
 {
   int i;
   int prot, page, startpage, endpage;

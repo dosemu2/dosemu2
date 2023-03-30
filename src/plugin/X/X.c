@@ -870,7 +870,7 @@ int X_init(void)
  *
  * DANG_END_FUNCTION
  */
-void X_close()
+void X_close(void)
 {
   X_printf("X: X_close\n");
 
