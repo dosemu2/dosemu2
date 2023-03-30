@@ -509,6 +509,8 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
    know that regular reads and writes are valid.
    Initialize with invalid entries */
 static dosaddr_t unprotected_page_cache[PAGE_SIZE] = {0xffffffff};
+/* software TLB to translate unprotected pages to UNIX addresses */
+static unsigned char *unprotected_page_unixaddr_tlb[PAGE_SIZE] = {};
 
 void invalidate_unprotected_page_cache(dosaddr_t addr, int len)
 {
@@ -518,7 +520,9 @@ void invalidate_unprotected_page_cache(dosaddr_t addr, int len)
     unprotected_page_cache[page & (PAGE_SIZE-1)] = 0xffffffff;
 }
 
-static inline int mem_likely_protected(dosaddr_t addr, int len)
+/* returns the host address if it's definitely unprotected,
+   otherwise NULL */
+static inline void *unprotected_dosaddr_to_unixaddr(dosaddr_t addr, int len)
 {
   /* hash = low 12 bits of page number, add len-1 to fail on boundaries.
      This gives no clashes if all addresses are under 16MB and >99.99% hit
@@ -528,12 +532,19 @@ static inline int mem_likely_protected(dosaddr_t addr, int len)
      this technique.
    */
   int hash = (addr >> PAGE_SHIFT) & (PAGE_SIZE-1);
-  return unprotected_page_cache[hash] != ((addr + len - 1) & PAGE_MASK);
+  if (unprotected_page_cache[hash] == ((addr + len - 1) & PAGE_MASK))
+    return &unprotected_page_unixaddr_tlb[hash][addr & (PAGE_SIZE-1)];
+  else
+    return NULL;
 }
 
-static inline void set_unprotected_page(dosaddr_t addr)
+/* marks the page as unprotected in the cache, and add the host address to
+   the TLB */
+static inline void set_unprotected_page(dosaddr_t addr, void *uaddr)
 {
-  unprotected_page_cache[(addr >> PAGE_SHIFT) & (PAGE_SIZE-1)] = addr & PAGE_MASK;
+  int hash = (addr >> PAGE_SHIFT) & (PAGE_SIZE-1);
+  unprotected_page_cache[hash] = addr & PAGE_MASK;
+  unprotected_page_unixaddr_tlb[hash] = (void *)((uintptr_t)uaddr & PAGE_MASK);
 }
 
 void default_sim_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
@@ -547,7 +558,7 @@ void default_sim_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len
   leavedos_main(1);
 }
 
-static void check_read_pagefault(dosaddr_t addr,
+static void check_read_pagefault(dosaddr_t addr, void *uaddr,
 				 sim_pagefault_handler_t handler)
 {
   if (addr >= LOWMEM_SIZE + HMASIZE) {
@@ -558,26 +569,29 @@ static void check_read_pagefault(dosaddr_t addr,
     if (!dpmi_write_access(addr))
       return;
   }
-  set_unprotected_page(addr);
+  set_unprotected_page(addr, uaddr);
 }
 
 uint8_t do_read_byte(dosaddr_t addr, sim_pagefault_handler_t handler)
 {
-  if (mem_likely_protected(addr, 1)) {
+  void *uaddr = unprotected_dosaddr_to_unixaddr(addr, 1);
+  if (!uaddr) {
     /* use vga_write_access instead of vga_read_access here to avoid adding
        read-only addresses to the cache */
     if (vga_write_access(addr))
       return vga_read(addr);
     if (config.mmio_tracing && mmio_check(addr))
       return mmio_trace_byte(addr, READ_BYTE(addr), MMIO_READ);
-    check_read_pagefault(addr, handler);
+    uaddr = dosaddr_to_unixaddr(addr);
+    check_read_pagefault(addr, uaddr, handler);
   }
-  return READ_BYTE(addr);
+  return UNIX_READ_BYTE(uaddr);
 }
 
 uint16_t do_read_word(dosaddr_t addr, sim_pagefault_handler_t handler)
 {
-  if (mem_likely_protected(addr, 2)) {
+  void *uaddr = unprotected_dosaddr_to_unixaddr(addr, 2);
+  if (!uaddr) {
     if (((addr+1) & (PAGE_SIZE-1)) == 0)
       /* split if spanning a page boundary */
       return do_read_byte(addr, handler) |
@@ -586,14 +600,16 @@ uint16_t do_read_word(dosaddr_t addr, sim_pagefault_handler_t handler)
       return vga_read_word(addr);
     if (config.mmio_tracing && mmio_check(addr))
       return mmio_trace_word(addr, READ_WORD(addr), MMIO_READ);
-    check_read_pagefault(addr, handler);
+    uaddr = dosaddr_to_unixaddr(addr);
+    check_read_pagefault(addr, uaddr, handler);
   }
-  return READ_WORD(addr);
+  return UNIX_READ_WORD(uaddr);
 }
 
 uint32_t do_read_dword(dosaddr_t addr, sim_pagefault_handler_t handler)
 {
-  if (mem_likely_protected(addr, 4)) {
+  void *uaddr = unprotected_dosaddr_to_unixaddr(addr, 4);
+  if (!uaddr) {
     if (((addr+3) & (PAGE_SIZE-1)) < 3)
       return do_read_word(addr, handler) |
 	((uint32_t)do_read_word(addr+2, handler) << 16);
@@ -601,9 +617,10 @@ uint32_t do_read_dword(dosaddr_t addr, sim_pagefault_handler_t handler)
       return vga_read_dword(addr);
     if (config.mmio_tracing && mmio_check(addr))
       return mmio_trace_dword(addr, READ_DWORD(addr), MMIO_READ);
-    check_read_pagefault(addr, handler);
+    uaddr = dosaddr_to_unixaddr(addr);
+    check_read_pagefault(addr, uaddr, handler);
   }
-  return READ_DWORD(addr);
+  return UNIX_READ_DWORD(uaddr);
 }
 
 uint64_t do_read_qword(dosaddr_t addr, sim_pagefault_handler_t handler)
@@ -612,20 +629,21 @@ uint64_t do_read_qword(dosaddr_t addr, sim_pagefault_handler_t handler)
     ((uint64_t)do_read_dword(addr+4, handler) << 32);
 }
 
-static int check_write_pagefault(dosaddr_t addr, uint32_t op, int len,
+static int check_write_pagefault(dosaddr_t addr, void *uaddr, uint32_t op, int len,
 				 sim_pagefault_handler_t handler)
 {
   if (addr >= LOWMEM_SIZE + HMASIZE && !dpmi_write_access(addr)) {
     handler(addr, 6 + dpmi_read_access(addr), op, len);
     return 1;
   }
-  set_unprotected_page(addr);
+  set_unprotected_page(addr, uaddr);
   return 0;
 }
 
 void do_write_byte(dosaddr_t addr, uint8_t byte, sim_pagefault_handler_t handler)
 {
-  if (mem_likely_protected(addr, 1)) {
+  void *uaddr = unprotected_dosaddr_to_unixaddr(addr, 1);
+  if (!uaddr) {
     if (vga_write_access(addr)) {
 
       vga_write(addr, byte);
@@ -634,15 +652,17 @@ void do_write_byte(dosaddr_t addr, uint8_t byte, sim_pagefault_handler_t handler
     if (config.mmio_tracing && mmio_check(addr))
       mmio_trace_byte(addr, byte, MMIO_WRITE);
     e_invalidate(addr, 1);
-    if (check_write_pagefault(addr, byte, 1, handler))
+    uaddr = dosaddr_to_unixaddr(addr);
+    if (check_write_pagefault(addr, uaddr, byte, 1, handler))
       return;
   }
-  WRITE_BYTE(addr, byte);
+  UNIX_WRITE_BYTE(uaddr, byte);
 }
 
 void do_write_word(dosaddr_t addr, uint16_t word, sim_pagefault_handler_t handler)
 {
-  if (mem_likely_protected(addr, 2)) {
+  void *uaddr = unprotected_dosaddr_to_unixaddr(addr, 2);
+  if (!uaddr) {
     if (((addr+1) & (PAGE_SIZE-1)) == 0) {
       do_write_byte(addr, word & 0xff, handler);
       do_write_byte(addr+1, word >> 8, handler);
@@ -655,15 +675,17 @@ void do_write_word(dosaddr_t addr, uint16_t word, sim_pagefault_handler_t handle
     if (config.mmio_tracing && mmio_check(addr))
       mmio_trace_word(addr, word, MMIO_WRITE);
     e_invalidate(addr, 2);
-    if (check_write_pagefault(addr, word, 2, handler))
+    uaddr = dosaddr_to_unixaddr(addr);
+    if (check_write_pagefault(addr, uaddr, word, 2, handler))
       return;
   }
-  WRITE_WORD(addr, word);
+  UNIX_WRITE_WORD(uaddr, word);
 }
 
 void do_write_dword(dosaddr_t addr, uint32_t dword, sim_pagefault_handler_t handler)
 {
-  if (mem_likely_protected(addr, 4)) {
+  void *uaddr = unprotected_dosaddr_to_unixaddr(addr, 4);
+  if (!uaddr) {
     if (((addr+3) & (PAGE_SIZE-1)) < 3) {
       do_write_word(addr, dword & 0xffff, handler);
       do_write_word(addr+2, dword >> 16, handler);
@@ -676,10 +698,11 @@ void do_write_dword(dosaddr_t addr, uint32_t dword, sim_pagefault_handler_t hand
     if (config.mmio_tracing && mmio_check(addr))
       mmio_trace_dword(addr, dword, MMIO_WRITE);
     e_invalidate(addr, 4);
-    if (check_write_pagefault(addr, dword, 4, handler))
+    uaddr = dosaddr_to_unixaddr(addr);
+    if (check_write_pagefault(addr, uaddr, dword, 4, handler))
       return;
   }
-  WRITE_DWORD(addr, dword);
+  UNIX_WRITE_DWORD(uaddr, dword);
 }
 
 void do_write_qword(dosaddr_t addr, uint64_t qword, sim_pagefault_handler_t handler)
