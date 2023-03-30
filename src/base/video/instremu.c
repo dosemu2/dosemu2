@@ -96,30 +96,43 @@
 	       *(signed int *)MEM_BASE32(cs + eip + 1) : \
 	       *(signed short *)MEM_BASE32(cs + eip + 1)) : 0); break;
 
-/* assembly macros to speed up x86 on x86 emulation: the cpu helps us in setting
-   the flags */
+static unsigned char parity[256] =
+   { PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF };
 
-#define OPandFLAG0(eflags, insn, op1, istype) __asm__ __volatile__("\n\
-	"#insn"	%0\n\
-	pushf; pop	%1\n \
-	" : #istype (op1), "=g" (eflags) : "0" (op1));
 
-#define OPandFLAG1(eflags, insn, op1, istype) __asm__ __volatile__("\n\
-	"#insn"	%0, %0\n\
-	pushf; pop	%1\n \
-	" : #istype (op1), "=g" (eflags) : "0" (op1));
+// see http://www.emulators.com/docs/LazyOverflowDetect_Final.pdf
+// same as used in codegen-sim.c:
+// CF = cout bit 31, OF^CF = cout bit 30, AF = cout bit 3
+static void FlagSync(int res, unsigned cout, unsigned *eflags)
+{
+	unsigned nf;
 
-#define OPandFLAG(eflags, insn, op1, op2, istype, type) __asm__ __volatile__("\n\
-	"#insn"	%3, %0\n\
-	pushf; pop	%1\n \
-	" : #istype (op1), "=g" (eflags) : "0" (op1), #type (op2));
+	nf = parity[res & 0xff];
+	nf |= (res == 0) << 6; // ZF
+	nf |= ((unsigned)res >> 24) & SF;
 
-#define OPandFLAGC(eflags, insn, op1, op2, istype, type) __asm__ __volatile__("\n\
-       shr     $1, %0\n\
-       "#insn" %4, %1\n\
-       pushf; pop     %0\n \
-       " : "=r" (eflags), #istype (op1)  : "0" (eflags), "1" (op1), #type (op2));
+	nf |= (cout << 1) & AF;
+	nf |= (cout >> 31) & CF;
+	// 80000000->0800 ^ 40000000->0800
+	nf |= ((cout >> 20) ^ (cout >> 19)) & OF;
 
+	*eflags = (*eflags & ~(OF|ZF|SF|PF|AF|CF)) | nf;
+}
 
 #if !defined True
 #define False 0
@@ -556,13 +569,11 @@ void instr_write_dword(struct rm rm, unsigned u)
    emulating x86 on x86. */
 void instr_flags(unsigned val, unsigned smask, unsigned *eflags)
 {
-  unsigned long flags;
-
-  *eflags &= ~(OF|ZF|SF|PF|CF);
+  unsigned cout = (*eflags & AF) ? 8 : 0;
+  FlagSync((int)val, cout, eflags);
+  *eflags &= ~SF;
   if (val & smask)
     *eflags |= SF;
-  OPandFLAG1(flags, orl, val, =r);
-  *eflags |= flags & (ZF|PF);
 }
 
 /* 6 logical and arithmetic "RISC" core functions
@@ -570,112 +581,160 @@ void instr_flags(unsigned val, unsigned smask, unsigned *eflags)
 */
 unsigned char instr_binary_byte(unsigned char op, unsigned char op1, unsigned char op2, unsigned *eflags)
 {
-  unsigned long flags;
+  unsigned char res = 0;
+  unsigned cout = (*eflags & AF) ? 8 : 0;
 
   switch (op&0x7){
   case 1: /* or */
-    OPandFLAG(flags, orb, op1, op2, =q, q);
-    *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
-    return op1;
+    res = op1 | op2;
+    break;
   case 4: /* and */
-    OPandFLAG(flags, andb, op1, op2, =q, q);
-    *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
-    return op1;
+    res = op1 & op2;
+    break;
   case 6: /* xor */
-    OPandFLAG(flags, xorb, op1, op2, =q, q);
-    *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
-    return op1;
+    res = op1 ^ op2;
+    break;
   case 0: /* add */
     *eflags &= ~CF; /* Fall through */
   case 2: /* adc */
-    flags = *eflags;
-    OPandFLAGC(flags, adcb, op1, op2, =q, q);
-    *eflags = (*eflags & ~(OF|ZF|SF|AF|PF|CF)) | (flags & (OF|ZF|AF|SF|PF|CF));
-    return op1;
+    res = op1 + op2 + (*eflags & CF);
+    cout = (op1 & op2) | ((op1 | op2) & ~res);
+    break;
   case 5: /* sub */
   case 7: /* cmp */
     *eflags &= ~CF; /* Fall through */
   case 3: /* sbb */
-    flags = *eflags;
-    OPandFLAGC(flags, sbbb, op1, op2, =q, q);
-    *eflags = (*eflags & ~(OF|ZF|SF|AF|PF|CF)) | (flags & (OF|ZF|AF|SF|PF|CF));
-    return op1;
+    res = op1 - op2 - (*eflags & CF);
+    cout = (~op1 & op2) | ((~op1 ^ op2) & res);
+    break;
   }
-  return 0;
+  cout = ((cout >> 6) << 30) | (cout & 8);
+  FlagSync((int32_t)(int8_t)res, cout, eflags);
+  return res;
 }
 
 unsigned instr_binary_word(unsigned op, unsigned op1, unsigned op2, unsigned *eflags)
 {
-  unsigned long flags;
   unsigned short opw1 = op1;
   unsigned short opw2 = op2;
+  unsigned short res = 0;
+  unsigned cout = (*eflags & AF) ? 8 : 0;
 
   switch (op&0x7){
   case 1: /* or */
-    OPandFLAG(flags, orw, opw1, opw2, =r, r);
-    *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
-    return opw1;
+    res = opw1 | opw2;
+    break;
   case 4: /* and */
-    OPandFLAG(flags, andw, opw1, opw2, =r, r);
-    *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
-    return opw1;
+    res = opw1 & opw2;
+    break;
   case 6: /* xor */
-    OPandFLAG(flags, xorw, opw1, opw2, =r, r);
-    *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
-    return opw1;
+    res = opw1 ^ opw2;
+    break;
   case 0: /* add */
     *eflags &= ~CF; /* Fall through */
   case 2: /* adc */
-    flags = *eflags;
-    OPandFLAGC(flags, adcw, opw1, opw2, =r, r);
-    *eflags = (*eflags & ~(OF|ZF|SF|AF|PF|CF)) | (flags & (OF|ZF|AF|SF|PF|CF));
-    return opw1;
+    res = opw1 + opw2 + (*eflags & CF);
+    cout = (opw1 & opw2) | ((opw1 | opw2) & ~res);
+    break;
   case 5: /* sub */
   case 7: /* cmp */
     *eflags &= ~CF; /* Fall through */
   case 3: /* sbb */
-    flags = *eflags;
-    OPandFLAGC(flags, sbbw, opw1, opw2, =r, r);
-    *eflags = (*eflags & ~(OF|ZF|SF|AF|PF|CF)) | (flags & (OF|ZF|AF|SF|PF|CF));
-    return opw1;
+    res = opw1 - opw2 - (*eflags & CF);
+    cout = (~opw1 & opw2) | ((~opw1 ^ opw2) & res);
+    break;
   }
-  return 0;
+  cout = ((cout >> 14) << 30) | (cout & 8);
+  FlagSync((int32_t)(int16_t)res, cout, eflags);
+  return res;
 }
 
 unsigned instr_binary_dword(unsigned op, unsigned op1, unsigned op2, unsigned *eflags)
 {
-  unsigned long flags;
+  unsigned res = 0;
+  unsigned cout = (*eflags & AF) ? 8 : 0;
 
   switch (op&0x7){
   case 1: /* or */
-    OPandFLAG(flags, orl, op1, op2, =r, r);
-    *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
-    return op1;
+    res = op1 | op2;
+    break;
   case 4: /* and */
-    OPandFLAG(flags, andl, op1, op2, =r, r);
-    *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
-    return op1;
+    res = op1 & op2;
+    break;
   case 6: /* xor */
-    OPandFLAG(flags, xorl, op1, op2, =r, r);
-    *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
-    return op1;
+    res = op1 ^ op2;
+    break;
   case 0: /* add */
     *eflags &= ~CF; /* Fall through */
   case 2: /* adc */
-    flags = *eflags;
-    OPandFLAGC(flags, adcl, op1, op2, =r, r);
-    *eflags = (*eflags & ~(OF|ZF|SF|AF|PF|CF)) | (flags & (OF|ZF|AF|SF|PF|CF));
-    return op1;
+    res = op1 + op2 + (*eflags & CF);
+    cout = (op1 & op2) | ((op1 | op2) & ~res);
+    break;
   case 5: /* sub */
   case 7: /* cmp */
     *eflags &= ~CF; /* Fall through */
   case 3: /* sbb */
-    flags = *eflags;
-    OPandFLAGC(flags, sbbl, op1, op2, =r, r);
-    *eflags = (*eflags & ~(OF|ZF|SF|AF|PF|CF)) | (flags & (OF|ZF|AF|SF|PF|CF));
-    return op1;
+    res = op1 - op2 - (*eflags & CF);
+    cout = (~op1 & op2) | ((~op1 ^ op2) & res);
+    break;
   }
-  return 0;
+  FlagSync((int32_t)res, cout, eflags);
+  return res;
+}
+
+static unsigned char instr_incdec_byte(unsigned char op, unsigned char op1, unsigned *eflags)
+{
+  unsigned char res = 0;
+  unsigned cout = (*eflags & AF) ? 8 : 0;
+  int cy = *eflags & CF;
+
+  if (op == 0) { // inc
+    res = op1 + 1;
+    cout = (op1 & 1) | ((op1 | 1) & ~res);
+  } else { // dec
+    res = op1 - 1;
+    cout = (~op1 & 1) | ((~op1 ^ 1) & res);
+  }
+  cout = ((cout >> 6) << 30) | (cout & 8);
+  FlagSync((int32_t)(int8_t)res, cout, eflags);
+  *eflags = (*eflags & ~CF) | cy;
+  return res;
+}
+
+static unsigned short instr_incdec_word(unsigned char op, unsigned short op1, unsigned *eflags)
+{
+  unsigned short res;
+  unsigned cout;
+  int cy = *eflags & CF;
+
+  if (op == 0) { // inc
+    res = op1 + 1;
+    cout = (op1 & 1) | ((op1 | 1) & ~res);
+  } else { // dec
+    res = op1 - 1;
+    cout = (~op1 & 1) | ((~op1 ^ 1) & res);
+  }
+  cout = ((cout >> 14) << 30) | (cout & 8);
+  FlagSync((int32_t)(int16_t)res, cout, eflags);
+  *eflags = (*eflags & ~CF) | cy;
+  return res;
+}
+
+static unsigned instr_incdec_dword(unsigned char op, unsigned op1, unsigned *eflags)
+{
+  unsigned res, cout;
+  int cy = *eflags & CF;
+
+  if (op == 0) { // inc
+    res = op1 + 1;
+    cout = (op1 & 1) | ((op1 | 1) & ~res);
+  } else { // dec
+    res = op1 - 1;
+    cout = (~op1 & 1) | ((~op1 ^ 1) & res);
+  }
+  FlagSync((int32_t)res, cout, eflags);
+  *eflags = (*eflags & ~CF) | cy;
+  return res;
 }
 
 unsigned instr_shift(unsigned op, unsigned op1, unsigned op2, unsigned size, unsigned *eflags)
@@ -1072,7 +1131,6 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   unsigned short uns;
   unsigned *dstreg;
   unsigned und, und2, repcount;
-  unsigned long unl;
   struct rm mem = {};
   int i, i2, inst_len = 0;
   int loop_inc = (EFLAGS&DF) ? -1 : 1;		// make it a char ?
@@ -1570,14 +1628,12 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x45:
   case 0x46:
   case 0x47: /* inc reg */
-    EFLAGS &= ~(OF|ZF|SF|PF|AF);
     dstreg = reg(*(unsigned char *)MEM_BASE32(cs + eip), x86);
     if (x86->operand_size == 2) {
-      OPandFLAG0(unl, incw, R_WORD(*dstreg), =r);
+      R_WORD(*dstreg) = instr_incdec_word(0, R_WORD(*dstreg), &EFLAGS);
     } else {
-      OPandFLAG0(unl, incl, *dstreg, =r);
+      *dstreg = instr_incdec_dword(0, *dstreg, &EFLAGS);
     }
-    EFLAGS |= unl & (OF|ZF|SF|PF|AF);
     eip++; break;
 
   case 0x48:
@@ -1588,14 +1644,12 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x4d:
   case 0x4e:
   case 0x4f: /* dec reg */
-    EFLAGS &= ~(OF|ZF|SF|PF|AF);
     dstreg = reg(*(unsigned char *)MEM_BASE32(cs + eip), x86);
     if (x86->operand_size == 2) {
-      OPandFLAG0(unl, decw, R_WORD(*dstreg), =r);
+      R_WORD(*dstreg) = instr_incdec_word(8, R_WORD(*dstreg), &EFLAGS);
     } else {
-      OPandFLAG0(unl, decl, *dstreg, =r);
+      *dstreg = instr_incdec_dword(8, *dstreg, &EFLAGS);
     }
-    EFLAGS |= unl & (OF|ZF|SF|PF|AF);
     eip++; break;
 
   case 0x50:
@@ -2412,15 +2466,11 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     uc = instr_read_byte(mem);
     switch (*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) {
     case 0x00:
-      EFLAGS &= ~(OF|ZF|SF|PF|AF);
-      OPandFLAG0(unl, incb, uc, =q);
-      EFLAGS |= unl & (OF|ZF|SF|PF|AF);
+      uc = instr_incdec_byte(0, uc, &EFLAGS);
       instr_write_byte(mem, uc);
       eip += inst_len + 2; break;
     case 0x08:
-      EFLAGS &= ~(OF|ZF|SF|PF|AF);
-      OPandFLAG0(unl, decb, uc, =q);
-      EFLAGS |= unl & (OF|ZF|SF|PF|AF);
+      uc = instr_incdec_byte(8, uc, &EFLAGS);
       instr_write_byte(mem, uc);
       eip += inst_len + 2; break;
     default:
@@ -2433,23 +2483,19 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     und = x86->instr_read(mem);
     switch (*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) {
     case 0x00: /* inc */
-      EFLAGS &= ~(OF|ZF|SF|PF|AF);
       if (x86->operand_size == 2) {
-	OPandFLAG0(unl, incw, R_WORD(und), =r);
+	R_WORD(und) = instr_incdec_word(0, R_WORD(und), &EFLAGS);
       } else {
-	OPandFLAG0(unl, incl, und, =r);
+	und = instr_incdec_dword(0, und, &EFLAGS);
       }
-      EFLAGS |= unl & (OF|ZF|SF|PF|AF);
       x86->instr_write(mem, und);
       eip += inst_len + 2; break;
     case 0x08: /* dec */
-      EFLAGS &= ~(OF|ZF|SF|PF|AF);
       if (x86->operand_size == 2) {
-	OPandFLAG0(unl, decw, R_WORD(und), =r);
+	R_WORD(und) = instr_incdec_word(8, R_WORD(und), &EFLAGS);
       } else {
-	OPandFLAG0(unl, decl, und, =r);
+	und = instr_incdec_dword(8, und, &EFLAGS);
       }
-      EFLAGS |= unl & (OF|ZF|SF|PF|AF);
       x86->instr_write(mem, und);
       eip += inst_len + 2; break;
     case 0x10: /*call near*/
