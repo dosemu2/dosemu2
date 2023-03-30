@@ -7,15 +7,7 @@ include ../plugins.mak
 
 
 #The C files, include files and dependancies here.
-CFILES = mhpdbg.c mhpdbgc.c dis8086.c dosdebug.c
-DEPENDS =  mhpdbg.d mhpdbgc.d dis8086.d dosdebug.d
-HFILES =
-
-# Insert all source- and header-files here.
-ALL = $(CFILES) $(HFILES) README.dosdebug README.recover Changelog
-
-# All object-files are included here.
-OBJS =  mhpdbg.o mhpdbgc.o dis8086.o
+CFILES = mhpdbg.c mhpdbgc.c
 
 all: lib $(BINPATH)/bin/dosdebug
 
