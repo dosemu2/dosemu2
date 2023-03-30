@@ -48,9 +48,13 @@ static int start_gdb(pid_t dosemu_pid)
   }
   free(buf);
 
+  gdb_command("set logging enabled off\n");
+  gdb_command("set logging file dosemu.gdb\n");
+  gdb_command("set logging overwrite on\n");
+  gdb_command("set logging enabled on\n");
+
   ret = asprintf(&buf, "attach %i\n", dosemu_pid);
   assert(ret != -1);
-
   gdb_command(buf);
   free(buf);
 

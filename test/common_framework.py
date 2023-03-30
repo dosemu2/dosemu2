@@ -431,6 +431,10 @@ class BaseTestCase(object):
         if config is not None:
             self.mkfile("dosemu.conf", config, dname=self.imagedir, mode="a")
 
+        # Note: Remove any stale dosemu.gdb
+        gdb = Path("dosemu.gdb")
+        gdb.unlink(missing_ok=True)
+
         child = pexpect.spawn(dbin, args)
         ret = ''
         with open(self.logfiles['xpt'][0], "wb") as fout:
@@ -465,6 +469,11 @@ class BaseTestCase(object):
         except PtyProcessError:
             pass
 
+        try:
+            gdb.rename(self.logfiles['gdb'][0])
+        except FileNotFoundError:
+            pass
+
         return ret
 
     def runDosemuCmdline(self, xargs, cwd=None, config=None, timeout=30):
@@ -480,6 +489,10 @@ class BaseTestCase(object):
         if config is not None:
             self.mkfile("dosemu.conf", config, dname=self.imagedir, mode="a")
 
+        # Note: Remove any stale dosemu.gdb
+        gdb = Path("dosemu.gdb")
+        gdb.unlink(missing_ok=True)
+
         self.logfiles['xpt'][1] = "output.log"
         try:
             ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT).decode('ASCII')
@@ -492,6 +505,11 @@ class BaseTestCase(object):
             ret = e.output.decode('ASCII')
             ret += '\nTimeout:%d seconds\n' % timeout
             self.logfiles['xpt'][0].write_text(ret)
+
+        try:
+            gdb.rename(self.logfiles['gdb'][0])
+        except FileNotFoundError:
+            pass
 
         return ret
 
@@ -511,6 +529,7 @@ class MyTestResult(unittest.TextTestResult):
         test.logfiles = {
             'log': [test.topdir / str(name + ".log"), "dosemu.log"],
             'xpt': [test.topdir / str(name + ".xpt"), "expect.log"],
+            'gdb': [test.topdir / str(name + ".gdb"), "dosemu.gdb"],
         }
         test.firstsub = True
         test.msg = None
