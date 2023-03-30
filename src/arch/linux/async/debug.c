@@ -155,7 +155,7 @@ static int do_gdb_debug(void)
   pid_t dosemu_pid = getpid();
   pid_t dbg_pid;
   int status;
-  sigset_t set, oset;
+  sigset_t oset;
 
   if (getuid() != geteuid())
     return 0;
@@ -163,10 +163,7 @@ static int do_gdb_debug(void)
 #ifdef __linux__
   prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY);
 #endif
-  sigemptyset(&set);
-  sigaddset(&set, SIGIO);
-  sigaddset(&set, SIGALRM);
-  sigprocmask(SIG_BLOCK, &set, &oset);
+  sigprocmask(SIG_BLOCK, &q_mask, &oset);
   switch ((dbg_pid = fork())) {
     case 0:
       signal_done();
