@@ -633,6 +633,7 @@ void do_write_byte(dosaddr_t addr, uint8_t byte, sim_pagefault_handler_t handler
     }
     if (config.mmio_tracing && mmio_check(addr))
       mmio_trace_byte(addr, byte, MMIO_WRITE);
+    e_invalidate(addr, 1);
     if (check_write_pagefault(addr, byte, 1, handler))
       return;
   }
@@ -653,6 +654,7 @@ void do_write_word(dosaddr_t addr, uint16_t word, sim_pagefault_handler_t handle
     }
     if (config.mmio_tracing && mmio_check(addr))
       mmio_trace_word(addr, word, MMIO_WRITE);
+    e_invalidate(addr, 2);
     if (check_write_pagefault(addr, word, 2, handler))
       return;
   }
@@ -673,6 +675,7 @@ void do_write_dword(dosaddr_t addr, uint32_t dword, sim_pagefault_handler_t hand
     }
     if (config.mmio_tracing && mmio_check(addr))
       mmio_trace_dword(addr, dword, MMIO_WRITE);
+    e_invalidate(addr, 4);
     if (check_write_pagefault(addr, dword, 4, handler))
       return;
   }
