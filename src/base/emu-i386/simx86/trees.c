@@ -1279,7 +1279,6 @@ static void do_invalidate(unsigned data, int cnt)
 	if (!CONFIG_CPUSIM)
 		InvalidateNodeRange(data, cnt, 0);
 #endif
-	invalidate_unprotected_page_cache(data, cnt);
 }
 
 void e_invalidate(unsigned data, int cnt)

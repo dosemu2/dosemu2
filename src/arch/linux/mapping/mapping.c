@@ -106,6 +106,7 @@ static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
   if (addr2 == (unsigned)-1)
     return;
   hwram_update_aliasmap(hw, addr2, mapsize, unixaddr);
+  invalidate_unprotected_page_cache(dosaddr, mapsize);
 }
 
 void *dosaddr_to_unixaddr(dosaddr_t addr)
@@ -477,6 +478,7 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 
   Q__printf("MAPPING: mprotect, cap=%s, targ=%x, size=%zx, protect=%x\n",
 	cap, targ, mapsize, protect);
+  invalidate_unprotected_page_cache(targ, mapsize);
   if (is_kvm_map(cap))
     mprotect_kvm(cap, targ, mapsize, protect);
   if (!(cap & MAPPING_LOWMEM)) {
@@ -1103,6 +1105,7 @@ int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
     return 0;
   assert(addr2 == MEM_BASE32(va));
   hwram_update_aliasmap(hw, addr, mapsize, source);
+  invalidate_unprotected_page_cache(va, mapsize);
   if (is_kvm_map(cap))
     mprotect_kvm(cap, va, mapsize, protect);
   return 1;
@@ -1117,5 +1120,6 @@ int unalias_mapping_pa(int cap, unsigned addr, size_t mapsize)
   assert(addr >= LOWMEM_SIZE + HMASIZE);
   restore_mapping(cap, va, mapsize);
   hwram_update_aliasmap(hw, addr, mapsize, NULL);
+  invalidate_unprotected_page_cache(va, mapsize);
   return 1;
 }
