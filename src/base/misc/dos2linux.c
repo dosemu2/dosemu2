@@ -645,6 +645,7 @@ void do_write_word(dosaddr_t addr, uint16_t word, sim_pagefault_handler_t handle
     if (((addr+1) & (PAGE_SIZE-1)) == 0) {
       do_write_byte(addr, word & 0xff, handler);
       do_write_byte(addr+1, word >> 8, handler);
+      return;
     }
     if (vga_write_access(addr)) {
       vga_write_word(addr, word);
@@ -664,6 +665,7 @@ void do_write_dword(dosaddr_t addr, uint32_t dword, sim_pagefault_handler_t hand
     if (((addr+3) & (PAGE_SIZE-1)) < 3) {
       do_write_word(addr, dword & 0xffff, handler);
       do_write_word(addr+2, dword >> 16, handler);
+      return;
     }
     if (vga_write_access(addr)) {
       vga_write_dword(addr, dword);
