@@ -86,6 +86,7 @@ static struct mappingdrivers *mappingdrv[] = {
 static struct mappingdrivers *mappingdriver;
 
 #define ALIAS_SIZE (LOWMEM_SIZE + HMASIZE)
+static unsigned char *lowmem_aliasmap[ALIAS_SIZE/PAGE_SIZE];
 struct hardware_ram;
 static dosaddr_t do_get_hardware_ram(unsigned addr, uint32_t size,
 	struct hardware_ram **r_hw);
@@ -111,11 +112,8 @@ static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
 
 void *dosaddr_to_unixaddr(dosaddr_t addr)
 {
-  if (addr < ALIAS_SIZE) {
-    void *ret = get_hardware_uaddr(addr);
-    if (ret != MAP_FAILED)
-      return ret;
-  }
+  if (addr < ALIAS_SIZE && lowmem_aliasmap[addr >> PAGE_SHIFT])
+    return lowmem_aliasmap[addr >> PAGE_SHIFT] + (addr & (PAGE_SIZE - 1));
   return MEM_BASE32(addr);
 }
 
@@ -855,7 +853,10 @@ static int do_register_hwram(int type, unsigned base, unsigned size,
   hw->vbase = va;
   hw->size = size;
   hw->type = type;
-  hw->aliasmap = alloc_aliasmap(uaddr, size);
+  if (base + size > ALIAS_SIZE)
+    hw->aliasmap = alloc_aliasmap(uaddr, size);
+  else
+    hw->aliasmap = &lowmem_aliasmap[base >> PAGE_SHIFT];
   hw->next = hardware_ram;
   hardware_ram = hw;
   if (!uaddr && (base >= LOWMEM_SIZE || type == 'h'))
@@ -900,7 +901,8 @@ int unregister_hardware_ram_virtual(dosaddr_t base)
         phw->next = hw->next;
       else
         hardware_ram = hw->next;
-      free(hw->aliasmap);
+      if (hw->base + hw->size > ALIAS_SIZE)
+	free(hw->aliasmap);
       free(hw);
       return 0;
     }
