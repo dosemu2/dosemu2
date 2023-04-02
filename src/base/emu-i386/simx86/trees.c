@@ -1289,7 +1289,7 @@ void e_invalidate(unsigned data, int cnt)
 	if (!e_querymprotrange(data, cnt))
 		return;
 	/* for low mappings only invalidate if code, not if data */
-	if (LINEAR2UNIX(data) != MEM_BASE32(data)) {
+	if (data < LOWMEM_SIZE + HMASIZE) {
 #ifdef HOST_ARCH_X86
 		if (!CONFIG_CPUSIM && e_querymark(data, cnt)) {
 			// no need to invalidate the whole page here,

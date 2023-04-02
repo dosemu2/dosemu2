@@ -112,7 +112,7 @@ static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
 
 void *dosaddr_to_unixaddr(dosaddr_t addr)
 {
-  if (addr < ALIAS_SIZE && lowmem_aliasmap[addr >> PAGE_SHIFT])
+  if (addr < ALIAS_SIZE)
     return lowmem_aliasmap[addr >> PAGE_SHIFT] + (addr & (PAGE_SIZE - 1));
   return MEM_BASE32(addr);
 }
@@ -865,6 +865,8 @@ static void hwram_update_aliasmap(struct hardware_ram *hw, unsigned addr,
   int off = addr - hw->base;
   assert(!(off & (PAGE_SIZE - 1))); // page-aligned
   assert(!(size & (PAGE_SIZE - 1))); // page-aligned
+  // lowmem needs permanent aliasing
+  assert(!(src == NULL && (hw->base + hw->size <= ALIAS_SIZE)));
   populate_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], src, size);
 }
 
