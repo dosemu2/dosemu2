@@ -53,7 +53,7 @@ void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 			e_printf("CODE %08x hit in DATA %p patch\n",addr,eip);
 	}
 	/* if only data in aliased low memory is hit, nothing to do */
-	if (LINEAR2UNIX(addr) != MEM_BASE32(addr)) {
+	if (addr < LOWMEM_SIZE + HMASIZE) {
 		if (e_querymark(addr, len))
 			// no need to invalidate the whole page here,
 			// as the page does not need to be unprotected

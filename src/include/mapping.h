@@ -118,8 +118,6 @@ void mapping_init(void);
 void mapping_close(void);
 
 void init_hardware_ram(void);
-int map_hardware_ram(char type);
-int unmap_hardware_ram(char type);
 int register_hardware_ram(int type, dosaddr_t base, unsigned size);
 void register_hardware_ram_virtual(int type, unsigned base, unsigned size,
 	dosaddr_t va);
