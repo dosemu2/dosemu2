@@ -123,7 +123,7 @@ static int AddMpMap(unsigned int addr, unsigned int aend, int onoff)
 }
 
 
-static inline int e_querymprot(unsigned int addr)
+int e_querymprot(dosaddr_t addr)
 {
 	register int a2 = addr >> PAGE_SHIFT;
 	tMpMap *M = FindM(addr);
