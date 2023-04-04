@@ -742,12 +742,13 @@ void CollectStat(void);
 //
 /////////////////////////////////////////////////////////////////////////////
 #ifdef HOST_ARCH_X86
+int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp);
+int e_handle_fault(sigcontext_t *scp);
 void init_emu_npu_x86(void);
 #endif
 void init_emu_npu(void);
 
 void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
 	       int dp, unsigned int access);
-int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault);
 
 #endif // _EMU86_EMU86_H

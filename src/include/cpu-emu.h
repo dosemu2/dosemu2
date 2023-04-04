@@ -105,14 +105,8 @@ void InvalidateSegs(void);
 
 #ifdef X86_JIT
 /* called from sigsegv.c */
-int e_emu_pagefault(sigcontext_t *scp, int pmode);
-int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp);
-int e_handle_fault(sigcontext_t *scp);
 int e_emu_fault(sigcontext_t *scp, int in_vm86);
 #else
-#define e_emu_pagefault(scp, pmode) 0
-#define e_handle_pagefault(addr, err, scp) 0
-#define e_handle_fault(scp) 0
 #define e_emu_fault(scp, in_vm86) 0
 #endif
 

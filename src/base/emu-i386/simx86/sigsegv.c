@@ -149,7 +149,7 @@ static int jitx86_instr_len(const unsigned char *rip)
   return 0;
 }
 
-int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
+static int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 {
   int i, j;
   unsigned vga_page = 0, u=0;
@@ -168,12 +168,8 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
   if (i == VGAEMU_MAX_MAPPINGS) {
     if ((unsigned)((page_fault << 12) - vga.mem.graph_base) <
 	vga.mem.graph_size) {	/* unmapped VGA area */
-#ifdef HOST_ARCH_X86
-      if (!CONFIG_CPUSIM) {
-	u = jitx86_instr_len((unsigned char *)_scp_rip);
-	_scp_rip += u;
-      }
-#endif
+      u = jitx86_instr_len((unsigned char *)_scp_rip);
+      _scp_rip += u;
       if (u==0) {
         e_printf("eVGAEmuFault: unknown instruction, page at 0x%05x now writable\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
@@ -182,12 +178,8 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
       return 1;
     }
     else if (memcheck_is_rom(page_fault << PAGE_SHIFT)) {	/* ROM area */
-#ifdef HOST_ARCH_X86
-      if (!CONFIG_CPUSIM) {
-	u = jitx86_instr_len((unsigned char *)_scp_rip);
-	_scp_rip += u;
-      }
-#endif
+      u = jitx86_instr_len((unsigned char *)_scp_rip);
+      _scp_rip += u;
       if (u==0 || (_scp_err&2)==0) {
         e_printf("eVGAEmuFault: unknown instruction, converting ROM to RAM at 0x%05x\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
@@ -229,7 +221,7 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 #define GetSegmentBaseAddress(s)	GetSegmentBase(s)
 
 /* this function is called from dosemu_fault */
-int e_emu_pagefault(sigcontext_t *scp, int pmode)
+static int e_emu_pagefault(sigcontext_t *scp, int pmode)
 {
     if (InCompiledCode) {
 	dosaddr_t cr2 = DOSADDR_REL(LINP(_scp_cr2));
@@ -274,14 +266,12 @@ int e_emu_fault(sigcontext_t *scp, int in_vm86)
       if ((in_vm86 || EMU_DPMI()) && e_emu_pagefault(scp, !in_vm86))
         return 1;
       /* case 5, any jit, bug */
-      if (!CONFIG_CPUSIM &&
-	  e_handle_pagefault(DOSADDR_REL(LINP(_scp_cr2)), _scp_err, scp)) {
+      if (e_handle_pagefault(DOSADDR_REL(LINP(_scp_cr2)), _scp_err, scp)) {
         dosemu_error("touched jit-protected page%s\n",
                      in_vm86 ? " in vm86-emu" : "");
         return 1;
       }
-    } else if ((in_vm86 || EMU_DPMI()) &&
-               !CONFIG_CPUSIM && e_handle_fault(scp)) {
+    } else if ((in_vm86 || EMU_DPMI()) && e_handle_fault(scp)) {
       /* compiled code can cause fault (usually DE, Divide Exception) */
       return 1;
     }

@@ -320,7 +320,7 @@ static void dosemu_fault1(int signum, sigcontext_t *scp, const siginfo_t *si)
 
 #ifdef X86_EMULATOR
   /* case 3 */
-  if (IS_EMU() && e_emu_fault(scp, in_vm86))
+  if (IS_EMU_JIT() && e_emu_fault(scp, in_vm86))
     return;
 #endif
 
