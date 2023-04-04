@@ -125,4 +125,7 @@ void e_gen_sigalrm(void);
 #define e_in_compiled_code() 0
 #endif
 
+/* called from dos2linux.c */
+int e_querymprot(dosaddr_t addr);
+
 #endif	/*DOSEMU_CPUEMU_H*/

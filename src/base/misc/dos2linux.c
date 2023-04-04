@@ -569,7 +569,8 @@ static void check_read_pagefault(dosaddr_t addr, void *uaddr,
     if (!dpmi_write_access(addr))
       return;
   }
-  set_unprotected_page(addr, uaddr);
+  if (!e_querymprot(addr) && !memcheck_is_rom(addr))
+    set_unprotected_page(addr, uaddr);
 }
 
 uint8_t do_read_byte(dosaddr_t addr, sim_pagefault_handler_t handler)
@@ -636,7 +637,8 @@ static int check_write_pagefault(dosaddr_t addr, void *uaddr, uint32_t op, int l
     handler(addr, 6 + dpmi_read_access(addr), op, len);
     return 1;
   }
-  set_unprotected_page(addr, uaddr);
+  if (!e_querymprot(addr) && !memcheck_is_rom(addr))
+    set_unprotected_page(addr, uaddr);
   return 0;
 }
 
