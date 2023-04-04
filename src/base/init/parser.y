@@ -483,7 +483,7 @@ line:		CHARSET '{' charset_flags '}' {}
 #ifdef X86_EMULATOR
 			config.cpusim = $2;
 			c_printf("CONF: CPUEMU set to %s\n",
-				CONFIG_CPUSIM ? "sim" : "jit");
+				config.cpusim ? "sim" : "jit");
 #endif
 			}
 		| CPUSPEED real_expression

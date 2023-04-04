@@ -268,7 +268,11 @@ static __inline__ void POP_ONLY(int m)
 }
 
 void InitGen(void);
+#ifdef X86_JIT
 int  NewIMeta(int npc, int *rc);
+#else
+static inline int NewIMeta(int npc, int *rc) {return 0;}
+#endif
 extern void (*Gen)(int op, int mode, ...);
 extern void (*AddrGen)(int op, int mode, ...);
 extern int  (*Fp87_op)(int exop, int reg);

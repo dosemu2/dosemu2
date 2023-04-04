@@ -61,7 +61,7 @@
 #ifdef __x86_64__
 /* FIXME: JIT should support 64bit mem_base */
 #define _MAP_32BIT ((config.cpu_vm_dpmi == CPUVM_NATIVE || \
-    (IS_EMU() && !CONFIG_CPUSIM)) ? MAP_32BIT : 0)
+    IS_EMU_JIT()) ? MAP_32BIT : 0)
 #else
 #define _MAP_32BIT 0
 #endif

@@ -338,7 +338,7 @@ static void minfault(int sig, siginfo_t *si, void *uc)
   }
 #endif
 #ifdef X86_EMULATOR
-  if (IS_EMU() && e_emu_fault(scp, in_vm86))
+  if (IS_EMU_JIT() && e_emu_fault(scp, in_vm86))
     return;
 #endif
 #endif

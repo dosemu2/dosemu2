@@ -45,9 +45,9 @@ extern void e_priv_iopl(int);
 
 #ifdef X86_JIT
 #define HOST_ARCH_X86
-#define CONFIG_CPUSIM config.cpusim
+#define IS_EMU_JIT() (IS_EMU() && !config.cpusim)
 #else
-#define CONFIG_CPUSIM 1
+#define IS_EMU_JIT() (0)
 #endif
 
 /* ----------------------------------------------------------------------- */
@@ -105,14 +105,8 @@ void InvalidateSegs(void);
 
 #ifdef X86_JIT
 /* called from sigsegv.c */
-int e_emu_pagefault(sigcontext_t *scp, int pmode);
-int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp);
-int e_handle_fault(sigcontext_t *scp);
 int e_emu_fault(sigcontext_t *scp, int in_vm86);
 #else
-#define e_emu_pagefault(scp, pmode) 0
-#define e_handle_pagefault(addr, err, scp) 0
-#define e_handle_fault(scp) 0
 #define e_emu_fault(scp, in_vm86) 0
 #endif
 

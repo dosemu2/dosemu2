@@ -531,7 +531,7 @@ void avltr_delete (const int key)
 static void avltr_init(void)
 {
 #ifdef HOST_ARCH_X86
- if (!CONFIG_CPUSIM) {
+ if (!config.cpusim) {
   int i;
   TNode *G;
 
@@ -1276,8 +1276,9 @@ static void do_invalidate(unsigned data, int cnt)
 	cnt = PAGE_ALIGN(data+cnt-1) - (data & PAGE_MASK);
 	data &= PAGE_MASK;
 #ifdef HOST_ARCH_X86
-	if (!CONFIG_CPUSIM)
-		InvalidateNodeRange(data, cnt, 0);
+	/* e_querymprotrange prevents coming here for sim */
+	assert (!config.cpusim);
+	InvalidateNodeRange(data, cnt, 0);
 #endif
 }
 
@@ -1291,7 +1292,9 @@ void e_invalidate(unsigned data, int cnt)
 	/* for low mappings only invalidate if code, not if data */
 	if (data < LOWMEM_SIZE + HMASIZE) {
 #ifdef HOST_ARCH_X86
-		if (!CONFIG_CPUSIM && e_querymark(data, cnt)) {
+		/* e_querymprotrange prevents coming here for sim */
+		assert (!config.cpusim);
+		if (e_querymark(data, cnt)) {
 			// no need to invalidate the whole page here,
 			// as the page does not need to be unprotected
 			InvalidateNodeRange(data, cnt, 0);
@@ -1363,15 +1366,11 @@ static void CleanIMeta(void)
 #endif
 }
 
-#endif	// HOST_ARCH_X86
-
 /////////////////////////////////////////////////////////////////////////////
 
 
 int NewIMeta(int npc, int *rc)
 {
-#ifdef HOST_ARCH_X86
-    if (!CONFIG_CPUSIM) {
 #ifdef PROFILE
 	hitimer_t t0 = 0;
 
@@ -1425,19 +1424,9 @@ quit:
 	if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
 	return -1;
-    }
-#endif // HOST_ARCH_X86
-	if (CurrIMeta==0) {		// no open code sequences
-		if (debug_level('e')>2) e_printf("============ Opening sequence at %08x\n",npc);
-	}
-	if (CurrIMeta >= MAXINODES) {
-		*rc = -1;
-		return -1;
-	}
-	CurrIMeta++; InstrMeta[CurrIMeta].ngen=0; InstrMeta[CurrIMeta].flags=0;
-	return CurrIMeta;
 }
 
+#endif	// HOST_ARCH_X86
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -1513,14 +1502,14 @@ void InitTrees(void)
 {
 	g_printf("InitTrees\n");
 #ifdef HOST_ARCH_X86
-	if (!CONFIG_CPUSIM)
+	if (!config.cpusim)
 	    TNodePool = calloc(NODES_IN_POOL, sizeof(TNode));
 #endif
 
 	avltr_init();
 
 #ifdef HOST_ARCH_X86
-	if (!CONFIG_CPUSIM && debug_level('e')>1) {
+	if (!config.cpusim && debug_level('e')>1) {
 	    e_printf("Root tree node at %p\n",&CollectTree.root);
 	    e_printf("TNode pool at %p\n",TNodePool);
 	}
@@ -1546,12 +1535,12 @@ void EndGen(void)
 	int csm = config.CPUSpeedInMhz*1000;
 #endif
 #ifdef HOST_ARCH_X86
-	if (!CONFIG_CPUSIM)
+	if (!config.cpusim)
 	    CleanIMeta();
 #endif
 	CurrIMeta = -1;
 #ifdef HOST_ARCH_X86
-	if (!CONFIG_CPUSIM) {
+	if (!config.cpusim) {
 	    avltr_destroy();
 	    free(TNodePool); TNodePool=NULL;
 	}

@@ -267,7 +267,7 @@ static void dosemu_fault1(int signum, sigcontext_t *scp, const siginfo_t *si)
   if (_scp_trapno == 0x0e && _scp_cr2 > 0xffffffff)
   {
 #ifdef X86_EMULATOR
-    if (IS_EMU() && !CONFIG_CPUSIM && e_in_compiled_code()) {
+    if (IS_EMU_JIT() && e_in_compiled_code()) {
       int i;
       /* dosemu_error() will SIGSEGV in backtrace(). */
       error("JIT fault accessing invalid address 0x%08"PRI_RG", "
@@ -320,7 +320,7 @@ static void dosemu_fault1(int signum, sigcontext_t *scp, const siginfo_t *si)
 
 #ifdef X86_EMULATOR
   /* case 3 */
-  if (IS_EMU() && e_emu_fault(scp, in_vm86))
+  if (IS_EMU_JIT() && e_emu_fault(scp, in_vm86))
     return;
 #endif
 
