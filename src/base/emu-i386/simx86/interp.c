@@ -374,7 +374,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	_P1; \
 })
 
-
 /////////////////////////////////////////////////////////////////////////////
 
 #if !defined(SINGLESTEP)&&defined(HOST_ARCH_X86)
@@ -3353,6 +3352,7 @@ repag0:
 		}
 		if (TheCPU.err < 0)
 			return P0;
+#ifdef HOST_ARCH_X86
 		if (NewNode) {
 			int rc=0;
 			if (!CONFIG_CPUSIM && !(TheCPU.mode&SKIPOP)) {
@@ -3366,6 +3366,7 @@ repag0:
 				}
 			}
 		}
+#endif
 
 		/* check segment boundaries. TODO for prot mode */
 		if (REALADDR() && (PC - LONG_CS > 0xffff)) {
