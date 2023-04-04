@@ -825,7 +825,7 @@ void enter_cpu_emu(void)
 
 	/* The simulator uses dosaddr_t throughout, the JIT adds mem_base
 	   to the segment bases */
-	TheCPU.mem_base = CONFIG_CPUSIM ? 0 : (uintptr_t)mem_base;
+	TheCPU.mem_base = (uintptr_t)mem_base;
 
 	if (debug_level('e')) {
 		TotalTime = 0;
