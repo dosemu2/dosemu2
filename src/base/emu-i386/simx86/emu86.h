@@ -50,6 +50,12 @@ extern hitimer_t AddTime, SearchTime, ExecTime, CleanupTime;
 extern hitimer_t GenTime, LinkTime;
 #endif
 
+#ifdef X86_JIT
+#define CONFIG_CPUSIM config.cpusim
+#else
+#define CONFIG_CPUSIM 1
+#endif
+
 /* octal digits in a byte: hhmm.mlll */
 #define D_HO(b)	(((b)>>6)&3)
 #define D_MO(b)	(((b)>>3)&7)

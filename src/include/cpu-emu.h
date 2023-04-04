@@ -45,9 +45,9 @@ extern void e_priv_iopl(int);
 
 #ifdef X86_JIT
 #define HOST_ARCH_X86
-#define CONFIG_CPUSIM config.cpusim
+#define IS_EMU_JIT() (IS_EMU() && !config.cpusim)
 #else
-#define CONFIG_CPUSIM 1
+#define IS_EMU_JIT() (0)
 #endif
 
 /* ----------------------------------------------------------------------- */

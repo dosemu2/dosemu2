@@ -242,7 +242,7 @@ void siginfo_debug(const siginfo_t *si)
 
 #ifdef X86_EMULATOR
     /* gdb_debug() will crash in jit code doing backtrace() */
-    if (!(IS_EMU() && !CONFIG_CPUSIM && e_in_compiled_code()))
+    if (!IS_EMU_JIT() && e_in_compiled_code())
 #endif
     gdb_debug();
 }

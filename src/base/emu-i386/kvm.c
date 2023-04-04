@@ -594,7 +594,7 @@ void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t
   do_munmap_kvm(phys_addr, mapsize);
   mmap_kvm_no_overlap(phys_addr, addr, mapsize, 0);
   /* monitor dirty pages on regular low ram for JIT */
-  if ((cap & MAPPING_LOWMEM) && IS_EMU() && !CONFIG_CPUSIM)
+  if ((cap & MAPPING_LOWMEM) && IS_EMU_JIT())
     kvm_set_dirty_log(phys_addr, mapsize);
   for (page = start; page < end; page++, phys_addr += pagesize) {
     int pde_entry = page >> 10;
@@ -865,7 +865,7 @@ void kvm_leave(int pm)
   memcpy(&vm86_fpu_state, fpu.region, sizeof(vm86_fpu_state));
 
   /* collect and invalidate all touched low dirty pages with JIT code */
-  if (IS_EMU() && !CONFIG_CPUSIM) {
+  if (IS_EMU_JIT()) {
     int slot;
     struct kvm_userspace_memory_region *p = &maps[0];
     for (slot = 0; slot < MAXSLOT; slot++, p++)
