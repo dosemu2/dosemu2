@@ -253,22 +253,10 @@ static void cleanup_child(void *arg)
 
 static void sigbreak(void *uc)
 {
-  if (!in_vm86) {
-    switch (config.cpu_vm_dpmi) {
-      case CPUVM_NATIVE:
-	signative_sigbreak(uc);
-        break;
-      case CPUVM_EMU:
-        /* compiled code can't check signal_pending() so we hint it */
-        e_gen_sigalrm();
-        break;
-      case CPUVM_KVM:
-        /* nothing, kvm.c checks signal_pending() */
-        break;
-    }
-  } else if (config.cpu_vm == CPUVM_EMU) {
-    e_gen_sigalrm();
-  }
+  /* let CPUEMU decide what to do, as it can kick in for any backend */
+  e_gen_sigalrm();
+  if (!in_vm86 && config.cpu_vm_dpmi == CPUVM_NATIVE)
+    signative_sigbreak(uc);
 }
 
 /* this cleaning up is necessary to avoid the port server becoming

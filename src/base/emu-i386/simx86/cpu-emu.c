@@ -810,7 +810,7 @@ void init_emu_cpu(void)
  */
 void e_gen_sigalrm(void)
 {
-	if(!IS_EMU())
+	if (!in_dpmi_emu && !in_vm86_emu)
 	    return;
 
 	/* here we come from the kernel with cs==UCODESEL, as
