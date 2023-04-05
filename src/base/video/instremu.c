@@ -2302,8 +2302,8 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
   case 0xec: /* in al, dx */
     /* Note that we short circuit if we can */
-    if ((uc=VGA_emulate_inb(DX))!=0xff) {
-      AL = uc;
+    if ((i=VGA_emulate_inb(DX))!=-1) {
+      AL = i;
       eip++; break;
     }
     else
@@ -2312,7 +2312,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
   case 0xee: /* out dx, al */
     /* Note that we short circuit if we can */
-    if (VGA_emulate_outb(DX, AL) && vga.inst_emu)
+    if (VGA_emulate_outb(DX, AL)!=-1 && vga.inst_emu)
       eip++;
     else
       return 0;
@@ -2320,8 +2320,8 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
   case 0xef: /* out dx, ax */
     if ((x86->operand_size == 2) &&
-        VGA_emulate_outb(DX, AL) &&
-	      VGA_emulate_outb(DX + 1, AH) &&
+        VGA_emulate_outb(DX, AL)!=-1 &&
+	      VGA_emulate_outb(DX + 1, AH)!=-1 &&
         vga.inst_emu)
       eip++;
     else

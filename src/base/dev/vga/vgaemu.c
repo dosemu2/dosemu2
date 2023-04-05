@@ -431,21 +431,26 @@ int VGA_emulate_outb(ioport_t port, Bit8u value)
         "VGA_emulate_outb: write access not emulated (port[0x%03x] = 0x%02x)\n",
         (unsigned) port, (unsigned) value
       );
-      return 0;
+      return -1;
   }
-  return 1;
+  return 0;
 #if DEBUG_MAP >= 3
   print_prot_map();
 #endif
 }
 
 
-int VGA_emulate_outw(ioport_t port, Bit16u value)
+static void VGA_emulate_outb_handler(ioport_t port, Bit8u value)
 {
-    if (VGA_emulate_outb(port,value)==0) return 0;
-    return VGA_emulate_outb(port+1,value>>8);
+    int ret = VGA_emulate_outb(port, value);
+    assert(ret!=-1);
 }
 
+static void VGA_emulate_outw_handler(ioport_t port, Bit16u value)
+{
+    VGA_emulate_outb_handler(port,value);
+    VGA_emulate_outb_handler(port+1,value>>8);
+}
 
 /*
  * DANG_BEGIN_FUNCTION VGA_emulate_inb
@@ -461,7 +466,7 @@ int VGA_emulate_outw(ioport_t port, Bit16u value)
  *
  */
 
-Bit8u VGA_emulate_inb(ioport_t port)
+int VGA_emulate_inb(ioport_t port)
 {
   Bit8u uc = 0xff;
 
@@ -551,7 +556,7 @@ Bit8u VGA_emulate_inb(ioport_t port)
         "VGA_emulate_inb: read access not emulated (port[0x%03x] = 0x%02x)\n",
         (unsigned) port, (unsigned) uc
       );
-      break;
+      return -1;
   }
 
   vga_deb2_io("VGA_emulate_inb: port[0x%03x] = 0x%02x\n", (unsigned) port, (unsigned) uc);
@@ -559,10 +564,17 @@ Bit8u VGA_emulate_inb(ioport_t port)
   return uc;
 }
 
-Bit16u VGA_emulate_inw(ioport_t port)
+static Bit8u VGA_emulate_inb_handler(ioport_t port)
 {
-    Bit16u v = VGA_emulate_inb(port);
-    return v | (VGA_emulate_inb(port+1)<<8);
+    int ret = VGA_emulate_inb(port);
+    assert(ret != -1);
+    return ret;
+}
+
+static Bit16u VGA_emulate_inw_handler(ioport_t port)
+{
+    Bit16u v = VGA_emulate_inb_handler(port);
+    return v | (VGA_emulate_inb_handler(port+1)<<8);
 }
 
 
@@ -1560,10 +1572,10 @@ static void vgaemu_register_ports(void)
   emu_iodev_t io_device;
 
   /* register VGA ports */
-  io_device.read_portb = VGA_emulate_inb;
-  io_device.write_portb = (void (*)(ioport_t, Bit8u)) VGA_emulate_outb;
-  io_device.read_portw = VGA_emulate_inw;
-  io_device.write_portw = (void (*)(ioport_t, Bit16u)) VGA_emulate_outw;
+  io_device.read_portb = VGA_emulate_inb_handler;
+  io_device.write_portb = VGA_emulate_outb_handler;
+  io_device.read_portw = VGA_emulate_inw_handler;
+  io_device.write_portw = VGA_emulate_outw_handler;
   io_device.read_portd = NULL;
   io_device.write_portd = NULL;
 
