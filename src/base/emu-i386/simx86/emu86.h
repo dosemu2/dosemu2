@@ -51,7 +51,7 @@ extern hitimer_t GenTime, LinkTime;
 #endif
 
 #ifdef X86_JIT
-#define CONFIG_CPUSIM config.cpusim
+#define CONFIG_CPUSIM (config.cpusim || (CEmuStat & CeS_INSTREMU))
 #else
 #define CONFIG_CPUSIM 1
 #endif

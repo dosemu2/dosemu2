@@ -172,7 +172,6 @@ void InitGen_x86(void)
 	AddrGen = AddrGen_x86;
 	CloseAndExec = CloseAndExec_x86;
 	UseLinker = USE_LINKER;
-	InitTrees();
 }
 
 

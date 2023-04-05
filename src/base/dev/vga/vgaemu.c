@@ -200,6 +200,8 @@
 #define VGA_EMU_RO_PROT		(PROT_READ | PROT_EXEC)
 #define VGA_EMU_NONE_PROT	0
 
+#define VGA_EMU_INST_EMU_COUNT 150
+
 #define vga_msg(x...) v_printf("VGAEmu: " x)
 
 #if DEBUG_IO >= 1
@@ -610,6 +612,7 @@ static Bit32u color2pixels[16] = {0,0xff,0xff00,0xffff,0xff0000,0xff00ff,0xffff0
 
 static unsigned char Logical_VGA_read(unsigned offset)
 {
+  instr_emu_sim_reset_count(VGA_EMU_INST_EMU_COUNT);
 
   switch (ReadMode) {
     case 0: /* read mode 0 */
@@ -730,6 +733,8 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
   unsigned vga_page;
   unsigned char *p;
   Bit32u new_val;
+
+  instr_emu_sim_reset_count(VGA_EMU_INST_EMU_COUNT);
 
   new_val = Logical_VGA_CalcNewVal(value);
 
@@ -1158,7 +1163,7 @@ int vga_emu_fault(dosaddr_t lin_addr, unsigned err, cpuctx_t *scp)
        * while we are using X.  Leave the display page read/write-protected
        * so that each instruction that accesses it can be trapped and
        * simulated. */
-      ret = instr_emu(scp, pmode, 0);
+      ret = instr_emu_sim(scp, pmode, VGA_EMU_INST_EMU_COUNT);
       if (!ret) {
         if (pmode)
           error_once("instruction simulation failure\n%s\n", DPMI_show_state(scp));

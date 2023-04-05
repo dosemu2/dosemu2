@@ -45,6 +45,10 @@
 int EmuSignals = 0;
 #endif
 
+/* countdown to exit after handling VGAEMU faults, reset by
+   planar VGA reads and writes */
+static int interp_inst_emu_count;
+
 static int ArOpsR[] =
 	{ O_ADD_R, O_OR_R, O_ADC_R, O_SBB_R, O_AND_R, O_SUB_R, O_XOR_R, O_CMP_R };
 static int ArOpsFR[] =
@@ -2535,8 +2539,15 @@ repag0:
 			PC++; } break;
 /*ec*/	case INvb: {
 			unsigned short a;
+			int uc;
 			CODE_FLUSH();
 			a = rDX;
+			if ((CEmuStat & CeS_INSTREMU) &&
+			    (uc=VGA_emulate_inb(a)) != -1) {
+				rAL = uc;
+				PC++;
+				break;
+			}
 #ifdef TRAP_RETRACE
 			if (a==0x3da) {		// video retrace bits
 			    /* bit 0 = DE  bit 3 = VR
@@ -2659,6 +2670,12 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
+			/* Note that we short circuit for vgaemu planar */
+			if ((CEmuStat & CeS_INSTREMU) &&
+			    VGA_emulate_outb(a, rAL) != -1) {
+				PC++;
+				break;
+			}
 			if (!test_ioperm(a)) goto not_permitted;
 #ifdef CPUEMU_DIRECT_IO
 			Gen(O_OUTPDX, mode|MBYTE); NewNode=1;
@@ -2683,6 +2700,12 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
+			if ((CEmuStat & CeS_INSTREMU) &&
+			    VGA_emulate_outb(a, rAL) != -1 &&
+			    VGA_emulate_outb(a+1, rAH) != -1) {
+				PC++;
+				break;
+			}
 			if (!test_ioperm(a)) goto not_permitted;
 #ifdef CPUEMU_DIRECT_IO
 			Gen(O_OUTPDX, mode); NewNode=1;
@@ -3386,17 +3409,28 @@ repag0:
 			P0 = PC;
 			CODE_FLUSH();
 		}
-		if (CEmuStat & CeS_MOVSS) {
-			/* following non-compiled (sim or protected mode)
-			   mov ss / pop ss only */
-			if (!(CEmuStat & CeS_INHI)) {
-				// directly following mov ss / pop ss
-				CEmuStat |= CeS_INHI;
-				CEmuStat &= ~CeS_TRAP;
-			} else {
-				// instruction after clear unconditionally
-				// even if it's another mov ss / pop ss
-				CEmuStat &= ~(CeS_INHI|CeS_MOVSS);
+		if (CEmuStat & (CeS_MOVSS|CeS_INSTREMU)) {
+			if (CEmuStat & CeS_MOVSS) {
+				/* following non-compiled (sim or protected mode)
+				   mov ss / pop ss only */
+				if (!(CEmuStat & CeS_INHI)) {
+					// directly following mov ss / pop ss
+					CEmuStat |= CeS_INHI;
+					CEmuStat &= ~CeS_TRAP;
+				} else {
+					// instruction after clear unconditionally
+					// even if it's another mov ss / pop ss
+					CEmuStat &= ~(CeS_INHI|CeS_MOVSS);
+				}
+			}
+			if ((CEmuStat & (CeS_INSTREMU|CeS_INHI)) == CeS_INSTREMU) {
+				if (debug_level('e')>1)
+					dbug_printf("CeS_INSTREMU, count=%d\n",
+						    interp_inst_emu_count);
+				if (interp_inst_emu_count-- == 0 || TheCPU.sigalrm_pending) {
+					TheCPU.err = EXCP_GOBACK;
+					return PC;
+				}
 			}
 		}
 	}
@@ -3418,3 +3452,8 @@ illegal_op:
 	TheCPU.err = EXCP06_ILLOP; return P0;
 }
 
+/* reset for VGA reads and writes */
+void instr_emu_sim_reset_count(int cnt)
+{
+	interp_inst_emu_count = cnt;
+}
