@@ -62,6 +62,7 @@ extern void e_priv_iopl(int);
 #define CeS_INHI	0x800	/* inhibit interrupts(pop ss; pop sp et sim.) */
 #define CeS_TRAP	0x1000	/* INT01 Sstep active */
 #define CeS_DRTRAP	0x2000	/* Debug Registers active */
+#define CeS_INSTREMU	0x4000	/* behave like former instr_emu, with counter for VGAEMU faults */
 
 extern int IsV86Emu;
 extern int IsDpmiEmu;
@@ -99,6 +100,10 @@ void reset_emu_cpu (void);
 int e_dpmi(cpuctx_t *scp);
 void e_dpmi_b0x(int op,cpuctx_t *scp);
 extern int in_dpmi_emu;
+
+/* called/used from vgaemu.c */
+int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt);
+void instr_emu_sim_reset_count(int cnt);
 
 /* called from emu-ldt.c */
 void InvalidateSegs(void);

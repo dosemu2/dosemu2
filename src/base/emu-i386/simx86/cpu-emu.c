@@ -769,8 +769,10 @@ void init_emu_cpu(void)
 #ifdef HOST_ARCH_X86
   if (config.cpusim)
     InitGen_sim();
-  else
+  else {
     InitGen_x86();
+    InitTrees();
+  }
 #else
   InitGen_sim();
 #endif
@@ -810,7 +812,7 @@ void init_emu_cpu(void)
  */
 void e_gen_sigalrm(void)
 {
-	if(!IS_EMU())
+	if (!in_dpmi_emu && !in_vm86_emu)
 	    return;
 
 	/* here we come from the kernel with cs==UCODESEL, as
@@ -1142,6 +1144,27 @@ int e_dpmi(cpuctx_t *scp)
   return retval;
 }
 
+/* set special SIM mode for VGAEMU faults */
+int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt)
+{
+  instr_emu_sim_reset_count(cnt);
+#ifdef HOST_ARCH_X86
+  if (!config.cpusim)
+    InitGen_sim();
+#endif
+  CEmuStat |= CeS_INSTREMU;
+  if (pmode)
+    e_dpmi(scp);
+  else
+    e_vm86();
+  CEmuStat &= ~CeS_INSTREMU;
+#ifdef HOST_ARCH_X86
+  /* back to regular JIT */
+  if (!config.cpusim)
+    InitGen_x86();
+#endif
+  return True;
+}
 
 /* ======================================================================= */
 /* file: src/cwsdpmi/exphdlr.c */

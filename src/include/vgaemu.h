@@ -479,9 +479,7 @@ struct ColorSpaceDesc;
  */
 
 int VGA_emulate_outb(ioport_t, Bit8u);
-int VGA_emulate_outw(ioport_t, Bit16u);
-Bit8u VGA_emulate_inb(ioport_t);
-Bit16u VGA_emulate_inw(ioport_t);
+int VGA_emulate_inb(ioport_t);
 int vga_emu_fault(dosaddr_t, unsigned, cpuctx_t *);
 int vga_emu_pre_init(void);
 int vga_emu_init(int src_modes, struct ColorSpaceDesc *);

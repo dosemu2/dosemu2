@@ -1284,7 +1284,7 @@ static void do_invalidate(unsigned data, int cnt)
 
 void e_invalidate(unsigned data, int cnt)
 {
-	if (!IS_EMU())
+	if (!IS_EMU_JIT())
 		return;
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
@@ -1327,7 +1327,7 @@ void e_invalidate_full_pa(unsigned pa, int cnt)
  * Otherwise use e_invalidate() */
 void e_invalidate_full(unsigned data, int cnt)
 {
-	if (!IS_EMU())
+	if (!IS_EMU_JIT())
 		return;
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
@@ -1338,7 +1338,7 @@ void e_invalidate_full(unsigned data, int cnt)
 int e_invalidate_page_full(unsigned data)
 {
 	int cnt = PAGE_SIZE;
-	if (!IS_EMU())
+	if (!IS_EMU_JIT())
 		return 0;
 	data &= PAGE_MASK;
 	/* nothing to invalidate if there are no page protections */
