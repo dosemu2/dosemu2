@@ -1447,6 +1447,8 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 					     no_local_video = 1;
 					     sptr->dev = strdup(ttyname(0));
 					     config.dumb_video = 1;
+					     if (!config.tty_stderr) // can be 2
+					       config.tty_stderr = 1;
 					   } else {
 					     error("FD 0 is not a tty, can't "
 					           "use a virtual com port\n");
