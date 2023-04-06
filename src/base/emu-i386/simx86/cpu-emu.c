@@ -965,6 +965,7 @@ int e_vm86(void)
   int errcode;
 
   if (iniflag==0) enter_cpu_emu();
+  TheCPU.sigalrm_pending = 0;
 
 #ifdef PROFILE
   if (debug_level('e')) tt0 = GETTSC();
@@ -1074,6 +1075,7 @@ int e_dpmi(cpuctx_t *scp)
   int xval,retval,mode;
 
   if (iniflag==0) enter_cpu_emu();
+  TheCPU.sigalrm_pending = 0;
 
   e_sigpa_count = 0;
   /* make clear we are in PM now */
