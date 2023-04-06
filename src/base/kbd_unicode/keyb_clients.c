@@ -20,6 +20,7 @@
 static t_unicode *paste_buffer = NULL;
 static int paste_len = 0, paste_idx = 0;
 struct keyboard_client *Keyboard;
+static struct keyboard_client *Kbd_root;
 
 static int paste_unicode_text(const t_unicode *text, int len)
 {
@@ -101,10 +102,10 @@ void register_keyboard_client(struct keyboard_client *keyboard)
 	struct keyboard_client *k;
 
 	keyboard->next = NULL;
-	if (Keyboard == NULL)
-		Keyboard = keyboard;
+	if (Kbd_root == NULL)
+		Kbd_root = keyboard;
 	else {
-		for (k = Keyboard; k->next; k = k->next);
+		for (k = Kbd_root; k->next; k = k->next);
 		k->next = keyboard;
 	}
 }
@@ -129,7 +130,7 @@ int keyb_client_init(void)
 	register_keyboard_client(&Keyboard_raw);
 	register_keyboard_client(&Keyboard_stdio);
 	register_keyboard_client(&Keyboard_none);
-	while(Keyboard) {
+	for (Keyboard = Kbd_root; Keyboard; Keyboard = Keyboard->next) {
 		k_printf("KBD: probing '%s' mode keyboard client\n",
 			Keyboard->name);
 		ok = Keyboard->probe();
@@ -149,7 +150,6 @@ int keyb_client_init(void)
 					Keyboard->name);
 			}
 		}
-		Keyboard = Keyboard->next;
 	}
 
 	sigalrm_register_handler(paste_run);
