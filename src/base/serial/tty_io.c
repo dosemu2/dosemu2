@@ -66,12 +66,6 @@ static void tty_termios(com_t *c)
   /* The following is the same as (com[num].dlm * 256) + com[num].dll */
   #define DIVISOR ((c->dlm << 8) | c->dll)
 
-  /* Return if not a tty */
-  if (tcgetattr(c->fd, &c->newset) == -1) {
-    if(s1_printf) s_printf("SER%d: Line Control: NOT A TTY (%s).\n",c->num,strerror(errno));
-    return;
-  }
-
   s_printf("SER%d: LCR = 0x%x, ",c->num,c->LCR);
 
   /* Set the word size */
@@ -209,7 +203,6 @@ static void tty_termios(com_t *c)
 	    c->newset.c_iflag, c->newset.c_oflag,
 	    c->newset.c_cflag, c->newset.c_lflag);
   }
-  tcsetattr(c->fd, TCSANOW, &c->newset);
 }
 
 static int tty_brkctl(com_t *c, int brkflg)
@@ -393,6 +386,12 @@ static int tty_lock(const char *path, int mode)
 static void ser_set_params(com_t *c)
 {
   int data = 0;
+
+  /* Return if not a tty */
+  if (tcgetattr(c->fd, &c->newset) == -1) {
+    if(s1_printf) s_printf("SER%d: Line Control: NOT A TTY (%s).\n",c->num,strerror(errno));
+    return;
+  }
   c->newset.c_cflag = CS8 | CLOCAL | CREAD;
   c->newset.c_iflag = IGNBRK | IGNPAR;
   c->newset.c_oflag = 0;
@@ -405,10 +404,10 @@ static void ser_set_params(com_t *c)
   c->newset.c_cc[VTIME] = 0;
   if (c->cfg->system_rtscts)
     c->newset.c_cflag |= CRTSCTS;
-  tcsetattr(c->fd, TCSANOW, &c->newset);
 
   if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n", c->num);
   tty_termios(c);			/* Set line settings now */
+  tcsetattr(c->fd, TCSANOW, &c->newset);
 
   /* Pull down DTR and RTS.  This is the most natural for most comm */
   /* devices including mice so that DTR rises during mouse init.    */
