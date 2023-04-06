@@ -13,32 +13,32 @@
 #include <unistd.h>
 #include "keyb_clients.h"
 
-static void none_run(int fd, void *arg);
+static void stdio_kbd_run(int fd, void *arg);
 
-/* DANG_BEGIN_FUNCTION none_probe
+/* DANG_BEGIN_FUNCTION stdio_kbd_probe
  *
  * Succeed if we can run the dummy keyboard client, (we always can).
  *
  * DANG_END_FUNCTION
  */
 
-static int none_probe(void)
+static int stdio_kbd_probe(void)
 {
 	return 1;
 }
 
-static int none_init(void)
+static int stdio_kbd_init(void)
 {
-	add_to_io_select(STDIN_FILENO, none_run, NULL);
+	add_to_io_select(STDIN_FILENO, stdio_kbd_run, NULL);
 	return 1;
 }
 
-static void none_close(void)
+static void stdio_kbd_close(void)
 {
 	remove_from_io_select(STDIN_FILENO);
 }
 
-static void none_run(int fd, void *arg)
+static void stdio_kbd_run(int fd, void *arg)
 {
 	char buf[256];
 	int rc;
@@ -48,12 +48,37 @@ static void none_run(int fd, void *arg)
 		paste_text(buf, rc, "utf8");
 }
 
-struct keyboard_client Keyboard_none =
+struct keyboard_client Keyboard_stdio =
 {
 	"stdio",	/* name */
-	none_probe,	/* probe */
-	none_init,	/* init */
+	stdio_kbd_probe,	/* probe */
+	stdio_kbd_init,	/* init */
 	NULL,		/* reset */
-	none_close,	/* close */
+	stdio_kbd_close,	/* close */
+	NULL,		/* set_leds */
+};
+
+
+static int none_kbd_probe(void)
+{
+	return 1;
+}
+
+static int none_kbd_init(void)
+{
+	return 1;
+}
+
+static void none_kbd_close(void)
+{
+}
+
+struct keyboard_client Keyboard_none =
+{
+	"none",	/* name */
+	none_kbd_probe,	/* probe */
+	none_kbd_init,	/* init */
+	NULL,		/* reset */
+	none_kbd_close,	/* close */
 	NULL,		/* set_leds */
 };

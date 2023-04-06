@@ -127,6 +127,7 @@ int keyb_client_init(void)
 	int ok;
 
 	register_keyboard_client(&Keyboard_raw);
+	register_keyboard_client(&Keyboard_stdio);
 	register_keyboard_client(&Keyboard_none);
 	while(Keyboard) {
 		k_printf("KBD: probing '%s' mode keyboard client\n",
