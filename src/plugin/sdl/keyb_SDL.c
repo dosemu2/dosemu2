@@ -30,10 +30,16 @@
 #include "keyb_SDL.h"
 #include "sdl2-keymap.h"
 
+static int kbd_inited;
+
 static void SDL_sync_shiftstate(Boolean make, SDL_Keycode kc, SDL_Keymod e_state)
 {
-	t_modifiers shiftstate = get_shiftstate();
+	t_modifiers shiftstate;
 
+	if (!kbd_inited)
+		return;
+
+	shiftstate = get_shiftstate();
 	switch (kc) {
 	case SDLK_LSHIFT:
 	case SDLK_RSHIFT:
@@ -94,6 +100,9 @@ void SDL_process_key_text(SDL_KeyboardEvent keyevent,
 	SDL_Scancode scan = keysym.scancode;
 	t_keynum keynum = sdl2_scancode_to_keynum(scan);
 
+	if (!kbd_inited)
+		return;
+
 	if (keynum == NUM_VOID) {
 		error("SDL: unknown scancode %x\n", scan);
 		return;
@@ -116,6 +125,9 @@ void SDL_process_key_text(SDL_KeyboardEvent keyevent,
 
 void SDL_process_key_press(SDL_KeyboardEvent keyevent)
 {
+	if (!kbd_inited)
+		return;
+
 	SDL_Keysym keysym = keyevent.keysym;
 	SDL_Scancode scan = keysym.scancode;
 	t_keynum keynum = sdl2_scancode_to_keynum(scan);
@@ -133,6 +145,9 @@ void SDL_process_key_press(SDL_KeyboardEvent keyevent)
 
 void SDL_process_key_release(SDL_KeyboardEvent keyevent)
 {
+	if (!kbd_inited)
+		return;
+
 	SDL_Keysym keysym = keyevent.keysym;
 	SDL_Scancode scan = keysym.scancode;
 	t_keynum keynum = sdl2_scancode_to_keynum(scan);
@@ -154,6 +169,7 @@ static int sdl_kbd_probe(void)
 
 static int sdl_kbd_init(void)
 {
+	kbd_inited = 1;
 	return 1;
 }
 
