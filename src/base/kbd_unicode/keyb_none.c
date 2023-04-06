@@ -24,6 +24,8 @@ static void stdio_kbd_run(int fd, void *arg);
 
 static int stdio_kbd_probe(void)
 {
+	if (no_local_video)
+		return 0;
 	return 1;
 }
 

@@ -252,6 +252,8 @@ static void raw_keyboard_close(void)
 
 static int raw_keyboard_probe(void)
 {
+	if (no_local_video)
+		return 0;
 	return isatty(STDIN_FILENO);
 }
 
