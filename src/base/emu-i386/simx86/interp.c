@@ -3427,7 +3427,7 @@ repag0:
 				if (debug_level('e')>1)
 					dbug_printf("CeS_INSTREMU, count=%d\n",
 						    interp_inst_emu_count);
-				if (interp_inst_emu_count-- == 0 || TheCPU.sigalrm_pending) {
+				if (interp_inst_emu_count-- == 0) {
 					TheCPU.err = EXCP_GOBACK;
 					return PC;
 				}
