@@ -220,16 +220,15 @@ static void int15_thr(void *arg)
       set_CF();
       return;
     }
-    if (c == 0x1a) {  // ^Z, exit
-      do_char_out(c);
-      comredir_setup(0, 0, 0);
-      return;
-    }
     if ((tflags & TFLG_OPCR) && c == '\n')
       write_char(com_num_wr - 1, '\r');
     write_char(com_num_wr - 1, c);
     if ((tflags & TFLG_OANL) && c == '\r')
       write_char(com_num_wr - 1, '\n');
+    if (c == 0x1a) {  // ^Z, exit
+      do_char_out(c);
+      comredir_setup(0, 0, 0);
+    }
   } else {
     set_CF();
   }
