@@ -396,8 +396,10 @@ static void ser_set_params(com_t *c)
   c->newset.c_iflag = IGNBRK | IGNPAR;
   c->newset.c_oflag = 0;
   c->newset.c_lflag = 0;
-  if (c->cfg->virt)
+  if (c->cfg->virt) {
     c->newset.c_lflag |= ISIG;
+    c->newset.c_cc[VERASE] = 8;  // set to BS, its DEL by default
+  }
 
 #ifdef __linux__
   c->newset.c_line = 0;
