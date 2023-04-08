@@ -19,7 +19,9 @@ or provide the download URL.
 
 **Attach the log**
 It is located in ~/.dosemu/boot.log
-To make the log more useful, you may need to enable some logging flags.
+Unless you get the plain crash of dosemu2,
+you may need to enable some logging flags
+to make your report more useful.
 See description of -D option in `man dosemu.bin`.
 
 **A regression?**
