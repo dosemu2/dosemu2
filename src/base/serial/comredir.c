@@ -183,15 +183,13 @@ static void comredir_thr(void *arg)
     struct vm86_regs saved_regs = REGS;
     while (read_LSR(i) & UART_LSR_DR) {
       unsigned char c = read_char(i);
-      if (c == 0x1a) {  // ^Z, exit
-        comredir_setup(0, 0, 0);
-        break;
-      }
       if ((tflags & TFLG_IPCR) && c == '\n')
         do_char_out('\r');
       do_char_out(c);
       if ((tflags & TFLG_IANL) && c == '\r')
         do_char_out('\n');
+      if (c == 0x1a)  // ^Z, exit
+        comredir_setup(0, 0, 0);
     }
     REGS = saved_regs;
     break;
