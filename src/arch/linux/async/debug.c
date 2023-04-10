@@ -35,7 +35,7 @@ static int start_gdb(pid_t dosemu_pid)
   printf("Debug info:\n");
   fflush(stdout);
 
-  ret = asprintf(&buf, "gdb %s", dosemu_proc_self_exe);
+  ret = asprintf(&buf, "gdb --readnow %s", dosemu_proc_self_exe);
   assert(ret != -1);
 
   printf("%s", buf);
