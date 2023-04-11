@@ -16,6 +16,7 @@ from subprocess import (Popen, call, check_call, check_output,
                         DEVNULL, STDOUT, TimeoutExpired, CalledProcessError)
 from sys import exit, stdout, stderr, version_info
 from tarfile import open as topen
+from time import sleep
 from unittest.util import strclass
 
 BINSDIR = "test-binaries"
@@ -459,6 +460,10 @@ class BaseTestCase(object):
                         ret = f.read()
             except pexpect.TIMEOUT:
                 ret = 'Timeout'
+                tlog = self.logfiles['log'][0].read_text()
+                if '(gdb) Attaching to program' in tlog:
+                    sleep(60)
+                    self.shouldStop = True
             except pexpect.EOF:
                 ret = 'EndOfFile'
 
@@ -591,6 +596,8 @@ class MyTestResult(unittest.TextTestResult):
             self.stream.flush()
         self.failures.append((test, self.gather_info_for_failure(err, test)))
         self._mirrorOutput = True
+        if getattr(test, 'shouldStop', None) is not None:
+            self.shouldStop = test.shouldStop
 
     def addSuccess(self, test):
         super(unittest.TextTestResult, self).addSuccess(test)
