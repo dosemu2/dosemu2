@@ -6,8 +6,6 @@ on:
   pull_request:
     types:
       - opened
-      - edited
-      - ready_for_review
       - reopened
       - synchronize
   push:
