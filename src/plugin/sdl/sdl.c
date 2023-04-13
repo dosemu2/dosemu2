@@ -233,9 +233,18 @@ static int SDL_priv_init(void)
       SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
 #endif
   }
+#ifdef FE_NOMASK_ENV
+  /* workaround for non-fatal bug in Mesa on WSL2, see
+     https://github.com/dosemu2/dosemu2/issues/1987
+     https://gitlab.freedesktop.org/mesa/mesa/-/issues/8818 */
+  fedisableexcept(FE_DIVBYZERO);
+#endif
   enter_priv_on();
   ret = SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   leave_priv_setting();
+#ifdef FE_NOMASK_ENV
+  fesetenv(&dosemu_fenv);
+#endif
   if (ret < 0) {
     error("SDL init: %s\n", SDL_GetError());
     return -1;
