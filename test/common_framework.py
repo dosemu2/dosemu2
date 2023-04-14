@@ -371,7 +371,7 @@ class BaseTestCase(object):
         elif fat == "16b":
             bcount = 900 * 15 * 17  # type 9
         elif fat == "32":
-            bcount = 524288         # 256 MiB
+            bcount = 1048576        # 1 GiB
         else:
             raise ValueError
         name = "fat%s.img" % fat
