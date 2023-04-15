@@ -2861,6 +2861,7 @@ int changed_vga_colors(void (*upd_func)(DAC_entry *, int, void *), void *arg)
 static void vgaemu_adjust_instremu(int value)
 {
   int i;
+  vga_mapping_type *vmt = &vga.mem.map[VGAEMU_MAP_BANK_MODE];
 
   if (value == EMU_ALL_INST) {
     if (vga.inst_emu != EMU_ALL_INST) {
@@ -2876,6 +2877,10 @@ static void vgaemu_adjust_instremu(int value)
       dirty_all_video_pages();
     }
   }
+  if (vga.inst_emu != value &&
+      (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM))
+    kvm_set_mmio(vmt->base_page << PAGE_SHIFT, vmt->pages << PAGE_SHIFT,
+		 value != 0);
   vga.inst_emu = value;
 }
 
