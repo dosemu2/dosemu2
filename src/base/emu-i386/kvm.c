@@ -38,6 +38,7 @@
 #include "emu-ldt.h"
 #include "cpu-emu.h"
 #include "vgaemu.h"
+#include "dos2linux.h"
 #include "mapping.h"
 #include "sig.h"
 
@@ -156,6 +157,87 @@ static struct kvm_sregs sregs;
 static struct kvm_userspace_memory_region maps[MAXSLOT];
 
 static int init_kvm_vcpu(void);
+
+#if !defined(DISABLE_SYSTEM_WA) || !defined(KVM_CAP_IMMEDIATE_EXIT)
+
+/* compat functions for older complex method of immediate exit
+   using a signal that is blocked outside KVM_RUN but not blocked inside it */
+
+#include <pthread.h>
+
+#ifndef KVM_CAP_IMMEDIATE_EXIT
+#define KVM_CAP_IMMEDIATE_EXIT 136
+#define immediate_exit padding1[0]
+#endif
+
+#define KVM_IMMEDIATE_EXIT_SIG (SIGRTMIN + 1)
+#define KERNEL_SIGSET_T_SIZE 8
+
+static void kvm_set_immediate_exit(int set)
+{
+  static int kvm_cap_immediate_exit = -1;
+  if (kvm_cap_immediate_exit == -1) { // setup
+    kvm_cap_immediate_exit = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_IMMEDIATE_EXIT) > 0;
+    if (!kvm_cap_immediate_exit) {
+      struct sigaction sa;
+      sigset_t sigset;
+      /* KVM_SET_SIGNAL_MASK expects a kernel sigset_t which is
+	 smaller than a glibc one */
+      struct {
+	struct kvm_signal_mask mask;
+	unsigned char buf[KERNEL_SIGSET_T_SIZE];
+      } maskbuf;
+
+      sa.sa_flags = 0;
+      sigemptyset(&sa.sa_mask);
+      sa.sa_handler = SIG_DFL; // never called
+      sigaction(KVM_IMMEDIATE_EXIT_SIG, &sa, NULL);
+
+      /* block KVM_IMMEDIATE_EXIT_SIG in main thread */
+      sigemptyset(&sigset);
+      sigaddset(&sigset, KVM_IMMEDIATE_EXIT_SIG);
+      pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+
+      /* don't block any signals inside the guest */
+      sigemptyset(&sigset);
+      maskbuf.mask.len = KERNEL_SIGSET_T_SIZE;
+      assert(sizeof(sigset) >= KERNEL_SIGSET_T_SIZE);
+      memcpy(maskbuf.mask.sigset, &sigset, KERNEL_SIGSET_T_SIZE);
+      if (ioctl(vcpufd, KVM_SET_SIGNAL_MASK, &maskbuf.mask) == -1) {
+	perror("KVM: KVM_SET_SIGNAL_MASK");
+	leavedos_main(99);
+      }
+    }
+  }
+
+  if (kvm_cap_immediate_exit) {
+    assert(run->immediate_exit == !set);
+    run->immediate_exit = set;
+    return;
+  }
+
+  if (set)
+    pthread_kill(pthread_self(), KVM_IMMEDIATE_EXIT_SIG);
+  else {
+    // need to flush the signal after KVM_RUN
+    sigset_t sigset;
+    assert(sigpending(&sigset) == 0 &&
+	   sigismember(&sigset, KVM_IMMEDIATE_EXIT_SIG));
+    sigemptyset(&sigset);
+    sigaddset(&sigset, KVM_IMMEDIATE_EXIT_SIG);
+    sigwaitinfo(&sigset, NULL);
+  }
+}
+
+#else // function without workaround if kernels older than 4.13 not supported
+
+static inline void kvm_set_immediate_exit(int set)
+{
+  assert(run->immediate_exit == !set);
+  run->immediate_exit = set;
+}
+
+#endif
 
 static void set_idt_default(dosaddr_t mon, int i)
 {
@@ -416,7 +498,8 @@ int init_kvm_cpu(void)
   }
 
 #if defined(KVM_CAP_SYNC_MMU) && defined(KVM_CAP_SET_IDENTITY_MAP_ADDR) && \
-  defined(KVM_CAP_SET_TSS_ADDR) && defined(KVM_CAP_XSAVE)
+  defined(KVM_CAP_SET_TSS_ADDR) && defined(KVM_CAP_XSAVE) && \
+  defined(KVM_CAP_IMMEDIATE_EXIT)
   ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SYNC_MMU);
   if (ret <= 0) {
     error("KVM: SYNC_MMU unsupported %x\n", ret);
@@ -437,6 +520,13 @@ int init_kvm_cpu(void)
     error("KVM: XSAVE unsupported %x\n", ret);
     goto errcap;
   }
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_IMMEDIATE_EXIT);
+#ifndef KVM_IMMEDIATE_EXIT_SIG
+  if (ret <= 0) {
+    error("KVM: IMMEDIATE_EXIT unsupported %x\n", ret);
+    goto errcap;
+  }
+#endif
 #else
   error("kernel is too old, KVM unsupported\n");
   goto errcap;
@@ -620,8 +710,9 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   p = kvm_get_memory_region(monitor->pte[start] & PAGE_MASK, PAGE_SIZE);
   if (!p) return;
 
-  /* never apply write-protect to regions with dirty logging or phys r/o */
-  if ((protect & (PROT_READ|PROT_WRITE)) == PROT_READ &&
+  /* never apply read and write protections to regions with dirty logging or
+     phys MMIO and r/o */
+  if (!(protect & PROT_WRITE) &&
       (p->flags & (KVM_MEM_LOG_DIRTY_PAGES|KVM_MEM_READONLY)))
     return;
 
@@ -650,6 +741,22 @@ void kvm_set_readonly(dosaddr_t base, dosaddr_t size)
   mmap_kvm_no_overlap(base, addr, size, KVM_MEM_READONLY);
 }
 
+void kvm_set_mmio(dosaddr_t base, dosaddr_t size, int on)
+{
+  struct kvm_userspace_memory_region *p = kvm_get_memory_region(base, size);
+  assert(p->flags & KVM_MEM_LOG_DIRTY_PAGES);
+  if (on == (p->flags == KVM_MEM_LOG_DIRTY_PAGES)) {
+    uint64_t region_size = p->memory_size;
+    p->flags = KVM_MEM_LOG_DIRTY_PAGES;
+    if (on) {
+      p->memory_size = 0;
+      p->flags |= KVM_MEM_READONLY;
+    }
+    set_kvm_memory_region(p);
+    p->memory_size = region_size;
+  }
+}
+
 /* Enable dirty logging from base to base+size.
  * This will not change the KVM-phys->host user space mapping itself but due
  * to the way KVM works the memory slot typically needs to be split in 3 parts:
@@ -674,7 +781,7 @@ void kvm_get_dirty_map(dosaddr_t base, unsigned char *bitmap)
   struct kvm_userspace_memory_region *p =
     kvm_get_memory_region(base, PAGE_SIZE);
 
-  assert(p->flags == KVM_MEM_LOG_DIRTY_PAGES);
+  assert(p->flags & KVM_MEM_LOG_DIRTY_PAGES);
   dirty_log.slot = p->slot;
   dirty_log.dirty_bitmap = bitmap;
   ioctl(vmfd, KVM_GET_DIRTY_LOG, &dirty_log);
@@ -1000,7 +1107,7 @@ static unsigned int kvm_run(void)
           KVM is re-entered asking it to exit when interrupt injection is
           possible, then it exits with this code. This only happens if a signal
           occurs during execution of the monitor code in kvmmon.S.
-       4. KVM_EXIT_MMIO: when attempting to write to ROM
+       4. KVM_EXIT_MMIO: when attempting to write to ROM or r/w from/to MMIO
     */
     if (ret != 0 && ret != -1)
       error("KVM: strange return %i, errno=%i\n", ret, errn);
@@ -1021,6 +1128,43 @@ static unsigned int kvm_run(void)
       break;
     case KVM_EXIT_MMIO:
       /* for ROM: simply ignore the write and continue */
+      if (memcheck_is_rom(run->mmio.phys_addr))
+	break;
+
+      /* from the KVM api.txt: "the corresponding operations are complete
+	 (and guest state is consistent) only after userspace has re-entered
+	 the kernel with KVM_RUN. The kernel side will first finish
+	 incomplete operations and then check for pending signals." */
+      kvm_set_immediate_exit(1);
+      do {
+	dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
+	unsigned char *data = run->mmio.data;
+	if (run->mmio.is_write) {
+	  switch(run->mmio.len) {
+	  case 1: write_byte(addr, data[0]); break;
+	  case 2: write_word(addr, *(uint16_t*)data); break;
+	  case 4: write_dword(addr, *(uint32_t*)data); break;
+	  case 8: write_qword(addr, *(uint64_t*)data); break;
+	  }
+	} else {
+	  switch(run->mmio.len) {
+	  case 1: data[0] = read_byte(addr); break;
+	  case 2: *(uint16_t*)data = read_word(addr); break;
+	  case 4: *(uint32_t*)data = read_dword(addr); break;
+	  case 8: *(uint64_t*)data = read_qword(addr); break;
+	  }
+	}
+	ret = ioctl(vcpufd, KVM_RUN, NULL);
+	/* read-modify-write instructions give two KVM_EXIT_MMIO
+	   exits in a row before the signal exit */
+      } while (ret == 0 && run->exit_reason == KVM_EXIT_MMIO);
+      assert(ret == -1 && errno == EINTR);
+      kvm_set_immediate_exit(0);
+      /* going to emulate some instructions */
+      if (!kvm_post_run(regs, &kregs))
+	break;
+      saved_regs = *regs;
+      exit_reason = KVM_EXIT_MMIO;
       break;
     case KVM_EXIT_IRQ_WINDOW_OPEN:
       run->request_interrupt_window = !run->ready_for_interrupt_injection;
@@ -1118,11 +1262,9 @@ int kvm_vm86(struct vm86_struct *info)
   if (vm86_ret == VM86_SIGNAL && exit_reason == KVM_EXIT_HLT) {
     unsigned trapno = (regs->orig_eax >> 16) & 0xff;
     unsigned err = regs->orig_eax & 0xffff;
-    if (trapno == 0x0e &&
-	(vga_emu_fault(monitor->cr2, err, NULL) == True))
-      return vm86_ret;
     vm86_fault(trapno, err, monitor->cr2);
-  }
+  } else if (exit_reason == KVM_EXIT_MMIO)
+    vga_emu_fault(vga.mem.graph_base, 0, NULL);
   return vm86_ret;
 }
 
@@ -1231,11 +1373,11 @@ int kvm_dpmi(cpuctx_t *scp)
         pic_untrigger(13);
         pic_request(13);
         ret = DPMI_RET_DOSEMU;
-      } else if (_trapno == 0x0e &&
-	    (vga_emu_fault(monitor->cr2, _err, scp) == True))
-	ret = DPMI_RET_CLIENT;
-      else
+      } else
 	ret = DPMI_RET_FAULT;
+    } else if (exit_reason == KVM_EXIT_MMIO) {
+      vga_emu_fault(vga.mem.graph_base, 0, scp);
+      ret = DPMI_RET_CLIENT;
     }
   } while (!signal_pending() && ret == DPMI_RET_CLIENT);
   return ret;

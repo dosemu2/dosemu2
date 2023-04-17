@@ -305,6 +305,7 @@ static void print_prot_map(void);
 #endif
 static int vga_emu_setup_mode(vga_mode_info *, int, unsigned, unsigned, unsigned);
 static void vga_emu_setup_mode_table(void);
+static void vgaemu_adjust_instremu(int value);
 
 static Bit32u rasterop(Bit32u value);
 static pthread_mutex_t prot_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -2403,7 +2404,8 @@ static int __vga_emu_setmode(int mode, int width, int height)
     vga.pixel_size = (vga.pixel_size + 7) & ~7;		/* assume byte alignment for these modes */
     vga.scan_len *= vga.pixel_size >> 3;
   }
-  vga.inst_emu = ((vga.mode_type==PL4 || vga.mode_type==PL2) ? EMU_ALL_INST : 0);
+  vgaemu_adjust_instremu((vga.mode_type==PL4 || vga.mode_type==PL2)
+			 ? EMU_ALL_INST : 0);
 
   vga_msg("vga_emu_setmode: scan_len = %d\n", vga.scan_len);
   i = vga.scan_len;
@@ -2856,28 +2858,30 @@ int changed_vga_colors(void (*upd_func)(DAC_entry *, int, void *), void *arg)
   return j;
 }
 
-static void vgaemu_adjust_instremu(void)
+static void vgaemu_adjust_instremu(int value)
 {
   int i;
+  vga_mapping_type *vmt = &vga.mem.map[VGAEMU_MAP_BANK_MODE];
 
-  if (vga.mem.planes > 1) {
+  if (value == EMU_ALL_INST) {
     if (vga.inst_emu != EMU_ALL_INST) {
       v_printf("Seq_write_value: instemu on\n");
       pthread_mutex_lock(&prot_mtx);
-      for (i = 0; i < vga.mem.pages; i++) {
-        if (vga.mem.dirty_map[i])
-          _vga_emu_adjust_protection(i, 0, NONE, 1);
-      }
+      for (i = 0; i < vga.mem.pages; i++)
+	_vga_emu_adjust_protection(i, 0, NONE, 1);
       pthread_mutex_unlock(&prot_mtx);
-      vga.inst_emu = EMU_ALL_INST;
     }
   } else {
     if (vga.inst_emu != 0) {
       v_printf("Seq_write_value: instemu off\n");
       dirty_all_video_pages();
-      vga.inst_emu = 0;
     }
   }
+  if (vga.inst_emu != value &&
+      (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM))
+    kvm_set_mmio(vmt->base_page << PAGE_SHIFT, vmt->pages << PAGE_SHIFT,
+		 value != 0);
+  vga.inst_emu = value;
 }
 
 /*
@@ -2909,7 +2913,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         vga_msg("vgaemu_adj_cfg: mem reconfig (%u planes)\n", u1);
         vgaemu_map_bank();	// update page protection
       }
-      vgaemu_adjust_instremu();
+      vgaemu_adjust_instremu(vga.mem.planes > 1 ? EMU_ALL_INST : 0);
       if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]);
       if (vga.mode_class == TEXT && vga.width < 2048) {
         int horizontal_display_end = vga.crtc.data[0x1] + 1;
@@ -3133,9 +3137,9 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       }
       old_color_bits = vga.color_bits;
       vga.color_bits = vga.pixel_size;
-      vga.inst_emu = (vga.mode_type==PL4 || vga.mode_type==PL2)
-	? EMU_ALL_INST : 0;
       vgaemu_map_bank();      // update page protection
+      vgaemu_adjust_instremu((vga.mode_type==PL4 || vga.mode_type==PL2)
+			     ? EMU_ALL_INST : 0);
       if (oldclass != vga.mode_class) {
 	vgaemu_adj_cfg(CFG_SEQ_ADDR_MODE, 0);
 	vgaemu_adj_cfg(CFG_CRTC_WIDTH, 0);
