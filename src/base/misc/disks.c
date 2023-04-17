@@ -1008,6 +1008,7 @@ static void partition_auto(struct disk *dp)
 static void VBR_setup(struct disk *dp)
 {
   struct on_disk_vbr vbr;
+  uint8_t typ = 0;
 
   d_printf("VBR setup for %s\n", dp->dev_name);
 
@@ -1015,17 +1016,23 @@ static void VBR_setup(struct disk *dp)
     return;
   }
 
-  dp->part_info.number = 1;
-  memcpy(&dp->part_info.mbr.code, &mbr_boot_code, sizeof(mbr_boot_code));
-  dp->part_info.mbr.partition[0] = build_pi(dp);
-  dp->part_info.mbr.signature = MBR_SIG;
-
   lseek(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, &vbr, sizeof(vbr))) != sizeof(vbr)) {
     d_printf("  BPB could not be read\n");
   } else {
+    if (vbr.u.bpb7.num_sectors_small == 0 && (
+        vbr.u.bpb7.signature == BPB_SIG_V7_SHORT ||
+        vbr.u.bpb7.signature == BPB_SIG_V7_LONG))
+      typ = 0x0b;
     print_bpb(&vbr.u.bpb);
   }
+
+  dp->part_info.number = 1;
+  memcpy(&dp->part_info.mbr.code, &mbr_boot_code, sizeof(mbr_boot_code));
+  dp->part_info.mbr.partition[0] = build_pi(dp);
+  if (typ)
+    dp->part_info.mbr.partition[0].OS_type = typ;
+  dp->part_info.mbr.signature = MBR_SIG;
 
   print_partition_entry(&dp->part_info.mbr.partition[0]);
   print_disk_structure(dp);
