@@ -158,6 +158,87 @@ static struct kvm_userspace_memory_region maps[MAXSLOT];
 
 static int init_kvm_vcpu(void);
 
+#if !defined(DISABLE_SYSTEM_WA) || !defined(KVM_CAP_IMMEDIATE_EXIT)
+
+/* compat functions for older complex method of immediate exit
+   using a signal that is blocked outside KVM_RUN but not blocked inside it */
+
+#include <pthread.h>
+
+#ifndef KVM_CAP_IMMEDIATE_EXIT
+#define KVM_CAP_IMMEDIATE_EXIT 136
+#define immediate_exit padding1[0]
+#endif
+
+#define KVM_IMMEDIATE_EXIT_SIG (SIGRTMIN + 1)
+#define KERNEL_SIGSET_T_SIZE 8
+
+static void kvm_set_immediate_exit(int set)
+{
+  static int kvm_cap_immediate_exit = -1;
+  if (kvm_cap_immediate_exit == -1) { // setup
+    kvm_cap_immediate_exit = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_IMMEDIATE_EXIT) > 0;
+    if (!kvm_cap_immediate_exit) {
+      struct sigaction sa;
+      sigset_t sigset;
+      /* KVM_SET_SIGNAL_MASK expects a kernel sigset_t which is
+	 smaller than a glibc one */
+      struct {
+	struct kvm_signal_mask mask;
+	unsigned char buf[KERNEL_SIGSET_T_SIZE];
+      } maskbuf;
+
+      sa.sa_flags = 0;
+      sigemptyset(&sa.sa_mask);
+      sa.sa_handler = SIG_DFL; // never called
+      sigaction(KVM_IMMEDIATE_EXIT_SIG, &sa, NULL);
+
+      /* block KVM_IMMEDIATE_EXIT_SIG in main thread */
+      sigemptyset(&sigset);
+      sigaddset(&sigset, KVM_IMMEDIATE_EXIT_SIG);
+      pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+
+      /* don't block any signals inside the guest */
+      sigemptyset(&sigset);
+      maskbuf.mask.len = KERNEL_SIGSET_T_SIZE;
+      assert(sizeof(sigset) >= KERNEL_SIGSET_T_SIZE);
+      memcpy(maskbuf.mask.sigset, &sigset, KERNEL_SIGSET_T_SIZE);
+      if (ioctl(vcpufd, KVM_SET_SIGNAL_MASK, &maskbuf.mask) == -1) {
+	perror("KVM: KVM_SET_SIGNAL_MASK");
+	leavedos_main(99);
+      }
+    }
+  }
+
+  if (kvm_cap_immediate_exit) {
+    assert(run->immediate_exit == !set);
+    run->immediate_exit = set;
+    return;
+  }
+
+  if (set)
+    pthread_kill(pthread_self(), KVM_IMMEDIATE_EXIT_SIG);
+  else {
+    // need to flush the signal after KVM_RUN
+    sigset_t sigset;
+    assert(sigpending(&sigset) == 0 &&
+	   sigismember(&sigset, KVM_IMMEDIATE_EXIT_SIG));
+    sigemptyset(&sigset);
+    sigaddset(&sigset, KVM_IMMEDIATE_EXIT_SIG);
+    sigwaitinfo(&sigset, NULL);
+  }
+}
+
+#else // function without workaround if kernels older than 4.13 not supported
+
+static inline void kvm_set_immediate_exit(int set)
+{
+  assert(run->immediate_exit == !set);
+  run->immediate_exit = set;
+}
+
+#endif
+
 static void set_idt_default(dosaddr_t mon, int i)
 {
     unsigned int offs = mon + offsetof(struct monitor, code) + i * 32;
@@ -440,10 +521,12 @@ int init_kvm_cpu(void)
     goto errcap;
   }
   ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_IMMEDIATE_EXIT);
+#ifndef KVM_IMMEDIATE_EXIT_SIG
   if (ret <= 0) {
     error("KVM: IMMEDIATE_EXIT unsupported %x\n", ret);
     goto errcap;
   }
+#endif
 #else
   error("kernel is too old, KVM unsupported\n");
   goto errcap;
@@ -1052,7 +1135,7 @@ static unsigned int kvm_run(void)
 	 (and guest state is consistent) only after userspace has re-entered
 	 the kernel with KVM_RUN. The kernel side will first finish
 	 incomplete operations and then check for pending signals." */
-      run->immediate_exit = 1;
+      kvm_set_immediate_exit(1);
       do {
 	dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
 	unsigned char *data = run->mmio.data;
@@ -1075,8 +1158,8 @@ static unsigned int kvm_run(void)
 	/* read-modify-write instructions give two KVM_EXIT_MMIO
 	   exits in a row before the signal exit */
       } while (ret == 0 && run->exit_reason == KVM_EXIT_MMIO);
-      assert(ret == -1 && errno == EINTR && run->immediate_exit);
-      run->immediate_exit = 0;
+      assert(ret == -1 && errno == EINTR);
+      kvm_set_immediate_exit(0);
       /* going to emulate some instructions */
       if (!kvm_post_run(regs, &kregs))
 	break;
