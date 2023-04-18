@@ -2,13 +2,13 @@
 
 # Notes:
 #   1/ this file needs to be installed in the well known location by root
-#      cp test/dosemu_tap_setup.sh /bin/.
-#      chmod 755 /bin/dosemu_tap_setup.sh
-#      chown root.root /bin/dosemu_tap_setup.sh
+#      cp test/dosemu_tap_interface.sh /bin/.
+#      chmod 755 /bin/dosemu_tap_interface.sh
+#      chown root.root /bin/dosemu_tap_interface.sh
 #
 #   2/ sudo needs to be configured by root for the test user to run it
 #      without passwd
-#      echo 'ajb ALL=(ALL) NOPASSWD: /bin/dosemu_tap_setup.sh' > /etc/sudoers.d/dosemu
+#      echo 'ajb ALL=(ALL) NOPASSWD: /bin/dosemu_tap_interface.sh' > /etc/sudoers.d/dosemu
 #      chmod 0440 /etc/sudoers.d/dosemu
 
 if [ "$1" = "setup" ] ; then
