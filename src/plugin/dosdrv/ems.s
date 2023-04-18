@@ -229,7 +229,7 @@ DosemuTooOldMsg:
 	.ascii	"ERROR: Your dosemu is too old, ems.sys not loaded.\r\n$"
 
 EmsAlreadyLoadedMsg:
-	.ascii	"WARNING: An EMS manager has already been loaded.\r\n$"
+	.ascii	"\nWARNING: EMM already present, dosemu2 EMS driver not loaded\r\n$"
 
 EmsInstalledMsg:
 	.ascii	"dosemu EMS driver rev 0."
