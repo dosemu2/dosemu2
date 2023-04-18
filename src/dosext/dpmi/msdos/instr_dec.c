@@ -29,7 +29,6 @@
 #include "memory.h"
 #include "dos2linux.h"
 #include "emudpmi.h"
-#include "instremu.h"
 #include "instr_dec.h"
 
 typedef struct x86_ins {
@@ -238,6 +237,150 @@ static int _instr_len(unsigned char *p, int is_32)
 #endif
 
   return p - p0;
+}
+
+static unsigned char parity[256] =
+   { PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+      0, PF, PF,  0, PF,  0,  0, PF, PF,  0,  0, PF,  0, PF, PF,  0,
+     PF,  0,  0, PF,  0, PF, PF,  0,  0, PF, PF,  0, PF,  0,  0, PF };
+
+
+// see http://www.emulators.com/docs/LazyOverflowDetect_Final.pdf
+// same as used in codegen-sim.c:
+// CF = cout bit 31, OF^CF = cout bit 30, AF = cout bit 3
+static void FlagSync(int res, unsigned cout, unsigned *eflags)
+{
+	unsigned nf;
+
+	nf = parity[res & 0xff];
+	nf |= (res == 0) << 6; // ZF
+	nf |= ((unsigned)res >> 24) & SF;
+
+	nf |= (cout << 1) & AF;
+	nf |= (cout >> 31) & CF;
+	// 80000000->0800 ^ 40000000->0800
+	nf |= ((cout >> 20) ^ (cout >> 19)) & OF;
+
+	*eflags = (*eflags & ~(OF|ZF|SF|PF|AF|CF)) | nf;
+}
+
+/* 6 logical and arithmetic "RISC" core functions
+   follow
+*/
+static unsigned char instr_binary_byte(unsigned char op, unsigned char op1, unsigned char op2, unsigned *eflags)
+{
+  unsigned char res = 0;
+  unsigned cout = (*eflags & AF) ? 8 : 0;
+
+  switch (op&0x7){
+  case 1: /* or */
+    res = op1 | op2;
+    break;
+  case 4: /* and */
+    res = op1 & op2;
+    break;
+  case 6: /* xor */
+    res = op1 ^ op2;
+    break;
+  case 0: /* add */
+    *eflags &= ~CF; /* Fall through */
+  case 2: /* adc */
+    res = op1 + op2 + (*eflags & CF);
+    cout = (op1 & op2) | ((op1 | op2) & ~res);
+    break;
+  case 5: /* sub */
+  case 7: /* cmp */
+    *eflags &= ~CF; /* Fall through */
+  case 3: /* sbb */
+    res = op1 - op2 - (*eflags & CF);
+    cout = (~op1 & op2) | ((~op1 ^ op2) & res);
+    break;
+  }
+  cout = ((cout >> 6) << 30) | (cout & 8);
+  FlagSync((int32_t)(int8_t)res, cout, eflags);
+  return res;
+}
+
+static unsigned instr_binary_word(unsigned op, unsigned op1, unsigned op2, unsigned *eflags)
+{
+  unsigned short opw1 = op1;
+  unsigned short opw2 = op2;
+  unsigned short res = 0;
+  unsigned cout = (*eflags & AF) ? 8 : 0;
+
+  switch (op&0x7){
+  case 1: /* or */
+    res = opw1 | opw2;
+    break;
+  case 4: /* and */
+    res = opw1 & opw2;
+    break;
+  case 6: /* xor */
+    res = opw1 ^ opw2;
+    break;
+  case 0: /* add */
+    *eflags &= ~CF; /* Fall through */
+  case 2: /* adc */
+    res = opw1 + opw2 + (*eflags & CF);
+    cout = (opw1 & opw2) | ((opw1 | opw2) & ~res);
+    break;
+  case 5: /* sub */
+  case 7: /* cmp */
+    *eflags &= ~CF; /* Fall through */
+  case 3: /* sbb */
+    res = opw1 - opw2 - (*eflags & CF);
+    cout = (~opw1 & opw2) | ((~opw1 ^ opw2) & res);
+    break;
+  }
+  cout = ((cout >> 14) << 30) | (cout & 8);
+  FlagSync((int32_t)(int16_t)res, cout, eflags);
+  return res;
+}
+
+static unsigned instr_binary_dword(unsigned op, unsigned op1, unsigned op2, unsigned *eflags)
+{
+  unsigned res = 0;
+  unsigned cout = (*eflags & AF) ? 8 : 0;
+
+  switch (op&0x7){
+  case 1: /* or */
+    res = op1 | op2;
+    break;
+  case 4: /* and */
+    res = op1 & op2;
+    break;
+  case 6: /* xor */
+    res = op1 ^ op2;
+    break;
+  case 0: /* add */
+    *eflags &= ~CF; /* Fall through */
+  case 2: /* adc */
+    res = op1 + op2 + (*eflags & CF);
+    cout = (op1 & op2) | ((op1 | op2) & ~res);
+    break;
+  case 5: /* sub */
+  case 7: /* cmp */
+    *eflags &= ~CF; /* Fall through */
+  case 3: /* sbb */
+    res = op1 - op2 - (*eflags & CF);
+    cout = (~op1 & op2) | ((~op1 ^ op2) & res);
+    break;
+  }
+  FlagSync((int32_t)res, cout, eflags);
+  return res;
 }
 
 static uint32_t x86_pop(cpuctx_t *scp, x86_ins *x86)
