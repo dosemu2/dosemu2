@@ -111,7 +111,7 @@ VS = $(subst .,_,$(notdir $(1)))_START
 		}\
 		' > $@_offsets.c
 	$(CC) -c -o $@_offsets.o $@_offsets.c
-	$(HOST_LD) -r -o $@ $@_ $@_offsets.o
+	$(HOST_LD) -r -o $@ $@_offsets.o $@_
 	$(RM) _$@ $@_ $@.bin $@.elf $@_offsets.c $@_offsets.o
 
 %.o: %.SS
