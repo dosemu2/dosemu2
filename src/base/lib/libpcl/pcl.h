@@ -32,7 +32,8 @@
 typedef void *coroutine_t;
 typedef void *cohandle_t;
 
-#define WANT_UCONTEXT 0
+#define _WANT_UCONTEXT 0
+#define WANT_UCONTEXT (_WANT_UCONTEXT || !defined(MCONTEXT))
 
 enum CoBackend {
 #ifdef MCONTEXT
