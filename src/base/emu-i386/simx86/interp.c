@@ -2753,7 +2753,6 @@ repag0:
 				}
 			}
 			b &= 7;
-#ifdef HOST_ARCH_X86
 			if (TheCPU.fpstate) {
 				/* For simulator, only need to mask all
 				   exceptions, and set rounding properly;
@@ -2766,7 +2765,6 @@ repag0:
 					loadfpstate(*TheCPU.fpstate);
 				TheCPU.fpstate = NULL;
 			}
-#endif
 			if (sim) {
 			    if (Fp87_op(exop,b)) { TheCPU.err = -96; return P0; }
 			}
