@@ -63,9 +63,14 @@ if test -z "$AS"; then
 fi
 AC_PATH_PROG([XAS], [i686-linux-gnu-as])
 if test -z "$XAS"; then
-  XAS="$AS"
-  if test "$clang_as_as" = "1"; then
-    XASFLAGS="$ASFLAGS -m32"
+  AC_PATH_PROG([XAS], [x86_64-linux-gnu-as])
+  if test -z "$XAS"; then
+    XAS="$AS"
+    if test "$clang_as_as" = "1"; then
+      XASFLAGS="$ASFLAGS -m32"
+    else
+      XASFLAGS="$ASFLAGS --32"
+    fi
   else
     XASFLAGS="$ASFLAGS --32"
   fi
@@ -74,7 +79,7 @@ AC_PATH_PROGS([LD], [ld ld.lld])
 if test -z "$LD"; then
   AC_MSG_ERROR(ld not found)
 fi
-AC_PATH_PROG([AS_LD], [i686-linux-gnu-ld])
+AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld x86_64-linux-gnu-ld])
 if test -z "$AS_LD"; then
   AS_LD="$LD"
 fi
@@ -88,7 +93,7 @@ if test -z "$OBJCOPY"; then
 else
   O_BDFARCH=`$OBJCOPY --info | head -n 2 | tail -n 1`
 fi
-AC_PATH_PROG([XOBJCOPY], [i686-linux-gnu-objcopy])
+AC_PATH_PROGS([XOBJCOPY], [i686-linux-gnu-objcopy x86_64-linux-gnu-objcopy])
 if test -z "$XOBJCOPY"; then
   XOBJCOPY="$OBJCOPY"
 fi
