@@ -540,8 +540,7 @@ fi
 
 AC_ARG_ENABLE(mcontext,
                AS_HELP_STRING([--disable-mcontext], [disable fast context switch]))
-# TODO: fix arm support
-if test "$enable_mcontext" != "no" -a "$machine" != "arm"; then
+if test "$enable_mcontext" != "no"; then
     AC_MSG_NOTICE([Enabling fast context switching...])
     AC_DEFINE(MCONTEXT)
     MCONTEXT=1
