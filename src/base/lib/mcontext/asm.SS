@@ -47,8 +47,8 @@
 #define GET _getmcontext
 #elif defined(__arm__)
 #define NEEDARMCONTEXT 1
-#define SET setmcontext
-#define GET getmcontext
+#define SET _setmcontext
+#define GET _getmcontext
 #elif defined(__mips__)
 #define NEEDMIPSCONTEXT 1
 #define SET setmcontext

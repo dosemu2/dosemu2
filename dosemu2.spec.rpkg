@@ -48,6 +48,7 @@ BuildRequires: linuxdoc-tools
 BuildRequires: readline-devel
 BuildRequires: json-c-devel
 BuildRequires: binutils-devel
+BuildRequires: binutils-x86_64-linux-gnu
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp-devel
 

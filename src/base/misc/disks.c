@@ -253,11 +253,7 @@ read_sectors(const struct disk *dp, unsigned buffer, uint64_t sector,
   pos = calc_pos(dp, sector);
   d_printf("DISK: %s: Trying to read %ld sectors at LBA %"PRIu64"",
 	   dp->dev_name,count,sector);
-#if defined(__linux__) && defined(__i386__)
-  d_printf("%+lld at pos %lld\n", dp->header, pos);
-#else
-  d_printf("%+ld at pos %ld\n", dp->header, pos);
-#endif
+  d_printf("%+"PRIi64" at pos %"PRIi64"\n", dp->header, pos);
 
   /* reads beginning before that actual disk/file */
   if (pos < 0 && count > 0) {
@@ -362,11 +358,7 @@ write_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
   pos = calc_pos(dp, sector);
   d_printf("DISK: %s: Trying to write %ld sectors at LBA %"PRIu64"",
 	   dp->dev_name,count,sector);
-#if defined(__linux__) && defined(__i386__)
-  d_printf(" at pos %lld\n", pos);
-#else
-  d_printf(" at pos %ld\n", pos);
-#endif
+  d_printf(" at pos %"PRIi64"\n", pos);
 
   /*
    * writes outside the partition (before the actual disk/file) are ignored

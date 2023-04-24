@@ -316,9 +316,11 @@ static void abort_signal(int sig, siginfo_t *si, void *uc)
 SIG_PROTO_PFX
 static void minfault(int sig, siginfo_t *si, void *uc)
 {
+#ifdef HOST_ARCH_X86
 #if defined(__i386__) || defined(X86_EMULATOR)
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
+#endif
 #ifdef __i386__
   if (in_vm86 && config.cpu_vm == CPUVM_VM86) {
     true_vm86_fault(scp);
