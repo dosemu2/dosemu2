@@ -15,7 +15,15 @@ def lfn_voln_info(self, fstype):
     else:
         raise ValueError
 
+    self.unTarOrSkip("TEST_DOSLFN.tar", [
+        ("doslfn.com", "6fec9451489d81b16253a5340afdb955aa6136fb"),
+        ("cp437uni.tbl", "4b2c5f7ef008e6826a75035822b65c5bb72e2ffe"),
+        ("cp858uni.tbl", "4dc79f9b2e8d8f57187e94169eb9b7c79b32bb31"),
+        ("cp866uni.tbl", "28d4dc1b9197fb03af9382674c3fa3321c0608b5"),
+    ])
+
     self.mkfile("testit.bat", """\
+c:\\doslfn -f-
 d:
 c:\\lfnvinfo D:\\
 rem end
@@ -59,12 +67,9 @@ int main(int argc, char *argv[]) {
 
     results = self.runDosemu("testit.bat", config=config)
 
-#   NOTE: One day perhaps DOSLFN will play nicely and ignore (and
-#         so pass-through) non-FAT filesystems, until then we'll
-#         run without it loaded and just expect ERRNO(27) in case
-#         of FAT*
-
     if fstype == "MFS":
         self.assertIn("FSTYPE(MFS)", results)
-    elif fstype in ("FAT16", "FAT32"):
-        self.assertIn("ERRNO(27)", results)
+    elif fstype == "FAT16":
+        self.assertIn("FSTYPE(FAT)", results)
+    elif fstype == "FAT32":
+        self.assertIn("FSTYPE(FAT32)", results)

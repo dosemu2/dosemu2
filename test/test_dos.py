@@ -4921,7 +4921,9 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
             "test_mfs_truename_ufs_sfn": KNOWNFAIL,
             "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
             "test_fat32_img_d_writable": UNSUPPORTED,
+            "test_lfn_volume_info_fat16": KNOWNFAIL,
             "test_lfn_volume_info_fat32": UNSUPPORTED,
+            "test_lfn_volume_info_mfs": KNOWNFAIL,
             "test_lfs_disk_info_fat32": UNSUPPORTED,
             "test_floppy_vfs": KNOWNFAIL,
             "test_memory_hma_alloc3": UNSUPPORTED,
@@ -5156,6 +5158,7 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         ]
         cls.actions = {
             "test_fat32_img_d_writable": UNSUPPORTED,
+            "test_lfn_volume_info_fat16": KNOWNFAIL,
             "test_lfn_volume_info_fat32": UNSUPPORTED,
             "test_lfs_disk_info_fat32": UNSUPPORTED,
             "test_memory_hma_alloc3": UNSUPPORTED,
@@ -5214,6 +5217,7 @@ class MSDOS700TestCase(OurTestCase, unittest.TestCase):
         cls.actions = {
             "test_fat32_img_d_writable": UNSUPPORTED,
             "test_fat_label_create_bpb32": UNSUPPORTED,
+            "test_lfn_volume_info_fat16": KNOWNFAIL,
             "test_lfn_volume_info_fat32": UNSUPPORTED,
             "test_lfs_disk_info_fat32": UNSUPPORTED,
             "test_lfs_disk_info_mfs": KNOWNFAIL,
