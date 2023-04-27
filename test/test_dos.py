@@ -33,6 +33,9 @@ from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
 from func_lfn_voln_info import lfn_voln_info
 from func_lfs_disk_info import lfs_disk_info
+from func_label_create import (label_create, label_create_on_lfns,
+                                label_create_noduplicate, label_create_nonrootdir,
+                                label_delete_wildcard, label_delete_recreate)
 from func_lfs_file_info import lfs_file_info
 from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
@@ -66,7 +69,8 @@ PRGFIL_LFN = "Program Files"
 
 class OurTestCase(BaseTestCase):
 
-    attrs = ['cputest', 'dpmitest', 'hmatest', 'nettest', 'umatest', 'xmstest']
+    attrs = ['cputest', 'dpmitest', 'hmatest', 'nettest', 'umatest', 'xmstest',
+             'labeltest']
     pname = "test_dos"
 
     # Tests using assembler
@@ -777,6 +781,56 @@ altdta:
     def test_mfs_fcb_read_alt_dta(self):
         """MFS FCB file read alternate DTA"""
         self._test_fcb_read_alt_dta("MFS")
+
+    def test_fat_label_create_simple(self):
+        """FAT FCB label create simple"""
+        label_create(self, "FAT", None)
+    test_fat_label_create_simple.labeltest = True
+
+    def test_fat_label_create_bpb12(self):
+        """FAT FCB label create BPB FAT12"""
+        label_create(self, "FAT", 'bpb12')
+    test_fat_label_create_bpb12.labeltest = True
+
+    def test_fat_label_create_bpb16(self):
+        """FAT FCB label create BPB FAT16"""
+        label_create(self, "FAT", 'bpb16')
+    test_fat_label_create_bpb16.labeltest = True
+
+    def test_fat_label_create_bpb32(self):
+        """FAT FCB label create BPB FAT32"""
+        label_create(self, "FAT", 'bpb32')
+    test_fat_label_create_bpb32.labeltest = True
+
+    def test_fat_label_create_prefile(self):
+        """FAT FCB label create file beforehand"""
+        label_create(self, "FAT", 'prefile')
+    test_fat_label_create_prefile.labeltest = True
+
+    def test_fat_label_create_predir(self):
+        """FAT FCB label create directory beforehand"""
+        label_create(self, "FAT", 'predir')
+    test_fat_label_create_predir.labeltest = True
+
+    def test_fat_label_create_postfile(self):
+        """FAT FCB label create file afterwards"""
+        label_create(self, "FAT", 'postfile')
+    test_fat_label_create_postfile.labeltest = True
+
+    def test_fat_label_create_postdir(self):
+        """FAT FCB label create directory afterwards"""
+        label_create(self, "FAT", 'postdir')
+    test_fat_label_create_postdir.labeltest = True
+
+    def test_fat_label_create_on_lfns(self):
+        """FAT FCB label create on top of LFNs"""
+        label_create_on_lfns(self)
+    test_fat_label_create_on_lfns.labeltest = True
+
+    def test_fat_label_create_noduplicate(self):
+        """FAT FCB label create no duplicate"""
+        label_create_noduplicate(self, "FAT")
+    test_fat_label_create_noduplicate.labeltest = True
 
     def _test_fcb_write(self, fstype):
         testdir = self.mkworkdir('d')
@@ -4874,6 +4928,10 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
             "test_memory_hma_chain": UNSUPPORTED,
             "test_pcmos_build": KNOWNFAIL,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
+            "test_fat_label_create_bpb12": KNOWNFAIL,
+            "test_fat_label_create_bpb16": KNOWNFAIL,
+            "test_fat_label_create_bpb32": UNSUPPORTED,
+            "test_fat_label_create_on_lfns": UNSUPPORTED,
         }
 
         cls.setUpClassPost()
@@ -4968,6 +5026,11 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
             "test_pcmos_build": KNOWNFAIL,
             r"test_libi86_item_\d+": KNOWNFAIL,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
+            "test_fat_label_create_bpb12": KNOWNFAIL,
+            "test_fat_label_create_bpb16": KNOWNFAIL,
+            "test_fat_label_create_bpb32": KNOWNFAIL,
+            "test_fat_label_create_prefile": KNOWNFAIL,
+            "test_fat_label_create_predir": KNOWNFAIL,
         }
 
         cls.setUpClassPost()
@@ -5029,6 +5092,12 @@ class FRDOS130TestCase(OurTestCase, unittest.TestCase):
             "test_fat_fcb_rename_wild_2": KNOWNFAIL,
             "test_fat_fcb_rename_wild_3": KNOWNFAIL,
             "test_fat_fcb_rename_wild_4": KNOWNFAIL,
+            "test_fat_label_create_bpb12": KNOWNFAIL,
+            "test_fat_label_create_bpb16": KNOWNFAIL,
+            "test_fat_label_create_bpb32": KNOWNFAIL,
+            "test_fat_label_create_noduplicate": KNOWNFAIL,
+            "test_fat_label_create_predir": KNOWNFAIL,
+            "test_fat_label_create_prefile": KNOWNFAIL,
             "test_memory_emm286_borland": KNOWNFAIL,
             "test_memory_hma_alloc": KNOWNFAIL,
             "test_memory_hma_alloc3": UNSUPPORTED,
@@ -5092,6 +5161,8 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
             "test_memory_hma_alloc3": UNSUPPORTED,
             "test_memory_hma_chain": UNSUPPORTED,
             "test_passing_dos_errorlevel_back": KNOWNFAIL,
+            "test_fat_label_create_bpb32": UNSUPPORTED,
+            "test_fat_label_create_on_lfns": UNSUPPORTED,
         }
 
         cls.setUpClassPost()
@@ -5142,6 +5213,7 @@ class MSDOS700TestCase(OurTestCase, unittest.TestCase):
         ]
         cls.actions = {
             "test_fat32_img_d_writable": UNSUPPORTED,
+            "test_fat_label_create_bpb32": UNSUPPORTED,
             "test_lfn_volume_info_fat32": UNSUPPORTED,
             "test_lfs_disk_info_fat32": UNSUPPORTED,
             "test_lfs_disk_info_mfs": KNOWNFAIL,
