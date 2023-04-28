@@ -196,7 +196,7 @@ if [ -f ~/.dosemu/stderr.log.$BASHPID ]; then
   cat ~/.dosemu/stderr.log.$BASHPID >&4
   rm -f ~/.dosemu/stderr.log.$BASHPID
 fi
-RUNDIR="$HOME/.dosemu/run"
+RUNDIR="/var/run/user/$UID/dosemu2"
 STALE="`ls "$RUNDIR"/*."$DPID" 2>/dev/null`"
 if [ -n "$STALE" ]; then
   echo "removing stale files:"
