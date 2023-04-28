@@ -227,8 +227,7 @@ char *e_print_regs(void)
 	exprintl(rEDI,buf,(ERB_L2+ERB_LEFTM)+13);
 	exprintl(rEBP,buf,(ERB_L2+ERB_LEFTM)+26);
 	exprintl(rESP,buf,(ERB_L2+ERB_LEFTM)+39);
-	if (!(TheCPU.eflags&EFLAGS_VM))
-		exprintl(get_FLAGS(TheCPU.eflags),buf,(ERB_L3+ERB_LEFTM));
+	exprintl(TheCPU.eflags,buf,(ERB_L3+ERB_LEFTM));
 	exprintw(TheCPU.cs,buf,(ERB_L3+ERB_LEFTM)+13);
 	exprintw(TheCPU.ds,buf,(ERB_L3+ERB_LEFTM)+26);
 	exprintw(TheCPU.es,buf,(ERB_L3+ERB_LEFTM)+39);
