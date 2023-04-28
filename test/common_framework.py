@@ -188,7 +188,7 @@ class BaseTestCase(object):
             self.unTarOrSkip(self.tarfile, self.files)
 
         # Empty dosemu.conf for default values
-        self.mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
+        self.mkfile("dosemu.conf", """\n""", self.imagedir)
 
         # Create startup files
         self.setUpDosAutoexec()
