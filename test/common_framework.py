@@ -45,10 +45,11 @@ TEST_BINARIES = (
     'MS-DOS-7.00.tar',
     'MS-DOS-7.10.tar',
     'VARIOUS.tar',
-    'TEST_EMM286.tar',
     'TEST_CRYNWR.tar',
-    'TEST_MTCP.tar',
+    'TEST_DOSLFN.tar',
+    'TEST_EMM286.tar',
     'TEST_JAPHETH.tar',
+    'TEST_MTCP.tar',
 )
 
 
@@ -188,7 +189,7 @@ class BaseTestCase(object):
             self.unTarOrSkip(self.tarfile, self.files)
 
         # Empty dosemu.conf for default values
-        self.mkfile("dosemu.conf", """$_force_fs_redirect = (off)\n""", self.imagedir)
+        self.mkfile("dosemu.conf", """\n""", self.imagedir)
 
         # Create startup files
         self.setUpDosAutoexec()
