@@ -361,6 +361,7 @@ static void our_envs_init(void)
     setenv("DOSEMU_EUID", buf, 1);
     sprintf(buf, "%d", getuid());
     setenv("DOSEMU_UID", buf, 1);
+    sprintf(buf, "%d", get_orig_uid());
     dosemu_uid = strdup(buf);
 }
 
