@@ -55,10 +55,8 @@ static int emu_update_LDT (struct user_desc *ldt_info, int oldmode)
 	Descriptor *lp;
 	int bSelType;
 
-#ifdef X86_EMULATOR
-	if (config.cpu_vm_dpmi == CPUVM_EMU)
-		InvalidateSegs();
-#endif
+	/* invalidate segment base cache in cpuemu */
+	InvalidateSegs();
 
 	/* Install the new entry ...  */
 	lp = &((Descriptor *)dpmi_get_ldt_buffer())[ldt_info->entry_number];
