@@ -75,13 +75,13 @@ struct pkt_param {
 /* return structure for GET_STATS */
 
 struct pkt_statistics {
-    unsigned long   packets_in;     /* Totals across all handles */
-    unsigned long   packets_out;
-    unsigned long   bytes_in;       /* Including MAC headers */
-    unsigned long   bytes_out;
-    unsigned long   errors_in;      /* Totals across all error types */
-    unsigned long   errors_out;
-    unsigned long   packets_lost;   /* No buffer from receiver(), card */
+    uint32_t   packets_in;     /* Totals across all handles */
+    uint32_t   packets_out;
+    uint32_t   bytes_in;       /* Including MAC headers */
+    uint32_t   bytes_out;
+    uint32_t   errors_in;      /* Totals across all error types */
+    uint32_t   errors_out;
+    uint32_t   packets_lost;   /* No buffer from receiver(), card */
 				    /*  out of resources, etc. */
 };
 
