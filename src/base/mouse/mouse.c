@@ -134,6 +134,7 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
     int vis, void *udata);
 static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata);
 static void int33_mouse_enable_native_cursor(int flag, void *udata);
+static void call_int15_mouse_event_handler(void);
 
 /* graphics cursor */
 void graph_cursor(void), text_cursor(void);
@@ -306,6 +307,13 @@ mouse_helper(struct vm86_regs *regs)
 	m_printf("MOUSE: normalizing hide count, %i\n", mouse.cursor_on);
 	mouse.cursor_on = -1;
     }
+    break;
+  case 0xf2:
+    m_printf("MOUSE int74 helper\n");
+    if (mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip))
+      call_int15_mouse_event_handler();
+    mouse_events = 0;
+    pic_untrigger(12);
     break;
   case 0xff:
     m_printf("MOUSE Checking InternalDriver presence !!\n");
@@ -2122,18 +2130,13 @@ static void call_mouse_event_handler(void *arg)
 {
   int handled = 0;
 
-  if (mouse_events && mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip)) {
-    call_int15_mouse_event_handler();
+  if (mouse.mask & mouse_events && (mouse.cs || mouse.ip)) {
+    call_int33_mouse_event_handler();
     handled = 1;
   } else {
-    if (mouse.mask & mouse_events && (mouse.cs || mouse.ip)) {
-      call_int33_mouse_event_handler();
-      handled = 1;
-    } else {
-      m_printf("MOUSE: Skipping event handler, "
+    m_printf("MOUSE: Skipping event handler, "
 	       "mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
 	       mouse.mask, mouse_events, mouse.cs, mouse.ip);
-    }
   }
   mouse_events = 0;
 
@@ -2258,6 +2261,8 @@ static enum VirqSwRet do_mouse_irq(void *arg)
 {
   int ret = VIRQ_SWRET_DONE;
 
+  if (mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip))
+    return ret;
   if (mouse_events) {
     coopth_start(mouse_tid, NULL);
     ret = VIRQ_SWRET_BH;
@@ -2268,6 +2273,8 @@ static enum VirqSwRet do_mouse_irq(void *arg)
 static enum VirqHwRet do_mouse_fifo(void *arg)
 {
   int cnt = mousedrv_process_fifo("int33 mouse");
+  if (mouse_events)
+    pic_request(12);  // for ps2
   return (cnt ? VIRQ_HWRET_CONT : VIRQ_HWRET_DONE);
 }
 

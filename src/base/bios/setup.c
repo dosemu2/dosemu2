@@ -193,6 +193,8 @@ static void bios_setup(void)
     SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
   if (config.ipxsup)
     SETIVEC(0x7a, BIOSSEG, INT_OFF(0x7a));
+  if (config.mouse.intdrv)
+    SETIVEC(0x74, BIOSSEG, Mouse_ROUTINE_OFF);
 
   /* set up PIC */
   port_outb(0x20, 0x10);   // ICW1

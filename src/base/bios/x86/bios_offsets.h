@@ -1,6 +1,7 @@
 extern const unsigned bios_data_start;
 extern const unsigned ROM_BIOS_EXIT;
 extern const unsigned GET_RETCODE_HELPER;
+extern const unsigned Mouse_ROUTINE_OFF;
 extern const unsigned IRET_OFF;
 extern const unsigned FCB_HLP_OFF;
 extern const unsigned INT10_WATCHER_OFF;

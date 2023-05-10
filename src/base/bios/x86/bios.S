@@ -104,6 +104,18 @@ GET_RETCODE_HELPER:
 	int	$DOS_HELPER_INT
 	lret
 
+	/* This is the int74 handler */
+	.globl Mouse_ROUTINE_OFF
+Mouse_ROUTINE_OFF:
+	pushw	%ax	/* save everything */
+	pushw	%bx
+	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
+	movw	$0xf2,%bx	/* call the user or PS/2 hook */
+	int	$DOS_HELPER_INT
+	popw	%bx
+	popw	%ax
+	ljmp $BIOSSEG, $EOI2_OFF
+
 /* ----------------------------------------------------------------- */
 	/* this is IRET */
 	.globl IRET_OFF
