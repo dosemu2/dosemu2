@@ -29,7 +29,7 @@
 #include "smalloc.h"
 
 #define POOL_USED(p) (p->mn.used || p->mn.next)
-#ifndef min
+#ifndef _min
 #define _min(x, y) ((x) < (y) ? (x) : (y))
 #endif
 #ifndef PAGE_SIZE
