@@ -5132,6 +5132,80 @@ class FRDOS130TestCase(OurTestCase, unittest.TestCase):
         self.mkfile(self.confsys, contents, newline="\r\n")
 
 
+class FRDOSGITTestCase(OurTestCase, unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super(FRDOSGITTestCase, cls).setUpClass()
+        cls.version = "DOS version 7.10"
+        cls.prettyname = "FR-DOS-GIT"
+        cls.tarfile = ""
+        cls.systype = SYSTYPE_FRDOS_NEW
+        cls.autoexec = "fdautoem.bat"
+        cls.confsys = "fdconfig.sys"
+        cls.bootblocks = [
+        ]
+        cls.images = [
+        ]
+        cls.actions = {
+            "test_fat_ds3_lock_concurrent": KNOWNFAIL,
+            "test_fat_ds3_lock_readlckd": KNOWNFAIL,
+            "test_fat_ds3_lock_two_handles": KNOWNFAIL,
+            "test_fat_ds3_lock_writable": KNOWNFAIL,
+            "test_fat_ds3_share_open_delete_one_process_ds2": KNOWNFAIL,
+            "test_fat_ds3_share_open_delete_one_process_fcb": KNOWNFAIL,
+            "test_fat_ds3_share_open_rename_one_process_ds2": KNOWNFAIL,
+            "test_fat_ds3_share_open_rename_one_process_fcb": KNOWNFAIL,
+            "test_fat_ds3_share_open_setfattrs_one_process": KNOWNFAIL,
+            "test_fat_ds3_share_open_twice": KNOWNFAIL,
+            "test_fat_label_create_bpb12": KNOWNFAIL,
+            "test_fat_label_create_bpb16": KNOWNFAIL,
+            "test_fat_label_create_bpb32": KNOWNFAIL,
+            "test_fat_label_create_noduplicate": KNOWNFAIL,
+            "test_fat_label_create_predir": KNOWNFAIL,
+            "test_fat_label_create_prefile": KNOWNFAIL,
+            "test_memory_emm286_borland": KNOWNFAIL,
+            "test_memory_hma_alloc3": UNSUPPORTED,
+            "test_memory_hma_chain": UNSUPPORTED,
+            "test_memory_uma_strategy": KNOWNFAIL,
+            "test_passing_dos_errorlevel_back": KNOWNFAIL,
+        }
+
+        cls.setUpClassPost()
+
+        # Check files under test exist, or skip the whole thing
+        cls.files_to_copy = [
+            Path(environ.get("FDOS_KERNEL_SYS", "../fdos/kernel.git/bin/kernel.sys")),
+            Path(environ.get("FDOS_COMMAND_COM", "../fdos/freecom.git/command.com")),
+            Path(environ.get("FDOS_SHARE_COM", "../fdos/share.git/src/share.com")),
+        ]
+        for f in cls.files_to_copy:
+            if not f.is_file():
+                raise unittest.SkipTest("File '%s' not found" % f.name)
+
+    def setUp(self):
+        super(FRDOSGITTestCase, self).setUp()
+        for f in self.files_to_copy:
+            copy(f, self.workdir)
+
+    def setUpDosAutoexec(self):
+        # Use the (almost) standard shipped config
+        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        self.mkfile(self.autoexec, contents, newline="\r\n")
+
+    def setUpDosConfig(self):
+        # Link back to std dosemu commands and scripts
+        p = self.workdir / "dosemu"
+        p.symlink_to(self.topdir / "commands" / "dosemu")
+
+        # Use the (almost) standard shipped config
+        contents = (self.topdir / "src" / "bindist" / "c" / self.confsys).read_text()
+        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
+        self.mkfile(self.confsys, contents, newline="\r\n")
+
+
 class MSDOS622TestCase(OurTestCase, unittest.TestCase):
 
     @classmethod
