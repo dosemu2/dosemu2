@@ -77,7 +77,7 @@ struct {
 
 int main(int argc, char *argv[])
 {
-  union REGS r;
+  union REGS r = {};
 
   xfcb.sig = 0xff;
   xfcb.attr = _A_VOLID;
@@ -204,7 +204,7 @@ struct {
 
 int main(int argc, char *argv[])
 {
-  union REGS r;
+  union REGS r = {};
 
   xfcb.sig = 0xff;
   xfcb.attr = _A_VOLID;
