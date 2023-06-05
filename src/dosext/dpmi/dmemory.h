@@ -18,6 +18,7 @@ typedef struct dpmi_pm_block_stuct {
   unsigned int shmsize;
   char *shmname;
   char *rshmname;
+  int mapped;
 } dpmi_pm_block;
 
 typedef struct dpmi_pm_block_root_struc {
