@@ -4,12 +4,16 @@ Main contributors (with their github names):
 Stas Sergeev		@stsp
 Bart Oldeman		@bartoldeman
 Andrew Bird		@andrewbird
+C. Masloch		@ecm-pushbx
 Ryan C. Underwood	@runderwo
 Stuart Axon		@stuaxo
 
 Special thanks for making dosemu2 feasible:
 Caylan Van Larson <i@caylan.net>
 Hans-Christian Koch <hc.koch@scheerkoch.de>
+
+Many thanks for sponsoring the project:
+C. Masloch <pushbx@ulukai.org>
 
 Thanks for the good testing and bugreporting:
 Julius Schwartzenberg	@jschwartzenberg
