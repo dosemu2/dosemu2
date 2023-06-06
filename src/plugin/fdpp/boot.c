@@ -24,14 +24,15 @@
 #include "int.h"
 #include "disks.h"
 #include <fdpp/bprm.h>
-#if BPRM_MIN_VER != 8
+#if BPRM_MIN_VER != 10
 #error wrong bprm version
 #endif
 /* currently supported version */
-#define BPRM_SUPP_VER 9
+#define BPRM_SUPP_VER 10
 #include "boot.h"
 
-int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
+int fdpp_boot(far_t *plt, int plt_len, const void *krnl, int len,
+        uint16_t seg, int khigh,
         uint16_t heap_seg, int heap, int hhigh, unsigned char *boot_sec,
         uint16_t bpseg)
 {
@@ -169,8 +170,8 @@ int fdpp_boot(far_t plt, const void *krnl, int len, uint16_t seg, int khigh,
     env[env_len++] = '\0'; // third terminator (can be \1 for cmdline)
     env[env_len++] = '\0'; // third terminator is a word, not byte
 
-    memcpy(boot_sec + 0x03, "FDPP 1.4", 8);
-    memcpy(boot_sec + FDPP_PLT_OFFSET, &plt, sizeof(plt));
+    memcpy(boot_sec + 0x03, "FDPP 1.6", 8);
+    memcpy(boot_sec + FDPP_PLT_OFFSET, plt, sizeof(plt) * plt_len);
     *(uint16_t *)(boot_sec + FDPP_BPRM_VER_OFFSET) = BPRM_VER;
     memcpy(boot_sec + FDPP_BPRM_OFFSET, &bprm, sizeof(bprm));
 

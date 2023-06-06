@@ -29,6 +29,7 @@
 #include "lowmem.h"
 #include "xms.h"
 #include "fatfs.h"
+#include "hlt.h"
 #include "coopth.h"
 #include "doshelpers.h"
 #include "utilities.h"
@@ -62,6 +63,14 @@ static void fdpp_thr(void *arg)
     }
 }
 
+static void fdpp_ctrl(Bit16u idx, HLT_ARG(arg))
+{
+    int err;
+    fake_retf();
+    err = FdppCtrl(idx, &REGS);
+    assert(!err);
+}
+
 static void fdpp_cleanup(void)
 {
     while (num_clnup_tids) {
@@ -84,7 +93,8 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
 #ifdef USE_MHPDBG
     char *map;
 #endif
-    static far_t plt;
+#define PLT_LEN 2
+    static far_t plt[PLT_LEN];
     static int initialized;
     uint16_t seg;
     uint16_t bpseg;
@@ -95,9 +105,14 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     int hhigh = 0;
 
     if (!initialized) {
-	plt.segment = BIOS_HLT_BLK_SEG;
+	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+	plt[0].segment = BIOS_HLT_BLK_SEG;
 	fdpp_tid = coopth_create_vm86("fdpp thr", fdpp_thr, fake_retf,
-		&plt.offset);
+		&plt[0].offset);
+	hlt_hdlr.name = "fdpp control";
+	hlt_hdlr.func = fdpp_ctrl;
+	plt[1].segment = BIOS_HLT_BLK_SEG;
+	plt[1].offset = hlt_register_handler_vm86(hlt_hdlr);
 	initialized++;
     }
 
@@ -148,8 +163,8 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
 	free(bss);
     }
     FdppKernelFree(hndl);
-    err = fdpp_boot(plt, krnl, krnl_len, seg, khigh, heap_seg, heap_sz, hhigh,
-	    boot_sec, bpseg);
+    err = fdpp_boot(plt, PLT_LEN, krnl, krnl_len, seg, khigh, heap_seg,
+	    heap_sz, hhigh, boot_sec, bpseg);
     if (err)
 	return err;
     register_cleanup_handler(fdpp_cleanup);
