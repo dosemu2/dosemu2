@@ -115,7 +115,7 @@ int emumouse_main(int argc, char *argv[])
 	  return(1);
 	}
 	val = argv[i][0] - '0';
-	printf("Ignore VESA modes: %i\n", val);
+	com_printf("Ignore VESA modes: %i\n", val);
 	SETLO_BYTE(regs.ecx, val);
 	SETWORD(regs.ebx, 0x0006);
 	mouse_helper(&regs);
@@ -125,23 +125,23 @@ int emumouse_main(int argc, char *argv[])
       case 'R':
       case 'r':
 	mouse_client_reset();
-	printf("Resetting iret.\n");
+	com_printf("Resetting iret.\n");
 	SETWORD(regs.ebx, 0x0000);
 	mouse_helper(&regs);
 	break;
 
       case 'I':
       case 'i':
-	printf("\nCurrent mouse setting:\n");
+	com_printf("\nCurrent mouse setting:\n");
 	SETWORD(regs.ebx, 0x0003);
 	mouse_helper(&regs);
 	if (HI_BYTE_d(regs.ebx) == 0x10)
 	  com_printf("  2 button mouse mode (Microsoft)\n");
 	else
 	  com_printf("  3 button mouse mode (e.g. Mousesystems, PS2)\n");
-	printf  ("  Horizontal Speed (X) - %d\n", LO_BYTE_d(regs.ecx));
-	printf  ("  Vertical Speed   (Y) - %d\n", HI_BYTE_d(regs.ecx));
-	printf  ("  Ignore VESA modes    - %s\n\n", LO_BYTE_d(regs.edx) ? "yes" : "no");
+	com_printf  ("  Horizontal Speed (X) - %d\n", LO_BYTE_d(regs.ecx));
+	com_printf  ("  Vertical Speed   (Y) - %d\n", HI_BYTE_d(regs.ecx));
+	com_printf  ("  Ignore VESA modes    - %s\n\n", LO_BYTE_d(regs.edx) ? "yes" : "no");
 	SETWORD(regs.ebx, 0x0007);
 	mouse_helper(&regs);
 	if (LO_WORD(regs.eax) == 0) {
@@ -151,7 +151,7 @@ int emumouse_main(int argc, char *argv[])
 	break;
 
       case '3':
-	printf("Selecting 3 button mouse mode (e.g. Mousesystems, PS2).\n");
+	com_printf("Selecting 3 button mouse mode (e.g. Mousesystems, PS2).\n");
 	SETWORD(regs.ebx, 0x0002);
 	mouse_helper(&regs);
 	if (LO_BYTE_d(regs.eax) == 0xff) {
@@ -163,7 +163,7 @@ int emumouse_main(int argc, char *argv[])
 	break;
 
       case '2':
-	printf("Selecting 2 button mouse mode (Microsoft).\n");
+	com_printf("Selecting 2 button mouse mode (Microsoft).\n");
 	SETWORD(regs.ebx, 0x0001);
 	mouse_helper(&regs);
 	break;
@@ -178,7 +178,7 @@ int emumouse_main(int argc, char *argv[])
 	  break;
 	}
 	value = atoi(argv[i]);
-	printf("Selecting vertical speed to %d.\n", value);
+	com_printf("Selecting vertical speed to %d.\n", value);
 	SETWORD(regs.ebx, 0x0004);
 	SETLO_BYTE(regs.ecx, value);
 	mouse_helper(&regs);
@@ -198,7 +198,7 @@ int emumouse_main(int argc, char *argv[])
 	  break;
 	}
 	value = atoi(argv[i]);
-	printf("Selecting horizontal speed to %d.\n", value);
+	com_printf("Selecting horizontal speed to %d.\n", value);
 	SETWORD(regs.ebx, 0x0005);
 	SETLO_BYTE(regs.ecx, value);
 	mouse_helper(&regs);
@@ -294,7 +294,7 @@ int emumouse_main(int argc, char *argv[])
 	break;
 
       default:
-	printf("ERROR! Unknown option \"%s\".\n\n", argv[i]);
+	com_printf("ERROR! Unknown option \"%s\".\n\n", argv[i]);
 	return usage();
 	/* never reached */
 	break;
