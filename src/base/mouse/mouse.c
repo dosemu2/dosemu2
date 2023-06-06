@@ -240,7 +240,8 @@ mouse_helper(struct vm86_regs *regs)
       SETHIGH(regs->ebx, 0x20);		/* We are currently in PC Mouse Mode */
     SETLO_BYTE(regs->ecx, mice->init_speed_x);
     SETHIGH(regs->ecx, mice->init_speed_y);
-    SETLO_BYTE(regs->edx, mice->ignorevesa);
+    SETLO_BYTE(regs->edx, (mice->ignorevesa & 1) |
+	((mice->ignore_speed << 1) & 2));
     break;
   case 4:				/* Set vertical speed */
     if (LO_BYTE_d(regs->ecx) < 1) {
@@ -269,10 +270,13 @@ mouse_helper(struct vm86_regs *regs)
     reset_scale();
     break;
   case 9:				/* set cursor visibility */
-    mouse_client_show_cursor(!!regs->ecx);
+    mouse_client_show_cursor(LO_BYTE_d(regs->ecx));
     break;
   case 0xa:				/* lock cursor visibility */
-    mouse.visibility_locked = !!regs->ecx;
+    mouse.visibility_locked = LO_BYTE_d(regs->ecx);
+    break;
+  case 0xb:				/* ungrabbed mode tweak */
+    mice->ignore_speed = LO_BYTE_d(regs->ecx);
     break;
   case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
     m_printf("MOUSE Start video mode set\n");

@@ -55,6 +55,7 @@ static int usage(void)
   com_printf("  s 1|0   - Ignore VESA modes (1 - ignore, 0 - accept).\n");
   com_printf("  c 1|0   - Enable/disable host's cursor.\n");
   com_printf("  l 1|0   - Lock/unlock host's cursor visibility.\n");
+  com_printf("  u 1|0   - Enable/disable ungrab mode tweak.\n");
   com_printf("  h       - Display this screen.\n");
   com_printf("  Mx val  - Set minimum internal horizontal resolution.\n");
   com_printf("  My val  - Set minimum internal vertical resolution.\n\n");
@@ -122,6 +123,22 @@ int emumouse_main(int argc, char *argv[])
 	break;
       }
 
+      case 'U':
+      case 'u': {
+	int val;
+	i++;
+	if (i == argc) {
+	  com_printf("ERROR! No value for \"u\" found.\n");
+	  return(1);
+	}
+	val = argv[i][0] - '0';
+	com_printf("Ungrabbed tweak: %i\n", val);
+	SETLO_BYTE(regs.ecx, val);
+	SETWORD(regs.ebx, 0x000b);
+	mouse_helper(&regs);
+	break;
+      }
+
       case 'R':
       case 'r':
 	mouse_client_reset();
@@ -141,7 +158,8 @@ int emumouse_main(int argc, char *argv[])
 	  com_printf("  3 button mouse mode (e.g. Mousesystems, PS2)\n");
 	com_printf  ("  Horizontal Speed (X) - %d\n", LO_BYTE_d(regs.ecx));
 	com_printf  ("  Vertical Speed   (Y) - %d\n", HI_BYTE_d(regs.ecx));
-	com_printf  ("  Ignore VESA modes    - %s\n\n", LO_BYTE_d(regs.edx) ? "yes" : "no");
+	com_printf  ("  Ignore VESA modes    - %s\n", (LO_BYTE_d(regs.edx) & 1) ? "yes" : "no");
+	com_printf  ("  Ungrab tweak         - %s\n\n", (LO_BYTE_d(regs.edx) & 2) ? "yes" : "no");
 	SETWORD(regs.ebx, 0x0007);
 	mouse_helper(&regs);
 	if (LO_WORD(regs.eax) == 0) {
