@@ -323,18 +323,22 @@ static void *resize_mapping_file(int cap, void *addr, size_t oldsize, size_t new
   if (cap & (MAPPING_EMS | MAPPING_DPMI)) {
     struct file_mapping *p = find_file_mapping(addr);
     int size = p->size;
+    int rc;
 
     if (!size || size != oldsize) return (void *)-1;
     if (size == newsize) return addr;
 		/* NOTE: smrealloc() does not change addr,
 		 *       when shrinking the memory region.
 		 */
-    if (pgaresize(pgmpool, p->page, oldsize >> PAGE_SHIFT,
-		  newsize >> PAGE_SHIFT) == p->page) {
+    rc = pgaresize(pgmpool, p->page, oldsize >> PAGE_SHIFT,
+		  newsize >> PAGE_SHIFT);
+    if (rc == p->page) {
       p->size = newsize;
       p->addr = mremap(addr, oldsize, newsize, MREMAP_MAYMOVE);
       return p->addr;
     }
+    /* pgaresize() does not move and we depend on that */
+    assert(rc == -1);
   }
   return (void *)-1;
 }
