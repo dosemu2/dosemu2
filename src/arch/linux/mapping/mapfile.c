@@ -44,6 +44,7 @@ static struct file_mapping {
   size_t size;
   size_t fsize;
   int fd;
+  int prot;
 } file_mappings[MAX_FILE_MAPPINGS];
 
 typedef int (*open_cb_t)(void);
@@ -206,7 +207,7 @@ static void close_mapping_file(int cap)
 
 static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
 {
-  int i, fixed = 0;
+  int i, fixed = 0, prot = PROT_READ | PROT_WRITE;
   struct file_mapping *p;
   int fd, rc;
 
@@ -225,8 +226,7 @@ static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
     fixed = MAP_FIXED;
   else
     target = NULL;
-  target = mmap(target, mapsize, PROT_READ | PROT_WRITE,
-		MAP_SHARED | fixed, fd, 0);
+  target = mmap(target, mapsize, prot, MAP_SHARED | fixed, fd, 0);
   if (target == MAP_FAILED)
     return MAP_FAILED;
 #if HAVE_DECL_MADV_POPULATE_WRITE
@@ -240,6 +240,7 @@ static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
   p->size = mapsize;
   p->fsize = mapsize;
   p->fd = fd;
+  p->prot = prot;
   return target;
 }
 
@@ -258,6 +259,8 @@ static void free_mapping_file(int cap, void *addr, size_t mapsize)
  * NOTE: DPMI relies on realloc_mapping() _not_ changing the address ('addr'),
  *       when shrinking the memory region.
  */
+/* We resize only from the beginning of the mapping.
+ * This is the simplest design. */
 static void *resize_mapping_file(int cap, void *addr, size_t oldsize, size_t newsize)
 {
   Q__printf("MAPPING: realloc, cap=%s, addr=%p, oldsize=%zx, newsize=%zx\n",
@@ -266,12 +269,19 @@ static void *resize_mapping_file(int cap, void *addr, size_t oldsize, size_t new
     struct file_mapping *p = find_file_mapping(addr);
     int size = p->size;
 
-    if (!size || size != oldsize) return (void *)-1;
+    if (!size || size != oldsize || addr != p->addr) return (void *)-1;
     if (size == newsize) return addr;
     if (newsize < size) {
       p->size = newsize;
+#ifdef HAVE_MREMAP
       p->addr = mremap(addr, oldsize, newsize, 0);
       assert(p->addr == addr);
+#else
+      /* ensure page-aligned */
+      assert(!(oldsize & (PAGE_SIZE - 1)));
+      assert(!(newsize & (PAGE_SIZE - 1)));
+      munmap(addr + newsize, oldsize - newsize);
+#endif
     } else {
       if (newsize > p->fsize) {
         int rc = ftruncate(p->fd, newsize);
@@ -279,7 +289,12 @@ static void *resize_mapping_file(int cap, void *addr, size_t oldsize, size_t new
         p->fsize = newsize;
       }
       p->size = newsize;
+#if HAVE_DECL_MREMAP_MAYMOVE
       p->addr = mremap(addr, oldsize, newsize, MREMAP_MAYMOVE);
+#else
+      p->addr = mmap(NULL, newsize, p->prot, MAP_SHARED, p->fd, 0);
+      munmap(addr, oldsize);
+#endif
     }
     return p->addr;
   }
