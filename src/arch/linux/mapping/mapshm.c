@@ -1,7 +1,17 @@
 /*
- * (C) Copyright 1992, ..., 2014 the "DOSEMU-Development-Team".
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- * for details see file COPYING in the DOSEMU distribution
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 /*
@@ -48,14 +58,11 @@ static void *alias_mapping_shm(int cap, void *target, size_t mapsize, int protec
 
 static int open_mapping_shm(int cap)
 {
-  static int first =1;
-
   if (cap) Q_printf("MAPPING: open, cap=%s\n",
 				decode_mapping_cap(cap));
 
-  if (first) {
+  if (cap == MAPPING_PROBE) {
     void *ptr1, *ptr2 = MAP_FAILED;
-    first = 0;
 
     /* do a test alias mapping. kernel 2.6.1 doesn't support our mremap trick */
     ptr1 = mmap(0, PAGE_SIZE, PROT_NONE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
@@ -71,63 +78,6 @@ static int open_mapping_shm(int cap)
       leavedos(2);
     }
   }
-
-  /*
-   * Now handle individual cases.
-   * Don't forget that each of the below code pieces should only
-   * be executed once !
-   */
-
-#if 0
-  if (cap & MAPPING_OTHER) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_EMS) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_DPMI) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_VIDEO) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_VGAEMU) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_HGC) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_HMA) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_SHARED) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_INIT_HWRAM) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_INIT_LOWRAM) {
-    /* none for now */
-  }
-#endif
 
   return 1;
 }
