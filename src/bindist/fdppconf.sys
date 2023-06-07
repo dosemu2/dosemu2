@@ -5,6 +5,7 @@ COUNTRY=#1
 CHAIN=@globhook.sys
 DOS=UMB
 dosdata=umb
+fileshigh=128
 lastdrive=Z
 int0divz=off
 device=dosemu\umb.sys
