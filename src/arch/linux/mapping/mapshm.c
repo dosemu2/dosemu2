@@ -164,7 +164,7 @@ static void *resize_mapping_shm(int cap, void *addr, size_t oldsize, size_t news
 	cap, addr, oldsize, newsize);
 
   if (newsize <= oldsize)
-    return mremap(addr, oldsize, newsize, MREMAP_MAYMOVE);
+    return mremap(addr, oldsize, newsize, 0);
 
   /* we can't expand shared anonymous memory using mremap */
   return MAP_FAILED;
