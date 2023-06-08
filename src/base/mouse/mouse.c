@@ -1443,6 +1443,8 @@ mouse_setxminmax(void)
   mouse.virtual_minx = mouse_roundx(mouse.virtual_minx);
   mouse.virtual_maxx = mouse_roundx(mouse.virtual_maxx);
   mouse.virtual_maxx += (1 << mouse.xshift) -1;
+
+  mouse_clip_coords();
 }
 
 void
@@ -1456,6 +1458,8 @@ mouse_setyminmax(void)
   mouse.virtual_miny = mouse_roundy(mouse.virtual_miny);
   mouse.virtual_maxy = mouse_roundy(mouse.virtual_maxy);
   mouse.virtual_maxy += (1 << mouse.yshift) -1;
+
+  mouse_clip_coords();
 }
 
 void
