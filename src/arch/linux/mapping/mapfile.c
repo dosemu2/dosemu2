@@ -1,20 +1,26 @@
 /*
- * (C) Copyright 1992, ..., 2014 the "DOSEMU-Development-Team".
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- * for details see file COPYING in the DOSEMU distribution
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 /*
  * Purpose: memory mapping library, posix SHM and file backends.
  *
  * Authors: Stas Sergeev, Bart Oldeman.
- * Initially started by Hans Lermen, old copyrights below:
- */
-/* file mapfile.c
- * file mapping driver
- *	Hans Lermen, lermen@fgan.de
  */
 
+#include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -25,17 +31,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "emu.h"
+#include "dosemu_debug.h"
 #include "mapping.h"
-#include "pgalloc.h"
-#include "utilities.h"
 
 /* ------------------------------------------------------------ */
-
-static void *pgmpool;
-static int mpool_numpages = (32 * 1024) / 4;
-
-static int tmpfile_fd = -1;
 
 /* There are 255 EMS handles, 65 XMS handles, + 2 for lowmem + vgaemu
    So 512 is definitely sufficient */
@@ -43,8 +42,13 @@ static int tmpfile_fd = -1;
 static struct file_mapping {
   unsigned char *addr; /* pointer to allocated shared memory */
   size_t size;
-  int page; /* page number in file */
+  size_t fsize;
+  int fd;
+  int prot;
 } file_mappings[MAX_FILE_MAPPINGS];
+
+typedef int (*open_cb_t)(void);
+static open_cb_t open_cb;
 
 static struct file_mapping *find_file_mapping(unsigned char *target)
 {
@@ -58,14 +62,16 @@ static struct file_mapping *find_file_mapping(unsigned char *target)
   return p;
 }
 
+/* Do not create mapping nodes for aliases, so can't alias the alias.
+ * This is the simplest design. */
 static void *alias_mapping_file(int cap, void *target, size_t mapsize, int protect, void *source)
 {
   int fixed = 0;
   struct file_mapping *p = find_file_mapping(source);
-  off_t offs = (p->page << PAGE_SHIFT) + ((unsigned char *)source - p->addr);
+  off_t offs = (unsigned char *)source - p->addr;
   void *addr;
 
-  if (offs < 0 || (offs+mapsize >= (mpool_numpages*PAGE_SIZE))) {
+  if (offs + mapsize > p->size) {
     Q_printf("MAPPING: alias_map to address outside of temp file\n");
     errno = EINVAL;
     return MAP_FAILED;
@@ -78,17 +84,16 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
      However mprotect may work around this (maybe not in future kernels)
      alloc_mappings can just be rw though.
    */
-  addr =  mmap(target, mapsize, protect, MAP_SHARED | fixed, tmpfile_fd, offs);
+  addr = mmap(target, mapsize, protect, MAP_SHARED | fixed, p->fd, offs);
   if (addr == MAP_FAILED) {
     addr = mmap(target, mapsize, protect & ~PROT_EXEC, MAP_SHARED | fixed,
-		 tmpfile_fd, offs);
+		 p->fd, offs);
     if (addr != MAP_FAILED) {
       int ret = mprotect(addr, mapsize, protect);
       if (ret == -1) {
         perror("mprotect()");
         error("shared memory mprotect failed, exiting\n");
-        leavedos(2);
-        return NULL;
+        exit(2);
       }
     } else
       perror("mmap()");
@@ -100,190 +105,128 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
   return addr;
 }
 
-static void discardtempfile(void)
+static int do_open_file(void)
 {
-  close(tmpfile_fd);
-  tmpfile_fd = -1;
-}
-
-static int open_mapping_f(int cap)
-{
-    int mapsize = 0;
-    int estsize, padsize;
-
-    if (cap) Q_printf("MAPPING: open, cap=%s\n",
-	  decode_mapping_cap(cap));
-
-    padsize = 4*1024;
-
-    /* first estimate the needed size of the mapfile */
-    mapsize += config.vgaemu_memsize;
-    mapsize += config.ems_size;	/* EMS */
-    mapsize += config.xms_size;	/* XMS */
-    mapsize += config.ext_mem;	/* extended mem */
-    mapsize += (LOWMEM_SIZE + HMASIZE) >> 10; /* Low Mem */
-    estsize = mapsize;
-				/* keep heap fragmentation in mind */
-    mapsize += (mapsize/4 < padsize ? padsize : mapsize/4);
-    mpool_numpages = mapsize / 4;
-    mapsize = mpool_numpages * PAGE_SIZE; /* make sure we are page aligned */
-
-    ftruncate(tmpfile_fd, 0);
-    if (ftruncate(tmpfile_fd, mapsize) == -1) {
-      if (!cap)
-	error("MAPPING: cannot size temp file pool, %s\n",strerror(errno));
-      discardtempfile();
-      if (!cap)return 0;
-      leavedos(2);
-    }
-    Q_printf("MAPPING: open, mpool (min %dK) is %d Kbytes\n",
-		estsize, mapsize/1024);
-    pgmpool = pgainit(mpool_numpages);
-
-  /*
-   * Now handle individual cases.
-   * Don't forget that each of the below code pieces should only
-   * be executed once !
-   */
-
-#if 0
-  if (cap & MAPPING_OTHER) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_EMS) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_DPMI) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_VIDEO) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_VGAEMU) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_HGC) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_HMA) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_SHARED) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_INIT_HWRAM) {
-    /* none for now */
-  }
-#endif
-#if 0
-  if (cap & MAPPING_INIT_LOWRAM) {
-    /* none for now */
-  }
-#endif
-
-  return 1;
+  // Requires a Linux kernel version >= 3.11.0
+  return open("/tmp", O_TMPFILE | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR);
 }
 
 static int open_mapping_file(int cap)
 {
-  if (tmpfile_fd < 0) {
-    // Requires a Linux kernel version >= 3.11.0
-    tmpfile_fd = open("/tmp", O_TMPFILE | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR);
-    open_mapping_f(cap);
+  if (cap == MAPPING_PROBE) {
+    open_cb_t o = do_open_file;
+    int fd = o();
+    if (fd == -1)
+      return 0;
+    close(fd);
+    open_cb = o;
   }
   return 1;
 }
 
 #ifdef HAVE_SHM_OPEN
-static int open_mapping_pshm(int cap)
+static int do_open_pshm(void)
 {
   char *name;
-  int ret;
+  int ret, fd;
 
-  if (tmpfile_fd < 0) {
-    ret = asprintf(&name, "/dosemu_%d", getpid());
-    assert(ret != -1);
-    /* FD_CLOEXEC is set by default */
-    tmpfile_fd = shm_open(name, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-    if (tmpfile_fd == -1) {
-      free(name);
-      return 0;
-    }
-    shm_unlink(name);
+  ret = asprintf(&name, "/dosemu_%d", getpid());
+  assert(ret != -1);
+  /* FD_CLOEXEC is set by default */
+  fd = shm_open(name, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  if (fd == -1) {
     free(name);
-    if (!open_mapping_f(cap))
+    return -1;
+  }
+  shm_unlink(name);
+  free(name);
+  return fd;
+}
+
+static int open_mapping_pshm(int cap)
+{
+  if (cap == MAPPING_PROBE) {
+    open_cb_t o = do_open_pshm;
+    int fd = o();
+    if (fd == -1)
       return 0;
+    close(fd);
+    open_cb = o;
   }
   return 1;
 }
 #endif
 
 #ifdef HAVE_MEMFD_CREATE
-static int open_mapping_mshm(int cap)
+static int do_open_mshm(void)
 {
   char *name;
-  int ret;
+  int ret, fd;
 
-  if (tmpfile_fd < 0) {
-    ret = asprintf(&name, "dosemu_%d", getpid());
-    assert(ret != -1);
+  ret = asprintf(&name, "dosemu_%d", getpid());
+  assert(ret != -1);
 
-    tmpfile_fd = memfd_create(name, MFD_CLOEXEC);
-    free(name);
-    if (tmpfile_fd == -1)
+  fd = memfd_create(name, MFD_CLOEXEC);
+  free(name);
+  return fd;
+}
+
+static int open_mapping_mshm(int cap)
+{
+  if (cap == MAPPING_PROBE) {
+    open_cb_t o = do_open_mshm;
+    int fd = o();
+    if (fd == -1)
       return 0;
-    if (!open_mapping_f(cap))
-      return 0;
+    close(fd);
+    open_cb = o;
   }
   return 1;
 }
 #endif
 
+static void do_free_mapping(struct file_mapping *p)
+{
+  munmap(p->addr, p->size);
+  close(p->fd);
+  p->size = 0;
+}
+
 static void close_mapping_file(int cap)
 {
   Q_printf("MAPPING: close, cap=%s\n", decode_mapping_cap(cap));
-  if (cap == MAPPING_ALL && tmpfile_fd != -1) {
-    pgadone(pgmpool);
-    discardtempfile();
+  if (cap == MAPPING_ALL) {
+    int i;
+    struct file_mapping *p;
+    for (i = 0, p = file_mappings; i < MAX_FILE_MAPPINGS; i++, p++) {
+      if (p->size)
+        do_free_mapping(p);
+    }
   }
 }
 
 static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
 {
-  int page, i, fixed = 0;
+  int i, fixed = 0, prot = PROT_READ | PROT_WRITE;
   struct file_mapping *p;
+  int fd, rc;
 
   Q__printf("MAPPING: alloc, cap=%s, mapsize=%zx\n", cap, mapsize);
   for (i = 0, p = file_mappings; i < MAX_FILE_MAPPINGS; i++, p++)
     if (p->size == 0)
       break;
   assert(i < MAX_FILE_MAPPINGS);
-  page = pgaalloc(pgmpool, mapsize >> PAGE_SHIFT, i);
-  if (page < 0)
+  fd = open_cb();
+  if (fd < 0)
     return MAP_FAILED;
+  rc = ftruncate(fd, mapsize);
+  assert(rc != -1);
 
   if (target != (void *)-1)
     fixed = MAP_FIXED;
   else
     target = NULL;
-  target = mmap(target, mapsize, PROT_READ | PROT_WRITE,
-		MAP_SHARED | fixed, tmpfile_fd, page << PAGE_SHIFT);
+  target = mmap(target, mapsize, prot, MAP_SHARED | fixed, fd, 0);
   if (target == MAP_FAILED)
     return MAP_FAILED;
 #if HAVE_DECL_MADV_POPULATE_WRITE
@@ -295,7 +238,9 @@ static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
 #endif
   p->addr = target;
   p->size = mapsize;
-  p->page = page;
+  p->fsize = mapsize;
+  p->fd = fd;
+  p->prot = prot;
   return target;
 }
 
@@ -307,15 +252,15 @@ static void free_mapping_file(int cap, void *addr, size_t mapsize)
   Q__printf("MAPPING: free, cap=%s, addr=%p, mapsize=%zx\n",
 	cap, addr, mapsize);
   p = find_file_mapping(addr);
-  pgafree(pgmpool, p->page);
-  munmap(addr, mapsize);
-  p->size = 0;
+  do_free_mapping(p);
 }
 
 /*
  * NOTE: DPMI relies on realloc_mapping() _not_ changing the address ('addr'),
  *       when shrinking the memory region.
  */
+/* We resize only from the beginning of the mapping.
+ * This is the simplest design. */
 static void *resize_mapping_file(int cap, void *addr, size_t oldsize, size_t newsize)
 {
   Q__printf("MAPPING: realloc, cap=%s, addr=%p, oldsize=%zx, newsize=%zx\n",
@@ -323,22 +268,35 @@ static void *resize_mapping_file(int cap, void *addr, size_t oldsize, size_t new
   if (cap & (MAPPING_EMS | MAPPING_DPMI)) {
     struct file_mapping *p = find_file_mapping(addr);
     int size = p->size;
-    int rc;
 
-    if (!size || size != oldsize) return (void *)-1;
+    if (!size || size != oldsize || addr != p->addr) return (void *)-1;
     if (size == newsize) return addr;
-		/* NOTE: smrealloc() does not change addr,
-		 *       when shrinking the memory region.
-		 */
-    rc = pgaresize(pgmpool, p->page, oldsize >> PAGE_SHIFT,
-		  newsize >> PAGE_SHIFT);
-    if (rc == p->page) {
+    if (newsize < size) {
       p->size = newsize;
+#ifdef HAVE_MREMAP
+      p->addr = mremap(addr, oldsize, newsize, 0);
+      assert(p->addr == addr);
+#else
+      /* ensure page-aligned */
+      assert(!(oldsize & (PAGE_SIZE - 1)));
+      assert(!(newsize & (PAGE_SIZE - 1)));
+      munmap(addr + newsize, oldsize - newsize);
+#endif
+    } else {
+      if (newsize > p->fsize) {
+        int rc = ftruncate(p->fd, newsize);
+        assert(rc != -1);
+        p->fsize = newsize;
+      }
+      p->size = newsize;
+#if HAVE_DECL_MREMAP_MAYMOVE
       p->addr = mremap(addr, oldsize, newsize, MREMAP_MAYMOVE);
-      return p->addr;
+#else
+      p->addr = mmap(NULL, newsize, p->prot, MAP_SHARED, p->fd, 0);
+      munmap(addr, oldsize);
+#endif
     }
-    /* pgaresize() does not move and we depend on that */
-    assert(rc == -1);
+    return p->addr;
   }
   return (void *)-1;
 }

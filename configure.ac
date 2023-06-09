@@ -190,7 +190,7 @@ AC_CHECK_FUNCS([shm_open memfd_create renameat2 fopencookie])
 AC_CHECK_FUNCS([setxattr getxattr],, [
   AC_MSG_ERROR([xattrs not available, your glibc is too old])
 ])
-AC_CHECK_FUNC([mremap],, [
+AC_CHECK_FUNCS([mremap],, [
   AC_MSG_ERROR([mremap not available, your glibc is too old])
 ])
 AC_CHECK_FUNC([timerfd_create],, [
