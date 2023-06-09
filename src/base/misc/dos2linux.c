@@ -303,8 +303,8 @@ static void dos2tty_start(void)
     } while (rd > 0);
     pty_done = 0;
     /* must run with interrupts enabled to read keypresses */
+    assert(!isset_IF());
     set_IF();
-    sem_wait(pty_sem);
     pty_thr();
 }
 
@@ -315,12 +315,12 @@ static void dos2tty_stop(void)
 }
 
 static int do_run_cmd(const char *path, int argc, const char **argv,
-        int use_stdin, int close_from, int pty_fd, sem_t *pty_sem)
+        int use_stdin, int close_from)
 {
     int status, retval;
     pid_t pid = run_external_command(path, argc, argv, use_stdin, close_from,
 	    pty_fd, pty_sem);
-    assert(!isset_IF());
+    sem_wait(pty_sem);
     dos2tty_start();
     while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
 	coopth_wait();
@@ -363,7 +363,7 @@ int run_unix_command(int argc, const char **argv)
     }
 
     g_printf("UNIX: run %s, %i args\n", path, argc);
-    return do_run_cmd(path, argc, argv, 1, -1, pty_fd, pty_sem);
+    return do_run_cmd(path, argc, argv, 1, -1);
 }
 
 /* no PATH searching, no arguments allowed, no stdin, no inherited fds */
@@ -382,8 +382,7 @@ int run_unix_secure(const char *prg)
     argv[0] = prg;
     argv[1] = NULL;	/* no args allowed */
     g_printf("UNIX: run_secure %s '%s'\n", path, prg);
-    ret = do_run_cmd(path, 1, argv, 0, STDERR_FILENO + 1,
-	    pty_fd, pty_sem);
+    ret = do_run_cmd(path, 1, argv, 0, STDERR_FILENO + 1);
     free(path);
     return ret;
 }
