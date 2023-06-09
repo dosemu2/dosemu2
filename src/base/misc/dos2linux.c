@@ -261,7 +261,6 @@ static void pty_thr(void)
 
 void dos2tty_init(void)
 {
-    char sem_name[256];
     pty_fd = posix_openpt(O_RDWR);
     if (pty_fd == -1)
     {
@@ -269,14 +268,6 @@ void dos2tty_init(void)
         return;
     }
     unlockpt(pty_fd);
-    snprintf(sem_name, sizeof(sem_name), "/dosemu_pty_sem_%i", getpid());
-    pty_sem = sem_open(sem_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
-    if (!pty_sem)
-    {
-        error("sem_open failed %s\n", strerror(errno));
-        return;
-    }
-    sem_unlink(sem_name);
     sem_init(&rd_sem, 0, 0);
     queue = spscq_init(1024 * 64); // 64K queue
     pthread_create(&reader, NULL, rd_thread, queue);
@@ -288,7 +279,6 @@ void dos2tty_done(void)
     pthread_join(reader, NULL);
     spscq_done(queue);
     close(pty_fd);
-    sem_close(pty_sem);
     sem_destroy(&rd_sem);
 }
 
@@ -318,9 +308,21 @@ static int do_run_cmd(const char *path, int argc, const char **argv,
         int use_stdin, int close_from)
 {
     int status, retval;
-    pid_t pid = run_external_command(path, argc, argv, use_stdin, close_from,
+    pid_t pid;
+    char sem_name[256];
+
+    snprintf(sem_name, sizeof(sem_name), "/dosemu_pty_sem_%i", getpid());
+    pty_sem = sem_open(sem_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
+    if (!pty_sem)
+    {
+        error("sem_open failed %s\n", strerror(errno));
+        return -1;
+    }
+    sem_unlink(sem_name);
+    pid = run_external_command(path, argc, argv, use_stdin, close_from,
 	    pty_fd, pty_sem);
     sem_wait(pty_sem);
+    sem_close(pty_sem);
     dos2tty_start();
     while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
 	coopth_wait();
