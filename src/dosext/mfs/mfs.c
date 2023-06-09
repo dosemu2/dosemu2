@@ -284,7 +284,7 @@ struct file_fd
   int dir_fd;
   struct stat st;
   int is_writable;
-  int write_allowed;
+  int read_allowed;
   int share_mode;
   u_short psp;
   uint64_t seek;
@@ -510,8 +510,8 @@ static int do_mfs_creat(struct file_fd *f, const char *dname,
     f->dir_fd = dir_fd;
     f->share_mode = 0;
     f->psp = sda_cur_psp(sda);
-    f->write_allowed = 1;
     f->is_writable = 1;
+    f->read_allowed = 1;
     return 0;
 
 err2:
@@ -668,28 +668,17 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
         int *r_err)
 {
     int fd, dir_fd, err;
-    int is_writable = 1;
-    int write_requested = (flags == O_WRONLY || flags == O_RDWR);
+    int is_writable = (flags == O_WRONLY || flags == O_RDWR);
+    int is_readable = (flags == O_RDONLY || flags == O_RDWR);
+    /* XXX: force in READ mode, as needed by our share emulation w OFD locks */
+    int flags2 = (flags == O_WRONLY ? O_RDWR : flags);
     int locked = 0;
 
     *r_err = ACCESS_DENIED;
     dir_fd = do_open_dir(dname, &locked);
     if (dir_fd == -1)
         return -1;
-    /* try O_RDWR first, as needed by an OFD locks */
-    fd = openat(dir_fd, fname, O_RDWR | O_CLOEXEC);
-    /* inadequate mode may return EACCES, EROFS, maybe something else,
-     * so don't check errno. */
-    if (fd == -1 && !(st->st_mode & S_IWUSR)) {
-        /* if we are the file owner, we can try chmod() */
-        fchmodat(dir_fd, fname, st->st_mode | S_IWUSR, 0);
-        fd = openat(dir_fd, fname, O_RDWR | O_CLOEXEC);
-    }
-    if (fd == -1 && !write_requested) {
-        /* retry with O_RDONLY, but OFD locks won't work */
-        is_writable = 0;
-        fd = openat(dir_fd, fname, O_RDONLY | O_CLOEXEC);
-    }
+    fd = openat(dir_fd, fname, flags2 | O_CLOEXEC);
     if (fd == -1)
         goto err;
     if (!share_mode)
@@ -708,9 +697,8 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
     f->dir_fd = dir_fd;
     f->share_mode = share_mode;
     f->psp = sda_cur_psp(sda);
-    assert(is_writable >= write_requested);
-    f->write_allowed = write_requested;
     f->is_writable = is_writable;
+    f->read_allowed = is_readable;
     return 0;
 
 err2:
@@ -3448,7 +3436,7 @@ CancelRedirection(struct vm86_regs *state)
 }
 
 static int lock_file_region(int fd, int lck, long long start,
-    unsigned long len)
+    unsigned long len, int wr)
 {
   struct flock fl;
   int ret;
@@ -3465,7 +3453,7 @@ static int lock_file_region(int fd, int lck, long long start,
 #error 64bit locking not supported
 #endif
 
-  fl.l_type = (lck ? F_WRLCK : F_UNLCK);
+  fl.l_type = (lck ? (wr ? F_WRLCK : F_RDLCK) : F_UNLCK);
   fl.l_start = start;
   fl.l_len = len;
   /* needs to lock against I/O operations in another process */
@@ -4093,7 +4081,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
           return FALSE;
       f = &open_files[cnt];
 
-      if (f->name == NULL) {
+      if (f->name == NULL || !f->read_allowed) {
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
       }
@@ -4169,7 +4157,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       if (cnt >= MAX_OPENED_FILES)
           return FALSE;
       f = &open_files[cnt];
-      if (f->name == NULL || read_only(drives[drive]) || !f->write_allowed) {
+      if (f->name == NULL || read_only(drives[drive])) {
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
       }
@@ -4892,8 +4880,8 @@ do_create_truncate:
       Debug0((dbg_fd, "lock requested, fd=%d, is_lock=%d, start=%lx, len=%lx\n",
                       f->fd, is_lock, (long)pt->offset, (long)pt->size));
 
-      if (f->name == NULL || !f->is_writable) {
-        Debug0((dbg_fd, "file not writable, lock failed.\n"));
+      if (f->name == NULL) {
+        Debug0((dbg_fd, "file not found, corrupted sft?\n"));
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
       }
@@ -4916,7 +4904,8 @@ do_create_truncate:
       if ((start & mask) != 0)
         start = (start & ~mask) | ((start & mask) >> 2);
 
-      ret = lock_file_region(f->fd, is_lock, start, pt->size & ~mask);
+      ret = lock_file_region(f->fd, is_lock, start, pt->size & ~mask,
+          f->is_writable);
       if (ret == 0) {
         /* locks can be coalesced so the single unlock resets the counter */
         if (is_lock)
