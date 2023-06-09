@@ -576,13 +576,6 @@ static int pty_init(com_t *c)
         return -1;
     }
     unlockpt(pty_fd);
-    snprintf(c->sem_name, sizeof(c->sem_name), "/dosemu_serpty_sem_%i", getpid());
-    c->pty_sem = sem_open(c->sem_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
-    if (!c->pty_sem)
-    {
-        error("sem_open failed %s\n", strerror(errno));
-        return -1;
-    }
     fcntl(pty_fd, F_SETFL, O_NONBLOCK);
     return pty_fd;
 }
@@ -598,16 +591,29 @@ static void pty_exit(void *arg)
 
 static int pty_open(com_t *c, const char *cmd)
 {
+  char sem_name[256];
+  sem_t *pty_sem;
   struct termios t;
   const char *argv[] = { "sh", "-c", cmd, NULL };
   const int argc = 4;
-  int pty_fd = pty_init(c);
+  int pty_fd;
+
+  snprintf(sem_name, sizeof(sem_name), "/dosemu_serpty_sem_%i", getpid());
+  pty_sem = sem_open(sem_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
+  if (!pty_sem)
+  {
+    error("sem_open failed %s\n", strerror(errno));
+    return -1;
+  }
+  sem_unlink(sem_name);
+  pty_fd = pty_init(c);
   pid_t pid = run_external_command("/bin/sh", argc, argv,
-      1, -1, pty_fd, c->pty_sem);
+      1, -1, pty_fd, pty_sem);
   if (pid == -1)
     return -1;
   /* wait for slave to open pts */
-  sem_wait(c->pty_sem);
+  sem_wait(pty_sem);
+  sem_close(pty_sem);
   sigchld_register_handler(pid, pty_exit, c);
   c->pty_pid = pid;
   cfmakeraw(&t);

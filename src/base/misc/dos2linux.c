@@ -189,7 +189,6 @@ static int pty_fd;
 static int pty_done;
 static int cbrk;
 static sem_t *pty_sem;
-static char sem_name[256];
 static sem_t rd_sem;
 static pthread_t reader;
 static void *queue;
@@ -262,6 +261,7 @@ static void pty_thr(void)
 
 void dos2tty_init(void)
 {
+    char sem_name[256];
     pty_fd = posix_openpt(O_RDWR);
     if (pty_fd == -1)
     {
@@ -276,6 +276,7 @@ void dos2tty_init(void)
         error("sem_open failed %s\n", strerror(errno));
         return;
     }
+    sem_unlink(sem_name);
     sem_init(&rd_sem, 0, 0);
     queue = spscq_init(1024 * 64); // 64K queue
     pthread_create(&reader, NULL, rd_thread, queue);
@@ -288,7 +289,6 @@ void dos2tty_done(void)
     spscq_done(queue);
     close(pty_fd);
     sem_close(pty_sem);
-    sem_unlink(sem_name);
     sem_destroy(&rd_sem);
 }
 

@@ -340,8 +340,6 @@ typedef struct {
   boolean dev_locked;           /* Flag to indicate that device is locked */
   boolean fossil_active;	/* Flag: FOSSIL emulation active */
   fossil_info_t fossil_info;	/* FOSSIL driver info structure */
-  char sem_name[256];
-  sem_t *pty_sem;
   pid_t pty_pid;
   struct vec_t ivec;
   				/*   MODEM STATUS  */
