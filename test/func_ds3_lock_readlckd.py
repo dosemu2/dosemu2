@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
       return -1;
     }
 
-    ret = _dos_open(FNAME, O_RDONLY, &handle);
+    ret = _dos_open(FNAME, O_RDWR, &handle);
     if (ret != 0) {
       printf("FAIL: %s: Couldn't open '%s' (%d)\n", argv[1], FNAME, ret);
       return -1;

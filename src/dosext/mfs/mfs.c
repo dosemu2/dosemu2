@@ -2845,12 +2845,12 @@ static int lock_file_region(int fd, int lck, long long start,
   return ret;
 }
 
-static int region_lock_offs(int fd, long long start, unsigned long len)
+static int region_lock_offs(int fd, long long start, unsigned long len, int wr)
 {
   struct flock fl;
   int ret;
 
-  fl.l_type = F_WRLCK;
+  fl.l_type = wr ? F_WRLCK : F_RDLCK;
   fl.l_start = start;
   fl.l_len = len;
   /* needs to lock against lock changes in another process */
@@ -3470,7 +3470,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       if (cnt) {
         int cnt1 = cnt;
         if (f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
-          cnt1 = region_lock_offs(f->fd, f->seek, cnt);
+          cnt1 = region_lock_offs(f->fd, f->seek, cnt, 0);
           if (cnt1 != -1)
             locked++;
         }
@@ -3566,7 +3566,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       } else {
         int cnt1 = cnt;
         if (f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
-          cnt1 = region_lock_offs(f->fd, f->seek, cnt);
+          cnt1 = region_lock_offs(f->fd, f->seek, cnt, 1);
           if (cnt1 != -1)
             locked++;
         }
