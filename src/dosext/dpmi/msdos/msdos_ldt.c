@@ -35,6 +35,7 @@
 #define LDT_UPDATE_LIM 1
 
 static unsigned char *ldt_backbuf;
+static dosaddr_t ldt_bb;
 static dosaddr_t ldt_alias;
 static uint32_t ldt_h;
 static uint32_t ldt_alias_h;
@@ -84,7 +85,8 @@ unsigned short msdos_ldt_init(void)
     err = DPMIAllocateShared(&shm);
     assert(!err);
     ldt_h = shm.handle;
-    ldt_backbuf = MEM_BASE32(shm.addr);
+    ldt_bb = shm.addr;
+    ldt_backbuf = MEM_BASE32(ldt_bb);
     err = DPMIAllocateShared(&shm);
     assert(!err);
     ldt_alias_h = shm.handle;
@@ -95,7 +97,9 @@ unsigned short msdos_ldt_init(void)
     FreeDescriptor(name_sel);
     for (i = 0; i < npages; i++)
 	attrs[i] = 0x83;	// NX, RO
-    DPMISetPageAttributes(shm.handle, 0, attrs, npages);
+    DPMISetPageAttributes(ldt_alias_h, 0, attrs, npages);
+    DPMIfree(ldt_alias_h);
+    DPMIfree(ldt_h);
 
     alias_sel = AllocateDescriptors(1);
     assert(alias_sel);
@@ -141,8 +145,8 @@ void msdos_ldt_done(void)
     FreeDescriptor(d16);
     FreeDescriptor(d32);
     ldt_backbuf = NULL;
-    DPMIFreeShared(ldt_alias_h);
-    DPMIFreeShared(ldt_h);
+    DPMIUnmapHWRam(ldt_alias);
+    DPMIUnmapHWRam(ldt_bb);
 }
 
 int msdos_ldt_fault(cpuctx_t *scp, uint16_t sel)

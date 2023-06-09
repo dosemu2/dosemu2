@@ -180,6 +180,7 @@ static void make_xretf_frame(cpuctx_t *scp, void *sp,
 static void do_pm_int(cpuctx_t *scp, int i);
 static void msdos_set_client(cpuctx_t *scp, int num);
 static int rsp_get_para(void);
+static int count_shms(const char *name);
 
 static uint32_t ldt_bitmap[LDT_ENTRIES / 32];
 static int ldt_bitmap_cnt;
@@ -1639,8 +1640,15 @@ int DPMIfree(unsigned long handle)
     ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
     if (!ptr)
 	return -1;
-    if (ptr->shmname)  // syndicate game
-	return DPMIFreeShared(handle);
+    /* Syndicate game uses 0x502 for freeing shmem blocks.
+     * Instead of completely ignoring, we can use that to unlink shm
+     * while keeping the rest untouched. */
+    if (ptr->shmname) {
+	int cnt = count_shms(ptr->shmname);
+	D_printf("DPMI: partial free shared region %s, ref=%i\n",
+		ptr->shmname, cnt);
+	return DPMI_freeShPartial(&DPMI_CLIENT.pm_block_root, handle, cnt == 1);
+    }
     return DPMI_free(&DPMI_CLIENT.pm_block_root, handle);
 }
 dpmi_pm_block DPMIrealloc(unsigned long handle, unsigned long size)

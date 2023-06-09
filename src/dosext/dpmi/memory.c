@@ -123,7 +123,7 @@ dpmi_pm_block *lookup_pm_block_by_addr(dpmi_pm_block_root *root,
 {
     dpmi_pm_block *tmp;
     for(tmp = root->first_pm_block; tmp; tmp = tmp->next) {
-	if (addr >= tmp->base && addr < tmp->base + tmp->size)
+	if (tmp->mapped && addr >= tmp->base && addr < tmp->base + tmp->size)
 	    return tmp;
     }
     return NULL;
@@ -520,9 +520,11 @@ int DPMI_unmapHWRam(dpmi_pm_block_root *root, dosaddr_t vbase)
 	return -1;
     if (block->hwram) {
         do_unmap_hwram(root, block);
-    } else if (block->shmname) {
+    } else if (block->shmsize) {
         /* extension: allow unmap shared block as hwram */
         do_unmap_shm(block);
+        if (!block->shmname)
+            free_pm_block(root, block);
     } else {
 	error("DPMI: wrong free hwram, %i\n", block->hwram);
 	return -1;
@@ -546,7 +548,10 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	return -1;
     }
     e_invalidate_full(block->base, block->size);
-    if (block->linear) {
+    if (block->shmsize) {
+	if (block->mapped)
+	    do_unmap_shm(block);
+    } else if (block->linear) {
 	mprotect_mapping(MAPPING_DPMI, block->base, block->size,
 		    PROT_READ | PROT_WRITE);
 	smfree(&main_pool, MEM_BASE32(block->base));
@@ -651,6 +656,26 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
         shm_unlink(ptr->rshmname);
     }
     free_pm_block(root, ptr);
+    return 0;
+}
+
+int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
+{
+    dpmi_pm_block *ptr = lookup_pm_block(root, handle);
+    if (!ptr || !ptr->shmname)
+        return -1;
+    if (unlnk) {
+        D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
+        shm_unlink(ptr->rshmname);
+    }
+    if (ptr->mapped) {
+        free(ptr->shmname);
+        ptr->shmname = NULL;
+        free(ptr->rshmname);
+        ptr->rshmname = NULL;
+    } else {
+        free_pm_block(root, ptr);
+    }
     return 0;
 }
 
