@@ -309,6 +309,7 @@ static int dos_would_allow(char *fpath, const char *op, int equal);
 static void RemoveRedirection(int drive, cds_t cds);
 static int get_dos_xattr(const char *fname);
 static int set_dos_xattr(const char *fname, int attr);
+static int open_compat(int fd);
 
 static int drives_initialized = FALSE;
 
@@ -495,6 +496,10 @@ static int do_mfs_creat(struct file_fd *f, const char *dname,
             mode);
     if (fd == -1)
         goto err;
+    /* set compat mode */
+    err = open_compat(fd);
+    if (err)
+        goto err2;
     err = fstat(fd, &f->st);
     if (err)
         goto err2;
