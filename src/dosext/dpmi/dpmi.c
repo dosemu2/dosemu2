@@ -3421,15 +3421,14 @@ static void do_dpmi_int(cpuctx_t *scp, int i)
   switch (i) {
     case 0x2f:
       switch (_LWORD(eax)) {
-#if 0
-	/* this is disabled. coopth currently can't handle delays
-	 * in protected mode... :( */
 	case 0x1680:	/* give up time slice */
-	  idle_enable(100, 0, "int2f_idle_dpmi");
-	  if (config.hogthreshold)
-	    _LO(ax) = 0;
+	  /* hackish impl because DPMI-1.0 spec requires that here.
+	   * The proper one (coopth-based) is in msdos.c. */
+	  if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+	    signal_unblock_async_sigs();
+	  dosemu_sleep();
+	  _LO(ax) = 0;
 	  return;
-#endif
 	case 0x1684:
 	  D_printf("DPMI: Get VxD entry point, BX = 0x%04x\n", _LWORD(ebx));
 	  get_VXD_entry(scp);
