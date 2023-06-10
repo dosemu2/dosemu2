@@ -13,6 +13,24 @@
  * DPMI-1.0 and extensions by stsp.
  */
 
+/*
+Currently missing DPMI functions:
+ - 0x508 (map device, 1.0)
+ - 0x50b (get memory info, 1.0)
+ - 0x702 (mark page for swapout, 0.9, can be madvise())
+ - 0x703 (discard page, 0.9)
+ - 0xd02 (shm semaphore wait, 1.0, synchronize shm between multiple dosemu
+          instances, but we currently append PID to shm name and unlink on
+          every dosemu termination so that needs to be reworked)
+ - 0xd03 (shm semaphore post, 1.0)
+
+Missing DPMI-1.0 features:
+ - All 16 descriptors reserved for fn 0x000d must be per-client.
+   We need to reload that part of LDT on client switch.
+   DPMI-1.0 suggests a full per-client LDT, but that is incompatible
+   with existing 0.9 clients.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
