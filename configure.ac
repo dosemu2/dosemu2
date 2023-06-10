@@ -205,7 +205,8 @@ AC_CHECK_DECLS([MREMAP_MAYMOVE],, [
   AC_MSG_ERROR([MREMAP_MAYMOVE not available, your glibc is too old])
   ], [[#include <sys/mman.h>]]
 )
-AC_CHECK_DECLS([MADV_POPULATE_WRITE],,, [[#include <sys/mman.h>]])
+AC_CHECK_DECLS([MADV_POPULATE_WRITE, MADV_DONTNEED, MADV_FREE],,,
+  [[#include <sys/mman.h>]])
 
 PKG_CHECK_MODULES([LIBBSD], [libbsd], [
     dnl re-check for proper arch (multilib)

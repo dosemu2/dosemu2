@@ -14,11 +14,9 @@
  */
 
 /*
-Currently missing DPMI functions:
+Currently missing DPMI-1.0 functions:
  - 0x508 (map device, 1.0)
  - 0x50b (get memory info, 1.0)
- - 0x702 (mark page for swapout, 0.9, can be madvise())
- - 0x703 (discard page, 0.9)
  - 0xd02 (shm semaphore wait, 1.0, synchronize shm between multiple dosemu
           instances, but we currently append PID to shm name and unlink on
           every dosemu termination so that needs to be reworked)
@@ -3009,14 +3007,25 @@ err:
     _eflags |= CF;
     break;
 
-  case 0x0700:	/* Reserved,MARK PAGES AS PAGING CANDIDATES, see intr. lst */
   case 0x0702:	/* Mark Page as Demand Paging Candidate */
   case 0x0703:	/* Discard Page Contents */
-    D_printf("DPMI: unimplemented int31 func %#x\n",_LWORD(eax));
+  {
+#if HAVE_DECL_MADV_DONTNEED && HAVE_DECL_MADV_FREE
+    dosaddr_t addr = (_LWORD_(ebx) << 16) | (_LWORD_(ecx));
+    unsigned size = (_LWORD_(esi) << 16) | (_LWORD_(edi));
+    int adv = (_LWORD(eax) == 0x702 ? MADV_DONTNEED : MADV_FREE);
+    int rc = madvise(MEM_BASE32(addr), size, adv);
+    if (rc == -1) {
+      _LWORD(eax) = 0x8025;
+      _eflags |= CF;
+    }
+#endif
     break;
+  }
 
   case 0x0800: {	/* create Physical Address Mapping */
-      unsigned addr, size;
+      dosaddr_t addr;
+      unsigned size;
       dosaddr_t base;
 
       addr = (_LWORD_(ebx) << 16) | (_LWORD_(ecx));
