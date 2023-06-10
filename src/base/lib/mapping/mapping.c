@@ -77,9 +77,6 @@ static struct mappingdrivers *mappingdrv[] = {
 #ifdef HAVE_SHM_OPEN
   &mappingdriver_shm,   /* then shm_open which is usually broken */
 #endif
-#ifdef __linux__
-  &mappingdriver_ashm,  /* then anon-shared-mmap */
-#endif
   &mappingdriver_file, /* and then a temp file */
 };
 
@@ -638,8 +635,6 @@ void free_mapping(int cap, void *addr, size_t mapsize)
 
 void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
 {
-  void *ret;
-
   if (!addr) {
     if (oldsize)  // no-no, realloc of the lowmem is not good too
       dosemu_error("realloc_mapping() called with addr=NULL, oldsize=%#zx\n", oldsize);
@@ -649,20 +644,7 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
   if (!oldsize)
     dosemu_error("realloc_mapping() addr=%p, oldsize=0\n", addr);
 
-  ret = mappingdriver->resize(cap, addr, oldsize, newsize);
-  if (ret != MAP_FAILED)
-    return ret;
-
-  /* resize didn't work: we must allocate a new region and memcpy to it */
-  assert(newsize > oldsize);
-  ret = mmap(NULL, newsize, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-  if (ret != MAP_FAILED)
-    ret = mappingdriver->alloc(cap, newsize, ret);
-  if (ret != MAP_FAILED) {
-    memcpy(ret, addr, oldsize);
-    mappingdriver->free(cap, addr, oldsize);
-  }
-  return ret;
+  return mappingdriver->resize(cap, addr, oldsize, newsize);
 }
 
 static void populate_aliasmap(unsigned char **map, unsigned char *addr,

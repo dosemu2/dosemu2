@@ -12,7 +12,7 @@ include $(top_builddir)/Makefile.conf
 
 
 #The C files, include files and dependancies here.
-CFILES = mapping.c mapshm.c mapfile.c
+CFILES = mapping.c mapfile.c
 DEPENDS = $(CFILES:.c=.d)
 HFILES =
 
