@@ -186,7 +186,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 
 AC_CHECK_LIB(rt, shm_open)
 dnl below defines HAVE_xxx so needed even if AC_CHECK_LIB() succeeded
-AC_CHECK_FUNCS([shm_open memfd_create renameat2 fopencookie])
+AC_CHECK_FUNCS([shm_open memfd_create fopencookie])
 AC_CHECK_FUNCS([setxattr getxattr],, [
   AC_MSG_ERROR([xattrs not available, your glibc is too old])
 ])

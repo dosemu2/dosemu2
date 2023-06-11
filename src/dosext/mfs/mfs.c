@@ -3280,7 +3280,6 @@ static struct file_fd *do_open_prn(const char *filename1, const char *fpath)
       return NULL;
     f = do_claim_fd(fpath);
     f->fd = fd;
-    f->dir_fd = -1;
     f->type = TYPE_PRINTER;
     return f;
 }
@@ -4029,7 +4028,6 @@ do_create_truncate:
         fext[0] = 0;
         f = do_claim_fd(fpath);
         f->fd = fd;
-        f->dir_fd = -1;
         f->type = TYPE_PRINTER;
       } else {
         struct stat st;

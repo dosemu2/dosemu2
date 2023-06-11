@@ -357,7 +357,7 @@ struct file_fd
   int idx;
   int fd;
   int type;
-  int dir_fd;
+  void *shlock;
   struct stat st;
   int is_writable;
   int read_allowed;
