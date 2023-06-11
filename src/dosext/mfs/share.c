@@ -62,7 +62,7 @@ static void lock_get(int fd, struct flock *fl)
   }
 }
 
-static void downgrade_dir_lock(int dir_fd, int fd, off_t start)
+static void downgrade_dir_lock(int dir_fd, off_t start)
 {
     struct flock fl;
     int err;
@@ -78,7 +78,7 @@ static void downgrade_dir_lock(int dir_fd, int fd, off_t start)
     flock(dir_fd, LOCK_UN);
 }
 
-static int do_open_dir(const char *dname, int *locked)
+static int do_open_dir(const char *dname)
 {
     int err;
     int dir_fd = open(dname, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
@@ -86,13 +86,10 @@ static int do_open_dir(const char *dname, int *locked)
         error("MFS: failed to open %s: %s\n", dname, strerror(errno));
         return -1;
     }
-    *locked = 0;
     /* lock directory (OFD) to avoid races */
     err = flock(dir_fd, LOCK_EX);
     if (err)
         error("MFS: exclusive lock failed: %s\n", strerror(errno));
-    else
-        *locked = 1;
     return dir_fd;
 }
 
@@ -276,10 +273,9 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
     int is_readable = (flags == O_RDONLY || flags == O_RDWR);
     /* XXX: force in READ mode, as needed by our share emulation w OFD locks */
     int flags2 = (flags == O_WRONLY ? O_RDWR : flags);
-    int locked = 0;
 
     *r_err = ACCESS_DENIED;
-    dir_fd = do_open_dir(dname, &locked);
+    dir_fd = do_open_dir(dname);
     if (dir_fd == -1)
         return -1;
     fd = openat(dir_fd, fname, flags2 | O_CLOEXEC);
@@ -293,8 +289,7 @@ static int do_mfs_open(struct file_fd *f, const char *dname,
         *r_err = SHARING_VIOLATION;
         goto err2;
     }
-    if (locked)
-        downgrade_dir_lock(dir_fd, fd, st->st_ino);
+    downgrade_dir_lock(dir_fd, st->st_ino);
 
     f->st = *st;
     f->fd = fd;
@@ -340,9 +335,8 @@ static int do_mfs_creat(struct file_fd *f, const char *dname,
         const char *fname, mode_t mode)
 {
     int fd, dir_fd, err;
-    int locked = 0;
 
-    dir_fd = do_open_dir(dname, &locked);
+    dir_fd = do_open_dir(dname);
     if (dir_fd == -1)
         return -1;
     fd = openat(dir_fd, fname, O_RDWR | O_CLOEXEC | O_CREAT | O_TRUNC, mode);
@@ -355,8 +349,7 @@ static int do_mfs_creat(struct file_fd *f, const char *dname,
     err = fstat(fd, &f->st);
     if (err)
         goto err2;
-    if (locked)
-        downgrade_dir_lock(dir_fd, fd, f->st.st_ino);
+    downgrade_dir_lock(dir_fd, f->st.st_ino);
 
     f->fd = fd;
     f->dir_fd = dir_fd;
@@ -400,9 +393,8 @@ struct file_fd *mfs_creat(char *name, mode_t mode)
 static int do_mfs_unlink(const char *dname, const char *fname, int force)
 {
     int dir_fd, err, rc;
-    int locked = 0;
 
-    dir_fd = do_open_dir(dname, &locked);
+    dir_fd = do_open_dir(dname);
     if (dir_fd == -1)
         return -1;
     rc = file_is_opened(dir_fd, fname, &err);
@@ -448,9 +440,8 @@ static int do_mfs_setattr(const char *dname, const char *fname,
         const char *fullname, int attr, int force)
 {
     int dir_fd, err, rc;
-    int locked = 0;
 
-    dir_fd = do_open_dir(dname, &locked);
+    dir_fd = do_open_dir(dname);
     if (dir_fd == -1)
         return -1;
     rc = file_is_opened(dir_fd, fname, &err);
@@ -497,9 +488,8 @@ static int do_mfs_rename(const char *dname, const char *fname,
         const char *fname2, int force)
 {
     int dir_fd, err, rc;
-    int locked = 0;
 
-    dir_fd = do_open_dir(dname, &locked);
+    dir_fd = do_open_dir(dname);
     if (dir_fd == -1)
         return -1;
     rc = file_is_opened(dir_fd, fname, &err);
