@@ -209,15 +209,12 @@ static int do_mfs_open(struct file_fd *f, const char *fname,
     void *shlock;
     void *exlock;
     int is_writable = (flags == O_WRONLY || flags == O_RDWR);
-    int is_readable = (flags == O_RDONLY || flags == O_RDWR);
-    /* XXX: force in READ mode, as needed by our share emulation w OFD locks */
-    int flags2 = (flags == O_WRONLY ? O_RDWR : flags);
 
     *r_err = ACCESS_DENIED;
     exlock = apply_exlock(fname);
     if (!exlock)
         return -1;
-    fd = open(fname, flags2 | O_CLOEXEC);
+    fd = open(fname, flags | O_CLOEXEC);
     if (fd == -1)
         goto err;
     if (!share_mode)
@@ -240,7 +237,6 @@ static int do_mfs_open(struct file_fd *f, const char *fname,
     f->share_mode = share_mode;
     f->psp = sda_cur_psp(sda);
     f->is_writable = is_writable;
-    f->read_allowed = is_readable;
     return 0;
 
 err3:
@@ -301,7 +297,6 @@ static int do_mfs_creat(struct file_fd *f, const char *fname, mode_t mode)
     f->share_mode = 0;
     f->psp = sda_cur_psp(sda);
     f->is_writable = 1;
-    f->read_allowed = 1;
     return 0;
 
 err3:

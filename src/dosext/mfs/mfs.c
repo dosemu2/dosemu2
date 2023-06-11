@@ -3460,7 +3460,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
           return FALSE;
       f = &open_files[cnt];
 
-      if (f->name == NULL || !f->read_allowed) {
+      if (f->name == NULL) {
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
       }

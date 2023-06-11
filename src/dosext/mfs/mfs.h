@@ -361,7 +361,6 @@ struct file_fd
   void **shemu_locks;
   struct stat st;
   int is_writable;
-  int read_allowed;
   int share_mode;
   u_short psp;
   uint64_t seek;
