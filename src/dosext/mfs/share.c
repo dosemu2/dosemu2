@@ -20,7 +20,6 @@
  * Author: @stsp
  *
  */
-#include <fcntl.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -39,32 +38,7 @@
 #define SHLOCK_DIR "dosemu2_sh"
 #define EXLOCK_DIR "dosemu2_ex"
 
-static int lock_set(int fd, struct flock *fl)
-{
-  int ret;
-  fl->l_pid = 0; // needed for OFD locks
-  fl->l_whence = SEEK_SET;
-  ret = fcntl(fd, F_OFD_SETLK, fl);
-  if (ret) {
-    int err = errno;
-    if (err != EAGAIN)
-      error("OFD_SETLK failed, %s\n", strerror(err));
-  }
-  return ret;
-}
-
-static void lock_get(int fd, struct flock *fl)
-{
-  int ret;
-  fl->l_pid = 0; // needed for OFD locks
-  fl->l_whence = SEEK_SET;
-  ret = fcntl(fd, F_OFD_GETLK, fl);
-  if (ret) {
-    error("OFD_GETLK failed, %s\n", strerror(errno));
-    /* pretend nothing is locked */
-    fl->l_type = F_UNLCK;
-  }
-}
+enum { compat_lk, noncompat_lk, denyR_lk, denyW_lk, R_lk, W_lk, lk_MAX };
 
 static char *prepare_shlock_name(const char *fname)
 {
@@ -114,6 +88,7 @@ struct file_fd *do_claim_fd(const char *name)
         struct file_fd *f = &open_files[i];
         if (!f->name) {
             f->name = strdup(name);
+            f->shemu_locks = malloc(sizeof(void *) * lk_MAX);
             f->idx = i;
             ret = f;
             break;
@@ -124,6 +99,7 @@ struct file_fd *do_claim_fd(const char *name)
         leavedos(1);
         return NULL;
     }
+    memset(ret->shemu_locks, 0, sizeof(void *) * lk_MAX);
     ret->seek = 0;
     ret->size = 0;
     return ret;
@@ -152,120 +128,84 @@ static int file_is_opened(const char *name)
     return access(name, F_OK);
 }
 
-enum { compat_lk_off = 0x100000000LL, noncompat_lk_off, denyR_lk_off,
-    denyW_lk_off, R_lk_off, W_lk_off };
-
-static int open_compat(int fd)
+static char *prepare_shemu_name(const char *fname, int id)
 {
-    struct flock fl;
-    fl.l_type = F_WRLCK;
-    fl.l_start = noncompat_lk_off;
-    fl.l_len = 1;
-    lock_get(fd, &fl);
-    if (fl.l_type != F_UNLCK)
-        return -1;
-    fl.l_type = F_RDLCK;
-    fl.l_start = compat_lk_off;
-    fl.l_len = 1;
-    return lock_set(fd, &fl);
+  const char *sf[lk_MAX] = { "compat", "noncompat", "denyR", "denyW",
+                             "R", "W" };
+  char *nm;
+  asprintf(&nm, "%s.%s", fname, sf[id]);
+  return nm;
 }
 
-static int open_share(int fd, int open_mode, int share_mode)
+static int is_locked(const char *fname, int id)
 {
-    int err;
-    struct flock fl;
+    char *lname = prepare_shemu_name(fname, id);
+    int lck = is_locked_shlock(lname);
+    free(lname);
+    return lck;
+}
+
+static void do_lock(const char *fname, int id, void **locks)
+{
+    char *lname = prepare_shemu_name(fname, id);
+    locks[id] = apply_shlock(lname);
+    free(lname);
+}
+
+static int open_compat(const char *fname, void **locks)
+{
+    if (is_locked(fname, noncompat_lk))
+        return -1;
+    do_lock(fname, compat_lk, locks);
+    return 0;
+}
+
+static int open_share(const char *fname, int open_mode, int share_mode,
+         void **locks)
+{
     int denyR = (share_mode == DENY_READ || share_mode == DENY_ALL);
     int denyW = (share_mode == DENY_WRITE || share_mode == DENY_ALL);
     /* inhibit compat mode */
-    fl.l_type = F_WRLCK;
-    fl.l_start = compat_lk_off;
-    fl.l_len = 1;
-    lock_get(fd, &fl);
-    if (fl.l_type != F_UNLCK)
+    if (is_locked(fname, compat_lk))
         return -1;
     if (open_mode != O_WRONLY) {
         /* read mode allowed? */
-        fl.l_type = F_WRLCK;
-        fl.l_start = denyR_lk_off;
-        fl.l_len = 1;
-        lock_get(fd, &fl);
-        if (fl.l_type != F_UNLCK)
+        if (is_locked(fname, denyR_lk))
             return -1;
     }
     if (open_mode == O_WRONLY || open_mode == O_RDWR) {
         /* write mode allowed? */
-        fl.l_type = F_WRLCK;
-        fl.l_start = denyW_lk_off;
-        fl.l_len = 1;
-        lock_get(fd, &fl);
-        if (fl.l_type != F_UNLCK)
+        if (is_locked(fname, denyW_lk))
             return -1;
     }
     if (denyR) {
         /* denyR allowed? */
-        fl.l_type = F_WRLCK;
-        fl.l_start = R_lk_off;
-        fl.l_len = 1;
-        lock_get(fd, &fl);
-        if (fl.l_type != F_UNLCK)
+        if (is_locked(fname, R_lk))
             return -1;
     }
     if (denyW) {
         /* denyW allowed? */
-        fl.l_type = F_WRLCK;
-        fl.l_start = W_lk_off;
-        fl.l_len = 1;
-        lock_get(fd, &fl);
-        if (fl.l_type != F_UNLCK)
+        if (is_locked(fname, W_lk))
             return -1;
     }
 
     /* all checks passed, claim our locks */
-    fl.l_type = F_RDLCK;
-    fl.l_start = noncompat_lk_off;
-    fl.l_len = 1;
-    err = lock_set(fd, &fl);
-    if (err)
-        return err;
-    if (open_mode != O_WRONLY) {
-        fl.l_type = F_RDLCK;
-        fl.l_start = R_lk_off;
-        fl.l_len = 1;
-        err = lock_set(fd, &fl);
-        if (err)
-            return err;
-    }
-    if (open_mode == O_WRONLY || open_mode == O_RDWR) {
-        fl.l_type = F_RDLCK;
-        fl.l_start = W_lk_off;
-        fl.l_len = 1;
-        err = lock_set(fd, &fl);
-        if (err)
-            return err;
-    }
-    if (denyR) {
-        fl.l_type = F_RDLCK;
-        fl.l_start = denyR_lk_off;
-        fl.l_len = 1;
-        err = lock_set(fd, &fl);
-        if (err)
-            return err;
-    }
-    if (denyW) {
-        fl.l_type = F_RDLCK;
-        fl.l_start = denyW_lk_off;
-        fl.l_len = 1;
-        err = lock_set(fd, &fl);
-        if (err)
-            return err;
-    }
+    do_lock(fname, noncompat_lk, locks);
+    if (open_mode != O_WRONLY)
+        do_lock(fname, R_lk, locks);
+    if (open_mode == O_WRONLY || open_mode == O_RDWR)
+        do_lock(fname, W_lk, locks);
+    if (denyR)
+        do_lock(fname, denyR_lk, locks);
+    if (denyW)
+        do_lock(fname, denyW_lk, locks);
     return 0;
 }
 
 static int do_mfs_open(struct file_fd *f, const char *fname,
         int flags, int share_mode, int *r_err)
 {
-    int fd, err;
+    int fd, err, i;
     void *shlock;
     void *exlock;
     int is_writable = (flags == O_WRONLY || flags == O_RDWR);
@@ -281,9 +221,9 @@ static int do_mfs_open(struct file_fd *f, const char *fname,
     if (fd == -1)
         goto err;
     if (!share_mode)
-        err = open_compat(fd);
+        err = open_compat(fname, f->shemu_locks);
     else
-        err = open_share(fd, flags, share_mode);
+        err = open_share(fname, flags, share_mode, f->shemu_locks);
     if (err) {
         *r_err = SHARING_VIOLATION;
         goto err2;
@@ -291,7 +231,7 @@ static int do_mfs_open(struct file_fd *f, const char *fname,
     shlock = apply_shlock(fname);
     if (!shlock) {
         *r_err = SHARING_VIOLATION;
-        goto err2;
+        goto err3;
     }
     shlock_close(exlock);
 
@@ -303,6 +243,11 @@ static int do_mfs_open(struct file_fd *f, const char *fname,
     f->read_allowed = is_readable;
     return 0;
 
+err3:
+    for (i = 0; i < lk_MAX; i++) {
+        if (f->shemu_locks[i])
+            shlock_close(f->shemu_locks[i]);
+    }
 err2:
     close(fd);
 err:
@@ -323,6 +268,8 @@ struct file_fd *mfs_open(const char *name, int flags,
     if (err) {
         free(f->name);
         f->name = NULL;
+        free(f->shemu_locks);
+        f->shemu_locks = NULL;
         return NULL;
     }
     return f;
@@ -330,7 +277,7 @@ struct file_fd *mfs_open(const char *name, int flags,
 
 static int do_mfs_creat(struct file_fd *f, const char *fname, mode_t mode)
 {
-    int fd, err;
+    int fd, err, i;
     void *shlock;
     void *exlock;
 
@@ -341,12 +288,12 @@ static int do_mfs_creat(struct file_fd *f, const char *fname, mode_t mode)
     if (fd == -1)
         goto err;
     /* set compat mode */
-    err = open_compat(fd);
+    err = open_compat(fname, f->shemu_locks);
     if (err)
         goto err2;
     shlock = apply_shlock(fname);
     if (!shlock)
-        goto err2;
+        goto err3;
     shlock_close(exlock);
 
     f->fd = fd;
@@ -357,6 +304,11 @@ static int do_mfs_creat(struct file_fd *f, const char *fname, mode_t mode)
     f->read_allowed = 1;
     return 0;
 
+err3:
+    for (i = 0; i < lk_MAX; i++) {
+        if (f->shemu_locks[i])
+            shlock_close(f->shemu_locks[i]);
+    }
 err2:
     unlink(fname);
     close(fd);
@@ -377,6 +329,8 @@ struct file_fd *mfs_creat(const char *name, mode_t mode)
     if (err) {
         free(f->name);
         f->name = NULL;
+        free(f->shemu_locks);
+        f->shemu_locks = NULL;
         return NULL;
     }
     return f;
@@ -519,8 +473,15 @@ int mfs_rename(char *name, char *name2)
 
 void mfs_close(struct file_fd *f)
 {
+    int i;
+
     close(f->fd);
     shlock_close(f->shlock);
+    for (i = 0; i < lk_MAX; i++) {
+        if (f->shemu_locks[i])
+            shlock_close(f->shemu_locks[i]);
+    }
+    free(f->shemu_locks);
     free(f->name);
     f->name = NULL;
 }

@@ -358,6 +358,7 @@ struct file_fd
   int fd;
   int type;
   void *shlock;
+  void **shemu_locks;
   struct stat st;
   int is_writable;
   int read_allowed;
