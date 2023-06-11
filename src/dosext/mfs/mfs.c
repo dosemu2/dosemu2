@@ -3948,12 +3948,13 @@ do_open_existing:
       }
 
       if (!(f = mfs_open(fpath, unix_access_mode(&st, drive, dos_mode),
-            &st, share_mode, &doserrno))) {
+            share_mode, &doserrno))) {
           Debug0((dbg_fd, "access denied:'%s' (dm=%x %x)\n", fpath,
               dos_mode, doserrno));
           SETWORD(&state->eax, doserrno);
           return FALSE;
       }
+      f->st = st;
       f->type = TYPE_DISK;
       do_update_sft(f, fname, fext, sft, drive,
             get_dos_attr(fpath, st.st_mode), FCBcall, 1);
@@ -4060,6 +4061,7 @@ do_create_truncate:
             return FALSE;
           }
         }
+        fstat(f->fd, &f->st);
         f->type = TYPE_DISK;
 #ifdef __linux__
 	if (file_on_fat(fpath))

@@ -262,9 +262,8 @@ static int open_share(int fd, int open_mode, int share_mode)
     return 0;
 }
 
-static int do_mfs_open(struct file_fd *f,
-        const char *fname, int flags, struct stat *st, int share_mode,
-        int *r_err)
+static int do_mfs_open(struct file_fd *f, const char *fname,
+        int flags, int share_mode, int *r_err)
 {
     int fd, err;
     void *shlock;
@@ -296,7 +295,6 @@ static int do_mfs_open(struct file_fd *f,
     }
     shlock_close(exlock);
 
-    f->st = *st;
     f->fd = fd;
     f->shlock = shlock;
     f->share_mode = share_mode;
@@ -312,7 +310,7 @@ err:
     return -1;
 }
 
-struct file_fd *mfs_open(const char *name, int flags, struct stat *st,
+struct file_fd *mfs_open(const char *name, int flags,
         int share_mode, int *r_err)
 {
     struct file_fd *f;
@@ -321,7 +319,7 @@ struct file_fd *mfs_open(const char *name, int flags, struct stat *st,
     f = do_claim_fd(name);
     if (!f)
         return NULL;
-    err = do_mfs_open(f, name, flags, st, share_mode, r_err);
+    err = do_mfs_open(f, name, flags, share_mode, r_err);
     if (err) {
         free(f->name);
         f->name = NULL;
@@ -344,9 +342,6 @@ static int do_mfs_creat(struct file_fd *f, const char *fname, mode_t mode)
         goto err;
     /* set compat mode */
     err = open_compat(fd);
-    if (err)
-        goto err2;
-    err = fstat(fd, &f->st);
     if (err)
         goto err2;
     shlock = apply_shlock(fname);
