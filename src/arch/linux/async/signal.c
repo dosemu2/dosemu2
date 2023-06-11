@@ -282,6 +282,11 @@ void leavedos_from_sig(int sig)
 
 void leavedos_sig(int sig)
 {
+  static int cnt;
+  /* disallow multiple terminations */
+  if (cnt)
+    return;
+  cnt++;
   /* do not log anything from a sighandler or it may hang */
   SIGNAL_save(leavedos_call, &sig, sizeof(sig), __func__);
   /* abort current sighandlers */
@@ -462,7 +467,7 @@ signal_pre_init(void)
   registersig(SIGCHLD, sig_child);
   newsetqsig(SIGQUIT, leavedos_signal);
   newsetqsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
-//  newsetqsig(SIGHUP, leavedos_emerg);
+  newsetqsig(SIGHUP, leavedos_signal);
 //  newsetqsig(SIGTERM, leavedos_emerg);
   /* below ones are initialized by other subsystems */
   setup_nf_sig(SIG_ACQUIRE);
