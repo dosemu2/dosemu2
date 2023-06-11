@@ -229,7 +229,6 @@ static void dosemu_reset(void)
 {
   initialized = 0;
   dos_post_boot_reset();
-  mfs_reset();
   iodev_reset();		/* reset all i/o devices          */
   commands_plugin_inte6_reset();
   lowmem_reset();		/* release memory used by helper utilities */

@@ -92,6 +92,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "ems",     ems_init,     ems_reset,     NULL },
   { "xms",     xms_init,     xms_reset,     xms_done },
   { "dpmi",    dpmi_setup,   dpmi_reset,    NULL },
+  { "mfs",     NULL,         mfs_reset,     mfs_done },
   { "cdrom",   NULL,         NULL,          cdrom_done },
   { "dos2tty", dos2tty_init, NULL,          dos2tty_done },
   { NULL,      NULL,         NULL,          NULL }

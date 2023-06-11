@@ -386,6 +386,7 @@ extern void cpu_setup(void);
 extern void cpu_reset(void);
 extern void real_run_int(int);
 extern void mfs_reset(void);
+extern void mfs_done(void);
 extern int mfs_redirector(struct vm86_regs *regs, char *stk, int revect);
 extern int mfs_fat32(void);
 extern int mfs_lfn(void);

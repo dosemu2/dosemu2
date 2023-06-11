@@ -1542,7 +1542,7 @@ init_all_drives(void)
     init_one_drive(dd);
 }
 
-void mfs_reset(void)
+void mfs_done(void)
 {
   int i;
 
@@ -1551,6 +1551,11 @@ void mfs_reset(void)
     if (f->name)
       mfs_close(f);
   }
+}
+
+void mfs_reset(void)
+{
+  mfs_done();
 
   emufs_loaded = FALSE;
   mfs_enabled = FALSE;
