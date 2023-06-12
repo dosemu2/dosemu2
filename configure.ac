@@ -195,6 +195,7 @@ AC_CHECK_FUNCS([mremap])
 AC_CHECK_FUNC([timerfd_create],, [
   AC_MSG_ERROR([timerfd_create not available, your glibc is too old])
 ])
+AC_CHECK_FUNCS([fls])
 
 AC_CHECK_DECLS([F_OFD_SETLK], [
     USE_OFD_LOCKS=1

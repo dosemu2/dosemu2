@@ -9,7 +9,7 @@
  * This is defined the same way as ffs.
  * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
-
+#ifndef HAVE_FLS
 static __always_inline int fls(unsigned int x)
 {
 	int r = 32;
@@ -38,5 +38,6 @@ static __always_inline int fls(unsigned int x)
 	}
 	return r;
 }
+#endif
 
 #endif /* _ASM_GENERIC_BITOPS_FLS_H_ */
