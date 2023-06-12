@@ -102,6 +102,10 @@ void fsave_to_fxsave(const struct emu_fsave *fptr,
 typedef struct emu_fpxstate emu_fpstate;
 typedef emu_fpstate *emu_fpregset_t;
 
+#ifndef __linux__
+typedef unsigned long greg_t;
+#endif
+
 union g_reg {
   greg_t reg;
 #ifdef __x86_64__
