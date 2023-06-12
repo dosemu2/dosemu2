@@ -161,7 +161,6 @@ TODO:
 #include <sys/param.h>
 #include <sys/mount.h>
 #endif
-#include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -196,6 +195,7 @@ TODO:
 #include "lpt.h"
 #include "share.h"
 #include "xattr.h"
+#include "rlocks.h"
 #include "mfs.h"
 
 #ifdef __linux__
@@ -334,33 +334,6 @@ int sdb_drive_letter_off, sdb_template_name_off, sdb_template_ext_off,
     sdb_attribute_off, sdb_dir_entry_off, sdb_p_cluster_off, sdb_file_name_off,
     sdb_file_ext_off, sdb_file_attr_off, sdb_file_time_off, sdb_file_date_off,
     sdb_file_st_cluster_off, sdb_file_size_off;
-
-static int lock_set(int fd, struct flock *fl)
-{
-  int ret;
-  fl->l_pid = 0; // needed for OFD locks
-  fl->l_whence = SEEK_SET;
-  ret = fcntl(fd, F_OFD_SETLK, fl);
-  if (ret) {
-    int err = errno;
-    if (err != EAGAIN)
-      error("OFD_SETLK failed, %s\n", strerror(err));
-  }
-  return ret;
-}
-
-static void lock_get(int fd, struct flock *fl)
-{
-  int ret;
-  fl->l_pid = 0; // needed for OFD locks
-  fl->l_whence = SEEK_SET;
-  ret = fcntl(fd, F_OFD_GETLK, fl);
-  if (ret) {
-    error("OFD_GETLK failed, %s\n", strerror(errno));
-    /* pretend nothing is locked */
-    fl->l_type = F_UNLCK;
-  }
-}
 
 static char *cds_flags_to_str(uint16_t flags) {
   static char s[5 * 8 + 1]; // 5 names * maxstrlen + terminator;
@@ -2813,59 +2786,6 @@ CancelRedirection(struct vm86_regs *state)
 
   Debug0((dbg_fd, "CancelRedirection on %s completed\n", deviceName));
   return TRUE;
-}
-
-static int lock_file_region(int fd, int lck, long long start,
-    unsigned long len, int wr)
-{
-  struct flock fl;
-  int ret;
-
-  /* make data visible before releasing the lock */
-  if (!lck)
-    dos_flush(fd);
-
-#ifdef F_GETLK64	// 64bit locks are promoted automatically (e.g. glibc)
-  static_assert(sizeof(struct flock) == sizeof(struct flock64), "incompatible flock64");
-
-  Debug0((dbg_fd, "Large file locking start=%llx, len=%lx\n", start, len));
-#else			// 32bit locking only
-#error 64bit locking not supported
-#endif
-
-  fl.l_type = (lck ? (wr ? F_WRLCK : F_RDLCK) : F_UNLCK);
-  fl.l_start = start;
-  fl.l_len = len;
-  /* needs to lock against I/O operations in another process */
-  ret = flock(fd, LOCK_EX);
-  if (ret)
-    return -1;
-  ret = lock_set(fd, &fl);
-  flock(fd, LOCK_UN);
-  return ret;
-}
-
-static int region_lock_offs(int fd, long long start, unsigned long len, int wr)
-{
-  struct flock fl;
-  int ret;
-
-  fl.l_type = wr ? F_WRLCK : F_RDLCK;
-  fl.l_start = start;
-  fl.l_len = len;
-  /* needs to lock against lock changes in another process */
-  ret = flock(fd, LOCK_EX);
-  if (ret)
-    return -1;
-  lock_get(fd, &fl);
-  if (fl.l_type == F_UNLCK)
-    return len;
-  return (fl.l_start - start);
-}
-
-static void region_unlock_offs(int fd)
-{
-  flock(fd, LOCK_UN);
 }
 
 /* returns pointer to the basename of fpath */
