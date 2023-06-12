@@ -107,8 +107,14 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
 
 static int do_open_file(void)
 {
-  // Requires a Linux kernel version >= 3.11.0
-  return open("/tmp", O_TMPFILE | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR);
+  char tmp[] = "/tmp/dosemu2_mapfile_XXXXXX";
+  int fd = mkstemp(tmp);
+  if (fd == -1) {
+    perror("mkstemp()");
+    return -1;
+  }
+  unlink(tmp);
+  return fd;
 }
 
 static int open_mapping_file(int cap)
