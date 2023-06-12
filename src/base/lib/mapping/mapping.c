@@ -471,6 +471,7 @@ void mapping_init(void)
       leavedos(2);
       return;
     }
+    mappingdriver = mappingdrv[i];
   } else {
     for (i = 0; i < numdrivers; i++) {
       if (mappingdrv[i] && (*mappingdrv[i]->open)(MAPPING_PROBE)) {
