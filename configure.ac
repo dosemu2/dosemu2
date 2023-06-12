@@ -195,9 +195,10 @@ AC_CHECK_FUNC([timerfd_create],, [
   AC_MSG_ERROR([timerfd_create not available, your glibc is too old])
 ])
 
-AC_CHECK_DECLS([F_OFD_SETLK],, [
-  AC_MSG_ERROR([F_OFD_SETLK not available, your glibc is too old])
-  ], [[#include <fcntl.h>]]
+AC_CHECK_DECLS([F_OFD_SETLK], [
+    USE_OFD_LOCKS=1
+    AC_SUBST(USE_OFD_LOCKS)
+  ],, [[#include <fcntl.h>]]
 )
 AC_CHECK_DECLS([MREMAP_MAYMOVE],,, [[#include <sys/mman.h>]])
 AC_CHECK_DECLS([MADV_POPULATE_WRITE, MADV_DONTNEED, MADV_FREE],,,

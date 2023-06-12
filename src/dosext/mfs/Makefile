@@ -3,7 +3,10 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
 
-CFILES = mfs.c mangle.c share.c xattr.c rlocks.c util.c lfn.c mscdex.c
+CFILES = mfs.c mangle.c share.c xattr.c util.c lfn.c mscdex.c
+ifeq ($(USE_OFD_LOCKS),1)
+CFILES += rlocks.c
+endif
 HFILES = mfs.h mangle.h share.h xattr.h rlocks.h
 ALL=$(CFILES) $(HFILES)
 
