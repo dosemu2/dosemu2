@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
   int ret, rc;
   unsigned int attr;
   char buf[80];
+  int read_allowed = 0;
 
   if (_dos_creatnew(FNAME, 0, &hnd1) != 0) {
     printf("FAIL: File '%s' not created\n", FNAME);
@@ -80,7 +81,7 @@ int main(int argc, char *argv[]) {
   printf("OKAY: Acquired lock on file '%s'\n", FNAME);
 
   // Open again on handle #2
-  ret = _dos_open(FNAME, O_RDWR, &hnd2);
+  ret = _dos_open(FNAME, O_RDONLY, &hnd2);
   if (ret != 0) {
     printf("FAIL: File '%s' not opened(%d)\n", FNAME, ret);
     _dos_unlock(hnd1, 5, 3);
@@ -90,12 +91,9 @@ int main(int argc, char *argv[]) {
 
   ret = _dos_lock(hnd2, 5, 3); // try the same lock handle 2
   if (ret == 0) {
-    printf("FAIL: Managed to lock again on file '%s' via different handle\n", FNAME);
-    _dos_unlock(hnd2, 5, 3);
-    _dos_close(hnd2);
-    _dos_unlock(hnd1, 5, 3);
-    _dos_close(hnd1);
-    return -1;
+    // extension, multiple read locks are allowed, make sure also read() works
+    printf("OKAY: Managed to lock again on file '%s' via different handle\n", FNAME);
+    read_allowed = 1;
   } else if (ret != 33) { // Should be lock violation
     printf("FAIL: Refused second lock on file '%s' but return (err=%d != 33)\n", FNAME, ret);
     _dos_close(hnd2);
@@ -106,7 +104,6 @@ int main(int argc, char *argv[]) {
     printf("OKAY: Refused second lock on file '%s', err=%d\n", FNAME, ret);
   }
 
-  // try to read the locked region via the second handle (should succeed)
   memset(buf, ' ', strlen(FDATA));
 
   if (llseek(hnd2, 5, SEEK_SET) != 5) {
@@ -116,15 +113,28 @@ int main(int argc, char *argv[]) {
     _dos_close(hnd1);
     return -1;
   }
+  // try to read the locked region via the second handle
   ret = _dos_read(hnd2, buf + 5, 3, &rc); // exact match conflict
   if (ret == 0) {
-    printf("FAIL: Read locked data from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
-    _dos_close(hnd2);
-    _dos_unlock(hnd1, 5, 3);
-    _dos_close(hnd1);
-    return -1;
+    if (!read_allowed) {
+      printf("FAIL: Read locked data from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
+      _dos_close(hnd2);
+      _dos_unlock(hnd1, 5, 3);
+      _dos_close(hnd1);
+      return -1;
+    } else {
+      printf("OKAY: Read locked data from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
+    }
   } else {
-    printf("OKAY: Refused to read locked data from file '%s' via second descriptor, err = %d\n", FNAME, ret);
+    if (!read_allowed) {
+      printf("OKAY: Refused to read others-locked data from file '%s' via second descriptor, err = %d\n", FNAME, ret);
+    } else {
+      printf("FAIL: Refused to read own-locked data from file '%s' via second descriptor, err = %d\n", FNAME, ret);
+      _dos_close(hnd2);
+      _dos_unlock(hnd1, 5, 3);
+      _dos_close(hnd1);
+      return -1;
+    }
   }
 
   printf("PASS: all tests okay on file '%s'\n", FNAME);
