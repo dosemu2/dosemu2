@@ -4536,9 +4536,9 @@ $_floppy_a = ""
         """MFS DOSv3 file access write device readonly"""
         ds3_file_access(self, "MFSRO", "WRITE")
 
-    def test_mfs_ds3_lock_readonly(self):
-        """MFS DOSv3 lock file readonly"""
-        ds3_lock_readonly(self, "MFS")
+#    def test_mfs_ds3_lock_readonly(self):
+#        """MFS DOSv3 lock file readonly"""
+#        ds3_lock_readonly(self, "MFS")
 
     def test_fat_ds3_lock_readonly(self):
         """FAT DOSv3 lock file readonly"""

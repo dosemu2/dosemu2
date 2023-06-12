@@ -350,3 +350,23 @@ extern int get_drive_from_path(char *path, int *drive);
  * Should be checked against MAX_DRIVE to make sure it is actually
  * a drive, i.e. no impossible-for-drive bits are set. */
 #define SFT_DRIVE(sft) ((sft_device_info(sft) & 0x88bf) ^ 0x8800)
+
+struct file_fd
+{
+  char *name;
+  int idx;
+  int fd;
+  int type;
+  void *shlock;
+  void **shemu_locks;
+  struct stat st;
+  int is_writable;
+  int share_mode;
+  u_short psp;
+  uint64_t seek;
+  uint64_t size;
+  int lock_cnt;
+};
+
+#define MAX_OPENED_FILES 256
+extern struct file_fd open_files[MAX_OPENED_FILES];

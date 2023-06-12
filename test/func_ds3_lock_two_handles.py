@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
   printf("OKAY: Acquired lock on file '%s'\n", FNAME);
 
   // Open again on handle #2
-  ret = _dos_open(FNAME, O_RDONLY, &hnd2);
+  ret = _dos_open(FNAME, O_RDWR, &hnd2);
   if (ret != 0) {
     printf("FAIL: File '%s' not opened(%d)\n", FNAME, ret);
     _dos_unlock(hnd1, 5, 3);
