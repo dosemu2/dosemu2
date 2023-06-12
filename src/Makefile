@@ -8,4 +8,4 @@ all: default
 top_builddir=..
 include $(top_builddir)/Makefile.conf
 include $(REALTOPDIR)/src/Makefile.common
-include $(REALTOPDIR)/src/arch/$(OS)/Makefile.main
+include $(REALTOPDIR)/src/arch/linux/Makefile.main

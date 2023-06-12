@@ -255,7 +255,7 @@ AC_DEFINE_DIR([DATADIR], [datadir], [ Where data are placed to ])
 AC_DEFINE_DIR([LIBEXECDIR], [libexecdir], [ Where extra executables are placed to ])
 AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 
-CONFIG_HOST='linux'
+CONFIG_HOST=`uname -o`
 AC_SUBST(CONFIG_HOST)
 
 machine=`$CC -dumpmachine | cut -d- -f1 | sed 's/i.86/i386/'`
@@ -481,7 +481,8 @@ if test "$enable_cpuemu" != "no"; then
   X86_EMULATOR=1
   AC_SUBST(X86_EMULATOR)
 
-  if test "$machine" = "i386" -o "$machine" = "x86_64"; then
+  if test "$CONFIG_HOST" = "GNU/Linux"; then
+   if test "$machine" = "i386" -o "$machine" = "x86_64"; then
     AC_MSG_CHECKING([for __attribute__((force_align_arg_pointer))])
     AX_SAVE_FLAGS([attr_check2])
     CFLAGS="-Wall -Werror"
@@ -505,6 +506,7 @@ if test "$enable_cpuemu" != "no"; then
       ]
     )
     AX_RESTORE_FLAGS([attr_check2])
+   fi
   fi
 fi
 
