@@ -16,10 +16,41 @@
 #ifndef XATTR_H
 #define XATTR_H
 
+#ifdef HAVE_SETXATTR
+
 int file_is_ro(const char *fname, mode_t mode);
 int set_dos_xattr(const char *fname, int attr);
 int get_dos_xattr(const char *fname);
 int get_dos_xattr_fd(int fd, const char *name);
 int set_dos_xattr_fd(int fd, int attr, const char *name);
+
+#else
+
+static inline int file_is_ro(const char *fname, mode_t mode)
+{
+    return 0;
+}
+
+static inline int set_dos_xattr(const char *fname, int attr)
+{
+    return 0;
+}
+
+static inline int get_dos_xattr(const char *fname)
+{
+    return -1;
+}
+
+static inline int get_dos_xattr_fd(int fd, const char *name)
+{
+    return -1;
+}
+
+static inline int set_dos_xattr_fd(int fd, int attr, const char *name)
+{
+    return 0;
+}
+
+#endif
 
 #endif
