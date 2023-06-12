@@ -12,7 +12,12 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef __linux__
 #include <sys/vfs.h>
+#else
+#include <sys/param.h>
+#include <sys/mount.h>
+#endif
 #include <sys/statvfs.h>
 #include <linux/magic.h>
 #include <signal.h>
