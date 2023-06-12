@@ -57,7 +57,6 @@
 
 #include "version.h"
 #include "memory.h"
-#include "debug.h"
 
 #include "emu.h"
 
