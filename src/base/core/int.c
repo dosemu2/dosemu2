@@ -19,7 +19,7 @@
 #include <sys/mount.h>
 #endif
 #include <sys/statvfs.h>
-#include <linux/magic.h>
+#include "Linux/magic.h"
 #include <signal.h>
 #include <sys/wait.h>
 #include <errno.h>
