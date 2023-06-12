@@ -83,16 +83,24 @@ AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld x86_64-linux-gnu-ld])
 if test -z "$AS_LD"; then
   AS_LD="$LD"
 fi
+
 AC_PATH_PROG([OBJCOPY], [objcopy])
+O_VER=`$OBJCOPY -V | head -n 1 | grep "GNU objcopy"`
+if test -z "$O_VER"; then
+  AC_MSG_WARN([rejecting BSD objcopy])
+  OBJCOPY=""
+fi
 if test -z "$OBJCOPY"; then
-  AC_PATH_PROG([OBJCOPY], [llvm-objcopy])
-  if test -z "$OBJCOPY"; then
+  AC_PATH_PROG([LOBJCOPY], [llvm-objcopy])
+  if test -z "$LOBJCOPY"; then
     AC_MSG_ERROR(objcopy not found)
   fi
+  OBJCOPY="$LOBJCOPY"
   O_BDFARCH="elf64-x86-64"
 else
   O_BDFARCH=`$OBJCOPY --info | head -n 2 | tail -n 1`
 fi
+
 AC_PATH_PROGS([XOBJCOPY], [i686-linux-gnu-objcopy x86_64-linux-gnu-objcopy])
 if test -z "$XOBJCOPY"; then
   XOBJCOPY="$OBJCOPY"
