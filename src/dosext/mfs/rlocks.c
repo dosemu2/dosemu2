@@ -37,11 +37,12 @@
  * behavior of the DOS exclusive locks. This is because now multiple
  * readers can grab the read lock simultaneously, so all should be
  * able to read, rather than blocking each other's read()s.
- * The more DOS-compatible alternative could be to inhibit read()s
+ * But for the more DOS-compatible behavior we inhibit read()s
  * of the readers that didn't acquire any lock (DOS locks are mandatory,
- * so locks on one FD are enough to inhibit I/O on other FDs there),
- * but unfortunately with Posix locks its quite difficult to test
- * the locks on our own FD, as locks on same FD never conflict.
+ * so locks on one FD are enough to inhibit I/O on other FDs there).
+ * Unfortunately with Posix locks its quite difficult to test
+ * the locks on our own FD, as locks on same FD never conflict,
+ * so some emulation is emploied for that task.
  *
  */
 #include <fcntl.h>
@@ -84,7 +85,7 @@ static void lock_get(int fd, struct flock *fl)
 }
 
 int lock_file_region(int fd, int lck, long long start,
-    unsigned long len, int wr)
+    unsigned long len, int wr, int mlemu_fd)
 {
   struct flock fl;
   int ret;
@@ -109,16 +110,19 @@ int lock_file_region(int fd, int lck, long long start,
   if (ret)
     return -1;
   ret = lock_set(fd, &fl);
+  if (mlemu_fd != -1)
+    lock_set(mlemu_fd, &fl);
   flock(fd, LOCK_UN);
   return ret;
 }
 
-int region_lock_offs(int fd, long long start, unsigned long len, int wr)
+int region_lock_offs(int fd, long long start, unsigned long len, int wr,
+    const char *mlemu)
 {
   struct flock fl;
-  int ret;
+  int ret, lemu_fd;
 
-  fl.l_type = wr ? F_WRLCK : F_RDLCK;
+  fl.l_type = F_WRLCK;
   fl.l_start = start;
   fl.l_len = len;
   /* needs to lock against lock changes in another process */
@@ -128,7 +132,34 @@ int region_lock_offs(int fd, long long start, unsigned long len, int wr)
   lock_get(fd, &fl);
   if (fl.l_type == F_UNLCK)
     return len;
-  return (fl.l_start - start);
+  /* overlapped with either read or write lock */
+  if (fl.l_start > start)
+    return (fl.l_start - start);  // found partially unlocked region
+  if (wr)
+    return 0;  // writer can't overlap with any lock
+  /* now we are dealing with reader fully overlapping with some lock */
+  fl.l_type = F_RDLCK;
+  fl.l_start = start;
+  fl.l_len = len;
+  lock_get(fd, &fl);
+  if (fl.l_type != F_UNLCK)
+    return 0;  // overlap was with write lock
+  if (!mlemu)
+    return len;  // no overlap with write lock, free to read
+  /* no overlapping write locks but read lock fully overlaps, investigate */
+  fl.l_type = F_WRLCK;
+  fl.l_start = start;
+  fl.l_len = len;
+  lemu_fd = open(mlemu, O_RDONLY);
+  if (lemu_fd == -1) {
+    error("lock emulator failure\n");
+    return len;
+  }
+  lock_get(lemu_fd, &fl);
+  close(lemu_fd);
+  if (fl.l_type != F_UNLCK)
+    return len;  // found proper read lock
+  return 0;
 }
 
 void region_unlock_offs(int fd)

@@ -359,6 +359,8 @@ struct file_fd
   int type;
   void *shlock;
   void **shemu_locks;
+  char *mlemu;
+  int mlemu_fd;
   struct stat st;
   int is_writable;
   int share_mode;
