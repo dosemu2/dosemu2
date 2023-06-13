@@ -710,10 +710,12 @@ static int do_map_hwram(struct hardware_ram *hw)
 void init_hardware_ram(void)
 {
   struct hardware_ram *hw;
-  unsigned char *uaddr;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+#ifdef __linux__
+    unsigned char *uaddr;
     int cap = MAPPING_KMEM;
+#endif
     if (hw->vbase != (dosaddr_t)-1)  /* virtual hardware ram mapped later */
       continue;
     if (hw->default_vbase != (dosaddr_t)-1)
