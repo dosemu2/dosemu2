@@ -549,6 +549,8 @@ if test "$CONFIG_HOST" = "GNU/Linux"; then
   fi
 fi
 
+# FIXME: port mcontext to freebsd
+if test "$CONFIG_HOST" = "GNU/Linux"; then
 AC_ARG_ENABLE(mcontext,
                AS_HELP_STRING([--disable-mcontext], [disable fast context switch]))
 if test "$enable_mcontext" != "no"; then
@@ -556,6 +558,7 @@ if test "$enable_mcontext" != "no"; then
     AC_DEFINE(MCONTEXT)
     MCONTEXT=1
     AC_SUBST(MCONTEXT)
+fi
 fi
 
 if test "$enable_asan" = "yes"; then
