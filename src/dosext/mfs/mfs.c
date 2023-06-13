@@ -746,10 +746,8 @@ int set_dos_attr(char *fpath, int attr)
 {
 #ifdef __linux__
   int fd = -1;
-#endif
   int res;
 
-#ifdef __linux__
   if (fpath && file_on_fat(fpath))
     fd = open(fpath, O_RDONLY);
   if (fd != -1) {
