@@ -6,8 +6,11 @@ include $(top_builddir)/Makefile.conf
 #  src/base/misc/timers.c -> ../dev/misc/timers.c
 
 
-CFILES = cmos.c timers.c lpt.c rtc.c pci.c joystick.c chipset.c 8042.c kbd.c \
+CFILES = cmos.c timers.c lpt.c rtc.c pci.c chipset.c 8042.c kbd.c \
   virq.c vtmr.c vint.c
+ifeq ($(OS),GNU/Linux)
+CFILES += joystick.c
+endif
 
 include $(REALTOPDIR)/src/Makefile.common
 

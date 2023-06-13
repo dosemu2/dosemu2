@@ -68,7 +68,6 @@
  * Includes
  */
 
-#ifdef __linux__
 #include "joystick.h"
 
 #include <stdio.h>
@@ -1395,4 +1394,3 @@ void joy_port_outb (ioport_t port, Bit8u value)
 }
 
 /* end of joystick.c */
-#endif
