@@ -113,6 +113,7 @@ struct SHM_desc {
   uint16_t name_selector;
   uint16_t padding;
 #define SHM_NOEXEC 1
+#define SHM_EXCL 2
   uint32_t flags;
 };
 

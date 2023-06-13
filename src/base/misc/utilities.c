@@ -1117,3 +1117,93 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
     sigprocmask(SIG_SETMASK, &oset, NULL);
     return pid;
 }
+
+/* ripped out of glibc. same as mktemp() but doesn't check the file */
+/* Use getrandom if it works, falling back on a 64-bit linear
+   congruential generator that starts with Var's value
+   mixed in with a clock's low-order bits if available.  */
+typedef uint_fast64_t random_value;
+#define RANDOM_VALUE_MAX UINT_FAST64_MAX
+#define BASE_62_DIGITS 10 /* 62**10 < UINT_FAST64_MAX */
+#define BASE_62_POWER (62LL * 62 * 62 * 62 * 62 * 62 * 62 * 62 * 62 * 62)
+
+static random_value
+random_bits (random_value var, bool use_getrandom)
+{
+//  random_value r;
+  /* Without GRND_NONBLOCK it can be blocked for minutes on some systems.  */
+//  if (use_getrandom && getrandom (&r, sizeof r, GRND_NONBLOCK) == sizeof r)
+//    return r;
+  /* Add entropy if getrandom did not work.  */
+  struct timespec tv;
+  clock_gettime (CLOCK_MONOTONIC, &tv);
+  var ^= tv.tv_nsec;
+  return 2862933555777941757 * var + 3037000493;
+}
+
+/* These are the characters used in temporary file names.  */
+static const char letters[] =
+"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+int tempname(char *tmpl, size_t x_suffix_len)
+{
+  int suffixlen = 0;
+  size_t len;
+  char *XXXXXX;
+
+  /* A random variable.  The initial value is used only the for fallback path
+     on 'random_bits' on 'getrandom' failure.  Its initial value tries to use
+     some entropy from the ASLR and ignore possible bits from the stack
+     alignment.  */
+  random_value v = ((uintptr_t) &v) / (sizeof(long));
+
+  /* How many random base-62 digits can currently be extracted from V.  */
+  int vdigits = 0;
+
+  /* Whether to consume entropy when acquiring random bits.  On the
+     first try it's worth the entropy cost with __GT_NOCREATE, which
+     is inherently insecure and can use the entropy to make it a bit
+     less secure.  On the (rare) second and later attempts it might
+     help against DoS attacks.  */
+  bool use_getrandom = 0;
+
+  /* Least unfair value for V.  If V is less than this, V can generate
+     BASE_62_DIGITS digits fairly.  Otherwise it might be biased.  */
+  random_value const unfair_min
+    = RANDOM_VALUE_MAX - RANDOM_VALUE_MAX % BASE_62_POWER;
+
+  len = strlen (tmpl);
+  if (len < x_suffix_len + suffixlen
+      || strspn (&tmpl[len - x_suffix_len - suffixlen], "X") < x_suffix_len)
+    {
+//      __set_errno (EINVAL);
+      return -1;
+    }
+
+  /* This is where the Xs start.  */
+  XXXXXX = &tmpl[len - x_suffix_len - suffixlen];
+
+//  for (count = 0; count < attempts; ++count)
+    {
+      for (size_t i = 0; i < x_suffix_len; i++)
+        {
+          if (vdigits == 0)
+            {
+              do
+                {
+                  v = random_bits (v, use_getrandom);
+                  use_getrandom = true;
+                }
+              while (unfair_min <= v);
+
+              vdigits = BASE_62_DIGITS;
+            }
+
+          XXXXXX[i] = letters[v % 62];
+          v /= 62;
+          vdigits--;
+        }
+    }
+
+  return 0;
+}

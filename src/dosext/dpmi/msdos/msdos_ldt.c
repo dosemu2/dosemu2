@@ -23,6 +23,7 @@
 #include <string.h>
 #include <assert.h>
 #include "cpu.h"
+#include "utilities.h"
 #include "memory.h"
 #include "emudpmi.h"
 #include "instr_dec.h"
@@ -60,6 +61,7 @@ static void msdos_ldt_handler(cpuctx_t *scp, void *arg)
 
 unsigned short msdos_ldt_init(void)
 {
+    char tmpnm[] = "ldt_alias_XXXXXX";
     unsigned lim;
     struct pmaddr_s pma;
     DPMI_INTDESC desc;
@@ -75,13 +77,14 @@ unsigned short msdos_ldt_init(void)
 
     name_sel = AllocateDescriptors(1);
     name = msdos_malloc(name_len);
-    strcpy((char *)MEM_BASE32(name), "ldt_alias");
+    tempname(tmpnm, 6);
+    strcpy((char *)MEM_BASE32(name), tmpnm);
     SetSegmentBaseAddress(name_sel, name);
     SetSegmentLimit(name_sel, name_len - 1);
     shm.name_selector = name_sel;
     shm.name_offset32 = 0;
     shm.req_len = PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE);
-    shm.flags = SHM_NOEXEC;
+    shm.flags = SHM_NOEXEC | SHM_EXCL;
     err = DPMIAllocateShared(&shm);
     assert(!err);
     ldt_h = shm.handle;

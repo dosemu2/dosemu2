@@ -32,6 +32,7 @@ int exists_dir(const char *name);
 int exists_file(const char *name);
 void subst_file_ext(char *ptr);
 char *strcatdup(char *s1, char *s2);
+int tempname(char *tmpl, size_t x_suffix_len);
 char *assemble_path(const char *dir, const char *file);
 char *expand_path(const char *dir);
 char *concat_dir(const char *s1, const char *s2);

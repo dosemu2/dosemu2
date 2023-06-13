@@ -600,8 +600,11 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     }
 
     asprintf(&shmname, "/dosemu_dpmishm_%d_%s", getpid(), name);
-    if (init)
+    if (init) {
         oflags |= O_CREAT;
+        if (flags & SHM_EXCL)
+            oflags |= O_EXCL;
+    }
     fd = shm_open(shmname, oflags, S_IRUSR | S_IWUSR);
     if (fd == -1) {
         perror("shm_open()");
