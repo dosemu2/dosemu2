@@ -398,8 +398,13 @@ extern void irq_select(void);
 extern int pd_receive_packet(void);
 extern int printer_tick(u_long);
 extern void floppy_tick(void);
+#ifdef __linux__
 extern void open_kmem(void);
 extern void close_kmem(void);
+#else
+static inline void open_kmem(void) {}
+static inline void close_kmem(void) {}
+#endif
 extern int parse_config(const char *, const char *, int);
 extern void move_dosemu_local_dir(void);
 extern void disk_init(void);
