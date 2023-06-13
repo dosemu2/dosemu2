@@ -10,7 +10,7 @@
  * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
 #ifndef HAVE_FLS
-static __always_inline int fls(unsigned int x)
+static inline int fls(unsigned int x)
 {
 	int r = 32;
 

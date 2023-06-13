@@ -32,7 +32,7 @@
  * If it's called on the same region of memory simultaneously, the effect
  * may be that only one operation succeeds.
  */
-static __always_inline void
+static inline void
 generic___set_bit(unsigned long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
@@ -41,7 +41,7 @@ generic___set_bit(unsigned long nr, unsigned long *addr)
 	*p  |= mask;
 }
 
-static __always_inline void
+static inline void
 generic___clear_bit(unsigned long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
@@ -59,7 +59,7 @@ generic___clear_bit(unsigned long nr, unsigned long *addr)
  * If it's called on the same region of memory simultaneously, the effect
  * may be that only one operation succeeds.
  */
-static __always_inline void
+static inline void
 generic___change_bit(unsigned long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
@@ -77,7 +77,7 @@ generic___change_bit(unsigned long nr, unsigned long *addr)
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
-static __always_inline bool
+static inline bool
 generic___test_and_set_bit(unsigned long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
@@ -97,7 +97,7 @@ generic___test_and_set_bit(unsigned long nr, unsigned long *addr)
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
-static __always_inline bool
+static inline bool
 generic___test_and_clear_bit(unsigned long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
@@ -109,7 +109,7 @@ generic___test_and_clear_bit(unsigned long nr, unsigned long *addr)
 }
 
 /* WARNING: non atomic and it can be reordered! */
-static __always_inline bool
+static inline bool
 generic___test_and_change_bit(unsigned long nr, unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
@@ -125,7 +125,7 @@ generic___test_and_change_bit(unsigned long nr, unsigned long *addr)
  * @nr: bit number to test
  * @addr: Address to start counting from
  */
-static __always_inline bool
+static inline bool
 generic_test_bit(unsigned long nr, const unsigned long *addr)
 {
 	/*
@@ -158,7 +158,7 @@ generic_test_bit(unsigned long nr, const unsigned long *addr)
  * for testing compile-time constants, e.g. by the corresponding macros, not
  * directly from "regular" code.
  */
-static __always_inline bool
+static inline bool
 const_test_bit(unsigned long nr, const unsigned long *addr)
 {
 	const unsigned long *p = (const unsigned long *)addr + BIT_WORD(nr);
