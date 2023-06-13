@@ -255,7 +255,7 @@ AC_DEFINE_DIR([DATADIR], [datadir], [ Where data are placed to ])
 AC_DEFINE_DIR([LIBEXECDIR], [libexecdir], [ Where extra executables are placed to ])
 AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 
-CONFIG_HOST=`uname -o`
+CONFIG_HOST=`uname -s`
 AC_SUBST(CONFIG_HOST)
 
 machine=`$CC -dumpmachine | cut -d- -f1 | sed 's/i.86/i386/'`
@@ -481,7 +481,7 @@ if test "$enable_cpuemu" != "no"; then
   X86_EMULATOR=1
   AC_SUBST(X86_EMULATOR)
 
-  if test "$CONFIG_HOST" = "GNU/Linux"; then
+  if test "$CONFIG_HOST" = "Linux"; then
    if test "$machine" = "i386" -o "$machine" = "x86_64"; then
     AC_MSG_CHECKING([for __attribute__((force_align_arg_pointer))])
     AX_SAVE_FLAGS([attr_check2])
@@ -532,7 +532,7 @@ else
     DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
 fi
 
-if test "$CONFIG_HOST" = "GNU/Linux"; then
+if test "$CONFIG_HOST" = "Linux"; then
   if test "$machine" = "i386" -o "$machine" = "x86_64"; then
     AC_ARG_ENABLE(dnative, [AS_HELP_STRING([--disable-dnative],
         [do NOT compile with native DPMI support])])
@@ -550,7 +550,7 @@ if test "$CONFIG_HOST" = "GNU/Linux"; then
 fi
 
 # FIXME: port mcontext to freebsd
-if test "$CONFIG_HOST" = "GNU/Linux"; then
+if test "$CONFIG_HOST" = "Linux"; then
 AC_ARG_ENABLE(mcontext,
                AS_HELP_STRING([--disable-mcontext], [disable fast context switch]))
 if test "$enable_mcontext" != "no"; then

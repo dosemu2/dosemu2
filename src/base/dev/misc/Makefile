@@ -8,7 +8,7 @@ include $(top_builddir)/Makefile.conf
 
 CFILES = cmos.c timers.c lpt.c rtc.c pci.c chipset.c 8042.c kbd.c \
   virq.c vtmr.c vint.c
-ifeq ($(OS),GNU/Linux)
+ifeq ($(OS),Linux)
 CFILES += joystick.c
 endif
 
