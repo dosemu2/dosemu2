@@ -8,6 +8,8 @@
 #define IPX_TYPE 1
 #define SOL_IPX 256
 #else
+#ifdef __linux__
 #warning no ipx.h
+#endif
 #endif
 #endif
