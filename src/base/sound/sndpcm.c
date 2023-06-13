@@ -195,6 +195,7 @@ static int checkid2_dummy(void *id2, void *arg)
     return 1;
 }
 
+#if defined(USE_LIBAO) || defined(SDL_SUPPORT)
 static int pcm_get_cfg(const char *name)
 {
   int i;
@@ -205,6 +206,7 @@ static int pcm_get_cfg(const char *name)
   }
   return -1;
 }
+#endif
 
 int pcm_init(void)
 {
