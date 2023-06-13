@@ -1059,7 +1059,6 @@ static void disk_sync(void)
 }
 
 
-#ifdef __linux__
 void
 disk_open(struct disk *dp)
 {
@@ -1074,6 +1073,7 @@ disk_open(struct disk *dp)
   if (dp->type == IMAGE || dp->type == DIR_TYPE)
     return;
 
+#ifdef __linux__
   /* FIXME:
    * Why the hell was the below handling restricted to non-removeable disks?
    * This made opening writeprotected floppies impossible :-(
@@ -1131,8 +1131,8 @@ disk_open(struct disk *dp)
   dp->tracks = fl.track;
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));
-}
 #endif
+}
 
 void
 disk_close_all(void)
