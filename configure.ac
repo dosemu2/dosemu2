@@ -125,7 +125,18 @@ if test -z "$LEX"; then
   AC_MSG_WARN(Your system doesn't seem to have lex or flex available.)
   AC_MSG_ERROR(Install lex or flex and retry.)
 fi
+
 AC_PROG_LN_S
+AC_MSG_CHECKING([if $LN_S is a GNU ln])
+if $LN_S --help >/dev/null 2>&1; then
+  AC_MSG_RESULT([yes, using -T])
+  LN_SFT="$LN_S -f -T"
+else
+  AC_MSG_RESULT([no, using -F])
+  LN_SFT="$LN_S -f -F"
+fi
+AC_SUBST(LN_SFT)
+
 AC_CHECK_PROGS([MAKE], [gmake make])
 if test -z "$MAKE"; then
   AC_MSG_ERROR(You don't have make installed)

@@ -24,7 +24,7 @@ $(D1)/%: %.elf
 	chmod -x $@
 
 $(D)/%: $(D1)/%
-	ln -sf ../../$(THISVERSION)/commands/$(@F) $@
+	$(LN_S) -f ../../$(THISVERSION)/commands/$(@F) $@
 
 clean::
 	rm -f *.o *.tmp *.out $(COM) $(SYS)

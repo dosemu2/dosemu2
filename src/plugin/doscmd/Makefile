@@ -24,8 +24,8 @@ $(COM): | $(top_builddir)/commands
 include $(REALTOPDIR)/src/Makefile.common.post
 
 $(STUBSYMLINK): $(D1)/generic.com
-	ln -sf $(<F) $(D1)/$(@F)
-	ln -sf ../../$(THISVERSION)/commands/$(@F) $@
+	$(LN_S) -f $(<F) $(D1)/$(@F)
+	$(LN_S) -f ../../$(THISVERSION)/commands/$(@F) $@
 
 %.com.elf: %.o
 	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0x100 -e _start16 -o $@ $<

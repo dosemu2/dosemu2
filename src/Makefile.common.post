@@ -26,23 +26,23 @@ $(BINPATH) $(BINPATH)/bin $(BINPATH)/commands $(BINPATH)/lib:
 	mkdir -p $@
 
 $(BINPATH)/bat: | $(BINPATH)
-	ln -sfT ../src/bindist/bat $@
+	$(LN_SFT) ../src/bindist/bat $@
 
 $(top_builddir)/commands: | $(BINPATH)/commands $(BINPATH)/bat
 	rm -rf $@
 	mkdir $@
 	mkdir $@/dosemu
-	ln -sf ../src/bindist/fdppconf.sys $@/fdppconf.sys
-	ln -sf ../src/bindist/fdppauto.bat $@/fdppauto.bat
-	for i in `ls $(BINPATH)/bat/`; do ln -sfT ../../$(THISVERSION)/bat/$$i $@/dosemu/$$i; done
+	$(LN_S) -f ../src/bindist/fdppconf.sys $@/fdppconf.sys
+	$(LN_S) -f ../src/bindist/fdppauto.bat $@/fdppauto.bat
+	for i in `ls $(BINPATH)/bat/`; do $(LN_SFT) ../../$(THISVERSION)/bat/$$i $@/dosemu/$$i; done
 
 $(top_builddir)/bin: | $(BINPATH)/bin
 	rm -f $@
-	ln -sf $(THISVERSION)/bin $@
+	$(LN_S) -f $(THISVERSION)/bin $@
 
 $(top_builddir)/lib: | $(BINPATH)/lib
 	rm -f $@
-	ln -sf $(THISVERSION)/lib $@
+	$(LN_S) -f $(THISVERSION)/lib $@
 
 GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh $(REALTOPDIR) $(top_builddir))
 .LOW_RESOLUTION_TIME: $(GIT_REV)

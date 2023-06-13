@@ -133,9 +133,9 @@ install:
 	  $(INSTALL) -m 0644 $$i $(cmddir); \
 	done
 	cd $(SYS); for i in `find * -type l`; do \
-	  ln -sf generic.com $(cmddir)/$$i; \
+	  $(LN_S) -f generic.com $(cmddir)/$$i; \
 	done
-	ln -sf $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
+	$(LN_S) -f $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
 	if [ ! -f $(DESTDIR)$(etcdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(etcdir); \
 	fi
@@ -179,7 +179,7 @@ install:
 	! which mkfontdir >/dev/null || mkfontdir $(DESTDIR)$(x11fontdir)
 	if [ -d "$(DESTDIR)$(sysconfdir)/X11/fontpath.d" ]; then \
 	    rm -f $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
-	    ln -sf $(x11fontdir) $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
+	    $(LN_S) -f $(x11fontdir) $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
 	fi
 
 	install -m 0644 -D $(REALTOPDIR)/etc/ttf/* $(DESTDIR)$(ttffontdir)
@@ -199,9 +199,9 @@ install:
 	  rm -rf $(DESTDIR)$(dosemuxdir)/fdboot; \
 	  $(INSTALL) -d $(DESTDIR)$(dosemuxdir)/fdboot; \
 	  cd $(DESTDIR)$(dosemuxdir)/fdboot; \
-	  ln -s ../../dosemu/commands/c/fdconfig.sys fdconfig.sys; \
-	  ln -s ../freedos/kernel.sys kernel.sys; \
-	  ln -s ../freedos/command.com command.com; \
+	  $(LN_S) ../../dosemu/commands/c/fdconfig.sys fdconfig.sys; \
+	  $(LN_S) ../freedos/kernel.sys kernel.sys; \
+	  $(LN_S) ../freedos/command.com command.com; \
 	fi
 
 	@if test $(etcdir) != /etc; then \
