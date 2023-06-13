@@ -3390,7 +3390,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       if (cnt) {
         int cnt1 = cnt;
         if (f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
-          cnt1 = region_lock_offs(f->fd, f->seek, cnt, 0, f->mlemu);
+          cnt1 = region_lock_offs(f->fd, f->seek, cnt, 0, f->mlemu_fds[1]);
           if (cnt1 != -1)
             locked++;
         }
@@ -3486,7 +3486,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       } else {
         int cnt1 = cnt;
         if (f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
-          cnt1 = region_lock_offs(f->fd, f->seek, cnt, 1, f->mlemu);
+          cnt1 = region_lock_offs(f->fd, f->seek, cnt, 1, f->mlemu_fds[1]);
           if (cnt1 != -1)
             locked++;
         }
@@ -4205,7 +4205,7 @@ do_create_truncate:
         start = (start & ~mask) | ((start & mask) >> 2);
 
       ret = lock_file_region(f->fd, is_lock, start, pt->size & ~mask,
-          f->is_writable, f->mlemu_fd);
+          f->is_writable, f->mlemu_fds[0]);
       if (ret == 0) {
         /* locks can be coalesced so the single unlock resets the counter */
         if (is_lock)

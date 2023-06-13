@@ -117,10 +117,10 @@ int lock_file_region(int fd, int lck, long long start,
 }
 
 int region_lock_offs(int fd, long long start, unsigned long len, int wr,
-    const char *mlemu)
+    int mlemu_fd2)
 {
   struct flock fl;
-  int ret, lemu_fd;
+  int ret;
 
   fl.l_type = F_WRLCK;
   fl.l_start = start;
@@ -144,19 +144,13 @@ int region_lock_offs(int fd, long long start, unsigned long len, int wr,
   lock_get(fd, &fl);
   if (fl.l_type != F_UNLCK)
     return 0;  // overlap was with write lock
-  if (!mlemu)
+  if (mlemu_fd2 == -1)
     return len;  // no overlap with write lock, free to read
   /* no overlapping write locks but read lock fully overlaps, investigate */
   fl.l_type = F_WRLCK;
   fl.l_start = start;
   fl.l_len = len;
-  lemu_fd = open(mlemu, O_RDONLY);
-  if (lemu_fd == -1) {
-    error("lock emulator failure\n");
-    return len;
-  }
-  lock_get(lemu_fd, &fl);
-  close(lemu_fd);
+  lock_get(mlemu_fd2, &fl);
   if (fl.l_type != F_UNLCK)
     return len;  // found proper read lock
   return 0;

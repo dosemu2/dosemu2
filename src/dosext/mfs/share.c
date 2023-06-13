@@ -37,7 +37,6 @@
 
 #define SHLOCK_DIR "dosemu2_sh"
 #define EXLOCK_DIR "dosemu2_ex"
-#define MLEMU_DIR "/tmp/dosemu2"
 
 enum { compat_lk, noncompat_lk, denyR_lk, denyW_lk, R_lk, W_lk, lk_MAX };
 
@@ -67,26 +66,28 @@ static void *apply_exlock(const char *fname)
 }
 
 /* for mandatory locks emulation */
-static int open_mlemu(const char *fname, int fd, char **r_name)
+static int open_mlemu(int *r_fds)
 {
-    char *mln, *nm;
-    int rc;
+    char mltmpl[] = "/tmp/dosemu2_mlemu_XXXXXX";
+    int fd0, fd1;
 
-    nm = prepare_shlock_name(fname);
-    rc = asprintf(&mln, MLEMU_DIR "/%s.%i_%i", nm, getpid(), fd);
-    free(nm);
-    if (rc == -1) {
-        perror("asprintf()");
-        return -1;
+    r_fds[0] = r_fds[1] = -1;
+    /* create 2 fds, 1 for mirroring locks and 1 for testing locks */
+    fd0 = mkstemp(mltmpl);
+    if (fd0 == -1) {
+      perror("mkstemp()");
+      return -1;
     }
-    mkdir(MLEMU_DIR, 0777);
-    rc = open(mln, O_RDWR | O_CREAT | O_CLOEXEC, 0666);
-    if (rc == -1) {
-      free(mln);
-      mln = NULL;
+    fd1 = open(mltmpl, O_RDONLY | O_CLOEXEC);
+    unlink(mltmpl);
+    if (fd1 == -1) {
+      perror("open()");
+      close(fd0);
+      return -1;
     }
-    *r_name = mln;
-    return rc;
+    r_fds[0] = fd0;
+    r_fds[1] = fd1;
+    return 0;
 }
 
 static int is_locked_shlock(const char *name)
@@ -258,10 +259,10 @@ static int do_mfs_open(struct file_fd *f, const char *fname,
 
     f->fd = fd;
     f->shlock = shlock;
-    f->mlemu_fd = open_mlemu(fname, fd, &f->mlemu);
     f->share_mode = share_mode;
     f->psp = sda_cur_psp(sda);
     f->is_writable = is_writable;
+    open_mlemu(f->mlemu_fds);
     return 0;
 
 err3:
@@ -319,10 +320,10 @@ static int do_mfs_creat(struct file_fd *f, const char *fname, mode_t mode)
 
     f->fd = fd;
     f->shlock = shlock;
-    f->mlemu_fd = open_mlemu(fname, fd, &f->mlemu);
     f->share_mode = 0;
     f->psp = sda_cur_psp(sda);
     f->is_writable = 1;
+    open_mlemu(f->mlemu_fds);
     return 0;
 
 err3:
@@ -502,12 +503,10 @@ void mfs_close(struct file_fd *f)
         if (f->shemu_locks[i])
             shlock_close(f->shemu_locks[i]);
     }
-    if (f->mlemu_fd != -1)
-        close(f->mlemu_fd);
-    if (f->mlemu) {
-        unlink(f->mlemu);
-        free(f->mlemu);
-    }
+    if (f->mlemu_fds[0] != -1)
+        close(f->mlemu_fds[0]);
+    if (f->mlemu_fds[1] != -1)
+        close(f->mlemu_fds[1]);
     free(f->shemu_locks);
     free(f->name);
     f->name = NULL;

@@ -6,7 +6,7 @@
 int lock_file_region(int fd, int lck, long long start,
     unsigned long len, int wr, int mlemu_fd);
 int region_lock_offs(int fd, long long start, unsigned long len,
-    int wr, const char *mlemu);
+    int wr, int mlemu_fd2);
 void region_unlock_offs(int fd);
 
 #else
@@ -18,7 +18,7 @@ static inline int lock_file_region(int fd, int lck, long long start,
 }
 
 static inline int region_lock_offs(int fd, long long start, unsigned long len,
-    int wr, const char *mlemu)
+    int wr, int mlemu_fd2)
 {
     return len;
 }

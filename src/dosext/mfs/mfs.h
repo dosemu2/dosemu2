@@ -358,9 +358,8 @@ struct file_fd
   int fd;
   int type;
   void *shlock;
-  void **shemu_locks;
-  char *mlemu;
-  int mlemu_fd;
+  void **shemu_locks;  // for share modes emulation
+  int mlemu_fds[2];    // for mandatory locks emulation
   struct stat st;
   int is_writable;
   int share_mode;
