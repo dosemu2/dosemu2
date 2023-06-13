@@ -7,7 +7,6 @@
  *
  *	(c) 1994 Alan Cox	iiitac@pyr.swan.ac.uk	GW4PTS@GB7SWN
  */
-#ifdef HAVE_NETPACKET_PACKET_H
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -26,7 +25,9 @@
 #include <netinet/in.h>
 #include "Linux/if_tun.h"
 #include <netinet/if_ether.h>
+#ifdef HAVE_NETPACKET_PACKET_H
 #include <netpacket/packet.h>
+#endif
 #include <net/ethernet.h>
 #include <assert.h>
 
@@ -76,6 +77,7 @@ static struct pkt_ops *find_ops(int id)
 	return NULL;
 }
 
+#ifdef HAVE_NETPACKET_PACKET_H
 /*
  *	Obtain a file handle on a raw ethernet type. In actual fact
  *	you can also request the dummy types for AX.25 or 802.3 also
@@ -142,6 +144,7 @@ static int OpenNetworkLinkEth(const char *name, void (*cbk)(int, int))
 	cbk(s, receive_mode);
 	return 0;
 }
+#endif
 
 static int OpenNetworkLinkTap(const char *name, void (*cbk)(int, int))
 {
@@ -247,7 +250,6 @@ int OpenNetworkLink(void (*cbk)(int, int))
 /*
  *	Close a file handle to a raw packet type.
  */
-
 static void CloseNetworkLinkEth(int pkt_fd)
 {
 	close(pkt_fd);
@@ -271,6 +273,7 @@ void CloseNetworkLink(int pkt_fd)
  */
 #define NET3
 
+#ifdef HAVE_NETPACKET_PACKET_H
 /*
  *	Obtain the hardware address of an interface.
  *	addr should be a buffer of 8 bytes or more.
@@ -279,7 +282,6 @@ void CloseNetworkLink(int pkt_fd)
  *	0	Success, buffer holds data.
  *	-1	Error.
  */
-
 static int GetDeviceHardwareAddressEth(unsigned char *addr)
 {
 	int s;
@@ -305,6 +307,7 @@ static int GetDeviceHardwareAddressEth(unsigned char *addr)
 
 	return 0;
 }
+#endif
 
 void pkt_get_fake_mac(unsigned char *addr)
 {
@@ -330,6 +333,7 @@ int GetDeviceHardwareAddress(unsigned char *addr)
 	return ret;
 }
 
+#ifdef HAVE_NETPACKET_PACKET_H
 /*
  *	Obtain the maximum packet size on an interface.
  *
@@ -337,7 +341,6 @@ int GetDeviceHardwareAddress(unsigned char *addr)
  *	>0	Return is the mtu of the interface
  *	-1	Error.
  */
-
 static int GetDeviceMTUEth(void)
 {
 	int s;
@@ -356,6 +359,12 @@ static int GetDeviceMTUEth(void)
 	if (err < 0)
 		return -1;
 	return req.ifr_mtu;
+}
+#endif
+
+static int GetDeviceMTUTap(void)
+{
+	return 1500;
 }
 
 int GetDeviceMTU(void)
@@ -447,6 +456,7 @@ int pkt_register_backend(struct pkt_ops *o)
     return idx;
 }
 
+#ifdef HAVE_NETPACKET_PACKET_H
 static struct pkt_ops eth_ops = {
 	.id = VNET_TYPE_ETH,
 	.open = OpenNetworkLinkEth,
@@ -456,13 +466,14 @@ static struct pkt_ops eth_ops = {
 	.pkt_read = pkt_read_eth,
 	.pkt_write = pkt_write_eth,
 };
+#endif
 
 static struct pkt_ops tap_ops = {
 	.id = VNET_TYPE_TAP,
 	.open = OpenNetworkLinkTap,
 	.close = CloseNetworkLinkEth,
 	.get_hw_addr = GetDeviceHardwareAddressTap,
-	.get_MTU = GetDeviceMTUEth,
+	.get_MTU = GetDeviceMTUTap,
 	.pkt_read = pkt_read_eth,
 	.pkt_write = pkt_write_eth,
 };
@@ -473,7 +484,9 @@ void LibpacketInit(void)
 
 	GenerateDosnetID();
 
+#ifdef HAVE_NETPACKET_PACKET_H
 	pkt_register_backend(&eth_ops);
+#endif
 	pkt_register_backend(&tap_ops);
 
 #ifdef USE_DL_PLUGINS
@@ -545,5 +558,3 @@ static int pkt_is_registered_type(int type)
 {
 	return !!find_ops(type);
 }
-
-#endif
