@@ -626,46 +626,6 @@ void subst_file_ext(char *ptr)
     }
 }
 
-void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
-	cmdprintf_func *printf)
-{
-   int argc1;
-   char **argv1;
-   char *tmpcmd;
-   void (*cmdproc)(int, char *[]);
-   const struct cmd_db *cmdp;
-
-   tmpcmd = strdup(cmd);
-   if (!tmpcmd) {
-      if (printf) (*printf)("out of memory\n");
-      return;
-   }
-   argv1 = malloc(maxargs * sizeof(char *));
-   if (!argv1) {
-      if (printf) (*printf)("out of memory\n");
-      free(tmpcmd);
-      return;
-   };
-   argc1 = argparse(tmpcmd, argv1, maxargs);
-   if (argc1 < 1) {
-      free(tmpcmd);
-      free(argv1);
-      return;
-   }
-   for (cmdp = cmdtab, cmdproc = NULL; cmdp->cmdproc; cmdp++) {
-      if (!memcmp(cmdp->cmdname, argv1[0], strlen(argv1[0])+1)) {
-         cmdproc = cmdp->cmdproc;
-         break;
-      }
-   }
-   if (!cmdproc) {
-      if (printf) (*printf)("Command %s not found\n", argv1[0]);
-   }
-   else (*cmdproc)(argc1, argv1);
-   free(tmpcmd);
-   free(argv1);
-}
-
 void sigalarm_onoff(int on)
 {
   static struct itimerval itv_old;

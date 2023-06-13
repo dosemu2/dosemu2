@@ -5,18 +5,10 @@
 #include <semaphore.h>
 #include "dosemu_debug.h"
 
-struct cmd_db {
-	char cmdname[12];
-	void (*cmdproc)(int, char *[]);
-};
-
 extern char *logptr, *logbuf;
 extern int logbuf_size, logfile_limit;
 
 int argparse(char *s, char *argvx[], int maxarg);
-typedef void cmdprintf_func(const char *fmt, ...);
-void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
-	 cmdprintf_func *printf);
 void sigalarm_onoff(int on);
 
 char *strprintable(char *s);

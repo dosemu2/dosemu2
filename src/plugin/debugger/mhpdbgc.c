@@ -135,6 +135,11 @@ static int trapped_bp=-1, trapped_bp_;
 int traceloop=0;
 char loopbuf[4] = "";
 
+struct cmd_db {
+	char cmdname[12];
+	void (*cmdproc)(int, char *[]);
+};
+
 /* constants */
 static const struct cmd_db cmdtab[] = {
    {"r0",            mhp_r0},
@@ -2551,6 +2556,48 @@ void mhp_modify_eip(int delta)
 {
   if (in_dpmi_pm()) dpmi_mhp_modify_eip(delta);
   else LWORD(eip) +=delta;
+}
+
+typedef void cmdprintf_func(const char *fmt, ...);
+
+static void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
+	cmdprintf_func *printf)
+{
+   int argc1;
+   char **argv1;
+   char *tmpcmd;
+   void (*cmdproc)(int, char *[]);
+   const struct cmd_db *cmdp;
+
+   tmpcmd = strdup(cmd);
+   if (!tmpcmd) {
+      if (printf) (*printf)("out of memory\n");
+      return;
+   }
+   argv1 = malloc(maxargs * sizeof(char *));
+   if (!argv1) {
+      if (printf) (*printf)("out of memory\n");
+      free(tmpcmd);
+      return;
+   };
+   argc1 = argparse(tmpcmd, argv1, maxargs);
+   if (argc1 < 1) {
+      free(tmpcmd);
+      free(argv1);
+      return;
+   }
+   for (cmdp = cmdtab, cmdproc = NULL; cmdp->cmdproc; cmdp++) {
+      if (!memcmp(cmdp->cmdname, argv1[0], strlen(argv1[0])+1)) {
+         cmdproc = cmdp->cmdproc;
+         break;
+      }
+   }
+   if (!cmdproc) {
+      if (printf) (*printf)("Command %s not found\n", argv1[0]);
+   }
+   else (*cmdproc)(argc1, argv1);
+   free(tmpcmd);
+   free(argv1);
 }
 
 void mhp_cmd(const char * cmd)
