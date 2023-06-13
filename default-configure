@@ -136,7 +136,14 @@ while [ "$1" != "" ]; do
 done
 
 [ -f "$srcdir"/install-sh ] || "$srcdir"/autogen.sh || exit $?
-make "$srcdir"/configure
+if [ -z "$MAKE" ]; then
+  if [ `uname -s` = "FreeBSD" ]; then
+    MAKE=gmake
+  else
+    MAKE=make
+  fi
+fi
+${MAKE} "$srcdir"/configure
 
 STRING="$STRING --enable-plugins=$PLUGIN,$EXTRA_PLUGINS"
 if [ -n "$FDPP_STR" ]; then

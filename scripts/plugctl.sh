@@ -22,7 +22,7 @@ if [ "$on" = "yes" -a -f $SRCDIR/$dir/$CONFIGURE ]; then
 			ln -s $SRCDIR/$dir/Makefile.conf.in Makefile.conf.in
 	echo "=== configuring in $dir"
 	trap "echo ; exit 130" INT
-	make ./configure REALTOPDIR="$TOP" srcdir="$SRCDIR/$dir"
+	${MAKE} ./configure REALTOPDIR="$TOP" srcdir="$SRCDIR/$dir"
 	if [ ! -f ./configure ]; then
 		on="no"
 	else

@@ -130,6 +130,8 @@ AC_CHECK_PROGS([MAKE], [gmake make])
 if test -z "$MAKE"; then
   AC_MSG_ERROR(You don't have make installed)
 fi
+# export MAKE to run from scripts
+export MAKE="$MAKE"
 AC_CHECK_PROGS([REALPATH], [realpath])
 if test -z "$REALPATH"; then
   AC_MSG_ERROR(You don't have realpath installed)
