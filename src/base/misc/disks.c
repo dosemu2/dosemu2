@@ -1062,8 +1062,6 @@ static void disk_sync(void)
 void
 disk_open(struct disk *dp)
 {
-  struct floppy_struct fl;
-
   if (dp == NULL || dp->fdesc >= 0)
     return;
 
@@ -1095,6 +1093,8 @@ disk_open(struct disk *dp)
   }
 
 {
+  struct floppy_struct fl;
+
 #if 1
   /* NOTE: Starting with linux 1.3.100 the floppy driver has changed
    * so that it no longer returns from the following ioctl without
@@ -1124,13 +1124,13 @@ disk_open(struct disk *dp)
     fatalerr = 5;
     return;
   }
-}
   d_printf("FLOPPY %s h=%d, s=%d, t=%d\n", dp->dev_name, fl.head, fl.sect, fl.track);
   dp->sectors = fl.sect;
   dp->heads = fl.head;
   dp->tracks = fl.track;
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));
+}
 #endif
 }
 
