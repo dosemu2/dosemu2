@@ -718,9 +718,9 @@ void init_hardware_ram(void)
 #endif
     if (hw->vbase != (dosaddr_t)-1)  /* virtual hardware ram mapped later */
       continue;
+#ifdef __linux__
     if (hw->default_vbase != (dosaddr_t)-1)
       cap |= MAPPING_LOWMEM;
-#ifdef __linux__
     uaddr = alloc_mapping_kmem(cap, hw->size, hw->base);
     populate_aliasmap(hw->aliasmap, uaddr, hw->size);
 #endif
