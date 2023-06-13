@@ -25,6 +25,5 @@ install: all
 
 clean realclean:
 	for i in `ls $(top_srcdir)/man/*.1.in $(top_srcdir)/man/ru/*.1.in` ; do \
-	    rm -f `echo $$i | sed -s -e 's/\.in$$//' \
-		    -e 's=$(top_srcdir)/man/=='`; \
+	    rm -f `echo $$i | sed -E -e 's=$(top_srcdir)/man/(.+).in$$=\1='`; \
 	done
