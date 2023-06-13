@@ -152,9 +152,9 @@ static void print_termios(struct termios term)
 static int set_raw_mode(void)
 {
   struct termios buf = save_termios;
+#ifdef HAVE_SYS_KD_H
   int err;
 
-#ifdef HAVE_SYS_KD_H
   if (config.console_keyb == KEYB_RAW) {
     k_printf("KBD(raw): Setting keyboard to RAW mode\n");
     err = ioctl(kbd_fd, KDSKBMODE, K_RAW);
