@@ -121,20 +121,17 @@ AC_ARG_WITH(target-bits-32, [AS_HELP_STRING([--with-target-bits-32],
 )
 AC_PROG_INSTALL
 AC_PROG_LEX([noyywrap])
-if test -z "`echo $LEX | grep flex`" ; then
-  AC_CHECK_PROG(lex_ok, $LEX, "yes", "no")
-fi
-if test "$lex_ok" = "no"; then
+if test -z "$LEX"; then
   AC_MSG_WARN(Your system doesn't seem to have lex or flex available.)
   AC_MSG_ERROR(Install lex or flex and retry.)
 fi
 AC_PROG_LN_S
-AC_CHECK_PROG([MAKE], [make], ["yes"])
-if test "$MAKE" != "yes"; then
+AC_CHECK_PROGS([MAKE], [gmake make])
+if test -z "$MAKE"; then
   AC_MSG_ERROR(You don't have make installed)
 fi
-AC_CHECK_PROG([REALPATH], [realpath], ["yes"])
-if test "$REALPATH" != "yes"; then
+AC_CHECK_PROGS([REALPATH], [realpath])
+if test -z "$REALPATH"; then
   AC_MSG_ERROR(You don't have realpath installed)
 fi
 AC_PROG_RANLIB
@@ -152,7 +149,7 @@ AC_PROG_AWK
 if test "$ac_cv_prog_AWK" != "gawk" ; then
   AC_MSG_ERROR(Install gawk and retry.)
 fi
-AC_CHECK_PROG(PKG_CONFIG, pkg-config, yes)
+AC_CHECK_PROGS([PKG_CONFIG], [pkg-config])
 if test -z "$PKG_CONFIG"; then
   AC_MSG_ERROR(Install pkg-config and retry.)
 fi
