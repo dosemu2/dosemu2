@@ -1097,12 +1097,8 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	dup(pts_fd);
 	close(pts_fd);
 	close(pty_fd);
-#ifdef HAVE_LIBBSD
 	if (close_from != -1)
 	    closefrom(close_from);
-#else
-#warning no closefrom()
-#endif
 	/* close signals, then unblock */
 	signal_done();
 	/* flush pending signals */
