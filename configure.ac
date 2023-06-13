@@ -20,7 +20,7 @@ AX_PROG_CC_FOR_BUILD
 AC_USE_SYSTEM_EXTENSIONS
 
 AC_MSG_CHECKING([for $CC actually being clang])
-if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
+if $CC -v 2>&1|grep 'clang' >/dev/null; then
   AC_MSG_RESULT([yes])
   AC_MSG_CHECKING([for clang >= 3.7])
   clang_ver=`$CC -v 2>&1 | grep version | sed 's/.*version //' | cut -d " " -f 1`
@@ -42,7 +42,7 @@ else
   use_clang="no"
 
   AC_MSG_CHECKING([for $CC actually being c++])
-  if "$CC" -v 2>&1 | grep "g++" | grep "COLLECT_GCC" >/dev/null; then
+  if $CC -v 2>&1 | grep "g++" | grep "COLLECT_GCC" >/dev/null; then
     AC_MSG_RESULT([yes, using -fpermissive])
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpermissive -Wno-narrowing"
   else
