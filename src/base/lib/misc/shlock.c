@@ -33,7 +33,7 @@
 #include <assert.h>
 #include "shlock.h"
 
-#define LOCK_DIR "/var/lock"
+#define LOCK_DIR "/tmp"
 #define LOCK_PFX "LCK.."
 
 struct shlck {
