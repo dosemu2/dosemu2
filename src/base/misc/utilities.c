@@ -1079,7 +1079,7 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 }
 
 /* ripped out of glibc. same as mktemp() but doesn't check the file */
-/* Use getrandom if it works, falling back on a 64-bit linear
+/*
    congruential generator that starts with Var's value
    mixed in with a clock's low-order bits if available.  */
 typedef uint_fast64_t random_value;
@@ -1088,13 +1088,8 @@ typedef uint_fast64_t random_value;
 #define BASE_62_POWER (62LL * 62 * 62 * 62 * 62 * 62 * 62 * 62 * 62 * 62)
 
 static random_value
-random_bits (random_value var, bool use_getrandom)
+random_bits (random_value var)
 {
-//  random_value r;
-  /* Without GRND_NONBLOCK it can be blocked for minutes on some systems.  */
-//  if (use_getrandom && getrandom (&r, sizeof r, GRND_NONBLOCK) == sizeof r)
-//    return r;
-  /* Add entropy if getrandom did not work.  */
   struct timespec tv;
   clock_gettime (CLOCK_MONOTONIC, &tv);
   var ^= tv.tv_nsec;
@@ -1119,13 +1114,6 @@ int tempname(char *tmpl, size_t x_suffix_len)
 
   /* How many random base-62 digits can currently be extracted from V.  */
   int vdigits = 0;
-
-  /* Whether to consume entropy when acquiring random bits.  On the
-     first try it's worth the entropy cost with __GT_NOCREATE, which
-     is inherently insecure and can use the entropy to make it a bit
-     less secure.  On the (rare) second and later attempts it might
-     help against DoS attacks.  */
-  bool use_getrandom = 0;
 
   /* Least unfair value for V.  If V is less than this, V can generate
      BASE_62_DIGITS digits fairly.  Otherwise it might be biased.  */
@@ -1160,8 +1148,7 @@ int tempname(char *tmpl, size_t x_suffix_len)
             {
               do
                 {
-                  v = random_bits (v, use_getrandom);
-                  use_getrandom = true;
+                  v = random_bits (v);
                 }
               while (unfair_min <= v);
 
