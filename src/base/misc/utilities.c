@@ -1109,7 +1109,7 @@ int tempname(char *tmpl, size_t x_suffix_len)
 {
   int suffixlen = 0;
   size_t len;
-  char *XXXXXX;
+  char *XXXXXX, *p;
 
   /* A random variable.  The initial value is used only the for fallback path
      on 'random_bits' on 'getrandom' failure.  Its initial value tries to use
@@ -1136,14 +1136,23 @@ int tempname(char *tmpl, size_t x_suffix_len)
   if (len < x_suffix_len + suffixlen
       || strspn (&tmpl[len - x_suffix_len - suffixlen], "X") < x_suffix_len)
     {
-//      __set_errno (EINVAL);
       return -1;
     }
+
+  if ((p = strstr(tmpl, "%PX"))) {
+    /* reserve at least 1 X */
+    int plen = snprintf(p, x_suffix_len + 2, "%02i", getpid());
+    if (plen >= x_suffix_len + 2)
+      return -1;
+    assert(p[plen] == '\0'); // snprintf's trailing 0
+    p[plen] = 'X';
+    assert(plen >= 2);
+    x_suffix_len -= plen - 2;
+  }
 
   /* This is where the Xs start.  */
   XXXXXX = &tmpl[len - x_suffix_len - suffixlen];
 
-//  for (count = 0; count < attempts; ++count)
     {
       for (size_t i = 0; i < x_suffix_len; i++)
         {

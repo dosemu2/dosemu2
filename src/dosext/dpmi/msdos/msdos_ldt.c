@@ -61,7 +61,7 @@ static void msdos_ldt_handler(cpuctx_t *scp, void *arg)
 
 unsigned short msdos_ldt_init(void)
 {
-    char tmpnm[] = "ldt_alias_XXXXXX";
+    char tmpnm[] = "ldt_alias_%PXXXXXX";
     unsigned lim;
     struct pmaddr_s pma;
     DPMI_INTDESC desc;
