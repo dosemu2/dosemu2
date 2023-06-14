@@ -13,8 +13,9 @@ AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
         AC_MSG_ERROR([use --with-fdpp-include-path]))
     export PKG_CONFIG_PATH="$fdpp_lib_dir"
     export PKG_CONFIG="$PKG_CONFIG \
-        --define-variable=includedir="$fdpp_inc_dir" \
-        --define-variable=fdpplibdir=$fdpp_lib_dir"
+        --define-variable=includedir=$fdpp_inc_dir \
+        --define-variable=fdpplibdir=$fdpp_lib_dir \
+        --define-variable=fdpprlibdir=$fdpp_lib_dir"
     AC_DEFINE_UNQUOTED(FDPP_KERNEL_DIR, "$fdpp_lib_dir")
   ],
   [
