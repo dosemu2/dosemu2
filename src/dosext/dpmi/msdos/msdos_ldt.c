@@ -90,6 +90,8 @@ unsigned short msdos_ldt_init(void)
     ldt_h = shm.handle;
     ldt_bb = shm.addr;
     ldt_backbuf = MEM_BASE32(ldt_bb);
+
+    shm.flags = SHM_NOEXEC;
     err = DPMIAllocateShared(&shm);
     assert(!err);
     ldt_alias_h = shm.handle;

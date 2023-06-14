@@ -606,6 +606,13 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
             oflags |= O_EXCL;
     }
     fd = shm_open(shmname, oflags, S_IRUSR | S_IWUSR);
+    if (fd == -1 && init && (flags & SHM_EXCL) && errno == EEXIST) {
+        error("shm object %s already exists\n", shmname);
+        /* SHM_EXCL should provide the exclusive name (with pid),
+         * so the object might be orphaned */
+        shm_unlink(shmname);
+        fd = shm_open(shmname, oflags, S_IRUSR | S_IWUSR);
+    }
     if (fd == -1) {
         perror("shm_open()");
         error("shared memory unavailable, exiting\n");
