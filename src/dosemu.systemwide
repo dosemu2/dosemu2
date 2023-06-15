@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/usr/bin/env bash
 #
 #    dosemu2 - virtual machine for running DOS
 #    Copyright (C) 2014-2020, stsp & dosemu2 contributors

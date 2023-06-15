@@ -28,6 +28,7 @@
 #include <time.h>
 #include <signal.h>
 #include <time.h>
+#include <sys/time.h>
 #include <pthread.h>
 #ifdef HAVE_LIBBSD
 #include <bsd/sys/time.h>
