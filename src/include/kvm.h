@@ -42,7 +42,7 @@ void kvm_update_fpu(void);
 void kvm_done(void);
 
 #else
-static inline int init_kvm_cpu(void) { return -1; }
+static inline int init_kvm_cpu(void) { return 0; }
 static inline int kvm_vm86(struct vm86_struct *info) { return -1; }
 static inline int kvm_dpmi(cpuctx_t *scp) { return -1; }
 static inline void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect) {}
