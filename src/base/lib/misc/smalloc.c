@@ -35,11 +35,9 @@
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
 #endif
-#ifndef PAGE_MASK
-#define PAGE_MASK (~(PAGE_SIZE-1))
-#endif
+#define _PAGE_MASK (~(PAGE_SIZE-1))
 #ifndef PAGE_ALIGN
-#define PAGE_ALIGN(addr) (((addr)+PAGE_SIZE-1)&PAGE_MASK)
+#define PAGE_ALIGN(addr) (((addr)+PAGE_SIZE-1)&_PAGE_MASK)
 #endif
 
 static void smerror_dummy(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
@@ -111,7 +109,7 @@ static void sm_uncommit(struct mempool *mp, void *addr, size_t size)
     /* align address up and align down size */
     uintptr_t a = (uintptr_t)addr;
     uintptr_t aa = PAGE_ALIGN(a);
-    size_t aligned_size = (size - (aa - a)) & PAGE_MASK;
+    size_t aligned_size = (size - (aa - a)) & _PAGE_MASK;
     void *aligned_addr = (void *)aa;
     mp->avail += size;
     assert(mp->avail <= mp->size);
@@ -139,7 +137,7 @@ static int sm_commit(struct mempool *mp, void *addr, size_t size,
 {
     /* align address down and align up size */
     uintptr_t a = (uintptr_t)addr;
-    uintptr_t aa = a & PAGE_MASK;
+    uintptr_t aa = a & _PAGE_MASK;
     size_t aligned_size = PAGE_ALIGN(size + (a - aa));
     void *aligned_addr = (void *)aa;
     int ok = __sm_commit(mp, aligned_addr, aligned_size, e_addr, e_size);

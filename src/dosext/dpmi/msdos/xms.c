@@ -130,7 +130,7 @@ static dosaddr_t xms_map(cpuctx_t *scp, unsigned handle, unsigned len)
     if (_LWORD(eax) != 1)
         goto out;
     pa = (_LWORD(edx) << 16) | _LWORD(ebx);
-    ret = DPMIMapHWRam(pa & PAGE_MASK, PAGE_ALIGN(sz));
+    ret = DPMIMapHWRam(pa & _PAGE_MASK, PAGE_ALIGN(sz));
     if (ret == (dosaddr_t)-1 || (ret & (PAGE_SIZE - 1)))
         goto out;
     ret += pa & (PAGE_SIZE - 1);
@@ -143,7 +143,7 @@ static void xms_unmap(cpuctx_t *scp, unsigned handle, dosaddr_t va)
 {
     int err;
     cpuctx_t sa = *scp;
-    err = DPMIUnmapHWRam(va & PAGE_MASK);
+    err = DPMIUnmapHWRam(va & _PAGE_MASK);
     if (err)
         error("error unmapping hwram\n");
     _LWORD(eax) = 0x0d00;  // unlock

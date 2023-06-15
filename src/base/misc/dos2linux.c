@@ -533,7 +533,7 @@ static inline void *unprotected_dosaddr_to_unixaddr(dosaddr_t addr, int len)
      this technique.
    */
   int hash = (addr >> PAGE_SHIFT) & (PAGE_SIZE-1);
-  if (unprotected_page_cache[hash] == ((addr + len - 1) & PAGE_MASK))
+  if (unprotected_page_cache[hash] == ((addr + len - 1) & _PAGE_MASK))
     return &unprotected_page_unixaddr_tlb[hash][addr & (PAGE_SIZE-1)];
   else
     return NULL;
@@ -544,8 +544,8 @@ static inline void *unprotected_dosaddr_to_unixaddr(dosaddr_t addr, int len)
 static inline void set_unprotected_page(dosaddr_t addr, void *uaddr)
 {
   int hash = (addr >> PAGE_SHIFT) & (PAGE_SIZE-1);
-  unprotected_page_cache[hash] = addr & PAGE_MASK;
-  unprotected_page_unixaddr_tlb[hash] = (void *)((uintptr_t)uaddr & PAGE_MASK);
+  unprotected_page_cache[hash] = addr & _PAGE_MASK;
+  unprotected_page_unixaddr_tlb[hash] = (void *)((uintptr_t)uaddr & _PAGE_MASK);
 }
 
 void default_sim_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
@@ -761,7 +761,7 @@ void memcpy_2unix(void *dest, dosaddr_t src, size_t n)
   else while (n) {
     /* EMS can produce the non-contig mapping. We need to iterate it
      * page-by-page or use a separate alias window... */
-    dosaddr_t bound = (src & PAGE_MASK) + PAGE_SIZE;
+    dosaddr_t bound = (src & _PAGE_MASK) + PAGE_SIZE;
     size_t to_copy = _min(n, bound - src);
     MEMCPY_2UNIX(dest, src, to_copy);
     src += to_copy;
@@ -777,7 +777,7 @@ void memcpy_2dos(dosaddr_t dest, const void *src, size_t n)
   else {
     e_invalidate(dest, n);
     while (n) {
-      dosaddr_t bound = (dest & PAGE_MASK) + PAGE_SIZE;
+      dosaddr_t bound = (dest & _PAGE_MASK) + PAGE_SIZE;
       size_t to_copy = _min(n, bound - dest);
       MEMCPY_2DOS(dest, src, to_copy);
       src += to_copy;
@@ -794,7 +794,7 @@ void memset_dos(dosaddr_t dest, char ch, size_t n)
   else {
     e_invalidate(dest, n);
     while (n) {
-      dosaddr_t bound = (dest & PAGE_MASK) + PAGE_SIZE;
+      dosaddr_t bound = (dest & _PAGE_MASK) + PAGE_SIZE;
       size_t to_copy = _min(n, bound - dest);
       MEMSET_DOS(dest, ch, to_copy);
       dest += to_copy;
@@ -815,8 +815,8 @@ void memmove_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n)
   else {
     e_invalidate(dest, n);
     while (n) {
-      dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
-      dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
+      dosaddr_t bound1 = (src & _PAGE_MASK) + PAGE_SIZE;
+      dosaddr_t bound2 = (dest & _PAGE_MASK) + PAGE_SIZE;
       size_t to_copy1 = _min(bound1 - src, bound2 - dest);
       size_t to_copy = _min(n, to_copy1);
       MEMMOVE_DOS2DOS(dest, src, to_copy);
@@ -837,8 +837,8 @@ void memcpy_dos2dos(unsigned dest, unsigned src, size_t n)
   else {
     e_invalidate(dest, n);
     while (n) {
-      dosaddr_t bound1 = (src & PAGE_MASK) + PAGE_SIZE;
-      dosaddr_t bound2 = (dest & PAGE_MASK) + PAGE_SIZE;
+      dosaddr_t bound1 = (src & _PAGE_MASK) + PAGE_SIZE;
+      dosaddr_t bound2 = (dest & _PAGE_MASK) + PAGE_SIZE;
       size_t to_copy1 = _min(bound1 - src, bound2 - dest);
       size_t to_copy = _min(n, to_copy1);
       MEMCPY_DOS2DOS(dest, src, to_copy);

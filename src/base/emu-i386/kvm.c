@@ -707,7 +707,7 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
 	       MAPPING_EXTMEM))) return;
 
-  p = kvm_get_memory_region(monitor->pte[start] & PAGE_MASK, PAGE_SIZE);
+  p = kvm_get_memory_region(monitor->pte[start] & _PAGE_MASK, PAGE_SIZE);
   if (!p) return;
 
   /* never apply read and write protections to regions with dirty logging or
@@ -721,7 +721,7 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   Q_printf("KVM: protecting %x:%zx with prot %x\n", targ, mapsize, protect);
 
   for (page = start; page < end; page++) {
-    monitor->pte[page] &= PAGE_MASK;
+    monitor->pte[page] &= _PAGE_MASK;
     if (protect & PROT_WRITE)
       monitor->pte[page] |= PG_PRESENT | PG_RW | PG_USER;
     else if (protect & PROT_READ)

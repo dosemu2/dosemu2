@@ -679,9 +679,7 @@ extern hitimer_t GenTime, LinkTime;
 #ifndef PAGE_SIZE
 #define PAGE_SIZE		(1UL << PAGE_SHIFT)
 #endif
-#ifndef PAGE_MASK
-#define PAGE_MASK		(~(PAGE_SIZE-1))
-#endif
+#define _PAGE_MASK		(~(PAGE_SIZE-1))
 
 /////////////////////////////////////////////////////////////////////////////
 //

@@ -1273,8 +1273,8 @@ quit:
 /////////////////////////////////////////////////////////////////////////////
 static void do_invalidate(unsigned data, int cnt)
 {
-	cnt = PAGE_ALIGN(data+cnt-1) - (data & PAGE_MASK);
-	data &= PAGE_MASK;
+	cnt = PAGE_ALIGN(data+cnt-1) - (data & _PAGE_MASK);
+	data &= _PAGE_MASK;
 #ifdef HOST_ARCH_X86
 	/* e_querymprotrange prevents coming here for sim */
 	assert (!config.cpusim);
@@ -1340,7 +1340,7 @@ int e_invalidate_page_full(unsigned data)
 	int cnt = PAGE_SIZE;
 	if (!IS_EMU_JIT())
 		return 0;
-	data &= PAGE_MASK;
+	data &= _PAGE_MASK;
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
 		return 0;

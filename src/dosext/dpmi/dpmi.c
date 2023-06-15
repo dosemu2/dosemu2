@@ -4871,7 +4871,7 @@ static void unprot_stack_page(cpuctx_t *scp)
   else
     p = GetSegmentBase(_ss) + _LWORD(esp);
 
-  e_invalidate(p & PAGE_MASK, PAGE_SIZE);
+  e_invalidate(p & _PAGE_MASK, PAGE_SIZE);
   /* if ptr is on page boundary, then unprot also page below */
   if (!(p & (PAGE_SIZE - 1)))
     e_invalidate(p - PAGE_SIZE, PAGE_SIZE);

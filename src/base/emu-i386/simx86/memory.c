@@ -198,8 +198,8 @@ int e_unmarkpage(unsigned int addr, size_t len)
 	}
 
 	/* check if unmarked pages have no more code, and if so, unprotect */
-	abeg = addr & PAGE_MASK;
-	aend = (addr + len) & PAGE_MASK;
+	abeg = addr & _PAGE_MASK;
+	aend = (addr + len) & _PAGE_MASK;
 	/* don't unprotect partial first page with code (if not also last) */
 	if (aend != abeg && abeg != addr && e_querymark(abeg, PAGE_SIZE))
 		abeg += PAGE_SIZE;
@@ -300,12 +300,12 @@ int e_mprotect(unsigned int addr, size_t len)
 	unsigned a;
 	int ret = 1;
 
-	abeg = addr & PAGE_MASK;
+	abeg = addr & _PAGE_MASK;
 	if (len==0) {
 	    return 0;
 	}
 	else {
-	    aend = (addr+len-1) & PAGE_MASK;
+	    aend = (addr+len-1) & _PAGE_MASK;
 	}
 	/* only protect ranges that were not already protected by e_mprotect */
 	for (a = abeg; a <= aend; a += PAGE_SIZE) {
@@ -337,12 +337,12 @@ static int e_munprotect(unsigned int addr, size_t len)
 	unsigned a;
 	int ret = 0;
 
-	abeg = addr & PAGE_MASK;
+	abeg = addr & _PAGE_MASK;
 	if (len==0) {
 	    aend = abeg;
 	}
 	else {
-	    aend = (addr+len-1) & PAGE_MASK;
+	    aend = (addr+len-1) & _PAGE_MASK;
 	}
 	/* only unprotect ranges that were protected by e_mprotect */
 	for (a = abeg; a <= aend; a += PAGE_SIZE) {
@@ -453,7 +453,7 @@ int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 #endif
 	/* We HAVE to invalidate all the code in the page
 	 * if the page is going to be unprotected */
-	addr &= PAGE_MASK;
+	addr &= _PAGE_MASK;
 	return InvalidateNodeRange(addr, PAGE_SIZE, p);
 }
 
