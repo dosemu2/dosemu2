@@ -110,4 +110,14 @@ pid_t run_external_command(const char *path, int argc,
         const char **argv,
         int use_stdin, int close_from, int pty_fd, sem_t *pty_sem);
 
+#ifdef HAVE_OPTRESET
+/* needs to set both to 1, no idea why optreset alone isn't enough! */
+#define GETOPT_RESET() \
+  optreset = 1; \
+  optind = 1
+#else
+#define GETOPT_RESET() \
+  optind = 0
+#endif
+
 #endif /* UTILITIES_H */

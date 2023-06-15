@@ -351,7 +351,7 @@ static int lredir_parse_opts(int argc, char *argv[],
 	return 0;
     }
 
-    optind = 0;		// glibc wants this to reser parser state
+    GETOPT_RESET();		// glibc wants this to reser parser state
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	switch (c) {
 	case 'h':

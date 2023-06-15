@@ -72,7 +72,7 @@ int system_main(int argc, char **argv)
     return usage();
   }
 
-  optind = 0;		// glibc wants this to reser parser state
+  GETOPT_RESET();		// glibc wants this to reser parser state
   while ((c = getopt(argc, argv, getopt_string)) != EOF) {
     /* Got a switch */
     switch (c) {

@@ -202,6 +202,24 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([
     ]
 )
 
+AC_MSG_CHECKING([for optreset])
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+	#include <unistd.h>
+	int main(void)
+	{
+	    optreset = 1;
+	    return 0;
+	}
+    ])],
+    [
+	AC_MSG_RESULT([yes])
+	AC_DEFINE(HAVE_OPTRESET)
+    ],
+    [
+	AC_MSG_RESULT([no])
+    ]
+)
+
 AC_CHECK_LIB(rt, shm_open)
 dnl below defines HAVE_xxx so needed even if AC_CHECK_LIB() succeeded
 AC_CHECK_FUNCS([shm_open memfd_create fopencookie])
@@ -680,6 +698,9 @@ fi
 
 AH_TEMPLATE([HAVE_ASSIGNABLE_STDERR],
 [ Define if stderr is not const ])
+
+AH_TEMPLATE([HAVE_OPTRESET],
+[ Define if optreset is available ])
 
 AH_TEMPLATE([CONFIG_HOST],
 [ Define the host for which Dosemu is configured ])

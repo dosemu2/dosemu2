@@ -233,7 +233,6 @@ int main(int argc, char **argv)
   char c;
   char *flags=0;
 
-  optind = 0;
   while ((c = getopt(argc, argv, "vi:x:Mp:")) !=EOF) {
     switch (c) {
       case 'i':

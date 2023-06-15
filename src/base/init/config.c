@@ -1212,10 +1212,7 @@ config_init(int argc, char **argv)
 	exit(0);
 
     i_cur = 0;
-#ifdef __linux__
-    optind = 0;
-#endif
-    opterr = 0;
+    GETOPT_RESET();
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	switch (c) {
 	case 'f':

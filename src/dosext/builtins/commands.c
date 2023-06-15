@@ -112,7 +112,7 @@ static int emudpmi_main(int argc, char **argv)
 		com_printf("+--------------------------+-----------+----+---------------------------------+\n\n");
 	} else {
 		int c = 0;
-		optind = 0;
+		GETOPT_RESET();
 		while ((c = getopt(argc, argv, "m:p:n:t:")) != -1) {
 		    switch (c) {
 			case 'm':
@@ -164,7 +164,7 @@ static int emudpmi_main(int argc, char **argv)
 static int eject_main(int argc, char **argv)
 {
 	do_doshelper(DOS_HELPER_CDROM_HELPER, 0xc00);	/* unlock door */
-	optind = 0;
+	GETOPT_RESET();
 	switch (getopt(argc, argv, "t")) {
 		case 't':
 			do_doshelper(DOS_HELPER_CDROM_HELPER, 0xe00);	/* close tray */
@@ -274,7 +274,7 @@ static int comredir_main(int argc, char **argv)
   int suppr = 0, flags = 0;
   char c;
 
-  optind = 0;
+  GETOPT_RESET();
   while ((c = getopt(argc, argv, "hsf:")) != -1) {
     switch (c) {
       case 'h':

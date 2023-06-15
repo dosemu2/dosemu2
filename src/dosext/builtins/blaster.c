@@ -25,7 +25,7 @@
 
 #include "blaster.h"
 
-#include "emu.h"
+#include "utilities.h"
 #include "sound.h"
 #include "sound/midi.h"
 
@@ -120,7 +120,7 @@ int emusound_main(int argc, char **argv)
 		return 0;
 	}
 
-	optind = 0;
+	GETOPT_RESET();
 	while ((c = getopt(argc, argv, "cehs:")) != -1) {
 	    switch (c) {
 		case 'c':

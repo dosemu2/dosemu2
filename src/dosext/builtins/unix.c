@@ -20,6 +20,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "dos2linux.h"
+#include "utilities.h"
 #include "system.h"
 #include "unix.h"
 
@@ -37,7 +38,7 @@ int unix_main(int argc, char **argv)
     return usage();
   }
 
-  optind = 0;		// glibc wants this to reser parser state
+  GETOPT_RESET();		// glibc wants this to reser parser state
   while ((c = getopt(argc, argv, getopt_string)) != EOF) {
     /* Got a switch */
     switch (c) {
