@@ -479,7 +479,7 @@ void pit_control_outp(ioport_t port, Bit8u val)
   }
 }
 
-static void timer_activate(uint64_t ticks, void *arg)
+static void timer_activate(int ticks, void *arg)
 {
   int pit_num = (uintptr_t)arg;
   uint32_t q;

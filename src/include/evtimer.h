@@ -7,7 +7,7 @@
 #define SCALE_US 1000LL
 #define SCALE_NS 1LL
 
-void *evtimer_create(void (*cbk)(uint64_t ticks, void *), void *arg);
+void *evtimer_create(void (*cbk)(int ticks, void *), void *arg);
 void evtimer_delete(void *tmr);
 void evtimer_set_rel(void *tmr, uint64_t ns, int periodic);
 uint64_t evtimer_gettime(void *tmr);

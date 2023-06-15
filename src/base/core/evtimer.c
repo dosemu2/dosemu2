@@ -25,18 +25,18 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <sys/timerfd.h>
+#include <time.h>
+#include <signal.h>
 #include <time.h>
 #include <pthread.h>
 #ifdef HAVE_LIBBSD
 #include <bsd/sys/time.h>
 #endif
-#include "ioselect.h"
 #include "evtimer.h"
 
 struct evtimer {
-    int fd;
-    void (*callback)(uint64_t ticks, void *);
+    timer_t tmr;
+    void (*callback)(int ticks, void *);
     void *arg;
     clockid_t clk_id;
     struct timespec start;
@@ -44,62 +44,55 @@ struct evtimer {
     int blocked;
     pthread_mutex_t block_mtx;
     pthread_cond_t block_cnd;
-    int skipped;
+    int ticks;
     int in_cbk;
 };
 
-static void do_callback(struct evtimer *t)
-{
-    uint64_t ticks;
-    int rc = read(t->fd, &ticks, sizeof(ticks));
-    if (rc != sizeof(ticks))
-        return;
-    t->callback(ticks, t->arg);
-}
-
-static void evhandler(int fd, void *arg)
+static void evhandler(union sigval sv)
 {
     int bl;
-    struct evtimer *t = arg;
+    struct evtimer *t = sv.sival_ptr;
 
     pthread_mutex_lock(&t->block_mtx);
     bl = t->blocked;
-    if (bl) {
-        t->skipped++;
-    } else {
+    t->ticks += timer_getoverrun(t->tmr) + 1;
+    if (!bl)
         t->in_cbk++;
-        t->skipped = 0;
-    }
     pthread_mutex_unlock(&t->block_mtx);
     if (!bl) {
-        do_callback(t);
+        t->callback(t->ticks, t->arg);
         pthread_mutex_lock(&t->block_mtx);
         t->in_cbk--;
+        t->ticks = 0;
         pthread_mutex_unlock(&t->block_mtx);
         pthread_cond_signal(&t->block_cnd);
     }
 }
 
-void *evtimer_create(void (*cbk)(uint64_t ticks, void *), void *arg)
+void *evtimer_create(void (*cbk)(int ticks, void *), void *arg)
 {
     struct evtimer *t;
     clockid_t id = CLOCK_MONOTONIC;
-    int fd = timerfd_create(id, TFD_CLOEXEC);
+    struct sigevent sev = { .sigev_notify = SIGEV_THREAD,
+                            .sigev_notify_function = evhandler };
+    timer_t tmr;
+    int rc;
 
-    assert(fd != -1);
     t = malloc(sizeof(*t));
     assert(t);
-    t->fd = fd;
+    sev.sigev_value.sival_ptr = t;
+    rc = timer_create(id, &sev, &tmr);
+    assert(rc != -1);
+    t->tmr = tmr;
     t->callback = cbk;
     t->arg = arg;
     t->clk_id = id;
     t->blocked = 0;
-    t->skipped = 0;
+    t->ticks = 0;
     t->in_cbk = 0;
     pthread_mutex_init(&t->start_mtx, NULL);
     pthread_mutex_init(&t->block_mtx, NULL);
     pthread_cond_init(&t->block_cnd, NULL);
-    add_to_io_select_threaded(fd, evhandler, t);
     return t;
 }
 
@@ -107,8 +100,7 @@ void evtimer_delete(void *tmr)
 {
     struct evtimer *t = tmr;
 
-    remove_from_io_select(t->fd);
-    close(t->fd);
+    timer_delete(t->tmr);
     pthread_mutex_destroy(&t->start_mtx);
     pthread_mutex_destroy(&t->block_mtx);
     pthread_cond_destroy(&t->block_cnd);
@@ -128,7 +120,7 @@ void evtimer_set_rel(void *tmr, uint64_t ns, int periodic)
     clock_gettime(t->clk_id, &start);
     timespecadd(&start, &rel, &abs);
     i.it_value = abs;
-    timerfd_settime(t->fd, TFD_TIMER_ABSTIME, &i, NULL);
+    timer_settime(t->tmr, TIMER_ABSTIME, &i, NULL);
     pthread_mutex_lock(&t->start_mtx);
     t->start = start;
     pthread_mutex_unlock(&t->start_mtx);
@@ -152,7 +144,7 @@ void evtimer_stop(void *tmr)
     struct itimerspec i = {};
     struct timespec start;
 
-    timerfd_settime(t->fd, 0, &i, NULL);
+    timer_settime(t->tmr, 0, &i, NULL);
     clock_gettime(t->clk_id, &start);
     pthread_mutex_lock(&t->start_mtx);
     t->start = start;
@@ -173,16 +165,17 @@ void evtimer_block(void *tmr)
 void evtimer_unblock(void *tmr)
 {
     struct evtimer *t = tmr;
-    int need_cb;
+    int ticks;
 
-    /* if cbks were skipped, quickly deliver one first */
+    /* if ticks accumulated, quickly deliver them first */
     pthread_mutex_lock(&t->block_mtx);
-    need_cb = t->skipped;
+    ticks = t->ticks;
     pthread_mutex_unlock(&t->block_mtx);
-    if (need_cb)
-        do_callback(t);
+    if (ticks)
+        t->callback(ticks, t->arg);
     /* then unblock */
     pthread_mutex_lock(&t->block_mtx);
+    t->ticks -= ticks;
     t->blocked--;
     pthread_mutex_unlock(&t->block_mtx);
 }
