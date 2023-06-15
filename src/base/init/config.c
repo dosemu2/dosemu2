@@ -569,8 +569,10 @@ static void move_dosemu_lib_dir(void)
   rp = assemble_path(RUNDIR_PREFIX, dosemu_uid);
   dosemu_rundir_path = mkdir_under(rp, "dosemu2");
   free(rp);
-  dosemu_midi_path = assemble_path(dosemu_rundir_path, DOSEMU_MIDI);
-  dosemu_midi_in_path = assemble_path(dosemu_rundir_path, DOSEMU_MIDI_IN);
+  if (dosemu_rundir_path) {
+    dosemu_midi_path = assemble_path(dosemu_rundir_path, DOSEMU_MIDI);
+    dosemu_midi_in_path = assemble_path(dosemu_rundir_path, DOSEMU_MIDI_IN);
+  }
 }
 
 static int find_option(const char *option, int argc, char **argv)
