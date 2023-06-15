@@ -1088,8 +1088,6 @@ config_init(int argc, char **argv)
        "23456ABC::c::D:d:E:e:f:H:hi:I:K:k::L:M:mNno:P:qSsT::t::VvwXx:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
-    if (getenv("DOSEMU_INVOKED_NAME"))
-	argv[0] = getenv("DOSEMU_INVOKED_NAME");
     basename = strrchr(argv[0], '/');   /* parse the program name */
     basename = basename ? basename + 1 : argv[0];
 

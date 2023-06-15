@@ -181,8 +181,6 @@ export UBSAN_OPTIONS='print_stacktrace=1'
 
 eval "set -- $SUFFIX"
 COMMAND="$SUDO $SUDOOPTS $DBG $BINARY -o $LOG_FILE $OPTS"
-DOSEMU_INVOKED_NAME="$0"
-export DOSEMU_INVOKED_NAME
 if [ -n "$STRING_I" ] ; then
   COMMAND="$COMMAND -I '$STRING_I'"
 fi
