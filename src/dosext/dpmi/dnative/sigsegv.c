@@ -115,7 +115,7 @@ static struct eflags_fs_gs {
 #endif
 } eflags_fs_gs;
 static void *cstack;
-static struct sigaction sacts[NSIG];
+static struct sigaction sacts[SIGMAX];
 static int block_all_sigs;
 #if SIGALTSTACK_WA
 static void *backup_stack;
@@ -1153,7 +1153,7 @@ void signative_start(void)
 {
   int sig;
 
-  for (sig = 0; sig < NSIG; sig++)
+  for (sig = 0; sig < SIGMAX; sig++)
     if (sigismember(&q_mask, sig))
       fixupsig(sig);
   /* call that after all non-fatal sigs set up */
@@ -1169,7 +1169,7 @@ void signative_stop(void)
 {
   int sig;
 
-  for (sig = 0; sig < NSIG; sig++)
+  for (sig = 0; sig < SIGMAX; sig++)
     if (sigismember(&q_mask, sig))
       unsetsig(sig);
   unsetsig(SIGILL);

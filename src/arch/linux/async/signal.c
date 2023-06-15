@@ -96,9 +96,9 @@ static struct rng_s cbks;
 #define MAX_CBKS 1000
 static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-static void (*sighandlers[NSIG])(siginfo_t *);
-static void (*qsighandlers[NSIG])(int sig, siginfo_t *si, void *uc);
-static void (*asighandlers[NSIG])(void *arg);
+static void (*sighandlers[SIGMAX])(siginfo_t *);
+static void (*qsighandlers[SIGMAX])(int sig, siginfo_t *si, void *uc);
+static void (*asighandlers[SIGMAX])(void *arg);
 
 static void SIGALRM_call(void *arg);
 static void SIGIO_call(void *arg);
@@ -133,7 +133,7 @@ static void init_one_sig(int num, void (*fun)(int sig, siginfo_t *si, void *uc))
 static void qsig_init(void)
 {
 	int i;
-	for (i = 0; i < NSIG; i++) {
+	for (i = 0; i < SIGMAX; i++) {
 		if (qsighandlers[i])
 			init_one_sig(i, qsighandlers[i]);
 	}
@@ -540,7 +540,7 @@ void signal_done(void)
     if (setitimer(ITIMER_VIRTUAL, &itv, NULL) == -1)
 	g_printf("can't turn off vtimer at shutdown: %s\n", strerror(errno));
     sigprocmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
-    for (i = 0; i < NSIG; i++) {
+    for (i = 0; i < SIGMAX; i++) {
 	if (sigismember(&q_mask, i))
 	    signal(i, SIG_DFL);
     }

@@ -195,4 +195,12 @@ static inline void signative_stop(void) {}
 static inline void unsetsig(int sig) {}
 #endif
 
+/* On glibc SIGRTMAX is not a constant but NSIG cpvers rt signals.
+ * On bsd its all the other way around. */
+#ifdef __GLIBC__
+#define SIGMAX NSIG
+#else
+#define SIGMAX SIGRTMAX
+#endif
+
 #endif
