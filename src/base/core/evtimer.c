@@ -41,18 +41,42 @@ struct evtimer {
     clockid_t clk_id;
     struct timespec start;
     pthread_mutex_t start_mtx;
+    int blocked;
+    pthread_mutex_t block_mtx;
+    pthread_cond_t block_cnd;
+    int skipped;
+    int in_cbk;
 };
+
+static void do_callback(struct evtimer *t)
+{
+    uint64_t ticks;
+    int rc = read(t->fd, &ticks, sizeof(ticks));
+    if (rc != sizeof(ticks))
+        return;
+    t->callback(ticks, t->arg);
+}
 
 static void evhandler(int fd, void *arg)
 {
-    uint64_t ticks;
-    int rc;
+    int bl;
     struct evtimer *t = arg;
 
-    rc = read(fd, &ticks, sizeof(ticks));
-    if (rc == sizeof(ticks)) {
-        t->callback(ticks, t->arg);
-//        ioselect_complete(fd);
+    pthread_mutex_lock(&t->block_mtx);
+    bl = t->blocked;
+    if (bl) {
+        t->skipped++;
+    } else {
+        t->in_cbk++;
+        t->skipped = 0;
+    }
+    pthread_mutex_unlock(&t->block_mtx);
+    if (!bl) {
+        do_callback(t);
+        pthread_mutex_lock(&t->block_mtx);
+        t->in_cbk--;
+        pthread_mutex_unlock(&t->block_mtx);
+        pthread_cond_signal(&t->block_cnd);
     }
 }
 
@@ -69,7 +93,12 @@ void *evtimer_create(void (*cbk)(uint64_t ticks, void *), void *arg)
     t->callback = cbk;
     t->arg = arg;
     t->clk_id = id;
+    t->blocked = 0;
+    t->skipped = 0;
+    t->in_cbk = 0;
     pthread_mutex_init(&t->start_mtx, NULL);
+    pthread_mutex_init(&t->block_mtx, NULL);
+    pthread_cond_init(&t->block_cnd, NULL);
     add_to_io_select_threaded(fd, evhandler, t);
     return t;
 }
@@ -80,6 +109,9 @@ void evtimer_delete(void *tmr)
 
     remove_from_io_select(t->fd);
     close(t->fd);
+    pthread_mutex_destroy(&t->start_mtx);
+    pthread_mutex_destroy(&t->block_mtx);
+    pthread_cond_destroy(&t->block_cnd);
     free(t);
 }
 
@@ -131,12 +163,26 @@ void evtimer_block(void *tmr)
 {
     struct evtimer *t = tmr;
 
-    ioselect_block(t->fd);
+    pthread_mutex_lock(&t->block_mtx);
+    t->blocked++;
+    while (t->in_cbk)
+        pthread_cond_wait(&t->block_cnd, &t->block_mtx);
+    pthread_mutex_unlock(&t->block_mtx);
 }
 
 void evtimer_unblock(void *tmr)
 {
     struct evtimer *t = tmr;
+    int need_cb;
 
-    ioselect_unblock(t->fd);
+    /* if cbks were skipped, quickly deliver one first */
+    pthread_mutex_lock(&t->block_mtx);
+    need_cb = t->skipped;
+    pthread_mutex_unlock(&t->block_mtx);
+    if (need_cb)
+        do_callback(t);
+    /* then unblock */
+    pthread_mutex_lock(&t->block_mtx);
+    t->blocked--;
+    pthread_mutex_unlock(&t->block_mtx);
 }
