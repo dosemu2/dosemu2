@@ -970,8 +970,8 @@ struct tee_struct {
 static ssize_t tee_write(void *cookie, const char *buf, size_t size)
 {
     struct tee_struct *c = cookie;
-    fwrite(buf, size, 1, c->stream[0]);
-    return fwrite(buf, size, 1, c->stream[1]);
+    fwrite(buf, 1, size, c->stream[0]);
+    return fwrite(buf, 1, size, c->stream[1]);
 }
 
 static int tee_close(void *cookie)
