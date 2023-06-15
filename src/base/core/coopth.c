@@ -649,11 +649,8 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st, void *arg)
     if (thr->cur_thr > thr->max_thr) {
 	size_t stk_size = COOP_STK_SIZE();
 	thr->max_thr = thr->cur_thr;
-#ifndef MAP_STACK
-#define MAP_STACK 0
-#endif
 	pth->stack = mmap(NULL, stk_size, PROT_READ | PROT_WRITE,
-		MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (pth->stack == MAP_FAILED) {
 	    error("Unable to allocate stack\n");
 	    exit(21);
