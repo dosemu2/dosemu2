@@ -365,14 +365,14 @@ void close_proc_scan(void)
   procfile_name = procbuf = procbufptr = proclastpos = 0;
 }
 
-void open_proc_scan(const char *name)
+int open_proc_scan(const char *name)
 {
   int size, fd;
   close_proc_scan();
   fd = open(name, O_RDONLY);
   if (fd == -1) {
     error("cannot open %s\n", name);
-    leavedos(5);
+    return -1;
   }
   procfile_name = strdup(name);
   procbuf = malloc(PROCBUFSIZE);
@@ -380,6 +380,7 @@ void open_proc_scan(const char *name)
   procbuf[size] = 0;
   procbufptr = procbuf;
   close(fd);
+  return 0;
 }
 
 void advance_proc_bufferptr(void)

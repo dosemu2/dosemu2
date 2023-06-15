@@ -745,8 +745,11 @@ static void read_cpu_info(void)
 {
     char *cpuflags, *cpu;
     int k = 3;
+    int err;
 
-    open_proc_scan("/proc/cpuinfo");
+    err = open_proc_scan("/proc/cpuinfo");
+    if (err)
+      return;
     cpu = get_proc_string_by_key("cpu family");
     if (cpu) {
       k = atoi(cpu);

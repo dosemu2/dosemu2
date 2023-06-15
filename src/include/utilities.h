@@ -14,7 +14,7 @@ void sigalarm_onoff(int on);
 char *strprintable(char *s);
 char *chrprintable(char c);
 int is_printable(const char *s);
-void open_proc_scan(const char *name);
+int open_proc_scan(const char *name);
 void close_proc_scan(void);
 char *get_proc_string_by_key(const char *key);
 void advance_proc_bufferptr(void);

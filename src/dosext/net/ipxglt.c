@@ -84,6 +84,8 @@ static int CheckRouteExist(unsigned long targetNet
 #if !TRUST_RTABLE
 	char buf_net[9], buf_node[13];
 #endif
+	int err;
+
 	sprintf(buf_targ, "%08lX", (unsigned long)htonl(targetNet));
 #if !TRUST_RTABLE
 	sprintf(buf_net, "%08lX", (unsigned long)htonl(network));
@@ -92,10 +94,12 @@ static int CheckRouteExist(unsigned long targetNet
 #endif
 
 	if(access("/proc/net/ipx/route",R_OK) == 0)
-		open_proc_scan("/proc/net/ipx/route");
+		err = open_proc_scan("/proc/net/ipx/route");
 	else if(access("/proc/net/ipx_route",R_OK) == 0)
-		open_proc_scan("/proc/net/ipx_route");
+		err = open_proc_scan("/proc/net/ipx_route");
 	else
+		return 0;
+	if (err)
 		return 0;
 	proc_str = get_proc_string_by_key(buf_targ);
 
