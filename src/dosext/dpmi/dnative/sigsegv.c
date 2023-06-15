@@ -666,10 +666,6 @@ static void print_exception_info(sigcontext_t *scp)
 
 static void sigstack_init(void)
 {
-#ifndef MAP_STACK
-#define MAP_STACK 0
-#endif
-
   /* sigaltstack_wa is optional. See if we need it. */
   /* .ss_flags is signed int and SS_AUTODISARM is a sign bit :( */
   stack_t dummy2;
@@ -717,7 +713,7 @@ static void sigstack_init(void)
     }
   } else {
     cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
-	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+	MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (cstack == MAP_FAILED) {
       error("Unable to allocate stack\n");
       config.exitearly = 1;
