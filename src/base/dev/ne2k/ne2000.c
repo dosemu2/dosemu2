@@ -25,9 +25,10 @@
 #include <errno.h>
 #include <stdint.h>
 #include <string.h>
-
-#include "dosemu_debug.h"
+#include <unistd.h>
 #include "emu.h"
+#include "dosemu_debug.h"
+#include "ioselect.h"
 #include "pic.h"
 #include "port.h"
 #include "libpacket.h"

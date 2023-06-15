@@ -435,22 +435,6 @@ extern void leavedos_from_thread(int code);
 #define _leavedos_main(n, s) __leavedos_main_wrp(n, s, __func__, __LINE__)
 extern void __leavedos_main_wrp(int code, int sig, const char *s, int num);
 extern void check_leavedos(void);
-#define IOFLG_IMMED 1
-#define IOFLG_MASKED 2
-extern void add_to_io_select_new(int, void(*)(int, void *), void *,
-	unsigned flags, const char *name);
-#define add_to_io_select(fd, func, arg) \
-	add_to_io_select_new(fd, func, arg, 0, #func)
-#define add_to_io_select_threaded(fd, func, arg) \
-	add_to_io_select_new(fd, func, arg, IOFLG_IMMED, #func)
-#define add_to_io_select_masked(fd, func, arg) \
-	add_to_io_select_new(fd, func, arg, IOFLG_IMMED | IOFLG_MASKED, #func)
-extern void remove_from_io_select(int);
-extern void ioselect_complete(int fd);
-extern void ioselect_block(int fd);
-extern void ioselect_unblock(int fd);
-extern void ioselect_init(void);
-extern void ioselect_done(void);
 
 /*
  * DANG_BEGIN_REMARK

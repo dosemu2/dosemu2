@@ -44,6 +44,7 @@
 #include "mouse.h"
 #include "serial.h"
 #include "iodev.h"
+#include "ioselect.h"
 
 static void DOSEMUSetMouseSpeed(int old, int _new, unsigned cflag);
 

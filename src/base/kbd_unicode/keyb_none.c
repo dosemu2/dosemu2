@@ -11,6 +11,7 @@
  */
 
 #include <unistd.h>
+#include "ioselect.h"
 #include "keyb_clients.h"
 
 static void stdio_kbd_run(int fd, void *arg);

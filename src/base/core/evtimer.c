@@ -24,13 +24,14 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <sys/timerfd.h>
 #include <time.h>
 #include <pthread.h>
 #ifdef HAVE_LIBBSD
 #include <bsd/sys/time.h>
 #endif
-#include "emu.h"
+#include "ioselect.h"
 #include "evtimer.h"
 
 struct evtimer {

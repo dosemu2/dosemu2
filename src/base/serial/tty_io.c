@@ -26,6 +26,7 @@
 #include "emu.h"
 #include "utilities.h"
 #include "dosemu_config.h"
+#include "ioselect.h"
 #include "ser_defs.h"
 #include "tty_io.h"
 

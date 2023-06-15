@@ -20,7 +20,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-#include "emu.h"
+#include "ioselect.h"
+#include "dosemu_debug.h"
 #include "dosemu_config.h"
 #include "init.h"
 #include "sound/midi.h"
@@ -46,7 +47,7 @@ static void midipipe_io(int fd, void *arg)
     tv.tv_sec = 0;
     tv.tv_usec = 0;
     while ((selret = select(pipe_fd + 1, &rfds, NULL, NULL, &tv)) > 0) {
-	n = RPT_SYSCALL(read(pipe_fd, buf, sizeof(buf)));
+	n = read(pipe_fd, buf, sizeof(buf));
 	if (n > 0) {
 	    midi_put_data(buf, n);
 	} else {
@@ -63,7 +64,7 @@ static void midipipe_io(int fd, void *arg)
 static int midipipe_init(void *arg)
 {
     const char *name = dosemu_midi_in_path;
-    pipe_fd = RPT_SYSCALL(open(name, O_RDONLY | O_NONBLOCK));
+    pipe_fd = open(name, O_RDONLY | O_NONBLOCK);
     if (pipe_fd == -1) {
 	S_printf("%s: unable to open %s for reading: %s\n",
 		 midipipe_name, name, strerror(errno));

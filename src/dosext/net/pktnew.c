@@ -50,6 +50,7 @@
 #include "hlt.h"
 #include "utilities.h"
 #include "emudpmi.h"
+#include "ioselect.h"
 
 #ifndef ETH_FRAME_LEN
 #define ETH_FRAME_LEN   1514

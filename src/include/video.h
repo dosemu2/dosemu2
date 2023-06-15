@@ -1,6 +1,8 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
+#include <stdbool.h>
+
 extern void gettermcap(int,int *, int *);
 
 /* if you set this to 1, then you will be able to use your MDA + monitor
@@ -82,7 +84,7 @@ extern int video_mode;
 extern int video_combo;
 
 extern int video_initialized;
-extern boolean set_video_mode(int);
+extern bool set_video_mode(int);
 extern unsigned screen_adr(int page);
 
 /* Various defines for all common video adapters */

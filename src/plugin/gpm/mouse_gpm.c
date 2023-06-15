@@ -9,8 +9,8 @@
 
 #include <gpm.h>
 #include <fcntl.h>
-
-#include "emu.h"
+#include <stdint.h>
+#include "ioselect.h"
 #include "video.h"
 #include "mouse.h"
 #include "utilities.h"

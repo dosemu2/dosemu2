@@ -35,6 +35,7 @@
 #include "emudpmi.h"
 #include "bios.h"
 #include "coopth.h"
+#include "ioselect.h"
 #include "ipx.h"
 #ifdef IPX
 

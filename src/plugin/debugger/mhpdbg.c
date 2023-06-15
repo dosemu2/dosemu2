@@ -24,6 +24,7 @@
 
 #include "bitops.h"
 #include "emu.h"
+#include "ioselect.h"
 #include "cpu.h"
 #include "bios.h"
 #include "coopth.h"

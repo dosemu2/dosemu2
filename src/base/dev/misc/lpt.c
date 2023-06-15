@@ -20,6 +20,7 @@
 #include "lpt.h"
 #include "utilities.h"
 #include "dos2linux.h"
+#include "ioselect.h"
 
 /* status bits, Centronics */
 #define CTS_STAT_NOIOERR	LPT_STAT_NOIOERR

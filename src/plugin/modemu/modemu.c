@@ -2,6 +2,7 @@
 #include "emu.h"
 #include "serial.h"
 #include "utilities.h"
+#include "ioselect.h"
 #else
 #define _XOPEN_SOURCE
 #endif

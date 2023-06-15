@@ -35,6 +35,7 @@
 #include "bitops.h"
 #include "pic.h"
 #include "emudpmi.h"
+#include "ioselect.h"
 
 #ifdef USE_MHPDBG
   #include "mhpdbg.h"

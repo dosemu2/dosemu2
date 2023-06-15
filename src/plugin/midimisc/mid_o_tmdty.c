@@ -25,6 +25,7 @@
 #include "init.h"
 #include "utilities.h"
 #include "sig.h"
+#include "ioselect.h"
 #include "sound/sound.h"
 #include "sound/midi.h"
 #include <sys/types.h>

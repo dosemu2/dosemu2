@@ -1576,7 +1576,7 @@ mouse_enable_internaldriver(void)
 }
 
 /* Keyboard mouse control :)  */
-void mouse_keyboard(Boolean make, t_keysym key)
+void mouse_keyboard(bool make, t_keysym key)
 {
 	static struct keyboard_mouse_state {
 		int l, r, u, d;

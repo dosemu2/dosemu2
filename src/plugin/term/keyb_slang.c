@@ -25,6 +25,7 @@
 #include "video.h"
 #include "env_term.h"
 #include "translate/translate.h"
+#include "ioselect.h"
 
 #ifndef SLANG_VERSION
 # define SLANG_VERSION 1

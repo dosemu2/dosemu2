@@ -1,5 +1,5 @@
 #ifdef DOSEMU
-#include "emu.h"
+#include "ioselect.h"
 #endif
 #ifdef TERMNET
 #include <termnet.h>

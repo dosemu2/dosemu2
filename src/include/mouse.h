@@ -5,6 +5,8 @@
 #define MOUSE_H
 
 #include <termios.h>
+#include <stdbool.h>
+#include "cpu.h"
 
 #define MOUSE_BASE_VERSION	0x0700	/* minimum driver version 7.00 */
 #define MOUSE_EMU_VERSION	0x0005	/* my driver version 0.05 */
@@ -52,12 +54,12 @@ typedef struct  {
   int type;
   int dev_type;
   int flags;
-  boolean intdrv;
+  bool intdrv;
   /* whether we use the native DOS cursor, or the system cursor (X, GPM) */
-  boolean native_cursor;
-  boolean emulate3buttons;
-  boolean has3buttons;
-  boolean cleardtr;
+  bool native_cursor;
+  bool emulate3buttons;
+  bool has3buttons;
+  bool cleardtr;
   int baudRate;
   int sampleRate;
   int lastButtons;
@@ -72,7 +74,7 @@ typedef struct  {
 /* this entire structure gets saved on a driver state save */
 /* therefore we try to keep it small where appropriate */
 struct mouse_struct {
-  boolean enabled;
+  bool enabled;
   unsigned char lbutton, mbutton, rbutton;
   int lpcount, lrcount, mpcount, mrcount, rpcount, rrcount;
   int16_t wmcount;
@@ -83,7 +85,7 @@ struct mouse_struct {
   int wmx, wmy;
 
   /* TRUE if we're in a graphics mode */
-  boolean gfx_cursor;
+  bool gfx_cursor;
 
   unsigned char xshift, yshift;
 
@@ -127,7 +129,7 @@ struct mouse_struct {
   unsigned short mask;
 
   /* true if mouse has three buttons (third might be emulated) */
-  boolean threebuttons;
+  bool threebuttons;
 
   int display_page;
 
@@ -137,7 +139,7 @@ struct mouse_struct {
   int win31_mode;
 
   struct {
-    boolean state;
+    bool state;
     unsigned short pkg;
     unsigned short cs, ip;
   } ps2;
@@ -162,7 +164,7 @@ void mouse_client_reset(void);
 extern struct mouse_client Mouse_raw;
 
 #include "keyboard/keyboard.h"
-void mouse_keyboard(Boolean make, t_keysym key);
+void mouse_keyboard(bool make, t_keysym key);
 
 extern void mouse_priv_init(void);
 extern void dosemu_mouse_init(void);

@@ -91,6 +91,7 @@
 #include "keyboard/keyb_server.h"
 #include "sig.h"
 #include "sound.h"
+#include "ioselect.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif

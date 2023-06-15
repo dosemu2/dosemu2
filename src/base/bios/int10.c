@@ -470,7 +470,7 @@ static int adjust_font_size(int vga_font_height)
  * -- 1998/04/04 sw
  */
 
-boolean set_video_mode(int mode)
+bool set_video_mode(int mode)
 {
   vga_mode_info *vmi;
   int clear_mem = 1;

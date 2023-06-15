@@ -20,6 +20,8 @@
  * Author: Stas Sergeev
  */
 
+#include "ioselect.h"
+#include "dosemu_debug.h"
 #include "emu.h"
 #include "init.h"
 #include "sound/sound.h"

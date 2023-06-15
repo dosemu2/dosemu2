@@ -14,7 +14,7 @@
 #endif
 #include <sys/ioctl.h>
 
-#include "emu.h"
+#include "ioselect.h"
 #include "keyboard.h"
 #include "keyb_clients.h"
 #include "translate/keysym_attributes.h"
