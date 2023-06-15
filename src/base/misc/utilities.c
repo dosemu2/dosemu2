@@ -528,6 +528,8 @@ char *mkdir_under(const char *basedir, const char *dir)
 	if (!exists_dir(s)) {
 		if (mkdir(s, S_IRWXU)) {
 			fprintf(stderr, "can't create local %s directory\n", s);
+			free(s);
+			s = NULL;
 		}
 	}
 	return s;
