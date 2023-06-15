@@ -358,7 +358,7 @@ static int tty_lock(const char *path, int mode)
       fprintf(fd, "%10d\n", (int)ime);
 
     (void) fclose(fd);
-    (void) chmod(saved_path, 0444);
+    (void) chmod(saved_path, 0440);
     return(0);
   }
   else {    /* unlock */
@@ -680,14 +680,14 @@ static int tty_open(com_t *c)
     if (err)
       goto fail_unlock;
   } else {
-    c->fd = open(c->cfg->dev, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    c->fd = open(c->cfg->dev, O_WRONLY | O_CREAT | O_EXCL, 0640);
     if (c->fd == -1) {
       error("SER%i: unable to open or create %s\n", c->num, c->cfg->dev);
       goto fail_unlock;
     }
   }
   if (c->cfg->wrfile) {
-    c->wr_fd = open(c->cfg->wrfile, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    c->wr_fd = open(c->cfg->wrfile, O_WRONLY | O_CREAT | O_TRUNC, 0640);
     if (c->wr_fd == -1) {
       error("SER%i: unable to open or create for write %s\n", c->num, c->cfg->dev);
       goto fail_unlock;

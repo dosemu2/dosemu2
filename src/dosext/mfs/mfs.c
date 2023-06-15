@@ -723,7 +723,7 @@ static int get_dos_attr_fd(int fd, int mode, const char *name)
 
 static int get_unix_attr(int attr)
 {
-  int mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+  int mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
   /* Do not make directories read-only as this has completely different
      semantics in DOS (mostly ignore) than in Unix.
      Also do not reflect the archive bit as clearing the x bit as that

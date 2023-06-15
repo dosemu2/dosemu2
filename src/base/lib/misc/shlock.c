@@ -55,7 +55,7 @@ void *shlock_open(const char *dir, const char *name, int excl)
     return NULL;
   }
   while (1) {
-    rc = mkdir(dspec, 0777);
+    rc = mkdir(dspec, 0775);
     if (rc == -1 && errno != EEXIST) {
       perror("mkdir()");
       goto err_dspec;
@@ -84,7 +84,7 @@ void *shlock_open(const char *dir, const char *name, int excl)
     perror("asprintf()");
     goto err_clodir;
   }
-  fd = open(fspec, O_RDWR | O_CREAT | O_CLOEXEC, 0666);
+  fd = open(fspec, O_RDWR | O_CREAT | O_CLOEXEC, 0660);
   if (fd == -1) {
     perror("open()");
     goto err_free;

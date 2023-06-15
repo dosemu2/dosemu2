@@ -1075,7 +1075,7 @@ static void mhp_dump_to_file(int argc, char * argv[])
      return;
    }
 
-   fd = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 00775);
+   fd = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 00640);
    if (fd < 0) {
       mhp_printf("cannot open/create file %s\n%s\n", argv[3], strerror(errno));
       return;

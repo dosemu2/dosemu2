@@ -2010,7 +2010,7 @@ void create_ximage(void)
       shm_ok = 0;
     }
     else {
-      shminfo.shmid = shmget(IPC_PRIVATE, ximage->bytes_per_line * w_y_res, IPC_CREAT | 0777);
+      shminfo.shmid = shmget(IPC_PRIVATE, ximage->bytes_per_line * w_y_res, IPC_CREAT | 0600);
       if(shminfo.shmid < 0) {
         X_printf("X: shmget() failed\n");
         XDestroyImage(ximage);
