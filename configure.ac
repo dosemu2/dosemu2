@@ -227,6 +227,10 @@ AC_CHECK_FUNCS([setxattr], [
     USE_XATTRS=1
     AC_SUBST(USE_XATTRS)
 ])
+AC_CHECK_FUNC([timerfd_create], [
+    USE_TIMERFD=1
+    AC_SUBST(USE_TIMERFD)
+])
 AC_CHECK_FUNCS([mremap])
 AC_CHECK_FUNCS([fls])
 
