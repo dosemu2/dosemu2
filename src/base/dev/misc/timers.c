@@ -628,6 +628,13 @@ void pit_init(void)
   pit[2].evtmr = evtimer_create(timer_activate, (void *)(uintptr_t)2);
 }
 
+void pit_done(void)
+{
+  evtimer_delete(pit[0].evtmr);
+  evtimer_delete(pit[1].evtmr);
+  evtimer_delete(pit[2].evtmr);
+}
+
 void pit_reset(void)
 {
   pit[0].mode        = 3;
