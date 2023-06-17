@@ -332,6 +332,11 @@ static void minfault(int sig, siginfo_t *si, void *uc)
     return;
   }
 #endif
+#ifdef __FreeBSD__
+  /* freebsd somehow messes up the trapno */
+  if (_scp_trapno == 0xc)
+    _scp_trapno = 0xe;
+#endif
 #ifdef X86_EMULATOR
   if (IS_EMU_JIT() && e_emu_fault(scp, in_vm86))
     return;
