@@ -143,6 +143,10 @@ if [ -z "$MAKE" ]; then
     MAKE=make
   fi
 fi
+if [ `uname -s` = "FreeBSD" ]; then
+  export CPPFLAGS="${CPPFLAGS} -I/usr/local/include"
+  export LDFLAGS="${LDFLAGS} -L/usr/local/lib"
+fi
 ${MAKE} "$srcdir"/configure
 
 STRING="$STRING --enable-plugins=$PLUGIN,$EXTRA_PLUGINS"
