@@ -513,8 +513,7 @@ if test "$enable_cpuemu" != "no"; then
   X86_EMULATOR=1
   AC_SUBST(X86_EMULATOR)
 
-  if test "$CONFIG_HOST" = "Linux"; then
-   if test "$machine" = "i386" -o "$machine" = "x86_64"; then
+  if test "$machine" = "i386" -o "$machine" = "x86_64"; then
     AC_MSG_CHECKING([for __attribute__((force_align_arg_pointer))])
     AX_SAVE_FLAGS([attr_check2])
     CFLAGS="-Wall -Werror"
@@ -538,7 +537,6 @@ if test "$enable_cpuemu" != "no"; then
       ]
     )
     AX_RESTORE_FLAGS([attr_check2])
-   fi
   fi
 fi
 
