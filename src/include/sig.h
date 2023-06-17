@@ -63,7 +63,7 @@ typedef mcontext_t sigcontext_t;
 #define _scp_eip DWORD_(scp->mc_rip)
 #define _scp_eflags (*(unsigned *)&scp->mc_rflags)
 #define _scp_eflags_ (*(const unsigned *)&scp->mc_rflags)
-#define _scp_cr2 (*(uint64_t *)&scp->mc_spare[0])
+#define _scp_cr2 scp->mc_addr
 #define _scp_rip scp->mc_rip
 #define _scp_rsp scp->mc_rsp
 #define PRI_RG PRIx64
@@ -79,7 +79,7 @@ typedef mcontext_t sigcontext_t;
 #define _scp_eip scp->mc_eip
 #define _scp_eflags scp->mc_eflags
 #define _scp_eflags_ scp->mc_eflags
-#define _scp_cr2 scp->mc_spare[0]
+#define _scp_cr2 scp->mc_addr
 #define PRI_RG PRIx32
 #endif
 #define _scp_cs (*(unsigned *)&scp->mc_cs)
