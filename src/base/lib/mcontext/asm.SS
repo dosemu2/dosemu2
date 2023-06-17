@@ -4,6 +4,12 @@
 #define NEEDX86CONTEXT 1
 #define SET setmcontext
 #define GET getmcontext
+#else
+#if defined(__FreeBSD__) && defined(__x86_64__)
+#define NEEDAMD64CONTEXT 1
+#define SET _setmcontext
+#define GET _getmcontext
+#endif
 #endif
 
 #if defined(__OpenBSD__) && defined(__i386__)
