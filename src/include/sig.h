@@ -52,18 +52,20 @@ typedef mcontext_t sigcontext_t;
 
 #if defined(__FreeBSD__)
 #ifdef __x86_64__
-#define _scp_rax scp->mc_rax
-#define _scp_rbx scp->mc_rbx
-#define _scp_rcx scp->mc_rcx
-#define _scp_rdx scp->mc_rdx
-#define _scp_rbp scp->mc_rbp
-#define _scp_rsp scp->mc_rsp
-#define _scp_rsi scp->mc_rsi
-#define _scp_rdi scp->mc_rdi
-#define _scp_rip scp->mc_rip
+#define _scp_eax DWORD_(scp->mc_rax)
+#define _scp_ebx DWORD_(scp->mc_rbx)
+#define _scp_ecx DWORD_(scp->mc_rcx)
+#define _scp_edx DWORD_(scp->mc_rdx)
+#define _scp_ebp DWORD_(scp->mc_rbp)
+#define _scp_esp DWORD_(scp->mc_rsp)
+#define _scp_esi DWORD_(scp->mc_rsi)
+#define _scp_edi DWORD_(scp->mc_rdi)
+#define _scp_eip DWORD_(scp->mc_rip)
 #define _scp_eflags (*(unsigned *)&scp->mc_rflags)
 #define _scp_eflags_ (*(const unsigned *)&scp->mc_rflags)
 #define _scp_cr2 (*(uint64_t *)&scp->mc_spare[0])
+#define _scp_rip scp->mc_rip
+#define _scp_rsp scp->mc_rsp
 #define PRI_RG PRIx64
 #else
 #define _scp_eax scp->mc_eax
