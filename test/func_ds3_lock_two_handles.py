@@ -21,7 +21,7 @@ rem end
 #include <unistd.h>
 
 #define FNAME "FOO.DAT"
-#define FDATA "0123456789abc"
+#define FDATA "0123456789abcdefghij"
 #define FDAT2 "     567     "
 
 int main(int argc, char *argv[]) {
@@ -104,8 +104,31 @@ int main(int argc, char *argv[]) {
     printf("OKAY: Refused second lock on file '%s', err=%d\n", FNAME, ret);
   }
 
+  /* lock adjacent region, should succeed */
+  ret = _dos_lock(hnd2, 8, 3);
+  if (ret == 0) {
+    printf("OKAY: Locked adjacent on file '%s' via different handle\n", FNAME);
+  } else {
+    printf("FAIL: Refused adjacent lock on file '%s' but return (err=%d != 33)\n", FNAME, ret);
+    _dos_close(hnd2);
+    _dos_close(hnd1);
+    return -1;
+  }
+
+  /* lock another region, should succeed */
+  ret = _dos_lock(hnd2, 14, 3);
+  if (ret == 0) {
+    printf("OKAY: Locked another reg on file '%s' via different handle\n", FNAME);
+  } else {
+    printf("FAIL: Refused another lock on file '%s' but return (err=%d != 33)\n", FNAME, ret);
+    _dos_close(hnd2);
+    _dos_close(hnd1);
+    return -1;
+  }
+
   memset(buf, ' ', strlen(FDATA));
 
+  // try to read the locked region via the second handle
   if (llseek(hnd2, 5, SEEK_SET) != 5) {
     printf("FAIL: File '%s' seek failed\n", FNAME);
     _dos_close(hnd2);
@@ -113,28 +136,150 @@ int main(int argc, char *argv[]) {
     _dos_close(hnd1);
     return -1;
   }
-  // try to read the locked region via the second handle
   ret = _dos_read(hnd2, buf + 5, 3, &rc); // exact match conflict
   if (ret == 0) {
     if (!read_allowed) {
-      printf("FAIL: Read locked data from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
+      printf("FAIL: Read other's-locked data from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
       _dos_close(hnd2);
       _dos_unlock(hnd1, 5, 3);
       _dos_close(hnd1);
       return -1;
     } else {
-      printf("OKAY: Read locked data from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
+      printf("OKAY: Read other's-locked data from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
     }
   } else {
     if (!read_allowed) {
       printf("OKAY: Refused to read others-locked data from file '%s' via second descriptor, err = %d\n", FNAME, ret);
     } else {
-      printf("FAIL: Refused to read own-locked data from file '%s' via second descriptor, err = %d\n", FNAME, ret);
+      printf("FAIL: Refused to read other's-locked data from file '%s' via second descriptor, err = %d\n", FNAME, ret);
       _dos_close(hnd2);
       _dos_unlock(hnd1, 5, 3);
       _dos_close(hnd1);
       return -1;
     }
+  }
+  // try to read the locked region in the middle
+  if (llseek(hnd2, 6, SEEK_SET) != 6) {
+    printf("FAIL: File '%s' seek failed\n", FNAME);
+    _dos_close(hnd2);
+    _dos_unlock(hnd1, 5, 3);
+    _dos_close(hnd1);
+    return -1;
+  }
+  ret = _dos_read(hnd2, buf + 6, 1, &rc);
+  if (ret == 0) {
+    if (!read_allowed) {
+      printf("FAIL: Read within other's-locked data from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
+      _dos_close(hnd2);
+      _dos_unlock(hnd1, 5, 3);
+      _dos_close(hnd1);
+      return -1;
+    } else {
+      printf("OKAY: Read within other's-locked data from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
+    }
+  } else {
+    if (!read_allowed) {
+      printf("OKAY: Refused to read within other's-locked data from file '%s' via second descriptor, err = %d\n", FNAME, ret);
+    } else {
+      printf("FAIL: Refused to read within other's-locked data from file '%s' via second descriptor, err = %d\n", FNAME, ret);
+      _dos_close(hnd2);
+      _dos_unlock(hnd1, 5, 3);
+      _dos_close(hnd1);
+      return -1;
+    }
+  }
+
+  /* read multiple locked regions */
+  if (llseek(hnd2, 0, SEEK_SET) != 0) {
+    printf("FAIL: File '%s' seek failed\n", FNAME);
+    _dos_close(hnd2);
+    _dos_close(hnd1);
+    return -1;
+  }
+  ret = _dos_read(hnd2, buf, 20, &rc);
+  if (ret == 0) {
+    if (read_allowed) {
+      printf("OKAY: Read multiple locked data from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
+    } else {
+      printf("FAIL: Managed to read multiple locked regs from file '%s' via second descriptor, len = %d\n", FNAME, rc);
+      _dos_close(hnd2);
+      _dos_close(hnd1);
+      return -1;
+    }
+  } else {
+    if (read_allowed) {
+      printf("FAIL: Refused to read multiple locked regs from file '%s' via second descriptor, err = %d\n", FNAME, ret);
+      _dos_close(hnd2);
+      _dos_close(hnd1);
+      return -1;
+    } else {
+      printf("OKAY: Refused to read multiple locked regs from file '%s' via second descriptor, err = %d\n", FNAME, ret);
+    }
+  }
+
+  /* read multiple own-locked regions */
+  if (llseek(hnd2, 8, SEEK_SET) != 8) {
+    printf("FAIL: File '%s' seek failed\n", FNAME);
+    _dos_close(hnd2);
+    _dos_close(hnd1);
+    return -1;
+  }
+  ret = _dos_read(hnd2, buf + 8, 12, &rc);
+  if (ret == 0) {
+    printf("OKAY: Read multiple own-locked data from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
+  } else {
+    printf("FAIL: Refused to read multiple own-locked regs from file '%s' via second descriptor, err = %d\n", FNAME, ret);
+    _dos_close(hnd2);
+    _dos_close(hnd1);
+    return -1;
+  }
+  /* read from the middle of region */
+  if (llseek(hnd2, 9, SEEK_SET) != 9) {
+    printf("FAIL: File '%s' seek failed\n", FNAME);
+    _dos_close(hnd2);
+    _dos_close(hnd1);
+    return -1;
+  }
+  ret = _dos_read(hnd2, buf + 9, 11, &rc);
+  if (ret == 0) {
+    printf("OKAY: Read from middle own-locked reg from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
+  } else {
+    printf("FAIL: Refused to read from middle own-locked reg from file '%s' via second descriptor, err = %d\n", FNAME, ret);
+    _dos_close(hnd2);
+    _dos_close(hnd1);
+    return -1;
+  }
+  /* read from unlocked space and span the region */
+  if (llseek(hnd2, 13, SEEK_SET) != 13) {
+    printf("FAIL: File '%s' seek failed\n", FNAME);
+    _dos_close(hnd2);
+    _dos_close(hnd1);
+    return -1;
+  }
+  ret = _dos_read(hnd2, buf + 13, 7, &rc);
+  if (ret == 0) {
+    printf("OKAY: Read span own-locked reg from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
+  } else {
+    printf("FAIL: Refused to read span own-locked reg from file '%s' via second descriptor, err = %d\n", FNAME, ret);
+    _dos_close(hnd2);
+    _dos_close(hnd1);
+    return -1;
+  }
+  /* read within the locked region */
+  if (llseek(hnd2, 15, SEEK_SET) != 15) {
+    printf("FAIL: File '%s' seek failed\n", FNAME);
+    _dos_close(hnd2);
+    _dos_close(hnd1);
+    return -1;
+  }
+  ret = _dos_read(hnd2, buf + 15, 1, &rc);
+  if (ret == 0) {
+    printf("OKAY: Read within own-locked reg from file '%s' via second descriptor, cnt=%d\n", FNAME, rc);
+  } else {
+    printf("FAIL: Refused to read within own-locked reg from file '%s' via second descriptor, err = %d\n", FNAME, ret);
+    _dos_close(hnd2);
+    _dos_close(hnd1);
+    return -1;
   }
 
   printf("PASS: all tests okay on file '%s'\n", FNAME);

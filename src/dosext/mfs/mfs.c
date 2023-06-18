@@ -3387,19 +3387,32 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       cnt = WORD(state->ecx);
       if (cnt) {
         int cnt1 = cnt;
-        if (f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
-          cnt1 = region_lock_offs(f->fd, f->seek, cnt, 0, f->mlemu_fds[1]);
-          if (cnt1 != -1)
-            locked++;
+        if (!region_is_fully_owned(f->fd, f->seek, cnt, 0, f->mlemu_fds[1]) &&
+            f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
+#if 1
+          /* Since we know the region is not fully locked by us (owned),
+           * we pretend to be a writer, even if we are a reader.
+           * This makes sure other's read locks inhibit our unlocked reads.
+           * Quite silly but is needed to pass some DOS compat tests. */
+          int am_i_writer = 1;
+#else
+          int am_i_writer = 0;
+#endif
+          cnt1 = region_lock_offs(f->fd, f->seek, cnt, am_i_writer);
+          if (cnt1 > 0)
+            locked = 1;
         }
         assert(cnt1 <= cnt);
 #if 1
         if (cnt1 <= 0) {  // allow partial reads even though DOS does not
 #else
         if (cnt1 < cnt) {  // partial reads not allowed
-#endif
-          if (locked)
+          if (locked) {
             region_unlock_offs(f->fd);
+            locked = 0;
+          }
+#endif
+          assert(!locked);
           Debug0((dbg_fd, "error, region already locked\n"));
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
@@ -3483,19 +3496,23 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         SETWORD(&state->ecx, 0);
       } else {
         int cnt1 = cnt;
-        if (f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
-          cnt1 = region_lock_offs(f->fd, f->seek, cnt, 1, f->mlemu_fds[1]);
-          if (cnt1 != -1)
-            locked++;
+        if (!region_is_fully_owned(f->fd, f->seek, cnt, 1, f->mlemu_fds[1]) &&
+            f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
+          cnt1 = region_lock_offs(f->fd, f->seek, cnt, 1);
+          if (cnt1 > 0)
+            locked = 1;
         }
         assert(cnt1 <= cnt);
 #if 1
         if (cnt1 <= 0) {  // allow partial writes even though DOS does not
 #else
         if (cnt1 < cnt) {  // partial writes not allowed
-#endif
-          if (locked)
+          if (locked) {
             region_unlock_offs(f->fd);
+            locked = 0;
+          }
+#endif
+          assert(!locked);
           Debug0((dbg_fd, "error, region already locked\n"));
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
