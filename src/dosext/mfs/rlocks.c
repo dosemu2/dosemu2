@@ -122,13 +122,13 @@ int region_lock_offs(int fd, long long start, unsigned long len, int wr,
   struct flock fl;
   int ret;
 
-  fl.l_type = F_WRLCK;
-  fl.l_start = start;
-  fl.l_len = len;
   /* needs to lock against lock changes in another process */
   ret = flock(fd, LOCK_EX);
   if (ret)
     return -1;
+  fl.l_type = F_WRLCK;
+  fl.l_start = start;
+  fl.l_len = len;
   lock_get(fd, &fl);
   if (fl.l_type == F_UNLCK)
     return len;
@@ -136,14 +136,14 @@ int region_lock_offs(int fd, long long start, unsigned long len, int wr,
   if (fl.l_start > start)
     return (fl.l_start - start);  // found partially unlocked region
   if (wr)
-    return 0;  // writer can't overlap with any lock
+    goto unlock_zero;  // writer can't overlap with any lock
   /* now we are dealing with reader fully overlapping with some lock */
   fl.l_type = F_RDLCK;
   fl.l_start = start;
   fl.l_len = len;
   lock_get(fd, &fl);
   if (fl.l_type != F_UNLCK)
-    return 0;  // overlap was with write lock
+    goto unlock_zero;  // overlap was with write lock
   if (mlemu_fd2 == -1)
     return len;  // no overlap with write lock, free to read
   /* no overlapping write locks but read lock fully overlaps, investigate */
@@ -153,7 +153,11 @@ int region_lock_offs(int fd, long long start, unsigned long len, int wr,
   lock_get(mlemu_fd2, &fl);
   if (fl.l_type != F_UNLCK)
     return len;  // found proper read lock
-  return 0;
+
+unlock_zero:
+  /* no allowed region found, unlock and return 0 */
+  return flock(fd, LOCK_UN);
+;
 }
 
 void region_unlock_offs(int fd)

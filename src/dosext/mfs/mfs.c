@@ -3389,17 +3389,20 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         int cnt1 = cnt;
         if (f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
           cnt1 = region_lock_offs(f->fd, f->seek, cnt, 0, f->mlemu_fds[1]);
-          if (cnt1 != -1)
-            locked++;
+          if (cnt1 > 0)
+            locked = 1;
         }
         assert(cnt1 <= cnt);
 #if 1
         if (cnt1 <= 0) {  // allow partial reads even though DOS does not
 #else
         if (cnt1 < cnt) {  // partial reads not allowed
-#endif
-          if (locked)
+          if (locked) {
             region_unlock_offs(f->fd);
+            locked = 0;
+          }
+#endif
+          assert(!locked);
           Debug0((dbg_fd, "error, region already locked\n"));
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
@@ -3485,17 +3488,20 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         int cnt1 = cnt;
         if (f->seek <= 0xFFFFffff && f->seek + cnt <= 0xFFFFffff) {
           cnt1 = region_lock_offs(f->fd, f->seek, cnt, 1, f->mlemu_fds[1]);
-          if (cnt1 != -1)
-            locked++;
+          if (cnt1 > 0)
+            locked = 1;
         }
         assert(cnt1 <= cnt);
 #if 1
         if (cnt1 <= 0) {  // allow partial writes even though DOS does not
 #else
         if (cnt1 < cnt) {  // partial writes not allowed
-#endif
-          if (locked)
+          if (locked) {
             region_unlock_offs(f->fd);
+            locked = 0;
+          }
+#endif
+          assert(!locked);
           Debug0((dbg_fd, "error, region already locked\n"));
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
