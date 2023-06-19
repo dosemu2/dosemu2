@@ -233,9 +233,9 @@ void dpmi_free_pool(void)
 	error("DPMI: leaked %i bytes (main pool)\n", leak);
 }
 
-static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
+static int SetAttribsForPage(unsigned int ptr, uint16_t attr, uint16_t *old_attr_p)
 {
-    us old_attr = *old_attr_p;
+    uint16_t old_attr = *old_attr_p;
     int prot, change = 0, com = attr & 3, old_com = old_attr & 1;
 
     switch (com) {
@@ -361,7 +361,7 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us *old_attr_p)
     return 1;
 }
 
-static int SetPageAttributes(dpmi_pm_block *block, int offs, us attrs[], int count)
+static int SetPageAttributes(dpmi_pm_block *block, int offs, uint16_t attrs[], int count)
 {
   u_short *attr;
   int i;
@@ -840,7 +840,7 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
 }
 
 int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
-  int offs, us attrs[], int count)
+  int offs, uint16_t attrs[], int count)
 {
   dpmi_pm_block *block;
 
@@ -859,7 +859,7 @@ int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
 }
 
 int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
-  int offs, us attrs[], int count)
+  int offs, uint16_t attrs[], int count)
 {
   dpmi_pm_block *block;
   int i;

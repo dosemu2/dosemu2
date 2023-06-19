@@ -31,7 +31,6 @@ void true_vm86_fault(sigcontext_t *scp);
 
 #define BIT(x)  	(1<<x)
 
-#define us unsigned short
 #define CC_SUCCESS			0x00
 
 /*

@@ -1122,8 +1122,8 @@ static int GetDescriptorAccessRights(unsigned short selector,
 
 unsigned short CreateAliasDescriptor(unsigned short selector)
 {
-  us ds_selector;
-  us cs_ldt= selector >> 3;
+  uint16_t ds_selector;
+  uint16_t cs_ldt= selector >> 3;
 
   ds_selector = AllocateDescriptors(1);
   if (SetSelector(ds_selector, Segments[cs_ldt].base_addr, Segments[cs_ldt].limit,
@@ -1135,7 +1135,7 @@ unsigned short CreateAliasDescriptor(unsigned short selector)
   return ds_selector;
 }
 
-int GetDescriptor(us selector, unsigned int *lp)
+int GetDescriptor(uint16_t selector, unsigned int *lp)
 {
   if (!ValidAndUsedSelector(selector))
     return -1; /* invalid value 8021 */
@@ -1698,12 +1698,12 @@ int DPMIMapConventionalMemory(unsigned long handle, unsigned long offset,
     return DPMI_MapConventionalMemory(&DPMI_CLIENT.pm_block_root,
 	handle, offset, low_addr, cnt);
 }
-int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
+int DPMISetPageAttributes(unsigned long handle, int offs, uint16_t attrs[], int count)
 {
     return DPMI_SetPageAttributes(&DPMI_CLIENT.pm_block_root,
 	handle, offs, attrs, count);
 }
-int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
+int DPMIGetPageAttributes(unsigned long handle, int offs, uint16_t attrs[], int count)
 {
     return DPMI_GetPageAttributes(&DPMI_CLIENT.pm_block_root,
 	handle, offs, attrs, count);
@@ -2306,8 +2306,8 @@ static void do_int31(cpuctx_t *scp)
     CHECK_SELECTOR(_LWORD(ebx));
     {
       unsigned int baddress = GetSegmentBase(_LWORD(ebx));
-      _LWORD(edx) = (us)(baddress & 0xffff);
-      _LWORD(ecx) = (us)(baddress >> 16);
+      _LWORD(edx) = (uint16_t)(baddress & 0xffff);
+      _LWORD(ecx) = (uint16_t)(baddress >> 16);
     }
     break;
   case 0x0007:
@@ -2574,7 +2574,7 @@ err:
     save_rm_regs();
     {
       struct RealModeCallStructure *rmreg = SEL_ADR_X(_es, _edi);
-      us *ssp;
+      uint16_t *ssp;
       unsigned int rm_ssp, rm_sp;
       int rmask = ~((1 << cs_INDEX) | (1 << eip_INDEX));
       int i;
@@ -2589,7 +2589,7 @@ err:
         rmask &= ~((1 << esp_INDEX) | (1 << ss_INDEX));
       DPMI_restore_rm_regs(rmreg, rmask);
 
-      ssp = (us *) SEL_ADR(_ss, _esp);
+      ssp = (uint16_t *) SEL_ADR(_ss, _esp);
       rm_ssp = SEGOFF2LINEAR(SREG(ss), 0);
       rm_sp = LWORD(esp);
       for (i = 0; i < _LWORD(ecx); i++)
@@ -2991,13 +2991,13 @@ err:
 
   case 0x0506:			/* Get Page Attributes */
     D_printf("DPMI: Get Page Attributes for %i pages\n", _ecx);
-    if (!DPMIGetPageAttributes(_esi, _ebx, (us *)SEL_ADR(_es, _edx), _ecx))
+    if (!DPMIGetPageAttributes(_esi, _ebx, (uint16_t *)SEL_ADR(_es, _edx), _ecx))
       _eflags |= CF;
     break;
 
   case 0x0507:			/* Set Page Attributes */
     D_printf("DPMI: Set Page Attributes for %i pages\n", _ecx);
-    if (!DPMISetPageAttributes(_esi, _ebx, (us *)SEL_ADR(_es, _edx), _ecx))
+    if (!DPMISetPageAttributes(_esi, _ebx, (uint16_t *)SEL_ADR(_es, _edx), _ecx))
       _eflags |= CF;
     break;
 
@@ -4177,7 +4177,7 @@ static void cpu_exception_rm(cpuctx_t *scp, int trapno)
 static void do_default_cpu_exception(cpuctx_t *scp, int trapno)
 {
     void * sp;
-    sp = (us *)SEL_ADR(_ss,_esp);
+    sp = (uint16_t *)SEL_ADR(_ss,_esp);
 
 #ifdef TRACE_DPMI
     if (debug_level('t') && (trapno==1)) {
@@ -4910,7 +4910,7 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
       if (DEFAULT_INT(inum)) {
 	do_dpmi_int(scp, inum);
       } else {
-        us cs2 = _cs;
+        uint16_t cs2 = _cs;
         uint32_t eip2 = _eip;
 	if (debug_level('M')>=9)
           D_printf("DPMI: int 0x%x\n", lina[1]);

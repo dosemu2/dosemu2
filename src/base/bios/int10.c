@@ -183,8 +183,8 @@ bios_scroll(int x0, int y0, int x1, int y1, int l, int att)
   int dx = x1 - x0 + 1;
   int dy = y1 - y0 + 1;
   int x, y, co, li;
-  us blank = ' ' | (att << 8);
-  us tbuf[MAX_COLUMNS];
+  uint16_t blank = ' ' | (att << 8);
+  uint16_t tbuf[MAX_COLUMNS];
   unsigned sadr;
 
   if (config.dumb_video)
