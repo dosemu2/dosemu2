@@ -112,7 +112,7 @@ int main(void)
     ts1.ticks = ts.ticks;
     ts1.part = ts.part;
     get_timestamp(&ts);
-    printf("0x%04X%04X%04X\r", (unsigned int)(ts.ticks >> 16), (unsigned int)(ts.ticks & 0xFFFF), ts.part);
+//    printf("0x%04X%04X%04X\r", (unsigned int)(ts.ticks >> 16), (unsigned int)(ts.ticks & 0xFFFF), ts.part);
     if ((ts.ticks < ts1.ticks) || ((ts.ticks == ts1.ticks) && (ts.part < ts1.part))) { /* Went backwards? */
       printf("Timestamp went backwards: 0x%04X%04X%04X, 0x%04X%04X%04X, then 0x%04X%04X%04X\n",
              (unsigned int)(ts2.ticks >> 16), (unsigned int)(ts2.ticks & 0xFFFF), ts2.part,
