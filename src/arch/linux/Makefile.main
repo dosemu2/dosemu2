@@ -126,6 +126,9 @@ install:
 	for i in `find $(SRCPATH)/bindist -maxdepth 1 -type f`; do \
 	  $(INSTALL) -m 0644 $$i $(sysdir); \
 	done
+	$(INSTALL) -d $(sysdir)/c
+	$(INSTALL) -d $(sysdir)/dosemu
+	$(INSTALL) -d $(sysdir)/dosemu/dosrc.d
 	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/c/* -t $(sysdir)/c
 	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/*.bat -t $(sysdir)/dosemu
 	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/dosrc.d/* -t $(sysdir)/dosemu/dosrc.d
