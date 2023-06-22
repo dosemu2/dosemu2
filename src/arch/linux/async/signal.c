@@ -15,6 +15,9 @@
 #include <sys/prctl.h>
 #include <linux/version.h>
 #endif
+#ifdef __FreeBSD__
+#include <machine/trap.h>
+#endif
 
 #include "emu.h"
 #ifdef __linux__
@@ -333,8 +336,8 @@ static void minfault(int sig, siginfo_t *si, void *uc)
   }
 #endif
 #ifdef __FreeBSD__
-  /* freebsd somehow messes up the trapno */
-  if (_scp_trapno == 0xc)
+  /* freebsd fiddles with trapno */
+  if (_scp_trapno == T_PAGEFLT)
     _scp_trapno = 0xe;
 #endif
 #ifdef X86_EMULATOR
