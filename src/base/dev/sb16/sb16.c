@@ -1849,6 +1849,10 @@ static void mpu401_init(void)
 
     S_printf("MPU401: MPU-401 Initialisation\n");
 
+    if (config.mpu401_irq_mt32 == 2) {
+	error("irq2 for mt32 not supported, using irq 9\n");
+	config.mpu401_irq_mt32 = 9;
+    }
     if (config.mpu401_irq == -1) {
 	config.mpu401_irq = config.sb_irq;
 	config.mpu401_uart_irq_mt32 = config.mpu401_irq_mt32;
