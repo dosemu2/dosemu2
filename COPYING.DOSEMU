@@ -17,8 +17,10 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-2.  All dosemu2 sources that have no explicit copyright statement,
-    are copyrighted under GPLv2.
+2.  All dosemu2 C sources (*.c) that have no explicit copyright statement,
+    are copyrighted under GPLv2. Headers (*.h) without explicit
+    copyrights are copyrighted similar to their respective .c
+    counterparts, or, if no .c file with that name - under GPLv2+.
 
 3.  Parts of the code not covered by the GPL are marked explicitly
     within the code, and/or their copyrights are at the end of this
