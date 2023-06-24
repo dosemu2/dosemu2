@@ -40,6 +40,7 @@
 #include "sound.h"
 #include "dspio.h"
 #include "adlib.h"
+#include "mpu401.h"
 #include "sb16.h"
 #include <string.h>
 
@@ -58,13 +59,6 @@ static int sb_hdma_tab[] = { 5, 6, 7 };
 
 #define SB_GET_STATUS() ((rng_count(&sb.dsp_queue) ? SB_DATA_AVAIL : \
     SB_DATA_UNAVAIL) | SB_DSP_STATUS)
-
-struct mpu401_s {
-#define MIDI_FIFO_SIZE 32
-  struct rng_s fifo_in;
-  struct rng_s fifo_out;
-  int uart:1;
-};
 
 /*
  * DSP information / states
@@ -103,12 +97,12 @@ struct sb_struct {
 #define DSP_QUEUE_SIZE 64
   struct rng_s dsp_queue;
   struct dspio_state *dspio;
-  struct mpu401_s mpu;
+  struct mpu401_s *mpu;
 };
 
 static struct sb_struct sb;
 
-static void mpu401_reset(void);
+static void process_sb_midi_input(Bit8u val);
 
 static int sb_get_dsp_irq_num(void)
 {
@@ -124,7 +118,7 @@ int get_mpu401_irq_num(void)
 {
     if (!dspio_is_mt32_mode())
 	return config.mpu401_irq;
-    return (sb.mpu.uart ? config.mpu401_uart_irq_mt32 :
+    return (mpu401_is_uart(sb.mpu) ? config.mpu401_uart_irq_mt32 :
 	    config.mpu401_irq_mt32);
 }
 
@@ -713,69 +707,21 @@ static void sb_reset(void)
     sb.busy = 1;
     sb_mixer_reset();
     adlib_reset();
-    mpu401_reset();
+    mpu401_reset(sb.mpu);
 }
 
-static void mpu401_stop_midi(struct mpu401_s *mpu)
-{
-    midi_stop();
-}
-
-static void do_write_midi(struct mpu401_s *mpu, Bit8u value)
-{
-    rng_put(&mpu->fifo_out, &value);
-
-    run_sb();
-}
-
-static int midi_output_empty(struct mpu401_s *mpu)
-{
-    return !rng_count(&mpu->fifo_out);
-}
-
-static Bit8u get_midi_data(struct mpu401_s *mpu)
-{
-    Bit8u val;
-    int ret = rng_get(&mpu->fifo_out, &val);
-    assert(ret == 1);
-    return val;
-}
-
-static Bit8u get_midi_in_byte(struct mpu401_s *mpu)
-{
-    Bit8u val;
-    int ret = rng_get(&mpu->fifo_in, &val);
-    assert(ret == 1);
-    return val;
-}
-
-static void put_midi_in_byte(struct mpu401_s *mpu, Bit8u val)
-{
-    rng_put_const(&mpu->fifo_in, val);
-}
-
-static int get_midi_in_fillup(struct mpu401_s *mpu)
-{
-    return rng_count(&mpu->fifo_in);
-}
-
-static void clear_midi_in_fifo(struct mpu401_s *mpu)
-{
-    rng_clear(&mpu->fifo_in);
-}
-
-static void do_process_midi(struct mpu401_s *mpu)
+static void do_process_midi(void)
 {
     Bit8u data;
-    /* no timing for now */
-    while (!midi_output_empty(mpu)) {
-	data = get_midi_data(mpu);
-	midi_write(data);
-    }
 
-    while (midi_get_data_byte(&data)) {
-	put_midi_in_byte(mpu, data);
-	sb_handle_midi_data();
+    if (sb_midi_input()) {
+	int cnt = 0;
+	while (midi_get_data_byte(&data)) {
+	    process_sb_midi_input(data);
+	    cnt++;
+	}
+	if (cnt && sb_midi_int())
+	    sb_activate_irq(SB_IRQ_MIDI);
     }
 }
 
@@ -937,7 +883,7 @@ static void sb_dsp_write(Bit8u value)
     case 0x38:			/* Midi Write */
 	REQ_PARAMS(1);
 	S_printf("SB: Write 0x%x to SB Midi Port\n", sb.command[1]);
-	do_write_midi(&sb.mpu, sb.command[1]);
+	midi_write(sb.command[1]);
 	break;
 
 	/* == SAMPLE SPEED == */
@@ -1687,7 +1633,7 @@ static void sb_io_write(ioport_t port, Bit8u value, void *arg)
 	/* == DSP == */
     case 0x0C:			/* dsp write register */
 	if (sb_midi_uart()) {
-	    do_write_midi(&sb.mpu, value);
+	    midi_write(value);
 	    break;
 	}
 	if (sb_dma_active() && sb_dma_high_speed()) {
@@ -1845,108 +1791,15 @@ int sb_get_dma_data(void *ptr, int is16bit)
     return 0;
 }
 
-static Bit8u mpu401_io_read(ioport_t port, void *arg)
+static void process_sb_midi_input(Bit8u val)
 {
-    ioport_t addr;
-    Bit8u r = 0xff;
-
-    addr = port - config.mpu401_base;
-
-    switch (addr) {
-    case 0:
-	/* Read data port */
-	if (get_midi_in_fillup(&sb.mpu))
-	    r = get_midi_in_byte(&sb.mpu);
-	else
-	    S_printf("MPU401: ERROR: No data to read\n");
-	S_printf("MPU401: Read data port = 0x%02x, %i bytes still in queue\n",
-	     r, get_midi_in_fillup(&sb.mpu));
-	if (!get_midi_in_fillup(&sb.mpu))
-	    sb_deactivate_irq(SB_IRQ_MPU401);
-	sb_run_irq(SB_IRQ_MPU401);
-	break;
-    case 1:
-	/* Read status port */
-	/* 0x40=OUTPUT_AVAIL; 0x80=INPUT_AVAIL */
-	r = 0xff & (~0x40);	/* Output is always possible */
-	if (get_midi_in_fillup(&sb.mpu))
-	    r &= (~0x80);
-	S_printf("MPU401: Read status port = 0x%02x\n", r);
-	break;
-    }
-    return r;
-}
-
-static void mpu401_io_write(ioport_t port, Bit8u value, void *arg)
-{
-    uint32_t addr;
-    addr = port - config.mpu401_base;
-
-    switch (addr) {
-    case 0:
-	/* Write data port */
-	if (debug_level('S') > 5)
-		S_printf("MPU401: Write 0x%02x to data port\n", value);
-	do_write_midi(&sb.mpu, value);
-	if (!sb.mpu.uart && debug_level('S') > 5)
-		S_printf("MPU401: intelligent mode write unhandled\n");
-	break;
-    case 1:
-	/* Write command port */
-	S_printf("MPU401: Write 0x%02x to command port\n", value);
-	clear_midi_in_fifo(&sb.mpu);
-	/* the following doc:
-	 * http://www.piclist.com/techref/io/serial/midi/mpu.html
-	 * says 3f does not need ACK. But dosbox sources say that
-	 * it does. Someone please try on a real HW? */
-	put_midi_in_byte(&sb.mpu, 0xfe);	/* A command is sent: MPU_ACK it next time */
-	switch (value) {
-	case 0x3f:		// 0x3F = UART mode
-	    sb.mpu.uart = 1;
-	    break;
-	case 0xff:		// 0xFF = reset MPU
-	    sb.mpu.uart = 0;
-	    mpu401_stop_midi(&sb.mpu);
-	    break;
-	case 0x80:		// Clock ??
-	    break;
-	case 0xac:		// Query version
-	    put_midi_in_byte(&sb.mpu, 0x15);
-	    break;
-	case 0xad:		// Query revision
-	    put_midi_in_byte(&sb.mpu, 0x1);
-	    break;
-	}
-	sb_activate_irq(SB_IRQ_MPU401);
-	break;
-    }
-}
-
-static void process_sb_midi_input(void)
-{
-    Bit8u tmp;
     if (sb_midi_timestamp()) {
 	Bit32u time = dspio_get_midi_in_time(sb.dspio);
 	dsp_write_output(time);
 	dsp_write_output(time >> 8);
 	dsp_write_output(time >> 16);
     }
-    tmp = get_midi_in_byte(&sb.mpu);
-    dsp_write_output(tmp);
-}
-
-void sb_handle_midi_data(void)
-{
-#define MPU401_IN_FIFO_TRIGGER 1
-    if (sb_midi_input()) {
-	while (get_midi_in_fillup(&sb.mpu))
-	    process_sb_midi_input();
-	if (sb_midi_int())
-	    sb_activate_irq(SB_IRQ_MIDI);
-    } else if (sb.mpu.uart) {
-	if (get_midi_in_fillup(&sb.mpu) == MPU401_IN_FIFO_TRIGGER)
-	    sb_activate_irq(SB_IRQ_MPU401);
-    }
+    dsp_write_output(val);
 }
 
 void run_sb(void)
@@ -1954,56 +1807,8 @@ void run_sb(void)
     if (!config.sound)
 	return;
     dspio_timer(sb.dspio);
-    do_process_midi(&sb.mpu);
-}
-
-static void mpu401_init(void)
-{
-    emu_iodev_t io_device;
-
-    S_printf("MPU401: MPU-401 Initialisation\n");
-
-    if (config.mpu401_irq_mt32 == 2) {
-	error("irq2 for mt32 not supported, using irq 9\n");
-	config.mpu401_irq_mt32 = 9;
-    }
-    if (config.mpu401_irq == -1) {
-	config.mpu401_irq = config.sb_irq;
-	config.mpu401_uart_irq_mt32 = config.mpu401_irq_mt32;
-	S_printf("SB: mpu401 irq set to %i\n", config.mpu401_irq);
-    } else {
-	config.mpu401_uart_irq_mt32 = config.mpu401_irq;
-    }
-
-    /* This is the MPU-401 */
-    io_device.read_portb = mpu401_io_read;
-    io_device.write_portb = mpu401_io_write;
-    io_device.read_portw = NULL;
-    io_device.write_portw = NULL;
-    io_device.read_portd = NULL;
-    io_device.write_portd = NULL;
-    io_device.handler_name = "Midi Emulation";
-    io_device.start_addr = config.mpu401_base;
-    io_device.end_addr = config.mpu401_base + 0x001;
-    if (port_register_handler(io_device, 0) != 0)
-	error("MPU-401: Cannot registering port handler\n");
-
-    S_printf("MPU401: MPU-401 Initialisation - Base 0x%03x \n",
-	     config.mpu401_base);
-
-    rng_init(&sb.mpu.fifo_in, MIDI_FIFO_SIZE, 1);
-    rng_init(&sb.mpu.fifo_out, MIDI_FIFO_SIZE, 1);
-}
-
-static void mpu401_reset(void)
-{
-    sb.mpu.uart = 0;
-}
-
-static void mpu401_done(void)
-{
-    rng_destroy(&sb.mpu.fifo_in);
-    rng_destroy(&sb.mpu.fifo_out);
+    do_process_midi();
+    mpu401_process(sb.mpu);
 }
 
 static void sb_dsp_init(void)
@@ -2017,6 +1822,27 @@ static void sb_dsp_done(void)
 {
     rng_destroy(&sb.dsp_queue);
 }
+
+static void mpu_activate_irq(void)
+{
+    sb_activate_irq(SB_IRQ_MPU401);
+}
+
+static void mpu_deactivate_irq(void)
+{
+    sb_deactivate_irq(SB_IRQ_MPU401);
+}
+
+static void mpu_run_irq(void)
+{
+    sb_run_irq(SB_IRQ_MPU401);
+}
+
+struct mpu401_ops mops = {
+    .activate_irq = mpu_activate_irq,
+    .deactivate_irq = mpu_deactivate_irq,
+    .run_irq = mpu_run_irq,
+};
 
 /*
  * Sound Initialisation
@@ -2045,7 +1871,20 @@ static void sb_init(void)
     sb_dsp_init();
     sb_mixer_init();
     opl3_init();
-    mpu401_init();
+
+
+    if (config.mpu401_irq_mt32 == 2) {
+	error("irq2 for mt32 not supported, using irq 9\n");
+	config.mpu401_irq_mt32 = 9;
+    }
+    if (config.mpu401_irq == -1) {
+	config.mpu401_irq = config.sb_irq;
+	config.mpu401_uart_irq_mt32 = config.mpu401_irq_mt32;
+	S_printf("SB: mpu401 irq set to %i\n", config.mpu401_irq);
+    } else {
+	config.mpu401_uart_irq_mt32 = config.mpu401_irq;
+    }
+    sb.mpu = mpu401_init(config.mpu401_base, &mops);
 
     S_printf("SB: Initialisation - Base 0x%03x\n", config.sb_base);
 }
@@ -2054,7 +1893,7 @@ static void sb_done(void)
 {
     sb_dsp_done();
     adlib_done();
-    mpu401_done();
+    mpu401_done(sb.mpu);
 }
 
 void sound_init(void)

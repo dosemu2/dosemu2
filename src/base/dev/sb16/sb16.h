@@ -60,7 +60,6 @@ extern void sb_handle_dma(void);
 extern void sb_dma_nack(void);
 extern void sb_handle_dma_timeout(void);
 extern int sb_input_enabled(void);
-extern void sb_handle_midi_data(void);
 
 enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	double *r_vol);
