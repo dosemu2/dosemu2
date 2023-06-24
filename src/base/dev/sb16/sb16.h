@@ -43,46 +43,6 @@
 #define SB_IRQ_DSP (SB_IRQ_8BIT | SB_IRQ_16BIT | SB_IRQ_MIDI)
 #define SB_IRQ_ALL (SB_IRQ_DSP | SB_IRQ_MPU401)
 
-/*
- * DSP information / states
- */
-enum { DMA_RESTART_NONE, DMA_RESTART_PENDING, DMA_RESTART_AUTOINIT };
-struct sb_struct {
-  uint16_t rate;		/* The current sample rate for input */
-  uint8_t  test;		/* Storage for the test value */
-  uint8_t  reset_val;
-  int      paused:1;		/* is DMA transfer paused? */
-  int      reset:1;
-  int      mpu401_uart:1;
-  uint8_t  midi_cmd;
-  uint8_t  dma_cmd;		/* Information we need on the DMA transfer */
-  uint8_t  dma_mode;		/* Information we need on the DMA transfer */
-  int      dma_exit_ai:1;	/* exit DMA autoinit */
-  struct {
-    int    val;
-    int    is_16:1;
-    int    allow:1;
-  }        dma_restart;		/* DMA restart on IRQ ACK */
-  uint8_t  new_dma_cmd;		/* Information we need on the DMA transfer */
-  uint8_t  new_dma_mode;	/* Information we need on the DMA transfer */
-  uint16_t dma_init_count;
-  uint16_t dma_count;
-  uint8_t  mixer_regs[256];
-  uint8_t  mixer_index;
-  uint8_t  E2Count;
-  uint8_t  asp_regs[256];
-  int      asp_init;
-  uint8_t  last_data;
-  int      busy;
-/* All values are imperical! */
-#define SB_DSP_CMD_BUF_SZ 8
-  uint8_t  command[SB_DSP_CMD_BUF_SZ];
-  int      command_idx;
-#define DSP_QUEUE_SIZE 64
-  struct rng_s dsp_queue;
-  void *dspio;
-};
-
 extern int sb_get_dma_num(void);
 extern int sb_get_hdma_num(void);
 extern int sb_dma_active(void);

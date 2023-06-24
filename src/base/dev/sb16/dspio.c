@@ -77,9 +77,6 @@ struct dspio_state {
     struct rng_s fifo_out;
 #define DSP_OUT_FIFO_TRIGGER 32
 #define DSP_IN_FIFO_TRIGGER 32
-#define MIDI_FIFO_SIZE 32
-    struct rng_s midi_fifo_in;
-    struct rng_s midi_fifo_out;
     struct dspio_dma dma;
 };
 
@@ -114,13 +111,6 @@ int dspio_get_speaker_state(void *dspio)
     return DSPIO->speaker;
 }
 
-void dspio_write_midi(void *dspio, Bit8u value)
-{
-    rng_put(&DSPIO->midi_fifo_out, &value);
-
-    run_sb();
-}
-
 static void run_sound(void)
 {
     if (!config.sound)
@@ -152,42 +142,6 @@ static int dspio_input_fifo_filled(struct dspio_state *state)
 static int dspio_input_fifo_empty(struct dspio_state *state)
 {
     return !rng_count(&state->fifo_in);
-}
-
-static int dspio_midi_output_empty(struct dspio_state *state)
-{
-    return !rng_count(&state->midi_fifo_out);
-}
-
-static Bit8u dspio_get_midi_data(struct dspio_state *state)
-{
-    Bit8u val;
-    int ret = rng_get(&state->midi_fifo_out, &val);
-    assert(ret == 1);
-    return val;
-}
-
-Bit8u dspio_get_midi_in_byte(void *dspio)
-{
-    Bit8u val;
-    int ret = rng_get(&DSPIO->midi_fifo_in, &val);
-    assert(ret == 1);
-    return val;
-}
-
-void dspio_put_midi_in_byte(void *dspio, Bit8u val)
-{
-    rng_put_const(&DSPIO->midi_fifo_in, val);
-}
-
-int dspio_get_midi_in_fillup(void *dspio)
-{
-    return rng_count(&DSPIO->midi_fifo_in);
-}
-
-void dspio_clear_midi_in_fifo(void *dspio)
-{
-    rng_clear(&DSPIO->midi_fifo_in);
 }
 
 static int dspio_get_dma_data(struct dspio_state *state, void *ptr, int is16bit)
@@ -412,8 +366,6 @@ void *dspio_init(void)
 
     rng_init(&state->fifo_in, DSP_FIFO_SIZE, 2);
     rng_init(&state->fifo_out, DSP_FIFO_SIZE, 2);
-    rng_init(&state->midi_fifo_in, MIDI_FIFO_SIZE, 1);
-    rng_init(&state->midi_fifo_out, MIDI_FIFO_SIZE, 1);
 
     state->i_handle = pcm_register_player(&player, state);
     pcm_init();
@@ -444,8 +396,6 @@ void dspio_done(void *dspio)
 
     rng_destroy(&DSPIO->fifo_in);
     rng_destroy(&DSPIO->fifo_out);
-    rng_destroy(&DSPIO->midi_fifo_in);
-    rng_destroy(&DSPIO->midi_fifo_out);
 
     free(dspio);
 }
@@ -867,21 +817,6 @@ static void dspio_process_dma(struct dspio_state *state)
 	     in_fifo_cnt, out_fifo_cnt, dma_cnt, state->output_running, state->dma.running);
 }
 
-static void dspio_process_midi(struct dspio_state *state)
-{
-    Bit8u data;
-    /* no timing for now */
-    while (!dspio_midi_output_empty(state)) {
-	data = dspio_get_midi_data(state);
-	midi_write(data);
-    }
-
-    while (midi_get_data_byte(&data)) {
-	dspio_put_midi_in_byte(state, data);
-	sb_handle_midi_data();
-    }
-}
-
 void dspio_run_synth(void)
 {
     adlib_timer();
@@ -891,7 +826,6 @@ void dspio_run_synth(void)
 void dspio_timer(void *dspio)
 {
     dspio_process_dma(DSPIO);
-    dspio_process_midi(DSPIO);
 }
 
 void dspio_write_dac(void *dspio, Bit8u samp)
