@@ -478,8 +478,8 @@ struct ColorSpaceDesc;
  * Functions defined in env/video/vgaemu.c.
  */
 
-int VGA_emulate_outb(ioport_t, Bit8u);
-int VGA_emulate_inb(ioport_t);
+int VGA_emulate_outb(ioport_t, Bit8u, void *arg);
+int VGA_emulate_inb(ioport_t, void *arg);
 int vga_emu_fault(dosaddr_t, unsigned, cpuctx_t *);
 int vga_emu_pre_init(void);
 int vga_emu_init(int src_modes, struct ColorSpaceDesc *);

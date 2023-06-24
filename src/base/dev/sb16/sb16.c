@@ -1642,7 +1642,7 @@ int sb_mixer_get_chan_num(enum MixChan ch)
  * DANG_END_FUNCTION
  */
 
-static void sb_io_write(ioport_t port, Bit8u value)
+static void sb_io_write(ioport_t port, Bit8u value, void *arg)
 {
     ioport_t addr;
     addr = port - config.sb_base;
@@ -1715,7 +1715,7 @@ static void sb_io_write(ioport_t port, Bit8u value)
  * DANG_END_FUNCTION
  */
 
-static Bit8u sb_io_read(ioport_t port)
+static Bit8u sb_io_read(ioport_t port, void *arg)
 {
     ioport_t addr;
     Bit8u result = 0;
@@ -1845,7 +1845,7 @@ int sb_get_dma_data(void *ptr, int is16bit)
     return 0;
 }
 
-static Bit8u mpu401_io_read(ioport_t port)
+static Bit8u mpu401_io_read(ioport_t port, void *arg)
 {
     ioport_t addr;
     Bit8u r = 0xff;
@@ -1877,7 +1877,7 @@ static Bit8u mpu401_io_read(ioport_t port)
     return r;
 }
 
-static void mpu401_io_write(ioport_t port, Bit8u value)
+static void mpu401_io_write(ioport_t port, Bit8u value, void *arg)
 {
     uint32_t addr;
     addr = port - config.mpu401_base;

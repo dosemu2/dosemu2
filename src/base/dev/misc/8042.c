@@ -343,7 +343,7 @@ static Bit8u read_port60(void)
 }
 
 
-Bit8u keyb_io_read(ioport_t port)
+Bit8u keyb_io_read(ioport_t port, void *arg)
 {
   Bit8u r = 0;
 
@@ -368,7 +368,7 @@ Bit8u keyb_io_read(ioport_t port)
   return r;
 }
 
-void keyb_io_write(ioport_t port, Bit8u value)
+void keyb_io_write(ioport_t port, Bit8u value, void *arg)
 {
   switch (port) {
   case 0x60:

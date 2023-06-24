@@ -257,7 +257,7 @@ int dma_pulse_DRQ(int ch, Bit8u * buf)
     HANDLE_##n(2, 2); \
     HANDLE_##n(2, 3); \
     HANDLE_##n(2, 4)
-static Bit8u dma_io_read(ioport_t port)
+static Bit8u dma_io_read(ioport_t port, void *arg)
 {
     Bit8u r = 0xff;
     switch (port) {
@@ -319,7 +319,7 @@ static Bit8u dma_io_read(ioport_t port)
     return r;
 }
 
-static void dma_io_write(ioport_t port, Bit8u value)
+static void dma_io_write(ioport_t port, Bit8u value, void *arg)
 {
     switch (port) {
 

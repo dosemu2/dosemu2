@@ -248,12 +248,12 @@ static void fpu_reset(void)
     kvm_update_fpu();
 }
 
-static Bit8u fpu_io_read(ioport_t port)
+static Bit8u fpu_io_read(ioport_t port, void *arg)
 {
   return 0xff;
 }
 
-static void fpu_io_write(ioport_t port, Bit8u val)
+static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
 {
   switch (port) {
   case 0xf0:

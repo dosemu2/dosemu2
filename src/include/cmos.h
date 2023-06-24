@@ -43,8 +43,10 @@
 #define CMOS_INFO	0x33
 #define CMOS_RESV4	0x34	/* 12 bytes reserved */
 
-void cmos_write(ioport_t, Bit8u), cmos_init(void), cmos_reset(void);
-Bit8u cmos_read(ioport_t);
+void cmos_write(ioport_t reg, Bit8u val, void *arg);
+void cmos_init(void);
+void cmos_reset(void);
+Bit8u cmos_read(ioport_t, void *arg);
 Bit8u rtc_read(Bit8u reg);
 void rtc_write(Bit8u reg, Bit8u val);
 void rtc_run(void);

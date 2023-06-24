@@ -13,7 +13,7 @@
 #define CONTROL_A20GATE_MASK 2
 
 
-static Bit8u port92h_io_read(ioport_t port)
+static Bit8u port92h_io_read(ioport_t port, void *arg)
 {
   Bit8u ret = 0;
   if (a20)
@@ -21,14 +21,14 @@ static Bit8u port92h_io_read(ioport_t port)
   return ret;
 }
 
-static void port92h_io_write(ioport_t port, Bit8u val)
+static void port92h_io_write(ioport_t port, Bit8u val, void *arg)
 {
   int enA20 = (val & CONTROL_A20GATE_MASK) ? 1 : 0;
   if (val & CONTROL_RESET_MASK) cpu_reset();
   set_a20(enA20);
 }
 
-static Bit8u picext_io_read(ioport_t port)
+static Bit8u picext_io_read(ioport_t port, void *arg)
 {
   Bit8u val = 0xff;
 

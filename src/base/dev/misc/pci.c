@@ -376,18 +376,18 @@ struct pci_funcs *pci_check_conf(void)
     return NULL;
 }
 
-static Bit8u pci_port_inb(ioport_t port)
+static Bit8u pci_port_inb(ioport_t port, void *arg)
 {
     if (port != 0xcf9)
-	return std_port_inb(port);
+	return port_inb(port);
     return 0;
 }
 
-static void pci_port_outb(ioport_t port, Bit8u byte)
+static void pci_port_outb(ioport_t port, Bit8u byte, void *arg)
 {
     /* don't allow DOSEMU to reset the CPU */
     if (port != 0xcf9)
-	std_port_outb(port, byte);
+	port_outb(port, byte);
 }
 
 /* SIDOC_BEGIN_FUNCTION pci_setup
@@ -475,8 +475,8 @@ static unsigned long pciemu_port_read(ioport_t port, int len)
       val = (val >> ((port & 2) << 3)) & 0xffff;
   } else if (pci->ext_enabled) {
     pci_port_outd(PCI_CONF_ADDR, current_pci_reg);
-    val = len == 1 ? std_port_inb(port) : len == 2 ? std_port_inw(port) :
-      std_port_ind(port);
+    val = len == 1 ? port_inb(port) : len == 2 ? port_inw(port) :
+      port_ind(port);
   } else
     val = 0xffffffff;
   Z_printf("PCIEMU: reading 0x%lx from %#x, len=%d\n",val,num,len);
@@ -517,16 +517,16 @@ static void pciemu_port_write(ioport_t port, unsigned long val, int len)
   } else if (pci->ext_enabled) {
     pci_port_outd(PCI_CONF_ADDR, current_pci_reg);
     if (len == 1)
-      std_port_outb(port, val);
+      port_outb(port, val);
     else if (len == 2)
-      std_port_outw(port, val);
+      port_outw(port, val);
     else
-      std_port_outd(port, val);
+      port_outd(port, val);
   }
   Z_printf("PCIEMU: writing 0x%lx to %#x, len=%d\n",val,num,len);
 }
 
-static Bit8u pciemu_port_inb(ioport_t port)
+static Bit8u pciemu_port_inb(ioport_t port, void *arg)
 {
   /* 0xcf8 -- 0xcfb as bytes or words don't access sub-parts;
      for instance writing to 0xcf9 as a byte may reset the CPU */
@@ -537,26 +537,26 @@ static Bit8u pciemu_port_inb(ioport_t port)
   return 0xff;
 }
 
-static void pciemu_port_outb(ioport_t port, Bit8u byte)
+static void pciemu_port_outb(ioport_t port, Bit8u byte, void *arg)
 {
   if (port >= PCI_CONF_DATA)
     pciemu_port_write(port, byte, 1);
 }
 
-static Bit16u pciemu_port_inw(ioport_t port)
+static Bit16u pciemu_port_inw(ioport_t port, void *arg)
 {
   if (port == PCI_CONF_DATA || port == PCI_CONF_DATA + 2)
     return pciemu_port_read(port, 2);
   return 0xffff;
 }
 
-static void pciemu_port_outw(ioport_t port, Bit16u value)
+static void pciemu_port_outw(ioport_t port, Bit16u value, void *arg)
 {
   if (port == PCI_CONF_DATA || port == PCI_CONF_DATA + 2)
     pciemu_port_write(port, value, 2);
 }
 
-static Bit32u pciemu_port_ind(ioport_t port)
+static Bit32u pciemu_port_ind(ioport_t port, void *arg)
 {
   if (port == PCI_CONF_DATA)
     return pciemu_port_read(port, 4);
@@ -565,7 +565,7 @@ static Bit32u pciemu_port_ind(ioport_t port)
   return 0xffffffff;
 }
 
-static void pciemu_port_outd(ioport_t port, Bit32u value)
+static void pciemu_port_outd(ioport_t port, Bit32u value, void *arg)
 {
   if (port == PCI_CONF_ADDR)
     current_pci_reg = value & 0x80fffffc;

@@ -19,26 +19,17 @@
 
 /* Hey, stranger, there is one too many of us in this town! */
 typedef struct {
-  Bit8u         (* read_portb)(ioport_t port);
-  void          (* write_portb)(ioport_t port, Bit8u byte);
-  Bit16u        (* read_portw)(ioport_t port);
-  void          (* write_portw)(ioport_t port, Bit16u word);
-  Bit32u        (* read_portd)(ioport_t port);
-  void          (* write_portd)(ioport_t port, Bit32u word);
-  const char    *handler_name;
+  Bit8u         (* read_portb)(ioport_t port, void *arg);
+  void          (* write_portb)(ioport_t port, Bit8u byte, void *arg);
+  Bit16u        (* read_portw)(ioport_t port, void *arg);
+  void          (* write_portw)(ioport_t port, Bit16u word, void *arg);
+  Bit32u        (* read_portd)(ioport_t port, void *arg);
+  void          (* write_portd)(ioport_t port, Bit32u word, void *arg);
+  const char   *handler_name;
   ioport_t      start_addr;
   ioport_t      end_addr;
-} emu_iodev_t;
-
-typedef struct {
-  Bit8u  (*read_portb)  (ioport_t port_addr);
-  void   (*write_portb) (ioport_t port_addr, Bit8u byte);
-  Bit16u (*read_portw) (ioport_t port_addr);
-  void   (*write_portw) (ioport_t port_addr, Bit16u word);
-  Bit32u (*read_portd) (ioport_t port_addr);
-  void   (*write_portd) (ioport_t port_addr, Bit32u dword);
-  const char *handler_name;
-} _port_handler;
+  void         *arg;
+} emu_iodev_t, _port_handler;
 
 extern int in_crit_section;
 
@@ -107,12 +98,12 @@ extern void    port_outb(ioport_t port, Bit8u byte);
 extern void    port_outw(ioport_t port, Bit16u word);
 extern void    port_outd(ioport_t port, Bit32u word);
 
-extern Bit8u  std_port_inb(ioport_t port);
-extern void   std_port_outb(ioport_t port, Bit8u byte);
-extern Bit16u std_port_inw(ioport_t port);
-extern void   std_port_outw(ioport_t port, Bit16u word);
-extern Bit32u std_port_ind(ioport_t port);
-extern void   std_port_outd(ioport_t port, Bit32u word);
+extern Bit8u  std_port_inb(ioport_t port, void *arg);
+extern void   std_port_outb(ioport_t port, Bit8u byte, void *arg);
+extern Bit16u std_port_inw(ioport_t port, void *arg);
+extern void   std_port_outw(ioport_t port, Bit16u word, void *arg);
+extern Bit32u std_port_ind(ioport_t port, void *arg);
+extern void   std_port_outd(ioport_t port, Bit32u word, void *arg);
 extern void   pci_port_outd(ioport_t port, Bit32u word);
 
 extern int port_rep_inb(ioport_t port, Bit8u *dest, int df, Bit32u count);
@@ -125,13 +116,6 @@ extern int port_rep_outd(ioport_t port, Bit32u *dest, int df, Bit32u count);
 extern void port_exit(void);
 
 extern unsigned char emu_io_bitmap[];
-
-#define safe_port_in_byte	std_port_inb
-#define safe_port_out_byte	std_port_outb
-#define port_safe_inb		std_port_inb
-#define port_safe_outb		std_port_outb
-#define port_safe_inw		std_port_inw
-#define port_safe_outw		std_port_outw
 
 extern int extra_port_init(void);
 extern void release_ports(void);

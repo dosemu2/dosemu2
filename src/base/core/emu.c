@@ -498,7 +498,7 @@ static void __leavedos_main(int code, int sig)
 	* My port logic is actually stolen from kd_nosound in the kernel.
 	* 		--EB 21 September 1997
 	*/
-        port_safe_outb(0x61, port_safe_inb(0x61)&0xFC); /* turn off any sound */
+        port_outb(0x61, port_inb(0x61)&0xFC); /* turn off any sound */
     }
 
     free(vm86_hlt_state);

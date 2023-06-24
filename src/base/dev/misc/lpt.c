@@ -69,7 +69,7 @@ static int get_printer(ioport_t port)
   return -1;
 }
 
-static Bit8u printer_io_read(ioport_t port)
+static Bit8u printer_io_read(ioport_t port, void *arg)
 {
   int i = get_printer(port);
   Bit8u val;
@@ -104,7 +104,7 @@ static Bit8u printer_io_read(ioport_t port)
   return val;
 }
 
-static void printer_io_write(ioport_t port, Bit8u value)
+static void printer_io_write(ioport_t port, Bit8u value, void *arg)
 {
   int i = get_printer(port);
   if (i == -1)

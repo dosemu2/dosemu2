@@ -340,7 +340,7 @@ vgaemu_bios_type vgaemu_bios;
  *
  */
 
-int VGA_emulate_outb(ioport_t port, Bit8u value)
+int VGA_emulate_outb(ioport_t port, Bit8u value, void *arg)
 {
   vga_deb2_io("VGA_emulate_outb: port[0x%03x] = 0x%02x\n", (unsigned) port, (unsigned) value);
 
@@ -443,16 +443,16 @@ int VGA_emulate_outb(ioport_t port, Bit8u value)
 }
 
 
-static void VGA_emulate_outb_handler(ioport_t port, Bit8u value)
+static void VGA_emulate_outb_handler(ioport_t port, Bit8u value, void *arg)
 {
-    int ret = VGA_emulate_outb(port, value);
+    int ret = VGA_emulate_outb(port, value, arg);
     assert(ret!=-1);
 }
 
-static void VGA_emulate_outw_handler(ioport_t port, Bit16u value)
+static void VGA_emulate_outw_handler(ioport_t port, Bit16u value, void *arg)
 {
-    VGA_emulate_outb_handler(port,value);
-    VGA_emulate_outb_handler(port+1,value>>8);
+    VGA_emulate_outb_handler(port, value, arg);
+    VGA_emulate_outb_handler(port+1, value>>8, arg);
 }
 
 /*
@@ -469,7 +469,7 @@ static void VGA_emulate_outw_handler(ioport_t port, Bit16u value)
  *
  */
 
-int VGA_emulate_inb(ioport_t port)
+int VGA_emulate_inb(ioport_t port, void *arg)
 {
   Bit8u uc = 0xff;
 
@@ -567,17 +567,17 @@ int VGA_emulate_inb(ioport_t port)
   return uc;
 }
 
-static Bit8u VGA_emulate_inb_handler(ioport_t port)
+static Bit8u VGA_emulate_inb_handler(ioport_t port, void *arg)
 {
-    int ret = VGA_emulate_inb(port);
+    int ret = VGA_emulate_inb(port, arg);
     assert(ret != -1);
     return ret;
 }
 
-static Bit16u VGA_emulate_inw_handler(ioport_t port)
+static Bit16u VGA_emulate_inw_handler(ioport_t port, void *arg)
 {
-    Bit16u v = VGA_emulate_inb_handler(port);
-    return v | (VGA_emulate_inb_handler(port+1)<<8);
+    Bit16u v = VGA_emulate_inb_handler(port, arg);
+    return v | (VGA_emulate_inb_handler(port+1, arg)<<8);
 }
 
 
