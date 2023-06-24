@@ -102,7 +102,7 @@ struct sb_struct {
   int      command_idx;
 #define DSP_QUEUE_SIZE 64
   struct rng_s dsp_queue;
-  void *dspio;
+  struct dspio_state *dspio;
   struct mpu401_s mpu;
 };
 

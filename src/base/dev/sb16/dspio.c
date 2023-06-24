@@ -80,8 +80,6 @@ struct dspio_state {
     struct dspio_dma dma;
 };
 
-#define DSPIO ((struct dspio_state *)dspio)
-
 static void dma_get_silence(int is_signed, int is16bit, void *ptr)
 {
     if (is16bit) {
@@ -93,22 +91,22 @@ static void dma_get_silence(int is_signed, int is16bit, void *ptr)
     }
 }
 
-void dspio_toggle_speaker(void *dspio, int on)
+void dspio_toggle_speaker(struct dspio_state *dspio, int on)
 {
-    if (!on && DSPIO->speaker) {
-	if (DSPIO->dac_running) {
-	    pcm_flush(DSPIO->dac_strm);
-	    DSPIO->dac_running = 0;
+    if (!on && dspio->speaker) {
+	if (dspio->dac_running) {
+	    pcm_flush(dspio->dac_strm);
+	    dspio->dac_running = 0;
 	}
 	/* we don't flush PCM stream here because DSP uses PCM layer
 	 * for timing, and timing is needed even when speaker is disabled... */
     }
-    DSPIO->speaker = on;
+    dspio->speaker = on;
 }
 
-int dspio_get_speaker_state(void *dspio)
+int dspio_get_speaker_state(struct dspio_state *dspio)
 {
-    return DSPIO->speaker;
+    return dspio->speaker;
 }
 
 static void run_sound(void)
@@ -307,11 +305,11 @@ static int dspio_put_input_sample(struct dspio_state *state, void *ptr,
     return ret;
 }
 
-void dspio_clear_fifos(void *dspio)
+void dspio_clear_fifos(struct dspio_state *dspio)
 {
-    rng_clear(&DSPIO->fifo_in);
-    rng_clear(&DSPIO->fifo_out);
-    DSPIO->dma.dsp_fifo_enabled = 1;
+    rng_clear(&dspio->fifo_in);
+    rng_clear(&dspio->fifo_out);
+    dspio->dma.dsp_fifo_enabled = 1;
 }
 
 static void dspio_i_start(void *arg)
@@ -351,7 +349,7 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg);
 static int dspio_is_connected(int id, void *arg);
 static int dspio_checkid2(void *id2, void *arg);
 
-void *dspio_init(void)
+struct dspio_state *dspio_init(void)
 {
     struct dspio_state *state;
     state = malloc(sizeof(struct dspio_state));
@@ -384,18 +382,18 @@ void *dspio_init(void)
     return state;
 }
 
-void dspio_reset(void *dspio)
+void dspio_reset(struct dspio_state *dspio)
 {
 }
 
-void dspio_done(void *dspio)
+void dspio_done(struct dspio_state *dspio)
 {
     midi_done();
     /* shutdown midi before pcm as midi may use pcm */
     pcm_done();
 
-    rng_destroy(&DSPIO->fifo_in);
-    rng_destroy(&DSPIO->fifo_out);
+    rng_destroy(&dspio->fifo_in);
+    rng_destroy(&dspio->fifo_out);
 
     free(dspio);
 }
@@ -405,15 +403,15 @@ int dspio_is_mt32_mode(void)
     return (midi_get_synth_type() == ST_MT32);
 }
 
-void dspio_stop_midi(void *dspio)
+void dspio_stop_midi(struct dspio_state *dspio)
 {
-    DSPIO->midi_time_cur = GETusTIME(0);
+    dspio->midi_time_cur = GETusTIME(0);
     midi_stop();
 }
 
-Bit32u dspio_get_midi_in_time(void *dspio)
+Bit32u dspio_get_midi_in_time(struct dspio_state *dspio)
 {
-    Bit32u delta = GETusTIME(0) - DSPIO->midi_time_cur;
+    Bit32u delta = GETusTIME(0) - dspio->midi_time_cur;
     S_printf("SB: midi clock, delta=%i\n", delta);
     return delta;
 }
@@ -467,7 +465,7 @@ static void dspio_stop_input(struct dspio_state *state)
 	state->pcm_input_running = 0;
 }
 
-int dspio_input_enable(void *dspio, enum MixChan mc)
+int dspio_input_enable(struct dspio_state *dspio, enum MixChan mc)
 {
     struct dspio_state *state = dspio;
     switch (mc) {
@@ -491,7 +489,7 @@ int dspio_input_enable(void *dspio, enum MixChan mc)
     return 1;
 }
 
-int dspio_input_disable(void *dspio, enum MixChan mc)
+int dspio_input_disable(struct dspio_state *dspio, enum MixChan mc)
 {
     struct dspio_state *state = dspio;
     switch (mc) {
@@ -621,30 +619,30 @@ static int dspio_drain_input(struct dspio_state *state)
     return dma_cnt;
 }
 
-void dspio_start_dma(void *dspio)
+void dspio_start_dma(struct dspio_state *dspio)
 {
     int dma_cnt = 0;
-    DSPIO->dma.running = 1;
-    DSPIO->dma.time_cur = GETusTIME(0);
-    get_dma_params(&DSPIO->dma);
+    dspio->dma.running = 1;
+    dspio->dma.time_cur = GETusTIME(0);
+    get_dma_params(&dspio->dma);
 
-    if (DSPIO->dma.input) {
-	dspio_start_input(DSPIO);
+    if (dspio->dma.input) {
+	dspio_start_input(dspio);
     } else {
-	dma_cnt = dspio_fill_output(DSPIO);
-	if (DSPIO->dma.running && dspio_output_fifo_filled(DSPIO))
+	dma_cnt = dspio_fill_output(dspio);
+	if (dspio->dma.running && dspio_output_fifo_filled(dspio))
 	    S_printf("SB: Output filled, processed %i DMA cycles\n",
 		     dma_cnt);
 	else
 	    S_printf("SB: Output fillup incomplete (%i %i %i)\n",
-		     DSPIO->dma.running, DSPIO->output_running, dma_cnt);
+		     dspio->dma.running, dspio->output_running, dma_cnt);
     }
 }
 
-void dspio_stop_dma(void *dspio)
+void dspio_stop_dma(struct dspio_state *dspio)
 {
-    dspio_stop_input(DSPIO);
-    DSPIO->dma.running = 0;
+    dspio_stop_input(dspio);
+    dspio->dma.running = 0;
 }
 
 static int calc_nframes(struct dspio_state *state,
@@ -823,23 +821,23 @@ void dspio_run_synth(void)
     midi_timer();
 }
 
-void dspio_timer(void *dspio)
+void dspio_timer(struct dspio_state *dspio)
 {
-    dspio_process_dma(DSPIO);
+    dspio_process_dma(dspio);
 }
 
-void dspio_write_dac(void *dspio, Bit8u samp)
+void dspio_write_dac(struct dspio_state *dspio, Bit8u samp)
 {
     sndbuf_t buf[1][SNDBUF_CHANS];
 #if 0
     /* on SB16 speaker control does not exist */
-    if (!DSPIO->speaker)
+    if (!dspio->speaker)
 	return;
 #endif
     buf[0][0] = samp;
-    DSPIO->dac_running = 1;
+    dspio->dac_running = 1;
     pcm_write_interleaved(buf, 1, DAC_BASE_FREQ, PCM_FORMAT_U8,
-			  1, DSPIO->dac_strm);
+			  1, dspio->dac_strm);
 }
 
 /* the volume APIs for sb16 and sndpcm are very different.

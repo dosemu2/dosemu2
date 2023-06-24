@@ -23,21 +23,23 @@
 #ifndef __DSPIO_H__
 #define __DSPIO_H__
 
-extern void *dspio_init(void);
-extern void dspio_reset(void *dspio);
-extern void dspio_done(void *dspio);
-extern void dspio_start_dma(void *dspio);
-extern void dspio_stop_dma(void *dspio);
-extern void dspio_stop_midi(void *dspio);
-extern void dspio_toggle_speaker(void *dspio, int on);
-extern int dspio_get_speaker_state(void *dspio);
-extern Bit32u dspio_get_midi_in_time(void *dspio);
-extern void dspio_write_dac(void *dspio, Bit8u samp);
-extern void dspio_timer(void *dspio);
+struct dspio_state;
+
+extern struct dspio_state *dspio_init(void);
+extern void dspio_reset(struct dspio_state *dspio);
+extern void dspio_done(struct dspio_state *dspio);
+extern void dspio_start_dma(struct dspio_state *dspio);
+extern void dspio_stop_dma(struct dspio_state *dspio);
+extern void dspio_stop_midi(struct dspio_state *dspio);
+extern void dspio_toggle_speaker(struct dspio_state *dspio, int on);
+extern int dspio_get_speaker_state(struct dspio_state *dspio);
+extern Bit32u dspio_get_midi_in_time(struct dspio_state *dspio);
+extern void dspio_write_dac(struct dspio_state *dspio, Bit8u samp);
+extern void dspio_timer(struct dspio_state *dspio);
 extern void dspio_run_synth(void);
-extern void dspio_clear_fifos(void *dspio);
-extern int dspio_input_enable(void *dspio, enum MixChan mc);
-extern int dspio_input_disable(void *dspio, enum MixChan mc);
+extern void dspio_clear_fifos(struct dspio_state *dspio);
+extern int dspio_input_enable(struct dspio_state *dspio, enum MixChan mc);
+extern int dspio_input_disable(struct dspio_state *dspio, enum MixChan mc);
 extern double dspio_calc_vol(int val, int step, int init_db);
 extern int dspio_is_mt32_mode(void);
 
