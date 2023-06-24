@@ -23,7 +23,7 @@ if [ ! -f $CONF_FILE ]; then
 fi
 
 CONF=`cat $CONF_FILE`
-CONF=`echo -n "$CONF"| sed '/^config {/d' | sed '/^}/d' | tr '\n' ' ' `
+CONF=`printf "$CONF"| sed '/^config {/d' | sed '/^}/d' | tr '\n' ' ' `
 
 SUFFIX=""
 while [ "$#" != "0" ]; do

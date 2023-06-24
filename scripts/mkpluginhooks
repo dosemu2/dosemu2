@@ -20,7 +20,7 @@ gendummy() {
     if [ "$1" = "clean" ]; then
       rm -f $INC/$HDR
     else
-      echo -n "" >$INC/$HDR.$$
+      printf "" >$INC/$HDR.$$
     fi
   done
 }
