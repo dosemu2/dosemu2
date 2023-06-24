@@ -189,7 +189,7 @@ static void log_port_write_d(ioport_t port, Bit32u w)
 Bit8u port_inb(ioport_t port)
 {
 	Bit8u res;
-	res = EMU_HANDLER(port).read_portb(port);
+	res = EMU_HANDLER(port).read_portb(port, EMU_HANDLER(port).arg);
 	return LOG_PORT_READ(port, res);
 }
 
@@ -203,7 +203,7 @@ Bit8u port_inb(ioport_t port)
 void port_outb(ioport_t port, Bit8u byte)
 {
 	LOG_PORT_WRITE(port, byte);
-	EMU_HANDLER(port).write_portb(port,byte);
+	EMU_HANDLER(port).write_portb(port, byte, EMU_HANDLER(port).arg);
 }
 
 /*
@@ -220,7 +220,7 @@ Bit16u port_inw(ioport_t port)
 	Bit16u res;
 
 	if (EMU_HANDLER(port).read_portw != NULL) {
-		res = EMU_HANDLER(port).read_portw(port);
+		res = EMU_HANDLER(port).read_portw(port, EMU_HANDLER(port).arg);
 		return LOG_PORT_READ_W(port, res);
 	}
 	else {
@@ -240,7 +240,7 @@ void port_outw(ioport_t port, Bit16u word)
 {
 	if (EMU_HANDLER(port).write_portw != NULL) {
 		LOG_PORT_WRITE_W(port, word);
-		EMU_HANDLER(port).write_portw(port, word);
+		EMU_HANDLER(port).write_portw(port, word, EMU_HANDLER(port).arg);
 	}
 	else {
 		port_outb(port, word & 0xff);
@@ -261,7 +261,7 @@ Bit32u port_ind(ioport_t port)
 	Bit32u res;
 
 	if (EMU_HANDLER(port).read_portd != NULL) {
-		res = EMU_HANDLER(port).read_portd(port);
+		res = EMU_HANDLER(port).read_portd(port, EMU_HANDLER(port).arg);
 	}
 	else {
 		res = (Bit32u) port_inw(port) | (((Bit32u) port_inw(port + 2)) << 16);
@@ -273,7 +273,7 @@ void port_outd(ioport_t port, Bit32u dword)
 {
 	LOG_PORT_WRITE_D(port, dword);
 	if (EMU_HANDLER(port).write_portd != NULL) {
-		EMU_HANDLER(port).write_portd(port, dword);
+		EMU_HANDLER(port).write_portd(port, dword, EMU_HANDLER(port).arg);
 	}
 	else {
 		port_outw(port, dword & 0xffff);
@@ -301,7 +301,7 @@ static void check_crit_section(ioport_t port, const char *function)
 	}
 }
 
-static Bit8u port_not_avail_inb(ioport_t port)
+static Bit8u port_not_avail_inb(ioport_t port, void *arg)
 {
 /* it is a fact of (hardware) life that unused locations return all
    (or almost all) the bits at 1; some software can try to detect a
@@ -318,33 +318,33 @@ static Bit8u port_not_avail_inb(ioport_t port)
 	return 0xff;
 }
 
-static void port_not_avail_outb(ioport_t port, Bit8u byte)
+static void port_not_avail_outb(ioport_t port, Bit8u byte, void *arg)
 {
 	check_crit_section(port, "outb");
 	if (debug_level('i')) pna_emsg(port,'b',"write");
 }
 
-static Bit16u port_not_avail_inw(ioport_t port)
+static Bit16u port_not_avail_inw(ioport_t port, void *arg)
 {
 	if (debug_level('i')) pna_emsg(port,'w',"read");
 //	idle(0, 50, 0, "inw");
 	return 0xffff;
 }
 
-static void port_not_avail_outw(ioport_t port, Bit16u value)
+static void port_not_avail_outw(ioport_t port, Bit16u value, void *arg)
 {
 	check_crit_section(port, "outw");
 	if (debug_level('i')) pna_emsg(port,'w',"write");
 }
 
-static Bit32u port_not_avail_ind(ioport_t port)
+static Bit32u port_not_avail_ind(ioport_t port, void *arg)
 {
 	if (debug_level('i')) pna_emsg(port,'d',"read");
 //	idle(0, 50, 0, "ind");
 	return 0xffffffff;
 }
 
-static void port_not_avail_outd(ioport_t port, Bit32u value)
+static void port_not_avail_outd(ioport_t port, Bit32u value, void *arg)
 {
 	check_crit_section(port, "outd");
 	if (debug_level('i')) pna_emsg(port,'d',"write");
@@ -365,7 +365,7 @@ struct portreq
 static int port_fd_out[2] = {-1, -1};
 static int port_fd_in[2] = {-1, -1};
 
-Bit8u std_port_inb(ioport_t port)
+Bit8u std_port_inb(ioport_t port, void *arg)
 {
         struct portreq pr;
 
@@ -374,7 +374,7 @@ Bit8u std_port_inb(ioport_t port)
 	}
 	if (!portserver_pid) {
 		error ("std_port_inb(0x%X): port server unavailable\n", port);
-		return port_not_avail_inb (port);
+		return port_not_avail_inb (port, arg);
 	}
 	pr.port = port;
 	pr.type = TYPE_INB;
@@ -383,7 +383,7 @@ Bit8u std_port_inb(ioport_t port)
 	return pr.word;
 }
 
-void std_port_outb(ioport_t port, Bit8u byte)
+void std_port_outb(ioport_t port, Bit8u byte, void *arg)
 {
         struct portreq pr;
 
@@ -394,7 +394,7 @@ void std_port_outb(ioport_t port, Bit8u byte)
 	if (!portserver_pid) {
 		error ("std_port_outb(0x%X,0x%X): port server unavailable\n",
 		       port, byte);
-		port_not_avail_outb (port, byte);
+		port_not_avail_outb (port, byte, arg);
 		return;
 	}
         pr.word = byte;
@@ -404,7 +404,7 @@ void std_port_outb(ioport_t port, Bit8u byte)
 	read(port_fd_in[0], &pr, sizeof(pr));
 }
 
-Bit16u std_port_inw(ioport_t port)
+Bit16u std_port_inw(ioport_t port, void *arg)
 {
         struct portreq pr;
 
@@ -413,7 +413,7 @@ Bit16u std_port_inw(ioport_t port)
         }
 	if (!portserver_pid) {
 		error ("std_port_inw(0x%X): port server unavailable\n", port);
-		return port_not_avail_inw (port);
+		return port_not_avail_inw (port, arg);
 	}
         pr.port = port;
         pr.type = TYPE_INW;
@@ -422,7 +422,7 @@ Bit16u std_port_inw(ioport_t port)
 	return pr.word;
 }
 
-void std_port_outw(ioport_t port, Bit16u word)
+void std_port_outw(ioport_t port, Bit16u word, void *arg)
 {
         struct portreq pr;
 
@@ -433,7 +433,7 @@ void std_port_outw(ioport_t port, Bit16u word)
 	if (!portserver_pid) {
 		error ("std_port_outw(0x%X,0x%X): port server unavailable\n",
 		       port, word);
-		port_not_avail_outw (port, word);
+		port_not_avail_outw (port, word, arg);
 		return;
 	}
         pr.word = word;
@@ -443,7 +443,7 @@ void std_port_outw(ioport_t port, Bit16u word)
 	read(port_fd_in[0], &pr, sizeof(pr));
 }
 
-Bit32u std_port_ind(ioport_t port)
+Bit32u std_port_ind(ioport_t port, void *arg)
 {
         struct portreq pr;
 
@@ -452,7 +452,7 @@ Bit32u std_port_ind(ioport_t port)
         }
 	if (!portserver_pid) {
 		error ("std_port_ind(0x%X): port server unavailable\n", port);
-		return port_not_avail_ind (port);
+		return port_not_avail_ind (port, arg);
 	}
         pr.port = port;
         pr.type = TYPE_IND;
@@ -472,7 +472,7 @@ static int do_port_outd(ioport_t port, Bit32u dword, int pci)
 	if (!portserver_pid) {
 		error ("std_port_outd(0x%X,0x%X): port server unavailable\n",
 		       port, dword);
-		port_not_avail_outd (port, dword);
+		port_not_avail_outd (port, dword, NULL);
 		return 0;
 	}
         pr.word = dword;
@@ -482,7 +482,7 @@ static int do_port_outd(ioport_t port, Bit32u dword, int pci)
 	return 1;
 }
 
-void std_port_outd(ioport_t port, Bit32u dword)
+void std_port_outd(ioport_t port, Bit32u dword, void *arg)
 {
         struct portreq pr;
 	if (do_port_outd(port, dword, 0))
@@ -514,17 +514,9 @@ int port_rep_inb(ioport_t port, Bit8u *base, int df, Bit32u count)
 	if (count==0) return 0;
 	i_printf("Doing REP insb(%#x) %d bytes at %p, DF %d\n", port,
 		count, base, df);
-	if (EMU_HANDLER(port).read_portb == std_port_inb) {
-	    while (count--) {
-	      *dest = std_port_inb(port);
-	      dest += incr;
-	    }
-	}
-	else {
-	  while (count--) {
-	    *dest = EMU_HANDLER(port).read_portb(port);
+	while (count--) {
+	    *dest = port_inb(port);
 	    dest += incr;
-	  }
 	}
 	if (debug_level('T')) {
 		dest = base;
@@ -545,17 +537,9 @@ int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
 	if (count==0) return 0;
 	i_printf("Doing REP outsb(%#x) %d bytes at %p, DF %d\n", port,
 		count, base, df);
-	if (EMU_HANDLER(port).write_portb == std_port_outb) {
-	    while (count--) {
-	      std_port_outb(port, *dest);
-	      dest += incr;
-	    }
-	}
-	else {
-	  while (count--) {
-	    EMU_HANDLER(port).write_portb(port, *dest);
+	while (count--) {
+	    port_outb(port, *dest);
 	    dest += incr;
-	  }
 	}
 	if (debug_level('T')) {
 		dest = base;
@@ -576,23 +560,17 @@ int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	if (count==0) return 0;
 	i_printf("Doing REP insw(%#x) %d words at %p, DF %d\n", port,
 		count, base, df);
-	if (EMU_HANDLER(port).read_portw == std_port_inw) {
-	    while (count--) {
-	      *dest = std_port_inw(port);
-	      dest += incr;
-	    }
-	}
-	else if (EMU_HANDLER(port).read_portw == NULL) {
+	if (EMU_HANDLER(port).read_portw == NULL) {
 	  Bit16u res;
 	  while (count--) {
-	    res = EMU_HANDLER(port).read_portb(port);
-	    *dest = ((Bit16u)EMU_HANDLER(port).read_portb(port+1) <<8) | res;
+	    res = port_inb(port);
+	    *dest = ((Bit16u)port_inb(port+1) <<8) | res;
 	    dest += incr;
 	  }
 	}
 	else {
 	  while (count--) {
-	    *dest = EMU_HANDLER(port).read_portw(port);
+	    *dest = port_inw(port);
 	    dest += incr;
 	  }
 	}
@@ -615,23 +593,17 @@ int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	if (count==0) return 0;
 	i_printf("Doing REP outsw(%#x) %d words at %p, DF %d\n", port,
 		count, base, df);
-	if (EMU_HANDLER(port).write_portw == std_port_outw) {
-	    while (count--) {
-	      std_port_outw(port, *dest);
-	      dest += incr;
-	    }
-	}
-	else if (EMU_HANDLER(port).write_portw == NULL) {
+	if (EMU_HANDLER(port).write_portw == NULL) {
 	  Bit16u res;
 	  while (count--) {
 	    res = *dest, dest += incr;
-	    EMU_HANDLER(port).write_portb(port, res);
-	    EMU_HANDLER(port).write_portb(port+1, res>>8);
+	    port_outb(port, res);
+	    port_outb(port+1, res>>8);
 	  }
 	}
 	else {
 	  while (count--) {
-	    EMU_HANDLER(port).write_portw(port, *dest);
+	    port_outw(port, *dest);
 	    dest += incr;
 	  }
 	}
@@ -690,12 +662,12 @@ static int r3da_pending = 0;
 void do_r3da_pending (void)
 {
   if (r3da_pending) {
-    (void)std_port_inb(r3da_pending);
+    (void)port_inb(r3da_pending);
     r3da_pending = 0;
   }
 }
 
-static Bit8u special_port_inb(ioport_t port)
+static Bit8u special_port_inb(ioport_t port, void *arg)
 {
 	Bit8u res = 0xff;
 
@@ -714,7 +686,7 @@ static Bit8u special_port_inb(ioport_t port)
 	return res;
 }
 
-static void special_port_outb(ioport_t port, Bit8u byte)
+static void special_port_outb(ioport_t port, Bit8u byte, void *arg)
 {
         if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
 		port_real_outb(port, byte);
@@ -743,9 +715,9 @@ static void special_port_outb(ioport_t port, Bit8u byte)
 		 */
 		if (config.vga && (config.emuretrace>1)) {
 		    if (r3da_pending) {
-			(void)std_port_inb(r3da_pending);
+			(void)std_port_inb(r3da_pending, arg);
 			r3da_pending = 0;
-			std_port_outb(0x3c0, byte);
+			std_port_outb(0x3c0, byte, arg);
 			return;
 		    }
 		    goto defout;
@@ -762,7 +734,7 @@ static void special_port_outb(ioport_t port, Bit8u byte)
 	}
 
 defout:
-	std_port_outb (port, byte);
+	std_port_outb (port, byte, arg);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -906,27 +878,27 @@ static void port_server(void)
 			   for speed */
 			struct portreq pr2;
 			read(port_fd_out[0], &pr2, sizeof(pr2));
-			ph->write_portd(pr.port, pr.word);
+			ph->write_portd(pr.port, pr.word, ph->arg);
 			pr = pr2;
 		}
                 switch (pr.type) {
                 case TYPE_INB:
-                        pr.word = ph->read_portb(pr.port);
+                        pr.word = ph->read_portb(pr.port, ph->arg);
                         break;
                 case TYPE_OUTB:
-                        ph->write_portb(pr.port, pr.word);
+                        ph->write_portb(pr.port, pr.word, ph->arg);
                         break;
                 case TYPE_INW:
-                        pr.word = ph->read_portw(pr.port);
+                        pr.word = ph->read_portw(pr.port, ph->arg);
                         break;
                 case TYPE_OUTW:
-                        ph->write_portw(pr.port, pr.word);
+                        ph->write_portw(pr.port, pr.word, ph->arg);
                         break;
                 case TYPE_IND:
-                        pr.word = ph->read_portd(pr.port);
+                        pr.word = ph->read_portd(pr.port, ph->arg);
                         break;
                 case TYPE_OUTD:
-                        ph->write_portd(pr.port, pr.word);
+                        ph->write_portd(pr.port, pr.word, ph->arg);
                         break;
                 }
                 write(port_fd_in[1], &pr, sizeof(pr));

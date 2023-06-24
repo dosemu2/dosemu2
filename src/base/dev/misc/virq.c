@@ -53,7 +53,7 @@ struct vhandler_s vhandlers[VIRQ_MAX];
 
 static void virq_lower(int virq_num);
 
-static Bit16u virq_irr_read(ioport_t port)
+static Bit16u virq_irr_read(ioport_t port, void *arg)
 {
     uint16_t irr;
 
@@ -63,7 +63,7 @@ static Bit16u virq_irr_read(ioport_t port)
     return irr;
 }
 
-static void virq_hwc_write(ioport_t port, Bit8u value)
+static void virq_hwc_write(ioport_t port, Bit8u value, void *arg)
 {
     struct vhandler_s *vh;
     enum VirqHwRet rc = VIRQ_HWRET_DONE;

@@ -2543,7 +2543,7 @@ repag0:
 			CODE_FLUSH();
 			a = rDX;
 			if ((CEmuStat & CeS_INSTREMU) &&
-			    (uc=VGA_emulate_inb(a)) != -1) {
+			    (uc=VGA_emulate_inb(a, NULL)) != -1) {
 				rAL = uc;
 				PC++;
 				break;
@@ -2672,7 +2672,7 @@ repag0:
 			a = rDX;
 			/* Note that we short circuit for vgaemu planar */
 			if ((CEmuStat & CeS_INSTREMU) &&
-			    VGA_emulate_outb(a, rAL) != -1) {
+			    VGA_emulate_outb(a, rAL, NULL) != -1) {
 				PC++;
 				break;
 			}
@@ -2701,8 +2701,8 @@ repag0:
 			CODE_FLUSH();
 			a = rDX;
 			if ((CEmuStat & CeS_INSTREMU) &&
-			    VGA_emulate_outb(a, rAL) != -1 &&
-			    VGA_emulate_outb(a+1, rAH) != -1) {
+			    VGA_emulate_outb(a, rAL, NULL) != -1 &&
+			    VGA_emulate_outb(a+1, rAH, NULL) != -1) {
 				PC++;
 				break;
 			}

@@ -83,7 +83,7 @@ Bit8u adlib_io_read_base(ioport_t port)
     return ret;
 }
 
-static Bit8u adlib_io_read(ioport_t port)
+static Bit8u adlib_io_read(ioport_t port, void *arg)
 {
     return adlib_io_read_base(port - ADLIB_BASE);
 }
@@ -103,7 +103,7 @@ void adlib_io_write_base(ioport_t port, Bit8u value)
     pthread_mutex_unlock(&synth_mtx);
 }
 
-static void adlib_io_write(ioport_t port, Bit8u value)
+static void adlib_io_write(ioport_t port, Bit8u value, void *arg)
 {
     adlib_io_write_base(port - ADLIB_BASE, value);
 }

@@ -170,10 +170,10 @@ typedef struct NE2000State {
 static NE2000State ne2000state;
 
 // For io_device
-Bit16u ne2000_io_read16(ioport_t port);
-void ne2000_io_write16(ioport_t port, Bit16u value);
-Bit8u ne2000_io_read8(ioport_t port);
-void ne2000_io_write8(ioport_t port, Bit8u value);
+Bit16u ne2000_io_read16(ioport_t port, void *arg);
+void ne2000_io_write16(ioport_t port, Bit16u value, void *arg);
+Bit8u ne2000_io_read8(ioport_t port, void *arg);
+void ne2000_io_write8(ioport_t port, Bit8u value, void *arg);
 static void ne2000_irq_activate(int);
 
 static void ne2000_receive_req_async(int fd, void *arg);
@@ -869,7 +869,7 @@ static void ne2000_write(NE2000State *s, uint32_t addr, uint64_t data, unsigned 
 /* --------------------------------- */
 /* 16 bit io functions - only on data port */
 
-Bit16u ne2000_io_read16(ioport_t port)
+Bit16u ne2000_io_read16(ioport_t port, void *arg)
 {
     NE2000State *s = &ne2000state;
     ioport_t addr = port - NE2000_IOBASE;
@@ -882,7 +882,7 @@ Bit16u ne2000_io_read16(ioport_t port)
         return ne2000_read(s, addr, 1);
 }
 
-void ne2000_io_write16(ioport_t port, Bit16u value)
+void ne2000_io_write16(ioport_t port, Bit16u value, void *arg)
 {
     NE2000State *s = &ne2000state;
     ioport_t addr = port - NE2000_IOBASE;
@@ -899,7 +899,7 @@ void ne2000_io_write16(ioport_t port, Bit16u value)
 
 /* handle io reads from ne2000 */
 
-Bit8u ne2000_io_read8(ioport_t port)
+Bit8u ne2000_io_read8(ioport_t port, void *arg)
 {
     NE2000State *s = &ne2000state;
     ioport_t addr = port - NE2000_IOBASE;
@@ -912,7 +912,7 @@ Bit8u ne2000_io_read8(ioport_t port)
 
 /* handle io writes to ne2000 */
 
-void ne2000_io_write8(ioport_t port, Bit8u value)
+void ne2000_io_write8(ioport_t port, Bit8u value, void *arg)
 {
     NE2000State *s = &ne2000state;
     ioport_t addr = port - NE2000_IOBASE;

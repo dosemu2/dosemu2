@@ -151,8 +151,8 @@ static void joy_emu_axis_set (const int joynum, const int axis, const int value)
 static int joy_emu_axis_conv (const int linux_val, const int invalid_val);
 
 /* port emulation */
-Bit8u joy_port_inb (ioport_t port);
-void joy_port_outb (ioport_t port, Bit8u value);
+Bit8u joy_port_inb (ioport_t port, void *arg);
+void joy_port_outb (ioport_t port, Bit8u value, void *arg);
 
 
 /*
@@ -1281,7 +1281,7 @@ int joy_bios_read (void)
  *
  * DANG_END_FUNCTION
  */
-Bit8u joy_port_inb (ioport_t port)
+Bit8u joy_port_inb (ioport_t port, void *arg)
 {
 	Bit8u ret = 0;
 	int joynum;
@@ -1347,7 +1347,7 @@ Bit8u joy_port_inb (ioport_t port)
 	return ret;
 }
 
-void joy_port_outb (ioport_t port, Bit8u value)
+void joy_port_outb (ioport_t port, Bit8u value, void *arg)
 {
 #ifdef JOY_PORT_DEBUG
 	joy_port_printf ("port 0x%X: outb()\n", port);

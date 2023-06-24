@@ -1163,14 +1163,14 @@ disk_close_all(void)
 
 static Bit8u floppy_DOR = 0xc;
 
-static Bit8u floppy_io_read(ioport_t port)
+static Bit8u floppy_io_read(ioport_t port, void *arg)
 {
   if (port == 0x3f2)
     return floppy_DOR;
   return 0xff;
 }
 
-static void floppy_io_write(ioport_t port, Bit8u value)
+static void floppy_io_write(ioport_t port, Bit8u value, void *arg)
 {
   if (port == 0x3f2) {
     floppy_DOR = value;

@@ -84,7 +84,7 @@ static void add_dmx(ioport_t port, int val)
   sprintf(dmxs[i].name, "ser_dmx_%hhi", (uint8_t)i);
 }
 
-static Bit8u dmx_readb(ioport_t port)
+static Bit8u dmx_readb(ioport_t port, void *arg)
 {
   int num, i;
   Bit8u val;
@@ -107,7 +107,7 @@ static Bit8u dmx_readb(ioport_t port)
   return val;
 }
 
-static void dmx_writeb(ioport_t port, Bit8u value)
+static void dmx_writeb(ioport_t port, Bit8u value, void *arg)
 {
   s_printf("SER: write to readonly port %#x, val=%#x\n", port, value);
 }
@@ -183,7 +183,8 @@ static void ser_setup_custom(int num)
   }
 }
 
-static Bit8u com_readb(ioport_t port) {
+static Bit8u com_readb(ioport_t port, void *arg)
+{
   int tmp;
   for (tmp = 0; tmp < config.num_ser; tmp++) {
     if (((u_short)(port & ~7)) == com_cfg[tmp].base_port) {
@@ -193,7 +194,8 @@ static Bit8u com_readb(ioport_t port) {
   return 0;
 }
 
-static void com_writeb(ioport_t port, Bit8u value) {
+static void com_writeb(ioport_t port, Bit8u value, void *arg)
+{
   int tmp;
   for (tmp = 0; tmp < config.num_ser; tmp++) {
     if (((u_short)(port & ~7)) == com_cfg[tmp].base_port) {

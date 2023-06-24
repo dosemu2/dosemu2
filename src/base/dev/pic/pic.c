@@ -32,7 +32,7 @@ static PICCommonState pic[2];
 PICCommonState *slave_pic;
 static pthread_mutex_t pic_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-static void write_pic0(ioport_t port, Bit8u value)
+static void write_pic0(ioport_t port, Bit8u value, void *arg)
 {
     r_printf("PIC0: write 0x%x --> 0x%x\n", value, port);
     pthread_mutex_lock(&pic_mtx);
@@ -42,7 +42,7 @@ static void write_pic0(ioport_t port, Bit8u value)
             pic[0].isr, pic[0].imr, pic[0].irr);
 }
 
-static void write_pic1(ioport_t port, Bit8u value)
+static void write_pic1(ioport_t port, Bit8u value, void *arg)
 {
     r_printf("PIC1: write 0x%x --> 0x%x\n", value, port);
     pthread_mutex_lock(&pic_mtx);
@@ -52,7 +52,7 @@ static void write_pic1(ioport_t port, Bit8u value)
             pic[1].isr, pic[1].imr, pic[1].irr);
 }
 
-static Bit8u read_pic0(ioport_t port)
+static Bit8u read_pic0(ioport_t port, void *arg)
 {
     Bit8u ret;
 
@@ -63,7 +63,7 @@ static Bit8u read_pic0(ioport_t port)
     return ret;
 }
 
-static Bit8u read_pic1(ioport_t port)
+static Bit8u read_pic1(ioport_t port, void *arg)
 {
     Bit8u ret;
 
@@ -74,7 +74,7 @@ static Bit8u read_pic1(ioport_t port)
     return ret;
 }
 
-static Bit8u read_elcr(ioport_t port)
+static Bit8u read_elcr(ioport_t port, void *arg)
 {
     Bit8u ret;
 
@@ -84,14 +84,14 @@ static Bit8u read_elcr(ioport_t port)
     return ret;
 }
 
-static void write_elcr(ioport_t port, Bit8u value)
+static void write_elcr(ioport_t port, Bit8u value, void *arg)
 {
     pthread_mutex_lock(&pic_mtx);
     elcr_ioport_write(&pic[port & 1], port & 1, value, 1);
     pthread_mutex_unlock(&pic_mtx);
 }
 
-static Bit8u read_firr(ioport_t port)
+static Bit8u read_firr(ioport_t port, void *arg)
 {
     Bit8u ret;
 
@@ -101,7 +101,7 @@ static Bit8u read_firr(ioport_t port)
     return ret;
 }
 
-static void write_firr(ioport_t port, Bit8u value)
+static void write_firr(ioport_t port, Bit8u value, void *arg)
 {
     pthread_mutex_lock(&pic_mtx);
     pic[port & 1].fake_irr = value;

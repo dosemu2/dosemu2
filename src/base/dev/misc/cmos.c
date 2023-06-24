@@ -37,7 +37,7 @@ cmos_chksum(void)
   return sum;
 }
 
-Bit8u cmos_read(ioport_t port)
+Bit8u cmos_read(ioport_t port, void *arg)
 {
   unsigned char holder = 0;
 
@@ -67,7 +67,7 @@ Bit8u cmos_read(ioport_t port)
   return holder;
 }
 
-void cmos_write(ioport_t port, Bit8u byte)
+void cmos_write(ioport_t port, Bit8u byte, void *arg)
 {
   if (port == 0x70)
     cmos.address = byte & ~0xc0;/* get true address */

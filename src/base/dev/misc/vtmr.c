@@ -88,12 +88,12 @@ static struct vint_presets vip[VTMR_MAX] = {
 
 static int do_vtmr_raise(int timer);
 
-static Bit8u vtmr_irr_read(ioport_t port)
+static Bit8u vtmr_irr_read(ioport_t port, void *arg)
 {
     return vtmr_irr;
 }
 
-static Bit16u vtmr_vpend_read(ioport_t port)
+static Bit16u vtmr_vpend_read(ioport_t port, void *arg)
 {
     /* clang has __atomic_swap() */
     return __atomic_exchange_n(&vtmr_pirr, 0, __ATOMIC_ACQ_REL);
@@ -109,7 +109,7 @@ static void post_req(int timer)
     h_printf("vtmr: post-REQ on %i, irr=%x\n", timer, vtmr_irr);
 }
 
-static void vtmr_io_write(ioport_t port, Bit8u value)
+static void vtmr_io_write(ioport_t port, Bit8u value, void *arg)
 {
     int masked = (value >> 7) & 1;
     int timer = value & 0x7f;

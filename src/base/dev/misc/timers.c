@@ -302,14 +302,14 @@ static void pit_latch(int latch)
 /* This is called also by port 0x61 - some programs can use timer #2
  * as a GP timer and read bit 5 of port 0x61 (e.g. Matrox BIOS)
  */
-Bit8u pit_inp(ioport_t port)
+Bit8u pit_inp(ioport_t port, void *arg)
 {
   int ret = 0;
   port -= 0x40;
 
   if ((port == 2) && (config.speaker == SPKR_NATIVE)) {
 	error ("pit_inp() - how could we come here if we defined PORT_FAST?\n");
-	return safe_port_in_byte(0x42);
+	return port_inb(0x42);
   }
   else if (port == 1)
     i_printf("PIT:  someone is reading the CMOS refresh time?!?");
@@ -344,7 +344,7 @@ Bit8u pit_inp(ioport_t port)
   return ret;
 }
 
-void pit_outp(ioport_t port, Bit8u val)
+void pit_outp(ioport_t port, Bit8u val, void *arg)
 {
 
   port -= 0x40;
@@ -352,7 +352,7 @@ void pit_outp(ioport_t port, Bit8u val)
     i_printf("PORT: someone is writing the CMOS refresh time?!?");
   else if (port == 2 && config.speaker == SPKR_NATIVE) {
     error ("pit_outp() - how could we come here if we defined PORT_FAST?\n");
-    safe_port_out_byte(0x42, val);
+    port_outb(0x42, val);
     return;
   }
 
@@ -403,12 +403,12 @@ void pit_outp(ioport_t port, Bit8u val)
   }
 }
 
-Bit8u pit_control_inp(ioport_t port)
+Bit8u pit_control_inp(ioport_t port, void *arg)
 {
   return 0;
 }
 
-void pit_control_outp(ioport_t port, Bit8u val)
+void pit_control_outp(ioport_t port, Bit8u val, void *arg)
 {
   int latch = (val >> 6) & 0x03;
 
@@ -439,7 +439,7 @@ void pit_control_outp(ioport_t port, Bit8u val)
   switch (latch) {
     case 2:
       if (config.speaker == SPKR_NATIVE) {
-        safe_port_out_byte(0x43, val);
+        port_outb(0x43, val);
 	break;
       }
       /* nobreak; */
@@ -546,7 +546,7 @@ static int timer_irq_ack(int masked)
 Bit8u spkr_io_read(ioport_t port) {
    if (port==0x61)  {
       if (config.speaker == SPKR_NATIVE)
-         return port_safe_inb(0x61);
+         return port_inb(0x61);
       else {
 	 /* keep the connection between port 0x61 and PIT timer#2 */
 	 pit_latch(2);
@@ -562,7 +562,7 @@ void spkr_io_write(ioport_t port, Bit8u value) {
    if (port==0x61) {
       switch (config.speaker) {
        case SPKR_NATIVE:
-          port_safe_outb(0x61, value & 0x03);
+          port_outb(0x61, value & 0x03);
           break;
 
        case SPKR_EMULATED:
