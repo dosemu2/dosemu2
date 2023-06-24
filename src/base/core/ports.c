@@ -1012,23 +1012,16 @@ int port_register_handler(emu_iodev_t device, int flags)
 	}
 
 	port_handles++;
-
+	port_handler[handle] = device;
 	/*
 	 * for byte and double, a NULL function means that the port
 	 * access is not available, while for word means that it will
 	 * be translated into 2 byte accesses
 	 */
-	port_handler[handle].read_portb =
-		(device.read_portb? : port_not_avail_inb);
-	port_handler[handle].write_portb =
-		(device.write_portb? : port_not_avail_outb);
-	port_handler[handle].read_portw = device.read_portw;
-	port_handler[handle].write_portw = device.write_portw;
-	port_handler[handle].read_portd =
-		(device.read_portd? : port_not_avail_ind);
-	port_handler[handle].write_portd =
-		(device.write_portd? : port_not_avail_outd);
-	port_handler[handle].handler_name = device.handler_name;
+	if (!device.read_portb)
+	    port_handler[handle].read_portb = port_not_avail_inb;
+	if (!device.write_portb)
+	    port_handler[handle].write_portb = port_not_avail_outb;
     }
 
   /* change table to reflect new handler id for that address */
