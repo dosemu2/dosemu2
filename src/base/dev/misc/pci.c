@@ -379,7 +379,7 @@ struct pci_funcs *pci_check_conf(void)
 static Bit8u pci_port_inb(ioport_t port, void *arg)
 {
     if (port != 0xcf9)
-	return port_inb(port);
+	return std_port_inb(port);
     return 0;
 }
 
@@ -387,7 +387,7 @@ static void pci_port_outb(ioport_t port, Bit8u byte, void *arg)
 {
     /* don't allow DOSEMU to reset the CPU */
     if (port != 0xcf9)
-	port_outb(port, byte);
+	std_port_outb(port, byte);
 }
 
 /* SIDOC_BEGIN_FUNCTION pci_setup
@@ -471,8 +471,8 @@ static unsigned long pciemu_port_read(ioport_t port, int len)
       val = (val >> ((port & 2) << 3)) & 0xffff;
   } else if (pci->ext_enabled) {
     pci_port_outd(PCI_CONF_ADDR, current_pci_reg);
-    val = len == 1 ? port_inb(port) : len == 2 ? port_inw(port) :
-      port_ind(port);
+    val = len == 1 ? std_port_inb(port) : len == 2 ? std_port_inw(port) :
+      std_port_ind(port);
   } else
     val = 0xffffffff;
   Z_printf("PCIEMU: reading 0x%lx from %#x, len=%d\n",val,num,len);
@@ -513,11 +513,11 @@ static void pciemu_port_write(ioport_t port, unsigned long val, int len)
   } else if (pci->ext_enabled) {
     pci_port_outd(PCI_CONF_ADDR, current_pci_reg);
     if (len == 1)
-      port_outb(port, val);
+      std_port_outb(port, val);
     else if (len == 2)
-      port_outw(port, val);
+      std_port_outw(port, val);
     else
-      port_outd(port, val);
+      std_port_outd(port, val);
   }
   Z_printf("PCIEMU: writing 0x%lx to %#x, len=%d\n",val,num,len);
 }

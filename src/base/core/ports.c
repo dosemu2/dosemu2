@@ -692,7 +692,7 @@ static int r3da_pending = 0;
 void do_r3da_pending (void)
 {
   if (r3da_pending) {
-    (void)port_inb(r3da_pending);
+    (void)std_port_inb(r3da_pending);
     r3da_pending = 0;
   }
 }
