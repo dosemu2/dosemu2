@@ -39,6 +39,7 @@ static struct pcm_holder in[MAX_IN_PLUGINS];
 #define OUT_PLUGIN2(i, j) ((const struct midi_out_plugin *)out[i][j].plugin)
 #define IN_PLUGIN(i) ((const struct midi_in_plugin *)in[i].plugin)
 static int out_registered[ST_MAX], in_registered;
+static int out_enabled[ST_MAX];
 static struct rng_s midi_in;
 #define MAX_DL_HANDLES 10
 static void *dl_handles[MAX_DL_HANDLES];
@@ -50,7 +51,7 @@ void midi_write(unsigned char val, enum SynthType type)
     int i;
     enum SynthType stype = (type == ST_ANY ? synth_type : type);
     /* if no plugin of requested type, then try to use anything */
-    if (!out_registered[stype] && out_registered[synth_type])
+    if (!out_enabled[stype] && out_enabled[synth_type])
 	stype = synth_type;
     for (i = 0; i < out_registered[stype]; i++)
 	if (out[synth_type][i].opened)
@@ -63,7 +64,7 @@ void midi_write(unsigned char val, enum SynthType type)
 
 void midi_init(void)
 {
-    int i;
+    int i, j;
 #ifdef USE_DL_PLUGINS
 #define LOAD_PLUGIN(x) \
     dl_handles[num_dl_handles] = load_plugin(x); \
@@ -80,8 +81,13 @@ void midi_init(void)
 #endif
 #endif
     rng_init(&midi_in, 64, 1);
-    for (i = 0; i < ST_MAX; i++)
+    for (i = 0; i < ST_MAX; i++) {
 	pcm_init_plugins(out[i], out_registered[i]);
+	for (j = 0; j < out_registered[i]; j++) {
+	    if (out[i][j].opened)
+		out_enabled[i]++;
+	}
+    }
     pcm_init_plugins(in, in_registered);
 
     if (!midi_set_synth_type_from_string(config.midi_synth))
@@ -169,7 +175,7 @@ int midi_register_input_plugin(const struct midi_in_plugin *plugin)
 
 int midi_set_synth_type(enum SynthType st)
 {
-    if (st == ST_ANY || st >= ST_MAX || !out_registered[st])
+    if (st == ST_ANY || st >= ST_MAX || !out_enabled[st])
 	return 0;
     synth_type = st;
     return 1;
