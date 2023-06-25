@@ -365,7 +365,7 @@ struct portreq
 static int port_fd_out[2] = {-1, -1};
 static int port_fd_in[2] = {-1, -1};
 
-Bit8u std_port_inb(ioport_t port, void *arg)
+Bit8u std_port_inb(ioport_t port)
 {
         struct portreq pr;
 
@@ -374,7 +374,7 @@ Bit8u std_port_inb(ioport_t port, void *arg)
 	}
 	if (!portserver_pid) {
 		error ("std_port_inb(0x%X): port server unavailable\n", port);
-		return port_not_avail_inb (port, arg);
+		return port_not_avail_inb (port, NULL);
 	}
 	pr.port = port;
 	pr.type = TYPE_INB;
@@ -383,7 +383,12 @@ Bit8u std_port_inb(ioport_t port, void *arg)
 	return pr.word;
 }
 
-void std_port_outb(ioport_t port, Bit8u byte, void *arg)
+static Bit8u std_port_inb_h(ioport_t port, void *arg)
+{
+	return std_port_inb(port);
+}
+
+void std_port_outb(ioport_t port, Bit8u byte)
 {
         struct portreq pr;
 
@@ -394,7 +399,7 @@ void std_port_outb(ioport_t port, Bit8u byte, void *arg)
 	if (!portserver_pid) {
 		error ("std_port_outb(0x%X,0x%X): port server unavailable\n",
 		       port, byte);
-		port_not_avail_outb (port, byte, arg);
+		port_not_avail_outb (port, byte, NULL);
 		return;
 	}
         pr.word = byte;
@@ -404,7 +409,12 @@ void std_port_outb(ioport_t port, Bit8u byte, void *arg)
 	read(port_fd_in[0], &pr, sizeof(pr));
 }
 
-Bit16u std_port_inw(ioport_t port, void *arg)
+static void std_port_outb_h(ioport_t port, Bit8u byte, void *arg)
+{
+	std_port_outb(port, byte);
+}
+
+Bit16u std_port_inw(ioport_t port)
 {
         struct portreq pr;
 
@@ -413,7 +423,7 @@ Bit16u std_port_inw(ioport_t port, void *arg)
         }
 	if (!portserver_pid) {
 		error ("std_port_inw(0x%X): port server unavailable\n", port);
-		return port_not_avail_inw (port, arg);
+		return port_not_avail_inw (port, NULL);
 	}
         pr.port = port;
         pr.type = TYPE_INW;
@@ -422,7 +432,12 @@ Bit16u std_port_inw(ioport_t port, void *arg)
 	return pr.word;
 }
 
-void std_port_outw(ioport_t port, Bit16u word, void *arg)
+static Bit16u std_port_inw_h(ioport_t port, void *arg)
+{
+	return std_port_inw(port);
+}
+
+void std_port_outw(ioport_t port, Bit16u word)
 {
         struct portreq pr;
 
@@ -433,7 +448,7 @@ void std_port_outw(ioport_t port, Bit16u word, void *arg)
 	if (!portserver_pid) {
 		error ("std_port_outw(0x%X,0x%X): port server unavailable\n",
 		       port, word);
-		port_not_avail_outw (port, word, arg);
+		port_not_avail_outw (port, word, NULL);
 		return;
 	}
         pr.word = word;
@@ -443,7 +458,12 @@ void std_port_outw(ioport_t port, Bit16u word, void *arg)
 	read(port_fd_in[0], &pr, sizeof(pr));
 }
 
-Bit32u std_port_ind(ioport_t port, void *arg)
+static void std_port_outw_h(ioport_t port, Bit16u word, void *arg)
+{
+	std_port_outw(port, word);
+}
+
+Bit32u std_port_ind(ioport_t port)
 {
         struct portreq pr;
 
@@ -452,13 +472,18 @@ Bit32u std_port_ind(ioport_t port, void *arg)
         }
 	if (!portserver_pid) {
 		error ("std_port_ind(0x%X): port server unavailable\n", port);
-		return port_not_avail_ind (port, arg);
+		return port_not_avail_ind (port, NULL);
 	}
         pr.port = port;
         pr.type = TYPE_IND;
 	write(port_fd_out[1], &pr, sizeof(pr));
 	read(port_fd_in[0], &pr, sizeof(pr));
 	return pr.word;
+}
+
+static Bit32u std_port_ind_h(ioport_t port, void *arg)
+{
+	return std_port_ind(port);
 }
 
 static int do_port_outd(ioport_t port, Bit32u dword, int pci)
@@ -482,11 +507,16 @@ static int do_port_outd(ioport_t port, Bit32u dword, int pci)
 	return 1;
 }
 
-void std_port_outd(ioport_t port, Bit32u dword, void *arg)
+void std_port_outd(ioport_t port, Bit32u dword)
 {
         struct portreq pr;
 	if (do_port_outd(port, dword, 0))
 		read(port_fd_in[0], &pr, sizeof(pr));
+}
+
+static void std_port_outd_h(ioport_t port, Bit32u dword, void *arg)
+{
+	std_port_outd(port, dword);
 }
 
 void pci_port_outd(ioport_t port, Bit32u dword)
@@ -715,9 +745,9 @@ static void special_port_outb(ioport_t port, Bit8u byte, void *arg)
 		 */
 		if (config.vga && (config.emuretrace>1)) {
 		    if (r3da_pending) {
-			(void)std_port_inb(r3da_pending, arg);
+			(void)std_port_inb_h(r3da_pending, arg);
 			r3da_pending = 0;
-			std_port_outb(0x3c0, byte, arg);
+			std_port_outb_h(0x3c0, byte, arg);
 			return;
 		    }
 		    goto defout;
@@ -734,7 +764,7 @@ static void special_port_outb(ioport_t port, Bit8u byte, void *arg)
 	}
 
 defout:
-	std_port_outb (port, byte, arg);
+	std_port_outb_h (port, byte, arg);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -777,28 +807,28 @@ int port_init(void)
   /* the STD handles will be in use by many devices, and their fd
      will always be -1
    */
-	port_handler[HANDLE_STD_IO].read_portb = std_port_inb;
-	port_handler[HANDLE_STD_IO].write_portb = std_port_outb;
-	port_handler[HANDLE_STD_IO].read_portw = std_port_inw;
-	port_handler[HANDLE_STD_IO].write_portw = std_port_outw;
-	port_handler[HANDLE_STD_IO].read_portd = std_port_ind;
-	port_handler[HANDLE_STD_IO].write_portd = std_port_outd;
+	port_handler[HANDLE_STD_IO].read_portb = std_port_inb_h;
+	port_handler[HANDLE_STD_IO].write_portb = std_port_outb_h;
+	port_handler[HANDLE_STD_IO].read_portw = std_port_inw_h;
+	port_handler[HANDLE_STD_IO].write_portw = std_port_outw_h;
+	port_handler[HANDLE_STD_IO].read_portd = std_port_ind_h;
+	port_handler[HANDLE_STD_IO].write_portd = std_port_outd_h;
 	port_handler[HANDLE_STD_IO].handler_name = "std port io";
 
-	port_handler[HANDLE_STD_RD].read_portb = std_port_inb;
+	port_handler[HANDLE_STD_RD].read_portb = std_port_inb_h;
 	port_handler[HANDLE_STD_RD].write_portb = port_not_avail_outb;
-	port_handler[HANDLE_STD_RD].read_portw = std_port_inw;
+	port_handler[HANDLE_STD_RD].read_portw = std_port_inw_h;
 	port_handler[HANDLE_STD_RD].write_portw = port_not_avail_outw;
-	port_handler[HANDLE_STD_RD].read_portd = std_port_ind;
+	port_handler[HANDLE_STD_RD].read_portd = std_port_ind_h;
 	port_handler[HANDLE_STD_RD].write_portd = port_not_avail_outd;
 	port_handler[HANDLE_STD_RD].handler_name = "std port read";
 
 	port_handler[HANDLE_STD_WR].read_portb = port_not_avail_inb;
-	port_handler[HANDLE_STD_WR].write_portb = std_port_outb;
+	port_handler[HANDLE_STD_WR].write_portb = std_port_outb_h;
 	port_handler[HANDLE_STD_WR].read_portw = port_not_avail_inw;
-	port_handler[HANDLE_STD_WR].write_portw = std_port_outw;
+	port_handler[HANDLE_STD_WR].write_portw = std_port_outw_h;
 	port_handler[HANDLE_STD_WR].read_portd = port_not_avail_ind;
-	port_handler[HANDLE_STD_WR].write_portd = std_port_outd;
+	port_handler[HANDLE_STD_WR].write_portd = std_port_outd_h;
 	port_handler[HANDLE_STD_WR].handler_name = "std port write";
 #if 0
 	port_handler[HANDLE_VID_IO].read_portb = video_port_in;
@@ -809,12 +839,12 @@ int port_init(void)
 	port_handler[HANDLE_VID_IO].write_portd = NULL;
 	port_handler[HANDLE_VID_IO].handler_name = "video port io";
 #else
-	port_handler[HANDLE_VID_IO].read_portb = std_port_inb;
-	port_handler[HANDLE_VID_IO].write_portb = std_port_outb;
-	port_handler[HANDLE_VID_IO].read_portw = std_port_inw;
-	port_handler[HANDLE_VID_IO].write_portw = std_port_outw;
-	port_handler[HANDLE_VID_IO].read_portd = std_port_ind;
-	port_handler[HANDLE_VID_IO].write_portd = std_port_outd;
+	port_handler[HANDLE_VID_IO].read_portb = std_port_inb_h;
+	port_handler[HANDLE_VID_IO].write_portb = std_port_outb_h;
+	port_handler[HANDLE_VID_IO].read_portw = std_port_inw_h;
+	port_handler[HANDLE_VID_IO].write_portw = std_port_outw_h;
+	port_handler[HANDLE_VID_IO].read_portd = std_port_ind_h;
+	port_handler[HANDLE_VID_IO].write_portd = std_port_outd_h;
 	port_handler[HANDLE_VID_IO].handler_name = "std port io";
 #endif
 

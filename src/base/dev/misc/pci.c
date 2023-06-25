@@ -398,17 +398,13 @@ static void pci_port_outb(ioport_t port, Bit8u byte, void *arg)
  */
 int pci_setup (void)
 {
-  emu_iodev_t io_device;
+  emu_iodev_t io_device = {};
 
   if (config.pci) {
     pcibios_init();
     /* register PCI ports */
     io_device.read_portb = pci_port_inb;
     io_device.write_portb = pci_port_outb;
-    io_device.read_portw = std_port_inw;
-    io_device.write_portw = std_port_outw;
-    io_device.read_portd = std_port_ind;
-    io_device.write_portd = std_port_outd;
 
     if (pciConfigType->name[0] == '1') {
       io_device.handler_name = "PCI Config Type 1";
