@@ -1039,7 +1039,7 @@ static void mhp_dump(int argc, char * argv[])
       } else {
          snprintf(lastd, sizeof(lastd), "%x:%x", seg, off + i);
       }
-   } else if (unix) {
+   } else if (unixaddr) {
       snprintf(lastd, sizeof(lastd), "%#x", seekval + i);
    } else {
       snprintf(lastd, sizeof(lastd), "%x", seekval + i);
