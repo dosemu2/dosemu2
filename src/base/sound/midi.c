@@ -45,10 +45,14 @@ static void *dl_handles[MAX_DL_HANDLES];
 static int num_dl_handles;
 static enum SynthType synth_type;
 
-void midi_write(unsigned char val)
+void midi_write(unsigned char val, enum SynthType type)
 {
     int i;
-    for (i = 0; i < out_registered[synth_type]; i++)
+    enum SynthType stype = (type == ST_ANY ? synth_type : type);
+    /* if no plugin of requested type, then try to use anything */
+    if (!out_registered[stype] && out_registered[synth_type])
+	stype = synth_type;
+    for (i = 0; i < out_registered[stype]; i++)
 	if (out[synth_type][i].opened)
 	    OUT_PLUGIN(i)->write(val);
     for (i = 0; i < out_registered[ST_ANY]; i++)
@@ -165,7 +169,7 @@ int midi_register_input_plugin(const struct midi_in_plugin *plugin)
 
 int midi_set_synth_type(enum SynthType st)
 {
-    if (st == ST_ANY || st >= ST_MAX)
+    if (st == ST_ANY || st >= ST_MAX || !out_registered[st])
 	return 0;
     synth_type = st;
     return 1;
@@ -178,13 +182,10 @@ enum SynthType midi_get_synth_type(void)
 
 int midi_set_synth_type_from_string(const char *stype)
 {
-    if (strcmp(stype, "gm") == 0) {
-	midi_set_synth_type(ST_GM);
-    } else if (strcmp(stype, "mt32") == 0) {
-	midi_set_synth_type(ST_MT32);
-    } else {
-	midi_set_synth_type(ST_GM);
-	return 0;
-    }
-    return 1;
+    if (strcmp(stype, "gm") == 0)
+	return midi_set_synth_type(ST_GM);
+    if (strcmp(stype, "mt32") == 0)
+	return midi_set_synth_type(ST_MT32);
+    midi_set_synth_type(ST_GM);
+    return 0;
 }

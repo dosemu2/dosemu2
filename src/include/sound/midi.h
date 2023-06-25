@@ -57,7 +57,7 @@ struct midi_in_plugin {
 #endif
 };
 
-extern void midi_write(unsigned char val);
+extern void midi_write(unsigned char val, enum SynthType type);
 extern void midi_init(void);
 extern void midi_done(void);
 extern void midi_stop(void);

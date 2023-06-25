@@ -35,6 +35,7 @@ struct mpu401_s {
   int uart:1;
   ioport_t base;
   struct mpu401_ops *ops;
+  enum SynthType stype;
 };
 
 static void mpu401_stop_midi(struct mpu401_s *mpu)
@@ -92,7 +93,7 @@ void mpu401_process(struct mpu401_s *mpu)
     /* no timing for now */
     while (!midi_output_empty(mpu)) {
 	data = get_midi_data(mpu);
-	midi_write(data);
+	midi_write(data, mpu->stype);
     }
 
     while (midi_get_data_byte(&data)) {
@@ -182,7 +183,8 @@ static void mpu401_io_write(ioport_t port, Bit8u value, void *arg)
     }
 }
 
-struct mpu401_s *mpu401_init(ioport_t base, struct mpu401_ops *ops)
+struct mpu401_s *mpu401_init(ioport_t base, enum SynthType stype,
+	struct mpu401_ops *ops)
 {
     emu_iodev_t io_device;
     struct mpu401_s *mpu;
@@ -211,6 +213,7 @@ struct mpu401_s *mpu401_init(ioport_t base, struct mpu401_ops *ops)
     rng_init(&mpu->fifo_in, MIDI_FIFO_SIZE, 1);
     rng_init(&mpu->fifo_out, MIDI_FIFO_SIZE, 1);
     mpu->base = base;
+    mpu->stype = stype;
     mpu->ops = ops;
     return mpu;
 }

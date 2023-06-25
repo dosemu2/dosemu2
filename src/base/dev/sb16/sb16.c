@@ -883,7 +883,7 @@ static void sb_dsp_write(Bit8u value)
     case 0x38:			/* Midi Write */
 	REQ_PARAMS(1);
 	S_printf("SB: Write 0x%x to SB Midi Port\n", sb.command[1]);
-	midi_write(sb.command[1]);
+	midi_write(sb.command[1], ST_GM);
 	break;
 
 	/* == SAMPLE SPEED == */
@@ -1633,7 +1633,7 @@ static void sb_io_write(ioport_t port, Bit8u value, void *arg)
 	/* == DSP == */
     case 0x0C:			/* dsp write register */
 	if (sb_midi_uart()) {
-	    midi_write(value);
+	    midi_write(value, ST_GM);
 	    break;
 	}
 	if (sb_dma_active() && sb_dma_high_speed()) {
@@ -1884,7 +1884,8 @@ static void sb_init(void)
     } else {
 	config.mpu401_uart_irq_mt32 = config.mpu401_irq;
     }
-    sb.mpu = mpu401_init(config.mpu401_base, &mops);
+    // TODO: add another MPU and use ST_GM here
+    sb.mpu = mpu401_init(config.mpu401_base, ST_ANY, &mops);
 
     S_printf("SB: Initialisation - Base 0x%03x\n", config.sb_base);
 }
