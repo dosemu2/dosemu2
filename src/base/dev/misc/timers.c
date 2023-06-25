@@ -309,7 +309,7 @@ Bit8u pit_inp(ioport_t port, void *arg)
 
   if ((port == 2) && (config.speaker == SPKR_NATIVE)) {
 	error ("pit_inp() - how could we come here if we defined PORT_FAST?\n");
-	return port_inb(0x42);
+	return std_port_inb(0x42);
   }
   else if (port == 1)
     i_printf("PIT:  someone is reading the CMOS refresh time?!?");
@@ -352,7 +352,7 @@ void pit_outp(ioport_t port, Bit8u val, void *arg)
     i_printf("PORT: someone is writing the CMOS refresh time?!?");
   else if (port == 2 && config.speaker == SPKR_NATIVE) {
     error ("pit_outp() - how could we come here if we defined PORT_FAST?\n");
-    port_outb(0x42, val);
+    std_port_outb(0x42, val);
     return;
   }
 
@@ -439,7 +439,7 @@ void pit_control_outp(ioport_t port, Bit8u val, void *arg)
   switch (latch) {
     case 2:
       if (config.speaker == SPKR_NATIVE) {
-        port_outb(0x43, val);
+        std_port_outb(0x43, val);
 	break;
       }
       /* nobreak; */
@@ -546,7 +546,7 @@ static int timer_irq_ack(int masked)
 Bit8u spkr_io_read(ioport_t port) {
    if (port==0x61)  {
       if (config.speaker == SPKR_NATIVE)
-         return port_inb(0x61);
+         return std_port_inb(0x61);
       else {
 	 /* keep the connection between port 0x61 and PIT timer#2 */
 	 pit_latch(2);
@@ -562,7 +562,7 @@ void spkr_io_write(ioport_t port, Bit8u value) {
    if (port==0x61) {
       switch (config.speaker) {
        case SPKR_NATIVE:
-          port_outb(0x61, value & 0x03);
+          std_port_outb(0x61, value & 0x03);
           break;
 
        case SPKR_EMULATED:

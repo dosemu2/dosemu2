@@ -160,7 +160,7 @@ void speaker_pause (void)
 	{
 	case SPKR_NATIVE:
 		saved_port_val = port_inb (0x61);
-	 	port_outb (0x61, saved_port_val & 0xFC);	/* clear timer & speaker bits */
+		std_port_outb (0x61, saved_port_val & 0xFC);	/* clear timer & speaker bits */
 		break;
 	case SPKR_EMULATED:
 		speaker_off ();
@@ -175,7 +175,7 @@ void speaker_resume (void)
 	switch (config.speaker)
 	{
 	case SPKR_NATIVE:
-		port_outb (0x61, saved_port_val);	/* restore timer & speaker bits */
+		std_port_outb (0x61, saved_port_val);	/* restore timer & speaker bits */
 		break;
 	case SPKR_EMULATED:
 //		do_sound(pit[2].write_latch & 0xffff);

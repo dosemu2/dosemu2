@@ -98,12 +98,12 @@ extern void    port_outb(ioport_t port, Bit8u byte);
 extern void    port_outw(ioport_t port, Bit16u word);
 extern void    port_outd(ioport_t port, Bit32u word);
 
-extern Bit8u  std_port_inb(ioport_t port, void *arg);
-extern void   std_port_outb(ioport_t port, Bit8u byte, void *arg);
-extern Bit16u std_port_inw(ioport_t port, void *arg);
-extern void   std_port_outw(ioport_t port, Bit16u word, void *arg);
-extern Bit32u std_port_ind(ioport_t port, void *arg);
-extern void   std_port_outd(ioport_t port, Bit32u word, void *arg);
+extern Bit8u  std_port_inb(ioport_t port);
+extern void   std_port_outb(ioport_t port, Bit8u byte);
+extern Bit16u std_port_inw(ioport_t port);
+extern void   std_port_outw(ioport_t port, Bit16u word);
+extern Bit32u std_port_ind(ioport_t port);
+extern void   std_port_outd(ioport_t port, Bit32u word);
 extern void   pci_port_outd(ioport_t port, Bit32u word);
 
 extern int port_rep_inb(ioport_t port, Bit8u *dest, int df, Bit32u count);
