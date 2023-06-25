@@ -3404,9 +3404,9 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         }
         assert(cnt1 <= cnt);
 #if 1
-        if (cnt1 <= 0) {  // allow partial reads even though DOS does not
+        if (cnt1 == 0) {  // allow partial reads even though DOS does not
 #else
-        if (cnt1 < cnt) {  // partial reads not allowed
+        if (cnt1 != -1 && cnt1 < cnt) {  // partial reads not allowed
           if (locked) {
             region_unlock_offs(f->fd);
             locked = 0;
@@ -3504,9 +3504,9 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         }
         assert(cnt1 <= cnt);
 #if 1
-        if (cnt1 <= 0) {  // allow partial writes even though DOS does not
+        if (cnt1 == 0) {  // allow partial writes even though DOS does not
 #else
-        if (cnt1 < cnt) {  // partial writes not allowed
+        if (cnt1 != -1 && cnt1 < cnt) {  // partial writes not allowed
           if (locked) {
             region_unlock_offs(f->fd);
             locked = 0;
