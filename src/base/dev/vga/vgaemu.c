@@ -445,8 +445,7 @@ int VGA_emulate_outb(ioport_t port, Bit8u value, void *arg)
 
 static void VGA_emulate_outb_handler(ioport_t port, Bit8u value, void *arg)
 {
-    int ret = VGA_emulate_outb(port, value, arg);
-    assert(ret!=-1);
+    VGA_emulate_outb(port, value, arg);
 }
 
 static void VGA_emulate_outw_handler(ioport_t port, Bit16u value, void *arg)
@@ -569,9 +568,7 @@ int VGA_emulate_inb(ioport_t port, void *arg)
 
 static Bit8u VGA_emulate_inb_handler(ioport_t port, void *arg)
 {
-    int ret = VGA_emulate_inb(port, arg);
-    assert(ret != -1);
-    return ret;
+    return VGA_emulate_inb(port, arg);
 }
 
 static Bit16u VGA_emulate_inw_handler(ioport_t port, void *arg)
