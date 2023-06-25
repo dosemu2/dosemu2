@@ -189,7 +189,7 @@ static const struct midi_out_plugin midoalsa_v
     midoalsav_write,
     NULL, NULL,
     ST_MT32,
-    0
+    PCM_F_EXPLICIT
 };
 #else
 = {
@@ -200,6 +200,7 @@ static const struct midi_out_plugin midoalsa_v
     .close = midoalsav_done,
     .write = midoalsav_write,
     .stype = ST_MT32,
+    .flags = PCM_F_EXPLICIT
 };
 #endif
 
