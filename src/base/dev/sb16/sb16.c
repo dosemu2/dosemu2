@@ -479,6 +479,10 @@ static void sb_run_irq(int type)
     if (!sb_irq_active(type))
 	return;
     S_printf("SB: Run irq type %d\n", type);
+    if (type & SB_IRQ_DSP)
+	pic_untrigger(sb_get_dsp_irq_num());
+    if (type & SB_IRQ_MPU401)
+	pic_untrigger(get_mpu401_irq_num());
     sb_request_irq(type);
 }
 
