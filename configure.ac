@@ -99,9 +99,6 @@ if test -z "$OBJCOPY"; then
     AC_MSG_ERROR(objcopy not found)
   fi
   OBJCOPY="$LOBJCOPY"
-  O_BDFARCH="elf64-x86-64"
-else
-  O_BDFARCH=`$OBJCOPY --info | head -n 2 | tail -n 1`
 fi
 
 AC_PATH_PROGS([XOBJCOPY], [i686-linux-gnu-objcopy x86_64-linux-gnu-objcopy objcopy])
@@ -112,7 +109,6 @@ AC_SUBST(AS)
 AC_SUBST(XAS)
 AC_SUBST(AS_LD)
 AC_SUBST(XOBJCOPY)
-AC_SUBST(O_BDFARCH)
 
 AC_ARG_WITH(target-bits-32, [AS_HELP_STRING([--with-target-bits-32],
     [build for 32bit target (multilib in case of x86_64 host)])],
