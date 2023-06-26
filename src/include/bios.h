@@ -130,9 +130,8 @@ void            bios_setup_init(void);
 
 void post_hook(void);
 
-extern char _binary_bios_o_bin_end[];
-extern char _binary_bios_o_bin_size[];
-extern char _binary_bios_o_bin_start[];
+extern char _binary_bios_o_bin_end[] asm("_binary_bios_o_bin_end");
+extern char _binary_bios_o_bin_start[] asm("_binary_bios_o_bin_start");
 
 #ifdef __cplusplus
 };

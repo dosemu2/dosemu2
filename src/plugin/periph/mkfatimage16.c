@@ -34,12 +34,10 @@
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
-extern char _binary_bootnorm_o_bin_end[];
-extern char _binary_bootnorm_o_bin_size[];
-extern char _binary_bootnorm_o_bin_start[];
-extern char _binary_bootsect_o_bin_end[];
-extern char _binary_bootsect_o_bin_size[];
-extern char _binary_bootsect_o_bin_start[];
+extern char _binary_bootnorm_o_bin_end[] asm("_binary_bootnorm_o_bin_end");
+extern char _binary_bootnorm_o_bin_start[] asm("_binary_bootnorm_o_bin_start");
+extern char _binary_bootsect_o_bin_end[] asm("_binary_bootsect_o_bin_end");
+extern char _binary_bootsect_o_bin_start[] asm("_binary_bootsect_o_bin_start");
 
 /* These can be changed -- at least in theory. In practise, it doesn't
  * seem to work very well (I don't know why).

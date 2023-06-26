@@ -665,13 +665,11 @@ extern unsigned char vga_rom_16_alt[1];
  * vbe_init() to setup the struct vgaemu_bios which holds all relevant
  * info about our BIOS.
  */
-extern char _binary_vesabios_o_bin_end[];
-extern char _binary_vesabios_o_bin_size[];
-extern char _binary_vesabios_o_bin_start[];
+extern char _binary_vesabios_o_bin_end[] asm("_binary_vesabios_o_bin_end");
+extern char _binary_vesabios_o_bin_start[] asm("_binary_vesabios_o_bin_start");
 
-extern char _binary_vesabios_pm_o_bin_end[];
-extern char _binary_vesabios_pm_o_bin_size[];
-extern char _binary_vesabios_pm_o_bin_start[];
+extern char _binary_vesabios_pm_o_bin_end[] asm("_binary_vesabios_pm_o_bin_end");
+extern char _binary_vesabios_pm_o_bin_start[] asm("_binary_vesabios_pm_o_bin_start");
 
 #ifdef __cplusplus
 };
