@@ -1843,7 +1843,7 @@ static void mpu_run_irq(struct mpu401_s *mpu)
     sb_run_irq(SB_IRQ_MPU401);
 }
 
-struct mpu401_ops mops = {
+static struct mpu401_ops mops = {
     .activate_irq = mpu_activate_irq,
     .deactivate_irq = mpu_deactivate_irq,
     .run_irq = mpu_run_irq,
