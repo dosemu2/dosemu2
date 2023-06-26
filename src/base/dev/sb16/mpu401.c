@@ -100,7 +100,7 @@ void mpu401_process(struct mpu401_s *mpu)
 	put_midi_in_byte(mpu, data);
 #define MPU401_IN_FIFO_TRIGGER 1
 	if (mpu->uart && (get_midi_in_fillup(mpu) == MPU401_IN_FIFO_TRIGGER))
-	    mpu->ops->activate_irq();
+	    mpu->ops->activate_irq(mpu);
     }
 }
 
@@ -122,8 +122,8 @@ static Bit8u mpu401_io_read(ioport_t port, void *arg)
 	S_printf("MPU401: Read data port = 0x%02x, %i bytes still in queue\n",
 	     r, get_midi_in_fillup(mpu));
 	if (!get_midi_in_fillup(mpu))
-	    mpu->ops->deactivate_irq();
-	mpu->ops->run_irq();
+	    mpu->ops->deactivate_irq(mpu);
+	mpu->ops->run_irq(mpu);
 	break;
     case 1:
 	/* Read status port */
@@ -178,7 +178,7 @@ static void mpu401_io_write(ioport_t port, Bit8u value, void *arg)
 	    put_midi_in_byte(mpu, 0x1);
 	    break;
 	}
-	mpu->ops->activate_irq();
+	mpu->ops->activate_irq(mpu);
 	break;
     }
 }

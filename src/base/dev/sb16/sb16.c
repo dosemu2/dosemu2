@@ -1823,17 +1823,17 @@ static void sb_dsp_done(void)
     rng_destroy(&sb.dsp_queue);
 }
 
-static void mpu_activate_irq(void)
+static void mpu_activate_irq(struct mpu401_s *mpu)
 {
     sb_activate_irq(SB_IRQ_MPU401);
 }
 
-static void mpu_deactivate_irq(void)
+static void mpu_deactivate_irq(struct mpu401_s *mpu)
 {
     sb_deactivate_irq(SB_IRQ_MPU401);
 }
 
-static void mpu_run_irq(void)
+static void mpu_run_irq(struct mpu401_s *mpu)
 {
     sb_run_irq(SB_IRQ_MPU401);
 }
