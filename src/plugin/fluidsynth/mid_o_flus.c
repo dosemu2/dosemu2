@@ -76,7 +76,7 @@ static int midoflus_init(void *arg)
 
     settings = new_fluid_settings();
     fluid_settings_setint(settings, "synth.lock-memory", 0);
-    fluid_settings_setnum(settings, "synth.gain", config.fluid_volume / 10.0);
+    fluid_settings_setnum(settings, "synth.gain", config.fluid_volume / 4.0);
     fluid_settings_setnum(settings, "synth.sample-rate", flus_srate);
     if (config.fluid_sfont && config.fluid_sfont[0]) {
 	if (access(config.fluid_sfont, R_OK) == 0) {
