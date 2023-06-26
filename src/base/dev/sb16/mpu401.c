@@ -220,6 +220,7 @@ struct mpu401_s *mpu401_init(ioport_t base, enum SynthType stype,
 
 void mpu401_reset(struct mpu401_s *mpu)
 {
+    mpu->ops->deactivate_irq(mpu);
     mpu->uart = 0;
 }
 

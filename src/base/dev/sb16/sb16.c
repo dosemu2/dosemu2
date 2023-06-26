@@ -574,6 +574,7 @@ static void sb_dsp_reset(void)
     dspio_toggle_speaker(sb.dspio, 0);
     dspio_clear_fifos(sb.dspio);
     rng_clear(&sb.dsp_queue);
+    sb_deactivate_irq(SB_IRQ_ALL);
     sb.paused = 0;
     sb.midi_cmd = 0;
     sb.dma_mode = 0;
