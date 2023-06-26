@@ -3417,7 +3417,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
         }
-        cnt = cnt1;
+        if (cnt1 != -1)
+          cnt = cnt1;
       }
       Debug0((dbg_fd, "Read file fd=%d, dta=%#x, cnt=%d\n", f->fd, dta, cnt));
       Debug0((dbg_fd, "Read file pos = %"PRIu64"\n", f->seek));
@@ -3517,7 +3518,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
         }
-        cnt = cnt1;
+        if (cnt1 != -1)
+          cnt = cnt1;
 
         s_pos = lseek(f->fd, f->seek, SEEK_SET);
         if (s_pos < 0 && errno != ESPIPE) {
