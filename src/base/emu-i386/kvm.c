@@ -56,7 +56,7 @@
                      ~X86_EFLAGS_RF) // 0x244dff
 
 extern char _binary_kvmmon_o_bin_end[] asm("_binary_kvmmon_o_bin_end");
-extern char _binary_kvmmon_o_bin_start[] asm("_binary_dpmisel_o_bin_start");
+extern char _binary_kvmmon_o_bin_start[] asm("_binary_kvmmon_o_bin_start");
 
 /* V86/DPMI monitor structure to run code in V86 mode with VME enabled
    or DPMI clients inside KVM

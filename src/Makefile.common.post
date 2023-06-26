@@ -102,6 +102,7 @@ VS = $(subst .,_,$(notdir $(1)))_START
 	          print "\".incbin \\\"$@.bin\\\"\\n\"";\
 	          print "\".globl _binary_$(@:.o=)_o_bin_end\\n\"";\
 	          print "\"_binary_$(@:.o=)_o_bin_end:\\n\"";\
+	          print "\".previous\\n\"";\
 	          print ");";\
 	          print "#include \"$(srcdir)/$(@:.o=)_offsets.h\"";\
 		}\
