@@ -72,6 +72,8 @@ static int midomunt_init(void *arg)
 	goto err;
     }
 
+    mt32emu_set_output_gain(ctx, config.fluid_volume);
+
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
