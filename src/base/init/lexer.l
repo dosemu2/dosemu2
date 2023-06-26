@@ -549,6 +549,7 @@ sb_irq                  RETURN(SB_IRQ);
 sb_dma                  RETURN(SB_DMA);
 sb_hdma                 RETURN(SB_HDMA);
 mpu_base                RETURN(MPU_BASE);
+mpu_base_mt32           RETURN(MPU_BASE_MT32);
 midi_synth              RETURN(MIDI_SYNTH);
 mpu_irq                 RETURN(MPU_IRQ);
 mpu_irq_mt32            RETURN(MPU_IRQ_MT32);

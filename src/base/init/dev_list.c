@@ -83,6 +83,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
 #endif
   { "disks",   disk_init,    disk_reset,    NULL },
   { "sound",   sound_init,   sound_reset,   sound_done },
+  { "mt32",    mt32_init,    mt32_reset,    mt32_done },
   { "joystick", joy_init,    joy_reset,     joy_term },
 #ifdef IPX
   { "ipx",      ipx_init,    NULL,          ipx_close },

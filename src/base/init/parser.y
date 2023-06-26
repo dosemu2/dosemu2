@@ -300,7 +300,8 @@ enum {
 	/* hardware ram mapping */
 %token HARDWARE_RAM
         /* Sound Emulation */
-%token SB_BASE SB_IRQ SB_DMA SB_HDMA MPU_BASE MPU_IRQ MPU_IRQ_MT32 MIDI_SYNTH
+%token SB_BASE SB_IRQ SB_DMA SB_HDMA MPU_BASE MPU_BASE_MT32
+%token MPU_IRQ MPU_IRQ_MT32 MIDI_SYNTH
 %token SOUND_DRIVER MIDI_DRIVER FLUID_SFONT FLUID_VOLUME
 %token MUNT_ROMS OPL2LPT_DEV OPL2LPT_TYPE
 %token SND_PLUGIN_PARAMS PCM_HPF MIDI_FILE WAV_FILE
@@ -1122,6 +1123,7 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| SB_HDMA expression { config.sb_hdma = $2; }
 		| SB_IRQ expression	{ config.sb_irq = $2; }
 		| MPU_BASE expression	{ config.mpu401_base = $2; }
+		| MPU_BASE_MT32 expression	{ config.mpu401_base_mt32 = $2; }
 		| MIDI_SYNTH string_expr	{ free(config.midi_synth); config.midi_synth = $2; }
 		| MPU_IRQ int_bool	{ config.mpu401_irq = $2; }
 		| MPU_IRQ_MT32 expression	{ config.mpu401_irq_mt32 = $2; }

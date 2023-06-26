@@ -41,6 +41,5 @@ extern void dspio_clear_fifos(struct dspio_state *dspio);
 extern int dspio_input_enable(struct dspio_state *dspio, enum MixChan mc);
 extern int dspio_input_disable(struct dspio_state *dspio, enum MixChan mc);
 extern double dspio_calc_vol(int val, int step, int init_db);
-extern int dspio_is_mt32_mode(void);
 
 #endif

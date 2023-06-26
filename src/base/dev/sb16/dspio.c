@@ -398,11 +398,6 @@ void dspio_done(struct dspio_state *dspio)
     free(dspio);
 }
 
-int dspio_is_mt32_mode(void)
-{
-    return (midi_get_synth_type() == ST_MT32);
-}
-
 void dspio_stop_midi(struct dspio_state *dspio)
 {
     dspio->midi_time_cur = GETusTIME(0);

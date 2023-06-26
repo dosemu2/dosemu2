@@ -124,7 +124,7 @@
 #define ENTSR_OWC 0x80  /* There was an out-of-window collision. */
 
 #define NE2000_IRQ          10
-#define NE2000_IOBASE    0x300
+#define NE2000_IOBASE       0x310
 
 #define NE2000_PMEM_SIZE    (32 * 1024)
 #define NE2000_PMEM_START   (16 * 1024)

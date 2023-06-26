@@ -88,4 +88,8 @@ extern void  hdisk_reset(void);
 extern void  floppy_init(void);
 extern void  floppy_reset(void);
 
+void mt32_init(void);
+void mt32_reset(void);
+void mt32_done(void);
+
 #endif /* _EMU_IODEV_H */

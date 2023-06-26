@@ -68,7 +68,7 @@ static void blaster_setenv(void)
 	}
 
 	snprintf(blaster, sizeof(blaster), "SYNTH:%d MAP:%c MODE:%d",
-	    SYNTH_MPU401, MAP_EXTENDED, get_mode_num());
+	    SYNTH_MPU401, MAP_EXTENDED, /*get_mode_num()*/ 0);
 
 	com_printf("MIDI=%s\n", blaster);
 	if (msetenv("MIDI", blaster) == -1) {
@@ -83,10 +83,14 @@ static void show_settings(void)
 	if (config.sb_hdma) {
 		com_printf(", DMA16=%d", config.sb_hdma);
 	}
-
-	com_printf(". MPU-401 at 0x%x-0x%x, IRQ=%d.\n",
+	com_printf("\n");
+	com_printf("MPU-401 at 0x%x-0x%x, IRQ=%d\n",
 			config.mpu401_base, config.mpu401_base+1,
-			get_mpu401_irq_num());
+			config.mpu401_irq);
+	com_printf("\n");
+	com_printf("MT32 MPU-401 at 0x%x-0x%x, IRQ=%d\n",
+			config.mpu401_base_mt32, config.mpu401_base_mt32+1,
+			config.mpu401_irq_mt32);
 	com_printf("MIDI synth mode is %s\n", smode[get_mode_num()]);
 }
 

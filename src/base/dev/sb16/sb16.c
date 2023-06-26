@@ -114,14 +114,6 @@ static int sb_get_dsp_irq_num(void)
     return sb_irq_tab[idx];
 }
 
-int get_mpu401_irq_num(void)
-{
-    if (!dspio_is_mt32_mode())
-	return config.mpu401_irq;
-    return (mpu401_is_uart(sb.mpu) ? config.mpu401_uart_irq_mt32 :
-	    config.mpu401_irq_mt32);
-}
-
 int sb_get_dma_num(void)
 {
     int idx = find_bit(sb.mixer_regs[0x81] & 0x0f);
@@ -434,7 +426,7 @@ static void sb_request_irq(int type)
     if (type & SB_IRQ_DSP)
 	pic_request(sb_get_dsp_irq_num());
     if (type & SB_IRQ_MPU401)
-	pic_request(get_mpu401_irq_num());
+	pic_request(config.mpu401_irq);
 }
 
 static void sb_activate_irq(int type)
@@ -451,7 +443,7 @@ static void sb_activate_irq(int type)
 static void sb_deactivate_irq(int type)
 {
     uint32_t act_map;
-    int mpu_irq = get_mpu401_irq_num();
+    int mpu_irq = config.mpu401_irq;
 
     S_printf("SB: Deactivating irq type %d\n", type);
     if (!(sb.mixer_regs[0x82] & type)) {
@@ -482,7 +474,7 @@ static void sb_run_irq(int type)
     if (type & SB_IRQ_DSP)
 	pic_untrigger(sb_get_dsp_irq_num());
     if (type & SB_IRQ_MPU401)
-	pic_untrigger(get_mpu401_irq_num());
+	pic_untrigger(config.mpu401_irq);
     sb_request_irq(type);
 }
 
@@ -1847,6 +1839,7 @@ static struct mpu401_ops mops = {
     .activate_irq = mpu_activate_irq,
     .deactivate_irq = mpu_deactivate_irq,
     .run_irq = mpu_run_irq,
+    .name = "SB MPU401"
 };
 
 /*
@@ -1884,13 +1877,9 @@ static void sb_init(void)
     }
     if (config.mpu401_irq == -1) {
 	config.mpu401_irq = config.sb_irq;
-	config.mpu401_uart_irq_mt32 = config.mpu401_irq_mt32;
 	S_printf("SB: mpu401 irq set to %i\n", config.mpu401_irq);
-    } else {
-	config.mpu401_uart_irq_mt32 = config.mpu401_irq;
     }
-    // TODO: add another MPU and use ST_GM here
-    sb.mpu = mpu401_init(config.mpu401_base, ST_ANY, &mops);
+    sb.mpu = mpu401_init(config.mpu401_base, ST_GM, &mops);
 
     S_printf("SB: Initialisation - Base 0x%03x\n", config.sb_base);
 }

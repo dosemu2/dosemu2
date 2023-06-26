@@ -201,7 +201,7 @@ struct mpu401_s *mpu401_init(ioport_t base, enum SynthType stype,
     io_device.write_portw = NULL;
     io_device.read_portd = NULL;
     io_device.write_portd = NULL;
-    io_device.handler_name = "Midi Emulation";
+    io_device.handler_name = ops->name;
     io_device.start_addr = base;
     io_device.end_addr = base + 0x001;
     io_device.arg = mpu;

@@ -322,7 +322,7 @@ typedef struct config_info {
        uint16_t mpu401_base;
        int mpu401_irq;
        int mpu401_irq_mt32;
-       int mpu401_uart_irq_mt32;
+       uint16_t mpu401_base_mt32;
        char *midi_synth;
        char *sound_driver;
        char *midi_driver;

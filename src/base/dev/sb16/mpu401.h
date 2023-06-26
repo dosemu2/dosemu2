@@ -24,6 +24,7 @@ struct mpu401_ops {
     void (*activate_irq)(struct mpu401_s *mpu);
     void (*deactivate_irq)(struct mpu401_s *mpu);
     void (*run_irq)(struct mpu401_s *mpu);
+    const char *name;
 };
 
 int mpu401_is_uart(struct mpu401_s *mpu);
