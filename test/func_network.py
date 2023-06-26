@@ -56,7 +56,7 @@ def network_pktdriver_mtcp(self, driver):
     #       of packets.
     if driver == 'ne2000':
         pktintr = '0x61'
-        mtcpcfg = 'c:\\ne2000 %s 10 0x300' % pktintr
+        mtcpcfg = 'c:\\ne2000 %s 10 0x310' % pktintr
     else:
         pktintr = '0x60'
         mtcpcfg = ''
