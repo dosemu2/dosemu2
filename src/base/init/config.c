@@ -1122,6 +1122,10 @@ config_init(int argc, char **argv)
 	    break;
 	case 'f':
 	    dosrcname = path_expand(optarg);
+	    if (!dosrcname) {
+		error("%s is missing\n", optarg);
+		leavedos(2);
+	    }
 	    break;
 	case 'I':
 	    assert(i_found < I_MAX);
