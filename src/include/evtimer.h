@@ -1,6 +1,8 @@
 #ifndef EVTIMER_H
 #define EVTIMER_H
 
+#include <stdint.h>
+
 #define NANOSECONDS_PER_SECOND 1000000000LL
 
 #define SCALE_MS 1000000LL

@@ -49,17 +49,25 @@ static Bit8u get_midi_in_byte(struct mpu401_s *mpu)
     return val;
 }
 
-static void put_midi_in_byte(struct mpu401_s *mpu, Bit8u val)
-{
-    rng_put_const(&mpu->fifo_in, val);
-}
-
 static int get_midi_in_fillup(struct mpu401_s *mpu)
 {
     return rng_count(&mpu->fifo_in);
 }
 
-static void clear_midi_in_fifo(struct mpu401_s *mpu)
+static void put_midi_in_byte(struct mpu401_s *mpu, Bit8u val)
+{
+    rng_put_const(&mpu->fifo_in, val);
+#define MPU401_IN_FIFO_TRIGGER 1
+    if (get_midi_in_fillup(mpu) == MPU401_IN_FIFO_TRIGGER)
+	mpu->ops->activate_irq(mpu);
+}
+
+void mpu401_put_midi_in_byte(struct mpu401_s *mpu, Bit8u val)
+{
+    put_midi_in_byte(mpu, val);
+}
+
+void mpu401_clear_midi_in_fifo(struct mpu401_s *mpu)
 {
     rng_clear(&mpu->fifo_in);
 }
@@ -67,13 +75,8 @@ static void clear_midi_in_fifo(struct mpu401_s *mpu)
 void mpu401_process(struct mpu401_s *mpu)
 {
     Bit8u data;
-
-    while (midi_get_data_byte(&data)) {
+    while (midi_get_data_byte(&data))
 	put_midi_in_byte(mpu, data);
-#define MPU401_IN_FIFO_TRIGGER 1
-	if (get_midi_in_fillup(mpu) == MPU401_IN_FIFO_TRIGGER)
-	    mpu->ops->activate_irq(mpu);
-    }
 }
 
 static Bit8u mpu401_io_read(ioport_t port, void *arg)
@@ -87,10 +90,14 @@ static Bit8u mpu401_io_read(ioport_t port, void *arg)
     switch (addr) {
     case 0:
 	/* Read data port */
-	if (get_midi_in_fillup(mpu))
+	if (get_midi_in_fillup(mpu)) {
 	    r = get_midi_in_byte(mpu);
-	else
+	} else {
 	    S_printf("MPU401: ERROR: No data to read\n");
+	    r = 0xfe; // ACK
+	}
+	if (!mpu->uart && mpu->ops->read_hook)
+	    mpu->ops->read_hook(mpu, r);
 	S_printf("MPU401: Read data port = 0x%02x, %i bytes still in queue\n",
 	     r, get_midi_in_fillup(mpu));
 	if (!get_midi_in_fillup(mpu))
@@ -121,13 +128,11 @@ static void mpu401_io_write(ioport_t port, Bit8u value, void *arg)
 	if (debug_level('S') > 5)
 		S_printf("MPU401: Write 0x%02x to data port\n", value);
 	mpu->ops->write_midi(mpu, value);
-	if (!mpu->uart && debug_level('S') > 5)
-		S_printf("MPU401: intelligent mode write unhandled\n");
 	break;
     case 1:
 	/* Write command port */
 	S_printf("MPU401: Write 0x%02x to command port\n", value);
-	clear_midi_in_fifo(mpu);
+	mpu401_clear_midi_in_fifo(mpu);
 	/* the following doc:
 	 * http://www.piclist.com/techref/io/serial/midi/mpu.html
 	 * says 3f does not need ACK. But dosbox sources say that
@@ -143,10 +148,9 @@ static void mpu401_io_write(ioport_t port, Bit8u value, void *arg)
 	    break;
 	default:
 	    if (mpu->ops->cmd_hook)
-		mpu->ops->cmd_hook(mpu, value, put_midi_in_byte);
+		mpu->ops->cmd_hook(mpu, value);
 	    break;
 	}
-	mpu->ops->activate_irq(mpu);
 	break;
     }
 }

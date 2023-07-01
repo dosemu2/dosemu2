@@ -25,6 +25,7 @@
 #include "sound/midi.h"
 #include "iodev.h"
 #include "emu.h"
+#include "softmpu/export.h"
 #include "mpu401.h"
 
 struct mt32state_s {
@@ -67,22 +68,20 @@ static void mpu_run_irq(struct mpu401_s *mpu)
 
 static void mpu_write_midi(struct mpu401_s *mpu, uint8_t data)
 {
-    midi_write(data, mpu401_is_uart(mpu) ? ST_ANY : ST_MT32);
+    if (mpu401_is_uart(mpu))
+	midi_write(data, ST_ANY);
+    else
+	MPU401_WriteData(data);
 }
 
-static void mpu_cmd_hook(struct mpu401_s *mpu, uint8_t cmd,
-	    void (*put_in_byte)(struct mpu401_s *mpu, Bit8u val))
+static void mpu_cmd_hook(struct mpu401_s *mpu, uint8_t cmd)
 {
-    switch (cmd) {
-	case 0x80:		// Clock ??
-	    break;
-	case 0xac:		// Query version
-	    put_in_byte(mpu, 0x15);
-	    break;
-	case 0xad:		// Query revision
-	    put_in_byte(mpu, 0x1);
-	    break;
-    }
+    MPU401_WriteCommand(cmd);
+}
+
+static void mpu_read_hook(struct mpu401_s *mpu, uint8_t data)
+{
+    MPU401_ReadData(data);
 }
 
 static struct mpu401_ops mops = {
@@ -91,6 +90,7 @@ static struct mpu401_ops mops = {
     .run_irq = mpu_run_irq,
     .write_midi = mpu_write_midi,
     .cmd_hook = mpu_cmd_hook,
+    .read_hook = mpu_read_hook,
     .name = "MT32 MPU401"
 };
 
@@ -98,6 +98,7 @@ void mt32_init(void)
 {
     mt32.irq_active = 0;
     mt32.mpu = mpu401_init(config.mpu401_base_mt32, &mops);
+    MPU401_Init();
     S_printf("MT32: Initialisation completed\n");
 }
 
@@ -109,4 +110,15 @@ void mt32_reset(void)
 void mt32_done(void)
 {
     mpu401_done(mt32.mpu);
+    MPU401_Done();
+}
+
+void QueueByte(Bit8u data)
+{
+    mpu401_put_midi_in_byte(mt32.mpu, data);
+}
+
+void ClrQueue(void)
+{
+    mpu401_clear_midi_in_fifo(mt32.mpu);
 }
