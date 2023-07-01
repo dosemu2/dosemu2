@@ -15,7 +15,7 @@
  */
 
 /*
- * Purpose: MT32 emulation.
+ * Purpose: glue between dosemu2's mpu401 and softmpu.
  *
  * Author: @stsp
  *
