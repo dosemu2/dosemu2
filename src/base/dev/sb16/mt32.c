@@ -96,6 +96,10 @@ static struct mpu401_ops mops = {
 
 void mt32_init(void)
 {
+    if (config.mpu401_irq_mt32 == 2) {
+	error("irq2 for mt32 not supported, using irq 9\n");
+	config.mpu401_irq_mt32 = 9;
+    }
     mt32.irq_active = 0;
     mt32.mpu = mpu401_init(config.mpu401_base_mt32, &mops);
     MPU401_Init();
