@@ -25,6 +25,8 @@ struct mpu401_ops {
     void (*deactivate_irq)(struct mpu401_s *mpu);
     void (*run_irq)(struct mpu401_s *mpu);
     void (*write_midi)(struct mpu401_s *mpu, uint8_t data);
+    void (*cmd_hook)(struct mpu401_s *mpu, uint8_t cmd,
+	    void (*put_in_byte)(struct mpu401_s *mpu, Bit8u val));
     const char *name;
 };
 

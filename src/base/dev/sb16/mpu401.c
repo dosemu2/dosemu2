@@ -141,13 +141,9 @@ static void mpu401_io_write(ioport_t port, Bit8u value, void *arg)
 	    mpu->uart = 0;
 	    mpu401_stop_midi(mpu);
 	    break;
-	case 0x80:		// Clock ??
-	    break;
-	case 0xac:		// Query version
-	    put_midi_in_byte(mpu, 0x15);
-	    break;
-	case 0xad:		// Query revision
-	    put_midi_in_byte(mpu, 0x1);
+	default:
+	    if (mpu->ops->cmd_hook)
+		mpu->ops->cmd_hook(mpu, value, put_midi_in_byte);
 	    break;
 	}
 	mpu->ops->activate_irq(mpu);

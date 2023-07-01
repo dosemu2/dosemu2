@@ -70,11 +70,27 @@ static void mpu_write_midi(struct mpu401_s *mpu, uint8_t data)
     midi_write(data, mpu401_is_uart(mpu) ? ST_ANY : ST_MT32);
 }
 
+static void mpu_cmd_hook(struct mpu401_s *mpu, uint8_t cmd,
+	    void (*put_in_byte)(struct mpu401_s *mpu, Bit8u val))
+{
+    switch (cmd) {
+	case 0x80:		// Clock ??
+	    break;
+	case 0xac:		// Query version
+	    put_in_byte(mpu, 0x15);
+	    break;
+	case 0xad:		// Query revision
+	    put_in_byte(mpu, 0x1);
+	    break;
+    }
+}
+
 static struct mpu401_ops mops = {
     .activate_irq = mpu_activate_irq,
     .deactivate_irq = mpu_deactivate_irq,
     .run_irq = mpu_run_irq,
     .write_midi = mpu_write_midi,
+    .cmd_hook = mpu_cmd_hook,
     .name = "MT32 MPU401"
 };
 
