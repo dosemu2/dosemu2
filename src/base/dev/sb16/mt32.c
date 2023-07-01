@@ -65,17 +65,23 @@ static void mpu_run_irq(struct mpu401_s *mpu)
     pic_request(config.mpu401_irq_mt32);
 }
 
+static void mpu_write_midi(struct mpu401_s *mpu, uint8_t data)
+{
+    midi_write(data, mpu401_is_uart(mpu) ? ST_ANY : ST_MT32);
+}
+
 static struct mpu401_ops mops = {
     .activate_irq = mpu_activate_irq,
     .deactivate_irq = mpu_deactivate_irq,
     .run_irq = mpu_run_irq,
+    .write_midi = mpu_write_midi,
     .name = "MT32 MPU401"
 };
 
 void mt32_init(void)
 {
     mt32.irq_active = 0;
-    mt32.mpu = mpu401_init(config.mpu401_base_mt32, ST_ANY, &mops);
+    mt32.mpu = mpu401_init(config.mpu401_base_mt32, &mops);
     S_printf("MT32: Initialisation completed\n");
 }
 

@@ -1835,10 +1835,16 @@ static void mpu_run_irq(struct mpu401_s *mpu)
     sb_run_irq(SB_IRQ_MPU401);
 }
 
+static void mpu_write_midi(struct mpu401_s *mpu, uint8_t data)
+{
+    midi_write(data, ST_GM);
+}
+
 static struct mpu401_ops mops = {
     .activate_irq = mpu_activate_irq,
     .deactivate_irq = mpu_deactivate_irq,
     .run_irq = mpu_run_irq,
+    .write_midi = mpu_write_midi,
     .name = "SB MPU401"
 };
 
@@ -1879,7 +1885,7 @@ static void sb_init(void)
 	config.mpu401_irq = config.sb_irq;
 	S_printf("SB: mpu401 irq set to %i\n", config.mpu401_irq);
     }
-    sb.mpu = mpu401_init(config.mpu401_base, ST_GM, &mops);
+    sb.mpu = mpu401_init(config.mpu401_base, &mops);
 
     S_printf("SB: Initialisation - Base 0x%03x\n", config.sb_base);
 }

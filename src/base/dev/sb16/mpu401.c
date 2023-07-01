@@ -31,36 +31,14 @@
 struct mpu401_s {
 #define MIDI_FIFO_SIZE 32
   struct rng_s fifo_in;
-  struct rng_s fifo_out;
   int uart:1;
   ioport_t base;
   struct mpu401_ops *ops;
-  enum SynthType stype;
 };
 
 static void mpu401_stop_midi(struct mpu401_s *mpu)
 {
     midi_stop();
-}
-
-static void do_write_midi(struct mpu401_s *mpu, Bit8u value)
-{
-    rng_put(&mpu->fifo_out, &value);
-
-    mpu401_process(mpu);
-}
-
-static int midi_output_empty(struct mpu401_s *mpu)
-{
-    return !rng_count(&mpu->fifo_out);
-}
-
-static Bit8u get_midi_data(struct mpu401_s *mpu)
-{
-    Bit8u val;
-    int ret = rng_get(&mpu->fifo_out, &val);
-    assert(ret == 1);
-    return val;
 }
 
 static Bit8u get_midi_in_byte(struct mpu401_s *mpu)
@@ -89,12 +67,6 @@ static void clear_midi_in_fifo(struct mpu401_s *mpu)
 void mpu401_process(struct mpu401_s *mpu)
 {
     Bit8u data;
-
-    /* no timing for now */
-    while (!midi_output_empty(mpu)) {
-	data = get_midi_data(mpu);
-	midi_write(data, mpu->stype);
-    }
 
     while (midi_get_data_byte(&data)) {
 	put_midi_in_byte(mpu, data);
@@ -148,7 +120,7 @@ static void mpu401_io_write(ioport_t port, Bit8u value, void *arg)
 	/* Write data port */
 	if (debug_level('S') > 5)
 		S_printf("MPU401: Write 0x%02x to data port\n", value);
-	do_write_midi(mpu, value);
+	mpu->ops->write_midi(mpu, value);
 	if (!mpu->uart && debug_level('S') > 5)
 		S_printf("MPU401: intelligent mode write unhandled\n");
 	break;
@@ -183,8 +155,7 @@ static void mpu401_io_write(ioport_t port, Bit8u value, void *arg)
     }
 }
 
-struct mpu401_s *mpu401_init(ioport_t base, enum SynthType stype,
-	struct mpu401_ops *ops)
+struct mpu401_s *mpu401_init(ioport_t base, struct mpu401_ops *ops)
 {
     emu_iodev_t io_device;
     struct mpu401_s *mpu;
@@ -211,9 +182,7 @@ struct mpu401_s *mpu401_init(ioport_t base, enum SynthType stype,
     S_printf("MPU401: MPU-401 Initialisation - Base 0x%03x \n", base);
 
     rng_init(&mpu->fifo_in, MIDI_FIFO_SIZE, 1);
-    rng_init(&mpu->fifo_out, MIDI_FIFO_SIZE, 1);
     mpu->base = base;
-    mpu->stype = stype;
     mpu->ops = ops;
     return mpu;
 }
@@ -227,7 +196,6 @@ void mpu401_reset(struct mpu401_s *mpu)
 void mpu401_done(struct mpu401_s *mpu)
 {
     rng_destroy(&mpu->fifo_in);
-    rng_destroy(&mpu->fifo_out);
     free(mpu);
 }
 

@@ -24,15 +24,14 @@ struct mpu401_ops {
     void (*activate_irq)(struct mpu401_s *mpu);
     void (*deactivate_irq)(struct mpu401_s *mpu);
     void (*run_irq)(struct mpu401_s *mpu);
+    void (*write_midi)(struct mpu401_s *mpu, uint8_t data);
     const char *name;
 };
 
 int mpu401_is_uart(struct mpu401_s *mpu);
-void mpu401_write_midi(struct mpu401_s *mpu, uint8_t val);
 void mpu401_process(struct mpu401_s *mpu);
 
-struct mpu401_s *mpu401_init(ioport_t base, enum SynthType stype,
-	struct mpu401_ops *ops);
+struct mpu401_s *mpu401_init(ioport_t base, struct mpu401_ops *ops);
 void mpu401_reset(struct mpu401_s *mpu);
 void mpu401_done(struct mpu401_s *mpu);
 
