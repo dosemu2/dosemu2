@@ -71,7 +71,7 @@ void mpu401_process(struct mpu401_s *mpu)
     while (midi_get_data_byte(&data)) {
 	put_midi_in_byte(mpu, data);
 #define MPU401_IN_FIFO_TRIGGER 1
-	if (mpu->uart && (get_midi_in_fillup(mpu) == MPU401_IN_FIFO_TRIGGER))
+	if (get_midi_in_fillup(mpu) == MPU401_IN_FIFO_TRIGGER)
 	    mpu->ops->activate_irq(mpu);
     }
 }
