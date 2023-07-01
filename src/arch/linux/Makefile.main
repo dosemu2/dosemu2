@@ -17,7 +17,7 @@ NET=dosext/net
 # This is defined when the SB Emulation is required. You should re-configure,
 # rather than just change this.
 #
-SBEMU=base/dev/sb16 base/sound
+SBEMU=base/dev/sb16 base/dev/sb16/softmpu base/sound
 
 #
 # This is defined when the CPU emulator is required. You should

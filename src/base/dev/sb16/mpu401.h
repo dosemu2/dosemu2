@@ -25,13 +25,15 @@ struct mpu401_ops {
     void (*deactivate_irq)(struct mpu401_s *mpu);
     void (*run_irq)(struct mpu401_s *mpu);
     void (*write_midi)(struct mpu401_s *mpu, uint8_t data);
-    void (*cmd_hook)(struct mpu401_s *mpu, uint8_t cmd,
-	    void (*put_in_byte)(struct mpu401_s *mpu, Bit8u val));
+    void (*cmd_hook)(struct mpu401_s *mpu, uint8_t cmd);
+    void (*read_hook)(struct mpu401_s *mpu, uint8_t data);
     const char *name;
 };
 
 int mpu401_is_uart(struct mpu401_s *mpu);
 void mpu401_process(struct mpu401_s *mpu);
+void mpu401_put_midi_in_byte(struct mpu401_s *mpu, Bit8u val);
+void mpu401_clear_midi_in_fifo(struct mpu401_s *mpu);
 
 struct mpu401_s *mpu401_init(ioport_t base, struct mpu401_ops *ops);
 void mpu401_reset(struct mpu401_s *mpu);

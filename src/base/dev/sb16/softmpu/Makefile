@@ -4,11 +4,10 @@
 # for details see file COPYING.DOSEMU in the DOSEMU distribution
 #
 
-top_builddir=../../../..
+top_builddir=../../../../..
 include $(top_builddir)/Makefile.conf
 
 
-CFILES = sb16.c dspio.c adlib.c opl.c dbadlib.c mpu401.c mt32.c
-ALL_CPPFLAGS += -DOPLTYPE_IS_OPL3
+CFILES = mpu401.c pic.c
 
 include $(REALTOPDIR)/src/Makefile.common
