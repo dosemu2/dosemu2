@@ -51,6 +51,9 @@ else
   fi
 fi
 
+CONFIG_HOST=`uname -s`
+AC_SUBST(CONFIG_HOST)
+
 AC_PATH_PROG([AS], [as])
 if test -z "$AS"; then
   AC_PATH_PROG([AS], [clang])
@@ -63,6 +66,12 @@ if test -z "$AS"; then
 fi
 AC_PATH_PROG([XAS], [i686-linux-gnu-as])
 if test -z "$XAS"; then
+  if test "$CONFIG_HOST" = "Darwin"; then
+    AC_PATH_PROG([XAS], [i386-elf-as])
+    if test -z "$XAS"; then
+      AC_MSG_ERROR([Please install i386-elf-binutils from https://github.com/nativeos/homebrew-i386-elf-toolchain])
+    fi
+  fi
   AC_PATH_PROG([XAS], [x86_64-linux-gnu-as])
   if test -z "$XAS"; then
     AC_PATH_PROG([XAS], [as])
@@ -82,7 +91,7 @@ AC_PATH_PROGS([LD], [ld ld.lld])
 if test -z "$LD"; then
   AC_MSG_ERROR(ld not found)
 fi
-AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld x86_64-linux-gnu-ld ld.lld ld])
+AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld i386-elf-ld x86_64-linux-gnu-ld ld.lld ld])
 if test -z "$AS_LD"; then
   AS_LD="$LD"
 fi
@@ -94,7 +103,7 @@ if test -z "$O_VER"; then
   OBJCOPY=""
 fi
 if test -z "$OBJCOPY"; then
-  AC_PATH_PROG([LOBJCOPY], [llvm-objcopy])
+  AC_PATH_PROG([LOBJCOPY], [llvm-objcopy], [], [$PATH${PATH_SEPARATOR}/usr/local/opt/llvm/bin])
   if test -z "$LOBJCOPY"; then
     AC_MSG_ERROR(objcopy not found)
   fi
@@ -282,9 +291,6 @@ AC_DEFINE_DIR([DATADIR], [datadir], [ Where data are placed to ])
 AC_DEFINE_DIR([LIBEXECDIR], [libexecdir], [ Where extra executables are placed to ])
 AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 
-CONFIG_HOST=`uname -s`
-AC_SUBST(CONFIG_HOST)
-
 machine=`$CC -dumpmachine | cut -d- -f1 | sed 's/i.86/i386/'`
 
 DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -imacros config.hh"
@@ -350,6 +356,13 @@ AC_CHECK_HEADERS([asm/ucontext.h],,, [
   #include <ucontext.h>
   #include <signal.h>
 ])
+AC_CHECK_HEADERS([ucontext.h],, [
+  AS_UNSET([ac_cv_header_ucontext_h])
+  AC_CHECK_HEADER([ucontext.h],
+    AC_DEFINE([_XOPEN_SOURCE], [500], [Use X/Open 5 with POSIX 1995]),
+    AC_MSG_ERROR([Can't use ucontext.h]), [
+  #define _XOPEN_SOURCE 500
+])])
 AC_CHECK_HEADERS([linux/signal.h],,, [#include <signal.h>])
 AC_CHECK_HEADERS([sys/soundcard.h], [
   USE_OSS=1
@@ -576,6 +589,10 @@ if test "$CONFIG_HOST" = "Linux"; then
     KVM=1
     AC_SUBST(KVM)
   fi
+fi
+
+if test "$CONFIG_HOST" = "Darwin"; then
+   DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -Wl,-undefined,dynamic_lookup"
 fi
 
 AC_ARG_ENABLE(mcontext,
