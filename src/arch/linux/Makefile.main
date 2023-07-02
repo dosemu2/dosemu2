@@ -77,9 +77,15 @@ $(top_builddir)/etc/Xfonts/%.pcf.gz: $(REALTOPDIR)/etc/%.bdf | $(top_builddir)/e
 $(LIBS_): | $(top_builddir)/lib
 
 $(BINPATH)/bin/$(DOSBIN): $(LIBS_)
+ifeq ($(OS),Darwin)
+	$(LD) $(ALL_LDFLAGS) $(DOSBIN_LDFLAGS) -o $@ \
+	   -Wl,-all_load $(LIBS_) $(LIBS) \
+	   -Wl,-map,$(BINPATH)/bin/dosemu.map -Wl,-pagezero_size,0x10000
+else
 	$(LD) $(ALL_LDFLAGS) $(DOSBIN_LDFLAGS) -o $@ \
 	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS) \
 	   -Wl,-Map=$(BINPATH)/bin/dosemu.map
+endif
 
 $(BINPATH)/bin/dosemu: $(SRCPATH)/dosemu.systemwide $(SRCPATH)/dosemu
 	cp $< $@
