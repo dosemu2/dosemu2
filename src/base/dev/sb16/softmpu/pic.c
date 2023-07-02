@@ -89,6 +89,16 @@ void PIC_RemoveEvents(EventID event)
         event_countdown[event]=0;
 }
 
+void PIC_Start(void)
+{
+        evtimer_set_rel(evtimer, SCALE_MS, 1);
+}
+
+void PIC_Stop(void)
+{
+        evtimer_stop(evtimer);
+}
+
 void PIC_Init(void)
 {
         Bitu i;
@@ -100,7 +110,6 @@ void PIC_Init(void)
         }
 
         evtimer = evtimer_create(PIC_Update, NULL);
-        evtimer_set_rel(evtimer, SCALE_MS, 1);
 }
 
 void PIC_Done(void)

@@ -48,6 +48,8 @@ void PIC_Init(void); /* SOFTMPU */
 void PIC_Done(void);
 void PIC_AddEvent(EventID event,Bitu delay);
 void PIC_RemoveEvents(EventID event);
+void PIC_Start(void);
+void PIC_Stop(void);
 
 void QueueByte(Bit8u data);
 void ClrQueue(void);

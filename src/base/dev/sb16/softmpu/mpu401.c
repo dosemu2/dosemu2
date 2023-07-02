@@ -126,6 +126,7 @@ void MPU401_WriteCommand(Bit8u val) /* SOFTMPU */
 		switch (val&0xc) {
 			case  0x4:      /* Stop */
 				PIC_RemoveEvents(MPU_EVENT);
+				PIC_Stop();
 				mpu.state.playing=false;
 				for (i=0xb0;i<0xbf;i++) {  /* All notes off */
 					MIDI_RawOutByte((Bit8u)i);
@@ -138,6 +139,7 @@ void MPU401_WriteCommand(Bit8u val) /* SOFTMPU */
 				mpu.state.playing=true;
 				PIC_RemoveEvents(MPU_EVENT);
                                 PIC_AddEvent(MPU_EVENT,(Bitu)MPU401_TIMECONSTANT/(mpu.clock.tempo*mpu.clock.timebase));
+                                PIC_Start();
 				ClrQueue();
 				break;
 		}
