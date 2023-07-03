@@ -3311,8 +3311,9 @@ static void Exec_x86_post(unsigned long flg, unsigned int mem_ref)
 #ifdef __x86_64__
 #define RE_REG(r) "%%r"#r
 #define R_REG(r) "%r"#r
-/* Generated code calls C functions which clobber ... */
-#define EXEC_CLOBBERS ,"r8","r9","r10","r11"
+/* Generated code calls C functions which clobber r8-r11 */
+/* r12 is used to backup rsp */
+#define EXEC_CLOBBERS ,"r8","r9","r10","r11","r12"
 #else
 #define RE_REG(r) "%%e"#r
 #define R_REG(r) "%e"#r
@@ -3333,9 +3334,17 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 	unsigned ePC;
 	InCompiledCode = 1;
 	asm volatile (
+#ifdef __x86_64__
+		"movq	%%rsp,%%r12\n"
+		"addq	$-128,%%rsp\n"	/* go below red zone		*/
+		"andq	$~15,%%rsp\n"	/* 16-byte stack alignment	*/
+#endif
 		"call	*%6\n"		/* call SeqStart                */
+#ifdef __x86_64__
+		"movq	%%r12,%%rsp\n"
+#endif
 		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref)
-		: "b"(ecpu),"d"(*flg),"a"(SeqStart),"r"(do_seq_start)
+		: "b"(ecpu),"d"(*flg),"a"(SeqStart),"R"(do_seq_start)
 		: "memory", "cc", "ecx", "esi" EXEC_CLOBBERS
 	);
 	InCompiledCode = 0;

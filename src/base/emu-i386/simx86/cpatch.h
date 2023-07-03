@@ -4,11 +4,9 @@
 #define EXTERN extern
 #endif
 #ifdef __i386__
-#define asmlinkage EXTERN __attribute__((cdecl)) \
-	__attribute__((force_align_arg_pointer))
+#define asmlinkage EXTERN __attribute__((cdecl))
 #else
-#define asmlinkage EXTERN \
-	__attribute__((force_align_arg_pointer))
+#define asmlinkage EXTERN
 #endif
 
 struct rep_stack;
