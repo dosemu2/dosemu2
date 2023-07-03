@@ -52,7 +52,7 @@ static char *prepare_shlock_name(const char *fname)
 static void *apply_shlock(const char *fname)
 {
     char *nm = prepare_shlock_name(fname);
-    void *ret = shlock_open(SHLOCK_DIR, nm, 0);
+    void *ret = shlock_open(SHLOCK_DIR, nm, 0, 1);
     free(nm);
     return ret;
 }
@@ -60,7 +60,7 @@ static void *apply_shlock(const char *fname)
 static void *apply_exlock(const char *fname)
 {
     char *nm = prepare_shlock_name(fname);
-    void *ret = shlock_open(EXLOCK_DIR, nm, 1);
+    void *ret = shlock_open(EXLOCK_DIR, nm, 1, 1);
     free(nm);
     return ret;
 }
@@ -93,8 +93,8 @@ static int open_mlemu(int *r_fds)
 static int is_locked_shlock(const char *name)
 {
     char *nm = prepare_shlock_name(name);
-    /* try to create exlock in a shlock dir */
-    void *exlock = shlock_open(SHLOCK_DIR, nm, 1);
+    /* try to create exlock in a shlock dir in non-blocking mode */
+    void *exlock = shlock_open(SHLOCK_DIR, nm, 1, 0);
     free(nm);
     if (!exlock)
         return 1;

@@ -43,11 +43,12 @@ struct shlck {
   int fd;
 };
 
-void *shlock_open(const char *dir, const char *name, int excl)
+void *shlock_open(const char *dir, const char *name, int excl, int block)
 {
   struct shlck *ret;
   char *fspec, *dspec;
   int fd, dir_fd, rc;
+  int flg = block ? 0 : LOCK_NB;
 
   rc = asprintf(&dspec, LOCK_DIR "/%s", dir);
   if (rc == -1) {
@@ -90,12 +91,11 @@ void *shlock_open(const char *dir, const char *name, int excl)
     goto err_free;
   }
   if (excl) {
-    /* exclusive lock may fail, so don't wait & err */
-    rc = flock(fd, LOCK_EX | LOCK_NB);
+    rc = flock(fd, LOCK_EX | flg);
     if (rc == -1)
       goto err_close;
   } else {
-    rc = flock(fd, LOCK_SH);
+    rc = flock(fd, LOCK_SH | flg);
     if (rc == -1) {
       perror("flock()");
       goto err_close;
