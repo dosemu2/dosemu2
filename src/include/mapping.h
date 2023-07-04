@@ -59,9 +59,7 @@
 #define MAPPING_NOOVERLAP	0x200000
 
 #ifdef __x86_64__
-/* FIXME: JIT should support 64bit mem_base */
-#define _MAP_32BIT ((config.cpu_vm_dpmi == CPUVM_NATIVE || \
-    IS_EMU_JIT()) ? MAP_32BIT : 0)
+#define _MAP_32BIT ((config.cpu_vm_dpmi == CPUVM_NATIVE) ? MAP_32BIT : 0)
 #else
 #define _MAP_32BIT 0
 #endif

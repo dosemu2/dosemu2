@@ -824,10 +824,6 @@ void enter_cpu_emu(void)
 {
 	unsigned int realdelta = config.update / TIMER_DIVISOR;
 
-	/* The simulator uses dosaddr_t throughout, the JIT adds mem_base
-	   to the segment bases */
-	TheCPU.mem_base = (uintptr_t)mem_base;
-
 	if (debug_level('e')) {
 		TotalTime = 0;
 #ifdef PROFILE

@@ -50,8 +50,8 @@ extern unsigned int Exec_x86_fast(TNode *G);
 
 /////////////////////////////////////////////////////////////////////////////
 
-#define STD_WRITE_B	G3M(0x88,0x07,0x90,Cp);
-#define STD_WRITE_WL(m)	G3((m)&DATA16?0x078966:0x900789,Cp)
+#define STD_WRITE_B	G3M(0x88,0x04,0x2f,Cp);
+#define STD_WRITE_WL(m)	Gen66(m,Cp); G3M(0x89,0x04,0x2f,Cp)
 
 #define GenAddECX(o)	if (((o) > -128) && ((o) < 128)) {\
 			G2(0xc183,Cp); G1((o),Cp); } else {\
@@ -85,6 +85,13 @@ extern unsigned int Exec_x86_fast(TNode *G);
 // 'no-jump' version, straight
 #define Gen66(mode, Cp) \
 	*(Cp)=OPERoverride; Cp+=BTA(BitDATA16, mode)
+
+// 64-bit operand size REX byte
+#ifdef __x86_64__
+#define Gen48(Cp) G1(0x48,Cp)
+#else
+#define Gen48(Cp)
+#endif
 
 // 'no-jump' version, tricky (depends on bit position)
 #define G2_4(mode, val, Cp) \
