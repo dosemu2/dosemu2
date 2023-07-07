@@ -478,8 +478,10 @@ signal_pre_init(void)
   newsetqsig(SIGHUP, leavedos_signal);
 //  newsetqsig(SIGTERM, leavedos_emerg);
   /* below ones are initialized by other subsystems */
+#ifdef USE_CONSOLE_PLUGIN
   setup_nf_sig(SIG_ACQUIRE);
   setup_nf_sig(SIG_RELEASE);
+#endif
   setup_nf_sig(SIGWINCH);
   setup_nf_sig(SIGPROF);
   /* call that after all non-fatal sigs set up */

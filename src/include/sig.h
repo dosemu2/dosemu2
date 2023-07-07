@@ -43,10 +43,17 @@ extern void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
 extern void SIG_init(void);
 extern void SIG_close(void);
 
-/* signals for Linux's process control of consoles */
+/* signals for Linux's process control of consoles
+   Note: on macOS, SIGRTMIN doesn't exist, but neither do Linux consoles, so
+   we can just use SIGUSR1 then for SIG_THREAD_NOTIFY
+ */
+#ifdef SIGRTMIN
 #define SIG_RELEASE     SIGUSR1
 #define SIG_ACQUIRE     SIGUSR2
 #define SIG_THREAD_NOTIFY (SIGRTMIN + 0)
+#else
+#define SIG_THREAD_NOTIFY SIGUSR1
+#endif
 
 typedef mcontext_t sigcontext_t;
 
@@ -208,9 +215,9 @@ static inline void signative_stop(void) {}
 static inline void unsetsig(int sig) {}
 #endif
 
-/* On glibc SIGRTMAX is not a constant but NSIG cpvers rt signals.
+/* On glibc SIGRTMAX is not a constant but NSIG covers rt signals.
  * On bsd its all the other way around. */
-#ifdef __GLIBC__
+#if defined(__GLIBC__) || !defined(SIGRTMAX)
 #define SIGMAX NSIG
 #else
 #define SIGMAX SIGRTMAX
