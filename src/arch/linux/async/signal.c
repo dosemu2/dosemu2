@@ -492,7 +492,11 @@ signal_pre_init(void)
 #else
   newsetsig(SIGILL, abort_signal);
   newsetsig(SIGTRAP, abort_signal);
+#ifdef __APPLE__
+  newsetsig(SIGBUS, minfault);
+#else
   newsetsig(SIGBUS, abort_signal);
+#endif
 #endif
   newsetsig(SIGFPE, minfault);
   newsetsig(SIGSEGV, minfault);
