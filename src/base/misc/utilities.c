@@ -964,6 +964,7 @@ int replace_string(struct string_store *store, const char *old, char *str)
     return 0;
 }
 
+#ifdef HAVE_FOPENCOOKIE
 struct tee_struct {
     FILE *stream[2];
 };
@@ -990,7 +991,6 @@ static cookie_io_functions_t tee_ops = {
     .close = tee_close,
 };
 
-#ifdef HAVE_FOPENCOOKIE
 FILE *fstream_tee(FILE *orig, FILE *copy)
 {
     FILE *f;
@@ -1032,7 +1032,6 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
     int wt, retval;
     sigset_t set, oset;
     int pts_fd;
-    struct timespec to = { 0, 0 };
 
     signal_block_async_nosig(&oset);
     sigprocmask(SIG_SETMASK, NULL, &set);
@@ -1061,12 +1060,30 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	close(pts_fd);
 	close(pty_fd);
 	if (close_from != -1)
+#ifdef HAVE_CLOSEFROM
 	    closefrom(close_from);
+#else
+	    for (; close_from < sysconf(_SC_OPEN_MAX); close_from++)
+		close(close_from);
+#endif
 	/* close signals, then unblock */
 	signal_done();
 	/* flush pending signals */
 	do {
+#ifdef HAVE_SIGTIMEDWAIT
+	    struct timespec to = { 0, 0 };
 	    wt = sigtimedwait(&set, NULL, &to);
+#else
+	    int i;
+	    sigset_t pending;
+	    sigpending(&pending);
+	    wt = -1;
+	    for (i = 1; i < SIGMAX; i++)
+		if (sigismember(&pending, i) && sigismember(&set, i)) {
+		    sigwait(&set, NULL);
+		    wt = 0;
+		}
+#endif
 	} while (wt != -1);
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 #pragma GCC diagnostic push
