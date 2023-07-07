@@ -550,7 +550,7 @@ void signal_done(void)
     if (setitimer(ITIMER_VIRTUAL, &itv, NULL) == -1)
 	g_printf("can't turn off vtimer at shutdown: %s\n", strerror(errno));
     sigprocmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
-    for (i = 0; i < SIGMAX; i++) {
+    for (i = 1; i < SIGMAX; i++) {
 	if (sigismember(&q_mask, i))
 	    signal(i, SIG_DFL);
     }
