@@ -6,7 +6,9 @@ if exist f:\gnu\nul path %PATH%;f:\bin;f:\gnu
 if exist c:\bin\nul path %PATH%;c:\bin
 set HELPPATH=f:\help
 if exist c:\help\nul set HELPPATH=c:\help
+if exist c:\tmp\nul goto noswapdrv
 if exist e:\tmp\nul call swapdrv.bat c: e:
+:noswapdrv
 set TEMP=c:\tmp
 if not exist %TEMP%\nul mkdir %TEMP%
 emusound -e
