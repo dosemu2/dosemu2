@@ -18,6 +18,7 @@
 #define RINGBUF_H
 
 #include <stdint.h>
+#include <sys/types.h>
 
 /* Ring buffer API */
 
