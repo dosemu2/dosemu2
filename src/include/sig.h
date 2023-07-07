@@ -43,10 +43,17 @@ extern void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
 extern void SIG_init(void);
 extern void SIG_close(void);
 
-/* signals for Linux's process control of consoles */
+/* signals for Linux's process control of consoles
+   Note: on macOS, SIGRTMIN doesn't exist, but neither do Linux consoles, so
+   we can just use SIGUSR1 then for SIG_THREAD_NOTIFY
+ */
+#ifdef SIGRTMIN
 #define SIG_RELEASE     SIGUSR1
 #define SIG_ACQUIRE     SIGUSR2
 #define SIG_THREAD_NOTIFY (SIGRTMIN + 0)
+#else
+#define SIG_THREAD_NOTIFY SIGUSR1
+#endif
 
 typedef mcontext_t sigcontext_t;
 
@@ -93,6 +100,17 @@ typedef mcontext_t sigcontext_t;
 #define _scp_trapno scp->mc_trapno
 #define _scp_err (*(unsigned *)&scp->mc_err)
 #define _scp_fpstate scp->mc_fpstate
+#elif defined(__APPLE__)
+#define _scp_eax    DWORD_((*scp)->__ss.__rax)
+#define _scp_edx    DWORD_((*scp)->__ss.__rdx)
+#define _scp_cs     ((*scp)->__ss.__cs)
+#define _scp_eflags ((*scp)->__ss.__rflags)
+#define _scp_rip    ((*scp)->__ss.__rip)
+#define _scp_rsp    ((*scp)->__ss.__rsp)
+#define _scp_cr2    ((*scp)->__es.__faultvaddr)
+#define _scp_trapno ((*scp)->__es.__trapno)
+#define _scp_err    ((*scp)->__es.__err)
+#define PRI_RG PRIx64
 #elif defined(__linux__)
 #define _scp_fpstate (scp->fpregs)
 #ifdef __x86_64__
@@ -197,9 +215,9 @@ static inline void signative_stop(void) {}
 static inline void unsetsig(int sig) {}
 #endif
 
-/* On glibc SIGRTMAX is not a constant but NSIG cpvers rt signals.
+/* On glibc SIGRTMAX is not a constant but NSIG covers rt signals.
  * On bsd its all the other way around. */
-#ifdef __GLIBC__
+#if defined(__GLIBC__) || !defined(SIGRTMAX)
 #define SIGMAX NSIG
 #else
 #define SIGMAX SIGRTMAX

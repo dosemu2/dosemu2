@@ -599,7 +599,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         return NULL;
     }
 
-    asprintf(&shmname, "/dosemu_dpmishm_%d_%s", getpid(), name);
+    asprintf(&shmname, "/dosemu_%s", name);
     if (init) {
         oflags |= O_CREAT;
         if (flags & SHM_EXCL)

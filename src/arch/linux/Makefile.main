@@ -80,7 +80,7 @@ $(BINPATH)/bin/$(DOSBIN): $(LIBS_)
 ifeq ($(OS),Darwin)
 	$(LD) $(ALL_LDFLAGS) $(DOSBIN_LDFLAGS) -o $@ \
 	   -Wl,-all_load $(LIBS_) $(LIBS) \
-	   -Wl,-map,$(BINPATH)/bin/dosemu.map -Wl,-pagezero_size,0x10000
+	   -Wl,-map,$(BINPATH)/bin/dosemu.map
 else
 	$(LD) $(ALL_LDFLAGS) $(DOSBIN_LDFLAGS) -o $@ \
 	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS) \

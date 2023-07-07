@@ -478,8 +478,10 @@ signal_pre_init(void)
   newsetqsig(SIGHUP, leavedos_signal);
 //  newsetqsig(SIGTERM, leavedos_emerg);
   /* below ones are initialized by other subsystems */
+#ifdef USE_CONSOLE_PLUGIN
   setup_nf_sig(SIG_ACQUIRE);
   setup_nf_sig(SIG_RELEASE);
+#endif
   setup_nf_sig(SIGWINCH);
   setup_nf_sig(SIGPROF);
   /* call that after all non-fatal sigs set up */
@@ -490,7 +492,11 @@ signal_pre_init(void)
 #else
   newsetsig(SIGILL, abort_signal);
   newsetsig(SIGTRAP, abort_signal);
+#ifdef __APPLE__
+  newsetsig(SIGBUS, minfault);
+#else
   newsetsig(SIGBUS, abort_signal);
+#endif
 #endif
   newsetsig(SIGFPE, minfault);
   newsetsig(SIGSEGV, minfault);
@@ -548,7 +554,7 @@ void signal_done(void)
     if (setitimer(ITIMER_VIRTUAL, &itv, NULL) == -1)
 	g_printf("can't turn off vtimer at shutdown: %s\n", strerror(errno));
     sigprocmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
-    for (i = 0; i < SIGMAX; i++) {
+    for (i = 1; i < SIGMAX; i++) {
 	if (sigismember(&q_mask, i))
 	    signal(i, SIG_DFL);
     }
