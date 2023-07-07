@@ -35,6 +35,13 @@
 #define XATTR_ATTRIBS_MASK (READ_ONLY_FILE | HIDDEN_FILE | SYSTEM_FILE | \
   ARCHIVE_NEEDED)
 
+#ifdef __APPLE__
+#define getxattr(path,name,value,size) getxattr(path,name,value,size,0,0)
+#define fgetxattr(fd,name,value,size) fgetxattr(fd,name,value,size,0,0)
+#define setxattr(path,name,value,size,flags) setxattr(path,name,value,size,0,flags)
+#define fsetxattr(fd,name,value,size,flags) fsetxattr(fd,name,value,size,0,flags)
+#endif
+
 static int do_extr_xattr(const char *xbuf, ssize_t size, const char *name)
 {
   if (size == -1 && errno == ENOTSUP) {
