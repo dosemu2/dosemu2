@@ -35,7 +35,11 @@ static int start_gdb(pid_t dosemu_pid)
   printf("Debug info:\n");
   fflush(stdout);
 
+#ifdef __APPLE__
+  ret = asprintf(&buf, "lldb %s", dosemu_proc_self_exe);
+#else
   ret = asprintf(&buf, "gdb --readnow %s", dosemu_proc_self_exe);
+#endif
   assert(ret != -1);
 
   printf("%s", buf);
@@ -59,9 +63,15 @@ static int start_gdb(pid_t dosemu_pid)
 
 static void do_debug(void)
 {
+#ifdef __APPLE__
+  const char *cmd1 = "register read\n";
+//  const char *cmd2 = "bt\n";
+  const char *cmd3 = "thread backtrace all\n";
+#else
   const char *cmd1 = "info registers\n";
 //  const char *cmd2 = "backtrace\n";
   const char *cmd3 = "thread apply all backtrace full\n";
+#endif
 
   gdb_command(cmd1);
 //  gdb_command(cmd2);
