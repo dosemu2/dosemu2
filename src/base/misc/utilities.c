@@ -964,6 +964,7 @@ int replace_string(struct string_store *store, const char *old, char *str)
     return 0;
 }
 
+#ifdef HAVE_FOPENCOOKIE
 struct tee_struct {
     FILE *stream[2];
 };
@@ -990,7 +991,6 @@ static cookie_io_functions_t tee_ops = {
     .close = tee_close,
 };
 
-#ifdef HAVE_FOPENCOOKIE
 FILE *fstream_tee(FILE *orig, FILE *copy)
 {
     FILE *f;
