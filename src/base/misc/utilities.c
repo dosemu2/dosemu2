@@ -1032,7 +1032,6 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
     int wt, retval;
     sigset_t set, oset;
     int pts_fd;
-    struct timespec to = { 0, 0 };
 
     signal_block_async_nosig(&oset);
     sigprocmask(SIG_SETMASK, NULL, &set);
@@ -1066,7 +1065,20 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	signal_done();
 	/* flush pending signals */
 	do {
+#ifdef HAVE_SIGTIMEDWAIT
+	    struct timespec to = { 0, 0 };
 	    wt = sigtimedwait(&set, NULL, &to);
+#else
+	    int i;
+	    sigset_t pending;
+	    sigpending(&pending);
+	    wt = -1;
+	    for (i = 1; i < SIGMAX; i++)
+		if (sigismember(&pending, i) && sigismember(&set, i)) {
+		    sigwait(&set, NULL);
+		    wt = 0;
+		}
+#endif
 	} while (wt != -1);
 	sigprocmask(SIG_SETMASK, &oset, NULL);
 #pragma GCC diagnostic push
