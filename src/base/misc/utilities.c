@@ -1060,7 +1060,12 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	close(pts_fd);
 	close(pty_fd);
 	if (close_from != -1)
+#ifdef HAVE_CLOSEFROM
 	    closefrom(close_from);
+#else
+	    for (; close_from < sysconf(_SC_OPEN_MAX); close_from++)
+		close(close_from);
+#endif
 	/* close signals, then unblock */
 	signal_done();
 	/* flush pending signals */
