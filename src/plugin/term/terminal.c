@@ -197,7 +197,10 @@ static void get_screen_size (void)
 	  {
 	    error("Screen size is too large: %dx%d, max is %dx%d\n",
 		  ws.ws_col, ws.ws_row, MAX_COLUMNS, MAX_LINES);
-	    leavedos(0x63);
+	    if (ws.ws_row > MAX_LINES)
+		ws.ws_row = MAX_LINES;
+	    if (ws.ws_col > MAX_COLUMNS)
+		ws.ws_col = MAX_COLUMNS;
 	  }
 	SLtt_Screen_Rows = ws.ws_row;
 	SLtt_Screen_Cols = ws.ws_col;
