@@ -1440,14 +1440,47 @@ config_init(int argc, char **argv)
 
     /* make-style env vars passing */
     while (optind < argc) {
+	char *p, *p1;
 	if (strchr(argv[optind], '=') == NULL) {
-	    fprintf(stderr, "unrecognized argument: %s\n\r", argv[optind]);
-	    fprintf(stderr, "For passing DOS command use -E\n\r");
-	    exit(1);
+	    char *fpath;
+	    if (config.dos_cmd || config.unix_path)
+		break;
+	    fpath = expand_path(argv[optind]);
+	    if (!fpath) {
+		error("%s not found\n", argv[optind]);
+		break;
+	    }
+	    p = strrchr(fpath, '/');
+	    assert(p); // expand_path() should add some slashes
+	    config.unix_path = strdup(fpath);
+	    p1 = config.unix_path + (p - fpath);
+	    *p1 = '\0';
+	    p++;
+	    if (!*p) {
+		free(fpath);
+		break;
+	    }
+	    config.dos_cmd = strdup(p);
+	    free(fpath);
+	    optind++;
+	    /* collect args */
+	    while (argv[optind]) {
+		g_printf("DOS command given on command line: %s\n", argv[optind]);
+		config.dos_cmd = realloc(config.dos_cmd,
+			strlen(config.dos_cmd) + strlen(argv[optind]) + 2);
+		strcat(config.dos_cmd, " ");
+		strcat(config.dos_cmd, argv[optind]);
+		optind++;
+	    }
+	    break;
 	}
-	g_printf("DOS command given on command line: %s\n", argv[optind]);
+	g_printf("ENV given on command line: %s\n", argv[optind]);
 	misc_e6_store_options(argv[optind]);
 	optind++;
+    }
+    if (argv[optind]) {
+	fprintf(stderr, "unrecognized argument: %s\n\r", argv[optind]);
+	exit(1);
     }
     config_post_process();
     config_scrub();
