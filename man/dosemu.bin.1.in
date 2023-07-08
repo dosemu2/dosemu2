@@ -67,10 +67,6 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .I \h'-1' input_data
 ]
 [
-.B \-U
-.I number of path components
-]
-[
 .B \-E
 .I dos-command
 ]
