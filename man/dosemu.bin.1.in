@@ -74,6 +74,10 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .B \-K
 .I unix_path
 ]
+[
+.B env1=val1
+.I ...
+]
 .sp
 .B dosdebug
 .SH DESCRIPTION
