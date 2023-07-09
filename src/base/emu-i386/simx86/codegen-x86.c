@@ -116,6 +116,7 @@
 #include "mapping.h"
 #ifdef HOST_ARCH_X86
 #include "codegen-x86.h"
+#include "cpatch.h"
 
 static void Gen_x86(int op, int mode, ...);
 static void AddrGen_x86(int op, int mode, ...);
@@ -3329,10 +3330,7 @@ asm(".text\n"
     "do_seq_start:\n"
     "push "R_REG(dx)"\n"
     "jmp *"R_REG(ax)"\n");
-#ifdef __cplusplus
-extern "C"
-#endif
-void do_seq_start(void);
+ASMLINKAGE(void,do_seq_start,(void));
 static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 		unsigned char *ecpu, unsigned char *SeqStart)
 {
