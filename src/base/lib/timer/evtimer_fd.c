@@ -26,7 +26,12 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
+#ifdef HAVE_TIMERFD_CREATE
 #include <sys/timerfd.h>
+#else
+#include <string.h>
+#include <sys/event.h>
+#endif
 #include <time.h>
 #include <pthread.h>
 #include <poll.h>
@@ -54,11 +59,22 @@ struct evtimer {
 static void do_callback(struct evtimer *t)
 {
     uint64_t ticks;
+#ifdef HAVE_TIMERFD_CREATE
     int rc = read(t->fd, &ticks, sizeof(ticks));
     if (rc != sizeof(ticks)) {
         perror("read()");
         return;
     }
+#else
+    struct kevent event;
+    int rc = kevent(t->fd, NULL, 0, &event, 1, NULL);
+    if (rc == -1)
+        perror("kevent()");
+    if (event.flags & EV_ERROR)
+        error("bad kevent return, %i %s\n", rc, strerror(event.data));
+    ticks = event.data;
+#endif
+
     t->callback(ticks, t->arg);
 }
 
@@ -104,7 +120,15 @@ void *evtimer_create(void (*cbk)(int ticks, void *), void *arg)
 {
     struct evtimer *t;
     clockid_t id = CLOCK_MONOTONIC;
+#ifdef HAVE_TIMERFD_CREATE
     int fd = timerfd_create(id, TFD_NONBLOCK | TFD_CLOEXEC);
+#else
+    int fd = kqueue();
+    int rc = fcntl(fd, F_GETFD);
+    if (rc != -1)
+        rc = fcntl(fd, F_SETFD, rc | FD_CLOEXEC);
+    assert(rc != -1);
+#endif
 
     assert(fd != -1);
     t = malloc(sizeof(*t));
@@ -126,9 +150,16 @@ void *evtimer_create(void (*cbk)(int ticks, void *), void *arg)
 void evtimer_delete(void *tmr)
 {
     struct evtimer *t = tmr;
+#ifdef HAVE_TIMERFD_CREATE
     struct itimerspec i = {};
 
     timerfd_settime(t->fd, 0, &i, NULL);
+#else
+    struct kevent change;
+
+    EV_SET(&change, 1, EVFILT_TIMER, EV_DELETE, 0, 0, 0);
+    kevent(t->fd, &change, 1, NULL, 0, NULL);
+#endif
     pthread_mutex_lock(&t->block_mtx);
     t->blocked++;
     while (t->in_cbk)
@@ -148,17 +179,29 @@ void evtimer_delete(void *tmr)
 void evtimer_set_rel(void *tmr, uint64_t ns, int periodic)
 {
     struct evtimer *t = tmr;
+    struct timespec start;
+#ifdef HAVE_TIMERFD_CREATE
     struct itimerspec i = {};
-    struct timespec rel, abs, start;
+    struct timespec rel, abs;
 
     rel.tv_sec = ns / NANOSECONDS_PER_SECOND;
     rel.tv_nsec = ns % NANOSECONDS_PER_SECOND;
     if (periodic)
         i.it_interval = rel;
+#endif
     clock_gettime(t->clk_id, &start);
+#ifdef HAVE_TIMERFD_CREATE
     timespecadd(&start, &rel, &abs);
     i.it_value = abs;
     timerfd_settime(t->fd, TFD_TIMER_ABSTIME, &i, NULL);
+#else
+    struct kevent change;    /* event we want to monitor */
+    if (periodic)
+        EV_SET(&change, 1, EVFILT_TIMER, EV_ADD | EV_ENABLE, NOTE_NSECONDS, ns, 0);
+    else
+        EV_SET(&change, 1, EVFILT_TIMER, EV_ONESHOT | EV_ADD | EV_ENABLE, NOTE_NSECONDS, ns, 0);
+    kevent(t->fd, &change, 1, NULL, 0, NULL);
+#endif
     pthread_mutex_lock(&t->start_mtx);
     t->start = start;
     pthread_mutex_unlock(&t->start_mtx);
@@ -167,22 +210,31 @@ void evtimer_set_rel(void *tmr, uint64_t ns, int periodic)
 uint64_t evtimer_gettime(void *tmr)
 {
     struct evtimer *t = tmr;
-    struct timespec rel, abs;
+    uint64_t rel;
+    struct timespec abs;
 
     clock_gettime(t->clk_id, &abs);
     pthread_mutex_lock(&t->start_mtx);
-    timespecsub(&abs, &t->start, &rel);
+    rel = abs.tv_sec * NANOSECONDS_PER_SECOND + abs.tv_nsec -
+        (t->start.tv_sec * NANOSECONDS_PER_SECOND + t->start.tv_nsec);
     pthread_mutex_unlock(&t->start_mtx);
-    return (rel.tv_sec * NANOSECONDS_PER_SECOND + rel.tv_nsec);
+    return rel;
 }
 
 void evtimer_stop(void *tmr)
 {
     struct evtimer *t = tmr;
-    struct itimerspec i = {};
     struct timespec start;
+#ifdef HAVE_TIMERFD_CREATE
+    struct itimerspec i = {};
 
     timerfd_settime(t->fd, 0, &i, NULL);
+#else
+    struct kevent change;
+
+    EV_SET(&change, 1, EVFILT_TIMER, EV_DELETE, 0, 0, 0);
+    kevent(t->fd, &change, 1, NULL, 0, NULL);
+#endif
     clock_gettime(t->clk_id, &start);
     pthread_mutex_lock(&t->start_mtx);
     t->start = start;
