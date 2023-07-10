@@ -92,7 +92,7 @@ struct rep_stack {
 } __attribute__((packed));
 
 
-asmlinkage void rep_movs_stos(struct rep_stack *stack)
+void rep_movs_stos(struct rep_stack *stack)
 {
 	unsigned char *paddr = stack->edi;
 	unsigned int ecx = stack->ecx;
@@ -217,7 +217,7 @@ done:
 
 /* ======================================================================= */
 
-asmlinkage void stk_16(dosaddr_t addr, Bit16u value)
+void stk_16(dosaddr_t addr, Bit16u value)
 {
 	in_cpatch++;
 	assert(InCompiledCode);
@@ -228,7 +228,7 @@ asmlinkage void stk_16(dosaddr_t addr, Bit16u value)
 	in_cpatch--;
 }
 
-asmlinkage void stk_32(dosaddr_t addr, Bit32u value)
+void stk_32(dosaddr_t addr, Bit32u value)
 {
 	in_cpatch++;
 	assert(InCompiledCode);
@@ -239,7 +239,7 @@ asmlinkage void stk_32(dosaddr_t addr, Bit32u value)
 	in_cpatch--;
 }
 
-asmlinkage void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
+void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 {
 	in_cpatch++;
 	assert(InCompiledCode);
@@ -255,7 +255,7 @@ asmlinkage void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 	in_cpatch--;
 }
 
-asmlinkage void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
+void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 {
 	in_cpatch++;
 	assert(InCompiledCode);
@@ -271,7 +271,7 @@ asmlinkage void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 	in_cpatch--;
 }
 
-asmlinkage void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
+void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 {
 	in_cpatch++;
 	assert(InCompiledCode);
@@ -287,17 +287,17 @@ asmlinkage void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 	in_cpatch--;
 }
 
-asmlinkage Bit8u read_8(dosaddr_t addr)
+Bit8u read_8(dosaddr_t addr)
 {
 	return vga_read_access(addr) ? vga_read(addr) : READ_BYTE(addr);
 }
 
-asmlinkage Bit16u read_16(dosaddr_t addr)
+Bit16u read_16(dosaddr_t addr)
 {
 	return vga_read_access(addr) ? vga_read_word(addr) : READ_WORD(addr);
 }
 
-asmlinkage Bit32u read_32(dosaddr_t addr)
+Bit32u read_32(dosaddr_t addr)
 {
 	return vga_read_access(addr) ? vga_read_dword(addr) : READ_DWORD(addr);
 }
