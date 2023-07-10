@@ -227,6 +227,19 @@ static int is_kvm_map(int cap)
   return (!(cap & MAPPING_DPMI));
 }
 
+/* we only need PROT_EXEC for native and vm86, not for emulated execution or
+   KVM backend memory */
+static int prot_strip_exec(int base, int protect)
+{
+#ifdef __i386__
+  if (base == VM86_BASE)
+    return protect;
+#endif
+  if (base == MEM_BASE && config.cpu_vm_dpmi == CPUVM_NATIVE)
+    return protect;
+  return protect & ~PROT_EXEC;
+}
+
 void *alias_mapping_ux(int cap, size_t mapsize, int protect, void *source)
 {
   void *target = (void *)-1;
@@ -251,7 +264,7 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
     if (target == MAP_FAILED)
       continue;
     /* protections on KVM_BASE go via page tables in the VM, not mprotect */
-    prot = i == KVM_BASE ? (PROT_READ|PROT_WRITE|PROT_EXEC) : protect;
+    prot = i == KVM_BASE ? (PROT_READ|PROT_WRITE) : prot_strip_exec(i, protect);
     addr = mappingdriver->alias(cap, target, mapsize, prot, source);
     if (addr == MAP_FAILED)
       return -1;
@@ -344,7 +357,7 @@ void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect)
     if (is_kvm_map(cap)) {
       cap = MAPPING_LOWMEM;
       mapsize = LOWMEM_SIZE + HMASIZE;
-      protect = PROT_READ|PROT_WRITE|PROT_EXEC;
+      protect = PROT_READ|PROT_WRITE;
       void *kvm_base = mmap_mapping_huge_page_aligned(cap, mapsize, protect);
       if (kvm_base == MAP_FAILED)
 	return kvm_base;
@@ -421,7 +434,7 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   if (is_kvm_map(cap))
     mprotect_kvm(cap, targ, mapsize, protect);
   if (!(cap & MAPPING_LOWMEM)) {
-    ret = mprotect(MEM_BASE32(targ), mapsize, protect);
+    ret = mprotect(MEM_BASE32(targ), mapsize, prot_strip_exec(MEM_BASE, protect));
     if (ret)
       error("mprotect() failed: %s\n", strerror(errno));
     return ret;
@@ -434,7 +447,7 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
     assert(i == MEM_BASE || targ + mapsize <= ALIAS_SIZE);
     Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%zx, protect=%x\n",
 	cap, addr, mapsize, protect);
-    ret = mprotect(addr, mapsize, protect);
+    ret = mprotect(addr, mapsize, prot_strip_exec(i, protect));
     if (ret) {
       error("mprotect() failed: %s\n", strerror(errno));
       return ret;
@@ -999,7 +1012,8 @@ int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
   if (va == (dosaddr_t)-1)
     return 0;
   assert(addr >= LOWMEM_SIZE + HMASIZE);
-  addr2 = mappingdriver->alias(cap, MEM_BASE32(va), mapsize, protect, source);
+  addr2 = mappingdriver->alias(cap, MEM_BASE32(va), mapsize,
+			       prot_strip_exec(MEM_BASE, protect), source);
   if (addr2 == MAP_FAILED)
     return 0;
   assert(addr2 == MEM_BASE32(va));
