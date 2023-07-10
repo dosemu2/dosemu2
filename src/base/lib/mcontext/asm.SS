@@ -25,8 +25,8 @@
 #define GET _getmcontext
 #elif defined(__x86_64__)
 #define NEEDAMD64CONTEXT 1
-#define SET _setmcontext
-#define GET _getmcontext
+#define SET __setmcontext
+#define GET __getmcontext
 #elif defined(__arm__)
 #define NEEDARMCONTEXT 1
 #define SET _setmcontext
