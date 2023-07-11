@@ -74,8 +74,14 @@ static struct mappingdrivers *mappingdrv[] = {
 #ifdef HAVE_MEMFD_CREATE
   &mappingdriver_mshm,  /* first try memfd mmap */
 #endif
+#ifdef __APPLE__
+  &mappingdriver_ashm,  /* on Mac first try private anon-mmap + mach_vm_remap */
+#endif
 #ifdef HAVE_SHM_OPEN
   &mappingdriver_shm,   /* then shm_open which is usually broken */
+#endif
+#ifdef __linux__
+  &mappingdriver_ashm,  /* then anon-shared-mmap */
 #endif
   &mappingdriver_file, /* and then a temp file */
 };
