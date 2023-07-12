@@ -1024,8 +1024,6 @@ static int pts_open(int pty_fd)
     return pts_fd;
 }
 
-typedef sem_t *pshared_sem_t;
-
 static int pshared_sem_init(pshared_sem_t *sem, unsigned int value)
 {
     char sem_name[] = "/dosemu2_psem_%PXXXXXX";
@@ -1086,7 +1084,7 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	pts_fd = pts_open(pty_fd);
 	/* Reading master side before slave opened, results in EOF.
 	 * Notify user that reads are now safe. */
-	sem_post(pty_sem);
+	pshared_sem_post(pty_sem);
 	pshared_sem_destroy(&pty_sem);
 	if (pts_fd == -1) {
 	    error("run_unix_command(): open pts failed %s\n", strerror(errno));
@@ -1140,7 +1138,7 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
     }
     sigprocmask(SIG_SETMASK, &oset, NULL);
     /* wait until its safe to read from pty_fd */
-    sem_wait(pty_sem);
+    pshared_sem_wait(pty_sem);
     pshared_sem_destroy(&pty_sem);
     return pid;
 }

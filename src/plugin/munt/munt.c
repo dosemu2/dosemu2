@@ -22,10 +22,14 @@
  */
 
 #include <pthread.h>
-#include <semaphore.h>
 #include <string.h>
 #include <limits.h>
 #include <mt32emu/c_interface/c_interface.h>
+#ifdef __APPLE__ /* to redefine sem_init() and related functions */
+#include "utilities.h"
+#else
+#include <semaphore.h>
+#endif
 #include "emu.h"
 #include "init.h"
 #include "timers.h"

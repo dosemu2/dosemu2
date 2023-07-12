@@ -106,6 +106,30 @@ FILE *fstream_tee(FILE *orig, FILE *copy);
     pthread_cleanup_pop(0); \
 }
 
+typedef sem_t *pshared_sem_t;
+static inline int pshared_sem_post(pshared_sem_t sem)
+{
+    return sem_post(sem);
+}
+static inline int pshared_sem_wait(pshared_sem_t sem)
+{
+    return sem_wait(sem);
+}
+
+/* macOS doesn't support sem_init(), so use Mach semaphores instead */
+#ifdef __APPLE__
+#include <mach/mach_init.h>
+#include <mach/task.h>
+#include <mach/semaphore.h>
+#undef PAGE_SIZE
+#define PAGE_SIZE 4096
+#define sem_t semaphore_t
+#define sem_init(x,y,z) semaphore_create(mach_task_self(), (x), SYNC_POLICY_FIFO, (z))
+#define sem_post(x) semaphore_signal(*(x))
+#define sem_wait(x) do { if (semaphore_wait(*(x)) == KERN_ABORTED) pthread_exit(NULL); } while(0)
+#define sem_destroy(x) semaphore_destroy(mach_task_self(), *(x))
+#endif
+
 pid_t run_external_command(const char *path, int argc,
         const char **argv,
         int use_stdin, int close_from, int pty_fd);
