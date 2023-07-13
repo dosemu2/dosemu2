@@ -594,8 +594,10 @@ void joy_uninit (void)
 	for (joynum = 0; joynum < 2; joynum++)
 	{
 	#ifdef USE_PTHREADS
-		if (joy_driver == &joy_driver_new_threaded)
+		if (joy_driver == &joy_driver_new_threaded && thread [joynum]) {
 			pthread_cancel (thread [joynum]);
+			pthread_join (thread [joynum], NULL);
+		}
 	#endif
 
 		if (joy_fd [joynum] >= 0)
