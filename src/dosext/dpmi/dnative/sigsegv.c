@@ -33,7 +33,11 @@
 #ifdef HAVE_LINUX_SIGNAL_H
 #include <linux/signal.h>
 #endif
-#define SIGALTSTACK_WA_DEFAULT DNATIVE
+#if defined(DNATIVE) && defined(MCONTEXT)
+#define SIGALTSTACK_WA_DEFAULT 1
+#else
+#define SIGALTSTACK_WA_DEFAULT 0
+#endif
 #if SIGALTSTACK_WA_DEFAULT
   #ifdef DISABLE_SYSTEM_WA
     #ifdef SS_AUTODISARM
