@@ -529,29 +529,14 @@ if test "$enable_cpuemu" != "no"; then
   AC_SUBST(X86_EMULATOR)
 
   if test "$machine" = "i386" -o "$machine" = "x86_64"; then
-    AC_MSG_CHECKING([for __attribute__((force_align_arg_pointer))])
-    AX_SAVE_FLAGS([attr_check2])
-    CFLAGS="-Wall -Werror"
-    AC_COMPILE_IFELSE([AC_LANG_SOURCE([
-	void foo(void);
-	__attribute__((force_align_arg_pointer))
-	void foo(void)
-	{
-	}
-      ])],
-      [
-	AC_MSG_RESULT([supported])
-	AC_MSG_NOTICE(Compiling with x86 JIT)
-	AC_DEFINE(X86_JIT)
-	X86_JIT=1
-	AC_SUBST(X86_JIT)
-      ],
-      [
-	AC_MSG_RESULT([unsupported])
-	AC_MSG_WARN(Compiling without x86 JIT)
-      ]
-    )
-    AX_RESTORE_FLAGS([attr_check2])
+    AC_ARG_ENABLE(cpuemu_jit, [AS_HELP_STRING([--disable-cpuemu-jit],
+        [do NOT compile with optional x86 JIT])])
+    if test "$enable_cpuemu_jit" != "no"; then
+      AC_MSG_NOTICE(Compiling with x86 JIT)
+      AC_DEFINE(X86_JIT)
+      X86_JIT=1
+      AC_SUBST(X86_JIT)
+    fi
   fi
 fi
 
