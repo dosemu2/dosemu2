@@ -1,7 +1,7 @@
 .\" -*- nroff -*-  (This is for Emacs)
 .TH DOSEMU 1 "@RELEASE_DATE@" "Версия @PACKAGE_VERSION@" "Эмуляция DOS"
 .SH ИМЯ
-dosemu, xdosemu \- запускает DOS и приложения DOS под Linux
+dosemu \- запускает DOS и приложения DOS под Linux
 .SH СИНТАКСИС
 .B dosemu
 [
@@ -18,20 +18,6 @@ dosemu, xdosemu \- запускает DOS и приложения DOS под Lin
 .B аргументы
 ]
 .PP
-.B xdosemu
-[
-.B \-dumb
-]
-[
-.B \-home
-]
-[
-.B \-input
-.I строка_клавиш
-]
-[
-.B аргументы
-]
 .SH ОПИСАНИЕ
 .B dosemu
 является оберточным скриптом для

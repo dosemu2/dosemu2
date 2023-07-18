@@ -1,7 +1,7 @@
 .\" -*- nroff -*-  (This is for Emacs)
 .TH DOSEMU 1 "@RELEASE_DATE@" "Version @PACKAGE_VERSION@" "DOS Emulation"
 .SH NAME
-dosemu, xdosemu \- run DOS and DOS programs under Linux
+dosemu \- run DOS and DOS programs under Linux
 .SH SYNOPSIS
 .B dosemu
 [
@@ -18,20 +18,6 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 .B args
 ]
 .PP
-.B xdosemu
-[
-.B \-dumb
-]
-[
-.B \-input
-.I keystroke-string
-]
-[
-.B \-s
-]
-[
-.B args
-]
 .SH DESCRIPTION
 .B dosemu
 is the wrapper script for
