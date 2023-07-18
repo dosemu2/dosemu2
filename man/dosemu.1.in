@@ -19,7 +19,13 @@ dosemu \- run DOS and DOS programs under Linux
 .I ...
 ]
 [
-.B args
+.I unix_path_to_dos_prog
+[
+.I --
+]
+[
+.I dos_cmd_args
+]
 ]
 .PP
 .SH DESCRIPTION

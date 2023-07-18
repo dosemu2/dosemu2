@@ -78,6 +78,15 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .I env1=val1
 .I ...
 ]
+[
+.I unix_path_to_dos_prog
+[
+.I --
+]
+[
+.I dos_cmd_args
+]
+]
 .sp
 .B dosdebug
 .SH DESCRIPTION
