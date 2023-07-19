@@ -2347,7 +2347,7 @@ static void add_segment(mstate m, char* tbase, size_t tsize, flag_t mmapped) {
   msegmentptr ss = (msegmentptr)(chunk2mem(sp));
   mchunkptr tnext = chunk_plus_offset(sp, ssize);
   mchunkptr p = tnext;
-  int nfences = 0;
+//  int nfences = 0;
 
   /* reset top to new space */
   init_top(m, (mchunkptr)tbase, tsize - TOP_FOOT_SIZE);
@@ -2365,13 +2365,13 @@ static void add_segment(mstate m, char* tbase, size_t tsize, flag_t mmapped) {
   for (;;) {
     mchunkptr nextp = chunk_plus_offset(p, SIZE_T_SIZE);
     p->head = FENCEPOST_HEAD;
-    ++nfences;
+//    ++nfences;
     if ((char*)(&(nextp->head)) < old_end)
       p = nextp;
     else
       break;
   }
-  assert(nfences >= 2);
+//  assert(nfences >= 2);
 
   /* Insert the rest of old top into a bin as an ordinary free chunk */
   if (csp != old_top) {
