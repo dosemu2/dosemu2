@@ -219,8 +219,10 @@ static inline void unsetsig(int sig) {}
  * On bsd its all the other way around. */
 #if defined(__GLIBC__) || !defined(SIGRTMAX)
 #define SIGMAX NSIG
-#else
+#elif defined(__FreeBSD__)
 #define SIGMAX SIGRTMAX
+#else
+#define SIGMAX 64
 #endif
 
 #endif
