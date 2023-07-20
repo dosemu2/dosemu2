@@ -530,11 +530,12 @@ void move_dosemu_local_dir(void)
     if (ldir)
       dosemu_localdir_path = ldir;
     else
-      error("local dir %s does not exist\n\tUsing %s\n", localdir,
-          dosemu_localdir_path);
+      error("local dir %s does not exist\n", localdir);
   }
   if (!dosemu_localdir_path)
     dosemu_localdir_path = get_dosemu_local_home();
+  if (!dosemu_localdir_path)
+    exit(1);
 
   if (!dosemu_image_dir_path)
     dosemu_image_dir_path = dosemu_localdir_path;
