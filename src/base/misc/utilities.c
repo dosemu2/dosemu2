@@ -1005,7 +1005,7 @@ FILE *fstream_tee(FILE *orig, FILE *copy)
 }
 #endif
 
-static int pts_open(int pty_fd, sem_t *pty_sem)
+static int pts_open(int pty_fd)
 {
     int err, pts_fd;
 
@@ -1021,9 +1021,6 @@ static int pts_open(int pty_fd, sem_t *pty_sem)
 	error("pts open failed: %s\n", strerror(errno));
 	return -1;
     }
-    /* Reading master side before slave opened, results in EOF.
-     * Notify user that reads are now safe. */
-    sem_post(pty_sem);
     return pts_fd;
 }
 
@@ -1086,7 +1083,11 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	return -1;
     case 0: /* child */
 	priv_drop();
-	pts_fd = pts_open(pty_fd, pty_sem);
+	pts_fd = pts_open(pty_fd);
+	/* Reading master side before slave opened, results in EOF.
+	 * Notify user that reads are now safe. */
+	sem_post(pty_sem);
+	pshared_sem_destroy(&pty_sem);
 	if (pts_fd == -1) {
 	    error("run_unix_command(): open pts failed %s\n", strerror(errno));
 	    _exit(EXIT_FAILURE);
