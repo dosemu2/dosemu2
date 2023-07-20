@@ -342,8 +342,18 @@ void vtmr_init(void)
 
 void vtmr_done(void)
 {
+    int i;
+
     pthread_cancel(vtmr_thr);
     pthread_join(vtmr_thr, NULL);
+    sem_destroy(&vtmr_sem);
+    for (i = 0; i < VTMR_MAX; i++) {
+        pthread_mutex_destroy(&vth[i].done_mtx);
+        pthread_cond_destroy(&vth[i].done_cnd);
+    }
+#if MULTICORE_EXAMPLE
+    lowmem_free(rmstack);
+#endif
 }
 
 void vtmr_reset(void)
