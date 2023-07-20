@@ -725,7 +725,7 @@ void secure_option_preparse(int *argc, char **argv)
       free(opt);
     }
 
-    opt = get_option("--Flocaldir", 1, argc, argv);
+    opt = get_option("--Flocal_dir", 1, argc, argv);
     if (opt && opt[0]) {
       char *opt1 = path_expand(opt);
       if (opt1) {
@@ -733,7 +733,7 @@ void secure_option_preparse(int *argc, char **argv)
         dosemu_localdir_path = opt1;
         cnt++;
       } else {
-        error("--Flocaldir: %s does not exist\n", opt);
+        error("--Flocal_dir: %s does not exist\n", opt);
         config.exitearly = 1;
       }
       free(opt);
