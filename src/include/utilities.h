@@ -108,7 +108,7 @@ FILE *fstream_tee(FILE *orig, FILE *copy);
 
 pid_t run_external_command(const char *path, int argc,
         const char **argv,
-        int use_stdin, int close_from, int pty_fd, sem_t *pty_sem);
+        int use_stdin, int close_from, int pty_fd);
 
 #ifdef HAVE_OPTRESET
 /* needs to set both to 1, no idea why optreset alone isn't enough! */

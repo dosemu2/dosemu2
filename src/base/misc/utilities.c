@@ -1021,18 +1021,61 @@ static int pts_open(int pty_fd, sem_t *pty_sem)
 	error("pts open failed: %s\n", strerror(errno));
 	return -1;
     }
+    /* Reading master side before slave opened, results in EOF.
+     * Notify user that reads are now safe. */
     sem_post(pty_sem);
     return pts_fd;
 }
 
+typedef sem_t *pshared_sem_t;
+
+static int pshared_sem_init(pshared_sem_t *sem, unsigned int value)
+{
+    char sem_name[] = "/dosemu2_psem_%PXXXXXX";
+    pshared_sem_t s;
+    int ret;
+
+    tempname(sem_name, 6);
+    s = sem_open(sem_name, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, value);
+    if (!s)
+    {
+        /* Stalled sem. Name collision is practically impossible
+         * because we unlink the sem immediately after creation,
+         * and also we can't collide with another running dosemu2
+         * instance because we use PID in the sem name. */
+        error("sem_open %s failed %s\n", sem_name, strerror(errno));
+        sem_unlink(sem_name);
+        s = sem_open(sem_name, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, value);
+    }
+    if (!s)
+    {
+        error("sem_open failed %s\n", strerror(errno));
+        return -1;
+    }
+    ret = sem_unlink(sem_name);
+    if (!ret)
+        *sem = s;
+    return ret;
+}
+
+static int pshared_sem_destroy(pshared_sem_t *sem)
+{
+    int ret = sem_close(*sem);
+    *sem = NULL;
+    return ret;
+}
+
 pid_t run_external_command(const char *path, int argc, const char **argv,
-        int use_stdin, int close_from, int pty_fd, sem_t *pty_sem)
+        int use_stdin, int close_from, int pty_fd)
 {
     pid_t pid;
     int wt, retval;
     sigset_t set, oset;
     int pts_fd;
+    pshared_sem_t pty_sem;
 
+    retval = pshared_sem_init(&pty_sem, 0);
+    assert(!retval);
     signal_block_async_nosig(&oset);
     sigprocmask(SIG_SETMASK, NULL, &set);
     /* fork child */
@@ -1095,6 +1138,9 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	break;
     }
     sigprocmask(SIG_SETMASK, &oset, NULL);
+    /* wait until its safe to read from pty_fd */
+    sem_wait(pty_sem);
+    pshared_sem_destroy(&pty_sem);
     return pid;
 }
 

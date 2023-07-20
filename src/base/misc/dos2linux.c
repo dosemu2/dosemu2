@@ -188,7 +188,6 @@ void misc_e6_store_options(const char *str)
 static int pty_fd;
 static int pty_done;
 static int cbrk;
-static sem_t *pty_sem;
 static sem_t rd_sem;
 static pthread_t reader;
 static void *queue;
@@ -309,20 +308,9 @@ static int do_run_cmd(const char *path, int argc, const char **argv,
 {
     int status, retval;
     pid_t pid;
-    char sem_name[256];
 
-    snprintf(sem_name, sizeof(sem_name), "/dosemu_pty_sem_%i", getpid());
-    pty_sem = sem_open(sem_name, O_CREAT, S_IRUSR | S_IWUSR, 0);
-    if (!pty_sem)
-    {
-        error("sem_open failed %s\n", strerror(errno));
-        return -1;
-    }
-    sem_unlink(sem_name);
     pid = run_external_command(path, argc, argv, use_stdin, close_from,
-	    pty_fd, pty_sem);
-    sem_wait(pty_sem);
-    sem_close(pty_sem);
+	    pty_fd);
     dos2tty_start();
     while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
 	coopth_wait();
