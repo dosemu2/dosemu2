@@ -182,9 +182,9 @@ static void kvm_set_immediate_exit(int set)
       sigset_t sigset;
       /* KVM_SET_SIGNAL_MASK expects a kernel sigset_t which is
 	 smaller than a glibc one */
-      struct {
+      union {
 	struct kvm_signal_mask mask;
-	unsigned char buf[KERNEL_SIGSET_T_SIZE];
+	unsigned char buf[sizeof(struct kvm_signal_mask) + KERNEL_SIGSET_T_SIZE];
       } maskbuf;
 
       sa.sa_flags = 0;
