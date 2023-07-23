@@ -31,8 +31,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <fluidsynth.h>
+#ifdef __APPLE__ /* to redefine sem_init() and related functions */
+#include "utilities.h"
+#else
+#include <semaphore.h>
+#endif
 #include "seqbind.h"
 #include "emu.h"
 #include "init.h"

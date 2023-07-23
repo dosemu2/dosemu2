@@ -40,7 +40,11 @@
 #include <unistd.h>
 #include <ao/ao.h>
 #include <pthread.h>
+#ifdef __APPLE__ /* to redefine sem_init() and related functions */
+#include "utilities.h"
+#else
 #include <semaphore.h>
+#endif
 
 #define aosnd_name "ao"
 #define aosnd_longname "Sound Output: libao"
