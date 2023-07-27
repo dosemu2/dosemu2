@@ -31,6 +31,7 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <linux/kvm.h>
+#include <asm/kvm_para.h>
 
 #include "kvm.h"
 #include "kvmmon_offsets.h"
@@ -450,17 +451,16 @@ static int init_kvm_vcpu(void)
   }
 
   assert(cpuid);
-  // Use the same values as in emu-i386/simx86/interp.c
-  // (Pentium 133-200MHz, "GenuineIntel")
-  cpuid->entries[0].eax = 1;
-  cpuid->entries[0].ebx = 0x756e6547;
-  cpuid->entries[0].ecx = 0x6c65746e;
-  cpuid->entries[0].edx = 0x49656e69;
-  // family 5, model 2, stepping 12, features see above
-  cpuid->entries[1].eax = 0x052c;
-  cpuid->entries[1].ebx = 0;
-  cpuid->entries[1].ecx = 0;
-  cpuid->entries[1].edx = CPUID_FEATURES_EDX;
+  /* use host CPUID, adjust signature */
+  for (unsigned int i = 0; i < cpuid->nent; i++) {
+    struct kvm_cpuid_entry2 *entry = &cpuid->entries[i];
+    if (entry->function == KVM_CPUID_SIGNATURE) {
+      entry->eax = KVM_CPUID_FEATURES;
+      entry->ebx = 0x4b4d564b; // KVMK
+      entry->ecx = 0x564b4d56; // VMKV
+      entry->edx = 0x4d;       // M
+    }
+  }
   ret = ioctl(vcpufd, KVM_SET_CPUID2, cpuid);
   if (ret == -1) {
     perror("KVM: KVM_SET_CPUID2");
