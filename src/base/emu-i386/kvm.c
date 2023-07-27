@@ -944,13 +944,21 @@ static void set_ldt_seg(struct kvm_segment *seg, unsigned selector)
 
 void kvm_update_fpu(void)
 {
-  struct kvm_xsave fpu = {};
+  struct kvm_fpu fpu = {};
   int ret;
 
-  memcpy(fpu.region, &vm86_fpu_state, sizeof(vm86_fpu_state));
-  ret = ioctl(vcpufd, KVM_SET_XSAVE, &fpu);
+  memcpy(fpu.fpr, vm86_fpu_state.st, sizeof(vm86_fpu_state.st));
+  fpu.fcw = vm86_fpu_state.cwd;
+  fpu.fsw = vm86_fpu_state.swd;
+  fpu.ftwx = vm86_fpu_state.ftw;
+  fpu.last_opcode = vm86_fpu_state.fop;
+  fpu.last_ip = vm86_fpu_state.fip;
+  fpu.last_dp = vm86_fpu_state.fdp;
+  memcpy(fpu.xmm, vm86_fpu_state.xmm, sizeof(vm86_fpu_state.xmm));
+  fpu.mxcsr = vm86_fpu_state.mxcsr;
+  ret = ioctl(vcpufd, KVM_SET_FPU, &fpu);
   if (ret == -1) {
-    perror("KVM: KVM_SET_XSAVE");
+    perror("KVM: KVM_SET_FPU");
     leavedos_main(99);
   }
 }
@@ -962,13 +970,23 @@ void kvm_enter(int pm)
 
 void kvm_leave(int pm)
 {
-  struct kvm_xsave fpu;
-  int ret = ioctl(vcpufd, KVM_GET_XSAVE, &fpu);
+  struct kvm_fpu fpu;
+  int ret = ioctl(vcpufd, KVM_GET_FPU, &fpu);
   if (ret == -1) {
-    perror("KVM: KVM_GET_XSAVE");
+    perror("KVM: KVM_GET_FPU");
     leavedos_main(99);
   }
-  memcpy(&vm86_fpu_state, fpu.region, sizeof(vm86_fpu_state));
+  memcpy(vm86_fpu_state.st, fpu.fpr, sizeof(vm86_fpu_state.st));
+  vm86_fpu_state.cwd = fpu.fcw;
+  vm86_fpu_state.swd = fpu.fsw;
+  vm86_fpu_state.ftw = fpu.ftwx;
+  vm86_fpu_state.fop = fpu.last_opcode;
+  vm86_fpu_state.fip = fpu.last_ip;
+  vm86_fpu_state.fcs = 0;
+  vm86_fpu_state.fdp = fpu.last_dp;
+  vm86_fpu_state.fds = 0;
+  memcpy(vm86_fpu_state.xmm, fpu.xmm, sizeof(vm86_fpu_state.xmm));
+  vm86_fpu_state.mxcsr = fpu.mxcsr;
 
   /* collect and invalidate all touched low dirty pages with JIT code */
   if (IS_EMU_JIT()) {
