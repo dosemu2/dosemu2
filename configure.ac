@@ -71,19 +71,21 @@ if test -z "$XAS"; then
   fi
   AC_PATH_PROG([XAS], [x86_64-linux-gnu-as])
   if test -z "$XAS"; then
-    AC_PATH_PROG([XAS], [as])
-  fi
-  if test -z "$XAS"; then
-    XAS="$AS"
-    if test "$clang_as_as" = "1"; then
-      XASFLAGS="$ASFLAGS -m32"
+    if test "$machine" = "i386" -o "$machine" = "x86_64"; then
+      XAS="$AS"
+      if test "$clang_as_as" = "1"; then
+        XASFLAGS="$ASFLAGS -m32"
+      else
+        XASFLAGS="$ASFLAGS --32"
+      fi
     else
-      XASFLAGS="$ASFLAGS --32"
+      AC_MSG_ERROR([cross-assembler not found, please install binutils-i686-linux-gnu])
     fi
   else
     XASFLAGS="$ASFLAGS --32"
   fi
 fi
+
 AC_PATH_PROGS([LD], [ld ld.lld])
 if test -z "$LD"; then
   AC_MSG_ERROR(ld not found)
