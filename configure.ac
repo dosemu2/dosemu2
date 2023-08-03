@@ -64,13 +64,10 @@ if test -z "$AS"; then
   clang_as_as=1
   ASFLAGS="-xassembler -c -"
 fi
-AC_PATH_PROG([XAS], [i686-linux-gnu-as])
+AC_PATH_PROGS([XAS], [i686-linux-gnu-as i386-elf-as])
 if test -z "$XAS"; then
   if test "$CONFIG_HOST" = "Darwin"; then
-    AC_PATH_PROG([XAS], [i386-elf-as])
-    if test -z "$XAS"; then
-      AC_MSG_ERROR([Please install i386-elf-binutils from https://github.com/nativeos/homebrew-i386-elf-toolchain])
-    fi
+    AC_MSG_ERROR([Please install i386-elf-binutils from https://github.com/nativeos/homebrew-i386-elf-toolchain])
   fi
   AC_PATH_PROG([XAS], [x86_64-linux-gnu-as])
   if test -z "$XAS"; then
