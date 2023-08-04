@@ -241,7 +241,7 @@ static void fpu_init(void)
 
 static void fpu_reset(void)
 {
-  vm86_fpu_state.cwd = 0x0040;
+  vm86_fpu_state.cwd = 0x03ff;
   vm86_fpu_state.swd = 0;
 //  vm86_fpu_state.ftw = 0x5555;       //bochs
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
