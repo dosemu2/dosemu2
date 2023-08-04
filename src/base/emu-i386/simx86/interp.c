@@ -41,7 +41,7 @@
 #include "mhpdbg.h"
 #include "video.h"
 
-#ifdef PROFILE
+#if PROFILE
 int EmuSignals = 0;
 #endif
 
@@ -420,7 +420,7 @@ static unsigned int FindExecCode(unsigned int PC)
 		}
 		/* ---- this is the MAIN EXECUTE point ---- */
 		NodesExecd++;
-#ifdef PROFILE
+#if PROFILE
 		TotalNodesExecd++;
 #elif !defined(ASM_DUMP)
 		/* try fast inner loop if nothing special is going on */
@@ -443,7 +443,7 @@ static unsigned int FindExecCode(unsigned int PC)
 
 static void HandleEmuSignals(void)
 {
-#ifdef PROFILE
+#if PROFILE
 	if (debug_level('e')) EmuSignals++;
 #endif
 	if (CEmuStat & CeS_TRAP) {

@@ -45,7 +45,7 @@
 #include "cpu-emu.h"
 #include "syncpu.h"
 
-#ifdef PROFILE
+#if PROFILE
 extern hitimer_t AddTime, SearchTime, ExecTime, CleanupTime;
 extern hitimer_t GenTime, LinkTime;
 #endif

@@ -100,6 +100,19 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 extern hitimer_u ZeroTimeBase;
 extern hitimer_t t_vretrace;
 
+static inline hitimer_t GETTSC(void)
+{
+	hitimer_t d;
+#ifdef __x86_64__
+	unsigned int lo, hi;
+	asm volatile("rdtsc" : "=a" (lo), "=d" (hi));
+	d = lo | ((unsigned long)hi << 32);
+#else
+	__asm__ __volatile__ ("rdtsc" : "=A" (d));
+#endif
+	return d;
+}
+
 #define TSCtoUS(t) _mul64x32_(t, config.cpu_spd)
 
 /* 1 us granularity */

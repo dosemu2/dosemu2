@@ -39,7 +39,7 @@
 
 #undef	SINGLESTEP
 #undef	SINGLEBLOCK
-#undef	PROFILE
+#define PROFILE 0
 #undef	DBG_TIME
 #undef	SKIP_CPATCH
 

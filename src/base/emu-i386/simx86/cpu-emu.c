@@ -51,7 +51,7 @@
 
 /* ======================================================================= */
 
-#ifdef PROFILE
+#if PROFILE
 hitimer_t AddTime, SearchTime, ExecTime, CleanupTime; // for debug
 hitimer_t GenTime, LinkTime;
 #endif
@@ -826,7 +826,7 @@ void enter_cpu_emu(void)
 
 	if (debug_level('e')) {
 		TotalTime = 0;
-#ifdef PROFILE
+#if PROFILE
 		SearchTime = AddTime = ExecTime = CleanupTime =
 		GenTime = LinkTime = 0;
 #endif
@@ -850,7 +850,7 @@ static void print_statistics(void)
 {
 	dbug_printf("Total cpuemu time %16lld us (incl.trace)\n",
 		    (long long)TotalTime/config.CPUSpeedInMhz);
-#ifdef PROFILE
+#if PROFILE
 	dbug_printf("Total codgen time %16lld us\n",
 		    (long long)GenTime/config.CPUSpeedInMhz);
 	dbug_printf("Total linker time %16lld us\n",
@@ -962,9 +962,6 @@ int e_vm86(void)
   if (iniflag==0) enter_cpu_emu();
   TheCPU.sigalrm_pending = 0;
 
-#ifdef PROFILE
-  if (debug_level('e')) tt0 = GETTSC();
-#endif
   e_sigpa_count = 0;
   mode = ADDR16 | DATA16 | MREALA;
   TheCPU.StackMask = 0x0000ffff;
