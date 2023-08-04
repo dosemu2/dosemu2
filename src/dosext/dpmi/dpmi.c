@@ -4203,7 +4203,7 @@ static void do_default_cpu_exception(cpuctx_t *scp, int trapno)
     D_printf("DPMI: do_default_cpu_exception 0x%02x at %#x:%#x ss:sp=%x:%x\n",
       trapno, (int)_cs, (int)_eip, (int)_ss, (int)_esp);
 
-    /* Route the 0.9 exception to protected-mode interrupt handler or
+    /* Route the 0.9 PM exception to protected-mode interrupt handler or
      * terminate the client if the one is not installed. */
     if (trapno == 6 || trapno >= 8 || DEFAULT_INT(trapno)) {
       cpu_exception_rm(scp, trapno);
@@ -4290,7 +4290,8 @@ int dpmi_realmode_exception(unsigned trapno, unsigned err, uint32_t cr2)
   cpuctx_t *scp = &DPMI_CLIENT.stack_frame;
   unsigned int *ssp;
 
-  if (DEFAULT_INT(trapno))
+  if (trapno >= 0x20 ||
+      DPMI_CLIENT.Exception_Table_RM[trapno].selector == dpmi_sel())
     return 0;
 
   save_pm_regs(&DPMI_CLIENT.stack_frame);
