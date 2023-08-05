@@ -1424,6 +1424,8 @@ static void finish_clnt_switch(void)
     return;
   if (config.cpu_vm_dpmi == CPUVM_KVM)
     update_kvm_idt();
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+    kvm_update_fpu();
 }
 
 static int post_rm_call(int old_client)
