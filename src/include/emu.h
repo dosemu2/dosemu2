@@ -383,6 +383,7 @@ extern void parent_nextscan(void);
 extern void disk_close(void);
 extern void cpu_setup(void);
 extern void cpu_reset(void);
+extern void raise_fpu_irq(void);
 extern void real_run_int(int);
 extern void mfs_reset(void);
 extern void mfs_done(void);

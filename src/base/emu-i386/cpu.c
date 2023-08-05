@@ -269,6 +269,23 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
   }
 }
 
+static int fpu_is_masked(void)
+{
+    uint8_t imr[2] = { [0] = port_inb(0x21), [1] = port_inb(0xa1) };
+    uint16_t real_imr = (imr[1] << 8) | imr[0];
+    return ((imr[0] & 4) || !!(real_imr & (1 << 13)));
+}
+
+void raise_fpu_irq(void)
+{
+  if (fpu_is_masked() || !isset_IF()) {
+    error("FPU IRQ cannot be injected (%i %i), bye\n",
+	fpu_is_masked(), isset_IF());
+    leavedos(2);
+  }
+  pic_request(13);
+}
+
 /*
  * DANG_BEGIN_FUNCTION cpu_setup
  *
