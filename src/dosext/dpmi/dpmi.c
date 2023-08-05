@@ -159,6 +159,8 @@ struct DPMIclient_struct {
   DPMI_INTDESC vrtc_prev;
 
   int RSP_num;
+
+  emu_fpstate saved_fpu_state;
 };
 
 struct RSP_s {
@@ -3305,6 +3307,8 @@ static void dpmi_cleanup(void)
      * parent DPMI shell (comcom32), but nobody does that.
      * Lets say this is a very pathological case for a big code surgery. */
     current_client = in_dpmi - 1;
+    memcpy(&vm86_fpu_state, &DPMI_CLIENT.saved_fpu_state,
+       sizeof(vm86_fpu_state));
     finish_clnt_switch();
     return;
   }
@@ -3321,6 +3325,13 @@ static void dpmi_cleanup(void)
     if (win3x_mode == INACTIVE)
       SETIVEC(0x66, 0, 0);	// winos2
   }
+
+  if (in_dpmi > 1)
+    memcpy(&vm86_fpu_state, &PREV_DPMI_CLIENT.saved_fpu_state,
+       sizeof(vm86_fpu_state));
+  else
+    port_outb(0xf1, 0); /* reset FPU */
+
   cli_blacklisted = 0;
   dpmi_is_cli = 0;
   in_dpmi--;
@@ -3371,8 +3382,6 @@ static void quit_dpmi(cpuctx_t *scp, unsigned short errcode,
   }
   if (!in_dpmi_pm())
     dpmi_soft_cleanup();
-
-  port_outb(0xf1, 0); /* reset FPU */
 
   if (dos_exit) {
     if (!have_tsr || !tsr_para) {
@@ -3968,7 +3977,7 @@ void dpmi_init(void)
         DPMI_pm_stack_size-1, DPMI_CLIENT.is_32,
         MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
-  if (in_dpmi > 1)
+  if (in_dpmi > 1) {
     inherit_idt = DPMI_CLIENT.is_32 == PREV_DPMI_CLIENT.is_32
 	/* inheriting from PharLap causes 0x4c to be passed to DOS directly! */
 	&& !(PREV_DPMI_CLIENT.feature_flags & DF_PHARLAP)
@@ -3977,7 +3986,9 @@ void dpmi_init(void)
 	&& (win3x_mode != STANDARD)
 #endif
     ;
-  else
+    memcpy(&PREV_DPMI_CLIENT.saved_fpu_state, &vm86_fpu_state,
+	sizeof(vm86_fpu_state));
+  } else
     inherit_idt = 0;
 
   setup_int_exc(inherit_idt);
