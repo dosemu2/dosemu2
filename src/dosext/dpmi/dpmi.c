@@ -2531,7 +2531,7 @@ err:
     desc = dpmi_get_pm_exc_addr(_LO(bx));
     _LWORD(ecx) = desc.selector;
     _edx = desc.offset32;
-    D_printf("DPMI: Getting Ext Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
+    D_printf("DPMI: Getting Ext PM Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     break;
   }
   case 0x0211:	/* Get Ext Processor Exception Handler Vector - RM */
@@ -2542,7 +2542,7 @@ err:
     }
     _LWORD(ecx) = DPMI_CLIENT.Exception_Table_RM[_LO(bx)].selector;
     _edx = DPMI_CLIENT.Exception_Table_RM[_LO(bx)].offset;
-    D_printf("DPMI: Getting RM Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
+    D_printf("DPMI: Getting Ext RM Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     break;
   case 0x0212: {	/* Set Ext Processor Exception Handler Vector - PM */
     DPMI_INTDESC desc;
@@ -2551,7 +2551,7 @@ err:
       _eax = 0x8021;
       break;
     }
-    D_printf("DPMI: Setting Ext Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
+    D_printf("DPMI: Setting Ext PM Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     desc.selector = _LWORD(ecx);
     desc.offset32 = API_16_32(_edx);
     dpmi_set_pm_exc_addr(_LO(bx), desc);
@@ -2563,7 +2563,7 @@ err:
       _eax = 0x8021;
       break;
     }
-    D_printf("DPMI: Setting Ext Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
+    D_printf("DPMI: Setting Ext RM Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     DPMI_CLIENT.Exception_Table_RM[_LO(bx)].selector = _LWORD(ecx);
     DPMI_CLIENT.Exception_Table_RM[_LO(bx)].offset = API_16_32(_edx);
     break;
@@ -3575,7 +3575,8 @@ static void do_pm_int(cpuctx_t *scp, int i)
    * are two problems with that:
    * - STI can be done also by the chained real-mode handler
    * - We need to allow processing the different IRQ levels for performance
-   * So simply mask the currently processing IRQ on PIC. */
+   * So simply mask the currently processing IRQ on PIC0 (in case of RTC
+   * we mask entire PIC1 for a moment). */
   if (i == 8 || i == 0x70) {
     /* PIT or RTC interrupt */
     unsigned char isr;
