@@ -70,6 +70,10 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
   case 0x04: /* overflow */
   case 0x05: /* bounds */
   case 0x07: /* device_not_available */
+  case 0x0c: /* stack fault */
+    error_once("exception %#x occured\n", trapno);
+    if (!IS_REDIRECTED(trapno))
+      goto sgleave;
     do_int(trapno);
     return 0;
 
@@ -422,9 +426,13 @@ static void vm86_GP_fault(void)
     mhp_debug(DBG_GPF, 0, 0);
 #endif
     set_debug_level('g', 1);
-    error("general protection at %p: %x\n", lina,*lina);
+    error_once("general protection at %p: %x\n", lina,*lina);
     show_regs();
     show_ints(0, 0x33);
+    if (IS_REDIRECTED(0x0d)) {
+	do_int(0x0d);
+	return;
+    }
     fatalerr = 4;
     leavedos(fatalerr);		/* shouldn't return */
 }
