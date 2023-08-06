@@ -278,7 +278,8 @@ static int fpu_is_masked(void)
 
 void raise_fpu_irq(void)
 {
-  if (fpu_is_masked() || !isset_IF()) {
+  int _if = in_dpmi_pm() ? dpmi_isset_IF() : isset_IF();
+  if (fpu_is_masked() || !_if) {
     error("FPU IRQ cannot be injected (%i %i), bye\n",
 	fpu_is_masked(), isset_IF());
     leavedos(2);
