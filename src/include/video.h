@@ -23,8 +23,8 @@ extern void gettermcap(int,int *, int *);
  * and the BIOS really can't handle more than these numbers of rows and
  * columns (128*255*2 < 65535)
  */
-#define MAX_COLUMNS 255
-#define MAX_LINES 128
+#define MAX_COLUMNS 160
+#define MAX_LINES 100
 
 /***********************************************************************/
 

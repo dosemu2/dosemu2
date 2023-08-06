@@ -367,12 +367,13 @@ gettermcap(int i, int *co, int *li)
   }
 
   if (*co > MAX_COLUMNS || *li > MAX_LINES) {
-    error("Screen size is too large: %dx%d, max is %dx%d\n",
+    error("Screen size is too large: %dx%d, max is %dx%d, ",
       *co, *li, MAX_COLUMNS, MAX_LINES);
     if (*li > MAX_LINES)
       *li = MAX_LINES;
     if (*co > MAX_COLUMNS)
       *co = MAX_COLUMNS;
+    error("@Using %dx%d\n", *co, *li);
   }
 
   if (*li == 0 || *co == 0) {
