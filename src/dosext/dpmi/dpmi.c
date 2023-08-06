@@ -4131,7 +4131,6 @@ err:
 static void return_from_exception(cpuctx_t *scp)
 {
   void *sp;
-  leave_lpms(scp);
   D_printf("DPMI: Return from client exception handler, "
     "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
 
@@ -4603,6 +4602,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
           return_from_hwint(scp, sp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_exception)) {
+	  leave_lpms(scp);
 	  return_from_exception(scp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_ext_exception)) {
@@ -4814,6 +4814,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  D_printf("DPMI: default exception handler 0x%02x called\n",excp);
 	  do_dpmi_retf(scp, sp);
 	  /* legacy (0.9) exceptions are routed to PM int handlers */
+	  leave_lpms(scp);
 	  return_from_exception(scp);
 	  do_default_cpu_exception(scp, excp);
 
@@ -4826,6 +4827,9 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	    _cs = DPMI_CLIENT.Exception_Table[excp].selector;
 	    _eip = DPMI_CLIENT.Exception_Table[excp].offset;
 	  } else {
+	    do_dpmi_retf(scp, sp);
+	    leave_lpms(scp);
+	    return_from_exception(scp);  // also returns from ext exception
 	    /* 1.0 DPMI spec says this should go straight to RM */
 	    cpu_exception_rm(scp, excp);
 	  }
