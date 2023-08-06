@@ -671,7 +671,7 @@ static void CheckLinks(void)
   unsigned char *p;
   linkdesc *L, *T;
   backref *B;
-  int n;
+  int n, brt;
 
   for (;;) {
     /* walk to next node */
@@ -714,15 +714,17 @@ static void CheckLinks(void)
 		goto nquit;
 	    }
 	    n = 0;
+	    brt = 0;
 	    while (B) {
 		if (B->ref==&G->mblock->bkptr) {
 		    n++;
+		    brt += B->branch;
 		    if (debug_level('e')>5) e_printf("  T: backref %d from %p\n",n,GL);
 		}
 		B = B->next;
 	    }
-	    if (n!=1) {
-		error("0 or >1 backrefs\n"); goto nquit;
+	    if (n < 1 || n > 2 || (n == 2 && brt != 'N' + 'T')) {
+		error("0 or >1 backrefs1 (%i)\n", n); goto nquit;
 	    }
 	}
 	else {
@@ -750,15 +752,17 @@ static void CheckLinks(void)
 		goto nquit;
 	    }
 	    n = 0;
+	    brt = 0;
 	    while (B) {
 		if (B->ref==&G->mblock->bkptr) {
 		    n++;
+		    brt += B->branch;
 		    if (debug_level('e')>5) e_printf("  N: backref %d from %p\n",n,GL);
 		}
 		B = B->next;
 	    }
-	    if (n!=1) {
-		error("0 or >1 backrefs\n"); goto nquit;
+	    if (n < 1 || n > 2 || (n == 2 && brt != 'N' + 'T')) {
+		error("0 or >1 backrefs2 (%i)\n", n); goto nquit;
 	    }
 	}
 	else if (L->nt_link.abs) {
