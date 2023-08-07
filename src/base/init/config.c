@@ -760,13 +760,16 @@ static void read_cpu_info(void)
       if (cpu) k = atoi(cpu) / 100;
     }
     if (k > 5) k = 5;
+
+    cpuflags = get_proc_string_by_key("features");
+    if (!cpuflags)
+      cpuflags = get_proc_string_by_key("flags");
+    if (cpuflags && strstr(cpuflags, "umip"))
+      config.umip = 1;
+
     switch (k) {
       case 5:
         config.realcpu = CPU_586;
-        cpuflags = get_proc_string_by_key("features");
-        if (!cpuflags) {
-          cpuflags = get_proc_string_by_key("flags");
-        }
 #ifdef X86_EMULATOR
         if (cpuflags && (strstr(cpuflags, "mmxext") ||
 			 strstr(cpuflags, "sse"))) {

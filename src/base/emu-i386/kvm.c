@@ -402,6 +402,8 @@ static void init_kvm_monitor(void)
 
   sregs.cr0 |= X86_CR0_PE | X86_CR0_PG | X86_CR0_NE | X86_CR0_ET;
   sregs.cr4 |= X86_CR4_VME;
+  if (config.umip)
+    sregs.cr4 |= X86_CR4_UMIP;
 
   /* setup registers to point to VM86 monitor */
   sregs.cs.base = 0;

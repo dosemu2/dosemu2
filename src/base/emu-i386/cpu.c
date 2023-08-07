@@ -34,6 +34,7 @@
 #include "int.h"
 #include "emudpmi.h"
 #include "priv.h"
+#include "instremu.h"
 #include "kvm.h"
 
 #ifdef X86_EMULATOR
@@ -111,6 +112,8 @@ static void fpu_reset(void);
 int cpu_trap_0f (unsigned char *csp, cpuctx_t *scp)
 {
 	int increment_ip = 0;
+	uint16_t *reg16[8] = { &LWORD(eax), &LWORD(ecx), &LWORD(edx), &LWORD(ebx),
+		&LWORD(esp), &LWORD(ebp), &LWORD(esi), &LWORD(edi) };
 	g_printf("CPU: TRAP op 0F %02x %02x\n",csp[1],csp[2]);
 
 	if (csp[1] == 0x06) {
@@ -185,6 +188,29 @@ int cpu_trap_0f (unsigned char *csp, cpuctx_t *scp)
 		  else cdt[idx] = *srg;
 		}
 		increment_ip = 3;
+	} else if (csp[1] == 0) {  // SLDT, STR, ...
+		switch (csp[2] & 0xc0) {
+		case 0xc0: // register dest
+			*reg16[csp[2] & 7] = 0;
+			increment_ip = 3;
+			break;
+		default:
+			error("unsupported SLDT dest %x\n", csp[2]);
+			increment_ip = instr_len(csp, 0);
+			break;
+		}
+	} else if (csp[1] == 1) {  // SGDT, SIDT, SMSW ...
+		switch (csp[2] & 0xc0) {
+		case 0xc0: // register dest
+			/* some meaningful value for smsw, 0 for rest */
+			*reg16[csp[2] & 7] = ((csp[2] & 0x28) == 0x20) ? 0x31 : 0;
+			increment_ip = 3;
+			break;
+		default:
+			error("unsupported SMSW dest %x\n", csp[2]);
+			increment_ip = instr_len(csp, 0);
+			break;
+		}
 	}
 	if (increment_ip) {
 		if (scp)
