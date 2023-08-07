@@ -766,6 +766,8 @@ static void read_cpu_info(void)
       cpuflags = get_proc_string_by_key("flags");
     if (cpuflags && strstr(cpuflags, "umip"))
       config.umip = 1;
+    else
+      warn("Your CPU doesn't support UMIP\n");
 
     switch (k) {
       case 5:
