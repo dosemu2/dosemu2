@@ -241,6 +241,10 @@ int instr_len(unsigned char *p, int is_32)
     case 0xb7:
     case 0xbe:
     case 0xbf:
+    case 0:
+    case 1:
+    case 0x20:
+    case 0x22:
       p++;
       p += (u = arg_len(p, asp));
       if(!u) p = p0;
