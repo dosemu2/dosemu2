@@ -17,10 +17,33 @@ https://github.com/dosemu2/dosemu2/issues
 
 ## Running
 
-Just type `dosemu` to run an emulator.
-Use `dosemu -E <dos_cmd>` to run `<dos_cmd>` and exit (add `-T` to not exit).
-Use `dosemu -K <unix_dir> -E <dos_cmd>` or `dosemu -K <unix_full_path>`
-to run DOS programs from unix directories.
+Just type
+```
+dosemu
+```
+to run an emulator.
+
+Use
+```
+dosemu -E <dos_cmd>
+```
+to run `<dos_cmd>` and exit (add `-T` to not exit).
+
+Use
+```
+dosemu -K <unix_dir> -E <dos_cmd>
+```
+or
+```
+dosemu -K <unix_full_path>
+```
+to run DOS programs from unix directory.
+
+Use the following syntax to run dos program from unix path, with arguments:
+```
+dosemu <unix_full_path> -- <dos_prog_args>
+```
+This is a simpler syntax than using both -K and -E.
 
 ## Configuring
 
