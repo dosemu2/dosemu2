@@ -214,14 +214,6 @@ static void bios_setup(void)
    */
   install_int_10_handler();
 
-  {
-    /* update boot drive in Banner-code */
-    unsigned ptr;
-
-    ptr = SEGOFF2LINEAR(BIOSSEG, bios_f000_bootdrive);
-    WRITE_BYTE(ptr, (config.hdiskboot >= 2 || config.hdiskboot == -1) ? 0x80 : 0);
-  }
-
   bios_mem_setup();		/* setup values in BIOS area */
 }
 

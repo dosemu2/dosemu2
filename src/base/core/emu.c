@@ -144,7 +144,7 @@ static int find_boot_drive(void)
 void boot(void)
 {
     unsigned buffer;
-    struct disk    *dp = NULL;
+    struct disk *dp = NULL;
 
     if (config.try_freedos && config.hdiskboot == -1 &&
 	    config.hdisks > 0 && !disk_is_bootable(&hdisktab[0])) {
@@ -246,6 +246,9 @@ mbr:
 	}
     }
     disk_close();
+
+    /* put boot drive to dl */
+    _DX = dp->drive_num;
 }
 
 static int c_chk(void)

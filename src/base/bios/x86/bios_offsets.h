@@ -13,7 +13,6 @@ extern const unsigned HD_parameter_table1;
 extern const unsigned bios_f000_int10ptr;
 extern const unsigned bios_f000_int10_old;
 extern const unsigned bios_in_int10_callback;
-extern const unsigned bios_f000_bootdrive;
 extern const unsigned DBGload_parblock;
 extern const unsigned DBGload_CSIP;
 extern const unsigned PKTDRV_param;

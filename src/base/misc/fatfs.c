@@ -1616,7 +1616,7 @@ void mimic_boot_blk(void)
   uint16_t seg;
   uint16_t ofs;
 
-  fatfs_t *f = get_fat_fs_by_drive(HI(ax));
+  fatfs_t *f = get_fat_fs_by_drive(LO(dx));
 
   if (!f || (idx = sys_file_idx(f->obj[1].name, f)) == -1) {
     error("BOOT-helper requested, but no systemfile available\n");
@@ -1909,7 +1909,7 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   /* boot loading is done by DOSEMU-HELPER with mimic_boot_blk() function */
   b[0x40] = 0xb8;	/* mov ax,0fdh */
   b[0x41] = DOS_HELPER_BOOTSECT;
-  b[0x42] = f->drive_num;
+  b[0x42] = 0;
   b[0x43] = 0xcd;	/* int 0e6h */
   b[0x44] = DOS_HELPER_INT;
 
