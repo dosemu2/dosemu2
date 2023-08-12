@@ -60,7 +60,6 @@ char **dosemu_argv;
 char *dosemu_proc_self_exe = NULL;
 int dosemu_proc_self_maps_fd = -1;
 
-static void     check_for_env_autoexec_or_config(void);
 static void     usage(char *basename);
 
 const char *config_script_name = DEFAULT_CONFIG_SCRIPT;
@@ -977,8 +976,6 @@ static void config_post_process(void)
     }
 #endif
 
-    check_for_env_autoexec_or_config();
-
     if (config.pci && !can_do_root_stuff) {
         c_printf("CONF: Warning: PCI requires root, disabled\n");
         config.pci = 0;
@@ -1498,29 +1495,6 @@ config_init(int argc, char **argv)
 	if (debug_level('c') >= 8)
 	    dump_config_status(log_dump_printf);
     }
-}
-
-
-static void
-check_for_env_autoexec_or_config(void)
-{
-    char           *cp;
-    cp = getenv("CONFIG");
-    if (cp) {
-	free(config.emusys);
-	config.emusys = strdup(cp);
-    }
-
-
-     /*
-      * The below is already reported in the conf. It is in no way an error
-      * so why the messages?
-      */
-
-#if 0
-    if (config.emusys)
-	fprintf(stderr, "config extension = %s\n", config.emusys);
-#endif
 }
 
 /*
