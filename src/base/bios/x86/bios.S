@@ -81,8 +81,6 @@ no_vbios_post:
 video_init_done:
 	movb	$DOS_HELPER_SHOW_BANNER,%al
 	int	$DOS_HELPER_INT
-	movb	%cs:bios_f000_bootdrive,%dl
-
 	movb	$DOS_HELPER_READ_MBR,%al
 	int	$DOS_HELPER_INT
 	ljmp	$0x0, $0x7c00		/* Some boot sectors require cs=0 */
@@ -452,10 +450,6 @@ bios_f000_int10_old:
 
 	.globl	bios_in_int10_callback
 bios_in_int10_callback:
-	.byte	0
-
-	.globl	bios_f000_bootdrive
-bios_f000_bootdrive:
 	.byte	0
 
 	/* this is the paramblock, we told DOS to use for INT21 AX=4B01 */
