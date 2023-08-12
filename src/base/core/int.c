@@ -472,6 +472,10 @@ static int dos_helper(int stk_offs, int revect)
 	p_dos_str("\n");
 	break;
 
+    case DOS_HELPER_PRESTROKES_START:
+	start_pre_strokes();
+	break;
+
     case DOS_HELPER_INSERT_INTO_KEYBUFFER:
 	k_printf
 	    ("KBD: WARNING: outdated keyboard helper fn 6 was called!\n");

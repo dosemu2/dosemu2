@@ -33,7 +33,7 @@
  */
 
 #define DOS_HELPER_INT              0xE6 /* The interrupt we use */
-#define DOS_HELPER_MAGIC          0xaa55
+#define DOS_HELPER_MAGIC            0xaa55
 
 #define DOS_HELPER_DOSEMU_CHECK     0x00
 #define DOS_HELPER_SHOW_REGS        0x01
@@ -44,6 +44,7 @@
 #define DOS_HELPER_INSERT_INTO_KEYBUFFER 0x06 /* OLD, depreciated */
 #define DOS_HELPER_GET_BIOS_KEY     0x07  /* OLD, depreciated */
 #define DOS_HELPER_VIDEO_INIT       0x08
+#define DOS_HELPER_PRESTROKES_START 0x09
 
 #define DOS_HELPER_GET_DEBUG_STRING 0x10
 #define DOS_HELPER_SET_DEBUG_STRING 0x11
