@@ -324,6 +324,8 @@ static void system_scrub(void)
       /* hack to support full path in -K */
       if (!exists_file(config.unix_path))
         goto err;
+      error("@Warning: -K <full_path> deprecated.\n"
+            "\t<full_path> should now be passed directly, so remove -K\n");
       p = strrchr(config.unix_path, '/');
       if (!p)
         goto err;

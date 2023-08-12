@@ -35,15 +35,9 @@ dosemu -K <unix_dir> -E <dos_cmd>
 ```
 or
 ```
-dosemu -K <unix_full_path>
-```
-to run DOS programs from unix directory.
-
-Use the following syntax to run dos program from unix path, with arguments:
-```
 dosemu <unix_full_path> -- <dos_prog_args>
 ```
-This is a simpler syntax than using both -K and -E.
+to run DOS programs from unix directory.
 
 ## Configuring
 
