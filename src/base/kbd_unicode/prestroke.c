@@ -133,6 +133,10 @@ static t_unicode *type_one_key(t_unicode *in)
 			move_key(RELEASE, keynum);
 			return in;
 		}
+		case '_': /* space */
+			move_key(PRESS, DKY_SPACE);
+			move_key(RELEASE, DKY_SPACE);
+			return in;
 		default:
                         ;
 			/* fall through */
