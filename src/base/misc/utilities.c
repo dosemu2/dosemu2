@@ -511,8 +511,12 @@ char *expand_path(const char *dir)
 	int err;
 
 	err = wordexp(dir, &p, WRDE_NOCMD);
-	assert(!err);
-	assert(p.we_wordc == 1);
+	if (err)
+		return NULL;
+	if (p.we_wordc != 1) {
+		wordfree(&p);
+		return NULL;
+	}
 	s = realpath(p.we_wordv[0], NULL);
 	wordfree(&p);
 	return s;
