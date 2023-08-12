@@ -2863,6 +2863,7 @@ static void dos_post_boot(void)
          */
         mhp_init_hma();
 #endif
+	start_pre_strokes();
     }
 }
 

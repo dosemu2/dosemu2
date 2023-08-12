@@ -19,6 +19,7 @@
 
 static int default_stroke_pause = -1;
 static int stroke_pause;
+static int stroke_started;
 
 
 #define GETNUMBER(s) ({ \
@@ -153,6 +154,9 @@ static t_unicode *pre_stroke = 0, *pre_stroke_mem = 0;
 int type_in_pre_strokes(void)
 {
 	struct char_set *keyb_charset = trconfig.keyb_charset;
+
+	if (!stroke_started)
+		return stroke_pause;
 	if (config.pre_stroke && !pre_stroke) {
 		size_t characters, src_len;
 		const char *ptr;
@@ -182,8 +186,6 @@ int type_in_pre_strokes(void)
 	return stroke_pause;
 }
 
-
-
 void append_pre_strokes(char *s)
 {
   if (config.pre_stroke) {
@@ -200,4 +202,9 @@ void append_pre_strokes(char *s)
   else {
     config.pre_stroke = strdup(s);
   }
+}
+
+void start_pre_strokes(void)
+{
+  stroke_started++;
 }

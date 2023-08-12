@@ -66,6 +66,7 @@ void set_shiftstate(t_modifiers s);
 t_modifiers get_shiftstate(void);
 int type_in_pre_strokes(void);
 void append_pre_strokes(char *s);
+void start_pre_strokes(void);
 struct char_set;
 
 void keyb_priv_init(void);
