@@ -21,12 +21,6 @@ Currently missing DPMI-1.0 functions:
           instances, but we currently append PID to shm name and unlink on
           every dosemu termination so that needs to be reworked)
  - 0xd03 (shm semaphore post, 1.0)
-
-Missing DPMI-1.0 features:
- - All 16 descriptors reserved for fn 0x000d must be per-client.
-   We need to reload that part of LDT on client switch.
-   DPMI-1.0 suggests a full per-client LDT, but that is incompatible
-   with existing 0.9 clients.
 */
 
 #include <stdio.h>
@@ -169,6 +163,7 @@ struct DPMIclient_struct {
   int RSP_num;
 
   emu_fpstate saved_fpu_state;
+  Bit8u saved_ldt[0x10 * LDT_ENTRY_SIZE];
 };
 
 struct RSP_s {
@@ -332,19 +327,19 @@ void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg, int is_32)
   return SEL_ADR_LDT(sel, reg, is_32);
 }
 
-int get_ldt(void *buffer)
+int get_ldt(void *buffer, int len)
 {
 #ifdef DNATIVE
   int i, ret;
   struct ldt_descriptor *dp;
   if (config.cpu_vm_dpmi != CPUVM_NATIVE)
-	return emu_modify_ldt(LDT_READ, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
-  ret = modify_ldt(LDT_READ, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+	return emu_modify_ldt(LDT_READ, buffer, len);
+  ret = modify_ldt(LDT_READ, buffer, len);
   /* do emu_modify_ldt even if modify_ldt fails, so cpu_vm_dpmi fallbacks can
      still work */
-  if (ret != LDT_ENTRIES * LDT_ENTRY_SIZE)
-    return emu_modify_ldt(LDT_READ, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
-  for (i = 0, dp = buffer; i < LDT_ENTRIES; i++, dp++) {
+  if (ret != len)
+    return emu_modify_ldt(LDT_READ, buffer, len);
+  for (i = 0, dp = buffer; i < len / LDT_ENTRY_SIZE; i++, dp++) {
     unsigned int base_addr = DT_BASE(dp);
     if (base_addr || DT_LIMIT(dp)) {
       base_addr -= (uintptr_t)mem_base;
@@ -353,8 +348,34 @@ int get_ldt(void *buffer)
   }
   return ret;
 #else
-  return emu_modify_ldt(LDT_READ, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+  return emu_modify_ldt(LDT_READ, buffer, len);
 #endif
+}
+
+static int put_ldt(struct user_desc *ldt_info)
+{
+  int __retval;
+
+#ifdef DNATIVE
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+  {
+    /* NOTE: the real LDT in kernel space uses the real addresses, but
+       the LDT we emulate, and DOS applications work with,
+       has all base addresses with respect to mem_base */
+    if (!ldt_info->seg_not_present) {
+      ldt_info->base_addr += (uintptr_t)mem_base;
+      __retval = modify_ldt(LDT_WRITE, ldt_info, sizeof(*ldt_info));
+      ldt_info->base_addr -= (uintptr_t)mem_base;
+    } else {
+      __retval = modify_ldt(LDT_WRITE, ldt_info, sizeof(*ldt_info));
+    }
+    if (__retval)
+      return __retval;
+  }
+#endif
+  /* this also updates our ldt_buffer */
+  __retval = emu_modify_ldt(LDT_WRITE, ldt_info, sizeof(*ldt_info));
+  return __retval;
 }
 
 static int set_ldt_entry(int entry, dosaddr_t base, unsigned int limit,
@@ -367,7 +388,6 @@ static int set_ldt_entry(int entry, dosaddr_t base, unsigned int limit,
    */
   struct user_desc ldt_info = {};
 
-  int __retval;
   ldt_info.entry_number = entry;
   ldt_info.base_addr = base;
   ldt_info.limit = limit;
@@ -377,26 +397,7 @@ static int set_ldt_entry(int entry, dosaddr_t base, unsigned int limit,
   ldt_info.limit_in_pages = limit_in_pages_flag;
   ldt_info.seg_not_present = seg_not_present;
   ldt_info.useable = useable;
-#ifdef DNATIVE
-  if (config.cpu_vm_dpmi == CPUVM_NATIVE)
-  {
-    /* NOTE: the real LDT in kernel space uses the real addresses, but
-       the LDT we emulate, and DOS applications work with,
-       has all base addresses with respect to mem_base */
-    if (base || limit) {
-      ldt_info.base_addr += (uintptr_t)mem_base;
-      __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
-      ldt_info.base_addr -= (uintptr_t)mem_base;
-    } else {
-      __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
-    }
-    if (__retval)
-      return __retval;
-  }
-#endif
-
-  __retval = emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
-  return __retval;
+  return put_ldt(&ldt_info);
 }
 
 static void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */
@@ -475,7 +476,7 @@ static void print_ldt(void)
 {
   static char buffer[0x10000];
 
-  if (get_ldt(buffer) < 0)
+  if (get_ldt(buffer, LDT_ENTRIES * LDT_ENTRY_SIZE) < 0)
     leavedos(0x544c);
 
   _print_dt(buffer, MAX_SELECTORS, 1);
@@ -1149,9 +1150,10 @@ int SetDescriptorAccessRights(unsigned short selector, unsigned short acc_rights
 static int GetDescriptorAccessRights(unsigned short selector,
 	unsigned short *acc_rights)
 {
+  unsigned short ldt_entry = selector >> 3;
   if (!ValidAndUsedSelector(selector))
     return -1; /* invalid selector 8022 */
-  get_ldt(ldt_buffer);  // update the buffer
+  get_ldt(ldt_buffer, (ldt_entry + 1) * LDT_ENTRY_SIZE);  // update the buffer
   memcpy(acc_rights, &ldt_buffer[(selector & 0xfff8) + 5], 2);
   return 0;
 }
@@ -1173,9 +1175,10 @@ unsigned short CreateAliasDescriptor(unsigned short selector)
 
 int GetDescriptor(uint16_t selector, unsigned int *lp)
 {
+  unsigned short ldt_entry = selector >> 3;
   if (!ValidAndUsedSelector(selector))
     return -1; /* invalid value 8021 */
-  get_ldt(ldt_buffer);  // update the buffer
+  get_ldt(ldt_buffer, (ldt_entry + 1) * LDT_ENTRY_SIZE);  // update the buffer
   memcpy((unsigned char *)lp, &ldt_buffer[selector & 0xfff8], LDT_ENTRY_SIZE);
   D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08x%08x\n",
     selector >> 3, selector, lp[1], lp[0]);
@@ -1461,15 +1464,82 @@ static void finish_clnt_switch(void)
     kvm_update_fpu();
 }
 
+static int do_ldt_write(unsigned short ldt_entry, unsigned int *lp)
+{
+  unsigned int base_addr, limit;
+  int np, ro, type, ld, ret;
+
+  base_addr = (lp[1] & 0xFF000000) | ((lp[1] << 16) & 0x00FF0000) |
+	((lp[0] >> 16) & 0x0000FFFF);
+  limit = (lp[1] & 0x000F0000) | (lp[0] & 0x0000FFFF);
+  type = (lp[1] >> 10) & 3;
+  ro = ((lp[1] >> 9) & 1) ^ 1;
+  np = ((lp[1] >> 15) & 1) ^ 1;
+  ld = (lp[1] >> 12) & 1;
+  if (!ld && !np)
+    D_printf("DPMI: invalid access type %x\n", lp[1] >> 8);
+
+  ret = set_ldt_entry(ldt_entry, base_addr, limit, (lp[1] >> 22) & 1, type, ro,
+			(lp[1] >> 23) & 1, np, (lp[1] >> 20) & 1);
+  if (ret == -1)
+    return -1;
+  return np;
+}
+
+static int ldt_write_low(unsigned short ldt_entry, unsigned int *lp)
+{
+  int rc = do_ldt_write(ldt_entry, lp);
+  switch (rc) {
+    case -1:
+      return -1;
+    case 0: // present
+      segment_set_user(ldt_entry, current_client + 1);
+      ldt_bitmap_update(ldt_entry, 1);
+      break;
+    case 1: { // NP
+      int used = segment_user(ldt_entry);
+      /* update only used entries as win31 stores crap in unused ones,
+       * and that crap needs to be preserved */
+      if (used) {
+        segment_set_user(ldt_entry, 0);
+        ldt_bitmap_update(ldt_entry, 1);
+      }
+      break;
+    }
+  }
+  return 0;
+}
+
+static void save_prev_clnt_state(void)
+{
+  memcpy(&DPMI_CLIENT.saved_fpu_state, &vm86_fpu_state,
+    sizeof(vm86_fpu_state));
+  /* ldt_buffer may be outdated on an "accessed" bits so read from ldt */
+  get_ldt(DPMI_CLIENT.saved_ldt, sizeof(DPMI_CLIENT.saved_ldt));
+}
+
 static void clnt_switch(int new_clnt)
 {
+  int i;
+
+  assert(in_dpmi);
   assert(current_client != new_clnt);
-  if (current_client < in_dpmi)
-    memcpy(&DPMI_CLIENT.saved_fpu_state, &vm86_fpu_state,
-         sizeof(vm86_fpu_state));
+  if (current_client >= 0 && current_client < in_dpmi)
+    save_prev_clnt_state();
+
   current_client = new_clnt;
+
   memcpy(&vm86_fpu_state, &DPMI_CLIENT.saved_fpu_state,
        sizeof(vm86_fpu_state));
+  /* swap first 16 LDT entries as required by DPMI-1.0 */
+  for (i = 0; i < 0x10; i++) {
+    if (segment_user(i) < 0xfe) {
+      int err = ldt_write_low(i,
+          (unsigned int *)&DPMI_CLIENT.saved_ldt[i * LDT_ENTRY_SIZE]);
+      assert(!err);
+    }
+  }
+
   finish_clnt_switch();
 }
 
@@ -3734,14 +3804,14 @@ void run_dpmi(void)
 
 void dpmi_setup(void)
 {
-    int i, type, err;
+    int i, type, np, err;
     unsigned int base_addr, limit, *lp;
     dpmi_pm_block *block;
     unsigned short data_sel;
 
     if (!config.dpmi) return;
 
-    get_ldt(ldt_buffer);
+    get_ldt(ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
     memset(seg_meta, 0, sizeof(seg_meta));
     for (i = 0; i < MAX_SELECTORS; i++) {
       lp = (unsigned int *)&ldt_buffer[i * LDT_ENTRY_SIZE];
@@ -3751,7 +3821,8 @@ void dpmi_setup(void)
       base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
       limit |= (*lp & 0x000F0000);
       type = (*lp >> 10) & 3;
-      if (base_addr || limit || type) {
+      np = ((*lp >> 15) & 1) ^ 1;
+      if (!np) {
         D_printf("LDT entry 0x%x used: b=0x%x l=0x%x t=%i\n",i,base_addr,limit,type);
         segment_set_user(i, 0xfe);
       }
@@ -3992,8 +4063,10 @@ void dpmi_init(void)
     return;
   }
 
-  current_client = in_dpmi++;
-  memset(&DPMI_CLIENT, 0, sizeof(DPMI_CLIENT));
+  in_dpmi++;
+  memset(&DPMIclient[in_dpmi - 1], 0, sizeof(DPMI_CLIENT));
+  clnt_switch(in_dpmi - 1);
+
   dpmi_is_cli = 0;
 
   DPMI_CLIENT.is_32 = (LWORD(eax) & 1);
@@ -4027,8 +4100,6 @@ void dpmi_init(void)
 	&& (win3x_mode != STANDARD)
 #endif
     ;
-    memcpy(&PREV_DPMI_CLIENT.saved_fpu_state, &vm86_fpu_state,
-	sizeof(vm86_fpu_state));
   } else
     inherit_idt = 0;
 
