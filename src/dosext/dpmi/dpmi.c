@@ -105,6 +105,8 @@ static int current_client;
 
 static SEGDESC _Segments[MAX_SELECTORS];
 #define Segments(x) _Segments[x]
+#define segment_user(x) _Segments[x].used
+#define segment_set_user(x, y) (_Segments[x].used = (y))
 static int in_dpmi;/* Set to 1 when running under DPMI */
 static int dpmi_pm;
 static int in_dpmi_irq;
@@ -385,7 +387,7 @@ static void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */
     base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
     limit |= (*lp & 0x000F0000);
     type = (*lp >> 8) & 15;
-    if ((base_addr > 0) || (limit > 0 ) || Segments(i).used) {
+    if ((base_addr > 0) || (limit > 0 ) || segment_user(i)) {
       if (*lp & 0x1000)  {
 	D_printf("Entry 0x%04x: Base %08x, Limit %05x, Type %d (desc %#x)\n",
 	       i, base_addr, limit, (type&7), (i<<3)|(isldt?7:0));
@@ -689,7 +691,7 @@ int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit
     D_printf("ERROR: Invalid selector passed to SetSelector(): %#x\n", selector);
     return -1;
   }
-  if (Segments(ldt_entry).used) {
+  if (segment_user(ldt_entry)) {
     if (set_ldt_entry(ldt_entry, base_addr, limit, is_32, type, readonly, is_big,
         seg_not_present, useable)) {
       D_printf("DPMI: set_ldt_entry() failed\n");
@@ -715,7 +717,7 @@ static int SystemSelector(unsigned int selector)
   if ((selector >> 3) >= MAX_SELECTORS)
     return 0;
   /* 0xff refers to dpmi_sel16 & dpmi_sel32 */
-  return !DPMIValidSelector(selector) || Segments(selector >> 3).used == 0xff;
+  return !DPMIValidSelector(selector) || segment_user(selector >> 3) == 0xff;
 }
 
 static unsigned short allocate_descriptors_at(unsigned short selector,
@@ -729,15 +731,15 @@ static unsigned short allocate_descriptors_at(unsigned short selector,
     return 0;
   }
   for (i=0;i<number_of_descriptors;i++) {
-    if (Segments(ldt_entry+i).used || SystemSelector(((ldt_entry+i)<<3)|7))
+    if (segment_user(ldt_entry+i) || SystemSelector(((ldt_entry+i)<<3)|7))
       return 0;
   }
 
   for (i=0;i<number_of_descriptors;i++) {
     if (in_dpmi)
-      Segments(ldt_entry+i).used = current_client + 1;
+      segment_set_user(ldt_entry+i, current_client + 1);
     else {
-      Segments(ldt_entry+i).used = 0xff;  /* mark as unavailable for API */
+      segment_set_user(ldt_entry+i, 0xff);  /* mark as unavailable for API */
     }
     Segments(ldt_entry+i).cstd = 0;
   }
@@ -785,7 +787,7 @@ static unsigned short allocate_descriptors_from(int first_ldt, int number_of_des
     }
     used = 0;
     for (i = 0; i < number_of_descriptors; i++)
-      used |= Segments(next_ldt+i).used || SystemSelector(((next_ldt+i)<<3)|7);
+      used |= segment_user(next_ldt+i) || SystemSelector(((next_ldt+i)<<3)|7);
   }
   selector = (next_ldt<<3) | 0x0007;
   if (allocate_descriptors_at(selector, number_of_descriptors) !=
@@ -837,13 +839,13 @@ int FreeDescriptor(unsigned short selector)
     D_printf("DPMI: Cannot free system descriptor.\n");
     return -1;
   }
-  if (Segments(ldt_entry).used != current_client + 1) {
+  if (segment_user(ldt_entry) != current_client + 1) {
     D_printf("DPMI: Not freeing descriptor from client %x by %x\n",
-        Segments(ldt_entry).used, current_client + 1);
+        segment_user(ldt_entry), current_client + 1);
     return -1;
   }
   ret = SetSelector(selector, 0, 0, 0, MODIFY_LDT_CONTENTS_DATA, 1, 0, 1, 0);
-  Segments(ldt_entry).used = 0;
+  segment_set_user(ldt_entry, 0);
   ldt_bitmap_update(selector, 1);
   return ret;
 }
@@ -852,7 +854,7 @@ static void FreeAllDescriptors(void)
 {
     int i;
     for (i=0;i<MAX_SELECTORS;i++) {
-      if (Segments(i).used == current_client + 1)
+      if (segment_user(i) == current_client + 1)
         FreeDescriptor((i << 3) | 7);
     }
 }
@@ -865,7 +867,7 @@ int ConvertSegmentToDescriptor(unsigned short segment)
   D_printf("DPMI: convert seg %#x to desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
     if ((Segments(i).base_addr == baseaddr) && Segments(i).cstd &&
-	(Segments(i).used == current_client + 1)) {
+	(segment_user(i) == current_client + 1)) {
       D_printf("DPMI: found descriptor at %#x\n", (i<<3) | 0x0007);
       return (i<<3) | 0x0007;
     }
@@ -889,7 +891,7 @@ int ValidAndUsedSelector(unsigned int selector)
 {
   if ((selector >> 3) >= MAX_SELECTORS)
     return 0;
-  return DPMIValidSelector(selector) && Segments(selector >> 3).used;
+  return DPMIValidSelector(selector) && segment_user(selector >> 3);
 }
 
 static inline int check_verr(unsigned short selector)
@@ -2839,7 +2841,7 @@ err:
 	    dosaddr_t sel_base;
 	    for(i=0; i< _edi; i++) {
 		sel = sel_array[i];
-		if (Segments(sel >> 3).used == 0)
+		if (segment_user(sel >> 3) == 0)
 		    continue;
 		if (Segments(sel >> 3).type & MODIFY_LDT_CONTENTS_STACK) {
 		    if(Segments(sel >> 3).is_big)
@@ -3716,7 +3718,7 @@ void dpmi_setup(void)
       type = (*lp >> 10) & 3;
       if (base_addr || limit || type) {
         D_printf("LDT entry 0x%x used: b=0x%x l=0x%x t=%i\n",i,base_addr,limit,type);
-        Segments(i).used = 0xfe;
+        segment_set_user(i, 0xfe);
       }
     }
 
@@ -5571,7 +5573,7 @@ done:
     dpmi_ldt_call(scp);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch_rm)) {
-    if (!Segments(LWORD(esi) >> 3).used) {
+    if (!segment_user(LWORD(esi) >> 3)) {
       error("DPMI: PM switch to unused segment %x\n", LWORD(esi));
       leavedos(61);
     }
@@ -5675,7 +5677,7 @@ done:
 int DPMIValidSelector(unsigned short selector)
 {
   /* does this selector refer to the LDT? */
-  return Segments(selector >> 3).used != 0xfe && (selector & 4);
+  return segment_user(selector >> 3) != 0xfe && (selector & 4);
 }
 
 uint8_t *dpmi_get_ldt_buffer(void)
