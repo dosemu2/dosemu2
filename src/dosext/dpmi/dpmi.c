@@ -103,8 +103,6 @@ static int current_client;
 /* we trust that client doesn't hack us so we do not force IOPL/IF in ring0 */
 #define dpmi_flags_from_stack_r0(flags) (flags)
 
-static SEGDESC _Segments[MAX_SELECTORS];
-#define Segments(x) _Segments[x]
 static struct {
   int user;
   unsigned int cstd:1;
@@ -265,6 +263,42 @@ int dpmi_isset_IF(void)
 {
     assert(in_dpmi);
     return !!(get_eflags(&DPMI_CLIENT.stack_frame) & IF);
+}
+
+static SEGDESC FillSegdesc(dosaddr_t base_addr, unsigned int limit,
+                       unsigned char is_32, unsigned char type, unsigned char readonly,
+                       unsigned char is_big, unsigned char seg_not_present, unsigned char useable)
+{
+  SEGDESC ret;
+  ret.base_addr = base_addr;
+  ret.limit = limit;
+  ret.type = type;
+  ret.is_32 = is_32;
+  ret.readonly = readonly;
+  ret.is_big = is_big;
+  ret.not_present = seg_not_present;
+  ret.useable = useable;
+  return ret;
+}
+
+static SEGDESC Segments(unsigned short ldt_entry)
+{
+  unsigned int base_addr, limit;
+  int np, ro, type, ld;
+  unsigned int *lp = (unsigned int *)&ldt_buffer[ldt_entry * LDT_ENTRY_SIZE];
+
+  base_addr = (lp[1] & 0xFF000000) | ((lp[1] << 16) & 0x00FF0000) |
+	((lp[0] >> 16) & 0x0000FFFF);
+  limit = (lp[1] & 0x000F0000) | (lp[0] & 0x0000FFFF);
+  type = (lp[1] >> 10) & 3;
+  ro = ((lp[1] >> 9) & 1) ^ 1;
+  np = ((lp[1] >> 15) & 1) ^ 1;
+  ld = (lp[1] >> 12) & 1;
+  if (!ld && !np)
+    D_printf("DPMI: invalid access type %x\n", lp[1] >> 8);
+
+  return FillSegdesc(base_addr, limit, (lp[1] >> 22) & 1, type, ro,
+			(lp[1] >> 23) & 1, np, (lp[1] >> 20) & 1);
 }
 
 static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
@@ -693,28 +727,18 @@ int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable)
 {
   int ldt_entry = selector >> 3;
-  if (!DPMIValidSelector(selector)) {
+  if (!DPMIValidSelector(selector) || !segment_user(ldt_entry)) {
     D_printf("ERROR: Invalid selector passed to SetSelector(): %#x\n", selector);
     return -1;
   }
-  if (segment_user(ldt_entry)) {
-    if (set_ldt_entry(ldt_entry, base_addr, limit, is_32, type, readonly, is_big,
+  if (set_ldt_entry(ldt_entry, base_addr, limit, is_32, type, readonly, is_big,
         seg_not_present, useable)) {
-      D_printf("DPMI: set_ldt_entry() failed\n");
-      return -1;
-    }
-    D_printf("DPMI: SetSelector: 0x%04x base=0x%x "
+    D_printf("DPMI: set_ldt_entry() failed\n");
+    return -1;
+  }
+  D_printf("DPMI: SetSelector: 0x%04x base=0x%x "
       "limit=0x%x big=%hhi type=%hhi np=%hhi\n",
       selector, base_addr, limit, is_big, type, seg_not_present);
-  }
-  Segments(ldt_entry).base_addr = base_addr;
-  Segments(ldt_entry).limit = limit;
-  Segments(ldt_entry).type = type;
-  Segments(ldt_entry).is_32 = is_32;
-  Segments(ldt_entry).readonly = readonly;
-  Segments(ldt_entry).is_big = is_big;
-  Segments(ldt_entry).not_present = seg_not_present;
-  Segments(ldt_entry).useable = useable;
   return 0;
 }
 
@@ -1062,8 +1086,7 @@ int SetSegmentBaseAddress(unsigned short selector, dosaddr_t baseaddr)
   D_printf("DPMI: SetSegmentBaseAddress[0x%04x;0x%04x] 0x%08x\n", ldt_entry, selector, baseaddr);
   if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
     return -1;
-  Segments(ldt_entry).base_addr = baseaddr;
-  ret = set_ldt_entry(ldt_entry , Segments(ldt_entry).base_addr,
+  ret = set_ldt_entry(ldt_entry, baseaddr,
 	Segments(ldt_entry).limit, Segments(ldt_entry).is_32,
 	Segments(ldt_entry).type, Segments(ldt_entry).readonly,
 	Segments(ldt_entry).is_big,
@@ -1075,23 +1098,24 @@ int SetSegmentBaseAddress(unsigned short selector, dosaddr_t baseaddr)
 int SetSegmentLimit(unsigned short selector, unsigned int limit)
 {
   unsigned short ldt_entry = selector >> 3;
-  int ret;
+  unsigned lim;
+  int is_big, ret;
   D_printf("DPMI: SetSegmentLimit[0x%04x;0x%04x] 0x%08x\n", ldt_entry, selector, limit);
   if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
     return -1;
   if (limit > 0x0fffff) {
     /* "Segment limits greater than 1M must have the low 12 bits set" */
     if (~limit & 0xfff) return -1;
-    Segments(ldt_entry).limit = (limit>>12) & 0xfffff;
-    Segments(ldt_entry).is_big = 1;
+    lim = (limit>>12) & 0xfffff;
+    is_big = 1;
   } else {
-    Segments(ldt_entry).limit = limit;
-    Segments(ldt_entry).is_big = 0;
+    lim = limit;
+    is_big = 0;
   }
   ret = set_ldt_entry(ldt_entry , Segments(ldt_entry).base_addr,
-	Segments(ldt_entry).limit, Segments(ldt_entry).is_32,
+	lim, Segments(ldt_entry).is_32,
 	Segments(ldt_entry).type, Segments(ldt_entry).readonly,
-	Segments(ldt_entry).is_big,
+	is_big,
 	Segments(ldt_entry).not_present, Segments(ldt_entry).useable);
   ldt_bitmap_update(selector, 1);
   return ret;
@@ -1100,6 +1124,8 @@ int SetSegmentLimit(unsigned short selector, unsigned int limit)
 int SetDescriptorAccessRights(unsigned short selector, unsigned short acc_rights)
 {
   unsigned short ldt_entry = selector >> 3;
+  unsigned type;
+  int readonly, is_32, is_big, not_present, useable;
   int ret;
   D_printf("DPMI: SetDescriptorAccessRights[0x%04x;0x%04x] 0x%04x\n", ldt_entry, selector, acc_rights);
   if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
@@ -1108,16 +1134,14 @@ int SetDescriptorAccessRights(unsigned short selector, unsigned short acc_rights
   if ((acc_rights & 0x70) != 0x70)
     return -2; /* invalid value 8021 */
 
-  Segments(ldt_entry).type = (acc_rights >> 2) & 3;
-  Segments(ldt_entry).is_32 = (acc_rights >> 14) & 1;
-  Segments(ldt_entry).is_big = (acc_rights >> 15) & 1;
-  Segments(ldt_entry).readonly = ((acc_rights >> 1) & 1) ? 0 : 1;
-  Segments(ldt_entry).not_present = ((acc_rights >> 7) & 1) ? 0 : 1;
-  Segments(ldt_entry).useable = (acc_rights >> 12) & 1;
+  type = (acc_rights >> 2) & 3;
+  is_32 = (acc_rights >> 14) & 1;
+  is_big = (acc_rights >> 15) & 1;
+  readonly = ((acc_rights >> 1) & 1) ? 0 : 1;
+  not_present = ((acc_rights >> 7) & 1) ? 0 : 1;
+  useable = (acc_rights >> 12) & 1;
   ret = set_ldt_entry(ldt_entry , Segments(ldt_entry).base_addr, Segments(ldt_entry).limit,
-	Segments(ldt_entry).is_32, Segments(ldt_entry).type,
-	Segments(ldt_entry).readonly, Segments(ldt_entry).is_big,
-	Segments(ldt_entry).not_present, Segments(ldt_entry).useable);
+	is_32, type, readonly, is_big, not_present, useable);
   ldt_bitmap_update(selector, 1);
   return ret;
 }
@@ -3713,7 +3737,6 @@ void dpmi_setup(void)
     if (!config.dpmi) return;
 
     get_ldt(ldt_buffer);
-    memset(_Segments, 0, sizeof(_Segments));
     memset(seg_meta, 0, sizeof(seg_meta));
     for (i = 0; i < MAX_SELECTORS; i++) {
       lp = (unsigned int *)&ldt_buffer[i * LDT_ENTRY_SIZE];
