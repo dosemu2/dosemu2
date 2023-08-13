@@ -105,8 +105,14 @@ static int current_client;
 
 static SEGDESC _Segments[MAX_SELECTORS];
 #define Segments(x) _Segments[x]
-#define segment_user(x) _Segments[x].used
-#define segment_set_user(x, y) (_Segments[x].used = (y))
+static struct {
+  int user;
+  unsigned int cstd:1;
+} seg_meta[MAX_SELECTORS];
+#define segment_get(x, f) seg_meta[x].f
+#define segment_set(x, y, f) (seg_meta[x].f = (y))
+#define segment_user(x) segment_get(x, user)
+#define segment_set_user(x, y) segment_set(x, y, user)
 static int in_dpmi;/* Set to 1 when running under DPMI */
 static int dpmi_pm;
 static int in_dpmi_irq;
@@ -741,7 +747,7 @@ static unsigned short allocate_descriptors_at(unsigned short selector,
     else {
       segment_set_user(ldt_entry+i, 0xff);  /* mark as unavailable for API */
     }
-    Segments(ldt_entry+i).cstd = 0;
+    segment_set(ldt_entry+i, 0, cstd);
   }
   D_printf("DPMI: Allocate %d descriptors started at 0x%04x\n",
 	number_of_descriptors, selector);
@@ -866,7 +872,7 @@ int ConvertSegmentToDescriptor(unsigned short segment)
   int i, ldt_entry;
   D_printf("DPMI: convert seg %#x to desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
-    if ((Segments(i).base_addr == baseaddr) && Segments(i).cstd &&
+    if ((Segments(i).base_addr == baseaddr) && segment_get(i, cstd) &&
 	(segment_user(i) == current_client + 1)) {
       D_printf("DPMI: found descriptor at %#x\n", (i<<3) | 0x0007);
       return (i<<3) | 0x0007;
@@ -876,7 +882,7 @@ int ConvertSegmentToDescriptor(unsigned short segment)
   if (SetSelector(selector, baseaddr, 0xffff, 0,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   ldt_entry = selector >> 3;
-  Segments(ldt_entry).cstd = 1;
+  segment_set(ldt_entry, 1, cstd);
   ldt_bitmap_update(selector, 1);
   return selector;
 }
@@ -3708,6 +3714,7 @@ void dpmi_setup(void)
 
     get_ldt(ldt_buffer);
     memset(_Segments, 0, sizeof(_Segments));
+    memset(seg_meta, 0, sizeof(seg_meta));
     for (i = 0; i < MAX_SELECTORS; i++) {
       lp = (unsigned int *)&ldt_buffer[i * LDT_ENTRY_SIZE];
       base_addr = (*lp >> 16) & 0x0000FFFF;
