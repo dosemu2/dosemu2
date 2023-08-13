@@ -1421,12 +1421,22 @@ static void update_kvm_idt(void)
 
 static void finish_clnt_switch(void)
 {
-  if (!in_dpmi)
-    return;
+  assert(in_dpmi);
   if (config.cpu_vm_dpmi == CPUVM_KVM)
     update_kvm_idt();
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     kvm_update_fpu();
+}
+
+static void clnt_switch(int new_clnt)
+{
+  assert(current_client != new_clnt);
+  memcpy(&DPMI_CLIENT.saved_fpu_state, &vm86_fpu_state,
+       sizeof(vm86_fpu_state));
+  current_client = new_clnt;
+  memcpy(&vm86_fpu_state, &DPMI_CLIENT.saved_fpu_state,
+       sizeof(vm86_fpu_state));
+  finish_clnt_switch();
 }
 
 static int post_rm_call(int old_client)
@@ -1439,8 +1449,8 @@ static int post_rm_call(int old_client)
     /* 32rtm returned w/o terminating (stayed resident).
      * We switch to the prev client here. */
     D_printf("DPMI: client switch %i --> %i\n", current_client, old_client);
-    current_client = old_client;
-    finish_clnt_switch();
+    /* old_client is actually a new one, it was saved on rm call */
+    clnt_switch(old_client);
     ret = 1;
   }
   return ret;
@@ -2622,8 +2632,7 @@ err:
       }
       /* 32rtm work-around */
       if (current_client != in_dpmi - 1) {
-        current_client = in_dpmi - 1;
-        finish_clnt_switch();
+        clnt_switch(in_dpmi - 1);
         msdos_set_client(scp, current_client);
       }
 
@@ -3309,10 +3318,7 @@ static void dpmi_cleanup(void)
      * Starting 32rtm by hands may go here if you terminate the
      * parent DPMI shell (comcom32), but nobody does that.
      * Lets say this is a very pathological case for a big code surgery. */
-    current_client = in_dpmi - 1;
-    memcpy(&vm86_fpu_state, &DPMI_CLIENT.saved_fpu_state,
-       sizeof(vm86_fpu_state));
-    finish_clnt_switch();
+    clnt_switch(in_dpmi - 1);
     return;
   }
   FreeAllDescriptors();
@@ -3329,17 +3335,15 @@ static void dpmi_cleanup(void)
       SETIVEC(0x66, 0, 0);	// winos2
   }
 
-  if (in_dpmi > 1)
-    memcpy(&vm86_fpu_state, &PREV_DPMI_CLIENT.saved_fpu_state,
-       sizeof(vm86_fpu_state));
-  else
-    port_outb(0xf1, 0); /* reset FPU */
-
   cli_blacklisted = 0;
   dpmi_is_cli = 0;
   in_dpmi--;
-  current_client = in_dpmi - 1;
-  finish_clnt_switch();
+  if (in_dpmi) {
+    clnt_switch(in_dpmi - 1);
+  } else {
+    port_outb(0xf1, 0); /* reset FPU */
+    current_client = -1;
+  }
 }
 
 static void dpmi_soft_cleanup(void)
@@ -3989,8 +3993,6 @@ void dpmi_init(void)
 	&& (win3x_mode != STANDARD)
 #endif
     ;
-    memcpy(&PREV_DPMI_CLIENT.saved_fpu_state, &vm86_fpu_state,
-	sizeof(vm86_fpu_state));
   } else
     inherit_idt = 0;
 
@@ -4125,8 +4127,10 @@ err:
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   DPMIfreeAll();
   in_dpmi--;
-  current_client--;
-  finish_clnt_switch();
+  if (in_dpmi)
+    clnt_switch(in_dpmi - 1);
+  else
+    current_client = -1;
 }
 
 static void return_from_exception(cpuctx_t *scp)
