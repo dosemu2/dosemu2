@@ -141,6 +141,7 @@ int in_dpmi_pm(void);
 int dpmi_active(void);
 int dpmi_segment_is32(int sel);
 int dpmi_isset_IF(void);
+#define isset_IF_async() (in_dpmi_pm() ? dpmi_isset_IF() : isset_IF())
 
 /* currently eflags are stored with IF reflecting the actual interrupt state,
  * so no translation is needed */
