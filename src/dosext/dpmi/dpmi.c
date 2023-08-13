@@ -216,14 +216,14 @@ typedef struct {
 } ldt_calldesc;
 static ldt_calldesc ldt_call16, ldt_call32;
 static int ldt_mon_on;
-static void ldt_bitmap_update(unsigned short selector, int num)
+static void ldt_bitmap_update(unsigned short ldt_entry, int num)
 {
     int i;
 
     if (!ldt_mon_on)
         return;
     for (i = 0; i < num; i++) {
-        int ent = (selector >> 3) + i;
+        int ent = ldt_entry + i;
         ldt_bitmap[ent >> 5] |= 1ULL << (ent & 0x1f);
     }
     ldt_bitmap_cnt += num;
@@ -795,7 +795,7 @@ static unsigned short AllocateDescriptorsAt(unsigned short selector,
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   }
-  ldt_bitmap_update(selector, number_of_descriptors);
+  ldt_bitmap_update(ldt_entry, number_of_descriptors);
   return selector;
 }
 
@@ -849,7 +849,7 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   }
-  ldt_bitmap_update(selector, number_of_descriptors);
+  ldt_bitmap_update(ldt_entry, number_of_descriptors);
   return selector;
 }
 
@@ -876,7 +876,7 @@ int FreeDescriptor(unsigned short selector)
   }
   ret = SetSelector(selector, 0, 0, 0, MODIFY_LDT_CONTENTS_DATA, 1, 0, 1, 0);
   segment_set_user(ldt_entry, 0);
-  ldt_bitmap_update(selector, 1);
+  ldt_bitmap_update(ldt_entry, 1);
   return ret;
 }
 
@@ -907,7 +907,7 @@ int ConvertSegmentToDescriptor(unsigned short segment)
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   ldt_entry = selector >> 3;
   segment_set(ldt_entry, 1, cstd);
-  ldt_bitmap_update(selector, 1);
+  ldt_bitmap_update(ldt_entry, 1);
   return selector;
 }
 
@@ -1091,7 +1091,7 @@ int SetSegmentBaseAddress(unsigned short selector, dosaddr_t baseaddr)
 	Segments(ldt_entry).type, Segments(ldt_entry).readonly,
 	Segments(ldt_entry).is_big,
 	Segments(ldt_entry).not_present, Segments(ldt_entry).useable);
-  ldt_bitmap_update(selector, 1);
+  ldt_bitmap_update(ldt_entry, 1);
   return ret;
 }
 
@@ -1117,7 +1117,7 @@ int SetSegmentLimit(unsigned short selector, unsigned int limit)
 	Segments(ldt_entry).type, Segments(ldt_entry).readonly,
 	is_big,
 	Segments(ldt_entry).not_present, Segments(ldt_entry).useable);
-  ldt_bitmap_update(selector, 1);
+  ldt_bitmap_update(ldt_entry, 1);
   return ret;
 }
 
@@ -1142,7 +1142,7 @@ int SetDescriptorAccessRights(unsigned short selector, unsigned short acc_rights
   useable = (acc_rights >> 12) & 1;
   ret = set_ldt_entry(ldt_entry , Segments(ldt_entry).base_addr, Segments(ldt_entry).limit,
 	is_32, type, readonly, is_big, not_present, useable);
-  ldt_bitmap_update(selector, 1);
+  ldt_bitmap_update(ldt_entry, 1);
   return ret;
 }
 
@@ -1167,7 +1167,7 @@ unsigned short CreateAliasDescriptor(unsigned short selector)
 			Segments(cs_ldt).readonly, Segments(cs_ldt).is_big,
 			Segments(cs_ldt).not_present, Segments(cs_ldt).useable))
     return 0;
-  ldt_bitmap_update(selector, 1);
+  ldt_bitmap_update(ds_selector >> 3, 1);
   return ds_selector;
 }
 
@@ -1203,7 +1203,7 @@ int SetDescriptor(unsigned short selector, unsigned int *lp)
 
   ret = SetSelector(selector, base_addr, limit, (lp[1] >> 22) & 1, type, ro,
 			(lp[1] >> 23) & 1, np, (lp[1] >> 20) & 1);
-  ldt_bitmap_update(selector, 1);
+  ldt_bitmap_update(selector >> 3, 1);
   return ret;
 }
 
