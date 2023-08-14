@@ -236,7 +236,7 @@ extern void dpmi_ext_ldt_monitor_enable(int on);
 extern void dpmi_setup(void);
 extern void dpmi_reset(void);
 extern void dpmi_done(void);
-extern int get_ldt(void *buffer);
+extern int get_ldt(void *buffer, int len);
 void dpmi_init(void);
 extern unsigned short dpmi_sel(void);
 extern unsigned short dpmi_sel16(void);

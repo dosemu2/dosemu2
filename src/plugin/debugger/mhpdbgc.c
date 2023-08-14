@@ -2630,7 +2630,7 @@ static void mhp_print_ldt(int argc, char * argv[])
   }
   lines = page ? 16 : 1;
 
-  if (get_ldt(buffer) < 0) {
+  if (get_ldt(buffer, LDT_ENTRIES * LDT_ENTRY_SIZE) < 0) {
     mhp_printf("error getting ldt\n");
     return;
   }

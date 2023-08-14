@@ -45,6 +45,7 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
                              memory_hma_alloc3, memory_hma_chain)
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
+from func_dpmi_dpmi10_ldt import dpmi_dpmi10_ldt
 from func_mfs_findfile import mfs_findfile
 from func_mfs_truename import mfs_truename
 from func_network import network_pktdriver_mtcp
@@ -3358,6 +3359,11 @@ $_floppy_a = ""
         """Memory XMS"""
         memory_xms(self)
     test_memory_xms.xmstest = True
+
+    def test_dpmi10_ldt(self):
+        """DPMI-1.0 LDT"""
+        dpmi_dpmi10_ldt(self)
+    test_dpmi10_ldt.dpmitest = True
 
     def test_memory_uma_strategy(self):
         """Memory UMA Strategy"""
