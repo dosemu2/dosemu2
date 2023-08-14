@@ -15,12 +15,19 @@
 
 /*
 Currently missing DPMI-1.0 functions:
- - 0x508 (map device, 1.0)
- - 0x50b (get memory info, 1.0)
- - 0xd02 (shm semaphore wait, 1.0, synchronize shm between multiple dosemu
-          instances, but we currently append PID to shm name and unlink on
-          every dosemu termination so that needs to be reworked)
- - 0xd03 (shm semaphore post, 1.0)
+ - 0x508  Map device, 1.0, OPTIONAL. Maps phys ram to existing linear region.
+          But we do not "move"/unmap hwram currently, as all phys ram
+          is initially mapped into a 4Gb space, so 85434678 should be
+          reverted. The extra complication is that this allows to map
+          devices at 1Mb, like video memory and roms.
+ - 0x50b  Get memory info, 1.0, REQUIRED.
+ - 0xd02  SHM lock, 1.0, shared/exclusive locks between multiple dosemu
+          instances. But we currently append PID to shm name and unlink on
+          every dosemu termination, so that needs to be reworked. Also needs
+          coopth support in dpmi.c, which is a no-no thing. Can perhaps
+          be implemented in msdos.c somehow. But then we don't have the
+          multiple-dosemu tests on CI.
+ - 0xd03  SHM unlock, 1.0
 */
 
 #include <stdio.h>
