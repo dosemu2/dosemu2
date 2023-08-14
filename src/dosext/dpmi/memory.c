@@ -552,6 +552,11 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	if (block->mapped)
 	    do_unmap_shm(block);
     } else if (block->linear) {
+	for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
+	    if ((block->attrs[i] & 3) == 2)   // mapped
+		restore_mapping(MAPPING_DPMI, block->base + i * PAGE_SIZE,
+			PAGE_SIZE);
+	}
 	mprotect_mapping(MAPPING_DPMI, block->base, block->size,
 		    PROT_READ | PROT_WRITE);
 	smfree(&main_pool, MEM_BASE32(block->base));
@@ -818,6 +823,7 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
 			  unsigned long handle, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt)
 {
+    int i;
     /* NOTE:
      * This DPMI function makes appear memory from below 1Meg to
      * address space allocated via DPMImalloc(). We use it only for
@@ -834,6 +840,11 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
 
 	D_printf("DPMI MapConventionalMemory mmap failed, errno = %d\n",errno);
 	return -1;
+    }
+
+    for (i = offset / PAGE_SIZE; i < cnt + offset / PAGE_SIZE; i++) {
+        block->attrs[i] &= ~3;
+        block->attrs[i] |= 2;	// mapped
     }
 
     return 0;
