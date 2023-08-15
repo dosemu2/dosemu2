@@ -30,8 +30,8 @@ int unix_main(int argc, char **argv)
 {
   char s[256];
   char c;
-  int secure = 0;
-  const char *getopt_string = "+ercsd:w";
+  int secure = 0, bg = 0;
+  const char *getopt_string = "+bercsd:w";
 
   if (argc == 1 ||
       (argc == 2 && !strcmp (argv[1], "/?"))) {
@@ -42,6 +42,9 @@ int unix_main(int argc, char **argv)
   while ((c = getopt(argc, argv, getopt_string)) != EOF) {
     /* Got a switch */
     switch (c) {
+    case 'b':
+	bg++;
+	break;
     case 's':
 	secure++;
 	break;
@@ -72,7 +75,7 @@ int unix_main(int argc, char **argv)
     }
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
-    return run_unix_command(argc - optind, argv + optind);
+    return run_unix_command(argc - optind, argv + optind, bg);
 #pragma GCC diagnostic pop
   }
 
@@ -87,8 +90,9 @@ static int usage(void)
   com_printf ("  Set unix work dir to \"dir\".\n\n");
   com_printf ("UNIX -w\n");
   com_printf ("  Get current unix work dir.\n\n");
-  com_printf ("UNIX command [arg1 ...]\n");
-  com_printf ("  Execute the Linux command with the arguments given.\n\n");
+  com_printf ("UNIX [-b] command [arg1 ...]\n");
+  com_printf ("  Execute the Linux command with the arguments given.\n");
+  com_printf ("  -b means run in background.\n\n");
   com_printf ("UNIX\n");
   com_printf ("UNIX /?\n");
   com_printf ("  show this help screen\n");

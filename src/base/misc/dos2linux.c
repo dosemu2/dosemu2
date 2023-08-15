@@ -319,7 +319,7 @@ static int do_wait_cmd(pid_t pid)
     return WEXITSTATUS(status);
 }
 
-int run_unix_command(int argc, const char **argv)
+int run_unix_command(int argc, const char **argv, int bg)
 {
     const char *path;
     char *p;
@@ -350,7 +350,11 @@ int run_unix_command(int argc, const char **argv)
     }
 
     g_printf("UNIX: run %s, %i args\n", path, argc);
-    pid = run_external_command(path, argc, argv, 1, -1, pty_fd);
+    pid = run_external_command(path, argc, argv, !bg, -1, pty_fd);
+    if (bg) {
+	sigchld_enable_cleanup(pid);
+	return 0;
+    }
     return do_wait_cmd(pid);
 }
 
