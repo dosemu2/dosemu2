@@ -303,14 +303,10 @@ static void dos2tty_stop(void)
     com_setcbreak(cbrk);
 }
 
-static int do_run_cmd(const char *path, int argc, const char **argv,
-        int use_stdin, int close_from)
+static int do_wait_cmd(pid_t pid)
 {
     int status, retval;
-    pid_t pid;
 
-    pid = run_external_command(path, argc, argv, use_stdin, close_from,
-	    pty_fd);
     dos2tty_start();
     while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
 	coopth_wait();
@@ -327,6 +323,7 @@ int run_unix_command(int argc, const char **argv)
 {
     const char *path;
     char *p;
+    pid_t pid;
 
     path = findprog(argv[0], getenv("PATH"));
     if (!path) {
@@ -353,7 +350,8 @@ int run_unix_command(int argc, const char **argv)
     }
 
     g_printf("UNIX: run %s, %i args\n", path, argc);
-    return do_run_cmd(path, argc, argv, 1, -1);
+    pid = run_external_command(path, argc, argv, 1, -1, pty_fd);
+    return do_wait_cmd(pid);
 }
 
 /* no PATH searching, no arguments allowed, no stdin, no inherited fds */
@@ -361,7 +359,7 @@ int run_unix_secure(const char *prg)
 {
     char *path;
     const char *argv[2];
-    int ret;
+    pid_t pid;
 
     path = assemble_path(DOSEMULIBEXEC_DEFAULT, prg);
     if (!exists_file(path)) {
@@ -372,9 +370,9 @@ int run_unix_secure(const char *prg)
     argv[0] = prg;
     argv[1] = NULL;	/* no args allowed */
     g_printf("UNIX: run_secure %s '%s'\n", path, prg);
-    ret = do_run_cmd(path, 1, argv, 0, STDERR_FILENO + 1);
+    pid = run_external_command(path, 1, argv, 0, STDERR_FILENO + 1, pty_fd);
     free(path);
-    return ret;
+    return do_wait_cmd(pid);
 }
 
 /*
