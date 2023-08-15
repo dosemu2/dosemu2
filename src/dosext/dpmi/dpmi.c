@@ -208,7 +208,6 @@ static void make_xretf_frame(cpuctx_t *scp, void *sp,
 static void do_pm_int(cpuctx_t *scp, int i);
 static void msdos_set_client(cpuctx_t *scp, int num);
 static int rsp_get_para(void);
-static int count_shms(const char *name);
 
 static uint32_t ldt_bitmap[LDT_ENTRIES / 32];
 static int ldt_bitmap_cnt;
@@ -1786,10 +1785,9 @@ int DPMIfree(unsigned long handle)
      * Instead of completely ignoring, we can use that to unlink shm
      * while keeping the rest untouched. */
     if (ptr->shmname) {
-	int cnt = count_shms(ptr->shmname);
-	D_printf("DPMI: partial free shared region %s, ref=%i\n",
-		ptr->shmname, cnt);
-	return DPMI_freeShPartial(&DPMI_CLIENT.pm_block_root, handle, cnt == 1);
+	D_printf("DPMI: partial free shared region %s\n",
+		ptr->shmname);
+	return DPMI_freeShPartial(&DPMI_CLIENT.pm_block_root, handle);
     }
     return DPMI_free(&DPMI_CLIENT.pm_block_root, handle);
 }
@@ -2048,15 +2046,6 @@ far_t DPMI_get_real_mode_interrupt_vector(int vec)
     return get_int_vector(vec);
 }
 
-static int count_shms(const char *name)
-{
-    int i;
-    int cnt = 0;
-    for (i = 0; i < in_dpmi; i++)
-	cnt += count_shm_blocks(&DPMIclient[i].pm_block_root, name);
-    return cnt;
-}
-
 int DPMIAllocateShared(struct SHM_desc *shm)
 {
     char *name = SEL_ADR_CLNT(shm->name_selector, shm->name_offset32,
@@ -2074,15 +2063,13 @@ int DPMIAllocateShared(struct SHM_desc *shm)
 
 int DPMIFreeShared(uint32_t handle)
 {
-    int cnt;
     dpmi_pm_block *ptr;
 
     ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
     if (!ptr)
 	return -1;
-    cnt = count_shms(ptr->shmname);
-    D_printf("DPMI: free shared region %s, ref=%i\n", ptr->shmname, cnt);
-    return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle, cnt == 1);
+    D_printf("DPMI: free shared region %s\n", ptr->shmname);
+    return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle);
 }
 
 DPMI_INTDESC dpmi_get_pm_exc_addr(int num)

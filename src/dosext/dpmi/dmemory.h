@@ -18,6 +18,7 @@ typedef struct dpmi_pm_block_stuct {
   int shm:1;
   char *shmname;
   char *rshmname;
+  void *shlock;
   int mapped;
 } dpmi_pm_block;
 
@@ -30,7 +31,6 @@ dpmi_pm_block *lookup_pm_block_by_addr(dpmi_pm_block_root *root,
 	dosaddr_t addr);
 dpmi_pm_block *lookup_pm_block_by_shmname(dpmi_pm_block_root *root,
 	const char *shmname);
-int count_shm_blocks(dpmi_pm_block_root *root, const char *sname);
 int dpmi_alloc_pool(void);
 void dpmi_free_pool(void);
 dpmi_pm_block *DPMI_malloc(dpmi_pm_block_root *root, unsigned int size);
@@ -40,8 +40,8 @@ dpmi_pm_block *DPMI_realloc(dpmi_pm_block_root *root, unsigned int handle, unsig
 dpmi_pm_block *DPMI_reallocLinear(dpmi_pm_block_root *root, unsigned long handle, unsigned long newsize, int committed);
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         char *name, unsigned int size, int flags);
-int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk);
-int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle, int unlnk);
+int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle);
+int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle);
 void DPMI_freeAll(dpmi_pm_block_root *root);
 int DPMI_MapConventionalMemory(dpmi_pm_block_root *root, unsigned long handle,
   unsigned long offset, unsigned long low_addr, unsigned long cnt);

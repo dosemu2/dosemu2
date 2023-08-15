@@ -141,19 +141,6 @@ dpmi_pm_block *lookup_pm_block_by_shmname(dpmi_pm_block_root *root,
     return NULL;
 }
 
-int count_shm_blocks(dpmi_pm_block_root *root, const char *sname)
-{
-    int cnt = 0;
-    dpmi_pm_block *tmp;
-    for(tmp = root->first_pm_block; tmp; tmp = tmp->next) {
-	if (!tmp->shmname)
-	    continue;
-	if (strcmp(tmp->shmname, sname) == 0)
-	    cnt++;
-    }
-    return cnt;
-}
-
 static int commit(void *ptr, size_t size)
 {
 #if HAVE_DECL_MADV_POPULATE_WRITE
@@ -579,27 +566,33 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
 {
 #ifdef HAVE_SHM_OPEN
 #define EXLOCK_DIR "dosemu2_shmex"
+#define SHLOCK_DIR "dosemu2_shmsh"
     int i, err;
     int fd;
     dpmi_pm_block *ptr;
     void *addr, *addr2;
     char *shmname;
     struct stat st;
-    void *exlock;
+    void *exlock, *shlock;
     int oflags = O_RDWR | O_CREAT;
     int prot = PROT_READ | PROT_WRITE;
 
     if (!size)		// DPMI spec says this is allowed - no thanks
         return NULL;
     size = PAGE_ALIGN(size);
-    if (flags & SHM_EXCL)
-        oflags |= O_EXCL;
 
     exlock = shlock_open(EXLOCK_DIR, name, 1, 1);
     if (!exlock) {
         error("exlock failed\n");
         return NULL;
     }
+    if (flags & SHM_EXCL) {
+        oflags |= O_EXCL;
+        shlock = NULL;  // private shm
+    } else {
+        shlock = shlock_open(SHLOCK_DIR, name, 0, 1);
+    }
+
     asprintf(&shmname, "/dosemu_%s", name);
     fd = shm_open(shmname, oflags, S_IRUSR | S_IWUSR);
     if (fd == -1 && (flags & SHM_EXCL) && errno == EEXIST) {
@@ -659,6 +652,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     ptr->handle = pm_block_handle_used++;
     ptr->shmname = strdup(name);
     ptr->rshmname = shmname;
+    ptr->shlock = shlock;
     D_printf("DPMI: map shm %s\n", ptr->shmname);
     return ptr;
 
@@ -674,30 +668,50 @@ err0:
 #endif
 }
 
-int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
+int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
 {
+    void *exlock;
+    int rc = 1;
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !ptr->shmname)
         return -1;
     if (ptr->mapped)
         do_unmap_shm(ptr);
-    if (unlnk) {
+
+    exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
+    assert(exlock);
+    rc = 1;
+    if (ptr->shlock)
+        rc = shlock_close(ptr->shlock);
+    if (rc > 0) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
         shm_unlink(ptr->rshmname);
     }
+    shlock_close(exlock);
+
     free_pm_block(root, ptr);
     return 0;
 }
 
-int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
+int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle)
 {
+    void *exlock;
+    int rc;
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !ptr->shmname)
         return -1;
-    if (unlnk) {
+
+    exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
+    assert(exlock);
+    rc = 1;
+    if (ptr->shlock)
+        rc = shlock_close(ptr->shlock);
+    if (rc > 0) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
         shm_unlink(ptr->rshmname);
     }
+    shlock_close(exlock);
+
     if (ptr->mapped) {
         free(ptr->shmname);
         ptr->shmname = NULL;
@@ -828,7 +842,7 @@ void DPMI_freeAll(dpmi_pm_block_root *root)
 	if ((*p)->hwram)
 	    do_unmap_hwram(root, *p);
 	else if ((*p)->shmname)
-	    DPMI_freeShared(root, (*p)->handle, 1);
+	    DPMI_freeShared(root, (*p)->handle);
 	else
 	    DPMI_free(root, (*p)->handle);
     }
