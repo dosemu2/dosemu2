@@ -30,6 +30,7 @@
 #include <sys/mman.h>		/* for MREMAP_MAYMOVE */
 #include <errno.h>
 #include "utilities.h"
+#include "shlock.h"
 #include "mapping.h"
 #include "smalloc.h"
 #include "emudpmi.h"
@@ -577,12 +578,14 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         char *name, unsigned int size, int flags)
 {
 #ifdef HAVE_SHM_OPEN
+#define EXLOCK_DIR "dosemu2_shmex"
     int i, err;
     int fd;
     dpmi_pm_block *ptr;
     void *addr, *addr2;
     char *shmname;
     struct stat st;
+    void *exlock;
     int oflags = O_RDWR | O_CREAT;
     int prot = PROT_READ | PROT_WRITE;
 
@@ -592,6 +595,11 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     if (flags & SHM_EXCL)
         oflags |= O_EXCL;
 
+    exlock = shlock_open(EXLOCK_DIR, name, 1, 1);
+    if (!exlock) {
+        error("exlock failed\n");
+        return NULL;
+    }
     asprintf(&shmname, "/dosemu_%s", name);
     fd = shm_open(shmname, oflags, S_IRUSR | S_IWUSR);
     if (fd == -1 && (flags & SHM_EXCL) && errno == EEXIST) {
@@ -604,8 +612,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     if (fd == -1) {
         perror("shm_open()");
         error("shared memory unavailable, exiting\n");
-        leavedos(2);
-        return NULL;
+        goto err1;
     }
 
     err = fstat(fd, &st);
@@ -618,13 +625,15 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         err = ftruncate(fd, size);
         if (err) {
             error("unable to ftruncate to %x for shm %s\n", size, name);
-            return NULL;
+            goto err2;
         }
     }
+    shlock_close(exlock);
+
     addr = smalloc(&mem_pool, size);
     if (!addr) {
         error("unable to alloc %x for shm %s\n", size, name);
-        return NULL;
+        goto err0;
     }
     if (!(flags & SHM_NOEXEC))
         prot |= PROT_EXEC;
@@ -634,14 +643,12 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     if (addr2 != addr) {
         perror("mmap()");
         error("shared memory map failed %p %p, exiting\n", addr2, addr);
-        leavedos(2);
-        return NULL;
+        goto err0;
     }
     ptr = alloc_pm_block(root, size);
     if (!ptr) {
         error("pm block alloc failed, exiting\n");
-        leavedos(2);
-        return NULL;
+        goto err0;
     }
     for (i = 0; i < (size >> PAGE_SHIFT); i++)
         ptr->attrs[i] = 0x09 | ATTR_SHR;	// RW, shared, present
@@ -654,6 +661,14 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     ptr->rshmname = shmname;
     D_printf("DPMI: map shm %s\n", ptr->shmname);
     return ptr;
+
+err2:
+    close(fd);
+err1:
+    shlock_close(exlock);
+err0:
+    leavedos(2);
+    return NULL;
 #else
     return NULL;
 #endif
