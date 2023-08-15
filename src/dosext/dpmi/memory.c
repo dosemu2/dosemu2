@@ -520,7 +520,7 @@ int DPMI_unmapHWRam(dpmi_pm_block_root *root, dosaddr_t vbase)
 	return -1;
     if (block->hwram) {
         do_unmap_hwram(root, block);
-    } else if (block->shmsize) {
+    } else if (block->shm) {
         /* extension: allow unmap shared block as hwram */
         do_unmap_shm(block);
         if (!block->shmname)
@@ -548,7 +548,7 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	return -1;
     }
     e_invalidate_full(block->base, block->size);
-    if (block->shmsize) {
+    if (block->shm) {
 	if (block->mapped)
 	    do_unmap_shm(block);
     } else if (block->linear) {
@@ -574,44 +574,27 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 }
 
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
-        char *name, unsigned int size, unsigned int shmsize, int flags)
+        char *name, unsigned int size, int flags)
 {
 #ifdef HAVE_SHM_OPEN
-    int i;
+    int i, err;
     int fd;
     dpmi_pm_block *ptr;
     void *addr, *addr2;
     char *shmname;
-    int init = 0;
-    int oflags = O_RDWR;
+    struct stat st;
+    int oflags = O_RDWR | O_CREAT;
     int prot = PROT_READ | PROT_WRITE;
 
     if (!size)		// DPMI spec says this is allowed - no thanks
         return NULL;
     size = PAGE_ALIGN(size);
-    if (shmsize) {
-        assert(!(shmsize & (PAGE_SIZE - 1)));
-        if (size > shmsize)
-            size = shmsize;
-    } else {
-        init = 1;
-        shmsize = size;
-    }
-
-    addr = smalloc(&mem_pool, size);
-    if (!addr) {
-        error("unable to alloc %x for shm %s\n", size, name);
-        return NULL;
-    }
+    if (flags & SHM_EXCL)
+        oflags |= O_EXCL;
 
     asprintf(&shmname, "/dosemu_%s", name);
-    if (init) {
-        oflags |= O_CREAT;
-        if (flags & SHM_EXCL)
-            oflags |= O_EXCL;
-    }
     fd = shm_open(shmname, oflags, S_IRUSR | S_IWUSR);
-    if (fd == -1 && init && (flags & SHM_EXCL) && errno == EEXIST) {
+    if (fd == -1 && (flags & SHM_EXCL) && errno == EEXIST) {
         error("shm object %s already exists\n", shmname);
         /* SHM_EXCL should provide the exclusive name (with pid),
          * so the object might be orphaned */
@@ -624,8 +607,25 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         leavedos(2);
         return NULL;
     }
-    if (init)
-        ftruncate(fd, shmsize);
+
+    err = fstat(fd, &st);
+    assert(!err);
+    if (st.st_size) {
+        assert(!(st.st_size & (PAGE_SIZE - 1)));
+        if (size > st.st_size)
+            size = st.st_size;
+    } else {
+        err = ftruncate(fd, size);
+        if (err) {
+            error("unable to ftruncate to %x for shm %s\n", size, name);
+            return NULL;
+        }
+    }
+    addr = smalloc(&mem_pool, size);
+    if (!addr) {
+        error("unable to alloc %x for shm %s\n", size, name);
+        return NULL;
+    }
     if (!(flags & SHM_NOEXEC))
         prot |= PROT_EXEC;
     /* this mem is already mapped to KVM so we use plain mmap() */
@@ -647,7 +647,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         ptr->attrs[i] = 0x09 | ATTR_SHR;	// RW, shared, present
     ptr->base = DOSADDR_REL(addr);
     ptr->size = size;
-    ptr->shmsize = shmsize;
+    ptr->shm = 1;
     ptr->linear = 1;
     ptr->handle = pm_block_handle_used++;
     ptr->shmname = strdup(name);
