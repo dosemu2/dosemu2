@@ -19,6 +19,8 @@ typedef struct dpmi_pm_block_stuct {
   char *shmname;
   char *rshmname;
   void *shlock;
+  void *shm_lock;
+  uint32_t lock_flags;
   int mapped;
 } dpmi_pm_block;
 

@@ -26,6 +26,7 @@ extern const unsigned    DPMI_vtmr_post_irq;
 extern const unsigned    DPMI_vrtc_irq;
 extern const unsigned    DPMI_vrtc_post_irq;
 extern const unsigned    DPMI_reinit;
+extern const unsigned    DPMI_shlock;
 extern const unsigned    DPMI_sel_end;
 extern const unsigned    DPMI_VXD_start;
 extern const unsigned    DPMI_VXD_VMM;

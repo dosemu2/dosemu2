@@ -21,13 +21,6 @@ Currently missing DPMI-1.0 functions:
           reverted. The extra complication is that this allows to map
           devices at 1Mb, like video memory and roms.
  - 0x50b  Get memory info, 1.0, REQUIRED.
- - 0xd02  SHM lock, 1.0, shared/exclusive locks between multiple dosemu
-          instances. But we currently append PID to shm name and unlink on
-          every dosemu termination, so that needs to be reworked. Also needs
-          coopth support in dpmi.c, which is a no-no thing. Can perhaps
-          be implemented in msdos.c somehow. But then we don't have the
-          multiple-dosemu tests on CI.
- - 0xd03  SHM unlock, 1.0
 */
 
 #include <stdio.h>
@@ -69,6 +62,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "int.h"
 #include "port.h"
 #include "utilities.h"
+#include "shlock.h"
 #include "mapping.h"
 #include "cpu-emu.h"
 #include "emu-ldt.h"
@@ -2072,6 +2066,94 @@ int DPMIFreeShared(uint32_t handle)
     return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle);
 }
 
+static int DPMILockShared(cpuctx_t *scp, uint32_t handle, uint16_t flags)
+{
+#define LOCK_DIR "dosemu2_shm"
+    void *sp = SEL_ADR(_ss, _esp);
+    int block = ((flags & 1) == 0);
+    int excl = ((flags & 2) == 0);
+    dpmi_pm_block *ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
+    if (!ptr)
+        return 0x8023;
+    ptr->lock_flags = flags;
+    if (!block) {
+        void *lk = shlock_open(LOCK_DIR, ptr->shmname, excl, 0);
+        if (!lk)
+            return (excl ? 0x8018 : 0x8019);
+        ptr->shm_lock = lk;
+        return 0;
+    }
+
+    ptr->lock_flags |= (1 << 16);  // in progress
+    make_retf_frame(scp, sp, _cs, _eip);
+    _cs = dpmi_sel();
+    _eip = DPMI_SEL_OFF(DPMI_shlock);
+    _eflags &= ~CF;
+    _eflags &= ~ZF;
+    return 0;
+}
+
+static void LockShared(cpuctx_t *scp, uint32_t handle, uint16_t flags)
+{
+    void *lk;
+    int excl = ((flags & 2) == 0);
+    dpmi_pm_block *ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
+    if (!ptr) {
+        _eflags |= CF;
+        _eax = 0x8023;
+        return;
+    }
+    if (!(ptr->lock_flags & (1 << 16))) {
+        error("No lock in progress\n");
+        _eflags |= CF;
+        _eax = 0x8023;
+        return;
+    }
+    if (ptr->lock_flags & (1 << 17)) { // cancel request
+        _eflags |= CF;
+        _eax = 0x8005;
+        ptr->lock_flags = 0;
+        return;
+    }
+    lk = shlock_open(LOCK_DIR, ptr->shmname, excl, 0);
+    if (lk) {
+        ptr->shm_lock = lk;
+        ptr->lock_flags &= 0xffff; // clear in-progress flag
+        _eflags |= ZF;
+        return;
+    }
+    _eflags &= ~ZF;
+}
+
+static int DPMIUnlockShared(uint32_t handle, uint16_t flags)
+{
+    int excl = ((flags & 1) == 0);
+    int cancel = ((flags & 2) == 2);
+    dpmi_pm_block *ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
+    if (!ptr)
+        return 0x8023;
+    if (excl != ((ptr->lock_flags & 2) == 0)) {
+        error("DPMI: unlock invalid lock type\n");
+        return 0x8002;
+    }
+    if (cancel) {
+        if (!(ptr->lock_flags & (1 << 16))) {
+            error("Canceling unavailable lock request\n");
+            return 0x8002;
+        }
+        ptr->lock_flags |= (1 << 17);
+        return 0;
+    }
+    if (!ptr->shm_lock) {
+        error("DPMI: unlocking missing lock\n");
+        return 0x8002;
+    }
+    shlock_close(ptr->shm_lock);
+    ptr->shm_lock = NULL;
+    ptr->lock_flags = 0;
+    return 0;
+}
+
 DPMI_INTDESC dpmi_get_pm_exc_addr(int num)
 {
     DPMI_INTDESC ret;
@@ -3076,6 +3158,26 @@ err:
     if (err) {
       _eflags |= CF;
       _LWORD(eax) = 0x8023;
+    }
+    break;
+  }
+
+  case 0x0d02: {	/* Lock Shared Memory */
+    int err = DPMILockShared(scp, (_LWORD_(esi) << 16) | _LWORD_(edi),
+	_LWORD_(edx));
+    if (err) {
+      _eflags |= CF;
+      _LWORD(eax) = err;
+    }
+    break;
+  }
+
+  case 0x0d03: {	/* Unlock Shared Memory */
+    int err = DPMIUnlockShared((_LWORD_(esi) << 16) | _LWORD_(edi),
+	_LWORD_(edx));
+    if (err) {
+      _eflags |= CF;
+      _LWORD(eax) = err;
     }
     break;
   }
@@ -4899,6 +5001,9 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_reinit)) {
           dpmi_reinit(scp);
+
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_shlock)) {
+          LockShared(scp, (_LWORD_(esi) << 16) | _LWORD_(edi), _LWORD_(edx));
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);

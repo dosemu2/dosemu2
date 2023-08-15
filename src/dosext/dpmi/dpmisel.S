@@ -100,6 +100,18 @@ DPMI_return_from_LDTExitCall:
 DPMI_reinit:
 	hlt
 	.globl DPMI_sel_end
+/* ======================= Addr = dpmi_sel():0173 */
+	.globl DPMI_shlock
+DPMI_shlock:
+	hlt
+	jc 1f  // canceled
+	jz 1f  // success
+	movl $0x1680, %eax
+	int $0x2f
+	jmp DPMI_shlock
+1:
+	lret
+	.globl DPMI_sel_end
 DPMI_sel_end:
 
 	.globl MSDOS_pmc_start
