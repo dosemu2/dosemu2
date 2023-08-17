@@ -1417,7 +1417,6 @@ config_init(int argc, char **argv)
 		config.exitearly = 1;
 		break;
 	    }
-	    was_exec++;
 	    break;
 	}
 	case 'T':
@@ -1437,9 +1436,6 @@ config_init(int argc, char **argv)
 	    exit(1);
 	}
     }
-
-    if (was_exec && !was_T1)
-      misc_e6_store_options("DOSEMU_EXIT=1");
 
     /* make-style env vars passing */
     while (optind < argc) {
@@ -1475,6 +1471,7 @@ config_init(int argc, char **argv)
 		strcat(config.dos_cmd, argv[optind]);
 		optind++;
 	    }
+	    was_exec++;
 	    break;
 	}
 	g_printf("ENV given on command line: %s\n", argv[optind]);
@@ -1485,6 +1482,10 @@ config_init(int argc, char **argv)
 	fprintf(stderr, "unrecognized argument: %s\n\r", argv[optind]);
 	exit(1);
     }
+
+    if (was_exec && !was_T1)
+      misc_e6_store_options("DOSEMU_EXIT=1");
+
     config_post_process();
     config_scrub();
     if (config_check_only) {
