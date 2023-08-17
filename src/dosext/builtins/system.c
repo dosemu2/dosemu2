@@ -147,6 +147,21 @@ static int setupDOSCommand(const char *dos_path, char *r_drv)
   return (0);
 }
 
+static void setupDOSCommand2(const char *dos_path, char *r_drv)
+{
+  if (dos_path[1] == ':') {
+    char drvStr[2];
+    drvStr[0] = dos_path[0];
+    drvStr[1] = '\0';
+    msetenv("DOSEMU_SYS_DRV", drvStr);
+    if (r_drv)
+      *r_drv = drvStr[0];
+    dos_path += 3;
+  }
+  if (dos_path[0])
+    msetenv("DOSEMU_SYS_DIR", dos_path);
+}
+
 static int do_system(const char *cmd)
 {
   dbug_printf ("About to Execute: %s\n", cmd);
@@ -261,6 +276,8 @@ static int do_execute_cmdline(int parent)
       int err = setupDOSCommand(config.dos_path, &drv);
       if (err)
         return err;
+    } else if (config.dos_path) {
+      setupDOSCommand2(config.dos_path, &drv);
     }
     e_drv = drv;  // store for later -p
     first = 1;

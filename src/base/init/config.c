@@ -1411,8 +1411,13 @@ config_init(int argc, char **argv)
 	    if (p) {
 		*p = '\0';
 		config.dos_path = strdup(p + 1);
+		if (p == config.unix_path) {
+		    free(config.unix_path);
+		    config.unix_path = NULL;
+		}
 	    }
-	    if (!exists_dir(config.unix_path) && !exists_file(config.unix_path)) {
+	    if (config.unix_path && !exists_dir(config.unix_path) &&
+			!exists_file(config.unix_path)) {
 		error("Path %s does not exist\n", config.unix_path);
 		config.exitearly = 1;
 		break;
