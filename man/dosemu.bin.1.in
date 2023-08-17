@@ -72,7 +72,7 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 ]
 [
 .B \-K
-.I unix_path
+.I unix_path[:dos_path]
 ]
 [
 .I env1=val1
@@ -170,14 +170,17 @@ command.
 .TP
 .I -K unix_path[:dos_path]
 Specify unix path for the program running with \-E.
-You can omit \-E and specify the full unix path with \-K, but passing
-command-line arguments via \-K is not recommended and may be removed
-in the future. The following may nevertheless work:
-.nf
-dosemu -K "/home/joeuser/dosemu/freedos/bin/xcopy.exe my_file my_dir"
-.fi
+You can omit \-E and specify the full unix path with \-K, but it is
+not recommended and may be removed in the future. You need to specify
+a directory path to \-K.
+.br
 If dos_path is specified, then it is used as a current directory when
-invoking the command.
+invoking the command. If unix_path is empty then the drive letter is
+taken from dos_path:
+.nf
+dosemu -K :C:\\\\games\\\\carma -E carma.exe
+.fi
+This runs carma.exe from C:\\games\\carma
 .TP
 .I -T[flags]
 Sets flags for -E and -K commands. "flags" is the string of the
