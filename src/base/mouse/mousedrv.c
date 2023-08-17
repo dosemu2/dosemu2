@@ -181,7 +181,7 @@ struct mouse_drv fifo_mdrv = {
 
 static void fifo_mdrv_init(struct mouse_drv_wrp *m, void (*cb)(void *))
 {
-#define M_FIFO_LEN 8
+#define M_FIFO_LEN 16
     m->bdrv.drv = &fifo_mdrv;
     rng_init(&m->bdrv.buf, M_FIFO_LEN, sizeof(struct mbuf_s));
     pthread_mutex_init(&m->bdrv.buf_mtx, NULL);
