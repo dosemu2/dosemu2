@@ -39,6 +39,19 @@ dosemu <unix_full_path> -- <dos_prog_args>
 ```
 to run DOS programs from unix directory.
 
+If you want to run the DOS program from a DOS directory, use this syntax:
+```
+dosemu -K :C:\\games\\carma -E carma.exe
+```
+This will run `carma.exe` from `c:\games\carma`. Note the leading colon
+after `-K`: it means that the DOS path, rather than unix path, is specified.
+You can actually specify both paths:
+```
+dosemu -K ~/dosgames:carma -E carma.exe
+```
+This creates the DOS drive for `~/dosgames`, then chdirs to `carma` and
+runs `carma.exe`.
+
 ## Configuring
 
 Per-user configuration file can be created as `~/.dosemu/.dosemurc`.
