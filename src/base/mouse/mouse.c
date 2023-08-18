@@ -314,9 +314,10 @@ mouse_helper(struct vm86_regs *regs)
     break;
   case 0xf2:
     m_printf("MOUSE int74 helper\n");
-    if (mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip))
+    if (mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip)) {
       call_int15_mouse_event_handler();
-    mouse_events = 0;
+      mouse_events = 0;
+    }
     pic_untrigger(12);
     break;
   case 0xff:
