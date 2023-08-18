@@ -2139,7 +2139,7 @@ static void call_mouse_event_handler(void *arg)
 {
   int handled = 0;
 
-  if (mouse.mask & mouse_events && (mouse.cs || mouse.ip)) {
+  if ((mouse.mask & mouse_events) && (mouse.cs || mouse.ip)) {
     call_int33_mouse_event_handler();
     mouse_events = 0;
     handled = 1;
