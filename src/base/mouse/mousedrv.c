@@ -134,14 +134,16 @@ void mousedrv_set_udata(const char *name, void *udata)
 
 static void fifo_mdrv_add(struct bdrv_s *r, struct mbuf_s *b)
 {
-  int rc;
+  int rc, cnt;
 
   pthread_mutex_lock(&r->buf_mtx);
   rc = rng_put(&r->buf, b);
+  cnt = rng_count(&r->buf);
   pthread_mutex_unlock(&r->buf_mtx);
   if (!rc)
     m_printf("mouse queue overflow\n");
-  r->callback(*r->arg_p);
+  if (cnt == 1)
+    r->callback(*r->arg_p);
 }
 
 #define MOUSE_BO(n, DEF, ...) \
