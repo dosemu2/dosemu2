@@ -244,6 +244,12 @@ static void _pit_latch(int latch, uint64_t cur)
          * is lost or pending */
 	if (cur > pic_itime[latch]) {
 	  ticks = 1;
+	  /* if IRQs disabled, skip one */
+	  if (pit[0].q_ticks && !isset_IF_async()) {
+	    pit[0].q_ticks--;
+	    pit[0].time.td = pic_itime[0];
+	    pic_itime[0] += TICKS_TO_NS(pit[0].cntr);
+	  }
 	} else {
 	  ticks = NS_TO_TICKS(pic_itime[latch] - cur) + 1;
 	  if (ticks > p->cntr)
