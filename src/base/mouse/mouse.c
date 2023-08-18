@@ -2141,13 +2141,13 @@ static void call_mouse_event_handler(void *arg)
 
   if (mouse.mask & mouse_events && (mouse.cs || mouse.ip)) {
     call_int33_mouse_event_handler();
+    mouse_events = 0;
     handled = 1;
   } else {
     m_printf("MOUSE: Skipping event handler, "
 	       "mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
 	       mouse.mask, mouse_events, mouse.cs, mouse.ip);
   }
-  mouse_events = 0;
 
   if (handled && dragged.skipped) {
     dragged.skipped = 0;
