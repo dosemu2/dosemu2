@@ -168,8 +168,9 @@ void do_sound(Bit16u period)
 	}
 }
 
-static void _pit_latch(int latch, uint64_t cur)
+static int _pit_latch(int latch, uint64_t cur)
 {
+  int ret = 0;
   hitimer_u cur_time;
   long ticks=0;
   pit_latch_struct *p = &pit[latch];
@@ -190,7 +191,7 @@ static void _pit_latch(int latch, uint64_t cur)
     if (p->cntr == -1)
       p->read_latch |= 0x40;
     p->mode &= ~0x80;
-    return;	/* let bit 7 on */
+    return ret;	/* let bit 7 on */
   }
 
   cur_time.td = cur;
@@ -244,12 +245,7 @@ static void _pit_latch(int latch, uint64_t cur)
          * is lost or pending */
 	if (cur > pic_itime[latch]) {
 	  ticks = 1;
-	  /* if IRQs disabled, skip one */
-	  if (pit[0].q_ticks && !isset_IF_async()) {
-	    pit[0].q_ticks--;
-	    pit[0].time.td = pic_itime[0];
-	    pic_itime[0] += TICKS_TO_NS(pit[0].cntr);
-	  }
+	  ret++; // underflow seen
 	} else {
 	  ticks = NS_TO_TICKS(pic_itime[latch] - cur) + 1;
 	  if (ticks > p->cntr)
@@ -280,10 +276,12 @@ static void _pit_latch(int latch, uint64_t cur)
   i_printf("PIT%d: ticks=%lx latch=%x pin=%d\n",latch,ticks,
 	p->read_latch,(p->outpin!=0));
 #endif
+  return ret;
 }
 
-static void pit_latch(int latch)
+static int do_pit_latch(int latch)
 {
+  int ret;
   uint64_t cur_time;
 
   evtimer_block(pit[latch].evtmr);
@@ -300,9 +298,23 @@ static void pit_latch(int latch)
     pit[latch].time.td = pic_itime[latch];
     pic_itime[latch] += TICKS_TO_NS(pit[latch].cntr);
   }
-  _pit_latch(latch, cur_time);
+  ret = _pit_latch(latch, cur_time);
   vtmr_sync(VTMR_PIT);
   evtimer_unblock(pit[latch].evtmr);
+  return ret;
+}
+
+static int pit_latch_hndl(void)
+{
+  return do_pit_latch(0);
+}
+
+static void pit_latch(int latch)
+{
+  if (latch == 0)
+    vtmr_latch(VTMR_PIT);
+  else
+    do_pit_latch(latch);
 }
 
 /* This is called also by port 0x61 - some programs can use timer #2
@@ -523,7 +535,8 @@ static int timer_irq_ack(int masked)
     pic_itime[0] += TICKS_TO_NS(pit[0].cntr);
     ret = 1;
   }
-  irq0_cnt++;
+  if (!masked)
+    irq0_cnt++;
   return ret;
 }
 
@@ -627,6 +640,7 @@ void pit_init(void)
 #endif
 
   vtmr_register(VTMR_PIT, timer_irq_ack);
+  vtmr_register_latch(VTMR_PIT, pit_latch_hndl);
   vtmr_set_tweaked(VTMR_PIT, config.timer_tweaks, 0);
 
   pit[0].evtmr = evtimer_create(timer_activate, (void *)(uintptr_t)0);

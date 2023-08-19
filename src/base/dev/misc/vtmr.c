@@ -32,9 +32,10 @@
 #include "cpu.h"
 #include "int.h"
 #include "bitops.h"
+#include "emudpmi.h"
 #include "emu.h"
-#if MULTICORE_EXAMPLE
 #include "coopth.h"
+#if MULTICORE_EXAMPLE
 #include "lowmem.h"
 #include "hlt.h"
 #endif
@@ -51,7 +52,8 @@
 #define VTMR_REQUEST_PORT (VTMR_FIRST_PORT + 4)
 #define VTMR_MASK_PORT (VTMR_FIRST_PORT + 5)
 #define VTMR_UNMASK_PORT (VTMR_FIRST_PORT + 6)
-#define VTMR_TOTAL_PORTS 7
+#define VTMR_LATCH_PORT (VTMR_FIRST_PORT + 7)
+#define VTMR_TOTAL_PORTS 8
 
 static uint16_t vtmr_irr;
 static uint16_t vtmr_imr;
@@ -59,6 +61,7 @@ static uint16_t vtmr_pirr;
 
 static pthread_t vtmr_thr;
 static sem_t vtmr_sem;
+static int latch_tid;
 #if MULTICORE_EXAMPLE
 static int smi_tid;
 static char *rmstack;
@@ -67,6 +70,7 @@ static uint16_t hlt_off;
 
 struct vthandler {
     int (*handler)(int);
+    int (*latch)(void);
     int vint;
     int done_pred;
     pthread_mutex_t done_mtx;
@@ -161,6 +165,23 @@ static void vtmr_io_write(ioport_t port, Bit8u value, void *arg)
         }
         h_printf("vtmr: ACK on %i, irr=%x\n", timer, vtmr_irr);
         break;
+    case VTMR_LATCH_PORT: {
+        int from_irq = masked;
+        if (vth[timer].latch) {
+            int rc = vth[timer].latch();
+            if (rc && !from_irq) {  // underflow seen not from IRQ
+                __sync_fetch_and_and(&vtmr_irr, ~msk);
+                pic_untrigger(vip[timer].irq);
+                if (vth[timer].handler) {
+                    rc = vth[timer].handler(1);
+                    if (rc)
+                        do_vtmr_raise(timer);
+                }
+            }
+        }
+        h_printf("vtmr: LATCH on %i, irr=%x\n", timer, vtmr_irr);
+        break;
+    }
     }
 
 }
@@ -260,6 +281,21 @@ static void vtmr_smi(void *arg)
     }
 }
 
+static void vtmr_latch_smi(void *arg)
+{
+  uint16_t isr;
+  int from_irq;
+  int timer = (uintptr_t)arg;
+
+  assert(timer < VTMR_MAX);
+  port_outb(0x20, 0xb);
+  isr = port_inb(0x20);
+  port_outb(0xa0, 0xb);
+  isr = (port_inb(0xa0) << 8);
+  from_irq = !!(isr & (1 << vip[timer].orig_irq));
+  port_outb(VTMR_LATCH_PORT, timer | (from_irq << 7));
+}
+
 #if MULTICORE_EXAMPLE
 static void thr_cleanup(void *arg)
 {
@@ -327,6 +363,8 @@ void vtmr_init(void)
     hlt_hdlr.func = vtmr_hlt;
     hlt_off = hlt_register_handler_vm86(hlt_hdlr);
 #endif
+
+    latch_tid = coopth_create("vtmr latch smi", vtmr_latch_smi);
 
     sem_init(&vtmr_sem, 0, 0);
     for (i = 0; i < VTMR_MAX; i++) {
@@ -400,6 +438,13 @@ void vtmr_raise(int timer)
     }
 }
 
+void vtmr_latch(int timer)
+{
+    if (in_dpmi_pm())
+        fake_pm_int();
+    coopth_start(latch_tid, (void *)(uintptr_t)timer);
+}
+
 void vtmr_sync(int timer)
 {
     pthread_mutex_lock(&vth[timer].done_mtx);
@@ -416,6 +461,13 @@ void vtmr_register(int timer, int (*handler)(int))
     vt->handler = handler;
     vt->vint = vint_register(ack_handler, mask_handler, vp->irq,
                              vp->orig_irq, vp->interrupt);
+}
+
+void vtmr_register_latch(int timer, int (*handler)(void))
+{
+    struct vthandler *vt = &vth[timer];
+    assert(timer < VTMR_MAX);
+    vt->latch = handler;
 }
 
 void vtmr_set_tweaked(int timer, int on, unsigned flags)
