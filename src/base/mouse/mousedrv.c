@@ -194,16 +194,17 @@ static void fifo_mdrv_init(struct mouse_drv_wrp *m, void (*cb)(void *))
 
 static int do_process_fifo(struct mouse_drv_wrp *m)
 {
-    int rc;
+    int rc, ret;
     struct mbuf_s b;
     struct mouse_drv *d = m->drv;
 
     assert(m->bdrv.drv);
     pthread_mutex_lock(&m->bdrv.buf_mtx);
     rc = rng_get(&m->bdrv.buf, &b);
+    ret = rng_count(&m->bdrv.buf);
     pthread_mutex_unlock(&m->bdrv.buf_mtx);
     if (!rc)
-        return 0;
+        return -1;
     switch (b.id) {
 #define MP(n, ...) \
     case MID_##n: \
@@ -219,7 +220,7 @@ static int do_process_fifo(struct mouse_drv_wrp *m)
     MP(drag_to_corner, b.args[0], b.args[1]);
     MP(enable_native_cursor, b.args[0]);
     }
-    return rng_count(&m->bdrv.buf);
+    return ret;
 }
 
 int mousedrv_process_fifo(const char *name)

@@ -2282,6 +2282,10 @@ static enum VirqSwRet do_mouse_irq(void *arg)
 static enum VirqHwRet do_mouse_fifo(void *arg)
 {
   int cnt = mousedrv_process_fifo("int33 mouse");
+  if (cnt == -1) {
+    error("mouse fifo empty\n");
+    return VIRQ_HWRET_DONE;
+  }
   if (mouse_events)
     pic_request(12);  // for ps2
   return (cnt ? VIRQ_HWRET_CONT : VIRQ_HWRET_DONE);
