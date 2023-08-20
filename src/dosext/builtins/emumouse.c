@@ -53,6 +53,7 @@ static int usage(void)
   com_printf("  x value - Set horizontal speed.\n");
   com_printf("  y value - Set vertical speed.\n");
   com_printf("  s 1|0   - Ignore VESA modes (1 - ignore, 0 - accept).\n");
+  com_printf("  t 1|0   - Throttle mode.\n");
   com_printf("  c 1|0   - Enable/disable host's cursor.\n");
   com_printf("  l 1|0   - Lock/unlock host's cursor visibility.\n");
   com_printf("  u 1|0   - Enable/disable ungrab mode tweak.\n");
@@ -135,6 +136,22 @@ int emumouse_main(int argc, char *argv[])
 	com_printf("Ungrabbed tweak: %i\n", val);
 	SETLO_BYTE(regs.ecx, val);
 	SETWORD(regs.ebx, 0x000b);
+	mouse_helper(&regs);
+	break;
+      }
+
+      case 'T':
+      case 't': {
+	int val;
+	i++;
+	if (i == argc) {
+	  com_printf("ERROR! No value for \"t\" found.\n");
+	  return(1);
+	}
+	val = argv[i][0] - '0';
+	com_printf("Throttle tweak: %i\n", val);
+	SETLO_BYTE(regs.ecx, val);
+	SETWORD(regs.ebx, 0x000c);
 	mouse_helper(&regs);
 	break;
       }

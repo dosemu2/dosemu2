@@ -67,6 +67,7 @@ typedef struct  {
   int init_speed_x, init_speed_y;
   int ignorevesa;
   int ignore_speed;
+  int throttle;
 
   struct termios *oldset;
 } mouse_t;
