@@ -642,9 +642,6 @@ int update_screen(void)
       Video->update_screen();
   }
 
-  if (Video->handle_events)
-    Video->handle_events();
-
   if(vga.config.video_off) {
     v_printf("update_screen: nothing done (video_off = 0x%x)\n", vga.config.video_off);
     return 1;
