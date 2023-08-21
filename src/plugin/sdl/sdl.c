@@ -1275,8 +1275,6 @@ static void SDL_handle_events(void)
   SDL_Event event;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
-  if (render_is_updating())
-    return;
   /* events may resize renderer, so lock */
   pthread_mutex_lock(&rend_mtx);
   SDL_PumpEvents();
