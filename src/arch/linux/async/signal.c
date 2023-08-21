@@ -645,9 +645,6 @@ static void SIGALRM_call(void *arg)
   uncache_time();
   timer_tick();
 
-  if (Video->handle_events && video_initialized)
-    Video->handle_events();
-
   if ((pic_sys_time-cnt10) >= (PIT_TICK_RATE/100) || dosemu_frozen) {
     cnt10 = pic_sys_time;
     if (video_initialized && !config.vga)
@@ -772,6 +769,9 @@ void do_periodic_stuff(void)
 
     if (video_initialized && Video && Video->change_config)
 	update_xtitle();
+
+    if (Video->handle_events && video_initialized)
+	Video->handle_events();
 }
 
 void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
