@@ -141,7 +141,7 @@ static void fifo_mdrv_add(struct bdrv_s *r, struct mbuf_s *b)
   cnt = rng_count(&r->buf);
   pthread_mutex_unlock(&r->buf_mtx);
   if (!rc)
-    m_printf("mouse queue overflow\n");
+    error("mouse queue overflow\n");
   if (cnt == 1)
     r->callback(*r->arg_p);
 }
@@ -183,7 +183,7 @@ struct mouse_drv fifo_mdrv = {
 
 static void fifo_mdrv_init(struct mouse_drv_wrp *m, void (*cb)(void *))
 {
-#define M_FIFO_LEN 16
+#define M_FIFO_LEN 1024
     m->bdrv.drv = &fifo_mdrv;
     rng_init(&m->bdrv.buf, M_FIFO_LEN, sizeof(struct mbuf_s));
     pthread_mutex_init(&m->bdrv.buf_mtx, NULL);
