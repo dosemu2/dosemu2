@@ -224,6 +224,16 @@ DPMI_VXD_APM:
 DPMI_VXD_VTDAPI:
 	hlt
 	lretl
+	.globl	DPMI_VXD_thunks_start
+DPMI_VXD_thunks_start:
+	hlt
+	hlt
+	hlt
+	hlt
+	hlt
+	.globl	DPMI_VXD_thunks_end
+DPMI_VXD_thunks_end:
+	lret
 	.globl	DPMI_VXD_end
 DPMI_VXD_end:
 
