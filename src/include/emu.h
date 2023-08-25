@@ -226,6 +226,7 @@ typedef struct config_info {
        char   *tapdev;
        char   *vdeswitch;
        char   *slirp_args;
+       char   *netsock;
        boolean pktdrv;
        boolean ne2k;
        boolean emuretrace;

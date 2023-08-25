@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -160,6 +161,26 @@ static int OpenNetworkLinkTap(const char *name, void (*cbk)(int, int))
 	return 0;
 }
 
+static int OpenNetworkLinkSock(const char *name, void (*cbk)(int, int))
+{
+	int pkt_fd, ret;
+	struct sockaddr_un saddr_un;
+
+	saddr_un.sun_family = PF_UNIX;
+	strlcpy(saddr_un.sun_path, name, sizeof(saddr_un.sun_path));
+	pkt_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+	if (pkt_fd < 0)
+		return pkt_fd;
+	ret = connect(pkt_fd, (struct sockaddr *)&saddr_un, sizeof(saddr_un));
+	if (ret < 0) {
+		close(pkt_fd);
+		return ret;
+	}
+	cbk(pkt_fd, 6);
+	pd_printf("PKT: Using socket device %s\n", name);
+	return 0;
+}
+
 static void set_fd(int fd, int mode)
 {
 	early_fd = fd;
@@ -191,7 +212,26 @@ int OpenNetworkLink(void (*cbk)(int, int))
 	switch (config.vnet) {
 	case VNET_TYPE_AUTO:
 		pkt_set_flags(PKT_FLG_QUIET);
-		/* no break, slirp default */
+		/* no break, try sock, slirp */
+	case VNET_TYPE_SOCK:
+		if (config.netsock && config.netsock[0])
+			o = find_ops(VNET_TYPE_SOCK);
+		if (BAD_OPS())
+			ret = -1;
+		else
+			ret = o->open(config.netsock, CB());
+		if (ret < 0) {
+			if (config.vnet == VNET_TYPE_AUTO || open_cnt > 1)
+				warn("PKT: Cannot open sock\n");
+			else
+				error("Unable to open sock\n");
+		} else {
+			if (config.vnet == VNET_TYPE_AUTO)
+				config.vnet = VNET_TYPE_SOCK;
+			pd_printf("PKT: Using sock networking\n");
+			break;
+		}
+		/* no break, try slirp */
 	case VNET_TYPE_SLIRP: {
 		if (!pkt_is_registered_type(VNET_TYPE_SLIRP)) {
 			if (config.vnet != VNET_TYPE_AUTO)
@@ -212,8 +252,9 @@ int OpenNetworkLink(void (*cbk)(int, int))
 			if (config.vnet == VNET_TYPE_AUTO)
 				config.vnet = VNET_TYPE_SLIRP;
 			pd_printf("PKT: Using slirp networking\n");
+			break;
 		}
-		break;
+		/* no break, try VDE */
 	}
 	case VNET_TYPE_VDE: {
 		const char *pr_dev = config.vdeswitch[0] ? config.vdeswitch : "(auto)";
@@ -236,8 +277,9 @@ int OpenNetworkLink(void (*cbk)(int, int))
 			if (config.vnet == VNET_TYPE_AUTO)
 				config.vnet = VNET_TYPE_VDE;
 			pd_printf("PKT: Using device %s\n", pr_dev);
+			break;
 		}
-		break;
+		/* no break, try whatever remains */
 	}
 	}
 	if (ret != -1 && o && !(o->flags & PFLG_ASYNC))
@@ -433,6 +475,41 @@ static ssize_t pkt_read_eth(int pkt_fd, void *buf, size_t count)
     return read(pkt_fd, buf, count);
 }
 
+static ssize_t pkt_read_sock(int pkt_fd, void *buf, size_t count)
+{
+    struct timeval tv;
+    fd_set readset;
+    uint32_t tmpbuf;
+    uint32_t len;
+    int ret;
+
+    tv.tv_sec = 0;				/* set a (small) timeout */
+    tv.tv_usec = 0;
+
+    /* anything ready? */
+    FD_ZERO(&readset);
+    FD_SET(pkt_fd, &readset);
+    /* anything ready? */
+    if (select(pkt_fd + 1, &readset, NULL, NULL, &tv) <= 0)
+        return 0;
+
+    if(!FD_ISSET(pkt_fd, &readset))
+        return 0;
+
+    ret = read(pkt_fd, &tmpbuf, sizeof(tmpbuf));
+    if (ret < 4)
+        return 0;
+    len = ntohl(tmpbuf);
+    if (len > count) {
+        error("PKT: buffer too small, %zi need %i\n", count, len);
+        len = count;
+    }
+    ret = read(pkt_fd, buf, len);
+    if (ret != len)
+        error("PKT: expected %i byes but got %i\n", len, ret);
+    return ret;
+}
+
 ssize_t pkt_read(int fd, void *buf, size_t count)
 {
     return find_ops(config.vnet)->pkt_read(fd, buf, count);
@@ -440,6 +517,13 @@ ssize_t pkt_read(int fd, void *buf, size_t count)
 
 static ssize_t pkt_write_eth(int pkt_fd, const void *buf, size_t count)
 {
+    return write(pkt_fd, buf, count);
+}
+
+static ssize_t pkt_write_sock(int pkt_fd, const void *buf, size_t count)
+{
+    uint32_t len = htonl(count);
+    write(pkt_fd, &len, sizeof(len));
     return write(pkt_fd, buf, count);
 }
 
@@ -468,6 +552,16 @@ static struct pkt_ops eth_ops = {
 };
 #endif
 
+static struct pkt_ops sock_ops = {
+	.id = VNET_TYPE_SOCK,
+	.open = OpenNetworkLinkSock,
+	.close = CloseNetworkLinkEth,
+	.get_hw_addr = GetDeviceHardwareAddressTap,
+	.get_MTU = GetDeviceMTUTap,
+	.pkt_read = pkt_read_sock,
+	.pkt_write = pkt_write_sock,
+};
+
 static struct pkt_ops tap_ops = {
 	.id = VNET_TYPE_TAP,
 	.open = OpenNetworkLinkTap,
@@ -488,6 +582,7 @@ void LibpacketInit(void)
 	pkt_register_backend(&eth_ops);
 #endif
 	pkt_register_backend(&tap_ops);
+	pkt_register_backend(&sock_ops);
 
 #ifdef USE_DL_PLUGINS
 #ifdef USE_VDE
@@ -499,17 +594,6 @@ void LibpacketInit(void)
 #endif
 	early_fd = -1;
 
-	if (config.vnet == VNET_TYPE_AUTO) {
-#ifdef USE_SLIRP
-		config.vnet = VNET_TYPE_SLIRP;
-#else
-#ifdef USE_VDE
-		config.vnet = VNET_TYPE_VDE;
-#else
-		config.vnet = VNET_TYPE_TAP;
-#endif
-#endif
-	}
 	/* Open sockets only for priv configs */
 	switch (config.vnet) {
 	case VNET_TYPE_ETH:
