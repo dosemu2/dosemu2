@@ -579,6 +579,7 @@ ethdev			RETURN(ETHDEV);
 tapdev			RETURN(TAPDEV);
 vdeswitch		RETURN(VDESWITCH);
 slirpargs		RETURN(SLIRPARGS);
+netsock			RETURN(NETSOCK);
 vnet			RETURN(VNET);
 	/* debug flags */
 

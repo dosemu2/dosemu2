@@ -231,7 +231,7 @@ enum {
 
 	/* main options */
 %token FASTFLOPPY HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
-%token ETHDEV TAPDEV VDESWITCH SLIRPARGS VNET
+%token ETHDEV TAPDEV VDESWITCH SLIRPARGS NETSOCK VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED BOOTDRIVE SWAP_BOOTDRIVE
 %token L_XMS L_DPMI DPMI_BASE PM_DOS_API NO_NULL_CHECKS
@@ -671,6 +671,7 @@ line:		CHARSET '{' charset_flags '}' {}
 		| TAPDEV string_expr	{ free(config.tapdev); config.tapdev = $2; }
 		| VDESWITCH string_expr	{ free(config.vdeswitch); config.vdeswitch = $2; }
 		| SLIRPARGS string_expr	{ free(config.slirp_args); config.slirp_args = $2; }
+		| NETSOCK string_expr	{ free(config.netsock); config.netsock = $2; }
 		| NOVELLHACK bool	{ config.pktflags = ($2!=0); }
 		| VNET string_expr	{ start_vnet($2); free($2); }
 		| SPEAKER speaker
