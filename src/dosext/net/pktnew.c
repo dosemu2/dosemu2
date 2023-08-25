@@ -73,7 +73,7 @@ static void pkt_hlt(Bit16u idx, HLT_ARG(arg));
 static int Insert_Type(int, int, Bit8u *);
 static int Remove_Type(int);
 int Find_Handle(u_char *buf);
-static void printbuf(const char *, struct ethhdr *);
+static void printbuf(const char *, struct ethhdr *, uint32_t len);
 static int pkt_receive(void);
 static enum VirqHwRet pkt_virq_receive(void *arg);
 static enum VirqSwRet pkt_receiver_callback(void *arg);
@@ -382,7 +382,7 @@ static int pkt_int(void)
 	p_stats->bytes_out += LWORD(ecx);
 
 	pd_printf("========Sending packet======\n");
-	printbuf("packet to send:", SEG_ADR((struct ethhdr *), ds, si));
+	printbuf("packet to send:", SEG_ADR((struct ethhdr *), ds, si), LWORD(ecx));
 	if (pg.flags & FLAG_NOVELL)	/* Novell hack? */
 	{
 		    char *p;
@@ -656,7 +656,7 @@ static int pkt_receive(void)
 	    p_stats->packets_in++;
 	    p_stats->bytes_in += size;
 
-	    printbuf("received packet:", (struct ethhdr *)pkt_buf);
+	    printbuf("received packet:", (struct ethhdr *)pkt_buf, size);
 	    /* stuff things in global vars and queue a hardware */
 	    /* interrupt which will perform the upcall */
 	    if (p_helper_size)
@@ -713,23 +713,27 @@ Find_Handle(u_char *buf)
     return -1;
 }
 
-static void printbuf(const char *mesg, struct ethhdr *buf)
+static void printbuf(const char *mesg, struct ethhdr *buf, uint32_t len)
 {
   int i;
   u_char *p;
 
-  pd_printf("%s :\n Dest.=", mesg);
+  pd_printf("%s :\n Dest=", mesg);
   for (i = 0; i < 6; i++)
-    pd_printf("%x:", buf->h_dest[i]);
+    pd_printf("%02x:", buf->h_dest[i]);
   pd_printf(" Source=");
   for (i = 0; i < 6; i++)
-    pd_printf("%x:", buf->h_source[i]);
-  if (ntohs(buf->h_proto) >= 1536) {
-    p = (u_char *)buf + 2 * ETH_ALEN; /* Ethernet-II */
+    pd_printf("%02x:", buf->h_source[i]);
+  if (ntohs(buf->h_proto) >= 1536)
     pd_printf(" Ethernet-II;");
-  } else {
-    p = (u_char *)buf + 2 * ETH_ALEN + 2; /* All the rest frame types. */
+  else
     pd_printf(" 802.3;");
-  }
-  pd_printf(" Type= 0x%x \n", ntohs(*(u_short *)p));
+  p = (u_char *)buf + 2 * ETH_ALEN + 4;
+  pd_printf(" Type/len=0x%x \n", ntohs(*(u_short *)p));
+  p += 2;
+  len -= p - (u_char *)buf;
+  pd_printf(" Payload:\n");
+  for (i = 0; i < len; i++)
+    pd_printf(" %02x", p[i]);
+  pd_printf("\n");
 }
