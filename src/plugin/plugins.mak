@@ -1,4 +1,6 @@
 include ../plugins_simp.mak
 ifeq ($(findstring $(MAKECMDGOALS), clean realclean configure),)
--include Makefile.conf
+ifneq ($(wildcard Makefile.conf.in),)
+include Makefile.conf
+endif
 endif
