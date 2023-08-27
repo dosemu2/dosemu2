@@ -140,20 +140,27 @@ int shlock_close(void *handle)
   int rc, ret = 0;
   int dir_fd;
 
+  /* drop file lock first, to avoid AB-BA deadlock with dir lock */
+  rc = flock(s->fd, LOCK_UN);
+  if (rc == -1) {
+    perror("flock(UN)");
+    return -1;
+  }
   dir_fd = open(s->dir, O_RDONLY | O_DIRECTORY);
   if (dir_fd == -1) {
     perror("open(dir)");
     return -1;
   }
-  /* grab directory lock first */
+  /* grab directory lock */
   rc = flock(dir_fd, LOCK_EX);
   if (rc == -1) {
     perror("flock(dir)");
     goto err_clodir;
   }
-  /* since we still have the file under dir_fd, no one could remove the dir,
-   * so no need to check for a race */
-  if (!s->excl)
+  /* if dir or file removed, just close fds */
+  if (!fd_is_ok(dir_fd, s->dir) || !fd_is_ok(s->fd, s->fspec))
+    rc = -1;
+  if (rc == 0)
     rc = flock(s->fd, LOCK_EX | LOCK_NB);
   if (rc == 0) {
     DIR *d;
