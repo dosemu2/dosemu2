@@ -172,16 +172,18 @@ int shlock_close(void *handle)
         break;
       }
     }
-    closedir(d);
     if (!found) {
       /* we are the last user of the dir as well */
       rmdir(s->dir);
       ret++;
     }
+    /* release dir lock */
+    closedir(d);
+  } else {
+    /* release dir lock */
+    close(dir_fd);
   }
   close(s->fd);
-  /* release dir lock */
-  close(dir_fd);
 
   free(s->fspec);
   free(s->dir);
