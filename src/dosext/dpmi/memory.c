@@ -30,6 +30,7 @@
 #include <sys/mman.h>		/* for MREMAP_MAYMOVE */
 #include <errno.h>
 #include "utilities.h"
+#include "shlock.h"
 #include "mapping.h"
 #include "smalloc.h"
 #include "emudpmi.h"
@@ -138,19 +139,6 @@ dpmi_pm_block *lookup_pm_block_by_shmname(dpmi_pm_block_root *root,
 	    return tmp;
     }
     return NULL;
-}
-
-int count_shm_blocks(dpmi_pm_block_root *root, const char *sname)
-{
-    int cnt = 0;
-    dpmi_pm_block *tmp;
-    for(tmp = root->first_pm_block; tmp; tmp = tmp->next) {
-	if (!tmp->shmname)
-	    continue;
-	if (strcmp(tmp->shmname, sname) == 0)
-	    cnt++;
-    }
-    return cnt;
 }
 
 static int commit(void *ptr, size_t size)
@@ -520,7 +508,7 @@ int DPMI_unmapHWRam(dpmi_pm_block_root *root, dosaddr_t vbase)
 	return -1;
     if (block->hwram) {
         do_unmap_hwram(root, block);
-    } else if (block->shmsize) {
+    } else if (block->shm) {
         /* extension: allow unmap shared block as hwram */
         do_unmap_shm(block);
         if (!block->shmname)
@@ -548,7 +536,7 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	return -1;
     }
     e_invalidate_full(block->base, block->size);
-    if (block->shmsize) {
+    if (block->shm) {
 	if (block->mapped)
 	    do_unmap_shm(block);
     } else if (block->linear) {
@@ -574,44 +562,40 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 }
 
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
-        char *name, unsigned int size, unsigned int shmsize, int flags)
+        char *name, unsigned int size, int flags)
 {
 #ifdef HAVE_SHM_OPEN
-    int i;
+#define EXLOCK_DIR "dosemu2_shmex"
+#define SHLOCK_DIR "dosemu2_shmsh"
+    int i, err;
     int fd;
     dpmi_pm_block *ptr;
     void *addr, *addr2;
     char *shmname;
-    int init = 0;
-    int oflags = O_RDWR;
+    struct stat st;
+    void *exlock, *shlock;
+    int oflags = O_RDWR | O_CREAT;
     int prot = PROT_READ | PROT_WRITE;
 
     if (!size)		// DPMI spec says this is allowed - no thanks
         return NULL;
     size = PAGE_ALIGN(size);
-    if (shmsize) {
-        assert(!(shmsize & (PAGE_SIZE - 1)));
-        if (size > shmsize)
-            size = shmsize;
-    } else {
-        init = 1;
-        shmsize = size;
-    }
 
-    addr = smalloc(&mem_pool, size);
-    if (!addr) {
-        error("unable to alloc %x for shm %s\n", size, name);
+    exlock = shlock_open(EXLOCK_DIR, name, 1, 1);
+    if (!exlock) {
+        error("exlock failed\n");
         return NULL;
+    }
+    if (flags & SHM_EXCL) {
+        oflags |= O_EXCL;
+        shlock = NULL;  // private shm
+    } else {
+        shlock = shlock_open(SHLOCK_DIR, name, 0, 1);
     }
 
     asprintf(&shmname, "/dosemu_%s", name);
-    if (init) {
-        oflags |= O_CREAT;
-        if (flags & SHM_EXCL)
-            oflags |= O_EXCL;
-    }
     fd = shm_open(shmname, oflags, S_IRUSR | S_IWUSR);
-    if (fd == -1 && init && (flags & SHM_EXCL) && errno == EEXIST) {
+    if (fd == -1 && (flags & SHM_EXCL) && errno == EEXIST) {
         error("shm object %s already exists\n", shmname);
         /* SHM_EXCL should provide the exclusive name (with pid),
          * so the object might be orphaned */
@@ -621,11 +605,29 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     if (fd == -1) {
         perror("shm_open()");
         error("shared memory unavailable, exiting\n");
-        leavedos(2);
-        return NULL;
+        goto err1;
     }
-    if (init)
-        ftruncate(fd, shmsize);
+
+    err = fstat(fd, &st);
+    assert(!err);
+    if (st.st_size) {
+        assert(!(st.st_size & (PAGE_SIZE - 1)));
+        if (size > st.st_size)
+            size = st.st_size;
+    } else {
+        err = ftruncate(fd, size);
+        if (err) {
+            error("unable to ftruncate to %x for shm %s\n", size, name);
+            goto err2;
+        }
+    }
+    shlock_close(exlock);
+
+    addr = smalloc(&mem_pool, size);
+    if (!addr) {
+        error("unable to alloc %x for shm %s\n", size, name);
+        goto err0;
+    }
     if (!(flags & SHM_NOEXEC))
         prot |= PROT_EXEC;
     /* this mem is already mapped to KVM so we use plain mmap() */
@@ -634,55 +636,82 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     if (addr2 != addr) {
         perror("mmap()");
         error("shared memory map failed %p %p, exiting\n", addr2, addr);
-        leavedos(2);
-        return NULL;
+        goto err0;
     }
     ptr = alloc_pm_block(root, size);
     if (!ptr) {
         error("pm block alloc failed, exiting\n");
-        leavedos(2);
-        return NULL;
+        goto err0;
     }
     for (i = 0; i < (size >> PAGE_SHIFT); i++)
         ptr->attrs[i] = 0x09 | ATTR_SHR;	// RW, shared, present
     ptr->base = DOSADDR_REL(addr);
     ptr->size = size;
-    ptr->shmsize = shmsize;
+    ptr->shm = 1;
     ptr->linear = 1;
     ptr->handle = pm_block_handle_used++;
     ptr->shmname = strdup(name);
     ptr->rshmname = shmname;
+    ptr->shlock = shlock;
     D_printf("DPMI: map shm %s\n", ptr->shmname);
     return ptr;
+
+err2:
+    close(fd);
+err1:
+    shlock_close(exlock);
+err0:
+    leavedos(2);
+    return NULL;
 #else
     return NULL;
 #endif
 }
 
-int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
+int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
 {
+    void *exlock;
+    int rc = 1;
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !ptr->shmname)
         return -1;
     if (ptr->mapped)
         do_unmap_shm(ptr);
-    if (unlnk) {
+
+    exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
+    assert(exlock);
+    rc = 1;
+    if (ptr->shlock)
+        rc = shlock_close(ptr->shlock);
+    if (rc > 0) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
         shm_unlink(ptr->rshmname);
     }
+    shlock_close(exlock);
+
     free_pm_block(root, ptr);
     return 0;
 }
 
-int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle, int unlnk)
+int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle)
 {
+    void *exlock;
+    int rc;
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !ptr->shmname)
         return -1;
-    if (unlnk) {
+
+    exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
+    assert(exlock);
+    rc = 1;
+    if (ptr->shlock)
+        rc = shlock_close(ptr->shlock);
+    if (rc > 0) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
         shm_unlink(ptr->rshmname);
     }
+    shlock_close(exlock);
+
     if (ptr->mapped) {
         free(ptr->shmname);
         ptr->shmname = NULL;
@@ -813,7 +842,7 @@ void DPMI_freeAll(dpmi_pm_block_root *root)
 	if ((*p)->hwram)
 	    do_unmap_hwram(root, *p);
 	else if ((*p)->shmname)
-	    DPMI_freeShared(root, (*p)->handle, 1);
+	    DPMI_freeShared(root, (*p)->handle);
 	else
 	    DPMI_free(root, (*p)->handle);
     }
