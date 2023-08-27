@@ -714,10 +714,12 @@ static int dos_helper(int stk_offs, int revect)
 		buf == NULL ? 0 : (SEGOFF2LINEAR(_ES, _DX) & 0xffff);
 	    break;
 	}
-    case DOS_HELPER_GETPID:
-	LWORD(eax) = getpid();
-	LWORD(ebx) = getppid();
+    case DOS_HELPER_GETPID: {
+	pid_t pid = getpid();
+	LWORD(eax) = pid;
+	LWORD(ebx) = pid >> 16;
 	break;
+    }
 
     case DOS_HELPER_CHDIR:
 	LWORD(eax) = chdir(SEG_ADR((char *), es, dx));
