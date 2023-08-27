@@ -43,6 +43,19 @@ struct shlck {
   int fd;
 };
 
+static int fd_is_ok(int dir_fd, const char *dspec)
+{
+  int rc = access(dspec, R_OK);
+  if (rc == 0) {
+    struct stat sb1, sb2;
+    fstat(dir_fd, &sb1);
+    stat(dspec, &sb2);
+    if (sb1.st_ino == sb2.st_ino)
+      return 1;
+  }
+  return 0;
+}
+
 void *shlock_open(const char *dir, const char *name, int excl, int block)
 {
   struct shlck *ret;
@@ -73,8 +86,7 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
       goto err_clodir;
     }
     /* check if someone else removed dir in a process */
-    rc = access(dspec, R_OK);
-    if (rc == 0)
+    if (fd_is_ok(dir_fd, dspec))
       break;
     /* race happened, retry */
     close(dir_fd);
