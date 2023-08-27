@@ -939,6 +939,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    op == 0x86 || op == 0x87) { /*XCHG, not NOP*/
 				PC++; goto override;
 			}
+			else if (op >= 0x80 && op <= 0x83) { /*ADD..XOR*/
+				op = Fetch(PC+i);
+				if ((op & 0x38) < 0x38) {
+					PC++; goto override;
+				}
+			}
 			CODE_FLUSH();
 			goto illegal_op;
 			}
