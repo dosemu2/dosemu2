@@ -163,34 +163,17 @@ int shlock_close(void *handle)
   if (rc == 0)
     rc = flock(s->fd, LOCK_EX | LOCK_NB);
   if (rc == 0) {
-    DIR *d;
-    struct dirent *de;
-    int found = 0;
-
     /* we are the last owner, delete the lock file */
     unlink(s->fspec);
     ret++;
-
-    d = fdopendir(dir_fd);
-    assert(d);
-    while ((de = readdir(d))) {
-      if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0) {
-        found++;
-        break;
-      }
-    }
-    if (!found) {
-      /* we are the last user of the dir as well */
-      rmdir(s->dir);
+    /* try deleting dir as well */
+    rc = rmdir(s->dir);
+    if (rc == 0)
       ret++;
-    }
-    /* release dir lock */
-    closedir(d);
-  } else {
-    /* release dir lock */
-    close(dir_fd);
   }
   close(s->fd);
+  /* release dir lock */
+  close(dir_fd);
 
   free(s->fspec);
   free(s->dir);
