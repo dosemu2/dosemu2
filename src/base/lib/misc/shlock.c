@@ -41,6 +41,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <glob.h>
 #include <assert.h>
 #include "shlock.h"
 
@@ -53,7 +54,34 @@ struct shlck {
   char *dir;
   int excl;
   int fd;
+  int tmp_fd;
 };
+
+static void do_gc(const char *fspec)
+{
+  char *pat;
+  glob_t gl;
+  int rc;
+
+  asprintf(&pat, "%s/" LOCK_PFX "*", fspec);
+  rc = glob(pat, GLOB_ERR | GLOB_NOSORT | GLOB_NOESCAPE, NULL, &gl);
+  if (rc == 0) {
+    int i;
+    for (i = 0; i < gl.gl_pathc; i++) {
+      int fd = open(gl.gl_pathv[i], O_RDONLY);
+      if (fd == -1)
+        continue;
+      /* tmpfiles are not participating in locking, so we can use
+       * LOCK_NB safely */
+      rc = flock(fd, LOCK_SH | LOCK_NB);
+      if (rc == 0)
+        unlink(gl.gl_pathv[i]);
+      close(fd);
+    }
+    globfree(&gl);
+  }
+  free(pat);
+}
 
 static char *fixupspec(char *fspec, const char *dir1, const char *dir2)
 {
@@ -91,6 +119,14 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
     goto err_free_d;
   }
   tspec = fixupspec(ttspec, dtspec, fspec);
+  /* lock it before exposing */
+  rc = flock(tmp_fd, LOCK_EX);
+  if (rc == -1) {
+    perror("flock(tmp)");
+    free(ttspec);
+    rmdir(dtspec);
+    goto err_clotmp;
+  }
 
   rc = -1;
   while (rc == -1) {
@@ -130,6 +166,10 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
   }
 
   free(ttspec);
+  /* At this point our fspec directory is stable and can't disappear.
+   * Try collecting stalled tmpfiles. */
+  do_gc(fspec);
+
   fd = open(fspec, O_RDONLY | O_DIRECTORY);
   if (fd == -1) {
     perror("open(dir)");
@@ -146,7 +186,6 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
       goto err_close;
     }
   }
-  close(tmp_fd);
 
   ret = malloc(sizeof(*ret));
   ret->tspec = tspec;
@@ -154,6 +193,7 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
   ret->dir = dspec;
   ret->excl = excl;
   ret->fd = fd;
+  ret->tmp_fd = tmp_fd;
   return ret;
 
 err_close:
@@ -181,6 +221,9 @@ int shlock_close(void *handle)
   rc = unlink(s->tspec);
   if (rc == -1)
     perror("unlink()");
+  rc = close(s->tmp_fd);
+  if (rc == -1)
+    perror("close(tmp)");
   /* At that point someone can remove and re-create our dir.
    * The creation loop is designed the way the created dir is never
    * empty, so it can't be removed here in that case.
