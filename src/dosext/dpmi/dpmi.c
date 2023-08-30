@@ -2492,14 +2492,14 @@ static void do_int31(cpuctx_t *scp)
     break;
   case 0x0007:
     CHECK_SELECTOR(_LWORD(ebx));
-    if (SetSegmentBaseAddress(_LWORD(ebx), ((uint32_t)_LWORD(ecx))<<16 | (_LWORD(edx)))) {
+    if (SetSegmentBaseAddress(_LWORD(ebx), (_LWORD_(ecx) << 16) | _LWORD(edx))) {
       _eflags |= CF;
       _LWORD(eax) = 0x8025;
     }
     break;
   case 0x0008:
     CHECK_SELECTOR(_LWORD(ebx));
-    if (SetSegmentLimit(_LWORD(ebx), ((uint32_t)(_LWORD(ecx))<<16) | (_LWORD(edx)))) {
+    if (SetSegmentLimit(_LWORD(ebx), (_LWORD_(ecx) << 16) | _LWORD(edx))) {
       _eflags |= CF;
       _LWORD(eax) = 0x8025;
     }
@@ -2883,7 +2883,7 @@ err:
   case 0x0501:	/* Allocate Memory Block */
     {
       dpmi_pm_block block;
-      unsigned int mem_required = (_LWORD(ebx))<<16 | (_LWORD(ecx));
+      unsigned int mem_required = (_LWORD(ebx) << 16) | _LWORD(ecx);
 
       block = DPMImalloc(mem_required);
       if (!block.size) {
@@ -2891,7 +2891,7 @@ err:
 	_eflags |= CF;
 	break;
       }
-      D_printf("DPMI: malloc attempt for siz 0x%08x\n", (_LWORD(ebx))<<16 | (_LWORD(ecx)));
+      D_printf("DPMI: malloc attempt for siz 0x%08x\n", (_LWORD(ebx) << 16) | _LWORD(ecx));
       D_printf("      malloc returns address %#x\n", block.base);
       D_printf("                using handle 0x%08x\n",block.handle);
       _LWORD(edi) = (block.handle)&0xffff;
@@ -2902,9 +2902,9 @@ err:
     break;
   case 0x0502:	/* Free Memory Block */
     {
-	D_printf(" DPMI: Free Mem Blk. for handle %08x\n",(_LWORD(esi))<<16 | (_LWORD(edi)));
+	D_printf(" DPMI: Free Mem Blk. for handle %08x\n", (_LWORD(esi) << 16) | _LWORD(edi));
 
-        if(DPMIfree((_LWORD(esi))<<16 | (_LWORD(edi)))) {
+        if (DPMIfree((_LWORD(esi) << 16) | _LWORD(edi))) {
 	    D_printf("DPMI: client attempt to free a non exist handle\n");
 	    _eflags |= CF;
 	    break;
@@ -2915,8 +2915,8 @@ err:
     {
 	unsigned newsize, handle;
 	dpmi_pm_block block;
-	handle = (_LWORD(esi))<<16 | (_LWORD(edi));
-	newsize = (_LWORD(ebx)<<16 | _LWORD(ecx));
+	handle = (_LWORD(esi) << 16) | _LWORD(edi);
+	newsize = (_LWORD(ebx) << 16) | _LWORD(ecx);
 	D_printf("DPMI: Realloc to size %x\n", (_LWORD(ebx)<<16 | _LWORD(ecx)));
 	D_printf("DPMI: For Mem Blk. for handle   0x%08x\n", handle);
 
