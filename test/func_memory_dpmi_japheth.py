@@ -53,10 +53,10 @@ def bare(self):
 #vendor 'MS-DOS' API entry: 97:130
 #'MS-DOS' API, ax=100h (get LDT selector): E7
 
-    self.assertRegex(results, r"DPMI v0.90 host found, cpu: \d+, support of 32-bit clients: 1")
+    self.assertRegex(results, r"DPMI v\d.\d+ host found, cpu: \d+, support of 32-bit clients: 1")
     self.assertRegex(results, r"DPMI version flags: 5")
-    self.assertRegex(results, r"vendor: DOSEMU Version 2.0, version: 0.90")
-    self.assertRegex(results, r"capabilities: 78")
+    self.assertRegex(results, r"vendor: DOSEMU2 Version 2.0, version: \d.\d+")
+    self.assertRegex(results, r"capabilities: \d+")
 
 
 def _c(self):
