@@ -3070,7 +3070,7 @@ err:
     {
 	unsigned long handle;
 	dpmi_pm_block *block;
-	handle = (_LWORD(esi))<<16 | (_LWORD(edi));
+	handle = (_LWORD(esi) << 16) | _LWORD(edi);
 
 	if((block = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle)) == NULL) {
 	    _LWORD(eax) = 0x8023;
