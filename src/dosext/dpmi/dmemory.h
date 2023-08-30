@@ -53,7 +53,10 @@ int DPMI_unmapHWRam(dpmi_pm_block_root *root, dosaddr_t vbase);
 int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, u_short attrs[], int count);
 int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, u_short attrs[], int count);
 int dpmi_lin_mem_rsv(void);
+int dpmi_lin_mem_size(void);
 int dpmi_lin_mem_free(void);
 int dpmi_free_memory(void);
+int dpmi_alloced_memory(void);
+int dpmi_largest_memory_block(void);
 
 #endif

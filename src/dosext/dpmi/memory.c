@@ -192,6 +192,13 @@ int dpmi_lin_mem_rsv(void)
     return PAGE_ALIGN(config.dpmi_base - (LOWMEM_SIZE + HMASIZE));
 }
 
+int dpmi_lin_mem_size(void)
+{
+    if (!config.dpmi)
+	return 0;
+    return dpmi_lin_mem_rsv() - (EXTMEM_SIZE + XMS_SIZE);
+}
+
 int dpmi_lin_mem_free(void)
 {
     if (!dpmi_lin_rsv_base)
@@ -919,4 +926,21 @@ int dpmi_free_memory(void)
   if (mem_allocd >= dpmi_total_memory)
     return 0;
   return (dpmi_total_memory - mem_allocd);
+}
+
+int dpmi_alloced_memory(void)
+{
+  return mem_allocd;
+}
+
+int dpmi_largest_memory_block(void)
+{
+  unsigned ret, fr;
+  if (!config.dpmi)
+    return 0;
+  ret = smget_largest_free_area(&mem_pool);
+  fr = dpmi_free_memory();
+  if (ret > fr)
+    ret = fr;
+  return ret;
 }

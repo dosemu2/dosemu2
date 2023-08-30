@@ -20,7 +20,6 @@ Currently missing DPMI-1.0 functions:
           is initially mapped into a 4Gb space, so 85434678 should be
           reverted. The extra complication is that this allows to map
           devices at 1Mb, like video memory and roms.
- - 0x50b  Get memory info, 1.0, REQUIRED.
 */
 
 #include <stdio.h>
@@ -710,7 +709,7 @@ void dpmi_get_entry_point(void)
 
     /* Version 0.9 */
     HI(dx) = DPMI_VERSION;
-    LO(dx) = DPMI_DRIVER_VERSION;
+    LO(dx) = DPMI_MINOR_VERSION;
 
     /* Entry Address for DPMI */
     SREG(es) = DPMI_SEG;
@@ -1212,24 +1211,64 @@ int SetDescriptor(unsigned short selector, unsigned int *lp)
 
 void GetFreeMemoryInformation(unsigned int *lp)
 {
-  /*00h*/	lp[0] = dpmi_free_memory();
+  // Largest available free block in bytes
+  /*00h*/	lp[0] = dpmi_largest_memory_block();
+  // Maximum unlocked page allocation in pages
   /*04h*/	lp[1] = dpmi_free_memory()/DPMI_page_size;
+  // Maximum locked page allocation in pages
   /*08h*/	lp[2] = dpmi_free_memory()/DPMI_page_size;
-  /*0ch*/	lp[3] = dpmi_lin_mem_rsv()/DPMI_page_size;  // not accurate
+  // Linear address space size in pages
+  /*0ch*/	lp[3] = dpmi_lin_mem_size()/DPMI_page_size;
+  // Total number of unlocked pages
   /*10h*/	lp[4] = dpmi_total_memory/DPMI_page_size;
+  // Total number of free pages
   /*14h*/	lp[5] = dpmi_free_memory()/DPMI_page_size;
+  // Total number of physical pages
   /*18h*/	lp[6] = dpmi_total_memory/DPMI_page_size;
+  // Free linear address space in pages
   /*1ch*/	lp[7] = dpmi_lin_mem_free()/DPMI_page_size;
 #if 0
+  // Size of paging file/partition in pages
   /*20h*/	lp[8] = dpmi_total_memory/DPMI_page_size;
 #else
 		/* report no swap, or the locked/unlocked
 		 * amounts will have to be adjusted */
   /*20h*/	lp[8] = 0;
 #endif
-  /*24h*/	lp[9] = 0xffffffff;
-  /*28h*/	lp[0xa] = 0xffffffff;
-  /*2ch*/	lp[0xb] = 0xffffffff;
+  // Reserved, all 0xc bytes set to 0FFH
+  /*24h*/	memset(&lp[9], 0xff, 0xc);
+}
+
+static void GetFreeMemoryInformationExt(unsigned int *lp)
+{
+  // Total allocated bytes of physical memory controlled by DPMI host
+  /*00h*/	lp[0] = dpmi_alloced_memory();
+  // Total allocated bytes of virtual memory controlled by DPMI host
+  /*04h*/	lp[1] = dpmi_alloced_memory();
+  // Total available bytes of virtual memory controlled by DPMI host
+  /*08h*/	lp[2] = dpmi_free_memory();
+  // Total allocated bytes of virtual memory for this virtual machine
+  /*0ch*/	lp[3] = dpmi_alloced_memory();
+  // Total available bytes of virtual memory for this virtual machine
+  /*10h*/	lp[4] = dpmi_free_memory();
+  // Total allocated bytes of virtual memory for this client
+  /*14h*/	lp[5] = dpmi_alloced_memory();
+  // Total available bytes of virtual memory for this client
+  /*18h*/	lp[6] = dpmi_free_memory();
+  // Total locked bytes of memory for this client
+  /*1ch*/	lp[7] = 0;
+  // Maximum locked bytes of memory for this client
+  /*20h*/	lp[8] = dpmi_total_memory;
+  // Highest linear address available to this client
+  /*24h*/	lp[9] = config.dpmi_base ? config.dpmi_base - 1 : 0;
+  // Size in bytes of largest available free memory block
+  /*28h*/	lp[0xa] = dpmi_largest_memory_block();
+  // Size of minimum allocation unit in bytes
+  /*2ch*/	lp[0xb] = DPMI_page_size;
+  // Size of the allocation alignment unit in bytes
+  /*30h*/	lp[0xc] = DPMI_page_size;
+  // Reserved, currently zero (0x4c bytes)
+  /*34h*/	memset(&lp[0xd], 0, 0x4c);
 }
 
 static void save_context_nofpu(cpuctx_t *d, cpuctx_t *s)
@@ -2849,8 +2888,8 @@ err:
       _edi = DPMI_SEL_OFF(DPMI_raw_mode_switch_pm);
     break;
   case 0x0400:	/* Get Version */
-    _LWORD(eax) = DPMI_VERSION << 8 | DPMI_DRIVER_VERSION;
-    _LO(bx) = 5;
+    _LWORD(eax) = (DPMI_VERSION << 8) | DPMI_MINOR_VERSION;
+    _LO(bx) = 5;  // 32bit, V86, virtual memory
     _LO(cx) = vm86s.cpu_type;
     _LWORD(edx) = 0x0870; /* PIC base imaster/slave interrupt */
     break;
@@ -2862,14 +2901,13 @@ err:
 	   * conventional memory mapping,
 	   * demand zero fill,
 	   * write-protect client,
-	   * write-protect host.
 	   */
-	  _LWORD(eax) = 0x78;
+	  _LWORD(eax) = 0x38;
 	  _LWORD(ecx) = 0;
 	  _LWORD(edx) = 0;
 	  *buf = DPMI_VERSION;
-	  *(buf+1) = DPMI_DRIVER_VERSION;
-	  snprintf(buf+2, 126, "DOSEMU Version %d.%d", VERSION_NUM, SUBLEVEL);
+	  *(buf+1) = DPMI_MINOR_VERSION;
+	  snprintf(buf+2, 126, "DOSEMU2 Version %d.%d", VERSION_NUM, SUBLEVEL);
       }
     break;
 
@@ -3084,6 +3122,14 @@ err:
 	_LWORD(ebx) = HI_WORD(block->base);
     }
     break;
+  case 0x050b:
+    {
+      unsigned int lp[0x20];
+      GetFreeMemoryInformationExt(lp);
+      memcpy_2dos(GetSegmentBase(_es) + API_16_32(_edi), lp, sizeof(lp));
+    }
+    break;
+
   case 0x0600:	/* Lock Linear Region */
   case 0x0601:	/* Unlock Linear Region */
   case 0x0602:	/* Mark Real Mode Region as Pageable */

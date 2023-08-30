@@ -6,8 +6,13 @@
 
 #if WITH_DPMI
 
+#if 0
 #define DPMI_VERSION   		0x00	/* major version 0 */
 #define DPMI_DRIVER_VERSION	0x5a	/* minor version 0.90 */
+#else
+#define DPMI_VERSION   		1	/* major version 1 */
+#define DPMI_MINOR_VERSION	0	/* minor version 0 */
+#endif
 
 #define DPMI_MAX_CLIENTS	32	/* maximal number of clients */
 

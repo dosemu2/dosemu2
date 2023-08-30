@@ -1662,7 +1662,7 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    _LWORD(ebx) = 1 | 0x300;
 	    _LWORD(ecx) = 4;
 	    _HI(dx) = DPMI_VERSION;
-	    _LO(dx) = DPMI_DRIVER_VERSION;
+	    _LO(dx) = DPMI_MINOR_VERSION;
 	    _LWORD(esi) = 0;
 	    pma = doshlp_get_entry(reinit_hlp.entry);
 	    _es = pma.selector;
