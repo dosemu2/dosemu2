@@ -709,7 +709,7 @@ void dpmi_get_entry_point(void)
 
     /* Version 0.9 */
     HI(dx) = DPMI_VERSION;
-    LO(dx) = DPMI_DRIVER_VERSION;
+    LO(dx) = DPMI_MINOR_VERSION;
 
     /* Entry Address for DPMI */
     SREG(es) = DPMI_SEG;
@@ -2888,8 +2888,8 @@ err:
       _edi = DPMI_SEL_OFF(DPMI_raw_mode_switch_pm);
     break;
   case 0x0400:	/* Get Version */
-    _LWORD(eax) = DPMI_VERSION << 8 | DPMI_DRIVER_VERSION;
-    _LO(bx) = 5;
+    _LWORD(eax) = (DPMI_VERSION << 8) | DPMI_MINOR_VERSION;
+    _LO(bx) = 5;  // 32bit, V86, virtual memory
     _LO(cx) = vm86s.cpu_type;
     _LWORD(edx) = 0x0870; /* PIC base imaster/slave interrupt */
     break;
@@ -2906,7 +2906,7 @@ err:
 	  _LWORD(ecx) = 0;
 	  _LWORD(edx) = 0;
 	  *buf = DPMI_VERSION;
-	  *(buf+1) = DPMI_DRIVER_VERSION;
+	  *(buf+1) = DPMI_MINOR_VERSION;
 	  snprintf(buf+2, 126, "DOSEMU2 Version %d.%d", VERSION_NUM, SUBLEVEL);
       }
     break;
