@@ -928,6 +928,11 @@ int dpmi_free_memory(void)
   return (dpmi_total_memory - mem_allocd);
 }
 
+int dpmi_alloced_memory(void)
+{
+  return mem_allocd;
+}
+
 int dpmi_largest_memory_block(void)
 {
   unsigned ret, fr;

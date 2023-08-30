@@ -56,6 +56,7 @@ int dpmi_lin_mem_rsv(void);
 int dpmi_lin_mem_size(void);
 int dpmi_lin_mem_free(void);
 int dpmi_free_memory(void);
+int dpmi_alloced_memory(void);
 int dpmi_largest_memory_block(void);
 
 #endif

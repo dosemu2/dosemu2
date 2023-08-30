@@ -20,7 +20,6 @@ Currently missing DPMI-1.0 functions:
           is initially mapped into a 4Gb space, so 85434678 should be
           reverted. The extra complication is that this allows to map
           devices at 1Mb, like video memory and roms.
- - 0x50b  Get memory info, 1.0, REQUIRED.
 */
 
 #include <stdio.h>
@@ -1238,6 +1237,38 @@ void GetFreeMemoryInformation(unsigned int *lp)
 #endif
   // Reserved, all 0xc bytes set to 0FFH
   /*24h*/	memset(&lp[9], 0xff, 0xc);
+}
+
+static void GetFreeMemoryInformationExt(unsigned int *lp)
+{
+  // Total allocated bytes of physical memory controlled by DPMI host
+  /*00h*/	lp[0] = dpmi_alloced_memory();
+  // Total allocated bytes of virtual memory controlled by DPMI host
+  /*04h*/	lp[1] = dpmi_alloced_memory();
+  // Total available bytes of virtual memory controlled by DPMI host
+  /*08h*/	lp[2] = dpmi_free_memory();
+  // Total allocated bytes of virtual memory for this virtual machine
+  /*0ch*/	lp[3] = dpmi_alloced_memory();
+  // Total available bytes of virtual memory for this virtual machine
+  /*10h*/	lp[4] = dpmi_free_memory();
+  // Total allocated bytes of virtual memory for this client
+  /*14h*/	lp[5] = dpmi_alloced_memory();
+  // Total available bytes of virtual memory for this client
+  /*18h*/	lp[6] = dpmi_free_memory();
+  // Total locked bytes of memory for this client
+  /*1ch*/	lp[7] = 0;
+  // Maximum locked bytes of memory for this client
+  /*20h*/	lp[8] = dpmi_total_memory;
+  // Highest linear address available to this client
+  /*24h*/	lp[9] = config.dpmi_base ? config.dpmi_base - 1 : 0;
+  // Size in bytes of largest available free memory block
+  /*28h*/	lp[0xa] = dpmi_largest_memory_block();
+  // Size of minimum allocation unit in bytes
+  /*2ch*/	lp[0xb] = DPMI_page_size;
+  // Size of the allocation alignment unit in bytes
+  /*30h*/	lp[0xc] = DPMI_page_size;
+  // Reserved, currently zero (0x4c bytes)
+  /*34h*/	memset(&lp[0xd], 0, 0x4c);
 }
 
 static void save_context_nofpu(cpuctx_t *d, cpuctx_t *s)
@@ -3092,6 +3123,14 @@ err:
 	_LWORD(ebx) = HI_WORD(block->base);
     }
     break;
+  case 0x050b:
+    {
+      unsigned int lp[0x20];
+      GetFreeMemoryInformationExt(lp);
+      memcpy_2dos(GetSegmentBase(_es) + API_16_32(_edi), lp, sizeof(lp));
+    }
+    break;
+
   case 0x0600:	/* Lock Linear Region */
   case 0x0601:	/* Unlock Linear Region */
   case 0x0602:	/* Mark Real Mode Region as Pageable */
