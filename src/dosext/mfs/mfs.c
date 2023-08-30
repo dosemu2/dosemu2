@@ -3010,7 +3010,7 @@ int dos_mkdir(const char *filename1, int drive, int lfn)
 	    fpath));
     return ACCESS_DENIED;
   }
-  if (mkdir(fpath, 0775) != 0) {
+  if (mkdir(fpath, 0755) != 0) {
     find_dir(fpath, drive);
     Debug0((dbg_fd, "trying '%s'\n", fpath));
     if (mkdir(fpath, 0755) != 0) {
