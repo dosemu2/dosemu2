@@ -1212,24 +1212,32 @@ int SetDescriptor(unsigned short selector, unsigned int *lp)
 
 void GetFreeMemoryInformation(unsigned int *lp)
 {
-  /*00h*/	lp[0] = dpmi_free_memory();
+  // Largest available free block in bytes
+  /*00h*/	lp[0] = dpmi_largest_memory_block();
+  // Maximum unlocked page allocation in pages
   /*04h*/	lp[1] = dpmi_free_memory()/DPMI_page_size;
+  // Maximum locked page allocation in pages
   /*08h*/	lp[2] = dpmi_free_memory()/DPMI_page_size;
-  /*0ch*/	lp[3] = dpmi_lin_mem_rsv()/DPMI_page_size;  // not accurate
+  // Linear address space size in pages
+  /*0ch*/	lp[3] = dpmi_lin_mem_size()/DPMI_page_size;
+  // Total number of unlocked pages
   /*10h*/	lp[4] = dpmi_total_memory/DPMI_page_size;
+  // Total number of free pages
   /*14h*/	lp[5] = dpmi_free_memory()/DPMI_page_size;
+  // Total number of physical pages
   /*18h*/	lp[6] = dpmi_total_memory/DPMI_page_size;
+  // Free linear address space in pages
   /*1ch*/	lp[7] = dpmi_lin_mem_free()/DPMI_page_size;
 #if 0
+  // Size of paging file/partition in pages
   /*20h*/	lp[8] = dpmi_total_memory/DPMI_page_size;
 #else
 		/* report no swap, or the locked/unlocked
 		 * amounts will have to be adjusted */
   /*20h*/	lp[8] = 0;
 #endif
-  /*24h*/	lp[9] = 0xffffffff;
-  /*28h*/	lp[0xa] = 0xffffffff;
-  /*2ch*/	lp[0xb] = 0xffffffff;
+  // Reserved, all 0xc bytes set to 0FFH
+  /*24h*/	memset(&lp[9], 0xff, 0xc);
 }
 
 static void save_context_nofpu(cpuctx_t *d, cpuctx_t *s)
