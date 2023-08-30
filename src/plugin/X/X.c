@@ -1654,7 +1654,7 @@ static int __X_handle_events(XEvent *e)
 	if (vga.mode_class == TEXT && !grab_active) {
 	  if (e->xbutton.button == Button1)
 	    start_selection(x_to_col(e->xbutton.x, w_x_res),
-			    y_to_row(e->xbutton.y, w_y_res));
+			    y_to_row(e->xbutton.y, w_y_res), 0);
 	  else if (e->xbutton.button == Button3)
 	    start_extend_selection(x_to_col(e->xbutton.x, w_x_res),
 				   y_to_row(e->xbutton.y, w_y_res));

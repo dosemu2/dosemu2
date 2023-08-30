@@ -784,7 +784,7 @@ static void SDL_handle_events(void)
 	 if (x11.display && vga.mode_class == TEXT && !grab_active) {
 	   if (event.button.button == SDL_BUTTON_LEFT)
 	     start_selection(x_to_col(event.button.x, w_x_res),
-			     y_to_row(event.button.y, w_y_res));
+			     y_to_row(event.button.y, w_y_res), 0);
 	   else if (event.button.button == SDL_BUTTON_RIGHT)
 	     start_extend_selection(x_to_col(event.button.x, w_x_res),
 				    y_to_row(event.button.y, w_y_res));

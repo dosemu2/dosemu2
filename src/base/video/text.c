@@ -59,10 +59,10 @@ static u_char prev_font[256 * 32];
 
 #if CONFIG_SELECTION
 static int sel_start_row = -1, sel_end_row =
-    -1, sel_start_col, sel_end_col;
+    -1, sel_start_col, sel_end_col, sel_col, sel_row;
 static unsigned short *sel_start = NULL, *sel_end = NULL;
 static t_unicode *sel_text = NULL;
-static Boolean doing_selection = FALSE, visible_selection = FALSE;
+static Boolean doing_selection, visible_selection, rect_selection;
 #endif
 
 
@@ -74,8 +74,22 @@ static Boolean doing_selection = FALSE, visible_selection = FALSE;
 #define ATTR(w) (*(((Bit8u *)(w))+1))
 
 #if CONFIG_SELECTION
-#define SEL_ACTIVE(w) (visible_selection && ((w) >= sel_start) && ((w) <= sel_end))
-static inline Bit8u sel_attr(Bit8u a)
+#define SEL_ACTIVE(x, y) sel_active(x, y)
+
+static int sel_active(int x, int y)
+{
+  if (!visible_selection)
+    return 0;
+  if (y < sel_start_row || y > sel_end_row)
+    return 0;
+  if (x < sel_start_col && (y == sel_start_row || rect_selection))
+    return 0;
+  if (x > sel_end_col && (y == sel_end_row || rect_selection))
+    return 0;
+  return 1;
+}
+
+static Bit8u sel_attr(Bit8u a)
 {
   /* adapted from Linux vgacon code */
   if (vga.mode_type == TEXT_MONO)
@@ -85,12 +99,12 @@ static inline Bit8u sel_attr(Bit8u a)
   return a;
 }
 
-#define XATTR(w) (SEL_ACTIVE(w) ? sel_attr(ATTR(w)) : ATTR(w))
+#define XATTR(w, x, y) (SEL_ACTIVE(x, y) ? sel_attr(ATTR(w)) : ATTR(w))
 #else
-#define XATTR(w) (ATTR(w))
+#define XATTR(w, x, y) (ATTR(w))
 #endif
 
-#define XREAD_WORD(w) ((XATTR(w)<<8)|CHAR(w))
+#define XREAD_WORD(w, x, y) ((XATTR(w, x, y)<<8)|CHAR(w))
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -217,8 +231,8 @@ static void restore_cell(unsigned cursor_location)
   oldsp = prev_screen + cursor_location / 2;
   c = CHAR(sp);
 
-  *oldsp = XREAD_WORD(sp);
-  draw_string(x, y, &c, 1, XATTR(sp));
+  *oldsp = XREAD_WORD(sp, x, y);
+  draw_string(x, y, &c, 1, XATTR(sp, x, y));
 }
 
 /*
@@ -242,7 +256,7 @@ static void draw_cursor(void)
         ce = (CURSOR_END(vga.crtc.cursor_shape) + vga.char_height) & 0x1f;
       if (cs > ce)
         return;
-      Text[i]->Draw_cursor(Text[i]->opaque, x, y, XATTR(cursor),
+      Text[i]->Draw_cursor(Text[i]->opaque, x, y, XATTR(cursor, x, y),
 		      cs, ce, have_focus);
     }
   }
@@ -418,14 +432,14 @@ static void text_redraw_text_screen(void)
     do {			/* scan in a string of chars of the same attribute */
       bp = charbuff;
       start_x = x;
-      attr = XATTR(sp);
+      attr = XATTR(sp, x, y);
 
       do {			/* conversion of string to X */
-	*oldsp++ = XREAD_WORD(sp);
+	*oldsp++ = XREAD_WORD(sp, x, y);
 	*bp++ = CHAR(sp);
 	sp++;
 	x++;
-      } while (XATTR(sp) == attr && x < vga.text_width);
+      } while (XATTR(sp, x, y) == attr && x < vga.text_width);
       *bp = '\0';
       draw_string(start_x, y, charbuff, x - start_x, attr);
     } while (x < vga.text_width);
@@ -685,7 +699,7 @@ void update_text_screen(void)
     do {
       /* find a non-matching character position */
       start_x = x;
-      while (XREAD_WORD(sp) == *oldsp) {
+      while (XREAD_WORD(sp, x, y) == *oldsp) {
 	sp++;
 	oldsp++;
 	x++;
@@ -702,21 +716,21 @@ void update_text_screen(void)
       start_x = x;
 #if CONFIG_SELECTION
       /* don't show selection if the DOS app changed it */
-      if (SEL_ACTIVE(sp) && *sp != *oldsp)
+      if (SEL_ACTIVE(x, y) && *sp != *oldsp)
 	visible_selection = FALSE;
 #endif
-      attr = XATTR(sp);
+      attr = XATTR(sp, x, y);
       unchanged = 0;		/* counter for unchanged chars */
 
       while (1) {
 	*bp++ = CHAR(sp);
-	*oldsp++ = XREAD_WORD(sp);
+	*oldsp++ = XREAD_WORD(sp, x, y);
 	sp++;
 	x++;
 
-	if ((XATTR(sp) != attr) || (x == vga.text_width))
+	if ((XATTR(sp, x, y) != attr) || (x == vga.text_width))
 	  break;
-	if (XREAD_WORD(sp) == *oldsp) {
+	if (XREAD_WORD(sp, x, y) == *oldsp) {
 	  if (unchanged > MAX_UNCHANGED)
 	    break;
 	  unchanged++;
@@ -724,7 +738,7 @@ void update_text_screen(void)
 	  unchanged = 0;
 #if CONFIG_SELECTION
 	  /* don't show selection if the DOS app changed it */
-	  if (SEL_ACTIVE(sp) && *sp != *oldsp)
+	  if (SEL_ACTIVE(x, y) && *sp != *oldsp)
 	    visible_selection = FALSE;
 #endif
 	}
@@ -871,10 +885,11 @@ void clear_if_in_selection(void)
 /*
  * Start the selection process (mouse button 1 pressed).
  */
-void start_selection(int col, int row)
+void start_selection(int col, int row, int rect)
 {
-  sel_start_col = sel_end_col = col;
-  sel_start_row = sel_end_row = row;
+  sel_start_col = sel_end_col = sel_col = col;
+  sel_start_row = sel_end_row = sel_row = row;
+  rect_selection = rect;
   doing_selection = visible_selection = TRUE;
   X_printf("X:start selection , start %d %d, end %d %d\n",
 	   sel_start_col, sel_start_row, sel_end_col, sel_end_row);
@@ -886,12 +901,30 @@ void start_selection(int col, int row)
  */
 void extend_selection(int col, int row)
 {
+  int dstart = 0;
   if (!doing_selection)
     return;
-  if ((sel_end_col == col) && (sel_end_row == row))
-    return;
-  sel_end_col = col;
-  sel_end_row = row;
+  if (row < sel_row) {
+    sel_start_row = row;
+    sel_end_row = sel_row;
+  } else {
+    sel_end_row = row;
+    sel_start_row = sel_row;
+  }
+  if (rect_selection) {
+    if (col < sel_col)
+      dstart++;
+  } else {
+    if (row < sel_row || (row == sel_row && col < sel_col))
+      dstart++;
+  }
+  if (dstart) {
+    sel_start_col = col;
+    sel_end_col = sel_col;
+  } else {
+    sel_end_col = col;
+    sel_start_col = sel_col;
+  }
   X_printf("X:extend selection , start %d %d, end %d %d\n",
 	   sel_start_col, sel_start_row, sel_end_col, sel_end_row);
   calculate_selection();	// make selection visible
@@ -907,23 +940,12 @@ void start_extend_selection(int col, int row)
   if (!visible_selection)
     return;
   doing_selection = TRUE;
-  if ((sel_end_col == col) && (sel_end_row == row))
-    return;
-  if (row < sel_start_row || (row == sel_start_row && col < sel_start_col)) {
-    sel_start_col = col;
-    sel_start_row = row;
-  } else {
-    sel_end_col = col;
-    sel_end_row = row;
-  }
-  X_printf("X:extend selection , start %d %d, end %d %d\n",
-	   sel_start_col, sel_start_row, sel_end_col, sel_end_row);
-  calculate_selection();	// make selection visible
+  extend_selection(col, row);
 }
 
 static void save_selection(int col1, int row1, int col2, int row2)
 {
-  int row, col, line_start_col, line_end_col, co;
+  int row, col, co;
   u_char *sel_text_dos, *sel_text_ptr;
   t_unicode *sel_text_unicode, *prev_sel_text_unicode;
   size_t sel_space, sel_text_bytes;
@@ -943,17 +965,18 @@ static void save_selection(int col1, int row1, int col2, int row2)
   sel_text_unicode = sel_text = malloc(sel_space * sizeof(t_unicode));
 
   /* Copy the text data. */
-  for (row = row1; (row <= row2); row++) {
+  for (row = row1; row <= row2; row++) {
     prev_sel_text_unicode = sel_text_unicode;
-    line_start_col = ((row == row1) ? col1 : 0);
-    line_end_col = ((row == row2) ? col2 : vga.text_width - 1);
     p = sel_text_ptr = sel_text_dos;
-    for (col = line_start_col; (col <= line_end_col); col++) {
+    sel_text_bytes = 0;
+    for (col = 0; col < vga.text_width; col++) {
+      if (!SEL_ACTIVE(col, row))
+        continue;
       *p++ =
 	  CHAR(screen_adr +
 		location_to_memoffs(2 * (row * co + col)) / 2);
+      sel_text_bytes++;
     }
-    sel_text_bytes = line_end_col - line_start_col + 1;
     while (sel_text_bytes) {
       t_unicode symbol;
       size_t result;

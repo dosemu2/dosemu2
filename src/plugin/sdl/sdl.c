@@ -1257,6 +1257,12 @@ static char *get_selection_string(t_unicode sel_text[], const char *charset)
 	return s;
 }
 
+static int ctrl_pressed(void)
+{
+  const Uint8 *state = SDL_GetKeyboardState(NULL);
+  return (state[SDL_SCANCODE_LCTRL] || state[SDL_SCANCODE_RCTRL]);
+}
+
 static int shift_pressed(void)
 {
   const Uint8 *state = SDL_GetKeyboardState(NULL);
@@ -1417,7 +1423,8 @@ static void SDL_handle_events(void)
 	} else if (vga.mode_class == TEXT && !grab_active) {
 	  if (event.button.button == SDL_BUTTON_LEFT)
 	    start_selection(x_to_col(event.button.x, m_x_res),
-			    y_to_row(event.button.y, m_y_res));
+			    y_to_row(event.button.y, m_y_res),
+			    ctrl_pressed());
 	  else if (event.button.button == SDL_BUTTON_RIGHT)
 	    start_extend_selection(x_to_col(event.button.x, m_x_res),
 				   y_to_row(event.button.y, m_y_res));

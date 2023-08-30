@@ -59,7 +59,7 @@ void text_unlock(void);
 /* for selections */
 t_unicode* end_selection(void);
 void clear_if_in_selection(void);
-void start_selection(int col, int row);
+void start_selection(int col, int row, int rect);
 void start_extend_selection(int col, int row);
 void clear_selection_data(void);
 void extend_selection(int col, int row);
