@@ -2901,14 +2901,13 @@ err:
 	   * conventional memory mapping,
 	   * demand zero fill,
 	   * write-protect client,
-	   * write-protect host.
 	   */
-	  _LWORD(eax) = 0x78;
+	  _LWORD(eax) = 0x38;
 	  _LWORD(ecx) = 0;
 	  _LWORD(edx) = 0;
 	  *buf = DPMI_VERSION;
 	  *(buf+1) = DPMI_DRIVER_VERSION;
-	  snprintf(buf+2, 126, "DOSEMU Version %d.%d", VERSION_NUM, SUBLEVEL);
+	  snprintf(buf+2, 126, "DOSEMU2 Version %d.%d", VERSION_NUM, SUBLEVEL);
       }
     break;
 
