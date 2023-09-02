@@ -105,3 +105,7 @@ IF_msg1:
         .string "If you see a diff here, your Linux kernel is buggy, please update to 2.4.20 kernel\n$"
 
 vm86_code_end:
+
+#ifdef __ELF__
+.section .note.GNU-stack,"",%progbits
+#endif
