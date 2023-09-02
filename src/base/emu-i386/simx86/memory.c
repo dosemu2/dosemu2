@@ -412,7 +412,7 @@ int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 	 *	(f3)(66)a4,a5	movs
 	 *	(f3)(66)aa,ab	stos
 	 */
-#ifdef PROFILE
+#if PROFILE
 	if (debug_level('e')) PageFaults++;
 #endif
 	in_dosemu = !(InCompiledCode || in_vm86 || DPMIValidSelector(_scp_cs));

@@ -195,7 +195,7 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 	unsigned char * CpTemp;
 	int mode = IG->mode;
 	int rcod;
-#ifdef PROFILE
+#if PROFILE
 	hitimer_t t0 = 0;
 	if (debug_level('e')) t0 = GETTSC();
 #endif
@@ -2446,7 +2446,7 @@ shrot0:
 		break;
 
 	}
-#ifdef PROFILE
+#if PROFILE
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 	return Cp;
@@ -2462,7 +2462,7 @@ static void AddrGen_x86(int op, int mode, ...)
 	va_list	ap;
 	IMeta *I;
 	IGen *IG;
-#ifdef PROFILE
+#if PROFILE
 	hitimer_t t0 = 0;
 	if (debug_level('e')) t0 = GETTSC();
 #endif
@@ -2528,7 +2528,7 @@ static void AddrGen_x86(int op, int mode, ...)
 	}
 	va_end(ap);
 	I->ngen++;
-#ifdef PROFILE
+#if PROFILE
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 }
@@ -2540,7 +2540,7 @@ static void Gen_x86(int op, int mode, ...)
 	va_list	ap;
 	IMeta *I;
 	IGen *IG;
-#ifdef PROFILE
+#if PROFILE
 	hitimer_t t0 = 0;
 	if (debug_level('e')) t0 = GETTSC();
 #endif
@@ -2785,7 +2785,7 @@ static void Gen_x86(int op, int mode, ...)
 
 	va_end(ap);
 	I->ngen++;
-#ifdef PROFILE
+#if PROFILE
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 }
@@ -2966,7 +2966,7 @@ static void NodeLinker(TNode *LG, TNode *G)
 	unsigned int *lp;
 	linkdesc *T = &G->clink;
 	backref *B;
-#ifdef PROFILE
+#if PROFILE
 	hitimer_t t0 = 0;
 #endif
 
@@ -2975,7 +2975,7 @@ static void NodeLinker(TNode *LG, TNode *G)
 #endif
 	    return;
 
-#ifdef PROFILE
+#if PROFILE
 	if (debug_level('e')) t0 = GETTSC();
 #endif
 	if (debug_level('e')>8 && LG) e_printf("NodeLinker: %08x->%08x\n",LG->key,G->key);
@@ -3088,7 +3088,7 @@ static void NodeLinker(TNode *LG, TNode *G)
 		}
 	    }
 	}
-#ifdef PROFILE
+#if PROFILE
 	if (debug_level('e')) LinkTime += (GETTSC() - t0);
 #endif
 }
@@ -3099,7 +3099,7 @@ void NodeUnlinker(TNode *G)
 	unsigned int *lp;
 	linkdesc *T = &G->clink;
 	backref *B = T->bkr.next;
-#ifdef PROFILE
+#if PROFILE
 	hitimer_t t0 = 0;
 #endif
 
@@ -3107,7 +3107,7 @@ void NodeUnlinker(TNode *G)
 	if (!UseLinker)
 #endif
 	    return;
-#ifdef PROFILE
+#if PROFILE
 	if (debug_level('e')) t0 = GETTSC();
 #endif
 	// unlink backward references (from other nodes to the current
@@ -3211,7 +3211,7 @@ void NodeUnlinker(TNode *G)
 	    T->nt_ref = NULL;
 	}
 	memset(T, 0, sizeof(linkdesc));
-#ifdef PROFILE
+#if PROFILE
 	if (debug_level('e')) LinkTime += (GETTSC() - t0);
 #endif
 }
@@ -3264,7 +3264,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode)
 		return I0->npc;
 
 	NodesParsed++;
-#ifdef PROFILE
+#if PROFILE
 	if (debug_level('e')) TotalNodesParsed++;
 #endif
 	G = Move2Tree(I0, GenCodeBuf);		/* when is G==NULL? */
@@ -3370,6 +3370,9 @@ unsigned int Exec_x86(TNode *G)
 	unsigned int ePC;
 	unsigned short seqflg = G->flags;
 	unsigned char *SeqStart = G->addr;
+#if PROFILE
+	hitimer_u TimeStartExec, TimeEndExec;
+#endif
 
 	ecpu = CPUOFFS(0);
 	if (debug_level('e')>1) {
@@ -3393,7 +3396,19 @@ unsigned int Exec_x86(TNode *G)
 	}
 
 	flg = Exec_x86_pre(ecpu);
+#if PROFILE
+	__asm__ __volatile__ (
+		"rdtsc\n"
+		: "=a"(TimeStartExec.t.tl),"=d"(TimeStartExec.t.th)
+	);
+#endif
 	ePC = Exec_x86_asm(&mem_ref, &flg, ecpu, SeqStart);
+#if PROFILE
+	__asm__ __volatile__ (
+		"rdtsc\n"
+		: "=a"(TimeEndExec.t.tl),"=d"(TimeEndExec.t.th)
+	);
+#endif
 	Exec_x86_post(flg, mem_ref);
 
 	/* was there at least one FP op in the sequence? */
@@ -3412,7 +3427,8 @@ unsigned int Exec_x86(TNode *G)
 	}
 
 	if (debug_level('e')) {
-#ifdef PROFILE
+#if PROFILE
+	    TimeEndExec.td -= TimeStartExec.td;
 	    ExecTime += TimeEndExec.td;
 #endif
 	    if (debug_level('e')>1) {

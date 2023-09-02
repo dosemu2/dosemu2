@@ -357,7 +357,7 @@ void InitGen_sim(void)
 void AddrGen_sim(int op, int mode, ...)
 {
 	va_list	ap;
-#ifdef PROFILE
+#if PROFILE
 	hitimer_t t0 = 0;
 	if (debug_level('e')) t0 = GETTSC();
 #endif
@@ -450,7 +450,7 @@ void AddrGen_sim(int op, int mode, ...)
 		break;
 	}
 	va_end(ap);
-#ifdef PROFILE
+#if PROFILE
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 }
@@ -459,7 +459,7 @@ void Gen_sim(int op, int mode, ...)
 {
 	va_list ap;
 	uint32_t S1, S2;
-#ifdef PROFILE
+#if PROFILE
 	hitimer_t t0 = 0;
 	if (debug_level('e')) t0 = GETTSC();
 #endif
@@ -2938,7 +2938,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 	}
 
-#ifdef PROFILE
+#if PROFILE
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 }
