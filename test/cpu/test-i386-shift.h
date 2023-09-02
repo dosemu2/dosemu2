@@ -1,4 +1,3 @@
-
 #define exec_op glue(exec_, OP)
 #define exec_opq glue(glue(exec_, OP), q)
 #define exec_opl glue(glue(exec_, OP), l)
@@ -58,6 +57,10 @@ void exec_opl(long s2, long s0, long s1, long iflags)
 void exec_opw(long s2, long s0, long s1, long iflags)
 {
     long res, flags;
+
+    if ((strcmp(stringify(OP), "shld") == 0 ||
+            strcmp(stringify(OP), "shrd") == 0) && s1 > 16)
+        return;
     res = s0;
     flags = iflags;
     EXECSHIFT("w", "w", res, s1, s2, flags);
@@ -109,6 +112,10 @@ void exec_opl(long s2, long s0, long s1, long iflags)
 void exec_opw(long s2, long s0, long s1, long iflags)
 {
     long res, flags;
+
+    if ((strcmp(stringify(OP), "shld") == 0 ||
+            strcmp(stringify(OP), "shrd") == 0) && s1 > 16)
+        return;
     res = s0;
     flags = iflags;
     EXECSHIFT("w", "w", res, s1, s2, flags);
@@ -144,11 +151,7 @@ void exec_op(long s2, long s0, long s1)
     exec_opq(s2, s0, s1, 0);
 #endif
     exec_opl(s2, s0, s1, 0);
-#ifdef OP_SHIFTD
     exec_opw(s2, s0, s1, 0);
-#else
-    exec_opw(s2, s0, s1, 0);
-#endif
 #ifndef OP_NOBYTE
     exec_opb(s0, s1, 0);
 #endif
