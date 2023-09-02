@@ -95,6 +95,7 @@ result:
     knownbad = (
         'AMD FX(tm)-8350 Eight-Core Processor',
         'AMD A10-7870K Radeon R7, 12 Compute Cores 4C+8G',
+        'AMD Ryzen 5 5600U with Radeon Graphics',
     )
 
     # get log content
