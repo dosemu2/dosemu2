@@ -103,12 +103,14 @@ extern hitimer_t t_vretrace;
 static inline hitimer_t GETTSC(void)
 {
 	hitimer_t d;
-#ifdef __x86_64__
+#if defined(__x86_64__)
 	unsigned int lo, hi;
 	asm volatile("rdtsc" : "=a" (lo), "=d" (hi));
 	d = lo | ((unsigned long)hi << 32);
-#else
+#elif defined(__i386__)
 	__asm__ __volatile__ ("rdtsc" : "=A" (d));
+#else
+	d = 0;
 #endif
 	return d;
 }
