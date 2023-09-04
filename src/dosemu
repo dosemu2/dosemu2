@@ -183,6 +183,9 @@ export ASAN_OPTIONS='handle_segv=0:abort_on_error=1:detect_leaks=0'
 export LSAN_OPTIONS='report_objects=1:fast_unwind_on_malloc=0:exitcode=0'
 export UBSAN_OPTIONS='print_stacktrace=1'
 
+# this is needed to show dosemu icon
+export SDL_VIDEO_X11_WMCLASS=dosemu
+
 eval "set -- $SUFFIX"
 COMMAND="$SUDO $SUDOOPTS $DBG $BINARY -o $LOG_FILE $OPTS"
 if [ -n "$STRING_I" ] ; then
