@@ -23,14 +23,6 @@ PKG_CHECK_MODULES(FONTCONFIG, [fontconfig], [
   AC_MSG_WARN([Fontconfig development package not installed])
 ])
 
-dnl Check for SDL2_image
-PKG_CHECK_MODULES(SDL2_IMAGE, [SDL2_image], [
-  SDL_LIBS+=" $SDL2_IMAGE_LIBS"
-  SDL_CFLAGS+=" $SDL2_IMAGE_CFLAGS -DHAVE_SDL2_IMAGE"
-], [
-  AC_MSG_WARN([SDL2_image development package not installed])
-])
-
 AC_CONFIG_FILES([Makefile.conf])
 
 AC_OUTPUT
