@@ -38,6 +38,7 @@ void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32, int tg);
 void kvm_enter(int pm);
 void kvm_leave(int pm);
 void kvm_update_fpu(void);
+void kvm_get_fpu(void);
 
 void kvm_done(void);
 

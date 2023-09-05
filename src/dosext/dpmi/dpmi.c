@@ -4192,6 +4192,10 @@ void dpmi_init(void)
 
   in_dpmi++;
   memset(&DPMIclient[in_dpmi - 1], 0, sizeof(DPMI_CLIENT));
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+    kvm_get_fpu();
+  memcpy(&DPMIclient[in_dpmi - 1].saved_fpu_state, &vm86_fpu_state,
+    sizeof(vm86_fpu_state));
   clnt_switch(in_dpmi - 1);
 
   dpmi_is_cli = 0;

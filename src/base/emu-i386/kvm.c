@@ -965,12 +965,7 @@ void kvm_update_fpu(void)
   }
 }
 
-void kvm_enter(int pm)
-{
-  kvm_update_fpu();
-}
-
-void kvm_leave(int pm)
+void kvm_get_fpu(void)
 {
   struct kvm_fpu fpu;
   int ret = ioctl(vcpufd, KVM_GET_FPU, &fpu);
@@ -989,6 +984,16 @@ void kvm_leave(int pm)
   vm86_fpu_state.fds = 0;
   memcpy(vm86_fpu_state.xmm, fpu.xmm, sizeof(vm86_fpu_state.xmm));
   vm86_fpu_state.mxcsr = fpu.mxcsr;
+}
+
+void kvm_enter(int pm)
+{
+  kvm_update_fpu();
+}
+
+void kvm_leave(int pm)
+{
+  kvm_get_fpu();
 
   /* collect and invalidate all touched low dirty pages with JIT code */
   if (IS_EMU_JIT()) {
