@@ -1551,6 +1551,8 @@ static int ldt_write_low(unsigned short ldt_entry, unsigned int *lp)
 
 static void save_prev_clnt_state(void)
 {
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+    kvm_get_fpu();
   memcpy(&DPMI_CLIENT.saved_fpu_state, &vm86_fpu_state,
     sizeof(vm86_fpu_state));
   /* ldt_buffer may be outdated on an "accessed" bits so read from ldt */
