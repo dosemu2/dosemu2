@@ -60,6 +60,7 @@ static inline void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32,
 static inline void kvm_enter(int pm) {}
 static inline void kvm_leave(int pm) {}
 static inline void kvm_update_fpu(void) {}
+static inline void kvm_get_fpu(void) {}
 static inline void kvm_done(void) {}
 #endif
 
