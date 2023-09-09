@@ -982,8 +982,10 @@ static void save_selection(int col1, int row1, int col2, int row2)
 	error("BUG: pasting OOM\n");
 	leavedos(91);
       }
-      *sel_text_unicode++ = '\n';
-      sel_space--;
+      if (row < row2) {
+        *sel_text_unicode++ = '\n';
+        sel_space--;
+      }
     }
   }
   free(sel_text_dos);
