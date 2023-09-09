@@ -48,6 +48,7 @@
 #include "vgatext.h"
 #include "render.h"
 #include "keyb_SDL.h"
+#include "clip_SDL.h"
 #include "keyboard/keyb_clients.h"
 #include "dos2linux.h"
 #include "utilities.h"
@@ -153,6 +154,7 @@ static pthread_cond_t rend_cnd = PTHREAD_COND_INITIALIZER;
 static int force_grab = 0;
 static int grab_active = 0;
 static int kbd_grab_active = 0;
+static int sdlclip_mode;
 static int m_cursor_visible;
 static int initialized;
 static int pre_initialized = 0;
@@ -1160,7 +1162,7 @@ static int SDL_change_config(unsigned item, void *buf)
   case CHG_WINSIZE:
   case CHG_BACKGROUND_PAUSE:
   case GET_TITLE_APPNAME:
-    change_config(item, buf, grab_active, kbd_grab_active);
+    change_config(item, buf, grab_active, kbd_grab_active, sdlclip_mode);
     break;
 
   case CHG_FONT: {
@@ -1252,6 +1254,12 @@ static int ctrl_pressed(void)
 {
   const Uint8 *state = SDL_GetKeyboardState(NULL);
   return (state[SDL_SCANCODE_LCTRL] || state[SDL_SCANCODE_RCTRL]);
+}
+
+static int alt_pressed(void)
+{
+  const Uint8 *state = SDL_GetKeyboardState(NULL);
+  return (state[SDL_SCANCODE_LALT] || state[SDL_SCANCODE_RALT]);
 }
 
 static int shift_pressed(void)
@@ -1359,6 +1367,11 @@ static void SDL_handle_events(void)
 	    border_on ^= 1;
 	    SDL_SetWindowBordered(window, border_on);
 	    break;
+	  } else if (keysym.sym == SDLK_c) {
+	    sdlclip_mode ^= 1;
+	    sdlclip_setnative(sdlclip_mode);
+	    SDL_change_config(CHG_TITLE, NULL);
+	    break;
 	  }
 	}
 	if (vga.mode_class == TEXT &&
@@ -1411,15 +1424,18 @@ static void SDL_handle_events(void)
 #if CONFIG_SDL_SELECTION
 	if (window_has_focus() && !shift_pressed()) {
 	  clear_selection_data();
-	} else if (vga.mode_class == TEXT && !grab_active) {
-	  if (event.button.button == SDL_BUTTON_LEFT)
+	} else if (vga.mode_class == TEXT && !grab_active && !alt_pressed()) {
+	  switch (event.button.button) {
+	  case SDL_BUTTON_LEFT:
 	    start_selection(x_to_col(event.button.x, m_x_res),
 			    y_to_row(event.button.y, m_y_res),
 			    ctrl_pressed());
-	  else if (event.button.button == SDL_BUTTON_RIGHT)
+	    break;
+	  case SDL_BUTTON_RIGHT:
 	    start_extend_selection(x_to_col(event.button.x, m_x_res),
 				   y_to_row(event.button.y, m_y_res));
-	  else if (event.button.button == SDL_BUTTON_MIDDLE) {
+	    break;
+	  case SDL_BUTTON_MIDDLE: {
 	    char *paste = SDL_GetPrimarySelectionText();
 	    if (paste) {
 	      if (paste[0]) {
@@ -1428,10 +1444,27 @@ static void SDL_handle_events(void)
 	      }
 	      SDL_free(paste);
 	    }
+	    break;
+	  }
 	  }
 	  break;
 	}
 #endif				/* CONFIG_SDL_SELECTION */
+
+	if (shift_pressed() && alt_pressed()) {
+	  switch (event.button.button) {
+	  case SDL_BUTTON_LEFT:
+	    sdlclip_copy(window);
+	    break;
+	  case SDL_BUTTON_RIGHT:
+	    break;
+	  case SDL_BUTTON_MIDDLE:
+	    sdlclip_paste(window);
+	    break;
+	  }
+	  break;
+	}
+
 	mouse_move_buttons(!!(buttons & SDL_BUTTON(1)),
 			   !!(buttons & SDL_BUTTON(2)),
 			   !!(buttons & SDL_BUTTON(3)),

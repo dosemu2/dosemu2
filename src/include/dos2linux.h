@@ -322,7 +322,8 @@ extern void misc_e6_store_options(const char *str);
 
 int run_unix_command(int argc, const char **argv, int bg);
 int run_unix_secure(const char *prg);
-extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
+int change_config(unsigned item, void *buf, int grab_active,
+  int kbd_grab_active, int clip_mode);
 
 void show_welcome_screen(void);
 

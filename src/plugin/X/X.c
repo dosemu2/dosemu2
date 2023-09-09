@@ -1170,7 +1170,7 @@ static int X_change_config(unsigned item, void *buf)
     case CHG_WINSIZE:
     case CHG_BACKGROUND_PAUSE:
     case GET_TITLE_APPNAME:
-      change_config(item, buf, grab_active, kbd_grab_active);
+      change_config(item, buf, grab_active, kbd_grab_active, 0);
       break;
 
     case CHG_FONT:
