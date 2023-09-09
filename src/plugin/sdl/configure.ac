@@ -2,9 +2,14 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT
 
 dnl Check for SDL
-SDL_VERSION=2.0.6
-PKG_CHECK_MODULES(SDL, [sdl2 >= $SDL_VERSION],, [
-	    AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!])
+SDL_MIN_VERSION=2.0.6
+PKG_CHECK_MODULES(SDL, [sdl2 >= $SDL_MIN_VERSION],, [
+	    AC_MSG_ERROR([*** SDL version $SDL_MIN_VERSION not found!])
+])
+m4_define(SDL_VERSION, [2$1[]26$1[]0])
+m4_define(SDL_VER, [SDL_VERSION(.)])
+PKG_CHECK_MODULES(sdl2_[]SDL_VERSION(_), [sdl2 >= SDL_VER],, [
+	    AC_MSG_WARN([sdl2 version SDL_VER not found])
 ])
 
 dnl Check for SDL2_ttf

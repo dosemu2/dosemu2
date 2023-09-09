@@ -16,8 +16,7 @@ building and installing dosemu2 from sources
       with multilib environment (you likely don't want to do this).
     - x86 (i386/x86-64) target CPU
     - bison and flex
-    - SDL >= 2.0.6, >= 2.0.15 is recommended (older versions may not have
-      scaling filters and KMS rendering working).
+    - SDL >= 2.0.6, >= 2.26.0 is required for copy/paste support.
     - udev >= 240 recommended for KVM (execution acceleration)
     - libslirp >= 4.1.0 recommended for networking
     - json-c >= 0.13 recommended
