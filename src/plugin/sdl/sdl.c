@@ -1457,6 +1457,7 @@ static void SDL_handle_events(void)
 	    sdlclip_copy(window);
 	    break;
 	  case SDL_BUTTON_RIGHT:
+	    sdlclip_clear(window);
 	    break;
 	  case SDL_BUTTON_MIDDLE:
 	    sdlclip_paste(window);

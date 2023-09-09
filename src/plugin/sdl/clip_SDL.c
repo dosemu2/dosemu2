@@ -35,13 +35,13 @@
 #include "clip_SDL.h"
 
 static int cl_type;
-static char *_clipboard_grabbed_data;
+#define _clipboard_grabbed_data clip_str
 static char *clip_str;
 
 static void do_clear(void)
 {
-  free(_clipboard_grabbed_data);
-  _clipboard_grabbed_data = NULL;
+  free(clip_str);
+  clip_str = NULL;
 }
 
 static int clipboard_clear(void)
@@ -55,13 +55,12 @@ static int clipboard_clear(void)
   return TRUE;
 }
 
-static char *clipboard_make_str(int type, const char *p)
+static char *clipboard_make_str(int type, const char *p, int size)
 {
   char *q;
-  int size = strlen(p) + 1;
 
   if (type == CF_TEXT) {
-    q = strdup(p);
+    q = strndup(p, size);
   } else { // CF_OEMTEXT
     struct char_set_state state;
     int characters;
@@ -84,6 +83,17 @@ static char *clipboard_make_str(int type, const char *p)
   return q;
 }
 
+static void add_clip_str(char *q)
+{
+  if (clip_str) {
+    clip_str = realloc(clip_str, strlen(clip_str) + strlen(q) + 1);
+    strcat(clip_str, q);
+    free(q);
+  } else {
+    clip_str = q;
+  }
+}
+
 static int clipboard_write(int type, const char *p, int size)
 {
   int ret;
@@ -97,15 +107,11 @@ static int clipboard_write(int type, const char *p, int size)
     v_printf("SDL_clipboard: Write failed, type (0x%02x) unsupported\n", type);
     return FALSE;
   }
-  if (strnlen(p, size) == size) {
-    v_printf("SDL_clipboard: Write failed, not ASCIZ\n");
-    return FALSE;
-  }
-  q = clipboard_make_str(type, p);
+  q = clipboard_make_str(type, p, size);
   if (!q)
     return FALSE;
-  ret = SDL_SetClipboardText(q);
-  free(q);
+  add_clip_str(q);
+  ret = SDL_SetClipboardText(clip_str);
   return ret == 0 ? TRUE : FALSE;
 }
 
@@ -135,7 +141,8 @@ static int clipboard_getsize(int type)
     return 0;
   }
 
-  q = clipboard_make_str(type, _clipboard_grabbed_data);
+  q = clipboard_make_str(type, _clipboard_grabbed_data,
+      strlen(_clipboard_grabbed_data));
   if (!q)
     return 0;
   ret = strlen(_clipboard_grabbed_data) + 1;
@@ -160,7 +167,8 @@ static int clipboard_getdata(int type, char *p, int size)
     v_printf("SDL_clipboard: GetData failed (grabbed_data is NULL)\n");
     return FALSE;
   }
-  q = clipboard_make_str(type, _clipboard_grabbed_data);
+  q = clipboard_make_str(type, _clipboard_grabbed_data,
+      strlen(_clipboard_grabbed_data));
   if (!q)
     return FALSE;
 
@@ -197,16 +205,11 @@ static int cnn_write(int type, const char *p, int size)
     v_printf("SDL_clipboard: Write failed, type (0x%02x) unsupported\n", type);
     return FALSE;
   }
-  if (strnlen(p, size) == size) {
-    v_printf("SDL_clipboard: Write failed, not ASCIZ\n");
-    return FALSE;
-  }
-  q = clipboard_make_str(type, p);
+  q = clipboard_make_str(type, p, size);
   if (!q)
     return FALSE;
   // SDL3 TODO: SDL_SetWindowNotification()
-  free(clip_str);
-  clip_str = q;
+  add_clip_str(q);
   return TRUE;
 }
 
@@ -228,7 +231,8 @@ static int cnn_getsize(int type)
     v_printf("SDL_clipboard: GetSize failed (grabbed data is NULL\n");
     return 0;
   }
-  q = clipboard_make_str(type, _clipboard_grabbed_data);
+  q = clipboard_make_str(type, _clipboard_grabbed_data,
+      strlen(_clipboard_grabbed_data));
   if (!q)
     return 0;
   ret = strlen(_clipboard_grabbed_data) + 1;
@@ -242,7 +246,8 @@ static int cnn_getdata(int type, char *p, int size)
 
   if (!_clipboard_grabbed_data)
     return FALSE;
-  q = clipboard_make_str(type, _clipboard_grabbed_data);
+  q = clipboard_make_str(type, _clipboard_grabbed_data,
+      strlen(_clipboard_grabbed_data));
   if (!q)
     return FALSE;
   strlcpy(p, q, size);
@@ -304,6 +309,7 @@ int sdlclip_copy(SDL_Window *window)
   int ret;
   if (!clip_str)
     return FALSE;
+  // SDL3 TODO: SDL_ClearWindowNotification()
   ret = SDL_SetClipboardText(clip_str);
   return ret == 0 ? TRUE : FALSE;
 }
@@ -321,6 +327,13 @@ int sdlclip_paste(SDL_Window *window)
     v_printf("SDL_clipboard: GetSize failed (grabbed data is NULL\n");
     return FALSE;
   }
+  return TRUE;
+}
+
+int sdlclip_clear(SDL_Window *window)
+{
+  // SDL3 TODO: SDL_ClearWindowNotification()
+  do_clear();
   return TRUE;
 }
 
