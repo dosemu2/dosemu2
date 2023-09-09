@@ -164,7 +164,11 @@ static int border_on;
     GRAPH : TEXT)
 static SDL_Keycode mgrab_key = SDLK_HOME;
 
+#if SDL_VERSION_ATLEAST(2,26,0)
 #define CONFIG_SDL_SELECTION 1
+#else
+#define CONFIG_SDL_SELECTION 0
+#endif
 
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
 static void SDL_draw_string(void *opaque, int x, int y, const char *text,
@@ -1416,7 +1420,7 @@ static void SDL_handle_events(void)
 	    start_extend_selection(x_to_col(event.button.x, m_x_res),
 				   y_to_row(event.button.y, m_y_res));
 	  else if (event.button.button == SDL_BUTTON_MIDDLE) {
-	    char *paste = SDL_GetClipboardText();
+	    char *paste = SDL_GetPrimarySelectionText();
 	    if (paste) {
 	      if (paste[0]) {
 	        set_shiftstate(0);
@@ -1442,7 +1446,7 @@ static void SDL_handle_events(void)
 	    t_unicode *sel = end_selection();
 	    if (sel) {
 		char *send_text = get_selection_string(sel, "utf8");
-		SDL_SetClipboardText(send_text);
+		SDL_SetPrimarySelectionText(send_text);
 		free(send_text);
 	    }
 	}
