@@ -384,7 +384,8 @@ int run_unix_secure(const char *prg)
  * of X/SDL and the VGA emulation during a DOSEMU session.
  * It is used by the xmode.exe program that comes with DOSEMU.
  */
-int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active)
+int change_config(unsigned item, void *buf, int grab_active,
+    int kbd_grab_active, int clip_mode)
 {
   static char title_emuname [TITLE_EMUNAME_MAXLEN] = {0};
   static char title_appname [TITLE_APPNAME_MAXLEN] = {0};
@@ -427,15 +428,20 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
 	    strcat (title, "[background pause] ");
 	}
 
-	if (grab_active || kbd_grab_active) {
+	if (grab_active || kbd_grab_active || clip_mode) {
 	  strcat(title, "[");
 	  if (kbd_grab_active) {
 	    strcat(title, "keyboard");
-	    if (grab_active)
+	    if (grab_active || clip_mode)
 	      strcat(title, "+");
 	  }
-	  if (grab_active)
+	  if (grab_active) {
 	    strcat(title, "mouse");
+	    if (clip_mode)
+	      strcat(title, "+");
+	  }
+	  if (clip_mode)
+	    strcat(title, "clip");
 	  strcat(title, " grab] ");
 	}
 

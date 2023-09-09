@@ -44,6 +44,7 @@
 #include "vint.h"
 #include "dos2linux.h"
 #include "video.h"
+#include "clipboard.h"
 #include "priv.h"
 #include "doshelpers.h"
 #include "lowmem.h"
@@ -2955,6 +2956,9 @@ static void do_run_cmd(struct lowstring *str, struct ae00_tab *cmd)
 	_AL = 0xff;
 }
 
+/* size not propagated through DOS API, so we cache it */
+static int clipb_size;
+
 static int int2f(int stk_offs, int revect)
 {
     reset_idle(0);
@@ -3133,6 +3137,74 @@ hint_done:
 	    return 1;
 	}
 	break;
+
+    case 0x17:			/* MS Windows WINOLDAP functions */
+        switch (LO(ax)) {
+            case 0x00:		/* IDENTIFY WinOldAp VERSION */
+                LO(ax) = 0x01;  // major version
+                HI(ax) = 0x00;  // minor version
+                v_printf("Check for WinOldAp\n"); // Installed == (AX != 1700)
+                return 1;
+            case 0x01:          /* OPEN CLIPBOARD */
+                LWORD(eax) = 1; // success (AX != 0)
+                v_printf("Open clipboard\n");
+                return 1;
+            case 0x02:          /* EMPTY CLIPBOARD */
+                v_printf("Clear clipboard\n");
+                if (Clipboard && Clipboard->clear)
+                    LWORD(eax) = Clipboard->clear();
+                else
+                    LWORD(eax) = 0;
+                return 1;
+            case 0x03:          /* WRITE CLIPBOARD */
+                v_printf("Write clipboard\n");
+                if (Clipboard && Clipboard->write) {
+                    char *pbuf = MK_FP32(SREG(es), LWORD(ebx));
+                    unsigned int bsize = LWORD(esi) << 16 | LWORD(ecx);
+                    LWORD(eax) = Clipboard->write(LWORD(edx), pbuf, bsize);
+                } else
+                    LWORD(eax) = 0;
+                return 1;
+            case 0x04:           /* GET CLIPBOARD DATA SIZE */
+                v_printf("Get clipboard size\n");
+                if (Clipboard && Clipboard->getsize) {
+                    clipb_size = Clipboard->getsize(LWORD(edx));
+                    LWORD(edx) = (clipb_size >> 16);
+                    LWORD(eax) = (clipb_size & 0xffff);
+                } else {
+                    LWORD(edx) = LWORD(eax) = 0;
+                }
+                return 1;
+            case 0x05:           /* GET CLIPBOARD DATA */
+                v_printf("Get clipboard data\n");
+                if (Clipboard && Clipboard->getdata) {
+                    char *pbuf = MK_FP32(SREG(es), LWORD(ebx));
+                    LWORD(eax) = Clipboard->getdata(LWORD(edx), pbuf,
+                            clipb_size);
+                } else
+                    LWORD(eax) = 0;
+                return 1;
+            case 0x08:          /* CLOSE CLIPBOARD */
+                LWORD(eax) = 1; // success (AX != 0)
+                v_printf("Close clipboard\n");
+                return 1;
+            case 0x09:          /* COMPACT CLIPBOARD */
+                // SI:CX = desired size in bytes
+                // DX:AX = number of bytes in largest block of free memory
+                LWORD(edx) = 0;
+                LWORD(eax) = 0x1000; // 4K should indicate enough room
+                v_printf("Compact clipboard\n");
+                return 1;
+            case 0x0a:          /* GET DEVICE CAPABILITIES */
+                LWORD(eax) = 0; // Not sure if we should "support" this
+                                // function, but doesn't seem possible to
+                                // indicate otherwise.
+                v_printf("Get device capabilities (0x%02x)\n", LWORD(edx));
+                return 1;
+            default:
+                v_printf("BAD WinOldAp func int 2f/ax=0x%04x\n", LWORD(eax));
+        }
+        break;
 
     case INT2F_XMS_MAGIC:
 	if (!xms_intdrv())
