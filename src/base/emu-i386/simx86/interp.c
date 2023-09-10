@@ -501,26 +501,13 @@ unsigned int Interp86(unsigned int PC, int mod0)
     return ret;
 }
 
-static unsigned int _Interp86(unsigned int PC, int basemode)
+static unsigned int interp_pre(unsigned int PC, const int mode, int *_NewNode,
+	unsigned *_P0)
 {
-	volatile unsigned int P0 = PC; /* volatile because of setjmp */
-	unsigned short ocs;
-	int mode;
-	int NewNode;
-
-	if (PROTMODE() && setjmp(jmp_env)) {
-		/* long jump to here from simulated page fault */
-		return P0;
-	}
-
-	NewNode = 0;
-	TheCPU.err = 0;
-	CEmuStat &= ~CeS_TRAP;
-
-	while (Running) {
+#define NewNode (*_NewNode)
+#define P0 (*_P0)
 		OVERR_DS = Ofs_XDS;
 		OVERR_SS = Ofs_XSS;
-		TheCPU.mode = mode = basemode;
 
 		if (!NewNode) {
 			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC|CeS_STI)) {
@@ -572,14 +559,16 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 			dbug_printf("\n%s",e_print_regs());
 		if (debug_level('e')>2) {
 			char *ds;
-			ocs = TheCPU.cs;
-			ds = e_emu_disasm(MEM_BASE32(P0),(~basemode&3),ocs);
+			unsigned short ocs = TheCPU.cs;
+			ds = e_emu_disasm(MEM_BASE32(P0),(~mode&3),ocs);
 			if (debug_level('e')>2) e_printf("  %s\n", ds);
 		}
-		PC = InterpOne(PC, &basemode, &mode, &NewNode);
-		if (TheCPU.err)
-			return PC;
+		return PC;
+}
 
+static unsigned int interp_post(unsigned int PC, const int mode,
+	int *_NewNode, unsigned *_P0)
+{
 #ifdef HOST_ARCH_X86
 		if (NewNode) {
 			int rc=0;
@@ -631,7 +620,41 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 				}
 			}
 		}
+		return PC;
+#undef P0
+#undef NewNode
+}
+
+static unsigned int _Interp86(unsigned int PC, int basemode)
+{
+	volatile unsigned int P0 = PC; /* volatile because of setjmp */
+	int mode;
+	int NewNode;
+
+	if (PROTMODE() && setjmp(jmp_env)) {
+		/* long jump to here from simulated page fault */
+		return P0;
 	}
+
+	NewNode = 0;
+	TheCPU.err = 0;
+	CEmuStat &= ~CeS_TRAP;
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+	while (Running) {
+		TheCPU.mode = mode = basemode;
+		PC = interp_pre(PC, mode, &NewNode, &P0);
+		if (TheCPU.err)
+			return PC;
+		PC = InterpOne(PC, &basemode, &mode, &NewNode);
+		if (TheCPU.err)
+			return PC;
+		PC = interp_post(PC, mode, &NewNode, &P0);
+		if (TheCPU.err)
+			return PC;
+	}
+#pragma GCC diagnostic pop
 	return 0;
 }
 
