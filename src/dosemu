@@ -108,7 +108,7 @@ while [ $# -gt 0 ] ; do
       SUFFIX="$SUFFIX \"$1\""
       shift
       ;;
-    -t)
+    -t | -t[a-z] | -t[a-z][a-z] | -t[a-z][a-z][a-z])
       exec 4>&2 2>~/.dosemu/stderr.log.$BASHPID
       SUFFIX="$SUFFIX \"$1\""
       shift
