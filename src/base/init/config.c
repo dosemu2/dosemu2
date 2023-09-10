@@ -1336,6 +1336,8 @@ config_init(int argc, char **argv)
 	    }
 	    if (optarg) {
 		char *opt_e;
+		if (strchr(optarg, 'c'))
+		    config.clip_term = 1;
 		if (strchr(optarg, 'd'))
 		    config.dumb_video = 1;
 		if ((opt_e = strchr(optarg, 'e'))) {

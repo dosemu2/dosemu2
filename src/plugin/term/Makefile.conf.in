@@ -8,4 +8,4 @@
 # This file is included by all Makefiles
 
 SLANGINC:=@SLANG_CFLAGS@
-SLANGLIB:=@SLANG_LIBS@
+SLANGLIB:=@SLANG_LIBS@ @LIBS@

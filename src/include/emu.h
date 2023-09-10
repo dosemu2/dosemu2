@@ -165,6 +165,7 @@ typedef struct config_info {
        char *term_size;
        int dumb_video;
        int tty_stderr;
+       int clip_term;
        int vga;
        boolean X;
        boolean X_fullscreen;
