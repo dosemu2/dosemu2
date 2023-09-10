@@ -1256,6 +1256,13 @@ static int ctrl_pressed(void)
   return (state[SDL_SCANCODE_LCTRL] || state[SDL_SCANCODE_RCTRL]);
 }
 
+static int window_has_focus(void)
+{
+  uint32_t flags = SDL_GetWindowFlags(window);
+  return (flags & SDL_WINDOW_INPUT_FOCUS);
+}
+#endif				/* CONFIG_SDL_SELECTION */
+
 static int alt_pressed(void)
 {
   const Uint8 *state = SDL_GetKeyboardState(NULL);
@@ -1267,13 +1274,6 @@ static int shift_pressed(void)
   const Uint8 *state = SDL_GetKeyboardState(NULL);
   return (state[SDL_SCANCODE_LSHIFT] || state[SDL_SCANCODE_RSHIFT]);
 }
-
-static int window_has_focus(void)
-{
-  uint32_t flags = SDL_GetWindowFlags(window);
-  return (flags & SDL_WINDOW_INPUT_FOCUS);
-}
-#endif				/* CONFIG_SDL_SELECTION */
 
 static void SDL_handle_events(void)
 {
