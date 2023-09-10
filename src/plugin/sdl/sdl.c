@@ -1451,7 +1451,7 @@ static void SDL_handle_events(void)
 	}
 #endif				/* CONFIG_SDL_SELECTION */
 
-	if (shift_pressed() && alt_pressed()) {
+	if (!sdlclip_mode && shift_pressed() && alt_pressed()) {
 	  switch (event.button.button) {
 	  case SDL_BUTTON_LEFT:
 	    sdlclip_copy(window);
