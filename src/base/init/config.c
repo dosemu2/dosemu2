@@ -213,6 +213,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 	     config.vgaemu_memsize);
     (*print)("SDL_hwrend %d\nSDL_fonts \"%s\"\n",
         config.sdl_hwrend, config.sdl_fonts);
+    (*print)("SDL_clip_native %d\n",
+        config.sdl_clip_native);
     (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
     (*print)("X_font \"%s\"\n", config.X_font);

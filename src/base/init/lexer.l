@@ -541,6 +541,7 @@ noresize		RETURN(X_NORESIZE);
 sdl_hwrend		RETURN(SDL_HWREND);
 sdl_fonts		RETURN(SDL_FONTS);
 sdl_wcontrols		RETURN(SDL_WCONTROLS);
+sdl_clip_native		RETURN(SDL_CLIP_NATIVE);
 
         /* Sound stuff */
 
