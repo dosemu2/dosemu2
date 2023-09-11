@@ -3,6 +3,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include <limits.h>
+#include "init.h"
 #include "emu.h"
 #include "translate/translate.h"
 #include "translate/unicode_symbols.h"

@@ -1,3 +1,4 @@
+#include "init.h"
 #include "translate.h"
 
 static const t_unicode GB2312_1980_chars[] = {

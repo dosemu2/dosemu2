@@ -264,6 +264,7 @@
 #include <pthread.h>
 #include <limits.h>
 #include "cpu.h"		/* root@sjoerd: for context structure */
+#include "init.h"
 #include "emu.h"
 #include "int.h"
 #include "emudpmi.h"

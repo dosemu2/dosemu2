@@ -1,3 +1,4 @@
+#include "init.h"
 #include "translate.h"
 
 static const t_unicode cp861_c1_chars[] = {

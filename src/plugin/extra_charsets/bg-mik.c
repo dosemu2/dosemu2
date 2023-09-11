@@ -1,5 +1,6 @@
 /* Bulgarian MIK charset */
 
+#include "init.h"
 #include "translate.h"
 
 static const t_unicode bgmik_c1_chars[] = {

@@ -1,3 +1,4 @@
+#include "init.h"
 #include "translate.h"
 
 static const t_unicode iso8859_13_g1_chars[] = {

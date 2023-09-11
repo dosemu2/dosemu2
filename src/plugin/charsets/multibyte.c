@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include "init.h"
 #include "translate.h"
 
 /* I assume wchar_t/wint_t is in unicode ... */

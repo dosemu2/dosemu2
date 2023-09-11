@@ -14,6 +14,7 @@
 #include <X11/XKBlib.h>
 #endif
 
+#include "init.h"
 #include "emu.h"
 #include "utilities.h"
 #include "keyboard/keyboard.h"

@@ -31,6 +31,7 @@ Since this code has been totally rewritten the pcemu license no longer applies
 #include <X11/XKBlib.h>
 #endif
 
+#include "init.h"
 #include "X.h"
 #include "emu.h"
 #include "keyboard/keyb_clients.h"

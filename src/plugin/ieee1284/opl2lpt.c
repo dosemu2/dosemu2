@@ -30,6 +30,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <ieee1284.h>
+#include "init.h"
 #include "emu.h"
 #include "sound/oplplug.h"
 

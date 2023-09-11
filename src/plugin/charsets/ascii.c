@@ -1,3 +1,4 @@
+#include "init.h"
 #include "translate.h"
 #include "unicode_symbols.h"
 

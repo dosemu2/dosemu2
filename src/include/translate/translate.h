@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <wchar.h>
 
-#include "init.h"
-
 #define HAVE_UNICODE_TRANSLATION 1
 
 typedef unsigned int t_unicode;

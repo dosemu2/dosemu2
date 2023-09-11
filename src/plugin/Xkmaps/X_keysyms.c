@@ -25,6 +25,7 @@
 #define XK_GEORGIAN
 #define XK_CURRENCY
 #include <X11/keysymdef.h>
+#include "init.h"
 #include "translate/unicode_symbols.h"
 #include "translate/translate.h"
 #include "keyboard/keyboard.h"

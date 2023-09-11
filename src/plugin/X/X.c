@@ -231,6 +231,7 @@
 #include <X11/keysym.h>
 #include <sys/mman.h>           /* root@sjoerd:for mprotect*/
 
+#include "init.h"
 #include "emu.h"
 #include "timers.h"
 #include "bios.h"

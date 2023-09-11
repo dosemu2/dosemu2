@@ -3,6 +3,7 @@
  *
  */
 
+#include "init.h"
 #include "emu.h"
 #include "bios.h"
 #include "int.h"

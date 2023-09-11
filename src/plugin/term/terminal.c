@@ -62,6 +62,7 @@
 #include <pthread.h>
 #include <slang.h>
 
+#include "init.h"
 #include "bios.h"
 #include "emu.h"
 #include "memory.h"

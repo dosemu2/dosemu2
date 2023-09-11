@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <setjmp.h>
 #include <string.h>
+#include "init.h"
 #include "translate.h"
 #include "unicode_symbols.h"
 
