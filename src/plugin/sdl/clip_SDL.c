@@ -21,6 +21,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
 #ifdef HAVE_LIBBSD
 #include <bsd/string.h>
@@ -30,7 +31,7 @@
 #include <SDL_video.h>
 #include "dosemu_debug.h"
 #include "types.h"
-#include "translate/translate.h"
+#include "init.h"
 #include "clipboard.h"
 #include "clip_SDL.h"
 
@@ -53,34 +54,6 @@ static int clipboard_clear(void)
     return FALSE;
   }
   return TRUE;
-}
-
-static char *clipboard_make_str(int type, const char *p, int size)
-{
-  char *q;
-
-  if (type == CF_TEXT) {
-    q = strndup(p, size);
-  } else { // CF_OEMTEXT
-    struct char_set_state state;
-    int characters;
-    t_unicode *str;
-
-    init_charset_state(&state, trconfig.dos_charset);
-
-    characters = character_count(&state, p, size);
-    if (characters == -1) {
-      v_printf("SDL_clipboard: Write invalid char count\n");
-      return NULL;
-    }
-
-    str = malloc(sizeof(t_unicode) * (characters + 1));
-    charset_to_unicode_string(&state, str, &p, size, characters + 1);
-    cleanup_charset_state(&state);
-    q = unicode_string_to_charset((wchar_t *)str, "utf8");
-    free(str);
-  }
-  return q;
 }
 
 static void add_clip_str(char *q)
@@ -107,7 +80,7 @@ static int clipboard_write(int type, const char *p, int size)
     v_printf("SDL_clipboard: Write failed, type (0x%02x) unsupported\n", type);
     return FALSE;
   }
-  q = clipboard_make_str(type, p, size);
+  q = clipboard_make_str_utf8(type, p, size);
   if (!q)
     return FALSE;
   add_clip_str(q);
@@ -141,7 +114,7 @@ static int clipboard_getsize(int type)
     return 0;
   }
 
-  q = clipboard_make_str(type, _clipboard_grabbed_data,
+  q = clipboard_make_str_dos(type, _clipboard_grabbed_data,
       strlen(_clipboard_grabbed_data));
   if (!q)
     return 0;
@@ -167,7 +140,7 @@ static int clipboard_getdata(int type, char *p, int size)
     v_printf("SDL_clipboard: GetData failed (grabbed_data is NULL)\n");
     return FALSE;
   }
-  q = clipboard_make_str(type, _clipboard_grabbed_data,
+  q = clipboard_make_str_dos(type, _clipboard_grabbed_data,
       strlen(_clipboard_grabbed_data));
   if (!q)
     return FALSE;
@@ -205,7 +178,7 @@ static int cnn_write(int type, const char *p, int size)
     v_printf("SDL_clipboard: Write failed, type (0x%02x) unsupported\n", type);
     return FALSE;
   }
-  q = clipboard_make_str(type, p, size);
+  q = clipboard_make_str_utf8(type, p, size);
   if (!q)
     return FALSE;
   // SDL3 TODO: SDL_SetWindowNotification()
@@ -231,7 +204,7 @@ static int cnn_getsize(int type)
     v_printf("SDL_clipboard: GetSize failed (grabbed data is NULL\n");
     return 0;
   }
-  q = clipboard_make_str(type, _clipboard_grabbed_data,
+  q = clipboard_make_str_dos(type, _clipboard_grabbed_data,
       strlen(_clipboard_grabbed_data));
   if (!q)
     return 0;
@@ -246,7 +219,7 @@ static int cnn_getdata(int type, char *p, int size)
 
   if (!_clipboard_grabbed_data)
     return FALSE;
-  q = clipboard_make_str(type, _clipboard_grabbed_data,
+  q = clipboard_make_str_dos(type, _clipboard_grabbed_data,
       strlen(_clipboard_grabbed_data));
   if (!q)
     return FALSE;

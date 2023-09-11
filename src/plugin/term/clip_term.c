@@ -46,11 +46,17 @@ static int cterm_write(int type, const char *p, int size)
 {
   int cnt;
   base64_encodestate state;
-  char *buf = alloca(base64_encoded_size(size));
+  char *buf, *str;
 
+  str = clipboard_make_str_utf8(type, p, size);
+  if (!str)
+    return FALSE;
+  size = strlen(str) + 1;
+  buf = alloca(base64_encoded_size(size));
   fprintf(stdout, "\033]52;c;");
   base64_init_encodestate(&state);
-  cnt = base64_encode_block(p, size, buf, &state);
+  cnt = base64_encode_block(str, size, buf, &state);
+  free(str);
   if (cnt > 0)
     fwrite(buf, 1, cnt, stdout);
   cnt = base64_encode_blockend(buf, &state);

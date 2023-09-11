@@ -26,3 +26,5 @@ struct clipboard_system
 extern struct clipboard_system *Clipboard;
 
 int register_clipboard_system(struct clipboard_system *cs);
+char *clipboard_make_str_utf8(int type, const char *p, int size);
+char *clipboard_make_str_dos(int type, const char *p, int size);
