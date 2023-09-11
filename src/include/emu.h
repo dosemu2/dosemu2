@@ -209,6 +209,7 @@ typedef struct config_info {
        boolean sdl_hwrend;		/* accelerate SDL with OpenGL */
        boolean sdl_wcontrols;		/* enable window controls */
        char    *sdl_fonts;		/* TTF font used in SDL2 */
+       boolean sdl_clip_native;		/* enable native clipboard */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;

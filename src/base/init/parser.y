@@ -268,7 +268,7 @@ enum {
 %token X_WINSIZE X_NOCLOSE X_NORESIZE
 %token X_GAMMA X_FULLSCREEN VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY X_BACKGROUND_PAUSE
 	/* sdl */
-%token SDL_HWREND SDL_FONTS SDL_WCONTROLS
+%token SDL_HWREND SDL_FONTS SDL_WCONTROLS SDL_CLIP_NATIVE
 	/* video */
 %token VGA MGA CGA EGA NONE CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VGAEMUBIOS_FILE VBIOS_FILE 
@@ -1112,6 +1112,7 @@ sdl_flags	: sdl_flag
 sdl_flag	: SDL_HWREND expression	{ config.sdl_hwrend = ($2!=0); }
 		| SDL_FONTS string_expr	{ free(config.sdl_fonts); config.sdl_fonts = $2; }
 		| SDL_WCONTROLS expression	{ config.sdl_wcontrols = ($2!=0); }
+		| SDL_CLIP_NATIVE bool		{ config.sdl_clip_native = ($2!=0); }
 		;
 
 	/* sb emulation */

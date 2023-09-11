@@ -464,6 +464,12 @@ static int SDL_init(void)
 #endif
 #endif
 
+  if (config.sdl_clip_native) {
+    sdlclip_mode = 1;
+    sdlclip_setnative(sdlclip_mode);
+    SDL_change_config(CHG_TITLE, NULL);
+  }
+
   c_printf("VID: SDL plugin initialization completed\n");
 
   return 0;
