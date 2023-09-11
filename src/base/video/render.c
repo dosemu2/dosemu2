@@ -17,7 +17,12 @@
 #include "video.h"
 #include "render_priv.h"
 
+// todo: copy fixes from radare2 grep -r __ANDROID__
+#if defined(__ANDROID__)
+#define RENDER_THREADED 0
+#else
 #define RENDER_THREADED 1
+#endif
 #define TEXT_THREADED 1
 
 struct rmcalls_wrp {
