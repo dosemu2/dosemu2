@@ -32,6 +32,9 @@
 
 static int cterm_clear(void)
 {
+  cnn_clear();
+  if (!config.clip_term)
+    return TRUE;
   fprintf(stdout, "\033]52;c;-\a");
   fflush(stdout);
   return TRUE;
@@ -46,17 +49,17 @@ static int cterm_write(int type, const char *p, int size)
 {
   int cnt;
   base64_encodestate state;
-  char *buf, *str;
+  char *buf;
 
-  str = clipboard_make_str_utf8(type, p, size);
-  if (!str)
+  if (!cnn_write(type, p, size))
     return FALSE;
-  size = strlen(str) + 1;
+  if (!config.clip_term)
+    return TRUE;
+  size = strlen(clip_str) + 1;
   buf = alloca(base64_encoded_size(size));
   fprintf(stdout, "\033]52;c;");
   base64_init_encodestate(&state);
-  cnt = base64_encode_block(str, size, buf, &state);
-  free(str);
+  cnt = base64_encode_block(clip_str, size, buf, &state);
   if (cnt > 0)
     fwrite(buf, 1, cnt, stdout);
   cnt = base64_encode_blockend(buf, &state);
@@ -69,12 +72,12 @@ static int cterm_write(int type, const char *p, int size)
 
 static int cterm_getsize(int type)
 {
-  return 0;
+  return cnn_getsize(type);
 }
 
 static int cterm_getdata(int type, char *p, int size)
 {
-  return FALSE;
+  return cnn_getdata(type, p, size);
 }
 
 static struct clipboard_system clip_term =
@@ -88,6 +91,5 @@ static struct clipboard_system clip_term =
 
 CONSTRUCTOR(static void clipterm_initialize(void))
 {
-  if (config.clip_term)
-    register_clipboard_system(&clip_term);
+  register_clipboard_system(&clip_term);
 }
