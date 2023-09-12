@@ -364,6 +364,11 @@ AC_CHECK_LIB(bthread, pthread_cancel)
 
 AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 
+AC_CHECK_HEADER([wordexp.h],, [
+  AC_MSG_ERROR([wordexp.h missing, install libwordexp])
+])
+AC_CHECK_LIB(wordexp, wordexp)
+
 AC_CHECK_HEADERS([sys/kd.h scsi/sg.h linux/cdrom.h sys/io.h])
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h netpacket/packet.h])
 AC_CHECK_HEADERS([asm/ucontext.h],,, [
