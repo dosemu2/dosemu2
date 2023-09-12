@@ -257,14 +257,12 @@ AC_CHECK_DECLS([MREMAP_MAYMOVE],,, [[#include <sys/mman.h>]])
 AC_CHECK_DECLS([MADV_POPULATE_WRITE, MADV_DONTNEED, MADV_FREE],,,
   [[#include <sys/mman.h>]])
 
-PKG_CHECK_MODULES([LIBBSD], [libbsd], [
+AC_CHECK_FUNC(strlcpy,, [
+  PKG_CHECK_MODULES([LIBBSD], [libbsd], [
     dnl re-check for proper arch (multilib)
     AC_CHECK_LIB(bsd, strlcpy,, [AC_MSG_ERROR(libbsd not found)])
-  ], [
-    dnl extra check because on bsd these functions are available w/o lib
-    AC_CHECK_FUNC(strlcpy,, [AC_MSG_ERROR(libbsd not found)])
   ]
-)
+)])
 
 dnl Here is where we do our stuff
 
