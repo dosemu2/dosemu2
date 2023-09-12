@@ -425,7 +425,7 @@ DEFAULT_MMAP_THRESHOLD       default: 256K
 #include "/usr/include/malloc.h"
 #else /* HAVE_USR_INCLUDE_MALLOC_H */
 
-struct mallinfo {
+struct _mallinfo {
   MALLINFO_FIELD_TYPE arena;    /* non-mmapped space allocated from system */
   MALLINFO_FIELD_TYPE ordblks;  /* number of free chunks */
   MALLINFO_FIELD_TYPE smblks;   /* always 0 */
@@ -457,7 +457,7 @@ extern "C" {
 #define dlrealloc              realloc
 #define dlvalloc               valloc
 #define dlpvalloc              pvalloc
-#define dlmallinfo             mallinfo
+#define dlmallinfo             _mallinfo
 #define dlmallopt              mallopt
 #define dlmalloc_trim          malloc_trim
 #define dlmalloc_stats         malloc_stats
@@ -614,7 +614,7 @@ size_t dlmalloc_max_footprint(void);
   be kept as longs, the reported values may wrap around zero and
   thus be inaccurate.
 */
-struct mallinfo dlmallinfo(void);
+struct _mallinfo dlmallinfo(void);
 #endif /* NO_MALLINFO */
 
 /*
@@ -913,7 +913,7 @@ size_t mspace_max_footprint(mspace msp);
   mspace_mallinfo behaves as mallinfo, but reports properties of
   the given space.
 */
-struct mallinfo mspace_mallinfo(mspace msp);
+struct _mallinfo mspace_mallinfo(mspace msp);
 #endif /* NO_MALLINFO */
 
 /*
