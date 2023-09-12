@@ -49,12 +49,12 @@ static int num_texts;
 
 Boolean have_focus;
 static unsigned prev_cursor_location = -1;
-static ushort prev_cursor_shape = NO_CURSOR;
+static uint16_t prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
 static int blink_count = 8;
 static int need_redraw_cursor;
 static unsigned char *text_canvas;
-static ushort prev_screen[MAX_COLUMNS * MAX_LINES];	/* pointer to currently displayed screen   */
+static uint16_t prev_screen[MAX_COLUMNS * MAX_LINES];	/* pointer to currently displayed screen   */
 static u_char prev_font[256 * 32];
 
 #if CONFIG_SELECTION
@@ -66,7 +66,7 @@ static Boolean doing_selection, visible_selection, rect_selection;
 #endif
 
 
-/* macros for accessing video memory. w is an ushort*
+/* macros for accessing video memory. w is an uint16_t*
    to a character cell, attr is a byte.
 */
 
@@ -451,7 +451,7 @@ static void text_redraw_text_screen(void)
 
 void dirty_text_screen(void)
 {
-  memset(prev_screen, 0xff, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
+  memset(prev_screen, 0xff, MAX_COLUMNS * MAX_LINES * sizeof(uint16_t));
 }
 
 static int text_font_changed(void)
@@ -475,12 +475,12 @@ int text_is_dirty(void)
   sp = vga.mem.base + location_to_memoffs(0);
   if (vga.text_height <= vga.line_compare)
     return memcmp(prev_screen, sp,
-		  vga.text_width * vga.text_height * sizeof(ushort));
+		  vga.text_width * vga.text_height * sizeof(uint16_t));
 
   compare = vga.line_compare * vga.scan_len;
   ret = memcmp(prev_screen, sp, compare);
   if (ret == 0)
-    ret = memcmp(&prev_screen[compare / sizeof(ushort)], vga.mem.base,
+    ret = memcmp(&prev_screen[compare / sizeof(uint16_t)], vga.mem.base,
 		 vga.scan_len * vga.text_height - compare);
   return ret;
 }
