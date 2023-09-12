@@ -139,7 +139,7 @@ static void set_cursor_pos(unsigned page, int x, int y)
   }
 }
 
-static void set_cursor_shape(ushort shape)
+static void set_cursor_shape(uint16_t shape)
 {
    int cs,ce;
    cshape cursor_shape;

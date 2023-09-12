@@ -4,7 +4,7 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #ifdef __linux__
-#include <sys/kd.h>
+#include "Sys/kd.h"
 #include <sys/vt.h>
 #endif
 

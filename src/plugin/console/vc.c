@@ -35,7 +35,7 @@
 #include <sys/stat.h>
 #ifdef __linux__
 #include <sys/vt.h>
-#include <sys/kd.h>
+#include "Sys/kd.h"
 #endif
 
 #define INIT_C2TRAP

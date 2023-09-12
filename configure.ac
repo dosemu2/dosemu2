@@ -36,8 +36,11 @@ if $CC -v 2>&1|grep 'clang' >/dev/null; then
     -Wno-address-of-packed-member"
   LDFLAGS="$LDFLAGS -Wno-unused-command-line-argument"
   use_clang="yes"
+
+  AS="$CC"
+  clang_as_as=1
+  ASFLAGS="-xassembler -c -"
 else
-  CCAS="$CC"
   AC_MSG_RESULT([no])
   use_clang="no"
 
@@ -54,15 +57,17 @@ fi
 CONFIG_HOST=`uname -s`
 AC_SUBST(CONFIG_HOST)
 
-AC_PATH_PROG([AS], [as])
 if test -z "$AS"; then
-  AC_PATH_PROG([AS], [clang])
+  AC_PATH_PROG([AS], [as])
   if test -z "$AS"; then
-    AC_MSG_ERROR(as not found)
+    AC_PATH_PROG([AS], [clang])
+    if test -z "$AS"; then
+      AC_MSG_ERROR(as not found)
+    fi
+    AC_MSG_NOTICE(Using clang as as...)
+    clang_as_as=1
+    ASFLAGS="-xassembler -c -"
   fi
-  AC_MSG_NOTICE(Using clang as as...)
-  clang_as_as=1
-  ASFLAGS="-xassembler -c -"
 fi
 AC_PATH_PROGS([XAS], [i686-linux-gnu-as i386-elf-as])
 if test -z "$XAS"; then
@@ -252,14 +257,12 @@ AC_CHECK_DECLS([MREMAP_MAYMOVE],,, [[#include <sys/mman.h>]])
 AC_CHECK_DECLS([MADV_POPULATE_WRITE, MADV_DONTNEED, MADV_FREE],,,
   [[#include <sys/mman.h>]])
 
-PKG_CHECK_MODULES([LIBBSD], [libbsd], [
+AC_CHECK_FUNC(strlcpy,, [
+  PKG_CHECK_MODULES([LIBBSD], [libbsd], [
     dnl re-check for proper arch (multilib)
     AC_CHECK_LIB(bsd, strlcpy,, [AC_MSG_ERROR(libbsd not found)])
-  ], [
-    dnl extra check because on bsd these functions are available w/o lib
-    AC_CHECK_FUNC(strlcpy,, [AC_MSG_ERROR(libbsd not found)])
   ]
-)
+)])
 
 dnl Here is where we do our stuff
 
@@ -346,13 +349,27 @@ AX_RESTORE_FLAGS([attr_check])
 AC_DEFINE_UNQUOTED(SIG_PROTO_PFX, $SIG_PROTO_PFX)
 
 dnl Check whether we have pthreads and whether to use it
-AC_CHECK_LIB(pthread, pthread_create,,[
+AC_CHECK_LIB(pthread, pthread_create,, [
+  dnl see if the func is provided nevertheless (not needing -lpthread)
+  AC_CHECK_FUNC(pthread_create,, [
     AC_MSG_ERROR([No libpthread found, please install glibc-devel package])
   ]
-)
+)])
+AC_CHECK_FUNC(pthread_cancel,, [
+  AC_CHECK_HEADERS([bthread.h],, [
+    AC_MSG_ERROR([pthread_cancel() missing, install libbthread])
+  ])
+])
+AC_CHECK_LIB(bthread, pthread_cancel)
+
 AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 
-AC_CHECK_HEADERS([sys/kd.h scsi/sg.h linux/cdrom.h sys/io.h])
+AC_CHECK_HEADER([wordexp.h],, [
+  AC_MSG_ERROR([wordexp.h missing, install libwordexp])
+])
+AC_CHECK_LIB(wordexp, wordexp)
+
+AC_CHECK_HEADERS([scsi/sg.h linux/cdrom.h sys/io.h])
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h netpacket/packet.h])
 AC_CHECK_HEADERS([asm/ucontext.h],,, [
   #include <ucontext.h>
