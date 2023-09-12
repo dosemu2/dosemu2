@@ -34,6 +34,9 @@
 #endif
 #include <time.h>
 #include <pthread.h>
+#ifdef HAVE_BTHREAD_H
+#include <bthread.h>
+#endif
 #include <poll.h>
 #ifdef HAVE_LIBBSD
 #include <bsd/sys/time.h>

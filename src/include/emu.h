@@ -8,6 +8,11 @@
 
 #include <stdio.h>
 #include <sys/types.h>
+/* androind NDK hack */
+#ifdef HAVE_BTHREAD_H
+#include <pthread.h>
+#include <bthread.h>
+#endif
 #include "types.h"
 #include "cpu.h"
 #include "priv.h"
