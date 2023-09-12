@@ -349,10 +349,12 @@ AX_RESTORE_FLAGS([attr_check])
 AC_DEFINE_UNQUOTED(SIG_PROTO_PFX, $SIG_PROTO_PFX)
 
 dnl Check whether we have pthreads and whether to use it
-AC_CHECK_LIB(pthread, pthread_create,,[
+AC_CHECK_LIB(pthread, pthread_create,, [
+  dnl see if the func is provided nevertheless (not needing -lpthread)
+  AC_CHECK_FUNC(pthread_create,, [
     AC_MSG_ERROR([No libpthread found, please install glibc-devel package])
   ]
-)
+)])
 AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
 
 AC_CHECK_HEADERS([sys/kd.h scsi/sg.h linux/cdrom.h sys/io.h])
