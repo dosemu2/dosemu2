@@ -728,6 +728,11 @@ void init_hardware_ram(void)
     if (hw->default_vbase != (dosaddr_t)-1)
       cap |= MAPPING_LOWMEM;
     uaddr = alloc_mapping_kmem(cap, hw->size, hw->base);
+    if (uaddr == MAP_FAILED) {
+      error("failed to map KMEM at %lx, size %zx: %s\n", hw->base, hw->size,
+          strerror(errno));
+      continue;
+    }
     populate_aliasmap(hw->aliasmap, uaddr, hw->size);
 #endif
     if (do_map_hwram(hw) == -1)
