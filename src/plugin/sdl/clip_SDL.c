@@ -37,17 +37,10 @@
 
 static int cl_type;
 #define _clipboard_grabbed_data clip_str
-static char *clip_str;
-
-static void do_clear(void)
-{
-  free(clip_str);
-  clip_str = NULL;
-}
 
 static int clipboard_clear(void)
 {
-  do_clear();
+  cnn_clear();
   // SDL3 TODO: SDL_ClearClipboardData()
   if (SDL_SetClipboardText("")) {
     v_printf("SDL_clipboard: Clear failed, error '%s'\n", SDL_GetError());
@@ -56,54 +49,19 @@ static int clipboard_clear(void)
   return TRUE;
 }
 
-static void add_clip_str(char *q)
-{
-  if (clip_str) {
-    clip_str = realloc(clip_str, strlen(clip_str) + strlen(q) + 1);
-    strcat(clip_str, q);
-    free(q);
-  } else {
-    clip_str = q;
-  }
-}
-
 static int clipboard_write(int type, const char *p, int size)
 {
   int ret;
-  char *q;
 
-  /* Note:
-   *   1/ size includes the terminating nul
-   *   2/ SDL_SetClipboardText converts CR/LF -> LF/LF/LF
-   */
-  if (type != CF_TEXT && type != CF_OEMTEXT) {
-    v_printf("SDL_clipboard: Write failed, type (0x%02x) unsupported\n", type);
+  if (!cnn_write(type, p, size))
     return FALSE;
-  }
-  q = clipboard_make_str_utf8(type, p, size);
-  if (!q)
-    return FALSE;
-  add_clip_str(q);
   ret = SDL_SetClipboardText(clip_str);
   return ret == 0 ? TRUE : FALSE;
 }
 
 static int clipboard_getsize(int type)
 {
-  char *q;
-  int ret;
-
-  if (type == CF_TEXT)
-    v_printf("SDL_clipboard: GetSize of type CF_TEXT\n");
-  else if (type == CF_OEMTEXT)
-    v_printf("SDL_clipboard: GetSize of type CF_OEMTEXT\n");
-  else {
-    v_printf("SDL_clipboard: GetSize failed (type 0x%02x unsupported\n", type);
-    return 0;
-  }
-
-  free(_clipboard_grabbed_data);
-  _clipboard_grabbed_data = NULL;
+  cnn_clear();
 
   if (SDL_HasClipboardText() == FALSE)
     return 0;
@@ -114,43 +72,12 @@ static int clipboard_getsize(int type)
     return 0;
   }
 
-  q = clipboard_make_str_dos(type, _clipboard_grabbed_data,
-      strlen(_clipboard_grabbed_data));
-  if (!q)
-    return 0;
-  ret = strlen(_clipboard_grabbed_data) + 1;
-  free(q);
-  return ret;
+  return cnn_getsize(type);
 }
 
 static int clipboard_getdata(int type, char *p, int size)
 {
-  char *q;
-
-  if (type == CF_TEXT)
-    v_printf("SDL_clipboard: GetData of type CF_TEXT\n");
-  else if (type == CF_OEMTEXT)
-    v_printf("SDL_clipboard: GetData of type CF_OEMTEXT\n");
-  else {
-    v_printf("SDL_clipboard: GetData failed (type 0x%02x unsupported\n", type);
-    return FALSE;
-  }
-
-  if (!_clipboard_grabbed_data) {
-    v_printf("SDL_clipboard: GetData failed (grabbed_data is NULL)\n");
-    return FALSE;
-  }
-  q = clipboard_make_str_dos(type, _clipboard_grabbed_data,
-      strlen(_clipboard_grabbed_data));
-  if (!q)
-    return FALSE;
-
-  /* Since the GetSize function must have been called to set the grabbed
-   * data we can be fairly certain that the caller has allocated a correctly
-   * sized buffer to receive this */
-  strlcpy(p, q, size);
-  free(q);
-  return TRUE;
+  return cnn_getdata(type, p, size);
 }
 
 static struct clipboard_system cnative_SDL =
@@ -161,72 +88,6 @@ static struct clipboard_system cnative_SDL =
   clipboard_getdata,
   "sdl native clipboard",
 };
-
-
-static int cnn_clear(void)
-{
-  // SDL3 TODO: SDL_ClearWindowNotification()
-  do_clear();
-  return TRUE;
-}
-
-static int cnn_write(int type, const char *p, int size)
-{
-  char *q;
-
-  if (type != CF_TEXT && type != CF_OEMTEXT) {
-    v_printf("SDL_clipboard: Write failed, type (0x%02x) unsupported\n", type);
-    return FALSE;
-  }
-  q = clipboard_make_str_utf8(type, p, size);
-  if (!q)
-    return FALSE;
-  // SDL3 TODO: SDL_SetWindowNotification()
-  add_clip_str(q);
-  return TRUE;
-}
-
-static int cnn_getsize(int type)
-{
-  char *q;
-  int ret;
-
-  if (type == CF_TEXT)
-    v_printf("SDL_clipboard: GetSize of type CF_TEXT\n");
-  else if (type == CF_OEMTEXT)
-    v_printf("SDL_clipboard: GetSize of type CF_OEMTEXT\n");
-  else {
-    v_printf("SDL_clipboard: GetSize failed (type 0x%02x unsupported\n", type);
-    return 0;
-  }
-
-  if (!_clipboard_grabbed_data) {
-    v_printf("SDL_clipboard: GetSize failed (grabbed data is NULL\n");
-    return 0;
-  }
-  q = clipboard_make_str_dos(type, _clipboard_grabbed_data,
-      strlen(_clipboard_grabbed_data));
-  if (!q)
-    return 0;
-  ret = strlen(_clipboard_grabbed_data) + 1;
-  free(q);
-  return ret;
-}
-
-static int cnn_getdata(int type, char *p, int size)
-{
-  char *q;
-
-  if (!_clipboard_grabbed_data)
-    return FALSE;
-  q = clipboard_make_str_dos(type, _clipboard_grabbed_data,
-      strlen(_clipboard_grabbed_data));
-  if (!q)
-    return FALSE;
-  strlcpy(p, q, size);
-  free(q);
-  return TRUE;
-}
 
 static struct clipboard_system cnonnative_SDL =
 {
@@ -289,15 +150,14 @@ int sdlclip_copy(SDL_Window *window)
 
 int sdlclip_paste(SDL_Window *window)
 {
-  free(_clipboard_grabbed_data);
-  _clipboard_grabbed_data = NULL;
+  cnn_clear();
 
   if (SDL_HasClipboardText() == FALSE)
     return FALSE;
 
   _clipboard_grabbed_data = SDL_GetClipboardText();
   if (!_clipboard_grabbed_data) {
-    v_printf("SDL_clipboard: GetSize failed (grabbed data is NULL\n");
+    v_printf("SDL_clipboard: SDL_GetClipboardText() failed\n");
     return FALSE;
   }
   return TRUE;
@@ -306,7 +166,7 @@ int sdlclip_paste(SDL_Window *window)
 int sdlclip_clear(SDL_Window *window)
 {
   // SDL3 TODO: SDL_ClearWindowNotification()
-  do_clear();
+  cnn_clear();
   return TRUE;
 }
 

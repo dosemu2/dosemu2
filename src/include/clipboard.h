@@ -24,7 +24,11 @@ struct clipboard_system
 };
 
 extern struct clipboard_system *Clipboard;
+extern char *clip_str;
 
 int register_clipboard_system(struct clipboard_system *cs);
-char *clipboard_make_str_utf8(int type, const char *p, int size);
-char *clipboard_make_str_dos(int type, const char *p, int size);
+void add_clip_str(char *q);
+int cnn_clear(void);
+int cnn_write(int type, const char *p, int size);
+int cnn_getsize(int type);
+int cnn_getdata(int type, char *p, int size);
