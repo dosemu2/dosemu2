@@ -193,7 +193,8 @@ static void init_video_none(void)
  */
 static int video_init(void)
 {
-  if (!config.term && config.cardtype != CARD_NONE && using_kms())
+  if (!config.term && config.console_video != 1 &&
+      config.cardtype != CARD_NONE && using_kms())
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
 #if SDL_SUPPORT
