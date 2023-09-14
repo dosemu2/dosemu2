@@ -893,7 +893,7 @@ static void port_server(void)
 {
 	sigset_t set;
         struct portreq pr;
-	_port_handler *ph;
+	_port_handler *ph, *ph1, *ph2, *ph3;
 	signal(SIGINT, SIG_DFL);
 	signal(SIGPIPE, SIG_DFL);
 	signal(SIGHUP, SIG_DFL);
@@ -914,6 +914,9 @@ static void port_server(void)
                 if (pr.type >= TYPE_EXIT)
                         _exit(0);
 		ph = &EMU_HANDLER(pr.port);
+		ph1 = &EMU_HANDLER(pr.port + 1);
+		ph2 = &EMU_HANDLER(pr.port + 2);
+		ph3 = &EMU_HANDLER(pr.port + 3);
 		if (pr.type == TYPE_PCI) {
 			/* get addr and data i/o access as close to each other
 			   as possible, both to minimize possible races, and
@@ -931,16 +934,50 @@ static void port_server(void)
                         ph->write_portb(pr.port, pr.word, ph->arg);
                         break;
                 case TYPE_INW:
-                        pr.word = ph->read_portw(pr.port, ph->arg);
+                        if (ph->read_portb == ph1->read_portb) {
+                            pr.word = ph->read_portw(pr.port, ph->arg);
+                        } else {
+                            i_printf("PORT: splitting inw(0x%x)\n", pr.port);
+                            pr.word = ph->read_portb(pr.port, ph->arg) |
+                                     (ph1->read_portb(pr.port + 1, ph->arg) << 8);
+                        }
                         break;
                 case TYPE_OUTW:
-                        ph->write_portw(pr.port, pr.word, ph->arg);
+                        if (ph->write_portb == ph1->write_portb) {
+                            ph->write_portw(pr.port, pr.word, ph->arg);
+                        } else {
+                            i_printf("PORT: splitting outw(0x%x)\n", pr.port);
+                            ph->write_portb(pr.port, pr.word, ph->arg);
+                            ph1->write_portb(pr.port + 1, pr.word >> 8, ph->arg);
+                        }
                         break;
                 case TYPE_IND:
-                        pr.word = ph->read_portd(pr.port, ph->arg);
+                        if (ph->read_portb == ph1->read_portb &&
+                            ph->read_portb == ph2->read_portb &&
+                            ph->read_portb == ph3->read_portb
+                        ) {
+                            pr.word = ph->read_portd(pr.port, ph->arg);
+                        } else {
+                            i_printf("PORT: splitting ind(0x%x)\n", pr.port);
+                            pr.word = ph->read_portb(pr.port, ph->arg) |
+                                     (ph1->read_portb(pr.port + 1, ph->arg) << 8) |
+                                     (ph2->read_portb(pr.port + 2, ph->arg) << 16) |
+                                     (ph3->read_portb(pr.port + 3, ph->arg) << 24);
+                        }
                         break;
                 case TYPE_OUTD:
-                        ph->write_portd(pr.port, pr.word, ph->arg);
+                        if (ph->write_portb == ph1->write_portb &&
+                            ph->write_portb == ph2->write_portb &&
+                            ph->write_portb == ph3->write_portb
+                        ) {
+                            ph->write_portd(pr.port, pr.word, ph->arg);
+                        } else {
+                            i_printf("PORT: splitting outd(0x%x)\n", pr.port);
+                            ph->write_portb(pr.port, pr.word, ph->arg);
+                            ph1->write_portb(pr.port + 1, pr.word >> 8, ph->arg);
+                            ph2->write_portb(pr.port + 2, pr.word >> 16, ph->arg);
+                            ph3->write_portb(pr.port + 3, pr.word >> 24, ph->arg);
+                        }
                         break;
                 }
                 write(port_fd_in[1], &pr, sizeof(pr));
