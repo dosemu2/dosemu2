@@ -2006,7 +2006,7 @@ static void detect_vbios(void)
     if (c[0]==0x55 && c[1]==0xaa
         && c[0x1e]=='I' && c[0x1f]=='B' && c[0x20]=='M') {
       auto_vbios_seg = foffset >> 4;
-      auto_vbios_size = c[2]*0x200;
+      auto_vbios_size = PAGE_ALIGN(c[2] * 0x200);
       break;
     }
   }
