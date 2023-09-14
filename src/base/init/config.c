@@ -929,9 +929,11 @@ static void config_post_process(void)
 #endif
 	}
 	config.console_video = 0;
+#if 0
 	if (config.speaker == SPKR_NATIVE) {
 	    config.speaker = SPKR_EMULATED;
 	}
+#endif
     }
     if (!config.console_video)
 	config.vga = config.mapped_bios = 0;

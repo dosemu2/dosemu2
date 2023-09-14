@@ -325,10 +325,8 @@ Bit8u pit_inp(ioport_t port, void *arg)
   int ret = 0;
   port -= 0x40;
 
-  if ((port == 2) && (config.speaker == SPKR_NATIVE)) {
-	error ("pit_inp() - how could we come here if we defined PORT_FAST?\n");
+  if ((port == 2) && (config.speaker == SPKR_NATIVE))
 	return std_port_inb(0x42);
-  }
   else if (port == 1)
     i_printf("PIT:  someone is reading the CMOS refresh time?!?");
 
@@ -369,7 +367,6 @@ void pit_outp(ioport_t port, Bit8u val, void *arg)
   if (port == 1)
     i_printf("PORT: someone is writing the CMOS refresh time?!?");
   else if (port == 2 && config.speaker == SPKR_NATIVE) {
-    error ("pit_outp() - how could we come here if we defined PORT_FAST?\n");
     std_port_outb(0x42, val);
     return;
   }
