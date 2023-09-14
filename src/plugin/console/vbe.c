@@ -52,9 +52,6 @@ struct VBE_vi_vm {
 
 #define VESA_SAVE_BITMAP 0xf /* save everything */
 
-#define RM_STACK_SIZE 0x200
-static void *rm_stack = NULL;
-
 static void do_int10_callback(struct vm86_regs *regs)
 {
   struct vm86_regs saved_regs;
@@ -240,7 +237,6 @@ static void vesa_setbank_write(unsigned char bank)
 
 void vesa_init(void)
 {
-  rm_stack = lowmem_alloc(RM_STACK_SIZE);
   vesa_int10 = MK_FP16(ISEG(0x10), IOFF(0x10));
   vesa_reinit();
   /* This is all we need before booting. Memory info comes later */
