@@ -418,7 +418,9 @@ Bit16u std_port_inw(ioport_t port)
 {
         struct portreq pr;
 
-        if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
+        if (current_iopl == 3 || (test_bit(port, emu_io_bitmap) +
+                                  test_bit(port + 1, emu_io_bitmap)
+                                  == 2)) {
 		return port_real_inw(port);
         }
 	if (!portserver_pid) {
@@ -441,7 +443,9 @@ void std_port_outw(ioport_t port, Bit16u word)
 {
         struct portreq pr;
 
-        if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
+        if (current_iopl == 3 || (test_bit(port, emu_io_bitmap) +
+                                  test_bit(port + 1, emu_io_bitmap)
+                                  == 2)) {
 		port_real_outw(port, word);
 		return;
         }
@@ -467,7 +471,11 @@ Bit32u std_port_ind(ioport_t port)
 {
         struct portreq pr;
 
-        if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
+        if (current_iopl == 3 || (test_bit(port, emu_io_bitmap) +
+                                  test_bit(port + 1, emu_io_bitmap) +
+                                  test_bit(port + 2, emu_io_bitmap) +
+                                  test_bit(port + 3, emu_io_bitmap)
+                                  == 4)) {
 		return port_real_ind(port);
         }
 	if (!portserver_pid) {
@@ -490,7 +498,11 @@ static int do_port_outd(ioport_t port, Bit32u dword, int pci)
 {
         struct portreq pr;
 
-        if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
+        if (current_iopl == 3 || (test_bit(port, emu_io_bitmap) +
+                                  test_bit(port + 1, emu_io_bitmap) +
+                                  test_bit(port + 2, emu_io_bitmap) +
+                                  test_bit(port + 3, emu_io_bitmap)
+                                  == 4)) {
 		port_real_outd(port, dword);
 		return 0;
         }
