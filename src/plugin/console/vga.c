@@ -562,6 +562,9 @@ static void set_console_video(void)
   if (config.mapped_bios) {
 	vga_ioperm(0x3b4, 0x3bc - 0x3b4 + 1);
 	vga_ioperm(0x3c0, 0x3df - 0x3c0 + 1);
+	vga_ioperm(0x3f2, 1);  // some VGA bioses touch FDD port
+	vga_ioperm(0x1ce, 4);  // ATI, qemu
+	vga_ioperm(0x402, 1);  // qemu
   }
   vga_ioperm(0x3bf, 1);
 }
