@@ -8,15 +8,18 @@ C. Masloch		@ecm-pushbx
 Ryan C. Underwood	@runderwo
 Stuart Axon		@stuaxo
 
-Special thanks for making dosemu2 feasible:
+Special thanks for making dosemu2 feasible
+by sponsoring the initial development:
 Caylan Van Larson <i@caylan.net>
 Hans-Christian Koch <hc.koch@scheerkoch.de>
 
-Many thanks for sponsoring the project:
-C. Masloch <pushbx@ulukai.org>
+Many thanks to our Patreon patrons:
+Jeffrey H. Ingber <jharrison02@earthlink.net> (@jharrison022)
+C. Masloch <pushbx@ulukai.org>                (@ecm-pushbx)
+doctorwhoguy@gmail.com                        (@PaddyMac)
 
 Thanks for the good testing and bugreporting:
-Julius Schwartzenberg	@jschwartzenberg
+Julius Schwartzenberg                         (@jschwartzenberg)
 
 A big thanks goes to Linus Torvalds and Andy Lutomirski,
 who helped in solving many dosemu2-specific problems in
