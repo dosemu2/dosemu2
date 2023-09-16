@@ -54,13 +54,14 @@
 #include "video.h"
 #include "render.h"
 #include "vgaemu.h"
+#include "mapping.h"
 #include "emudpmi.h"
 #include "vesabios_pm_offsets.h"
 #include "vesabios_offsets.h"
 #include "vesa.h"
 #include "int.h"
 
-#define VBE_BIOS_MAXPAGES	2	/* max. 8k BIOS size, more than enough */
+#define VBE_BIOS_MAXPAGES	4	/* max. 16k BIOS size, more than enough */
 
 /* identity of our VBE implementation */
 #define VBE_OEMVendorName	"DOSEMU-Development-Team"

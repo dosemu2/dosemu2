@@ -745,10 +745,6 @@ static int do_register_hwram(int type, unsigned base, unsigned size,
 {
   struct hardware_ram *hw;
 
-  if (!can_do_root_stuff && !uaddr) {
-    dosemu_error("can't use hardware ram in low feature (non-suid root) DOSEMU\n");
-    return 0;
-  }
   c_printf("Registering HWRAM, type=%c base=%#x size=%#x\n", type, base, size);
   hw = malloc(sizeof(*hw));
   hw->base = base;
@@ -761,8 +757,11 @@ static int do_register_hwram(int type, unsigned base, unsigned size,
   hw->type = type;
   if (base + size > ALIAS_SIZE)
     hw->aliasmap = alloc_aliasmap(uaddr, size);
-  else
+  else {
+    /* for kmem, uaddr determined later. for !kmem alias on lowmem_base */
+    assert(!uaddr);
     hw->aliasmap = &lowmem_aliasmap[base >> PAGE_SHIFT];
+  }
   hw->next = hardware_ram;
   hardware_ram = hw;
   if (!uaddr && (base >= LOWMEM_SIZE || type == 'h'))
@@ -772,13 +771,18 @@ static int do_register_hwram(int type, unsigned base, unsigned size,
 
 int register_hardware_ram(int type, unsigned base, unsigned int size)
 {
+  if (!can_do_root_stuff) {
+    dosemu_error("can't use hardware ram in low feature (non-suid root) DOSEMU\n");
+    return 0;
+  }
   return do_register_hwram(type, base, size, NULL, -1);
 }
 
 void register_hardware_ram_virtual2(int type, unsigned base, unsigned int size,
 	void *uaddr, dosaddr_t va)
 {
-  do_register_hwram(type, base, size, MEM_BASE32(va), va);
+  void *uaddr2 = base < ALIAS_SIZE ? NULL : MEM_BASE32(va);
+  do_register_hwram(type, base, size, uaddr2, va);
   if (config.cpu_vm_dpmi == CPUVM_KVM ||
       (config.cpu_vm == CPUVM_KVM && base + size <= LOWMEM_SIZE + HMASIZE)) {
     int prot = PROT_READ | PROT_WRITE | PROT_EXEC;

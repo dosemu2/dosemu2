@@ -225,7 +225,7 @@ int memcheck_is_rom(dosaddr_t addr)
   round_addr(&addr);
   if (addr >= MEM_SIZE)
     return 0;
-  return strchr("VR", mem_map[addr / GRAN_SIZE]) != NULL;
+  return strchr("R", mem_map[addr / GRAN_SIZE]) != NULL;
 }
 
 int memcheck_is_hardware_ram(dosaddr_t addr)
