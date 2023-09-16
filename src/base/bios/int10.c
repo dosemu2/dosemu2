@@ -336,8 +336,8 @@ void tty_char_out(unsigned char ch, int s, int attr)
     else
     {
       dst = screen_adr(s) + 2 * (ypos*co + xpos);
-      vga_write(dst, ch);
-      if(attr != -1) vga_write(dst + 1, attr);
+      WRITE_BYTE(dst, ch);
+      if(attr != -1) WRITE_BYTE(dst + 1, attr);
     }
     xpos++;
   }
@@ -375,7 +375,7 @@ static void clear_screen(void)
   v_printf("INT10: cleared screen: screen_adr %x\n", screen_adr(0));
 
   for (schar = screen_adr(0), lx = 0; lx < 16*1024;
-       vga_write_word(schar, blank), lx++, schar+=2);
+       WRITE_WORD(schar, blank), lx++, schar+=2);
 
   for (s = 0; s < 8; s++)
     do_set_cursor_pos(s, 0, 0);
