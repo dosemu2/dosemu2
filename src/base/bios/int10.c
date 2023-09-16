@@ -260,12 +260,6 @@ static int using_mono_mode(void)
   return ((READ_BYTE(BIOS_VDU_CONTROL) & 0xc) == 0xc);
 }
 
-/* Output a character to the screen. */
-void char_out(unsigned char ch, int page)
-{
-  tty_char_out(ch, page, -1);
-}
-
 /*
  * Output a character to the screen.
  * If attr != -1, set the attribute byte, too.
@@ -320,7 +314,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
   case '\t':        /* Tab */
     i10_deb("char_out: tab\n");
     do {
-	char_out(' ', s);
+	tty_char_out(' ', s, -1);
 	xpos = get_bios_cursor_x_position(s);
     } while (xpos % 8 != 0);
     break;
@@ -1017,7 +1011,7 @@ int int10(void) /* with dualmon */
           "tty put char: page %u, char 0x%02x '%c'\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' '
         );
-        char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+        tty_char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), -1);
       }
       else {
         i10_deb(

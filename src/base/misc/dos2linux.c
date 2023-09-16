@@ -1203,3 +1203,15 @@ int com_setcbreak(int on)
 	post_msdos();
 	return old_b;
 }
+
+/* Output a character to the screen. */
+void char_out(unsigned char ch, int page)
+{
+	struct vm86_regs saved_regs = REGS;
+	HI(ax) = 0xe;
+	LO(ax) = ch;
+	HI(bx) = page;
+	LO(bx) = 7;
+	do_int_call_back(0x10);
+	REGS = saved_regs;
+}
