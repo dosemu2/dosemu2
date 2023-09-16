@@ -133,7 +133,7 @@ static void bios_setup(void)
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
-    if (config.vga && !config.vbios_post) {
+    if (config.vga) {
       uint16_t seg, off;
       unsigned int addr;
 
@@ -142,7 +142,7 @@ static void bios_setup(void)
       v_printf("int0x%x was 0x%04x:0x%04x\n", i, seg, off);
       addr = SEGOFF2LINEAR(seg, off);
       if (addr >= VBIOS_START && addr < VBIOS_START + VBIOS_SIZE) {
-	g_printf("Setting int0x%x to 0x%04x:0x%04x\n", i, seg, off);
+	v_printf("Setting int0x%x to 0x%04x:0x%04x\n", i, seg, off);
 	SETIVEC(i, seg, off);
 	continue;
       }
