@@ -769,17 +769,23 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
 
 int vga_bank_access(dosaddr_t m)
 {
+	if (config.console_video)
+		return 0;
 	return (unsigned)(m - vga.mem.bank_base) < vga.mem.bank_len;
 }
 
 int vga_read_access(dosaddr_t m)
 {
+	if (config.console_video)
+		return 0;
 	/* Using a planar mode */
 	return vga_bank_access(m);
 }
 
 int vga_write_access(dosaddr_t m)
 {
+	if (config.console_video)
+		return 0;
 	/* unmapped VGA memory, VGA BIOS, or a bank. Note that
 	 * the bank can be write-protected even in non-planar mode. */
 	if (m >= vga.mem.graph_base &&
@@ -798,6 +804,8 @@ int vga_write_access(dosaddr_t m)
 
 int vga_access(dosaddr_t r, dosaddr_t w)
 {
+	if (config.console_video)
+		return 0;
 	return (vga_read_access(r) | (vga_write_access(w) << 1));
 }
 
