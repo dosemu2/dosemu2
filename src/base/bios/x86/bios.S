@@ -70,7 +70,6 @@ _start:
 	lcall	*%cs:bios_f000_int10ptr
 	popw	%ds
 	sti
-	jmp	video_init_done
 
 /* ----------------------------------------------------------------- */	
 /* Post-less video init
