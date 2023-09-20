@@ -421,6 +421,7 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		| DOSEMUMAP string_expr
 		    {
+		    free(dosemu_map_file_name);
 		    dosemu_map_file_name = $2;
 		    c_printf("CONF: dosemu.map path = '%s'\n", $2);
 		    }
@@ -1142,7 +1143,7 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| OPL2LPT_DEV string_expr
 			{
 				free(config.opl2lpt_device);
-				config.opl2lpt_device = strlen($2) ? $2 : NULL;
+				config.opl2lpt_device = $2;
 			}
 		| OPL2LPT_TYPE string_expr
 			{

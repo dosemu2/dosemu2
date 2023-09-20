@@ -76,7 +76,7 @@ static bool opl2lpt_init(void)
 	struct parport_list parports = {};
 	const char *parportName = config.opl2lpt_device;
 
-	if (!parportName)
+	if (!parportName || !parportName[0])
 		return false;
 	// Look for available parallel ports
 	if (ieee1284_find_ports(&parports, 0) != E1284_OK) {
