@@ -249,7 +249,7 @@ static void dbadlib_generate(int total, int16_t output[][2], double start,
 			next = 0;
 		if (next)
 			todo = (next - start) / period;
-		opl_getsample((Bit16s *)output + done * 2, todo);
+		opl_getsample((Bit16s *)(output + done), todo);
 		start += todo * period;
 		done += todo;
 		if (next) {
