@@ -504,6 +504,7 @@ void SDL_close(void)
     for (i = 0; i < num_fdescs; i++)
       SDL_RWclose(sdl_fdesc[i].rw);
     TTF_Quit();
+    FcFini();
   }
   rng_destroy(&ttf_char_rng);
 #endif
