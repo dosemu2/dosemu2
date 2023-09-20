@@ -34,11 +34,11 @@
 #include "sound/sound.h"
 #include "sound/oplplug.h"
 #include "sound.h"
-#include "adlib.h"
 #include "dbadlib.h"
 #include <limits.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include "adlib.h"
 
 #define ADLIB_BASE 0x388
 #define OPL3_INTERNAL_FREQ    14400000	// The OPL3 operates at 14.4MHz
@@ -66,7 +66,6 @@ static const int opl3_format = PCM_FORMAT_S8;
 #endif
 static const int opl3_rate = 44100;
 
-static pthread_mutex_t synth_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t run_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t syn_thr;
 static sem_t syn_sem;
@@ -75,9 +74,7 @@ static void *synth_thread(void *arg);
 Bit8u adlib_io_read_base(ioport_t port)
 {
     Bit8u ret;
-    pthread_mutex_lock(&synth_mtx);
     ret = oplops->PortRead(opl3_impl, port);
-    pthread_mutex_unlock(&synth_mtx);
     if (debug_level('S') >= 9)
 	S_printf("Adlib: Read %hhx from port %x\n", ret, port);
     return ret;
@@ -95,12 +92,9 @@ void adlib_io_write_base(ioport_t port, Bit8u value)
     adlib_time_last = GETusTIME(0);
     if (debug_level('S') >= 9)
 	S_printf("Adlib: Write %hhx to port %x\n", value, port);
-    if ( port&1 ) {
+    if (port & 1)
       opl3_update();
-    }
-    pthread_mutex_lock(&synth_mtx);
     oplops->PortWrite(opl3_impl, port, value);
-    pthread_mutex_unlock(&synth_mtx);
 }
 
 static void adlib_io_write(ioport_t port, Bit8u value, void *arg)
@@ -124,7 +118,6 @@ static void opl3_update(void)
     pthread_mutex_unlock(&run_mtx);
     if (!a_run)
 	adlib_start();
-    run_sb();
 }
 
 void opl3_init(void)
@@ -175,12 +168,10 @@ void adlib_done(void)
     sem_destroy(&syn_sem);
 }
 
-static void adlib_process_samples(int nframes)
+static void adlib_process_samples(int nframes, double cur, double per)
 {
     sndbuf_t buf[OPL3_MAX_BUF][SNDBUF_CHANS];
-    pthread_mutex_lock(&synth_mtx);
-    oplops->Generate(nframes, buf);
-    pthread_mutex_unlock(&synth_mtx);
+    oplops->Generate(nframes, buf, cur, per);
     pcm_write_interleaved(buf, nframes, opl3_rate, opl3_format,
 	    ADLIB_CHANNELS, adlib_strm);
 }
@@ -206,7 +197,7 @@ static void adlib_run(void)
 	if (nframes > OPL3_MAX_BUF)
 	    nframes = OPL3_MAX_BUF;
 	if (nframes >= OPL3_MIN_BUF) {
-	    adlib_process_samples(nframes);
+	    adlib_process_samples(nframes, adlib_time_cur, period);
 	    adlib_time_cur = pcm_get_stream_time(adlib_strm);
 	    if (debug_level('S') >= 7)
 		S_printf("SB: processed %i Adlib samples\n", nframes);

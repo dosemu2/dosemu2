@@ -30,6 +30,7 @@
 #include "timers.h"
 #include "opl.h"
 #include "sound/oplplug.h"
+#include "sequencr.h"
 #include "dbadlib.h"
 
 typedef struct _AdlibTimer AdlibTimer;
@@ -94,7 +95,8 @@ static AdlibTimer opl3_timers[2];
 static uint8_t dbadlib_PortRead(void *impl, uint16_t port);
 static void dbadlib_PortWrite(void *impl, uint16_t port, uint8_t val );
 static void *dbadlib_create(int opl3_rate);
-static void dbadlib_generate(int total, int16_t output[][2]);
+static void dbadlib_generate(int total, int16_t output[][2], double start,
+		double period);
 
 //Check for it being a write to the timer
 static bool AdlibChip__WriteTimer(AdlibTimer *timer, Bit32u reg, Bit8u val) {
@@ -170,16 +172,25 @@ static struct {
 	Bit32u normal;
 } reg;
 
+static void *seq;
+enum { STAG_PORT, STAG_VAL };
+
 // stripped down from DOSBOX adlib.cpp: Adlib::Module::PortWrite
 static void dbadlib_PortWrite(void *impl, uint16_t port, uint8_t val ) {
 	AdlibTimer *timer = impl;
+	int add_ev = 0;
 	if ( port&1 ) {
 		if ( !AdlibChip__WriteTimer( timer, reg.normal, val ) ) {
-			opl_write( reg.normal, val );
+			add_ev++;
 		}
 	} else {
-		opl_write_index( port, val );
+		add_ev++;
 		reg.normal = val & 0x1ff;
+	}
+	if (add_ev) {
+		struct seq_item_s *i = sequencer_add(seq, GETusTIME(0));
+		sequencer_add_tag(i, STAG_PORT, port);
+		sequencer_add_tag(i, STAG_VAL, val);
 	}
 }
 
@@ -200,13 +211,52 @@ static void *dbadlib_create(int opl3_rate)
 {
 	AdlibChip__AdlibChip(opl3_timers);
 	opl_init(opl3_rate);
+	seq = sequencer_init();
 	return opl3_timers;
 }
 
-// converted from DOSBOX dbopl.cpp: DBOPL::Handler::Generate
-static void dbadlib_generate(int total, int16_t output[][2])
+static int opl_idx;
+
+static void extract_event(unsigned long long next)
 {
-	opl_getsample((Bit16s *)output, total);
+	struct seq_item_s *i = sequencer_get(seq, next);
+	int port, val;
+	assert(i);
+	port = sequencer_find(i, STAG_PORT);
+	val = sequencer_find(i, STAG_VAL);
+	sequencer_free(i);
+	if (port & 1) {
+		opl_write(opl_idx, val);
+	} else {
+		opl_write_index(port, val);
+		opl_idx = val & 0x1ff;
+	}
+}
+
+static void dbadlib_generate(int total, int16_t output[][2], double start,
+		double period)
+{
+	int done = 0;
+	double end = start + total * period;
+	long long next = sequencer_get_next(seq);
+	while (next && start > next) {
+		extract_event(next);
+		next = sequencer_get_next(seq);
+	}
+	while (total > done) {
+		int todo = total - done;
+		if (next > end)
+			next = 0;
+		if (next)
+			todo = (next - start) / period;
+		opl_getsample((Bit16s *)output + done * 2, todo);
+		start += todo * period;
+		done += todo;
+		if (next) {
+			extract_event(next);
+			next = sequencer_get_next(seq);
+		}
+	}
 }
 
 struct opl_ops dbadlib_ops = {
