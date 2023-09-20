@@ -114,7 +114,6 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
   tmp_fd = mkstemp(ttspec);
   if (tmp_fd == -1) {
     perror("mkstemp()");
-    free(ttspec);
     rmdir(dtspec);
     goto err_free_d;
   }
@@ -123,7 +122,6 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
   rc = flock(tmp_fd, LOCK_EX);
   if (rc == -1) {
     perror("flock(tmp)");
-    free(ttspec);
     rmdir(dtspec);
     goto err_clotmp;
   }
@@ -134,7 +132,6 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
     if (rc == -1 && errno != EEXIST) {
       perror("mkdir()");
       unlink(ttspec);
-      free(ttspec);
       rmdir(dtspec);
       goto err_clotmp;
     }
@@ -152,20 +149,21 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
           continue;  // race, someone removed parent dir
         perror("rename()");
         unlink(ttspec);
-        free(ttspec);
         rmdir(dtspec);
         goto err_rmddir;
       }
       rc = rmdir(dtspec);
       if (rc == -1) {
         perror("rmdir()");
-        free(ttspec);
         goto err_rmt;
       }
     }
   }
 
   free(ttspec);
+  ttspec = NULL; // exclude from error cleanup
+  free(dtspec);
+  dtspec = NULL; // exclude from error cleanup
   /* At this point our fspec directory is stable and can't disappear.
    * Try collecting stalled tmpfiles. */
   do_gc(fspec);
@@ -207,6 +205,7 @@ err_clotmp:
   close(tmp_fd);
   free(tspec);
 err_free_d:
+  free(ttspec);
   free(dtspec);
   free(fspec);
   free(dspec);
