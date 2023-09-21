@@ -29,7 +29,7 @@ AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
     fi
   ]
 )
-PKG_CHECK_MODULES([FDPP], [fdpp >= 1.6],,
+PKG_CHECK_MODULES([FDPP], [fdpp >= 1.7],,
     AC_MSG_ERROR([fdpp installation not found or too old]))
 PKG_CHECK_MODULES([VALGRIND], [valgrind], AC_DEFINE(HAVE_VALGRIND),
   AC_MSG_NOTICE([valgrind support disabled]))
