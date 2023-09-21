@@ -212,7 +212,7 @@ static int video_init(void)
       error("failed to load sdl plugin\n");
     }
 #else
-#if USE_SLANG
+#ifdef USE_SLANG
     warn("KMS detected: using terminal mode.\n");
     config.term = 1;
 #else
@@ -277,6 +277,14 @@ done:
   if (config.term) {
     config.X = 0;
     config.sdl = 0;
+#ifndef USE_SLANG
+    if (config.dumb_video) {
+      config.term = 0;
+    } else {
+      error("terminal support not compiled in\n");
+      leavedos(2);
+    }
+#endif
   }
 
   return 0;
