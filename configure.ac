@@ -254,7 +254,7 @@ AC_CHECK_DECLS([F_OFD_SETLK], [
   ],, [[#include <fcntl.h>]]
 )
 AC_CHECK_DECLS([MREMAP_MAYMOVE],,, [[#include <sys/mman.h>]])
-AC_CHECK_DECLS([MADV_POPULATE_WRITE, MADV_DONTNEED, MADV_FREE],,,
+AC_CHECK_DECLS([MADV_POPULATE_WRITE, MADV_COLD],,,
   [[#include <sys/mman.h>]])
 
 AC_CHECK_FUNC(strlcpy,, [

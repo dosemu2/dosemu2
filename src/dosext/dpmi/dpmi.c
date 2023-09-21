@@ -3257,11 +3257,20 @@ err:
   case 0x0702:	/* Mark Page as Demand Paging Candidate */
   case 0x0703:	/* Discard Page Contents */
   {
-#if HAVE_DECL_MADV_DONTNEED && HAVE_DECL_MADV_FREE
+#if HAVE_DECL_MADV_COLD
+    /* Note: 0x703 can use MADV_FREE, but in that case we'd have
+     * to check that the entire area belongs to this client.
+     * Fortunately DPMI spec doesn't demand the 0x703 pages to be
+     * zeroed out. */
+    int rc;
     dosaddr_t addr = (_LWORD_(ebx) << 16) | (_LWORD_(ecx));
     unsigned size = (_LWORD_(esi) << 16) | (_LWORD_(edi));
-    int adv = (_LWORD(eax) == 0x702 ? MADV_DONTNEED : MADV_FREE);
-    int rc = madvise(MEM_BASE32(addr), size, adv);
+    if (addr + size > config.dpmi_base + dpmi_mem_size()) {
+      D_printf("DPMI: Failing bad paging call\n");
+      rc = -1;
+    } else {
+      rc = madvise(MEM_BASE32(addr), size, MADV_COLD);
+    }
     if (rc == -1) {
       _LWORD(eax) = 0x8025;
       _eflags |= CF;
