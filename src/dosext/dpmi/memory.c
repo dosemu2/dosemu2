@@ -203,7 +203,8 @@ int dpmi_lin_mem_free(void)
 {
     if (!dpmi_lin_rsv_base)
 	return 0;
-    return smget_free_space(&main_pool);
+    return smget_free_space_upto(&main_pool,
+	    &dpmi_lin_rsv_base[dpmi_lin_mem_rsv()]);
 }
 
 int dpmi_alloc_pool(void)

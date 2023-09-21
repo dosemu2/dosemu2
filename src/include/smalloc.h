@@ -58,6 +58,7 @@ int sminit_comu(struct mempool *mp, void *start, size_t size,
 void smfree_all(struct mempool *mp);
 int smdestroy(struct mempool *mp);
 size_t smget_free_space(struct mempool *mp);
+size_t smget_free_space_upto(struct mempool *mp, unsigned char *top);
 size_t smget_largest_free_area(struct mempool *mp);
 int smget_area_size(struct mempool *mp, void *ptr);
 void *smget_base_addr(struct mempool *mp);

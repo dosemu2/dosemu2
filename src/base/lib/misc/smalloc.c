@@ -651,6 +651,22 @@ size_t smget_free_space(struct mempool *mp)
   return mp->avail;
 }
 
+size_t smget_free_space_upto(struct mempool *mp, unsigned char *top)
+{
+  struct memnode *mn;
+  int cnt = 0;
+  for (mn = &mp->mn; mn; mn = mn->next) {
+    if (mn->mem_area + mn->size > top) {
+      if (!mn->used && mn->mem_area < top)
+        cnt += top - mn->mem_area;
+      break;
+    }
+    if (!mn->used)
+      cnt += mn->size;
+  }
+  return cnt;
+}
+
 size_t smget_largest_free_area(struct mempool *mp)
 {
   struct memnode *mn;
