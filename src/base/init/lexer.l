@@ -448,6 +448,7 @@ rtscts			RETURN(RTSCTS);
 low_latency		RETURN(LOWLAT);
 pccom			RETURN(PCCOM);
 exec			RETURN(EXEC);
+pts			RETURN(PTS);
 wrfile			RETURN(WRFILE);
 nullmodem		RETURN(NULLMM);
 

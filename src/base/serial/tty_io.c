@@ -629,6 +629,22 @@ static int tty_open(com_t *c)
     add_to_io_select(c->fd, async_serial_run, (void *)c);
     return c->fd;
   }
+  if (c->cfg->pts) {
+    c->fd = pty_init(c);
+    if (c->fd == -1)
+      return -1;
+    err = symlink(ptsname(c->fd), c->cfg->pts);
+    if (err) {
+      error("symlink(%s, %s): %s", ptsname(c->fd), c->cfg->pts,
+          strerror(errno));
+      close(c->fd);
+      c->fd = -2;
+      return -1;
+    }
+    c->cfg->pseudo = TRUE;
+    add_to_io_select(c->fd, async_serial_run, (void *)c);
+    return c->fd;
+  }
   if (c->fd != -1)
     return -1;
   s_printf("SER%d: Running ser_open, %s, fd=%d\n", c->num,
@@ -684,8 +700,6 @@ static int tty_open(com_t *c)
   modstat_engine(c->num);
   return c->fd;
 
-  close(c->fd);
-  /* fall through */
 fail_unlock:
   if (c->dev_locked && tty_lock(c->cfg->dev, 0) >= 0) /* Unlock port */
     c->dev_locked = FALSE;
@@ -712,6 +726,12 @@ static int tty_close(com_t *c)
     ret = pty_close(c, c->fd);
     c->fd = -1;
     return ret;
+  }
+  if (c->cfg->pts) {
+    unlink(c->cfg->pts);
+    close(c->fd);
+    c->fd = -1;
+    return 0;
   }
 
   /* save current dosemu settings of the file and restore the old settings

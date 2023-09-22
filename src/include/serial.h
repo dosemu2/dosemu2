@@ -33,7 +33,8 @@
 typedef struct {
   				/*   MAIN VARIABLES  */
   char *dev;			/* String to hold path to device file */
-  char *exec;                   /* String to the cmd to execute */
+  char *exec;                   /* cmd to execute */
+  char *pts;                    /* pts name */
   char *wrfile;
   boolean ro;
   int nullmm;
