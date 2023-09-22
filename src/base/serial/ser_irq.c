@@ -199,10 +199,14 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
   com[num].ms_timer += MS_MIN_FREQ;
 #endif
 
-  if(com_cfg[num].pseudo)
-    newmsr = UART_MSR_CTS | UART_MSR_DSR | UART_MSR_DCD;
-  else
+  if(com_cfg[num].pseudo) {
+    if (com[num].is_closed)
+      newmsr = 0;
+    else
+      newmsr = UART_MSR_CTS | UART_MSR_DSR | UART_MSR_DCD;
+  } else {
     newmsr = serial_get_msr(num);
+  }
   delta = msr_compute_delta_bits(com[num].MSR, newmsr);
 
   com[num].MSR = (com[num].MSR & UART_MSR_DELTA) | newmsr | delta;
