@@ -1471,9 +1471,9 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 		| MOUSE			{ sptr->mouse = 1;
 					  config.num_serial_mices++; }
 		| EXEC string_expr	  { free(sptr->exec);
-					    sptr->exec = strdup($2); }
+					    sptr->exec = $2; }
 		| WRFILE string_expr	  { free(sptr->wrfile);
-					    sptr->wrfile = strdup($2); }
+					    sptr->wrfile = $2; }
 		| NULLMM string_expr	  { sptr->nullmm = atoi($2); free($2); }
 		| READONLY		{ sptr->ro = 1; }
 		| STRING
