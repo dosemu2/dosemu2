@@ -174,6 +174,13 @@ static int _instr_len(unsigned char *p, int is_32)
     case 0xba:
       p += 4;
       return p - p0;
+    case 0xb2:  // lss
+    case 0xb4:  // lfs
+    case 0xb5:  // lgs
+      p++;
+      p += (u = arg_len(p, asp));
+      if(!u) p = p0;
+      return p - p0;
     default:
       /* not yet */
       error("unsupported instr_len %x %x\n", p[0], p[1]);
