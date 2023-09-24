@@ -39,6 +39,8 @@ typedef struct x86_ins {
   unsigned ds:1, es:1, fs:1, gs:1, cs:1, ss:1;
 } x86_ins;
 
+static unsigned short patch_cs;
+
 #define R_WORD(a) LO_WORD(a)
 #define SP (R_WORD(_esp))
 #define sreg_idx(reg) (es_INDEX+((reg)&0x7))
@@ -465,6 +467,53 @@ static int x86_handle_prefixes(cpuctx_t *scp, unsigned cs_base,
   return prefix;
 }
 
+static void make_retf_frame(cpuctx_t *scp, void *sp,
+	uint32_t cs, uint32_t eip, int is_32)
+{
+  if (is_32) {
+    unsigned int *ssp = sp;
+    *--ssp = cs;
+    *--ssp = eip;
+    _esp -= 8;
+  } else {
+    unsigned short *ssp = sp;
+    *--ssp = cs;
+    *--ssp = eip;
+    _LWORD(esp) -= 4;
+  }
+}
+
+#define PATCH_SIZE 8
+#define STACK_SIZE (PATCH_SIZE + 8)
+
+static void lxx_patch(cpuctx_t *scp, unsigned char *csp, int len, int is_32)
+{
+  unsigned char *sp;
+  unsigned int lp[LDT_ENTRY_SIZE / 4], esp, base;
+  unsigned char retf[] = { 0xca, PATCH_SIZE, 0 };
+
+  if (_LWORD(esp) < STACK_SIZE) {
+    error("asm patch failure\n");
+    return;
+  }
+  assert(len + sizeof(retf) <= PATCH_SIZE);
+  _esp -= PATCH_SIZE;
+  sp = SEL_ADR(_ss, _esp);
+  esp = _esp;
+  make_retf_frame(scp, sp, _cs, _eip, is_32);
+  /* prepare the patch */
+  memcpy(sp, csp, len);
+  sp[0] = 0x8b;  // replace lXX with mov
+  memcpy(sp + len, retf, sizeof(retf));
+  GetDescriptor(_cs, lp);
+  SetDescriptor(patch_cs, lp);
+  base = GetSegmentBase(_ss);
+  SetSegmentBaseAddress(patch_cs, base + esp);
+  SetSegmentLimit(patch_cs, PATCH_SIZE - 1);
+  _cs = patch_cs;
+  _eip = 0;
+}
+
 int decode_segreg(cpuctx_t *scp)
 {
   unsigned cs, eip;
@@ -513,15 +562,23 @@ int decode_segreg(cpuctx_t *scp)
     }
     break;
 
-    case 0xc4:		/* les */
+    case 0xc4: {		/* les */
+      int len = _instr_len(orig_csp, x86._32bit);
+      _eip += len;
+      assert(len > 0);
+      lxx_patch(scp, MEM_BASE32(cs + eip), len, x86._32bit);
       ret = es_INDEX;
-      _eip += _instr_len(orig_csp, x86._32bit);
       break;
+    }
 
-    case 0xc5:		/* lds */
+    case 0xc5: {		/* lds */
+      int len = _instr_len(orig_csp, x86._32bit);
+      _eip += len;
+      assert(len > 0);
+      lxx_patch(scp, MEM_BASE32(cs + eip), len, x86._32bit);
       ret = ds_INDEX;
-      _eip += _instr_len(orig_csp, x86._32bit);
       break;
+    }
 
     case 0x07:	/* pop es */
     case 0x17:	/* pop ss */
@@ -541,20 +598,32 @@ int decode_segreg(cpuctx_t *scp)
 	  _eip = eip + 1;
 	  break;
 
-	case 0xb2:	/* lss */
+	case 0xb2: {	/* lss */
+	  int len = _instr_len(orig_csp, x86._32bit);
+	  _eip += len;
+	  assert(len > 1);
+	  lxx_patch(scp, MEM_BASE32(cs + eip), len - 1, x86._32bit);
 	  ret = ss_INDEX;
-	  _eip += _instr_len(orig_csp, x86._32bit);
 	  break;
+	}
 
-	case 0xb4:	/* lfs */
+	case 0xb4: {	/* lfs */
+	  int len = _instr_len(orig_csp, x86._32bit);
+	  _eip += len;
+	  assert(len > 1);
+	  lxx_patch(scp, MEM_BASE32(cs + eip), len - 1, x86._32bit);
 	  ret = fs_INDEX;
-	  _eip += _instr_len(orig_csp, x86._32bit);
 	  break;
+	}
 
-	case 0xb5:	/* lgs */
+	case 0xb5: {	/* lgs */
+	  int len = _instr_len(orig_csp, x86._32bit);
+	  _eip += len;
+	  assert(len > 1);
+	  lxx_patch(scp, MEM_BASE32(cs + eip), len - 1, x86._32bit);
 	  ret = gs_INDEX;
-	  _eip += _instr_len(orig_csp, x86._32bit);
 	  break;
+	}
       }
       break;
   }
@@ -951,4 +1020,14 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
   assert(inst_len || x86.rep);
   _eip += inst_len;
   return ret;
+}
+
+void instrdec_init(void)
+{
+  patch_cs = AllocateDescriptors(1);
+}
+
+void instrdec_done(void)
+{
+  FreeDescriptor(patch_cs);
 }

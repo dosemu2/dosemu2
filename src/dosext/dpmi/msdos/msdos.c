@@ -37,6 +37,7 @@
 #include "lio.h"
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
+#include "instr_dec.h"
 #include "callbacks.h"
 #include "segreg_priv.h"
 #include "msdos_priv.h"
@@ -296,6 +297,7 @@ static void msdos_init(int num, int is_32, unsigned short mseg,
 	SetSegmentLimit(rmcb_sel, len - 1);
 
 	MSDOS_CLIENT.ldt_alias = msdos_ldt_init();
+	instrdec_init();
     } else {
 	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 1].ldt_alias;
     }
@@ -357,6 +359,7 @@ static void msdos_done(int prev)
 	msdos_ldt_done();
 	FreeDescriptor(rmcb_sel);
 	msdos_free(rmcb_mem);
+	instrdec_done();
     }
     msdos_free_descriptors();
     msdos_free_mem();
