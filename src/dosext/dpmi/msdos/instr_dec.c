@@ -499,7 +499,7 @@ static void lxx_patch(cpuctx_t *scp, unsigned char *csp, int len, int is_32)
   assert(len + sizeof(retf) <= PATCH_SIZE);
   _esp -= PATCH_SIZE;
   sp = SEL_ADR(_ss, _esp);
-  esp = _esp;
+  esp = (dpmi_segment_is32(_ss) ? _esp : _LWORD(esp));
   make_retf_frame(scp, sp, _cs, _eip, is_32);
   /* prepare the patch */
   memcpy(sp, csp, len);
