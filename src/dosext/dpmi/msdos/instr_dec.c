@@ -29,7 +29,6 @@
 #include "memory.h"
 #include "dos2linux.h"
 #include "emudpmi.h"
-#include "instremu.h"
 #include "instr_dec.h"
 
 typedef struct x86_ins {
@@ -465,7 +464,6 @@ int decode_segreg(cpuctx_t *scp)
   unsigned char *csp, *orig_csp;
   int ret = -1;
   x86_ins x86;
-  unsigned dummy;
 
   x86._32bit = dpmi_segment_is32(_cs);
   cs = GetSegmentBase(_cs);
@@ -509,8 +507,13 @@ int decode_segreg(cpuctx_t *scp)
     break;
 
     case 0xc4:		/* les */
+      ret = es_INDEX;
+      _eip += _instr_len(orig_csp, x86._32bit);
+      break;
+
     case 0xc5:		/* lds */
-      ret = decode_modify_segreg_insn(scp, 1, &dummy);
+      ret = ds_INDEX;
+      _eip += _instr_len(orig_csp, x86._32bit);
       break;
 
     case 0x07:	/* pop es */
@@ -532,9 +535,18 @@ int decode_segreg(cpuctx_t *scp)
 	  break;
 
 	case 0xb2:	/* lss */
+	  ret = ss_INDEX;
+	  _eip += _instr_len(orig_csp, x86._32bit);
+	  break;
+
 	case 0xb4:	/* lfs */
+	  ret = fs_INDEX;
+	  _eip += _instr_len(orig_csp, x86._32bit);
+	  break;
+
 	case 0xb5:	/* lgs */
-	  ret = decode_modify_segreg_insn(scp, 1, &dummy);
+	  ret = gs_INDEX;
+	  _eip += _instr_len(orig_csp, x86._32bit);
 	  break;
       }
       break;
