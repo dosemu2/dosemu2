@@ -478,10 +478,7 @@ void mfs_close(struct file_fd *f)
         if (f->shemu_locks[i])
             shlock_close(f->shemu_locks[i]);
     }
-    if (f->mlemu_fds[0] != -1)
-        close(f->mlemu_fds[0]);
-    if (f->mlemu_fds[1] != -1)
-        close(f->mlemu_fds[1]);
+    close_mlemu(f->mlemu_fds);
     free(f->shemu_locks);
     free(f->name);
     f->name = NULL;

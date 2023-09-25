@@ -20,8 +20,13 @@
 
 #if FUNLCK_WA
 void open_mlemu(int *r_fds);
+void close_mlemu(int *fds);
 #else
 static inline void open_mlemu(int *r_fds)
+{
+}
+
+static inline void close_mlemu(int *fds)
 {
 }
 #endif
@@ -37,6 +42,10 @@ int region_is_fully_owned(int fd, long long start, unsigned long len, int wr,
 #else
 
 static inline void open_mlemu(int *r_fds)
+{
+}
+
+static inline void close_mlemu(int *fds)
 {
 }
 
