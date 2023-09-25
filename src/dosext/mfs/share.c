@@ -22,7 +22,6 @@
  */
 #include <errno.h>
 #include <string.h>
-#include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
 #include <unistd.h>
@@ -33,6 +32,7 @@
 #include "mfs.h"
 #include "xattr.h"
 #include "shlock.h"
+#include "rlocks.h"
 #include "share.h"
 
 #define SHLOCK_DIR "dosemu2_sh"
@@ -63,31 +63,6 @@ static void *apply_exlock(const char *fname)
     void *ret = shlock_open(EXLOCK_DIR, nm, 1, 1);
     free(nm);
     return ret;
-}
-
-/* for mandatory locks emulation */
-static int open_mlemu(int *r_fds)
-{
-    char mltmpl[] = "/tmp/dosemu2_mlemu_XXXXXX";
-    int fd0, fd1;
-
-    r_fds[0] = r_fds[1] = -1;
-    /* create 2 fds, 1 for mirroring locks and 1 for testing locks */
-    fd0 = mkstemp(mltmpl);
-    if (fd0 == -1) {
-      perror("mkstemp()");
-      return -1;
-    }
-    fd1 = open(mltmpl, O_RDONLY | O_CLOEXEC);
-    unlink(mltmpl);
-    if (fd1 == -1) {
-      perror("open()");
-      close(fd0);
-      return -1;
-    }
-    r_fds[0] = fd0;
-    r_fds[1] = fd1;
-    return 0;
 }
 
 static int is_locked_shlock(const char *name)

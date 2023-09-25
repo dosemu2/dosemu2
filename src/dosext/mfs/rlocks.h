@@ -3,6 +3,29 @@
 
 #if HAVE_DECL_F_OFD_SETLK
 
+#include <linux/version.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)
+  #ifdef WARN_UNDISABLED_WA
+    #warning Not disabling FUNLCK_WA, update your kernel
+  #endif
+  #define FUNLCK_WA 1
+#else
+  #ifdef DISABLE_SYSTEM_WA
+    #define FUNLCK_WA 0
+  #else
+    #define FUNLCK_WA 1
+  #endif
+#endif
+
+#if FUNLCK_WA
+void open_mlemu(int *r_fds);
+#else
+static inline void open_mlemu(int *r_fds)
+{
+}
+#endif
+
 int lock_file_region(int fd, int lck, long long start,
     unsigned long len, int wr, int mlemu_fd);
 int region_lock_offs(int fd, long long start, unsigned long len,
@@ -12,6 +35,10 @@ int region_is_fully_owned(int fd, long long start, unsigned long len, int wr,
     int mlemu_fd2);
 
 #else
+
+static inline void open_mlemu(int *r_fds)
+{
+}
 
 static inline int lock_file_region(int fd, int lck, long long start,
     unsigned long len, int wr, int mlemu_fd)

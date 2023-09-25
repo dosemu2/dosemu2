@@ -50,6 +50,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
+#include <assert.h>
 #include "dosemu_debug.h"
 #include "rlocks.h"
 
@@ -71,12 +73,16 @@ static int lock_set(int fd, struct flock *fl)
   return ret;
 }
 
-static void lock_get(int fd, struct flock *fl)
+static int do_lock_get(int fd, struct flock *fl)
 {
-  int ret;
   fl->l_pid = 0; // needed for OFD locks
   fl->l_whence = SEEK_SET;
-  ret = fcntl(fd, F_OFD_GETLK, fl);
+  return fcntl(fd, F_OFD_GETLK, fl);
+}
+
+static void lock_get(int fd, struct flock *fl)
+{
+  int ret = do_lock_get(fd, fl);
   if (ret) {
     error("OFD_GETLK failed, %s\n", strerror(errno));
     /* pretend nothing is locked */
@@ -110,8 +116,10 @@ int lock_file_region(int fd, int lck, long long start,
   if (ret)
     return -1;
   ret = lock_set(fd, &fl);
+#if FUNLCK_WA
   if (mlemu_fd != -1)
     lock_set(mlemu_fd, &fl);
+#endif
   flock(fd, LOCK_UN);
   return ret;
 }
@@ -120,14 +128,33 @@ int region_is_fully_owned(int fd, long long start, unsigned long len, int wr,
     int mlemu_fd2)
 {
   struct flock fl;
+  int err;
 
-  /* check on mirror fd so rd/wr inverted */
-  fl.l_type = wr ? F_RDLCK : F_WRLCK;
+  fl.l_type = F_UNLCK;
   fl.l_start = start;
   fl.l_len = len;
-  lock_get(mlemu_fd2, &fl);
+  err = do_lock_get(fd, &fl);
+#if FUNLCK_WA
+  if (err && errno == EINVAL) {  // F_UNLCK extension unsupported
+    /* check on mirror fd so rd/wr inverted */
+    fl.l_type = wr ? F_RDLCK : F_WRLCK;
+    fl.l_start = start;
+    fl.l_len = len;
+    lock_get(mlemu_fd2, &fl);
+  } else
+#endif
+  if (err) {
+    perror("fcntl()");
+    return 0;
+  }
   if (fl.l_type == F_UNLCK)
     return 0;  // not locked
+  if (wr && fl.l_type == F_RDLCK) {
+#if FUNLCK_WA
+    assert(!err);  // can only happen with F_UNLCK method
+#endif
+    return 0;  // not sufficient
+  }
   if (fl.l_start > start)
     return 0; // not fully locked
   if (fl.l_start + fl.l_len < start + len)
@@ -161,3 +188,28 @@ void region_unlock_offs(int fd)
 {
   flock(fd, LOCK_UN);
 }
+
+#if FUNLCK_WA
+void open_mlemu(int *r_fds)
+{
+    char mltmpl[] = "/tmp/dosemu2_mlemu_XXXXXX";
+    int fd0, fd1;
+
+    r_fds[0] = r_fds[1] = -1;
+    /* create 2 fds, 1 for mirroring locks and 1 for testing locks */
+    fd0 = mkstemp(mltmpl);
+    if (fd0 == -1) {
+      perror("mkstemp()");
+      return;
+    }
+    fd1 = open(mltmpl, O_RDONLY | O_CLOEXEC);
+    unlink(mltmpl);
+    if (fd1 == -1) {
+      perror("open()");
+      close(fd0);
+      return;
+    }
+    r_fds[0] = fd0;
+    r_fds[1] = fd1;
+}
+#endif
