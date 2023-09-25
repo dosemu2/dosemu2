@@ -1223,7 +1223,7 @@ static void reset_on_error(mstate m);
 
 /* -------------------------- Debugging setup ---------------------------- */
 
-#if ! DEBUG
+#ifndef DEBUG
 
 #define check_free_chunk(M,P)
 #define check_inuse_chunk(M,P)
@@ -1579,7 +1579,7 @@ static int change_mparam(int param_number, int value) {
   }
 }
 
-#if DEBUG
+#ifdef DEBUG
 /* ------------------------- Debugging Support --------------------------- */
 
 /* Check properties of any chunk, whether free, inuse, mmapped etc  */
@@ -3065,7 +3065,7 @@ static void** ialloc(mstate m,
     }
   }
 
-#if DEBUG
+#ifdef DEBUG
   if (marray != chunks) {
     /* final element must have exactly exhausted chunk */
     if (element_size != 0) {

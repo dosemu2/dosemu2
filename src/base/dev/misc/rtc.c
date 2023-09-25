@@ -402,7 +402,7 @@ unsigned long get_linux_ticks(int set_cmos, int *day_rollover)
 	/* Compute time of day in 1/100 second units, then to DOS ticks. */
 	tt = isec * 100 + (tv.tv_usec / 10000);
 
-#if USE_PIT_TICK_RATE
+#ifdef USE_PIT_TICK_RATE
 	tt = (tt * PIT_TICK_RATE) / 6553600;	/* Correct as per LINUX code, 44-bit intermediate product.*/
 	if(tt > FREEDOS_TICKS_IN_A_DAY) tt = FREEDOS_TICKS_IN_A_DAY;
 #else

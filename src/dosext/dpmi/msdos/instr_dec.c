@@ -45,12 +45,6 @@ static unsigned short patch_cs;
 #define SP (R_WORD(_esp))
 #define sreg_idx(reg) (es_INDEX+((reg)&0x7))
 
-#if DEBUG_INSTR >= 2
-#define instr_deb2(x...) D_printf("instr_dec: " x)
-#else
-#define instr_deb2(x...)
-#endif
-
 enum {REP_NONE, REPZ, REPNZ};
 static unsigned wordmask[5] = {0,0xff,0xffff,0xffffff,0xffffffff};
 
@@ -112,8 +106,6 @@ static unsigned arg_len(unsigned char *p, int asp)
       }
   }
 
-  instr_deb2("arg_len: %02x %02x %02x %02x: %u bytes\n", p[0], p[1], p[2], p[3], u);
-
   return u;
 }
 
@@ -121,9 +113,6 @@ static int _instr_len(unsigned char *p, int is_32)
 {
   unsigned u, osp, asp;
   unsigned char *p0 = p;
-#if DEBUG_INSTR >= 1
-  unsigned char *p1 = p;
-#endif
 
   osp = asp = is_32;
 
@@ -163,10 +152,6 @@ static int _instr_len(unsigned char *p, int is_32)
       u = 0;
   }
   p--;
-
-#if DEBUG_INSTR >= 1
-  p1 = p;
-#endif
 
   if(p - p0 >= 16) return 0;
 
@@ -230,20 +215,6 @@ static int _instr_len(unsigned char *p, int is_32)
     default:
       p = p0;
   }
-
-#if DEBUG_INSTR >= 1
-  if(p >= p0) {
-    instr_deb("instr_len: instr = ");
-    v_printf("%s%s%s%s%s",
-      osp ? "osp " : "", asp ? "asp " : "",
-      lock_txt[lock], rep_txt[rep], seg_txt[seg]
-    );
-    if(p > p1) for(u = 0; u < p - p1; u++) {
-      v_printf("%02x ", p1[u]);
-    }
-    v_printf("\n");
-  }
-#endif
 
   return p - p0;
 }
