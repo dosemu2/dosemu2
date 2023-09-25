@@ -5607,7 +5607,7 @@ static int dpmi_fault1(cpuctx_t *scp)
           LWORD32(eip, = org_eip + instr_len(lina, Segments(_cs>>3).is_32));
           break;
         default:
-          error("%s", DPMI_show_state(scp));
+          D_printf("%s", DPMI_show_state(scp));
           goto out;
       }
       break;
