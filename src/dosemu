@@ -62,7 +62,7 @@ while [ $# -gt 0 ] ; do
         echo "$1 is not installed"
         exit 1
       fi
-      OPTS="$OPTS --Flocaldir %I/install/$1"
+      OPTS="$OPTS --Flocal_dir %I/install/$1"
       LOG_FILE=~/.dosemu/boot.$1.log
       shift
       ;;
