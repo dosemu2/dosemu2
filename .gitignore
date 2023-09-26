@@ -2,6 +2,7 @@
 /config.status
 /config.sub
 *.d
+!dosrc.d
 *.o
 configure
 config.log

@@ -11,4 +11,3 @@ for %%b in (%XBATDRV%:\dosrc.d\*.bat) do call %%b
 :noxbat
 rem run dosemu2 plugins, including vars and -E commands.
 for %%b in (%DOSEMUDRV%:\dosemu\dosrc.d\*.bat) do call %%b
-if exist %USERDRV%:\userhook.bat call %USERDRV%:\userhook.bat
