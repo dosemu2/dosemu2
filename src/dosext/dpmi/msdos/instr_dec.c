@@ -569,14 +569,10 @@ int decode_segreg(cpuctx_t *scp)
 	  _eip = eip + 1;
 	  break;
 
-	case 0xb2: {	/* lss */
-	  int len = _instr_len(orig_csp, x86._32bit);
-	  _eip += len;
-	  assert(len > 1);
-	  lxx_patch(scp, MEM_BASE32(cs + eip), len - 1, x86._32bit);
+	case 0xb2:	/* lss */
+	  error("LSS unsopported\n");
 	  ret = ss_INDEX;
 	  break;
-	}
 
 	case 0xb4: {	/* lfs */
 	  int len = _instr_len(orig_csp, x86._32bit);
