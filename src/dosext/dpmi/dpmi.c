@@ -3582,9 +3582,10 @@ static void dpmi_cleanup(void)
   in_dpmi--;
   if (in_dpmi) {
     clnt_switch(in_dpmi - 1);
+    clear_ZF();
   } else {
-    port_outb(0xf1, 0); /* reset FPU */
     current_client = -1;
+    set_ZF(); /* reset FPU */
   }
 }
 
