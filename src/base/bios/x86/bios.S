@@ -596,6 +596,9 @@ DPMI_raw_mode_switch_rm:
 DPMI_save_restore_rm:
 	hlt
 	lret
+	.globl	DPMI_exit
+DPMI_exit:
+	int $0x21
 	.globl	DPMI_end
 DPMI_end:
 

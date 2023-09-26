@@ -32,6 +32,7 @@ extern const unsigned DPMI_int23_2;
 extern const unsigned DPMI_int24;
 extern const unsigned DPMI_raw_mode_switch_rm;
 extern const unsigned DPMI_save_restore_rm;
+extern const unsigned DPMI_exit;
 extern const unsigned DPMI_end;
 extern const unsigned XMSControl_OFF;
 extern const unsigned EOI_OFF;
