@@ -3637,13 +3637,12 @@ static void quit_dpmi(cpuctx_t *scp, unsigned short errcode,
     if (!have_tsr || !tsr_para) {
       HI(ax) = 0x4c;
       LO(ax) = errcode;
-      fake_int_to(DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_exit));
     } else {
       HI(ax) = 0x31;
       LO(ax) = errcode;
       LWORD(edx) = tsr_para;
-      fake_int_to(DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_exit));
     }
+    jmp_to(DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_exit));
   }
 }
 
