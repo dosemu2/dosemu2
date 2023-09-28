@@ -355,7 +355,13 @@ static void reserve_video_memory(void)
   if (config.umb_b0 && !config.dualmon) {
     if (!config.umb_a0)
       do_reserve_vmem(GRAPH_BASE, GRAPH_SIZE);
-    do_reserve_vmem(VGA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
+    if (!config.umb_b8)
+      do_reserve_vmem(VGA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
+  } else if (config.umb_b8) {
+    if (!config.umb_a0)
+      do_reserve_vmem(GRAPH_BASE, GRAPH_SIZE);
+    if (!config.umb_b0)
+      do_reserve_vmem(MDA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
   } else {
     if (!config.umb_a0)
       do_reserve_vmem(VMEM_BASE, VMEM_SIZE);

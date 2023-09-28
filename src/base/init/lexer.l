@@ -324,6 +324,7 @@ swap_bootdrive		RETURN(SWAP_BOOTDRIVE);
 xms			RETURN(L_XMS);
 umb_a0			RETURN(UMB_A0);
 umb_b0			RETURN(UMB_B0);
+umb_b8			RETURN(UMB_B8);
 umb_f0			RETURN(UMB_F0);
 hma			RETURN(HMA);
 dos_up			RETURN(DOS_UP);
