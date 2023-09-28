@@ -265,7 +265,7 @@ typedef struct config_info {
        int hogthreshold;
 
        int mem_size, ext_mem, xms_size, ems_size;
-       int umb_a0, umb_b0, umb_f0, hma;
+       int umb_a0, umb_b0, umb_b8, umb_f0, hma;
        unsigned int ems_frame;
        int ems_uma_pages, ems_cnv_pages;
        int dpmi, pm_dos_api, no_null_checks;
