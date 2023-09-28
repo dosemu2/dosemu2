@@ -955,6 +955,8 @@ static void config_post_process(void)
 	}
 #endif
     }
+    if (config.umb_b0 == -1)
+	config.umb_b0 = config.dumb_video;
 
     /* page-align memory sizes */
     config.ext_mem &= ~3;

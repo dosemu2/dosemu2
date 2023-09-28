@@ -600,7 +600,7 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		| UMB_B0 bool
 		    {
-		    config.umb_b0 = ($2!=0);
+		    config.umb_b0 = $2;
 		    if ($2 > 0) c_printf("CONF: umb at 0b0000: %s\n", ($2) ? "on" : "off");
 		    }
 		| UMB_F0 bool

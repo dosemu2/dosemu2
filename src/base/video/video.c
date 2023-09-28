@@ -507,7 +507,7 @@ void video_post_init(void)
     return;
   }
 
-  if (!config.vga) {
+  if (!config.vga && !config.dumb_video) {
     vga_emu_pre_init();
     render_init();
   }
