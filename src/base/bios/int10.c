@@ -260,6 +260,11 @@ static int using_mono_mode(void)
   return ((READ_BYTE(BIOS_VDU_CONTROL) & 0xc) == 0xc);
 }
 
+void direct_char_out(unsigned char ch, int page)
+{
+  tty_char_out(ch, page, -1);
+}
+
 /*
  * Output a character to the screen.
  * If attr != -1, set the attribute byte, too.

@@ -109,9 +109,9 @@ void getKeys(void);
 
 #include "dosemu_debug.h"
 
-     void char_out(u_char, int);
-
-     void keybuf_clear(void);
+void char_out(u_char, int);
+void direct_char_out(u_char, int);
+void keybuf_clear(void);
 
 /* this macro can be safely wrapped around a system call with no side
  * effects; using a feature of GCC, it returns the same value as the

@@ -323,7 +323,7 @@ void error(const char *fmt, ...)
 
 
 /* write string to dos? */
-int p_dos_vstr(const char *fmt, va_list args)
+static int _dos_vstr(const char *fmt, va_list args, void (*cout)(u_char, int))
 {
   static char buf[1024];
   char *s;
@@ -333,8 +333,13 @@ int p_dos_vstr(const char *fmt, va_list args)
   s = buf;
   g_printf("CONSOLE MSG: '%s'\n",buf);
   while (*s)
-	char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+	cout(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
   return i;
+}
+
+int p_dos_vstr(const char *fmt, va_list args)
+{
+  return _dos_vstr(fmt, args, char_out);
 }
 
 int p_dos_str(const char *fmt, ...)
@@ -344,6 +349,18 @@ int p_dos_str(const char *fmt, ...)
 
   va_start(args, fmt);
   i = p_dos_vstr(fmt, args);
+  va_end(args);
+
+  return i;
+}
+
+int p_direct_str(const char *fmt, ...)
+{
+  va_list args;
+  int i;
+
+  va_start(args, fmt);
+  i = _dos_vstr(fmt, args, direct_char_out);
   va_end(args);
 
   return i;

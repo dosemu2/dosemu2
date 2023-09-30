@@ -691,12 +691,12 @@ void dpmi_get_entry_point(void)
     D_printf("Request for DPMI entry\n");
 
     if (dpmi_not_supported) {
-      p_dos_str("DPMI is not supported on your linux kernel!\n");
+      p_direct_str("DPMI is not supported on your linux kernel!\n");
       CARRY;
       return;
     }
     if (!config.dpmi) {
-      p_dos_str("DPMI disabled, please check the dosemu config and log\n");
+      p_direct_str("DPMI disabled, please check the dosemu config and log\n");
       CARRY;
       return;
     }
@@ -1658,7 +1658,7 @@ static void get_ext_API(cpuctx_t *scp)
       } else
       if (!strcmp("PHARLAP.HWINT_SUPPORT", ptr) || !strcmp("PHARLAP.CE_SUPPORT", ptr) ||
 	    !strcmp("PHARLAP.16", ptr) || !strncmp("PHARLAP.", ptr, 8)) {
-//	p_dos_str("DPMI: pharlap extender unsupported (%s)\n", ptr);
+//	p_direct_str("DPMI: pharlap extender unsupported (%s)\n", ptr);
 	D_printf("DPMI: pharlap extender unsupported (%s)\n", ptr);
 	DPMI_CLIENT.feature_flags |= DF_PHARLAP;
 	_LO(ax) = 0;
@@ -4200,7 +4200,7 @@ void dpmi_init(void)
     return;
 
   if (in_dpmi>=DPMI_MAX_CLIENTS) {
-    p_dos_str("Sorry, only %d DPMI clients supported under DOSEMU :-(\n", DPMI_MAX_CLIENTS);
+    p_direct_str("Sorry, only %d DPMI clients supported under DOSEMU :-(\n", DPMI_MAX_CLIENTS);
     return;
   }
 
@@ -4425,7 +4425,7 @@ static void cpu_exception_rm(cpuctx_t *scp, int trapno)
         do_int(trapno);
 	break;
     default:
-	p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
+	p_direct_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
 	  "It is likely that dosemu is unstable now and should be rebooted\n",
 	  trapno);
 	quit_dpmi(scp, 0xff, 0, 0, 1);
@@ -5167,7 +5167,7 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
       int inum = _err >> 3;
       if (inum != lina[1]) {
         error("DPMI: internal error, %x %x\n", inum, lina[1]);
-        p_dos_str("DPMI: internal error, %x %x\n", inum, lina[1]);
+        p_direct_str("DPMI: internal error, %x %x\n", inum, lina[1]);
         quit_dpmi(scp, 0xff, 0, 0, 1);
         return 1;
       }
