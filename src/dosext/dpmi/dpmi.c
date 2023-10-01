@@ -67,6 +67,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "emu-ldt.h"
 #include "instremu.h"
 #include "kvm.h"
+#include "coopth.h"
 #include "vtmr.h"
 #include "dnative/dnative.h"
 #include "dpmi_api.h"
@@ -123,7 +124,7 @@ static int dpmi_mhp_intxx_check(cpuctx_t *scp, int intno);
 static int dpmi_fault1(cpuctx_t *scp);
 static void do_dpmi_retf(cpuctx_t *scp, void * const sp);
 static far_t s_i1c, s_i23, s_i24;
-
+static int prn_tid;
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
 static int DPMI_rm_procedure_running = 0;
 
@@ -253,21 +254,24 @@ static inline int modify_ldt(int func, void *ptr, unsigned long bytecount)
 }
 #endif
 
+static void print_thr(void *arg)
+{
+  com_doswritecon(arg, strlen(arg));
+}
+
 FORMAT(printf, 1, 2)
 static int p_direct_str(const char *fmt, ...)
 {
-  char buf[1024];
+  static char buf[1024];
   va_list args;
-  char *s;
   int i;
 
   va_start(args, fmt);
   i = com_vsnprintf(buf, sizeof(buf), fmt, args);
   va_end(args);
-  s = buf;
-  g_printf("CONSOLE MSG: '%s'\n",buf);
-  while (*s)
-	direct_char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+  if (in_dpmi_pm())
+    fake_pm_int();
+  coopth_start(prn_tid, buf);
   return i;
 }
 
@@ -4069,6 +4073,8 @@ void dpmi_setup(void)
       break;
     }
 
+    prn_tid = coopth_create("dpmi print thr", print_thr);
+
     return;
 
 err:
@@ -4443,10 +4449,10 @@ static void cpu_exception_rm(cpuctx_t *scp, int trapno)
         do_int(trapno);
 	break;
     default:
+	quit_dpmi(scp, 0xff, 0, 0, 1);
 	p_direct_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
 	  "It is likely that dosemu is unstable now and should be rebooted\n",
 	  trapno);
-	quit_dpmi(scp, 0xff, 0, 0, 1);
 	break;
   }
 }
@@ -5185,8 +5191,8 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
       int inum = _err >> 3;
       if (inum != lina[1]) {
         error("DPMI: internal error, %x %x\n", inum, lina[1]);
-        p_direct_str("DPMI: internal error, %x %x\n", inum, lina[1]);
         quit_dpmi(scp, 0xff, 0, 0, 1);
+        p_direct_str("DPMI: internal error, %x %x\n", inum, lina[1]);
         return 1;
       }
       D_printf("DPMI: int 0x%04x, AX=0x%04x\n", inum, _LWORD(eax));
