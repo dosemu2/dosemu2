@@ -691,12 +691,12 @@ void dpmi_get_entry_point(void)
     D_printf("Request for DPMI entry\n");
 
     if (dpmi_not_supported) {
-      p_direct_str("DPMI is not supported on your linux kernel!\n");
+      com_printf("DPMI is not supported on your linux kernel!\n");
       CARRY;
       return;
     }
     if (!config.dpmi) {
-      p_direct_str("DPMI disabled, please check the dosemu config and log\n");
+      com_printf("DPMI disabled, please check the dosemu config and log\n");
       CARRY;
       return;
     }
