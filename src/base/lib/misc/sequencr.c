@@ -106,7 +106,7 @@ struct seq_item_s *sequencer_add(void *handle, unsigned long long tstamp)
 
   pthread_mutex_lock(&s->seq_mtx);
   if (s->tail) {
-    assert(tstamp > s->tail->tstamp);
+    assert(tstamp >= s->tail->tstamp);
     s->tail->next = i;
   } else {
     assert(!s->head);

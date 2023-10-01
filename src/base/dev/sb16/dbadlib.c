@@ -253,8 +253,12 @@ static void dbadlib_generate(int total, int16_t output[][2], double start,
 		start += todo * period;
 		done += todo;
 		if (next) {
-			extract_event(next);
-			next = sequencer_get_next(seq);
+			long long next1 = next;
+			do {
+				extract_event(next1);
+				next1 = sequencer_get_next(seq);
+			} while (next1 == next);  // timestamps may duplicate
+			next = next1;
 		}
 	}
 }
