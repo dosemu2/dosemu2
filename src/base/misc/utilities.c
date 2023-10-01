@@ -325,7 +325,7 @@ void error(const char *fmt, ...)
 /* write string to dos? */
 static int _dos_vstr(const char *fmt, va_list args, void (*cout)(u_char, int))
 {
-  static char buf[1024];
+  char buf[1024];
   char *s;
   int i;
 
