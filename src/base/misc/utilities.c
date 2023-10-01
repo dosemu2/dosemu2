@@ -354,18 +354,6 @@ int p_dos_str(const char *fmt, ...)
   return i;
 }
 
-int p_direct_str(const char *fmt, ...)
-{
-  va_list args;
-  int i;
-
-  va_start(args, fmt);
-  i = _dos_vstr(fmt, args, direct_char_out);
-  va_end(args);
-
-  return i;
-}
-
 /* some stuff to handle reading of /proc */
 
 static char *procfile_name=0;

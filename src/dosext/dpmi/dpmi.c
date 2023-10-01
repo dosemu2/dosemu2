@@ -253,6 +253,24 @@ static inline int modify_ldt(int func, void *ptr, unsigned long bytecount)
 }
 #endif
 
+FORMAT(printf, 1, 2)
+static int p_direct_str(const char *fmt, ...)
+{
+  char buf[1024];
+  va_list args;
+  char *s;
+  int i;
+
+  va_start(args, fmt);
+  i = com_vsnprintf(buf, sizeof(buf), fmt, args);
+  va_end(args);
+  s = buf;
+  g_printf("CONSOLE MSG: '%s'\n",buf);
+  while (*s)
+	direct_char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+  return i;
+}
+
 int dpmi_isset_IF(void)
 {
     assert(in_dpmi);
