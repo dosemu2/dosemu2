@@ -217,9 +217,9 @@ static void *dbadlib_create(int opl3_rate)
 
 static int opl_idx;
 
-static void extract_event(unsigned long long next)
+static void extract_event(void)
 {
-	struct seq_item_s *i = sequencer_get(seq, next);
+	struct seq_item_s *i = sequencer_get(seq);
 	int port, val;
 	assert(i);
 	port = sequencer_find(i, STAG_PORT);
@@ -240,7 +240,7 @@ static void dbadlib_generate(int total, int16_t output[][2], double start,
 	double end = start + total * period;
 	long long next = sequencer_get_next(seq);
 	while (next && start > next) {
-		extract_event(next);
+		extract_event();
 		next = sequencer_get_next(seq);
 	}
 	while (total > done) {
@@ -255,7 +255,7 @@ static void dbadlib_generate(int total, int16_t output[][2], double start,
 		if (next) {
 			long long next1 = next;
 			do {
-				extract_event(next1);
+				extract_event();
 				next1 = sequencer_get_next(seq);
 			} while (next1 == next);  // timestamps may duplicate
 			next = next1;

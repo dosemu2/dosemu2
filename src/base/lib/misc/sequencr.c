@@ -125,14 +125,13 @@ void sequencer_add_tag(struct seq_item_s *i, int tag, int data)
   i->ntags++;
 }
 
-void *sequencer_get(void *handle, unsigned long long tstamp)
+void *sequencer_get(void *handle)
 {
   struct seq_s *s = handle;
-  struct seq_item_s *i = NULL;
+  struct seq_item_s *i;
 
   pthread_mutex_lock(&s->seq_mtx);
-  if (tstamp >= s->head->tstamp)
-    i = do_get(s);
+  i = do_get(s);
   pthread_mutex_unlock(&s->seq_mtx);
   return i;
 }
