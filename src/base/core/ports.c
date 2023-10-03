@@ -219,7 +219,9 @@ Bit16u port_inw(ioport_t port)
 {
 	Bit16u res;
 
-	if (EMU_HANDLER(port).read_portw != NULL) {
+	if (EMU_HANDLER(port).read_portw != NULL &&
+			EMU_HANDLER(port).read_portb == EMU_HANDLER(port + 1).read_portb
+	) {
 		res = EMU_HANDLER(port).read_portw(port, EMU_HANDLER(port).arg);
 		return LOG_PORT_READ_W(port, res);
 	}
@@ -238,7 +240,9 @@ Bit16u port_inw(ioport_t port)
  */
 void port_outw(ioport_t port, Bit16u word)
 {
-	if (EMU_HANDLER(port).write_portw != NULL) {
+	if (EMU_HANDLER(port).write_portw != NULL &&
+			EMU_HANDLER(port).write_portb == EMU_HANDLER(port + 1).write_portb
+	) {
 		LOG_PORT_WRITE_W(port, word);
 		EMU_HANDLER(port).write_portw(port, word, EMU_HANDLER(port).arg);
 	}
@@ -260,7 +264,11 @@ Bit32u port_ind(ioport_t port)
 {
 	Bit32u res;
 
-	if (EMU_HANDLER(port).read_portd != NULL) {
+	if (EMU_HANDLER(port).read_portd != NULL &&
+			EMU_HANDLER(port).read_portb == EMU_HANDLER(port + 1).read_portb &&
+			EMU_HANDLER(port).read_portb == EMU_HANDLER(port + 2).read_portb &&
+			EMU_HANDLER(port).read_portb == EMU_HANDLER(port + 3).read_portb
+	) {
 		res = EMU_HANDLER(port).read_portd(port, EMU_HANDLER(port).arg);
 	}
 	else {
@@ -272,7 +280,11 @@ Bit32u port_ind(ioport_t port)
 void port_outd(ioport_t port, Bit32u dword)
 {
 	LOG_PORT_WRITE_D(port, dword);
-	if (EMU_HANDLER(port).write_portd != NULL) {
+	if (EMU_HANDLER(port).write_portd != NULL &&
+			EMU_HANDLER(port).write_portb == EMU_HANDLER(port + 1).write_portb &&
+			EMU_HANDLER(port).write_portb == EMU_HANDLER(port + 2).write_portb &&
+			EMU_HANDLER(port).write_portb == EMU_HANDLER(port + 3).write_portb
+	) {
 		EMU_HANDLER(port).write_portd(port, dword, EMU_HANDLER(port).arg);
 	}
 	else {
