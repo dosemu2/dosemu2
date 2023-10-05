@@ -71,7 +71,6 @@ static uint16_t hlt_off;
 struct vthandler {
     int (*handler)(int);
     int (*latch)(void);
-    void (*idle)(void);
     int vint;
     int done_pred;
     pthread_mutex_t done_mtx;
@@ -163,8 +162,6 @@ static void vtmr_io_write(ioport_t port, Bit8u value, void *arg)
             int rc = vth[timer].handler(masked);
             if (rc)
                 do_vtmr_raise(timer);
-            else if (vth[timer].idle)
-                vth[timer].idle();
         }
         h_printf("vtmr: ACK on %i, irr=%x\n", timer, vtmr_irr);
         break;
@@ -471,13 +468,6 @@ void vtmr_register_latch(int timer, int (*handler)(void))
     struct vthandler *vt = &vth[timer];
     assert(timer < VTMR_MAX);
     vt->latch = handler;
-}
-
-void vtmr_register_idle(int timer, void (*handler)(void))
-{
-    struct vthandler *vt = &vth[timer];
-    assert(timer < VTMR_MAX);
-    vt->idle = handler;
 }
 
 void vtmr_set_tweaked(int timer, int on, unsigned flags)

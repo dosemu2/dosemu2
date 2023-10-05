@@ -11,7 +11,6 @@ void vtmr_latch(int vtmr_num);
 void vtmr_sync(int vtmr_num);
 void vtmr_register(int timer, int (*handler)(int));
 void vtmr_register_latch(int timer, int (*handler)(void));
-void vtmr_register_idle(int timer, void (*handler)(void));
 void vtmr_set_tweaked(int timer, int on, unsigned flags);
 
 int vtmr_pre_irq_dpmi(uint8_t *imr);

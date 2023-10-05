@@ -12,7 +12,6 @@
 #include "serial.h"
 #include "timers.h"
 #include "virq.h"
-#include "vtmr.h"
 #include "coopth.h"
 #include "utilities.h"
 #include "doshelpers.h"
@@ -145,14 +144,11 @@ void graph_plane(int);
 /* called when mouse changes */
 static void mouse_delta(int);
 
-static void do_mouse_idle(void);
-
 /* Internal mouse helper functions */
 static int mouse_clip_coords(void);
 static void mouse_hide_on_exclusion(void);
 
-static int mouse_events;
-static int fifo_cnt;
+static int mouse_events = 0;
 struct dragged_hack {
   int cnt, skipped;
   int x, y, x_range, y_range;
@@ -282,9 +278,6 @@ mouse_helper(struct vm86_regs *regs)
     break;
   case 0xb:				/* ungrabbed mode tweak */
     mice->ignore_speed = LO_BYTE_d(regs->ecx);
-    break;
-  case 0xc:				/* throttle tweak */
-    mice->throttle = LO_BYTE_d(regs->ecx);
     break;
   case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
     m_printf("MOUSE Start video mode set\n");
@@ -2291,16 +2284,11 @@ static enum VirqHwRet do_mouse_fifo(void *arg)
 {
   int cnt = mousedrv_process_fifo("int33 mouse");
   if (cnt == -1) {
-    fifo_cnt = 0;
     error("mouse fifo empty\n");
     return VIRQ_HWRET_DONE;
   }
   if (mouse_events)
     pic_request(12);  // for ps2
-  if (mice->throttle) {
-    fifo_cnt = cnt;  // delay remaining events to idle calls
-    return VIRQ_HWRET_DONE;
-  }
   return (cnt ? VIRQ_HWRET_CONT : VIRQ_HWRET_DONE);
 }
 
@@ -2352,7 +2340,6 @@ static int int33_mouse_init(void)
   virq_register(VIRQ_MOUSE, do_mouse_fifo, do_mouse_irq, NULL);
   mouse_tid = coopth_create("mouse", call_mouse_event_handler);
   sigalrm_register_handler(mouse_curtick);
-  vtmr_register_idle(VTMR_PIT, do_mouse_idle);
 
   m_printf("MOUSE: INIT complete\n");
   return 1;
@@ -2375,12 +2362,6 @@ static int int33_mouse_accepts(int from, void *udata)
 static void fifo_notify(void *udata)
 {
   virq_raise(VIRQ_MOUSE);
-}
-
-static void do_mouse_idle(void)
-{
-  if (fifo_cnt)
-    virq_raise(VIRQ_MOUSE);
 }
 
 void mouse_late_init(void)
