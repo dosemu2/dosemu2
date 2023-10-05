@@ -216,20 +216,21 @@ int OpenNetworkLink(void (*cbk)(int, int))
 	case VNET_TYPE_SOCK:
 		if (config.netsock && config.netsock[0])
 			o = find_ops(VNET_TYPE_SOCK);
-		if (BAD_OPS())
-			ret = -1;
-		else
+		if (!BAD_OPS()) {
 			ret = o->open(config.netsock, CB());
-		if (ret < 0) {
-			if (config.vnet == VNET_TYPE_AUTO || open_cnt > 1)
-				warn("PKT: Cannot open sock\n");
-			else
-				error("Unable to open sock\n");
-		} else {
-			if (config.vnet == VNET_TYPE_AUTO)
-				config.vnet = VNET_TYPE_SOCK;
-			pd_printf("PKT: Using sock networking\n");
-			break;
+			if (ret < 0) {
+				if (config.vnet == VNET_TYPE_AUTO || open_cnt > 1)
+					warn("PKT: Cannot open sock\n");
+				else
+					error("Unable to open sock\n");
+			} else {
+				if (config.vnet == VNET_TYPE_AUTO)
+					config.vnet = VNET_TYPE_SOCK;
+				pd_printf("PKT: Using sock networking\n");
+				break;
+			}
+		} else if (config.vnet == VNET_TYPE_SOCK && open_cnt == 1) {
+			error("Unable to open sock\n");
 		}
 		/* no break, try slirp */
 	case VNET_TYPE_SLIRP: {
@@ -239,20 +240,21 @@ int OpenNetworkLink(void (*cbk)(int, int))
 			break;
 		}
 		o = find_ops(VNET_TYPE_SLIRP);
-		if (BAD_OPS())
-			ret = -1;
-		else
+		if (!BAD_OPS()) {
 			ret = o->open("slirp", CB());
-		if (ret < 0) {
-			if (config.vnet == VNET_TYPE_AUTO || open_cnt > 1)
-				warn("PKT: Cannot run slirp\n");
-			else
-				error("Unable to run slirp\n");
-		} else {
-			if (config.vnet == VNET_TYPE_AUTO)
-				config.vnet = VNET_TYPE_SLIRP;
-			pd_printf("PKT: Using slirp networking\n");
-			break;
+			if (ret < 0) {
+				if (config.vnet == VNET_TYPE_AUTO || open_cnt > 1)
+					warn("PKT: Cannot run slirp\n");
+				else
+					error("Unable to run slirp\n");
+			} else {
+				if (config.vnet == VNET_TYPE_AUTO)
+					config.vnet = VNET_TYPE_SLIRP;
+				pd_printf("PKT: Using slirp networking\n");
+				break;
+			}
+		} else if (config.vnet == VNET_TYPE_SLIRP && open_cnt == 1) {
+			error("Unable to open slirp\n");
 		}
 		/* no break, try VDE */
 	}
@@ -264,20 +266,21 @@ int OpenNetworkLink(void (*cbk)(int, int))
 			break;
 		}
 		o = find_ops(VNET_TYPE_VDE);
-		if (BAD_OPS())
-			ret = -1;
-		else
+		if (!BAD_OPS()) {
 			ret = o->open(config.vdeswitch, CB());
-		if (ret < 0) {
-			if (config.vnet == VNET_TYPE_AUTO || open_cnt > 1)
-				warn("PKT: Cannot run VDE %s\n", pr_dev);
-			else
-				error("Unable to run VDE %s\n", pr_dev);
-		} else {
-			if (config.vnet == VNET_TYPE_AUTO)
-				config.vnet = VNET_TYPE_VDE;
-			pd_printf("PKT: Using device %s\n", pr_dev);
-			break;
+			if (ret < 0) {
+				if (config.vnet == VNET_TYPE_AUTO || open_cnt > 1)
+					warn("PKT: Cannot run VDE %s\n", pr_dev);
+				else
+					error("Unable to run VDE %s\n", pr_dev);
+			} else {
+				if (config.vnet == VNET_TYPE_AUTO)
+					config.vnet = VNET_TYPE_VDE;
+				pd_printf("PKT: Using device %s\n", pr_dev);
+				break;
+			}
+		} else if (config.vnet == VNET_TYPE_VDE && open_cnt == 1) {
+			error("Unable to open VDE\n");
 		}
 		/* no break, try whatever remains */
 	}
