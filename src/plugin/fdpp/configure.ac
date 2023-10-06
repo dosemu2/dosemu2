@@ -3,20 +3,21 @@ AC_INIT
 AC_CONFIG_HEADERS([_fdppconf.h])
 AC_CONFIG_FILES([Makefile.conf])
 PKG_PROG_PKG_CONFIG
-AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
+AC_ARG_WITH([fdpp-lib-dir], AS_HELP_STRING([--with-fdpp-lib-dir=DIR],
         [use alternate fdpp dir]),
   [
-    fdpp_lib_dir=$withval
-    AC_ARG_WITH([fdpp-include-path],
-        AS_HELP_STRING([--with-fdpp-include-path=DIR],
-            [set fdpp include dir]), fdpp_inc_dir="$withval",
-        AC_MSG_ERROR([use --with-fdpp-include-path]))
+    fdpp_lib_dir="$withval"
+    AC_ARG_WITH([fdpp-include-dir],
+        AS_HELP_STRING([--with-fdpp-include-dir=DIR],
+            [set fdpp include dir]),
+            fdpp_inc_dir="$withval",
+        AC_MSG_ERROR([use --with-fdpp-include-dir]))
     export PKG_CONFIG_PATH="$fdpp_lib_dir"
     export PKG_CONFIG="$PKG_CONFIG \
         --define-variable=includedir=$fdpp_inc_dir \
-        --define-variable=fdpplibdir=$fdpp_lib_dir \
-        --define-variable=fdpprlibdir=$fdpp_lib_dir"
+        --define-variable=fdpplibdir=$fdpp_lib_dir"
     AC_DEFINE_UNQUOTED(FDPP_KERNEL_DIR, "$fdpp_lib_dir")
+    FDPP_RPATH="$fdpp_lib_dir"
   ],
   [
     if test "x$prefix" = xNONE; then
@@ -26,11 +27,18 @@ AC_ARG_WITH([fdpp-build-path], AS_HELP_STRING([--with-fdpp-build-path=DIR],
       else
         export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$ac_default_prefix/lib/pkgconfig"
       fi
+      FDPP_RPATH="$ac_default_prefix/lib/fdpp"
+    else
+      FDPP_RPATH="$prefix/lib/fdpp"
     fi
   ]
 )
+AC_SUBST(FDPP_RPATH)
+
 PKG_CHECK_MODULES([FDPP], [fdpp >= 1.7],,
     AC_MSG_ERROR([fdpp installation not found or too old]))
+# hack away rpath as we provide our own
+FDPP_LIBS=`echo "$FDPP_LIBS" | sed -E 's/-Wl,[[^ ]]+ //'`
 PKG_CHECK_MODULES([VALGRIND], [valgrind], AC_DEFINE(HAVE_VALGRIND),
   AC_MSG_NOTICE([valgrind support disabled]))
 AH_TEMPLATE([HAVE_VALGRIND],
