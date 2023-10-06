@@ -35,13 +35,13 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
     sudo apt install binutils
   fi
 
-  make clean all install PREFIX=${LOCALFDPPINST}
+  make
+  sudo make install PREFIX=/usr/local
 )
 
 # Install the build dependancies based Dosemu's debian/control file
 mk-build-deps --install --root-cmd sudo
 
-export PKG_CONFIG_PATH=${LOCALFDPPINST}/lib/pkgconfig
 if [ "${SUBTYPE}" = "asan" ] ; then
   sed -i 's/asan off/asan on/g' compiletime-settings.devel
 fi
