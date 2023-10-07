@@ -4442,9 +4442,13 @@ static void return_from_exception(cpuctx_t *scp)
 static void cpu_exception_rm(cpuctx_t *scp, int trapno)
 {
   switch (trapno) {
+    case 0x00: /* divz */
     case 0x01: /* debug */
+    case 0x02: /* NMI */
     case 0x03: /* int3 */
     case 0x04: /* overflow */
+    case 0x05: /* bound */
+    case 0x07: /* no FPU */
 	__fake_pm_int(scp);
         do_int(trapno);
 	break;
