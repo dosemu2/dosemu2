@@ -4587,11 +4587,15 @@ int dpmi_realmode_exception(unsigned trapno, unsigned err, uint32_t cr2)
 {
   cpuctx_t *scp = &DPMI_CLIENT.stack_frame;
   unsigned int *ssp;
+  unsigned short old_ss;
+  unsigned int old_esp;
 
   if (trapno >= 0x20 ||
       DPMI_CLIENT.Exception_Table_RM[trapno].selector == dpmi_sel())
     return 0;
 
+  old_ss = _ss;
+  old_esp = _esp;
   save_pm_regs(&DPMI_CLIENT.stack_frame);
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
   ssp = enter_lpms(&DPMI_CLIENT.stack_frame);
@@ -4618,23 +4622,23 @@ int dpmi_realmode_exception(unsigned trapno, unsigned err, uint32_t cr2)
   }
   /* Standard exception stack frame - DPMI 0.9 */
   if (DPMI_CLIENT.is_32) {
-    *--ssp = _SS;
-    *--ssp = _SP;
-    *--ssp = get_FLAGS(REG(eflags)) | VM_MASK;
-    *--ssp = _CS;
-    *--ssp = _IP;
-    *--ssp = err;
+    *--ssp = old_ss;
+    *--ssp = old_esp;
+    *--ssp = dpmi_flags_to_stack(_eflags);
+    *--ssp = _cs;
+    *--ssp = _eip;
+    *--ssp = _err;
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_rm_exception);
   } else {
     *--ssp = 0;
     *--ssp = 0;
     *--ssp = 0;
-    *--ssp = 0;
+    *--ssp = old_esp >> 16;  // save high esp word or it can be corrupted
 
-    *--ssp = (_SS << 16) | (unsigned short) _SP;
-    *--ssp = ((unsigned short) (get_FLAGS(REG(eflags)) | VM_MASK) << 16) | _CS;
-    *--ssp = ((unsigned)_IP << 16) | err;
+    *--ssp = (old_ss << 16) | (unsigned short) old_esp;
+    *--ssp = ((unsigned short) dpmi_flags_to_stack(_eflags) << 16) | _cs;
+    *--ssp = (_LWORD_(eip) << 16) | _err;
     *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_rm_exception);
   }
   ADD_16_32(_esp, -0x58);
@@ -4913,27 +4917,9 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
 	  leave_lpms(scp);
 	  pm_to_rm_regs(scp, ~0);
+	  return_from_exception(scp);
 	  restore_pm_regs(scp);
 	  dpmi_set_pm(0);
-	  if (DPMI_CLIENT.is_32) {
-	    unsigned int *ssp = sp;
-	    /* popping error code */
-	    ssp++;
-	    _IP = *ssp++;
-	    _CS = *ssp++;
-	    set_EFLAGS(REG(eflags), *ssp++);
-	    _SP = *ssp++;
-	    _SS = *ssp++;
-	  } else {
-	    unsigned short *ssp = sp;
-	    /* popping error code */
-	    ssp++;
-	    _IP = *ssp++;
-	    _CS = *ssp++;
-	    set_EFLAGS(REG(eflags), *ssp++);
-	    _SP = *ssp++;
-	    _SS = *ssp++;
-	  }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_rm_ext_exception)) {
 	  unsigned int *ssp = sp;
@@ -5099,11 +5085,11 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);
-	  D_printf("DPMI: default exception handler 0x%02x called\n",excp);
 	  do_dpmi_retf(scp, sp);
 	  /* legacy (0.9) exceptions are routed to PM int handlers */
 	  leave_lpms(scp);
 	  return_from_exception(scp);
+	  D_printf("DPMI: default exception handler 0x%02x called\n",excp);
 	  do_default_cpu_exception(scp, excp);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_ext_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_ext_exception))) {
@@ -5124,8 +5110,13 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_rm_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_rm_exception))) {
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_rm_exception);
+	  do_dpmi_retf(scp, sp);
+	  leave_lpms(scp);
+	  return_from_exception(scp);
 	  D_printf("DPMI: default rm exception handler 0x%02x called\n",excp);
-	  cpu_exception_rm(scp, excp);
+	  restore_pm_regs(scp);
+	  dpmi_set_pm(0);
+	  do_int(excp);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_interrupt)) &&
 		   (_eip<1+256+DPMI_SEL_OFF(DPMI_interrupt))) {
