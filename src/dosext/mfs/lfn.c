@@ -489,9 +489,8 @@ static int build_truename(char *dest, const char *src, int mode)
 	case 0:
 		break;
 	case -DISK_DRIVE_INVALID:
-		assert(dd >= 0);
-		if (get_redirection_root1(dd, NULL, 0) <= 0)
-			return -2;
+		if (dd >= 0 && get_redirection_root1(dd, NULL, 0) <= 0)
+			return -2;  // valid but not our drive
 		/* no break */
 	default:
 		lfn_error(-err);
