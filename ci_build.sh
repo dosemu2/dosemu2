@@ -36,7 +36,7 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
   fi
 
   make
-  sudo make install PREFIX=/usr/local
+  sudo make install
 )
 
 # Install the build dependancies based Dosemu's debian/control file
