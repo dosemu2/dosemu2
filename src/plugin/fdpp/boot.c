@@ -32,15 +32,13 @@
 #include "boot.h"
 
 int fdpp_boot(far_t *plt, int plt_len, const void *krnl, int len,
-        uint16_t seg, int khigh,
+        uint16_t seg, uint16_t off, int khigh,
         uint16_t heap_seg, int heap, int hhigh, unsigned char *boot_sec,
         uint16_t bpseg)
 {
     int i;
     struct _bprm bprm = {};
     struct _bprm_xtra *xtra = MK_FP32(bpseg, 0);
-    uint16_t ofs = 0x0000;
-    dosaddr_t loadaddress = SEGOFF2LINEAR(seg, ofs);
     uint16_t env_seg = FDPP_BS_SEG + (FDPP_BS_OFF >> 4) + 0x20;  // stack+bs
     char *env = SEG2UNIX(env_seg);
     int env_len = 0;
@@ -175,13 +173,13 @@ int fdpp_boot(far_t *plt, int plt_len, const void *krnl, int len,
     *(uint16_t *)(boot_sec + FDPP_BPRM_VER_OFFSET) = BPRM_VER;
     memcpy(boot_sec + FDPP_BPRM_OFFSET, &bprm, sizeof(bprm));
 
-    SREG(ds)  = loadaddress >> 4;
-    SREG(es)  = loadaddress >> 4;
+    SREG(ds)  = seg;
+    SREG(es)  = seg;
     SREG(ss)  = FDPP_BS_SEG;
     LWORD(esp) = FDPP_BS_OFF;  /* temp stack */
     LWORD(ebp) = FDPP_BS_OFF;
     SREG(cs)  = seg;
-    LWORD(eip) = ofs;
+    LWORD(eip) = off;
 
     int_try_disable_revect();
     /* try disable int hooks as well */

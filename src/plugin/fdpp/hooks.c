@@ -97,6 +97,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     static far_t plt[PLT_LEN];
     static int initialized;
     uint16_t seg;
+    uint32_t off;
     uint16_t bpseg;
     uint16_t heap_seg;
     uint16_t daddr;
@@ -124,9 +125,10 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     if (!fddir)
 	fddir = FdppKernelDir();
     assert(fddir);
-    hndl = FdppKernelLoad(fddir, &krnl_len, &bss);
+    hndl = FdppKernelLoad(fddir, &krnl_len, &bss, &off);
     if (!hndl)
         return -1;
+    assert(off < 65536);
     if (config.dos_up) {
         int tot_sz;
         int to_hma = (config.dos_up == 2 && xms_helper_init_ext());
@@ -163,7 +165,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
 	free(bss);
     }
     FdppKernelFree(hndl);
-    err = fdpp_boot(plt, PLT_LEN, krnl, krnl_len, seg, khigh, heap_seg,
+    err = fdpp_boot(plt, PLT_LEN, krnl, krnl_len, seg, off, khigh, heap_seg,
 	    heap_sz, hhigh, boot_sec, bpseg);
     if (err)
 	return err;
