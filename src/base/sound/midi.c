@@ -89,8 +89,12 @@ void midi_init(void)
     }
     pcm_init_plugins(in, in_registered);
 
+    if (out_enabled[ST_GM])
+	synth_type = ST_GM;
+    else if (out_enabled[ST_MT32])
+	synth_type = ST_MT32;
     if (!midi_set_synth_type_from_string(config.midi_synth))
-	error("MIDI: unsupported synth mode %s\n", config.midi_synth);
+	S_printf("MIDI: unsupported synth mode %s\n", config.midi_synth);
 }
 
 void midi_done(void)
