@@ -98,6 +98,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     static int initialized;
     uint16_t seg;
     uint32_t off;
+    uint16_t new_seg;
     uint16_t bpseg;
     uint16_t heap_seg;
     uint16_t daddr;
@@ -129,6 +130,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     if (!hndl)
         return -1;
     assert(off < 65536);
+    assert(!kptr);
     if (config.dos_up) {
         int tot_sz;
         int to_hma = (config.dos_up == 2 && xms_helper_init_ext());
@@ -152,7 +154,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
         seg = 0x90;
         hhigh++;
     }
-    krnl = FdppKernelReloc(hndl, seg);
+    krnl = FdppKernelReloc(hndl, seg, &new_seg);
     if (!krnl)
         return -1;
     /* copy kernel, clear bss and boot it */
@@ -160,13 +162,13 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     if (bss) {
 	int i;
 	for (i = 0; i < bss->num; i++)
-	    MEMSET_DOS(SEGOFF2LINEAR(seg, 0) + bss->ent[i].off, 0,
+	    MEMSET_DOS(SEGOFF2LINEAR(new_seg, bss->ent[i].off), 0,
 		    bss->ent[i].len);
 	free(bss);
     }
     FdppKernelFree(hndl);
-    err = fdpp_boot(plt, PLT_LEN, krnl, krnl_len, seg, off, khigh, heap_seg,
-	    heap_sz, hhigh, boot_sec, bpseg);
+    err = fdpp_boot(plt, PLT_LEN, krnl, krnl_len, new_seg, off, khigh,
+	    heap_seg, heap_sz, hhigh, boot_sec, bpseg);
     if (err)
 	return err;
     register_cleanup_handler(fdpp_cleanup);
