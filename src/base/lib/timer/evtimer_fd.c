@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <fcntl.h>
 #ifdef HAVE_TIMERFD_CREATE
 #include <sys/timerfd.h>
 #else
