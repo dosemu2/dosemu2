@@ -28,6 +28,8 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
   echo "USE_UBSAN = 1" >> local.mak
 
   # Install the build dependancies based FDPP's debian/control file
+  sudo add-apt-repository ppa:stsp-0/nasm-segelf
+  sudo apt update -q
   mk-build-deps --install --root-cmd sudo
 
   # Seems to miss this, perhaps the optional dependency confuses things
