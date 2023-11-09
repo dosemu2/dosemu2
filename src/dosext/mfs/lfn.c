@@ -962,7 +962,8 @@ static int mfs_lfn_(void)
 			if (lfndirs[dirhandle] == NULL)
 				break;
 		if (dirhandle == MAX_OPEN_DIRS) {
-			d_printf("LFN: too many dirs open\n");
+			error("LFN: too many dirs open\n");
+			leavedos(3);
 			return lfn_error(NO_MORE_FILES);
 		}
 		dir = malloc(sizeof *dir);
