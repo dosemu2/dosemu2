@@ -197,7 +197,7 @@ static int video_init(void)
       config.cardtype != CARD_NONE && using_kms())
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
-#if SDL_SUPPORT
+#ifdef SDL_SUPPORT
     warn("KMS detected: using SDL mode.\n");
     load_plugin("sdl");
     config.sdl = 1;
