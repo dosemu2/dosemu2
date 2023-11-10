@@ -300,8 +300,7 @@ AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -imacros config.hh"
 DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wall -Wstrict-prototypes -Wmissing-declarations \
 -Wnested-externs -fms-extensions -pthread \
--Wno-unused-result -Wcast-qual -Wwrite-strings -Wstrict-aliasing=2 -Wundef \
--fsigned-char"
+-Wno-unused-result -Wcast-qual -Wwrite-strings -Wstrict-aliasing=2 -Wundef"
 AX_CHECK_COMPILE_FLAG([-Waddress-of-packed-member],
   [DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-address-of-packed-member"],, [-Werror])
 AX_CHECK_COMPILE_FLAG([-Wstring-plus-int],
