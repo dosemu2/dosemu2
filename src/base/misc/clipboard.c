@@ -1,4 +1,7 @@
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include "dosemu_debug.h"
 #include "types.h"
 #include "translate/translate.h"
