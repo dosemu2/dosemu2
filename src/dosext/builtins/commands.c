@@ -272,7 +272,7 @@ static int comredir_main(int argc, char **argv)
 {
   struct REGPACK r = REGPACK_INIT;
   int suppr = 0, flags = 0;
-  char c;
+  int c;
 
   GETOPT_RESET();
   while ((c = getopt(argc, argv, "hsf:")) != -1) {

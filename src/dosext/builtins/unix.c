@@ -29,7 +29,7 @@ static int usage(void);
 int unix_main(int argc, char **argv)
 {
   char s[256];
-  char c;
+  int c;
   int secure = 0, bg = 0;
   const char *getopt_string = "+bercsd:w";
 

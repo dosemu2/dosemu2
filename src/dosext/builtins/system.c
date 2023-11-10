@@ -63,7 +63,7 @@ void system_com_reset(void)
 
 int system_main(int argc, char **argv)
 {
-  char c;
+  int c;
   int is_e = 0, is_p = 0;
   const char *getopt_string = "ercsp";
 

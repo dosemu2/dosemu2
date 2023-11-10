@@ -340,7 +340,7 @@ struct lredir_opts {
 static int lredir_parse_opts(int argc, char *argv[],
 	const char *getopt_string, struct lredir_opts *opts)
 {
-    char c;
+    int c;
     int need_args = 2;
 
     memset(opts, 0, sizeof(*opts));

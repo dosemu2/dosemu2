@@ -230,7 +230,7 @@ static void getconf(void)
 
 int main(int argc, char **argv)
 {
-  char c;
+  int c;
   char *flags=0;
 
   while ((c = getopt(argc, argv, "vi:x:Mp:")) !=EOF) {
