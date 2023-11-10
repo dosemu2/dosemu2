@@ -100,6 +100,16 @@ void close_dirhandles(unsigned psp)
 	}
 }
 
+void lfn_reset(void)
+{
+	int dirhandle;
+	for (dirhandle = 0; dirhandle < MAX_OPEN_DIRS; dirhandle++) {
+		struct lfndir *dir = lfndirs[dirhandle];
+		if (dir)
+			close_dirhandle(dirhandle);
+	}
+}
+
 static int vfat_search(char *dest, const char *src, const char *path, int alias)
 {
   struct mfs_dir *dir;

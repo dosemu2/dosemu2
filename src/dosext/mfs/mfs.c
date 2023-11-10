@@ -894,6 +894,7 @@ void mfs_done(void)
 
 void mfs_reset(void)
 {
+  lfn_reset();
   mfs_done();
 
   emufs_loaded = FALSE;

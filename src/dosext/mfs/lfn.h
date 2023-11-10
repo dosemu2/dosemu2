@@ -9,3 +9,4 @@
 extern char lfn_create_fpath[PATH_MAX];
 
 void close_dirhandles(unsigned psp);
+void lfn_reset(void);
