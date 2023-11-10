@@ -82,7 +82,7 @@ static unsigned int P0 = (unsigned)-1;
 
 /////////////////////////////////////////////////////////////////////////////
 
-#define	Offs_From_Arg()		(char)(va_arg(ap,int))
+#define	Offs_From_Arg()		(signed char)(va_arg(ap,int))
 
 /* WARNING - these are signed char offsets, NOT pointers! */
 char OVERR_DS=Ofs_XDS, OVERR_SS=Ofs_XSS;
@@ -367,7 +367,7 @@ void AddrGen_sim(int op, int mode, ...)
 	case A_DI_0:			// base(32), imm
 	case A_DI_1: {			// base(32), {imm}, reg, {shift}
 			long idsp=0;
-			char ofs;
+			signed char ofs;
 			ofs = va_arg(ap,int);
 			if (mode & MLEA) {		// discard base	reg
 				AR1.d = 0;	// ofs = Ofs_RZERO;
@@ -395,7 +395,7 @@ void AddrGen_sim(int op, int mode, ...)
 		break;
 	case A_DI_2: {			// base(32), {imm}, reg, reg, {shift}
 			long idsp=0;
-			char ofs;
+			signed char ofs;
 			ofs = va_arg(ap,int);
 			if (mode & MLEA) {		// discard base	reg
 				AR1.d = 0;	// ofs = Ofs_RZERO;
@@ -547,7 +547,7 @@ void Gen_sim(int op, int mode, ...)
 		int v = va_arg(ap, int);
 		GTRACE3("L_IMM",o,0xff,v);
 		if (mode & MBYTE) {
-			CPUBYTE(o) = (char)v;
+			CPUBYTE(o) = (signed char)v;
 		}
 		else if (mode & DATA16) {
 			CPUWORD(o) = (short)v;
@@ -560,7 +560,7 @@ void Gen_sim(int op, int mode, ...)
 		int v = va_arg(ap, int);
 		GTRACE3("L_IMM_R1",0xff,0xff,v);
 		if (mode & MBYTE) {
-			DR1.b.bl = (char)v;
+			DR1.b.bl = (signed char)v;
 		}
 		else if (mode & DATA16) {
 			DR1.w.l = (short)v;
@@ -2022,7 +2022,7 @@ void Gen_sim(int op, int mode, ...)
 				}
 				break;
 			case AAM: {
-				char tmp = DR1.b.bl;
+				signed char tmp = DR1.b.bl;
 				int base = Offs_From_Arg();
 				DR1.b.bh = tmp / base;
 				RFL.RES.d = DR1.bs.bl = tmp % base;
@@ -2543,7 +2543,7 @@ void Gen_sim(int op, int mode, ...)
 		GTRACE0("O_MOVS_SavA");
 		if (!(mode&(MREP|MREPNE))) {
 		    // %%edx set to DF's increment
-		    DR2.d = (char)CPUBYTE(Ofs_DF_INCREMENTS+OPSIZEBIT(mode));
+		    DR2.d = (signed char)CPUBYTE(Ofs_DF_INCREMENTS+OPSIZEBIT(mode));
 		    if(mode & MOVSSRC) {
 			if (mode & ADDR16)
 			    CPUWORD(Ofs_SI) += DR2.w.l;

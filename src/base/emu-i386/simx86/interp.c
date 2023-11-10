@@ -64,12 +64,12 @@ static char R1Tab_l[14] =
 #define INC_WL_PCA(m,i)	PC=(PC+(i)+BT24(BitADDR16, m))
 #define INC_WL_PC(m,i)	PC=(PC+(i)+BT24(BitDATA16, m))
 
-static __inline__ unsigned long GetCPU_WL(int m, char o)
+static __inline__ unsigned long GetCPU_WL(int m, signed char o)
 {
 	if (m&DATA16) return CPUWORD(o); else return CPULONG(o);
 }
 
-static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
+static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
 {
 	if (m&DATA16) CPUWORD(o)=v; else CPULONG(o)=v;
 }
