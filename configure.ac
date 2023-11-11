@@ -258,6 +258,14 @@ AC_CHECK_DECLS([MREMAP_MAYMOVE],,, [[#include <sys/mman.h>]])
 AC_CHECK_DECLS([MADV_POPULATE_WRITE, MADV_COLD],,,
   [[#include <sys/mman.h>]])
 
+AC_CHECK_TYPES([__float80],, [
+    if test "$machine" != "i386" -a "$machine" != "x86_64"; then
+      USE_SOFTFLOAT=1
+      AC_SUBST(USE_SOFTFLOAT)
+    fi
+  ]
+)
+
 AC_CHECK_FUNC(strlcpy,, [
   PKG_CHECK_MODULES([LIBBSD], [libbsd], [
     dnl re-check for proper arch (multilib)

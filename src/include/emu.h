@@ -399,7 +399,7 @@ extern int mfs_fat32(void);
 extern int mfs_lfn(void);
 extern int int10(void);
 extern int int13(void);
-extern int int16(void);
+extern int ___int16(void);
 extern int int17(void);
 extern void irq_select(void);
 extern int pd_receive_packet(void);
