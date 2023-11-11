@@ -24,7 +24,10 @@ SBEMU=base/dev/sb16 base/dev/sb16/softmpu base/sound
 # re-configure, rather than just change this.
 #
 ifeq ($(X86_EMULATOR),1)
-XCPUEMU=base/emu-i386/simx86
+XCPUEMU = base/emu-i386/simx86
+ifeq ($(USE_SOFTFLOAT),1)
+XCPUEMU += base/emu-i386/simx86/softfloat
+endif
 endif
 
 ifeq ($(MCONTEXT),1)

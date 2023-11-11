@@ -3589,6 +3589,14 @@ static int _int##n##_(int stk_offs, int revect) \
   return int##n(); \
 }
 
+/* Needed for int16, which can clash with type name.
+ * Under clang, both _int16 and __int16 are also occupied. */
+#define INT_WRP2(n) \
+static int _int##n##_(int stk_offs, int revect) \
+{ \
+  return ___int##n(); \
+}
+
 INT_WRP(05)
 INT_WRP(10)
 INT_WRP(11)
@@ -3596,7 +3604,7 @@ INT_WRP(12)
 INT_WRP(13)
 INT_WRP(14)
 INT_WRP(15)
-INT_WRP(16)
+INT_WRP2(16)
 INT_WRP(17)
 INT_WRP(18)
 INT_WRP(19)

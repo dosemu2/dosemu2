@@ -39,6 +39,7 @@
 #include "emu86.h"
 #include "codegen.h"
 #include "codegen-sim.h"
+#include "softfloat/softfloat.h"
 
 #define FPUS_IE (1 << 0)
 #define FPUS_DE (1 << 1)
@@ -189,13 +190,31 @@ static double read_double(dosaddr_t addr)
 	return x.d;
 }
 
+#if defined(HOST_ARCH_X86) && !defined(HAVE___FLOAT80)
+typedef long double __float80;
+#undef __SIZEOF_FLOAT80__
+#define __SIZEOF_FLOAT80__ sizeof(__float80)
+#define HAVE___FLOAT80 1
+#endif
+
 static long double read_long_double(dosaddr_t addr)
 {
-	union { uint32_t u32[3]; long double ld; } x;
+#ifdef HAVE___FLOAT80
+	union { uint32_t u32[__SIZEOF_FLOAT80__/4]; __float80 ld; } x;
+#else
+	float_status s;
+	union { uint32_t u32[sizeof(floatx80)/4]; floatx80 ld; } x;
+	union { float128 f; _Float128 ld; } y;
+#endif
 	x.u32[0] = read_dword(addr);
 	x.u32[1] = read_dword(addr+4);
 	x.u32[2] = read_word(addr+8);
+#ifdef HAVE___FLOAT80
 	return x.ld;
+#else
+	y.f = floatx80_to_float128(x.ld, &s);
+	return y.ld;
+#endif
 }
 
 static void write_float(dosaddr_t addr, float f)
@@ -212,7 +231,14 @@ static void write_double(dosaddr_t addr, double d)
 
 static void write_long_double(dosaddr_t addr, long double ld)
 {
-	union { uint32_t u32[3]; long double ld; } x = {.ld = ld};
+#ifdef HAVE___FLOAT80
+	union { uint32_t u32[__SIZEOF_FLOAT80__/4]; __float80 ld; } x = {.ld = ld};
+#else
+	float_status s;
+	union { uint32_t u32[sizeof(floatx80)/4]; floatx80 ld; } x;
+	union { float128 f; _Float128 ld; } y = { .ld = ld };
+	x.ld = float128_to_floatx80(y.f, &s);
+#endif
 	write_dword(addr, x.u32[0]);
 	write_dword(addr+4, x.u32[1]);
 	write_word(addr+8, x.u32[2]);

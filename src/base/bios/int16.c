@@ -198,7 +198,7 @@ static void get_kbd_features(void)
   _AX = 0x20;  /* enh kbd functionality, nothing else */
 }
 
-int int16(void)
+int ___int16(void)
 {
   switch(HI(ax))
   {
