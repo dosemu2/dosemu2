@@ -17,11 +17,10 @@ AC_ARG_WITH([fdpp-lib-dir], AS_HELP_STRING([--with-fdpp-lib-dir=DIR],
             [set fdpp pkgconf dir]),
         [export PKG_CONFIG_PATH="$withval"],
         [export PKG_CONFIG_PATH="$fdpp_lib_dir"])
-    export PKG_CONFIG="$PKG_CONFIG \
-        --define-variable=includedir=$fdpp_inc_dir \
-        --define-variable=fdpplibdir=$fdpp_lib_dir"
     AC_DEFINE_UNQUOTED(FDPP_KERNEL_DIR, "$fdpp_lib_dir")
     FDPP_RPATH="$fdpp_lib_dir"
+    FDPP_INCLUDES=-I"$fdpp_inc_dir"
+    FDPP_LFLAGS=-L"$fdpp_lib_dir"
   ],
   [
     if test "x$prefix" = xNONE; then
@@ -38,6 +37,8 @@ AC_ARG_WITH([fdpp-lib-dir], AS_HELP_STRING([--with-fdpp-lib-dir=DIR],
   ]
 )
 AC_SUBST(FDPP_RPATH)
+AC_SUBST(FDPP_INCLUDES)
+AC_SUBST(FDPP_LFLAGS)
 
 PKG_CHECK_MODULES([FDPP], [fdpp >= 1.7],,
     AC_MSG_ERROR([fdpp installation not found or too old]))
