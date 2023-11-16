@@ -111,7 +111,7 @@ static void fdpp_print(int prio, const char *format, va_list ap)
 {
     switch(prio) {
     case FDPP_PRINT_TERMINAL:
-        vprintf(format, ap);
+        vfprintf(stderr, format, ap);
         break;
     case FDPP_PRINT_LOG:
         if (debug_level('f')) {
