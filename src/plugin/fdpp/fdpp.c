@@ -119,9 +119,6 @@ static void fdpp_print(int prio, const char *format, va_list ap)
             vlog_printf(-1, format, ap);
         }
         break;
-    case FDPP_PRINT_SCREEN:
-        p_dos_vstr(format, ap);
-        break;
     }
 }
 
