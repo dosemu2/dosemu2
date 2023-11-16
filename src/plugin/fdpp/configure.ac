@@ -12,7 +12,11 @@ AC_ARG_WITH([fdpp-lib-dir], AS_HELP_STRING([--with-fdpp-lib-dir=DIR],
             [set fdpp include dir]),
             fdpp_inc_dir="$withval",
         AC_MSG_ERROR([use --with-fdpp-include-dir]))
-    export PKG_CONFIG_PATH="$fdpp_lib_dir"
+    AC_ARG_WITH([fdpp-pkgconf-dir],
+        AS_HELP_STRING([--with-fdpp-pkgconf-dir=DIR],
+            [set fdpp pkgconf dir]),
+        [export PKG_CONFIG_PATH="$withval"],
+        [export PKG_CONFIG_PATH="$fdpp_lib_dir"])
     export PKG_CONFIG="$PKG_CONFIG \
         --define-variable=includedir=$fdpp_inc_dir \
         --define-variable=fdpplibdir=$fdpp_lib_dir"
