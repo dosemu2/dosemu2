@@ -85,7 +85,7 @@ static void fdpp_cleanup(void)
 static int fdpp_pre_boot(unsigned char *boot_sec)
 {
     int err;
-    void *hndl;
+    void *hndl = NULL;
     const void *krnl;
     int krnl_len;
     struct fdpp_bss_list *bss;
@@ -119,14 +119,19 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     }
 
     fddir = getenv("FDPP_KERNEL_DIR");
+    if (fddir)
+	hndl = FdppKernelLoad(fddir, &krnl_len, &bss, &off);
 #ifdef FDPP_KERNEL_DIR
-    if (!fddir)
+    if (!hndl) {
 	fddir = FDPP_KERNEL_DIR;
+	hndl = FdppKernelLoad(fddir, &krnl_len, &bss, &off);
+    }
 #endif
-    if (!fddir)
+    if (!hndl) {
 	fddir = FdppKernelDir();
-    assert(fddir);
-    hndl = FdppKernelLoad(fddir, &krnl_len, &bss, &off);
+	assert(fddir);
+	hndl = FdppKernelLoad(fddir, &krnl_len, &bss, &off);
+    }
     if (!hndl)
         return -1;
     assert(off < 65536);
