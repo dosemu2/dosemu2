@@ -165,8 +165,17 @@ static void bios_setup(void)
     case 0x10 ... 0x5f:
       SETIVEC(i, BIOSSEG, INT_OFF(i));
       break;
-    case 8 ... 0x0f:
+    case 8:	// timer
+    case 9:	// kbd
+    case 11:	// com2,4
+    case 12:	// com1,3
+    case 14:	// floppy
+    case 15:	// spurious
       SETIVEC(i, BIOSSEG, EOI_OFF);
+      break;
+    case 10:	// re-routed from irq9/int71h (mt32)
+    case 13:	// exception D (GPF) or SB16 IRQ
+      SETIVEC(i, IRET_SEG, IRET_OFF);
       break;
     }
   }
