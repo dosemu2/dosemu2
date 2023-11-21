@@ -130,7 +130,7 @@ sub getSoftwareVersions {
       print "Found Jade version $1\n";
     }
   }
-   
+
   # Check for Lynx
 
   $result = `lynx -version`;

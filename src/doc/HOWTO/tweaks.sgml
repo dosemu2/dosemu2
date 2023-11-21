@@ -116,6 +116,9 @@ Solution: set
 $_umb_f0 = (off)
 </screen>
 in your dosemu.conf or .dosemurc.
+<ulink url="https://www.vogons.org/viewtopic.php?t=4182">
+see here for details
+</ulink>
 </para>
 </sect2>
 <sect2>
@@ -308,6 +311,7 @@ Apply the following patch to vmp.com:
 </screen>
 <ulink url="https://github.com/dosemu2/dosemu2/issues/1189#issuecomment-639217647">
 see here for details
+</ulink>
 </para>
 </sect2>
 </sect1>
