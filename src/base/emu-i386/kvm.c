@@ -157,6 +157,7 @@ static struct kvm_sregs sregs;
 static struct kvm_userspace_memory_region maps[MAXSLOT];
 
 static int init_kvm_vcpu(void);
+static void kvm_set_readonly(dosaddr_t base, dosaddr_t size);
 
 #if !defined(DISABLE_SYSTEM_WA) || !defined(KVM_CAP_IMMEDIATE_EXIT)
 
@@ -707,7 +708,10 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   if (!(cap & (MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
 	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
 	       MAPPING_EXTMEM))) return;
-
+  if (memcheck_is_rom(targ)) {
+    kvm_set_readonly(targ, mapsize);
+    return;
+  }
   p = kvm_get_memory_region(monitor->pte[start] & _PAGE_MASK, PAGE_SIZE);
   if (!p) return;
 
@@ -733,7 +737,7 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   monitor->cr3 = sregs.cr3; /* Force TLB flush */
 }
 
-void kvm_set_readonly(dosaddr_t base, dosaddr_t size)
+static void kvm_set_readonly(dosaddr_t base, dosaddr_t size)
 {
   struct kvm_userspace_memory_region *p = kvm_get_memory_region(base, size);
   void *addr = (void *)((uintptr_t)(p->userspace_addr +
