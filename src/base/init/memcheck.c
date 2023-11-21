@@ -21,8 +21,7 @@
  */
 
 #define GRAN_SIZE               1024    /* Size of granularity in KB   */
-#define MEM_SIZE          (1024*1024)   /* Size of memory in KB        */
-#define MAX_PAGE (MEM_SIZE/GRAN_SIZE)   /* Number of 'pages' in memory */
+#define MAX_PAGE (LOWMEM_SIZE/GRAN_SIZE)   /* Number of 'pages' in memory */
 
 static unsigned char mem_map[MAX_PAGE];          /* Map of memory contents      */
 static const char *mem_names[256];             /* List of id. strings         */
@@ -223,7 +222,7 @@ int memcheck_is_reserved(dosaddr_t addr_start, uint32_t size,
 int memcheck_is_rom(dosaddr_t addr)
 {
   round_addr(&addr);
-  if (addr >= MEM_SIZE)
+  if (addr >= LOWMEM_SIZE)
     return 0;
   return strchr("R", mem_map[addr / GRAN_SIZE]) != NULL;
 }
@@ -231,7 +230,7 @@ int memcheck_is_rom(dosaddr_t addr)
 int memcheck_is_hardware_ram(dosaddr_t addr)
 {
   round_addr(&addr);
-  if (addr >= MEM_SIZE)
+  if (addr >= LOWMEM_SIZE)
     return 0;
   return strchr("evh", mem_map[addr / GRAN_SIZE]) != NULL;
 }
