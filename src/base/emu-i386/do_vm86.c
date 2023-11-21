@@ -70,7 +70,6 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
   case 0x04: /* overflow */
   case 0x05: /* bounds */
   case 0x07: /* device_not_available */
-  case 0x0c: /* stack fault */
     error_once("exception %#x occured\n", trapno);
     if (!IS_REDIRECTED(trapno))
       goto sgleave;
