@@ -136,13 +136,41 @@ void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
 static int jitx86_instr_len(const unsigned char *rip)
 {
   const unsigned char *p = rip;
+  int len;
 
   if (*p==0xf3) p++; /* rep */
   if (*p==0x66) p++; /* word */
+  len = p - rip + 2;
 
   /* moves */
-  if (*p >= 0x88 && *p <= 0x8b)
-    return p - rip + 2;
+  if (*p >= 0x88 && *p <= 0x8b) {
+    int disp32_still_possible = 0;
+    switch (p[1] & 0xc0) { /* decode modifier */
+    case 0:    /* disp32 possible */
+      switch (p[1] & 0x07) { /* decode rm */
+      case 5: /* disp32 actually here */
+        len += 4;
+        break;
+      case 4: /* disp32 is still possible in SIB byte */
+        disp32_still_possible = 1;
+        break;
+      }
+      break;
+    case 0x40: /* have disp8 */
+      len++;
+      break;
+    case 0x80: /* have disp32 */
+      len += 4;
+      break;
+    }
+    if ((p[1] & 0xc0) < 0xc0 /* SIB byte possible */
+        && (p[1] & 0x07) == 4) { /* SIB actually here */
+      len++;
+      if (disp32_still_possible && (p[2] & 0x07) == 5) /* disp32 used by SIB */
+        len += 4;
+    }
+    return len;
+  }
   /* string moves */
   if (*p >= 0xa4 && *p <= 0xad)
     return p - rip + 1;
