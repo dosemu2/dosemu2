@@ -22,6 +22,8 @@
 #ifdef HAVE_LIBBSD
 #include <bsd/string.h>
 #endif
+#include <stddef.h>
+#include <fdpp/loader.h>
 #include <fdpp/thunks.h>
 #include "emu.h"
 #include "cpu.h"
@@ -159,7 +161,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
         seg = 0x90;
         hhigh++;
     }
-    krnl = FdppKernelReloc(hndl, seg, &new_seg);
+    krnl = FdppKernelReloc(hndl, seg, &new_seg, FdppLoaderHook);
     if (!krnl)
         return -1;
     /* copy kernel, clear bss and boot it */
