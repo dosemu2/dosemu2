@@ -317,6 +317,7 @@ xms_reset(void)
   intdrv = 0;
   freeHMA = 0;
   ext_hooked_hma = 0;
+  a20_global = a20_local = 0;
   pgareset(pgapool);
 }
 
@@ -353,7 +354,6 @@ static int xms_helper_init(void)
 
   freeHMA = (config.hma && !ext_hooked_hma);
   ext_hooked_hma = 0;
-  a20_global = a20_local = 0;
 
   if (!config.xms_size)
     return 0;

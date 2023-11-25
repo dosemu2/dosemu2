@@ -41,7 +41,7 @@ static void HMA_MAP(int HMA)
 	       HMAAREA, strerror(errno));
     leavedos(47);
   }
-  x_printf("HMA: mapped\n");
+  x_printf("HMA: %smapped\n", HMA ? "" : "un");
 }
 
 void set_a20(int enableHMA)
