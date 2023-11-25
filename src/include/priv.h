@@ -42,7 +42,6 @@ uid_t get_orig_uid(void);  /* get the uid that was present at start of dosemu */
 uid_t get_orig_euid(void); /* get the euid that was present at start of dosemu */
 gid_t get_orig_gid(void);  /* get the gid that was present at start of dosemu */
 int priv_drop(void);
-int is_in_groups(gid_t gid);
 
 /*
    The 'priv stuff' works as follows:

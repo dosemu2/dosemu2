@@ -201,21 +201,6 @@ int priv_drop(void)
   return 1;
 }
 
-#define MAXGROUPS  20
-static gid_t *groups;
-static int num_groups = 0;
-
-
-int is_in_groups(gid_t gid)
-{
-  int i;
-  for (i=0; i<num_groups; i++) {
-    if (gid == groups[i]) return 1;
-  }
-  return 0;
-}
-
-
 void priv_init(void)
 {
   uid  = cur_uid  = getuid();
@@ -284,28 +269,5 @@ void priv_init(void)
       skip_priv_setting = 1;
     }
 
-  if ((num_groups = getgroups(0, NULL)) <= 0) {
-    error("priv_init(): getgroups() size returned %d!\n", num_groups);
-    goto error_exit;
-  }
-
-  if ((groups = malloc(num_groups * sizeof(gid_t))) == NULL) {
-    error("priv_init(): malloc() failed!\n");
-    goto error_exit;
-  }
-
-  if (getgroups(num_groups, groups) == -1) {
-    error("priv_init(): getgroups() failed '%s'!\n", strerror(errno));
-    free(groups);
-    goto error_exit;
-  }
-
-  goto done;
-
-error_exit:
-  num_groups = 0;
-  groups = NULL;
-
-done:
   if (!skip_priv_setting) _priv_off();
 }
