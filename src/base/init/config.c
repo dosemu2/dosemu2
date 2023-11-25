@@ -1189,6 +1189,9 @@ config_init(int argc, char **argv)
 	case 'n':
 	    nodosrc = 1;
 	    break;
+	case 'q':
+	    config.quiet = 1;
+	    break;
 	case 'v':
 	    printf("dosemu2-" VERSTR "\n");
 	    printf("Revision: %i\n", REVISION);
@@ -1234,6 +1237,7 @@ config_init(int argc, char **argv)
 	case 'c':
 	case 'o':
 	case 'n':
+	case 'q':
 	case 's':
 	    break;
 	case 'L':
@@ -1439,9 +1443,6 @@ config_init(int argc, char **argv)
 	      was_T1++;
 	    if (!optarg || strchr(optarg, 'h'))
 	      misc_e6_store_options("SHELL_LOADHIGH_DEFAULT=1");
-	    break;
-	case 'q':
-	    config.quiet = 1;
 	    break;
 
 	case '?':
