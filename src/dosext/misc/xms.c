@@ -602,7 +602,7 @@ void xms_control(void)
     x_printf("XMS LOCAL disable A20\n");
     if (a20_local)
       a20_local--;
-    if (!a20_local)
+    if (!a20_local && !a20_global)
       set_a20(0);
     XMS_RET(0);			/* no error */
     break;
