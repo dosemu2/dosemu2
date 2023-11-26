@@ -100,6 +100,7 @@ static void vint_handler(uint16_t idx, HLT_ARG(arg))
     imr[1] = port_inb(0xa1);
     masked = vint_is_masked(vi_num, imr);
     if (masked) {
+        h_printf("vint: masked, iret\n");
         do_eoi2_iret();
     } else {
         uint8_t irq = vih[vi_num].orig_irq;

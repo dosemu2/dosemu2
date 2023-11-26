@@ -62,6 +62,7 @@ static uint16_t vtmr_pirr;
 static pthread_t vtmr_thr;
 static sem_t vtmr_sem;
 static int latch_tid;
+static pthread_mutex_t irr_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if MULTICORE_EXAMPLE
 static int smi_tid;
 static char *rmstack;
@@ -124,20 +125,23 @@ static void vtmr_io_write(ioport_t port, Bit8u value, void *arg)
     switch (port) {
     case VTMR_REQUEST_PORT:
         if (!masked) {
-            uint16_t irr = __sync_fetch_and_or(&vtmr_irr, msk);
+            uint16_t irr;
+            pthread_mutex_lock(&irr_mtx);
+            irr = __sync_fetch_and_or(&vtmr_irr, msk);
             if (!(irr & msk)) {
                 if (!(vtmr_imr & msk))
                     pic_request(vip[timer].irq);
             } else {
                 error("vtmr %i already requested\n", timer);
             }
+            pthread_mutex_unlock(&irr_mtx);
         } else {
             pic_untrigger(vip[timer].orig_irq);
             pic_request(vip[timer].orig_irq);
             post_req(timer);
         }
-        h_printf("vtmr: REQ on %i, irr=%x, masked=%i\n", timer, vtmr_irr,
-                masked);
+        h_printf("vtmr: REQ on %i, irr=%x, pirr=%x masked=%i\n", timer,
+                vtmr_irr, vtmr_pirr, masked);
         break;
     case VTMR_MASK_PORT: {
         uint16_t imr = __sync_fetch_and_or(&vtmr_imr, msk);
@@ -155,31 +159,46 @@ static void vtmr_io_write(ioport_t port, Bit8u value, void *arg)
         }
         break;
     }
-    case VTMR_ACK_PORT:
-        __sync_fetch_and_and(&vtmr_irr, ~msk);
-        pic_untrigger(vip[timer].irq);
-        if (vth[timer].handler) {
-            int rc = vth[timer].handler(masked);
-            if (rc)
-                do_vtmr_raise(timer);
+    case VTMR_ACK_PORT: {
+        uint16_t irr;
+        pthread_mutex_lock(&irr_mtx);
+        irr = __sync_fetch_and_and(&vtmr_irr, ~msk);
+        if (irr & msk) {
+            pic_untrigger(vip[timer].irq);
+            if (vth[timer].handler) {
+                int rc = vth[timer].handler(masked);
+                if (rc)
+                    do_vtmr_raise(timer);
+            }
+        } else {
+            error("vtmr %i not requested\n", timer);
         }
-        h_printf("vtmr: ACK on %i, irr=%x\n", timer, vtmr_irr);
+        pthread_mutex_unlock(&irr_mtx);
+        h_printf("vtmr: ACK on %i, irr=%x pirr=%x\n", timer, vtmr_irr,
+                vtmr_pirr);
         break;
+    }
     case VTMR_LATCH_PORT: {
         int from_irq = masked;
         if (vth[timer].latch) {
             int rc = vth[timer].latch();
             if (rc && !from_irq) {  // underflow seen not from IRQ
-                __sync_fetch_and_and(&vtmr_irr, ~msk);
-                pic_untrigger(vip[timer].irq);
-                if (vth[timer].handler) {
-                    rc = vth[timer].handler(1);
-                    if (rc)
-                        do_vtmr_raise(timer);
+                uint16_t irr;
+                pthread_mutex_lock(&irr_mtx);
+                irr = __sync_fetch_and_and(&vtmr_irr, ~msk);
+                if (irr & msk) {
+                    pic_untrigger(vip[timer].irq);
+                    if (vth[timer].handler) {
+                        rc = vth[timer].handler(1);
+                        if (rc)
+                            do_vtmr_raise(timer);
+                    }
                 }
+                pthread_mutex_unlock(&irr_mtx);
             }
         }
-        h_printf("vtmr: LATCH on %i, irr=%x\n", timer, vtmr_irr);
+        h_printf("vtmr: LATCH on %i, irr=%x pirr=%x\n", timer, vtmr_irr,
+                vtmr_pirr);
         break;
     }
     }
