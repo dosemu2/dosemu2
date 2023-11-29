@@ -12,12 +12,18 @@ AC_ARG_WITH([fdpp-lib-dir], AS_HELP_STRING([--with-fdpp-lib-dir=DIR],
             [set fdpp include dir]),
             fdpp_inc_dir="$withval",
         AC_MSG_ERROR([use --with-fdpp-include-dir]))
+    AC_ARG_WITH([fdpp-kernel-dir],
+        AS_HELP_STRING([--with-fdpp-kernel-dir=DIR],
+            [set fdpp kernel dir]),
+            fdpp_kern_dir="$withval",
+            fdpp_kern_dir="$fdpp_lib_dir")
     AC_ARG_WITH([fdpp-pkgconf-dir],
         AS_HELP_STRING([--with-fdpp-pkgconf-dir=DIR],
             [set fdpp pkgconf dir]),
         [export PKG_CONFIG_PATH="$withval"],
         [export PKG_CONFIG_PATH="$fdpp_lib_dir"])
-    AC_DEFINE_UNQUOTED(FDPP_KERNEL_DIR, "$fdpp_lib_dir")
+
+    AC_DEFINE_UNQUOTED(FDPP_KERNEL_DIR, "$fdpp_kern_dir")
     FDPP_RPATH="$fdpp_lib_dir"
     FDPP_INCLUDES=-I"$fdpp_inc_dir"
     FDPP_LFLAGS=-L"$fdpp_lib_dir"
