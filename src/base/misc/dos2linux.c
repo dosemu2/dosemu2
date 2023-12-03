@@ -1340,50 +1340,74 @@ unsigned short sft_fd(sft_t sft)
 
 dosaddr_t sda_current_dta(sda_t sda)
 {
+    if (!sda)
+	return 0;
     return (FARADDR((far_t *)&sda[sda_current_dta_off]));
 }
 unsigned short sda_error_code(sda_t sda)
 {
+    if (!sda)
+	return 0;
     return (*(u_short *)&sda[4]);
 }
 unsigned short sda_cur_psp(sda_t sda)
 {
+    if (!sda)
+	return 0;
     return (*(u_short *)&sda[sda_cur_psp_off]);
 }
 unsigned char sda_cur_drive(sda_t sda)
 {
+    if (!sda)
+	return 0;
     return (*(u_char *)&sda[sda_cur_drive_off]);
 }
 char *sda_filename1(sda_t sda)
 {
+    if (!sda)
+	return NULL;
     return ((char  *)&sda[sda_filename1_off]);
 }
 char *sda_filename2(sda_t sda)
 {
+    if (!sda)
+	return NULL;
     return ((char  *)&sda[sda_filename2_off]);
 }
 sdb_t sda_sdb(sda_t sda)
 {
+    if (!sda)
+	return NULL;
     return ((sdb_t    )&sda[sda_sdb_off]);
 }
 cds_t sda_cds(sda_t sda)
 {
+    if (!sda)
+	return NULL;
     return ((cds_t)(FARPTR((far_t *)&sda[sda_cds_off])));
 }
 unsigned char sda_search_attribute(sda_t sda)
 {
+    if (!sda)
+	return 0;
     return (*(u_char *)&sda[sda_search_attribute_off]);
 }
 unsigned char sda_open_mode(sda_t sda)
 {
+    if (!sda)
+	return 0;
     return (*(u_char *)&sda[sda_open_mode_off]);
 }
 sdb_t sda_rename_source(sda_t sda)
 {
+    if (!sda)
+	return NULL;
     return ((sdb_t    )&sda[sda_rename_source_off]);
 }
 char *sda_user_stack(sda_t sda)
 {
+    if (!sda)
+	return NULL;
     return ((char *)(FARPTR((far_t *)&sda[sda_user_stack_off])));
 }
 
