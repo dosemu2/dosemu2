@@ -1215,3 +1215,214 @@ void char_out(unsigned char ch, int page)
 	do_int_call_back(0x10);
 	REGS = saved_regs;
 }
+
+unsigned char sdb_drive_letter(sdb_t sdb)
+{
+    return (*(u_char  *)&sdb[sdb_drive_letter_off]);
+}
+char *sdb_template_name(sdb_t sdb)
+{
+    return ((char     *)&sdb[sdb_template_name_off]);
+}
+char *sdb_template_ext(sdb_t sdb)
+{
+    return ((char     *)&sdb[sdb_template_ext_off]);
+}
+unsigned char sdb_attribute(sdb_t sdb)
+{
+    return (*(u_char  *)&sdb[sdb_attribute_off]);
+}
+unsigned short sdb_dir_entry(sdb_t sdb)
+{
+    return (*(u_short *)&sdb[sdb_dir_entry_off]);
+}
+unsigned short sdb_p_cluster(sdb_t sdb)
+{
+    return (*(u_short *)&sdb[sdb_p_cluster_off]);
+}
+char *sdb_file_name(sdb_t sdb)
+{
+    return ((char     *)&sdb[sdb_file_name_off]);
+}
+char *sdb_file_ext(sdb_t sdb)
+{
+    return ((char     *)&sdb[sdb_file_ext_off]);
+}
+unsigned char sdb_file_attr(sdb_t sdb)
+{
+    return (*(u_char  *)&sdb[sdb_file_attr_off]);
+}
+unsigned short sdb_file_time(sdb_t sdb)
+{
+    return (*(u_short *)&sdb[sdb_file_time_off]);
+}
+unsigned short sdb_file_date(sdb_t sdb)
+{
+    return (*(u_short *)&sdb[sdb_file_date_off]);
+}
+unsigned short sdb_file_st_cluster(sdb_t sdb)
+{
+    return (*(u_short *)&sdb[sdb_file_st_cluster_off]);
+}
+Bit32u sdb_file_size(sdb_t sdb)
+{
+    return (*(u_int   *)&sdb[sdb_file_size_off]);
+}
+
+unsigned short sft_handle_cnt(sft_t sft)
+{
+    return (*(u_short *)&sft[sft_handle_cnt_off]);
+}
+unsigned short sft_open_mode(sft_t sft)
+{
+    return (*(u_short *)&sft[sft_open_mode_off]);
+}
+unsigned char sft_attribute_byte(sft_t sft)
+{
+    return (*(u_char  *)&sft[sft_attribute_byte_off]);
+}
+unsigned short sft_device_info(sft_t sft)
+{
+    return (*(u_short *)&sft[sft_device_info_off]);
+}
+Bit32u sft_dev_drive_ptr(sft_t sft)
+{
+    return (*(u_int   *)&sft[sft_dev_drive_ptr_off]);
+}
+unsigned short sft_start_cluster(sft_t sft)
+{
+    return (*(u_short *)&sft[sft_start_cluster_off]);
+}
+unsigned short sft_time(sft_t sft)
+{
+    return (*(u_short *)&sft[sft_time_off]);
+}
+unsigned short sft_date(sft_t sft)
+{
+    return (*(u_short *)&sft[sft_date_off]);
+}
+Bit32u sft_size(sft_t sft)
+{
+    return (*(u_int   *)&sft[sft_size_off]);
+}
+Bit32u sft_position(sft_t sft)
+{
+    return (*(u_int   *)&sft[sft_position_off]);
+}
+unsigned short sft_rel_cluster(sft_t sft)
+{
+    return (*(u_short *)&sft[sft_rel_cluster_off]);
+}
+unsigned short sft_abs_cluster(sft_t sft)
+{
+    return (*(u_short *)&sft[sft_abs_cluster_off]);
+}
+unsigned short sft_directory_sector(sft_t sft)
+{
+    return (*(u_short *)&sft[sft_directory_sector_off]);
+}
+unsigned char sft_directory_entry(sft_t sft)
+{
+    return (*(u_char  *)&sft[sft_directory_entry_off]);
+}
+char *sft_name(sft_t sft)
+{
+    return ( (char    *)&sft[sft_name_off]);
+}
+char *sft_ext(sft_t sft)
+{
+    return ( (char    *)&sft[sft_ext_off]);
+}
+unsigned short sft_fd(sft_t sft)
+{
+    return (*(u_short *)&sft[sft_fd_off]);
+}
+
+dosaddr_t sda_current_dta(sda_t sda)
+{
+    return (FARADDR((far_t *)&sda[sda_current_dta_off]));
+}
+unsigned short sda_error_code(sda_t sda)
+{
+    return (*(u_short *)&sda[4]);
+}
+unsigned short sda_cur_psp(sda_t sda)
+{
+    return (*(u_short *)&sda[sda_cur_psp_off]);
+}
+unsigned char sda_cur_drive(sda_t sda)
+{
+    return (*(u_char *)&sda[sda_cur_drive_off]);
+}
+char *sda_filename1(sda_t sda)
+{
+    return ((char  *)&sda[sda_filename1_off]);
+}
+char *sda_filename2(sda_t sda)
+{
+    return ((char  *)&sda[sda_filename2_off]);
+}
+sdb_t sda_sdb(sda_t sda)
+{
+    return ((sdb_t    )&sda[sda_sdb_off]);
+}
+cds_t sda_cds(sda_t sda)
+{
+    return ((cds_t)(FARPTR((far_t *)&sda[sda_cds_off])));
+}
+unsigned char sda_search_attribute(sda_t sda)
+{
+    return (*(u_char *)&sda[sda_search_attribute_off]);
+}
+unsigned char sda_open_mode(sda_t sda)
+{
+    return (*(u_char *)&sda[sda_open_mode_off]);
+}
+sdb_t sda_rename_source(sda_t sda)
+{
+    return ((sdb_t    )&sda[sda_rename_source_off]);
+}
+char *sda_user_stack(sda_t sda)
+{
+    return ((char *)(FARPTR((far_t *)&sda[sda_user_stack_off])));
+}
+
+/*
+ *  Data for extended open/create operations, DOS 4 or greater:
+ */
+unsigned short sda_ext_act(sda_t sda)
+{
+    return (*(u_short *)&sda[sda_ext_act_off]);
+}
+unsigned short sda_ext_attr(sda_t sda)
+{
+    return (*(u_short *)&sda[sda_ext_attr_off]);
+}
+unsigned short sda_ext_mode(sda_t sda)
+{
+    return (*(u_short *)&sda[sda_ext_mode_off]);
+}
+
+unsigned short psp_parent_psp(psp_t psp)
+{
+    return (*(u_short *)&psp[0x16]);
+}
+char *psp_handles(psp_t psp)
+{
+    return ((char *)(FARPTR((far_t *)&psp[0x34])));
+}
+
+far_t lol_dpbfarptr(lol_t lol)
+{
+    return (rFAR_FARt(READ_DWORD((lol)+lol_dpbfarptr_off)));
+}
+far_t lol_cdsfarptr(lol_t lol)
+{
+    return (rFAR_FARt(READ_DWORD((lol)+lol_cdsfarptr_off)));
+}
+char lol_last_drive(lol_t lol)
+{
+    return (READ_BYTE((lol)+lol_last_drive_off));
+}
+// lol_nuldev(lol_t lol)		        ((lol)+lol_nuldev_off)
+// lol_njoined(lol_t lol)		((lol)+lol_njoined_off)

@@ -180,77 +180,12 @@ struct lowstring {
 } __attribute__((packed));
 
 typedef u_char *sdb_t;
-
-#define sdb_drive_letter(sdb)	(*(u_char  *)&sdb[sdb_drive_letter_off])
-#define sdb_template_name(sdb)	((char     *)&sdb[sdb_template_name_off])
-#define sdb_template_ext(sdb)	((char     *)&sdb[sdb_template_ext_off])
-#define	sdb_attribute(sdb)	(*(u_char  *)&sdb[sdb_attribute_off])
-#define sdb_dir_entry(sdb)	(*(u_short *)&sdb[sdb_dir_entry_off])
-#define sdb_p_cluster(sdb)	(*(u_short *)&sdb[sdb_p_cluster_off])
-#define	sdb_file_name(sdb)	((char     *)&sdb[sdb_file_name_off])
-#define	sdb_file_ext(sdb)	((char     *)&sdb[sdb_file_ext_off])
-#define	sdb_file_attr(sdb)	(*(u_char  *)&sdb[sdb_file_attr_off])
-#define	sdb_file_time(sdb)	(*(u_short *)&sdb[sdb_file_time_off])
-#define	sdb_file_date(sdb)	(*(u_short *)&sdb[sdb_file_date_off])
-#define sdb_file_st_cluster(sdb)(*(u_short *)&sdb[sdb_file_st_cluster_off])
-#define sdb_file_size(sdb)	(*(u_int   *)&sdb[sdb_file_size_off])
-
 typedef u_char *sft_t;
-
-#define sft_handle_cnt(sft) 	(*(u_short *)&sft[sft_handle_cnt_off])
-#define sft_open_mode(sft)  	(*(u_short *)&sft[sft_open_mode_off])
-#define sft_attribute_byte(sft) (*(u_char  *)&sft[sft_attribute_byte_off])
-#define sft_device_info(sft)  	(*(u_short *)&sft[sft_device_info_off])
-#define	sft_dev_drive_ptr(sft)	(*(u_int   *)&sft[sft_dev_drive_ptr_off])
-#define	sft_start_cluster(sft)	(*(u_short *)&sft[sft_start_cluster_off])
-#define	sft_time(sft)		(*(u_short *)&sft[sft_time_off])
-#define	sft_date(sft)		(*(u_short *)&sft[sft_date_off])
-#define	sft_size(sft)		(*(u_int   *)&sft[sft_size_off])
-#define	sft_position(sft)	(*(u_int   *)&sft[sft_position_off])
-#define sft_rel_cluster(sft)	(*(u_short *)&sft[sft_rel_cluster_off])
-#define sft_abs_cluster(sft)	(*(u_short *)&sft[sft_abs_cluster_off])
-#define	sft_directory_sector(sft) (*(u_short *)&sft[sft_directory_sector_off])
-#define	sft_directory_entry(sft)  (*(u_char  *)&sft[sft_directory_entry_off])
-#define	sft_name(sft)		( (char    *)&sft[sft_name_off])
-#define	sft_ext(sft)		( (char    *)&sft[sft_ext_off])
-
-#define	sft_fd(sft)		(*(u_short *)&sft[sft_fd_off])
-
 typedef u_char *cds_t;
-
+typedef u_short *psp_t;
 typedef u_char *sda_t;
 extern sda_t sda;
 extern int sda_cur_drive_off;
-
-#define	sda_current_dta(sda)	(FARADDR((far_t *)&sda[sda_current_dta_off]))
-#define	sda_error_code(sda)		(*(u_short *)&sda[4])
-#define sda_cur_psp(sda)		(*(u_short *)&sda[sda_cur_psp_off])
-#define sda_cur_drive(sda)		(*(u_char *)&sda[sda_cur_drive_off])
-#define sda_filename1(sda)		((char  *)&sda[sda_filename1_off])
-#define	sda_filename2(sda)		((char  *)&sda[sda_filename2_off])
-#define sda_sdb(sda)			((sdb_t    )&sda[sda_sdb_off])
-#define	sda_cds(sda)		((cds_t)(uintptr_t)(FARPTR((far_t *)&sda[sda_cds_off])))
-#define sda_search_attribute(sda)	(*(u_char *)&sda[sda_search_attribute_off])
-#define sda_open_mode(sda)		(*(u_char *)&sda[sda_open_mode_off])
-#define sda_rename_source(sda)		((sdb_t    )&sda[sda_rename_source_off])
-#define sda_user_stack(sda)		((char *)(uintptr_t)(FARPTR((far_t *)&sda[sda_user_stack_off])))
-
-/*
- *  Data for extended open/create operations, DOS 4 or greater:
- */
-#define sda_ext_act(sda)		(*(u_short *)&sda[sda_ext_act_off])
-#define sda_ext_attr(sda)		(*(u_short *)&sda[sda_ext_attr_off])
-#define sda_ext_mode(sda)		(*(u_short *)&sda[sda_ext_mode_off])
-
-#define psp_parent_psp(psp)		(*(u_short *)&psp[0x16])
-#define psp_handles(psp)		((char *)(uintptr_t)(FARPTR((far_t *)&psp[0x34])))
-
-#define lol_dpbfarptr(lol)		(rFAR_FARt(READ_DWORD((lol)+lol_dpbfarptr_off)))
-#define lol_cdsfarptr(lol)		(rFAR_FARt(READ_DWORD((lol)+lol_cdsfarptr_off)))
-#define lol_last_drive(lol)		(READ_BYTE((lol)+lol_last_drive_off))
-#define lol_nuldev(lol)		        ((lol)+lol_nuldev_off)
-#define lol_njoined(lol)		((lol)+lol_njoined_off)
-
 extern int sdb_drive_letter_off;
 extern int sdb_template_name_off;
 extern int sdb_template_ext_off;
@@ -312,6 +247,65 @@ extern int sda_ext_mode_off;
 typedef unsigned lol_t;
 extern lol_t lol;
 extern int lol_nuldev_off;
+
+unsigned char sdb_drive_letter(sdb_t sdb);
+char *sdb_template_name(sdb_t sdb);
+char *sdb_template_ext(sdb_t sdb);
+unsigned char sdb_attribute(sdb_t sdb);
+unsigned short sdb_dir_entry(sdb_t sdb);
+unsigned short sdb_p_cluster(sdb_t sdb);
+char *sdb_file_name(sdb_t sdb);
+char *sdb_file_ext(sdb_t sdb);
+unsigned char sdb_file_attr(sdb_t sdb);
+unsigned short sdb_file_time(sdb_t sdb);
+unsigned short sdb_file_date(sdb_t sdb);
+unsigned short sdb_file_st_cluster(sdb_t sdb);
+Bit32u sdb_file_size(sdb_t sdb);
+
+unsigned short sft_handle_cnt(sft_t sft);
+unsigned short sft_open_mode(sft_t sft);
+unsigned char sft_attribute_byte(sft_t sft);
+unsigned short sft_device_info(sft_t sft);
+Bit32u sft_dev_drive_ptr(sft_t sft);
+unsigned short sft_start_cluster(sft_t sft);
+unsigned short sft_time(sft_t sft);
+unsigned short sft_date(sft_t sft);
+Bit32u sft_size(sft_t sft);
+Bit32u sft_position(sft_t sft);
+unsigned short sft_rel_cluster(sft_t sft);
+unsigned short sft_abs_cluster(sft_t sft);
+unsigned short sft_directory_sector(sft_t sft);
+unsigned char sft_directory_entry(sft_t sft);
+char *sft_name(sft_t sft);
+char *sft_ext(sft_t sft);
+unsigned short sft_fd(sft_t sft);
+
+dosaddr_t sda_current_dta(sda_t sda);
+unsigned short sda_error_code(sda_t sda);
+unsigned short sda_cur_psp(sda_t sda);
+unsigned char sda_cur_drive(sda_t sda);
+char *sda_filename1(sda_t sda);
+char *sda_filename2(sda_t sda);
+sdb_t sda_sdb(sda_t sda);
+cds_t sda_cds(sda_t sda);
+unsigned char sda_search_attribute(sda_t sda);
+unsigned char sda_open_mode(sda_t sda);
+sdb_t sda_rename_source(sda_t sda);
+char *sda_user_stack(sda_t sda);
+
+/*
+ *  Data for extended open/create operations, DOS 4 or greater:
+ */
+unsigned short sda_ext_act(sda_t sda);
+unsigned short sda_ext_attr(sda_t sda);
+unsigned short sda_ext_mode(sda_t sda);
+
+unsigned short psp_parent_psp(psp_t psp);
+char *psp_handles(psp_t psp);
+
+far_t lol_dpbfarptr(lol_t lol);
+far_t lol_cdsfarptr(lol_t lol);
+char lol_last_drive(lol_t lol);
 
 extern int com_errno;
 

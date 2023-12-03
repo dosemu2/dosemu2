@@ -482,7 +482,7 @@ static inline void build_ufs_path(char *ufs, const char *path, int drive)
 static int lfn_error(int errorcode)
 {
 	_AX = errorcode;
-	WRITE_WORDP((unsigned char *)&sda_error_code(sda), errorcode);
+	WRITE_WORDP((unsigned char *)&_sda_error_code(sda), errorcode);
 	CARRY;
 	return 1;
 }

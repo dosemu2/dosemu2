@@ -202,7 +202,6 @@ TODO:
 #include <linux/msdos_fs.h>
 #endif
 
-#define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
 /* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
 #ifdef __linux__
@@ -2821,16 +2820,16 @@ static void open_device(unsigned int devptr, char *fname, sft_t sft)
   unsigned char *dev = MK_FP32(FP_SEG16(devptr), FP_OFF16(devptr));
   memcpy(sft_name(sft), fname, 8);
   memset(sft_ext(sft), ' ', 3);
-  sft_dev_drive_ptr(sft) = devptr;
-  sft_directory_entry(sft) = 0;
-  sft_directory_sector(sft) = 0;
-  sft_attribute_byte(sft) = 0x40;
-  sft_device_info(sft) =
+  _sft_dev_drive_ptr(sft) = devptr;
+  _sft_directory_entry(sft) = 0;
+  _sft_directory_sector(sft) = 0;
+  _sft_attribute_byte(sft) = 0x40;
+  _sft_device_info(sft) =
     ((dev[4] | dev[5] << 8) & ~SFT_MASK)
     | SFT_FDEVICE | SFT_FEOF;
-  time_to_dos(time(NULL), &sft_date(sft), &sft_time(sft));
-  sft_size(sft) = 0;
-  sft_position(sft) = 0;
+  time_to_dos(time(NULL), &_sft_date(sft), &_sft_time(sft));
+  _sft_size(sft) = 0;
+  _sft_position(sft) = 0;
 }
 
 /* In any Linux directory it is possible to have uids not equal
@@ -2877,10 +2876,10 @@ static int find_again(int firstfind, int drive, char *fpath,
 
   while (sdb_dir_entry(sdb) < hlist->nr_entries) {
     de = &hlist->de[sdb_dir_entry(sdb)];
-    sdb_dir_entry(sdb)++;
+    _sdb_dir_entry(sdb)++;
     Debug0((dbg_fd, "find_again entered with %.8s.%.3s\n", de->name, de->ext));
     fill_entry(de, fpath, drive);
-    sdb_file_attr(sdb) = de->attr;
+    _sdb_file_attr(sdb) = de->attr;
 
     if (de->mode & S_IFDIR) {
       Debug0((dbg_fd, "Directory ---> YES 0x%x\n", de->mode));
@@ -2893,14 +2892,14 @@ static int find_again(int firstfind, int drive, char *fpath,
 	/* Path is long, so we do not allow subdirectories
 	   here. Instead return the entry as a regular file.
 	*/
-	sdb_file_attr(sdb) &= ~DIRECTORY;
+	_sdb_file_attr(sdb) &= ~DIRECTORY;
 	de->size = 0; /* fake empty file */
       }
     }
     time_to_dos(de->time,
-		&sdb_file_date(sdb),
-		&sdb_file_time(sdb));
-    set_32bit_size_or_position(&sdb_file_size(sdb), de->size);
+		&_sdb_file_date(sdb),
+		&_sdb_file_time(sdb));
+    set_32bit_size_or_position(&_sdb_file_size(sdb), de->size);
     strncpy(sdb_file_name(sdb), de->name, 8);
     strncpy(sdb_file_ext(sdb), de->ext, 3);
 
@@ -3152,27 +3151,27 @@ static void do_update_sft(struct file_fd *f, char *fname, char *fext,
 
     if (!existing) {
       if (FCBcall)
-        sft_open_mode(sft) |= 0x00f0;
+        _sft_open_mode(sft) |= 0x00f0;
       else
     #if 0
-        sft_open_mode(sft) = 0x3; /* write only */
+        _sft_open_mode(sft) = 0x3; /* write only */
     #else
-        sft_open_mode(sft) = 0x2; /* read/write */
+        _sft_open_mode(sft) = 0x2; /* read/write */
     #endif
     }
-    sft_directory_entry(sft) = 0;
-    sft_directory_sector(sft) = 0;
-    sft_attribute_byte(sft) = attr;
-    sft_device_info(sft) = (drive & 0x1f) | 0x0940 | SFT_FSHARED;
+    _sft_directory_entry(sft) = 0;
+    _sft_directory_sector(sft) = 0;
+    _sft_attribute_byte(sft) = attr;
+    _sft_device_info(sft) = (drive & 0x1f) | 0x0940 | SFT_FSHARED;
 
     if (f->type == TYPE_DISK) {
-      time_to_dos(f->st.st_mtime, &sft_date(sft), &sft_time(sft));
+      time_to_dos(f->st.st_mtime, &_sft_date(sft), &_sft_time(sft));
       f->size = f->st.st_size;
-      set_32bit_size_or_position(&sft_size(sft), f->size);
+      set_32bit_size_or_position(&_sft_size(sft), f->size);
     }
     f->seek = 0;
-    sft_position(sft) = 0;
-    sft_fd(sft) = f->idx;
+    _sft_position(sft) = 0;
+    _sft_fd(sft) = f->idx;
 }
 
 static void update_seek_from_dos(uint32_t seek_from_dos, uint64_t* p_seek) {
@@ -3336,7 +3335,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       Debug0((dbg_fd, "Close file %x (%s)\n", f->fd, filename1));
 
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
-      sft_handle_cnt(sft)--;
+      _sft_handle_cnt(sft)--;
       if (sft_handle_cnt(sft) > 0) {
         Debug0((dbg_fd, "Still more handles\n"));
         return TRUE;
@@ -3449,12 +3448,12 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         return_val = TRUE;
       }
       f->seek += ret;
-      set_32bit_size_or_position(&sft_position(sft), f->seek);
+      set_32bit_size_or_position(&_sft_position(sft), f->seek);
       if (ret + s_pos > sft_size(sft)) {
         /* someone else enlarged the file! refresh. */
         fstat(f->fd, &f->st);
         f->size = f->st.st_size;
-        set_32bit_size_or_position(&sft_size(sft), f->size);
+        set_32bit_size_or_position(&_sft_size(sft), f->size);
       }
 //      sft_abs_cluster(sft) = 0x174a; /* XXX a test */
       /*      Debug0((dbg_fd, "File data %02x %02x %02x\n", dta[0], dta[1], dta[2])); */
@@ -3494,7 +3493,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
           return FALSE;
         }
         f->size = f->seek;
-        set_32bit_size_or_position(&sft_size(sft), f->size);
+        set_32bit_size_or_position(&_sft_size(sft), f->size);
         SETWORD(&state->ecx, 0);
       } else {
         int cnt1 = cnt;
@@ -3542,10 +3541,10 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
           return FALSE;
         }
         f->seek += ret;
-        set_32bit_size_or_position(&sft_position(sft), f->seek);
+        set_32bit_size_or_position(&_sft_position(sft), f->seek);
         if ((ret + s_pos) > f->size) {
           f->size = ret + s_pos;
-          set_32bit_size_or_position(&sft_size(sft), f->size);
+          set_32bit_size_or_position(&_sft_size(sft), f->size);
         }
         Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
         Debug0((dbg_fd, "fseek=%"PRIu64", fsize=%"PRIu64"\n", f->seek, f->size));
@@ -3554,7 +3553,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       //    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
       /* update stat for atime/mtime */
       if (fstat(f->fd, &f->st) == 0)
-        time_to_dos(f->st.st_mtime, &sft_date(sft), &sft_time(sft));
+        time_to_dos(f->st.st_mtime, &_sft_date(sft), &_sft_time(sft));
       return TRUE;
     }
 
@@ -3825,16 +3824,16 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
          appendix, I can find nothing else which supports this statement. */
       dos_mode = *(u_short *)stk;
       /* check for a high bit set indicating an FCB call */
-      FCBcall = sft_open_mode(sft) & 0x8000;
+      FCBcall = _sft_open_mode(sft) & 0x8000;
 
       Debug0((dbg_fd, "(mode = 0x%04x)\n", dos_mode));
       Debug0((dbg_fd, "(sft_open_mode = 0x%04x)\n", sft_open_mode(sft)));
 
       if (FCBcall) {
-        sft_open_mode(sft) |= 0x00f0;
+        _sft_open_mode(sft) |= 0x00f0;
       } else {
         /* Keeping sharing modes in sft also, --Maxim Ruchko */
-        sft_open_mode(sft) = dos_mode & 0xff;
+        _sft_open_mode(sft) = dos_mode & 0xff;
       }
 
       /* This method is ALSO in undoc dos.  They have the command
@@ -4039,11 +4038,11 @@ do_create_truncate:
 
       build_ufs_path(fpath, filename1, drive);
       auspr(filename1, fname, fext);
-      memcpy(sdb_template_name(sdb), fname, 8);
-      memcpy(sdb_template_ext(sdb), fext, 3);
-      sdb_attribute(sdb) = attr;
-      sdb_drive_letter(sdb) = 0x80 + drive;
-      sdb_p_cluster(sdb) = 0xffff; /* correct value later */
+      memcpy(_sdb_template_name(sdb), fname, 8);
+      memcpy(_sdb_template_ext(sdb), fext, 3);
+      _sdb_attribute(sdb) = attr;
+      _sdb_drive_letter(sdb) = 0x80 + drive;
+      _sdb_p_cluster(sdb) = 0xffff; /* correct value later */
 
       Debug0((dbg_fd, "Find first %8.8s.%3.3s\n", sdb_template_name(sdb), sdb_template_ext(sdb)));
 
@@ -4051,10 +4050,10 @@ do_create_truncate:
           strncmp(sdb_template_name(sdb), "????????", 8) == 0 &&
           strncmp(sdb_template_ext(sdb), "???", 3) == 0) {
         get_volume_label(fname, fext, NULL, drive);
-        memcpy(sdb_file_name(sdb), fname, 8);
-        memcpy(sdb_file_ext(sdb), fext, 3);
-        sdb_file_attr(sdb) = VOLUME_LABEL;
-        sdb_dir_entry(sdb) = 0x0;
+        memcpy(_sdb_file_name(sdb), fname, 8);
+        memcpy(_sdb_file_ext(sdb), fext, 3);
+        _sdb_file_attr(sdb) = VOLUME_LABEL;
+        _sdb_dir_entry(sdb) = 0x0;
         return TRUE;
       }
 
@@ -4076,8 +4075,8 @@ do_create_truncate:
         set_long_path_on_dirs(hlist);
       }
       hlist_index = hlist_push(hlist, sda_cur_psp(sda), fpath);
-      sdb_dir_entry(sdb) = 0;
-      sdb_p_cluster(sdb) = hlist_index;
+      _sdb_dir_entry(sdb) = 0;
+      _sdb_p_cluster(sdb) = hlist_index;
 
       hlists.stack[hlist_index].seq = ++hlists.seq; /* new watch stamp --ms */
       hlist_set_watch(sda_cur_psp(sda));
@@ -4141,9 +4140,9 @@ do_create_truncate:
         off_t new_pos = offset + f->st.st_size;
         /* update file size in case other process changed it */
         f->seek = new_pos;
-        set_32bit_size_or_position(&sft_position(sft), f->seek);
+        set_32bit_size_or_position(&_sft_position(sft), f->seek);
         f->size = f->st.st_size;
-        set_32bit_size_or_position(&sft_size(sft), f->size);
+        set_32bit_size_or_position(&_sft_size(sft), f->size);
         SETWORD(&state->edx, sft_position(sft) >> 16);
         SETWORD(&state->eax, WORD(sft_position(sft)));
         return TRUE;
@@ -4422,7 +4421,7 @@ do_create_truncate:
 	  if (fstat(f->fd, &f->st) == 0) {
 	    /* update file size in case other process changed it */
 	    f->size = f->st.st_size;
-	    set_32bit_size_or_position(&sft_size(sft), f->size);
+	    set_32bit_size_or_position(&_sft_size(sft), f->size);
 	    f->seek = f->size + seek;
 	    break;
 	  } else {
@@ -4435,7 +4434,7 @@ do_create_truncate:
 	  return FALSE;
       }
       d_printf("result seek=%08"PRIX64"h\n", f->seek);
-      set_32bit_size_or_position(&sft_position(sft), f->seek);
+      set_32bit_size_or_position(&_sft_position(sft), f->seek);
       MEMCPY_2DOS(SEGOFF2LINEAR(SREG(ds), LWORD(edx)), &f->seek, sizeof(f->seek));
       SETWORD(&state->eax, 0);
       return TRUE;
