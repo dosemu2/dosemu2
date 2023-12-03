@@ -71,6 +71,7 @@ void coopth_set_ctx_checker_vm86(int (*checker)(void));
 void coopth_cancel_disable_cur(void);
 void coopth_cancel_enable_cur(void);
 void coopth_dump(int all);
-void coopth_set_nothread_notifier(void (*notifier)(void));
+void coopth_set_nothread_notifier(void (*notifier)(int));
+int coopth_get_thread_count_in_process_vm86(void);
 
 #endif

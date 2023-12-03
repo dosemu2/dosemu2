@@ -144,7 +144,7 @@ static __TLS int threads_total;
 #define MAX_ACT_THRS 10
 static __TLS int threads_active;
 static __TLS int active_tids[MAX_ACT_THRS];
-static __TLS void (*nothread_notifier)(void);
+static __TLS void (*nothread_notifier)(int);
 
 static void coopth_callf_chk(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
@@ -320,8 +320,8 @@ static void do_del_thread(struct coopth_t *thr,
 	    thr->post_pth = pth;
 	}
     }
-    if (threads_joinable + threads_left == 0 && nothread_notifier)
-	nothread_notifier();
+    if (nothread_notifier)
+	nothread_notifier(threads_joinable + threads_left);
 }
 
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth,
@@ -1446,7 +1446,7 @@ int coopth_wants_sleep_internal(unsigned id)
 	    pth->st.state == COOPTHS_SWITCH);
 }
 
-void coopth_set_nothread_notifier(void (*notifier)(void))
+void coopth_set_nothread_notifier(void (*notifier)(int))
 {
     nothread_notifier = notifier;
 }

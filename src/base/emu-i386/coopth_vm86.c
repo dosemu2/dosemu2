@@ -25,6 +25,7 @@
 #include "hlt.h"
 #include "utilities.h"
 #include "timers.h"
+#include "dos2linux.h"
 #include "coopth.h"
 #include "coopth_be.h"
 
@@ -39,7 +40,9 @@ struct co_vm86 {
 struct co_vm86_pth {
     Bit16u hlt_off;
     Bit16u ret_cs, ret_ip;
+    Bit16u owner;
     uint64_t dbg;
+    unsigned prepped:1;
 };
 
 static struct co_vm86 coopth86[MAX_COOPTHREADS];
@@ -101,6 +104,7 @@ static void do_sleep(void)
 static void do_prep(int tid, int idx)
 {
     coopth86_pth[idx].hlt_off = INVALID_HLT;
+    coopth86_pth[idx].prepped = 1;
 }
 
 static uint64_t get_dbg_val(int tid, int idx)
@@ -225,6 +229,7 @@ int coopth_start(int tid, void *arg)
     if (!ret.detached) {
 	assert(coopth86[tid].hlt_off != INVALID_HLT);
 	coopth86_pth[ret.idx].hlt_off = coopth86[tid].hlt_off;
+	coopth86_pth[ret.idx].owner = sda_cur_psp(sda);
 	coopth86_pth[ret.idx].dbg = dbg;
 	do_callf(tid, ret.idx);
     }
@@ -242,6 +247,7 @@ static int do_start_custom(int tid)
     assert(regs->cs == BIOS_HLT_BLK_SEG);
     assert(coopth86_pth[idx].hlt_off == INVALID_HLT);
     coopth86_pth[idx].hlt_off = LO_WORD(regs->eip);
+    coopth86_pth[idx].owner = sda_cur_psp(sda);
     coopth86_pth[idx].dbg = dbg;
     return 0;
 }
@@ -264,4 +270,17 @@ int coopth_wants_sleep_vm86(void)
 void coopth_set_ctx_checker_vm86(int (*checker)(void))
 {
     ctx_is_valid = checker;
+}
+
+int coopth_get_thread_count_in_process_vm86(void)
+{
+    int i;
+    int cnt = 0;
+    for (i = 0; i < COOPTH_POOL_SIZE; i++) {
+	if (!coopth86_pth[i].prepped || coopth86_pth[i].hlt_off == INVALID_HLT)
+	    continue;
+	if (coopth86_pth[i].owner == sda_cur_psp(sda))
+	    cnt++;
+    }
+    return cnt;
 }
