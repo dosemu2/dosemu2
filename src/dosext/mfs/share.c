@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/file.h>
 #include "emu.h"
 #include "dosemu_debug.h"
