@@ -191,6 +191,8 @@ static void mhp_init(void)
        mhp_input();
     }
   }
+
+  mhpdbgc_init();
 }
 
 static void reopen_fdin(void)

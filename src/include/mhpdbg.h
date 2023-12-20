@@ -54,6 +54,7 @@ int mhpdbg_is_stopped(void);
 int mhp_usermap_move_block(uint16_t oldseg, uint16_t newseg,
                            uint16_t startoff, uint32_t blklen);
 int mhp_usermap_load_gnuld(const char *fname, uint16_t origin);
+void mhpdbgc_init(void);
 void mhp_init_hma(void);
 void mhp_reset_hma(void);
 #ifdef USE_MHPDBG

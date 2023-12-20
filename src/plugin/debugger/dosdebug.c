@@ -223,6 +223,8 @@ static COMMAND cmds[] = {
    "ADDR              display the Device Driver Request Header at ADDR\n"},
   {"dpbs", NULL,
    "[ADDR]            display DPBs by walking the chain from LOL or ADDR\n"},
+  {"injchar", NULL,
+   "ASCII_CODE        inject character to console\n"},
   {"reboot", NULL,
    "                  reboot dosemu\n"},
   {"kill", db_kill,

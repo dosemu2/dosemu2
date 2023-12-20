@@ -62,6 +62,7 @@
 #include "bios_sym.h"
 #include "dis8086.h"
 #include "dos2linux.h"
+#include "coopth.h"
 #include "kvm.h"
 #include "Asm/ldt.h"
 
@@ -71,6 +72,7 @@
 #define makeaddr(x,y) ((((unsigned int)x) << 4) + (unsigned int)y)
 
 static struct HMCB *hma_start;
+static int ic_tid;
 
 /* prototypes */
 static void mhp_regs  (int, char *[]);
@@ -105,7 +107,8 @@ static void mhp_ddrh    (int, char *[]);
 static void mhp_dpbs    (int, char *[]);
 static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
-static void mhp_reboot   (int, char *[]);
+static void mhp_reboot  (int, char *[]);
+static void mhp_injchar (int, char *[]);
 
 static void print_log_breakpoints(void);
 static int bpchk(unsigned int a1);
@@ -177,6 +180,7 @@ static const struct cmd_db cmdtab[] = {
    {"ddrh",          mhp_ddrh},
    {"dpbs",          mhp_dpbs},
    {"reboot",        mhp_reboot},
+   {"injchar",       mhp_injchar},
    {"",              NULL}
 };
 
@@ -2869,6 +2873,27 @@ static void mhp_reboot(int argc, char *argv[])
   dos_ctrl_alt_del();
 }
 
+static void mhp_injchar_thr(void *arg)
+{
+  struct vm86_regs saved_regs = REGS;
+  _AX = 0x500;
+  _CX = (uintptr_t)arg;
+  do_int_call_back(0x16);
+  REGS = saved_regs;
+}
+
+static void mhp_injchar(int argc, char *argv[])
+{
+  int key;
+  if (argc < 2) {
+    mhp_printf("missing argument\n");
+    return;
+  }
+  key = atoi(argv[1]);
+  mhp_printf("injecting %x\n", key);
+  coopth_start(ic_tid, (void*)(uintptr_t)key);
+}
+
 static int mhp_check_regex(char *line)
 {
    int rx, hit;
@@ -2918,3 +2943,8 @@ void mhp_regex(const char *fmt, va_list args)
   }
 }
 
+void mhpdbgc_init(void)
+{
+  ic_tid = coopth_create("injchar thr", mhp_injchar_thr);
+  coopth_set_ctx_handlers(ic_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
+}
