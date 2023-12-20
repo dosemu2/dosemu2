@@ -61,6 +61,7 @@ static void mhp_puts(char* s)
 		   break;
 	   mhp_putc (*s++);
    }
+   mhp_send();
 }
 
 void mhp_putc(char c1)
