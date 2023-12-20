@@ -73,6 +73,10 @@
 
 static struct HMCB *hma_start;
 static int ic_tid;
+static int setbrk_tid;
+static Bit16u cbrk_handler_hlt;
+static far_t old_cbrk_hdlr;
+static int old_cbrk_on;
 
 /* prototypes */
 static void mhp_regs  (int, char *[]);
@@ -109,6 +113,7 @@ static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
 static void mhp_reboot  (int, char *[]);
 static void mhp_injchar (int, char *[]);
+static void mhp_hookcbrk (int, char *[]);
 
 static void print_log_breakpoints(void);
 static int bpchk(unsigned int a1);
@@ -181,6 +186,7 @@ static const struct cmd_db cmdtab[] = {
    {"dpbs",          mhp_dpbs},
    {"reboot",        mhp_reboot},
    {"injchar",       mhp_injchar},
+   {"hookcbrk",      mhp_hookcbrk},
    {"",              NULL}
 };
 
@@ -2894,6 +2900,40 @@ static void mhp_injchar(int argc, char *argv[])
   coopth_start(ic_tid, (void*)(uintptr_t)key);
 }
 
+static void cbrk_handler(Bit16u idx, HLT_ARG(arg))
+{
+  fake_iret();
+  mhp_printf("got cbreak\n");
+}
+
+static void mhp_setbrk_thr(void *arg)
+{
+  pre_msdos();
+  _AX = 0x3300;
+  call_msdos();
+  old_cbrk_on = _DX & 1;
+  _AX = 0x3301;
+  _DX = (uintptr_t)arg;
+  call_msdos();
+  post_msdos();
+}
+
+static void mhp_hookcbrk(int argc, char *argv[])
+{
+  int on = 1;
+  if (argc > 1 && strcmp(argv[1], "off") == 0)
+    on = 0;
+  if (on) {
+    old_cbrk_hdlr.segment = ISEG(0x23);
+    old_cbrk_hdlr.offset = IOFF(0x23);
+    SETIVEC(0x23, BIOS_HLT_BLK_SEG, cbrk_handler_hlt);
+    coopth_start(setbrk_tid, (void *)(uintptr_t)on);
+  } else {
+    SETIVEC(0x23, old_cbrk_hdlr.segment, old_cbrk_hdlr.offset);
+    coopth_start(setbrk_tid, (void *)(uintptr_t)old_cbrk_on);
+  }
+}
+
 static int mhp_check_regex(char *line)
 {
    int rx, hit;
@@ -2945,6 +2985,13 @@ void mhp_regex(const char *fmt, va_list args)
 
 void mhpdbgc_init(void)
 {
+  emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+  hlt_hdlr.name      = "mhpdbg cbreak";
+  hlt_hdlr.func      = cbrk_handler;
+  cbrk_handler_hlt   = hlt_register_handler_vm86(hlt_hdlr);
+  setbrk_tid = coopth_create("injchar thr", mhp_setbrk_thr);
+  coopth_set_ctx_handlers(setbrk_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
+
   ic_tid = coopth_create("injchar thr", mhp_injchar_thr);
   coopth_set_ctx_handlers(ic_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
 }
