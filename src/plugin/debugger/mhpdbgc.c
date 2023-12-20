@@ -105,6 +105,7 @@ static void mhp_ddrh    (int, char *[]);
 static void mhp_dpbs    (int, char *[]);
 static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
+static void mhp_reboot   (int, char *[]);
 
 static void print_log_breakpoints(void);
 static int bpchk(unsigned int a1);
@@ -175,6 +176,7 @@ static const struct cmd_db cmdtab[] = {
    {"devs",          mhp_devs},
    {"ddrh",          mhp_ddrh},
    {"dpbs",          mhp_dpbs},
+   {"reboot",        mhp_reboot},
    {"",              NULL}
 };
 
@@ -2860,6 +2862,11 @@ static void mhp_bclog(int argc, char *argv[])
   }
 
   print_log_breakpoints();
+}
+
+static void mhp_reboot(int argc, char *argv[])
+{
+  dos_ctrl_alt_del();
 }
 
 static int mhp_check_regex(char *line)
