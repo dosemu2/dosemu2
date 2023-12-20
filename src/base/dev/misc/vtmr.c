@@ -384,6 +384,7 @@ void vtmr_init(void)
 #endif
 
     latch_tid = coopth_create("vtmr latch smi", vtmr_latch_smi);
+    coopth_set_ctx_handlers(latch_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
 
     sem_init(&vtmr_sem, 0, 0);
     for (i = 0; i < VTMR_MAX; i++) {
