@@ -227,6 +227,8 @@ static COMMAND cmds[] = {
    "ASCII_CODE        inject character to console\n"},
   {"hookcbrk", NULL,
    "[on | off]        hook ^break handling\n"},
+  {"dosbreak", NULL,
+   "                  command for testing\n"},
   {"reboot", NULL,
    "                  reboot dosemu\n"},
   {"kill", db_kill,

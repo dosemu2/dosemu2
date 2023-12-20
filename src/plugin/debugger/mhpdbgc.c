@@ -114,6 +114,7 @@ static void mhp_bclog   (int, char *[]);
 static void mhp_reboot  (int, char *[]);
 static void mhp_injchar (int, char *[]);
 static void mhp_hookcbrk (int, char *[]);
+static void mhp_dosbreak (int, char *[]);
 
 static void print_log_breakpoints(void);
 static int bpchk(unsigned int a1);
@@ -187,6 +188,7 @@ static const struct cmd_db cmdtab[] = {
    {"reboot",        mhp_reboot},
    {"injchar",       mhp_injchar},
    {"hookcbrk",      mhp_hookcbrk},
+   {"dosbreak",      mhp_dosbreak},
    {"",              NULL}
 };
 
@@ -2900,10 +2902,15 @@ static void mhp_injchar(int argc, char *argv[])
   coopth_start(ic_tid, (void*)(uintptr_t)key);
 }
 
+static void do_hookcbrk(int on);
+
 static void cbrk_handler(Bit16u idx, HLT_ARG(arg))
 {
+  int cnt = coopth_get_thread_count_in_process_vm86();
   fake_iret();
-  mhp_printf("got cbreak\n");
+  mhp_printf("got cbreak, %i\n", cnt);
+  if (!cnt)
+    do_hookcbrk(0);
 }
 
 static void mhp_setbrk_thr(void *arg)
@@ -2918,11 +2925,8 @@ static void mhp_setbrk_thr(void *arg)
   post_msdos();
 }
 
-static void mhp_hookcbrk(int argc, char *argv[])
+static void do_hookcbrk(int on)
 {
-  int on = 1;
-  if (argc > 1 && strcmp(argv[1], "off") == 0)
-    on = 0;
   if (on) {
     old_cbrk_hdlr.segment = ISEG(0x23);
     old_cbrk_hdlr.offset = IOFF(0x23);
@@ -2932,6 +2936,38 @@ static void mhp_hookcbrk(int argc, char *argv[])
     SETIVEC(0x23, old_cbrk_hdlr.segment, old_cbrk_hdlr.offset);
     coopth_start(setbrk_tid, (void *)(uintptr_t)old_cbrk_on);
   }
+}
+
+static void mhp_hookcbrk(int argc, char *argv[])
+{
+  int on = 1;
+  if (argc > 1 && strcmp(argv[1], "off") == 0)
+    on = 0;
+  do_hookcbrk(on);
+}
+
+static void c_nothr(int nthr)
+{
+  int cnt = coopth_get_thread_count_in_process_vm86();
+  mhp_printf("no thrs %i, %i in cur process\n", nthr, cnt);
+  if (cnt)
+    return;
+  coopth_set_nothread_notifier(NULL);
+}
+
+static void mhp_dosbreak (int, char *[])
+{
+  int cnt = coopth_get_thread_count_in_process_vm86();
+  if (cnt == 0) {
+    mhp_printf("no dos call to break\n");
+    return;
+  }
+  mhp_printf("breaking %i coopthreads\n", cnt);
+  coopth_set_nothread_notifier(c_nothr);
+
+  /* order of below 2 lines matters and should be inverse */
+  coopth_start(ic_tid, (void*)(uintptr_t)3);
+  do_hookcbrk(1);
 }
 
 static int mhp_check_regex(char *line)
