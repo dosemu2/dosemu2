@@ -67,12 +67,12 @@ const char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
 char *dosemu_rundir_path;
 char *dosemu_localdir_path;
 
-const char *dosemu_lib_dir_path = DOSEMULIB_DEFAULT;
+char *dosemu_lib_dir_path;
 char *dosemu_plugin_dir_path;
-const char *commands_path = DOSEMUCMDS_DEFAULT;
+char *commands_path;
 char *dosemu_image_dir_path;
 char *dosemu_drive_c_path;
-char keymaploadbase_default[] = DOSEMULIB_DEFAULT "/";
+char keymaploadbase_default[] = PREFIX "/share/";
 char *keymap_load_base_path = keymaploadbase_default;
 const char *keymap_dir_path = "keymap/";
 const char *owner_tty_locks = "uucp";
@@ -553,10 +553,15 @@ static void move_dosemu_lib_dir(void)
 
   if (!dosemu_plugin_dir_path)
     dosemu_plugin_dir_path = prefix(DOSEMUPLUGINDIR);
+  if (!dosemu_lib_dir_path)
+    dosemu_lib_dir_path = prefix(DOSEMULIB_DEFAULT);
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
   set_freedos_dir();
+  if (!commands_path)
+    commands_path = prefix(DOSEMUCMDS_DEFAULT);
   if (access(commands_path, R_OK | X_OK) != 0) {
     error("dosemu2 commands not found at %s\n", commands_path);
+    free(commands_path);
     commands_path = NULL;
   }
   old_cmd_path = assemble_path(dosemu_lib_dir_path, "dosemu2-cmds-0.1");
@@ -661,7 +666,7 @@ void secure_option_preparse(int *argc, char **argv)
     if (opt && opt[0]) {
       char *opt1 = path_expand(opt);
       if (opt1) {
-        replace_string(CFG_STORE, dosemu_lib_dir_path, opt1);
+        free(dosemu_lib_dir_path);
         dosemu_lib_dir_path = opt1;
         cnt++;
       } else {
@@ -689,7 +694,7 @@ void secure_option_preparse(int *argc, char **argv)
     if (opt && opt[0]) {
       char *opt1 = path_expand(opt);
       if (opt1) {
-        replace_string(CFG_STORE, commands_path, opt1);
+        free(commands_path);
         commands_path = opt1;
         cnt++;
       } else {
