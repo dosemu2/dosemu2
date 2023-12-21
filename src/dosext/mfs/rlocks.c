@@ -100,14 +100,6 @@ int lock_file_region(int fd, int lck, long long start,
   if (!lck)
     fsync(fd);
 
-#ifdef F_GETLK64	// 64bit locks are promoted automatically (e.g. glibc)
-//  static_assert(sizeof(struct flock) == sizeof(struct flock64), "incompatible flock64");
-
-  Debug0((dbg_fd, "Large file locking start=%llx, len=%lx\n", start, len));
-#else			// 32bit locking only
-#error 64bit locking not supported
-#endif
-
   fl.l_type = (lck ? (wr ? F_WRLCK : F_RDLCK) : F_UNLCK);
   fl.l_start = start;
   fl.l_len = len;
