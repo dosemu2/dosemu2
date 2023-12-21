@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <limits.h>
 #include <unistd.h>
+#include <libgen.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -562,6 +563,24 @@ char *get_path_in_HOME(const char *path)
 char *get_dosemu_local_home(void)
 {
 	return mkdir_under(get_path_in_HOME(".dosemu"), 0);
+}
+
+char *prefix(const char *suffix)
+{
+    char *p1, *ret;
+    char *s = strdup(dosemu_proc_self_exe);
+    char *p = dirname(s);
+    assert(p);
+    p1 = strrchr(p, '/');
+    if (p1 && strcmp(p1 + 1, "bin") == 0) {
+      *p1 = '\0';
+      ret = assemble_path(p, suffix);
+    } else {
+      error("unable to evaluate prefix from %s\n", dosemu_proc_self_exe);
+      ret = assemble_path(PREFIX, suffix);
+    }
+    free(s);
+    return ret;
 }
 
 int argparse(char *s, char *argvx[], int maxarg)

@@ -56,6 +56,7 @@ extern int config_check_only;
 #define  DOSEMU_DRIVES_DIR  "drives"
 #define  RUNDIR_PREFIX      "/var/run/user"
 #define  DOSEMU_CONF_DIR       SYSCONFDIR "/" CONFSUBDIR
+#define  DOSEMUPLUGINDIR "lib/dosemu"
 
 extern const char *config_script_name;
 extern const char *dosemu_loglevel_file_path;
@@ -68,7 +69,7 @@ extern char *fddir_boot;
 extern char *xbat_dir;
 extern const char *commands_path;
 extern const char *dosemu_lib_dir_path;
-extern const char *dosemu_plugin_dir_path;
+extern char *dosemu_plugin_dir_path;
 extern char *dosemu_image_dir_path;
 extern char *dosemu_drive_c_path;
 extern char keymaploadbase_default[];

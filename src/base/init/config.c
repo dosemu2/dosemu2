@@ -68,7 +68,7 @@ char *dosemu_rundir_path;
 char *dosemu_localdir_path;
 
 const char *dosemu_lib_dir_path = DOSEMULIB_DEFAULT;
-const char *dosemu_plugin_dir_path = DOSEMUPLUGINDIR;
+char *dosemu_plugin_dir_path;
 const char *commands_path = DOSEMUCMDS_DEFAULT;
 char *dosemu_image_dir_path;
 char *dosemu_drive_c_path;
@@ -551,6 +551,8 @@ static void move_dosemu_lib_dir(void)
   char *old_cmd_path;
   char *rp;
 
+  if (!dosemu_plugin_dir_path)
+    dosemu_plugin_dir_path = prefix(DOSEMUPLUGINDIR);
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
   set_freedos_dir();
   if (access(commands_path, R_OK | X_OK) != 0) {
@@ -673,7 +675,7 @@ void secure_option_preparse(int *argc, char **argv)
     if (opt && opt[0]) {
       char *opt1 = path_expand(opt);
       if (opt1) {
-        replace_string(CFG_STORE, dosemu_plugin_dir_path, opt1);
+        free(dosemu_plugin_dir_path);
         dosemu_plugin_dir_path = opt1;
         cnt++;
       } else {
