@@ -49,7 +49,7 @@ extern int config_check_only;
 #define  XBAT_DIR           "bat"             /* extras */
 #define  DOSEMULIB_DEFAULT  "share/dosemu"
 #define  DOSEMUCMDS_DEFAULT DOSEMULIB_DEFAULT "/" CMDS_SUFF
-#define  DOSEMULIBEXEC_DEFAULT  LIBEXECDIR "/dosemu"
+#define  DOSEMUEXEC_DEFAULT  LIBEXECDIR "/dosemu"
 #define  DOSEMUIMAGE_DEFAULT "~/" LOCALDIR_BASE_NAME
 #define  DRIVE_C_DIR        "drive_c"
 #define  DRIVE_C_DEFAULT    DOSEMUIMAGE_DEFAULT "/" DRIVE_C_DIR
@@ -69,6 +69,7 @@ extern char *fddir_boot;
 extern char *xbat_dir;
 extern char *commands_path;
 extern char *dosemu_lib_dir_path;
+extern const char *dosemu_exec_dir_path;
 extern char *dosemu_plugin_dir_path;
 extern char *dosemu_image_dir_path;
 extern char *dosemu_drive_c_path;

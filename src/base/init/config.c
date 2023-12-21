@@ -68,6 +68,7 @@ char *dosemu_rundir_path;
 char *dosemu_localdir_path;
 
 char *dosemu_lib_dir_path;
+const char *dosemu_exec_dir_path = DOSEMUEXEC_DEFAULT;
 char *dosemu_plugin_dir_path;
 char *commands_path;
 char *dosemu_image_dir_path;
@@ -671,6 +672,20 @@ void secure_option_preparse(int *argc, char **argv)
         cnt++;
       } else {
         error("--Flibdir: %s does not exist\n", opt);
+        config.exitearly = 1;
+      }
+      free(opt);
+    }
+
+    opt = get_option("--Fexecdir", 1, argc, argv);
+    if (opt && opt[0]) {
+      char *opt1 = path_expand(opt);
+      if (opt1) {
+        replace_string(CFG_STORE, dosemu_exec_dir_path, opt1);
+        dosemu_exec_dir_path = opt1;
+        cnt++;
+      } else {
+        error("--Fexecdir: %s does not exist\n", opt);
         config.exitearly = 1;
       }
       free(opt);

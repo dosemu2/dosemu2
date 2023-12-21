@@ -365,7 +365,7 @@ int run_unix_secure(const char *prg)
     const char *argv[2];
     pid_t pid;
 
-    path = assemble_path(DOSEMULIBEXEC_DEFAULT, prg);
+    path = assemble_path(dosemu_exec_dir_path, prg);
     if (!exists_file(path)) {
 	com_printf("unix: %s not found\n", path);
 	free(path);
