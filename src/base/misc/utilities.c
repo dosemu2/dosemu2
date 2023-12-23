@@ -567,9 +567,15 @@ char *get_dosemu_local_home(void)
 
 char *prefix(const char *suffix)
 {
-    char *p1, *ret;
-    char *s = strdup(dosemu_proc_self_exe);
-    char *p = dirname(s);
+    char *p1, *ret, *s, *p;
+
+    if (dosemu_proc_self_exe[0] != '/') {
+      error("cannot evaluate prefix from relative path %s\n",
+          dosemu_proc_self_exe);
+      return assemble_path(PREFIX, suffix);
+    }
+    s = strdup(dosemu_proc_self_exe);
+    p = dirname(s);
     assert(p);
     p1 = strrchr(p, '/');
     if (p1 && strcmp(p1 + 1, "bin") == 0) {
