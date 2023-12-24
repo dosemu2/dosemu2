@@ -14,7 +14,6 @@ building and installing dosemu2 from sources
       linux >= 4.3 for i386.
       linux >= 4.11 if you want to run 32bit dosemu under x86_64 kernel
       with multilib environment (you likely don't want to do this).
-    - x86 (i386/x86-64) target CPU
     - bison and flex
     - SDL >= 2.0.6, >= 2.26.0 is required for copy/paste support.
     - libslirp >= 4.1.0 recommended for networking
