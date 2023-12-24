@@ -43,6 +43,8 @@
  * Unfortunately with Posix locks its quite difficult to test
  * the locks on our own FD, as locks on same FD never conflict,
  * so some emulation is emploied for that task.
+ * The future kernels will support our Posix extension of using F_UNLCK
+ * for testing own locks.
  *
  */
 #include <fcntl.h>
@@ -173,7 +175,6 @@ int region_lock_offs(int fd, long long start, unsigned long len, int wr)
     return (fl.l_start - start);  // found partially unlocked region
   /* no allowed region found, unlock and return 0 */
   return flock(fd, LOCK_UN);
-;
 }
 
 void region_unlock_offs(int fd)
