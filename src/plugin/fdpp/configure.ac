@@ -54,8 +54,6 @@ AC_SUBST(FDPP_LFLAGS)
 
 PKG_CHECK_MODULES([FDPP], [fdpp >= 1.7],,
     AC_MSG_ERROR([fdpp installation not found or too old]))
-# hack away rpath as we provide our own
-FDPP_LIBS=`echo "$FDPP_LIBS" | sed -E 's/-Wl,[[^ ]]+ //'`
 PKG_CHECK_MODULES([VALGRIND], [valgrind], AC_DEFINE(HAVE_VALGRIND),
   AC_MSG_NOTICE([valgrind support disabled]))
 AH_TEMPLATE([HAVE_VALGRIND],
