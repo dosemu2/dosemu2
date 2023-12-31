@@ -56,7 +56,7 @@ static int tty_get_tx_queued(com_t *c)
  * stored in the Line Control Register (com[].LCR) and the Baudrate
  * Divisor Latch Registers (com[].dlm and com[].dll)     [num = port]
  */
-static void tty_termios(com_t *c)
+static void do_termios(com_t *c)
 {
   speed_t baud;
   long int rounddiv;
@@ -204,6 +204,12 @@ static void tty_termios(com_t *c)
 	    c->newset.c_iflag, c->newset.c_oflag,
 	    c->newset.c_cflag, c->newset.c_lflag);
   }
+}
+
+static void tty_termios(com_t *c)
+{
+  do_termios(c);
+  tcsetattr(c->fd, TCSANOW, &c->newset);
 }
 
 static int tty_brkctl(com_t *c, int brkflg)
@@ -411,7 +417,7 @@ static void ser_set_params(com_t *c)
     c->newset.c_cflag |= CRTSCTS;
 
   if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n", c->num);
-  tty_termios(c);			/* Set line settings now */
+  do_termios(c);			/* Set line settings now */
   tcsetattr(c->fd, TCSANOW, &c->newset);
 
   /* Pull down DTR and RTS.  This is the most natural for most comm */
