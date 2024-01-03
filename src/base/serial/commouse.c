@@ -81,7 +81,7 @@ static void com_irq(Bit16u idx, HLT_ARG(arg))
 
 static int get_char(int num)
 {
-  LWORD(edx) = com_cfg[_com_num].real_comport - 1;
+  LWORD(edx) = com_cfg[num].real_comport - 1;
   HI(ax) = 2;
   LO(ax) = 0;
   do_int_call_back(0x14);
