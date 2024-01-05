@@ -2955,7 +2955,7 @@ static void c_nothr(int nthr)
   coopth_set_nothread_notifier(NULL);
 }
 
-static void mhp_dosbreak (int, char *[])
+static void mhp_dosbreak (int argc, char *argv[])
 {
   int cnt = coopth_get_thread_count_in_process_vm86();
   if (cnt == 0) {
