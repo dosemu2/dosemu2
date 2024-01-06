@@ -1675,6 +1675,11 @@ int vga_emu_pre_init(void)
   int i;
   vga_mapping_type vmt = {0, 0, 0};
 
+  if (config.dumb_video) {
+    vgaemu_register_ports();
+    return 0;
+  }
+
   /* clean it up - just in case */
   memset(&vga, 0, sizeof vga);
 

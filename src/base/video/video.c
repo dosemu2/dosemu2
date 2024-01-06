@@ -513,9 +513,10 @@ void video_post_init(void)
     return;
   }
 
-  if (!config.vga && !config.dumb_video) {
+  if (!config.vga) {
     vga_emu_pre_init();
-    render_init();
+    if (!config.dumb_video)
+      render_init();
   }
 }
 
