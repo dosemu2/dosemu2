@@ -136,18 +136,12 @@ install:
 	  $(INSTALL) -m 0644 $$i $(sysdir); \
 	done
 	$(INSTALL) -d $(sysdir)/c
-	$(INSTALL) -d $(sysdir)/dosemu
-	$(INSTALL) -d $(sysdir)/dosemu/dosrc.d
-	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/c/* $(sysdir)/c
-	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/*.bat $(sysdir)/dosemu
-	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/dosrc.d/* $(sysdir)/dosemu/dosrc.d
 	$(INSTALL) -d $(cmddir)
-	for i in `find -L $(SYS) -xtype f`; do \
-	  $(INSTALL) -m 0644 $$i $(cmddir); \
-	done
-	cd $(SYS); for i in `find * -type l`; do \
-	  $(LN_S) -f generic.com $(cmddir)/$$i; \
-	done
+	$(INSTALL) -d $(cmddir)/dosrc.d
+	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/c/* $(sysdir)/c
+	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/*.bat $(cmddir)
+	$(INSTALL) -m 0644 -D $(SRCPATH)/bindist/bat/dosrc.d/* $(cmddir)/dosrc.d
+	cp -f -d $(SYS)/* $(cmddir)
 	$(LN_S) -f $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
 	if [ ! -f $(DESTDIR)$(etcdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(etcdir); \
