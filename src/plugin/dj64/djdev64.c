@@ -16,7 +16,7 @@
  */
 #include <dlfcn.h>
 #include <stdio.h>
-#include <dj64init.h>
+#include <djdev64/dj64init.h>
 #include "djdev64.h"
 
 static int handle;
