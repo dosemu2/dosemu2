@@ -692,7 +692,8 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
     rc = 1;
     if (ptr->shlock)
         rc = shlock_close(ptr->shlock);
-    if (rc > 0) {
+    /* dont unlink dj64 shms as they may be used by gdb */
+    if (rc > 0 && !(ptr->flags & PMBF_DJ64)) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
         shm_unlink(ptr->rshmname);
     }

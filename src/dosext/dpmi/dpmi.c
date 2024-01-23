@@ -3598,6 +3598,7 @@ static void dpmi_dj64_open(cpuctx_t *scp)
   if (djh == -1) {
     _eflags |= CF;
   } else {
+    ptr->flags |= PMBF_DJ64;
     _eax = djh;
     _es = dpmi_sel();
     _edi = DPMI_SEL_OFF(DPMI_dj64_call);
