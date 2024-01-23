@@ -3603,6 +3603,7 @@ static void dpmi_dj64_open(cpuctx_t *scp)
     _es = dpmi_sel();
     _edi = DPMI_SEL_OFF(DPMI_dj64_call);
     _esi = DPMI_SEL_OFF(DPMI_dj64_ctrl);
+    D_printf("DPMI: dj64 opened\n");
   }
 }
 #endif
@@ -5138,6 +5139,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
               dpmi_dj64_open(scp);
             break;
           case 1:
+            D_printf("DPMI: djdev64_close()\n");
             djdev64_close(_eax);
             break;
           default:
@@ -5147,10 +5149,12 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_dj64_call)) {
           unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
+          D_printf("DPMI: djdev64_call() %s\n", DPMI_show_state(scp));
           djdev64_call(_eax, _ebx, _ecx, sp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_dj64_ctrl)) {
           unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
+          D_printf("DPMI: djdev64_ctrl() %s\n", DPMI_show_state(scp));
           djdev64_ctrl(_eax, _ebx, _ecx, sp);
 #endif
 
