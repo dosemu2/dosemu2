@@ -18,6 +18,35 @@
 #include <stdio.h>
 #include <djdev64/dj64init.h>
 #include "djdev64.h"
+#include "dosemu_debug.h"
+#include "dos2linux.h"
+
+static uint8_t *dj64_addr2ptr(uint32_t addr)
+{
+    return dosaddr_to_unixaddr(addr);
+}
+
+static void dj64_print(int prio, const char *format, va_list ap)
+{
+    switch(prio) {
+    case DJ64_PRINT_TERMINAL:
+        vfprintf(stderr, format, ap);
+        break;
+    case DJ64_PRINT_LOG:
+        if (debug_level('M')) {
+            log_printf(-1, "dj64: ");
+            vlog_printf(-1, format, ap);
+        }
+        break;
+    }
+}
+
+const struct dj64_api api = {
+    .addr2ptr = dj64_addr2ptr,
+    .print = dj64_print,
+};
+
+#define DJ64_API_VER 1
 
 static int handle;
 #define HNDL_MAX 5
@@ -61,7 +90,7 @@ int djdev64_open(const char *path)
     dlclose(dlh);
     return -1;
   }
-  cdisp = init(handle, disp, st);
+  cdisp = init(handle, &api, DJ64_API_VER, disp, st);
   if (!cdisp) {
     fprintf(stderr, _S(DJ64_INIT_FN) " failed\n");
     dlclose(dlh);
