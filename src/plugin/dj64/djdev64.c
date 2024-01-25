@@ -46,7 +46,9 @@ const struct dj64_api api = {
     .print = dj64_print,
 };
 
-#define DJ64_API_VER 1
+#if DJ64_API_VER != 1
+#error wrong dj64 version
+#endif
 
 static int handle;
 #define HNDL_MAX 5
@@ -62,14 +64,21 @@ static struct dj64handle dlhs[HNDL_MAX];
 
 int djdev64_open(const char *path)
 {
-  int h;
+  int h, rc;
   dj64init_t *init;
+  dj64init_once_t *init_once;
   dj64dispatch_t *disp;
   dj64cdispatch_t **cdisp;
   dj64symtab_t *st;
   void *dlh = dlopen(path, RTLD_LOCAL | RTLD_NOW);
   if (!dlh) {
     fprintf(stderr, "cannot dlopen %s: %s\n", path, dlerror());
+    return -1;
+  }
+  init_once = dlsym(dlh, _S(DJ64_INIT_ONCE_FN));
+  if (!init_once) {
+    fprintf(stderr, "cannot find " _S(DJ64_INIT_ONCE_FN) "\n");
+    dlclose(dlh);
     return -1;
   }
   init = dlsym(dlh, _S(DJ64_INIT_FN));
@@ -90,7 +99,13 @@ int djdev64_open(const char *path)
     dlclose(dlh);
     return -1;
   }
-  cdisp = init(handle, &api, DJ64_API_VER, disp, st);
+  rc = init_once(&api, DJ64_API_VER);
+  if (rc == -1) {
+    fprintf(stderr, _S(DJ64_INIT_ONCE_FN) " failed\n");
+    dlclose(dlh);
+    return -1;
+  }
+  cdisp = init(handle, disp, st);
   if (!cdisp) {
     fprintf(stderr, _S(DJ64_INIT_FN) " failed\n");
     dlclose(dlh);
