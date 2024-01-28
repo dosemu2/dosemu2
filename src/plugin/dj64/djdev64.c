@@ -74,7 +74,7 @@ static int do_open(const char *path)
     return djdev64_open(path, &api, DJ64_API_VER, st, NULL);
 }
 
-static struct djdev64_ops ops = {
+static const struct djdev64_ops ops = {
     do_open,
     djdev64_call,
     djdev64_ctrl,

@@ -3569,9 +3569,9 @@ static int prev_clnt(void)
 
 #ifdef USE_DJDEV64
 
-static struct djdev64_ops *djdev64;
+static const struct djdev64_ops *djdev64;
 
-void register_djdev64(struct djdev64_ops *ops)
+void register_djdev64(const struct djdev64_ops *ops)
 {
   djdev64 = ops;
 }

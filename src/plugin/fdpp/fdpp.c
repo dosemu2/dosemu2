@@ -177,7 +177,7 @@ static void fdpp_fmemset(fdpp_far_t d, int ch, size_t n)
     memset_dos(dst, ch, n);
 }
 
-static struct fdpp_api api = {
+static const struct fdpp_api api = {
     .so2lin = fdpp_so2lin,
     .exit = fdpp_exit,
     .abort = fdpp_abort,

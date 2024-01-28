@@ -8,6 +8,6 @@ struct djdev64_ops {
     void (*close)(int handle);
 };
 
-void register_djdev64(struct djdev64_ops *ops);
+void register_djdev64(const struct djdev64_ops *ops);
 
 #endif
