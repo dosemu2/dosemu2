@@ -3569,10 +3569,12 @@ static int prev_clnt(void)
 
 #ifdef USE_DJDEV64
 
-int (*djdev64_open)(const char *path);
-int (*djdev64_call)(int handle, int libid, int fn, unsigned char *sp);
-int (*djdev64_ctrl)(int handle, int libid, int fn, unsigned char *sp);
-void (*djdev64_close)(int handle);
+static struct djdev64_ops *djdev64;
+
+void register_djdev64(struct djdev64_ops *ops)
+{
+  djdev64 = ops;
+}
 
 static void dpmi_dj64_open(cpuctx_t *scp)
 {
@@ -3583,17 +3585,12 @@ static void dpmi_dj64_open(cpuctx_t *scp)
   int djh;
   void *dlh = load_plugin("dj64");
 
-  if (!dlh)
+  if (!dlh || !djdev64)
     return;
-  djdev64_open = dlsym(dlh, "djdev64_open");
-  djdev64_call = dlsym(dlh, "djdev64_call");
-  djdev64_ctrl = dlsym(dlh, "djdev64_ctrl");
-  djdev64_close = dlsym(dlh, "djdev64_close");
-
   _eflags &= ~CF;
   ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
   path = assemble_path(mp, ptr->rshmname + 1);
-  djh = djdev64_open(path);
+  djh = djdev64->open(path);
   free(path);
   if (djh == -1) {
     _eflags |= CF;
@@ -5140,7 +5137,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
             break;
           case 1:
             D_printf("DPMI: djdev64_close()\n");
-            djdev64_close(_eax);
+            djdev64->close(_eax);
             break;
           default:
             error("dj64: unknown cmd %x\n", _eax);
@@ -5150,12 +5147,12 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_dj64_call)) {
           unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
           D_printf("DPMI: djdev64_call() %s\n", DPMI_show_state(scp));
-          djdev64_call(_eax, _ebx, _ecx, sp);
+          djdev64->call(_eax, _ebx, _ecx, sp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_dj64_ctrl)) {
           unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
           D_printf("DPMI: djdev64_ctrl() %s\n", DPMI_show_state(scp));
-          djdev64_ctrl(_eax, _ebx, _ecx, sp);
+          djdev64->ctrl(_eax, _ebx, _ecx, sp);
 #endif
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {

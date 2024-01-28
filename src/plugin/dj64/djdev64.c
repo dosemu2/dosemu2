@@ -17,7 +17,7 @@
 #include <dlfcn.h>
 #include <stdio.h>
 #include <djdev64/dj64init.h>
-#include "djdev64.h"
+#include "init.h"
 #include "emu.h"
 #include "dosemu_debug.h"
 #include "utilities.h"
@@ -81,7 +81,7 @@ static void *st(void *arg, const char *elf, const char *sym)
     return NULL; // TODO!
 }
 
-int djdev64_open(const char *path)
+static int djdev64_open(const char *path)
 {
   int h, rc;
   dj64init_t *init;
@@ -130,24 +130,36 @@ int djdev64_open(const char *path)
   return h;
 }
 
-int djdev64_call(int handle, int libid, int fn, unsigned char *sp)
+static int djdev64_call(int handle, int libid, int fn, unsigned char *sp)
 {
     if (handle >= HNDL_MAX || !dlhs[handle].dlobj)
         return -1;
     return dlhs[handle].cdisp(handle, libid, fn, sp);
 }
 
-int djdev64_ctrl(int handle, int libid, int fn, unsigned char *sp)
+static int djdev64_ctrl(int handle, int libid, int fn, unsigned char *sp)
 {
     if (handle >= HNDL_MAX || !dlhs[handle].dlobj)
         return -1;
     return dlhs[handle].ctrl(handle, libid, fn, sp);
 }
 
-void djdev64_close(int handle)
+static void djdev64_close(int handle)
 {
     if (handle >= HNDL_MAX)
         return;
     dlclose(dlhs[handle].dlobj);
     dlhs[handle].dlobj = NULL;
+}
+
+static struct djdev64_ops ops = {
+    djdev64_open,
+    djdev64_call,
+    djdev64_ctrl,
+    djdev64_close,
+};
+
+CONSTRUCTOR(static void djdev64_init(void))
+{
+    register_djdev64(&ops);
 }
