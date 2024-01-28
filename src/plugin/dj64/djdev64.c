@@ -75,6 +75,12 @@ static struct dj64handle dlhs[HNDL_MAX];
 #define __S(x) #x
 #define _S(x) __S(x)
 
+static void *st(void *arg, const char *elf, const char *sym)
+{
+    fprintf(stderr, "resolve %s\n", sym);
+    return NULL; // TODO!
+}
+
 int djdev64_open(const char *path)
 {
   int h, rc;
@@ -82,7 +88,6 @@ int djdev64_open(const char *path)
   dj64init_once_t *init_once;
   dj64dispatch_t *disp;
   dj64cdispatch_t **cdisp;
-  dj64symtab_t *st;
   void *dlh = dlopen(path, RTLD_LOCAL | RTLD_NOW);
   if (!dlh) {
     fprintf(stderr, "cannot dlopen %s: %s\n", path, dlerror());
@@ -106,19 +111,13 @@ int djdev64_open(const char *path)
     dlclose(dlh);
     return -1;
   }
-  st = dlsym(dlh, _S(DJ64_SYMTAB_FN));
-  if (!st) {
-    fprintf(stderr, "cannot find " _S(DJ64_SYMTAB_FN) "\n");
-    dlclose(dlh);
-    return -1;
-  }
   rc = init_once(&api, DJ64_API_VER);
   if (rc == -1) {
     fprintf(stderr, _S(DJ64_INIT_ONCE_FN) " failed\n");
     dlclose(dlh);
     return -1;
   }
-  cdisp = init(handle, disp, st);
+  cdisp = init(handle, disp, st, NULL);
   if (!cdisp) {
     fprintf(stderr, _S(DJ64_INIT_FN) " failed\n");
     dlclose(dlh);
