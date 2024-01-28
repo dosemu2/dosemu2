@@ -683,7 +683,7 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
 {
 #ifdef HAVE_SHM_OPEN
     void *exlock;
-    int rc = 1;
+    int rc = 1, need_free = 1;
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !ptr->shmname)
         return -1;
@@ -693,16 +693,24 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
     exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
     assert(exlock);
     rc = 1;
-    if (ptr->shlock)
+    if (ptr->shlock) {
         rc = shlock_close(ptr->shlock);
-    /* dont unlink dj64 shms as they may be used by gdb */
-    if (rc > 0 && !(ptr->flags & PMBF_DJ64)) {
-        D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
-        shm_unlink(ptr->rshmname);
+        ptr->shlock = NULL;
+    }
+    if (rc > 0) {
+        /* dont unlink dj64 shms as they may be used by gdb */
+        if (ptr->flags & PMBF_DJ64) {
+            ptr->flags &= ~PMBF_DJ64;  // unlink on exit
+            need_free = 0;
+        } else {
+            D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
+            shm_unlink(ptr->rshmname);
+        }
     }
     shlock_close(exlock);
 
-    free_pm_block(root, ptr);
+    if (need_free)
+        free_pm_block(root, ptr);
     return 0;
 #else
     return -1;
