@@ -8,6 +8,7 @@ top_builddir=../../..
 include ../plugins.mak
 
 ALL_CFLAGS += $(DL_CFLAGS)
+ALL_LDFLAGS += $(DJDEV64_LIBS)
 CFILES = djdev64.c
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_dj64.so
