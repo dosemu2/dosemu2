@@ -346,7 +346,7 @@ static void minfault(int sig, siginfo_t *si, void *uc)
 #endif
 #endif
   siginfo_debug(si);
-  _exit(sig);
+  leavedos_from_sig(sig);
 }
 
 /* Silly Interrupt Generator Initialization/Closedown */

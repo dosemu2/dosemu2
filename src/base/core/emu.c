@@ -445,7 +445,6 @@ void __leavedos(int code, int sig, const char *s, int num)
     /* abandon current thread if any */
     coopth_abandon();
     /* close coopthreads-related stuff first */
-    dpmi_done();
     if (!config.exitearly) {  // in exitearly case nothing to join
       /* try to clean up threads */
       tmp = coopth_flush_vm86();
@@ -464,6 +463,7 @@ static void __leavedos_main(int code, int sig)
 
     /* async signals must be disabled first or pthread_cancel() hangs on arm */
     signal_done();
+    dpmi_done();
     /* now safe to stop io thread */
     ioselect_done();
     /* then stop device threads, which also stops any remaining vm86() uses */
