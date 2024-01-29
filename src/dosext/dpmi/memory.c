@@ -587,7 +587,6 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
 
     if (!size)		// DPMI spec says this is allowed - no thanks
         return NULL;
-    size = PAGE_ALIGN(size);
 
     exlock = shlock_open(EXLOCK_DIR, name, 1, 1);
     if (!exlock) {
@@ -619,7 +618,6 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     err = fstat(fd, &st);
     assert(!err);
     if (st.st_size) {
-        assert(!(st.st_size & (PAGE_SIZE - 1)));
         if (size > st.st_size) {
             error("DPMI: reducing %s size from %i to %zi\n",
                     shmname, size, st.st_size);
