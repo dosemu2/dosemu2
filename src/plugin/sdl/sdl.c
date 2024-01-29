@@ -1139,6 +1139,8 @@ static int SDL_change_config(unsigned item, void *buf)
 
   v_printf("SDL: SDL_change_config: item = %d, buffer = %p\n", item, buf);
 
+  update_screen();  // process any pending updates
+
   switch (item) {
 
   case CHG_TITLE:
