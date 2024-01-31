@@ -153,11 +153,15 @@ static void do_lock(const char *fname, int id, void **locks)
     free(lname);
 }
 
-static int open_compat(const char *fname, void **locks)
+static int open_compat(const char *fname, int open_mode, void **locks)
 {
     if (is_locked(fname, noncompat_lk))
         return -1;
     do_lock(fname, compat_lk, locks);
+    if (open_mode != O_WRONLY)
+        do_lock(fname, R_lk, locks);
+    if (open_mode == O_WRONLY || open_mode == O_RDWR)
+        do_lock(fname, W_lk, locks);
     return 0;
 }
 
@@ -218,10 +222,22 @@ static int do_mfs_open(struct file_fd *f, const char *fname,
     fd = open(fname, flags | O_CLOEXEC);
     if (fd == -1)
         goto err;
-    if (!share_mode)
-        err = open_compat(fname, f->shemu_locks);
-    else
+    if (!share_mode) {
+        err = open_compat(fname, flags, f->shemu_locks);
+        if (err && !is_writable && file_is_ro(fname) &&
+                !is_locked(fname, denyR_lk) && !is_locked(fname, W_lk)) {
+            d_printf("SHARE: allowing compat open of R/O file\n");
+            err = 0;
+        }
+    } else {
+        int denyR = (share_mode == DENY_READ || share_mode == DENY_ALL);
         err = open_share(fname, flags, share_mode, f->shemu_locks);
+        if (err && !is_writable && !denyR && file_is_ro(fname) &&
+                is_locked(fname, compat_lk) && !is_locked(fname, W_lk)) {
+            d_printf("SHARE: allowing share open of R/O file\n");
+            err = 0;
+        }
+    }
     if (err) {
         *r_err = SHARING_VIOLATION;
         goto err2;
@@ -286,7 +302,7 @@ static int do_mfs_creat(struct file_fd *f, const char *fname, mode_t mode)
     if (fd == -1)
         goto err;
     /* set compat mode */
-    err = open_compat(fname, f->shemu_locks);
+    err = open_compat(fname, O_RDWR, f->shemu_locks);
     if (err)
         goto err2;
     shlock = apply_shlock(fname);

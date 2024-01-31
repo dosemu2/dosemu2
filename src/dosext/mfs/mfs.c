@@ -3874,7 +3874,7 @@ do_open_existing:
           SETWORD(&state->eax, FILE_NOT_FOUND);
           return (FALSE);
       }
-      if (dos_mode != READ_ACC && file_is_ro(fpath, st.st_mode)) {
+      if (dos_mode != READ_ACC && file_is_ro(fpath)) {
           SETWORD(&state->eax, ACCESS_DENIED);
           return (FALSE);
       }
