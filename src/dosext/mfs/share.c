@@ -224,7 +224,18 @@ static int do_mfs_open(struct file_fd *f, const char *fname,
         goto err;
     if (!share_mode) {
         err = open_compat(fname, flags, f->shemu_locks);
-        if (err && !is_writable && file_is_ro(fname) &&
+        /* NOTE: DOS-6.22 checks if the file is R/O, DOS-7 doesn't.
+         * Below the R/O check is commented out to be compatible with
+         * DOS-7. That solves many problems, see
+         * https://github.com/dosemu2/dosemu2/issues/2143
+         * Or for example running windows-3.1 in 2 dosemu2 instances
+         * would result in no sound in the second instance if the R/O
+         * check is enforced and the sound drivers are not marked as
+         * R/O.
+         * BUT we do not implement the DOS-7 share rules fully.
+         * Namely, DenyNone is implemented the 6.22 way.
+         */
+        if (err && !is_writable /*&& file_is_ro(fname)*/ &&
                 !is_locked(fname, denyR_lk) && !is_locked(fname, W_lk)) {
             d_printf("SHARE: allowing compat open of R/O file\n");
             err = 0;
@@ -232,7 +243,8 @@ static int do_mfs_open(struct file_fd *f, const char *fname,
     } else {
         int denyR = (share_mode == DENY_READ || share_mode == DENY_ALL);
         err = open_share(fname, flags, share_mode, f->shemu_locks);
-        if (err && !is_writable && !denyR && file_is_ro(fname) &&
+        /* See above note about the disabled R/O check. */
+        if (err && !is_writable && !denyR /*&& file_is_ro(fname)*/ &&
                 is_locked(fname, compat_lk) && !is_locked(fname, W_lk)) {
             d_printf("SHARE: allowing share open of R/O file\n");
             err = 0;

@@ -195,13 +195,13 @@ OPENTESTS = (
     ("SH_COMPAT", "R" , "SH_DENYRW", "R" , "DENY"),
     ("SH_COMPAT", "R" , "SH_DENYRW", "W" , "DENY"),
     ("SH_COMPAT", "R" , "SH_DENYRW", "RW", "DENY"),
-    ("SH_COMPAT", "R" , "SH_DENYWR", "R" , "DENY"), # File RO success, W fails
+    ("SH_COMPAT", "R" , "SH_DENYWR", "R" , "ALLOW"), # File RO success, W fails. For MS-DOS-7: always success.
     ("SH_COMPAT", "R" , "SH_DENYWR", "W" , "DENY"),
     ("SH_COMPAT", "R" , "SH_DENYWR", "RW", "DENY"),
     ("SH_COMPAT", "R" , "SH_DENYRD", "R" , "DENY"),
     ("SH_COMPAT", "R" , "SH_DENYRD", "W" , "DENY"),
     ("SH_COMPAT", "R" , "SH_DENYRD", "RW", "DENY"),
-    ("SH_COMPAT", "R" , "SH_DENYNO", "R" , "DENY"), # File RO success, W fails
+    ("SH_COMPAT", "R" , "SH_DENYNO", "R" , "ALLOW"), # File RO success, W fails. For MS-DOS-7: always success.
     ("SH_COMPAT", "R" , "SH_DENYNO", "W" , "DENY"),
     ("SH_COMPAT", "R" , "SH_DENYNO", "RW", "DENY"),
 
@@ -291,7 +291,7 @@ OPENTESTS = (
     ("SH_DENYRW", "RW", "SH_DENYNO", "RW", "DENY"),
 
 # Deny   R |2 C C  N N N  Y N N  N N N  Y N N
-    ("SH_DENYWR", "R" , "SH_COMPAT", "R" , "INT24"), # File RO success, W fails INT24
+    ("SH_DENYWR", "R" , "SH_COMPAT", "R" , "ALLOW"), # File RO success, W fails INT24. For MS-DOS-7: always success.
     ("SH_DENYWR", "R" , "SH_COMPAT", "W" , "INT24"),
     ("SH_DENYWR", "R" , "SH_COMPAT", "RW", "INT24"),
     ("SH_DENYWR", "R" , "SH_DENYRW", "R" , "DENY"),
@@ -393,7 +393,7 @@ OPENTESTS = (
     ("SH_DENYRD", "RW", "SH_DENYNO", "RW", "DENY"),
 
 # Deny   R |2 C C  N N N  Y Y Y  N N N  Y Y Y
-    ("SH_DENYNO", "R" , "SH_COMPAT", "R" , "INT24"), # 2
+    ("SH_DENYNO", "R" , "SH_COMPAT", "R" , "ALLOW"), # File RO success, W fails INT24. For MS-DOS-7: always success.
     ("SH_DENYNO", "R" , "SH_COMPAT", "W" , "INT24"),
     ("SH_DENYNO", "R" , "SH_COMPAT", "RW", "INT24"),
     ("SH_DENYNO", "R" , "SH_DENYRW", "R" , "DENY"),
