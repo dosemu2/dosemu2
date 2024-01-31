@@ -444,7 +444,8 @@ void __leavedos(int code, int sig, const char *s, int num)
     keyb_close();
     /* abandon current thread if any */
     coopth_abandon();
-    /* close coopthreads-related stuff first */
+    /* switch to RM before closing coopthreads-related stuff */
+    dpmi_done0();
     if (!config.exitearly) {  // in exitearly case nothing to join
       /* try to clean up threads */
       tmp = coopth_flush_vm86();

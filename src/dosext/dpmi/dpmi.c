@@ -6244,6 +6244,12 @@ int dpmi_active(void)
   return in_dpmi;
 }
 
+void dpmi_done0(void)
+{
+  D_printf("DPMI: finalizing, stage 0\n");
+  dpmi_reset();
+}
+
 void dpmi_done(void)
 {
   int i;
