@@ -17,6 +17,7 @@
 #include <dlfcn.h>
 #include <stdio.h>
 #include <djdev64/djdev64.h>
+#include <djdev64/dj64init.h>
 #include "init.h"
 #include "emu.h"
 #include "dosemu_debug.h"
@@ -63,15 +64,9 @@ const struct dj64_api api = {
 #error wrong dj64 version
 #endif
 
-static void *st(void *arg, const char *elf, const char *sym)
-{
-    fprintf(stderr, "resolve %s\n", sym);
-    return NULL; // TODO!
-}
-
 static int do_open(const char *path)
 {
-    return djdev64_open(path, &api, DJ64_API_VER, st, NULL);
+    return djdev64_open(path, &api, DJ64_API_VER);
 }
 
 static const struct djdev64_ops ops = {
