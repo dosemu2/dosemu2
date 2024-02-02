@@ -54,10 +54,19 @@ static void dj64_print(int prio, const char *format, va_list ap)
     }
 }
 
+static int dj64_asm_call(dpmi_regs *regs, uint32_t offs, uint8_t *sp,
+        uint8_t len)
+{
+    /* TODO! */
+    error("asm call to 0x%x\n", offs);
+    return ASM_CALL_OK;
+}
+
 const struct dj64_api api = {
     .addr2ptr = dj64_addr2ptr,
     .ptr2addr = dj64_ptr2addr,
     .print = dj64_print,
+    .asm_call = dj64_asm_call,
 };
 
 #if DJ64_API_VER != 1
