@@ -105,18 +105,13 @@ DPMI_dj64:
 	hlt
 	lretl
 /* ======================= Addr = dpmi_sel():0175 */
-	.globl DPMI_dj64_call
-DPMI_dj64_call:
-	hlt
-	lretl
-/* ======================= Addr = dpmi_sel():0177 */
 	.globl DPMI_dj64_ctrl
 DPMI_dj64_ctrl:
 	hlt
 	lretl
 
 	.globl DPMI_sel_end
-/* ======================= Addr = dpmi_sel():0173 */
+/* ======================= Addr = dpmi_sel():0177 */
 	.globl DPMI_shlock
 DPMI_shlock:
 	hlt

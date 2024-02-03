@@ -23,7 +23,10 @@
 #include "dosemu_debug.h"
 #include "utilities.h"
 #include "emudpmi.h"
+#include "msdoshlp.h"
 #include "dos2linux.h"
+
+static struct dos_helper_s call_hlp;
 
 static uint8_t *dj64_addr2ptr(uint32_t addr)
 {
@@ -85,7 +88,16 @@ static const struct djdev64_ops ops = {
     djdev64_close,
 };
 
+static void call_thr(void *arg)
+{
+    cpuctx_t *scp = arg;
+    unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
+    D_printf("DPMI: djdev64_call() %s\n", DPMI_show_state(scp));
+    djdev64_call(_eax, _ebx, _ecx, sp);
+}
+
 CONSTRUCTOR(static void djdev64_init(void))
 {
-    register_djdev64(&ops);
+    doshlp_setup_retf(&call_hlp, "dj64 call", call_thr, NULL, NULL);
+    register_djdev64(&ops, call_hlp.entry);
 }
