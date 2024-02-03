@@ -5149,7 +5149,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_dj64_ctrl)) {
           unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
           D_printf("DPMI: djdev64_ctrl() %s\n", DPMI_show_state(scp));
-          djdev64->ctrl(_eax, _ebx, _ecx, sp);
+          djdev64->ctrl(_eax, _ebx, _ecx, _esi, sp);
 #endif
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {

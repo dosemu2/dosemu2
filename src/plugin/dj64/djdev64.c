@@ -24,6 +24,7 @@
 #include "utilities.h"
 #include "emudpmi.h"
 #include "msdoshlp.h"
+#include "coopth.h"
 #include "dos2linux.h"
 
 static struct dos_helper_s call_hlp;
@@ -57,11 +58,51 @@ static void dj64_print(int prio, const char *format, va_list ap)
     }
 }
 
-static int dj64_asm_call(dpmi_regs *regs, uint32_t offs, uint8_t *sp,
+static void copy_stk(cpuctx_t *scp, uint8_t *sp, uint8_t len)
+{
+    uint8_t *stk;
+    if (!len)
+	return;
+    _esp -= len;
+    stk = SEL_ADR(_ss, _esp);
+    memcpy(stk, sp, len);
+}
+
+static void copy_gp(cpuctx_t *scp, dpmi_regs *src)
+{
+#define CP_R(r) _##r = src->r
+    CP_R(eax);
+    CP_R(ebx);
+    CP_R(ecx);
+    CP_R(edx);
+    CP_R(esi);
+    CP_R(edi);
+    CP_R(ebp);
+}
+
+static void do_callf(cpuctx_t *scp, dpmi_paddr pma)
+{
+    unsigned int *ssp = SEL_ADR(_ss, _esp);
+    *--ssp = _cs;
+    *--ssp = _eip;
+    _esp -= 8;
+
+    _cs = pma.selector;
+    _eip = pma.offset32;
+}
+
+static int dj64_asm_call(dpmi_regs *regs, dpmi_paddr pma, uint8_t *sp,
         uint8_t len)
 {
-    /* TODO! */
-    error("asm call to 0x%x\n", offs);
+    cpuctx_t *scp = coopth_pop_user_data_cur();
+    cpuctx_t sa = *scp;
+    copy_stk(scp, sp, len);
+    copy_gp(scp, regs);
+    D_printf("asm call to 0x%x:0x%x\n", pma.selector, pma.offset32);
+    do_callf(scp, pma);
+    coopth_sched();
+    *scp = sa;
+    coopth_push_user_data_cur(scp);
     return ASM_CALL_OK;
 }
 
@@ -93,7 +134,8 @@ static void call_thr(void *arg)
     cpuctx_t *scp = arg;
     unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
     D_printf("DPMI: djdev64_call() %s\n", DPMI_show_state(scp));
-    djdev64_call(_eax, _ebx, _ecx, sp);
+    coopth_push_user_data_cur(scp);
+    djdev64_call(_eax, _ebx, _ecx, _esi, sp);
 }
 
 CONSTRUCTOR(static void djdev64_init(void))
