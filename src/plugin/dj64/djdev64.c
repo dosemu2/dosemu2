@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2023  stsp
+ *  Copyright (C) 2024  stsp
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -78,6 +78,20 @@ static void copy_gp(cpuctx_t *scp, dpmi_regs *src)
     CP_R(esi);
     CP_R(edi);
     CP_R(ebp);
+#undef CP_R
+}
+
+static void bcopy_gp(dpmi_regs *dst, cpuctx_t *scp)
+{
+#define CP_R(r) dst->r = _##r
+    CP_R(eax);
+    CP_R(ebx);
+    CP_R(ecx);
+    CP_R(edx);
+    CP_R(esi);
+    CP_R(edi);
+    CP_R(ebp);
+#undef CP_R
 }
 
 static void do_callf(cpuctx_t *scp, dpmi_paddr pma)
@@ -101,6 +115,7 @@ static int dj64_asm_call(dpmi_regs *regs, dpmi_paddr pma, uint8_t *sp,
     D_printf("asm call to 0x%x:0x%x\n", pma.selector, pma.offset32);
     do_callf(scp, pma);
     coopth_sched();
+    bcopy_gp(regs, scp);
     *scp = sa;
     coopth_push_user_data_cur(scp);
     return ASM_CALL_OK;
