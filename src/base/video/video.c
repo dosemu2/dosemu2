@@ -461,6 +461,13 @@ void video_post_init(void)
     }
   }
 
+  /* init vgaemu & render before initing video subsystem */
+  if (!config.vga) {
+    vga_emu_pre_init();
+    if (!config.dumb_video)
+      render_init();
+  }
+
   if (Video && Video->init) {
     c_printf("VID: initializing video %s\n", Video->name);
     err = Video->init();
@@ -511,12 +518,6 @@ void video_post_init(void)
     leavedos(3);
     /* leavedos does not exit immediately. */
     return;
-  }
-
-  if (!config.vga) {
-    vga_emu_pre_init();
-    if (!config.dumb_video)
-      render_init();
   }
 }
 
