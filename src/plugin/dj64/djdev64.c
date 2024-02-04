@@ -25,9 +25,11 @@
 #include "emudpmi.h"
 #include "msdoshlp.h"
 #include "coopth.h"
+#include "hlt.h"
 #include "dos2linux.h"
 
 static struct dos_helper_s call_hlp;
+static unsigned ctrl_off;
 
 static uint8_t *dj64_addr2ptr(uint32_t addr)
 {
@@ -137,11 +139,16 @@ static int do_open(const char *path)
     return djdev64_open(path, &api, DJ64_API_VER);
 }
 
+static void do_close(cpuctx_t *scp)
+{
+    djdev64_close(_eax);
+}
+
 static const struct djdev64_ops ops = {
-    do_open,
-    djdev64_call,
-    djdev64_ctrl,
-    djdev64_close,
+    .open = do_open,
+    .close = do_close,
+    .call = &call_hlp.entry,
+    .ctrl = &ctrl_off,
 };
 
 static void call_thr(void *arg)
@@ -153,8 +160,29 @@ static void call_thr(void *arg)
     djdev64_call(_eax, _ebx, _ecx, _esi, sp);
 }
 
+static void do_retf(cpuctx_t *scp)
+{
+    unsigned int *ssp = SEL_ADR(_ss, _esp);
+    _eip = *ssp++;
+    _cs = *ssp++;
+    _esp += 8;
+}
+
+static void ctrl_hlt(Bit16u offs, void *sc, void *arg)
+{
+    cpuctx_t *scp = sc;
+    unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
+    do_retf(scp);
+    D_printf("DPMI: djdev64_ctrl() %s\n", DPMI_show_state(scp));
+    djdev64_ctrl(_eax, _ebx, _ecx, _esi, sp);
+}
+
 CONSTRUCTOR(static void djdev64_init(void))
 {
-    doshlp_setup_retf(&call_hlp, "dj64 call", call_thr, NULL, NULL);
-    register_djdev64(&ops, call_hlp.entry);
+    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+    hlt_hdlr.name = "dj64 ctrl";
+    hlt_hdlr.func = ctrl_hlt;
+    ctrl_off = hlt_register_handler_pm(hlt_hdlr);
+    doshlp_setup(&call_hlp, "dj64 call", call_thr, do_retf);
+    register_djdev64(&ops);
 }

@@ -5,6 +5,7 @@
 #include "sig.h"
 #endif
 #include "cpu.h"
+#include "hlt.h"
 #include "emudpmi.h"
 
 enum MsdOpIds { MSDOS_FAULT, MSDOS_PAGEFAULT, API_CALL, API_WINOS2_CALL,
@@ -72,5 +73,7 @@ struct pmaddr_s doshlp_get_entry32(unsigned entry);
 void doshlp_quit_dpmi(cpuctx_t *scp);
 void doshlp_call_reinit(cpuctx_t *scp);
 int doshlp_idle(void);
+
+Bit16u hlt_register_handler_pm(emu_hlt_t handler);
 
 #endif

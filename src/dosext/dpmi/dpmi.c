@@ -3570,12 +3570,10 @@ static int prev_clnt(void)
 #ifdef USE_DJDEV64
 
 static const struct djdev64_ops *djdev64;
-static unsigned call_ent;
 
-void register_djdev64(const struct djdev64_ops *ops, unsigned entry)
+void register_djdev64(const struct djdev64_ops *ops)
 {
   djdev64 = ops;
-  call_ent = entry;
 }
 
 static void dpmi_dj64_open(cpuctx_t *scp)
@@ -3600,8 +3598,8 @@ static void dpmi_dj64_open(cpuctx_t *scp)
     ptr->flags |= PMBF_DJ64;
     _eax = djh;
     _es = dpmi_sel();
-    _edi = call_ent;
-    _esi = DPMI_SEL_OFF(DPMI_dj64_ctrl);
+    _edi = *djdev64->call;
+    _esi = *djdev64->ctrl;
     D_printf("DPMI: dj64 opened\n");
   }
 }
@@ -5139,17 +5137,12 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
             break;
           case 1:
             D_printf("DPMI: djdev64_close()\n");
-            djdev64->close(_eax);
+            djdev64->close(scp);
             break;
           default:
             error("dj64: unknown cmd %x\n", _eax);
             break;
           }
-
-        } else if (_eip==1+DPMI_SEL_OFF(DPMI_dj64_ctrl)) {
-          unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
-          D_printf("DPMI: djdev64_ctrl() %s\n", DPMI_show_state(scp));
-          djdev64->ctrl(_eax, _ebx, _ecx, _esi, sp);
 #endif
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {

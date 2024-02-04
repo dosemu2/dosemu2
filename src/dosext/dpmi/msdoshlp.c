@@ -700,3 +700,9 @@ int doshlp_idle(void)
     return 0;
 #endif
 }
+
+Bit16u hlt_register_handler_pm(emu_hlt_t handler)
+{
+    return hlt_register_handler(hlt_state, handler) +
+            DPMI_SEL_OFF(MSDOS_hlt_start);
+}
