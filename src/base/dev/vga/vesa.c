@@ -140,7 +140,7 @@ void vbe_pre_init(void)
 
   vgaemu_bios.prod_name = vgaemu_bios_prod_name - vgaemu_bios_start;
 
-  if (Video->setmode) {
+  if (!config.term) {
     i = vgaemu_bios_pm_interface_end - vgaemu_bios_pm_interface;
 
     if(i + bios_ptr > (VBE_BIOS_MAXPAGES << 12) - 8) {
