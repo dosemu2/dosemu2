@@ -187,7 +187,264 @@ int main(int argc, char *argv[]) {
 # 1 = open succeeds if file read-only, else fails with error code.
 # 2 = open succeeds if file read-only, else fails with INT 24
 
-OPENTESTS = (
+OPEN_622 = (
+# Compat R |Y Y Y  N N N  1 N N  N N N  1 N N.
+    ("SH_COMPAT", "R" , "SH_COMPAT", "R" , "ALLOW"),
+    ("SH_COMPAT", "R" , "SH_COMPAT", "W" , "ALLOW"),
+    ("SH_COMPAT", "R" , "SH_COMPAT", "RW", "ALLOW"),
+    ("SH_COMPAT", "R" , "SH_DENYRW", "R" , "DENY"),
+    ("SH_COMPAT", "R" , "SH_DENYRW", "W" , "DENY"),
+    ("SH_COMPAT", "R" , "SH_DENYRW", "RW", "DENY"),
+    ("SH_COMPAT", "R" , "SH_DENYWR", "R" , "DENY"), # File RO success, W fails
+    ("SH_COMPAT", "R" , "SH_DENYWR", "W" , "DENY"),
+    ("SH_COMPAT", "R" , "SH_DENYWR", "RW", "DENY"),
+    ("SH_COMPAT", "R" , "SH_DENYRD", "R" , "DENY"),
+    ("SH_COMPAT", "R" , "SH_DENYRD", "W" , "DENY"),
+    ("SH_COMPAT", "R" , "SH_DENYRD", "RW", "DENY"),
+    ("SH_COMPAT", "R" , "SH_DENYNO", "R" , "DENY"), # File RO success, W fails
+    ("SH_COMPAT", "R" , "SH_DENYNO", "W" , "DENY"),
+    ("SH_COMPAT", "R" , "SH_DENYNO", "RW", "DENY"),
+
+#        W |Y Y Y  N N N  N N N  N N N  N N N.
+    ("SH_COMPAT", "W" , "SH_COMPAT", "R" , "ALLOW"),
+    ("SH_COMPAT", "W" , "SH_COMPAT", "W" , "ALLOW"),
+    ("SH_COMPAT", "W" , "SH_COMPAT", "RW", "ALLOW"),
+    ("SH_COMPAT", "W" , "SH_DENYRW", "R" , "DENY"),
+    ("SH_COMPAT", "W" , "SH_DENYRW", "W" , "DENY"),
+    ("SH_COMPAT", "W" , "SH_DENYRW", "RW", "DENY"),
+    ("SH_COMPAT", "W" , "SH_DENYWR", "R" , "DENY"),
+    ("SH_COMPAT", "W" , "SH_DENYWR", "W" , "DENY"),
+    ("SH_COMPAT", "W" , "SH_DENYWR", "RW", "DENY"),
+    ("SH_COMPAT", "W" , "SH_DENYRD", "R" , "DENY"),
+    ("SH_COMPAT", "W" , "SH_DENYRD", "W" , "DENY"),
+    ("SH_COMPAT", "W" , "SH_DENYRD", "RW", "DENY"),
+    ("SH_COMPAT", "W" , "SH_DENYNO", "R" , "DENY"),
+    ("SH_COMPAT", "W" , "SH_DENYNO", "W" , "DENY"),
+    ("SH_COMPAT", "W" , "SH_DENYNO", "RW", "DENY"),
+
+#        RW|Y Y Y  N N N  N N N  N N N  N N N
+    ("SH_COMPAT", "RW", "SH_COMPAT", "R" , "ALLOW"),
+    ("SH_COMPAT", "RW", "SH_COMPAT", "W" , "ALLOW"),
+    ("SH_COMPAT", "RW", "SH_COMPAT", "RW", "ALLOW"),
+    ("SH_COMPAT", "RW", "SH_DENYRW", "R" , "DENY"),
+    ("SH_COMPAT", "RW", "SH_DENYRW", "W" , "DENY"),
+    ("SH_COMPAT", "RW", "SH_DENYRW", "RW", "DENY"),
+    ("SH_COMPAT", "RW", "SH_DENYWR", "R" , "DENY"),
+    ("SH_COMPAT", "RW", "SH_DENYWR", "W" , "DENY"),
+    ("SH_COMPAT", "RW", "SH_DENYWR", "RW", "DENY"),
+    ("SH_COMPAT", "RW", "SH_DENYRD", "R" , "DENY"),
+    ("SH_COMPAT", "RW", "SH_DENYRD", "W" , "DENY"),
+    ("SH_COMPAT", "RW", "SH_DENYRD", "RW", "DENY"),
+    ("SH_COMPAT", "RW", "SH_DENYNO", "R" , "DENY"),
+    ("SH_COMPAT", "RW", "SH_DENYNO", "W" , "DENY"),
+    ("SH_COMPAT", "RW", "SH_DENYNO", "RW", "DENY"),
+
+# Deny   R |C C C  N N N  N N N  N N N  N N N
+    ("SH_DENYRW", "R" , "SH_COMPAT", "R" , "INT24"),
+    ("SH_DENYRW", "R" , "SH_COMPAT", "W" , "INT24"),
+    ("SH_DENYRW", "R" , "SH_COMPAT", "RW", "INT24"),
+    ("SH_DENYRW", "R" , "SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYRW", "R" , "SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYRW", "R" , "SH_DENYRW", "RW", "DENY"),
+    ("SH_DENYRW", "R" , "SH_DENYWR", "R" , "DENY"),
+    ("SH_DENYRW", "R" , "SH_DENYWR", "W" , "DENY"),
+    ("SH_DENYRW", "R" , "SH_DENYWR", "RW", "DENY"),
+    ("SH_DENYRW", "R" , "SH_DENYRD", "R" , "DENY"),
+    ("SH_DENYRW", "R" , "SH_DENYRD", "W" , "DENY"),
+    ("SH_DENYRW", "R" , "SH_DENYRD", "RW", "DENY"),
+    ("SH_DENYRW", "R" , "SH_DENYNO", "R" , "DENY"),
+    ("SH_DENYRW", "R" , "SH_DENYNO", "W" , "DENY"),
+    ("SH_DENYRW", "R" , "SH_DENYNO", "RW", "DENY"),
+
+# All    W |C C C  N N N  N N N  N N N  N N N.
+    ("SH_DENYRW", "W" , "SH_COMPAT", "R" , "INT24"),
+    ("SH_DENYRW", "W" , "SH_COMPAT", "W" , "INT24"),
+    ("SH_DENYRW", "W" , "SH_COMPAT", "RW", "INT24"),
+    ("SH_DENYRW", "W" , "SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYRW", "W" , "SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYRW", "W" , "SH_DENYRW", "RW", "DENY"),
+    ("SH_DENYRW", "W" , "SH_DENYWR", "R" , "DENY"),
+    ("SH_DENYRW", "W" , "SH_DENYWR", "W" , "DENY"),
+    ("SH_DENYRW", "W" , "SH_DENYWR", "RW", "DENY"),
+    ("SH_DENYRW", "W" , "SH_DENYRD", "R" , "DENY"),
+    ("SH_DENYRW", "W" , "SH_DENYRD", "W" , "DENY"),
+    ("SH_DENYRW", "W" , "SH_DENYRD", "RW", "DENY"),
+    ("SH_DENYRW", "W" , "SH_DENYNO", "R" , "DENY"),
+    ("SH_DENYRW", "W" , "SH_DENYNO", "W" , "DENY"),
+    ("SH_DENYRW", "W" , "SH_DENYNO", "RW", "DENY"),
+
+#        RW|C C C  N N N  N N N  N N N  N N N
+    ("SH_DENYRW", "RW", "SH_COMPAT", "R" , "INT24"),
+    ("SH_DENYRW", "RW", "SH_COMPAT", "W" , "INT24"),
+    ("SH_DENYRW", "RW", "SH_COMPAT", "RW", "INT24"),
+    ("SH_DENYRW", "RW", "SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYRW", "RW", "SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYRW", "RW", "SH_DENYRW", "RW", "DENY"),
+    ("SH_DENYRW", "RW", "SH_DENYWR", "R" , "DENY"),
+    ("SH_DENYRW", "RW", "SH_DENYWR", "W" , "DENY"),
+    ("SH_DENYRW", "RW", "SH_DENYWR", "RW", "DENY"),
+    ("SH_DENYRW", "RW", "SH_DENYRD", "R" , "DENY"),
+    ("SH_DENYRW", "RW", "SH_DENYRD", "W" , "DENY"),
+    ("SH_DENYRW", "RW", "SH_DENYRD", "RW", "DENY"),
+    ("SH_DENYRW", "RW", "SH_DENYNO", "R" , "DENY"),
+    ("SH_DENYRW", "RW", "SH_DENYNO", "W" , "DENY"),
+    ("SH_DENYRW", "RW", "SH_DENYNO", "RW", "DENY"),
+
+# Deny   R |2 C C  N N N  Y N N  N N N  Y N N
+    ("SH_DENYWR", "R" , "SH_COMPAT", "R" , "INT24"), # File RO success, W fails INT24
+    ("SH_DENYWR", "R" , "SH_COMPAT", "W" , "INT24"),
+    ("SH_DENYWR", "R" , "SH_COMPAT", "RW", "INT24"),
+    ("SH_DENYWR", "R" , "SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYWR", "R" , "SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYWR", "R" , "SH_DENYRW", "RW", "DENY"),
+    ("SH_DENYWR", "R" , "SH_DENYWR", "R" , "ALLOW"),
+    ("SH_DENYWR", "R" , "SH_DENYWR", "W" , "DENY"),
+    ("SH_DENYWR", "R" , "SH_DENYWR", "RW", "DENY"),
+    ("SH_DENYWR", "R" , "SH_DENYRD", "R" , "DENY"),
+    ("SH_DENYWR", "R" , "SH_DENYRD", "W" , "DENY"),
+    ("SH_DENYWR", "R" , "SH_DENYRD", "RW", "DENY"),
+    ("SH_DENYWR", "R" , "SH_DENYNO", "R" , "ALLOW"),
+    ("SH_DENYWR", "R" , "SH_DENYNO", "W" , "DENY"),
+    ("SH_DENYWR", "R" , "SH_DENYNO", "RW", "DENY"),
+
+# Write  W |C C C  N N N  N N N  Y N N  Y N N.
+    ("SH_DENYWR", "W" , "SH_COMPAT", "R" , "INT24"),
+    ("SH_DENYWR", "W" , "SH_COMPAT", "W" , "INT24"),
+    ("SH_DENYWR", "W" , "SH_COMPAT", "RW", "INT24"),
+    ("SH_DENYWR", "W" , "SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYWR", "W" , "SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYWR", "W" , "SH_DENYRW", "RW", "DENY"),
+    ("SH_DENYWR", "W" , "SH_DENYWR", "R" , "DENY"),
+    ("SH_DENYWR", "W" , "SH_DENYWR", "W" , "DENY"),
+    ("SH_DENYWR", "W" , "SH_DENYWR", "RW", "DENY"),
+    ("SH_DENYWR", "W" , "SH_DENYRD", "R" , "ALLOW"),
+    ("SH_DENYWR", "W" , "SH_DENYRD", "W" , "DENY"),
+    ("SH_DENYWR", "W" , "SH_DENYRD", "RW", "DENY"),
+    ("SH_DENYWR", "W" , "SH_DENYNO", "R" , "ALLOW"),
+    ("SH_DENYWR", "W" , "SH_DENYNO", "W" , "DENY"),
+    ("SH_DENYWR", "W" , "SH_DENYNO", "RW", "DENY"),
+
+#        RW|C C C  N N N  N N N  N N N  Y N N
+    ("SH_DENYWR", "RW", "SH_COMPAT", "R" , "INT24"),
+    ("SH_DENYWR", "RW", "SH_COMPAT", "W" , "INT24"),
+    ("SH_DENYWR", "RW", "SH_COMPAT", "RW", "INT24"),
+    ("SH_DENYWR", "RW", "SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYWR", "RW", "SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYWR", "RW", "SH_DENYRW", "RW", "DENY"),
+    ("SH_DENYWR", "RW", "SH_DENYWR", "R" , "DENY"),
+    ("SH_DENYWR", "RW", "SH_DENYWR", "W" , "DENY"),
+    ("SH_DENYWR", "RW", "SH_DENYWR", "RW", "DENY"),
+    ("SH_DENYWR", "RW", "SH_DENYRD", "R" , "DENY"),
+    ("SH_DENYWR", "RW", "SH_DENYRD", "W" , "DENY"),
+    ("SH_DENYWR", "RW", "SH_DENYRD", "RW", "DENY"),
+    ("SH_DENYWR", "RW", "SH_DENYNO", "R" , "ALLOW"),
+    ("SH_DENYWR", "RW", "SH_DENYNO", "W" , "DENY"),
+    ("SH_DENYWR", "RW", "SH_DENYNO", "RW", "DENY"),
+
+# Deny   R |C C C  N N N  N Y N  N N N  N Y N
+    ("SH_DENYRD", "R" , "SH_COMPAT", "R" , "INT24"),
+    ("SH_DENYRD", "R" , "SH_COMPAT", "W" , "INT24"),
+    ("SH_DENYRD", "R" , "SH_COMPAT", "RW", "INT24"),
+    ("SH_DENYRD", "R" , "SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYRD", "R" , "SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYRD", "R" , "SH_DENYRW", "RW", "DENY"),
+    ("SH_DENYRD", "R" , "SH_DENYWR", "R" , "DENY"),
+    ("SH_DENYRD", "R" , "SH_DENYWR", "W" , "ALLOW"),
+    ("SH_DENYRD", "R" , "SH_DENYWR", "RW", "DENY"),
+    ("SH_DENYRD", "R" , "SH_DENYRD", "R" , "DENY"),
+    ("SH_DENYRD", "R" , "SH_DENYRD", "W" , "DENY"),
+    ("SH_DENYRD", "R" , "SH_DENYRD", "RW", "DENY"),
+    ("SH_DENYRD", "R" , "SH_DENYNO", "R" , "DENY"),
+    ("SH_DENYRD", "R" , "SH_DENYNO", "W" , "ALLOW"),
+    ("SH_DENYRD", "R" , "SH_DENYNO", "RW", "DENY"),
+
+# Read   W |C C C  N N N  N N N  N Y N  N Y N.
+    ("SH_DENYRD", "W" , "SH_COMPAT", "R" , "INT24"),
+    ("SH_DENYRD", "W" , "SH_COMPAT", "W" , "INT24"),
+    ("SH_DENYRD", "W" , "SH_COMPAT", "RW", "INT24"),
+    ("SH_DENYRD", "W" , "SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYRD", "W" , "SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYRD", "W" , "SH_DENYRW", "RW", "DENY"),
+    ("SH_DENYRD", "W" , "SH_DENYWR", "R" , "DENY"),
+    ("SH_DENYRD", "W" , "SH_DENYWR", "W" , "DENY"),
+    ("SH_DENYRD", "W" , "SH_DENYWR", "RW", "DENY"),
+    ("SH_DENYRD", "W" , "SH_DENYRD", "R" , "DENY"),
+    ("SH_DENYRD", "W" , "SH_DENYRD", "W" , "ALLOW"),
+    ("SH_DENYRD", "W" , "SH_DENYRD", "RW", "DENY"),
+    ("SH_DENYRD", "W" , "SH_DENYNO", "R" , "DENY"),
+    ("SH_DENYRD", "W" , "SH_DENYNO", "W" , "ALLOW"),
+    ("SH_DENYRD", "W" , "SH_DENYNO", "RW", "DENY"),
+
+#        RW|C C C  N N N  N N N  N N N  N Y N
+    ("SH_DENYRD", "RW", "SH_COMPAT", "R" , "INT24"),
+    ("SH_DENYRD", "RW", "SH_COMPAT", "W" , "INT24"),
+    ("SH_DENYRD", "RW", "SH_COMPAT", "RW", "INT24"),
+    ("SH_DENYRD", "RW", "SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYRD", "RW", "SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYRD", "RW", "SH_DENYRW", "RW", "DENY"),
+    ("SH_DENYRD", "RW", "SH_DENYWR", "R" , "DENY"),
+    ("SH_DENYRD", "RW", "SH_DENYWR", "W" , "DENY"),
+    ("SH_DENYRD", "RW", "SH_DENYWR", "RW", "DENY"),
+    ("SH_DENYRD", "RW", "SH_DENYRD", "R" , "DENY"),
+    ("SH_DENYRD", "RW", "SH_DENYRD", "W" , "DENY"),
+    ("SH_DENYRD", "RW", "SH_DENYRD", "RW", "DENY"),
+    ("SH_DENYRD", "RW", "SH_DENYNO", "R" , "DENY"),
+    ("SH_DENYRD", "RW", "SH_DENYNO", "W" , "ALLOW"),
+    ("SH_DENYRD", "RW", "SH_DENYNO", "RW", "DENY"),
+
+# Deny   R |2 C C  N N N  Y Y Y  N N N  Y Y Y
+    ("SH_DENYNO", "R" , "SH_COMPAT", "R" , "INT24"), # 2
+    ("SH_DENYNO", "R" , "SH_COMPAT", "W" , "INT24"),
+    ("SH_DENYNO", "R" , "SH_COMPAT", "RW", "INT24"),
+    ("SH_DENYNO", "R" , "SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYNO", "R" , "SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYNO", "R" , "SH_DENYRW", "RW", "DENY"),
+    ("SH_DENYNO", "R" , "SH_DENYWR", "R" , "ALLOW"),
+    ("SH_DENYNO", "R" , "SH_DENYWR", "W" , "ALLOW"),
+    ("SH_DENYNO", "R" , "SH_DENYWR", "RW", "ALLOW"),
+    ("SH_DENYNO", "R" , "SH_DENYRD", "R" , "DENY"),
+    ("SH_DENYNO", "R" , "SH_DENYRD", "W" , "DENY"),
+    ("SH_DENYNO", "R" , "SH_DENYRD", "RW", "DENY"),
+    ("SH_DENYNO", "R" , "SH_DENYNO", "R" , "ALLOW"),
+    ("SH_DENYNO", "R" , "SH_DENYNO", "W" , "ALLOW"),
+    ("SH_DENYNO", "R" , "SH_DENYNO", "RW", "ALLOW"),
+
+# None   W |C C C  N N N  N N N  Y Y Y  Y Y Y.
+    ("SH_DENYNO", "W" , "SH_COMPAT", "R" , "INT24"),
+    ("SH_DENYNO", "W" , "SH_COMPAT", "W" , "INT24"),
+    ("SH_DENYNO", "W" , "SH_COMPAT", "RW", "INT24"),
+    ("SH_DENYNO", "W" , "SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYNO", "W" , "SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYNO", "W" , "SH_DENYRW", "RW", "DENY"),
+    ("SH_DENYNO", "W" , "SH_DENYWR", "R" , "DENY"),
+    ("SH_DENYNO", "W" , "SH_DENYWR", "W" , "DENY"),
+    ("SH_DENYNO", "W" , "SH_DENYWR", "RW", "DENY"),
+    ("SH_DENYNO", "W" , "SH_DENYRD", "R" , "ALLOW"),
+    ("SH_DENYNO", "W" , "SH_DENYRD", "W" , "ALLOW"),
+    ("SH_DENYNO", "W" , "SH_DENYRD", "RW", "ALLOW"),
+    ("SH_DENYNO", "W" , "SH_DENYNO", "R" , "ALLOW"),
+    ("SH_DENYNO", "W" , "SH_DENYNO", "W" , "ALLOW"),
+    ("SH_DENYNO", "W" , "SH_DENYNO", "RW", "ALLOW"),
+
+#        RW|C C C  N N N  N N N  N N N  Y Y Y
+    ("SH_DENYNO", "RW", "SH_COMPAT", "R" , "INT24"),
+    ("SH_DENYNO", "RW", "SH_COMPAT", "W" , "INT24"),
+    ("SH_DENYNO", "RW", "SH_COMPAT", "RW", "INT24"),
+    ("SH_DENYNO", "RW", "SH_DENYRW", "R" , "DENY"),
+    ("SH_DENYNO", "RW", "SH_DENYRW", "W" , "DENY"),
+    ("SH_DENYNO", "RW", "SH_DENYRW", "RW", "DENY"),
+    ("SH_DENYNO", "RW", "SH_DENYWR", "R" , "DENY"),
+    ("SH_DENYNO", "RW", "SH_DENYWR", "W" , "DENY"),
+    ("SH_DENYNO", "RW", "SH_DENYWR", "RW", "DENY"),
+    ("SH_DENYNO", "RW", "SH_DENYRD", "R" , "DENY"),
+    ("SH_DENYNO", "RW", "SH_DENYRD", "W" , "DENY"),
+    ("SH_DENYNO", "RW", "SH_DENYRD", "RW", "DENY"),
+    ("SH_DENYNO", "RW", "SH_DENYNO", "R" , "ALLOW"),
+    ("SH_DENYNO", "RW", "SH_DENYNO", "W" , "ALLOW"),
+    ("SH_DENYNO", "RW", "SH_DENYNO", "RW", "ALLOW"),
+)
+
+OPEN_HYBRID = (
 # Compat R |Y Y Y  N N N  1 N N  N N N  1 N N.
     ("SH_COMPAT", "R" , "SH_COMPAT", "R" , "ALLOW"),
     ("SH_COMPAT", "R" , "SH_COMPAT", "W" , "ALLOW"),
@@ -449,9 +706,15 @@ def _check_single_result(self, results, t):
     if m:
         self.fail(msg=m.group(0))
 
+
 def ds3_share_open_twice(self, fstype):
-    results = _run_all(self, fstype, OPENTESTS)
-    for t in OPENTESTS:
+    if 'FDPP' in self.version or fstype == 'MFS':
+        tests = OPEN_HYBRID
+    else:
+        tests = OPEN_622
+
+    results = _run_all(self, fstype, tests)
+    for t in tests:
         with self.subTest(t=t):
             _check_single_result(self, results, t)
     self.assertIn("rem tests complete", results)
