@@ -36,7 +36,7 @@ static uint8_t *dj64_addr2ptr(uint32_t addr)
     return dosaddr_to_unixaddr(addr);
 }
 
-static uint32_t dj64_ptr2addr(uint8_t *ptr)
+static uint32_t dj64_ptr2addr(const uint8_t *ptr)
 {
     if (ptr >= MEM_BASE32(config.dpmi_base) &&
             ptr < MEM_BASE32(config.dpmi_base) + dpmi_mem_size())
