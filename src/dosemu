@@ -160,22 +160,18 @@ fi
 get_binary "$0"
 
 if [ "`id -ur`" -eq 0 ]; then
-  echo "Running dosemu2 with root privs is only possible with: $(basename $0) -s"
-  exit 1
+  # we still need to pass -s so just don't use sudo
+  unset USE_SUDO
+  echo "Running dosemu2 with root privs is recommended with: $(basename $0) -s"
 fi
 
 SUDO=""
-# set sudo_uid/sudo_gid so that somebody who does "sudo dosemu"
-# really gets root
-if [ -n "$SUDO_UID" ] ; then
-  SUDO_UID=0
-fi
-if [ -n "$SUDO_GID" ] ; then
-  SUDO_GID=0
-fi
 if [ -n "$USE_SUDO" ] ; then
   SUDO=sudo
+  # preserve env, most importantly HOME
   SUDOOPTS=-E
+  # sudo doesn't set SUDO_HOME but maybe it will - use another var
+  export DOSEMU_SUDO_HOME="$HOME"
 fi
 
 # for address sanitizer

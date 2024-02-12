@@ -203,11 +203,14 @@ int priv_drop(void)
 
 void priv_init(void)
 {
+  const char *sh = getenv("SUDO_HOME"); // theoretical future var
+  const char *h = getenv("HOME");
   uid  = cur_uid  = getuid();
-  if (!uid) under_root_login =1;
+  /* suid bit only sets euid & suid but not uid, sudo sets all 3 */
+  if (!uid) under_root_login = 1;
   euid = cur_euid = geteuid();
   if (!euid) can_do_root_stuff = 1;
-  if (!uid) skip_priv_setting = 1;
+  if (!uid && !euid) skip_priv_setting = 1;
   gid  = cur_gid  = getgid();
   egid = cur_egid = getegid();
 
@@ -216,7 +219,10 @@ void priv_init(void)
   dosemu_proc_self_exe = readlink_malloc("/proc/self/exe");
   /* For Fedora we must also save a file descriptor to /proc/self/maps */
   dosemu_proc_self_maps_fd = open("/proc/self/maps", O_RDONLY | O_CLOEXEC);
-  if (under_root_login)
+  if (!sh)
+    sh = getenv("DOSEMU_SUDO_HOME");
+  /* see if -E was used */
+  if (under_root_login && sh && h && strcmp(sh, h) == 0)
   {
     /* check for sudo and set to original user */
     char *s = getenv("SUDO_GID");
