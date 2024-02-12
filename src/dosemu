@@ -160,9 +160,15 @@ fi
 get_binary "$0"
 
 if [ "`id -ur`" -eq 0 ]; then
-  # we still need to pass -s so just don't use sudo
-  unset USE_SUDO
-  echo "Running dosemu2 with root privs is recommended with: $(basename $0) -s"
+  if [ -z "$USE_SUDO" ]; then
+    echo "Running dosemu2 with root privs is recommended with: $(basename $0) -s"
+  else
+    # we still need to pass -s so just don't use sudo
+    unset USE_SUDO
+  fi
+  if [ -n "$SUDO_USER" -a -z "$SUDO_HOME" ]; then
+    export SUDO_HOME=`getent passwd "$SUDO_USER" | cut -d: -f6`
+  fi
 fi
 
 SUDO=""
