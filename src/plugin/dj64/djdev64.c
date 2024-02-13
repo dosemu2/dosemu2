@@ -111,14 +111,12 @@ static int dj64_asm_call(dpmi_regs *regs, dpmi_paddr pma, uint8_t *sp,
         uint8_t len)
 {
     cpuctx_t *scp = coopth_pop_user_data_cur();
-    cpuctx_t sa = *scp;
     copy_stk(scp, sp, len);
     copy_gp(scp, regs);
 //    J_printf("asm call to 0x%x:0x%x\n", pma.selector, pma.offset32);
     do_callf(scp, pma);
     coopth_sched();
     bcopy_gp(regs, scp);
-    *scp = sa;
     coopth_push_user_data_cur(scp);
     return ASM_CALL_OK;
 }
