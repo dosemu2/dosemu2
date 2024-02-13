@@ -23,7 +23,7 @@ include $(REALTOPDIR)/src/Makefile.common.post
 
 ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_fdpp.so: $(OBJS) | $(BINPATH)/bin
-	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(FDPPLIB)
+	$(CC) $(LDFLAGS) -shared -o $@ $^ $(FDPPLIB)
 endif
 
 _fdppconf.h.in: $(srcdir)/configure.ac

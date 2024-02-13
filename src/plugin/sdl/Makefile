@@ -23,7 +23,7 @@ ALL_CPPFLAGS += $(SDL_CFLAGS) -I$(srcdir)/../X
 
 ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_sdl.so: $(OBJS) | $(BINPATH)/bin
-	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(SDL_LIBS)
+	$(CC) $(LDFLAGS) -shared -o $@ $^ $(SDL_LIBS)
 endif
 
 install: all

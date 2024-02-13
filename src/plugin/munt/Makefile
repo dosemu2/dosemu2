@@ -18,5 +18,5 @@ include $(REALTOPDIR)/src/Makefile.common.post
 
 ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_munt.so: $(OBJS) | $(BINPATH)/bin
-	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(MUNTLIB)
+	$(CC) $(LDFLAGS) -shared -o $@ $^ $(MUNTLIB)
 endif
