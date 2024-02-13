@@ -1137,6 +1137,9 @@ config_init(int argc, char **argv)
     memcheck_type_init();
     our_envs_init();
     parse_debugflags("+cw", 1);
+#ifdef USE_DJDEV64
+    register_debug_class('J', NULL, "dj64");
+#endif
     Video = NULL;
 
     /* options get parsed twice so show our own errors and only once */

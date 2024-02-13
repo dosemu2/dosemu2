@@ -52,7 +52,7 @@ static void dj64_print(int prio, const char *format, va_list ap)
         vfprintf(stderr, format, ap);
         break;
     case DJ64_PRINT_LOG:
-        if (debug_level('M')) {
+        if (debug_level('J')) {
             log_printf(-1, "dj64: ");
             vlog_printf(-1, format, ap);
         }
@@ -114,7 +114,7 @@ static int dj64_asm_call(dpmi_regs *regs, dpmi_paddr pma, uint8_t *sp,
     cpuctx_t sa = *scp;
     copy_stk(scp, sp, len);
     copy_gp(scp, regs);
-    D_printf("asm call to 0x%x:0x%x\n", pma.selector, pma.offset32);
+//    J_printf("asm call to 0x%x:0x%x\n", pma.selector, pma.offset32);
     do_callf(scp, pma);
     coopth_sched();
     bcopy_gp(regs, scp);
@@ -155,7 +155,7 @@ static void call_thr(void *arg)
 {
     cpuctx_t *scp = arg;
     unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
-    D_printf("DPMI: djdev64_call() %s\n", DPMI_show_state(scp));
+    J_printf("DJ64: djdev64_call() %s\n", DPMI_show_state(scp));
     coopth_push_user_data_cur(scp);
     djdev64_call(_eax, _ebx, _ecx, _esi, sp);
 }
@@ -173,7 +173,7 @@ static void ctrl_hlt(Bit16u offs, void *sc, void *arg)
     cpuctx_t *scp = sc;
     unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
     do_retf(scp);
-    D_printf("DPMI: djdev64_ctrl() %s\n", DPMI_show_state(scp));
+    J_printf("DJ64: djdev64_ctrl() %s\n", DPMI_show_state(scp));
     djdev64_ctrl(_eax, _ebx, _ecx, _esi, sp);
 }
 
