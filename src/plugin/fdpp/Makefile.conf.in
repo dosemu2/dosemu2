@@ -8,6 +8,9 @@
 # This file is included by all Makefiles
 
 FDPPFLAGS := @FDPP_CFLAGS@ @FDPP_INCLUDES@
-FDPPLIB := @FDPP_LIBS@ -Wl,-rpath,@FDPP_RPATH@ -Wl,-rpath,@FDPP_RPATH2@ @FDPP_LFLAGS@
+FDPPLIB := @FDPP_LIBS@ @FDPP_LFLAGS@ -Wl,-rpath,@FDPP_RPATH@
+ifneq (@FDPP_RPATH2@,)
+FDPPLIB += -Wl,-rpath,@FDPP_RPATH2@
+endif
 VG_CFLAGS = @VALGRIND_CFLAGS@
 VG_LIBS = @VALGRIND_LIBS@
