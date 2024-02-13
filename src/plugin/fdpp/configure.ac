@@ -7,10 +7,14 @@ AC_ARG_WITH([fdpp-lib-dir], AS_HELP_STRING([--with-fdpp-lib-dir=DIR],
         [use alternate fdpp dir]),
   [
     fdpp_lib_dir="$withval"
+    AC_CHECK_FILE([$fdpp_lib_dir/libfdpp.so],,
+        AC_MSG_ERROR([$fdpp_lib_dir incorrect]))
     AC_ARG_WITH([fdpp-include-dir],
         AS_HELP_STRING([--with-fdpp-include-dir=DIR],
             [set fdpp include dir]),
-            fdpp_inc_dir="$withval",
+            [fdpp_inc_dir="$withval"
+             AC_CHECK_FILE([$fdpp_inc_dir/fdpp/thunks.h],,
+                AC_MSG_ERROR([$fdpp_inc_dir incorrect]))],
         AC_MSG_ERROR([use --with-fdpp-include-dir]))
     AC_ARG_WITH([fdpp-kernel-dir],
         AS_HELP_STRING([--with-fdpp-kernel-dir=DIR],
