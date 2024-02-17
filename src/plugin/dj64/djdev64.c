@@ -121,11 +121,20 @@ static int dj64_asm_call(dpmi_regs *regs, dpmi_paddr pma, uint8_t *sp,
     return ASM_CALL_OK;
 }
 
+static uint8_t *dj64_inc_esp(uint32_t len)
+{
+    cpuctx_t *scp = coopth_pop_user_data_cur();
+    _esp += len;
+    coopth_push_user_data_cur(scp);
+    return SEL_ADR(_ss, _esp);
+}
+
 const struct dj64_api api = {
     .addr2ptr = dj64_addr2ptr,
     .ptr2addr = dj64_ptr2addr,
     .print = dj64_print,
     .asm_call = dj64_asm_call,
+    .inc_esp = dj64_inc_esp,
 };
 
 #if DJ64_API_VER != 1
