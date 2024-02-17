@@ -234,4 +234,8 @@ int emu_ldt_write(dosaddr_t addr, uint32_t op, int len);
 void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len);
 //
 
+extern Descriptor *GDT;
+extern Descriptor *LDT;
+extern Gatedesc   *IDT;
+
 #endif

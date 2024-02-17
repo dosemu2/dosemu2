@@ -337,10 +337,8 @@ static void init_kvm_monitor(void)
   sregs.tr.db = 0;
   sregs.tr.g = 0;
 
-#ifdef X86_EMULATOR
-  LDT = monitor->ldt;
-#endif
-  ldt_buffer = (unsigned char *)monitor->ldt;
+  if (config.cpu_vm_dpmi == CPUVM_KVM)
+    ldt_buffer = (unsigned char *)monitor->ldt;
   sregs.ldt.base = sregs.tr.base + offsetof(struct monitor, ldt);
   sregs.ldt.limit = LDT_ENTRIES * LDT_ENTRY_SIZE - 1;
   sregs.ldt.selector = 0x20;

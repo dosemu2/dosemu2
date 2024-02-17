@@ -116,10 +116,6 @@ typedef struct {
 	unsigned short IOmapbase;	/* 66 */
 } Task;
 
-extern Descriptor *GDT;
-extern Descriptor *LDT;
-extern Gatedesc   *IDT;
-
 int emu_modify_ldt(int func, void *ptr, unsigned long bytecount);
 unsigned short GetSelectorXfer(unsigned short w);
 
