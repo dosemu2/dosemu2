@@ -364,7 +364,7 @@ int get_ldt(void *buffer, int len)
     return emu_modify_ldt(LDT_READ, buffer, len);
   for (i = 0, dp = buffer; i < len / LDT_ENTRY_SIZE; i++, dp++) {
     unsigned int base_addr = DT_BASE(dp);
-    if (base_addr || DT_LIMIT(dp)) {
+    if ((base_addr || DT_LIMIT(dp)) && (DT_FLAGS(dp) & 0x80/*P bit*/)) {
       base_addr -= (uintptr_t)mem_base;
       MKBASE(dp, base_addr);
     }
