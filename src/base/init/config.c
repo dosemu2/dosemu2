@@ -377,11 +377,20 @@ static int check_comcom(const char *dir)
   free(path);
   if (err == 0)
     return 1;
+  path = assemble_path(dir, "comcom64.exe");
+  err = access(path, R_OK);
+  free(path);
+  if (err == 0) {
+    error("comcom64 found in %s but command.com symlink is missing\n", dir);
+    return 0;
+  }
   path = assemble_path(dir, "comcom32.exe");
   err = access(path, R_OK);
   free(path);
-  if (err == 0)
+  if (err == 0) {
     error("comcom32 found in %s but command.com symlink is missing\n", dir);
+    return 0;
+  }
   return 0;
 }
 
@@ -494,6 +503,8 @@ static void set_freedos_dir(void)
     comcom_dir = strdup(ccdir);
   } else {
     const char *comcom[] = {
+      "/usr/share/comcom64",
+      "/usr/local/share/comcom64",
       "/usr/share/comcom32",
       "/usr/local/share/comcom32",
       "/opt/comcom32",			/* gentoo */
