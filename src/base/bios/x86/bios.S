@@ -352,7 +352,7 @@ check_special:
 	cmpw	$SP_BREAK, %ax
 	je	kbd_do_break
 	cmpw	$SP_CC, %ax
-	je	kbd_do_break
+	je	kbd_do_cc
 	cmpw	$SP_PRTSCR, %ax
 	je	kbd_do_prtscr
 	cmpw	$SP_SYSRQ_MAKE, %ax
@@ -404,8 +404,9 @@ kbd_do_pause:
 	jmp	kbd_done2
 
 kbd_do_break:				/* CTRL-BREAK pressed		*/
+	movw	$0,%ax
+kbd_do_cc:				/* CTRL-c pressed		*/
 	call	clear_kbd_buffer
-	movw	$0x100,%ax
 	call	store_key
 	orb	$0x80,BIOS_FLAGS_1
 	call	kbd_EOI
