@@ -503,8 +503,10 @@ static void set_freedos_dir(void)
     comcom_dir = strdup(ccdir);
   } else {
     const char *comcom[] = {
+#ifdef USE_DJDEV64
       "/usr/share/comcom64",
       "/usr/local/share/comcom64",
+#endif
       "/usr/share/comcom32",
       "/usr/local/share/comcom32",
       "/opt/comcom32",			/* gentoo */
