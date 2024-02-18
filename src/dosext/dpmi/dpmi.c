@@ -5144,6 +5144,8 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
             break;
           }
 #endif
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_abort)) {
+          error("DPMI abort called\n");
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);

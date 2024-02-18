@@ -583,6 +583,14 @@ void doshlp_quit_dpmi(cpuctx_t *scp)
     do_callf(scp, pma);
 }
 
+struct pmaddr_s doshlp_get_abort_helper(void)
+{
+    return (struct pmaddr_s){
+	.offset = DPMI_SEL_OFF(DPMI_abort),
+	.selector = dpmi_sel(),
+    };
+}
+
 void doshlp_call_reinit(cpuctx_t *scp)
 {
     struct pmaddr_s pma = {

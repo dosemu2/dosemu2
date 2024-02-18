@@ -71,6 +71,7 @@ struct pmaddr_s doshlp_get_entry16(unsigned entry);
 struct pmaddr_s doshlp_get_entry32(unsigned entry);
 
 void doshlp_quit_dpmi(cpuctx_t *scp);
+struct pmaddr_s doshlp_get_abort_helper(void);
 void doshlp_call_reinit(cpuctx_t *scp);
 int doshlp_idle(void);
 

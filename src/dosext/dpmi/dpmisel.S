@@ -299,6 +299,12 @@ DPMI_call_args16:
 DPMI_msdos:
 	int $0x21
 	lretl
+	.globl DPMI_abort
+DPMI_abort:
+	hlt
+	movl $0x4c01, %eax
+	int $0x21
+	lretl
 
 .macro vint name inum
 	.globl DPMI_\name\()_irq

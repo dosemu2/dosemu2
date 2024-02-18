@@ -121,6 +121,19 @@ static int dj64_asm_call(dpmi_regs *regs, dpmi_paddr pma, uint8_t *sp,
     return ASM_CALL_OK;
 }
 
+static void dj64_asm_noret(dpmi_regs *regs, dpmi_paddr pma, uint8_t *sp,
+        uint8_t len)
+{
+    struct pmaddr_s abt = doshlp_get_abort_helper();
+    cpuctx_t *scp = coopth_pop_user_data_cur();
+    coopth_leave();
+    copy_stk(scp, sp, len);
+    copy_gp(scp, regs);
+    _cs = abt.selector;
+    _eip = abt.offset;
+    do_callf(scp, pma);
+}
+
 static uint8_t *dj64_inc_esp(uint32_t len)
 {
     cpuctx_t *scp = coopth_pop_user_data_cur();
@@ -134,6 +147,7 @@ const struct dj64_api api = {
     .ptr2addr = dj64_ptr2addr,
     .print = dj64_print,
     .asm_call = dj64_asm_call,
+    .asm_noret = dj64_asm_noret,
     .inc_esp = dj64_inc_esp,
 };
 
