@@ -4234,6 +4234,7 @@ static void dpmi_reinit(cpuctx_t *scp)
   ES = DPMI_CLIENT.psp_sel;
 
   setup_int_exc(0);
+  SETIVEC(0x1b, BIOSSEG, INT_OFF(0x1b));  // for buggy causeway extender
 
   _ds = DS;
   _es = ES;
