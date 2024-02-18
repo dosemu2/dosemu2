@@ -16,6 +16,7 @@
 /* some other useful definitions */
 
 #define BIOSSEG 0xf000
+/* below block is used in int 9 with DS=BIOS_DATA */
 #define BIOS_DATA 0x40
 #define KEYBUF_READ_PTR  0x1a
 #define KEYBUF_WRITE_PTR 0x1c
@@ -24,6 +25,10 @@
 #define KEYSHIFT_FLAGS 0x17
 #define KEYBOARD_FLAGS_2 0x18
 #define KEYBOARD_STATUS_3 0x96
+#define BIOS_FLAGS_1 0x71
+#define BIOS_FLAGS_2 0x72
+/* end int 9 defines */
+
 #define BIOS_TIMER 0x46c
 #define BIOS_TIMER_OVERFLOW 0x470
 #define HOUR24_ADJUST 0x1800B0
@@ -346,6 +351,8 @@ int09_cont:
 check_special:
 	cmpw	$SP_BREAK, %ax
 	je	kbd_do_break
+	cmpw	$SP_CC, %ax
+	je	kbd_do_break
 	cmpw	$SP_PRTSCR, %ax
 	je	kbd_do_prtscr
 	cmpw	$SP_SYSRQ_MAKE, %ax
@@ -376,6 +383,12 @@ no_wrap:
 buffer_full:
         ret
 
+clear_kbd_buffer:
+        movw    KEYBUFFER_START,%bx
+        movw    %bx,KEYBUF_WRITE_PTR
+        movw    %bx,KEYBUF_READ_PTR
+        ret
+
 kbd_do_pause:
 	testb   $PAUSE_MASK,KEYBOARD_FLAGS_2	/* already paused? */
 	jnz     kbd_done			/* do nothing */
@@ -391,8 +404,10 @@ kbd_do_pause:
 	jmp	kbd_done2
 
 kbd_do_break:				/* CTRL-BREAK pressed		*/
+	call	clear_kbd_buffer
 	movw	$0x100,%ax
 	call	store_key
+	orb	$0x80,BIOS_FLAGS_1
 	call	kbd_EOI
 	sti
 	int	$0x1b			/* call BREAK interrupt		*/

@@ -69,6 +69,7 @@ void backend_reset(void);
 
 #define SP_PAUSE	0xff01
 #define SP_BREAK	0xff02
+#define SP_CC		0x2e03
 #define SP_PRTSCR	0xff03
 #define SP_SYSRQ_MAKE	0xff04
 #define SP_SYSRQ_BREAK	0xff05
