@@ -854,17 +854,14 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     return block;
 }
 
-void DPMI_freeAll(dpmi_pm_block_root *root)
+void DPMI_freeAll(dpmi_pm_block_root *root, dpmi_pm_block *p)
 {
-    dpmi_pm_block **p = &root->first_pm_block;
-    while(*p) {
-	if ((*p)->hwram)
-	    do_unmap_hwram(root, *p);
-	else if ((*p)->shmname)
-	    DPMI_freeShared(root, (*p)->handle);
-	else
-	    DPMI_free(root, (*p)->handle);
-    }
+    if (p->hwram)
+	do_unmap_hwram(root, p);
+    else if (p->shmname)
+	DPMI_freeShared(root, p->handle);
+    else
+	DPMI_free(root, p->handle);
 }
 
 int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,

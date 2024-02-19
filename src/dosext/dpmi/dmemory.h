@@ -46,7 +46,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         char *name, unsigned int size, int flags);
 int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle);
 int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle);
-void DPMI_freeAll(dpmi_pm_block_root *root);
+void DPMI_freeAll(dpmi_pm_block_root *root, dpmi_pm_block *p);
 int DPMI_MapConventionalMemory(dpmi_pm_block_root *root, unsigned long handle,
   unsigned long offset, unsigned long low_addr, unsigned long cnt);
 dpmi_pm_block * DPMI_mapHWRam(dpmi_pm_block_root *root,

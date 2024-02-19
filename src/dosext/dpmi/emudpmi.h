@@ -186,7 +186,6 @@ int DPMIfree(unsigned long handle);
 dpmi_pm_block DPMIrealloc(unsigned long handle, unsigned long size);
 dpmi_pm_block DPMIreallocLinear(unsigned long handle, unsigned long size,
   int committed);
-void DPMIfreeAll(void);
 int DPMIMapConventionalMemory(unsigned long handle, unsigned long offset,
 			  dosaddr_t low_addr, unsigned long cnt);
 int DPMISetPageAttributes(unsigned long handle, int offs, u_short attrs[], int count);

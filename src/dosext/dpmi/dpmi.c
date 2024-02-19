@@ -1875,9 +1875,13 @@ dpmi_pm_block DPMIreallocLinear(unsigned long handle, unsigned long size,
 	return *ptr;
     return dummy;
 }
-void DPMIfreeAll(void)
+
+static void DPMIfreeAll(dpmi_pm_block_root *root)
 {
-    return DPMI_freeAll(&DPMI_CLIENT.pm_block_root);
+    dpmi_pm_block **p = &root->first_pm_block;
+    while (*p) {
+	DPMI_freeAll(root, *p);
+    }
 }
 
 int DPMIMapConventionalMemory(unsigned long handle, unsigned long offset,
@@ -3634,7 +3638,7 @@ static void dpmi_cleanup(void)
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   hlt_unregister_handler_vm86(DPMI_CLIENT.rmcb_off);
   if (!DPMI_CLIENT.RSP_installed) {
-    DPMIfreeAll();
+    DPMIfreeAll(&DPMI_CLIENT.pm_block_root);
 //    free(__fpstate);
   }
 
@@ -4447,7 +4451,7 @@ err:
   CARRY;
   FreeAllDescriptors();
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
-  DPMIfreeAll();
+  DPMIfreeAll(&DPMI_CLIENT.pm_block_root);
   in_dpmi--;
   if (in_dpmi)
     clnt_switch(in_dpmi - 1);
@@ -6278,8 +6282,8 @@ void dpmi_done(void)
   }
 
   for (i = 0; i < RSP_num; i++)
-    DPMI_freeAll(&RSP_callbacks[i].pm_block_root);
-  DPMI_freeAll(&host_pm_block_root);
+    DPMIfreeAll(&RSP_callbacks[i].pm_block_root);
+  DPMIfreeAll(&host_pm_block_root);
   dpmi_free_pool();
 
   native_dpmi_done();
