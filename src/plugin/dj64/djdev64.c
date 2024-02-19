@@ -176,7 +176,9 @@ static int do_open(const char *path)
     int ret = djdev64_open(path, &api, DJ64_API_VER);
     if (ret == -1)
         return ret;
-    doshlp_setup(&call_hlp[ret], "dj64 call", call_thr, do_retf);
+    assert(ret < HNDL_MAX);
+    if (!call_hlp[ret].tid)
+        doshlp_setup(&call_hlp[ret], "dj64 call", call_thr, do_retf);
     return ret;
 }
 
