@@ -4,7 +4,7 @@
 struct pm_regs;
 struct djdev64_ops {
     int (*open)(const char *path);
-    void (*close)(struct pm_regs *scp);
+    void (*close)(int handle);
     unsigned *call;
     unsigned *ctrl;
 };

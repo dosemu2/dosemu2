@@ -196,6 +196,9 @@ unsigned short dpmi_sel32(void) { return _dpmi_sel32; }
 static int RSP_num = 0;
 static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
 static int ext__thunk_16_32;	// thunk extension
+#ifdef USE_DJDEV64
+static const struct djdev64_ops *djdev64;
+#endif
 
 static void make_retf_frame(cpuctx_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
@@ -1880,6 +1883,10 @@ static void DPMIfreeAll(dpmi_pm_block_root *root)
 {
     dpmi_pm_block **p = &root->first_pm_block;
     while (*p) {
+#ifdef USE_DJDEV64
+	if ((*p)->flags & PMBF_DJ64)
+	    djdev64->close((*p)->opaque);
+#endif
 	DPMI_freeAll(root, *p);
     }
 }
@@ -2137,6 +2144,12 @@ int DPMIFreeShared(uint32_t handle)
     if (!ptr)
 	return -1;
     D_printf("DPMI: free shared region %s\n", ptr->shmname);
+#ifdef USE_DJDEV64
+    if (ptr->flags & PMBF_DJ64) {
+	error("DJ64: handle was not closed\n");
+	djdev64->close(ptr->opaque);
+    }
+#endif
     return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle);
 }
 
@@ -3573,8 +3586,6 @@ static int prev_clnt(void)
 
 #ifdef USE_DJDEV64
 
-static const struct djdev64_ops *djdev64;
-
 void register_djdev64(const struct djdev64_ops *ops)
 {
   djdev64 = ops;
@@ -3593,6 +3604,11 @@ static void dpmi_dj64_open(cpuctx_t *scp)
     return;
   _eflags &= ~CF;
   ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
+  if (!ptr) {
+    error("DJ64: invalid handle\n");
+    _eflags |= CF;
+    return;
+  }
   path = assemble_path(mp, ptr->rshmname + 1);
   djh = djdev64->open(path);
   free(path);
@@ -3600,6 +3616,7 @@ static void dpmi_dj64_open(cpuctx_t *scp)
     _eflags |= CF;
   } else {
     ptr->flags |= PMBF_DJ64;
+    ptr->opaque = djh;
     _eax = djh;
     _es = dpmi_sel();
     _edi = *djdev64->call;
@@ -3607,6 +3624,25 @@ static void dpmi_dj64_open(cpuctx_t *scp)
     D_printf("DPMI: dj64 opened\n");
   }
 }
+
+static void dpmi_dj64_close(cpuctx_t *scp)
+{
+  int handle = (_LWORD(esi) << 16) | _LWORD(edi);
+  dpmi_pm_block *ptr;
+
+  if (!djdev64)
+    return;
+  _eflags &= ~CF;
+  ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
+  if (!ptr || !(ptr->flags & PMBF_DJ64) || ptr->opaque != _eax) {
+    error("DJ64: invalid handle\n");
+    _eflags |= CF;
+    return;
+  }
+  djdev64->close(_eax);
+  ptr->flags &= ~PMBF_DJ64;  // to not close again on exit
+}
+
 #endif
 
 static void dpmi_cleanup(void)
@@ -5142,7 +5178,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
             break;
           case 1:
             D_printf("DPMI: djdev64_close()\n");
-            djdev64->close(scp);
+            dpmi_dj64_close(scp);
             break;
           default:
             error("dj64: unknown cmd %x\n", _eax);

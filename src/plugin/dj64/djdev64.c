@@ -160,14 +160,9 @@ static int do_open(const char *path)
     return djdev64_open(path, &api, DJ64_API_VER);
 }
 
-static void do_close(cpuctx_t *scp)
-{
-    djdev64_close(_eax);
-}
-
 static const struct djdev64_ops ops = {
     .open = do_open,
-    .close = do_close,
+    .close = djdev64_close,
     .call = &call_hlp.entry,
     .ctrl = &ctrl_off,
 };

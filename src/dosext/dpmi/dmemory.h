@@ -24,6 +24,7 @@ typedef struct dpmi_pm_block_stuct {
   int mapped;
 #define PMBF_DJ64 1
   uint32_t flags;
+  int opaque;
 } dpmi_pm_block;
 
 typedef struct dpmi_pm_block_root_struc {
