@@ -366,7 +366,7 @@ static struct coopth_per_thread_t *current_thr(struct coopth_t *thr)
     struct coopth_per_thread_t *pth;
     assert(thr - coopthreads < MAX_COOPTHREADS);
     if (!thr->cur_thr) {
-	error("coopth: schedule to inactive thread\n");
+	error("coopth: schedule to inactive thread %i\n", thr->tid);
 	exit(2);
 	return NULL;
     }

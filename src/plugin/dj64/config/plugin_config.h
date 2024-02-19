@@ -5,7 +5,7 @@ struct pm_regs;
 struct djdev64_ops {
     int (*open)(const char *path);
     void (*close)(int handle);
-    unsigned *call;
+    unsigned (*call)(int handle);
     unsigned *ctrl;
 };
 
