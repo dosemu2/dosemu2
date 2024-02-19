@@ -1963,6 +1963,7 @@ static int int19(void)
 {
     int stal;
     coopth_leave();
+    dpmi_done0();
     if (clnup_handler)
 	clnup_handler();
     clnup_handler = NULL;
