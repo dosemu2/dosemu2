@@ -579,12 +579,22 @@ DPMI_return_from_realmode:
 	.globl	DPMI_return_from_dos_memory
 DPMI_return_from_dos_memory:
 	hlt
-	.globl DPMI_int1c
-DPMI_int1c:
+
+.macro ihdr n
+	.globl \n
+\n:
+.rept DPMI_MAX_CLIENTS
 	hlt
+	jmp \n\()_end
+.endr
+	.globl \n\()_end
+\n\()_end:
+.endm
+
+ihdr DPMI_int1c
 	iret
-	.globl	DPMI_int23
-DPMI_int23:
+
+ihdr DPMI_int23
 	pushw %ax
 	pushw %bx
 	movw $0x6200, %ax    /* get PSP */
@@ -601,10 +611,10 @@ DPMI_int23_2:
 	iret
 1:  /* leave flags on stack */
 	lret
-	.globl	DPMI_int24
-DPMI_int24:
-	hlt
+
+ihdr DPMI_int24
 	iret
+
 	.globl	DPMI_raw_mode_switch_rm
 DPMI_raw_mode_switch_rm:
 	hlt

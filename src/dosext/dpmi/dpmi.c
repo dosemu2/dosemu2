@@ -125,7 +125,6 @@ static int dpmi_mhp_intxx_check(cpuctx_t *scp, int intno);
 #endif
 static int dpmi_fault1(cpuctx_t *scp);
 static void do_dpmi_retf(cpuctx_t *scp, void * const sp);
-static far_t s_i1c, s_i23, s_i24;
 static int prn_tid;
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
 static int DPMI_rm_procedure_running = 0;
@@ -167,6 +166,7 @@ struct DPMIclient_struct {
 
   emu_fpstate saved_fpu_state;
   Bit8u saved_ldt[0x10 * LDT_ENTRY_SIZE];
+  far_t s_i1c, s_i23, s_i24;
 };
 
 struct RSP_s {
@@ -1589,6 +1589,7 @@ static void clnt_switch(int new_clnt)
 
   assert(in_dpmi);
   assert(current_client != new_clnt);
+  D_printf("DPMI: client switch %i --> %i\n", current_client, new_clnt);
   if (current_client >= 0 && current_client < in_dpmi)
     save_prev_clnt_state();
 
@@ -1617,7 +1618,6 @@ static int post_rm_call(int old_client)
   if (old_client != current_client) {
     /* 32rtm returned w/o terminating (stayed resident).
      * We switch to the prev client here. */
-    D_printf("DPMI: client switch %i --> %i\n", current_client, old_client);
     /* old_client is actually a new one, it was saved on rm call */
     clnt_switch(old_client);
     ret = 1;
@@ -3643,6 +3643,9 @@ static void dpmi_cleanup(void)
     if (win3x_mode == INACTIVE)
       SETIVEC(0x66, 0, 0);	// winos2
   }
+  SETIVEC(0x1c, DPMI_CLIENT.s_i1c.segment, DPMI_CLIENT.s_i1c.offset);
+  SETIVEC(0x23, DPMI_CLIENT.s_i23.segment, DPMI_CLIENT.s_i23.offset);
+  SETIVEC(0x24, DPMI_CLIENT.s_i24.segment, DPMI_CLIENT.s_i24.offset);
 
   cli_blacklisted = 0;
   dpmi_is_cli = 0;
@@ -3660,9 +3663,6 @@ static void dpmi_soft_cleanup(void)
 {
   dpmi_cleanup();
   if (in_dpmi == 0) {
-    SETIVEC(0x1c, s_i1c.segment, s_i1c.offset);
-    SETIVEC(0x23, s_i23.segment, s_i23.offset);
-    SETIVEC(0x24, s_i24.segment, s_i24.offset);
     if (ldt_mon_on)
       error("DPMI: ldt mon still on\n");
   } else if (ldt_mon_on) {
@@ -3733,13 +3733,13 @@ static void chain_hooked_int(cpuctx_t *scp, int i)
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
   switch (i) {
   case 0x1c:
-    iaddr = s_i1c;
+    iaddr = DPMI_CLIENT.s_i1c;
     break;
   case 0x23:
-    iaddr = s_i23;
+    iaddr = DPMI_CLIENT.s_i23;
     break;
   case 0x24:
-    iaddr = s_i24;
+    iaddr = DPMI_CLIENT.s_i24;
     break;
   default:
     return;
@@ -3939,13 +3939,13 @@ static void run_pm_dos_int(int i)
     D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
     switch (i) {
     case 0x1c:
-	iaddr = s_i1c;
+	iaddr = DPMI_CLIENT.s_i1c;
 	break;
     case 0x23:
-	iaddr = s_i23;
+	iaddr = DPMI_CLIENT.s_i23;
 	break;
     case 0x24:
-	iaddr = s_i24;
+	iaddr = DPMI_CLIENT.s_i24;
 	break;
     default:
 	error("run_pm_dos_int with int=%x\n", i);
@@ -4416,18 +4416,18 @@ void dpmi_init(void)
     _eflags |= IOPL_MASK;
 
   DPMI_CLIENT.win3x_mode = win3x_mode;
+  DPMI_CLIENT.s_i1c.segment = ISEG(0x1c);
+  DPMI_CLIENT.s_i1c.offset  = IOFF(0x1c);
+  DPMI_CLIENT.s_i23.segment = ISEG(0x23);
+  DPMI_CLIENT.s_i23.offset  = IOFF(0x23);
+  DPMI_CLIENT.s_i24.segment = ISEG(0x24);
+  DPMI_CLIENT.s_i24.offset  = IOFF(0x24);
+  SETIVEC(0x1c, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int1c) + current_client * 3);
+  SETIVEC(0x23, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int23) + current_client * 3);
+  SETIVEC(0x24, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int24) + current_client * 3);
   if (in_dpmi == 1) {
-    s_i1c.segment = ISEG(0x1c);
-    s_i1c.offset  = IOFF(0x1c);
-    s_i23.segment = ISEG(0x23);
-    s_i23.offset  = IOFF(0x23);
-    s_i24.segment = ISEG(0x24);
-    s_i24.offset  = IOFF(0x24);
-    SETIVEC(0x1c, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int1c));
-    SETIVEC(0x23, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int23));
-    SETIVEC(0x24, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int24));
-
     in_dpmi_irq = 0;
+    /* something else global? */
   }
 
   dpmi_set_pm(1);
@@ -5996,18 +5996,38 @@ done:
     }
     REG(eip) += 1;            /* skip halt to point to FAR RET */
 
-  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int1c)) {
-    REG(eip) += 1;
-    run_pm_dos_int(0x1c);
+  } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_int1c) &&
+             lina < DPMI_ADD + HLT_OFF(DPMI_int1c_end)) {
+    int i = (lina - (DPMI_ADD + HLT_OFF(DPMI_int1c))) / 3;
+    if (i == current_client) {
+      REG(eip) += 1;
+      run_pm_dos_int(0x1c);
+    } else
+      jmp_to(DPMIclient[i].s_i1c.segment, DPMIclient[i].s_i1c.offset);
+
+  } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_int23) &&
+             lina < DPMI_ADD + HLT_OFF(DPMI_int23_end)) {
+    int i = (lina - (DPMI_ADD + HLT_OFF(DPMI_int23))) / 3;
+    assert(i <= current_client);
+    if (i == current_client)
+      REG(eip) += 1;
+    else
+      jmp_to(DPMIclient[i].s_i23.segment, DPMIclient[i].s_i23.offset);
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int23_1)) {
     REG(eip) += 1;
     DPMI_CLIENT.int23_psp = LWORD(ebx);
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int23_2)) {
     REG(eip) += 1;
     run_pm_dos_int(0x23);
-  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int24)) {
-    REG(eip) += 1;
-    run_pm_dos_int(0x24);
+
+  } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_int24) &&
+             lina < DPMI_ADD + HLT_OFF(DPMI_int24_end)) {
+    int i = (lina - (DPMI_ADD + HLT_OFF(DPMI_int24))) / 3;
+    if (i == current_client) {
+      REG(eip) += 1;
+      run_pm_dos_int(0x24);
+    } else
+      jmp_to(DPMIclient[i].s_i24.segment, DPMIclient[i].s_i24.offset);
 
   } else {
     D_printf("DPMI: unhandled HLT: lina=%#x\n", lina);
