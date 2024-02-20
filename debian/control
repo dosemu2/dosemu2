@@ -48,7 +48,7 @@ Depends:
     ${misc:Depends},
     ${shlibs:Depends},
     fdpp,
-    comcom32 (>= 0.1~alpha2)
+    comcom64
 Recommends:${shlibs-:Recommends}, ladspa-sdk, gdb, kbd, fluid-soundfont-gm,
   install-freedos
 Suggests: vde2, valgrind, install-otherdos
