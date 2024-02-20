@@ -3347,12 +3347,12 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
           return FALSE;
       f = &open_files[cnt];
       if (f->name == NULL) {
-        Debug0((dbg_fd, "Close file %x fails\n", f->fd));
+        Debug0((dbg_fd, "Close file fd=%d fails\n", f->fd));
         return FALSE;
       }
       strlcpy(fpath, f->name, sizeof(fpath));
       filename1 = fpath;
-      Debug0((dbg_fd, "Close file %x (%s)\n", f->fd, filename1));
+      Debug0((dbg_fd, "Close file fd=%d (%s)\n", f->fd, filename1));
 
       Debug0((dbg_fd, "Handle cnt %d\n", sft_handle_cnt(sft)));
       _sft_handle_cnt(sft)--;
@@ -3916,7 +3916,7 @@ do_open_existing:
       do_update_sft(f, fname, fext, sft, drive,
             get_dos_attr(fpath, st.st_mode), FCBcall, 1);
 
-      Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, f->fd));
+      Debug0((dbg_fd, "open succeeds: '%s' fd=%d\n", fpath, f->fd));
       Debug0((dbg_fd, "Size : %ld\n", (long)f->st.st_size));
 
       /* If FCB open requested, we need to call int2f 0x120c */
@@ -4030,7 +4030,7 @@ do_create_truncate:
       }
 
       do_update_sft(f, fname, fext, sft, drive, attr, FCBcall, 0);
-      Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, f->fd));
+      Debug0((dbg_fd, "create succeeds: '%s' fd=%d\n", fpath, f->fd));
       Debug0((dbg_fd, "fsize = 0x%"PRIx64"\n", f->size));
 
       /* If FCB open requested, we need to call int2f 0x120c */
