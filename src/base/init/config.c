@@ -369,14 +369,28 @@ static void our_envs_init(void)
 
 static int check_comcom(const char *dir)
 {
+  char buf[1024];
   char *path;
   int err;
+  ssize_t res;
 
   path = assemble_path(dir, "command.com");
   err = access(path, R_OK);
+  res = readlink(path, buf, sizeof(buf) - 1);
   free(path);
-  if (err == 0)
+  if (err == 0) {
+    if (res == -1)
+      return 1;
+    /* have symlink */
+    buf[res] = '\0';
+    if (strncmp(buf, "comcom64.exe", res) == 0) {
+      void *dlh = load_plugin("dj64");
+      if (!dlh)
+        return 0;
+      dbug_printf("booting with comcom64\n");
+    }
     return 1;
+  }
   path = assemble_path(dir, "comcom64.exe");
   err = access(path, R_OK);
   free(path);
@@ -406,10 +420,11 @@ static void comcom_hook(struct sys_dsc *sfiles, fatfs_t *fat)
     return;
   }
   comcom = assemble_path(dir, "command.com");
-  res = readlink(comcom, buf, sizeof(buf));
+  res = readlink(comcom, buf, sizeof(buf) - 1);
   free(comcom);
   if (res == -1)
     return;
+  buf[res] = '\0';
   if (strncmp(buf, comcom_dir, strlen(comcom_dir)) != 0)
     return;
   sfiles[CMD_IDX].flags |= FLG_COMCOM32;

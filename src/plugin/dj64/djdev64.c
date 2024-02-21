@@ -41,6 +41,7 @@ static int clnup_tids[HNDL_MAX][MAX_CLNUP_TIDS];
 static int num_clnup_tids[HNDL_MAX];
 
 static void call_thr(void *arg);
+static void ctrl_hlt(Bit16u offs, void *sc, void *arg);
 static void do_retf(cpuctx_t *scp);
 
 static uint8_t *dj64_addr2ptr(uint32_t addr)
@@ -197,6 +198,12 @@ static int do_open(const char *path)
     assert(ret < HNDL_MAX);
     if (!call_hlp[ret].tid)
         doshlp_setup(&call_hlp[ret], "dj64 call", call_thr, do_retf);
+    if (!ctrl_off) {
+        emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+        hlt_hdlr.name = "dj64 ctrl";
+        hlt_hdlr.func = ctrl_hlt;
+        ctrl_off = hlt_register_handler_pm(hlt_hdlr);
+    }
     return ret;
 }
 
@@ -258,9 +265,5 @@ static void ctrl_hlt(Bit16u offs, void *sc, void *arg)
 
 CONSTRUCTOR(static void djdev64_init(void))
 {
-    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-    hlt_hdlr.name = "dj64 ctrl";
-    hlt_hdlr.func = ctrl_hlt;
-    ctrl_off = hlt_register_handler_pm(hlt_hdlr);
     register_djdev64(&ops);
 }
