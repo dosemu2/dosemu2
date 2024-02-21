@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+. ./ci_test_prereq.sh
 
 if [ "${TRAVIS}" = "true" ] ; then
   export CI="true"
