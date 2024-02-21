@@ -29,7 +29,7 @@
 #include "hlt.h"
 #include "dos2linux.h"
 
-#if DJ64_API_VER != 2
+#if DJ64_API_VER != 3
 #error wrong dj64 version
 #endif
 
@@ -57,10 +57,19 @@ static uint8_t *dj64_addr2ptr2(uint32_t addr, uint32_t len)
 static uint32_t dj64_ptr2addr(const uint8_t *ptr)
 {
     if (ptr >= MEM_BASE32(config.dpmi_base) &&
-            ptr < MEM_BASE32(config.dpmi_base) + dpmi_mem_size())
+            ptr < MEM_BASE32(config.dpmi_base + dpmi_mem_size()))
         return DOSADDR_REL(ptr);
     dosemu_error("bad ptr2addr %p\n", ptr);
     return -1;
+}
+
+static int dj64_dos_ptr(const uint8_t *ptr)
+{
+    if ((ptr >= MEM_BASE32(config.dpmi_base) &&
+            ptr < MEM_BASE32(config.dpmi_base + dpmi_mem_size())) ||
+            (ptr >= MEM_BASE32(0) && ptr < MEM_BASE32(LOWMEM_SIZE + HMASIZE)))
+        return 1;
+    return 0;
 }
 
 static void dj64_print(int prio, const char *format, va_list ap)
@@ -177,6 +186,7 @@ const struct dj64_api api = {
     .asm_call = dj64_asm_call,
     .asm_noret = dj64_asm_noret,
     .inc_esp = dj64_inc_esp,
+    .is_dos_ptr = dj64_dos_ptr,
 };
 
 static int do_open(const char *path)
