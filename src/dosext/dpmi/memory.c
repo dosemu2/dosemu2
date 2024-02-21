@@ -576,7 +576,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
 #define EXLOCK_DIR "dosemu2_shmex"
 #define SHLOCK_DIR "dosemu2_shmsh"
     int i, err;
-    int fd;
+    int fd = -1;
     dpmi_pm_block *ptr;
     void *addr, *addr2;
     char *shmname;
@@ -643,9 +643,10 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     /* this mem is already mapped to KVM so we use plain mmap() */
     addr2 = mmap(addr, size, prot, MAP_SHARED | MAP_FIXED, fd, 0);
     close(fd);
+    fd = -1;
     if (addr2 != addr) {
         perror("mmap()");
-        error("shared memory map failed %p %p, exiting\n", addr2, addr);
+        error("shared memory map failed %p %p\n", addr2, addr);
         goto err3;
     }
     ptr = alloc_pm_block(root, size);
@@ -671,11 +672,12 @@ err4:
 err3:
     smfree(&mem_pool, addr);
 err2:
-    close(fd);
+    if (fd != -1)
+        close(fd);
 err1:
     if (exlock)
         shlock_close(exlock);
-    leavedos(2);
+//    leavedos(2);
     return NULL;
 #else
     return NULL;
