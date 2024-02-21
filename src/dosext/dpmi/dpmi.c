@@ -3607,21 +3607,19 @@ static void dpmi_dj64_open(cpuctx_t *scp)
   int djh;
   void *dlh = load_plugin("dj64");
 
+  _eflags |= CF;
   if (!dlh || !djdev64)
     return;
-  _eflags &= ~CF;
   ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
   if (!ptr) {
     error("DJ64: invalid handle\n");
-    _eflags |= CF;
     return;
   }
   path = assemble_path(mp, ptr->rshmname + 1);
   djh = djdev64->open(path);
   free(path);
-  if (djh == -1) {
-    _eflags |= CF;
-  } else {
+  if (djh != -1) {
+    _eflags &= ~CF;
     ptr->flags |= PMBF_DJ64;
     ptr->opaque = djh;
     _eax = djh;
