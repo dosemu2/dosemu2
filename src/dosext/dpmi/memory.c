@@ -631,11 +631,12 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         }
     }
     shlock_close(exlock);
+    exlock = NULL;
 
     addr = smalloc(&mem_pool, size);
     if (!addr) {
         error("unable to alloc %x for shm %s\n", size, name);
-        goto err0;
+        goto err2;
     }
     if (!(flags & SHM_NOEXEC))
         prot |= PROT_EXEC;
@@ -645,12 +646,12 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     if (addr2 != addr) {
         perror("mmap()");
         error("shared memory map failed %p %p, exiting\n", addr2, addr);
-        goto err0;
+        goto err3;
     }
     ptr = alloc_pm_block(root, size);
     if (!ptr) {
         error("pm block alloc failed, exiting\n");
-        goto err0;
+        goto err4;
     }
     for (i = 0; i < (size >> PAGE_SHIFT); i++)
         ptr->attrs[i] = 0x09 | ATTR_SHR;	// RW, shared, present
@@ -665,11 +666,15 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     D_printf("DPMI: map shm %s\n", ptr->shmname);
     return ptr;
 
+err4:
+    munmap(addr2, size);
+err3:
+    smfree(&mem_pool, addr);
 err2:
     close(fd);
 err1:
-    shlock_close(exlock);
-err0:
+    if (exlock)
+        shlock_close(exlock);
     leavedos(2);
     return NULL;
 #else
