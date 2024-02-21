@@ -20,6 +20,7 @@
 #include <djdev64/dj64init.h>
 #include "init.h"
 #include "emu.h"
+#include "cpu-emu.h"
 #include "dosemu_debug.h"
 #include "utilities.h"
 #include "emudpmi.h"
@@ -27,6 +28,10 @@
 #include "coopth.h"
 #include "hlt.h"
 #include "dos2linux.h"
+
+#if DJ64_API_VER != 2
+#error wrong dj64 version
+#endif
 
 static unsigned ctrl_off;
 #define HNDL_MAX 5
@@ -40,6 +45,12 @@ static void do_retf(cpuctx_t *scp);
 
 static uint8_t *dj64_addr2ptr(uint32_t addr)
 {
+    return dosaddr_to_unixaddr(addr);
+}
+
+static uint8_t *dj64_addr2ptr2(uint32_t addr, uint32_t len)
+{
+    e_invalidate(addr, len);
     return dosaddr_to_unixaddr(addr);
 }
 
@@ -160,16 +171,13 @@ static uint8_t *dj64_inc_esp(uint32_t len)
 
 const struct dj64_api api = {
     .addr2ptr = dj64_addr2ptr,
+    .addr2ptr2 = dj64_addr2ptr2,
     .ptr2addr = dj64_ptr2addr,
     .print = dj64_print,
     .asm_call = dj64_asm_call,
     .asm_noret = dj64_asm_noret,
     .inc_esp = dj64_inc_esp,
 };
-
-#if DJ64_API_VER != 1
-#error wrong dj64 version
-#endif
 
 static int do_open(const char *path)
 {
