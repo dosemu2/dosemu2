@@ -48,6 +48,7 @@ Depends:
     ${misc:Depends},
     ${shlibs:Depends},
     fdpp,
+    dj64,
     comcom64
 Recommends:${shlibs-:Recommends}, ladspa-sdk, gdb, kbd, fluid-soundfont-gm,
   install-freedos
