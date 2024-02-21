@@ -30,7 +30,6 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
   # Install the build dependancies based FDPP's debian/control file
   sudo add-apt-repository ppa:stsp-0/nasm-segelf
   sudo add-apt-repository ppa:stsp-0/thunk-gen
-  sudo add-apt-repository ppa:stsp-0/dj64
   sudo apt update -q
   mk-build-deps --install --root-cmd sudo
 
@@ -44,6 +43,7 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
 )
 
 # Install the build dependancies based Dosemu's debian/control file
+sudo add-apt-repository ppa:stsp-0/dj64
 mk-build-deps --install --root-cmd sudo
 
 if [ "${SUBTYPE}" = "asan" ] ; then
