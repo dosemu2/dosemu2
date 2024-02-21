@@ -2123,7 +2123,7 @@ far_t DPMI_get_real_mode_interrupt_vector(int vec)
 
 int DPMIAllocateShared(struct SHM_desc *shm)
 {
-    char *name = SEL_ADR_CLNT(shm->name_selector, shm->name_offset32,
+    const char *name = SEL_ADR_CLNT(shm->name_selector, shm->name_offset32,
 	    DPMI_CLIENT.is_32);
     D_printf("DPMI: allocate shared region %s\n", name);
     dpmi_pm_block *ptr = DPMI_mallocShared(&DPMI_CLIENT.pm_block_root, name,
@@ -3239,7 +3239,14 @@ err:
     break;
 
   case 0x0d00: {	/* Allocate Shared Memory */
-    int err = DPMIAllocateShared(SEL_ADR_X(_es, _edi));
+    dosaddr_t p;
+    int err;
+    if (API_32(scp))
+      p = GetSegmentBase(_es) + _edi;
+    else
+      p = GetSegmentBase(_es) + LO_WORD(_edi);
+    e_invalidate(p, sizeof(struct SHM_desc));
+    err = DPMIAllocateShared(LINEAR2UNIX(p));
     if (err) {
       _eflags |= CF;
       _LWORD(eax) = 0x8014;

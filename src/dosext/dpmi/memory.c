@@ -570,7 +570,7 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 }
 
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
-        char *name, unsigned int size, int flags)
+        const char *name, unsigned int size, int flags)
 {
 #ifdef HAVE_SHM_OPEN
 #define EXLOCK_DIR "dosemu2_shmex"
