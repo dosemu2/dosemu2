@@ -229,6 +229,10 @@ if [ -f "$LOG_FILE" -a -x "/usr/bin/dpkg-query" ]; then
   dpkg-query -W dosemu2 >>$LOG_FILE 2>/dev/null
   dpkg-query --show --showformat='fdpp: ${db:Status-Status}\n' fdpp >>$LOG_FILE 2>/dev/null
   dpkg-query -W fdpp >>$LOG_FILE 2>/dev/null
+  dpkg-query --show --showformat='dj64: ${db:Status-Status}\n' dj64 >>$LOG_FILE 2>/dev/null
+  dpkg-query -W dj64 >>$LOG_FILE 2>/dev/null
+  dpkg-query --show --showformat='comcom64: ${db:Status-Status}\n' comcom64 >>$LOG_FILE 2>/dev/null
+  dpkg-query -W comcom64 >>$LOG_FILE 2>/dev/null
 fi
 
 exit $EC
