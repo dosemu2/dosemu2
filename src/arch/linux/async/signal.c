@@ -88,6 +88,7 @@ sigset_t q_mask;
 sigset_t nonfatal_q_mask;
 static sigset_t fatal_q_mask;
 static int sig_inited;
+int sig_threads_wa = 1;
 
 static int sh_tid;
 static int in_handle_signals;
@@ -504,6 +505,17 @@ signal_pre_init(void)
 
   /* block async signals so that threads inherit the blockage */
   sigprocmask(SIG_BLOCK, &q_mask, NULL);
+#if defined(HAVE_PTHREAD_ATTR_SETSIGMASK_NP) && defined(HAVE_PTHREAD_SETATTR_DEFAULT_NP)
+  {
+    sigset_t mask;
+    pthread_attr_t attr;
+    sigprocmask(SIG_SETMASK, NULL, &mask);
+    pthread_getattr_default_np(&attr);
+    pthread_attr_setsigmask_np(&attr, &mask);
+    pthread_setattr_default_np(&attr);
+    sig_threads_wa = 0;
+  }
+#endif
 
   signal(SIGPIPE, SIG_IGN);
 #ifdef __linux__

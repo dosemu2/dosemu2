@@ -369,6 +369,7 @@ AC_CHECK_FUNC(pthread_cancel,, [
 AC_CHECK_LIB(bthread, pthread_cancel)
 
 AC_CHECK_FUNCS([pthread_getname_np pthread_setname_np])
+AC_CHECK_FUNCS([pthread_attr_setsigmask_np pthread_setattr_default_np])
 
 AC_CHECK_HEADER([wordexp.h],, [
   AC_MSG_ERROR([wordexp.h missing, install libwordexp])
