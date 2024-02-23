@@ -537,6 +537,9 @@ void joy_init (void)
 				else	/* successfully switched device to NONBLOCKing mode... */
 					joy_driver_set (&joy_driver_new);
 			}
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
+			pthread_setname_np(thread [joynum], "dosemu: joy");
+#endif
 		}
 	#endif	/* USE_PTHREADS */
 	}

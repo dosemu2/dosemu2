@@ -270,6 +270,9 @@ void dos2tty_init(void)
     sem_init(&rd_sem, 0, 0);
     queue = spscq_init(1024 * 64); // 64K queue
     pthread_create(&reader, NULL, rd_thread, queue);
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
+    pthread_setname_np(reader, "dosemu: ttyrd");
+#endif
 }
 
 void dos2tty_done(void)

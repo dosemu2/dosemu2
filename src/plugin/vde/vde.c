@@ -212,12 +212,17 @@ static void *open_thread(void *arg)
 
 static int OpenNetworkLinkVde(const char *name, void (*cbk)(int, int))
 {
+    int ret;
     struct thr_data *thrd = malloc(sizeof(*thrd));
     thrd->name = name;
     thrd->cbk = cbk;
     /* need to open in a separate thread as waiting for startup
      * may be long if the vde is unpatched */
-    return pthread_create(&open_thr, NULL, open_thread, thrd);
+    ret = pthread_create(&open_thr, NULL, open_thread, thrd);
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
+    pthread_setname_np(open_thr, "dosemu: vde");
+#endif
+    return ret;
 }
 
 static void CloseNetworkLinkVde(int pkt_fd)

@@ -160,6 +160,9 @@ void *evtimer_create(void (*cbk)(int ticks, void *), void *arg)
     pthread_cond_init(&t->block_cnd, NULL);
     pthread_cond_init(&t->unblock_cnd, NULL);
     pthread_create(&t->thr, NULL, evthread, t);
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
+    pthread_setname_np(t->thr, "dosemu: evtmr");
+#endif
     return t;
 }
 
