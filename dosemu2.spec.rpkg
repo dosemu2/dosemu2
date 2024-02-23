@@ -55,7 +55,6 @@ BuildRequires: dj64-devel
 
 # our startup script is bash-specific
 Requires:   bash
-Requires:   fdpp
 Requires:   comcom64
 Recommends: fluid-soundfont-gm
 Suggests:   timidity++ >= 2.14.0
