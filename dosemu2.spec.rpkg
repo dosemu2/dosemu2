@@ -101,7 +101,8 @@ make DESTDIR=%{buildroot} install
 %lang(ru) %dir %{_mandir}/ru
 %lang(ru) %dir %{_mandir}/ru/man1
 %lang(ru) %{_mandir}/ru/man1/*
-%{_libdir}/dosemu
+# Not using libdir here as we only install plugins, and their path hard-coded
+%{_prefix}/lib/dosemu
 %{_datadir}/dosemu
 %{_datadir}/applications/dosemu.desktop
 %{_datadir}/fonts/oldschool

@@ -278,9 +278,6 @@ dnl Here is where we do our stuff
 AC_ARG_WITH(confdir, [AS_HELP_STRING([--with-confdir=dir],
   [directory suffix under sysconfdir. default: dosemu])],
   confdir="$withval", confdir="dosemu")
-AC_ARG_WITH(plugindir, [AS_HELP_STRING([--with-plugindir=dir],
-  [directory for dosemu plugins. default: ${libdir}/dosemu])],
-  plugindir="$withval", plugindir="${libdir}/dosemu")
 AC_ARG_WITH(x11fontdir, [AS_HELP_STRING([--with-x11fontdir=dir],
   [directory to install the VGA X11 font. default: ${datadir}/dosemu/Xfonts])],
   x11fontdir="$withval", x11fontdir="${datadir}/dosemu/Xfonts")
@@ -290,6 +287,10 @@ AC_ARG_WITH(ttffontdir, [AS_HELP_STRING([--with-ttffontdir=dir],
 AC_ARG_WITH(fdtarball, [AS_HELP_STRING([--with-fdtarball=file],
   [path to FreeDOS tarball])],
   fdtarball="$withval")
+
+# Hard-code this. It is evaluated at run-time as <binary_dir>../lib/dosemu,
+# so we do not use libdir here (which can be lib64 or something unrelated)
+plugindir="${prefix}/lib/dosemu"
 
 AC_SUBST(confdir)
 AC_SUBST(plugindir)
