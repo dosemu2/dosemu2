@@ -11,7 +11,6 @@ override_dh_autoreconf:
 
 override_dh_auto_configure:
 	dh_auto_configure -O--parallel -- \
-		--enable-debug --disable-xbacktrace \
 		--with-plugindir=/usr/lib/dosemu \
 		--with-x11fontdir=/usr/share/fonts/X11/misc
 
