@@ -8,7 +8,6 @@ top_builddir=../../..
 include ../plugins.mak
 
 ALL_CFLAGS += $(DL_CFLAGS)
-LDFLAGS += $(DJDEV64_LIBS)
 CFILES = djdev64.c
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_dj64.so
@@ -19,5 +18,5 @@ include $(REALTOPDIR)/src/Makefile.common.post
 
 ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_dj64.so: $(OBJS) | $(BINPATH)/bin
-	$(CC) $(LDFLAGS) -shared -o $@ $^
+	$(CC) $(LDFLAGS) -shared -o $@ $^ $(DJDEV64_LIBS)
 endif
