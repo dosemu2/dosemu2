@@ -966,6 +966,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
       SDL_RenderSetLogicalSize(renderer, 0, 0);
   }
   if (!initialized) {
+    sigset_t oset;
     initialized = 1;
     if (config.X_fullscreen) {
       SDL_DisplayMode dm;
@@ -976,7 +977,10 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
       w_x_res = dm.w;
       w_y_res = dm.h;
     }
+    /* wayland may create threads here! */
+    signal_block_async_nosig(&oset);
     SDL_ShowWindow(window);
+    sigprocmask(SIG_SETMASK, &oset, NULL);
     SDL_SetWindowResizable(window, !config.X_noresize);
     if (config.X_fullscreen) {
       SDL_RaiseWindow(window);
