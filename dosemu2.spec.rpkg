@@ -51,11 +51,12 @@ BuildRequires: binutils
 BuildRequires: binutils-x86_64-linux-gnu
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp-devel
+BuildRequires: dj64-devel
 
 # our startup script is bash-specific
 Requires:   bash
 Requires:   fdpp
-Requires:   comcom32
+Requires:   comcom64
 Recommends: fluid-soundfont-gm
 Suggests:   timidity++ >= 2.14.0
 Recommends: ladspa
