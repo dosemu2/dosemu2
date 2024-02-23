@@ -1287,11 +1287,15 @@ static int shift_pressed(void)
 static void SDL_handle_events(void)
 {
   SDL_Event event;
+  sigset_t oset;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   /* events may resize renderer, so lock */
   pthread_mutex_lock(&rend_mtx);
+  /* SDL may spawn threads during event handling! */
+  signal_block_async_nosig(&oset);
   SDL_PumpEvents();
+  sigprocmask(SIG_SETMASK, &oset, NULL);
   pthread_mutex_unlock(&rend_mtx);
   /* SDL_PeepEvents() is thread-safe, SDL_PollEvent() - not */
   while (SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_FIRSTEVENT,
