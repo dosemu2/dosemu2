@@ -12,5 +12,11 @@ FDPPLIB := @FDPP_LIBS@ @FDPP_LFLAGS@ -Wl,-rpath,@FDPP_RPATH@
 ifneq (@FDPP_RPATH2@,)
 FDPPLIB += -Wl,-rpath,@FDPP_RPATH2@
 endif
+ifneq (@FDPP_RPATH3@,)
+FDPPLIB += -Wl,-rpath,@FDPP_RPATH3@
+endif
+ifneq (@FDPP_RPATH4@,)
+FDPPLIB += -Wl,-rpath,@FDPP_RPATH4@
+endif
 VG_CFLAGS = @VALGRIND_CFLAGS@
 VG_LIBS = @VALGRIND_LIBS@

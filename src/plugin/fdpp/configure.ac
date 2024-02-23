@@ -40,20 +40,25 @@ AC_ARG_WITH([fdpp-lib-dir], AS_HELP_STRING([--with-fdpp-lib-dir=DIR],
       else
         export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$ac_default_prefix/lib/pkgconfig"
       fi
-      FDPP_RPATH="$ac_default_prefix/lib/fdpp"
       AC_ARG_WITH([fdpp-rpath], AS_HELP_STRING([--with-fdpp-rpath=DIR],
         [add alternate fdpp rpath]),
-        [FDPP_RPATH2="$fdpp_rpath"],
-        [FDPP_RPATH2="/usr/lib/fdpp"])
+        [FDPP_RPATH="$fdpp_rpath"],
+        [FDPP_RPATH="/usr/lib/fdpp"
+         FDPP_RPATH2="/usr/lib64/fdpp"]
+      )
     else
       FDPP_RPATH="$prefix/lib/fdpp"
-      FDPP_RPATH2="$ac_default_prefix/lib/fdpp"
+      FDPP_RPATH2="$prefix/lib64/fdpp"
     fi
+    FDPP_RPATH3="$ac_default_prefix/lib/fdpp"
+    FDPP_RPATH4="$ac_default_prefix/lib64/fdpp"
   ]
 )
 
 AC_SUBST(FDPP_RPATH)
 AC_SUBST(FDPP_RPATH2)
+AC_SUBST(FDPP_RPATH3)
+AC_SUBST(FDPP_RPATH4)
 AC_SUBST(FDPP_INCLUDES)
 AC_SUBST(FDPP_LFLAGS)
 
