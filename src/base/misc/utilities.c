@@ -750,7 +750,8 @@ void *load_plugin(const char *plugin_name)
 		(int)(p - dosemu_proc_self_exe),
 		dosemu_proc_self_exe, plugin_name);
 	if (access(fullname, R_OK) == 0 &&
-			strcmp(fullname, dosemu_plugin_dir_path) != 0) {
+			strncmp(fullname, dosemu_plugin_dir_path,
+			strlen(dosemu_plugin_dir_path)) != 0) {
 		error("running from build dir must be done via script\n");
 		warned++;
 	}
