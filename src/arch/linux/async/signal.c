@@ -505,6 +505,7 @@ signal_pre_init(void)
 
   /* block async signals so that threads inherit the blockage */
   sigprocmask(SIG_BLOCK, &q_mask, NULL);
+#if 0
 #if defined(HAVE_PTHREAD_ATTR_SETSIGMASK_NP) && defined(HAVE_PTHREAD_SETATTR_DEFAULT_NP)
   {
     sigset_t mask;
@@ -515,6 +516,7 @@ signal_pre_init(void)
     pthread_setattr_default_np(&attr);
     sig_threads_wa = 0;
   }
+#endif
 #endif
 
   signal(SIGPIPE, SIG_IGN);
