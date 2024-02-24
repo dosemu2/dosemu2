@@ -43,7 +43,6 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
 )
 
 # Install the build dependancies based Dosemu's debian/control file
-sudo add-apt-repository ppa:stsp-0/dj64
 sudo add-apt-repository -y ppa:dosemu2/ppa
 mk-build-deps --install --root-cmd sudo
 
