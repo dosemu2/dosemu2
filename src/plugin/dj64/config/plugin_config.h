@@ -6,7 +6,7 @@ struct djdev64_ops {
     int (*open)(const char *path);
     void (*close)(int handle);
     unsigned (*call)(int handle);
-    unsigned *ctrl;
+    unsigned (*ctrl)(int handle);
 };
 
 void register_djdev64(const struct djdev64_ops *ops);

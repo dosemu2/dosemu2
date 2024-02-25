@@ -3625,7 +3625,7 @@ static void dpmi_dj64_open(cpuctx_t *scp)
     _eax = djh;
     _es = dpmi_sel();
     _edi = djdev64->call(djh);
-    _esi = *djdev64->ctrl;
+    _esi = djdev64->ctrl(djh);
     D_printf("DPMI: dj64 opened\n");
   }
 }

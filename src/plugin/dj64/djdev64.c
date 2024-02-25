@@ -222,11 +222,16 @@ static unsigned call_entry(int handle)
     return call_hlp[handle].entry;
 }
 
+static unsigned ctrl_entry(int handle)
+{
+    return ctrl_off;
+}
+
 static const struct djdev64_ops ops = {
     .open = do_open,
     .close = do_close,
     .call = call_entry,
-    .ctrl = &ctrl_off,
+    .ctrl = ctrl_entry,
 };
 
 static void call_thr(void *arg)
