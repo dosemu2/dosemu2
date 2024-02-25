@@ -3578,7 +3578,6 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
     }
 
     case GET_DISK_SPACE: { /* 0x0c */
-#ifdef USE_DF_AND_AFS_STUFF
       cds_t tcds = Addr(state, es, edi);
       char *name = cds_current_path(tcds);
       unsigned int free, tot, spc, bps;
@@ -3629,7 +3628,6 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       } else {
         Debug0((dbg_fd, "Drive invalid (%s)\n", name));
       }
-#endif /* USE_DF_AND_AFS_STUFF */
       break;
     }
 

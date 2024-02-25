@@ -21,8 +21,6 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 
 #define MAX_DRIVES (PRINTER_BASE_DRIVE + MAX_PRINTER + 1)
 
-#define USE_DF_AND_AFS_STUFF
-
 #ifdef __linux__
 #define VOLUMELABEL "Linux"
 #endif
