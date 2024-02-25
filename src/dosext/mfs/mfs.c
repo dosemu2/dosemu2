@@ -293,6 +293,7 @@ static int num_drives = 0;
 lol_t lol = 0;
 sda_t sda;
 static uint16_t lol_segment, lol_offset, sda_segment, sda_offset;
+static int dosds_seg31;
 
 int lol_dpbfarptr_off, lol_cdsfarptr_off, lol_last_drive_off, lol_nuldev_off,
     lol_njoined_off;
@@ -432,18 +433,6 @@ static int cds_drive(cds_t cds)
     return drive;
   else
     return -1;
-}
-
-static uint16_t GetDataSegment(void)
-{
-  struct vm86_regs saved_regs = REGS;
-  uint16_t ds;
-
-  _AX = 0x1203;
-  do_int_call_back(0x2f);
-  ds = _DS;
-  REGS = saved_regs;
-  return ds;
 }
 
 /*****************************
@@ -1681,6 +1670,8 @@ dos_fs_dev(struct vm86_regs *state)
     lol_offset = WORD(state->edx);
     sda_segment = WORD(state->esi);
     sda_offset = WORD(state->edi);
+    /* Some DOSes store DOS_DS in int31's segment */
+    dosds_seg31 = (sda_segment == ISEG(0x31));
     break;
 
   /* Let the caller know the redirector has been initialised and that we
@@ -3241,7 +3232,6 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
   struct dir_list *hlist;
   int hlist_index;
   int doserrno = FILE_NOT_FOUND;
-  uint16_t dosdataseg;
 #if 0
   static char last_find_name[8] = "";
   static char last_find_ext[3] = "";
@@ -3273,8 +3263,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
    * during the boot process.
    * e.g. EDR-DOS 7.01.07+
    */
-  dosdataseg = GetDataSegment();
-  if (dosdataseg != sda_segment) {
+  if (dosds_seg31 && sda_segment != ISEG(0x31)) {
+    uint16_t dosdataseg = ISEG(0x31);
     Debug0((dbg_fd, "EDR-DOS work-around: sda 0x%x --> 0x%x\n",
         sda_segment, dosdataseg));
     lol = SEGOFF2LINEAR(dosdataseg, lol_offset);
