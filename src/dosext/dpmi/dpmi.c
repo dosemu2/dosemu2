@@ -3635,17 +3635,17 @@ static void dpmi_dj64_close(cpuctx_t *scp)
   int handle = (_LWORD(esi) << 16) | _LWORD(edi);
   dpmi_pm_block *ptr;
 
+  _eflags |= CF;
   if (!djdev64)
     return;
-  _eflags &= ~CF;
   ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
   if (!ptr || !(ptr->flags & PMBF_DJ64) || ptr->opaque != _eax) {
     error("DJ64: invalid handle\n");
-    _eflags |= CF;
     return;
   }
   djdev64->close(_eax);
   ptr->flags &= ~PMBF_DJ64;  // to not close again on exit
+  _eflags &= ~CF;
 }
 
 #endif
