@@ -87,13 +87,13 @@ dosaddr_t is_dos_device(const char *path)
    */
   if (fname[0] == '/')
   {
-    d_printf("MFS: is_msdos_device %s\n", fname);
+    d_printf("MFS: is_dos_device %s\n", fname);
     p = strrchr(fname,'/');
     if (p) fname = p+1;	/* strip the directory part */
   }
   else
   {
-    d_printf("MFS: is_msdos_device %.8s\n", fname);
+    d_printf("MFS: is_dos_device %.8s\n", fname);
   }
 
   /*
