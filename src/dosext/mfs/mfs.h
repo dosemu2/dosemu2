@@ -421,3 +421,16 @@ struct file_fd
 
 #define MAX_OPENED_FILES 256
 extern struct file_fd open_files[MAX_OPENED_FILES];
+
+struct get_volume_info {
+  uint8_t version;
+  uint8_t size;        /* size of this structure */
+  uint8_t namelen;     /* length of file system type name */
+  uint8_t pad;
+  uint16_t flags_std;  /* 15..0 as per RBIL */
+  uint16_t flags_ext;  /* 31..16 for extension */
+  uint16_t maxfilenamelen;
+  uint16_t maxpathlen;
+  char name[16];       /* file system type name */
+} __attribute__((packed));
+static_assert(sizeof(struct get_volume_info) == 28, "bad GET_VOLUME_INFO structure size");

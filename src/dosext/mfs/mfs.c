@@ -247,6 +247,7 @@ static int emufs_loaded = FALSE;
 #define EXTENDED_ATTRIBUTES	0x2d	/* Used in DOS 4.x */
 #define MULTIPURPOSE_OPEN	0x2e	/* Used in DOS 4.0+ */
 
+#define GET_VOLUME_INFO		0xa0	/* extension */
 #define GET_LARGE_DISK_SPACE	0xa3	/* extension */
 #define GET_LARGE_FILE_INFO	0xa6	/* extension */
 #define LONG_SEEK		0xc2	/* extension */
@@ -413,6 +414,8 @@ static const char *redirector_op_to_str(uint8_t op) {
 
   if (op == LONG_SEEK)
     return "Long seek (extension)";
+  else if (op == GET_VOLUME_INFO)
+    return "Get volume information (extension)";
   else if (op == GET_LARGE_DISK_SPACE)
     return "Get large disk space (extension)";
   else if (op == GET_LARGE_FILE_INFO)
@@ -627,6 +630,11 @@ select_drive(struct vm86_regs *state, int *drive)
 
       dd = (READ_BYTE(dta) & ~0x80);
     }
+    break;
+
+  case GET_VOLUME_INFO:	        /* 0xa0 */
+    /* volume number is in DL (A=0) */
+    dd = LOW(state->edx);
     break;
 
   /* The rest are unknown */
@@ -4503,6 +4511,63 @@ do_create_truncate:
       WRITE_DWORD(buffer + 0x2c, (unsigned long long)f->st.st_ino >> 32);
       WRITE_DWORD(buffer + 0x30, f->st.st_ino);
       SETWORD(&state->eax, 0);
+      return TRUE;
+    }
+
+    case GET_VOLUME_INFO: {
+      d_printf("MFS: get volume info\n");
+
+      // If we get here then select_drive() has determined that 'drive'
+      // is valid and we own it.
+
+      /* input */
+      /*   CX = buffer size */
+      /*   DL = volume number (A=0) (now in drive) */
+      /*   DH = version */
+      /*   ES:DI -> buffer */
+
+      /* return */
+      /*   AX = signature */
+
+      struct get_volume_info *out = Addr(state, es, edi);
+
+      if (WORD(state->ecx) < sizeof(*out)) {
+        d_printf("MFS: get volume info: caller buffer too small\n");
+        break;
+      }
+
+      if (HIGH(state->edx) != 1) {
+        d_printf("MFS: get volume info: caller asked for version (%d)\n", HIGH(state->edx));
+        break;
+      }
+
+      out->version = 1;
+      out->size = sizeof(*out);
+      out->namelen = strlcpy(out->name, "MFS", sizeof(out->name));
+
+      /*
+       * Bit(s) Description     (Table 01783)
+       * 0      searches are case sensitive
+       * 1      preserves case in directory entries
+       * 2      uses Unicode characters in file and directory names
+       * 3-13   reserved (0)
+       * 14     supports DOS long filename functions
+       * 15     volume is compressed
+       */
+      out->flags_std = 0b0100000000000010;
+
+      /*
+       * Bit(s) Description     (New extension)
+       * 0      volume is read only
+       */
+      out->flags_ext = 0;
+      if (read_only(drives[drive]))
+        out->flags_ext |= 0b0000000000000001;
+
+      out->maxfilenamelen = 255;
+      out->maxpathlen = 260;
+
+      SETWORD(&state->eax, (out->size << 8) | out->version);
       return TRUE;
     }
 
