@@ -290,7 +290,7 @@ AC_ARG_WITH(fdtarball, [AS_HELP_STRING([--with-fdtarball=file],
 
 # Hard-code this. It is evaluated at run-time as <binary_dir>../lib/dosemu,
 # so we do not use libdir here (which can be lib64 or something unrelated)
-plugindir="${prefix}/lib/dosemu"
+plugindir="\${prefix}/lib/dosemu"
 
 AC_SUBST(confdir)
 AC_SUBST(plugindir)
