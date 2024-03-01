@@ -1706,6 +1706,10 @@ static void get_ext_API(cpuctx_t *scp)
 	_LO(ax) = 0;
 	_es = dpmi_sel();
 	_edi = DPMI_SEL_OFF(DPMI_dj64);
+      } else if (!strcmp("DJ64STUB", ptr)) {
+	_LO(ax) = 0;
+	_es = dpmi_sel();
+	_edi = DPMI_SEL_OFF(DPMI_dj64stub);
       } else {
 	if (!(_LWORD(eax)==0x168a))
 	  _eax = 0x8001;
@@ -5189,6 +5193,16 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
             error("dj64: unknown cmd %x\n", _eax);
             break;
           }
+
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_dj64stub)) {
+          int argc = _ecx;
+          unsigned *argp = SEL_ADR(_ds, _edx);
+          char **argv = alloca((argc + 1) * sizeof(char *));
+          int i;
+          for (i = 0; i < argc; i++)
+            argv[i] = SEL_ADR(_ds, argp[i]);
+          argv[i] = NULL;
+          error("DPMI: DJ64STUB %s\n", argv[0]);
 #endif
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_abort)) {
           error("DPMI abort called\n");
