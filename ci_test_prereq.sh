@@ -7,7 +7,7 @@ sudo apt update -q
 
 sudo apt install -y \
   acl \
-  comcom32 \
+  comcom64 \
   nasm \
   python3-cpuinfo \
   python3-pexpect \
