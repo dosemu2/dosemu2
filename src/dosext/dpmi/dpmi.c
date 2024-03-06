@@ -280,6 +280,11 @@ static int p_direct_str(const char *fmt, ...)
   return i;
 }
 
+int dpmi_is_32(void)
+{
+  return DPMI_CLIENT.is_32;
+}
+
 int dpmi_isset_IF(void)
 {
     assert(in_dpmi);
@@ -1702,14 +1707,22 @@ static void get_ext_API(cpuctx_t *scp)
 	_LO(ax) = 0;
 	_es = dpmi_sel();
 	_edi = DPMI_SEL_OFF(DPMI_reinit);
+#ifdef USE_DJDEV64
       } else if (!strcmp("DJ64", ptr)) {
 	_LO(ax) = 0;
 	_es = dpmi_sel();
 	_edi = DPMI_SEL_OFF(DPMI_dj64);
       } else if (!strcmp("DJ64STUB", ptr)) {
-	_LO(ax) = 0;
-	_es = dpmi_sel();
-	_edi = DPMI_SEL_OFF(DPMI_dj64stub);
+	if (!djdev64)
+	    load_plugin("dj64");
+	if (!djdev64) {
+	    _eflags |= CF;
+	} else {
+	    _LO(ax) = 0;
+	    _es = dpmi_sel();
+	    _edi = djdev64->stub();
+	}
+#endif
       } else {
 	if (!(_LWORD(eax)==0x168a))
 	  _eax = 0x8001;
@@ -4147,7 +4160,7 @@ void dpmi_setup(void)
     if (SetSelector(data_sel, block->base,
 		    DPMI_page_size - 1, 1,
 		    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-    dpmi_api_init(data_sel, block->base, DPMI_page_size);
+    dpmi_api_init(data_sel, block->base, DPMI_page_size * 2);
 
     if (config.pm_dos_api)
       msdos_setup();
@@ -5193,16 +5206,6 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
             error("dj64: unknown cmd %x\n", _eax);
             break;
           }
-
-        } else if (_eip==1+DPMI_SEL_OFF(DPMI_dj64stub)) {
-          int argc = _ecx;
-          unsigned *argp = SEL_ADR(_ds, _edx);
-          char **argv = alloca((argc + 1) * sizeof(char *));
-          int i;
-          for (i = 0; i < argc; i++)
-            argv[i] = SEL_ADR(_ds, argp[i]);
-          argv[i] = NULL;
-          error("DPMI: DJ64STUB %s\n", argv[0]);
 #endif
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_abort)) {
           error("DPMI abort called\n");

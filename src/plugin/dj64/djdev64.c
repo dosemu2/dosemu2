@@ -28,6 +28,7 @@
 #include "coopth.h"
 #include "hlt.h"
 #include "dos2linux.h"
+#include "stub_ex.h"
 
 #if DJ64_API_VER != 3
 #error wrong dj64 version
@@ -36,11 +37,13 @@
 static unsigned ctrl_off;
 #define HNDL_MAX 5
 static struct dos_helper_s call_hlp[HNDL_MAX];
+static struct dos_helper_s stub_hlp;
 #define MAX_CLNUP_TIDS 5
 static int clnup_tids[HNDL_MAX][MAX_CLNUP_TIDS];
 static int num_clnup_tids[HNDL_MAX];
 
 static void call_thr(void *arg);
+static void stub_thr(void *arg);
 static void ctrl_hlt(Bit16u offs, void *sc, void *arg);
 static void do_retf(cpuctx_t *scp);
 
@@ -217,6 +220,26 @@ static void do_close(int handle)
     djdev64_close(handle);
 }
 
+static void stub_thr(void *arg)
+{
+    cpuctx_t *scp = arg;
+    int argc = _ecx;
+    unsigned *argp = SEL_ADR(_ds, _edx);
+    char **argv = alloca((argc + 1) * sizeof(char *));
+    int envc = _ebx;
+    unsigned *envpp = SEL_ADR(_ds, _esi);
+    char **envp = alloca((envc + 1) * sizeof(char *));
+    int i;
+    for (i = 0; i < argc; i++)
+        argv[i] = SEL_ADR(_ds, argp[i]);
+    argv[i] = NULL;
+    for (i = 0; i < envc; i++)
+        envp[i] = SEL_ADR(_ds, envpp[i]);
+    envp[i] = NULL;
+
+    djstub_main(argc, argv, envp, _eax, scp);
+}
+
 static unsigned call_entry(int handle)
 {
     return call_hlp[handle].entry;
@@ -227,11 +250,19 @@ static unsigned ctrl_entry(int handle)
     return ctrl_off;
 }
 
+static unsigned stub_entry(void)
+{
+    if (!stub_hlp.tid)
+        doshlp_setup(&stub_hlp, "dj64 stub", stub_thr, do_retf);
+    return stub_hlp.entry;
+}
+
 static const struct djdev64_ops ops = {
     .open = do_open,
     .close = do_close,
     .call = call_entry,
     .ctrl = ctrl_entry,
+    .stub = stub_entry,
 };
 
 static void call_thr(void *arg)

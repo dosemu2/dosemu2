@@ -105,11 +105,6 @@ DPMI_dj64:
 	hlt
 	lretl
 /* ======================= Addr = dpmi_sel():0175 */
-	.globl DPMI_dj64stub
-DPMI_dj64stub:
-	hlt
-	lretl
-/* ======================= Addr = dpmi_sel():0177 */
 	.globl DPMI_shlock
 DPMI_shlock:
 	hlt

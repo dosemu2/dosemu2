@@ -20,6 +20,7 @@
  * Author: Stas Sergeev
  */
 #include <stdint.h>
+#include <assert.h>
 #include "smalloc.h"
 #include "emudpmi.h"
 #include "dpmisel.h"
@@ -800,4 +801,23 @@ void dpmi_api_init(uint16_t selector, dosaddr_t pool, int pool_size)
     data_sel = selector;
     pool_base = MEM_BASE32(pool);
     sminit(&apool, pool_base, pool_size);
+}
+
+__dpmi_paddr dapi_alloc(int len)
+{
+    __dpmi_paddr ret = {};
+    void *ptr = smalloc(&apool, len);
+    if (ptr) {
+        ret.selector = data_sel;
+        ret.offset32 = POOL_OFS(ptr);
+    }
+    return ret;
+}
+
+void dapi_free(__dpmi_paddr ptr)
+{
+    if (!ptr.selector)
+        return;
+    assert(ptr.selector == data_sel);
+    smfree(&apool, pool_base + ptr.offset32);
 }

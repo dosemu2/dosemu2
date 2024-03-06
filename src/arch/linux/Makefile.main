@@ -34,7 +34,7 @@ ifeq ($(MCONTEXT),1)
 LIBMC = base/lib/mcontext
 endif
 
-DPMI = dosext/dpmi dosext/dpmi/msdos
+DPMI = dosext/dpmi dosext/dpmi/msdos dosext/dpmi/doslib
 ifeq ($(DNATIVE),1)
 DPMI += dosext/dpmi/dnative
 endif
