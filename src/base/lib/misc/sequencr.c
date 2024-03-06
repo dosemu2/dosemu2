@@ -23,6 +23,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <assert.h>
+#include "dosemu_debug.h"
 #include "sequencr.h"
 
 struct seq_tag_s {
@@ -106,7 +107,10 @@ struct seq_item_s *sequencer_add(void *handle, unsigned long long tstamp)
 
   pthread_mutex_lock(&s->seq_mtx);
   if (s->tail) {
-    assert(tstamp >= s->tail->tstamp);
+    if (tstamp < s->tail->tstamp) {
+      error("time goes backwards? %lli < %lli\n", tstamp, s->tail->tstamp);
+      i->tstamp = s->tail->tstamp;
+    }
     s->tail->next = i;
   } else {
     assert(!s->head);
