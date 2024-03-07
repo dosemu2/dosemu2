@@ -68,6 +68,7 @@ extern const unsigned    MSDOS_pmc_end;
 extern const unsigned    DPMI_call;
 extern const unsigned    DPMI_call_args;
 extern const unsigned    DPMI_call_args16;
+extern const unsigned    DPMI_int2f;
 extern const unsigned    DPMI_msdos;
 extern const unsigned    DPMI_abort;
 extern const unsigned    DPMI_sel_code_end;

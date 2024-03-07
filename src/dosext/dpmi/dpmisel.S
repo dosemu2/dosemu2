@@ -300,6 +300,10 @@ DPMI_call_args16:
 	popw %bp
 	lretw
 .code32
+	.globl DPMI_int2f
+DPMI_int2f:
+	int $0x2f
+	lretl
 	.globl DPMI_msdos
 DPMI_msdos:
 	int $0x21
