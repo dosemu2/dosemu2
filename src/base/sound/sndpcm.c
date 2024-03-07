@@ -107,8 +107,8 @@ struct stream {
     long long buf_cnt;
     int state;
     int flags;
-    int stretch:1;
-    int prepared:1;
+    unsigned int stretch:1;
+    unsigned int prepared:1;
     void *vol_arg;
     double start_time;
     double stop_time;

@@ -52,7 +52,7 @@ typedef struct {
   ioport_t dmx_port;
   Bit8u dmx_mask;
   int dmx_shift;
-  int dmx_val:1;
+  unsigned int dmx_val:1;
 } serial_t;
 
 enum { SER_CUSTOM_NONE, SER_CUSTOM_PCCOM };

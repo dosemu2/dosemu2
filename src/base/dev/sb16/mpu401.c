@@ -31,7 +31,7 @@
 struct mpu401_s {
 #define MIDI_FIFO_SIZE 32
   struct rng_s fifo_in;
-  int uart:1;
+  unsigned int uart:1;
   ioport_t base;
   struct mpu401_ops *ops;
 };

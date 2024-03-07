@@ -49,7 +49,7 @@
 #define PCM_MAX_BUF 512
 
 struct dspio_dma {
-    int running:1;
+    unsigned int running:1;
     int num;
     int broken_hdma;
     int rate;
@@ -69,8 +69,8 @@ struct dspio_dma {
 struct dspio_state {
     double input_time_cur, midi_time_cur;
     int dma_strm, dac_strm;
-    int input_running:1, output_running:1, dac_running:1, speaker:1;
-    int pcm_input_running:1, lin_input_running:1, mic_input_running:1;
+    unsigned int input_running:1, output_running:1, dac_running:1, speaker:1;
+    unsigned int pcm_input_running:1, lin_input_running:1, mic_input_running:1;
     int i_handle, i_started;
 #define DSP_FIFO_SIZE 64
     struct rng_s fifo_in;

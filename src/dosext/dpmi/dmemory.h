@@ -13,9 +13,9 @@ typedef struct dpmi_pm_block_stuct {
   unsigned int size;
   dosaddr_t base;
   u_short  *attrs;
-  int linear:1;
-  int hwram:1;
-  int shm:1;
+  unsigned int linear:1;
+  unsigned int hwram:1;
+  unsigned int shm:1;
   char *shmname;
   char *rshmname;
   void *shlock;

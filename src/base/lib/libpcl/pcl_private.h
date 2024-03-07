@@ -60,7 +60,7 @@ typedef struct s_co_base {
 	void *tmp;
 	int stack_size;
 	char *stack;
-	int exited:1;
+	unsigned int exited:1;
 } co_base;
 
 typedef

@@ -36,7 +36,7 @@ struct co_pm {
     Bit16u hlt_off;
     unsigned offs;
     void (*post)(cpuctx_t *);
-    int leader:1;
+    unsigned int leader:1;
 };
 
 #define INVALID_HLT 0xffffffff

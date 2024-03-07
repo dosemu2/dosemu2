@@ -87,8 +87,8 @@ struct pcm_plugin_base_s {
 struct pcm_holder {
   const pcm_base *plugin;
   void *arg;
-  int opened:1;
-  int failed:1;
+  unsigned int opened:1;
+  unsigned int failed:1;
   int cfg_flags;
   void *priv;
 };

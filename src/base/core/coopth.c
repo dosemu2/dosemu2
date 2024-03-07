@@ -70,11 +70,11 @@ struct coopth_thrdata_t {
     struct coopth_thrfunc_t clnup;
     struct coopth_thrfunc_t uhook;
     jmp_buf exit_jmp;
-    int canc_disabled:1;
-    int attached:1;
-    int cancelled:1;
-    int left:1;
-    int atomic_switch:1;
+    unsigned int canc_disabled:1;
+    unsigned int attached:1;
+    unsigned int cancelled:1;
+    unsigned int left:1;
+    unsigned int atomic_switch:1;
 };
 
 struct coopth_ctx_handlers_t {
@@ -108,7 +108,7 @@ struct coopth_per_thread_t {
     struct coopth_starter_args_t args;
     void *stack;
     size_t stk_size;
-    int quick_sched:1;
+    unsigned int quick_sched:1;
     void (*retf)(int tid, int idx);
 };
 
@@ -119,8 +119,8 @@ struct coopth_t {
     int len;
     int cur_thr;
     int max_thr;
-    int detached:1;
-    int custom:1;
+    unsigned int detached:1;
+    unsigned int custom:1;
     coopth_func_t func;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_sleep_handlers_t sleeph;
