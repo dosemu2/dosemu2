@@ -51,6 +51,16 @@ static void do_callf(cpuctx_t *scp, int is_32, struct pmaddr_s pma)
     }
     _cs = pma.selector;
     _eip = pma.offset;
+    coopth_sched();
+}
+
+static void do_dpmi_callf(cpuctx_t *scp, int is_32)
+{
+    struct pmaddr_s pma = {
+	.offset = DPMI_SEL_OFF(DPMI_call),
+	.selector = dpmi_sel(),
+    };
+    do_callf(scp, is_32, pma);
 }
 
 void _dpmi_yield(cpuctx_t *scp, int is_32)
@@ -204,10 +214,6 @@ int _dpmi_set_extended_exception_handler_vector_rm(cpuctx_t *scp, int is_32, int
 
 int _dpmi_simulate_real_mode_interrupt(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
 {			/* DPMI 0.9 AX=0300 */
-    struct pmaddr_s pma = {
-	.offset = DPMI_SEL_OFF(DPMI_call),
-	.selector = dpmi_sel(),
-    };
     cpuctx_t sa = *scp;
     __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
 
@@ -217,9 +223,8 @@ int _dpmi_simulate_real_mode_interrupt(cpuctx_t *scp, int is_32, int _vector, __
     _es = data_sel;
     _edi = POOL_OFS(regs);
     memcpy(regs, __regs, sizeof(*regs));
-    do_callf(scp, is_32, pma);
     D_printf("MSDOS: sched to dos thread for int 0x%x\n", _vector);
-    coopth_sched();
+    do_dpmi_callf(scp, is_32);
     D_printf("MSDOS: return from dos thread\n");
     memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
@@ -229,10 +234,6 @@ int _dpmi_simulate_real_mode_interrupt(cpuctx_t *scp, int is_32, int _vector, __
 
 int _dpmi_int(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
 { /* like above, but sets ss sp fl */	/* DPMI 0.9 AX=0300 */
-    struct pmaddr_s pma = {
-	.offset = DPMI_SEL_OFF(DPMI_call),
-	.selector = dpmi_sel(),
-    };
     cpuctx_t sa = *scp;
     __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
 
@@ -245,9 +246,8 @@ int _dpmi_int(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
     __regs->x.sp = __dpmi_int_sp;
     __regs->x.flags = __dpmi_int_flags;
     memcpy(regs, __regs, sizeof(*regs));
-    do_callf(scp, is_32, pma);
     D_printf("MSDOS: sched to dos thread for int 0x%x\n", _vector);
-    coopth_sched();
+    do_dpmi_callf(scp, is_32);
     D_printf("MSDOS: return from dos thread\n");
     memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
@@ -275,10 +275,9 @@ static void do_procedure_retf(cpuctx_t *scp,
     _es = data_sel;
     _edi = POOL_OFS(regs);
     memcpy(regs, __regs, sizeof(*regs));
-    do_callf(scp, is_32, is_32 ? pma : pma16);
     D_printf("MSDOS: sched to dos thread for call to %x:%x\n",
 	    __regs->x.cs, __regs->x.ip);
-    coopth_sched();
+    do_callf(scp, is_32, is_32 ? pma : pma16);
     D_printf("MSDOS: return from dos thread\n");
     memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
@@ -315,10 +314,6 @@ int _dpmi_simulate_real_mode_procedure_retf_stack(cpuctx_t *scp, int is_32,
 
 int _dpmi_simulate_real_mode_procedure_iret(cpuctx_t *scp, int is_32, __dpmi_regs *__regs)
 {				/* DPMI 0.9 AX=0302 */
-    struct pmaddr_s pma = {
-	.offset = DPMI_SEL_OFF(DPMI_call),
-	.selector = dpmi_sel(),
-    };
     cpuctx_t sa = *scp;
     __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
 
@@ -328,10 +323,9 @@ int _dpmi_simulate_real_mode_procedure_iret(cpuctx_t *scp, int is_32, __dpmi_reg
     _es = data_sel;
     _edi = POOL_OFS(regs);
     memcpy(regs, __regs, sizeof(*regs));
-    do_callf(scp, is_32, pma);
     D_printf("MSDOS: sched to dos thread for call to %x:%x\n",
 	    __regs->x.cs, __regs->x.ip);
-    coopth_sched();
+    do_dpmi_callf(scp, is_32);
     D_printf("MSDOS: return from dos thread\n");
     memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
