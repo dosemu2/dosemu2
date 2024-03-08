@@ -105,11 +105,6 @@ DPMI_dj64:
 	hlt
 	lretl
 /* ======================= Addr = dpmi_sel():0175 */
-	.globl DPMI_dj64stub
-DPMI_dj64stub:
-	hlt
-	lretl
-/* ======================= Addr = dpmi_sel():0177 */
 	.globl DPMI_shlock
 DPMI_shlock:
 	hlt
@@ -300,6 +295,10 @@ DPMI_call_args16:
 	popw %bp
 	lretw
 .code32
+	.globl DPMI_int2f
+DPMI_int2f:
+	int $0x2f
+	lretl
 	.globl DPMI_msdos
 DPMI_msdos:
 	int $0x21

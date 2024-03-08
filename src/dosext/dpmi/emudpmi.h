@@ -145,6 +145,7 @@ void fake_pm_int(void);
 int in_dpmi_pm(void);
 int dpmi_active(void);
 int dpmi_segment_is32(int sel);
+int dpmi_is_32(void);
 int dpmi_isset_IF(void);
 #define isset_IF_async() (in_dpmi_pm() ? dpmi_isset_IF() : isset_IF())
 

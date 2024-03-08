@@ -108,4 +108,7 @@ int	_dpmi_set_coprocessor_emulation(cpuctx_t *scp, int is_32, int _flags);						
 
 void dpmi_api_init(uint16_t selector, dosaddr_t  pool, int pool_size);
 
+__dpmi_paddr dapi_alloc(int len);
+void dapi_free(__dpmi_paddr ptr);
+
 #endif

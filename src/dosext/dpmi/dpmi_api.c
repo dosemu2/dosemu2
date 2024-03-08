@@ -20,6 +20,7 @@
  * Author: Stas Sergeev
  */
 #include <stdint.h>
+#include <assert.h>
 #include "smalloc.h"
 #include "emudpmi.h"
 #include "dpmisel.h"
@@ -51,40 +52,113 @@ static void do_callf(cpuctx_t *scp, int is_32, struct pmaddr_s pma)
     }
     _cs = pma.selector;
     _eip = pma.offset;
+    coopth_sched();
+}
+
+static void do_dpmi_callf(cpuctx_t *scp, int is_32)
+{
+    struct pmaddr_s pma = {
+	.offset = DPMI_SEL_OFF(DPMI_call),
+	.selector = dpmi_sel(),
+    };
+    do_callf(scp, is_32, pma);
 }
 
 void _dpmi_yield(cpuctx_t *scp, int is_32)
 {									/* INT 0x2F AX=1680 */
+    struct pmaddr_s pma = {
+	.offset = DPMI_SEL_OFF(DPMI_int2f),
+	.selector = dpmi_sel(),
+    };
+    cpuctx_t sa = *scp;
+    _eax = 0x1680;
+    do_callf(scp, is_32, pma);
+    *scp = sa;
 }
 
 int _dpmi_allocate_ldt_descriptors(cpuctx_t *scp, int is_32, int _count)
 {						/* DPMI 0.9 AX=0000 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0;
+    _ecx = _count;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    else
+        ret = _eax;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_free_ldt_descriptor(cpuctx_t *scp, int is_32, int _descriptor)
 {						/* DPMI 0.9 AX=0001 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 1;
+    _ebx = _descriptor;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_segment_to_descriptor(cpuctx_t *scp, int is_32, int _segment)
 {						/* DPMI 0.9 AX=0002 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 2;
+    _ebx = _segment;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    else
+        ret = _eax;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_selector_increment_value(cpuctx_t *scp, int is_32)
 {						/* DPMI 0.9 AX=0003 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 3;
+    do_dpmi_callf(scp, is_32);
+    ret = _eax;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_segment_base_address(cpuctx_t *scp, int is_32, int _selector, ULONG *_addr)
 {			/* DPMI 0.9 AX=0006 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 6;
+    _ebx = _selector;
+    _ecx = _edx = 0;  // clear high parts
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    else
+        *_addr = (_ecx << 16) | _edx;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_set_segment_base_address(cpuctx_t *scp, int is_32, int _selector, ULONG _address)
 {			/* DPMI 0.9 AX=0007 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 7;
+    _ebx = _selector;
+    _ecx = _address >> 16;
+    _edx = _address & 0xffff;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    *scp = sa;
+    return ret;
 }
 
 ULONG _dpmi_get_segment_limit(cpuctx_t *scp, int is_32, int _selector)
@@ -94,7 +168,17 @@ ULONG _dpmi_get_segment_limit(cpuctx_t *scp, int is_32, int _selector)
 
 int _dpmi_set_segment_limit(cpuctx_t *scp, int is_32, int _selector, ULONG _limit)
 {				/* DPMI 0.9 AX=0008 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 8;
+    _ebx = _selector;
+    _ecx = _limit >> 16;
+    _edx = _limit & 0xffff;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_descriptor_access_rights(cpuctx_t *scp, int is_32, int _selector)
@@ -104,12 +188,31 @@ int _dpmi_get_descriptor_access_rights(cpuctx_t *scp, int is_32, int _selector)
 
 int _dpmi_set_descriptor_access_rights(cpuctx_t *scp, int is_32, int _selector, int _rights)
 {			/* DPMI 0.9 AX=0009 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 9;
+    _ebx = _selector;
+    _ecx = _rights;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_create_alias_descriptor(cpuctx_t *scp, int is_32, int _selector)
 {						/* DPMI 0.9 AX=000a */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0xa;
+    _ebx = _selector;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    else
+        ret = _eax;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_descriptor(cpuctx_t *scp, int is_32, int _selector, void *_buffer)
@@ -124,7 +227,15 @@ int _dpmi_set_descriptor(cpuctx_t *scp, int is_32, int _selector, void *_buffer)
 
 int _dpmi_allocate_specific_ldt_descriptor(cpuctx_t *scp, int is_32, int _selector)
 {					/* DPMI 0.9 AX=000d */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0xd;
+    _ebx = _selector;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_multiple_descriptors(cpuctx_t *scp, int is_32, int _count, void *_buffer)
@@ -139,17 +250,50 @@ int _dpmi_set_multiple_descriptors(cpuctx_t *scp, int is_32, int _count, void *_
 
 int _dpmi_allocate_dos_memory(cpuctx_t *scp, int is_32, int _paragraphs, int *_ret_selector_or_max)
 {			/* DPMI 0.9 AX=0100 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x100;
+    _ebx = _paragraphs;
+    _edx = 0;  // clear high part
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF) {
+        ret = -1;
+        *_ret_selector_or_max = _ebx;
+    } else {
+        ret = _eax;
+        *_ret_selector_or_max = _edx;
+    }
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_free_dos_memory(cpuctx_t *scp, int is_32, int _selector)
 {							/* DPMI 0.9 AX=0101 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x101;
+    _edx = _selector;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_resize_dos_memory(cpuctx_t *scp, int is_32, int _selector, int _newpara, int *_ret_max)
 {			/* DPMI 0.9 AX=0102 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x102;
+    _ebx = _newpara;
+    _edx = _selector;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF) {
+        ret = -1;
+        *_ret_max = _ebx;
+    }
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_real_mode_interrupt_vector(cpuctx_t *scp, int is_32, int _vector, __dpmi_raddr *_address)
@@ -204,10 +348,6 @@ int _dpmi_set_extended_exception_handler_vector_rm(cpuctx_t *scp, int is_32, int
 
 int _dpmi_simulate_real_mode_interrupt(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
 {			/* DPMI 0.9 AX=0300 */
-    struct pmaddr_s pma = {
-	.offset = DPMI_SEL_OFF(DPMI_call),
-	.selector = dpmi_sel(),
-    };
     cpuctx_t sa = *scp;
     __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
 
@@ -217,9 +357,8 @@ int _dpmi_simulate_real_mode_interrupt(cpuctx_t *scp, int is_32, int _vector, __
     _es = data_sel;
     _edi = POOL_OFS(regs);
     memcpy(regs, __regs, sizeof(*regs));
-    do_callf(scp, is_32, pma);
     D_printf("MSDOS: sched to dos thread for int 0x%x\n", _vector);
-    coopth_sched();
+    do_dpmi_callf(scp, is_32);
     D_printf("MSDOS: return from dos thread\n");
     memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
@@ -229,10 +368,6 @@ int _dpmi_simulate_real_mode_interrupt(cpuctx_t *scp, int is_32, int _vector, __
 
 int _dpmi_int(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
 { /* like above, but sets ss sp fl */	/* DPMI 0.9 AX=0300 */
-    struct pmaddr_s pma = {
-	.offset = DPMI_SEL_OFF(DPMI_call),
-	.selector = dpmi_sel(),
-    };
     cpuctx_t sa = *scp;
     __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
 
@@ -245,9 +380,8 @@ int _dpmi_int(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
     __regs->x.sp = __dpmi_int_sp;
     __regs->x.flags = __dpmi_int_flags;
     memcpy(regs, __regs, sizeof(*regs));
-    do_callf(scp, is_32, pma);
     D_printf("MSDOS: sched to dos thread for int 0x%x\n", _vector);
-    coopth_sched();
+    do_dpmi_callf(scp, is_32);
     D_printf("MSDOS: return from dos thread\n");
     memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
@@ -275,10 +409,9 @@ static void do_procedure_retf(cpuctx_t *scp,
     _es = data_sel;
     _edi = POOL_OFS(regs);
     memcpy(regs, __regs, sizeof(*regs));
-    do_callf(scp, is_32, is_32 ? pma : pma16);
     D_printf("MSDOS: sched to dos thread for call to %x:%x\n",
 	    __regs->x.cs, __regs->x.ip);
-    coopth_sched();
+    do_callf(scp, is_32, is_32 ? pma : pma16);
     D_printf("MSDOS: return from dos thread\n");
     memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
@@ -315,10 +448,6 @@ int _dpmi_simulate_real_mode_procedure_retf_stack(cpuctx_t *scp, int is_32,
 
 int _dpmi_simulate_real_mode_procedure_iret(cpuctx_t *scp, int is_32, __dpmi_regs *__regs)
 {				/* DPMI 0.9 AX=0302 */
-    struct pmaddr_s pma = {
-	.offset = DPMI_SEL_OFF(DPMI_call),
-	.selector = dpmi_sel(),
-    };
     cpuctx_t sa = *scp;
     __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
 
@@ -328,10 +457,9 @@ int _dpmi_simulate_real_mode_procedure_iret(cpuctx_t *scp, int is_32, __dpmi_reg
     _es = data_sel;
     _edi = POOL_OFS(regs);
     memcpy(regs, __regs, sizeof(*regs));
-    do_callf(scp, is_32, pma);
     D_printf("MSDOS: sched to dos thread for call to %x:%x\n",
 	    __regs->x.cs, __regs->x.ip);
-    coopth_sched();
+    do_dpmi_callf(scp, is_32);
     D_printf("MSDOS: return from dos thread\n");
     memcpy(__regs, regs, sizeof(*regs));
     smfree(&apool, regs);
@@ -361,7 +489,23 @@ int _dpmi_get_raw_mode_switch_addr(cpuctx_t *scp, int is_32, __dpmi_raddr *_rm, 
 
 int _dpmi_get_version(cpuctx_t *scp, int is_32, __dpmi_version_ret *_ret)
 {						/* DPMI 0.9 AX=0400 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x400;
+    _ebx = _edx = 0;  // clear high part
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF) {
+        ret = -1;
+    } else {
+        _ret->major = (_eax >> 8) & 0xff;
+        _ret->minor = _eax & 0xff;
+        _ret->flags = _ebx;
+        _ret->cpu = _ecx & 0xff;
+        _ret->master_pic = (_edx >> 8) & 0xff;
+        _ret->slave_pic = _edx & 0xff;
+    }
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_capabilities(cpuctx_t *scp, int is_32, int *_flags, char *vendor_info)
@@ -376,17 +520,55 @@ int _dpmi_get_free_memory_information(cpuctx_t *scp, int is_32, __dpmi_free_mem_
 
 int _dpmi_allocate_memory(cpuctx_t *scp, int is_32, __dpmi_meminfo *_info)
 {						/* DPMI 0.9 AX=0501 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x501;
+    _ebx = _info->size >> 16;
+    _ecx = _info->size & 0xffff;
+    _esi = _edi = 0; // clear high parts
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF) {
+        ret = -1;
+    } else {
+        _info->address = (_ebx << 16) | _ecx;
+        _info->handle = (_esi << 16) | _edi;
+    }
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_free_memory(cpuctx_t *scp, int is_32, ULONG _handle)
 {						/* DPMI 0.9 AX=0502 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x502;
+    _esi = _handle >> 16;
+    _edi = _handle & 0xffff;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_resize_memory(cpuctx_t *scp, int is_32, __dpmi_meminfo *_info)
 {						/* DPMI 0.9 AX=0503 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x503;
+    _ebx = _info->size >> 16;
+    _ecx = _info->size & 0xffff;
+    _esi = _info->handle >> 16;
+    _edi = _info->handle & 0xffff;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF) {
+        ret = -1;
+    } else {
+        _info->address = (_ebx << 16) | _ecx;
+        _info->handle = (_esi << 16) | _edi;
+    }
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_allocate_linear_memory(cpuctx_t *scp, int is_32, __dpmi_meminfo *_info, int _commit)
@@ -451,7 +633,17 @@ int _dpmi_relock_real_mode_region(cpuctx_t *scp, int is_32, __dpmi_meminfo *_inf
 
 int _dpmi_get_page_size(cpuctx_t *scp, int is_32, ULONG *_size)
 {						/* DPMI 0.9 AX=0604 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x604;
+    _ebx = _ecx = 0;  // clear high parts
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    else
+        *_size = (_ebx << 16) | _ecx;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_mark_page_as_demand_paging_candidate(cpuctx_t *scp, int is_32, __dpmi_meminfo *_info)
@@ -477,12 +669,30 @@ int _dpmi_free_physical_address_mapping(cpuctx_t *scp, int is_32, __dpmi_meminfo
 /* These next four functions return the old state */
 int _dpmi_get_and_disable_virtual_interrupt_state(cpuctx_t *scp, int is_32)
 {					/* DPMI 0.9 AX=0900 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x900;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    else
+        ret = _eax & 1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_and_enable_virtual_interrupt_state(cpuctx_t *scp, int is_32)
 {					/* DPMI 0.9 AX=0901 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x901;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    else
+        ret = _eax & 1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_and_set_virtual_interrupt_state(cpuctx_t *scp, int is_32, int _old_state)
@@ -492,7 +702,16 @@ int _dpmi_get_and_set_virtual_interrupt_state(cpuctx_t *scp, int is_32, int _old
 
 int _dpmi_get_virtual_interrupt_state(cpuctx_t *scp, int is_32)
 {						/* DPMI 0.9 AX=0902 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x902;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    else
+        ret = _eax & 1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_vendor_specific_api_entry_point(cpuctx_t *scp, int is_32, char *_id, __dpmi_paddr *_api)
@@ -552,12 +771,29 @@ int _dpmi_free_serialization_on_shared_memory(cpuctx_t *scp, int is_32, ULONG _h
 
 int _dpmi_get_coprocessor_status(cpuctx_t *scp, int is_32)
 {							/* DPMI 1.0 AX=0e00 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0xe00;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    else
+        ret = _eax & 0xff;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_set_coprocessor_emulation(cpuctx_t *scp, int is_32, int _flags)
 {						/* DPMI 1.0 AX=0e01 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0xe01;
+    _ebx = _flags;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    *scp = sa;
+    return ret;
 }
 
 void dpmi_api_init(uint16_t selector, dosaddr_t pool, int pool_size)
@@ -565,4 +801,23 @@ void dpmi_api_init(uint16_t selector, dosaddr_t pool, int pool_size)
     data_sel = selector;
     pool_base = MEM_BASE32(pool);
     sminit(&apool, pool_base, pool_size);
+}
+
+__dpmi_paddr dapi_alloc(int len)
+{
+    __dpmi_paddr ret = {};
+    void *ptr = smalloc(&apool, len);
+    if (ptr) {
+        ret.selector = data_sel;
+        ret.offset32 = POOL_OFS(ptr);
+    }
+    return ret;
+}
+
+void dapi_free(__dpmi_paddr ptr)
+{
+    if (!ptr.selector)
+        return;
+    assert(ptr.selector == data_sel);
+    smfree(&apool, pool_base + ptr.offset32);
 }
