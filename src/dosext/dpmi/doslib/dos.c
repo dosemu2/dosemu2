@@ -154,9 +154,19 @@ int _dos_link_umb(int on)
   _eax = 0x5803;
   _ebx = on;
   call_msdos(scp);
-  if (_eflags & CF)
+  if (_eflags & CF) {
     ret = _eax;
+    goto done;
+  }
+  _eax = 0x5801;
+  _ebx = on ? 0x80 : 0;
+  call_msdos(scp);
+  if (_eflags & CF) {
+    ret = _eax;
+    goto done;
+  }
 
+done:
   *scp = saved_scp;
   return ret;
 }
