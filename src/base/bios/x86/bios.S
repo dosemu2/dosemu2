@@ -1000,12 +1000,15 @@ INT08_L2:
 	.globl INT71_OFF
 INT71_OFF:
 	push %ax
-	/* EOI to PIC2 */
+	/* EOI to PIC1 */
 	movb $0x20, %al
 	outb %al, $0xa0
-	pop %ax
 	/* Then invoke IRQ2 */
 	int $0x0a
+	/* Specific EOI */
+	movb $0x62, %al
+	outb %al, $0x20
+	pop %ax
 	iret        /* return to interrupted code */
 
 /* COMPAS FFEF3		vector table for INT08-INT1F */
