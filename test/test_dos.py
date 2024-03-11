@@ -1101,7 +1101,7 @@ failmsg:
             if fstype == "MFS":
                 self.assertTrue(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
+                self.assertRegex(results.upper(), r"%s( +|\.)%s" % (f.upper(), e.upper()))
 
         if fstype == "MFS":
             results = self.runDosemu("testit.bat", config="""\
@@ -1315,13 +1315,13 @@ failmsg:
             if fstype == "MFS":
                 self.assertTrue(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
+                self.assertRegex(results.upper(), r"%s( +|\.)%s" % (f.upper(), e.upper()))
 
         def assertIsNotPresent(testdir, results, fstype, f, e, msg=None):
             if fstype == "MFS":
                 self.assertFalse(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertNotRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
+                self.assertNotRegex(results.upper(), r"%s( +|\.)%s" % (f.upper(), e.upper()))
 
         if fstype == "MFS":
             results = self.runDosemu("testit.bat", config="""\
@@ -2094,7 +2094,7 @@ failmsg:
             if fstype == "MFS":
                 self.assertTrue(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()), msg)
+                self.assertRegex(results.upper(), r"%s( +|\.)%s" % (f.upper(), e.upper()), msg)
 
         def assertIsPresentDir(testdir, results, fstype, f, msg=None):
             if fstype == "MFS":
@@ -2254,7 +2254,7 @@ failmsg:
             if fstype == "MFS":
                 self.assertFalse(exists(join(testdir, f + "." + e)), msg)
             else:
-                self.assertNotRegex(results.upper(), "%s( +|\.)%s" % (f.upper(), e.upper()))
+                self.assertNotRegex(results.upper(), r"%s( +|\.)%s" % (f.upper(), e.upper()))
 
         if fstype == "MFS":
             results = self.runDosemu("testit.bat", config="""\
@@ -5471,7 +5471,7 @@ if __name__ == '__main__':
                 print(str(m))
             exit(0)
         else:
-            x = re.match("^--require-attr=(\S+).*$", argv[1])
+            x = re.match(r"^--require-attr=(\S+).*$", argv[1])
             if x:
                 attr = x.groups()[0]
                 del argv[1]
