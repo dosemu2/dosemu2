@@ -5,7 +5,7 @@ import re
 import traceback
 import unittest
 
-from datetime import datetime
+from datetime import datetime, timezone
 from hashlib import sha1
 from os import environ, rename
 from os.path import exists, join
@@ -222,6 +222,9 @@ class BaseTestCase(object):
         self.msg = msg
 
 # helpers
+
+    def utcnow(self):
+        return datetime.now(timezone.utc)
 
     def mkcom_with_ia16(self, fname, content, dname=None):
         if dname is None:
@@ -513,7 +516,7 @@ class MyTestResult(unittest.TextTestResult):
 
     def startTest(self, test):
         super(MyTestResult, self).startTest(test)
-        self.starttime = datetime.utcnow()
+        self.starttime = test.utcnow()
 
         name = test.id().replace('__main__', test.pname)
         test.logfiles = {
@@ -604,7 +607,7 @@ class MyTestResult(unittest.TextTestResult):
         super(unittest.TextTestResult, self).addSuccess(test)
         if self.showAll:
             if self.starttime is not None:
-                duration = datetime.utcnow() - self.starttime
+                duration = test.utcnow() - self.starttime
                 msg = (" " + test.msg) if test.msg else ""
                 self.stream.writeln("ok ({:>6.2f}s){}".format(duration.total_seconds(), msg))
             else:
