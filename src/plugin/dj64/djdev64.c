@@ -26,6 +26,7 @@
 #include "emudpmi.h"
 #include "msdoshlp.h"
 #include "coopth.h"
+#include "coopth_pm.h"
 #include "hlt.h"
 #include "dos2linux.h"
 #include "stub_ex.h"
@@ -166,7 +167,7 @@ static void dj64_asm_noret(dpmi_regs *regs, dpmi_paddr pma, uint8_t *sp,
 {
     struct pmaddr_s abt = doshlp_get_abort_helper();
     cpuctx_t *scp = coopth_pop_user_data_cur();
-    coopth_leave();
+    coopth_leave_pm(scp);
     copy_stk(scp, sp, len);
     copy_gp(scp, regs);
     _cs = abt.selector;
@@ -239,7 +240,9 @@ static void stub_thr(void *arg)
     envp[i] = NULL;
 
     djstub_main(argc, argv, envp, _eax, &scp2);
-    coopth_leave();
+    coopth_leave_pm(scp);
+    scp2.esp += 8;
+    assert(_esp == scp2.esp);
     *scp = scp2;
 }
 

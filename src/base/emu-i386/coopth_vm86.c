@@ -284,3 +284,11 @@ int coopth_get_thread_count_in_process_vm86(void)
     }
     return cnt;
 }
+
+void coopth_leave_vm86(void)
+{
+    struct co_vm86 *thr = &coopth86[coopth_get_tid()];
+    coopth_leave_internal();
+    assert(thr->post);
+    thr->post();
+}

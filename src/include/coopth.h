@@ -29,6 +29,7 @@ int coopth_create(const char *name, coopth_func_t func);
 int coopth_create_multi(const char *name, int len, coopth_func_t func);
 int coopth_create_vm86(const char *name, coopth_func_t func,
 	void (*post)(void), uint16_t *hlt_off);
+void coopth_leave_vm86(void);
 int coopth_start(int tid, void *arg);
 int coopth_set_permanent_post_handler(int tid, coopth_hndl_t func);
 int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post,
