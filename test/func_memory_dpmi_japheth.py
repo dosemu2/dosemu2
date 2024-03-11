@@ -21,6 +21,7 @@ rem end
     return self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
+$_dpmi = (0x40000)
 """, timeout=60, eofisok=eofisok)
 
 
