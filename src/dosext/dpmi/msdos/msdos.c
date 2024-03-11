@@ -596,8 +596,8 @@ static void restore_ems_frame(cpuctx_t *scp)
 	D_printf("MSDOS: EMS frame unmapped\n");
 }
 
-static void *get_ldt_alias(void) { return &MSDOS_CLIENT.ldt_alias; }
-static void *get_winos2_alias(void) { return &MSDOS_CLIENT.ldt_alias_winos2; }
+static u_short *get_ldt_alias(void) { return &MSDOS_CLIENT.ldt_alias; }
+static u_short *get_winos2_alias(void) { return &MSDOS_CLIENT.ldt_alias_winos2; }
 
 static void get_ext_API(cpuctx_t *scp)
 {
