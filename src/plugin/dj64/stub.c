@@ -117,7 +117,9 @@ int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
     }
     while (!done) {
         unsigned rd;
+#if STUB_DEBUG
         int cnt = 0;
+#endif
 
         stub_debug("Expecting header at 0x%lx\n", coffset);
         rc = _dos_read(ifile, buf, BUF_SIZE, &rd);
@@ -131,7 +133,9 @@ int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
         }
         if (buf[0] == 'M' && buf[1] == 'Z' && buf[8] == 4 /* lfanew */) {
             uint32_t offs;
+#if STUB_DEBUG
             cnt++;
+#endif
             stub_debug("Found exe header %i at 0x%lx\n", cnt, coffset);
             memcpy(&offs, &buf[0x3c], sizeof(offs));
             coffset = offs;
