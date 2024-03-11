@@ -223,6 +223,7 @@ static void do_close(int handle)
 static void stub_thr(void *arg)
 {
     cpuctx_t *scp = arg;
+    cpuctx_t scp2 = *scp;
     int argc = _ecx;
     unsigned *argp = SEL_ADR(_ds, _edx);
     char **argv = alloca((argc + 1) * sizeof(char *));
@@ -237,7 +238,9 @@ static void stub_thr(void *arg)
         envp[i] = SEL_ADR(_ds, envpp[i]);
     envp[i] = NULL;
 
-    djstub_main(argc, argv, envp, _eax, scp);
+    djstub_main(argc, argv, envp, _eax, &scp2);
+    coopth_leave();
+    *scp = scp2;
 }
 
 static unsigned call_entry(int handle)
