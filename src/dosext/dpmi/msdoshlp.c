@@ -577,8 +577,7 @@ void doshlp_quit_dpmi(cpuctx_t *scp)
 	.offset = DPMI_SEL_OFF(DPMI_msdos),
 	.selector = dpmi_sel(),
     };
-    coopth_leave();
-    do_dpmi_iret(scp);
+    coopth_leave_pm(scp);
     _eax = 0x4c01;
     do_callf(scp, pma);
 }

@@ -55,5 +55,6 @@ int coopth_flush_internal(unsigned id, void (*helper)(void));
 struct crun_ret coopth_run_thread_internal(int tid);
 int coopth_wants_sleep_internal(unsigned id);
 void coopth_call_post_internal(int tid);
+void coopth_leave_internal(void);
 
 #endif

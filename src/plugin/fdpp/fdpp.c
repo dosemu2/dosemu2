@@ -65,7 +65,7 @@ static void fdpp_call_noret(struct vm86_regs *regs, uint16_t seg,
 	uint16_t off, uint8_t *sp, uint8_t len)
 {
     REGS = *regs;
-    coopth_leave();
+    coopth_leave_vm86();
     copy_stk(sp, len);
     jmp_to(0xffff, 0);
     fake_call_to(seg, off);

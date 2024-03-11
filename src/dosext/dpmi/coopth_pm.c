@@ -183,3 +183,11 @@ int coopth_create_pm_multi(const char *name, coopth_func_t func,
     *hlt_off = ret + offs;
     return num;
 }
+
+void coopth_leave_pm(cpuctx_t *scp)
+{
+    struct co_pm *thr = &coopthpm[coopth_get_tid()];
+    coopth_leave_internal();
+    assert(thr->post);
+    thr->post(scp);
+}

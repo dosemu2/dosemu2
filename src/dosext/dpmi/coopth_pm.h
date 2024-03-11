@@ -9,4 +9,6 @@ int coopth_create_pm_multi(const char *name, coopth_func_t func,
 	void (*post)(cpuctx_t *), void *hlt_state, unsigned offs,
 	int len, unsigned int *hlt_off, int r_offs[]);
 
+void coopth_leave_pm(cpuctx_t *scp);
+
 #endif

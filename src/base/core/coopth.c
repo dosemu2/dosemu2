@@ -1234,6 +1234,17 @@ void coopth_abandon(void)
  * has a separate entry point (via coopth_run()), the left thread must
  * not have a separate entry point. So it appeared better to return the
  * special type "left" threads. */
+static void do_leave(struct coopth_thrdata_t *thdata)
+{
+    if (thdata->posth_num)
+	dosemu_error("coopth: leaving thread with active post handlers\n");
+    if (!current_active())
+	dosemu_error("coopth: leaving descheduled thread\n");
+    if (!thdata->attached)
+	dosemu_error("coopth: leaving detached thread\n");
+    switch_state(COOPTH_LEAVE);
+}
+
 void coopth_leave(void)
 {
     struct coopth_thrdata_t *thdata;
@@ -1242,13 +1253,19 @@ void coopth_leave(void)
     thdata = co_get_data(co_current(co_handle));
     if (thdata->left)
 	return;
-    if (thdata->posth_num)
-	dosemu_error("coopth: leaving thread with active post handlers\n");
-    if (!current_active())
-	dosemu_error("coopth: leaving descheduled thread\n");
-    if (!thdata->attached)
-	dosemu_error("coopth: leaving detached thread\n");
-    switch_state(COOPTH_LEAVE);
+    do_leave(thdata);
+}
+
+void coopth_leave_internal(void)
+{
+    struct coopth_thrdata_t *thdata;
+    if (!_coopth_is_in_thread_nowarn())
+       return;
+    thdata = co_get_data(co_current(co_handle));
+    if (thdata->left)
+	return;
+    assert(coopthreads[*thdata->tid].custom);
+    do_leave(thdata);
 }
 
 static void do_awake(struct coopth_per_thread_t *pth)
