@@ -41,6 +41,7 @@ from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
 from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
 from func_memory_dpmi_japheth import memory_dpmi_japheth
+from func_memory_dpmi_leak_check import memory_dpmi_leak_check
 from func_memory_ems_borland import memory_ems_borland
 from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_a20,
                              memory_hma_alloc3, memory_hma_chain)
@@ -3364,6 +3365,16 @@ $_floppy_a = ""
         """Memory DPMI-1.0 LDT"""
         memory_dpmi_dpmi10_ldt(self)
     test_memory_dpmi10_ldt.dpmitest = True
+
+    def test_memory_dpmi_leak_check_nofree(self):
+        """Memory DPMI Leak Check No Free"""
+        memory_dpmi_leak_check(self, 'nofree')
+    test_memory_dpmi_leak_check_nofree.dpmitest = True
+
+    def test_memory_dpmi_leak_check_normal(self):
+        """Memory DPMI Leak Check Normal"""
+        memory_dpmi_leak_check(self, 'normal')
+    test_memory_dpmi_leak_check_normal.dpmitest = True
 
     def test_memory_uma_strategy(self):
         """Memory UMA Strategy"""
