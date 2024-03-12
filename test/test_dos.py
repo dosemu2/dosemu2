@@ -39,13 +39,13 @@ from func_label_create import (label_create, label_create_on_lfns,
 from func_lfs_file_info import lfs_file_info
 from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
+from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
 from func_memory_dpmi_japheth import memory_dpmi_japheth
 from func_memory_ems_borland import memory_ems_borland
 from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_a20,
                              memory_hma_alloc3, memory_hma_chain)
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
-from func_dpmi_dpmi10_ldt import dpmi_dpmi10_ldt
 from func_mfs_findfile import mfs_findfile
 from func_mfs_truename import mfs_truename
 from func_network import network_pktdriver_mtcp
@@ -3360,10 +3360,10 @@ $_floppy_a = ""
         memory_xms(self)
     test_memory_xms.xmstest = True
 
-    def test_dpmi10_ldt(self):
-        """DPMI-1.0 LDT"""
-        dpmi_dpmi10_ldt(self)
-    test_dpmi10_ldt.dpmitest = True
+    def test_memory_dpmi10_ldt(self):
+        """Memory DPMI-1.0 LDT"""
+        memory_dpmi_dpmi10_ldt(self)
+    test_memory_dpmi10_ldt.dpmitest = True
 
     def test_memory_uma_strategy(self):
         """Memory UMA Strategy"""
