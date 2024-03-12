@@ -248,6 +248,8 @@ typedef struct {
    int31/ax=0x0800 */
 #define VGAEMU_PHYS_LFB_BASE	0xe0000000
 
+#define VGA_EMU_INST_EMU_COUNT 150
+
 typedef struct {
   unsigned base_page;			/* base address (in 4k) of mapping */
   unsigned first_page;			/* rel. page # in VGA memory of 1st mapped page */

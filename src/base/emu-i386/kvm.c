@@ -1289,8 +1289,10 @@ int kvm_vm86(struct vm86_struct *info)
     unsigned trapno = (regs->orig_eax >> 16) & 0xff;
     unsigned err = regs->orig_eax & 0xffff;
     vm86_fault(trapno, err, monitor->cr2);
-  } else if (exit_reason == KVM_EXIT_MMIO)
-    vga_emu_fault(vga.mem.graph_base, 0, NULL);
+  } else if (exit_reason == KVM_EXIT_MMIO) {
+    if (vga.inst_emu)
+      instr_emu_sim(NULL, 0, VGA_EMU_INST_EMU_COUNT);
+  }
   return vm86_ret;
 }
 
@@ -1401,7 +1403,8 @@ int kvm_dpmi(cpuctx_t *scp)
       } else
 	ret = DPMI_RET_FAULT;
     } else if (exit_reason == KVM_EXIT_MMIO) {
-      vga_emu_fault(vga.mem.graph_base, 0, scp);
+      if (vga.inst_emu)
+        instr_emu_sim(scp, 1, VGA_EMU_INST_EMU_COUNT);
       ret = DPMI_RET_CLIENT;
     }
   } while (!signal_pending() && ret == DPMI_RET_CLIENT);

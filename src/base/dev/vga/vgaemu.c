@@ -200,8 +200,6 @@
 #define VGA_EMU_RO_PROT		(PROT_READ | PROT_EXEC)
 #define VGA_EMU_NONE_PROT	0
 
-#define VGA_EMU_INST_EMU_COUNT 150
-
 #define vga_msg(x...) v_printf("VGAEmu: " x)
 
 #if DEBUG_IO >= 1
