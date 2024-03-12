@@ -791,7 +791,7 @@ xms_allocate_EMB(int api)
   }
   size = kbsize * 1024;
   if (kbsize == 0) {
-    error("XMS WARNING: allocating 0 size EMB\n");
+    x_printf("XMS WARNING: allocating 0 size EMB\n");
     return 0xa0;
   } else if (totalBytes + size > config.xms_size * 1024) {
     error("XMS: OOM allocating %i bytes EMB\n", size);
