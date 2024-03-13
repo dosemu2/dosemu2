@@ -56,12 +56,16 @@ struct mhpdbgc mhpdbgc ={0};
 static void mhp_puts(char* s)
 
 {
+   int need_send = 0;
    for (;;){
 	   if (*s == 0x00)
 		   break;
+	   if (*s == '\n')
+		   need_send++;
 	   mhp_putc (*s++);
    }
-   mhp_send();
+   if (need_send)
+	mhp_send();
 }
 
 void mhp_putc(char c1)
