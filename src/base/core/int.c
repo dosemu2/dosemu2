@@ -3021,14 +3021,16 @@ hint_done:
 	    memcpy(cmdname, str->s, len);
 	    cmdname[len] = 0;
 	    ptr = cmdname + strspn(cmdname, " \t");
-	    if (!ptr[0])
-		return 0;
 	    tmp_ptr = ptr;
 	    while (*tmp_ptr) {	/* Check whether the name is valid */
 		if (iscntrlDOS(*tmp_ptr++))
 		    return 0;
 	    }
 	    strcpy(title_current, title_hint);
+	    if (!ptr[0]) {
+		change_window_title(title_current);
+		return 0;
+	    }
 	    snprintf(appname, sizeof(appname), "%s ( %s )",
 		     title_current, strlowerDOS(ptr));
 	    change_window_title(appname);
