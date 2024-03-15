@@ -51,6 +51,7 @@ from func_mfs_findfile import mfs_findfile
 from func_mfs_truename import mfs_truename
 from func_network import network_pktdriver_mtcp
 from func_pit_mode_2 import pit_mode_2
+from fpu.qemu import fpu_qemu_create_items
 
 SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
 SYSTYPE_DRDOS_ORIGINAL = "Original DR-DOS"
@@ -5425,8 +5426,9 @@ class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
 
 if __name__ == '__main__':
 
-    # Dynamically create libi86 tests
+    # Dynamically create group tests
     libi86_create_items(OurTestCase)
+    fpu_qemu_create_items(OurTestCase)
 
     tests = [t[0] for t in
             inspect.getmembers(OurTestCase, predicate=inspect.isfunction)
