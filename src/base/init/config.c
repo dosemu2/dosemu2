@@ -916,6 +916,7 @@ static void config_post_process(void)
 #ifdef X86_EMULATOR
     char buf[256];
     size_t n;
+    char *di;
     FILE *f = popen("uname -r", "r");
     n = fread(buf, 1, sizeof(buf) - 1, f);
     buf[n >= 0 ? n : 0] = 0;
@@ -941,7 +942,7 @@ static void config_post_process(void)
     c_printf("CONF: DPMI cpu vm set to %d\n", config.cpu_vm_dpmi);
 
     /* console scrub */
-    if (!Video && getenv("DISPLAY") && !config.X && !config.term &&
+    if (!Video && (di = getenv("DISPLAY")) && *di && !config.X && !config.term &&
         config.cardtype != CARD_NONE) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
