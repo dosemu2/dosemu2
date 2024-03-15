@@ -90,6 +90,8 @@ struct sb_struct {
   int      asp_init;
   uint8_t  last_data;
   int      busy;
+  int      irq_pend;
+  int      irq_delay_cnt;
 /* All values are imperical! */
 #define SB_DSP_CMD_BUF_SZ 8
   uint8_t  command[SB_DSP_CMD_BUF_SZ];
@@ -1119,13 +1121,13 @@ static void sb_dsp_write(Bit8u value)
 	/* 8-bit IRQ - SB */
     case 0xF2:
 	S_printf("SB: Activating 8bit IRQ\n");
-	sb_activate_irq(SB_IRQ_8BIT);
+	sb.irq_pend |= SB_IRQ_8BIT;
 	break;
 
 	/* 16-bit IRQ - SB16 */
     case 0xF3:
 	S_printf("SB: Activating 16bit IRQ\n");
-	sb_activate_irq(SB_IRQ_16BIT);
+	sb.irq_pend |= SB_IRQ_8BIT;
 	break;
 
     case 0xf9:			/* from bochs */
@@ -1803,6 +1805,17 @@ void run_sb(void)
 {
     if (!config.sound)
 	return;
+
+    /* https://github.com/dosemu2/dosemu2/issues/2172 */
+    if (sb.irq_pend && ++sb.irq_delay_cnt > 5) {
+	if (sb.irq_pend & SB_IRQ_8BIT)
+	    sb_activate_irq(SB_IRQ_8BIT);
+	if (sb.irq_pend & SB_IRQ_16BIT)
+	    sb_activate_irq(SB_IRQ_16BIT);
+	sb.irq_pend = 0;
+	sb.irq_delay_cnt = 0;
+    }
+
     dspio_timer(sb.dspio);
     do_process_midi();
     mpu401_process(sb.mpu);
