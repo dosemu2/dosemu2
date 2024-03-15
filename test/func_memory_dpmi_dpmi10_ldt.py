@@ -9,7 +9,7 @@ $_floppy_a = ""
 """
 
 
-def dpmi_dpmi10_ldt(self):
+def memory_dpmi_dpmi10_ldt(self):
 
 # Note: Not sure if I need this
     if 'FDPP' in self.version:

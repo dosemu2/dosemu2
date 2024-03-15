@@ -1,7 +1,4 @@
 
-from datetime import datetime
-
-
 def pit_mode_2(self):
 
     self.mkfile("testit.bat", """\
@@ -129,12 +126,12 @@ int main(void)
 }
 """)
 
-    starttime = datetime.utcnow()
+    starttime = self.utcnow()
     results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """, timeout=150)
-    endtime = datetime.utcnow()
+    endtime = self.utcnow()
 
     self.assertIn("Continuous timestamp test - complete", results)
     self.assertNotIn("Timestamp went backwards", results)

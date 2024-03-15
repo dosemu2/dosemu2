@@ -1,7 +1,6 @@
 
 import re
 
-from datetime import datetime
 from shutil import copy
 from subprocess import check_call, check_output, CalledProcessError, DEVNULL, TimeoutExpired
 
@@ -60,9 +59,9 @@ $_floppy_a = ""
 
     # Do just one
     try:
-        starttime = datetime.utcnow()
+        starttime = self.utcnow()
         check_call([TESTSUITE, *args, test[0]], cwd=build, timeout=60, stdout=DEVNULL, stderr=DEVNULL)
-        self.duration = datetime.utcnow() - starttime
+        self.duration = self.utcnow() - starttime
     except CalledProcessError:
         raise self.failureException("Test error") from None
     except TimeoutExpired:
