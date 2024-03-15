@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <errno.h>
 #ifdef HAVE_TIMERFD_CREATE
 #include <sys/timerfd.h>
 #else
@@ -76,8 +77,11 @@ static void do_callback(struct evtimer *t)
 {
     uint64_t ticks;
 #ifdef HAVE_TIMERFD_CREATE
+again:
     int rc = read(t->fd, &ticks, sizeof(ticks));
-    if (rc != sizeof(ticks)) {
+    if (rc == -1) {
+        if (errno == EAGAIN)  // other thread modified timer
+            goto again;
         perror("read()");
         return;
     }
