@@ -2424,6 +2424,7 @@ void Gen_sim(int op, int mode, ...)
 			    possible++;
 			TR1.d = possible;
 			Gen_sim(O_MOVS_StoD,mode);
+			SR1.d = (df == -1 ? 0xffff : 0);
 			AR1.d -= 0x10000*df;
 			TR1.d = i - possible;
 			Gen_sim(O_MOVS_StoD,mode);
