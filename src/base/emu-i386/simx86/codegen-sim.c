@@ -2326,10 +2326,25 @@ void Gen_sim(int op, int mode, ...)
 			TR1.d = possible;
 			Gen_sim(O_MOVS_MovD,mode);
 			/* emulate overflow */
-			if(SR1.d == minofs)
-			    AR1.d -= df*0x10000;
-			if(DR2.d == minofs)
-			    AR2.d -= df*0x10000;
+			if (df == -1) {
+			    if(SR1.d == minofs) {
+				AR1.d -= df*0x10000;
+				SR1.d = 0xffff;
+			    }
+			    if(DR2.d == minofs) {
+				AR2.d -= df*0x10000;
+				DR2.d = 0xffff;
+			    }
+			} else {
+			    if(SR1.d == 0x10000 - minofs) {
+				AR1.d -= df*0x10000;
+				SR1.d = 0;
+			    }
+			    if(DR2.d == 0x10000 - minofs) {
+				AR2.d -= df*0x10000;
+				DR2.d = 0;
+			    }
+			}
 
 			/* do the rest */
 			TR1.d = i - possible;
