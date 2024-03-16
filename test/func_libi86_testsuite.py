@@ -19,7 +19,7 @@ def libi86_create_items(testcase):
         return
     for l in listing.split(b'\n'):
         # b'  12: bios.h.at:83       _bios_equiplist'
-        t = re.search("\s*(\d+): (.+):\d+\s+([^']+)", str(l))
+        t = re.search(r"\s*(\d+): (.+):\d+\s+([^']+)", str(l))
         if t:
             tests += [t.groups(),]
 
