@@ -43,7 +43,7 @@ const char *prompt = "dosdebug> ";
 
 int fdconin, fddbgin, fddbgout;
 FILE *fpconout;
-int running;
+static int running;
 
 static int check_pid(int pid);
 
@@ -404,9 +404,8 @@ static int handle_dbg_input(int *retval)
   char buf[MHP_BUFFERSIZE], *p;
   int n;
 
-  do {
-    n=read(fddbgin, buf, sizeof(buf));
-  } while (n < 0 && errno == EAGAIN);
+  *retval = 0;
+  n = read(fddbgin, buf, sizeof(buf));
 
   if (n > 0) {
     if ((p = memchr(buf, 1, n)) != NULL) {
@@ -442,6 +441,10 @@ static int handle_dbg_input(int *retval)
   if (n == 0) {
     *retval = 1;
     return 0;
+  }
+  if (n == -1) {
+    *retval = 1;
+    return 1;
   }
   return 1;
 }
@@ -492,7 +495,7 @@ int main (int argc, char **argv)
     ret = asprintf(&pipename_out, "%s/%sdbgout.%d", home_p, TMPFILE_HOME, dospid);
     assert(ret != -1);
 
-    fddbgout = open(pipename_in, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+    fddbgout = open(pipename_in, O_WRONLY | O_NONBLOCK | O_CLOEXEC);
     if (fddbgout == -1) {
       free(pipename_in);
       free(pipename_out);
@@ -507,7 +510,7 @@ int main (int argc, char **argv)
     ret = asprintf(&pipename_out, TMPFILE_VAR "dbgout.%d", getuid(), dospid);
     assert(ret != -1);
 
-    fddbgout = open(pipename_in, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+    fddbgout = open(pipename_in, O_WRONLY | O_NONBLOCK | O_CLOEXEC);
   }
 
   if (fddbgout == -1) {
@@ -582,6 +585,10 @@ int main (int argc, char **argv)
 #endif
 
         if (!running) {
+          /* collect all remaining input */
+          do
+            usleep(100000);
+          while (handle_dbg_input(&ret) && ret == 0);
           fputs("\n", fpconout);
           fflush(fpconout);
           break;
