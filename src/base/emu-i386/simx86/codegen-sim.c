@@ -2330,19 +2330,33 @@ void Gen_sim(int op, int mode, ...)
 			    if(SR1.d == minofs) {
 				AR1.d -= df*0x10000;
 				SR1.d = 0xffff;
+				DR2.d -= minofs;
+				if (DR2.d > 0)
+				    DR2.d -= 1;
+				else
+				    DR2.d = 0xffff;
 			    }
 			    if(DR2.d == minofs) {
 				AR2.d -= df*0x10000;
 				DR2.d = 0xffff;
+				SR1.d -= minofs;
+				if (SR1.d > 0)
+				    SR1.d -= 1;
+				else
+				    SR1.d = 0xffff;
 			    }
 			} else {
 			    if(SR1.d == 0x10000 - minofs) {
 				AR1.d -= df*0x10000;
 				SR1.d = 0;
+				DR2.d += minofs;
+				DR2.d &= 0xffff;
 			    }
 			    if(DR2.d == 0x10000 - minofs) {
 				AR2.d -= df*0x10000;
 				DR2.d = 0;
+				SR1.d += minofs;
+				SR1.d &= 0xffff;
 			    }
 			}
 
