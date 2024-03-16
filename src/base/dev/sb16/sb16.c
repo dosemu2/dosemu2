@@ -1807,7 +1807,7 @@ void run_sb(void)
 	return;
 
     /* https://github.com/dosemu2/dosemu2/issues/2172 */
-    if (sb.irq_pend && ++sb.irq_delay_cnt > 5) {
+    if (sb.irq_pend /*&& ++sb.irq_delay_cnt > 5*/) {
 	if (sb.irq_pend & SB_IRQ_8BIT)
 	    sb_activate_irq(SB_IRQ_8BIT);
 	if (sb.irq_pend & SB_IRQ_16BIT)
