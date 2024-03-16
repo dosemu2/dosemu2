@@ -50,7 +50,7 @@ jobs:
 
     - name: upload failure logs
       if: ${{ always() && (steps.test.outcome == 'failure') }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: failure-logs
         path: test_*
