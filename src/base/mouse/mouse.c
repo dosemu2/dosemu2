@@ -1303,7 +1303,11 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
     if (flag == 1 && need_resync && !dragged.cnt)
       do_move_abs(mouse.px_abs, mouse.py_abs, mouse.px_range, mouse.py_range,
           mouse.cursor_on >= 0);
-    mouse.visibility_changed++;
+    /* first time enabling should work immediately */
+    if (flag == 1 && !mouse.visibility_changed)
+      mouse_client_show_cursor(mouse.visibility_locked ?: mouse.cursor_on >= 0);
+    else
+      mouse.visibility_changed++;
   }
 
   m_printf("MOUSE: %s mouse cursor %d\n", flag > 0 ? "show" : "hide", mouse.cursor_on);
