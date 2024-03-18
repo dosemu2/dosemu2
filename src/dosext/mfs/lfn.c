@@ -29,6 +29,7 @@
 #include "bios.h"
 #include "int.h"
 #include "lfn.h"
+#include "lowmem.h"
 
 #define EOS '\0'
 #define BACKSLASH '\\'
@@ -1133,18 +1134,57 @@ static int mfs_lfn_(void)
 		call_dos_helper(0x6c);
 		break;
 	}
-	case 0xa0: /* get volume info */
-		drive = build_posix_path(fpath, src, 0);
-		if (drive < 0)
-			return drive + 2;
+	case 0xa0: { /* get volume info */
+
+		struct get_volume_info *s;
+
+		/*
+		 * input:
+		     AX = 71A0h
+		     CX = size of buffer
+                     DS:DX -> ASCIZ root name (e.g. "C:\")
+                     ES:DI -> buffer for file system name
+		   return:
+		     AX
+		     BX
+		     CX
+		     DX
+		     buffer filled
+
+	         */
+
+		src = MK_FP32(_DS, _DX);
+		dest = SEGOFF2LINEAR(_ES, _DI);
 		size = _CX;
+
+		s = lowmem_alloc(sizeof(*s));
+		_CX = sizeof(*s);
+		_DX = 0x0100 | (uint8_t)(toupper(src[0]) - 'A');
+		_ES = DOSEMU_LMHEAP_SEG;
+		_DI = DOSEMU_LMHEAP_OFFS_OF(s);
+
+		// do int2f/11a0
+		_AX = 0x11a0;
+		do_int_call_back(0x2f);
+
+		// check return value == signature
+		if (_AX != ((sizeof(*s) << 8) | 0x01)) {
+		  d_printf("LFN: int2f/11a0 return value %x\n", _AX);
+		  lowmem_free(s);
+		  return 0;
+		}
+
 		_AX = 0;
-		_BX = 0x4002;
-		_CX = 255;
-		_DX = 260;
-		if (size >= 4)
-			MEMCPY_2DOS(dest, "MFS", 4);
-		break;
+		_BX = s->flags_std;
+		_CX = s->maxfilenamelen;
+		_DX = s->maxpathlen;
+		if (size >= s->namelen+1)
+                    MEMCPY_2DOS(dest, s->name, s->namelen+1);
+
+		lowmem_free(s);
+	}
+	break;
+
 	case 0xa1: /* findclose */
 		d_printf("LFN: findclose %x\n", _BX);
 		return close_dirhandle(_BX);
