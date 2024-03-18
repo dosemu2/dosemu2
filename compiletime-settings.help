@@ -112,6 +112,8 @@ plugin_translate "Use Unicode translation plugin" plugin_translate
 
 plugin_demo 	"Use demo plugin" plugin_demo
 
+plugin_openglide "Use OpenGLide plugin" plugin_openglide
+
 target_bits	"Target bits" target_bits
 
 		Set to auto for native compilation, to 32 to force compilation
