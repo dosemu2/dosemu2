@@ -280,7 +280,7 @@ int sigalrm_register_handler(void (*handler)(void))
 
 void leavedos_from_sig(int sig)
 {
-  /* anything more sophisticated? */
+  coopth_abandon();
   _leavedos_main(0, sig);
 }
 
