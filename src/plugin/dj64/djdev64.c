@@ -215,8 +215,13 @@ static void do_close(int handle)
 {
     while (num_clnup_tids[handle]) {
         int i = num_clnup_tids[handle] - 1;
-        coopth_cancel(clnup_tids[handle][i]);
-        coopth_unsafe_detach(clnup_tids[handle][i], __FILE__);
+        int tid = clnup_tids[handle][i];
+        coopth_cancel(tid);
+        if (coopth_get_tid() == tid) {
+            num_clnup_tids[handle]--;  // skip own thread
+            continue;
+        }
+        coopth_unsafe_detach(tid, __FILE__);
     }
     djdev64_close(handle);
 }
