@@ -938,7 +938,8 @@ static int __coopth_is_in_thread(int warn, const char *f)
 int coopth_get_tid(void)
 {
     struct coopth_thrdata_t *thdata;
-    assert(_coopth_is_in_thread());
+    if (!_coopth_is_in_thread_nowarn())
+       return -1;
     thdata = co_get_data(co_current(co_handle));
     return *thdata->tid;
 }
