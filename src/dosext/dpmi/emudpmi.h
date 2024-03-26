@@ -18,6 +18,7 @@
 
 #ifndef __ASSEMBLER__
 
+#include <stdarg.h>
 #include "cpu.h"
 #include "emu-ldt.h"
 #include "emm.h"
@@ -148,6 +149,7 @@ int dpmi_segment_is32(int sel);
 int dpmi_is_32(void);
 int dpmi_isset_IF(void);
 #define isset_IF_async() (in_dpmi_pm() ? dpmi_isset_IF() : isset_IF())
+int p_direct_vstr(const char *fmt, va_list args);
 
 /* currently eflags are stored with IF reflecting the actual interrupt state,
  * so no translation is needed */

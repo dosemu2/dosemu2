@@ -280,6 +280,18 @@ static int p_direct_str(const char *fmt, ...)
   return i;
 }
 
+int p_direct_vstr(const char *fmt, va_list args)
+{
+  static char buf[1024];
+  int i;
+
+  i = com_vsnprintf(buf, sizeof(buf), fmt, args);
+  if (in_dpmi_pm())
+    fake_pm_int();
+  coopth_start(prn_tid, buf);
+  return i;
+}
+
 int dpmi_is_32(void)
 {
   return DPMI_CLIENT.is_32;

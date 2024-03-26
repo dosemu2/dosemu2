@@ -31,7 +31,7 @@
 #include "dos2linux.h"
 #include "stub_ex.h"
 
-#if DJ64_API_VER != 3
+#if DJ64_API_VER != 4
 #error wrong dj64 version
 #endif
 
@@ -88,6 +88,9 @@ static void dj64_print(int prio, const char *format, va_list ap)
             log_printf(-1, "dj64: ");
             vlog_printf(-1, format, ap);
         }
+        break;
+    case DJ64_PRINT_SCREEN:
+        p_direct_vstr(format, ap);
         break;
     }
 }
