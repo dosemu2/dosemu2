@@ -675,6 +675,9 @@ err2:
     if (fd != -1)
         close(fd);
 err1:
+    free(shmname);
+    if (shlock)
+        shlock_close(shlock);
     if (exlock)
         shlock_close(exlock);
 //    leavedos(2);
