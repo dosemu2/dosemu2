@@ -593,11 +593,12 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         error("exlock failed\n");
         return NULL;
     }
-    if (flags & SHM_EXCL) {
+    if (flags & SHM_EXCL)
         oflags |= O_EXCL;
-        shlock = NULL;  // private shm
-    } else {
-        shlock = shlock_open(SHLOCK_DIR, name, 0, 1);
+    shlock = shlock_open(SHLOCK_DIR, name, 0, 1);
+    if (!shlock) {
+        error("lock failed for %s\n", name);
+        goto err0;
     }
 
     asprintf(&shmname, "/dosemu_%s", name);
@@ -676,8 +677,8 @@ err2:
         close(fd);
 err1:
     free(shmname);
-    if (shlock)
-        shlock_close(shlock);
+    shlock_close(shlock);
+err0:
     if (exlock)
         shlock_close(exlock);
 //    leavedos(2);
@@ -691,7 +692,7 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
 {
 #ifdef HAVE_SHM_OPEN
     void *exlock;
-    int rc = 1;
+    int rc;
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !ptr->shmname)
         return -1;
@@ -700,11 +701,8 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
 
     exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
     assert(exlock);
-    rc = 1;
-    if (ptr->shlock) {
-        rc = shlock_close(ptr->shlock);
-        ptr->shlock = NULL;
-    }
+    rc = shlock_close(ptr->shlock);
+    ptr->shlock = NULL;
     if (rc > 0) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
         shm_unlink(ptr->rshmname);
