@@ -415,24 +415,10 @@ static int check_comcom(const char *dir)
 
 static void comcom_hook(struct sys_dsc *sfiles, fatfs_t *fat)
 {
-  char buf[1024];
-  char *comcom;
-  ssize_t res;
   const char *dir = fatfs_get_host_dir(fat);
 
-  if (strcmp(dir, comcom_dir) == 0) {
+  if (strcmp(dir, comcom_dir) == 0)
     sfiles[CMD_IDX].flags |= FLG_COMCOM32;
-    return;
-  }
-  comcom = assemble_path(dir, "command.com");
-  res = readlink(comcom, buf, sizeof(buf) - 1);
-  free(comcom);
-  if (res == -1)
-    return;
-  buf[res] = '\0';
-  if (strncmp(buf, comcom_dir, strlen(comcom_dir)) != 0)
-    return;
-  sfiles[CMD_IDX].flags |= FLG_COMCOM32;
 }
 
 static int check_freedos(const char *xdir)
