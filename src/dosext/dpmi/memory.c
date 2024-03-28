@@ -100,6 +100,7 @@ static int free_pm_block(dpmi_pm_block_root *root, dpmi_pm_block *p)
     free(p->attrs);
     free(p->shmname);
     free(p->rshmname);
+    free(p->shm_dir);
     free(p);
     if (tmp)
 	tmp->next = next;
@@ -569,12 +570,13 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
     return 0;
 }
 
+#define EXLOCK_DIR "dosemu2_shmex"
+#define SHLOCK_DIR "dosemu2_shmsh"
+
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         const char *name, unsigned int size, int flags)
 {
 #ifdef HAVE_SHM_OPEN
-#define EXLOCK_DIR "dosemu2_shmex"
-#define SHLOCK_DIR "dosemu2_shmsh"
     int i, err;
     int fd = -1;
     dpmi_pm_block *ptr;
@@ -688,6 +690,151 @@ err0:
 #endif
 }
 
+static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
+        const char *dname, const char *name, unsigned int size, int flags,
+        int fd)
+{
+    int i, err;
+    dpmi_pm_block *ptr;
+    void *addr, *addr2;
+    void *shlock, *dlock;
+    char *ddname = strrchr(dname, '/') + 1;
+    char shlock_dir[256];
+    int prot = PROT_READ | PROT_WRITE;
+
+    dlock = shlock_open(SHLOCK_DIR, ddname, 0, 1);
+    if (!dlock) {
+        error("dlock failed for %s\n", ddname);
+        goto err11;
+    }
+    snprintf(shlock_dir, sizeof(shlock_dir), SHLOCK_DIR "_%s", ddname);
+    shlock = shlock_open(shlock_dir, name, 0, 1);
+    if (!shlock) {
+        error("lock failed for %s\n", name);
+        goto err12;
+    }
+    err = ftruncate(fd, size);
+    if (err) {
+        error("unable to ftruncate to %x for shm %s\n", size, name);
+        goto err2;
+    }
+
+    addr = smalloc(&mem_pool, size);
+    if (!addr) {
+        error("unable to alloc %x for shm %s\n", size, name);
+        goto err2;
+    }
+    if (!(flags & SHM_NOEXEC))
+        prot |= PROT_EXEC;
+    /* this mem is already mapped to KVM so we use plain mmap() */
+    addr2 = mmap(addr, size, prot, MAP_SHARED | MAP_FIXED, fd, 0);
+    close(fd);
+    fd = -1;
+    if (addr2 != addr) {
+        perror("mmap()");
+        error("shared memory map failed %p %p\n", addr2, addr);
+        goto err3;
+    }
+    ptr = alloc_pm_block(root, size);
+    if (!ptr) {
+        error("pm block alloc failed, exiting\n");
+        goto err4;
+    }
+    for (i = 0; i < (size >> PAGE_SHIFT); i++)
+        ptr->attrs[i] = 0x09 | ATTR_SHR;	// RW, shared, present
+    ptr->base = DOSADDR_REL(addr);
+    ptr->size = size;
+    ptr->shm = 1;
+    ptr->linear = 1;
+    ptr->handle = pm_block_handle_used++;
+    ptr->shmname = strdup(name);
+    ptr->shm_dir = strdup(dname);
+    ptr->shlock = shlock;
+    ptr->dlock = dlock;
+    D_printf("DPMI: map shm %s\n", ptr->shmname);
+    return ptr;
+
+err4:
+    munmap(addr2, size);
+err3:
+    smfree(&mem_pool, addr);
+err2:
+    shlock_close(shlock);
+err12:
+    shlock_close(dlock);
+err11:
+    if (fd != -1)
+        close(fd);
+    return NULL;
+}
+
+dpmi_pm_block *DPMI_mallocSharedNewNS(dpmi_pm_block_root *root,
+        const char *name, unsigned int size, int flags)
+{
+    int fd = -1;
+    dpmi_pm_block *ptr;
+    char *shmname, *fname;
+    char dname[] = "/tmp/dosemu2_pshm_XXXXXX";
+
+    if (!size)		// DPMI spec says this is allowed - no thanks
+        return NULL;
+
+    asprintf(&shmname, "/dosemu_%s", name);
+    fd = mktmp_in(dname, shmname, S_IRWXU);
+    if (fd == -1) {
+        error("shared memory unavailable, exiting\n");
+        goto err1;
+    }
+    ptr = DPMI_mallocSharedNS_common(root, dname, name, size, flags, fd);
+    if (!ptr)
+        goto err2;
+    ptr->rshmname = shmname;
+    return ptr;
+
+err2:
+    fname = assemble_path(dname, shmname);
+    unlink(fname);
+    free(fname);
+err1:
+    free(shmname);
+    return NULL;
+}
+
+dpmi_pm_block *DPMI_mallocSharedNS(dpmi_pm_block_root *root,
+        const char *dname, const char *name, unsigned int size, int flags)
+{
+    int fd = -1;
+    dpmi_pm_block *ptr;
+    char *shmname, *fname;
+    int oflags = O_RDWR | O_CREAT;
+
+    if (!size)		// DPMI spec says this is allowed - no thanks
+        return NULL;
+
+    asprintf(&shmname, "/dosemu_%s", name);
+    if (flags & SHM_EXCL)
+        oflags |= O_EXCL;
+    fname = assemble_path(dname, shmname);
+    fd = open(fname, oflags, S_IRWXU);
+    if (fd == -1) {
+        error("shared memory unavailable, exiting\n");
+        goto err1;
+    }
+    ptr = DPMI_mallocSharedNS_common(root, dname, name, size, flags, fd);
+    if (!ptr)
+        goto err2;
+    free(fname);
+    ptr->rshmname = shmname;
+    return ptr;
+
+err2:
+    unlink(fname);
+err1:
+    free(fname);
+    free(shmname);
+    return NULL;
+}
+
 int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
 {
 #ifdef HAVE_SHM_OPEN
@@ -714,6 +861,37 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
 #else
     return -1;
 #endif
+}
+
+int DPMI_freeSharedNS(dpmi_pm_block_root *root, uint32_t handle)
+{
+    int rc;
+    dpmi_pm_block *ptr = lookup_pm_block(root, handle);
+    if (!ptr || !ptr->shmname)
+        return -1;
+    if (ptr->mapped)
+        do_unmap_shm(ptr);
+
+    rc = shlock_close(ptr->shlock);
+    ptr->shlock = NULL;
+    if (rc > 0) {
+        char *fname = assemble_path(ptr->shm_dir, ptr->rshmname);
+        D_printf("DPMI: unlink shm %s\n", fname);
+        unlink(fname);
+        free(fname);
+    }
+
+    rc = shlock_close(ptr->dlock);
+    ptr->dlock = NULL;
+    if (rc > 0) {
+        D_printf("DPMI: unlink dir %s\n", ptr->shm_dir);
+        rc = rmdir(ptr->shm_dir);
+        if (rc)
+            error("rmdir(%s) failed: %s\n", ptr->shm_dir, strerror(errno));
+    }
+
+    free_pm_block(root, ptr);
+    return 0;
 }
 
 int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle)
@@ -866,6 +1044,8 @@ void DPMI_freeAll(dpmi_pm_block_root *root, dpmi_pm_block *p)
 {
     if (p->hwram)
 	do_unmap_hwram(root, p);
+    else if (p->shmname && p->shm_dir)
+	DPMI_freeSharedNS(root, p->handle);
     else if (p->shmname)
 	DPMI_freeShared(root, p->handle);
     else

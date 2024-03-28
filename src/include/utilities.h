@@ -37,6 +37,7 @@ void *load_plugin(const char *plugin_name);
 void close_plugin(void *handle);
 
 char *prefix(const char *suffix);
+int mktmp_in(char *dir_tmpl, const char *fname, mode_t mode);
 
 #define _min(x,y) ({ \
 	typeof(x) _x = (x);	\

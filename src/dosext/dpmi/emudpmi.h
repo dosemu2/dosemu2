@@ -119,6 +119,8 @@ struct SHM_desc {
   uint16_t name_selector;
 #define SHM_NOEXEC 1
 #define SHM_EXCL 2
+#define SHM_NEW_NS 4
+#define SHM_NS 8
   uint16_t flags;
   uint32_t opaque;
 };

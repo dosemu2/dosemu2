@@ -18,7 +18,9 @@ typedef struct dpmi_pm_block_stuct {
   unsigned int shm:1;
   char *shmname;
   char *rshmname;
+  char *shm_dir;
   void *shlock;
+  void *dlock;
   void *shm_lock;
   uint32_t lock_flags;
   int mapped;
@@ -45,7 +47,12 @@ dpmi_pm_block *DPMI_realloc(dpmi_pm_block_root *root, unsigned int handle, unsig
 dpmi_pm_block *DPMI_reallocLinear(dpmi_pm_block_root *root, unsigned long handle, unsigned long newsize, int committed);
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         const char *name, unsigned int size, int flags);
+dpmi_pm_block *DPMI_mallocSharedNewNS(dpmi_pm_block_root *root,
+        const char *name, unsigned int size, int flags);
+dpmi_pm_block *DPMI_mallocSharedNS(dpmi_pm_block_root *root,
+        const char *dname, const char *name, unsigned int size, int flags);
 int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle);
+int DPMI_freeSharedNS(dpmi_pm_block_root *root, uint32_t handle);
 int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle);
 void DPMI_freeAll(dpmi_pm_block_root *root, dpmi_pm_block *p);
 int DPMI_MapConventionalMemory(dpmi_pm_block_root *root, unsigned long handle,

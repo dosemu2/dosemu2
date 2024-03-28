@@ -2154,9 +2154,22 @@ int DPMIAllocateShared(struct SHM_desc *shm)
 {
     const char *name = SEL_ADR_CLNT(shm->name_selector, shm->name_offset32,
 	    DPMI_CLIENT.is_32);
+    dpmi_pm_block *ptr = NULL;
+
     D_printf("DPMI: allocate shared region %s\n", name);
-    dpmi_pm_block *ptr = DPMI_mallocShared(&DPMI_CLIENT.pm_block_root, name,
+    if (shm->flags & SHM_NEW_NS) {
+	ptr = DPMI_mallocSharedNewNS(&DPMI_CLIENT.pm_block_root, name,
 	    shm->req_len, shm->flags);
+    } else if (shm->flags & SHM_NS) {
+	dpmi_pm_block *ptr2 = lookup_pm_block(&DPMI_CLIENT.pm_block_root,
+		shm->opaque);
+	if (ptr2)
+	    ptr = DPMI_mallocSharedNS(&DPMI_CLIENT.pm_block_root,
+		ptr2->shm_dir, name, shm->req_len, shm->flags);
+    } else {
+	ptr = DPMI_mallocShared(&DPMI_CLIENT.pm_block_root, name,
+	    shm->req_len, shm->flags);
+    }
     if (!ptr)
 	return -1;
     shm->ret_len = ptr->size;
@@ -2179,6 +2192,8 @@ int DPMIFreeShared(uint32_t handle)
 	djdev64->close(ptr->opaque);
     }
 #endif
+    if (ptr->shm_dir)
+	return DPMI_freeSharedNS(&DPMI_CLIENT.pm_block_root, handle);
     return DPMI_freeShared(&DPMI_CLIENT.pm_block_root, handle);
 }
 
@@ -3644,6 +3659,8 @@ static void dpmi_dj64_open(cpuctx_t *scp)
     error("DJ64: invalid handle\n");
     return;
   }
+  if (ptr->shm_dir)
+    mp = ptr->shm_dir;
   path = assemble_path(mp, ptr->rshmname + 1);
   djh = djdev64->open(path);
   free(path);
