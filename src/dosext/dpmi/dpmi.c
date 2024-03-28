@@ -5920,10 +5920,11 @@ void dpmi_realmode_hlt(unsigned int lina)
       lina < DPMI_ADD + HLT_OFF(DPMI_return_from_realmode) +
       DPMI_MAX_CLIENTS) {
     int i = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_realmode));
-    struct RealModeCallStructure *rmreg = SEL_ADR_X(_es, _edi);
+    struct RealModeCallStructure *rmreg;
     int changed = post_rm_call(i);
     if (changed)
       scp = &DPMI_CLIENT.stack_frame;     // refresh after post_rm_call()
+    rmreg = SEL_ADR_X(_es, _edi);
     D_printf("DPMI: Return from Real Mode Procedure, clnt=%i\n", i);
 #if SHOWREGS
     if (debug_level('M') > 5)
