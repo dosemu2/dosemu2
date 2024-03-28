@@ -384,15 +384,11 @@ static int check_comcom(const char *dir)
     /* have symlink */
     buf[res] = '\0';
     if (strncmp(buf, "comcom64.exe", res) == 0) {
-#ifdef USE_DJDEV64
-      void *dlh = load_plugin("dj64");
-      if (!dlh)
-        return 0;
-      dbug_printf("booting with comcom64\n");
-#else
+#ifndef USE_DJDEV64
       error("comcom64 support not compiled in\n");
       return 0;
 #endif
+      dbug_printf("booting with comcom64\n");
     }
     return 1;
   }
