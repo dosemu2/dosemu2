@@ -29,6 +29,12 @@ If you happened to know this problem didn't
 exist on dosemu1 or some earlier versions of
 dosemu2, please write.
 
+**dosemu2 origins**
+Please describe where do you get dosemu2
+from (PPA, COPR, git sources). In case of a
+source build, please describe any configure-time
+customizations.
+
 **Additional info**
 Please write here if you did any dosemu2 setup
 customizations, like installing any custom DOS
