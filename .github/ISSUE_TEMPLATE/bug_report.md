@@ -33,7 +33,10 @@ dosemu2, please write.
 Please describe where do you get dosemu2
 from (PPA, COPR, git sources). In case of a
 source build, please describe any configure-time
-customizations.
+customizations. In case of binary packages,
+please specify your distribution and make sure
+to install the debuginfo packages before creating
+the log file.
 
 **Additional info**
 Please write here if you did any dosemu2 setup
