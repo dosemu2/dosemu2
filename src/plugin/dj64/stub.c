@@ -92,6 +92,7 @@ int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
     uint32_t nsize = 0;
     uint32_t noffset2 = 0;
     uint32_t nsize2 = 0;
+    char ovl_name[16] = {};
     int rc, i;
 #define BUF_SIZE 0x40
     char buf[BUF_SIZE];
@@ -146,8 +147,8 @@ int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
             if (nsize)
                 noffset2 = noffset + nsize;
             memcpy(&nsize2, &buf[0x24], sizeof(nsize2));
-            strncpy(stubinfo.payload2_name, &buf[0x30], 12);
-            stubinfo.payload2_name[12] = '\0';
+            strncpy(ovl_name, &buf[0x30], 12);
+            ovl_name[12] = '\0';
         } else if (buf[0] == 0x4c && buf[1] == 0x01) { /* it's a COFF */
             done = 1;
             ops = &coff_ops;
@@ -248,8 +249,11 @@ int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
     stubinfo.payload_size = nsize;
     stubinfo.payload2_offs = noffset2;
     stubinfo.payload2_size = nsize2;
-    if (stubinfo.payload2_name[0])
-        strcat(stubinfo.payload2_name, ".dbg");
+    if (ovl_name[0]) {
+        snprintf(stubinfo.payload2_name, sizeof(stubinfo.payload2_name),
+                 "%s.dbg", ovl_name);
+        dbug_printf("loading %s\n", ovl_name);
+    }
     _dos_seek(ifile, noffset, SEEK_SET);
     if (nsize > 0)
         stub_debug("Found payload of size %i at 0x%x\n", nsize, noffset);
