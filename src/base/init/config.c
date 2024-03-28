@@ -417,7 +417,7 @@ static void comcom_hook(struct sys_dsc *sfiles, fatfs_t *fat)
 {
   const char *dir = fatfs_get_host_dir(fat);
 
-  if (strcmp(dir, comcom_dir) == 0)
+  if (strcmp(dir, comcom_dir) == 0 && strstr(dir, "32") != NULL)
     sfiles[CMD_IDX].flags |= FLG_COMCOM32;
 }
 
