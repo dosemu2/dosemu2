@@ -48,8 +48,8 @@ DPMI_exception:
 DPMI_interrupt:
 	FILL_OPCODE 256,hlt
 /* ======================= Addr = dpmi_sel():0128 */
-/*	.globl	reserved */
-reserved:
+	.globl DPMI_return_from_RSPcall_exit
+DPMI_return_from_RSPcall_exit:
 	hlt
 /* ======================= Addr = dpmi_sel():0129 */
 	.globl DPMI_return_from_ext_exception

@@ -3584,8 +3584,12 @@ static void do_RSP_call(cpuctx_t *scp, int num, int clnt,
 
   save_pm_regs(scp);
   sp = enter_lpms(scp);
-  make_xretf_frame(scp, sp, dpmi_sel(),
-      DPMI_SEL_OFF(DPMI_return_from_RSPcall));
+  if (terminating == 1)
+    make_xretf_frame(scp, sp, dpmi_sel(),
+        DPMI_SEL_OFF(DPMI_return_from_RSPcall_exit));
+  else
+    make_xretf_frame(scp, sp, dpmi_sel(),
+        DPMI_SEL_OFF(DPMI_return_from_RSPcall));
 
   _es = _fs = _gs = 0;
   _ds = DPMI_CLIENT.RSP_ds[num];
@@ -5165,6 +5169,13 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  restore_pm_regs(scp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_RSPcall)) {
+	  remove_xretf_frame(scp, sp);
+	  D_printf("DPMI: Return from RSPcall, in_dpmi_pm_stack=%i, dpmi_pm=%i\n",
+	    DPMI_CLIENT.in_dpmi_pm_stack, in_dpmi_pm());
+	  leave_lpms(scp);
+	  restore_pm_regs(scp);
+
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_RSPcall_exit)) {
 	  remove_xretf_frame(scp, sp);
 	  D_printf("DPMI: Return from RSPcall, in_dpmi_pm_stack=%i, dpmi_pm=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack, in_dpmi_pm());
