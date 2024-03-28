@@ -3494,6 +3494,7 @@ static void remove_xretf_frame(cpuctx_t *scp, void *sp)
 static void dpmi_realmode_callback(int rmcb_client, int num)
 {
     void *sp;
+    int changed = 0;
     cpuctx_t *scp = &DPMI_CLIENT.stack_frame;
 
     if (rmcb_client >= in_dpmi || num >= DPMI_MAX_RMCBS)
@@ -3502,6 +3503,11 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
     D_printf("DPMI: Real Mode Callback for #%i address of client %i (from %i)\n",
       num, rmcb_client, current_client);
     DPMI_save_rm_regs(DPMIclient[rmcb_client].realModeCallBack[num].rmreg, ~0);
+    if (rmcb_client != current_client) {
+      clnt_switch(rmcb_client);
+      scp = &DPMI_CLIENT.stack_frame;     // refresh switch
+      changed++;
+    }
     save_pm_regs(scp);
     sp = enter_lpms(scp);
 
@@ -3524,6 +3530,9 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
 
     dpmi_set_pm(1);
     dpmi_cli();
+
+    if (changed)
+	msdos_set_client(scp, rmcb_client);
 }
 
 static void rmcb_hlt(Bit16u off, HLT_ARG(arg))
@@ -5093,6 +5102,11 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  DPMI_restore_rm_regs(SEL_ADR_X(_es, _edi), ~0);
 	  restore_pm_regs(scp);
 	  dpmi_set_pm(0);
+	  if (current_client != in_dpmi - 1) {
+	    clnt_switch(in_dpmi - 1);
+	    scp = &DPMI_CLIENT.stack_frame;     // refresh after switch
+	    msdos_set_client(scp, current_client);
+	  }
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_1c)) {
 	  leave_lpms(scp);
