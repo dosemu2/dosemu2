@@ -2929,6 +2929,7 @@ err:
       /* 32rtm work-around */
       if (current_client != in_dpmi - 1) {
         clnt_switch(in_dpmi - 1);
+        scp = &DPMI_CLIENT.stack_frame;     // refresh after switch
         msdos_set_client(scp, current_client);
       }
 
