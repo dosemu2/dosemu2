@@ -1264,3 +1264,16 @@ int tempname(char *tmpl, size_t x_suffix_len)
 
   return 0;
 }
+
+int mktmp_in(char *dir_tmpl, const char *fname, mode_t mode)
+{
+  int fd;
+  char *p;
+  char *d = mkdtemp(dir_tmpl);
+  if (!d)
+    return -1;
+  p = assemble_path(d, fname);
+  fd = open(p, O_CREAT | O_RDWR | O_EXCL, mode);
+  free(p);
+  return fd;
+}
