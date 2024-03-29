@@ -265,7 +265,10 @@ static struct memnode *sm_alloc_fixed(struct mempool *mp, void *ptr,
   delta = (uint8_t *)ptr - mn->mem_area;
   assert(delta >= 0);
   if (size + delta > mn->size) {
-    smerror(mp, "SMALLOC: no space %zi at address %p\n", size, ptr);
+    int pr = get_oom_pr(mp, size);
+    if (pr < 0)
+      pr = 0;
+    do_smerror(pr, mp, "SMALLOC: no space %zi at address %p\n", size, ptr);
     return NULL;
   }
   if (delta) {
