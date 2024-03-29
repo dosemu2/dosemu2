@@ -74,7 +74,7 @@ static int do_dump(struct mempool *mp, char *buf, int len)
 
 void smdump(struct mempool *mp)
 {
-    char buf[1024];
+    char buf[16384];
     int err = do_dump(mp, buf, sizeof(buf));
     if (!err)
         mp->smerr(0, "%s", buf);
@@ -85,7 +85,7 @@ void smdump(struct mempool *mp)
 static FORMAT(printf, 3, 4)
 void do_smerror(int prio, struct mempool *mp, const char *fmt, ...)
 {
-    char buf[1024];
+    char buf[16384];
     int pos, err;
     va_list al;
 
