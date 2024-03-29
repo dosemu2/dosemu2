@@ -187,7 +187,7 @@ int vlog_printf(int flg, const char *fmt, va_list args)
 
     q = (is_cr? timestamp(logptr) : logptr);
     i = vsnprintf(q, MAX_LINE_SIZE, fmt, args);
-    if (i < 0) {	/* truncated for buffer overflow */
+    if (i >= MAX_LINE_SIZE) {	/* truncated for buffer overflow */
       i = MAX_LINE_SIZE-2;
       q[i++]='\n'; q[i]=0; is_cr=1;
     }
