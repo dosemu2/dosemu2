@@ -346,6 +346,22 @@ static void low_mem_init_config_scrub(void)
   }
 }
 
+static void do_sm_error(int prio, const char *fmt, ...)
+{
+    char buf[16384];
+    va_list al;
+
+    va_start(al, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, al);
+    va_end(al);
+    if (prio >= 3)
+        dosemu_error("%s", buf);
+    else if (prio == 2)
+        error("%s", buf);
+    else
+        dbug_printf("%s", buf);
+}
+
 /*
  * DANG_BEGIN_FUNCTION low_mem_init
  *
@@ -361,6 +377,7 @@ void low_mem_init(void)
   uint32_t memsize;
   int32_t phys_rsv, phys_low;
 
+  smregister_default_error_notifier(do_sm_error);
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
   lowmem = alloc_mapping_huge_page_aligned(MAPPING_INIT_LOWRAM, LOWMEM_SIZE +
