@@ -51,13 +51,14 @@ static void smerror_dummy(int prio, const char *fmt, ...)
 
 #define smerror(mp, ...) mp->smerr(3, __VA_ARGS__)
 
-static void do_dump(struct mempool *mp, char *buf, int len)
+static int do_dump(struct mempool *mp, char *buf, int len)
 {
     int pos = 0;
     struct memnode *mn;
 
 #define DO_PRN(...) do { \
-    assert(pos < len); \
+    if (pos >= len) \
+      return -1; \
     pos += snprintf(buf + pos, len - pos, __VA_ARGS__); \
 } while (0)
     DO_PRN("Total size: %zi\n", mp->size);
@@ -68,29 +69,37 @@ static void do_dump(struct mempool *mp, char *buf, int len)
     for (mn = &mp->mn; mn; mn = mn->next)
         DO_PRN("\tarea: %zi bytes, %s\n",
                 mn->size, mn->used ? "used" : "free");
+    return 0;
 }
 
 void smdump(struct mempool *mp)
 {
     char buf[1024];
-
-    do_dump(mp, buf, sizeof(buf));
-    mp->smerr(0, "%s", buf);
+    int err = do_dump(mp, buf, sizeof(buf));
+    if (!err)
+        mp->smerr(0, "%s", buf);
+    else
+        mp->smerr(3, "dump buffer overflow\n");
 }
 
 static FORMAT(printf, 3, 4)
 void do_smerror(int prio, struct mempool *mp, const char *fmt, ...)
 {
     char buf[1024];
-    int pos;
+    int pos, err;
     va_list al;
 
     assert(prio != -1);
     va_start(al, fmt);
     pos = vsnprintf(buf, sizeof(buf), fmt, al);
     va_end(al);
-    do_dump(mp, buf + pos, sizeof(buf) - pos);
-    mp->smerr(prio, "%s", buf);
+    err = -1;
+    if (pos < sizeof(buf))
+        err = do_dump(mp, buf + pos, sizeof(buf) - pos);
+    if (!err)
+        mp->smerr(0, "%s", buf);
+    else
+        mp->smerr(3, "dump buffer overflow\n");
 }
 
 static int get_oom_pr(struct mempool *mp, size_t size)
