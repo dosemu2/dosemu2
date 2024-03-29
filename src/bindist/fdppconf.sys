@@ -16,5 +16,5 @@ rem emufs.sys /all replaces emufs.com
 devicehigh=dosemu\emufs.sys /all
 devicehigh=dosemu\cdrom.sys
 set SHELL_ALLOW_EXIT=1
-shellhigh=#2 /M
+shellhigh=#2 /M2
 CHAIN=@%0\userhook.sys
