@@ -86,7 +86,8 @@ static FORMAT(printf, 3, 4)
 void do_smerror(int prio, struct mempool *mp, const char *fmt, ...)
 {
     char buf[16384];
-    int pos, err;
+    int err;
+    size_t pos;
     va_list al;
 
     assert(prio != -1);
