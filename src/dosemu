@@ -145,12 +145,13 @@ SUFFIX="$SUFFIX $*"
 MAX_LOGS=3
 
 if [ -f "$LOG_FILE" ]; then
-  NL="`ls "$LOG_FILE".[0-9] 2> /dev/null | tail -n 1`"
+  NL="`ls -1 "$LOG_FILE".[0-9] 2> /dev/null | tail -n 1`"
   NL="${NL##*.}"
   if [ -z "$NL" ]; then
     NL="1"
   elif [ "$NL" -ge "$MAX_LOGS" ]; then
-    NL="1"
+    NL="`ls -t -1 "$LOG_FILE".[0-9] 2> /dev/null | tail -n 1`"
+    NL="${NL##*.}"
   else
     NL="`expr $NL + 1`"
   fi
