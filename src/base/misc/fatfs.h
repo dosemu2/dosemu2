@@ -28,6 +28,7 @@ struct sys_dsc {
 #define FLG_COMCOM32 2
 #define FLG_ISDIR 4
 #define FLG_NOREAD 8
+#define FLG_COMCOM64 0x10
 
 void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *));
 

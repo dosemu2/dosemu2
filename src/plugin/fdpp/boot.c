@@ -43,6 +43,7 @@ int fdpp_boot(far_t *plt, int plt_len, const void *krnl, int len,
     char *env = SEG2UNIX(env_seg);
     int env_len = 0;
     int warn_legacy_conf = 0;
+    int use_comcom = 0;
 
     bprm.BprmLen = sizeof(bprm);
     bprm.BprmVersion = BPRM_SUPP_VER;
@@ -89,8 +90,14 @@ int fdpp_boot(far_t *plt, int plt_len, const void *krnl, int len,
 	    struct sys_dsc *sf1 = fatfs_get_sfiles(f1);
 
 	    bprm.ShellDrive = drv_num + hdisktab[i].log_offs;
-	    if (sf1[CMD_IDX].flags & FLG_COMCOM32)
-		dbug_printf("booting with comcom32\n");
+	    if (sf1[CMD_IDX].flags & FLG_COMCOM32) {
+		dbug_printf("booting comcom32\n");
+		use_comcom++;
+	    }
+	    if (sf1[CMD_IDX].flags & FLG_COMCOM64) {
+		dbug_printf("booting comcom64\n");
+		use_comcom++;
+	    }
 	    env_len += sprintf(env + env_len, "SHELLDRV=%c", drv +
 		    hdisktab[i].log_offs);
 	    env_len++;
@@ -138,10 +145,13 @@ int fdpp_boot(far_t *plt, int plt_len, const void *krnl, int len,
 		config.country, atoi(config.internal_cset + 2));
 	env_len++;
     }
-    env_len += sprintf(env + env_len, "#2 =command.com /e:%s /k "
+    if (use_comcom)
+	env_len += sprintf(env + env_len, "#2 =command.com /e:%s /k "
 	    "%%FDPP_AUTOEXEC%%",
-	    config.dos_cmd ? "512" : "384 /p"
-    );
+	    config.dos_cmd ? "512" : "384 /p");
+    else
+	env_len += sprintf(env + env_len, "#2 =command.com /e:2048 /k "
+	    "%%FDPP_AUTOEXEC%%");
     env_len++;
 
     if (fddir_default) {
