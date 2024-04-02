@@ -5459,7 +5459,8 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
                   lina[-2] == 0x66 && lina[-1] == 0x58)
       )) {
         D_printf("DOOM cli work-around\n");
-        dpmi_is_cli = 1;
+        if (!dpmi_is_cli)
+          dpmi_is_cli = 1;
       }
       dpmi_cli();
       break;
