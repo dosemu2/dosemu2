@@ -176,7 +176,7 @@ SUDO=""
 if [ -n "$USE_SUDO" ] ; then
   SUDO=sudo
   # preserve env, most importantly HOME
-  SUDOOPTS=-E
+  SUDOOPTS="-E --preserve-env=HOME"
   # sudo doesn't set SUDO_HOME but maybe it will - use another var
   export DOSEMU_SUDO_HOME="$HOME"
 fi
