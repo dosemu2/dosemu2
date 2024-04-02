@@ -96,6 +96,7 @@
 #include "cpu-emu.h"
 #endif
 #include "kvm.h"
+#include "ns.h"
 
 static int ld_tid;
 static int can_leavedos;
@@ -326,6 +327,9 @@ int main(int argc, char **argv, char * const *envp)
 	open_kmem();
     }
     priv_drop();
+
+    /* must still be single-threaded at that point */
+    ns_init();
 
     map_memory_space();         /* maps all DOS memory (low, dpmi, xms...) */
     init_hardware_ram();        /* map the direct hardware ram */

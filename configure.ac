@@ -394,6 +394,15 @@ AC_CHECK_HEADERS([sys/soundcard.h], [
   USE_OSS=1
   AC_SUBST(USE_OSS)
 ])
+
+PKG_CHECK_MODULES([LIBCAP], [libcap], [
+  AC_CHECK_FUNCS([unshare], [
+    USE_NS=1
+    AC_SUBST(USE_NS)
+    LIBS="$LIBS $LIBCAP_LIBS"
+  ])
+])
+
 DATE_FMT="%F %T %z"
 test -n "$SOURCE_DATE_EPOCH" || SOURCE_DATE_EPOCH=`date +%s`
 CONFIG_TIME=`date -u -d "@$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u "+$DATE_FMT"`
