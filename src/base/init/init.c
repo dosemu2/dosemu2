@@ -34,7 +34,6 @@
 #include "xms.h"
 #include "lowmem.h"
 #include "iodev.h"
-#include "priv.h"
 #include "doshelpers.h"
 #include "cpu-emu.h"
 #include "kvm.h"
@@ -362,15 +361,7 @@ static void do_sm_error(int prio, const char *fmt, ...)
         dbug_printf("%s", buf);
 }
 
-/*
- * DANG_BEGIN_FUNCTION low_mem_init
- *
- * description:
- *  Initializes the lower 1Meg via mmap & sets up the HMA region
- *
- * DANG_END_FUNCTION
- */
-void low_mem_init(void)
+void map_memory_space(void)
 {
   unsigned char *lowmem, *ptr, *ptr2;
   int result;

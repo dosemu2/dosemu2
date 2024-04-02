@@ -320,7 +320,7 @@ int main(int argc, char **argv, char * const *envp)
     LibpacketInit();            /* initialize network packet interfaces */
 
     mapping_init();		/* initialize mapping drivers */
-    low_mem_init();		/* initialize the lower 1Meg */
+    map_memory_space();         /* maps all DOS memory (low, dpmi, xms...) */
 
     if (can_do_root_stuff && !under_root_login) {
         g_printf("dropping root privileges\n");
@@ -328,7 +328,7 @@ int main(int argc, char **argv, char * const *envp)
     }
     priv_drop();
 
-    init_hardware_ram();         /* map the direct hardware ram */
+    init_hardware_ram();        /* map the direct hardware ram */
     map_video_bios();           /* map (really: copy) the video bios */
     close_kmem();
 

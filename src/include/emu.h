@@ -471,7 +471,7 @@ extern void map_video_bios(void);
 extern void map_custom_bios(void);
 extern void stdio_init(void);
 extern void timer_interrupt_init(void);
-extern void low_mem_init(void);
+extern void map_memory_space(void);
 extern void print_version(void);
 extern void keyboard_flags_init(void);
 extern void video_config_init(void);
