@@ -28,6 +28,10 @@ else
 fi
 python3 test/test_dos.py --get-test-binaries
 
+if [ -f /dev/kvm ] ; then
+  sudo setfacl -m u:${USER}:rw /dev/kvm
+fi
+
 echo
 echo "====================================================="
 echo "=        Tests run on various flavours of DOS       ="
