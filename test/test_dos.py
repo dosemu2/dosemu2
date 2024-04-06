@@ -11,7 +11,7 @@ from os import statvfs, uname, utime, environ, access, R_OK, W_OK
 from os.path import exists, isdir, join
 from pathlib import Path
 from shutil import copy
-from subprocess import call, CalledProcessError, run
+from subprocess import call, check_call, CalledProcessError, run, STDOUT
 from sys import argv, exit, modules
 from time import mktime
 
@@ -4839,6 +4839,69 @@ $_ignore_djgpp_null_derefs = (off)
         cpu_trap_flag(self, 'kvm')
     test_cpu_trap_flag_kvm.cputest = True
 
+    def test_freecom_build(self):
+        """FreeCOM build script"""
+        if environ.get("SKIP_EXPENSIVE"):
+            self.skipTest("expensive test")
+
+        giturl = 'https://github.com/FDOS/freecom.git'
+        root = self.imagedir / 'freecom.git'
+
+        try:
+            run(["git", "clone", "-q", "--depth=1", giturl, str(root)], check=True)
+        except CalledProcessError:
+            self.skipTest("repository unavailable")
+
+        # Now need to download Watcom 1.9 packages and unpack
+        # Path to watcom binaries will be 'c:/devel/watcomc/binw'
+        pkgurl = 'https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/repositories/1.3/devel'
+        for pkg in ['watcomc', 'nasm']:
+            check_call([
+                "wget",
+                "-q",
+                pkgurl + '/%s.zip' % pkg,
+            ], stderr=STDOUT, cwd=self.imagedir)
+            check_call([
+                "unzip",
+                "-L",
+                "-q",
+                str(self.imagedir) + '/%s.zip' % pkg,
+            ], stderr=STDOUT, cwd=self.imagedir / 'dXXXXs' / 'c')
+
+        # Generate the configr
+        # (note nasty interaction with comcom64, means switch to dos32a)
+        self.mkfile("config.bat", """\
+set COMPILER=WATCOM
+set WATCOM=C:\\devel\\watcomc
+set DOS4GPATH=%WATCOM%\\binw\\dos32a.exe
+set XCPU=386
+set XFAT=32
+set XNASM=nasm
+set OLDPATH=%PATH%
+set PATH=C:\\devel\\watcomc\\binw;C:\\devel\\nasm;C:\\bin;%OLDPATH%
+""", dname=root, newline="\r\n")
+
+        check_call([
+            "cp",
+            "config.std",
+            "config.mak",
+        ], stderr=STDOUT, cwd=root)
+
+        # Run build.bat script from git repository root
+        # Note:
+        #     We have to avoid runDosemu() as this test is non-interactive
+        args = ["-K", ".", "-E", "build.bat"]
+        results = self.runDosemuCmdline(args, cwd=root, timeout=300, config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        self.assertNotIn('Timeout', results)
+        self.assertNotIn('NonZeroReturn', results)
+
+        # Test for resultant command.com file
+        self.assertTrue((root / 'command.com').exists(), "Resultant (command.com) missing")
+
     def test_pcmos_build(self):
         """PC-MOS build script"""
         if environ.get("SKIP_EXPENSIVE"):
@@ -4869,7 +4932,7 @@ $_ignore_djgpp_null_derefs = (off)
         # Note:
         #     We have to avoid runDosemu() as this test is non-interactive
         args = ["-K", r".:SOURCES\src", "-E", "MAKEMOS.BAT", r"path=%D\bin;%O"]
-        results = self.runDosemuCmdline(args, cwd=str(mosroot), timeout=300, config="""\
+        results = self.runDosemuCmdline(args, cwd=mosroot, timeout=300, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
@@ -5276,6 +5339,7 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         ]
         cls.actions = {
             "test_fat32_img_d_writable": UNSUPPORTED,
+            "test_freecom_build": KNOWNFAIL,
             "test_lfn_volume_info_fat16": KNOWNFAIL,
             "test_lfn_volume_info_fat32": UNSUPPORTED,
             "test_lfs_disk_info_fat32": UNSUPPORTED,
