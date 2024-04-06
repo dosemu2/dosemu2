@@ -912,7 +912,6 @@ static void set_vol_and_len(fatfs_t *f, unsigned oi)
 void scan_dir(fatfs_t *f, unsigned oi)
 {
   obj_t *o = f->obj + oi;
-  struct stat sb;
   char *s, *name;
   unsigned u;
   int i;
@@ -970,18 +969,20 @@ void scan_dir(fatfs_t *f, unsigned oi)
   } else {
     char *buf, *buf_ptr;
     int fd, size;
+    struct stat sb;
 
     if (sys_type == MS_D) {
         s = full_name(f, oi, dlist[0]->d_name); /* io.sys */
         if (s && stat(s, &sb) == 0) {
             if((fd = open(s, O_RDONLY)) != -1) {
                 buf = malloc(sb.st_size + 1);
+                assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
                 size = read(fd, buf, sb.st_size);
                 if (size > 0) {
                     if(buf[0] == 'M' && buf[1] == 'Z') {  /* MS-DOS >= 7 */
                         sys_type = NEWMSD_D;
                     } else {           /* see if it has a version string */
-                        buf[size] = 0;
+                        buf[size] = '\0';
                         for (buf_ptr=buf;buf_ptr < buf + size; buf_ptr++) {
                             if(strncmp(buf_ptr, "NEC IO.SYS for MS-DOS", 21)==0) {
                                 sys_type = NECMSD_D;
@@ -1022,6 +1023,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
         if (s && stat(s, &sb) == 0) {
             if((fd = open(s, O_RDONLY)) != -1) {
                 buf = malloc(sb.st_size + 1);
+                assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
                 size = read(fd, buf, sb.st_size);
                 if (size > 0) {
                     buf[size] = 0;
