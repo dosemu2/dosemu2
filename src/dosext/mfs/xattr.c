@@ -84,8 +84,8 @@ int set_dos_xattr(const char *fname, int attr)
       xattr_str(xbuf, sizeof(xbuf), attr), 0);
   if (err) {
     struct stat st;
-    err = stat(fname, &st);
-    if (err)
+    int err2 = stat(fname, &st);
+    if (err2)
       return FILE_NOT_FOUND;
     if (!(st.st_mode & S_IWUSR)) {
       err = chmod(fname, st.st_mode | S_IWUSR);
