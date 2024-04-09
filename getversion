@@ -29,7 +29,7 @@ if test "$1" = "-d"; then
 else
   if [ "$USE_GIT" = "1" ]; then
     DATE=`echo "$DATE" | sed -e 's/-//g'`
-    gd=`git describe --tags --match '*2.*' HEAD 2>/dev/null`
+    gd=`git describe --tags --match '2.*' HEAD 2>/dev/null`
     s=`echo $gd | sed -e "s/-\([^-]\+-g\)/-$DATE-\1/"`
     ss=`echo $gd | sed -e "s/-[^-]\+-g.*/\.$DATE/"`
   fi
