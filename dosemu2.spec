@@ -106,5 +106,8 @@ make DESTDIR=%{buildroot} install
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
 
 %changelog
+* Tue Apr 09 2024 Stas Sergeev <stsp@users.sourceforge.net> 2.0pre9-1
+- new package built with tito
+
 * Sat Aug 20 2016 Stas Sergeev <stsp@users.sourceforge.net> 2.0pre6-dev
 (none)
