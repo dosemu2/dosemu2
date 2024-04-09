@@ -6,7 +6,7 @@
 
 Name: dosemu2
 Version: 2.0pre9
-Release: 1%{?dist}
+Release: 2
 Summary: fast and secure DOS emulator
 
 Group: System/Emulator
@@ -106,6 +106,12 @@ make DESTDIR=%{buildroot} install
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
 
 %changelog
+* Tue Apr 09 2024 Stas Sergeev <stsp@users.sourceforge.net> 2.0pre9-2
+- 
+
+* Tue Apr 09 2024 Stas Sergeev <stsp@users.sourceforge.net>
+- 
+
 * Tue Apr 09 2024 Stas Sergeev <stsp@users.sourceforge.net> 2.0pre9-1
 - new package built with tito
 
