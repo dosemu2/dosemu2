@@ -2692,6 +2692,8 @@ int parse_config(const char *confname, const char *dosrcname, int nodosrc)
       if (access(dosrc, R_OK) == -1) {
         free(dosrc);
         dosrc = get_path_in_HOME(DOSEMU_RC);
+        if (access(dosrc, R_OK) == 0)
+          error("using outdated config file %s\n", dosrc);
       } else if (newdosrc) {
         error("config file %s missing.\n\tUsing %s\n"
               "\tExecute `mv %s %s`\n\tto silence this error.\n",
