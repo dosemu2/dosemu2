@@ -2874,7 +2874,10 @@ repag0:
 				TheCPU.fpstate = NULL;
 			}
 			if (sim) {
-			    if (Fp87_op(exop,b)) { TheCPU.err = -96; return P0; }
+			    if (Fp87_op(exop,b)) {
+				TheCPU.err = -96;
+				return P0;
+			    }
 			}
 			else
 			    Gen(O_FOP, _mode, exop, b);

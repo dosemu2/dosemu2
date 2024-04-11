@@ -480,7 +480,8 @@ void Gen_sim(int op, int mode, ...)
 		unsigned char exop = (unsigned char)va_arg(ap,int);
 		int reg = va_arg(ap,int);
 		GTRACE2("O_FPOP",exop,reg);
-		if (Fp87_op(exop, reg)) TheCPU.err = -96;
+		if (Fp87_op(exop, reg))
+		    TheCPU.err = -96;
 		}
 		break;
 

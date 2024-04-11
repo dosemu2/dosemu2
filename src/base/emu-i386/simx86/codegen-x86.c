@@ -311,7 +311,8 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		break;
 	case O_FOP: {
 		unsigned char *p = Fp87_op_x86(CodePtr, IG->p0, IG->p1);
-		if (p == NULL) TheCPU.err = -96;
+		if (p == NULL)
+		    TheCPU.err = -96;
 		else Cp = p;
 		}
 		break;
