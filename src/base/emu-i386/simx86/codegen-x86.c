@@ -175,6 +175,7 @@ void InitGen_x86(void)
 	AddrGen = AddrGen_x86;
 	CloseAndExec = CloseAndExec_x86;
 	UseLinker = USE_LINKER;
+	Fp87_op = Fp87_op_x86_sim;
 }
 
 
