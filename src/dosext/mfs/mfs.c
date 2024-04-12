@@ -2528,7 +2528,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
       SETWORD(&state->eax, ACCESS_DENIED);
       return FALSE;
     }
-    idx += num_def_drives;
+    idx += num_def_drives + 1;
     /* found index, tell it to the user */
     userStack[3] |= idx << REDIR_DEVICE_IDX_SHIFT;
   }
