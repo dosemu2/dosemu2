@@ -207,7 +207,7 @@ static int open_share(const char *fname, int open_mode, int share_mode,
     return 0;
 }
 
-static int do_mfs_open(struct file_fd *f, const char *fname,
+static int do_mfs_open(int mfs_idx, struct file_fd *f, const char *fname,
         int flags, int share_mode, int *r_err)
 {
     int fd, err, i;
@@ -219,7 +219,7 @@ static int do_mfs_open(struct file_fd *f, const char *fname,
     exlock = apply_exlock(fname);
     if (!exlock)
         return -1;
-    fd = open(fname, flags | O_CLOEXEC);
+    fd = mfs_open_file(mfs_idx, fname, flags | O_CLOEXEC);
     if (fd == -1)
         goto err;
     if (!share_mode) {
@@ -281,7 +281,7 @@ err:
     return -1;
 }
 
-struct file_fd *mfs_open(const char *name, int flags,
+struct file_fd *mfs_open(int mfs_idx, const char *name, int flags,
         int share_mode, int *r_err)
 {
     struct file_fd *f;
@@ -290,7 +290,7 @@ struct file_fd *mfs_open(const char *name, int flags,
     f = do_claim_fd(name);
     if (!f)
         return NULL;
-    err = do_mfs_open(f, name, flags, share_mode, r_err);
+    err = do_mfs_open(mfs_idx, f, name, flags, share_mode, r_err);
     if (err) {
         free(f->name);
         f->name = NULL;
@@ -301,7 +301,8 @@ struct file_fd *mfs_open(const char *name, int flags,
     return f;
 }
 
-static int do_mfs_creat(struct file_fd *f, const char *fname, mode_t mode)
+static int do_mfs_creat(int mfs_idx, struct file_fd *f, const char *fname,
+                        mode_t mode)
 {
     int fd, err, i;
     void *shlock;
@@ -310,7 +311,8 @@ static int do_mfs_creat(struct file_fd *f, const char *fname, mode_t mode)
     exlock = apply_exlock(fname);
     if (!exlock)
         return -1;
-    fd = open(fname, O_RDWR | O_CLOEXEC | O_CREAT | O_TRUNC, mode);
+    fd = mfs_create_file(mfs_idx, fname,
+                         O_RDWR | O_CLOEXEC | O_CREAT | O_TRUNC, mode);
     if (fd == -1)
         goto err;
     /* set compat mode */
@@ -343,7 +345,7 @@ err:
     return -1;
 }
 
-struct file_fd *mfs_creat(const char *name, mode_t mode)
+struct file_fd *mfs_creat(int mfs_idx, const char *name, mode_t mode)
 {
     struct file_fd *f;
     int err;
@@ -351,7 +353,7 @@ struct file_fd *mfs_creat(const char *name, mode_t mode)
     f = do_claim_fd(name);
     if (!f)
         return NULL;
-    err = do_mfs_creat(f, name, mode);
+    err = do_mfs_creat(mfs_idx, f, name, mode);
     if (err) {
         free(f->name);
         f->name = NULL;

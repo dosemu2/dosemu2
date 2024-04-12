@@ -398,6 +398,10 @@ extern void unregister_cdrom(int drive);
 extern int get_volume_label_cdrom(int drive, char *name);
 extern int get_drive_from_path(char *path, int *drive);
 
+extern int mfs_open_file(int mfs_idx, const char *path, int flags);
+extern int mfs_create_file(int mfs_idx, const char *path, int flags,
+    mode_t mode);
+
 /* returns drive number and any bits that are impossible for drive.
  * Should be checked against MAX_DRIVE to make sure it is actually
  * a drive, i.e. no impossible-for-drive bits are set. */
