@@ -273,7 +273,12 @@ enum { TYPE_NONE, TYPE_DISK, TYPE_PRINTER };
 static u_char redirected_drives = 0;
 static struct drive_info drives[MAX_DRIVES];
 
-static char *def_drives[MAX_DRIVE];
+struct defdrv {
+    const char *path;
+    int dir_fd;
+};
+
+static struct defdrv def_drives[MAX_DRIVE];
 static int num_def_drives;
 
 static int dos_fs_dev(struct vm86_regs *);
@@ -904,31 +909,58 @@ void mfs_reset(void)
 
 int mfs_define_drive(const char *path)
 {
-  int len;
+  int len, fd;
 
   assert(num_def_drives < MAX_DRIVE);
+  fd = open(path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  if (fd == -1) {
+    error("cannot open %s: %s\n", path, strerror(errno));
+    leavedos(2);
+    return -1;
+  }
+  def_drives[num_def_drives].dir_fd = fd;
   len = strlen(path);
   assert(len > 0);
   if (path[len - 1] == '/') {
-    def_drives[num_def_drives] = strdup(path);
+    def_drives[num_def_drives].path = strdup(path);
   } else {
     char *new_path = malloc(len + 2);
     memcpy(new_path, path, len + 1);
     new_path[len] = '/';
     new_path[len + 1] = '\0';
-    def_drives[num_def_drives] = new_path;
+    def_drives[num_def_drives].path = new_path;
   }
   return num_def_drives +++ 1;
 }
 
 int mfs_open_file(int mfs_idx, const char *path, int flags)
 {
-  return open(path, flags);
+  struct defdrv *d;
+  int len;
+
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives)
+    return open(path, flags);
+  d = &def_drives[mfs_idx - 1];
+  len = strlen(d->path);
+  assert(strlen(path) >= len);
+  assert(strncmp(path, d->path, len) == 0);
+  return openat(d->dir_fd, path + len, flags);
 }
 
 int mfs_create_file(int mfs_idx, const char *path, int flags, mode_t mode)
 {
-  return open(path, flags, mode);
+  struct defdrv *d;
+  int len;
+
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives)
+    return open(path, flags, mode);
+  d = &def_drives[mfs_idx - 1];
+  len = strlen(d->path);
+  assert(strlen(path) >= len);
+  assert(strncmp(path, d->path, len) == 0);
+  return openat(d->dir_fd, path + len, flags, mode);
 }
 
 static void init_drive(int dd, char *path, uint16_t user, uint16_t options)
@@ -2521,8 +2553,8 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
     idx = 0;
   if (idx) {
     idx--;
-    if (!def_drives[idx] ||
-        strncmp(def_drives[idx], path, strlen(def_drives[idx])) != 0) {
+    if (!def_drives[idx].path ||
+        strncmp(def_drives[idx].path, path, strlen(def_drives[idx].path)) != 0) {
       error("redirection of %s (%i) rejected\n", path, idx);
       SETWORD(&state->eax, PATH_NOT_FOUND);
       return FALSE;
