@@ -10,14 +10,9 @@
 #include "emu.h"
 #include "priv.h"
 #include "dosemu_config.h"
-#include "mapping.h"
 #include "utilities.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
-#endif
-
-#if 0
-#define PRIV_TESTING
 #endif
 
 /* Some handy information to have around */
@@ -38,51 +33,35 @@ int current_iopl;
 
 static int _priv_on(void)
 {
-  if (PRIVS_ARE_OFF) {  /* make sure the privs need to be changed */
-#ifdef PRIV_TESTING
-      c_printf("PRIV: on-in %d\n", cur_euid);
-#endif
-      if (setreuid(uid,euid)) {
-         error("Cannot turn privs on!\n");
-         return 0;
-      }
-      cur_uid = uid;
-      cur_euid = euid;
-      if (setregid(gid,egid)) {
-	  error("Cannot turn privs on!\n");
-	  return 0;
-      }
-      cur_gid = gid;
-      cur_egid = egid;
+  if (setreuid(uid,euid)) {
+    error("Cannot turn privs on!\n");
+    return 0;
   }
-#ifdef PRIV_TESTING
-  c_printf("PRIV: on-ex %d\n", cur_euid);
-#endif
+  cur_uid = uid;
+  cur_euid = euid;
+  if (setregid(gid,egid)) {
+    error("Cannot turn privs on!\n");
+    return 0;
+  }
+  cur_gid = gid;
+  cur_egid = egid;
   return 1;
 }
 
 static int _priv_off(void)
 {
-  if (PRIVS_ARE_ON) {  /* make sure the privs need to be changed */
-#ifdef PRIV_TESTING
-      c_printf("PRIV: off-in %d\n", cur_euid);
-#endif
-      if (setreuid(euid,uid)) {
-	error("Cannot turn privs off!\n");
-	return 0;
-      }
-      cur_uid = euid;
-      cur_euid = uid;
-      if (setregid(egid,gid)) {
-	error("Cannot turn privs off!\n");
-	return 0;
-      }
-      cur_gid = egid;
-      cur_egid = gid;
+  if (setreuid(euid,uid)) {
+    error("Cannot turn privs off!\n");
+    return 0;
   }
-#ifdef PRIV_TESTING
-  c_printf("PRIV: off-ex %d\n", cur_euid);
-#endif
+  cur_uid = euid;
+  cur_euid = uid;
+  if (setregid(egid,gid)) {
+    error("Cannot turn privs off!\n");
+    return 0;
+  }
+  cur_gid = egid;
+  cur_egid = gid;
   return 1;
 }
 
