@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <grp.h>
 #ifdef HAVE_SYS_IO_H
 #include <sys/io.h>
 #endif
@@ -163,11 +162,6 @@ void priv_init(void)
       if (uid) {
         skip_priv_setting = under_root_login = 0;
 	using_sudo = 1;
-	s = getenv("SUDO_USER");
-	if (s) {
-	  initgroups(s, gid);
-	  setenv("USER", s, 1);
-	}
         setreuid(uid, euid);
       }
     }
