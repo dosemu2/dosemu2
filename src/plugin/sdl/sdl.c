@@ -57,7 +57,6 @@
 
 #define THREADED_REND 1
 
-static int SDL_priv_init(void);
 static int SDL_init(void);
 static void SDL_close(void);
 static int SDL_set_videomode(struct vid_mode_params vmp);
@@ -86,7 +85,7 @@ static int probe_font(int idx);
 #define MIN_Y 75
 
 static struct video_system Video_SDL = {
-  SDL_priv_init,
+  NULL,
   SDL_init,
   NULL,
   NULL,
@@ -217,12 +216,12 @@ void SDL_pre_init(void)
   register_exit_handler(SDL_done);
 }
 
-static int SDL_priv_init(void)
+static int SDL_early_init(void)
 {
   /* The privs are needed for opening /dev/input/mice.
    * Unfortunately SDL does not support gpm.
    * Also, as a bonus, /dev/fb0 can be opened with privs. */
-  PRIV_SAVE_AREA
+//  PRIV_SAVE_AREA
   int ret;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
@@ -242,9 +241,9 @@ static int SDL_priv_init(void)
      https://gitlab.freedesktop.org/mesa/mesa/-/issues/8818 */
   fedisableexcept(FE_DIVBYZERO);
 #endif
-  enter_priv_on();
+//  enter_priv_on();
   ret = SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
-  leave_priv_setting();
+//  leave_priv_setting();
 #ifdef FE_NOMASK_ENV
   fesetenv(&dosemu_fenv);
 #endif
@@ -360,6 +359,10 @@ static int SDL_init(void)
   int rc;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
+
+  rc = SDL_early_init();
+  if (rc)
+    return rc;
 
   rng_init(&rects_rng, RECTS_UPD_THRESHOLD, sizeof(struct rect_desc));
   rng_allow_ovw(&rects_rng, 0);
