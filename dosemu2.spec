@@ -63,6 +63,7 @@ Recommends: ladspa
 Recommends: ncurses-base
 Recommends: gdb
 Recommends: kbd
+Recommends: sudo
 Suggests:   valgrind
 Recommends: install-freedos
 Suggests:   install-otherdos

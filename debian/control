@@ -50,8 +50,13 @@ Depends:
     fdpp,
     dj64,
     comcom64
-Recommends:${shlibs-:Recommends}, ladspa-sdk, gdb, kbd, fluid-soundfont-gm,
-  install-freedos
+Recommends: ${shlibs-:Recommends},
+    ladspa-sdk,
+    gdb,
+    kbd,
+    sudo,
+    fluid-soundfont-gm,
+    install-freedos
 Suggests: vde2, valgrind, install-otherdos
 Description: fast and secure DOS emulator
  dosemu2 is an emulator for running DOS programs under linux.
