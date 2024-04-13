@@ -18,8 +18,8 @@
 /* Some handy information to have around */
 static uid_t uid,euid;
 static gid_t gid,egid;
-static uid_t cur_uid, cur_euid;
-static gid_t cur_gid, cur_egid;
+static uid_t cur_euid;
+static gid_t cur_egid;
 
 static int skip_priv_setting = 0;
 
@@ -33,34 +33,30 @@ int current_iopl;
 
 static int _priv_on(void)
 {
-  if (setreuid(uid,euid)) {
+  if (seteuid(euid)) {
     error("Cannot turn privs on!\n");
     return 0;
   }
-  cur_uid = uid;
   cur_euid = euid;
-  if (setregid(gid,egid)) {
+  if (setegid(egid)) {
     error("Cannot turn privs on!\n");
     return 0;
   }
-  cur_gid = gid;
   cur_egid = egid;
   return 1;
 }
 
 static int _priv_off(void)
 {
-  if (setreuid(euid,uid)) {
+  if (seteuid(uid)) {
     error("Cannot turn privs off!\n");
     return 0;
   }
-  cur_uid = euid;
   cur_euid = uid;
-  if (setregid(egid,gid)) {
+  if (setegid(gid)) {
     error("Cannot turn privs off!\n");
     return 0;
   }
-  cur_gid = egid;
   cur_egid = gid;
   return 1;
 }
@@ -110,13 +106,22 @@ gid_t get_orig_gid(void)
 
 int priv_drop(void)
 {
-  if (setreuid(uid,uid) || setregid(gid,gid))
-    {
-      error("Cannot drop root uid or gid!\n");
-      return 0;
-    }
-  cur_euid = euid = cur_uid = uid;
-  cur_egid = egid = cur_gid = gid;
+  assert(PRIVS_ARE_OFF);
+  if (skip_priv_setting)
+    return 1;
+  /* We set the same values as they are now.
+   * The trick is that if the first arg != -1 then saved-euid is reset.
+   * This allows to avoid the use of non-standard setresuid(). */
+  if (setreuid(uid, cur_euid) || setregid(gid, cur_egid)) {
+    error("Cannot drop root uid or gid!\n");
+    return 0;
+  }
+  /* Now check that saved-euids are actually reset: privs should fail. */
+  if (seteuid(euid) == 0 || setegid(egid) == 0) {
+    error("privs were not dropped\n");
+    leavedos(3);
+    return 0;
+  }
   skip_priv_setting = 1;
   if (uid) can_do_root_stuff = 0;
   return 1;
@@ -126,13 +131,13 @@ void priv_init(void)
 {
   const char *sh = getenv("SUDO_HOME"); // theoretical future var
   const char *h = getenv("HOME");
-  uid  = cur_uid  = getuid();
+  uid = getuid();
   /* suid bit only sets euid & suid but not uid, sudo sets all 3 */
   if (!uid) under_root_login = 1;
   euid = cur_euid = geteuid();
   if (!euid) can_do_root_stuff = 1;
   if (!uid && !euid) skip_priv_setting = 1;
-  gid  = cur_gid  = getgid();
+  gid = getgid();
   egid = cur_egid = getegid();
 
   /* must store the /proc/self/exe symlink contents before dropping
@@ -143,19 +148,18 @@ void priv_init(void)
   if (!sh)
     sh = getenv("DOSEMU_SUDO_HOME");
   /* see if -E was used */
-  if (under_root_login && sh && h && strcmp(sh, h) == 0)
-  {
+  if (under_root_login && sh && h && strcmp(sh, h) == 0) {
     /* check for sudo and set to original user */
     char *s = getenv("SUDO_GID");
     if (s) {
-      gid = cur_gid = atoi(s);
+      gid = atoi(s);
       if (gid) {
         setregid(gid, egid);
       }
     }
     s = getenv("SUDO_UID");
     if (s) {
-      uid = cur_uid = atoi(s);
+      uid = atoi(s);
       if (uid) {
         skip_priv_setting = under_root_login = 0;
 	using_sudo = 1;
@@ -170,9 +174,7 @@ void priv_init(void)
   }
 
   if (!can_do_root_stuff)
-    {
-      skip_priv_setting = 1;
-    }
+    skip_priv_setting = 1;
 
   if (!skip_priv_setting) _priv_off();
 }
