@@ -122,13 +122,6 @@ int real_enter_priv_on(saved_priv_status *privs)
   return _priv_on();
 }
 
-int real_enter_priv_off(saved_priv_status *privs)
-{
-  if (skip_priv_setting) return 1;
-  push_priv(privs);
-  return _priv_off();
-}
-
 int real_leave_priv_setting(saved_priv_status *privs)
 {
   if (skip_priv_setting) return 1;
