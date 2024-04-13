@@ -133,12 +133,10 @@ int priv_iopl(int pl)
 {
 #ifdef HAVE_SYS_IO_H
   int ret;
-  if (PRIVS_ARE_OFF) {
-    _priv_on();
-    ret = iopl(pl);
-    _priv_off();
-  }
-  else ret = iopl(pl);
+  assert(PRIVS_ARE_OFF);
+  _priv_on();
+  ret = iopl(pl);
+  _priv_off();
 #ifdef X86_EMULATOR
   if (config.cpu_vm == CPUVM_EMU) e_priv_iopl(pl);
 #endif
