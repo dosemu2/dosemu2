@@ -273,7 +273,12 @@ enum { TYPE_NONE, TYPE_DISK, TYPE_PRINTER };
 static u_char redirected_drives = 0;
 static struct drive_info drives[MAX_DRIVES];
 
-static char *def_drives[MAX_DRIVE];
+struct defdrv {
+    const char *path;
+    int dir_fd;
+};
+
+static struct defdrv def_drives[MAX_DRIVE];
 static int num_def_drives;
 
 static int dos_fs_dev(struct vm86_regs *);
@@ -904,21 +909,58 @@ void mfs_reset(void)
 
 int mfs_define_drive(const char *path)
 {
-  int len;
+  int len, fd;
 
   assert(num_def_drives < MAX_DRIVE);
+  fd = open(path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  if (fd == -1) {
+    error("cannot open %s: %s\n", path, strerror(errno));
+    leavedos(2);
+    return -1;
+  }
+  def_drives[num_def_drives].dir_fd = fd;
   len = strlen(path);
   assert(len > 0);
   if (path[len - 1] == '/') {
-    def_drives[num_def_drives] = strdup(path);
+    def_drives[num_def_drives].path = strdup(path);
   } else {
     char *new_path = malloc(len + 2);
     memcpy(new_path, path, len + 1);
     new_path[len] = '/';
     new_path[len + 1] = '\0';
-    def_drives[num_def_drives] = new_path;
+    def_drives[num_def_drives].path = new_path;
   }
   return num_def_drives +++ 1;
+}
+
+int mfs_open_file(int mfs_idx, const char *path, int flags)
+{
+  struct defdrv *d;
+  int len;
+
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives)
+    return open(path, flags);
+  d = &def_drives[mfs_idx - 1];
+  len = strlen(d->path);
+  assert(strlen(path) >= len);
+  assert(strncmp(path, d->path, len) == 0);
+  return openat(d->dir_fd, path + len, flags);
+}
+
+int mfs_create_file(int mfs_idx, const char *path, int flags, mode_t mode)
+{
+  struct defdrv *d;
+  int len;
+
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives)
+    return open(path, flags, mode);
+  d = &def_drives[mfs_idx - 1];
+  len = strlen(d->path);
+  assert(strlen(path) >= len);
+  assert(strncmp(path, d->path, len) == 0);
+  return openat(d->dir_fd, path + len, flags, mode);
 }
 
 static void init_drive(int dd, char *path, uint16_t user, uint16_t options)
@@ -2511,8 +2553,8 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
     idx = 0;
   if (idx) {
     idx--;
-    if (!def_drives[idx] ||
-        strncmp(def_drives[idx], path, strlen(def_drives[idx])) != 0) {
+    if (!def_drives[idx].path ||
+        strncmp(def_drives[idx].path, path, strlen(def_drives[idx].path)) != 0) {
       error("redirection of %s (%i) rejected\n", path, idx);
       SETWORD(&state->eax, PATH_NOT_FOUND);
       return FALSE;
@@ -2528,9 +2570,10 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
       SETWORD(&state->eax, ACCESS_DENIED);
       return FALSE;
     }
-    idx += num_def_drives;
+    idx += num_def_drives + 1;
     /* found index, tell it to the user */
     userStack[3] |= idx << REDIR_DEVICE_IDX_SHIFT;
+    DX = userStack[3];  // refresh
   }
   /* find_file() tries to do the case-insensitive search to match
    * the unix path to DOS name */
@@ -3904,7 +3947,8 @@ do_open_existing:
           return (FALSE);
       }
 
-      if (!(f = mfs_open(fpath, unix_access_mode(&st, drive, dos_mode),
+      if (!(f = mfs_open(REDIR_DEVICE_IDX(drives[drive].options), fpath,
+            unix_access_mode(&st, drive, dos_mode),
             share_mode, &doserrno))) {
           Debug0((dbg_fd, "access denied:'%s' (dm=%x %x)\n", fpath,
               dos_mode, doserrno));
@@ -4005,10 +4049,12 @@ do_create_truncate:
           }
         }
         mode = get_unix_attr(attr);
-        if (!(f = mfs_creat(fpath, mode))) {
+        if (!(f = mfs_creat(REDIR_DEVICE_IDX(drives[drive].options), fpath,
+                            mode))) {
           find_dir(fpath, drive);
           Debug0((dbg_fd, "trying '%s'\n", fpath));
-          if (!(f = mfs_creat(fpath, mode))) {
+          if (!(f = mfs_creat(REDIR_DEVICE_IDX(drives[drive].options), fpath,
+                              mode))) {
             Debug0((dbg_fd, "can't open %s: %s (%d)\n", fpath, strerror(errno), errno));
 #if 1
             SETWORD(&state->eax, PATH_NOT_FOUND);

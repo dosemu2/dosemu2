@@ -19,8 +19,8 @@
 struct file_fd;
 
 struct file_fd *do_claim_fd(const char *name);
-struct file_fd *mfs_creat(const char *name, mode_t mode);
-struct file_fd *mfs_open(const char *name, int flags,
+struct file_fd *mfs_creat(int mfs_idx, const char *name, mode_t mode);
+struct file_fd *mfs_open(int mfs_idx, const char *name, int flags,
         int share_mode, int *r_err);
 int mfs_unlink(char *name);
 int mfs_setattr(char *name, int attr);
