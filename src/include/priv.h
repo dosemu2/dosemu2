@@ -20,18 +20,14 @@ extern int using_sudo;
    the kernel */
 extern int current_iopl;
 
-typedef int saved_priv_status;
-
-#define PRIV_MAGIC 0x56697250	/* "PriV" */
-#define PRIV_LOCAL_VAR		OdDnAmE_dont_forget_priv_save_area
-#define PRIV_SAVE_AREA		saved_priv_status PRIV_LOCAL_VAR = PRIV_MAGIC;
-#define enter_priv_on()		real_enter_priv_on(&PRIV_LOCAL_VAR)
-#define leave_priv_setting()	real_leave_priv_setting(&PRIV_LOCAL_VAR)
+#define PRIV_SAVE_AREA
+#define enter_priv_on()		do { real_enter_priv_on()
+#define leave_priv_setting()	real_leave_priv_setting(); } while(0)
 
 void priv_init(void);
 void priv_drop_total(void);
-int real_enter_priv_on(saved_priv_status *);
-int real_leave_priv_setting(saved_priv_status *);
+int real_enter_priv_on(void);
+int real_leave_priv_setting(void);
 int priv_iopl(int pl);     /* do iopl() under forced priv_on */
 uid_t get_orig_uid(void);  /* get the uid that was present at start of dosemu */
 gid_t get_orig_gid(void);  /* get the gid that was present at start of dosemu */

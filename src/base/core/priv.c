@@ -35,35 +35,6 @@ int current_iopl;
 
 #define PRIVS_ARE_ON (euid == cur_euid)
 #define PRIVS_ARE_OFF (uid == cur_euid)
-#define PRIVS_WERE_ON(privs) (pop_priv(privs))
-
-
-static void push_priv(saved_priv_status *privs)
-{
-  if (!privs || *privs != PRIV_MAGIC) {
-    error("Aiiiee... not in-sync saved priv status on push_priv\n");
-    leavedos(99);
-  }
-  *privs = PRIVS_ARE_ON;
-#ifdef PRIV_TESTING
-  c_printf("PRIV: pushing %d privs_ptr=%p\n", *privs, privs);
-#endif
-}
-
-static int pop_priv(saved_priv_status *privs)
-{
-  int ret;
-  if (!privs || *privs == PRIV_MAGIC) {
-    error("Aiiiee... not in-sync saved priv status on pop_priv\n");
-    leavedos(99);
-  }
-#ifdef PRIV_TESTING
-  c_printf("PRIV: popping %d privs_ptr=%p\n", *privs, privs);
-#endif
-  ret = (int)*privs;
-  *privs = PRIV_MAGIC;
-  return ret;
-}
 
 static int _priv_on(void)
 {
@@ -115,17 +86,17 @@ static int _priv_off(void)
   return 1;
 }
 
-int real_enter_priv_on(saved_priv_status *privs)
+int real_enter_priv_on(void)
 {
   if (skip_priv_setting) return 1;
-  push_priv(privs);
+  assert(PRIVS_ARE_OFF);
   return _priv_on();
 }
 
-int real_leave_priv_setting(saved_priv_status *privs)
+int real_leave_priv_setting(void)
 {
   if (skip_priv_setting) return 1;
-  if (PRIVS_WERE_ON(privs)) return _priv_on();
+  assert(PRIVS_ARE_ON);
   return _priv_off();
 }
 
