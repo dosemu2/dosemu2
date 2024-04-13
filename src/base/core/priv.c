@@ -157,29 +157,9 @@ int priv_iopl(int pl)
 #endif
 }
 
-uid_t get_cur_uid(void)
-{
-  return cur_uid;
-}
-
-uid_t get_cur_euid(void)
-{
-  return cur_euid;
-}
-
-gid_t get_cur_egid(void)
-{
-  return cur_egid;
-}
-
 uid_t get_orig_uid(void)
 {
   return uid;
-}
-
-uid_t get_orig_euid(void)
-{
-  return euid;
 }
 
 gid_t get_orig_gid(void)

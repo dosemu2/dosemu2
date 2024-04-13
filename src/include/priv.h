@@ -35,11 +35,7 @@ int real_enter_priv_on(saved_priv_status *);
 int real_enter_priv_off(saved_priv_status *);
 int real_leave_priv_setting(saved_priv_status *);
 int priv_iopl(int pl);     /* do iopl() under forced priv_on */
-uid_t get_cur_uid(void);   /* get the current active uid */
-uid_t get_cur_euid(void);  /* get the current active euid */
-gid_t get_cur_egid(void);  /* get the current active egid */
 uid_t get_orig_uid(void);  /* get the uid that was present at start of dosemu */
-uid_t get_orig_euid(void); /* get the euid that was present at start of dosemu */
 gid_t get_orig_gid(void);  /* get the gid that was present at start of dosemu */
 int priv_drop(void);
 

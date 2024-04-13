@@ -1013,8 +1013,8 @@ static void config_post_process(void)
     else {
       c_printf("CONF: mostly running as USER:");
     }
-    c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
-        geteuid(), get_cur_euid(), getegid(), get_cur_egid());
+    c_printf(" uid=%d euid=%d gid=%d egid=%d\n",
+        getuid(), geteuid(), getgid(), getegid());
     c_printf("CONF: priv operations %s\n",
             can_do_root_stuff ? "available" : "unavailable");
 
