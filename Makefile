@@ -57,9 +57,8 @@ $(PACKETNAME).tar.gz: $(GIT_REV) changelog
 
 dist: $(PACKETNAME).tar.gz
 
-rpm: dosemu2.spec.rpkg
-	git clean -fd
-	rpkg local
+rpm: dosemu2.spec
+	tito build --test --rpm
 
 deb:
 	debuild -e CC=clang -i -us -uc -b
