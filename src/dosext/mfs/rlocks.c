@@ -134,6 +134,7 @@ int region_is_fully_owned(int fd, long long start, unsigned long len, int wr,
     fl.l_type = wr ? F_RDLCK : F_WRLCK;
     fl.l_start = start;
     fl.l_len = len;
+    assert(mlemu_fd2 != -1);
     lock_get(mlemu_fd2, &fl);
   } else
 #endif
@@ -187,6 +188,8 @@ void open_mlemu(int *r_fds)
 {
   char mltmpl[] = "/tmp/dosemu2_mlemu_XXXXXX";
   int fd0, fd1;
+  struct flock fl;
+  int err;
 
   r_fds[0] = r_fds[1] = -1;
   /* create 2 fds, 1 for mirroring locks and 1 for testing locks */
@@ -202,8 +205,21 @@ void open_mlemu(int *r_fds)
     close(fd0);
     return;
   }
-  r_fds[0] = fd0;
-  r_fds[1] = fd1;
+
+  /* check for the linux-6.6 locking extension */
+  fl.l_type = F_UNLCK;
+  fl.l_start = 0;
+  fl.l_len = 1;
+  err = do_lock_get(fd1, &fl);
+  if (err && errno == EINVAL) {  // F_UNLCK extension unsupported, use mlemu
+    r_fds[0] = fd0;
+    r_fds[1] = fd1;
+  } else {
+    if (err)
+      error("F_OFD_GETLK returned %s\n", strerror(errno));
+    close(fd0);
+    close(fd1);
+  }
 }
 
 void close_mlemu(int *fds)
