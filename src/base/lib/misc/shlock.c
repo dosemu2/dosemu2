@@ -139,8 +139,15 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
      * created empty, because we rename to it from non-empty one. */
     rc = rename(dtspec, fspec);
     if (rc == -1) {
-      if (errno == ENOENT)
+      int errn = errno;
+      if (errn == ENOENT)
         continue;  // race, someone removed parent dir
+      if (errn != EEXIST && errn != ENOTEMPTY) {
+        perror("rename()");
+        unlink(ttspec);
+        rmdir(dtspec);
+        goto err_rmddir;
+      }
       /* couldn't rename the whole dir (fspec exists and not empty),
        * so try to move tmp file alone */
       rc = rename(ttspec, tspec);
