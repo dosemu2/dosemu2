@@ -274,7 +274,7 @@ static u_char redirected_drives = 0;
 static struct drive_info drives[MAX_DRIVES];
 
 struct defdrv {
-    const char *path;
+    char *path;
     int dir_fd;
 };
 
@@ -886,7 +886,7 @@ init_all_drives(void)
     init_one_drive(dd);
 }
 
-void mfs_done(void)
+static void mfs_close_all(void)
 {
   int i;
 
@@ -897,10 +897,22 @@ void mfs_done(void)
   }
 }
 
+void mfs_done(void)
+{
+  int i;
+
+  mfs_close_all();
+
+  for (i = 0; i < num_def_drives; i++) {
+    close(def_drives[i].dir_fd);
+    free(def_drives[i].path);
+  }
+}
+
 void mfs_reset(void)
 {
   lfn_reset();
-  mfs_done();
+  mfs_close_all();
 
   emufs_loaded = FALSE;
   mfs_enabled = FALSE;

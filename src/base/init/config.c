@@ -86,7 +86,6 @@ char *fddir_default;
 char *comcom_dir;
 char *fddir_boot;
 char *xbat_dir;
-static char *dosemu_uid;
 struct config_info config;
 
 #define STRING_STORE_SIZE 10
@@ -359,12 +358,6 @@ static void our_envs_init(void)
     sprintf(buf, "%d", DOSEMU_VERSION_CODE);
     setenv("DOSEMU_VERSION_CODE", buf, 1);
     setenv("DOSEMU_VERSION", VERSTR, 1);
-    sprintf(buf, "%d", geteuid());
-    setenv("DOSEMU_EUID", buf, 1);
-    sprintf(buf, "%d", getuid());
-    setenv("DOSEMU_UID", buf, 1);
-    sprintf(buf, "%d", get_orig_uid());
-    dosemu_uid = strdup(buf);
 }
 
 static int check_comcom(const char *dir)
@@ -570,6 +563,7 @@ static void move_dosemu_lib_dir(void)
 {
   char *old_cmd_path;
   char *rp;
+  char buf[256];
 
   if (!dosemu_plugin_dir_path)
     dosemu_plugin_dir_path = prefix(DOSEMUPLUGINDIR);
@@ -595,7 +589,8 @@ static void move_dosemu_lib_dir(void)
     free(keymap_load_base_path);
   keymap_load_base_path = assemble_path(dosemu_lib_dir_path, "");
 
-  rp = assemble_path(RUNDIR_PREFIX, dosemu_uid);
+  sprintf(buf, "%d", get_orig_uid());
+  rp = assemble_path(RUNDIR_PREFIX, buf);
   dosemu_rundir_path = mkdir_under(rp, "dosemu2");
   free(rp);
   if (dosemu_rundir_path) {
@@ -1013,8 +1008,8 @@ static void config_post_process(void)
     else {
       c_printf("CONF: mostly running as USER:");
     }
-    c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
-        geteuid(), get_cur_euid(), getegid(), get_cur_egid());
+    c_printf(" uid=%d euid=%d gid=%d egid=%d\n",
+        getuid(), geteuid(), getgid(), getegid());
     c_printf("CONF: priv operations %s\n",
             can_do_root_stuff ? "available" : "unavailable");
 
