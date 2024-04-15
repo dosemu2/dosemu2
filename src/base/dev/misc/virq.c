@@ -71,11 +71,16 @@ static void virq_hwc_write(ioport_t port, Bit8u value, void *arg)
     switch (port) {
     case VIRQ_RST_PORT:
         switch (value) {
-        case 1:
+        case 1: {
+            uint16_t irr;
             /* re-assert irqs */
-            if (virq_irr)
+            pthread_mutex_lock(&irr_mtx);
+            irr = virq_irr;
+            pthread_mutex_unlock(&irr_mtx);
+            if (irr)
                 pic_request(VIRQ_IRQ_NUM);
             break;
+        }
         }
         break;
 
