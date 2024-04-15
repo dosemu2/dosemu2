@@ -145,11 +145,11 @@ void cmos_init(void)
   SET_CMOS(CMOS_BASEMEML, config.mem_size & 0xff);      /* base mem LSB */
   SET_CMOS(CMOS_BASEMEMM, config.mem_size >> 8);        /* base mem MSB */
 
-  SET_CMOS(CMOS_EXTMEML, EXTMEM_SIZE & 0xff);
-  SET_CMOS(CMOS_EXTMEMM, EXTMEM_SIZE >> 8);
+  SET_CMOS(CMOS_EXTMEML, (EXTMEM_SIZE >> 10) & 0xff);
+  SET_CMOS(CMOS_EXTMEMM, (EXTMEM_SIZE >> (10 + 8)));
 
-  SET_CMOS(CMOS_PEXTMEML, PEXTMEM_SIZE & 0xff);
-  SET_CMOS(CMOS_PEXTMEMM, PEXTMEM_SIZE >> 8);
+  SET_CMOS(CMOS_PEXTMEML, (PEXTMEM_SIZE >> 10) & 0xff);
+  SET_CMOS(CMOS_PEXTMEMM, (PEXTMEM_SIZE >> (10 + 8)));
 
   /* say protected mode test 7 passed (?) */
   SET_CMOS(CMOS_SHUTDOWN, 6);
