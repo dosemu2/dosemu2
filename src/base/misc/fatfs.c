@@ -1813,6 +1813,7 @@ void mimic_boot_blk(void)
 	size = loadtop - (seg << 4);		/* limit loaded size to max */
       }
       if (size < 0x600) {
+	close(fd);
 	error("too small DOS system file %s\n", f->obj[1].full_name);
 	leavedos(99);
       }
@@ -1856,6 +1857,7 @@ void mimic_boot_blk(void)
         /* load boot sector to stack */
         read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _SP)));
       } else {
+        close(fd);
         error("%s boot failed\n", system_type(f->sys_type));
         leavedos(99);
         return;
