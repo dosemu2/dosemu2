@@ -725,8 +725,8 @@ again:
 
   if (ASPI_POSTING(prb) && prb->SRB_PostProc)
     A_printf("ASPI: Post Routine calling NOT implemented\n"); /* FIXME */
-  if (sg_reply_hdr) free(sg_reply_hdr);
-  if (sg_hd) free(sg_hd);
+  free(sg_reply_hdr);
+  free(sg_hd);
   ASPI_DebugPrintResult16(prb);
   return SS_COMP;
 
