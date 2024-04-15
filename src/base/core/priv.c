@@ -45,6 +45,7 @@ static uid_t uid,euid;
 static gid_t gid,egid;
 static uid_t cur_euid;
 static gid_t cur_egid;
+static int suid, sgid;
 
 static int skip_priv_setting = 0;
 
@@ -131,9 +132,9 @@ gid_t get_orig_gid(void)
 
 int priv_drop(void)
 {
-  assert(PRIVS_ARE_OFF);
   if (skip_priv_setting)
     return 1;
+  assert(PRIVS_ARE_OFF);
   /* We set the same values as they are now.
    * The trick is that if the first arg != -1 then saved-euid is reset.
    * This allows to avoid the use of non-standard setresuid(). */
@@ -152,8 +153,33 @@ int priv_drop(void)
   return 1;
 }
 
+void priv_drop_total(void)
+{
+  if (suid) {
+    seteuid(euid);
+    if (setreuid(euid, euid) != 0)
+      error("Cannot drop suid: %s\n", strerror(errno));
+    /* make sure privs were dropped */
+    if (seteuid(uid) == 0) {
+      error("suid: privs were not dropped\n");
+      leavedos(3);
+    }
+  }
+  if (sgid) {
+    setegid(egid);
+    if (setregid(egid, egid) != 0)
+      error("Cannot drop sgid: %s\n", strerror(errno));
+    /* make sure privs were dropped */
+    if (setegid(gid) == 0) {
+      error("sgid: privs were not dropped\n");
+      leavedos(3);
+    }
+  }
+}
+
 void priv_init(void)
 {
+  int err;
   const char *sh = getenv("SUDO_HOME"); // theoretical future var
   const char *h = getenv("HOME");
   uid = getuid();
@@ -170,6 +196,20 @@ void priv_init(void)
   dosemu_proc_self_exe = readlink_malloc("/proc/self/exe");
   /* For Fedora we must also save a file descriptor to /proc/self/maps */
   dosemu_proc_self_maps_fd = open("/proc/self/maps", O_RDONLY | O_CLOEXEC);
+
+  if (euid && uid && euid != uid) {
+    dbug_printf("suid %i detected\n", euid);
+    suid++;
+    err = seteuid(uid);
+    assert(!err);
+  }
+  if (egid && gid && egid != gid) {
+    dbug_printf("sgid %i detected\n", egid);
+    sgid++;
+    err = setegid(gid);
+    assert(!err);
+  }
+
   if (!sh)
     sh = getenv("DOSEMU_SUDO_HOME");
   /* see if -E was used */
