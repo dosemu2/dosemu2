@@ -1658,6 +1658,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 					CODE_FLUSH();
 					goto illegal_op;
 				}
+				break;
 			case Ofs_AH:	/*4*/	// SHL,SAL
 				Gen(O_SHL, m, count);
 				break;
