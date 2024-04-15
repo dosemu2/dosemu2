@@ -64,6 +64,7 @@ Recommends: ncurses-base
 Recommends: gdb
 Recommends: kbd
 Recommends: sudo
+Recommends: util-linux
 Suggests:   valgrind
 Recommends: install-freedos
 Suggests:   install-otherdos
