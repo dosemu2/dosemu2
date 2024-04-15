@@ -944,6 +944,14 @@ int coopth_get_tid(void)
     return *thdata->tid;
 }
 
+static int coopth_get_tid_nofail(void)
+{
+    struct coopth_thrdata_t *thdata;
+    assert(_coopth_is_in_thread());
+    thdata = co_get_data(co_current(co_handle));
+    return *thdata->tid;
+}
+
 int coopth_add_post_handler(coopth_func_t func, void *arg)
 {
     struct coopth_thrdata_t *thdata;
@@ -1086,7 +1094,7 @@ static struct coopth_t *on_thread(unsigned id)
 
 static int current_active(void)
 {
-    int tid = coopth_get_tid();
+    int tid = coopth_get_tid_nofail();
     struct coopth_t *thr = &coopthreads[tid];
     assert(thr->cur_thr > 0);
     return thr->ops->is_active(CIDX2(tid, thr->cur_thr - 1));
@@ -1137,7 +1145,7 @@ int coopth_wait(void)
 
 int coopth_sleep(void)
 {
-    int tid = coopth_get_tid();
+    int tid = coopth_get_tid_nofail();
 
     assert(_coopth_is_in_thread());
     if (!is_detached())
