@@ -596,13 +596,17 @@ static struct bitmap_desc lock_surface(void)
 
 static void unlock_surface(void)
 {
+  int num;
   int is_surf = !!surface;
   if (surface)
     SDL_UnlockSurface(surface);
   if (!is_surf)
     return;
 
-  if (!tmp_rects_num) {
+  pthread_mutex_lock(&rects_mtx);
+  num = tmp_rects_num;
+  pthread_mutex_unlock(&rects_mtx);
+  if (!num) {
 #if 1
     v_printf("ERROR: update with zero rects count\n");
 #else
