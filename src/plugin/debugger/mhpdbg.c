@@ -104,6 +104,7 @@ static  char *pipename_in, *pipename_out;
 
 void mhp_close(void)
 {
+   int err;
    if (mhpdbg.fdin == -1) return;
    if (mhpdbg.active) {
      mhp_putc(1); /* tell debugger terminal to also quit */
@@ -111,11 +112,15 @@ void mhp_close(void)
    }
    remove_from_io_select(mhpdbg.fdin);
    if (pipename_in) {
-     unlink(pipename_in);
+     err = unlink(pipename_in);
+     if (err)
+       perror("unlink()");
      free(pipename_in);
    }
    if (pipename_out) {
-     unlink(pipename_out);
+     err = unlink(pipename_out);
+     if (err)
+       perror("unlink()");
      free(pipename_out);
    }
    mhpdbg.fdin = mhpdbg.fdout = -1;
