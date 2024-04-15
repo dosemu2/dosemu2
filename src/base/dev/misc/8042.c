@@ -395,7 +395,7 @@ void keyb_io_write(ioport_t port, Bit8u value, void *arg)
 
 void keyb_8042_init(void)
 {
-  emu_iodev_t  io_device;
+  emu_iodev_t  io_device = {};
 
   /* 8042 keyboard controller */
   io_device.read_portb   = keyb_io_read;

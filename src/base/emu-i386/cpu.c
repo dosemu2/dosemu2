@@ -324,7 +324,7 @@ void raise_fpu_irq(void)
  */
 void cpu_setup(void)
 {
-  emu_iodev_t io_dev;
+  emu_iodev_t io_dev = {};
   int orig_vm, orig_vm_dpmi;
 
   io_dev.read_portb = fpu_io_read;

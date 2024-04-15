@@ -1579,7 +1579,7 @@ void vgaemu_reset_mapping(void)
 
 static void vgaemu_register_ports(void)
 {
-  emu_iodev_t io_device;
+  emu_iodev_t io_device = {};
 
   /* register VGA ports */
   io_device.read_portb = VGA_emulate_inb_handler;

@@ -86,7 +86,7 @@ void cmos_write(ioport_t port, Bit8u byte, void *arg)
 
 void cmos_init(void)
 {
-  emu_iodev_t  io_device;
+  emu_iodev_t  io_device = {};
   int i;
 
   /* CMOS RAM & RTC */

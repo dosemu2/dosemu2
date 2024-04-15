@@ -179,7 +179,7 @@ static void set_int_out(void *opaque, int n, int level)
 void pic_init(void)
 {
     /* do any one-time initialization of the PIC */
-    emu_iodev_t  io_device;
+    emu_iodev_t  io_device = {};
 
     /* 8259 PIC (Programmable Interrupt Controller) */
     io_device.read_portb   = read_pic0;

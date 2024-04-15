@@ -523,7 +523,7 @@ static void pcivga_init(void)
       continue;
     size = pcirec->region[i].size;
     if (pcirec->region[i].type == PCI_BASE_ADDRESS_SPACE_IO) {
-      emu_iodev_t io_device;
+      emu_iodev_t io_device = {};
       v_printf("PCIVGA: found IO region at %#lx [%#lx]\n", base, size);
 
       /* register PCI VGA ports */
@@ -540,7 +540,7 @@ static void pcivga_init(void)
 
 static int vga_ioperm(unsigned base, int len)
 {
-  emu_iodev_t io_device;
+  emu_iodev_t io_device = {};
   int err;
   err = set_ioperm(base, len, 1);
   if (err)

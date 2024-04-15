@@ -261,7 +261,7 @@ void
 printer_init(void)
 {
   int i;
-  emu_iodev_t io_device;
+  emu_iodev_t io_device = {};
 
   io_device.read_portb   = printer_io_read;
   io_device.write_portb  = printer_io_write;

@@ -587,7 +587,7 @@ pciRec *pciemu_setup(unsigned long cls)
   }
   pci->enabled = pci->ext_enabled = 1;
   if (!pciemu_initialized) {
-    emu_iodev_t io_device;
+    emu_iodev_t io_device = {};
 
     /* register PCI ports */
     io_device.read_portb = pciemu_port_inb;

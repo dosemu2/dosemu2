@@ -122,7 +122,7 @@ static void opl3_update(void)
 
 void opl3_init(void)
 {
-    emu_iodev_t io_device;
+    emu_iodev_t io_device = {};
 
     S_printf("SB: OPL3 Initialization\n");
 

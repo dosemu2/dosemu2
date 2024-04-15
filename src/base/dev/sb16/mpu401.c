@@ -157,7 +157,7 @@ static void mpu401_io_write(ioport_t port, Bit8u value, void *arg)
 
 struct mpu401_s *mpu401_init(ioport_t base, struct mpu401_ops *ops)
 {
-    emu_iodev_t io_device;
+    emu_iodev_t io_device = {};
     struct mpu401_s *mpu;
 
     S_printf("MPU401: MPU-401 Initialisation\n");

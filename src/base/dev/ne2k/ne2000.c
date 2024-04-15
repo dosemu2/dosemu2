@@ -192,7 +192,7 @@ static void init_cbk(int fd, int mode)
 void ne2000_init(void)
 {
     NE2000State *s = &ne2000state;
-    emu_iodev_t io_device;
+    emu_iodev_t io_device = {};
 
     s->fdnet = -1;
 

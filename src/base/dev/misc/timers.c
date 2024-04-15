@@ -597,7 +597,7 @@ void spkr_io_write(ioport_t port, Bit8u value) {
 
 void pit_init(void)
 {
-  emu_iodev_t  io_device;
+  emu_iodev_t  io_device = {};
 
   /* 8254 PIT (Programmable Interval Timer) */
   io_device.read_portb   = pit_inp;

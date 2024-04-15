@@ -114,7 +114,7 @@ static void dmx_writeb(ioport_t port, Bit8u value, void *arg)
 
 static int init_dmxs(void)
 {
-  emu_iodev_t io_device;
+  emu_iodev_t io_device = {};
   int i;
 
   for (i = 0; i < num_dmxs; i++) {
@@ -211,7 +211,7 @@ static void com_writeb(ioport_t port, Bit8u value, void *arg)
  */
 static void do_ser_init(int num)
 {
-  emu_iodev_t io_device;
+  emu_iodev_t io_device = {};
 
   /* The following section sets up default com port, interrupt, base
   ** port address, and device path if they are undefined. The defaults are:

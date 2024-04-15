@@ -466,7 +466,7 @@ void dma_reset(void)
 
 void dma_init(void)
 {
-    emu_iodev_t io_device;
+    emu_iodev_t io_device = {};
 
     /* 8237 DMA controller */
     io_device.read_portb = dma_io_read;

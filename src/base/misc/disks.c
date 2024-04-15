@@ -1196,7 +1196,7 @@ disk_init(void)
   disks_initiated = 1;  /* disk_init has been called */
 
   if (FDISKS) {
-    emu_iodev_t  io_device;
+    emu_iodev_t  io_device = {};
 
     io_device.read_portb   = floppy_io_read;
     io_device.write_portb  = floppy_io_write;

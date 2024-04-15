@@ -1154,7 +1154,7 @@ int port_register_handler(emu_iodev_t device, int flags)
 Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	Bit8u andmask, int portspeed)
 {
-	static emu_iodev_t io_device;
+	static emu_iodev_t io_device = {};
 	int usemasks = 0;
 	unsigned int flags = 0;
 

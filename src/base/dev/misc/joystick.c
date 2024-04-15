@@ -268,7 +268,7 @@ static void joy_driver_set (JOY_DRIVER *driver)
 
 void joy_init (void)
 {
-	emu_iodev_t io_device;
+	emu_iodev_t io_device = {};
 	int joynum;
 
 #ifdef JOY_INIT_DEBUG

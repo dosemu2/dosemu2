@@ -1867,7 +1867,7 @@ static struct mpu401_ops mops = {
  */
 static void sb_init(void)
 {
-    emu_iodev_t io_device;
+    emu_iodev_t io_device = {};
 
     S_printf("SB: SB Initialisation\n");
 
