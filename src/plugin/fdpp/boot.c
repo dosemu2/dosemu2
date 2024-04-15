@@ -179,7 +179,7 @@ int fdpp_boot(far_t *plt, int plt_len, const void *krnl, int len,
     env[env_len++] = '\0'; // third terminator is a word, not byte
 
     memcpy(boot_sec + 0x03, "FDPP 1.6", 8);
-    memcpy(boot_sec + FDPP_PLT_OFFSET, plt, sizeof(plt) * plt_len);
+    memcpy(boot_sec + FDPP_PLT_OFFSET, plt, sizeof(*plt) * plt_len);
     *(uint16_t *)(boot_sec + FDPP_BPRM_VER_OFFSET) = BPRM_VER;
     memcpy(boot_sec + FDPP_BPRM_OFFSET, &bprm, sizeof(bprm));
 
