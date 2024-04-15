@@ -107,6 +107,8 @@ static void *evthread(void *arg)
         int rc = poll(&pf, 1, -1);
         switch (rc) {
         case -1:
+            if (errno == EINTR)
+                continue;
             perror("poll()");
             /* no break */
         case 0:
