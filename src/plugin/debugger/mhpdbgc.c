@@ -439,6 +439,7 @@ int mhp_usermap_load_gnuld(const char *fname, uint16_t origin)
     p = strstr(bytebuf, "load address");
     if (p) {
       if (!sscanf(p + 13, "%x", &load_address)) {
+        fclose(fp);
         return 0;
       }
       continue;
