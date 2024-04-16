@@ -112,6 +112,12 @@ while [ $# -gt 0 ] ; do
       # sudo doesn't set SUDO_HOME but maybe it will - use another var
       export DOSEMU_SUDO_HOME="$HOME"
       ;;
+    -no-priv-sep)
+      shift
+      SUDO=setpriv
+      # no-new-privs is needed to bypass suid/sgid bits
+      SUDOOPTS="--no-new-privs"
+      ;;
     -t | -t[a-z] | -t[a-z][a-z] | -t[a-z][a-z][a-z])
       exec 4>&2 2>~/.dosemu/stderr.log.$BASHPID
       SUFFIX="$SUFFIX \"$1\""
