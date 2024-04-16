@@ -59,6 +59,7 @@ void system_com_reset(void)
 {
     e_drv = 0;
     vars_parsed = 0;
+    drive = 0xff;
 }
 
 int system_main(int argc, char **argv)
@@ -133,7 +134,7 @@ static int setupDOSCommand(const char *dos_path, char *r_drv)
 {
   char drvStr[2];
 
-  if (drive < 0) {
+  if (drive == 0xff) {
     com_fprintf(com_stderr, "ERROR: Cannot find a drive\n");
     return (1);
   }
