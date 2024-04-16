@@ -671,7 +671,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     return ptr;
 
 err4:
-    munmap(addr2, size);
+    restore_mapping(MAPPING_DPMI, DOSADDR_REL(addr2), size);
 err3:
     smfree(&mem_pool, addr);
 err2:
@@ -755,7 +755,7 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
     return ptr;
 
 err4:
-    munmap(addr2, size);
+    restore_mapping(MAPPING_DPMI, DOSADDR_REL(addr2), size);
 err3:
     smfree(&mem_pool, addr);
 err2:
