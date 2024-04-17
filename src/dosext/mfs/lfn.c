@@ -337,7 +337,7 @@ static int truename(char *dest, const char *src, int allowwildcards,
 
   froot = get_root(src);
   if (is_dos_device(froot)) {
-    if (froot == src || froot == src + 5) {
+    if (froot == src || froot == src + 1 || froot == src + 5) {
       if (froot == src + 5) {
         int j;
         memcpy(dest + 3, src, 5);
@@ -348,7 +348,7 @@ static int truename(char *dest, const char *src, int allowwildcards,
         if (dest[7] == '/')
           dest[7] = '\\';
       }
-      if (froot == src || memcmp(dest + 3, "\\DEV\\", 5) == 0) {
+      if (froot == src || froot == src + 1 || memcmp(dest + 3, "\\DEV\\", 5) == 0) {
         /* \dev\nul -> c:/nul */
         dest[2] = '/';
         src = froot;
@@ -1086,7 +1086,7 @@ static int mfs_lfn_(void)
 		if (drive < 0)
 			return drive + 2;
 
-		if (_CL == 1 || _CL == 2) {
+		if ((_CL == 1 || _CL == 2) && !is_dos_device(filename)) {
 			build_ufs_path(fpath, filename, drive);
 			if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), &doserrno))
 				return lfn_error(doserrno);
