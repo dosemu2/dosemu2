@@ -600,7 +600,7 @@ static int lfn_sfn_match(const char *pattern, struct mfs_dirent *de, char *lfn, 
 }
 
 static int make_finddata(const char *fpath, uint8_t attrs,
-		struct stat *st, char *name_lfn, char *name_8_3,
+		struct stat *st, const char *name_lfn, char *name_8_3,
 		dosaddr_t dest);
 
 static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
@@ -650,7 +650,7 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 }
 
 static int make_finddata(const char *fpath, uint8_t attrs,
-		struct stat *st, char *name_lfn, char *name_8_3,
+		struct stat *st, const char *name_lfn, char *name_8_3,
 		dosaddr_t dest)
 {
 	MEMSET_DOS(dest, 0, 0x20);
@@ -1002,11 +1002,21 @@ static int mfs_lfn_(void)
 			return 1;
 		}
 
-		/* XXX check for device (special dir entry) */
-		if (!find_file(dir->dirbase, &st, get_redirection_root1(drive, NULL, 0), NULL) || is_dos_device(fpath)) {
+		if (!find_file(dir->dirbase, &st, get_redirection_root1(drive, NULL, 0), NULL)) {
 			d_printf("LFN: Get failed: '%s'\n", fpath);
 			free(dir);
 			return lfn_error(NO_MORE_FILES);
+		}
+		if (is_dos_device(slash)) {
+			dest = SEGOFF2LINEAR(_ES, _DI);
+			strupperDOS(slash);
+			make_finddata(fpath, 0x40, &st, slash, slash, dest);
+			d_printf("LFN: get device: %s\n", slash);
+			lfndirs[dirhandle] = dir;
+			dir->dir = NULL;
+			_AX = dirhandle;
+			_CX = 0;
+			return 1;
 		}
 		dir->dir = dos_opendir(dir->dirbase);
 		if (dir->dir == NULL) {
