@@ -57,9 +57,10 @@
 #define MAX_BUFFER_DELAY (READ_AREA_START + READ_AREA_SIZE)
 #define MIN_GUARD_SIZE 1024
 #define MIN_READ_GUARD_PERIOD (1000000 * MIN_GUARD_SIZE / (2 * 44100))
-#define WR_BUFFER_LW (BUFFER_DELAY / 2)
+#define WR_BUFFER_LW (WRITE_AREA_SIZE / 3)
 #define MIN_READ_DELAY (MIN_BUFFER_DELAY + MIN_READ_GUARD_PERIOD)
 #define WRITE_INIT_POS (WRITE_AREA_SIZE / 2)
+#define WRITE_STALLED_POS (WRITE_INIT_POS + WR_BUFFER_LW)
 
 /*    Layout of our buffer is as follows:
  *
@@ -776,9 +777,9 @@ user_tstamp:
 	return now - WRITE_INIT_POS;
 
     case SNDBUF_STATE_STALLED:
-	pcm.stream[strm_idx].stretch_per = now - WRITE_AREA_SIZE -
+	pcm.stream[strm_idx].stretch_per = now - WRITE_STALLED_POS -
 		pcm.stream[strm_idx].stop_time;
-	return now - WRITE_AREA_SIZE;
+	return now - WRITE_STALLED_POS;
 
     case SNDBUF_STATE_FLUSHING:
 	if (pcm.stream[strm_idx].stretch)
