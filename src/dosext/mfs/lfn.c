@@ -713,8 +713,7 @@ static int wildcard_delete(char *fpath, int drive)
 	*slash = '\0';
 	if (slash == fpath)
 		strcpy(fpath, "/");
-	/* XXX check for device (special dir entry) */
-	if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL) || is_dos_device(fpath)) {
+	if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL) || is_dos_device(slash + 1)) {
 		d_printf("LFN: Get failed: '%s'\n", fpath);
 		return lfn_error(PATH_NOT_FOUND);
 	}
