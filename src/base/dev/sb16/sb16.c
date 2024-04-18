@@ -1073,7 +1073,7 @@ static void sb_dsp_write(Bit8u value)
 		negmsk <<= (i & 1) + 1;
 		negmsk |= negmsk >> 4;
 		negmsk &= 0x0f;
-		if (test_bit(i, &sb.command[1]))
+		if ((1 << i) & sb.command[1])
 		    incval +=
 			((1 << sb.E2Count) & negmsk) ? -inctmp : inctmp;
 		inctmp <<= 1;
