@@ -1816,6 +1816,7 @@ void mimic_boot_blk(void)
 	close(fd);
 	error("too small DOS system file %s\n", f->obj[1].full_name);
 	leavedos(99);
+	return;
       }
 
       string_pointer = (char *)
