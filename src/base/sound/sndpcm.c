@@ -292,6 +292,7 @@ int pcm_allocate_stream(int channels, const char *name, void *vol_arg)
     int index;
     if (pcm.num_streams >= MAX_STREAMS) {
 	error("PCM: stream pool exhausted, max=%i\n", MAX_STREAMS);
+	abort();
 	return -1;
     }
     index = pcm.num_streams;
