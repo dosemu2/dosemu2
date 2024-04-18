@@ -2473,7 +2473,7 @@ static void AddrGen_x86(int op, int mode, ...)
 		CurrIMeta=0; InstrMeta[0].ngen=0; InstrMeta[0].flags=0;
 	}
 	I = &InstrMeta[CurrIMeta];
-	if (I->ngen >= NUMGENS) leavedos_main(0xbac1);
+	if (I->ngen >= NUMGENS) { leavedos_main(0xbac1); return; }
 	IG = &(I->gen[I->ngen]);
 	if (debug_level('e')>6) dbug_printf("AGEN: %3d %6x\n",op,mode);
 
