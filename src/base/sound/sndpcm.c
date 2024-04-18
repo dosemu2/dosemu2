@@ -339,7 +339,7 @@ int pcm_format_size(int format)
 	return 2;
     default:
 	error("PCM: format %i is not supported\n", format);
-	return 0;
+	return 1;
     }
 }
 
