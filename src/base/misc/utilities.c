@@ -563,7 +563,10 @@ char *get_path_in_HOME(const char *path)
 
 char *get_dosemu_local_home(void)
 {
-	return mkdir_under(get_path_in_HOME(".dosemu"), 0);
+	char *ph = get_path_in_HOME(".dosemu");
+	char *ret = mkdir_under(ph, 0);
+	free(ph);
+	return ret;
 }
 
 char *prefix(const char *suffix)
