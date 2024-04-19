@@ -308,7 +308,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		    return j_t;
 		}
 #endif
-		if (dsp < 0) mode |= CKSIGN;
+		if (dsp <= 0) mode |= CKSIGN;
 		if (CONFIG_CPUSIM)
 		    Gen(JMP_LINK, mode, opc, j_t, d_nt);
 #ifdef HOST_ARCH_X86
