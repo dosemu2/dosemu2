@@ -3279,7 +3279,9 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode)
 	G->cs = LONG_CS;
 	G->mode = mode;
 	/* check links INSIDE current node */
-	NodeLinker(G, G);
+	if (0 == (EFLAGS & EFLAGS_TF) ) {
+		NodeLinker(G, G);
+	}
 	return Exec_x86(G);
 }
 
@@ -3480,6 +3482,12 @@ unsigned int Exec_x86(TNode *G)
 	 * of the preceding node matches the start source address of the
 	 * following (i.e. no interpreted instructions in between).
 	 */
+	if (EFLAGS & EFLAGS_TF) {
+		if (0 == (CEmuStat & CeS_INHI) ) {
+			CEmuStat |= CeS_TRAP;
+		}
+		return ePC;
+	}
 	if (G && G->alive>0) {
 		/* check links FROM LastXNode TO current node */
 		if (LastXNode && LastXNode->alive > 0)
@@ -3504,7 +3512,9 @@ unsigned int Exec_x86_fast(TNode *G)
 
 	do {
 		ePC = Exec_x86_asm(&mem_ref, &flg, ecpu, G->addr);
-		if (G->alive > 0) {
+		if (EFLAGS & EFLAGS_TF) {
+			CEmuStat |= CeS_TRAP;
+		} else if (G->alive > 0) {
 			if (LastXNode->clink.unlinked_jmp_targets &&
 			    (LastXNode->clink.t_target == G->key ||
 			     LastXNode->clink.nt_target == G->key))
@@ -3513,9 +3523,9 @@ unsigned int Exec_x86_fast(TNode *G)
 		}
 		if (TheCPU.sigalrm_pending) {
 			CEmuStat|=CeS_SIGPEND;
-			break;
 		}
-	} while (!TheCPU.err && (G=FindTree(ePC)) &&
+	} while (0 == (CEmuStat & (CeS_TRAP | CeS_SIGPEND)) &&
+		 !TheCPU.err && (G=FindTree(ePC)) &&
 		 GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)));
 
 	Exec_x86_post(flg, mem_ref);
