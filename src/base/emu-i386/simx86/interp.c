@@ -296,7 +296,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	}
 	/* no break */
 	case JMPsid: case JMPd:   /* uncond jmp */
-		if (dsp==0) {	// eb fe
+		if (dsp == 0 && !(EFLAGS & (VIF|IF|TF))) {	// eb fe
 		    dbug_printf("!Forever loop!\n");
 		    leavedos_main(0xebfe);
 		}
