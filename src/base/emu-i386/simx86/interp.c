@@ -432,7 +432,7 @@ static unsigned int FindExecCode(unsigned int PC)
 		TotalNodesExecd++;
 #elif !defined(ASM_DUMP)
 		/* try fast inner loop if nothing special is going on */
-		if (!(CEmuStat & (CeS_INHI|CeS_MOVSS)) &&
+		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI|CeS_MOVSS)) &&
 		    !debug_level('e') &&
 		    GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)))
 			PC = Exec_x86_fast(G);
