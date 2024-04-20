@@ -50,7 +50,7 @@ fi
 # make distclean
 
 if grep -q fdpp-build-path default-configure ; then
-  CC=clang ./default-configure -d fdpp-build-path=${FDPP_LIBRARY_SOURCE}/fdpp \
+  ./default-configure -d fdpp-build-path=${FDPP_LIBRARY_SOURCE}/fdpp \
                          fdpp-include-path=${FDPP_LIBRARY_SOURCE}/include && make
 else
   [ -d pkgconfig ] || mkdir pkgconfig
@@ -60,5 +60,5 @@ else
     -e "s,^includedir=.*$,includedir=${FDPP_LIBRARY_SOURCE},g" \
     ${FDPP_LIBRARY_SOURCE}/fdpp/fdpp.pc > pkgconfig/fdpp.pc
 
-  env PKG_CONFIG_PATH=`pwd`/pkgconfig CC=clang ./default-configure -d && make
+  env PKG_CONFIG_PATH=`pwd`/pkgconfig ./default-configure -d && make
 fi

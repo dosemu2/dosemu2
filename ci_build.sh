@@ -49,7 +49,7 @@ mk-build-deps --install --root-cmd sudo
 if [ "${SUBTYPE}" = "asan" ] ; then
   sed -i 's/asan off/asan on/g' compiletime-settings.devel
 fi
-CC=clang ./default-configure -d
+./default-configure -d
 make
 
 # Install the FAT mount helper
