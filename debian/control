@@ -32,6 +32,7 @@ Build-Depends:
     libreadline-dev,
     libjson-c-dev,
     libb64-dev,
+    libacl1-dev,
     binutils-dev,
     pkg-config,
     fdpp-dev,
