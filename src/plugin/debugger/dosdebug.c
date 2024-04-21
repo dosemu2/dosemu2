@@ -28,8 +28,9 @@
 #endif
 
 #include "utilities.h"
+#include "dosemu_config.h"
 
-#define    TMPFILE_VAR		"/var/run/user/%i/dosemu2/dosemu."
+#define    TMPFILE_VAR		RUNDIR_PREFIX "/%i/dosemu2/dosemu."
 #define    TMPFILE_HOME		".dosemu/run/dosemu."
 
 #define MHP_BUFFERSIZE 8192
