@@ -130,6 +130,18 @@ gid_t get_orig_gid(void)
   return gid;
 }
 
+uid_t get_suid(void)
+{
+  assert(suid);
+  return euid;
+}
+
+gid_t get_sgid(void)
+{
+  assert(sgid);
+  return egid;
+}
+
 int priv_drop(void)
 {
   if (skip_priv_setting)
@@ -163,7 +175,9 @@ void priv_drop_total(void)
     if (seteuid(uid) == 0) {
       error("suid: privs were not dropped\n");
       leavedos(3);
+      return;
     }
+    suid++;
   }
   if (sgid) {
     setegid(egid);
@@ -173,8 +187,26 @@ void priv_drop_total(void)
     if (setegid(gid) == 0) {
       error("sgid: privs were not dropped\n");
       leavedos(3);
+      return;
     }
+    sgid++;
   }
+}
+
+int running_suid_orig(void)
+{
+  if (!suid)
+    return 0;
+  assert(suid == 1);
+  return 1;
+}
+
+int running_suid_changed(void)
+{
+  if (!suid)
+    return 0;
+  assert(suid == 2);
+  return 1;
 }
 
 void priv_init(void)

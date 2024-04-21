@@ -29,6 +29,7 @@ char *assemble_path(const char *dir, const char *file);
 char *expand_path(const char *dir);
 char *concat_dir(const char *s1, const char *s2);
 char *mkdir_under(const char *basedir, const char *dir);
+int unlink_under(const char *dir, const char *fname);
 char *get_path_in_HOME(const char *path);
 char *get_dosemu_local_home(void);
 char *readlink_malloc (const char *filename);

@@ -21,6 +21,9 @@
 #include <dlfcn.h>
 #include <pthread.h>
 #include "wordexp.h"
+#ifdef HAVE_LIBACL
+#include <sys/acl.h>
+#endif
 #ifdef HAVE_LIBBSD
 #include <bsd/unistd.h>
 #endif
@@ -47,6 +50,14 @@
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
+
+struct dir_fd {
+    const char *dir;
+    int fd;
+};
+#define DFD_MAX 10
+static struct dir_fd dfd[DFD_MAX];
+static int num_dfd;
 
 #ifndef INITIAL_LOGBUFSIZE
 #define INITIAL_LOGBUFSIZE      0
@@ -528,9 +539,59 @@ char *expand_path(const char *dir)
 	return s;
 }
 
+static int set_dir_acl(int fd)
+{
+    int ret = 0;
+#ifdef HAVE_LIBACL
+    acl_t acl_p;
+    int err;
+    const char *acl_str = "user::rwx\ngroup::r-x\nother::---\nuser:%i:rwx\n";
+    char acl_buf[256];
+
+    snprintf(acl_buf, sizeof(acl_buf), acl_str, get_suid());
+    acl_p = acl_from_text(acl_buf);
+    if (!acl_p) {
+        perror("acl_from_text()");
+        return -1;
+    }
+
+    err = acl_calc_mask(&acl_p);
+    if (err) {
+        perror("acl_calc_mask()");
+        ret = -1;
+        goto done;
+    }
+
+    if (acl_valid(acl_p) < 0) {
+        error("invalid ACL\n");
+        ret = -1;
+        goto done;
+    }
+
+     if (acl_set_fd(fd, acl_p) < 0)
+         perror("acl_set_fd");
+
+done:
+     acl_free(acl_p);
+#endif
+     return ret;
+}
+
+static int lookup_dfd(const char *dir)
+{
+	int i;
+
+	for (i = 0; i < num_dfd; i++) {
+		if (strcmp(dfd[i].dir, dir) == 0)
+			return i;
+	}
+	return -1;
+}
+
 char *mkdir_under(const char *basedir, const char *dir)
 {
 	char *s;
+	int fd;
 
 	if (dir)
 		s = assemble_path(basedir, dir);
@@ -544,7 +605,34 @@ char *mkdir_under(const char *basedir, const char *dir)
 			s = NULL;
 		}
 	}
+	if (!s)
+		return NULL;
+	fd = open(s, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	if (fd == -1) {
+		perror("open()");
+		free(s);
+		return NULL;
+	}
+	if (running_suid_orig())
+		set_dir_acl(fd);
+
+	if (lookup_dfd(s) == -1) {
+		assert(num_dfd < DFD_MAX);
+		dfd[num_dfd].dir = s;
+		dfd[num_dfd].fd = fd;
+		num_dfd++;
+	}
 	return s;
+}
+
+int unlink_under(const char *dir, const char *fname)
+{
+	int i = lookup_dfd(dir);
+	if (i == -1) {
+		error("%s not opened\n", dir);
+		return -1;
+	}
+	return unlinkat(dfd[i].fd, fname, 0);
 }
 
 char *get_path_in_HOME(const char *path)

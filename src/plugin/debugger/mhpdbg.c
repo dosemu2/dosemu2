@@ -31,6 +31,7 @@
 #include "emudpmi.h"
 #include "timers.h"
 #include "dosemu_config.h"
+#include "utilities.h"
 #include "sig.h"
 #define MHP_PRIVATE
 #include "mhpdbg.h"
@@ -100,7 +101,7 @@ void mhp_send(void)
   }
 }
 
-static  char *pipename_in, *pipename_out;
+static char *pipename_in, *pipename_out;
 
 void mhp_close(void)
 {
@@ -112,13 +113,13 @@ void mhp_close(void)
    }
    remove_from_io_select(mhpdbg.fdin);
    if (pipename_in) {
-     err = unlink(pipename_in);
+     err = unlink_under(dosemu_rundir_path, strrchr(pipename_in, '/') + 1);
      if (err)
        perror("unlink()");
      free(pipename_in);
    }
    if (pipename_out) {
-     err = unlink(pipename_out);
+     err = unlink_under(dosemu_rundir_path, strrchr(pipename_out, '/') + 1);
      if (err)
        perror("unlink()");
      free(pipename_out);

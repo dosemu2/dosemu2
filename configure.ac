@@ -277,6 +277,14 @@ AC_CHECK_FUNC(strlcpy,, [
   ]
 )])
 
+PKG_CHECK_MODULES([LIBACL], [libacl], [
+    AC_DEFINE(HAVE_LIBACL)
+    CFLAGS="$CFLAGS $LIBACL_CFLAGS"
+    LIBS="$LIBS $LIBACL_LIBS"
+  ],
+  [ AC_MSG_WARN(libacl not found) ]
+)
+
 dnl Here is where we do our stuff
 
 AC_ARG_WITH(confdir, [AS_HELP_STRING([--with-confdir=dir],
@@ -758,6 +766,9 @@ AH_TEMPLATE(HAVE_LIBBFD,
 
 AH_TEMPLATE(HAVE_LIBBSD,
 [Define this if you have bsd-devel installed])
+
+AH_TEMPLATE(HAVE_LIBACL,
+[Define this if you have libacl-devel installed])
 
 AH_TEMPLATE(HAVE_EXECINFO,
 [Define this if you have execinfo.h in libc])
