@@ -563,9 +563,9 @@ char *get_path_in_HOME(const char *path)
 
 char *get_dosemu_local_home(void)
 {
-	char *ph = get_path_in_HOME(".dosemu");
-	char *ret = mkdir_under(ph, 0);
-	free(ph);
+	char *ret = get_path_in_HOME(LOCALDIR_BASE_NAME);
+	/* usually this dir is created by wrapper script, but to make sure */
+	mkdir(ret, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 	return ret;
 }
 
