@@ -299,6 +299,9 @@ AC_ARG_WITH(ttffontdir, [AS_HELP_STRING([--with-ttffontdir=dir],
 AC_ARG_WITH(fdtarball, [AS_HELP_STRING([--with-fdtarball=file],
   [path to FreeDOS tarball])],
   fdtarball="$withval")
+AC_ARG_WITH(username, [AS_HELP_STRING([--with-username=username],
+  [user for dosemu2 to create in a system. default: dosemu2])],
+  username="$withval", username="dosemu2")
 
 # Hard-code this. It is evaluated at run-time as <binary_dir>../lib/dosemu,
 # so we do not use libdir here (which can be lib64 or something unrelated)
@@ -310,6 +313,7 @@ AC_SUBST(x11fontdir)
 AC_SUBST(ttffontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)
+AC_SUBST(username)
 
 AC_DEFINE_DIR([SYSCONFDIR], [sysconfdir], [ System config dir ])
 AC_DEFINE_DIR([CONFSUBDIR], [confdir], [ dosemu-specific config subdir ])

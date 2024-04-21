@@ -123,6 +123,7 @@ installnew: doslib
 	$(MAKE) install
 
 install:
+	useradd --system $(username) || true
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
 	rm -rf $(DESTDIR)$(dosemudir)/commands
 	rm -rf $(DESTDIR)$(dosemudir)/fdboot
@@ -156,7 +157,7 @@ install:
 	$(INSTALL) -m 0644 $(top_builddir)/etc/*.desktop $(DESTDIR)$(datadir)/applications
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/locales.conf $(DESTDIR)$(dosemudir)
 	$(INSTALL) -d $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(bindir)
+	$(INSTALL) -o $(username) -g $(username) -m 06755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/dosemu $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/mkfatimage16 ] || $(INSTALL) -m 0755 $(top_builddir)/bin/mkfatimage16 $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/dosdebug ] || $(INSTALL) -m 0755 $(top_builddir)/bin/dosdebug $(DESTDIR)$(bindir)
