@@ -132,7 +132,8 @@ int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
             error("stub: read(%i)=%i, wrong exe file\n", BUF_SIZE, rd);
             exit(EXIT_FAILURE);
         }
-        if (buf[0] == 'M' && buf[1] == 'Z' && buf[8] == 4 /* lfanew */) {
+        if (buf[0] == 'M' && buf[1] == 'Z' && buf[8] == 4 && buf[9] == 0) {
+            /* lfanew */
             uint32_t offs;
 #if STUB_DEBUG
             cnt++;
