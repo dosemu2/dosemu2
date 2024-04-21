@@ -537,7 +537,7 @@ char *mkdir_under(const char *basedir, const char *dir)
 	else
 		s = strdup(basedir);
 	if (!exists_dir(s)) {
-		if (mkdir(s, S_IRWXU)) {
+		if (mkdir(s, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
 			fprintf(stderr, "can't create dir %s: %s\n", s,
 					strerror(errno));
 			free(s);
