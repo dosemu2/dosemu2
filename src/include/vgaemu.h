@@ -488,6 +488,7 @@ int vga_emu_init(int src_modes, struct ColorSpaceDesc *);
 void vga_emu_done(void);
 int vga_emu_update(vga_emu_update_type *, unsigned, unsigned, int);
 void vga_emu_update_lock(void);
+void vga_emu_update_lock_wr(void);
 void vga_emu_update_unlock(void);
 int vgaemu_switch_plane(unsigned);
 int vga_emu_switch_bank(unsigned);

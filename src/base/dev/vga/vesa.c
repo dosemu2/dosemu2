@@ -853,9 +853,11 @@ int vbe_scan_length(unsigned sub_func, unsigned scan_len)
           err_code = VBE_ERROR_HARDWARE_FAIL;
           break;
         }
+        vga_emu_update_lock_wr();
         vga.scan_len = u0;
         vga.reconfig.display = 1;
-	vga.reconfig.re_init = 1;
+        vga.reconfig.re_init = 1;
+        vga_emu_update_unlock();
         break;
 
       case 1:	/* get current config */
@@ -870,9 +872,11 @@ int vbe_scan_length(unsigned sub_func, unsigned scan_len)
           err_code = VBE_ERROR_HARDWARE_FAIL;
           break;
         }
+        vga_emu_update_lock_wr();
         vga.scan_len = u0;
         vga.reconfig.display = 1;
-	vga.reconfig.re_init = 1;
+        vga.reconfig.re_init = 1;
+        vga_emu_update_unlock();
         break;
 
       case 3:	/* get maximum config */
@@ -960,6 +964,7 @@ int vbe_display_start(unsigned sub_func, unsigned x, unsigned y)
     _CX = u;
   }
   else {
+    vga_emu_update_lock_wr();
     if(direct) {
       vga.display_start = ((y << 16) + x) << 2;
     }
@@ -969,6 +974,7 @@ int vbe_display_start(unsigned sub_func, unsigned x, unsigned y)
       vga.display_start = u;
     }
     vga.reconfig.mem = 1;
+    vga_emu_update_unlock();
   }
 
 #ifdef DEBUG_VBE

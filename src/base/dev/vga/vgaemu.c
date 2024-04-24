@@ -2005,6 +2005,11 @@ void vga_emu_update_lock(void)
   pthread_rwlock_rdlock(&mode_mtx);
 }
 
+void vga_emu_update_lock_wr(void)
+{
+  pthread_rwlock_wrlock(&mode_mtx);
+}
+
 void vga_emu_update_unlock(void)
 {
   pthread_rwlock_unlock(&mode_mtx);

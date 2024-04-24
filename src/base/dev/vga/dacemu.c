@@ -264,10 +264,12 @@ void DAC_set_width(unsigned bits)
   );
 
   if(vga.dac.bits != bits) {
+    vga_emu_update_lock_wr();
     vga.reconfig.dac = 1;
     vga.dac.bits = bits;
     vga.color_modified = True;
     for(i = 0; i < 256; i++) vga.dac.rgb[i].dirty = True;	/* index = dirty flag ! */
+    vga_emu_update_unlock();
   }
 }
 
@@ -317,11 +319,13 @@ void DAC_set_entry(unsigned char index, unsigned char r, unsigned char g, unsign
     vga.dac.rgb[index].g != g ||
     vga.dac.rgb[index].b != b
   ) {
+    vga_emu_update_lock_wr();
     vga.color_modified = True;
     vga.dac.rgb[index].dirty = True;
     vga.dac.rgb[index].r = r;
     vga.dac.rgb[index].g = g;
     vga.dac.rgb[index].b = b;
+    vga_emu_update_unlock();
   }
 }
 
