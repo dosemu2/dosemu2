@@ -968,6 +968,7 @@ int vbe_display_start(unsigned sub_func, unsigned x, unsigned y)
       u = y * vga.scan_len + x;
       vga.display_start = u;
     }
+    vga.reconfig.mem = 1;
   }
 
 #ifdef DEBUG_VBE
@@ -1239,4 +1240,3 @@ int vbe_power_state(unsigned sub_func, unsigned state)
 
   return err_code;
 }
-
