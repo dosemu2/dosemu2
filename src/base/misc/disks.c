@@ -1167,6 +1167,8 @@ static Bit8u floppy_io_read(ioport_t port, void *arg)
 {
   if (port == 0x3f2)
     return floppy_DOR;
+  if (port == 0x3f4)
+    return 0x80;
   return 0xff;
 }
 
