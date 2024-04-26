@@ -1057,6 +1057,27 @@ void scan_dir(fatfs_t *f, unsigned oi)
                 sys_type = OLDPCD_D; /* unknown but small enough to be < v4 */
             }
         }
+        /* see if it is MS-DOS 4.0 */
+        s = full_name(f, oi, dlist[1]->d_name);
+        if (s && stat(s, &sb) == 0) {
+            if((fd = open(s, O_RDONLY)) != -1) {
+                buf = malloc(sb.st_size + 1);
+                assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
+                size = read(fd, buf, sb.st_size);
+                if (size > 0) {
+                    buf[size] = 0;
+                    buf_ptr = buf;
+                    while (!strstr(buf_ptr, "MS-DOS")
+                           && buf_ptr < buf + size) {
+                        buf_ptr += strlen(buf_ptr) + 1;
+                    }
+                    if (buf_ptr < buf + size)
+                        sys_type = MIDMSD_D;  // FIXME: doesn't work!
+                }
+                free(buf);
+                close(fd);
+            }
+        }
         if (sys_type == PC_D)
             sys_type = NEWPCD_D;     /* default to v4.x -> v7.x */
     }
