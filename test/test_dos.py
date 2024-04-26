@@ -1692,7 +1692,7 @@ section .text
     mov     dx, fdata
     int     21h
     jc      prfailread
-    cmp     ax, 35
+    cmp     ax, 34
     jne     prnumread
 
     mov     ax, 3f00h			; read from file again to get EOF
@@ -1764,7 +1764,7 @@ failopen:
 failread:
     db  "Read Operation Failed",13,10,'$'
 numread:
-    db  "Partial Read Not 35 Chars",13,10,'$'
+    db  "Partial Read Not 34 Chars",13,10,'$'
 carryset:
     db  "Carry Set at EOF",13,10,'$'
 axnotzero:
@@ -1852,7 +1852,7 @@ section .text
     mov     dx, fdata
     int     21h
     jc      prfailread
-    cmp     ax, 35
+    cmp     ax, 34
     jne     prnumread
 
     jmp     prsucc
@@ -1913,7 +1913,7 @@ failopen:
 failread:
     db  "Read Operation Failed",13,10,'$'
 numread:
-    db  "Partial Read Not 35 Chars",13,10,'$'
+    db  "Partial Read Not 34 Chars",13,10,'$'
 
 altdta:
     times 128 db 0
@@ -3485,9 +3485,9 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
                 r"|"
                 r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s<DIR>\s+TEST")
         self.assertRegex(results,
-                r"HELLO[\t ]+TXT[\t ]+8"
+                r"HELLO[\t ]+TXT[\t ]+7"
                 r"|"
-                r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s+8\s+HELLO.TXT")
+                r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s+7\s+HELLO.TXT")
         self.assertRegex(results,
                 r"THERE[\t ]+TXT[\t ]+5"
                 r"|"
