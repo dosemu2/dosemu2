@@ -25,9 +25,9 @@
 #include <dos.h>
 #include <dpmi.h>
 #include <assert.h>
+#include <djdev64/stubinfo.h>
 #include "plugin_config.h"
 #include "dosemu_debug.h"
-#include "stubinfo.h"
 #include "coff.h"
 #include "elfp.h"
 #include "util.h"
@@ -106,7 +106,7 @@ int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
     __dpmi_meminfo info;
     dpmi_dos_block db;
     void *handle;
-    _GO32_StubInfo stubinfo;
+    _GO32_StubInfo stubinfo = {};
     _GO32_StubInfo *stubinfo_p;
     struct ldops *ops = NULL;
     char *argv0 = strdup(argv[0]);
@@ -258,7 +258,8 @@ int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
     _dos_seek(ifile, noffset, SEEK_SET);
     if (nsize > 0)
         stub_debug("Found payload of size %i at 0x%x\n", nsize, noffset);
-    stubinfo.stubinfo_ver = 2;
+    stubinfo.flags = _edi;
+    stubinfo.stubinfo_ver = 3;
 
     memcpy(stubinfo_p, &stubinfo, sizeof(stubinfo));
     stub_debug("Jump to entry...\n");

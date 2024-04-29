@@ -31,7 +31,7 @@
 #include "dos2linux.h"
 #include "stub_ex.h"
 
-#if DJ64_API_VER != 4
+#if DJ64_API_VER != 5
 #error wrong dj64 version
 #endif
 
