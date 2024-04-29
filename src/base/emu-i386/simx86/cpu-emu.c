@@ -40,6 +40,7 @@
 #include "emu.h"
 #include "timers.h"
 #include "pic.h"
+#include "kvm.h"
 #include "mhpdbg.h"
 #include "cpu-emu.h"
 #include "emu86.h"
@@ -573,6 +574,9 @@ void Cpu2Reg (void)
       savefpstate(vm86_fpu_state);
     else
       fp87_save_except();
+    /* Since instremu mode can be switched at any time, do a full save. */
+    if (CEmuStat & CeS_INSTREMU)
+      savefpstate(vm86_fpu_state);
     fesetenv(&dosemu_fenv);
   }
 
@@ -1142,6 +1146,8 @@ int e_dpmi(cpuctx_t *scp)
 int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt)
 {
   instr_emu_sim_reset_count(cnt);
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+    kvm_leave(pmode);
 #ifdef HOST_ARCH_X86
   if (!config.cpusim)
     InitGen_sim();
@@ -1157,6 +1163,8 @@ int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt)
   if (!config.cpusim)
     InitGen_x86();
 #endif
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+    kvm_enter(pmode);
   return True;
 }
 
