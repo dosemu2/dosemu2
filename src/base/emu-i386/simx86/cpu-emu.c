@@ -49,6 +49,7 @@
 #include "mapping.h"
 #include "dis8086.h"
 #include "sig.h"
+#include "softfloat/softfloat.h"
 
 /* ======================================================================= */
 
@@ -574,9 +575,6 @@ void Cpu2Reg (void)
       savefpstate(vm86_fpu_state);
     else
       fp87_save_except();
-    /* Since instremu mode can be switched at any time, do a full save. */
-    if (CEmuStat & CeS_INSTREMU)
-      savefpstate(vm86_fpu_state);
     fesetenv(&dosemu_fenv);
   }
 
@@ -1142,6 +1140,59 @@ int e_dpmi(cpuctx_t *scp)
   return retval;
 }
 
+static void load_fpu_state(void)
+{
+  int i;
+  struct emu_fsave fs;
+
+  fxsave_to_fsave(&vm86_fpu_state, &fs);
+  TheCPU.fpstt = 0;
+  for (i = 0; i < 8; i++) {
+#ifdef HAVE___FLOAT80
+    /* copy only 10 bytes out of 12, so memset first */
+    memset(&TheCPU.fpregs[i], 0, sizeof(TheCPU.fpregs[i]));
+    memcpy(&TheCPU.fpregs[i], &fs.st[i], sizeof(fs.st[i]));
+#else
+    float_status s;
+    union { uint32_t u32[sizeof(floatx80)/4]; floatx80 ld; } x;
+    union { float128 f; _Float128 ld; } y;
+
+    memcpy(x.u32, &fs.st[i], sizeof(fs.st[i]));
+    y.f = floatx80_to_float128(x.ld, &s);
+    TheCPU.fpregs[i] = y.ld;
+#endif
+  }
+  TheCPU.fpuc = fs.cw;
+  TheCPU.fpus = fs.sw;
+  TheCPU.fptag = fs.tag;
+}
+
+static void save_fpu_state(void)
+{
+  int i, k;
+  struct emu_fsave fs = {};
+
+  k = TheCPU.fpstt;
+  for (i = 0; i < 8; i++) {
+#ifdef HAVE___FLOAT80
+    /* copy only 10 bytes out of 12 */
+    memcpy(&fs.st[i], &TheCPU.fpregs[k], sizeof(fs.st[i]));
+#else
+    float_status s;
+    union { uint32_t u32[sizeof(floatx80)/4]; floatx80 ld; } x;
+    union { float128 f; _Float128 ld; } y = { .ld = TheCPU.fpregs[k] };
+
+    x.ld = float128_to_floatx80(y.f, &s);
+    memcpy(&fs.st[i], x.u32, sizeof(fs.st[i]));
+#endif
+    k = (k + 1) & 7;
+  }
+  fs.cw = TheCPU.fpuc;
+  fs.sw = TheCPU.fpus;
+  fs.tag = TheCPU.fptag;
+  fsave_to_fxsave(&fs, &vm86_fpu_state);
+}
+
 /* set special SIM mode for VGAEMU faults */
 int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt)
 {
@@ -1156,10 +1207,12 @@ int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt)
     init_emu_npu();
   }
 #endif
+  load_fpu_state();
   if (pmode)
     e_dpmi(scp);
   else
     e_vm86();
+  save_fpu_state();
   CEmuStat &= ~CeS_INSTREMU;
 #ifdef HOST_ARCH_X86
   /* back to regular JIT */
