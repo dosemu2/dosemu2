@@ -73,6 +73,8 @@
 #endif
 
 int (*Fp87_op)(int exop, int reg);
+static int Fp87_op_sim(int exop, int reg);
+
 static long double WFR0, WFR1;
 
 #define S_next(r)	(((r)+1)&7)
@@ -96,14 +98,6 @@ static long double _fparea[8];
 void init_emu_npu (void)
 {
 	int i;
-
-	TheCPU.fpregs = _fparea;
-	for (i=0; i<8; i++) TheCPU.fpregs[i] = 0.0;
-	TheCPU.fpus  = 0;
-	TheCPU.fpstt = 0;
-	TheCPU.fpuc  = 0x37f;
-	TheCPU.fptag = 0xffff;
-	WFR0 = WFR1 = 0.0;
 #ifdef HOST_ARCH_X86
 	if (!CONFIG_CPUSIM) {
 		init_emu_npu_x86();
@@ -111,6 +105,13 @@ void init_emu_npu (void)
 	}
 #endif
 	Fp87_op = Fp87_op_sim;
+	TheCPU.fpregs = _fparea;
+	for (i=0; i<8; i++) TheCPU.fpregs[i] = 0.0;
+	TheCPU.fpus  = 0;
+	TheCPU.fpstt = 0;
+	TheCPU.fpuc  = 0x37f;
+	TheCPU.fptag = 0xffff;
+	WFR0 = WFR1 = 0.0;
 }
 
 void fp87_set_rounding(void)
@@ -243,7 +244,7 @@ static void write_long_double(dosaddr_t addr, long double ld)
 	write_word(addr+8, x.u32[2]);
 }
 
-int Fp87_op_sim(int exop, int reg)
+static int Fp87_op_sim(int exop, int reg)
 {
 //	42	DA 11000nnn	FCMOVB	st(0),st(n)
 //	43	DB 11000nnn	FCMOVNB	st(0),st(n)

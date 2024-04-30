@@ -118,7 +118,6 @@ extern unsigned int Exec_x86_fast(TNode *G);
 /////////////////////////////////////////////////////////////////////////////
 //
 unsigned char *Fp87_op_x86(unsigned char *CodePtr, int exop, int reg);
-int Fp87_op_x86_sim(int exop, int reg);
 void InitGen_x86(void);
 void NodeUnlinker(TNode *G);
 

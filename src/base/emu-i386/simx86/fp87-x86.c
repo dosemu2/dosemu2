@@ -39,6 +39,8 @@
 
 #include "codegen-x86.h"
 
+static int Fp87_op_x86_sim(int exop, int reg);
+
 /*
  * Only mask bits 0-5 of the control word (fpuc),
  * and memory and ax (for fstsw) references are emulated.
@@ -399,7 +401,7 @@ fp_ok:
 	return Cp;
 }
 
-int Fp87_op_x86_sim(int exop, int reg)
+static int Fp87_op_x86_sim(int exop, int reg)
 {
 	e_printf("FPop %x.%d\n", exop, reg);
 

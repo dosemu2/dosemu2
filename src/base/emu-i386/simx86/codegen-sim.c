@@ -346,7 +346,6 @@ void InitGen_sim(void)
 	Gen = Gen_sim;
 	AddrGen = AddrGen_sim;
 	CloseAndExec = CloseAndExec_sim;
-	Fp87_op = Fp87_op_sim;
 	RFL.cout = RFL.RES.d = 0;
 	RFL.valid = V_INVALID;
 }
