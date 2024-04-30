@@ -1148,11 +1148,14 @@ int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt)
   instr_emu_sim_reset_count(cnt);
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     kvm_leave(pmode);
-#ifdef HOST_ARCH_X86
-  if (!config.cpusim)
-    InitGen_sim();
-#endif
+  /* this changes CONFIG_CPUSIM value, so should be before init */
   CEmuStat |= CeS_INSTREMU;
+#ifdef HOST_ARCH_X86
+  if (!config.cpusim) {
+    InitGen_sim();
+    init_emu_npu();
+  }
+#endif
   if (pmode)
     e_dpmi(scp);
   else
@@ -1160,8 +1163,10 @@ int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt)
   CEmuStat &= ~CeS_INSTREMU;
 #ifdef HOST_ARCH_X86
   /* back to regular JIT */
-  if (!config.cpusim)
+  if (!config.cpusim) {
     InitGen_x86();
+    init_emu_npu();
+  }
 #endif
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     kvm_enter(pmode);

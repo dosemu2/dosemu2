@@ -105,7 +105,7 @@ void init_emu_npu (void)
 	TheCPU.fptag = 0xffff;
 	WFR0 = WFR1 = 0.0;
 #ifdef HOST_ARCH_X86
-	if (!config.cpusim) {
+	if (!CONFIG_CPUSIM) {
 		init_emu_npu_x86();
 		return;
 	}
