@@ -190,13 +190,6 @@ static double read_double(dosaddr_t addr)
 	return x.d;
 }
 
-#if defined(HOST_ARCH_X86) && !defined(HAVE___FLOAT80)
-typedef long double __float80;
-#undef __SIZEOF_FLOAT80__
-#define __SIZEOF_FLOAT80__ sizeof(__float80)
-#define HAVE___FLOAT80 1
-#endif
-
 static long double read_long_double(dosaddr_t addr)
 {
 #ifdef HAVE___FLOAT80
