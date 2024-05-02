@@ -606,6 +606,7 @@ select_drive(struct vm86_regs *state, int *drive)
   case LOCK_UNLOCK_FILE_REGION:	/* 0xa */
   case UNLOCK_FILE_REGION_OLD:	/* 0xb */
   case SEEK_FROM_EOF:		/* 0x21 */
+  case EXTENDED_ATTRIBUTES:	/* 0x2d */
   case LONG_SEEK:		/* 0xc2 */
   case GET_LARGE_FILE_INFO:	/* 0xa6 */
     {
