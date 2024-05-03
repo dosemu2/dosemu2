@@ -1701,3 +1701,18 @@ int set_floppy_type(struct disk *dptr, const char *name)
 		return -1;
 	return 0;
 }
+
+void dp_init(struct disk *dptr)
+{
+  dptr->type    =  NODISK;
+  dptr->sectors = -1;
+  dptr->heads   = -1;
+  dptr->tracks  = -1;
+  dptr->fdesc   = -1;
+  dptr->hdtype = 0;
+  dptr->timeout = 0;
+  dptr->dev_name = NULL;              /* default-values */
+  dptr->rdonly = 0;
+  dptr->header = 0;
+  dptr->floppy = 0;
+}
