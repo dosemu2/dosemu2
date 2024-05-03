@@ -35,6 +35,7 @@
 #include "translate/dosemu_charset.h"
 #include "dos2linux.h"
 #include "utilities.h"
+#include "redirect.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -61,7 +62,8 @@ char **dosemu_argv;
 char *dosemu_proc_self_exe = NULL;
 int dosemu_proc_self_maps_fd = -1;
 
-static void     usage(char *basename);
+static void usage(char *basename);
+static int add_floppy(const char *name);
 
 const char *config_script_name = DEFAULT_CONFIG_SCRIPT;
 const char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
@@ -1139,7 +1141,7 @@ config_init(int argc, char **argv)
     int             err;
     int             was_exec = 0, was_T1 = 0;
     const char * const getopt_string =
-       "23456ABC::c::D:d:E:e:f:H:hi:I:K:k::L:M:mNno:P:qSsT::t::VvwXx:Y"
+       "23456A::B::C::c::D:d:E:e:f:H:hi:I:K:k::L:M:mNno:P:qSsT::t::VvwXx:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     basename = strrchr(argv[0], '/');   /* parse the program name */
@@ -1343,9 +1345,13 @@ config_init(int argc, char **argv)
 	    break;
 	case 'A':
 	    config.hdiskboot = 0;
+	    if (optarg)
+		add_floppy(optarg);
 	    break;
 	case 'B':
 	    config.hdiskboot = 1;
+	    if (optarg)
+		add_floppy(optarg);
 	    break;
 	case 'C':
 	    config.hdiskboot = 2;
@@ -1568,8 +1574,8 @@ usage(char *basename)
 	"  %s [options] [-K linux path] [-E dos command]\n"
 	"\n"
 	"    -2,3,4,5,6 choose 286, 386, 486 or 586 or 686 CPU\n"
-	"    -A boot from first defined floppy disk (A)\n"
-	"    -B boot from second defined floppy disk (B) (#)\n"
+	"    -A[file] boot from first defined floppy disk (A)\n"
+	"    -B[file] boot from second defined floppy disk (B) (#)\n"
 	"    -C boot from first defined hard disk (C)\n"
 	"    -c use PC console video (!%%)\n"
 	"    -X run in X Window (#)\n"
@@ -1715,4 +1721,30 @@ void dp_init(struct disk *dptr)
   dptr->rdonly = 0;
   dptr->header = 0;
   dptr->floppy = 0;
+}
+
+static int add_floppy(const char *name)
+{
+  struct disk *dptr;
+
+  if (config.fdisks >= MAX_FDISKS) {
+    error("There are too many floppy disks defined");
+    return -1;
+  } else {
+    dptr = &disktab[config.fdisks];
+  }
+  dp_init(dptr);
+  dptr->floppy = 1;
+  dptr->type = FLOPPY;
+  dptr->default_cmos = THREE_INCH_FLOPPY;
+  set_floppy_type(dptr, name);
+  dptr->dev_name = strdup(name);
+  if (dptr->type == DIR_TYPE)
+    dptr->mfs_idx = mfs_define_drive(dptr->dev_name);
+  else
+    dptr->mfs_idx = 0;
+
+  c_printf("floppy %c:\n", 'A' + config.fdisks);
+  dptr->drive_num = config.fdisks;
+  return config.fdisks++;
 }
