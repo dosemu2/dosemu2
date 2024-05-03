@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <sys/utsname.h>
+#include <sys/stat.h>
 
 #include "version.h"
 #include "emu.h"
@@ -1682,4 +1683,21 @@ void set_internal_charset(const char *charset_name)
 void set_country_code(int cntry)
 {
 	config.country = cntry;
+}
+
+int set_floppy_type(struct disk *dptr, const char *name)
+{
+	struct stat st;
+
+	if (stat(name, &st) < 0)
+		return -1;
+	if (S_ISREG(st.st_mode))
+		dptr->type = IMAGE;
+	else if (S_ISBLK(st.st_mode))
+		dptr->type = FLOPPY;
+	else if (S_ISDIR(st.st_mode))
+		dptr->type = DIR_TYPE;
+	else
+		return -1;
+	return 0;
 }

@@ -1517,22 +1517,12 @@ floppy_flag	: READONLY              { dptr->rdonly = 1; }
 		| BOOT		{ dptr->boot = 1; }
 		| L_FLOPPY string_expr
 		  {
-		  struct stat st;
+		  int err = set_floppy_type(dptr, $2);
 
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a floppy-device given.");
-		  if (stat($2, &st) < 0) {
-		    yyerror("Could not stat floppy device.");
-		  }
-		  if (S_ISREG(st.st_mode)) {
-		    dptr->type = IMAGE;
-		  } else if (S_ISBLK(st.st_mode)) {
-		    dptr->type = FLOPPY;
-		  } else if (S_ISDIR(st.st_mode)) {
-		    dptr->type = DIR_TYPE;
-		  } else {
+		  if (err)
 		    yyerror("Floppy device/file %s is wrong type", $2);
-		  }
 		  free(dptr->dev_name);
 		  dptr->dev_name = $2;
 		  dptr->floppy = 1;  // tell IMAGE and DIR we are a floppy

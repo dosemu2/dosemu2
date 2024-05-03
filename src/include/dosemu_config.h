@@ -7,6 +7,7 @@
 #define DOSEMU_CONFIG_H
 
 #include "plugin_config.h"
+#include "disks.h"
 
 #ifndef __ASSEMBLER__
 /*
@@ -18,6 +19,7 @@
 extern struct config_info config;
 
 extern void config_init(int argc, char **argv);
+extern int set_floppy_type(struct disk *dptr, const char *name);
 extern void secure_option_preparse(int *argc, char **argv);
 extern int cpu_override (int cpu);
 
