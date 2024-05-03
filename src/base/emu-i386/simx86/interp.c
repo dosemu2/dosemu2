@@ -383,6 +383,8 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		_P1 = DoCloseAndExec(_P0, mode); \
 		NewNode=0; \
 	} \
+	if (TheCPU.sigalrm_pending) \
+		CEmuStat |= CeS_SIGPEND; \
 	_P1; \
 })
 
@@ -516,6 +518,11 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int *_NewNode,
 			}
 			if (EFLAGS & TF)
 				CEmuStat |= CeS_TRAP;
+		} else {
+			if (CEmuStat & (CeS_SIGPEND|CeS_RPIC)) {
+				HandleEmuSignals();
+				if (TheCPU.err) return PC;
+			}
 		}
 #ifdef HOST_ARCH_X86
 		if (!CONFIG_CPUSIM && e_querymark(PC, 1)) {
