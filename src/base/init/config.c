@@ -63,7 +63,7 @@ char *dosemu_proc_self_exe = NULL;
 int dosemu_proc_self_maps_fd = -1;
 
 static void usage(char *basename);
-static void assign_floppy(struct disk *dptr, const char *name);
+static void assign_floppy(int fnum, const char *name);
 
 const char *config_script_name = DEFAULT_CONFIG_SCRIPT;
 const char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
@@ -1348,7 +1348,7 @@ config_init(int argc, char **argv)
 	    if (optarg) {
 		if (config.fdisks < 1)
 		    config.fdisks = 1;
-		assign_floppy(&disktab[0], optarg);
+		assign_floppy(0, optarg);
 	    }
 	    break;
 	case 'B':
@@ -1356,7 +1356,7 @@ config_init(int argc, char **argv)
 	    if (optarg) {
 		if (config.fdisks < 2)
 		    config.fdisks = 2;
-		assign_floppy(&disktab[1], optarg);
+		assign_floppy(1, optarg);
 	    }
 	    break;
 	case 'C':
@@ -1729,9 +1729,9 @@ void dp_init(struct disk *dptr)
   dptr->floppy = 0;
 }
 
-static void assign_floppy(struct disk *dptr, const char *name)
+static void assign_floppy(int fnum, const char *name)
 {
-  int fnum = config.fdisks - 1;
+  struct disk *dptr = &disktab[fnum];
 
   dp_init(dptr);
   dptr->floppy = 1;
