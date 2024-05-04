@@ -804,9 +804,9 @@ DBGload_OFF:
 	ljmp    *%cs:DBGload_CSIP
 
 /* ======================= INT_REVECT macro */
-.macro int_rvc inum
+.macro int_hdr inum,lbl
 /* header start for IBM'S INTERRUPT-SHARING PROTOCOL */
-	jmp 31f		// EB xx to handler
+	jmp \lbl	// EB xx to handler
 int_rvc_data_\inum:
 	.globl int_rvc_ip_\inum
 int_rvc_ip_\inum:
@@ -834,7 +834,10 @@ int_rvc_disp_cs_\inum:
 /* header finish for IBM'S INTERRUPT-SHARING PROTOCOL */
 30: /* hwreset */
 	lret
+.endm
 
+.macro int_rvc inum
+	int_hdr \inum,31f
 31: /* handler */
 	pushl %eax
 	pushl %ebx
@@ -912,6 +915,11 @@ INT_RVC_2f_OFF:
 	.globl INT_RVC_33_OFF
 INT_RVC_33_OFF:
 	int_rvc 33
+	.globl INT_RVC_e6_OFF
+INT_RVC_e6_OFF:
+	int_hdr e6,41f
+41:
+	ljmp *%cs:int_rvc_data_e6
 
 /* COMPAS FF841		jmp to INT12 */
 /* COMPAS FF844-FF84C	reserved */
