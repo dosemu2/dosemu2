@@ -1072,7 +1072,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
                         buf_ptr += strlen(buf_ptr) + 1;
                     }
                     if (buf_ptr < buf + size)
-                        sys_type = MIDMSD_D;  // FIXME: doesn't work!
+                        sys_type = OLDMSD_D;  // Multitasking DOS 4.0
                 }
                 free(buf);
                 close(fd);
