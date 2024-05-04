@@ -77,10 +77,6 @@ static char win3x_title[256];
 
 static void dos_post_boot(void);
 static int post_boot;
-static int int21_hooked;
-static int int28_hooked;
-static int int2f_hooked;
-static int int33_hooked;
 
 static int int33(void);
 static int _int66_(int, int);
@@ -1658,6 +1654,7 @@ static void do_int_disp(Bit16u i, HLT_ARG(arg))
 }
 
 #define RVC_SETUP(x) \
+static int int##x##_hooked; \
 static void _int##x##_rvc_setup(uint16_t seg, uint16_t offs) \
 { \
     WRITE_WORD(SEGOFF2LINEAR(INT_RVC_SEG, int_rvc_cs_##x), seg); \
@@ -1750,6 +1747,7 @@ UNREV(21)
 UNREV(28)
 UNREV(2f)
 UNREV(33)
+UNREV(e6)
 
 static void int_revect_init(void)
 {
@@ -1757,6 +1755,7 @@ static void int_revect_init(void)
     int28_rvc_init();
     int2f_rvc_init();
     int33_rvc_init();
+    inte6_rvc_init();
 }
 
 static void int_revect_post_init(void)
@@ -1765,6 +1764,7 @@ static void int_revect_post_init(void)
     int28_rvc_post_init();
     int2f_rvc_post_init();
     int33_rvc_post_init();
+    inte6_rvc_post_init();
 }
 
 static void post_boot_unrevect(void)
@@ -1777,8 +1777,8 @@ static void post_boot_unrevect(void)
        * has revectored it. --EB 1 Nov 1997 */
       SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
     }
+    inte6_unrevect(BIOSSEG, INT_OFF(0xe6));
 }
-
 
 static far_t int33_unrevect_fixup(uint16_t seg, uint16_t offs)
 {
@@ -1788,6 +1788,24 @@ static far_t int33_unrevect_fixup(uint16_t seg, uint16_t offs)
   ret.segment = Mouse_SEG;
   ret.offset = Mouse_INT_OFF;
   return ret;
+}
+
+static void inte6_revect_fixup(void)
+{
+    assert(!inte6_hooked);
+    _inte6_rvc_setup(BIOSSEG, INT_OFF(0xe6));
+    fake_int_to(INT_RVC_SEG, INT_RVC_e6_OFF);
+}
+
+static far_t inte6_unrevect_fixup(uint16_t seg, uint16_t offs)
+{
+    return inte6_unrevect(BIOSSEG, INT_OFF(0xe6));
+}
+
+static int inte6_rvc_dummy(int stk_offs, int revect)
+{
+    error("inte6: should not be here\n");
+    return 0;
 }
 
 static int msdos_chainrevect(int stk_offs, int revect)
@@ -3643,6 +3661,7 @@ static void revect_setup(void)
     int28_hooked = 0;
     int2f_hooked = 0;
     int33_hooked = 0;
+    inte6_hooked = 0;
     int_revect_post_init();
 }
 
@@ -3713,6 +3732,14 @@ void setup_interrupts(void)
     if (config.ipxsup)
 	SIFU(0x7a, NO_REVECT, _ipx_int7a);
     SIFU(DOS_HELPER_INT, NO_REVECT, dos_helper);
+    /* Multitasking DOS 4.0 hooks all ints, including 0xe6, so we revect it. */
+    int_handlers[DOS_HELPER_INT].revect_function = inte6_revect_fixup;
+    /* hook even in !set_int_hooks mode */
+    SIFU(DOS_HELPER_INT, REVECT, inte6_rvc_dummy);
+    int_handlers[DOS_HELPER_INT].unrevect_function = inte6_unrevect_fixup;
+    /* those are unused */
+    (void)inte6_revect;
+    (void)inte6_unrevect_simple;
 
     /* set up relocated video handler (interrupt 0x42) */
     if (config.dualmon == 2) {
