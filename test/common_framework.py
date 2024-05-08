@@ -290,7 +290,10 @@ class BaseTestCase(object):
             with topen(tfile) as tar:
                 for f in files:
                     try:
-                        tar.extract(f[0], path=self.workdir)
+                        if version_info >= (3, 12):
+                            tar.extract(f[0], path=self.workdir, filter='data')
+                        else:
+                            tar.extract(f[0], path=self.workdir)
                         with open(self.workdir / f[0], "rb") as g:
                             s1 = sha1(g.read()).hexdigest()
                             self.assertEqual(
