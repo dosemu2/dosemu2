@@ -105,6 +105,10 @@ extern int in_dpmi_emu;
 int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt);
 void instr_emu_sim_reset_count(int cnt);
 
+void cpuemu_enter(int pm);
+void cpuemu_leave(int pm);
+void cpuemu_update_fpu(void);
+
 /* called from emu-ldt.c */
 void InvalidateSegs(void);
 

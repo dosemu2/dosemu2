@@ -529,12 +529,16 @@ static void leave_backend(int be, int pm)
 {
   if (be == CPUVM_KVM)
     kvm_leave(pm);
+  else if (be == CPUVM_EMU)
+    cpuemu_leave(pm);
 }
 
 static void enter_backend(int be, int pm)
 {
   if (be == CPUVM_KVM)
     kvm_enter(pm);
+  else if (be == CPUVM_EMU)
+    cpuemu_enter(pm);
 }
 
 static void dpmi_set_pm(int pm)
@@ -1545,6 +1549,8 @@ static void finish_clnt_switch(void)
     update_kvm_idt();
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     kvm_update_fpu();
+  if (config.cpu_vm == CPUVM_EMU || config.cpu_vm_dpmi == CPUVM_EMU)
+    cpuemu_update_fpu();
 }
 
 static int do_ldt_write(unsigned short ldt_entry, unsigned int *lp)

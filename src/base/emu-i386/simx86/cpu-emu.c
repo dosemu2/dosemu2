@@ -1145,6 +1145,8 @@ static void load_fpu_state(void)
   int i;
   struct emu_fsave fs;
 
+  if (!CONFIG_CPUSIM)
+    return;
   fxsave_to_fsave(&vm86_fpu_state, &fs);
   TheCPU.fpstt = 0;
   for (i = 0; i < 8; i++) {
@@ -1172,6 +1174,8 @@ static void save_fpu_state(void)
   int i, k;
   struct emu_fsave fs = {};
 
+  if (!CONFIG_CPUSIM)
+    return;
   k = TheCPU.fpstt;
   for (i = 0; i < 8; i++) {
 #ifdef HAVE___FLOAT80
@@ -1193,6 +1197,21 @@ static void save_fpu_state(void)
   fsave_to_fxsave(&fs, &vm86_fpu_state);
 }
 
+void cpuemu_enter(int pm)
+{
+  load_fpu_state();
+}
+
+void cpuemu_leave(int pm)
+{
+  save_fpu_state();
+}
+
+void cpuemu_update_fpu(void)
+{
+  load_fpu_state();
+}
+
 /* set special SIM mode for VGAEMU faults */
 int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt)
 {
@@ -1207,12 +1226,12 @@ int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt)
     init_emu_npu();
   }
 #endif
-  load_fpu_state();
+  cpuemu_enter(pmode);
   if (pmode)
     e_dpmi(scp);
   else
     e_vm86();
-  save_fpu_state();
+  cpuemu_leave(pmode);
   CEmuStat &= ~CeS_INSTREMU;
 #ifdef HOST_ARCH_X86
   /* back to regular JIT */
