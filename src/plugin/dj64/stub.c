@@ -148,6 +148,7 @@ int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
             if (nsize)
                 noffset2 = noffset + nsize;
             memcpy(&nsize2, &buf[0x24], sizeof(nsize2));
+            memcpy(&stubinfo.flags, &buf[0x2c], sizeof(stubinfo.flags));
             strncpy(ovl_name, &buf[0x30], 12);
             ovl_name[12] = '\0';
         } else if (buf[0] == 0x4c && buf[1] == 0x01) { /* it's a COFF */
@@ -258,7 +259,6 @@ int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
     _dos_seek(ifile, noffset, SEEK_SET);
     if (nsize > 0)
         stub_debug("Found payload of size %i at 0x%x\n", nsize, noffset);
-    stubinfo.flags = _edi;
     stubinfo.stubinfo_ver = 3;
 
     memcpy(stubinfo_p, &stubinfo, sizeof(stubinfo));
