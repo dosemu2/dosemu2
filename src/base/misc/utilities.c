@@ -1158,7 +1158,7 @@ static int pts_open(int pty_fd)
     return pts_fd;
 }
 
-static int pshared_sem_init(pshared_sem_t *sem, unsigned int value)
+int pshared_sem_init(pshared_sem_t *sem, unsigned int value)
 {
     char sem_name[] = "/dosemu2_psem_%PXXXXXX";
     pshared_sem_t s;
@@ -1187,7 +1187,7 @@ static int pshared_sem_init(pshared_sem_t *sem, unsigned int value)
     return ret;
 }
 
-static int pshared_sem_destroy(pshared_sem_t *sem)
+int pshared_sem_destroy(pshared_sem_t *sem)
 {
     int ret = sem_close(*sem);
     *sem = NULL;

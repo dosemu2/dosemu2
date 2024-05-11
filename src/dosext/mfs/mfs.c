@@ -196,6 +196,7 @@ TODO:
 #include "share.h"
 #include "xattr.h"
 #include "rlocks.h"
+#include "fssvc.h"
 #include "mfs.h"
 
 #ifdef __linux__
@@ -273,12 +274,7 @@ enum { TYPE_NONE, TYPE_DISK, TYPE_PRINTER };
 static u_char redirected_drives = 0;
 static struct drive_info drives[MAX_DRIVES];
 
-struct defdrv {
-    char *path;
-    int dir_fd;
-};
-
-static struct defdrv def_drives[MAX_DRIVE];
+static char *def_drives[MAX_DRIVE];
 static int num_def_drives;
 
 static int dos_fs_dev(struct vm86_regs *);
@@ -289,9 +285,12 @@ static void path_to_ufs(char *ufs, size_t ufs_offset, const char *path,
                         int PreserveEnvVar, int lowercase);
 static int dos_would_allow(char *fpath, const char *op, int equal);
 static void RemoveRedirection(int drive, cds_t cds);
+static int mfs_getxattr_file(int mfs_idx, const char *path);
+static int mfs_getxattr_fd(int mfs_idx, int fd, const char *path);
 
 static int drives_initialized = FALSE;
-
+static int have_fssvc;
+static int sealed;
 struct file_fd open_files[MAX_OPENED_FILES];
 static int num_drives = 0;
 
@@ -693,7 +692,7 @@ static int handle_xattr(int attr, int mode)
   return attr;
 }
 
-int get_dos_attr(const char *fname, int mode)
+int get_dos_attr(const char *fname, int mode, int drive)
 {
   int attr;
 
@@ -709,11 +708,11 @@ int get_dos_attr(const char *fname, int mode)
   }
 #endif
 
-  attr = get_dos_xattr(fname);
+  attr = mfs_getxattr_file(REDIR_DEVICE_IDX(drives[drive].options), fname);
   return handle_xattr(attr, mode);
 }
 
-static int get_dos_attr_fd(int fd, int mode, const char *name)
+static int get_dos_attr_fd(int fd, int mode, const char *name, int drive)
 {
   int attr;
 
@@ -723,7 +722,7 @@ static int get_dos_attr_fd(int fd, int mode, const char *name)
     return attr;
 #endif
 
-  attr = get_dos_xattr_fd(fd, name);
+  attr = mfs_getxattr_fd(REDIR_DEVICE_IDX(drives[drive].options), fd, name);
   return handle_xattr(attr, mode);
 }
 
@@ -748,7 +747,7 @@ int set_fat_attr(int fd, int attr)
 }
 #endif
 
-int set_dos_attr(char *fpath, int attr)
+int set_dos_attr(char *fpath, int attr, int drive)
 {
 #ifdef __linux__
   int fd = -1;
@@ -769,7 +768,7 @@ int set_dos_attr(char *fpath, int attr)
   }
 #endif
 
-  return mfs_setattr(fpath, attr);
+  return mfs_setattr(REDIR_DEVICE_IDX(drives[drive].options), fpath, attr);
 }
 
 int dos_utime(char *fpath, struct utimbuf *ut)
@@ -868,6 +867,29 @@ donthandle:
   return 0;
 }
 
+void mfs_priv_init(void)
+{
+  int err = fssvc_init(set_dos_xattr, get_dos_xattr);
+  if (err) {
+    error("FS server failed\n");
+    if (running_suid_orig()) {
+      error("try to run `dosemu -no-priv-sep`\n");
+      exit(1);
+    }
+  } else {
+    have_fssvc++;
+  }
+}
+
+void mfs_post_config(void)
+{
+  if (have_fssvc) {
+    num_def_drives = fssvc_seal();
+    assert(num_def_drives != -1);
+  }
+  sealed++;
+}
+
 static void init_one_drive(int dd)
 {
   if (drives[dd].root)
@@ -904,13 +926,14 @@ static void mfs_close_all(void)
 
 void mfs_done(void)
 {
-  int i;
-
   mfs_close_all();
 
-  for (i = 0; i < num_def_drives; i++) {
-    close(def_drives[i].dir_fd);
-    free(def_drives[i].path);
+  if (have_fssvc)
+    fssvc_exit();
+  else {
+    int i;
+    for (i = 0; i < num_def_drives; i++)
+      free(def_drives[i]);
   }
 }
 
@@ -926,58 +949,167 @@ void mfs_reset(void)
 
 int mfs_define_drive(const char *path)
 {
-  int len, fd;
+  int len;
 
-  assert(num_def_drives < MAX_DRIVE);
-  fd = open(path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-  if (fd == -1) {
-    error("cannot open %s: %s\n", path, strerror(errno));
-    leavedos(2);
-    return -1;
+  assert(!sealed);
+  if (have_fssvc) {
+    int ret = fssvc_add_path(path);
+    if (ret == -1)
+      return ret;
+    return ret + 1;
   }
-  def_drives[num_def_drives].dir_fd = fd;
+  assert(num_def_drives < MAX_DRIVE);
   len = strlen(path);
   assert(len > 0);
   if (path[len - 1] == '/') {
-    def_drives[num_def_drives].path = strdup(path);
+    def_drives[num_def_drives] = strdup(path);
   } else {
     char *new_path = malloc(len + 2);
     memcpy(new_path, path, len + 1);
     new_path[len] = '/';
     new_path[len + 1] = '\0';
-    def_drives[num_def_drives].path = new_path;
+    def_drives[num_def_drives] = new_path;
   }
   return num_def_drives +++ 1;
 }
 
-int mfs_open_file(int mfs_idx, const char *path, int flags)
+static int path_ok(int idx, const char *path)
 {
-  struct defdrv *d;
   int len;
 
+  assert(sealed);
+  assert(!have_fssvc);
+  if (idx >= num_def_drives)
+    return 0;
+  assert(def_drives[idx]);
+  len = strlen(def_drives[idx]);
+  assert(len && def_drives[idx][len - 1] == '/');
+  if (strncmp(path, def_drives[idx], len) != 0)
+    return 0;
+  return 1;
+}
+
+int mfs_open_file(int mfs_idx, const char *path, int flags)
+{
   assert(mfs_idx);
   if (mfs_idx > num_def_drives)
     return open(path, flags);
-  d = &def_drives[mfs_idx - 1];
-  len = strlen(d->path);
-  assert(strlen(path) >= len);
-  assert(strncmp(path, d->path, len) == 0);
-  return openat(d->dir_fd, path + len, flags);
+  if (have_fssvc)
+    return fssvc_open(mfs_idx - 1, path, flags);
+  assert(path_ok(mfs_idx - 1, path));
+  return open(path, flags);
 }
 
 int mfs_create_file(int mfs_idx, const char *path, int flags, mode_t mode)
 {
-  struct defdrv *d;
-  int len;
-
   assert(mfs_idx);
   if (mfs_idx > num_def_drives)
     return open(path, flags, mode);
-  d = &def_drives[mfs_idx - 1];
-  len = strlen(d->path);
-  assert(strlen(path) >= len);
-  assert(strncmp(path, d->path, len) == 0);
-  return openat(d->dir_fd, path + len, flags, mode);
+  if (have_fssvc)
+    return fssvc_creat(mfs_idx - 1, path, flags, mode);
+  assert(path_ok(mfs_idx - 1, path));
+  return open(path, flags, mode);
+}
+
+int mfs_unlink_file(int mfs_idx, const char *path)
+{
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives)
+    return unlink(path);
+  if (have_fssvc)
+    return fssvc_unlink(mfs_idx - 1, path);
+  assert(path_ok(mfs_idx - 1, path));
+  return unlink(path);
+}
+
+int mfs_setxattr_file(int mfs_idx, const char *path, int attr)
+{
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives)
+    return set_dos_xattr(path, attr);
+  if (have_fssvc)
+    return fssvc_setxattr(mfs_idx - 1, path, attr);
+  assert(path_ok(mfs_idx - 1, path));
+  return set_dos_xattr(path, attr);
+}
+
+static int mfs_setxattr_fd(int mfs_idx, int fd, int attr, const char *path)
+{
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives)
+    return set_dos_xattr_fd(fd, attr, path);
+  if (have_fssvc)
+    return fssvc_setxattr(mfs_idx - 1, path, attr);
+  assert(path_ok(mfs_idx - 1, path));
+  return set_dos_xattr_fd(fd, attr, path);
+}
+
+static int mfs_getxattr_file(int mfs_idx, const char *path)
+{
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives)
+    return get_dos_xattr(path);
+  if (have_fssvc)
+    return fssvc_getxattr(mfs_idx - 1, path);
+  assert(path_ok(mfs_idx - 1, path));
+  return get_dos_xattr(path);
+}
+
+static int mfs_getxattr_fd(int mfs_idx, int fd, const char *path)
+{
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives)
+    return get_dos_xattr_fd(fd, path);
+  if (have_fssvc)
+    return fssvc_getxattr(mfs_idx - 1, path);
+  assert(path_ok(mfs_idx - 1, path));
+  return get_dos_xattr_fd(fd, path);
+}
+
+int mfs_rename_file(int mfs_idx, const char *oldpath, const char *newpath)
+{
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives)
+    return rename(oldpath, newpath);
+  if (have_fssvc)
+    return fssvc_rename(mfs_idx - 1, oldpath, mfs_idx - 1, newpath);
+  assert(path_ok(mfs_idx - 1, oldpath));
+  assert(path_ok(mfs_idx - 1, newpath));
+  return rename(oldpath, newpath);
+}
+
+static int mfs_mkdir(int mfs_idx, const char *path, mode_t mode)
+{
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives)
+    return mkdir(path, mode);
+  if (have_fssvc)
+    return fssvc_mkdir(mfs_idx - 1, path, mode);
+  assert(path_ok(mfs_idx - 1, path));
+  return mkdir(path, mode);
+}
+
+static int mfs_rmdir(int mfs_idx, const char *path)
+{
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives)
+    return rmdir(path);
+  if (have_fssvc)
+    return fssvc_rmdir(mfs_idx - 1, path);
+  assert(path_ok(mfs_idx - 1, path));
+  return rmdir(path);
+}
+
+int file_is_ro(int mfs_idx, const char *fname)
+{
+    int attr = mfs_getxattr_file(mfs_idx, fname);
+    /* NOTE: do not use unix file perms for R/O as that may crash
+     * some cdrom games:
+     * https://github.com/dosemu2/dosemu2/issues/989
+     */
+    if (attr == -1)
+        return 0;
+    return !!(attr & READ_ONLY_FILE);
 }
 
 static void init_drive(int dd, char *path, uint16_t user, uint16_t options)
@@ -1188,7 +1320,7 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
     entry->mode = sbuf.st_mode;
     entry->size = sbuf.st_size;
     entry->time = sbuf.st_mtime;
-    entry->attr = get_dos_attr(buf, entry->mode);
+    entry->attr = get_dos_attr(buf, entry->mode, drive);
   }
 }
 
@@ -1289,7 +1421,7 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
       entry->mode = sbuf.st_mode;
       entry->size = sbuf.st_size;
       entry->time = sbuf.st_mtime;
-      entry->attr = get_dos_attr(buf2, entry->mode);
+      entry->attr = get_dos_attr(buf2, entry->mode, drive);
     }
     dos_closedir(cur_dir);
     return (dir_list);
@@ -2570,8 +2702,8 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
     idx = 0;
   if (idx) {
     idx--;
-    if (!def_drives[idx].path ||
-        strncmp(def_drives[idx].path, path, strlen(def_drives[idx].path)) != 0) {
+    if ((have_fssvc && !fssvc_path_ok(idx, path)) ||
+        (!have_fssvc && !path_ok(idx, path))) {
       error("redirection of %s (%i) rejected\n", path, idx);
       SETWORD(&state->eax, PATH_NOT_FOUND);
       return FALSE;
@@ -3051,7 +3183,7 @@ int dos_rmdir(const char *filename1, int drive, int lfn)
     return ACCESS_DENIED;
   build_ufs_path_(fpath, filename1, drive, !lfn);
   if (find_file(fpath, &st, drives[drive].root_len, NULL) && !is_dos_device(fpath)) {
-    if (rmdir(fpath) != 0) {
+    if (mfs_rmdir(REDIR_DEVICE_IDX(drives[drive].options), fpath) != 0) {
       Debug0((dbg_fd, "failed to remove directory %s\n", fpath));
       return ACCESS_DENIED;
     }
@@ -3081,7 +3213,7 @@ int dos_mkdir(const char *filename1, int drive, int lfn)
     Debug0((dbg_fd, "parent not found '%s'\n", fpath));
     return PATH_NOT_FOUND;
   }
-  if (mkdir(fpath, 0755) != 0) {
+  if (mfs_mkdir(REDIR_DEVICE_IDX(drives[drive].options), fpath, 0755) != 0) {
     Debug0((dbg_fd, "make directory failed '%s'\n", fpath));
     return ACCESS_DENIED;
   }
@@ -3146,7 +3278,7 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
     return PATH_NOT_FOUND;
   }
 
-  if ((err = mfs_rename(buf, fpath)) != 0)
+  if ((err = mfs_rename(REDIR_DEVICE_IDX(drives[drive].options), buf, fpath)) != 0)
     return err;
 
   Debug0((dbg_fd, "Rename file %s to %s\n", buf, fpath));
@@ -3176,7 +3308,7 @@ int dos_rename_lfn(const char *filename1, const char *filename2, int drive)
     return PATH_NOT_FOUND;
   }
 
-  if ((err = mfs_rename(buf, fpath)) != 0)
+  if ((err = mfs_rename(REDIR_DEVICE_IDX(drives[drive].options), buf, fpath)) != 0)
     return err;
 
   Debug0((dbg_fd, "Rename file %s to %s\n", buf, fpath));
@@ -3185,7 +3317,7 @@ int dos_rename_lfn(const char *filename1, const char *filename2, int drive)
 
 int dos_unlink_lfn(const char *fpath, int drive)
 {
-  return mfs_unlink(fpath);
+  return mfs_unlink(REDIR_DEVICE_IDX(drives[drive].options), fpath);
 }
 
 static u_short unix_access_mode(struct stat *st, int drive, u_short dos_mode)
@@ -3768,7 +3900,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       /* allow changing attrs only on files, not dirs */
       if (!S_ISREG(st.st_mode))
         return TRUE;
-      if (set_dos_attr(fpath, att) != 0) {
+      if (set_dos_attr(fpath, att, drive) != 0) {
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
       }
@@ -3785,7 +3917,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         return FALSE;
       }
 
-      attr = get_dos_attr(fpath, st.st_mode);
+      attr = get_dos_attr(fpath, st.st_mode, drive);
       if (is_long_path(filename1)) {
         /* turn off directory attr for directories with long path */
         attr &= ~DIRECTORY;
@@ -3865,7 +3997,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
           return FALSE;
         }
 #endif
-        if ((errcode = mfs_unlink(fpath)) != 0) {
+        if ((errcode = mfs_unlink(REDIR_DEVICE_IDX(drives[drive].options), fpath)) != 0) {
           Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errno), fpath));
           SETWORD(&state->eax, errcode);
           return FALSE;
@@ -3882,7 +4014,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
           struct stat st;
           strcpy(fpath + cnt, de->d_name);
           if (find_file(fpath, &st, drives[drive].root_len, NULL)) {
-            errcode = mfs_unlink(fpath);
+            errcode = mfs_unlink(REDIR_DEVICE_IDX(drives[drive].options), fpath);
             if (errcode != 0) {
               Debug0((dbg_fd, "Delete failed(%i) %s\n", errcode, fpath));
             } else {
@@ -3964,7 +4096,8 @@ do_open_existing:
           SETWORD(&state->eax, FILE_NOT_FOUND);
           return (FALSE);
       }
-      if (dos_mode != READ_ACC && file_is_ro(fpath)) {
+      if (dos_mode != READ_ACC &&
+            file_is_ro(REDIR_DEVICE_IDX(drives[drive].options), fpath)) {
           SETWORD(&state->eax, ACCESS_DENIED);
           return (FALSE);
       }
@@ -3985,7 +4118,7 @@ do_open_existing:
       f->st = st;
       f->type = TYPE_DISK;
       do_update_sft(f, fname, fext, sft, drive,
-            get_dos_attr(fpath, st.st_mode), FCBcall, 1);
+            get_dos_attr(fpath, st.st_mode, drive), FCBcall, 1);
 
       Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, f->fd));
       Debug0((dbg_fd, "Size : %ld\n", (long)f->st.st_size));
@@ -4096,7 +4229,8 @@ do_create_truncate:
         else
 #endif
         if (get_attr_simple(f->st.st_mode) != attr)
-          set_dos_xattr_fd(f->fd, attr, f->name);
+          mfs_setxattr_fd(REDIR_DEVICE_IDX(drives[drive].options),
+              f->fd, attr, f->name);
       }
 
       do_update_sft(f, fname, fext, sft, drive, attr, FCBcall, 0);
@@ -4553,7 +4687,7 @@ do_create_truncate:
         SETWORD(&state->eax, HANDLE_INVALID);
         return FALSE;
 	}
-      WRITE_DWORD(buffer, get_dos_attr_fd(f->fd, f->st.st_mode, f->name));
+      WRITE_DWORD(buffer, get_dos_attr_fd(f->fd, f->st.st_mode, f->name, drive));
 #define unix_to_win_time(ut) \
 ( \
   ((unsigned long long)ut + (369 * 365 + 89)*24*60*60ULL) * 10000000 \

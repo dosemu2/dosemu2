@@ -92,6 +92,7 @@
 #include "sig.h"
 #include "sound.h"
 #include "ioselect.h"
+#include "mfs.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -292,10 +293,11 @@ int main(int argc, char **argv, char * const *envp)
 
     /* the transposal of (config_|stdio_)init allows the addition of -o */
     /* to specify a debug out filename, if you're wondering */
-
+    mfs_priv_init();
     port_init();		/* setup port structures, before config! */
     version_init();		/* Check the OS version */
     config_init(argc, argv);	/* parse the commands & config file(s) */
+    mfs_post_config();		/* called after config and all config_scrubs */
 #ifdef X86_EMULATOR
 #ifdef DONT_DEBUG_BOOT		/* cpuemu only */
     memcpy(&debug_save, &debug, sizeof(debug));

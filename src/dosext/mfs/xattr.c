@@ -126,15 +126,3 @@ int get_dos_xattr_fd(int fd, const char *name)
   }
   return do_extr_xattr(xbuf, size, name);
 }
-
-int file_is_ro(const char *fname)
-{
-    int attr = get_dos_xattr(fname);
-    /* NOTE: do not use unix file perms for R/O as that may crash
-     * some cdrom games:
-     * https://github.com/dosemu2/dosemu2/issues/989
-     */
-    if (attr == -1)
-        return 0;
-    return !!(attr & READ_ONLY_FILE);
-}

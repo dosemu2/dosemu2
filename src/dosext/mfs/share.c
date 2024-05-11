@@ -91,6 +91,7 @@ struct file_fd *do_claim_fd(const char *name)
             f->name = strdup(name);
             f->shemu_locks = malloc(sizeof(void *) * lk_MAX);
             f->idx = i;
+            f->shlock = NULL;
             ret = f;
             break;
         }
@@ -235,7 +236,7 @@ static int do_mfs_open(int mfs_idx, struct file_fd *f, const char *fname,
          * BUT we do not implement the DOS-7 share rules fully.
          * Namely, DenyNone is implemented the 6.22 way.
          */
-        if (err && !is_writable /*&& file_is_ro(fname)*/ &&
+        if (err && !is_writable /*&& file_is_ro(mfs_idx, fname)*/ &&
                 !is_locked(fname, denyR_lk) && !is_locked(fname, W_lk)) {
             d_printf("SHARE: allowing compat open of R/O file\n");
             err = 0;
@@ -244,7 +245,7 @@ static int do_mfs_open(int mfs_idx, struct file_fd *f, const char *fname,
         int denyR = (share_mode == DENY_READ || share_mode == DENY_ALL);
         err = open_share(fname, flags, share_mode, f->shemu_locks);
         /* See above note about the disabled R/O check. */
-        if (err && !is_writable && !denyR /*&& file_is_ro(fname)*/ &&
+        if (err && !is_writable && !denyR /*&& file_is_ro(mfs_idx, fname)*/ &&
                 is_locked(fname, compat_lk) && !is_locked(fname, W_lk)) {
             d_printf("SHARE: allowing share open of R/O file\n");
             err = 0;
@@ -364,7 +365,7 @@ struct file_fd *mfs_creat(int mfs_idx, const char *name, mode_t mode)
     return f;
 }
 
-static int do_mfs_unlink(const char *fname, int force)
+static int do_mfs_unlink(int mfs_idx, const char *fname, int force)
 {
     int rc;
     void *exlock;
@@ -385,25 +386,25 @@ static int do_mfs_unlink(const char *fname, int force)
                 return ACCESS_DENIED;
             }
     }
-    rc = unlink(fname);
+    rc = mfs_unlink_file(mfs_idx, fname);
     shlock_close(exlock);
     if (rc)
         return FILE_NOT_FOUND;
     return 0;
 }
 
-int mfs_unlink(const char *name)
+int mfs_unlink(int mfs_idx, const char *name)
 {
     struct file_fd *f;
 
     f = do_find_fd(name);
     if (f && (f->share_mode || f->psp != sda_cur_psp(sda)))
         return ACCESS_DENIED;
-    return do_mfs_unlink(name, f && !f->share_mode &&
+    return do_mfs_unlink(mfs_idx, name, f && !f->share_mode &&
         f->psp == sda_cur_psp(sda));
 }
 
-static int do_mfs_setattr(const char *fname, int attr, int force)
+static int do_mfs_setattr(int mfs_idx, const char *fname, int attr, int force)
 {
     int rc;
     void *exlock;
@@ -424,23 +425,24 @@ static int do_mfs_setattr(const char *fname, int attr, int force)
                 return ACCESS_DENIED;
             }
     }
-    rc = set_dos_xattr(fname, attr);
+    rc = mfs_setxattr_file(mfs_idx, fname, attr);
     shlock_close(exlock);
     return rc;
 }
 
-int mfs_setattr(const char *name, int attr)
+int mfs_setattr(int mfs_idx, const char *name, int attr)
 {
     struct file_fd *f;
 
     f = do_find_fd(name);
     if (f && (f->share_mode || f->psp != sda_cur_psp(sda)))
         return ACCESS_DENIED;
-    return do_mfs_setattr(name, attr, f && !f->share_mode &&
+    return do_mfs_setattr(mfs_idx, name, attr, f && !f->share_mode &&
         f->psp == sda_cur_psp(sda));
 }
 
-static int do_mfs_rename(const char *fname, const char *fname2, int force)
+static int do_mfs_rename(int mfs_idx, const char *fname, const char *fname2,
+        int force)
 {
     int rc;
     void *exlock;
@@ -474,7 +476,7 @@ static int do_mfs_rename(const char *fname, const char *fname2, int force)
         return ACCESS_DENIED;
     }
 
-    rc = rename(fname, fname2);
+    rc = mfs_rename_file(mfs_idx, fname, fname2);
     shlock_close(exlock2);
     shlock_close(exlock);
     if (rc) {
@@ -488,14 +490,14 @@ err2:
     return ACCESS_DENIED;
 }
 
-int mfs_rename(const char *name, const char *name2)
+int mfs_rename(int mfs_idx, const char *name, const char *name2)
 {
     struct file_fd *f;
 
     f = do_find_fd(name);
     if (f && (f->share_mode || f->psp != sda_cur_psp(sda)))
         return ACCESS_DENIED;
-    return do_mfs_rename(name, name2, f && !f->share_mode &&
+    return do_mfs_rename(mfs_idx, name, name2, f && !f->share_mode &&
         f->psp == sda_cur_psp(sda));
 }
 
@@ -504,7 +506,8 @@ void mfs_close(struct file_fd *f)
     int i;
 
     close(f->fd);
-    shlock_close(f->shlock);
+    if (f->shlock)
+        shlock_close(f->shlock);
     for (i = 0; i < lk_MAX; i++) {
         if (f->shemu_locks[i])
             shlock_close(f->shemu_locks[i]);

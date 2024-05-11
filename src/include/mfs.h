@@ -13,18 +13,4 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-#ifndef SHARE_H
-#define SHARE_H
-
-struct file_fd;
-
-struct file_fd *do_claim_fd(const char *name);
-struct file_fd *mfs_creat(int mfs_idx, const char *name, mode_t mode);
-struct file_fd *mfs_open(int mfs_idx, const char *name, int flags,
-        int share_mode, int *r_err);
-int mfs_unlink(int mfs_idx, const char *name);
-int mfs_setattr(int mfs_idx, const char *name, int attr);
-int mfs_rename(int mfs_idx, const char *name, const char *name2);
-void mfs_close(struct file_fd *f);
-
-#endif
+#include "../dosext/mfs/mfs.h"

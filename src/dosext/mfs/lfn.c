@@ -643,7 +643,7 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 		}
 	}
 	dest = SEGOFF2LINEAR(_ES, _DI);
-	attrs = get_dos_attr(fpath, st.st_mode);
+	attrs = get_dos_attr(fpath, st.st_mode, dir->drive);
 	ret = make_finddata(fpath, attrs, &st, name_lfn, name_8_3, dest);
 	free(fpath);
 	return ret;
@@ -890,7 +890,7 @@ static int mfs_lfn_(void)
 		utimbuf.modtime = st.st_mtime;
 		switch (_BL) {
 		case 0: /* retrieve attributes */
-			_CX = get_dos_attr(fpath, st.st_mode);
+			_CX = get_dos_attr(fpath, st.st_mode, drive);
 			break;
 		case 1: /* set attributes */
 			if (!(st.st_mode & S_IWUSR))
@@ -898,7 +898,7 @@ static int mfs_lfn_(void)
 			/* allow changing attrs only on files, not dirs */
 			if (!S_ISREG(st.st_mode))
 				break;
-			if (set_dos_attr(fpath, _CX) != 0)
+			if (set_dos_attr(fpath, _CX, drive) != 0)
 				return lfn_error(ACCESS_DENIED);
 			break;
 		case 2: /* get physical size of uncompressed file */

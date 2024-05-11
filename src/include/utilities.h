@@ -120,6 +120,9 @@ static inline int pshared_sem_wait(pshared_sem_t sem)
     return sem_wait(sem);
 }
 
+int pshared_sem_init(pshared_sem_t *sem, unsigned int value);
+int pshared_sem_destroy(pshared_sem_t *sem);
+
 /* macOS doesn't support sem_init(), so use Mach semaphores instead */
 #ifdef __APPLE__
 #include <mach/mach_init.h>
