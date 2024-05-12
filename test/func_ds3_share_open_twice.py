@@ -702,7 +702,7 @@ OPEN_HYBRID = (
 )
 
 def _check_single_result(self, results, t):
-    m = re.search("FAIL:\('%s', '%s', '%s', '%s', '%s'\)\[.*\]" % t, results)
+    m = re.search(r"FAIL:\('%s', '%s', '%s', '%s', '%s'\)\[.*\]" % t, results)
     if m:
         self.fail(msg=m.group(0))
 

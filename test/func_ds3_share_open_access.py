@@ -435,7 +435,7 @@ TESTS_TWO_PROCESS_MFS = tuple(TESTS_TWO_PROCESS_FAT)[3:]
 
 
 def _check_single_result(self, results, t):
-    m = re.search("FAIL:\('%s', '%s', '%s'\)\[.*\]" % t, results)
+    m = re.search(r"FAIL:\('%s', '%s', '%s'\)\[.*\]" % t, results)
     if m:
         self.fail(msg=m.group(0))
 
