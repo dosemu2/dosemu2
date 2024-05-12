@@ -392,7 +392,7 @@ static int do_mfs_unlink(const char *fname, int force)
     return 0;
 }
 
-int mfs_unlink(char *name)
+int mfs_unlink(const char *name)
 {
     struct file_fd *f;
 
@@ -429,7 +429,7 @@ static int do_mfs_setattr(const char *fname, int attr, int force)
     return rc;
 }
 
-int mfs_setattr(char *name, int attr)
+int mfs_setattr(const char *name, int attr)
 {
     struct file_fd *f;
 
@@ -488,7 +488,7 @@ err2:
     return ACCESS_DENIED;
 }
 
-int mfs_rename(char *name, char *name2)
+int mfs_rename(const char *name, const char *name2)
 {
     struct file_fd *f;
 
