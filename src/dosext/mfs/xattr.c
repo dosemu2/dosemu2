@@ -44,8 +44,11 @@
 
 static int do_extr_xattr(const char *xbuf, ssize_t size, const char *name)
 {
-  if (size == -1 && errno == ENOTSUP) {
-    error("MFS: failed to get xattrs for %s, unsupported!\n", name);
+  if (size == -1) {
+    int errn = errno;
+    if (errn == ENODATA)
+      return 0;
+    error("MFS: failed to get xattrs for %s, %s\n", name, strerror(errn));
     return -1;
   }
   if (size <= 2 || strncmp(xbuf, "0x", 2) != 0)

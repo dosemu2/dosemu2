@@ -3178,6 +3178,11 @@ int dos_rename_lfn(const char *filename1, const char *filename2, int drive)
   return 0;
 }
 
+int dos_unlink_lfn(const char *fpath, int drive)
+{
+  return mfs_unlink(fpath);
+}
+
 static u_short unix_access_mode(struct stat *st, int drive, u_short dos_mode)
 {
   u_short unix_mode = 0;

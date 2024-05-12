@@ -744,14 +744,8 @@ static int wildcard_delete(char *fpath, int drive)
 			if ((dirattr >> 8) & DIRECTORY)
 				continue;
 
-			if (unlink(fpath) == -1) {
-				int unixerr = errno;
-
-				if (unixerr == EISDIR)
-					continue;
-
-				d_printf("LFN: Delete failed(%s) '%s'\n", strerror(unixerr), fpath);
-				doserr = (unixerr == EACCES) ? ACCESS_DENIED : FILE_NOT_FOUND;
+			if ((doserr = dos_unlink_lfn(fpath, drive))) {
+				d_printf("LFN: Delete failed(%x) '%s'\n", doserr, fpath);
 				break;
 			}
 			d_printf("LFN: Deleted '%s'\n", fpath);
@@ -875,8 +869,8 @@ static int mfs_lfn_(void)
 		if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), &doserrno))
 			return lfn_error(doserrno);
 		d_printf("LFN: deleting %s\n", fpath);
-		if (unlink(fpath) != 0)
-			return lfn_error(FILE_NOT_FOUND);
+		if ((doserrno = dos_unlink_lfn(fpath, drive)))
+			return lfn_error(doserrno);
 		break;
 	case 0x42: /* long seek (EDR-DOS compatible) */
 		fake_call_to(LFN_HELPER_SEG, LFN_42_HELPER_OFF);

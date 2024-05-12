@@ -22,9 +22,9 @@ struct file_fd *do_claim_fd(const char *name);
 struct file_fd *mfs_creat(int mfs_idx, const char *name, mode_t mode);
 struct file_fd *mfs_open(int mfs_idx, const char *name, int flags,
         int share_mode, int *r_err);
-int mfs_unlink(char *name);
-int mfs_setattr(char *name, int attr);
-int mfs_rename(char *name, char *name2);
+int mfs_unlink(const char *name);
+int mfs_setattr(const char *name, int attr);
+int mfs_rename(const char *name, const char *name2);
 void mfs_close(struct file_fd *f);
 
 #endif
