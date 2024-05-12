@@ -2860,20 +2860,22 @@ static char *getbasename(char *fpath)
 
 /* finds unix directory name for fpath (case insensitive,
    possibly unmangled) */
-static void find_dir(char *fpath, int drive)
+static int find_dir(char *fpath, int drive)
 {
+  int ret;
   struct stat st;
   char *bs_pos, *buf;
 
   bs_pos = getbasename(fpath);
   if (bs_pos == fpath + 1)
-    return;
+    return 0;
   bs_pos--;
   buf = strdup(bs_pos);
   *bs_pos = EOS;
-  find_file(fpath, &st, drives[drive].root_len, NULL);
+  ret = find_file(fpath, &st, drives[drive].root_len, NULL);
   strcat(fpath, buf);
   free(buf);
+  return ret;
 }
 
 static void open_device(unsigned int devptr, char *fname, sft_t sft)
@@ -3071,14 +3073,13 @@ int dos_mkdir(const char *filename1, int drive, int lfn)
 	    fpath));
     return ACCESS_DENIED;
   }
+  if (!find_dir(fpath, drive)) {
+    Debug0((dbg_fd, "parent not found '%s'\n", fpath));
+    return PATH_NOT_FOUND;
+  }
   if (mkdir(fpath, 0755) != 0) {
-    find_dir(fpath, drive);
-    Debug0((dbg_fd, "trying '%s'\n", fpath));
-    if (mkdir(fpath, 0755) != 0) {
-      Debug0((dbg_fd, "make directory failed '%s'\n",
-	      fpath));
-      return PATH_NOT_FOUND;
-    }
+    Debug0((dbg_fd, "make directory failed '%s'\n", fpath));
+    return ACCESS_DENIED;
   }
   return 0;
 }
@@ -4066,21 +4067,18 @@ do_create_truncate:
             return FALSE;
           }
         }
+        if (!find_dir(fpath, drive)) {
+          Debug0((dbg_fd, "parent not found %s\n", fpath));
+          SETWORD(&state->eax, PATH_NOT_FOUND);
+          return FALSE;
+        }
         mode = get_unix_attr(attr);
         if (!(f = mfs_creat(REDIR_DEVICE_IDX(drives[drive].options), fpath,
                             mode))) {
-          find_dir(fpath, drive);
-          Debug0((dbg_fd, "trying '%s'\n", fpath));
-          if (!(f = mfs_creat(REDIR_DEVICE_IDX(drives[drive].options), fpath,
-                              mode))) {
-            Debug0((dbg_fd, "can't open %s: %s (%d)\n", fpath, strerror(errno), errno));
-#if 1
-            SETWORD(&state->eax, PATH_NOT_FOUND);
-#else
-            SETWORD(&state->eax, ACCESS_DENIED);
-#endif
-            return FALSE;
-          }
+          Debug0((dbg_fd, "can't create %s: %s (%d)\n", fpath,
+              strerror(errno), errno));
+          SETWORD(&state->eax, ACCESS_DENIED);
+          return FALSE;
         }
         fstat(f->fd, &f->st);
         f->type = TYPE_DISK;
