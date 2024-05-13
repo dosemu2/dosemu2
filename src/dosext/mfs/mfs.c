@@ -1155,10 +1155,9 @@ static void dos83_to_ufs(char *name, const char *mname, const char *mext)
 
 /* check if name/filename exists as such if it does not contain wildcards */
 static int exists(const char *name, const char *filename,
-                        struct stat *st, int drive)
+                  struct stat *st, int drive, char *fullname, int out_size)
 {
-  char fullname[strlen(name) + 1 + NAME_MAX + 1];
-  snprintf(fullname, sizeof(fullname), "%s/%s", name, filename);
+  snprintf(fullname, out_size, "%s/%s", name, filename);
   Debug0((dbg_fd, "exists() result = %s\n", fullname));
   return find_file(fullname, st, drives[drive].root_len, NULL);
 }
@@ -1271,9 +1270,10 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
   else if (!memchr(mname, '?', 8) && !memchr(mext, '?', 3))
   {
     struct stat sbuf;
+    char buf2[PATH_MAX];
 
     dos83_to_ufs(buf, mname, mext);
-    if (exists(name, buf, &sbuf, drive))
+    if (exists(name, buf, &sbuf, drive, buf2, sizeof(buf2)))
     {
       Debug0((dbg_fd, "filename exists, %s %.8s%.3s\r\n", name, mname, mext));
       dir_list = make_dir_list(1);
@@ -1285,7 +1285,7 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
       entry->mode = sbuf.st_mode;
       entry->size = sbuf.st_size;
       entry->time = sbuf.st_mtime;
-      entry->attr = get_dos_attr(buf, entry->mode);
+      entry->attr = get_dos_attr(buf2, entry->mode);
     }
     dos_closedir(cur_dir);
     return (dir_list);
