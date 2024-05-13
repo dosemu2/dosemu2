@@ -58,6 +58,14 @@ CONFIG_HOST=`uname -s`
 AC_SUBST(CONFIG_HOST)
 machine=`$CC -dumpmachine | cut -d- -f1 | sed 's/i.86/i386/'`
 
+AC_ARG_WITH(target-bits-32, [AS_HELP_STRING([--with-target-bits-32],
+    [build for 32bit target (multilib in case of x86_64 host)])],
+  CPPFLAGS="$CPPFLAGS -m32"
+  LDFLAGS="$LDFLAGS -m32"
+  ASFLAGS="--32"
+  with_target_bits="32"
+)
+
 if test -z "$AS"; then
   AC_PATH_PROG([AS], [as])
   if test -z "$AS"; then
@@ -82,13 +90,13 @@ if test -z "$XAS"; then
       if test "$clang_as_as" = "1"; then
         XASFLAGS="$ASFLAGS -m32"
       else
-        XASFLAGS="$ASFLAGS --32"
+        XASFLAGS="--32"
       fi
     else
       AC_MSG_ERROR([cross-assembler not found, please install binutils-i686-linux-gnu])
     fi
   else
-    XASFLAGS="$ASFLAGS --32"
+    XASFLAGS="--32"
   fi
 fi
 
@@ -123,14 +131,6 @@ AC_SUBST(AS)
 AC_SUBST(XAS)
 AC_SUBST(AS_LD)
 AC_SUBST(XOBJCOPY)
-
-AC_ARG_WITH(target-bits-32, [AS_HELP_STRING([--with-target-bits-32],
-    [build for 32bit target (multilib in case of x86_64 host)])],
-  CPPFLAGS="$CPPFLAGS -m32"
-  LDFLAGS="$LDFLAGS -m32"
-  ASFLAGS="--32"
-  with_target_bits="32"
-)
 AC_PROG_INSTALL
 AC_PROG_LEX([noyywrap])
 if test -z "$LEX"; then
