@@ -1,6 +1,6 @@
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
-import threading
+import multiprocessing as mp
 
 from common_framework import setup_tap_interface, teardown_tap_interface
 
@@ -37,8 +37,9 @@ def network_pktdriver_mtcp(self, driver):
     setup_tap_interface(self)
     self.addCleanup(teardown_tap_interface, self)
 
-    thread = threading.Thread(target=little_webserver, daemon=True)
-    thread.start()
+    ctx = mp.get_context('spawn')
+    p = ctx.Process(target=little_webserver, daemon=True)
+    p.start()
 
     self.unTarOrSkip("TEST_CRYNWR.tar", [
         ("ne2000.com", "297cf2bc04aded016bb8051a9d2b061940c39569"),
@@ -83,6 +84,8 @@ $_pktdriver = (on)
 $_vnet = "tap"
 $_tapdev = "tap0"
 """, timeout=30)
+
+    p.close()
 
     testfil = self.workdir / 'test.fil'
     self.assertEqual(CONTENT, testfil.read_bytes())
