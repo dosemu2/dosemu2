@@ -3122,6 +3122,22 @@ $_debug = "-D+d"
 
         self.assertIn(self.systype, systypeline)
 
+    def test_command_com_command_copy(self):
+        """Command.com command copy"""
+
+        self.mkfile("testit.bat", r"""
+copy version.bat c:\tmp
+rem end
+""", newline="\r\n")
+
+        results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+""")
+        self.assertRegex(results,
+                r"1 [fF]ile\(s\) copied"
+                r"|"
+                r"version.bat =>+ c:\\tmp\\version.bat")
+
     def test_command_com_keyword_exist(self):
         """Command.com keyword exist"""
         self.mkfile("testit.bat", r"""
