@@ -1817,6 +1817,7 @@ static int msdos_chainrevect(int stk_offs, int revect)
 	break;
     case 0x73:			/* fat32 API */
     case 0x6c:			/* extended open, needs mostly for LFNs */
+    case 0x60:
 	return I_SECOND_REVECT;
     }
     return msdos();
@@ -1858,6 +1859,22 @@ static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
 	if (!(old_flags & CF))
 	    NOCARRY;
 	msdos_remap_extended_open();
+	break;
+    case 0x60:
+	if (isset_CF()) {
+	    int cf;
+	    /* OpenDOS 7.01 doesn't call local truename if QUALIFY_FILENAME
+	     * failed. See https://github.com/dosemu2/dosemu2/issues/2211
+	     */
+	    pre_msdos();
+	    _AX = 0x7160;
+	    _CX = 0;
+	    call_msdos();
+	    cf = isset_CF();
+	    post_msdos();
+	    if (!cf)
+	        NOCARRY;
+	}
 	break;
     }
 }
