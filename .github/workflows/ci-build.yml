@@ -20,17 +20,17 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: package install
+    - name: Package install
       run: ./ci_prereq.sh
 
-    - name: build
+    - name: Build
       env:
         JOBTYPE: ${{ inputs.jobtype }}
         SUBTYPE: ${{ inputs.subtype }}
         RUNTYPE: ${{ inputs.runtype }}
       run: ./ci_build.sh
 
-    - name: cache binaries
+    - name: Cache binaries
       uses: actions/cache@v4
       env:
         cache-name: test-binaries
@@ -40,13 +40,17 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-build-${{ env.cache-name }}-
 
-    - name: Enable KVM group perms
+    - name: Enable KVM perms
       run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-    - name: test
+    - name: Install test prerequisites
+      id: test_prereq
+      run: ./ci_test_prereq.sh
+
+    - name: Test
       id: test
       env:
         JOBTYPE: ${{ inputs.jobtype }}
@@ -54,7 +58,7 @@ jobs:
         RUNTYPE: ${{ inputs.runtype }}
       run: ./ci_test.sh
 
-    - name: upload failure logs
+    - name: Upload failure logs
       if: ${{ always() && (steps.test.outcome == 'failure') }}
       uses: actions/upload-artifact@v4
       with:

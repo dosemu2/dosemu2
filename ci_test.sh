@@ -1,7 +1,5 @@
 #!/bin/bash
 
-. ./ci_test_prereq.sh
-
 if [ "${TRAVIS}" = "true" ] ; then
   export CI="true"
   export CI_BRANCH="${TRAVIS_BRANCH}"
@@ -27,10 +25,6 @@ else
   [ -d "${TBINS}"] || mkdir "${TBINS}"
 fi
 python3 test/test_dos.py --get-test-binaries
-
-if [ -f /dev/kvm ] ; then
-  sudo setfacl -m u:${USER}:rw /dev/kvm
-fi
 
 echo
 echo "====================================================="
