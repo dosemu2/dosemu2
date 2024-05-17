@@ -19,7 +19,7 @@
 #include "disks.h"
 
 
-#define PEXTMEM_SIZE EXTMEM_SIZE
+#define PEXTMEM_SIZE (EXTMEM_SIZE + XMS_SIZE)
 
 struct CMOS cmos;
 
@@ -145,8 +145,8 @@ void cmos_init(void)
   SET_CMOS(CMOS_BASEMEML, config.mem_size & 0xff);      /* base mem LSB */
   SET_CMOS(CMOS_BASEMEMM, config.mem_size >> 8);        /* base mem MSB */
 
-  SET_CMOS(CMOS_EXTMEML, (EXTMEM_SIZE >> 10) & 0xff);
-  SET_CMOS(CMOS_EXTMEMM, (EXTMEM_SIZE >> (10 + 8)));
+  SET_CMOS(CMOS_EXTMEML, (PEXTMEM_SIZE >> 10) & 0xff);
+  SET_CMOS(CMOS_EXTMEMM, (PEXTMEM_SIZE >> (10 + 8)));
 
   SET_CMOS(CMOS_PEXTMEML, (PEXTMEM_SIZE >> 10) & 0xff);
   SET_CMOS(CMOS_PEXTMEMM, (PEXTMEM_SIZE >> (10 + 8)));
