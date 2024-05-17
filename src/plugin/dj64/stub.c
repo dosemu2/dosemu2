@@ -41,6 +41,8 @@
 #define stub_debug(...)
 #endif
 
+#define STUB_VER 4
+
 typedef struct
 {
     uint32_t offset32;
@@ -148,9 +150,13 @@ int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
             if (nsize)
                 noffset2 = noffset + nsize;
             memcpy(&nsize2, &buf[0x24], sizeof(nsize2));
-            memcpy(&stubinfo.flags, &buf[0x2c], sizeof(stubinfo.flags));
-            strncpy(ovl_name, &buf[0x30], 12);
-            ovl_name[12] = '\0';
+            memcpy(&stubinfo.flags, &buf[0x2c], 2);
+            if (buf[0x3b] == STUB_VER) {
+                strncpy(ovl_name, &buf[0x2e], 12);
+                ovl_name[12] = '\0';
+            } else {
+                dbug_printf("unknown stub version %i\n", buf[0x3b]);
+            }
         } else if (buf[0] == 0x4c && buf[1] == 0x01) { /* it's a COFF */
             done = 1;
             ops = &coff_ops;
