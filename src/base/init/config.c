@@ -542,7 +542,7 @@ static void set_freedos_dir(void)
 void move_dosemu_local_dir(void)
 {
   const char *localdir = getenv("_local_dir");
-  if (localdir && !dosemu_localdir_path) {
+  if (localdir && localdir[0] && !dosemu_localdir_path) {
     char *ldir = expand_path(localdir);
     if (ldir)
       dosemu_localdir_path = ldir;

@@ -563,10 +563,17 @@ char *get_path_in_HOME(const char *path)
 
 char *get_dosemu_local_home(void)
 {
-	char *ret = get_path_in_HOME(LOCALDIR_BASE_NAME);
-	/* usually this dir is created by wrapper script, but to make sure */
-	mkdir(ret, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-	return ret;
+    int err, errn;
+    char *ret = get_path_in_HOME(LOCALDIR_BASE_NAME);
+    /* usually this dir is created by wrapper script, but to make sure */
+    err = mkdir(ret, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    errn = errno;
+    if (err == -1 && errn != EEXIST) {
+      error("mkdir(%s): %s\n", ret, strerror(errn));
+      free(ret);
+      return NULL;
+    }
+    return ret;
 }
 
 char *prefix(const char *suffix)
