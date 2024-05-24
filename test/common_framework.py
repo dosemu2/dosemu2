@@ -226,7 +226,7 @@ class BaseTestCase(object):
     def utcnow(self):
         return datetime.now(timezone.utc)
 
-    def mkcom_with_ia16(self, fname, content, dname=None):
+    def mkcom_with_ia16(self, fname, content, dname=None, extraargs=None):
         if dname is None:
             p = self.workdir
         else:
@@ -235,10 +235,13 @@ class BaseTestCase(object):
 
         with open(basename + ".c", "w") as f:
             f.write(content)
-        check_call(["ia16-elf-gcc", "-mcmodel=tiny",
-                    "-o", basename + ".com", basename + ".c", "-li86"])
+        args = ["ia16-elf-gcc", "-mcmodel=tiny",
+                "-o", basename + ".com", basename + ".c", "-li86"]
+        if extraargs:
+            args += extraargs
+        check_call(args)
 
-    def mkexe_with_djgpp(self, fname, content, dname=None):
+    def mkexe_with_djgpp(self, fname, content, dname=None, extraargs=None):
         if dname is None:
             p = self.workdir
         else:
@@ -247,8 +250,11 @@ class BaseTestCase(object):
 
         with open(basename + ".c", "w") as f:
             f.write(content)
-        check_call(["i586-pc-msdosdjgpp-gcc",
-                    "-o", basename + ".exe", basename + ".c"])
+        args = ["i586-pc-msdosdjgpp-gcc",
+                "-o", basename + ".exe", basename + ".c"]
+        if extraargs:
+            args += extraargs
+        check_call(args)
 
     def mkcom_with_nasm(self, fname, content, dname=None):
         if dname is None:
