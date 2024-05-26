@@ -265,6 +265,7 @@ AC_CHECK_TYPES([__float80],, [
     fi
   ]
 )
+AC_CHECK_TYPES([greg_t],,, [[#include <ucontext.h>]])
 
 AC_CHECK_FUNC(strlcpy,, [
   PKG_CHECK_MODULES([LIBBSD], [libbsd], [
