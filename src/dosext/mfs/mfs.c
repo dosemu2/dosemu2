@@ -785,6 +785,7 @@ int dos_utime(char *fpath, struct utimbuf *ut)
 static int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
 		       unsigned int *spc, unsigned int *bps)
 {
+#ifdef __linux__
   struct statfs fsbuf;
 
   if (statfs(cwd, &fsbuf) >= 0) {
@@ -807,6 +808,9 @@ static int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int 
   }
   else
     return (0);
+#else
+  return 0;
+#endif
 }
 
 /*
@@ -3697,6 +3701,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 
     case GET_LARGE_DISK_SPACE: /* 0xa3 */
     {
+#ifdef __linux__
       cds_t tcds = Addr(state, es, edi);
       char *name = cds_current_path(tcds);
       uint64_t avail, total;
@@ -3739,6 +3744,9 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       Debug0((dbg_fd, "total blocks=%" PRIu64 ", free blocks=%" PRIu64 ", blocksize=%u\n", total, avail, blocksize));
 
       return TRUE;
+#else
+      return FALSE;
+#endif
     }
 
     case SET_FILE_ATTRIBUTES: { /* 0x0e */
