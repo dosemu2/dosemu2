@@ -26,7 +26,7 @@
  *
  * Last Modified: $Date$ (Version 2)
  */
-
+#ifdef __linux__
 
 /*
  * Compile-time Debugging Options
@@ -1397,5 +1397,5 @@ void joy_port_outb (ioport_t port, Bit8u value, void *arg)
 
 #endif
 }
-
+#endif
 /* end of joystick.c */
