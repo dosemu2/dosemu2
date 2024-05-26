@@ -2571,9 +2571,14 @@ uint16_t cancel_redirection(const char *deviceStr)
 
 static int add_drive_group(const char *path, int ro, int mfs_idx)
 {
+#ifdef __linux__
 #define IS_RO(e, b) ((e ? 0 : !!(b.f_flags & ST_RDONLY)) || ro)
 #define IS_CD(e, b) (e ? 0 : !!(b.f_type == ISOFS_SUPER_MAGIC || \
         b.f_type == UDF_SUPER_MAGIC))
+#else
+#define IS_RO(e, b) 0
+#define IS_CD(e, b) 0
+#endif
     char *wild;
     glob_t p;
     int i, err;
@@ -2583,7 +2588,9 @@ static int add_drive_group(const char *path, int ro, int mfs_idx)
     glob(wild, 0, NULL, &p);
     free(wild);
     for (i = 0; i < p.gl_pathc; i++) {
+#ifdef __linux__
         struct statfs sb;
+#endif
         struct stat st;
         err = stat(p.gl_pathv[i], &st);
         if (err) {
@@ -2596,7 +2603,13 @@ static int add_drive_group(const char *path, int ro, int mfs_idx)
         err = get_redirection_drive(p.gl_pathv[i]);
         if (err != -1)
             continue;
+#ifdef __linux__
         err = statfs(p.gl_pathv[i], &sb);
+        if (err == -1) {
+            perror("statfs()");
+            break;
+        }
+#endif
         err = redir_one_drive(p.gl_pathv[i], IS_RO(err, sb), IS_CD(err, sb),
                 0, 0, mfs_idx);
         if (err < 0)
