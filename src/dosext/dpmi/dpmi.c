@@ -32,7 +32,9 @@ Currently missing DPMI-1.0 functions:
 #include <errno.h>
 #include <assert.h>
 #include <sys/wait.h>
+#ifdef DNATIVE
 #include <sys/ptrace.h>
+#endif
 #ifdef __linux__
 #include <linux/version.h>
 #endif
