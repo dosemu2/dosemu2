@@ -267,6 +267,7 @@ AC_CHECK_TYPES([__float80],, [
 )
 AC_CHECK_TYPES([_Float128])
 AC_CHECK_TYPES([greg_t],,, [[#include <ucontext.h>]])
+AC_CHECK_MEMBERS(struct ethhdr.h_dest,,, [[#include <netinet/if_ether.h>]])
 
 AC_CHECK_FUNC(strlcpy,, [
   PKG_CHECK_MODULES([LIBBSD], [libbsd], [

@@ -61,7 +61,7 @@
 #define ETH_P_IPX       0x8137          /* IPX over DIX                 */
 #endif
 
-#ifndef __linux__
+#ifndef HAVE_STRUCT_ETHHDR_H_DEST
 struct ethhdr {
         unsigned char   h_dest[ETH_ALEN];       /* destination eth addr */
         unsigned char   h_source[ETH_ALEN];     /* source ether addr    */
