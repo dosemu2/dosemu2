@@ -607,13 +607,15 @@ if test "$CONFIG_HOST" = "Darwin"; then
    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -Wl,-undefined,dynamic_lookup"
 fi
 
-AC_ARG_ENABLE(mcontext,
+if test "$machine" != "wasm32"; then
+  AC_ARG_ENABLE(mcontext,
                AS_HELP_STRING([--disable-mcontext], [disable fast context switch]))
-if test "$enable_mcontext" != "no"; then
+  if test "$enable_mcontext" != "no"; then
     AC_MSG_NOTICE([Enabling fast context switching...])
     AC_DEFINE(MCONTEXT)
     MCONTEXT=1
     AC_SUBST(MCONTEXT)
+  fi
 fi
 
 if test "$enable_asan" = "yes"; then
