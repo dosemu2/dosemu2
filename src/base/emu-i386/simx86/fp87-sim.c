@@ -169,12 +169,14 @@ static void fxam(long double d)
 void fp87_save_except(void)
 {
 	unsigned short fps = TheCPU.fpus;
+#ifndef __EMSCRIPTEN__
 	int exceptions = fetestexcept(FE_ALL_EXCEPT);
 	if (exceptions & FE_INVALID) fps |= FPUS_IE;
 	if (exceptions & FE_DIVBYZERO) fps |= FPUS_ZE;
 	if (exceptions & FE_OVERFLOW) fps |= FPUS_OE;
 	if (exceptions & FE_UNDERFLOW) fps |= FPUS_UE;
 	if (exceptions & FE_INEXACT) fps |= FPUS_PE;
+#endif
 	TheCPU.fpus = (fps&~FPUS_TOP)|(TheCPU.fpstt<<FPUS_TOP_BIT);
 }
 
