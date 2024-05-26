@@ -3,6 +3,7 @@
 
 #if HAVE_DECL_F_OFD_SETLK
 
+#ifdef __linux__
 #include <linux/version.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)
@@ -16,6 +17,9 @@
   #else
     #define FUNLCK_WA 1
   #endif
+#endif
+#else
+  #define FUNLCK_WA 1
 #endif
 
 #if FUNLCK_WA
