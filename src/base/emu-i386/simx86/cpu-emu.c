@@ -72,8 +72,13 @@ int IsDpmiEmu = 1;
  * which should be considered in time stretching */
 int e_sigpa_count;
 
-static int in_vm86_emu;
-static int in_dpmi_emu;
+static int _in_vm86_emu;
+static int _in_dpmi_emu;
+/* can use RELAXED ordering here, as we are interested only in a value
+ * of a variable itself, rather than any other vars written before it */
+#define in_vm86_emu __atomic_load_n(&_in_vm86_emu, __ATOMIC_RELAXED)
+#define in_dpmi_emu __atomic_load_n(&_in_dpmi_emu, __ATOMIC_RELAXED)
+#define AW(v, n) __atomic_store_n(&_##v, n, __ATOMIC_RELAXED)
 jmp_buf jmp_env;
 
 union _SynCPU TheCPU_union;
@@ -822,6 +827,14 @@ void e_gen_sigalrm(void)
 	TheCPU.sigalrm_pending = 1;		/* tested by loops  */
 }
 
+void e_gen_sigalrm_from_thread(void)
+{
+	/* Reader thread should better also use atomic load, but this
+	 * var is marked volatile, which should be enough. Also in
+	 * JITted code the aligned loads are atomic by themselves. */
+	__atomic_store_n(&TheCPU.sigalrm_pending, 1, __ATOMIC_RELAXED);
+}
+
 void enter_cpu_emu(void)
 {
 	unsigned int realdelta = config.update / TIMER_DIVISOR;
@@ -984,14 +997,14 @@ int e_vm86(void)
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
     do {
       /* enter VM86 mode */
-      in_vm86_emu = 1;
+      AW(in_vm86_emu, 1);
       if (debug_level('e')>1)
 	dbug_printf("INTERP: enter=%08x\n",trans_addr);
       return_addr = Interp86(trans_addr, mode);
       if (debug_level('e')>1)
 	dbug_printf("INTERP: exit=%08x err=%d\n",return_addr,TheCPU.err-1);
       xval = TheCPU.err;
-      in_vm86_emu = 0;
+      AW(in_vm86_emu, 0);
       /* 0 if ok, else exception code+1 or negative if dosemu err */
       if (xval < 0) {
         error("EMU86: error %d\n", -xval);
@@ -1096,12 +1109,12 @@ int e_dpmi(cpuctx_t *scp)
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
     do {
       /* switch to DPMI process */
-      in_dpmi_emu = 1;
+      AW(in_dpmi_emu, 1);
       e_printf("INTERP: enter=%08x mode=%04x\n",trans_addr,mode);
       return_addr = Interp86(trans_addr, mode);
       e_printf("INTERP: exit=%08x err=%d\n",return_addr,TheCPU.err-1);
       xval = TheCPU.err;
-      in_dpmi_emu = 0;
+      AW(in_dpmi_emu, 0);
       /* 0 if ok, else exception code+1 or negative if dosemu err */
       if (xval < 0) {
         error("DPM86: error %d\n", -xval);

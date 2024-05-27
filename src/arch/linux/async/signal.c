@@ -806,9 +806,8 @@ void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
     if (!i)
       error("callback queue overflow, %s\n", name);
   }
-  /* FIXME: remove the hack below */
-  if (config.cpu_vm == CPUVM_EMU && config.cpu_vm_dpmi == CPUVM_EMU)
-    e_gen_sigalrm();
+  if (in_emu_cpu())
+    e_gen_sigalrm_from_thread();
   else
     pthread_kill(dosemu_pthread_self, SIG_THREAD_NOTIFY);
 }

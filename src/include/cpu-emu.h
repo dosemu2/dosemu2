@@ -122,8 +122,10 @@ int e_emu_fault(sigcontext_t *scp, int in_vm86);
 /* called from signal.c */
 int e_in_compiled_code(void);
 void e_gen_sigalrm(void);
+void e_gen_sigalrm_from_thread(void);
 #else
 #define e_gen_sigalrm()
+#define e_gen_sigalrm_from_thread()
 #define e_in_compiled_code() 0
 #endif
 
