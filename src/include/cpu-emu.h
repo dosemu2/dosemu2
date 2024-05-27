@@ -99,7 +99,6 @@ void reset_emu_cpu (void);
 /* called/used from dpmi.c */
 int e_dpmi(cpuctx_t *scp);
 void e_dpmi_b0x(int op,cpuctx_t *scp);
-extern int in_dpmi_emu;
 
 /* called/used from vgaemu.c */
 int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt);
@@ -130,5 +129,7 @@ void e_gen_sigalrm(void);
 
 /* called from dos2linux.c */
 int e_querymprot(dosaddr_t addr);
+
+int in_emu_cpu(void);
 
 #endif	/*DOSEMU_CPUEMU_H*/

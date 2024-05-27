@@ -72,8 +72,8 @@ int IsDpmiEmu = 1;
  * which should be considered in time stretching */
 int e_sigpa_count;
 
-int in_vm86_emu = 0;
-int in_dpmi_emu = 0;
+static int in_vm86_emu;
+static int in_dpmi_emu;
 jmp_buf jmp_env;
 
 union _SynCPU TheCPU_union;
@@ -1344,6 +1344,11 @@ int e_debug_check(unsigned int PC)
 int e_in_compiled_code(void)
 {
     return InCompiledCode;
+}
+
+int in_emu_cpu(void)
+{
+    return (in_dpmi_emu || in_vm86_emu);
 }
 
 /* ======================================================================= */

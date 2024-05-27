@@ -392,7 +392,7 @@ int emu_ldt_write(dosaddr_t addr, uint32_t op, int len)
 
 void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 {
-	if (!in_dpmi_emu && !in_vm86_emu) {
+	if (!in_emu_cpu()) {
 		default_sim_pagefault_handler(addr, err, op, len);
 		return;
 	}
