@@ -100,9 +100,9 @@ typedef struct {
 /*58*/	unsigned short fpuc, fpus;
 /*5c*/	unsigned short fpstt, fptag;
 /* ------------------------------------------------ */
-/*60*/	unsigned short sigalrm_pending, sigprof_pending;
-/*64*/	unsigned int StackMask;
-/*68*/	unsigned int reserve2;
+/*60*/	volatile sig_atomic_t sigalrm_pending;
+/*64*/	volatile sig_atomic_t sigprof_pending;
+/*68*/	unsigned int StackMask;
 /*6c*/ 	unsigned int df_increments; /* either 0x040201 or 0xfcfeff */
 	/* begin of cr array */
 /*70*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
