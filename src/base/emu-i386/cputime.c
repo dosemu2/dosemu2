@@ -303,10 +303,15 @@ void untrigger_idle(void)
 
 void dosemu_sleep(void)
 {
+#ifndef __EMSCRIPTEN__
   sigset_t mask;
   uncache_time();
   pthread_sigmask(SIG_SETMASK, NULL, &mask);
   sigsuspend(&mask);
+#else
+  uncache_time();
+  usleep(10000);
+#endif
 }
 
 /* "strong" idle callers will have threshold1 = 0 so only the
