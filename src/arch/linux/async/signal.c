@@ -86,6 +86,7 @@ struct callback_s {
 
 sigset_t q_mask;
 sigset_t nonfatal_q_mask;
+sigset_t all_sigmask;
 static sigset_t fatal_q_mask;
 static int sig_inited;
 int sig_threads_wa = 1;
@@ -116,6 +117,7 @@ static void _newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 	/* collect this mask so that all async (fatal and non-fatal)
 	 * signals can be blocked by threads */
 	sigaddset(&q_mask, sig);
+	sigdelset(&all_sigmask, sig);
 	qsighandlers[sig] = fun;
 }
 
@@ -151,6 +153,7 @@ static void setup_nf_sig(int sig)
 	sigaddset(&nonfatal_q_mask, sig);
 	/* Also we block them all until init is completed.  */
 	sigaddset(&q_mask, sig);
+	sigdelset(&all_sigmask, sig);
 }
 
 static void do_registersig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
@@ -184,6 +187,7 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 	sa.sa_mask = nonfatal_q_mask;
 	sa.sa_sigaction = fun;
 	sigaction(sig, &sa, NULL);
+	sigdelset(&all_sigmask, sig);
 }
 
 static void leavedos_call(void *arg)
@@ -464,6 +468,7 @@ static void signal_thr(void *arg)
 void
 signal_pre_init(void)
 {
+  sigfillset(&all_sigmask);
   /* first set up the blocking mask: registersig() and newsetqsig()
    * adds to it */
   sigemptyset(&q_mask);

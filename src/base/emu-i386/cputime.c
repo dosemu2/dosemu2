@@ -303,13 +303,10 @@ void untrigger_idle(void)
 
 void dosemu_sleep(void)
 {
+  uncache_time();
 #ifndef __EMSCRIPTEN__
-  sigset_t mask;
-  uncache_time();
-  pthread_sigmask(SIG_SETMASK, NULL, &mask);
-  sigsuspend(&mask);
+  sigsuspend(&all_sigmask);
 #else
-  uncache_time();
   usleep(10000);
 #endif
 }

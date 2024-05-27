@@ -188,6 +188,7 @@ void leavedos_sig(int sig);
 extern pthread_t dosemu_pthread_self;
 extern sigset_t q_mask;
 extern sigset_t nonfatal_q_mask;
+extern sigset_t all_sigmask;
 extern int sig_threads_wa;
 
 #ifdef DNATIVE
