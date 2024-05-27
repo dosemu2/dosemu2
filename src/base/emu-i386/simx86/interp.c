@@ -383,7 +383,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		_P1 = DoCloseAndExec(_P0, mode); \
 		NewNode=0; \
 	} \
-	if (TheCPU.sigalrm_pending) \
+	if (sigalrm_pending()) \
 		CEmuStat |= CeS_SIGPEND; \
 	_P1; \
 })

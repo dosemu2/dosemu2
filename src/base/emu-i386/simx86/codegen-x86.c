@@ -3379,7 +3379,7 @@ unsigned int Exec_x86(TNode *G)
 
 	ecpu = CPUOFFS(0);
 	if (debug_level('e')>1) {
-		if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");
+		if (sigalrm_pending()>0) e_printf("** SIGALRM is pending\n");
 		e_printf("==== Executing code at %p flg=%04x\n",
 			SeqStart,seqflg);
 	}
@@ -3436,7 +3436,7 @@ unsigned int Exec_x86(TNode *G)
 #endif
 	    if (debug_level('e')>1) {
 		e_printf("** End code, PC=%08x sig=%x\n",ePC,
-		    TheCPU.sigalrm_pending);
+		    sigalrm_pending());
 		if ((debug_level('e')>3) && (seqflg & F_FPOP)) {
 		    e_printf("  %s\n", e_trace_fp());
 		}
@@ -3458,9 +3458,9 @@ unsigned int Exec_x86(TNode *G)
 		CEmuStat &= ~CeS_TRAP;
 	} else {
 		CEmuStat &= ~(CeS_INHI|CeS_MOVSS);
-		if (TheCPU.sigalrm_pending) {
+		if (sigalrm_pending()) {
 			CEmuStat|=CeS_SIGPEND;
-			TheCPU.sigalrm_pending = 0;
+			sigalrm_pending_w(0);
 		}
 	}
 
@@ -3512,7 +3512,7 @@ unsigned int Exec_x86_fast(TNode *G)
 				NodeLinker(LastXNode, G);
 			LastXNode = G;
 		}
-		if (TheCPU.sigalrm_pending) {
+		if (sigalrm_pending()) {
 			CEmuStat|=CeS_SIGPEND;
 			break;
 		}
@@ -3520,7 +3520,7 @@ unsigned int Exec_x86_fast(TNode *G)
 		 GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)));
 
 	Exec_x86_post(flg, mem_ref);
-	TheCPU.sigalrm_pending = 0;
+	sigalrm_pending_w(0);
 	return ePC;
 }
 

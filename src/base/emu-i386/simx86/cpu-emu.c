@@ -824,14 +824,11 @@ void e_gen_sigalrm(void)
 	/* here we come from the kernel with cs==UCODESEL, as
 	 * the passed context is that of dosemu, NOT that of the
 	 * emulated CPU! */
-	TheCPU.sigalrm_pending = 1;		/* tested by loops  */
+	sigalrm_pending_w(1);
 }
 
 void e_gen_sigalrm_from_thread(void)
 {
-	/* Reader thread should better also use atomic load, but this
-	 * var is marked volatile, which should be enough. Also in
-	 * JITted code the aligned loads are atomic by themselves. */
 	__atomic_store_n(&TheCPU.sigalrm_pending, 1, __ATOMIC_RELAXED);
 }
 
@@ -975,7 +972,7 @@ int e_vm86(void)
   int errcode;
 
   if (iniflag==0) enter_cpu_emu();
-  TheCPU.sigalrm_pending = 0;
+  sigalrm_pending_w(0);
 
   e_sigpa_count = 0;
   mode = ADDR16 | DATA16 | MREALA;
@@ -1082,7 +1079,7 @@ int e_dpmi(cpuctx_t *scp)
   int xval,retval,mode;
 
   if (iniflag==0) enter_cpu_emu();
-  TheCPU.sigalrm_pending = 0;
+  sigalrm_pending_w(0);
 
   e_sigpa_count = 0;
   /* make clear we are in PM now */

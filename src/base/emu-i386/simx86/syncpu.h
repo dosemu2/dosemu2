@@ -100,7 +100,7 @@ typedef struct {
 /*58*/	unsigned short fpuc, fpus;
 /*5c*/	unsigned short fpstt, fptag;
 /* ------------------------------------------------ */
-/*60*/	volatile sig_atomic_t sigalrm_pending;
+/*60*/	sig_atomic_t sigalrm_pending;
 /*64*/	volatile sig_atomic_t sigprof_pending;
 /*68*/	unsigned int StackMask;
 /*6c*/ 	unsigned int df_increments; /* either 0x040201 or 0xfcfeff */
@@ -278,12 +278,8 @@ extern union _SynCPU TheCPU_union;
 #define REG1		TheCPU.sreg1
 #define REG3		TheCPU.dreg1
 #define SBASE		TheCPU.xreg1
-#define SIGAPEND	TheCPU.sigalrm_pending
-#define SIGFPEND	TheCPU.sigprof_pending
-#define MEMREF		TheCPU.mem_ref
 #define EFLAGS		TheCPU.eflags
 #define FLAGS		CPUWORD(Ofs_EFLAGS)
-#define FPX		TheCPU.fpstt
 
 #define CS_DTR		TheCPU.cs_cache
 #define DS_DTR		TheCPU.ds_cache
@@ -300,5 +296,10 @@ extern union _SynCPU TheCPU_union;
 #define LONG_GS		TheCPU.gs_cache.BoundL
 
 extern char OVERR_DS, OVERR_SS;
+
+#define sigalrm_pending() __atomic_load_n(&TheCPU.sigalrm_pending, \
+  __ATOMIC_RELAXED)
+#define sigalrm_pending_w(v) __atomic_store_n(&TheCPU.sigalrm_pending, v, \
+  __ATOMIC_RELAXED)
 
 #endif
