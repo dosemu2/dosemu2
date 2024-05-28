@@ -917,15 +917,21 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
 			if (isnan(WFR1) ||
-			    (WFR0 == 0.0 && isinf(WFR1) == 1) ||
-			    (isinf(WFR0) && isinf(WFR1) == -1))
+			    (isinf(WFR1) &&
+			     (
+			      (WFR0 == 0.0 && WFR1 > 0) ||
+			      (isinf(WFR0) && WFR1 < 0)
+			     )
+			    )
+			   )
 				WFR0 = WFR1 = NAN;
 			else if (isfinite(WFR0)) {
-				int inf = isinf(WFR1);
-				if (inf == 1)
+				if (isinf(WFR1)) {
+				    if (WFR1 > 0)
 					WFR0 = WFR0 > 0 ? INFINITY : -INFINITY;
-				else if (inf == -1)
+				    else
 					WFR0 = WFR0 > 0 ? 0.0 : -0.0;
+				}
 			}
 			if (WFR1 >= INT_MAX) WFR1 = INT_MAX;
 			if (WFR1 <= INT_MIN) WFR1 = INT_MIN;
