@@ -595,9 +595,26 @@ static void handle_signals_force_leave(int tid, void *arg, void *arg2)
   in_handle_signals++;
 }
 
-int signal_pending(void)
+static int callbacks_pending(void)
+{
+    int ret;
+
+    pthread_mutex_lock(&cbk_mtx);
+    ret = rng_count(&cbks);
+    pthread_mutex_unlock(&cbk_mtx);
+    return ret;
+}
+
+static int _signal_pending(void)
 {
   return (SIGNAL_head != SIGNAL_tail);
+}
+
+int signal_pending(void)
+{
+  /* Because of the fast path in add_thread_callback(), the signal may
+   * be omitted. So we need to separately check for pending callbacks. */
+  return (_signal_pending() || callbacks_pending());
 }
 
 /*
@@ -617,7 +634,7 @@ int signal_pending(void)
 void handle_signals(void)
 {
   process_callbacks();
-  while (signal_pending() && !in_handle_signals) {
+  while (_signal_pending() && !in_handle_signals) {
     in_handle_signals++;
     coopth_start(sh_tid, NULL);
     coopth_run_tid(sh_tid);
