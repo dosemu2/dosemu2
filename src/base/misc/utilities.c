@@ -20,7 +20,7 @@
 #include <assert.h>
 #include <dlfcn.h>
 #include <pthread.h>
-#include <wordexp.h>
+#include "wordexp.h"
 #ifdef HAVE_LIBBSD
 #include <bsd/unistd.h>
 #endif
@@ -502,11 +502,11 @@ char *assemble_path(const char *dir, const char *file)
 	wordexp_t p;
 	int err;
 
-	err = wordexp(dir, &p, WRDE_NOCMD);
+	err = wordexp_lite(dir, &p, WRDE_NOCMD);
 	assert(!err);
 	assert(p.we_wordc == 1);
 	asprintf(&s, "%s/%s", p.we_wordv[0], file);
-	wordfree(&p);
+	wordfree_lite(&p);
 	return s;
 }
 
@@ -516,15 +516,15 @@ char *expand_path(const char *dir)
 	wordexp_t p;
 	int err;
 
-	err = wordexp(dir, &p, WRDE_NOCMD);
+	err = wordexp_lite(dir, &p, WRDE_NOCMD);
 	if (err)
 		return NULL;
 	if (p.we_wordc != 1) {
-		wordfree(&p);
+		wordfree_lite(&p);
 		return NULL;
 	}
 	s = realpath(p.we_wordv[0], NULL);
-	wordfree(&p);
+	wordfree_lite(&p);
 	return s;
 }
 
