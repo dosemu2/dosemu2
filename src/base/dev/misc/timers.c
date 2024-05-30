@@ -713,5 +713,5 @@ void pit_late_init(void)
 int CAN_SLEEP(void)
 {
   return (!(pic_get_isr() || (REG(eflags) & VIP) || signal_pending() ||
-    (pit[0].q_ticks > TIMER0_FLOOD_THRESHOLD) || in_leavedos));
+    (__sync_fetch_and_or(&pit[0].q_ticks, 0) > TIMER0_FLOOD_THRESHOLD) || in_leavedos));
 }
