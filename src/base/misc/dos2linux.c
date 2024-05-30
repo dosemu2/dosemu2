@@ -207,7 +207,7 @@ static void *rd_thread(void *arg)
                 break;
             spscq_commit_write(queue, rd);
         }
-        __atomic_store_n(&pty_done, 1, __ATOMIC_RELEASE);
+        __atomic_store_n(&pty_done, 1, __ATOMIC_RELAXED);
     }
     return NULL;
 }
@@ -244,7 +244,7 @@ static void pty_thr(void)
 		    com_doswritecon(buf2, rc);
 		}
 	}
-	if (__atomic_load_n(&pty_done, __ATOMIC_ACQUIRE))
+	if (__atomic_load_n(&pty_done, __ATOMIC_RELAXED))
 	    break;
 
 	wr = com_dosreadcon(buf, sizeof(buf) - 1);

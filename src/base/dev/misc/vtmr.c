@@ -101,7 +101,7 @@ static Bit8u vtmr_irr_read(ioport_t port, void *arg)
 static Bit16u vtmr_vpend_read(ioport_t port, void *arg)
 {
     /* clang has __atomic_swap() */
-    return __atomic_exchange_n(&vtmr_pirr, 0, __ATOMIC_ACQ_REL);
+    return __atomic_exchange_n(&vtmr_pirr, 0, __ATOMIC_RELAXED);
 }
 
 static void post_req(int timer)
