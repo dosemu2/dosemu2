@@ -53,6 +53,7 @@ static uint16_t prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
 static int blink_count = 8;
 static int need_redraw_cursor;
+static pthread_rwlock_t rdrw_mtx = PTHREAD_RWLOCK_INITIALIZER;
 static unsigned char *text_canvas;
 static uint16_t prev_screen[MAX_COLUMNS * MAX_LINES];	/* pointer to currently displayed screen   */
 static u_char prev_font[256 * 32];
@@ -474,10 +475,15 @@ int text_is_dirty(void)
   unsigned char *sp;
   int ret;
   unsigned int compare;
+
+  pthread_rwlock_rdlock(&rdrw_mtx);
   if (blink_count == 0 || need_redraw_cursor ||
 	memoffs_to_location(vga.crtc.cursor_location) !=
-	prev_cursor_location)
+	prev_cursor_location) {
+    pthread_rwlock_unlock(&rdrw_mtx);
     return 1;
+  }
+  pthread_rwlock_unlock(&rdrw_mtx);
 
   if (text_font_changed())
     return 1;
@@ -508,11 +514,14 @@ int text_is_dirty(void)
  */
 static void update_cursor(void)
 {
+  pthread_rwlock_wrlock(&rdrw_mtx);
   if (need_redraw_cursor) {
     need_redraw_cursor = FALSE;
+    pthread_rwlock_unlock(&rdrw_mtx);
     redraw_cursor();
     return;
   }
+  pthread_rwlock_unlock(&rdrw_mtx);
   if (vga.crtc.cursor_shape.w == NO_CURSOR)
     return;
   if (memoffs_to_location(vga.crtc.cursor_location) !=
@@ -556,7 +565,9 @@ void init_text_mapper(int image_mode, int features, ColorSpaceDesc * csd)
   text_canvas = malloc(MAX_COLUMNS * 9 * MAX_LINES * 32);
   if (text_canvas == NULL)
     error("X: cannot allocate text mode canvas for font simulation\n");
+  pthread_rwlock_wrlock(&rdrw_mtx);
   need_redraw_cursor = TRUE;
+  pthread_rwlock_unlock(&rdrw_mtx);
   memset(text_canvas, 0, MAX_COLUMNS * 9 * MAX_LINES * 32);
 }
 
@@ -797,7 +808,9 @@ void text_lose_focus(void)
   have_focus = FALSE;
   blink_state = TRUE;
   blink_count = config.X_blinkrate;
+  pthread_rwlock_wrlock(&rdrw_mtx);
   need_redraw_cursor = TRUE;
+  pthread_rwlock_unlock(&rdrw_mtx);
 }
 
 void text_gain_focus(void)
@@ -805,7 +818,9 @@ void text_gain_focus(void)
   if (have_focus)
     return;
   have_focus = TRUE;
+  pthread_rwlock_wrlock(&rdrw_mtx);
   need_redraw_cursor = TRUE;
+  pthread_rwlock_unlock(&rdrw_mtx);
 }
 
 #if CONFIG_SELECTION
