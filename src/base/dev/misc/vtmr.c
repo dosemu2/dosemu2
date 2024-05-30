@@ -127,7 +127,7 @@ static void vtmr_io_write(ioport_t port, Bit8u value, void *arg)
         if (!masked) {
             uint16_t irr;
             pthread_mutex_lock(&irr_mtx);
-            irr = __sync_fetch_and_or(&vtmr_irr, msk);
+            irr = __atomic_fetch_or(&vtmr_irr, msk, __ATOMIC_RELAXED);
             if (!(irr & msk)) {
                 if (!(vtmr_imr & msk))
                     pic_request(vip[timer].irq);
@@ -144,7 +144,7 @@ static void vtmr_io_write(ioport_t port, Bit8u value, void *arg)
                 vtmr_irr, vtmr_pirr, masked);
         break;
     case VTMR_MASK_PORT: {
-        uint16_t imr = __sync_fetch_and_or(&vtmr_imr, msk);
+        uint16_t imr = __atomic_fetch_or(&vtmr_imr, msk, __ATOMIC_RELAXED);
         if (!(imr & msk)) {
             if (vtmr_irr & msk)
                 pic_untrigger(vip[timer].irq);
@@ -152,7 +152,7 @@ static void vtmr_io_write(ioport_t port, Bit8u value, void *arg)
         break;
     }
     case VTMR_UNMASK_PORT: {
-        uint16_t imr = __sync_fetch_and_and(&vtmr_imr, ~msk);
+        uint16_t imr = __atomic_fetch_and(&vtmr_imr, ~msk, __ATOMIC_RELAXED);
         if (imr & msk) {
             if (vtmr_irr & msk)
                 pic_request(vip[timer].irq);
@@ -162,7 +162,7 @@ static void vtmr_io_write(ioport_t port, Bit8u value, void *arg)
     case VTMR_ACK_PORT: {
         uint16_t irr;
         pthread_mutex_lock(&irr_mtx);
-        irr = __sync_fetch_and_and(&vtmr_irr, ~msk);
+        irr = __atomic_fetch_and(&vtmr_irr, ~msk, __ATOMIC_RELAXED);
         if (irr & msk) {
             pic_untrigger(vip[timer].irq);
             if (vth[timer].handler) {
@@ -185,7 +185,7 @@ static void vtmr_io_write(ioport_t port, Bit8u value, void *arg)
             if (rc && !from_irq) {  // underflow seen not from IRQ
                 uint16_t irr;
                 pthread_mutex_lock(&irr_mtx);
-                irr = __sync_fetch_and_and(&vtmr_irr, ~msk);
+                irr = __atomic_fetch_and(&vtmr_irr, ~msk, __ATOMIC_RELAXED);
                 if (irr & msk) {
                     pic_untrigger(vip[timer].irq);
                     if (vth[timer].handler) {
@@ -432,7 +432,7 @@ static int do_vtmr_raise(int timer)
 
     assert(timer < VTMR_MAX);
     h_printf("vtmr: raise timer %i\n", timer);
-    pirr = __sync_fetch_and_or(&vtmr_pirr, mask);
+    pirr = __atomic_fetch_or(&vtmr_pirr, mask, __ATOMIC_RELAXED);
     if (!(pirr & mask)) {
         h_printf("vtmr: posting timer event\n");
         sem_post(&vtmr_sem);
