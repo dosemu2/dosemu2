@@ -184,6 +184,7 @@ fi
 # for address sanitizer
 export ASAN_OPTIONS='handle_segv=0:abort_on_error=1:detect_leaks=0:detect_stack_use_after_return=0'
 export LSAN_OPTIONS='report_objects=1:fast_unwind_on_malloc=0:exitcode=0'
+export TSAN_OPTIONS='second_deadlock_stack=1'
 export UBSAN_OPTIONS='print_stacktrace=1'
 
 # this is needed to show dosemu icon
