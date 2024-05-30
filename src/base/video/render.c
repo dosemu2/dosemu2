@@ -31,6 +31,7 @@ static int is_updating;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_rwlock_t text_mtx = PTHREAD_RWLOCK_INITIALIZER;
 static pthread_rwlock_t flg_mtx = PTHREAD_RWLOCK_INITIALIZER;
+static pthread_rwlock_t vga_mtx = PTHREAD_RWLOCK_INITIALIZER;
 #if RENDER_THREADED
 static pthread_t render_thr;
 #endif
@@ -431,16 +432,22 @@ struct vid_mode_params get_mode_parameters(void)
  */
 static void modify_mode(void)
 {
+  pthread_rwlock_wrlock(&vga_mtx);
   if(vga.reconfig.mem) {
-    dirty_all_video_pages();
     vga.reconfig.mem = 0;
-  }
+    pthread_rwlock_unlock(&vga_mtx);
+    dirty_all_video_pages();
+  } else
+    pthread_rwlock_unlock(&vga_mtx);
 
+  pthread_rwlock_wrlock(&vga_mtx);
   if(vga.reconfig.dac) {
-    dirty_all_vga_colors();
     vga.reconfig.dac = 0;
+    pthread_rwlock_unlock(&vga_mtx);
+    dirty_all_vga_colors();
     v_printf("modify_mode: DAC bits = %d\n", vga.dac.bits);
-  }
+  } else
+    pthread_rwlock_unlock(&vga_mtx);
 }
 
 
@@ -615,11 +622,15 @@ int render_update_vidmode(void)
 int update_screen(void)
 {
   int upd = render_is_updating();
+  int cnd;
 
   /* update vidmode before doing any rendering. */
-  if(vga.reconfig.display || (cur_mode_class == TEXT && font_is_changed()) ||
+  pthread_rwlock_rdlock(&vga_mtx);
+  cnd = (vga.reconfig.display || (cur_mode_class == TEXT && font_is_changed()) ||
       (vga.mode_class == TEXT && cur_mode_class == GRAPH &&
-      !font_is_changed())) {
+      !font_is_changed()));
+  pthread_rwlock_unlock(&vga_mtx);
+  if (cnd) {
     if (upd)
       return 1;
     v_printf(
