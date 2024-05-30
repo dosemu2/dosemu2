@@ -60,6 +60,7 @@
         } while (0)
 #endif
 #endif
+#include "init.h"
 #include "evtimer.h"
 
 struct evtimer {
@@ -97,7 +98,7 @@ static void evhandler(union sigval sv)
     }
 }
 
-void *evtimer_create(void (*cbk)(int ticks, void *), void *arg)
+static void *tmr_create(void (*cbk)(int ticks, void *), void *arg)
 {
     struct evtimer *t;
     clockid_t id = CLOCK_MONOTONIC;
@@ -124,7 +125,7 @@ void *evtimer_create(void (*cbk)(int ticks, void *), void *arg)
     return t;
 }
 
-void evtimer_delete(void *tmr)
+static void tmr_delete(void *tmr)
 {
     struct evtimer *t = tmr;
 
@@ -135,7 +136,7 @@ void evtimer_delete(void *tmr)
     free(t);
 }
 
-void evtimer_set_rel(void *tmr, uint64_t ns, int periodic)
+static void tmr_set_rel(void *tmr, uint64_t ns, int periodic)
 {
     struct evtimer *t = tmr;
     struct itimerspec i = {};
@@ -154,7 +155,7 @@ void evtimer_set_rel(void *tmr, uint64_t ns, int periodic)
     pthread_mutex_unlock(&t->start_mtx);
 }
 
-uint64_t evtimer_gettime(void *tmr)
+static uint64_t tmr_gettime(void *tmr)
 {
     struct evtimer *t = tmr;
     struct timespec rel, abs;
@@ -166,7 +167,7 @@ uint64_t evtimer_gettime(void *tmr)
     return (rel.tv_sec * NANOSECONDS_PER_SECOND + rel.tv_nsec);
 }
 
-void evtimer_stop(void *tmr)
+static void tmr_stop(void *tmr)
 {
     struct evtimer *t = tmr;
     struct itimerspec i = {};
@@ -179,7 +180,7 @@ void evtimer_stop(void *tmr)
     pthread_mutex_unlock(&t->start_mtx);
 }
 
-void evtimer_block(void *tmr)
+static void tmr_block(void *tmr)
 {
     struct evtimer *t = tmr;
 
@@ -190,7 +191,7 @@ void evtimer_block(void *tmr)
     pthread_mutex_unlock(&t->block_mtx);
 }
 
-void evtimer_unblock(void *tmr)
+static void tmr_unblock(void *tmr)
 {
     struct evtimer *t = tmr;
     int ticks;
@@ -206,4 +207,19 @@ void evtimer_unblock(void *tmr)
     t->ticks -= ticks;
     t->blocked--;
     pthread_mutex_unlock(&t->block_mtx);
+}
+
+static const struct evtimer_ops ops = {
+    .create = tmr_create,
+    .delete = tmr_delete,
+    .set_rel = tmr_set_rel,
+    .gettime = tmr_gettime,
+    .stop = tmr_stop,
+    .block = tmr_block,
+    .unblock = tmr_unblock,
+};
+
+CONSTRUCTOR(static void tmr_init(void))
+{
+    register_evtimer(&ops);
 }

@@ -55,6 +55,7 @@
         } while (0)
 #endif
 #endif
+#include "init.h"
 #include "utilities.h"
 #include "evtimer.h"
 
@@ -139,7 +140,7 @@ static void *evthread(void *arg)
     return NULL;
 }
 
-void *evtimer_create(void (*cbk)(int ticks, void *), void *arg)
+static void *evtimerfd_create(void (*cbk)(int ticks, void *), void *arg)
 {
     struct evtimer *t;
     clockid_t id = CLOCK_MONOTONIC;
@@ -173,7 +174,7 @@ void *evtimer_create(void (*cbk)(int ticks, void *), void *arg)
     return t;
 }
 
-void evtimer_delete(void *tmr)
+static void evtimerfd_delete(void *tmr)
 {
     struct evtimer *t = tmr;
 #ifdef HAVE_TIMERFD_CREATE
@@ -202,7 +203,7 @@ void evtimer_delete(void *tmr)
     free(t);
 }
 
-void evtimer_set_rel(void *tmr, uint64_t ns, int periodic)
+static void evtimerfd_set_rel(void *tmr, uint64_t ns, int periodic)
 {
     struct evtimer *t = tmr;
     struct timespec start;
@@ -233,7 +234,7 @@ void evtimer_set_rel(void *tmr, uint64_t ns, int periodic)
     pthread_mutex_unlock(&t->start_mtx);
 }
 
-uint64_t evtimer_gettime(void *tmr)
+static uint64_t evtimerfd_gettime(void *tmr)
 {
     struct evtimer *t = tmr;
     uint64_t rel;
@@ -247,7 +248,7 @@ uint64_t evtimer_gettime(void *tmr)
     return rel;
 }
 
-void evtimer_stop(void *tmr)
+static void evtimerfd_stop(void *tmr)
 {
     struct evtimer *t = tmr;
     struct timespec start;
@@ -267,7 +268,7 @@ void evtimer_stop(void *tmr)
     pthread_mutex_unlock(&t->start_mtx);
 }
 
-void evtimer_block(void *tmr)
+static void evtimerfd_block(void *tmr)
 {
     struct evtimer *t = tmr;
 
@@ -278,7 +279,7 @@ void evtimer_block(void *tmr)
     pthread_mutex_unlock(&t->block_mtx);
 }
 
-void evtimer_unblock(void *tmr)
+static void evtimerfd_unblock(void *tmr)
 {
     struct evtimer *t = tmr;
 
@@ -286,4 +287,19 @@ void evtimer_unblock(void *tmr)
     t->blocked--;
     pthread_mutex_unlock(&t->block_mtx);
     pthread_cond_signal(&t->unblock_cnd);
+}
+
+static const struct evtimer_ops ops = {
+    .create = evtimerfd_create,
+    .delete = evtimerfd_delete,
+    .set_rel = evtimerfd_set_rel,
+    .gettime = evtimerfd_gettime,
+    .stop = evtimerfd_stop,
+    .block = evtimerfd_block,
+    .unblock = evtimerfd_unblock,
+};
+
+CONSTRUCTOR(static void evtimerfd_init(void))
+{
+    register_evtimer(&ops);
 }
