@@ -32,7 +32,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <assert.h>
-
+#include <pthread.h>
 #include "emu.h"
 #include "utilities.h"
 #include "bios.h"
@@ -56,6 +56,7 @@ static int need_redraw_cursor;
 static unsigned char *text_canvas;
 static uint16_t prev_screen[MAX_COLUMNS * MAX_LINES];	/* pointer to currently displayed screen   */
 static u_char prev_font[256 * 32];
+static pthread_rwlock_t cursor_mtx = PTHREAD_RWLOCK_INITIALIZER;
 
 #if CONFIG_SELECTION
 static int sel_start_row = -1, sel_end_row =
@@ -228,8 +229,20 @@ static void restore_cell(unsigned cursor_location)
     return;
 
   sp = (Bit16u *) (vga.mem.base + location_to_memoffs(cursor_location));
+  pthread_rwlock_rdlock(&cursor_mtx);
   c = CHAR(sp);
   draw_string(x, y, &c, 1, XATTR(sp, x, y));
+  pthread_rwlock_unlock(&cursor_mtx);
+}
+
+void text_wrlock(void)
+{
+  pthread_rwlock_wrlock(&cursor_mtx);
+}
+
+void text_wrunlock(void)
+{
+  pthread_rwlock_unlock(&cursor_mtx);
 }
 
 /*
@@ -470,15 +483,22 @@ int text_is_dirty(void)
     return 1;
 
   sp = vga.mem.base + location_to_memoffs(0);
-  if (vga.text_height <= vga.line_compare)
-    return memcmp(prev_screen, sp,
+  if (vga.text_height <= vga.line_compare) {
+    int ret;
+    pthread_rwlock_rdlock(&cursor_mtx);
+    ret = memcmp(prev_screen, sp,
 		  vga.text_width * vga.text_height * sizeof(uint16_t));
+    pthread_rwlock_unlock(&cursor_mtx);
+    return ret;
+  }
 
   compare = vga.line_compare * vga.scan_len;
+  pthread_rwlock_rdlock(&cursor_mtx);
   ret = memcmp(prev_screen, sp, compare);
   if (ret == 0)
     ret = memcmp(&prev_screen[compare / sizeof(uint16_t)], vga.mem.base,
 		 vga.scan_len * vga.text_height - compare);
+  pthread_rwlock_unlock(&cursor_mtx);
   return ret;
 }
 
@@ -693,6 +713,7 @@ void update_text_screen(void)
     oldsp = prev_screen + y * co;
 
     x = 0;
+    pthread_rwlock_rdlock(&cursor_mtx);
     do {
       /* find a non-matching character position */
       start_x = x;
@@ -754,6 +775,7 @@ void update_text_screen(void)
     }
     while (x < vga.text_width);
   line_done:
+    pthread_rwlock_unlock(&cursor_mtx);
 /* update the cursor. We do this here to avoid the cursor 'running behind'
        when using a fast key-repeat.
 */

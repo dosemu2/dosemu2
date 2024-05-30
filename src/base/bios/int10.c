@@ -330,8 +330,10 @@ void tty_char_out(unsigned char ch, int s, int attr)
     else
     {
       dst = screen_adr(s) + 2 * (ypos*co + xpos);
+      text_wrlock();
       WRITE_BYTE(dst, ch);
       if(attr != -1) WRITE_BYTE(dst + 1, attr);
+      text_wrunlock();
     }
     xpos++;
   }
