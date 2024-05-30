@@ -209,6 +209,11 @@ static void do_co_init(cothread_ctx *tctx)
 	tctx->co_main.ctx.cc = tctx->stk0;
 	tctx->co_main.ctx_main = tctx;
 	tctx->co_main.exited = 0;
+	tctx->co_main.caller = NULL;
+	/* no initial stack setup, as we are already on a host's stack */
+	tctx->co_main.stack_size = 0;
+	tctx->co_main.stack = NULL;
+	tctx->co_main.tmp = NULL;
 	tctx->co_curr = &tctx->co_main;
 }
 
