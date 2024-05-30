@@ -220,7 +220,7 @@ static int check_cursor_location(unsigned cursor_location, int *x, int *y)
  */
 static void restore_cell(unsigned cursor_location)
 {
-  Bit16u *sp, *oldsp;
+  Bit16u *sp;
   u_char c;
   int x, y;
 
@@ -228,10 +228,7 @@ static void restore_cell(unsigned cursor_location)
     return;
 
   sp = (Bit16u *) (vga.mem.base + location_to_memoffs(cursor_location));
-  oldsp = prev_screen + cursor_location / 2;
   c = CHAR(sp);
-
-  *oldsp = XREAD_WORD(sp, x, y);
   draw_string(x, y, &c, 1, XATTR(sp, x, y));
 }
 
