@@ -30,6 +30,7 @@ static int num_remaps;
 static int is_updating;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_rwlock_t text_mtx = PTHREAD_RWLOCK_INITIALIZER;
+static pthread_rwlock_t flg_mtx = PTHREAD_RWLOCK_INITIALIZER;
 #if RENDER_THREADED
 static pthread_t render_thr;
 #endif
@@ -63,10 +64,13 @@ static int cur_mode_class;
 __attribute__((warn_unused_result))
 static int render_lock(void)
 {
-  int i, j;
+  int i, j, flags;
   for (i = 0; i < Render.num_renders; i++) {
     Render.dst_image[i] = Render.wrp[i].render->lock();
-    if (Render.wrp[i].render->flags & RENDF_DISABLED) {
+    pthread_rwlock_rdlock(&flg_mtx);
+    flags = Render.wrp[i].render->flags;
+    pthread_rwlock_unlock(&flg_mtx);
+    if (flags & RENDF_DISABLED) {
       Render.wrp[i].render->unlock();
       continue;
     }
@@ -858,16 +862,16 @@ void remap_##_x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a
 
 void render_enable(struct render_system *render)
 {
-  pthread_mutex_lock(&render_mtx);
+  pthread_rwlock_wrlock(&flg_mtx);
   render->flags &= ~RENDF_DISABLED;
-  pthread_mutex_unlock(&render_mtx);
+  pthread_rwlock_unlock(&flg_mtx);
 }
 
 void render_disable(struct render_system *render)
 {
-  pthread_mutex_lock(&render_mtx);
+  pthread_rwlock_wrlock(&flg_mtx);
   render->flags |= RENDF_DISABLED;
-  pthread_mutex_unlock(&render_mtx);
+  pthread_rwlock_unlock(&flg_mtx);
 }
 
 #define CHECK_get_cap()
