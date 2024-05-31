@@ -1918,14 +1918,18 @@ dpmi_pm_block DPMIreallocLinear(unsigned long handle, unsigned long size,
 
 static void DPMIfreeAll(dpmi_pm_block_root *root)
 {
-    dpmi_pm_block **p = &root->first_pm_block;
-    while (*p) {
 #ifdef USE_DJDEV64
-	if ((*p)->flags & PMBF_DJ64)
-	    djdev64->close((*p)->opaque);
-#endif
-	DPMI_freeAll(root, *p);
+    dpmi_pm_block *p;
+
+    /* close djdev64 before releasing shm regions, as they may still be
+     * used by debugger */
+    for (p = root->first_pm_block; p; p = p->next) {
+	if (p->flags & PMBF_DJ64)
+	    djdev64->close(p->opaque);
     }
+#endif
+    while (root->first_pm_block)
+	DPMI_freeAll(root, root->first_pm_block);
 }
 
 int DPMIMapConventionalMemory(unsigned long handle, unsigned long offset,
