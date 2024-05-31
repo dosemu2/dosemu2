@@ -40,16 +40,33 @@
 #endif
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "pcl.h"
 #include "pcl_private.h"
 #include "pcl_ctx.h"
 
 static cothread_ctx *co_get_thread_ctx(coroutine *co);
 
+#if USE_ASAN
+static void save_asan_stack(co_base *ctx, void *ptr, size_t size)
+{
+	if (!ctx->stack) {
+		ctx->stack = ptr;
+		ctx->stack_size = size;
+	} else {
+		assert(ctx->stack_size == size);
+		assert(ctx->stack == ptr);
+	}
+}
+#endif
+
 static void co_switch_context(co_base *octx, co_base *nctx)
 {
 #if USE_ASAN
 	void *fake_stack_save = NULL;
+	void *old_stack = NULL;
+	size_t old_size = 0;
+
 	__sanitizer_start_switch_fiber(octx->exited ? NULL : &fake_stack_save,
 	               nctx->stack, nctx->stack_size);
 	octx->tmp = fake_stack_save;
@@ -59,7 +76,14 @@ static void co_switch_context(co_base *octx, co_base *nctx)
 		exit(1);
 	}
 #if USE_ASAN
-	__sanitizer_finish_switch_fiber(fake_stack_save, NULL, NULL);
+	/* needs to suppress warning on cast from void** to const void** */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+	__sanitizer_finish_switch_fiber(fake_stack_save,
+			(const void **)&old_stack, &old_size);
+#pragma GCC diagnostic pop
+	/* returning usually from nctx, but not always, so use octx->caller */
+	save_asan_stack(octx->caller, old_stack, old_size);
 #endif
 }
 
@@ -67,13 +91,22 @@ static void co_switch_context(co_base *octx, co_base *nctx)
 static void co_runner(void *arg)
 {
 	coroutine *co = arg;
+	co_base *caller = co->caller;
 	cothread_ctx *tctx;
 
 #if USE_ASAN
-	__sanitizer_finish_switch_fiber(co->tmp, NULL, NULL);
+	void *old_stack = NULL;
+	size_t old_size = 0;
+	/* needs to suppress warning on cast from void** to const void** */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+	__sanitizer_finish_switch_fiber(co->tmp,
+			(const void **)&old_stack, &old_size);
+#pragma GCC diagnostic pop
+	save_asan_stack(caller, old_stack, old_size);
 #endif
 	tctx = co_get_thread_ctx(co);
-	co->restarget = co->caller;
+	co->restarget = caller;
 	co->func(co->data);
 	co_exit(tctx);
 	abort();
@@ -171,6 +204,7 @@ void co_exit(cohandle_t handle)
 
 	co->exited = 1;
 	tctx->co_curr = newco;
+	newco->caller = co;
 
 	co_switch_context(co, newco);
 }
