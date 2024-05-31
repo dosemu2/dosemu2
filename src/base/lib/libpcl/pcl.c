@@ -52,7 +52,7 @@ static void co_switch_context(co_base *octx, co_base *nctx)
 	void *fake_stack_save = NULL;
 	__sanitizer_start_switch_fiber(octx->exited ? NULL : &fake_stack_save,
 	               nctx->stack, nctx->stack_size);
-	nctx->tmp = fake_stack_save;
+	octx->tmp = fake_stack_save;
 #endif
 	if (octx->ctx.ops->swap_context(&octx->ctx, nctx->ctx.cc) < 0) {
 		fprintf(stderr, "[PCL] Context switch failed\n");
