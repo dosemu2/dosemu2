@@ -155,11 +155,12 @@ static void tmr_set_rel(void *tmr, uint64_t ns, int periodic)
     clock_gettime(t->clk_id, &start);
     timespecadd(&start, &rel, &abs);
     i.it_value = abs;
-    timer_settime(t->tmr, TIMER_ABSTIME, &i, NULL);
     pthread_mutex_lock(&t->start_mtx);
     t->start = start;
     pthread_mutex_unlock(&t->start_mtx);
     __atomic_exchange_n(&t->running, 1, __ATOMIC_RELAXED);
+    /* don't care if the timer was already running, just change it */
+    timer_settime(t->tmr, TIMER_ABSTIME, &i, NULL);
 }
 
 static uint64_t tmr_gettime(void *tmr)

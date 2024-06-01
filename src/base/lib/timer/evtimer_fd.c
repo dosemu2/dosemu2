@@ -220,6 +220,11 @@ static void evtimerfd_set_rel(void *tmr, uint64_t ns, int periodic)
         i.it_interval = rel;
 #endif
     clock_gettime(t->clk_id, &start);
+    pthread_mutex_lock(&t->start_mtx);
+    t->start = start;
+    pthread_mutex_unlock(&t->start_mtx);
+    __atomic_exchange_n(&t->running, 1, __ATOMIC_RELAXED);
+    /* don't care if the timer was already running, just change it */
 #ifdef HAVE_TIMERFD_CREATE
     timespecadd(&start, &rel, &abs);
     i.it_value = abs;
@@ -232,10 +237,6 @@ static void evtimerfd_set_rel(void *tmr, uint64_t ns, int periodic)
         EV_SET(&change, 1, EVFILT_TIMER, EV_ONESHOT | EV_ADD | EV_ENABLE, NOTE_NSECONDS, ns, 0);
     kevent(t->fd, &change, 1, NULL, 0, NULL);
 #endif
-    pthread_mutex_lock(&t->start_mtx);
-    t->start = start;
-    pthread_mutex_unlock(&t->start_mtx);
-    __atomic_exchange_n(&t->running, 1, __ATOMIC_RELAXED);
 }
 
 static uint64_t evtimerfd_gettime(void *tmr)
