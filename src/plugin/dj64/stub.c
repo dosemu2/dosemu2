@@ -33,7 +33,7 @@
 #include "coff.h"
 #include "elfp.h"
 #include "util.h"
-#include "stub_ex.h"
+#include "stub_priv.h"
 #include "stub.h"
 
 #define STUB_DEBUG 0

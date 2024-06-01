@@ -29,7 +29,7 @@
 #include "coopth_pm.h"
 #include "hlt.h"
 #include "dos2linux.h"
-#include "stub_ex.h"
+#include "stub.h"
 
 #if DJ64_API_VER != 5
 #error wrong dj64 version

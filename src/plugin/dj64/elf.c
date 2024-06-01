@@ -24,7 +24,7 @@
 #include <assert.h>
 #include <dos.h>
 #include "util.h"
-#include "stub.h"
+#include "stub_priv.h"
 #include "elf.h"
 #include "elfp.h"
 
