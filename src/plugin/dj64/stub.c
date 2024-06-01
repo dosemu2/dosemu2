@@ -29,7 +29,6 @@
 #include "plugin_config.h"
 #include "dosemu_debug.h"
 #include "cpu.h"
-#include "emudpmi.h"
 #include "dpmiwrp.h"
 #include "coff.h"
 #include "elfp.h"
@@ -88,7 +87,7 @@ static char *_fname(char *name)
 
 #define exit(x) return x
 int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
-    cpuctx_t *scp)
+    cpuctx_t *scp, char *(*SEL_ADR)(uint16_t sel))
 {
     int ifile;
     off_t coffset = 0;
@@ -243,13 +242,13 @@ int djstub_main(int argc, char *argv[], char *envp[], unsigned psp_sel,
     /* set limit */
     __dpmi_set_segment_limit(clnt_ds, 0xffffffff);
 
-    client_memory = SEL_ADR(clnt_ds, 0);
+    client_memory = SEL_ADR(clnt_ds);
     stubinfo_fs = __dpmi_allocate_ldt_descriptors(1);
     info.size = PAGE_ALIGN(sizeof(_GO32_StubInfo));
     __dpmi_allocate_memory(&info);
     __dpmi_set_segment_base_address(stubinfo_fs, info.address);
     __dpmi_set_segment_limit(stubinfo_fs, sizeof(_GO32_StubInfo) - 1);
-    stubinfo_p = SEL_ADR(stubinfo_fs, 0);
+    stubinfo_p = (_GO32_StubInfo *)SEL_ADR(stubinfo_fs);
 
     ops->read_sections(handle, client_memory, ifile, coffset);
 

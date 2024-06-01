@@ -229,6 +229,11 @@ static void do_close(int handle)
     djdev64_close(handle);
 }
 
+static char *_SEL_ADR(uint16_t sel)
+{
+    return SEL_ADR(sel, 0);
+}
+
 static void stub_thr(void *arg)
 {
     cpuctx_t *scp = arg;
@@ -247,7 +252,7 @@ static void stub_thr(void *arg)
         envp[i] = SEL_ADR(_ds, envpp[i]);
     envp[i] = NULL;
 
-    djstub_main(argc, argv, envp, _eax, &scp2);
+    djstub_main(argc, argv, envp, _eax, &scp2, _SEL_ADR);
     coopth_leave_pm(scp);
     scp2.esp += 8;
     assert(_esp == scp2.esp);
