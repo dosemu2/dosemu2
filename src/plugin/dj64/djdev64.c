@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <djdev64/djdev64.h>
 #include <djdev64/dj64init.h>
+#include <djdev64/stub.h>
 #include "init.h"
 #include "emu.h"
 #include "cpu-emu.h"
@@ -29,10 +30,11 @@
 #include "coopth_pm.h"
 #include "hlt.h"
 #include "dos2linux.h"
-#include "stub.h"
+#include "dos.h"
+#include "dpmiops.h"
 
 #if DJ64_API_VER != 5
-#error wrong dj64 version
+#error wrong djdev64 version
 #endif
 
 static unsigned ctrl_off;
@@ -234,10 +236,19 @@ static char *_SEL_ADR(uint16_t sel)
     return SEL_ADR(sel, 0);
 }
 
+static struct dos_ops dosops = {
+  _dos_open,
+  _dos_read,
+  _dos_write,
+  _dos_seek,
+  _dos_close,
+  _dos_link_umb,
+};
+
 static void stub_thr(void *arg)
 {
     cpuctx_t *scp = arg;
-    cpuctx_t scp2 = *scp;
+    struct stub_ret_regs regs = {};
     int argc = _ecx;
     unsigned *argp = SEL_ADR(_ds, _edx);
     char **argv = alloca((argc + 1) * sizeof(char *));
@@ -252,11 +263,14 @@ static void stub_thr(void *arg)
         envp[i] = SEL_ADR(_ds, envpp[i]);
     envp[i] = NULL;
 
-    djstub_main(argc, argv, envp, _eax, &scp2, _SEL_ADR);
+    djstub_main(argc, argv, envp, _eax, &regs, _SEL_ADR, &dosops, &dpmiops);
     coopth_leave_pm(scp);
-    scp2.esp += 8;
-    assert(_esp == scp2.esp);
-    *scp = scp2;
+    _es = 0;
+    _gs = 0;
+    _fs = regs.fs;
+    _ds = regs.ds;
+    _cs = regs.cs;
+    _eip = regs.eip;
 }
 
 static unsigned call_entry(int handle)

@@ -8,3 +8,4 @@
 # This file is included by all Makefiles
 
 DJDEV64_LIBS:=@DJDEV64_LIBS@
+DJSTUB64_LIBS:=@DJSTUB64_LIBS@

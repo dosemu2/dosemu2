@@ -1,3 +1,4 @@
+#include <djdev64/stub.h>
 #include "dpmi.h"
 #include "dpmiops.h"
 
@@ -11,5 +12,5 @@
   .__##n =  ___##n,
 
 struct dpmi_ops dpmiops = {
-#include "dpmi_inc.h"
+#include <djdev64/dpmi_inc.h>
 };
