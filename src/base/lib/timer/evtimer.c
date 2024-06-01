@@ -25,6 +25,8 @@
  *
  */
 
+#ifndef __EMSCRIPTEN__
+
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -230,3 +232,5 @@ CONSTRUCTOR(static void tmr_init(void))
 {
     register_evtimer(&ops);
 }
+
+#endif
