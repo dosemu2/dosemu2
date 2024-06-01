@@ -72,6 +72,7 @@ struct evtimer {
     pthread_cond_t unblock_cnd;
     int in_cbk;
     pthread_t thr;
+    int running;
 };
 
 static void do_callback(struct evtimer *t)
@@ -163,6 +164,8 @@ static void *evtimerfd_create(void (*cbk)(int ticks, void *), void *arg)
     t->clk_id = id;
     t->blocked = 0;
     t->in_cbk = 0;
+    clock_gettime(t->clk_id, &t->start);
+    __atomic_store_n(&t->running, 0, __ATOMIC_RELAXED);
     pthread_mutex_init(&t->start_mtx, NULL);
     pthread_mutex_init(&t->block_mtx, NULL);
     pthread_cond_init(&t->block_cnd, NULL);
@@ -232,6 +235,7 @@ static void evtimerfd_set_rel(void *tmr, uint64_t ns, int periodic)
     pthread_mutex_lock(&t->start_mtx);
     t->start = start;
     pthread_mutex_unlock(&t->start_mtx);
+    __atomic_exchange_n(&t->running, 1, __ATOMIC_RELAXED);
 }
 
 static uint64_t evtimerfd_gettime(void *tmr)
@@ -251,21 +255,22 @@ static uint64_t evtimerfd_gettime(void *tmr)
 static void evtimerfd_stop(void *tmr)
 {
     struct evtimer *t = tmr;
-    struct timespec start;
+    int o_r;
 #ifdef HAVE_TIMERFD_CREATE
     struct itimerspec i = {};
-
-    timerfd_settime(t->fd, 0, &i, NULL);
 #else
     struct kevent change;
+#endif
 
+    o_r = __atomic_exchange_n(&t->running, 0, __ATOMIC_RELAXED);
+    if (!o_r)
+        return;
+#ifdef HAVE_TIMERFD_CREATE
+    timerfd_settime(t->fd, 0, &i, NULL);
+#else
     EV_SET(&change, 1, EVFILT_TIMER, EV_DELETE, 0, 0, 0);
     kevent(t->fd, &change, 1, NULL, 0, NULL);
 #endif
-    clock_gettime(t->clk_id, &start);
-    pthread_mutex_lock(&t->start_mtx);
-    t->start = start;
-    pthread_mutex_unlock(&t->start_mtx);
 }
 
 static void evtimerfd_block(void *tmr)

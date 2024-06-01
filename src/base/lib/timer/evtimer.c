@@ -29,7 +29,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <time.h>
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
@@ -75,6 +74,7 @@ struct evtimer {
     pthread_cond_t block_cnd;
     int ticks;
     int in_cbk;
+    int running;
 };
 
 static void evhandler(union sigval sv)
@@ -119,6 +119,8 @@ static void *tmr_create(void (*cbk)(int ticks, void *), void *arg)
     t->blocked = 0;
     t->ticks = 0;
     t->in_cbk = 0;
+    clock_gettime(t->clk_id, &t->start);
+    __atomic_store_n(&t->running, 0, __ATOMIC_RELAXED);
     pthread_mutex_init(&t->start_mtx, NULL);
     pthread_mutex_init(&t->block_mtx, NULL);
     pthread_cond_init(&t->block_cnd, NULL);
@@ -153,6 +155,7 @@ static void tmr_set_rel(void *tmr, uint64_t ns, int periodic)
     pthread_mutex_lock(&t->start_mtx);
     t->start = start;
     pthread_mutex_unlock(&t->start_mtx);
+    __atomic_exchange_n(&t->running, 1, __ATOMIC_RELAXED);
 }
 
 static uint64_t tmr_gettime(void *tmr)
@@ -171,13 +174,12 @@ static void tmr_stop(void *tmr)
 {
     struct evtimer *t = tmr;
     struct itimerspec i = {};
-    struct timespec start;
+    int o_r;
 
+    o_r = __atomic_exchange_n(&t->running, 0, __ATOMIC_RELAXED);
+    if (!o_r)
+        return;
     timer_settime(t->tmr, 0, &i, NULL);
-    clock_gettime(t->clk_id, &start);
-    pthread_mutex_lock(&t->start_mtx);
-    t->start = start;
-    pthread_mutex_unlock(&t->start_mtx);
 }
 
 static void tmr_block(void *tmr)
