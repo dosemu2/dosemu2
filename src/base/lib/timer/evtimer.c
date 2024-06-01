@@ -80,19 +80,23 @@ struct evtimer {
 static void evhandler(union sigval sv)
 {
     int bl;
+    int ticks;
     struct evtimer *t = sv.sival_ptr;
 
     pthread_mutex_lock(&t->block_mtx);
     bl = t->blocked;
-    t->ticks += timer_getoverrun(t->tmr) + 1;
-    if (!bl)
+    ticks = t->ticks + timer_getoverrun(t->tmr) + 1;
+    if (!bl) {
+        t->ticks = 0;
         t->in_cbk++;
+    } else {
+        t->ticks = ticks;
+    }
     pthread_mutex_unlock(&t->block_mtx);
     if (!bl) {
-        t->callback(t->ticks, t->arg);
+        t->callback(ticks, t->arg);
         pthread_mutex_lock(&t->block_mtx);
         t->in_cbk--;
-        t->ticks = 0;
         pthread_mutex_unlock(&t->block_mtx);
         pthread_cond_signal(&t->block_cnd);
     }
@@ -201,12 +205,12 @@ static void tmr_unblock(void *tmr)
     /* if ticks accumulated, quickly deliver them first */
     pthread_mutex_lock(&t->block_mtx);
     ticks = t->ticks;
+    t->ticks = 0;
     pthread_mutex_unlock(&t->block_mtx);
     if (ticks)
         t->callback(ticks, t->arg);
     /* then unblock */
     pthread_mutex_lock(&t->block_mtx);
-    t->ticks -= ticks;
     t->blocked--;
     pthread_mutex_unlock(&t->block_mtx);
 }
