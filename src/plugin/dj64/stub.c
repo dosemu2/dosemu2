@@ -28,6 +28,9 @@
 #include <djdev64/stubinfo.h>
 #include "plugin_config.h"
 #include "dosemu_debug.h"
+#include "cpu.h"
+#include "emudpmi.h"
+#include "dpmiwrp.h"
 #include "coff.h"
 #include "elfp.h"
 #include "util.h"

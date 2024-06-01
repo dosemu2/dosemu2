@@ -13,21 +13,25 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-#include "../djdpmi.h"
+#include "../emudpmi.h"
+#include "../dpmi_api.h"
+#include "dpmi.h"
 
 #define DD(r, n, a, ...) \
-r ___##n a;
+r ___##n a { \
+  return _##n(dpmi_get_scp(), dpmi_is_32(), __VA_ARGS__); \
+}
 #define DDv(r, n) \
-r ___##n(void);
+r ___##n(void) { \
+  return _##n(dpmi_get_scp(), dpmi_is_32()); \
+}
 #define vDD(n, a, ...) \
-void ___##n a;
+void ___##n a { \
+  _##n(dpmi_get_scp(), dpmi_is_32(), __VA_ARGS__); \
+}
 #define vDDv(n) \
-void ___##n(void);
+void ___##n(void) { \
+  _##n(dpmi_get_scp(), dpmi_is_32()); \
+}
 
 #include "dpmi_inc.h"
-
-#undef DD
-#undef DDv
-#undef vDD
-#undef vDDv

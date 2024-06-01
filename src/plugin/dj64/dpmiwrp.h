@@ -14,16 +14,17 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include "../djdpmi.h"
+#ifndef DPMIWRP_H
+#define DPMIWRP_H
 
 #define DD(r, n, a, ...) \
-r ___##n a;
+r __##n a;
 #define DDv(r, n) \
-r ___##n(void);
+r __##n(void);
 #define vDD(n, a, ...) \
-void ___##n a;
+void __##n a;
 #define vDDv(n) \
-void ___##n(void);
+void __##n(void);
 
 #include "dpmi_inc.h"
 
@@ -31,3 +32,5 @@ void ___##n(void);
 #undef DDv
 #undef vDD
 #undef vDDv
+
+#endif

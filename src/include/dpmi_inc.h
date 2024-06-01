@@ -13,21 +13,4 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-#include "../djdpmi.h"
-
-#define DD(r, n, a, ...) \
-r ___##n a;
-#define DDv(r, n) \
-r ___##n(void);
-#define vDD(n, a, ...) \
-void ___##n a;
-#define vDDv(n) \
-void ___##n(void);
-
-#include "dpmi_inc.h"
-
-#undef DD
-#undef DDv
-#undef vDD
-#undef vDDv
+#include "../dosext/dpmi/doslib/dpmi_inc.h"

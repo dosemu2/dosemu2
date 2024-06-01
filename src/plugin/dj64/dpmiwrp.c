@@ -13,21 +13,25 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-#include "../djdpmi.h"
+#include "dpmi.h"
+#include "dpmiops.h"
+#include "dpmiwrp.h"
 
 #define DD(r, n, a, ...) \
-r ___##n a;
+r __##n a { \
+  return dpmiops.__##n(__VA_ARGS__); \
+}
 #define DDv(r, n) \
-r ___##n(void);
+r __##n(void) { \
+  return dpmiops.__##n(); \
+}
 #define vDD(n, a, ...) \
-void ___##n a;
+void __##n a { \
+  dpmiops.__##n(__VA_ARGS__); \
+}
 #define vDDv(n) \
-void ___##n(void);
+void __##n(void) { \
+  dpmiops.__##n(); \
+}
 
 #include "dpmi_inc.h"
-
-#undef DD
-#undef DDv
-#undef vDD
-#undef vDDv
