@@ -60,6 +60,9 @@ static void save_asan_stack(co_base *ctx, void *ptr, size_t size)
 }
 #endif
 
+#if USE_ASAN
+__attribute__((no_sanitize("address")))
+#endif
 static void co_switch_context(co_base *octx, co_base *nctx)
 {
 #if USE_ASAN
