@@ -67,9 +67,6 @@ static void co_switch_context(co_base *octx, co_base *nctx)
 {
 #if USE_ASAN
 	void *fake_stack_save = NULL;
-	void *old_stack = NULL;
-	size_t old_size = 0;
-
 	__sanitizer_start_switch_fiber(octx->exited ? NULL : &fake_stack_save,
 	               nctx->stack, nctx->stack_size);
 #endif
@@ -78,14 +75,7 @@ static void co_switch_context(co_base *octx, co_base *nctx)
 		exit(1);
 	}
 #if USE_ASAN
-	/* needs to suppress warning on cast from void** to const void** */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-	__sanitizer_finish_switch_fiber(fake_stack_save,
-			(const void **)&old_stack, &old_size);
-#pragma GCC diagnostic pop
-	/* returning usually from nctx, but not always, so use octx->caller */
-	save_asan_stack(octx->caller, old_stack, old_size);
+	__sanitizer_finish_switch_fiber(fake_stack_save, NULL, NULL);
 #endif
 }
 
