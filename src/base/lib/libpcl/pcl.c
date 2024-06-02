@@ -134,6 +134,7 @@ static coroutine *do_co_create(void (*func)(void *), void *data, void *stack,
 	co->func = func;
 	co->data = data;
 	co->exited = 0;
+	co->tmp = NULL;
 
 	return co;
 }
