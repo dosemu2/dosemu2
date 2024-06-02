@@ -57,7 +57,6 @@ typedef struct s_co_base {
 	struct s_co_base *caller;
 	struct s_co_base *restarget;
 	struct s_cothread_ctx *ctx_main;
-	void *tmp;
 	size_t stack_size;
 	char *stack;
 	unsigned int exited:1;
