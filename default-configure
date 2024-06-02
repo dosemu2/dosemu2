@@ -147,7 +147,7 @@ if [ `uname -s` = "FreeBSD" ]; then
   export CPPFLAGS="${CPPFLAGS} -I/usr/local/include"
   export LDFLAGS="${LDFLAGS} -L/usr/local/lib"
 fi
-${MAKE} "$srcdir"/configure
+${MAKE} -C "$srcdir" configure
 
 STRING="$STRING --enable-plugins=$PLUGIN,$EXTRA_PLUGINS"
 if [ -n "$FDPP_STR" ]; then
