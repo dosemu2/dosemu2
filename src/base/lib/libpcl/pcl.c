@@ -67,30 +67,22 @@ static void co_switch_context(co_base *octx, co_base *nctx)
 {
 #if USE_ASAN
 	void *fake_stack_save = NULL;
-	void *old_stack = NULL;
-	size_t old_size = 0;
-
 	__sanitizer_start_switch_fiber(octx->exited ? NULL : &fake_stack_save,
 	               nctx->stack, nctx->stack_size);
-	octx->tmp = fake_stack_save;
 #endif
 	if (octx->ctx.ops->swap_context(&octx->ctx, nctx->ctx.cc) < 0) {
 		fprintf(stderr, "[PCL] Context switch failed\n");
 		exit(1);
 	}
 #if USE_ASAN
-	/* needs to suppress warning on cast from void** to const void** */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-	__sanitizer_finish_switch_fiber(fake_stack_save,
-			(const void **)&old_stack, &old_size);
-#pragma GCC diagnostic pop
-	/* returning usually from nctx, but not always, so use octx->caller */
-	save_asan_stack(octx->caller, old_stack, old_size);
+	__sanitizer_finish_switch_fiber(fake_stack_save, NULL, NULL);
 #endif
 }
 
 
+#if USE_ASAN
+__attribute__((no_sanitize("address")))
+#endif
 static void co_runner(void *arg)
 {
 	coroutine *co = arg;
@@ -103,7 +95,7 @@ static void co_runner(void *arg)
 	/* needs to suppress warning on cast from void** to const void** */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
-	__sanitizer_finish_switch_fiber(co->tmp,
+	__sanitizer_finish_switch_fiber(NULL,
 			(const void **)&old_stack, &old_size);
 #pragma GCC diagnostic pop
 	save_asan_stack(caller, old_stack, old_size);
@@ -137,7 +129,6 @@ static coroutine *do_co_create(void (*func)(void *), void *data, void *stack,
 	co->func = func;
 	co->data = data;
 	co->exited = 0;
-	co->tmp = NULL;
 
 	return co;
 }
@@ -251,7 +242,6 @@ static void do_co_init(cothread_ctx *tctx)
 	/* no initial stack setup, as we are already on a host's stack */
 	tctx->co_main.stack_size = 0;
 	tctx->co_main.stack = NULL;
-	tctx->co_main.tmp = NULL;
 	tctx->co_curr = &tctx->co_main;
 }
 
