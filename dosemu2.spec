@@ -51,7 +51,7 @@ BuildRequires: binutils
 BuildRequires: binutils-x86_64-linux-gnu
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp-devel
-BuildRequires: dj64-devel
+BuildRequires: dj64dev-djdev64-devel
 
 # our startup script is bash-specific
 Requires:   bash
