@@ -242,10 +242,10 @@ void gdb_debug(void)
 void siginfo_debug(const siginfo_t *si)
 {
     error("@\n");
-    error("cpu exception in dosemu code outside of %s!\n",
-	  (in_dpmi_pm() ? "DPMI client" : "VM86()"));
 #ifdef __linux__
     psiginfo(si, "");
+#else
+    error("Got signal: %s\n", strsignal(si->si_signo));
 #endif
     error("@\n");
     dbug_printf("%s\nsig: %i code: 0x%02x  errno: 0x%08x  fault address: %p\n",
