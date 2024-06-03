@@ -8,6 +8,8 @@ sudo apt update -q
 sudo apt install -y \
   acl \
   comcom64 \
+  dj64-dbgsym \
+  djdev64-dbgsym \
   nasm \
   python3-cpuinfo \
   python3-pexpect \
