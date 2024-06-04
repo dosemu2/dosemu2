@@ -1,15 +1,6 @@
 #!/bin/bash
 
-if [ "${TRAVIS}" = "true" ] ; then
-  export CI="true"
-  export CI_BRANCH="${TRAVIS_BRANCH}"
-  if [ "${TRAVIS_EVENT_TYPE}" = "cron" ] ; then
-    export RUNTYPE="full"
-  else
-    export RUNTYPE="simple"
-  fi
-
-elif [ "${GITHUB_ACTIONS}" = "true" ] ; then
+if [ "${GITHUB_ACTIONS}" = "true" ] ; then
   # CI is already set
   export CI_BRANCH="$(echo ${GITHUB_REF} | cut -d/ -f3)"
   if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REPOSITORY_OWNER}" = "dosemu2" ] && [ "${CI_BRANCH}" = "devel" ] ; then
@@ -37,11 +28,7 @@ echo "====================================================="
 # single test example
 # python3 test/test_dos.py FRDOS120TestCase.test_mfs_fcb_rename_wild_1
 
-if [ "${TRAVIS}" = "true" ] ; then
-  ARGS="--require-attr=cputest"
-else
-  ARGS=""
-fi
+ARGS=""
 
 case "${RUNTYPE}" in
   "full")
@@ -57,9 +44,6 @@ case "${RUNTYPE}" in
     export SKIP_UNCERTAIN=1
     ;;
 esac
-
-# CC is set on Travis and can confuse compilation during tests
-unset CC
 
 # Make cpu tests here so that we see any failures
 make -C test/cpu clean all
