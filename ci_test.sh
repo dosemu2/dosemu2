@@ -17,6 +17,9 @@ else
 fi
 python3 test/test_dos.py --get-test-binaries
 
+# Make cpu tests here so that we see any failures
+make -C test/cpu clean all
+
 echo
 echo "====================================================="
 echo "=        Tests run on various flavours of DOS       ="
@@ -28,27 +31,24 @@ echo "====================================================="
 # single test example
 # python3 test/test_dos.py FRDOS120TestCase.test_mfs_fcb_rename_wild_1
 
-ARGS=""
-
 case "${RUNTYPE}" in
   "full")
-    ARGS="${ARGS} PPDOSGITTestCase MSDOS622TestCase FRDOS130TestCase DRDOS701TestCase"
+    python3 test/test_dos.py PPDOSGITTestCase
+    python3 test/test_dos.py MSDOS622TestCase
+    python3 test/test_dos.py FRDOS130TestCase
+    python3 test/test_dos.py DRDOS701TestCase
     ;;
   "normal")
-    ARGS="${ARGS} PPDOSGITTestCase MSDOS622TestCase"
     export SKIP_UNCERTAIN=1
+    python3 test/test_dos.py PPDOSGITTestCase
+    python3 test/test_dos.py MSDOS622TestCase
     ;;
   "simple")
-    ARGS="${ARGS} PPDOSGITTestCase"
     export SKIP_EXPENSIVE=1
     export SKIP_UNCERTAIN=1
+    python3 test/test_dos.py PPDOSGITTestCase
     ;;
 esac
-
-# Make cpu tests here so that we see any failures
-make -C test/cpu clean all
-
-python3 test/test_dos.py ${ARGS}
 
 for i in test_*.*.*.log ; do
   test -f $i || exit 0
