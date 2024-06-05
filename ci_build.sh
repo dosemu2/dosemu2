@@ -8,13 +8,6 @@ FDPPBRANCH=""
 
 test -d ${LOCALFDPP} && exit 1
 
-if [ "${TRAVIS}" = "true" ] ; then
-  echo "Travis seems to have some old version of clang in its local directory"
-  PATH=$(echo ${PATH} | sed 's,:/usr/local/clang-7.0.0/bin,,g')
-  export PATH
-  echo PATH is ${PATH}
-fi
-
 git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOCALFDPP}
 (
   cd ${LOCALFDPP} || exit 2
@@ -32,11 +25,6 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
   sudo add-apt-repository ppa:stsp-0/thunk-gen
   sudo apt update -q
   mk-build-deps --install --root-cmd sudo
-
-  # Seems to miss this, perhaps the optional dependency confuses things
-  if [ "${TRAVIS}" = "true" ] ; then
-    sudo apt install binutils
-  fi
 
   make
   sudo make install
