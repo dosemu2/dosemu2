@@ -4,7 +4,7 @@
 #   1/ this file needs to be installed in the well known location by root
 #      cp test/dosemu_fat_mount.sh /bin/.
 #      chmod 755 /bin/dosemu_fat_mount.sh
-#      chown root.root /bin/dosemu_fat_mount.sh
+#      chown root:root /bin/dosemu_fat_mount.sh
 #
 #   2/ sudo needs to be configured by root for the test user to run it
 #      without passwd
