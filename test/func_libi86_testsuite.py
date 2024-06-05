@@ -3,6 +3,7 @@ import re
 
 from shutil import copy
 from subprocess import check_call, check_output, CalledProcessError, DEVNULL, TimeoutExpired
+from os import environ
 
 
 TESTSUITE = "/usr/ia16-elf/libexec/libi86/tests/testsuite"
@@ -40,6 +41,9 @@ def libi86_create_items(testcase):
 
 
 def libi86_test_item(self, test):
+    if environ.get("SKIP_EXPENSIVE"):
+        self.skipTest("expensive test")
+
     self.mkfile("dosemu.conf", """\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""

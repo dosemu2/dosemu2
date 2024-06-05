@@ -636,6 +636,7 @@ class MyTestRunner(unittest.TextTestRunner):
 
 
 def main(argv=None):
-    if version_info < (3, 0):
-        exit("Python 3.0 or later is required.")
-    unittest.main(testRunner=MyTestRunner, argv=argv, verbosity=2)
+    print("\n")
+    if version_info < (3, 2):
+        exit("Python 3.2 or later is required.")
+    unittest.main(testRunner=MyTestRunner, argv=argv, verbosity=2, failfast=True)

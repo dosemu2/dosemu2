@@ -1,17 +1,6 @@
 #!/bin/bash
 
-. ./ci_test_prereq.sh
-
-if [ "${TRAVIS}" = "true" ] ; then
-  export CI="true"
-  export CI_BRANCH="${TRAVIS_BRANCH}"
-  if [ "${TRAVIS_EVENT_TYPE}" = "cron" ] ; then
-    export RUNTYPE="full"
-  else
-    export RUNTYPE="simple"
-  fi
-
-elif [ "${GITHUB_ACTIONS}" = "true" ] ; then
+if [ "${GITHUB_ACTIONS}" = "true" ] ; then
   # CI is already set
   export CI_BRANCH="$(echo ${GITHUB_REF} | cut -d/ -f3)"
   if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REPOSITORY_OWNER}" = "dosemu2" ] && [ "${CI_BRANCH}" = "devel" ] ; then
@@ -28,9 +17,8 @@ else
 fi
 python3 test/test_dos.py --get-test-binaries
 
-if [ -f /dev/kvm ] ; then
-  sudo setfacl -m u:${USER}:rw /dev/kvm
-fi
+# Make cpu tests here so that we see any failures
+make -C test/cpu clean all
 
 echo
 echo "====================================================="
@@ -43,34 +31,24 @@ echo "====================================================="
 # single test example
 # python3 test/test_dos.py FRDOS120TestCase.test_mfs_fcb_rename_wild_1
 
-if [ "${TRAVIS}" = "true" ] ; then
-  ARGS="--require-attr=cputest"
-else
-  ARGS=""
-fi
-
 case "${RUNTYPE}" in
   "full")
-    ARGS="${ARGS} PPDOSGITTestCase MSDOS622TestCase FRDOS130TestCase DRDOS701TestCase"
+    python3 test/test_dos.py PPDOSGITTestCase
+    python3 test/test_dos.py MSDOS622TestCase
+    python3 test/test_dos.py FRDOS130TestCase
+    python3 test/test_dos.py DRDOS701TestCase
     ;;
   "normal")
-    ARGS="${ARGS} PPDOSGITTestCase MSDOS622TestCase"
     export SKIP_UNCERTAIN=1
+    python3 test/test_dos.py PPDOSGITTestCase
+    python3 test/test_dos.py MSDOS622TestCase
     ;;
   "simple")
-    ARGS="${ARGS} PPDOSGITTestCase"
     export SKIP_EXPENSIVE=1
     export SKIP_UNCERTAIN=1
+    python3 test/test_dos.py PPDOSGITTestCase
     ;;
 esac
-
-# CC is set on Travis and can confuse compilation during tests
-unset CC
-
-# Make cpu tests here so that we see any failures
-make -C test/cpu clean all
-
-python3 test/test_dos.py ${ARGS}
 
 for i in test_*.*.*.log ; do
   test -f $i || exit 0
