@@ -226,7 +226,7 @@ class BaseTestCase(object):
     def utcnow(self):
         return datetime.now(timezone.utc)
 
-    def mkcom_with_ia16(self, fname, content, dname=None):
+    def mkcom_with_ia16(self, fname, content, dname=None, extraargs=None):
         if dname is None:
             p = self.workdir
         else:
@@ -235,10 +235,13 @@ class BaseTestCase(object):
 
         with open(basename + ".c", "w") as f:
             f.write(content)
-        check_call(["ia16-elf-gcc", "-mcmodel=tiny",
-                    "-o", basename + ".com", basename + ".c", "-li86"])
+        args = ["ia16-elf-gcc", "-mcmodel=tiny",
+                "-o", basename + ".com", basename + ".c", "-li86"]
+        if extraargs:
+            args += extraargs
+        check_call(args)
 
-    def mkexe_with_djgpp(self, fname, content, dname=None):
+    def mkexe_with_djgpp(self, fname, content, dname=None, extraargs=None):
         if dname is None:
             p = self.workdir
         else:
@@ -247,8 +250,11 @@ class BaseTestCase(object):
 
         with open(basename + ".c", "w") as f:
             f.write(content)
-        check_call(["i586-pc-msdosdjgpp-gcc",
-                    "-o", basename + ".exe", basename + ".c"])
+        args = ["i586-pc-msdosdjgpp-gcc",
+                "-o", basename + ".exe", basename + ".c"]
+        if extraargs:
+            args += extraargs
+        check_call(args)
 
     def mkcom_with_nasm(self, fname, content, dname=None):
         if dname is None:
@@ -512,6 +518,12 @@ class BaseTestCase(object):
 
 class MyTestResult(unittest.TextTestResult):
 
+    def startTestRun(self):
+        super(MyTestResult, self).startTestRun()
+        self.stream.writeln(" ")
+        self.stream.writeln(" ")
+        self.stream.flush()
+
     def getDescription(self, test):
         if 'SubTest' in strclass(test.__class__):
             return str(test)
@@ -605,6 +617,8 @@ class MyTestResult(unittest.TextTestResult):
         self._mirrorOutput = True
         if getattr(test, 'shouldStop', None) is not None:
             self.shouldStop = test.shouldStop
+        if getattr(self, 'failfast', False):
+            self.stop()
 
     def addSuccess(self, test):
         super(unittest.TextTestResult, self).addSuccess(test)
@@ -636,7 +650,7 @@ class MyTestRunner(unittest.TextTestRunner):
 
 
 def main(argv=None):
-    print("\n")
     if version_info < (3, 2):
         exit("Python 3.2 or later is required.")
-    unittest.main(testRunner=MyTestRunner, argv=argv, verbosity=2, failfast=True)
+    failfast = not (environ.get("NO_FAILFAST"))
+    unittest.main(testRunner=MyTestRunner, argv=argv, verbosity=2, failfast=failfast)
