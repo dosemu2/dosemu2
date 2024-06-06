@@ -33,6 +33,7 @@ echo "====================================================="
 
 case "${RUNTYPE}" in
   "full")
+    export NO_FAILFAST=1
     python3 test/test_dos.py PPDOSGITTestCase
     python3 test/test_dos.py MSDOS622TestCase
     python3 test/test_dos.py FRDOS130TestCase

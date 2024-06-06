@@ -518,6 +518,12 @@ class BaseTestCase(object):
 
 class MyTestResult(unittest.TextTestResult):
 
+    def startTestRun(self):
+        super(MyTestResult, self).startTestRun()
+        self.stream.writeln(" ")
+        self.stream.writeln(" ")
+        self.stream.flush()
+
     def getDescription(self, test):
         if 'SubTest' in strclass(test.__class__):
             return str(test)
@@ -611,6 +617,8 @@ class MyTestResult(unittest.TextTestResult):
         self._mirrorOutput = True
         if getattr(test, 'shouldStop', None) is not None:
             self.shouldStop = test.shouldStop
+        if getattr(self, 'failfast', False):
+            self.stop()
 
     def addSuccess(self, test):
         super(unittest.TextTestResult, self).addSuccess(test)
@@ -642,7 +650,7 @@ class MyTestRunner(unittest.TextTestRunner):
 
 
 def main(argv=None):
-    print("\n")
     if version_info < (3, 2):
         exit("Python 3.2 or later is required.")
-    unittest.main(testRunner=MyTestRunner, argv=argv, verbosity=2, failfast=True)
+    failfast = not (environ.get("NO_FAILFAST"))
+    unittest.main(testRunner=MyTestRunner, argv=argv, verbosity=2, failfast=failfast)

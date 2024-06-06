@@ -76,6 +76,22 @@ class OurTestCase(BaseTestCase):
              'labeltest']
     pname = "test_dos"
 
+    def test_0_basic_boot(self):
+        """Basic boot test"""
+        # Since test names are processed alphabetically this test should
+        # get to run first, and if we fail then even if failfast is disabled
+        # we will still terminate the test run.
+        self.shouldStop = True
+
+        results = self.runDosemu("version.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        self.assertNotIn('Timeout', results)
+        self.assertNotIn('NonZeroReturn', results)
+        self.assertIn(self.version, results)
+
     # Tests using assembler
 
     def _test_mfs_directory_common(self, nametype, operation):
