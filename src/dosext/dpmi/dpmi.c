@@ -72,9 +72,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "vtmr.h"
 #include "dnative/dnative.h"
 #include "dpmi_api.h"
-#ifdef USE_DJDEV64
-#include <dlfcn.h>
-#endif
 
 #define SHOWREGS 1
 
@@ -3692,7 +3689,7 @@ static void dpmi_dj64_open(cpuctx_t *scp)
   if (ptr->shm_dir)
     mp = ptr->shm_dir;
   path = assemble_path(mp, ptr->rshmname + 1);
-  djh = djdev64->open(path);
+  djh = djdev64->open(path, _ecx);
   free(path);
   if (djh != -1) {
     _eflags &= ~CF;

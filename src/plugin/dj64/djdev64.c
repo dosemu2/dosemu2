@@ -33,7 +33,7 @@
 #include "dos.h"
 #include "dpmiops.h"
 
-#if DJ64_API_VER != 5
+#if DJ64_API_VER != 6
 #error wrong djdev64 version
 #endif
 
@@ -199,9 +199,9 @@ const struct dj64_api api = {
     .is_dos_ptr = dj64_dos_ptr,
 };
 
-static int do_open(const char *path)
+static int do_open(const char *path, unsigned flags)
 {
-    int ret = djdev64_open(path, &api, DJ64_API_VER);
+    int ret = djdev64_open(path, &api, DJ64_API_VER, flags);
     if (ret == -1)
         return ret;
     assert(ret < HNDL_MAX);
@@ -237,12 +237,12 @@ static char *_SEL_ADR(uint16_t sel)
 }
 
 static struct dos_ops dosops = {
-  _dos_open,
-  _dos_read,
-  _dos_write,
-  _dos_seek,
-  _dos_close,
-  _dos_link_umb,
+    _dos_open,
+    _dos_read,
+    _dos_write,
+    _dos_seek,
+    _dos_close,
+    _dos_link_umb,
 };
 
 static void stub_thr(void *arg)

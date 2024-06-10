@@ -3,7 +3,7 @@
 
 struct pm_regs;
 struct djdev64_ops {
-    int (*open)(const char *path);
+    int (*open)(const char *path, unsigned flags);
     void (*close)(int handle);
     unsigned (*call)(int handle);
     unsigned (*ctrl)(int handle);
