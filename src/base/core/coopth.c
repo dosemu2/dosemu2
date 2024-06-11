@@ -1024,6 +1024,15 @@ void *coopth_pop_user_data_cur(void)
     return thdata->udata[--thdata->udata_num];
 }
 
+void *coopth_get_user_data_cur(void)
+{
+    struct coopth_thrdata_t *thdata;
+    assert(_coopth_is_in_thread());
+    thdata = co_get_data(co_current(co_handle));
+    assert(thdata->udata_num > 0);
+    return thdata->udata[thdata->udata_num - 1];
+}
+
 static void switch_state(enum CoopthRet ret)
 {
     struct coopth_thrdata_t *thdata = co_get_data(co_current(co_handle));

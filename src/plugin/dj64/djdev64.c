@@ -33,7 +33,7 @@
 #include "dos.h"
 #include "dpmiops.h"
 
-#if DJ64_API_VER != 6
+#if DJ64_API_VER != 7
 #error wrong djdev64 version
 #endif
 
@@ -44,6 +44,11 @@ static struct dos_helper_s stub_hlp;
 #define MAX_CLNUP_TIDS 5
 static int clnup_tids[HNDL_MAX][MAX_CLNUP_TIDS];
 static int num_clnup_tids[HNDL_MAX];
+
+struct udata {
+    cpuctx_t *scp;
+    int handle;
+};
 
 static void call_thr(void *arg);
 static void stub_thr(void *arg);
@@ -149,18 +154,17 @@ static int dj64_asm_call(dpmi_regs *regs, dpmi_paddr pma, uint8_t *sp,
 {
     int rc;
     int ret = ASM_CALL_OK;
-    cpuctx_t *scp = coopth_pop_user_data_cur();
-    copy_stk(scp, sp, len);
-    copy_gp(scp, regs);
+    struct udata *ud = coopth_get_user_data_cur();
+    copy_stk(ud->scp, sp, len);
+    copy_gp(ud->scp, regs);
 //    J_printf("asm call to 0x%x:0x%x\n", pma.selector, pma.offset32);
-    do_callf(scp, pma);
+    do_callf(ud->scp, pma);
     coopth_cancel_disable_cur();
     rc = coopth_sched();
     /* re-enable cancellability only if it was not canceled already */
     if (rc == 0) {
         coopth_cancel_enable_cur();
-        bcopy_gp(regs, scp);
-        coopth_push_user_data_cur(scp);
+        bcopy_gp(regs, ud->scp);
     } else {
         ret = ASM_CALL_ABORT;
     }
@@ -171,21 +175,26 @@ static void dj64_asm_noret(dpmi_regs *regs, dpmi_paddr pma, uint8_t *sp,
         uint8_t len)
 {
     struct pmaddr_s abt = doshlp_get_abort_helper();
-    cpuctx_t *scp = coopth_pop_user_data_cur();
-    coopth_leave_pm(scp);
-    copy_stk(scp, sp, len);
-    copy_gp(scp, regs);
-    _cs = abt.selector;
-    _eip = abt.offset;
-    do_callf(scp, pma);
+    struct udata *ud = coopth_pop_user_data_cur();
+    coopth_leave_pm(ud->scp);
+    copy_stk(ud->scp, sp, len);
+    copy_gp(ud->scp, regs);
+    ud->scp->cs = abt.selector;
+    ud->scp->eip = abt.offset;
+    do_callf(ud->scp, pma);
 }
 
 static uint8_t *dj64_inc_esp(uint32_t len)
 {
-    cpuctx_t *scp = coopth_pop_user_data_cur();
-    _esp += len;
-    coopth_push_user_data_cur(scp);
-    return SEL_ADR(_ss, _esp);
+    struct udata *ud = coopth_get_user_data_cur();
+    ud->scp->esp += len;
+    return SEL_ADR(ud->scp->ss, ud->scp->esp);
+}
+
+static int dj64_get_handle(void)
+{
+    struct udata *ud = coopth_get_user_data_cur();
+    return ud->handle;
 }
 
 const struct dj64_api api = {
@@ -197,6 +206,7 @@ const struct dj64_api api = {
     .asm_noret = dj64_asm_noret,
     .inc_esp = dj64_inc_esp,
     .is_dos_ptr = dj64_dos_ptr,
+    .get_handle = dj64_get_handle,
 };
 
 static int do_open(const char *path, unsigned flags)
@@ -303,12 +313,13 @@ static void call_thr(void *arg)
     cpuctx_t *scp = arg;
     unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
     int handle = _eax;
+    struct udata ud = { scp, handle };;
     if (handle >= HNDL_MAX) {
         error("DJ64: bad handle %x\n", handle);
         return;
     }
     J_printf("DJ64: djdev64_call(%i) %s\n", handle, DPMI_show_state(scp));
-    coopth_push_user_data_cur(scp);
+    coopth_push_user_data_cur(&ud);
     assert(num_clnup_tids[handle] < MAX_CLNUP_TIDS);
     clnup_tids[handle][num_clnup_tids[handle]++] = coopth_get_tid();
     djdev64_call(handle, _ebx, _ecx, _esi, sp);

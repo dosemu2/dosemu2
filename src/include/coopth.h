@@ -48,6 +48,7 @@ void coopth_push_user_data(int tid, void *udata);
 void coopth_push_user_data_cur(void *udata);
 void *coopth_pop_user_data(int tid);
 void *coopth_pop_user_data_cur(void);
+void *coopth_get_user_data_cur(void);
 int coopth_get_tid(void);
 void coopth_ensure_sleeping(int tid);
 void coopth_ensure_single(int tid);
