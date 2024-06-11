@@ -33,7 +33,7 @@
 #include "dos.h"
 #include "dpmiops.h"
 
-#if DJ64_API_VER != 7
+#if DJ64_API_VER != 8
 #error wrong djdev64 version
 #endif
 
@@ -44,6 +44,8 @@ static struct dos_helper_s stub_hlp;
 #define MAX_CLNUP_TIDS 5
 static int clnup_tids[HNDL_MAX][MAX_CLNUP_TIDS];
 static int num_clnup_tids[HNDL_MAX];
+static int exiting;
+static int exit_rc;
 
 struct udata {
     cpuctx_t *scp;
@@ -197,6 +199,24 @@ static int dj64_get_handle(void)
     return ud->handle;
 }
 
+static void dj64_exit(int rc)
+{
+    int h, i;
+
+    if (exiting)
+        return;
+    exiting++;
+    exit_rc = rc;
+
+    for (h = 0; h < HNDL_MAX; h++) {
+        for (i = 0; i < num_clnup_tids[h]; i++) {
+            int tid = clnup_tids[h][i];
+            if (coopth_get_tid() != tid)
+                coopth_cancel(tid);
+        }
+    }
+}
+
 const struct dj64_api api = {
     .addr2ptr = dj64_addr2ptr,
     .addr2ptr2 = dj64_addr2ptr2,
@@ -207,6 +227,7 @@ const struct dj64_api api = {
     .inc_esp = dj64_inc_esp,
     .is_dos_ptr = dj64_dos_ptr,
     .get_handle = dj64_get_handle,
+    .exit = dj64_exit,
 };
 
 static int do_open(const char *path, unsigned flags)
@@ -324,6 +345,9 @@ static void call_thr(void *arg)
     clnup_tids[handle][num_clnup_tids[handle]++] = coopth_get_tid();
     djdev64_call(handle, _ebx, _ecx, _esi, sp);
     num_clnup_tids[handle]--;
+
+    if (exiting)
+        leavedos(exit_rc);
 }
 
 static void do_retf(cpuctx_t *scp)

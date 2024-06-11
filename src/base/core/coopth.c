@@ -1036,7 +1036,7 @@ void *coopth_get_user_data_cur(void)
 static void switch_state(enum CoopthRet ret)
 {
     struct coopth_thrdata_t *thdata = co_get_data(co_current(co_handle));
-    assert(!thdata->cancelled);
+    assert(!thdata->cancelled || thdata->canc_disabled);
     assert(!thdata->left);
     thdata->ret = ret;
     while (1) {
