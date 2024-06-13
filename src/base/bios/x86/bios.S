@@ -452,6 +452,124 @@ kbd_EOI:
 	outb    %al,$0x20		/* tell pic we're done 		*/
 	ret
 
+/* ======================= INT_REVECT macro */
+.macro int_hdr inum,lbl
+/* header start for IBM'S INTERRUPT-SHARING PROTOCOL */
+	jmp \lbl	// EB xx to handler
+int_rvc_data_\inum:
+	.globl int_rvc_ip_\inum
+int_rvc_ip_\inum:
+	.word 0
+	.globl int_rvc_cs_\inum
+int_rvc_cs_\inum:
+	.word 0
+	.word 0x424B	// signature "KB"
+	.byte 0		// flag
+	jmp 30f		// EB xx to hwreset
+int_rvc_ret_\inum:
+	.globl int_rvc_ret_ip_\inum
+int_rvc_ret_ip_\inum:
+	.word 0
+	.globl int_rvc_ret_cs_\inum
+int_rvc_ret_cs_\inum:
+	.word 0
+int_rvc_disp_\inum:
+	.globl int_rvc_disp_ip_\inum
+int_rvc_disp_ip_\inum:
+	.word 0
+	.globl int_rvc_disp_cs_\inum
+int_rvc_disp_cs_\inum:
+	.word 0
+/* header finish for IBM'S INTERRUPT-SHARING PROTOCOL */
+30: /* hwreset */
+	lret
+.endm
+
+.macro int_rvc inum
+	int_hdr \inum,31f
+31: /* handler */
+	pushl %eax
+	pushl %ebx
+	shll $16,%eax
+	shll $16,%ebx
+	movb $DOS_HELPER_REVECT_HELPER,%al
+	movb $DOS_SUBHELPER_RVC_CALL,%bl
+	movb $0x\inum,%ah
+	movb $14,%bh		/* stack offset */
+	int $DOS_HELPER_INT
+	movzwl %sp,%esp
+	movw %bx,(%esp)
+	popl %ebx
+	movw %ax,(%esp)
+	popl %eax
+	jnz 9f			/* handled */
+	jc 2f			/* second_revect */
+	pushw 4(%esp)
+	andw $0xff,(%esp)
+	popfw			/* re-sync flags */
+	pushfw
+	lcall *%cs:int_rvc_disp_\inum
+	jmp 9f
+2:
+	/* no flag re-sync on second-revect: CF is forced */
+	pushw %ax
+	pushfw
+	lcall *%cs:int_rvc_data_\inum
+	jnc 12f			/* handled */
+	pushl %eax
+	pushl %ebx
+	pushl %ecx
+	pushl %edx
+	shll $16,%eax
+	shll $16,%ebx
+	shll $16,%ecx
+	shll $16,%edx
+	clc
+	movw 16(%esp),%cx	/* old AX */
+	movw 22(%esp),%dx	/* old flags */
+	movb $DOS_HELPER_REVECT_HELPER,%al
+	movb $DOS_SUBHELPER_RVC2_CALL,%bl
+	movb $0x\inum,%ah
+	movb $24,%bh		/* stack offset */
+	int $DOS_HELPER_INT
+	movw %dx,(%esp)
+	popl %edx
+	movw %cx,(%esp)
+	popl %ecx
+	movw %bx,(%esp)
+	popl %ebx
+	movw %ax,(%esp)
+	popl %eax
+	/* below replaces addw $2,%sp to not corrupt CF */
+	movw %ax,(%esp)
+	popw %ax
+
+9:
+	ljmp *%cs:int_rvc_ret_\inum
+12:
+	addw $2,%sp		/* skip saved ax */
+	clc
+	jmp 9b
+.endm
+
+	.globl INT_RVC_21_OFF
+INT_RVC_21_OFF:
+	int_rvc 21
+	.globl INT_RVC_28_OFF
+INT_RVC_28_OFF:
+	int_rvc 28
+	.globl INT_RVC_2f_OFF
+INT_RVC_2f_OFF:
+	int_rvc 2f
+	.globl INT_RVC_33_OFF
+INT_RVC_33_OFF:
+	int_rvc 33
+	.globl INT_RVC_e6_OFF
+INT_RVC_e6_OFF:
+	int_hdr e6,41f
+41:
+	ljmp *%cs:int_rvc_data_e6
+
 /******************************************************************
  * DATA BLOCK
  ******************************************************************/
@@ -468,7 +586,7 @@ bios_in_int10_callback:
 	.byte	0
 
 	/* this is the paramblock, we told DOS to use for INT21 AX=4B01 */
-	.align	16,0
+	.balign	16,0
 	.globl	DBGload_parblock
 DBGload_parblock:	.word	0
 			.long	0,0,0
@@ -551,7 +669,7 @@ LFN_short_name:
 
 	_ORG(0xf100)	// who says we cant use reserved region?
 	.globl bios_hlt_blk
-	.align 16
+	.balign 16
 bios_hlt_blk:
 	FILL_OPCODE BIOS_HLT_BLK_SIZE,hlt
 /* ----------------------------------------------------------------- */
@@ -683,7 +801,7 @@ PKTDRV_driver_name:
 PKTDRV_entry:
 	ljmp	*%cs:PKTDRV_driver_entry
 
-	.align 4,0
+	.balign 4,0
 PKTDRV_driver_entry:
 	.globl	PKTDRV_driver_entry_ip
 PKTDRV_driver_entry_ip:
@@ -802,124 +920,6 @@ DBGload_OFF:
 	popf
 	/* and give control to the program */
 	ljmp    *%cs:DBGload_CSIP
-
-/* ======================= INT_REVECT macro */
-.macro int_hdr inum,lbl
-/* header start for IBM'S INTERRUPT-SHARING PROTOCOL */
-	jmp \lbl	// EB xx to handler
-int_rvc_data_\inum:
-	.globl int_rvc_ip_\inum
-int_rvc_ip_\inum:
-	.word 0
-	.globl int_rvc_cs_\inum
-int_rvc_cs_\inum:
-	.word 0
-	.word 0x424B	// signature "KB"
-	.byte 0		// flag
-	jmp 30f		// EB xx to hwreset
-int_rvc_ret_\inum:
-	.globl int_rvc_ret_ip_\inum
-int_rvc_ret_ip_\inum:
-	.word 0
-	.globl int_rvc_ret_cs_\inum
-int_rvc_ret_cs_\inum:
-	.word 0
-int_rvc_disp_\inum:
-	.globl int_rvc_disp_ip_\inum
-int_rvc_disp_ip_\inum:
-	.word 0
-	.globl int_rvc_disp_cs_\inum
-int_rvc_disp_cs_\inum:
-	.word 0
-/* header finish for IBM'S INTERRUPT-SHARING PROTOCOL */
-30: /* hwreset */
-	lret
-.endm
-
-.macro int_rvc inum
-	int_hdr \inum,31f
-31: /* handler */
-	pushl %eax
-	pushl %ebx
-	shll $16,%eax
-	shll $16,%ebx
-	movb $DOS_HELPER_REVECT_HELPER,%al
-	movb $DOS_SUBHELPER_RVC_CALL,%bl
-	movb $0x\inum,%ah
-	movb $14,%bh		/* stack offset */
-	int $DOS_HELPER_INT
-	movzwl %sp,%esp
-	movw %bx,(%esp)
-	popl %ebx
-	movw %ax,(%esp)
-	popl %eax
-	jnz 9f			/* handled */
-	jc 2f			/* second_revect */
-	pushw 4(%esp)
-	andw $0xff,(%esp)
-	popfw			/* re-sync flags */
-	pushfw
-	lcall *%cs:int_rvc_disp_\inum
-	jmp 9f
-2:
-	/* no flag re-sync on second-revect: CF is forced */
-	pushw %ax
-	pushfw
-	lcall *%cs:int_rvc_data_\inum
-	jnc 12f			/* handled */
-	pushl %eax
-	pushl %ebx
-	pushl %ecx
-	pushl %edx
-	shll $16,%eax
-	shll $16,%ebx
-	shll $16,%ecx
-	shll $16,%edx
-	clc
-	movw 16(%esp),%cx	/* old AX */
-	movw 22(%esp),%dx	/* old flags */
-	movb $DOS_HELPER_REVECT_HELPER,%al
-	movb $DOS_SUBHELPER_RVC2_CALL,%bl
-	movb $0x\inum,%ah
-	movb $24,%bh		/* stack offset */
-	int $DOS_HELPER_INT
-	movw %dx,(%esp)
-	popl %edx
-	movw %cx,(%esp)
-	popl %ecx
-	movw %bx,(%esp)
-	popl %ebx
-	movw %ax,(%esp)
-	popl %eax
-	/* below replaces addw $2,%sp to not corrupt CF */
-	movw %ax,(%esp)
-	popw %ax
-
-9:
-	ljmp *%cs:int_rvc_ret_\inum
-12:
-	addw $2,%sp		/* skip saved ax */
-	clc
-	jmp 9b
-.endm
-
-	.globl INT_RVC_21_OFF
-INT_RVC_21_OFF:
-	int_rvc 21
-	.globl INT_RVC_28_OFF
-INT_RVC_28_OFF:
-	int_rvc 28
-	.globl INT_RVC_2f_OFF
-INT_RVC_2f_OFF:
-	int_rvc 2f
-	.globl INT_RVC_33_OFF
-INT_RVC_33_OFF:
-	int_rvc 33
-	.globl INT_RVC_e6_OFF
-INT_RVC_e6_OFF:
-	int_hdr e6,41f
-41:
-	ljmp *%cs:int_rvc_data_e6
 
 /* COMPAS FF841		jmp to INT12 */
 /* COMPAS FF844-FF84C	reserved */
