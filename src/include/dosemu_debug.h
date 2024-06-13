@@ -73,8 +73,8 @@ extern int shut_debug;
 /* unconditional message into debug log */
 #define dbug_printf(f,a...)	ifprintf(10,f,##a)
 
-/* error() is defined by glibc, so add underscores */
-#define error __error
+/* error() is defined by glibc, __error() by bsd libc, so add 3 underscores */
+#define error(...) ___error(__VA_ARGS__)
 /* unconditional message into debug log and stderr */
 void error(const char *fmt, ...) FORMAT(printf, 1, 2);
 #define error_once(s, ... ) do { \
