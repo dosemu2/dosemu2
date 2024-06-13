@@ -18,8 +18,8 @@
 #ifndef	_WORDEXP_H
 #define	_WORDEXP_H	1
 
-#include <features.h>
-#define __need_size_t
+//#include <features.h>
+//#define __need_size_t
 #include <stddef.h>
 
 /* Bits set in the FLAGS argument to `wordexp'.  */
