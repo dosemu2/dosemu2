@@ -248,6 +248,7 @@ AC_CHECK_FUNCS([timerfd_create], [
 ])])
 AC_CHECK_FUNCS([mremap])
 AC_CHECK_FUNCS([fls])
+AC_CHECK_FUNCS([statfs])
 
 AC_CHECK_DECLS([F_OFD_SETLK], [
     USE_OFD_LOCKS=1

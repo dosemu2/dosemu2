@@ -785,7 +785,7 @@ int dos_utime(char *fpath, struct utimbuf *ut)
 static int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
 		       unsigned int *spc, unsigned int *bps)
 {
-#ifdef __linux__
+#ifdef HAVE_STATFS
   struct statfs fsbuf;
 
   if (statfs(cwd, &fsbuf) >= 0) {
@@ -3701,7 +3701,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 
     case GET_LARGE_DISK_SPACE: /* 0xa3 */
     {
-#ifdef __linux__
+#ifdef HAVE_STATFS
       cds_t tcds = Addr(state, es, edi);
       char *name = cds_current_path(tcds);
       uint64_t avail, total;
