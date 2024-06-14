@@ -288,12 +288,6 @@ Error:
 	movw	$0x8003,%ax			# Set error
 	ret
 
-major:	.byte	0
-minor:	.byte	0
-sdasize: .word  0
-mosver:  .word  0
-dosver:  .word  0
-
 DosemuTooOldMsg:
 	.ascii	"ERROR: Your dosemu is too old, emufs.sys not loaded.\r\n$"
 

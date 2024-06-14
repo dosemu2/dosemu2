@@ -21,8 +21,6 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 
 #define MAX_DRIVES (PRINTER_BASE_DRIVE + MAX_PRINTER + 1)
 
-#define USE_DF_AND_AFS_STUFF
-
 #ifdef __linux__
 #define VOLUMELABEL "Linux"
 #endif
@@ -44,8 +42,8 @@ typedef struct vm86_regs state_t;
 
 #define MASK8(x)	((x) & 0xff)
 #define MASK16(x)	((x) & 0xffff)
-#define HIGH(x)		MASK8((unsigned long)(x) >> 8)
-#define LOW(x)		MASK8((unsigned long)(x))
+#define HIGH(x)		MASK8((unsigned)(x) >> 8)
+#define LOW(x)		MASK8((unsigned)(x))
 #undef WORD
 #define WORD(x)		(unsigned)(uint16_t)(x)
 #define SETHIGH(x,y) 	(*(x) = (*(x) & ~0xff00) | ((MASK8(y))<<8))
@@ -428,3 +426,16 @@ struct file_fd
 
 #define MAX_OPENED_FILES 256
 extern struct file_fd open_files[MAX_OPENED_FILES];
+
+struct get_volume_info {
+  uint8_t version;
+  uint8_t size;        /* size of this structure */
+  uint8_t namelen;     /* length of file system type name */
+  uint8_t pad;
+  uint16_t flags_std;  /* 15..0 as per RBIL */
+  uint16_t flags_ext;  /* 31..16 for extension */
+  uint16_t maxfilenamelen;
+  uint16_t maxpathlen;
+  char name[16];       /* file system type name */
+} __attribute__((packed));
+static_assert(sizeof(struct get_volume_info) == 28, "bad GET_VOLUME_INFO structure size");
