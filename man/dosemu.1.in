@@ -109,13 +109,13 @@ default file for debug and log messages
 .TP
 .I $HOME/.dosemu/drive_c/
 default directories of the local per user DOSEMU instance
-.TP   
+.TP
 .I @bindir@
-.TP   
+.TP
 .I @datadir@/dosemu/
-.TP   
+.TP
 .I @datadir@/dosemu/dosemu\-bin.tgz
-.TP   
+.TP
 .I @datadir@/dosemu/dosemu\-freedos\-bin.tgz
 default systemwide installation, containing binaries and templates
 (The paths can be changed during creation of the systemwide installation).
