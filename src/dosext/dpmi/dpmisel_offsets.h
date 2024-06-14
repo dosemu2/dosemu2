@@ -44,6 +44,8 @@ extern const unsigned    DPMI_VXD_CONFIGMG;
 extern const unsigned    DPMI_VXD_ENABLE;
 extern const unsigned    DPMI_VXD_APM;
 extern const unsigned    DPMI_VXD_VTDAPI;
+extern const unsigned    DPMI_VXD_thunks_start;
+extern const unsigned    DPMI_VXD_thunks_end;
 extern const unsigned    DPMI_VXD_end;
 extern const unsigned    MSDOS_pmc_start;
 extern const unsigned    MSDOS_fault;

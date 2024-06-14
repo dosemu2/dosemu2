@@ -34,7 +34,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+/* FIXME: Compiler says below causes thunks to be of variable size, so wont compile.
+ * This isn't the case
+#define VXD_THUNKS (HLT_OFF(DPMI_VXD_thunks_end) - HLT_OFF(DPMI_VXD_thunks_start))*/
+#define VXD_THUNKS 5
+
 static UINT W32S_offset = 0;
+static struct vxd_client *vxds = 0;
+static struct vxd_client *thunks[VXD_THUNKS] = {0};
 
 void get_VXD_entry(cpuctx_t *scp )
 {
@@ -107,9 +114,38 @@ void get_VXD_entry(cpuctx_t *scp )
 	    _edi = DPMI_SEL_OFF(DPMI_VXD_VTDAPI);
 	    break;
 	default:
+        {
+            unsigned int i = _LWORD(ebx);
+            struct vxd_client *vxd = vxds;
+
+            while (vxd)
+            {
+                /* Am not sure whether we check only 0 or all for es:di.  Examples
+                 * I found all use 0 */
+                if (vxd->bx == i)
+                {
+                    if (i == 0)
+                    {   /* Is this safe enough, can we get an access violation here?
+                         * Note under DOS we have a full address that can access any memory in
+                         * the DOS adress space.  Like wise here all available address should
+                         * be in the DOS address space.  That being the case do we really worry
+                         * about es:di == 0 */
+                        if (memcmp ((void *)SEL_ADR(_es, _edi), vxd->name, sizeof (vxd->name)))
+                        {
+                            vxd = vxd->next;
+                            continue;
+                        }
+                    }
+                    _es = dpmi_sel();
+                    _edi = DPMI_SEL_OFF(DPMI_VXD_thunks_start) + vxd->thunk;
+                    return;
+                }
+		vxd = vxd->next;
+            }
 	    D_printf("DPMI: ERROR: Unsupported VxD\n");
 	    /* no entry point */
 	    _es = _edi = 0;
+        }
     }
 }
 
@@ -1821,7 +1857,14 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
 void vxd_call(cpuctx_t *scp)
 {
-    if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_VMM)) {
+    if ((_eip>=1+DPMI_SEL_OFF(DPMI_VXD_thunks_start)) &&
+        (_eip<1+DPMI_SEL_OFF(DPMI_VXD_thunks_end))) {
+      struct vxd_client *vxd =
+        thunks[_eip - (1+DPMI_SEL_OFF(DPMI_VXD_thunks_start))];
+        if (vxd)
+          vxd->entry (scp);
+      _eip = DPMI_SEL_OFF(DPMI_VXD_thunks_end);
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_VMM)) {
       D_printf("DPMI: VMM VxD called, ax=%#x\n", _LWORD(eax));
       VXD_VMM(scp);
 
@@ -1873,4 +1916,40 @@ void vxd_call(cpuctx_t *scp)
       D_printf("DPMI: VTDAPI VxD called, ax=%#x\n", _LWORD(eax));
       VXD_TimerAPI(scp);
     }
+}
+
+/* FIXME: return error here if vxd cannot be registered? */
+void register_vxd_client (struct vxd_client *vxd)
+{
+    /* This may not be fully correct.  Online examples show
+     * bx == 0 as being undefined and therefore es:di point
+     * to a vxd name.  For bx != 0 it appears to be a
+     * specific function.
+     */
+    unsigned int i = vxd->bx;
+    if (i != 0)
+    {
+        struct vxd_client *vxd = vxds;
+        while (vxd)
+	{
+            if (vxd->bx == i)
+                return; /* ERROR, already registered */
+            vxd = vxd->next;
+        }
+    }
+
+    /* Find a free thunk */
+    for (i = 0; i < VXD_THUNKS; i++)
+    {
+        if (!thunks[i])
+        {
+            vxd->thunk = i;
+            thunks[i] = vxd;
+            vxd->next = vxds;
+            vxds = vxd;
+            return; /* OK */
+        }
+    }
+
+    return; /* ERROR, no thunk */
 }
