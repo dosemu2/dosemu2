@@ -350,6 +350,7 @@ static void minfault(int sig, siginfo_t *si, void *uc)
     return;
 #endif
 #endif
+  signal(sig, SIG_DFL);
   siginfo_debug(si);
   leavedos_from_sig(sig);
 }
