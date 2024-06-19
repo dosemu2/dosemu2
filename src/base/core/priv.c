@@ -270,3 +270,18 @@ void priv_init(void)
 
   if (!skip_priv_setting) _priv_off();
 }
+
+/* bug-fixer for gtk, see
+ * https://gitlab.gnome.org/GNOME/gtk/-/issues/6629
+ */
+int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid)
+{
+  dbug_printf("%s\n", __FUNCTION__);
+  return -1;
+}
+
+int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid)
+{
+  dbug_printf("%s\n", __FUNCTION__);
+  return -1;
+}
