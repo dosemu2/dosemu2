@@ -287,6 +287,8 @@ static void stub_thr(void *arg)
     unsigned *envpp = SEL_ADR(_ds, _esi);
     char **envp = alloca((envc + 1) * sizeof(char *));
     int i;
+    int err;
+
     for (i = 0; i < argc; i++)
         argv[i] = SEL_ADR(_ds, argp[i]);
     argv[i] = NULL;
@@ -294,7 +296,12 @@ static void stub_thr(void *arg)
         envp[i] = SEL_ADR(_ds, envpp[i]);
     envp[i] = NULL;
 
-    djstub_main(argc, argv, envp, _eax, &regs, _SEL_ADR, &dosops, &dpmiops);
+    err = djstub_main(argc, argv, envp, _eax, &regs, _SEL_ADR, &dosops,
+            &dpmiops);
+    if (err) {
+        error("djstub: load failed\n");
+        return;
+    }
     coopth_leave_pm(scp);
     _es = 0;
     _gs = 0;
