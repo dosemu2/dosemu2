@@ -92,7 +92,7 @@ void stdio_init(void)
     real_stderr = stderr;
 #if defined(HAVE_ASSIGNABLE_STDERR) && defined(HAVE_FOPENCOOKIE)
     if (dbg_fd)
-        stderr = fstream_tee(stderr, dbg_fd);
+        stderr = fstream_tee(stderr);
 #endif
 }
 

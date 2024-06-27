@@ -101,7 +101,7 @@ struct string_store {
 
 int replace_string(struct string_store *store, const char *old, char *str);
 #ifdef HAVE_FOPENCOOKIE
-FILE *fstream_tee(FILE *orig, FILE *copy);
+FILE *fstream_tee(FILE *orig);
 #endif
 
 #define cond_wait(c, m) { \

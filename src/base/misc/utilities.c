@@ -1076,22 +1076,21 @@ int replace_string(struct string_store *store, const char *old, char *str)
 
 #ifdef HAVE_FOPENCOOKIE
 struct tee_struct {
-    FILE *stream[2];
+    FILE *stream;
 };
 
 static ssize_t tee_write(void *cookie, const char *buf, size_t size)
 {
     struct tee_struct *c = cookie;
-    fwrite(buf, 1, size, c->stream[0]);
-    return fwrite(buf, 1, size, c->stream[1]);
+    log_printf("%s", buf);
+    return fwrite(buf, 1, size, c->stream);
 }
 
 static int tee_close(void *cookie)
 {
     int ret;
     struct tee_struct *c = cookie;
-    fclose(c->stream[0]);
-    ret = fclose(c->stream[1]);
+    ret = fclose(c->stream);
     free(c);
     return ret;
 }
@@ -1101,13 +1100,12 @@ static cookie_io_functions_t tee_ops = {
     .close = tee_close,
 };
 
-FILE *fstream_tee(FILE *orig, FILE *copy)
+FILE *fstream_tee(FILE *orig)
 {
     FILE *f;
     struct tee_struct *c = malloc(sizeof(struct tee_struct));
     assert(c);
-    c->stream[0] = copy;
-    c->stream[1] = orig;
+    c->stream = orig;
     f = fopencookie(c, "w", tee_ops);
     assert(f);
     setbuf(f, NULL);
