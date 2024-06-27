@@ -70,7 +70,7 @@ static inline void mhp_adjust_revectored(int inum)
 }
 #endif
 
-int vmhp_log_intercept(int flg, const char *fmt, va_list args);
+int vmhp_log_intercept(const char *fmt, va_list args);
 
 #define MHP_BUFFERSIZE 8192
 struct mhpdbg

@@ -94,8 +94,8 @@ static void dj64_print(int prio, const char *format, va_list ap)
         break;
     case DJ64_PRINT_LOG:
         if (debug_level('J')) {
-            log_printf(-1, "dj64: ");
-            vlog_printf(-1, format, ap);
+            log_printf("dj64: ");
+            vlog_printf(format, ap);
         }
         break;
     case DJ64_PRINT_SCREEN:

@@ -330,7 +330,7 @@ static void xx_printf(int prio, const char *fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
-  vlog_printf(0, fmt, args);
+  vlog_printf(fmt, args);
   va_end(args);
 }
 

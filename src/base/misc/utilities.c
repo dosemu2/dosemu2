@@ -166,7 +166,7 @@ char *chrprintable(char c)
   return strprintable(buf);
 }
 
-int vlog_printf(int flg, const char *fmt, va_list args)
+int vlog_printf(const char *fmt, va_list args)
 {
   int i;
   static int is_cr = 1;
@@ -176,15 +176,15 @@ int vlog_printf(int flg, const char *fmt, va_list args)
     va_list args2;
     va_copy(args2, args);
     /* we give dosdebug a chance to interrupt on given logoutput */
-    i = vmhp_log_intercept(flg, fmt, args2);
+    i = vmhp_log_intercept(fmt, args2);
     va_end(args2);
     if ((dosdebug_flags & DBGF_DISABLE_LOG_TO_FILE) || !dbg_fd) return i;
   }
 #endif
 
-  if (!flg || !dbg_fd ||
+  if (!dbg_fd ||
 #ifdef USE_MHPDBG
-      (shut_debug && (flg<10) && !mhpdbg.active)
+      (shut_debug && !mhpdbg.active)
 #else
       (shut_debug && (flg<10))
 #endif
@@ -227,7 +227,7 @@ int vlog_printf(int flg, const char *fmt, va_list args)
 #else
   logptr += i;
 
-  if ((dbg_fd==stderr) || ((logptr-logbuf) > logbuf_size) || (flg == -1)) {
+  if ((dbg_fd==stderr) || ((logptr-logbuf) > logbuf_size)) {
     int fsz = logptr-logbuf;
     /* writing a big buffer can produce timer bursts, which under DPMI
      * can cause stack overflows!
@@ -262,40 +262,16 @@ int vlog_printf(int flg, const char *fmt, va_list args)
   return i;
 }
 
-static int in_log_printf=0;
-
-int log_printf(int flg, const char *fmt, ...)
+int log_printf(const char *fmt, ...)
 {
-#ifdef CIRCULAR_LOGBUFFER
-	static int first = 1;
-#endif
 	va_list args;
 	int ret;
 
-#ifdef CIRCULAR_LOGBUFFER
-	if (first) {
-	  int i;
-	  logbuf = calloc((NUM_CIRC_LINES+4), SIZ_CIRC_LINES);
-	  for (i=0; i<NUM_CIRC_LINES; i++)
-	    loglines[i] = logbuf + SIZ_CIRC_LINES*i;
-	  loglineidx = 0;
-	  first=0;
-	}
-#endif
-	if (in_log_printf) return 0;
-#ifdef USE_MHPDBG
-	if (!(dosdebug_flags & DBGF_INTERCEPT_LOG))
-#endif
-	{
-		if (!flg || !dbg_fd ) return 0;
-	}
-	in_log_printf = 1;
 	va_start(args, fmt);
 	pthread_mutex_lock(&log_mtx);
-	ret = vlog_printf(flg, fmt, args);
+	ret = vlog_printf(fmt, args);
 	pthread_mutex_unlock(&log_mtx);
 	va_end(args);
-	in_log_printf = 0;
 	return ret;
 }
 
@@ -308,7 +284,7 @@ void vprint(const char *fmt, va_list args)
     vfprintf(real_stderr ?: stderr, fmt, copy_args);
     va_end(copy_args);
   }
-  vlog_printf(10, fmt, args);
+  vlog_printf(fmt, args);
   pthread_mutex_unlock(&log_mtx);
 }
 

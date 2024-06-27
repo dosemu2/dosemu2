@@ -47,28 +47,15 @@ struct debug_class
 	unsigned char letter;
 };
 
-int log_printf(int, const char *,...) FORMAT(printf, 2, 3);
-int vlog_printf(int, const char *,va_list);
+int log_printf(const char *, ...) FORMAT(printf, 1, 2);
+int vlog_printf(const char *, va_list);
 
-int p_dos_str(const char *,...) FORMAT(printf, 1, 2);
+int p_dos_str(const char *, ...) FORMAT(printf, 1, 2);
 int p_dos_vstr(const char *fmt, va_list args);
-
-#if 0  /* set this to 1, if you want dosemu to honor the -D flags */
- #define NO_DEBUGPRINT_AT_ALL
-#endif
-#undef DEBUG_LITE
 
 extern int shut_debug;
 
-#ifndef NO_DEBUGPRINT_AT_ALL
-# ifdef DEBUG_LITE
-#  define ifprintf(flg,fmt,a...)	do{ if (flg) log_printf(0x10000|__LINE__,fmt,##a); }while(0)
-# else
-#  define ifprintf(flg,fmt,a...)	do{ if (flg) log_printf(flg,fmt,##a); }while(0)
-# endif
-#else
-# define ifprintf(flg,fmt,a...)
-#endif
+#define ifprintf(flg,fmt,a...)	do{ if (flg) log_printf(fmt,##a); }while(0)
 
 /* unconditional message into debug log */
 #define dbug_printf(f,a...)	ifprintf(10,f,##a)
@@ -94,7 +81,7 @@ void error(const char *fmt, ...) FORMAT(printf, 1, 2);
 void verror(const char *fmt, va_list args);
 void vprint(const char *fmt, va_list args);
 
-#define flush_log()		{ if (dbg_fd) log_printf(-1, "\n"); }
+#define flush_log()		{ if (dbg_fd) log_printf("\n"); }
 
 /* "dRWDCvXkiTsm#pgcwhIExMnPrS" */
 #define b_printf(f,a...)	ifprintf(debug_level('b'),f,##a)

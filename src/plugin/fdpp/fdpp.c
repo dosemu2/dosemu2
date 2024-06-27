@@ -115,8 +115,8 @@ static void fdpp_print(int prio, const char *format, va_list ap)
         break;
     case FDPP_PRINT_LOG:
         if (debug_level('f')) {
-            log_printf(-1, "fdpp: ");
-            vlog_printf(-1, format, ap);
+            log_printf("fdpp: ");
+            vlog_printf(format, ap);
         }
         break;
     }

@@ -130,15 +130,12 @@ void mhp_close(void)
 
 static int wait_for_debug_terminal = 0;
 
-int vmhp_log_intercept(int flg, const char *fmt, va_list args)
+int vmhp_log_intercept(const char *fmt, va_list args)
 {
   if (mhpdbg.active <= 1)
     return 0;
-  if (flg) {
-    if (dosdebug_flags & DBGF_LOG_TO_BREAK) {
-      mhp_regex(fmt, args);
-    }
-  }
+  if (dosdebug_flags & DBGF_LOG_TO_BREAK)
+    mhp_regex(fmt, args);
   return 0;
 }
 
