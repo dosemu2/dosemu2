@@ -137,7 +137,7 @@ static void log_dump_printf(const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    vlog_printf(-1, fmt, args);
+    vlog_printf(fmt, args);
     va_end(args);
 }
 
@@ -1225,8 +1225,6 @@ config_init(int argc, char **argv)
 		}
 		free(tmp);
 	    }
-	    if (strcmp(optarg, "-") == 0)
-		dbg_fd = stderr;
 	    break;
 	}
 	case 'n':

@@ -57,10 +57,6 @@
 #include "dosemu_debug.h"
 #include "rlocks.h"
 
-#define d_Stub(arg1, s, a...)   d_printf("MFS: " s, ##a)
-#define Debug0(args)		d_Stub args
-#define Debug1(args)		d_Stub args
-
 static int lock_set(int fd, struct flock *fl)
 {
   int ret;

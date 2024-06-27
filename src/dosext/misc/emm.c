@@ -226,7 +226,7 @@ static void set_map_registers(const struct emm_reg *buf, int pages);
 /* FIXME -- inline function */
 #define CHECK_OS_HANDLE(handle) \
       if ((handle) == OS_HANDLE) \
-	Kdebug0((dbg_fd,"trying to use OS handle in MAP_UNMAP!\n"));
+	Kdebug0(("trying to use OS handle in MAP_UNMAP!\n"));
 
 
 /* FIXME -- inline function */
@@ -258,7 +258,7 @@ static void set_map_registers(const struct emm_reg *buf, int pages);
 
 #define NOFUNC() \
   { SETHI_BYTE(state->eax, EMM_FUNC_NOSUP); \
-    Kdebug0((dbg_fd, "function not supported: 0x%04x\n", \
+    Kdebug0(("function not supported: 0x%04x\n", \
      (unsigned)LO_WORD(state->eax))); }
 
 #define PHYS_PAGE_SEGADDR(i) \
@@ -267,7 +267,7 @@ static void set_map_registers(const struct emm_reg *buf, int pages);
 #define PHYS_PAGE_ADDR(i) \
   (PHYS_PAGE_SEGADDR(i) << 4)
 
-#define E_Stub(arg1, s, a...)   E_printf("EMS: " s, ##a)
+#define E_Stub(s, a...)   E_printf("EMS: " s, ##a)
 #define Kdebug0(args)		E_Stub args
 #define Kdebug1(args)		E_Stub args
 #define Kdebug2(args)		E_Stub args
@@ -683,7 +683,7 @@ static int emm_get_partial_map_registers(void *ptr, const u_short *segs)
     buf2[i].handle = emm_map[phy].handle;
     buf2[i].logical_page = emm_map[phy].logical_page;
     buf2[i].physical_page = phy;
-    Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
+    Kdebug1(("phy %d h %x lp %d\n",
 	     phy, emm_map[phy].handle,
 	     emm_map[phy].logical_page));
   }
@@ -710,7 +710,7 @@ static void emm_set_partial_map_registers(const void *ptr)
     else
       unmap_page(phy);
 
-    Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
+    Kdebug1(("phy %d h %x lp %d\n",
 	    phy, handle, logical_page));
   }
 }
@@ -726,7 +726,7 @@ static inline void
 partial_map_registers(struct vm86_regs * state)
 {
   int ret;
-  Kdebug0((dbg_fd, "partial_map_registers %d called\n",
+  Kdebug0(("partial_map_registers %d called\n",
 	   (int) LO_BYTE_d(state->eax)));
   switch (LO_BYTE_d(state->eax)) {
   case PARTIAL_GET:
@@ -749,7 +749,7 @@ partial_map_registers(struct vm86_regs * state)
     }
     break;
   default:
-    Kdebug1((dbg_fd, "bios_emm: Partial Page Map Regs unknown fn\n"));
+    Kdebug1(("bios_emm: Partial Page Map Regs unknown fn\n"));
     SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
     break;
   }
@@ -762,7 +762,7 @@ static int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
   for (i = 0; i < map_len; i++) {
     log = array[i * 2];
     phys = array[i * 2 + 1];
-    Kdebug0((dbg_fd, "loop: 0x%x 0x%x \n", log, phys));
+    Kdebug0(("loop: 0x%x 0x%x \n", log, phys));
     ret = do_map_unmap(handle, phys, log);
     if (ret != EMM_NO_ERR)
       break;
@@ -790,7 +790,7 @@ do_map_unmap_multi(int method, unsigned array, int handle, int map_len)
 
 	phys = SEG_TO_PHYS(seg);
 
-	Kdebug0((dbg_fd, "loop: log 0x%x seg 0x%x phys 0x%x\n",
+	Kdebug0(("loop: log 0x%x seg 0x%x phys 0x%x\n",
 		 log, seg, phys));
 
 	if (phys == -1) {
@@ -820,7 +820,7 @@ map_unmap_multiple(struct vm86_regs * state)
   int method = LO_BYTE_d(state->eax);
   int ret;
 
-  Kdebug0((dbg_fd, "map_unmap_multiple %d called\n", method));
+  Kdebug0(("map_unmap_multiple %d called\n", method));
   CHECK_HANDLE(handle);
 
   switch (method) {
@@ -828,7 +828,7 @@ map_unmap_multiple(struct vm86_regs * state)
   case MULT_LOGSEG:
     map_len = LO_WORD(state->ecx);
     array = SEGOFF2LINEAR(state->ds, LO_WORD(state->esi));
-    Kdebug0((dbg_fd, "...using mult_log%s method, "
+    Kdebug0(("...using mult_log%s method, "
 	     "handle %d, map_len %d, array @ %#x\n",
 	     method == MULT_LOGPHYS ? "phys" : "seg",
 	     handle, map_len, array));
@@ -836,8 +836,7 @@ map_unmap_multiple(struct vm86_regs * state)
     break;
 
   default:
-    Kdebug0((dbg_fd,
-	     "ERROR: map_unmap_multiple subfunction %d not supported\n",
+    Kdebug0(("ERROR: map_unmap_multiple subfunction %d not supported\n",
 	     method));
     ret = EMM_INVALID_SUB;
     break;
@@ -860,26 +859,26 @@ reallocate_pages(struct vm86_regs * state)
   }
 
   if (!handle_info[handle].active) {	/* no-handle */
-    Kdebug0((dbg_fd, "reallocate_pages handle %d invalid\n", handle));
+    Kdebug0(("reallocate_pages handle %d invalid\n", handle));
     SETHI_BYTE(state->eax, EMM_INV_HAN);
     return;
   }
 
   if (newcount == handle_info[handle].numpages) {	/* no-op */
-    Kdebug0((dbg_fd, "reallocate_pages handle %d no-change\n", handle));
+    Kdebug0(("reallocate_pages handle %d no-change\n", handle));
     SETHI_BYTE(state->eax, EMM_NO_ERR);
     return;
   }
 
   if (handle == OS_HANDLE) {
-    Kdebug0((dbg_fd, "reallocate OS handle!\n"));
+    Kdebug0(("reallocate OS handle!\n"));
     SETHI_BYTE(state->eax, EMM_INV_HAN);
     return;
   }
 
   diff = newcount-handle_info[handle].numpages;
   if (emm_allocated+diff > EMM_TOTAL) {
-     Kdebug0((dbg_fd, "reallocate pages: maximum exceeded\n"));
+     Kdebug0(("reallocate pages: maximum exceeded\n"));
      SETHI_BYTE(state->eax, EMM_OUT_OF_PHYS);
      return;
   }
@@ -891,7 +890,7 @@ reallocate_pages(struct vm86_regs * state)
      if (emm_map[i].handle == handle)
         reunmap_page(i);
 
-  Kdebug0((dbg_fd, "want reallocate_pages handle %d num %d called object=%p\n",
+  Kdebug0(("want reallocate_pages handle %d num %d called object=%p\n",
 	   handle, newcount, handle_info[handle].object));
 
   if (newcount && handle_info[handle].object) {
@@ -900,7 +899,7 @@ reallocate_pages(struct vm86_regs * state)
      */
     obj = realloc_memory_object(handle_info[handle].object, handle_info[handle].numpages*EMM_PAGE_SIZE ,newcount * EMM_PAGE_SIZE);
     if (obj==NULL) {
-     Kdebug0((dbg_fd, "failed to realloc pages!\n"));
+     Kdebug0(("failed to realloc pages!\n"));
      SETHI_BYTE(state->eax, EMM_OUT_OF_LOG);
     }
     else {
@@ -930,7 +929,7 @@ reallocate_pages(struct vm86_regs * state)
        */
       if (newcount) obj= new_memory_object(newcount*EMM_PAGE_SIZE);
       if (obj==NULL) {
-        Kdebug0((dbg_fd, "failed to realloc pages!\n"));
+        Kdebug0(("failed to realloc pages!\n"));
         SETHI_BYTE(state->eax, EMM_OUT_OF_LOG);
       }
       else {
@@ -941,7 +940,7 @@ reallocate_pages(struct vm86_regs * state)
     }
   }
 
-  Kdebug0((dbg_fd, "reallocate_pages handle %d num %d called object=%p\n",
+  Kdebug0(("reallocate_pages handle %d num %d called object=%p\n",
 	   handle, newcount, obj));
 
   /* remove pages no longer in range, remap others */
@@ -971,7 +970,7 @@ handle_attribute(struct vm86_regs * state)
   case GET_ATT:{
       int handle = LO_WORD(state->edx);
 
-      Kdebug0((dbg_fd, "GET_ATT on handle %d\n", handle));
+      Kdebug0(("GET_ATT on handle %d\n", handle));
 
       SETLO_BYTE(state->eax, EMM_VOLATILE);
       SETHI_BYTE(state->eax, EMM_NO_ERR);
@@ -981,14 +980,14 @@ handle_attribute(struct vm86_regs * state)
   case SET_ATT:{
       int handle = LO_WORD(state->edx);
 
-      Kdebug0((dbg_fd, "SET_ATT on handle %d\n", handle));
+      Kdebug0(("SET_ATT on handle %d\n", handle));
 
       SETHI_BYTE(state->eax, EMM_FEAT_NOSUP);
       return (TRUE);
     }
 
   case GET_ATT_CAPABILITY:{
-      Kdebug0((dbg_fd, "GET_ATT_CAPABILITY\n"));
+      Kdebug0(("GET_ATT_CAPABILITY\n"));
 
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       SETLO_BYTE(state->eax, EMM_VOLATILE);	/* only supports volatiles */
@@ -1011,7 +1010,7 @@ handle_name(struct vm86_regs * state)
 
       CHECK_HANDLE(handle);
       handle_info[handle].name[8] = 0;
-      Kdebug0((dbg_fd, "get handle name %d = %s\n", handle,
+      Kdebug0(("get handle name %d = %s\n", handle,
 	       handle_info[handle].name));
 
       memmove(array, &handle_info[handle].name, 8);
@@ -1031,14 +1030,14 @@ handle_name(struct vm86_regs * state)
       memmove(handle_info[handle].name, array, 8);
       handle_info[handle].name[8] = 0;
 
-      Kdebug0((dbg_fd, "set handle %d to name %s\n", handle,
+      Kdebug0(("set handle %d to name %s\n", handle,
 	       handle_info[handle].name));
 
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       break;
     }
   default:
-    Kdebug0((dbg_fd, "bad handle_name function %d\n",
+    Kdebug0(("bad handle_name function %d\n",
 	     (int) LO_BYTE_d(state->eax)));
     SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
     return;
@@ -1048,14 +1047,14 @@ handle_name(struct vm86_regs * state)
 static void
 handle_dir(struct vm86_regs * state)
 {
-  Kdebug0((dbg_fd, "handle_dir %d called\n", (int) LO_BYTE_d(state->eax)));
+  Kdebug0(("handle_dir %d called\n", (int) LO_BYTE_d(state->eax)));
 
   switch (LO_BYTE_d(state->eax)) {
   case GET_DIR:{
       int handle, count = 0;
       u_char *array = (u_char *) Addr(state, es, edi);
 
-      Kdebug0((dbg_fd, "GET_DIR function called\n"));
+      Kdebug0(("GET_DIR function called\n"));
 
       for (handle = 0; handle < MAX_HANDLES; handle++) {
 	if (HANDLE_ALLOCATED(handle)) {
@@ -1063,7 +1062,7 @@ handle_dir(struct vm86_regs * state)
 	  *(u_short *) array = handle;
 	  memmove(array + 2, handle_info[handle].name, 8);
 	  array += 10;
-	  Kdebug0((dbg_fd, "GET_DIR found handle %d name %s\n",
+	  Kdebug0(("GET_DIR found handle %d name %s\n",
 		   handle, (char *) array));
 	}
       }
@@ -1077,13 +1076,13 @@ handle_dir(struct vm86_regs * state)
 	char xxx[9];
 	char *array = Addr(state, ds, esi);
 	strncpy(xxx,array,8); xxx[8]=0;
-	Kdebug0((dbg_fd, "SEARCH_NAMED '%s' function called\n",xxx));
+	Kdebug0(("SEARCH_NAMED '%s' function called\n",xxx));
 
 	for (handle = 0; handle < MAX_HANDLES; handle++) {
 	  if (!HANDLE_ALLOCATED(handle))
 	    continue;
 	  if (!strncmp(handle_info[handle].name, array, 8)) {
-	    Kdebug0((dbg_fd, "name match %s!\n", array));
+	    Kdebug0(("name match %s!\n", array));
 	    SETHI_BYTE(state->eax, EMM_NO_ERR);
 	    SETLO_WORD(state->edx, handle);
 	    return;
@@ -1095,14 +1094,14 @@ handle_dir(struct vm86_regs * state)
       }
 
   case GET_TOTAL:{
-	Kdebug0((dbg_fd, "GET_TOTAL %d\n", MAX_HANDLES));
+	Kdebug0(("GET_TOTAL %d\n", MAX_HANDLES));
 	SETLO_WORD(state->ebx, MAX_HANDLES);
 	SETHI_BYTE(state->eax, EMM_NO_ERR);
 	break;
       }
 
   default:
-      Kdebug0((dbg_fd, "bad handle_dir function %d\n",
+      Kdebug0(("bad handle_dir function %d\n",
 	       (int) LO_BYTE_d(state->eax)));
       SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
       return;
@@ -1128,7 +1127,7 @@ alter_map(int method, int handle, const struct alter_map_struct *alter_map)
   off = FP_OFF16(alter_map->array);
   array = SEGOFF2LINEAR(seg, off);
 
-  Kdebug0((dbg_fd, "...using alter_log%s method, "
+  Kdebug0(("...using alter_log%s method, "
 	   "handle %d, map_len %d, array @ %#x, ",
 	   method == MULT_LOGPHYS ? "phys" : "seg",
 	   handle, map_len, array));
@@ -1147,7 +1146,7 @@ alter_map_and_jump(struct vm86_regs * state)
 {
   int method = LO_BYTE_d(state->eax);
 
-  Kdebug0((dbg_fd, "alter_map_and_jump %d called\n", method));
+  Kdebug0(("alter_map_and_jump %d called\n", method));
 
   switch(method) {
   case MULT_LOGPHYS:  /* page number method */
@@ -1168,7 +1167,7 @@ alter_map_and_jump(struct vm86_regs * state)
 
     seg = FP_SEG16(alter_map_jmp.jmp_addr);
     off = FP_OFF16(alter_map_jmp.jmp_addr);
-    Kdebug0((dbg_fd, "jmp_addr @ %04hX:%04hXh\n", seg, off));
+    Kdebug0(("jmp_addr @ %04hX:%04hXh\n", seg, off));
 
     /* jump */
     state->eip = off;
@@ -1177,7 +1176,7 @@ alter_map_and_jump(struct vm86_regs * state)
   }
 
   default:
-    Kdebug0((dbg_fd, "bad alter_map_and_jump function %d\n", method));
+    Kdebug0(("bad alter_map_and_jump function %d\n", method));
     SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
     break;
   }
@@ -1198,7 +1197,7 @@ alter_map_and_call(struct vm86_regs * state)
 {
   int method = LO_BYTE_d(state->eax);
 
-  Kdebug0((dbg_fd, "alter_map_and_call %d called\n", method));
+  Kdebug0(("alter_map_and_call %d called\n", method));
 
   switch(method) {
   case MULT_LOGPHYS:  /* page number method */
@@ -1236,7 +1235,7 @@ alter_map_and_call(struct vm86_regs * state)
     fake_call_to(EMSControl_SEG, EMSAPMAP_ret_OFF);
     seg = FP_SEG16(alter_map_call.call_addr);
     off = FP_OFF16(alter_map_call.call_addr);
-    Kdebug0((dbg_fd, "call_addr @ %04hX:%04hXh\n", seg, off));
+    Kdebug0(("call_addr @ %04hX:%04hXh\n", seg, off));
     fake_call_to(seg, off);
     break;
   }
@@ -1247,7 +1246,7 @@ alter_map_and_call(struct vm86_regs * state)
     break;
 
   default:
-    Kdebug0((dbg_fd, "bad alter_map_and_call function %d\n",
+    Kdebug0(("bad alter_map_and_call function %d\n",
 	     (int) LO_BYTE_d(state->eax)));
     SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
     break;
@@ -1487,7 +1486,7 @@ get_mpa_array(struct vm86_regs * state)
       u_short *ptr = (u_short *) Addr(state, es, edi);
       int i;
 
-      Kdebug0((dbg_fd, "GET_MPA addr %p called\n", ptr));
+      Kdebug0(("GET_MPA addr %p called\n", ptr));
 #if WINDOWS_HACKS
       /* the array must be given in ascending order of segment,
          so give the page frame only after other pages */
@@ -1497,40 +1496,40 @@ get_mpa_array(struct vm86_regs * state)
         for (i = cnv_pages_start; i < phys_pages - 4; i++) {
           *ptr++ = PHYS_PAGE_SEGADDR(i);
           *ptr++ = i;
-          Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+          Kdebug0(("seg_addr 0x%x page_no %d\n",
                  PHYS_PAGE_SEGADDR(i), i));
         }
         for (i = phys_pages - 2; i < phys_pages; i++) {
           *ptr++ = PHYS_PAGE_SEGADDR(i);
           *ptr++ = i;
-          Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+          Kdebug0(("seg_addr 0x%x page_no %d\n",
                  PHYS_PAGE_SEGADDR(i), i));
         }
         for (i = phys_pages - 4; i < phys_pages - 2; i++) {
           *ptr++ = PHYS_PAGE_SEGADDR(i);
           *ptr++ = i;
-          Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+          Kdebug0(("seg_addr 0x%x page_no %d\n",
                  PHYS_PAGE_SEGADDR(i), i));
         }
       } else {
         for (i = cnv_pages_start; i < phys_pages; i++) {
           *ptr++ = PHYS_PAGE_SEGADDR(i);
           *ptr++ = i;
-          Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+          Kdebug0(("seg_addr 0x%x page_no %d\n",
                  PHYS_PAGE_SEGADDR(i), i));
         }
       }
       for (i = 0; i < cnv_pages_start; i++) {
         *ptr++ = PHYS_PAGE_SEGADDR(i);
         *ptr++ = i;
-        Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+        Kdebug0(("seg_addr 0x%x page_no %d\n",
                  PHYS_PAGE_SEGADDR(i), i));
       }
 #else
       for (i = 0; i < phys_pages; i++) {
         *ptr++ = PHYS_PAGE_SEGADDR(i);
         *ptr++ = i;
-        Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+        Kdebug0(("seg_addr 0x%x page_no %d\n",
                  PHYS_PAGE_SEGADDR(i), i));
       }
 #endif
@@ -1540,7 +1539,7 @@ get_mpa_array(struct vm86_regs * state)
     }
 
   case GET_MPA_ENTRY_COUNT:
-    Kdebug0((dbg_fd, "GET_MPA_ENTRY_COUNT called\n"));
+    Kdebug0(("GET_MPA_ENTRY_COUNT called\n"));
     SETHI_BYTE(state->eax, EMM_NO_ERR);
     SETLO_WORD(state->ecx, phys_pages);
     return (TRUE);
@@ -1566,7 +1565,7 @@ get_ems_hardinfo(struct vm86_regs * state)
         *ptr++ = 0;			/* no DMA channels */
         *ptr++ = 0;			/* DMA channel operation */
 
-        Kdebug1((dbg_fd, "bios_emm: Get Hardware Info\n"));
+        Kdebug1(("bios_emm: Get Hardware Info\n"));
         SETHI_BYTE(state->eax, EMM_NO_ERR);
         return (TRUE);
         break;
@@ -1574,7 +1573,7 @@ get_ems_hardinfo(struct vm86_regs * state)
       case GET_RAW_PAGECOUNT:{
         u_short left = EMM_TOTAL - emm_allocated;
 
-        Kdebug1((dbg_fd, "bios_emm: Get Raw Page Counts left=0x%x, t:0x%x, a:0x%x\n",
+        Kdebug1(("bios_emm: Get Raw Page Counts left=0x%x, t:0x%x, a:0x%x\n",
 	       left, EMM_TOTAL, emm_allocated));
 
         SETHI_BYTE(state->eax, EMM_NO_ERR);
@@ -1589,7 +1588,7 @@ get_ems_hardinfo(struct vm86_regs * state)
   }
   else
   {
-    Kdebug1((dbg_fd, "bios_emm: Get Hardware Info/Raw Pages - Denied\n"));
+    Kdebug1(("bios_emm: Get Hardware Info/Raw Pages - Denied\n"));
     SETHI_BYTE(state->eax, 0xa4);
     return(TRUE);
   }
@@ -1601,7 +1600,7 @@ allocate_std_pages(struct vm86_regs * state)
   int pages_needed = LO_WORD(state->ebx);
   int handle;
 
-  Kdebug1((dbg_fd, "bios_emm: Get Handle and Standard Allocate pages = 0x%x\n",
+  Kdebug1(("bios_emm: Get Handle and Standard Allocate pages = 0x%x\n",
 	   pages_needed));
 
   if ((handle = emm_allocate_handle(pages_needed)) == EMM_ERROR) {
@@ -1612,7 +1611,7 @@ allocate_std_pages(struct vm86_regs * state)
   SETHI_BYTE(state->eax, EMM_NO_ERR);
   SETLO_WORD(state->edx, handle);
 
-  Kdebug1((dbg_fd, "bios_emm: handle = 0x%x\n", handle));
+  Kdebug1(("bios_emm: handle = 0x%x\n", handle));
   return 0;
 }
 
@@ -1623,7 +1622,7 @@ static int get_map_registers(struct emm_reg *buf, int pages)
   for (i = 0; i < pages; i++) {
     buf[i].handle = emm_map[i].handle;
     buf[i].logical_page = emm_map[i].logical_page;
-    Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
+    Kdebug1(("phy %d h %x lp %d\n",
 	     i, emm_map[i].handle,
 	     emm_map[i].logical_page));
   }
@@ -1651,7 +1650,7 @@ static void set_map_registers(const struct emm_reg *buf, int pages)
     else
       unmap_page(i);
 
-    Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
+    Kdebug1(("phy %d h %x lp %d\n",
 	    i, handle, logical_page));
   }
 }
@@ -1671,31 +1670,31 @@ alternate_map_register(struct vm86_regs * state)
 {
   if (!os_allow) {
     SETHI_BYTE(state->eax, 0xa4);
-    Kdebug1((dbg_fd, "bios_emm: Illegal alternate_map_register\n"));
+    Kdebug1(("bios_emm: Illegal alternate_map_register\n"));
     return;
   }
   switch (LO_BYTE_d(state->eax)) {
     case 0:{			/* Get Alternate Map Register */
         if (save_es){
-	  Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Registers\n"));
+	  Kdebug1(("bios_emm: Get Alternate Map Registers\n"));
 
 	  emm_get_map_registers(MK_FP32(save_es, save_di));
 
           SETLO_WORD(state->es, (u_short)save_es);
           SETLO_WORD(state->edi, (u_short)save_di);
           SETHI_BYTE(state->eax, EMM_NO_ERR);
-	  Kdebug1((dbg_fd, "bios_emm: Get Alternate Registers - Set to ES:0x%x, DI:0x%x\n", save_es, save_di));
+	  Kdebug1(("bios_emm: Get Alternate Registers - Set to ES:0x%x, DI:0x%x\n", save_es, save_di));
         }
         else {
           SETLO_WORD(state->es, 0x0u);
           SETLO_WORD(state->edi, 0x0);
           SETHI_BYTE(state->eax, EMM_NO_ERR);
-	  Kdebug1((dbg_fd, "bios_emm: Get Alternate Registers - Not Active\n"));
+	  Kdebug1(("bios_emm: Get Alternate Registers - Not Active\n"));
         }
        return;
       }
     case 2:
-      Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Save Array Size = 0x%zx\n",
+      Kdebug1(("bios_emm: Get Alternate Map Save Array Size = 0x%zx\n",
 	       PAGE_MAP_SIZE(phys_pages)));
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       SETLO_WORD(state->edx, PAGE_MAP_SIZE(phys_pages));
@@ -1703,22 +1702,22 @@ alternate_map_register(struct vm86_regs * state)
     case 3:			/* Allocate Alternate Register */
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       SETLO_BYTE(state->ebx, 0x0);
-      Kdebug1((dbg_fd, "bios_emm: alternate_map_register Allocate Alternate Register\n"));
+      Kdebug1(("bios_emm: alternate_map_register Allocate Alternate Register\n"));
       return;
     case 5:			/* Allocate DMA */
       SETHI_BYTE(state->eax, EMM_NO_ERR);
-      Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA bl=0x%x\n", (unsigned int)LO_BYTE_d(state->ebx)));
+      Kdebug1(("bios_emm: alternate_map_register Enable DMA bl=0x%x\n", (unsigned int)LO_BYTE_d(state->ebx)));
       return;
     }
     if (LO_BYTE_d(state->ebx)) {
       SETHI_BYTE(state->eax, 0x8f);
-      Kdebug1((dbg_fd, "bios_emm: Illegal alternate_map_register request for reg set 0x%x\n", (unsigned int)LO_BYTE_d(state->ebx)));
+      Kdebug1(("bios_emm: Illegal alternate_map_register request for reg set 0x%x\n", (unsigned int)LO_BYTE_d(state->ebx)));
       return;
       }
   switch (LO_BYTE_d(state->eax)) {
     case 1:{			/* Set Alternate Map Register */
 
-	 Kdebug1((dbg_fd, "bios_emm: Set Alternate Registers\n"));
+	 Kdebug1(("bios_emm: Set Alternate Registers\n"));
 
          if (state->es) {
 	   emm_set_map_registers((char *) Addr(state, es, edi));
@@ -1726,53 +1725,53 @@ alternate_map_register(struct vm86_regs * state)
          SETHI_BYTE(state->eax, EMM_NO_ERR);
          save_es=state->es;
          save_di=LO_WORD(state->edi);
-	 Kdebug1((dbg_fd, "bios_emm: Set Alternate Registers - Setup ES:0x%x, DI:0x%x\n", save_es, save_di));
+	 Kdebug1(("bios_emm: Set Alternate Registers - Setup ES:0x%x, DI:0x%x\n", save_es, save_di));
          break;
        }
        break;
     case 4:			/* Deallocate Register */
       SETHI_BYTE(state->eax, EMM_NO_ERR);
-      Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate Register\n"));
+      Kdebug1(("bios_emm: alternate_map_register Deallocate Register\n"));
       break;
     case 6:			/* Enable DMA */
       if (LO_BYTE_d(state->ebx) > 0)
         {
 	  SETHI_BYTE(state->eax, EMM_INVALID_SUB);
-	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA not allowed bl=0x%x\n", (unsigned int)LO_BYTE_d(state->ebx)));
+	  Kdebug1(("bios_emm: alternate_map_register Enable DMA not allowed bl=0x%x\n", (unsigned int)LO_BYTE_d(state->ebx)));
 	}
       else
        {
 	  SETHI_BYTE(state->eax, EMM_NO_ERR);
-	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA\n"));
+	  Kdebug1(("bios_emm: alternate_map_register Enable DMA\n"));
        }
       break;
     case 7:			/* Disable DMA */
       if (LO_BYTE_d(state->ebx) > 0)
         {
 	  SETHI_BYTE(state->eax, EMM_INVALID_SUB);
-	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Disable DMA not allowed bl=0x%x\n", (unsigned int)LO_BYTE_d(state->ebx)));
+	  Kdebug1(("bios_emm: alternate_map_register Disable DMA not allowed bl=0x%x\n", (unsigned int)LO_BYTE_d(state->ebx)));
 	}
       else
        {
 	  SETHI_BYTE(state->eax, EMM_NO_ERR);
-	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Disable DMA\n"));
+	  Kdebug1(("bios_emm: alternate_map_register Disable DMA\n"));
        }
       break;
     case 8:			/* Deallocate DMA */
       if (LO_BYTE_d(state->ebx) > 0)
         {
 	  SETHI_BYTE(state->eax, EMM_INVALID_SUB);
-	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate DMA not allowed bl=0x%x\n", (unsigned int)LO_BYTE_d(state->ebx)));
+	  Kdebug1(("bios_emm: alternate_map_register Deallocate DMA not allowed bl=0x%x\n", (unsigned int)LO_BYTE_d(state->ebx)));
 	}
       else
        {
 	  SETHI_BYTE(state->eax, EMM_NO_ERR);
-	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate DMA\n"));
+	  Kdebug1(("bios_emm: alternate_map_register Deallocate DMA\n"));
        }
       break;
     default:
       SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
-      Kdebug1((dbg_fd, "bios_emm: alternate_map_register Illegal Function\n"));
+      Kdebug1(("bios_emm: alternate_map_register Illegal Function\n"));
   }
   return;
 }
@@ -1788,12 +1787,12 @@ os_set_function(struct vm86_regs * state)
 	      {
 		 os_allow=1;
 		 SETHI_BYTE(state->eax, EMM_NO_ERR);
-		 Kdebug1((dbg_fd, "bios_emm: OS Allowing access\n"));
+		 Kdebug1(("bios_emm: OS Allowing access\n"));
 	      }
 	    else
 	      {
 		 SETHI_BYTE(state->eax, 0xa4);
-		 Kdebug1((dbg_fd, "bios_emm: Illegal OS Allow access attempt\n"));
+		 Kdebug1(("bios_emm: Illegal OS Allow access attempt\n"));
 	      }
 	 }
        else
@@ -1803,7 +1802,7 @@ os_set_function(struct vm86_regs * state)
 	    SETHI_BYTE(state->eax, EMM_NO_ERR);
 	    SETLO_WORD(state->ebx, os_key1);
 	    SETLO_WORD(state->ecx, os_key2);
-	    Kdebug1((dbg_fd, "bios_emm: Initial OS Allowing access\n"));
+	    Kdebug1(("bios_emm: Initial OS Allowing access\n"));
          }
        return;
     case 01:			/* Disable access to EMS */
@@ -1813,12 +1812,12 @@ os_set_function(struct vm86_regs * state)
 	      {
 		 os_allow=0;
 		 SETHI_BYTE(state->eax, EMM_NO_ERR);
-		 Kdebug1((dbg_fd, "bios_emm: OS Disallowing access\n"));
+		 Kdebug1(("bios_emm: OS Disallowing access\n"));
 	      }
 	    else
 	      {
 		 SETHI_BYTE(state->eax, 0xa4);
-		 Kdebug1((dbg_fd, "bios_emm: Illegal OS Disallow access attempt\n"));
+		 Kdebug1(("bios_emm: Illegal OS Disallow access attempt\n"));
 	      }
 	 }
        else
@@ -1828,7 +1827,7 @@ os_set_function(struct vm86_regs * state)
 	    SETHI_BYTE(state->eax, EMM_NO_ERR);
 	    SETLO_WORD(state->ebx, os_key1);
 	    SETLO_WORD(state->ecx, os_key2);
-	    Kdebug1((dbg_fd, "bios_emm: Initial OS Disallowing access\n"));
+	    Kdebug1(("bios_emm: Initial OS Disallowing access\n"));
          }
        return;
     case 02:			/* Return access */
@@ -1837,12 +1836,12 @@ os_set_function(struct vm86_regs * state)
 	  os_allow=1;
 	  os_inuse=0;
 	  SETHI_BYTE(state->eax, EMM_NO_ERR);
-	  Kdebug1((dbg_fd, "bios_emm: OS Returning access\n"));
+	  Kdebug1(("bios_emm: OS Returning access\n"));
 	}
       else
        {
 	  SETHI_BYTE(state->eax, 0xa4);
-	  Kdebug1((dbg_fd, "bios_emm: OS Illegal returning access attempt\n"));
+	  Kdebug1(("bios_emm: OS Illegal returning access attempt\n"));
        }
      return;
 
@@ -1859,13 +1858,13 @@ ems_fn(struct vm86_regs *state)
 
   switch (HI_BYTE_d(state->eax)) {
   case GET_MANAGER_STATUS:{	/* 0x40 */
-      Kdebug1((dbg_fd, "bios_emm: Get Manager Status\n"));
+      Kdebug1(("bios_emm: Get Manager Status\n"));
 
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       break;
     }
   case GET_PAGE_FRAME_SEGMENT:{/* 0x41 */
-      Kdebug1((dbg_fd, "bios_emm: Get Page Frame Segment\n"));
+      Kdebug1(("bios_emm: Get Page Frame Segment\n"));
 
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       SETLO_WORD(state->ebx, EMM_SEGMENT);
@@ -1874,7 +1873,7 @@ ems_fn(struct vm86_regs *state)
   case GET_PAGE_COUNTS:{	/* 0x42 */
       u_short left = EMM_TOTAL - emm_allocated;
 
-      Kdebug1((dbg_fd, "bios_emm: Get Page Counts left=0x%x, t:0x%x, a:0x%x\n",
+      Kdebug1(("bios_emm: Get Page Counts left=0x%x, t:0x%x, a:0x%x\n",
 	       left, EMM_TOTAL, emm_allocated));
 
       SETHI_BYTE(state->eax, EMM_NO_ERR);
@@ -1887,7 +1886,7 @@ ems_fn(struct vm86_regs *state)
       int pages_needed = LO_WORD(state->ebx);
       int handle;
 
-      Kdebug1((dbg_fd, "bios_emm: Get Handle and Allocate pages = 0x%x\n",
+      Kdebug1(("bios_emm: Get Handle and Allocate pages = 0x%x\n",
 	       pages_needed));
 
       if (pages_needed == 0) {
@@ -1903,7 +1902,7 @@ ems_fn(struct vm86_regs *state)
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       SETLO_WORD(state->edx, handle);
 
-      Kdebug1((dbg_fd, "bios_emm: handle = 0x%x\n", handle));
+      Kdebug1(("bios_emm: handle = 0x%x\n", handle));
 
       break;
     }
@@ -1920,7 +1919,7 @@ ems_fn(struct vm86_regs *state)
   case DEALLOCATE_HANDLE:{	/* 0x45 */
       int handle = LO_WORD(state->edx);
 
-      Kdebug1((dbg_fd, "bios_emm: Deallocate Handle, han-0x%x\n",
+      Kdebug1(("bios_emm: Deallocate Handle, han-0x%x\n",
 	       handle));
 
       if (handle == OS_HANDLE) {
@@ -1950,7 +1949,7 @@ ems_fn(struct vm86_regs *state)
       break;
     }
   case GET_EMM_VERSION:{	/* 0x46 */
-      Kdebug1((dbg_fd, "bios_emm: Get EMM version\n"));
+      Kdebug1(("bios_emm: Get EMM version\n"));
 
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       SETLO_BYTE(state->eax, EMM_VERS);
@@ -1959,7 +1958,7 @@ ems_fn(struct vm86_regs *state)
   case SAVE_PAGE_MAP:{		/* 0x47 */
       int handle = LO_WORD(state->edx);
 
-      Kdebug1((dbg_fd, "bios_emm: Save Page Map, han-0x%x\n",
+      Kdebug1(("bios_emm: Save Page Map, han-0x%x\n",
 	       handle));
 
       if (handle == OS_HANDLE)
@@ -1987,7 +1986,7 @@ ems_fn(struct vm86_regs *state)
   case RESTORE_PAGE_MAP:{	/* 0x48 */
       int handle = LO_WORD(state->edx);
 
-      Kdebug1((dbg_fd, "bios_emm: Restore Page Map, han-0x%x\n",
+      Kdebug1(("bios_emm: Restore Page Map, han-0x%x\n",
 	       handle));
 
       if (handle == OS_HANDLE)
@@ -2013,12 +2012,12 @@ ems_fn(struct vm86_regs *state)
       break;
     }
   case GET_HANDLE_COUNT:{	/* 0x4b */
-      Kdebug1((dbg_fd, "bios_emm: Get Handle Count\n"));
+      Kdebug1(("bios_emm: Get Handle Count\n"));
 
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       SETLO_WORD(state->ebx, (unsigned short) handle_total);
 
-      Kdebug1((dbg_fd, "bios_emm: handle_total = 0x%x\n",
+      Kdebug1(("bios_emm: handle_total = 0x%x\n",
 	       handle_total));
 
       break;
@@ -2030,7 +2029,7 @@ ems_fn(struct vm86_regs *state)
       if (handle == OS_HANDLE)
 	E_printf("EMS: trying to use OS handle in GET_PAGES_OWNED\n");
 
-      Kdebug1((dbg_fd, "bios_emm: Get Pages Owned, han-0x%x\n",
+      Kdebug1(("bios_emm: Get Pages Owned, han-0x%x\n",
 	       handle));
 
       if ((handle < 0) || (handle >= MAX_HANDLES)) {
@@ -2049,7 +2048,7 @@ ems_fn(struct vm86_regs *state)
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       SETLO_WORD(state->ebx, pages);
 
-      Kdebug1((dbg_fd, "bios_emm: pages owned - 0x%x\n",
+      Kdebug1(("bios_emm: pages owned - 0x%x\n",
 	       pages));
 
       break;
@@ -2059,7 +2058,7 @@ ems_fn(struct vm86_regs *state)
       int tot_pages = 0, tot_handles = 0;
       u_short *ptr = (u_short *) Addr(state, es, edi);
 
-      Kdebug1((dbg_fd, "bios_emm: Get Pages For all to %p\n",
+      Kdebug1(("bios_emm: Get Pages For all to %p\n",
 	       ptr));
 
       for (i = 0; i < MAX_HANDLES; i++) {
@@ -2068,7 +2067,7 @@ ems_fn(struct vm86_regs *state)
 	  ptr++;
 	  *ptr = handle_pages(i);
 	  tot_pages += *ptr;
-	  Kdebug0((dbg_fd, "handle %d pages %d\n", i,
+	  Kdebug0(("handle %d pages %d\n", i,
 		   *ptr));
 	  ptr++;
 	  tot_handles++;
@@ -2079,36 +2078,36 @@ ems_fn(struct vm86_regs *state)
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       SETLO_WORD(state->ebx, tot_handles);
 
-      Kdebug1((dbg_fd, "bios_emm: total handles = 0x%x 0x%x\n",
+      Kdebug1(("bios_emm: total handles = 0x%x 0x%x\n",
 	       handle_total, tot_handles));
       if (tot_handles != handle_total) {
 	error("EMM: tot_handles (0x%04X) != handle_total (0x%04X)"
 		" after loop!\n", tot_handles, handle_total);
       }
 
-      Kdebug1((dbg_fd, "bios_emm: total pages = 0x%x\n",
+      Kdebug1(("bios_emm: total pages = 0x%x\n",
 	       tot_pages));
 
       break;
     }
   case PAGE_MAP_REGISTERS:{	/* 0x4e */
-      Kdebug1((dbg_fd, "bios_emm: Page Map Registers Function.\n"));
+      Kdebug1(("bios_emm: Page Map Registers Function.\n"));
 
       switch (LO_BYTE_d(state->eax)) {
       case GET_REGISTERS:{
-	  Kdebug1((dbg_fd, "bios_emm: Get Registers\n"));
+	  Kdebug1(("bios_emm: Get Registers\n"));
 	  emm_get_map_registers((char *) Addr(state, es, edi));
 	  SETHI_BYTE(state->eax, EMM_NO_ERR);
 	  break;
 	}
       case SET_REGISTERS:{
-	  Kdebug1((dbg_fd, "bios_emm: Set Registers\n"));
+	  Kdebug1(("bios_emm: Set Registers\n"));
 	  emm_set_map_registers((char *) Addr(state, ds, esi));
 	  SETHI_BYTE(state->eax, EMM_NO_ERR);
 	  break;
 	}
       case GET_AND_SET_REGISTERS:{
-	  Kdebug1((dbg_fd, "bios_emm: Get and Set Registers\n"));
+	  Kdebug1(("bios_emm: Get and Set Registers\n"));
 
 	  emm_get_map_registers((char *) Addr(state, es, edi));
 	  emm_set_map_registers((char *) Addr(state, ds, esi));
@@ -2116,14 +2115,14 @@ ems_fn(struct vm86_regs *state)
 	  break;
 	}
       case GET_SIZE_FOR_PAGE_MAP:{
-	  Kdebug1((dbg_fd, "bios_emm: Get size for page map\n"));
+	  Kdebug1(("bios_emm: Get size for page map\n"));
 
 	  SETHI_BYTE(state->eax, EMM_NO_ERR);
 	  SETLO_BYTE(state->eax, PAGE_MAP_SIZE(phys_pages));
 	  break;
 	}
       default:{
-	  Kdebug1((dbg_fd, "bios_emm: Page Map Regs unknwn fn\n"));
+	  Kdebug1(("bios_emm: Page Map Regs unknwn fn\n"));
 
 	  SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
 	  break;
@@ -2217,8 +2216,7 @@ ems_fn(struct vm86_regs *state)
 */
 
   default:{
-      Kdebug1((dbg_fd,
-	 "bios_emm: EMM function NOT supported 0x%04x\n",
+      Kdebug1(("bios_emm: EMM function NOT supported 0x%04x\n",
 	 (unsigned) LO_WORD(state->eax)));
          SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
       break;

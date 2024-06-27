@@ -32,6 +32,9 @@ Build-Depends:
     libreadline-dev,
     libjson-c-dev,
     libb64-dev,
+    libacl1-dev,
+    libglib2.0-dev,
+    libsearpc-dev,
     binutils-dev,
     pkg-config,
     fdpp-dev,
@@ -56,6 +59,7 @@ Recommends: ${shlibs-:Recommends},
     gdb,
     kbd,
     sudo,
+    util-linux,
     fluid-soundfont-gm,
     install-freedos
 Suggests: vde2, valgrind, install-otherdos

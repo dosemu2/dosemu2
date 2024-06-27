@@ -31,6 +31,7 @@
 #include "emudpmi.h"
 #include "timers.h"
 #include "dosemu_config.h"
+#include "utilities.h"
 #include "sig.h"
 #define MHP_PRIVATE
 #include "mhpdbg.h"
@@ -100,10 +101,11 @@ void mhp_send(void)
   }
 }
 
-static  char *pipename_in, *pipename_out;
+static char *pipename_in, *pipename_out;
 
 void mhp_close(void)
 {
+   int err;
    if (mhpdbg.fdin == -1) return;
    if (mhpdbg.active) {
      mhp_putc(1); /* tell debugger terminal to also quit */
@@ -111,11 +113,15 @@ void mhp_close(void)
    }
    remove_from_io_select(mhpdbg.fdin);
    if (pipename_in) {
-     unlink(pipename_in);
+     err = unlink_under(dosemu_rundir_path, strrchr(pipename_in, '/') + 1);
+     if (err)
+       perror("unlink()");
      free(pipename_in);
    }
    if (pipename_out) {
-     unlink(pipename_out);
+     err = unlink_under(dosemu_rundir_path, strrchr(pipename_out, '/') + 1);
+     if (err)
+       perror("unlink()");
      free(pipename_out);
    }
    mhpdbg.fdin = mhpdbg.fdout = -1;
@@ -124,15 +130,12 @@ void mhp_close(void)
 
 static int wait_for_debug_terminal = 0;
 
-int vmhp_log_intercept(int flg, const char *fmt, va_list args)
+int vmhp_log_intercept(const char *fmt, va_list args)
 {
   if (mhpdbg.active <= 1)
     return 0;
-  if (flg) {
-    if (dosdebug_flags & DBGF_LOG_TO_BREAK) {
-      mhp_regex(fmt, args);
-    }
-  }
+  if (dosdebug_flags & DBGF_LOG_TO_BREAK)
+    mhp_regex(fmt, args);
   return 0;
 }
 

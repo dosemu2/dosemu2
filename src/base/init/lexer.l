@@ -356,8 +356,6 @@ sound_emu               RETURN(L_SOUND);
 oss_options             RETURN(L_SND_OSS);
 joystick_emu		RETURN(L_JOYSTICK);
 dosemumap               RETURN(DOSEMUMAP);
-logbufsize              RETURN(LOGBUFSIZE);
-logfilesize		RETURN(LOGFILESIZE);
 mappingdriver		RETURN(MAPPINGDRIVER);
 
 	/* sillyint values */

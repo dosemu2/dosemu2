@@ -47,6 +47,9 @@ BuildRequires: linuxdoc-tools
 BuildRequires: readline-devel
 BuildRequires: json-c-devel
 BuildRequires: libb64-devel
+BuildRequires: libacl-devel
+BuildRequires: libsearpc-devel
+BuildRequires: glib2-devel
 BuildRequires: binutils
 BuildRequires: binutils-x86_64-linux-gnu
 BuildRequires: pkgconf-pkg-config
@@ -64,6 +67,7 @@ Recommends: ncurses-base
 Recommends: gdb
 Recommends: kbd
 Recommends: sudo
+Recommends: util-linux
 Suggests:   valgrind
 Recommends: install-freedos
 Suggests:   install-otherdos

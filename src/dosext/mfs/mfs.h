@@ -32,9 +32,7 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 //#define UNCHANGED 2
 #define REDIRECT 3
 
-#define dbg_fd -1
-
-#define d_Stub(arg1, s, a...)   d_printf("MFS: " s, ##a)
+#define d_Stub(s, a...)   d_printf("MFS: " s, ##a)
 #define Debug0(args)		d_Stub args
 #define Debug1(args)		d_Stub args
 
@@ -378,9 +376,9 @@ extern void build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
 extern int find_file(char *fpath, struct stat *st, int root_len,
 			   int *doserror);
-extern int get_dos_attr(const char *fname, int mode);
+extern int get_dos_attr(const char *fname, int mode, int drive);
 extern int set_fat_attr(int fd,int attr);
-extern int set_dos_attr(char *fname, int attr);
+extern int set_dos_attr(char *fname, int attr, int drive);
 extern int dos_utime(char *fpath, struct utimbuf *ut);
 extern void time_to_dos(time_t clock, u_short *date, u_short *time);
 extern time_t time_to_unix(u_short dos_date, u_short dos_time);
@@ -402,6 +400,9 @@ extern int get_drive_from_path(char *path, int *drive);
 extern int mfs_open_file(int mfs_idx, const char *path, int flags);
 extern int mfs_create_file(int mfs_idx, const char *path, int flags,
     mode_t mode);
+extern int mfs_unlink_file(int mfs_idx, const char *path);
+extern int mfs_setxattr_file(int mfs_idx, const char *path, int attr);
+extern int mfs_rename_file(int mfs_idx, const char *oldpath, const char *newpath);
 
 /* returns drive number and any bits that are impossible for drive.
  * Should be checked against MAX_DRIVE to make sure it is actually
@@ -428,3 +429,6 @@ struct file_fd
 
 #define MAX_OPENED_FILES 256
 extern struct file_fd open_files[MAX_OPENED_FILES];
+
+void mfs_priv_init(void);
+void mfs_post_config(void);

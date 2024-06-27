@@ -113,11 +113,10 @@ static void xx_printf(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
 static smpool umbs[UMBS];
 static int umbs_used;
 
-#define x_Stub(arg1, s, a...)   x_printf("XMS: " s, ##a)
+#define x_Stub(s, a...)   x_printf("XMS: " s, ##a)
 #define Debug0(args)		x_Stub args
 #define Debug1(args)		x_Stub args
 #define Debug2(args)		x_Stub args
-/* #define dbg_fd stderr */
 
 static void
 umb_setup(int umb_ems)
@@ -133,7 +132,7 @@ umb_setup(int umb_ems)
       addr_start += 16*1024;
       continue;
     }
-    Debug0((dbg_fd, "findhole - from 0x%5.5X, %dKb\n", addr_start, size/1024));
+    Debug0(("findhole - from 0x%5.5X, %dKb\n", addr_start, size/1024));
     memcheck_map_reserve('U', addr_start, size);
 #if 0
     if (addr_start == 0xa0000 && config.umb_a0 == 2) {
@@ -147,7 +146,7 @@ umb_setup(int umb_ems)
     sminit(&umbs[umbs_used], MEM_BASE32(addr_start), size);
     smregister_error_notifier(&umbs[umbs_used], xx_printf);
     umbs_used++;
-    Debug0((dbg_fd, "umb_setup: addr %x size 0x%04x\n",
+    Debug0(("umb_setup: addr %x size 0x%04x\n",
 	      addr_start, size));
   }
 #if 0
@@ -219,7 +218,7 @@ umb_query(void)
     if (l > largest)
       largest = l;
   }
-  Debug0((dbg_fd, "umb_query: largest UMB was %d(%#x) bytes\n",
+  Debug0(("umb_query: largest UMB was %d(%#x) bytes\n",
 	largest, largest));
   return (largest);
 }
@@ -330,7 +329,7 @@ static void xx_printf(int prio, const char *fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
-  vlog_printf(0, fmt, args);
+  vlog_printf(fmt, args);
   va_end(args);
 }
 
@@ -489,29 +488,29 @@ void xms_control(void)
 
       if (size == 0) {
 	int avail = umb_query();
-	Debug0((dbg_fd, "Allocate UMB with 0 size\n"));
+	Debug0(("Allocate UMB with 0 size\n"));
 	XMS_RET(0xa7);
 	LWORD(edx) = avail >> 4;
 	break;
       }
       addr = umb_allocate(size);
       is_umb_fn = 1;
-      Debug0((dbg_fd, "Allocate UMB memory: %#x\n", size));
+      Debug0(("Allocate UMB memory: %#x\n", size));
       if (addr == 0) {
         int avail=umb_query();
 
-	Debug0((dbg_fd, "Allocate UMB Failure\n"));
+	Debug0(("Allocate UMB Failure\n"));
 	XMS_RET(avail ? 0xb0 : 0xb1);
 	LWORD(edx) = avail >> 4;
       }
       else {
-	Debug0((dbg_fd, "Allocate UMB Success\n"));
+	Debug0(("Allocate UMB Success\n"));
 	XMS_RET(0);
 	LWORD(ebx) = addr >> 4;
 	if (addr > 0xfffff)
 	  CARRY;
 	LWORD(edx) = size >> 4;
-	Debug0((dbg_fd, "umb_allocated: %#x:%#x\n", addr, size));
+	Debug0(("umb_allocated: %#x:%#x\n", addr, size));
       }
       /* retval = UNCHANGED; */
       break;
@@ -521,7 +520,7 @@ void xms_control(void)
     {
       int err;
       is_umb_fn = 1;
-      Debug0((dbg_fd, "umb_free: 0x%04x\n", (unsigned) LWORD(edx)));
+      Debug0(("umb_free: 0x%04x\n", (unsigned) LWORD(edx)));
       err = umb_free(LWORD(edx));
       XMS_RET(err ? 0xb2 : 0);
       /* retval = UNCHANGED; */

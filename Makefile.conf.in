@@ -19,6 +19,7 @@ docdir:=@docdir@
 x11fontdir:=@x11fontdir@
 ttffontdir:=@ttffontdir@
 fdtarball:=@fdtarball@
+username := @username@
 cmdsuff:=@cmdsuff@
 abs_top_srcdir:=@abs_top_srcdir@
 abs_top_builddir:=@abs_top_builddir@
@@ -56,6 +57,7 @@ YACC:=@YACC@
 LEX:=@LEX@
 LN_S := @LN_S@
 LN_SFT := @LN_SFT@
+RPCGEN := @RPCGEN@
 
 # This gets defined even if we chose via ./include/config.h NOT to
 # use the debugger

@@ -110,13 +110,13 @@ static void print_trace (void)
 
   size = backtrace (array, MAX_FRAMES);
   strings = backtrace_symbols (array, size);
-  fprintf(dbg_fd, "Obtained %d stack frames.\n", size);
+  log_printf("Obtained %d stack frames.\n", size);
 
   for (i = 0; i < size; i++)
-    fprintf(dbg_fd, "%s\n", strings[i]);
+    log_printf("%s\n", strings[i]);
 
   free (strings);
-  fprintf(dbg_fd, "Backtrace finished\n");
+  log_printf("Backtrace finished\n");
 }
 #endif
 
@@ -179,8 +179,8 @@ static int do_gdb_debug(void)
       signal_done();
       sigprocmask(SIG_SETMASK, &oset, NULL);
 
-      dup2(fileno(dbg_fd), STDOUT_FILENO);
-      dup2(fileno(dbg_fd), STDERR_FILENO);
+      dup2(vlog_get_fd(), STDOUT_FILENO);
+      dup2(vlog_get_fd(), STDERR_FILENO);
 
       collect_info(dosemu_pid);
 
@@ -234,8 +234,7 @@ void gdb_debug(void)
 #endif
 #endif
 
-    fprintf(dbg_fd, "\n");
-    fflush(dbg_fd);
+    log_printf("\n");
     dump_state();
 }
 

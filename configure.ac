@@ -277,6 +277,32 @@ AC_CHECK_FUNC(strlcpy,, [
   ]
 )])
 
+PKG_CHECK_MODULES([LIBACL], [libacl], [
+    AC_DEFINE(HAVE_LIBACL)
+    CFLAGS="$CFLAGS $LIBACL_CFLAGS"
+    LIBS="$LIBS $LIBACL_LIBS"
+  ],
+  [ AC_MSG_WARN(libacl not found) ]
+)
+
+PKG_CHECK_MODULES([GLIB2], [glib-2.0], [
+    CFLAGS="$CFLAGS $GLIB2_CFLAGS"
+    LIBS="$LIBS $GLIB2_LIBS"
+  ],
+  [ AC_MSG_ERROR(glib2-devel not found) ]
+)
+
+PKG_CHECK_MODULES([SEARPC], [libsearpc], [
+    CFLAGS="$CFLAGS $SEARPC_CFLAGS"
+    LIBS="$LIBS $SEARPC_LIBS"
+  ],
+  [ AC_MSG_ERROR(libsearpc-devel not found) ]
+)
+
+AC_PATH_PROGS([RPCGEN], [searpc-codegen searpc-codegen.py],
+  [AC_MSG_ERROR(rpcgen not found)])
+AC_SUBST(RPCGEN)
+
 dnl Here is where we do our stuff
 
 AC_ARG_WITH(confdir, [AS_HELP_STRING([--with-confdir=dir],
@@ -291,6 +317,9 @@ AC_ARG_WITH(ttffontdir, [AS_HELP_STRING([--with-ttffontdir=dir],
 AC_ARG_WITH(fdtarball, [AS_HELP_STRING([--with-fdtarball=file],
   [path to FreeDOS tarball])],
   fdtarball="$withval")
+AC_ARG_WITH(username, [AS_HELP_STRING([--with-username=username],
+  [user for dosemu2 to create in a system. default: dosemu2])],
+  username="$withval", username="dosemu2")
 
 # Hard-code this. It is evaluated at run-time as <binary_dir>../lib/dosemu,
 # so we do not use libdir here (which can be lib64 or something unrelated)
@@ -302,6 +331,7 @@ AC_SUBST(x11fontdir)
 AC_SUBST(ttffontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)
+AC_SUBST(username)
 
 AC_DEFINE_DIR([SYSCONFDIR], [sysconfdir], [ System config dir ])
 AC_DEFINE_DIR([CONFSUBDIR], [confdir], [ dosemu-specific config subdir ])
@@ -758,6 +788,9 @@ AH_TEMPLATE(HAVE_LIBBFD,
 
 AH_TEMPLATE(HAVE_LIBBSD,
 [Define this if you have bsd-devel installed])
+
+AH_TEMPLATE(HAVE_LIBACL,
+[Define this if you have libacl-devel installed])
 
 AH_TEMPLATE(HAVE_EXECINFO,
 [Define this if you have execinfo.h in libc])

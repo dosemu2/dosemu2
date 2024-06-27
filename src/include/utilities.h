@@ -5,9 +5,6 @@
 #include <semaphore.h>
 #include "dosemu_debug.h"
 
-extern char *logptr, *logbuf;
-extern int logbuf_size, logfile_limit;
-
 int argparse(char *s, char *argvx[], int maxarg);
 void sigalarm_onoff(int on);
 
@@ -29,6 +26,7 @@ char *assemble_path(const char *dir, const char *file);
 char *expand_path(const char *dir);
 char *concat_dir(const char *s1, const char *s2);
 char *mkdir_under(const char *basedir, const char *dir);
+int unlink_under(const char *dir, const char *fname);
 char *get_path_in_HOME(const char *path);
 char *get_dosemu_local_home(void);
 char *readlink_malloc (const char *filename);
@@ -100,7 +98,7 @@ struct string_store {
 
 int replace_string(struct string_store *store, const char *old, char *str);
 #ifdef HAVE_FOPENCOOKIE
-FILE *fstream_tee(FILE *orig, FILE *copy);
+FILE *fstream_tee(FILE *orig);
 #endif
 
 #define cond_wait(c, m) { \
@@ -118,6 +116,9 @@ static inline int pshared_sem_wait(pshared_sem_t sem)
 {
     return sem_wait(sem);
 }
+
+int pshared_sem_init(pshared_sem_t *sem, unsigned int value);
+int pshared_sem_destroy(pshared_sem_t *sem);
 
 /* macOS doesn't support sem_init(), so use Mach semaphores instead */
 #ifdef __APPLE__

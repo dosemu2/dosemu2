@@ -25,7 +25,7 @@ USAGE:
 THISDIR="$PWD"
 ARG0="$0"
 
-unset STRING_I USE_SUDO OPTS
+unset STRING_I SUDO SUDOOPTS OPTS
 
 mkdir -p ~/.dosemu
 
@@ -104,9 +104,19 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -s)
-      USE_SUDO=1
       SUFFIX="$SUFFIX \"$1\""
       shift
+      SUDO=sudo
+      # no-new-privs is needed to bypass suid/sgid bits
+      SUDOOPTS="-E --preserve-env=HOME,USER setpriv --no-new-privs"
+      # sudo doesn't set SUDO_HOME but maybe it will - use another var
+      export DOSEMU_SUDO_HOME="$HOME"
+      ;;
+    -no-priv-sep)
+      shift
+      SUDO=setpriv
+      # no-new-privs is needed to bypass suid/sgid bits
+      SUDOOPTS="--no-new-privs"
       ;;
     -t | -t[a-z] | -t[a-z][a-z] | -t[a-z][a-z][a-z])
       exec 4>&2 2>~/.dosemu/stderr.log.$BASHPID
@@ -161,24 +171,15 @@ fi
 get_binary "$0"
 
 if [ "`id -ur`" -eq 0 ]; then
-  if [ -z "$USE_SUDO" ]; then
+  if [ -z "$SUDO" ]; then
     echo "Running dosemu2 with root privs is recommended with: $(basename $0) -s"
   else
     # we still need to pass -s so just don't use sudo
-    unset USE_SUDO
+    unset SUDO
   fi
   if [ -n "$SUDO_USER" -a -z "$SUDO_HOME" ]; then
     export SUDO_HOME=`getent passwd "$SUDO_USER" | cut -d: -f6`
   fi
-fi
-
-SUDO=""
-if [ -n "$USE_SUDO" ] ; then
-  SUDO=sudo
-  # preserve env, most importantly HOME
-  SUDOOPTS="-E --preserve-env=HOME,USER"
-  # sudo doesn't set SUDO_HOME but maybe it will - use another var
-  export DOSEMU_SUDO_HOME="$HOME"
 fi
 
 # for address sanitizer
