@@ -63,8 +63,6 @@ extern int terminal_pipe;
 extern int terminal_fd;
 extern int kernel_version_code;
 
-extern FILE *dbg_fd;
-
 #if 0
 /*
  * 1) this stuff is unused

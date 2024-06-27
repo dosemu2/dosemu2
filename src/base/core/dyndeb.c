@@ -10,8 +10,6 @@
 #include "int.h"
 #include "port.h"
 
-
-FILE *dbg_fd;
 #ifdef DONT_DEBUG_BOOT
 static struct debug_class debug_save[DEBUG_CLASSES];
 #endif

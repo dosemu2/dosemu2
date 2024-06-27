@@ -1225,8 +1225,6 @@ config_init(int argc, char **argv)
 		}
 		free(tmp);
 	    }
-	    if (strcmp(optarg, "-") == 0)
-		dbg_fd = stderr;
 	    break;
 	}
 	case 'n':

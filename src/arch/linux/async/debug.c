@@ -179,8 +179,8 @@ static int do_gdb_debug(void)
       signal_done();
       sigprocmask(SIG_SETMASK, &oset, NULL);
 
-      dup2(fileno(dbg_fd), STDOUT_FILENO);
-      dup2(fileno(dbg_fd), STDERR_FILENO);
+      dup2(vlog_get_fd(), STDOUT_FILENO);
+      dup2(vlog_get_fd(), STDERR_FILENO);
 
       collect_info(dosemu_pid);
 

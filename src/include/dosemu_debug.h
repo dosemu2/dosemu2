@@ -47,6 +47,8 @@ struct debug_class
 	unsigned char letter;
 };
 
+int vlog_init(const char *file);
+int vlog_get_fd(void);
 int log_printf(const char *, ...) FORMAT(printf, 1, 2);
 int vlog_printf(const char *, va_list);
 

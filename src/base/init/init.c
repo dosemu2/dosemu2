@@ -72,6 +72,7 @@ static inline void dbug_dumpivec(void)
  */
 void stdio_init(void)
 {
+    int err = -1;
     if (config.debugout == NULL) {
         char *home = getenv("HOME");
         if (home) {
@@ -82,16 +83,14 @@ void stdio_init(void)
         }
     }
     if (config.debugout && config.debugout[0] != '-') {
-        dbg_fd = fopen(config.debugout, "we");
-        if (!dbg_fd)
+        err = vlog_init(config.debugout);
+        if (err)
             error("can't open \"%s\" for writing\n", config.debugout);
-        else
-            setlinebuf(dbg_fd);
     }
 
     real_stderr = stderr;
 #if defined(HAVE_ASSIGNABLE_STDERR) && defined(HAVE_FOPENCOOKIE)
-    if (dbg_fd)
+    if (!err)
         stderr = fstream_tee(stderr);
 #endif
 }

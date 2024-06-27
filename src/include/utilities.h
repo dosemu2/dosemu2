@@ -5,9 +5,6 @@
 #include <semaphore.h>
 #include "dosemu_debug.h"
 
-extern char *logptr, *logbuf;
-extern int logbuf_size, logfile_limit;
-
 int argparse(char *s, char *argvx[], int maxarg);
 void sigalarm_onoff(int on);
 

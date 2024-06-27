@@ -241,7 +241,7 @@ enum {
 %token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FILE_LOCK_LIMIT
 %token ABORT WARN ERROR
 %token L_FLOPPY EMUSYS L_X L_SDL
-%token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
+%token DOSEMUMAP MAPPINGDRIVER
 %token LFN_SUPPORT FFS_REDIR SET_INT_HOOKS TRACE_IRETS FINT_REVECT
 	/* speaker */
 %token EMULATED NATIVE
@@ -565,22 +565,6 @@ line:		CHARSET '{' charset_flags '}' {}
 			config.freq = 18;
 		    }
 		    c_printf("CONF: timer freq=%d, update=%d\n",config.freq,config.update);
-		    }
-		| LOGBUFSIZE expression
-		    {
-		      char *b;
-		      flush_log();
-		      b = malloc($2+1024);
-		      if (!b) {
-			error("cannot get logbuffer\n");
-			exit(1);
-		      }
-		      logptr = logbuf = b;
-		      logbuf_size = $2;
-		    }
-		| LOGFILESIZE expression
-		    {
-		      logfile_limit = $2;
 		    }
 		| EMURETRACE bool
 		    {

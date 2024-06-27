@@ -25,28 +25,12 @@
 #include <sys/acl.h>
 #endif
 #ifdef HAVE_LIBBSD
-#include <bsd/unistd.h>
+#include <bsd/unistd.h> // for closefrom()
 #endif
 
-#include "bios.h"
-#include "timers.h"
-#include "pic.h"
-#include "emudpmi.h"
 #include "debug.h"
 #include "utilities.h"
 #include "dos2linux.h"
-#include "dosemu_config.h"
-#include "mhpdbg.h"
-
-/*
- * NOTE: SHOW_TIME _only_ should be enabled for
- *      internal debugging use, but _never_ for productions releases!
- *      (this would break the port traceing stuff -D+T, which expects
- *      a machine interpretable and compressed format)
- *
- *                                     --Hans 990213
- */
-#define SHOW_TIME	0		/* 0 or 1 */
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -59,67 +43,9 @@ struct dir_fd {
 static struct dir_fd dfd[DFD_MAX];
 static int num_dfd;
 
-#ifndef INITIAL_LOGBUFSIZE
-#define INITIAL_LOGBUFSIZE      0
-#endif
-#ifndef INITIAL_LOGBUFLIMIT
-#define INITIAL_LOGFILELIMIT	(1024*1024*1024ULL)
-#endif
-
 static pthread_mutex_t log_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-#ifdef CIRCULAR_LOGBUFFER
-#define NUM_CIRC_LINES	32768
-#define SIZ_CIRC_LINES	384
-#define MAX_LINE_SIZE	(SIZ_CIRC_LINES-16)
-char *logbuf;
-static char *loglines[NUM_CIRC_LINES];
-static int loglineidx = 0;
-char *logptr;
-#else
-#define MAX_LINE_SIZE	1000
-static char logbuf_[INITIAL_LOGBUFSIZE+1025];
-char *logptr=logbuf_;
-char *logbuf=logbuf_;
-#endif
-int logbuf_size = INITIAL_LOGBUFSIZE;
-int logfile_limit = INITIAL_LOGFILELIMIT;
-int log_written = 0;
-
 static char hxtab[16]="0123456789abcdef";
-
-#if 0
-static inline char *prhex8 (char *p, unsigned long v)
-{
-  int i;
-  for (i=7; i>=0; --i) { p[i]=hxtab[v&15]; v>>=4; }
-  p[8]=' ';
-  return p+9;
-}
-#endif
-#if SHOW_TIME
-static char *timestamp (char *p)
-{
-  unsigned long t;
-  int i;
-
-#ifdef DBG_TIME
-  t = GETusTIME(0);
-#else
-  t = pic_sys_time/1193;
-#endif
-  /* [12345678]s - SYS time */
-    {
-      p[0] = '[';
-      for (i=8; i>0; --i)
-	{ if (t) { p[i]=(t%10)+'0'; t/=10; } else p[i]='0'; }
-      p[9]=']'; p[10]=' ';
-    }
-  return p+11;
-}
-#else
-#define timestamp(p)	(p)
-#endif
 
 int is_printable(const char *s)
 {
@@ -164,102 +90,6 @@ char *chrprintable(char c)
   buf[0] = c;
   buf[1] = 0;
   return strprintable(buf);
-}
-
-int vlog_printf(const char *fmt, va_list args)
-{
-  int i;
-  static int is_cr = 1;
-
-#ifdef USE_MHPDBG
-  if (dosdebug_flags & DBGF_INTERCEPT_LOG) {
-    va_list args2;
-    va_copy(args2, args);
-    /* we give dosdebug a chance to interrupt on given logoutput */
-    i = vmhp_log_intercept(fmt, args2);
-    va_end(args2);
-    if ((dosdebug_flags & DBGF_DISABLE_LOG_TO_FILE) || !dbg_fd) return i;
-  }
-#endif
-
-  if (!dbg_fd ||
-#ifdef USE_MHPDBG
-      (shut_debug && !mhpdbg.active)
-#else
-      (shut_debug && (flg<10))
-#endif
-     ) return 0;
-
-#ifdef CIRCULAR_LOGBUFFER
-  logptr = loglines[loglineidx++];
-#endif
-  {
-    char *q;
-
-    q = (is_cr? timestamp(logptr) : logptr);
-    i = vsnprintf(q, MAX_LINE_SIZE, fmt, args);
-    if (i >= MAX_LINE_SIZE) {	/* truncated for buffer overflow */
-      i = MAX_LINE_SIZE-2;
-      q[i++]='\n'; q[i]=0; is_cr=1;
-    }
-    else if (i > 0) is_cr = (q[i-1]=='\n');
-    i += (q-logptr);
-  }
-
-#ifdef CIRCULAR_LOGBUFFER
-  loglineidx %= NUM_CIRC_LINES;
-  *(loglines[loglineidx]) = 0;
-
-  if (flg == -1) {
-    char *p;
-    int i, k;
-    k = loglineidx;
-    for (i=0; i<NUM_CIRC_LINES; i++) {
-      p = loglines[k%NUM_CIRC_LINES]; k++;
-      if (*p) {
-	fprintf(dbg_fd, "%s", p);
-	*p = 0;
-      }
-    }
-    fprintf(dbg_fd,"****************** END CIRC_BUF\n");
-    fflush(dbg_fd);
-  }
-#else
-  logptr += i;
-
-  if ((dbg_fd==stderr) || ((logptr-logbuf) > logbuf_size)) {
-    int fsz = logptr-logbuf;
-    /* writing a big buffer can produce timer bursts, which under DPMI
-     * can cause stack overflows!
-     */
-    if (terminal_pipe) {
-      write(terminal_fd, logptr, fsz);
-    }
-    if (write(fileno(dbg_fd), logbuf, fsz) < 0) {
-      if (errno==ENOSPC) leavedos(0x4c4c);
-    }
-    logptr = logbuf;
-#if 1
-    if (logfile_limit) {
-      log_written += fsz;
-      if (log_written > logfile_limit) {
-        fflush(dbg_fd);
-#if 1
-        ftruncate(fileno(dbg_fd),0);
-        fseek(dbg_fd, 0, SEEK_SET);
-        log_written = 0;
-#else
-	fclose(dbg_fd);
-	shut_debug = 1;
-	dbg_fd = 0;	/* avoid recursion in leavedos() */
-	leavedos(0);
-#endif
-      }
-    }
-#endif
-  }
-#endif
-  return i;
 }
 
 int log_printf(const char *fmt, ...)
