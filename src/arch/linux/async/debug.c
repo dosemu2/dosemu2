@@ -110,13 +110,13 @@ static void print_trace (void)
 
   size = backtrace (array, MAX_FRAMES);
   strings = backtrace_symbols (array, size);
-  fprintf(dbg_fd, "Obtained %d stack frames.\n", size);
+  log_printf("Obtained %d stack frames.\n", size);
 
   for (i = 0; i < size; i++)
-    fprintf(dbg_fd, "%s\n", strings[i]);
+    log_printf("%s\n", strings[i]);
 
   free (strings);
-  fprintf(dbg_fd, "Backtrace finished\n");
+  log_printf("Backtrace finished\n");
 }
 #endif
 
@@ -234,8 +234,7 @@ void gdb_debug(void)
 #endif
 #endif
 
-    fprintf(dbg_fd, "\n");
-    fflush(dbg_fd);
+    log_printf("\n");
     dump_state();
 }
 

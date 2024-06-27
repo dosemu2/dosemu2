@@ -129,18 +129,6 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
 sgleave:
     error("unexpected CPU exception 0x%02x err=0x%08x cr2=%08x while in vm86 (DOS)\n",
 	  trapno, err, cr2);
-    {
-      int auxg = debug_level('g');
-      FILE *aux = dbg_fd;
-      flush_log();  /* important! else we flush to stderr */
-      dbg_fd = stderr;
-      set_debug_level('g',1);
-      show_regs();
-      set_debug_level('g', auxg);
-      flush_log();
-      dbg_fd = aux;
-    }
-
     show_regs();
     flush_log();
     leavedos_from_sig(4);

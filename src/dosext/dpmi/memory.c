@@ -181,7 +181,7 @@ void dump_maps(void)
 {
     char buf[64];
 
-    fprintf(dbg_fd, "\nmemory maps dump:\n");
+    log_printf("\nmemory maps dump:\n");
     sprintf(buf, "cat /proc/%i/maps >&%i", getpid(), fileno(dbg_fd));
     system(buf);
 }

@@ -844,7 +844,7 @@ static int mfs_lfn_(void)
 	case 0x3b: /* chdir */
 	{
 		char *d = MK_FP32(BIOSSEG, LFN_short_name);
-		Debug0((dbg_fd, "set directory to: %s\n", src));
+		Debug0(("set directory to: %s\n", src));
 		d_printf("LFN: chdir '%s'\n", src);
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)

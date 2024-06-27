@@ -81,7 +81,7 @@ void error(const char *fmt, ...) FORMAT(printf, 1, 2);
 void verror(const char *fmt, va_list args);
 void vprint(const char *fmt, va_list args);
 
-#define flush_log()		{ if (dbg_fd) log_printf("\n"); }
+#define flush_log()		{ log_printf("\n"); }
 
 /* "dRWDCvXkiTsm#pgcwhIExMnPrS" */
 #define b_printf(f,a...)	ifprintf(debug_level('b'),f,##a)
