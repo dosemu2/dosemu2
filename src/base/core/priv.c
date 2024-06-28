@@ -271,6 +271,7 @@ void priv_init(void)
   if (!skip_priv_setting) _priv_off();
 }
 
+#ifdef SDL_SUPPORT
 /* bug-fixer for gtk, see
  * https://gitlab.gnome.org/GNOME/gtk/-/issues/6629
  */
@@ -285,3 +286,4 @@ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid)
   dbug_printf("%s\n", __FUNCTION__);
   return -1;
 }
+#endif
