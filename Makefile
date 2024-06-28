@@ -67,7 +67,7 @@ changelog:
 	if [ -d $(top_srcdir)/.git -o -f $(top_srcdir)/.git ]; then \
 		git --git-dir=$(top_srcdir)/.git log >$@ ; \
 	else \
-		echo "Unofficial build by `whoami`@`hostname`, `date`" >$@ ; \
+		echo "Unofficial build by `whoami`, `date`" >$@ ; \
 	fi
 
 log: changelog
