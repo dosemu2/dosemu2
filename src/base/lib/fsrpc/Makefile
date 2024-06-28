@@ -12,6 +12,7 @@ CFILES = test-object.c fsrpc_srv.c fssvc.c
 GEN_H = searpc-signature.h searpc-marshal.h
 
 include $(REALTOPDIR)/src/Makefile.common
+vpath %.py $(srcdir)
 
 all: lib
 
