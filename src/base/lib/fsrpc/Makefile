@@ -7,6 +7,7 @@
 top_builddir=../../../..
 include $(top_builddir)/Makefile.conf
 ALL_CFLAGS += -Wno-strict-prototypes
+ALL_CPPFLAGS += -I.
 
 CFILES = test-object.c fsrpc_srv.c fssvc.c
 GEN_H = searpc-signature.h searpc-marshal.h
@@ -23,4 +24,4 @@ clean::
 fsrpc_srv.o: fsrpc_srv.c $(GEN_H)
 
 $(GEN_H) &: rpc_table.py
-	$(RPCGEN) rpc_table.py
+	$(RPCGEN) $<
