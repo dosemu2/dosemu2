@@ -127,11 +127,11 @@ install:
 	useradd --system $(username) --shell /sbin/nologin \
 	  --home-dir /nonexistent || true
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
-	rm -rf $(DESTDIR)$(dosemudir)/commands
-	rm -rf $(DESTDIR)$(dosemudir)/fdboot
-	rm -rf $(DESTDIR)$(dosemudir)/freedos
-	rm -rf $(cmddir)
-	rm -rf $(sysdir)
+	$(RM) -r $(DESTDIR)$(dosemudir)/commands
+	$(RM) -r $(DESTDIR)$(dosemudir)/fdboot
+	$(RM) -r $(DESTDIR)$(dosemudir)/freedos
+	$(RM) -r $(cmddir)
+	$(RM) -r $(sysdir)
 	$(INSTALL) -d $(DESTDIR)$(etcdir)
 
 	$(INSTALL) -d $(sysdir)
@@ -184,15 +184,15 @@ install:
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/NOVELL-HOWTO.txt $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
 	echo "-> Installing fonts..."
-	rm -rf $(DESTDIR)$(ttffontdir)
-	rm -rf $(DESTDIR)$(x11fontdir)
+	$(RM) -r $(DESTDIR)$(ttffontdir)
+	$(RM) -r $(DESTDIR)$(x11fontdir)
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
 	$(INSTALL) -d $(DESTDIR)$(ttffontdir)
 	install -m 0644 -D $(top_builddir)/etc/Xfonts/* $(DESTDIR)$(x11fontdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/$(PACKAGE_NAME).alias $(DESTDIR)$(x11fontdir)/fonts.alias
 	! which mkfontdir >/dev/null || mkfontdir $(DESTDIR)$(x11fontdir)
 	if [ -d "$(DESTDIR)$(sysconfdir)/X11/fontpath.d" ]; then \
-	    rm -f $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
+	    $(RM) $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
 	    $(LN_S) -f $(x11fontdir) $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
 	fi
 
@@ -204,13 +204,13 @@ install:
 	if [ -n "$(fdtarball)" -a -f "$(fdtarball)" ]; then \
 	  echo "-> Installing FreeDOS..."; \
 	  $(INSTALL) -d $(DESTDIR)$(dosemuxdir); \
-	  rm -rf $(DESTDIR)$(dosemuxdir)/freedos; \
+	  $(RM) -r $(DESTDIR)$(dosemuxdir)/freedos; \
 	  tar -C $(DESTDIR)$(dosemuxdir) --strip-components=1 --no-same-owner -xpzvf $(fdtarball); \
-	  rm -f $(DESTDIR)$(dosemuxdir)/FDchange.log; \
-	  rm -rf $(DESTDIR)$(dosemuxdir)/freedos/tmp; \
+	  $(RM) $(DESTDIR)$(dosemuxdir)/FDchange.log; \
+	  $(RM) -r $(DESTDIR)$(dosemuxdir)/freedos/tmp; \
 	fi
 	if [ -d $(DESTDIR)$(dosemuxdir)/freedos ]; then \
-	  rm -rf $(DESTDIR)$(dosemuxdir)/fdboot; \
+	  $(RM) -r $(DESTDIR)$(dosemuxdir)/fdboot; \
 	  $(INSTALL) -d $(DESTDIR)$(dosemuxdir)/fdboot; \
 	  cd $(DESTDIR)$(dosemuxdir)/fdboot; \
 	  $(LN_S) ../../dosemu/commands/c/fdconfig.sys fdconfig.sys; \
@@ -240,24 +240,24 @@ install:
 	@echo "  - You can type 'dosemu' to run DOSEMU2."
 
 uninstall:
-	rm -rf $(DESTDIR)$(dosemudir)
-	rm -f $(DESTDIR)$(bindir)/$(DOSBIN)
-	rm -f $(DESTDIR)$(bindir)/dosemu
-	rm -f $(DESTDIR)$(bindir)/mkfatimage16
-	rm -f $(DESTDIR)$(bindir)/mkhdimage
-	rm -f $(DESTDIR)$(bindir)/dosdebug
-	rm -rf $(DESTDIR)$(plugindir)
-	rm -rf $(DESTDIR)$(docdir)
-	ls $(DOCS)/*.1 | xargs --max-args=1 basename | xargs -I {} --max-args=1 rm -f $(DESTDIR)$(mandir)/man1/{}
-	ls $(DOCS)/ru/*.1 | xargs --max-args=1 basename | xargs -I {} --max-args=1 rm -f $(DESTDIR)$(mandir)/ru/man1/{}
+	$(RM) -r $(DESTDIR)$(dosemudir)
+	$(RM) $(DESTDIR)$(bindir)/$(DOSBIN)
+	$(RM) $(DESTDIR)$(bindir)/dosemu
+	$(RM) $(DESTDIR)$(bindir)/mkfatimage16
+	$(RM) $(DESTDIR)$(bindir)/mkhdimage
+	$(RM) $(DESTDIR)$(bindir)/dosdebug
+	$(RM) -r $(DESTDIR)$(plugindir)
+	$(RM) -r $(DESTDIR)$(docdir)
+	ls $(DOCS)/*.1 | xargs --max-args=1 basename | xargs -I {} --max-args=1 $(RM) $(DESTDIR)$(mandir)/man1/{}
+	ls $(DOCS)/ru/*.1 | xargs --max-args=1 basename | xargs -I {} --max-args=1 $(RM) $(DESTDIR)$(mandir)/ru/man1/{}
 
 local_clean:
-	rm -rf $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/lib
+	$(RM) -r $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/lib
 
 clean:: local_clean
 
 realclean:: local_clean
-	rm -rf $(BINPATH)
+	$(RM) -r $(BINPATH)
 
 CLEANDIRS=$(addsuffix .clean, $(DIRLIST))
 REALCLEANDIRS=$(addsuffix .realclean, $(DIRLIST))
@@ -275,5 +275,5 @@ $(REALCLEANDIRS):
 	-@$(MAKE) -C $(subst .realclean,,$@) realclean CLEANING=true
 
 pristine:	realclean
-	-rm -rf $(top_builddir)/lib
-	-rm -rf $(BINPATH) $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/etc/Xfonts
+	-$(RM) -r $(top_builddir)/lib
+	-$(RM) -r $(BINPATH) $(top_builddir)/bin $(top_builddir)/commands $(top_builddir)/etc/Xfonts
