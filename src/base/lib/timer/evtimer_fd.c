@@ -83,6 +83,8 @@ static void do_callback(struct evtimer *t)
 again:
     rc = read(t->fd, &ticks, sizeof(ticks));
     if (rc == -1) {
+        if (__atomic_load_n(&t->running, __ATOMIC_RELAXED) == 0)
+            return;
         if (errno == EAGAIN)  // other thread modified timer
             goto again;
         perror("read()");
@@ -183,6 +185,7 @@ static void evtimerfd_delete(void *tmr)
 #ifdef HAVE_TIMERFD_CREATE
     struct itimerspec i = {};
 
+    __atomic_store_n(&t->running, 0, __ATOMIC_RELAXED);
     timerfd_settime(t->fd, 0, &i, NULL);
 #else
     struct kevent change;
