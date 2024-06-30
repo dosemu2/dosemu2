@@ -95,6 +95,7 @@ make DESTDIR=%{buildroot} install
 %files
 %defattr(-,root,root)
 %{_bindir}/*
+%dir %{_libexecdir}/dosemu2
 %{_mandir}/man1/*
 %lang(ru) %dir %{_mandir}/ru
 %lang(ru) %dir %{_mandir}/ru/man1

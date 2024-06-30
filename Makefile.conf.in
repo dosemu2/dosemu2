@@ -2,7 +2,7 @@
 #
 # This file is included by all Makefiles
 
-DOSBIN = dosemu.bin
+DOSBIN = dosemu2.bin
 
 PACKAGE_TARNAME:=@PACKAGE_TARNAME@
 prefix:=@prefix@
@@ -11,6 +11,7 @@ bindir:=@bindir@
 sysconfdir:=@sysconfdir@
 confdir:=@confdir@
 libdir:=@libdir@
+libexecdir:=@libexecdir@
 plugindir:=@plugindir@
 datarootdir:=@datarootdir@
 datadir:=@datadir@

@@ -472,7 +472,8 @@ char *get_dosemu_local_home(void)
 
 char *prefix(const char *suffix)
 {
-    char *p1, *ret, *s, *p;
+    char *p1, *s, *p;
+    char *ret = NULL;
 
     if (dosemu_proc_self_exe[0] != '/') {
       error("cannot evaluate prefix from relative path %s\n",
@@ -483,10 +484,19 @@ char *prefix(const char *suffix)
     p = dirname(s);
     assert(p);
     p1 = strrchr(p, '/');
-    if (p1 && strcmp(p1 + 1, "bin") == 0) {
+    if (p1) {
       *p1 = '\0';
-      ret = assemble_path(p, suffix);
-    } else {
+      if (strcmp(p1 + 1, "bin") == 0)
+        ret = assemble_path(p, suffix);
+      else if (strcmp(p1 + 1, "dosemu2") == 0) {
+        p1 = strrchr(p, '/');
+        if (p1 && strcmp(p1 + 1, "libexec") == 0) {
+          *p1 = '\0';
+          ret = assemble_path(p, suffix);
+        }
+      }
+    }
+    if (!ret) {
       error("unable to evaluate prefix from %s\n", dosemu_proc_self_exe);
       ret = assemble_path(PREFIX, suffix);
     }
