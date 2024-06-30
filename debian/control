@@ -9,7 +9,6 @@ Build-Depends:
     autotools-dev,
     automake,
     make,
-    linuxdoc-tools,
     bison,
     debhelper (>= 9~),
     flex,

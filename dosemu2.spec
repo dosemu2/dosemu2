@@ -43,7 +43,6 @@ BuildRequires: findutils
 BuildRequires: git >= 2.0
 BuildRequires: bdftopcf
 BuildRequires: mkfontscale
-BuildRequires: linuxdoc-tools
 BuildRequires: readline-devel
 BuildRequires: json-c-devel
 BuildRequires: libb64-devel
