@@ -95,7 +95,10 @@ make DESTDIR=%{buildroot} install
 %files
 %defattr(-,root,root)
 %{_bindir}/*
+%{_prefix}/lib/sysusers.d/dosemu2.conf
 %dir %{_libexecdir}/dosemu2
+#%attr(06755, dosemu2, dosemu2) %{_libexecdir}/dosemu2/dosemu2.bin
+%{_libexecdir}/dosemu2/dosemu2.bin
 %{_mandir}/man1/*
 %lang(ru) %dir %{_mandir}/ru
 %lang(ru) %dir %{_mandir}/ru/man1
