@@ -98,12 +98,13 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
   char *fspec, *dspec, *tspec, *ttspec, *dtspec;
   int fd, tmp_fd, rc;
   int flg = block ? 0 : LOCK_NB;
+  uid_t uid = getuid();
 
-  rc = asprintf(&dspec, LOCK_DIR "/%s", dir);
+  rc = asprintf(&dspec, LOCK_DIR "/%s_%i", dir, uid);
   assert(rc != -1);
   rc = asprintf(&fspec, "%s/%s", dspec, name);
   assert(rc != -1);
-  rc = asprintf(&dtspec, LOCK_DIR "/%s.XXXXXX", name);
+  rc = asprintf(&dtspec, LOCK_DIR "/%s_%i.XXXXXX", name, uid);
   assert(rc != -1);
   /* create tmp dir */
   mkdtemp(dtspec);
