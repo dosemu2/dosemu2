@@ -54,6 +54,21 @@ else
   fi
 fi
 
+AX_SAVE_FLAGS([ce_check])
+CFLAGS="-std=gnu23"
+AC_MSG_CHECKING([for constexpr])
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[static constexpr const int test = 5;]])],
+  [
+    AC_DEFINE([CONSTEXPR], [constexpr], [constexpr support])
+    AC_MSG_RESULT([yes])
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -std=gnu23"
+  ], [
+    AC_DEFINE([CONSTEXPR], [])
+    AC_MSG_RESULT([no])
+  ]
+)
+AX_RESTORE_FLAGS([ce_check])
+
 CONFIG_HOST=`uname -s`
 AC_SUBST(CONFIG_HOST)
 machine=`$CC -dumpmachine | cut -d- -f1 | sed 's/i.86/i386/'`
