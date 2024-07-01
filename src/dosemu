@@ -1,16 +1,22 @@
 get_binary() {
   BINDIR=$(realpath `dirname "$1"`)
-  BINARY="$BINDIR"/dosemu.bin
-  if [ ! -f "$BINARY" ]; then
-    echo "$BINARY does not exist"
-    exit 1
-  fi
   if [ "$BINDIR" = "$(realpath -q $LOCAL_BUILD_PATH/$LOCAL_BIN_DIR)" ]; then
+    BINARY="$BINDIR"/dosemu2.bin
+    if [ ! -f "$BINARY" ]; then
+      echo "$BINARY does not exist"
+      exit 1
+    fi
     [ -h ~/.fonts/dosemu2 ] || (mkdir -p ~/.fonts && ln -sf "$LOCAL_BUILD_PATH/etc/ttf" ~/.fonts/dosemu2)
     OPTS="$OPTS --Fcmddir $LOCAL_BUILD_PATH/commands \
         --Flibdir $LOCAL_BUILD_PATH/etc \
         --Fplugindir $BINDIR \
         "
+  else
+    BINARY="$prefix"/libexec/dosemu2/dosemu2.bin
+    if [ ! -f "$BINARY" ]; then
+      echo "$BINARY does not exist"
+      exit 1
+    fi
   fi
 }
 usage () {

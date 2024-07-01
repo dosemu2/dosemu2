@@ -158,15 +158,18 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(datadir)/applications
 	$(INSTALL) -m 0644 $(top_builddir)/etc/*.desktop $(DESTDIR)$(datadir)/applications
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/locales.conf $(DESTDIR)$(dosemudir)
-	$(INSTALL) -d $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(bindir)
+	$(INSTALL) -d $(DESTDIR)$(prefix)/lib/sysusers.d
+	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/sysusers.conf $(DESTDIR)$(prefix)/lib/sysusers.d/$(PACKAGE_NAME).conf
+	$(INSTALL) -d $(DESTDIR)$(libexecdir)/dosemu2
+	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(libexecdir)/dosemu2
 	if getent passwd $(username); then \
-	  if chown $(username):$(username) $(DESTDIR)$(bindir)/$(DOSBIN); then \
-	    if chmod ug+s $(DESTDIR)$(bindir)/$(DOSBIN); then \
+	  if chown $(username):$(username) $(DESTDIR)$(libexecdir)/dosemu2/$(DOSBIN); then \
+	    if chmod ug+s $(DESTDIR)$(libexecdir)/dosemu2/$(DOSBIN); then \
 	      echo "dosemu2 installed SETUID!"; \
 	    fi; \
 	  fi; \
 	fi
+	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/dosemu $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/mkfatimage16 ] || $(INSTALL) -m 0755 $(top_builddir)/bin/mkfatimage16 $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/dosdebug ] || $(INSTALL) -m 0755 $(top_builddir)/bin/dosdebug $(DESTDIR)$(bindir)
@@ -244,7 +247,8 @@ install:
 
 uninstall:
 	$(RM) -r $(DESTDIR)$(dosemudir)
-	$(RM) $(DESTDIR)$(bindir)/$(DOSBIN)
+	$(RM) -r $(DESTDIR)$(libexecdir)/$(PACKAGE_NAME)
+	$(RM) $(DESTDIR)$(prefix)/lib/sysusers.d/$(PACKAGE_NAME).conf
 	$(RM) $(DESTDIR)$(bindir)/dosemu
 	$(RM) $(DESTDIR)$(bindir)/mkfatimage16
 	$(RM) $(DESTDIR)$(bindir)/mkhdimage
