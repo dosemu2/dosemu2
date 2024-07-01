@@ -700,7 +700,7 @@ if test "$enable_optimization" = "no" ; then
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O0"
     AC_MSG_NOTICE(optimization set to -O0)
   fi
-elif test -z "$CFLAGS" ; then
+else
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
   AC_MSG_NOTICE(optimization set to -O2)
 fi
