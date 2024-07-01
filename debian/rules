@@ -20,4 +20,4 @@ override_dh_dwz:
 
 # Can be dropped in compat 14:
 execute_after_dh_installinit:
-	dh_installsysusers
+	dh_installsysusers || true
