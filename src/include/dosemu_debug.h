@@ -163,7 +163,7 @@ extern int unregister_debug_class(int letter);
 extern void print_debug_usage(FILE *stream);
 extern int set_debug_level(int letter, int level);
 extern unsigned char debug_levels[DEBUG_CLASSES];
-#define debug_level(letter) ((letter) >= DEBUG_CLASSES ? -1 : debug_levels[letter])
+#define debug_level(letter) ((letter) >= DEBUG_CLASSES ? 0 : debug_levels[letter])
 
 #else
 
