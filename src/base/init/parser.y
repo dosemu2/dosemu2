@@ -798,7 +798,15 @@ line:		CHARSET '{' charset_flags '}' {}
 		| TIMER_TWEAKS bool
 		    { config.timer_tweaks = ($2 != 0); }
 		| UEXEC string_expr
-		    { free(config.unix_exec); config.unix_exec = $2; }
+		    {
+			if (under_root_login) {
+			  error("$_unix_exec not allowed under root login\n");
+			  config.exitearly = 1;
+			} else {
+			  free(config.unix_exec);
+			  config.unix_exec = $2;
+			}
+		    }
 		| LPATHS string_expr
 		    { free(config.lredir_paths); config.lredir_paths = $2; }
 		| HDRIVES string_expr
@@ -2527,7 +2535,7 @@ static void set_dosemu_drive(void)
 {
   if (!commands_path) {
     error("can't map utility drive, dosemu2 installation incomplete\n");
-    leavedos(3);
+    config.exitearly = 1;
     return;
   }
   add_drive(commands_path, 1);

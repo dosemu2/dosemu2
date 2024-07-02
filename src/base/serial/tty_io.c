@@ -633,6 +633,11 @@ static int tty_open(com_t *c)
   int err;
 
   if (c->cfg->exec) {
+    if (under_root_login) {
+      error("SER: \"exec\" ignored because of root privs\n");
+      c->fd = -1;
+      return -1;
+    }
     c->fd = pty_open(c, c->cfg->exec);
     if (c->fd == -1)
       return -1;

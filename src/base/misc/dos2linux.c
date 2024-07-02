@@ -328,6 +328,7 @@ int run_unix_command(int argc, const char **argv, int bg)
     char *p;
     pid_t pid;
 
+    assert(!under_root_login);  // should not happen because earlier checks
     path = findprog(argv[0], getenv("PATH"));
     if (!path) {
 	com_printf("unix: %s not found\n", argv[0]);
