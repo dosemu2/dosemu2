@@ -4,8 +4,8 @@
 
 case "$1" in
     configure)
-#        chown dosemu2:dosemu2 /usr/libexec/dosemu2/dosemu2.bin
-#        chmod ug+s /usr/libexec/dosemu2/dosemu2.bin
+        chown dosemu2:dosemu2 /usr/libexec/dosemu2/dosemu2.bin
+        chmod ug+s /usr/libexec/dosemu2/dosemu2.bin
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
