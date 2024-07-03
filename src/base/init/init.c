@@ -396,8 +396,10 @@ void map_memory_space(void)
   }
   c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
-  if (config.xms_size)
+  if (config.xms_size) {
+    memcheck_addtype('x', "XMS");
     memcheck_reserve('x', LOWMEM_SIZE + EXTMEM_SIZE, XMS_SIZE);
+  }
 
   sminit_comu(&main_pool, mem_base, memsize, mcommit, muncommit);
   ptr = smalloc(&main_pool, LOWMEM_SIZE + HMASIZE);
