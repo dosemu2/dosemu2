@@ -15,6 +15,7 @@ License: GPLv2+
 URL: https://github.com/dosemu2/dosemu2
 VCS: https://github.com/dosemu2/dosemu2.git
 Source0: dosemu2.tar.gz
+Source1: etc/sysusers.conf
 
 BuildRequires: SDL2-devel
 BuildRequires: SDL2_ttf-devel
@@ -54,6 +55,8 @@ BuildRequires: binutils-x86_64-linux-gnu
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp-devel
 BuildRequires: dj64dev-djdev64-devel
+BuildRequires: systemd-rpm-macros
+%{?sysusers_requires_compat}
 
 # our startup script is bash-specific
 Requires:   bash
@@ -91,13 +94,15 @@ make %{?_smp_mflags}
 mkdir -p %{buildroot}%{_sysconfdir}/X11/fontpath.d
 make DESTDIR=%{buildroot} install
 
+%pre
+%sysusers_create_compat %{SOURCE1}
+
 %files
 %defattr(-,root,root)
 %{_bindir}/*
-%{_prefix}/lib/sysusers.d/dosemu2.conf
+%{_sysusersdir}/dosemu2.conf
 %dir %{_libexecdir}/dosemu2
-#%attr(06755, dosemu2, dosemu2) %{_libexecdir}/dosemu2/dosemu2.bin
-%{_libexecdir}/dosemu2/dosemu2.bin
+%attr(06755, dosemu2, dosemu2) %{_libexecdir}/dosemu2/dosemu2.bin
 %{_mandir}/man1/*
 %lang(ru) %dir %{_mandir}/ru
 %lang(ru) %dir %{_mandir}/ru/man1
