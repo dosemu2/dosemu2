@@ -532,6 +532,7 @@ static void __leavedos_main(int code, int sig)
     hma_exit();
     g_printf("calling mapping_close()\n");
     mapping_close();
+    config_close();
 
     g_printf("calling close_all_printers\n");
     close_all_printers();

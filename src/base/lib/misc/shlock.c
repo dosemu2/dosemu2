@@ -35,17 +35,21 @@
  */
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <limits.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include <fcntl.h>
 #include <glob.h>
 #include <assert.h>
 #include "shlock.h"
 
-#define LOCK_DIR "/tmp"
+static char LOCK_DIR[PATH_MAX] = "/tmp";
 #define LOCK_PFX "LCK.."
 
 struct shlck {
@@ -56,6 +60,11 @@ struct shlck {
   int fd;
   int tmp_fd;
 };
+
+void shlock_init(const char *lock_dir)
+{
+  strlcpy(LOCK_DIR, lock_dir, sizeof(LOCK_DIR));
+}
 
 static void do_gc(const char *fspec)
 {
@@ -98,13 +107,12 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
   char *fspec, *dspec, *tspec, *ttspec, *dtspec;
   int fd, tmp_fd, rc;
   int flg = block ? 0 : LOCK_NB;
-  uid_t uid = getuid();
 
-  rc = asprintf(&dspec, LOCK_DIR "/%s_%i", dir, uid);
+  rc = asprintf(&dspec, "%s/%s", LOCK_DIR, dir);
   assert(rc != -1);
   rc = asprintf(&fspec, "%s/%s", dspec, name);
   assert(rc != -1);
-  rc = asprintf(&dtspec, LOCK_DIR "/%s_%i.XXXXXX", name, uid);
+  rc = asprintf(&dtspec, "%s/%s.XXXXXX", LOCK_DIR, name);
   assert(rc != -1);
   /* create tmp dir */
   mkdtemp(dtspec);

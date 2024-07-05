@@ -19,6 +19,7 @@
 extern struct config_info config;
 
 extern void config_init(int argc, char **argv);
+extern void config_close(void);
 extern int set_floppy_type(struct disk *dptr, const char *name);
 extern void dp_init(struct disk *dptr);
 extern void secure_option_preparse(int *argc, char **argv);
@@ -65,6 +66,7 @@ extern const char *config_script_name;
 extern const char *dosemu_loglevel_file_path;
 extern char *dosemu_rundir_path;
 extern char *dosemu_localdir_path;
+extern char *dosemu_tmpdir;
 
 extern char *fddir_default;
 extern char *comcom_dir;

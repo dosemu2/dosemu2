@@ -441,6 +441,21 @@ int unlink_under(const char *dir, const char *fname)
 	return unlinkat(dfd[i].fd, fname, 0);
 }
 
+int closedir_under(const char *dir)
+{
+	int ret;
+	int i = lookup_dfd(dir);
+	if (i == -1) {
+		error("%s not opened\n", dir);
+		return -1;
+	}
+	ret = close(dfd[i].fd);
+	dfd[i].fd = -1;
+	while (num_dfd && dfd[num_dfd - 1].fd == -1)
+		num_dfd--;
+	return ret;
+}
+
 char *get_path_in_HOME(const char *path)
 {
 	char *home = getenv("HOME");
@@ -1177,11 +1192,16 @@ int tempname(char *tmpl, size_t x_suffix_len)
   return 0;
 }
 
-int mktmp_in(char *dir_tmpl, const char *fname, mode_t mode)
+int mktmp_in(const char *dir_tmpl, const char *fname, mode_t mode,
+    char *dir_name, int dir_name_len)
 {
   int fd;
-  char *p;
-  char *d = mkdtemp(dir_tmpl);
+  char *p, *d;;
+  int wr;
+
+  wr = snprintf(dir_name, dir_name_len, "%s/%s", dosemu_tmpdir, dir_tmpl);
+  assert(wr < dir_name_len);
+  d = mkdtemp(dir_name);
   if (!d)
     return -1;
   chmod(d, S_IRWXU | S_IRWXG);

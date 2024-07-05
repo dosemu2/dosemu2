@@ -27,6 +27,7 @@ char *expand_path(const char *dir);
 char *concat_dir(const char *s1, const char *s2);
 char *mkdir_under(const char *basedir, const char *dir);
 int unlink_under(const char *dir, const char *fname);
+int closedir_under(const char *dir);
 char *get_path_in_HOME(const char *path);
 char *get_dosemu_local_home(void);
 char *readlink_malloc (const char *filename);
@@ -35,7 +36,8 @@ void *load_plugin(const char *plugin_name);
 void close_plugin(void *handle);
 
 char *prefix(const char *suffix);
-int mktmp_in(char *dir_tmpl, const char *fname, mode_t mode);
+int mktmp_in(const char *dir_tmpl, const char *fname, mode_t mode,
+    char *dir_name, int dir_name_len);
 
 #define _min(x,y) ({ \
 	typeof(x) _x = (x);	\

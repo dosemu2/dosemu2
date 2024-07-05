@@ -27,6 +27,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <limits.h>
 #include <sys/mman.h>		/* for MREMAP_MAYMOVE */
 #include <errno.h>
 #include "utilities.h"
@@ -774,13 +775,14 @@ dpmi_pm_block *DPMI_mallocSharedNewNS(dpmi_pm_block_root *root,
     int fd = -1;
     dpmi_pm_block *ptr;
     char *shmname, *fname;
-    char dname[] = "/tmp/dosemu2_pshm_XXXXXX";
+    char dname[PATH_MAX];
+    const char *dtmpl = "dosemu2_pshm_XXXXXX";
 
     if (!size)		// DPMI spec says this is allowed - no thanks
         return NULL;
 
     asprintf(&shmname, "/dosemu_%s", name);
-    fd = mktmp_in(dname, shmname, S_IRWXU);
+    fd = mktmp_in(dtmpl, shmname, S_IRWXU, dname, sizeof(dname));
     if (fd == -1) {
         error("shared memory unavailable, exiting\n");
         goto err1;

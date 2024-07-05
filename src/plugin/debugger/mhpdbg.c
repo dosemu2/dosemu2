@@ -124,6 +124,7 @@ void mhp_close(void)
        perror("unlink()");
      free(pipename_out);
    }
+   closedir_under(dosemu_rundir_path);
    mhpdbg.fdin = mhpdbg.fdout = -1;
    mhpdbg.active = 0;
 }

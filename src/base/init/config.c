@@ -36,6 +36,7 @@
 #include "dos2linux.h"
 #include "utilities.h"
 #include "redirect.h"
+#include "shlock.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -69,6 +70,7 @@ const char *config_script_name = DEFAULT_CONFIG_SCRIPT;
 const char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
 char *dosemu_rundir_path;
 char *dosemu_localdir_path;
+char *dosemu_tmpdir;
 
 char *dosemu_lib_dir_path;
 const char *dosemu_exec_dir_path = DOSEMUEXEC_DEFAULT;
@@ -1139,6 +1141,7 @@ config_init(int argc, char **argv)
     int             nodosrc = 0;
     char           *basename;
     int             err;
+    char            buf[256];
     int             was_exec = 0, was_T1 = 0;
     const char * const getopt_string =
        "23456A::B::C::c::D:d:E:e:f:H:hi:I:K:k::L:M:mNno:P:qSsT::t::VvwXx:Y"
@@ -1243,13 +1246,24 @@ config_init(int argc, char **argv)
     if (!can_do_root_stuff_enabled)
 	can_do_root_stuff = 0;
     else if (under_root_login)
-    	fprintf(stderr,"\nRunning as root in full feature mode\n");
+	fprintf(stderr,"\nRunning as root in full feature mode\n");
     else
-    	fprintf(stderr,"\nRunning privileged (%s) in full feature mode\n",
+	fprintf(stderr,"\nRunning privileged (%s) in full feature mode\n",
 		using_sudo ? "via sudo" : "suid-root");
 
     stdio_init();		/* initialize stdio & open debug file */
     if (config_check_only) set_debug_level('c',1);
+
+    if (running_suid_orig())
+	snprintf(buf, sizeof(buf), "dosemu2_%i_%i", getuid(), get_suid());
+    else
+	snprintf(buf, sizeof(buf), "dosemu2_%i", getuid());
+    dosemu_tmpdir = mkdir_under("/tmp", buf);
+    if (!dosemu_tmpdir) {
+	error("failed to create tmpdir\n");
+	exit(1);
+    }
+    shlock_init(dosemu_tmpdir);
 
     move_dosemu_lib_dir();
     if (nodosrc && dosrcname) {
@@ -1563,6 +1577,13 @@ config_init(int argc, char **argv)
 	if (debug_level('c') >= 8)
 	    dump_config_status(log_dump_printf);
     }
+}
+
+void config_close(void)
+{
+    closedir_under(dosemu_tmpdir);
+    /* /tmp has sticky bit and we changed user, so can't rmdir() */
+    free(dosemu_tmpdir);
 }
 
 /*
