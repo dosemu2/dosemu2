@@ -154,6 +154,10 @@ while [ $# -gt 0 ] ; do
 done
 SUFFIX="$SUFFIX $*"
 
+# temporary hack, to be removed!
+SUDO=setpriv
+SUDOOPTS="--no-new-privs"
+
 [ -z "$DOSEMU_QUIET" ] || OPTS="$OPTS -q"
 [ -z "$DOSEMU_LOG_FILE" ] || LOG_FILE="$DOSEMU_LOG_FILE"
 
