@@ -490,7 +490,7 @@ void print_version(void)
   uname(&unames);
   warn("dosemu2-%s is coming up on %s version %s %s %s\n", VERSTR,
        unames.sysname, unames.release, unames.version, unames.machine);
-  warn("Compiled with "
+  dbug_printf("Compiled with "
 #ifdef __clang__
   "clang version %d.%d.%d (gnuc %d.%d)", __clang_major__, __clang_minor__,
       __clang_patchlevel__, __GNUC__, __GNUC_MINOR__);
@@ -498,14 +498,14 @@ void print_version(void)
   "gcc version %d.%d.%d", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
 #endif
 #ifdef i386
-  warn(" 32bit\n");
+  dbug_printf(" 32bit\n");
 #else
-  warn(" 64bit\n");
+  dbug_printf(" 64bit\n");
 #endif
 #ifdef CFLAGS_STR
 #define __S(...) #__VA_ARGS__
 #define _S(x) __S(x)
-  warn("CFLAGS: %s\n", _S(CFLAGS_STR));
+  dbug_printf("CFLAGS: %s\n", _S(CFLAGS_STR));
 #endif
 }
 
