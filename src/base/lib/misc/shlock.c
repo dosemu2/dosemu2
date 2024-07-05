@@ -108,6 +108,7 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
   assert(rc != -1);
   /* create tmp dir */
   mkdtemp(dtspec);
+  chmod(dtspec, S_IRWXU | S_IRWXG);
   rc = asprintf(&ttspec, "%s/" LOCK_PFX "%i_XXXXXX", dtspec, getpid());
   assert(rc != -1);
 

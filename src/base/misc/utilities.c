@@ -1184,6 +1184,7 @@ int mktmp_in(char *dir_tmpl, const char *fname, mode_t mode)
   char *d = mkdtemp(dir_tmpl);
   if (!d)
     return -1;
+  chmod(d, S_IRWXU | S_IRWXG);
   p = assemble_path(d, fname);
   fd = open(p, O_CREAT | O_RDWR | O_EXCL, mode);
   free(p);
