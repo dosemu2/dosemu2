@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #ifdef HAVE_SYS_IO_H
 #include <sys/io.h>
 #endif
@@ -236,10 +237,17 @@ void priv_init(void)
     assert(!err);
   }
   if (egid && gid && egid != gid) {
+    mode_t um;
     dbug_printf("sgid %i detected\n", egid);
     sgid++;
     err = setegid(gid);
     assert(!err);
+    /* Remove S_IWGRP from umask to allow initial user to access dosemu2
+     * files. Most needed if dosemu2 crashed and left stalled dirs in /tmp.
+     * User should be able to clean them up. */
+    um = umask(S_IWOTH);
+    if (!(um & S_IWGRP))  // if S_IWGRP wasn't there, use old mask
+      umask(um);
   }
 
   if (!sh)
