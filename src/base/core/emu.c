@@ -355,7 +355,7 @@ int main(int argc, char **argv, char * const *envp)
 #ifdef USE_MHPDBG
     mhp_debug(DBG_INIT, 0, 0);
 #endif
-    priv_drop_total();
+//    priv_drop_total();
 
     init_all_DOS_tables();	/* longest init function! needs to be optimized */
     signal_init();              /* initialize sig's & sig handlers */
