@@ -379,7 +379,7 @@ extern int find_file(char *fpath, struct stat *st, int root_len,
 extern int get_dos_attr(const char *fname, int mode, int drive);
 extern int set_fat_attr(int fd,int attr);
 extern int set_dos_attr(char *fname, int attr, int drive);
-extern int dos_utime(char *fpath, struct utimbuf *ut);
+extern int dos_utime(const char *fpath, time_t atime, time_t mtime, int drive);
 extern void time_to_dos(time_t clock, u_short *date, u_short *time);
 extern time_t time_to_unix(u_short dos_date, u_short dos_time);
 extern void extract_filename(const char *filestring0, char *name, char *ext);

@@ -785,7 +785,6 @@ static int mfs_lfn_(void)
 	unsigned int dest = SEGOFF2LINEAR(_ES, _DI);
 	char *src = MK_FP32(_DS, _DX);
 	struct stat st;
-	struct utimbuf utimbuf;
 	size_t size;
 	struct mfs_dirent *de;
 	char *slash;
@@ -814,9 +813,8 @@ static int mfs_lfn_(void)
 			_CX = 0;
 			break;
 		case 0x05: /* set last access date */
-			utimbuf.modtime = st.st_mtime;
-			utimbuf.actime = time_to_unix(_DX, _CX);
-			if (dos_utime(filename, &utimbuf) != 0)
+			if (dos_utime(filename, time_to_unix(_DX, _CX),
+					st.st_mtime, drive) != 0)
 				return lfn_error(ACCESS_DENIED);
 			break;
 		case 0x06: /* get creation date/time */
@@ -890,8 +888,6 @@ static int mfs_lfn_(void)
 			d_printf("LFN: Get failed: '%s'\n", fpath);
 			return lfn_error(doserrno);
 		}
-		utimbuf.actime = st.st_atime;
-		utimbuf.modtime = st.st_mtime;
 		switch (_BL) {
 		case 0: /* retrieve attributes */
 			_CX = get_dos_attr(fpath, st.st_mode, drive);
@@ -910,16 +906,16 @@ static int mfs_lfn_(void)
 			_AX = st.st_size & 0xffff;
 			break;
 		case 3: /* set last write date/time */
-			utimbuf.modtime = time_to_unix(_DI, _CX);
-			if (dos_utime(fpath, &utimbuf) != 0)
+			if (dos_utime(fpath, st.st_atime,
+					time_to_unix(_DI, _CX), drive) != 0)
 				return lfn_error(ACCESS_DENIED);
 			break;
 		case 4: /* get last write date/time */
 			time_to_dos(st.st_mtime, &_DI, &_CX);
 			break;
 		case 5: /* set last access date */
-			utimbuf.actime = time_to_unix(_DI, _CX);
-			if (dos_utime(fpath, &utimbuf) != 0)
+			if (dos_utime(fpath, time_to_unix(_DI, _CX),
+					st.st_mtime, drive) != 0)
 				return lfn_error(ACCESS_DENIED);
 			break;
 		case 6: /* get last access date */

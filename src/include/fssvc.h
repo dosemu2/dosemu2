@@ -17,6 +17,7 @@ int fssvc_getxattr(int id, const char *path);
 int fssvc_rename(int id1, const char *path1, int id2, const char *path2);
 int fssvc_mkdir(int id, const char *path, mode_t mode);
 int fssvc_rmdir(int id, const char *path);
+int fssvc_utime(int id, const char *path, time_t atime, time_t mtime);
 int fssvc_path_ok(int id, const char *path);
 int fssvc_exit(void);
 

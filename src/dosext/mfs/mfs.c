@@ -166,6 +166,7 @@ TODO:
 #include <sys/types.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/time.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <utime.h>
@@ -288,6 +289,7 @@ static int dos_would_allow(char *fpath, const char *op, int equal);
 static void RemoveRedirection(int drive, cds_t cds);
 static int mfs_getxattr_file(int mfs_idx, const char *path);
 static int mfs_getxattr_fd(int mfs_idx, int fd, const char *path);
+static int path_ok(int idx, const char *path);
 
 static int drives_initialized = FALSE;
 static int have_fssvc;
@@ -772,14 +774,25 @@ int set_dos_attr(char *fpath, int attr, int drive)
   return mfs_setattr(REDIR_DEVICE_IDX(drives[drive].options), fpath, attr);
 }
 
-int dos_utime(char *fpath, struct utimbuf *ut)
+static int mfs_utime(int mfs_idx, const char *fpath, time_t atime,
+    time_t mtime)
 {
-  if (utime(fpath,ut) == 0)
-    return 0;
-  /* output a warning if we can't do this */
-  if (dos_would_allow(fpath, "utime", 0))
-    return 0;
-  return -1;
+  struct utimbuf ut = { .actime = atime, .modtime = mtime };
+
+  assert(mfs_idx);
+  if (mfs_idx > num_def_drives) {
+    return utime(fpath, &ut);
+  }
+  if (have_fssvc)
+    return fssvc_utime(mfs_idx - 1, fpath, atime, mtime);
+  assert(path_ok(mfs_idx - 1, fpath));
+  return utime(fpath, &ut);
+}
+
+int dos_utime(const char *fpath, time_t atime, time_t mtime, int drive)
+{
+  return mfs_utime(REDIR_DEVICE_IDX(drives[drive].options), fpath, atime,
+      mtime);
 }
 
 static int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
@@ -3561,6 +3574,24 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       filename1 = fpath;
       Debug0(("Close file %x (%s)\n", f->fd, filename1));
 
+      /* if bit 14 in device_info is set, dos requests to set the file
+         date/time on closing. R.Brown states this incorrectly (inverted).
+      */
+
+      if (sft_device_info(sft) & 0x4000) {
+        time_t amtime;
+        u_short dos_date = sft_date(sft), dos_time = sft_time(sft);
+
+        Debug0(("close: setting file date=%04x time=%04x [<- dos format]\n",
+                        dos_date, dos_time));
+        amtime = time_to_unix(dos_date, dos_time);
+
+        if (*filename1)
+          dos_utime(filename1, amtime, amtime, drive);
+      } else {
+        Debug0(("close: not setting file date/time\n"));
+      }
+
       Debug0(("Handle cnt %d\n", sft_handle_cnt(sft)));
       _sft_handle_cnt(sft)--;
       if (sft_handle_cnt(sft) > 0) {
@@ -3575,24 +3606,6 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       }
 
       Debug0(("Close file succeeds\n"));
-
-      /* if bit 14 in device_info is set, dos requests to set the file
-         date/time on closing. R.Brown states this incorrectly (inverted).
-      */
-
-      if (sft_device_info(sft) & 0x4000) {
-        struct utimbuf ut;
-        u_short dos_date = sft_date(sft), dos_time = sft_time(sft);
-
-        Debug0(("close: setting file date=%04x time=%04x [<- dos format]\n",
-                        dos_date, dos_time));
-        ut.actime = ut.modtime = time_to_unix(dos_date, dos_time);
-
-        if (*filename1)
-          dos_utime(filename1, &ut);
-      } else {
-        Debug0(("close: not setting file date/time\n"));
-      }
 
       return TRUE;
 
