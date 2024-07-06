@@ -122,12 +122,12 @@ static struct file_fd *do_find_fd(const char *name)
     return ret;
 }
 
-static int file_is_opened(const char *name)
+static int file_is_opened(int mfs_idx, const char *name)
 {
     int lck = is_locked_shlock(name);
     if (lck)
         return 1;  // locked means already opened
-    return access(name, F_OK);
+    return mfs_access(mfs_idx, name, F_OK);
 }
 
 static char *prepare_shemu_name(const char *fname, int id)
@@ -373,7 +373,7 @@ static int do_mfs_unlink(int mfs_idx, const char *fname, int force)
     exlock = apply_exlock(fname);
     if (!exlock)
         return -1;
-    rc = file_is_opened(fname);
+    rc = file_is_opened(mfs_idx, fname);
     switch (rc) {
         case -1:
             shlock_close(exlock);
@@ -412,7 +412,7 @@ static int do_mfs_setattr(int mfs_idx, const char *fname, int attr, int force)
     exlock = apply_exlock(fname);
     if (!exlock)
         return -1;
-    rc = file_is_opened(fname);
+    rc = file_is_opened(mfs_idx, fname);
     switch (rc) {
         case -1:
             shlock_close(exlock);
@@ -451,7 +451,7 @@ static int do_mfs_rename(int mfs_idx, const char *fname, const char *fname2,
     exlock = apply_exlock(fname);
     if (!exlock)
         return -1;
-    rc = file_is_opened(fname);
+    rc = file_is_opened(mfs_idx, fname);
     switch (rc) {
         case -1:
             shlock_close(exlock);
@@ -468,7 +468,7 @@ static int do_mfs_rename(int mfs_idx, const char *fname, const char *fname2,
     exlock2 = apply_exlock(fname2);
     if (!exlock2)
         goto err2;
-    rc = file_is_opened(fname2);
+    rc = file_is_opened(mfs_idx, fname2);
     if (rc != -1) {
         /* dest file exists, do not overwrite */
         shlock_close(exlock2);

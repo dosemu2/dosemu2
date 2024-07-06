@@ -1145,6 +1145,17 @@ static int mfs_statvfs(const char *path, struct statvfs *sb, int drive)
   return do_mfs_statvfs(REDIR_DEVICE_IDX(drives[drive].options), path, sb);
 }
 
+int mfs_access(int mfs_idx, const char *path, int mode)
+{
+  int o_mode = (mode == F_OK || mode == R_OK || mode == X_OK) ?
+      O_RDONLY : O_WRONLY;
+  int fd = mfs_open_file(mfs_idx, path, o_mode);
+  if (fd == -1)
+    return -1;
+  close(fd);
+  return 0;
+}
+
 int file_is_ro(int mfs_idx, const char *fname)
 {
     int attr = mfs_getxattr_file(mfs_idx, fname);
