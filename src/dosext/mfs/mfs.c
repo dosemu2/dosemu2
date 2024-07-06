@@ -1295,7 +1295,7 @@ static int exists(const char *name, const char *filename,
 {
   snprintf(fullname, out_size, "%s/%s", name, filename);
   Debug0(("exists() result = %s\n", fullname));
-  return find_file(fullname, st, drives[drive].root_len, NULL);
+  return find_file(fullname, st, drives[drive].root_len, NULL, drive);
 }
 
 static void fill_entry(struct dir_ent *entry, const char *name, int drive)
@@ -1305,7 +1305,7 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
 
   snprintf(buf, sizeof(buf), "%s/%s", name, entry->d_name);
 
-  if (!find_file(buf, &sbuf, drives[drive].root_len, NULL)) {
+  if (!find_file(buf, &sbuf, drives[drive].root_len, NULL, drive)) {
     Debug0(("Can't findfile %s\n", buf));
     entry->mode = S_IFREG;
     entry->size = 0;
@@ -1371,7 +1371,7 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
   char fname[8];
   char fext[3];
 
-  if ((cur_dir = dos_opendir(name)) == NULL) {
+  if ((cur_dir = dos_opendir(name, drive)) == NULL) {
     Debug0(("get_dir(): couldn't open '%s' errno = %s\n", name, strerror(errno)));
     return (NULL);
   }
@@ -1451,7 +1451,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
   struct stat st;
 
   /* find_file() validates (and changes) source path */
-  if (!find_file(name, &st, drives[drive].root_len, NULL)) {
+  if (!find_file(name, &st, drives[drive].root_len, NULL, drive)) {
     Debug0(("get_dir(): find_file() returned false for '%s'\n", name));
     return NULL;
   }
@@ -1707,7 +1707,7 @@ static int init_dos_offsets(int ver)
   return 1;
 }
 
-struct mfs_dir *dos_opendir(const char *name)
+struct mfs_dir *dos_opendir(const char *name, int drive)
 {
   struct mfs_dir *dir;
   int fd = -1;
@@ -1728,13 +1728,12 @@ struct mfs_dir *dos_opendir(const char *name)
   }
 #endif
   if (fd == -1) {
-    int dfd;
     /* not a VFAT filesystem or other problems */
-    d = opendir(name);
+    int dfd = mfs_open_file(REDIR_DEVICE_IDX(drives[drive].options), name,
+        O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    d = fdopendir(dfd);
     if (d == NULL)
       return NULL;
-    dfd = dirfd(d);
-    fcntl(dfd, F_SETFD, fcntl(dfd, F_GETFD) | FD_CLOEXEC);
   }
   dir = malloc(sizeof *dir);
   dir->fd = fd;
@@ -2000,7 +1999,7 @@ static inline void build_ufs_path(char *ufs, const char *path, int drive)
  * scan a directory for a matching filename
  */
 static int
-scan_dir(const char *path, char *name, int root_len)
+scan_dir(const char *path, char *name, int root_len, int drive)
 {
   struct mfs_dir *cur_dir;
   struct mfs_dirent *cur_ent;
@@ -2031,7 +2030,7 @@ scan_dir(const char *path, char *name, int root_len)
     return (FALSE);
 
   /* open the directory */
-  if ((cur_dir = dos_opendir(path)) == NULL) {
+  if ((cur_dir = dos_opendir(path, drive)) == NULL) {
     Debug0(("scan_dir(): failed to open dir: %s\n", path));
     return (FALSE);
   }
@@ -2086,7 +2085,8 @@ scan_dir(const char *path, char *name, int root_len)
  * a new find_file that will do complete upper/lower case matching for the
  * whole path
  */
-int find_file(char *fpath, struct stat * st, int root_len, int *doserrno)
+int find_file(char *fpath, struct stat * st, int root_len, int *doserrno,
+    int drive)
 {
   char *slash1, *slash2;
 
@@ -2154,7 +2154,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno)
 	remainder[0] = '/';
 	strlcpy(remainder+1, slash2+1, sizeof(remainder)-1);
       }
-      if (!scan_dir(fpath, slash1 + 1, root_len)) {
+      if (!scan_dir(fpath, slash1 + 1, root_len, drive)) {
 	*slash1 = '/';
 	Debug0(("find_file(): no match: %s\n", fpath));
 	if (slash2) {
@@ -3000,7 +3000,7 @@ static int find_dir(char *fpath, int drive)
   bs_pos--;
   buf = strdup(bs_pos);
   *bs_pos = EOS;
-  ret = find_file(fpath, &st, drives[drive].root_len, NULL);
+  ret = find_file(fpath, &st, drives[drive].root_len, NULL, drive);
   strcat(fpath, buf);
   free(buf);
   return ret;
@@ -3174,7 +3174,8 @@ int dos_rmdir(const char *filename1, int drive, int lfn)
   if (read_only(drives[drive]))
     return ACCESS_DENIED;
   build_ufs_path_(fpath, filename1, drive, !lfn);
-  if (find_file(fpath, &st, drives[drive].root_len, NULL) && !is_dos_device(fpath)) {
+  if (find_file(fpath, &st, drives[drive].root_len, NULL, drive) &&
+      !is_dos_device(fpath)) {
     if (mfs_rmdir(REDIR_DEVICE_IDX(drives[drive].options), fpath) != 0) {
       Debug0(("failed to remove directory %s\n", fpath));
       return ACCESS_DENIED;
@@ -3196,7 +3197,8 @@ int dos_mkdir(const char *filename1, int drive, int lfn)
   if (read_only(drives[drive]) || (!lfn && is_long_path(filename1)))
     return ACCESS_DENIED;
   build_ufs_path_(fpath, filename1, drive, !lfn);
-  if (find_file(fpath, &st, drives[drive].root_len, NULL) || is_dos_device(fpath)) {
+  if (find_file(fpath, &st, drives[drive].root_len, NULL, drive) ||
+      is_dos_device(fpath)) {
     Debug0(("make failed already dir or file '%s'\n",
 	    fpath));
     return ACCESS_DENIED;
@@ -3258,14 +3260,16 @@ static int dos_rename(const char *filename1, const char *fname2, int drive)
     }
   }
   build_ufs_path_(fpath, filename2, drive, 1);
-  if (find_file(fpath, &st, drives[drive].root_len, NULL) || is_dos_device(fpath)) {
+  if (find_file(fpath, &st, drives[drive].root_len, NULL, drive) ||
+      is_dos_device(fpath)) {
     Debug0(("Rename, %s already exists\n", fpath));
     return ACCESS_DENIED;
   }
   find_dir(fpath, drive);
 
   strlcpy(buf, filename1, sizeof(buf));
-  if (!find_file(buf, &st, drives[drive].root_len, NULL) || is_dos_device(buf)) {
+  if (!find_file(buf, &st, drives[drive].root_len, NULL, drive) ||
+      is_dos_device(buf)) {
     Debug0(("Rename '%s' error.\n", buf));
     return PATH_NOT_FOUND;
   }
@@ -3288,14 +3292,16 @@ int dos_rename_lfn(const char *filename1, const char *filename2, int drive)
   if (read_only(drives[drive]))
     return ACCESS_DENIED;
   build_ufs_path_(fpath, filename2, drive, 0);
-  if (find_file(fpath, &st, drives[drive].root_len, NULL) || is_dos_device(fpath)) {
+  if (find_file(fpath, &st, drives[drive].root_len, NULL, drive) ||
+      is_dos_device(fpath)) {
     Debug0(("Rename, %s already exists\n", fpath));
     return ACCESS_DENIED;
   }
   find_dir(fpath, drive);
 
   build_ufs_path_(buf, filename1, drive, 0);
-  if (!find_file(buf, &st, drives[drive].root_len, NULL) || is_dos_device(buf)) {
+  if (!find_file(buf, &st, drives[drive].root_len, NULL, drive) ||
+      is_dos_device(buf)) {
     Debug0(("Rename '%s' error.\n", buf));
     return PATH_NOT_FOUND;
   }
@@ -3510,7 +3516,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       Debug0(("set directory to ufs path: %s\n", fpath));
 
       /* Try the given path */
-      if (!find_file(fpath, &st, drives[drive].root_len, NULL) || is_dos_device(fpath)) {
+      if (!find_file(fpath, &st, drives[drive].root_len, NULL, drive) ||
+          is_dos_device(fpath)) {
         SETWORD(&state->eax, PATH_NOT_FOUND);
         return FALSE;
       }
@@ -3885,7 +3892,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 
       build_ufs_path(fpath, filename1, drive);
       Debug0(("Set attr: '%s' --> 0%o\n", fpath, att));
-      if (!find_file(fpath, &st, drives[drive].root_len, &doserrno) || is_dos_device(fpath)) {
+      if (!find_file(fpath, &st, drives[drive].root_len, &doserrno, drive) ||
+          is_dos_device(fpath)) {
         SETWORD(&state->eax, doserrno);
         return FALSE;
       }
@@ -3903,7 +3911,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       struct stat st;
       Debug0(("Get File Attributes %s\n", filename1));
       build_ufs_path(fpath, filename1, drive);
-      if (!find_file(fpath, &st, drives[drive].root_len, &doserrno) || is_dos_device(fpath)) {
+      if (!find_file(fpath, &st, drives[drive].root_len, &doserrno, drive) ||
+          is_dos_device(fpath)) {
         Debug0(("Get failed: '%s'\n", fpath));
         SETWORD(&state->eax, doserrno);
         return FALSE;
@@ -3979,7 +3988,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       if (dir_list == NULL) {
         struct stat st;
         build_ufs_path(fpath, filename1, drive);
-        if (!find_file(fpath, &st, drives[drive].root_len, &doserrno)) {
+        if (!find_file(fpath, &st, drives[drive].root_len, &doserrno, drive)) {
           SETWORD(&state->eax, doserrno);
           return FALSE;
         }
@@ -4005,7 +4014,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
                 (de->mode & S_IFMT) == 0) {
           struct stat st;
           strcpy(fpath + cnt, de->d_name);
-          if (find_file(fpath, &st, drives[drive].root_len, NULL)) {
+          if (find_file(fpath, &st, drives[drive].root_len, NULL, drive)) {
             errcode = mfs_unlink(REDIR_DEVICE_IDX(drives[drive].options), fpath);
             if (errcode != 0) {
               Debug0(("Delete failed(%i) %s\n", errcode, fpath));
@@ -4078,7 +4087,7 @@ do_open_existing:
         return TRUE;
       }
 
-      if (!find_file(fpath, &st, drives[drive].root_len, &doserrno)) {
+      if (!find_file(fpath, &st, drives[drive].root_len, &doserrno, drive)) {
           Debug0(("open failed: '%s'\n", fpath));
           SETWORD(&state->eax, doserrno);
           return (FALSE);
@@ -4146,7 +4155,7 @@ do_open_existing:
 
       {
         struct stat st;
-        int file_exists = find_file(fpath, &st, drives[drive].root_len, &doserrno);
+        int file_exists = find_file(fpath, &st, drives[drive].root_len, &doserrno, drive);
         u_short *userStack = (u_short *)sda_user_stack(sda);
 
         // int21 0x3c passes offset in DX, 0x6c does it in SI
@@ -4186,7 +4195,7 @@ do_create_truncate:
       } else {
         struct stat st;
         int mode;
-        if (find_file(fpath, &st, drives[drive].root_len, NULL)) {
+        if (find_file(fpath, &st, drives[drive].root_len, NULL, drive)) {
           devptr = is_dos_device(fpath);
           if (devptr) {
             open_device(devptr, fname, sft);
@@ -4276,7 +4285,7 @@ do_create_truncate:
       bs_pos = getbasename(fpath);
       *bs_pos = '\0';
 
-      if (!find_file(fpath, &st, drives[drive].root_len, NULL)) {
+      if (!find_file(fpath, &st, drives[drive].root_len, NULL, drive)) {
         Debug0(("get_dir(): find_file() returned false for '%s'\n", fpath));
         SETWORD(&state->eax, PATH_NOT_FOUND);
         return FALSE;
@@ -4531,7 +4540,7 @@ do_create_truncate:
         return FALSE;
       }
       build_ufs_path(fpath, filename1, drive);
-      file_exists = find_file(fpath, &st, drives[drive].root_len, &doserrno);
+      file_exists = find_file(fpath, &st, drives[drive].root_len, &doserrno, drive);
       if (file_exists && is_dos_device(fpath))
         goto do_open_existing;
 

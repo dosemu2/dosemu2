@@ -110,7 +110,8 @@ void lfn_reset(void)
 	}
 }
 
-static int vfat_search(char *dest, const char *src, const char *path, int alias)
+static int vfat_search(char *dest, const char *src, const char *path, int alias,
+	int drive)
 {
   struct mfs_dir *dir;
   struct mfs_dirent *de;
@@ -118,7 +119,7 @@ static int vfat_search(char *dest, const char *src, const char *path, int alias)
 
   d_printf("LFN: vfat_search src=%s path=%s alias=%d\n", src, path, alias);
 
-  dir = dos_opendir(path);
+  dir = dos_opendir(path, drive);
   if (dir == NULL)
     return 0;
 
@@ -182,7 +183,7 @@ static int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 		d_printf("LFN: src=%s len=%zd\n", src, strlen(src));
 		if (!strcmp(src, "..") || !strcmp(src, ".")) {
 			strcpy(dest, src);
-		} else if (!vfat_search(dest, src, fpath2, alias)) {
+		} else if (!vfat_search(dest, src, fpath2, alias, current_drive)) {
 			if (!name_ufs_to_dos(dest, src) || alias) {
 				name_convert(dest, MANGLE);
 				strupperDOS(dest);
@@ -713,12 +714,13 @@ static int wildcard_delete(char *fpath, int drive)
 	*slash = '\0';
 	if (slash == fpath)
 		strcpy(fpath, "/");
-	if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL) || is_dos_device(slash + 1)) {
+	if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL, drive) ||
+			is_dos_device(slash + 1)) {
 		d_printf("LFN: Get failed: '%s'\n", fpath);
 		return lfn_error(PATH_NOT_FOUND);
 	}
 	slash = fpath + strlen(fpath);
-	dir = dos_opendir(fpath);
+	dir = dos_opendir(fpath, drive);
 	if (dir == NULL) {
 		d_printf("LFN: Get failed: '%s'\n", fpath);
 		free(dir);
@@ -849,7 +851,8 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
-		if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL)|| !S_ISDIR(st.st_mode))
+		if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL, drive) ||
+				!S_ISDIR(st.st_mode))
 			return lfn_error(PATH_NOT_FOUND);
 		make_unmake_dos_mangled_path(d, fpath, drive, 1);
 		d_printf("LFN: New CWD will be %s\n", d);
@@ -866,7 +869,7 @@ static int mfs_lfn_(void)
 			return lfn_error(FILE_NOT_FOUND);
 		if (_SI == 1)
 			return wildcard_delete(fpath, drive);
-		if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), &doserrno))
+		if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), &doserrno, drive))
 			return lfn_error(doserrno);
 		d_printf("LFN: deleting %s\n", fpath);
 		if ((doserrno = dos_unlink_lfn(fpath, drive)))
@@ -882,7 +885,8 @@ static int mfs_lfn_(void)
 			return drive + 2;
 		if (is_redirection_ro(drive) && (_BL < 8) && (_BL & 1))
 			return lfn_error(ACCESS_DENIED);
-		if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), &doserrno) || is_dos_device(fpath)) {
+		if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), &doserrno, drive) ||
+				is_dos_device(fpath)) {
 			d_printf("LFN: Get failed: '%s'\n", fpath);
 			return lfn_error(doserrno);
 		}
@@ -946,7 +950,7 @@ static int mfs_lfn_(void)
 		dest = SEGOFF2LINEAR(_DS, _SI);
 		build_ufs_path(fpath, cwd, drive);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
-		find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL);
+		find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL, drive);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
 		d_printf("LFN: %d %#x %s\n", drive, dest, fpath+get_redirection_root1(drive, NULL, 0));
 		make_unmake_dos_mangled_path(fpath2, fpath, drive, 0);
@@ -996,7 +1000,7 @@ static int mfs_lfn_(void)
 			return 1;
 		}
 
-		if (!find_file(dir->dirbase, &st, get_redirection_root1(drive, NULL, 0), NULL)) {
+		if (!find_file(dir->dirbase, &st, get_redirection_root1(drive, NULL, 0), NULL, drive)) {
 			d_printf("LFN: Get failed: '%s'\n", fpath);
 			free(dir);
 			return lfn_error(NO_MORE_FILES);
@@ -1012,7 +1016,7 @@ static int mfs_lfn_(void)
 			_CX = 0;
 			return 1;
 		}
-		dir->dir = dos_opendir(dir->dirbase);
+		dir->dir = dos_opendir(dir->dirbase, drive);
 		if (dir->dir == NULL) {
 			d_printf("LFN: Get failed: '%s'\n", fpath);
 			free(dir);
@@ -1091,7 +1095,7 @@ static int mfs_lfn_(void)
 
 		if ((_CL == 1 || _CL == 2) && !is_dos_device(filename)) {
 			build_ufs_path(fpath, filename, drive);
-			if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), &doserrno))
+			if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), &doserrno, drive))
 				return lfn_error(doserrno);
 			make_unmake_dos_mangled_path(filename, fpath, drive, 2 - _CL);
 		} else {
@@ -1121,10 +1125,10 @@ static int mfs_lfn_(void)
 			strlcpy(fpath2, slash, sizeof(fpath2));
 			*slash = '\0';
 			if (slash != fpath &&
-			    !find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL))
+			    !find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL, drive))
 				return lfn_error(PATH_NOT_FOUND);
 			strcat(fpath, fpath2);
-			if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL) &&
+			if (!find_file(fpath, &st, get_redirection_root1(drive, NULL, 0), NULL, drive) &&
 			    (_DX & 0x10)) {
 				if (is_redirection_ro(drive))
 					return lfn_error(ACCESS_DENIED);

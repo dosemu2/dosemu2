@@ -375,7 +375,7 @@ extern int mfs_enabled;
 extern void build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
 extern int find_file(char *fpath, struct stat *st, int root_len,
-			   int *doserror);
+			   int *doserror, int drive);
 extern int get_dos_attr(const char *fname, int mode, int drive);
 extern int set_fat_attr(int fd,int attr);
 extern int set_dos_attr(char *fname, int attr, int drive);
@@ -383,7 +383,7 @@ extern int dos_utime(char *fpath, struct utimbuf *ut);
 extern void time_to_dos(time_t clock, u_short *date, u_short *time);
 extern time_t time_to_unix(u_short dos_date, u_short dos_time);
 extern void extract_filename(const char *filestring0, char *name, char *ext);
-extern struct mfs_dir *dos_opendir(const char *name);
+extern struct mfs_dir *dos_opendir(const char *name, int drive);
 extern struct mfs_dirent *dos_readdir(struct mfs_dir *);
 extern int dos_closedir(struct mfs_dir *dir);
 extern void get_volume_label(char *fname, char *fext, char *lfn, int drive);
