@@ -694,16 +694,20 @@ static int tty_open(com_t *c)
     c->dev_locked = FALSE;
   }
 
-  err = access(c->cfg->dev, F_OK);
-  if (!err) {
-    err = ser_open_existing(c);
-    if (err)
-      goto fail_unlock;
+  if (c->cfg->virt) {
+    c->fd = dup(STDIN_FILENO);
   } else {
-    c->fd = open(c->cfg->dev, O_WRONLY | O_CREAT | O_EXCL, 0640);
-    if (c->fd == -1) {
-      error("SER%i: unable to open or create %s\n", c->num, c->cfg->dev);
-      goto fail_unlock;
+    err = access(c->cfg->dev, F_OK);
+    if (!err) {
+      err = ser_open_existing(c);
+      if (err)
+        goto fail_unlock;
+    } else {
+      c->fd = open(c->cfg->dev, O_WRONLY | O_CREAT | O_EXCL, 0640);
+      if (c->fd == -1) {
+        error("SER%i: unable to open or create %s\n", c->num, c->cfg->dev);
+        goto fail_unlock;
+      }
     }
   }
   if (c->cfg->wrfile) {
