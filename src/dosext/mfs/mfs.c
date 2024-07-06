@@ -289,6 +289,7 @@ static int dos_would_allow(char *fpath, const char *op, int equal);
 static void RemoveRedirection(int drive, cds_t cds);
 static int mfs_getxattr_file(int mfs_idx, const char *path);
 static int mfs_getxattr_fd(int mfs_idx, int fd, const char *path);
+static int mfs_statvfs(const char *path, struct statvfs *sb, int drive);
 static int path_ok(int idx, const char *path);
 
 static int drives_initialized = FALSE;
@@ -796,11 +797,11 @@ int dos_utime(const char *fpath, time_t atime, time_t mtime, int drive)
 }
 
 static int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
-		       unsigned int *spc, unsigned int *bps)
+		       unsigned int *spc, unsigned int *bps, int drive)
 {
   struct statvfs fsbuf;
 
-  if (statvfs(cwd, &fsbuf) >= 0) {
+  if (mfs_statvfs(cwd, &fsbuf, drive) >= 0) {
     unsigned _bps = 512, _spc = 1, _total, _free;
     /* return unit = 512-byte blocks @ 1 spc, std for floppy */
     _free = fsbuf.f_bsize * fsbuf.f_bavail / (_bps * _spc);
@@ -857,7 +858,7 @@ int mfs_fat32(void)
     goto donthandle;
   }
 
-  if (!dos_get_disk_space(drives[dd].root, &free, &tot, &spc, &bps))
+  if (!dos_get_disk_space(drives[dd].root, &free, &tot, &spc, &bps, dd))
     goto donthandle;
 
   WRITE_DWORD(dest, 0x24);
@@ -1124,6 +1125,22 @@ static int do_mfs_stat(int mfs_idx, const char *path, struct stat *sb)
 int mfs_stat(const char *path, struct stat *sb, int drive)
 {
   return do_mfs_stat(REDIR_DEVICE_IDX(drives[drive].options), path, sb);
+}
+
+static int do_mfs_statvfs(int mfs_idx, const char *path, struct statvfs *sb)
+{
+  int err;
+  int fd = mfs_open_file(mfs_idx, path, O_RDONLY);
+  if (fd == -1)
+    return -1;
+  err = fstatvfs(fd, sb);
+  close(fd);
+  return err;
+}
+
+static int mfs_statvfs(const char *path, struct statvfs *sb, int drive)
+{
+  return do_mfs_statvfs(REDIR_DEVICE_IDX(drives[drive].options), path, sb);
 }
 
 int file_is_ro(int mfs_idx, const char *fname)
@@ -3813,7 +3830,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
           break;
         }
 
-        if (dos_get_disk_space(drives[dd].root, &free, &tot, &spc, &bps)) {
+        if (dos_get_disk_space(drives[dd].root, &free, &tot, &spc, &bps, dd)) {
           u_short *userStack = (u_short *)sda_user_stack(sda);
           if (userStack[0] == 0x7303) { /* called from FAT32 function */
             while (tot > 65535 && spc < 128) {
@@ -3874,7 +3891,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         break;
       }
 
-      if (statvfs(drives[dd].root, &fsbuf) == -1) {
+      if (mfs_statvfs(drives[dd].root, &fsbuf, dd) == -1) {
         Debug0(("Can't stat root path '%s'\n", strerror(errno)));
         SETWORD(&state->eax, DISK_DRIVE_INVALID);
         return FALSE;
