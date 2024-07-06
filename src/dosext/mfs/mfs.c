@@ -1097,6 +1097,22 @@ static int mfs_rmdir(int mfs_idx, const char *path)
   return rmdir(path);
 }
 
+static int do_mfs_stat(int mfs_idx, const char *path, struct stat *sb)
+{
+  int err;
+  int fd = mfs_open_file(mfs_idx, path, O_RDONLY);
+  if (fd == -1)
+    return -1;
+  err = fstat(fd, sb);
+  close(fd);
+  return err;
+}
+
+int mfs_stat(const char *path, struct stat *sb, int drive)
+{
+  return do_mfs_stat(REDIR_DEVICE_IDX(drives[drive].options), path, sb);
+}
+
 int file_is_ro(int mfs_idx, const char *fname)
 {
     int attr = mfs_getxattr_file(mfs_idx, fname);
@@ -2097,7 +2113,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno,
     /* check if path exists */
     if (s != NULL) {
       *s = '\0';
-      path_exists = (!stat(fpath, &_st) && S_ISDIR(_st.st_mode));
+      path_exists = (!mfs_stat(fpath, &_st, drive) && S_ISDIR(_st.st_mode));
       *s = '/';
     }
     memset(st, 0, sizeof(*st));
@@ -2106,9 +2122,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno,
   }
 
   /* first see if the path exists as is */
-  if (lstat(fpath, st) == 0) {
-    /* get data about an actual file, unless dangling symlink */
-    stat(fpath, st);
+  if (mfs_stat(fpath, st, drive) == 0) {
     Debug0(("file exists as is\n"));
     return (TRUE);
   }
@@ -2129,7 +2143,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno,
     slash2 = strchr(slash1 + 1, '/');
     if (slash2)
       *slash2 = 0;
-    if (stat(fpath, st) == 0) {
+    if (mfs_stat(fpath, st, drive) == 0) {
       /* the file exists as is */
       if (st->st_mode & S_IFDIR || !slash2) {
 	if (slash2)
@@ -2171,11 +2185,10 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno,
   }
 
   /* we've found the file - now stat it */
-  if (lstat(fpath, st) != 0) {
+  if (mfs_stat(fpath, st, drive) != 0) {
     Debug0(("find_file(): can't stat %s\n", fpath));
     return (FALSE);
   }
-  stat(fpath, st);
 
   Debug0(("found file %s\n", fpath));
   return (TRUE);

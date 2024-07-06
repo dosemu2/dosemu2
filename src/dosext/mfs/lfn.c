@@ -628,7 +628,7 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 	strcat(fpath, "/");
 	strcat(fpath, de->d_long_name);
 	d_printf("LFN: findnext %s\n", fpath);
-	if (stat(fpath, &st) != 0) {
+	if (mfs_stat(fpath, &st, dir->drive) != 0) {
 		free(fpath);
 		return 0;
 	}

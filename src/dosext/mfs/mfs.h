@@ -403,6 +403,7 @@ extern int mfs_create_file(int mfs_idx, const char *path, int flags,
 extern int mfs_unlink_file(int mfs_idx, const char *path);
 extern int mfs_setxattr_file(int mfs_idx, const char *path, int attr);
 extern int mfs_rename_file(int mfs_idx, const char *oldpath, const char *newpath);
+extern int mfs_stat(const char *path, struct stat *sb, int drive);
 
 /* returns drive number and any bits that are impossible for drive.
  * Should be checked against MAX_DRIVE to make sure it is actually
