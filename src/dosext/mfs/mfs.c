@@ -995,6 +995,8 @@ static int path_ok(int idx, const char *path)
   assert(def_drives[idx]);
   len = strlen(def_drives[idx]);
   assert(len && def_drives[idx][len - 1] == '/');
+  if (strlen(path) == len - 1)
+    len--;  // no trailing slash
   if (strncmp(path, def_drives[idx], len) != 0)
     return 0;
   return 1;
