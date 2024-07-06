@@ -16,6 +16,8 @@
  */
 #include <stdio.h>
 #include <fcntl.h>
+#include <stdint.h>
+#include <utime.h>
 #include <assert.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -108,6 +110,8 @@ static int path_ok(int idx, const char *path)
     CHK(idx < num_paths);
     len = strlen(paths[idx]);
     assert(len && paths[idx][len - 1] == '/');
+    if (strlen(path) == len - 1)
+        len--;  // no trailing slash
     CHK(strncmp(path, paths[idx], len) == 0);
     return TRUE;
 }
@@ -216,6 +220,16 @@ static GObject* rmdir_1_svc(int idx, char *path)
     return G_OBJECT(ret);
 }
 
+static GObject* utime_1_svc(int idx, char *path, uint64_t atime,
+        uint64_t mtime)
+{
+    struct utimbuf ut = { .actime = atime, .modtime = mtime };
+    TestObject *ret = g_object_new (TEST_OBJECT_TYPE, NULL);
+    ASSERT_P(path_ok(idx, path));
+    CALL(utime(path, &ut));
+    return G_OBJECT(ret);
+}
+
 static int path_ok_1_svc(int idx, char *path)
 {
     return path_ok(idx, path);
@@ -241,6 +255,7 @@ int fsrpc_srv_init(int tr_fd, int fd, setattr_t sa, getattr_t ga)
     getattr_cb = ga;
     searpc_server_init(register_marshals);
     searpc_create_service(svc_name);
+
     searpc_server_register_function(svc_name, add_path_1_svc, "add_path_1",
             searpc_signature_int__string());
     searpc_server_register_function(svc_name, seal_1_svc, "seal_1",
@@ -261,6 +276,8 @@ int fsrpc_srv_init(int tr_fd, int fd, setattr_t sa, getattr_t ga)
             searpc_signature_object__int_string_int());
     searpc_server_register_function(svc_name, rmdir_1_svc, "rmdir_1",
             searpc_signature_object__int_string());
+    searpc_server_register_function(svc_name, utime_1_svc, "utime_1",
+            searpc_signature_object__int_string_int64_int64());
     searpc_server_register_function(svc_name, path_ok_1_svc, "path_ok_1",
             searpc_signature_int__int_string());
     searpc_server_register_function(svc_name, exit_1_svc, "exit_1",

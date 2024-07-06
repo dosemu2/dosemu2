@@ -329,6 +329,19 @@ int fssvc_rmdir(int id, const char *path)
     RPC_EPILOG();
 }
 
+int fssvc_utime(int id, const char *path, time_t atime, time_t mtime)
+{
+    int rv;
+    GObject* ret;
+    GError *error = NULL;
+    ret = searpc_client_call__object(clnt, "utime_1", TEST_OBJECT_TYPE,
+                                     &error, 4,
+                                     "int", id, "string", path,
+                                     /* searpc passes 64bit ints via ptrs */
+                                     "int64", &atime, "int64", &mtime);
+    RPC_EPILOG();
+}
+
 int fssvc_path_ok(int id, const char *path)
 {
     int ret;

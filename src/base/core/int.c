@@ -2483,8 +2483,10 @@ static void redirect_drives(void)
       ret = RedirectDisk(HDISK_NUM(i) + hdisktab[i].log_offs,
           hdisktab[i].dev_name, hdisktab[i].rdonly +
           (hdisktab[i].mfs_idx << REDIR_DEVICE_IDX_SHIFT));
-      if (ret != CC_SUCCESS)
+      if (ret != CC_SUCCESS) {
         error("INT21: redirecting %c: failed (err = %d)\n", i + 'C', ret);
+        leavedos(8);
+      }
       else
         ds_printf("INT21: redirecting %c: ok\n", i + 'C');
     }
