@@ -171,6 +171,7 @@ TODO:
 #include <utime.h>
 #include <wchar.h>
 #include <sys/mman.h>
+#include <sys/statvfs.h>
 #include <ctype.h>
 #include <stdint.h>	// types used for seek/size
 
@@ -784,10 +785,9 @@ int dos_utime(char *fpath, struct utimbuf *ut)
 static int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
 		       unsigned int *spc, unsigned int *bps)
 {
-#ifdef HAVE_STATFS
-  struct statfs fsbuf;
+  struct statvfs fsbuf;
 
-  if (statfs(cwd, &fsbuf) >= 0) {
+  if (statvfs(cwd, &fsbuf) >= 0) {
     unsigned _bps = 512, _spc = 1, _total, _free;
     /* return unit = 512-byte blocks @ 1 spc, std for floppy */
     _free = fsbuf.f_bsize * fsbuf.f_bavail / (_bps * _spc);
@@ -807,9 +807,6 @@ static int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int 
   }
   else
     return (0);
-#else
-  return 0;
-#endif
 }
 
 /*
@@ -3832,13 +3829,12 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 
     case GET_LARGE_DISK_SPACE: /* 0xa3 */
     {
-#ifdef HAVE_STATFS
       cds_t tcds = Addr(state, es, edi);
       char *name = cds_current_path(tcds);
       uint64_t avail, total;
       uint16_t blocksize;
       int dd;
-      struct statfs fsbuf;
+      struct statvfs fsbuf;
 
       Debug0(("Get Large Disk Space(INT2F/11a3)\n"));
 
@@ -3852,7 +3848,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         break;
       }
 
-      if (statfs(drives[dd].root, &fsbuf) == -1) {
+      if (statvfs(drives[dd].root, &fsbuf) == -1) {
         Debug0(("Can't stat root path '%s'\n", strerror(errno)));
         SETWORD(&state->eax, DISK_DRIVE_INVALID);
         return FALSE;
@@ -3875,9 +3871,6 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       Debug0(("total blocks=%" PRIu64 ", free blocks=%" PRIu64 ", blocksize=%u\n", total, avail, blocksize));
 
       return TRUE;
-#else
-      return FALSE;
-#endif
     }
 
     case SET_FILE_ATTRIBUTES: { /* 0x0e */
