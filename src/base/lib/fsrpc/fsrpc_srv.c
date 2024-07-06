@@ -108,6 +108,8 @@ static int path_ok(int idx, const char *path)
     CHK(idx < num_paths);
     len = strlen(paths[idx]);
     assert(len && paths[idx][len - 1] == '/');
+    if (strlen(path) == len - 1)
+        len--;  // no trailing slash
     CHK(strncmp(path, paths[idx], len) == 0);
     return TRUE;
 }
