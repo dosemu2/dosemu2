@@ -49,8 +49,10 @@ int vlog_printf(const char *fmt, va_list args)
         return early_printf(fmt, args);
     wr = vdprintf(log_fd, fmt, args);
     if (lseek(log_fd, 0, SEEK_END) > LOG_SIZE) {
+        int err;
         lseek(log_fd, 0, SEEK_SET);
-        ftruncate(log_fd, 0);
+        err = ftruncate(log_fd, 0);
+        assert(!err);
     }
     return wr;
 }
