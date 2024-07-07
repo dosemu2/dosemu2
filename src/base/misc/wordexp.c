@@ -738,6 +738,7 @@ parse_arith(char **word, size_t * word_length, size_t * max_length,
 
 		case '(':
 			++paren_depth;
+			/* no break */
 		default:
 			expr =
 				w_addchar(expr, &expr_length, &expr_maxlen,
