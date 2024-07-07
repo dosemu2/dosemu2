@@ -4581,6 +4581,7 @@ do_create_truncate:
         f = do_open_prn(filename1, fpath);
         if (!f)
           return FALSE;
+        auspr(filename1, fname, fext);
         do_update_sft(f, fname, fext, sft, drive, 0, FCBcall, 1);
         return TRUE;
       }
