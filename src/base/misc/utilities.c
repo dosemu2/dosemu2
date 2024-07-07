@@ -1200,14 +1200,15 @@ int mktmp_in(const char *dir_tmpl, const char *fname, mode_t mode,
 {
   int fd;
   char *p, *d;;
-  int wr;
+  int wr, err;
 
   wr = snprintf(dir_name, dir_name_len, "%s/%s", dosemu_tmpdir, dir_tmpl);
   assert(wr < dir_name_len);
   d = mkdtemp(dir_name);
   if (!d)
     return -1;
-  chmod(d, S_IRWXU | S_IRWXG);
+  err = chmod(d, S_IRWXU | S_IRWXG);
+  assert(!err);
   p = assemble_path(d, fname);
   fd = open(p, O_CREAT | O_RDWR | O_EXCL, mode);
   free(p);
