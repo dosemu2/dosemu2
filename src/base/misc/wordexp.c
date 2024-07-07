@@ -333,7 +333,7 @@ parse_tilde(char **word, size_t * word_length, size_t * max_length,
 			if (*word != NULL)
 				*word = w_addstr(*word, word_length, max_length, user);
 		}
-
+		free(user);
 		*offset = i - 1;
 	}
 	return *word ? 0 : WRDE_NOSPACE;
