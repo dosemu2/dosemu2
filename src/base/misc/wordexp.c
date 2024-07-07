@@ -1533,7 +1533,10 @@ parse_param(char **word, size_t * word_length, size_t * max_length,
 			if (pattern && !value)
 				goto no_space;
 
-			setenv(env, value, 1);
+			if (value)
+				setenv(env, value, 1);
+			else
+				unsetenv(env);
 			break;
 
 		default:
