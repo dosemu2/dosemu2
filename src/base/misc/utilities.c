@@ -330,7 +330,7 @@ char *assemble_path(const char *dir, const char *file)
 char *expand_path(const char *dir)
 {
 	char *s;
-	wordexp_t p;
+	wordexp_t p = {};
 	int err;
 
 	err = wordexp_lite(dir, &p, WRDE_NOCMD);
