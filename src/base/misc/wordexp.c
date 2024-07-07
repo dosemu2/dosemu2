@@ -164,6 +164,7 @@ static int w_addword(wordexp_t * pwordexp, char *word)
 		pwordexp->we_wordv[pwordexp->we_offs + pwordexp->we_wordc] = NULL;
 		return 0;
 	}
+	free(word);
 
   no_space:
 	return WRDE_NOSPACE;
