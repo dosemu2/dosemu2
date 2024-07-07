@@ -1259,7 +1259,7 @@ void extract_filename(const char *filename, char *name, char *ext)
   memset(ext, ' ', 3);
 
   if (!strcmp(filename, ".") || !strcmp(filename, "..")) {
-    memcpy(name, filename, strlen(filename));
+    memcpy(name, filename, _min(8, strlen(filename)));
     return;
   }
 
