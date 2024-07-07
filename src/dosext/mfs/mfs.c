@@ -1259,7 +1259,7 @@ void extract_filename(const char *filename, char *name, char *ext)
   memset(ext, ' ', 3);
 
   if (!strcmp(filename, ".") || !strcmp(filename, "..")) {
-    memcpy(name, filename, strlen(filename));
+    memcpy(name, filename, _min(8, strlen(filename)));
     return;
   }
 
@@ -4581,6 +4581,7 @@ do_create_truncate:
         f = do_open_prn(filename1, fpath);
         if (!f)
           return FALSE;
+        auspr(filename1, fname, fext);
         do_update_sft(f, fname, fext, sft, drive, 0, FCBcall, 1);
         return TRUE;
       }
