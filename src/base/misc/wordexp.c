@@ -1096,6 +1096,8 @@ parse_param(char **word, size_t * word_length, size_t * max_length,
 			/* Replace with appropriate positional parameter. */
 			value = __libc_argv[n];
 #else
+		free(env);
+		free(pattern);
 		/* unsupported */
 		return WRDE_SYNTAX;
 #endif
@@ -1118,6 +1120,8 @@ parse_param(char **word, size_t * word_length, size_t * max_length,
 			free(pattern);
 			return *word ? 0 : WRDE_NOSPACE;
 #else
+			free(env);
+			free(pattern);
 			/* unsupported */
 			return WRDE_SYNTAX;
 #endif
@@ -1145,6 +1149,8 @@ parse_param(char **word, size_t * word_length, size_t * max_length,
 
 			free_value = 1;
 #else
+			free(env);
+			free(pattern);
 			/* unsupported */
 			return WRDE_SYNTAX;
 #endif
@@ -1181,6 +1187,8 @@ parse_param(char **word, size_t * word_length, size_t * max_length,
 				return 0;
 			}
 #else
+			free(env);
+			free(pattern);
 			/* unsupported */
 			return WRDE_SYNTAX;
 #endif
