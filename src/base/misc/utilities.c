@@ -316,7 +316,7 @@ char *concat_dir(const char *s1, const char *s2)
 char *assemble_path(const char *dir, const char *file)
 {
 	char *s;
-	wordexp_t p;
+	wordexp_t p = {};
 	int err;
 
 	err = wordexp_lite(dir, &p, WRDE_NOCMD);
