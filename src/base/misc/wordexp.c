@@ -864,6 +864,7 @@ parse_backtick(char **word, size_t * word_length, size_t * max_length,
 
 		case '\'':
 			squoting = 1 - squoting;
+			/* no break */
 		default:
 			comm = w_addchar(comm, &comm_length, &comm_maxlen,
 						  words[*offset]);
