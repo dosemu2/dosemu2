@@ -403,6 +403,11 @@ char *mkdir_under(const char *basedir, const char *dir)
 		s = assemble_path(basedir, dir);
 	else
 		s = strdup(basedir);
+	if (lookup_dfd(s) != -1) {
+		error("dir %s already created\n", s);
+		free(s);
+		return NULL;
+	}
 	if (!exists_dir(s)) {
 		if (mkdir(s, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
 			fprintf(stderr, "can't create dir %s: %s\n", s,
@@ -422,12 +427,10 @@ char *mkdir_under(const char *basedir, const char *dir)
 	if (running_suid_orig())
 		set_dir_acl(fd);
 
-	if (lookup_dfd(s) == -1) {
-		assert(num_dfd < DFD_MAX);
-		dfd[num_dfd].dir = s;
-		dfd[num_dfd].fd = fd;
-		num_dfd++;
-	}
+	assert(num_dfd < DFD_MAX);
+	dfd[num_dfd].dir = s;
+	dfd[num_dfd].fd = fd;
+	num_dfd++;
 	return s;
 }
 
