@@ -168,8 +168,10 @@ int priv_drop(void)
 
 void priv_drop_total(void)
 {
+  int err;
   if (suid) {
-    seteuid(euid);
+    err = seteuid(euid);
+    assert(!err);
     if (setreuid(euid, euid) != 0)
       error("Cannot drop suid: %s\n", strerror(errno));
     /* make sure privs were dropped */
@@ -181,7 +183,8 @@ void priv_drop_total(void)
     suid++;
   }
   if (sgid) {
-    setegid(egid);
+    err = setegid(egid);
+    assert(!err);
     if (setregid(egid, egid) != 0)
       error("Cannot drop sgid: %s\n", strerror(errno));
     /* make sure privs were dropped */
