@@ -746,7 +746,7 @@ static int sys_file_idx(const char *name, fatfs_t *f)
     path = full_name(f, 0, name);
     if (!path)
 	return -1;
-    err = stat(path, &sb);
+    err = mfs_stat_file(MFS_IDX(f), path, &sb);
     if (err)
 	return -1;
     if (!(S_ISREG(sb.st_mode) || (S_ISDIR(sb.st_mode) &&
@@ -896,7 +896,7 @@ static void set_vol_and_len(fatfs_t *f, unsigned oi)
         if(!f->obj[oi].first_child) f->obj[oi].first_child = u;
         f->obj[u].dos_dir_size = 0x20;
         o->size += 0x20;
-        if(!stat(f->dir, &sb)) {
+        if(!mfs_stat_file(MFS_IDX(f), f->dir, &sb)) {
           f->obj[u].time = dos_time(&sb.st_mtime);
         }
 	fatfs_deb2("added label \"%s\"\n", f->label);
@@ -981,7 +981,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
 
     if (sys_type == MS_D) {
         s = full_name(f, oi, dlist[0]->d_name); /* io.sys */
-        if (s && stat(s, &sb) == 0) {
+        if (s && mfs_stat_file(MFS_IDX(f), s, &sb) == 0) {
             if((fd = open(s, O_RDONLY)) != -1) {
                 buf = malloc(sb.st_size + 1);
                 assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
@@ -1028,7 +1028,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
     if (sys_type == PC_D) {
         /* see if it is PC-DOS or Original DR-DOS */
         s = full_name(f, oi, dlist[0]->d_name);
-        if (s && stat(s, &sb) == 0) {
+        if (s && mfs_stat_file(MFS_IDX(f), s, &sb) == 0) {
             if((fd = open(s, O_RDONLY)) != -1) {
                 buf = malloc(sb.st_size + 1);
                 assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
@@ -1067,7 +1067,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
         }
         /* see if it is MS-DOS 4.0 */
         s = full_name(f, oi, dlist[1]->d_name);
-        if (s && stat(s, &sb) == 0) {
+        if (s && mfs_stat_file(MFS_IDX(f), s, &sb) == 0) {
             if((fd = open(s, O_RDONLY)) != -1) {
                 buf = malloc(sb.st_size + 1);
                 assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
@@ -1093,7 +1093,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
     if (sys_type == MOS_D) {
       /* see if it is old MOS */
       s = full_name(f, oi, dlist[0]->d_name);
-      if (s && stat(s, &sb) == 0 && sb.st_size == 128880) {
+      if (s && mfs_stat_file(MFS_IDX(f), s, &sb) == 0 && sb.st_size == 128880) {
         if((fd = open(s, O_RDONLY)) != -1) {
           uint32_t buf;
           lseek(fd, 0x175, SEEK_SET);
@@ -1212,7 +1212,7 @@ static void _add_object(fatfs_t *f, unsigned parent, char *s, const char *name)
   unsigned u;
 
   fatfs_deb("trying to add \"%s\":\n", s);
-  if(stat(s, &sb)) {
+  if(mfs_stat_file(MFS_IDX(f), s, &sb)) {
       fatfs_deb("file not found\n");
       return;
   }

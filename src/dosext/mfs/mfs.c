@@ -1113,7 +1113,7 @@ static int mfs_rmdir(int mfs_idx, const char *path)
   return rmdir(path);
 }
 
-static int do_mfs_stat(int mfs_idx, const char *path, struct stat *sb)
+int mfs_stat_file(int mfs_idx, const char *path, struct stat *sb)
 {
   int err;
   int fd = mfs_open_file(mfs_idx, path, O_RDONLY);
@@ -1126,7 +1126,7 @@ static int do_mfs_stat(int mfs_idx, const char *path, struct stat *sb)
 
 int mfs_stat(const char *path, struct stat *sb, int drive)
 {
-  return do_mfs_stat(REDIR_DEVICE_IDX(drives[drive].options), path, sb);
+  return mfs_stat_file(REDIR_DEVICE_IDX(drives[drive].options), path, sb);
 }
 
 static int do_mfs_statvfs(int mfs_idx, const char *path, struct statvfs *sb)
