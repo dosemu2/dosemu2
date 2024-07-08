@@ -1619,16 +1619,16 @@ static void SDL_draw_string(void *opaque, int x, int y, const char *text,
   SDL_Surface *srf = TTF_RenderUTF8_Shaded(sdl_font, s,
                                            text_colors[ATTR_FG(attr)],
                                            text_colors[ATTR_BG(attr)]);
+  if (!srf) {
+    error("TTF render failure\n");
+    leavedos(3);
+  }
   d.rect.x = font_width * x;  /* font_width/height needs to be under font mtx */
   d.rect.y = font_height * y; /* height plus spacing to next line */
   d.rect.w = _min(srf->w, font_width * len);
   d.rect.h = _min(srf->h, font_height);
   pthread_mutex_unlock(&sdl_font_mtx);
   free(s);
-  if (!srf) {
-    error("TTF render failure\n");
-    leavedos(3);
-  }
 
   pthread_mutex_lock(&rend_mtx);
   d.tex = SDL_CreateTextureFromSurface(renderer, srf);
