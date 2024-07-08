@@ -72,6 +72,7 @@
 #include "cpu-emu.h"
 #include "dos2linux.h"
 #include "utilities.h"
+#include "mfs.h"
 #include "fatfs.h"
 #include "fatfs_priv.h"
 
@@ -112,6 +113,8 @@ void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *))
     assert(sys_hooks_used < MAX_HOOKS);
     sys_hook[sys_hooks_used++] = hook;
 }
+
+#define MFS_IDX(f) (hdisktab[(f)->drive_num & 0x7f].mfs_idx)
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
 static CONSTEXPR const uint64_t MS_D = IX(IO, MSD);
@@ -918,6 +921,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
   struct dirent **dlist;
   int num;
   int read_bb;
+  int dfd;
 
   // just checking...
   if(!o->is.dir || o->size || !o->name || o->is.scanned) {
@@ -939,12 +943,16 @@ void scan_dir(fatfs_t *f, unsigned oi)
     memset(f->sys_found, 0, sizeof(f->sys_found));
     f->sys_objs = 0;
   }
-  name = strdup(name);
+  dfd = mfs_open_file(MFS_IDX(f), name, O_RDONLY | O_DIRECTORY);
+  if (dfd == -1) {
+    fatfs_msg("%s open failed\n", name);
+    return;
+  }
   cur_d = f;
-  num = scandir(name, &dlist, d_filter, d_compar);
-  free(name);
+  num = scandirat(dfd, ".", &dlist, d_filter, d_compar);
+  close(dfd);
   if (num < 0) {
-    fatfs_msg("fatfs: scandir failed\n");
+    fatfs_msg("fatfs: scandir failed for %s\n", name);
     return;
   }
   if (!sys_done)
