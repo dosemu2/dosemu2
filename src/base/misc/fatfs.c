@@ -72,7 +72,7 @@
 #include "cpu-emu.h"
 #include "dos2linux.h"
 #include "utilities.h"
-#include "mfs.h"
+#include "fslib.h"
 #include "fatfs.h"
 #include "fatfs_priv.h"
 

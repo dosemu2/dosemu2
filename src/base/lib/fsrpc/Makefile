@@ -9,7 +9,7 @@ include $(top_builddir)/Makefile.conf
 ALL_CFLAGS += -Wno-strict-prototypes
 ALL_CPPFLAGS += -I.
 
-CFILES = test-object.c fsrpc_srv.c fssvc.c
+CFILES = test-object.c fsrpc_srv.c fssvc.c fslib.c
 GEN_H = searpc-signature.h searpc-marshal.h
 
 include $(REALTOPDIR)/src/Makefile.common
