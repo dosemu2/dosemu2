@@ -50,6 +50,7 @@ struct fatfs_s {
   unsigned root_entries;
   unsigned cluster_secs;
   unsigned char drive_num;
+  unsigned int mfs_idx;
   uint64_t sys_type;			/* see fatfs::scan_dir() */
 
   unsigned got_all_objs;

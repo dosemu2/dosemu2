@@ -114,8 +114,6 @@ void fatfs_set_sys_hook(void (*hook)(struct sys_dsc *, fatfs_t *))
     sys_hook[sys_hooks_used++] = hook;
 }
 
-#define MFS_IDX(f) (hdisktab[(f)->drive_num & 0x7f].mfs_idx)
-
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
 static CONSTEXPR const uint64_t MS_D = IX(IO, MSD);
 static CONSTEXPR const uint64_t DR_D = IX(DRB, DRD);
@@ -279,6 +277,7 @@ void fatfs_init(struct disk *dp)
   f->last_cluster = (f->total_secs - f->reserved_secs - f->fats * f->fat_secs
                     - f->root_secs) / f->cluster_secs + 1;
   f->drive_num = dp->drive_num;
+  f->mfs_idx = dp->mfs_idx;
 
   f->obj = NULL;
   f->objs = f->alloc_objs = 0;
@@ -746,7 +745,7 @@ static int sys_file_idx(const char *name, fatfs_t *f)
     path = full_name(f, 0, name);
     if (!path)
 	return -1;
-    err = mfs_stat_file(MFS_IDX(f), path, &sb);
+    err = mfs_stat_file(f->mfs_idx, path, &sb);
     if (err)
 	return -1;
     if (!(S_ISREG(sb.st_mode) || (S_ISDIR(sb.st_mode) &&
@@ -896,7 +895,7 @@ static void set_vol_and_len(fatfs_t *f, unsigned oi)
         if(!f->obj[oi].first_child) f->obj[oi].first_child = u;
         f->obj[u].dos_dir_size = 0x20;
         o->size += 0x20;
-        if(!mfs_stat_file(MFS_IDX(f), f->dir, &sb)) {
+        if(!mfs_stat_file(f->mfs_idx, f->dir, &sb)) {
           f->obj[u].time = dos_time(&sb.st_mtime);
         }
 	fatfs_deb2("added label \"%s\"\n", f->label);
@@ -943,7 +942,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
     memset(f->sys_found, 0, sizeof(f->sys_found));
     f->sys_objs = 0;
   }
-  dfd = mfs_open_file(MFS_IDX(f), name, O_RDONLY | O_DIRECTORY);
+  dfd = mfs_open_file(f->mfs_idx, name, O_RDONLY | O_DIRECTORY);
   if (dfd == -1) {
     fatfs_msg("%s open failed\n", name);
     return;
@@ -981,8 +980,8 @@ void scan_dir(fatfs_t *f, unsigned oi)
 
     if (sys_type == MS_D) {
         s = full_name(f, oi, dlist[0]->d_name); /* io.sys */
-        if (s && mfs_stat_file(MFS_IDX(f), s, &sb) == 0) {
-            if((fd = mfs_open_file(MFS_IDX(f), s, O_RDONLY)) != -1) {
+        if (s && mfs_stat_file(f->mfs_idx, s, &sb) == 0) {
+            if((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
                 buf = malloc(sb.st_size + 1);
                 assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
                 size = read(fd, buf, sb.st_size);
@@ -1028,8 +1027,8 @@ void scan_dir(fatfs_t *f, unsigned oi)
     if (sys_type == PC_D) {
         /* see if it is PC-DOS or Original DR-DOS */
         s = full_name(f, oi, dlist[0]->d_name);
-        if (s && mfs_stat_file(MFS_IDX(f), s, &sb) == 0) {
-            if((fd = mfs_open_file(MFS_IDX(f), s, O_RDONLY)) != -1) {
+        if (s && mfs_stat_file(f->mfs_idx, s, &sb) == 0) {
+            if((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
                 buf = malloc(sb.st_size + 1);
                 assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
                 size = read(fd, buf, sb.st_size);
@@ -1067,8 +1066,8 @@ void scan_dir(fatfs_t *f, unsigned oi)
         }
         /* see if it is MS-DOS 4.0 */
         s = full_name(f, oi, dlist[1]->d_name);
-        if (s && mfs_stat_file(MFS_IDX(f), s, &sb) == 0) {
-            if((fd = mfs_open_file(MFS_IDX(f), s, O_RDONLY)) != -1) {
+        if (s && mfs_stat_file(f->mfs_idx, s, &sb) == 0) {
+            if((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
                 buf = malloc(sb.st_size + 1);
                 assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
                 size = read(fd, buf, sb.st_size);
@@ -1093,8 +1092,8 @@ void scan_dir(fatfs_t *f, unsigned oi)
     if (sys_type == MOS_D) {
       /* see if it is old MOS */
       s = full_name(f, oi, dlist[0]->d_name);
-      if (s && mfs_stat_file(MFS_IDX(f), s, &sb) == 0 && sb.st_size == 128880) {
-        if((fd = mfs_open_file(MFS_IDX(f), s, O_RDONLY)) != -1) {
+      if (s && mfs_stat_file(f->mfs_idx, s, &sb) == 0 && sb.st_size == 128880) {
+        if((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
           uint32_t buf;
           lseek(fd, 0x175, SEEK_SET);
           read(fd, &buf, sizeof(buf));
@@ -1117,7 +1116,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
     f->boot_sec = malloc(0x200);
     s = full_name(f, oi, "boot.blk");
     read_bb = 0;
-    if (s && (fd = mfs_open_file(MFS_IDX(f), s, O_RDONLY)) != -1) {
+    if (s && (fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
       if (
           fstat(fd, &sb) == 0 && S_ISREG(sb.st_mode) && sb.st_size == 0x200 &&
           read(fd, f->boot_sec, 0x200) == 0x200) {
@@ -1212,7 +1211,7 @@ static void _add_object(fatfs_t *f, unsigned parent, char *s, const char *name)
   unsigned u;
 
   fatfs_deb("trying to add \"%s\":\n", s);
-  if(mfs_stat_file(MFS_IDX(f), s, &sb)) {
+  if(mfs_stat_file(f->mfs_idx, s, &sb)) {
       fatfs_deb("file not found\n");
       return;
   }
@@ -1525,7 +1524,7 @@ int read_file(fatfs_t *f, unsigned oi, unsigned clu, unsigned pos,
   fatfs_deb2("going to read 0x200 bytes from file \"%s\", ofs 0x%x \n", s, pos);
 
   if(f->fd_obj == 0) {
-    if((f->fd = mfs_open_file(MFS_IDX(f), s, O_RDONLY | O_CLOEXEC)) == -1) {
+    if((f->fd = mfs_open_file(f->mfs_idx, s, O_RDONLY | O_CLOEXEC)) == -1) {
       fatfs_deb("fatfs: open %s failed\n", s);
       return -1;
     }
@@ -1655,7 +1654,7 @@ void mimic_boot_blk(void)
     return;
   }
 
-  if ((fd = mfs_open_file(MFS_IDX(f), f->obj[1].full_name, O_RDONLY)) == -1) {
+  if ((fd = mfs_open_file(f->mfs_idx, f->obj[1].full_name, O_RDONLY)) == -1) {
     error("cannot open DOS system file %s\n", f->obj[1].full_name);
     leavedos(99);
   }
