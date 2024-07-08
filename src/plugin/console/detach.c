@@ -78,32 +78,38 @@ unsigned short detach (void) {
 #ifdef __linux__
   if (ioctl(fd, VT_GETSTATE, &vts) < 0) {
     perror("VT_GETSTATE");
+    close(fd);
     return(0);
   }
 #endif
 
   if (ioctl(fd, VT_OPENQRY, &dosemu_vt) < 0) {
     perror("VT_OPENQRY");
+    close(fd);
     return(0);
   }
 
   if (dosemu_vt < 1) {
     fprintf(stderr, "No free vts to open\n");
+    close(fd);
     return(0);
   }
 
   if (ioctl(fd, VT_ACTIVATE, dosemu_vt) < 0) {
     perror("VT_ACTIVATE");
+    close(fd);
     return(0);
   }
 
   if (ioctl(fd, VT_WAITACTIVE, dosemu_vt) < 0) {
     perror("VT_WAITACTIVE");
+    close(fd);
     return(0);
   }
 
   if ((pid = fork()) < 0) {
     perror("fork");
+    close(fd);
     return(0);
   }
 

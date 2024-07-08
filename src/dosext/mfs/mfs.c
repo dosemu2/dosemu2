@@ -4023,7 +4023,11 @@ do_create_truncate:
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
         }
-        fstat(f->fd, &f->st);
+        if (fstat(f->fd, &f->st) == -1) {
+          Debug0(("can't fstat %d: %s\n", f->fd, strerror(errno)));
+          SETWORD(&state->eax, ACCESS_DENIED);
+          return FALSE;
+        }
         f->type = TYPE_DISK;
 #ifdef __linux__
 	if (file_on_fat(fpath))
@@ -4100,7 +4104,13 @@ do_create_truncate:
       if (long_path) {
         set_long_path_on_dirs(hlist);
       }
+
       hlist_index = hlist_push(hlist, sda_cur_psp(sda), fpath);
+      if (hlist_index == -1) {
+        /* stack exceeded */
+        SETWORD(&state->eax, NO_MORE_FILES);
+        return FALSE;
+      }
       _sdb_dir_entry(sdb) = 0;
       _sdb_p_cluster(sdb) = hlist_index;
 

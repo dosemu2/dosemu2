@@ -2242,17 +2242,16 @@ static void stop_disk(int token)
     dptr->type = PARTITION; // image of a partition
 
   if (dptr->type == IMAGE) {
-    char buf[HEADER_SIZE];
-    struct image_header *header = (struct image_header *)&buf;
+    struct image_header header;
     int fd;
 
     dptr->header = 0;
 
     fd = open(dptr->dev_name, O_RDONLY);
     if (fd != -1) {
-      if (read(fd, &buf, sizeof buf) == HEADER_SIZE) {
-        if (memcmp(header->sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0)
-          dptr->header = header->header_end;
+      if (read(fd, &header, sizeof(header)) == sizeof(header)) {
+        if (memcmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE) == 0)
+          dptr->header = header.header_end;
         c_printf(" header_size: %ld", (long)dptr->header);
       }
       close(fd);

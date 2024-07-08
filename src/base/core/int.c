@@ -653,20 +653,6 @@ static int dos_helper(int stk_offs, int revect)
 	    break;
 	}
 
-    case DOS_HELPER_GET_UNIX_ENV: {
-	char *env = SEG_ADR((char *), es, dx);
-	char *val = getenv(env);
-	/* Interrogate the UNIX environment in es:dx (a null terminated buffer) */
-	g_printf("Interrogating UNIX Environment\n");
-	if (val) {
-	    strcpy(env, val);
-	    LWORD(eax) = 0;
-	} else {
-	    LWORD(eax) = 1;
-	}
-	break;
-    }
-
     case DOS_HELPER_GET_CPU_SPEED:
 	{
 	    REG(eax) = 0;

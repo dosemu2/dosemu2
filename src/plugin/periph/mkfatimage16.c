@@ -390,9 +390,9 @@ int main(int argc, char *argv[])
     header->heads = heads;
     header->sectors = sectors_per_track;
     header->cylinders = tracks;
-    header->header_end = HEADER_SIZE;
+    header->header_end = sizeof(*header);
     header->dexeflags = 0;
-    fwrite(buffer, 1, HEADER_SIZE, outfile);
+    fwrite(buffer, 1, sizeof(*header), outfile);
   }
   /* Write our master boot record */
   clear_buffer();
@@ -561,7 +561,7 @@ int main(int argc, char *argv[])
        * hence the _actual_ disk usage will not be greater.
        */
       if (!raw)
-        total_file_size += HEADER_SIZE;
+        total_file_size += sizeof(*header);
 
       fseek(outfile, total_file_size - 1, SEEK_SET);
       fwrite("", 1, 1, outfile);
