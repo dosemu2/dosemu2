@@ -1962,6 +1962,10 @@ static int int05(void)
 static int int11(void)
 {
     LWORD(eax) = READ_WORD(BIOS_CONFIGURATION);
+#if WINDOWS_HACKS
+    if (win3x_mode != INACTIVE)
+	LWORD(eax) &= ~CONF_MATHCO;  // work around win87em.dll's problem
+#endif
     return 1;
 }
 
