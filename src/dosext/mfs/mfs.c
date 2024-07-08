@@ -142,19 +142,7 @@ TODO:
 
 */
 
-/* Modified by O.V.Zhirov at July 1998    */
-
-#if defined(__linux__)
-#define DOSEMU 1		/* this is a port to dosemu */
-#endif
-
-#if !DOSEMU
-#include "base.h"
-#include "bios.h"
-#endif
-
 #include <stdio.h>
-#include <fcntl.h>
 #ifdef __linux__
 #include <sys/vfs.h>
 #else
@@ -162,26 +150,15 @@ TODO:
 #include <sys/mount.h>
 #endif
 #include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <time.h>
-#include <sys/time.h>
 #include <errno.h>
-#include <stdlib.h>
-#include <utime.h>
-#include <wchar.h>
-#include <sys/mman.h>
 #include <sys/statvfs.h>
 #include <ctype.h>
 #include <stdint.h>	// types used for seek/size
 
-#include <dirent.h>
 #include <string.h>
 #ifdef HAVE_LIBBSD
 #include <bsd/string.h>
 #endif
-#include <wctype.h>
 #include "emu.h"
 #include "int.h"
 #include "lfn.h"
