@@ -31,15 +31,15 @@ main(int argc, char **argv)
   int fdout = STDOUT_FILENO;
   struct image_header *hdr;
 
-  hdr = malloc(HEADER_SIZE);
+  hdr = malloc(sizeof(*hdr));
   assert(hdr != NULL);
-  memset(hdr, 0, HEADER_SIZE);
+  memset(hdr, 0, sizeof(*hdr));
 
   strncpy(hdr->sig, "DOSEMU", sizeof(hdr->sig));
   hdr->cylinders = 40;
   hdr->heads = 4;
   hdr->sectors = 17;
-  hdr->header_end = HEADER_SIZE;
+  hdr->header_end = sizeof(*hdr);
 
   while ((c = getopt(argc, argv, "h:s:t:c:s:f:")) != EOF) {
     switch (c) {
@@ -67,8 +67,8 @@ main(int argc, char **argv)
     }
   }
 
-  ret = write(fdout, hdr, HEADER_SIZE);
-  if (ret != HEADER_SIZE) {
+  ret = write(fdout, hdr, sizeof(*hdr));
+  if (ret != sizeof(*hdr)) {
     fprintf(stderr, "Failed to write header\n");
     exit(1);
   }

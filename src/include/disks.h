@@ -205,12 +205,14 @@ struct image_header {
 			 * we correct that at least for the future
 			 */
   uint32_t dexeflags;
+  char padding[100];
 } __attribute__((packed));
+static_assert(sizeof(struct image_header) == 128,
+		"image_header size is incorrect");
 
 #define IMAGE_MAGIC		"DOSEMU"
 #define IMAGE_MAGIC_SIZE	strlen(IMAGE_MAGIC)
 #define DEXE_MAGIC		0x5845440e /* 0x0e,'D','E','X' */
-#define HEADER_SIZE		128
 
 #define MAX_FDISKS 4
 #define MAX_HDISKS 16
