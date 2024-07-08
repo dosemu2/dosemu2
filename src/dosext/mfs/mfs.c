@@ -4271,7 +4271,11 @@ do_create_truncate:
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
         }
-        fstat(f->fd, &f->st);
+        if (fstat(f->fd, &f->st) == -1) {
+          Debug0(("can't fstat %d: %s\n", f->fd, strerror(errno)));
+          SETWORD(&state->eax, ACCESS_DENIED);
+          return FALSE;
+        }
         f->type = TYPE_DISK;
 #ifdef __linux__
 	if (file_on_fat(fpath))
