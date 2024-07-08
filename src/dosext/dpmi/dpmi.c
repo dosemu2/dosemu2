@@ -1350,7 +1350,14 @@ static void *enter_lpms(cpuctx_t *scp)
     saddr = GetSegmentBase(pmstack_sel) + pmstack_esp;
     if (pmstack_esp < 256 || !dpmi_is_valid_range(saddr - 256, 256)) {
       error("PM stack invalid, in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
-      leavedos(25);
+      if (_ss != DPMI_CLIENT.PMSTACK_SEL) {
+        /* win31 sets ESP to 0 to re-enter lpms */
+        DPMI_CLIENT.in_dpmi_pm_stack = 0;
+        pmstack_sel = DPMI_CLIENT.PMSTACK_SEL;
+        pmstack_esp = D_16_32(DPMI_pm_stack_size);
+      } else {
+        leavedos(25);
+      }
     }
   } else {
     pmstack_esp = D_16_32(DPMI_pm_stack_size);
