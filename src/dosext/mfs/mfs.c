@@ -4352,7 +4352,13 @@ do_create_truncate:
       if (long_path) {
         set_long_path_on_dirs(hlist);
       }
+
       hlist_index = hlist_push(hlist, sda_cur_psp(sda), fpath);
+      if (hlist_index == -1) {
+        /* stack exceeded */
+        SETWORD(&state->eax, NO_MORE_FILES);
+        return FALSE;
+      }
       _sdb_dir_entry(sdb) = 0;
       _sdb_p_cluster(sdb) = hlist_index;
 
