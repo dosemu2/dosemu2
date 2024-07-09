@@ -517,7 +517,7 @@ for i in $(echo $enable_plugins | tr ',' ' '); do
 done
 PLUGINS=`echo $PLUGINSUBDIRS | $SED 's/plugin\//\n\t/g'`
 
-FDPP_PLU=`echo $PLUGINS | $EGREP 'fdpp'`
+FDPP_PLU=`echo $PLUGINS | $SED 's/ /\n/g' | $EGREP -x 'fdpp'`
 AC_ARG_ENABLE(fdpp,
   [AS_HELP_STRING([--disable-fdpp], [compile without fdpp support])],,
   enable_fdpp="yes"
@@ -762,12 +762,12 @@ AC_OUTPUT
 
 AC_MSG_RESULT()
 AC_MSG_RESULT(Enabling plugins: $PLUGINS)
-VID_PLU=`echo $PLUGINS | $EGREP 'sdl|X|term|sdl1'`
+VID_PLU=`echo $PLUGINS | $SED 's/ /\n/g' | $EGREP -x 'sdl|X|term|sdl1'`
 if test -z "$VID_PLU"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([No video plugins available!])
 fi
-AUD_PLU=`echo $PLUGINS | $EGREP 'sdl|ao|sdl1'`
+AUD_PLU=`echo $PLUGINS | $SED 's/ /\n/g' | $EGREP -x 'sdl|ao|sdl1'`
 if test -z "$AUD_PLU"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([No audio plugins available!])
