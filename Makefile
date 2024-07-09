@@ -111,9 +111,10 @@ tar: distclean
 
 flatpak-build:
 	flatpak-builder --ccache --force-clean --user --repo=repo \
-	  --install builddir org.flatpak.dosemu2.yml
+	  --install builddir io.github.dosemu2.dosemu2.yml
 
 flatpak-run:
 	flatpak run --socket=wayland --socket=x11 --socket=pulseaudio \
-  --filesystem=host --device=kvm --device=dri \
-  --env=LADSPA_PATH=/usr/lib/x86_64-linux-gnu/ladspa org.flatpak.dosemu2
+  --filesystem=host --device=kvm --device=dri --share=network \
+  --env=LADSPA_PATH=/usr/lib/x86_64-linux-gnu/ladspa \
+  io.github.dosemu2.dosemu2

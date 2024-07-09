@@ -1,4 +1,4 @@
-id: org.flatpak.dosemu2
+id: io.github.dosemu2.dosemu2
 runtime: org.freedesktop.Platform
 runtime-version: '23.08'
 sdk: org.freedesktop.Sdk
