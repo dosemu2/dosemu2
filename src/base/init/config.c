@@ -929,7 +929,10 @@ static void config_post_process(void)
     c_printf("CONF: DPMI cpu vm set to %d\n", config.cpu_vm_dpmi);
 
     /* console scrub */
-    if (!Video && (di = getenv("DISPLAY")) && *di && !config.X && !config.term &&
+    di = getenv("DISPLAY");
+    if (!di || !di[0])
+	di = getenv("WAYLAND_DISPLAY");
+    if (!Video && di && *di && !config.X && !config.term &&
         config.cardtype != CARD_NONE) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
