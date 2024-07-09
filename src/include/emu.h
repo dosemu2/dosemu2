@@ -149,7 +149,7 @@ typedef struct config_info {
        uint8_t drive_c_num;
        uint32_t drives_mask;
        int try_freedos;
-       int boot_dos;
+       uint64_t boot_dos;
 
 #ifdef X86_EMULATOR
        #define EMU_V86() (config.cpu_vm == CPUVM_EMU)
