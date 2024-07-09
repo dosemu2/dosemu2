@@ -18,6 +18,8 @@
 #ifndef FSLIB_H
 #define FSLIB_H
 
+#include <sys/stat.h>  // for struct stat
+#include <sys/statvfs.h>  // for struct statvfs
 #include "fssvc.h"  // for setattr_t, getattr_t
 
 int mfs_define_drive(const char *path);
