@@ -194,6 +194,8 @@ if test -z "$PKG_CONFIG"; then
   AC_MSG_ERROR(Install pkg-config and retry.)
 fi
 
+AC_PATH_PROGS([USERADD], [useradd])
+
 dnl Checks for libraries.
 
 dnl Checks for header files.

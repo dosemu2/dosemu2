@@ -126,8 +126,10 @@ installnew: doslib
 	$(MAKE) install
 
 install:
-	useradd --system $(username) --shell /sbin/nologin \
+ifneq ($(USERADD),)
+	$(USERADD) --system $(username) --shell /sbin/nologin \
 	  --home-dir /nonexistent || true
+endif
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
 	$(RM) -r $(DESTDIR)$(dosemudir)/commands
 	$(RM) -r $(DESTDIR)$(dosemudir)/fdboot
