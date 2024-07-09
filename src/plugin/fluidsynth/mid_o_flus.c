@@ -76,6 +76,7 @@ static int midoflus_init(void *arg)
 	"/usr/share/soundfonts/FluidR3_GM.sf2",		// fedora
 	"/usr/share/sounds/sf2/FluidR3_GM.sf2.flac",	// ubuntu
 	"/usr/share/sounds/sf2/FluidR3_GM.sf2",		// debian
+	"/run/host/usr/share/soundfonts/default.sf2",	// flatpak+hostfs
 	NULL };
 
     settings = new_fluid_settings();
