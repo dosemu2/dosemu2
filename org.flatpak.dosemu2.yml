@@ -86,6 +86,18 @@ modules:
       - type: git
         url: https://github.com/haiwen/libsearpc.git
         branch: master
+  - name: json-c
+    buildsystem: cmake
+    sources:
+      - type: git
+        url: https://github.com/json-c/json-c.git
+        branch: master
+  - name: libslirp
+    buildsystem: meson
+    sources:
+      - type: git
+        url: https://gitlab.freedesktop.org/slirp/libslirp.git
+        branch: master
   - name: dosemu2
     buildsystem: autotools
     sources:

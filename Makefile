@@ -114,5 +114,6 @@ flatpak-build:
 	  --install builddir org.flatpak.dosemu2.yml
 
 flatpak-run:
-	flatpak run --socket=wayland --socket=pulseaudio --filesystem=host \
-	  --device=kvm --device=dri org.flatpak.dosemu2
+	flatpak run --socket=wayland --socket=x11 --socket=pulseaudio \
+  --filesystem=host --device=kvm --device=dri \
+  --env=LADSPA_PATH=/usr/lib/x86_64-linux-gnu/ladspa org.flatpak.dosemu2
