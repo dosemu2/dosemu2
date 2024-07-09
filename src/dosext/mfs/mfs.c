@@ -3473,12 +3473,13 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       set_32bit_size_or_position(&_sft_position(sft), f->seek);
       if (ret + s_pos > sft_size(sft)) {
         /* someone else enlarged the file! refresh. */
-        fstat(f->fd, &f->st);
+        int r2;
+        r2 = fstat(f->fd, &f->st);
+        assert(r2 == 0);
         f->size = f->st.st_size;
         set_32bit_size_or_position(&_sft_size(sft), f->size);
       }
-//      sft_abs_cluster(sft) = 0x174a; /* XXX a test */
-      /*      Debug0(("File data %02x %02x %02x\n", dta[0], dta[1], dta[2])); */
+
       Debug0(("Read file pos (fseek) after = %"PRIu64"\n", f->seek));
       return (return_val);
     }
