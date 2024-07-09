@@ -510,6 +510,7 @@ static void set_freedos_dir(void)
 #ifdef USE_DJDEV64
       "/usr/share/comcom64",
       "/usr/local/share/comcom64",
+      PREFIX "/share/comcom64",
 #endif
       "/usr/share/comcom32",
       "/usr/local/share/comcom32",
