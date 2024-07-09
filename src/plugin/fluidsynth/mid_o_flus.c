@@ -97,7 +97,7 @@ static int midoflus_init(void *arg)
 	if (ret == FLUID_FAILED) {
 	    error("Your fluidsynth is too old\n");
 	} else if (access(sfont, R_OK) != 0) {
-	    error("fluidsynth sound font unavailable at %s\n", sfont);
+	    warn("fluidsynth sound font unavailable at %s\n", sfont);
 	    free(sfont);
 	    sfont = NULL;
 	}
