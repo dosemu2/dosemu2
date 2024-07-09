@@ -9,7 +9,9 @@ sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
 cmddir = $(sysdir)/dosemu
 etcdir = $(sysconfdir)/$(confdir)
 FONTS = $(wildcard $(REALTOPDIR)/etc/*.bdf)
+ifeq ($(USE_X),1)
 TFONTS = $(FONTS:$(REALTOPDIR)/etc/%.bdf=$(top_builddir)/etc/Xfonts/%.pcf.gz)
+endif
 
 NET=dosext/net
 
@@ -190,10 +192,9 @@ install:
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/NOVELL-HOWTO.txt $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
 	echo "-> Installing fonts..."
-	$(RM) -r $(DESTDIR)$(ttffontdir)
+ifeq ($(USE_X),1)
 	$(RM) -r $(DESTDIR)$(x11fontdir)
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
-	$(INSTALL) -d $(DESTDIR)$(ttffontdir)
 	install -m 0644 -D $(top_builddir)/etc/Xfonts/* $(DESTDIR)$(x11fontdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/$(PACKAGE_NAME).alias $(DESTDIR)$(x11fontdir)/fonts.alias
 	! which mkfontdir >/dev/null || mkfontdir $(DESTDIR)$(x11fontdir)
@@ -201,7 +202,9 @@ install:
 	    $(RM) $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
 	    $(LN_S) -f $(x11fontdir) $(DESTDIR)$(sysconfdir)/X11/fontpath.d/$(PACKAGE_NAME):unscaled:pri=20; \
 	fi
-
+endif
+	$(RM) -r $(DESTDIR)$(ttffontdir)
+	$(INSTALL) -d $(DESTDIR)$(ttffontdir)
 	install -m 0644 -D $(REALTOPDIR)/etc/ttf/* $(DESTDIR)$(ttffontdir)
 
 	echo "-> Installing man pages..."

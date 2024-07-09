@@ -517,6 +517,10 @@ for i in $(echo $enable_plugins | tr ',' ' '); do
 done
 PLUGINS=`echo $PLUGINSUBDIRS | $SED 's/plugin\//\n\t/g'`
 
+X_PLU=`echo $PLUGINS | $SED 's/ /\n/g' | $EGREP -x 'X'`
+if test -z "$X_PLU"; then USE_X=0; else USE_X=1; fi
+AC_SUBST(USE_X)
+
 FDPP_PLU=`echo $PLUGINS | $SED 's/ /\n/g' | $EGREP -x 'fdpp'`
 AC_ARG_ENABLE(fdpp,
   [AS_HELP_STRING([--disable-fdpp], [compile without fdpp support])],,
