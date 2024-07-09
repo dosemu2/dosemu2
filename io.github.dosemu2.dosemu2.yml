@@ -12,12 +12,16 @@ modules:
       - type: git
         url: https://github.com/stsp/nasm.git
         branch: master
+    cleanup:
+      - '*'
   - name: thunk-gen
     buildsystem: meson
     sources:
       - type: git
         url: https://github.com/stsp/thunk_gen.git
         branch: main
+    cleanup:
+      - '*'
   - name: fdpp
     buildsystem: simple
     build-commands:
@@ -30,6 +34,8 @@ modules:
       - type: git
         url: https://github.com/dosemu2/fdpp.git
         branch: master
+    cleanup:
+      - '/include'
   - name: smallerc
     buildsystem: simple
     build-commands:
@@ -39,6 +45,8 @@ modules:
       - type: git
         url: https://github.com/alexfru/smallerc.git
         branch: master
+    cleanup:
+      - '*'
   - name: djstub
     buildsystem: simple
     build-commands:
@@ -48,12 +56,16 @@ modules:
       - type: git
         url: https://github.com/stsp/djstub.git
         branch: main
+    cleanup:
+      - '*'
   - name: ctags
     buildsystem: autotools
     sources:
       - type: git
         url: https://github.com/universal-ctags/ctags.git
         branch: master
+    cleanup:
+      - '*'
   - name: dj64dev
     buildsystem: simple
     build-commands:
@@ -63,6 +75,9 @@ modules:
       - type: git
         url: https://github.com/stsp/dj64dev.git
         branch: master
+    cleanup:
+      - '/include'
+      - '*.a'
   - name: comcom64
     buildsystem: simple
     build-commands:
@@ -80,33 +95,52 @@ modules:
         branch: master
       - type: script
         commands: ['autoreconf -v -i']
+    cleanup:
+      - '/include'
   - name: libsearpc
     buildsystem: autotools
     sources:
       - type: git
         url: https://github.com/haiwen/libsearpc.git
         branch: master
+    cleanup:
+      - '/include'
   - name: json-c
     buildsystem: cmake
     sources:
       - type: git
         url: https://github.com/json-c/json-c.git
         branch: master
+    cleanup:
+      - '/include'
   - name: libslirp
     buildsystem: meson
     sources:
       - type: git
         url: https://gitlab.freedesktop.org/slirp/libslirp.git
         branch: master
+    cleanup:
+      - '/include'
   - name: fluidsynth
     buildsystem: cmake
     sources:
       - type: git
         url: https://github.com/FluidSynth/fluidsynth.git
         branch: master
+    cleanup:
+      - '/include'
   - name: dosemu2
     buildsystem: autotools
     sources:
       - type: git
         url: https://github.com/dosemu2/dosemu2.git
         branch: devel
+finish-args:
+  - --socket=wayland
+  - --socket=x11
+  - --socket=pulseaudio
+  - --filesystem=host
+  - --device=kvm
+  - --device=dri
+  - --share=network
+  - --env=LADSPA_PATH=/usr/lib/x86_64-linux-gnu/ladspa
