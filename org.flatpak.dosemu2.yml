@@ -1,0 +1,94 @@
+id: org.flatpak.dosemu2
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.llvm18
+command: dosemu
+modules:
+  - name: nasm-segelf
+    buildsystem: autotools
+    sources:
+      - type: git
+        url: https://github.com/stsp/nasm.git
+        branch: master
+  - name: thunk-gen
+    buildsystem: meson
+    sources:
+      - type: git
+        url: https://github.com/stsp/thunk_gen.git
+        branch: main
+  - name: fdpp
+    buildsystem: simple
+    build-commands:
+      - make -j ${FLATPAK_BUILDER_N_JOBS} PREFIX=${FLATPAK_DEST}
+      - make install PREFIX=${FLATPAK_DEST}
+    build-options:
+      append-path: /usr/lib/sdk/llvm18/bin
+      prepend-ld-library-path: /usr/lib/sdk/llvm18/lib
+    sources:
+      - type: git
+        url: https://github.com/dosemu2/fdpp.git
+        branch: master
+  - name: smallerc
+    buildsystem: simple
+    build-commands:
+      - make prefix=${FLATPAK_DEST}
+      - make install prefix=${FLATPAK_DEST}
+    sources:
+      - type: git
+        url: https://github.com/alexfru/smallerc.git
+        branch: master
+  - name: djstub
+    buildsystem: simple
+    build-commands:
+      - make -j ${FLATPAK_BUILDER_N_JOBS} PREFIX=${FLATPAK_DEST}
+      - make install PREFIX=${FLATPAK_DEST}
+    sources:
+      - type: git
+        url: https://github.com/stsp/djstub.git
+        branch: main
+  - name: ctags
+    buildsystem: autotools
+    sources:
+      - type: git
+        url: https://github.com/universal-ctags/ctags.git
+        branch: master
+  - name: dj64dev
+    buildsystem: simple
+    build-commands:
+      - make PREFIX=${FLATPAK_DEST}
+      - make install PREFIX=${FLATPAK_DEST}
+    sources:
+      - type: git
+        url: https://github.com/stsp/dj64dev.git
+        branch: master
+  - name: comcom64
+    buildsystem: simple
+    build-commands:
+      - make -j ${FLATPAK_BUILDER_N_JOBS} PREFIX=${FLATPAK_DEST}
+      - make install PREFIX=${FLATPAK_DEST}
+    sources:
+      - type: git
+        url: https://github.com/dosemu2/comcom64.git
+        branch: master
+  - name: jansson
+    buildsystem: autotools
+    sources:
+      - type: git
+        url: https://github.com/akheron/jansson.git
+        branch: master
+      - type: script
+        commands: ['autoreconf -v -i']
+  - name: libsearpc
+    buildsystem: autotools
+    sources:
+      - type: git
+        url: https://github.com/haiwen/libsearpc.git
+        branch: master
+  - name: dosemu2
+    buildsystem: autotools
+    sources:
+      - type: git
+        url: https://github.com/dosemu2/dosemu2.git
+        branch: devel

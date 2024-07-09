@@ -108,3 +108,11 @@ pristine distclean mrproper:  Makefile.conf docsclean
 
 tar: distclean
 	VERSION=`cat VERSION` && cd .. && tar czvf dosemu-$$VERSION.tgz dosemu-$$VERSION
+
+flatpak-build:
+	flatpak-builder --ccache --force-clean --user --repo=repo \
+	  --install builddir org.flatpak.dosemu2.yml
+
+flatpak-run:
+	flatpak run --socket=wayland --socket=pulseaudio --filesystem=host \
+	  --device=kvm --device=dri org.flatpak.dosemu2
