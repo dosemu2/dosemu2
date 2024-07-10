@@ -727,9 +727,11 @@ static int wildcard_delete(char *fpath, int drive)
 		return lfn_error(PATH_NOT_FOUND);
 	}
 
-// coverity [bad_alloc_strlen:FALSE]
-	pattern = malloc(strlen(slash + 1) + 1);
-	name_ufs_to_dos(pattern, slash + 1);
+	/* Coverity doesn't like us to use pointer math in the strlen() to
+	   malloc() i.e. malloc(strlen(p + 1)) as it thinks we have a typo
+	   and that we really mean malloc(strlen(p) + 1), so workaround it. */
+	pattern = malloc(strlen(&slash[1]) + 1);
+	name_ufs_to_dos(pattern, &slash[1]);
 	strupperDOS(pattern);
 
 	d_printf("LFN: wildcard delete '%s' '%s' %x\n", pattern, fpath, dirattr);
