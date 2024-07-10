@@ -177,6 +177,8 @@ void priv_drop(void)
   if (!suid)
     return;
   do_drop();
+  suid = 0;
+  sgid = 0;
 }
 
 void priv_drop_total(void)
