@@ -1510,7 +1510,7 @@ config_init(int argc, char **argv)
 	case 'T':
 	    if (!optarg || strchr(optarg, '1'))
 	      was_T1++;
-	    if (!optarg || strchr(optarg, 'h'))
+	    if (optarg && strchr(optarg, 'h'))
 	      misc_e6_store_options("SHELL_LOADHIGH_DEFAULT=1");
 	    break;
 
