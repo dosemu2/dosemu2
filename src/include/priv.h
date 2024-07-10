@@ -35,7 +35,8 @@ uid_t get_suid(void);
 gid_t get_sgid(void);
 int running_suid_orig(void);
 int running_suid_changed(void);
-int priv_drop(void);
+void priv_drop_root(void);
+void priv_drop(void);
 
 #endif /* PRIV_H */
 

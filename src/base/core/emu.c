@@ -327,7 +327,7 @@ int main(int argc, char **argv, char * const *envp)
         g_printf("dropping root privileges\n");
 	open_kmem();
     }
-    priv_drop();
+    priv_drop_root();
 
     map_memory_space();         /* maps all DOS memory (low, dpmi, xms...) */
     init_hardware_ram();        /* map the direct hardware ram */

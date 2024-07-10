@@ -143,27 +143,40 @@ gid_t get_sgid(void)
   return egid;
 }
 
-int priv_drop(void)
+static void do_drop(void)
 {
-  if (skip_priv_setting)
-    return 1;
-  assert(PRIVS_ARE_OFF);
   /* We set the same values as they are now.
    * The trick is that if the first arg != -1 then saved-euid is reset.
    * This allows to avoid the use of non-standard setresuid(). */
-  if (setreuid(uid, cur_euid) || setregid(gid, cur_egid)) {
+  if (setreuid(uid, uid) || setregid(gid, gid)) {
     error("Cannot drop root uid or gid!\n");
-    return 0;
+    leavedos(3);
+    return;
   }
   /* Now check that saved-euids are actually reset: privs should fail. */
   if (seteuid(euid) == 0 || setegid(egid) == 0) {
     error("privs were not dropped\n");
     leavedos(3);
-    return 0;
+    return;
   }
+}
+
+void priv_drop_root(void)
+{
+  if (skip_priv_setting)
+    return;
+  assert(PRIVS_ARE_OFF);
+  do_drop();
   skip_priv_setting = 1;
   if (uid) can_do_root_stuff = 0;
-  return 1;
+}
+
+void priv_drop(void)
+{
+  priv_drop_root();
+  if (!suid)
+    return;
+  do_drop();
 }
 
 void priv_drop_total(void)
@@ -269,8 +282,9 @@ void priv_init(void)
     if (s) {
       uid = atoi(s);
       if (uid) {
-        skip_priv_setting = under_root_login = 0;
-	using_sudo = 1;
+        skip_priv_setting = 0;
+        under_root_login = 0;
+        using_sudo = 1;
         setreuid(uid, euid);
       }
     }
