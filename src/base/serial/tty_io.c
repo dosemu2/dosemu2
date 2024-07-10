@@ -13,6 +13,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#include <limits.h>
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -299,22 +300,22 @@ static int tty_already_locked(char *nam)
  */
 static int tty_lock(const char *path, int mode)
 {
-  char saved_path[strlen(config.tty_lockdir) + 1 +
-                  strlen(config.tty_lockfile) +
-                  strlen(path) + 1];
+  char saved_path[PATH_MAX];
   struct passwd *pw;
   pid_t ime;
   const char *slash;
 
-  if (path == NULL) return(0);        /* standard input */
+  if (path == NULL)       /* standard input */
+    return 0;
+
   slash = strrchr(path, '/');
   if (slash == NULL)
     slash = path;
   else
     slash++;
 
-  sprintf(saved_path, "%s/%s%s", config.tty_lockdir, config.tty_lockfile,
-	  slash);
+  snprintf(saved_path, sizeof(saved_path), "%s/%s%s",
+      config.tty_lockdir, config.tty_lockfile, slash);
 
   if (mode == 1) {      /* lock */
     {
@@ -351,10 +352,9 @@ static int tty_lock(const char *path, int mode)
   else if (mode == 2) { /* re-acquire a lock after a fork() */
     FILE *fd;
 
-     fd = fopen(saved_path,"we");
-     if (fd == (FILE *)0) {
-      error("tty_lock: reacquire (%s): %s\n",
-              saved_path, strerror(errno));
+    fd = fopen(saved_path,"we");
+    if (fd == (FILE *)0) {
+      error("tty_lock: reacquire (%s): %s\n", saved_path, strerror(errno));
       return(-1);
     }
     ime = getpid();

@@ -906,7 +906,7 @@ static void config_post_process(void)
     char *di;
     FILE *f = popen("uname -r", "r");
     n = fread(buf, 1, sizeof(buf) - 1, f);
-    buf[n >= 0 ? n : 0] = 0;
+    buf[n] = '\0';
     if (strstr(buf, "Microsoft") != NULL) {
 	c_printf("CONF: Running on Windows, SIM CPUEMU enabled\n");
 	config.cpusim = 1;

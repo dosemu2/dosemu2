@@ -1894,7 +1894,7 @@ void mimic_boot_blk(void)
       break;
   }
   config.boot_dos = f->sys_type;
-  c_printf("config.boot_dos set to %x\n", config.boot_dos);
+  c_printf("config.boot_dos set to %" PRIx64 "\n", config.boot_dos);
   c_printf("config.int_hooks set to %i\n", config.int_hooks);
   c_printf("config.force_revect set to %i\n", config.force_revect);
 

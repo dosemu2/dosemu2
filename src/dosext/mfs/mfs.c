@@ -477,7 +477,7 @@ done:
  *   redirector int2f/11 function. It relies on being able to run int2f/12
  *   functions which need to use the DOS stack.
  *****************************/
-static int GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
+static int GetCDSInDOS(uint16_t dosdrive, cds_t *cds)
 {
   unsigned int ssp, sp;
   int ret = 1;
@@ -486,7 +486,7 @@ static int GetCDSInDOS(uint8_t dosdrive, cds_t *cds)
   /* Ask DOS for the CDS */
   ssp = SEGOFF2LINEAR(_SS, 0);
   sp = _SP;
-  pushw(ssp, sp, (uint16_t)dosdrive);
+  pushw(ssp, sp, dosdrive);
   _SP -= 2;
   _AX = 0x1217;
   do_int_call_back(0x2f);
@@ -2324,7 +2324,7 @@ debug_dump_sft(char handle)
 static int GetRedirection(struct vm86_regs *state, int rSize, int subfunc)
 {
   u_short index = WORD(state->ebx);
-  int dd;
+  unsigned int dd;
   u_short returnBX;		/* see notes below */
   u_short returnCX;
   u_short returnDX;
@@ -2463,7 +2463,7 @@ static int path_list_contains(const char *clist, const char *path)
  *   This function is used internally by DOSEMU, in contrast to
  *   RedirectDevice(), which must be called from DOS.
  *****************************/
-static int RedirectDisk(struct vm86_regs *state, int drive,
+static int RedirectDisk(struct vm86_regs *state, unsigned int drive,
     const char *resourceName)
 {
   char path[PATH_MAX];
@@ -2549,7 +2549,7 @@ static int RedirectDisk(struct vm86_regs *state, int drive,
 
 static int EnableDiskRedirections(void)
 {
-  int dd;
+  unsigned int dd;
   cds_t cds;
   int ret = FALSE;
 
@@ -2566,7 +2566,7 @@ static int EnableDiskRedirections(void)
 
 static int DisableDiskRedirections(void)
 {
-  int dd;
+  unsigned int dd;
   cds_t cds;
   int ret = FALSE;
 
@@ -2582,7 +2582,7 @@ static int DisableDiskRedirections(void)
 
 static int GetRedirModeDisk(void)
 {
-  int dd;
+  unsigned int dd;
   cds_t cds;
 
   for (dd = 0; dd < num_drives; dd++) {
@@ -3480,12 +3480,13 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       set_32bit_size_or_position(&_sft_position(sft), f->seek);
       if (ret + s_pos > sft_size(sft)) {
         /* someone else enlarged the file! refresh. */
-        fstat(f->fd, &f->st);
+        int r2;
+        r2 = fstat(f->fd, &f->st);
+        assert(r2 == 0);
         f->size = f->st.st_size;
         set_32bit_size_or_position(&_sft_size(sft), f->size);
       }
-//      sft_abs_cluster(sft) = 0x174a; /* XXX a test */
-      /*      Debug0(("File data %02x %02x %02x\n", dta[0], dta[1], dta[2])); */
+
       Debug0(("Read file pos (fseek) after = %"PRIu64"\n", f->seek));
       return (return_val);
     }

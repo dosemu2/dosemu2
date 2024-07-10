@@ -727,7 +727,7 @@ static int wildcard_delete(char *fpath, int drive)
 		return lfn_error(PATH_NOT_FOUND);
 	}
 
-	// coverity [bad_alloc_strlen:FALSE]
+// coverity [bad_alloc_strlen:FALSE]
 	pattern = malloc(strlen(slash + 1) + 1);
 	name_ufs_to_dos(pattern, slash + 1);
 	strupperDOS(pattern);
