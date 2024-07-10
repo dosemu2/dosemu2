@@ -302,15 +302,28 @@ void priv_init(void)
 /* bug-fixer for gtk, see
  * https://gitlab.gnome.org/GNOME/gtk/-/issues/6629
  */
+#include <dlfcn.h>
+static int (*grsu)(uid_t *ruid, uid_t *euid, uid_t *suid);
+static int (*grsg)(gid_t *rgid, gid_t *egid, gid_t *sgid);
 int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid)
 {
+  if (!grsu)
+    grsu = dlsym(RTLD_NEXT, "getresuid");
+  if (grsu)
+    grsu(ruid, euid, suid);
   dbug_printf("%s\n", __FUNCTION__);
+  errno = ENOSYS;
   return -1;
 }
 
 int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid)
 {
+  if (!grsg)
+    grsg = dlsym(RTLD_NEXT, "getresgid");
+  if (grsg)
+    grsg(rgid, egid, sgid);
   dbug_printf("%s\n", __FUNCTION__);
+  errno = ENOSYS;
   return -1;
 }
 #endif
