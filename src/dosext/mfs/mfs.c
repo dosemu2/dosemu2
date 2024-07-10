@@ -1540,9 +1540,16 @@ struct mfs_dir *dos_opendir(const char *name, int drive)
     /* not a VFAT filesystem or other problems */
     int dfd = mfs_open_file(REDIR_DEVICE_IDX(drives[drive].options), name,
         O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    d = fdopendir(dfd);
-    if (d == NULL)
+    if (dfd == -1) {
+      error("opendir failed: %s\n", strerror(errno));
       return NULL;
+    }
+    d = fdopendir(dfd);
+    if (d == NULL) {
+      error("fdopendir failed: %s\n", strerror(errno));
+      close(dfd);
+      return NULL;
+    }
   }
   dir = malloc(sizeof *dir);
   dir->fd = fd;
