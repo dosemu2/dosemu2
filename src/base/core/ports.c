@@ -379,7 +379,7 @@ static int port_fd_in[2] = {-1, -1};
 
 Bit8u std_port_inb(ioport_t port)
 {
-        struct portreq pr;
+        struct portreq pr = {};
 
         if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
 		return port_real_inb(port);
@@ -428,7 +428,7 @@ static void std_port_outb_h(ioport_t port, Bit8u byte, void *arg)
 
 Bit16u std_port_inw(ioport_t port)
 {
-        struct portreq pr;
+        struct portreq pr = {};
 
         if (current_iopl == 3 || (test_bit(port, emu_io_bitmap) +
                                   test_bit(port + 1, emu_io_bitmap)
@@ -481,7 +481,7 @@ static void std_port_outw_h(ioport_t port, Bit16u word, void *arg)
 
 Bit32u std_port_ind(ioport_t port)
 {
-        struct portreq pr;
+        struct portreq pr = {};
 
         if (current_iopl == 3 || (test_bit(port, emu_io_bitmap) +
                                   test_bit(port + 1, emu_io_bitmap) +
