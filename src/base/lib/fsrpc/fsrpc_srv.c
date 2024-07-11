@@ -36,13 +36,15 @@ static int num_paths;
 static int sealed;
 static int transp_fd;
 static int sock_tx;
+static plist_idx_t plist_idx_cb;
 static setattr_t setattr_cb;
 static getattr_t getattr_cb;
+static char *plist;
 static int exiting;
 
 #define ASSERT0(x) do {if (!(x)) { return -1; }} while(0)
 
-static int add_path_1_svc(char *path)
+static int add_path_1_svc(const char *path)
 {
     int len;
 
@@ -60,6 +62,13 @@ static int add_path_1_svc(char *path)
         paths[num_paths] = new_path;
     }
     return num_paths++;
+}
+
+static int add_path_list_1_svc(const char *clist)
+{
+    ASSERT0(!sealed);
+    plist = strdup(clist);
+    return 0;
 }
 
 static int seal_1_svc(void)
@@ -107,7 +116,8 @@ static int path_ok(int idx, const char *path)
     int len;
 
     CHK(sealed);
-    CHK(idx < num_paths);
+    if (idx >= num_paths)
+        return (plist && plist_idx_cb(plist, path) + num_paths == idx);
     len = strlen(paths[idx]);
     assert(len && paths[idx][len - 1] == '/');
     if (strlen(path) == len - 1)
@@ -241,22 +251,28 @@ static int exit_1_svc(void)
 
     for (i = 0; i < num_paths; i++)
         free(paths[i]);
+    free(plist);
     exiting++;
     return 0;
 }
 
 static const char *svc_name = "fsrpc";
 
-int fsrpc_srv_init(int tr_fd, int fd, setattr_t sa, getattr_t ga)
+int fsrpc_srv_init(int tr_fd, int fd, plist_idx_t pi, setattr_t sa,
+    getattr_t ga)
 {
     transp_fd = tr_fd;
     sock_tx = fd;
+    plist_idx_cb = pi;
     setattr_cb = sa;
     getattr_cb = ga;
     searpc_server_init(register_marshals);
     searpc_create_service(svc_name);
 
     searpc_server_register_function(svc_name, add_path_1_svc, "add_path_1",
+            searpc_signature_int__string());
+    searpc_server_register_function(svc_name, add_path_list_1_svc,
+            "add_path_list_1",
             searpc_signature_int__string());
     searpc_server_register_function(svc_name, seal_1_svc, "seal_1",
             searpc_signature_int__void());

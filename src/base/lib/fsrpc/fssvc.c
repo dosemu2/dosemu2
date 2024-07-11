@@ -61,7 +61,8 @@ static char *transport_callback(void *arg, const char *fcall_str,
     return g_strndup(buf, sd);
 }
 
-int fssvc_init(setattr_t setattr_cb, getattr_t getattr_cb)
+int fssvc_init(plist_idx_t plist_idx, setattr_t setattr_cb,
+    getattr_t getattr_cb)
 {
     int socks[2];
     int transp[2];
@@ -94,7 +95,8 @@ int fssvc_init(setattr_t setattr_cb, getattr_t getattr_cb)
             priv_drop();
             setsid();
             prctl(PR_SET_PDEATHSIG, SIGQUIT);
-            err = fsrpc_srv_init(transp[1], socks[1], setattr_cb, getattr_cb);
+            err = fsrpc_srv_init(transp[1], socks[1], plist_idx, setattr_cb,
+                    getattr_cb);
             pshared_sem_post(svc_sem);
             pshared_sem_destroy(&svc_sem);
             if (err) {
@@ -191,6 +193,17 @@ int fssvc_add_path(const char *path)
     ret = searpc_client_call__int(clnt, "add_path_1",
                                   &error, 1,
                                   "string", path);
+    CHECK_RPC(error);
+    return ret;
+}
+
+int fssvc_add_path_list(const char *list)
+{
+    int ret;
+    GError *error = NULL;
+    ret = searpc_client_call__int(clnt, "add_path_list_1",
+                                  &error, 1,
+                                  "string", list);
     CHECK_RPC(error);
     return ret;
 }

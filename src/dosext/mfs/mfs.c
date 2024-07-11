@@ -262,6 +262,7 @@ static void path_to_ufs(char *ufs, size_t ufs_offset, const char *path,
 static int dos_would_allow(char *fpath, const char *op, int equal);
 static void RemoveRedirection(int drive, cds_t cds);
 static int mfs_statvfs(const char *path, struct statvfs *sb, int drive);
+static int path_list_contains(const char *clist, const char *path);
 
 static int drives_initialized = FALSE;
 struct file_fd open_files[MAX_OPENED_FILES];
@@ -834,18 +835,13 @@ donthandle:
 
 void mfs_priv_init(void)
 {
-  int err = fslib_init(set_dos_xattr, get_dos_xattr);
-  if (err) {
-    error("FS server failed\n");
-    if (running_suid_orig()) {
-      error("try to run `dosemu -no-priv-sep`\n");
-      exit(1);
-    }
-  }
+  fslib_init(path_list_contains, set_dos_xattr, get_dos_xattr);
 }
 
 void mfs_post_config(void)
 {
+  if (config.lredir_paths)
+    fssvc_add_path_list(config.lredir_paths);
   fslib_seal();
 }
 
@@ -2417,7 +2413,7 @@ static int path_list_contains(const char *clist, const char *path)
   char *list = strdup(clist);
   const char *home = getenv("HOME");
 
-  assert(plen && path[plen - 1] == '/');    // must end with slash
+  assert(plen);
   for (p = strtok_r(list, " ", &s); p; p = strtok_r(NULL, " ", &s), i++) {
     int len;
     if (p[0] == '~' && home) {
@@ -2443,9 +2439,9 @@ static int path_list_contains(const char *clist, const char *path)
       found = i;    // single slash means any path
       break;
     }
-    if (len >= plen)
+    if (len > plen)
       continue;
-    if (path[len] == '/' && memcmp(p, path, len) == 0) {
+    if ((path[len] == '/' || path[len] == '\0') && memcmp(p, path, len) == 0) {
       found = i;
       break;
     }

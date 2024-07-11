@@ -5,9 +5,12 @@
 
 typedef int (*setattr_t)(const char *path, int attr);
 typedef int (*getattr_t)(const char *path);
+typedef int (*plist_idx_t)(const char *clist, const char *path);
 
-int fssvc_init(setattr_t settatr_cb, getattr_t getattr_cb);
+int fssvc_init(plist_idx_t plist_idx, setattr_t settatr_cb,
+    getattr_t getattr_cb);
 int fssvc_add_path(const char *path);
+int fssvc_add_path_list(const char *list);
 int fssvc_seal(void);
 int fssvc_open(int id, const char *path, int flags);
 int fssvc_creat(int id, const char *path, int flags, mode_t mode);

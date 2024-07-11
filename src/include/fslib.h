@@ -35,7 +35,8 @@ int mfs_stat_file(int mfs_idx, const char *path, struct stat *sb);
 int mfs_rename_file(int mfs_idx, const char *oldpath, const char *newpath);
 int mfs_access(int mfs_idx, const char *path, int mode);
 int mfs_utime(int mfs_idx, const char *fpath, time_t atime, time_t mtime);
-int fslib_init(setattr_t setattr_cb, getattr_t getattr_cb);
+void fslib_init(plist_idx_t plist_idx, setattr_t setattr_cb,
+    getattr_t getattr_cb);
 void fslib_seal(void);
 void fslib_done(void);
 int fslib_path_ok(int idx, const char *path);
