@@ -3366,8 +3366,8 @@ void* dlmemalign(size_t alignment, size_t bytes) {
 
 void** dlindependent_calloc(size_t n_elements, size_t elem_size,
                                  void* chunks[]) {
-  size_t sz = elem_size; /* serves as 1-element array */
-  return ialloc(gm, n_elements, &sz, 3, chunks);
+  size_t sz[1] = {elem_size,}; /* 1-element array */
+  return ialloc(gm, n_elements, sz, 3, chunks);
 }
 
 void** dlindependent_comalloc(size_t n_elements, size_t sizes[],
@@ -3775,13 +3775,13 @@ void* mspace_memalign(mspace msp, size_t alignment, size_t bytes) {
 
 void** mspace_independent_calloc(mspace msp, size_t n_elements,
                                  size_t elem_size, void* chunks[]) {
-  size_t sz = elem_size; /* serves as 1-element array */
+  size_t sz[1] = {elem_size,}; /* 1-element array */
   mstate ms = (mstate)msp;
   if (!ok_magic(ms)) {
     USAGE_ERROR_ACTION(ms,ms);
     return 0;
   }
-  return ialloc(ms, n_elements, &sz, 3, chunks);
+  return ialloc(ms, n_elements, sz, 3, chunks);
 }
 
 void** mspace_independent_comalloc(mspace msp, size_t n_elements,
