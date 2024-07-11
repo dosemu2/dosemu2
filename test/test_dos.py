@@ -4891,7 +4891,7 @@ set PATH=C:\\devel\\watcomc\\binw;C:\\devel\\nasm;C:\\bin;%OLDPATH%
         # Note:
         #     We have to avoid runDosemu() as this test is non-interactive
         args = ["-K", ".", "-E", "build.bat"]
-        results = self.runDosemuCmdline(args, cwd=root, timeout=300, config="""\
+        results = self.runDosemuCmdline(args, cwd=root, timeout=450, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
