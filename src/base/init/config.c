@@ -568,7 +568,7 @@ void move_dosemu_local_dir(void)
 static void move_dosemu_lib_dir(void)
 {
   char *old_cmd_path;
-  char *rp;
+  const char *rp;
   char buf[256];
 
   if (!dosemu_plugin_dir_path)
@@ -596,9 +596,9 @@ static void move_dosemu_lib_dir(void)
   keymap_load_base_path = assemble_path(dosemu_lib_dir_path, "");
 
   sprintf(buf, "%d", get_orig_uid());
-  rp = assemble_path(RUNDIR_PREFIX, buf);
-  dosemu_rundir_path = mkdir_under(rp, "dosemu2");
-  free(rp);
+  rp = getenv("XDG_RUNTIME_DIR");
+  if (rp && rp[0])
+    dosemu_rundir_path = mkdir_under(rp, "dosemu2");
   if (dosemu_rundir_path) {
     dosemu_midi_path = assemble_path(dosemu_rundir_path, DOSEMU_MIDI);
     dosemu_midi_in_path = assemble_path(dosemu_rundir_path, DOSEMU_MIDI_IN);
