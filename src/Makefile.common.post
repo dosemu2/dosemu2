@@ -80,12 +80,12 @@ $(GENOBJS): $(GENSRC)
 %.o: %.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
-%.o: %.s $(top_builddir)/src/include/version.hh
+%.o: %.s
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(XAS) $(XASFLAGS) -o $@
 
 VS = $(subst .,_,$(notdir $(1)))_START
 
-%.o: %.S $(top_builddir)/src/include/version.hh
+%.o: %.S
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(XAS) $(XASFLAGS) -o _$@
 	$(AS_LD) $(AS_LDFLAGS) -static $(if $($(call VS,$<)), \
 		--section-start .text=$($(call VS,$<))) -o $@.elf _$@

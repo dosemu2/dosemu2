@@ -11,7 +11,7 @@ all: lib
 include $(REALTOPDIR)/src/Makefile.common
 
 # to support parallel build, we need a separate .o and .elf for every gen target
-bios1.o: $(srcdir)/bios.S $(srcdir)/Makefile $(top_builddir)/src/include/version.hh
+bios1.o: $(srcdir)/bios.S $(srcdir)/Makefile
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(XAS) $(XASFLAGS) -o $@
 
 .INTERMEDIATE: bios1.o
