@@ -2,6 +2,7 @@
 #define FSSVC_H
 
 #include <fcntl.h>  // for mode_t
+#include <time.h>   // for time_t
 
 typedef int (*setattr_t)(const char *path, int attr);
 typedef int (*getattr_t)(const char *path);
