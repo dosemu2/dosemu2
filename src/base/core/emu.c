@@ -55,7 +55,6 @@
 #include <locale.h>
 #include <pthread.h>
 
-#include "version.h"
 #include "memory.h"
 
 #include "emu.h"
