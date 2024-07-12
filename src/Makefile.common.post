@@ -55,7 +55,6 @@ $(top_builddir)/src/include/version.hh: $(top_builddir)/Makefile.conf $(REALTOPD
 	echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
 	echo "#define	PATCHLEVEL1	\"$(PATCHLEVEL1)\"" >> $@; \
 	echo "#define	REVISION	$(REVISION)" >> $@; \
-	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
 	echo "#endif /* VERSION_H */" >> $@
 
 $(LIB): $(OBJS) $(GENOBJS) | $(BINPATH)/lib

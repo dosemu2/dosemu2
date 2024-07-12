@@ -453,7 +453,7 @@ static int dos_helper(int stk_offs, int revect)
 	}
 	if (config.quiet)
 	    break;
-	p_dos_str(PACKAGE_NAME " " VERSTR " Configured: " CONFIG_TIME "\n");
+	p_dos_str(PACKAGE_NAME " " VERSTR "\n");
 //	p_dos_str
 //	    ("Please test against a recent version before reporting bugs and problems.\n");
 	p_dos_str
