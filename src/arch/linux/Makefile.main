@@ -94,7 +94,7 @@ else
 endif
 
 $(BINPATH)/bin/dosemu: $(SRCPATH)/dosemu.systemwide $(SRCPATH)/dosemu \
-  $(REALTOPDIR)/Makefile.conf
+  $(top_builddir)/Makefile.conf
 	cp $< $@
 	echo >> $@
 	echo "LOCAL_BUILD_PATH=$(abs_top_builddir)" >> $@
