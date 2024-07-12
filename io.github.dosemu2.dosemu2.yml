@@ -1,5 +1,5 @@
 id: io.github.dosemu2.dosemu2
-runtime: org.freedesktop.Platform
+runtime: org.freedesktop.Sdk
 runtime-version: '23.08'
 sdk: org.freedesktop.Sdk
 sdk-extensions:
@@ -129,6 +129,36 @@ modules:
         branch: master
     cleanup:
       - '/include'
+  - name: libb64
+    buildsystem: simple
+    sources:
+      - type: git
+        url: https://github.com/libb64/libb64.git
+        branch: master
+    build-commands:
+      - make -j ${FLATPAK_BUILDER_N_JOBS} all_src
+      - cp -r include ${FLATPAK_DEST}
+      - cp src/libb64.a ${FLATPAK_DEST}/lib
+  - name: libcap-ng
+    buildsystem: autotools
+    sources:
+      - type: git
+        url: https://github.com/stevegrubb/libcap-ng.git
+        branch: master
+  - name: util-linux
+    buildsystem: meson
+    config-opts:
+      - -Dbuild-setpriv=enabled
+    sources:
+      - type: git
+        url: https://github.com/util-linux/util-linux.git
+        branch: master
+#  - name: sudo
+#    buildsystem: autotools
+#    sources:
+#      - type: git
+#        url: https://github.com/sudo-project/sudo.git
+#        branch: main
   - name: dosemu2
     buildsystem: autotools
     sources:
