@@ -1,0 +1,56 @@
+on:
+  push:
+
+name: Flatpack build
+
+jobs:
+  build:
+    name: "Flatpak"
+    runs-on: ubuntu-22.04
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:freedesktop-23.08
+      options: --privileged
+    steps:
+    - uses: actions/checkout@v4
+    - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+      name: Build
+      with:
+        bundle: dosemu2.flatpak
+        manifest-path: io.github.dosemu2.dosemu2.yml
+        cache-key: flatpak-builder-${{ github.sha }}
+    - uses: actions/checkout@v4
+      with:
+        ref: gh-pages
+        clean: false
+    - name: Index
+      run: |
+        mkdir -p pub/flatpak
+        cp -r repo pub/flatpak
+        cp dosemu2.flatpak pub/flatpak
+        cp -r images index.html javascripts params.json stylesheets pub
+
+    - name: Upload
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: pub
+
+  deploy:
+    # Add a dependency to the build job
+    needs: build
+
+    # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    # Specify runner + deployment step
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
