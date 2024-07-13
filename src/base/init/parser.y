@@ -1134,7 +1134,7 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| MUNT_ROMS string_expr
 			{
 				free(config.munt_roms_dir);
-				config.munt_roms_dir = concat_dir(dosemu_localdir_path, $2);
+				config.munt_roms_dir = expand_path($2);
 				free($2);
 			}
 		| OPL2LPT_DEV string_expr

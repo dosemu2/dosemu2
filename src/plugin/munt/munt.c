@@ -240,5 +240,6 @@ static const struct midi_out_plugin midomunt
 
 CONSTRUCTOR(static void midomunt_register(void))
 {
-    midi_register_output_plugin(&midomunt);
+    if (config.munt_roms_dir)
+        midi_register_output_plugin(&midomunt);
 }
