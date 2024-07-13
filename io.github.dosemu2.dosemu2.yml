@@ -180,8 +180,23 @@ modules:
         url: https://github.com/util-linux/util-linux.git
         branch: master
 
+  - name: shadow-utils
+    buildsystem: autotools
+    config-opts: [ '--with-libbsd=no' ]
+    sources:
+      - type: git
+        url: https://github.com/shadow-maint/shadow.git
+        branch: master
+      - type: script
+        commands: ['autoreconf -v -f --install "$(dirname "$0")" || exit 1',
+                   'echo "running configure"',
+                   './configure --without-libbsd'
+                  ]
+
   - name: dosemu2
     buildsystem: autotools
+    build-options:
+      append-path: /app/sbin
     sources:
       - type: dir
         path: .
