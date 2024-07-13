@@ -112,6 +112,10 @@ while [ $# -gt 0 ] ; do
     -s)
       SUFFIX="$SUFFIX \"$1\""
       shift
+      if [ -f "/.flatpak-info" ]; then
+        echo "Running under flatpak, -s unsupported"
+        exit 1
+      fi
       SUDO=sudo
       # no-new-privs is needed to bypass suid/sgid bits
       SUDOOPTS="-E --preserve-env=HOME,USER setpriv --no-new-privs"

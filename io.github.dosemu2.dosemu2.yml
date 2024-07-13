@@ -153,12 +153,6 @@ modules:
       - type: git
         url: https://github.com/util-linux/util-linux.git
         branch: master
-#  - name: sudo
-#    buildsystem: autotools
-#    sources:
-#      - type: git
-#        url: https://github.com/sudo-project/sudo.git
-#        branch: main
   - name: dosemu2
     buildsystem: autotools
     sources:
