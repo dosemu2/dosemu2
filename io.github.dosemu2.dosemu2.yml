@@ -5,6 +5,7 @@ sdk: org.freedesktop.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.llvm18
 command: dosemu
+
 modules:
   - name: nasm-segelf
     buildsystem: autotools
@@ -14,6 +15,7 @@ modules:
         branch: master
     cleanup:
       - '*'
+
   - name: thunk-gen
     buildsystem: meson
     sources:
@@ -22,6 +24,7 @@ modules:
         branch: main
     cleanup:
       - '*'
+
   - name: fdpp
     buildsystem: simple
     build-commands:
@@ -36,6 +39,7 @@ modules:
         branch: master
     cleanup:
       - '/include'
+
   - name: smallerc
     buildsystem: simple
     build-commands:
@@ -47,6 +51,7 @@ modules:
         branch: master
     cleanup:
       - '*'
+
   - name: djstub
     buildsystem: simple
     build-commands:
@@ -58,6 +63,7 @@ modules:
         branch: main
     cleanup:
       - '*'
+
   - name: ctags
     buildsystem: autotools
     sources:
@@ -66,6 +72,7 @@ modules:
         branch: master
     cleanup:
       - '*'
+
   - name: dj64dev
     buildsystem: simple
     build-commands:
@@ -78,6 +85,7 @@ modules:
     cleanup:
       - '/include'
       - '*.a'
+
   - name: comcom64
     buildsystem: simple
     build-commands:
@@ -87,6 +95,7 @@ modules:
       - type: git
         url: https://github.com/dosemu2/comcom64.git
         branch: master
+
   - name: jansson
     buildsystem: autotools
     sources:
@@ -97,6 +106,7 @@ modules:
         commands: ['autoreconf -v -i']
     cleanup:
       - '/include'
+
   - name: libsearpc
     buildsystem: autotools
     sources:
@@ -105,6 +115,7 @@ modules:
         branch: master
     cleanup:
       - '/include'
+
   - name: json-c
     buildsystem: cmake
     sources:
@@ -113,6 +124,7 @@ modules:
         branch: master
     cleanup:
       - '/include'
+
   - name: libslirp
     buildsystem: meson
     sources:
@@ -121,6 +133,7 @@ modules:
         branch: master
     cleanup:
       - '/include'
+
   - name: fluidsynth
     buildsystem: cmake
     sources:
@@ -129,6 +142,17 @@ modules:
         branch: master
     cleanup:
       - '/include'
+
+  - name: soundfont
+    buildsystem: simple
+    sources:
+      - type: git
+        url: https://github.com/TheGammaSqueeze/jelos_generaluser-gs.git
+        branch: main
+    build-commands:
+      - mkdir -p ${FLATPAK_DEST}/share/soundfonts
+      - cp "GeneralUser GS v1.471.sf2" ${FLATPAK_DEST}/share/soundfonts/default.sf2
+
   - name: libb64
     buildsystem: simple
     sources:
@@ -139,12 +163,14 @@ modules:
       - make -j ${FLATPAK_BUILDER_N_JOBS} all_src
       - cp -r include ${FLATPAK_DEST}
       - cp src/libb64.a ${FLATPAK_DEST}/lib
+
   - name: libcap-ng
     buildsystem: autotools
     sources:
       - type: git
         url: https://github.com/stevegrubb/libcap-ng.git
         branch: master
+
   - name: util-linux
     buildsystem: meson
     config-opts:
@@ -153,12 +179,13 @@ modules:
       - type: git
         url: https://github.com/util-linux/util-linux.git
         branch: master
+
   - name: dosemu2
     buildsystem: autotools
     sources:
-      - type: git
-        url: https://github.com/dosemu2/dosemu2.git
-        branch: devel
+      - type: dir
+        path: .
+
 finish-args:
   - --socket=wayland
   - --socket=x11

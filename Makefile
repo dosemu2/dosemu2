@@ -108,7 +108,7 @@ pristine distclean mrproper:  Makefile.conf docsclean
 tar: distclean
 	VERSION=`cat VERSION` && cd .. && tar czvf dosemu-$$VERSION.tgz dosemu-$$VERSION
 
-flatpak-build:
+flatpak-build: clean
 	flatpak-builder --ccache --force-clean --user --repo=repo \
 	  --install builddir io.github.dosemu2.dosemu2.yml
 
