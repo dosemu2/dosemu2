@@ -164,35 +164,6 @@ modules:
       - cp -r include ${FLATPAK_DEST}
       - cp src/libb64.a ${FLATPAK_DEST}/lib
 
-  - name: libcap-ng
-    buildsystem: autotools
-    sources:
-      - type: git
-        url: https://github.com/stevegrubb/libcap-ng.git
-        branch: master
-
-  - name: util-linux
-    buildsystem: meson
-    config-opts:
-      - -Dbuild-setpriv=enabled
-    sources:
-      - type: git
-        url: https://github.com/util-linux/util-linux.git
-        branch: master
-
-  - name: shadow-utils
-    buildsystem: autotools
-    config-opts: [ '--with-libbsd=no' ]
-    sources:
-      - type: git
-        url: https://github.com/shadow-maint/shadow.git
-        branch: master
-      - type: script
-        commands: ['autoreconf -v -f --install "$(dirname "$0")" || exit 1',
-                   'echo "running configure"',
-                   './configure --without-libbsd'
-                  ]
-
   - name: dosemu2
     buildsystem: autotools
     build-options:

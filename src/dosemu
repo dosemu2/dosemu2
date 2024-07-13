@@ -32,6 +32,9 @@ THISDIR="$PWD"
 ARG0="$0"
 
 unset STRING_I SUDO SUDOOPTS OPTS
+if [ -f "/.flatpak-info" ]; then
+  UNDER_FLATPAK=1
+fi
 
 mkdir -p ~/.dosemu
 
@@ -112,7 +115,7 @@ while [ $# -gt 0 ] ; do
     -s)
       SUFFIX="$SUFFIX \"$1\""
       shift
-      if [ -f "/.flatpak-info" ]; then
+      if [ -n "$UNDER_FLATPAK" ]; then
         echo "Running under flatpak, -s unsupported"
         exit 1
       fi
@@ -124,6 +127,10 @@ while [ $# -gt 0 ] ; do
       ;;
     -no-priv-sep)
       shift
+      if [ -n "$UNDER_FLATPAK" ]; then
+        echo "Running under flatpak, priv separation unsupported"
+        exit 1
+      fi
       SUDO=setpriv
       # no-new-privs is needed to bypass suid/sgid bits
       SUDOOPTS="--no-new-privs"
