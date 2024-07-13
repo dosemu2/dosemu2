@@ -242,4 +242,6 @@ CONSTRUCTOR(static void midomunt_register(void))
 {
     if (config.munt_roms_dir)
         midi_register_output_plugin(&midomunt);
+    else
+        warn("munt: not starting as roms not found\n");
 }

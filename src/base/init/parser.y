@@ -1135,6 +1135,9 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 			{
 				free(config.munt_roms_dir);
 				config.munt_roms_dir = expand_path($2);
+				if (!config.munt_roms_dir)
+					warn("$_munt_roms %s does not exist\n",
+							$2);
 				free($2);
 			}
 		| OPL2LPT_DEV string_expr
