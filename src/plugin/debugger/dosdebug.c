@@ -31,7 +31,6 @@
 #include "dosemu_config.h"
 
 #define    TMPFILE_VAR		"%s/dosemu2/dosemu."
-#define    TMPFILE_HOME		".dosemu/run/dosemu."
 
 #define MHP_BUFFERSIZE 8192
 
@@ -455,27 +454,15 @@ int main (int argc, char **argv)
 {
   fd_set readfds;
   int numfds, dospid, ret;
-  char *home_p;
   char *pipename_in, *pipename_out;
   struct timeval timeout;
   const char *rp = getenv("XDG_RUNTIME_DIR");
 
   FD_ZERO(&readfds);
 
-  home_p = getenv("HOME");
-
   if (!argv[1]) {
     dospid = -1;
-    if (home_p) {
-      char *dosemu_tmpfile_pat;
-
-      ret = asprintf(&dosemu_tmpfile_pat, "%s/" TMPFILE_HOME "dbgin.", home_p);
-      assert(ret != -1);
-
-      dospid=find_dosemu_pid(dosemu_tmpfile_pat, 1);
-      free(dosemu_tmpfile_pat);
-    }
-    if (dospid == -1 && rp && rp[0]) {
+    if (rp && rp[0]) {
       char fname[256];
       snprintf(fname, sizeof(fname), TMPFILE_VAR "dbgin.", rp);
       dospid = find_dosemu_pid(fname, 0);
@@ -490,20 +477,7 @@ int main (int argc, char **argv)
 
   /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
   fddbgout = -1;
-  if (home_p) {
-    ret = asprintf(&pipename_in, "%s/%sdbgin.%d", home_p, TMPFILE_HOME, dospid);
-    assert(ret != -1);
-
-    ret = asprintf(&pipename_out, "%s/%sdbgout.%d", home_p, TMPFILE_HOME, dospid);
-    assert(ret != -1);
-
-    fddbgout = open(pipename_in, O_WRONLY | O_NONBLOCK | O_CLOEXEC);
-    if (fddbgout == -1) {
-      free(pipename_in);
-      free(pipename_out);
-    }
-  }
-  if (fddbgout == -1 && rp && rp[0]) {
+  if (rp && rp[0]) {
     /* if we cannot open pipe and we were trying $HOME/.dosemu/run directory,
        try with /var/run/dosemu directory */
     ret = asprintf(&pipename_in, TMPFILE_VAR "dbgin.%d", rp, dospid);
