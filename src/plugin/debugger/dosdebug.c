@@ -45,14 +45,12 @@ int fdconin, fddbgin, fddbgout;
 FILE *fpconout;
 static int running;
 
-static int check_pid(int pid);
-
 static int find_dosemu_pid(const char *tmpfile, int local)
 {
   DIR *dir;
   struct dirent *p;
   char *dn, *id;
-  int i,j,pid=-1;
+  int i, j, pid = 0;
   static int once =1;
 
   dn = strdup(tmpfile);
@@ -75,10 +73,13 @@ static int find_dosemu_pid(const char *tmpfile, int local)
   }
   i = 0;
   while((p = readdir(dir))) {
-
     if(!strncmp(id,p->d_name,j) && p->d_name[j] >= '0' && p->d_name[j] <= '9') {
+      int fd = open(p->d_name, O_WRONLY | O_NONBLOCK);
+      if (fd == -1)
+        continue;  // no reader on that fifo
+      close(fd);
       pid = strtol(p->d_name + j, 0, 0);
-      if(check_pid(pid)) {
+      if (pid) {
         if(once && i++ == 1) {
           fprintf(stderr,
             "Multiple dosemu processes running or stalled files in %s\n"
@@ -105,27 +106,6 @@ static int find_dosemu_pid(const char *tmpfile, int local)
   }
 
   return pid;
-}
-
-static int check_pid(int pid)
-{
-  int fd, num;
-  char buf[32], name[128];
-
-  snprintf(name, sizeof(name), "/proc/%d/stat", pid);
-
-  if ((fd = open(name, O_RDONLY)) == -1)
-    return 0;
-
-  num = read(fd, buf, sizeof(buf) - 1);
-  if (num <= 0) {
-    close(fd);
-    return 0;
-  }
-  buf[num] = '\0';
-
-  close(fd);
-  return strstr(buf, "dos") ? 1 : 0;
 }
 
 typedef int localfunc_t(char *);
@@ -469,11 +449,6 @@ int main (int argc, char **argv)
     }
   }
   else dospid=strtol(argv[1], 0, 0);
-
-  if (!check_pid(dospid)) {
-    fprintf(stderr, "no dosemu running on pid %d\n", dospid);
-    exit(1);
-  }
 
   /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
   fddbgout = -1;
