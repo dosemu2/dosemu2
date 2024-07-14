@@ -117,5 +117,8 @@ static const struct midi_out_plugin midopipe
 
 CONSTRUCTOR(static void midopipe_register(void))
 {
-    midi_register_output_plugin(&midopipe);
+    if (dosemu_midi_path && dosemu_midi_in_path)
+        midi_register_output_plugin(&midopipe);
+    else
+        warn("not enabling midi pipe\n");
 }
