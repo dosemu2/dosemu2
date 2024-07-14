@@ -5339,7 +5339,6 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         ]
         cls.actions = {
             "test_fat32_img_d_writable": UNSUPPORTED,
-            "test_freecom_build": KNOWNFAIL,
             "test_lfn_volume_info_fat16": KNOWNFAIL,
             "test_lfn_volume_info_fat32": UNSUPPORTED,
             "test_lfs_disk_info_fat32": UNSUPPORTED,
