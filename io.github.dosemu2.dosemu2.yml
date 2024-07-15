@@ -177,7 +177,6 @@ finish-args:
   - --socket=x11
   - --socket=pulseaudio
   - --filesystem=home
-  - --filesystem=/tmp
   - --filesystem=/run/user
   - --device=kvm
   - --device=dri
