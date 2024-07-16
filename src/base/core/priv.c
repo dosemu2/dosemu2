@@ -307,10 +307,13 @@ static int (*grsg)(gid_t *rgid, gid_t *egid, gid_t *sgid);
 
 int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid)
 {
+  int ret = -1;
   if (!grsg)
     grsg = dlsym(RTLD_NEXT, "getresgid");
   if (grsg)
-    grsg(rgid, egid, sgid);
+    ret = grsg(rgid, egid, sgid);
+  if (!running_suid_orig())
+    return ret;
   dbug_printf("%s\n", __FUNCTION__);
   errno = ENOSYS;
   return -1;
