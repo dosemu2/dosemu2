@@ -841,7 +841,7 @@ void mfs_priv_init(void)
 void mfs_post_config(void)
 {
   if (config.lredir_paths)
-    fssvc_add_path_list(config.lredir_paths);
+    fslib_add_path_list(config.lredir_paths);
   fslib_seal();
 }
 

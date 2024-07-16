@@ -16,133 +16,129 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 #include <assert.h>
-#include <unistd.h>
-#include "fssvc.h"
+#include "fslib_ops.h"
 #include "fslib.h"
 
+static const struct fslib_ops *fssvc;
 static int num_def_drives;
 
 int mfs_define_drive(const char *path)
 {
   int ret;
 
-  ret = fssvc_add_path(path);
+  ret = fssvc->add_path(path);
   if (ret == -1)
     return ret;
   return ret + 1;
 }
 
+int fslib_add_path_list(const char *list)
+{
+  return fssvc->add_path_list(list);
+}
+
 int mfs_open_file(int mfs_idx, const char *path, int flags)
 {
   assert(mfs_idx);
-  return fssvc_open(mfs_idx - 1, path, flags);
+  return fssvc->open(mfs_idx - 1, path, flags);
 }
 
 int mfs_create_file(int mfs_idx, const char *path, int flags, mode_t mode)
 {
   assert(mfs_idx);
-  return fssvc_creat(mfs_idx - 1, path, flags, mode);
+  return fssvc->create(mfs_idx - 1, path, flags, mode);
 }
 
 int mfs_unlink_file(int mfs_idx, const char *path)
 {
   assert(mfs_idx);
-  return fssvc_unlink(mfs_idx - 1, path);
+  return fssvc->unlink(mfs_idx - 1, path);
 }
 
 int mfs_setxattr_file(int mfs_idx, const char *path, int attr)
 {
   assert(mfs_idx);
-  return fssvc_setxattr(mfs_idx - 1, path, attr);
+  return fssvc->setxattr(mfs_idx - 1, path, attr);
 }
 
 int mfs_getxattr_file(int mfs_idx, const char *path)
 {
   assert(mfs_idx);
-  return fssvc_getxattr(mfs_idx - 1, path);
+  return fssvc->getxattr(mfs_idx - 1, path);
 }
 
 int mfs_rename_file(int mfs_idx, const char *oldpath, const char *newpath)
 {
   assert(mfs_idx);
-  return fssvc_rename(mfs_idx - 1, oldpath, mfs_idx - 1, newpath);
+  return fssvc->rename(mfs_idx - 1, oldpath, mfs_idx - 1, newpath);
 }
 
 int mfs_mkdir(int mfs_idx, const char *path, mode_t mode)
 {
   assert(mfs_idx);
-  return fssvc_mkdir(mfs_idx - 1, path, mode);
+  return fssvc->mkdir(mfs_idx - 1, path, mode);
 }
 
 int mfs_rmdir(int mfs_idx, const char *path)
 {
   assert(mfs_idx);
-  return fssvc_rmdir(mfs_idx - 1, path);
+  return fssvc->rmdir(mfs_idx - 1, path);
 }
 
 int mfs_stat_file(int mfs_idx, const char *path, struct stat *sb)
 {
-  int err;
-  int fd = mfs_open_file(mfs_idx, path, O_RDONLY);
-  if (fd == -1)
-    return -1;
-  err = fstat(fd, sb);
-  close(fd);
-  return err;
+  assert(mfs_idx);
+  return fssvc->stat(mfs_idx - 1, path, sb);
 }
 
 int do_mfs_statvfs(int mfs_idx, const char *path, struct statvfs *sb)
 {
-  int err;
-  int fd = mfs_open_file(mfs_idx, path, O_RDONLY);
-  if (fd == -1)
-    return -1;
-  err = fstatvfs(fd, sb);
-  close(fd);
-  return err;
+  assert(mfs_idx);
+  return fssvc->statvfs(mfs_idx - 1, path, sb);
 }
 
 int mfs_access(int mfs_idx, const char *path, int mode)
 {
-  int o_mode = (mode == F_OK || mode == R_OK || mode == X_OK) ?
-      O_RDONLY : O_WRONLY;
-  int fd = mfs_open_file(mfs_idx, path, o_mode);
-  if (fd == -1)
-    return -1;
-  close(fd);
-  return 0;
+  assert(mfs_idx);
+  return fssvc->access(mfs_idx - 1, path, mode);
 }
 
 int mfs_utime(int mfs_idx, const char *fpath, time_t atime, time_t mtime)
 {
   assert(mfs_idx);
-  return fssvc_utime(mfs_idx - 1, fpath, atime, mtime);
+  return fssvc->utime(mfs_idx - 1, fpath, atime, mtime);
 }
 
 void fslib_init(plist_idx_t plist_idx, setattr_t setattr_cb,
     getattr_t getattr_cb)
 {
-  int err = fssvc_init(plist_idx, setattr_cb, getattr_cb);
+  int err = fssvc->init(plist_idx, setattr_cb, getattr_cb);
   assert(!err);
 }
 
 void fslib_seal(void)
 {
-  num_def_drives = fssvc_seal();
+  num_def_drives = fssvc->seal();
   assert(num_def_drives != -1);
 }
 
 void fslib_done(void)
 {
-  fssvc_exit();
+  fssvc->exit();
 }
 
 int fslib_path_ok(int idx, const char *path)
 {
-  return fssvc_path_ok(idx, path);
+  return fssvc->path_ok(idx, path);
 }
 
 int fslib_num_drives(void)
 {
   return num_def_drives;
+}
+
+void fslib_register_ops(const struct fslib_ops *ops)
+{
+  assert(!fssvc);
+  fssvc = ops;
 }

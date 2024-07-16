@@ -27,6 +27,7 @@
 #include "emu.h"
 #include "fsrpcdefs.h"
 #include "fssvc.h"
+#include "fssvc_priv.h"
 
 static SearpcClient *clnt;
 static int sock_rx;

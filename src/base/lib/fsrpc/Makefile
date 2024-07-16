@@ -9,7 +9,7 @@ include $(top_builddir)/Makefile.conf
 ALL_CFLAGS += -Wno-strict-prototypes
 ALL_CPPFLAGS += -I.
 
-CFILES = test-object.c fsrpc_srv.c fssvc.c fslib.c
+CFILES = test-object.c fsrpc_srv.c fssvc.c fslib_be.c
 GEN_H = searpc-signature.h searpc-marshal.h
 
 include $(REALTOPDIR)/src/Makefile.common
@@ -19,7 +19,6 @@ all: lib
 
 clean::
 	$(RM) $(GENCFILES) $(GEN_H)
-	$(RM) $(GEN_H)
 
 fsrpc_srv.o: fsrpc_srv.c $(GEN_H)
 
