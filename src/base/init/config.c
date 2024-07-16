@@ -683,6 +683,13 @@ void secure_option_preparse(int *argc, char **argv)
 
   do {
     cnt = 0;
+
+    opt = get_option("--Ffs_backend", 1, argc, argv);
+    if (opt) {
+      free(config.fs_backend);
+      config.fs_backend = opt;
+    }
+
     opt = get_option("--Flibdir", 1, argc, argv);
     if (opt && opt[0]) {
       char *opt1 = path_expand(opt);

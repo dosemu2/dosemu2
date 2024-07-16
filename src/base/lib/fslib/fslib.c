@@ -15,7 +15,9 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#include <string.h>
 #include <assert.h>
+#include "emu.h"
 #include "fslib_ops.h"
 #include "fslib.h"
 
@@ -112,7 +114,11 @@ int mfs_utime(int mfs_idx, const char *fpath, time_t atime, time_t mtime)
 void fslib_init(plist_idx_t plist_idx, setattr_t setattr_cb,
     getattr_t getattr_cb)
 {
-  int err = fssvc->init(plist_idx, setattr_cb, getattr_cb);
+  int err;
+
+  fsrpc_init();
+  fslocal_init();
+  err = fssvc->init(plist_idx, setattr_cb, getattr_cb);
   assert(!err);
 }
 
@@ -137,8 +143,13 @@ int fslib_num_drives(void)
   return num_def_drives;
 }
 
+static const char *def_name = "rpc";
+
 void fslib_register_ops(const struct fslib_ops *ops)
 {
+  const char *expect = (config.fs_backend ?: def_name);
+  if (strcmp(ops->name, expect) != 0)
+    return;
   assert(!fssvc);
   fssvc = ops;
 }

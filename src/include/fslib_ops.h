@@ -43,8 +43,12 @@ struct fslib_ops {
   int (*seal)(void);
   int (*exit)(void);
   int (*path_ok)(int idx, const char *path);
+  const char *name;
 };
 
 void fslib_register_ops(const struct fslib_ops *ops);
+
+void fsrpc_init(void);
+void fslocal_init(void);
 
 #endif

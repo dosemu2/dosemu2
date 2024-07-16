@@ -7,7 +7,7 @@
 top_builddir=../../../..
 include $(top_builddir)/Makefile.conf
 
-CFILES = fslib.c
+CFILES = fslib.c fslib_local.c
 
 include $(REALTOPDIR)/src/Makefile.common
 

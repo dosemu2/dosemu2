@@ -359,6 +359,7 @@ typedef struct config_info {
 
         char *unix_exec;
         char *lredir_paths;
+        char *fs_backend;
 
         char *opl2lpt_device;
         int opl2lpt_type;
