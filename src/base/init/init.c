@@ -438,12 +438,14 @@ void map_memory_space(void)
   if (config.dpmi) {
     register_hardware_ram_virtual('U', DOSADDR_REL(ptr2), phys_rsv,
 	    LOWMEM_SIZE + HMASIZE);
-    /* create ext_mem alias for dpmi */
-    result = alias_mapping(MAPPING_EXTMEM, DOSADDR_REL(ptr2),
+    if (EXTMEM_SIZE > HMASIZE) {  // <HMASIZE means disabled, by not 0
+      /* create ext_mem alias for dpmi */
+      result = alias_mapping(MAPPING_EXTMEM, DOSADDR_REL(ptr2),
 			 EXTMEM_SIZE - HMASIZE,
 			 PROT_READ | PROT_WRITE,
 			 lowmem + LOWMEM_SIZE + HMASIZE);
-    assert(result != -1);
+      assert(result != -1);
+    }
   }
 
   /* R/O protect 0xf0000-0xf4000 */
