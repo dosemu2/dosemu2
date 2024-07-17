@@ -92,6 +92,11 @@ int emm_map_unmap_multi(cpuctx_t *scp, int is_32, const u_short *array,
 int emm_get_mpa_len(cpuctx_t *scp, int is_32)
 {
   __dpmi_regs regs = {0};
+  __dpmi_raddr vec = {0};
+
+  _dpmi_get_real_mode_interrupt_vector(scp, is_32, EMM_INT, &vec);
+  if (!vec.segment && !vec.offset16)  // avoid crash
+    return -1;
   regs.h.ah = GET_MPA_ARRAY;
   regs.h.al = 1;
   _dpmi_simulate_real_mode_interrupt(scp, is_32, EMM_INT, &regs);
