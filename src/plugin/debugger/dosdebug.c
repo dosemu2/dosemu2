@@ -74,7 +74,7 @@ static int find_dosemu_pid(const char *tmpfile, int local)
   i = 0;
   while((p = readdir(dir))) {
     if(!strncmp(id,p->d_name,j) && p->d_name[j] >= '0' && p->d_name[j] <= '9') {
-      int fd = open(p->d_name, O_WRONLY | O_NONBLOCK);
+      int fd = openat(dirfd(dir), p->d_name, O_WRONLY | O_NONBLOCK);
       if (fd == -1)
         continue;  // no reader on that fifo
       close(fd);
