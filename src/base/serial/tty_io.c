@@ -696,6 +696,10 @@ static int tty_open(com_t *c)
 
   if (c->cfg->virt) {
     c->fd = dup(STDIN_FILENO);
+    fcntl(c->fd, F_SETFL, O_NONBLOCK);
+    RPT_SYSCALL(tcgetattr(c->fd, &c->oldset));
+    ser_set_params(c);
+    add_to_io_select(c->fd, async_serial_run, (void *)c);
   } else {
     err = access(c->cfg->dev, F_OK);
     if (!err) {
@@ -762,6 +766,8 @@ static int tty_close(com_t *c)
     RPT_SYSCALL(tcgetattr(c->fd, &c->newset));
     RPT_SYSCALL(tcsetattr(c->fd, TCSANOW, &c->oldset));
   }
+  if (c->cfg->virt)
+    fcntl(c->fd, F_SETFL, 0);  // applies to stdin from which we dup()'ed
   ret = RPT_SYSCALL(close(c->fd));
   c->fd = -1;
 
