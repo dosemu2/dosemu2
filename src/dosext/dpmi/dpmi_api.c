@@ -298,52 +298,149 @@ int _dpmi_resize_dos_memory(cpuctx_t *scp, int is_32, int _selector, int _newpar
 
 int _dpmi_get_real_mode_interrupt_vector(cpuctx_t *scp, int is_32, int _vector, __dpmi_raddr *_address)
 {		/* DPMI 0.9 AX=0200 */
+    cpuctx_t sa = *scp;
+    _eax = 0x200;
+    _ebx = _vector;
+    do_dpmi_callf(scp, is_32);
+    _address->segment = _LWORD(ecx);
+    _address->offset16 = _LWORD(edx);
+    *scp = sa;
     return 0;
 }
 
 int _dpmi_set_real_mode_interrupt_vector(cpuctx_t *scp, int is_32, int _vector, __dpmi_raddr *_address)
 {		/* DPMI 0.9 AX=0201 */
+    cpuctx_t sa = *scp;
+    _eax = 0x201;
+    _ebx = _vector;
+    _ecx = _address->segment;
+    _edx = _address->offset16;
+    do_dpmi_callf(scp, is_32);
+    *scp = sa;
     return 0;
 }
 
 int _dpmi_get_processor_exception_handler_vector(cpuctx_t *scp, int is_32, int _vector, __dpmi_paddr *_address)
 {	/* DPMI 0.9 AX=0202 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x202;
+    _ebx = _vector;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF) {
+        ret = -1;
+    } else {
+        _address->selector = _LWORD(ecx);
+        _address->offset32 = is_32 ? _edx : _LWORD(edx);
+    }
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_set_processor_exception_handler_vector(cpuctx_t *scp, int is_32, int _vector, __dpmi_paddr *_address)
 {	/* DPMI 0.9 AX=0203 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x203;
+    _ebx = _vector;
+    _ecx = _address->selector;
+    _edx = _address->offset32;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_protected_mode_interrupt_vector(cpuctx_t *scp, int is_32, int _vector, __dpmi_paddr *_address)
 {	/* DPMI 0.9 AX=0204 */
+    cpuctx_t sa = *scp;
+    _eax = 0x204;
+    _ebx = _vector;
+    do_dpmi_callf(scp, is_32);
+    _address->selector = _LWORD(ecx);
+    _address->offset32 = is_32 ? _edx : _LWORD(edx);
+    *scp = sa;
     return 0;
 }
 
 int _dpmi_set_protected_mode_interrupt_vector(cpuctx_t *scp, int is_32, int _vector, __dpmi_paddr *_address)
 {	/* DPMI 0.9 AX=0205 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x205;
+    _ebx = _vector;
+    _ecx = _address->selector;
+    _edx = _address->offset32;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_extended_exception_handler_vector_pm(cpuctx_t *scp, int is_32, int _vector, __dpmi_paddr *_address)
 {	/* DPMI 1.0 AX=0210 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x210;
+    _ebx = _vector;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF) {
+        ret = -1;
+    } else {
+        _address->selector = _LWORD(ecx);
+        _address->offset32 = is_32 ? _edx : _LWORD(edx);
+    }
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_get_extended_exception_handler_vector_rm(cpuctx_t *scp, int is_32, int _vector, __dpmi_paddr *_address)
 {	/* DPMI 1.0 AX=0211 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x211;
+    _ebx = _vector;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF) {
+        ret = -1;
+    } else {
+        _address->selector = _LWORD(ecx);
+        _address->offset32 = is_32 ? _edx : _LWORD(edx);
+    }
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_set_extended_exception_handler_vector_pm(cpuctx_t *scp, int is_32, int _vector, __dpmi_paddr *_address)
 {	/* DPMI 1.0 AX=0212 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x212;
+    _ebx = _vector;
+    _ecx = _address->selector;
+    _edx = _address->offset32;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_set_extended_exception_handler_vector_rm(cpuctx_t *scp, int is_32, int _vector, __dpmi_paddr *_address)
 {	/* DPMI 1.0 AX=0213 */
-    return 0;
+    cpuctx_t sa = *scp;
+    int ret = 0;
+    _eax = 0x213;
+    _ebx = _vector;
+    _ecx = _address->selector;
+    _edx = _address->offset32;
+    do_dpmi_callf(scp, is_32);
+    if (_eflags & CF)
+        ret = -1;
+    *scp = sa;
+    return ret;
 }
 
 int _dpmi_simulate_real_mode_interrupt(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
