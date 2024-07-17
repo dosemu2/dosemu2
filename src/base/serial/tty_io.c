@@ -553,7 +553,6 @@ static int ser_open_existing(com_t *c)
 
   if (!c->is_file) {
     RPT_SYSCALL(tcgetattr(c->fd, &c->oldset));
-    RPT_SYSCALL(tcgetattr(c->fd, &c->newset));
 #if 0
     if (c->cfg->low_latency) {
       struct serial_struct ser_info;
