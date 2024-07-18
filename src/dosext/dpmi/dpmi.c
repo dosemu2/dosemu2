@@ -3898,9 +3898,7 @@ static void do_dpmi_int(cpuctx_t *scp, int i)
           return;
         case 0x168a:
           get_ext_API(scp);
-          if (!(_eflags & CF))
-            return;
-          break;
+          return;
       }
       break;
     case 0x31:
