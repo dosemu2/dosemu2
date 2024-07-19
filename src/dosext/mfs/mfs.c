@@ -840,16 +840,20 @@ void mfs_priv_init(void)
 
 void mfs_post_config(void)
 {
-  char *pl = config.lredir_paths;
+  char *pl = NULL;
   struct disk *dp;
 
+  if (config.lredir_paths)
+    pl = strdup(config.lredir_paths);
   for (dp = disktab; dp < disktab + config.fdisks; dp++) {
     if (dp->type == IMAGE)
       pl = concat_strings(pl, " ", dp->dev_name);
   }
 
-  if (pl)
+  if (pl) {
     fslib_add_path_list(pl);
+    free(pl);
+  }
   fslib_seal();
 }
 
