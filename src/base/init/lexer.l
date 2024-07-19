@@ -248,7 +248,6 @@ no			RETURN(L_NO);
 "&&"			RETURN(L_AND_OP);
 "&"			RETURN(AND_OP);
 "||"			RETURN(L_OR_OP);
-"~"			RETURN(BIT_NOT_OP);
 "eq"			RETURN(STR_EQ_OP);
 "ne"			RETURN(STR_NEQ_OP);
 
