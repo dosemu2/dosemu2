@@ -35,6 +35,7 @@
 #include "dos2linux.h"
 #include "redirect.h"
 #include "cpu-emu.h"
+#include "fslib.h"
 
 static uint8_t mbr_boot_code[] = {
   /*
@@ -1067,9 +1068,16 @@ disk_open(struct disk *dp)
   if (dp == NULL || dp->fdesc >= 0)
     return;
 
-  dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ?
+  if (dp->type == IMAGE) {
+    dp->fdesc = mfs_open_file(dp->mfs_idx, dp->dev_name,
+      (dp->rdonly ? O_RDONLY : O_RDWR) | O_CLOEXEC);
+    if (dp->fdesc == -1)
+      error("failed to open %s: %s\n", dp->dev_name, strerror(errno));
+  } else {
+    dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ?
       "/dev/null" : dp->dev_name, (dp->rdonly ? O_RDONLY :
       O_RDWR) | O_CLOEXEC));
+  }
   if (dp->type == IMAGE || dp->type == DIR_TYPE)
     return;
 

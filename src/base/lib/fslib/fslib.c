@@ -41,73 +41,61 @@ int fslib_add_path_list(const char *list)
 
 int mfs_open_file(int mfs_idx, const char *path, int flags)
 {
-  assert(mfs_idx);
   return fssvc->open(mfs_idx - 1, path, flags);
 }
 
 int mfs_create_file(int mfs_idx, const char *path, int flags, mode_t mode)
 {
-  assert(mfs_idx);
   return fssvc->create(mfs_idx - 1, path, flags, mode);
 }
 
 int mfs_unlink_file(int mfs_idx, const char *path)
 {
-  assert(mfs_idx);
   return fssvc->unlink(mfs_idx - 1, path);
 }
 
 int mfs_setxattr_file(int mfs_idx, const char *path, int attr)
 {
-  assert(mfs_idx);
   return fssvc->setxattr(mfs_idx - 1, path, attr);
 }
 
 int mfs_getxattr_file(int mfs_idx, const char *path)
 {
-  assert(mfs_idx);
   return fssvc->getxattr(mfs_idx - 1, path);
 }
 
 int mfs_rename_file(int mfs_idx, const char *oldpath, const char *newpath)
 {
-  assert(mfs_idx);
   return fssvc->rename(mfs_idx - 1, oldpath, mfs_idx - 1, newpath);
 }
 
 int mfs_mkdir(int mfs_idx, const char *path, mode_t mode)
 {
-  assert(mfs_idx);
   return fssvc->mkdir(mfs_idx - 1, path, mode);
 }
 
 int mfs_rmdir(int mfs_idx, const char *path)
 {
-  assert(mfs_idx);
   return fssvc->rmdir(mfs_idx - 1, path);
 }
 
 int mfs_stat_file(int mfs_idx, const char *path, struct stat *sb)
 {
-  assert(mfs_idx);
   return fssvc->stat(mfs_idx - 1, path, sb);
 }
 
 int do_mfs_statvfs(int mfs_idx, const char *path, struct statvfs *sb)
 {
-  assert(mfs_idx);
   return fssvc->statvfs(mfs_idx - 1, path, sb);
 }
 
 int mfs_access(int mfs_idx, const char *path, int mode)
 {
-  assert(mfs_idx);
   return fssvc->access(mfs_idx - 1, path, mode);
 }
 
 int mfs_utime(int mfs_idx, const char *fpath, time_t atime, time_t mtime)
 {
-  assert(mfs_idx);
   return fssvc->utime(mfs_idx - 1, fpath, atime, mtime);
 }
 

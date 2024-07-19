@@ -116,6 +116,8 @@ static int path_ok(int idx, const char *path)
     int len;
 
     CHK(sealed);
+    if (idx < 0)
+        return (plist && plist_idx_cb(plist, path) != -1);
     if (idx >= num_paths)
         return (plist && plist_idx_cb(plist, path) + num_paths == idx);
     len = strlen(paths[idx]);

@@ -1214,3 +1214,15 @@ int mktmp_in(const char *dir_tmpl, const char *fname, mode_t mode,
   free(p);
   return fd;
 }
+
+char *concat_strings(char *dst, const char *pref, const char *suff)
+{
+  char *ret = malloc((dst ? strlen(dst) : 0) + strlen(pref) + strlen(suff) + 1);
+  assert(ret);
+  strcpy(ret, dst);
+  if (pref[0] != '\0')
+    strcat(ret, pref);
+  strcat(ret, suff);
+  free(dst);
+  return ret;
+}

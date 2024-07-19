@@ -25,6 +25,7 @@ int tempname(char *tmpl, size_t x_suffix_len);
 char *assemble_path(const char *dir, const char *file);
 char *expand_path(const char *dir);
 char *concat_dir(const char *s1, const char *s2);
+char *concat_strings(char *dst, const char *pref, const char *suff);
 char *mkdir_under(const char *basedir, const char *dir);
 int unlink_under(const char *dir, const char *fname);
 int closedir_under(const char *dir);
