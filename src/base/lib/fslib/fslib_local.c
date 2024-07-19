@@ -68,6 +68,8 @@ static int path_ok(int idx, const char *path)
   int len;
 
   assert(sealed);
+  if (idx < 0)
+    return (plist && plist_idx_cb(plist, path) != -1);
   if (idx >= num_def_drives)
     return (plist && plist_idx_cb(plist, path) + num_def_drives == idx);
   assert(def_drives[idx]);
