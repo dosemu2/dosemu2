@@ -72,6 +72,8 @@ static int disks_initiated = 0;
 struct disk disktab[MAX_FDISKS];
 struct disk hdisktab[MAX_HDISKS];
 
+static void disk_reset2(void);
+
 #define FDISKS config.fdisks
 #define HDISKS config.hdisks
 
@@ -1226,6 +1228,8 @@ disk_init(void)
     dp->floppy = 0;
     dp->serial = 0x4ADD1B0A + dp->drive_num;	// sernum must be unique!
   }
+
+  disk_reset2();
 }
 
 static void disk_reset2(void)
@@ -1315,8 +1319,6 @@ void disk_reset(void)
   struct disk *dp;
   int i;
 
-  disk_reset2();
-
   subst_file_ext(NULL);
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if(dp->type == DIR_TYPE) {
@@ -1335,8 +1337,6 @@ void disk_reset(void)
 static void hdisk_reset(int num)
 {
   int i;
-
-  disk_reset2();
 
   subst_file_ext(NULL);
   FOR_EACH_HDISK(i, {
