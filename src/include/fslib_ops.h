@@ -45,6 +45,8 @@ struct fslib_ops {
   int (*exit)(void);
   int (*path_ok)(int idx, const char *path);
   const char *name;
+#define FSFLG_NOSUID 1
+  int flags;
 };
 
 void fslib_register_ops(const struct fslib_ops *ops);

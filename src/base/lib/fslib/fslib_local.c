@@ -229,6 +229,7 @@ static const struct fslib_ops fslops = {
   .exit = fslocal_done,
   .path_ok = fslocal_path_ok,
   .name = "local",
+  .flags = FSFLG_NOSUID,
 };
 
 void fslocal_init(void)

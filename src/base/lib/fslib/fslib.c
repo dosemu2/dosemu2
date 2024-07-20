@@ -144,5 +144,10 @@ void fslib_register_ops(const struct fslib_ops *ops)
   if (strcmp(ops->name, expect) != 0)
     return;
   assert(!fssvc);
+  if ((ops->flags & FSFLG_NOSUID) && running_suid_orig()) {
+    error("FS \"%s\" does not support privsep mode, try -no-priv-sep\n",
+        ops->name);
+    config.exitearly = 1;
+  }
   fssvc = ops;
 }
