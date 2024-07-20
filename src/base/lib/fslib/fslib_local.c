@@ -27,10 +27,12 @@
 #include "fssvc.h"
 #include "fslib_ops.h"
 
-#define MAX_DRIVE 26
-static char *def_drives[MAX_DRIVE];
+#define MAX_PATHS 26
+static char *def_drives[MAX_PATHS];
 static char *plist;
 static int num_def_drives;
+static char *paths_ex[MAX_PATHS];
+static int num_paths_ex;
 static int sealed;
 static plist_idx_t plist_idx_cb;
 static setattr_t do_setattr;
@@ -41,7 +43,7 @@ static int add_path(const char *path)
   int len;
 
   assert(!sealed);
-  assert(num_def_drives < MAX_DRIVE);
+  assert(num_def_drives < MAX_PATHS);
   len = strlen(path);
   assert(len > 0);
   if (path[len - 1] == '/') {
@@ -56,6 +58,18 @@ static int add_path(const char *path)
   return num_def_drives++;
 }
 
+static int add_path_ex(const char *path)
+{
+    int len;
+
+    assert(num_paths_ex < MAX_PATHS);
+    assert(!sealed);
+    len = strlen(path);
+    assert(len > 0);
+    paths_ex[num_paths_ex++] = strdup(path);
+    return 0;
+}
+
 static int add_path_list(const char *clist)
 {
     assert(!sealed);
@@ -68,8 +82,14 @@ static int path_ok(int idx, const char *path)
   int len;
 
   assert(sealed);
-  if (idx < 0)
-    return (plist && plist_idx_cb(plist, path) != -1);
+  if (idx < 0) {
+    int i;
+    for (i = 0; i < num_paths_ex; i++) {
+      if (strcmp(path, paths_ex[i]) == 0)
+        return 1;
+    }
+    return 0;
+  }
   if (idx >= num_def_drives)
     return (plist && plist_idx_cb(plist, path) + num_def_drives == idx);
   assert(def_drives[idx]);
@@ -190,6 +210,7 @@ static int fslocal_path_ok(int idx, const char *path)
 
 static const struct fslib_ops fslops = {
   .add_path = add_path,
+  .add_path_ex = add_path_ex,
   .add_path_list = add_path_list,
   .open = open_file,
   .create = create_file,

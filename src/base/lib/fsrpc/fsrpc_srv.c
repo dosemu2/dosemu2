@@ -33,6 +33,8 @@
 #define MAX_PATHS 50
 static char *paths[MAX_PATHS];
 static int num_paths;
+static char *paths_ex[MAX_PATHS];
+static int num_paths_ex;
 static int sealed;
 static int transp_fd;
 static int sock_tx;
@@ -62,6 +64,18 @@ static int add_path_1_svc(const char *path)
         paths[num_paths] = new_path;
     }
     return num_paths++;
+}
+
+static int add_path_ex_1_svc(const char *path)
+{
+    int len;
+
+    ASSERT0(num_paths_ex < MAX_PATHS);
+    ASSERT0(!sealed);
+    len = strlen(path);
+    ASSERT0(len > 0);
+    paths_ex[num_paths_ex++] = strdup(path);
+    return 0;
 }
 
 static int add_path_list_1_svc(const char *clist)
@@ -116,8 +130,14 @@ static int path_ok(int idx, const char *path)
     int len;
 
     CHK(sealed);
-    if (idx < 0)
-        return (plist && plist_idx_cb(plist, path) != -1);
+    if (idx < 0) {
+        int i;
+        for (i = 0; i < num_paths_ex; i++) {
+            if (strcmp(path, paths_ex[i]) == 0)
+                return TRUE;
+        }
+        return FALSE;
+    }
     if (idx >= num_paths)
         return (plist && plist_idx_cb(plist, path) + num_paths == idx);
     len = strlen(paths[idx]);
@@ -272,6 +292,8 @@ int fsrpc_srv_init(int tr_fd, int fd, plist_idx_t pi, setattr_t sa,
     searpc_create_service(svc_name);
 
     searpc_server_register_function(svc_name, add_path_1_svc, "add_path_1",
+            searpc_signature_int__string());
+    searpc_server_register_function(svc_name, add_path_ex_1_svc, "add_path_ex_1",
             searpc_signature_int__string());
     searpc_server_register_function(svc_name, add_path_list_1_svc,
             "add_path_list_1",

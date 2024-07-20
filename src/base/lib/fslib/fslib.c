@@ -39,6 +39,11 @@ int fslib_add_path_list(const char *list)
   return fssvc->add_path_list(list);
 }
 
+int fslib_add_path_ex(const char *path)
+{
+  return fssvc->add_path_ex(path);
+}
+
 int mfs_open_file(int mfs_idx, const char *path, int flags)
 {
   return fssvc->open(mfs_idx - 1, path, flags);

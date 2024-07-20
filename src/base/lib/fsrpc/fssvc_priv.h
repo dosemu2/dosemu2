@@ -8,6 +8,7 @@
 int fssvc_init(plist_idx_t plist_idx, setattr_t settatr_cb,
     getattr_t getattr_cb);
 int fssvc_add_path(const char *path);
+int fssvc_add_path_ex(const char *path);
 int fssvc_add_path_list(const char *list);
 int fssvc_seal(void);
 int fssvc_open(int id, const char *path, int flags);

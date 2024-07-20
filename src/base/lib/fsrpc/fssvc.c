@@ -198,6 +198,17 @@ int fssvc_add_path(const char *path)
     return ret;
 }
 
+int fssvc_add_path_ex(const char *path)
+{
+    int ret;
+    GError *error = NULL;
+    ret = searpc_client_call__int(clnt, "add_path_ex_1",
+                                  &error, 1,
+                                  "string", path);
+    CHECK_RPC(error);
+    return ret;
+}
+
 int fssvc_add_path_list(const char *list)
 {
     int ret;

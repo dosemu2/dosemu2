@@ -23,6 +23,7 @@
 #include "fssvc.h"  // for setattr_t, getattr_t
 
 int mfs_define_drive(const char *path);
+int fslib_add_path_ex(const char *path);
 int fslib_add_path_list(const char *list);
 int mfs_open_file(int mfs_idx, const char *path, int flags);
 int mfs_create_file(int mfs_idx, const char *path, int flags, mode_t mode);

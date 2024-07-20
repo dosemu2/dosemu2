@@ -24,6 +24,7 @@
 
 struct fslib_ops {
   int (*add_path)(const char *path);
+  int (*add_path_ex)(const char *path);
   int (*add_path_list)(const char *list);
   int (*open)(int mfs_idx, const char *path, int flags);
   int (*create)(int mfs_idx, const char *path, int flags, mode_t mode);

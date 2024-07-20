@@ -55,6 +55,7 @@ static int do_access(int mfs_idx, const char *path, int mode)
 
 static const struct fslib_ops fsops = {
   .add_path = fssvc_add_path,
+  .add_path_ex = fssvc_add_path_ex,
   .add_path_list = fssvc_add_path_list,
   .open = fssvc_open,
   .create = fssvc_creat,
