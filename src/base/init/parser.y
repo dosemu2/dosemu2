@@ -2205,12 +2205,31 @@ static void stop_disk(int token)
       error("drive %c: no device/file-name given!\n", 'C'+c_hdisks);
     return;
   } else {                               /* check the file/device for existance */
-      struct stat st;
+    struct stat st;
 
-      if (stat(dptr->dev_name, &st) != 0) { /* Does this file exist? */
-        yyerror("disk: device/file %s doesn't exist.", dptr->dev_name);
+    if (stat(dptr->dev_name, &st) != 0)  /* Does this file exist? */
+      yyerror("disk: device/file %s doesn't exist.", dptr->dev_name);
+
+    if (S_ISREG(st.st_mode)) {
+      d_printf("dev %s is an image\n", dptr->dev_name);
+      dptr->type = IMAGE;
+    } else if (S_ISBLK(st.st_mode)) {
+      d_printf("dev %s: %#x\n", dptr->dev_name, (unsigned) st.st_rdev);
+      dptr->type = FLOPPY;
+#ifdef __linux__
+      if ((st.st_rdev & 0xff00) == 0x200) {
+        d_printf("DISK %s removable\n", dptr->dev_name);
       }
+#endif
+    } else if (S_ISDIR(st.st_mode)) {
+      d_printf("dev %s is a directory\n", dptr->dev_name);
+      dptr->type = DIR_TYPE;
+      dptr->removable = 0;
+    } else {
+      error("dev %s is wrong type\n", dptr->dev_name);
+      config.exitearly = 1;
     }
+  }
 
   if (dptr->type == NODISK)    /* Is it one of image, floppy, harddisk ? */
     yyerror("disk: no device/file-name given!"); /* No, error */

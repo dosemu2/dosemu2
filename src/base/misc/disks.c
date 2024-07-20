@@ -1242,7 +1242,6 @@ disk_init(void)
 
 static void disk_reset2(void)
 {
-  struct stat stbuf;
   struct disk *dp;
   int i;
 
@@ -1251,35 +1250,9 @@ static void disk_reset2(void)
    */
   for (i = 0; i < FDISKS; i++) {
     dp = &disktab[i];
-
-    if (stat(dp->dev_name, &stbuf) < 0) {
-      error("can't stat %s\n", dp->dev_name);
-      config.exitearly = 1;
-    }
-
-    if (S_ISREG(stbuf.st_mode)) {
-      d_printf("dev %s is an image\n", dp->dev_name);
-      dp->type = IMAGE;
-    } else if (S_ISBLK(stbuf.st_mode)) {
-      d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
-      dp->type = FLOPPY;
-      if (dp->fdesc != -1)
-        close(dp->fdesc);
-      dp->fdesc = -1;
-#ifdef __linux__
-      if ((stbuf.st_rdev & 0xff00) == 0x200) {
-        d_printf("DISK %s removable\n", dp->dev_name);
-      }
-#endif
-    } else if (S_ISDIR(stbuf.st_mode)) {
-      d_printf("dev %s is a directory\n", dp->dev_name);
-      dp->type = DIR_TYPE;
-      dp->removable = 0;
-    } else {
-      error("dev %s is wrong type\n", dp->dev_name);
-      config.exitearly = 1;
-    }
-
+    if (dp->fdesc != -1)
+      close(dp->fdesc);
+    dp->fdesc = -1;
     disk_fptrs[dp->type].autosense(dp);
     disk_fptrs[dp->type].setup(dp);
   }
