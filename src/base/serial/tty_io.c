@@ -423,8 +423,12 @@ static void ser_set_params(com_t *c)
   /* Pull down DTR and RTS.  This is the most natural for most comm */
   /* devices including mice so that DTR rises during mouse init.    */
   if (!c->cfg->pseudo) {
+    int err;
     data = TIOCM_DTR | TIOCM_RTS;
-    if (ioctl(c->fd, TIOCMBIC, &data) && errno == EINVAL) {
+    err = ioctl(c->fd, TIOCMBIC, &data);
+    /* disable errno check as linux started to return ENOTTY eventually,
+     * even if isatty() returns true. */
+    if (err/* && errno == EINVAL*/) {
       s_printf("SER%d: TIOCMBIC unsupported, setting pseudo flag\n", c->num);
       c->cfg->pseudo = 1;
     }
