@@ -30,6 +30,7 @@ _fdppconf.h.in: $(srcdir)/configure.ac
 	autoheader -f
 fdppconf.hh: _fdppconf.h.in configure
 	./configure
+$(OBJS): $(GENHDRS)
 
 clean::
 	rm -f _fdppconf.h

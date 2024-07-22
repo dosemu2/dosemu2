@@ -28,6 +28,7 @@ _x_config.h.in: $(srcdir)/configure.ac
 	autoheader -f
 x_config.hh: _x_config.h.in configure
 	./configure
+$(OBJS): $(GENHDRS)
 
 clean::
 	rm -f _x_config.h
