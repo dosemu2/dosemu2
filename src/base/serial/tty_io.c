@@ -481,6 +481,7 @@ static int tty_uart_fill(com_t *c)
   if (size == 0) {
     c->is_closed = TRUE;
     if(s3_printf) s_printf("SER%d: Got 0 bytes, setting is_closed\n", c->num);
+    remove_from_io_select(c->fd);
     return 0;
   }
   if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n", c->num,
@@ -635,6 +636,7 @@ static int tty_open(com_t *c)
 {
   int err;
 
+  c->is_closed = FALSE;
   if (c->cfg->exec) {
     if (under_root_login) {
       error("SER: \"exec\" ignored because of root privs\n");
@@ -749,7 +751,8 @@ static int tty_close(com_t *c)
     c->wr_fd = -1;
   }
   s_printf("SER%d: Running ser_close\n", c->num);
-  remove_from_io_select(c->fd);
+  if (!c->is_closed)
+    remove_from_io_select(c->fd);
   if (c->cfg->exec) {
     ret = pty_close(c, c->fd);
     c->fd = -1;
