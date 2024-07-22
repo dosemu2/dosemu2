@@ -790,6 +790,8 @@ void secure_option_preparse(int *argc, char **argv)
     }
 
   } while (cnt);
+
+  move_dosemu_lib_dir();
 }
 
 static void read_cpu_info(void)
@@ -1276,7 +1278,6 @@ config_init(int argc, char **argv)
     }
     shlock_init(dosemu_tmpdir);
 
-    move_dosemu_lib_dir();
     if (nodosrc && dosrcname) {
         c_printf("CONF: using %s as primary config\n", dosrcname);
         confname = dosrcname;
