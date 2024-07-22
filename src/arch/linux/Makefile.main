@@ -64,7 +64,7 @@ DOCS= $(top_builddir)/man
 
 ###################################################################
 
-default: $(top_builddir)/src/include/version.hh doslib \
+default: $(top_builddir)/src/include/version.hh .WAIT doslib \
 	$(TFONTS)
 	@echo ""
 	@echo "---------------------------------DONE compiling-------------------------------"
@@ -118,7 +118,7 @@ DIRLIST = $(LIBSUBDIRS) $(OPTIONALSUBDIRS)
 
 optionalsubdirs:	$(OPTIONALSUBDIRS)
 
-$(DIRLIST): $(GENERATED) $(top_builddir)/commands
+$(DIRLIST): $(GENERATED) .WAIT $(top_builddir)/commands
 	@($(MAKE) SUBDIR:=$@ -C $@)
 
 doslib: dosemu

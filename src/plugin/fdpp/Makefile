@@ -15,7 +15,7 @@ ALL_CFLAGS += $(VG_CFLAGS)
 endif
 GENHDRS = fdppconf.hh
 ifeq ($(USE_DL_PLUGINS),1)
-all: $(BINPATH)/bin/libplugin_fdpp.so
+all: $(GENHDRS) .WAIT $(BINPATH)/bin/libplugin_fdpp.so
 ALL_CFLAGS += -fPIC
 endif
 
@@ -30,7 +30,6 @@ _fdppconf.h.in: $(srcdir)/configure.ac
 	autoheader -f
 fdppconf.hh: _fdppconf.h.in configure
 	./configure
-$(OBJS): $(GENHDRS)
 
 clean::
 	rm -f _fdppconf.h

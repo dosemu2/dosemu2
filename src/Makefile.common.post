@@ -12,7 +12,6 @@ GENERATED = $(top_builddir)/src/include/version.hh \
     $(top_builddir)/src/plugin/include/plugin_config.hh
 
 ifneq ($(GENHDRS),)
-GENERATED += $(GENHDRS)
 ALL_CPPFLAGS += -iquote .
 endif
 
