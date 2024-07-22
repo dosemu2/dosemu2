@@ -51,7 +51,6 @@ struct fslib_ops {
 
 void fslib_register_ops(const struct fslib_ops *ops);
 
-void fsrpc_init(void);
 void fslocal_init(void);
 
 #endif

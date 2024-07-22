@@ -17,6 +17,7 @@
  */
 #include <unistd.h>
 #include <fcntl.h>
+#include "init.h"
 #include "fssvc_priv.h"
 #include "fslib_ops.h"
 
@@ -76,7 +77,7 @@ static const struct fslib_ops fsops = {
   .name = "rpc",
 };
 
-void fsrpc_init(void)
+CONSTRUCTOR(static void fsrpc_init(void))
 {
   fslib_register_ops(&fsops);
 }

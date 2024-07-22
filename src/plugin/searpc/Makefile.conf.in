@@ -1,0 +1,12 @@
+#
+# (C) Copyright 1992, ..., 2014 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
+# Makefile.conf.in for DOSEMU
+#
+# This file is included by all Makefiles
+
+SR_CFLAGS := @GLIB2_CFLAGS@  @SEARPC_CFLAGS@
+SR_LIBS := @GLIB2_LIBS@  @SEARPC_LIBS@
+RPCGEN := @RPCGEN@

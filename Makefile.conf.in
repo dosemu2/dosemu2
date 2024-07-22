@@ -59,7 +59,7 @@ LEX:=@LEX@
 LN_S := @LN_S@
 LN_SFT := @LN_SFT@
 USERADD := @USERADD@
-RPCGEN := @RPCGEN@
+PRIV_SEP := @SR_PLU@
 
 # This gets defined even if we chose via ./include/config.h NOT to
 # use the debugger

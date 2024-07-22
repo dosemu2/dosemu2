@@ -18,6 +18,7 @@
 #include <string.h>
 #include <assert.h>
 #include "emu.h"
+#include "utilities.h"
 #include "fslib_ops.h"
 #include "fslib.h"
 
@@ -109,7 +110,9 @@ void fslib_init(plist_idx_t plist_idx, setattr_t setattr_cb,
 {
   int err;
 
-  fsrpc_init();
+#ifdef SEARPC_SUPPORT
+  load_plugin("searpc");
+#endif
   fslocal_init();
   err = fssvc->init(plist_idx, setattr_cb, getattr_cb);
   assert(!err);
@@ -136,7 +139,13 @@ int fslib_num_drives(void)
   return num_def_drives;
 }
 
-static const char *def_name = "rpc";
+static const char *def_name =
+#ifdef SEARPC_SUPPORT
+  "rpc"
+#else
+  "local"
+#endif
+  ;
 
 void fslib_register_ops(const struct fslib_ops *ops)
 {

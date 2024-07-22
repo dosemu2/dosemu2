@@ -44,7 +44,7 @@ endif
 _LIBSUBDIRS=base/video base/dev/vga base/core base/kbd_unicode \
 	arch/linux/async base/lib/mapping $(LIBMC) \
 	base/misc base/lib/misc base/lib/libpcl base/lib/timer \
-	base/lib/fsrpc base/lib/fslib \
+	base/lib/fslib \
 	base/dev/misc \
 	base/emu-i386 $(XCPUEMU) base/speaker \
 	base/dev/pic base/dev/ne2k \
@@ -167,6 +167,7 @@ endif
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/sysusers.conf $(DESTDIR)$(prefix)/lib/sysusers.d/$(PACKAGE_NAME).conf
 	$(INSTALL) -d $(DESTDIR)$(libexecdir)/dosemu2
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(libexecdir)/dosemu2
+ifneq ($(PRIV_SEP),)
 	if getent passwd $(username); then \
 	  if chown $(username):$(username) $(DESTDIR)$(libexecdir)/dosemu2/$(DOSBIN); then \
 	    if chmod ug+s $(DESTDIR)$(libexecdir)/dosemu2/$(DOSBIN); then \
@@ -174,6 +175,7 @@ endif
 	    fi; \
 	  fi; \
 	fi
+endif
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/dosemu $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/mkfatimage16 ] || $(INSTALL) -m 0755 $(top_builddir)/bin/mkfatimage16 $(DESTDIR)$(bindir)
