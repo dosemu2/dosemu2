@@ -481,7 +481,8 @@ static int tty_uart_fill(com_t *c)
   if (size == 0) {
     c->is_closed = TRUE;
     if(s3_printf) s_printf("SER%d: Got 0 bytes, setting is_closed\n", c->num);
-    remove_from_io_select(c->fd);
+    if (c->iosel)
+      remove_from_io_select(c->fd);
     return 0;
   }
   if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n", c->num,
@@ -580,6 +581,7 @@ static int ser_open_existing(com_t *c)
   }
   if (io_sel)
     add_to_io_select(c->fd, async_serial_run, (void *)c);
+  c->iosel = io_sel;
   return 0;
 }
 
@@ -637,6 +639,7 @@ static int tty_open(com_t *c)
   int err;
 
   c->is_closed = FALSE;
+  c->iosel = FALSE;
   if (c->cfg->exec) {
     if (under_root_login) {
       error("SER: \"exec\" ignored because of root privs\n");
@@ -648,6 +651,7 @@ static int tty_open(com_t *c)
       return -1;
     c->cfg->pseudo = TRUE;
     add_to_io_select(c->fd, async_serial_run, (void *)c);
+    c->iosel = TRUE;
     return c->fd;
   }
   if (c->cfg->pts) {
@@ -665,6 +669,7 @@ static int tty_open(com_t *c)
     }
     c->cfg->pseudo = TRUE;
     add_to_io_select(c->fd, async_serial_run, (void *)c);
+    c->iosel = TRUE;
     return c->fd;
   }
   if (c->fd != -1)
@@ -705,6 +710,7 @@ static int tty_open(com_t *c)
     RPT_SYSCALL(tcgetattr(c->fd, &c->oldset));
     ser_set_params(c);
     add_to_io_select(c->fd, async_serial_run, (void *)c);
+    c->iosel = TRUE;
   } else {
     err = access(c->cfg->dev, F_OK);
     if (!err) {
@@ -738,6 +744,13 @@ fail_unlock:
   return -1;
 }
 
+static void tty_reopen(com_t *c)
+{
+  c->is_closed = FALSE;
+  if (c->iosel)
+    add_to_io_select(c->fd, async_serial_run, (void *)c);
+}
+
 /* This function closes ONE serial port for DOSEMU.  Normally called
  * only by do_ser_init below.   [num = port, return = file error code]
  */
@@ -751,7 +764,7 @@ static int tty_close(com_t *c)
     c->wr_fd = -1;
   }
   s_printf("SER%d: Running ser_close\n", c->num);
-  if (!c->is_closed)
+  if (!c->is_closed && c->iosel)
     remove_from_io_select(c->fd);
   if (c->cfg->exec) {
     ret = pty_close(c, c->fd);
@@ -808,6 +821,7 @@ struct serial_drv tty_drv = {
   tty_dtr,
   tty_rts,
   tty_open,
+  tty_reopen,
   tty_close,
   tty_uart_fill,
   tty_get_msr,

@@ -672,6 +672,8 @@ do_serial_out(int num, ioport_t address, int val)
     com[num].opened = ser_open(num);
   if (com[num].opened <= 0)
     return 0;
+  if (com[num].is_closed)
+    ser_reopen(num);
 
   switch (address - com_cfg[num].base_port) {
   case UART_TX:		/* Write to Transmit Holding Register */

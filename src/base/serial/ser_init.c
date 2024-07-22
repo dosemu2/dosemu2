@@ -432,6 +432,12 @@ rt f(int num) \
 { \
   return com[num].drv->f(&com[num]); \
 }
+#define SER_FN0_v(f) \
+void f(int num) \
+{ \
+  if (com[num].drv->f) \
+    com[num].drv->f(&com[num]); \
+}
 #define SER_FN1(rt, f, p, c) \
 rt f(int num, p c) \
 { \
@@ -452,6 +458,7 @@ SER_FN2(ssize_t, serial_write, char*, buf, size_t, len)
 SER_FN1(int, serial_dtr, int, flag)
 SER_FN1(int, serial_rts, int, flag)
 SER_FN0(int, ser_open)
+SER_FN0_v(ser_reopen)
 SER_FN0(int, ser_close)
 SER_FN0(int, uart_fill)
 SER_FN0(int, serial_get_msr)
