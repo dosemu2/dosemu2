@@ -31,6 +31,8 @@
 #include "ser_defs.h"
 #include "tty_io.h"
 
+static void async_serial_run(int fd, void *arg);
+
 /* This function flushes the internal unix receive buffer [num = port] */
 static void tty_rx_buffer_dump(com_t *c)
 {
@@ -373,7 +375,7 @@ static int tty_lock(const char *path, int mode)
     int retval;
 
     fd = fopen(saved_path,"we");
-    if (fd == (FILE *)0) {
+    if (fd == NULL) {
       error("tty_lock: can't reopen %s to delete: %s\n",
              saved_path, strerror(errno));
       return (-1);
@@ -486,6 +488,13 @@ static int tty_uart_fill(com_t *c)
       remove_from_io_select(c->fd);
     return 0;
   }
+  if (c->is_closed) {
+    c->is_closed = FALSE;
+    if (IOSEL(c))
+      add_to_io_select(c->fd, async_serial_run, (void *)c);
+    s_printf("SER%d: re-connected\n", c->num);
+  }
+
   if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n", c->num,
         size, RX_BUF_BYTES(c->num));
   if (debug_level('s') >= 9) {
@@ -739,13 +748,6 @@ fail_unlock:
   return -1;
 }
 
-static void tty_reopen(com_t *c)
-{
-  c->is_closed = FALSE;
-  if (IOSEL(c))
-    add_to_io_select(c->fd, async_serial_run, (void *)c);
-}
-
 /* This function closes ONE serial port for DOSEMU.  Normally called
  * only by do_ser_init below.   [num = port, return = file error code]
  */
@@ -814,7 +816,6 @@ struct serial_drv tty_drv = {
   tty_dtr,
   tty_rts,
   tty_open,
-  tty_reopen,
   tty_close,
   tty_uart_fill,
   tty_get_msr,

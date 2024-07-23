@@ -130,7 +130,6 @@ struct serial_drv nullmm_drv = {
   nullmm_dtr,
   nullmm_rts,
   nullmm_open,
-  NULL,
   nullmm_close,
   nullmm_uart_fill,
   nullmm_get_msr,

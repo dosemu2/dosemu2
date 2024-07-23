@@ -426,7 +426,6 @@ ssize_t serial_write(int num, char *buf, size_t len);
 int serial_dtr(int num, int flag);
 int serial_rts(int num, int flag);
 int ser_open(int num);
-void ser_reopen(int num);
 int ser_close(int num);
 int uart_fill(int num);
 int serial_get_msr(int num);
@@ -443,7 +442,6 @@ struct serial_drv {
   int (*serial_dtr)(com_t *c, int flag);
   int (*serial_rts)(com_t *c, int flag);
   int (*ser_open)(com_t *c);
-  void (*ser_reopen)(com_t *c);
   int (*ser_close)(com_t *c);
   int (*uart_fill)(com_t *c);
   int (*serial_get_msr)(com_t *c);

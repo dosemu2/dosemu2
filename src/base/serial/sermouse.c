@@ -319,7 +319,6 @@ struct serial_drv serm_drv = {
   serm_dtr,
   serm_rts,
   serm_open,
-  NULL,
   serm_close,
   serm_uart_fill,
   serm_get_msr,
