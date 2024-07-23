@@ -667,8 +667,12 @@ static int tty_open(com_t *c)
       return -1;
     grantpt(c->fd);
     err = symlink(ptsname(c->fd), c->cfg->pts);
+    if (err && errno == EEXIST) {
+      unlink(c->cfg->pts);
+      err = symlink(ptsname(c->fd), c->cfg->pts);
+    }
     if (err) {
-      error("symlink(%s, %s): %s", ptsname(c->fd), c->cfg->pts,
+      error("symlink(%s, %s): %s\n", ptsname(c->fd), c->cfg->pts,
           strerror(errno));
       close(c->fd);
       c->fd = -2;
