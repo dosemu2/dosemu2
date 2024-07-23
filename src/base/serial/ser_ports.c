@@ -164,7 +164,7 @@ static int get_rx(int num)
   com[num].IIR.flg.cti = 0;
 
   /* if no data, try to get some */
-  if (!RX_BUF_BYTES(num) && !IOSEL(&com[num])) {
+  if (!RX_BUF_BYTES(num) && !IOSEL_CUR(&com[num])) {
     int size = uart_fill(num);
     if (size > 0)
       receive_engine(num);

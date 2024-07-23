@@ -475,9 +475,11 @@ static int tty_uart_fill(com_t *c)
   size = RPT_SYSCALL(read(c->fd,
                               &c->rx_buf[c->rx_buf_end],
                               RX_BUFFER_SIZE - c->rx_buf_end));
-  if (IOSEL(c))
+  if (IOSEL_CUR(c))
     ioselect_complete(c->fd);
   if (size <= 0) {
+    if (c->is_closed)
+      return 0;
     c->is_closed = TRUE;
     s_printf("SER%d: Got %i (%s), setting is_closed\n", c->num, size, strerror(errno));
     if (IOSEL(c))
@@ -757,7 +759,7 @@ static int tty_close(com_t *c)
     c->wr_fd = -1;
   }
   s_printf("SER%d: Running ser_close\n", c->num);
-  if (!c->is_closed && IOSEL(c))
+  if (IOSEL_CUR(c))
     remove_from_io_select(c->fd);
   if (c->cfg->exec) {
     ret = pty_close(c, c->fd);

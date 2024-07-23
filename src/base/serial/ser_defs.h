@@ -330,6 +330,7 @@ typedef struct {
 } __attribute__((packed)) fossil_info_t;
 
 #define IOSEL(c) (!(c)->is_file)
+#define IOSEL_CUR(c) (IOSEL(c) && !(c)->is_closed)
 typedef struct {
   				/*   MAIN VARIABLES  */
   serial_t *cfg;
