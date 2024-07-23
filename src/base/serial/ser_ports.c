@@ -167,7 +167,7 @@ static int get_rx(int num)
   if (!RX_BUF_BYTES(num) && !IOSEL(&com[num])) {
     int size = uart_fill(num);
     if (size > 0)
-      receive_engine(num, size);
+      receive_engine(num);
   }
   /* if still no data, go out */
   if (!RX_BUF_BYTES(num)) {
@@ -183,7 +183,7 @@ static int get_rx(int num)
   /* Clear data waiting status and interrupt condition flag */
   clear_int_cond(num, RX_INTR);
   /* and see if more to read */
-  receive_engine(num, 0);
+  receive_engine(num);
 
   if (!RX_BUF_BYTES(num))
     com[num].LSR &= ~UART_LSR_DR;
@@ -538,7 +538,7 @@ put_lsr(int num, int val)
     serial_int_engine(num, int_type);
   }
   /* need to sync back DR */
-  receive_engine(num, 0);
+  receive_engine(num);
 }
 
 

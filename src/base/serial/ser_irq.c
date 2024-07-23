@@ -92,14 +92,13 @@ void serial_timer_update(void)
  * and checking if it's time to generate a hardware interrupt (RDI).
  * [num = port]
  */
-void receive_engine(int num, int size)	/* Internal 16550 Receive emulation */
+void receive_engine(int num)	/* Internal 16550 Receive emulation */
 {
   if (com[num].MCR & UART_MCR_LOOP) return;	/* Return if loopback */
 
-  if (size && RX_BUF_BYTES(num) == size && FIFO_ENABLED(num)) /* if fifo was empty */
-    com[num].rx_timeout = TIMEOUT_RX;	/* set timeout counter */
-
   if (RX_BUF_BYTES(num)) {
+    if (!(com[num].LSR & UART_LSR_DR) && FIFO_ENABLED(num)) /* if fifo was empty */
+      com[num].rx_timeout = TIMEOUT_RX;	/* set timeout counter */
     com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
     /* Has it gone above the receive FIFO trigger level? */
     if (!FIFO_ENABLED(num) || RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger) {
@@ -108,7 +107,10 @@ void receive_engine(int num, int size)	/* Internal 16550 Receive emulation */
       serial_int_engine(num, RX_INTR);	/* Update interrupt status */
     }
   }
+}
 
+void receive_timeouts(int num)	/* Internal 16550 Receive emulation */
+{
   if (FIFO_ENABLED(num) && RX_BUF_BYTES(num) && com[num].rx_timeout) {		/* Is it in FIFO mode? */
     com[num].rx_timeout--;			/* Decrement counter */
     if (!com[num].rx_timeout) {		/* Has timeout counted down? */
@@ -293,19 +295,18 @@ void serial_int_engine(int num, int int_requested)
 
 void serial_update(int num)
 {
-  int size = 0;
-
 #ifdef USE_MODEMU
   if (com_cfg[num].vmodem)
     modemu_update(num);
 #endif
   /* optimization: don't read() when enough data buffered */
-  if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger && !IOSEL(&com[num]))
-    size = uart_fill(num);
-  if (size > 0)
-    receive_engine(num, size);		/* Receive operations */
-  else if (RX_BUF_BYTES(num))
-    receive_engine(num, 0);		/* Handle timeouts */
+  if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger && !IOSEL(&com[num])) {
+    int size = uart_fill(num);
+    if (size > 0)
+      receive_engine(num);	/* Receive operations */
+  }
+  if (RX_BUF_BYTES(num))
+    receive_timeouts(num);	/* Handle timeouts */
   transmit_engine(num);		/* Transmit operations */
   modstat_engine(num);  	/* Modem Status operations */
 }

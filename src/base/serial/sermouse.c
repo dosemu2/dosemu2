@@ -85,7 +85,7 @@ static int add_buf(com_t *c, const char *buf, int len)
           c->rx_buf[c->rx_buf_end + i]);
   }
   c->rx_buf_end += len;
-  receive_engine(c->num, len);
+  receive_engine(c->num);
   return len;
 }
 

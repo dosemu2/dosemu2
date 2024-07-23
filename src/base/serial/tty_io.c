@@ -505,7 +505,7 @@ static void async_serial_run(int fd, void *arg)
   s_printf("SER%d: Async notification received\n", c->num);
   size = tty_uart_fill(c);
   if (size > 0)
-    receive_engine(c->num, size);
+    receive_engine(c->num);
 }
 
 static int ser_open_existing(com_t *c)
