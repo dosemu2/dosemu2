@@ -475,7 +475,8 @@ static int tty_uart_fill(com_t *c)
   size = RPT_SYSCALL(read(c->fd,
                               &c->rx_buf[c->rx_buf_end],
                               RX_BUFFER_SIZE - c->rx_buf_end));
-  ioselect_complete(c->fd);
+  if (IOSEL(c))
+    ioselect_complete(c->fd);
   if (size < 0)
     return 0;
   if (size == 0) {
