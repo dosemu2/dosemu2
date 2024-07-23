@@ -509,7 +509,7 @@ static void async_serial_run(int fd, void *arg)
 static int ser_open_existing(com_t *c)
 {
   struct stat st;
-  int err, io_sel = 0, oflags = O_NONBLOCK;
+  int err, io_sel = 0, oflags = 0;
 
   err = stat(c->cfg->dev, &st);
   if (err) {
