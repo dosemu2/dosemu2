@@ -477,11 +477,9 @@ static int tty_uart_fill(com_t *c)
                               RX_BUFFER_SIZE - c->rx_buf_end));
   if (IOSEL(c))
     ioselect_complete(c->fd);
-  if (size < 0)
-    return 0;
-  if (size == 0) {
+  if (size <= 0) {
     c->is_closed = TRUE;
-    if(s3_printf) s_printf("SER%d: Got 0 bytes, setting is_closed\n", c->num);
+    s_printf("SER%d: Got %i (%s), setting is_closed\n", c->num, size, strerror(errno));
     if (IOSEL(c))
       remove_from_io_select(c->fd);
     return 0;
@@ -594,7 +592,6 @@ static int pty_init(com_t *c)
         return -1;
     }
     unlockpt(pty_fd);
-    fcntl(pty_fd, F_SETFL, O_NONBLOCK);
     return pty_fd;
 }
 
