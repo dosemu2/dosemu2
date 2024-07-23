@@ -200,7 +200,7 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
 #endif
 
   if(com_cfg[num].pseudo) {
-    if (com[num].is_closed)
+    if (com[num].is_closed && !RX_BUF_BYTES(num))
       newmsr = 0;
     else
       newmsr = UART_MSR_CTS | UART_MSR_DSR | UART_MSR_DCD;
