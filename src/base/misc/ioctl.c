@@ -109,7 +109,17 @@ static void ioselect_demux(void *arg)
 {
     struct io_callback_s *p = arg;
     struct io_callback_s f;
+    int fd, isset;
 
+    fd = p - io_callback_func;
+    pthread_mutex_lock(&fds_mtx);
+    isset = FD_ISSET(fd, &fds_sigio);
+    pthread_mutex_unlock(&fds_mtx);
+    if (!isset) {
+        /* already removed, complete event and exit */
+        ioselect_complete(fd);
+        return;
+    }
     pthread_mutex_lock(&fun_mtx);
     f = *p;
     pthread_mutex_unlock(&fun_mtx);
