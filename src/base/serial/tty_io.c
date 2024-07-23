@@ -481,7 +481,7 @@ static int tty_uart_fill(com_t *c)
   if (size == 0) {
     c->is_closed = TRUE;
     if(s3_printf) s_printf("SER%d: Got 0 bytes, setting is_closed\n", c->num);
-    if (c->iosel)
+    if (IOSEL(c))
       remove_from_io_select(c->fd);
     return 0;
   }
@@ -581,7 +581,6 @@ static int ser_open_existing(com_t *c)
   }
   if (io_sel)
     add_to_io_select(c->fd, async_serial_run, (void *)c);
-  c->iosel = io_sel;
   return 0;
 }
 
@@ -639,7 +638,7 @@ static int tty_open(com_t *c)
   int err;
 
   c->is_closed = FALSE;
-  c->iosel = FALSE;
+  c->is_file = FALSE;
   if (c->cfg->exec) {
     if (under_root_login) {
       error("SER: \"exec\" ignored because of root privs\n");
@@ -651,7 +650,6 @@ static int tty_open(com_t *c)
       return -1;
     c->cfg->pseudo = TRUE;
     add_to_io_select(c->fd, async_serial_run, (void *)c);
-    c->iosel = TRUE;
     return c->fd;
   }
   if (c->cfg->pts) {
@@ -669,7 +667,6 @@ static int tty_open(com_t *c)
     }
     c->cfg->pseudo = TRUE;
     add_to_io_select(c->fd, async_serial_run, (void *)c);
-    c->iosel = TRUE;
     return c->fd;
   }
   if (c->fd != -1)
@@ -710,7 +707,6 @@ static int tty_open(com_t *c)
     RPT_SYSCALL(tcgetattr(c->fd, &c->oldset));
     ser_set_params(c);
     add_to_io_select(c->fd, async_serial_run, (void *)c);
-    c->iosel = TRUE;
   } else {
     err = access(c->cfg->dev, F_OK);
     if (!err) {
@@ -747,7 +743,7 @@ fail_unlock:
 static void tty_reopen(com_t *c)
 {
   c->is_closed = FALSE;
-  if (c->iosel)
+  if (IOSEL(c))
     add_to_io_select(c->fd, async_serial_run, (void *)c);
 }
 
@@ -764,7 +760,7 @@ static int tty_close(com_t *c)
     c->wr_fd = -1;
   }
   s_printf("SER%d: Running ser_close\n", c->num);
-  if (!c->is_closed && c->iosel)
+  if (!c->is_closed && IOSEL(c))
     remove_from_io_select(c->fd);
   if (c->cfg->exec) {
     ret = pty_close(c, c->fd);

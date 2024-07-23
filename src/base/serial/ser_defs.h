@@ -329,6 +329,7 @@ typedef struct {
   uint8_t bps;
 } __attribute__((packed)) fossil_info_t;
 
+#define IOSEL(c) (!(c)->is_file)
 typedef struct {
   				/*   MAIN VARIABLES  */
   serial_t *cfg;
@@ -338,7 +339,6 @@ typedef struct {
   int wr_fd;
   boolean is_file;
   boolean is_closed;
-  boolean iosel;
   boolean dev_locked;           /* Flag to indicate that device is locked */
   boolean fossil_active;	/* Flag: FOSSIL emulation active */
   fossil_info_t fossil_info;	/* FOSSIL driver info structure */
