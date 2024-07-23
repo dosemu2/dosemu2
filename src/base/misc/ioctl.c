@@ -109,20 +109,18 @@ static void ioselect_demux(void *arg)
 {
     struct io_callback_s *p = arg;
     struct io_callback_s f;
-    int fd, isset;
+    int isset;
 
-    fd = p - io_callback_func;
+    f = *p;
+    free(p);
     pthread_mutex_lock(&fds_mtx);
-    isset = FD_ISSET(fd, &fds_sigio);
+    isset = FD_ISSET(f.fd, &fds_sigio);
     pthread_mutex_unlock(&fds_mtx);
     if (!isset) {
         /* already removed, complete event and exit */
-        ioselect_complete(fd);
+        ioselect_complete(f.fd);
         return;
     }
-    pthread_mutex_lock(&fun_mtx);
-    f = *p;
-    pthread_mutex_unlock(&fun_mtx);
     /* check if not removed from other thread */
     if (f.func) {
         g_printf("GEN: fd %i has data for %s\n", f.fd, f.name);
@@ -172,8 +170,10 @@ static void io_select(void)
               FD_SET(i, &fds_masked);
             io_callback_func[i].func(i, io_callback_func[i].arg);
           } else {
+            struct io_callback_s *f = malloc(sizeof(*f));
+            *f = io_callback_func[i];
             FD_SET(i, &fds_masked);
-            add_thread_callback(ioselect_demux, &io_callback_func[i], "ioselect");
+            add_thread_callback(ioselect_demux, f, "ioselect");
           }
         }
       }
