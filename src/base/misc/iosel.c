@@ -120,15 +120,17 @@ static pthread_t io_thr;
 static pthread_mutex_t fun_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t blk_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t fds_mtx = PTHREAD_MUTEX_INITIALIZER;
+static int num_cbks;
 
 static void ioselect_demux(void *arg)
 {
     struct io_callback_s *p = arg;
     struct io_callback_s f;
-    int isset;
+    int isset, num;
 
     f = *p;
     free(p);
+    num = __atomic_sub_fetch(&num_cbks, 1, __ATOMIC_RELAXED);
     pthread_mutex_lock(&fds_mtx);
     isset = FD_ISSET(f.fd, &fds_sigio);
     pthread_mutex_unlock(&fds_mtx);
@@ -137,12 +139,10 @@ static void ioselect_demux(void *arg)
         ioselect_complete(f.fd);
         return;
     }
-    /* check if not removed from other thread */
-    if (f.func) {
-        g_printf("GEN: fd %i has data for %s\n", f.fd, f.name);
-        f.func(f.fd, f.arg);
-        reset_idle(0);
-    }
+    assert(f.func);
+    g_printf("GEN: fd %i has data for %s, %i pending\n", f.fd, f.name, num);
+    f.func(f.fd, f.arg);
+    reset_idle(0);
 }
 
 static void io_select(void)
@@ -188,6 +188,7 @@ static void io_select(void)
           } else {
             struct io_callback_s *f = malloc(sizeof(*f));
             *f = io_callback_func[i];
+            __atomic_fetch_add(&num_cbks, 1, __ATOMIC_RELAXED);
             FD_SET(i, &fds_masked);
             add_thread_callback(ioselect_demux, f, "ioselect");
           }
