@@ -437,6 +437,13 @@ static void ser_set_params(com_t *c)
   }
 }
 
+static void drop_iosel(com_t *c)
+{
+  c->is_closed = TRUE;
+  if (IOSEL(c))
+    remove_from_io_select(c->fd);
+}
+
 /* This function checks for newly received data and fills the UART
  * FIFO (16550 mode) or receive register (16450 mode).
  *
@@ -453,8 +460,10 @@ static int tty_uart_fill(com_t *c)
     return 0;
 
   /* Return if in loopback mode */
-  if (c->MCR & UART_MCR_LOOP)
+  if (c->MCR & UART_MCR_LOOP) {
+    drop_iosel(c);
     return 0;
+  }
 
   /* Is it time to do another read() of the serial device yet?
    * The rx_timer is used to prevent system load caused by empty read()'s
@@ -465,6 +474,7 @@ static int tty_uart_fill(com_t *c)
   if (RX_BUF_BYTES(c->num) >= RX_BUFFER_SIZE) {
     if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", c->num,
         RX_BUF_BYTES(c->num));
+    drop_iosel(c);
     return 0;
   }
 
@@ -477,15 +487,11 @@ static int tty_uart_fill(com_t *c)
   size = RPT_SYSCALL(read(c->fd,
                               &c->rx_buf[c->rx_buf_end],
                               RX_BUFFER_SIZE - c->rx_buf_end));
-  if (IOSEL_CUR(c))
-    ioselect_complete(c->fd);
   if (size <= 0) {
     if (c->is_closed)
       return 0;
-    c->is_closed = TRUE;
     s_printf("SER%d: Got %i (%s), setting is_closed\n", c->num, size, strerror(errno));
-    if (IOSEL(c))
-      remove_from_io_select(c->fd);
+    drop_iosel(c);
     return 0;
   }
   if (c->is_closed) {
@@ -512,9 +518,11 @@ static void async_serial_run(int fd, void *arg)
   com_t *c = arg;
   int size;
   s_printf("SER%d: Async notification received\n", c->num);
+  assert(!c->is_closed);
   size = tty_uart_fill(c);
   if (size > 0)
     receive_engine(c->num);
+  ioselect_complete(c->fd);
 }
 
 static int ser_open_existing(com_t *c)
