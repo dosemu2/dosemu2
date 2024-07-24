@@ -74,6 +74,9 @@ realclean:: clean
 	rm -rf plugin/include
 
 $(GENOBJS): $(GENSRC)
+ifneq ($(wildcard Makefile.conf.in),)
+$(OBJS): Makefile.conf
+endif
 
 %.o: %.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
