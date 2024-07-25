@@ -143,6 +143,7 @@ int vmhp_log_intercept(const char *fmt, va_list args)
 static void mhp_input_async(int fd, void *arg)
 {
   mhp_input();
+  ioselect_complete(fd);
 }
 
 static void mhp_init(void)
@@ -219,7 +220,6 @@ void mhp_input(void)
     return;
 
   mhpdbg.nbytes = read(mhpdbg.fdin, mhpdbg.recvbuf, SRSIZE);
-  ioselect_complete(mhpdbg.fdin);
 
   if (mhpdbg.nbytes == -1)
     return;
