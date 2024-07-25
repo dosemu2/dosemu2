@@ -771,6 +771,14 @@ static int init_slang_keymaps(void)
 	return 0;
 }
 
+static int get_avail(void)
+{
+	int offs;
+
+	offs = keyb_state.kbp - keyb_state.kbbuf;
+	return KBBUF_SIZE - keyb_state.kbcount - offs;
+}
+
 /*
  * Global variables this module uses: int kbcount : number of characters
  * in the keyboard buffer to be processed. unsigned char kbbuf[KBBUF_SIZE]
@@ -780,11 +788,8 @@ static int init_slang_keymaps(void)
 
 static int read_some_keys(void)
 {
-	fd_set fds;
-	struct timeval tv = { 0, 0 };
-	int selrt;
 	int cc;
-	int offs, avail;
+	int avail;
 
 	if (keyb_state.kbcount == 0)
 		keyb_state.kbp = keyb_state.kbbuf;
@@ -792,20 +797,12 @@ static int read_some_keys(void)
 		memmove(keyb_state.kbbuf, keyb_state.kbp, keyb_state.kbcount);
 		keyb_state.kbp = keyb_state.kbbuf;
 	}
-	offs = keyb_state.kbp - keyb_state.kbbuf;
-	avail = KBBUF_SIZE - keyb_state.kbcount - offs;
+	avail = get_avail();
 	assert(avail >= 0);
 	if (!avail) {
 		k_printf("KBD: buffer overflow\n");
 		return 0;
 	}
-	FD_ZERO(&fds);
-	FD_SET(keyb_state.kbd_fd, &fds);
-	selrt = select(keyb_state.kbd_fd + 1, &fds, NULL, NULL, &tv);
-	if (selrt <= 0)
-		return 0;
-	if (!FD_ISSET(keyb_state.kbd_fd, &fds))
-		return 0;
 	cc = read(keyb_state.kbd_fd, &keyb_state.kbp[keyb_state.kbcount],
 			avail);
 	k_printf("KBD: cc found %d characters (Xlate)\n", cc);
@@ -832,8 +829,6 @@ static int read_some_keys(void)
 
 static int getkey_callback(void)
 {
-	if (keyb_state.kbcount == keyb_state.Keystr_Len)
-		read_some_keys();
 	if (keyb_state.kbcount == keyb_state.Keystr_Len) {
 		keyb_state.KeyNot_Ready = 1;
 		return 0;
