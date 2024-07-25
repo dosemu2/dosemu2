@@ -785,13 +785,19 @@ static int read_some_keys(void)
 	struct timeval tv = { 0, 0 };
 	int selrt;
 	int cc;
-	int offs;
+	int offs, avail;
 
 	if (keyb_state.kbcount == 0)
 		keyb_state.kbp = keyb_state.kbbuf;
-	else if (keyb_state.kbp > &keyb_state.kbbuf[(KBBUF_SIZE * 3) / 5]) {
+	if (keyb_state.kbp > &keyb_state.kbbuf[(KBBUF_SIZE * 3) / 5]) {
 		memmove(keyb_state.kbbuf, keyb_state.kbp, keyb_state.kbcount);
 		keyb_state.kbp = keyb_state.kbbuf;
+	}
+	offs = keyb_state.kbp - keyb_state.kbbuf;
+	avail = KBBUF_SIZE - keyb_state.kbcount - offs;
+	if (!avail) {
+		k_printf("KBD: buffer overflow\n");
+		return 0;
 	}
 	FD_ZERO(&fds);
 	FD_SET(keyb_state.kbd_fd, &fds);
@@ -800,10 +806,8 @@ static int read_some_keys(void)
 		return 0;
 	if (!FD_ISSET(keyb_state.kbd_fd, &fds))
 		return 0;
-	offs = keyb_state.kbp - keyb_state.kbbuf;
 	cc = read(keyb_state.kbd_fd, &keyb_state.kbp[keyb_state.kbcount],
-			KBBUF_SIZE - keyb_state.kbcount - offs);
-	ioselect_complete(keyb_state.kbd_fd);
+			avail);
 	k_printf("KBD: cc found %d characters (Xlate)\n", cc);
 	if (cc > 0) {
 		if (debug_level('k') >= 9) {
@@ -1454,6 +1458,8 @@ static void _do_slang_getkeys(void)
 static void do_slang_getkeys(int fd, void *arg)
 {
 	_do_slang_getkeys();
+	/* FIXME: check for buffer full and delay completion */
+	ioselect_complete(keyb_state.kbd_fd);
 }
 
 /*
@@ -1500,9 +1506,11 @@ static void exit_pc_scancode_mode(void)
  */
 static void do_pc_scancode_getkeys(int fd, void *arg)
 {
-	if (read_some_keys() <= 0) {
+	int rc = read_some_keys();
+	/* FIXME: check for buffer full and delay completion */
+	ioselect_complete(keyb_state.kbd_fd);
+	if (rc <= 0)
 		return;
-	}
 	k_printf("KBD: do_pc_scancode_getkeys() found %d bytes\n", keyb_state.kbcount);
 
 	/* Now process the keys that are buffered up */
