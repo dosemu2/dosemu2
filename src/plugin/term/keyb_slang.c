@@ -70,7 +70,6 @@ static struct keyboard_state
 	Bit8u kbbuf[KBBUF_SIZE];
 	Bit8u *kbp;
 
-	int save_kbd_flags; /* saved flags for STDIN before our fcntl */
 	struct termios save_termios;
 
 	int pc_scancode_mode; /* By default we are not in pc_scancode_mode */
@@ -795,6 +794,7 @@ static int read_some_keys(void)
 	}
 	offs = keyb_state.kbp - keyb_state.kbbuf;
 	avail = KBBUF_SIZE - keyb_state.kbcount - offs;
+	assert(avail >= 0);
 	if (!avail) {
 		k_printf("KBD: buffer overflow\n");
 		return 0;
@@ -1540,7 +1540,6 @@ static int slang_keyb_init(void)
 	keyb_state.kbd_fd = -1;
 	keyb_state.kbcount = 0;
 	keyb_state.kbp = &keyb_state.kbbuf[0];
-	keyb_state.save_kbd_flags = -1;
 	keyb_state.pc_scancode_mode = FALSE;
 	keyb_state.The_Normal_KeyMap = (void *)0;
 
@@ -1561,7 +1560,6 @@ static int slang_keyb_init(void)
 	}
 
 	keyb_state.kbd_fd = STDIN_FILENO;
-	keyb_state.save_kbd_flags = fcntl(keyb_state.kbd_fd, F_GETFL);
 
 	if (tcgetattr(keyb_state.kbd_fd, &keyb_state.save_termios) < 0
 	    && errno != EINVAL && errno != ENOTTY) {
@@ -1613,10 +1611,6 @@ static void slang_keyb_close(void)
 	if (tcsetattr(keyb_state.kbd_fd, TCSAFLUSH, &keyb_state.save_termios) < 0
 	    && errno != EINVAL && errno != ENOTTY) {
 		error("slang_keyb_close(): failed to restore keyboard termios settings!\n");
-	}
-	if (keyb_state.save_kbd_flags != -1) {
-		if (fcntl(keyb_state.kbd_fd, F_SETFL, keyb_state.save_kbd_flags) == -1)
-			error("slang_keyb_close(): failed to restore keyboard flags!\n");
 	}
 	term_close();
 	cleanup_charset_state(&keyb_state.translate_state);
