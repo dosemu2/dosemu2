@@ -940,7 +940,7 @@ struct tee_struct {
 static ssize_t tee_write(void *cookie, const char *buf, size_t size)
 {
     struct tee_struct *c = cookie;
-    log_printf("%s", buf);
+    vlog_write(buf, size);
     return fwrite(buf, 1, size, c->stream);
 }
 

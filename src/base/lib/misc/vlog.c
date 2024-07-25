@@ -42,18 +42,42 @@ static int early_printf(const char *fmt, va_list args)
     return wr;
 }
 
-int vlog_printf(const char *fmt, va_list args)
+static int early_write(const char *buf, size_t size)
 {
-    int wr;
-    if (log_fd == -1)
-        return early_printf(fmt, args);
-    wr = vdprintf(log_fd, fmt, args);
+    int avail = EARLY_LOG_SIZE - early_pos;
+    assert(avail >= size);
+    memcpy(early_log + early_pos, buf, size);
+    early_pos += size;
+    return size;
+}
+
+static void check_log_size(void)
+{
     if (lseek(log_fd, 0, SEEK_END) > LOG_SIZE) {
         int err;
         lseek(log_fd, 0, SEEK_SET);
         err = ftruncate(log_fd, 0);
         assert(!err);
     }
+}
+
+int vlog_printf(const char *fmt, va_list args)
+{
+    int wr;
+    if (log_fd == -1)
+        return early_printf(fmt, args);
+    wr = vdprintf(log_fd, fmt, args);
+    check_log_size();
+    return wr;
+}
+
+int vlog_write(const char *buf, size_t size)
+{
+    int wr;
+    if (log_fd == -1)
+        return early_write(buf, size);
+    wr = write(log_fd, buf, size);
+    check_log_size();
     return wr;
 }
 

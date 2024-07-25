@@ -51,6 +51,7 @@ int vlog_init(const char *file);
 int vlog_get_fd(void);
 int log_printf(const char *, ...) FORMAT(printf, 1, 2);
 int vlog_printf(const char *, va_list);
+int vlog_write(const char *buf, size_t size);
 
 int p_dos_str(const char *, ...) FORMAT(printf, 1, 2);
 int p_dos_vstr(const char *fmt, va_list args);
