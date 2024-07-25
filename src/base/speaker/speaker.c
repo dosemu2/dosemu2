@@ -93,7 +93,7 @@ static int speaker_is_on;
 
 static void dumb_speaker_on(void * gp, unsigned ms, unsigned short period)
 {
-	FILE *out = (config.tty_stderr ? stderr : stdout);
+	FILE *out = (config.tty_stderr ? real_stderr : stdout);
 	putc('\007', out);
 	if (!config.tty_stderr)
 		fflush(stdout);
