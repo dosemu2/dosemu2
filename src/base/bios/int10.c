@@ -135,7 +135,7 @@ static void set_cursor_pos(unsigned page, int x, int y)
     if (no_local_video && !config.tty_stderr)
       return;
     for (i = 0; i < y - old_y; i++)
-      fputs("\r\n", config.tty_stderr ? stderr : stdout);
+      fputs("\r\n", config.tty_stderr ? real_stderr : stdout);
   }
 }
 
@@ -286,7 +286,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
     if (num <= 0)
       return;
     for (i = 0; i < num; i++)
-      fputc(buff[i], config.tty_stderr ? stderr : stdout);
+      fputc(buff[i], config.tty_stderr ? real_stderr : stdout);
   }
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
@@ -947,7 +947,7 @@ int int10(void) /* with dualmon */
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' ', LO(bx)
       );
       if (config.dumb_video) {
-        FILE *f = config.tty_stderr ? stderr : stdout;
+        FILE *f = config.tty_stderr ? real_stderr : stdout;
         int i;
 
         if (no_local_video && !config.tty_stderr)
