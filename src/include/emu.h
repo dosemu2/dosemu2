@@ -232,6 +232,7 @@ typedef struct config_info {
        char   *slirp_args;
        char   *netsock;
        boolean pktdrv;
+       boolean tcpdrv;
        boolean ne2k;
        boolean emuretrace;
        boolean mapped_bios;	/* video BIOS */

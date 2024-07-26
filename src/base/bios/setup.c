@@ -200,6 +200,8 @@ static void bios_setup(void)
     SETIVEC(0x67, BIOSSEG, INT_OFF(0x67));
   if (config.pktdrv)
     SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
+  if (config.tcpdrv)
+    SETIVEC(0x61, TCPDRV_SEG, TCPDRV_OFF);
   if (config.ipxsup)
     SETIVEC(0x7a, BIOSSEG, INT_OFF(0x7a));
   if (config.mouse.intdrv)

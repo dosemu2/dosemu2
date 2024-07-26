@@ -92,4 +92,8 @@ void mt32_init(void);
 void mt32_reset(void);
 void mt32_done(void);
 
+void tcp_init(void);
+void tcp_reset(void);
+void tcp_done(void);
+
 #endif /* _EMU_IODEV_H */

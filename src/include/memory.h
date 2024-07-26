@@ -19,7 +19,7 @@
 /* at BIOSSEG.  therefore use BIOSSEG and compensate for the offset. */
 /* Memory required is about 2000 bytes, beware! */
 #define PKTDRV_SEG	(BIOSSEG)
-#define PKTDRV_ADD	((PKTDRV_SEG << 4) + PKTDRV_OFF)
+#define TCPDRV_SEG	(BIOSSEG)
 
 #define LFN_HELPER_SEG	BIOSSEG
 #define LFN_HELPER_ADD	((LFN_HELPER_SEG << 4) + LFN_HELPER_OFF)
