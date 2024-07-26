@@ -19,21 +19,22 @@
 #include "hlt.h"
 #include "int.h"
 #include "iodev.h"
+#include "coopth.h"
 
 static uint16_t tcp_hlt_off;
+static int tcp_tid;
 
-static int tcp_int(void)
+static void tcp_thr(void *arg)
 {
-    if (!config.tcpdrv)
-	return 0;
     error("TCP call %x\n", _AX);
-    return 0;
 }
 
 static void tcp_hlt(Bit16u idx, HLT_ARG(arg))
 {
     fake_iret();
-    tcp_int();
+    if (!config.tcpdrv)
+	return;
+    coopth_start(tcp_tid, NULL);
 }
 
 void tcp_reset(void)
@@ -53,6 +54,7 @@ void tcp_init(void)
     hlt_hdlr.name       = "tcp callout";
     hlt_hdlr.func       = tcp_hlt;
     tcp_hlt_off = hlt_register_handler_vm86(hlt_hdlr);
+    tcp_tid = coopth_create("TCP_call", tcp_thr);
 }
 
 void tcp_done(void)
