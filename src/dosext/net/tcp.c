@@ -24,9 +24,103 @@
 static uint16_t tcp_hlt_off;
 static int tcp_tid;
 
+enum {
+    TCP_DRIVER_INFO = 0,
+    TCP_DRIVER_UNLOAD,
+    TCP_DRIVER_DOIO,
+    TCP_DRIVER_CRIT_FLAG,
+    TCP_COPY_DRIVER_INFO,
+
+    TCP_OPEN = 0x10,
+    TCP_CLOSE,
+    TCP_GET,
+    TCP_PUT,
+    TCP_STATUS,
+
+    UDP_OPEN = 0x20,
+    UDP_CLOSE,
+    UDP_RECV,
+    UDP_SEND,
+    UDP_STATUS,
+
+    IP_OPEN = 0x30,
+    IP_CLOSE,
+    IP_RECV,
+    IP_SEND,
+    IP_STATUS,
+
+    ATTACH_EVENT_GLOBAL = 0x40,
+    DETACH_EVENT_GLOBAL,
+    ATTACH_EVENT_LOCAL,
+    DETACH_EVENT_LOCAL,
+};
+
+enum {
+    ERR_NO_ERROR = 0,
+    ERR_BAD_CALL,
+    ERR_CRITICAL,
+    ERR_NOHANDLES,
+    ERR_BADHANDLE,
+    ERR_TIMEOUT,
+    ERR_BADSESSION,
+};
+
+struct driver_info_rec {
+    uint32_t myip;
+    uint32_t netmask;
+    uint32_t gateway;
+    uint32_t dnsserver;
+    uint32_t timeserver;
+    uint16_t mtu;
+    uint8_t def_ttl;
+    uint8_t def_tos;
+    uint16_t tcp_mss;
+    uint16_t tcp_rwin;
+    uint16_t debug;
+    char domain[255];
+};
+
+struct session_info_rec {
+    uint32_t ip_srce;
+    uint32_t ip_dest;
+    uint8_t ip_prot;
+    uint8_t active;
+};
+
 static void tcp_thr(void *arg)
 {
-    error("TCP call %x\n", _AX);
+#define __S(x) #x
+#define _S(x) __S(x)
+#define _D(x) \
+  case x: \
+    error("TCP call %s\n", _S(x)); \
+    break
+
+    switch (HI(ax)) {
+        _D(TCP_DRIVER_INFO);
+        _D(TCP_DRIVER_UNLOAD);
+        _D(TCP_DRIVER_DOIO);
+        _D(TCP_DRIVER_CRIT_FLAG);
+        _D(TCP_COPY_DRIVER_INFO);
+
+        _D(TCP_OPEN);
+        _D(TCP_CLOSE);
+        _D(TCP_GET);
+        _D(TCP_PUT);
+        _D(TCP_STATUS);
+
+        _D(UDP_OPEN);
+        _D(UDP_CLOSE);
+        _D(UDP_RECV);
+        _D(UDP_SEND);
+        _D(UDP_STATUS);
+
+        _D(IP_OPEN);
+        _D(IP_CLOSE);
+        _D(IP_RECV);
+        _D(IP_SEND);
+        _D(IP_STATUS);
+    }
 }
 
 static void tcp_hlt(Bit16u idx, HLT_ARG(arg))
