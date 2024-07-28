@@ -33,7 +33,7 @@
 #include "dos.h"
 #include "dpmiops.h"
 
-#if DJ64_API_VER != 8
+#if DJ64_API_VER != 9
 #error wrong djdev64 version
 #endif
 
@@ -230,9 +230,15 @@ const struct dj64_api api = {
     .exit = dj64_exit,
 };
 
-static int do_open(const char *path, unsigned flags)
+static int do_open(const char *path, unsigned short flags)
 {
-    int ret = djdev64_open(path, &api, DJ64_API_VER, flags);
+    int ret;
+    unsigned full_flags = flags;
+
+#if USE_ASAN
+    full_flags |= DJ64F_DLMOPEN;
+#endif
+    ret = djdev64_open(path, &api, DJ64_API_VER, full_flags);
     if (ret == -1)
         return ret;
     assert(ret < HNDL_MAX);

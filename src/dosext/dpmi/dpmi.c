@@ -3696,7 +3696,7 @@ static void dpmi_dj64_open(cpuctx_t *scp)
   if (ptr->shm_dir)
     mp = ptr->shm_dir;
   path = assemble_path(mp, ptr->rshmname + 1);
-  djh = djdev64->open(path, _ecx);
+  djh = djdev64->open(path, _LWORD(ecx));
   free(path);
   if (djh != -1) {
     _eflags &= ~CF;
