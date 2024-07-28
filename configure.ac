@@ -338,7 +338,7 @@ AC_DEFINE_DIR([PREFIX], [prefix], [ prefix ])
 AC_DEFINE_DIR([LIBEXECDIR], [libexecdir], [ Where extra executables are placed to ])
 AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 
-DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -imacros config.hh"
+DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -imacros emu_config.h"
 DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wall -Wstrict-prototypes -Wmissing-declarations \
 -Wnested-externs -fms-extensions -pthread \
 -Wno-unused-result -Wcast-qual -Wwrite-strings -Wstrict-aliasing=2 -Wundef"
@@ -422,6 +422,8 @@ AC_CHECK_HEADERS([sys/soundcard.h], [
   USE_OSS=1
   AC_SUBST(USE_OSS)
 ])
+AC_CHECK_HEADERS([sanitizer/asan_interface.h])
+
 DATE_FMT="%F %T %z"
 test -n "$SOURCE_DATE_EPOCH" || SOURCE_DATE_EPOCH=`date +%s`
 CONFIG_TIME=`date -u -d "@$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u "+$DATE_FMT"`
