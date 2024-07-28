@@ -303,7 +303,7 @@ static void stub_thr(void *arg)
     envp[i] = NULL;
 
     err = djstub_main(argc, argv, envp, _eax, &regs, _SEL_ADR, &dosops,
-            &dpmiops);
+            &dpmiops, dj64_print);
     if (err) {
         error("djstub: load failed\n");
         return;
