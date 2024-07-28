@@ -92,6 +92,26 @@ $_floppy_a = ""
         self.assertNotIn('NonZeroReturn', results)
         self.assertIn(self.version, results)
 
+    def test_0_comspec(self):
+        """Checks COMSPEC set correctly"""
+        # Since test names are processed alphabetically this test should
+        # get to run second.
+        self.shouldStop = True
+
+        self.mkfile("testit.bat", """\
+@echo off
+echo (%COMSPEC%)
+@echo on
+rem end
+""", newline="\r\n")
+
+        results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+""")
+
+        self.assertRegex(results.upper(), r"\([C-F]:\\COMMAND.COM\)")
+
     # Tests using assembler
 
     def _test_mfs_directory_common(self, nametype, operation):
