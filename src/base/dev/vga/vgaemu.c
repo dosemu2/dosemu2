@@ -1719,6 +1719,7 @@ int vga_emu_pre_init(void)
     config.exitearly = 1;
     return 1;
   }
+  memset(vga.mem.dirty_bitmap, 0, (vga.mem.pages+CHAR_BIT-1) / CHAR_BIT);
   dirty_all_video_pages();		/* all need an update */
 
   if(
