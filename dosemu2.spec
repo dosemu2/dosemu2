@@ -72,6 +72,9 @@ Recommends: sudo
 Suggests:   valgrind
 Recommends: install-freedos
 Suggests:   install-otherdos
+# fuse is for mkdexe2
+Recommends: fuse-overlayfs
+Recommends: fuse3
 
 # cannot coexist with dosemu1
 Conflicts:  dosemu
