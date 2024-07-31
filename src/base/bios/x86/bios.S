@@ -814,6 +814,8 @@ PKTDRV_driver_entry_cs:
 TCPDRV_OFF:
 	jmp 1f
 	.byte 0
+	.globl TCPDRVR_OFF
+TCPDRVR_OFF:
 	.asciz	"TCP_DRVR"
 1:
 	ljmp	*%cs:TCPDRV_driver_entry
@@ -826,6 +828,14 @@ TCPDRV_driver_entry_ip:
 	.globl	TCPDRV_driver_entry_cs
 TCPDRV_driver_entry_cs:
 	.word 0
+
+	.globl TCPDRV_driver_info
+TCPDRV_driver_info:
+	.space 288
+
+	.globl TCPDRV_session_info
+TCPDRV_session_info:
+	.space 12
 
 /* FOSSIL driver signature and jump to original handler */
 	.globl	FOSSIL_isr
