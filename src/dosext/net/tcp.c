@@ -15,11 +15,22 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdint.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <errno.h>
+#include <net/if.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "emu.h"
 #include "hlt.h"
 #include "int.h"
 #include "iodev.h"
 #include "coopth.h"
+
+static const char *DEFAULT_DNS = "8.8.8.8";
+static const char *DEFAULT_NTP = "pool.ntp.org";
 
 static uint16_t tcp_hlt_off;
 static int tcp_tid;
@@ -87,8 +98,114 @@ struct session_info_rec {
     uint8_t active;
 };
 
+// https://gist.github.com/javiermon/6272065
+static int getgatewayandiface(in_addr_t *addr, char *interface)
+{
+    long destination, gateway;
+    char iface[IF_NAMESIZE];
+    char buf[1024];
+    FILE *file;
+
+    memset(iface, 0, sizeof(iface));
+    memset(buf, 0, sizeof(buf));
+
+    file = fopen("/proc/net/route", "r");
+    if (!file)
+        return -1;
+
+    while (fgets(buf, sizeof(buf), file)) {
+        if (sscanf(buf, "%s %lx %lx", iface, &destination, &gateway) == 3) {
+            if (destination == 0) { /* default */
+                *addr = gateway;
+                strcpy(interface, iface);
+                fclose(file);
+                return 0;
+            }
+        }
+    }
+
+    /* default route not found */
+    if (file)
+        fclose(file);
+    return -1;
+}
+
+static in_addr_t get_ntp(const char *host)
+{
+    struct addrinfo hints = {};
+    struct addrinfo *res;
+    struct sockaddr_in *sin;
+    in_addr_t ret;
+    int err;
+
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_protocol = IPPROTO_UDP;
+    err = getaddrinfo(host, "ntp", &hints, &res);
+    if (err) {
+        error("getaddrinfo(): %s\n", strerror(errno));
+        return 0;
+    }
+    sin = (struct sockaddr_in *)res->ai_addr;
+    ret = sin->sin_addr.s_addr;
+    freeaddrinfo(res);
+    return ret;
+}
+
+static int get_driver_info(struct driver_info_rec *di_out)
+{
+    struct ifaddrs *addrs, *it;
+    char iface[IF_NAMESIZE];
+    in_addr_t gw;
+    int err;
+    int ret = -1;
+
+    err = getgatewayandiface(&gw, iface);
+    if (err) {
+        error("TCP: can't find default interface\n");
+        return -1;
+    }
+    L_printf("TCP: iface %s\n", iface);
+    err = getifaddrs(&addrs);
+    if (err) {
+        error("getifaddrs(): %s\n", strerror(errno));
+        return -1;
+    }
+    for (it = addrs; it; it = it->ifa_next) {
+        if (strcmp(iface, it->ifa_name) == 0 &&
+                it->ifa_addr->sa_family == AF_INET)
+            break;
+    }
+    if (it) {
+        struct driver_info_rec di;
+        struct sockaddr_in *sin = (struct sockaddr_in *)it->ifa_addr;
+        struct sockaddr_in *sinm = (struct sockaddr_in *)it->ifa_netmask;
+
+        di.myip = sin->sin_addr.s_addr;
+        di.netmask = sinm->sin_addr.s_addr;
+        di.gateway = gw;
+        di.dnsserver = inet_addr(DEFAULT_DNS);
+        di.timeserver = get_ntp(DEFAULT_NTP);
+        di.mtu = 1500;
+        di.def_ttl = 64;
+        di.def_tos = 0;
+        di.tcp_mss = 1500;
+        di.tcp_rwin = 4096;
+        di.debug = 0;
+        strcpy(di.domain, "localdomain");
+        *di_out = di;
+        ret = 0;
+    } else {
+        error("TCP: interface %s not found\n", iface);
+    }
+    freeifaddrs(addrs);
+    return ret;
+}
+
 static void tcp_thr(void *arg)
 {
+    int err;
+
 #define __S(x) #x
 #define _S(x) __S(x)
 #define _D(x) \
@@ -97,7 +214,22 @@ static void tcp_thr(void *arg)
     break
 
     switch (HI(ax)) {
-        _D(TCP_DRIVER_INFO);
+        case TCP_DRIVER_INFO:
+            err = get_driver_info(LINEAR2UNIX(SEGOFF2LINEAR(
+                    TCPDRV_SEG, TCPDRV_driver_info)));
+            if (err) {
+                CARRY;
+            } else {
+                NOCARRY;
+                _AX = 0;
+                _DX = (1 << 8);  // support timeouts
+                _DS = TCPDRV_SEG;
+                _SI = TCPDRVR_OFF;
+                _ES = TCPDRV_SEG;
+                _DI = TCPDRV_driver_info;
+            }
+            break;
+
         _D(TCP_DRIVER_UNLOAD);
         _D(TCP_DRIVER_DOIO);
         _D(TCP_DRIVER_CRIT_FLAG);
