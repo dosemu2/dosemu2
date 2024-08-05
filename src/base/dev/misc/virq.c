@@ -167,6 +167,13 @@ void virq_setup(void)
     port_outb(VIRQ_RST_PORT, 1);
 }
 
+static int virq_is_masked(void)
+{
+    uint8_t imr[2] = { [0] = port_inb(0x21), [1] = port_inb(0xa1) };
+    uint16_t real_imr = (imr[1] << 8) | imr[0];
+    return ((imr[0] & 4) || (real_imr & (1 << VIRQ_IRQ_NUM)));
+}
+
 void virq_raise(int virq_num)
 {
     uint16_t irr;
@@ -178,8 +185,11 @@ void virq_raise(int virq_num)
     /* __sync_fetch_and_or() */
     irr = virq_irr;
     virq_irr |= mask;
-    if (!irr)
+    if (!irr) {
         pic_request(VIRQ_IRQ_NUM);
+        if (virq_is_masked())
+            error("VIRQ masked\n");
+    }
     pthread_mutex_unlock(&irr_mtx);
     pthread_mutex_unlock(&hndl_mtx);
 }
