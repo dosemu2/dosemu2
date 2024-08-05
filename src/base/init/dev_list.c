@@ -65,8 +65,6 @@ static int current_device = -1;
 
 static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "cmos",    cmos_init,    cmos_reset,    NULL },
-  { "video",   video_post_init, NULL, NULL },
-  { "internal_mouse",  dosemu_mouse_init,   NULL, dosemu_mouse_close },
   { "serial",  serial_init,  serial_reset,  serial_close },
   { "pic",     pic_init,     pic_reset,     NULL },
   { "chipset", chipset_init, NULL,          NULL },
@@ -96,6 +94,8 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "mfs",     NULL,         mfs_reset,     mfs_done },
   { "cdrom",   NULL,         NULL,          cdrom_done },
   { "dos2tty", dos2tty_init, NULL,          dos2tty_done },
+  { "video",   video_post_init, NULL, NULL },
+  { "internal_mouse",  dosemu_mouse_init,   NULL, dosemu_mouse_close },
   { NULL,      NULL,         NULL,          NULL }
 };
 
