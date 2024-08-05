@@ -43,6 +43,7 @@ static uint16_t virq_irr;
 static pthread_mutex_t irr_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t hndl_mtx = PTHREAD_MUTEX_INITIALIZER;
 static uint16_t virq_hlt;
+static int cur_bh;
 
 struct vhandler_s {
   enum VirqHwRet (*hw_handler)(void *);
@@ -100,18 +101,31 @@ static void virq_hwc_write(ioport_t port, Bit8u value, void *arg)
 static void virq_handler(uint16_t idx, HLT_ARG(arg))
 {
     uint16_t irr;
+    struct vhandler_s *vh;
+    enum VirqSwRet rc;
+
+    /* finish bh first */
+    if (cur_bh != -1) {
+        vh = &vhandlers[cur_bh];
+        rc = vh->sw_handler(vh->arg);
+        if (rc == VIRQ_SWRET_BH) {
+            assert(_IP != virq_hlt);
+            return;
+        }
+        cur_bh = -1;
+    }
 
     while ((irr = port_inw(VIRQ_IRR_PORT))) {
-        struct vhandler_s *vh;
         int inum = find_bit(irr);
 
         assert(inum < VIRQ_MAX);
         port_outb(VIRQ_HWC_PORT, inum);
         vh = &vhandlers[inum];
         if (vh->sw_handler) {
-            enum VirqSwRet rc = vh->sw_handler(vh->arg);
+            rc = vh->sw_handler(vh->arg);
             if (rc == VIRQ_SWRET_BH) {
                 assert(_IP != virq_hlt);
+                cur_bh = inum;
                 /* If BH is scheduled, we just return and switch back later. */
                 set_IF();
                 return;
@@ -144,6 +158,7 @@ void virq_init(void)
 void virq_reset(void)
 {
     pic_untrigger(VIRQ_IRQ_NUM);
+    cur_bh = -1;
 }
 
 void virq_setup(void)
