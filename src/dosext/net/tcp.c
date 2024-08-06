@@ -94,10 +94,12 @@ struct driver_info_rec {
 
 struct session_info_rec {
     uint32_t ip_srce;
+    uint16_t port_src;
     uint32_t ip_dest;
+    uint16_t port_dst;
     uint8_t ip_prot;
     uint8_t active;
-};
+} __attribute__((packed));
 
 struct ses_wrp {
     struct session_info_rec si;
@@ -314,8 +316,10 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
         s = &ses[sh];
         s->fd = fd;
         s->si.ip_srce = msa.sin_addr.s_addr;
+        s->si.port_src = msa.sin_port;
         s->si.ip_dest = dest;
-        s->si.ip_prot = IPPROTO_TCP;
+        s->si.port_dst = htons(port);
+        s->si.ip_prot = 0;
         s->si.active = 1;
     }
     return err;
@@ -465,6 +469,7 @@ static void tcp_thr(void *arg)
             ioctl(s->fd, TIOCOUTQ, &nw);
             _AX = nr;
             _CX = nw;
+            HI(dx) = 4;  // not sure what is that
             _ES = TCPDRV_SEG;
             _DI = TCPDRV_session_info;
             MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), &s->si, sizeof(s->si));
