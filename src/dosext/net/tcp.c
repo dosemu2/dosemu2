@@ -24,6 +24,7 @@
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
 #include "emu.h"
 #include "hlt.h"
 #include "int.h"
@@ -44,7 +45,7 @@ enum {
     TCP_COPY_DRIVER_INFO,
 
     TCP_OPEN = 0x10,
-    TCP_CLOSE,
+    _TCP_CLOSE,
     TCP_GET,
     TCP_PUT,
     TCP_STATUS,
@@ -110,6 +111,32 @@ struct ses_wrp {
 #define MAX_SES 20
 static struct ses_wrp ses[MAX_SES];
 static int num_ses;
+
+enum { TS_ERROR, TS_LISTEN, TS_SYN_SENT, TS_SYN_RECV, TS_ESTABLISHED,
+    TS_FIN_WAIT1, TS_FIN_WAIT2, TS_CLOSE_WAIT, TS_CLOSING,
+    TS_LAST_ACK, TS_TIME_WAIT, TS_CLOSE, TS_TOO_HIGH };
+
+static int get_tcp_state(int st)
+{
+#define TS(s) \
+  case TCP_##s: \
+    return TS_##s
+
+    switch (st) {
+        TS(ESTABLISHED);
+        TS(SYN_SENT);
+        TS(SYN_RECV);
+        TS(FIN_WAIT1);
+        TS(FIN_WAIT2);
+        TS(TIME_WAIT);
+        TS(CLOSE);
+        TS(CLOSE_WAIT);
+        TS(LAST_ACK);
+        TS(LISTEN);
+        TS(CLOSING);
+    }
+    return TS_ERROR;
+}
 
 static int alloc_ses(void)
 {
@@ -458,7 +485,7 @@ static void tcp_thr(void *arg)
             NOCARRY; \
             _DX = ERR_NO_ERROR
 
-        case TCP_CLOSE: {
+        case _TCP_CLOSE: {
             TCP_PROLOG;
             if (LO(ax) == 0)
                 shutdown(s->fd, SHUT_RDWR);
@@ -520,13 +547,16 @@ static void tcp_thr(void *arg)
         }
 
         case TCP_STATUS: {
+            struct tcp_info ti;
+            socklen_t sl = sizeof(ti);
             int nr = 0, nw = 0;
             TCP_PROLOG;
             ioctl(s->fd, FIONREAD, &nr);
             ioctl(s->fd, TIOCOUTQ, &nw);
+            getsockopt(s->fd, SOL_TCP, TCP_INFO, &ti, &sl);
             _AX = nr;
             _CX = nw;
-            HI(dx) = 4;  // not sure what is that
+            HI(dx) = get_tcp_state(ti.tcpi_state);
             _ES = TCPDRV_SEG;
             _DI = TCPDRV_session_info;
             MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), &s->si, sizeof(s->si));
