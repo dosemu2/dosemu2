@@ -306,6 +306,7 @@ speaker			RETURN(SPEAKER);
 ipxsupport		RETURN(IPXSUPPORT);
 ipx_network		RETURN(IPXNETWORK);
 pktdriver		RETURN(PKTDRIVER);
+tcpdriver		RETURN(TCPDRIVER);
 ne2k			RETURN(NE2K);
 debug			RETURN(DEBUG);
 mouse			RETURN(MOUSE);
