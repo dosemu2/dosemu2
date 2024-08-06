@@ -381,49 +381,69 @@ static void tcp_thr(void *arg)
             }
             break;
 
+#define TCP_PROLOG \
+            struct ses_wrp *s; \
+            if (_BX >= num_ses) { \
+                CARRY; \
+                _DX = ERR_BADHANDLE; \
+                break; \
+            } \
+            s = &ses[_BX]; \
+            if (!s->used) { \
+                CARRY; \
+                _DX = ERR_BADHANDLE; \
+                break; \
+            } \
+            NOCARRY; \
+            _DX = ERR_NO_ERROR
+
         case TCP_CLOSE: {
-            struct ses_wrp *s;
-            if (_BX >= num_ses) {
-                CARRY;
-                _DX = ERR_BADHANDLE;
-                break;
-            }
-            s = &ses[_BX];
-            if (!s->used) {
-                CARRY;
-                _DX = ERR_BADHANDLE;
-                break;
-            }
-            NOCARRY;
+            TCP_PROLOG;
             if (LO(ax) == 0)
                 shutdown(s->fd, SHUT_RDWR);
             close(s->fd);
             free_ses(_BX);
-            _DX = ERR_NO_ERROR;
             break;
         }
 
-        _D(TCP_GET);
+        case TCP_GET: {
+            TCP_PROLOG;
+            switch (LO(ax)) {
+                case 0:
+                    error("TCP full get unimplemented\n");
+                    /* break; */
+                case 1:
+                    _AX = read(s->fd, SEG_ADR((char *), es, di), _CX);
+                    break;
+                case 2: {
+                    FILE *f = fdopen(dup(s->fd), "r");
+                    char *s = fgets(SEG_ADR((char *), es, di), _CX, f);
+                    fclose(f);
+                    _AX = 0;
+                    if (s) {
+                        char *p = strpbrk(s, "\r\n");
+                        if (p) {
+                            *p = '\0';
+                            HI(dx) = 2;  // cr/lf skipped
+                        }
+                        _AX = strlen(s);
+                    }
+                    break;
+                }
+                default:
+                    error("TCP get flag %x unsupported\n", LO(ax));
+                    break;
+            }
+            break;
+        }
+
         _D(TCP_PUT);
 
         case TCP_STATUS: {
-            struct ses_wrp *s;
             int nr = 0, nw = 0;
-            if (_BX >= num_ses) {
-                CARRY;
-                _DX = ERR_BADHANDLE;
-                break;
-            }
-            s = &ses[_BX];
-            if (!s->used) {
-                CARRY;
-                _DX = ERR_BADHANDLE;
-                break;
-            }
+            TCP_PROLOG;
             ioctl(s->fd, FIONREAD, &nr);
             ioctl(s->fd, TIOCOUTQ, &nw);
-            NOCARRY;
-            _DX = ERR_NO_ERROR;
             _AX = nr;
             _CX = nw;
             _ES = TCPDRV_SEG;
