@@ -505,7 +505,9 @@ static void tcp_thr(void *arg)
                     break;
                 case 2: {
                     FILE *f = fdopen(dup(s->fd), "r");
-                    char *s = fgets(SEG_ADR((char *), es, di), _CX, f);
+                    char *s;
+                    setbuf(f, NULL);
+                    s = fgets(SEG_ADR((char *), es, di), _CX, f);
                     fclose(f);
                     _AX = 0;
                     if (s) {
