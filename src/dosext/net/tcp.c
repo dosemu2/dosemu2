@@ -241,15 +241,15 @@ static int get_driver_info(struct driver_info_rec *di_out)
 
 static hitimer_t get_timeout_us(uint16_t to)
 {
-    return (to * 65536 * 1000000ULL) / PIT_TICK_RATE;
+    return (to * 65536ULL * 1000000ULL) / PIT_TICK_RATE;
 }
 
 enum CbkRet { CBK_DONE, CBK_CONT, CBK_ERR };
 
-static enum CbkRet conn_cb(int fd, void *sa, int *r_err)
+static enum CbkRet conn_cb(int fd, void *sa, int len, int *r_err)
 {
-    int err = connect(fd, sa, sizeof(struct sockaddr_in));
-    *r_err = ERR_CRITICAL;
+    int err = connect(fd, sa, len);
+    *r_err = err;
     if (err && errno != EINPROGRESS && errno != EALREADY && errno != EISCONN) {
         error("connect(): %s\n", strerror(errno));
         return CBK_ERR;
@@ -259,20 +259,33 @@ static enum CbkRet conn_cb(int fd, void *sa, int *r_err)
     return CBK_CONT;
 }
 
-static int handle_timeout(uint16_t to, enum CbkRet (*cbk)(int, void *, int *),
-    int arg, void *arg2)
+static enum CbkRet recv_cb(int fd, void *buf, int len, int *r_err)
+{
+    int rc = recv(fd, buf, len, MSG_DONTWAIT);
+    *r_err = rc;
+    if (rc == -1 && errno != EAGAIN) {
+        error("recv(): %s\n", strerror(errno));
+        return CBK_ERR;
+    }
+    if (rc > 0)
+        return CBK_DONE;
+    return CBK_CONT;
+}
+
+static int handle_timeout(uint16_t to,
+    enum CbkRet (*cbk)(int, void *, int, int *),
+    int arg, void *arg2, int arg3, int *r_err)
 {
     hitimer_t end = GETusTIME(0) + get_timeout_us(to);
     int first = 1;
     enum CbkRet cbr;
-    int err;
 
     do {
         if (!first)
             coopth_wait();
-        cbr = cbk(arg, arg2, &err);
+        cbr = cbk(arg, arg2, arg3, r_err);
         if (cbr == CBK_ERR)
-            return err;
+            return ERR_CRITICAL;
         if (cbr == CBK_DONE)
             break;
         first = 0;
@@ -286,7 +299,7 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
     uint16_t *r_port, uint16_t *r_hand)
 {
     struct sockaddr_in sa;
-    int fd, tmp, err;
+    int fd, tmp, err, rc;
 
     fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1)
@@ -296,7 +309,8 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
     sa.sin_addr.s_addr = dest;
     sa.sin_port = htons(port);
     sa.sin_family = AF_INET;
-    err = handle_timeout(to, conn_cb, fd, &sa);
+    err = handle_timeout(to, conn_cb, fd, &sa,
+            sizeof(struct sockaddr_in), &rc);
     if (err != ERR_NO_ERROR) {
         close(fd);
     } else {
@@ -540,8 +554,28 @@ static void tcp_thr(void *arg)
             break;
         }
 
-        _D(UDP_RECV);
-        _D(UDP_SEND);
+        case UDP_RECV: {
+            int rc;
+            TCP_PROLOG;
+            _DX = handle_timeout(_DX, recv_cb, s->fd,
+                    SEG_ADR((char *), es, di), _CX, &rc);
+            _AX = (rc < 0 ? 0 : rc);
+            break;
+        }
+
+        case UDP_SEND: {
+            int rc;
+            TCP_PROLOG;
+            rc = send(s->fd, SEG_ADR((char *), es, di), _CX, 0);
+            if (rc == -1) {
+                error("UDP send: %s\n", strerror(errno));
+                _DX = ERR_CRITICAL;
+            } else {
+                _AX = rc;
+            }
+            break;
+        }
+
         _D(UDP_STATUS);
 
         _D(IP_OPEN);
