@@ -2137,16 +2137,18 @@ static void call_int33_mouse_event_handler(void)
       m_printf("MOUSE: mickey synced with coords, x:%i->%i y:%i->%i\n",
           get_mx(), mickeyx(), get_my(), mickeyy());
     }
+    if (dragged.skipped) {
+      dragged.skipped = 0;
+      do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range,
+          mouse.cursor_on >= 0);
+    }
 }
 
 /* this function is called from int74 via inte6 */
 static void call_mouse_event_handler(void *arg)
 {
-  int handled = 0;
-
   if ((mouse.mask & mouse_events) && (mouse.cs || mouse.ip)) {
     call_int33_mouse_event_handler();
-    handled = 1;
   } else {
     m_printf("MOUSE: Skipping event handler, "
 	       "mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
@@ -2154,11 +2156,6 @@ static void call_mouse_event_handler(void *arg)
   }
   mouse_events = 0;
 
-  if (handled && dragged.skipped) {
-    dragged.skipped = 0;
-    do_move_abs(dragged.x, dragged.y, dragged.x_range, dragged.y_range,
-        mouse.cursor_on >= 0);
-  }
 }
 
 /* unconditional mouse cursor update */
