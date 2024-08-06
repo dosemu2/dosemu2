@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <netdb.h>
 #include <errno.h>
 #include <net/if.h>
@@ -97,6 +98,40 @@ struct session_info_rec {
     uint8_t ip_prot;
     uint8_t active;
 };
+
+struct ses_wrp {
+    struct session_info_rec si;
+    int fd;
+    int used;
+};
+
+#define MAX_SES 20
+static struct ses_wrp ses[MAX_SES];
+static int num_ses;
+
+static int alloc_ses(void)
+{
+    int i;
+
+    for (i = 0; i < num_ses; i++) {
+        if (!ses[i].used) {
+            ses[i].used = 1;
+            return i;
+        }
+    }
+    if (num_ses >= MAX_SES)
+        return -1;
+    ses[num_ses].used = 1;
+    return num_ses++;
+}
+
+static void free_ses(int idx)
+{
+    assert(idx < num_ses);
+    ses[idx].used = 0;
+    while (num_ses && !ses[num_ses - 1].used)
+        num_ses--;
+}
 
 // https://gist.github.com/javiermon/6272065
 static int getgatewayandiface(in_addr_t *addr, char *interface)
@@ -202,6 +237,90 @@ static int get_driver_info(struct driver_info_rec *di_out)
     return ret;
 }
 
+static hitimer_t get_timeout_us(uint16_t to)
+{
+    return (to * 65536 * 1000000ULL) / PIT_TICK_RATE;
+}
+
+enum CbkRet { CBK_DONE, CBK_CONT, CBK_ERR };
+
+static enum CbkRet conn_cb(int fd, void *sa, int *r_err)
+{
+    int err = connect(fd, sa, sizeof(struct sockaddr_in));
+    *r_err = ERR_CRITICAL;
+    if (err && errno != EINPROGRESS && errno != EALREADY && errno != EISCONN) {
+        error("connect(): %s\n", strerror(errno));
+        return CBK_ERR;
+    }
+    if (!err || errno == EISCONN)
+        return CBK_DONE;
+    return CBK_CONT;
+}
+
+static int handle_timeout(uint16_t to, enum CbkRet (*cbk)(int, void *, int *),
+    int arg, void *arg2)
+{
+    hitimer_t end = GETusTIME(0) + get_timeout_us(to);
+    int first = 1;
+    enum CbkRet cbr;
+    int err;
+
+    do {
+        if (!first)
+            coopth_wait();
+        cbr = cbk(arg, arg2, &err);
+        if (cbr == CBK_ERR)
+            return err;
+        if (cbr == CBK_DONE)
+            break;
+        first = 0;
+    } while (to && (to == 0xffff || GETusTIME(0) < end));
+    if (cbr != CBK_DONE)
+        return ERR_TIMEOUT;
+    return ERR_NO_ERROR;
+}
+
+static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
+    uint16_t *r_port, uint16_t *r_hand)
+{
+    struct sockaddr_in sa;
+    int fd, tmp, err;
+
+    fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd == -1)
+        return ERR_NOHANDLES;
+    tmp = 1;
+    ioctl(fd, FIONBIO, &tmp); /* non-blocking i/o */
+    sa.sin_addr.s_addr = dest;
+    sa.sin_port = htons(port);
+    sa.sin_family = AF_INET;
+    err = handle_timeout(to, conn_cb, fd, &sa);
+    if (err != ERR_NO_ERROR) {
+        close(fd);
+    } else {
+        struct sockaddr_in msa;
+        int sh;
+        struct ses_wrp *s;
+        socklen_t l = sizeof(msa);
+        getsockname(fd, &msa, &l);
+        *r_port = ntohs(msa.sin_port);
+        sh = alloc_ses();
+        if (sh == -1) {
+            error("TCP: out of handles\n");
+            close(fd);
+            return ERR_NOHANDLES;
+        }
+        *r_hand = sh;
+        s = &ses[sh];
+        s->fd = fd;
+        s->si.ip_srce = msa.sin_addr.s_addr;
+        s->si.ip_dest = dest;
+        s->si.ip_prot = IPPROTO_TCP;
+        s->si.active = 1;
+    }
+    return err;
+}
+
 static void tcp_thr(void *arg)
 {
     int err;
@@ -211,6 +330,7 @@ static void tcp_thr(void *arg)
 #define _D(x) \
   case x: \
     error("TCP call %s\n", _S(x)); \
+    CARRY; \
     break
 
     switch (HI(ax)) {
@@ -235,8 +355,53 @@ static void tcp_thr(void *arg)
         _D(TCP_DRIVER_CRIT_FLAG);
         _D(TCP_COPY_DRIVER_INFO);
 
-        _D(TCP_OPEN);
-        _D(TCP_CLOSE);
+        case TCP_OPEN:
+            switch (LO(ax)) {
+                case 0: {
+                    uint16_t lport, h;
+                    err = tcp_connect(((unsigned)_SI << 16) | _DI, _CX, _DX, &lport, &h);
+                    if (err) {
+                        CARRY;
+                    } else {
+                        NOCARRY;
+                        _AX = lport;
+                        _BX = h;
+                    }
+                    _DX = err;
+                    break;
+                }
+                case 1:
+                    error("TCP listen unsupported\n");
+                    CARRY;
+                    break;
+                default:
+                    error("TCP open flag %x unsupported\n", LO(ax));
+                    CARRY;
+                    break;
+            }
+            break;
+
+        case TCP_CLOSE: {
+            struct ses_wrp *s;
+            if (_BX >= num_ses) {
+                CARRY;
+                _DX = ERR_BADHANDLE;
+                break;
+            }
+            s = &ses[_BX];
+            if (!s->used) {
+                CARRY;
+                _DX = ERR_BADHANDLE;
+                break;
+            }
+            if (LO(ax) == 0)
+                shutdown(s->fd, SHUT_RDWR);
+            close(s->fd);
+            free_ses(_BX);
+            _DX = ERR_NO_ERROR;
+            break;
+        }
+
         _D(TCP_GET);
         _D(TCP_PUT);
         _D(TCP_STATUS);
