@@ -394,6 +394,7 @@ static void tcp_thr(void *arg)
                 _DX = ERR_BADHANDLE;
                 break;
             }
+            NOCARRY;
             if (LO(ax) == 0)
                 shutdown(s->fd, SHUT_RDWR);
             close(s->fd);
@@ -404,7 +405,32 @@ static void tcp_thr(void *arg)
 
         _D(TCP_GET);
         _D(TCP_PUT);
-        _D(TCP_STATUS);
+
+        case TCP_STATUS: {
+            struct ses_wrp *s;
+            int nr = 0, nw = 0;
+            if (_BX >= num_ses) {
+                CARRY;
+                _DX = ERR_BADHANDLE;
+                break;
+            }
+            s = &ses[_BX];
+            if (!s->used) {
+                CARRY;
+                _DX = ERR_BADHANDLE;
+                break;
+            }
+            ioctl(s->fd, FIONREAD, &nr);
+            ioctl(s->fd, TIOCOUTQ, &nw);
+            NOCARRY;
+            _DX = ERR_NO_ERROR;
+            _AX = nr;
+            _CX = nw;
+            _ES = TCPDRV_SEG;
+            _DI = TCPDRV_session_info;
+            MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), &s->si, sizeof(s->si));
+            break;
+        }
 
         _D(UDP_OPEN);
         _D(UDP_CLOSE);
