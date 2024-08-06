@@ -437,7 +437,26 @@ static void tcp_thr(void *arg)
             break;
         }
 
-        _D(TCP_PUT);
+        case TCP_PUT: {
+            int len = 0;
+            TCP_PROLOG;
+            switch (LO(ax) & ~4) {
+                case 0:
+                    error("TCP full put unimplemented\n");
+                    /* no break */
+                case 1:
+                case 2:
+                    len = write(s->fd, SEG_ADR((char *), es, di), _CX);
+                    break;
+                default:
+                    error("TCP put flag %x unsupported\n", LO(ax));
+                    break;
+            }
+            if ((LO(ax) & ~4) == 2)
+                write(s->fd, "\r\n", 2);
+            _AX = len;
+            break;
+        }
 
         case TCP_STATUS: {
             int nr = 0, nw = 0;
