@@ -325,6 +325,49 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
     return err;
 }
 
+static int udp_connect(uint32_t dest, uint16_t port,
+    uint16_t *r_port, uint16_t *r_hand)
+{
+    struct sockaddr_in sa;
+    int fd, tmp, rc, sh;
+    struct ses_wrp *s;
+    socklen_t l = sizeof(sa);
+
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd == -1)
+        return ERR_NOHANDLES;
+    tmp = 1;
+    ioctl(fd, FIONBIO, &tmp); /* non-blocking i/o */
+    sa.sin_addr.s_addr = dest;
+    sa.sin_port = htons(port);
+    sa.sin_family = AF_INET;
+    rc = connect(fd, &sa, sizeof(sa));
+    if (rc) {
+        error("UDP connect: %s\n", strerror(errno));
+        close(fd);
+        return ERR_CRITICAL;
+    }
+
+    getsockname(fd, &sa, &l);
+    *r_port = ntohs(sa.sin_port);
+    sh = alloc_ses();
+    if (sh == -1) {
+        error("TCP: out of handles\n");
+        close(fd);
+        return ERR_NOHANDLES;
+    }
+    *r_hand = sh;
+    s = &ses[sh];
+    s->fd = fd;
+    s->si.ip_srce = sa.sin_addr.s_addr;
+    s->si.port_src = sa.sin_port;
+    s->si.ip_dest = dest;
+    s->si.port_dst = htons(port);
+    s->si.ip_prot = 1;
+    s->si.active = 1;
+    return ERR_NO_ERROR;
+}
+
 static void tcp_thr(void *arg)
 {
     int err;
@@ -476,8 +519,27 @@ static void tcp_thr(void *arg)
             break;
         }
 
-        _D(UDP_OPEN);
-        _D(UDP_CLOSE);
+        case UDP_OPEN: {
+            uint16_t lport, h;
+            err = udp_connect(((unsigned)_SI << 16) | _DI, _CX, &lport, &h);
+            if (err) {
+                CARRY;
+            } else {
+                NOCARRY;
+                _AX = lport;
+                _BX = h;
+            }
+            _DX = err;
+            break;
+        }
+
+        case UDP_CLOSE: {
+            TCP_PROLOG;
+            close(s->fd);
+            free_ses(_BX);
+            break;
+        }
+
         _D(UDP_RECV);
         _D(UDP_SEND);
         _D(UDP_STATUS);
