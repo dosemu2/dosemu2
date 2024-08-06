@@ -105,6 +105,7 @@ struct session_info_rec {
 struct ses_wrp {
     struct session_info_rec si;
     int fd;
+    int lfd;
     int used;
 };
 
@@ -144,12 +145,14 @@ static int alloc_ses(void)
 
     for (i = 0; i < num_ses; i++) {
         if (!ses[i].used) {
+            memset(&ses[i], 0, sizeof(ses[i]));
             ses[i].used = 1;
             return i;
         }
     }
     if (num_ses >= MAX_SES)
         return -1;
+    memset(&ses[num_ses], 0, sizeof(ses[num_ses]));
     ses[num_ses].used = 1;
     return num_ses++;
 }
@@ -356,6 +359,7 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
         *r_hand = sh;
         s = &ses[sh];
         s->fd = fd;
+        s->lfd = -1;
         s->si.ip_srce = msa.sin_addr.s_addr;
         s->si.port_src = msa.sin_port;
         s->si.ip_dest = dest;
@@ -364,6 +368,56 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
         s->si.active = 1;
     }
     return err;
+}
+
+static int tcp_listen(uint32_t dest, uint16_t port,
+    uint16_t *r_port, uint16_t *r_hand)
+{
+    struct sockaddr_in sa;
+    socklen_t l = sizeof(sa);
+    int fd, tmp, rc, sh;
+    struct ses_wrp *s;
+
+    fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd == -1)
+        return ERR_NOHANDLES;
+    tmp = 1;
+    ioctl(fd, FIONBIO, &tmp); /* non-blocking i/o */
+    sa.sin_addr.s_addr = dest;
+    sa.sin_port = htons(port);
+    sa.sin_family = AF_INET;
+    rc = bind(fd, &sa, sizeof(sa));
+    if (rc) {
+        error("TCP bind: %s\n", strerror(errno));
+        close(fd);
+        return ERR_CRITICAL;
+    }
+    rc = listen(fd, 1);
+    if (rc) {
+        error("TCP listen: %s\n", strerror(errno));
+        close(fd);
+        return ERR_CRITICAL;
+    }
+
+    getsockname(fd, &sa, &l);
+    *r_port = ntohs(sa.sin_port);
+    sh = alloc_ses();
+    if (sh == -1) {
+        error("TCP: out of handles\n");
+        close(fd);
+        return ERR_NOHANDLES;
+    }
+    *r_hand = sh;
+    s = &ses[sh];
+    s->lfd = fd;
+    s->fd = -1;
+    s->si.ip_srce = sa.sin_addr.s_addr;
+    s->si.port_src = sa.sin_port;
+    s->si.ip_dest = 0;
+    s->si.port_dst = 0;
+    s->si.ip_prot = 0;
+    s->si.active = 1;
+    return ERR_NO_ERROR;
 }
 
 static int udp_connect(uint32_t dest, uint16_t port,
@@ -458,10 +512,19 @@ static void tcp_thr(void *arg)
                     _DX = err;
                     break;
                 }
-                case 1:
-                    error("TCP listen unsupported\n");
-                    CARRY;
+                case 1: {
+                    uint16_t lport, h;
+                    err = tcp_listen(((unsigned)_SI << 16) | _DI, _BX, &lport, &h);
+                    if (err) {
+                        CARRY;
+                    } else {
+                        NOCARRY;
+                        _AX = lport;
+                        _BX = h;
+                    }
+                    _DX = err;
                     break;
+                }
                 default:
                     error("TCP open flag %x unsupported\n", LO(ax));
                     CARRY;
@@ -487,9 +550,13 @@ static void tcp_thr(void *arg)
 
         case _TCP_CLOSE: {
             TCP_PROLOG;
-            if (LO(ax) == 0)
-                shutdown(s->fd, SHUT_RDWR);
-            close(s->fd);
+            if (s->fd != -1) {
+                if (LO(ax) == 0)
+                    shutdown(s->fd, SHUT_RDWR);
+                close(s->fd);
+            }
+            if (s->lfd != -1)
+                close(s->lfd);
             free_ses(_BX);
             break;
         }
@@ -551,14 +618,29 @@ static void tcp_thr(void *arg)
         case TCP_STATUS: {
             struct tcp_info ti;
             socklen_t sl = sizeof(ti);
-            int nr = 0, nw = 0;
             TCP_PROLOG;
-            ioctl(s->fd, FIONREAD, &nr);
-            ioctl(s->fd, TIOCOUTQ, &nw);
-            getsockopt(s->fd, SOL_TCP, TCP_INFO, &ti, &sl);
-            _AX = nr;
-            _CX = nw;
-            HI(dx) = get_tcp_state(ti.tcpi_state);
+            if (s->fd == -1) {  // listener
+                struct sockaddr_in sin;
+                socklen_t sil = sizeof(sin);
+                s->fd = accept(s->lfd, &sin, &sil);
+                if (s->fd != -1) {
+                    s->si.ip_dest = sin.sin_addr.s_addr;
+                    s->si.port_dst = sin.sin_port;
+                }
+            }
+            if (s->fd == -1) {
+                _AX = 0;
+                _CX = 0;
+                HI(dx) = TS_LISTEN;
+            } else {
+                int nr = 0, nw = 0;
+                ioctl(s->fd, FIONREAD, &nr);
+                ioctl(s->fd, TIOCOUTQ, &nw);
+                getsockopt(s->fd, SOL_TCP, TCP_INFO, &ti, &sl);
+                _AX = nr;
+                _CX = nw;
+                HI(dx) = get_tcp_state(ti.tcpi_state);
+            }
             _ES = TCPDRV_SEG;
             _DI = TCPDRV_session_info;
             MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), &s->si, sizeof(s->si));
