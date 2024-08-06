@@ -2041,7 +2041,8 @@ static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata)
 void
 mouse_delta(int event)
 {
-	mouse_events |= event;
+	if (event & mouse.mask)
+		mouse_events |= event;
 	reset_idle(0);
 }
 
@@ -2101,6 +2102,7 @@ static void call_int33_mouse_event_handler(void)
 {
     rm_stack_enter();
     LWORD(eax) = mouse_events;
+    mouse_events = 0;
     LWORD(ecx) = MOUSE_RX;
     LWORD(edx) = MOUSE_RY;
     LWORD(esi) = mickeyx();
@@ -2147,15 +2149,7 @@ static void call_int33_mouse_event_handler(void)
 /* this function is called from int74 via inte6 */
 static void call_mouse_event_handler(void *arg)
 {
-  if ((mouse.mask & mouse_events) && (mouse.cs || mouse.ip)) {
     call_int33_mouse_event_handler();
-  } else {
-    m_printf("MOUSE: Skipping event handler, "
-	       "mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
-	       mouse.mask, mouse_events, mouse.cs, mouse.ip);
-  }
-  mouse_events = 0;
-
 }
 
 /* unconditional mouse cursor update */
@@ -2274,9 +2268,14 @@ static enum VirqSwRet do_mouse_irq(void *arg)
 
   if (mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip))
     return ret;
-  if (mouse_events) {
+  if ((mouse.mask & mouse_events) && (mouse.cs || mouse.ip)) {
     coopth_start(mouse_tid, NULL);
     ret = VIRQ_SWRET_BH;
+  } else {
+    m_printf("MOUSE: Skipping event handler, "
+	       "mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
+	       mouse.mask, mouse_events, mouse.cs, mouse.ip);
+    mouse_events = 0;
   }
   return ret;
 }
