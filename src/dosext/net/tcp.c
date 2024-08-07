@@ -626,6 +626,9 @@ static void tcp_thr(void *arg)
             } \
             NOCARRY; \
             _DX = ERR_NO_ERROR
+#define TCP_PROLOG2 \
+            int to = _DX; \
+            TCP_PROLOG
 
         case _TCP_CLOSE: {
             TCP_PROLOG;
@@ -642,6 +645,8 @@ static void tcp_thr(void *arg)
 
         case TCP_GET: {
             TCP_PROLOG;
+            if (_DX)
+                error("TCP get timeout unsupported\n");
             switch (LO(ax)) {
                 case 0:
                     error("TCP full get unimplemented\n");
@@ -729,7 +734,7 @@ static void tcp_thr(void *arg)
         case UDP_OPEN: {
             uint16_t lport, h;
             err = udp_connect(((unsigned)_SI << 16) | _DI, _CX, &lport, &h);
-            if (err) {
+            if (err != ERR_NO_ERROR) {
                 CARRY;
             } else {
                 NOCARRY;
@@ -749,8 +754,8 @@ static void tcp_thr(void *arg)
 
         case UDP_RECV: {
             int rc;
-            TCP_PROLOG;
-            _DX = handle_timeout(_DX, recv_cb, s->fd,
+            TCP_PROLOG2;
+            _DX = handle_timeout(to, recv_cb, s->fd,
                     SEG_ADR((char *), es, di), _CX, &rc);
             _AX = (rc < 0 ? 0 : rc);
             break;
@@ -763,6 +768,7 @@ static void tcp_thr(void *arg)
             if (rc == -1) {
                 error("UDP send: %s\n", strerror(errno));
                 _DX = ERR_CRITICAL;
+                break;
             } else {
                 _AX = rc;
             }
