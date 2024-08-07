@@ -613,7 +613,13 @@ static void tcp_thr(void *arg)
             break;
 
         _D(TCP_DRIVER_UNLOAD);
-        _D(TCP_DRIVER_DOIO);
+
+        case TCP_DRIVER_DOIO:
+            _AX = 10;
+            _CX = 10;
+            _DX = ERR_NO_ERROR;
+            break;
+
         _D(TCP_DRIVER_CRIT_FLAG);
         _D(TCP_COPY_DRIVER_INFO);
 
@@ -844,9 +850,48 @@ static void tcp_thr(void *arg)
             break;
         }
 
-        _D(IP_RECV);
-        _D(IP_SEND);
-        _D(IP_STATUS);
+        case IP_RECV: {
+            int rc;
+            TCP_PROLOG2;
+            _DX = handle_timeout(to, recv_cb, s->fd,
+                    SEG_ADR((char *), es, di), _CX, &rc);
+            _AX = (rc < 0 ? 0 : rc);
+            break;
+        }
+
+        case IP_SEND: {
+            int rc;
+            TCP_PROLOG;
+            if (_CX < 8) {
+                error("ICMP: len too small, %i\n", _CX);
+                _DX = ERR_CRITICAL;
+                break;
+            }
+            rc = send(s->fd, SEG_ADR((char *), es, di), _CX, MSG_DONTWAIT);
+            if (rc == -1) {
+                error("ICMP send: %s\n", strerror(errno));
+                _DX = ERR_CRITICAL;
+                break;
+            } else {
+                _AX = rc;
+            }
+            break;
+        }
+
+        case IP_STATUS: {
+            int nr;
+            char buf[4096];
+            TCP_PROLOG;
+            nr = recv(s->fd, buf, sizeof(buf), MSG_DONTWAIT | MSG_PEEK);
+            if (nr < 0)
+                nr = 0;
+            _AX = nr;
+            _CX = 0;
+            _ES = TCPDRV_SEG;
+            _DI = TCPDRV_session_info;
+            MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), &s->si, sizeof(s->si));
+            break;
+        }
     }
 }
 
