@@ -762,7 +762,7 @@ static void tcp_thr(void *arg)
                 _CX = 0;
                 HI(dx) = TS_LISTEN;
             } else {
-                struct tcp_info ti;
+                struct tcp_info ti = {};
                 socklen_t sl = sizeof(ti);
                 int nr = 0, nw = 0;
                 ioctl(s->fd, FIONREAD, &nr);
