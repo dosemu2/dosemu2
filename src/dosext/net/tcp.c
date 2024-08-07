@@ -616,8 +616,6 @@ static void tcp_thr(void *arg)
         }
 
         case TCP_STATUS: {
-            struct tcp_info ti;
-            socklen_t sl = sizeof(ti);
             TCP_PROLOG;
             if (s->fd == -1) {  // listener
                 struct sockaddr_in sin;
@@ -633,6 +631,8 @@ static void tcp_thr(void *arg)
                 _CX = 0;
                 HI(dx) = TS_LISTEN;
             } else {
+                struct tcp_info ti;
+                socklen_t sl = sizeof(ti);
                 int nr = 0, nw = 0;
                 ioctl(s->fd, FIONREAD, &nr);
                 ioctl(s->fd, TIOCOUTQ, &nw);
