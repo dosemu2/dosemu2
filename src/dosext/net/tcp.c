@@ -337,7 +337,8 @@ static int get_driver_info(struct driver_info_rec *di_out)
         di.tcp_mss = 1500;
         di.tcp_rwin = 4096;
         di.debug = 0;
-        strcpy(di.domain, "localdomain");
+        /* use strncpy() to 0-pad entire buffer */
+        strncpy(di.domain, "localdomain", sizeof(di.domain));
         *di_out = di;
         ret = 0;
     } else {
@@ -555,6 +556,7 @@ static int icmp_connect(uint32_t dest, uint16_t *r_hand)
     tmp = 1;
     ioctl(fd, FIONBIO, &tmp); /* non-blocking i/o */
     sa.sin_addr.s_addr = dest;
+    sa.sin_port = 0;
     sa.sin_family = AF_INET;
     rc = connect(fd, &sa, sizeof(sa));
     if (rc) {
