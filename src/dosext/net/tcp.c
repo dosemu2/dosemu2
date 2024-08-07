@@ -442,7 +442,7 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
         s->si.port_src = msa.sin_port;
         s->si.ip_dest = dest;
         s->si.port_dst = htons(port);
-        s->si.ip_prot = 0;
+        s->si.ip_prot = IPPROTO_TCP;
         s->si.active = 1;
     }
     return err;
@@ -493,7 +493,7 @@ static int tcp_listen(uint32_t dest, uint16_t port,
     s->si.port_src = sa.sin_port;
     s->si.ip_dest = 0;
     s->si.port_dst = 0;
-    s->si.ip_prot = 0;
+    s->si.ip_prot = IPPROTO_TCP;
     s->si.active = 1;
     return ERR_NO_ERROR;
 }
@@ -537,7 +537,48 @@ static int udp_connect(uint32_t dest, uint16_t port,
     s->si.port_src = sa.sin_port;
     s->si.ip_dest = dest;
     s->si.port_dst = htons(port);
-    s->si.ip_prot = 1;
+    s->si.ip_prot = IPPROTO_UDP;
+    s->si.active = 1;
+    return ERR_NO_ERROR;
+}
+
+static int icmp_connect(uint32_t dest, uint16_t *r_hand)
+{
+    struct sockaddr_in sa;
+    int fd, tmp, rc, sh;
+    struct ses_wrp *s;
+    socklen_t l = sizeof(sa);
+
+    fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    if (fd == -1)
+        return ERR_NOHANDLES;
+    tmp = 1;
+    ioctl(fd, FIONBIO, &tmp); /* non-blocking i/o */
+    sa.sin_addr.s_addr = dest;
+    sa.sin_family = AF_INET;
+    rc = connect(fd, &sa, sizeof(sa));
+    if (rc) {
+        error("ICMP connect: %s\n", strerror(errno));
+        close(fd);
+        return ERR_CRITICAL;
+    }
+
+    getsockname(fd, &sa, &l);
+    sh = alloc_ses();
+    if (sh == -1) {
+        error("TCP: out of handles\n");
+        close(fd);
+        return ERR_NOHANDLES;
+    }
+    *r_hand = sh;
+    s = &ses[sh];
+    s->fd = fd;
+    s->lfd = -1;
+    s->si.ip_srce = sa.sin_addr.s_addr;
+    s->si.port_src = 0;
+    s->si.ip_dest = dest;
+    s->si.port_dst = 0;
+    s->si.ip_prot = IPPROTO_ICMP;
     s->si.active = 1;
     return ERR_NO_ERROR;
 }
@@ -777,8 +818,32 @@ static void tcp_thr(void *arg)
 
         _D(UDP_STATUS);
 
-        _D(IP_OPEN);
-        _D(IP_CLOSE);
+        case IP_OPEN: {
+            uint16_t h;
+            if (LO(bx) != IPPROTO_ICMP) {
+                error("TCP: ipproto %i unsupported\n", LO(bx));
+                _DX = ERR_CRITICAL;
+                break;
+            }
+            err = icmp_connect(((unsigned)_SI << 16) | _DI, &h);
+            if (err != ERR_NO_ERROR) {
+                CARRY;
+            } else {
+                NOCARRY;
+                _AX = h;
+                _BX = h;  // ??? usually handle returned in BX
+            }
+            _DX = err;
+            break;
+        }
+
+        case IP_CLOSE: {
+            TCP_PROLOG;
+            close(s->fd);
+            free_ses(_BX);
+            break;
+        }
+
         _D(IP_RECV);
         _D(IP_SEND);
         _D(IP_STATUS);
