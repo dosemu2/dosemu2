@@ -454,6 +454,7 @@ static int udp_connect(uint32_t dest, uint16_t port,
     *r_hand = sh;
     s = &ses[sh];
     s->fd = fd;
+    s->lfd = -1;
     s->si.ip_srce = sa.sin_addr.s_addr;
     s->si.port_src = sa.sin_port;
     s->si.ip_dest = dest;
@@ -730,4 +731,16 @@ void tcp_init(void)
 
 void tcp_done(void)
 {
+    int i;
+
+    for (i = 0; i < num_ses; i++) {
+        if (ses[i].used) {
+            struct ses_wrp *s = &ses[i];
+            if (s->fd != -1)
+                close(s->fd);
+            if (s->lfd != -1)
+                close(s->lfd);
+            free_ses(i);
+        }
+    }
 }
