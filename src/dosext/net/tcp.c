@@ -243,6 +243,26 @@ void tcp_helper(struct vm86_regs *regs)
                 config.tcpiface = strndup(SEG_ADR((char *), es, di),
                         LO_BYTE_d(regs->ecx));
             break;
+        case DOS_SUBHELPER_TCP_GETGW: {
+            in_addr_t gw;
+            if (config.tcpgw) {
+                gw = config.tcpgw;
+            } else {
+                char iface[IF_NAMESIZE];
+                int err = getgatewayandiface(&gw, iface);
+                if (err) {
+                    error("TCP: can't find default interface\n");
+                    return;
+                }
+            }
+            regs->ecx = gw >> 16;
+            regs->edx = gw & 0xffff;
+            break;
+        }
+        case DOS_SUBHELPER_TCP_SETGW:
+            config.tcpgw = ((unsigned)(regs->ecx & 0xffff) << 16) |
+                    (regs->edx & 0xffff);
+            break;
         default:
             CARRY;
             break;
