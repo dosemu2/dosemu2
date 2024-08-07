@@ -50,6 +50,7 @@ extern const unsigned TCPDRV_driver_entry_ip;
 extern const unsigned TCPDRV_driver_entry_cs;
 extern const unsigned TCPDRV_driver_info;
 extern const unsigned TCPDRV_session_info;
+extern const unsigned TCPDRV_iface_name;
 extern const unsigned FOSSIL_isr;
 extern const unsigned FOSSIL_oldisr;
 extern const unsigned FOSSIL_magic;

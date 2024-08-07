@@ -233,6 +233,8 @@ typedef struct config_info {
        char   *netsock;
        boolean pktdrv;
        boolean tcpdrv;
+       char   *tcpiface;
+       uint32_t tcpgw;
        boolean ne2k;
        boolean emuretrace;
        boolean mapped_bios;	/* video BIOS */
@@ -497,6 +499,7 @@ extern void restore_vt (unsigned short vt);
 extern void HMA_init(void);
 extern void hardware_run(void);
 extern int register_exit_handler(void (*handler)(void));
+void tcp_helper(struct vm86_regs *);
 
 typedef struct emu_hlt_s emu_hlt_t;
 extern void *vm86_hlt_state;

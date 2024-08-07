@@ -30,6 +30,7 @@
 #include "int.h"
 #include "iodev.h"
 #include "coopth.h"
+#include "doshelpers.h"
 
 static const char *DEFAULT_DNS = "8.8.8.8";
 static const char *DEFAULT_NTP = "pool.ntp.org";
@@ -197,6 +198,57 @@ static int getgatewayandiface(in_addr_t *addr, char *interface)
     return -1;
 }
 
+void tcp_helper(struct vm86_regs *regs)
+{
+    switch (HI_BYTE_d(regs->eax)) {
+        case DOS_SUBHELPER_TCP_CONFIG:
+            regs->ebx = config.tcpdrv;
+            if (config.tcpiface) {
+                int len = strlen(config.tcpiface);
+                if (len > 15)
+                    len = 15;
+                MEMCPY_2DOS(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_iface_name),
+                        config.tcpiface, len);
+                WRITE_BYTE(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_iface_name) + len,
+                        '\0');
+                regs->ecx = len;
+            } else {
+                char iface[IF_NAMESIZE];
+                in_addr_t gw;
+                int len;
+                int err = getgatewayandiface(&gw, iface);
+                if (err) {
+                    error("TCP: can't find default interface\n");
+                    return;
+                }
+                len = strlen(iface);
+                if (len > 15)
+                    len = 15;
+                MEMCPY_2DOS(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_iface_name),
+                        iface, len);
+                WRITE_BYTE(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_iface_name) + len,
+                        '\0');
+                regs->ecx = 0;  // dynamic iface
+            }
+            regs->es = PKTDRV_SEG;
+            regs->edi = TCPDRV_iface_name;
+            break;
+        case DOS_SUBHELPER_TCP_ENABLE:
+            config.tcpdrv = LO_BYTE_d(regs->ebx);
+            break;
+        case DOS_SUBHELPER_TCP_SETIF:
+            free(config.tcpiface);
+            config.tcpiface = NULL;
+            if (LO_BYTE_d(regs->ecx))
+                config.tcpiface = strndup(SEG_ADR((char *), es, di),
+                        LO_BYTE_d(regs->ecx));
+            break;
+        default:
+            CARRY;
+            break;
+    }
+}
+
 static in_addr_t get_ntp(const char *host)
 {
     struct addrinfo hints = {};
@@ -223,16 +275,22 @@ static int get_driver_info(struct driver_info_rec *di_out)
 {
     struct ifaddrs *addrs, *it;
     char iface[IF_NAMESIZE];
-    in_addr_t gw;
+    in_addr_t gw = 0;
     int err;
     int ret = -1;
 
-    err = getgatewayandiface(&gw, iface);
-    if (err) {
-        error("TCP: can't find default interface\n");
-        return -1;
+    if (config.tcpiface) {
+        strlcpy(iface, config.tcpiface, sizeof(iface));
+    } else {
+        err = getgatewayandiface(&gw, iface);
+        if (err) {
+            error("TCP: can't find default interface\n");
+            return -1;
+        }
     }
     L_printf("TCP: iface %s\n", iface);
+    if (config.tcpgw)
+        gw = config.tcpgw;
     err = getifaddrs(&addrs);
     if (err) {
         error("getifaddrs(): %s\n", strerror(errno));
@@ -715,6 +773,7 @@ void tcp_reset(void)
       return;
     WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_driver_entry_ip), tcp_hlt_off);
     WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_driver_entry_cs), BIOS_HLT_BLK_SEG);
+    MEMSET_DOS(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_iface_name), '\0', 16);
 }
 
 void tcp_init(void)

@@ -835,7 +835,11 @@ TCPDRV_driver_info:
 
 	.globl TCPDRV_session_info
 TCPDRV_session_info:
-	.space 14
+	.space 16
+
+	.globl TCPDRV_iface_name
+TCPDRV_iface_name:
+	.space 16
 
 /* FOSSIL driver signature and jump to original handler */
 	.globl	FOSSIL_isr
