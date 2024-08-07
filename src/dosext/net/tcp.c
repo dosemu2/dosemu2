@@ -25,6 +25,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <limits.h>
 #include "emu.h"
 #include "hlt.h"
 #include "int.h"
@@ -705,18 +706,46 @@ static void tcp_thr(void *arg)
                     break;
                 case 2: {
                     FILE *f = fdopen(dup(s->fd), "r");
-                    char *s;
+                    char *s, buf[4096];
+
                     setbuf(f, NULL);
-                    s = fgets(SEG_ADR((char *), es, di), _CX, f);
+                    s = fgets(buf, sizeof(buf), f);
                     fclose(f);
                     _AX = 0;
                     if (s) {
+                        struct char_set_state kstate;
+                        struct char_set_state dstate;
+                        int len = 0;
                         char *p = strpbrk(s, "\r\n");
+                        const char *p1 = s;
                         if (p) {
                             *p = '\0';
                             HI(dx) = 2;  // cr/lf skipped
                         }
-                        _AX = strlen(s);
+                        init_charset_state(&kstate, trconfig.keyb_charset);
+                        init_charset_state(&dstate, trconfig.dos_charset);
+                        while (*p1) {
+                            int rc;
+#define MAX_LEN (1024+1)
+                            t_unicode uni[MAX_LEN];
+                            const t_unicode *u = uni;
+                            char buf2[MAX_LEN * MB_LEN_MAX];
+                            rc = charset_to_unicode_string(&kstate, uni, &p1, strlen(p1),
+                                    MAX_LEN);
+                            if (rc <= 0)
+                                break;
+                            rc = unicode_to_charset_string(&dstate, buf2, &u, rc,
+                                    sizeof(buf2));
+                            if (rc <= 0)
+                                break;
+                            if (len + rc > _CX)
+                                break;
+                            MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI) + len, buf2, rc);
+                            len += rc;
+                        }
+                        cleanup_charset_state(&kstate);
+                        cleanup_charset_state(&dstate);
+                        _AX = len;
                     }
                     break;
                 }
@@ -728,23 +757,80 @@ static void tcp_thr(void *arg)
         }
 
         case TCP_PUT: {
-            int len = 0;
+            int len = 0, rc;
+            char buf[4096];
             TCP_PROLOG;
+            if (_CX >= sizeof(buf)) {
+                error("TCP: too large write, %i\n", _CX);
+                _DX = ERR_CRITICAL;
+                break;
+            }
+            if ((LO(ax) & ~4) == 2) {
+                struct char_set_state ostate;
+                struct char_set_state dstate;
+                char *p = strndup(SEG_ADR((char *), es, di), _CX);
+                const char *p1;
+
+                init_charset_state(&ostate, trconfig.output_charset);
+                init_charset_state(&dstate, trconfig.dos_charset);
+                p1 = p;
+                while (*p1) {
+                    int rc;
+                    t_unicode uni[MAX_LEN];
+                    const t_unicode *u = uni;
+                    char buf2[MAX_LEN * MB_LEN_MAX];
+                    rc = charset_to_unicode_string(&dstate, uni, &p1, strlen(p1),
+                            MAX_LEN);
+                    if (rc <= 0)
+                        break;
+                    rc = unicode_to_charset_string(&ostate, buf2, &u, rc,
+                            sizeof(buf2));
+                    if (rc <= 0)
+                        break;
+                    if (len + rc >= sizeof(buf)) {
+                        error("TCP: buffer overflow\n");
+                        break;
+                    }
+                    memcpy(buf + len, buf2, rc);
+                    len += rc;
+                }
+                cleanup_charset_state(&ostate);
+                cleanup_charset_state(&dstate);
+                free(p);
+                if (len + 2 >= sizeof(buf)) {
+                    error("TCP: buffer overflow\n");
+                    _DX = ERR_CRITICAL;
+                    break;
+                }
+                memcpy(buf + len, "\r\n", 2);
+                len += 2;
+            } else {
+                len = _CX;
+                memcpy(buf, SEG_ADR((char *), es, di), len);
+            }
+            buf[len] = '\0';
+            rc = 0;
             switch (LO(ax) & ~4) {
                 case 0:
                     error("TCP full put unimplemented\n");
                     /* no break */
                 case 1:
                 case 2:
-                    len = write(s->fd, SEG_ADR((char *), es, di), _CX);
+                    rc = write(s->fd, buf, len);
                     break;
                 default:
                     error("TCP put flag %x unsupported\n", LO(ax));
                     break;
             }
-            if ((LO(ax) & ~4) == 2)
-                write(s->fd, "\r\n", 2);
-            _AX = len;
+            if (rc == -1) {
+                _DX = ERR_CRITICAL;
+                break;
+            }
+            if ((LO(ax) & ~4) == 2) {
+                assert(rc >= 2);
+                rc -= 2;  // unaccount cr/lf
+            }
+            _AX = rc;
             break;
         }
 
