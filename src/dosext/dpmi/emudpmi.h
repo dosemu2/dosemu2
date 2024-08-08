@@ -32,7 +32,6 @@
 					/* 0x23, 0x24 and real mode callbacks */
 
 #define DPMI_rm_stacks		6	/* RM stacks per DPMI client */
-#define DPMI_max_rec_rm_func	(DPMI_MAX_CLIENTS * DPMI_rm_stacks)	/* max number of recursive real mode functions */
 #define DPMI_rm_stack_size	0x0200	/* real mode stack size */
 
 #define DPMI_private_paragraphs	((DPMI_rm_stacks * DPMI_rm_stack_size)>>4)

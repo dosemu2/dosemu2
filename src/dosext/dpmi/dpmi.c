@@ -125,8 +125,6 @@ static int dpmi_mhp_intxx_check(cpuctx_t *scp, int intno);
 static int dpmi_fault1(cpuctx_t *scp);
 static void do_dpmi_retf(cpuctx_t *scp, void * const sp);
 static int prn_tid;
-static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
-static int DPMI_rm_procedure_running = 0;
 
 struct DPMIclient_struct {
   cpuctx_t stack_frame;
@@ -136,6 +134,7 @@ struct DPMIclient_struct {
   dpmi_pm_block *pm_stack;
   int in_dpmi_pm_stack;
   int in_dpmi_rm_stack;
+  struct RealModeCallStructure rm_stack[DPMI_rm_stacks];
   /* for real mode call back, DPMI function 0x303 0x304 */
   RealModeCallBack realModeCallBack[DPMI_MAX_RMCBS];
   Bit16u rmcb_seg;
@@ -1505,32 +1504,25 @@ static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, unsigned m
 
 static void save_rm_regs(void)
 {
-  if (DPMI_rm_procedure_running >= DPMI_max_rec_rm_func) {
-    error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
-    leavedos(25);
-  }
-  DPMI_save_rm_regs(&DPMI_rm_stack[DPMI_rm_procedure_running], ~0);
-  DPMI_rm_procedure_running++;
-  if (DPMI_CLIENT.in_dpmi_rm_stack++ < DPMI_rm_stacks) {
+  if (DPMI_CLIENT.in_dpmi_rm_stack < DPMI_rm_stacks) {
     D_printf("DPMI: switching to realmode stack, in_dpmi_rm_stack=%i\n",
       DPMI_CLIENT.in_dpmi_rm_stack);
+    DPMI_save_rm_regs(&DPMI_CLIENT.rm_stack[DPMI_CLIENT.in_dpmi_rm_stack++], ~0);
     SREG(ss) = DPMI_CLIENT.private_data_segment;
     REG(esp) = DPMI_rm_stack_size * DPMI_CLIENT.in_dpmi_rm_stack;
   } else {
     error("DPMI: too many nested realmode invocations, in_dpmi_rm_stack=%i\n",
-      DPMI_rm_procedure_running);
+      DPMI_CLIENT.in_dpmi_rm_stack);
   }
 }
 
 static void restore_rm_regs(void)
 {
-  if (DPMI_rm_procedure_running > DPMI_max_rec_rm_func ||
-    DPMI_rm_procedure_running < 1) {
-    error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
+  if (DPMI_CLIENT.in_dpmi_rm_stack < 1) {
+    error("DPMI: DPMI_rm_procedure_running = 0x%x\n", DPMI_CLIENT.in_dpmi_rm_stack);
     leavedos(25);
   }
-  DPMI_restore_rm_regs(&DPMI_rm_stack[--DPMI_rm_procedure_running], ~0);
-  DPMI_CLIENT.in_dpmi_rm_stack--;
+  DPMI_restore_rm_regs(&DPMI_CLIENT.rm_stack[--DPMI_CLIENT.in_dpmi_rm_stack], ~0);
   D_printf("DPMI: return from realmode procedure, in_dpmi_rm_stack=%i\n",
       DPMI_CLIENT.in_dpmi_rm_stack);
 }
@@ -1646,7 +1638,6 @@ static int post_rm_call(int old_client)
   int ret = 0;
 
   assert(old_client <= in_dpmi - 1);
-  assert(DPMI_rm_procedure_running);
   if (old_client != current_client) {
     /* 32rtm returned w/o terminating (stayed resident).
      * We switch to the prev client here. */
@@ -4268,7 +4259,6 @@ void dpmi_reset(void)
     }
     ldt_mon_on = 0;
     ldt_bitmap_cnt = 0;
-    DPMI_rm_procedure_running = 0;
     DPMI_pm_procedure_running = 0;
     in_dpmi_irq = 0;
     cli_blacklisted = 0;
@@ -4412,7 +4402,6 @@ void dpmi_init(void)
       DPMI_CLIENT.is_32 ? "32bit" : "16bit");
 
   if (in_dpmi == 1 && !RSP_num) {
-    DPMI_rm_procedure_running = 0;
     pm_block_handle_used = 1;
   }
 
