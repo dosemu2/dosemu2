@@ -1513,6 +1513,7 @@ static void save_rm_regs(void)
   } else {
     error("DPMI: too many nested realmode invocations, in_dpmi_rm_stack=%i\n",
       DPMI_CLIENT.in_dpmi_rm_stack);
+    leavedos(25);
   }
 }
 
