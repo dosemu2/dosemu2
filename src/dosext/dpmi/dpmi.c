@@ -6126,6 +6126,7 @@ done:
   } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_int1c) &&
              lina < DPMI_ADD + HLT_OFF(DPMI_int1c_end)) {
     int i = (lina - (DPMI_ADD + HLT_OFF(DPMI_int1c))) / 3;
+    assert(i < in_dpmi);
     if (i == current_client) {
       REG(eip) += 1;
       run_pm_dos_int(0x1c);
@@ -6135,7 +6136,7 @@ done:
   } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_int23) &&
              lina < DPMI_ADD + HLT_OFF(DPMI_int23_end)) {
     int i = (lina - (DPMI_ADD + HLT_OFF(DPMI_int23))) / 3;
-    assert(i <= current_client);
+    assert(i < in_dpmi);
     if (i == current_client)
       REG(eip) += 1;
     else
@@ -6150,6 +6151,7 @@ done:
   } else if (lina >= DPMI_ADD + HLT_OFF(DPMI_int24) &&
              lina < DPMI_ADD + HLT_OFF(DPMI_int24_end)) {
     int i = (lina - (DPMI_ADD + HLT_OFF(DPMI_int24))) / 3;
+    assert(i < in_dpmi);
     if (i == current_client) {
       REG(eip) += 1;
       run_pm_dos_int(0x24);
