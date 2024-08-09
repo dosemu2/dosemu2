@@ -1339,6 +1339,7 @@ again:
 	    continue;
 	/* don't cancel own thread */
 	assert(!thdata || *thdata->tid != tid);
+	error("@\t%s (0x%x)\n", thr->name, thr->off);
 	do_cancel(thr, pth);
 	do_detach(thr, pth);
 	/* array changed, restart the whole loop */
