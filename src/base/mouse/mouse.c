@@ -1216,6 +1216,17 @@ static void scale_coords(int x, int y, int x_range, int y_range,
 		_min(mouse.speed_y, mice->init_speed_y), s_x, s_y);
 }
 
+void dosemu_mouse_reset(void)
+{
+  mouse.ps2.state = 0;
+  mouse.ps2.cs = 0;
+  mouse.ps2.ip = 0;
+  mouse.mask = 0;
+  mouse.cs = 0;
+  mouse.ip = 0;
+  mouse_events = 0;
+}
+
 static void mouse_reset(void)
 {
   m_printf("MOUSE: reset mouse/installed!\n");
