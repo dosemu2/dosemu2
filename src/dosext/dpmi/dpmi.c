@@ -79,7 +79,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #define ADD_16_32(acc, val)	{ if (DPMI_CLIENT.is_32) acc+=val; else LO_WORD(acc)+=val; }
 static int current_client;
 #define DPMI_CLIENT (DPMIclient[current_client])
-#define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
+#define PREV_DPMI_CLIENT (DPMIclient[prev_clnt()])
 
 #define DEFAULT_INT(i) (!DPMI_CLIENT.Interrupt_Table[i].selector || \
     (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel() && \
@@ -165,6 +165,7 @@ struct DPMIclient_struct {
   emu_fpstate saved_fpu_state;
   Bit8u saved_ldt[0x10 * LDT_ENTRY_SIZE];
   far_t s_i1c, s_i23, s_i24;
+  int terminated;
 };
 
 struct RSP_s {
@@ -3658,6 +3659,8 @@ static int prev_clnt(void)
   int prv = in_dpmi - 1;
   if (prv == current_client)
     prv--;
+  while (prv >= 0 && DPMIclient[prv].terminated)
+    prv--;
   return prv;
 }
 
@@ -3730,23 +3733,6 @@ static void dpmi_cleanup(void)
   /* restore env seg */
   if (DPMI_CLIENT.envp)
     WRITE_WORD(SEGOFF2LINEAR(DPMI_CLIENT.initial_psp, 0x2c), DPMI_CLIENT.envp);
-  if (current_client != in_dpmi - 1) {
-    error("DPMI: termination of non-last client\n");
-    /* leave the leak.
-     * TODO: fixing that leak is a lot of work, in particular
-     * FreeAllDescriptors()
-     * will need to use "current_client" instead of "in_dpmi"
-     * to wipe only the needed descs.
-     * That happens only if the one started 32rtm by some tool like
-     * DosNavigator, that would invoke an additional DPMI shell (comcom32).
-     * Using bc.bat doesn't go here because 32rtm is unloaded after
-     * bc.exe exit, so the clients terminate in the right order.
-     * Starting 32rtm by hands may go here if you terminate the
-     * parent DPMI shell (comcom32), but nobody does that.
-     * Lets say this is a very pathological case for a big code surgery. */
-    clnt_switch(in_dpmi - 1);
-    return;
-  }
   FreeAllDescriptors();
   DPMI_free(&host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   hlt_unregister_handler_vm86(DPMI_CLIENT.rmcb_off);
@@ -3766,7 +3752,14 @@ static void dpmi_cleanup(void)
 
   cli_blacklisted = 0;
   dpmi_is_cli = 0;
-  in_dpmi--;
+  if (current_client != in_dpmi - 1) {
+    error("DPMI: termination of non-last client\n");
+    DPMI_CLIENT.terminated = 1;
+  } else {
+    do
+      in_dpmi--;
+    while (in_dpmi && DPMIclient[in_dpmi - 1].terminated);
+  }
   if (in_dpmi) {
     clnt_switch(in_dpmi - 1);
     clear_ZF();
