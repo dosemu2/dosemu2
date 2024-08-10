@@ -107,7 +107,7 @@ void get_VXD_entry(cpuctx_t *scp )
 	    _edi = DPMI_SEL_OFF(DPMI_VXD_VTDAPI);
 	    break;
 	default:
-	    D_printf("DPMI: ERROR: Unsupported VxD\n");
+	    D_printf("DPMI: ERROR: Unsupported VxD 0x%x\n", _LWORD(ebx));
 	    /* no entry point */
 	    _es = _edi = 0;
     }
