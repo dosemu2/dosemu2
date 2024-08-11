@@ -387,6 +387,19 @@ static enum CbkRet recv_cb(int fd, void *buf, int len, int *r_err)
     return CBK_CONT;
 }
 
+static enum CbkRet read_cb(int fd, void *buf, int len, int *r_err)
+{
+    int rc = read(fd, buf, len);
+    *r_err = rc;
+    if (rc == -1 && errno != EAGAIN) {
+        error("read(): %s\n", strerror(errno));
+        return CBK_ERR;
+    }
+    if (rc > 0)
+        return CBK_DONE;
+    return CBK_CONT;
+}
+
 static int handle_timeout(uint16_t to,
     enum CbkRet (*cbk)(int, void *, int, int *),
     int arg, void *arg2, int arg3, int *r_err)
@@ -699,7 +712,7 @@ static void tcp_thr(void *arg)
         }
 
         case TCP_GET: {
-            TCP_PROLOG;
+            TCP_PROLOG2;
             if (_DX)
                 error("TCP get timeout unsupported\n");
             switch (LO(ax)) {
@@ -708,12 +721,9 @@ static void tcp_thr(void *arg)
                     /* break; */
                 case 1: {
                     int rc;
-                    _AX = 0;
-                    rc = read(s->fd, SEG_ADR((char *), es, di), _CX);
-                    if (rc > 0)
-                        _AX = rc;
-                    else
-                        _DX = ERR_TIMEOUT;
+                    _DX = handle_timeout(to, read_cb, s->fd,
+                            SEG_ADR((char *), es, di), _CX, &rc);
+                    _AX = (rc < 0 ? 0 : rc);
                     break;
                 }
                 case 2: {
