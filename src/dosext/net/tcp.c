@@ -468,7 +468,7 @@ static int tcp_listen(uint32_t dest, uint16_t port,
     sa.sin_family = AF_INET;
     rc = bind(fd, &sa, sizeof(sa));
     if (rc) {
-        error("TCP bind: %s\n", strerror(errno));
+        error("TCP bind to port %i: %s\n", port, strerror(errno));
         close(fd);
         return ERR_CRITICAL;
     }
