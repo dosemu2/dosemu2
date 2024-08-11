@@ -38,6 +38,7 @@ static const char *DEFAULT_NTP = "pool.ntp.org";
 
 static uint16_t tcp_hlt_off;
 static int tcp_tid;
+static in_addr_t myip;
 
 enum {
     TCP_DRIVER_INFO = 0,
@@ -327,6 +328,7 @@ static int get_driver_info(struct driver_info_rec *di_out)
         struct sockaddr_in *sin = (struct sockaddr_in *)it->ifa_addr;
         struct sockaddr_in *sinm = (struct sockaddr_in *)it->ifa_netmask;
 
+        myip = sin->sin_addr.s_addr;
         di.myip = sin->sin_addr.s_addr;
         di.netmask = sinm->sin_addr.s_addr;
         di.gateway = gw;
@@ -463,7 +465,7 @@ static int tcp_listen(uint32_t dest, uint16_t port,
         return ERR_NOHANDLES;
     tmp = 1;
     ioctl(fd, FIONBIO, &tmp); /* non-blocking i/o */
-    sa.sin_addr.s_addr = dest;
+    sa.sin_addr.s_addr = myip;
     sa.sin_port = htons(port);
     sa.sin_family = AF_INET;
     rc = bind(fd, &sa, sizeof(sa));
