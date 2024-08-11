@@ -26,6 +26,9 @@
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <limits.h>
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#endif
 #include "emu.h"
 #include "hlt.h"
 #include "int.h"
@@ -703,9 +706,16 @@ static void tcp_thr(void *arg)
                 case 0:
                     error("TCP full get unimplemented\n");
                     /* break; */
-                case 1:
-                    _AX = read(s->fd, SEG_ADR((char *), es, di), _CX);
+                case 1: {
+                    int rc;
+                    _AX = 0;
+                    rc = read(s->fd, SEG_ADR((char *), es, di), _CX);
+                    if (rc > 0)
+                        _AX = rc;
+                    else
+                        _DX = ERR_TIMEOUT;
                     break;
+                }
                 case 2: {
                     FILE *f = fdopen(dup(s->fd), "r");
                     char *s, buf[4096];
