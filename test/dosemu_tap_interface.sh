@@ -19,8 +19,7 @@ if [ "$1" = "setup" ] ; then
 elif [ "$1" = "teardown" ] ; then
 	ifconfig tap0 down
 	brctl delif virbr0 tap0
-# FIXME: this sometimes fails with -EBUSY
-#	ip tuntap del mode tap tap0
+	ip tuntap del mode tap tap0
 
 else
 	echo "${0}: incorrect args"
