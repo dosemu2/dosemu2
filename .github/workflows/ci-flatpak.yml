@@ -7,6 +7,7 @@ jobs:
   build:
     name: "Flatpak"
     runs-on: ubuntu-22.04
+    if: (github.repository_owner == 'dosemu2')
     container:
       image: bilelmoussaoui/flatpak-github-actions:freedesktop-23.08
       options: --privileged
