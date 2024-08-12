@@ -85,6 +85,7 @@ $_vnet = "tap"
 $_tapdev = "tap0"
 """, timeout=30)
 
+    p.join()
     p.close()
 
     testfil = self.workdir / 'test.fil'
