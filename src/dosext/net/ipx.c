@@ -586,7 +586,7 @@ static u_char IPXSendPacket(far_t ECBPtr)
     n_printf("IPX: send to unopened socket %04x\n", ntohs(ECBp->ECBSocket));
     return RCODE_SOCKET_NOT_OPEN;
   }
-  if (sendto(mysock->fd, (void *) &data, dataLen, 0,
+  if (sendto(mysock->fd, data, dataLen, 0,
 	     (struct sockaddr*)&ipxs, sizeof(ipxs)) == -1) {
     n_printf("IPX: error sending packet: %s\n", strerror(errno));
     ECBp->InUseFlag = IU_ECB_FREE;
