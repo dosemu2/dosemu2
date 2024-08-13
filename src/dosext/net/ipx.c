@@ -467,11 +467,6 @@ static int GatherFragmentData(u_char *buffer, ECB_t * ECB)
   for (i = 0; i < ECB->FragmentCount; i++) {
     nextFragLen = ECB->FragTable[i].Length;
     memptr = FARt_PTR2(ECB->FragTable[i].Address);
-    if (i == 0) {
-      /* subtract off IPX header size from first fragment */
-      nextFragLen -= 30;
-      memptr += 30;
-    }
     if (nextFragLen) {
       /* DANG_FIXTHIS - dumb use of hardcoded 1500 here */
       if (totalDataCount + nextFragLen > 1500) {
@@ -553,17 +548,17 @@ static u_char IPXSendPacket(far_t ECBPtr)
 
   printECB(ECBp);
   dataLen = GatherFragmentData(data, ECBp);
-  if (dataLen == -1) {
+  if (dataLen <= sizeof(IPXPacket_t)) {
     ECBp->InUseFlag = IU_ECB_FREE;
     ECBp->CompletionCode = CC_FRAGMENT_ERROR;
     return RCODE_ECB_NOT_IN_USE;	/* FIXME - what is to return here?? */;
   }
-  IPXHeader = (IPXPacket_t *)FARt_PTR2(ECBp->FragTable[0].Address);
+  IPXHeader = (IPXPacket_t *)data;
   /* for a complete emulation, we need to fill in fields in the */
   /* send packet header */
   /* first field is an IPX convention, not really a checksum */
   IPXHeader->Checksum = 0xffff;
-  IPXHeader->Length = htons(dataLen + 30);	/* in network order */
+  IPXHeader->Length = htons(dataLen);	/* in network order */
   memcpy(&IPXHeader->Source, MyAddress, 10);
   memcpy(&IPXHeader->Source.Socket, &ECBp->ECBSocket, 2);
   printIPXHeader(IPXHeader);
@@ -586,8 +581,9 @@ static u_char IPXSendPacket(far_t ECBPtr)
     n_printf("IPX: send to unopened socket %04x\n", ntohs(ECBp->ECBSocket));
     return RCODE_SOCKET_NOT_OPEN;
   }
-  if (sendto(mysock->fd, data, dataLen, 0,
-	     (struct sockaddr*)&ipxs, sizeof(ipxs)) == -1) {
+  if (sendto(mysock->fd, data + sizeof(IPXPacket_t),
+	    dataLen - sizeof(IPXPacket_t), 0,
+	    (struct sockaddr*)&ipxs, sizeof(ipxs)) == -1) {
     n_printf("IPX: error sending packet: %s\n", strerror(errno));
     ECBp->InUseFlag = IU_ECB_FREE;
     ECBp->CompletionCode = CC_HARDWARE_ERROR;
