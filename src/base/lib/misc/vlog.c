@@ -98,6 +98,9 @@ int vlog_init(const char *file)
 
 int vlog_get_fd(void)
 {
-    assert(log_fd != -1);
+    if (log_fd == -1) {
+        error("log file not opened\n");
+        return STDERR_FILENO;
+    }
     return log_fd;
 }
