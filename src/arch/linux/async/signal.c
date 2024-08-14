@@ -532,6 +532,7 @@ signal_pre_init(void)
 #endif
 
   dosemu_pthread_self = pthread_self();
+  dosemu_pid = getpid();
   rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 
   if (config.cpu_vm_dpmi == CPUVM_NATIVE)

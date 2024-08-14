@@ -1050,6 +1050,7 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	if (retval) {
 	    pshared_sem_post(pty_sem);
 	    pshared_sem_destroy(&pty_sem);
+	    kill(dosemu_pid, SIGTERM);
 	    _exit(EXIT_FAILURE);
 	}
 	pts_fd = pts_open(pty_fd);
