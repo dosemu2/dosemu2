@@ -298,6 +298,7 @@ PKG_CHECK_MODULES([LIBACL], [libacl], [
     AC_DEFINE(HAVE_LIBACL)
     CFLAGS="$CFLAGS $LIBACL_CFLAGS"
     LIBS="$LIBS $LIBACL_LIBS"
+    have_libacl=1
   ],
   [ AC_MSG_WARN(libacl not found) ]
 )
@@ -517,7 +518,10 @@ AC_ARG_ENABLE(searpc,
   [AS_HELP_STRING([--disable-searpc], [compile without searpc support])],,
   enable_searpc="yes"
 )
-AC_SUBST(SR_PLU)
+if test -n "$have_libacl" -a -n "$SR_PLU"; then
+  PRIV_SEP=1
+fi
+AC_SUBST(PRIV_SEP)
 
 AC_ARG_ENABLE(system_wa,
   AS_HELP_STRING([--disable-system-wa], [compile without system-specific
@@ -778,6 +782,10 @@ fi
 if test -z "$SR_PLU"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([searpc not available!])
+fi
+if test -z "$have_libacl"; then
+  AC_MSG_RESULT()
+  AC_MSG_WARN([libacl not available!])
 fi
 
 AH_TEMPLATE([HAVE_ASSIGNABLE_STDERR],
