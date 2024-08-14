@@ -1046,7 +1046,12 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	g_printf("run_unix_command(): fork() failed\n");
 	return -1;
     case 0: /* child */
-	priv_drop();
+	retval = priv_drop();
+	if (retval) {
+	    pshared_sem_post(pty_sem);
+	    pshared_sem_destroy(&pty_sem);
+	    _exit(EXIT_FAILURE);
+	}
 	pts_fd = pts_open(pty_fd);
 	/* Reading master side before slave opened, results in EOF.
 	 * Notify user that reads are now safe. */

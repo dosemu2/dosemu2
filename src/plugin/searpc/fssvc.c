@@ -93,7 +93,12 @@ int fssvc_init(plist_idx_t plist_idx, setattr_t setattr_cb,
             /* child */
             close(socks[0]);
             close(transp[0]);
-            priv_drop();
+            err = priv_drop();
+            if (err) {
+                pshared_sem_post(svc_sem);
+                pshared_sem_destroy(&svc_sem);
+                _exit(1);
+            }
             setsid();
             prctl(PR_SET_PDEATHSIG, SIGQUIT);
             err = fsrpc_srv_init(transp[1], socks[1], plist_idx, setattr_cb,
@@ -102,10 +107,10 @@ int fssvc_init(plist_idx_t plist_idx, setattr_t setattr_cb,
             pshared_sem_destroy(&svc_sem);
             if (err) {
                 fprintf(stderr, "fs service failed\n");
-                exit(1);
+                _exit(1);
             }
             fsrpc_svc_run();
-            exit(1);  // not reached
+            _exit(1);  // not reached
             break;
     }
 

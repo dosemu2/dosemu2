@@ -906,6 +906,8 @@ static void port_server(void)
 	sigset_t set;
         struct portreq pr;
 	_port_handler *ph, *ph1, *ph2, *ph3;
+	int err;
+
 	signal(SIGINT, SIG_DFL);
 	signal(SIGPIPE, SIG_DFL);
 	signal(SIGHUP, SIG_DFL);
@@ -917,7 +919,9 @@ static void port_server(void)
 	sigaddset(&set, SIGTERM);
 	sigprocmask(SIG_UNBLOCK, &set, NULL);
         priv_iopl(3);
-	priv_drop();
+	err = priv_drop();
+	if (err)
+		_exit(1);
         close(port_fd_in[0]);
         close(port_fd_out[1]);
         g_printf("server started\n");
