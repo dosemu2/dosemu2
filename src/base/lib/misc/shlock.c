@@ -115,7 +115,10 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
   rc = asprintf(&dtspec, "%s/%s.XXXXXX", LOCK_DIR, name);
   assert(rc != -1);
   /* create tmp dir */
-  mkdtemp(dtspec);
+  if (!mkdtemp(dtspec)) {
+    fprintf(stderr, "mkdtemp(%s): %s\n", dtspec, strerror(errno));
+    goto err_free_0;
+  }
   rc = chmod(dtspec, S_IRWXU | S_IRWXG);
   assert(rc == 0);
   rc = asprintf(&ttspec, "%s/" LOCK_PFX "%i_XXXXXX", dtspec, getpid());
@@ -224,6 +227,7 @@ err_clotmp:
   free(tspec);
 err_free_d:
   free(ttspec);
+err_free_0:
   free(dtspec);
   free(fspec);
   free(dspec);
