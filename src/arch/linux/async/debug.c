@@ -172,6 +172,7 @@ static int do_gdb_debug(void)
 
 #ifdef __linux__
   prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY);
+  prctl(PR_SET_DUMPABLE, 1);
 #endif
   sigprocmask(SIG_BLOCK, &q_mask, &oset);
   switch ((dbg_pid = fork())) {
