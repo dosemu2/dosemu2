@@ -322,6 +322,7 @@ static void leavedos_emerg(int sig, siginfo_t *si, void *uc)
 SIG_PROTO_PFX
 static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
+  signal(sig, SIG_DFL);
   siginfo_debug(si);
   _exit(sig);
 }
