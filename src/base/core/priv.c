@@ -181,8 +181,10 @@ int priv_drop(void)
   int err;
 
   priv_drop_root();
-  if (!suid)
+  if (suid != 1) {
+    assert(suid == sgid);
     return 0;
+  }
   err = do_drop();
   if (err)
     return err;
