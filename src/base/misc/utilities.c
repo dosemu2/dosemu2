@@ -1059,7 +1059,7 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	pshared_sem_post(pty_sem);
 	pshared_sem_destroy(&pty_sem);
 	if (pts_fd == -1) {
-	    error("run_unix_command(): open pts failed %s\n", strerror(errno));
+	    kill(dosemu_pid, SIGTERM);
 	    _exit(EXIT_FAILURE);
 	}
 	close(0);
