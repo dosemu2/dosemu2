@@ -94,7 +94,6 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "dpmi",    dpmi_setup,   dpmi_reset,    NULL },
   { "mfs",     NULL,         mfs_reset,     mfs_done },
   { "cdrom",   NULL,         NULL,          cdrom_done },
-  { "dos2tty", dos2tty_init, NULL,          dos2tty_done },
   { "video",   video_post_init, NULL, NULL },
   { "internal_mouse",  dosemu_mouse_init,   dosemu_mouse_reset, dosemu_mouse_close },
   { NULL,      NULL,         NULL,          NULL }

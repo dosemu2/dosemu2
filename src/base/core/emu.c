@@ -356,7 +356,7 @@ int main(int argc, char **argv, char * const *envp)
     mhp_debug(DBG_INIT, 0, 0);
 #endif
     priv_drop_total();
-
+    dos2tty_init();
     init_all_DOS_tables();	/* longest init function! needs to be optimized */
     signal_init();              /* initialize sig's & sig handlers */
     if (config.exitearly) {
@@ -471,6 +471,7 @@ static void __leavedos_main(int code, int sig)
     dpmi_done();
     /* now safe to stop io thread */
     ioselect_done();
+    dos2tty_done();
     /* then stop device threads, which also stops any remaining vm86() uses */
     iodev_term();
 #ifdef USE_MHPDBG
