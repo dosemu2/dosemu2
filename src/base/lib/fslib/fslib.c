@@ -105,6 +105,14 @@ int mfs_utime(int mfs_idx, const char *fpath, time_t atime, time_t mtime)
   return fssvc->utime(mfs_idx - 1, fpath, atime, mtime);
 }
 
+static const char *def_name =
+#ifdef SEARPC_SUPPORT
+  "rpc"
+#else
+  "local"
+#endif
+  ;
+
 void fslib_init(plist_idx_t plist_idx, setattr_t setattr_cb,
     getattr_t getattr_cb)
 {
@@ -114,6 +122,16 @@ void fslib_init(plist_idx_t plist_idx, setattr_t setattr_cb,
   load_plugin("searpc");
 #endif
   fslocal_init();
+  if (!fssvc && !config.fs_backend) {
+    def_name = "local";
+    fslocal_init();
+    assert(fssvc);
+  }
+  if (!fssvc) {
+    assert(config.fs_backend);
+    error("fs service %s unavailable\n", config.fs_backend);
+    _exit(1);
+  }
   err = fssvc->init(plist_idx, setattr_cb, getattr_cb);
   assert(!err);
 }
@@ -138,14 +156,6 @@ int fslib_num_drives(void)
 {
   return num_def_drives;
 }
-
-static const char *def_name =
-#ifdef SEARPC_SUPPORT
-  "rpc"
-#else
-  "local"
-#endif
-  ;
 
 void fslib_register_ops(const struct fslib_ops *ops)
 {
