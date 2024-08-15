@@ -30,6 +30,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <pwd.h>
+#include <grp.h>
+#include <sys/capability.h>
+#include <limits.h>
 #ifdef HAVE_SYS_IO_H
 #include <sys/io.h>
 #endif
@@ -40,6 +45,9 @@
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
+
+/* https://github.com/AndrewGMorgan/libcap_mirror/issues/1 */
+#define BAD_LIBCAP 1
 
 /* Some handy information to have around */
 static uid_t uid,euid;
@@ -176,10 +184,43 @@ void priv_drop_root(void)
   if (uid) can_do_root_stuff = 0;
 }
 
+static int drop_caps(void)
+{
+    int rc;
+    cap_t cap;
+
+    cap = cap_init();
+    if (!cap)
+        return -1;
+    cap_clear(cap);
+    rc = cap_set_proc(cap);
+    cap_free(cap);
+    return rc;
+}
+
+#if BAD_LIBCAP
+static int cap_grp(int on)
+{
+    int rc;
+    char txt[] = "cap_setgid=pe";
+    cap_t cap;
+
+    if (!on)
+        txt[strlen(txt) - 1] = '\0';  // remove 'e'
+    cap = cap_from_text(txt);
+    if (!cap)
+        return -1;
+    rc = cap_set_proc(cap);
+    cap_free(cap);
+    return rc;
+}
+#endif
+
 int priv_drop(void)
 {
   int err;
 
+  drop_caps();
   priv_drop_root();
   if (suid != 1) {
     assert(suid == sgid);
@@ -193,9 +234,33 @@ int priv_drop(void)
   return 0;
 }
 
+static void init_groups(uid_t uid, gid_t gid)
+{
+  int err;
+  struct passwd *pw = getpwuid(uid);
+  if (!pw) {
+    error("cannot get pw for %i\n", uid);
+    err = cap_setgroups(gid, 0, NULL);
+    if (err)
+      perror("setgoups()");
+  } else {
+    gid_t groups[NGROUPS_MAX];
+    int ng = NGROUPS_MAX;
+    int rc = getgrouplist(pw->pw_name, gid, groups, &ng);
+    assert(rc > 0);
+    err = cap_setgroups(gid, ng, groups);
+    if (err)
+      perror("cap_setgoups()");
+  }
+}
+
 void priv_drop_total(void)
 {
   int err;
+
+#if BAD_LIBCAP
+  cap_grp(0);
+#endif
   if (suid) {
     err = seteuid(euid);
     assert(!err);
@@ -207,6 +272,7 @@ void priv_drop_total(void)
       leavedos(3);
       return;
     }
+    init_groups(euid, egid);
     suid++;
   }
   if (sgid) {
@@ -215,13 +281,19 @@ void priv_drop_total(void)
     if (setregid(egid, egid) != 0)
       error("Cannot drop sgid: %s\n", strerror(errno));
     /* make sure privs were dropped */
+#if !BAD_LIBCAP
+    /* glibc is trying to set egid for all threads, and actually succeeds
+     * for all but this one, as they still have CAP_SETGID. It returns -1.
+     * but the egid of all other threads is left altered. */
     if (setegid(gid) == 0) {
       error("sgid: privs were not dropped\n");
       leavedos(3);
       return;
     }
+#endif
     sgid++;
   }
+  drop_caps();
 }
 
 int running_suid_orig(void)
@@ -265,9 +337,15 @@ void priv_init(void)
     suid++;
     err = seteuid(uid);
     assert(!err);
+#if BAD_LIBCAP
+    err = cap_grp(1);  // allow threads to inherit this
+    if (err)
+      perror("setcap()");
+#endif
   }
   if (egid && gid && egid != gid) {
     mode_t um;
+
     dbug_printf("sgid %i detected\n", egid);
     sgid++;
     err = setegid(gid);

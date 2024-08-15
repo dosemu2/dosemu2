@@ -59,6 +59,7 @@ LEX:=@LEX@
 LN_S := @LN_S@
 LN_SFT := @LN_SFT@
 USERADD := @USERADD@
+SETCAP := @SETCAP@
 PRIV_SEP := @PRIV_SEP@
 
 # This gets defined even if we chose via ./include/config.h NOT to

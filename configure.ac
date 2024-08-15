@@ -303,6 +303,20 @@ PKG_CHECK_MODULES([LIBACL], [libacl], [
   [ AC_MSG_WARN(libacl not found) ]
 )
 
+PKG_CHECK_MODULES([LIBCAP], [libcap], [
+    AC_PATH_PROGS([SETCAP], [setcap])
+    if test -z "$SETCAP"; then
+      AC_MSG_ERROR([setcap not found])
+    fi
+    AC_DEFINE(HAVE_LIBCAP)
+    CFLAGS="$CFLAGS $LIBCAP_CFLAGS"
+    LIBS="$LIBS $LIBCAP_LIBS"
+    have_libcap=1
+  ],
+  [ AC_MSG_WARN(libcap not found) ]
+)
+AC_SUBST(SETCAP)
+
 dnl Here is where we do our stuff
 
 AC_ARG_WITH(confdir, [AS_HELP_STRING([--with-confdir=dir],
@@ -518,7 +532,7 @@ AC_ARG_ENABLE(searpc,
   [AS_HELP_STRING([--disable-searpc], [compile without searpc support])],,
   enable_searpc="yes"
 )
-if test -n "$have_libacl" -a -n "$SR_PLU"; then
+if test -n "$have_libacl" -a -n "$have_libcap" -a -n "$SR_PLU"; then
   PRIV_SEP=1
 fi
 AC_SUBST(PRIV_SEP)
@@ -787,6 +801,10 @@ if test -z "$have_libacl"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([libacl not available!])
 fi
+if test -z "$have_libcap"; then
+  AC_MSG_RESULT()
+  AC_MSG_WARN([libcap not available!])
+fi
 
 AH_TEMPLATE([HAVE_ASSIGNABLE_STDERR],
 [ Define if stderr is not const ])
@@ -814,6 +832,9 @@ AH_TEMPLATE(HAVE_LIBBSD,
 
 AH_TEMPLATE(HAVE_LIBACL,
 [Define this if you have libacl-devel installed])
+
+AH_TEMPLATE(HAVE_LIBCAP,
+[Define this if you have libcap-devel installed])
 
 AH_TEMPLATE(HAVE_EXECINFO,
 [Define this if you have execinfo.h in libc])

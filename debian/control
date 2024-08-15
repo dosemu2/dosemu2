@@ -32,6 +32,8 @@ Build-Depends:
     libjson-c-dev,
     libb64-dev,
     libacl1-dev,
+    libcap-dev,
+    libcap2-bin,
     libglib2.0-dev,
     libsearpc-dev,
     binutils-dev,

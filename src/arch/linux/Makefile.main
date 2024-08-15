@@ -171,7 +171,9 @@ ifneq ($(PRIV_SEP),)
 	if getent passwd $(username); then \
 	  if chown $(username):$(username) $(DESTDIR)$(libexecdir)/dosemu2/$(DOSBIN); then \
 	    if chmod ug+s $(DESTDIR)$(libexecdir)/dosemu2/$(DOSBIN); then \
-	      echo "dosemu2 installed SETUID!"; \
+	      if $(SETCAP) "cap_setgid+p" $(DESTDIR)$(libexecdir)/dosemu2/$(DOSBIN); then \
+	        echo "dosemu2 installed SETUID!"; \
+	      fi; \
 	    fi; \
 	  fi; \
 	fi
