@@ -121,6 +121,9 @@ make DESTDIR=%{buildroot} install
 %dir %{_sysconfdir}/dosemu
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
 
+%post
+setcap cap_setgid+p %{_libexecdir}/dosemu2/dosemu2.bin
+
 %changelog
 * Tue Apr 09 2024 Stas Sergeev <stsp@users.sourceforge.net> 2.0pre9-2
 - 
