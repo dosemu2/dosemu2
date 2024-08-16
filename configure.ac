@@ -650,10 +650,9 @@ if test "$machine" = "i386" -o "$with_target_bits" = "32" -o \
       [DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -no-pie"])
 else
     AC_MSG_NOTICE(Compiling as PIE for $machine...)
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
+# -fpie discards -fpic so don't add unless -fpic removed
+#    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
     DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
-# for some strange reason -fpie discards -fpic, so get it back
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpic"
 fi
 
 if test "$CONFIG_HOST" = "Linux"; then
