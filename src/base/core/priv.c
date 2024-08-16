@@ -46,7 +46,7 @@
 #include "cpu-emu.h"
 #endif
 
-/* https://github.com/AndrewGMorgan/libcap_mirror/issues/1 */
+/* https://bugzilla.kernel.org/show_bug.cgi?id=219168 */
 #define BAD_LIBCAP 1
 
 /* Some handy information to have around */
