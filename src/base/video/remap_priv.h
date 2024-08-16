@@ -94,6 +94,7 @@ typedef struct RemapObjectStruct {
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
 
+void remapper_register(void);
 void set_remap_debug_msg(FILE *);
 void gamma_correct(RemapObject *, RGBColor *, unsigned *);
 

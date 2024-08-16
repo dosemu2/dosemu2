@@ -39,7 +39,6 @@
 
 #include "vgaemu.h"
 #include "mapping.h"
-#include "init.h"
 #include "render.h"
 #include "render_priv.h"
 #include "remap_priv.h"
@@ -3512,7 +3511,7 @@ static struct remap_calls rmcalls = {
   "dosemu gfx remapper"
 };
 
-CONSTRUCTOR(static void initialize(void))
+void remapper_register(void)
 {
   register_remapper(&rmcalls, REMAP_DOSEMU);
 }

@@ -15,6 +15,7 @@
 #include "vgatext.h"
 #include "render.h"
 #include "video.h"
+#include "remap_priv.h"
 #include "render_priv.h"
 
 #define RENDER_THREADED 1
@@ -214,7 +215,7 @@ int remapper_init(int have_true_color, int have_shmap, int features,
 {
   int remap_src_modes, ximage_mode;
 
-//  set_remap_debug_msg(stderr);
+  remapper_register();
 
   if(have_true_color) {
     switch(csd->bits) {
