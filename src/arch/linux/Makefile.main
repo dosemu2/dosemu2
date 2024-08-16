@@ -119,7 +119,7 @@ DIRLIST = $(LIBSUBDIRS) $(OPTIONALSUBDIRS)
 optionalsubdirs:	$(OPTIONALSUBDIRS)
 
 $(DIRLIST): $(GENERATED) .WAIT $(top_builddir)/commands
-	@($(MAKE) SUBDIR:=$@ -C $@)
+	@($(MAKE) -C $@)
 
 doslib: dosemu
 

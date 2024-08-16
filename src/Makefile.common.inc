@@ -1,5 +1,5 @@
-# if building in subdir, SUBDIR is not passed from outside, so evaluate
-SUBDIR ?= $(patsubst /%,%,$(subst $(abs_top_builddir)/src,,$(CURDIR)))
+SUBDIR = $(patsubst /%,%,$(subst $(abs_top_builddir)/src,,$(CURDIR)))
+srcdir = $(patsubst %/,%,$(abs_top_srcdir)/src/$(SUBDIR))
 LIBNAME := $(subst /,_,$(SUBDIR))
 
 vpath %.c $(srcdir)

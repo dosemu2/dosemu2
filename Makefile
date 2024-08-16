@@ -5,7 +5,6 @@ all: default
 
 srcdir=.
 top_builddir=.
-SUBDIR:=.
 ifeq ($(filter deb rpm %/configure configure,$(MAKECMDGOALS)),)
   -include Makefile.conf
 endif

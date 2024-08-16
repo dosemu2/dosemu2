@@ -17,8 +17,12 @@ endif
 
 include $(REALTOPDIR)/src/Makefile.common.post
 
+$(top_builddir)/lib/libdosext_dpmi_doslib.a:
+	$(MAKE) -C $(top_builddir)/src/dosext/dpmi/doslib
+
 ifeq ($(USE_DL_PLUGINS),1)
-$(BINPATH)/bin/libplugin_dj64.so: $(OBJS) | $(BINPATH)/bin
+$(BINPATH)/bin/libplugin_dj64.so: $(OBJS) \
+  $(BINPATH)/lib/libdosext_dpmi_doslib.a | $(BINPATH)/bin
 	$(CC) $(LDFLAGS) -shared -o $@ $^ $(DJDEV64_LIBS) $(DJSTUB64_LIBS) \
-		-ldosext_dpmi_doslib -L$(top_builddir)/lib
+		-ldosext_dpmi_doslib -L$(BINPATH)/lib
 endif
