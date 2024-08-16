@@ -88,6 +88,7 @@
 #include "hlt.h"
 #include "coopth.h"
 #include "keyboard/keyb_server.h"
+#include "translate/dosemu_charset.h"
 #include "sig.h"
 #include "sound.h"
 #include "ioselect.h"
@@ -296,6 +297,7 @@ int main(int argc, char **argv, char * const *envp)
     mfs_priv_init();
     port_init();		/* setup port structures, before config! */
     version_init();		/* Check the OS version */
+    cp437_init();
     config_init(argc, argv);	/* parse the commands & config file(s) */
     mfs_post_config();		/* called after config and all config_scrubs */
 #ifdef X86_EMULATOR

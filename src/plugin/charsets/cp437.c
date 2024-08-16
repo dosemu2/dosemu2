@@ -1,4 +1,4 @@
-#include "init.h"
+#include "translate/dosemu_charset.h"
 #include "translate.h"
 
 static const t_unicode cp437_c1_chars[] = {
@@ -41,7 +41,7 @@ struct char_set cp437 = {
 	.names = { "cp437", 0 },
 };
 
-CONSTRUCTOR(static void init(void))
+void cp437_init(void)
 {
 	register_charset(&cp437);
 }
