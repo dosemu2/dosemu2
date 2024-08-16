@@ -17,24 +17,9 @@
 #include "../emudpmi.h"
 #include "../dpmisel.h"
 #include "../dpmi_api.h"
+#include "../msdoshlp.h"
 #include "coopth.h"
 #include "dos.h"
-
-static void call_msdos(cpuctx_t *scp)
-{
-    struct pmaddr_s pma = {
-	.offset = DPMI_SEL_OFF(DPMI_msdos),
-	.selector = dpmi_sel(),
-    };
-    unsigned int *ssp = SEL_ADR(_ss, _esp);
-    *--ssp = _cs;
-    *--ssp = _eip;
-    _esp -= 8;
-
-    _cs = pma.selector;
-    _eip = pma.offset;
-    coopth_sched();
-}
 
 unsigned _dos_open(const char *pathname, unsigned mode, int *handle)
 {
@@ -49,7 +34,7 @@ unsigned _dos_open(const char *pathname, unsigned mode, int *handle)
   _ds = nm.selector;
   _edx = nm.offset32;
   memcpy(SEL_ADR(_ds, _edx), pathname, len);
-  call_msdos(scp);
+  doshlp_call_msdos(scp);
   if (_eflags & CF)
     ret = _eax;
   else
@@ -72,7 +57,7 @@ unsigned _dos_read(int handle, void *buffer, unsigned count, unsigned *numread)
   _ecx = count;
   _ds = buf.selector;
   _edx = buf.offset32;
-  call_msdos(scp);
+  doshlp_call_msdos(scp);
   if (_eflags & CF)
     ret = _eax;
   else {
@@ -98,7 +83,7 @@ unsigned _dos_write(int handle, const void *buffer, unsigned count, unsigned *nu
   _ds = buf.selector;
   _edx = buf.offset32;
   memcpy(SEL_ADR(_ds, _edx), buffer, count);
-  call_msdos(scp);
+  doshlp_call_msdos(scp);
   if (_eflags & CF)
     ret = _eax;
   else
@@ -119,7 +104,7 @@ unsigned long _dos_seek(int handle, unsigned long offset, int origin)
   _ebx = handle;
   _ecx = offset >> 16;
   _edx = offset & 0xffff;
-  call_msdos(scp);
+  doshlp_call_msdos(scp);
   if (_eflags & CF)
     ret = -1;
   else
@@ -137,7 +122,7 @@ int _dos_close(int handle)
 
   _eax = 0x3e00;
   _ebx = handle;
-  call_msdos(scp);
+  doshlp_call_msdos(scp);
   if (_eflags & CF)
     ret = _eax;
 
@@ -153,14 +138,14 @@ int _dos_link_umb(int on)
 
   _eax = 0x5803;
   _ebx = on;
-  call_msdos(scp);
+  doshlp_call_msdos(scp);
   if (_eflags & CF) {
     ret = _eax;
     goto done;
   }
   _eax = 0x5801;
   _ebx = on ? 0x80 : 0;
-  call_msdos(scp);
+  doshlp_call_msdos(scp);
   if (_eflags & CF) {
     ret = _eax;
     goto done;

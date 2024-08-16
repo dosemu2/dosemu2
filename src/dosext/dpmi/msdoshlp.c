@@ -590,6 +590,22 @@ struct pmaddr_s doshlp_get_abort_helper(void)
     };
 }
 
+void doshlp_call_msdos(cpuctx_t *scp)
+{
+    struct pmaddr_s pma = {
+	.offset = DPMI_SEL_OFF(DPMI_msdos),
+	.selector = dpmi_sel(),
+    };
+    unsigned int *ssp = SEL_ADR(_ss, _esp);
+    *--ssp = _cs;
+    *--ssp = _eip;
+    _esp -= 8;
+
+    _cs = pma.selector;
+    _eip = pma.offset;
+    coopth_sched();
+}
+
 void doshlp_call_reinit(cpuctx_t *scp)
 {
     struct pmaddr_s pma = {
