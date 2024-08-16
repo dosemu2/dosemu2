@@ -1669,7 +1669,7 @@ static struct char_set *get_charset(const char *name)
 
 	charset = lookup_charset(name);
 	if (!charset) {
-		error("Can't find charset %s", name);
+		error("Can't find charset %s\n", name);
 	}
 	return charset;
 
