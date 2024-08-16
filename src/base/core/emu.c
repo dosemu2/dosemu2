@@ -298,6 +298,7 @@ int main(int argc, char **argv, char * const *envp)
     port_init();		/* setup port structures, before config! */
     version_init();		/* Check the OS version */
     cp437_init();
+    utf8_init();
     config_init(argc, argv);	/* parse the commands & config file(s) */
     mfs_post_config();		/* called after config and all config_scrubs */
 #ifdef X86_EMULATOR

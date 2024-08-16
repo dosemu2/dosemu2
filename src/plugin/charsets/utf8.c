@@ -1,6 +1,6 @@
 #include <errno.h>
 #include <string.h>
-#include "init.h"
+#include "translate/dosemu_charset.h"
 #include "translate.h"
 /* utf8 */
 
@@ -140,7 +140,7 @@ struct char_set utf8 = {
 	.ops = &utf8_ops,
 };
 
-CONSTRUCTOR(static void init(void))
+void utf8_init(void)
 {
 	register_charset(&utf8);
 }
