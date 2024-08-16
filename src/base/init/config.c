@@ -1052,6 +1052,8 @@ static void config_post_process(void)
         set_internal_charset("cp437");
 #endif
     }
+    if (!config.internal_cset)
+        set_internal_charset("cp437");
 
 #ifdef USE_IEEE1284
     if (config.opl2lpt_device)
