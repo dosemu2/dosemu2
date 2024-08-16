@@ -11,7 +11,6 @@ ALL_CFLAGS+=$(DL_CFLAGS) $(LIBAOCFL)
 CFILES=snd_o_ao.c snd_o_ao_file.c ao_init.c
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_libao.so
-ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post

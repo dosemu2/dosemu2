@@ -16,7 +16,6 @@ endif
 GENHDRS = fdppconf.hh
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(GENHDRS) .WAIT $(BINPATH)/bin/libplugin_fdpp.so
-ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post

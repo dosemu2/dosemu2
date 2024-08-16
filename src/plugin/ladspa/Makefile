@@ -16,7 +16,6 @@ DEPENDS=$(CFILES:.c=.d)
 
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_ladspa.so
-ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post

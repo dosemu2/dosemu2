@@ -11,7 +11,6 @@ ALL_CFLAGS+=$(DL_CFLAGS)
 CFILES=mouse_gpm.c
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_gpm.so
-ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post

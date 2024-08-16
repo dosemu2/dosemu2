@@ -11,7 +11,6 @@ ALL_CFLAGS += $(DL_CFLAGS)
 CFILES = djdev64.c dpmiops.c
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_dj64.so
-ALL_CFLAGS += -fPIC
 LDFLAGS += -Wl,-Bsymbolic
 endif
 

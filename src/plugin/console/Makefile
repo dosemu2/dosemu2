@@ -11,7 +11,6 @@ ALL_CFLAGS+=$(DL_CFLAGS)
 CFILES = vc.c vga.c vbe.c $(VCFILES) console.c detach.c
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_console.so $(LIB)
-ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post

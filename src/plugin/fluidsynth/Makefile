@@ -12,7 +12,6 @@ CFILES = mid_o_flus.c fluid_rip/fluid_seqbind.c fluid_rip/fluid_midi.c
 LDFLAGS += -Wl,-Bsymbolic
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_fluidsynth.so
-ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post

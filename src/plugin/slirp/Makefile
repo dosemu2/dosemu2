@@ -11,7 +11,6 @@ ALL_CFLAGS += $(DL_CFLAGS) -I$(srcdir)/libvdeslirp
 CFILES = slirp.c libvdeslirp/libvdeslirp.c
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_slirp.so
-ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post

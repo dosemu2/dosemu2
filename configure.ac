@@ -360,7 +360,7 @@ AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 
 DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -imacros emu_config.h"
 DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wall -Wstrict-prototypes -Wmissing-declarations \
--Wnested-externs -fms-extensions -pthread \
+-Wnested-externs -fms-extensions -pthread -fpic \
 -Wno-unused-result -Wcast-qual -Wwrite-strings -Wstrict-aliasing=2 -Wundef"
 AX_CHECK_COMPILE_FLAG([-Waddress-of-packed-member],
   [DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-address-of-packed-member"],, [-Werror])
@@ -652,6 +652,8 @@ else
     AC_MSG_NOTICE(Compiling as PIE for $machine...)
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
     DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
+# for some strange reason -fpie discards -fpic, so get it back
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpic"
 fi
 
 if test "$CONFIG_HOST" = "Linux"; then

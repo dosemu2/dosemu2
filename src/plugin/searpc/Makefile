@@ -14,7 +14,6 @@ GEN_H = searpc-signature.h searpc-marshal.h
 
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_searpc.so
-ALL_CFLAGS += -fPIC
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post
