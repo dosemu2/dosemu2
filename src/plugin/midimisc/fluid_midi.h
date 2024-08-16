@@ -92,7 +92,7 @@ struct _fluid_midi_parser_t {
 #endif
 
 FLUIDSYNTH_API fluid_midi_event_t* new_fluid_midi_event(void);
-FLUIDSYNTH_API int delete_fluid_midi_event(fluid_midi_event_t* event);
+FLUIDSYNTH_API void delete_fluid_midi_event(fluid_midi_event_t* event);
 
 FLUIDSYNTH_API int fluid_midi_event_set_type(fluid_midi_event_t* evt, int type);
 FLUIDSYNTH_API int fluid_midi_event_get_type(fluid_midi_event_t* evt);

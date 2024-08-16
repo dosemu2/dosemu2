@@ -60,9 +60,8 @@ new_fluid_midi_event (void)
 /**
  * Delete MIDI event structure.
  * @param evt MIDI event structure
- * @return Always returns #FLUID_OK
  */
-int
+void
 delete_fluid_midi_event(fluid_midi_event_t *evt)
 {
     fluid_midi_event_t *temp;
@@ -77,7 +76,6 @@ delete_fluid_midi_event(fluid_midi_event_t *evt)
         FLUID_FREE(evt);
         evt = temp;
     }
-    return FLUID_OK;
 }
 
 /**
