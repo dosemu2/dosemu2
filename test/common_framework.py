@@ -194,6 +194,13 @@ class BaseTestCase(object):
         # Empty dosemu.conf for default values
         self.mkfile("dosemu.conf", """\n""", self.imagedir)
 
+        # Link back to std dosemu commands and scripts
+        p = self.workdir / "dosemu"
+        if environ.get("TEST_BINDIR"):
+            p.symlink_to(self.bindir / "dosemu")
+        else:
+            p.symlink_to(self.topdir / "commands" / "dosemu")
+
         # Create startup files
         self.setUpDosAutoexec()
         self.setUpDosConfig()

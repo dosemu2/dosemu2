@@ -5072,10 +5072,6 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
-        # Link back to std dosemu commands and scripts
-        p = self.workdir / "dosemu"
-        p.symlink_to(self.topdir / "commands" / "dosemu")
-
         # Use the (almost) standard shipped config
         contents = (self.bindir / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
@@ -5171,10 +5167,6 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
-        # Link back to std dosemu commands and scripts
-        p = self.workdir / "dosemu"
-        p.symlink_to(self.topdir / "commands" / "dosemu")
-
         # Use the (almost) standard shipped config
         contents = (self.bindir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
@@ -5248,10 +5240,6 @@ class FRDOS130TestCase(OurTestCase, unittest.TestCase):
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
-        # Link back to std dosemu commands and scripts
-        p = self.workdir / "dosemu"
-        p.symlink_to(self.topdir / "commands" / "dosemu")
-
         # Use the (almost) standard shipped config
         contents = (self.bindir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
@@ -5322,10 +5310,6 @@ class FRDOSGITTestCase(OurTestCase, unittest.TestCase):
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
-        # Link back to std dosemu commands and scripts
-        p = self.workdir / "dosemu"
-        p.symlink_to(self.topdir / "commands" / "dosemu")
-
         # Use the (almost) standard shipped config
         contents = (self.bindir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
@@ -5378,10 +5362,6 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
-        # Link back to std dosemu commands and scripts
-        p = self.workdir / "dosemu"
-        p.symlink_to(self.topdir / "commands" / "dosemu")
-
         # Use the (almost) standard shipped config
         contents = (self.bindir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
@@ -5433,10 +5413,6 @@ class MSDOS700TestCase(OurTestCase, unittest.TestCase):
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
-        # Link back to std dosemu commands and scripts
-        p = self.workdir / "dosemu"
-        p.symlink_to(self.topdir / "commands" / "dosemu")
-
         # Use the (almost) standard shipped config
         contents = (self.bindir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
@@ -5490,10 +5466,6 @@ class MSDOS710TestCase(OurTestCase, unittest.TestCase):
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
-        # Link back to std dosemu commands and scripts
-        p = self.workdir / "dosemu"
-        p.symlink_to(self.topdir / "commands" / "dosemu")
-
         # Use the (almost) standard shipped config
         contents = (self.bindir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
