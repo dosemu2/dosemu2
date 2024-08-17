@@ -374,7 +374,7 @@ class BaseTestCase(object):
         # mkfatimage [-b bsectfile] [{-t tracks | -k Kbytes}]
         #            [-l volume-label] [-f outfile] [-p ] [file...]
         result = Popen(
-            [str(self.topdir / "bin" / "mkfatimage16"),
+            [str(self.dosemu.parent / "mkfatimage16"),
                 "-t", tnum,
                 "-h", hnum,
                 "-f", str(self.imagedir / name),
