@@ -5067,7 +5067,7 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = (self.bindir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
@@ -5077,7 +5077,7 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
         p.symlink_to(self.topdir / "commands" / "dosemu")
 
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / self.confsys).read_text()
+        contents = (self.bindir / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
@@ -5166,7 +5166,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = (self.bindir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
@@ -5176,7 +5176,7 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
         p.symlink_to(self.topdir / "commands" / "dosemu")
 
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / "c" / self.confsys).read_text()
+        contents = (self.bindir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
@@ -5243,7 +5243,7 @@ class FRDOS130TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = (self.bindir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
@@ -5253,7 +5253,7 @@ class FRDOS130TestCase(OurTestCase, unittest.TestCase):
         p.symlink_to(self.topdir / "commands" / "dosemu")
 
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / "c" / self.confsys).read_text()
+        contents = (self.bindir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
@@ -5317,7 +5317,7 @@ class FRDOSGITTestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = (self.bindir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
@@ -5327,7 +5327,7 @@ class FRDOSGITTestCase(OurTestCase, unittest.TestCase):
         p.symlink_to(self.topdir / "commands" / "dosemu")
 
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / "c" / self.confsys).read_text()
+        contents = (self.bindir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
@@ -5373,7 +5373,7 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = (self.bindir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
@@ -5383,7 +5383,7 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
         p.symlink_to(self.topdir / "commands" / "dosemu")
 
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / "c" / self.confsys).read_text()
+        contents = (self.bindir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
@@ -5428,7 +5428,7 @@ class MSDOS700TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = (self.bindir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
@@ -5438,7 +5438,7 @@ class MSDOS700TestCase(OurTestCase, unittest.TestCase):
         p.symlink_to(self.topdir / "commands" / "dosemu")
 
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / "c" / self.confsys).read_text()
+        contents = (self.bindir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
@@ -5485,7 +5485,7 @@ class MSDOS710TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / self.autoexec).read_text()
+        contents = (self.bindir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
@@ -5495,7 +5495,7 @@ class MSDOS710TestCase(OurTestCase, unittest.TestCase):
         p.symlink_to(self.topdir / "commands" / "dosemu")
 
         # Use the (almost) standard shipped config
-        contents = (self.topdir / "src" / "bindist" / "c" / self.confsys).read_text()
+        contents = (self.bindir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")

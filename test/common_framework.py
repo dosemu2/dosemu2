@@ -135,6 +135,8 @@ class BaseTestCase(object):
         if not cls.imagedir.is_dir():
             raise ValueError("Imagedir must be non-existent, a directory or a link to a directory '%s'" % str(cls.imagedir))
 
+        cls.bindir = Path(environ.get("TEST_BINDIR", cls.topdir / "src" / "bindist"))
+
         cls.version = "BaseTestCase default"
         cls.prettyname = "NoPrettyNameSet"
         cls.tarfile = None
@@ -201,11 +203,11 @@ class BaseTestCase(object):
 
     def setUpDosAutoexec(self):
         # Use the standard shipped autoexec
-        copy(self.topdir / "src" / "bindist" / self.autoexec, self.workdir)
+        copy(self.bindir / self.autoexec, self.workdir)
 
     def setUpDosConfig(self):
         # Use the standard shipped config
-        copy(self.topdir / "src" / "bindist" / self.confsys, self.workdir)
+        copy(self.bindir / self.confsys, self.workdir)
 
     def setUpDosVersion(self):
         # FreeCom / Comcom32 compatible
