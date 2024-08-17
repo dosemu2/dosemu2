@@ -136,6 +136,7 @@ class BaseTestCase(object):
             raise ValueError("Imagedir must be non-existent, a directory or a link to a directory '%s'" % str(cls.imagedir))
 
         cls.bindir = Path(environ.get("TEST_BINDIR", cls.topdir / "src" / "bindist"))
+        cls.dosemu = Path(environ.get("TEST_DOSEMU", cls.topdir / "bin" / "dosemu"))
 
         cls.version = "BaseTestCase default"
         cls.prettyname = "NoPrettyNameSet"
@@ -436,7 +437,7 @@ class BaseTestCase(object):
     def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=5,
                     eofisok=False, interactions=[]):
         # Note: if debugging is turned on then times increase 10x
-        dbin = "bin/dosemu"
+        dbin = str(self.dosemu)
         args = ["-f", str(self.imagedir / "dosemu.conf"),
                 "-n",
                 "-o", str(self.topdir / self.logfiles['log'][0]),
@@ -490,7 +491,7 @@ class BaseTestCase(object):
         return ret
 
     def runDosemuCmdline(self, xargs, cwd=None, config=None, timeout=30):
-        args = [str(self.topdir / "bin" / "dosemu"),
+        args = [str(self.dosemu),
                 "--Fimagedir", str(self.imagedir),
                 "-f", str(self.imagedir / "dosemu.conf"),
                 "-n",
