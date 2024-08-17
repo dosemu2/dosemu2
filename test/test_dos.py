@@ -5219,6 +5219,7 @@ class FRDOS130TestCase(OurTestCase, unittest.TestCase):
             "test_fat_label_create_noduplicate": KNOWNFAIL,
             "test_fat_label_create_predir": KNOWNFAIL,
             "test_fat_label_create_prefile": KNOWNFAIL,
+            "test_lfs_disk_info_mfs": KNOWNFAIL,
             "test_memory_emm286_borland": KNOWNFAIL,
             "test_memory_hma_alloc": KNOWNFAIL,
             "test_memory_hma_alloc3": UNSUPPORTED,
