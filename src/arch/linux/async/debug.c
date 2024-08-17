@@ -230,13 +230,9 @@ void gdb_debug(void)
 "https://github.com/dosemu2/dosemu2/issues\n");
     error("@Please provide any additional info you can, like the test-cases,\n"
           "URLs and all the rest that fits.\n\n");
-#ifdef HAVE_BACKTRACE
-    print_trace();
-#endif
 #endif
 
     log_printf("\n");
-    dump_state();
 }
 
 void siginfo_debug(const siginfo_t *si)
@@ -256,5 +252,9 @@ void siginfo_debug(const siginfo_t *si)
     /* gdb_debug() will crash in jit code doing backtrace() */
     if (!(IS_EMU_JIT() && e_in_compiled_code()))
 #endif
-    gdb_debug();
+//    gdb_debug();
+#ifdef HAVE_BACKTRACE
+    print_trace();
+#endif
+    dump_state();
 }
