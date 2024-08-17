@@ -865,7 +865,7 @@ static void read_cpu_info(void)
 		/* speed division factor to get 838ns from CPU clock */
 		config.cpu_tick_spd = (LLF_TICKS*1000000)/chz;
 
-		warn ("Linux kernel %d.%d.%d; CPU speed is %lld Hz\n",
+		dbug_printf("Linux kernel %d.%d.%d; CPU speed is %lld Hz\n",
 		   kernel_version_code >> 16, (kernel_version_code >> 8) & 255,
 		   kernel_version_code & 255,chz);
 /*		fprintf (stderr,"CPU speed factors %ld,%ld\n",

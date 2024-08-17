@@ -418,7 +418,7 @@ static void init_kvm_monitor(void)
   sregs.ss.g = 1;
 
   if (config.cpu_vm == CPUVM_KVM)
-    warn("Using V86 mode inside KVM\n");
+    dbug_printf("Using V86 mode inside KVM\n");
 }
 
 /* Initialize KVM and memory mappings */

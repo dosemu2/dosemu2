@@ -4213,16 +4213,16 @@ void dpmi_setup(void)
 
     switch (config.cpu_vm_dpmi) {
     case CPUVM_KVM:
-      warn("Using DPMI inside KVM\n");
+      dbug_printf("Using DPMI inside KVM\n");
       break;
     case CPUVM_NATIVE:
-      warn("Using native DPMI control\n");
+      dbug_printf("Using native DPMI control\n");
       err = native_dpmi_setup();
       if (err)
         goto err;
       break;
     case CPUVM_EMU:
-      warn("Using DPMI with CPU emulator\n");
+      dbug_printf("Using DPMI with CPU emulator\n");
       break;
     }
 

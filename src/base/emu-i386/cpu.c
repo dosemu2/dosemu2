@@ -406,9 +406,9 @@ void cpu_setup(void)
 #ifdef X86_EMULATOR
   if (config.cpu_vm == CPUVM_EMU || config.cpu_vm_dpmi == CPUVM_EMU) {
     if (config.cpu_vm == CPUVM_EMU)
-      warn("using CPU emulation for vm86()\n");
+      dbug_printf("using CPU emulation for vm86()\n");
     if (config.cpu_vm_dpmi == CPUVM_EMU)
-      warn("using CPU emulation for DPMI\n");
+      dbug_printf("using CPU emulation for DPMI\n");
   }
   init_emu_cpu();
 #endif

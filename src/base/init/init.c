@@ -490,7 +490,7 @@ void print_version(void)
   struct utsname unames;
 
   uname(&unames);
-  warn("dosemu2-%s is coming up on %s version %s %s %s\n", VERSTR,
+  dbug_printf("dosemu2-%s is coming up on %s version %s %s %s\n", VERSTR,
        unames.sysname, unames.release, unames.version, unames.machine);
   dbug_printf("Compiled with "
 #ifdef __clang__
