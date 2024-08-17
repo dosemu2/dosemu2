@@ -135,6 +135,9 @@ class BaseTestCase(object):
         if not cls.imagedir.is_dir():
             raise ValueError("Imagedir must be non-existent, a directory or a link to a directory '%s'" % str(cls.imagedir))
 
+        cls.bindir = Path(environ.get("TEST_BINDIR", cls.topdir / "src" / "bindist"))
+        cls.dosemu = Path(environ.get("TEST_DOSEMU", cls.topdir / "bin" / "dosemu"))
+
         cls.version = "BaseTestCase default"
         cls.prettyname = "NoPrettyNameSet"
         cls.tarfile = None
@@ -191,6 +194,13 @@ class BaseTestCase(object):
         # Empty dosemu.conf for default values
         self.mkfile("dosemu.conf", """\n""", self.imagedir)
 
+        # Link back to std dosemu commands and scripts
+        p = self.workdir / "dosemu"
+        if environ.get("TEST_BINDIR"):
+            p.symlink_to(self.bindir / "dosemu")
+        else:
+            p.symlink_to(self.topdir / "commands" / "dosemu")
+
         # Create startup files
         self.setUpDosAutoexec()
         self.setUpDosConfig()
@@ -201,11 +211,11 @@ class BaseTestCase(object):
 
     def setUpDosAutoexec(self):
         # Use the standard shipped autoexec
-        copy(self.topdir / "src" / "bindist" / self.autoexec, self.workdir)
+        copy(self.bindir / self.autoexec, self.workdir)
 
     def setUpDosConfig(self):
         # Use the standard shipped config
-        copy(self.topdir / "src" / "bindist" / self.confsys, self.workdir)
+        copy(self.bindir / self.confsys, self.workdir)
 
     def setUpDosVersion(self):
         # FreeCom / Comcom32 compatible
@@ -364,7 +374,7 @@ class BaseTestCase(object):
         # mkfatimage [-b bsectfile] [{-t tracks | -k Kbytes}]
         #            [-l volume-label] [-f outfile] [-p ] [file...]
         result = Popen(
-            [str(self.topdir / "bin" / "mkfatimage16"),
+            [str(self.dosemu.parent / "mkfatimage16"),
                 "-t", tnum,
                 "-h", hnum,
                 "-f", str(self.imagedir / name),
@@ -434,7 +444,7 @@ class BaseTestCase(object):
     def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=5,
                     eofisok=False, interactions=[]):
         # Note: if debugging is turned on then times increase 10x
-        dbin = "bin/dosemu"
+        dbin = str(self.dosemu)
         args = ["-f", str(self.imagedir / "dosemu.conf"),
                 "-n",
                 "-o", str(self.topdir / self.logfiles['log'][0]),
@@ -488,7 +498,7 @@ class BaseTestCase(object):
         return ret
 
     def runDosemuCmdline(self, xargs, cwd=None, config=None, timeout=30):
-        args = [str(self.topdir / "bin" / "dosemu"),
+        args = [str(self.dosemu),
                 "--Fimagedir", str(self.imagedir),
                 "-f", str(self.imagedir / "dosemu.conf"),
                 "-n",

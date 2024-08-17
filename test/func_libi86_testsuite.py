@@ -10,13 +10,16 @@ TESTSUITE = "/usr/ia16-elf/libexec/libi86/tests/testsuite"
 
 
 def libi86_create_items(testcase):
+    if environ.get("SKIP_EXPENSIVE"):
+        print('\nlibi86-testsuite-ia16-elf is expensive - skipping')
+        return
 
     # Enumerate the tests
     tests = []
     try:
         listing = check_output([TESTSUITE, '--list'])
     except FileNotFoundError:
-        print('libi86-testsuite-ia16-elf not installed - skipping those\n')
+        print('\nlibi86-testsuite-ia16-elf not installed - skipping')
         return
     for l in listing.split(b'\n'):
         # b'  12: bios.h.at:83       _bios_equiplist'
@@ -41,9 +44,6 @@ def libi86_create_items(testcase):
 
 
 def libi86_test_item(self, test):
-    if environ.get("SKIP_EXPENSIVE"):
-        self.skipTest("expensive test")
-
     self.mkfile("dosemu.conf", """\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
