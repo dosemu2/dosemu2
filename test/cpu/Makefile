@@ -1,4 +1,6 @@
-include ../../Makefile.conf
+
+# No need to include the config from the build directory
+#include ../../Makefile.conf
 
 DJGPP = i586-pc-msdosdjgpp-gcc
 DJFLAGS=-Wall -O2 -g -gdwarf-2 -fno-strict-aliasing -fno-pic -fno-pie -no-pie
