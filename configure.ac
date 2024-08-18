@@ -360,7 +360,7 @@ AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 
 DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -imacros emu_config.h"
 DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wall -Wstrict-prototypes -Wmissing-declarations \
--Wnested-externs -fms-extensions -pthread -fpic \
+-Wnested-externs -fms-extensions -pthread \
 -Wno-unused-result -Wcast-qual -Wwrite-strings -Wstrict-aliasing=2 -Wundef"
 AX_CHECK_COMPILE_FLAG([-Waddress-of-packed-member],
   [DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-address-of-packed-member"],, [-Werror])
@@ -650,8 +650,7 @@ if test "$machine" = "i386" -o "$with_target_bits" = "32" -o \
       [DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -no-pie"])
 else
     AC_MSG_NOTICE(Compiling as PIE for $machine...)
-# -fpie discards -fpic so don't add unless -fpic removed
-#    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
     DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
 fi
 

@@ -112,6 +112,8 @@ BINPATH:=$(top_builddir)/$(THISVERSION)
 RELEASE_DATE="@RELEASE_DATE@"
 REVISION:=$(shell cd $(top_srcdir) && ./getversion -r)
 
-ifneq ($(USE_DL_PLUGINS),1)
+ifeq ($(USE_DL_PLUGINS),1)
+DL_CFLAGS:=-fPIC
+else
 -include $(top_builddir)/src/plugin/*/Makefile.conf
 endif
