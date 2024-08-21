@@ -182,7 +182,9 @@ void region_unlock_offs(int fd)
 #if FUNLCK_WA
 void open_mlemu(int *r_fds)
 {
-  char mltmpl[] = "/tmp/dosemu2_mlemu_XXXXXX";
+  char *tmp = getenv("TMPDIR");
+  char mltmpl[256];
+  sprintf(mltmpl, "%s/dosemu2_mlemu_XXXXXX", tmp ? tmp : "/tmp");
   int fd0, fd1;
   struct flock fl;
   int err;
@@ -191,7 +193,7 @@ void open_mlemu(int *r_fds)
   /* create 2 fds, 1 for mirroring locks and 1 for testing locks */
   fd0 = mkstemp(mltmpl);
   if (fd0 == -1) {
-    perror("mkstemp()");
+    perror("rlocks mkstemp()");
     return;
   }
   fd1 = open(mltmpl, O_RDONLY | O_CLOEXEC);
