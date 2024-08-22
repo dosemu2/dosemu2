@@ -1992,14 +1992,14 @@ int wordexp_lite(const char *words, wordexp_t * we, int flags)
 			/* Is it a word separator? */
 			if (strchr(" \t", words[words_offset]) == NULL) {
 				char ch = words[words_offset];
-
+#if 0
 				/* Not a word separator -- but is it a valid word char? */
 				if (strchr("\n|&;<>(){}", ch)) {
 					/* Fail */
 					error = WRDE_BADCHAR;
 					goto do_error;
 				}
-
+#endif
 				/* "Ordinary" character -- add it to word */
 				word = w_addchar(word, &word_length, &max_length, ch);
 				if (word == NULL) {
