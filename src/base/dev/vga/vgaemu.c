@@ -772,7 +772,7 @@ int vga_bank_access(dosaddr_t m)
 	return (unsigned)(m - vga.mem.bank_base) < vga.mem.bank_len;
 }
 
-int vga_read_access(dosaddr_t m)
+static int _vga_read_access(dosaddr_t m)
 {
 	if (config.console_video)
 		return 0;
@@ -780,7 +780,15 @@ int vga_read_access(dosaddr_t m)
 	return vga_bank_access(m);
 }
 
-int vga_write_access(dosaddr_t m)
+int vga_read_access(dosaddr_t m)
+{
+	int ret = _vga_read_access(m);
+	if (ret)
+		instr_emu_sim_reset_count(VGA_EMU_INST_EMU_COUNT);
+	return ret;
+}
+
+static int _vga_write_access(dosaddr_t m)
 {
 	if (config.console_video)
 		return 0;
@@ -798,6 +806,14 @@ int vga_write_access(dosaddr_t m)
 	if (!config.umb_f0 && m >= 0xf0000 && m < 0xf4000)
 		return 1;
 	return 0;
+}
+
+int vga_write_access(dosaddr_t m)
+{
+	int ret = _vga_write_access(m);
+	if (ret)
+		instr_emu_sim_reset_count(VGA_EMU_INST_EMU_COUNT);
+	return ret;
 }
 
 int vga_access(dosaddr_t r, dosaddr_t w)
