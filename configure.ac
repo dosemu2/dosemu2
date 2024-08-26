@@ -310,11 +310,11 @@ PKG_CHECK_MODULES([LIBCAP], [libcap], [
     fi
     CFLAGS="$CFLAGS $LIBCAP_CFLAGS"
     LIBS="$LIBS $LIBCAP_LIBS"
-    PKG_CHECK_MODULES([LIBPSX], [libpsx], [
-        CFLAGS="$CFLAGS $LIBPSX_CFLAGS"
-        LIBS="$LIBS $LIBPSX_LIBS"
-      ], [ AC_MSG_ERROR(libpsx not found) ]
-    )
+#    PKG_CHECK_MODULES([LIBPSX], [libpsx], [
+#        CFLAGS="$CFLAGS $LIBPSX_CFLAGS"
+#        LIBS="$LIBS $LIBPSX_LIBS"
+#      ], [ AC_MSG_ERROR(libpsx not found) ]
+#    )
     AC_DEFINE(HAVE_LIBCAP)
     have_libcap=1
   ],
