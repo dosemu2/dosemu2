@@ -155,7 +155,7 @@ int cnn_getsize(int type)
   q = clipboard_make_str_dos(type, clip_str, strlen(clip_str));
   if (!q)
     return 0;
-  ret = strlen(clip_str) + 1;
+  ret = strlen(q) + 1;
   free(q);
   return ret;
 }
