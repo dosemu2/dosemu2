@@ -95,14 +95,17 @@ int register_clipboard_system(struct clipboard_system *cs)
 }
 
 char *clip_str;
+static char *clip_rdbuf;
 
 static void do_clear(void)
 {
   free(clip_str);
   clip_str = NULL;
+  free(clip_rdbuf);
+  clip_rdbuf = NULL;
 }
 
-void add_clip_str(char *q)
+static void add_clip_str(char *q)
 {
   if (clip_str) {
     clip_str = realloc(clip_str, strlen(clip_str) + strlen(q) + 1);
@@ -148,11 +151,11 @@ int cnn_getsize(int type)
     return 0;
   }
 
-  if (!clip_str) {
+  if (!clip_rdbuf) {
     v_printf("SDL_clipboard: GetSize failed (grabbed data is NULL\n");
     return 0;
   }
-  q = clipboard_make_str_dos(type, clip_str, strlen(clip_str));
+  q = clipboard_make_str_dos(type, clip_rdbuf, strlen(clip_rdbuf));
   if (!q)
     return 0;
   ret = strlen(q) + 1;
@@ -164,12 +167,27 @@ int cnn_getdata(int type, char *p, int size)
 {
   char *q;
 
-  if (!clip_str)
+  if (!clip_rdbuf)
     return FALSE;
-  q = clipboard_make_str_dos(type, clip_str, strlen(clip_str));
+  q = clipboard_make_str_dos(type, clip_rdbuf, strlen(clip_rdbuf));
   if (!q)
     return FALSE;
   strlcpy(p, q, size);
   free(q);
   return TRUE;
+}
+
+int cnn_open(void)
+{
+  if (clip_rdbuf)
+    return FALSE;
+  if (clip_str && clip_str[0])
+    clip_rdbuf = strdup(clip_str);
+  return TRUE;
+}
+
+void cnn_close(void)
+{
+  free(clip_rdbuf);
+  clip_rdbuf = NULL;
 }

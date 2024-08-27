@@ -82,6 +82,8 @@ static int cterm_getdata(int type, char *p, int size)
 
 static struct clipboard_system clip_term =
 {
+  cnn_open,
+  cnn_close,
   cterm_clear,
   cterm_write,
   cterm_getsize,

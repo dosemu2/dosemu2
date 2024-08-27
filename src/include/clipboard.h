@@ -16,6 +16,8 @@
 
 struct clipboard_system
 {
+   int (*open)(void);
+   void (*close)(void);
    int (*clear)(void);
    int (*write)(int type, const char *p, int size);
    int (*getsize)(int type);
@@ -27,7 +29,8 @@ extern struct clipboard_system *Clipboard;
 extern char *clip_str;
 
 int register_clipboard_system(struct clipboard_system *cs);
-void add_clip_str(char *q);
+int cnn_open(void);
+void cnn_close(void);
 int cnn_clear(void);
 int cnn_write(int type, const char *p, int size);
 int cnn_getsize(int type);

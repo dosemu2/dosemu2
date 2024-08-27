@@ -3193,8 +3193,11 @@ hint_done:
                 v_printf("Check for WinOldAp\n"); // Installed == (AX != 1700)
                 return 1;
             case 0x01:          /* OPEN CLIPBOARD */
-                LWORD(eax) = 1; // success (AX != 0)
                 v_printf("Open clipboard\n");
+                if (Clipboard && Clipboard->open)
+                    LWORD(eax) = Clipboard->open();
+                else
+                    LWORD(eax) = 0;
                 return 1;
             case 0x02:          /* EMPTY CLIPBOARD */
                 v_printf("Clear clipboard\n");
@@ -3232,8 +3235,10 @@ hint_done:
                     LWORD(eax) = 0;
                 return 1;
             case 0x08:          /* CLOSE CLIPBOARD */
-                LWORD(eax) = 1; // success (AX != 0)
                 v_printf("Close clipboard\n");
+                if (Clipboard && Clipboard->close)
+                    Clipboard->close();
+                LWORD(eax) = 1;
                 return 1;
             case 0x09:          /* COMPACT CLIPBOARD */
                 // SI:CX = desired size in bytes

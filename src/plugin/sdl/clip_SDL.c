@@ -82,6 +82,8 @@ static int clipboard_getdata(int type, char *p, int size)
 
 static struct clipboard_system cnative_SDL =
 {
+  NULL,
+  NULL,
   clipboard_clear,
   clipboard_write,
   clipboard_getsize,
@@ -91,6 +93,8 @@ static struct clipboard_system cnative_SDL =
 
 static struct clipboard_system cnonnative_SDL =
 {
+  NULL,
+  NULL,
   cnn_clear,
   cnn_write,
   cnn_getsize,
@@ -125,6 +129,8 @@ static int cwrp_getdata(int type, char *p, int size)
 
 static struct clipboard_system cwrapped_SDL =
 {
+  cnn_open,
+  cnn_close,
   cwrp_clear,
   cwrp_write,
   cwrp_getsize,
