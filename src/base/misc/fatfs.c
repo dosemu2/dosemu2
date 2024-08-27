@@ -1459,6 +1459,9 @@ void assign_clusters(fatfs_t *f, unsigned max_clu, unsigned max_obj)
           free(f->obj[k].full_name);
       }
       f->objs = u;
+      /* do not overflow the root of a boot drive */
+      if (f->obj[u].parent == 0 && f->sys_type)
+        leavedos(20);
     }
     fatfs_deb("assign_clusters: obj %u, start %u, len %u (%s)\n",
 	u, f->obj[u].start, f->obj[u].len, f->obj[u].name);
