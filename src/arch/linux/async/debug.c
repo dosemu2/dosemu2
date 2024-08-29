@@ -252,7 +252,7 @@ void siginfo_debug(const siginfo_t *si)
     /* gdb_debug() will crash in jit code doing backtrace() */
     if (!(IS_EMU_JIT() && e_in_compiled_code()))
 #endif
-//    gdb_debug();
+    gdb_debug();
 #ifdef HAVE_BACKTRACE
     print_trace();
 #endif
