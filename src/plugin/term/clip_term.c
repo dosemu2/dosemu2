@@ -70,24 +70,14 @@ static int cterm_write(int type, const char *p, int size)
   return TRUE;
 }
 
-static int cterm_getsize(int type)
-{
-  return cnn_getsize(type);
-}
-
-static int cterm_getdata(int type, char *p, int size)
-{
-  return cnn_getdata(type, p, size);
-}
-
 static struct clipboard_system clip_term =
 {
   cnn_open,
   cnn_close,
   cterm_clear,
   cterm_write,
-  cterm_getsize,
-  cterm_getdata,
+  cnn_getsize,
+  cnn_getdata,
   "terminal clipboard",
 };
 
