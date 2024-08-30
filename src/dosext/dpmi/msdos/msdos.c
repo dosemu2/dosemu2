@@ -801,6 +801,10 @@ static int need_xbuf(int intr, u_short ax, u_long cx)
 	    case 0x168a:	/* DPMI extensions. Buffer required
 	                         * for a check. */
 		return 1;
+	    case 0x1703:	/* WINOLDAP: write to clipboard */
+		return 1;
+	    case 0x1705:	/* WINOLDAP: read from clipboard */
+		return 1;
 	}
 	break;
 
@@ -835,6 +839,8 @@ static unsigned short get_xbuf_seg(cpuctx_t *scp, int off, void *arg)
 	}
 	return trans_buffer_seg();
     }
+
+    /* handle corner cases/non-std xbuf */
     switch (intr) {
     case 0x21:
 	switch (_HI(ax)) {
@@ -1688,10 +1694,24 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    if (_eflags & CF)
 		return MSDOS_PM;
 	    return MSDOS_DONE;
+	case 0x1703: {  // clipboard write
+	    char *src;
+	    if (_LWORD(esi) > 0) {  // can't handle large writes
+		_eflags |= CF;
+		_eax = 0;
+		return MSDOS_DONE;
+	    }
+	    SET_RMREG(es, rm_seg);
+	    SET_RMLWORD(bx, 0);
+	    src = SEL_ADR_X(_es, _ebx, MSDOS_CLIENT.is_32);
+	    MEMCPY_2DOS(SEGOFF2LINEAR(rm_seg, 0), src, _LWORD(ecx));
+	    break;
+	}
 	/* need to be careful with 0x2f as it is currently revectored.
 	 * As such, we need to return MSDOS_NONE for what we don't handle,
 	 * but break for what the post_extender is needed.
 	 * Maybe eventually it will be possible to make int2f non-revect. */
+	case 0x1705:	// for post_extender()
 	case 0x4310:	// for post_extender()
 	    break;
 	case 0xae00:
@@ -1899,6 +1919,14 @@ int msdos_post_extender(cpuctx_t *scp,
 	break;
     case 0x2f:
 	switch (ax) {
+	case 0x1705:  // clipboard read
+	    PRESERVE1(ebx);
+	    if ((RMREG(flags) & CF) || RMLWORD(ax) == 0)
+		break;
+	    /* dosemu2 returns len in AX */
+	    MEMCPY_2UNIX(SEL_ADR_X(_es, _ebx, MSDOS_CLIENT.is_32),
+			 SEGOFF2LINEAR(RMREG(es), RMLWORD(bx)), RMLWORD(ax));
+	    break;
 	case 0x4310: {
 	    struct pmaddr_s pma;
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(bx));
