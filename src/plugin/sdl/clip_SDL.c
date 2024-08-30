@@ -59,41 +59,36 @@ static int clipboard_write(int type, const char *p, int size)
   return ret == 0 ? TRUE : FALSE;
 }
 
-static int clipboard_getsize(int type)
+static int clipboard_open(void)
 {
   cnn_clear();
 
   if (SDL_HasClipboardText() == FALSE)
-    return 0;
+    return 1;
 
   _clipboard_grabbed_data = SDL_GetClipboardText();
   if (!_clipboard_grabbed_data) {
-    v_printf("SDL_clipboard: GetSize failed (grabbed data is NULL\n");
-    return 0;
+    v_printf("SDL_clipboard: GetSize failed (grabbed data is NULL)\n");
+    return 1;
   }
 
-  return cnn_getsize(type);
-}
-
-static int clipboard_getdata(int type, char *p, int size)
-{
-  return cnn_getdata(type, p, size);
+  return cnn_open();
 }
 
 static struct clipboard_system cnative_SDL =
 {
-  NULL,
+  clipboard_open,
   NULL,
   clipboard_clear,
   clipboard_write,
-  clipboard_getsize,
-  clipboard_getdata,
+  cnn_getsize,
+  cnn_getdata,
   "sdl native clipboard",
 };
 
 static struct clipboard_system cnonnative_SDL =
 {
-  NULL,
+  cnn_open,
   NULL,
   cnn_clear,
   cnn_write,
@@ -107,6 +102,11 @@ static struct clipboard_system *cl_ops[] = {
   &cnative_SDL,
 };
 
+static int cwrp_open(void)
+{
+  return cl_ops[cl_type]->open();
+}
+
 static int cwrp_clear(void)
 {
   return cl_ops[cl_type]->clear();
@@ -117,11 +117,6 @@ static int cwrp_write(int type, const char *p, int size)
   return cl_ops[cl_type]->write(type, p, size);
 }
 
-static int cwrp_getsize(int type)
-{
-  return cl_ops[cl_type]->getsize(type);
-}
-
 static int cwrp_getdata(int type, char *p, int size)
 {
   return cl_ops[cl_type]->getdata(type, p, size);
@@ -129,11 +124,11 @@ static int cwrp_getdata(int type, char *p, int size)
 
 static struct clipboard_system cwrapped_SDL =
 {
-  cnn_open,
+  cwrp_open,
   cnn_close,
   cwrp_clear,
   cwrp_write,
-  cwrp_getsize,
+  cnn_getsize,
   cwrp_getdata,
   "sdl clipboard",
 };
