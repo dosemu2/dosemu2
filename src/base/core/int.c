@@ -3001,9 +3001,6 @@ static void do_run_cmd(struct lowstring *str, struct ae00_tab *cmd)
 	_AL = 0xff;
 }
 
-/* size not propagated through DOS API, so we cache it */
-static int clipb_size;
-
 static int int2f(int stk_offs, int revect)
 {
     reset_idle(0);
@@ -3185,6 +3182,7 @@ hint_done:
 	}
 	break;
 
+#define DE2_CLIP_MAGIC 0x3244  // "D2"
     case 0x17:			/* MS Windows WINOLDAP functions */
         switch (LO(ax)) {
             case 0x00:		/* IDENTIFY WinOldAp VERSION */
@@ -3194,9 +3192,10 @@ hint_done:
                 return 1;
             case 0x01:          /* OPEN CLIPBOARD */
                 v_printf("Open clipboard\n");
-                if (Clipboard && Clipboard->open)
-                    LWORD(eax) = Clipboard->open();
-                else
+                if (Clipboard && Clipboard->open) {
+                    int ok = Clipboard->open();
+                    LWORD(eax) = (ok ? DE2_CLIP_MAGIC : 0);
+                } else
                     LWORD(eax) = 0;
                 return 1;
             case 0x02:          /* EMPTY CLIPBOARD */
@@ -3218,7 +3217,7 @@ hint_done:
             case 0x04:           /* GET CLIPBOARD DATA SIZE */
                 v_printf("Get clipboard size\n");
                 if (Clipboard && Clipboard->getsize) {
-                    clipb_size = Clipboard->getsize(LWORD(edx));
+                    unsigned clipb_size = Clipboard->getsize(LWORD(edx));
                     LWORD(edx) = (clipb_size >> 16);
                     LWORD(eax) = (clipb_size & 0xffff);
                 } else {
@@ -3228,9 +3227,11 @@ hint_done:
             case 0x05:           /* GET CLIPBOARD DATA */
                 v_printf("Get clipboard data\n");
                 if (Clipboard && Clipboard->getdata) {
+                    unsigned clipb_size = 0xffff;
                     char *pbuf = MK_FP32(SREG(es), LWORD(ebx));
-                    LWORD(eax) = Clipboard->getdata(LWORD(edx), pbuf,
-                            clipb_size);
+                    if (LWORD(edi) == DE2_CLIP_MAGIC)
+                        clipb_size = LWORD(ecx);
+                    LWORD(eax) = Clipboard->getdata(LWORD(edx), pbuf, clipb_size);
                 } else
                     LWORD(eax) = 0;
                 return 1;
