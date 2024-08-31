@@ -26,6 +26,7 @@
 #include "dosemu_debug.h"
 #include "types.h"
 #include "translate/translate.h"
+#include "utilities.h"
 #include "clipboard.h"
 
 struct clipboard_system *Clipboard;
@@ -171,16 +172,21 @@ int cnn_getdata(int type, char *p, int size)
 {
   char *q;
   const char *new_pos = NULL;
+  int l;
 
-  if (!clip_pos || !*clip_pos)
+  if (!clip_pos)
     return 0;
-  q = clipboard_make_str_dos(type, clip_pos, strlen(clip_pos), &new_pos);
+  q = clipboard_make_str_dos(type, clip_pos, _min(strlen(clip_pos), size),
+        &new_pos);
   if (!q)
     return 0;
-  strlcpy(p, q, size);
+  l = _min(strlen(q) + 1, size);
+  memcpy(p, q, l);
   free(q);
   clip_pos = new_pos;
-  return strlen(p) + 1;
+  if (l && p[l - 1] == '\0')
+    clip_pos = NULL;
+  return l;
 }
 
 int cnn_open(void)
