@@ -51,7 +51,8 @@ static char *clipboard_make_str_utf8(int type, const char *p, int size)
     }
 
     str = malloc(sizeof(t_unicode) * (characters + 1));
-    charset_to_unicode_string(&state, str, &p, size, characters + 1);
+    charset_to_unicode_string(&state, str, &p, _min(strlen(p) + 1, size),
+            characters + 1);
     cleanup_charset_state(&state);
     q = unicode_string_to_charset((wchar_t *)str, "utf8");
     free(str);
@@ -82,7 +83,8 @@ static char *clipboard_make_str_dos(int type, const char *p, int size,
     }
 
     str = malloc(sizeof(t_unicode) * (characters + 1));
-    charset_to_unicode_string(&state, str, &p, size, characters + 1);
+    charset_to_unicode_string(&state, str, &p, _min(strlen(p) + 1, size),
+            characters + 1);
     if (out)
       *out = p;
     cleanup_charset_state(&state);
@@ -160,7 +162,7 @@ int cnn_getsize(int type)
     v_printf("SDL_clipboard: GetSize failed (grabbed data is NULL\n");
     return 0;
   }
-  q = clipboard_make_str_dos(type, clip_rdbuf, strlen(clip_rdbuf), NULL);
+  q = clipboard_make_str_dos(type, clip_rdbuf, strlen(clip_rdbuf) + 1, NULL);
   if (!q)
     return 0;
   ret = strlen(q) + 1;
@@ -176,16 +178,15 @@ int cnn_getdata(int type, char *p, int size)
 
   if (!clip_pos)
     return 0;
-  q = clipboard_make_str_dos(type, clip_pos, _min(strlen(clip_pos), size),
+  q = clipboard_make_str_dos(type, clip_pos, _min(strlen(clip_pos) + 1, size),
         &new_pos);
   if (!q)
     return 0;
-  l = _min(strlen(q) + 1, size);
+  /* if new_pos not reset, don't copy \0 */
+  l = _min(strlen(q) + (new_pos ? 0 : 1), size);
   memcpy(p, q, l);
   free(q);
   clip_pos = new_pos;
-  if (l && p[l - 1] == '\0')
-    clip_pos = NULL;
   return l;
 }
 

@@ -63,12 +63,15 @@ size_t charset_to_unicode_string(struct char_set_state *state,
 			dst_len--;
 			*src += consumed;
 			characters++;
+			if (*dst == '\0')
+				*src = NULL;
 			dst++;
 		}
-	} while(src_len && dst_len > 1 && (consumed > 0));
+	} while(*src && src_len && dst_len > 1 && (consumed > 0));
 	if (characters != (size_t) -1) {
-		/* Null terminate the unicode string. */
-		*dst = 0;
+		if (*src)
+			/* Null terminate the unicode string. */
+			*dst = 0;
 	}
 	return characters;
 }
