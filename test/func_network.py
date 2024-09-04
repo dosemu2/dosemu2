@@ -1,4 +1,4 @@
-
+from time import sleep
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import multiprocessing as mp
 
@@ -86,6 +86,7 @@ $_tapdev = "tap0"
 """, timeout=30)
 
     p.join()
+    sleep(5)
     p.close()
 
     testfil = self.workdir / 'test.fil'
