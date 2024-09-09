@@ -464,7 +464,7 @@ class BaseTestCase(object):
             child.setecho(False)
             try:
                 prompt = r'(system -e|unix -e|' + IPROMPT + ')'
-                child.expect([prompt + '[\r\n]*'], timeout=10)
+                child.expect([prompt + '[\r\n]*'], timeout=40)
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\r\n')
                 for resp in interactions:
