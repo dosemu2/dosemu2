@@ -479,8 +479,7 @@ class BaseTestCase(object):
                 if outfile is None:
                     ret += child.before.decode('ASCII', 'replace')
                 else:
-                    with open(self.workdir / outfile, "r") as f:
-                        ret = f.read()
+                    ret = outfile.read_text()
             except pexpect.TIMEOUT:
                 ret = 'Timeout'
                 tlog = self.logfiles['log'][0].read_text()
