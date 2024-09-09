@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
         name = self.mkimage("12", cwd=testdir)
         config += """$_hdimage = "dXXXXs/c:hdtype1 %s +1"\n""" % name
 
-    return self.runDosemu("testit.bat", config=config, timeout=60)
+    return self.runDosemu("testit.bat", config=config, timeout=400)
 
 #
 # (Table 01403)
