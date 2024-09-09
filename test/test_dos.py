@@ -3134,11 +3134,10 @@ $_debug = "-D+d"
 
         # read the logfile
         systypeline = "Not found in logfile"
-        with open(self.logfiles['log'][0], "r") as f:
-            for line in f:
-                if "system type is" in line:
-                    systypeline = line
-                    break
+        for line in self.logfiles['log'][0].read_text().splitlines():
+            if "system type is" in line:
+                systypeline = line
+                break
 
         self.assertIn(self.systype, systypeline)
 
