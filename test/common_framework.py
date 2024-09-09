@@ -530,7 +530,6 @@ class MyTestResult(unittest.TextTestResult):
     def startTestRun(self):
         super(MyTestResult, self).startTestRun()
         self.stream.writeln(" ")
-        self.stream.writeln(" ")
         self.stream.flush()
 
     def getDescription(self, test):
