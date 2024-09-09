@@ -100,9 +100,7 @@ result:
     )
 
     # get log content
-    logcontents = 'Missing'
-    with open(self.logfiles['log'][0], "r") as f:
-        logcontents = f.read()
+    logcontents = self.logfiles['log'][0].read_text()
 
     cpu = get_cpu_info()
     try:
