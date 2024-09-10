@@ -510,16 +510,21 @@ class BaseTestCase(object):
             self.mkfile("dosemu.conf", config, dname=self.imagedir, mode="a")
 
         self.logfiles['xpt'][1] = "output.log"
+        ret = 'No output'
         try:
             ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT).decode('ASCII')
-            self.logfiles['xpt'][0].write_text(ret)
         except CalledProcessError as e:
-            ret = e.output.decode('ASCII')
+            if e.output is not None:
+                ret = e.output.decode('ASCII')
             ret += '\nNonZeroReturn:%d\n' % e.returncode
-            self.logfiles['xpt'][0].write_text(ret)
         except TimeoutExpired as e:
-            ret = e.output.decode('ASCII')
+            if e.output is not None:
+                ret = e.output.decode('ASCII')
             ret += '\nTimeout:%d seconds\n' % timeout
+            # Now wait for any further logging from dosemu as hopefully it's
+            # dying.
+            sleep(5)
+        finally:
             self.logfiles['xpt'][0].write_text(ret)
 
         return ret
