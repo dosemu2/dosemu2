@@ -4004,15 +4004,15 @@ $_floppy_a = ""
         self.assertNotIn("open failed", results)
 
         try:
-            with open(join(testdir, testname), "r") as f:
-                filedata = f.read()
-                if operation == "truncate":
-                    self.assertNotIn(testprfx, filedata)
-                elif operation == "append":
-                    self.assertIn(testprfx + testdata, filedata)
-                self.assertIn(testdata, filedata)
-        except IOError:
-            self.fail("File not created/opened")
+            filedata = (testdir / testname).read_text()
+        except Exception as e:   # Ensure we 'FAIL' not 'ERROR'
+            raise self.failureException(e) from None
+
+        if operation == "truncate":
+            self.assertNotIn(testprfx, filedata)
+        elif operation == "append":
+            self.assertIn(testprfx + testdata, filedata)
+        self.assertIn(testdata, filedata)
 
     def test_mfs_lfn_file_create(self):
         """MFS LFN file create"""
