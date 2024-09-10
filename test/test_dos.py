@@ -4884,7 +4884,7 @@ $_ignore_djgpp_null_derefs = (off)
                 "-L",
                 "-q",
                 str(self.imagedir) + '/%s.zip' % pkg,
-            ], stderr=STDOUT, cwd=self.imagedir / 'dXXXXs' / 'c')
+            ], stderr=STDOUT, cwd=self.workdir)
 
         # Generate the configr
         # (note nasty interaction with comcom64, means switch to dos32a)
