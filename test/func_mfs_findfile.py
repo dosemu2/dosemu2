@@ -10,7 +10,7 @@ def mfs_findfile(self, fstype, nametype, tests):
     elif nametype == "SFN":
         disablelfn = "set LFN=n"
     else:
-        self.fail("Incorrect argument")
+        raise ValueError("Incorrect argument")
 
     if fstype == "UFS":
         testdir = self.workdir.parent / 'd'
@@ -48,7 +48,7 @@ $_lredir_paths = "/mnt/dosemu"
 """
 
     else:
-        self.fail("Incorrect argument")
+        raise ValueError("Incorrect argument")
 
     # common
 

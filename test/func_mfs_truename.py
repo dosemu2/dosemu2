@@ -44,7 +44,7 @@ $_lredir_paths = "/mnt/dosemu"
 """
 
     else:
-        self.fail("Incorrect argument")
+        raise ValueError("Incorrect argument")
 
 # Make test files and directory names
     for i in tocreate:

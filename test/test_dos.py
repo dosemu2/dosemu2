@@ -122,7 +122,7 @@ $_floppy_a = ""
             ename = "mfssfn"
             testname = "testdir"
         else:
-            self.fail("Incorrect argument")
+            raise ValueError("Incorrect argument")
 
         testdir = self.mkworkdir('d')
 
@@ -153,7 +153,7 @@ $_floppy_a = ""
                 cwdnum = "0x7147"
             Path(testdir / testname).mkdir()
         else:
-            self.fail("Incorrect argument")
+            raise ValueError("Incorrect argument")
 
         self.mkfile("testit.bat", """\
 d:
@@ -301,7 +301,7 @@ $_floppy_a = ""
             ename = "mfssfngd"
             testname = PRGFIL_SFN
         else:
-            self.fail("Incorrect argument")
+            raise ValueError("Incorrect argument")
 
         testdir = self.mkworkdir('d')
 
@@ -3845,7 +3845,7 @@ $_floppy_a = ""
             testname = "shrtname.txt"
             disablelfn = "set LFN=n"
         else:
-            self.fail("Incorrect argument")
+            raise ValueError("Incorrect argument")
 
         testdata = mkstring(128)
         testdir = self.mkworkdir('d')
@@ -3919,7 +3919,7 @@ $_floppy_a = ""
             testname = "shrtname.txt"
             disablelfn = "set LFN=n"
         else:
-            self.fail("Incorrect argument")
+            raise ValueError("Incorrect argument")
 
         if operation == "create":
             ename += "wc"
@@ -3942,7 +3942,7 @@ $_floppy_a = ""
             openflags = "O_RDWR | O_APPEND | O_TEXT"
             mode = ""
         else:
-            self.fail("Incorrect argument")
+            raise ValueError("Incorrect argument")
 
         testdata = mkstring(64)   # need to be fairly short to pass as arg
         testdir = self.mkworkdir('d')
