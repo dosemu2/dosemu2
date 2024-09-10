@@ -4754,7 +4754,9 @@ $_floppy_a = ""
         edir = self.topdir / "test" / "cpu"
 
         # Native reference file is now checked in to git and will
-        # only need to be updated if the test source changes
+        # only need to be updated if the test source changes. We open()
+        # here without try/except as if it's missing we should 'ERROR'
+        # not 'FAIL'
         reffile = edir / "reffile.log"
         refoutput = []
         with reffile.open("r") as f:
@@ -4779,18 +4781,15 @@ $_cpuemu = (%i)
 $_ignore_djgpp_null_derefs = (off)
 """%(cpu_vm, cpu_vm_dpmi, cpu_emu))
 
-        dosoutput = []
         try:
             with dosfile.open("r") as f:
                 dosoutput = f.readlines()
-        except FileNotFoundError:
-            pass
-        if not dosoutput:
-            self.fail("DOS output file not found")
+        except Exception as e:   # Ensure we 'FAIL' not 'ERROR'
+            raise self.failureException(e) from None
 
         # Compare DOS output to reference file
         if dosoutput != refoutput:
-            diff = unified_diff(refoutput, dosoutput, fromfile=str(reffile), tofile=str(dosfile))
+            diff = unified_diff(refoutput, dosoutput, fromfile=reffile.name, tofile=dosfile.name)
             self.fail('differences detected\n' + ''.join(list(diff)))
 
     def test_cpu_1_vm86native(self):
