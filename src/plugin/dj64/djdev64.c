@@ -356,7 +356,7 @@ static void call_thr(void *arg)
     coopth_push_user_data_cur(&ud);
     assert(num_clnup_tids[handle] < MAX_CLNUP_TIDS);
     clnup_tids[handle][num_clnup_tids[handle]++] = coopth_get_tid();
-    djdev64_call(handle, _ebx, _ecx, _esi, sp);
+    _eax = djdev64_call(handle, _ebx, _ecx, _esi, sp);
     num_clnup_tids[handle]--;
 
     if (exiting)
@@ -377,7 +377,7 @@ static void ctrl_hlt(Bit16u offs, void *sc, void *arg)
     unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
     do_retf(scp);
     J_printf("DJ64: djdev64_ctrl() %s\n", DPMI_show_state(scp));
-    djdev64_ctrl(_eax, _ebx, _ecx, _esi, sp);
+    _eax = djdev64_ctrl(_eax, _ebx, _ecx, _esi, sp);
 }
 
 CONSTRUCTOR(static void djdev64_init(void))
