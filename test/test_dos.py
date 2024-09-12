@@ -4976,7 +4976,7 @@ ECHO %TESTVAR1%
 rem end
 """, newline="\r\n")
 
-        args = ["TESTVAR1=" + tstring1, "-q", "-E", "testit.bat"]
+        args = ["TESTVAR1=" + tstring1, "-E", "testit.bat"]
         results = self.runDosemuCmdline(args, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
@@ -4997,7 +4997,7 @@ int main(int argc, char *argv[])
 }
 """)
 
-        results = self.runDosemuCmdline(["-q", "-E", "justerro.com"], config="""\
+        results = self.runDosemuCmdline(["-E", "justerro.com"], config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """)
