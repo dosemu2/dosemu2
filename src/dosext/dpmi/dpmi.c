@@ -4307,7 +4307,7 @@ static void setup_int_exc(int inherit_idt)
 static void dpmi_reinit(cpuctx_t *scp)
 {
   unsigned short DS, ES, SS, rights;
-  int i;
+  int i, err;
 
   _eflags |= CF;
   D_printf("DPMI: reinit called, %i %i\n", _LWORD(eax), DPMI_CLIENT.is_32);
@@ -4322,7 +4322,8 @@ static void dpmi_reinit(cpuctx_t *scp)
   DPMI_CLIENT.is_32 = (_LWORD(eax) & 1);
   DS = CreateAliasDescriptor(_ds);
   SetSegmentLimit(DS, 0xffff);
-  GetDescriptorAccessRights(DS, &rights);
+  err = GetDescriptorAccessRights(DS, &rights);
+  assert(!err);
   if (DPMI_CLIENT.is_32)
     SetDescriptorAccessRights(DS, rights | 0x4000);	// 32bit
   else
@@ -4332,7 +4333,8 @@ static void dpmi_reinit(cpuctx_t *scp)
   } else {
     SS = CreateAliasDescriptor(_ss);
     SetSegmentLimit(SS, 0xffff);
-    GetDescriptorAccessRights(SS, &rights);
+    err = GetDescriptorAccessRights(SS, &rights);
+    assert(!err);
     if (DPMI_CLIENT.is_32)
       SetDescriptorAccessRights(SS, rights | 0x4000);	// 32bit
     else
