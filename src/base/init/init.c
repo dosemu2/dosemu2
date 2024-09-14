@@ -82,7 +82,7 @@ void stdio_init(void)
             strcat(config.debugout, debugout);
         }
     }
-    if (config.debugout && config.debugout[0] != '-') {
+    if (config.debugout) {
         err = vlog_init(config.debugout);
         if (err)
             error("can't open \"%s\" for writing\n", config.debugout);
