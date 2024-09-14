@@ -389,6 +389,7 @@ int fssvc_exit(void)
     GError *error = NULL;
     ret = searpc_client_call__int(clnt, "exit_1", &error, 0);
     searpc_client_free(clnt);
-    CHECK_RPC(error);
+    if (!in_leavedos)
+        CHECK_RPC(error);
     return ret;
 }
