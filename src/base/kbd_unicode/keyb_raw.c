@@ -101,13 +101,19 @@ static void do_raw_getkeys(int fd, void *arg)
   int i,count;
   char buf[KBBUF_SIZE];
 
-  count = RPT_SYSCALL(read(kbd_fd, buf, KBBUF_SIZE - 1));
-  ioselect_complete(fd);
-  k_printf("KBD(raw): do_raw_getkeys() found %d characters (Raw)\n", count);
-  if (count == -1) {
-    k_printf("KBD(raw): do_raw_getkeys(): keyboard read failed!\n");
-    return;
+  count = read(kbd_fd, buf, KBBUF_SIZE - 1);
+  switch (count) {
+    case 0:
+	error("kbd: EOF from stdin\n");
+	return;
+    case -1:
+	error("kbd: error reading stdin: %s\n", strerror(errno));
+	return;
+    default:
+	ioselect_complete(fd);
+	break;
   }
+  k_printf("KBD(raw): do_raw_getkeys() found %d characters (Raw)\n", count);
   buf[count] = 0;
   if (config.console_keyb == KEYB_RAW) {
     for (i = 0; i < count; i++) {
