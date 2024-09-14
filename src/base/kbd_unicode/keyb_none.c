@@ -11,6 +11,7 @@
  */
 
 #include <unistd.h>
+#include <errno.h>
 #include "ioselect.h"
 #include "keyb_clients.h"
 
@@ -46,9 +47,18 @@ static void stdio_kbd_run(int fd, void *arg)
 	char buf[256];
 	int rc;
 	rc = read(STDIN_FILENO, buf, sizeof(buf));
-	ioselect_complete(fd);
-	if (rc > 0)
-		paste_text(buf, rc, "utf8");
+	switch (rc) {
+	case 0:
+		error("kbd: EOF from stdin\n");
+		return;
+	case -1:
+		error("kbd: error reading stdin: %s\n", strerror(errno));
+		return;
+	default:
+		ioselect_complete(fd);
+		break;
+	}
+	paste_text(buf, rc, "utf8");
 }
 
 struct keyboard_client Keyboard_stdio =
