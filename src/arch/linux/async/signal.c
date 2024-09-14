@@ -255,7 +255,7 @@ static void cleanup_child(void *arg)
     return;
   /* SIGCHLD handler is one-shot, disarm */
   chld_hndl[i].pid = 0;
-  if (chld_hndl[i].handler)
+  if (chld_hndl[i].handler && !in_leavedos)
     chld_hndl[i].handler(chld_hndl[i].arg);
 }
 
