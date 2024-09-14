@@ -260,7 +260,7 @@ add_to_io_select_new(int new_fd, void (*func)(int, void *), void *arg,
 void remove_from_io_select(int fd)
 {
     if (fd < 0 || !io_callback_func[fd].func) {
-	g_printf("GEN: removing bogus fd %d (ignoring)\n", fd);
+	error("GEN: removing bogus fd %d (ignoring)\n", fd);
 	return;
     }
 
