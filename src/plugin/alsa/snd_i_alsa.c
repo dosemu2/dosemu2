@@ -71,7 +71,8 @@ static void alsain_async(int fd, void *arg)
     }
     if (pollret < 0 && errno != EINTR)
 	error("ALSA: poll returned %i, %s\n", pollret, strerror(errno));
-    ioselect_complete(fd);
+    else
+	ioselect_complete(fd);
 }
 
 static int alsain_open(void *arg)

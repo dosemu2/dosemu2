@@ -90,7 +90,10 @@ static void midotmdty_io(int fd, void *arg)
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
     }
-    ioselect_complete(fd);
+    if (selret < 0 && errno != EINTR)
+	error("timidity: select returned %i, %s\n", selret, strerror(errno));
+    else
+	ioselect_complete(fd);
 }
 
 static int midotmdty_preinit(void)

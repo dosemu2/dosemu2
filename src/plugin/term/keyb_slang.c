@@ -1503,9 +1503,11 @@ static void do_pc_scancode_getkeys(int fd, void *arg)
 {
 	int rc = read_some_keys();
 	/* FIXME: check for buffer full and delay completion */
-	ioselect_complete(keyb_state.kbd_fd);
-	if (rc <= 0)
+	if (rc <= 0) {
+		error("term: tty read error (%i): %s\n", rc, strerror(errno));
 		return;
+	}
+	ioselect_complete(keyb_state.kbd_fd);
 	k_printf("KBD: do_pc_scancode_getkeys() found %d bytes\n", keyb_state.kbcount);
 
 	/* Now process the keys that are buffered up */

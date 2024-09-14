@@ -42,7 +42,8 @@ unsigned long dosdebug_flags;
 static void vmhp_printf(const char *fmt, va_list args);
 static void mhp_poll(void);
 static void mhp_puts(char*);
-void mhp_putc(char);
+static int mhp_input(void);
+static void mhp_putc(char);
 
 static char mhp_banner[] = {
   "\nDOSEMU Debugger V0.6 connected\n"
@@ -69,7 +70,7 @@ static void mhp_puts(char* s)
 	mhp_send();
 }
 
-void mhp_putc(char c1)
+static void mhp_putc(char c1)
 
 {
 
@@ -142,8 +143,9 @@ int vmhp_log_intercept(const char *fmt, va_list args)
 
 static void mhp_input_async(int fd, void *arg)
 {
-  mhp_input();
-  ioselect_complete(fd);
+  int rc = mhp_input();
+  if (rc > 0)
+    ioselect_complete(fd);
 }
 
 static void mhp_init(void)
@@ -214,15 +216,15 @@ static void reopen_fdin(void)
     add_to_io_select(mhpdbg.fdin, mhp_input_async, NULL);
 }
 
-void mhp_input(void)
+static int mhp_input(void)
 {
   if (mhpdbg.fdin == -1)
-    return;
+    return -1;
 
   mhpdbg.nbytes = read(mhpdbg.fdin, mhpdbg.recvbuf, SRSIZE);
 
   if (mhpdbg.nbytes == -1)
-    return;
+    return -1;
 
   if (mhpdbg.nbytes == 0 && !wait_for_debug_terminal) {
     if (mhpdbgc.stopped) {
@@ -231,7 +233,7 @@ void mhp_input(void)
     }
     mhpdbg.active = 0;
     reopen_fdin();
-    return;
+    return 0;
   }
 
   if (mhpdbg.nbytes < SRSIZE - 1) {
@@ -242,6 +244,7 @@ void mhp_input(void)
   if (!mhpdbg.active) {
     mhpdbg.active = 1; /* 1 = new session */
   }
+  return mhpdbg.nbytes;
 }
 
 static void mhp_poll_loop(void)

@@ -156,8 +156,8 @@ static void pipe_callback(int fd, void *arg)
   if (n > 0) {
     buf[n] = 0;
     error("LPT%i: %s\n", num+1, buf);
+    ioselect_complete(fd);
   }
-  ioselect_complete(fd);
 }
 
 static int pipe_printer_open(int prnum)
