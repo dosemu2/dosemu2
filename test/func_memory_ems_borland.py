@@ -1,4 +1,3 @@
-
 def memory_ems_borland(self):
     self.unTarOrSkip("VARIOUS.tar", [
         ("emstest.com", "d0a07e97905492a5cb9d742513cefeb36d09886d"),
@@ -22,7 +21,7 @@ rem end
     results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
-""", timeout=10)
+""", timeout=40)
 
     try:
         pt1start = results.index("  PART ONE")

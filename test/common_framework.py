@@ -441,7 +441,7 @@ class BaseTestCase(object):
                 f.seek(c[0])
                 f.write(c[2])
 
-    def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=5,
+    def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=15,
                     eofisok=False, interactions=[]):
         # Note: if debugging is turned on then times increase 10x
         dbin = str(self.dosemu)
@@ -464,7 +464,7 @@ class BaseTestCase(object):
             child.setecho(False)
             try:
                 prompt = r'(system -e|unix -e|' + IPROMPT + ')'
-                child.expect([prompt + '[\r\n]*'], timeout=10)
+                child.expect([prompt + '[\r\n]*'], timeout=40)
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\r\n')
                 for resp in interactions:

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 sudo add-apt-repository -y ppa:jwt27/djgpp-toolchain
-sudo add-apt-repository -y ppa:tkchia/build-ia16
+sudo add-apt-repository -y ppa:stsp-0/gcc-ia16
 
 sudo apt update -q
 
