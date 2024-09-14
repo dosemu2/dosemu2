@@ -226,6 +226,8 @@ void ne2000_init(void)
 
     /* init control defaults */
     s->irq = NE2000_IRQ;
+    /* usually done at reset, but reset may be missed due to early exit */
+    s->cmd = E8390_STOP;
 
     N_printf("NE2000: Initialisation - Base 0x%03x, IRQ %d\n", NE2000_IOBASE, NE2000_IRQ);
 }
