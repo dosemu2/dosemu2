@@ -1,5 +1,7 @@
 on:
   push:
+    branches:
+      - devel
 
 name: Flatpack build
 
