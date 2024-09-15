@@ -1,14 +1,13 @@
-from pathlib import Path
-
 from common_framework import (VFAT_MNTPNT,
                               setup_vfat_mounted_image, teardown_vfat_mounted_image)
+from pathlib import Path
 
 
 def mfs_truename(self, fstype, tocreate, tests):
     ename = "mfstruen"
 
     if fstype == "UFS":
-        testdir = Path("test-imagedir/dXXXXs/d")
+        testdir = self.workdir.parent / 'd'
         testdir.mkdir(parents=True, exist_ok=True)
 
         batchfile = """\
@@ -45,13 +44,13 @@ $_lredir_paths = "/mnt/dosemu"
 """
 
     else:
-        self.fail("Incorrect argument")
+        raise ValueError("Incorrect argument")
 
 # Make test files and directory names
     for i in tocreate:
         p = testdir / i[1]
         if i[0] == "FILE":
-            p.parents[0].mkdir(parents=True, exist_ok=True)
+            p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text("Some data")
         elif i[0] == "DIR":
             p.mkdir(parents=True, exist_ok=True)

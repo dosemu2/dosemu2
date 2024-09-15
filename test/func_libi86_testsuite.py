@@ -1,9 +1,10 @@
 
 import re
 
+from os import environ
 from shutil import copy
 from subprocess import check_call, check_output, CalledProcessError, DEVNULL, TimeoutExpired
-from os import environ
+from sys import stderr
 
 
 TESTSUITE = "/usr/ia16-elf/libexec/libi86/tests/testsuite"
@@ -11,7 +12,8 @@ TESTSUITE = "/usr/ia16-elf/libexec/libi86/tests/testsuite"
 
 def libi86_create_items(testcase):
     if environ.get("SKIP_EXPENSIVE"):
-        print('\nlibi86-testsuite-ia16-elf is expensive - skipping')
+        stderr.write('\nlibi86-testsuite-ia16-elf is expensive - skipping\n')
+        stderr.flush()
         return
 
     # Enumerate the tests
@@ -19,7 +21,8 @@ def libi86_create_items(testcase):
     try:
         listing = check_output([TESTSUITE, '--list'])
     except FileNotFoundError:
-        print('\nlibi86-testsuite-ia16-elf not installed - skipping')
+        stderr.write('\nlibi86-testsuite-ia16-elf not installed - skipping\n')
+        stderr.flush()
         return
     for l in listing.split(b'\n'):
         # b'  12: bios.h.at:83       _bios_equiplist'

@@ -122,7 +122,7 @@ $_floppy_a = ""
             ename = "mfssfn"
             testname = "testdir"
         else:
-            self.fail("Incorrect argument")
+            raise ValueError("Incorrect argument")
 
         testdir = self.mkworkdir('d')
 
@@ -153,7 +153,7 @@ $_floppy_a = ""
                 cwdnum = "0x7147"
             Path(testdir / testname).mkdir()
         else:
-            self.fail("Incorrect argument")
+            raise ValueError("Incorrect argument")
 
         self.mkfile("testit.bat", """\
 d:
@@ -301,7 +301,7 @@ $_floppy_a = ""
             ename = "mfssfngd"
             testname = PRGFIL_SFN
         else:
-            self.fail("Incorrect argument")
+            raise ValueError("Incorrect argument")
 
         testdir = self.mkworkdir('d')
 
@@ -3134,11 +3134,10 @@ $_debug = "-D+d"
 
         # read the logfile
         systypeline = "Not found in logfile"
-        with open(self.logfiles['log'][0], "r") as f:
-            for line in f:
-                if "system type is" in line:
-                    systypeline = line
-                    break
+        for line in self.logfiles['log'][0].read_text().splitlines():
+            if "system type is" in line:
+                systypeline = line
+                break
 
         self.assertIn(self.systype, systypeline)
 
@@ -3846,7 +3845,7 @@ $_floppy_a = ""
             testname = "shrtname.txt"
             disablelfn = "set LFN=n"
         else:
-            self.fail("Incorrect argument")
+            raise ValueError("Incorrect argument")
 
         testdata = mkstring(128)
         testdir = self.mkworkdir('d')
@@ -3920,7 +3919,7 @@ $_floppy_a = ""
             testname = "shrtname.txt"
             disablelfn = "set LFN=n"
         else:
-            self.fail("Incorrect argument")
+            raise ValueError("Incorrect argument")
 
         if operation == "create":
             ename += "wc"
@@ -3943,7 +3942,7 @@ $_floppy_a = ""
             openflags = "O_RDWR | O_APPEND | O_TEXT"
             mode = ""
         else:
-            self.fail("Incorrect argument")
+            raise ValueError("Incorrect argument")
 
         testdata = mkstring(64)   # need to be fairly short to pass as arg
         testdir = self.mkworkdir('d')
@@ -4005,15 +4004,15 @@ $_floppy_a = ""
         self.assertNotIn("open failed", results)
 
         try:
-            with open(join(testdir, testname), "r") as f:
-                filedata = f.read()
-                if operation == "truncate":
-                    self.assertNotIn(testprfx, filedata)
-                elif operation == "append":
-                    self.assertIn(testprfx + testdata, filedata)
-                self.assertIn(testdata, filedata)
-        except IOError:
-            self.fail("File not created/opened")
+            filedata = (testdir / testname).read_text()
+        except Exception as e:   # Ensure we 'FAIL' not 'ERROR'
+            raise self.failureException(e) from None
+
+        if operation == "truncate":
+            self.assertNotIn(testprfx, filedata)
+        elif operation == "append":
+            self.assertIn(testprfx + testdata, filedata)
+        self.assertIn(testdata, filedata)
 
     def test_mfs_lfn_file_create(self):
         """MFS LFN file create"""
@@ -4755,7 +4754,9 @@ $_floppy_a = ""
         edir = self.topdir / "test" / "cpu"
 
         # Native reference file is now checked in to git and will
-        # only need to be updated if the test source changes
+        # only need to be updated if the test source changes. We open()
+        # here without try/except as if it's missing we should 'ERROR'
+        # not 'FAIL'
         reffile = edir / "reffile.log"
         refoutput = []
         with reffile.open("r") as f:
@@ -4780,18 +4781,15 @@ $_cpuemu = (%i)
 $_ignore_djgpp_null_derefs = (off)
 """%(cpu_vm, cpu_vm_dpmi, cpu_emu))
 
-        dosoutput = []
         try:
             with dosfile.open("r") as f:
                 dosoutput = f.readlines()
-        except FileNotFoundError:
-            pass
-        if not dosoutput:
-            self.fail("DOS output file not found")
+        except Exception as e:   # Ensure we 'FAIL' not 'ERROR'
+            raise self.failureException(e) from None
 
         # Compare DOS output to reference file
         if dosoutput != refoutput:
-            diff = unified_diff(refoutput, dosoutput, fromfile=str(reffile), tofile=str(dosfile))
+            diff = unified_diff(refoutput, dosoutput, fromfile=reffile.name, tofile=dosfile.name)
             self.fail('differences detected\n' + ''.join(list(diff)))
 
     def test_cpu_1_vm86native(self):
@@ -4886,7 +4884,7 @@ $_ignore_djgpp_null_derefs = (off)
                 "-L",
                 "-q",
                 str(self.imagedir) + '/%s.zip' % pkg,
-            ], stderr=STDOUT, cwd=self.imagedir / 'dXXXXs' / 'c')
+            ], stderr=STDOUT, cwd=self.workdir)
 
         # Generate the configr
         # (note nasty interaction with comcom64, means switch to dos32a)

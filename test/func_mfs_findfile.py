@@ -1,8 +1,6 @@
-from os import makedirs
-from os.path import join
-
 from common_framework import (setup_vfat_mounted_image,
                               teardown_vfat_mounted_image, VFAT_MNTPNT)
+from pathlib import Path
 
 
 def mfs_findfile(self, fstype, nametype, tests):
@@ -12,11 +10,11 @@ def mfs_findfile(self, fstype, nametype, tests):
     elif nametype == "SFN":
         disablelfn = "set LFN=n"
     else:
-        self.fail("Incorrect argument")
+        raise ValueError("Incorrect argument")
 
     if fstype == "UFS":
-        testdir = "test-imagedir/dXXXXs/d"
-        makedirs(testdir, exist_ok=True)
+        testdir = self.workdir.parent / 'd'
+        testdir.mkdir(exist_ok=True)
 
         batchfile = """\
 %s
@@ -31,7 +29,7 @@ $_floppy_a = ""
 """
 
     elif fstype == "VFAT":
-        testdir = VFAT_MNTPNT
+        testdir = Path(VFAT_MNTPNT)
         setup_vfat_mounted_image(self)
 
         batchfile = """\
@@ -50,17 +48,18 @@ $_lredir_paths = "/mnt/dosemu"
 """
 
     else:
-        self.fail("Incorrect argument")
+        raise ValueError("Incorrect argument")
 
     # common
 
 # Make test files and directory names
     for i in tests:
+        p = testdir / i[1];
         if i[0] == "FILE":
-            with open(join(testdir, i[1]), "w") as f:
-                f.write("Some data")
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("Some data")
         elif i[0] == "DIR":
-            makedirs(join(testdir, i[1]), exist_ok=True)
+            p.mkdir(parents=True, exist_ok=True)
 # Extract names to find
     names = [i[2] for i in tests]
 
