@@ -24,3 +24,45 @@ jobs:
       jobtype: 'schedule'
       subtype: ''
       runtype: 'full'
+
+  packaged:
+    name: Packaged
+    if: (github.repository_owner == 'dosemu2')
+
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Cache binaries
+      uses: actions/cache@v4
+      env:
+        cache-name: test-binaries
+      with:
+        path: ~/cache
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+
+    - name: Install test prerequisites
+      id: test_prereq
+      env:
+        RUNTYPE: packaged
+      run: ./ci_test_prereq.sh
+
+    - name: Test
+      id: test
+      env:
+        RUNTYPE: packaged
+      run: ./ci_test.sh
+
+    - name: Upload failure logs
+      if: ${{ always() && (steps.test.outcome == 'failure') }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: failure-logs
+        path: test_*
