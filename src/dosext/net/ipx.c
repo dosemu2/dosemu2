@@ -755,13 +755,11 @@ static void AESTimerTick(void)
   }
 }
 
-static int ScatterFragmentData(int size, unsigned char *buffer, ECB_t * ECB,
-                               struct sockaddr_ipx *sipx)
+static int ScatterFragmentData(int size, unsigned char *buffer, ECB_t *ECB)
 {
   int i;
   int nextFragLen, dataLeftCount;
   u_char *bufptr, *memptr;
-  IPXPacket_t *IPXHeader;
 
   n_printf("received data bytes:\n");
   if (debug_level('n')) {
@@ -781,28 +779,6 @@ static int ScatterFragmentData(int size, unsigned char *buffer, ECB_t * ECB,
     n_printf("IPX: filling fragment %d at %p, max_length %d with %d bytes left\n",
 	     i, FARt_PTR2(ECB->FragTable[i].Address), nextFragLen,
 	     dataLeftCount);
-    if (i == 0) {
-      /* subtract off IPX header size from first fragment */
-      nextFragLen -= 30;
-      /* also, fill out IPX header */
-      /* use data from sipx to fill out source address */
-      IPXHeader = (IPXPacket_t *) memptr;
-      IPXHeader->Checksum = 0xFFFF;
-      IPXHeader->Length = htons(size + 30); /* in network order */
-      /* DANG_FIXTHIS - use real values to fill out IPX header here */
-      IPXHeader->TransportControl = 1;
-      IPXHeader->PacketType = 0;
-      memcpy((u_char *) & IPXHeader->Destination, MyAddress, 10);
-      memcpy(&IPXHeader->Destination.Socket, &ECB->ECBSocket, 2);
-      memcpy(IPXHeader->Source.Network, (char *) &sipx->sipx_network, 4);
-      memcpy(IPXHeader->Source.Node, sipx->sipx_node, 6);
-      memcpy(IPXHeader->Source.Socket, &sipx->sipx_port, 2);
-      /* DANG_FIXTHIS - kludge for bug in linux IPX stack */
-      /* IPX stack returns data count including IPX header */
-      /*			dataLeftCount -= 30; */
-      memptr += 30;
-      printIPXHeader(IPXHeader);
-    }
     if (nextFragLen > dataLeftCount) {
       nextFragLen = dataLeftCount;
     }
@@ -818,21 +794,46 @@ static int ScatterFragmentData(int size, unsigned char *buffer, ECB_t * ECB,
   return (dataLeftCount);
 }
 
-static int IPXReceivePacket(ipx_socket_t * s)
+static int do_recv(int fd, u_char *buffer, int bufLen, far_t ECBPtr)
 {
   struct sockaddr_ipx ipxs;
-  unsigned char buffer[MAX_PACKET_DATA];
-  far_t ECBPtr;
-  int size;
   socklen_t sz;
+  int size;
 
   sz = sizeof(ipxs);
-  size = recvfrom(s->fd, buffer, sizeof(buffer), MSG_DONTWAIT, (struct sockaddr*)&ipxs, &sz);
+  size = recvfrom(fd, buffer, bufLen, MSG_DONTWAIT, (struct sockaddr*)&ipxs,
+                  &sz);
+  if (size > 0) {
+    IPXPacket_t *IPXHeader;
+    /* use data from sipx to fill out source address */
+    IPXHeader = (IPXPacket_t *) buffer;
+    IPXHeader->Checksum = 0xFFFF;
+    IPXHeader->Length = htons(size + 30); /* in network order */
+    /* DANG_FIXTHIS - use real values to fill out IPX header here */
+    IPXHeader->TransportControl = 1;
+    IPXHeader->PacketType = 0;
+    memcpy((u_char *) & IPXHeader->Destination, MyAddress, 10);
+    memcpy(&IPXHeader->Destination.Socket, &ECBp->ECBSocket, 2);
+    memcpy(IPXHeader->Source.Network, (char *) &ipxs.sipx_network, 4);
+    memcpy(IPXHeader->Source.Node, ipxs.sipx_node, 6);
+    memcpy(IPXHeader->Source.Socket, &ipxs.sipx_port, 2);
+    printIPXHeader(IPXHeader);
+  }
+  return size;
+}
+
+static int IPXReceivePacket(ipx_socket_t * s)
+{
+  unsigned char buffer[MAX_PACKET_DATA];
+  far_t ECBPtr = s->listenList;
+  int size;
+
+  size = do_recv(s->fd, buffer, sizeof(buffer), ECBPtr);
   n_printf("IPX: received %d bytes of data\n", size);
   if (size > 0 && s->listenCount) {
-    ECBPtr = s->listenList;
+    int sz;
     printECB(ECBp);
-    sz = ScatterFragmentData(size, buffer, ECBp, &ipxs);
+    sz = ScatterFragmentData(size, buffer, ECBp);
     IPXCancelEvent(ECBPtr);
     /* if there was packet left over, then report a fragment error */
     if (sz) {
