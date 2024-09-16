@@ -340,7 +340,7 @@ static void ipx_async_callback(int fd, void *arg)
   virq_raise(VIRQ_IPX);
 }
 
-static u_char IPXOpenSocket(u_short port, u_short * newPort)
+static int do_open(u_short port, u_short *newPort, int *err)
 {
   int sock;			/* sock here means Linux socket handle */
   int opt;
@@ -348,13 +348,6 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
   socklen_t len;
   struct sockaddr_ipx ipxs2;
 
-  /* DANG_FIXTHIS - do something with longevity flag */
-  n_printf("IPX: open socket %#x\n", ntohs(port));
-  if (port != 0 && ipx_find_socket(port) != NULL) {
-    n_printf("IPX: socket %x already open.\n", ntohs(port));
-    /* someone already has this socket open */
-    return (RCODE_SOCKET_ALREADY_OPEN);
-  }
   /* DANG_FIXTHIS - kludge to support broken linux IPX stack */
   /* need to convert dynamic socket open into a real socket number */
 /*  if (port == 0) {
@@ -367,7 +360,8 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
   if (sock == -1) {
     n_printf("IPX: could not open IPX socket: %s.\n", strerror(errno));
     /* I can't think of anything else to return */
-    return (RCODE_SOCKET_TABLE_FULL);
+    *err = RCODE_SOCKET_TABLE_FULL;
+    return -1;
   }
 
   opt = 1;
@@ -376,14 +370,16 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
 		 &opt, sizeof(opt)) == -1) {
     /* I can't think of anything else to return */
     n_printf("IPX: could not set socket option for broadcast: %s.\n", strerror(errno));
-    return (RCODE_SOCKET_TABLE_FULL);
+    *err = RCODE_SOCKET_TABLE_FULL;
+    return -1;
   }
   /* allow setting the type field in the IPX header */
   opt = 1;
   if (setsockopt(sock, SOL_IPX, IPX_TYPE, &opt, sizeof(opt)) == -1) {
     /* I can't think of anything else to return */
     n_printf("IPX: could not set socket option for type: %s.\n", strerror(errno));
-    return (RCODE_SOCKET_TABLE_FULL);
+    *err = RCODE_SOCKET_TABLE_FULL;
+    return -1;
   }
   ipxs.sipx_family = AF_IPX;
   memcpy(&ipxs.sipx_network, MyAddress, 4);
@@ -396,7 +392,8 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
     /* I can't think of anything else to return */
     n_printf("IPX: could not bind socket to address: %s\n", strerror(errno));
     close( sock );
-    return (RCODE_SOCKET_TABLE_FULL);
+    *err = RCODE_SOCKET_TABLE_FULL;
+    return -1;
   }
 
   if( port==0 ) {
@@ -405,18 +402,36 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
       /* I can't think of anything else to return */
       n_printf("IPX: could not get socket name in IPXOpenSocket: %s\n", strerror(errno));
       close( sock );
-      return(RCODE_SOCKET_TABLE_FULL);
+      *err = RCODE_SOCKET_TABLE_FULL;
+      return -1;
     } else {
       port = ipxs2.sipx_port;
       n_printf("IPX: opened dynamic socket %04x\n", port);
     }
   }
+  *newPort = port;
+  return sock;
+}
 
-  /* if we successfully bound to this port, then record it */
+static u_char IPXOpenSocket(u_short port, u_short *newPort)
+{
+  int err;
+  int sock;
+
+  /* DANG_FIXTHIS - do something with longevity flag */
+  n_printf("IPX: open socket %#x\n", ntohs(port));
+  if (port != 0 && ipx_find_socket(port) != NULL) {
+    n_printf("IPX: socket %x already open.\n", ntohs(port));
+    /* someone already has this socket open */
+    return RCODE_SOCKET_ALREADY_OPEN;
+  }
+
+  sock = do_open(port, newPort, &err);
+  if (sock == -1)
+    return err;
   ipx_insert_socket(port, /* PSP */ 0, sock);
   add_to_io_select_masked(sock, ipx_async_callback, &act_fds);
   n_printf("IPX: successfully opened socket %i, %04x\n", sock, port);
-  *newPort = port;
   return (RCODE_SUCCESS);
 }
 
