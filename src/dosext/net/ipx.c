@@ -538,11 +538,32 @@ static enum VirqSwRet ipx_aes_esr_call(void *arg)
   return VIRQ_SWRET_DONE;
 }
 
+static int do_send(int fd, u_char *data, int dataLen)
+{
+  struct sockaddr_ipx ipxs;
+  IPXPacket_t *IPXHeader = (IPXPacket_t *)data;
+
+  ipxs.sipx_family = AF_IPX;
+  /* get destination address from IPX packet header */
+  memcpy(&ipxs.sipx_network, IPXHeader->Destination.Network, 4);
+  /* if destination address is 0, then send to my net */
+  if (ipxs.sipx_network == 0) {
+    memcpy(&ipxs.sipx_network, MyAddress, 4);
+/*  ipxs.sipx_network = htonl(MyNetwork); */
+  }
+  memcpy(&ipxs.sipx_node, IPXHeader->Destination.Node, 6);
+  memcpy(&ipxs.sipx_port, IPXHeader->Destination.Socket, 2);
+  ipxs.sipx_type = 1;
+  /*	ipxs.sipx_port=htons(0x452); */
+  return sendto(fd, data + sizeof(IPXPacket_t),
+	    dataLen - sizeof(IPXPacket_t), 0,
+	    (struct sockaddr*)&ipxs, sizeof(ipxs));
+}
+
 static u_char IPXSendPacket(far_t ECBPtr)
 {
   IPXPacket_t *IPXHeader;
   u_char data[MAX_PACKET_DATA];
-  struct sockaddr_ipx ipxs;
   int dataLen;
   ipx_socket_t *mysock;
 
@@ -562,18 +583,6 @@ static u_char IPXSendPacket(far_t ECBPtr)
   memcpy(&IPXHeader->Source, MyAddress, 10);
   memcpy(&IPXHeader->Source.Socket, &ECBp->ECBSocket, 2);
   printIPXHeader(IPXHeader);
-  ipxs.sipx_family = AF_IPX;
-  /* get destination address from IPX packet header */
-  memcpy(&ipxs.sipx_network, IPXHeader->Destination.Network, 4);
-  /* if destination address is 0, then send to my net */
-  if (ipxs.sipx_network == 0) {
-    memcpy(&ipxs.sipx_network, MyAddress, 4);
-/*  ipxs.sipx_network = htonl(MyNetwork); */
-  }
-  memcpy(&ipxs.sipx_node, IPXHeader->Destination.Node, 6);
-  memcpy(&ipxs.sipx_port, IPXHeader->Destination.Socket, 2);
-  ipxs.sipx_type = 1;
-  /*	ipxs.sipx_port=htons(0x452); */
   mysock = ipx_find_socket(ECBp->ECBSocket);
   if (mysock == NULL) {
     /* DANG_FIXTHIS - should do a bind, send, close here */
@@ -581,9 +590,7 @@ static u_char IPXSendPacket(far_t ECBPtr)
     n_printf("IPX: send to unopened socket %04x\n", ntohs(ECBp->ECBSocket));
     return RCODE_SOCKET_NOT_OPEN;
   }
-  if (sendto(mysock->fd, data + sizeof(IPXPacket_t),
-	    dataLen - sizeof(IPXPacket_t), 0,
-	    (struct sockaddr*)&ipxs, sizeof(ipxs)) == -1) {
+  if (do_send(mysock->fd, data, dataLen) == -1) {
     n_printf("IPX: error sending packet: %s\n", strerror(errno));
     ECBp->InUseFlag = IU_ECB_FREE;
     ECBp->CompletionCode = CC_HARDWARE_ERROR;
