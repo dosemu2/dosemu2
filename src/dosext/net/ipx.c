@@ -17,10 +17,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include "ipx_wrp.h"
 #include <netinet/in.h>
 #include <errno.h>
 #include <pthread.h>
@@ -36,6 +34,7 @@
 #include "bios.h"
 #include "coopth.h"
 #include "ioselect.h"
+#include "ipx_be.h"
 #include "ipx.h"
 #ifdef IPX
 
@@ -64,65 +63,17 @@ static void ipx_aes_esr_call_thr(void *arg);
 static void do_int7a(void);
 static enum VirqHwRet ipx_receive(void *arg);
 static enum VirqHwRet IPXCheckForAESReady(void *arg);
+static const struct ipx_ops *iops;
 
 /* DANG_FIXTHIS - get a real value for my address !! */
 static unsigned char MyAddress[10] =
 {0x01, 0x01, 0x00, 0xe0,
  0x00, 0x00, 0x1b, 0x33, 0x2b, 0x13};
 
-static int GetMyAddress(unsigned long ipx_net, unsigned char *MyAddress)
+void ipx_register_ops(const struct ipx_ops *ops)
 {
-  int sock;
-  struct sockaddr_ipx ipxs;
-  struct sockaddr_ipx ipxs2;
-  socklen_t len;
-  int i;
-
-  sock=socket(AF_IPX,SOCK_DGRAM,PF_IPX);
-  if(sock==-1)
-  {
-    n_printf("IPX: could not open socket in GetMyAddress: %s\n", strerror(errno));
-    return(-1);
-  }
-#define DYNAMIC_PORT 1
-#if DYNAMIC_PORT
-  #define DEF_PORT 0
-#else
-  #define DEF_PORT 0x5000
-#endif
-  ipxs.sipx_family=AF_IPX;
-  ipxs.sipx_network=htonl(ipx_net);
-  ipxs.sipx_port=htons(DEF_PORT);
-
-  /* bind this socket to network */
-  if(bind(sock,(struct sockaddr*)&ipxs,sizeof(ipxs))==-1)
-  {
-    n_printf("IPX: could not bind to network %#lx in GetMyAddress: %s\n",
-      ipx_net, strerror(errno));
-    close( sock );
-    return(-1);
-  }
-
-  len = sizeof(ipxs2);
-  if (getsockname(sock,(struct sockaddr*)&ipxs2,&len) < 0) {
-    n_printf("IPX: could not get socket name in GetMyAddress: %s\n", strerror(errno));
-    close( sock );
-    return(-1);
-  }
-
-  memcpy(MyAddress, &ipxs2.sipx_network, 4);
-  for (i = 0; i < 6; i++) {
-    MyAddress[4+i] = ipxs2.sipx_node[i];
-  }
-  n_printf("IPX: using network address %02X%02X%02X%02X\n",
-    MyAddress[0], MyAddress[1], MyAddress[2], MyAddress[3] );
-  n_printf("IPX: using node address of %02X%02X%02X%02X%02X%02X\n",
-    MyAddress[4], MyAddress[5], MyAddress[6], MyAddress[7],
-    MyAddress[8], MyAddress[9] );
-#if DYNAMIC_PORT
-  close( sock );
-#endif
-  return(0);
+  assert(!iops);
+  iops = ops;
 }
 
 static void ipx_int7a_thr(void *arg)
@@ -143,7 +94,7 @@ void ipx_init(void)
 
   if (!config.ipxsup)
     return;
-  ccode = GetMyAddress(config.ipx_net, MyAddress);
+  ccode = iops->GetMyAddress(config.ipx_net, MyAddress);
   if (ccode) {
     config.ipxsup = 0;
     error("IPX: cannot get IPX node address for network %#lx\n",
@@ -290,7 +241,7 @@ static void printECB(ECB_t * ECB)
   }
 }
 
-static void printIPXHeader(IPXPacket_t * IPXHeader)
+void printIPXHeader(IPXPacket_t * IPXHeader)
 {
   if (debug_level('n')) {
     n_printf("--IPX Header (dump)--\n");
@@ -340,79 +291,6 @@ static void ipx_async_callback(int fd, void *arg)
   virq_raise(VIRQ_IPX);
 }
 
-static int do_open(u_short port, u_short *newPort, int *err)
-{
-  int sock;			/* sock here means Linux socket handle */
-  int opt;
-  struct sockaddr_ipx ipxs;
-  socklen_t len;
-  struct sockaddr_ipx ipxs2;
-
-  /* DANG_FIXTHIS - kludge to support broken linux IPX stack */
-  /* need to convert dynamic socket open into a real socket number */
-/*  if (port == 0) {
-    n_printf("IPX: using socket %x\n", nextDynamicSocket);
-    port = nextDynamicSocket++;
-  }
-*/
-  /* do a socket call, then bind to this port */
-  sock = socket(AF_IPX, SOCK_DGRAM, PF_IPX);
-  if (sock == -1) {
-    n_printf("IPX: could not open IPX socket: %s.\n", strerror(errno));
-    /* I can't think of anything else to return */
-    *err = RCODE_SOCKET_TABLE_FULL;
-    return -1;
-  }
-
-  opt = 1;
-  /* Permit broadcast output */
-  if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST,
-		 &opt, sizeof(opt)) == -1) {
-    /* I can't think of anything else to return */
-    n_printf("IPX: could not set socket option for broadcast: %s.\n", strerror(errno));
-    *err = RCODE_SOCKET_TABLE_FULL;
-    return -1;
-  }
-  /* allow setting the type field in the IPX header */
-  opt = 1;
-  if (setsockopt(sock, SOL_IPX, IPX_TYPE, &opt, sizeof(opt)) == -1) {
-    /* I can't think of anything else to return */
-    n_printf("IPX: could not set socket option for type: %s.\n", strerror(errno));
-    *err = RCODE_SOCKET_TABLE_FULL;
-    return -1;
-  }
-  ipxs.sipx_family = AF_IPX;
-  memcpy(&ipxs.sipx_network, MyAddress, 4);
-/*  ipxs.sipx_network = htonl(MyNetwork); */
-  memset(ipxs.sipx_node, 0, 6);	/* Please fill in my node name */
-  ipxs.sipx_port = port;
-
-  /* now bind to this port */
-  if (bind(sock, (struct sockaddr*)&ipxs, sizeof(ipxs)) == -1) {
-    /* I can't think of anything else to return */
-    n_printf("IPX: could not bind socket to address: %s\n", strerror(errno));
-    close( sock );
-    *err = RCODE_SOCKET_TABLE_FULL;
-    return -1;
-  }
-
-  if( port==0 ) {
-    len = sizeof(ipxs2);
-    if (getsockname(sock,(struct sockaddr*)&ipxs2,&len) < 0) {
-      /* I can't think of anything else to return */
-      n_printf("IPX: could not get socket name in IPXOpenSocket: %s\n", strerror(errno));
-      close( sock );
-      *err = RCODE_SOCKET_TABLE_FULL;
-      return -1;
-    } else {
-      port = ipxs2.sipx_port;
-      n_printf("IPX: opened dynamic socket %04x\n", port);
-    }
-  }
-  *newPort = port;
-  return sock;
-}
-
 static u_char IPXOpenSocket(u_short port, u_short *newPort)
 {
   int err;
@@ -426,7 +304,7 @@ static u_char IPXOpenSocket(u_short port, u_short *newPort)
     return RCODE_SOCKET_ALREADY_OPEN;
   }
 
-  sock = do_open(port, newPort, &err);
+  sock = iops->open(port, MyAddress, newPort, &err);
   if (sock == -1)
     return err;
   ipx_insert_socket(port, /* PSP */ 0, sock);
@@ -553,28 +431,6 @@ static enum VirqSwRet ipx_aes_esr_call(void *arg)
   return VIRQ_SWRET_DONE;
 }
 
-static int do_send(int fd, u_char *data, int dataLen)
-{
-  struct sockaddr_ipx ipxs;
-  IPXPacket_t *IPXHeader = (IPXPacket_t *)data;
-
-  ipxs.sipx_family = AF_IPX;
-  /* get destination address from IPX packet header */
-  memcpy(&ipxs.sipx_network, IPXHeader->Destination.Network, 4);
-  /* if destination address is 0, then send to my net */
-  if (ipxs.sipx_network == 0) {
-    memcpy(&ipxs.sipx_network, MyAddress, 4);
-/*  ipxs.sipx_network = htonl(MyNetwork); */
-  }
-  memcpy(&ipxs.sipx_node, IPXHeader->Destination.Node, 6);
-  memcpy(&ipxs.sipx_port, IPXHeader->Destination.Socket, 2);
-  ipxs.sipx_type = 1;
-  /*	ipxs.sipx_port=htons(0x452); */
-  return sendto(fd, data + sizeof(IPXPacket_t),
-	    dataLen - sizeof(IPXPacket_t), 0,
-	    (struct sockaddr*)&ipxs, sizeof(ipxs));
-}
-
 static u_char IPXSendPacket(far_t ECBPtr)
 {
   IPXPacket_t *IPXHeader;
@@ -605,7 +461,7 @@ static u_char IPXSendPacket(far_t ECBPtr)
     n_printf("IPX: send to unopened socket %04x\n", ntohs(ECBp->ECBSocket));
     return RCODE_SOCKET_NOT_OPEN;
   }
-  if (do_send(mysock->fd, data, dataLen) == -1) {
+  if (iops->send(mysock->fd, data, dataLen, MyAddress) == -1) {
     n_printf("IPX: error sending packet: %s\n", strerror(errno));
     ECBp->InUseFlag = IU_ECB_FREE;
     ECBp->CompletionCode = CC_HARDWARE_ERROR;
@@ -809,41 +665,13 @@ static int ScatterFragmentData(int size, unsigned char *buffer, ECB_t *ECB)
   return (dataLeftCount);
 }
 
-static int do_recv(int fd, u_char *buffer, int bufLen, far_t ECBPtr)
-{
-  struct sockaddr_ipx ipxs;
-  socklen_t sz;
-  int size;
-
-  sz = sizeof(ipxs);
-  size = recvfrom(fd, buffer, bufLen, MSG_DONTWAIT, (struct sockaddr*)&ipxs,
-                  &sz);
-  if (size > 0) {
-    IPXPacket_t *IPXHeader;
-    /* use data from sipx to fill out source address */
-    IPXHeader = (IPXPacket_t *) buffer;
-    IPXHeader->Checksum = 0xFFFF;
-    IPXHeader->Length = htons(size + 30); /* in network order */
-    /* DANG_FIXTHIS - use real values to fill out IPX header here */
-    IPXHeader->TransportControl = 1;
-    IPXHeader->PacketType = 0;
-    memcpy((u_char *) & IPXHeader->Destination, MyAddress, 10);
-    memcpy(&IPXHeader->Destination.Socket, &ECBp->ECBSocket, 2);
-    memcpy(IPXHeader->Source.Network, (char *) &ipxs.sipx_network, 4);
-    memcpy(IPXHeader->Source.Node, ipxs.sipx_node, 6);
-    memcpy(IPXHeader->Source.Socket, &ipxs.sipx_port, 2);
-    printIPXHeader(IPXHeader);
-  }
-  return size;
-}
-
 static int IPXReceivePacket(ipx_socket_t * s)
 {
   unsigned char buffer[MAX_PACKET_DATA];
   far_t ECBPtr = s->listenList;
   int size;
 
-  size = do_recv(s->fd, buffer, sizeof(buffer), ECBPtr);
+  size = iops->recv(s->fd, buffer, sizeof(buffer), MyAddress, ECBPtr);
   n_printf("IPX: received %d bytes of data\n", size);
   if (size > 0 && s->listenCount) {
     int sz;

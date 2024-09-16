@@ -123,6 +123,7 @@ extern int IPXInt2FHandler(void);
 extern void ipx_send_esr_call(void);
 extern int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks );
 extern void ipx_close(void);
+extern void printIPXHeader(IPXPacket_t * IPXHeader);
 
 #endif
 #endif /* IPX_H */
