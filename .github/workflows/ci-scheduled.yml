@@ -1,0 +1,26 @@
+name: Scheduled
+
+on:
+  schedule:
+    - cron: '23 23 * * 0' # 23:23 Every Sunday
+
+jobs:
+  asan:
+    name: ASAN
+    if: (github.repository_owner == 'dosemu2')
+
+    uses: ./.github/workflows/ci-build.yml
+    with:
+      jobtype: 'schedule'
+      subtype: 'asan'
+      runtype: 'simple'
+
+  full:
+    name: Full
+    if: (github.repository_owner == 'dosemu2')
+
+    uses: ./.github/workflows/ci-build.yml
+    with:
+      jobtype: 'schedule'
+      subtype: ''
+      runtype: 'full'
