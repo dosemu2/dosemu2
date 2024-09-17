@@ -12,7 +12,7 @@ TESTSUITE = "/usr/ia16-elf/libexec/libi86/tests/testsuite"
 
 def libi86_create_items(testcase):
     if environ.get("SKIP_EXPENSIVE"):
-        stderr.write('\nlibi86-testsuite-ia16-elf is expensive - skipping\n')
+        stderr.write('\n\nlibi86-testsuite-ia16-elf is expensive - skipping\n')
         stderr.flush()
         return
 
@@ -21,7 +21,7 @@ def libi86_create_items(testcase):
     try:
         listing = check_output([TESTSUITE, '--list'])
     except FileNotFoundError:
-        stderr.write('\nlibi86-testsuite-ia16-elf not installed - skipping\n')
+        stderr.write('\n\nlibi86-testsuite-ia16-elf not installed - skipping\n')
         stderr.flush()
         return
     for l in listing.split(b'\n'):
@@ -55,12 +55,11 @@ $_floppy_a = ""
     build = self.imagedir / "libi86-test"
     build.mkdir()
 
-    dosemu = self.topdir / "bin" / "dosemu"
     options = '-f {0}/dosemu.conf -n --Fimagedir {0} -o {1}'.format(self.imagedir, self.logfiles['log'][0])
     args = [
         '--x-installcheck',
         '--x-test-underlying',
-        '--x-with-dosemu=%s' % dosemu,
+        '--x-with-dosemu=%s' % self.dosemu,
         '--x-with-dosemu-options=%s' % options,
     ]
 

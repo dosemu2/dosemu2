@@ -1,0 +1,46 @@
+name: Triggered
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+  push:
+
+jobs:
+  normal:
+    name: Normal
+    if: (contains(github.event.head_commit.message, '[skip ci]') == false &&
+         contains(github.event.head_commit.message, '[full ci]') == false &&
+         contains(github.event.head_commit.message, '[asan ci]') == false)
+
+    uses: ./.github/workflows/ci-build.yml
+    with:
+      jobtype: 'triggered'
+      subtype: ''
+      runtype: 'normal'
+
+  asan:
+    name: ASAN
+    if: (contains(github.event.head_commit.message, '[skip ci]') == false &&
+         contains(github.event.head_commit.message, '[full ci]') == false &&
+         contains(github.event.head_commit.message, '[asan ci]') == true)
+
+    uses: ./.github/workflows/ci-build.yml
+    with:
+      jobtype: 'triggered'
+      subtype: 'asan'
+      runtype: 'simple'
+
+  full:
+    name: Full
+    if: (contains(github.event.head_commit.message, '[skip ci]') == false &&
+         contains(github.event.head_commit.message, '[full ci]') == true &&
+         contains(github.event.head_commit.message, '[asan ci]') == false)
+
+    uses: ./.github/workflows/ci-build.yml
+    with:
+      jobtype: 'triggered'
+      subtype: ''
+      runtype: 'full'
