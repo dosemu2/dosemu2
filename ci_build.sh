@@ -40,13 +40,3 @@ if [ "${SUBTYPE}" = "asan" ] ; then
 fi
 ./default-configure -d
 make
-
-# Install the FAT mount helper
-sudo cp test/dosemu_fat_mount.sh /bin/.
-sudo chown root:root /bin/dosemu_fat_mount.sh
-sudo chmod 755 /bin/dosemu_fat_mount.sh
-
-# Install the TAP helper
-sudo cp test/dosemu_tap_interface.sh /bin/.
-sudo chown root:root /bin/dosemu_tap_interface.sh
-sudo chmod 755 /bin/dosemu_tap_interface.sh
