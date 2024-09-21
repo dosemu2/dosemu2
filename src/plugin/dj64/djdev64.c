@@ -305,6 +305,7 @@ static void stub_thr(void *arg)
     err = djstub_main(argc, argv, envp, _eax, &regs, _SEL_ADR, &dosops,
             &dpmiops, dj64_print);
     if (err) {
+        _eax = err;
         error("djstub: load failed\n");
         return;
     }
@@ -349,6 +350,7 @@ static void call_thr(void *arg)
     int handle = _eax;
     struct udata ud = { scp, handle };;
     if (handle >= HNDL_MAX) {
+        _eax = -1;
         error("DJ64: bad handle %x\n", handle);
         return;
     }
