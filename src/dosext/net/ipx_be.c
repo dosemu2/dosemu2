@@ -155,6 +155,11 @@ static int do_open(u_short port, u_char *MyAddress, u_short *newPort, int *err)
   return sock;
 }
 
+static int do_close(int sock)
+{
+  return close(sock);
+}
+
 static int do_recv(int fd, u_char *buffer, int bufLen, u_char *MyAddress,
     far_t ECBPtr)
 {
@@ -212,6 +217,7 @@ static int do_send(int fd, u_char *data, int dataLen, u_char *MyAddress)
 static const struct ipx_ops iops = {
   GetMyAddress,
   do_open,
+  do_close,
   do_recv,
   do_send,
 };

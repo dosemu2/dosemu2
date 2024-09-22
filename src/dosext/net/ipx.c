@@ -343,7 +343,7 @@ static u_char IPXCloseSocket(u_short port)
   /* now close the file descriptor for the socket, and free it */
   n_printf("IPX: closing file descriptor on socket %x\n", port);
   remove_from_io_select(mysock->fd);
-  close(mysock->fd);
+  iops->close(mysock->fd);
   ipx_remove_socket(mysock);
   n_printf("IPX: successfully closed socket %x\n", port);
   return (RCODE_SUCCESS);
