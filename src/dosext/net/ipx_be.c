@@ -163,14 +163,16 @@ static int do_recv(int fd, u_char *buffer, int bufLen, u_char *MyAddress,
   int size;
 
   sz = sizeof(ipxs);
-  size = recvfrom(fd, buffer, bufLen, MSG_DONTWAIT, (struct sockaddr*)&ipxs,
+  size = recvfrom(fd, buffer + sizeof(IPXPacket_t),
+                  bufLen - sizeof(IPXPacket_t),
+                  MSG_DONTWAIT, (struct sockaddr*)&ipxs,
                   &sz);
   if (size > 0) {
     IPXPacket_t *IPXHeader;
     /* use data from sipx to fill out source address */
     IPXHeader = (IPXPacket_t *) buffer;
     IPXHeader->Checksum = 0xFFFF;
-    IPXHeader->Length = htons(size + 30); /* in network order */
+    IPXHeader->Length = htons(size + sizeof(IPXPacket_t)); /* in network order */
     /* DANG_FIXTHIS - use real values to fill out IPX header here */
     IPXHeader->TransportControl = 1;
     IPXHeader->PacketType = 0;
