@@ -224,7 +224,7 @@ typedef struct config_info {
        int     realcpu;
        boolean mathco, smp, cpuprefetcht0, cpufxsr, cpusse, umip;
        boolean ipxsup;
-       long    ipx_net;
+       unsigned ipx_net;
        int     vnet;
        char   *ethdev;
        char   *tapdev;

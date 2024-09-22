@@ -26,7 +26,7 @@
 #include "ipx.h"
 #include "ipx_be.h"
 
-static int GetMyAddress(unsigned long ipx_net, unsigned char *MyAddress)
+static int GetMyAddress(unsigned ipx_net, unsigned char *MyAddress)
 {
   int sock;
   struct sockaddr_ipx ipxs;
@@ -53,7 +53,7 @@ static int GetMyAddress(unsigned long ipx_net, unsigned char *MyAddress)
   /* bind this socket to network */
   if(bind(sock,(struct sockaddr*)&ipxs,sizeof(ipxs))==-1)
   {
-    n_printf("IPX: could not bind to network %#lx in GetMyAddress: %s\n",
+    n_printf("IPX: could not bind to network %#x in GetMyAddress: %s\n",
       ipx_net, strerror(errno));
     close( sock );
     return(-1);

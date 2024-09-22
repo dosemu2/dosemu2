@@ -97,7 +97,7 @@ void ipx_init(void)
   ccode = iops->GetMyAddress(config.ipx_net, MyAddress);
   if (ccode) {
     config.ipxsup = 0;
-    error("IPX: cannot get IPX node address for network %#lx\n",
+    error("IPX: cannot get IPX node address for network %#x\n",
         config.ipx_net);
     return;
   }
