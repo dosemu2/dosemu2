@@ -280,14 +280,27 @@ int exists_file(const char *name)
 	return (S_ISREG(st.st_mode));
 }
 
-char *strcatdup(char *s1, char *s2)
+char *strdup_nl(const char *s)
 {
-	char *s;
-	if (!s1 || !s2) return 0;
-	s = malloc(strlen(s1)+strlen(s2)+1);
-	if (!s) return 0;
-	strcpy(s,s1);
-	return strcat(s,s2);
+	char *cr;
+	char *p = strdup(s);
+	while ((cr = strchr(p, '\r')))
+		memmove(cr, cr + 1, strlen(cr + 1) + 1);
+	return p;
+}
+
+char *strdup_crlf(const char *s)
+{
+	const char *c;
+	char *d;
+	char *p = malloc(strlen(s) * 2 + 1);
+	for (c = s, d = p; *c; c++, d++) {
+		if (*c == '\n')
+			*d++ = '\r';
+		*d = *c;
+	}
+	*d++ = '\0';
+	return p;
 }
 
 // Concatenate a filename, s1+s2, and return a newly-allocated string of it.

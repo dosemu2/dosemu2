@@ -131,13 +131,15 @@ int cnn_clear(void)
 
 int cnn_write(int type, const char *p, int size)
 {
-  char *q;
+  char *q, *p1;
 
   if (type != CF_TEXT && type != CF_OEMTEXT) {
     v_printf("SDL_clipboard: Write failed, type (0x%02x) unsupported\n", type);
     return FALSE;
   }
-  q = clipboard_make_str_utf8(type, p, size);
+  p1 = strdup_nl(p);
+  q = clipboard_make_str_utf8(type, p1, size);
+  free(p1);
   if (!q)
     return FALSE;
   add_clip_str(q);
@@ -195,7 +197,7 @@ int cnn_open(void)
   if (clip_rdbuf)
     return FALSE;
   if (clip_str && clip_str[0])
-    clip_rdbuf = strdup(clip_str);
+    clip_rdbuf = strdup_crlf(clip_str);
   clip_pos = clip_rdbuf;
   return TRUE;
 }
