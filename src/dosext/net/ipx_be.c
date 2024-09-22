@@ -23,10 +23,11 @@
 #include "dosemu_debug.h"
 #include "cpu.h"
 #include "init.h"
+#include "emu.h"
 #include "ipx.h"
 #include "ipx_be.h"
 
-static int GetMyAddress(unsigned ipx_net, unsigned char *MyAddress)
+static int GetMyAddress(unsigned char *MyAddress)
 {
   int sock;
   struct sockaddr_ipx ipxs;
@@ -47,14 +48,14 @@ static int GetMyAddress(unsigned ipx_net, unsigned char *MyAddress)
   #define DEF_PORT 0x5000
 #endif
   ipxs.sipx_family=AF_IPX;
-  ipxs.sipx_network=htonl(ipx_net);
+  ipxs.sipx_network=htonl(config.ipx_net);
   ipxs.sipx_port=htons(DEF_PORT);
 
   /* bind this socket to network */
   if(bind(sock,(struct sockaddr*)&ipxs,sizeof(ipxs))==-1)
   {
     n_printf("IPX: could not bind to network %#x in GetMyAddress: %s\n",
-      ipx_net, strerror(errno));
+      config.ipx_net, strerror(errno));
     close( sock );
     return(-1);
   }

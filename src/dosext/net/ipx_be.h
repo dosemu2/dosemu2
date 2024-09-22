@@ -2,7 +2,7 @@
 #define IPX_BE_H
 
 struct ipx_ops {
-    int (*GetMyAddress)(unsigned ipx_net, unsigned char *MyAddress);
+    int (*GetMyAddress)(unsigned char *MyAddress);
     int (*open)(u_short port, u_char *MyAddress, u_short *newPort, int *err);
     int (*recv)(int fd, u_char *buffer, int bufLen, u_char *MyAddress,
 	far_t ECBPtr);
