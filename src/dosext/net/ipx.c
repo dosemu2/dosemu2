@@ -671,7 +671,7 @@ static int IPXReceivePacket(ipx_socket_t * s)
   far_t ECBPtr = s->listenList;
   int size;
 
-  size = iops->recv(s->fd, buffer, sizeof(buffer), MyAddress, ECBPtr);
+  size = iops->recv(s->fd, buffer, sizeof(buffer), MyAddress, ECBp->ECBSocket);
   n_printf("IPX: received %d bytes of data\n", size);
   if (size > 0 && s->listenCount) {
     int sz;

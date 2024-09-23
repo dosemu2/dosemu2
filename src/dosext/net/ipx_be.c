@@ -21,7 +21,6 @@
 #include <netinet/in.h>
 #include "ipx_wrp.h"
 #include "dosemu_debug.h"
-#include "cpu.h"
 #include "init.h"
 #include "emu.h"
 #include "ipx.h"
@@ -161,7 +160,7 @@ static int do_close(int sock)
 }
 
 static int do_recv(int fd, u_char *buffer, int bufLen, u_char *MyAddress,
-    far_t ECBPtr)
+    u_short port)
 {
   struct sockaddr_ipx ipxs;
   socklen_t sz;
@@ -182,8 +181,7 @@ static int do_recv(int fd, u_char *buffer, int bufLen, u_char *MyAddress,
     IPXHeader->TransportControl = 1;
     IPXHeader->PacketType = 0;
     memcpy((u_char *) & IPXHeader->Destination, MyAddress, 10);
-#define ECBp ((ECB_t*)FARt_PTR(ECBPtr))
-    memcpy(&IPXHeader->Destination.Socket, &ECBp->ECBSocket, 2);
+    memcpy(IPXHeader->Destination.Socket, &port, 2);
     memcpy(IPXHeader->Source.Network, (char *) &ipxs.sipx_network, 4);
     memcpy(IPXHeader->Source.Node, ipxs.sipx_node, 6);
     memcpy(IPXHeader->Source.Socket, &ipxs.sipx_port, 2);

@@ -6,7 +6,7 @@ struct ipx_ops {
     int (*open)(u_short port, u_char *MyAddress, u_short *newPort, int *err);
     int (*close)(int sock);
     int (*recv)(int fd, u_char *buffer, int bufLen, u_char *MyAddress,
-	far_t ECBPtr);
+	u_short port);
     int (*send)(int fd, u_char *data, int dataLen, u_char *MyAddress);
 };
 
