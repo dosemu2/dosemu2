@@ -64,11 +64,7 @@ static void do_int7a(void);
 static enum VirqHwRet ipx_receive(void *arg);
 static enum VirqHwRet IPXCheckForAESReady(void *arg);
 static const struct ipx_ops *iops;
-
-/* DANG_FIXTHIS - get a real value for my address !! */
-static unsigned char MyAddress[10] =
-{0x01, 0x01, 0x00, 0xe0,
- 0x00, 0x00, 0x1b, 0x33, 0x2b, 0x13};
+#define MyAddress iops->GetMyAddress()
 
 void ipx_register_ops(const struct ipx_ops *ops)
 {
@@ -89,18 +85,10 @@ static void ipx_call(uint16_t idx, HLT_ARG(arg))
 
 void ipx_init(void)
 {
-  int ccode;
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
 
   if (!config.ipxsup)
     return;
-  ccode = iops->GetMyAddress(MyAddress);
-  if (ccode) {
-    config.ipxsup = 0;
-    error("IPX: cannot get IPX node address for network %#x\n",
-        config.ipx_net);
-    return;
-  }
   virq_register(VIRQ_IPX, ipx_receive, ipx_recv_esr_call, NULL);
   virq_register(VIRQ_IPX_AES, IPXCheckForAESReady, ipx_aes_esr_call, NULL);
 
@@ -304,7 +292,7 @@ static u_char IPXOpenSocket(u_short port, u_short *newPort)
     return RCODE_SOCKET_ALREADY_OPEN;
   }
 
-  sock = iops->open(port, MyAddress, newPort, &err);
+  sock = iops->open(port, newPort, &err);
   if (sock == -1)
     return err;
   ipx_insert_socket(port, /* PSP */ 0, sock);
@@ -461,7 +449,7 @@ static u_char IPXSendPacket(far_t ECBPtr)
     n_printf("IPX: send to unopened socket %04x\n", ntohs(ECBp->ECBSocket));
     return RCODE_SOCKET_NOT_OPEN;
   }
-  if (iops->send(mysock->fd, data, dataLen, MyAddress) == -1) {
+  if (iops->send(mysock->fd, data, dataLen) == -1) {
     n_printf("IPX: error sending packet: %s\n", strerror(errno));
     ECBp->InUseFlag = IU_ECB_FREE;
     ECBp->CompletionCode = CC_HARDWARE_ERROR;
@@ -671,7 +659,7 @@ static int IPXReceivePacket(ipx_socket_t * s)
   far_t ECBPtr = s->listenList;
   int size;
 
-  size = iops->recv(s->fd, buffer, sizeof(buffer), MyAddress, ECBp->ECBSocket);
+  size = iops->recv(s->fd, buffer, sizeof(buffer), ECBp->ECBSocket);
   n_printf("IPX: received %d bytes of data\n", size);
   if (size > 0 && s->listenCount) {
     int sz;

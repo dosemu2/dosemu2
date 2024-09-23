@@ -18,7 +18,7 @@ include $(top_builddir)/Makefile.conf
 # let gcc do extended checking
 
 
-CFILES = ipx.c ipx_be.c ipxglt.c libpacket.c pktnew.c tcp.c
+CFILES = ipx.c ipx_be.c ipx_udp_be.c ipxglt.c libpacket.c pktnew.c tcp.c
 HFILES = libpacket.h
 DEPENDS= $(CFILES:.c=.d)
 OBJS=$(CFILES:.c=.o)
