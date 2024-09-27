@@ -65,7 +65,7 @@ static void emutcp_enable(int en)
 static void show_help(void)
 {
   const char *name = "emutcp";
-  com_printf("%s -c\t\t - show current TCP settings\n", name);
+  com_printf("%s -s\t\t - show current TCP settings\n", name);
   com_printf("%s -e <1|0>\t\t - enable/disable TCP driver\n", name);
   com_printf("%s -g <gw>\t\t - set gateway (0 - reset to default)\n", name);
   com_printf("%s -i <iface>\t - set interface for TCP driver\n", name);
@@ -140,9 +140,9 @@ int emutcp_main(int argc, char **argv)
   }
 
   GETOPT_RESET();
-  while ((c = getopt(argc, argv, "ce:hi:Ig:")) != -1) {
+  while ((c = getopt(argc, argv, "se:hi:Ig:")) != -1) {
     switch (c) {
-      case 'c':
+      case 's':
         emutcp_config();
         break;
       case 'e':
