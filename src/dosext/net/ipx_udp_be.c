@@ -26,6 +26,7 @@
 #include <pthread.h>
 #include "dosemu_debug.h"
 #include "doshelpers.h"
+#include "utilities.h"
 #include "ioselect.h"
 #include "emu.h"
 #include "ipx.h"
@@ -99,12 +100,25 @@ static void udp_async_callback(int fd, void *arg)
 //    ioselect_complete(fd);
 }
 
+static enum CbkRet recv_cb(int fd, void *buf, int len, int *r_err)
+{
+    int rc = recv(fd, buf, len, MSG_DONTWAIT);
+    *r_err = rc;
+    if (rc == -1 && errno != EAGAIN) {
+        error("recv(): %s\n", strerror(errno));
+        return CBK_ERR;
+    }
+    if (rc > 0)
+        return CBK_DONE;
+    return CBK_CONT;
+}
+
 static int __GetMyAddress(const char *host, uint16_t port)
 {
     struct sockaddr_in sin;
     struct sockaddr_in sout;
     IPXPacket_t IPXHeader;
-    int i, rc;
+    int i, rc, len;
     uint16_t sock = htons(2);
 
     udp_sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -143,10 +157,15 @@ static int __GetMyAddress(const char *host, uint16_t port)
         n_printf("IPX: could not send UDP packet: %s\n", strerror(errno));
         goto err;
     }
-    /* TODO: make this async */
-    rc = recv(udp_sock, &IPXHeader, sizeof(IPXHeader), 0);
-    if (rc <= 0) {
+    rc = handle_timeout(30, recv_cb, udp_sock, &IPXHeader, sizeof(IPXHeader),
+            &len);
+    if (rc != 0) {
         n_printf("IPX: could not recv UDP packet: %s\n", strerror(errno));
+        goto err;
+    }
+    if (len != sizeof(IPXHeader)) {
+        n_printf("IPX: bad recv ren, need %zi got %i\n", sizeof(IPXHeader),
+                 len);
         goto err;
     }
 
