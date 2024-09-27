@@ -1,6 +1,7 @@
 #ifndef UTILITIES_H
 #define UTILITIES_H
 
+#include <stdint.h>
 #include <sys/types.h>
 #include <semaphore.h>
 #include "dosemu_debug.h"
@@ -40,6 +41,11 @@ void close_plugin(void *handle);
 char *prefix(const char *suffix);
 int mktmp_in(const char *dir_tmpl, const char *fname, mode_t mode,
     char *dir_name, int dir_name_len);
+
+enum CbkRet { CBK_DONE, CBK_CONT, CBK_ERR };
+int handle_timeout(uint16_t to,
+    enum CbkRet (*cbk)(int, void *, int, int *),
+    int arg, void *arg2, int arg3, int *r_err);
 
 #define _min(x,y) ({ \
 	typeof(x) _x = (x);	\
