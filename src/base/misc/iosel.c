@@ -288,6 +288,8 @@ static void do_unmask(int fd)
 
 void ioselect_complete(int fd)
 {
+    assert(!io_callback_func[fd].flags & IOFLG_IMMED ||
+            io_callback_func[fd].flags & IOFLG_MASKED);
     do_unmask(fd);
 }
 
