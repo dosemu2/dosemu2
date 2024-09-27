@@ -21,7 +21,6 @@
 #include <netinet/in.h>
 #include "ipx_wrp.h"
 #include "dosemu_debug.h"
-#include "init.h"
 #include "emu.h"
 #include "ipx.h"
 #include "ipx_be.h"
@@ -236,15 +235,10 @@ static int do_send(int fd, u_char *data, int dataLen)
 	    (struct sockaddr*)&ipxs, sizeof(ipxs));
 }
 
-static const struct ipx_ops iops = {
+const struct ipx_ops native_ipx_ops = {
   GetMyAddress,
   do_open,
   do_close,
   do_recv,
   do_send,
 };
-
-CONSTRUCTOR(static void init(void))
-{
-  ipx_register_ops(&iops);
-}

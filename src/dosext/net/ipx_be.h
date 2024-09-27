@@ -9,6 +9,7 @@ struct ipx_ops {
     int (*send)(int fd, u_char *data, int dataLen);
 };
 
-void ipx_register_ops(const struct ipx_ops *ops);
+int ipx_register_ops(const struct ipx_ops *ops);
+extern const struct ipx_ops native_ipx_ops;
 
 #endif

@@ -26,6 +26,7 @@
 #include <pthread.h>
 #include "dosemu_debug.h"
 #include "ioselect.h"
+#include "emu.h"
 #include "ipx.h"
 #include "ipx_be.h"
 
@@ -294,3 +295,11 @@ static const struct ipx_ops iops = {
     do_recv,
     do_send,
 };
+
+void ipx_helper(struct vm86_regs *regs)
+{
+    // TODO!
+    _GetMyAddress();
+    if (inited)
+        ipx_register_ops(&iops);
+}

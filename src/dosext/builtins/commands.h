@@ -7,3 +7,4 @@
 
 int emumouse_main(int argc, char **argv);
 int emutcp_main(int argc, char **argv);
+int emuipx_main(int argc, char **argv);

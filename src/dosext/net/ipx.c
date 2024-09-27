@@ -66,10 +66,12 @@ static enum VirqHwRet IPXCheckForAESReady(void *arg);
 static const struct ipx_ops *iops;
 #define MyAddress iops->GetMyAddress()
 
-void ipx_register_ops(const struct ipx_ops *ops)
+int ipx_register_ops(const struct ipx_ops *ops)
 {
-  assert(!iops);
+  if (iops)
+    return -1;
   iops = ops;
+  return 0;
 }
 
 static void ipx_int7a_thr(void *arg)
@@ -80,6 +82,8 @@ static void ipx_int7a_thr(void *arg)
 static void ipx_call(uint16_t idx, HLT_ARG(arg))
 {
   fake_retf();
+  if (!iops)
+    iops = &native_ipx_ops;
   coopth_start(int7a_tid, NULL);
 }
 
