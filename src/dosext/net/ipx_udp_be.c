@@ -25,14 +25,16 @@
 #include <assert.h>
 #include <pthread.h>
 #include "dosemu_debug.h"
+#include "doshelpers.h"
 #include "ioselect.h"
 #include "emu.h"
 #include "ipx.h"
 #include "ipx_be.h"
 
 static int udp_sock = -1;
-#define HOST "localhost" // TODO!
-#define PORT 1024 // TODO!
+static int udp_enabled;
+static char HOST[128] = "localhost";
+static uint16_t PORT = 1024;
 
 struct ipx_sock {
     uint16_t sock;
@@ -97,7 +99,7 @@ static void udp_async_callback(int fd, void *arg)
 //    ioselect_complete(fd);
 }
 
-static int __GetMyAddress(void)
+static int __GetMyAddress(const char *host, uint16_t port)
 {
     struct sockaddr_in sin;
     struct sockaddr_in sout;
@@ -120,8 +122,8 @@ static int __GetMyAddress(void)
     }
 
     sout.sin_family = AF_INET;
-    sout.sin_addr.s_addr = get_ip(HOST);
-    sout.sin_port = htons(PORT);
+    sout.sin_addr.s_addr = get_ip(host);
+    sout.sin_port = htons(port);
     if (connect(udp_sock, (struct sockaddr*)&sout, sizeof(sout)) == -1) {
         n_printf("IPX: could not connect UDP socket: %s\n", strerror(errno));
         goto err;
@@ -172,7 +174,7 @@ static void _GetMyAddress(void)
 
   if (inited)
     return;
-  err = __GetMyAddress();
+  err = __GetMyAddress(HOST, PORT);
   if (err)
     return;
   inited = 1;
@@ -298,8 +300,39 @@ static const struct ipx_ops iops = {
 
 void ipx_helper(struct vm86_regs *regs)
 {
-    // TODO!
-    _GetMyAddress();
-    if (inited)
-        ipx_register_ops(&iops);
+    switch (HI_BYTE_d(regs->eax)) {
+        case DOS_SUBHELPER_IPX_CONFIG:
+            regs->ebx = 0;
+            if (config.ipxsup)
+                regs->ebx |= 1;
+            if (udp_enabled)
+                regs->ebx |= 2;
+            if (inited)
+                regs->ebx |= 4;
+            break;
+        case DOS_SUBHELPER_IPX_CONNECT:
+            if (regs->ebx)
+                PORT = regs->ebx;
+            if (regs->ecx)
+                memcpy(HOST, LINEAR2UNIX(SEGOFF2LINEAR(_ES, _DI)),
+                        regs->ecx + 1);
+            _GetMyAddress();
+            if (inited) {
+                int err = ipx_register_ops(&iops);
+                if (!err)
+                    udp_enabled = 1;
+            } else {
+                CARRY;
+            }
+            break;
+        case DOS_SUBHELPER_IPX_DISCONNECT:
+            if (inited) {
+                close(udp_sock);
+                udp_sock = -1;
+                inited = 0;
+            } else {
+                CARRY;
+            }
+            break;
+    }
 }
