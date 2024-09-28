@@ -27,7 +27,8 @@
 #ifdef HAVE_LIBBSD
 #include <bsd/unistd.h> // for closefrom()
 #endif
-
+#include "timers.h"
+#include "coopth.h"
 #include "debug.h"
 #include "utilities.h"
 #include "dos2linux.h"
@@ -1248,4 +1249,27 @@ char *concat_strings(char *dst, const char *pref, const char *suff)
     strcpy(ret, suff);
   }
   return ret;
+}
+
+int handle_timeout(uint16_t to,
+    enum CbkRet (*cbk)(int, void *, int, int *),
+    int arg, void *arg2, int arg3, int *r_err)
+{
+    hitimer_t end = GETusTIME(0) + TICKtoUS(to * 65536);
+    int first = 1;
+    enum CbkRet cbr;
+
+    do {
+        if (!first)
+            coopth_wait();
+        cbr = cbk(arg, arg2, arg3, r_err);
+        if (cbr == CBK_ERR)
+            return -1;
+        if (cbr == CBK_DONE)
+            break;
+        first = 0;
+    } while (to && (to == 0xffff || GETusTIME(0) < end));
+    if (cbr != CBK_DONE)
+        return 1;
+    return 0;
 }

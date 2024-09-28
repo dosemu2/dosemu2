@@ -337,4 +337,5 @@ CONSTRUCTOR(static void commands_plugin_init(void))
 	register_com_program("FOSSIL", fossil_main);
 	register_com_program("COMREDIR", comredir_main);
 	register_com_program("EMUTCP", emutcp_main);
+	register_com_program("EMUIPX", emuipx_main);
 }

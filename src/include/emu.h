@@ -500,6 +500,7 @@ extern void HMA_init(void);
 extern void hardware_run(void);
 extern int register_exit_handler(void (*handler)(void));
 void tcp_helper(struct vm86_regs *);
+void ipx_helper(struct vm86_regs *);
 
 typedef struct emu_hlt_s emu_hlt_t;
 extern void *vm86_hlt_state;

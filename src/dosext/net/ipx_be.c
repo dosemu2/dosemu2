@@ -21,12 +21,16 @@
 #include <netinet/in.h>
 #include "ipx_wrp.h"
 #include "dosemu_debug.h"
-#include "init.h"
 #include "emu.h"
 #include "ipx.h"
 #include "ipx_be.h"
 
-static int GetMyAddress(unsigned char *MyAddress)
+static unsigned char MyAddress[10] =
+{0x01, 0x01, 0x00, 0xe0,
+ 0x00, 0x00, 0x1b, 0x33, 0x2b, 0x13};
+static int inited;
+
+static int __GetMyAddress(void)
 {
   int sock;
   struct sockaddr_ipx ipxs;
@@ -38,7 +42,7 @@ static int GetMyAddress(unsigned char *MyAddress)
   if(sock==-1)
   {
     n_printf("IPX: could not open socket in GetMyAddress: %s\n", strerror(errno));
-    return(-1);
+    return -1;
   }
 #define DYNAMIC_PORT 1
 #if DYNAMIC_PORT
@@ -55,15 +59,15 @@ static int GetMyAddress(unsigned char *MyAddress)
   {
     n_printf("IPX: could not bind to network %#x in GetMyAddress: %s\n",
       config.ipx_net, strerror(errno));
-    close( sock );
-    return(-1);
+    close(sock);
+    return -1;
   }
 
   len = sizeof(ipxs2);
   if (getsockname(sock,(struct sockaddr*)&ipxs2,&len) < 0) {
     n_printf("IPX: could not get socket name in GetMyAddress: %s\n", strerror(errno));
-    close( sock );
-    return(-1);
+    close(sock);
+    return -1;
   }
 
   memcpy(MyAddress, &ipxs2.sipx_network, 4);
@@ -76,18 +80,38 @@ static int GetMyAddress(unsigned char *MyAddress)
     MyAddress[4], MyAddress[5], MyAddress[6], MyAddress[7],
     MyAddress[8], MyAddress[9] );
 #if DYNAMIC_PORT
-  close( sock );
+  close(sock);
 #endif
-  return(0);
+  return 0;
 }
 
-static int do_open(u_short port, u_char *MyAddress, u_short *newPort, int *err)
+static void _GetMyAddress(void)
+{
+  int err;
+
+  if (inited)
+    return;
+  err = __GetMyAddress();
+  if (err)
+    return;
+  inited = 1;
+}
+
+static const unsigned char *GetMyAddress(void)
+{
+  _GetMyAddress();
+  return MyAddress;
+}
+
+static int do_open(u_short port, u_short *newPort, int *err)
 {
   int sock;			/* sock here means Linux socket handle */
   int opt;
   struct sockaddr_ipx ipxs;
   socklen_t len;
   struct sockaddr_ipx ipxs2;
+
+  _GetMyAddress();
 
   /* DANG_FIXTHIS - kludge to support broken linux IPX stack */
   /* need to convert dynamic socket open into a real socket number */
@@ -159,8 +183,7 @@ static int do_close(int sock)
   return close(sock);
 }
 
-static int do_recv(int fd, u_char *buffer, int bufLen, u_char *MyAddress,
-    u_short port)
+static int do_recv(int fd, u_char *buffer, int bufLen, u_short port)
 {
   struct sockaddr_ipx ipxs;
   socklen_t sz;
@@ -190,7 +213,7 @@ static int do_recv(int fd, u_char *buffer, int bufLen, u_char *MyAddress,
   return size;
 }
 
-static int do_send(int fd, u_char *data, int dataLen, u_char *MyAddress)
+static int do_send(int fd, u_char *data, int dataLen)
 {
   struct sockaddr_ipx ipxs;
   IPXPacket_t *IPXHeader = (IPXPacket_t *)data;
@@ -212,15 +235,10 @@ static int do_send(int fd, u_char *data, int dataLen, u_char *MyAddress)
 	    (struct sockaddr*)&ipxs, sizeof(ipxs));
 }
 
-static const struct ipx_ops iops = {
+const struct ipx_ops native_ipx_ops = {
   GetMyAddress,
   do_open,
   do_close,
   do_recv,
   do_send,
 };
-
-CONSTRUCTOR(static void init(void))
-{
-  ipx_register_ops(&iops);
-}

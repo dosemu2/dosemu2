@@ -354,13 +354,6 @@ static int get_driver_info(struct driver_info_rec *di_out)
     return ret;
 }
 
-static hitimer_t get_timeout_us(uint16_t to)
-{
-    return (to * 65536ULL * 1000000ULL) / PIT_TICK_RATE;
-}
-
-enum CbkRet { CBK_DONE, CBK_CONT, CBK_ERR };
-
 static enum CbkRet conn_cb(int fd, void *sa, int len, int *r_err)
 {
     int err = connect(fd, sa, len);
@@ -400,27 +393,19 @@ static enum CbkRet read_cb(int fd, void *buf, int len, int *r_err)
     return CBK_CONT;
 }
 
-static int handle_timeout(uint16_t to,
+static int do_timeout(uint16_t to,
     enum CbkRet (*cbk)(int, void *, int, int *),
     int arg, void *arg2, int arg3, int *r_err)
 {
-    hitimer_t end = GETusTIME(0) + get_timeout_us(to);
-    int first = 1;
-    enum CbkRet cbr;
-
-    do {
-        if (!first)
-            coopth_wait();
-        cbr = cbk(arg, arg2, arg3, r_err);
-        if (cbr == CBK_ERR)
-            return ERR_CRITICAL;
-        if (cbr == CBK_DONE)
+    switch (handle_timeout(to, cbk, arg, arg2, arg3, r_err)) {
+        case 0:
+            return ERR_NO_ERROR;
             break;
-        first = 0;
-    } while (to && (to == 0xffff || GETusTIME(0) < end));
-    if (cbr != CBK_DONE)
-        return ERR_TIMEOUT;
-    return ERR_NO_ERROR;
+        case 1:
+            return ERR_TIMEOUT;
+            break;
+    }
+    return ERR_CRITICAL;
 }
 
 static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
@@ -437,7 +422,7 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
     sa.sin_addr.s_addr = dest;
     sa.sin_port = htons(port);
     sa.sin_family = AF_INET;
-    err = handle_timeout(to, conn_cb, fd, &sa,
+    err = do_timeout(to, conn_cb, fd, &sa,
             sizeof(struct sockaddr_in), &rc);
     if (err != ERR_NO_ERROR) {
         close(fd);
@@ -721,7 +706,7 @@ static void tcp_thr(void *arg)
                     /* break; */
                 case 1: {
                     int rc;
-                    _DX = handle_timeout(to, read_cb, s->fd,
+                    _DX = do_timeout(to, read_cb, s->fd,
                             SEG_ADR((char *), es, di), _CX, &rc);
                     _AX = (rc < 0 ? 0 : rc);
                     break;
@@ -912,7 +897,7 @@ static void tcp_thr(void *arg)
         case UDP_RECV: {
             int rc;
             TCP_PROLOG2;
-            _DX = handle_timeout(to, recv_cb, s->fd,
+            _DX = do_timeout(to, recv_cb, s->fd,
                     SEG_ADR((char *), es, di), _CX, &rc);
             _AX = (rc < 0 ? 0 : rc);
             break;
@@ -963,7 +948,7 @@ static void tcp_thr(void *arg)
         case IP_RECV: {
             int rc;
             TCP_PROLOG2;
-            _DX = handle_timeout(to, recv_cb, s->fd,
+            _DX = do_timeout(to, recv_cb, s->fd,
                     SEG_ADR((char *), es, di), _CX, &rc);
             _AX = (rc < 0 ? 0 : rc);
             break;
