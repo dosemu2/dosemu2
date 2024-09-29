@@ -1,5 +1,5 @@
-from time import sleep
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from sys import stderr
 import multiprocessing as mp
 
 from common_framework import setup_tap_interface, teardown_tap_interface
@@ -85,9 +85,21 @@ $_vnet = "tap"
 $_tapdev = "tap0"
 """, timeout=30)
 
-    p.join()
-    sleep(5)
+    p.join(timeout=45)
+    if p.is_alive():
+        stderr.write("Timeout on join() for little_webserver - killing ")
+        stderr.flush()
+        p.kill()
+        p.join(timeout=5)
+        if p.is_alive():
+            stderr.write("Timeout on join() after kill() - aborting ")
+            stderr.flush()
+            raise mp.ProcessError
     p.close()
 
-    testfil = self.workdir / 'test.fil'
-    self.assertEqual(CONTENT, testfil.read_bytes())
+    try:
+        tbytes = (self.workdir / 'test.fil').read_bytes()
+    except FileNotFoundError:
+        tbytes = b'File not found'
+
+    self.assertEqual(CONTENT, tbytes)
