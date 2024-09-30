@@ -94,6 +94,7 @@ def teardown_tap_interface(self):
     if not exists(TAP_HELPER):
         self.skipTest("tap interface helper not installed")
 
+    sleep(5)    # wait for any process to die before attempting teardown
     check_call(["sudo", TAP_HELPER, "teardown"], stderr=STDOUT)
 
 
