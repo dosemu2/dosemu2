@@ -33,7 +33,7 @@
 #include "dos.h"
 #include "dpmiops.h"
 
-#if DJ64_API_VER != 9
+#if DJ64_API_VER != 10
 #error wrong djdev64 version
 #endif
 
@@ -268,11 +268,6 @@ static void do_close(int handle)
     djdev64_close(handle);
 }
 
-static char *_SEL_ADR(uint16_t sel)
-{
-    return SEL_ADR(sel, 0);
-}
-
 static struct dos_ops dosops = {
     _dos_open,
     _dos_read,
@@ -281,6 +276,11 @@ static struct dos_ops dosops = {
     _dos_close,
     _dos_link_umb,
 };
+
+static char *addr2ptr(dosaddr_t addr)
+{
+    return dosaddr_to_unixaddr(addr);
+}
 
 static void stub_thr(void *arg)
 {
@@ -302,7 +302,7 @@ static void stub_thr(void *arg)
         envp[i] = SEL_ADR(_ds, envpp[i]);
     envp[i] = NULL;
 
-    err = djstub_main(argc, argv, envp, _eax, &regs, _SEL_ADR, &dosops,
+    err = djstub_main(argc, argv, envp, _eax, &regs, addr2ptr, &dosops,
             &dpmiops, dj64_print);
     if (err) {
         _eax = err;
@@ -348,7 +348,7 @@ static void call_thr(void *arg)
     cpuctx_t *scp = arg;
     unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
     int handle = _eax;
-    struct udata ud = { scp, handle };;
+    struct udata ud = { scp, handle };
     if (handle >= HNDL_MAX) {
         _eax = -1;
         error("DJ64: bad handle %x\n", handle);
