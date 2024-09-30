@@ -259,9 +259,10 @@ int main(int argc, char *argv[])
   outfile = stdout;
 
   /* Parse command line. */
-  if ((argc <= 1) && isatty(STDOUT_FILENO))
+  if (argc <= 1)
   {
     usage();
+    return 0;
   }
   while ((n = getopt(argc, argv, "b:l:t:h:k:f:pr")) != EOF)
   {
