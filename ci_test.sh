@@ -31,8 +31,10 @@ echo "====================================================="
 # single test example
 # python3 test/test_dos.py FRDOS120TestCase.test_mfs_fcb_rename_wild_1
 
+export PYTHONUNBUFFERED=1
 export TEST_DOSEMU=/usr/local/bin/dosemu
 export TEST_CMDDIR=/usr/local/share/dosemu/commands
+
 case "${RUNTYPE}" in
   "packaged")
     export NO_FAILFAST=1
