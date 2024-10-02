@@ -369,6 +369,7 @@ AX_CHECK_COMPILE_FLAG([-Wstring-plus-int],
 DOSEMU_LDFLAGS="-pthread"
 
 AC_CHECK_LIB(m, pow)
+AC_CHECK_DECLS([exp10f],,, [[#include <math.h>]])
 
 AC_ARG_ENABLE(dlplugins,
               AS_HELP_STRING([--disable-dlplugins], [do NOT use dynamically loaded plugins]))

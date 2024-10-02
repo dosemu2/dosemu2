@@ -897,7 +897,11 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
 double dspio_calc_vol(int val, int step, int init_db)
 {
 #define LOG_SCALE 0.02
+#ifdef HAVE_DECL_EXP10F
+    return exp10f(LOG_SCALE * (val * step + init_db));
+#else
     return pow(10, LOG_SCALE * (val * step + init_db));
+#endif
 }
 
 static int dspio_is_connected(int id, void *arg)
