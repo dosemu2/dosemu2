@@ -67,6 +67,7 @@ static const int opl3_format = PCM_FORMAT_S8;
 static const int opl3_rate = 44100;
 
 static pthread_mutex_t run_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t opl_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t syn_thr;
 static sem_t syn_sem;
 static void *synth_thread(void *arg);
@@ -74,7 +75,9 @@ static void *synth_thread(void *arg);
 Bit8u adlib_io_read_base(ioport_t port)
 {
     Bit8u ret;
+    pthread_mutex_lock(&opl_mtx);
     ret = oplops->PortRead(opl3_impl, port);
+    pthread_mutex_unlock(&opl_mtx);
     if (debug_level('S') >= 9)
 	S_printf("Adlib: Read %hhx from port %x\n", ret, port);
     return ret;
@@ -94,7 +97,9 @@ void adlib_io_write_base(ioport_t port, Bit8u value)
 	S_printf("Adlib: Write %hhx to port %x\n", value, port);
     if (port & 1)
       opl3_update();
+    pthread_mutex_lock(&opl_mtx);
     oplops->PortWrite(opl3_impl, port, value);
+    pthread_mutex_unlock(&opl_mtx);
 }
 
 static void adlib_io_write(ioport_t port, Bit8u value, void *arg)
@@ -171,7 +176,9 @@ void adlib_done(void)
 static void adlib_process_samples(int nframes, double cur, double per)
 {
     sndbuf_t buf[OPL3_MAX_BUF][SNDBUF_CHANS];
+    pthread_mutex_lock(&opl_mtx);
     oplops->Generate(nframes, buf, cur, per);
+    pthread_mutex_unlock(&opl_mtx);
     pcm_write_interleaved(buf, nframes, opl3_rate, opl3_format,
 	    ADLIB_CHANNELS, adlib_strm);
 }
