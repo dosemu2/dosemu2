@@ -1115,7 +1115,7 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
   char buf[PATH_MAX];
   struct stat sbuf;
 
-  snprintf(buf, sizeof(buf), "%s/%s", name, entry->d_name);
+  snprintf(buf, sizeof(buf), "%s%s", name, entry->d_name);
 
   if (!find_file(buf, &sbuf, drives[drive].root_len, NULL, drive)) {
     Debug0(("Can't findfile %s\n", buf));
