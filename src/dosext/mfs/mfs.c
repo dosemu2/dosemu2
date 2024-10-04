@@ -1105,7 +1105,7 @@ static void dos83_to_ufs(char *name, const char *mname, const char *mext)
 static int exists(const char *name, const char *filename,
                   struct stat *st, int drive, char *fullname, int out_size)
 {
-  snprintf(fullname, out_size, "%s/%s", name, filename);
+  snprintf(fullname, out_size, "%s%s", name, filename);
   Debug0(("exists() result = %s\n", fullname));
   return find_file(fullname, st, drives[drive].root_len, NULL, drive);
 }
