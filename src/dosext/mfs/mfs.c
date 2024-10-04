@@ -1166,6 +1166,17 @@ static int convert_compare(const char *d_name, char *fname, char *fext,
   return compare(fname, fext, mname, mext);
 }
 
+static struct dir_ent *find_dupe(const char *name, const struct dir_list *list)
+{
+  int i;
+
+  for (i = 0; i < list->nr_entries; i++) {
+    if (strcasecmp(name, list->de[i].d_name) == 0)
+      return &list->de[i];
+  }
+  return NULL;
+}
+
 /* get directory;
    name = UNIX directory name
    mname = DOS (uppercase) name to match (can have wildcards)
@@ -1244,6 +1255,10 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
       Debug0(("get_dir(): `%s' \n", cur_ent->d_name));
       if (!convert_compare(cur_ent->d_name, fname, fext, mname, mext, is_root))
 	continue;
+      if (dir_list && (entry = find_dupe(cur_ent->d_name, dir_list))) {
+        error("mfs: duplicate SFN entry %s %s\n", cur_ent->d_name, entry->d_name);
+        continue;
+      }
       if (dir_list == NULL)
 	dir_list = make_dir_list(20);
       entry = make_entry(dir_list);
