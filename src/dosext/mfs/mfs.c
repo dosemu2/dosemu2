@@ -2520,6 +2520,17 @@ static int path_list_contains(const char *clist, const char *path)
   return found;
 }
 
+static int find_drive_by_idx(int idx)
+{
+  int dd;
+
+  for (dd = 0; dd < num_drives; dd++) {
+    if (drives[dd].root && idx == REDIR_DEVICE_IDX(drives[dd].options))
+      return dd;
+  }
+  return -1;
+}
+
 /*****************************
  * RedirectDisk - redirect a disk to the Linux file system
  * on entry:
@@ -2532,8 +2543,9 @@ static int path_list_contains(const char *clist, const char *path)
 static int RedirectDisk(struct vm86_regs *state, unsigned int drive,
     const char *resourceName)
 {
-  char path[PATH_MAX];
-  int idx;
+  char path[PATH_MAX], *path2;
+  int idx, parent_drv;
+  struct stat st;
   cds_t cds;
   uint16_t user = LO_WORD(state->ecx);
   u_short *userStack = (u_short *)sda_user_stack(sda);
@@ -2606,7 +2618,31 @@ static int RedirectDisk(struct vm86_regs *state, unsigned int drive,
     SETWORD(&state->eax, ACCESS_DENIED);
     return FALSE;
   }
-  init_drive(drive, path, user, DX);
+  parent_drv = find_drive_by_idx(idx + 1);
+  if (parent_drv != -1) {
+    /* emudrv request may contain DOSish parts */
+    if (!find_file(path, &st, drives[parent_drv].root_len, NULL, parent_drv)) {
+      error("MFS: %s unaccessible\n", path);
+      SETWORD(&state->eax, PATH_NOT_FOUND);
+      return FALSE;
+    }
+  } else {
+    /* internal or lredir request should work w/o case-matching tricks */
+    if (stat(path, &st) == -1) {
+      error("MFS: %s unaccessible\n", path);
+      SETWORD(&state->eax, PATH_NOT_FOUND);
+      return FALSE;
+    }
+  }
+  if ((st.st_mode & S_IFMT) != S_IFDIR) {
+    error("MFS: %s is not a directory\n", path);
+    SETWORD(&state->eax, FORMAT_INVALID);
+    return FALSE;
+  }
+  path2 = normalize_path(path);
+  assert(path2);
+  init_drive(drive, path2, user, DX);
+  free(path2);
   drives[drive].saved_cds_flags = cds_flags(cds);
   if (!disabled(drives[drive]))
     SetRedirection(drive, cds);
