@@ -160,22 +160,20 @@ static void set_irq_level(void *opaque, int n, int level)
     pic_set_irq(opaque, n, level);
 }
 
-#if 0
 static void int_raise(void *arg)
 {
     int level = (uintptr_t)arg;
     /* If we are here, guest code already interrupted. So nothing to do. */
     r_printf("int level from thread set to %i\n", level);
 }
-#endif
 
 static void set_int_out(void *opaque, int n, int level)
 {
-//    pthread_t thr = (pthread_t)opaque;
+    pthread_t thr = (pthread_t)opaque;
 
     r_printf("PIC: int out set to %i\n", level);
-//    if (!pthread_equal(thr, pthread_self()))
-//        add_thread_callback(int_raise, (void *)(uintptr_t)level, "pic");
+    if (!pthread_equal(thr, pthread_self()))
+        add_thread_callback(int_raise, (void *)(uintptr_t)level, "pic");
 }
 
 void pic_init(void)
