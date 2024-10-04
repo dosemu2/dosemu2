@@ -263,10 +263,15 @@ static int dos_would_allow(char *fpath, const char *op, int equal);
 static void RemoveRedirection(int drive, cds_t cds);
 static int mfs_statvfs(const char *path, struct statvfs *sb, int drive);
 static int path_list_contains(const char *clist, const char *path);
+static void clear_sfn_bl(void);
 
 static int drives_initialized = FALSE;
 struct file_fd open_files[MAX_OPENED_FILES];
 static int num_drives = 0;
+
+static char **sfn_blacklist;
+static int sfn_bl_size;
+static int num_sfn_bl;
 
 lol_t lol = 0;
 sda_t sda;
@@ -889,6 +894,7 @@ static void mfs_close_all(void)
 void mfs_done(void)
 {
   mfs_close_all();
+  clear_sfn_bl();
   fslib_done();
 }
 
@@ -896,6 +902,7 @@ void mfs_reset(void)
 {
   lfn_reset();
   mfs_close_all();
+  clear_sfn_bl();
 
   emufs_loaded = FALSE;
   mfs_enabled = FALSE;
@@ -1105,7 +1112,7 @@ static void dos83_to_ufs(char *name, const char *mname, const char *mext)
 static int exists(const char *name, const char *filename,
                   struct stat *st, int drive, char *fullname, int out_size)
 {
-  snprintf(fullname, out_size, "%s/%s", name, filename);
+  snprintf(fullname, out_size, "%s%s", name, filename);
   Debug0(("exists() result = %s\n", fullname));
   return find_file(fullname, st, drives[drive].root_len, NULL, drive);
 }
@@ -1115,7 +1122,7 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
   char buf[PATH_MAX];
   struct stat sbuf;
 
-  snprintf(buf, sizeof(buf), "%s/%s", name, entry->d_name);
+  snprintf(buf, sizeof(buf), "%s%s", name, entry->d_name);
 
   if (!find_file(buf, &sbuf, drives[drive].root_len, NULL, drive)) {
     Debug0(("Can't findfile %s\n", buf));
@@ -1164,6 +1171,51 @@ static int convert_compare(const char *d_name, char *fname, char *fext,
   strupperDOS(tmpname);
   extract_filename(tmpname, fname, fext);
   return compare(fname, fext, mname, mext);
+}
+
+static struct dir_ent *find_dupe(const char *name, const struct dir_list *list)
+{
+  int i;
+
+  for (i = 0; i < list->nr_entries; i++) {
+    if (strcasecmp(name, list->de[i].d_name) == 0)
+      return &list->de[i];
+  }
+  return NULL;
+}
+
+static void add_to_sfn_bl(const char *name)
+{
+  if (num_sfn_bl == sfn_bl_size) {
+    sfn_blacklist = realloc(sfn_blacklist, sizeof(char *) * (sfn_bl_size + 20));
+    sfn_bl_size += 20;
+  }
+  sfn_blacklist[num_sfn_bl++] = strdup(name);
+}
+
+static int in_sfn_bl(const char *name)
+{
+  int i;
+
+  for (i = 0; i < num_sfn_bl; i++) {
+    if (strcmp(name, sfn_blacklist[i]) == 0) {
+      error("mfs: skipping dupe %s\n", name);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static void clear_sfn_bl(void)
+{
+  int i;
+
+  for (i = 0; i < num_sfn_bl; i++)
+    free(sfn_blacklist[i]);
+  free(sfn_blacklist);
+  sfn_blacklist = NULL;  // needed for unchecked realloc()
+  num_sfn_bl = 0;
+  sfn_bl_size = 0;
 }
 
 /* get directory;
@@ -1244,6 +1296,13 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
       Debug0(("get_dir(): `%s' \n", cur_ent->d_name));
       if (!convert_compare(cur_ent->d_name, fname, fext, mname, mext, is_root))
 	continue;
+      if (dir_list && (entry = find_dupe(cur_ent->d_name, dir_list))) {
+        char buf[PATH_MAX];
+        snprintf(buf, sizeof(buf), "%s%s", name, cur_ent->d_name);
+        error("mfs: duplicate SFN entry %s %s\n", buf, entry->d_name);
+        add_to_sfn_bl(buf);
+        continue;
+      }
       if (dir_list == NULL)
 	dir_list = make_dir_list(20);
       entry = make_entry(dir_list);
@@ -1859,6 +1918,7 @@ scan_dir(const char *path, char *name, int root_len, int drive)
   /* now scan for matching names */
   while ((cur_ent = dos_readdir(cur_dir))) {
     char tmpname[NAME_MAX + 1];
+    char buf[PATH_MAX];
 
     if (!name_ufs_to_dos(tmpname,cur_ent->d_long_name) && !is_8_3)
       continue;
@@ -1881,6 +1941,9 @@ scan_dir(const char *path, char *name, int root_len, int drive)
       if (!strequalDOS(tmpname, dosname))
 	continue;
     }
+    snprintf(buf, sizeof(buf), "%s/%s", path, cur_ent->d_name);
+    if (in_sfn_bl(buf))
+      continue;
 
     Debug0(("scan_dir found %s\n",cur_ent->d_name));
 
@@ -1928,7 +1991,7 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno,
   }
 
   /* first see if the path exists as is */
-  if (mfs_stat(fpath, st, drive) == 0) {
+  if (!in_sfn_bl(fpath) && mfs_stat(fpath, st, drive) == 0) {
     Debug0(("file exists as is\n"));
     return (TRUE);
   }
@@ -1948,8 +2011,8 @@ int find_file(char *fpath, struct stat * st, int root_len, int *doserrno,
   while (slash1) {
     slash2 = strchr(slash1 + 1, '/');
     if (slash2)
-      *slash2 = 0;
-    if (mfs_stat(fpath, st, drive) == 0) {
+      *slash2 = '\0';
+    if (mfs_stat(fpath, st, drive) == 0 && !in_sfn_bl(fpath)) {
       /* the file exists as is */
       if (st->st_mode & S_IFDIR || !slash2) {
 	if (slash2)
