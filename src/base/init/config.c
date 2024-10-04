@@ -1535,6 +1535,7 @@ config_init(int argc, char **argv)
     /* make-style env vars passing */
     while (optind < argc) {
 	char *p, *p1;
+again:
 	if (strchr(argv[optind], '=') == NULL) {
 	    char *fpath;
 	    if (config.dos_cmd || config.unix_path)
@@ -1556,9 +1557,12 @@ config_init(int argc, char **argv)
 	    }
 	    config.dos_cmd = strdup(p);
 	    free(fpath);
+	    was_exec++;
 	    optind++;
 	    /* collect args */
 	    while (argv[optind]) {
+		if (strchr(argv[optind], '='))
+			goto again;
 		g_printf("DOS command given on command line: %s\n", argv[optind]);
 		config.dos_cmd = realloc(config.dos_cmd,
 			strlen(config.dos_cmd) + strlen(argv[optind]) + 2);
@@ -1566,7 +1570,6 @@ config_init(int argc, char **argv)
 		strcat(config.dos_cmd, argv[optind]);
 		optind++;
 	    }
-	    was_exec++;
 	    break;
 	}
 	g_printf("ENV given on command line: %s\n", argv[optind]);
