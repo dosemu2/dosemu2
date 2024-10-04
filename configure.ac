@@ -521,6 +521,8 @@ for i in $(echo $enable_plugins | tr ',' ' '); do
         fi
     fi
 done
+# remove duplicate entries
+PLUGINSUBDIRS=`echo $PLUGINSUBDIRS | tr ' ' '\n' | sort | uniq | paste -sd " "`
 PLUGINS=`echo $PLUGINSUBDIRS | $SED 's/plugin\//\n\t/g'`
 
 X_PLU=`echo $PLUGINS | $SED 's/ /\n/g' | $EGREP -x 'X'`
