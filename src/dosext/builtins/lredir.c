@@ -459,6 +459,7 @@ static int do_redirect(const char *dStr, char *resourceStr,
 {
     uint16_t ccode, deviceOptions = idx << REDIR_DEVICE_IDX_SHIFT;
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
+    char resourceStr2[MAX_RESOURCE_LENGTH_EXT];
 
     strlcpy(deviceStr, dStr, sizeof(deviceStr));
 
@@ -494,7 +495,15 @@ static int do_redirect(const char *dStr, char *resourceStr,
       return -1;
     }
 
-    com_printf("%s = %s", deviceStr, resourceStr);
+    ccode = FindRedirectionByDevice(deviceStr, resourceStr2,
+                                    sizeof(resourceStr2), &idx, NULL);
+    if (ccode) {
+      com_printf("Error %x (%s) while getting redirection for drive %s\n",
+             ccode, decode_DOS_error(ccode), deviceStr);
+      return -1;
+    }
+
+    com_printf("%s = %s", deviceStr, resourceStr2);
     if (deviceOptions & REDIR_DEVICE_CDROM_MASK)
       com_printf(" CDROM:%d", (deviceOptions & REDIR_DEVICE_CDROM_MASK) >> 1);
     com_printf(" attrib = ");
