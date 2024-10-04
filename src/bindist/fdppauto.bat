@@ -4,6 +4,7 @@ path %DOSEMUDRV%:\dosemu
 if not "%SHELLDRV%" == "" path %PATH%;%SHELLDRV%:\
 if not "%FREEDOSDRV%" == "" path %PATH%;%FREEDOSDRV%:\bin;%FREEDOSDRV%:\gnu
 if not "%USERDRV%" == "" set TEMP=%USERDRV%:\tmp
+if "%USERDRV%" == "" echo Warning: USERDRV not set
 rem first run external plugins. -E commands may depend on them.
 if "%XBATDRV%" == "" goto noxbat
 path %PATH%;%XBATDRV%:\
