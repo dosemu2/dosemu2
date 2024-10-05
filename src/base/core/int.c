@@ -2483,6 +2483,8 @@ static void redirect_drives(void)
           (hdisktab[i].mfs_idx << REDIR_DEVICE_IDX_SHIFT));
       if (ret != CC_SUCCESS) {
         error("INT21: redirecting %c: failed (err = %d)\n", i + 'C', ret);
+        if (config.boot_dos == FATFS_FD_D && ret == 0xf)
+          error("@Unsupported FreeDOS version\n");
         leavedos(8);
       }
       else
