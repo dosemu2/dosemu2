@@ -811,9 +811,6 @@ void do_periodic_stuff(void)
 
     if (video_initialized && Video && Video->change_config)
 	update_xtitle();
-
-    if (Video->handle_events && video_initialized)
-	Video->handle_events();
 }
 
 void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
