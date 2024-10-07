@@ -17,8 +17,6 @@ sudo apt update -q
 sudo apt install -y \
   acl \
   comcom64 \
-  dj64-dbgsym \
-  djdev64-dbgsym \
   nasm \
   python3-cpuinfo \
   python3-pexpect \
@@ -36,6 +34,12 @@ sudo apt install -y \
   bridge-utils \
   libvirt-daemon \
   libvirt-daemon-system
+
+if ! $(grep -q '^Ubuntu 20' /etc/issue) ; then
+  sudo apt install -y \
+    dj64-dbgsym \
+    djdev64-dbgsym
+fi
 
 if [ "${RUNTYPE}" = "packaged" ] ; then
   sudo apt install -y \
