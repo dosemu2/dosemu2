@@ -40,3 +40,4 @@ if [ "${SUBTYPE}" = "asan" ] ; then
 fi
 ./default-configure -d
 make
+sudo make install

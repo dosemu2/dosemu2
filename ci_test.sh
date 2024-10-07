@@ -31,13 +31,15 @@ echo "====================================================="
 # single test example
 # python3 test/test_dos.py FRDOS120TestCase.test_mfs_fcb_rename_wild_1
 
+export TEST_DOSEMU=/usr/local/bin/dosemu
+export TEST_CMDDIR=/usr/local/share/dosemu/commands
 case "${RUNTYPE}" in
   "packaged")
     export NO_FAILFAST=1
     export SKIP_EXPENSIVE=1
     export SKIP_UNCERTAIN=1
     export TEST_DOSEMU=/usr/bin/dosemu
-    export TEST_BINDIR=/usr/share/dosemu/dosemu2-cmds-0.3
+    export TEST_CMDDIR=/usr/share/dosemu/dosemu2-cmds-0.3
     python3 test/test_dos.py PPDOSGITTestCase
     python3 test/test_dos.py MSDOS622TestCase
     python3 test/test_dos.py FRDOS130TestCase

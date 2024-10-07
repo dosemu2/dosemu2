@@ -136,7 +136,7 @@ class BaseTestCase(object):
         if not cls.imagedir.is_dir():
             raise ValueError("Imagedir must be non-existent, a directory or a link to a directory '%s'" % str(cls.imagedir))
 
-        cls.bindir = Path(environ.get("TEST_BINDIR", cls.topdir / "src" / "bindist"))
+        cls.bindir = Path(environ.get("TEST_CMDDIR", cls.topdir / "src" / "bindist"))
         cls.dosemu = Path(environ.get("TEST_DOSEMU", cls.topdir / "bin" / "dosemu"))
 
         cls.version = "BaseTestCase default"
@@ -197,7 +197,7 @@ class BaseTestCase(object):
 
         # Link back to std dosemu commands and scripts
         p = self.workdir / "dosemu"
-        if environ.get("TEST_BINDIR"):
+        if environ.get("TEST_CMDDIR"):
             p.symlink_to(self.bindir / "dosemu")
         else:
             p.symlink_to(self.topdir / "commands" / "dosemu")
