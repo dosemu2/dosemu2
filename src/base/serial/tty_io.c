@@ -64,7 +64,7 @@ static void do_termios(com_t *c)
   speed_t baud;
   long int rounddiv;
 
-  if (c->is_file)
+  if (!isatty(c->fd))
     return;
 
   /* The following is the same as (com[num].dlm * 256) + com[num].dll */
@@ -528,7 +528,7 @@ static void async_serial_run(int fd, void *arg)
 static int ser_open_existing(com_t *c)
 {
   struct stat st;
-  int err, io_sel = 0, oflags = 0;
+  int err, oflags = 0;
 
   err = stat(c->cfg->dev, &st);
   if (err) {
@@ -540,12 +540,10 @@ static int ser_open_existing(com_t *c)
   if (S_ISFIFO(st.st_mode)) {
     s_printf("SER%i: %s is fifo, setting pseudo flag\n", c->num,
 	    c->cfg->dev);
-    c->is_file = TRUE;
     c->cfg->pseudo = TRUE;
     /* force read-only to avoid SIGPIPE */
     c->cfg->ro = TRUE;
     oflags |= O_RDONLY;
-    io_sel = 1;
   } else {
     if (S_ISREG(st.st_mode)) {
       s_printf("SER%i: %s is file, setting pseudo flag\n", c->num,
@@ -562,7 +560,6 @@ static int ser_open_existing(com_t *c)
       }
     } else {
       oflags |= O_RDWR;
-      io_sel = 1;
     }
   }
 
@@ -573,14 +570,7 @@ static int ser_open_existing(com_t *c)
     return -1;
   }
 
-  if (!c->is_file && !isatty(c->fd)) {
-    s_printf("SERIAL: Serial port device %s is not a tty\n",
-      c->cfg->dev);
-    c->is_file = TRUE;
-    c->cfg->pseudo = TRUE;
-  }
-
-  if (!c->is_file) {
+  if (isatty(c->fd)) {
     RPT_SYSCALL(tcgetattr(c->fd, &c->oldset));
 #if 0
     if (c->cfg->low_latency) {
@@ -602,7 +592,7 @@ static int ser_open_existing(com_t *c)
 #endif
     ser_set_params(c);
   }
-  if (io_sel)
+  if (IOSEL(c))
     add_to_io_select(c->fd, async_serial_run, (void *)c);
   return 0;
 }
@@ -794,7 +784,7 @@ static int tty_close(com_t *c)
   /* save current dosemu settings of the file and restore the old settings
    * before closing the file down.
    */
-  if (!c->is_file) {
+  if (isatty(c->fd)) {
     RPT_SYSCALL(tcgetattr(c->fd, &c->newset));
     RPT_SYSCALL(tcsetattr(c->fd, TCSANOW, &c->oldset));
   }
