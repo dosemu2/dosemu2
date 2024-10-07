@@ -553,8 +553,13 @@ static int ser_open_existing(com_t *c)
       c->is_file = TRUE;
       c->cfg->pseudo = TRUE;
       oflags |= O_RDONLY;
-      if (!c->cfg->ro && !c->cfg->wrfile)
+      if (!c->cfg->ro && !c->cfg->wrfile) {
         c->wr_fd = RPT_SYSCALL(open(c->cfg->dev, O_WRONLY | O_APPEND));
+        if (c->wr_fd == -1) {
+          error("SER%i: can't open %s for write: %s\n",
+                c->num, c->cfg->dev, strerror(errno));
+        }
+      }
     } else {
       oflags |= O_RDWR;
       io_sel = 1;
