@@ -2591,8 +2591,7 @@ static int RedirectDisk(struct vm86_regs *state, unsigned int drive,
   if (!REDIR_CLIENT_SIG_OK(DX) || idx > MAX_DRIVE)
     idx = 0;
   if (idx) {
-    idx--;
-    if (!fslib_path_ok(idx, path)) {
+    if (!fslib_path_ok(idx - 1, path)) {
       error("redirection of %s (%i) rejected\n", path, idx);
       SETWORD(&state->eax, PATH_NOT_FOUND);
       return FALSE;
@@ -2618,7 +2617,7 @@ static int RedirectDisk(struct vm86_regs *state, unsigned int drive,
     SETWORD(&state->eax, ACCESS_DENIED);
     return FALSE;
   }
-  parent_drv = find_drive_by_idx(idx + 1);
+  parent_drv = find_drive_by_idx(idx);
   if (parent_drv != -1) {
     /* emudrv request may contain DOSish parts */
     if (!find_file(path, &st, drives[parent_drv].root_len, NULL, parent_drv)) {
@@ -2628,7 +2627,7 @@ static int RedirectDisk(struct vm86_regs *state, unsigned int drive,
     }
   } else {
     /* internal or lredir request should work w/o case-matching tricks */
-    if (stat(path, &st) == -1) {
+    if (mfs_stat_file(idx, path, &st) == -1) {
       error("MFS: %s unaccessible\n", path);
       SETWORD(&state->eax, PATH_NOT_FOUND);
       return FALSE;
