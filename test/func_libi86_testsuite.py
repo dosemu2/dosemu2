@@ -1,5 +1,5 @@
-
 import re
+import os
 
 from os import environ
 from shutil import copy
@@ -52,6 +52,7 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """, dname=self.imagedir, mode="a")
 
+    os.umask(0)
     build = self.imagedir / "libi86-test"
     build.mkdir()
 
