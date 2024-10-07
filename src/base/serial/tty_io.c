@@ -654,6 +654,9 @@ static int tty_open(com_t *c)
 {
   int err;
 
+  if (c->fd >= 0)  // errors use -1, -2
+    return c->fd;
+
   c->is_closed = FALSE;
   c->is_file = FALSE;
   if (c->cfg->exec) {
@@ -690,13 +693,7 @@ static int tty_open(com_t *c)
     add_to_io_select(c->fd, async_serial_run, (void *)c);
     return c->fd;
   }
-  if (c->fd != -1)
-    return -1;
-  s_printf("SER%d: Running ser_open, %s, fd=%d\n", c->num,
-	c->cfg->dev, c->fd);
-
-  if (c->fd != -1)
-    return (c->fd);
+  s_printf("SER%d: Running ser_open %s\n", c->num, c->cfg->dev);
 
   if (c->cfg->virt)
   {
@@ -749,6 +746,7 @@ static int tty_open(com_t *c)
     }
   }
 
+  s_printf("SER%d: port opened, fd=%d\n", c->num, c->fd);
   modstat_engine(c->num);
   return c->fd;
 
@@ -757,6 +755,7 @@ fail_unlock:
     c->dev_locked = FALSE;
 
   c->fd = -2; // disable permanently
+  s_printf("SER%d: port open failed\n", c->num);
   return -1;
 }
 
