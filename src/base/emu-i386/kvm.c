@@ -153,6 +153,9 @@ static struct kvm_run *run;
 static int kvmfd, vmfd, vcpufd;
 static struct kvm_sregs sregs;
 
+static int cmi_offs;
+#define MMIO_RING(r) (struct kvm_coalesced_mmio_ring *)((char *)run + cmi_offs * PAGE_SIZE)
+
 #define MAXSLOT 400
 static struct kvm_userspace_memory_region maps[MAXSLOT];
 
@@ -499,12 +502,19 @@ int init_kvm_cpu(void)
 
 #if defined(KVM_CAP_SYNC_MMU) && defined(KVM_CAP_SET_IDENTITY_MAP_ADDR) && \
   defined(KVM_CAP_SET_TSS_ADDR) && defined(KVM_CAP_XSAVE) && \
-  defined(KVM_CAP_IMMEDIATE_EXIT)
+  defined(KVM_CAP_IMMEDIATE_EXIT) && defined(KVM_CAP_COALESCED_MMIO)
+  /* SYNC_MMU is needed because we map shm behind KVM's back */
   ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SYNC_MMU);
   if (ret <= 0) {
     error("KVM: SYNC_MMU unsupported %x\n", ret);
     goto errcap;
   }
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
+  if (ret <= 0) {
+    error("KVM: COALESCED_MMIO unsupported %x\n", ret);
+    goto errcap;
+  }
+  cmi_offs = ret;
   ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SET_IDENTITY_MAP_ADDR);
   if (ret <= 0) {
     error("KVM: SET_IDENTITY_MAP_ADDR unsupported %x\n", ret);
@@ -747,13 +757,29 @@ static void kvm_set_readonly(dosaddr_t base, dosaddr_t size)
 void kvm_set_mmio(dosaddr_t base, dosaddr_t size, int on)
 {
   struct kvm_userspace_memory_region *p = kvm_get_memory_region(base, size);
+  struct kvm_coalesced_mmio_zone mmz = {};
+  int ret;
+
   assert(p->flags & KVM_MEM_LOG_DIRTY_PAGES);
   if (on == (p->flags == KVM_MEM_LOG_DIRTY_PAGES)) {
     uint64_t region_size = p->memory_size;
     p->flags = KVM_MEM_LOG_DIRTY_PAGES;
+    mmz.addr = p->guest_phys_addr;
+    mmz.size = region_size;
     if (on) {
-      p->memory_size = 0;
+      p->memory_size = 0;  // remove region thus disabling dirty page logging
       p->flags |= KVM_MEM_READONLY;
+      ret = ioctl(vmfd, KVM_REGISTER_COALESCED_MMIO, &mmz);
+      if (ret == -1) {
+        perror("KVM: KVM_REGISTER_COALESCED_MMIO");
+        leavedos_main(99);
+      }
+    } else {
+      ret = ioctl(vmfd, KVM_UNREGISTER_COALESCED_MMIO, &mmz);
+      if (ret == -1) {
+        perror("KVM: KVM_UNREGISTER_COALESCED_MMIO");
+        leavedos_main(99);
+      }
     }
     set_kvm_memory_region(p);
     p->memory_size = region_size;
@@ -1066,6 +1092,23 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
   return 1;
 }
 
+static void process_pending_mmio(void)
+{
+  struct kvm_coalesced_mmio_ring *mr = MMIO_RING(run);
+  while (mr->first != mr->last) {
+    struct kvm_coalesced_mmio *cmi = &mr->coalesced_mmio[mr->first++];
+//    mr->first %= KVM_COALESCED_MMIO_MAX;
+    switch(cmi->len) {
+    case 1: write_byte(cmi->phys_addr, cmi->data[0]); break;
+    case 2: write_word(cmi->phys_addr, *(uint16_t*)cmi->data); break;
+    case 4: write_dword(cmi->phys_addr, *(uint32_t*)cmi->data); break;
+    case 8: write_qword(cmi->phys_addr, *(uint64_t*)cmi->data); break;
+    }
+  }
+  mr->first = 0;
+  mr->last = 0;
+}
+
 /* Inner loop for KVM, runs until HLT or signal */
 static unsigned int kvm_run(void)
 {
@@ -1147,6 +1190,8 @@ static unsigned int kvm_run(void)
       error("KVM: KVM_RUN failed: %s\n", strerror(errn));
       leavedos_main(99);
     }
+
+    process_pending_mmio();
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
