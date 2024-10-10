@@ -1225,17 +1225,15 @@ void cpuemu_update_fpu(void)
 /* set special SIM mode for VGAEMU faults */
 int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt)
 {
+  int cur_vm = config.cpu_vm;
+  int cur_vm_dpmi = config.cpu_vm_dpmi;
+
   instr_emu_sim_reset_count(cnt);
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     kvm_leave(pmode);
-  /* this changes CONFIG_CPUSIM value, so should be before init */
+  config.cpu_vm = CPUVM_EMU;
+  config.cpu_vm_dpmi = CPUVM_EMU;
   CEmuStat |= CeS_INSTREMU;
-#ifdef HOST_ARCH_X86
-  if (!config.cpusim) {
-    InitGen_sim();
-    init_emu_npu();
-  }
-#endif
   cpuemu_enter(pmode);
   if (pmode)
     e_dpmi(scp);
@@ -1243,13 +1241,8 @@ int instr_emu_sim(cpuctx_t *scp, int pmode, int cnt)
     e_vm86();
   cpuemu_leave(pmode);
   CEmuStat &= ~CeS_INSTREMU;
-#ifdef HOST_ARCH_X86
-  /* back to regular JIT */
-  if (!config.cpusim) {
-    InitGen_x86();
-    init_emu_npu();
-  }
-#endif
+//  config.cpu_vm = cur_vm;
+//  config.cpu_vm_dpmi = cur_vm_dpmi;
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     kvm_enter(pmode);
   return True;

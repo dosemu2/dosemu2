@@ -48,7 +48,7 @@
 #endif
 #include "emudpmi.h"
 
-#define USE_INSTREMU 0
+#define USE_INSTREMU 1
 #if USE_INSTREMU
 #define USE_CMMIO 0
 #else
