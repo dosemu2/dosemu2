@@ -1109,6 +1109,46 @@ static void process_pending_mmio(void)
   mr->last = 0;
 }
 
+static void do_mmio(void)
+{
+  dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
+  unsigned char *data = run->mmio.data;
+  if (run->mmio.is_write) {
+    switch(run->mmio.len) {
+    case 1: write_byte(addr, data[0]); break;
+    case 2: write_word(addr, *(uint16_t*)data); break;
+    case 4: write_dword(addr, *(uint32_t*)data); break;
+    case 8: write_qword(addr, *(uint64_t*)data); break;
+    }
+  } else {
+    switch(run->mmio.len) {
+    case 1: data[0] = read_byte(addr); break;
+    case 2: *(uint16_t*)data = read_word(addr); break;
+    case 4: *(uint32_t*)data = read_dword(addr); break;
+    case 8: *(uint64_t*)data = read_qword(addr); break;
+    }
+  }
+}
+
+static void do_exit_mmio(void)
+{
+  int ret;
+
+  /* from the KVM api.txt: "the corresponding operations are complete
+     (and guest state is consistent) only after userspace has re-entered
+     the kernel with KVM_RUN. The kernel side will first finish
+     incomplete operations and then check for pending signals." */
+  kvm_set_immediate_exit(1);
+  do {
+    do_mmio();
+    ret = ioctl(vcpufd, KVM_RUN, NULL);
+    /* read-modify-write instructions give two KVM_EXIT_MMIO
+       exits in a row before the signal exit */
+  } while (ret == 0 && run->exit_reason == KVM_EXIT_MMIO);
+  assert(ret == -1 && errno == EINTR);
+  kvm_set_immediate_exit(0);
+}
+
 /* Inner loop for KVM, runs until HLT or signal */
 static unsigned int kvm_run(void)
 {
@@ -1202,35 +1242,7 @@ static unsigned int kvm_run(void)
       if (memcheck_is_rom(run->mmio.phys_addr))
 	break;
 
-      /* from the KVM api.txt: "the corresponding operations are complete
-	 (and guest state is consistent) only after userspace has re-entered
-	 the kernel with KVM_RUN. The kernel side will first finish
-	 incomplete operations and then check for pending signals." */
-      kvm_set_immediate_exit(1);
-      do {
-	dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
-	unsigned char *data = run->mmio.data;
-	if (run->mmio.is_write) {
-	  switch(run->mmio.len) {
-	  case 1: write_byte(addr, data[0]); break;
-	  case 2: write_word(addr, *(uint16_t*)data); break;
-	  case 4: write_dword(addr, *(uint32_t*)data); break;
-	  case 8: write_qword(addr, *(uint64_t*)data); break;
-	  }
-	} else {
-	  switch(run->mmio.len) {
-	  case 1: data[0] = read_byte(addr); break;
-	  case 2: *(uint16_t*)data = read_word(addr); break;
-	  case 4: *(uint32_t*)data = read_dword(addr); break;
-	  case 8: *(uint64_t*)data = read_qword(addr); break;
-	  }
-	}
-	ret = ioctl(vcpufd, KVM_RUN, NULL);
-	/* read-modify-write instructions give two KVM_EXIT_MMIO
-	   exits in a row before the signal exit */
-      } while (ret == 0 && run->exit_reason == KVM_EXIT_MMIO);
-      assert(ret == -1 && errno == EINTR);
-      kvm_set_immediate_exit(0);
+      do_exit_mmio();
       /* going to emulate some instructions */
       if (!kvm_post_run(regs, &kregs))
 	break;
