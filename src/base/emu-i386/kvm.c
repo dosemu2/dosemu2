@@ -1151,6 +1151,7 @@ static void do_mmio(void)
   }
 }
 
+#if USE_INSTREMU
 static void do_exit_mmio(void)
 {
   int ret;
@@ -1169,6 +1170,7 @@ static void do_exit_mmio(void)
   assert(ret == -1 && errno == EINTR);
   kvm_set_immediate_exit(0);
 }
+#endif
 
 /* Inner loop for KVM, runs until HLT or signal */
 static unsigned int kvm_run(void)
@@ -1267,18 +1269,19 @@ static unsigned int kvm_run(void)
 
       /* with instremu always exit on MMIO */
 #if !USE_INSTREMU
-      if (!isset_VIP()) {
-	do_mmio();
-	/* go to next iteration */
-	break;
-      }
-#endif
+      /* Note: do not exit even for VIP, because in this case the
+       * interrupt window is not open, or we wouldn't be here except
+       * perhaps for the STI hold-off case. */
+      do_mmio();
+      /* go to next iteration */
+#else
       do_exit_mmio();
       /* going to emulate some instructions */
       if (!kvm_post_run(regs, &kregs))
 	break;
       saved_regs = *regs;
       exit_reason = KVM_EXIT_MMIO;
+#endif
       break;
     case KVM_EXIT_IRQ_WINDOW_OPEN:
       run->request_interrupt_window = !run->ready_for_interrupt_injection;
