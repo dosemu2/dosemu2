@@ -1242,6 +1242,11 @@ static unsigned int kvm_run(void)
       if (memcheck_is_rom(run->mmio.phys_addr))
 	break;
 
+      if (!isset_VIP()) {
+	do_mmio();
+	/* go to next iteration */
+	break;
+      }
       do_exit_mmio();
       /* going to emulate some instructions */
       if (!kvm_post_run(regs, &kregs))
