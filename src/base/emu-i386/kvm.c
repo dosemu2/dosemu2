@@ -48,6 +48,13 @@
 #endif
 #include "emudpmi.h"
 
+#define USE_INSTREMU 0
+#if USE_INSTREMU
+#define USE_CMMIO 0
+#else
+#define USE_CMMIO 1
+#endif
+
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
                    X86_EFLAGS_AF|X86_EFLAGS_ZF|X86_EFLAGS_SF| \
                    X86_EFLAGS_TF|X86_EFLAGS_DF|X86_EFLAGS_OF| \
@@ -153,8 +160,10 @@ static struct kvm_run *run;
 static int kvmfd, vmfd, vcpufd;
 static struct kvm_sregs sregs;
 
+#if USE_CMMIO
 static int cmi_offs;
 #define MMIO_RING(r) (struct kvm_coalesced_mmio_ring *)((char *)run + cmi_offs * PAGE_SIZE)
+#endif
 
 #define MAXSLOT 400
 static struct kvm_userspace_memory_region maps[MAXSLOT];
@@ -509,12 +518,14 @@ int init_kvm_cpu(void)
     error("KVM: SYNC_MMU unsupported %x\n", ret);
     goto errcap;
   }
+#if USE_CMMIO
   ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
   if (ret <= 0) {
     error("KVM: COALESCED_MMIO unsupported %x\n", ret);
     goto errcap;
   }
   cmi_offs = ret;
+#endif
   ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SET_IDENTITY_MAP_ADDR);
   if (ret <= 0) {
     error("KVM: SET_IDENTITY_MAP_ADDR unsupported %x\n", ret);
@@ -757,29 +768,37 @@ static void kvm_set_readonly(dosaddr_t base, dosaddr_t size)
 void kvm_set_mmio(dosaddr_t base, dosaddr_t size, int on)
 {
   struct kvm_userspace_memory_region *p = kvm_get_memory_region(base, size);
+#if USE_CMMIO
   struct kvm_coalesced_mmio_zone mmz = {};
   int ret;
+#endif
 
   assert(p->flags & KVM_MEM_LOG_DIRTY_PAGES);
   if (on == (p->flags == KVM_MEM_LOG_DIRTY_PAGES)) {
     uint64_t region_size = p->memory_size;
     p->flags = KVM_MEM_LOG_DIRTY_PAGES;
+#if USE_CMMIO
     mmz.addr = p->guest_phys_addr;
     mmz.size = region_size;
+#endif
     if (on) {
       p->memory_size = 0;  // remove region thus disabling dirty page logging
       p->flags |= KVM_MEM_READONLY;
+#if USE_CMMIO
       ret = ioctl(vmfd, KVM_REGISTER_COALESCED_MMIO, &mmz);
       if (ret == -1) {
         perror("KVM: KVM_REGISTER_COALESCED_MMIO");
         leavedos_main(99);
       }
+#endif
     } else {
+#if USE_CMMIO
       ret = ioctl(vmfd, KVM_UNREGISTER_COALESCED_MMIO, &mmz);
       if (ret == -1) {
         perror("KVM: KVM_UNREGISTER_COALESCED_MMIO");
         leavedos_main(99);
       }
+#endif
     }
     set_kvm_memory_region(p);
     p->memory_size = region_size;
@@ -1092,6 +1111,7 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
   return 1;
 }
 
+#if USE_CMMIO
 static void process_pending_mmio(void)
 {
   struct kvm_coalesced_mmio_ring *mr = MMIO_RING(run);
@@ -1108,6 +1128,7 @@ static void process_pending_mmio(void)
   mr->first = 0;
   mr->last = 0;
 }
+#endif
 
 static void do_mmio(void)
 {
@@ -1231,7 +1252,9 @@ static unsigned int kvm_run(void)
       leavedos_main(99);
     }
 
+#if USE_CMMIO
     process_pending_mmio();
+#endif
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
@@ -1242,11 +1265,14 @@ static unsigned int kvm_run(void)
       if (memcheck_is_rom(run->mmio.phys_addr))
 	break;
 
+      /* with instremu always exit on MMIO */
+#if !USE_INSTREMU
       if (!isset_VIP()) {
 	do_mmio();
 	/* go to next iteration */
 	break;
       }
+#endif
       do_exit_mmio();
       /* going to emulate some instructions */
       if (!kvm_post_run(regs, &kregs))
@@ -1354,7 +1380,7 @@ int kvm_vm86(struct vm86_struct *info)
   } else if (exit_reason == KVM_EXIT_MMIO) {
     /* disable instr_emu for now, as coalesced_mmio is slightly faster
      * than sim. However JIT is much faster than those. */
-#if 0
+#if USE_INSTREMU
     dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
     if (vga.inst_emu && vga_access(addr, addr))
       instr_emu_sim(NULL, 0, VGA_EMU_INST_EMU_COUNT);
