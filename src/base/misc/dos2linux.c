@@ -648,6 +648,7 @@ void do_write_byte(dosaddr_t addr, uint8_t byte, sim_pagefault_handler_t handler
   void *uaddr = unprotected_dosaddr_to_unixaddr(addr, 1);
   if (!uaddr) {
     if (vga_write_access(addr)) {
+
       vga_write(addr, byte);
       return;
     }
