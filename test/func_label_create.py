@@ -13,10 +13,12 @@ def label_create(self, fstype, itype):
     postop = ''
     fat = '12'
     if itype is None or itype == 'bpb12':
-        pass
+        name = 'sentin'
     elif itype == 'bpb16':
+        name = 'sentinel12'
         fat = '16'
     elif itype == 'bpb32':
+        name = 'sentinel123'
         fat = '32'
     elif itype == 'prefile':
         preop += 'echo a >> %s' % name
@@ -74,10 +76,20 @@ struct {
   */
 } __attribute__((packed)) xfcb;
 
+struct {
+  uint16_t level;       // info level
+  uint32_t serial;      // serial number (binary)
+  uint8_t  label[11];   // volume label or "NO NAME    " if none present
+  uint8_t  fstype[8];   // (AL=00h only) filesystem type
+} __attribute__((packed)) dinfo;
+
 
 int main(int argc, char *argv[])
 {
   union REGS r = {};
+  struct SREGS rs;
+  char tlabel[12];
+  char tfstype[9];
 
   xfcb.sig = 0xff;
   xfcb.attr = _A_VOLID;
@@ -90,8 +102,8 @@ int main(int argc, char *argv[])
   intdos(&r, &r);
   /* don't check result, there might not be anything to delete */
 
-  memcpy(xfcb.x._fcb_name, "%s", 8);            // create
-  memcpy(xfcb.x._fcb_ext, "   ", 3);
+  memcpy(xfcb.x._fcb_name, "%-8s", 8);          // create
+  memcpy(xfcb.x._fcb_ext, "%-3s", 3);
   r.x.ax = 0x1600;
   r.x.dx = FP_OFF(&xfcb);
   intdos(&r, &r);
@@ -108,11 +120,29 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  memset(&dinfo, 0, sizeof(dinfo));             // get serial number
+  r.x.ax = 0x6900;  /* get */
+  r.x.bx = 0x0000;  /* level, default drive */
+  rs.ds = FP_SEG(&dinfo);
+  r.x.dx = FP_OFF(&dinfo);
+  intdosx(&r, &r, &rs);
+  if (r.x.cflag == 1) {
+    printf("FAIL: On get serial number (AX=0x%%04x)\n", r.x.ax);
+    return 1;
+  }
+  memcpy(tlabel, dinfo.label, 11);
+  tlabel[11] = '\0';
+  memcpy(tfstype, dinfo.fstype, 8);
+  tfstype[8] = '\0';
+
+  printf("INFO: '%%d', '%%lX', '%%s', '%%s'\n",
+      dinfo.level, dinfo.serial, tlabel, tfstype);
+
   printf("PASS: Operation success\n");
   return 0;
 }
 
-""" % name)
+""" % (name[:8], name[8:]))
 
     results = self.runDosemu("testit.bat", config=config)
 
@@ -153,6 +183,10 @@ int main(int argc, char *argv[])
             self.assertEqual(data[v1:v2], bytes(name.upper(), encoding='ascii'))
         else:
             self.fail("No BPB signature found")
+
+        # Check that int21/69 returns the correct label
+        self.assertRegex(results.upper(),
+            r"INFO: '0', '[0-9A-F]+', '%-11s', 'FAT[0-9]+\s*'" % name.upper())
 
 
 def label_create_noduplicate(self, fstype):
