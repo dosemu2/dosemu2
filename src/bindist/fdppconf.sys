@@ -18,3 +18,4 @@ devicehigh=dosemu\cdrom.sys
 set SHELL_ALLOW_EXIT=1
 shellhigh=#2 /M2
 CHAIN=@%0\userhook.sys
+CHAIN=@confhook.sys
