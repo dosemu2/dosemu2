@@ -108,7 +108,12 @@ if test -z "$XAS"; then
         XASFLAGS="--32"
       fi
     else
-      AC_MSG_ERROR([cross-assembler not found, please install binutils-i686-linux-gnu])
+      AC_PATH_PROG([XAS], [clang])
+      if test -n "$XAS"; then
+        XASFLAGS="$ASFLAGS --target=i686-linux-gnu"
+      else
+        AC_MSG_ERROR([386 assembler not found, please install clang or binutils-i686-linux-gnu])
+      fi
     fi
   else
     XASFLAGS="--32"
@@ -119,6 +124,8 @@ AC_PATH_PROGS([LD], [ld ld.lld])
 if test -z "$LD"; then
   AC_MSG_ERROR(ld not found)
 fi
+
+#only ld.lld understand elf_i386 on arm
 AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld i386-elf-ld x86_64-linux-gnu-ld ld.lld ld])
 if test -z "$AS_LD"; then
   AS_LD="$LD"
@@ -138,7 +145,8 @@ if test -z "$OBJCOPY"; then
   OBJCOPY="$LOBJCOPY"
 fi
 
-AC_PATH_PROGS([XOBJCOPY], [i686-linux-gnu-objcopy x86_64-linux-gnu-objcopy objcopy])
+# arm llvm-objcopy understand 386 headers
+AC_PATH_PROGS([XOBJCOPY], [i686-linux-gnu-objcopy x86_64-linux-gnu-objcopy llvm-objcopy objcopy])
 if test -z "$XOBJCOPY"; then
   XOBJCOPY="$OBJCOPY"
 fi
