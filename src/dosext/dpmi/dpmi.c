@@ -5130,7 +5130,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  D_printf("DPMI: Return from int23 callback, in_dpmi_pm_stack=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack);
 
-	  pm_to_rm_regs(scp, eflags_INDEX);
+	  pm_to_rm_regs(scp, 1 << eflags_INDEX);
 	  restore_pm_regs(&old_ctx);
 	  curscp = scp;
 	  scp = &old_ctx;
@@ -5168,7 +5168,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  D_printf("DPMI: Return from int24 callback, in_dpmi_pm_stack=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack);
 
-	  pm_to_rm_regs(scp, (1 << eax_INDEX));
+	  pm_to_rm_regs(scp, 1 << eax_INDEX);
 	  restore_pm_regs(scp);
 	  dpmi_set_pm(0);
 
