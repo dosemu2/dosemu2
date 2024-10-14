@@ -38,6 +38,9 @@
 #ifdef HAVE_SYS_IO_H
 #include <sys/io.h>
 #endif
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 #include "emu.h"
 #include "priv.h"
 #include "dosemu_config.h"
@@ -285,6 +288,13 @@ void priv_drop_total(void)
     }
     sgid++;
   }
+
+#ifdef __linux__
+  if (!can_do_root_stuff) {
+    prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY);
+    prctl(PR_SET_DUMPABLE, 1);
+  }
+#endif
 }
 
 int running_suid_orig(void)
@@ -389,6 +399,13 @@ void priv_init(void)
     skip_priv_setting = 1;
 
   if (!skip_priv_setting) _priv_off();
+
+#ifdef __linux__
+  if (!can_do_root_stuff) {
+    prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY);
+    prctl(PR_SET_DUMPABLE, 1);
+  }
+#endif
 }
 
 #ifdef SDL_SUPPORT
