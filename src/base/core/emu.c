@@ -558,6 +558,11 @@ static void __leavedos_main(int code, int sig)
 
 void __leavedos_main_wrp(int code, int sig, const char *s, int num)
 {
+    if (in_leavedos) {
+     error("leavedos_main() called recursively, forgetting the graceful exit!\n");
+     _exit(1);
+    }
+    in_leavedos++;
     dbug_printf("leavedos_main(%s:%i|%i) called - shutting down\n", s, num, sig);
     __leavedos_main(code, sig);
 }
