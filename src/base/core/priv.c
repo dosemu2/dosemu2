@@ -429,3 +429,12 @@ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid)
   return -1;
 }
 #endif
+
+#if defined(USE_ASAN) && !defined(__SANITIZE_LEAK__)
+int __lsan_is_turned_off(void);
+int __lsan_is_turned_off(void)
+{
+    /* lsan can't get its options from /proc/self/environ??? */
+    return (suid || sgid);
+}
+#endif
