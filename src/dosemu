@@ -200,10 +200,14 @@ if [ "`id -ur`" -eq 0 ]; then
 fi
 
 # for address sanitizer
-export ASAN_OPTIONS='handle_segv=0:abort_on_error=1:detect_leaks=0'
-export LSAN_OPTIONS='report_objects=1:fast_unwind_on_malloc=0:exitcode=0'
-export TSAN_OPTIONS='second_deadlock_stack=1'
-export UBSAN_OPTIONS='print_stacktrace=1'
+[ -z "$ASAN_OPTIONS" ] || ASAN_OPTIONS="$ASAN_OPTIONS:"
+export ASAN_OPTIONS="${ASAN_OPTIONS}handle_segv=0:abort_on_error=1:detect_leaks=0"
+[ -z "$LSAN_OPTIONS" ] || LSAN_OPTIONS="$LSAN_OPTIONS:"
+export LSAN_OPTIONS="${LSAN_OPTIONS}report_objects=1:fast_unwind_on_malloc=0:exitcode=0"
+[ -z "$TSAN_OPTIONS" ] || TSAN_OPTIONS="$TSAN_OPTIONS:"
+export TSAN_OPTIONS="${TSAN_OPTIONS}second_deadlock_stack=1"
+[ -z "$UBSAN_OPTIONS" ] || UBSAN_OPTIONS="$UBSAN_OPTIONS:"
+export UBSAN_OPTIONS="${UBSAN_OPTIONS}print_stacktrace=1"
 
 # this is needed to show dosemu icon
 export SDL_VIDEO_X11_WMCLASS=dosemu
