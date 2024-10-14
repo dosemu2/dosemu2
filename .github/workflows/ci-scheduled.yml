@@ -8,27 +8,26 @@ jobs:
   asan:
     name: ASAN
     if: (github.repository_owner == 'dosemu2')
-
     uses: ./.github/workflows/ci-build.yml
     with:
       jobtype: 'schedule'
       subtype: 'asan'
       runtype: 'simple'
+      FAILURE_SUFFIX: 'asan'
 
   full:
     name: Full
     if: (github.repository_owner == 'dosemu2')
-
     uses: ./.github/workflows/ci-build.yml
     with:
       jobtype: 'schedule'
       subtype: ''
       runtype: 'full'
+      FAILURE_SUFFIX: 'full'
 
   packaged:
     name: Packaged
     if: (github.repository_owner == 'dosemu2')
-
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04]
@@ -64,5 +63,5 @@ jobs:
       if: ${{ always() && (steps.test.outcome == 'failure') }}
       uses: actions/upload-artifact@v4
       with:
-        name: failure-logs
+        name: failure-logs-packaged-${{ matrix.os }}
         path: test_*

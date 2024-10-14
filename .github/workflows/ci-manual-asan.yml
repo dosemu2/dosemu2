@@ -10,3 +10,4 @@ jobs:
       jobtype: 'manual'
       subtype: 'asan'
       runtype: 'simple'
+      FAILURE_SUFFIX: 'manual-asan'
