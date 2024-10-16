@@ -11,6 +11,9 @@ on:
       runtype:
         required: true
         type: string
+      FAILURE_SUFFIX:
+        required: true
+        type: string
 
 jobs:
   build:
@@ -62,5 +65,5 @@ jobs:
       if: ${{ always() && (steps.test.outcome == 'failure') }}
       uses: actions/upload-artifact@v4
       with:
-        name: failure-logs
+        name: failure-logs-${{ inputs.FAILURE_SUFFIX }}
         path: test_*

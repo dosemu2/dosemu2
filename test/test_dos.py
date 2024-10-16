@@ -5065,13 +5065,13 @@ class DRDOS701TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / self.autoexec).read_text()
+        contents = (self.cmddir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / self.confsys).read_text()
+        contents = (self.cmddir / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
@@ -5160,13 +5160,13 @@ class FRDOS120TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / self.autoexec).read_text()
+        contents = (self.cmddir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / "c" / self.confsys).read_text()
+        contents = (self.cmddir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
@@ -5234,13 +5234,13 @@ class FRDOS130TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / self.autoexec).read_text()
+        contents = (self.cmddir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / "c" / self.confsys).read_text()
+        contents = (self.cmddir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
@@ -5304,13 +5304,13 @@ class FRDOSGITTestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / self.autoexec).read_text()
+        contents = (self.cmddir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / "c" / self.confsys).read_text()
+        contents = (self.cmddir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
@@ -5356,13 +5356,13 @@ class MSDOS622TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / self.autoexec).read_text()
+        contents = (self.cmddir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / "c" / self.confsys).read_text()
+        contents = (self.cmddir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
@@ -5407,13 +5407,13 @@ class MSDOS700TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / self.autoexec).read_text()
+        contents = (self.cmddir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / "c" / self.confsys).read_text()
+        contents = (self.cmddir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")
@@ -5460,13 +5460,13 @@ class MSDOS710TestCase(OurTestCase, unittest.TestCase):
 
     def setUpDosAutoexec(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / self.autoexec).read_text()
+        contents = (self.cmddir / self.autoexec).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         self.mkfile(self.autoexec, contents, newline="\r\n")
 
     def setUpDosConfig(self):
         # Use the (almost) standard shipped config
-        contents = (self.bindir / "c" / self.confsys).read_text()
+        contents = (self.cmddir / "c" / self.confsys).read_text()
         contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
         contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
         self.mkfile(self.confsys, contents, newline="\r\n")

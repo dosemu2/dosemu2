@@ -20,6 +20,7 @@ jobs:
       jobtype: 'triggered'
       subtype: ''
       runtype: 'normal'
+      FAILURE_SUFFIX: 'triggered-normal'
 
   asan:
     name: ASAN
@@ -32,6 +33,7 @@ jobs:
       jobtype: 'triggered'
       subtype: 'asan'
       runtype: 'simple'
+      FAILURE_SUFFIX: 'triggered-asan'
 
   full:
     name: Full
@@ -44,3 +46,4 @@ jobs:
       jobtype: 'triggered'
       subtype: ''
       runtype: 'full'
+      FAILURE_SUFFIX: 'triggered-full'

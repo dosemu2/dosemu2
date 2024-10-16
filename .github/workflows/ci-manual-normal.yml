@@ -10,3 +10,4 @@ jobs:
       jobtype: 'manual'
       subtype: ''
       runtype: 'normal'
+      FAILURE_SUFFIX: 'manual-normal'

@@ -136,7 +136,7 @@ class BaseTestCase(object):
         if not cls.imagedir.is_dir():
             raise ValueError("Imagedir must be non-existent, a directory or a link to a directory '%s'" % str(cls.imagedir))
 
-        cls.bindir = Path(environ.get("TEST_CMDDIR", cls.topdir / "src" / "bindist"))
+        cls.cmddir = Path(environ.get("TEST_CMDDIR", cls.topdir / "src" / "bindist"))
         cls.dosemu = Path(environ.get("TEST_DOSEMU", cls.topdir / "bin" / "dosemu"))
 
         cls.version = "BaseTestCase default"
@@ -198,7 +198,7 @@ class BaseTestCase(object):
         # Link back to std dosemu commands and scripts
         p = self.workdir / "dosemu"
         if environ.get("TEST_CMDDIR"):
-            p.symlink_to(self.bindir / "dosemu")
+            p.symlink_to(self.cmddir / "dosemu")
         else:
             p.symlink_to(self.topdir / "commands" / "dosemu")
 
@@ -212,11 +212,11 @@ class BaseTestCase(object):
 
     def setUpDosAutoexec(self):
         # Use the standard shipped autoexec
-        copy(self.bindir / self.autoexec, self.workdir)
+        copy(self.cmddir / self.autoexec, self.workdir)
 
     def setUpDosConfig(self):
         # Use the standard shipped config
-        copy(self.bindir / self.confsys, self.workdir)
+        copy(self.cmddir / self.confsys, self.workdir)
 
     def setUpDosVersion(self):
         # FreeCom / Comcom32 compatible
