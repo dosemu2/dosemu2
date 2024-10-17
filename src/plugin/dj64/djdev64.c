@@ -33,7 +33,7 @@
 #include "dos.h"
 #include "dpmiops.h"
 
-#if DJ64_API_VER != 10
+#if DJ64_API_VER != 11
 #error wrong djdev64 version
 #endif
 
@@ -302,8 +302,8 @@ static void stub_thr(void *arg)
         envp[i] = SEL_ADR(_ds, envpp[i]);
     envp[i] = NULL;
 
-    err = djstub_main(argc, argv, envp, _eax, &regs, addr2ptr, &dosops,
-            &dpmiops, dj64_print);
+    err = djstub_main(argc, argv, envp, _eax & 0xffff, _edi, _eax >> 16,
+            &regs, addr2ptr, &dosops, &dpmiops, dj64_print);
     if (err) {
         _eax = err;
         error("djstub: load failed\n");
