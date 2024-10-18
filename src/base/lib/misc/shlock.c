@@ -127,7 +127,7 @@ void *shlock_open(const char *dir, const char *name, int excl, int block)
   /* create tmp file in tmp dir */
   tmp_fd = mkstemp(ttspec);
   if (tmp_fd == -1) {
-    perror("mkstemp()");
+    perror("shlock mkstemp()");
     rmdir(dtspec);
     goto err_free_d;
   }

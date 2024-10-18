@@ -107,10 +107,12 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
 
 static int do_open_file(void)
 {
-  char tmp[] = "/tmp/dosemu2_mapfile_XXXXXX";
+	char *tmp = getenv("TMPDIR");
+  char tmpf[256];
+  sprintf(tmpf, "%s/dosemu2_mapfile_XXXXXX", tmp?tmp:"/tmp");
   int fd = mkstemp(tmp);
   if (fd == -1) {
-    perror("mkstemp()");
+    perror("mapfile mkstemp()");
     return -1;
   }
   unlink(tmp);
