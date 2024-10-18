@@ -33,7 +33,7 @@
 #include "dos.h"
 #include "dpmiops.h"
 
-#if DJ64_API_VER != 11
+#if DJ64_API_VER != 12
 #error wrong djdev64 version
 #endif
 
@@ -41,6 +41,7 @@ static unsigned ctrl_off;
 #define HNDL_MAX 5
 static struct dos_helper_s call_hlp[HNDL_MAX];
 static struct dos_helper_s stub_hlp;
+static struct dos_helper_s exec_hlp;
 #define MAX_CLNUP_TIDS 5
 static int clnup_tids[HNDL_MAX][MAX_CLNUP_TIDS];
 static int num_clnup_tids[HNDL_MAX];
@@ -335,12 +336,48 @@ static unsigned stub_entry(void)
     return stub_hlp.entry;
 }
 
+static void exec_thr(void *arg)
+{
+    cpuctx_t *scp = arg;
+    char *path = coopth_get_udata_cur();
+    struct udata ud = { scp, _eax };
+    cpuctx_t old_scp = *scp;
+    unsigned flags = 0;
+    int argc = _ecx;
+    unsigned *argp = SEL_ADR(_ds, _edx);
+    char **argv = alloca((argc + 1) * sizeof(char *));
+    int i, rc;
+
+#if USE_ASAN
+    flags |= DJ64F_DLMOPEN;
+#endif
+    for (i = 0; i < argc; i++)
+        argv[i] = SEL_ADR(_ds, argp[i]);
+    argv[i] = NULL;
+    coopth_push_user_data_cur(&ud);
+    J_printf("DJ64: exec %s\n", path);
+    rc = djdev64_exec(path, flags, argc, argv);
+    J_printf("DJ64: exec returned %i\n", rc);
+    free(path);
+    *scp = old_scp;
+    _eax = rc;
+}
+
+static unsigned exec_entry(char *path)
+{
+    if (!exec_hlp.tid)
+        doshlp_setup(&exec_hlp, "dj64 exec", exec_thr, do_retf);
+    coopth_set_udata(exec_hlp.tid, path);
+    return exec_hlp.entry;
+}
+
 static const struct djdev64_ops ops = {
     .open = do_open,
     .close = do_close,
     .call = call_entry,
     .ctrl = ctrl_entry,
     .stub = stub_entry,
+    .exec = exec_entry,
 };
 
 static void call_thr(void *arg)

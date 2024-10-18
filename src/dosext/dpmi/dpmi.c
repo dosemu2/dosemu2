@@ -3723,6 +3723,35 @@ static void dpmi_dj64_close(cpuctx_t *scp)
   _eflags &= ~CF;
 }
 
+static void dpmi_dj64_exec(cpuctx_t *scp)
+{
+  int handle = (_LWORD(esi) << 16) | _LWORD(edi);
+  const char *mp = "/dev/shm";
+  void *sp = SEL_ADR(_ss, _esp);
+  char *path;
+  dpmi_pm_block *ptr;
+  dosaddr_t entry;
+
+  _eflags |= CF;
+  if (!djdev64)
+    return;
+  ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
+  if (!ptr || !ptr->shmname) {
+    error("DJ64: invalid handle\n");
+    return;
+  }
+  if (ptr->shm_dir)
+    mp = ptr->shm_dir;
+  path = assemble_path(mp, ptr->rshmname + 1);
+  entry = djdev64->exec(path);
+  /* path freed after exec */
+  _eflags &= ~CF;
+
+  make_retf_frame(scp, sp, _cs, _eip);
+  _cs = dpmi_sel();
+  _eip = entry;
+}
+
 #endif
 
 static void dpmi_cleanup(void)
@@ -5259,6 +5288,12 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
           case 1:
             D_printf("DPMI: djdev64_close()\n");
             dpmi_dj64_close(scp);
+            break;
+          case 2:
+            dpmi_dj64_exec(scp);
+            break;
+          case 3:
+            _eax = 2;  // version
             break;
           default:
             error("dj64: unknown cmd %x\n", _eax);
