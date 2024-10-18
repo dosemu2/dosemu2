@@ -12,12 +12,13 @@ from subprocess import call, CalledProcessError, run
 from sys import argv
 from time import mktime
 
-from common_framework import (BaseTestCase, main, main_setup, mkstring,
+from common_framework import (BaseTestCase, main, main_setup, mark, mkstring,
                               IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
 from common_os import (drdos701, frdos120, frdos130, frdosgit, msdos622,
                        msdos700, msdos710, ppdosgit)
 
+from func_bpb_set import bpb_set
 from func_comcom_r200fix import comcom_r200fix
 from func_command_com_cmdline_length import command_com_cmdline_length
 from func_ds2_file_seek_tell import ds2_file_seek_tell
@@ -506,6 +507,51 @@ fspath:
     def test_lfn_fat_support_off(self):
         """LFN FAT Support Off"""
         self._test_lfn_support("FAT", "off")
+
+    @mark('labeltest')
+    def test_fat_bpb_set_fstype_dinfo(self):
+        """FAT BPB store fstype drive info"""
+        bpb_set(self, 'fstype', 'dinfo')
+
+    @mark('labeltest')
+    def test_fat_bpb_set_fstype_ioctl16(self):
+        """FAT BPB store fstype ioctl16"""
+        bpb_set(self, 'fstype', 'ioctl')
+
+    @mark('labeltest')
+    def test_fat_bpb_set_fstype_ioctl32(self):
+        """FAT BPB store fstype ioctl32"""
+        bpb_set(self, 'fstype', 'ioctl', 32)
+
+    @mark('labeltest')
+    def test_fat_bpb_set_serial_dinfo(self):
+        """FAT BPB store serial drive info"""
+        bpb_set(self, 'serial', 'dinfo')
+
+    @mark('labeltest')
+    def test_fat_bpb_set_serial_ioctl16(self):
+        """FAT BPB store serial ioctl16"""
+        bpb_set(self, 'serial', 'ioctl')
+
+    @mark('labeltest')
+    def test_fat_bpb_set_serial_ioctl32(self):
+        """FAT BPB store serial ioctl32"""
+        bpb_set(self, 'serial', 'ioctl', 32)
+
+    @mark('labeltest')
+    def test_fat_bpb_set_volume_dinfo(self):
+        """FAT BPB store volume drive info"""
+        bpb_set(self, 'volume', 'dinfo')
+
+    @mark('labeltest')
+    def test_fat_bpb_set_volume_ioctl16(self):
+        """FAT BPB store volume ioctl16"""
+        bpb_set(self, 'volume', 'ioctl')
+
+    @mark('labeltest')
+    def test_fat_bpb_set_volume_ioctl32(self):
+        """FAT BPB store volume ioctl32"""
+        bpb_set(self, 'volume', 'ioctl', 32)
 
     def _test_fcb_read(self, fstype):
         testdir = self.mkworkdir('d')
@@ -4925,6 +4971,9 @@ DRDOS701TestCase = drdos701(OurTestCase, {
     "test_mfs_truename_ufs_sfn": KNOWNFAIL,
     "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
     "test_fat32_img_d_writable": UNSUPPORTED,
+    "test_fat_bpb_set_fstype_ioctl32": UNSUPPORTED,
+    "test_fat_bpb_set_serial_ioctl32": UNSUPPORTED,
+    "test_fat_bpb_set_volume_ioctl32": UNSUPPORTED,
     "test_lfn_volume_info_fat16": KNOWNFAIL,
     "test_lfn_volume_info_fat32": UNSUPPORTED,
     "test_lfn_volume_info_mfs": KNOWNFAIL,
@@ -4951,6 +5000,15 @@ FRDOS120TestCase = frdos120(OurTestCase, {
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_drv_removable": KNOWNFAIL,
+    "test_fat_bpb_set_fstype_dinfo": KNOWNFAIL,
+    "test_fat_bpb_set_fstype_ioctl16": KNOWNFAIL,
+    "test_fat_bpb_set_fstype_ioctl32": KNOWNFAIL,
+    "test_fat_bpb_set_serial_dinfo": KNOWNFAIL,
+    "test_fat_bpb_set_serial_ioctl16": KNOWNFAIL,
+    "test_fat_bpb_set_serial_ioctl32": KNOWNFAIL,
+    "test_fat_bpb_set_volume_dinfo": KNOWNFAIL,
+    "test_fat_bpb_set_volume_ioctl16": KNOWNFAIL,
+    "test_fat_bpb_set_volume_ioctl32": KNOWNFAIL,
     "test_fat_fcb_rename_target_exists": KNOWNFAIL,
     "test_fat_fcb_rename_source_missing": KNOWNFAIL,
     "test_fat_fcb_rename_wild_1": KNOWNFAIL,
@@ -5015,8 +5073,17 @@ FRDOS130TestCase = frdos130(OurTestCase, {
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_command_com_keyword_exist": KNOWNFAIL,
-    "test_drv_removable": KNOWNFAIL,
     "test_create_new_psp": KNOWNFAIL,
+    "test_drv_removable": KNOWNFAIL,
+    "test_fat_bpb_set_fstype_dinfo": KNOWNFAIL,
+    "test_fat_bpb_set_fstype_ioctl16": KNOWNFAIL,
+    "test_fat_bpb_set_fstype_ioctl32": KNOWNFAIL,
+    "test_fat_bpb_set_serial_dinfo": KNOWNFAIL,
+    "test_fat_bpb_set_serial_ioctl16": KNOWNFAIL,
+    "test_fat_bpb_set_serial_ioctl32": KNOWNFAIL,
+    "test_fat_bpb_set_volume_dinfo": KNOWNFAIL,
+    "test_fat_bpb_set_volume_ioctl16": KNOWNFAIL,
+    "test_fat_bpb_set_volume_ioctl32": KNOWNFAIL,
     "test_fat_ds3_lock_readlckd": KNOWNFAIL,
     "test_fat_ds3_lock_two_handles": KNOWNFAIL,
     "test_fat_ds3_lock_writable": KNOWNFAIL,
@@ -5058,6 +5125,9 @@ FRDOSGITTestCase = frdosgit(OurTestCase, {
     "test_comcom_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
+    "test_fat_bpb_set_fstype_dinfo": KNOWNFAIL,
+    "test_fat_bpb_set_fstype_ioctl16": KNOWNFAIL,
+    "test_fat_bpb_set_fstype_ioctl32": KNOWNFAIL,
     "test_fat_ds3_lock_concurrent": KNOWNFAIL,
     "test_fat_ds3_lock_readlckd": KNOWNFAIL,
     "test_fat_ds3_lock_two_handles": KNOWNFAIL,
@@ -5088,6 +5158,9 @@ MSDOS622TestCase = msdos622(OurTestCase, {
     "test_command_com_cmdline_length_new_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos02": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
+    "test_fat_bpb_set_fstype_ioctl32": UNSUPPORTED,
+    "test_fat_bpb_set_serial_ioctl32": UNSUPPORTED,
+    "test_fat_bpb_set_volume_ioctl32": UNSUPPORTED,
     "test_lfn_volume_info_fat16": KNOWNFAIL,
     "test_lfn_volume_info_fat32": UNSUPPORTED,
     "test_lfs_disk_info_fat32": UNSUPPORTED,
@@ -5123,6 +5196,12 @@ PPDOSGITTestCase = ppdosgit(OurTestCase, {
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_drv_removable": KNOWNFAIL,
+    "test_fat_bpb_set_fstype_dinfo": UNSUPPORTED,
+    "test_fat_bpb_set_fstype_ioctl16": UNSUPPORTED,
+    "test_fat_bpb_set_fstype_ioctl32": UNSUPPORTED,
+    "test_fat_bpb_set_volume_dinfo": UNSUPPORTED,
+    "test_fat_bpb_set_volume_ioctl16": UNSUPPORTED,
+    "test_fat_bpb_set_volume_ioctl32": UNSUPPORTED,
     "test_floppy_img": UNSUPPORTED,
     "test_floppy_vfs": UNSUPPORTED,
 })
