@@ -1293,8 +1293,21 @@ static void do_slang_pending(void)
 	}
 	/* do_slang_getkeys() throttles pasting. So we call it here in
 	 * addition to the SIGIO handler. */
-	if (keyb_state.kbcount)
+	if (keyb_state.kbcount) {
+		/* we are here from a SIGALRM handler, so need extra check */
+		fd_set fds;
+		struct timeval tv = { 0, 0 };
+		int selrt;
+
+		FD_ZERO(&fds);
+		FD_SET(keyb_state.kbd_fd, &fds);
+		selrt = select(keyb_state.kbd_fd + 1, &fds, NULL, NULL, &tv);
+		 if (selrt <= 0)
+			return;
+		if (!FD_ISSET(keyb_state.kbd_fd, &fds))
+			return;
 		_do_slang_getkeys();
+	}
 }
 
 static void do_sync_shiftstate(void)
