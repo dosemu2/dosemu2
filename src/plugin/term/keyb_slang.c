@@ -523,6 +523,7 @@ static const unsigned char *define_key_keys = 0;
 static int define_key_keys_length =0;
 
 static void _do_slang_getkeys(void);
+static void process_slang_keys(void);
 
 static int define_getkey_callback(void)
 {
@@ -1302,10 +1303,10 @@ static void do_slang_pending(void)
 		FD_ZERO(&fds);
 		FD_SET(keyb_state.kbd_fd, &fds);
 		selrt = select(keyb_state.kbd_fd + 1, &fds, NULL, NULL, &tv);
-		 if (selrt <= 0)
+		if (selrt <= 0 || !FD_ISSET(keyb_state.kbd_fd, &fds)) {
+			process_slang_keys();
 			return;
-		if (!FD_ISSET(keyb_state.kbd_fd, &fds))
-			return;
+		}
 		_do_slang_getkeys();
 	}
 }
@@ -1336,9 +1337,7 @@ static void do_sync_shiftstate(void)
 
 static void _do_slang_getkeys(void)
 {
-	SLang_Key_Type *key;
 	int cc;
-	int modifier = 0;
 
 	cc = read_some_keys();
 	if (cc <= 0 && !keyb_state.kbcount) {
@@ -1353,6 +1352,13 @@ static void _do_slang_getkeys(void)
 	}
 	if (cc <= 0 && keyb_state.KeyNot_Ready)
 		return;
+	process_slang_keys();
+}
+
+static void process_slang_keys(void)
+{
+	SLang_Key_Type *key;
+	int modifier = 0;
 
 	k_printf("KBD: do_slang_getkeys()\n");
 	/* restore shift-state from previous keypress */
