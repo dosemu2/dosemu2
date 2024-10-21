@@ -128,6 +128,7 @@ struct coopth_t {
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
     struct coopth_per_thread_t *post_pth;
     const struct coopth_be_ops *ops;
+    void *udata;
     pthread_t pthread;
 };
 
@@ -1031,6 +1032,24 @@ void *coopth_get_user_data_cur(void)
     thdata = co_get_data(co_current(co_handle));
     assert(thdata->udata_num > 0);
     return thdata->udata[thdata->udata_num - 1];
+}
+
+void coopth_set_udata(int tid, void *udata)
+{
+    struct coopth_t *thr;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    thr->udata = udata;
+}
+
+void *coopth_get_udata_cur(void)
+{
+    struct coopth_t *thr;
+    struct coopth_thrdata_t *thdata;
+    assert(_coopth_is_in_thread());
+    thdata = co_get_data(co_current(co_handle));
+    thr = &coopthreads[*thdata->tid];
+    return thr->udata;
 }
 
 static void switch_state(enum CoopthRet ret)
