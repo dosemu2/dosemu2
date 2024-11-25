@@ -472,22 +472,24 @@ static void update_graphics_loop(unsigned display_start,
 static void update_graphics_screen(void)
 {
   vga_emu_update_type veut;
-  unsigned display_end, wrap;
+  unsigned display_start, display_end, wrap;
 
   refresh_graphics_palette();
 
-  display_end = vga.display_start + vga.scan_len * vga.height;
+  /* load display_start from CPU thread */
+  display_start = __atomic_load_n(&vga.display_start, __ATOMIC_RELAXED);
+  display_end = display_start + vga.scan_len * vga.height;
   if (vga.line_compare < vga.height) {
-    unsigned wrap2 = vga.display_start + vga.scan_len * vga.line_compare;
-    wrap = _min(vga.mem.wrap, wrap2);
+    unsigned wrap2 = display_start + vga.scan_len * vga.line_compare;
+    wrap = _min(__atomic_load_n(&vga.mem.wrap, __ATOMIC_RELAXED), wrap2);
   } else {
-    wrap = _min(vga.mem.wrap, display_end);
+    wrap = _min(__atomic_load_n(&vga.mem.wrap, __ATOMIC_RELAXED), display_end);
   }
 
-  update_graphics_loop(vga.display_start, wrap, 0, 0, &veut);
+  update_graphics_loop(display_start, wrap, 0, 0, &veut);
 
   if (display_end > wrap) {
-    int len = wrap - vga.display_start;
+    int len = wrap - display_start;
     int rem = len % vga.scan_len;
     int align = 0;
     /* This is for programs such as Commander Keen 4 that set the
@@ -719,6 +721,7 @@ static int remap_mode(void)
 
 void render_blit(int x, int y, int width, int height)
 {
+  unsigned display_start = __atomic_load_n(&vga.display_start, __ATOMIC_RELAXED);
   int err = render_lock();
   if (err)
     return;
@@ -732,7 +735,7 @@ void render_blit(int x, int y, int width, int height)
      * have artifacts. Don't use this blit too much... SDL plugin
      * doesn't use it but an X plugin does. Wrap should really be
      * handled by remapper. */
-    remap_remap_rect_dst(Render.gfx_remap, BMP(vga.mem.base + vga.display_start,
+    remap_remap_rect_dst(Render.gfx_remap, BMP(vga.mem.base + display_start,
 	vga.width, vga.height, vga.scan_len), remap_mode(),
 	x, y, width, height);
   }
