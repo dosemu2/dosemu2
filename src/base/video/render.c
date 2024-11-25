@@ -261,6 +261,11 @@ static void *render_thread(void *arg)
     pthread_mutex_lock(&upd_mtx);
     is_updating = 0;
     pthread_mutex_unlock(&upd_mtx);
+
+    vgaemu_vretrace_begin();
+    usleep(1000);
+    vgaemu_vretrace_end();
+    usleep(20000);
   }
   return NULL;
 }
