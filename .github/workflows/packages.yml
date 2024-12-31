@@ -89,6 +89,7 @@ jobs:
         # Files containing certain symbols (e.g. ":") will cause failure in actions/upload-artifact.
         # Archiving *.deb files in a tarball to avoid issues with uploading.
         tar cf artifacts/debs-${{ matrix.target_arch }}-${{ github.sha }}.tar debs
+        tar cf artifacts/repo-${{ matrix.target_arch }}-${{ github.sha }}.tar repo
 
     - name: Checksums for built *.deb files
       if: always()
@@ -108,10 +109,3 @@ jobs:
       with:
         name: debs-${{ matrix.target_arch }}-${{ github.sha }}
         path: ./artifacts
-
-    - name: Store repo files
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: repo-${{ matrix.target_arch }}-${{ github.sha }}
-        path: ./repo
