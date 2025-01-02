@@ -24,7 +24,7 @@
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netinet/tcp.h>
+#include "Netinet/tcp.h"
 #include <limits.h>
 #ifdef HAVE_LIBBSD
 #include <bsd/string.h>
@@ -431,7 +431,7 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
         int sh;
         struct ses_wrp *s;
         socklen_t l = sizeof(msa);
-        getsockname(fd, &msa, &l);
+        getsockname(fd, (struct sockaddr *)&msa, &l);
         *r_port = ntohs(msa.sin_port);
         sh = alloc_ses();
         if (sh == -1) {
@@ -469,7 +469,7 @@ static int tcp_listen(uint32_t dest, uint16_t port,
     sa.sin_addr.s_addr = myip;
     sa.sin_port = htons(port);
     sa.sin_family = AF_INET;
-    rc = bind(fd, &sa, sizeof(sa));
+    rc = bind(fd, (struct sockaddr *)&sa, sizeof(sa));
     if (rc) {
         error("TCP bind to port %i: %s\n", port, strerror(errno));
         close(fd);
@@ -482,7 +482,7 @@ static int tcp_listen(uint32_t dest, uint16_t port,
         return ERR_CRITICAL;
     }
 
-    getsockname(fd, &sa, &l);
+    getsockname(fd, (struct sockaddr *)&sa, &l);
     *r_port = ntohs(sa.sin_port);
     sh = alloc_ses();
     if (sh == -1) {
@@ -519,14 +519,14 @@ static int udp_connect(uint32_t dest, uint16_t port,
     sa.sin_addr.s_addr = dest;
     sa.sin_port = htons(port);
     sa.sin_family = AF_INET;
-    rc = connect(fd, &sa, sizeof(sa));
+    rc = connect(fd, (struct sockaddr *)&sa, sizeof(sa));
     if (rc) {
         error("UDP connect: %s\n", strerror(errno));
         close(fd);
         return ERR_CRITICAL;
     }
 
-    getsockname(fd, &sa, &l);
+    getsockname(fd, (struct sockaddr *)&sa, &l);
     *r_port = ntohs(sa.sin_port);
     sh = alloc_ses();
     if (sh == -1) {
@@ -562,14 +562,14 @@ static int icmp_connect(uint32_t dest, uint16_t *r_hand)
     sa.sin_addr.s_addr = dest;
     sa.sin_port = 0;
     sa.sin_family = AF_INET;
-    rc = connect(fd, &sa, sizeof(sa));
+    rc = connect(fd, (struct sockaddr *)&sa, sizeof(sa));
     if (rc) {
         error("ICMP connect: %s\n", strerror(errno));
         close(fd);
         return ERR_CRITICAL;
     }
 
-    getsockname(fd, &sa, &l);
+    getsockname(fd, (struct sockaddr *)&sa, &l);
     sh = alloc_ses();
     if (sh == -1) {
         error("TCP: out of handles\n");
@@ -846,7 +846,7 @@ static void tcp_thr(void *arg)
             if (s->fd == -1) {  // listener
                 struct sockaddr_in sin;
                 socklen_t sil = sizeof(sin);
-                s->fd = accept(s->lfd, &sin, &sil);
+                s->fd = accept(s->lfd, (struct sockaddr *)&sin, &sil);
                 if (s->fd != -1) {
                     s->si.ip_dest = sin.sin_addr.s_addr;
                     s->si.port_dst = sin.sin_port;
@@ -861,7 +861,9 @@ static void tcp_thr(void *arg)
                 socklen_t sl = sizeof(ti);
                 int nr = 0, nw = 0;
                 ioctl(s->fd, FIONREAD, &nr);
+#if HAVE_DECL_TIOCOUTQ
                 ioctl(s->fd, TIOCOUTQ, &nw);
+#endif
                 getsockopt(s->fd, SOL_TCP, TCP_INFO, &ti, &sl);
                 _AX = nr;
                 _CX = nw;

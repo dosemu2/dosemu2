@@ -25,11 +25,15 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include "Linux/if_tun.h"
+#ifdef HAVE_NETINET_IF_ETHER_H
 #include <netinet/if_ether.h>
+#endif
 #ifdef HAVE_NETPACKET_PACKET_H
 #include <netpacket/packet.h>
 #endif
+#ifdef HAVE_NET_ETHERNET_H
 #include <net/ethernet.h>
+#endif
 #include <assert.h>
 
 #include "emu.h"
