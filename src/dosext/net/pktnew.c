@@ -43,7 +43,9 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#ifdef HAVE_NETINET_IF_ETHER_H
 #include <netinet/if_ether.h>
+#endif
 #include "libpacket.h"
 #include "virq.h"
 #include "coopth.h"
