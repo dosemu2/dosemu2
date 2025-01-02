@@ -326,6 +326,7 @@ AC_CHECK_DECLS([MREMAP_MAYMOVE],,, [[#include <sys/mman.h>]])
 AC_CHECK_DECLS([MADV_POPULATE_WRITE, MADV_COLD],,,
   [[#include <sys/mman.h>]])
 AC_CHECK_DECLS([MAP_32BIT],,, [[#include <sys/mman.h>]])
+AC_CHECK_DECLS([TIOCOUTQ],,, [[#include <sys/ioctl.h>]])
 
 AC_CHECK_TYPES([__float80],, [
     if test "$machine" != "i386" -a "$machine" != "x86_64"; then

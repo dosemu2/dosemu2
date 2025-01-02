@@ -861,7 +861,9 @@ static void tcp_thr(void *arg)
                 socklen_t sl = sizeof(ti);
                 int nr = 0, nw = 0;
                 ioctl(s->fd, FIONREAD, &nr);
+#if HAVE_DECL_TIOCOUTQ
                 ioctl(s->fd, TIOCOUTQ, &nw);
+#endif
                 getsockopt(s->fd, SOL_TCP, TCP_INFO, &ti, &sl);
                 _AX = nr;
                 _CX = nw;
