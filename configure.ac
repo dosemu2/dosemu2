@@ -729,9 +729,11 @@ fi
 
 if test "$CONFIG_HOST" = "Linux"; then
   if test "$machine" = "i386" -o "$machine" = "x86_64"; then
-    AC_DEFINE(USE_KVM)
-    KVM=1
-    AC_SUBST(KVM)
+    AC_CHECK_HEADER([linux/kvm.h], [
+      AC_DEFINE(USE_KVM)
+      KVM=1
+      AC_SUBST(KVM)
+    ])
   fi
 fi
 
