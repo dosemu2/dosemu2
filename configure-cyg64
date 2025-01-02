@@ -1,0 +1,3 @@
+# run this on cygwin
+cygwin64-configure --disable-fdpp --disable-searpc --disable-dlplugins \
+  --disable-mcontext
