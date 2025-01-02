@@ -12,14 +12,6 @@
  *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#include <net/route.h>
 #include "ipx_wrp.h"
 #include <netinet/in.h>
 #include <errno.h>
@@ -28,6 +20,14 @@
 #include "utilities.h"
 #include "ipx.h"
 #ifdef IPX
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
+#include <net/route.h>
 
 #define FALSE   0
 #define TRUE    1
