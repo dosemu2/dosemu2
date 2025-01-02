@@ -333,7 +333,7 @@ static int do_fault(sigcontext_t *scp)
 
 void handle_fault(int sig, const siginfo_t *si, sigcontext_t *scp)
 {
-#if defined(__i386__) || defined(__x86_64__)
+#if (defined(__i386__) || defined(__x86_64__)) && defined(_scp_trapno)
   int unhand = 0;
 #ifdef __FreeBSD__
   /* freebsd fiddles with trapno */
