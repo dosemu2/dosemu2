@@ -23,8 +23,10 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/wait.h>
+#ifdef __linux__
 #include <sys/ptrace.h>
 #include <sys/user.h>
+#endif
 #include <sys/syscall.h>
 #include "init.h"
 #include "libpcl/pcl.h"

@@ -4,7 +4,7 @@ AC_CONFIG_FILES([Makefile.conf])
 
 # for dumpmachine
 AC_PROG_CC
-
+AC_CHECK_HEADERS([sys/syscall.h],, [AC_MSG_ERROR([no sys/syscall.h])])
 CONFIG_HOST=`uname -s`
 CONFIG_OS=`uname -o`
 machine=`$CC -dumpmachine | cut -d- -f1 | sed 's/i.86/i386/'`
