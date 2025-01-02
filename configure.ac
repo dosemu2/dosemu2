@@ -325,6 +325,7 @@ AC_CHECK_DECLS([F_OFD_SETLK], [
 AC_CHECK_DECLS([MREMAP_MAYMOVE],,, [[#include <sys/mman.h>]])
 AC_CHECK_DECLS([MADV_POPULATE_WRITE, MADV_COLD],,,
   [[#include <sys/mman.h>]])
+AC_CHECK_DECLS([MAP_32BIT],,, [[#include <sys/mman.h>]])
 
 AC_CHECK_TYPES([__float80],, [
     if test "$machine" != "i386" -a "$machine" != "x86_64"; then
@@ -689,6 +690,7 @@ if test "$enable_cpuemu" != "no"; then
   AC_SUBST(X86_EMULATOR)
 
   if test "$machine" = "i386" -o "$machine" = "x86_64"; then
+   if test "$machine" = "i386" -o "$ac_cv_have_decl_MAP_32BIT" = "yes"; then
     AC_ARG_ENABLE(cpuemu_jit, [AS_HELP_STRING([--disable-cpuemu-jit],
         [do NOT compile with optional x86 JIT])])
     if test "$enable_cpuemu_jit" != "no"; then
@@ -697,6 +699,7 @@ if test "$enable_cpuemu" != "no"; then
       X86_JIT=1
       AC_SUBST(X86_JIT)
     fi
+   fi
   fi
 fi
 

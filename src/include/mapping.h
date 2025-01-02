@@ -80,7 +80,7 @@
 #define MAPPING_NULL		0x100000
 #define MAPPING_NOOVERLAP	0x200000
 
-#ifdef __x86_64__
+#if defined(__x86_64__) && HAVE_DECL_MAP_32BIT
 #define _MAP_32BIT ((config.cpu_vm_dpmi == CPUVM_NATIVE) ? MAP_32BIT : 0)
 #else
 #define _MAP_32BIT 0
