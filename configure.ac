@@ -494,6 +494,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <semaphore.h>]], [[
 
 AC_CHECK_HEADERS([scsi/sg.h linux/cdrom.h sys/io.h])
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h netpacket/packet.h])
+AC_CHECK_HEADERS([netinet/if_ether.h net/ethernet.h])
 AC_CHECK_HEADERS([asm/ucontext.h],,, [
   #include <ucontext.h>
   #include <signal.h>
