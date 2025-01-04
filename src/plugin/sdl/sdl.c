@@ -1042,6 +1042,7 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
         pixel_format,
         SDL_TEXTUREACCESS_STATIC,
         width, height);
+  pthread_mutex_unlock(&rend_mtx);
   assert(d.tex);
   SDL_UpdateTexture(d.tex, NULL, surface->pixels + offs, surface->pitch);
   pthread_mutex_lock(&rects_mtx);
@@ -1051,7 +1052,6 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   }
   tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
-  pthread_mutex_unlock(&rend_mtx);
 }
 
 static void window_grab(int on, int kbd)
