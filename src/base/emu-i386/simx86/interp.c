@@ -1107,21 +1107,26 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_PUSH1, m);
 			/* optimized multiple register push */
 			while (1) {
+			    int op;
 			    Gen(O_PUSH2, m, R1Tab_l[opc-1]);
 			    PC++;
-			    opc = OpIsPush[Fetch(PC)];
-			    is_66 = (Fetch(PC) == 0x66);
+			    opc = OpIsPush[op = Fetch(PC)];
+			    is_66 = (op == 0x66);
 			    if (++cnt >= NUMGENS || (!opc && !is_66) ||
 				    e_querymark(PC, 1 + is_66))
 				break;
 			    m &= ~DATA16;
 			    if (is_66) {	// prefix 0x66
 				m |= (~basemode & DATA16);
-				if ((opc=OpIsPush[Fetch(PC+1)])!=0) PC++;
+				if ((opc=OpIsPush[(op = Fetch(PC+1))])!=0) PC++;
 				else break;
 			    }
 			    else {
 				m |= (basemode & DATA16);
+			    }
+			    if (op == PUSHsp) {
+				/* reload SP before pushing it */
+				Gen(O_PUSH3, m);
 			    }
 			}
 			Gen(O_PUSH3, m); } else
