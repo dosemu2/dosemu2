@@ -529,17 +529,9 @@ static void async_serial_run(int fd, void *arg)
 
 static int ser_open_existing(com_t *c)
 {
-  struct stat st;
-  int err, oflags = 0;
+  int oflags = 0;
 
-  err = stat(c->cfg->dev, &st);
-  if (err) {
-    error("SERIAL: stat(%s) failed: %s\n", c->cfg->dev,
-	    strerror(errno));
-    c->fd = -2;
-    return -1;
-  }
-  if (S_ISFIFO(st.st_mode)) {
+  if (c->cfg->is_fifo) {
     s_printf("SER%i: %s is fifo, setting pseudo flag\n", c->num,
 	    c->cfg->dev);
     c->cfg->pseudo = TRUE;
@@ -547,10 +539,9 @@ static int ser_open_existing(com_t *c)
     c->cfg->ro = TRUE;
     oflags |= O_RDONLY;
   } else {
-    if (S_ISREG(st.st_mode)) {
+    if (c->cfg->is_file) {
       s_printf("SER%i: %s is file, setting pseudo flag\n", c->num,
 	    c->cfg->dev);
-      c->is_file = TRUE;
       c->cfg->pseudo = TRUE;
       oflags |= O_RDONLY;
       if (!c->cfg->ro && !c->cfg->wrfile) {
@@ -655,7 +646,6 @@ static int tty_open(com_t *c)
     return c->fd;
 
   c->is_closed = FALSE;
-  c->is_file = FALSE;
   if (c->cfg->exec) {
     if (under_root_login) {
       error("SER: \"exec\" ignored because of root privs\n");

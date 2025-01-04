@@ -2059,9 +2059,30 @@ static void start_serial(void)
   }
 }
 
+static int detect_ser_flags(serial_t *s)
+{
+  struct stat st;
+  int err;
+
+  err = stat(s->dev, &st);
+  if (err) {
+    error("SERIAL: stat(%s) failed: %s\n", s->dev, strerror(errno));
+    return -1;
+  }
+  if (S_ISFIFO(st.st_mode)) {
+    s->is_fifo = TRUE;
+  } else {
+    if (S_ISREG(st.st_mode)) {
+      s->is_file = TRUE;
+    }
+  }
+  return 0;
+}
 
 static void stop_serial(void)
 {
+  int err = 0;
+
   if (c_ser >= MAX_SER) {
     c_printf("SER: too many ports, ignoring %s\n", sptr->dev);
     return;
@@ -2072,8 +2093,12 @@ static void stop_serial(void)
   if (sptr->irq)
     c_printf(" irq %x", sptr->irq);
   c_printf("\n");
-  c_ser++;
-  config.num_ser = c_ser;
+  if (sptr->dev)
+    err = detect_ser_flags(sptr);
+  if (!err) {
+    c_ser++;
+    config.num_ser = c_ser;
+  }
 }
 
 	/* keyboard */
