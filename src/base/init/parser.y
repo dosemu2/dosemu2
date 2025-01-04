@@ -2093,8 +2093,14 @@ static void stop_serial(void)
   if (sptr->irq)
     c_printf(" irq %x", sptr->irq);
   c_printf("\n");
-  if (sptr->dev)
+  if (sptr->dev) {
     err = detect_ser_flags(sptr);
+    if (!err) {
+      sptr->mfs_idx = mfs_define_drive(sptr->dev);
+      if (sptr->wrfile)
+        sptr->mfs_idx_w = mfs_define_drive(sptr->wrfile);
+    }
+  }
   if (!err) {
     c_ser++;
     config.num_ser = c_ser;

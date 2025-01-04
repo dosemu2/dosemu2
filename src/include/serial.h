@@ -51,6 +51,8 @@ typedef struct {
   boolean mouse;		/* Flag to turn on mouse sharing features */
   int system_rtscts;		/* Flag: emulate RTS or let system handle it */
   int custom;
+  int mfs_idx;
+  int mfs_idx_w;
   ioport_t dmx_port;
   Bit8u dmx_mask;
   int dmx_shift;

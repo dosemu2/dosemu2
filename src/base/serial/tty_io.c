@@ -28,6 +28,7 @@
 #include "utilities.h"
 #include "dosemu_config.h"
 #include "ioselect.h"
+#include "fslib.h"
 #include "ser_defs.h"
 #include "tty_io.h"
 
@@ -545,7 +546,7 @@ static int ser_open_existing(com_t *c)
       c->cfg->pseudo = TRUE;
       oflags |= O_RDONLY;
       if (!c->cfg->ro && !c->cfg->wrfile) {
-        c->wr_fd = RPT_SYSCALL(open(c->cfg->dev, O_WRONLY | O_APPEND));
+        c->wr_fd = mfs_open_file(c->cfg->mfs_idx, c->cfg->dev, O_WRONLY | O_APPEND);
         if (c->wr_fd == -1) {
           error("SER%i: can't open %s for write: %s\n",
                 c->num, c->cfg->dev, strerror(errno));
@@ -556,7 +557,7 @@ static int ser_open_existing(com_t *c)
     }
   }
 
-  c->fd = RPT_SYSCALL(open(c->cfg->dev, oflags));
+  c->fd = mfs_open_file(c->cfg->mfs_idx, c->cfg->dev, oflags);
   if (c->fd < 0) {
     error("SERIAL: Unable to open device %s: %s\n",
       c->cfg->dev, strerror(errno));
@@ -718,7 +719,7 @@ static int tty_open(com_t *c)
       if (err)
         goto fail_unlock;
     } else {
-      c->fd = open(c->cfg->dev, O_WRONLY | O_CREAT | O_EXCL, 0640);
+      c->fd = mfs_create_file(c->cfg->mfs_idx, c->cfg->dev, O_WRONLY | O_CREAT | O_EXCL, 0640);
       if (c->fd == -1) {
         error("SER%i: unable to open or create %s\n", c->num, c->cfg->dev);
         goto fail_unlock;
@@ -726,7 +727,7 @@ static int tty_open(com_t *c)
     }
   }
   if (c->cfg->wrfile) {
-    c->wr_fd = open(c->cfg->wrfile, O_WRONLY | O_CREAT | O_TRUNC, 0640);
+    c->wr_fd = mfs_create_file(c->cfg->mfs_idx_w, c->cfg->wrfile, O_WRONLY | O_CREAT | O_TRUNC, 0640);
     if (c->wr_fd == -1) {
       error("SER%i: unable to open or create for write %s\n", c->num, c->cfg->dev);
       goto fail_unlock;
