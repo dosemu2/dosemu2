@@ -651,7 +651,7 @@ static int tty_open(com_t *c)
 {
   int err;
 
-  if (c->fd >= 0)  // errors use -1, -2
+  if (c->fd != -1)  // errors use -1, -2 (-2 = permanently disabled)
     return c->fd;
 
   c->is_closed = FALSE;
