@@ -20,6 +20,7 @@
 #include "lpt.h"
 #include "utilities.h"
 #include "dos2linux.h"
+#include "fslib.h"
 #include "ioselect.h"
 
 /* status bits, Centronics */
@@ -160,10 +161,16 @@ static void pipe_callback(int fd, void *arg)
   }
 }
 
+int lpt_popen(int prnum, struct popen2 *file)
+{
+  assert(prnum < config.num_lpt);
+  return popen2(lpt[prnum].prtcmd, file);
+}
+
 static int pipe_printer_open(int prnum)
 {
   int err;
-  err = popen2(lpt[prnum].prtcmd, &lpt[prnum].file);
+  err = fslib_popen(SUBSYS_LPT, prnum, &lpt[prnum].file);
   if (err) {
     error("system(\"%s\") in lpt.c failed, cannot print! "
 	"Command returned error %s\n", lpt[prnum].prtcmd, strerror(errno));

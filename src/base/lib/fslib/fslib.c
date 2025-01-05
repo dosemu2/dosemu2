@@ -167,6 +167,11 @@ int fslib_shm_unlink(const char *name)
   return fssvc->shm_unlink(name);
 }
 
+int fslib_popen(int subsys, int cookie, struct popen2 *file)
+{
+  return fssvc->popen(subsys, cookie, file);
+}
+
 void fslib_register_ops(const struct fslib_ops *ops)
 {
   const char *expect = (config.fs_backend ?: def_name);

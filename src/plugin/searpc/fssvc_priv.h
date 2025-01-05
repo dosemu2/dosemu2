@@ -25,5 +25,6 @@ int fssvc_exit(void);
 
 int fssvc_shm_open(const char *name, int oflag, mode_t mode);
 int fssvc_shm_unlink(const char *name);
+int fssvc_popen(int subsys, int cookie, struct popen2 *file);
 
 #endif

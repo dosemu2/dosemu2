@@ -68,3 +68,10 @@ searpc_signature_int__string_int_int(void)
     return searpc_compute_signature ("int", 3, "string", "int", "int");
 }
 
+
+inline static gchar *
+searpc_signature_int__int_int(void)
+{
+    return searpc_compute_signature ("int", 2, "int", "int");
+}
+

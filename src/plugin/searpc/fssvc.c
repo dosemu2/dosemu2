@@ -296,3 +296,19 @@ int fssvc_shm_unlink(const char *name)
     CHECK_RPC(error);
     return ret;
 }
+
+int fssvc_popen(int subsys, int cookie, struct popen2 *file)
+{
+    int ret;
+    GError *error = NULL;
+    ret = searpc_client_call__int(clnt, "popen_1",
+                                  &error, 2,
+                                  "int", subsys,
+                                  "int", cookie);
+    CHECK_RPC(error);
+    if (ret < 0)
+        return ret;
+    file->from_child = recv_fd(sock_rx);
+    file->to_child = recv_fd(sock_rx);
+    return ret;
+}

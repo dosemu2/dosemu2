@@ -21,6 +21,7 @@
 #include <sys/stat.h>  // for struct stat
 #include <sys/statvfs.h>  // for struct statvfs
 #include "fssvc.h"  // for setattr_t, getattr_t
+#include "utilities.h"
 
 int mfs_define_drive(const char *path);
 int fslib_add_path_ex(const char *path);
@@ -46,5 +47,9 @@ int fslib_num_drives(void);
 
 int fslib_shm_open(const char *name, int oflag, mode_t mode);
 int fslib_shm_unlink(const char *name);
+
+enum { SUBSYS_LPT };
+int lpt_popen(int prnum, struct popen2 *file);
+int fslib_popen(int subsys, int cookie, struct popen2 *file);
 
 #endif

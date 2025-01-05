@@ -154,6 +154,21 @@ marshal_int__string_int_int (void *func, json_t *param_array, gsize *ret_len)
     return searpc_marshal_set_ret_common (object, ret_len, error);
 }
 
+
+static char *
+marshal_int__int_int (void *func, json_t *param_array, gsize *ret_len)
+{
+    GError *error = NULL;
+    int param1 = json_array_get_int_element (param_array, 1);
+    int param2 = json_array_get_int_element (param_array, 2);
+
+    int ret = ((int (*)(int, int, GError **))func) (param1, param2, &error);
+
+    json_t *object = json_object ();
+    searpc_set_int_to_ret_object (object, ret);
+    return searpc_marshal_set_ret_common (object, ret_len, error);
+}
+
 static void register_marshals(void)
 {
 
@@ -204,6 +219,11 @@ static void register_marshals(void)
 
     {
         searpc_server_register_marshal (searpc_signature_int__string_int_int(), marshal_int__string_int_int);
+    }
+
+
+    {
+        searpc_server_register_marshal (searpc_signature_int__int_int(), marshal_int__int_int);
     }
 
 }
