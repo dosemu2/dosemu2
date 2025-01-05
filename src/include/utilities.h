@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <semaphore.h>
+#include <dirent.h>
 #include "dosemu_debug.h"
 
 int argparse(char *s, char *argvx[], int maxarg);
