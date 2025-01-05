@@ -139,6 +139,7 @@ while [ $# -gt 0 ] ; do
       SUDO=setpriv
       # no-new-privs is needed to bypass suid/sgid bits
       SUDOOPTS="--no-new-privs"
+      OPTS="$OPTS -p"
       ;;
     -t | -t[a-z] | -t[a-z][a-z] | -t[a-z][a-z][a-z])
       exec 4>&2 2>~/.dosemu/stderr.log.$BASHPID

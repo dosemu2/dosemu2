@@ -370,6 +370,7 @@ typedef struct config_info {
 
         int timer_tweaks;
         int test_mode;
+        int no_priv_sep;
 } config_t;
 
 

@@ -375,7 +375,8 @@ void priv_drop_total(void)
     sgid++;
   }
 
-  start_landlock();
+  if (!config.no_priv_sep)
+    start_landlock();
 
 #ifdef __linux__
   if (!can_do_root_stuff) {
