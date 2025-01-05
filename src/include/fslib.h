@@ -49,6 +49,8 @@ int fslib_shm_open(const char *name, int oflag, mode_t mode);
 int fslib_shm_unlink(const char *name);
 
 enum { SUBSYS_LPT };
+void lpt_set_command(int prnum, char *cmd);
+int fslib_set_command(int subsys, int cookie, const char *cmd);
 int lpt_popen(int prnum, struct popen2 *file);
 int fslib_popen(int subsys, int cookie, struct popen2 *file);
 

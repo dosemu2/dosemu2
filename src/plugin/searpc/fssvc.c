@@ -297,6 +297,19 @@ int fssvc_shm_unlink(const char *name)
     return ret;
 }
 
+int fssvc_set_command(int subsys, int cookie, const char *cmd)
+{
+    int ret;
+    GError *error = NULL;
+    ret = searpc_client_call__int(clnt, "set_command_1",
+                                  &error, 3,
+                                  "int", subsys,
+                                  "int", cookie,
+                                  "string", cmd);
+    CHECK_RPC(error);
+    return ret;
+}
+
 int fssvc_popen(int subsys, int cookie, struct popen2 *file)
 {
     int ret;

@@ -77,6 +77,7 @@ static const struct fslib_ops fsops = {
   .path_ok = fssvc_path_ok,
   .shm_open = fssvc_shm_open,
   .shm_unlink = fssvc_shm_unlink,
+  .set_command = fssvc_set_command,
   .popen = fssvc_popen,
   .name = "rpc",
 };
