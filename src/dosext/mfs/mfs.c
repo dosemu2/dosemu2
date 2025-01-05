@@ -677,7 +677,8 @@ int get_dos_attr(const char *fname, int mode, int drive)
 
 #ifdef __linux__
   if (fname && file_on_fat(fname) && (S_ISREG(mode) || S_ISDIR(mode))) {
-    int fd = open(fname, O_RDONLY);
+    int fd = mfs_open_file(REDIR_DEVICE_IDX(drives[drive].options),
+	fname, O_RDONLY);
     if (fd != -1) {
       int res = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
       close(fd);
@@ -733,7 +734,8 @@ int set_dos_attr(char *fpath, int attr, int drive)
   int res;
 
   if (fpath && file_on_fat(fpath))
-    fd = open(fpath, O_RDONLY);
+    fd = mfs_open_file(REDIR_DEVICE_IDX(drives[drive].options),
+	fpath, O_RDONLY);
   if (fd != -1) {
     res = set_fat_attr(fd, attr);
     if (res && errno != ENOTTY) {
@@ -1587,7 +1589,8 @@ struct mfs_dir *dos_opendir(const char *name, int drive)
   struct __fat_dirent de[2];
 
   if (file_on_fat(name)) {
-    fd = open(name, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    fd = mfs_open_file(REDIR_DEVICE_IDX(drives[drive].options),
+	name, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (fd == -1)
       return NULL;
     if (ioctl(fd, vfat_ioctl, de) != -1) {

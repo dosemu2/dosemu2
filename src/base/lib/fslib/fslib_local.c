@@ -29,6 +29,7 @@
 #include "utilities.h"
 #endif
 #include "fssvc.h"
+#include "fslib.h"
 #include "fslib_ops.h"
 
 #define MAX_PATHS 26
@@ -230,6 +231,28 @@ static int fslocal_shm_unlink(const char *name)
 #endif
 }
 
+static int fslocal_set_command(int subsys, int cookie, const char *cmd)
+{
+  assert(!sealed);
+  switch (subsys) {
+    case SUBSYS_LPT:
+      lpt_set_command(cookie, strdup(cmd));
+      return 0;
+  }
+  assert(0);
+  return -1;
+}
+
+static int fslocal_popen(int subsys, int cookie, struct popen2 *file)
+{
+  switch (subsys) {
+    case SUBSYS_LPT:
+      return lpt_popen(cookie, file);
+  }
+  assert(0);
+  return -1;
+}
+
 static const struct fslib_ops fslops = {
   .add_path = add_path,
   .add_path_ex = add_path_ex,
@@ -252,6 +275,8 @@ static const struct fslib_ops fslops = {
   .path_ok = fslocal_path_ok,
   .shm_open = fslocal_shm_open,
   .shm_unlink = fslocal_shm_unlink,
+  .set_command = fslocal_set_command,
+  .popen = fslocal_popen,
   .name = "local",
   .flags = FSFLG_NOSUID,
 };

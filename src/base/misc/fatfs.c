@@ -948,7 +948,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
     return;
   }
   cur_d = f;
-  num = scandirat(dfd, ".", &dlist, d_filter, d_compar);
+  num = fdscandir(dfd, &dlist, d_filter, d_compar);
   close(dfd);
   if (num < 0) {
     fatfs_msg("fatfs: scandir failed for %s\n", name);

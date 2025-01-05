@@ -50,6 +50,7 @@
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
+#include "landlock.h"
 
 /* Some handy information to have around */
 static uid_t uid,euid;
@@ -270,6 +271,79 @@ static void init_groups(uid_t uid, gid_t gid)
 #endif
 }
 
+static void start_landlock(void)
+{
+  int err;
+  const char **p;
+  static const char *allow_rw[] = {
+    "/dev",
+    "/tmp",
+    "/var",
+    "/proc",
+    "/run",
+    NULL
+  };
+  static const char *allow_ro[] = {
+    "/usr",
+    "/sys",
+    "/etc",
+    NULL
+  };
+
+  err = landlock_init();
+  if (err) {
+    error("landlock_init() failed\n");
+    leavedos(3);
+    return;
+  }
+  for (p = allow_rw; *p; p++) {
+    err = landlock_allow(*p, 0);
+    if (err) {
+      error("landlock_allow_rw(%s) failed\n", *p);
+      leavedos(3);
+      return;
+    }
+  }
+  for (p = allow_ro; *p; p++) {
+    err = landlock_allow(*p, 1);
+    if (err) {
+      error("landlock_allow_ro(%s) failed\n", *p);
+      leavedos(3);
+      return;
+    }
+  }
+  if (strcmp(PREFIX, "/usr") != 0) {
+    err = landlock_allow(PREFIX, 1);
+    if (err) {
+      error("landlock_allow_ro(%s) failed\n", PREFIX);
+      leavedos(3);
+      return;
+    }
+  }
+  if (dosemu_plugin_dir_path) {
+    err = landlock_allow(dosemu_plugin_dir_path, 1);
+    if (err) {
+      error("landlock_allow_ro(%s) failed\n", dosemu_plugin_dir_path);
+      leavedos(3);
+      return;
+    }
+  }
+  if (dosemu_tmpdir && strcmp(dosemu_tmpdir, "/tmp") != 0) {
+    err = landlock_allow(dosemu_tmpdir, 0);
+    if (err) {
+      error("landlock_allow_rw(%s) failed\n", dosemu_tmpdir);
+      leavedos(3);
+      return;
+    }
+  }
+  err = landlock_lock();
+  if (err) {
+    error("landlock_lock() failed\n");
+    leavedos(3);
+    return;
+  }
+}
+
 void priv_drop_total(void)
 {
   int err;
@@ -300,6 +374,9 @@ void priv_drop_total(void)
     }
     sgid++;
   }
+
+  if (!config.no_priv_sep)
+    start_landlock();
 
 #ifdef __linux__
   if (!can_do_root_stuff) {

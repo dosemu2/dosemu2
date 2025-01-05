@@ -46,6 +46,8 @@ struct fslib_ops {
   int (*path_ok)(int idx, const char *path);
   int (*shm_open)(const char *name, int oflag, mode_t mode);
   int (*shm_unlink)(const char *name);
+  int (*set_command)(int subsys, int cookie, const char *cmd);
+  int (*popen)(int subsys, int cookie, struct popen2 *file);
   const char *name;
 #define FSFLG_NOSUID 1
   int flags;

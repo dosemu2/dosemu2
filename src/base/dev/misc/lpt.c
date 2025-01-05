@@ -20,6 +20,7 @@
 #include "lpt.h"
 #include "utilities.h"
 #include "dos2linux.h"
+#include "fslib.h"
 #include "ioselect.h"
 
 /* status bits, Centronics */
@@ -160,10 +161,16 @@ static void pipe_callback(int fd, void *arg)
   }
 }
 
+int lpt_popen(int prnum, struct popen2 *file)
+{
+  assert(prnum < config.num_lpt);
+  return popen2(lpt[prnum].prtcmd, file);
+}
+
 static int pipe_printer_open(int prnum)
 {
   int err;
-  err = popen2(lpt[prnum].prtcmd, &lpt[prnum].file);
+  err = fslib_popen(SUBSYS_LPT, prnum, &lpt[prnum].file);
   if (err) {
     error("system(\"%s\") in lpt.c failed, cannot print! "
 	"Command returned error %s\n", lpt[prnum].prtcmd, strerror(errno));
@@ -305,6 +312,8 @@ close_all_printers(void)
     p_printf("LPT: closing printer %d (%s)\n", loop,
 	     lpt[loop].dev ? lpt[loop].dev : lpt[loop].prtcmd);
     printer_close(loop);
+    free(lpt[loop].dev);
+    free(lpt[loop].prtcmd);
   }
 }
 
@@ -328,13 +337,25 @@ printer_tick(u_long secno)
   return 0;
 }
 
+void lpt_set_command(int prnum, char *cmd)
+{
+    assert(prnum < NUM_PRINTERS);
+    lpt[prnum].prtcmd = cmd;
+    if (config.num_lpt <= prnum)
+      config.num_lpt = prnum + 1;
+}
+
 void printer_config(int prnum, struct printer *pptr)
 {
   struct printer *destptr;
 
   if (prnum < NUM_PRINTERS) {
     destptr = &lpt[prnum];
-    destptr->prtcmd = pptr->prtcmd;
+    fslib_set_command(SUBSYS_LPT, prnum, pptr->prtcmd);
+    if (!destptr->prtcmd)
+      destptr->prtcmd = pptr->prtcmd;
+    else
+      free(pptr->prtcmd);
     destptr->dev = pptr->dev;
     destptr->delay = pptr->delay;
   }

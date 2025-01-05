@@ -45,10 +45,14 @@ typedef struct {
   boolean virt;		/* virtual modem */
   boolean vmodem;		/* virtual modem attached */
   boolean pseudo;		/* pseudo-tty is used */
+  boolean is_file;
+  boolean is_fifo;
   boolean low_latency;		/* set low_latency mode */
   boolean mouse;		/* Flag to turn on mouse sharing features */
   int system_rtscts;		/* Flag: emulate RTS or let system handle it */
   int custom;
+  int mfs_idx;
+  int mfs_idx_w;
   ioport_t dmx_port;
   Bit8u dmx_mask;
   int dmx_shift;

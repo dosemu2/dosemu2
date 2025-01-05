@@ -26,6 +26,7 @@
 #include <searpc-server.h>
 #include <searpc-utils.h>
 #include "utilities.h"
+#include "fslib.h"
 #include "searpc-signature.h"
 #include "searpc-marshal.h"
 #include "test-object.h"
@@ -278,6 +279,41 @@ static int shm_unlink_1_svc(const char *name, GError **error)
 #endif
 }
 
+static int set_command_1_svc(int subsys, int cookie, const char *cmd,
+        GError **error)
+{
+    ASSERT0(!sealed);
+    switch (subsys) {
+        case SUBSYS_LPT:
+            lpt_set_command(cookie, strdup(cmd));
+            return 0;
+    }
+    assert(0);
+    return -1;
+}
+
+static int popen_1_svc(int subsys, int cookie, GError **error)
+{
+    struct popen2 file;
+    int err;
+
+    switch (subsys) {
+        case SUBSYS_LPT:
+            err = lpt_popen(cookie, &file);
+            if (err)
+                return -1;
+            err = send_fd(sock_tx, file.from_child);
+            assert(!err);
+            err = send_fd(sock_tx, file.to_child);
+            assert(!err);
+            close(file.from_child);
+            close(file.to_child);
+            return 0;
+    }
+    assert(0);
+    return -1;
+}
+
 int fsrpc_srv_init(const char *svc_name, int fd, plist_idx_t pi,
         setattr_t sa, getattr_t ga)
 {
@@ -323,6 +359,10 @@ int fsrpc_srv_init(const char *svc_name, int fd, plist_idx_t pi,
             searpc_signature_object__string_int_int());
     searpc_server_register_function(svc_name, shm_unlink_1_svc, "shm_unlink_1",
             searpc_signature_int__string());
+    searpc_server_register_function(svc_name, set_command_1_svc, "set_command_1",
+            searpc_signature_int__int_int_string());
+    searpc_server_register_function(svc_name, popen_1_svc, "popen_1",
+            searpc_signature_int__int_int());
     return 0;
 }
 

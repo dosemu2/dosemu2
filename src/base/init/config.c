@@ -1467,7 +1467,7 @@ config_init(int argc, char **argv)
 	    parse_debugflags(optarg, 1);
 	    break;
 	case 'p':
-	    /* unused */
+	    config.no_priv_sep = 1;
 	    break;
 	case 'P':
 	    if (terminal_fd == -1) {
