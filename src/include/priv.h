@@ -39,6 +39,7 @@ void priv_drop_root(void);
 int priv_drop(void);
 
 int permit_dir_ro(const char *dir);
+int permit_fd_rw(int fd);
 
 #endif /* PRIV_H */
 

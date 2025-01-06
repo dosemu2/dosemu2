@@ -74,6 +74,9 @@ int current_iopl;
 #define MAX_ALLOW_DIRS 10
 static const char *ro_dirs[MAX_ALLOW_DIRS];
 static int num_ro_dirs;
+#define MAX_ALLOW_FDS 10
+static int rw_fds[MAX_ALLOW_FDS];
+static int num_rw_fds;
 #endif
 
 static int _priv_on(void)
@@ -288,6 +291,17 @@ int permit_dir_ro(const char *dir)
   return 0;
 }
 
+int permit_fd_rw(int fd)
+{
+#ifdef HAVE_LINUX_LANDLOCK_H
+  assert(num_rw_fds < MAX_ALLOW_FDS);
+  if (num_rw_fds >= MAX_ALLOW_FDS)  // maybe asserts are disabled
+    return -1;
+  rw_fds[num_rw_fds++] = fd;
+#endif
+  return 0;
+}
+
 #ifdef HAVE_LINUX_LANDLOCK_H
 static void start_landlock(void)
 {
@@ -339,6 +353,15 @@ static void start_landlock(void)
       return;
     }
   }
+  for (i = 0; i < num_rw_fds; i++) {
+    int fd = rw_fds[i];
+    err = landlock_allow_fd(fd, 0);
+    if (err) {
+      error("landlock_allow_rw(%i) failed\n", fd);
+      leavedos(3);
+      return;
+    }
+  }
   if (strcmp(PREFIX, "/usr") != 0) {
     err = landlock_allow(PREFIX, 1);
     if (err) {
@@ -359,14 +382,6 @@ static void start_landlock(void)
     err = landlock_allow(dosemu_tmpdir, 0);
     if (err) {
       error("landlock_allow_rw(%s) failed\n", dosemu_tmpdir);
-      leavedos(3);
-      return;
-    }
-  }
-  if (dosemu_rundir_fd != -1) {
-    err = landlock_allow_fd(dosemu_rundir_fd, 0);
-    if (err) {
-      error("landlock_allow_rw(%s) failed\n", dosemu_rundir_path);
       leavedos(3);
       return;
     }

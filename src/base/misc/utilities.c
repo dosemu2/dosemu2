@@ -508,6 +508,7 @@ char *mkdir_under(const char *basedir, const char *dir)
 	}
 	if (running_suid_orig())
 		set_dir_acl(fd);
+	permit_fd_rw(fd);
 
 	assert(num_dfd < DFD_MAX);
 	dfd[num_dfd].dir = s;

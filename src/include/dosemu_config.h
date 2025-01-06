@@ -64,7 +64,6 @@ extern int config_check_only;
 extern const char *config_script_name;
 extern const char *dosemu_loglevel_file_path;
 extern char *dosemu_rundir_path;
-extern int dosemu_rundir_fd;
 extern char *dosemu_localdir_path;
 extern char *dosemu_tmpdir;
 
