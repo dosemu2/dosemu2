@@ -277,16 +277,18 @@ static void init_groups(uid_t uid, gid_t gid)
 #endif
 }
 
-#ifdef HAVE_LINUX_LANDLOCK_H
 int permit_dir_ro(const char *dir)
 {
+#ifdef HAVE_LINUX_LANDLOCK_H
   assert(num_ro_dirs < MAX_ALLOW_DIRS);
   if (num_ro_dirs >= MAX_ALLOW_DIRS)  // maybe asserts are disabled
     return -1;
   ro_dirs[num_ro_dirs++] = dir;
+#endif
   return 0;
 }
 
+#ifdef HAVE_LINUX_LANDLOCK_H
 static void start_landlock(void)
 {
   int i;
