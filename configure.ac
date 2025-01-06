@@ -512,6 +512,7 @@ AC_CHECK_HEADERS([sys/soundcard.h], [
   AC_SUBST(USE_OSS)
 ])
 AC_CHECK_HEADERS([sanitizer/asan_interface.h])
+AC_CHECK_HEADERS([linux/landlock.h])
 
 DATE_FMT="%F %T %z"
 test -n "$SOURCE_DATE_EPOCH" || SOURCE_DATE_EPOCH=`date +%s`

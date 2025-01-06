@@ -13,6 +13,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#ifdef HAVE_LINUX_LANDLOCK_H
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -21,6 +22,10 @@
 #include <sys/prctl.h>
 #include "landlock_priv.h"
 #include "landlock.h"
+
+#ifndef LANDLOCK_ACCESS_FS_TRUNCATE
+#define LANDLOCK_ACCESS_FS_TRUNCATE 0
+#endif
 
 #define ACCESS_FILE_RW ( \
 	LANDLOCK_ACCESS_FS_WRITE_FILE | \
@@ -101,3 +106,4 @@ int landlock_lock(void)
     ruleset_fd = -1;
     return 0;
 }
+#endif

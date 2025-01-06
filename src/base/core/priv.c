@@ -70,9 +70,11 @@ int current_iopl;
 #define PRIVS_ARE_ON (euid == cur_euid)
 #define PRIVS_ARE_OFF (uid == cur_euid)
 
+#ifdef HAVE_LINUX_LANDLOCK_H
 #define MAX_ALLOW_DIRS 10
 static const char *ro_dirs[MAX_ALLOW_DIRS];
 static int num_ro_dirs;
+#endif
 
 static int _priv_on(void)
 {
@@ -275,6 +277,7 @@ static void init_groups(uid_t uid, gid_t gid)
 #endif
 }
 
+#ifdef HAVE_LINUX_LANDLOCK_H
 int permit_dir_ro(const char *dir)
 {
   assert(num_ro_dirs < MAX_ALLOW_DIRS);
@@ -366,6 +369,7 @@ static void start_landlock(void)
     return;
   }
 }
+#endif
 
 void priv_drop_total(void)
 {
@@ -398,8 +402,10 @@ void priv_drop_total(void)
     sgid++;
   }
 
+#ifdef HAVE_LINUX_LANDLOCK_H
   if (!config.no_priv_sep)
     start_landlock();
+#endif
 
 #ifdef __linux__
   if (!can_do_root_stuff) {
