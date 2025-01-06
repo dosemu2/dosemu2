@@ -384,6 +384,11 @@ void priv_drop_total(void)
 {
   int err;
 
+#ifdef HAVE_LINUX_LANDLOCK_H
+  if (!config.no_priv_sep)
+    start_landlock();
+#endif
+
   if (suid) {
     err = seteuid(euid);
     assert(!err);
@@ -410,11 +415,6 @@ void priv_drop_total(void)
     }
     sgid++;
   }
-
-#ifdef HAVE_LINUX_LANDLOCK_H
-  if (!config.no_priv_sep)
-    start_landlock();
-#endif
 
 #ifdef __linux__
   if (!can_do_root_stuff) {
