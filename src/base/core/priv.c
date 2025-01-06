@@ -363,8 +363,8 @@ static void start_landlock(void)
       return;
     }
   }
-  if (dosemu_rundir_path) {
-    err = landlock_allow(dosemu_rundir_path, 0);
+  if (dosemu_rundir_fd != -1) {
+    err = landlock_allow_fd(dosemu_rundir_fd, 0);
     if (err) {
       error("landlock_allow_rw(%s) failed\n", dosemu_rundir_path);
       leavedos(3);

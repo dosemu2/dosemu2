@@ -69,6 +69,7 @@ static void assign_floppy(int fnum, const char *name);
 const char *config_script_name = DEFAULT_CONFIG_SCRIPT;
 const char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
 char *dosemu_rundir_path;
+int dosemu_rundir_fd = -1;
 char *dosemu_localdir_path;
 char *dosemu_tmpdir;
 
@@ -605,6 +606,10 @@ static void move_dosemu_lib_dir(void)
   if (rp && rp[0])
     dosemu_rundir_path = mkdir_under(rp, "dosemu2");
   if (dosemu_rundir_path) {
+    dosemu_rundir_fd = open(dosemu_rundir_path,
+        O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+    if (dosemu_rundir_fd == -1)
+      error("can't open %s: %s\n", dosemu_rundir_path, strerror(errno));
     dosemu_midi_path = assemble_path(dosemu_rundir_path, DOSEMU_MIDI);
     dosemu_midi_in_path = assemble_path(dosemu_rundir_path, DOSEMU_MIDI_IN);
   }

@@ -93,6 +93,23 @@ int landlock_allow(const char *path, int ro)
     return 0;
 }
 
+int landlock_allow_fd(int fd, int ro)
+{
+    int err;
+    struct landlock_path_beneath_attr path_beneath = {
+        .allowed_access = (ro ? ACCESS_RO : ACCESS_RW)
+    };
+    path_beneath.parent_fd = fd;
+    err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+                            &path_beneath, 0);
+    if (err) {
+        perror("Failed to update ruleset");
+        close(ruleset_fd);
+        return -1;
+    }
+    return 0;
+}
+
 int landlock_lock(void)
 {
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
