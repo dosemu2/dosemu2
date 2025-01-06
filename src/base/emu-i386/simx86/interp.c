@@ -2083,6 +2083,7 @@ stack_return_from_vm86:
 				if (temp & EFLAGS_IF)
 				    EFLAGS |= EFLAGS_VIF;
 			    }
+			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
 			    if (temp & EFLAGS_IF) {
 				if (vm86s.regs.eflags & VIP) {
 				    if (debug_level('e')>1)
@@ -2112,10 +2113,18 @@ stack_return_from_vm86:
 			    }
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
+			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
+			    if (opc == POPF && (EFLAGS & EFLAGS_IF) && pic_pending()) {
+				if (debug_level('e')>1)
+				    e_printf("Return for STI fl=%08x\n",
+					    EFLAGS);
+				TheCPU.err=EXCP_STISIGNAL;
+				return PC+1;
+			    }
 			}
-			TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
-			if (opc==POPF) PC++; }
-			break;
+			if (opc==POPF) PC++;
+		}
+		break;
 
 /*f2*/	case REPNE:
 /*f3*/	case REP: /* also is REPE */ {
@@ -2472,6 +2481,13 @@ repag0:
 			    }
 			    else
 				goto not_permitted;	/* GPF */
+			    if (pic_pending()) {
+				if (debug_level('e')>1)
+				    e_printf("Return for STI fl=%08x\n",
+					    EFLAGS);
+				TheCPU.err=EXCP_STISIGNAL;
+				return PC+1;
+			    }
 			}
 			PC++;
 			break;
