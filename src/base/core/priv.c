@@ -299,7 +299,6 @@ static void start_landlock(void)
     "/tmp",
     "/var",
     "/proc",
-    "/run",
     NULL
   };
   static const char *allow_ro[] = {
@@ -360,6 +359,14 @@ static void start_landlock(void)
     err = landlock_allow(dosemu_tmpdir, 0);
     if (err) {
       error("landlock_allow_rw(%s) failed\n", dosemu_tmpdir);
+      leavedos(3);
+      return;
+    }
+  }
+  if (dosemu_rundir_path) {
+    err = landlock_allow(dosemu_rundir_path, 0);
+    if (err) {
+      error("landlock_allow_rw(%s) failed\n", dosemu_rundir_path);
       leavedos(3);
       return;
     }
