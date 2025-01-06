@@ -486,6 +486,8 @@ static void set_freedos_dir(void)
     error("DOSEMU2_EXTRAS_DIR set incorrectly\n");
     xdir = NULL;
   }
+  if (xdir)
+    permit_dir_ro(xdir);
   if (!loaded) {  // no fdpp
     if (xdir && check_freedos(xdir)) {
       config.try_freedos = 1;
@@ -505,6 +507,7 @@ static void set_freedos_dir(void)
 
   ccdir = getenv("DOSEMU2_COMCOM_DIR");
   if (ccdir && access(ccdir, R_OK | X_OK) == 0 && check_comcom(ccdir)) {
+    permit_dir_ro(ccdir);
     comcom_dir = strdup(ccdir);
   } else {
     const char *comcom[] = {
