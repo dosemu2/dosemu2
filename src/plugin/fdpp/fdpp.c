@@ -203,6 +203,7 @@ static const struct fdpp_api api = {
 
 CONSTRUCTOR(static void init(void))
 {
+    const char *fddir;
     int req_ver = 0;
     int err = FdppInit(&api, FDPP_API_VER, &req_ver);
     if (err) {
@@ -215,4 +216,10 @@ CONSTRUCTOR(static void init(void))
     register_debug_class('f', NULL, "fdpp");
     dbug_printf("%s\n", FdppVersionString());
     fdpp_loaded();
+    fddir = getenv("FDPP_KERNEL_DIR");
+    if (fddir)
+	permit_dir_ro(fddir);
+#ifdef FDPP_KERNEL_DIR
+    permit_dir_ro(FDPP_KERNEL_DIR);
+#endif
 }

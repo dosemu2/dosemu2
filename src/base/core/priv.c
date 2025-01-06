@@ -70,6 +70,10 @@ int current_iopl;
 #define PRIVS_ARE_ON (euid == cur_euid)
 #define PRIVS_ARE_OFF (uid == cur_euid)
 
+#define MAX_ALLOW_DIRS 10
+static const char *ro_dirs[MAX_ALLOW_DIRS];
+static int num_ro_dirs;
+
 static int _priv_on(void)
 {
   if (seteuid(euid)) {
@@ -271,8 +275,18 @@ static void init_groups(uid_t uid, gid_t gid)
 #endif
 }
 
+int permit_dir_ro(const char *dir)
+{
+  assert(num_ro_dirs < MAX_ALLOW_DIRS);
+  if (num_ro_dirs >= MAX_ALLOW_DIRS)  // maybe asserts are disabled
+    return -1;
+  ro_dirs[num_ro_dirs++] = dir;
+  return 0;
+}
+
 static void start_landlock(void)
 {
+  int i;
   int err;
   const char **p;
   static const char *allow_rw[] = {
@@ -308,6 +322,15 @@ static void start_landlock(void)
     err = landlock_allow(*p, 1);
     if (err) {
       error("landlock_allow_ro(%s) failed\n", *p);
+      leavedos(3);
+      return;
+    }
+  }
+  for (i = 0; i < num_ro_dirs; i++) {
+    const char *q = ro_dirs[i];
+    err = landlock_allow(q, 1);
+    if (err) {
+      error("landlock_allow_ro(%s) failed\n", q);
       leavedos(3);
       return;
     }

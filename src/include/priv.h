@@ -38,5 +38,7 @@ int running_suid_changed(void);
 void priv_drop_root(void);
 int priv_drop(void);
 
+int permit_dir_ro(const char *dir);
+
 #endif /* PRIV_H */
 
