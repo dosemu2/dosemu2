@@ -450,7 +450,7 @@ static int terminal_initialize(void)
    /* stderr should be redirected by wrapper script.
     * If its not the case, we need to close it by hands. */
    if (!config.tty_stderr && isatty(STDERR_FILENO)) {
-     error("term: stderr still on tty, closing\n");
+     warn("term: stderr still on tty, use -t switch\n");
      close(STDERR_FILENO);
      open("/dev/null", O_WRONLY | O_CLOEXEC);
    }
