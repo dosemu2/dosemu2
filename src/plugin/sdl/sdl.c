@@ -845,6 +845,19 @@ static void *render_thread(void *arg)
 }
 #endif
 
+static int is_same_mode(struct vid_mode_params vmp)
+{
+  if (current_mode_class != vmp.mode_class)
+    return 0;
+  if (win_width == vmp.x_res && win_height == vmp.y_res)
+    return 1;
+  if (vmp.mode_class == TEXT) {
+    return (desired_win_width == vmp.w_x_res &&
+        desired_win_height == vmp.w_y_res);
+  }
+  return 0;
+}
+
 int SDL_set_videomode(struct vid_mode_params vmp)
 {
   SDL_DisplayMode mode;
@@ -854,8 +867,7 @@ int SDL_set_videomode(struct vid_mode_params vmp)
       ("SDL: set_videomode: 0x%x (%s), size %d x %d (%d x %d pixel)\n",
        video_mode, vmp.mode_class ? "GRAPH" : "TEXT",
        vmp.text_width, vmp.text_height, vmp.x_res, vmp.y_res);
-  if (win_width == vmp.x_res && win_height == vmp.y_res &&
-      current_mode_class == vmp.mode_class) {
+  if (is_same_mode(vmp)) {
     v_printf("SDL: same mode, not changing\n");
     return 1;
   }
