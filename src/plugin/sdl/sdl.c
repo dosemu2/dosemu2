@@ -551,16 +551,14 @@ static void SDL_update(void)
 #if !THREADED_REND
   sdl_rects_num = tmp_rects_num;
   tmp_rects_num = 0;
+  if (sdl_rects_num > 0)
+    do_rend();
 #endif
   i = sdl_rects_num;
   sdl_rects_num = 0;
   pthread_mutex_unlock(&rects_mtx);
-  if (i > 0) {
-#if !THREADED_REND
-    do_rend();
-#endif
+  if (i > 0)
     do_redraw();
-  }
 }
 
 static void redraw_text(void)
@@ -802,12 +800,10 @@ static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
   struct rect_desc d;
 
   SDL_SetRenderTarget(renderer, tex);
-  pthread_mutex_lock(&rects_mtx);
   while ((rc = rng_get(rng, &d))) {
     SDL_RenderCopy(renderer, d.tex, NULL, &d.rect);
     SDL_DestroyTexture(d.tex);
   }
-  pthread_mutex_unlock(&rects_mtx);
   SDL_SetRenderTarget(renderer, NULL);
 }
 
@@ -834,12 +830,12 @@ static void *render_thread(void *arg)
       cond_wait(&rend_cnd, &rects_mtx);
     sdl_rects_num = tmp_rects_num;
     tmp_rects_num = 0;
-    pthread_mutex_unlock(&rects_mtx);
     render_mode_lock();
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     do_rend();
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     render_mode_unlock();
+    pthread_mutex_unlock(&rects_mtx);
   }
   return NULL;
 }
@@ -1005,11 +1001,6 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   real_win_height = w_y_res;
   surf_width = x_res;
   surf_height = y_res;
-
-  /* forget about those rectangles */
-  pthread_mutex_lock(&rects_mtx);
-  sdl_rects_num = 0;
-  pthread_mutex_unlock(&rects_mtx);
 
   update_mouse_coords();
 }
