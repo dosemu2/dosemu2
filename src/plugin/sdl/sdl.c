@@ -133,7 +133,7 @@ struct rect_desc {
   SDL_Texture *tex;
 };
 static int font_width, font_height;
-static int win_width, win_height;
+static int surf_width, surf_height;
 static int real_win_width, real_win_height;
 static int desired_win_width, desired_win_height;
 static int m_x_res, m_y_res;
@@ -591,7 +591,7 @@ static struct bitmap_desc lock_surface(void)
     return (struct bitmap_desc){0};
   err = SDL_LockSurface(surface);
   assert(!err);
-  return BMP(surface->pixels, win_width, win_height, surface->pitch);
+  return BMP(surface->pixels, surf_width, surf_height, surface->pitch);
 }
 
 static void unlock_surface(void)
@@ -849,7 +849,7 @@ static int is_same_mode(struct vid_mode_params vmp)
 {
   if (current_mode_class != vmp.mode_class)
     return 0;
-  if (win_width == vmp.x_res && win_height == vmp.y_res)
+  if (surf_width == vmp.x_res && surf_height == vmp.y_res)
     return 1;
   if (vmp.mode_class == TEXT) {
     return (desired_win_width == vmp.w_x_res &&
@@ -1020,8 +1020,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   m_y_res = w_y_res;
   real_win_width = w_x_res;
   real_win_height = w_y_res;
-  win_width = x_res;
-  win_height = y_res;
+  surf_width = x_res;
+  surf_height = y_res;
 
   /* forget about those rectangles */
   pthread_mutex_lock(&rects_mtx);
