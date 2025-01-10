@@ -62,6 +62,7 @@ struct render_wrp {
 static struct render_wrp Render;
 static int initialized;
 static int cur_mode_class;
+static struct vid_mode_params old_vmp;
 
 __attribute__((warn_unused_result))
 static int render_lock(void)
@@ -593,10 +594,13 @@ int render_update_vidmode(void)
     struct vid_mode_params vmp;
     pthread_rwlock_wrlock(&mode_mtx);
     vmp = get_mode_parameters();
-    ret = Video->setmode(vmp);
+    if (memcmp(&vmp, &old_vmp, sizeof(struct vid_mode_params)) != 0)
+      ret = Video->setmode(vmp);
     pthread_rwlock_unlock(&mode_mtx);
-    if (ret)
+    if (ret) {
       cur_mode_class = vmp.mode_class;
+      old_vmp = vmp;
+    }
   }
   return ret;
 }
