@@ -212,7 +212,6 @@ static void mhp_init(void)
 
 static void reopen_fdin(void)
 {
-  ioselect_complete(mhpdbg.fdin);
   remove_from_io_select(mhpdbg.fdin);
   close(mhpdbg.fdin);
   mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);

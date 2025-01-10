@@ -276,6 +276,9 @@ void remove_from_io_select(int fd)
 	pthread_mutex_lock(&fds_mtx);
 	FD_CLR(fd, &fds_sigio);
 	pthread_mutex_unlock(&fds_mtx);
+	pthread_mutex_lock(&blk_mtx);
+	FD_CLR(fd, &fds_masked);
+	pthread_mutex_unlock(&blk_mtx);
 	write(syncpipe[1], "-", 1);
 	g_printf("GEN: fd=%d removed from select SIGIO\n", fd);
     }
