@@ -1617,6 +1617,7 @@ void config_close(void)
     closedir_under(dosemu_tmpdir);
     /* /tmp has sticky bit and we changed user, so can't rmdir() */
     free(dosemu_tmpdir);
+    free_fonts();
 }
 
 /*

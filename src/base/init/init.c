@@ -166,23 +166,29 @@ void map_video_bios(void)
   }
 }
 
+static uint8_t *f8, *f14, *f16;
+static int l8, l14, l16;
+static int fonts_loaded;
+
 static void setup_fonts(void)
 {
-  uint8_t *f8, *f14, *f16;
-  int l8, l14, l16;
   uint16_t cp;
-  char *path;
 
   if (!config.internal_cset || strncmp(config.internal_cset, "cp", 2) != 0)
     return;
   cp = atoi(config.internal_cset + 2);
   if (!cp)
     return;
-  c_printf("loading fonts for %s\n", config.internal_cset);
-  path = assemble_path(dosemu_lib_dir_path, "cpi");
-  f8 = cpi_load_font(path, cp, 8, 8, &l8);
-  f14 = cpi_load_font(path, cp, 8, 14, &l14);
-  f16 = cpi_load_font(path, cp, 8, 16, &l16);
+  if (!fonts_loaded) {
+    char *path;
+    c_printf("loading fonts for %s\n", config.internal_cset);
+    path = assemble_path(dosemu_lib_dir_path, "cpi");
+    f8 = cpi_load_font(path, cp, 8, 8, &l8);
+    f14 = cpi_load_font(path, cp, 8, 14, &l14);
+    f16 = cpi_load_font(path, cp, 8, 16, &l16);
+    free(path);
+    fonts_loaded++;
+  }
   if (f8 && f14 && f16) {
     assert(l8 == 256 * 8);
     memcpy(vga_rom_08, f8, l8);
@@ -193,10 +199,16 @@ static void setup_fonts(void)
   } else {
     error("CPI not found for %s\n", config.internal_cset);
   }
-  free(f8);
-  free(f14);
-  free(f16);
-  free(path);
+}
+
+void free_fonts(void)
+{
+  if (fonts_loaded) {
+    free(f8);
+    free(f14);
+    free(f16);
+    fonts_loaded = 0;
+  }
 }
 
 /*
