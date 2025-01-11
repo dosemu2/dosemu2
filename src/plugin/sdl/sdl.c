@@ -804,7 +804,9 @@ static void setup_ttf_winsize(int xtarget, int ytarget)
     return;
   }
 
+  pthread_mutex_lock(&tex_mtx);
   texture_ttf = CreateTextureTarget(xtarget, ytarget, 1);
+  pthread_mutex_unlock(&tex_mtx);
   if (!texture_ttf) {
     error("SDL target texture failed: %s\n", SDL_GetError());
     leavedos(99);
@@ -831,6 +833,9 @@ static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
   int rc;
   struct rect_desc d;
 
+  /* Unfortunately SDL_UpdateTexture() uses renderer internally,
+   * so apply also rend_mtx. */
+  pthread_mutex_lock(&rend_mtx);
   pthread_mutex_lock(&tex_mtx);
   while ((rc = rng_get(rng, &d))) {
     SDL_LockSurface(d.tex);
@@ -839,6 +844,7 @@ static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
     SDL_FreeSurface(d.tex);
   }
   pthread_mutex_unlock(&tex_mtx);
+  pthread_mutex_unlock(&rend_mtx);
 }
 
 static void do_rend(void)
