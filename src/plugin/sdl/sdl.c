@@ -130,7 +130,7 @@ static SDL_Texture *texture_ttf;
 #endif
 struct rect_desc {
   SDL_Rect rect;
-  SDL_Texture *tex;
+  SDL_Surface *tex;
 };
 static int font_width, font_height;
 static int surf_width, surf_height;
@@ -824,17 +824,16 @@ static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
   int rc;
   struct rect_desc d;
 
-  SDL_SetRenderTarget(renderer, tex);
   while ((rc = rng_get(rng, &d))) {
-    SDL_RenderCopy(renderer, d.tex, NULL, &d.rect);
-    SDL_DestroyTexture(d.tex);
+    SDL_LockSurface(d.tex);
+    SDL_UpdateTexture(tex, &d.rect, d.tex->pixels, d.tex->pitch);
+    SDL_UnlockSurface(d.tex);
+    SDL_FreeSurface(d.tex);
   }
-  SDL_SetRenderTarget(renderer, NULL);
 }
 
 static void do_rend(void)
 {
-  pthread_mutex_lock(&rend_mtx);
   if (!surface) {
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
     do_rend_rects(&ttf_char_rng, texture_ttf);
@@ -843,7 +842,6 @@ static void do_rend(void)
     /* texture_buf protected by render_mode_lock() */
     do_rend_rects(&rects_rng, texture_buf);
   }
-  pthread_mutex_unlock(&rend_mtx);
 }
 
 #if THREADED_REND
@@ -1048,18 +1046,13 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   d.rect.w = width;
   d.rect.h = height;
 
-  pthread_mutex_lock(&rend_mtx);
-  d.tex = SDL_CreateTexture(renderer,
-        pixel_format,
-        SDL_TEXTUREACCESS_STATIC,
-        width, height);
-  pthread_mutex_unlock(&rend_mtx);
+  d.tex = SDL_CreateRGBSurfaceWithFormatFrom(surface->pixels + offs,
+        width, height, -1, surface->pitch, pixel_format);
   assert(d.tex);
-  SDL_UpdateTexture(d.tex, NULL, surface->pixels + offs, surface->pitch);
   pthread_mutex_lock(&rects_mtx);
   if (!rng_put(&rects_rng, &d)) {
     error("SDL: rects queue overflow\n");
-    SDL_DestroyTexture(d.tex);
+    SDL_FreeSurface(d.tex);
   }
   tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
@@ -1646,16 +1639,13 @@ static void SDL_draw_string(void *opaque, int x, int y, const char *text,
   pthread_mutex_unlock(&sdl_font_mtx);
   free(s);
 
-  pthread_mutex_lock(&rend_mtx);
-  d.tex = SDL_CreateTextureFromSurface(renderer, srf);
-  pthread_mutex_unlock(&rend_mtx);
-  SDL_FreeSurface(srf);
-
+  d.tex = SDL_ConvertSurfaceFormat(srf, pixel_format, 0);
   assert(d.tex);
+  SDL_FreeSurface(srf);
   pthread_mutex_lock(&rects_mtx);
   if (!rng_put(&ttf_char_rng, &d)) {
     error("TTF queue overflowed\n");
-    SDL_DestroyTexture(d.tex);
+    SDL_FreeSurface(d.tex);
   }
   tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
@@ -1673,20 +1663,20 @@ static void SDL_draw_line(void *opaque, int x, int y, float ul, int len,
     Bit8u attr)
 {
   struct rect_desc d;
+  SDL_Renderer *rend;
   v_printf("SDL_draw_line x(%d) y(%d) len(%d)\n", x, y, len);
 
-  pthread_mutex_lock(&rend_mtx);
-  d.tex = CreateTextureTarget(font_width * len, 1, 0);
+  d.tex = SDL_CreateRGBSurfaceWithFormat(0, font_width * len, 1, -1,
+      pixel_format);
   assert(d.tex);
-  SDL_SetRenderTarget(renderer, d.tex);
-  SDL_SetRenderDrawColor(renderer,
+  rend = SDL_CreateSoftwareRenderer(d.tex);
+  SDL_SetRenderDrawColor(rend,
                            text_colors[ATTR_FG(attr)].r,
                            text_colors[ATTR_FG(attr)].g,
                            text_colors[ATTR_FG(attr)].b,
                            text_colors[ATTR_FG(attr)].a);
-  SDL_RenderDrawLine(renderer, 0, 0, font_width * len - 1, 0);
-  SDL_SetRenderTarget(renderer, NULL);
-  pthread_mutex_unlock(&rend_mtx);
+  SDL_RenderDrawLine(rend, 0, 0, font_width * len - 1, 0);
+  SDL_DestroyRenderer(rend);
 
   d.rect.x = font_width * x;
   d.rect.y = font_height * y + (font_height - 1) * ul;
@@ -1696,7 +1686,7 @@ static void SDL_draw_line(void *opaque, int x, int y, float ul, int len,
   pthread_mutex_lock(&rects_mtx);
   if (!rng_put(&ttf_char_rng, &d)) {
     error("TTF queue overflowed\n");
-    SDL_DestroyTexture(d.tex);
+    SDL_FreeSurface(d.tex);
   }
   tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
@@ -1714,6 +1704,7 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
                                int start, int end, Boolean focus)
 {
   SDL_Rect rect;
+  SDL_Renderer *rend;
   struct rect_desc d;
 
   if (MODE_CLASS() == GRAPH)
@@ -1746,27 +1737,25 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
   d.rect.w = rect.w;
   d.rect.h = rect.h;
 
-  pthread_mutex_lock(&rend_mtx);
-  d.tex = CreateTextureTarget(rect.w, rect.h, 0);
+  d.tex = SDL_CreateRGBSurfaceWithFormat(0, rect.w, rect.h, -1, pixel_format);
   assert(d.tex);
-  SDL_SetRenderTarget(renderer, d.tex);
-  SDL_SetRenderDrawColor(renderer,
+  rend = SDL_CreateSoftwareRenderer(d.tex);
+  SDL_SetRenderDrawColor(rend,
                            text_colors[ATTR_FG(attr)].r,
                            text_colors[ATTR_FG(attr)].g,
                            text_colors[ATTR_FG(attr)].b,
                            text_colors[ATTR_FG(attr)].a);
 
   if (!focus)
-    SDL_RenderDrawRect(renderer, &rect);
+    SDL_RenderDrawRect(rend, &rect);
   else
-    SDL_RenderFillRect(renderer, &rect);
-  SDL_SetRenderTarget(renderer, NULL);
-  pthread_mutex_unlock(&rend_mtx);
+    SDL_RenderFillRect(rend, &rect);
+  SDL_DestroyRenderer(rend);
 
   pthread_mutex_lock(&rects_mtx);
   if (!rng_put(&ttf_char_rng, &d)) {
     error("TTF queue overflowed\n");
-    SDL_DestroyTexture(d.tex);
+    SDL_FreeSurface(d.tex);
   }
   tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
