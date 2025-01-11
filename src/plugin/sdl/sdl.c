@@ -704,7 +704,8 @@ static int find_best_font(int xtarget, int ytarget, int cols, int rows)
   return idx;
 }
 
-static int _setup_ttf_winsize(int xtarget, int ytarget)
+static int _setup_ttf_winsize(int xtarget, int ytarget,
+    int *r_xtarget, int *r_ytarget)
 {
   int xnow, ynow;
   int cols, rows;
@@ -768,6 +769,8 @@ static int _setup_ttf_winsize(int xtarget, int ytarget)
   if (xnow <= xtarget && ynow <= ytarget) {
     v_printf("SDL: point size %d fits xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n",
                i, xtarget, xnow, ytarget, ynow);
+    *r_xtarget = xnow;
+    *r_ytarget = ynow;
     ret = 1;
   } else
     v_printf("SDL: reduced pointsize to zero xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n",
@@ -780,16 +783,30 @@ done:
 
 static void setup_ttf_winsize(int xtarget, int ytarget)
 {
-  int rc = _setup_ttf_winsize(xtarget, ytarget);
-  if (!rc)
+  SDL_Texture *old_tex = texture_ttf;
+  int r_xtarget, r_ytarget;
+  int rc = _setup_ttf_winsize(xtarget, ytarget, &r_xtarget, &r_ytarget);
+  if (!rc) {
     error("SDL: failed to set font for %i:%i\n", xtarget, ytarget);
+    return;
+  }
 
-  if (texture_ttf)
-    SDL_DestroyTexture(texture_ttf);
   texture_ttf = CreateTextureTarget(xtarget, ytarget, 1);
   if (!texture_ttf) {
     error("SDL target texture failed: %s\n", SDL_GetError());
     leavedos(99);
+  }
+  if (old_tex) {
+    SDL_Rect old = { .w = real_win_width, .h = real_win_height };
+    SDL_Rect ne = { .w = r_xtarget, .h = r_ytarget };
+    SDL_Rect un;
+    SDL_IntersectRect(&old, &ne, &un);
+    SDL_SetRenderTarget(renderer, texture_ttf);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, old_tex, &un, &un);
+    SDL_SetRenderTarget(renderer, NULL);
+    SDL_DestroyTexture(old_tex);
   }
 }
 #endif
@@ -1073,8 +1090,6 @@ static void window_grab(int on, int kbd)
 static void window_size_changed(int w, int h)
 {
         v_printf("SDL: window size changed to %dx%d\n", w, h);
-        real_win_width = w;
-        real_win_height = h;
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
         if (MODE_CLASS() == TEXT) {
           pthread_mutex_lock(&rend_mtx);
@@ -1082,6 +1097,8 @@ static void window_size_changed(int w, int h)
           pthread_mutex_unlock(&rend_mtx);
         }
 #endif
+        real_win_width = w;
+        real_win_height = h;
 
 	/* very strange things happen: if renderer size was explicitly
 	 * set, SDL reports mouse coords relative to that. Otherwise
