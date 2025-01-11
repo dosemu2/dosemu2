@@ -565,7 +565,15 @@ static void redraw_text(void)
 {
   pthread_mutex_lock(&rend_mtx);
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+  if (!surface) {
+#if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
+    SDL_SetRenderTarget(renderer, texture_ttf);
+#endif
+  } else {
+    SDL_SetRenderTarget(renderer, texture_buf);
+  }
   SDL_RenderClear(renderer);
+  SDL_SetRenderTarget(renderer, NULL);
   pthread_mutex_unlock(&rend_mtx);
   redraw_text_screen();
 }
@@ -574,7 +582,7 @@ static void SDL_redraw(void)
 {
   if (MODE_CLASS() == TEXT) {
     assert(!use_bitmap_font);
-    redraw_text();
+    redraw_text_screen();
     return;
   }
 
@@ -1109,7 +1117,6 @@ static void window_size_changed(int w, int h)
 	  m_y_res = h;
 	}
 	update_mouse_coords();
-	SDL_redraw();
 }
 
 static void toggle_grab(int kbd)
