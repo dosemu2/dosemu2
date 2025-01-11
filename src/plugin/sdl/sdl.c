@@ -146,6 +146,7 @@ static int tmp_rects_num;
 #define RECTS_UPD_THRESHOLD 10000
 static struct rng_s rects_rng;
 static pthread_mutex_t rend_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t tex_mtx = PTHREAD_MUTEX_INITIALIZER;
 #if THREADED_REND
 static pthread_t rend_thr;
 static pthread_cond_t rend_cnd = PTHREAD_COND_INITIALIZER;
@@ -522,6 +523,7 @@ static void do_redraw(void)
   pthread_mutex_lock(&rend_mtx);
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
   SDL_RenderClear(renderer);
+  pthread_mutex_lock(&tex_mtx);
   if (!surface) {
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
     SDL_RenderCopy(renderer, texture_ttf, NULL, NULL);
@@ -529,6 +531,7 @@ static void do_redraw(void)
   } else {
     SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
   }
+  pthread_mutex_unlock(&tex_mtx);
   SDL_RenderPresent(renderer);
   pthread_mutex_unlock(&rend_mtx);
 }
@@ -538,7 +541,9 @@ static void do_redraw_full(void)
   pthread_mutex_lock(&rend_mtx);
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
   SDL_RenderClear(renderer);
+  pthread_mutex_lock(&tex_mtx);
   SDL_RenderCopy(renderer, texture_buf, NULL, NULL);
+  pthread_mutex_unlock(&tex_mtx);
   SDL_RenderPresent(renderer);
   pthread_mutex_unlock(&rend_mtx);
 }
@@ -809,11 +814,13 @@ static void setup_ttf_winsize(int xtarget, int ytarget)
     SDL_Rect ne = { .w = r_xtarget, .h = r_ytarget };
     SDL_Rect un;
     SDL_IntersectRect(&old, &ne, &un);
+    pthread_mutex_lock(&tex_mtx);
     SDL_SetRenderTarget(renderer, texture_ttf);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, old_tex, &un, &un);
     SDL_SetRenderTarget(renderer, NULL);
+    pthread_mutex_unlock(&tex_mtx);
     SDL_DestroyTexture(old_tex);
   }
 }
@@ -824,12 +831,14 @@ static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
   int rc;
   struct rect_desc d;
 
+  pthread_mutex_lock(&tex_mtx);
   while ((rc = rng_get(rng, &d))) {
     SDL_LockSurface(d.tex);
     SDL_UpdateTexture(tex, &d.rect, d.tex->pixels, d.tex->pitch);
     SDL_UnlockSurface(d.tex);
     SDL_FreeSurface(d.tex);
   }
+  pthread_mutex_unlock(&tex_mtx);
 }
 
 static void do_rend(void)
