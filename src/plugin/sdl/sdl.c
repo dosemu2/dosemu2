@@ -1321,6 +1321,12 @@ static void SDL_handle_events(void)
   SDL_PumpEvents();
   if (sig_threads_wa)
     sigprocmask(SIG_SETMASK, &oset, NULL);
+  /* XXX - Flush window resize events to avoid them being dispatched
+   * from render thread! If window resize event is dispatched from
+   * another thread, window will became permanently blank.
+   * SDL renderer really not supposed to run from thread. :(
+   */
+  SDL_RenderFlush(renderer);
   pthread_mutex_unlock(&rend_mtx);
   /* SDL_PeepEvents() is thread-safe, SDL_PollEvent() - not */
   while (SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_FIRSTEVENT,
