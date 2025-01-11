@@ -56,6 +56,7 @@
 #include "sdl.h"
 
 #define THREADED_REND 1
+#define THREADED_R() (THREADED_REND && !config.sdl_hwrend)
 
 static int SDL_init(void);
 static void SDL_close(void);
@@ -460,12 +461,12 @@ static int SDL_init(void)
   use_ttf_font = rc;
   use_bitmap_font = 1;
 
-#if THREADED_REND
-  pthread_create(&rend_thr, NULL, render_thread, NULL);
+  if (THREADED_R()) {
+    pthread_create(&rend_thr, NULL, render_thread, NULL);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
-  pthread_setname_np(rend_thr, "dosemu: sdl_r");
+    pthread_setname_np(rend_thr, "dosemu: sdl_r");
 #endif
-#endif
+  }
 
   if (config.sdl_clip_native) {
     sdlclip_mode = 1;
@@ -484,10 +485,10 @@ err:
 
 void SDL_close(void)
 {
-#if THREADED_REND
-  pthread_cancel(rend_thr);
-  pthread_join(rend_thr, NULL);
-#endif
+  if (THREADED_R()) {
+    pthread_cancel(rend_thr);
+    pthread_join(rend_thr, NULL);
+  }
   remapper_done();
   vga_emu_done();
   /* destroy texture before renderer, or crash */
@@ -548,12 +549,12 @@ static void SDL_update(void)
   v_printf("SDL_update\n");
 
   pthread_mutex_lock(&rects_mtx);
-#if !THREADED_REND
-  sdl_rects_num = tmp_rects_num;
-  tmp_rects_num = 0;
-  if (sdl_rects_num > 0)
-    do_rend();
-#endif
+  if (!THREADED_R()) {
+    sdl_rects_num = tmp_rects_num;
+    tmp_rects_num = 0;
+    if (sdl_rects_num > 0)
+      do_rend();
+  }
   i = sdl_rects_num;
   sdl_rects_num = 0;
   pthread_mutex_unlock(&rects_mtx);
@@ -621,9 +622,8 @@ static void unlock_surface(void)
     return;
   }
 
-#if THREADED_REND
-  pthread_cond_signal(&rend_cnd);
-#endif
+  if (THREADED_R())
+    pthread_cond_signal(&rend_cnd);
 }
 
 /* wrapper needed to "clean up" the created textures */
@@ -1650,9 +1650,8 @@ static void SDL_draw_string(void *opaque, int x, int y, const char *text,
   tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
 
-#if THREADED_REND
-  pthread_cond_signal(&rend_cnd);
-#endif
+  if (THREADED_R())
+    pthread_cond_signal(&rend_cnd);
 }
 
 /*
@@ -1691,9 +1690,8 @@ static void SDL_draw_line(void *opaque, int x, int y, float ul, int len,
   tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
 
-#if THREADED_REND
-  pthread_cond_signal(&rend_cnd);
-#endif
+  if (THREADED_R())
+    pthread_cond_signal(&rend_cnd);
 }
 
 /*
@@ -1760,9 +1758,8 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
   tmp_rects_num++;
   pthread_mutex_unlock(&rects_mtx);
 
-#if THREADED_REND
-  pthread_cond_signal(&rend_cnd);
-#endif
+  if (THREADED_R())
+    pthread_cond_signal(&rend_cnd);
 }
 
 /*
