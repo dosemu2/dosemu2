@@ -28,6 +28,7 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect);
 void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t targ, int protect);
 void set_kvm_memory_regions(void);
 void kvm_set_mmio(dosaddr_t base, dosaddr_t size, int on);
+void kvm_set_cpio(int base, int size);
 void kvm_set_dirty_log(dosaddr_t base, dosaddr_t size);
 void kvm_get_dirty_map(dosaddr_t base, unsigned char *bitmap);
 

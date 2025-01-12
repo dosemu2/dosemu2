@@ -1581,6 +1581,9 @@ static void vgaemu_register_ports(void)
     io_device.end_addr = 0x3bf;
     port_register_handler(io_device, 0);
   }
+
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+    kvm_set_cpio(0x3b4, 0x400 - 0x3b4);
 }
 
 /*

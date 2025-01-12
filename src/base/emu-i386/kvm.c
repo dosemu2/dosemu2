@@ -42,6 +42,7 @@
 #include "dos2linux.h"
 #include "mapping.h"
 #include "sig.h"
+#include "port.h"
 
 #ifndef X86_EFLAGS_FIXED
 #define X86_EFLAGS_FIXED 2
@@ -160,10 +161,8 @@ static struct kvm_run *run;
 static int kvmfd, vmfd, vcpufd;
 static struct kvm_sregs sregs;
 
-#if USE_CMMIO
 static int cmi_offs;
 #define MMIO_RING(r) (struct kvm_coalesced_mmio_ring *)((char *)run + cmi_offs * PAGE_SIZE)
-#endif
 
 #define MAXSLOT 400
 static struct kvm_userspace_memory_region maps[MAXSLOT];
@@ -511,21 +510,25 @@ int init_kvm_cpu(void)
 
 #if defined(KVM_CAP_SYNC_MMU) && defined(KVM_CAP_SET_IDENTITY_MAP_ADDR) && \
   defined(KVM_CAP_SET_TSS_ADDR) && defined(KVM_CAP_XSAVE) && \
-  defined(KVM_CAP_IMMEDIATE_EXIT) && defined(KVM_CAP_COALESCED_MMIO)
+  defined(KVM_CAP_IMMEDIATE_EXIT) && defined(KVM_CAP_COALESCED_MMIO) && \
+  defined(KVM_CAP_COALESCED_PIO)
   /* SYNC_MMU is needed because we map shm behind KVM's back */
   ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SYNC_MMU);
   if (ret <= 0) {
     error("KVM: SYNC_MMU unsupported %x\n", ret);
     goto errcap;
   }
-#if USE_CMMIO
   ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
   if (ret <= 0) {
     error("KVM: COALESCED_MMIO unsupported %x\n", ret);
     goto errcap;
   }
   cmi_offs = ret;
-#endif
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_PIO);
+  if (ret <= 0) {
+    error("KVM: COALESCED_PIO unsupported %x\n", ret);
+    goto errcap;
+  }
   ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SET_IDENTITY_MAP_ADDR);
   if (ret <= 0) {
     error("KVM: SET_IDENTITY_MAP_ADDR unsupported %x\n", ret);
@@ -840,6 +843,23 @@ void kvm_get_dirty_map(dosaddr_t base, unsigned char *bitmap)
   }
 }
 
+void kvm_set_cpio(int base, int size)
+{
+  int i;
+  struct kvm_coalesced_mmio_zone mmz = {
+      .addr = base,
+      .size = size,
+      .pio = 1 };
+  int ret = ioctl(vmfd, KVM_REGISTER_COALESCED_MMIO, &mmz); // _MMIO for PIO
+  if (ret == -1) {
+    perror("KVM: KVM_REGISTER_COALESCED_PIO");
+    leavedos_main(99);
+  }
+
+  for (i = base; i < base + size; i++)
+    clear_bit(i, monitor->io_bitmap);
+}
+
 /* This function works like handle_vm86_fault in the Linux kernel,
    except:
    * since we use VME we only need to handle
@@ -1111,24 +1131,31 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
   return 1;
 }
 
-#if USE_CMMIO
 static void process_pending_mmio(void)
 {
   struct kvm_coalesced_mmio_ring *mr = MMIO_RING(run);
   while (mr->first != mr->last) {
     struct kvm_coalesced_mmio *cmi = &mr->coalesced_mmio[mr->first++];
 //    mr->first %= KVM_COALESCED_MMIO_MAX;
-    switch(cmi->len) {
-    case 1: write_byte(cmi->phys_addr, cmi->data[0]); break;
-    case 2: write_word(cmi->phys_addr, *(uint16_t*)cmi->data); break;
-    case 4: write_dword(cmi->phys_addr, *(uint32_t*)cmi->data); break;
-    case 8: write_qword(cmi->phys_addr, *(uint64_t*)cmi->data); break;
+    if (cmi->pio) {
+      switch(cmi->len) {
+      case 1: port_outb(cmi->phys_addr, cmi->data[0]); break;
+      case 2: port_outw(cmi->phys_addr, *(uint16_t*)cmi->data); break;
+      case 4: port_outd(cmi->phys_addr, *(uint32_t*)cmi->data); break;
+//      case 8: port_outq(cmi->phys_addr, *(uint64_t*)cmi->data); break;
+      }
+    } else {
+      switch(cmi->len) {
+      case 1: write_byte(cmi->phys_addr, cmi->data[0]); break;
+      case 2: write_word(cmi->phys_addr, *(uint16_t*)cmi->data); break;
+      case 4: write_dword(cmi->phys_addr, *(uint32_t*)cmi->data); break;
+      case 8: write_qword(cmi->phys_addr, *(uint64_t*)cmi->data); break;
+      }
     }
   }
   mr->first = 0;
   mr->last = 0;
 }
-#endif
 
 static void do_mmio(void)
 {
@@ -1171,6 +1198,31 @@ static void do_exit_mmio(void)
   kvm_set_immediate_exit(0);
 }
 #endif
+
+static void kvm_handle_io(uint16_t port, unsigned char *data,
+                          int direction, int size, uint32_t count)
+{
+  int i;
+
+  for (i = 0; i < count; i++) {
+    if (run->io.direction == KVM_EXIT_IO_OUT) {
+      switch(run->io.size) {
+      case 1: port_outb(port, data[0]); break;
+      case 2: port_outw(port, *(uint16_t*)data); break;
+      case 4: port_outd(port, *(uint32_t*)data); break;
+//      case 8: port_outq(port, *(uint64_t*)data); break;
+      }
+    } else {
+      switch(run->io.size) {
+      case 1: data[0] = port_inb(port); break;
+      case 2: *(uint16_t*)data = port_in(port); break;
+      case 4: *(uint32_t*)data = port_ind(port); break;
+//      case 8: *(uint64_t*)data = port_inq(port); break;
+      }
+    }
+    data += size;
+  }
+}
 
 /* Inner loop for KVM, runs until HLT or signal */
 static unsigned int kvm_run(void)
@@ -1254,13 +1306,18 @@ static unsigned int kvm_run(void)
       leavedos_main(99);
     }
 
-#if USE_CMMIO
     process_pending_mmio();
-#endif
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
       exit_reason = KVM_EXIT_HLT;
+      break;
+    case KVM_EXIT_IO:
+      kvm_handle_io(run->io.port,
+                    (uint8_t *)run + run->io.data_offset,
+                    run->io.direction,
+                    run->io.size,
+                    run->io.count);
       break;
     case KVM_EXIT_MMIO:
       /* for ROM: simply ignore the write and continue */
