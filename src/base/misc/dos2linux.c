@@ -190,25 +190,32 @@ static int pty_done;
 static int cbrk;
 static pthread_t reader;
 static void *queue;
+struct rd_args {
+    int fd;
+    int *done;
+    void *queue;
+};
 
 static void *rd_thread(void *arg)
 {
+    struct rd_args *args = arg;
+
     while (1) {
         void *ptr;
         unsigned len;
         ssize_t rd;
 
-        ptr = spscq_write_area(queue, &len);
-        rd = read(pty_fd, ptr, len);
+        ptr = spscq_write_area(args->queue, &len);
+        rd = read(args->fd, ptr, len);
         if (rd <= 0)
             break;
-        spscq_commit_write(queue, rd);
+        spscq_commit_write(args->queue, rd);
     }
-    __atomic_store_n(&pty_done, 1, __ATOMIC_RELAXED);
+    __atomic_store_n(args->done, 1, __ATOMIC_RELAXED);
     return NULL;
 }
 
-static void pty_worker(void)
+static void pty_worker(struct rd_args *args)
 {
 #define MAX_LEN (1024+1)
     char buf[MAX_LEN];
@@ -220,7 +227,7 @@ static void pty_worker(void)
     init_charset_state(&kstate, trconfig.keyb_charset);
     init_charset_state(&dstate, trconfig.dos_charset);
     while (1) {
-	rd = spscq_read(queue, buf, sizeof(buf) - 1);
+	rd = spscq_read(args->queue, buf, sizeof(buf) - 1);
 	if (rd > 0) {
 		int rc;
 		const char *p = buf;
@@ -243,7 +250,7 @@ static void pty_worker(void)
 	}
 	if (done)
 	    break;
-	if ((done = __atomic_load_n(&pty_done, __ATOMIC_RELAXED)))
+	if ((done = __atomic_load_n(args->done, __ATOMIC_RELAXED)))
 	    continue;  // last re-check
 
 	wr = com_dosreadcon(buf, sizeof(buf) - 1);
@@ -275,23 +282,23 @@ void dos2tty_done(void)
     close(pty_fd);
 }
 
-static void dos2tty_start(void)
+static void dos2tty_start(struct rd_args *args)
 {
     char a;
     int rd;
 
-    create_thread(&reader, rd_thread, queue, "dosemu: ttyrd");
+    create_thread(&reader, rd_thread, args, "dosemu: ttyrd");
 
     cbrk = com_setcbreak(0);
     /* flush pending input first */
     do {
 	rd = com_dosreadcon(&a, 1);
     } while (rd > 0);
-    pty_done = 0;
+    *args->done = 0;
     /* must run with interrupts enabled to read keypresses */
     assert(!isset_IF());
     set_IF();
-    pty_worker();
+    pty_worker(args);
     clear_IF();
     com_setcbreak(cbrk);
     pthread_join(reader, NULL);
@@ -300,8 +307,9 @@ static void dos2tty_start(void)
 static int do_wait_cmd(pid_t pid)
 {
     int status, retval;
+    struct rd_args args = { .fd = pty_fd, .done = &pty_done, .queue = queue };
 
-    dos2tty_start();
+    dos2tty_start(&args);
     while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
 	coopth_wait();
     if (retval == -1)
