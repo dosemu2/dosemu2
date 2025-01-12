@@ -396,14 +396,18 @@ static int do_wait_custom(pid_t pid, int fd)
     return WEXITSTATUS(status);
 }
 
-static pid_t do_run_secure(const char *path, int argc, const char **argv,
-        int close_from, int *r_fd)
+static int do_run_secure(const char *path, int pos, struct popen2 *file)
 {
+    int close_from = STDERR_FILENO + 1;
     pid_t pid;
     int wt, retval;
     sigset_t set, oset;
     int outp[2];
+    const char *argv[2];
 
+    assert(pos < strlen(path));
+    argv[0] = path + pos;
+    argv[1] = NULL;	/* no args allowed */
     retval = pipe(outp);
     assert(!retval);
     signal_block_async_nosig(&oset);
@@ -465,30 +469,31 @@ static pid_t do_run_secure(const char *path, int argc, const char **argv,
     }
     sigprocmask(SIG_SETMASK, &oset, NULL);
     close(outp[1]);
-    *r_fd = outp[0];
-    return pid;
+    file->from_child = outp[0];
+    file->to_child = -1;
+    file->child_pid = pid;
+    return 0;
 }
 
 /* no PATH searching, no arguments allowed, no stdin, no inherited fds */
 int run_unix_secure(const char *prg)
 {
     char *path;
-    const char *argv[2];
-    pid_t pid;
-    int fd;
+    struct popen2 file;
+    int pos, err;
 
-    path = assemble_path(dosemu_exec_dir_path, prg);
+    path = assemble_path2(dosemu_exec_dir_path, prg, &pos);
     if (!exists_file(path)) {
 	com_printf("unix: %s not found\n", path);
 	free(path);
 	return -1;
     }
-    argv[0] = prg;
-    argv[1] = NULL;	/* no args allowed */
     g_printf("UNIX: run_secure %s '%s'\n", path, prg);
-    pid = do_run_secure(path, 1, argv, STDERR_FILENO + 1, &fd);
+    err = do_run_secure(path, pos, &file);
     free(path);
-    return do_wait_custom(pid, fd);
+    if (err)
+	return err;
+    return do_wait_custom(file.child_pid, file.from_child);
 }
 
 /*

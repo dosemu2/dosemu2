@@ -328,7 +328,7 @@ char *concat_dir(const char *s1, const char *s2)
 	return _concat_dir(s1, s2);
 }
 
-char *assemble_path(const char *dir, const char *file)
+char *assemble_path2(const char *dir, const char *file, int *r_pos)
 {
 	char *s;
 	wordexp_t p = {};
@@ -337,9 +337,16 @@ char *assemble_path(const char *dir, const char *file)
 	err = wordexp_lite(dir, &p, WRDE_NOCMD);
 	assert(!err);
 	assert(p.we_wordc == 1);
+	if (r_pos)
+		*r_pos = strlen(p.we_wordv[0]) + 1;  // including slash
 	asprintf(&s, "%s/%s", p.we_wordv[0], file);
 	wordfree_lite(&p);
 	return s;
+}
+
+char *assemble_path(const char *dir, const char *file)
+{
+	return assemble_path2(dir, file, NULL);
 }
 
 // https://stackoverflow.com/questions/4774116/realpath-without-resolving-symlinks

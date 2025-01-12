@@ -26,6 +26,7 @@ char *strdup_nl(const char *s);
 char *strdup_crlf(const char *s);
 int tempname(char *tmpl, size_t x_suffix_len);
 char *assemble_path(const char *dir, const char *file);
+char *assemble_path2(const char *dir, const char *file, int *r_pos);
 char *expand_path(const char *dir);
 char *normalize_path(const char *src);
 char *concat_dir(const char *s1, const char *s2);
