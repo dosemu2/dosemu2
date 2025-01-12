@@ -186,10 +186,8 @@ void misc_e6_store_options(const char *str)
 
 
 static int pty_fd;
-static int pty_done;
 static int cbrk;
 static pthread_t reader;
-static void *queue;
 struct rd_args {
     int fd;
     int *done;
@@ -273,12 +271,10 @@ void dos2tty_init(void)
         return;
     }
     unlockpt(pty_fd);
-    queue = spscq_init(1024 * 64); // 64K queue
 }
 
 void dos2tty_done(void)
 {
-    spscq_done(queue);
     close(pty_fd);
 }
 
@@ -307,9 +303,17 @@ static void dos2tty_start(struct rd_args *args)
 static int do_wait_cmd(pid_t pid)
 {
     int status, retval;
-    struct rd_args args = { .fd = pty_fd, .done = &pty_done, .queue = queue };
+    void *queue;
+    int pty_done;
+    struct rd_args args;
 
+    queue = spscq_init(1024 * 64); // 64K queue
+    assert(queue);
+    args.fd = pty_fd;
+    args.done = &pty_done;
+    args.queue = queue;
     dos2tty_start(&args);
+    spscq_done(queue);
     while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
 	coopth_wait();
     if (retval == -1)
