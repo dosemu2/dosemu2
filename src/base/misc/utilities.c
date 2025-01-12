@@ -328,7 +328,7 @@ char *concat_dir(const char *s1, const char *s2)
 	return _concat_dir(s1, s2);
 }
 
-char *assemble_path(const char *dir, const char *file)
+char *assemble_path2(const char *dir, const char *file, int *r_pos)
 {
 	char *s;
 	wordexp_t p = {};
@@ -337,9 +337,16 @@ char *assemble_path(const char *dir, const char *file)
 	err = wordexp_lite(dir, &p, WRDE_NOCMD);
 	assert(!err);
 	assert(p.we_wordc == 1);
+	if (r_pos)
+		*r_pos = strlen(p.we_wordv[0]) + 1;  // including slash
 	asprintf(&s, "%s/%s", p.we_wordv[0], file);
 	wordfree_lite(&p);
 	return s;
+}
+
+char *assemble_path(const char *dir, const char *file)
+{
+	return assemble_path2(dir, file, NULL);
 }
 
 // https://stackoverflow.com/questions/4774116/realpath-without-resolving-symlinks
@@ -1429,4 +1436,23 @@ int emu_shm_unlink(const char *name)
     ret = unlink(path);
     free(path);
     return ret;
+}
+
+void create_thread(pthread_t *restrict thread,
+                   void *(*start_routine)(void *),
+                   void *restrict arg,
+                   const char *name)
+{
+    int err;
+    sigset_t oset;
+
+    if (sig_threads_wa)
+      signal_block_async_nosig(&oset);
+    err = pthread_create(thread, NULL, start_routine, arg);
+    if (sig_threads_wa)
+      sigprocmask(SIG_SETMASK, &oset, NULL);
+    assert(!err);
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
+    pthread_setname_np(*thread, name);
+#endif
 }

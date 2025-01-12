@@ -310,18 +310,40 @@ int fssvc_set_command(int subsys, int cookie, const char *cmd)
     return ret;
 }
 
-int fssvc_popen(int subsys, int cookie, struct popen2 *file)
+int fssvc_popen(int subsys, const char *str, int cookie, struct popen2 *file)
 {
-    int ret;
+    gint64 ret;
+    int rc;
     GError *error = NULL;
-    ret = searpc_client_call__int(clnt, "popen_1",
-                                  &error, 2,
+    ret = searpc_client_call__int64(clnt, "popen_1",
+                                  &error, 3,
                                   "int", subsys,
+                                  "string", str,
                                   "int", cookie);
     CHECK_RPC(error);
     if (ret < 0)
         return ret;
-    file->from_child = recv_fd(sock_rx);
-    file->to_child = recv_fd(sock_rx);
-    return ret;
+    rc = ret & 0xffffffff;
+    file->from_child = -1;
+    if (rc >= 1)
+        file->from_child = recv_fd(sock_rx);
+    file->to_child = -1;
+    if (rc >= 2)
+        file->to_child = recv_fd(sock_rx);
+    file->child_pid = ret >> 32;
+    return 0;
+}
+
+int fssvc_waitpid(int pid, int *status)
+{
+    int ret;
+    GError *error = NULL;
+    ret = searpc_client_call__int(clnt, "waitpid_1",
+                                  &error, 1,
+                                  "int", pid);
+    CHECK_RPC(error);
+    if (ret <= 0)
+        return ret;
+    *status = ret - 1;
+    return pid;
 }

@@ -149,6 +149,7 @@
 #include "../../dosext/mfs/mfs.h"
 #include "mmio_tracing.h"
 #include "spscq.h"
+#include "fslib.h"
 
 #define com_stderr      2
 
@@ -186,33 +187,35 @@ void misc_e6_store_options(const char *str)
 
 
 static int pty_fd;
-static int pty_done;
 static int cbrk;
-static sem_t rd_sem;
 static pthread_t reader;
-static void *queue;
+struct rd_args {
+    int fd;
+    int *done;
+    void *queue;
+    int crlf;
+};
 
 static void *rd_thread(void *arg)
 {
-    while (1) {
-        sem_wait(&rd_sem);
-        while (1) {
-            void *ptr;
-            unsigned len;
-            ssize_t rd;
+    struct rd_args *args = arg;
 
-            ptr = spscq_write_area(queue, &len);
-            rd = read(pty_fd, ptr, len);
-            if (rd <= 0)
-                break;
-            spscq_commit_write(queue, rd);
-        }
-        __atomic_store_n(&pty_done, 1, __ATOMIC_RELAXED);
+    while (1) {
+        void *ptr;
+        unsigned len;
+        ssize_t rd;
+
+        ptr = spscq_write_area(args->queue, &len);
+        rd = read(args->fd, ptr, len);
+        if (rd <= 0)
+            break;
+        spscq_commit_write(args->queue, rd);
     }
+    __atomic_store_n(args->done, 1, __ATOMIC_RELAXED);
     return NULL;
 }
 
-static void pty_thr(void)
+static void pty_worker(struct rd_args *args)
 {
 #define MAX_LEN (1024+1)
     char buf[MAX_LEN];
@@ -223,9 +226,8 @@ static void pty_thr(void)
 
     init_charset_state(&kstate, trconfig.keyb_charset);
     init_charset_state(&dstate, trconfig.dos_charset);
-    sem_post(&rd_sem);
     while (1) {
-	rd = spscq_read(queue, buf, sizeof(buf) - 1);
+	rd = spscq_read(args->queue, buf, sizeof(buf) - 1);
 	if (rd > 0) {
 		int rc;
 		const char *p = buf;
@@ -242,13 +244,19 @@ static void pty_thr(void)
 			    sizeof(buf2));
 		    if (rc <= 0)
 			break;
-		    com_doswritecon(buf2, rc);
+		    if (args->crlf) {
+			char *buf3 = strdup_crlf(buf2);
+			com_doswritecon(buf3, strlen(buf3));
+			free(buf3);
+		    } else {
+			com_doswritecon(buf2, rc);
+		    }
 		}
 		continue;
 	}
 	if (done)
 	    break;
-	if ((done = __atomic_load_n(&pty_done, __ATOMIC_RELAXED)))
+	if ((done = __atomic_load_n(args->done, __ATOMIC_RELAXED)))
 	    continue;  // last re-check
 
 	wr = com_dosreadcon(buf, sizeof(buf) - 1);
@@ -271,55 +279,53 @@ void dos2tty_init(void)
         return;
     }
     unlockpt(pty_fd);
-    sem_init(&rd_sem, 0, 0);
-    queue = spscq_init(1024 * 64); // 64K queue
-    pthread_create(&reader, NULL, rd_thread, queue);
-#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
-    pthread_setname_np(reader, "dosemu: ttyrd");
-#endif
 }
 
 void dos2tty_done(void)
 {
-    pthread_cancel(reader);
-    pthread_join(reader, NULL);
-    spscq_done(queue);
     close(pty_fd);
-    sem_destroy(&rd_sem);
 }
 
-static void dos2tty_start(void)
+static void dos2tty_start(struct rd_args *args)
 {
     char a;
     int rd;
+
+    create_thread(&reader, rd_thread, args, "dosemu: ttyrd");
+
     cbrk = com_setcbreak(0);
     /* flush pending input first */
     do {
 	rd = com_dosreadcon(&a, 1);
     } while (rd > 0);
-    pty_done = 0;
+    *args->done = 0;
     /* must run with interrupts enabled to read keypresses */
     assert(!isset_IF());
     set_IF();
-    pty_thr();
-}
-
-static void dos2tty_stop(void)
-{
+    pty_worker(args);
     clear_IF();
     com_setcbreak(cbrk);
+    pthread_join(reader, NULL);
 }
 
 static int do_wait_cmd(pid_t pid)
 {
     int status, retval;
+    void *queue;
+    int pty_done;
+    struct rd_args args;
 
-    dos2tty_start();
+    queue = spscq_init(1024 * 64); // 64K queue
+    assert(queue);
+    args.fd = pty_fd;
+    args.done = &pty_done;
+    args.queue = queue;
+    dos2tty_start(&args);
+    spscq_done(queue);
     while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
 	coopth_wait();
     if (retval == -1)
 	error("waitpid: %s\n", strerror(errno));
-    dos2tty_stop();
     /* print child exitcode. not perfect */
     g_printf("run_unix_command() (parent): child exit code: %i\n",
             WEXITSTATUS(status));
@@ -366,25 +372,129 @@ int run_unix_command(int argc, const char **argv, int bg)
     return do_wait_cmd(pid);
 }
 
+static int do_wait_custom(pid_t pid, int fd)
+{
+    int status, retval;
+    int done;
+    void *queue;
+    struct rd_args args;
+
+    queue = spscq_init(1024 * 64); // 64K queue
+    assert(queue);
+    args.fd = fd;
+    args.done = &done;
+    args.queue = queue;
+    args.crlf = 1;
+    dos2tty_start(&args);
+    spscq_done(queue);
+    while ((retval = fslib_waitpid(pid, &status)) == 0)
+	coopth_wait();
+    if (retval == -1)
+	error("waitpid: %s\n", strerror(errno));
+    /* print child exitcode. not perfect */
+    g_printf("run_unix_command() (parent): child exit code: %i\n",
+            WEXITSTATUS(status));
+    return WEXITSTATUS(status);
+}
+
+int unix_run_secure(const char *path, int pos, struct popen2 *file)
+{
+    int close_from = STDERR_FILENO + 1;
+    pid_t pid;
+    int wt, retval;
+    sigset_t set, oset;
+    int outp[2];
+    const char *argv[2];
+
+    assert(pos < strlen(path));
+    argv[0] = path + pos;
+    argv[1] = NULL;	/* no args allowed */
+    retval = pipe(outp);
+    assert(!retval);
+    signal_block_async_nosig(&oset);
+    sigprocmask(SIG_SETMASK, NULL, &set);
+    /* fork child */
+    switch ((pid = fork())) {
+    case -1: /* failed */
+	sigprocmask(SIG_SETMASK, &oset, NULL);
+	g_printf("run_unix_command(): fork() failed\n");
+	return -1;
+    case 0: /* child */
+	retval = priv_drop();
+	if (retval) {
+	    kill(dosemu_pid, SIGTERM);
+	    _exit(EXIT_FAILURE);
+	}
+	close(0);
+	open("/dev/null", O_RDONLY);
+	close(1);
+	close(2);
+	dup(outp[1]);
+	dup(outp[1]);
+	close(outp[0]);
+	close(outp[1]);
+	if (close_from != -1)
+#ifdef HAVE_CLOSEFROM
+	    closefrom(close_from);
+#else
+	    for (; close_from < sysconf(_SC_OPEN_MAX); close_from++)
+		close(close_from);
+#endif
+	/* close signals, then unblock */
+	signal_done();
+	/* flush pending signals */
+	do {
+#ifdef HAVE_SIGTIMEDWAIT
+	    struct timespec to = { 0, 0 };
+	    wt = sigtimedwait(&set, NULL, &to);
+#else
+	    int i;
+	    sigset_t pending;
+	    sigpending(&pending);
+	    wt = -1;
+	    for (i = 1; i < SIGMAX; i++)
+		if (sigismember(&pending, i) && sigismember(&set, i)) {
+		    sigwait(&set, NULL);
+		    wt = 0;
+		}
+#endif
+	} while (wt != -1);
+	sigprocmask(SIG_SETMASK, &oset, NULL);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
+	retval = execve(path, argv, dosemu_envp);	/* execute command */
+#pragma GCC diagnostic pop
+	error("exec failed: %s\n", strerror(errno));
+	_exit(retval);
+	break;
+    }
+    sigprocmask(SIG_SETMASK, &oset, NULL);
+    close(outp[1]);
+    file->from_child = outp[0];
+    file->to_child = -1;
+    file->child_pid = pid;
+    return 1;  // xfer 1 fd
+}
+
 /* no PATH searching, no arguments allowed, no stdin, no inherited fds */
 int run_unix_secure(const char *prg)
 {
     char *path;
-    const char *argv[2];
-    pid_t pid;
+    struct popen2 file;
+    int pos, err;
 
-    path = assemble_path(dosemu_exec_dir_path, prg);
+    path = assemble_path2(dosemu_exec_dir_path, prg, &pos);
     if (!exists_file(path)) {
 	com_printf("unix: %s not found\n", path);
 	free(path);
 	return -1;
     }
-    argv[0] = prg;
-    argv[1] = NULL;	/* no args allowed */
     g_printf("UNIX: run_secure %s '%s'\n", path, prg);
-    pid = run_external_command(path, 1, argv, 0, STDERR_FILENO + 1, pty_fd);
+    err = fslib_popen(SUBSYS_UX, path, pos, &file);
     free(path);
-    return do_wait_cmd(pid);
+    if (err)
+	return err;
+    return do_wait_custom(file.child_pid, file.from_child);
 }
 
 /*

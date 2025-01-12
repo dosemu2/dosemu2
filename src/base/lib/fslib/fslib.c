@@ -172,9 +172,14 @@ int fslib_set_command(int subsys, int cookie, const char *cmd)
   return fssvc->set_command(subsys, cookie, cmd);
 }
 
-int fslib_popen(int subsys, int cookie, struct popen2 *file)
+int fslib_popen(int subsys, const char *str, int cookie, struct popen2 *file)
 {
-  return fssvc->popen(subsys, cookie, file);
+  return fssvc->popen(subsys, str, cookie, file);
+}
+
+int fslib_waitpid(int pid, int *status)
+{
+  return fssvc->waitpid(pid, status);
 }
 
 void fslib_register_ops(const struct fslib_ops *ops)
@@ -189,4 +194,16 @@ void fslib_register_ops(const struct fslib_ops *ops)
     config.exitearly = 1;
   }
   fssvc = ops;
+}
+
+typedef int (*dmx_fn)(const char *, int, struct popen2 *);
+static const dmx_fn dmx_ops[SUBSYS_MAX] = {
+  lpt_popen,
+  unix_run_secure,
+};
+
+int fslib_demux(int subsys, const char *str, int cookie, struct popen2 *file)
+{
+  assert(subsys < SUBSYS_MAX);
+  return dmx_ops[subsys](str, cookie, file);
 }

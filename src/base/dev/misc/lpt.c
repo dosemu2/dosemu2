@@ -161,16 +161,21 @@ static void pipe_callback(int fd, void *arg)
   }
 }
 
-int lpt_popen(int prnum, struct popen2 *file)
+int lpt_popen(const char *str, int prnum, struct popen2 *file)
 {
+  int err;
+
   assert(prnum < config.num_lpt);
-  return popen2(lpt[prnum].prtcmd, file);
+  err = popen2(lpt[prnum].prtcmd, file);
+  if (err)
+    return -1;
+  return 2;  // 2 fds to xfer
 }
 
 static int pipe_printer_open(int prnum)
 {
   int err;
-  err = fslib_popen(SUBSYS_LPT, prnum, &lpt[prnum].file);
+  err = fslib_popen(SUBSYS_LPT, "", prnum, &lpt[prnum].file);
   if (err) {
     error("system(\"%s\") in lpt.c failed, cannot print! "
 	"Command returned error %s\n", lpt[prnum].prtcmd, strerror(errno));
