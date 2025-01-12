@@ -51,6 +51,7 @@ static inline void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *a
 static inline void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize) {}
 static inline void set_kvm_memory_regions(void) {}
 static inline void kvm_set_mmio(dosaddr_t base, dosaddr_t size, int on) {}
+static inline void kvm_set_cpio(int base, int size) {}
 static inline void kvm_set_dirty_log(dosaddr_t base, dosaddr_t size) {}
 static inline void kvm_get_dirty_map(dosaddr_t base, unsigned char *bitmap) {}
 static inline void kvm_set_idt_default(int i) {}
