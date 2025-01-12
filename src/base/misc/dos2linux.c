@@ -192,6 +192,7 @@ struct rd_args {
     int fd;
     int *done;
     void *queue;
+    int crlf;
 };
 
 static void *rd_thread(void *arg)
@@ -242,7 +243,13 @@ static void pty_worker(struct rd_args *args)
 			    sizeof(buf2));
 		    if (rc <= 0)
 			break;
-		    com_doswritecon(buf2, rc);
+		    if (args->crlf) {
+			char *buf3 = strdup_crlf(buf2);
+			com_doswritecon(buf3, strlen(buf3));
+			free(buf3);
+		    } else {
+			com_doswritecon(buf2, rc);
+		    }
 		}
 		continue;
 	}
@@ -364,12 +371,111 @@ int run_unix_command(int argc, const char **argv, int bg)
     return do_wait_cmd(pid);
 }
 
+static int do_wait_custom(pid_t pid, int fd)
+{
+    int status, retval;
+    int done;
+    void *queue;
+    struct rd_args args;
+
+    queue = spscq_init(1024 * 64); // 64K queue
+    assert(queue);
+    args.fd = fd;
+    args.done = &done;
+    args.queue = queue;
+    args.crlf = 1;
+    dos2tty_start(&args);
+    spscq_done(queue);
+    while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
+	coopth_wait();
+    if (retval == -1)
+	error("waitpid: %s\n", strerror(errno));
+    /* print child exitcode. not perfect */
+    g_printf("run_unix_command() (parent): child exit code: %i\n",
+            WEXITSTATUS(status));
+    return WEXITSTATUS(status);
+}
+
+static pid_t do_run_secure(const char *path, int argc, const char **argv,
+        int close_from, int *r_fd)
+{
+    pid_t pid;
+    int wt, retval;
+    sigset_t set, oset;
+    int outp[2];
+
+    retval = pipe(outp);
+    assert(!retval);
+    signal_block_async_nosig(&oset);
+    sigprocmask(SIG_SETMASK, NULL, &set);
+    /* fork child */
+    switch ((pid = fork())) {
+    case -1: /* failed */
+	sigprocmask(SIG_SETMASK, &oset, NULL);
+	g_printf("run_unix_command(): fork() failed\n");
+	return -1;
+    case 0: /* child */
+	retval = priv_drop();
+	if (retval) {
+	    kill(dosemu_pid, SIGTERM);
+	    _exit(EXIT_FAILURE);
+	}
+	close(0);
+	open("/dev/null", O_RDONLY);
+	close(1);
+	close(2);
+	dup(outp[1]);
+	dup(outp[1]);
+	close(outp[0]);
+	close(outp[1]);
+	if (close_from != -1)
+#ifdef HAVE_CLOSEFROM
+	    closefrom(close_from);
+#else
+	    for (; close_from < sysconf(_SC_OPEN_MAX); close_from++)
+		close(close_from);
+#endif
+	/* close signals, then unblock */
+	signal_done();
+	/* flush pending signals */
+	do {
+#ifdef HAVE_SIGTIMEDWAIT
+	    struct timespec to = { 0, 0 };
+	    wt = sigtimedwait(&set, NULL, &to);
+#else
+	    int i;
+	    sigset_t pending;
+	    sigpending(&pending);
+	    wt = -1;
+	    for (i = 1; i < SIGMAX; i++)
+		if (sigismember(&pending, i) && sigismember(&set, i)) {
+		    sigwait(&set, NULL);
+		    wt = 0;
+		}
+#endif
+	} while (wt != -1);
+	sigprocmask(SIG_SETMASK, &oset, NULL);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
+	retval = execve(path, argv, dosemu_envp);	/* execute command */
+#pragma GCC diagnostic pop
+	error("exec failed: %s\n", strerror(errno));
+	_exit(retval);
+	break;
+    }
+    sigprocmask(SIG_SETMASK, &oset, NULL);
+    close(outp[1]);
+    *r_fd = outp[0];
+    return pid;
+}
+
 /* no PATH searching, no arguments allowed, no stdin, no inherited fds */
 int run_unix_secure(const char *prg)
 {
     char *path;
     const char *argv[2];
     pid_t pid;
+    int fd;
 
     path = assemble_path(dosemu_exec_dir_path, prg);
     if (!exists_file(path)) {
@@ -380,9 +486,9 @@ int run_unix_secure(const char *prg)
     argv[0] = prg;
     argv[1] = NULL;	/* no args allowed */
     g_printf("UNIX: run_secure %s '%s'\n", path, prg);
-    pid = run_external_command(path, 1, argv, 0, STDERR_FILENO + 1, pty_fd);
+    pid = do_run_secure(path, 1, argv, STDERR_FILENO + 1, &fd);
     free(path);
-    return do_wait_cmd(pid);
+    return do_wait_custom(pid, fd);
 }
 
 /*
