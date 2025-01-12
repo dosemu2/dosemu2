@@ -141,6 +141,11 @@ static inline int pshared_sem_wait(pshared_sem_t sem)
 int pshared_sem_init(pshared_sem_t *sem, unsigned int value);
 int pshared_sem_destroy(pshared_sem_t *sem);
 
+void create_thread(pthread_t *restrict thread,
+                   void *(*start_routine)(void *),
+                   void *restrict arg,
+                   const char *name);
+
 /* macOS doesn't support sem_init(), so use Mach semaphores instead */
 #ifdef __APPLE__
 #include <mach/mach_init.h>

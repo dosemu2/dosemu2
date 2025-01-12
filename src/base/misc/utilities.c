@@ -1430,3 +1430,22 @@ int emu_shm_unlink(const char *name)
     free(path);
     return ret;
 }
+
+void create_thread(pthread_t *restrict thread,
+                   void *(*start_routine)(void *),
+                   void *restrict arg,
+                   const char *name)
+{
+    int err;
+    sigset_t oset;
+
+    if (sig_threads_wa)
+      signal_block_async_nosig(&oset);
+    err = pthread_create(thread, NULL, start_routine, arg);
+    if (sig_threads_wa)
+      sigprocmask(SIG_SETMASK, &oset, NULL);
+    assert(!err);
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
+    pthread_setname_np(*thread, name);
+#endif
+}

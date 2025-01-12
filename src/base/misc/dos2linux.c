@@ -188,27 +188,23 @@ void misc_e6_store_options(const char *str)
 static int pty_fd;
 static int pty_done;
 static int cbrk;
-static sem_t rd_sem;
 static pthread_t reader;
 static void *queue;
 
 static void *rd_thread(void *arg)
 {
     while (1) {
-        sem_wait(&rd_sem);
-        while (1) {
-            void *ptr;
-            unsigned len;
-            ssize_t rd;
+        void *ptr;
+        unsigned len;
+        ssize_t rd;
 
-            ptr = spscq_write_area(queue, &len);
-            rd = read(pty_fd, ptr, len);
-            if (rd <= 0)
-                break;
-            spscq_commit_write(queue, rd);
-        }
-        __atomic_store_n(&pty_done, 1, __ATOMIC_RELAXED);
+        ptr = spscq_write_area(queue, &len);
+        rd = read(pty_fd, ptr, len);
+        if (rd <= 0)
+            break;
+        spscq_commit_write(queue, rd);
     }
+    __atomic_store_n(&pty_done, 1, __ATOMIC_RELAXED);
     return NULL;
 }
 
@@ -223,7 +219,6 @@ static void pty_thr(void)
 
     init_charset_state(&kstate, trconfig.keyb_charset);
     init_charset_state(&dstate, trconfig.dos_charset);
-    sem_post(&rd_sem);
     while (1) {
 	rd = spscq_read(queue, buf, sizeof(buf) - 1);
 	if (rd > 0) {
@@ -271,27 +266,22 @@ void dos2tty_init(void)
         return;
     }
     unlockpt(pty_fd);
-    sem_init(&rd_sem, 0, 0);
     queue = spscq_init(1024 * 64); // 64K queue
-    pthread_create(&reader, NULL, rd_thread, queue);
-#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
-    pthread_setname_np(reader, "dosemu: ttyrd");
-#endif
 }
 
 void dos2tty_done(void)
 {
-    pthread_cancel(reader);
-    pthread_join(reader, NULL);
     spscq_done(queue);
     close(pty_fd);
-    sem_destroy(&rd_sem);
 }
 
 static void dos2tty_start(void)
 {
     char a;
     int rd;
+
+    create_thread(&reader, rd_thread, queue, "dosemu: ttyrd");
+
     cbrk = com_setcbreak(0);
     /* flush pending input first */
     do {
@@ -308,6 +298,7 @@ static void dos2tty_stop(void)
 {
     clear_IF();
     com_setcbreak(cbrk);
+    pthread_join(reader, NULL);
 }
 
 static int do_wait_cmd(pid_t pid)
