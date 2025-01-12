@@ -25,6 +25,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <sys/wait.h>
 #if defined(__APPLE__) || defined(__ANDROID__) /* to redefine sem_init() and related functions */
 #include "utilities.h"
 #endif
@@ -243,14 +244,18 @@ static int fslocal_set_command(int subsys, int cookie, const char *cmd)
   return -1;
 }
 
-static int fslocal_popen(int subsys, int cookie, struct popen2 *file)
+static int fslocal_popen(int subsys, const char *str, int cookie,
+    struct popen2 *file)
 {
-  switch (subsys) {
-    case SUBSYS_LPT:
-      return lpt_popen(cookie, file);
-  }
-  assert(0);
-  return -1;
+  int rc = fslib_demux(subsys, str, cookie, file);
+  if (rc <= 0)
+    return -1;
+  return 0;
+}
+
+static int fslocal_waitpid(int pid, int *status)
+{
+  return waitpid(pid, status, WNOHANG);
 }
 
 static const struct fslib_ops fslops = {
@@ -277,6 +282,7 @@ static const struct fslib_ops fslops = {
   .shm_unlink = fslocal_shm_unlink,
   .set_command = fslocal_set_command,
   .popen = fslocal_popen,
+  .waitpid = fslocal_waitpid,
   .name = "local",
   .flags = FSFLG_NOSUID,
 };

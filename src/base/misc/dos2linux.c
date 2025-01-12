@@ -149,6 +149,7 @@
 #include "../../dosext/mfs/mfs.h"
 #include "mmio_tracing.h"
 #include "spscq.h"
+#include "fslib.h"
 
 #define com_stderr      2
 
@@ -386,7 +387,7 @@ static int do_wait_custom(pid_t pid, int fd)
     args.crlf = 1;
     dos2tty_start(&args);
     spscq_done(queue);
-    while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
+    while ((retval = fslib_waitpid(pid, &status)) == 0)
 	coopth_wait();
     if (retval == -1)
 	error("waitpid: %s\n", strerror(errno));
@@ -396,7 +397,7 @@ static int do_wait_custom(pid_t pid, int fd)
     return WEXITSTATUS(status);
 }
 
-static int do_run_secure(const char *path, int pos, struct popen2 *file)
+int unix_run_secure(const char *path, int pos, struct popen2 *file)
 {
     int close_from = STDERR_FILENO + 1;
     pid_t pid;
@@ -472,7 +473,7 @@ static int do_run_secure(const char *path, int pos, struct popen2 *file)
     file->from_child = outp[0];
     file->to_child = -1;
     file->child_pid = pid;
-    return 0;
+    return 1;  // xfer 1 fd
 }
 
 /* no PATH searching, no arguments allowed, no stdin, no inherited fds */
@@ -489,7 +490,7 @@ int run_unix_secure(const char *prg)
 	return -1;
     }
     g_printf("UNIX: run_secure %s '%s'\n", path, prg);
-    err = do_run_secure(path, pos, &file);
+    err = fslib_popen(SUBSYS_UX, path, pos, &file);
     free(path);
     if (err)
 	return err;

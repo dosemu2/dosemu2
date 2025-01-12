@@ -156,13 +156,14 @@ marshal_int__string_int_int (void *func, json_t *param_array, gsize *ret_len)
 
 
 static char *
-marshal_int__int_int (void *func, json_t *param_array, gsize *ret_len)
+marshal_int64__int_string_int (void *func, json_t *param_array, gsize *ret_len)
 {
     GError *error = NULL;
     int param1 = json_array_get_int_element (param_array, 1);
-    int param2 = json_array_get_int_element (param_array, 2);
+    const char* param2 = json_array_get_string_or_null_element (param_array, 2);
+    int param3 = json_array_get_int_element (param_array, 3);
 
-    int ret = ((int (*)(int, int, GError **))func) (param1, param2, &error);
+    gint64 ret = ((gint64 (*)(int, const char*, int, GError **))func) (param1, param2, param3, &error);
 
     json_t *object = json_object ();
     searpc_set_int_to_ret_object (object, ret);
@@ -179,6 +180,20 @@ marshal_int__int_int_string (void *func, json_t *param_array, gsize *ret_len)
     const char* param3 = json_array_get_string_or_null_element (param_array, 3);
 
     int ret = ((int (*)(int, int, const char*, GError **))func) (param1, param2, param3, &error);
+
+    json_t *object = json_object ();
+    searpc_set_int_to_ret_object (object, ret);
+    return searpc_marshal_set_ret_common (object, ret_len, error);
+}
+
+
+static char *
+marshal_int__int (void *func, json_t *param_array, gsize *ret_len)
+{
+    GError *error = NULL;
+    int param1 = json_array_get_int_element (param_array, 1);
+
+    int ret = ((int (*)(int, GError **))func) (param1, &error);
 
     json_t *object = json_object ();
     searpc_set_int_to_ret_object (object, ret);
@@ -239,12 +254,17 @@ static void register_marshals(void)
 
 
     {
-        searpc_server_register_marshal (searpc_signature_int__int_int(), marshal_int__int_int);
+        searpc_server_register_marshal (searpc_signature_int64__int_string_int(), marshal_int64__int_string_int);
     }
 
 
     {
         searpc_server_register_marshal (searpc_signature_int__int_int_string(), marshal_int__int_int_string);
+    }
+
+
+    {
+        searpc_server_register_marshal (searpc_signature_int__int(), marshal_int__int);
     }
 
 }

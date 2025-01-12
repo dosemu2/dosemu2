@@ -47,7 +47,8 @@ struct fslib_ops {
   int (*shm_open)(const char *name, int oflag, mode_t mode);
   int (*shm_unlink)(const char *name);
   int (*set_command)(int subsys, int cookie, const char *cmd);
-  int (*popen)(int subsys, int cookie, struct popen2 *file);
+  int (*popen)(int subsys, const char *str, int cookie, struct popen2 *file);
+  int (*waitpid)(int pid, int *status);
   const char *name;
 #define FSFLG_NOSUID 1
   int flags;
@@ -56,5 +57,7 @@ struct fslib_ops {
 void fslib_register_ops(const struct fslib_ops *ops);
 
 void fslocal_init(void);
+
+int fslib_demux(int subsys, const char *str, int cookie, struct popen2 *file);
 
 #endif

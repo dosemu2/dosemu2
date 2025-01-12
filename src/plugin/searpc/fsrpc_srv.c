@@ -23,10 +23,12 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <searpc-server.h>
 #include <searpc-utils.h>
 #include "utilities.h"
 #include "fslib.h"
+#include "fslib_ops.h"
 #include "searpc-signature.h"
 #include "searpc-marshal.h"
 #include "test-object.h"
@@ -292,26 +294,31 @@ static int set_command_1_svc(int subsys, int cookie, const char *cmd,
     return -1;
 }
 
-static int popen_1_svc(int subsys, int cookie, GError **error)
+static gint64 popen_1_svc(int subsys, const char *str, int cookie,
+        GError **error)
 {
     struct popen2 file;
-    int err;
-
-    switch (subsys) {
-        case SUBSYS_LPT:
-            err = lpt_popen(cookie, &file);
-            if (err)
-                return -1;
-            err = send_fd(sock_tx, file.from_child);
-            assert(!err);
-            err = send_fd(sock_tx, file.to_child);
-            assert(!err);
-            close(file.from_child);
-            close(file.to_child);
-            return 0;
+    int rc = fslib_demux(subsys, str, cookie, &file);
+    if (rc <= 0)
+        return rc;
+    if (rc >= 1) {
+        int err = send_fd(sock_tx, file.from_child);
+        assert(!err);
     }
-    assert(0);
-    return -1;
+    if (rc >= 2) {
+        int err = send_fd(sock_tx, file.to_child);
+        assert(!err);
+    }
+    return ((gint64)file.child_pid << 32) | rc;
+}
+
+static int waitpid_1_svc(int pid, GError **error)
+{
+    int status;
+    int ret = waitpid(pid, &status, WNOHANG);
+    if (ret <= 0)
+        return ret;
+    return status + 1;
 }
 
 int fsrpc_srv_init(const char *svc_name, int fd, plist_idx_t pi,
@@ -362,7 +369,10 @@ int fsrpc_srv_init(const char *svc_name, int fd, plist_idx_t pi,
     searpc_server_register_function(svc_name, set_command_1_svc, "set_command_1",
             searpc_signature_int__int_int_string());
     searpc_server_register_function(svc_name, popen_1_svc, "popen_1",
-            searpc_signature_int__int_int());
+            searpc_signature_int64__int_string_int());
+    searpc_server_register_function(svc_name, waitpid_1_svc, "waitpid_1",
+            searpc_signature_int__int());
+
     return 0;
 }
 
