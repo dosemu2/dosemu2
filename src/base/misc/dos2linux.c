@@ -208,7 +208,7 @@ static void *rd_thread(void *arg)
     return NULL;
 }
 
-static void pty_thr(void)
+static void pty_worker(void)
 {
 #define MAX_LEN (1024+1)
     char buf[MAX_LEN];
@@ -291,11 +291,7 @@ static void dos2tty_start(void)
     /* must run with interrupts enabled to read keypresses */
     assert(!isset_IF());
     set_IF();
-    pty_thr();
-}
-
-static void dos2tty_stop(void)
-{
+    pty_worker();
     clear_IF();
     com_setcbreak(cbrk);
     pthread_join(reader, NULL);
@@ -310,7 +306,6 @@ static int do_wait_cmd(pid_t pid)
 	coopth_wait();
     if (retval == -1)
 	error("waitpid: %s\n", strerror(errno));
-    dos2tty_stop();
     /* print child exitcode. not perfect */
     g_printf("run_unix_command() (parent): child exit code: %i\n",
             WEXITSTATUS(status));
