@@ -1644,8 +1644,12 @@ static void SDL_draw_string(void *opaque, int x, int y, const char *text,
                                            text_colors[ATTR_FG(attr)],
                                            text_colors[ATTR_BG(attr)]);
   if (!srf) {
-    error("TTF render failure\n");
-    leavedos(3);
+    pthread_mutex_unlock(&sdl_font_mtx);
+    error("TTF render failure for %s\n", s);
+    free(s);
+    /* may be missing unicode char in font, don't exit */
+//    leavedos_from_thread(3);
+    return;
   }
   d.rect.x = font_width * x;  /* font_width/height needs to be under font mtx */
   d.rect.y = font_height * y; /* height plus spacing to next line */
