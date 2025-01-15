@@ -959,7 +959,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
   int row, col, co;
   u_char *sel_text_dos, *sel_text_ptr;
   t_unicode *sel_text_unicode, *prev_sel_text_unicode;
-  size_t sel_space, sel_text_bytes;
+  size_t sel_space;
   u_char *p;
   Bit16u *screen_adr;
 
@@ -971,7 +971,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 
   co = vga.scan_len / 2;
   screen_adr = (Bit16u *) vga.mem.base;
-  p = sel_text_dos = malloc(vga.text_width);
+  sel_text_dos = malloc(vga.text_width + 1);
   sel_space = (row2 - row1 + 1) * (co + 1) * MB_LEN_MAX + 1;
   sel_text_unicode = sel_text = malloc(sel_space * sizeof(t_unicode));
 
@@ -979,45 +979,42 @@ static void save_selection(int col1, int row1, int col2, int row2)
   for (row = row1; row <= row2; row++) {
     prev_sel_text_unicode = sel_text_unicode;
     p = sel_text_ptr = sel_text_dos;
-    sel_text_bytes = 0;
     for (col = 0; col < vga.text_width; col++) {
       if (!SEL_ACTIVE(col, row))
         continue;
       *p++ =
 	  CHAR(screen_adr +
 		location_to_memoffs(2 * (row * co + col)) / 2);
-      sel_text_bytes++;
     }
-    while (sel_text_bytes) {
+    while (sel_text_ptr < p) {
       t_unicode symbol;
       size_t result;
       /* If we hit any run with what we have */
       result = charset_to_unicode(&video_state, &symbol,
-				  sel_text_ptr, sel_text_bytes);
+				  sel_text_ptr, p - sel_text_ptr);
       if (result == -1) {
 	warn("save_selection unfinished\n");
 	break;
       }
-      sel_text_bytes -= result;
       sel_text_ptr += result;
       *sel_text_unicode++ = symbol;
     }
     /* Remove end-of-line spaces and add a newline. */
-    if (col == vga.text_width) {
+    if (sel_text_unicode > prev_sel_text_unicode) {
       sel_text_unicode--;
+      sel_space++;
       while ((sel_text_unicode > prev_sel_text_unicode) &&
 	     (*sel_text_unicode == ' ')) {
 	sel_text_unicode--;
 	sel_space++;
       }
-      sel_text_unicode++;
-      if (!sel_space) {
-	error("BUG: pasting OOM\n");
-	leavedos(91);
+      if (*sel_text_unicode != ' ') {
+	sel_text_unicode++;
+	sel_space--;
       }
       if (row < row2) {
-        *sel_text_unicode++ = '\n';
-        sel_space--;
+	*sel_text_unicode++ = '\n';
+	sel_space--;
       }
     }
   }
@@ -1026,7 +1023,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
     error("BUG: pasting OOM2\n");
     leavedos(91);
   }
-  *sel_text_unicode = '\0';
+  *sel_text_unicode++ = '\0';
   sel_space--;
 
   cleanup_charset_state(&video_state);
