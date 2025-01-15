@@ -1005,8 +1005,8 @@ static void save_selection(int col1, int row1, int col2, int row2)
     /* Remove end-of-line spaces and add a newline. */
     if (col == vga.text_width) {
       sel_text_unicode--;
-      while ((*sel_text_unicode == ' ') &&
-	     (sel_text_unicode > prev_sel_text_unicode)) {
+      while ((sel_text_unicode > prev_sel_text_unicode) &&
+	     (*sel_text_unicode == ' ')) {
 	sel_text_unicode--;
 	sel_space++;
       }
