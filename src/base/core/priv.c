@@ -325,8 +325,8 @@ static void start_landlock(void)
   err = landlock_init();
   if (err) {
     error("landlock_init() failed\n");
-    leavedos(3);
-    return;
+//    leavedos(3);
+    return;  // keep working w/o protection
   }
   for (p = allow_rw; *p; p++) {
     err = landlock_allow(*p, 0);

@@ -57,9 +57,22 @@ static int ruleset_fd = -1;
 
 int landlock_init(void)
 {
+    int abi;
     struct landlock_ruleset_attr ruleset_attr = {
         .handled_access_fs = ACCESS_ALL
     };
+
+    abi = landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
+    if (abi < 0) {
+        /* Degrades gracefully if Landlock is not handled. */
+        perror("The running kernel does not have Landlock support");
+        return -1;
+    }
+    if (abi < 2) {
+        /* On ABIv1 LANDLOCK_ACCESS_FS_REFER is always disabled! So bail. */
+        fprintf(stderr, "Your kernel is too old, not using Landlock\n");
+        return -1;
+    }
 
     assert(ruleset_fd == -1);
     ruleset_fd = landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
