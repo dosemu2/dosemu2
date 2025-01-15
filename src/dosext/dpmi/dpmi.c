@@ -4394,8 +4394,10 @@ void dpmi_init(void)
   NOCARRY;
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
   /* on cpu-emu we work with IOPL=3 to avoid doom work-around */
-  if (config.cpu_vm_dpmi == CPUVM_EMU)
+  if (config.cpu_vm_dpmi == CPUVM_EMU) {
     _eflags |= IOPL_MASK;
+    config.cli_timeout = 0;  // with IOPL===3 timeout not needed
+  }
 
   DPMI_CLIENT.win3x_mode = win3x_mode;
   DPMI_CLIENT.s_i1c.segment = ISEG(0x1c);
