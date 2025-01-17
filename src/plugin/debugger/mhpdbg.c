@@ -37,7 +37,6 @@
 #include "mhpdbg.h"
 
 __TLS struct mhpdbg mhpdbg;
-unsigned long dosdebug_flags;
 
 static void vmhp_printf(const char *fmt, va_list args);
 static void mhp_poll(void);
@@ -142,7 +141,7 @@ int vmhp_log_intercept(const char *fmt, va_list args)
 {
   if (mhpdbg.active <= 1)
     return 0;
-  if (dosdebug_flags & DBGF_LOG_TO_BREAK)
+  if (mhpdbg.flags & DBGF_LOG_TO_BREAK)
     mhp_regex(fmt, args);
   return 0;
 }
@@ -201,7 +200,7 @@ static void mhp_init(void)
     unlink(pipename_out);
     free(pipename_out);
   } else {
-    if (dosdebug_flags & DBGF_WAIT_ON_STARTUP) {
+    if (mhpdbg.flags & DBGF_WAIT_ON_STARTUP) {
       /* don't fiddle with select, just poll until the terminal
        * comes up to send the first input
        */
@@ -353,8 +352,8 @@ static void mhp_poll(void)
     mhpdbgc.want_to_stop = 0;
   }
   if (mhpdbgc.stopped) {
-    if (dosdebug_flags & DBGF_LOG_TEMPORARY) {
-      dosdebug_flags &= ~DBGF_LOG_TEMPORARY;
+    if (mhpdbg.flags & DBGF_LOG_TEMPORARY) {
+      mhpdbg.flags &= ~DBGF_LOG_TEMPORARY;
       mhp_cmd("log off");
     }
     mhp_cmd("r0");
@@ -384,7 +383,7 @@ void mhp_intercept_log(const char *flags, int temporary)
   mhp_cmd(buf);
   mhp_cmd("log on");
   if (temporary)
-    dosdebug_flags |= DBGF_LOG_TEMPORARY;
+    mhpdbg.flags |= DBGF_LOG_TEMPORARY;
 }
 
 void mhp_intercept(const char *msg, const char *logflags)
@@ -397,7 +396,7 @@ void mhp_intercept(const char *msg, const char *logflags)
   mhp_printf("%s", msg);
   mhp_cmd("r0");
   mhp_send();
-  if (!(dosdebug_flags & DBGF_IN_LEAVEDOS)) {
+  if (!(mhpdbg.flags & DBGF_IN_LEAVEDOS)) {
     if (logflags)
       mhp_intercept_log(logflags, 1);
     return;
@@ -413,7 +412,7 @@ void mhp_exit_intercept(int errcode)
     return;
 
   sprintf(buf, "\n****\nleavedos(%d) called, at termination point of DOSEMU\n****\n\n", errcode);
-  dosdebug_flags |= DBGF_IN_LEAVEDOS;
+  mhpdbg.flags |= DBGF_IN_LEAVEDOS;
   mhp_intercept(buf, NULL);
 }
 

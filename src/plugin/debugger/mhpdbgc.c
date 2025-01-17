@@ -2486,8 +2486,8 @@ static void mhp_kill(int argc, char *argv[])
   mhp_send();
 #endif
   mhp_close();
-  if (dosdebug_flags & DBGF_IN_LEAVEDOS)
-    dosdebug_flags &= ~DBGF_IN_LEAVEDOS;
+  if (mhpdbg.flags & DBGF_IN_LEAVEDOS)
+    mhpdbg.flags &= ~DBGF_IN_LEAVEDOS;
   else
     leavedos(1);
 }
@@ -2533,7 +2533,7 @@ void mhp_bpclr(void)
 
       opcode = READ_BYTE(mhpdbgc.brktab[i1].brkaddr);
       if (opcode != 0xCC) {
-        if (!(dosdebug_flags & DBGF_ALLOW_BREAKPOINT_OVERWRITE)) {
+        if (!(mhpdbg.flags & DBGF_ALLOW_BREAKPOINT_OVERWRITE)) {
           if (i1 != trapped_bp) {
             mhpdbgc.brktab[i1].brkaddr = 0;
             mhpdbgc.brktab[i1].is_valid = 0;
@@ -2721,13 +2721,13 @@ static void mhp_debuglog(int argc, char *argv[])
 
   if (argc > 1) {
     if (!strcmp(argv[1], "on")) {
-      dosdebug_flags |= DBGF_INTERCEPT_LOG;
+      mhpdbg.flags |= DBGF_INTERCEPT_LOG;
       mhp_printf("%s\n", "log intercept enabled");
       return;
     }
 
     if (!strcmp(argv[1], "off")) {
-      dosdebug_flags &= ~DBGF_INTERCEPT_LOG;
+      mhpdbg.flags &= ~DBGF_INTERCEPT_LOG;
       mhp_printf("%s\n", "log intercept disabled");
       return;
     }
@@ -2817,7 +2817,7 @@ static void print_log_breakpoints(void)
 {
   int rx, num = 0;
 
-  mhp_printf("log intercept %s\n", (dosdebug_flags & DBGF_INTERCEPT_LOG) ? "on" : "off");
+  mhp_printf("log intercept %s\n", (mhpdbg.flags & DBGF_INTERCEPT_LOG) ? "on" : "off");
 
   for (rx = 0; rx < num_regex; rx++) {
     if (rxbuf[rx]) {
@@ -2873,7 +2873,7 @@ static void mhp_bplog(int argc, char *argv[])
     /* ...puh, all that work just for generating a pattern :-)
      * now we enable the 'break point' by intercepting the log
      */
-    dosdebug_flags |= DBGF_INTERCEPT_LOG | DBGF_LOG_TO_BREAK;
+    mhpdbg.flags |= DBGF_INTERCEPT_LOG | DBGF_LOG_TO_BREAK;
   }
   /* at least print all active breakpoints */
   print_log_breakpoints();
@@ -2895,8 +2895,8 @@ static void mhp_bclog(int argc, char *argv[])
     free_regex(rx);
 
     if (!enumerate_log_breakpoints()) {
-      dosdebug_flags &= ~DBGF_LOG_TO_BREAK;
-      dosdebug_flags &= ~DBGF_INTERCEPT_LOG;
+      mhpdbg.flags &= ~DBGF_LOG_TO_BREAK;
+      mhpdbg.flags &= ~DBGF_INTERCEPT_LOG;
     }
   }
 
@@ -3023,7 +3023,7 @@ void mhp_regex(const char *fmt, va_list args)
   int i, hit;
   char *s;
 
-  if (!(dosdebug_flags & DBGF_LOG_TO_BREAK))
+  if (!(mhpdbg.flags & DBGF_LOG_TO_BREAK))
     return;
 
   lbufi += vsprintf(lbuf + lbufi, fmt, args);

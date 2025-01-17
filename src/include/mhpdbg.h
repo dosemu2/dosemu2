@@ -28,7 +28,6 @@ enum dosdebug_event {
    DBG_INTxDPMI,
 };
 
-extern unsigned long dosdebug_flags;
 #define DBGF_WAIT_ON_STARTUP		0x001
 #define DBGF_INTERCEPT_LOG		0x002
 #define DBGF_DISABLE_LOG_TO_FILE	0x004
@@ -75,8 +74,7 @@ int vmhp_log_intercept(const char *fmt, va_list args);
 struct mhpdbg
 {
    int active;
-   int flags;
-
+   unsigned long flags;
    unsigned char intxxtab[32];
 };
 
