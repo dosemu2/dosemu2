@@ -74,8 +74,6 @@ int vmhp_log_intercept(const char *fmt, va_list args);
 #define MHP_BUFFERSIZE 8192
 struct mhpdbg
 {
-   unsigned char sendbuf[MHP_BUFFERSIZE];
-   int sendptr;
    int active;
    int flags;
 

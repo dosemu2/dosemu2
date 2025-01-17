@@ -54,6 +54,8 @@ struct mhpdbgc mhpdbgc = {0};
 static int fdin, fdout;
 static unsigned char recvbuf[MHP_BUFFERSIZE];
 static int nbytes;
+static unsigned char sendbuf[MHP_BUFFERSIZE];
+static int sendptr;
 
 /********/
 /* CODE */
@@ -79,28 +81,28 @@ static void mhp_putc(char c1)
 {
 #if 0
   if (c1 == '\n') {
-    mhpdbg.sendbuf[mhpdbg.sendptr] = '\r';
-    if (mhpdbg.sendptr < SRSIZE - 1)
-      mhpdbg.sendptr++;
+    sendbuf[sendptr] = '\r';
+    if (sendptr < SRSIZE - 1)
+      sendptr++;
   }
 #endif
-  mhpdbg.sendbuf[mhpdbg.sendptr] = c1;
-  if (mhpdbg.sendptr < SRSIZE - 1)
-    mhpdbg.sendptr++;
+  sendbuf[sendptr] = c1;
+  if (sendptr < SRSIZE - 1)
+    sendptr++;
 }
 
 void mhp_send(void)
 {
-  if (mhpdbg.sendptr) {
+  if (sendptr) {
     if (fdout != -1) {
-      write(fdout, mhpdbg.sendbuf, mhpdbg.sendptr);
-      if (mhpdbg.sendptr < SRSIZE - 1) {
-        mhpdbg.sendbuf[mhpdbg.sendptr] = '\0';
-        B_printf("MHP:>\n%s", mhpdbg.sendbuf);
+      write(fdout, sendbuf, sendptr);
+      if (sendptr < SRSIZE - 1) {
+        sendbuf[sendptr] = '\0';
+        B_printf("MHP:>\n%s", sendbuf);
       }
     }
 
-    mhpdbg.sendptr = 0;
+    sendptr = 0;
   }
 }
 
@@ -160,7 +162,7 @@ static void mhp_init(void)
 
   fdin = fdout = -1;
   mhpdbg.active = 0;
-  mhpdbg.sendptr = 0;
+  sendptr = 0;
 
   memset(&mhpdbg.intxxtab, 0, sizeof(mhpdbg.intxxtab));
   memset(&mhpdbgc.intxxalt, 0, sizeof(mhpdbgc.intxxalt));
@@ -296,7 +298,7 @@ static void mhp_poll_loop(void)
         mhp_send();
       }
       mhpdbg.active = 0;
-      mhpdbg.sendptr = 0;
+      sendptr = 0;
       nbytes = 0;
       break;
     }
