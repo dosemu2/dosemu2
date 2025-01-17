@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <linux/prctl.h>
 #include <sys/prctl.h>
+#include "dosemu_debug.h"
 #include "landlock_priv.h"
 #include "landlock.h"
 
@@ -27,7 +28,9 @@
 #define LANDLOCK_ACCESS_FS_TRUNCATE 0
 #endif
 #ifndef LANDLOCK_ACCESS_FS_REFER
-#define LANDLOCK_ACCESS_FS_REFER 0
+#define _LANDLOCK_ACCESS_FS_REFER 0
+#else
+#define _LANDLOCK_ACCESS_FS_REFER LANDLOCK_ACCESS_FS_REFER
 #endif
 
 #define ACCESS_FILE_RW ( \
@@ -45,7 +48,7 @@
 	LANDLOCK_ACCESS_FS_MAKE_SOCK | \
 	LANDLOCK_ACCESS_FS_MAKE_FIFO | \
 	LANDLOCK_ACCESS_FS_MAKE_SYM | \
-	LANDLOCK_ACCESS_FS_REFER)
+	_LANDLOCK_ACCESS_FS_REFER)
 
 #define ACCESS_RO ( \
 	LANDLOCK_ACCESS_FS_READ_FILE | \
@@ -63,6 +66,7 @@ int landlock_init(void)
     };
 
     abi = landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
+    dbug_printf("landlock ABI %i\n", abi);
     if (abi < 0) {
         /* Degrades gracefully if Landlock is not handled. */
         perror("The running kernel does not have Landlock support");
@@ -75,12 +79,18 @@ int landlock_init(void)
     }
 
     assert(ruleset_fd == -1);
+#ifdef LANDLOCK_ACCESS_FS_REFER
     ruleset_fd = landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
     if (ruleset_fd < 0) {
         perror("Failed to create a ruleset");
         return -1;
     }
     return 0;
+#else
+    fprintf(stderr, "Landlock ABI %i but "
+            "LANDLOCK_ACCESS_FS_REFER not defined\n", abi);
+    return -1;
+#endif
 }
 
 int landlock_allow(const char *path, int ro)
