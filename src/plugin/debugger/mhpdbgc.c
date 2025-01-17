@@ -128,10 +128,10 @@ static unsigned int linmode = 0;
 static unsigned int codeorg = 0;
 
 static unsigned int dpmimode=1, saved_dpmimode=1;
-#define IN_DPMI  (in_dpmi_pm() && dpmimode)
+#define IN_DPMI (in_dpmi_pm() && dpmimode)
 
 #define MAXSYM 10000
-enum SType {DYN, ABS};
+enum SType { DYN, ABS };
 static struct {
   uint16_t seg;
   uint16_t off;
@@ -140,66 +140,65 @@ static struct {
 } user_symbol[MAXSYM];
 int user_symbol_num;
 
-static int trapped_bp=-1, trapped_bp_;
+static int trapped_bp = -1, trapped_bp_;
 
-int traceloop=0;
+int traceloop = 0;
 char loopbuf[4] = "";
 
 struct cmd_db {
-	char cmdname[12];
-	void (*cmdproc)(int, char *[]);
+  char cmdname[12];
+  void (*cmdproc)(int, char *[]);
 };
 
 /* constants */
 static const struct cmd_db cmdtab[] = {
-   {"r0",            mhp_r0},
-   {"r" ,            mhp_regs},
-   {"m",             mhp_memset},
-   {"d",             mhp_dump},
-   {"u",             mhp_disasm},
-   {"g",             mhp_go},
-   {"stop",          mhp_stop},
-   {"mode",          mhp_mode},
-   {"t",             mhp_trace},
-   {"ti",            mhp_trace},
-   {"tc",            mhp_tracec},
-   {"r32",           mhp_regs32},
-   {"bp",            mhp_bp},
-   {"bc",            mhp_bc},
-   {"bl",            mhp_bl},
-   {"bpint",         mhp_bpint},
-   {"bcint",         mhp_bcint},
-   {"bpintd",        mhp_bpintd},
-   {"bcintd",        mhp_bcintd},
-   {"bpload",        mhp_bpload},
-   {"bplog",         mhp_bplog},
-   {"bclog",         mhp_bclog},
-   {"usermap",       mhp_usermap},
-   {"symbol",        mhp_symbol},
-   {"kill",          mhp_kill},
-   {"ldt",           mhp_print_ldt},
-   {"log",           mhp_debuglog},
-   {"dump",          mhp_dump_to_file},
-   {"ivec",          mhp_ivec},
-   {"mcbs",          mhp_mcbs},
-   {"devs",          mhp_devs},
-   {"ddrh",          mhp_ddrh},
-   {"dpbs",          mhp_dpbs},
-   {"reboot",        mhp_reboot},
-   {"injchar",       mhp_injchar},
-   {"hookcbrk",      mhp_hookcbrk},
-   {"dosbreak",      mhp_dosbreak},
-   {"",              NULL}
+  {"r0",            mhp_r0},
+  {"r" ,            mhp_regs},
+  {"m",             mhp_memset},
+  {"d",             mhp_dump},
+  {"u",             mhp_disasm},
+  {"g",             mhp_go},
+  {"stop",          mhp_stop},
+  {"mode",          mhp_mode},
+  {"t",             mhp_trace},
+  {"ti",            mhp_trace},
+  {"tc",            mhp_tracec},
+  {"r32",           mhp_regs32},
+  {"bp",            mhp_bp},
+  {"bc",            mhp_bc},
+  {"bl",            mhp_bl},
+  {"bpint",         mhp_bpint},
+  {"bcint",         mhp_bcint},
+  {"bpintd",        mhp_bpintd},
+  {"bcintd",        mhp_bcintd},
+  {"bpload",        mhp_bpload},
+  {"bplog",         mhp_bplog},
+  {"bclog",         mhp_bclog},
+  {"usermap",       mhp_usermap},
+  {"symbol",        mhp_symbol},
+  {"kill",          mhp_kill},
+  {"ldt",           mhp_print_ldt},
+  {"log",           mhp_debuglog},
+  {"dump",          mhp_dump_to_file},
+  {"ivec",          mhp_ivec},
+  {"mcbs",          mhp_mcbs},
+  {"devs",          mhp_devs},
+  {"ddrh",          mhp_ddrh},
+  {"dpbs",          mhp_dpbs},
+  {"reboot",        mhp_reboot},
+  {"injchar",       mhp_injchar},
+  {"hookcbrk",      mhp_hookcbrk},
+  {"dosbreak",      mhp_dosbreak},
+  {"",              NULL}
 };
 
 /********/
 /* CODE */
 /********/
 
-#define AXLIST_SIZE  32
+#define AXLIST_SIZE 32
 static unsigned long mhp_axlist[AXLIST_SIZE];
-static int axlist_count=0;
-
+static int axlist_count = 0;
 
 /* simple ASCII only toupper, this to avoid problems with the dotless i
    and here we only need to match the register si with SI etc. */
@@ -213,8 +212,10 @@ static unsigned char toupper_ascii(unsigned char c)
 int mhp_getaxlist_value(int v, int mask)
 {
   int i;
-  for (i=0; i < axlist_count; i++) {
-    if (!((v ^ mhp_axlist[i]) & mask)) return i;
+
+  for (i = 0; i < axlist_count; i++) {
+    if (!((v ^ mhp_axlist[i]) & mask))
+      return i;
   }
   return -1;
 }
@@ -222,9 +223,9 @@ int mhp_getaxlist_value(int v, int mask)
 #if WITH_DPMI
 static void mhp_delaxlist_value(int v, int mask)
 {
-  int i,j;
+  int i, j;
 
-  for (i=0,j=0; i < axlist_count; i++) {
+  for (i = 0, j = 0; i < axlist_count; i++) {
     if (((v ^ mhp_axlist[i]) & mask)) {
       mhp_axlist[j] = mhp_axlist[i];
       j++;
@@ -235,9 +236,10 @@ static void mhp_delaxlist_value(int v, int mask)
 
 static int mhp_addaxlist_value(int v)
 {
-  if (mhp_getaxlist_value(v, -1) >= 0) return 1;
-  if (axlist_count < (AXLIST_SIZE-1)) {
-    mhp_axlist[axlist_count++]=v;
+  if (mhp_getaxlist_value(v, -1) >= 0)
+    return 1;
+  if (axlist_count < (AXLIST_SIZE - 1)) {
+    mhp_axlist[axlist_count++] = v;
     return 1;
   }
   return 0;
@@ -635,6 +637,7 @@ static void mhp_usermap(int argc, char *argv[])
 
   if (argc >= 4) {
     regnum_t symreg;
+
     if (decode_symreg(argv[3], &symreg, NULL)) {
       origin = mhp_getreg(symreg);
     } else if (!getval_ui(argv[3], 16, &origin)) {
@@ -798,46 +801,47 @@ static void mhp_setreg(regnum_t symreg, unsigned long val)
   }
 }
 
-
-static void mhp_go(int argc, char * argv[])
+static void mhp_go(int argc, char *argv[])
 {
-   unfreeze_dosemu();
-   if (!mhpdbgc.stopped) {
-      mhp_printf("already in running state\n");
-   } else {
-      unsigned int csip = mhp_getcsip_value();
-      mhpdbgc.stopped = 0;
-      dpmimode = 1;
-      if (bpchk(csip)) {
-        dpmi_mhp_setTF(1);
-        set_TF();
-        mhpdbgc.trapcmd = 2;
-        mhpdbgc.trapip = csip;
-        trapped_bp = -1;
-        return;
-      }
-      dpmi_mhp_setTF(0);
-      clear_TF();
-      mhp_bpset();
-   }
+  unfreeze_dosemu();
+  if (!mhpdbgc.stopped) {
+    mhp_printf("already in running state\n");
+  } else {
+    unsigned int csip = mhp_getcsip_value();
+    mhpdbgc.stopped = 0;
+    dpmimode = 1;
+    if (bpchk(csip)) {
+      dpmi_mhp_setTF(1);
+      set_TF();
+      mhpdbgc.trapcmd = 2;
+      mhpdbgc.trapip = csip;
+      trapped_bp = -1;
+      return;
+    }
+    dpmi_mhp_setTF(0);
+    clear_TF();
+    mhp_bpset();
+  }
 }
 
-static void mhp_r0(int argc, char * argv[])
+static void mhp_r0(int argc, char *argv[])
 {
-   if (trapped_bp == -2) trapped_bp=trapped_bp_;
-   else trapped_bp=-1;
-   mhp_bpclr();
-   mhp_regs(argc,argv);
+  if (trapped_bp == -2)
+    trapped_bp = trapped_bp_;
+  else
+    trapped_bp = -1;
+  mhp_bpclr();
+  mhp_regs(argc, argv);
 }
 
-static void mhp_stop(int argc, char * argv[])
+static void mhp_stop(int argc, char *argv[])
 {
-   if (mhpdbgc.stopped) {
-      mhp_printf("already in stopped state\n");
-   } else {
-      mhpdbgc.stopped = 1;
-      mhp_cmd("r0");
-   }
+  if (mhpdbgc.stopped) {
+    mhp_printf("already in stopped state\n");
+  } else {
+    mhpdbgc.stopped = 1;
+    mhp_cmd("r0");
+  }
 }
 
 static struct rng_s trace_ringbuf;
@@ -872,9 +876,9 @@ void mhpdbg_trace_init(void)
   rng_init(&trace_ringbuf, 16, sizeof(far_t)); // 16 interrupts
 
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-  hlt_hdlr.name       = "mhpdbg trace handler";
-  hlt_hdlr.func       = trace_handler;
-  trace_handler_hlt = hlt_register_handler_vm86(hlt_hdlr);
+  hlt_hdlr.name      = "mhpdbg trace handler";
+  hlt_hdlr.func      = trace_handler;
+  trace_handler_hlt  = hlt_register_handler_vm86(hlt_hdlr);
 }
 
 static void trace_handler(Bit16u idx, HLT_ARG(arg))
@@ -972,141 +976,142 @@ static void mhp_tracec(int argc, char *argv[])
   loopbuf[1] = '\0';
 }
 
-static void mhp_dump(int argc, char * argv[])
+static void mhp_dump(int argc, char *argv[])
 {
-   static char lastd[32];
+  static char lastd[32];
 
-   unsigned int nbytes;
-   dosaddr_t seekval;
-   int i,i2;
-   unsigned int buf = 0;
-   unsigned int seg;
-   unsigned int off;
-   unsigned int limit;
-   int data32=0;
-   int unixaddr;
-   unsigned char c;
+  unsigned int nbytes;
+  dosaddr_t seekval;
+  int i, i2;
+  unsigned int buf = 0;
+  unsigned int seg;
+  unsigned int off;
+  unsigned int limit;
+  int data32 = 0;
+  int unixaddr;
+  unsigned char c;
 
-   if (argc > 1) {
-      if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
-         mhp_printf("Invalid ADDR\n");
-         return;
-      }
-      snprintf(lastd, sizeof(lastd), "%s", argv[1]);
-   } else {
-      if (!strlen(lastd)) {
-         mhp_printf("No previous \'d\' command\n");
-         return;
-      }
-      if (!mhp_getadr(lastd, &seekval, &seg, &off, &limit, IN_DPMI)) {
-         mhp_printf("Invalid ADDR\n");
-         return;
-      }
-   }
-   buf = seekval;
-
-   if (argc > 2) {
-     if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0 || nbytes > 256) {
-       mhp_printf("Invalid size '%s'\n", argv[2]);
-       return;
-     }
-   } else {
-     nbytes = 128;
-   }
-
-#if 0
-   mhp_printf( "seekval %08lX nbytes:%d\n", seekval, nbytes);
-#else
-   mhp_printf( "\n");
-#endif
-   if (IN_DPMI && seg)
-     data32 = dpmi_segment_is32(seg);
-   unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
-   for (i=0; i<nbytes; i++) {
-      if ((i&0x0f) == 0x00) {
-         if (seg != 0 || limit != 0xFFFFFFFF) {
-            if (data32) mhp_printf("%s%04x:%08x ", IN_DPMI?"#":"" ,seg, off+i);
-            else mhp_printf("%s%04x:%04x ", IN_DPMI?"#":"" ,seg, off+i);
-         }
-	 else if (unixaddr)
-            mhp_printf( "%#08x ", seekval+i);
-	 else
-            mhp_printf( "%08X ", seekval+i);
-      }
-      if (unixaddr)
-	c = UNIX_READ_BYTE((uintptr_t)buf+i);
-      else
-	c = READ_BYTE(buf+i);
-      mhp_printf( "%02X ", c);
-      if ((i&0x0f) == 0x0f) {
-         mhp_printf( " ");
-         for (i2=i-15;i2<=i;i2++){
-	    if (unixaddr)
-	       c = UNIX_READ_BYTE((uintptr_t)buf+i2);
-	    else
-	       c = READ_BYTE(buf+i2);
-	    c &= 0x7F;
-	    if (c >= 0x20) {
-	       mhp_printf( "%c", c);
-            } else {
-               mhp_printf( "%c", '.');
-            }
-         }
-         mhp_printf( "\n");
-      }
-   }
-
-   if (seg != 0 || limit != 0xFFFFFFFF) {
-      if ((lastd[0] == '#') || (IN_DPMI)) {
-         snprintf(lastd, sizeof(lastd), "#%x:%x", seg, off + i);
-      } else {
-         snprintf(lastd, sizeof(lastd), "%x:%x", seg, off + i);
-      }
-   } else if (unixaddr) {
-      snprintf(lastd, sizeof(lastd), "%#x", seekval + i);
-   } else {
-      snprintf(lastd, sizeof(lastd), "%x", seekval + i);
-   }
-}
-
-static void mhp_dump_to_file(int argc, char * argv[])
-{
-   unsigned int nbytes;
-   dosaddr_t seekval;
-   const unsigned char *buf = 0;
-   unsigned int seg;
-   unsigned int off;
-   unsigned int limit=0;
-   int fd;
-
-   if (argc <= 3) {
-      mhp_printf("USAGE: dump <addr> <size> <filename>\n");
-      return;
-   }
-
-   if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)){
+  if (argc > 1) {
+    if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
       mhp_printf("Invalid ADDR\n");
       return;
-   }
-   if (linmode == 2 && seg == 0 && limit == 0xFFFFFFFF)
-     buf = (const unsigned char *)(uintptr_t)seekval;
-   else
-     buf = LINEAR2UNIX(seekval);
-
-   if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0) {
-     mhp_printf("Invalid size '%s'\n", argv[2]);
-     return;
-   }
-
-   fd = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 00640);
-   if (fd < 0) {
-      mhp_printf("cannot open/create file %s\n%s\n", argv[3], strerror(errno));
+    }
+    snprintf(lastd, sizeof(lastd), "%s", argv[1]);
+  } else {
+    if (!strlen(lastd)) {
+      mhp_printf("No previous \'d\' command\n");
       return;
-   }
-   if (write(fd, buf, nbytes) != nbytes) {
-      mhp_printf("write error: %s\n", strerror(errno));
-   }
-   close(fd);
+    }
+    if (!mhp_getadr(lastd, &seekval, &seg, &off, &limit, IN_DPMI)) {
+      mhp_printf("Invalid ADDR\n");
+      return;
+    }
+  }
+  buf = seekval;
+
+  if (argc > 2) {
+    if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0 || nbytes > 256) {
+      mhp_printf("Invalid size '%s'\n", argv[2]);
+      return;
+    }
+  } else {
+    nbytes = 128;
+  }
+
+#if 0
+  mhp_printf("seekval %08lX nbytes:%d\n", seekval, nbytes);
+#else
+  mhp_printf("\n");
+#endif
+  if (IN_DPMI && seg)
+    data32 = dpmi_segment_is32(seg);
+  unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
+  for (i = 0; i < nbytes; i++) {
+    if ((i & 0x0f) == 0x00) {
+      if (seg != 0 || limit != 0xFFFFFFFF) {
+        if (data32)
+          mhp_printf("%s%04x:%08x ", IN_DPMI ? "#" : "", seg, off + i);
+        else
+          mhp_printf("%s%04x:%04x ", IN_DPMI ? "#" : "", seg, off + i);
+      } else if (unixaddr)
+        mhp_printf("%#08x ", seekval + i);
+      else
+        mhp_printf("%08X ", seekval + i);
+    }
+    if (unixaddr)
+      c = UNIX_READ_BYTE((uintptr_t)buf + i);
+    else
+      c = READ_BYTE(buf + i);
+    mhp_printf("%02X ", c);
+    if ((i & 0x0f) == 0x0f) {
+      mhp_printf(" ");
+      for (i2 = i - 15; i2 <= i; i2++) {
+        if (unixaddr)
+          c = UNIX_READ_BYTE((uintptr_t)buf + i2);
+        else
+          c = READ_BYTE(buf + i2);
+        c &= 0x7F;
+        if (c >= 0x20) {
+          mhp_printf("%c", c);
+        } else {
+          mhp_printf("%c", '.');
+        }
+      }
+      mhp_printf("\n");
+    }
+  }
+
+  if (seg != 0 || limit != 0xFFFFFFFF) {
+    if ((lastd[0] == '#') || (IN_DPMI)) {
+      snprintf(lastd, sizeof(lastd), "#%x:%x", seg, off + i);
+    } else {
+      snprintf(lastd, sizeof(lastd), "%x:%x", seg, off + i);
+    }
+  } else if (unixaddr) {
+    snprintf(lastd, sizeof(lastd), "%#x", seekval + i);
+  } else {
+    snprintf(lastd, sizeof(lastd), "%x", seekval + i);
+  }
+}
+
+static void mhp_dump_to_file(int argc, char *argv[])
+{
+  unsigned int nbytes;
+  dosaddr_t seekval;
+  const unsigned char *buf = 0;
+  unsigned int seg;
+  unsigned int off;
+  unsigned int limit = 0;
+  int fd;
+
+  if (argc <= 3) {
+    mhp_printf("USAGE: dump <addr> <size> <filename>\n");
+    return;
+  }
+
+  if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
+    mhp_printf("Invalid ADDR\n");
+    return;
+  }
+  if (linmode == 2 && seg == 0 && limit == 0xFFFFFFFF)
+    buf = (const unsigned char *)(uintptr_t)seekval;
+  else
+    buf = LINEAR2UNIX(seekval);
+
+  if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0) {
+    mhp_printf("Invalid size '%s'\n", argv[2]);
+    return;
+  }
+
+  fd = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 00640);
+  if (fd < 0) {
+    mhp_printf("cannot open/create file %s\n%s\n", argv[3], strerror(errno));
+    return;
+  }
+  if (write(fd, buf, nbytes) != nbytes) {
+    mhp_printf("write error: %s\n", strerror(errno));
+  }
+  close(fd);
 }
 
 static const char *get_type_from_mcb(struct MCB *mcb)
@@ -1690,672 +1695,685 @@ static void mhp_dpbs(int argc, char *argv[])
   }
 }
 
-static void mhp_mode(int argc, char * argv[])
+static void mhp_mode(int argc, char *argv[])
 {
-   if (argc >=2) {
-     if (argv[1][0] == '0') linmode = 0;
-     if (argv[1][0] == '1') linmode = 1;
-     if (argv[1][0] == '2') linmode = 2;
-     if (!strcmp(argv[1],"+d")) dpmimode=saved_dpmimode=1;
-     if (!strcmp(argv[1],"-d")) dpmimode=saved_dpmimode=0;
-   }
-   mhp_printf ("current mode: %s, dpmi %s%s\n",
-     linmode==2?"unix32":linmode?"lin32":"seg16", dpmimode?"enabled":"disabled",
-     dpmimode!=saved_dpmimode ? (saved_dpmimode?"[default enabled]":"[default disabled]"):"");
-   return;
+  if (argc >= 2) {
+    if (argv[1][0] == '0')
+      linmode = 0;
+    if (argv[1][0] == '1')
+      linmode = 1;
+    if (argv[1][0] == '2')
+      linmode = 2;
+    if (!strcmp(argv[1], "+d"))
+      dpmimode = saved_dpmimode = 1;
+    if (!strcmp(argv[1], "-d"))
+      dpmimode = saved_dpmimode = 0;
+  }
+  mhp_printf ("current mode: %s, dpmi %s%s\n",
+    linmode == 2 ? "unix32":linmode ? "lin32" : "seg16", dpmimode ? "enabled" : "disabled",
+    dpmimode != saved_dpmimode ? (saved_dpmimode ? "[default enabled]" : "[default disabled]") : "");
+  return;
 }
 
-static void mhp_disasm(int argc, char * argv[])
+static void mhp_disasm(int argc, char *argv[])
 {
-   static char lastu[32];
+  static char lastu[32];
 
-   int rc;
-   unsigned int nbytes;
-   unsigned int org;
-   dosaddr_t seekval;
-   int def_size;
-   unsigned int bytesdone;
-   int i;
-   unsigned int buf = 0;
-   char bytebuf[IBUFS];
-   char frmtbuf[IBUFS];
-   unsigned int seg;
-   unsigned int off;
-   unsigned int refseg;
-   unsigned int ref;
-   unsigned int limit;
-   int segmented = (linmode == 0);
-   const char *s;
+  int rc;
+  unsigned int nbytes;
+  unsigned int org;
+  dosaddr_t seekval;
+  int def_size;
+  unsigned int bytesdone;
+  int i;
+  unsigned int buf = 0;
+  char bytebuf[IBUFS];
+  char frmtbuf[IBUFS];
+  unsigned int seg;
+  unsigned int off;
+  unsigned int refseg;
+  unsigned int ref;
+  unsigned int limit;
+  int segmented = (linmode == 0);
+  const char *s;
 
-   if (argc > 1) {
-      if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
-         mhp_printf("Invalid ADDR\n");
-         return;
-      }
-      snprintf(lastu, sizeof(lastu), "%s", argv[1]);
-   } else {
-      if (!strlen(lastu)) {
-         mhp_printf("No previous \'u\' command\n");
-         return;
-      }
-      if (!mhp_getadr(lastu, &seekval, &seg, &off, &limit, IN_DPMI)) {
-         mhp_printf("Invalid ADDR\n");
-         return;
-      }
-   }
+  if (argc > 1) {
+    if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
+      mhp_printf("Invalid ADDR\n");
+      return;
+    }
+    snprintf(lastu, sizeof(lastu), "%s", argv[1]);
+  } else {
+    if (!strlen(lastu)) {
+      mhp_printf("No previous \'u\' command\n");
+      return;
+    }
+    if (!mhp_getadr(lastu, &seekval, &seg, &off, &limit, IN_DPMI)) {
+      mhp_printf("Invalid ADDR\n");
+      return;
+    }
+  }
 
-   if (argc > 2) {
-     if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0 || nbytes > 256) {
-       mhp_printf("Invalid size '%s'\n", argv[2]);
-       return;
-     }
-   } else {
-     nbytes = 32;
-   }
+  if (argc > 2) {
+    if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0 || nbytes > 256) {
+      mhp_printf("Invalid size '%s'\n", argv[2]);
+      return;
+    }
+  } else {
+    nbytes = 32;
+  }
 
 #if 0
-   mhp_printf( "seekval %08X nbytes:%d\n", seekval, nbytes);
+  mhp_printf("seekval %08X nbytes:%d\n", seekval, nbytes);
 #else
-   mhp_printf( "\n");
+  mhp_printf("\n");
 #endif
 
-   if (IN_DPMI) {
-     def_size = (dpmi_segment_is32(seg)? 3:0);
-     segmented =1;
-   }
-   else {
-     if (seekval < (a20 ? 0x10fff0 : 0x100000)) def_size = (linmode? 3:0);
-     else if (lastu[0] == '#')
-        def_size = 0;
-     else def_size = 3;
-   }
-   if (linmode == 2) {
-     if (seg != 0 || limit != 0xFFFFFFFF)
-       seekval += (uintptr_t)mem_base;
-     def_size |= 4;
-   }
-   rc=0;
-   buf = seekval;
-   org = codeorg ? codeorg : seekval;
+  if (IN_DPMI) {
+    def_size = (dpmi_segment_is32(seg) ? 3 : 0);
+    segmented = 1;
+  } else {
+    if (seekval < (a20 ? 0x10fff0 : 0x100000))
+      def_size = (linmode ? 3 : 0);
+    else if (lastu[0] == '#')
+      def_size = 0;
+    else
+      def_size = 3;
+  }
+  if (linmode == 2) {
+    if (seg != 0 || limit != 0xFFFFFFFF)
+      seekval += (uintptr_t)mem_base;
+    def_size |= 4;
+  }
+  rc = 0;
+  buf = seekval;
+  org = codeorg ? codeorg : seekval;
 
-   for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
-       if (!(def_size & 4) && segmented) {
-          if ((s = getsym_from_bios(seg, off + bytesdone)) ||
-              (s = getsym_from_dos_segofs(seg, off + bytesdone)))
-             mhp_printf ("%s:\n", s);
-       }
-       if (IN_DPMI && !dpmi_is_valid_range(GetSegmentBase(seg) + off +
-               bytesdone, 10))
-          break;
-       refseg = seg;
-       rc = dis_8086(buf+bytesdone, frmtbuf, def_size, &ref,
-                  (IN_DPMI ? GetSegmentBase(refseg) : refseg * 16));
-       if (bytesdone + rc > 256)
-           break;
-       for (i=0;i<rc;i++) {
-	   if(def_size&4)
-	     sprintf(&bytebuf[i*2], "%02X", UNIX_READ_BYTE((uintptr_t)buf+bytesdone+i) );
-	   else
-	     sprintf(&bytebuf[i*2], "%02X", READ_BYTE(buf+bytesdone+i) );
-           bytebuf[(i*2)+2] = 0x00;
-       }
-       if (segmented) {
-          const char *x = (IN_DPMI ? "#" : "");
-          if (def_size) {
-            mhp_printf( "%s%04x:%08x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
-          }
-          else mhp_printf( "%s%04x:%04x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
-          /*
-           * FIXME - the following is clearly wrong as it won't print a
-           * reference to a symbol at the start of the same segment, but
-           * there's not currently any way to determine if there's an
-           * immediate memory reference in dis_8086(). The alternative is
-           * spurious printing of immediate memory references if a symbol
-           * at seg:0000 has been defined.
-           */
-          if ((ref != (refseg << 4)) && ((s = getsym_from_dos_linear(ref))))
-             mhp_printf ("(%s)", s);
-       } else {
-	  if (def_size&4)
-	     mhp_printf( "%#08x: %-16s %s", org+bytesdone, bytebuf, frmtbuf);
-	  else
-	     mhp_printf( "%08x: %-16s %s", org+bytesdone, bytebuf, frmtbuf);
-       }
-       mhp_printf( "\n");
-   }
+  for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
+    if (!(def_size & 4) && segmented) {
+      if ((s = getsym_from_bios(seg, off + bytesdone)) || (s = getsym_from_dos_segofs(seg, off + bytesdone)))
+        mhp_printf("%s:\n", s);
+    }
+    if (IN_DPMI && !dpmi_is_valid_range(GetSegmentBase(seg) + off + bytesdone, 10))
+      break;
+    refseg = seg;
+    rc = dis_8086(buf + bytesdone, frmtbuf, def_size, &ref, (IN_DPMI ? GetSegmentBase(refseg) : refseg * 16));
+    if (bytesdone + rc > 256)
+      break;
+    for (i = 0; i < rc; i++) {
+      if (def_size & 4)
+        sprintf(&bytebuf[i * 2], "%02X", UNIX_READ_BYTE((uintptr_t)buf + bytesdone + i));
+      else
+        sprintf(&bytebuf[i * 2], "%02X", READ_BYTE(buf + bytesdone + i));
+      bytebuf[(i * 2) + 2] = 0x00;
+    }
+    if (segmented) {
+      const char *x = (IN_DPMI ? "#" : "");
+      if (def_size) {
+        mhp_printf("%s%04x:%08x %-16s %s", x, seg, off + bytesdone, bytebuf, frmtbuf);
+      } else
+        mhp_printf("%s%04x:%04x %-16s %s", x, seg, off + bytesdone, bytebuf, frmtbuf);
+      /*
+       * FIXME - the following is clearly wrong as it won't print a
+       * reference to a symbol at the start of the same segment, but
+       * there's not currently any way to determine if there's an
+       * immediate memory reference in dis_8086(). The alternative is
+       * spurious printing of immediate memory references if a symbol
+       * at seg:0000 has been defined.
+       */
+      if ((ref != (refseg << 4)) && ((s = getsym_from_dos_linear(ref))))
+        mhp_printf("(%s)", s);
+    } else {
+      if (def_size & 4)
+        mhp_printf("%#08x: %-16s %s", org + bytesdone, bytebuf, frmtbuf);
+      else
+        mhp_printf("%08x: %-16s %s", org + bytesdone, bytebuf, frmtbuf);
+    }
+    mhp_printf("\n");
+  }
 
-   if (segmented) {
-      if ((lastu[0] == '#') || (IN_DPMI)) {
-         snprintf(lastu, sizeof(lastu), "#%x:%x", seg, off + bytesdone);
-      } else {
-         snprintf(lastu, sizeof(lastu), "%x:%x", seg, off + bytesdone);
-      }
-   } else {
-      snprintf(lastu, sizeof(lastu), "%x", seekval + bytesdone);
-   }
+  if (segmented) {
+    if ((lastu[0] == '#') || (IN_DPMI)) {
+      snprintf(lastu, sizeof(lastu), "#%x:%x", seg, off + bytesdone);
+    } else {
+      snprintf(lastu, sizeof(lastu), "%x:%x", seg, off + bytesdone);
+    }
+  } else {
+    snprintf(lastu, sizeof(lastu), "%x", seekval + bytesdone);
+  }
 }
 
 static int get_value(char *s, unsigned long *v)
 {
-   int len = strlen(s);
-   int t;
-   char *tt;
-   const char *wl = " WL";
-   regnum_t symreg;
+  int len = strlen(s);
+  int t;
+  char *tt;
+  const char *wl = " WL";
+  regnum_t symreg;
 
-   if (!len)
-     return V_NONE;
+  if (!len)
+    return V_NONE;
 
-   /* Double quoted string value */
-   if (len >2) {
-     if (s[0] == '"' && s[len-1] == '"') {
-       s[len-1] = 0;
-       return V_STRING;
-     }
-   }
+  /* Double quoted string value */
+  if (len > 2) {
+    if (s[0] == '"' && s[len - 1] == '"') {
+      s[len - 1] = 0;
+      return V_STRING;
+    }
+  }
 
-   /* Type suffix */
-   if ((tt = strchr(wl, toupper_ascii(s[len-1]))) !=0) {
-     len--;
-     s[len] = 0;
-     t = (int)(tt - wl) << 1;
-   } else {
-     t = V_NONE;
-   }
+  /* Type suffix */
+  if ((tt = strchr(wl, toupper_ascii(s[len - 1]))) != 0) {
+    len--;
+    s[len] = 0;
+    t = (int)(tt - wl) << 1;
+  } else {
+    t = V_NONE;
+  }
 
-   /* Character constant i.e. 'A' or strangely 'ABCD' */
-   if (len >2) {
-     if (s[len-1] == '\'' && s[0] == '\'') {
-       *v = 0;
-       len -=2;
-       if (len > sizeof(*v))
-         return V_NONE;  // don't silently truncate value
-       strncpy((char *)v, s+1, len);
-       if (t != V_NONE) return t;
-       if (len <  2) return V_BYTE;
-       if (len <  4) return V_WORD;
-       return V_DWORD;
-     }
-   }
+  /* Character constant i.e. 'A' or strangely 'ABCD' */
+  if (len > 2) {
+    if (s[len - 1] == '\'' && s[0] == '\'') {
+      *v = 0;
+      len -= 2;
+      if (len > sizeof(*v))
+        return V_NONE; // don't silently truncate value
+      strncpy((char *)v, s + 1, len);
+      if (t != V_NONE)
+        return t;
+      if (len < 2)
+        return V_BYTE;
+      if (len < 4)
+        return V_WORD;
+      return V_DWORD;
+    }
+  }
 
-   /* Register */
-   if (decode_symreg(s, &symreg, &t)) {
-     *v = mhp_getreg(symreg);
-     return t;
-   }
+  /* Register */
+  if (decode_symreg(s, &symreg, &t)) {
+    *v = mhp_getreg(symreg);
+    return t;
+  }
 
-   /* Plain number */
-   if (getval_ul(s, 0, v))
-     return (t == V_NONE) ? V_BYTE : t;
+  /* Plain number */
+  if (getval_ul(s, 0, v))
+    return (t == V_NONE) ? V_BYTE : t;
 
-   return V_NONE;
+  return V_NONE;
 }
 
-static void mhp_memset(int argc, char * argv[])
+static void mhp_memset(int argc, char *argv[])
 {
-   int size;
-   static dosaddr_t zapaddr = -1;
-   unsigned int seg, off;
-   unsigned long val;
-   unsigned int limit;
-   char *arg;
+  int size;
+  static dosaddr_t zapaddr = -1;
+  unsigned int seg, off;
+  unsigned long val;
+  unsigned int limit;
+  char *arg;
 
-   if (argc < 3) {
-     mhp_printf("USAGE: m ADDR <value>\n");
-     return;
-   }
+  if (argc < 3) {
+    mhp_printf("USAGE: m ADDR <value>\n");
+    return;
+  }
 
-   if (!strcmp(argv[1],"-")) {
-     if (zapaddr == -1) {
-        mhp_printf("Address invalid, no previous 'm' command with address\n");
+  if (!strcmp(argv[1], "-")) {
+    if (zapaddr == -1) {
+      mhp_printf("Address invalid, no previous 'm' command with address\n");
+      return;
+    }
+  } else {
+    if (!mhp_getadr(argv[1], &zapaddr, &seg, &off, &limit, IN_DPMI)) {
+      mhp_printf("Address invalid\n");
+      return;
+    }
+  }
+
+  argv += 2;
+  while ((arg = *argv) != 0) {
+    size = get_value(arg, &val);
+    switch (size) {
+      case V_NONE:
+        mhp_printf("Value invalid\n");
         return;
-     }
-   } else {
-     if (!mhp_getadr(argv[1], &zapaddr, &seg, &off, &limit, IN_DPMI)) {
-        mhp_printf("Address invalid\n");
-        return;
-     }
-   }
 
-   argv += 2;
-   while ((arg = *argv) != 0) {
-      size = get_value(arg, &val);
-      switch (size) {
-        case V_NONE:
-          mhp_printf("Value invalid\n");
+      case V_BYTE:
+      case V_WORD:
+      case V_DWORD:
+        if ((size == V_BYTE && val > 0xff) || (size == V_WORD && val > 0xffff) ||
+            (size == V_DWORD && val > 0xffffffff)) {
+          mhp_printf("Value too large for data type\n");
           return;
+        }
+        MEMCPY_2DOS(zapaddr, &val, size);
+        mhp_printf("Modified %d byte(s) at 0x%08x with value %#lx\n", size, zapaddr, val);
+        zapaddr += size;
+        break;
 
-        case V_BYTE:
-        case V_WORD:
-        case V_DWORD:
-          if ((size == V_BYTE && val > 0xff) ||
-              (size == V_WORD && val > 0xffff) ||
-              (size == V_DWORD && val > 0xffffffff)) {
-            mhp_printf("Value too large for data type\n");
-            return;
-          }
-          MEMCPY_2DOS(zapaddr, &val, size);
-          mhp_printf("Modified %d byte(s) at 0x%08x with value %#lx\n", size, zapaddr, val);
-          zapaddr += size;
-          break;
-
-        case V_STRING:
-          size = strlen(arg+1);
-          MEMCPY_2DOS(zapaddr, arg+1, size);
-          mhp_printf("Modified %d byte(s) at 0x%08x with value \"%s\"\n", size, zapaddr, arg+1);
-          zapaddr += size;
-          break;
-      }
-      argv++;
-   }
+      case V_STRING:
+        size = strlen(arg + 1);
+        MEMCPY_2DOS(zapaddr, arg + 1, size);
+        mhp_printf("Modified %d byte(s) at 0x%08x with value \"%s\"\n", size, zapaddr, arg + 1);
+        zapaddr += size;
+        break;
+    }
+    argv++;
+  }
 }
 
 static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1,
       unsigned int *o1, unsigned int *lim, int use_ldt)
 {
-   char * srchp;
-   unsigned int seg1;
-   unsigned int off1;
-   unsigned long ul1;
-   int selector = 0;
-   unsigned int base_addr, limit;
-   regnum_t symreg;
+  char *srchp;
+  unsigned int seg1;
+  unsigned int off1;
+  unsigned long ul1;
+  int selector = 0;
+  unsigned int base_addr, limit;
+  regnum_t symreg;
 
-   *lim = 0xFFFFFFFF;
+  *lim = 0xFFFFFFFF;
 
-   if (use_ldt) selector = 1;
-   if (*a1 == '#') {
-      selector = 1;
+  if (use_ldt)
+    selector = 1;
+  if (*a1 == '#') {
+    selector = 1;
+    *lim = 0;
+    a1++;
+  }
+  if (*a1 == '*') {
+    if (use_ldt) {
+      dpmi_mhp_getcseip(&seg1, &off1);
       *lim = 0;
-      a1 ++;
-   }
-   if(*a1 == '*') {
+      selector = 2;
+    } else {
+      *v1 = makeaddr(SREG(cs), LWORD(eip));
+      *s1 = SREG(cs);
+      *o1 = LWORD(eip);
+      *lim = 0xFFFF;
+      return 1;
+    }
+  }
+  if (selector != 2) {
+    if (*a1 == '$') {
       if (use_ldt) {
-        dpmi_mhp_getcseip(&seg1,&off1);
+        dpmi_mhp_getssesp(&seg1, &off1);
         *lim = 0;
-        selector=2;
-      }
-      else {
-        *v1 = makeaddr(SREG(cs), LWORD(eip));
-        *s1 = SREG(cs);
-        *o1 = LWORD(eip);
+        selector = 2;
+      } else {
+        *v1 = makeaddr(SREG(ss), LWORD(esp));
+        *s1 = SREG(ss);
+        *o1 = LWORD(esp);
         *lim = 0xFFFF;
         return 1;
       }
-   }
-   if (selector != 2) {
-     if(*a1 == '$') {
-        if (use_ldt) {
-          dpmi_mhp_getssesp(&seg1,&off1);
-          *lim = 0;
-          selector=2;
-        }
-        else {
-          *v1 = makeaddr(SREG(ss), LWORD(esp));
-          *s1 = SREG(ss);
-          *o1 = LWORD(esp);
-          *lim = 0xFFFF;
-          return 1;
-        }
-     }
-     if (selector != 2) {
-       if (getaddr_from_bios_sym(a1, v1, s1, o1)) {
-          return 1;
-       }
-       if (getaddr_from_dos_sym(a1, v1, s1, o1)) {
-          return 1;
-       }
-       if (!(srchp = strchr(a1, ':'))) {
-          if (!getval_ul(a1, 16, &ul1))
-            return 0;
+    }
+    if (selector != 2) {
+      if (getaddr_from_bios_sym(a1, v1, s1, o1)) {
+        return 1;
+      }
+      if (getaddr_from_dos_sym(a1, v1, s1, o1)) {
+        return 1;
+      }
+      if (!(srchp = strchr(a1, ':'))) {
+        if (!getval_ul(a1, 16, &ul1))
+          return 0;
 
-          *v1 = ul1;
-          *s1 = (ul1 >> 4);
-          *o1 = (ul1 & 0b00001111);
-          return 1;
-       }
+        *v1 = ul1;
+        *s1 = (ul1 >> 4);
+        *o1 = (ul1 & 0b00001111);
+        return 1;
+      }
 
-       // we have a colon in the address so split it
-       *srchp = '\0';
+      // we have a colon in the address so split it
+      *srchp = '\0';
 
-       if (decode_symreg(a1, &symreg, NULL))
-         seg1 = mhp_getreg(symreg);
-       else if (!getval_ui(a1, 16, &seg1)) {
-         mhp_printf("segment parse error '%s'\n", a1);
-         return 0;
-       }
+      if (decode_symreg(a1, &symreg, NULL))
+        seg1 = mhp_getreg(symreg);
+      else if (!getval_ui(a1, 16, &seg1)) {
+        mhp_printf("segment parse error '%s'\n", a1);
+        return 0;
+      }
 
-       if (decode_symreg(srchp+1, &symreg, NULL))
-         off1 = mhp_getreg(symreg);
-       else if (!getval_ui(srchp+1, 16, &off1)) {
-         mhp_printf("offset parse error '%s'\n", srchp+1);
-         return 0;
-       }
-     }
-   }
-   *s1 = seg1;
-   *o1 = off1;
+      if (decode_symreg(srchp + 1, &symreg, NULL))
+        off1 = mhp_getreg(symreg);
+      else if (!getval_ui(srchp + 1, 16, &off1)) {
+        mhp_printf("offset parse error '%s'\n", srchp + 1);
+        return 0;
+      }
+    }
+  }
+  *s1 = seg1;
+  *o1 = off1;
 
-   if (!selector) {
-      *v1 = makeaddr(seg1, off1);
-      *lim = 0xFFFF;
-      return 1;
-   }
+  if (!selector) {
+    *v1 = makeaddr(seg1, off1);
+    *lim = 0xFFFF;
+    return 1;
+  }
 
-   if (!(seg1 & 0x4)) {
-     mhp_printf("GDT selectors not supported yet\n");
-     return 0;
-   }
+  if (!(seg1 & 0x4)) {
+    mhp_printf("GDT selectors not supported yet\n");
+    return 0;
+  }
 
-   if (!DPMIValidSelector(seg1)) {
-     mhp_printf("selector %x appears to be invalid\n", seg1);
-     return 0;
-   }
+  if (!DPMIValidSelector(seg1)) {
+    mhp_printf("selector %x appears to be invalid\n", seg1);
+    return 0;
+  }
 
-   base_addr = GetSegmentBase(seg1);
-   limit = GetSegmentLimit(seg1);
+  base_addr = GetSegmentBase(seg1);
+  limit = GetSegmentLimit(seg1);
 
-   if (off1 > limit && GetSegmentType(seg1) != MODIFY_LDT_CONTENTS_STACK) {
-     mhp_printf("offset %x exceeds segment limit %x\n", off1, limit);
-     return 0;
-   }
+  if (off1 > limit && GetSegmentType(seg1) != MODIFY_LDT_CONTENTS_STACK) {
+    mhp_printf("offset %x exceeds segment limit %x\n", off1, limit);
+    return 0;
+  }
 
-   if (!dpmi_is_valid_range(base_addr + off1, 10)) {
-     mhp_printf("CS:IP points to invalid memory\n");
-     return 0;
-   }
+  if (!dpmi_is_valid_range(base_addr + off1, 10)) {
+    mhp_printf("CS:IP points to invalid memory\n");
+    return 0;
+  }
 
-   *v1 = base_addr + off1;
-   *lim = limit - off1;
-   return 1;
+  *v1 = base_addr + off1;
+  *lim = limit - off1;
+  return 1;
 }
 
 int mhp_setbp(unsigned int seekval)
 {
-   int i1;
-   for (i1=0; i1 < MAXBP; i1++) {
-      if (   mhpdbgc.brktab[i1].brkaddr == seekval
-          && mhpdbgc.brktab[i1].is_valid) {
-         mhp_printf( "Duplicate breakpoint, nothing done\n");
-         return 0;
-      }
-   }
-   for (i1=0; i1 < MAXBP; i1++) {
-      if (!mhpdbgc.brktab[i1].is_valid) {
-         if (i1==trapped_bp) trapped_bp=-1;
-         mhpdbgc.brktab[i1].brkaddr = seekval;
-	 mhpdbgc.brktab[i1].is_valid = 1;
-         mhpdbgc.brktab[i1].is_dpmi = IN_DPMI;
-         return 1;
-      }
-   }
-   mhp_printf( "Breakpoint table full, nothing done\n");
-   return 0;
+  int i1;
+
+  for (i1 = 0; i1 < MAXBP; i1++) {
+    if (mhpdbgc.brktab[i1].brkaddr == seekval && mhpdbgc.brktab[i1].is_valid) {
+      mhp_printf("Duplicate breakpoint, nothing done\n");
+      return 0;
+    }
+  }
+  for (i1 = 0; i1 < MAXBP; i1++) {
+    if (!mhpdbgc.brktab[i1].is_valid) {
+      if (i1 == trapped_bp)
+        trapped_bp = -1;
+      mhpdbgc.brktab[i1].brkaddr = seekval;
+      mhpdbgc.brktab[i1].is_valid = 1;
+      mhpdbgc.brktab[i1].is_dpmi = IN_DPMI;
+      return 1;
+    }
+  }
+  mhp_printf("Breakpoint table full, nothing done\n");
+  return 0;
 }
 
 int mhp_clearbp(unsigned int seekval)
 {
-   int i1;
-   for (i1=0; i1 < MAXBP; i1++) {
-      if (   mhpdbgc.brktab[i1].brkaddr == seekval
-          && mhpdbgc.brktab[i1].is_valid) {
-         mhp_bpclr();
-         if (i1==trapped_bp) trapped_bp=-1;
-         mhpdbgc.brktab[i1].brkaddr = 0;
-         mhpdbgc.brktab[i1].is_valid = 0;
-         return 1;
-      }
-   }
-   return 0;
+  int i1;
+
+  for (i1 = 0; i1 < MAXBP; i1++) {
+    if (mhpdbgc.brktab[i1].brkaddr == seekval && mhpdbgc.brktab[i1].is_valid) {
+      mhp_bpclr();
+      if (i1 == trapped_bp)
+        trapped_bp = -1;
+      mhpdbgc.brktab[i1].brkaddr = 0;
+      mhpdbgc.brktab[i1].is_valid = 0;
+      return 1;
+    }
+  }
+  return 0;
 }
 
-static void mhp_bp(int argc, char * argv[])
+static void mhp_bp(int argc, char *argv[])
 {
-   dosaddr_t seekval;
-   unsigned int seg;
-   unsigned int off;
-   unsigned int limit;
+  dosaddr_t seekval;
+  unsigned int seg;
+  unsigned int off;
+  unsigned int limit;
 
-   if (!check_for_stopped())
-      return;
+  if (!check_for_stopped())
+    return;
 
-   if (argc < 2) {
-      mhp_printf("location argument required\n");
-      return;
-   }
+  if (argc < 2) {
+    mhp_printf("location argument required\n");
+    return;
+  }
 
-   if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
-      mhp_printf("Invalid ADDR\n");
-      return;
-   }
+  if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
+    mhp_printf("Invalid ADDR\n");
+    return;
+  }
 
-   mhp_setbp(seekval);
+  mhp_setbp(seekval);
 }
 
-static void mhp_bl(int argc, char * argv[])
+static void mhp_bl(int argc, char *argv[])
 {
-   int i1;
+  int i1;
 
-   mhp_printf( "Breakpoints:\n");
-   for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].is_valid) {
-         mhp_printf( "%d: %08x\n", i1, mhpdbgc.brktab[i1].brkaddr);
-      }
-   }
-   mhp_printf( "Interrupts: ");
-   for (i1=0; i1 < 256; i1++) {
-      if (test_bit(i1, mhpdbg.intxxtab)) {
-         mhp_printf( "%02x ", i1);
-      }
-   }
+  mhp_printf("Breakpoints:\n");
+  for (i1 = 0; i1 < MAXBP; i1++) {
+    if (mhpdbgc.brktab[i1].is_valid) {
+      mhp_printf("%d: %08x\n", i1, mhpdbgc.brktab[i1].brkaddr);
+    }
+  }
+  mhp_printf("Interrupts: ");
+  for (i1 = 0; i1 < 256; i1++) {
+    if (test_bit(i1, mhpdbg.intxxtab)) {
+      mhp_printf("%02x ", i1);
+    }
+  }
 #if WITH_DPMI
-   mhp_printf( "\nDPMI Interrupts:");
-   for (i1=0; i1 < 256; i1++) {
-     if (dpmi_mhp_intxxtab[i1]) {
-       mhp_printf( " %02x", i1);
-       if (dpmi_mhp_intxxtab[i1] & 0x80) {
-         int i,j=0;
-         mhp_printf("[");
-         for (i=0; i < axlist_count; i++) {
-           if ((mhp_axlist[i] >>16) == i1) {
-             if (j)  mhp_printf(",");
-             mhp_printf("%lx",mhp_axlist[i] & 0xffff);
-             j++;
-           }
-         }
-         mhp_printf("]");
-       }
-     }
-   }
+  mhp_printf("\nDPMI Interrupts:");
+  for (i1 = 0; i1 < 256; i1++) {
+    if (dpmi_mhp_intxxtab[i1]) {
+      mhp_printf(" %02x", i1);
+      if (dpmi_mhp_intxxtab[i1] & 0x80) {
+        int i, j = 0;
+        mhp_printf("[");
+        for (i = 0; i < axlist_count; i++) {
+          if ((mhp_axlist[i] >> 16) == i1) {
+            if (j)
+              mhp_printf(",");
+            mhp_printf("%lx", mhp_axlist[i] & 0xffff);
+            j++;
+          }
+        }
+        mhp_printf("]");
+      }
+    }
+  }
 #endif
-   mhp_printf( "\n");
-   if (mhpdbgc.bpload)
-     mhp_printf("bpload active\n");
-   print_log_breakpoints();
-   return;
+  mhp_printf("\n");
+  if (mhpdbgc.bpload)
+    mhp_printf("bpload active\n");
+  print_log_breakpoints();
+  return;
 }
 
-static void mhp_bc(int argc, char * argv[])
+static void mhp_bc(int argc, char *argv[])
 {
-   unsigned int num;
+  unsigned int num;
 
-   if (!check_for_stopped())
-     return;
+  if (!check_for_stopped())
+    return;
 
-   if (argc < 2 || !getval_ui(argv[1], 0, &num) || num >= MAXBP) {
-     mhp_printf("Invalid breakpoint number\n");
-     return;
-   }
+  if (argc < 2 || !getval_ui(argv[1], 0, &num) || num >= MAXBP) {
+    mhp_printf("Invalid breakpoint number\n");
+    return;
+  }
 
-   if (!mhpdbgc.brktab[num].is_valid) {
-     mhp_printf( "No breakpoint %d, nothing done\n", num);
-     return;
-   }
+  if (!mhpdbgc.brktab[num].is_valid) {
+    mhp_printf("No breakpoint %d, nothing done\n", num);
+    return;
+  }
 
-   mhpdbgc.brktab[num].brkaddr = 0;
-   mhpdbgc.brktab[num].is_valid = 0;
-   return;
+  mhpdbgc.brktab[num].brkaddr = 0;
+  mhpdbgc.brktab[num].is_valid = 0;
+  return;
 }
 
-static void mhp_bpint(int argc, char * argv[])
+static void mhp_bpint(int argc, char *argv[])
 {
-   unsigned int num;
+  unsigned int num;
 
-   if (!check_for_stopped())
-     return;
+  if (!check_for_stopped())
+    return;
 
-   if (argc < 2 || !getval_ui(argv[1], 16, &num) || num > 0xff) {
-     mhp_printf("Invalid interrupt number\n");
-     return;
-   }
+  if (argc < 2 || !getval_ui(argv[1], 16, &num) || num > 0xff) {
+    mhp_printf("Invalid interrupt number\n");
+    return;
+  }
 
-   if (test_bit(num, mhpdbg.intxxtab)) {
-     mhp_printf( "Duplicate BPINT %02x, nothing done\n", num);
-     return;
-   }
+  if (test_bit(num, mhpdbg.intxxtab)) {
+    mhp_printf("Duplicate BPINT %02x, nothing done\n", num);
+    return;
+  }
 
-   set_bit(num, mhpdbg.intxxtab);
-   if (!test_bit(num, &vm86s.int_revectored)) {
-     set_bit(num, mhpdbgc.intxxalt);
-     set_bit(num, &vm86s.int_revectored);
-   }
-   if (num == 0x21)
-     mhpdbgc.int21_count++;
+  set_bit(num, mhpdbg.intxxtab);
+  if (!test_bit(num, &vm86s.int_revectored)) {
+    set_bit(num, mhpdbgc.intxxalt);
+    set_bit(num, &vm86s.int_revectored);
+  }
+  if (num == 0x21)
+    mhpdbgc.int21_count++;
 
-   return;
+  return;
 }
 
-static void mhp_bcint(int argc, char * argv[])
+static void mhp_bcint(int argc, char *argv[])
 {
-   unsigned int num;
+  unsigned int num;
 
-   if (!check_for_stopped())
-     return;
+  if (!check_for_stopped())
+    return;
 
-   if (argc < 2 || !getval_ui(argv[1], 16, &num) || num > 0xff) {
-     mhp_printf("Invalid interrupt number\n");
-     return;
-   }
+  if (argc < 2 || !getval_ui(argv[1], 16, &num) || num > 0xff) {
+    mhp_printf("Invalid interrupt number\n");
+    return;
+  }
 
-   if (!test_bit(num, mhpdbg.intxxtab)) {
-     mhp_printf( "No BPINT %02x set, nothing done\n", num);
-     return;
-   }
+  if (!test_bit(num, mhpdbg.intxxtab)) {
+    mhp_printf("No BPINT %02x set, nothing done\n", num);
+    return;
+  }
 
-   clear_bit(num, mhpdbg.intxxtab);
-   if (test_bit(num, mhpdbgc.intxxalt)) {
-     clear_bit(num, mhpdbgc.intxxalt);
-     clear_bit(num, &vm86s.int_revectored);
-   }
-   if (num == 0x21) {
-      mhpdbgc.int21_count--;
-      mhpdbgc.bpload = 0;
-   }
+  clear_bit(num, mhpdbg.intxxtab);
+  if (test_bit(num, mhpdbgc.intxxalt)) {
+    clear_bit(num, mhpdbgc.intxxalt);
+    clear_bit(num, &vm86s.int_revectored);
+  }
+  if (num == 0x21) {
+    mhpdbgc.int21_count--;
+    mhpdbgc.bpload = 0;
+  }
 
-   return;
+  return;
 }
 
-static void mhp_bpintd(int argc, char * argv[])
-{
-#if WITH_DPMI
-   unsigned int i1, v1=0;
-
-   if (!check_for_stopped())
-     return;
-
-   if (argc < 2 || !getval_ui(argv[1], 16, &i1) || i1 > 0xff) {
-     mhp_printf("Invalid interrupt number\n");
-     return;
-   }
-
-   if (argc > 2) {
-     if (!getval_ui(argv[2], 16, &v1) || v1 > 0xffff) {
-       mhp_printf("Invalid ax value '%s'\n", argv[2]);
-       return;
-     }
-     v1 |= (i1 << 16);
-   }
-
-   if ((!v1 && dpmi_mhp_intxxtab[i1]) || (mhp_getaxlist_value(v1,-1) >=0)) {
-     if (v1)  mhp_printf( "Duplicate BPINTD %02x %04x, nothing done\n", i1, v1 & 0xffff);
-     else mhp_printf( "Duplicate BPINTD %02x, nothing done\n", i1);
-     return;
-   }
-   if (!dpmi_mhp_intxxtab[i1]) dpmi_mhp_intxxtab[i1]=7;
-   if (v1) {
-     if (mhp_addaxlist_value(v1)) dpmi_mhp_intxxtab[i1] |= 0x80;
-   }
-   if (config.cpu_vm_dpmi == CPUVM_KVM)
-	 kvm_set_idt_default(i1);
-#endif
-}
-
-static void mhp_bcintd(int argc, char * argv[])
+static void mhp_bpintd(int argc, char *argv[])
 {
 #if WITH_DPMI
-   unsigned int i1, v1=0;
+  unsigned int i1, v1 = 0;
 
-   if (!check_for_stopped())
-     return;
+  if (!check_for_stopped())
+    return;
 
-   if (argc < 2 || !getval_ui(argv[1], 16, &i1) || i1 > 0xff) {
-     mhp_printf("Invalid interrupt number\n");
-     return;
-   }
+  if (argc < 2 || !getval_ui(argv[1], 16, &i1) || i1 > 0xff) {
+    mhp_printf("Invalid interrupt number\n");
+    return;
+  }
 
-   if (argc > 2) {
-     if (!getval_ui(argv[2], 16, &v1) || v1 > 0xffff) {
-       mhp_printf("Invalid ax value '%s'\n", argv[2]);
-       return;
-     }
-     v1 |= (i1 << 16);
-   }
+  if (argc > 2) {
+    if (!getval_ui(argv[2], 16, &v1) || v1 > 0xffff) {
+      mhp_printf("Invalid ax value '%s'\n", argv[2]);
+      return;
+    }
+    v1 |= (i1 << 16);
+  }
 
-   if ((!dpmi_mhp_intxxtab[i1]) || (v1 && (mhp_getaxlist_value(v1,-1) <0))) {
-     if (v1)  mhp_printf( "No BPINTD %02x %04x, nothing done\n", i1, v1 & 0xffff);
-     else mhp_printf( "No BPINTD %02x, nothing done\n", i1);
-     return;
-   }
-   if (v1) {
-     mhp_delaxlist_value(v1,-1);
-     if (mhp_getaxlist_value(i1<<16,0xff0000) <0) dpmi_mhp_intxxtab[i1]=0;
-   }
-   else {
-     mhp_delaxlist_value(i1<<16,0xff0000);
-     dpmi_mhp_intxxtab[i1]=0;
-   }
+  if ((!v1 && dpmi_mhp_intxxtab[i1]) || (mhp_getaxlist_value(v1, -1) >= 0)) {
+    if (v1)
+      mhp_printf("Duplicate BPINTD %02x %04x, nothing done\n", i1, v1 & 0xffff);
+    else
+      mhp_printf("Duplicate BPINTD %02x, nothing done\n", i1);
+    return;
+  }
+  if (!dpmi_mhp_intxxtab[i1])
+    dpmi_mhp_intxxtab[i1] = 7;
+  if (v1) {
+    if (mhp_addaxlist_value(v1))
+      dpmi_mhp_intxxtab[i1] |= 0x80;
+  }
+  if (config.cpu_vm_dpmi == CPUVM_KVM)
+    kvm_set_idt_default(i1);
 #endif
 }
 
-static void mhp_bpload(int argc, char * argv[])
+static void mhp_bcintd(int argc, char *argv[])
 {
-   if (!check_for_stopped())
-     return;
+#if WITH_DPMI
+  unsigned int i1, v1 = 0;
 
-   if (mhpdbgc.bpload) {
-     mhp_printf("load breakpoint already pending\n");
-     return;
-   }
-   mhpdbgc.bpload=1;
-   {
-     int i = 0x21;
-     set_bit(i, mhpdbg.intxxtab);
-     if (!test_bit(i, &vm86s.int_revectored)) {
-          set_bit(i, mhpdbgc.intxxalt);
-          set_bit(i, &vm86s.int_revectored);
-     }
-   }
-   mhpdbgc.int21_count++;
-   return;
+  if (!check_for_stopped())
+    return;
+
+  if (argc < 2 || !getval_ui(argv[1], 16, &i1) || i1 > 0xff) {
+    mhp_printf("Invalid interrupt number\n");
+    return;
+  }
+
+  if (argc > 2) {
+    if (!getval_ui(argv[2], 16, &v1) || v1 > 0xffff) {
+      mhp_printf("Invalid ax value '%s'\n", argv[2]);
+      return;
+    }
+    v1 |= (i1 << 16);
+  }
+
+  if ((!dpmi_mhp_intxxtab[i1]) || (v1 && (mhp_getaxlist_value(v1, -1) < 0))) {
+    if (v1)
+      mhp_printf("No BPINTD %02x %04x, nothing done\n", i1, v1 & 0xffff);
+    else
+      mhp_printf("No BPINTD %02x, nothing done\n", i1);
+    return;
+  }
+  if (v1) {
+    mhp_delaxlist_value(v1, -1);
+    if (mhp_getaxlist_value(i1 << 16, 0xff0000) < 0)
+      dpmi_mhp_intxxtab[i1] = 0;
+  } else {
+    mhp_delaxlist_value(i1 << 16, 0xff0000);
+    dpmi_mhp_intxxtab[i1] = 0;
+  }
+#endif
 }
 
-static void mhp_regs(int argc, char * argv[])
+static void mhp_bpload(int argc, char *argv[])
+{
+  if (!check_for_stopped())
+    return;
+
+  if (mhpdbgc.bpload) {
+    mhp_printf("load breakpoint already pending\n");
+    return;
+  }
+  mhpdbgc.bpload = 1;
+  {
+    int i = 0x21;
+    set_bit(i, mhpdbg.intxxtab);
+    if (!test_bit(i, &vm86s.int_revectored)) {
+      set_bit(i, mhpdbgc.intxxalt);
+      set_bit(i, &vm86s.int_revectored);
+    }
+  }
+  mhpdbgc.int21_count++;
+  return;
+}
+
+static void mhp_regs(int argc, char *argv[])
 {
   unsigned long newval;
   int typ, size;
   regnum_t symreg;
 
-  if (argc == 3) {  /* set register */
+  if (argc == 3) { /* set register */
     if (!check_for_stopped())
       return;
 
@@ -2374,8 +2392,7 @@ static void mhp_regs(int argc, char * argv[])
       return;
     }
 
-    if ((typ == V_WORD && newval > 0xffff) ||
-         (typ == V_DWORD && newval > 0xffffffff)) {
+    if ((typ == V_WORD && newval > 0xffff) || (typ == V_DWORD && newval > 0xffffffff)) {
       mhp_printf("value '0x%04lx' too large for register '%s'\n", newval, argv[1]);
       return;
     }
@@ -2395,59 +2412,56 @@ static void mhp_regs(int argc, char * argv[])
   }
 
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTx)
-     mhp_printf( "INT 0x%02X, ", DBG_ARG(mhpdbgc.currcode));
+    mhp_printf("INT 0x%02X, ", DBG_ARG(mhpdbgc.currcode));
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTxDPMI)
-     mhp_printf( "INT 0x%02X in DPMI, ", DBG_ARG(mhpdbgc.currcode) & 0xff);
+    mhp_printf("INT 0x%02X in DPMI, ", DBG_ARG(mhpdbgc.currcode) & 0xff);
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_TRAP) {
-     if (DBG_ARG(mhpdbgc.currcode)==1) mhp_printf( "Trap %d, ", DBG_ARG(mhpdbgc.currcode));
-     else {
-       if (mhpdbgc.bpload_bp==3) {
-         mhpdbgc.bpload_bp=0;
-         mhp_printf("At entry of program %s\n", mhpdbgc.bpload_cmd);
-         if (mhpdbgc.bpload_cmdline[0]) {
-           mhpdbgc.bpload_cmdline[mhpdbgc.bpload_cmdline[0]+1]=0;
-           mhp_printf("command line: %s\n", mhpdbgc.bpload_cmdline+1);
-         }
-         else mhp_printf(" (empty command line)\n");
-       }
-       else mhp_printf( "Trap %d, ", DBG_ARG(mhpdbgc.currcode));
-     }
+    if (DBG_ARG(mhpdbgc.currcode) == 1)
+      mhp_printf("Trap %d, ", DBG_ARG(mhpdbgc.currcode));
+    else {
+      if (mhpdbgc.bpload_bp == 3) {
+        mhpdbgc.bpload_bp = 0;
+        mhp_printf("At entry of program %s\n", mhpdbgc.bpload_cmd);
+        if (mhpdbgc.bpload_cmdline[0]) {
+          mhpdbgc.bpload_cmdline[mhpdbgc.bpload_cmdline[0] + 1] = 0;
+          mhp_printf("command line: %s\n", mhpdbgc.bpload_cmdline + 1);
+        } else
+          mhp_printf(" (empty command line)\n");
+      } else
+        mhp_printf("Trap %d, ", DBG_ARG(mhpdbgc.currcode));
+    }
   }
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_GPF)
-     mhp_printf( "General Protection Fault, ");
+    mhp_printf("General Protection Fault, ");
 
- if (!traceloop)
-  mhp_printf( "system state: %s%s%s%s\n",
+  if (!traceloop)
+    mhp_printf("system state: %s%s%s%s\n",
 #ifdef X86_EMULATOR
-       IS_EMU() ? "emulated," : "",
+        IS_EMU() ? "emulated," : "",
 #else
-       "",
+        "",
 #endif
-       mhpdbgc.stopped ? "stopped" : "running",
-       IN_DPMI ? " in DPMI" : (dpmi_active()?" in real mode while in DPMI":""),
-       IN_DPMI ?(dpmi_mhp_getcsdefault()?"-32bit":"-16bit") : "");
+        mhpdbgc.stopped ? "stopped" : "running",
+        IN_DPMI ? " in DPMI" : (dpmi_active() ? " in real mode while in DPMI" : ""),
+        IN_DPMI ? (dpmi_mhp_getcsdefault() ? "-32bit" : "-16bit") : "");
 
   if (!dpmi_mhp_regs()) {
-    mhp_printf("AX=%04x  BX=%04x  CX=%04x  DX=%04x",
-                LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx));
-    mhp_printf("  SI=%04x  DI=%04x  SP=%04x  BP=%04x",
-                LWORD(esi), LWORD(edi), LWORD(esp), LWORD(ebp));
-    mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%08x",
-                SREG(ds), SREG(es), SREG(fs), SREG(gs), REG(eflags));
-    mhp_printf("\nCS:IP=%04x:%04x       SS:SP=%04x:%04x\n",
-                SREG(cs), LWORD(eip), SREG(ss), LWORD(esp));
+    mhp_printf("AX=%04x  BX=%04x  CX=%04x  DX=%04x", LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx));
+    mhp_printf("  SI=%04x  DI=%04x  SP=%04x  BP=%04x", LWORD(esi), LWORD(edi), LWORD(esp), LWORD(ebp));
+    mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%08x", SREG(ds), SREG(es), SREG(fs), SREG(gs), REG(eflags));
+    mhp_printf("\nCS:IP=%04x:%04x       SS:SP=%04x:%04x\n", SREG(cs), LWORD(eip), SREG(ss), LWORD(esp));
   }
   mhp_cmd("u * 1");
 }
 
-static void mhp_regs32(int argc, char * argv[])
+static void mhp_regs32(int argc, char *argv[])
 {
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTx)
-     mhp_printf( "\nInterrupt 0x%02X", DBG_ARG(mhpdbgc.currcode));
+    mhp_printf("\nInterrupt 0x%02X", DBG_ARG(mhpdbgc.currcode));
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_TRAP)
-     mhp_printf( "\nTrap 0x%02X", DBG_ARG(mhpdbgc.currcode));
+    mhp_printf("\nTrap 0x%02X", DBG_ARG(mhpdbgc.currcode));
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_GPF)
-     mhp_printf( "\nGeneral Protection Fault");
+    mhp_printf("\nGeneral Protection Fault");
 
   mhp_printf("\nEAX: %08x EBX: %08x ECX: %08x EDX: %08x VFLAGS(h): %08lx",
               REG(eax), REG(ebx), REG(ecx), REG(edx), (unsigned long)vflags);
@@ -2462,7 +2476,7 @@ static void mhp_regs32(int argc, char * argv[])
               SREG(cs), LWORD(eip), SREG(ss), LWORD(esp));
 }
 
-static void mhp_kill(int argc, char * argv[])
+static void mhp_kill(int argc, char *argv[])
 {
   mhp_cmd("r0");
   mhp_printf("\ndosemu killed via debug terminal\n");
@@ -2472,94 +2486,96 @@ static void mhp_kill(int argc, char * argv[])
   mhp_send();
 #endif
   mhp_close();
-  if (dosdebug_flags & DBGF_IN_LEAVEDOS) dosdebug_flags &= ~DBGF_IN_LEAVEDOS;
-  else leavedos(1);
+  if (dosdebug_flags & DBGF_IN_LEAVEDOS)
+    dosdebug_flags &= ~DBGF_IN_LEAVEDOS;
+  else
+    leavedos(1);
 }
 
 void mhp_bpset(void)
 {
-   int i1;
-   dpmimode=saved_dpmimode;
+  int i1;
 
-   mhpdbgc.bpcleared = 0;
-   for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].is_valid) {
-         if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
-           mhpdbgc.brktab[i1].brkaddr = 0;
-           mhpdbgc.brktab[i1].is_valid = 0;
-           mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
-           continue;
-         }
-         mhpdbgc.brktab[i1].opcode = READ_BYTE(mhpdbgc.brktab[i1].brkaddr);
-         if (i1!=trapped_bp) WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, 0xCC);
+  dpmimode = saved_dpmimode;
+  mhpdbgc.bpcleared = 0;
+  for (i1 = 0; i1 < MAXBP; i1++) {
+    if (mhpdbgc.brktab[i1].is_valid) {
+      if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
+        mhpdbgc.brktab[i1].brkaddr = 0;
+        mhpdbgc.brktab[i1].is_valid = 0;
+        mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n", i1);
+        continue;
       }
-   }
-   return;
+      mhpdbgc.brktab[i1].opcode = READ_BYTE(mhpdbgc.brktab[i1].brkaddr);
+      if (i1 != trapped_bp)
+        WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, 0xCC);
+    }
+  }
+  return;
 }
 
 void mhp_bpclr(void)
 {
-   int i1;
-   uint8_t opcode;
+  int i1;
+  uint8_t opcode;
 
-   if (mhpdbgc.bpcleared)
-     return;
-   mhpdbgc.bpcleared = 1;
-   for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].is_valid) {
-         if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
-           mhpdbgc.brktab[i1].brkaddr = 0;
-           mhpdbgc.brktab[i1].is_valid = 0;
-           mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
-           continue;
-         }
-
-         opcode = READ_BYTE(mhpdbgc.brktab[i1].brkaddr);
-         if (opcode != 0xCC) {
-           if (!(dosdebug_flags & DBGF_ALLOW_BREAKPOINT_OVERWRITE)) {
-             if (i1 != trapped_bp) {
-               mhpdbgc.brktab[i1].brkaddr = 0;
-               mhpdbgc.brktab[i1].is_valid = 0;
-               mhp_printf("Warning: cleared breakpoint %d because INT3 overwritten\n", i1);
-             }
-             continue;
-           } else {
-             mhpdbgc.brktab[i1].opcode = opcode;
-             if (i1 != trapped_bp) {
-               WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, 0xCC);
-               mhp_printf("Warning: code at breakpoint %d has been overwritten (0x%02x)\n", i1, opcode);
-             }
-           }
-         }
-
-         WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, mhpdbgc.brktab[i1].opcode);
+  if (mhpdbgc.bpcleared)
+    return;
+  mhpdbgc.bpcleared = 1;
+  for (i1 = 0; i1 < MAXBP; i1++) {
+    if (mhpdbgc.brktab[i1].is_valid) {
+      if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
+        mhpdbgc.brktab[i1].brkaddr = 0;
+        mhpdbgc.brktab[i1].is_valid = 0;
+        mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n", i1);
+        continue;
       }
-   }
-   saved_dpmimode=dpmimode;
-   return;
-}
 
+      opcode = READ_BYTE(mhpdbgc.brktab[i1].brkaddr);
+      if (opcode != 0xCC) {
+        if (!(dosdebug_flags & DBGF_ALLOW_BREAKPOINT_OVERWRITE)) {
+          if (i1 != trapped_bp) {
+            mhpdbgc.brktab[i1].brkaddr = 0;
+            mhpdbgc.brktab[i1].is_valid = 0;
+            mhp_printf("Warning: cleared breakpoint %d because INT3 overwritten\n", i1);
+          }
+          continue;
+        } else {
+          mhpdbgc.brktab[i1].opcode = opcode;
+          if (i1 != trapped_bp) {
+            WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, 0xCC);
+            mhp_printf("Warning: code at breakpoint %d has been overwritten (0x%02x)\n", i1, opcode);
+          }
+        }
+      }
+
+      WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, mhpdbgc.brktab[i1].opcode);
+    }
+  }
+  saved_dpmimode = dpmimode;
+  return;
+}
 
 static int bpchk(unsigned int a1)
 {
-   int i1;
+  int i1;
 
-   for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].is_valid && mhpdbgc.brktab[i1].brkaddr == a1) {
-        dpmimode=mhpdbgc.brktab[i1].is_dpmi;
-        trapped_bp_=i1;
-        trapped_bp=-2;
-        return 1;
-      }
-   }
-   return 0;
+  for (i1 = 0; i1 < MAXBP; i1++) {
+    if (mhpdbgc.brktab[i1].is_valid && mhpdbgc.brktab[i1].brkaddr == a1) {
+      dpmimode = mhpdbgc.brktab[i1].is_dpmi;
+      trapped_bp_ = i1;
+      trapped_bp = -2;
+      return 1;
+    }
+  }
+  return 0;
 }
 
 int mhp_bpchk(unsigned int a1)
 {
-    if (mhpdbgc.bpcleared)
-        return 0;
-    return bpchk(a1);
+  if (mhpdbgc.bpcleared)
+    return 0;
+  return bpchk(a1);
 }
 
 int mhp_getcsip_value(void)
@@ -2577,8 +2593,10 @@ int mhp_getcsip_value(void)
 
 void mhp_modify_eip(int delta)
 {
-  if (in_dpmi_pm()) dpmi_mhp_modify_eip(delta);
-  else LWORD(eip) +=delta;
+  if (in_dpmi_pm())
+    dpmi_mhp_modify_eip(delta);
+  else
+    LWORD(eip) += delta;
 }
 
 typedef void cmdprintf_func(const char *fmt, ...);
@@ -2586,49 +2604,52 @@ typedef void cmdprintf_func(const char *fmt, ...);
 static void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
 	cmdprintf_func *printf)
 {
-   int argc1;
-   char **argv1;
-   char *tmpcmd;
-   void (*cmdproc)(int, char *[]);
-   const struct cmd_db *cmdp;
+  int argc1;
+  char **argv1;
+  char *tmpcmd;
+  void (*cmdproc)(int, char *[]);
+  const struct cmd_db *cmdp;
 
-   tmpcmd = strdup(cmd);
-   if (!tmpcmd) {
-      if (printf) (*printf)("out of memory\n");
-      return;
-   }
-   argv1 = malloc(maxargs * sizeof(char *));
-   if (!argv1) {
-      if (printf) (*printf)("out of memory\n");
-      free(tmpcmd);
-      return;
-   };
-   argc1 = argparse(tmpcmd, argv1, maxargs);
-   if (argc1 < 1) {
-      free(tmpcmd);
-      free(argv1);
-      return;
-   }
-   for (cmdp = cmdtab, cmdproc = NULL; cmdp->cmdproc; cmdp++) {
-      if (!memcmp(cmdp->cmdname, argv1[0], strlen(argv1[0])+1)) {
-         cmdproc = cmdp->cmdproc;
-         break;
-      }
-   }
-   if (!cmdproc) {
-      if (printf) (*printf)("Command %s not found\n", argv1[0]);
-   }
-   else (*cmdproc)(argc1, argv1);
-   free(tmpcmd);
-   free(argv1);
+  tmpcmd = strdup(cmd);
+  if (!tmpcmd) {
+    if (printf)
+      (*printf)("out of memory\n");
+    return;
+  }
+  argv1 = malloc(maxargs * sizeof(char *));
+  if (!argv1) {
+    if (printf)
+      (*printf)("out of memory\n");
+    free(tmpcmd);
+    return;
+  };
+  argc1 = argparse(tmpcmd, argv1, maxargs);
+  if (argc1 < 1) {
+    free(tmpcmd);
+    free(argv1);
+    return;
+  }
+  for (cmdp = cmdtab, cmdproc = NULL; cmdp->cmdproc; cmdp++) {
+    if (!memcmp(cmdp->cmdname, argv1[0], strlen(argv1[0]) + 1)) {
+      cmdproc = cmdp->cmdproc;
+      break;
+    }
+  }
+  if (!cmdproc) {
+    if (printf)
+      (*printf)("Command %s not found\n", argv1[0]);
+  } else
+    (*cmdproc)(argc1, argv1);
+  free(tmpcmd);
+  free(argv1);
 }
 
-void mhp_cmd(const char * cmd)
+void mhp_cmd(const char *cmd)
 {
-   call_cmd(cmd, MAXARG, cmdtab, mhp_printf);
+  call_cmd(cmd, MAXARG, cmdtab, mhp_printf);
 }
 
-static void mhp_print_ldt(int argc, char * argv[])
+static void mhp_print_ldt(int argc, char *argv[])
 {
   static char lastldt[32];
 
@@ -2638,10 +2659,10 @@ static void mhp_print_ldt(int argc, char * argv[])
   int type, type2, i;
   unsigned int seg;
   int page, lines, cache_mismatch;
-  enum{Abit=0x100};
+  enum { Abit = 0x100 };
 
   if (argc > 1) {
-    if (!getval_ui(argv[1], 16, &seg))  {
+    if (!getval_ui(argv[1], 16, &seg)) {
       mhp_printf("invalid argument '%s'\n", argv[1]);
       return;
     }
@@ -2657,46 +2678,37 @@ static void mhp_print_ldt(int argc, char * argv[])
     mhp_printf("error getting ldt\n");
     return;
   }
-  lp = (unsigned int *) buffer;
+  lp = (unsigned int *)buffer;
   lp += (seg & 0xFFF8) >> 2;
   lp_ = (unsigned int *)dpmi_get_ldt_buffer();
   lp_ += (seg & 0xFFF8) >> 2;
 
-  for (i=(seg & 0xFFF8); i< 0x10000; i+=8,lp++, lp_+=2) {
-    cache_mismatch = (lp[0] != lp_[0]) || ((lp[1]|Abit) != (lp_[1]|Abit));
-    if ((lp[0] && lp[1]) ||  cache_mismatch) {
-        if (--lines <0) break;
-        base_addr = (*lp >> 16) & 0x0000FFFF;
-        limit = *lp & 0x0000FFFF;
-        lp++;
-        /* Second 32 bits of descriptor */
-        base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
-        limit |= (*lp & 0x000F0000);
-        type = (*lp >> 8)  & 0x000000FF;
-        type2= (*lp >> 20) & 0x0000000F;
-        if (type2 & 0x08)
-           limit *= 4096;
-        if (type & 0x10)
-           mhp_printf ("%04x: %08x %08x %s%d %d %c%c%c%c%c %p%s\n",
-              i | 0x07,
-              base_addr,
-              limit,
-              (type & 0x08) ? "Code" : "Data",
-              (type2 & 0x04) ? 32 : 16,
-              (type >> 5) & 0x03,
-              (type >> 7) ? 'P' : ' ',
-              (type & 4)?((type & 8)?'C':'E'):' ',
-              (type & 2)?((type & 8)?'R':'W'):' ',
-              (type & 1)?'A':' ',
-              (lp_[1] &Abit)?'a':' ',
-	      MEM_BASE32(base_addr),
-              cache_mismatch ?" (cache mismatch)":"");
-        else
-           mhp_printf ("%04x: %08x %08x System(%02x)%s\n",
-              i, base_addr, limit, type,
-              cache_mismatch ?" (cache mismatch)":"");
-    }
-    else lp++;
+  for (i = (seg & 0xFFF8); i < 0x10000; i += 8, lp++, lp_ += 2) {
+    cache_mismatch = (lp[0] != lp_[0]) || ((lp[1] | Abit) != (lp_[1] | Abit));
+    if ((lp[0] && lp[1]) || cache_mismatch) {
+      if (--lines < 0)
+        break;
+      base_addr = (*lp >> 16) & 0x0000FFFF;
+      limit = *lp & 0x0000FFFF;
+      lp++;
+      /* Second 32 bits of descriptor */
+      base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
+      limit |= (*lp & 0x000F0000);
+      type = (*lp >> 8) & 0x000000FF;
+      type2 = (*lp >> 20) & 0x0000000F;
+      if (type2 & 0x08)
+        limit *= 4096;
+      if (type & 0x10)
+        mhp_printf("%04x: %08x %08x %s%d %d %c%c%c%c%c %p%s\n", i | 0x07, base_addr, limit,
+                   (type & 0x08) ? "Code" : "Data", (type2 & 0x04) ? 32 : 16, (type >> 5) & 0x03,
+                   (type >> 7) ? 'P' : ' ', (type & 4) ? ((type & 8) ? 'C' : 'E') : ' ',
+                   (type & 2) ? ((type & 8) ? 'R' : 'W') : ' ', (type & 1) ? 'A' : ' ', (lp_[1] & Abit) ? 'a' : ' ',
+                   MEM_BASE32(base_addr), cache_mismatch ? " (cache mismatch)" : "");
+      else
+        mhp_printf("%04x: %08x %08x System(%02x)%s\n", i, base_addr, limit, type,
+                   cache_mismatch ? " (cache mismatch)" : "");
+    } else
+      lp++;
   }
 
   if (page)
@@ -2738,7 +2750,7 @@ static void mhp_debuglog(int argc, char *argv[])
   }
 }
 
-#define MAX_REGEX		8
+#define MAX_REGEX 8
 static regex_t *rxbuf[MAX_REGEX] = {0};
 static char *rxpatterns[MAX_REGEX] = {0};
 static int num_regex = 0;
@@ -2746,23 +2758,29 @@ static int num_regex = 0;
 static int get_free_regex_buf(void)
 {
   int i;
-  for (i=0; i <num_regex; i++) {
-    if (!rxbuf[i]) return i;
+
+  for (i = 0; i < num_regex; i++) {
+    if (!rxbuf[i])
+      return i;
   }
-  if (num_regex >= MAX_REGEX) return -1;
+  if (num_regex >= MAX_REGEX)
+    return -1;
   i = num_regex;
   num_regex++;
   rxbuf[i] = 0;
-  rxpatterns[i] =0;
+  rxpatterns[i] = 0;
   return i;
 }
 
 static void free_regex(int number)
 {
-  if ((unsigned)number >= MAX_REGEX) return;
-  if (!rxbuf[number]) return;
+  if ((unsigned)number >= MAX_REGEX)
+    return;
+  if (!rxbuf[number])
+    return;
   regfree(rxbuf[number]);
-  if (rxpatterns[number]) free(rxpatterns[number]);
+  if (rxpatterns[number])
+    free(rxpatterns[number]);
   free(rxbuf[number]);
   rxbuf[number] = 0;
   rxpatterns[number] = 0;
@@ -2772,12 +2790,13 @@ static char *trimm_string_arg(char *arg)
 {
   int len;
 
-  if (!arg || !arg[0]) return 0;
+  if (!arg || !arg[0])
+    return 0;
   len = strlen(arg);
-  if (     (arg[0] == '"' && arg[len-1] == '"')
-        || (arg[0] == '\'' && arg[len-1] == '\'')) {
-    arg[len-1] = 0;
-    return arg+1;
+  if ((arg[0] == '"' && arg[len - 1] == '"') ||
+      (arg[0] == '\'' && arg[len - 1] == '\'')) {
+    arg[len - 1] = 0;
+    return arg + 1;
   }
   return arg;
 }
@@ -2796,69 +2815,68 @@ static int enumerate_log_breakpoints(void)
 
 static void print_log_breakpoints(void)
 {
-   int rx, num = 0;
+  int rx, num = 0;
 
-   mhp_printf("log intercept %s\n",
-              (dosdebug_flags & DBGF_INTERCEPT_LOG) ? "on" : "off");
+  mhp_printf("log intercept %s\n", (dosdebug_flags & DBGF_INTERCEPT_LOG) ? "on" : "off");
 
-   for (rx=0; rx <num_regex; rx++) {
-     if (rxbuf[rx]) {
-       mhp_printf("log breakpoint %d: %s\n", rx, rxpatterns[rx]);
-       mhp_send();
-       num++;
-     }
-   }
-   if (!num) {
-     mhp_printf("no log breakpoint active\n");
-   }
+  for (rx = 0; rx < num_regex; rx++) {
+    if (rxbuf[rx]) {
+      mhp_printf("log breakpoint %d: %s\n", rx, rxpatterns[rx]);
+      mhp_send();
+      num++;
+    }
+  }
+  if (!num) {
+    mhp_printf("no log breakpoint active\n");
+  }
 }
 
-
-static void mhp_bplog(int argc, char * argv[])
+static void mhp_bplog(int argc, char *argv[])
 {
-   int rx, errcode;
-   char buf[1024];
-   char *s;
+  int rx, errcode;
+  char buf[1024];
+  char *s;
 
-   if (argc >1) {
-     if (!check_for_stopped()) return;
-     argv++;
-     buf[0] = 0;
-     while (*argv) {
-       s = trimm_string_arg(*argv);
-       if (s)
-         strlcat(buf, s, sizeof(buf));
-       argv++;
-     }
-     if (!buf[0]) {
-       mhp_printf ("no valid regular expression defined\n");
-       return;
-     }
-     rx = get_free_regex_buf();
-     if (rx <0) {
-       mhp_printf ("too many log breakpoints, use bclog to free one\n");
-       return;
-     }
-     rxpatterns[rx] = strdup(buf);
-     rxbuf[rx] = malloc(sizeof(regex_t));
-     if (!rxbuf[rx]) {
-       mhp_printf ("out of memory\n");
-       return;
-     }
-     errcode = regcomp(rxbuf[rx], rxpatterns[rx], REG_NOSUB);
-     if (errcode) {
-        regerror(errcode, rxbuf[rx], buf, sizeof(buf));
-        mhp_printf ("%s\n", buf);
-        free_regex(rx);
-        return;
-     }
-     /* ...puh, all that work just for generating a pattern :-)
-      * now we enable the 'break point' by intercepting the log
-      */
-     dosdebug_flags |= DBGF_INTERCEPT_LOG | DBGF_LOG_TO_BREAK;
-   }
-   /* at least print all active breakpoints */
-   print_log_breakpoints();
+  if (argc > 1) {
+    if (!check_for_stopped())
+      return;
+    argv++;
+    buf[0] = 0;
+    while (*argv) {
+      s = trimm_string_arg(*argv);
+      if (s)
+        strlcat(buf, s, sizeof(buf));
+      argv++;
+    }
+    if (!buf[0]) {
+      mhp_printf("no valid regular expression defined\n");
+      return;
+    }
+    rx = get_free_regex_buf();
+    if (rx < 0) {
+      mhp_printf("too many log breakpoints, use bclog to free one\n");
+      return;
+    }
+    rxpatterns[rx] = strdup(buf);
+    rxbuf[rx] = malloc(sizeof(regex_t));
+    if (!rxbuf[rx]) {
+      mhp_printf("out of memory\n");
+      return;
+    }
+    errcode = regcomp(rxbuf[rx], rxpatterns[rx], REG_NOSUB);
+    if (errcode) {
+      regerror(errcode, rxbuf[rx], buf, sizeof(buf));
+      mhp_printf("%s\n", buf);
+      free_regex(rx);
+      return;
+    }
+    /* ...puh, all that work just for generating a pattern :-)
+     * now we enable the 'break point' by intercepting the log
+     */
+    dosdebug_flags |= DBGF_INTERCEPT_LOG | DBGF_LOG_TO_BREAK;
+  }
+  /* at least print all active breakpoints */
+  print_log_breakpoints();
 }
 
 static void mhp_bclog(int argc, char *argv[])
@@ -2908,7 +2926,7 @@ static void mhp_injchar(int argc, char *argv[])
   }
   key = atoi(argv[1]);
   mhp_printf("injecting %x\n", key);
-  coopth_start(ic_tid, (void*)(uintptr_t)key);
+  coopth_start(ic_tid, (void *)(uintptr_t)key);
 }
 
 static void do_hookcbrk(int on);
@@ -2964,7 +2982,7 @@ static void c_nothr(int nthr)
   coopth_set_nothread_notifier(NULL);
 }
 
-static void mhp_dosbreak (int argc, char *argv[])
+static void mhp_dosbreak(int argc, char *argv[])
 {
   int cnt = coopth_get_thread_count_in_process_vm86();
   if (cnt == 0) {
@@ -2981,19 +2999,20 @@ static void mhp_dosbreak (int argc, char *argv[])
 
 static int mhp_check_regex(char *line)
 {
-   int rx, hit;
+  int rx, hit;
 
-   for (rx=0; rx <num_regex; rx++) {
-     if (rxbuf[rx]) {
-       hit = regexec(rxbuf[rx], line, 0, 0, 0) == 0;
-       if (hit) {
-         mhp_printf("log break point %d hit: >%s<\n",rx,line);
-         mhp_send();
-       }
-       if (hit) return 1;
-     }
-   }
-   return 0;
+  for (rx = 0; rx < num_regex; rx++) {
+    if (rxbuf[rx]) {
+      hit = regexec(rxbuf[rx], line, 0, 0, 0) == 0;
+      if (hit) {
+        mhp_printf("log break point %d hit: >%s<\n", rx, line);
+        mhp_send();
+      }
+      if (hit)
+        return 1;
+    }
+  }
+  return 0;
 }
 
 static char lbuf[1024];
@@ -3007,20 +3026,21 @@ void mhp_regex(const char *fmt, va_list args)
   if (!(dosdebug_flags & DBGF_LOG_TO_BREAK))
     return;
 
-  lbufi += vsprintf(lbuf+lbufi, fmt, args);
+  lbufi += vsprintf(lbuf + lbufi, fmt, args);
   hit = 0;
   i = 0;
   do {
-    s = strchr(lbuf+i, '\n');
+    s = strchr(lbuf + i, '\n');
     if (s) {
       *s = 0;
-      hit = mhp_check_regex(lbuf+i);
-      i = (s - lbuf)+1;
-      if (hit) break;
+      hit = mhp_check_regex(lbuf + i);
+      i = (s - lbuf) + 1;
+      if (hit)
+        break;
     }
   } while (s);
   if (i) {
-    memcpy(lbuf, lbuf+i, lbufi-i+1);
+    memcpy(lbuf, lbuf + i, lbufi - i + 1);
     lbufi -= i;
     if (hit) {
       mhpdbgc.want_to_stop = 1;
