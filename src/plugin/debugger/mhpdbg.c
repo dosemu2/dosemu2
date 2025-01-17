@@ -52,6 +52,8 @@ static char mhp_banner[] = {
 struct mhpdbgc mhpdbgc = {0};
 
 static int fdin, fdout;
+static unsigned char recvbuf[MHP_BUFFERSIZE];
+static int nbytes;
 
 /********/
 /* CODE */
@@ -201,7 +203,7 @@ static void mhp_init(void)
       /* don't fiddle with select, just poll until the terminal
        * comes up to send the first input
        */
-      mhpdbg.nbytes = -1;
+      nbytes = -1;
       wait_for_debug_terminal = 1;
       mhp_input();
     }
@@ -227,14 +229,14 @@ static int mhp_input(void)
   if (fdin == -1)
     return -1;
 
-  mhpdbg.nbytes = read(fdin, mhpdbg.recvbuf, SRSIZE);
+  nbytes = read(fdin, recvbuf, SRSIZE);
 
-  if (mhpdbg.nbytes == -1) {
+  if (nbytes == -1) {
     error("mhp read(): %s", strerror(errno));
     return -1;
   }
 
-  if (mhpdbg.nbytes == 0 && !wait_for_debug_terminal) {
+  if (nbytes == 0 && !wait_for_debug_terminal) {
     if (mhpdbgc.stopped) {
       mhp_cmd("g");
       mhp_send();
@@ -244,15 +246,15 @@ static int mhp_input(void)
     return 0;
   }
 
-  if (mhpdbg.nbytes < SRSIZE - 1) {
-    mhpdbg.recvbuf[mhpdbg.nbytes] = '\0';
-    B_printf("MHP:< %s\n", mhpdbg.recvbuf);
+  if (nbytes < SRSIZE - 1) {
+    recvbuf[nbytes] = '\0';
+    B_printf("MHP:< %s\n", recvbuf);
   }
 
   if (!mhpdbg.active) {
     mhpdbg.active = 1; /* 1 = new session */
   }
-  return mhpdbg.nbytes;
+  return nbytes;
 }
 
 static void mhp_poll_loop(void)
@@ -272,10 +274,10 @@ static void mhp_poll_loop(void)
      *       io_select() is called and this then calls mhp_input.
      *       ( all clear ? )
      */
-    if (mhpdbg.nbytes <= 0) {
+    if (nbytes <= 0) {
       if (traceloop && mhpdbgc.stopped) {
-        mhpdbg.nbytes = strlen(loopbuf);
-        memcpy(mhpdbg.recvbuf, loopbuf, mhpdbg.nbytes + 1);
+        nbytes = strlen(loopbuf);
+        memcpy(recvbuf, loopbuf, nbytes + 1);
       } else {
         if (mhpdbgc.stopped) {
           usleep(JIFFIE_TIME / 10);
@@ -288,18 +290,18 @@ static void mhp_poll_loop(void)
         traceloop = loopbuf[0] = 0;
       }
     }
-    if ((mhpdbg.recvbuf[0] == 'q') && (mhpdbg.recvbuf[1] <= ' ')) {
+    if ((recvbuf[0] == 'q') && (recvbuf[1] <= ' ')) {
       if (mhpdbgc.stopped) {
         mhp_cmd("g");
         mhp_send();
       }
       mhpdbg.active = 0;
       mhpdbg.sendptr = 0;
-      mhpdbg.nbytes = 0;
+      nbytes = 0;
       break;
     }
-    mhpdbg.recvbuf[mhpdbg.nbytes] = 0x00;
-    ptr = (char *)mhpdbg.recvbuf;
+    recvbuf[nbytes] = 0x00;
+    ptr = (char *)recvbuf;
     while (ptr && *ptr) {
       ptr1 = strsep(&ptr, "\r\n");
       if (!ptr1)
@@ -309,7 +311,7 @@ static void mhp_poll_loop(void)
       mhp_cmd(ptr1);
       mhp_send();
     }
-    mhpdbg.nbytes = 0;
+    nbytes = 0;
   }
   in_poll_loop--;
 }
@@ -333,7 +335,7 @@ static void mhp_poll(void)
 {
 
   if (!mhpdbg.active) {
-    mhpdbg.nbytes = 0;
+    nbytes = 0;
     return;
   }
 
@@ -363,7 +365,7 @@ static void mhp_boot(void)
 {
 
   if (!wait_for_debug_terminal) {
-    mhpdbg.nbytes = 0;
+    nbytes = 0;
     return;
   }
 
