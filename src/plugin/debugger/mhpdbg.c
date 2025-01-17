@@ -51,6 +51,8 @@ static char mhp_banner[] = {
 };
 struct mhpdbgc mhpdbgc = {0};
 
+static int fdin, fdout;
+
 /********/
 /* CODE */
 /********/
@@ -88,8 +90,8 @@ static void mhp_putc(char c1)
 void mhp_send(void)
 {
   if (mhpdbg.sendptr) {
-    if (mhpdbg.fdout != -1) {
-      write(mhpdbg.fdout, mhpdbg.sendbuf, mhpdbg.sendptr);
+    if (fdout != -1) {
+      write(fdout, mhpdbg.sendbuf, mhpdbg.sendptr);
       if (mhpdbg.sendptr < SRSIZE - 1) {
         mhpdbg.sendbuf[mhpdbg.sendptr] = '\0';
         B_printf("MHP:>\n%s", mhpdbg.sendbuf);
@@ -106,13 +108,13 @@ void mhp_close(void)
 {
   int err;
 
-  if (mhpdbg.fdin == -1)
+  if (fdin == -1)
     return;
   if (mhpdbg.active) {
     mhp_putc(1); /* tell debugger terminal to also quit */
     mhp_send();
   }
-  remove_from_io_select(mhpdbg.fdin);
+  remove_from_io_select(fdin);
   if (pipename_in) {
     err = unlink_under(dosemu_rundir_path, strrchr(pipename_in, '/') + 1);
     if (err)
@@ -126,7 +128,7 @@ void mhp_close(void)
     free(pipename_out);
   }
   closedir_under(dosemu_rundir_path);
-  mhpdbg.fdin = mhpdbg.fdout = -1;
+  fdin = fdout = -1;
   mhpdbg.active = 0;
 }
 
@@ -154,7 +156,7 @@ static void mhp_init(void)
 
   mhpdbg_trace_init();
 
-  mhpdbg.fdin = mhpdbg.fdout = -1;
+  fdin = fdout = -1;
   mhpdbg.active = 0;
   mhpdbg.sendptr = 0;
 
@@ -172,24 +174,24 @@ static void mhp_init(void)
     retval = mkfifo(pipename_out, S_IFIFO | 0600);
     if (!retval) {
       /* O_NONBLOCK avoids blocking of open() itself */
-      mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-      if (mhpdbg.fdin != -1) {
+      fdin = open(pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+      if (fdin != -1) {
         /* NOTE: need to open read/write else it will block */
-        mhpdbg.fdout = open(pipename_out, O_RDWR | O_CLOEXEC);
-        if (mhpdbg.fdout != -1) {
+        fdout = open(pipename_out, O_RDWR | O_CLOEXEC);
+        if (fdout != -1) {
           /* Remove O_NONBLOCK. O_CLOEXEC unaffected. */
-          fcntl(mhpdbg.fdin, F_SETFL, 0);
-          add_to_io_select(mhpdbg.fdin, mhp_input_async, NULL);
+          fcntl(fdin, F_SETFL, 0);
+          add_to_io_select(fdin, mhp_input_async, NULL);
         } else {
-          close(mhpdbg.fdin);
-          mhpdbg.fdin = -1;
+          close(fdin);
+          fdin = -1;
         }
       }
     }
   }
-  if (retval || mhpdbg.fdin == -1 || mhpdbg.fdout == -1)
+  if (retval || fdin == -1 || fdout == -1)
     fprintf(stderr, "Can't create debugger pipes, dosdebug not available\n");
-  if (mhpdbg.fdin == -1) {
+  if (fdin == -1) {
     unlink(pipename_in);
     free(pipename_in);
     unlink(pipename_out);
@@ -210,22 +212,22 @@ static void mhp_init(void)
 
 static void reopen_fdin(void)
 {
-  remove_from_io_select(mhpdbg.fdin);
-  close(mhpdbg.fdin);
-  mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-  if (mhpdbg.fdin != -1) {
+  remove_from_io_select(fdin);
+  close(fdin);
+  fdin = open(pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+  if (fdin != -1) {
     /* Remove O_NONBLOCK. O_CLOEXEC unaffected. */
-    fcntl(mhpdbg.fdin, F_SETFL, 0);
-    add_to_io_select(mhpdbg.fdin, mhp_input_async, NULL);
+    fcntl(fdin, F_SETFL, 0);
+    add_to_io_select(fdin, mhp_input_async, NULL);
   }
 }
 
 static int mhp_input(void)
 {
-  if (mhpdbg.fdin == -1)
+  if (fdin == -1)
     return -1;
 
-  mhpdbg.nbytes = read(mhpdbg.fdin, mhpdbg.recvbuf, SRSIZE);
+  mhpdbg.nbytes = read(fdin, mhpdbg.recvbuf, SRSIZE);
 
   if (mhpdbg.nbytes == -1) {
     error("mhp read(): %s", strerror(errno));
@@ -266,7 +268,7 @@ static void mhp_poll_loop(void)
   for (;;) {
     handle_signals();
     coopth_run();
-    /* NOTE: if there is input on mhpdbg.fdin, as result of handle_signals
+    /* NOTE: if there is input on fdin, as result of handle_signals
      *       io_select() is called and this then calls mhp_input.
      *       ( all clear ? )
      */
@@ -383,7 +385,7 @@ void mhp_intercept_log(const char *flags, int temporary)
 
 void mhp_intercept(const char *msg, const char *logflags)
 {
-  if (!mhpdbg.active || (mhpdbg.fdin == -1))
+  if (!mhpdbg.active || (fdin == -1))
     return;
   mhpdbgc.stopped = 1;
   mhpdbgc.want_to_stop = 0;
@@ -403,7 +405,7 @@ void mhp_exit_intercept(int errcode)
 {
   char buf[255];
 
-  if (!errcode || !mhpdbg.active || (mhpdbg.fdin == -1))
+  if (!errcode || !mhpdbg.active || (fdin == -1))
     return;
 
   sprintf(buf, "\n****\nleavedos(%d) called, at termination point of DOSEMU\n****\n\n", errcode);
