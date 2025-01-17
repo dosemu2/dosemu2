@@ -551,7 +551,7 @@ static void do_redraw_full(void)
 static void SDL_update(void)
 {
   int i;
-  v_printf("SDL_update\n");
+//  v_printf("SDL_update\n");
 
   pthread_mutex_lock(&rects_mtx);
   if (!THREADED_R()) {
@@ -1616,7 +1616,7 @@ static void SDL_draw_string(void *opaque, int x, int y, const char *text,
   t_unicode *str;
   struct rect_desc d;
 
-  v_printf("SDL_draw_string\n");
+//  v_printf("SDL_draw_string\n");
 
   init_charset_state(&state, trconfig.video_mem_charset);
   characters = character_count(&state, text, len);
