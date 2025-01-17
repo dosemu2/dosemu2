@@ -56,6 +56,8 @@
 #define USE_CMMIO 1
 #endif
 
+#define USE_CPIO 0
+
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
                    X86_EFLAGS_AF|X86_EFLAGS_ZF|X86_EFLAGS_SF| \
                    X86_EFLAGS_TF|X86_EFLAGS_DF|X86_EFLAGS_OF| \
@@ -845,6 +847,7 @@ void kvm_get_dirty_map(dosaddr_t base, unsigned char *bitmap)
 
 void kvm_set_cpio(int base, int size)
 {
+#if USE_CPIO
   int i;
   struct kvm_coalesced_mmio_zone mmz = {
       .addr = base,
@@ -858,6 +861,7 @@ void kvm_set_cpio(int base, int size)
 
   for (i = base; i < base + size; i++)
     clear_bit(i, monitor->io_bitmap);
+#endif
 }
 
 /* This function works like handle_vm86_fault in the Linux kernel,
