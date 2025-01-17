@@ -56,7 +56,7 @@
 #define USE_CMMIO 1
 #endif
 
-#define USE_CPIO 0
+#define USE_CPIO 1
 
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
                    X86_EFLAGS_AF|X86_EFLAGS_ZF|X86_EFLAGS_SF| \
@@ -1203,6 +1203,20 @@ static void do_exit_mmio(void)
 }
 #endif
 
+static void do_exit_pio(void)
+{
+  int ret;
+
+  /* from the KVM api.txt: "the corresponding operations are complete
+     (and guest state is consistent) only after userspace has re-entered
+     the kernel with KVM_RUN. The kernel side will first finish
+     incomplete operations and then check for pending signals." */
+  kvm_set_immediate_exit(1);
+  ret = ioctl(vcpufd, KVM_RUN, NULL);
+  assert(ret == -1 && errno == EINTR);
+  kvm_set_immediate_exit(0);
+}
+
 static void kvm_handle_io(uint16_t port, unsigned char *data,
                           int direction, int size, uint32_t count)
 {
@@ -1219,7 +1233,7 @@ static void kvm_handle_io(uint16_t port, unsigned char *data,
     } else {
       switch(run->io.size) {
       case 1: data[0] = port_inb(port); break;
-      case 2: *(uint16_t*)data = port_in(port); break;
+      case 2: *(uint16_t*)data = port_inw(port); break;
       case 4: *(uint32_t*)data = port_ind(port); break;
 //      case 8: *(uint64_t*)data = port_inq(port); break;
       }
@@ -1322,6 +1336,11 @@ static unsigned int kvm_run(void)
                     run->io.direction,
                     run->io.size,
                     run->io.count);
+      do_exit_pio();
+      if (!kvm_post_run(regs, &kregs))
+	break;
+      saved_regs = *regs;
+      exit_reason = KVM_EXIT_IO;
       break;
     case KVM_EXIT_MMIO:
       /* for ROM: simply ignore the write and continue */
