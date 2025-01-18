@@ -450,17 +450,8 @@ static int vbe_mode_info(unsigned mode, unsigned int vbemodeinfo)
     }
 
     u = 1 << 1;		/* reserved bit, always 1 */
-
-    if(
-      (vmi->type == P8 && vbe_screen.src_modes & (MODE_PSEUDO_8 | MODE_TRUE_8)) ||
-      (vmi->type == P15 && vbe_screen.src_modes & MODE_TRUE_15) ||
-      (vmi->type == P16 && vbe_screen.src_modes & MODE_TRUE_16) ||
-      (vmi->type == P24 && vbe_screen.src_modes & MODE_TRUE_24) ||
-      (vmi->type == P32 && vbe_screen.src_modes & MODE_TRUE_32)
-      /* no PL4 and PL1 modes for now */
-    ) {
-      u |= (1 << 0);					/* mode supported */
-    }
+    /* Note: GTA game bails out if any "unsupported" mode is listed. */
+    u |= (1 << 0);					/* mode supported */
 
     if(mode_size > vga.mem.size) u &= ~(1 << 0);	/* mode not supported */
 
