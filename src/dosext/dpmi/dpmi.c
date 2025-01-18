@@ -3257,7 +3257,7 @@ err:
       dosaddr_t base;
 
       addr = (_LWORD_(ebx) << 16) | (_LWORD_(ecx));
-      size = (_LWORD_(esi) << 16) | (_LWORD_(edi));
+      size = (_LWORD_(esi) << 16) | PAGE_ALIGN(_LWORD_(edi));
 
       base = DPMIMapHWRam(addr, size);
       if (base == (unsigned)-1) {
