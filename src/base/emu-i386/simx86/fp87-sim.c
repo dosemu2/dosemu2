@@ -177,7 +177,9 @@ void fp87_save_except(void)
 	if (exceptions & FE_DIVBYZERO) fps |= FPUS_ZE;
 	if (exceptions & FE_OVERFLOW) fps |= FPUS_OE;
 	if (exceptions & FE_UNDERFLOW) fps |= FPUS_UE;
-	if (exceptions & FE_INEXACT) fps |= FPUS_PE;
+	/* XXX disable Precision exceptions as they seem to not match the
+	* DOS expectations here (GTA crashes otherwise). */
+//	if (exceptions & FE_INEXACT) fps |= FPUS_PE;
 #else
 #warning FPU exceptions unsupported
 #endif
