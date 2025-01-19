@@ -700,7 +700,7 @@ unsigned int Interp86(unsigned int PC, int mode);
 int _ModRM(unsigned char opc, unsigned int PC, int mode);
 #define ModRM(o, p, m) ({ \
     int __l = _ModRM(o, p, m); \
-    if (REG1 == -1) { \
+    if (REG1 == 0xff) { \
         CODE_FLUSH(); \
         goto illegal_op; \
     } \
