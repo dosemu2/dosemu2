@@ -87,7 +87,6 @@ extern __TLS struct mhpdbg mhpdbg;
 #define SRSIZE MHP_BUFFERSIZE
 #define MYPORT 3456
 #define IBUFS 0x100
-#define MAXARG 16
 #define MAXBP 64
 
 void mhp_cmd(const char *);

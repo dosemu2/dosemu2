@@ -108,6 +108,8 @@ static int trapped_bp = -1, trapped_bp_;
 int traceloop = 0;
 char loopbuf[4] = "";
 
+#define MAXARG 16
+
 struct cmd_db {
   char cmdname[12];
   void (*cmdproc)(int, char *[]);
@@ -2522,7 +2524,7 @@ void mhp_modify_eip(int delta)
 
 typedef void cmdprintf_func(const char *fmt, ...);
 
-static void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
+static void call_cmd(const char *cmd, const struct cmd_db *cmdtab,
 	cmdprintf_func *printf)
 {
   int argc1;
@@ -2537,14 +2539,14 @@ static void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
       (*printf)("out of memory\n");
     return;
   }
-  argv1 = malloc(maxargs * sizeof(char *));
+  argv1 = malloc(MAXARG * sizeof(char *));
   if (!argv1) {
     if (printf)
       (*printf)("out of memory\n");
     free(tmpcmd);
     return;
   };
-  argc1 = argparse(tmpcmd, argv1, maxargs);
+  argc1 = argparse(tmpcmd, argv1, MAXARG);
   if (argc1 < 1) {
     free(tmpcmd);
     free(argv1);
@@ -3021,5 +3023,5 @@ static const struct cmd_db cmdtab[] = {
 
 void mhp_cmd(const char *cmd)
 {
-  call_cmd(cmd, MAXARG, cmdtab, mhp_printf);
+  call_cmd(cmd, cmdtab, mhp_printf);
 }
