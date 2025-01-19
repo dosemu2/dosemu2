@@ -79,43 +79,6 @@ static far_t old_cbrk_hdlr;
 static int old_cbrk_on;
 
 /* prototypes */
-static void mhp_regs  (int, char *[]);
-static void mhp_r0    (int, char *[]);
-static void mhp_dump    (int, char *[]);
-static void mhp_disasm  (int, char *[]);
-static void mhp_go      (int, char *[]);
-static void mhp_stop    (int, char *[]);
-static void mhp_trace   (int, char *[]);
-static void mhp_tracec  (int, char *[]);
-static void mhp_regs32  (int, char *[]);
-static void mhp_bp      (int, char *[]);
-static void mhp_bc      (int, char *[]);
-static void mhp_bl      (int, char *[]);
-static void mhp_bpint   (int, char *[]);
-static void mhp_bcint   (int, char *[]);
-static void mhp_bpintd  (int, char *[]);
-static void mhp_bcintd  (int, char *[]);
-static void mhp_bpload  (int, char *[]);
-static void mhp_mode    (int, char *[]);
-static void mhp_usermap (int, char *[]);
-static void mhp_symbol  (int, char *[]);
-static void mhp_kill    (int, char *[]);
-static void mhp_memset  (int, char *[]);
-static void mhp_print_ldt       (int, char *[]);
-static void mhp_debuglog (int, char *[]);
-static void mhp_dump_to_file (int, char *[]);
-static void mhp_ivec    (int, char *[]);
-static void mhp_mcbs    (int, char *[]);
-static void mhp_devs    (int, char *[]);
-static void mhp_ddrh    (int, char *[]);
-static void mhp_dpbs    (int, char *[]);
-static void mhp_bplog   (int, char *[]);
-static void mhp_bclog   (int, char *[]);
-static void mhp_reboot  (int, char *[]);
-static void mhp_injchar (int, char *[]);
-static void mhp_hookcbrk (int, char *[]);
-static void mhp_dosbreak (int, char *[]);
-
 static void print_log_breakpoints(void);
 static int bpchk(unsigned int a1);
 static unsigned int mhp_getadr(char *, dosaddr_t *, unsigned int *,
@@ -148,48 +111,6 @@ char loopbuf[4] = "";
 struct cmd_db {
   char cmdname[12];
   void (*cmdproc)(int, char *[]);
-};
-
-/* constants */
-static const struct cmd_db cmdtab[] = {
-  {"r0",            mhp_r0},
-  {"r" ,            mhp_regs},
-  {"m",             mhp_memset},
-  {"d",             mhp_dump},
-  {"u",             mhp_disasm},
-  {"g",             mhp_go},
-  {"stop",          mhp_stop},
-  {"mode",          mhp_mode},
-  {"t",             mhp_trace},
-  {"ti",            mhp_trace},
-  {"tc",            mhp_tracec},
-  {"r32",           mhp_regs32},
-  {"bp",            mhp_bp},
-  {"bc",            mhp_bc},
-  {"bl",            mhp_bl},
-  {"bpint",         mhp_bpint},
-  {"bcint",         mhp_bcint},
-  {"bpintd",        mhp_bpintd},
-  {"bcintd",        mhp_bcintd},
-  {"bpload",        mhp_bpload},
-  {"bplog",         mhp_bplog},
-  {"bclog",         mhp_bclog},
-  {"usermap",       mhp_usermap},
-  {"symbol",        mhp_symbol},
-  {"kill",          mhp_kill},
-  {"ldt",           mhp_print_ldt},
-  {"log",           mhp_debuglog},
-  {"dump",          mhp_dump_to_file},
-  {"ivec",          mhp_ivec},
-  {"mcbs",          mhp_mcbs},
-  {"devs",          mhp_devs},
-  {"ddrh",          mhp_ddrh},
-  {"dpbs",          mhp_dpbs},
-  {"reboot",        mhp_reboot},
-  {"injchar",       mhp_injchar},
-  {"hookcbrk",      mhp_hookcbrk},
-  {"dosbreak",      mhp_dosbreak},
-  {"",              NULL}
 };
 
 /********/
@@ -822,16 +743,6 @@ static void mhp_go(int argc, char *argv[])
     clear_TF();
     mhp_bpset();
   }
-}
-
-static void mhp_r0(int argc, char *argv[])
-{
-  if (trapped_bp == -2)
-    trapped_bp = trapped_bp_;
-  else
-    trapped_bp = -1;
-  mhp_bpclr();
-  mhp_regs(argc, argv);
 }
 
 static void mhp_stop(int argc, char *argv[])
@@ -2476,6 +2387,16 @@ static void mhp_regs32(int argc, char *argv[])
               SREG(cs), LWORD(eip), SREG(ss), LWORD(esp));
 }
 
+static void mhp_r0(int argc, char *argv[])
+{
+  if (trapped_bp == -2)
+    trapped_bp = trapped_bp_;
+  else
+    trapped_bp = -1;
+  mhp_bpclr();
+  mhp_regs(argc, argv);
+}
+
 static void mhp_kill(int argc, char *argv[])
 {
   mhp_cmd("r0");
@@ -2642,11 +2563,6 @@ static void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
     (*cmdproc)(argc1, argv1);
   free(tmpcmd);
   free(argv1);
-}
-
-void mhp_cmd(const char *cmd)
-{
-  call_cmd(cmd, MAXARG, cmdtab, mhp_printf);
 }
 
 static void mhp_print_ldt(int argc, char *argv[])
@@ -3059,4 +2975,51 @@ void mhpdbgc_init(void)
 
   ic_tid = coopth_create("injchar thr", mhp_injchar_thr);
   coopth_set_ctx_handlers(ic_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
+}
+
+/* Command table */
+static const struct cmd_db cmdtab[] = {
+  {"r0",            mhp_r0},
+  {"r" ,            mhp_regs},
+  {"m",             mhp_memset},
+  {"d",             mhp_dump},
+  {"u",             mhp_disasm},
+  {"g",             mhp_go},
+  {"stop",          mhp_stop},
+  {"mode",          mhp_mode},
+  {"t",             mhp_trace},
+  {"ti",            mhp_trace},
+  {"tc",            mhp_tracec},
+  {"r32",           mhp_regs32},
+  {"bp",            mhp_bp},
+  {"bc",            mhp_bc},
+  {"bl",            mhp_bl},
+  {"bpint",         mhp_bpint},
+  {"bcint",         mhp_bcint},
+  {"bpintd",        mhp_bpintd},
+  {"bcintd",        mhp_bcintd},
+  {"bpload",        mhp_bpload},
+  {"bplog",         mhp_bplog},
+  {"bclog",         mhp_bclog},
+  {"usermap",       mhp_usermap},
+  {"symbol",        mhp_symbol},
+  {"kill",          mhp_kill},
+  {"ldt",           mhp_print_ldt},
+  {"log",           mhp_debuglog},
+  {"dump",          mhp_dump_to_file},
+  {"ivec",          mhp_ivec},
+  {"mcbs",          mhp_mcbs},
+  {"devs",          mhp_devs},
+  {"ddrh",          mhp_ddrh},
+  {"dpbs",          mhp_dpbs},
+  {"reboot",        mhp_reboot},
+  {"injchar",       mhp_injchar},
+  {"hookcbrk",      mhp_hookcbrk},
+  {"dosbreak",      mhp_dosbreak},
+  {"",              NULL}
+};
+
+void mhp_cmd(const char *cmd)
+{
+  call_cmd(cmd, MAXARG, cmdtab, mhp_printf);
 }
