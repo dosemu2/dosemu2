@@ -2528,7 +2528,7 @@ static void call_cmd(const char *cmd, const struct cmd_db *cmdtab,
 	cmdprintf_func *printf)
 {
   int argc1;
-  char **argv1;
+  char *argv1[MAXARG];
   char *tmpcmd;
   void (*cmdproc)(int, char *[]);
   const struct cmd_db *cmdp;
@@ -2539,17 +2539,10 @@ static void call_cmd(const char *cmd, const struct cmd_db *cmdtab,
       (*printf)("out of memory\n");
     return;
   }
-  argv1 = malloc(MAXARG * sizeof(char *));
-  if (!argv1) {
-    if (printf)
-      (*printf)("out of memory\n");
-    free(tmpcmd);
-    return;
-  };
+
   argc1 = argparse(tmpcmd, argv1, MAXARG);
   if (argc1 < 1) {
     free(tmpcmd);
-    free(argv1);
     return;
   }
   for (cmdp = cmdtab, cmdproc = NULL; cmdp->cmdproc; cmdp++) {
@@ -2564,7 +2557,6 @@ static void call_cmd(const char *cmd, const struct cmd_db *cmdtab,
   } else
     (*cmdproc)(argc1, argv1);
   free(tmpcmd);
-  free(argv1);
 }
 
 static void mhp_print_ldt(int argc, char *argv[])
