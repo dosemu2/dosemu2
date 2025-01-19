@@ -945,7 +945,7 @@ static void percent(char type, char subtype)
        break;
 
   case 'S':                            /* reg(r/m) picks segment reg */
-       uputchar("ecsdfg"[REG(modrm())]);
+       uputchar("ecsdfgUX"[REG(modrm())]);
        uputchar('s');
        must_do_size = 0;
        break;
