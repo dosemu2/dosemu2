@@ -987,11 +987,11 @@ INT75_OFF:
 	iret
 
 /* ----------------------------------------------------------------- */
-	.globl INT08_OFF
-INT08_OFF:
-	jmp int08_cont
 /* COMPAS FFEA5		jmp to INT08 */
 /* COMPAS FFEA8-FFEF2	reserved */
+	.globl INT08_OFF  /* F000:FEB5 */
+INT08_OFF:
+	jmp int08_cont
 	_ORG(0xfef4)
 int08_cont:
 #if 0
