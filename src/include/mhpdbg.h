@@ -28,7 +28,6 @@ enum dosdebug_event {
    DBG_INTxDPMI,
 };
 
-extern unsigned long dosdebug_flags;
 #define DBGF_WAIT_ON_STARTUP		0x001
 #define DBGF_INTERCEPT_LOG		0x002
 #define DBGF_DISABLE_LOG_TO_FILE	0x004
@@ -74,14 +73,8 @@ int vmhp_log_intercept(const char *fmt, va_list args);
 #define MHP_BUFFERSIZE 8192
 struct mhpdbg
 {
-   unsigned char sendbuf[MHP_BUFFERSIZE];
-   unsigned char recvbuf[MHP_BUFFERSIZE];
-   int sendptr;
-   int nbytes;
    int active;
-   int flags;
-   int fdin,fdout;
-
+   unsigned long flags;
    unsigned char intxxtab[32];
 };
 
@@ -94,7 +87,6 @@ extern __TLS struct mhpdbg mhpdbg;
 #define SRSIZE MHP_BUFFERSIZE
 #define MYPORT 3456
 #define IBUFS 0x100
-#define MAXARG 16
 #define MAXBP 64
 
 void mhp_cmd(const char *);

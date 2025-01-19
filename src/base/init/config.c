@@ -1359,7 +1359,7 @@ config_init(int argc, char **argv)
 	}
 	case 'H': {
 #ifdef USE_MHPDBG
-	    dosdebug_flags = strtoul(optarg,0,0) & 255;
+	    mhpdbg.flags = strtoul(optarg,0,0) & 255;
 #else
 	    error("debugger support not compiled in\n");
 #endif
