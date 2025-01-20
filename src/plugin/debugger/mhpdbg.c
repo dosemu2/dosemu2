@@ -94,7 +94,12 @@ void mhp_send(void)
 {
   if (sendptr) {
     if (fdout != -1) {
-      write(fdout, sendbuf, sendptr);
+      int rc = write(fdout, sendbuf, sendptr);
+      if (rc <= 0) {
+        mhpdbg.active = 0;
+        mhp_close();
+        return;
+      }
       if (sendptr < SRSIZE - 1) {
         sendbuf[sendptr] = '\0';
         B_printf("MHP:>\n%s", sendbuf);
