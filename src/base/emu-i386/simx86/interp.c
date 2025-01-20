@@ -2028,9 +2028,15 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				e_printf("IRET: ret=%04x:%08x\n",sv,TheCPU.eip);
 			}
 			temp=0; POP(m, &temp);
+			if (!(m & DATA16)) {
+			    temp &= EFLAGS_ALL & ~(VM|VIF|VIP);
+			    temp |= EFLAGS & (VM|VIF|VIP);
+			}
+			/* in 16bit mode the manual doesn't seem to ask to
+			 * clear reserved bits... But bit1 is always set! */
 			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 			if (REALMODE())
-			    FLAGS = temp;
+			    FLAGS = temp | 2;
 			else if (V86MODE()) {
 			    goto stack_return_from_vm86;
 			}
@@ -2039,12 +2045,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    /* if (temp&EFLAGS_VM) goto stack_return_to_vm86 */
 			    /* else stack_return */
 			    int amask = (CPL==0? 0:(EFLAGS_IOPL_MASK|VIF|VIP)) |
-					(CPL<=IOPL? 0:EFLAGS_IF) | 2;
+					(CPL<=IOPL? 0:EFLAGS_IF);
 			    if (_mode & DATA16)
-				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask);
+				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask) | 2;
 			    else	/* should use eTSSMASK */
 				EFLAGS = (EFLAGS&amask) |
-					 ((temp&(eTSSMASK|0xfd7))&~amask);
+					 ((temp&(eTSSMASK|0xfd7))&~amask) | 2;
 			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_FLAGS(EFLAGS));
@@ -2068,7 +2074,7 @@ stack_return_from_vm86:
 				    FLAGS &= ~(SAFE_MASK|EFLAGS_IF);
 				else
 				    EFLAGS &= ~(SAFE_MASK|EFLAGS_IF);
-				EFLAGS |= temp & (SAFE_MASK|EFLAGS_IF);
+				EFLAGS |= (temp & (SAFE_MASK|EFLAGS_IF)) | 2;
 			    }
 			    else {
 				/* virtual-8086 monitor */
@@ -2079,7 +2085,7 @@ stack_return_from_vm86:
 				    FLAGS &= ~SAFE_MASK;
 				else
 				    EFLAGS &= ~SAFE_MASK;
-				EFLAGS |= temp & SAFE_MASK;
+				EFLAGS |= (temp & SAFE_MASK) | 2;
 				if (temp & EFLAGS_IF)
 				    EFLAGS |= EFLAGS_VIF;
 			    }
@@ -2096,13 +2102,13 @@ stack_return_from_vm86:
 			}
 			else {
 			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) |
-			    		(CPL<=IOPL? 0:EFLAGS_IF) |
-			    		(EFLAGS_VM|EFLAGS_RF) | 2;
+					(CPL<=IOPL? 0:EFLAGS_IF) |
+					(EFLAGS_VM|EFLAGS_RF);
 			    if (_mode & DATA16)
-				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask);
+				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask) | 2;
 			    else
 				EFLAGS = (EFLAGS&amask) |
-					 ((temp&(eTSSMASK|0xfd7))&~amask);
+					 ((temp&(eTSSMASK|0xfd7))&~amask) | 2;
 			    // unused "extended PVI" since real PVI does not
 			    // affect POPF
 			    if (IOPL<3 && (TheCPU.cr[4]&CR4_PVI)) {
