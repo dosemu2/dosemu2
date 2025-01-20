@@ -687,7 +687,6 @@ static int dpmi_control(void)
       if (!in_dpmi_pm()) {
         ret = DPMI_RET_DOSEMU;
       } else if (ret == DPMI_RET_CLIENT) {
-        uncache_time();
         hardware_run();
         handle_signals();
         if (!in_dpmi_pm())

@@ -683,7 +683,6 @@ static void SIGALRM_call(void *arg)
     first = 1;
   }
 
-  uncache_time();
   timer_tick();
 
   if (Video->handle_events && video_initialized)

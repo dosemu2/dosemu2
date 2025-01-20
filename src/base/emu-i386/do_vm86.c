@@ -712,7 +712,6 @@ static void pic_run(void)
  */
 void loopstep_run_vm86(void)
 {
-    uncache_time();
     if (!dosemu_frozen && !signal_pending()) {
 	if (in_dpmi_pm())
 	    run_dpmi();

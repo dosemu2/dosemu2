@@ -127,7 +127,6 @@ extern hitimer_t GETtickTIME(int sc);
 int stop_cputime (int);
 int restart_cputime (int);
 extern int cpu_time_stop;	/* for dosdebug */
-void uncache_time(void);
 
 void freeze_dosemu_manual(void);
 void freeze_dosemu(void);

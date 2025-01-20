@@ -85,8 +85,6 @@ static hitimer_t (*GETcpuTIME)(void);
 static hitimer_t LastTimeRead = 0;
 static hitimer_t StopTimeBase = 0;
 int cpu_time_stop = 0;
-static hitimer_t cached_time;
-static pthread_mutex_t ctime_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t trigger_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int        idle_tid;
 static void idle_hlt_thr(void *arg);
@@ -112,25 +110,7 @@ static hitimer_t do_gettime(void)
  */
 static hitimer_t rawC4time(void)
 {
-  hitimer_t ctime;
-
-  pthread_mutex_lock(&ctime_mtx);
-  ctime = cached_time;
-  pthread_mutex_unlock(&ctime_mtx);
-  if (!ctime) {
-    ctime = do_gettime();
-    pthread_mutex_lock(&ctime_mtx);
-    cached_time = ctime;
-    pthread_mutex_unlock(&ctime_mtx);
-  }
-  return ctime;
-}
-
-void uncache_time(void)
-{
-  pthread_mutex_lock(&ctime_mtx);
-  cached_time = 0;
-  pthread_mutex_unlock(&ctime_mtx);
+  return do_gettime();
 }
 
 /*
@@ -303,7 +283,6 @@ void untrigger_idle(void)
 
 void dosemu_sleep(void)
 {
-  uncache_time();
 #ifndef __EMSCRIPTEN__
   sigsuspend(&all_sigmask);
 #else
