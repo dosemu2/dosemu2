@@ -2013,6 +2013,8 @@ shrot0:
 		else {			/* SAHF */
 			// movb Ofs_AH(%%ebx),%%al
 			G3M(0x8a,0x43,Ofs_AH,Cp);
+			// orb $2,%%al
+			G2M(0x0c,0x02,Cp);
 			// movb %%al,0(%%esp)
 			G3M(0x88,0x04,0x24,Cp);
 		}
