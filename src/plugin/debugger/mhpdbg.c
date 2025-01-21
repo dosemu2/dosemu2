@@ -182,8 +182,6 @@ int mhp_early_init(void)
 
 void mhp_init(void)
 {
-  mhpdbg_trace_init();
-
   fdin = fdout = -1;
   mhpdbg.active = 0;
   sendptr = 0;
