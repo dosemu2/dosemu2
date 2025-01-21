@@ -755,6 +755,49 @@ static void mhp_stop(int argc, char *argv[])
   }
 }
 
+static int mhp_oneshot_bp_set(unsigned int addr)
+{
+  if (mhpdbgc.brktab[0].is_valid) {
+    mhp_printf("One shot breakpoint already set, nothing done\n");
+    return 0;
+  }
+
+  for (int i = 1; i < MAXBP; i++) {
+    if (mhpdbgc.brktab[i].is_valid && mhpdbgc.brktab[i].brkaddr == addr) {
+      // mhp_printf("Standard breakpoint already set, using that\n");
+      return 1;
+    }
+  }
+
+  // Used for retrigger on standard breakpoints, we don't need it here but
+  // set it to sane value.
+  if (trapped_bp == 0)
+    trapped_bp = -1;
+
+  mhpdbgc.brktab[0].brkaddr = addr;
+  mhpdbgc.brktab[0].opcode = READ_BYTE(addr);
+  mhpdbgc.brktab[0].is_valid = 1;
+  mhpdbgc.brktab[0].is_dpmi = IN_DPMI;
+  return 1;
+}
+
+int mhp_oneshot_bp_hit(unsigned int addr)
+{
+  if (mhpdbgc.brktab[0].is_valid && mhpdbgc.brktab[0].brkaddr == addr) {
+    // We don't have to worry about retrigger, but set them to sane values
+    // as used on standard breakpoints
+    trapped_bp_ = 0;
+    trapped_bp = -2;
+
+    // restore proper opcode
+    WRITE_BYTE(addr, mhpdbgc.brktab[0].opcode);
+    mhpdbgc.brktab[0].is_valid = 0;
+    return 1;
+  }
+
+  return 0;
+}
+
 static void mhp_trace(int argc, char *argv[])
 {
   if (!check_for_stopped())
@@ -799,9 +842,12 @@ static void mhp_trace(int argc, char *argv[])
         break;
       case 0xcd:  // int
         if (mhpdbgc.trapcmd != 1) { // plain 't'
+          if (mhp_oneshot_bp_set(mhpdbgc.trapip + 2)) {
+            mhpdbgc.stopped = 1;
+            mhp_cmd("g");
+          }
           break;
         }
-
         // 'ti'
         LWORD(eip) += 2;
         do_int(csp[1]);
@@ -810,7 +856,7 @@ static void mhp_trace(int argc, char *argv[])
         mhpdbgc.int_handled = 1;
         mhp_cmd("r0");
         break;
-      case 0xcf:
+      case 0xcf:  // iret
         LWORD(eip) += 1;
         fake_iret();
         set_TF();
@@ -1900,13 +1946,13 @@ int mhp_setbp(unsigned int seekval)
 {
   int i1;
 
-  for (i1 = 0; i1 < MAXBP; i1++) {
+  for (i1 = 1; i1 < MAXBP; i1++) {  // Avoid zero for one shot breakpoint
     if (mhpdbgc.brktab[i1].brkaddr == seekval && mhpdbgc.brktab[i1].is_valid) {
       mhp_printf("Duplicate breakpoint, nothing done\n");
       return 0;
     }
   }
-  for (i1 = 0; i1 < MAXBP; i1++) {
+  for (i1 = 1; i1 < MAXBP; i1++) {  // Avoid zero for one shot breakpoint
     if (!mhpdbgc.brktab[i1].is_valid) {
       if (i1 == trapped_bp)
         trapped_bp = -1;
@@ -1924,7 +1970,7 @@ int mhp_clearbp(unsigned int seekval)
 {
   int i1;
 
-  for (i1 = 0; i1 < MAXBP; i1++) {
+  for (i1 = 1; i1 < MAXBP; i1++) {  // Avoid zero for one shot breakpoint
     if (mhpdbgc.brktab[i1].brkaddr == seekval && mhpdbgc.brktab[i1].is_valid) {
       mhp_bpclr();
       if (i1 == trapped_bp)
@@ -1977,7 +2023,7 @@ static void mhp_bl(int argc, char *argv[])
   int i1;
 
   mhp_printf("Breakpoints:\n");
-  for (i1 = 0; i1 < MAXBP; i1++) {
+  for (i1 = 1; i1 < MAXBP; i1++) {
     if (mhpdbgc.brktab[i1].is_valid) {
       mhp_printf("%d: %08x\n", i1, mhpdbgc.brktab[i1].brkaddr);
     }
@@ -2369,7 +2415,7 @@ void mhp_bpclr(void)
   if (mhpdbgc.bpcleared)
     return;
   mhpdbgc.bpcleared = 1;
-  for (i1 = 0; i1 < MAXBP; i1++) {
+  for (i1 = 1; i1 < MAXBP; i1++) {  // Avoid zero for one shot breakpoint
     if (mhpdbgc.brktab[i1].is_valid) {
       if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
         mhpdbgc.brktab[i1].brkaddr = 0;
@@ -2407,7 +2453,7 @@ int bpchk(unsigned int a1)
 {
   int i1;
 
-  for (i1 = 0; i1 < MAXBP; i1++) {
+  for (i1 = 1; i1 < MAXBP; i1++) {  // Avoid zero for one shot breakpoint
     if (mhpdbgc.brktab[i1].is_valid && mhpdbgc.brktab[i1].brkaddr == a1) {
       trapped_bp_ = i1;
       trapped_bp = -2;

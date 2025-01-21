@@ -568,7 +568,9 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
               error("wrong bpload state %i\n", mhpdbgc.bpload);
           }
         } else {
-          if ((ok = mhp_bpchk(csip))) {
+          if ((ok = mhp_oneshot_bp_hit(csip))) {
+            mhp_modify_eip(-1);
+          } else if ((ok = mhp_bpchk(csip))) {
             mhp_modify_eip(-1);
           } else {
             if ((ok = test_bit(3, mhpdbg.intxxtab))) {
