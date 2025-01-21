@@ -118,6 +118,7 @@ struct mhpdbg_4bpar {
     sssp,
     csip;
 };
+static_assert(sizeof(struct mhpdbg_4bpar) == 22, "mhpdbg_4bpar size is incorrect");
 
 #define PAR4b_addr(x) SEGOFF2LINEAR(mhpdbgc.bpload_par->x.seg, \
                                     mhpdbgc.bpload_par->x.off)
