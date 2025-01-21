@@ -14,6 +14,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 
+#include "cpu.h"
 #include "dosemu_debug.h"
 
 // There is also an argument field shifted 8 bits left
@@ -104,24 +105,19 @@ struct brkentry {
   char is_valid;
 };
 
-struct segoff {
-  unsigned short off, seg;
-};
-
 /* parameters for DOS 4Bh (EXEC) call */
 struct mhpdbg_4bpar {
   unsigned short env;
-  struct segoff
-    commandline_ptr,
-    fcb1_ptr,
-    fcb2_ptr,
-    sssp,
-    csip;
+  far_t commandline_ptr;
+  far_t fcb1_ptr;
+  far_t fcb2_ptr;
+  far_t sssp;
+  far_t csip;
 };
 static_assert(sizeof(struct mhpdbg_4bpar) == 22, "mhpdbg_4bpar size is incorrect");
 
-#define PAR4b_addr(x) SEGOFF2LINEAR(mhpdbgc.bpload_par->x.seg, \
-                                    mhpdbgc.bpload_par->x.off)
+#define PAR4b_addr(x) SEGOFF2LINEAR(mhpdbgc.bpload_par->x.segment, \
+                                    mhpdbgc.bpload_par->x.offset)
 
 struct mhpdbgc {
   int stopped;
