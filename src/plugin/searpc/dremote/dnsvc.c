@@ -34,7 +34,7 @@ static SearpcClient *clnt;
 static int sock_tx;
 static int exited;
 void *rpc_shared_page;
-#define RPC_SHARED_SIZE PAGE_SIZE
+#define RPC_SHARED_SIZE 0x10000  // 64K for passing LDT buffer
 
 static int remote_mmap(void *addr, size_t length, int prot, int flags,
                        int fd, off_t offset);
