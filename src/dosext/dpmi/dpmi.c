@@ -6191,6 +6191,12 @@ void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off)
   *off = _eip;
 }
 
+dosaddr_t dpmi_mhp_getinsaddr(void)
+{
+  cpuctx_t *scp = &DPMI_CLIENT.stack_frame;
+  return GetSegmentBase(_cs) + _eip;
+}
+
 void dpmi_mhp_modify_eip(int delta)
 {
   cpuctx_t *scp = &DPMI_CLIENT.stack_frame;

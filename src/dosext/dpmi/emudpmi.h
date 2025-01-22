@@ -179,6 +179,7 @@ void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp);
 uint32_t dpmi_mhp_getreg(regnum_t regnum);
 void dpmi_mhp_setreg(regnum_t regnum, uint32_t val);
 void dpmi_mhp_modify_eip(int delta);
+dosaddr_t dpmi_mhp_getinsaddr(void);
 #endif
 
 void dpmi_timer(void);
@@ -438,6 +439,11 @@ static inline void dpmi_mhp_setreg(regnum_t regnum, unsigned long val)
 
 static inline void dpmi_mhp_modify_eip(int delta)
 {
+}
+
+static inline dosaddr_t dpmi_mhp_getinsaddr(void)
+{
+    return 0;
 }
 
 static inline void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off)

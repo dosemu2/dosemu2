@@ -818,7 +818,7 @@ static void mhp_trace(int argc, char *argv[])
 
   mhpdbgc.trapip = mhp_getcsip_value();
 
-  if (!in_dpmi_pm()) {
+  if (!in_dpmi_pm()) { // real mode
     unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
     unsigned short *ssp;
     switch (csp[0]) {
@@ -862,6 +862,21 @@ static void mhp_trace(int argc, char *argv[])
         set_TF();
         mhpdbgc.stopped = 1;
         mhp_cmd("r0");
+        break;
+    }
+  } else { // protected mode
+    unsigned char ins = READ_BYTE(mhpdbgc.trapip);
+    switch (ins) {
+      case 0xcd:  // int
+        // mhp_printf("interrupt found in PM\n");
+        if (mhpdbgc.trapcmd != 1) { // plain 't'
+          if (mhp_oneshot_bp_set(mhpdbgc.trapip + 2)) {
+            mhpdbgc.stopped = 1;
+            mhp_cmd("g");
+          }
+          break;
+        }
+        // 'ti'
         break;
     }
   }
@@ -2472,15 +2487,10 @@ int mhp_bpchk(unsigned int a1)
 
 int mhp_getcsip_value(void)
 {
-  dosaddr_t val;
-  unsigned int seg, off, limit;
-
-  if (in_dpmi_pm()) {
-    char str[] = "cs:eip";
-    mhp_getadr(str, &val, &seg, &off, &limit, 1); // Can't fail!
-    return val;
-  } else
-    return (SREG(cs) << 4) + LWORD(eip);
+  if (in_dpmi_pm())
+    return dpmi_mhp_getinsaddr();
+  else
+    return SEGOFF2LINEAR(SREG(cs), LWORD(eip));
 }
 
 void mhp_modify_eip(int delta)
