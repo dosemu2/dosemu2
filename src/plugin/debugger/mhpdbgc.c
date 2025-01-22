@@ -51,6 +51,7 @@
 #include "bitops.h"
 #include "emu.h"
 #include "cpu.h"
+#include "memory.h"
 #include "timers.h"
 #include "emudpmi.h"
 #include "int.h"
@@ -728,7 +729,7 @@ static void mhp_go(int argc, char *argv[])
   if (!mhpdbgc.stopped) {
     mhp_printf("already in running state\n");
   } else {
-    unsigned int csip = mhp_getcsip_value();
+    unsigned int csip = mhp_getinsaddr();
     mhpdbgc.stopped = 0;
     dpmimode = 1;
     if (bpchk(csip)) {
@@ -816,7 +817,7 @@ static void mhp_trace(int argc, char *argv[])
     mhpdbgc.trapcmd = 2;
   }
 
-  mhpdbgc.trapip = mhp_getcsip_value();
+  mhpdbgc.trapip = mhp_getinsaddr();
 
   if (!in_dpmi_pm()) { // real mode
     unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
@@ -2485,7 +2486,7 @@ int mhp_bpchk(unsigned int a1)
   return bpchk(a1);
 }
 
-int mhp_getcsip_value(void)
+dosaddr_t mhp_getinsaddr(void)
 {
   if (in_dpmi_pm())
     return dpmi_mhp_getinsaddr();

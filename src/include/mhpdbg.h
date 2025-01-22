@@ -16,6 +16,7 @@
 
 #include "cpu.h"
 #include "dosemu_debug.h"
+#include "memory.h"
 
 // There is also an argument field shifted 8 bits left
 enum dosdebug_event {
@@ -46,7 +47,7 @@ void mhp_close(void);
 void mhp_clear_all_bp(void);
 void mhp_printf(const char *, ...) FORMAT(printf, 1, 2);
 int mhp_getaxlist_value(int v, int mask);
-int mhp_getcsip_value(void);
+dosaddr_t mhp_getinsaddr(void);
 void mhp_modify_eip(int delta);
 void mhp_intercept_log(const char *flags, int temporary);
 void mhp_intercept(const char *msg, const char *logflags);
