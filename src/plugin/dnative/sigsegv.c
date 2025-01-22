@@ -245,21 +245,6 @@ static void dpmi_iret_unwind(sigcontext_t * scp)
 static void init_handler(sigcontext_t *scp, unsigned long uc_flags);
 static void print_exception_info(sigcontext_t *scp);
 
-static int dpmi_fault(sigcontext_t *scp)
-{
-  /* If this is an exception 0x11, we have to ignore it. The reason is that
-   * under real DOS the AM bit of CR0 is not set.
-   * Also clear the AC flag to prevent it from re-occuring.
-   */
-  if (_scp_trapno == 0x11) {
-    g_printf("Exception 0x11 occurred, clearing AC\n");
-    _scp_eflags &= ~AC;
-    return DPMI_RET_CLIENT;
-  }
-
-  return DPMI_RET_FAULT;	// process the rest in dosemu context
-}
-
 /*
  * DANG_BEGIN_FUNCTION dosemu_fault(int, sigcontext_t);
  *

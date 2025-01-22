@@ -361,11 +361,6 @@ static inline unsigned long dpmi_mem_size(void)
     return 0;
 }
 
-static inline int dpmi_fault(sigcontext_t *scp)
-{
-    return 0;
-}
-
 static inline void *SEL_ADR(unsigned short sel, unsigned int reg)
 {
     return NULL;

@@ -5,6 +5,7 @@
 
 void dpmi_return(sigcontext_t *scp, int retcode);
 void dpmi_switch_sa(int sig, siginfo_t * inf, void *uc);
+int dpmi_fault(sigcontext_t *scp);
 
 void deinit_handler(sigcontext_t *scp, unsigned long *uc_flags);
 
