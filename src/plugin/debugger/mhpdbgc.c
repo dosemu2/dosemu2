@@ -2485,7 +2485,6 @@ static int bpchk(unsigned int a1)
 
   for (i1 = 0; i1 < MAXBP; i1++) {
     if (mhpdbgc.brktab[i1].is_valid && mhpdbgc.brktab[i1].brkaddr == a1) {
-      dpmimode = mhpdbgc.brktab[i1].is_dpmi;
       trapped_bp_ = i1;
       trapped_bp = -2;
       return 1;
