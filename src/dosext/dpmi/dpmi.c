@@ -303,7 +303,7 @@ static SEGDESC FillSegdesc(dosaddr_t base_addr, unsigned int limit,
   return ret;
 }
 
-static SEGDESC Segments(unsigned short ldt_entry)
+SEGDESC _Segments(uint8_t *ldt_buffer, unsigned short ldt_entry)
 {
   unsigned int base_addr, limit;
   int np, ro, type, ld;
@@ -321,6 +321,11 @@ static SEGDESC Segments(unsigned short ldt_entry)
 
   return FillSegdesc(base_addr, limit, (lp[1] >> 22) & 1, type, ro,
 			(lp[1] >> 23) & 1, np, (lp[1] >> 20) & 1);
+}
+
+static SEGDESC Segments(unsigned short ldt_entry)
+{
+  return _Segments(ldt_buffer, ldt_entry);
 }
 
 static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
