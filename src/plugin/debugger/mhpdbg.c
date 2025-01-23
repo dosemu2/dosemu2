@@ -545,8 +545,8 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
 
       if (DBG_ARG(mhpdbgc.currcode) == 3) { /* int3 (0xCC) */
         int ok = 0;
-        unsigned int csip = mhp_getinsaddr() - 1;
-        if (mhpdbgc.bpload_bp == csip) {
+        dosaddr_t insaddr = mhp_getinsaddr() - 1;
+        if (mhpdbgc.bpload_bp == insaddr) {
           /* mhp_cmd("r"); */
           switch (mhpdbgc.bpload) {
             case 2:
@@ -568,9 +568,9 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
               error("wrong bpload state %i\n", mhpdbgc.bpload);
           }
         } else {
-          if ((ok = mhp_oneshot_bp_hit(csip))) {
+          if ((ok = mhp_oneshot_bp_hit(insaddr))) {
             mhp_modify_eip(-1);
-          } else if ((ok = mhp_bpchk(csip))) {
+          } else if ((ok = mhp_bpchk(insaddr))) {
             mhp_modify_eip(-1);
           } else {
             if ((ok = test_bit(3, mhpdbg.intxxtab))) {

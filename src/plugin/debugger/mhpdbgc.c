@@ -729,14 +729,14 @@ static void mhp_go(int argc, char *argv[])
   if (!mhpdbgc.stopped) {
     mhp_printf("already in running state\n");
   } else {
-    unsigned int csip = mhp_getinsaddr();
+    dosaddr_t insaddr = mhp_getinsaddr();
     mhpdbgc.stopped = 0;
     dpmimode = 1;
-    if (bpchk(csip)) {
+    if (bpchk(insaddr)) {
       dpmi_mhp_setTF(1);
       set_TF();
       mhpdbgc.trapcmd = 2;
-      mhpdbgc.trapaddr = csip;
+      mhpdbgc.trapaddr = insaddr;
       trapped_bp = -1;
       return;
     }
