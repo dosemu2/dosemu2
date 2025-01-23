@@ -2465,7 +2465,7 @@ void mhp_bpclr(void)
   return;
 }
 
-int bpchk(unsigned int a1)
+int bpchk(dosaddr_t a1)
 {
   int i1;
 
@@ -2479,7 +2479,7 @@ int bpchk(unsigned int a1)
   return 0;
 }
 
-int mhp_bpchk(unsigned int a1)
+int mhp_bpchk(dosaddr_t a1)
 {
   if (mhpdbgc.bpcleared)
     return 0;
