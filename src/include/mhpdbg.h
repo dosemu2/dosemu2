@@ -128,7 +128,7 @@ struct mhpdbgc {
   int want_to_stop;
   unsigned currcode;
   int trapcmd;
-  int trapip; /* ip that we were on when we started the "tracei" command */
+  dosaddr_t trapaddr; /* addr that we were on when we started the "tracei" command */
   int bpload;
   int bpload_bp;
   int int21_count;

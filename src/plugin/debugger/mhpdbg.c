@@ -337,7 +337,7 @@ static void mhp_pre_vm86(void)
   if (!mhpdbg.active)
     return;
   if ((!in_dpmi_pm() && isset_TF()) || (in_dpmi_pm() && dpmi_mhp_issetTF())) {
-    if (mhpdbgc.trapip != mhp_getinsaddr()) {
+    if (mhpdbgc.trapaddr != mhp_getinsaddr()) {
       mhpdbgc.trapcmd = 0;
       mhpdbgc.stopped = 1;
       mhp_poll();
@@ -527,7 +527,7 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
       if (DBG_ARG(mhpdbgc.currcode) == 1 && mhpdbgc.trapcmd) { /* single step */
         switch (mhpdbgc.trapcmd) {
           case 2: /* t command -- step until IP changes */
-            if (mhpdbgc.trapip == mhp_getinsaddr())
+            if (mhpdbgc.trapaddr == mhp_getinsaddr())
               break;
             /* no break */
           case 1: /* ti command */

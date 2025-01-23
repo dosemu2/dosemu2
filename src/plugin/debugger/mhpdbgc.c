@@ -736,7 +736,7 @@ static void mhp_go(int argc, char *argv[])
       dpmi_mhp_setTF(1);
       set_TF();
       mhpdbgc.trapcmd = 2;
-      mhpdbgc.trapip = csip;
+      mhpdbgc.trapaddr = csip;
       trapped_bp = -1;
       return;
     }
@@ -817,7 +817,7 @@ static void mhp_trace(int argc, char *argv[])
     mhpdbgc.trapcmd = 2;
   }
 
-  mhpdbgc.trapip = mhp_getinsaddr();
+  mhpdbgc.trapaddr = mhp_getinsaddr();
 
   if (!in_dpmi_pm()) { // real mode
     unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
@@ -843,7 +843,7 @@ static void mhp_trace(int argc, char *argv[])
         break;
       case 0xcd:  // int
         if (mhpdbgc.trapcmd != 1) { // plain 't'
-          if (mhp_oneshot_bp_set(mhpdbgc.trapip + 2)) {
+          if (mhp_oneshot_bp_set(mhpdbgc.trapaddr + 2)) {
             mhpdbgc.stopped = 1;
             mhp_cmd("g");
           }
@@ -866,12 +866,12 @@ static void mhp_trace(int argc, char *argv[])
         break;
     }
   } else { // protected mode
-    unsigned char ins = READ_BYTE(mhpdbgc.trapip);
+    unsigned char ins = READ_BYTE(mhpdbgc.trapaddr);
     switch (ins) {
       case 0xcd:  // int
         // mhp_printf("interrupt found in PM\n");
         if (mhpdbgc.trapcmd != 1) { // plain 't'
-          if (mhp_oneshot_bp_set(mhpdbgc.trapip + 2)) {
+          if (mhp_oneshot_bp_set(mhpdbgc.trapaddr + 2)) {
             mhpdbgc.stopped = 1;
             mhp_cmd("g");
           }
