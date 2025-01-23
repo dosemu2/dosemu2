@@ -88,7 +88,8 @@ static int control_1_svc(GError **error)
     int ret;
 
     recv_state(&scp);
-    ret = dnops->control(&scp);
+    ret = dnops->control(&scp, rpc_control_struct->data,
+        &rpc_control_struct->size);
     send_state(&scp);
     return ret;
 }
@@ -96,12 +97,11 @@ static int control_1_svc(GError **error)
 static int exit_1_svc(GError **error)
 {
     cpuctx_t scp;
-    int ret;
 
     recv_state(&scp);
-    ret = dnops->exit(&scp);
+    dnops->exit(&scp);
     send_state(&scp);
-    return ret;
+    return 0;
 }
 
 static int read_ldt_1_svc(int bytecount, GError **error)

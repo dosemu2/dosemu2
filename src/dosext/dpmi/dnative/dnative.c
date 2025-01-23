@@ -114,7 +114,9 @@ static int handle_pf(cpuctx_t *scp)
 
 int native_dpmi_control(cpuctx_t *scp)
 {
-    int ret = dnops->control(scp);
+    char buf[PAGE_SIZE];
+    int size;
+    int ret = dnops->control(scp, buf, &size);
     if (ret == DPMI_RET_FAULT && _trapno == 0x0e)
         ret = handle_pf(scp);
     return ret;
@@ -122,7 +124,9 @@ int native_dpmi_control(cpuctx_t *scp)
 
 int native_dpmi_exit(cpuctx_t *scp)
 {
-    return dnops->exit(scp);
+    int size;
+    dnops->exit(scp);
+    return dnops->control(scp, NULL, &size);
 }
 
 int native_read_ldt(void *ptr, int bytecount)

@@ -13,8 +13,8 @@ int native_debug_breakpoint(int op, cpuctx_t *scp, int err);
 struct dnative_ops {
   int (*setup)(void);
   void (*done)(void);
-  int (*control)(cpuctx_t *scp);
-  int (*exit)(cpuctx_t *scp);
+  int (*control)(cpuctx_t *scp, char *storage, int *r_size);
+  void (*exit)(cpuctx_t *scp);
   int (*read_ldt)(void *ptr, int bytecount);
   int (*write_ldt)(void *ptr, int bytecount);
   int (*check_verr)(unsigned short selector);

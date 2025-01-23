@@ -33,7 +33,7 @@
 static SearpcClient *clnt;
 static int sock_tx;
 static int exited;
-void *rpc_shared_page;
+char *rpc_shared_page;
 #define RPC_SHARED_SIZE 0x10000  // 64K for passing LDT buffer
 
 static int remote_mmap(void *addr, size_t length, int prot, int flags,
@@ -154,20 +154,25 @@ static void remote_dpmi_done(void)
     rpc_shared_page = NULL;
 }
 
-static int remote_dpmi_control(cpuctx_t *scp)
+static int remote_dpmi_control(cpuctx_t *scp, char *storage, int *r_size)
 {
     int ret;
     GError *error = NULL;
+    struct rpc_c *c;
     send_state(scp);
     in_rdpmi++;
     ret = searpc_client_call__int(clnt, "control_1", &error, 0);
     in_rdpmi--;
     CHECK_RPC(error);
     recv_state(scp);
+    c = rpc_control_struct;
+    *r_size = c->size;
+    if (c->size)
+        memcpy(storage, c->data, c->size);
     return ret;
 }
 
-static int remote_dpmi_exit(cpuctx_t *scp)
+static int _remote_dpmi_exit(cpuctx_t *scp)
 {
     int ret;
     GError *error = NULL;
@@ -176,6 +181,11 @@ static int remote_dpmi_exit(cpuctx_t *scp)
     CHECK_RPC(error);
     recv_state(scp);
     return ret;
+}
+
+static void remote_dpmi_exit(cpuctx_t *scp)
+{
+    _remote_dpmi_exit(scp);
 }
 
 static int remote_read_ldt(void *ptr, int bytecount)

@@ -48,6 +48,7 @@ static int in_dpmi_thr;
 static int dpmi_thr_running;
 static cpuctx_t *dpmi_scp;
 static uint8_t _ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
+static char *xstorage;
 
 static void copy_context(sigcontext_t *d, sigcontext_t *s)
 {
@@ -178,11 +179,13 @@ static void dpmi_thr(void *arg);
  * DANG_END_FUNCTION
  */
 
-static int _control(cpuctx_t *scp)
+static int _control(cpuctx_t *scp, char *storage, int *r_size)
 {
     unsigned saved_IF = (_eflags & IF);
 
     dpmi_scp = scp;
+    xstorage = storage;
+    *r_size = 0;
 
     _eflags = get_EFLAGS(_eflags);
     if (in_dpmi_thr) {
@@ -206,17 +209,11 @@ static int _control(cpuctx_t *scp)
     return dpmi_ret_val;
 }
 
-static int _dpmi_exit(cpuctx_t *scp)
+static void _dpmi_exit(cpuctx_t *scp)
 {
-    int ret;
-    if (!in_dpmi_thr)
-        return DPMI_RET_DOSEMU;
+    assert(in_dpmi_thr);
     D_printf("DPMI: leaving\n");
     dpmi_ret_val = DPMI_RET_EXIT;
-    ret = _control(scp);
-    if (in_dpmi_thr)
-        error("DPMI thread have not terminated properly\n");
-    return ret;
 }
 
 void dpmi_return(sigcontext_t *scp, int retcode)
