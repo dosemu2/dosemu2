@@ -29,6 +29,13 @@
 #endif
 
 const struct dnative_ops *dnops;
+struct cpio_tmp {
+    int base;
+    int size;
+};
+#define CPIO_MAX 50
+static struct cpio_tmp cptmp[CPIO_MAX];
+static int num_cptmp;
 
 static void check_ldt(void)
 {
@@ -60,7 +67,7 @@ static void check_ldt(void)
 
 int native_dpmi_setup(void)
 {
-    int ret;
+    int ret, i;
 
 #ifdef SEARPC_SUPPORT
     if (!dnops && config.dpmi_remote)
@@ -80,6 +87,12 @@ int native_dpmi_setup(void)
         return ret;
     }
     check_ldt();
+
+    for (i = 0; i < num_cptmp; i++) {
+        struct cpio_tmp *ct = &cptmp[i];
+        dnops->set_cpio(ct->base, ct->size);
+    }
+    num_cptmp = 0;
     return ret;
 }
 
@@ -88,6 +101,15 @@ void native_dpmi_done(void)
     if (!dnops)
         return;
     dnops->done();
+}
+
+void native_dpmi_set_cpio(int base, int size)
+{
+    struct cpio_tmp *ct;
+    assert(num_cptmp < CPIO_MAX);
+    ct = &cptmp[num_cptmp++];
+    ct->base = base;
+    ct->size = size;
 }
 
 static int handle_pf(cpuctx_t *scp)

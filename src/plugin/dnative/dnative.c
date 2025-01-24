@@ -167,6 +167,11 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
   }
 }
 
+static void _set_cpio(int base, int size)
+{
+  //TODO
+}
+
 static void dpmi_thr(void *arg);
 
 /* ======================================================================== */
@@ -620,6 +625,7 @@ static const struct dnative_ops ops = {
   .exit = _dpmi_exit,
   .setup = _setup,
   .done = _done,
+  .set_cpio = _set_cpio,
   .read_ldt = _read_ldt,
   .write_ldt = _write_ldt,
   .check_verr = _check_verr,

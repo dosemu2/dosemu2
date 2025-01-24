@@ -154,6 +154,23 @@ static void remote_dpmi_done(void)
     rpc_shared_page = NULL;
 }
 
+static int _remote_dpmi_set_cpio(int base, int size)
+{
+    int ret;
+    GError *error = NULL;
+    ret = searpc_client_call__int(clnt, "set_cpio_1",
+                                  &error, 2,
+                                  "int", base,
+                                  "int", size);
+    CHECK_RPC(error);
+    return ret;
+}
+
+static void remote_dpmi_set_cpio(int base, int size)
+{
+    _remote_dpmi_set_cpio(base, size);
+}
+
 static int remote_dpmi_control(cpuctx_t *scp, char *storage, int *r_size)
 {
     int ret;
@@ -240,6 +257,7 @@ static int remote_debug_breakpoint(int op, cpuctx_t *scp, int err)
 static const struct dnative_ops ops = {
     remote_dpmi_setup,
     remote_dpmi_done,
+    remote_dpmi_set_cpio,
     remote_dpmi_control,
     remote_dpmi_exit,
     remote_read_ldt,
