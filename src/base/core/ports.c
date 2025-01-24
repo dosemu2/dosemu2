@@ -561,7 +561,7 @@ void pci_port_outd(ioport_t port, Bit32u dword)
 
 int port_rep_inb(ioport_t port, Bit8u *base, int df, Bit32u count)
 {
-	register int incr = df? -1: 1;
+	int incr = df? -1: 1;
 	Bit8u *dest = base;
 	int count_ = count;
 
@@ -584,7 +584,7 @@ int port_rep_inb(ioport_t port, Bit8u *base, int df, Bit32u count)
 
 int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
 {
-	register int incr = df? -1: 1;
+	int incr = df? -1: 1;
 	Bit8u *dest = base;
 	int count_ = count;
 
@@ -607,7 +607,7 @@ int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
 
 int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
 {
-	register int incr = df? -1: 1;
+	int incr = df? -1: 1;
 	Bit16u *dest = base;
 	int count_ = count;
 
@@ -640,7 +640,7 @@ int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
 
 int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 {
-	register int incr = df? -1: 1;
+	int incr = df? -1: 1;
 	Bit16u *dest = base;
 	int count_ = count;
 
@@ -673,7 +673,7 @@ int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 
 int port_rep_ind(ioport_t port, Bit32u *base, int df, Bit32u count)
 {
-	register int incr = df? -1: 1;
+	int incr = df? -1: 1;
 	Bit32u *dest = base;
 
 	if (count==0) return 0;
@@ -687,7 +687,7 @@ int port_rep_ind(ioport_t port, Bit32u *base, int df, Bit32u count)
 
 int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
 {
-	register int incr = df? -1: 1;
+	int incr = df? -1: 1;
 	Bit32u *dest = base;
 
 	if (count==0) return 0;
