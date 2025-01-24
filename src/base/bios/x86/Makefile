@@ -4,6 +4,8 @@ include $(top_builddir)/Makefile.conf
 GENSRC = bios_symbols.c
 SFILES = bios.S
 bios_S_START = 0xe000
+bios_ADDR = 0x000f0000  # i.e seg 0xf000 << 4
+
 ALL_CPPFLAGS += -DBIOS_START=$(bios_S_START)
 
 all: lib
@@ -28,10 +30,10 @@ bios_symbols.c: bios1.o
 		}\
 		{\
 		  HEXSTR = sprintf("0x%s", $$1);\
-		  ADDR = strtonum(HEXSTR) + $(bios_S_START);\
-		  if (ADDR <= 0xffff) {\
+		  ADDR = $(bios_ADDR) + strtonum(HEXSTR) + $(bios_S_START);\
+		  if (ADDR <= 0xfffff) {\
 		    COUNT++;\
-		    printf "  { 0x%04x, \"%s\" },\n", ADDR, $$3;\
+		    printf "  { 0x%08x, \"%s\" },\n", ADDR, $$3;\
 		  }\
 		}\
 		END {\

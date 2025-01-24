@@ -251,17 +251,12 @@ static char *getsym_from_dos_linear(unsigned int addr)
   return NULL;
 }
 
-static const char *getsym_from_bios(unsigned int seg, unsigned int off)
+static const char *getsym_from_bios(dosaddr_t addr)
 {
-  dosaddr_t addr = SEGOFF2LINEAR(seg, off);
   int i;
 
-  /* note only works correctly if BIOSSEG is the normalised value */
-  if ((addr & 0xffff0000) >> 4 != BIOSSEG)
-    return NULL;
-
   for (i = 0; i < bios_symbol_num; i++) {
-    if (SEGOFF2LINEAR(BIOSSEG, bios_symbol[i].off) == addr)
+    if (bios_symbol[i].addr == addr)
       return bios_symbol[i].name;
   }
 
@@ -297,7 +292,7 @@ static unsigned int getaddr_from_bios_sym(char *n1, unsigned int *v1, unsigned i
   for (i = 0; i < bios_symbol_num; i++) {
     if (!strcmp(bios_symbol[i].name, n1)) {
       *s1 = BIOSSEG;
-      *o1 = bios_symbol[i].off;
+      *o1 = bios_symbol[i].addr & 0xffff;
       *v1 = makeaddr(*s1, *o1);
       return 1;
     }
@@ -1154,7 +1149,7 @@ static void mhp_ivec(int argc, char *argv[])
       }
 
       // Display any symbol we have for that address
-      if ((s = getsym_from_bios(sseg, soff)) ||
+      if ((s = getsym_from_bios(SEGOFF2LINEAR(sseg, soff))) ||
           (s = getsym_from_dos_segofs(sseg, soff)))
         mhp_printf("(%s)\n", s);
       else
@@ -1175,7 +1170,7 @@ static void mhp_ivec(int argc, char *argv[])
               (s = get_mcb_name_walk_chain(sseg, soff))) {
             mhp_printf("[%s]", s);
           }
-          if ((s = getsym_from_bios(sseg, soff)) ||
+          if ((s = getsym_from_bios(SEGOFF2LINEAR(sseg, soff))) ||
               (s = getsym_from_dos_segofs(sseg, soff)))
             mhp_printf("(%s)\n", s);
           else
@@ -1670,7 +1665,8 @@ static void mhp_disasm(int argc, char *argv[])
 
   for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
     if (!(def_size & 4) && segmented) {
-      if ((s = getsym_from_bios(seg, off + bytesdone)) || (s = getsym_from_dos_segofs(seg, off + bytesdone)))
+      if ((s = getsym_from_bios(SEGOFF2LINEAR(seg, off + bytesdone))) ||
+          (s = getsym_from_dos_segofs(seg, off + bytesdone)))
         mhp_printf("%s:\n", s);
     }
     if (IN_DPMI && !dpmi_is_valid_range(GetSegmentBase(seg) + off + bytesdone, 10))

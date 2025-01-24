@@ -1,8 +1,10 @@
 #ifndef BIOS_SYM_H
 #define BIOS_SYM_H
 
+#include "memory.h"
+
 struct bios_symbol_entry {
-  unsigned short off;
+  dosaddr_t addr;
   const char *name;
 };
 extern struct bios_symbol_entry bios_symbol[];
