@@ -33,6 +33,7 @@
 #include "cpu.h"
 #include "dosemu_debug.h"
 #include "utilities.h"
+#include "bitops.h"
 #include "emudpmi.h"
 #include "dnative.h"
 #include "dnpriv.h"
@@ -49,6 +50,7 @@ static int dpmi_thr_running;
 static cpuctx_t *dpmi_scp;
 static uint8_t _ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 static char *xstorage;
+static uint8_t cpio_bm[65536 / 8];
 
 static void copy_context(sigcontext_t *d, sigcontext_t *s)
 {
@@ -169,7 +171,11 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
 
 static void _set_cpio(int base, int size)
 {
-  //TODO
+  int i;
+
+  assert(base + size <= 65536);
+  for (i = base; i < base + size; i++)
+    set_bit(i, cpio_bm);
 }
 
 static void dpmi_thr(void *arg);
@@ -257,31 +263,57 @@ void dpmi_switch_sa(int sig, siginfo_t * inf, void *uc)
 }
 
 #if USE_CPIO
-static void port_outb(ioport_t port, Bit8u byte)
+__attribute__((warn_unused_result))
+static int port_outb(ioport_t port, Bit8u byte)
 {
+    if (!test_bit(port, cpio_bm))
+	return -1;
   //TODO
+    return 0;
 }
 
-static void port_outw(ioport_t port, Bit16u word)
+__attribute__((warn_unused_result))
+static int port_outw(ioport_t port, Bit16u word)
 {
+    int i;
+
+    for (i = port; i < port + sizeof(word); i++) {
+	if (!test_bit(i, cpio_bm))
+	    return -1;
+    }
   //TODO
+    return 0;
 }
 
-static void port_outd(ioport_t port, Bit32u dword)
+__attribute__((warn_unused_result))
+static int port_outd(ioport_t port, Bit32u dword)
 {
+    int i;
+
+    for (i = port; i < port + sizeof(dword); i++) {
+	if (!test_bit(i, cpio_bm))
+	    return -1;
+    }
   //TODO
+    return 0;
 }
 
 static int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
 {
-	register int incr = df? -1: 1;
+	int i;
+	int incr = df? -1: 1;
 	Bit8u *dest = base;
 
 	if (count==0) return 0;
+	for (i = port; i < port + count; i++) {
+	    if (!test_bit(i, cpio_bm))
+		return -1;
+	}
 	i_printf("Doing REP outsb(%#x) %d bytes at %p, DF %d\n", port,
 		count, base, df);
 	while (count--) {
-	    port_outb(port, *dest);
+	    int rc = port_outb(port, *dest);
+	    assert(rc != -1);
 	    dest += incr;
 	}
 	return dest-base;
@@ -289,14 +321,20 @@ static int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
 
 static int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 {
-	register int incr = df? -1: 1;
+	int i;
+	int incr = df? -1: 1;
 	Bit16u *dest = base;
 
 	if (count==0) return 0;
+	for (i = port; i < port + count; i++) {
+	    if (!test_bit(i, cpio_bm))
+		return -1;
+	}
 	i_printf("Doing REP outsw(%#x) %d words at %p, DF %d\n", port,
 		count, base, df);
 	while (count--) {
-	    port_outw(port, *dest);
+	    int rc = port_outw(port, *dest);
+	    assert(rc != -1);
 	    dest += incr;
 	}
 	return (Bit8u *)dest-(Bit8u *)base;
@@ -304,13 +342,19 @@ static int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 
 static int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
 {
-	register int incr = df? -1: 1;
+	int i;
+	int incr = df? -1: 1;
 	Bit32u *dest = base;
 
 	if (count==0) return 0;
+	for (i = port; i < port + count; i++) {
+	    if (!test_bit(i, cpio_bm))
+		return -1;
+	}
 	while (count--) {
-	  port_outd(port, *dest);
-	  dest += incr;
+	    int rc = port_outd(port, *dest);
+	    assert(rc != -1);
+	    dest += incr;
 	}
 	return (Bit8u *)dest-(Bit8u *)base;
 }
@@ -381,12 +425,19 @@ int dpmi_fault(sigcontext_t *scp)
         D_printf("DPMI: outsb\n");
       if (pref_seg < 0) pref_seg = _scp_ds;
       /* WARNING: no test for (E)SI wrapping! */
-      if (ASIZE_IS_32)		/* a32 outsb */
-	_scp_esi += port_rep_outb(_scp_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_scp_esi),
+      if (ASIZE_IS_32) {		/* a32 outsb */
+	int rc = port_rep_outb(_scp_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_scp_esi),
 	        _scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
-      else			/* a16 outsb */
-	_scp_LWORD(esi) += port_rep_outb(_scp_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_scp_LWORD(esi)),
+	if (rc == -1)
+	  break;
+	_scp_esi += rc;
+      } else {			/* a16 outsb */
+	int rc = port_rep_outb(_scp_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_scp_LWORD(esi)),
 	        _scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+	if (rc == -1)
+	  break;
+	_scp_LWORD(esi) += rc;
+      }
       if (is_rep) set_LWECX(0);
       LWORD32(eip,++);
       ret = DPMI_RET_CLIENT;
@@ -398,56 +449,86 @@ int dpmi_fault(sigcontext_t *scp)
       if (pref_seg < 0) pref_seg = _scp_ds;
       /* WARNING: no test for (E)SI wrapping! */
       if (OSIZE_IS_32) {	/* outsd */
-        if (ASIZE_IS_32)	/* a32 outsd */
-	  _scp_esi += port_rep_outd(_scp_LWORD(edx), (Bit32u *)SEL_ADR(pref_seg,_scp_esi),
+        if (ASIZE_IS_32) {	/* a32 outsd */
+	  int rc = port_rep_outd(_scp_LWORD(edx), (Bit32u *)SEL_ADR(pref_seg,_scp_esi),
 		_scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
-        else			/* a16 outsd */
-	  _scp_LWORD(esi) += port_rep_outd(_scp_LWORD(edx), (Bit32u *)SEL_ADR(pref_seg,_scp_LWORD(esi)),
+	  if (rc == -1)
+	    break;
+	  _scp_esi += rc;
+        } else {			/* a16 outsd */
+	  int rc = port_rep_outd(_scp_LWORD(edx), (Bit32u *)SEL_ADR(pref_seg,_scp_LWORD(esi)),
 		_scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+	  if (rc == -1)
+	    break;
+	  _scp_LWORD(esi) += rc;
+	}
       }
       else {			/* outsw */
-        if (ASIZE_IS_32)	/* a32 outsw */
-	  _scp_esi += port_rep_outw(_scp_LWORD(edx), (Bit16u *)SEL_ADR(pref_seg,_scp_esi),
+        if (ASIZE_IS_32) {	/* a32 outsw */
+	  int rc = port_rep_outw(_scp_LWORD(edx), (Bit16u *)SEL_ADR(pref_seg,_scp_esi),
 		_scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
-        else			/* a16 outsw */
-	  _scp_LWORD(esi) += port_rep_outw(_scp_LWORD(edx), (Bit16u *)SEL_ADR(pref_seg,_scp_LWORD(esi)),
+	  if (rc == -1)
+	    break;
+	  _scp_esi += rc;
+        } else {			/* a16 outsw */
+	  int rc = port_rep_outw(_scp_LWORD(edx), (Bit16u *)SEL_ADR(pref_seg,_scp_LWORD(esi)),
 		_scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+	  if (rc == -1)
+	    break;
+	  _scp_LWORD(esi) += rc;
+	}
       }
       if (is_rep) set_LWECX(0);
       LWORD32(eip,++);
       ret = DPMI_RET_CLIENT;
       break;
 
-    case 0xe7:			/* outw xx */
+    case 0xe7: {			/* outw xx */
+      int rc;
       if (debug_level('M')>=9)
         D_printf("DPMI: out%s xx\n", OSIZE_IS_32 ? "d" : "w");
-      if (OSIZE_IS_32) port_outd((int)csp[0], _scp_eax);
-      else port_outw((int)csp[0], _scp_LWORD(eax));
+      if (OSIZE_IS_32) rc = port_outd((int)csp[0], _scp_eax);
+      else rc = port_outw((int)csp[0], _scp_LWORD(eax));
+      if (rc == -1)
+        break;
       LWORD32(eip, += 2);
       ret = DPMI_RET_CLIENT;
       break;
-    case 0xe6:			/* outb xx */
+    }
+    case 0xe6: {			/* outb xx */
+      int rc;
       if (debug_level('M')>=9)
         D_printf("DPMI: outb xx\n");
-      port_outb((int) csp[0], _scp_LO(ax));
+      rc = port_outb((int) csp[0], _scp_LO(ax));
+      if (rc == -1)
+        break;
       LWORD32(eip, += 2);
       ret = DPMI_RET_CLIENT;
       break;
-    case 0xef:			/* outw dx */
+    }
+    case 0xef: {			/* outw dx */
+      int rc;
       if (debug_level('M')>=9)
         D_printf("DPMI: out%s dx\n", OSIZE_IS_32 ? "d" : "w");
-      if (OSIZE_IS_32) port_outd(_scp_LWORD(edx), _scp_eax);
-      else port_outw(_scp_LWORD(edx), _scp_LWORD(eax));
+      if (OSIZE_IS_32) rc = port_outd(_scp_LWORD(edx), _scp_eax);
+      else rc = port_outw(_scp_LWORD(edx), _scp_LWORD(eax));
+      if (rc == -1)
+        break;
       LWORD32(eip, += 1);
       ret = DPMI_RET_CLIENT;
       break;
-    case 0xee:			/* outb dx */
+    }
+    case 0xee: {			/* outb dx */
+      int rc;
       if (debug_level('M')>=9)
         D_printf("DPMI: outb dx\n");
-      port_outb(_scp_LWORD(edx), _scp_LO(ax));
+      rc = port_outb(_scp_LWORD(edx), _scp_LO(ax));
+      if (rc == -1)
+        break;
       LWORD32(eip, += 1);
       ret = DPMI_RET_CLIENT;
       break;
+    }
     default:
       _scp_eip = org_eip;
       break;
