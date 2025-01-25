@@ -20,6 +20,7 @@
 #include "vgaemu.h"
 #include "emu.h"
 #include "cpu-emu.h"
+#include "port.h"
 #include "emudpmi.h"
 #include "dnative.h"
 /* optimize direct LDT writes */
@@ -136,9 +137,25 @@ static int handle_pf(cpuctx_t *scp)
 
 int native_dpmi_control(cpuctx_t *scp)
 {
-    char buf[PAGE_SIZE];
+    char buf[MAX_CPIO * sizeof(struct cpio_ent) + sizeof(struct cpio_s)];
     int size;
-    int ret = dnops->control(scp, buf, &size);
+    int ret;
+
+    static_assert(sizeof(buf) >= sizeof(struct cpio_s) +
+            sizeof(struct cpio_ent) + MAX_CPIO, "bad buffer size");
+    ret = dnops->control(scp, buf, &size);
+    if (size) {
+        int i;
+        struct cpio_s *cp = (struct cpio_s *)buf;
+        for (i = 0; i < cp->num; i++) {
+            struct cpio_ent *ce = &cp->ent[i];
+            switch(ce->size) {
+            case 1: port_outb(ce->base, ce->value); break;
+            case 2: port_outw(ce->base, ce->value); break;
+            case 4: port_outd(ce->base, ce->value); break;
+            }
+        }
+    }
     if (ret == DPMI_RET_FAULT && _trapno == 0x0e)
         ret = handle_pf(scp);
     return ret;

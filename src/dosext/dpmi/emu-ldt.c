@@ -49,17 +49,14 @@ static int emu_read_ldt(char *ptr, unsigned long bytecount)
 	(info)->seg_not_present == 1	&& \
 	(info)->useable		== 0	)
 
-static int emu_update_LDT(struct user_desc *ldt_info)
+int emu_update_LDT(const struct user_desc *ldt_info, uint8_t *buffer)
 {
 	static const char *xftab[] = { "D16","D32","C16","C32" };
 	Descriptor *lp;
 	int bSelType;
 
-	/* invalidate segment base cache in cpuemu */
-	InvalidateSegs();
-
 	/* Install the new entry ...  */
-	lp = &((Descriptor *)dpmi_get_ldt_buffer())[ldt_info->entry_number];
+	lp = (Descriptor *)buffer;
 
 	/* Allow LDTs to be cleared by the user. */
 	if (ldt_info->base_addr == 0 && ldt_info->limit == 0) {
@@ -111,6 +108,9 @@ static int emu_write_ldt(void *ptr, unsigned long bytecount)
 	int error;
 	struct user_desc ldt_info;
 
+	/* invalidate segment base cache in cpuemu */
+	InvalidateSegs();
+
 	error = -EINVAL;
 	if (bytecount != sizeof(ldt_info)) {
 		dbug_printf("EMU86: write_ldt: bytecount=%ld\n",bytecount);
@@ -129,7 +129,7 @@ static int emu_write_ldt(void *ptr, unsigned long bytecount)
 			goto out;
 		}
 	}
-	error = emu_update_LDT(&ldt_info);
+	error = emu_update_LDT(&ldt_info, (uint8_t *)&((Descriptor *)dpmi_get_ldt_buffer())[ldt_info.entry_number]);
 out:
 	return error;
 }

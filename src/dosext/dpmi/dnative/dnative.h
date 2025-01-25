@@ -27,4 +27,16 @@ int register_dnative_ops(const struct dnative_ops *ops);
 
 extern const struct dnative_ops *dnops;
 
+struct cpio_ent {
+  int base;
+  int size;
+  unsigned value;
+};
+
+#define MAX_CPIO 4000
+struct cpio_s {
+  int num;
+  struct cpio_ent ent[0];
+};
+
 #endif

@@ -117,6 +117,7 @@ typedef struct {
 } Task;
 
 int emu_modify_ldt(int func, void *ptr, unsigned long bytecount);
+int emu_update_LDT(const struct user_desc *ldt_info, uint8_t *buffer);
 unsigned short GetSelectorXfer(unsigned short w);
 
 #endif
