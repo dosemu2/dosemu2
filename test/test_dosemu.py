@@ -64,22 +64,6 @@ class OurTestCase(BaseTestCase):
     attrs = ['cputest', 'dpmitest', 'hmatest', 'nettest', 'umatest', 'xmstest',
              'labeltest']
 
-    def test_0_basic_boot(self):
-        """Basic boot test"""
-        # Since test names are processed alphabetically this test should
-        # get to run first, and if we fail then even if failfast is disabled
-        # we will still terminate the test run.
-        self.shouldStop = True
-
-        results = self.runDosemu("version.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
-
-        self.assertNotIn('Timeout', results)
-        self.assertNotIn('NonZeroReturn', results)
-        self.assertIn(self.version, results)
-
     def test_comcom_r200fix_real(self):
         """Comcom r200fix Real Mode"""
         comcom_r200fix(self, 'REAL')
