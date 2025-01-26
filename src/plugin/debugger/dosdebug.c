@@ -39,11 +39,12 @@
 
 int kill_timeout=FOREVER;
 
-const char *prompt = "dosdebug> ";
+const char *prompt_readline = "dosdebug> ";
 
 int fdconin, fddbgin, fddbgout;
 FILE *fpconout;
 static int running;
+static int use_readline;
 
 static int find_dosemu_pid(const char *tmpfile, int local)
 {
@@ -345,7 +346,8 @@ static void handle_console_input(char *line)
   /* Update or use history */
   if (*line) {
 #ifdef HAVE_LIBREADLINE
-    add_history(line);
+    if (use_readline)
+      add_history(line);
 #endif
     snprintf(last_line, sizeof(last_line), "%s", line);
     if ((strncmp(last_line, "d ", 2) == 0) ||
@@ -393,27 +395,32 @@ static int handle_dbg_input(int *retval)
       return 0;
     }
 
+    if (use_readline) {
 #ifdef HAVE_LIBREADLINE
-    char *saved_line;
-    int saved_point;
-    saved_point = rl_point;
-    saved_line = rl_copy_text(0, rl_end);
-    rl_set_prompt("");
-    rl_replace_line("", 0);
-    rl_redisplay();
-#endif
+      char *saved_line;
+      int saved_point;
 
-    fwrite(buf, 1, n, fpconout);
-    fputs("\n", fpconout);
-    fflush(fpconout);
+      saved_point = rl_point;
+      saved_line = rl_copy_text(0, rl_end);
+      rl_set_prompt("");
+      rl_replace_line("", 0);
+      rl_redisplay();
 
-#ifdef HAVE_LIBREADLINE
-    rl_set_prompt(prompt);
-    rl_replace_line(saved_line, 0);
-    rl_point = saved_point;
-    rl_redisplay();
-    free(saved_line);
+      fwrite(buf, 1, n, fpconout);
+      fputs("\n", fpconout);
+      fflush(fpconout);
+
+      rl_set_prompt(prompt_readline);
+      rl_replace_line(saved_line, 0);
+      rl_point = saved_point;
+      rl_redisplay();
+      free(saved_line);
 #endif
+    } else {
+      fwrite(buf, 1, n, fpconout);
+      fputs("\n", fpconout);
+      fflush(fpconout);
+    }
   }
 
   if (n == 0) {
@@ -440,6 +447,13 @@ int main (int argc, char **argv)
     perror("XDG_RUNTIME_DIR unset or empty");
     exit(1);
   }
+
+#ifdef HAVE_LIBREADLINE
+  const char *qp = getenv("READLINE_DISABLE");
+  use_readline = ! (qp && qp[0] == '1' && qp[1] == '\0');
+#else
+  use_readline = 0;
+#endif
 
   FD_ZERO(&readfds);
 
@@ -474,22 +488,24 @@ int main (int argc, char **argv)
     exit(1);
   }
 
+  if (use_readline) {
 #ifdef HAVE_LIBREADLINE
-  /* So that we can use conditional ~/.inputrc commands */
-  rl_readline_name = "dosdebug";
+    /* So that we can use conditional ~/.inputrc commands */
+    rl_readline_name = "dosdebug";
 
-  /* Install the readline completion function */
-  rl_attempted_completion_function = db_completion;
+    /* Install the readline completion function */
+    rl_attempted_completion_function = db_completion;
 
-  /* Install the readline handler. */
-  rl_callback_handler_install(prompt, rl_console_callback);
+    /* Install the readline handler. */
+    rl_callback_handler_install(prompt_readline, rl_console_callback);
 
-  fdconin = fileno(rl_instream);
-  fpconout = rl_outstream;
-#else
-  fdconin = STDIN_FILENO;
-  fpconout = stdout;
+    fdconin = fileno(rl_instream);
+    fpconout = rl_outstream;
 #endif
+  } else {
+    fdconin = STDIN_FILENO;
+    fpconout = stdout;
+  }
 
   write(fddbgout,"r0\n",3);
 
@@ -506,29 +522,30 @@ int main (int argc, char **argv)
                    NULL /*no exceptfds*/, &timeout);
     if (numfds > 0) {
       if (FD_ISSET(fdconin, &readfds)) {
+        if (use_readline) {
 #ifdef HAVE_LIBREADLINE
-        rl_callback_read_char();
-#else
-        int num;
-        char buf[MHP_BUFFERSIZE], *p;
-
-        num = read(fdconin, buf, sizeof(buf) - 1);
-        if (num < 0)
-          break;
-
-        if (num == 0) {
-          p = NULL;
-        } else {
-          buf[num] = '\0';
-          p = strpbrk(buf, "\r\n");
-          if (p) {
-            *p = '\0';
-            p = buf;
-          }
-        }
-
-        handle_console_input(p);
+          rl_callback_read_char();
 #endif
+        } else {
+          int num;
+          char buf[MHP_BUFFERSIZE], *p;
+
+          num = read(fdconin, buf, sizeof(buf) - 1);
+          if (num < 0)
+            break;
+
+          if (num == 0) {
+            p = NULL;
+          } else {
+            buf[num] = '\0';
+            p = strpbrk(buf, "\r\n");
+            if (p) {
+              *p = '\0';
+              p = buf;
+            }
+          }
+          handle_console_input(p);
+        }
 
         if (!running) {
           /* collect all remaining input */
@@ -572,7 +589,8 @@ int main (int argc, char **argv)
   free(pipename_out);
 
 #ifdef HAVE_LIBREADLINE
-  rl_callback_handler_remove();
+  if (use_readline)
+    rl_callback_handler_remove();
 #endif
   return ret;
 }
