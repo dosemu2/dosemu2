@@ -1272,7 +1272,7 @@ static char *get_selection_string(t_unicode sel_text[], const char *charset)
 		sel_space++;
 	paste_charset = lookup_charset(charset);
 	sel_space *= MB_LEN_MAX;
-	p = s = malloc(sel_space);
+	p = s = malloc(sel_space + 1);
 	init_charset_state(&paste_state, paste_charset);
 
 	while (*u) {
