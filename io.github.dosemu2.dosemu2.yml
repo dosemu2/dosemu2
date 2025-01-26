@@ -179,6 +179,15 @@ modules:
       - cp -r include ${FLATPAK_DEST}
       - cp src/libb64.a ${FLATPAK_DEST}/lib
 
+  - name: install-freedos
+    buildsystem: simple
+    build-commands:
+      - make install prefix=${FLATPAK_DEST}
+    sources:
+      - type: git
+        url: https://github.com/dosemu2/install-freedos.git
+        branch: master
+
   - name: dosemu2
     buildsystem: autotools
     build-options:
