@@ -833,8 +833,6 @@ static int int15(void)
 	}
 	break;
 
-    case 0x41:			/* wait on external event */
-	break;
     case 0x4f:			/* Keyboard intercept */
 	HI(ax) = 0x86;
 	/*k_printf("INT15 0x4f CARRY=%x AX=%x\n", (LWORD(eflags) & CF),LWORD(eax)); */
