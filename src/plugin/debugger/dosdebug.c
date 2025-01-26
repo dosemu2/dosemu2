@@ -22,6 +22,7 @@
 #include <signal.h>
 #include <assert.h>
 #include <sys/ioctl.h>
+#include <poll.h>
 #ifdef HAVE_LIBREADLINE
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -385,64 +386,82 @@ static void handle_console_input(char *line)
   }
 }
 
-/* returns 0: done, 1: more to do */
-static int handle_dbg_input(int *retval)
+/* return 0 on error, 1 if okay */
+static int handle_dbg_input(void)
 {
-  char buf[MHP_BUFFERSIZE];
-  int n;
+  char buf[MHP_BUFFERSIZE], *p;
+  int n, rc;
+  struct pollfd fds;
 
-  *retval = 0;
-  n = read(fddbgin, buf, sizeof(buf));
+  do {
+    n = read(fddbgin, buf, sizeof(buf));
 
-  if (n > 0) {
-    if (memchr(buf, 1, n) != NULL) {
-      fprintf(fpconout, "\nDosemu process ended - quitting\n");
+    if (n == 0 || (n == -1 && errno == EAGAIN)) { // we've read all we can
+      if (running) {
+        if (!use_readline) {
+          fputs("\n", fpconout);
+          fputs(prompt_standard, fpconout);
+        }
+      }
       fflush(fpconout);
-      *retval = 0;
+      return 1;
+
+    } else if (n == -1) { // some fatal error
+      fprintf(fpconout, "\nerror on fddbgin '%s'\n", strerror(errno));
+      fflush(fpconout);
       return 0;
-    }
 
-    if (use_readline) {
+    } else if (n > 0) { // we have bytes to read
+
+      if ((p = memchr(buf, 1, n)) != NULL) {
+        fprintf(fpconout, "\nDosemu process ended - quitting\n");
+        fflush(fpconout);
+        return 0;
+      }
+
+      if (use_readline) {
 #ifdef HAVE_LIBREADLINE
-      char *saved_line;
-      int saved_point;
+        char *saved_line;
+        int saved_point;
 
-      saved_point = rl_point;
-      saved_line = rl_copy_text(0, rl_end);
-      rl_set_prompt("");
-      rl_replace_line("", 0);
-      rl_redisplay();
+        saved_point = rl_point;
+        saved_line = rl_copy_text(0, rl_end);
+        rl_set_prompt("");
+        rl_replace_line("", 0);
+        rl_redisplay();
 
-      fwrite(buf, 1, n, fpconout);
-      fputs("\n", fpconout);
-      fflush(fpconout);
+        fwrite(buf, 1, n, fpconout);
 
-      rl_set_prompt(prompt_readline);
-      rl_replace_line(saved_line, 0);
-      rl_point = saved_point;
-      rl_redisplay();
-      free(saved_line);
+        rl_set_prompt(prompt_readline);
+        rl_replace_line(saved_line, 0);
+        rl_point = saved_point;
+        rl_redisplay();
+        free(saved_line);
 #endif
-    } else {
-      fwrite(buf, 1, n, fpconout);
-      fputs("\n", fpconout);
-      fflush(fpconout);
-    }
-  }
+      } else {
+        fwrite(buf, 1, n, fpconout);
+      }
 
-  if (n == 0) {
-    *retval = 1;
-    return 0;
-  }
-  if (n == -1) {
-    *retval = 1;
-    return 1;
-  }
+      fflush(fpconout);
+      usleep(100000);
+    }
+
+    // Check if the console has data available for reading, we should
+    // service that in case we are in 'tc' and want to interrupt it
+    fds.fd = fdconin;
+    fds.events = POLLIN;
+    rc = poll(&fds, 1, 0); // Non-blocking check
+    if ((rc > 0) && (fds.events & POLLIN)) {
+      fflush(fpconout);
+      return 1;
+    }
+
+  } while (1);
+
   return 1;
 }
 
-
-int main (int argc, char **argv)
+int main(int argc, char **argv)
 {
   fd_set readfds;
   int numfds, dospid, ret;
@@ -556,17 +575,13 @@ int main (int argc, char **argv)
 
         if (!running) {
           /* collect all remaining input */
-          do
-            usleep(100000);
-          while (handle_dbg_input(&ret) && ret == 0);
-          fputs("\n", fpconout);
-          fflush(fpconout);
+          handle_dbg_input();
           break;
         }
       }
 
       if (FD_ISSET(fddbgin, &readfds))
-        if (!handle_dbg_input(&ret))
+        if (!handle_dbg_input())
           break;
 
     } else {
