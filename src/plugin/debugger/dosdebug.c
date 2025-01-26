@@ -40,6 +40,7 @@
 int kill_timeout=FOREVER;
 
 const char *prompt_readline = "dosdebug> ";
+const char *prompt_standard = "dosdebug: ";
 
 int fdconin, fddbgin, fddbgout;
 FILE *fpconout;
@@ -259,12 +260,14 @@ static int db_kill(char *line) {
 static int db_help(char *line) {
   int i;
 
-  fputs("\n", fpconout);
   for (i = 0; cmds[i].name; i++) {
     if (cmds[i].doc)
       fprintf(fpconout, "%-10s %s", cmds[i].name, cmds[i].doc);
   }
 
+  fputs("\n", fpconout);
+  if (!use_readline)
+    fputs(prompt_standard, fpconout);
   fflush(fpconout);
   return 1;  // done
 }

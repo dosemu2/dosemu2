@@ -543,11 +543,13 @@ static void mhp_usermap(int argc, char *argv[])
                    user_symbol[i].type == ABS ? "ABS" : "   ",
                    user_symbol[i].name);
     }
+    mhp_printf("\r");
     return;
   }
 
   if (strcmp(argv[1], "clear") == 0) {
     usermap_clear();
+    mhp_printf("\r");
     return;
   }
 
@@ -743,6 +745,8 @@ static void mhp_go(int argc, char *argv[])
     dpmi_mhp_setTF(0);
     clear_TF();
     mhp_bpset();
+
+    mhp_printf("\r");
   }
 }
 
@@ -1395,8 +1399,6 @@ static void mhp_devs(int argc, char *argv[])
 
     mhp_printf("  Routines: Strategy(%04x:%04x), Interrupt(%04x:%04x)\n",
         FP_SEG16(p), FP_OFF16(dev->strat), FP_SEG16(p), FP_OFF16(dev->intr));
-
-    mhp_printf("\n");
   }
 }
 
@@ -1535,7 +1537,7 @@ static void mhp_dpbs(int argc, char *argv[])
   }
 
 #define DV v4
-  mhp_printf("DPBs (compiled for DOS v4+ format)\n\n");
+  mhp_printf("DPBs (compiled for DOS v4+ format)\n");
 
   for (cnt = 0; p.offset != 0xffff && cnt < 26; p = dpbp->DV.next_DPB, cnt++) {
 
@@ -1545,7 +1547,7 @@ static void mhp_dpbs(int argc, char *argv[])
       return;
     }
 
-    mhp_printf("%04X:%04X (%c:)\n", p.segment, p.offset, 'A' + dpbp->drv_num);
+    mhp_printf("\n%04X:%04X (%c:)\n", p.segment, p.offset, 'A' + dpbp->drv_num);
     mhp_printf("  driver unit: %d\n", dpbp->unit_num);
     mhp_printf("  bytes_per_sect = 0x%x\n", dpbp->bytes_per_sect);
     mhp_printf("  last_sec_in_clust = 0x%x\n", dpbp->last_sec_in_clust);
@@ -1564,8 +1566,6 @@ static void mhp_dpbs(int argc, char *argv[])
     mhp_printf("  next_DPB = %04X:%04X\n", dpbp->DV.next_DPB.segment, dpbp->DV.next_DPB.offset);
     mhp_printf("  first_free_clu = 0x%x\n", dpbp->DV.first_free_clu);
     mhp_printf("  fre_clusts = 0x%x\n", dpbp->DV.fre_clusts);
-
-    mhp_printf("\n");
   }
 }
 
@@ -2027,6 +2027,7 @@ static void mhp_bp(int argc, char *argv[])
   }
 
   mhp_setbp(seekval);
+  mhp_printf("\r");
 }
 
 static void mhp_bl(int argc, char *argv[])
@@ -2092,6 +2093,7 @@ static void mhp_bc(int argc, char *argv[])
 
   mhpdbgc.brktab[num].brkaddr = 0;
   mhpdbgc.brktab[num].is_valid = 0;
+  mhp_printf("\r");
   return;
 }
 
@@ -2120,6 +2122,7 @@ static void mhp_bpint(int argc, char *argv[])
   if (num == 0x21)
     mhpdbgc.int21_count++;
 
+  mhp_printf("\r");
   return;
 }
 
@@ -2150,6 +2153,7 @@ static void mhp_bcint(int argc, char *argv[])
     mhpdbgc.bpload = 0;
   }
 
+  mhp_printf("\r");
   return;
 }
 
@@ -2190,6 +2194,7 @@ static void mhp_bpintd(int argc, char *argv[])
   if (config.cpu_vm_dpmi == CPUVM_KVM)
     kvm_set_idt_default(i1);
 #endif
+  mhp_printf("\r");
 }
 
 static void mhp_bcintd(int argc, char *argv[])
@@ -2229,6 +2234,7 @@ static void mhp_bcintd(int argc, char *argv[])
     dpmi_mhp_intxxtab[i1] = 0;
   }
 #endif
+  mhp_printf("\r");
 }
 
 static void mhp_bpload(int argc, char *argv[])
@@ -2250,6 +2256,8 @@ static void mhp_bpload(int argc, char *argv[])
     }
   }
   mhpdbgc.int21_count++;
+
+  mhp_printf("\r");
   return;
 }
 
@@ -2795,6 +2803,7 @@ static void mhp_bclog(int argc, char *argv[])
 
 static void mhp_reboot(int argc, char *argv[])
 {
+  mhp_printf("\r");
   dos_ctrl_alt_del();
 }
 
@@ -2861,6 +2870,7 @@ static void mhp_hookcbrk(int argc, char *argv[])
   if (argc > 1 && strcmp(argv[1], "off") == 0)
     on = 0;
   do_hookcbrk(on);
+  mhp_printf("\r");
 }
 
 static void c_nothr(int nthr)
