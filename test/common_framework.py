@@ -140,6 +140,7 @@ class BaseTestCase(object):
 
         cls.cmddir = Path(environ.get("TEST_CMDDIR", cls.topdir / "src" / "bindist"))
         cls.dosemu = Path(environ.get("TEST_DOSEMU", cls.topdir / "bin" / "dosemu"))
+        cls.dosdebug = Path(environ.get("TEST_DOSDEBUG", cls.topdir / "bin" / "dosdebug"))
 
         cls.version = "BaseTestCase default"
         cls.prettyname = "NoPrettyNameSet"
