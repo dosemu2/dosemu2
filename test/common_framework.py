@@ -233,6 +233,12 @@ class BaseTestCase(object):
     def setMessage(self, msg):
         self.msg = msg
 
+    def id(self):
+        import __main__ as main
+        pname = Path(main.__file__).stem
+        myid = super(BaseTestCase, self).id().split('.')[-2:]
+        return '%s.%s.%s' % (pname, *myid)
+
 # helpers
 
     def utcnow(self):
@@ -549,7 +555,7 @@ class MyTestResult(unittest.TextTestResult):
         super(MyTestResult, self).startTest(test)
         self.starttime = test.utcnow()
 
-        name = test.id().replace('__main__', test.pname)
+        name = test.id()
         test.logfiles = {
             'log': [test.topdir / str(name + ".log"), "dosemu.log"],
             'xpt': [test.topdir / str(name + ".xpt"), "expect.log"],
