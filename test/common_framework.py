@@ -1,4 +1,5 @@
 import inspect
+import multiprocessing as mp
 import pexpect
 import string
 import random
@@ -7,6 +8,7 @@ import traceback
 import unittest
 
 from datetime import datetime, timezone
+from enum import StrEnum, auto
 from functools import wraps
 from hashlib import sha1
 from os import environ, rename, _exit
@@ -15,11 +17,12 @@ from pathlib import Path
 from platform import system, machine, release
 from ptyprocess import PtyProcessError
 from shutil import copy, rmtree
-from subprocess import (Popen, call, check_call, check_output,
+from subprocess import (Popen, call, check_call, check_output, run,
                         DEVNULL, STDOUT, TimeoutExpired, CalledProcessError)
-from sys import argv, exc_info, exit, stdout, stderr, version_info
+from sys import argv, exit, stdout, stderr, version_info
 from tarfile import open as topen
-from time import sleep
+from tempfile import TemporaryDirectory
+from time import sleep, time
 from unittest.util import strclass
 
 __common_framework = True
@@ -179,8 +182,20 @@ def acceptFailure(func):
         except self.failureException:
             if environ.get("NO_ACCEPTFAILURES", '0') == '1':
                 raise
-            self.skipTest(f"ACCEPTEDFAIL\n")
+            self.skipTest("ACCEPTEDFAIL\n")
     return wrapper
+
+
+class CmdState(StrEnum):
+    WaitAfterStartForTimeout = auto()
+    WaitAfterStartForSentinal = auto()
+    WaitAtPromptForTimeout = auto()
+    WaitAtPromptForSentinal = auto()
+
+
+class EarlyExit(Exception):
+    """Break out of a try block without an error."""
+    pass
 
 
 class BaseTestCase(object):
@@ -215,6 +230,7 @@ class BaseTestCase(object):
 
         cls.cmddir = Path(environ.get("TEST_CMDDIR", cls.topdir / "src" / "bindist"))
         cls.dosemu = Path(environ.get("TEST_DOSEMU", cls.topdir / "bin" / "dosemu"))
+        cls.dosdebug = Path(environ.get("TEST_DOSDEBUG", cls.topdir / "bin" / "dosdebug"))
 
         cls.version = "BaseTestCase default"
         cls.prettyname = "NoPrettyNameSet"
@@ -354,6 +370,10 @@ class BaseTestCase(object):
 
         # Tag the end of autoexec.bat for runDosemu()
         self.mkfile(self.autoexec, "\r\n@echo " + IPROMPT + "\r\n", mode="a")
+
+        # Name the sentinel files
+        self.sentinel_dos_ready = self.imagedir / 'dos-ready.sentinel'
+        self.sentinel_dbg_finished = self.imagedir / 'dbg-finished.sentinel'
 
     def setUpDosAutoexec(self):
         # Use the standard shipped autoexec
@@ -622,6 +642,14 @@ class BaseTestCase(object):
         else:
             return r"c:\share"
 
+    def waitforsentinel(self, sentinel, timeout):
+        start_time = time()
+        while not sentinel.exists():
+            sleep(0.1)  # Always wait at least this
+            if time() - start_time > timeout:
+                return None
+        return time() - start_time
+
     def runDosemu(self, cmd, opts=None, outfile=None, config=DOSEMU_CONF_DEFAULT, timeout=None,
                     eofisok=False, interactions=[]):
         if timeout is None:
@@ -668,9 +696,41 @@ class BaseTestCase(object):
                     raise
 
             try:
+                if cmd == CmdState.WaitAfterStartForTimeout:
+                    sleep(8)  # No better way to confirm we are ready to accept commands if we want to avoid checking the prompt was written by int10
+                    self.sentinel_dos_ready.touch()
+                    sleep(timeout)
+                    ret += f"{cmd}: spent {timeout} seconds after start\n"
+                    raise EarlyExit(f"cmd is {cmd}")
+
+                if cmd == CmdState.WaitAfterStartForSentinal:
+                    sleep(8)
+                    self.sentinel_dos_ready.touch()
+                    if waitedfor := self.waitforsentinel(self.sentinel_dbg_finished, timeout):
+                        ret += f"{cmd}: received sentinel file after {waitedfor} seconds after start\n"
+                    else:
+                        ret += f"{cmd}: spent {timeout} seconds waiting for sentinel file after start\n"
+                    raise EarlyExit(f"cmd is {cmd}")
+
                 prompt = r'(system -e|unix -e|' + IPROMPT + ')'
                 myexpect(child, [prompt + '[\r\n]*'], timeout=40)
                 myexpect(child, ['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
+
+                if cmd == CmdState.WaitAtPromptForTimeout:
+                    self.sentinel_dos_ready.touch()
+                    sleep(timeout)
+                    ret += f"{cmd}: spent {timeout} seconds at the DOS prompt\n"
+                    raise EarlyExit(f"cmd is {cmd}")
+
+                if cmd == CmdState.WaitAtPromptForSentinal:
+                    self.sentinel_dos_ready.touch()
+                    if waitedfor := self.waitforsentinel(self.sentinel_dbg_finished, timeout):
+                        ret += f"{cmd}: received sentinel file after {waitedfor} seconds waiting at the DOS prompt\n"
+                    else:
+                        ret += f"{cmd}: spent {timeout} seconds waiting for sentinel file at the DOS prompt\n"
+                    raise EarlyExit(f"cmd is {cmd}")
+
+                # We just have a plain batchfile name in 'cmd'
                 child.send(cmd + '\n')
                 for resp in interactions:
                     myexpect(child, resp[0])
@@ -693,6 +753,8 @@ class BaseTestCase(object):
                     self.shouldStop = True
             except pexpect.EOF as e:
                 ret = f"EndOfFile: waiting for {e.my['pattern']}\n"
+            except EarlyExit:
+                pass
 
         try:
             child.close(force=True)
@@ -743,6 +805,64 @@ class BaseTestCase(object):
             self.logfiles['xpt'][0].write_text(ret)
 
         return ret
+
+    def runDosemuWithDosdebug(self, doscmd, dbgscr,
+                              dosconfig=DOSEMU_CONF_DEFAULT, dostimeout=None,
+                              dbgtimeout=None):
+
+        def worker_dosdebug():
+            if not (waitedfor := self.waitforsentinel(self.sentinel_dos_ready, 30)):
+                self.sentinel_dbg_finished.touch()  # Tell runDosemu we are done anyway
+                self.fail(f"worker_dosdebug: spent 30 seconds waiting for dos_ready sentinel file\n")
+
+            with TemporaryDirectory() as tmpdir:
+                sfile = Path(tmpdir) / "dosdebug.sh"
+                sfile.write_text(dbgscr)
+                sfile.chmod(0o755)
+
+                output = ''
+                try:
+                    result = run([sfile,], capture_output=True, text=True, timeout=dbgtimeout)
+                    if result.returncode != 0:
+                        output += f"\n--- STDOUT ---\n{result.stdout}"
+                        output += f"\n--- STDERR ---\n{result.stderr}"
+                        output += f"\n--- DBGSCR ---\n{dbgscr}"
+                        self.fail(f"Script failed!\n{output}")
+                    output = result.stdout
+                except TimeoutExpired as e:
+                    # e.stdout and e.stderr contain whatever was captured up to the timeout
+                    output += f"\n--- STDOUT ---\n{e.stdout}"
+                    output += f"\n--- STDERR ---\n{e.stderr}"
+                    output += f"\n--- DBGSCR ---\n{dbgscr}"
+                    self.fail(f"Script timed out!\n{output}")
+                finally:
+                    self.sentinel_dbg_finished.touch()
+
+            self.logfiles['dbl'] = [self.topdir / f'{self.id()}.dbl', "dosdebug.log"]
+            self.logfiles['dbl'][0].write_text(output)
+            return output
+
+        def worker_dosemu(q, *args, **kwargs):
+            dosoutput = self.runDosemu(*args, **kwargs)
+            q.put(dosoutput)
+
+        # Now start the dosemu session in another process
+        q = mp.Queue()
+        p = mp.Process(
+                target=worker_dosemu,
+                args=(q, doscmd),
+                kwargs={"config": dosconfig, "timeout": dostimeout}
+        )
+        p.start()
+
+        # Now start the debugger session in this process
+        dbgoutput = worker_dosdebug()
+
+        # Collect the output from the dosemu session
+        dosoutput = q.get(timeout=120)  # returns as soon as we get one put()'s data
+        p.join()
+
+        return (dosoutput, dbgoutput)
 
     def assertFilesEqual(self, reffile, dosfile):
         """Compare DOS output to reference file"""
