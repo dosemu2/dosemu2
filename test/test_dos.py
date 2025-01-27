@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-import inspect
 import unittest
 
 import re
@@ -11,10 +10,9 @@ from os.path import exists, isdir, join
 from pathlib import Path
 from shutil import copy
 from subprocess import call, check_call, CalledProcessError, run, STDOUT
-from sys import argv, exit, modules
 from time import mktime
 
-from common_framework import (BaseTestCase, get_test_binaries, main, mkstring,
+from common_framework import (BaseTestCase, main, main_setup, mkstring,
                               IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
 from func_cpu_trap_flag import cpu_trap_flag
@@ -5408,75 +5406,5 @@ if __name__ == '__main__':
     libi86_create_items(OurTestCase)
     cpu_create_items(OurTestCase)
 
-    tests = [t[0] for t in
-            inspect.getmembers(OurTestCase, predicate=inspect.isfunction)
-            if t[0].startswith("test")]
-
-    xtests = [t[0] for t in
-            inspect.getmembers(OurTestCase, predicate=inspect.isfunction)
-            if t[0].startswith("xtest")]
-
-    cases = [c[0] for c in
-            inspect.getmembers(modules[__name__], predicate=inspect.isclass)
-            if issubclass(c[1], OurTestCase) and c[0] != "OurTestCase"]
-
-    attrs = sorted(OurTestCase.attrs)
-
-    def explode(n, attr=None):
-        if n in tests:
-            return [c + "." + n for c in cases]
-        if n in xtests:
-            return [c + "." + n for c in cases]
-        if n in cases:
-            if attr:
-                return [n + "." + t[0] for t in
-                    inspect.getmembers(OurTestCase, predicate=inspect.isfunction)
-                    if hasattr(t[1], attr)]
-            else:
-                return [n,]
-        p = n.split('.')
-        if p and p[0] in cases and (p[1] in tests or p[1] in xtests):
-            return [n,]
-        return []
-
-    if len(argv) > 1:
-        if argv[1] == "--help":
-            print(("Usage: %s [--help | --get-test-binaries | " +
-                   "--list-attrs | --list-cases | --list-tests] | " +
-                   "[--require-attr=STRING TestCase ...] | " +
-                   "[TestCase[.testname] ...]") % argv[0])
-            exit(0)
-        elif argv[1] == "--get-test-binaries":
-            get_test_binaries()
-            exit(0)
-        elif argv[1] == "--list-attrs":
-            for a in attrs:
-                print(str(a))
-            exit(0)
-        elif argv[1] == "--list-cases":
-            for m in cases:
-                print(str(m))
-            exit(0)
-        elif argv[1] == "--list-tests":
-            for m in tests:
-                print(str(m))
-            exit(0)
-        else:
-            x = re.match(r"^--require-attr=(\S+).*$", argv[1])
-            if x:
-                attr = x.groups()[0]
-                del argv[1]
-            else:
-                attr = None
-
-            a = []
-            for b in [explode(x, attr=attr) for x in argv[1:]]:
-                a.extend(b)
-
-            if not len(a):
-                print("No tests found, was your testcase or testname incorrect? See --help")
-                exit(1)
-            argv = [argv[0],] + a
-            main(argv)
-
-    main()
+    argv = main_setup(OurTestCase)
+    main(argv)
