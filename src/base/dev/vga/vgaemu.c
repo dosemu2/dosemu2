@@ -1584,9 +1584,9 @@ static void vgaemu_register_ports(void)
 
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) {
     /* exclude SEQ and GFX as they affect memory layout */
-    kvm_set_cpio(CRTC_INDEX_MONO, SEQUENCER_INDEX - CRTC_INDEX_MONO);
-    kvm_set_cpio(DAC_PEL_MASK, GFX_INDEX - DAC_PEL_MASK);
-    kvm_set_cpio(CRTC_INDEX, 0x400 - CRTC_INDEX);
+    set_cpio(CRTC_INDEX_MONO, SEQUENCER_INDEX - CRTC_INDEX_MONO);
+    set_cpio(DAC_PEL_MASK, GFX_INDEX - DAC_PEL_MASK);
+    set_cpio(CRTC_INDEX, 0x400 - CRTC_INDEX);
   }
 }
 

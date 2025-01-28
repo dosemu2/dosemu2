@@ -285,7 +285,7 @@ static void dosemu_fault1(int signum, sigcontext_t *scp, const siginfo_t *si)
 
   /* case 2: At first let's find out where we came from */
   if (!in_vm86 && DPMIValidSelector(_scp_cs)) {
-    int ret = DPMI_RET_FAULT;
+    int ret;
     assert(config.cpu_vm_dpmi == CPUVM_NATIVE);
     if (_scp_trapno == 0x10) {
       dbug_printf("coprocessor exception, calling IRQ13\n");
@@ -296,8 +296,7 @@ static void dosemu_fault1(int signum, sigcontext_t *scp, const siginfo_t *si)
     }
 
     /* Not in dosemu code: dpmi_fault() will handle that */
-    if (ret == DPMI_RET_FAULT)
-      ret = dpmi_fault(scp);
+    ret = dpmi_fault(scp);
     if (signal_pending() || ret != DPMI_RET_CLIENT)
       dpmi_return(scp, ret);
     return;

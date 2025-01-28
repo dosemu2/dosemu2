@@ -244,6 +244,7 @@ extern void dpmi_reset(void);
 extern void dpmi_done(void);
 extern void dpmi_done0(void);
 extern int get_ldt(void *buffer, int len);
+SEGDESC _Segments(uint8_t *ldt_buffer, unsigned short ldt_entry);
 void dpmi_init(void);
 extern unsigned short dpmi_sel(void);
 extern unsigned short dpmi_sel16(void);
@@ -330,6 +331,10 @@ static inline int in_dpmi_pm(void)
 static inline int dpmi_active(void)
 {
     return 0;
+}
+
+static inline SEGDESC _Segments(uint8_t *ldt_buffer, unsigned short ldt_entry)
+{
 }
 
 static inline void dpmi_init(void)

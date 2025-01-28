@@ -82,13 +82,20 @@ static int done_1_svc(GError **error)
     return 0;
 }
 
+static int set_cpio_1_svc(int base, int size, GError **error)
+{
+    dnops->set_cpio(base, size);
+    return 0;
+}
+
 static int control_1_svc(GError **error)
 {
     cpuctx_t scp;
     int ret;
 
     recv_state(&scp);
-    ret = dnops->control(&scp);
+    ret = dnops->control(&scp, rpc_control_struct->data,
+        &rpc_control_struct->size);
     send_state(&scp);
     return ret;
 }
@@ -96,22 +103,21 @@ static int control_1_svc(GError **error)
 static int exit_1_svc(GError **error)
 {
     cpuctx_t scp;
-    int ret;
 
     recv_state(&scp);
-    ret = dnops->exit(&scp);
+    dnops->exit(&scp);
     send_state(&scp);
-    return ret;
+    return 0;
 }
 
-static int read_ldt_1_svc(int bytecount, GError **error)
+static int read_ldt_1_svc(int bytecount, guint64 base, GError **error)
 {
-    return dnops->read_ldt(rpc_shared_page, bytecount);
+    return dnops->read_ldt(rpc_shared_page, bytecount, base);
 }
 
-static int write_ldt_1_svc(int bytecount, GError **error)
+static int write_ldt_1_svc(int bytecount, guint64 base, GError **error)
 {
-    return dnops->write_ldt(rpc_shared_page, bytecount);
+    return dnops->write_ldt(rpc_shared_page, bytecount, base);
 }
 
 static int check_verr_1_svc(int selector, GError **error)
@@ -150,14 +156,16 @@ int dnrpc_srv_init(const char *svc_name, int fd)
             searpc_signature_int__void());
     searpc_server_register_function(svc_name, done_1_svc, "done_1",
             searpc_signature_int__void());
+    searpc_server_register_function(svc_name, set_cpio_1_svc, "set_cpio_1",
+            searpc_signature_int__int_int());
     searpc_server_register_function(svc_name, control_1_svc, "control_1",
             searpc_signature_int__void());
     searpc_server_register_function(svc_name, exit_1_svc, "exit_1",
             searpc_signature_int__void());
     searpc_server_register_function(svc_name, read_ldt_1_svc, "read_ldt_1",
-            searpc_signature_int__int());
+            searpc_signature_int__int_int64());
     searpc_server_register_function(svc_name, write_ldt_1_svc, "write_ldt_1",
-            searpc_signature_int__int());
+            searpc_signature_int__int_int64());
     searpc_server_register_function(svc_name, check_verr_1_svc, "check_verr_1",
             searpc_signature_int__int());
     searpc_server_register_function(svc_name, debug_breakpoint_1_svc,

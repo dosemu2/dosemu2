@@ -188,6 +188,8 @@ union g_reg {
 
 #define _LO(reg) LO_BYTE_d(_##e##reg)
 #define _HI(reg) HI_BYTE_d(_##e##reg)
+#define _scp_LO(reg) LO_BYTE_d(_scp_##e##reg)
+#define _scp_HI(reg) HI_BYTE_d(_scp_##e##reg)
 #define _LO_(reg) LO_BYTE_dc(_##e##reg##_)
 #define _HI_(reg) HI_BYTE_dc(_##e##reg##_)
 
@@ -201,6 +203,8 @@ union g_reg {
 
 #define _LWORD(reg)	LO_WORD(_##reg)
 #define _HWORD(reg)	HI_WORD(_##reg)
+#define _scp_LWORD(reg)	LO_WORD(_scp_##reg)
+#define _scp_HWORD(reg)	HI_WORD(_scp_##reg)
 #define _LWORD_(reg)	((unsigned)LO_WORD_(_##reg, const))
 #define _HWORD_(reg)	((unsigned)HI_WORD_(_##reg, const))
 
@@ -565,5 +569,7 @@ enum { es_INDEX, cs_INDEX, ss_INDEX, ds_INDEX, fs_INDEX, gs_INDEX,
   ebp_INDEX, esp_INDEX, eip_INDEX, eflags_INDEX };
 
 extern int is_cli;
+
+void set_cpio(int base, int size);
 
 #endif /* CPU_H */

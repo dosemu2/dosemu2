@@ -28,14 +28,19 @@
 #include <sys/user.h>
 #endif
 #include <sys/syscall.h>
+#include <Asm/ldt.h>
 #include "init.h"
 #include "libpcl/pcl.h"
 #include "cpu.h"
 #include "dosemu_debug.h"
 #include "utilities.h"
+#include "bitops.h"
+#include "mapping.h"
 #include "emudpmi.h"
 #include "dnative.h"
 #include "dnpriv.h"
+
+#define USE_CPIO 1
 
 #define EMU_X86_FXSR_MAGIC	0x0000
 static coroutine_t dpmi_tid;
@@ -45,6 +50,9 @@ static sigcontext_t emu_stack_frame;
 static int in_dpmi_thr;
 static int dpmi_thr_running;
 static cpuctx_t *dpmi_scp;
+static uint8_t _ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
+static struct cpio_s *cpio;
+static uint8_t cpio_bm[65536 / 8];
 
 static void copy_context(sigcontext_t *d, sigcontext_t *s)
 {
@@ -163,6 +171,15 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
   }
 }
 
+static void _set_cpio(int base, int size)
+{
+  int i;
+
+  assert(base + size <= 65536);
+  for (i = base; i < base + size; i++)
+    set_bit(i, cpio_bm);
+}
+
 static void dpmi_thr(void *arg);
 
 /* ======================================================================== */
@@ -175,11 +192,14 @@ static void dpmi_thr(void *arg);
  * DANG_END_FUNCTION
  */
 
-static int _control(cpuctx_t *scp)
+static int _control(cpuctx_t *scp, char *storage, int *r_size)
 {
     unsigned saved_IF = (_eflags & IF);
 
     dpmi_scp = scp;
+    cpio = (struct cpio_s *)storage;
+    if (cpio)
+        cpio->num = 0;
 
     _eflags = get_EFLAGS(_eflags);
     if (in_dpmi_thr) {
@@ -200,26 +220,30 @@ static int _control(cpuctx_t *scp)
     _eflags &= ~VIF;
 
     signal_unblock_async_sigs();
+    if (cpio)
+        *r_size = cpio->num ? sizeof(struct cpio_s) +
+                cpio->num * sizeof(struct cpio_ent) : 0;
     return dpmi_ret_val;
 }
 
-static int _dpmi_exit(cpuctx_t *scp)
+static void _dpmi_exit(cpuctx_t *scp)
 {
-    int ret;
     if (!in_dpmi_thr)
-        return DPMI_RET_DOSEMU;
+        return;
     D_printf("DPMI: leaving\n");
     dpmi_ret_val = DPMI_RET_EXIT;
-    ret = _control(scp);
-    if (in_dpmi_thr)
-        error("DPMI thread have not terminated properly\n");
-    return ret;
+}
+
+static int _DPMIValidSelector(unsigned short selector)
+{
+  /* does this selector refer to the LDT? */
+  return /*segment_user(selector >> 3) != 0xfe && */(selector & 4);
 }
 
 void dpmi_return(sigcontext_t *scp, int retcode)
 {
     /* only used for CPUVM_NATIVE (from sigsegv.c: dosemu_fault1()) */
-    if (!DPMIValidSelector(_scp_cs)) {
+    if (!_DPMIValidSelector(_scp_cs)) {
         dosemu_error("Return to dosemu requested within dosemu context\n");
         return;
     }
@@ -251,8 +275,297 @@ void dpmi_switch_sa(int sig, siginfo_t * inf, void *uc)
     deinit_handler(scp, &uct->uc_flags);
 }
 
+#if USE_CPIO
+__attribute__((warn_unused_result))
+static int port_outb(ioport_t port, Bit8u byte)
+{
+    struct cpio_ent *e;
+
+    if (!test_bit(port, cpio_bm))
+	return -1;
+    if (cpio->num >= MAX_CPIO) {
+	error("DPMI: coalesced PIO overflow\n");
+	return -1;
+    }
+    e = &cpio->ent[cpio->num++];
+    e->base = port;
+    e->size = sizeof(byte);
+    e->value = byte;
+    return 0;
+}
+
+__attribute__((warn_unused_result))
+static int port_outw(ioport_t port, Bit16u word)
+{
+    int i;
+    struct cpio_ent *e;
+
+    for (i = port; i < port + sizeof(word); i++) {
+	if (!test_bit(i, cpio_bm))
+	    return -1;
+    }
+    if (cpio->num >= MAX_CPIO) {
+	error("DPMI: coalesced PIO overflow\n");
+	return -1;
+    }
+    e = &cpio->ent[cpio->num++];
+    e->base = port;
+    e->size = sizeof(word);
+    e->value = word;
+    return 0;
+}
+
+__attribute__((warn_unused_result))
+static int port_outd(ioport_t port, Bit32u dword)
+{
+    int i;
+    struct cpio_ent *e;
+
+    for (i = port; i < port + sizeof(dword); i++) {
+	if (!test_bit(i, cpio_bm))
+	    return -1;
+    }
+    if (cpio->num >= MAX_CPIO) {
+	error("DPMI: coalesced PIO overflow\n");
+	return -1;
+    }
+    e = &cpio->ent[cpio->num++];
+    e->base = port;
+    e->size = sizeof(dword);
+    e->value = dword;
+    return 0;
+}
+
+static int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
+{
+    int i;
+    int incr = df? -1: 1;
+    Bit8u *dest = base;
+
+    if (count==0) return 0;
+    if (cpio->num + count > MAX_CPIO) {
+	error("DPMI: coalesced PIO overflow\n");
+	return -1;
+    }
+    for (i = port; i < port + count; i++) {
+	if (!test_bit(i, cpio_bm))
+	    return -1;
+    }
+    i_printf("Doing REP outsb(%#x) %d bytes at %p, DF %d\n", port,
+		count, base, df);
+    while (count--) {
+	int rc = port_outb(port, *dest);
+	assert(rc != -1);
+	dest += incr;
+    }
+    return dest-base;
+}
+
+static int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
+{
+    int i;
+    int incr = df? -1: 1;
+    Bit16u *dest = base;
+
+    if (count==0) return 0;
+    if (cpio->num + count > MAX_CPIO) {
+	error("DPMI: coalesced PIO overflow\n");
+	return -1;
+    }
+    for (i = port; i < port + count; i++) {
+	if (!test_bit(i, cpio_bm))
+	    return -1;
+    }
+    i_printf("Doing REP outsw(%#x) %d words at %p, DF %d\n", port,
+		count, base, df);
+    while (count--) {
+	int rc = port_outw(port, *dest);
+	assert(rc != -1);
+	dest += incr;
+    }
+    return (Bit8u *)dest-(Bit8u *)base;
+}
+
+static int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
+{
+    int i;
+    int incr = df? -1: 1;
+    Bit32u *dest = base;
+
+    if (count==0) return 0;
+    if (cpio->num + count > MAX_CPIO) {
+	error("DPMI: coalesced PIO overflow\n");
+	return -1;
+    }
+    for (i = port; i < port + count; i++) {
+	if (!test_bit(i, cpio_bm))
+	    return -1;
+    }
+    while (count--) {
+	int rc = port_outd(port, *dest);
+	assert(rc != -1);
+	dest += incr;
+    }
+    return (Bit8u *)dest-(Bit8u *)base;
+}
+
+static uint32_t client_esp(sigcontext_t *scp)
+{
+    if(_Segments(_ldt_buffer, _scp_ss >> 3).is_32)
+	return _scp_esp;
+    else
+	return (_scp_esp)&0xffff;
+}
+
+static uint32_t client_eip(sigcontext_t *scp)
+{
+    if(_Segments(_ldt_buffer, _scp_cs >> 3).is_32)
+	return _scp_eip;
+    else
+	return (_scp_eip)&0xffff;
+}
+
+static int _ValidAndUsedSelector(unsigned int selector)
+{
+  if ((selector >> 3) >= MAX_SELECTORS)
+    return 0;
+  return 1; //DPMIValidSelector(selector) && segment_user(selector >> 3);
+}
+
+static unsigned int _GetSegmentBase(unsigned short selector)
+{
+  if (!_ValidAndUsedSelector(selector))
+    return 0;
+  return _Segments(_ldt_buffer, selector >> 3).base_addr;
+}
+
+static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
+{
+  dosaddr_t p;
+  if (is_32)
+    p = _GetSegmentBase(sel) + reg;
+  else
+    p = _GetSegmentBase(sel) + LO_WORD(reg);
+  /* The address needs to wrap, also in 64-bit! */
+  return LINEAR2UNIX(p);
+}
+
+static void *_SEL_ADR(unsigned short sel, unsigned int reg)
+{
+  if (!(sel & 0x0004)) {
+    /* GDT */
+    return (void *)(uintptr_t)reg;
+  }
+  /* LDT */
+  return SEL_ADR_LDT(sel, reg, _Segments(_ldt_buffer, sel>>3).is_32);
+}
+
+static char *_show_state(sigcontext_t *scp)
+{
+    static char buf[4096];
+    int pos = 0;
+    unsigned char *csp2, *ssp2;
+    dosaddr_t daddr, saddr;
+    pos += sprintf(buf + pos, "eip: 0x%08x  esp: 0x%08x  eflags: 0x%08x\n"
+	     "\ttrapno: 0x%02x  errorcode: 0x%08x  cr2: 0x%08"PRI_RG"\n"
+	     "\tcs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n",
+	     _scp_eip, _scp_esp, _scp_eflags, _scp_trapno, _scp_err,
+	     _scp_cr2, _scp_cs, _scp_ds, _scp_es, _scp_ss, _scp_fs, _scp_gs);
+    pos += sprintf(buf + pos, "EAX: %08x  EBX: %08x  ECX: %08x  EDX: %08x\n",
+	     _scp_eax, _scp_ebx, _scp_ecx, _scp_edx);
+    pos += sprintf(buf + pos, "ESI: %08x  EDI: %08x  EBP: %08x\n",
+	     _scp_esi, _scp_edi, _scp_ebp);
+    /* display the 10 bytes before and after CS:EIP.  the -> points
+     * to the byte at address CS:EIP
+     */
+    if (!((_scp_cs) & 0x0004)) {
+      /* GTD */
+#if 0
+      csp2 = (unsigned char *) _scp_rip;
+      daddr = 0;
+#else
+      return buf;
+#endif
+    }
+    else {
+      /* LDT */
+      csp2 = _SEL_ADR(_scp_cs, _scp_eip);
+      daddr = _GetSegmentBase(_scp_cs) + client_eip(scp);
+    }
+    /* We have a problem here, if we get a page fault or any kind of
+     * 'not present' error and then we try accessing the code/stack
+     * area, we fall into another fault which likely terminates dosemu.
+     */
+    {
+      int i;
+      #define CSPP (csp2 - 10)
+      pos += sprintf(buf + pos, "OPS  : ");
+      if ((CSPP >= &mem_base[0] && CSPP + 10 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)CSPP, (uintptr_t)CSPP + 10, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(daddr - 10, 10))) {
+	for (i = 0; i < 10; i++)
+	  pos += sprintf(buf + pos, "%02x ", CSPP[i]);
+      } else {
+	pos += sprintf(buf + pos, "<invalid memory> ");
+      }
+      if ((csp2 >= &mem_base[0] && csp2 + 10 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)csp2, (uintptr_t)csp2 + 10, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(daddr, 10))) {
+	pos += sprintf(buf + pos, "-> ");
+	for (i = 0; i < 10; i++)
+	  pos += sprintf(buf + pos, "%02x ", *csp2++);
+	pos += sprintf(buf + pos, "\n");
+      } else {
+	pos += sprintf(buf + pos, "CS:EIP points to invalid memory\n");
+      }
+      if (!((_scp_ss) & 0x0004)) {
+        /* GDT */
+#if 0
+        ssp2 = (unsigned char *) _ecp_rsp;
+        saddr = 0;
+#else
+        return buf;
+#endif
+      }
+      else {
+        /* LDT */
+	ssp2 = _SEL_ADR(_scp_ss, _scp_esp);
+	saddr = _GetSegmentBase(_scp_ss) + client_esp(scp);
+      }
+      #define SSPP (ssp2 - 10)
+      pos += sprintf(buf + pos, "STACK: ");
+      if ((SSPP >= &mem_base[0] && SSPP + 10 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)SSPP, (uintptr_t)SSPP + 10, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(saddr - 10, 10))) {
+	for (i = 0; i < 10; i++)
+	  pos += sprintf(buf + pos, "%02x ", SSPP[i]);
+      } else {
+	pos += sprintf(buf + pos, "<invalid memory> ");
+      }
+      if ((ssp2 >= &mem_base[0] && ssp2 + 10 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)ssp2, (uintptr_t)ssp2 + 10, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(saddr, 10))) {
+	pos += sprintf(buf + pos, "-> ");
+	for (i = 0; i < 10; i++)
+	  pos += sprintf(buf + pos, "%02x ", *ssp2++);
+	pos += sprintf(buf + pos, "\n");
+      } else {
+	pos += sprintf(buf + pos, "SS:ESP points to invalid memory\n");
+      }
+    }
+
+    return buf;
+}
+#endif
+
 int dpmi_fault(sigcontext_t *scp)
 {
+#define LWORD32(x,y) {if (_Segments(_ldt_buffer, _scp_cs >> 3).is_32) _scp_##x y; else _scp_LWORD(x) y;}
+#define ASIZE_IS_32 (_Segments(_ldt_buffer, _scp_cs >> 3).is_32 ^ prefix67)
+#define OSIZE_IS_32 (_Segments(_ldt_buffer, _scp_cs >> 3).is_32 ^ prefix66)
+#define _LWECX (ASIZE_IS_32 ? _scp_ecx : _scp_LWORD(ecx))
+#define set_LWECX(x) {if (ASIZE_IS_32) _scp_ecx=(x); else _scp_LWORD(ecx) = (x);}
+  int ret = DPMI_RET_FAULT;
   /* If this is an exception 0x11, we have to ignore it. The reason is that
    * under real DOS the AM bit of CR0 is not set.
    * Also clear the AC flag to prevent it from re-occuring.
@@ -260,10 +573,171 @@ int dpmi_fault(sigcontext_t *scp)
   if (_scp_trapno == 0x11) {
     g_printf("Exception 0x11 occurred, clearing AC\n");
     _scp_eflags &= ~AC;
-    return DPMI_RET_CLIENT;
+    ret = DPMI_RET_CLIENT;
   }
+#if USE_CPIO
+  if (_scp_trapno == 13) {
+    Bit32u org_eip;
+    int pref_seg;
+    int done,is_rep,prefix66,prefix67;
+    unsigned char *csp = (unsigned char *) _SEL_ADR(_scp_cs, _scp_eip);
+    unsigned char *lina = csp;
 
-  return DPMI_RET_FAULT;	// process the rest in dosemu context
+    /* DANG_BEGIN_REMARK
+     * Here we handle all prefixes prior switching to the appropriate routines
+     * The exception CS:EIP will point to the first prefix that effects the
+     * the faulting instruction, hence, 0x65 0x66 is same as 0x66 0x65.
+     * So we collect all prefixes and remember them.
+     * - Hans Lermen
+     * DANG_END_REMARK
+     */
+
+    done=0;
+    is_rep=0;
+    prefix66=prefix67=0;
+    pref_seg=-1;
+
+    do {
+      switch (*(csp++)) {
+         case 0x66:      /* operand prefix */  prefix66=1; break;
+         case 0x67:      /* address prefix */  prefix67=1; break;
+         case 0x2e:      /* CS */              pref_seg=_scp_cs; break;
+         case 0x3e:      /* DS */              pref_seg=_scp_ds; break;
+         case 0x26:      /* ES */              pref_seg=_scp_es; break;
+         case 0x36:      /* SS */              pref_seg=_scp_ss; break;
+         case 0x65:      /* GS */              pref_seg=_scp_gs; break;
+         case 0x64:      /* FS */              pref_seg=_scp_fs; break;
+         case 0xf2:      /* repnz */
+         case 0xf3:      /* rep */             is_rep=1; break;
+         default: done=1;
+      }
+    } while (!done);
+    csp--;
+    if (pref_seg == 0) {
+      error("DPMI: pref_seg==0\n%s\n", _show_state(scp));
+      return ret;
+    }
+    org_eip = _scp_eip;
+    _scp_eip += (csp-lina);
+
+    switch (*csp++) {
+
+    case 0x6e:			/* [rep] outsb */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: outsb\n");
+      if (pref_seg < 0) pref_seg = _scp_ds;
+      /* WARNING: no test for (E)SI wrapping! */
+      if (ASIZE_IS_32) {		/* a32 outsb */
+	int rc = port_rep_outb(_scp_LWORD(edx), (Bit8u *)_SEL_ADR(pref_seg,_scp_esi),
+	        _scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+	if (rc == -1)
+	  break;
+	_scp_esi += rc;
+      } else {			/* a16 outsb */
+	int rc = port_rep_outb(_scp_LWORD(edx), (Bit8u *)_SEL_ADR(pref_seg,_scp_LWORD(esi)),
+	        _scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+	if (rc == -1)
+	  break;
+	_scp_LWORD(esi) += rc;
+      }
+      if (is_rep) set_LWECX(0);
+      LWORD32(eip,++);
+      ret = DPMI_RET_CLIENT;
+      break;
+
+    case 0x6f:			/* [rep] outsw/d */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: outs%s\n", OSIZE_IS_32 ? "d" : "w");
+      if (pref_seg < 0) pref_seg = _scp_ds;
+      /* WARNING: no test for (E)SI wrapping! */
+      if (OSIZE_IS_32) {	/* outsd */
+        if (ASIZE_IS_32) {	/* a32 outsd */
+	  int rc = port_rep_outd(_scp_LWORD(edx), (Bit32u *)_SEL_ADR(pref_seg,_scp_esi),
+		_scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+	  if (rc == -1)
+	    break;
+	  _scp_esi += rc;
+        } else {			/* a16 outsd */
+	  int rc = port_rep_outd(_scp_LWORD(edx), (Bit32u *)_SEL_ADR(pref_seg,_scp_LWORD(esi)),
+		_scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+	  if (rc == -1)
+	    break;
+	  _scp_LWORD(esi) += rc;
+	}
+      }
+      else {			/* outsw */
+        if (ASIZE_IS_32) {	/* a32 outsw */
+	  int rc = port_rep_outw(_scp_LWORD(edx), (Bit16u *)_SEL_ADR(pref_seg,_scp_esi),
+		_scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+	  if (rc == -1)
+	    break;
+	  _scp_esi += rc;
+        } else {			/* a16 outsw */
+	  int rc = port_rep_outw(_scp_LWORD(edx), (Bit16u *)_SEL_ADR(pref_seg,_scp_LWORD(esi)),
+		_scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+	  if (rc == -1)
+	    break;
+	  _scp_LWORD(esi) += rc;
+	}
+      }
+      if (is_rep) set_LWECX(0);
+      LWORD32(eip,++);
+      ret = DPMI_RET_CLIENT;
+      break;
+
+    case 0xe7: {			/* outw xx */
+      int rc;
+      if (debug_level('M')>=9)
+        D_printf("DPMI: out%s xx\n", OSIZE_IS_32 ? "d" : "w");
+      if (OSIZE_IS_32) rc = port_outd((int)csp[0], _scp_eax);
+      else rc = port_outw((int)csp[0], _scp_LWORD(eax));
+      if (rc == -1)
+        break;
+      LWORD32(eip, += 2);
+      ret = DPMI_RET_CLIENT;
+      break;
+    }
+    case 0xe6: {			/* outb xx */
+      int rc;
+      if (debug_level('M')>=9)
+        D_printf("DPMI: outb xx\n");
+      rc = port_outb((int) csp[0], _scp_LO(ax));
+      if (rc == -1)
+        break;
+      LWORD32(eip, += 2);
+      ret = DPMI_RET_CLIENT;
+      break;
+    }
+    case 0xef: {			/* outw dx */
+      int rc;
+      if (debug_level('M')>=9)
+        D_printf("DPMI: out%s dx\n", OSIZE_IS_32 ? "d" : "w");
+      if (OSIZE_IS_32) rc = port_outd(_scp_LWORD(edx), _scp_eax);
+      else rc = port_outw(_scp_LWORD(edx), _scp_LWORD(eax));
+      if (rc == -1)
+        break;
+      LWORD32(eip, += 1);
+      ret = DPMI_RET_CLIENT;
+      break;
+    }
+    case 0xee: {			/* outb dx */
+      int rc;
+      if (debug_level('M')>=9)
+        D_printf("DPMI: outb dx\n");
+      rc = port_outb(_scp_LWORD(edx), _scp_LO(ax));
+      if (rc == -1)
+        break;
+      LWORD32(eip, += 1);
+      ret = DPMI_RET_CLIENT;
+      break;
+    }
+    } /* switch */
+    if (ret == DPMI_RET_FAULT)
+      _scp_eip = org_eip;
+  } /* _trapno==13 */
+#endif
+
+  return ret;
 }
 
 static void indirect_dpmi_transfer(void)
@@ -302,14 +776,41 @@ static void _done(void)
     co_thread_cleanup(co_handle);
 }
 
-static int _read_ldt(void *ptr, int bytecount)
+static int _read_ldt(void *ptr, int bytecount, uint64_t base)
 {
-  return syscall(SYS_modify_ldt, LDT_READ, ptr, bytecount);
+  int i;
+  struct ldt_descriptor *dp;
+  int ret = syscall(SYS_modify_ldt, LDT_READ, _ldt_buffer, bytecount);
+  if (ret < 0)
+    return ret;
+  for (i = 0, dp = (struct ldt_descriptor *)_ldt_buffer; i < bytecount / LDT_ENTRY_SIZE; i++, dp++) {
+    unsigned int base_addr = DT_BASE(dp);
+    if ((base_addr || DT_LIMIT(dp)) && (DT_FLAGS(dp) & 0x80/*P bit*/)) {
+      base_addr -= base;
+      MKBASE(dp, base_addr);
+    }
+  }
+  memcpy(ptr, _ldt_buffer, bytecount);
+  return ret;
 }
 
-static int _write_ldt(void *ptr, int bytecount)
+static int _write_ldt(const void *ptr, int bytecount, uint64_t base)
 {
-  return syscall(SYS_modify_ldt, LDT_WRITE, ptr, bytecount);
+  struct user_desc ldt_info;
+  int offs;
+
+  memcpy(&ldt_info, ptr, sizeof(ldt_info));
+  offs  = ldt_info.entry_number * LDT_ENTRY_SIZE;
+  assert(bytecount == sizeof(ldt_info) &&
+      offs + bytecount <= sizeof(_ldt_buffer));
+  emu_update_LDT(&ldt_info, _ldt_buffer + offs);
+
+  /* NOTE: the real LDT in kernel space uses the real addresses, but
+     the LDT we emulate, and DOS applications work with,
+     has all base addresses with respect to mem_base */
+  if (!ldt_info.seg_not_present)
+    ldt_info.base_addr += base;
+  return syscall(SYS_modify_ldt, LDT_WRITE, &ldt_info, sizeof(ldt_info));
 }
 
 static int _check_verr(unsigned short selector)
@@ -428,6 +929,7 @@ static const struct dnative_ops ops = {
   .exit = _dpmi_exit,
   .setup = _setup,
   .done = _done,
+  .set_cpio = _set_cpio,
   .read_ldt = _read_ldt,
   .write_ldt = _write_ldt,
   .check_verr = _check_verr,

@@ -20,6 +20,7 @@
 #include "vgaemu.h"
 #include "emu.h"
 #include "cpu-emu.h"
+#include "port.h"
 #include "emudpmi.h"
 #include "dnative.h"
 /* optimize direct LDT writes */
@@ -29,6 +30,13 @@
 #endif
 
 const struct dnative_ops *dnops;
+struct cpio_tmp {
+    int base;
+    int size;
+};
+#define CPIO_MAX 50
+static struct cpio_tmp cptmp[CPIO_MAX];
+static int num_cptmp;
 
 static void check_ldt(void)
 {
@@ -38,7 +46,7 @@ static void check_ldt(void)
     unsigned int base_addr, limit, *lp;
     int type, np;
 
-    ret = dnops->read_ldt(buffer, sizeof(buffer));
+    ret = dnops->read_ldt(buffer, sizeof(buffer), (uintptr_t)mem_base);
     /* may return 0 if no LDT */
     if (ret == sizeof(buffer)) {
         for (i = 0; i < MAX_SELECTORS; i++) {
@@ -60,7 +68,7 @@ static void check_ldt(void)
 
 int native_dpmi_setup(void)
 {
-    int ret;
+    int ret, i;
 
 #ifdef SEARPC_SUPPORT
     if (!dnops && config.dpmi_remote)
@@ -80,6 +88,12 @@ int native_dpmi_setup(void)
         return ret;
     }
     check_ldt();
+
+    for (i = 0; i < num_cptmp; i++) {
+        struct cpio_tmp *ct = &cptmp[i];
+        dnops->set_cpio(ct->base, ct->size);
+    }
+    num_cptmp = 0;
     return ret;
 }
 
@@ -88,6 +102,15 @@ void native_dpmi_done(void)
     if (!dnops)
         return;
     dnops->done();
+}
+
+void native_dpmi_set_cpio(int base, int size)
+{
+    struct cpio_tmp *ct;
+    assert(num_cptmp < CPIO_MAX);
+    ct = &cptmp[num_cptmp++];
+    ct->base = base;
+    ct->size = size;
 }
 
 static int handle_pf(cpuctx_t *scp)
@@ -114,7 +137,25 @@ static int handle_pf(cpuctx_t *scp)
 
 int native_dpmi_control(cpuctx_t *scp)
 {
-    int ret = dnops->control(scp);
+    char buf[MAX_CPIO * sizeof(struct cpio_ent) + sizeof(struct cpio_s)];
+    int size;
+    int ret;
+
+    static_assert(sizeof(buf) >= sizeof(struct cpio_s) +
+            sizeof(struct cpio_ent) + MAX_CPIO, "bad buffer size");
+    ret = dnops->control(scp, buf, &size);
+    if (size) {
+        int i;
+        struct cpio_s *cp = (struct cpio_s *)buf;
+        for (i = 0; i < cp->num; i++) {
+            struct cpio_ent *ce = &cp->ent[i];
+            switch(ce->size) {
+            case 1: port_outb(ce->base, ce->value); break;
+            case 2: port_outw(ce->base, ce->value); break;
+            case 4: port_outd(ce->base, ce->value); break;
+            }
+        }
+    }
     if (ret == DPMI_RET_FAULT && _trapno == 0x0e)
         ret = handle_pf(scp);
     return ret;
@@ -122,17 +163,19 @@ int native_dpmi_control(cpuctx_t *scp)
 
 int native_dpmi_exit(cpuctx_t *scp)
 {
-    return dnops->exit(scp);
+    int size;
+    dnops->exit(scp);
+    return dnops->control(scp, NULL, &size);
 }
 
-int native_read_ldt(void *ptr, int bytecount)
+int native_read_ldt(void *ptr, int bytecount, uint64_t base)
 {
-    return dnops->read_ldt(ptr, bytecount);
+    return dnops->read_ldt(ptr, bytecount, base);
 }
 
-int native_write_ldt(void *ptr, int bytecount)
+int native_write_ldt(const void *ptr, int bytecount, uint64_t base)
 {
-    return dnops->write_ldt(ptr, bytecount);
+    return dnops->write_ldt(ptr, bytecount, base);
 }
 
 int native_check_verr(unsigned short selector)

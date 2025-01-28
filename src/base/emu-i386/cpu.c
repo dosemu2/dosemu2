@@ -33,6 +33,7 @@
 #include "port.h"
 #include "int.h"
 #include "emudpmi.h"
+#include "dnative.h"
 #include "priv.h"
 #include "instremu.h"
 #include "kvm.h"
@@ -479,4 +480,12 @@ void fsave_to_fxsave(const struct emu_fsave *fptr, struct emu_fpxstate *fxsave)
 		memset(&fxsave->st[i], 0, sizeof(fxsave->st[0]));
 		memcpy(&fxsave->st[i], &fptr->st[i], sizeof(fptr->st[0]));
 	}
+}
+
+void set_cpio(int base, int size)
+{
+	if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+		kvm_set_cpio(base, size);
+	if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+		native_dpmi_set_cpio(base, size);
 }
