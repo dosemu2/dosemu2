@@ -361,22 +361,14 @@ void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg, int is_32)
 
 int get_ldt(void *buffer, int len)
 {
-  int i, ret;
-  struct ldt_descriptor *dp;
+  int ret;
   if (config.cpu_vm_dpmi != CPUVM_NATIVE)
 	return emu_modify_ldt(LDT_READ, buffer, len);
-  ret = native_read_ldt(buffer, len);
+  ret = native_read_ldt(buffer, len, (uintptr_t)mem_base);
   /* do emu_modify_ldt even if modify_ldt fails, so cpu_vm_dpmi fallbacks can
      still work */
   if (ret != len)
     return emu_modify_ldt(LDT_READ, buffer, len);
-  for (i = 0, dp = buffer; i < len / LDT_ENTRY_SIZE; i++, dp++) {
-    unsigned int base_addr = DT_BASE(dp);
-    if ((base_addr || DT_LIMIT(dp)) && (DT_FLAGS(dp) & 0x80/*P bit*/)) {
-      base_addr -= (uintptr_t)mem_base;
-      MKBASE(dp, base_addr);
-    }
-  }
   return ret;
 }
 

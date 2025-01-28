@@ -205,13 +205,14 @@ static void remote_dpmi_exit(cpuctx_t *scp)
     _remote_dpmi_exit(scp);
 }
 
-static int remote_read_ldt(void *ptr, int bytecount)
+static int remote_read_ldt(void *ptr, int bytecount, uint64_t base)
 {
     int ret;
     GError *error = NULL;
     ret = searpc_client_call__int(clnt, "read_ldt_1",
-                                  &error, 1,
-                                  "int", bytecount);
+                                  &error, 2,
+                                  "int", bytecount,
+                                  "int64", &base);
     CHECK_RPC(error);
     if (ret > 0)
         memcpy(ptr, rpc_shared_page, ret);

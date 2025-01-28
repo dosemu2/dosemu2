@@ -45,7 +45,7 @@ static void check_ldt(void)
     unsigned int base_addr, limit, *lp;
     int type, np;
 
-    ret = dnops->read_ldt(buffer, sizeof(buffer));
+    ret = dnops->read_ldt(buffer, sizeof(buffer), (uintptr_t)mem_base);
     /* may return 0 if no LDT */
     if (ret == sizeof(buffer)) {
         for (i = 0; i < MAX_SELECTORS; i++) {
@@ -151,9 +151,9 @@ int native_dpmi_exit(cpuctx_t *scp)
     return dnops->control(scp, NULL, &size);
 }
 
-int native_read_ldt(void *ptr, int bytecount)
+int native_read_ldt(void *ptr, int bytecount, uint64_t base)
 {
-    return dnops->read_ldt(ptr, bytecount);
+    return dnops->read_ldt(ptr, bytecount, base);
 }
 
 int native_write_ldt(const void *ptr, int bytecount, uint64_t base)

@@ -110,9 +110,9 @@ static int exit_1_svc(GError **error)
     return 0;
 }
 
-static int read_ldt_1_svc(int bytecount, GError **error)
+static int read_ldt_1_svc(int bytecount, guint64 base, GError **error)
 {
-    return dnops->read_ldt(rpc_shared_page, bytecount);
+    return dnops->read_ldt(rpc_shared_page, bytecount, base);
 }
 
 static int write_ldt_1_svc(int bytecount, guint64 base, GError **error)
@@ -163,7 +163,7 @@ int dnrpc_srv_init(const char *svc_name, int fd)
     searpc_server_register_function(svc_name, exit_1_svc, "exit_1",
             searpc_signature_int__void());
     searpc_server_register_function(svc_name, read_ldt_1_svc, "read_ldt_1",
-            searpc_signature_int__int());
+            searpc_signature_int__int_int64());
     searpc_server_register_function(svc_name, write_ldt_1_svc, "write_ldt_1",
             searpc_signature_int__int_int64());
     searpc_server_register_function(svc_name, check_verr_1_svc, "check_verr_1",

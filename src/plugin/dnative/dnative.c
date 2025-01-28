@@ -690,11 +690,20 @@ static void _done(void)
     co_thread_cleanup(co_handle);
 }
 
-static int _read_ldt(void *ptr, int bytecount)
+static int _read_ldt(void *ptr, int bytecount, uint64_t base)
 {
+  int i;
+  struct ldt_descriptor *dp;
   int ret = syscall(SYS_modify_ldt, LDT_READ, _ldt_buffer, bytecount);
   if (ret < 0)
     return ret;
+  for (i = 0, dp = (struct ldt_descriptor *)_ldt_buffer; i < bytecount / LDT_ENTRY_SIZE; i++, dp++) {
+    unsigned int base_addr = DT_BASE(dp);
+    if ((base_addr || DT_LIMIT(dp)) && (DT_FLAGS(dp) & 0x80/*P bit*/)) {
+      base_addr -= base;
+      MKBASE(dp, base_addr);
+    }
+  }
   memcpy(ptr, _ldt_buffer, bytecount);
   return ret;
 }
