@@ -342,7 +342,11 @@ static void handle_console_input(char *line)
   /* Check if command valid */
   cmd = find_cmd(line);
   if (!cmd) {
-    fprintf(fpconout, "Command '%s' not implemented\n", line);
+    fprintf(fpconout, "Command '%s' not implemented\n\n", line);
+    if (!use_readline)
+      fputs(prompt_standard, fpconout);
+    fflush(fpconout);
+    last_line[0] = '\0';  // Invalidate last command
     return;
   }
 
