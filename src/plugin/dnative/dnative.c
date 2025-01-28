@@ -34,6 +34,7 @@
 #include "dosemu_debug.h"
 #include "utilities.h"
 #include "bitops.h"
+#include "mapping.h"
 #include "emudpmi.h"
 #include "dnative.h"
 #include "dnpriv.h"
@@ -359,6 +360,119 @@ static int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
 	return (Bit8u *)dest-(Bit8u *)base;
 }
 #endif
+
+static uint32_t client_esp(sigcontext_t *scp)
+{
+    if(_Segments(_ldt_buffer, _scp_ss >> 3).is_32)
+	return _scp_esp;
+    else
+	return (_scp_esp)&0xffff;
+}
+
+static uint32_t client_eip(sigcontext_t *scp)
+{
+    if(_Segments(_ldt_buffer, _scp_cs >> 3).is_32)
+	return _scp_eip;
+    else
+	return (_scp_eip)&0xffff;
+}
+
+static char *_show_state(sigcontext_t *scp)
+{
+    static char buf[4096];
+    int pos = 0;
+    unsigned char *csp2, *ssp2;
+    dosaddr_t daddr, saddr;
+    pos += sprintf(buf + pos, "eip: 0x%08x  esp: 0x%08x  eflags: 0x%08x\n"
+	     "\ttrapno: 0x%02x  errorcode: 0x%08x  cr2: 0x%08"PRI_RG"\n"
+	     "\tcs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n",
+	     _scp_eip, _scp_esp, _scp_eflags, _scp_trapno, _scp_err,
+	     _scp_cr2, _scp_cs, _scp_ds, _scp_es, _scp_ss, _scp_fs, _scp_gs);
+    pos += sprintf(buf + pos, "EAX: %08x  EBX: %08x  ECX: %08x  EDX: %08x\n",
+	     _scp_eax, _scp_ebx, _scp_ecx, _scp_edx);
+    pos += sprintf(buf + pos, "ESI: %08x  EDI: %08x  EBP: %08x\n",
+	     _scp_esi, _scp_edi, _scp_ebp);
+    /* display the 10 bytes before and after CS:EIP.  the -> points
+     * to the byte at address CS:EIP
+     */
+    if (!((_scp_cs) & 0x0004)) {
+      /* GTD */
+#if 0
+      csp2 = (unsigned char *) _scp_rip;
+      daddr = 0;
+#else
+      return buf;
+#endif
+    }
+    else {
+      /* LDT */
+      csp2 = SEL_ADR(_scp_cs, _scp_eip);
+      daddr = GetSegmentBase(_scp_cs) + client_eip(scp);
+    }
+    /* We have a problem here, if we get a page fault or any kind of
+     * 'not present' error and then we try accessing the code/stack
+     * area, we fall into another fault which likely terminates dosemu.
+     */
+    {
+      int i;
+      #define CSPP (csp2 - 10)
+      pos += sprintf(buf + pos, "OPS  : ");
+      if ((CSPP >= &mem_base[0] && CSPP + 10 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)CSPP, (uintptr_t)CSPP + 10, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(daddr - 10, 10))) {
+	for (i = 0; i < 10; i++)
+	  pos += sprintf(buf + pos, "%02x ", CSPP[i]);
+      } else {
+	pos += sprintf(buf + pos, "<invalid memory> ");
+      }
+      if ((csp2 >= &mem_base[0] && csp2 + 10 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)csp2, (uintptr_t)csp2 + 10, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(daddr, 10))) {
+	pos += sprintf(buf + pos, "-> ");
+	for (i = 0; i < 10; i++)
+	  pos += sprintf(buf + pos, "%02x ", *csp2++);
+	pos += sprintf(buf + pos, "\n");
+      } else {
+	pos += sprintf(buf + pos, "CS:EIP points to invalid memory\n");
+      }
+      if (!((_scp_ss) & 0x0004)) {
+        /* GDT */
+#if 0
+        ssp2 = (unsigned char *) _ecp_rsp;
+        saddr = 0;
+#else
+        return buf;
+#endif
+      }
+      else {
+        /* LDT */
+	ssp2 = SEL_ADR(_scp_ss, _scp_esp);
+	saddr = GetSegmentBase(_scp_ss) + client_esp(scp);
+      }
+      #define SSPP (ssp2 - 10)
+      pos += sprintf(buf + pos, "STACK: ");
+      if ((SSPP >= &mem_base[0] && SSPP + 10 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)SSPP, (uintptr_t)SSPP + 10, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(saddr - 10, 10))) {
+	for (i = 0; i < 10; i++)
+	  pos += sprintf(buf + pos, "%02x ", SSPP[i]);
+      } else {
+	pos += sprintf(buf + pos, "<invalid memory> ");
+      }
+      if ((ssp2 >= &mem_base[0] && ssp2 + 10 < &mem_base[0x110000]) ||
+	  ((mapping_find_hole((uintptr_t)ssp2, (uintptr_t)ssp2 + 10, 1) == MAP_FAILED) &&
+	   dpmi_is_valid_range(saddr, 10))) {
+	pos += sprintf(buf + pos, "-> ");
+	for (i = 0; i < 10; i++)
+	  pos += sprintf(buf + pos, "%02x ", *ssp2++);
+	pos += sprintf(buf + pos, "\n");
+      } else {
+	pos += sprintf(buf + pos, "SS:ESP points to invalid memory\n");
+      }
+    }
+
+    return buf;
+}
 
 int dpmi_fault(sigcontext_t *scp)
 {
