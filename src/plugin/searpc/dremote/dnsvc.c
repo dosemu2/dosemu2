@@ -218,14 +218,15 @@ static int remote_read_ldt(void *ptr, int bytecount)
     return ret;
 }
 
-static int remote_write_ldt(void *ptr, int bytecount)
+static int remote_write_ldt(const void *ptr, int bytecount, uint64_t base)
 {
     int ret;
     GError *error = NULL;
     memcpy(rpc_shared_page, ptr, bytecount);
     ret = searpc_client_call__int(clnt, "write_ldt_1",
-                                  &error, 1,
-                                  "int", bytecount);
+                                  &error, 2,
+                                  "int", bytecount,
+                                  "int64", &base);
     CHECK_RPC(error);
     return ret;
 }

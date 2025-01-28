@@ -386,16 +386,8 @@ static int put_ldt(struct user_desc *ldt_info)
 
   if (config.cpu_vm_dpmi == CPUVM_NATIVE)
   {
-    /* NOTE: the real LDT in kernel space uses the real addresses, but
-       the LDT we emulate, and DOS applications work with,
-       has all base addresses with respect to mem_base */
-    if (!ldt_info->seg_not_present) {
-      ldt_info->base_addr += (uintptr_t)mem_base;
-      __retval = native_write_ldt(ldt_info, sizeof(*ldt_info));
-      ldt_info->base_addr -= (uintptr_t)mem_base;
-    } else {
-      __retval = native_write_ldt(ldt_info, sizeof(*ldt_info));
-    }
+    __retval = native_write_ldt(ldt_info, sizeof(*ldt_info),
+          (uintptr_t)mem_base);
     if (__retval)
       return __retval;
   }

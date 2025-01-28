@@ -156,9 +156,9 @@ int native_read_ldt(void *ptr, int bytecount)
     return dnops->read_ldt(ptr, bytecount);
 }
 
-int native_write_ldt(void *ptr, int bytecount)
+int native_write_ldt(const void *ptr, int bytecount, uint64_t base)
 {
-    return dnops->write_ldt(ptr, bytecount);
+    return dnops->write_ldt(ptr, bytecount, base);
 }
 
 int native_check_verr(unsigned short selector)

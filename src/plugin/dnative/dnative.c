@@ -28,6 +28,7 @@
 #include <sys/user.h>
 #endif
 #include <sys/syscall.h>
+#include <Asm/ldt.h>
 #include "init.h"
 #include "libpcl/pcl.h"
 #include "cpu.h"
@@ -698,10 +699,23 @@ static int _read_ldt(void *ptr, int bytecount)
   return ret;
 }
 
-static int _write_ldt(void *ptr, int bytecount)
+static int _write_ldt(const void *ptr, int bytecount, uint64_t base)
 {
-  memcpy(_ldt_buffer, ptr, bytecount);
-  return syscall(SYS_modify_ldt, LDT_WRITE, _ldt_buffer, bytecount);
+  struct user_desc ldt_info;
+  int offs;
+
+  memcpy(&ldt_info, ptr, sizeof(ldt_info));
+  offs  = ldt_info.entry_number * LDT_ENTRY_SIZE;
+  assert(bytecount == sizeof(ldt_info) &&
+      offs + bytecount <= sizeof(_ldt_buffer));
+  memcpy(_ldt_buffer + offs, ptr, bytecount);
+
+  /* NOTE: the real LDT in kernel space uses the real addresses, but
+     the LDT we emulate, and DOS applications work with,
+     has all base addresses with respect to mem_base */
+  if (!ldt_info.seg_not_present)
+    ldt_info.base_addr += base;
+  return syscall(SYS_modify_ldt, LDT_WRITE, &ldt_info, sizeof(ldt_info));
 }
 
 static int _check_verr(unsigned short selector)

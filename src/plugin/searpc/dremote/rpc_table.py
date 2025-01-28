@@ -4,4 +4,5 @@ func_table = [
     [ "int", [] ],
     [ "int", ["int"] ],
     [ "int", ["int", "int"] ],
+    [ "int", ["int", "int64"] ],
 ]
