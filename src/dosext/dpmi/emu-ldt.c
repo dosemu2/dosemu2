@@ -18,7 +18,7 @@
 #include "emu-ldt.h"
 #include "dosemu_debug.h"
 
-static int emu_read_ldt(char *ptr, unsigned long bytecount)
+int emu_read_ldt(char *ptr, unsigned long bytecount)
 {
 	uint32_t *lp = (uint32_t *)dpmi_get_ldt_buffer();
 	int i, size=0;
@@ -103,7 +103,7 @@ int emu_update_LDT(const struct user_desc *ldt_info, uint8_t *buffer)
 }
 
 
-static int emu_write_ldt(void *ptr, unsigned long bytecount)
+int emu_write_ldt(void *ptr, unsigned long bytecount)
 {
 	int error;
 	struct user_desc ldt_info;
@@ -132,24 +132,4 @@ static int emu_write_ldt(void *ptr, unsigned long bytecount)
 	error = emu_update_LDT(&ldt_info, (uint8_t *)&((Descriptor *)dpmi_get_ldt_buffer())[ldt_info.entry_number]);
 out:
 	return error;
-}
-
-int emu_modify_ldt(int func, void *ptr, unsigned long bytecount)
-{
-	int ret = -ENOSYS;
-
-#if 1
-	{ int *lptr = (int *)ptr;
-	  D_printf("EMU86: modify_ldt %02x %ld [%08x %08x %08x %08x]\n",
-		func, bytecount, lptr[0], lptr[1], lptr[2], lptr[3] ); }
-#endif
-	switch (func) {
-	case LDT_READ:
-		ret = emu_read_ldt((char *)ptr, bytecount);
-		break;
-	case LDT_WRITE:
-		ret = emu_write_ldt(ptr, bytecount);
-		break;
-	}
-	return ret;
 }

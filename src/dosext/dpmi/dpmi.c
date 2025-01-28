@@ -363,12 +363,12 @@ int get_ldt(void *buffer, int len)
 {
   int ret;
   if (config.cpu_vm_dpmi != CPUVM_NATIVE)
-	return emu_modify_ldt(LDT_READ, buffer, len);
+	return emu_read_ldt(buffer, len);
   ret = native_read_ldt(buffer, len, (uintptr_t)mem_base);
   /* do emu_modify_ldt even if modify_ldt fails, so cpu_vm_dpmi fallbacks can
      still work */
   if (ret != len)
-    return emu_modify_ldt(LDT_READ, buffer, len);
+    return emu_read_ldt(buffer, len);
   return ret;
 }
 
@@ -384,7 +384,7 @@ static int put_ldt(struct user_desc *ldt_info)
       return __retval;
   }
   /* this also updates our ldt_buffer */
-  __retval = emu_modify_ldt(LDT_WRITE, ldt_info, sizeof(*ldt_info));
+  __retval = emu_write_ldt(ldt_info, sizeof(*ldt_info));
   return __retval;
 }
 

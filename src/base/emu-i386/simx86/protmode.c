@@ -228,7 +228,6 @@ void ValidateAddr(unsigned char *addr, unsigned short sel)
 	    dbug_printf("selector %#x not present\n",sel);
 	leavedos_main(0);
 }
-#endif
 
 /* flags with 0x409e mask:
  *	0090	16 RO data
@@ -273,6 +272,7 @@ unsigned short GetSelectorXfer(unsigned short w)
   }
   return sysxfer[flags&15];
 }
+#endif
 
 
 /* ======================================================================= */
