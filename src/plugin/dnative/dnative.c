@@ -32,6 +32,7 @@
 #include "init.h"
 #include "libpcl/pcl.h"
 #include "cpu.h"
+#include "port.h"
 #include "dosemu_debug.h"
 #include "utilities.h"
 #include "bitops.h"
@@ -53,6 +54,7 @@ static cpuctx_t *dpmi_scp;
 static uint8_t _ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 static struct cpio_s *cpio;
 static uint8_t cpio_bm[65536 / 8];
+static uint8_t direct_bm[65536 / 8];
 
 static void copy_context(sigcontext_t *d, sigcontext_t *s)
 {
@@ -178,6 +180,15 @@ static void _set_cpio(int base, int size)
   assert(base + size <= 65536);
   for (i = base; i < base + size; i++)
     set_bit(i, cpio_bm);
+}
+
+static void _set_drio(int base, int size)
+{
+  int i;
+
+  assert(base + size <= 65536);
+  for (i = base; i < base + size; i++)
+    set_bit(i, direct_bm);
 }
 
 static void dpmi_thr(void *arg);
@@ -407,6 +418,35 @@ static int _port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
 	dest += incr;
     }
     return (Bit8u *)dest-(Bit8u *)base;
+}
+
+static int64_t _port_inb(ioport_t port)
+{
+    if (!test_bit(port, direct_bm))
+	return -1;
+    return port_inb(port);
+}
+
+static int64_t _port_inw(ioport_t port)
+{
+    int i;
+
+    for (i = port; i < port + 2; i++) {
+	if (!test_bit(i, direct_bm))
+	    return -1;
+    }
+    return port_inw(port);
+}
+
+static int64_t _port_ind(ioport_t port)
+{
+    int i;
+
+    for (i = port; i < port + 4; i++) {
+	if (!test_bit(i, direct_bm))
+	    return -1;
+    }
+    return port_ind(port);
 }
 
 static uint32_t client_esp(sigcontext_t *scp)
@@ -731,6 +771,67 @@ int dpmi_fault(sigcontext_t *scp)
       ret = DPMI_RET_CLIENT;
       break;
     }
+
+    case 0xe5:			/* inw xx, ind xx */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: in%s xx\n", OSIZE_IS_32 ? "d" : "w");
+      if (OSIZE_IS_32) {
+        int64_t rc = _port_ind((int) csp[0]);
+        if (rc == -1)
+          break;
+        _scp_eax = rc;
+      } else {
+        int64_t rc = _port_inw((int) csp[0]);
+        if (rc == -1)
+          break;
+        _scp_LWORD(eax) = rc;
+      }
+      LWORD32(eip, += 2);
+      ret = DPMI_RET_CLIENT;
+      break;
+    case 0xe4: {			/* inb xx */
+      int64_t rc;
+      if (debug_level('M')>=9)
+        D_printf("DPMI: inb xx\n");
+      rc = _port_inb((int) csp[0]);
+      if (rc == -1)
+        break;
+      _scp_LWORD(eax) &= ~0xff;
+      _scp_LWORD(eax) |= rc;
+      LWORD32(eip, += 2);
+      ret = DPMI_RET_CLIENT;
+      break;
+    }
+    case 0xed:			/* inw dx */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: in%s dx\n", OSIZE_IS_32 ? "d" : "w");
+      if (OSIZE_IS_32) {
+        int64_t rc = _port_ind(_scp_LWORD(edx));
+        if (rc == -1)
+          break;
+        _scp_eax = rc;
+      } else {
+        int64_t rc = _port_inw(_scp_LWORD(edx));
+        if (rc == -1)
+          break;
+        _scp_LWORD(eax) = rc;
+      }
+      LWORD32(eip,++);
+      ret = DPMI_RET_CLIENT;
+      break;
+    case 0xec: {			/* inb dx */
+      int64_t rc;
+      if (debug_level('M')>=9)
+        D_printf("DPMI: inb dx\n");
+      rc = _port_inb(_scp_LWORD(edx));
+      if (rc == -1)
+        break;
+      _scp_LWORD(eax) &= ~0xff;
+      _scp_LWORD(eax) |= rc;
+      LWORD32(eip, += 1);
+      ret = DPMI_RET_CLIENT;
+      break;
+    }
     } /* switch */
     if (ret == DPMI_RET_FAULT)
       _scp_eip = org_eip;
@@ -930,6 +1031,7 @@ static const struct dnative_ops ops = {
   .setup = _setup,
   .done = _done,
   .set_cpio = _set_cpio,
+  .set_drio = _set_drio,
   .read_ldt = _read_ldt,
   .write_ldt = _write_ldt,
   .check_verr = _check_verr,

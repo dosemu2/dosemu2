@@ -88,6 +88,12 @@ static int set_cpio_1_svc(int base, int size, GError **error)
     return 0;
 }
 
+static int set_drio_1_svc(int base, int size, GError **error)
+{
+    dnops->set_drio(base, size);
+    return 0;
+}
+
 static int control_1_svc(GError **error)
 {
     cpuctx_t scp;
@@ -157,6 +163,8 @@ int dnrpc_srv_init(const char *svc_name, int fd)
     searpc_server_register_function(svc_name, done_1_svc, "done_1",
             searpc_signature_int__void());
     searpc_server_register_function(svc_name, set_cpio_1_svc, "set_cpio_1",
+            searpc_signature_int__int_int());
+    searpc_server_register_function(svc_name, set_drio_1_svc, "set_drio_1",
             searpc_signature_int__int_int());
     searpc_server_register_function(svc_name, control_1_svc, "control_1",
             searpc_signature_int__void());

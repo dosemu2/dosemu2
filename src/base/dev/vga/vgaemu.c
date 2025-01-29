@@ -1586,6 +1586,8 @@ static void vgaemu_register_ports(void)
   set_cpio(CRTC_INDEX_MONO, SEQUENCER_INDEX - CRTC_INDEX_MONO);
   set_cpio(DAC_PEL_MASK, GFX_INDEX - DAC_PEL_MASK);
   set_cpio(CRTC_INDEX, 0x400 - CRTC_INDEX);
+
+  set_drio(INPUT_STATUS_1, 1);  // 0x3da
 }
 
 /*
