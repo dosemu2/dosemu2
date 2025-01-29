@@ -41,6 +41,7 @@
 #include "vgaemu.h"
 #include "dos2linux.h"
 #include "mapping.h"
+#include "mhpdbg.h"
 #include "sig.h"
 #include "port.h"
 
@@ -1441,7 +1442,11 @@ int kvm_vm86(struct vm86_struct *info)
     /* low word(orig_eax) = error code */
     trapno = (regs->orig_eax >> 16) & 0xff;
 #if 1
-    if (trapno == 1 && (sregs.cr4 & X86_CR4_VME))
+    if (
+#ifdef USE_MHPDBG
+        !mhpdbg.active &&
+#endif
+        trapno == 1 && (sregs.cr4 & X86_CR4_VME))
       kvm_vme_tf_popf_fixup(regs);
 #endif
     if (trapno == 1 || trapno == 3)
