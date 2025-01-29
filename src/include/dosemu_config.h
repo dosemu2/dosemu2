@@ -6,6 +6,7 @@
 #ifndef DOSEMU_CONFIG_H
 #define DOSEMU_CONFIG_H
 
+#include <stdio.h>
 #include "plugin_config.h"
 #include "disks.h"
 
@@ -34,7 +35,7 @@ char *checked_getenv(const char *name);
 extern char dosemu_conf[];
 extern char global_conf[];
 extern char *dosemu_proc_self_exe;
-extern int dosemu_proc_self_maps_fd;
+extern FILE *dosemu_proc_self_maps;
 extern int dosemu_argc;
 extern char **dosemu_argv;
 extern char *commandline_statements;

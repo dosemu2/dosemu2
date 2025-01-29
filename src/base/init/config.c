@@ -61,7 +61,7 @@ int config_check_only = 0;
 int dosemu_argc;
 char **dosemu_argv;
 char *dosemu_proc_self_exe = NULL;
-int dosemu_proc_self_maps_fd = -1;
+FILE *dosemu_proc_self_maps;
 
 static void usage(char *basename);
 static void assign_floppy(int fnum, const char *name);

@@ -475,7 +475,7 @@ void priv_init(void)
      privs! */
   dosemu_proc_self_exe = readlink_malloc("/proc/self/exe");
   /* For Fedora we must also save a file descriptor to /proc/self/maps */
-  dosemu_proc_self_maps_fd = open("/proc/self/maps", O_RDONLY | O_CLOEXEC);
+  dosemu_proc_self_maps = fopen("/proc/self/maps", "r");
 
   caps = caps_present();
   if (euid && uid && euid != uid) {

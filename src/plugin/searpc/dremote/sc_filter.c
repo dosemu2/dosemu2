@@ -64,14 +64,7 @@ static const int sc_list[] = {
     SCMP_SYS(arch_prctl),
     SCMP_SYS(modify_ldt),
     SCMP_SYS(brk),
-#if 0
-    /* enable those to trace crashes (siginfo_debug()) */
-    SCMP_SYS(ptrace),
-    SCMP_SYS(wait4),
     SCMP_SYS(fstat),
-    SCMP_SYS(fcntl),
-    SCMP_SYS(dup),
-#endif
 };
 
 int scf_start(void)
