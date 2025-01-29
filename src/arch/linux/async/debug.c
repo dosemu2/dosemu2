@@ -244,7 +244,8 @@ void siginfo_debug(const siginfo_t *si)
 	  strsignal(si->si_signo),
 	  si->si_signo, si->si_code, si->si_errno, si->si_addr);
 
-    gdb_debug();
+    if (dosemu_pid == getpid())
+      gdb_debug();
 #ifdef HAVE_BACKTRACE
 #ifdef X86_EMULATOR
     /* backtrace() crashes in jit code */
