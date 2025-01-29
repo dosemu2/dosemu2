@@ -2281,6 +2281,19 @@ static void mhp_bpload(int argc, char *argv[])
   return;
 }
 
+static void mhp_print_system_state(void)
+{
+  mhp_printf("system state: %s%s%s%s\n",
+#ifdef X86_EMULATOR
+      IS_EMU() ? "emulated," : "",
+#else
+      "",
+#endif
+      mhpdbgc.stopped ? "stopped" : "running",
+      IN_DPMI ? " in DPMI" : (dpmi_active() ? " in real mode while in DPMI" : ""),
+      IN_DPMI ? (dpmi_mhp_getcsdefault() ? "-32bit" : "-16bit") : "");
+}
+
 static void mhp_regs(int argc, char *argv[])
 {
   unsigned long newval;
@@ -2349,15 +2362,7 @@ static void mhp_regs(int argc, char *argv[])
     mhp_printf("General Protection Fault, ");
 
   if (!traceloop)
-    mhp_printf("system state: %s%s%s%s\n",
-#ifdef X86_EMULATOR
-        IS_EMU() ? "emulated," : "",
-#else
-        "",
-#endif
-        mhpdbgc.stopped ? "stopped" : "running",
-        IN_DPMI ? " in DPMI" : (dpmi_active() ? " in real mode while in DPMI" : ""),
-        IN_DPMI ? (dpmi_mhp_getcsdefault() ? "-32bit" : "-16bit") : "");
+    mhp_print_system_state();
 
   if (!dpmi_mhp_regs()) {
     mhp_printf("AX=%04x  BX=%04x  CX=%04x  DX=%04x", LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx));
@@ -2397,7 +2402,10 @@ static void mhp_r0(int argc, char *argv[])
   else
     trapped_bp = -1;
   mhp_bpclr();
-  mhp_regs(argc, argv);
+  if (mhpdbgc.stopped)
+    mhp_regs(argc, argv);
+  else
+    mhp_print_system_state();
 }
 
 static void mhp_kill(int argc, char *argv[])
