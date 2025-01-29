@@ -1010,6 +1010,8 @@ void *mapping_find_hole(unsigned long start, unsigned long stop,
 
     /* find out whether the address request is available */
     fp = dosemu_proc_self_maps;
+    if (!fp)
+	return MAP_FAILED;
     fseek(fp, 0, SEEK_SET);
     pend = start;
     while ((ret = fscanf(fp, "%lx-%lx%*[^\n]", &beg, &end)) == 2) {
@@ -1021,7 +1023,6 @@ void *mapping_find_hole(unsigned long start, unsigned long stop,
 	if (beg - pend >= size)
 	    break;
 	if (end + size > stop) {
-	    fclose(fp);
 	    return MAP_FAILED;
 	}
 	pend = end;
