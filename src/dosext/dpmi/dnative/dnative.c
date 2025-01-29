@@ -37,6 +37,8 @@ struct cpio_tmp {
 #define CPIO_MAX 50
 static struct cpio_tmp cptmp[CPIO_MAX];
 static int num_cptmp;
+static struct cpio_tmp drtmp[CPIO_MAX];
+static int num_drtmp;
 
 static void check_ldt(void)
 {
@@ -94,6 +96,11 @@ int native_dpmi_setup(void)
         dnops->set_cpio(ct->base, ct->size);
     }
     num_cptmp = 0;
+    for (i = 0; i < num_drtmp; i++) {
+        struct cpio_tmp *ct = &drtmp[i];
+        dnops->set_drio(ct->base, ct->size);
+    }
+    num_drtmp = 0;
     return ret;
 }
 
@@ -109,6 +116,15 @@ void native_dpmi_set_cpio(int base, int size)
     struct cpio_tmp *ct;
     assert(num_cptmp < CPIO_MAX);
     ct = &cptmp[num_cptmp++];
+    ct->base = base;
+    ct->size = size;
+}
+
+void native_dpmi_set_drio(int base, int size)
+{
+    struct cpio_tmp *ct;
+    assert(num_drtmp < CPIO_MAX);
+    ct = &drtmp[num_drtmp++];
     ct->base = base;
     ct->size = size;
 }

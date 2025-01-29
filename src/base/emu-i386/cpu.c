@@ -489,3 +489,9 @@ void set_cpio(int base, int size)
 	if (config.cpu_vm_dpmi == CPUVM_NATIVE)
 		native_dpmi_set_cpio(base, size);
 }
+
+void set_drio(int base, int size)
+{
+	if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+		native_dpmi_set_drio(base, size);
+}
