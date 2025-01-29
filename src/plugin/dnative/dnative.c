@@ -277,7 +277,7 @@ void dpmi_switch_sa(int sig, siginfo_t * inf, void *uc)
 
 #if USE_CPIO
 __attribute__((warn_unused_result))
-static int port_outb(ioport_t port, Bit8u byte)
+static int _port_outb(ioport_t port, Bit8u byte)
 {
     struct cpio_ent *e;
 
@@ -295,7 +295,7 @@ static int port_outb(ioport_t port, Bit8u byte)
 }
 
 __attribute__((warn_unused_result))
-static int port_outw(ioport_t port, Bit16u word)
+static int _port_outw(ioport_t port, Bit16u word)
 {
     int i;
     struct cpio_ent *e;
@@ -316,7 +316,7 @@ static int port_outw(ioport_t port, Bit16u word)
 }
 
 __attribute__((warn_unused_result))
-static int port_outd(ioport_t port, Bit32u dword)
+static int _port_outd(ioport_t port, Bit32u dword)
 {
     int i;
     struct cpio_ent *e;
@@ -336,7 +336,7 @@ static int port_outd(ioport_t port, Bit32u dword)
     return 0;
 }
 
-static int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
+static int _port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
 {
     int i;
     int incr = df? -1: 1;
@@ -354,14 +354,14 @@ static int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
     i_printf("Doing REP outsb(%#x) %d bytes at %p, DF %d\n", port,
 		count, base, df);
     while (count--) {
-	int rc = port_outb(port, *dest);
+	int rc = _port_outb(port, *dest);
 	assert(rc != -1);
 	dest += incr;
     }
     return dest-base;
 }
 
-static int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
+static int _port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 {
     int i;
     int incr = df? -1: 1;
@@ -379,14 +379,14 @@ static int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
     i_printf("Doing REP outsw(%#x) %d words at %p, DF %d\n", port,
 		count, base, df);
     while (count--) {
-	int rc = port_outw(port, *dest);
+	int rc = _port_outw(port, *dest);
 	assert(rc != -1);
 	dest += incr;
     }
     return (Bit8u *)dest-(Bit8u *)base;
 }
 
-static int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
+static int _port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
 {
     int i;
     int incr = df? -1: 1;
@@ -402,7 +402,7 @@ static int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
 	    return -1;
     }
     while (count--) {
-	int rc = port_outd(port, *dest);
+	int rc = _port_outd(port, *dest);
 	assert(rc != -1);
 	dest += incr;
     }
@@ -628,13 +628,13 @@ int dpmi_fault(sigcontext_t *scp)
       if (pref_seg < 0) pref_seg = _scp_ds;
       /* WARNING: no test for (E)SI wrapping! */
       if (ASIZE_IS_32) {		/* a32 outsb */
-	int rc = port_rep_outb(_scp_LWORD(edx), (Bit8u *)_SEL_ADR(pref_seg,_scp_esi),
+	int rc = _port_rep_outb(_scp_LWORD(edx), (Bit8u *)_SEL_ADR(pref_seg,_scp_esi),
 	        _scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
 	if (rc == -1)
 	  break;
 	_scp_esi += rc;
       } else {			/* a16 outsb */
-	int rc = port_rep_outb(_scp_LWORD(edx), (Bit8u *)_SEL_ADR(pref_seg,_scp_LWORD(esi)),
+	int rc = _port_rep_outb(_scp_LWORD(edx), (Bit8u *)_SEL_ADR(pref_seg,_scp_LWORD(esi)),
 	        _scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
 	if (rc == -1)
 	  break;
@@ -652,13 +652,13 @@ int dpmi_fault(sigcontext_t *scp)
       /* WARNING: no test for (E)SI wrapping! */
       if (OSIZE_IS_32) {	/* outsd */
         if (ASIZE_IS_32) {	/* a32 outsd */
-	  int rc = port_rep_outd(_scp_LWORD(edx), (Bit32u *)_SEL_ADR(pref_seg,_scp_esi),
+	  int rc = _port_rep_outd(_scp_LWORD(edx), (Bit32u *)_SEL_ADR(pref_seg,_scp_esi),
 		_scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
 	  if (rc == -1)
 	    break;
 	  _scp_esi += rc;
         } else {			/* a16 outsd */
-	  int rc = port_rep_outd(_scp_LWORD(edx), (Bit32u *)_SEL_ADR(pref_seg,_scp_LWORD(esi)),
+	  int rc = _port_rep_outd(_scp_LWORD(edx), (Bit32u *)_SEL_ADR(pref_seg,_scp_LWORD(esi)),
 		_scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
 	  if (rc == -1)
 	    break;
@@ -667,13 +667,13 @@ int dpmi_fault(sigcontext_t *scp)
       }
       else {			/* outsw */
         if (ASIZE_IS_32) {	/* a32 outsw */
-	  int rc = port_rep_outw(_scp_LWORD(edx), (Bit16u *)_SEL_ADR(pref_seg,_scp_esi),
+	  int rc = _port_rep_outw(_scp_LWORD(edx), (Bit16u *)_SEL_ADR(pref_seg,_scp_esi),
 		_scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
 	  if (rc == -1)
 	    break;
 	  _scp_esi += rc;
         } else {			/* a16 outsw */
-	  int rc = port_rep_outw(_scp_LWORD(edx), (Bit16u *)_SEL_ADR(pref_seg,_scp_LWORD(esi)),
+	  int rc = _port_rep_outw(_scp_LWORD(edx), (Bit16u *)_SEL_ADR(pref_seg,_scp_LWORD(esi)),
 		_scp_LWORD(eflags)&DF, (is_rep?_LWECX:1));
 	  if (rc == -1)
 	    break;
@@ -689,8 +689,8 @@ int dpmi_fault(sigcontext_t *scp)
       int rc;
       if (debug_level('M')>=9)
         D_printf("DPMI: out%s xx\n", OSIZE_IS_32 ? "d" : "w");
-      if (OSIZE_IS_32) rc = port_outd((int)csp[0], _scp_eax);
-      else rc = port_outw((int)csp[0], _scp_LWORD(eax));
+      if (OSIZE_IS_32) rc = _port_outd((int)csp[0], _scp_eax);
+      else rc = _port_outw((int)csp[0], _scp_LWORD(eax));
       if (rc == -1)
         break;
       LWORD32(eip, += 2);
@@ -701,7 +701,7 @@ int dpmi_fault(sigcontext_t *scp)
       int rc;
       if (debug_level('M')>=9)
         D_printf("DPMI: outb xx\n");
-      rc = port_outb((int) csp[0], _scp_LO(ax));
+      rc = _port_outb((int) csp[0], _scp_LO(ax));
       if (rc == -1)
         break;
       LWORD32(eip, += 2);
@@ -712,8 +712,8 @@ int dpmi_fault(sigcontext_t *scp)
       int rc;
       if (debug_level('M')>=9)
         D_printf("DPMI: out%s dx\n", OSIZE_IS_32 ? "d" : "w");
-      if (OSIZE_IS_32) rc = port_outd(_scp_LWORD(edx), _scp_eax);
-      else rc = port_outw(_scp_LWORD(edx), _scp_LWORD(eax));
+      if (OSIZE_IS_32) rc = _port_outd(_scp_LWORD(edx), _scp_eax);
+      else rc = _port_outw(_scp_LWORD(edx), _scp_LWORD(eax));
       if (rc == -1)
         break;
       LWORD32(eip, += 1);
@@ -724,7 +724,7 @@ int dpmi_fault(sigcontext_t *scp)
       int rc;
       if (debug_level('M')>=9)
         D_printf("DPMI: outb dx\n");
-      rc = port_outb(_scp_LWORD(edx), _scp_LO(ax));
+      rc = _port_outb(_scp_LWORD(edx), _scp_LO(ax));
       if (rc == -1)
         break;
       LWORD32(eip, += 1);
@@ -800,7 +800,7 @@ static int _write_ldt(const void *ptr, int bytecount, uint64_t base)
   int offs;
 
   memcpy(&ldt_info, ptr, sizeof(ldt_info));
-  offs  = ldt_info.entry_number * LDT_ENTRY_SIZE;
+  offs = ldt_info.entry_number * LDT_ENTRY_SIZE;
   assert(bytecount == sizeof(ldt_info) &&
       offs + bytecount <= sizeof(_ldt_buffer));
   emu_update_LDT(&ldt_info, _ldt_buffer + offs);
