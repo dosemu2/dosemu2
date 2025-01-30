@@ -58,7 +58,7 @@
 typedef struct _mpmap {
 	struct _mpmap *next;
 	int mega;
-	unsigned char pagemap[32];	/* (32*8)=256 pages *4096 = 1M */
+	void *pagemap[256];	/* 256 pages *4096 = 1M */
 	uint64_t subpage[(0x100000>>CGRAN)/UINT64_WIDTH];	/* 2^CGRAN-byte granularity, 1M/2^CGRAN bits */
 } tMpMap;
 
@@ -101,10 +101,43 @@ static void AddMpMap(unsigned int addr, unsigned int aend)
 		M->next = MpH; MpH = M;
 		M->mega = (page>>8);
 	    }
-	    bs = test_and_set_bit(page&255, M->pagemap);
+	    page &= 255;
+	    bs = !!M->pagemap[page];
+	    if (!bs) {
+		void *p = malloc(PAGE_SIZE);
+		memcpy(p, EMU_BASE32(addr), PAGE_SIZE);
+		M->pagemap[page] = p;
+	    }
 	    if (debug_level('e')>1)
 		dbug_printf("MPMAP:   protect page=%08x was %x\n",addr,bs);
 	}
+}
+
+static int do_rm_page(tMpMap *P, tMpMap *M, int page)
+{
+	int i;
+	int ret = 0;
+
+	free(M->pagemap[page]);
+	M->pagemap[page] = NULL;
+	for (i = 0; i < ARRAY_SIZE(M->pagemap); i++) {
+	    if (M->pagemap[i])
+		break;
+	}
+	/* completely empty, remove */
+	if (i == ARRAY_SIZE(M->pagemap)) {
+	    if (debug_level('e')>1)
+		dbug_printf("MPMAP: removing 0x%x\n", M->mega);
+	    if (P)
+		P->next = M->next;
+	    else
+		MpH = M->next;
+	    if (LastMp == M)
+		LastMp = NULL;
+	    free(M);
+	    ret++;
+	}
+	return ret;
 }
 
 static void RmMpMap(unsigned int addr, unsigned int aend)
@@ -112,6 +145,7 @@ static void RmMpMap(unsigned int addr, unsigned int aend)
 	int bs=0;
 	int page;
 	tMpMap *M, *P;
+	void *p;
 
 	for (; addr <= aend; addr += PAGE_SIZE) {
 	    page = addr >> PAGE_SHIFT;
@@ -123,26 +157,11 @@ static void RmMpMap(unsigned int addr, unsigned int aend)
 		M = M->next;
 	    }
 	    if (M==NULL) continue;
-	    bs = test_and_clear_bit(page&255, M->pagemap);
-	    if (bs) {
-		int i;
-		for (i = 0; i < ARRAY_SIZE(M->pagemap); i++) {
-		    if (M->pagemap[i])
-			break;
-		}
-		/* completely empty, remove */
-		if (i == ARRAY_SIZE(M->pagemap)) {
-		    if (debug_level('e')>1)
-			dbug_printf("MPMAP: removing 0x%x\n", M->mega);
-		    if (P)
-			P->next = M->next;
-		    else
-			MpH = M->next;
-		    if (LastMp == M)
-			LastMp = NULL;
-		    free(M);
-		}
-	    }
+	    page &= 255;
+	    p = M->pagemap[page];
+	    bs = !!p;
+	    if (p)
+		do_rm_page(P, M, page);
 	    if (debug_level('e')>1)
 		dbug_printf("MPMAP: unprotect page=%08x was %x\n",addr,bs);
 	}
@@ -155,7 +174,7 @@ int e_querymprot(dosaddr_t addr)
 	tMpMap *M = FindM(addr);
 
 	if (M==NULL) return 0;
-	return test_bit(a2&255, M->pagemap);
+	return !!M->pagemap[a2&255];
 }
 
 int e_querymprotrange(unsigned int addr, size_t len)
@@ -167,7 +186,7 @@ int e_querymprotrange(unsigned int addr, size_t len)
 	a2h = (addr+len-1) >> PAGE_SHIFT;
 
 	while (M && a2l <= a2h) {
-		if (test_bit(a2l&255, M->pagemap))
+		if (M->pagemap[a2l&255])
 			return 1;
 		a2l++;
 		if ((a2l&255)==0)
@@ -520,25 +539,23 @@ void mprot_init(void)
 void mprot_end(void)
 {
 	tMpMap *M = MpH;
+	tMpMap *M2 = NULL;
 	int i;
-	unsigned char b;
 
+again:
 	while (M) {
-	    tMpMap *M2 = M;
-	    for (i=0; i<32; i++) if ((b=M->pagemap[i])) {
-		unsigned int addr = (M->mega<<20) | (i<<15);
-		while (b) {
-		    if (b & 1) {
-			if (debug_level('e')>1)
-			    dbug_printf("MP_END %08x = RWX\n",addr);
-			mprotect_mapping(MAPPING_CPUEMU, addr, PAGE_SIZE, PROT_RWX);
-		    }
-		    addr += PAGE_SIZE;
-	 	    b >>= 1;
+	    for (i=0; i<ARRAY_SIZE(M->pagemap); i++) if (M->pagemap[i]) {
+		unsigned int addr = (M->mega<<20) | (i<<PAGE_SHIFT);
+		if (debug_level('e')>1)
+		    dbug_printf("MP_END %08x = RWX\n",addr);
+		mprotect_mapping(MAPPING_CPUEMU, addr, PAGE_SIZE, PROT_RWX);
+		if (do_rm_page(M2, M, i)) {
+		    M = (M2 ? M2->next : MpH);
+		    goto again;
 		}
 	    }
+	    M2 = M;
 	    M = M->next;
-	    free(M2);
 	}
 	MpH = LastMp = NULL;
 }
