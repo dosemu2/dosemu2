@@ -835,22 +835,20 @@ static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
   int rc;
   struct rect_desc d;
 
-  /* Unfortunately SDL_UpdateTexture() uses renderer internally,
-   * so apply also rend_mtx. */
-  pthread_mutex_lock(&rend_mtx);
-  pthread_mutex_lock(&tex_mtx);
   while ((rc = rng_get(rng, &d))) {
     SDL_LockSurface(d.tex);
     SDL_UpdateTexture(tex, &d.rect, d.tex->pixels, d.tex->pitch);
     SDL_UnlockSurface(d.tex);
     SDL_FreeSurface(d.tex);
   }
-  pthread_mutex_unlock(&tex_mtx);
-  pthread_mutex_unlock(&rend_mtx);
 }
 
 static void do_rend(void)
 {
+  /* Unfortunately SDL_UpdateTexture() uses renderer internally,
+   * so apply also rend_mtx. */
+  pthread_mutex_lock(&rend_mtx);
+  pthread_mutex_lock(&tex_mtx);
   if (!surface) {
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
     do_rend_rects(&ttf_char_rng, texture_ttf);
@@ -859,6 +857,8 @@ static void do_rend(void)
     /* texture_buf protected by render_mode_lock() */
     do_rend_rects(&rects_rng, texture_buf);
   }
+  pthread_mutex_unlock(&tex_mtx);
+  pthread_mutex_unlock(&rend_mtx);
 }
 
 #if THREADED_REND
