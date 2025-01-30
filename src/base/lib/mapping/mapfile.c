@@ -90,7 +90,7 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
     perror("mmap()");
     exit(2);
   }
-#if 1
+#if 0
   Q_printf("MAPPING: alias_map, fileoffs %llx to %p size %zx, result %p\n",
 			(long long)offs, target, mapsize, addr);
 #endif
