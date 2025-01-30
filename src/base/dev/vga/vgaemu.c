@@ -2012,11 +2012,6 @@ void vga_emu_prot_unlock(void)
 
 int vgaemu_switch_plane(unsigned plane)
 {
-  if(plane > 3) {
-    vga_msg("vgaemu_switch_plane: plane %d invalid\n", plane);
-    return False;
-  }
-
   vga.mem.write_plane = vga.mem.read_plane = plane;
   vga.mem.bank = 0;
 
@@ -2539,11 +2534,6 @@ int vgaemu_map_bank(void)
 
   if((vga.mem.bank + 1) * vga.mem.bank_pages > vga.mem.pages) {
     vga_msg("vgaemu_map_bank: invalid bank %d\n", vga.mem.bank);
-    return False;
-  }
-
-  if(vga.mem.write_plane > 3) {
-    vga_msg("vgaemu_map_bank: invalid plane %d\n", vga.mem.write_plane);
     return False;
   }
 
