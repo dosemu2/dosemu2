@@ -493,13 +493,17 @@ void SDL_close(void)
   remapper_done();
   vga_emu_done();
   /* destroy texture before renderer, or crash */
+  pthread_mutex_lock(&rend_mtx);
+  pthread_mutex_lock(&tex_mtx);
   if (texture_buf)
     SDL_DestroyTexture(texture_buf);
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
   if (texture_ttf)
     SDL_DestroyTexture(texture_ttf);
 #endif
+  pthread_mutex_unlock(&tex_mtx);
   SDL_DestroyRenderer(renderer);
+  pthread_mutex_unlock(&rend_mtx);
   if (surface)
     SDL_FreeSurface(surface);
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
