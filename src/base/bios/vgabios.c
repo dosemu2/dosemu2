@@ -480,16 +480,25 @@ static void write_gfx_char_cga(Bit16u vstart,Bit8u car,Bit8u attr,
 static void write_gfx_char_lin(Bit16u vstart,Bit8u car,Bit8u attr,
 	Bit8u xcurs,Bit8u ycurs,Bit8u nbcols,Bit8u cheight)
 {
- Bit8u i,j,mask,data;
+ Bit8u i,j,mask,data,plane;
  Bit8u *fdata;
- Bit16u addr,dest,src;
+ Bit16u src;
+ Bit32u addr,dest;
 
  fdata = MEM_BASE32(IVEC(0x43));
  addr=xcurs*8+ycurs*nbcols*8*cheight+vstart;
+ plane = addr >> 16;
+ port_outw(VGAREG_SEQU_ADDRESS, ((1 << (plane + 8))) | 2);  // switch plane
  src = car * cheight;
  for(i=0;i<cheight;i++)
   {
-   dest=addr+i*nbcols*8;
+   dest = addr+i*nbcols*8 - (plane << 16);
+   if (dest & ~0xffff)
+    {
+     plane++;
+     port_outw(VGAREG_SEQU_ADDRESS, ((1 << (plane + 8))) | 2);  // switch plane
+     dest -= 0x10000;
+    }
    mask = 0x80;
    for(j=0;j<8;j++)
     {
