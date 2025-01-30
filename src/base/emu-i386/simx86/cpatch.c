@@ -523,7 +523,7 @@ int Cpatch(sigcontext_t *scp)
 
 int UnCpatch(unsigned char *eip)
 {
-    register unsigned char *p;
+    unsigned char *p;
     p = eip;
 
     if (*eip != 0xff) return 1;

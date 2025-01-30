@@ -2744,7 +2744,7 @@ repag0:
 				((c2&0xfffffffe)==0xf4eb0274)) {
 				// 74 02 eb f4 = wait for HR,VR==0
 				// 75 02 eb f4 = wait for HR,VR==1
-				register unsigned char amk = Fetch(PC+1);
+				unsigned char amk = Fetch(PC+1);
 				if (amk==8) {
 				    if (tp==0) set_ioperm(a,1,1);
 				    if (PC[5]&1)

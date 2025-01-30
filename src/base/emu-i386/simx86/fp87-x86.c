@@ -74,7 +74,7 @@ void init_emu_npu_x86 (void)
 
 unsigned char *Fp87_op_x86(unsigned char *CodePtr, int exop, int reg)
 {
-	register unsigned char *Cp = CodePtr;
+	unsigned char *Cp = CodePtr;
 
 //	0B	DB xx001nnn	FISTTP	dw // SSE3 capable CPUs
 //	0D	DD xx001nnn	FISTTP	qw // SSE3 capable CPUs

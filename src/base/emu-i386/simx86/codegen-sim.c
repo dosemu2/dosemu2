@@ -2295,7 +2295,7 @@ void Gen_sim(int op, int mode, ...)
 	case O_MOVS_MovD: {
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		dosaddr_t src, dest;
-		register unsigned int i;
+		unsigned int i;
 		i = TR1.d;
 		GTRACE4("O_MOVS_MovD",0xff,0xff,df,i);
 		if(i == 0)
@@ -2403,7 +2403,7 @@ void Gen_sim(int op, int mode, ...)
 	case O_MOVS_LodD: {
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		dosaddr_t addr;
-		register unsigned int i;
+		unsigned int i;
 		i = TR1.d;
 		GTRACE4("O_MOVS_LodD",0xff,0xff,df,i);
 		if (mode&(MREP|MREPNE))	{
@@ -2427,7 +2427,7 @@ void Gen_sim(int op, int mode, ...)
 	case O_MOVS_StoD: {
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		dosaddr_t addr;
-		register unsigned int i;
+		unsigned int i;
 		i = TR1.d;
 		GTRACE4("O_MOVS_StoD",0xff,0xff,df,i);
 		if((mode & ADDR16) && i) {
@@ -2478,7 +2478,7 @@ void Gen_sim(int op, int mode, ...)
 	case O_MOVS_ScaD: {	// OSZAPC
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		dosaddr_t addr;
-		register unsigned int i;
+		unsigned int i;
 		char k, z;
 		i = TR1.d;
 		GTRACE4("O_MOVS_ScaD",0xff,0xff,df,i);
@@ -2516,7 +2516,7 @@ void Gen_sim(int op, int mode, ...)
 	case O_MOVS_CmpD: {	// OSZAPC
 		int df;
 		dosaddr_t addr1, addr2;
-		register unsigned int i;
+		unsigned int i;
 		char k, z;
 		i = TR1.d;
 		df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
@@ -2703,7 +2703,7 @@ void Gen_sim(int op, int mode, ...)
 	case O_BITOP: {
 		unsigned char o1 = (unsigned char)va_arg(ap,int);
 		signed char o2 = Offs_From_Arg();
-		register int flg;
+		int flg;
 		GTRACE3("O_BITOP",o2,0xff,o1);
 		if (o1 == 0x1c || o1 == 0x1d) { /* bsf/bsr */
 			if (mode & DATA16) DR1.d = DR1.w.l;

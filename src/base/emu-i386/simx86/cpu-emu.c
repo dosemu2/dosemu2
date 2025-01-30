@@ -1317,7 +1317,7 @@ void e_dpmi_b0x(int op,cpuctx_t *scp)
 
 int e_debug_check(unsigned int PC)
 {
-    register unsigned long d7 = TheCPU.dr[7];
+    unsigned long d7 = TheCPU.dr[7];
 
     if (d7&0x03) {
 	if (d7&0x30000) return 0;	/* only execute(00) bkp */

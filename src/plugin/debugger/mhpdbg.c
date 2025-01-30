@@ -478,7 +478,7 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
             mhpdbgc.bpload = 0;
           }
           if (!--mhpdbgc.int21_count) {
-            volatile register int i = 0x21; /* beware, set_bit-macro has wrong constraints */
+            int i = 0x21; /* beware, set_bit-macro has wrong constraints */
             clear_bit(i, mhpdbg.intxxtab);
             if (test_bit(i, mhpdbgc.intxxalt)) {
               clear_bit(i, mhpdbgc.intxxalt);

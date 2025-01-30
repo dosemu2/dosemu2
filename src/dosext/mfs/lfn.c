@@ -220,7 +220,7 @@ static int make_unmake_dos_mangled_path(char *dest, const char *fpath,
 static const char *get_root(const char * fname)
 {
 	/* find the end					*/
-	register unsigned length = strlen(fname);
+	unsigned length = strlen(fname);
 	char c;
 
 	/* now back up to first path separator or start */

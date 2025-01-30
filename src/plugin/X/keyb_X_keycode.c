@@ -263,7 +263,7 @@ static void display_x_keyboard(Display *display)
 #ifdef HAVE_XKB
 static int XkbFindKeycodeByName(XkbDescPtr xkb, const char *name,Bool use_aliases)
 {
-	register int	i;
+	int i;
 
 	if ((!xkb)||(!xkb->names)||(!xkb->names->keys))
 		return 0;

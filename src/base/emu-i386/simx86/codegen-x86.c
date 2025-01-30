@@ -191,7 +191,7 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 	   a static variable */
 	static unsigned char * rep_retry_ptr = (unsigned char*)0xdeadbeef;
 	IGen *IG = &(I->gen[j]);
-	register unsigned char *Cp = CodePtr;
+	unsigned char *Cp = CodePtr;
 	unsigned char * CpTemp;
 	int mode = IG->mode;
 	int rcod;

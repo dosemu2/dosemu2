@@ -112,22 +112,22 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 /* `Fetch` is for CODE reads, `Get`/`Put` is for DATA.
  *  WARNING - BOUND uses SIGNED limits!! */
 #define Fetch(a)	({ \
-	register int p = (int)(a);\
+	int p = (int)(a);\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	*((unsigned char *)p); })
 #define FetchW(a)	({ \
-	register int p = (int)(a)+1;\
+	int p = (int)(a)+1;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	*((unsigned short *)(a)); })
 #define FetchL(a)	({ \
-	register int p = (int)(a)+3;\
+	int p = (int)(a)+3;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	*((unsigned int *)(a)); })
 
 #define DataFetchWL_U(m,a)	({ \
-	register unsigned f = ((m)&DATA16? 1:3);\
-	register int p = (int)(a)+f;\
-	register int res;\
+	unsigned f = ((m)&DATA16? 1:3);\
+	int p = (int)(a)+f;\
+	int res;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	__asm__ ("xorl	%0,%0\n\
 		shr	$2,%1\n\
@@ -137,15 +137,15 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 		: "=&r"(res) : "r"(f), "g"(a) : "memory" ); res; })
 
 #define DataFetchWL_S(m,a)	({ \
-	register unsigned f = ((m)&DATA16? 1:3);\
-	register int p = (int)(a)+f;\
+	unsigned f = ((m)&DATA16? 1:3);\
+	int p = (int)(a)+f;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	(f&2? *((int *)(a)):*((short *)(a))); })
 
 #define AddrFetchWL_U(m,a)	({ \
-	register unsigned f = ((m)&ADDR16? 1:3);\
-	register int p = (int)(a)+f;\
-	register int res;\
+	unsigned f = ((m)&ADDR16? 1:3);\
+	int p = (int)(a)+f;\
+	int res;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	__asm__ ("xorl	%0,%0\n\
 		shr	$2,%1\n\
@@ -155,8 +155,8 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 		: "=&r"(res) : "r"(f), "g"(a) : "memory" ); res; })
 
 #define AddrFetchWL_S(m,a)	({ \
-	register unsigned f = ((m)&ADDR16? 1:3);\
-	register int p = (int)(a)+f;\
+	unsigned f = ((m)&ADDR16? 1:3);\
+	int p = (int)(a)+f;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	(f&2? *((int *)(a)):*((short *)(a))); })
 #else
@@ -191,22 +191,22 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 
 /* general-purpose */
 //static inline unsigned short pswap2(long a) {
-//	register unsigned char *p = (unsigned char *)a;
+//	unsigned char *p = (unsigned char *)a;
 //	return p[0] | (p[1]<<8);
 //}
 //
 //static inline unsigned short dswap2(unsigned short w) {
-//	register unsigned char *p = (unsigned char *)&w;
+//	unsigned char *p = (unsigned char *)&w;
 //	return p[0] | (p[1]<<8);
 //}
 //
 //static inline unsigned long pswap4(long a) {
-//	register unsigned char *p = (unsigned char *)a;
+//	unsigned char *p = (unsigned char *)a;
 //	return p[0] | (p[1]<<8) | (p[2]<<16) | (p[3]<<24);
 //}
 //
 //static inline unsigned long dswap4(unsigned long l) {
-//	register unsigned char *p = (unsigned char *)&l;
+//	unsigned char *p = (unsigned char *)&l;
 //	return p[0] | (p[1]<<8) | (p[2]<<16) | (p[3]<<24);
 //}
 //#define GetDWord(a)		pswap2((long)a)

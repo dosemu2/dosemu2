@@ -853,7 +853,7 @@ void dos_slang_smart_set_mono (void)
 {
    int i, max_attr;
    unsigned int attr_count [256], max_count;
-   register unsigned short *s, *smax;
+   unsigned short *s, *smax;
 
    Attribute_Map = BW_Attribute_Map;
    s = (unsigned short *)(vga.mem.base + vga.display_start);

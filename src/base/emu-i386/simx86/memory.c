@@ -72,8 +72,8 @@ static int e_munprotect(unsigned int addr, size_t len);
 
 static inline tMpMap *FindM(unsigned int addr)
 {
-	register int a2l = addr >> (PAGE_SHIFT+8);
-	register tMpMap *M = LastMp;
+	int a2l = addr >> (PAGE_SHIFT+8);
+	tMpMap *M = LastMp;
 
 	if (M && (M->mega==a2l)) return M;
 	M = MpH;
@@ -90,7 +90,7 @@ static inline tMpMap *FindM(unsigned int addr)
 static int AddMpMap(unsigned int addr, unsigned int aend, int onoff)
 {
 	int bs=0, bp=0;
-	register int page;
+	int page;
 	tMpMap *M;
 
 	do {
@@ -125,7 +125,7 @@ static int AddMpMap(unsigned int addr, unsigned int aend, int onoff)
 
 int e_querymprot(dosaddr_t addr)
 {
-	register int a2 = addr >> PAGE_SHIFT;
+	int a2 = addr >> PAGE_SHIFT;
 	tMpMap *M = FindM(addr);
 
 	if (M==NULL) return 0;
@@ -369,7 +369,7 @@ static int e_munprotect(unsigned int addr, size_t len)
 #ifdef X86_JIT
 int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 {
-	register int v;
+	int v;
 	unsigned char *p;
 	int in_dosemu;
 
