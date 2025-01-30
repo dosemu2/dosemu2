@@ -1,7 +1,8 @@
 on:
-  push:
-    branches:
-      - devel
+  workflow_dispatch:
+#  push:
+#    branches:
+#      - devel
 
 name: Flatpack build
 
