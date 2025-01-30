@@ -134,6 +134,7 @@ static int do_open(u_short port, u_short *newPort, int *err)
   /* Permit broadcast output */
   if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST,
 		 &opt, sizeof(opt)) == -1) {
+    close(sock);
     /* I can't think of anything else to return */
     n_printf("IPX: could not set socket option for broadcast: %s.\n", strerror(errno));
     *err = RCODE_SOCKET_TABLE_FULL;
@@ -142,6 +143,7 @@ static int do_open(u_short port, u_short *newPort, int *err)
   /* allow setting the type field in the IPX header */
   opt = 1;
   if (setsockopt(sock, SOL_IPX, IPX_TYPE, &opt, sizeof(opt)) == -1) {
+    close(sock);
     /* I can't think of anything else to return */
     n_printf("IPX: could not set socket option for type: %s.\n", strerror(errno));
     *err = RCODE_SOCKET_TABLE_FULL;

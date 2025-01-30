@@ -64,7 +64,7 @@ static hitimer_t TotalTime;
 static int iniflag = 0;
 
 /* This needs to be merged someday with 'mode' */
-volatile int CEmuStat = 0;
+int CEmuStat = 0;
 
 int IsV86Emu = 1;
 int IsDpmiEmu = 1;
@@ -85,8 +85,8 @@ jmp_buf jmp_env;
 
 union _SynCPU TheCPU_union;
 
-int Running = 0;
-volatile int InCompiledCode = 0;
+int Running;
+int InCompiledCode;
 
 unsigned int trans_addr, return_addr;	// PC
 

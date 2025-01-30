@@ -482,7 +482,12 @@ static int tcp_listen(uint32_t dest, uint16_t port,
         return ERR_CRITICAL;
     }
 
-    getsockname(fd, (struct sockaddr *)&sa, &l);
+    rc = getsockname(fd, (struct sockaddr *)&sa, &l);
+    if (rc) {
+        error("TCP getsockname: %s\n", strerror(errno));
+        close(fd);
+        return ERR_CRITICAL;
+    }
     *r_port = ntohs(sa.sin_port);
     sh = alloc_ses();
     if (sh == -1) {
