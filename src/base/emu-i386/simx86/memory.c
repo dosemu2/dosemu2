@@ -66,7 +66,7 @@ unsigned int mMaxMem = 0;
 int PageFaults = 0;
 static tMpMap *LastMp = NULL;
 
-static int e_munprotect(unsigned int addr, size_t len);
+static void e_munprotect(unsigned int addr, size_t len);
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -87,39 +87,48 @@ static inline tMpMap *FindM(unsigned int addr)
 }
 
 
-static int AddMpMap(unsigned int addr, unsigned int aend, int onoff)
+static void AddMpMap(unsigned int addr, unsigned int aend)
 {
-	int bs=0, bp=0;
+	int bs;
 	int page;
 	tMpMap *M;
 
-	do {
+	for (; addr <= aend; addr += PAGE_SIZE) {
+	    page = addr >> PAGE_SHIFT;
+	    M = FindM(addr);
+	    if (M==NULL) {
+		M = (tMpMap *)calloc(1,sizeof(tMpMap));
+		M->next = MpH; MpH = M;
+		M->mega = (page>>8);
+	    }
+	    bs = test_and_set_bit(page&255, M->pagemap);
+	    if (debug_level('e')>1) {
+		if (addr > mMaxMem) mMaxMem = addr;
+		dbug_printf("MPMAP:   protect page=%08x was %x\n",addr,bs);
+	    }
+	}
+}
+
+static void RmMpMap(unsigned int addr, unsigned int aend)
+{
+	int bs=0;
+	int page;
+	tMpMap *M;
+
+	for (; addr <= aend; addr += PAGE_SIZE) {
 	    page = addr >> PAGE_SHIFT;
 	    M = MpH;
 	    while (M) {
 		if (M->mega==(page>>8)) break;
 		M = M->next;
 	    }
-	    if (M==NULL) {
-		M = (tMpMap *)calloc(1,sizeof(tMpMap));
-		M->next = MpH; MpH = M;
-		M->mega = (page>>8);
-	    }
-	    if (bp < 32) {
-		bs |= (((unsigned)(onoff? test_and_set_bit(page&255, M->pagemap) :
-			    test_and_clear_bit(page&255, M->pagemap)) & 1) << bp);
-		bp++;
-	    }
+	    if (M==NULL) continue;
+	    bs = test_and_clear_bit(page&255, M->pagemap);
 	    if (debug_level('e')>1) {
 		if (addr > mMaxMem) mMaxMem = addr;
-		if (onoff)
-		  dbug_printf("MPMAP:   protect page=%08x was %x\n",addr,bs);
-		else
-		  dbug_printf("MPMAP: unprotect page=%08x was %x\n",addr,bs);
+		dbug_printf("MPMAP: unprotect page=%08x was %x\n",addr,bs);
 	    }
-	    addr += PAGE_SIZE;
-	} while (addr <= aend);
-	return bs;
+	}
 }
 
 
@@ -292,17 +301,16 @@ int e_querymark_all(unsigned int addr, size_t len)
 /////////////////////////////////////////////////////////////////////////////
 
 
-int e_mprotect(unsigned int addr, size_t len)
+void e_mprotect(unsigned int addr, size_t len)
 {
 	int e;
 	unsigned int abeg, aend, aend1;
 	unsigned int abeg1 = (unsigned)-1;
 	unsigned a;
-	int ret = 1;
 
 	abeg = addr & _PAGE_MASK;
 	if (len==0) {
-	    return 0;
+	    return;
 	}
 	else {
 	    aend = (addr+len-1) & _PAGE_MASK;
@@ -319,23 +327,21 @@ int e_mprotect(unsigned int addr, size_t len)
 		e = mprotect_mapping(MAPPING_CPUEMU, abeg1, aend1-abeg1+PAGE_SIZE,
 			    PROT_READ | _PROT_EXEC);
 		if (e<0) {
-		    e_printf("MPMAP: %s\n",strerror(errno));
-		    return -1;
+		    error("MPMAP: %s\n",strerror(errno));
+		    exit(1);
 		}
-		ret = AddMpMap(abeg1, aend1+PAGE_SIZE-1, 1);
+		AddMpMap(abeg1, aend1+PAGE_SIZE-1);
 		abeg1 = (unsigned)-1;
 	    }
 	}
-	return ret;
 }
 
-static int e_munprotect(unsigned int addr, size_t len)
+static void e_munprotect(unsigned int addr, size_t len)
 {
 	int e;
 	unsigned int abeg, aend, aend1;
 	unsigned int abeg1 = (unsigned)-1;
 	unsigned a;
-	int ret = 0;
 
 	abeg = addr & _PAGE_MASK;
 	if (len==0) {
@@ -357,13 +363,12 @@ static int e_munprotect(unsigned int addr, size_t len)
 			     PROT_RWX);
 		if (e<0) {
 		    e_printf("MPUNMAP: %s\n",strerror(errno));
-		    return -1;
+		    exit(1);
 		}
-		ret = AddMpMap(abeg1, aend1+PAGE_SIZE-1, 0);
+		RmMpMap(abeg1, aend1+PAGE_SIZE-1);
 		abeg1 = (unsigned)-1;
 	    }
 	}
-	return ret;
 }
 
 #ifdef X86_JIT
@@ -491,7 +496,7 @@ int e_handle_fault(sigcontext_t *scp)
 void mprot_init(void)
 {
 	MpH = NULL;
-	AddMpMap(0,0,0);	/* first mega in first entry */
+	AddMpMap(0,0);	/* first mega in first entry */
 	PageFaults = 0;
 }
 
