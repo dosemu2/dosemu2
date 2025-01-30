@@ -155,13 +155,10 @@ static void _test_(void)
 
 /////////////////////////////////////////////////////////////////////////////
 
-/* empirical!! */
 static int goodmemref(dosaddr_t m)
 {
-	if (m >= mMaxMem)
-		return 0;
 	if (m < 0x110000) return 1;
-	if (dpmi_is_valid_range(m, mMaxMem - m))
+	if (dpmi_is_valid_range(m, 16))
 		return 1;
 	return 0;
 }

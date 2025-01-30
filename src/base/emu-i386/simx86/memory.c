@@ -41,6 +41,7 @@
 
 #include "mapping.h"
 #include "dosemu_debug.h"
+#include "utilities.h"
 #include "dlmalloc.h"
 #include "emu86.h"
 #include "trees.h"
@@ -62,7 +63,6 @@ typedef struct _mpmap {
 } tMpMap;
 
 static tMpMap *MpH = NULL;
-unsigned int mMaxMem = 0;
 int PageFaults = 0;
 static tMpMap *LastMp = NULL;
 
@@ -102,10 +102,8 @@ static void AddMpMap(unsigned int addr, unsigned int aend)
 		M->mega = (page>>8);
 	    }
 	    bs = test_and_set_bit(page&255, M->pagemap);
-	    if (debug_level('e')>1) {
-		if (addr > mMaxMem) mMaxMem = addr;
+	    if (debug_level('e')>1)
 		dbug_printf("MPMAP:   protect page=%08x was %x\n",addr,bs);
-	    }
 	}
 }
 
@@ -113,21 +111,40 @@ static void RmMpMap(unsigned int addr, unsigned int aend)
 {
 	int bs=0;
 	int page;
-	tMpMap *M;
+	tMpMap *M, *P;
 
 	for (; addr <= aend; addr += PAGE_SIZE) {
 	    page = addr >> PAGE_SHIFT;
+	    P = NULL;
 	    M = MpH;
 	    while (M) {
 		if (M->mega==(page>>8)) break;
+		P = M;
 		M = M->next;
 	    }
 	    if (M==NULL) continue;
 	    bs = test_and_clear_bit(page&255, M->pagemap);
-	    if (debug_level('e')>1) {
-		if (addr > mMaxMem) mMaxMem = addr;
-		dbug_printf("MPMAP: unprotect page=%08x was %x\n",addr,bs);
+	    if (bs) {
+		int i;
+		for (i = 0; i < ARRAY_SIZE(M->pagemap); i++) {
+		    if (M->pagemap[i])
+			break;
+		}
+		/* completely empty, remove */
+		if (i == ARRAY_SIZE(M->pagemap)) {
+		    if (debug_level('e')>1)
+			dbug_printf("MPMAP: removing 0x%x\n", M->mega);
+		    if (P)
+			P->next = M->next;
+		    else
+			MpH = M->next;
+		    if (LastMp == M)
+			LastMp = NULL;
+		    free(M);
+		}
 	    }
+	    if (debug_level('e')>1)
+		dbug_printf("MPMAP: unprotect page=%08x was %x\n",addr,bs);
 	}
 }
 
