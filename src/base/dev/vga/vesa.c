@@ -61,7 +61,7 @@
 #include "vesa.h"
 #include "int.h"
 
-#define VBE_BIOS_MAXPAGES	(16384/HOST_PAGE_SIZE)	/* max. 16k BIOS size, more than enough */
+#define VBE_BIOS_MAXPAGES	4	/* max. 16k BIOS size, more than enough */
 
 /* identity of our VBE implementation */
 #define VBE_OEMVendorName	"DOSEMU-Development-Team"
@@ -135,7 +135,7 @@ void vbe_pre_init(void)
     .save_function_flags=0x3f
   };
 
-  MEMSET_DOS(dos_vga_bios, 0, VBE_BIOS_MAXPAGES * HOST_PAGE_SIZE);	/* one page */
+  MEMSET_DOS(dos_vga_bios, 0, VBE_BIOS_MAXPAGES * PAGE_SIZE);	/* one page */
   MEMCPY_2DOS(dos_vga_bios, _binary_vesabios_o_bin_start, bios_ptr);
 
   vgaemu_bios.prod_name = vgaemu_bios_prod_name - vgaemu_bios_start;
@@ -143,7 +143,7 @@ void vbe_pre_init(void)
   if (!config.term) {
     i = vgaemu_bios_pm_interface_end - vgaemu_bios_pm_interface;
 
-    if(i + bios_ptr > (VBE_BIOS_MAXPAGES * HOST_PAGE_SIZE) - 8) {
+    if(i + bios_ptr > (VBE_BIOS_MAXPAGES * PAGE_SIZE) - 8) {
       error("VBE: vbe_init: protected mode interface to large, disabling\n");
       vgaemu_bios.vbe_pm_interface_len =
 	vgaemu_bios.vbe_pm_interface = 0;
@@ -160,7 +160,7 @@ void vbe_pre_init(void)
     /* set up video mode list */
     for(i = 0x100; i <= vgaemu_bios.vbe_last_mode; i++) {
       if((vmi = vga_emu_find_mode(i, NULL))) {
-	if(vmi->VESA_mode != -1 && bios_ptr < ((VBE_BIOS_MAXPAGES * HOST_PAGE_SIZE) - 4)) {
+	if(vmi->VESA_mode != -1 && bios_ptr < ((VBE_BIOS_MAXPAGES * PAGE_SIZE) - 4)) {
 	  WRITE_WORD(dos_vga_bios + bios_ptr, vmi->VESA_mode);
 	  bios_ptr += 2;
 	}
@@ -204,7 +204,7 @@ void vbe_pre_init(void)
   vgaemu_bios.size = bios_ptr;
 
   WRITE_BYTE(dos_vga_bios + 2, (bios_ptr + ((1 << 9) - 1)) >> 9);
-  vgaemu_bios.pages = HOST_PAGE_ALIGN(bios_ptr) / HOST_PAGE_SIZE;
+  vgaemu_bios.pages = (bios_ptr + ((1 * PAGE_SIZE) - 1)) / PAGE_SIZE;
 
   if (config.vgaemubios_file) {
     /* EXPERIMENTAL: load and boot the Bochs BIOS */
@@ -213,13 +213,13 @@ void vbe_pre_init(void)
     if (fd != -1) {
       bytes = read(fd, LINEAR2UNIX(0xc0000), 65536);
       close(fd);
-      vgaemu_bios.pages = HOST_PAGE_ALIGN(bytes) / HOST_PAGE_SIZE;
+      vgaemu_bios.pages = (bytes + PAGE_SIZE - 1) / PAGE_SIZE;
       config.vbios_post = 1;
     }
   }
 
   memcheck_addtype('V', "VGAEMU Video BIOS");
-  memcheck_reserve('V', dos_vga_bios, vgaemu_bios.pages * HOST_PAGE_SIZE);
+  memcheck_reserve('V', dos_vga_bios, vgaemu_bios.pages * PAGE_SIZE);
 
   if(!config.X_pm_interface) {
     v_printf("VBE: vbe_init: protected mode interface disabled\n");

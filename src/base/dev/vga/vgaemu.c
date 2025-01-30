@@ -789,7 +789,7 @@ int vga_write_access(dosaddr_t m)
 	if (m >= vga.mem.graph_base &&
 			m < vga.mem.graph_base + vga.mem.graph_size)
 		return 1;
-	if (m >= 0xb8000 && m < 0xc0000 + (vgaemu_bios.pages * HOST_PAGE_SIZE))
+	if (m >= 0xb8000 && m < 0xc0000 + (vgaemu_bios.pages * PAGE_SIZE))
 		return 1;
 	if (vga.mem.lfb_base_page &&
 			(m / HOST_PAGE_SIZE) >= vga.mem.lfb_base_page &&
@@ -1140,7 +1140,7 @@ int vga_emu_fault(dosaddr_t lin_addr, unsigned err, cpuctx_t *scp)
     else {
       vga_msg(
         "vga_emu_fault: unhandled page fault (not in 0xa0000 - 0x%05x range)\n",
-        (VGA_C0 + vgaemu_bios.pages) * HOST_PAGE_SIZE
+        VGA_C0 * HOST_PAGE_SIZE + vgaemu_bios.pages * PAGE_SIZE
       );
       return False;
     }
@@ -1689,14 +1689,14 @@ int vga_emu_pre_init(void)
   dirty_all_video_pages();		/* all need an update */
 
   if(
-    (vga.mem.prot_map0 = malloc(vgaemu_bios.pages + VGA_C0 - VGA_A0)) == NULL ||
+    (vga.mem.prot_map0 = malloc(vgaemu_bios.pages * PAGE_SIZE / HOST_PAGE_SIZE + VGA_C0 - VGA_A0)) == NULL ||
     (vga.mem.prot_map1 = (unsigned char *) malloc(vga.mem.pages)) == NULL
   ) {
     error("vga_emu_init: not enough memory for protection map\n");
     config.exitearly = 1;
     return 1;
   }
-  memset(vga.mem.prot_map0, 0xff, vgaemu_bios.pages + 0x20);
+  memset(vga.mem.prot_map0, 0xff, vgaemu_bios.pages * PAGE_SIZE / HOST_PAGE_SIZE + 0x20);
   memset(vga.mem.prot_map1, 0xff, vga.mem.pages);
 
   /*
