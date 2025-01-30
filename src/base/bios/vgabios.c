@@ -478,16 +478,16 @@ static void write_gfx_char_cga(Bit16u vstart,Bit8u car,Bit8u attr,
 
 // --------------------------------------------------------------------------------------------
 static void write_gfx_char_lin(Bit16u vstart,Bit8u car,Bit8u attr,
-	Bit8u xcurs,Bit8u ycurs,Bit8u nbcols)
+	Bit8u xcurs,Bit8u ycurs,Bit8u nbcols,Bit8u cheight)
 {
  Bit8u i,j,mask,data;
  Bit8u *fdata;
  Bit16u addr,dest,src;
 
  fdata = MEM_BASE32(IVEC(0x43));
- addr=xcurs*8+ycurs*nbcols*64+vstart;
- src = car * 8;
- for(i=0;i<8;i++)
+ addr=xcurs*8+ycurs*nbcols*8*cheight+vstart;
+ src = car * cheight;
+ for(i=0;i<cheight;i++)
   {
    dest=addr+i*nbcols*8;
    mask = 0x80;
@@ -616,7 +616,7 @@ static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
           write_gfx_char_cga(address,car,attr,xcurs,ycurs,nbcols,bpp);
           break;
         case LINEAR8:
-          write_gfx_char_lin(address,car,attr,xcurs,ycurs,nbcols);
+          write_gfx_char_lin(address,car,attr,xcurs,ycurs,nbcols,cheight);
           break;
 #ifdef DEBUG
         default:
@@ -743,7 +743,7 @@ static void biosfn_write_char_attr (Bit8u car,Bit8u page,Bit8u attr,
          write_gfx_char_cga(address,car,attr,xcurs,ycurs,nbcols,bpp);
          break;
        case LINEAR8:
-         write_gfx_char_lin(address,car,attr,xcurs,ycurs,nbcols);
+         write_gfx_char_lin(address,car,attr,xcurs,ycurs,nbcols,cheight);
          break;
 #ifdef DEBUG
        default:
@@ -801,7 +801,7 @@ static void biosfn_write_char_only (Bit8u car,Bit8u page,Bit8u attr,
          write_gfx_char_cga(address,car,attr,xcurs,ycurs,nbcols,bpp);
          break;
        case LINEAR8:
-         write_gfx_char_lin(address,car,attr,xcurs,ycurs,nbcols);
+         write_gfx_char_lin(address,car,attr,xcurs,ycurs,nbcols,cheight);
          break;
 #ifdef DEBUG
        default:
