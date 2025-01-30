@@ -1048,7 +1048,8 @@ static const char *get_type_from_mcb(struct MCB *mcb)
   if (p1 == p2) {
     psp = MK_FP32(p1->owner_psp, 0);
     if (psp->opint20 == 0x20cd) { // we have found a valid PSP
-      p3 = MK_FP32(psp->envir_frame - 1, 0);
+      unsigned short mcbseg = psp->envir_frame - 1;
+      p3 = MK_FP32(mcbseg, 0);
       if (mcb == p3) // its env pointer points back to our MCB
         return env;
     }
