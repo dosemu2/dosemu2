@@ -571,6 +571,7 @@ static void redraw_text(void)
 {
   pthread_mutex_lock(&rend_mtx);
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+  pthread_mutex_lock(&tex_mtx);
   if (!surface) {
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
     SDL_SetRenderTarget(renderer, texture_ttf);
@@ -578,6 +579,7 @@ static void redraw_text(void)
   } else {
     SDL_SetRenderTarget(renderer, texture_buf);
   }
+  pthread_mutex_unlock(&tex_mtx);
   SDL_RenderClear(renderer);
   SDL_SetRenderTarget(renderer, NULL);
   pthread_mutex_unlock(&rend_mtx);
