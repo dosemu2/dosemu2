@@ -7,6 +7,8 @@
 #ifndef _EMU_LDT_H
 #define _EMU_LDT_H
 
+#include <Asm/ldt.h>
+
 /* check */
 /* #if !defined(_LITTLE_ENDIAN) && !defined(_BIG_ENDIAN) */
 /* #error Augh */
