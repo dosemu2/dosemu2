@@ -265,7 +265,7 @@ static void draw_cursor(void)
     if (cs > ce)
       return;
     for (i = 0; i < num_texts; i++) {
-      if (!Text[i]->flags & TEXTF_DISABLED)
+      if (!(Text[i]->flags & TEXTF_DISABLED))
         Text[i]->Draw_cursor(Text[i]->opaque, x, y, XATTR(cursor, x, y),
 		      cs, ce, have_focus);
     }
