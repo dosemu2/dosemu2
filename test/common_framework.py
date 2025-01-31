@@ -163,7 +163,7 @@ class BaseTestCase(object):
             if cls.tarfile not in TEST_BINARIES:
                 exit("\nUpdate tuple TEST_BINARIES for '%s'\n" % cls.prettyname)
             if not exists(join(BINSDIR, cls.tarfile)):
-                exit("\nMissing test binary file, please run test/test_dos.py --get-test-binaries\n")
+                exit("\nMissing test binary file, please run again with argument --get-test-binaries\n")
 
     @classmethod
     def tearDownClass(cls):
