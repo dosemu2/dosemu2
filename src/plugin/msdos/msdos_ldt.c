@@ -63,7 +63,7 @@ static void msdos_ldt_handler(cpuctx_t *scp, void *arg)
 unsigned short msdos_ldt_init(int page_size)
 {
     char tmpnm[] = "ldt_alias_%PXXXXXX";
-    unsigned lim;
+    unsigned lim_p_1;  // limit+1
     struct pmaddr_s pma;
     DPMI_INTDESC desc;
     struct SHM_desc shm;
@@ -111,8 +111,8 @@ unsigned short msdos_ldt_init(int page_size)
 
     alias_sel = AllocateDescriptors(1);
     assert(alias_sel);
-    lim = ((alias_sel >> 3) + 1) * LDT_ENTRY_SIZE;
-    SetSegmentLimit(alias_sel, PAGE_ALIGN(lim) + XTRA_LDT_LIM - 1);
+    lim_p_1 = ((alias_sel >> 3) + 1) * LDT_ENTRY_SIZE;
+    SetSegmentLimit(alias_sel, PAGE_ALIGN(lim_p_1) + XTRA_LDT_LIM - 1);
     SetSegmentBaseAddress(alias_sel, shm.addr);
     /* pre-fill back-buffer */
     for (i = 0x10; i <= (alias_sel >> 3); i++)
