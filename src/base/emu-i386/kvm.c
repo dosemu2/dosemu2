@@ -1585,9 +1585,12 @@ int kvm_dpmi(cpuctx_t *scp)
 	ret = DPMI_RET_FAULT;
     } else if (exit_reason == KVM_EXIT_MMIO) {
       dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
-      if (vga.inst_emu && vga_access(addr, addr))
+      if (vga.inst_emu && vga_access(addr, addr)) {
         instr_emu_sim(scp, 1);
-      ret = DPMI_RET_CLIENT;
+        ret = DPMI_RET_DOSEMU;
+      } else {
+        ret = DPMI_RET_CLIENT;
+      }
     }
   } while (!signal_pending() && ret == DPMI_RET_CLIENT);
   return ret;
