@@ -603,34 +603,32 @@ static unsigned int interp_post(unsigned int PC, const int mode,
 			P0 = PC;
 			CODE_FLUSH2(mode);
 		}
-		if (CEmuStat & (CeS_MOVSS|CeS_INSTREMU)) {
-			if (CEmuStat & CeS_MOVSS) {
-				/* following non-compiled (sim or protected mode)
-				   mov ss / pop ss only */
-				if (!(CEmuStat & CeS_INHI)) {
-					// directly following mov ss / pop ss
-					CEmuStat |= CeS_INHI;
-					CEmuStat &= ~CeS_TRAP;
-				} else {
-					// instruction after clear unconditionally
-					// even if it's another mov ss / pop ss
-					CEmuStat &= ~(CeS_INHI|CeS_MOVSS);
-				}
+		if (CEmuStat & CeS_MOVSS) {
+			/* following non-compiled (sim or protected mode)
+			   mov ss / pop ss only */
+			if (!(CEmuStat & CeS_INHI)) {
+				// directly following mov ss / pop ss
+				CEmuStat |= CeS_INHI;
+				CEmuStat &= ~CeS_TRAP;
+			} else {
+				// instruction after clear unconditionally
+				// even if it's another mov ss / pop ss
+				CEmuStat &= ~(CeS_INHI|CeS_MOVSS);
 			}
-			if ((CEmuStat & (CeS_INSTREMU|CeS_INHI)) == CeS_INSTREMU) {
-				if (debug_level('e')>1)
-					dbug_printf("CeS_INSTREMU, count=%d\n",
-						    interp_inst_emu_count);
-				if (--interp_inst_emu_count == 0) {
-					int prot = PROTMODE();
-					if (prot && config.dpmi_remote &&
+		}
+		if (CEmuStat & CeS_INSTREMUx(PROTMODE())) {
+			if (debug_level('e')>1)
+				dbug_printf("CeS_INSTREMU, count=%d\n",
+					    interp_inst_emu_count);
+			if (--interp_inst_emu_count == 0) {
+				if ((CEmuStat & CeS_INSTREMU_PM) &&
+							config.dpmi_remote &&
 							vga.inst_emu) {
-						instr_emu_sim_reset_count();
-					} else {
-						instr_sim_leave(prot);
-						TheCPU.err = EXCP_GOBACK;
-						return PC;
-					}
+					instr_emu_sim_reset_count();
+				} else {
+					instr_sim_leave();
+					TheCPU.err = EXCP_GOBACK;
+					return PC;
 				}
 			}
 		}

@@ -1238,11 +1238,12 @@ void cpuemu_update_fpu(void)
 void instr_emu_sim(cpuctx_t *scp, int pmode)
 {
   int be = (pmode ? config.cpu_vm_dpmi : config.cpu_vm);
-  instr_emu_sim_reset_count();
+  assert(!(CEmuStat & CeS_INSTREMU));
   if (be == CPUVM_KVM)
     kvm_leave(pmode);
   /* this changes CONFIG_CPUSIM value, so should be before init */
-  CEmuStat |= CeS_INSTREMU;
+  CEmuStat |= CeS_INSTREMUx(pmode);
+  instr_emu_sim_reset_count();
 #ifdef X86_JIT
   if (!config.cpusim) {
     InitGen_sim();
@@ -1252,8 +1253,9 @@ void instr_emu_sim(cpuctx_t *scp, int pmode)
   cpuemu_enter(pmode);
 }
 
-void instr_sim_leave(int pmode)
+void instr_sim_leave(void)
 {
+  int pmode = (CEmuStat & CeS_INSTREMU_PM);
   int be = (pmode ? config.cpu_vm_dpmi : config.cpu_vm);
   assert(CEmuStat & CeS_INSTREMU);
   FlagSync_All();

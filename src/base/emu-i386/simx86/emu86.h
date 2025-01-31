@@ -55,6 +55,7 @@ extern hitimer_t GenTime, LinkTime;
 #else
 #define CONFIG_CPUSIM 1
 #endif
+#define CeS_INSTREMUx(p) ((p) ? CeS_INSTREMU_PM : CeS_INSTREMU_RM)
 
 /* octal digits in a byte: hhmm.mlll */
 #define D_HO(b)	(((b)>>6)&3)
