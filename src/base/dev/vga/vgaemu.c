@@ -1221,7 +1221,7 @@ int vga_emu_protect_page(unsigned page, int prot, int instremu)
   int sys_prot;
 
   /* don't call mprotect at all on LFB with KVM */
-  if (config.cpu_vm_dpmi == CPUVM_KVM && page >= vga.mem.lfb_base_page)
+  if (_CPU_VM_DPMI() == CPUVM_KVM && page >= vga.mem.lfb_base_page)
     return 0;
 
   sys_prot = prot == RW ? VGA_EMU_RW_PROT : prot == RO ? VGA_EMU_RO_PROT : VGA_EMU_NONE_PROT;
@@ -1484,8 +1484,6 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   }
   if (mapping == VGAEMU_MAP_BANK_MODE) {
     int cap = MAPPING_VGAEMU;
-    if (vga.inst_emu && interp_inst_emu_count)
-      cap |= MAPPING_CPUEMU;
     i = alias_mapping(cap,
       vmt->base_page * HOST_PAGE_SIZE, vmt->pages * HOST_PAGE_SIZE,
       prot, vga.mem.base + (first_page * HOST_PAGE_SIZE));

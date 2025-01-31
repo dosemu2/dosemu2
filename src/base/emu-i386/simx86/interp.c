@@ -47,7 +47,7 @@ int EmuSignals = 0;
 
 /* countdown to exit after handling VGAEMU faults, reset by
    planar VGA reads and writes */
-int interp_inst_emu_count;
+static int interp_inst_emu_count;
 
 static int ArOpsR[] =
 	{ O_ADD_R, O_OR_R, O_ADC_R, O_SBB_R, O_AND_R, O_SUB_R, O_XOR_R, O_CMP_R };
@@ -626,8 +626,9 @@ static unsigned int interp_post(unsigned int PC, const int mode,
 							vga.inst_emu) {
 					instr_emu_sim_reset_count();
 				} else {
-					instr_sim_leave();
-					TheCPU.err = EXCP_GOBACK;
+					P0 = PC;
+					CODE_FLUSH2(mode);
+					TheCPU.err = EXCP_EMULEAVE;
 					return PC;
 				}
 			}

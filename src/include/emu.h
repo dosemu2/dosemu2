@@ -15,6 +15,7 @@
 #endif
 #include "types.h"
 #include "cpu.h"
+#include "cpu-emu.h"
 #include "priv.h"
 #include "mouse.h"
 #include "dosemu_config.h"
@@ -153,8 +154,6 @@ typedef struct config_info {
        uint64_t boot_dos;
 
 #ifdef X86_EMULATOR
-       #define EMU_V86() (config.cpu_vm == CPUVM_EMU)
-       #define EMU_DPMI() (config.cpu_vm_dpmi == CPUVM_EMU)
        #define EMU_FULL() (EMU_V86() && EMU_DPMI())
        #define IS_EMU() (EMU_V86() || EMU_DPMI())
        boolean cpusim;

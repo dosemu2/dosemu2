@@ -432,6 +432,27 @@ void e_invalidate_dirty(unsigned int addr, unsigned int aend)
 	}
 }
 
+void e_invalidate_dirty_full(void)
+{
+	tMpMap *M = MpH;
+	int i;
+
+again:
+	while (M) {
+	    for (i=0; i<ARRAY_SIZE(M->pagemap); i++) {
+		void *p = M->pagemap[i];
+		unsigned int addr = (M->mega<<20) | (i<<PAGE_SHIFT);
+		if (p && memcmp(p, EMU_BASE32(addr), PAGE_SIZE) != 0) {
+		    if (debug_level('e')>1)
+			dbug_printf("MP_INV %08x = RWX\n",addr);
+		    e_invalidate_page_full(addr);
+		    goto again;
+		}
+	    }
+	    M = M->next;
+	}
+}
+
 #ifdef X86_JIT
 int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 {

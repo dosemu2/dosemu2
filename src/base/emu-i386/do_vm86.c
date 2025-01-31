@@ -482,7 +482,7 @@ void true_vm86_fault(sigcontext_t *scp)
 static int do_vm86(union vm86_union *x)
 {
 #ifdef X86_EMULATOR
-    if (config.cpu_vm == CPUVM_EMU || interp_inst_emu_count)
+    if (EMU_V86())
 	return e_vm86();
 #endif
     if (config.cpu_vm == CPUVM_KVM)
