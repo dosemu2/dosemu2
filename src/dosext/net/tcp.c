@@ -212,9 +212,9 @@ void tcp_helper(struct vm86_regs *regs)
                 int len = strlen(config.tcpiface);
                 if (len > 15)
                     len = 15;
-                MEMCPY_2DOS(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_iface_name),
+                MEMCPY_2DOS(SEGOFF2LINEAR(TCPDRV_SEG, TCPDRV_iface_name),
                         config.tcpiface, len);
-                WRITE_BYTE(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_iface_name) + len,
+                WRITE_BYTE(SEGOFF2LINEAR(TCPDRV_SEG, TCPDRV_iface_name) + len,
                         '\0');
                 regs->ecx = len;
             } else {
@@ -229,13 +229,13 @@ void tcp_helper(struct vm86_regs *regs)
                 len = strlen(iface);
                 if (len > 15)
                     len = 15;
-                MEMCPY_2DOS(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_iface_name),
+                MEMCPY_2DOS(SEGOFF2LINEAR(TCPDRV_SEG, TCPDRV_iface_name),
                         iface, len);
-                WRITE_BYTE(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_iface_name) + len,
+                WRITE_BYTE(SEGOFF2LINEAR(TCPDRV_SEG, TCPDRV_iface_name) + len,
                         '\0');
                 regs->ecx = 0;  // dynamic iface
             }
-            regs->es = PKTDRV_SEG;
+            regs->es = TCPDRV_SEG;
             regs->edi = TCPDRV_iface_name;
             break;
         case DOS_SUBHELPER_TCP_ENABLE:
@@ -1009,9 +1009,9 @@ void emutcp_reset(void)
 {
     if (!config.tcpdrv)
       return;
-    WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_driver_entry_ip), tcp_hlt_off);
-    WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_driver_entry_cs), BIOS_HLT_BLK_SEG);
-    MEMSET_DOS(SEGOFF2LINEAR(PKTDRV_SEG, TCPDRV_iface_name), '\0', 16);
+    WRITE_WORD(SEGOFF2LINEAR(TCPDRV_SEG, TCPDRV_driver_entry_ip), tcp_hlt_off);
+    WRITE_WORD(SEGOFF2LINEAR(TCPDRV_SEG, TCPDRV_driver_entry_cs), BIOS_HLT_BLK_SEG);
+    MEMSET_DOS(SEGOFF2LINEAR(TCPDRV_SEG, TCPDRV_iface_name), '\0', 16);
 }
 
 void emutcp_init(void)
