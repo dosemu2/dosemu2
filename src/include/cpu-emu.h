@@ -87,12 +87,14 @@ void e_invalidate_full(unsigned data, int cnt);
 void e_invalidate_full_pa(unsigned data, int cnt);
 int e_invalidate_page_full(unsigned data);
 void e_invalidate_pa(unsigned data, int cnt);
+void e_invalidate_dirty(unsigned int addr, unsigned int aend);
 #else
 #define e_invalidate(x,y)
 #define e_invalidate_full(x,y)
 #define e_invalidate_full_pa(x,y)
 #define e_invalidate_page_full(x) 0
 #define e_invalidate_pa(x,y)
+#define e_invalidate_dirty(x,y)
 #endif
 
 /* called from cpu.c */

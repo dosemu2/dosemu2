@@ -138,13 +138,6 @@ static int handle_pf(cpuctx_t *scp)
     if (msdos_ldt_pagefault(scp))
         return DPMI_RET_CLIENT;
 #endif
-#ifdef X86_EMULATOR
-#ifdef X86_JIT
-    /* DPMI code touches cpuemu prot */
-    if (IS_EMU_JIT() && e_invalidate_page_full(cr2))
-        return DPMI_RET_CLIENT;
-#endif
-#endif
     rc = vga_emu_fault(cr2, _err, scp);
     if (rc == True)
         return DPMI_RET_CLIENT;

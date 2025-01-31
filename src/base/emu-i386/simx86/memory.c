@@ -410,6 +410,28 @@ static void e_munprotect(unsigned int addr, size_t len)
 	}
 }
 
+void e_invalidate_dirty(unsigned int addr, unsigned int aend)
+{
+	int bs=0;
+	int page;
+	tMpMap *M;
+	void *p;
+
+	for (; addr <= aend; addr += PAGE_SIZE) {
+	    M = FindM(addr);
+	    if (M==NULL) continue;
+	    page = (addr >> PAGE_SHIFT) & 255;
+	    p = M->pagemap[page];
+	    bs = 0;
+	    if (p && memcmp(p, EMU_BASE32(addr), PAGE_SIZE) != 0) {
+		e_invalidate_page_full(addr);
+		bs = 1;
+	    }
+	    if (debug_level('e')>1)
+		dbug_printf("MPMAP: check page=%08x dirty %i\n",addr,bs);
+	}
+}
+
 #ifdef X86_JIT
 int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 {
