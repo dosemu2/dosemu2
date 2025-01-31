@@ -3273,7 +3273,6 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode)
 	 * if some other code tries to write over the page including
 	 * this node */
 	e_markpage(G->seqbase, G->seqlen);
-	e_mprotect(G->seqbase, G->seqlen);
 	G->cs = LONG_CS;
 	G->mode = mode;
 	/* check links INSIDE current node */

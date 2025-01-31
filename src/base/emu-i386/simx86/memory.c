@@ -66,6 +66,7 @@ static tMpMap *MpH = NULL;
 int PageFaults = 0;
 static tMpMap *LastMp = NULL;
 
+static void e_mprotect(unsigned int addr, size_t len);
 static void e_munprotect(unsigned int addr, size_t len);
 
 /////////////////////////////////////////////////////////////////////////////
@@ -167,7 +168,6 @@ static void RmMpMap(unsigned int addr, unsigned int aend)
 	}
 }
 
-
 int e_querymprot(dosaddr_t addr)
 {
 	int a2 = addr >> PAGE_SHIFT;
@@ -202,9 +202,12 @@ int e_querymprotrange(unsigned int addr, size_t len)
 int e_markpage(unsigned int addr, size_t len)
 {
 	unsigned int abeg, aend;
-	tMpMap *M = FindM(addr);
+	tMpMap *M;
 
-	if (M == NULL || len == 0) return 0;
+	assert(len);
+	e_mprotect(addr, len);  // this creates mpmap entry
+	M = FindM(addr);
+	assert(M);
 
 	abeg = addr >> CGRAN;
 	aend = (addr+len-1) >> CGRAN;
@@ -337,7 +340,7 @@ int e_querymark_all(unsigned int addr, size_t len)
 /////////////////////////////////////////////////////////////////////////////
 
 
-void e_mprotect(unsigned int addr, size_t len)
+static void e_mprotect(unsigned int addr, size_t len)
 {
 	int e;
 	unsigned int abeg, aend, aend1;
