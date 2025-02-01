@@ -33,7 +33,7 @@
 #include "dos.h"
 #include "dpmiops.h"
 
-#if DJ64_API_VER != 13
+#if DJ64_API_VER < 13
 #error wrong djdev64 version
 #endif
 
@@ -218,6 +218,14 @@ static void dj64_exit(int rc)
     }
 }
 
+#if DJ64_API_VER >= 14
+static int dj64_elfload(int num)
+{
+    /* we are already in coopth here, so just call to djdev64 directly */
+    return djdev64_load(num, 0);
+}
+#endif
+
 const struct dj64_api api = {
     .addr2ptr = dj64_addr2ptr,
     .addr2ptr2 = dj64_addr2ptr2,
@@ -231,6 +239,9 @@ const struct dj64_api api = {
     .exit = dj64_exit,
     .malloc = malloc,
     .free = free,
+#if DJ64_API_VER >= 14
+    .elfload = dj64_elfload,
+#endif
 };
 
 static int do_open(const char *path, unsigned short flags)
@@ -424,4 +435,8 @@ static void ctrl_hlt(Bit16u offs, void *sc, void *arg)
 CONSTRUCTOR(static void djdev64_init(void))
 {
     register_djdev64(&ops);
+#if DJ64_API_VER >= 14
+    if (config.elfload)
+        config.elfload_num = djdev64_add_load_path(config.elfload);
+#endif
 }

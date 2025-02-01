@@ -360,6 +360,8 @@ typedef struct config_info {
         char *dos_cmd;
         char *unix_path;
         char *dos_path;
+        char *elfload;
+        int elfload_num;
 
         char *unix_exec;
         char *lredir_paths;

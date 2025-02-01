@@ -40,6 +40,7 @@ int priv_drop(void);
 
 int permit_dir_ro(const char *dir);
 int permit_fd_rw(int fd);
+int permit_file_ro(const char *path);
 
 #endif /* PRIV_H */
 

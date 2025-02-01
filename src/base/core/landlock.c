@@ -38,6 +38,9 @@
 	LANDLOCK_ACCESS_FS_READ_FILE | \
 	LANDLOCK_ACCESS_FS_TRUNCATE)
 
+#define ACCESS_FILE_RO ( \
+	LANDLOCK_ACCESS_FS_READ_FILE)
+
 #define ACCESS_RW ( \
 	ACCESS_FILE_RW | \
 	LANDLOCK_ACCESS_FS_READ_DIR | \
@@ -98,6 +101,29 @@ int landlock_allow(const char *path, int ro)
     int err;
     struct landlock_path_beneath_attr path_beneath = {
         .allowed_access = (ro ? ACCESS_RO : ACCESS_RW)
+    };
+    path_beneath.parent_fd = open(path, O_PATH | O_CLOEXEC);
+    if (path_beneath.parent_fd < 0) {
+        perror("Failed to open file");
+        close(ruleset_fd);
+        return -1;
+    }
+    err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+                            &path_beneath, 0);
+    close(path_beneath.parent_fd);
+    if (err) {
+        perror("Failed to update ruleset");
+        close(ruleset_fd);
+        return -1;
+    }
+    return 0;
+}
+
+int landlock_allow_file(const char *path, int ro)
+{
+    int err;
+    struct landlock_path_beneath_attr path_beneath = {
+        .allowed_access = (ro ? ACCESS_FILE_RO : ACCESS_FILE_RW)
     };
     path_beneath.parent_fd = open(path, O_PATH | O_CLOEXEC);
     if (path_beneath.parent_fd < 0) {

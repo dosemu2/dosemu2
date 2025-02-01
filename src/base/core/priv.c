@@ -77,6 +77,9 @@ static int num_ro_dirs;
 #define MAX_ALLOW_FDS 10
 static int rw_fds[MAX_ALLOW_FDS];
 static int num_rw_fds;
+#define MAX_ALLOW_FILES 10
+static const char *ro_files[MAX_ALLOW_FILES];
+static int num_ro_files;
 #endif
 
 static int _priv_on(void)
@@ -302,6 +305,17 @@ int permit_fd_rw(int fd)
   return 0;
 }
 
+int permit_file_ro(const char *path)
+{
+#ifdef HAVE_LINUX_LANDLOCK_H
+  assert(num_ro_files < MAX_ALLOW_FILES);
+  if (num_ro_files >= MAX_ALLOW_FILES)  // maybe asserts are disabled
+    return -1;
+  ro_files[num_ro_files++] = path;
+#endif
+  return 0;
+}
+
 #ifdef HAVE_LINUX_LANDLOCK_H
 static void start_landlock(void)
 {
@@ -358,6 +372,15 @@ static void start_landlock(void)
     err = landlock_allow_fd(fd, 0);
     if (err) {
       error("landlock_allow_rw(%i) failed\n", fd);
+      leavedos(3);
+      return;
+    }
+  }
+  for (i = 0; i < num_ro_files; i++) {
+    const char *q = ro_files[i];
+    err = landlock_allow_file(q, 1);
+    if (err) {
+      error("landlock_allow_ro(%s) failed\n", q);
       leavedos(3);
       return;
     }

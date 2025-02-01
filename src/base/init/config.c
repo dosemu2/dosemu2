@@ -1184,7 +1184,7 @@ config_init(int argc, char **argv)
     int             err;
     int             was_exec = 0, was_T1 = 0;
     const char * const getopt_string =
-       "23456A::B::C::c::D:d:E:e:f:H:hi:I:K:k::L:M:mNno:P:qSsT::t::VvwXx:Y"
+       "23456A::B::C::c::D:d:E:e:f:H:hi:I:K:k::L:l:M:mNno:P:qSsT::t::VvwXx:Y"
        "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     basename = strrchr(argv[0], '/');   /* parse the program name */
@@ -1200,6 +1200,7 @@ config_init(int argc, char **argv)
     parse_debugflags("+cw", 1);
 #ifdef USE_DJDEV64
     register_debug_class('J', NULL, "dj64");
+    config.elfload_num = -1;
 #endif
     Video = NULL;
 
@@ -1327,6 +1328,21 @@ config_init(int argc, char **argv)
 	    break;
 	case 'L':
 	    dbug_printf("%s\n", optarg);
+	    break;
+	case 'l':
+#ifdef USE_DJDEV64
+	    if (!exists_file(optarg)) {
+		error("Path %s does not exist\n", optarg);
+		config.exitearly = 1;
+		break;
+	    }
+	    config.elfload = strdup(optarg);
+	    permit_file_ro(optarg);
+	    was_exec++;
+#else
+	    error("dj64 support not compiled in\n");
+	    config.exitearly = 1;
+#endif
 	    break;
 	case 'd': {
 	    char *p = strdup(optarg);
