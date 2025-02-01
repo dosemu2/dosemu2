@@ -24,7 +24,7 @@
 #include "int.h"
 #include "disks.h"
 #include <fdpp/bprm.h>
-#if BPRM_MIN_VER != 10
+#if BPRM_MIN_VER < 10
 #error wrong bprm version
 #endif
 /* currently supported version */
