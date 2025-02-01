@@ -33,7 +33,7 @@
 #include "dos.h"
 #include "dpmiops.h"
 
-#if DJ64_API_VER < 13
+#if DJ64_API_VER < 11
 #error wrong djdev64 version
 #endif
 
@@ -41,7 +41,9 @@ static unsigned ctrl_off;
 #define HNDL_MAX 5
 static struct dos_helper_s call_hlp[HNDL_MAX];
 static struct dos_helper_s stub_hlp;
+#if DJ64_API_VER >= 12
 static struct dos_helper_s exec_hlp;
+#endif
 #define MAX_CLNUP_TIDS 5
 static int clnup_tids[HNDL_MAX][MAX_CLNUP_TIDS];
 static int num_clnup_tids[HNDL_MAX];
@@ -237,8 +239,10 @@ const struct dj64_api api = {
     .is_dos_ptr = dj64_dos_ptr,
     .get_handle = dj64_get_handle,
     .exit = dj64_exit,
+#if DJ64_API_VER >= 13
     .malloc = malloc,
     .free = free,
+#endif
 #if DJ64_API_VER >= 14
     .elfload = dj64_elfload,
 #endif
@@ -349,6 +353,7 @@ static unsigned stub_entry(void)
     return stub_hlp.entry;
 }
 
+#if DJ64_API_VER >= 12
 static void exec_thr(void *arg)
 {
     cpuctx_t *scp = arg;
@@ -383,6 +388,7 @@ static unsigned exec_entry(char *path)
     coopth_set_udata(exec_hlp.tid, path);
     return exec_hlp.entry;
 }
+#endif
 
 static const struct djdev64_ops ops = {
     .open = do_open,
@@ -390,7 +396,9 @@ static const struct djdev64_ops ops = {
     .call = call_entry,
     .ctrl = ctrl_entry,
     .stub = stub_entry,
+#if DJ64_API_VER >= 12
     .exec = exec_entry,
+#endif
 };
 
 static void call_thr(void *arg)
