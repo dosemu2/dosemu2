@@ -2142,7 +2142,6 @@ static struct
    * = 1 : watching
    * = 0 : findnext in progress without watching
    */
-  int watch;
   struct stack_entry stack[HLIST_STACK_SIZE];
 } hlists;
 
@@ -2165,26 +2164,18 @@ static void free_list(struct stack_entry *se, int force)
 static inline int hlist_push(struct dir_list *hlist, unsigned psp, const char *fpath)
 {
   struct stack_entry *se;
-  static unsigned prev_psp = 0;
 
   Debug0(("hlist_push: %d hlist=%p PSP=%d path=%s\n", hlists.tos, hlist, psp, fpath));
 
-  if (psp != prev_psp) {
-    Debug0(("hlist_push_new_psp: prev_psp=%d psp=%d\n", prev_psp, psp));
-    prev_psp = psp;
-    hlists.watch = 0;	/* reset watch for new PSP */
-  }
-  else {
-    /*
-     * we're looking for a gap, which is a result from a deletion of
-     * a previous broken(?) findfirst/findnext. --ms
-     */
-    for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
-      if (se->hlist == NULL) {
-        Debug0(("hlist_push gap=%td\n", se - hlists.stack));
-        se->psp = psp;
-        goto exit;
-      }
+  /*
+   * we're looking for a gap, which is a result from a deletion of
+   * a previous broken(?) findfirst/findnext. --ms
+   */
+  for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
+    if (se->hlist == NULL) {
+      Debug0(("hlist_push gap=%td\n", se - hlists.stack));
+      se->psp = psp;
+      goto exit;
     }
   }
 
@@ -2200,31 +2191,6 @@ static inline int hlist_push(struct dir_list *hlist, unsigned psp, const char *f
   se->hlist = hlist;
   se->fpath = strdup(fpath);
   return se - hlists.stack;
-}
-
-/*
- * DOS allows more than one open (not finished) findfirst/findnext!
- * But repeated findfirst with more than HLIST_WATCH_CNT hlist positions
- * is an indicator for possible broken findfirsts/findnexts.
- * We are looking for more than HLIST_WATCH_CNT hlist positions,
- * these are candidates to watch for deletion. --ms
- */
-static inline void hlist_set_watch(unsigned psp)
-{
-  struct stack_entry *se;
-  int cnt = 0;
-
-  if (hlists.watch) return; /* watching in progress */
-
-  se = &hlists.stack[hlists.tos];
-  for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
-    if ((se->psp == psp) && (++cnt > HLIST_WATCH_CNT)) {
-      /* we set all findfirst of these PSP onto the watchlist */
-      hlists.watch = 1;	/* watching on */
-      Debug0(("watch hlist_stack for PSP=%d\n", psp));
-      return;
-    }
-  }
 }
 
 static inline void hlist_pop(int indx, unsigned psp)
@@ -2257,8 +2223,6 @@ static inline void hlist_pop_psp(unsigned psp)
   int new_tos = hlists.tos;
   Debug0(("hlist_pop_psp: PSP=%d\n", psp));
 
-  hlists.watch = 0;	/* reset, we give the previous PSP a new chance --ms */
-
   for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
     if (se->psp == psp && se->hlist != NULL) {
       Debug0(("hlist_pop_psp: deleting hlist=%p\n", se->hlist));
@@ -2277,6 +2241,7 @@ static inline void hlist_watch_pop(unsigned psp)
   int act_seq = hlists.seq;
   struct stack_entry *se_del = NULL;
   struct stack_entry *se;
+  int watch = 0, cnt = 0;
 
   /*
    * We delete simple the oldest hlist of the current PSP.
@@ -2287,6 +2252,14 @@ static inline void hlist_watch_pop(unsigned psp)
    * We cancel only the oldest hlist of the current PSP.
    * --ms
    */
+  for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
+    if ((se->psp == psp) && (++cnt > HLIST_WATCH_CNT)) {
+      /* we set all findfirst of these PSP onto the watchlist */
+      watch = 1;	/* watching on */
+      Debug0(("watch hlist_stack for PSP=%d\n", psp));
+      break;
+    }
+  }
 
   for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
     if (se->psp != psp)
@@ -2297,7 +2270,7 @@ static inline void hlist_watch_pop(unsigned psp)
       break;
     }
 
-    if (hlists.watch && (se->seq > 0) && (se->seq < act_seq)) {
+    if (watch && (se->seq > 0) && (se->seq < act_seq)) {
       se_del = se;
       act_seq = se->seq;
     }
@@ -2321,7 +2294,6 @@ static inline void hlist_watch_pop(unsigned psp)
     }
     Debug0(("hlist_watch_pop: shrinking stack_top=%td\n",
 						se - hlists.stack));
-    hlists.watch = 0;	/* reset watch */
   }
   hlists.tos = se - hlists.stack;
 }
@@ -4227,7 +4199,6 @@ do_create_truncate:
       _sdb_p_cluster(sdb) = hlist_index;
 
       hlists.stack[hlist_index].seq = ++hlists.seq; /* new watch stamp --ms */
-      hlist_set_watch(sda_cur_psp(sda));
 
       return find_again(1, drive, fpath, hlist, state, sdb);
     }
