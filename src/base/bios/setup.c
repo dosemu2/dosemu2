@@ -231,6 +231,7 @@ static void bios_setup(void)
 static void dosemu_reset(void)
 {
   initialized = 0;
+  config.hdiskboot = -1;
   dos_post_boot_reset();
   iodev_reset();		/* reset all i/o devices          */
   commands_plugin_inte6_reset();
