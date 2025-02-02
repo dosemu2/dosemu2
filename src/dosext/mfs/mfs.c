@@ -688,6 +688,8 @@ int get_dos_attr(const char *fname, int mode, int drive)
   }
 #endif
 
+  if (cdrom(drives[drive]))
+    return get_attr_simple(mode);
   attr = mfs_getxattr_file(REDIR_DEVICE_IDX(drives[drive].options), fname);
   return handle_xattr(attr, mode);
 }
@@ -702,6 +704,8 @@ static int get_dos_attr_fd(int fd, int mode, const char *name, int drive)
     return attr;
 #endif
 
+  if (cdrom(drives[drive]))
+    return get_attr_simple(mode);
   attr = mfs_getxattr_file(REDIR_DEVICE_IDX(drives[drive].options), name);
   return handle_xattr(attr, mode);
 }
@@ -749,6 +753,8 @@ int set_dos_attr(char *fpath, int attr, int drive)
   }
 #endif
 
+  if (cdrom(drives[drive]))
+    return -1;
   return mfs_setattr(REDIR_DEVICE_IDX(drives[drive].options), fpath, attr);
 }
 
