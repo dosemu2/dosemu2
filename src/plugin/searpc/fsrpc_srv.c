@@ -373,6 +373,8 @@ int fsrpc_srv_init(const char *svc_name, int fd, plist_idx_t pi,
     searpc_server_register_function(svc_name, waitpid_1_svc, "waitpid_1",
             searpc_signature_int__int());
 
+    vlog_reset();
+    vlog_init("-");
     return 0;
 }
 

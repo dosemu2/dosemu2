@@ -96,6 +96,11 @@ int vlog_init(const char *file)
     return 0;
 }
 
+void vlog_reset(void)
+{
+    early_pos = 0;
+}
+
 int vlog_get_fd(void)
 {
     if (log_fd == -1) {
