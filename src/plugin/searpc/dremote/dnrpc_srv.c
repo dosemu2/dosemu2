@@ -24,6 +24,7 @@
 #include <sys/mman.h>
 #include <searpc-server.h>
 #include <searpc-utils.h>
+#include <jansson.h>
 #include "cpu.h"
 #include "dnative.h"
 #include "plugin_config.h"
@@ -185,6 +186,7 @@ int dnrpc_srv_init(const char *svc_name, int fd)
     signal_init();
     dnops = NULL;
     plu = load_plugin("dnative");
+    json_object_seed(0);  // opens /dev/urandom - do before starting seccomp
     err = scf_start();
     if (err) {
         fprintf(stderr, "failure starting seccomp\n");
