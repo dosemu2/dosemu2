@@ -598,7 +598,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         goto err0;
     }
 
-    asprintf(&shmname, "/dosemu_%s", name);
+    asprintf(&shmname, "/%s", name);
     fd = fslib_shm_open(shmname, oflags,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (fd == -1 && (flags & SHM_EXCL) && errno == EEXIST) {
@@ -666,6 +666,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     ptr->handle = pm_block_handle_used++;
     ptr->shmname = strdup(name);
     ptr->rshmname = shmname;
+    ptr->nmoffs = 1;
     ptr->shlock = shlock;
     D_printf("DPMI: map shm %s\n", ptr->shmname);
     return ptr;
@@ -774,31 +775,29 @@ dpmi_pm_block *DPMI_mallocSharedNewNS(dpmi_pm_block_root *root,
 {
     int fd = -1;
     dpmi_pm_block *ptr;
-    char *shmname, *fname;
+    char *fname;
     char dname[PATH_MAX];
     const char *dtmpl = "dosemu2_pshm_XXXXXX";
 
     if (!size)		// DPMI spec says this is allowed - no thanks
         return NULL;
 
-    asprintf(&shmname, "/dosemu_%s", name);
-    fd = mktmp_in(dtmpl, shmname, S_IRWXU, dname, sizeof(dname));
+    fd = mktmp_in(dtmpl, name, S_IRWXU, dname, sizeof(dname));
     if (fd == -1) {
         error("shared memory unavailable, exiting\n");
-        goto err1;
+        return NULL;
     }
     ptr = DPMI_mallocSharedNS_common(root, dname, name, size, flags, fd);
     if (!ptr)
         goto err2;
-    ptr->rshmname = shmname;
+    ptr->rshmname = strdup(name);
+    ptr->nmoffs = 0;
     return ptr;
 
 err2:
-    fname = assemble_path(dname, shmname);
+    fname = assemble_path(dname, name);
     unlink(fname);
     free(fname);
-err1:
-    free(shmname);
     return NULL;
 }
 
@@ -807,16 +806,15 @@ dpmi_pm_block *DPMI_mallocSharedNS(dpmi_pm_block_root *root,
 {
     int fd = -1;
     dpmi_pm_block *ptr;
-    char *shmname, *fname;
+    char *fname;
     int oflags = O_RDWR | O_CREAT;
 
     if (!size)		// DPMI spec says this is allowed - no thanks
         return NULL;
 
-    asprintf(&shmname, "/dosemu_%s", name);
     if (flags & SHM_EXCL)
         oflags |= O_EXCL;
-    fname = assemble_path(dname, shmname);
+    fname = assemble_path(dname, name);
     fd = open(fname, oflags, S_IRWXU);
     if (fd == -1) {
         error("shared memory unavailable, exiting\n");
@@ -826,14 +824,14 @@ dpmi_pm_block *DPMI_mallocSharedNS(dpmi_pm_block_root *root,
     if (!ptr)
         goto err2;
     free(fname);
-    ptr->rshmname = shmname;
+    ptr->rshmname = strdup(name);
+    ptr->nmoffs = 0;
     return ptr;
 
 err2:
     unlink(fname);
 err1:
     free(fname);
-    free(shmname);
     return NULL;
 }
 

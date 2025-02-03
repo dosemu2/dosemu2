@@ -3539,7 +3539,7 @@ static void dpmi_dj64_open(cpuctx_t *scp)
   }
   if (ptr->shm_dir)
     mp = ptr->shm_dir;
-  path = assemble_path(mp, ptr->rshmname + 1);
+  path = assemble_path(mp, ptr->rshmname + ptr->nmoffs);
   djh = djdev64->open(path, _LWORD(ecx));
   free(path);
   if (djh != -1) {
@@ -3591,7 +3591,7 @@ static void dpmi_dj64_exec(cpuctx_t *scp)
   }
   if (ptr->shm_dir)
     mp = ptr->shm_dir;
-  path = assemble_path(mp, ptr->rshmname + 1);
+  path = assemble_path(mp, ptr->rshmname + ptr->nmoffs);
   entry = djdev64->exec(path);
   /* path freed after exec */
   _eflags &= ~CF;

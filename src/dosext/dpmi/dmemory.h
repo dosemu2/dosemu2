@@ -18,6 +18,7 @@ typedef struct dpmi_pm_block_stuct {
   unsigned int shm:1;
   char *shmname;
   char *rshmname;
+  int nmoffs;
   char *shm_dir;
   void *shlock;
   void *dlock;
