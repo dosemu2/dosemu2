@@ -62,6 +62,7 @@ extern volatile int fault_cnt;
 extern int terminal_pipe;
 extern int terminal_fd;
 extern int kernel_version_code;
+extern int config_hdiskboot;
 
 #if 0
 /*

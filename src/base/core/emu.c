@@ -120,6 +120,7 @@ pid_t dpmi_pid;
 int in_rdpmi;
 char * const *dosemu_envp;
 FILE *real_stderr;
+int config_hdiskboot;
 
 #define MAX_EXIT_HANDLERS 5
 struct exit_hndl {
@@ -156,8 +157,10 @@ void boot(void)
 	config.swap_bootdrv = 1;
     }
     if (config.hdiskboot == -1)
-	config.hdiskboot = find_boot_drive();
-    switch (config.hdiskboot) {
+	config_hdiskboot = find_boot_drive();
+    else
+	config_hdiskboot = config.hdiskboot;
+    switch (config_hdiskboot) {
     case -1:
 	error("Bootable drive not found, exiting\n");
 	leavedos(16);
@@ -194,13 +197,13 @@ void boot(void)
       }
     default:
       {
-	int d = config.hdiskboot - 2;
+	int d = config_hdiskboot - 2;
 	struct disk *dd = hdisk_find(d | 0x80);
 	struct disk *cc = hdisk_find(0x80);
 	if (config.swap_bootdrv && d && dd) {
 	    dd->drive_num = 0x80;
 	    cc->drive_num = d | 0x80;
-	    config.hdiskboot = 2;
+	    config_hdiskboot = 2;
 	    d = 0;
 	    disk_reset();
 	}
