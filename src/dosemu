@@ -141,6 +141,13 @@ while [ $# -gt 0 ] ; do
       SUDOOPTS="--no-new-privs"
       OPTS="$OPTS -p"
       ;;
+    -l)
+      shift
+      SUDO=setpriv
+      SUDOOPTS="--no-new-privs"
+      OPTS="$OPTS -l $1"
+      shift
+      ;;
     -t | -t[a-z] | -t[a-z][a-z] | -t[a-z][a-z][a-z])
       exec 4>&2 2>~/.dosemu/stderr.log.$BASHPID
       SUFFIX="$SUFFIX \"$1\""
