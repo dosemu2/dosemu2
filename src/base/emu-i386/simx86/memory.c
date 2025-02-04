@@ -410,6 +410,22 @@ static void e_munprotect(unsigned int addr, size_t len)
 	}
 }
 
+/* check code hits on sub-page level */
+static int subpage_dirty(uint8_t *p, uint8_t *p1, tMpMap *M, int page)
+{
+    int i, n;
+    uint64_t *bitmask = &M->subpage[page << (PAGE_SHIFT - 6)];
+    for (i = 0; i < PAGE_SIZE >> 6 /*64*/; i++) {
+	n = -1;
+	while ((n = find_bit64_from(bitmask[i], n + 1)) != -1) {
+	    int bnum = i * 64 + n;
+	    if (p[bnum] != p1[bnum])
+		return 1;
+	}
+    }
+    return 0;
+}
+
 void e_invalidate_dirty(unsigned int addr, unsigned int aend)
 {
 	int bs=0;
@@ -418,12 +434,15 @@ void e_invalidate_dirty(unsigned int addr, unsigned int aend)
 	void *p;
 
 	for (; addr <= aend; addr += PAGE_SIZE) {
+	    void *p1;
 	    M = FindM(addr);
 	    if (M==NULL) continue;
 	    page = (addr >> PAGE_SHIFT) & 255;
 	    p = M->pagemap[page];
 	    bs = 0;
-	    if (p && memcmp(p, EMU_BASE32(addr), PAGE_SIZE) != 0) {
+	    p1 = EMU_BASE32(addr);
+	    if (p && memcmp(p, p1, PAGE_SIZE) != 0 &&
+		    subpage_dirty(p, p1, M, page)) {
 		e_invalidate_page_full(addr);
 		bs = 1;
 	    }
@@ -442,7 +461,9 @@ again:
 	    for (i=0; i<ARRAY_SIZE(M->pagemap); i++) {
 		void *p = M->pagemap[i];
 		unsigned int addr = (M->mega<<20) | (i<<PAGE_SHIFT);
-		if (p && memcmp(p, EMU_BASE32(addr), PAGE_SIZE) != 0) {
+		void *p1 = EMU_BASE32(addr);
+		if (p && memcmp(p, p1, PAGE_SIZE) != 0 &&
+			subpage_dirty(p, p1, M, i)) {
 		    if (debug_level('e')>1)
 			dbug_printf("MP_INV %08x = RWX\n",addr);
 		    e_invalidate_page_full(addr);
