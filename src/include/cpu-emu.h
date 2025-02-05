@@ -90,6 +90,7 @@ void e_invalidate_full_pa(unsigned data, int cnt);
 int e_invalidate_page_full(unsigned data);
 void e_invalidate_pa(unsigned data, int cnt);
 void e_invalidate_dirty(unsigned int addr, unsigned int aend);
+void e_invalidate_page_dirty(unsigned int addr);
 void e_invalidate_dirty_full(void);
 #else
 #define e_invalidate(x,y)

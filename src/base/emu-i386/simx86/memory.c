@@ -451,6 +451,27 @@ void e_invalidate_dirty(unsigned int addr, unsigned int aend)
 	}
 }
 
+void e_invalidate_page_dirty(unsigned int addr)
+{
+	int bs=0;
+	int page;
+	tMpMap *M;
+	void *p;
+
+	M = FindM(addr);
+	if (M==NULL) return;
+	page = (addr >> PAGE_SHIFT) & 255;
+	p = M->pagemap[page];
+	bs = 0;
+	/* not doing memcmp() here as we know the page is dirty */
+	if (p && subpage_dirty(p, EMU_BASE32(addr), M, page)) {
+	    e_invalidate_page_full(addr);
+	    bs = 1;
+	}
+	if (debug_level('e')>1)
+	    dbug_printf("MPMAP: check page=%08x dirty %i\n",addr,bs);
+}
+
 void e_invalidate_dirty_full(void)
 {
 	tMpMap *M = MpH;

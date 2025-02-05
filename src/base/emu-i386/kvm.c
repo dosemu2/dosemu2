@@ -1081,7 +1081,7 @@ void kvm_leave(int pm)
 	kvm_get_dirty_map(p->guest_phys_addr, bitmap);
 	for (i = 0; i < p->memory_size >> PAGE_SHIFT; i++)
 	  if (test_bit(i, bitmap))
-	    e_invalidate_page_full(p->guest_phys_addr + (i << PAGE_SHIFT));
+	    e_invalidate_page_dirty(p->guest_phys_addr + (i << PAGE_SHIFT));
       }
   }
 }
