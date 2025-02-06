@@ -354,6 +354,9 @@ int main(int argc, char **argv, char * const *envp)
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/
     memory_init();		/* initialize the memory contents */
+    /* dpmi_setup() may fork() so needs to be before opening
+     * sockets/spawning threads. */
+    dpmi_setup();
     ioselect_init();
     /* iodev_init() can load plugins, like SDL, that can spawn a thread.
      * This must be done before initializing signals, or problems ensue.

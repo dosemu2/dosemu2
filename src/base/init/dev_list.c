@@ -92,7 +92,6 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "ne2000",  ne2000_init,  ne2000_reset,  ne2000_done },
   { "ems",     ems_init,     ems_reset,     NULL },
   { "xms",     xms_init,     xms_reset,     xms_done },
-  { "dpmi",    dpmi_setup,   dpmi_reset,    NULL },
   { "mfs",     NULL,         mfs_reset,     mfs_done },
   { "cdrom",   NULL,         NULL,          cdrom_done },
   { "internal_mouse",  dosemu_mouse_init,   dosemu_mouse_reset, dosemu_mouse_close },
