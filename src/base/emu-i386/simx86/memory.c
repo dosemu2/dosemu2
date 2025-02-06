@@ -247,13 +247,13 @@ int e_unmarkpage(unsigned int addr, size_t len)
 
 	/* check if unmarked pages have no more code, and if so, unprotect */
 	abeg = addr & _PAGE_MASK;
-	aend = (addr + len) & _PAGE_MASK;
-	/* don't unprotect partial first page with code (if not also last) */
-	if (aend != abeg && abeg != addr && e_querymark(abeg, PAGE_SIZE))
+	aend = PAGE_ALIGN(addr + len);
+	/* don't unprotect partial first page with code */
+	if (abeg != addr && e_querymark(abeg, addr - abeg))
 		abeg += PAGE_SIZE;
-	/* unprotect partial last page without code */
-	if (aend != addr+len && !e_querymark(aend, PAGE_SIZE))
-		aend += PAGE_SIZE;
+	/* don't unprotect partial last page with code */
+	if (aend != addr + len && e_querymark(addr + len, aend - (addr + len)))
+		aend -= PAGE_SIZE;
 
 	if (aend > abeg)
 		e_munprotect(abeg, aend - abeg);
