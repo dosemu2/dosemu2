@@ -495,6 +495,13 @@ static void __leavedos_main(int code, int sig)
     dbug_printf("coopthreads stopped\n");
 
     video_close();
+
+#if defined(X86_EMULATOR)
+    /* needs to be closed before kvm, as it may leave instr_emu to kvm  */
+    if (IS_EMU()) {
+	leave_cpu_emu();
+    }
+#endif
     if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
       kvm_done();
     if (config.speaker == SPKR_EMULATED) {
@@ -515,13 +522,6 @@ static void __leavedos_main(int code, int sig)
     free(vm86_hlt_state);
 
     SIG_close();
-
-#if defined(X86_EMULATOR)
-    /* if we are here with config.cpuemu>1 something went wrong... */
-    if (IS_EMU()) {
-    	leave_cpu_emu();
-    }
-#endif
     show_ints(0, 0x33);
     g_printf("calling disk_close_all\n");
     disk_close_all();
