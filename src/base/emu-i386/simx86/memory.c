@@ -55,11 +55,16 @@
 #define UINT64_WIDTH 64
 #endif
 
+#define MPMAP_DEBUG 0
+
 typedef struct _mpmap {
 	struct _mpmap *next;
 	int mega;
 	void *pagemap[256];	/* 256 pages *4096 = 1M */
 	uint64_t subpage[(0x100000>>CGRAN)/UINT64_WIDTH];	/* 2^CGRAN-byte granularity, 1M/2^CGRAN bits */
+#if MPMAP_DEBUG
+	uint64_t nodemap[0x100000/UINT64_WIDTH];
+#endif
 } tMpMap;
 
 static tMpMap *MpH = NULL;
@@ -215,6 +220,9 @@ int e_markpage(unsigned int addr, size_t len)
 	if (debug_level('e')>1)
 		dbug_printf("MARK from %08x to %08x for %08x\n",
 			    abeg<<CGRAN,((aend+1)<<CGRAN)-1,addr);
+#if MPMAP_DEBUG
+	set_bit(abeg&CGRMASK, M->nodemap);
+#endif
 	while (M && abeg <= aend) {
 		assert(!test_bit(abeg&CGRMASK, M->subpage));
 		set_bit(abeg&CGRMASK, M->subpage);
@@ -239,6 +247,9 @@ int e_unmarkpage(unsigned int addr, size_t len)
 		dbug_printf("UNMARK from %08x to %08x for %08x\n",
 			    abeg<<CGRAN,((aend+1)<<CGRAN)-1,addr);
 	while (M && abeg <= aend) {
+#if MPMAP_DEBUG
+		clear_bit(abeg&CGRMASK, M->nodemap);
+#endif
 		clear_bit(abeg&CGRMASK, M->subpage);
 		abeg++;
 		if ((abeg&CGRMASK) == 0)
@@ -419,8 +430,14 @@ static int subpage_dirty(uint8_t *p, uint8_t *p1, tMpMap *M, int page)
 	n = -1;
 	while ((n = find_bit64_from(bitmask[i], n + 1)) != -1) {
 	    int bnum = i * 64 + n;
-	    if (p[bnum] != p1[bnum])
+#if MPMAP_DEBUG
+	    dosaddr_t addr = (M->mega << 20) | (page << PAGE_SHIFT) | bnum;
+	    if (test_bit(addr&CGRMASK, M->nodemap))
+		assert(FindTree(addr));
+#endif
+	    if (p[bnum] != p1[bnum]) {
 		return 1;
+	    }
 	}
     }
     return 0;
