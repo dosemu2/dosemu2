@@ -190,7 +190,7 @@ int e_querymprotrange(unsigned int addr, size_t len)
 			return 1;
 		a2l++;
 		if ((a2l&255)==0)
-			M = M->next;
+			M = FindM(a2l);
 	}
 	return 0;
 }
@@ -220,7 +220,7 @@ int e_markpage(unsigned int addr, size_t len)
 		set_bit(abeg&CGRMASK, M->subpage);
 		abeg++;
 		if ((abeg&CGRMASK) == 0)
-			M = M->next;
+			M = FindM(abeg);
 	}
 	return 1;
 }
@@ -242,7 +242,7 @@ int e_unmarkpage(unsigned int addr, size_t len)
 		clear_bit(abeg&CGRMASK, M->subpage);
 		abeg++;
 		if ((abeg&CGRMASK) == 0)
-			M = M->next;
+			M = FindM(abeg);
 	}
 
 	/* check if unmarked pages have no more code, and if so, unprotect */
@@ -292,7 +292,7 @@ int e_querymark(unsigned int addr, size_t len)
 		idx++;
 		mask = ~0ULL;
 		if (idx == sizeof(M->subpage)/sizeof(M->subpage[0])) {
-			M = M->next;
+			M = FindM((M->mega << 20) + 0x100000 /*idx * 64*/);
 			if (!M)
 				return 0;
 			idx = 0;
@@ -332,7 +332,7 @@ int e_querymark_all(unsigned int addr, size_t len)
 			return 0;
 		abeg++;
 		if ((abeg&CGRMASK) == 0)
-			M = M->next;
+			M = FindM(abeg);
 	}
 	return 1;
 }
