@@ -1200,7 +1200,6 @@ config_init(int argc, char **argv)
     parse_debugflags("+cw", 1);
 #ifdef USE_DJDEV64
     register_debug_class('J', NULL, "dj64");
-    config.elfload_num = -1;
 #endif
     Video = NULL;
 

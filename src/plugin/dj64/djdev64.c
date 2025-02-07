@@ -36,6 +36,9 @@
 #if DJ64_API_VER < 11
 #error wrong djdev64 version
 #endif
+#if DJ64_API_VER != 15
+#warning djdev64 version mismatch
+#endif
 
 static unsigned ctrl_off;
 #define HNDL_MAX 5
@@ -220,11 +223,12 @@ static void dj64_exit(int rc)
     }
 }
 
-#if DJ64_API_VER >= 14
+#if DJ64_API_VER >= 15
 static int dj64_elfload(int num)
 {
-    /* we are already in coopth here, so just call to djdev64 directly */
-    return djdev64_load(num, 0);
+    if (num || !config.elfload)
+        return -1;
+    return djdev64_exec(config.elfload, 0, 0, NULL);
 }
 #endif
 
@@ -243,7 +247,7 @@ const struct dj64_api api = {
     .malloc = malloc,
     .free = free,
 #endif
-#if DJ64_API_VER >= 14
+#if DJ64_API_VER >= 15
     .elfload = dj64_elfload,
 #endif
 };
@@ -443,8 +447,4 @@ static void ctrl_hlt(Bit16u offs, void *sc, void *arg)
 CONSTRUCTOR(static void djdev64_init(void))
 {
     register_djdev64(&ops);
-#if DJ64_API_VER >= 14
-    if (config.elfload)
-        config.elfload_num = djdev64_add_load_path(config.elfload);
-#endif
 }
