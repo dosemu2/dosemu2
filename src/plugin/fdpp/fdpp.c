@@ -25,6 +25,9 @@
 #if FDPP_API_VER < 35
 #error wrong fdpp version
 #endif
+#if FDPP_API_VER != 35
+#warning fdpp version mismatch
+#endif
 #include "emu.h"
 #include "init.h"
 #include "int.h"
