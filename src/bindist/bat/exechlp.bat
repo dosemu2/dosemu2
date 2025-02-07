@@ -11,5 +11,4 @@ call %DOSEMU_SYS_CMD%
 set SHELL_LOADHIGH_DEFAULT=
 :cont
 if "%DOSEMU_EXIT%" == "1" exitemu %ERRORLEVEL%
-C:
 :done
