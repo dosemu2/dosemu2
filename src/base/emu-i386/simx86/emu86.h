@@ -51,10 +51,15 @@ extern hitimer_t GenTime, LinkTime;
 #endif
 
 #ifdef X86_JIT
+#if 0
 #define CONFIG_CPUSIM (config.cpusim || (CEmuStat & CeS_INSTREMU))
+#else
+#define CONFIG_CPUSIM config.cpusim
+#endif
 #else
 #define CONFIG_CPUSIM 1
 #endif
+#define CeS_INSTREMUx(p) ((p) ? CeS_INSTREMU_PM : CeS_INSTREMU_RM)
 
 /* octal digits in a byte: hhmm.mlll */
 #define D_HO(b)	(((b)>>6)&3)
@@ -664,6 +669,7 @@ extern hitimer_t GenTime, LinkTime;
 #define EXCP_PICSIGNAL	66
 #define EXCP_STISIGNAL	67
 #define EXCP_MODESWITCH	68
+#define EXCP_EMULEAVE	69
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -687,7 +693,6 @@ extern unsigned int return_addr;
 extern jmp_buf jmp_env;
 extern unsigned long eTSSMASK;
 extern int Running;		/* into interpreter loop */
-extern unsigned int mMaxMem;
 extern int UseLinker;
 extern int PageFaults;
 
@@ -722,7 +727,6 @@ char *showreg(signed char r);
 char *showmode(unsigned int m);
 void Cpu2Reg (void);
 int e_debug_check(unsigned int PC);
-int e_mprotect(unsigned int addr, size_t len);
 int e_querymprotrange(unsigned int addr, size_t len);
 int e_markpage(unsigned int addr, size_t len);
 int e_unmarkpage(unsigned int addr, size_t len);

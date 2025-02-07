@@ -1081,7 +1081,7 @@ void kvm_leave(int pm)
 	kvm_get_dirty_map(p->guest_phys_addr, bitmap);
 	for (i = 0; i < p->memory_size >> PAGE_SHIFT; i++)
 	  if (test_bit(i, bitmap))
-	    e_invalidate_page_full(p->guest_phys_addr + (i << PAGE_SHIFT));
+	    e_invalidate_page_dirty(p->guest_phys_addr + (i << PAGE_SHIFT));
       }
   }
 }
@@ -1585,9 +1585,12 @@ int kvm_dpmi(cpuctx_t *scp)
 	ret = DPMI_RET_FAULT;
     } else if (exit_reason == KVM_EXIT_MMIO) {
       dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
-      if (vga.inst_emu && vga_access(addr, addr))
+      if (vga.inst_emu && vga_access(addr, addr)) {
         instr_emu_sim(scp, 1);
-      ret = DPMI_RET_CLIENT;
+        ret = DPMI_RET_DOSEMU;
+      } else {
+        ret = DPMI_RET_CLIENT;
+      }
     }
   } while (!signal_pending() && ret == DPMI_RET_CLIENT);
   return ret;

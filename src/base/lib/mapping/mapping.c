@@ -497,8 +497,6 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   Q__printf("MAPPING: mprotect, cap=%s, targ=%x, size=%zx, protect=%x\n",
 	cap, targ, mapsize, protect);
   invalidate_unprotected_page_cache(targ, mapsize);
-  if (is_kvm_map(cap))
-    mprotect_kvm(cap, targ, mapsize, protect);
   if (cap & MAPPING_CPUEMU) {
     /* for cpuemu only mprotect JIT_BASE */
     ret = mprotect(MEM_BASE32x(targ, JIT_BASE), mapsize, protect);
@@ -509,6 +507,8 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   ret = do_mprot(targ, mapsize, protect);
   if (ret)
     return ret;
+  if (is_kvm_map(cap))
+    mprotect_kvm(cap, targ, mapsize, protect);
   addr = MEM_BASE32(targ);
   if ((unsigned char *)addr < mem_bases[MEM_BASE].base ||
       (unsigned char *)addr + mapsize > mem_bases[MEM_BASE].base +

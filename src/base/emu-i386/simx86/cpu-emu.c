@@ -149,6 +149,8 @@ FILE *aLog = NULL;
  */
 cpuctx_t e_scp; /* initialized to 0 */
 
+static void instr_sim_leave(int pmode);
+
 /* ======================================================================= */
 
 unsigned long eTSSMASK = 0;
@@ -727,6 +729,8 @@ erseg:
 
 void reset_emu_cpu(void)
 {
+  if (CEmuStat & CeS_INSTREMU)
+    instr_sim_leave(CEmuStat & CeS_INSTREMU_PM);
   TheCPU.cr[0] = 0x13;	/* valid bits: 0xe005003f */
   TheCPU.cr[4] = CR4_VME;
   TheCPU.dr[4] = 0xffff1ff0;
@@ -901,6 +905,8 @@ static void print_statistics(void)
 
 void leave_cpu_emu(void)
 {
+	if (CEmuStat & CeS_INSTREMU)
+		instr_sim_leave(CEmuStat & CeS_INSTREMU_PM);
 	if (IS_EMU() && iniflag) {
 		iniflag = 0;
 #ifdef SKIP_EMU_VBIOS
@@ -1034,8 +1040,10 @@ int e_vm86(void)
     }
     else if (xval==EXCP_GOBACK) {
         retval = 0;
-    }
-    else {
+    } else if (xval==EXCP_EMULEAVE) {
+        instr_sim_leave(0);
+        retval = 0;
+    } else {
 	switch (xval) {
 	    case EXCP0D_GPF: {	/* to kernel vm86 */
 		retval=handle_vm86_fault(&errcode);	/* kernel level */
@@ -1139,6 +1147,9 @@ int e_dpmi(cpuctx_t *scp)
     }
     else if (xval==EXCP_GOBACK) {
         retval = DPMI_RET_DOSEMU;
+    } else if (xval==EXCP_EMULEAVE) {
+        instr_sim_leave(1);
+        retval = DPMI_RET_DOSEMU;
     } else {
 	retval = DPMI_RET_FAULT;
     }
@@ -1206,9 +1217,27 @@ static void save_fpu_state(void)
   fsave_to_fxsave(&fs, &vm86_fpu_state);
 }
 
-void cpuemu_enter(int pm)
+static void do_cpuemu_enter(int pm)
 {
   load_fpu_state();
+}
+
+void cpuemu_enter(int pm)
+{
+  if (!CONFIG_CPUSIM) {
+    int need_inv = 0;
+    /* Note: KVM uses dirty logging to invalidate lowmem protections. */
+    if (pm) {
+      if (config.cpu_vm == CPUVM_VM86)
+        need_inv++;
+    } else {
+      if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+        need_inv++;
+    }
+    if (need_inv)
+      e_invalidate_dirty(0, LOWMEM_SIZE + HMASIZE);
+  }
+  do_cpuemu_enter(pm);
 }
 
 void cpuemu_leave(int pm)
@@ -1225,35 +1254,21 @@ void cpuemu_update_fpu(void)
 void instr_emu_sim(cpuctx_t *scp, int pmode)
 {
   int be = (pmode ? config.cpu_vm_dpmi : config.cpu_vm);
-  instr_emu_sim_reset_count();
+  assert(!(CEmuStat & CeS_INSTREMU));
   if (be == CPUVM_KVM)
     kvm_leave(pmode);
-  /* this changes CONFIG_CPUSIM value, so should be before init */
-  CEmuStat |= CeS_INSTREMU;
-#ifdef X86_JIT
-  if (!config.cpusim) {
-    InitGen_sim();
-    init_emu_npu();
-  }
-#endif
-  cpuemu_enter(pmode);
+  CEmuStat |= CeS_INSTREMUx(pmode);
+  e_invalidate_dirty_full();
+  instr_emu_sim_reset_count();
+  do_cpuemu_enter(pmode);
 }
 
-void instr_sim_leave(int pmode)
+static void instr_sim_leave(int pmode)
 {
   int be = (pmode ? config.cpu_vm_dpmi : config.cpu_vm);
-  assert(CEmuStat & CeS_INSTREMU);
-  FlagSync_All();
-  interp_inst_emu_count = 0;
+  assert(CEmuStat & CeS_INSTREMUx(pmode));
+  CEmuStat &= ~CeS_INSTREMUx(pmode);
   cpuemu_leave(pmode);
-  CEmuStat &= ~CeS_INSTREMU;
-#ifdef X86_JIT
-  /* back to regular JIT */
-  if (!config.cpusim) {
-    InitGen_x86();
-    init_emu_npu();
-  }
-#endif
   if (be == CPUVM_KVM)
     kvm_enter(pmode);
 }
@@ -1362,6 +1377,30 @@ int e_in_compiled_code(void)
 int in_emu_cpu(void)
 {
     return (in_dpmi_emu || in_vm86_emu);
+}
+
+int EMU_V86(void)
+{
+    return (config.cpu_vm == CPUVM_EMU || (CEmuStat & CeS_INSTREMU_RM));
+}
+
+int EMU_DPMI(void)
+{
+    return (config.cpu_vm_dpmi == CPUVM_EMU || (CEmuStat & CeS_INSTREMU_PM));
+}
+
+int _CPU_VM(void)
+{
+    if (EMU_V86())
+	return CPUVM_EMU;
+    return config.cpu_vm;
+}
+
+int _CPU_VM_DPMI(void)
+{
+    if (EMU_DPMI())
+	return CPUVM_EMU;
+    return config.cpu_vm_dpmi;
 }
 
 /* ======================================================================= */

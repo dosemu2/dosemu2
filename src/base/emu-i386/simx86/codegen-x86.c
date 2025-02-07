@@ -155,13 +155,10 @@ static void _test_(void)
 
 /////////////////////////////////////////////////////////////////////////////
 
-/* empirical!! */
 static int goodmemref(dosaddr_t m)
 {
-	if (m >= mMaxMem)
-		return 0;
 	if (m < 0x110000) return 1;
-	if (dpmi_is_valid_range(m, mMaxMem - m))
+	if (dpmi_is_valid_range(m, 16))
 		return 1;
 	return 0;
 }
@@ -3276,7 +3273,6 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode)
 	 * if some other code tries to write over the page including
 	 * this node */
 	e_markpage(G->seqbase, G->seqlen);
-	e_mprotect(G->seqbase, G->seqlen);
 	G->cs = LONG_CS;
 	G->mode = mode;
 	/* check links INSIDE current node */

@@ -517,9 +517,9 @@ static void dpmi_set_pm(int pm)
     return;
   }
   dpmi_pm = pm;
-  if (config.cpu_vm != config.cpu_vm_dpmi) {
-    leave_backend(pm ? config.cpu_vm : config.cpu_vm_dpmi, !pm);
-    enter_backend(!pm ? config.cpu_vm : config.cpu_vm_dpmi, pm);
+  if (_CPU_VM() != _CPU_VM_DPMI()) {
+    leave_backend(pm ? _CPU_VM() : _CPU_VM_DPMI(), !pm);
+    enter_backend(!pm ? _CPU_VM() : _CPU_VM_DPMI(), pm);
   }
 }
 
@@ -607,7 +607,7 @@ static int do_dpmi_switch(cpuctx_t *scp)
                    _cs, _eip, _ss, _esp, _eflags);
   }
 #ifdef X86_EMULATOR
-  if (config.cpu_vm_dpmi == CPUVM_EMU || interp_inst_emu_count)
+  if (EMU_DPMI())
     ret = e_dpmi(scp);
   else
 #endif
@@ -1490,7 +1490,7 @@ static void finish_clnt_switch(void)
     update_kvm_idt();
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     kvm_update_fpu();
-  if (config.cpu_vm == CPUVM_EMU || config.cpu_vm_dpmi == CPUVM_EMU)
+  if (_CPU_VM() == CPUVM_EMU || _CPU_VM_DPMI() == CPUVM_EMU)
     cpuemu_update_fpu();
 }
 
@@ -1542,7 +1542,7 @@ static int ldt_write_low(unsigned short ldt_entry, unsigned int *lp)
 
 static void save_prev_clnt_state(void)
 {
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (_CPU_VM() == CPUVM_KVM || _CPU_VM_DPMI() == CPUVM_KVM)
     kvm_get_fpu();
   memcpy(&DPMI_CLIENT.saved_fpu_state, &vm86_fpu_state,
     sizeof(vm86_fpu_state));

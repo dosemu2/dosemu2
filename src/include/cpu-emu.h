@@ -65,7 +65,9 @@ extern void e_priv_iopl(int);
 #define CeS_INHI	0x800	/* inhibit interrupts(pop ss; pop sp et sim.) */
 #define CeS_TRAP	0x1000	/* INT01 Sstep active */
 #define CeS_DRTRAP	0x2000	/* Debug Registers active */
-#define CeS_INSTREMU	0x4000	/* behave like former instr_emu, with counter for VGAEMU faults */
+#define CeS_INSTREMU_RM	0x4000
+#define CeS_INSTREMU_PM	0x8000
+#define CeS_INSTREMU	(CeS_INSTREMU_RM | CeS_INSTREMU_PM) /* behave like former instr_emu, with counter for VGAEMU faults */
 
 extern int IsV86Emu;
 extern int IsDpmiEmu;
@@ -87,12 +89,17 @@ void e_invalidate_full(unsigned data, int cnt);
 void e_invalidate_full_pa(unsigned data, int cnt);
 int e_invalidate_page_full(unsigned data);
 void e_invalidate_pa(unsigned data, int cnt);
+void e_invalidate_dirty(unsigned int addr, unsigned int aend);
+void e_invalidate_page_dirty(unsigned int addr);
+void e_invalidate_dirty_full(void);
 #else
 #define e_invalidate(x,y)
 #define e_invalidate_full(x,y)
 #define e_invalidate_full_pa(x,y)
 #define e_invalidate_page_full(x) 0
 #define e_invalidate_pa(x,y)
+#define e_invalidate_dirty(x,y)
+#define e_invalidate_dirty_full()
 #endif
 
 /* called from cpu.c */
@@ -105,9 +112,7 @@ void e_dpmi_b0x(int op,cpuctx_t *scp);
 
 /* called/used from vgaemu.c */
 void instr_emu_sim(cpuctx_t *scp, int pmode);
-void instr_sim_leave(int pmode);
 void instr_emu_sim_reset_count(void);
-extern int interp_inst_emu_count;
 
 void cpuemu_enter(int pm);
 void cpuemu_leave(int pm);
@@ -128,10 +133,18 @@ int e_emu_fault(sigcontext_t *scp, int in_vm86);
 int e_in_compiled_code(void);
 void e_gen_sigalrm(void);
 void e_gen_sigalrm_from_thread(void);
+int EMU_V86(void);
+int EMU_DPMI(void);
+int _CPU_VM(void);
+int _CPU_VM_DPMI(void);
 #else
 #define e_gen_sigalrm()
 #define e_gen_sigalrm_from_thread()
 #define e_in_compiled_code() 0
+#define EMU_V86() 0
+#define EMU_DPMI() 0
+#define _CPU_VM() config.cpu_vm
+#define _CPU_VM_DPMI() config.cpu_vm_dpmi
 #endif
 
 /* called from dos2linux.c */
