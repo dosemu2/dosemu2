@@ -730,11 +730,7 @@ int e_debug_check(unsigned int PC);
 int e_querymprotrange(unsigned int addr, size_t len);
 int e_markpage(unsigned int addr, size_t len);
 int e_unmarkpage(unsigned int addr, size_t len);
-int e_querymark(unsigned int addr, size_t len);
-int e_querymark_all(unsigned int addr, size_t len);
 void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip);
-void mprot_init(void);
-void mprot_end(void);
 void InitGenCodeBuf(void);
 void *AllocGenCodeBuf(size_t size);
 void FreeGenCodeBuf(void *ptr);
@@ -746,6 +742,15 @@ void CollectStat(void);
 int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp);
 int e_handle_fault(sigcontext_t *scp);
 void init_emu_npu_x86(void);
+int e_querymark(unsigned int addr, size_t len);
+int e_querymark_all(unsigned int addr, size_t len);
+void mprot_init(void);
+void mprot_end(void);
+#else
+#define e_querymark(x,y) 0
+#define e_querymark_all(x,y) 0
+#define mprot_init()
+#define mprot_end()
 #endif
 void init_emu_npu(void);
 

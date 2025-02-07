@@ -92,14 +92,17 @@ void e_invalidate_pa(unsigned data, int cnt);
 void e_invalidate_dirty(unsigned int addr, unsigned int aend);
 void e_invalidate_page_dirty(unsigned int addr);
 void e_invalidate_dirty_full(void);
+int e_querymprot(dosaddr_t addr);
 #else
 #define e_invalidate(x,y)
 #define e_invalidate_full(x,y)
 #define e_invalidate_full_pa(x,y)
 #define e_invalidate_page_full(x) 0
+#define e_invalidate_page_dirty(x)
 #define e_invalidate_pa(x,y)
 #define e_invalidate_dirty(x,y)
 #define e_invalidate_dirty_full()
+#define e_querymprot(x) 0
 #endif
 
 /* called from cpu.c */
@@ -148,7 +151,6 @@ int _CPU_VM_DPMI(void);
 #endif
 
 /* called from dos2linux.c */
-int e_querymprot(dosaddr_t addr);
 
 int in_emu_cpu(void);
 
