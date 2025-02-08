@@ -32,6 +32,7 @@
  *
  ***************************************************************************/
 
+#include "msdoshlp.h"
 #include "emu86.h"
 #include "trees.h"
 #include "codegen-arch.h"
@@ -239,15 +240,18 @@ void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 #if PROFILE
 	CpatchWrites++;
 #endif
-	if (memcheck_is_rom(addr))
+	if (__builtin_expect(vga_write_access(addr), 0)) {
+		vga_write(addr, value);
+		return;
+	}
+	if (__builtin_expect(msdos_ldt_access(addr), 0)) {
+		emu_ldt_write(addr, value, 1);
+		return;
+	}
+	if (__builtin_expect(memcheck_is_rom(addr), 0))
 		return;
 	m_munprotect(addr, 1, eip);
-	if (!emu_ldt_write(addr, value, 1)) {
-		if (vga_write_access(addr))
-			vga_write(addr, value);
-		else
-			WRITE_BYTE(addr,value);
-	}
+	WRITE_BYTE(addr,value);
 }
 
 void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
@@ -255,15 +259,18 @@ void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 #if PROFILE
 	CpatchWrites++;
 #endif
-	if (memcheck_is_rom(addr))
+	if (__builtin_expect(vga_write_access(addr), 0)) {
+		vga_write_word(addr, value);
+		return;
+	}
+	if (__builtin_expect(msdos_ldt_access(addr), 0)) {
+		emu_ldt_write(addr, value, 2);
+		return;
+	}
+	if (__builtin_expect(memcheck_is_rom(addr), 0))
 		return;
 	m_munprotect(addr, 2, eip);
-	if (!emu_ldt_write(addr, value, 2)) {
-		if (vga_write_access(addr))
-			vga_write_word(addr, value);
-		else
-			WRITE_WORD(addr,value);
-	}
+	WRITE_WORD(addr,value);
 }
 
 void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
@@ -271,15 +278,18 @@ void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 #if PROFILE
 	CpatchWrites++;
 #endif
-	if (memcheck_is_rom(addr))
+	if (__builtin_expect(vga_write_access(addr), 0)) {
+		vga_write_dword(addr, value);
+		return;
+	}
+	if (__builtin_expect(msdos_ldt_access(addr), 0)) {
+		emu_ldt_write(addr, value, 4);
+		return;
+	}
+	if (__builtin_expect(memcheck_is_rom(addr), 0))
 		return;
 	m_munprotect(addr, 4, eip);
-	if (!emu_ldt_write(addr, value, 4)) {
-		if (vga_write_access(addr))
-			vga_write_dword(addr, value);
-		else
-			WRITE_DWORD(addr,value);
-	}
+	WRITE_DWORD(addr,value);
 }
 
 Bit8u read_8(dosaddr_t addr)

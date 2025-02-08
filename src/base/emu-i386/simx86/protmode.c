@@ -374,9 +374,6 @@ int emu_ldt_write(dosaddr_t addr, uint32_t op, int len)
 	static cpuctx_t sc = {0};
 	cpuctx_t *scp = &sc;
 
-	if (!(msdos_ldt_access(addr)))
-		return 0;
-
 	_cr2 = addr;
 	_ds = TheCPU.ds;
 	_es = TheCPU.es;
@@ -396,8 +393,10 @@ void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 		default_sim_pagefault_handler(addr, err, op, len);
 		return;
 	}
-	if ((err & 2) && emu_ldt_write(addr, op, len))
+	if ((err & 2) && msdos_ldt_access(addr)) {
+		emu_ldt_write(addr, op, len);
 		return;
+	}
 	/* trigger an exception in DPMI */
 	TheCPU.err = EXCP0E_PAGE;
 	TheCPU.scp_err = err;
