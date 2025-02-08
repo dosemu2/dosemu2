@@ -900,6 +900,11 @@ static void print_statistics(void)
 	dbug_printf("Page faults       %16d\n",PageFaults);
 	dbug_printf("Signals received  %16d\n",EmuSignals);
 	dbug_printf("Tree cleanups     %16d\n",TreeCleanups);
+	dbug_printf("C patches applied %16d\n",CpatchTotal);
+	dbug_printf("C patches removed %16d\n",UncpatchTotal);
+	dbug_printf("Cpatch reps       %16d\n",CpatchReps);
+	dbug_printf("Cpatch writes     %16d\n",CpatchWrites);
+	dbug_printf("Cpatch invds      %16d\n",CpatchInvalidates);
 #endif
 }
 

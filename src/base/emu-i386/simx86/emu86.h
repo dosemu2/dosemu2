@@ -48,6 +48,11 @@
 #if PROFILE
 extern hitimer_t AddTime, SearchTime, ExecTime, CleanupTime;
 extern hitimer_t GenTime, LinkTime;
+extern int CpatchTotal;
+extern int UncpatchTotal;
+extern int CpatchReps;
+extern int CpatchWrites;
+extern int CpatchInvalidates;
 #endif
 
 #ifdef X86_JIT

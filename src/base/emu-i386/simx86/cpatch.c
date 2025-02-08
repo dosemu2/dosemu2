@@ -38,6 +38,13 @@
 #include "cpatch.h"
 
 static int in_cpatch;
+#if PROFILE
+int CpatchTotal;
+int UncpatchTotal;
+int CpatchReps;
+int CpatchWrites;
+int CpatchInvalidates;
+#endif
 
 /*
  * Return address of the stub function is passed into eip
@@ -56,6 +63,9 @@ void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 	// no need to invalidate the whole page here,
 	// as the page does not need to be unprotected
 	InvalidateNodeRange(addr, len, eip);
+#if PROFILE
+	CpatchInvalidates++;
+#endif
 }
 
 #define repmovs(std,letter,cld)			       \
@@ -201,6 +211,9 @@ void rep_movs_stos(struct rep_stack *stack)
 done:
 	InCompiledCode++;
 	in_cpatch--;
+#if PROFILE
+	CpatchReps++;
+#endif
 }
 
 /* ======================================================================= */
@@ -214,6 +227,9 @@ void stk_16(dosaddr_t addr, Bit16u value)
 	WRITE_WORD(addr, value);
 	InCompiledCode++;
 	in_cpatch--;
+#if PROFILE
+	CpatchWrites++;
+#endif
 }
 
 void stk_32(dosaddr_t addr, Bit32u value)
@@ -225,6 +241,9 @@ void stk_32(dosaddr_t addr, Bit32u value)
 	WRITE_DWORD(addr, value);
 	InCompiledCode++;
 	in_cpatch--;
+#if PROFILE
+	CpatchWrites++;
+#endif
 }
 
 void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
@@ -241,6 +260,9 @@ void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 			WRITE_BYTE(addr,value);
 	}
 	in_cpatch--;
+#if PROFILE
+	CpatchWrites++;
+#endif
 }
 
 void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
@@ -257,6 +279,9 @@ void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 			WRITE_WORD(addr,value);
 	}
 	in_cpatch--;
+#if PROFILE
+	CpatchWrites++;
+#endif
 }
 
 void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
@@ -273,6 +298,9 @@ void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 			WRITE_DWORD(addr,value);
 	}
 	in_cpatch--;
+#if PROFILE
+	CpatchWrites++;
+#endif
 }
 
 Bit8u read_8(dosaddr_t addr)
@@ -440,6 +468,9 @@ int Cpatch(sigcontext_t *scp)
     if (in_cpatch)
 	return 0;
 
+#if PROFILE
+    CpatchTotal++;
+#endif
     p = eip;
     if ((*p==0xf3 || *p==0xf2) && p[-1] == 0x90 && p[-2] == 0x90) {
 	// rep movs, rep stos, rep lods, rep scas, rep cmps
@@ -528,6 +559,9 @@ int UnCpatch(unsigned char *eip)
     e_printf("UnCpatch   at %p was %02x%02x%02x%02x%02x\n",eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
 
+#if PROFILE
+    UncpatchTotal++;
+#endif
     if (p[1] == 0x13) {
 	p[0] = p[1] = 0x90;
     }
@@ -556,4 +590,3 @@ int UnCpatch(unsigned char *eip)
 }
 
 /* ======================================================================= */
-
