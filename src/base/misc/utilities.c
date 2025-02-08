@@ -784,6 +784,9 @@ void *load_plugin(const char *plugin_name)
 	     dosemu_plugin_dir_path, plugin_name);
     assert(ret != -1);
     handle = do_dlopen(fullname, RTLD_LOCAL | RTLD_NOW);
+    /* try lazy variant for the version-mismatch case */
+    if (!handle)
+	handle = do_dlopen(fullname, RTLD_LOCAL | RTLD_LAZY);
     free(fullname);
     return handle;
 }
