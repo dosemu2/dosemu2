@@ -526,7 +526,6 @@ void avltr_delete (const int key)
 
 static void avltr_init(void)
 {
-#ifdef X86_JIT
  if (!config.cpusim) {
   int i;
   TNode *G;
@@ -548,15 +547,11 @@ static void avltr_init(void)
   InstrMeta = malloc(sizeof(IMeta) * MAXINODES);
   memset(InstrMeta, 0, sizeof(IMeta));
  }
-#endif
   g_printf("avltr_init\n");
   CurrIMeta = -1;
   NodesCleaned = 0;
   ninodes = 0;
 }
-
-
-#ifdef X86_JIT
 
 void avltr_destroy(void)
 {
@@ -1276,19 +1271,12 @@ quit:
 }
 
 
-#endif // X86_JIT
-
-
 /////////////////////////////////////////////////////////////////////////////
 static void do_invalidate(unsigned data, int cnt)
 {
 	cnt = PAGE_ALIGN(data + cnt) - (data & _PAGE_MASK);
 	data &= _PAGE_MASK;
-#ifdef X86_JIT
-	/* e_querymprotrange prevents coming here for sim */
-	assert (!config.cpusim);
 	InvalidateNodeRange(data, cnt, 0);
-#endif
 }
 
 void e_invalidate(unsigned data, int cnt)
@@ -1298,15 +1286,11 @@ void e_invalidate(unsigned data, int cnt)
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
 		return;
-#ifdef X86_JIT
-	/* e_querymprotrange prevents coming here for sim */
-	assert(!config.cpusim);
 	if (!e_querymark(data, cnt))
 		return;
 	// no need to invalidate the whole page here,
 	// as the page does not need to be unprotected
 	InvalidateNodeRange(data, cnt, 0);
-#endif
 }
 
 void e_invalidate_pa(unsigned pa, int cnt)
@@ -1353,8 +1337,6 @@ int e_invalidate_page_full(unsigned data)
 
 /////////////////////////////////////////////////////////////////////////////
 
-
-#ifdef X86_JIT
 
 static void CleanIMeta(void)
 {
@@ -1429,8 +1411,6 @@ quit:
 	return -1;
 }
 
-#endif	// X86_JIT
-
 /////////////////////////////////////////////////////////////////////////////
 
 #ifdef SHOW_STAT
@@ -1504,19 +1484,15 @@ void CollectStat (void)
 void InitTrees(void)
 {
 	g_printf("InitTrees\n");
-#ifdef X86_JIT
 	if (!config.cpusim)
 	    TNodePool = calloc(NODES_IN_POOL, sizeof(TNode));
-#endif
 
 	avltr_init();
 
-#ifdef X86_JIT
 	if (!config.cpusim && debug_level('e')>1) {
 	    e_printf("Root tree node at %p\n",&CollectTree.root);
 	    e_printf("TNode pool at %p\n",TNodePool);
 	}
-#endif
 	NodesParsed = NodesExecd = 0;
 	CleanFreq = 8;
 	cstx = xCS1 = 0;
@@ -1537,17 +1513,13 @@ void EndGen(void)
 	int i;
 	int csm = config.CPUSpeedInMhz*1000;
 #endif
-#ifdef X86_JIT
 	if (!config.cpusim)
 	    CleanIMeta();
-#endif
 	CurrIMeta = -1;
-#ifdef X86_JIT
 	if (!config.cpusim) {
 	    avltr_destroy();
 	    free(TNodePool); TNodePool=NULL;
 	}
-#endif
 #ifdef SHOW_STAT
 	for (i=0; i<cstx; i++) {
 	    dbug_printf("%04d %16Ld %8d %8d(%3d) %8d %d\n",i,(xCST[i].a/csm),
