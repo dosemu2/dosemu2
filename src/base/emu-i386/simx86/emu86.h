@@ -52,6 +52,7 @@ extern int CpatchTotal;
 extern int UncpatchTotal;
 extern int CpatchReps;
 extern int CpatchWrites;
+extern int CpatchStkWrites;
 extern int CpatchInvalidates;
 #endif
 

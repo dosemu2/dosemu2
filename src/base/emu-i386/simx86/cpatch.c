@@ -43,6 +43,7 @@ int CpatchTotal;
 int UncpatchTotal;
 int CpatchReps;
 int CpatchWrites;
+int CpatchStkWrites;
 int CpatchInvalidates;
 #endif
 
@@ -228,7 +229,7 @@ void stk_16(dosaddr_t addr, Bit16u value)
 	InCompiledCode++;
 	in_cpatch--;
 #if PROFILE
-	CpatchWrites++;
+	CpatchStkWrites++;
 #endif
 }
 
@@ -242,7 +243,7 @@ void stk_32(dosaddr_t addr, Bit32u value)
 	InCompiledCode++;
 	in_cpatch--;
 #if PROFILE
-	CpatchWrites++;
+	CpatchStkWrites++;
 #endif
 }
 
