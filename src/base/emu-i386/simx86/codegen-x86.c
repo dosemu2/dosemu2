@@ -114,7 +114,6 @@
 #include "emu86.h"
 #include "dlmalloc.h"
 #include "mapping.h"
-#ifdef X86_JIT
 #include "codegen-x86.h"
 #include "cpatch.h"
 
@@ -3537,5 +3536,3 @@ unsigned int Exec_x86_fast(TNode *G)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-
-#endif

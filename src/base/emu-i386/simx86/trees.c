@@ -76,8 +76,6 @@ int NodesNotFound = 0;
 int TreeCleanups = 0;
 #endif
 
-#ifdef X86_JIT
-
 #define FINDTREE_CACHE_HASH_MASK 0xfff
 static TNode *findtree_cache[FINDTREE_CACHE_HASH_MASK+1];
 
@@ -523,8 +521,6 @@ void avltr_delete (const int key)
       }
   }
 }
-
-#endif	// X86_JIT
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -1561,4 +1557,3 @@ void EndGen(void)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-

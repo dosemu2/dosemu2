@@ -35,8 +35,6 @@
 #include <stddef.h>
 #include "emu86.h"
 
-#ifdef X86_JIT
-
 #include "codegen-x86.h"
 
 static int Fp87_op_x86_sim(int exop, int reg);
@@ -512,5 +510,3 @@ static int Fp87_op_x86_sim(int exop, int reg)
 	}
 	return 0;
 }
-
-#endif

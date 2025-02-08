@@ -37,8 +37,6 @@
 #include "codegen-arch.h"
 #include "cpatch.h"
 
-#ifdef X86_JIT
-
 static int in_cpatch;
 
 /*
@@ -556,8 +554,6 @@ int UnCpatch(unsigned char *eip)
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
     return 0;
 }
-
-#endif	//X86_JIT
 
 /* ======================================================================= */
 
