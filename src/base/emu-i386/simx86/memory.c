@@ -274,14 +274,15 @@ int e_unmarkpage(unsigned int addr, size_t len)
 
 int e_querymark(unsigned int addr, size_t len)
 {
-	unsigned int abeg, aend, idx;
+	unsigned int abeg, aend;
+	int idx;
 	tMpMap *M = FindM(addr);
-	uint64_t mask;
+	uint64_t mask, mask_e;
 
 	if (M == NULL) return 0;
 
 	abeg = addr >> CGRAN;
-	aend = ((addr+len-1) >> CGRAN) + 1;
+	aend = (addr+len) >> CGRAN;
 
 	if (debug_level('e')>2)
 		dbug_printf("QUERY MARK from %08x to %08x for %08x\n",
@@ -296,25 +297,40 @@ int e_querymark(unsigned int addr, size_t len)
 	idx = (abeg&CGRMASK) / UINT64_WIDTH;
 	// mask for first partial longword
 	mask = ~0ULL << (abeg & (UINT64_WIDTH-1));
-	while (abeg < (aend & ~(UINT64_WIDTH-1))) {
-		if (M->subpage[idx] & mask)
+	abeg &= ~(UINT64_WIDTH-1);
+	mask_e = (1ULL << (aend & (UINT64_WIDTH-1))) - 1;
+	aend &= ~(UINT64_WIDTH-1);
+	if (abeg == aend) {
+		/* within single 63byte (not 64!) block */
+		if (M->subpage[idx] & mask & mask_e)
 			goto found;
-		abeg = (abeg + UINT64_WIDTH) & ~(UINT64_WIDTH-1);
-		idx++;
-		mask = ~0ULL;
-		if (idx == sizeof(M->subpage)/sizeof(M->subpage[0])) {
-			M = FindM((M->mega << 20) + 0x100000 /*idx * 64*/);
+		return 0;
+	}
+	if (M->subpage[idx] & mask)
+		goto found;
+	for (abeg += UINT64_WIDTH, idx++; abeg < aend; abeg += UINT64_WIDTH,
+			idx++) {
+		if (!(abeg & CGRMASK)) {
+			M = FindM(abeg);
 			if (!M)
 				return 0;
 			idx = 0;
 		}
-	}
-	if (aend & (UINT64_WIDTH-1)) {
-		// mask for last partial longword
-		mask &= ~0ULL >> (UINT64_WIDTH - (aend & (UINT64_WIDTH-1)));
-		if (M->subpage[idx] & mask)
+		if (M->subpage[idx])
 			goto found;
 	}
+	/* mask_e is 0 if aend was 64-aligned */
+	if (!mask_e)
+		return 0;
+	/* see if aend crosses MB */
+	if (!(aend & CGRMASK)) {
+		M = FindM(aend);
+		if (!M)
+			return 0;
+		idx = 0;
+	}
+	if (M->subpage[idx] & mask_e)
+		goto found;
 	return 0;
 found:
 	if (debug_level('e')>1) {
