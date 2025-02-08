@@ -37,7 +37,6 @@
 #include "codegen-arch.h"
 #include "cpatch.h"
 
-static int in_cpatch;
 #if PROFILE
 int CpatchTotal;
 int UncpatchTotal;
@@ -102,7 +101,6 @@ void rep_movs_stos(struct rep_stack *stack)
 	unsigned char op;
 	unsigned int size;
 
-	in_cpatch++;
 	assert(InCompiledCode);
 	InCompiledCode--;
 	addr = EMUADDR_REL(paddr);
@@ -211,7 +209,6 @@ void rep_movs_stos(struct rep_stack *stack)
 	stack->ecx = ecx;
 done:
 	InCompiledCode++;
-	in_cpatch--;
 #if PROFILE
 	CpatchReps++;
 #endif
@@ -221,10 +218,8 @@ done:
 
 void stk_16(dosaddr_t addr, Bit16u value)
 {
-	in_cpatch++;
 	e_invalidate(addr, 2);
 	WRITE_WORD(addr, value);
-	in_cpatch--;
 #if PROFILE
 	CpatchStkWrites++;
 #endif
@@ -232,10 +227,8 @@ void stk_16(dosaddr_t addr, Bit16u value)
 
 void stk_32(dosaddr_t addr, Bit32u value)
 {
-	in_cpatch++;
 	e_invalidate(addr, 4);
 	WRITE_DWORD(addr, value);
-	in_cpatch--;
 #if PROFILE
 	CpatchStkWrites++;
 #endif
@@ -243,7 +236,6 @@ void stk_32(dosaddr_t addr, Bit32u value)
 
 void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 {
-	in_cpatch++;
 	m_munprotect(addr, 1, eip);
 	if (!emu_ldt_write(addr, value, 1)) {
 		if (vga_write_access(addr))
@@ -251,7 +243,6 @@ void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 		else
 			WRITE_BYTE(addr,value);
 	}
-	in_cpatch--;
 #if PROFILE
 	CpatchWrites++;
 #endif
@@ -259,7 +250,6 @@ void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 
 void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 {
-	in_cpatch++;
 	m_munprotect(addr, 2, eip);
 	if (!emu_ldt_write(addr, value, 2)) {
 		if (vga_write_access(addr))
@@ -267,7 +257,6 @@ void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 		else
 			WRITE_WORD(addr,value);
 	}
-	in_cpatch--;
 #if PROFILE
 	CpatchWrites++;
 #endif
@@ -275,7 +264,6 @@ void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 
 void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 {
-	in_cpatch++;
 	m_munprotect(addr, 4, eip);
 	if (!emu_ldt_write(addr, value, 4)) {
 		if (vga_write_access(addr))
@@ -283,7 +271,6 @@ void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 		else
 			WRITE_DWORD(addr,value);
 	}
-	in_cpatch--;
 #if PROFILE
 	CpatchWrites++;
 #endif
@@ -450,9 +437,6 @@ int Cpatch(sigcontext_t *scp)
     int w16;
     unsigned int v;
     unsigned char *eip = (unsigned char *)_scp_rip;
-
-    if (in_cpatch)
-	return 0;
 
 #if PROFILE
     CpatchTotal++;
