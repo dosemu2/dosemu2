@@ -1335,6 +1335,7 @@ config_init(int argc, char **argv)
 		config.exitearly = 1;
 		break;
 	    }
+	    free(config.elfload);
 	    config.elfload = strdup(optarg);
 	    permit_file_ro(optarg);
 	    was_exec++;
@@ -1530,10 +1531,12 @@ config_init(int argc, char **argv)
 	case 'K': {
 	    char *p;
 	    g_printf("Unix path set to %s\n", optarg);
+	    free(config.unix_path);
 	    config.unix_path = strdup(optarg);
 	    p = strchr(config.unix_path, ':');
 	    if (p) {
 		*p = '\0';
+		free(config.dos_path);
 		config.dos_path = strdup(p + 1);
 		if (p == config.unix_path) {
 		    free(config.unix_path);
