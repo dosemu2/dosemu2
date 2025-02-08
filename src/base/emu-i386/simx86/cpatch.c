@@ -222,11 +222,8 @@ done:
 void stk_16(dosaddr_t addr, Bit16u value)
 {
 	in_cpatch++;
-	assert(InCompiledCode);
-	InCompiledCode--;
 	e_invalidate(addr, 2);
 	WRITE_WORD(addr, value);
-	InCompiledCode++;
 	in_cpatch--;
 #if PROFILE
 	CpatchStkWrites++;
@@ -236,11 +233,8 @@ void stk_16(dosaddr_t addr, Bit16u value)
 void stk_32(dosaddr_t addr, Bit32u value)
 {
 	in_cpatch++;
-	assert(InCompiledCode);
-	InCompiledCode--;
 	e_invalidate(addr, 4);
 	WRITE_DWORD(addr, value);
-	InCompiledCode++;
 	in_cpatch--;
 #if PROFILE
 	CpatchStkWrites++;
@@ -250,10 +244,7 @@ void stk_32(dosaddr_t addr, Bit32u value)
 void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 {
 	in_cpatch++;
-	assert(InCompiledCode);
-	InCompiledCode--;
 	m_munprotect(addr, 1, eip);
-	InCompiledCode++;
 	if (!emu_ldt_write(addr, value, 1)) {
 		if (vga_write_access(addr))
 			vga_write(addr, value);
@@ -269,10 +260,7 @@ void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 {
 	in_cpatch++;
-	assert(InCompiledCode);
-	InCompiledCode--;
 	m_munprotect(addr, 2, eip);
-	InCompiledCode++;
 	if (!emu_ldt_write(addr, value, 2)) {
 		if (vga_write_access(addr))
 			vga_write_word(addr, value);
@@ -288,10 +276,7 @@ void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 {
 	in_cpatch++;
-	assert(InCompiledCode);
-	InCompiledCode--;
 	m_munprotect(addr, 4, eip);
-	InCompiledCode++;
 	if (!emu_ldt_write(addr, value, 4)) {
 		if (vga_write_access(addr))
 			vga_write_dword(addr, value);
