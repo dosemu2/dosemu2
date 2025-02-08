@@ -795,8 +795,6 @@ int vga_write_access(dosaddr_t m)
 			(m / HOST_PAGE_SIZE) >= vga.mem.lfb_base_page &&
 			(m / HOST_PAGE_SIZE) < vga.mem.lfb_base_page + vga.mem.pages)
 		return 1;
-	if (!config.umb_f0 && m >= 0xf0000 && m < 0xf4000)
-		return 1;
 	return 0;
 }
 

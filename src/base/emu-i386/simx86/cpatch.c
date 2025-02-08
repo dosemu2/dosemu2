@@ -236,6 +236,11 @@ void stk_32(dosaddr_t addr, Bit32u value)
 
 void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 {
+#if PROFILE
+	CpatchWrites++;
+#endif
+	if (memcheck_is_rom(addr))
+		return;
 	m_munprotect(addr, 1, eip);
 	if (!emu_ldt_write(addr, value, 1)) {
 		if (vga_write_access(addr))
@@ -243,13 +248,15 @@ void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 		else
 			WRITE_BYTE(addr,value);
 	}
-#if PROFILE
-	CpatchWrites++;
-#endif
 }
 
 void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 {
+#if PROFILE
+	CpatchWrites++;
+#endif
+	if (memcheck_is_rom(addr))
+		return;
 	m_munprotect(addr, 2, eip);
 	if (!emu_ldt_write(addr, value, 2)) {
 		if (vga_write_access(addr))
@@ -257,13 +264,15 @@ void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 		else
 			WRITE_WORD(addr,value);
 	}
-#if PROFILE
-	CpatchWrites++;
-#endif
 }
 
 void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 {
+#if PROFILE
+	CpatchWrites++;
+#endif
+	if (memcheck_is_rom(addr))
+		return;
 	m_munprotect(addr, 4, eip);
 	if (!emu_ldt_write(addr, value, 4)) {
 		if (vga_write_access(addr))
@@ -271,9 +280,6 @@ void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 		else
 			WRITE_DWORD(addr,value);
 	}
-#if PROFILE
-	CpatchWrites++;
-#endif
 }
 
 Bit8u read_8(dosaddr_t addr)
