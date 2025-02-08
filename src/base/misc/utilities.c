@@ -785,8 +785,12 @@ void *load_plugin(const char *plugin_name)
     assert(ret != -1);
     handle = do_dlopen(fullname, RTLD_LOCAL | RTLD_NOW);
     /* try lazy variant for the version-mismatch case */
-    if (!handle)
+    if (!handle) {
 	handle = do_dlopen(fullname, RTLD_LOCAL | RTLD_LAZY);
+	if (handle)
+	    error("You likely have plugin version mismatch for %s\n",
+		    plugin_name);
+    }
     free(fullname);
     return handle;
 }
