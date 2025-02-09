@@ -120,47 +120,6 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 #define DataGetWL_U(m,a) ((m)&DATA16? GetDWord(a):GetDLong(a))
 #define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(int)GetDLong(a))
 
-#if 0
-#if defined(ppc)||defined(__ppc)||defined(__ppc__)
-#define Fetch(a)	*((unsigned char *)(a))
-#define FetchW(a)	ppc_pswap2((int)(a))
-#define FetchL(a)	ppc_pswap4((int)(a))
-#define DataFetchWL_U(m,a) ((m)&DATA16? FetchW(a):FetchL(a))
-#define DataFetchWL_S(m,a) ((m)&DATA16? (short)FetchW(a):(int)FetchL(a))
-#define AddrFetchWL_U(m,a) ((m)&ADDR16? FetchW(a):FetchL(a))
-#define AddrFetchWL_S(m,a) ((m)&ADDR16? (short)FetchW(a):(int)FetchL(a))
-
-#define GetDWord(a)	ppc_pswap2((int)(a))
-#define GetDLong(a)	ppc_pswap4((int)(a))
-#define DataGetWL_U(m,a) ((m)&DATA16? GetDWord(a):GetDLong(a))
-#define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(int)GetDLong(a))
-#endif
-
-/* general-purpose */
-//static inline unsigned short pswap2(long a) {
-//	unsigned char *p = (unsigned char *)a;
-//	return p[0] | (p[1]<<8);
-//}
-//
-//static inline unsigned short dswap2(unsigned short w) {
-//	unsigned char *p = (unsigned char *)&w;
-//	return p[0] | (p[1]<<8);
-//}
-//
-//static inline unsigned long pswap4(long a) {
-//	unsigned char *p = (unsigned char *)a;
-//	return p[0] | (p[1]<<8) | (p[2]<<16) | (p[3]<<24);
-//}
-//
-//static inline unsigned long dswap4(unsigned long l) {
-//	unsigned char *p = (unsigned char *)&l;
-//	return p[0] | (p[1]<<8) | (p[2]<<16) | (p[3]<<24);
-//}
-//#define GetDWord(a)		pswap2((long)a)
-//#define GetDLong(a)		pswap4((long)a)
-//#define Fetch(p)		*(p)
-#endif
-
 #if defined(HOST_ARCH_X86) && !defined(HAVE___FLOAT80)
 typedef long double __float80;
 #undef __SIZEOF_FLOAT80__
