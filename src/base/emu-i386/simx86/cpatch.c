@@ -38,6 +38,8 @@
 #include "codegen-arch.h"
 #include "cpatch.h"
 
+#define UNCPATCH_WRITES 0
+
 #if PROFILE
 int CpatchTotal;
 int UncpatchTotal;
@@ -268,6 +270,35 @@ static void wri32_slow(dosaddr_t addr, Bit32u value, unsigned char *eip)
 	WRITE_DWORD(addr, value);
 }
 
+#if UNCPATCH_WRITES
+static void UnCpatch_wri8(unsigned char *eip)
+{
+    unsigned char *p = eip - 3;
+#if PROFILE
+    UncpatchTotal++;
+#endif
+    *((short *)p) = 0x0488; p[2] = 0x2f;
+}
+
+static void UnCpatch_wri16(unsigned char *eip)
+{
+    unsigned char *p = eip - 4;
+#if PROFILE
+    UncpatchTotal++;
+#endif
+    *p++ = 0x66; *((short *)p) = 0x0489; p[2] = 0x2f;
+}
+
+static void UnCpatch_wri32(unsigned char *eip)
+{
+    unsigned char *p = eip - 3;
+#if PROFILE
+    UncpatchTotal++;
+#endif
+    *((short *)p) = 0x0489; p[2] = 0x2f;
+}
+#endif
+
 void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 {
 #if PROFILE
@@ -289,6 +320,9 @@ void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 		return;
 	/* bypass aliasmap lookup, as we know addr is unprotected */
 	InCompiledCode--;
+#if UNCPATCH_WRITES
+	UnCpatch_wri8(eip);
+#endif
 	UNIX_WRITE_BYTE(EMU_BASE32(addr), value);
 	InCompiledCode++;
 }
@@ -314,6 +348,9 @@ void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 		return;
 	/* bypass aliasmap lookup, as we know addr is unprotected */
 	InCompiledCode--;
+#if UNCPATCH_WRITES
+	UnCpatch_wri16(eip);
+#endif
 	UNIX_WRITE_WORD(EMU_BASE32(addr), value);
 	InCompiledCode++;
 }
@@ -339,6 +376,9 @@ void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 		return;
 	/* bypass aliasmap lookup, as we know addr is unprotected */
 	InCompiledCode--;
+#if UNCPATCH_WRITES
+	UnCpatch_wri32(eip);
+#endif
 	UNIX_WRITE_DWORD(EMU_BASE32(addr), value);
 	InCompiledCode++;
 }
