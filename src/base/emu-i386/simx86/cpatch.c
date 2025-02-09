@@ -235,12 +235,49 @@ void stk_32(dosaddr_t addr, Bit32u value)
 #endif
 }
 
+static void wri8_slow(dosaddr_t addr, Bit8u value, unsigned char *eip)
+{
+	if (e_querymark(addr, 1)) {
+		InvalidateNodeRange(addr, 1, eip);
+#if PROFILE
+		CpatchInvalidates++;
+#endif
+	}
+	WRITE_BYTE(addr, value);
+}
+
+static void wri16_slow(dosaddr_t addr, Bit16u value, unsigned char *eip)
+{
+	if (e_querymark(addr, 2)) {
+		InvalidateNodeRange(addr, 2, eip);
+#if PROFILE
+		CpatchInvalidates++;
+#endif
+	}
+	WRITE_WORD(addr, value);
+}
+
+static void wri32_slow(dosaddr_t addr, Bit32u value, unsigned char *eip)
+{
+	if (e_querymark(addr, 4)) {
+		InvalidateNodeRange(addr, 4, eip);
+#if PROFILE
+		CpatchInvalidates++;
+#endif
+	}
+	WRITE_DWORD(addr, value);
+}
+
 void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 {
 #if PROFILE
 	CpatchWrites++;
 #endif
-	if (__builtin_expect(vga_write_access(addr), 0)) {
+	if (e_querymprot(addr)) {
+		wri8_slow(addr, value, eip);
+		return;
+	}
+	if (vga_write_access(addr)) {
 		vga_write(addr, value);
 		return;
 	}
@@ -250,8 +287,10 @@ void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 	}
 	if (__builtin_expect(memcheck_is_rom(addr), 0))
 		return;
-	m_munprotect(addr, 1, eip);
-	WRITE_BYTE(addr,value);
+	/* bypass aliasmap lookup, as we know addr is unprotected */
+	InCompiledCode--;
+	UNIX_WRITE_BYTE(EMU_BASE32(addr), value);
+	InCompiledCode++;
 }
 
 void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
@@ -259,7 +298,11 @@ void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 #if PROFILE
 	CpatchWrites++;
 #endif
-	if (__builtin_expect(vga_write_access(addr), 0)) {
+	if (e_querymprotrange(addr, 2)) {
+		wri16_slow(addr, value, eip);
+		return;
+	}
+	if (vga_write_access(addr)) {
 		vga_write_word(addr, value);
 		return;
 	}
@@ -269,8 +312,10 @@ void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 	}
 	if (__builtin_expect(memcheck_is_rom(addr), 0))
 		return;
-	m_munprotect(addr, 2, eip);
-	WRITE_WORD(addr,value);
+	/* bypass aliasmap lookup, as we know addr is unprotected */
+	InCompiledCode--;
+	UNIX_WRITE_WORD(EMU_BASE32(addr), value);
+	InCompiledCode++;
 }
 
 void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
@@ -278,7 +323,11 @@ void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 #if PROFILE
 	CpatchWrites++;
 #endif
-	if (__builtin_expect(vga_write_access(addr), 0)) {
+	if (e_querymprotrange(addr, 4)) {
+		wri32_slow(addr, value, eip);
+		return;
+	}
+	if (vga_write_access(addr)) {
 		vga_write_dword(addr, value);
 		return;
 	}
@@ -288,8 +337,10 @@ void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 	}
 	if (__builtin_expect(memcheck_is_rom(addr), 0))
 		return;
-	m_munprotect(addr, 4, eip);
-	WRITE_DWORD(addr,value);
+	/* bypass aliasmap lookup, as we know addr is unprotected */
+	InCompiledCode--;
+	UNIX_WRITE_DWORD(EMU_BASE32(addr), value);
+	InCompiledCode++;
 }
 
 Bit8u read_8(dosaddr_t addr)
