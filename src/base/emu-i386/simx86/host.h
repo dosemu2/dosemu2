@@ -108,58 +108,6 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 
 /////////////////////////////////////////////////////////////////////////////
 
-#ifdef USE_BOUND
-/* `Fetch` is for CODE reads, `Get`/`Put` is for DATA.
- *  WARNING - BOUND uses SIGNED limits!! */
-#define Fetch(a)	({ \
-	int p = (int)(a);\
-	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
-	*((unsigned char *)p); })
-#define FetchW(a)	({ \
-	int p = (int)(a)+1;\
-	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
-	*((unsigned short *)(a)); })
-#define FetchL(a)	({ \
-	int p = (int)(a)+3;\
-	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
-	*((unsigned int *)(a)); })
-
-#define DataFetchWL_U(m,a)	({ \
-	unsigned f = ((m)&DATA16? 1:3);\
-	int p = (int)(a)+f;\
-	int res;\
-	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
-	__asm__ ("xorl	%0,%0\n\
-		shr	$2,%1\n\
-		jc	1f\n\
-		.byte	0x66\n\
-1:		movl	(%2),%0"\
-		: "=&r"(res) : "r"(f), "g"(a) : "memory" ); res; })
-
-#define DataFetchWL_S(m,a)	({ \
-	unsigned f = ((m)&DATA16? 1:3);\
-	int p = (int)(a)+f;\
-	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
-	(f&2? *((int *)(a)):*((short *)(a))); })
-
-#define AddrFetchWL_U(m,a)	({ \
-	unsigned f = ((m)&ADDR16? 1:3);\
-	int p = (int)(a)+f;\
-	int res;\
-	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
-	__asm__ ("xorl	%0,%0\n\
-		shr	$2,%1\n\
-		jc	1f\n\
-		.byte	0x66\n\
-1:		movl	(%2),%0"\
-		: "=&r"(res) : "r"(f), "g"(a) : "memory" ); res; })
-
-#define AddrFetchWL_S(m,a)	({ \
-	unsigned f = ((m)&ADDR16? 1:3);\
-	int p = (int)(a)+f;\
-	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
-	(f&2? *((int *)(a)):*((short *)(a))); })
-#else
 #define Fetch(a)	read_byte(a)
 #define FetchW(a)	read_word(a)
 #define FetchL(a)	read_dword(a)
@@ -167,7 +115,6 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 #define DataFetchWL_S(m,a) ((m)&DATA16? (short)FetchW(a):(int)FetchL(a))
 #define AddrFetchWL_U(m,a) ((m)&ADDR16? FetchW(a):FetchL(a))
 #define AddrFetchWL_S(m,a) ((m)&ADDR16? (short)FetchW(a):(int)FetchL(a))
-#endif
 #define GetDWord(a)	read_word(a)
 #define GetDLong(a)	read_dword(a)
 #define DataGetWL_U(m,a) ((m)&DATA16? GetDWord(a):GetDLong(a))
