@@ -752,7 +752,7 @@ void msdos_reset(void)
 
 int msdos_ldt_access(dosaddr_t cr2)
 {
-    if (!msdos_ldt)
+    if (!in_dpmi_pm() || !msdos_ldt)
         return 0;
     return msdos_ldt->access(cr2);
 }
