@@ -526,11 +526,12 @@ int Cpatch(sigcontext_t *scp)
 	//		or	89 04 2a
 	if (debug_level('e')>1) e_printf("### Stack patch at %p\n",p);
 	if (w16) {
-	    p--; JSRPATCH(p,Ofs_stub_stk_16); p[3] = 0x90; p+=4;
+	    p[-1] = 0x90; JSRPATCH(p,Ofs_stub_stk_16);
 	}
 	else {
-	    JSRPATCH(p,Ofs_stub_stk_32); p+=3;
+	    JSRPATCH(p,Ofs_stub_stk_32);
 	}
+	p+=3;
 #ifdef KEEP_ESP
 	p += 10;
 #endif
@@ -557,7 +558,7 @@ int Cpatch(sigcontext_t *scp)
 	//		or	66 89 04 2f
 	if (debug_level('e')>1) e_printf("### Word/Long write patch at %p\n",eip);
 	if (w16) {
-	    p--; JSRPATCH(p,Ofs_stub_wri_16); p[3] = 0x90;
+	    p[-1] = 0x90; JSRPATCH(p,Ofs_stub_wri_16);;
 	}
 	else {
 	    JSRPATCH(p,Ofs_stub_wri_32);
@@ -586,16 +587,16 @@ int Cpatch(sigcontext_t *scp)
     return 0;
 }
 
-
 int UnCpatch(unsigned char *eip)
 {
     unsigned char *p;
     p = eip;
 
     if (*eip != 0xff) return 1;
-    e_printf("UnCpatch   at %p was %02x%02x%02x%02x%02x\n",eip,
-	eip[0],eip[1],eip[2],eip[3],eip[4]);
-
+    if (debug_level('e')) {
+	e_printf("UnCpatch   at %p was %02x%02x%02x%02x%02x\n",eip,
+	    eip[0],eip[1],eip[2],eip[3],eip[4]);
+    }
 #if PROFILE
     UncpatchTotal++;
 #endif
@@ -607,7 +608,7 @@ int UnCpatch(unsigned char *eip)
 	    *((short *)p) = 0x0488; p[2] = 0x2f;
 	}
 	else if ((unsigned char)p[2] == Ofs_stub_wri_16) {
-	    *p++ = 0x66; *((short *)p) = 0x0488; p[3] = 0x2f;
+	    *p++ = 0x66; *((short *)p) = 0x0489; p[2] = 0x2f;
 	}
 	else if ((unsigned char)p[2] == Ofs_stub_wri_32) {
 	    *((short *)p) = 0x0489; p[2] = 0x2f;
@@ -621,8 +622,10 @@ int UnCpatch(unsigned char *eip)
 	else return 1;
     }
     else return 1;
-    e_printf("UnCpatched at %p  is %02x%02x%02x%02x%02x\n",eip,
-	eip[0],eip[1],eip[2],eip[3],eip[4]);
+    if (debug_level('e')) {
+	e_printf("UnCpatched at %p  is %02x%02x%02x%02x%02x\n",eip,
+	    eip[0],eip[1],eip[2],eip[3],eip[4]);
+    }
     return 0;
 }
 
