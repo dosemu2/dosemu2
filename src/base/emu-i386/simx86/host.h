@@ -45,67 +45,6 @@
 #define write_dword(x,y) do_write_dword((x), (y), emu_pagefault_handler)
 #define write_qword(x,y) do_write_qword((x), (y), emu_pagefault_handler)
 
-#if defined(ppc)||defined(__ppc)||defined(__ppc__)
-/* NO PAGING! */
-/*
- *  $Id$
- */
-/* alas, egcs sounds like it has a bug in this code that doesn't use the
-   inline asm correctly, and can cause file corruption. */
-static __inline__ unsigned short ppc_pswap2(long addr)
-{
-	unsigned val;
-	__asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) :
-		 "r" ((unsigned short *)addr), "m" (*(unsigned short *)addr));
-	return val;
-}
-
-static __inline__ void ppc_dswap2(long addr, unsigned short val)
-{
-	__asm__ __volatile__ ("sthbrx %1,0,%2" : "=m" (*(unsigned short *)addr) :
-		 "r" (val), "r" ((unsigned short *)addr));
-}
-
-static __inline__ unsigned long ppc_pswap4(long addr)
-{
-	unsigned val;
-	__asm__ __volatile__ ("lwbrx %0,0,%1" : "=r" (val) :
-		 "r" ((unsigned long *)addr), "m" (*(unsigned long *)addr));
-	return val;
-}
-
-static __inline__ unsigned long long ppc_pswap8(long addr)
-{
-	union {	unsigned long long lq; struct {unsigned long ll,lh;} lw; } val;
-	__asm__ __volatile__ (" \
-		lwbrx %0,0,%2\n \
-		addi  %2,%2,4\n \
-		lwbrx %1,0,%2" \
-		: "=r" (val.lw.lh), "=r" (val.lw.ll)
-		: "r" ((unsigned long *)addr), "m" (*(unsigned long *)addr) );
-	return val.lq;
-}
-
-static __inline__ void ppc_dswap4(long addr, unsigned long val)
-{
-	__asm__ __volatile__ ("stwbrx %1,0,%2" : "=m" (*(unsigned long *)addr) :
-		 "r" (val), "r" ((unsigned long *)addr));
-}
-
-static __inline__ void ppc_dswap8(long addr, unsigned long long val)
-{
-	union { unsigned long long lq; struct {unsigned long lh,ll;} lw; } v;
-	v.lq = val;
-	__asm__ __volatile__ (" \
-		stwbrx %1,0,%3\n \
-		addi   %3,%3,4\n \
-		stwbrx %2,0,%3" \
-		: "=m" (*(unsigned long *)addr)
-		: "r" (v.lw.ll), "r" (v.lw.lh), "r" ((unsigned long *)addr) );
-}
-
-#endif		/* ppc */
-
 /////////////////////////////////////////////////////////////////////////////
 
 #define Fetch(a)	read_byte(a)
