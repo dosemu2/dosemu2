@@ -151,6 +151,10 @@ cpuctx_t e_scp; /* initialized to 0 */
 
 static void instr_sim_leave(int pmode);
 
+uint8_t (*Fetch)(dosaddr_t a);
+uint16_t (*FetchW)(dosaddr_t a);
+uint32_t (*FetchL)(dosaddr_t a);
+
 /* ======================================================================= */
 
 unsigned long eTSSMASK = 0;

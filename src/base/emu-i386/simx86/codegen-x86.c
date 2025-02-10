@@ -167,6 +167,10 @@ static int goodmemref(dosaddr_t m)
 
 void InitGen_x86(void)
 {
+	Fetch = jit_fetch_byte;
+	FetchW = jit_fetch_word;
+	FetchL = jit_fetch_dword;
+
 	Gen = Gen_x86;
 	AddrGen = AddrGen_x86;
 	CloseAndExec = CloseAndExec_x86;
@@ -3533,6 +3537,24 @@ unsigned int Exec_x86_fast(TNode *G)
 	Exec_x86_post(flg, mem_ref);
 	sigalrm_pending_w(0);
 	return ePC;
+}
+
+uint8_t jit_fetch_byte(dosaddr_t x)
+{
+	// TODO: fast fetcher
+	return read_byte(x);
+}
+
+uint16_t jit_fetch_word(dosaddr_t x)
+{
+	// TODO: fast fetcher
+	return read_word(x);
+}
+
+uint32_t jit_fetch_dword(dosaddr_t x)
+{
+	// TODO: fast fetcher
+	return read_dword(x);
 }
 
 /////////////////////////////////////////////////////////////////////////////
