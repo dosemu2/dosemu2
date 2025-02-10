@@ -48,8 +48,10 @@
 #include "codegen.h"
 #include "emudpmi.h"
 
-#define CGRAN		0		/* 2^n */
-#define CGRMASK		(0xfffff>>CGRAN)
+#if PROFILE
+int CPagesDropped;
+int MaxCPages;
+#endif
 
 #ifndef UINT64_WIDTH
 #define UINT64_WIDTH 64
@@ -70,9 +72,19 @@ typedef struct _mpmap {
 static tMpMap *MpH = NULL;
 int PageFaults = 0;
 static tMpMap *LastMp = NULL;
+#define CALIVE_CNT 10
+struct cache_ent {
+	unsigned int addr;
+	int alive_cnt;
+	void *data;
+};
+#define CLIST_MAX 8
+static struct cache_ent clist[CLIST_MAX];
+static int num_clist;
 
 static void e_mprotect(unsigned int addr, size_t len);
 static void e_munprotect(unsigned int addr, size_t len);
+static void *FindC(unsigned int addr, int remove);
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -92,28 +104,32 @@ static inline tMpMap *FindM(unsigned int addr)
 	return M;
 }
 
-
 static void AddMpMap(unsigned int addr, unsigned int aend)
 {
 	int bs;
 	int page;
 	tMpMap *M;
 
-	for (; addr <= aend; addr += PAGE_SIZE) {
-	    page = addr >> PAGE_SHIFT;
-	    M = FindM(addr);
-	    if (M==NULL) {
-		M = (tMpMap *)calloc(1,sizeof(tMpMap));
-		M->next = MpH; MpH = M;
-		M->mega = (page>>8);
+	M = FindM(addr);
+	if (M == NULL) {
+	    M = (tMpMap *)calloc(1,sizeof(tMpMap));
+	    M->next = MpH; MpH = M;
+	    M->mega = addr >> 20;
+	}
+	page = (addr >> PAGE_SHIFT) & 255;
+	for (; addr <= aend; addr += PAGE_SIZE, page++) {
+	    if (page == 256) {
+		M = FindM(addr);
+		if (M == NULL) {
+		    M = (tMpMap *)calloc(1,sizeof(tMpMap));
+		    M->next = MpH; MpH = M;
+		    M->mega = addr >> 20;
+		}
+		page = 0;
 	    }
-	    page &= 255;
 	    bs = !!M->pagemap[page];
-	    if (!bs) {
-		void *p = malloc(PAGE_SIZE);
-		memcpy(p, EMU_BASE32(addr), PAGE_SIZE);
-		M->pagemap[page] = p;
-	    }
+	    if (!bs)
+		M->pagemap[page] = FindC(addr, 1);
 	    if (debug_level('e')>1)
 		dbug_printf("MPMAP:   protect page=%08x was %x\n",addr,bs);
 	}
@@ -366,21 +382,114 @@ int e_querymark_all(unsigned int addr, size_t len)
 
 /////////////////////////////////////////////////////////////////////////////
 
+static void *NewC(unsigned int abeg)
+{
+	void *p;
+	struct cache_ent *ce;
 
-static void e_mprotect(unsigned int addr, size_t len)
+	assert(num_clist < CLIST_MAX);
+	ce = &clist[num_clist++];
+	p = malloc(PAGE_SIZE);
+	ce->addr = abeg;
+	ce->data = p;
+	ce->alive_cnt = CALIVE_CNT;
+#if PROFILE
+	if (num_clist > MaxCPages)
+	    MaxCPages = num_clist;
+#endif
+	return p;
+}
+
+static void *FindC(unsigned int addr, int remove)
+{
+	int i;
+
+	for (i = 0; i < num_clist; i++) {
+	    struct cache_ent *ce = &clist[i];
+	    if (!ce->data)
+		continue;
+	    if (ce->addr == addr) {
+		void *p = ce->data;
+		if (remove) {
+		    ce->data = NULL;
+		    while (num_clist && !clist[num_clist - 1].data)
+			num_clist--;
+		}
+		return p;
+	    }
+	}
+	assert(!remove);
+	return NULL;
+}
+
+static void DropC(void)
+{
+	int i;
+
+	for (i = 0; i < num_clist; i++) {
+	    struct cache_ent *ce = &clist[i];
+	    if (!ce->data)
+		continue;
+	    if (--ce->alive_cnt > 0)
+		continue;
+	    /* dropping means some instructions were not jitted */
+	    e_printf("dropping %p\n", ce->data);
+	    free(ce->data);
+	    ce->data = NULL;
+#if PROFILE
+	    CPagesDropped++;
+#endif
+	}
+	while (num_clist && !clist[num_clist - 1].data)
+	    num_clist--;
+}
+
+void e_fetch(unsigned int addr, size_t len, void **ret)
+{
+	unsigned int abeg, aend, page, off, l;
+	void *p0 = NULL, *p1 = NULL;
+	tMpMap *M = NULL;
+
+	/* cover only 2 pages max */
+	assert(len && len <= PAGE_SIZE);
+	abeg = addr & _PAGE_MASK;
+	aend = (addr+len-1) & _PAGE_MASK;
+	/* we do not support MB-crossing transactions */
+	assert((abeg & ~CGRMASK) == (aend & ~CGRMASK));
+	page = (abeg >> PAGE_SHIFT) & 255;
+	off = addr & ~_PAGE_MASK;
+	p0 = FindC(abeg, 0);
+	if (!p0 && (M = FindM(abeg)))
+	    p0 = M->pagemap[page];  // may be NULL
+	if (!p0)
+	    p0 = NewC(abeg);
+	l = (abeg == aend ? len : aend - addr);
+	memcpy(&((uint8_t *)p0)[off], EMU_BASE32(addr), l);
+	ret[0] = p0;
+	if (abeg == aend)
+	    return;
+
+	/* second page */
+	p1 = FindC(aend, 0);
+	if (!p1 && (M || (M = FindM(aend))))
+	    p1 = M->pagemap[page + 1];  // may be NULL
+	if (!p1)
+	    p1 = NewC(aend);
+	/* not offsetting as aend is page_aligned */
+	memcpy(p1, EMU_BASE32(aend), addr + len - aend);
+	ret[1] = p1;
+}
+
+static void do_mprotect(unsigned int addr, size_t len)
 {
 	int e;
 	unsigned int abeg, aend, aend1;
 	unsigned int abeg1 = (unsigned)-1;
 	unsigned a;
 
+	assert(len);
 	abeg = addr & _PAGE_MASK;
-	if (len==0) {
-	    return;
-	}
-	else {
-	    aend = (addr+len-1) & _PAGE_MASK;
-	}
+	aend = (addr+len-1) & _PAGE_MASK;
 	/* only protect ranges that were not already protected by e_mprotect */
 	for (a = abeg; a <= aend; a += PAGE_SIZE) {
 	    int qp = e_querymprot(a);
@@ -400,6 +509,12 @@ static void e_mprotect(unsigned int addr, size_t len)
 		abeg1 = (unsigned)-1;
 	    }
 	}
+}
+
+static void e_mprotect(unsigned int addr, size_t len)
+{
+	do_mprotect(addr, len);
+	DropC();
 }
 
 static void e_munprotect(unsigned int addr, size_t len)
@@ -474,8 +589,7 @@ void e_invalidate_dirty(unsigned int addr, unsigned int aend)
 	    p = M->pagemap[page];
 	    bs = 0;
 	    p1 = EMU_BASE32(addr);
-	    if (p && memcmp(p, p1, PAGE_SIZE) != 0 &&
-		    subpage_dirty(p, p1, M, page)) {
+	    if (p && subpage_dirty(p, p1, M, page)) {
 		e_invalidate_page_full(addr);
 		bs = 1;
 	    }
@@ -496,7 +610,6 @@ void e_invalidate_page_dirty(unsigned int addr)
 	page = (addr >> PAGE_SHIFT) & 255;
 	p = M->pagemap[page];
 	bs = 0;
-	/* not doing memcmp() here as we know the page is dirty */
 	if (p && subpage_dirty(p, EMU_BASE32(addr), M, page)) {
 	    e_invalidate_page_full(addr);
 	    bs = 1;
@@ -516,8 +629,7 @@ again:
 		void *p = M->pagemap[i];
 		unsigned int addr = (M->mega<<20) | (i<<PAGE_SHIFT);
 		void *p1 = EMU_BASE32(addr);
-		if (p && memcmp(p, p1, PAGE_SIZE) != 0 &&
-			subpage_dirty(p, p1, M, i)) {
+		if (p && subpage_dirty(p, p1, M, i)) {
 		    if (debug_level('e')>1)
 			dbug_printf("MP_INV %08x = RWX\n",addr);
 		    e_invalidate_page_full(addr);
@@ -533,7 +645,6 @@ again:
 void mprot_init(void)
 {
 	MpH = NULL;
-	AddMpMap(0,0);	/* first mega in first entry */
 	PageFaults = 0;
 }
 
