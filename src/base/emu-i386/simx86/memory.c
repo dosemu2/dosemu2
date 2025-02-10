@@ -239,12 +239,14 @@ int e_markpage(unsigned int addr, size_t len)
 #if MPMAP_DEBUG
 	set_bit(abeg&CGRMASK, M->nodemap);
 #endif
-	while (M && abeg <= aend) {
+	while (abeg <= aend) {
 		assert(!test_bit(abeg&CGRMASK, M->subpage));
 		set_bit(abeg&CGRMASK, M->subpage);
 		abeg++;
-		if ((abeg&CGRMASK) == 0)
+		if ((abeg&CGRMASK) == 0) {
 			M = FindM(abeg);
+			assert(M);
+		}
 	}
 	return 1;
 }
@@ -262,14 +264,16 @@ int e_unmarkpage(unsigned int addr, size_t len)
 	if (debug_level('e')>1)
 		dbug_printf("UNMARK from %08x to %08x for %08x\n",
 			    abeg<<CGRAN,((aend+1)<<CGRAN)-1,addr);
-	while (M && abeg <= aend) {
+	while (abeg <= aend) {
 #if MPMAP_DEBUG
 		clear_bit(abeg&CGRMASK, M->nodemap);
 #endif
 		clear_bit(abeg&CGRMASK, M->subpage);
 		abeg++;
-		if ((abeg&CGRMASK) == 0)
+		if ((abeg&CGRMASK) == 0) {
 			M = FindM(abeg);
+			assert(M);
+		}
 	}
 
 	/* check if unmarked pages have no more code, and if so, unprotect */
@@ -370,12 +374,15 @@ int e_querymark_all(unsigned int addr, size_t len)
 	abeg = addr >> CGRAN;
 	aend = (addr+len-1) >> CGRAN;
 
-	while (M && abeg <= aend) {
+	while (abeg <= aend) {
 		if (!test_bit(abeg&CGRMASK, M->subpage))
 			return 0;
 		abeg++;
-		if ((abeg&CGRMASK) == 0)
+		if ((abeg&CGRMASK) == 0) {
 			M = FindM(abeg);
+			if (!M)
+				return 0;
+		}
 	}
 	return 1;
 }
@@ -578,18 +585,23 @@ void e_invalidate_dirty(unsigned int addr, unsigned int aend)
 {
 	int bs=0;
 	int page;
-	tMpMap *M;
+	tMpMap *M = NULL;
 	void *p;
 
-	for (; addr <= aend; addr += PAGE_SIZE) {
-	    void *p1;
-	    M = FindM(addr);
-	    if (M==NULL) continue;
-	    page = (addr >> PAGE_SHIFT) & 255;
+	page = (addr >> PAGE_SHIFT) & 255;
+	for (; addr <= aend; addr += PAGE_SIZE, page++) {
+	    if (page == 256) {
+		M = NULL;
+		page = 0;
+	    }
+	    if (!M) {
+		M = FindM(addr);
+		if (!M)
+		    continue;
+	    }
 	    p = M->pagemap[page];
 	    bs = 0;
-	    p1 = EMU_BASE32(addr);
-	    if (p && subpage_dirty(p, p1, M, page)) {
+	    if (p && subpage_dirty(p, EMU_BASE32(addr), M, page)) {
 		e_invalidate_page_full(addr);
 		bs = 1;
 	    }
