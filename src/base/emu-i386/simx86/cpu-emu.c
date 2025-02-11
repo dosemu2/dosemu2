@@ -496,7 +496,7 @@ char *showmode(unsigned int m)
 /*
  * Enter emulator in VM86 mode (sys_vm86)
  */
-static unsigned int Reg2Cpu(int mode)
+static unsigned int Reg2Cpu(void)
 {
  /*
   * Enter VM86
@@ -753,7 +753,7 @@ void reset_emu_cpu(void)
   TheCPU.gs_cache.BoundL = 0;
   TheCPU.gs_cache.BoundH = 0x10ffff;
 
-  Reg2Cpu(ADDR16|DATA16);
+  Reg2Cpu();
   TheCPU.StackMask = 0x0000ffff;
 }
 
@@ -1006,7 +1006,7 @@ int e_vm86(void)
  /* This emulates VM86_ENTER */
   /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */
   do {
-    trans_addr = Reg2Cpu(mode);
+    trans_addr = Reg2Cpu();
     if (CONFIG_CPUSIM) {
       RFL.valid = V_INVALID;
     }
