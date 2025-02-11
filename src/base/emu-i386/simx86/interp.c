@@ -499,12 +499,7 @@ static unsigned int InterpOne(unsigned int PC, int *_basemode);
 
 unsigned int Interp86(unsigned int PC, int mod0)
 {
-    unsigned int ret;
-    if (!Running) {
-        TheCPU.err = -1;
-        return 0;
-    }
-    ret = _Interp86(PC, mod0);
+    unsigned int ret = _Interp86(PC, mod0);
     TheCPU.eip = ret - LONG_CS;
     return ret;
 }
@@ -654,7 +649,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
 #endif
-	while (Running) {
+	while (1) {
 		TheCPU.mode = basemode;
 		PC = interp_pre(PC, basemode, &P0);
 		if (TheCPU.err)

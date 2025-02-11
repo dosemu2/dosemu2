@@ -702,7 +702,6 @@ extern int MaxCPages;
 extern unsigned int return_addr;
 extern jmp_buf jmp_env;
 extern unsigned long eTSSMASK;
-extern int Running;		/* into interpreter loop */
 extern int UseLinker;
 extern int PageFaults;
 

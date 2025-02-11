@@ -85,7 +85,6 @@ jmp_buf jmp_env;
 
 union _SynCPU TheCPU_union;
 
-int Running;
 int InCompiledCode;
 
 #ifdef DEBUG_TREE
@@ -815,8 +814,6 @@ void init_emu_cpu(void)
   TheCPU.stub_read_16 = stub_read_16;
   TheCPU.stub_read_32 = stub_read_32;
 #endif
-
-  Running = 1;
 }
 
 /*
