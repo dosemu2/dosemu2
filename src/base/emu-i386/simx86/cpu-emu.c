@@ -37,9 +37,6 @@
 #include <string.h>		/* for memset */
 #include <sys/time.h>
 #include <fenv.h>
-#include "emu.h"
-#include "timers.h"
-#include "pic.h"
 #include "kvm.h"
 #include "mhpdbg.h"
 #include "cpu-emu.h"
@@ -49,6 +46,9 @@
 #include "mapping.h"
 #include "dis8086.h"
 #include "sig.h"
+#if PROFILE >= 2
+#include "timers.h"
+#endif
 #ifndef HAVE___FLOAT80
 #include "softfloat/softfloat.h"
 #endif
@@ -495,8 +495,9 @@ char *showmode(unsigned int m)
 /*
  * Enter emulator in VM86 mode (sys_vm86)
  */
-static unsigned int Reg2Cpu(void)
+static unsigned int Reg2Cpu(struct vm86_struct *info)
 {
+  struct vm86_regs *regs = &info->regs;
  /*
   * Enter VM86
   */
@@ -505,42 +506,42 @@ static unsigned int Reg2Cpu(void)
   * changed asynchronously by signals)
   * Note that IOPL=3 in the emulated flags so cpuemu works directly with
     IF, not VIF */
-  TheCPU.eflags = (vm86s.regs.eflags & SAFE_MASK) | IOPL_MASK;
-  if (isset_IF())
+  TheCPU.eflags = (regs->eflags & SAFE_MASK) | IOPL_MASK;
+  if (regs->eflags & VIF)
     TheCPU.eflags |= EFLAGS_IF;
   TheCPU.eflags |= (VM | RF);	// RF is cosmetic...
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
   if (debug_level('e')>1) e_printf("Reg2Cpu> vm86=%08x dpm=%08x emu=%08x\n",
-	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
-  TheCPU.eax     = REG(eax);	/* 2c -> 18 */
-  TheCPU.ebx     = REG(ebx);	/* 20 -> 00 */
-  TheCPU.ecx     = REG(ecx);	/* 28 -> 04 */
-  TheCPU.edx     = REG(edx);	/* 24 -> 08 */
-  TheCPU.esi     = REG(esi);	/* 14 -> 0c */
-  TheCPU.edi     = REG(edi);	/* 10 -> 10 */
-  TheCPU.ebp     = REG(ebp);	/* 18 -> 14 */
-  TheCPU.esp     = REG(esp);	/* 1c -> 3c */
+	regs->eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags);
+  TheCPU.eax     = regs->eax;	/* 2c -> 18 */
+  TheCPU.ebx     = regs->ebx;	/* 20 -> 00 */
+  TheCPU.ecx     = regs->ecx;	/* 28 -> 04 */
+  TheCPU.edx     = regs->edx;	/* 24 -> 08 */
+  TheCPU.esi     = regs->esi;	/* 14 -> 0c */
+  TheCPU.edi     = regs->edi;	/* 10 -> 10 */
+  TheCPU.ebp     = regs->ebp;	/* 18 -> 14 */
+  TheCPU.esp     = regs->esp;	/* 1c -> 3c */
   TheCPU.err     = 0;
-  TheCPU.eip     = vm86s.regs.eip&0xffff;
+  TheCPU.eip     = regs->eip&0xffff;
 
-  TheCPU.int_revectored = vm86s.int_revectored;
+  TheCPU.int_revectored = info->int_revectored;
 
-  SetSegReal(SREG(cs),Ofs_CS);
-  SetSegReal(SREG(ss),Ofs_SS);
-  SetSegReal(SREG(ds),Ofs_DS);
-  SetSegReal(SREG(es),Ofs_ES);
-  SetSegReal(SREG(fs),Ofs_FS);
-  SetSegReal(SREG(gs),Ofs_GS);
+  SetSegReal(regs->cs,Ofs_CS);
+  SetSegReal(regs->ss,Ofs_SS);
+  SetSegReal(regs->ds,Ofs_DS);
+  SetSegReal(regs->es,Ofs_ES);
+  SetSegReal(regs->fs,Ofs_FS);
+  SetSegReal(regs->gs,Ofs_GS);
 
   /* FPU state is loaded later on demand for JIT, not used for simulator */
   TheCPU.fpstate = &vm86_fpu_state;
   if (debug_level('e')>1) {
 	if (debug_level('e')==9) e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n%s\n",
-		REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags,
+		regs->eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags,
 		e_print_regs());
 	else e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n",
-		REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
+		regs->eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags);
   }
   return LONG_CS + TheCPU.eip;
 }
@@ -548,37 +549,38 @@ static unsigned int Reg2Cpu(void)
 /*
  * Exit emulator in VM86 mode and return to dosemu (return_to_32bit)
  */
-void Cpu2Reg (void)
+static void Cpu2Reg(struct vm86_struct *info)
 {
+  struct vm86_regs *regs = &info->regs;
   if (debug_level('e')>1) e_printf("Cpu2Reg> vm86=%08x dpm=%08x emu=%08x\n",
-	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
-  REG(eax) = TheCPU.eax;
-  REG(ebx) = TheCPU.ebx;
-  REG(ecx) = TheCPU.ecx;
-  REG(edx) = TheCPU.edx;
-  REG(esi) = TheCPU.esi;
-  REG(edi) = TheCPU.edi;
-  REG(ebp) = TheCPU.ebp;
-  REG(esp) = TheCPU.esp;
-  SREG(ds)  = TheCPU.ds;
-  SREG(es)  = TheCPU.es;
-  SREG(ss)  = TheCPU.ss;
-  SREG(fs)  = TheCPU.fs;
-  SREG(gs)  = TheCPU.gs;
-  SREG(cs)  = TheCPU.cs;
-  REG(eip) = TheCPU.eip;
+	regs->eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags);
+  regs->eax = TheCPU.eax;
+  regs->ebx = TheCPU.ebx;
+  regs->ecx = TheCPU.ecx;
+  regs->edx = TheCPU.edx;
+  regs->esi = TheCPU.esi;
+  regs->edi = TheCPU.edi;
+  regs->ebp = TheCPU.ebp;
+  regs->esp = TheCPU.esp;
+  regs->ds  = TheCPU.ds;
+  regs->es  = TheCPU.es;
+  regs->ss  = TheCPU.ss;
+  regs->fs  = TheCPU.fs;
+  regs->gs  = TheCPU.gs;
+  regs->cs  = TheCPU.cs;
+  regs->eip = TheCPU.eip;
   /*
    * move flags from EFLAGS to eflags; resync vm86s eflags
    * from the emulated ones.
    * The cpuemu should not change VIP, the good one is always in vm86s.
    */
-  REG(eflags) = (REG(eflags) & VIP) |
+  regs->eflags = (regs->eflags & VIP) |
 			(TheCPU.eflags & ~VIP);
   if (TheCPU.eflags & EFLAGS_IF)
-    set_IF();
+    regs->eflags |= VIF;
   else
-    clear_IF();
-  REG(eflags) |= EFLAGS_IF;
+    regs->eflags &= ~VIF;
+  regs->eflags |= EFLAGS_IF;
 
   if (TheCPU.fpstate == NULL) {
     if (!CONFIG_CPUSIM)
@@ -589,7 +591,7 @@ void Cpu2Reg (void)
   }
 
   if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08x dpm=%08x emu=%08x\n",
-	REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
+	regs->eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 }
 
 
@@ -676,8 +678,8 @@ static void Cpu2Scp (cpuctx_t *scp, int trapno)
 
   /* push running flags - same as eflags, RF is cosmetic */
   _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
-  if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08x vm86=%08x dpm=%08x fl=%08x\n",
-	_eflags,REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
+  if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08x dpm=%08x fl=%08x\n",
+	_eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags);
 }
 
 
@@ -751,12 +753,10 @@ void reset_emu_cpu(void)
   TheCPU.fs_cache.BoundH = 0x10ffff;
   TheCPU.gs_cache.BoundL = 0;
   TheCPU.gs_cache.BoundH = 0x10ffff;
-
-  Reg2Cpu();
   TheCPU.StackMask = 0x0000ffff;
 }
 
-void init_emu_cpu(void)
+void init_emu_cpu(int cpu_type)
 {
   if (Ofs_END > 128) {
     error("CPUEMU: Ofs_END is too large, %i\n", Ofs_END);
@@ -764,7 +764,7 @@ void init_emu_cpu(void)
   }
   init_emu_npu();
 
-  switch (vm86s.cpu_type) {
+  switch (cpu_type) {
 	case CPU_286:
 		eTSSMASK = 0;
 		break;
@@ -946,21 +946,22 @@ void leave_cpu_emu(void)
  * original code by Linus Torvalds and later enhancements by
  * Lutz Molgedey and Hans Lermen.
  */
-static int handle_vm86_fault(int *error_code)
+static int handle_vm86_fault(struct vm86_struct *info, int *error_code)
 {
+	struct vm86_regs *regs = &info->regs;
 	unsigned int csp, ip;
 	unsigned char op;
 
-	csp = SEGOFF2LINEAR(_CS, 0);
-	ip = _IP;
+	csp = SEGOFF2LINEAR(regs->cs, 0);
+	ip = regs->eip & 0xffff;
 	op = popb(csp, ip);
 	if (debug_level('e')>1) e_printf("EMU86: vm86 fault %#x at %#x:%#x\n",
-		op, _CS, _IP);
+		op, regs->cs, regs->eip & 0xffff);
 
 	/* int xx */
 	if (op==0xcd) {
 	        int intno=popb(csp, ip);
-		_IP += 2;
+		regs->eip += 2;
 		if (debug_level('e')>1)
 			dbug_printf("EMU86: calling revectored int %#x\n", intno);
 		return VM86_INTx + (intno << 8);
@@ -978,7 +979,7 @@ static const char *retdescs[] =
 	"VM86_PICRET","???","VM86_TRAP","???"
 };
 
-int e_vm86(void)
+int e_vm86(struct vm86_struct *info)
 {
   unsigned int trans_addr, return_addr;	// PC
   int xval,retval,mode;
@@ -1003,7 +1004,7 @@ int e_vm86(void)
  /* This emulates VM86_ENTER */
   /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */
   do {
-    trans_addr = Reg2Cpu();
+    trans_addr = Reg2Cpu(info);
     if (CONFIG_CPUSIM) {
       RFL.valid = V_INVALID;
     }
@@ -1031,7 +1032,7 @@ int e_vm86(void)
     if (CONFIG_CPUSIM)
       FlagSync_All();
 
-    Cpu2Reg();
+    Cpu2Reg(info);
     if (debug_level('e')>1) e_printf("---------------------\n\t   EMU86: EXCP %#x\n", xval-1);
 
     retval = -1;
@@ -1054,7 +1055,7 @@ int e_vm86(void)
     } else {
 	switch (xval) {
 	    case EXCP0D_GPF: {	/* to kernel vm86 */
-		retval=handle_vm86_fault(&errcode);	/* kernel level */
+		retval=handle_vm86_fault(info, &errcode);	/* kernel level */
 #ifdef SKIP_EMU_VBIOS
 		/* are we into the VBIOS? If so, exit and reenter e_vm86 */
 		if ((SREG(cs)&0xf000)==config.vbios_seg) {
@@ -1145,7 +1146,7 @@ int e_dpmi(cpuctx_t *scp)
       FlagSync_All();
 
     if (debug_level('e')>1) e_printf("DPM86: EXCP %#x eflags=%08x\n",
-	xval-1, REG(eflags));
+	xval-1, TheCPU.eflags);
 
     Cpu2Scp (scp, xval-1);
 

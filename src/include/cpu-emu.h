@@ -75,7 +75,7 @@ extern int IsDpmiEmu;
 void enter_cpu_emu(void);
 void leave_cpu_emu(void);
 void avltr_destroy(void);
-int e_vm86(void);
+int e_vm86(struct vm86_struct *info);
 
 /* called from dpmi.c */
 void emu_mhp_SetTypebyte (unsigned short selector, int typebyte);
@@ -106,7 +106,7 @@ int e_querymprot(dosaddr_t addr);
 #endif
 
 /* called from cpu.c */
-void init_emu_cpu (void);
+void init_emu_cpu(int cpu_type);
 void reset_emu_cpu (void);
 
 /* called/used from dpmi.c */

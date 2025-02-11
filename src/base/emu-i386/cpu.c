@@ -411,7 +411,7 @@ void cpu_setup(void)
     if (config.cpu_vm_dpmi == CPUVM_EMU)
       dbug_printf("using CPU emulation for DPMI\n");
   }
-  init_emu_cpu();
+  init_emu_cpu(vm86s.cpu_type);
 #endif
 }
 

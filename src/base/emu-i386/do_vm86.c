@@ -483,7 +483,7 @@ static int do_vm86(union vm86_union *x)
 {
 #ifdef X86_EMULATOR
     if (EMU_V86())
-	return e_vm86();
+	return e_vm86(&x->vm86ps);
 #endif
     if (config.cpu_vm == CPUVM_KVM)
 	return kvm_vm86(&x->vm86ps);
