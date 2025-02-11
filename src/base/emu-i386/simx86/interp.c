@@ -117,7 +117,7 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 #endif
 #ifdef X86_JIT
 #define CODE_FLUSH()	{ if (CONFIG_CPUSIM || CurrIMeta>0) {\
-			  unsigned int P2 = DoCloseAndExec(P0, _mode);\
+			  unsigned int P2 = DoCloseAndExec(P0, basemode);\
 			  if (TheCPU.err || P0 != P2) return P2;\
 			} NewNode=0; }
 #else
@@ -388,7 +388,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	if (_P1 == (unsigned)-1) { \
 		if (!CONFIG_CPUSIM) \
 			NewIMeta(P0, &_rc); \
-		_P1 = DoCloseAndExec(_P0, mode); \
+		_P1 = DoCloseAndExec(_P0, basemode); \
 		NewNode=0; \
 	} \
 	if (sigalrm_pending()) \
@@ -496,8 +496,7 @@ static void HandleEmuSignals(void)
 }
 
 static unsigned int _Interp86(unsigned int PC, int mod0);
-static unsigned int InterpOne(unsigned int PC, int *_basemode, int *__mode,
-		int *_NewNode);
+static unsigned int InterpOne(unsigned int PC, int *_basemode, int *_NewNode);
 
 unsigned int Interp86(unsigned int PC, int mod0)
 {
@@ -649,7 +648,6 @@ static unsigned int interp_post(unsigned int PC, const int mode,
 static unsigned int _Interp86(unsigned int PC, int basemode)
 {
 	volatile unsigned int P0 = PC; /* volatile because of setjmp */
-	int mode;
 	int NewNode;
 
 	if (PROTMODE() && setjmp(jmp_env)) {
@@ -666,14 +664,14 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
 #endif
 	while (Running) {
-		TheCPU.mode = mode = basemode;
-		PC = interp_pre(PC, mode, &NewNode, &P0);
+		TheCPU.mode = basemode;
+		PC = interp_pre(PC, basemode, &NewNode, &P0);
 		if (TheCPU.err)
 			return PC;
-		PC = InterpOne(PC, &basemode, &mode, &NewNode);
+		PC = InterpOne(PC, &basemode, &NewNode);
 		if (TheCPU.err)
 			return PC;
-		PC = interp_post(PC, mode, &NewNode, &P0);
+		PC = interp_post(PC, basemode, &NewNode, &P0);
 		if (TheCPU.err)
 			return PC;
 	}
@@ -683,16 +681,16 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 	return 0;
 }
 
-static unsigned int InterpOne(unsigned int PC, int *_basemode, int *__mode,
+static unsigned int InterpOne(unsigned int PC, int *_basemode,
 		int *_NewNode)
 {
 	unsigned int P0 = PC;
 	unsigned char opc;
 	unsigned int temp;
 	unsigned short ocs;
-	#define _mode (*__mode)
 	#define basemode (*_basemode)
 	#define NewNode (*_NewNode)
+	int _mode = basemode;
 
 override:
 	switch ((opc=Fetch(PC))) {
