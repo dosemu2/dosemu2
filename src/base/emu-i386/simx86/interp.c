@@ -78,12 +78,20 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 {
 #ifdef X86_JIT
     if (!CONFIG_CPUSIM) {
+	TNode *G;
 	unsigned P0 = InstrMeta[0].npc;
 	if (e_querymark(P0, PC - P0))
 	    InvalidateNodeRange(P0, PC - P0, NULL);
+	G = Close_x86(PC, mode);
+	if (!G)
+	    return P0;
+	return Exec_x86(G);
+    } else {
+	return CloseAndExec_sim(PC, mode);
     }
+#else
+    return CloseAndExec_sim(PC, mode);
 #endif
-    return CloseAndExec(PC, mode);
 }
 
 /*
@@ -103,7 +111,7 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 			} NewNode=0; }
 #else
 #define CODE_FLUSH2(m)	{ \
-			  unsigned int P2 = CloseAndExec(P0, m);\
+			  unsigned int P2 = CloseAndExec_sim(P0, m);\
 			  if (TheCPU.err) return P2;\
 			  NewNode=0; }
 #endif

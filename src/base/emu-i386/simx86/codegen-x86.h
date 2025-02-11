@@ -44,9 +44,9 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-extern unsigned int VgaAbsBankBase;
-extern unsigned int Exec_x86(TNode *G);
-extern unsigned int Exec_x86_fast(TNode *G);
+TNode *Close_x86(unsigned int PC, int mode);
+unsigned int Exec_x86(TNode *G);
+unsigned int Exec_x86_fast(TNode *G);
 
 /////////////////////////////////////////////////////////////////////////////
 
