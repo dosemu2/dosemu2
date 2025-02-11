@@ -1336,15 +1336,6 @@ int e_invalidate_page_full(unsigned data)
 
 /////////////////////////////////////////////////////////////////////////////
 
-
-static void CleanIMeta(void)
-{
-	memset(InstrMeta,0,sizeof(IMeta));
-}
-
-/////////////////////////////////////////////////////////////////////////////
-
-
 int NewIMeta(int npc, int *rc)
 {
 #if PROFILE >= 2
@@ -1504,8 +1495,6 @@ void EndGen(void)
 	int i;
 	int csm = config.CPUSpeedInMhz*1000;
 #endif
-	if (!config.cpusim)
-	    CleanIMeta();
 	CurrIMeta = -1;
 	if (!config.cpusim) {
 	    avltr_destroy();
