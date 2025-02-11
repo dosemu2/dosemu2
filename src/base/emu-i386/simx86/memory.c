@@ -632,10 +632,11 @@ void e_invalidate_page_dirty(unsigned int addr)
 
 void e_invalidate_dirty_full(void)
 {
-	tMpMap *M = MpH;
+	tMpMap *M;
 	int i;
 
 again:
+	M = MpH;
 	while (M) {
 	    for (i=0; i<ARRAY_SIZE(M->pagemap); i++) {
 		void *p = M->pagemap[i];
@@ -662,11 +663,12 @@ void mprot_init(void)
 
 void mprot_end(void)
 {
-	tMpMap *M = MpH;
-	tMpMap *M2 = NULL;
+	tMpMap *M, *M2;
 	int i;
 
 again:
+	M = MpH;
+	M2 = NULL;
 	while (M) {
 	    for (i=0; i<ARRAY_SIZE(M->pagemap); i++) if (M->pagemap[i]) {
 		unsigned int addr = (M->mega<<20) | (i<<PAGE_SHIFT);
