@@ -3518,7 +3518,7 @@ unsigned int Exec_x86_fast(TNode *G)
 
 	do {
 		ePC = Exec_x86_asm(&mem_ref, &flg, ecpu, G->addr);
-		if (G->alive > 0) {
+		if (G->alive > 0 && LastXNode && LastXNode->alive > 0) {
 			if (LastXNode->clink.unlinked_jmp_targets &&
 			    (LastXNode->clink.t_target == G->key ||
 			     LastXNode->clink.nt_target == G->key))
