@@ -88,8 +88,6 @@ union _SynCPU TheCPU_union;
 int Running;
 int InCompiledCode;
 
-unsigned int trans_addr, return_addr;	// PC
-
 #ifdef DEBUG_TREE
 FILE *tLog = NULL;
 #endif
@@ -498,7 +496,7 @@ char *showmode(unsigned int m)
 /*
  * Enter emulator in VM86 mode (sys_vm86)
  */
-static void Reg2Cpu (int mode)
+static unsigned int Reg2Cpu(int mode)
 {
  /*
   * Enter VM86
@@ -535,7 +533,6 @@ static void Reg2Cpu (int mode)
   SetSegReal(SREG(es),Ofs_ES);
   SetSegReal(SREG(fs),Ofs_FS);
   SetSegReal(SREG(gs),Ofs_GS);
-  trans_addr     = LONG_CS + TheCPU.eip;
 
   /* FPU state is loaded later on demand for JIT, not used for simulator */
   TheCPU.fpstate = &vm86_fpu_state;
@@ -546,6 +543,7 @@ static void Reg2Cpu (int mode)
 	else e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n",
 		REG(eflags),get_FLAGS(TheCPU.eflags),TheCPU.eflags);
   }
+  return LONG_CS + TheCPU.eip;
 }
 
 /*
@@ -715,7 +713,6 @@ static int Scp2CpuD(cpuctx_t *scp)
   if (TheCPU.err) goto erseg;
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_GS,&big,TheCPU.gs);
 erseg:
-  trans_addr = LONG_CS + _eip;
   if (debug_level('e')>1) {
 	if (debug_level('e')==3) e_printf("Scp2CpuD%s: %08x -> %08x\n\tIP=%08x:%08x\n%s\n",
 			(TheCPU.err? " ERR":""),
@@ -724,7 +721,8 @@ erseg:
 	else e_printf("Scp2CpuD%s: %08x -> %08x\n",
 			(TheCPU.err? " ERR":""), _eflags, TheCPU.eflags);
   }
-  return mode;
+  TheCPU.mode = mode;
+  return LONG_CS + _eip;
 }
 
 
@@ -985,6 +983,7 @@ static const char *retdescs[] =
 
 int e_vm86(void)
 {
+  unsigned int trans_addr, return_addr;	// PC
   int xval,retval,mode;
 #ifdef SKIP_VM86_TRACE
   int demusav;
@@ -1007,7 +1006,7 @@ int e_vm86(void)
  /* This emulates VM86_ENTER */
   /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */
   do {
-    Reg2Cpu(mode);
+    trans_addr = Reg2Cpu(mode);
     if (CONFIG_CPUSIM) {
       RFL.valid = V_INVALID;
     }
@@ -1098,7 +1097,8 @@ int e_vm86(void)
 
 int e_dpmi(cpuctx_t *scp)
 {
-  int xval,retval,mode;
+  unsigned int trans_addr, return_addr;	// PC
+  int xval,retval;
 
   if (iniflag==0) enter_cpu_emu();
   sigalrm_pending_w(0);
@@ -1117,7 +1117,7 @@ int e_dpmi(cpuctx_t *scp)
   /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */
   do {
     TheCPU.err = 0;
-    mode = Scp2CpuD (scp);
+    trans_addr = Scp2CpuD(scp);
     if (CONFIG_CPUSIM)
       RFL.valid = V_INVALID;
     if (TheCPU.err) {
@@ -1129,8 +1129,8 @@ int e_dpmi(cpuctx_t *scp)
     do {
       /* switch to DPMI process */
       AW(in_dpmi_emu, 1);
-      e_printf("INTERP: enter=%08x mode=%04x\n",trans_addr,mode);
-      return_addr = Interp86(trans_addr, mode);
+      e_printf("INTERP: enter=%08x mode=%04x\n",trans_addr,TheCPU.mode);
+      return_addr = Interp86(trans_addr, TheCPU.mode);
       e_printf("INTERP: exit=%08x err=%d\n",return_addr,TheCPU.err-1);
       xval = TheCPU.err;
       AW(in_dpmi_emu, 0);
