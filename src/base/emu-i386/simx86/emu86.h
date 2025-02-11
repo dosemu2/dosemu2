@@ -54,6 +54,8 @@ extern int CpatchReps;
 extern int CpatchWrites;
 extern int CpatchStkWrites;
 extern int CpatchInvalidates;
+extern int CPagesDropped;
+extern int MaxCPages;
 #endif
 
 #ifdef X86_JIT
@@ -692,6 +694,8 @@ extern int CpatchInvalidates;
 #define PAGE_SIZE		(1UL << PAGE_SHIFT)
 #endif
 #define _PAGE_MASK		(~(PAGE_SIZE-1))
+#define CGRAN		0		/* 2^n */
+#define CGRMASK		(0xfffff>>CGRAN)
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -733,6 +737,7 @@ char *showreg(signed char r);
 char *showmode(unsigned int m);
 void Cpu2Reg (void);
 int e_debug_check(unsigned int PC);
+void e_fetch(unsigned int addr, size_t len, void **ret);
 int e_querymprotrange(unsigned int addr, size_t len);
 int e_markpage(unsigned int addr, size_t len);
 int e_unmarkpage(unsigned int addr, size_t len);

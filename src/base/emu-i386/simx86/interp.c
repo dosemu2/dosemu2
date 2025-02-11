@@ -3477,7 +3477,7 @@ repag0:
 					goto illegal_op;
 				PC++; PC += ModRMSim(PC, _mode);
 				edxeax = ((uint64_t)rEDX << 32) | rEAX;
-				m = read_qword(TheCPU.mem_ref);
+				m = sim_read_qword(TheCPU.mem_ref);
 				if (edxeax == m)
 				{
 					EFLAGS |= EFLAGS_ZF;
@@ -3487,7 +3487,7 @@ repag0:
 					rEDX = m >> 32;
 					rEAX = m & 0xffffffff;
 				}
-				write_qword(TheCPU.mem_ref, m);
+				sim_write_qword(TheCPU.mem_ref, m);
 				if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				break;
 				}

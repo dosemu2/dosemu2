@@ -167,6 +167,10 @@ static int goodmemref(dosaddr_t m)
 
 void InitGen_x86(void)
 {
+	Fetch = jit_fetch_byte;
+	FetchW = jit_fetch_word;
+	FetchL = jit_fetch_dword;
+
 	Gen = Gen_x86;
 	AddrGen = AddrGen_x86;
 	CloseAndExec = CloseAndExec_x86;
@@ -191,7 +195,7 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 	unsigned char * CpTemp;
 	int mode = IG->mode;
 	int rcod;
-#if PROFILE
+#if PROFILE >= 2
 	hitimer_t t0 = 0;
 	if (debug_level('e')) t0 = GETTSC();
 #endif
@@ -2445,7 +2449,7 @@ shrot0:
 		break;
 
 	}
-#if PROFILE
+#if PROFILE >= 2
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 	return Cp;
@@ -2461,7 +2465,7 @@ static void AddrGen_x86(int op, int mode, ...)
 	va_list	ap;
 	IMeta *I;
 	IGen *IG;
-#if PROFILE
+#if PROFILE >= 2
 	hitimer_t t0 = 0;
 	if (debug_level('e')) t0 = GETTSC();
 #endif
@@ -2527,7 +2531,7 @@ static void AddrGen_x86(int op, int mode, ...)
 	}
 	va_end(ap);
 	I->ngen++;
-#if PROFILE
+#if PROFILE >= 2
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 }
@@ -2539,7 +2543,7 @@ static void Gen_x86(int op, int mode, ...)
 	va_list	ap;
 	IMeta *I;
 	IGen *IG;
-#if PROFILE
+#if PROFILE >= 2
 	hitimer_t t0 = 0;
 	if (debug_level('e')) t0 = GETTSC();
 #endif
@@ -2784,7 +2788,7 @@ static void Gen_x86(int op, int mode, ...)
 
 	va_end(ap);
 	I->ngen++;
-#if PROFILE
+#if PROFILE >= 2
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 }
@@ -2965,7 +2969,7 @@ static void NodeLinker(TNode *LG, TNode *G)
 	unsigned int *lp;
 	linkdesc *T = &G->clink;
 	backref *B;
-#if PROFILE
+#if PROFILE >= 2
 	hitimer_t t0 = 0;
 #endif
 
@@ -2974,7 +2978,7 @@ static void NodeLinker(TNode *LG, TNode *G)
 #endif
 	    return;
 
-#if PROFILE
+#if PROFILE >= 2
 	if (debug_level('e')) t0 = GETTSC();
 #endif
 	if (debug_level('e')>8 && LG) e_printf("NodeLinker: %08x->%08x\n",LG->key,G->key);
@@ -3087,7 +3091,7 @@ static void NodeLinker(TNode *LG, TNode *G)
 		}
 	    }
 	}
-#if PROFILE
+#if PROFILE >= 2
 	if (debug_level('e')) LinkTime += (GETTSC() - t0);
 #endif
 }
@@ -3098,7 +3102,7 @@ void NodeUnlinker(TNode *G)
 	unsigned int *lp;
 	linkdesc *T = &G->clink;
 	backref *B = T->bkr.next;
-#if PROFILE
+#if PROFILE >= 2
 	hitimer_t t0 = 0;
 #endif
 
@@ -3106,7 +3110,7 @@ void NodeUnlinker(TNode *G)
 	if (!UseLinker)
 #endif
 	    return;
-#if PROFILE
+#if PROFILE >= 2
 	if (debug_level('e')) t0 = GETTSC();
 #endif
 	// unlink backward references (from other nodes to the current
@@ -3210,7 +3214,7 @@ void NodeUnlinker(TNode *G)
 	    T->nt_ref = NULL;
 	}
 	memset(T, 0, sizeof(linkdesc));
-#if PROFILE
+#if PROFILE >= 2
 	if (debug_level('e')) LinkTime += (GETTSC() - t0);
 #endif
 }
@@ -3384,7 +3388,7 @@ unsigned int Exec_x86(TNode *G)
 	unsigned int ePC;
 	unsigned short seqflg = G->flags;
 	unsigned char *SeqStart = G->addr;
-#if PROFILE
+#if PROFILE >= 2
 	hitimer_u TimeStartExec, TimeEndExec;
 #endif
 
@@ -3410,14 +3414,14 @@ unsigned int Exec_x86(TNode *G)
 	}
 
 	flg = Exec_x86_pre(ecpu);
-#if PROFILE
+#if PROFILE >= 2
 	__asm__ __volatile__ (
 		"rdtsc\n"
 		: "=a"(TimeStartExec.t.tl),"=d"(TimeStartExec.t.th)
 	);
 #endif
 	ePC = Exec_x86_asm(&mem_ref, &flg, ecpu, SeqStart);
-#if PROFILE
+#if PROFILE >= 2
 	__asm__ __volatile__ (
 		"rdtsc\n"
 		: "=a"(TimeEndExec.t.tl),"=d"(TimeEndExec.t.th)
@@ -3441,7 +3445,7 @@ unsigned int Exec_x86(TNode *G)
 	}
 
 	if (debug_level('e')) {
-#if PROFILE
+#if PROFILE >= 2
 	    TimeEndExec.td -= TimeStartExec.td;
 	    ExecTime += TimeEndExec.td;
 #endif
@@ -3533,6 +3537,61 @@ unsigned int Exec_x86_fast(TNode *G)
 	Exec_x86_post(flg, mem_ref);
 	sigalrm_pending_w(0);
 	return ePC;
+}
+
+#define fB(c,x) (((uint8_t *)(c))[(x) & ~_PAGE_MASK])
+static inline uint16_t fW(void *c, dosaddr_t x)
+{
+	if (x & 1)
+		return ((fB(c, x + 1) << 8) | fB(c, x));
+	return (((uint16_t *)(c))[(x & ~_PAGE_MASK) >> 1]);
+}
+static inline uint32_t fD(void *c, dosaddr_t x)
+{
+	if (x & 3)
+		return (((uint32_t)fW(c, x + 2) << 16) | fW(c, x));
+	return (((uint32_t *)(c))[(x & ~_PAGE_MASK) >> 2]);
+}
+
+uint8_t jit_fetch_byte(dosaddr_t x)
+{
+	void *cache[2];
+
+	e_fetch(x, 1, cache);
+	return fB(cache[0], x);
+}
+
+uint16_t jit_fetch_word(dosaddr_t x)
+{
+	void *cache[2];
+
+	if ((x & ~CGRMASK) != ((x + 1) & ~CGRMASK))
+		return ((jit_fetch_byte(x + 1) << 8) | jit_fetch_byte(x));
+	e_fetch(x, 2, cache);
+	if ((x & _PAGE_MASK) != ((x + 1) & _PAGE_MASK))
+		return ((fB(cache[1], x + 1) << 8) | fB(cache[0], x));
+	return fW(cache[0], x);
+}
+
+uint32_t jit_fetch_dword(dosaddr_t x)
+{
+	void *cache[2];
+
+	if ((x & ~CGRMASK) != ((x + 3) & ~CGRMASK))
+		return (((uint32_t)jit_fetch_word(x + 2) << 16) |
+				jit_fetch_word(x));
+	e_fetch(x, 4, cache);
+	if ((x & _PAGE_MASK) != ((x + 3) & _PAGE_MASK)) {
+		if (!(x & 1))
+			return (((uint32_t)fW(cache[1], x + 2) << 16) |
+					fW(cache[0], x));
+		if (x & 2)
+			return (((fD(cache[1], x + 1) & 0xffffff) << 8) |
+					fB(cache[0], x));
+		return (((uint32_t)fB(cache[1], x + 3) << 24) |
+					(fD(cache[0], x - 1) >> 8));
+	}
+	return fD(cache[0], x);
 }
 
 /////////////////////////////////////////////////////////////////////////////

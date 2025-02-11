@@ -188,13 +188,13 @@ void fp87_save_except(void)
 
 static float read_float(dosaddr_t addr)
 {
-	union { uint32_t u32; float f; } x = {.u32 = read_dword(addr)};
+	union { uint32_t u32; float f; } x = {.u32 = sim_read_dword(addr)};
 	return x.f;
 }
 
 static double read_double(dosaddr_t addr)
 {
-	union { uint64_t u64; double d; } x = {.u64 = read_qword(addr)};
+	union { uint64_t u64; double d; } x = {.u64 = sim_read_qword(addr)};
 	return x.d;
 }
 
@@ -207,9 +207,9 @@ static long double read_long_double(dosaddr_t addr)
 	union { uint32_t u32[sizeof(floatx80)/4]; floatx80 ld; } x;
 	union { float128 f; _Float128 ld; } y;
 #endif
-	x.u32[0] = read_dword(addr);
-	x.u32[1] = read_dword(addr+4);
-	x.u32[2] = read_word(addr+8);
+	x.u32[0] = sim_read_dword(addr);
+	x.u32[1] = sim_read_dword(addr+4);
+	x.u32[2] = sim_read_word(addr+8);
 #ifdef HAVE___FLOAT80
 	return x.ld;
 #else
@@ -221,13 +221,13 @@ static long double read_long_double(dosaddr_t addr)
 static void write_float(dosaddr_t addr, float f)
 {
 	union { uint32_t u32; float f; } x = {.f = f};
-	write_dword(addr, x.u32);
+	sim_write_dword(addr, x.u32);
 }
 
 static void write_double(dosaddr_t addr, double d)
 {
 	union { uint64_t u64; double d; } x = {.d = d};
-	write_qword(addr, x.u64);
+	sim_write_qword(addr, x.u64);
 }
 
 static void write_long_double(dosaddr_t addr, long double ld)
@@ -240,9 +240,9 @@ static void write_long_double(dosaddr_t addr, long double ld)
 	union { float128 f; _Float128 ld; } y = { .ld = ld };
 	x.ld = float128_to_floatx80(y.f, &s);
 #endif
-	write_dword(addr, x.u32[0]);
-	write_dword(addr+4, x.u32[1]);
-	write_word(addr+8, x.u32[2]);
+	sim_write_dword(addr, x.u32[0]);
+	sim_write_dword(addr+4, x.u32[1]);
+	sim_write_word(addr+8, x.u32[2]);
 }
 
 static int Fp87_op_sim(int exop, int reg)
@@ -276,22 +276,22 @@ static int Fp87_op_sim(int exop, int reg)
 		DECFSPP;
 		switch(exop) {		// Fop (edi)
 		case 0x01: WFR0 = read_float(AR1.d); break;
-		case 0x03: WFR0 = (int32_t)read_dword(AR1.d); break;
+		case 0x03: WFR0 = (int32_t)sim_read_dword(AR1.d); break;
 		case 0x05: WFR0 = read_double(AR1.d); break;
-		case 0x07: WFR0 = (int16_t)read_word(AR1.d); break;
+		case 0x07: WFR0 = (int16_t)sim_read_word(AR1.d); break;
 		case 0x27: {
 			dosaddr_t p = AR1.d;
 			long long b = 0;
 			int i;
 			for (i = 8; i >= 0; i--) {
-				uint8_t u = read_byte(p+i);
+				uint8_t u = sim_read_byte(p+i);
 				b = (b * 100) + (u >> 4) * 10 + (u & 0xf);
 			}
-			WFR0 = ((read_byte(p+9) & 0x80) ? -1 : 1) * b;
+			WFR0 = ((sim_read_byte(p+9) & 0x80) ? -1 : 1) * b;
 			break;
 		}
 		case 0x2b: WFR0 = read_long_double(AR1.d); break;
-		case 0x2f: WFR0 = (int64_t)read_qword(AR1.d); break;
+		case 0x2f: WFR0 = (int64_t)sim_read_qword(AR1.d); break;
 		}
 		*ST0 = WFR0;
 		break;
@@ -347,29 +347,29 @@ static int Fp87_op_sim(int exop, int reg)
 		WFR0 = *ST0;
 		switch(exop) {		// Fop (edi)
 		case 0x00: WFR0 += read_float(AR1.d); break;
-		case 0x02: WFR0 += (int32_t)read_dword(AR1.d); break;
+		case 0x02: WFR0 += (int32_t)sim_read_dword(AR1.d); break;
 		case 0x04: WFR0 += read_double(AR1.d); break;
-		case 0x06: WFR0 += (int16_t)read_word(AR1.d); break;
+		case 0x06: WFR0 += (int16_t)sim_read_word(AR1.d); break;
 		case 0x08: WFR0 *= read_float(AR1.d); break;
-		case 0x0a: WFR0 *= (int32_t)read_dword(AR1.d); break;
+		case 0x0a: WFR0 *= (int32_t)sim_read_dword(AR1.d); break;
 		case 0x0c: WFR0 *= read_double(AR1.d); break;
-		case 0x0e: WFR0 *= (int16_t)read_word(AR1.d); break;
+		case 0x0e: WFR0 *= (int16_t)sim_read_word(AR1.d); break;
 		case 0x20: WFR0 -= read_float(AR1.d); break;
-		case 0x22: WFR0 -= (int32_t)read_dword(AR1.d); break;
+		case 0x22: WFR0 -= (int32_t)sim_read_dword(AR1.d); break;
 		case 0x24: WFR0 -= read_double(AR1.d); break;
-		case 0x26: WFR0 -= (int16_t)read_word(AR1.d); break;
+		case 0x26: WFR0 -= (int16_t)sim_read_word(AR1.d); break;
 		case 0x28: WFR0 = (long double)read_float(AR1.d) - WFR0; break;
-		case 0x2a: WFR0 = (long double)(int32_t)read_dword(AR1.d) - WFR0; break;
+		case 0x2a: WFR0 = (long double)(int32_t)sim_read_dword(AR1.d) - WFR0; break;
 		case 0x2c: WFR0 = (long double)read_double(AR1.d) - WFR0; break;
-		case 0x2e: WFR0 = (long double)(int16_t)read_word(AR1.d) - WFR0; break;
+		case 0x2e: WFR0 = (long double)(int16_t)sim_read_word(AR1.d) - WFR0; break;
 		case 0x30: WFR0 /= read_float(AR1.d); break;
-		case 0x32: WFR0 /= (int32_t)read_dword(AR1.d); break;
+		case 0x32: WFR0 /= (int32_t)sim_read_dword(AR1.d); break;
 		case 0x34: WFR0 /= read_double(AR1.d); break;
-		case 0x36: WFR0 /= (int16_t)read_word(AR1.d); break;
+		case 0x36: WFR0 /= (int16_t)sim_read_word(AR1.d); break;
 		case 0x38: WFR0 = (long double)read_float(AR1.d) / WFR0; break;
-		case 0x3a: WFR0 = (long double)(int32_t)read_dword(AR1.d) / WFR0; break;
+		case 0x3a: WFR0 = (long double)(int32_t)sim_read_dword(AR1.d) / WFR0; break;
 		case 0x3c: WFR0 = (long double)read_double(AR1.d) / WFR0; break;
-		case 0x3e: WFR0 = (long double)(int16_t)read_word(AR1.d) / WFR0; break;
+		case 0x3e: WFR0 = (long double)(int16_t)sim_read_word(AR1.d) / WFR0; break;
 		}
 		*ST0 = WFR0;
 		break;
@@ -411,11 +411,11 @@ static int Fp87_op_sim(int exop, int reg)
 		case 0x10:
 		case 0x18: WFR1 = (long double)read_float(AR1.d); goto fcom00;
 		case 0x12:
-		case 0x1a: WFR1 = (long double)(int32_t)read_dword(AR1.d); goto fcom00;
+		case 0x1a: WFR1 = (long double)(int32_t)sim_read_dword(AR1.d); goto fcom00;
 		case 0x14:
 		case 0x1c: WFR1 = (long double)read_double(AR1.d); goto fcom00;
 		case 0x16:
-		case 0x1e: WFR1 = (long double)(int16_t)read_word(AR1.d);
+		case 0x1e: WFR1 = (long double)(int16_t)sim_read_word(AR1.d);
 fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 			if (WFR0 < WFR1)
 			    TheCPU.fpus |= FPUS_C0;
@@ -443,7 +443,7 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 			    }
 			    else if (WFR0 != *ST0) /* flag inexact */
 				TheCPU.fpus |= FPUS_PE;
-			    write_word(AR1.d, (int16_t)WFR0); break;
+			    sim_write_word(AR1.d, (int16_t)WFR0); break;
 			}
 			if (isnan(WFR0) || isinf(WFR0) ||
 			    WFR0 < -(long double)0x80000000 ||
@@ -453,7 +453,7 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 			}
 			else if (WFR0 != *ST0) /* flag inexact */
 			    TheCPU.fpus |= FPUS_PE;
-			write_dword(AR1.d, (int32_t)WFR0); break; }
+			sim_write_dword(AR1.d, (int32_t)WFR0); break; }
 		}
 		if (exop&8) INCFSPP;
 		break;
@@ -467,21 +467,21 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 		WFR0 = nearbyintl(WFR0);
 		if (isnan(WFR0) || fabsl(WFR0) >= 1000000000000000000.0L) {
 			/* store packed BCD indefinite value */
-			write_dword(p, 0);
-			write_word(p+4, 0);
-			write_dword(p+6, 0xffffc000u);
+			sim_write_dword(p, 0);
+			sim_write_word(p+4, 0);
+			sim_write_dword(p+6, 0xffffc000u);
 			TheCPU.fpus |= FPUS_IE;
 			INCFSPP;
 			break;
 		}
 		else if (WFR0 != *ST0)
 			TheCPU.fpus |= FPUS_PE;
-		write_byte(p+9, signbit(WFR0) ? 0x80 : 0);
+		sim_write_byte(p+9, signbit(WFR0) ? 0x80 : 0);
 		b = fabsl(WFR0);
 		for (i=0; i < 9; i++) {
 			uint8_t u = b % 10;
 			b /= 10;
-			write_byte(p+i, u | ((b % 10) << 4));
+			sim_write_byte(p+i, u | ((b % 10) << 4));
 			b /= 10;
 		}
 		INCFSPP;
@@ -505,18 +505,18 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 		}
 		else if (WFR0 != *ST0)
 		    TheCPU.fpus |= FPUS_PE;
-		write_qword(AR1.d, (int64_t)WFR0);
+		sim_write_qword(AR1.d, (int64_t)WFR0);
 		INCFSPP;
 		}
 		break;
 /*29*/	case 0x29:
 //*	29	D9 xx101nnn	FLDCW	2b
-		TheCPU.fpuc = read_word(AR1.d) | 0x40;
+		TheCPU.fpuc = sim_read_word(AR1.d) | 0x40;
 		fp87_set_rounding();
 		break;
 /*39*/	case 0x39:
 //*	39	D9 xx111nnn	FSTCW	2b
-		write_word(AR1.d, TheCPU.fpuc);
+		sim_write_word(AR1.d, TheCPU.fpuc);
 		break;
 
 /*67*/	case 0x67: if (reg!=0) goto fp_notok;
@@ -533,7 +533,7 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 		fp87_save_except();
 		if (exop==0x3d) {
 			// movw	ax,(edi)
-			write_word(AR1.d, TheCPU.fpus);
+			sim_write_word(AR1.d, TheCPU.fpus);
 		}
 		else {
 			CPUWORD(Ofs_AX) = TheCPU.fpus;
@@ -1007,15 +1007,15 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 //*	21	D9 xx100nnn	FLDENV	14/28byte
 //	25	DD xx100nnn	FRSTOR	94/108byte
 		    dosaddr_t p = TheCPU.mem_ref, q;
-		    TheCPU.fpuc = read_word(p) | 0x40;
+		    TheCPU.fpuc = sim_read_word(p) | 0x40;
 		    feclearexcept(FE_ALL_EXCEPT);
 		    fp87_set_rounding();
 		    if (reg&DATA16) {
-			TheCPU.fpus = read_word(p+2); TheCPU.fptag = read_word(p+4);
+			TheCPU.fpus = sim_read_word(p+2); TheCPU.fptag = sim_read_word(p+4);
 			q = p+14;
 		    }
 		    else {
-			TheCPU.fpus = read_word(p+4); TheCPU.fptag = read_word(p+8);
+			TheCPU.fpus = sim_read_word(p+4); TheCPU.fptag = sim_read_word(p+8);
 			q = p+28;
 		    }
 		    TheCPU.fpstt = (TheCPU.fpus>>FPUS_TOP_BIT)&7;
@@ -1095,21 +1095,21 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 		    TheCPU.fptag = ntag;
 		    dosaddr_t p = TheCPU.mem_ref;
 		    if (reg&DATA16) {
-			write_word(p, TheCPU.fpuc);
-			write_word(p+2, TheCPU.fpus);
-			write_word(p+4, TheCPU.fptag);
+			sim_write_word(p, TheCPU.fpuc);
+			sim_write_word(p+2, TheCPU.fpus);
+			sim_write_word(p+4, TheCPU.fptag);
 			/* IP,OP,opcode: n.i. */
-			write_qword(p+6, 0);
+			sim_write_qword(p+6, 0);
 			q = p+14;
 		    }
 		    else {
 			dosaddr_t p = TheCPU.mem_ref;
-			write_dword(p, TheCPU.fpuc);
-			write_dword(p+4, TheCPU.fpus);
-			write_dword(p+8, TheCPU.fptag);
+			sim_write_dword(p, TheCPU.fpuc);
+			sim_write_dword(p+4, TheCPU.fpus);
+			sim_write_dword(p+8, TheCPU.fptag);
 			/* IP,OP,opcode: n.i. */
-			write_qword(p+12, 0);
-			write_qword(p+20, 0);
+			sim_write_qword(p+12, 0);
+			sim_write_qword(p+20, 0);
 			q = p+28;
 		    }
 		    TheCPU.fpuc |= 0x3f;

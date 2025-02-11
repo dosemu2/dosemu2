@@ -35,88 +35,31 @@
 #ifndef _EMU86_HOST_H
 #define _EMU86_HOST_H
 
-#include "dos2linux.h"
-#define read_byte(x) do_read_byte((x), emu_pagefault_handler)
-#define read_word(x) do_read_word((x), emu_pagefault_handler)
-#define read_dword(x) do_read_dword((x), emu_pagefault_handler)
-#define read_qword(x) do_read_qword((x), emu_pagefault_handler)
-#define write_byte(x,y) do_write_byte((x), (y), emu_pagefault_handler)
-#define write_word(x,y) do_write_word((x), (y), emu_pagefault_handler)
-#define write_dword(x,y) do_write_dword((x), (y), emu_pagefault_handler)
-#define write_qword(x,y) do_write_qword((x), (y), emu_pagefault_handler)
+uint8_t sim_read_byte(dosaddr_t x);
+uint16_t sim_read_word(dosaddr_t x);
+uint32_t sim_read_dword(dosaddr_t x);
+uint64_t sim_read_qword(dosaddr_t x);
+void sim_write_byte(dosaddr_t x, uint8_t y);
+void sim_write_word(dosaddr_t x, uint16_t y);
+void sim_write_dword(dosaddr_t x, uint32_t y);
+void sim_write_qword(dosaddr_t x, uint64_t y);
 
-#if defined(ppc)||defined(__ppc)||defined(__ppc__)
-/* NO PAGING! */
-/*
- *  $Id$
- */
-/* alas, egcs sounds like it has a bug in this code that doesn't use the
-   inline asm correctly, and can cause file corruption. */
-static __inline__ unsigned short ppc_pswap2(long addr)
-{
-	unsigned val;
-	__asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) :
-		 "r" ((unsigned short *)addr), "m" (*(unsigned short *)addr));
-	return val;
-}
-
-static __inline__ void ppc_dswap2(long addr, unsigned short val)
-{
-	__asm__ __volatile__ ("sthbrx %1,0,%2" : "=m" (*(unsigned short *)addr) :
-		 "r" (val), "r" ((unsigned short *)addr));
-}
-
-static __inline__ unsigned long ppc_pswap4(long addr)
-{
-	unsigned val;
-	__asm__ __volatile__ ("lwbrx %0,0,%1" : "=r" (val) :
-		 "r" ((unsigned long *)addr), "m" (*(unsigned long *)addr));
-	return val;
-}
-
-static __inline__ unsigned long long ppc_pswap8(long addr)
-{
-	union {	unsigned long long lq; struct {unsigned long ll,lh;} lw; } val;
-	__asm__ __volatile__ (" \
-		lwbrx %0,0,%2\n \
-		addi  %2,%2,4\n \
-		lwbrx %1,0,%2" \
-		: "=r" (val.lw.lh), "=r" (val.lw.ll)
-		: "r" ((unsigned long *)addr), "m" (*(unsigned long *)addr) );
-	return val.lq;
-}
-
-static __inline__ void ppc_dswap4(long addr, unsigned long val)
-{
-	__asm__ __volatile__ ("stwbrx %1,0,%2" : "=m" (*(unsigned long *)addr) :
-		 "r" (val), "r" ((unsigned long *)addr));
-}
-
-static __inline__ void ppc_dswap8(long addr, unsigned long long val)
-{
-	union { unsigned long long lq; struct {unsigned long lh,ll;} lw; } v;
-	v.lq = val;
-	__asm__ __volatile__ (" \
-		stwbrx %1,0,%3\n \
-		addi   %3,%3,4\n \
-		stwbrx %2,0,%3" \
-		: "=m" (*(unsigned long *)addr)
-		: "r" (v.lw.ll), "r" (v.lw.lh), "r" ((unsigned long *)addr) );
-}
-
-#endif		/* ppc */
+uint8_t jit_fetch_byte(dosaddr_t x);
+uint16_t jit_fetch_word(dosaddr_t x);
+uint32_t jit_fetch_dword(dosaddr_t x);
 
 /////////////////////////////////////////////////////////////////////////////
 
-#define Fetch(a)	read_byte(a)
-#define FetchW(a)	read_word(a)
-#define FetchL(a)	read_dword(a)
+extern uint8_t (*Fetch)(dosaddr_t a);
+extern uint16_t (*FetchW)(dosaddr_t a);
+extern uint32_t (*FetchL)(dosaddr_t a);
 #define DataFetchWL_U(m,a) ((m)&DATA16? FetchW(a):FetchL(a))
 #define DataFetchWL_S(m,a) ((m)&DATA16? (short)FetchW(a):(int)FetchL(a))
 #define AddrFetchWL_U(m,a) ((m)&ADDR16? FetchW(a):FetchL(a))
 #define AddrFetchWL_S(m,a) ((m)&ADDR16? (short)FetchW(a):(int)FetchL(a))
-#define GetDWord(a)	read_word(a)
-#define GetDLong(a)	read_dword(a)
+
+#define GetDWord(a)	sim_read_word(a)
+#define GetDLong(a)	sim_read_dword(a)
 #define DataGetWL_U(m,a) ((m)&DATA16? GetDWord(a):GetDLong(a))
 #define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(int)GetDLong(a))
 

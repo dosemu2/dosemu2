@@ -151,6 +151,10 @@ cpuctx_t e_scp; /* initialized to 0 */
 
 static void instr_sim_leave(int pmode);
 
+uint8_t (*Fetch)(dosaddr_t a);
+uint16_t (*FetchW)(dosaddr_t a);
+uint32_t (*FetchL)(dosaddr_t a);
+
 /* ======================================================================= */
 
 unsigned long eTSSMASK = 0;
@@ -906,6 +910,8 @@ static void print_statistics(void)
 	dbug_printf("Cpatch writes     %16d\n",CpatchWrites);
 	dbug_printf("Cpatch stk writes %16d\n",CpatchStkWrites);
 	dbug_printf("Cpatch invds      %16d\n",CpatchInvalidates);
+	dbug_printf("Cache page drops  %16d\n",CPagesDropped);
+	dbug_printf("Max cached pages  %16d\n",MaxCPages);
 #endif
 }
 

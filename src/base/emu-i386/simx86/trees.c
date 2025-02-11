@@ -556,7 +556,7 @@ static void avltr_init(void)
 void avltr_destroy(void)
 {
   avltr_tree *tree;
-#if PROFILE
+#if PROFILE >= 2
   hitimer_t t0 = 0;
 #endif
 
@@ -567,7 +567,7 @@ void avltr_destroy(void)
 #ifdef DEBUG_TREE
   DumpTree (tLog);
 #endif
-#if PROFILE
+#if PROFILE >= 2
   if (debug_level('e')) t0 = GETTSC();
 #endif
 
@@ -611,7 +611,9 @@ quit:
 #if PROFILE
   if (debug_level('e')) {
     TreeCleanups++;
+#if PROFILE >= 2
     CleanupTime += (GETTSC() - t0);
+#endif
   }
 #endif
 }
@@ -857,7 +859,7 @@ static int TraverseAndClean(void)
 {
   int cnt = 0;
   TNode *G;
-#if PROFILE
+#if PROFILE >= 2
   hitimer_t t0 = 0;
 
   if (debug_level('e')) t0 = GETTSC();
@@ -897,7 +899,7 @@ static int TraverseAndClean(void)
 		G->key,ninodes,G->alive);
       Traverser.p = G;
   }
-#if PROFILE
+#if PROFILE >= 2
   if (debug_level('e')) CleanupTime += (GETTSC() - t0);
 #endif
   return cnt;
@@ -915,7 +917,7 @@ static int TraverseAndClean(void)
 TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 {
   TNode *nG = NULL;
-#if PROFILE
+#if PROFILE >= 2
   hitimer_t t0 = 0;
   if (debug_level('e')) t0 = GETTSC();
 #endif
@@ -1036,7 +1038,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 #endif
   CurrIMeta = -1;
   memset(&InstrMeta[0],0,sizeof(IMeta));
-#if PROFILE
+#if PROFILE >= 2
   if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
   return nG;
@@ -1047,7 +1049,7 @@ TNode *FindTree(int key)
 {
   TNode *I;
   static int tccount=0;
-#if PROFILE
+#if PROFILE >= 2
   hitimer_t t0 = 0;
 #endif
 
@@ -1073,7 +1075,7 @@ TNode *FindTree(int key)
   if (!e_querymark(key, 1))
 	return NULL;
 
-#if PROFILE
+#if PROFILE >= 2
   if (debug_level('e')) t0 = GETTSC();
 #endif
   I = CollectTree.root.link[0];
@@ -1100,14 +1102,16 @@ TNode *FindTree(int key)
 #if PROFILE
 	if (debug_level('e')) {
 	    NodesFound++;
+#if PROFILE >= 2
 	    SearchTime += (GETTSC() - t0);
+#endif
 	}
 #endif
 	return I;
   }
 
 endsrch:
-#if PROFILE
+#if PROFILE >= 2
   if (debug_level('e')) SearchTime += (GETTSC() - t0);
 #endif
   if ((ninodes>500) && (((++tccount) >= CleanFreq) || NodesCleaned)) {
@@ -1184,7 +1188,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
   TNode *G;
   int ah;
   int cleaned = 0;
-#if PROFILE
+#if PROFILE >= 2
   hitimer_t t0 = 0;
 
   if (debug_level('e')) t0 = GETTSC();
@@ -1264,7 +1268,7 @@ quit:
   if (debug_level('e') && e_querymark(al, len))
     error("simx86: InvalidateNodeRange did not clear all code for %#08x, len=%x\n",
 	  al, len);
-#if PROFILE
+#if PROFILE >= 2
   if (debug_level('e')) CleanupTime += (GETTSC() - t0);
 #endif
   return cleaned;
@@ -1340,15 +1344,7 @@ int e_invalidate_page_full(unsigned data)
 
 static void CleanIMeta(void)
 {
-#if PROFILE
-	hitimer_t t0 = 0;
-
-	if (debug_level('e')) t0 = GETTSC();
-#endif
 	memset(InstrMeta,0,sizeof(IMeta));
-#if PROFILE
-	if (debug_level('e')) CleanupTime += (GETTSC() - t0);
-#endif
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1356,7 +1352,7 @@ static void CleanIMeta(void)
 
 int NewIMeta(int npc, int *rc)
 {
-#if PROFILE
+#if PROFILE >= 2
 	hitimer_t t0 = 0;
 
 	if (debug_level('e')) t0 = GETTSC();
@@ -1394,7 +1390,7 @@ int NewIMeta(int npc, int *rc)
 			e_printf("Metadata %03d PC=%08x flags=%x(%x) ng=%d\n",
 				CurrIMeta,I->npc,I->flags,I0->flags,I->ngen);
 		}
-#if PROFILE
+#if PROFILE >= 2
 		if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
 		CurrIMeta++;
@@ -1405,7 +1401,7 @@ int NewIMeta(int npc, int *rc)
 	}
 	*rc = 0;
 quit:
-#if PROFILE
+#if PROFILE >= 2
 	if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
 	return -1;
