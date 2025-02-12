@@ -32,13 +32,13 @@ jobs:
         fetch-depth: 100
     - name: Fetch dosemu2 termux recipes
       run: |
-        ./setup-environment.sh
         git remote add stsp https://github.com/stsp/tur.git
         git fetch stsp dosemu2
         git checkout dosemu2
         git config --global user.email "ci@github"
         git config --global user.name "Github Action CI"
         git rebase master
+        ./setup-environment.sh
 
     - name: Gather build summary
       id: build-info
