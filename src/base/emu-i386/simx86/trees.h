@@ -102,7 +102,6 @@ typedef struct _codebufhdr {
 } CodeBuf;
 
 extern IMeta InstrMeta[MAXINODES];
-extern int   CurrIMeta;
 extern int NodesExecd;
 extern int TotalNodesExecd;
 extern int NodesParsed;
