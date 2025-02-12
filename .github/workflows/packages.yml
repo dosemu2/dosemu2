@@ -57,6 +57,7 @@ jobs:
     - name: Build packages
       env:
         DOCKER_BUILD: ${{ steps.build-info.outputs.docker-build }}
+        DOSEMU2_REF: ${{ github.ref }}
       run: |
         declare -a packages
         if [ -f ./built_dosemu2_packages.txt ]; then
