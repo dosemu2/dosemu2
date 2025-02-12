@@ -78,12 +78,20 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 {
 #ifdef X86_JIT
     if (!CONFIG_CPUSIM) {
+	TNode *G;
 	unsigned P0 = InstrMeta[0].npc;
 	if (e_querymark(P0, PC - P0))
 	    InvalidateNodeRange(P0, PC - P0, NULL);
+	G = Close_x86(PC, mode);
+	if (!G)
+	    return P0;
+	return Exec_x86(G);
+    } else {
+	return CloseAndExec_sim(PC, mode);
     }
+#else
+    return CloseAndExec_sim(PC, mode);
 #endif
-    return CloseAndExec(PC, mode);
 }
 
 /*
@@ -100,18 +108,18 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 			  unsigned int P2 = DoCloseAndExec(P0, m);\
 			  if (TheCPU.err) return P2;\
 			  PC = P0 = P2;\
-			} NewNode=0; }
+			}}
 #else
 #define CODE_FLUSH2(m)	{ \
-			  unsigned int P2 = CloseAndExec(P0, m);\
+			  unsigned int P2 = CloseAndExec_sim(P0, m);\
 			  if (TheCPU.err) return P2;\
-			  NewNode=0; }
+			}
 #endif
 #ifdef X86_JIT
 #define CODE_FLUSH()	{ if (CONFIG_CPUSIM || CurrIMeta>0) {\
-			  unsigned int P2 = DoCloseAndExec(P0, _mode);\
+			  unsigned int P2 = DoCloseAndExec(P0, basemode);\
 			  if (TheCPU.err || P0 != P2) return P2;\
-			} NewNode=0; }
+			}}
 #else
 #define CODE_FLUSH()	CODE_FLUSH2(_mode)
 #endif
@@ -380,8 +388,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	if (_P1 == (unsigned)-1) { \
 		if (!CONFIG_CPUSIM) \
 			NewIMeta(P0, &_rc); \
-		_P1 = DoCloseAndExec(_P0, mode); \
-		NewNode=0; \
+		_P1 = DoCloseAndExec(_P0, basemode); \
 	} \
 	if (sigalrm_pending()) \
 		CEmuStat |= CeS_SIGPEND; \
@@ -488,30 +495,22 @@ static void HandleEmuSignals(void)
 }
 
 static unsigned int _Interp86(unsigned int PC, int mod0);
-static unsigned int InterpOne(unsigned int PC, int *_basemode, int *__mode,
-		int *_NewNode);
+static unsigned int InterpOne(unsigned int PC, int *_basemode);
 
 unsigned int Interp86(unsigned int PC, int mod0)
 {
-    unsigned int ret;
-    if (!Running) {
-        TheCPU.err = -1;
-        return 0;
-    }
-    ret = _Interp86(PC, mod0);
+    unsigned int ret = _Interp86(PC, mod0);
     TheCPU.eip = ret - LONG_CS;
     return ret;
 }
 
-static unsigned int interp_pre(unsigned int PC, const int mode, int *_NewNode,
-	unsigned *_P0)
+static unsigned int interp_pre(unsigned int PC, const int mode, unsigned *_P0)
 {
-#define NewNode (*_NewNode)
 #define P0 (*_P0)
 		OVERR_DS = Ofs_XDS;
 		OVERR_SS = Ofs_XSS;
 
-		if (!NewNode) {
+		if (CurrIMeta<0) {
 			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC|CeS_STI)) {
 				HandleEmuSignals();
 				if (TheCPU.err) return PC;
@@ -527,11 +526,11 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int *_NewNode,
 #ifdef X86_JIT
 		if (!CONFIG_CPUSIM && e_querymark(PC, 1)) {
 			unsigned int P2 = PC;
-			if (NewNode) {
+			if (CurrIMeta>=0) {
 				P0 = PC;
 				CODE_FLUSH2(mode);
 			}
-			assert(!NewNode);  // don't exec with open node
+			assert(CurrIMeta<0);  // don't exec with open node
 #ifndef SINGLESTEP
 			if (!(EFLAGS & TF)) {
 				P2 = FindExecCode(PC);
@@ -558,8 +557,7 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int *_NewNode,
 #endif
 #endif
 		P0 = PC;	// P0 changes on instruction boundaries
-		if (!NewNode) {
-			NewNode = 1;
+		if (CurrIMeta<0) {
 			/* if NewNode was already 1, the registers are outdated */
 			if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
 		} else if (CONFIG_CPUSIM && debug_level('e') == 9)
@@ -573,11 +571,10 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int *_NewNode,
 		return PC;
 }
 
-static unsigned int interp_post(unsigned int PC, const int mode,
-	int *_NewNode, unsigned *_P0)
+static unsigned int interp_post(unsigned int PC, const int mode, unsigned *_P0)
 {
 #ifdef X86_JIT
-		if (NewNode) {
+		if (CurrIMeta>=0) {
 			int rc=0;
 			if (!CONFIG_CPUSIM && !(TheCPU.mode&SKIPOP)) {
 				NewIMeta(P0, &rc);
@@ -586,20 +583,19 @@ static unsigned int interp_post(unsigned int PC, const int mode,
 						e_printf("============ Tab full:cannot close sequence\n");
 					CODE_FLUSH2(mode);
 					NewIMeta(P0, &rc);
-					NewNode = 1;
 				}
 			}
 		}
 #endif
 
 #ifdef SINGLEBLOCK
-		if (!CONFIG_CPUSIM && NewNode && CurrIMeta > 0) {
+		if (!CONFIG_CPUSIM && CurrIMeta>=0) {
 			P0 = PC;
 			CODE_FLUSH2(mode);
 		}
 #endif
 
-		if (NewNode && (CEmuStat & CeS_TRAP)) {
+		if (CurrIMeta>=0 && (CEmuStat & CeS_TRAP)) {
 			P0 = PC;
 			CODE_FLUSH2(mode);
 		}
@@ -635,21 +631,17 @@ static unsigned int interp_post(unsigned int PC, const int mode,
 		}
 		return PC;
 #undef P0
-#undef NewNode
 }
 
 static unsigned int _Interp86(unsigned int PC, int basemode)
 {
 	volatile unsigned int P0 = PC; /* volatile because of setjmp */
-	int mode;
-	int NewNode;
 
 	if (PROTMODE() && setjmp(jmp_env)) {
 		/* long jump to here from simulated page fault */
 		return P0;
 	}
 
-	NewNode = 0;
 	TheCPU.err = 0;
 	CEmuStat &= ~CeS_TRAP;
 
@@ -657,15 +649,15 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
 #endif
-	while (Running) {
-		TheCPU.mode = mode = basemode;
-		PC = interp_pre(PC, mode, &NewNode, &P0);
+	while (1) {
+		TheCPU.mode = basemode;
+		PC = interp_pre(PC, basemode, &P0);
 		if (TheCPU.err)
 			return PC;
-		PC = InterpOne(PC, &basemode, &mode, &NewNode);
+		PC = InterpOne(PC, &basemode);
 		if (TheCPU.err)
 			return PC;
-		PC = interp_post(PC, mode, &NewNode, &P0);
+		PC = interp_post(PC, basemode, &P0);
 		if (TheCPU.err)
 			return PC;
 	}
@@ -675,16 +667,14 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 	return 0;
 }
 
-static unsigned int InterpOne(unsigned int PC, int *_basemode, int *__mode,
-		int *_NewNode)
+static unsigned int InterpOne(unsigned int PC, int *_basemode)
 {
 	unsigned int P0 = PC;
 	unsigned char opc;
 	unsigned int temp;
 	unsigned short ocs;
-	#define _mode (*__mode)
 	#define basemode (*_basemode)
-	#define NewNode (*_NewNode)
+	int _mode = basemode;
 
 override:
 	switch ((opc=Fetch(PC))) {
@@ -2760,7 +2750,7 @@ repag0:
 #endif
 			if (!test_ioperm(a)) goto not_permitted;
 #ifdef CPUEMU_DIRECT_IO
-			Gen(O_INPDX, _mode|MBYTE); NewNode=1;
+			Gen(O_INPDX, _mode|MBYTE);
 #else
 			rAL = port_inb(a);
 #endif
@@ -2831,7 +2821,7 @@ repag0:
 			}
 			if (!test_ioperm(a)) goto not_permitted;
 #ifdef CPUEMU_DIRECT_IO
-			Gen(O_OUTPDX, _mode|MBYTE); NewNode=1;
+			Gen(O_OUTPDX, _mode|MBYTE);
 #else
 			port_outb(a,rAL);
 #endif
@@ -2861,7 +2851,7 @@ repag0:
 			}
 			if (!test_ioperm(a)) goto not_permitted;
 #ifdef CPUEMU_DIRECT_IO
-			Gen(O_OUTPDX, _mode); NewNode=1;
+			Gen(O_OUTPDX, _mode);
 #else
 			if (_mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
 #endif

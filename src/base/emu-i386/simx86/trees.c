@@ -50,7 +50,7 @@
 #include "dlmalloc.h"
 #include "codegen-arch.h"
 
-IMeta	*InstrMeta;
+IMeta	InstrMeta[MAXINODES];
 int	CurrIMeta = -1;
 
 /* Tree structure to store collected code sequences */
@@ -526,7 +526,6 @@ void avltr_delete (const int key)
 
 static void avltr_init(void)
 {
- if (!config.cpusim) {
   int i;
   TNode *G;
 
@@ -544,9 +543,6 @@ static void avltr_init(void)
   }
   G->link[0] = TNodePool;
 
-  InstrMeta = malloc(sizeof(IMeta) * MAXINODES);
-  memset(InstrMeta, 0, sizeof(IMeta));
- }
   g_printf("avltr_init\n");
   CurrIMeta = -1;
   NodesCleaned = 0;
@@ -607,7 +603,6 @@ void avltr_destroy(void)
       }
   }
 quit:
-  free(InstrMeta);
 #if PROFILE
   if (debug_level('e')) {
     TreeCleanups++;
@@ -1341,15 +1336,6 @@ int e_invalidate_page_full(unsigned data)
 
 /////////////////////////////////////////////////////////////////////////////
 
-
-static void CleanIMeta(void)
-{
-	memset(InstrMeta,0,sizeof(IMeta));
-}
-
-/////////////////////////////////////////////////////////////////////////////
-
-
 int NewIMeta(int npc, int *rc)
 {
 #if PROFILE >= 2
@@ -1394,7 +1380,9 @@ int NewIMeta(int npc, int *rc)
 		if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
 		CurrIMeta++;
-		*rc = 1; I++;
+		/* provoke caller to flush if we are about to overflow */
+		*rc = (CurrIMeta >= MAXINODES ? -1 : 1);
+		I++;
 		I->ngen = 0;
 		I->flags = 0;
 		return CurrIMeta;
@@ -1509,8 +1497,6 @@ void EndGen(void)
 	int i;
 	int csm = config.CPUSpeedInMhz*1000;
 #endif
-	if (!config.cpusim)
-	    CleanIMeta();
 	CurrIMeta = -1;
 	if (!config.cpusim) {
 	    avltr_destroy();

@@ -702,7 +702,6 @@ extern int MaxCPages;
 extern unsigned int return_addr;
 extern jmp_buf jmp_env;
 extern unsigned long eTSSMASK;
-extern int Running;		/* into interpreter loop */
 extern int UseLinker;
 extern int PageFaults;
 
@@ -735,7 +734,6 @@ const char *e_trace_fp(void);
 void GCPrint(unsigned char *cp, unsigned char *cbase, int len);
 char *showreg(signed char r);
 char *showmode(unsigned int m);
-void Cpu2Reg (void);
 int e_debug_check(unsigned int PC);
 void e_fetch(unsigned int addr, size_t len, void **ret);
 int e_querymprotrange(unsigned int addr, size_t len);

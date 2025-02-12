@@ -119,7 +119,6 @@
 
 static void Gen_x86(int op, int mode, ...);
 static void AddrGen_x86(int op, int mode, ...);
-static unsigned int CloseAndExec_x86(unsigned int PC, int mode);
 
 hitimer_u TimeStartExec;
 static TNode *LastXNode = NULL;
@@ -173,7 +172,6 @@ void InitGen_x86(void)
 
 	Gen = Gen_x86;
 	AddrGen = AddrGen_x86;
-	CloseAndExec = CloseAndExec_x86;
 	UseLinker = USE_LINKER;
 }
 
@@ -3243,7 +3241,7 @@ void NodeUnlinker(TNode *G)
  *
  */
 
-static unsigned int CloseAndExec_x86(unsigned int PC, int mode)
+TNode *Close_x86(unsigned int PC, int mode)
 {
 	IMeta *I0;
 	TNode *G;
@@ -3251,7 +3249,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode)
 
 	if (CurrIMeta <= 0) {
 /**/		e_printf("(X) Nothing to exec at %08x\n",PC);
-		return PC;
+		return NULL;
 	}
 
 	// we're creating a new node
@@ -3264,7 +3262,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode)
 	GenCodeBuf = ProduceCode(PC, I0);
 	/* check for fatal error */
 	if (TheCPU.err < 0)
-		return I0->npc;
+		return NULL;
 
 	NodesParsed++;
 #if PROFILE
@@ -3282,7 +3280,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode)
 	if (0 == (EFLAGS & EFLAGS_TF) ) {
 		NodeLinker(G, G);
 	}
-	return Exec_x86(G);
+	return G;
 }
 
 static unsigned int Exec_x86_pre(unsigned char *ecpu)
@@ -3520,7 +3518,7 @@ unsigned int Exec_x86_fast(TNode *G)
 
 	do {
 		ePC = Exec_x86_asm(&mem_ref, &flg, ecpu, G->addr);
-		if (G->alive > 0) {
+		if (G->alive > 0 && LastXNode && LastXNode->alive > 0) {
 			if (LastXNode->clink.unlinked_jmp_targets &&
 			    (LastXNode->clink.t_target == G->key ||
 			     LastXNode->clink.nt_target == G->key))

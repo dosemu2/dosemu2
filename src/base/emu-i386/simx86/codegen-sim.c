@@ -73,8 +73,6 @@
 
 void (*Gen)(int op, int mode, ...);
 void (*AddrGen)(int op, int mode, ...);
-unsigned int (*CloseAndExec)(unsigned int PC, int mode);
-static unsigned int CloseAndExec_sim(unsigned int PC, int mode);
 
 int UseLinker = 0;
 
@@ -349,7 +347,6 @@ void InitGen_sim(void)
 
 	Gen = Gen_sim;
 	AddrGen = AddrGen_sim;
-	CloseAndExec = CloseAndExec_sim;
 	RFL.cout = RFL.RES.d = 0;
 	RFL.valid = V_INVALID;
 }
@@ -2982,7 +2979,7 @@ void Gen_sim(int op, int mode, ...)
 /////////////////////////////////////////////////////////////////////////////
 
 
-static unsigned int CloseAndExec_sim(unsigned int PC, int mode)
+unsigned int CloseAndExec_sim(unsigned int PC, int mode)
 {
 	unsigned int ret;
 	if (debug_level('e')>1) {
