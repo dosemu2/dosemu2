@@ -45,7 +45,7 @@ jobs:
       run: |
         BASE_COMMIT=$(git merge-base dosemu2 master)
         HEAD_COMMIT="dosemu2"
-        CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${BASE_COMMIT}" "HEAD" | cut -d "/" -f 2 | uniq)
+        CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${BASE_COMMIT}" "HEAD" | grep "tur/" | cut -d "/" -f 2 | uniq)
         mkdir -p ./artifacts ./debs
         touch ./debs/.placeholder
 
