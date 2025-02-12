@@ -32,20 +32,20 @@ jobs:
         fetch-depth: 100
     - name: Fetch dosemu2 termux recipes
       run: |
-        ./setup-environment.sh
         git remote add stsp https://github.com/stsp/tur.git
         git fetch stsp dosemu2
         git checkout dosemu2
         git config --global user.email "ci@github"
         git config --global user.name "Github Action CI"
         git rebase master
+        ./setup-environment.sh
 
     - name: Gather build summary
       id: build-info
       run: |
         BASE_COMMIT=$(git merge-base dosemu2 master)
         HEAD_COMMIT="dosemu2"
-        CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${BASE_COMMIT}" "HEAD" | cut -d "/" -f 2 | uniq)
+        CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${BASE_COMMIT}" "HEAD" | grep "tur/" | cut -d "/" -f 2 | uniq)
         mkdir -p ./artifacts ./debs
         touch ./debs/.placeholder
 
@@ -57,6 +57,7 @@ jobs:
     - name: Build packages
       env:
         DOCKER_BUILD: ${{ steps.build-info.outputs.docker-build }}
+        DOSEMU2_REF: ${{ github.ref }}
       run: |
         declare -a packages
         if [ -f ./built_dosemu2_packages.txt ]; then

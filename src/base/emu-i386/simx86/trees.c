@@ -602,7 +602,7 @@ void avltr_destroy(void)
 	  }
       }
   }
-quit:
+quit:;
 #if PROFILE
   if (debug_level('e')) {
     TreeCleanups++;
