@@ -504,9 +504,8 @@ unsigned int Interp86(unsigned int PC, int mod0)
     return ret;
 }
 
-static unsigned int interp_pre(unsigned int PC, const int mode, unsigned *_P0)
+static unsigned int interp_pre(unsigned int PC, const int mode)
 {
-#define P0 (*_P0)
 		OVERR_DS = Ofs_XDS;
 		OVERR_SS = Ofs_XSS;
 
@@ -527,7 +526,7 @@ static unsigned int interp_pre(unsigned int PC, const int mode, unsigned *_P0)
 		if (!CONFIG_CPUSIM && e_querymark(PC, 1)) {
 			unsigned int P2 = PC;
 			if (CurrIMeta>=0) {
-				P0 = PC;
+				unsigned int P0 = PC;
 				CODE_FLUSH2(mode);
 			}
 			assert(CurrIMeta<0);  // don't exec with open node
@@ -556,7 +555,6 @@ static unsigned int interp_pre(unsigned int PC, const int mode, unsigned *_P0)
 			error("simx86: code nodes clashed at %x\n", PC);
 #endif
 #endif
-		P0 = PC;	// P0 changes on instruction boundaries
 		if (CurrIMeta<0) {
 			/* if NewNode was already 1, the registers are outdated */
 			if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
@@ -565,13 +563,13 @@ static unsigned int interp_pre(unsigned int PC, const int mode, unsigned *_P0)
 		if (debug_level('e')>2) {
 			char *ds;
 			unsigned short ocs = TheCPU.cs;
-			ds = e_emu_disasm(EMU_BASE32(P0),(~mode&3),ocs);
+			ds = e_emu_disasm(EMU_BASE32(PC),(~mode&3),ocs);
 			if (debug_level('e')>2) e_printf("  %s\n", ds);
 		}
 		return PC;
 }
 
-static unsigned int interp_post(unsigned int PC, const int mode, unsigned *_P0)
+static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0)
 {
 #ifdef X86_JIT
 		if (CurrIMeta>=0) {
@@ -630,7 +628,6 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned *_P0)
 			}
 		}
 		return PC;
-#undef P0
 }
 
 static unsigned int _Interp86(unsigned int PC, int basemode)
@@ -651,13 +648,14 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #endif
 	while (1) {
 		TheCPU.mode = basemode;
-		PC = interp_pre(PC, basemode, &P0);
+		PC = interp_pre(PC, basemode);
 		if (TheCPU.err)
 			return PC;
+		P0 = PC;
 		PC = InterpOne(PC, &basemode);
 		if (TheCPU.err)
 			return PC;
-		PC = interp_post(PC, basemode, &P0);
+		PC = interp_post(PC, basemode, P0);
 		if (TheCPU.err)
 			return PC;
 	}
