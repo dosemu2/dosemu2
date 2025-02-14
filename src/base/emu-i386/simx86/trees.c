@@ -61,6 +61,7 @@ int ninodes = 0;
 int NodesCleaned = 0;
 int NodesParsed = 0;
 int NodesExecd = 0;
+int NodesPrejitted = 0;
 int CleanFreq = 8;
 int CreationIndex = 0;
 
@@ -70,6 +71,7 @@ int MaxNodes = 0;
 int MaxNodeSize = 0;
 int TotalNodesParsed = 0;
 int TotalNodesExecd = 0;
+int PrejitNodesExecd = 0;
 int NodesFound = 0;
 int NodesFastFound = 0;
 int NodesNotFound = 0;

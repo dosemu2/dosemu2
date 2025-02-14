@@ -53,6 +53,8 @@
 #include "softfloat/softfloat.h"
 #endif
 
+#define PREJIT_TEST 0
+
 /* ======================================================================= */
 
 #if PROFILE
@@ -597,7 +599,7 @@ static void Cpu2Reg(struct vm86_struct *info)
 
 /* ======================================================================= */
 
-static void Scp2Cpu (cpuctx_t *scp)
+static void Scp2Cpu(cpuctx_t *scp)
 {
   TheCPU.eax = _eax;
   TheCPU.ebx = _ebx;
@@ -629,7 +631,7 @@ static void Scp2Cpu (cpuctx_t *scp)
 /*
  * Build a sigcontext structure to enter fault handling from DPMI
  */
-static void Cpu2Scp (cpuctx_t *scp, int trapno)
+static void Cpu2Scp(cpuctx_t *scp, int trapno)
 {
   if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08x dpm=%08x fl=%08x\n",
 	_eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags);
@@ -698,6 +700,8 @@ static int Scp2CpuD(cpuctx_t *scp)
 
   Scp2Cpu(scp);
 
+  /* make clear we are in PM now */
+  TheCPU.cr[0] |= 1;
   mode |= ADDR16;
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_CS,&big,TheCPU.cs);
   if (TheCPU.err) goto erseg;
@@ -886,6 +890,8 @@ static void print_statistics(void)
 	dbug_printf("Nodes parsed      %16d\n",TotalNodesParsed);
 	dbug_printf("Find misses       %16d\n",NodesNotFound);
 	dbug_printf("Nodes executed    %16d\n",TotalNodesExecd);
+	dbug_printf("Prejitted execed  %16d\n",PrejitNodesExecd);
+	dbug_printf("Nodes prejitted   %16d\n",NodesPrejitted);
 	if (TotalNodesExecd) {
 		unsigned long long k;
 		k = ((long long)NodesFound * 100UL) /
@@ -979,6 +985,11 @@ static const char *retdescs[] =
 	"VM86_PICRET","???","VM86_TRAP","???"
 };
 
+#if PREJIT_TEST
+static void prejit_vm86(struct vm86_struct *info);
+static void prejit_dpmi(cpuctx_t *scp);
+#endif
+
 int e_vm86(struct vm86_struct *info)
 {
   unsigned int trans_addr, return_addr;	// PC
@@ -987,8 +998,10 @@ int e_vm86(struct vm86_struct *info)
   int demusav;
 #endif
   int errcode;
-
   if (iniflag==0) enter_cpu_emu();
+#if PREJIT_TEST
+  prejit_vm86(info);
+#endif
   sigalrm_pending_w(0);
 
   e_sigpa_count = 0;
@@ -1097,13 +1110,13 @@ int e_dpmi(cpuctx_t *scp)
 {
   unsigned int trans_addr, return_addr;	// PC
   int xval,retval;
-
   if (iniflag==0) enter_cpu_emu();
+#if PREJIT_TEST
+  prejit_dpmi(scp);
+#endif
   sigalrm_pending_w(0);
 
   e_sigpa_count = 0;
-  /* make clear we are in PM now */
-  TheCPU.cr[0] |= 1;
 
   if (debug_level('e')>2) {
 	D_printf("EMU86: DPMI enter at %08x\n",DTgetSelBase(_cs)+_eip);
@@ -1169,6 +1182,45 @@ int e_dpmi(cpuctx_t *scp)
 
   return retval;
 }
+
+static void prejit_vm86(struct vm86_struct *info)
+{
+  int mode;
+
+  if (CONFIG_CPUSIM)
+    return;
+  TheCPU.err = 0;
+  mode = ADDR16 | DATA16 | MREALA;
+  TheCPU.StackMask = 0x0000ffff;
+  PreJit86(Reg2Cpu(info), mode);
+  fesetenv(&dosemu_fenv);
+}
+
+static void prejit_dpmi(cpuctx_t *scp)
+{
+  unsigned int PC;
+
+  if (CONFIG_CPUSIM)
+    return;
+  TheCPU.err = 0;
+  PC = Scp2CpuD(scp);  // don't inline as this updates TheCPU.MODE!
+  PreJit86(PC, TheCPU.mode);
+  fesetenv(&dosemu_fenv);
+}
+
+#ifdef USE_KVM
+int kvm_vm86(struct vm86_struct *info)
+{
+  prejit_vm86(info);
+  return true_kvm_vm86(info);
+}
+
+int kvm_dpmi(cpuctx_t *scp)
+{
+  prejit_dpmi(scp);
+  return true_kvm_dpmi(scp);
+}
+#endif
 
 static void load_fpu_state(void)
 {

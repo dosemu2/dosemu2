@@ -710,6 +710,7 @@ extern int InCompiledCode;
 //
 unsigned char *do_hwint(int mode, int intno);
 unsigned int Interp86(unsigned int PC, int mode);
+void PreJit86(unsigned int PC, int mode);
 //
 int _ModRM(unsigned char opc, unsigned int PC, int mode);
 #define ModRM(o, p, m) ({ \
@@ -736,6 +737,7 @@ char *showreg(signed char r);
 char *showmode(unsigned int m);
 int e_debug_check(unsigned int PC);
 void e_fetch(unsigned int addr, size_t len, void **ret);
+void e_mdrop(void);
 int e_querymprotrange(unsigned int addr, size_t len);
 int e_markpage(unsigned int addr, size_t len);
 int e_unmarkpage(unsigned int addr, size_t len);

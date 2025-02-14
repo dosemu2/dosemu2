@@ -429,7 +429,7 @@ static void *FindC(unsigned int addr, int remove)
 	return NULL;
 }
 
-static void DropC(void)
+static void DropC(int all)
 {
 	int i;
 
@@ -437,7 +437,7 @@ static void DropC(void)
 	    struct cache_ent *ce = &clist[i];
 	    if (!ce->data)
 		continue;
-	    if (--ce->alive_cnt > 0)
+	    if (!all && --ce->alive_cnt > 0)
 		continue;
 	    /* dropping means some instructions were not jitted */
 	    e_printf("dropping %p\n", ce->data);
@@ -449,6 +449,11 @@ static void DropC(void)
 	}
 	while (num_clist && !clist[num_clist - 1].data)
 	    num_clist--;
+}
+
+void e_mdrop(void)
+{
+	DropC(1);
 }
 
 void e_fetch(unsigned int addr, size_t len, void **ret)
@@ -521,7 +526,7 @@ static void do_mprotect(unsigned int addr, size_t len)
 static void e_mprotect(unsigned int addr, size_t len)
 {
 	do_mprotect(addr, len);
-	DropC();
+	DropC(0);
 }
 
 static void e_munprotect(unsigned int addr, size_t len)

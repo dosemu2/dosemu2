@@ -1415,7 +1415,7 @@ static void kvm_vme_tf_popf_fixup(struct vm86_regs *regs)
 }
 
 /* Emulate vm86() using KVM */
-int kvm_vm86(struct vm86_struct *info)
+int true_kvm_vm86(struct vm86_struct *info)
 {
   struct vm86_regs *regs;
   int vm86_ret;
@@ -1478,7 +1478,7 @@ int kvm_vm86(struct vm86_struct *info)
 }
 
 /* Emulate do_dpmi_control() using KVM */
-int kvm_dpmi(cpuctx_t *scp)
+int true_kvm_dpmi(cpuctx_t *scp)
 {
   struct vm86_regs *regs;
   int ret;
