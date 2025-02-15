@@ -615,7 +615,7 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 			char *ds;
 			unsigned short ocs = TheCPU.cs;
 			ds = e_emu_disasm(EMU_BASE32(PC),(~mode&3),ocs);
-			if (debug_level('e')>2) e_printf("  %s\n", ds);
+			e_printf("  %s\n", ds);
 		}
 		return PC;
 }
@@ -3621,6 +3621,12 @@ static void _PreJit86(unsigned int PC, int basemode)
 		OVERR_DS = Ofs_XDS;
 		OVERR_SS = Ofs_XSS;
 		P0 = PC;
+		if (debug_level('e')>2) {
+			char *ds;
+			unsigned short ocs = TheCPU.cs;
+			ds = e_emu_disasm(EMU_BASE32(PC),(~basemode&3),ocs);
+			e_printf("  %s\n", ds);
+		}
 		PC = InterpOne(PC, &basemode, FLG_PREJIT);
 		if (TheCPU.err)
 			return;

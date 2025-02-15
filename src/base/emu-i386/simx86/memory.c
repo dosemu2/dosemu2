@@ -400,6 +400,7 @@ static void *NewC(unsigned int abeg)
 	ce->addr = abeg;
 	ce->data = p;
 	ce->alive_cnt = CALIVE_CNT;
+	e_printf("adding %x to cache\n", ce->addr);
 #if PROFILE
 	if (num_clist > MaxCPages)
 	    MaxCPages = num_clist;
@@ -440,7 +441,7 @@ static void DropC(int all)
 	    if (!all && --ce->alive_cnt > 0)
 		continue;
 	    /* dropping means some instructions were not jitted */
-	    e_printf("dropping %p\n", ce->data);
+	    e_printf("dropping %x from cache\n", ce->addr);
 	    free(ce->data);
 	    ce->data = NULL;
 #if PROFILE

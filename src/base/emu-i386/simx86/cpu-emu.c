@@ -719,12 +719,10 @@ static int Scp2CpuD(cpuctx_t *scp)
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_GS,&big,TheCPU.gs);
 erseg:
   if (debug_level('e')>1) {
-	if (debug_level('e')==3) e_printf("Scp2CpuD%s: %08x -> %08x\n\tIP=%08x:%08x\n%s\n",
+	e_printf("Scp2CpuD%s: CS:IP=%08x:%08x\n%s\n",
 			(TheCPU.err? " ERR":""),
-			_eflags, TheCPU.eflags, LONG_CS, _eip,
+			LONG_CS, _eip,
 			e_print_regs());
-	else e_printf("Scp2CpuD%s: %08x -> %08x\n",
-			(TheCPU.err? " ERR":""), _eflags, TheCPU.eflags);
   }
   TheCPU.mode = mode;
   return LONG_CS + _eip;
