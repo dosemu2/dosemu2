@@ -551,6 +551,7 @@ static unsigned int InterpOne(unsigned int PC, int *_basemode, int _flags);
 unsigned int Interp86(unsigned int PC, int mod0)
 {
     unsigned int ret = _Interp86(PC, mod0);
+    assert(CurrIMeta<0);
     TheCPU.eip = ret - LONG_CS;
     return ret;
 }
@@ -569,6 +570,8 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 				CEmuStat |= CeS_TRAP;
 		} else {
 			if (CEmuStat & (CeS_SIGPEND|CeS_RPIC)) {
+				unsigned int P0 = PC;
+				CODE_FLUSH2(mode);
 				HandleEmuSignals();
 				if (TheCPU.err) return PC;
 			}
