@@ -548,12 +548,11 @@ static unsigned int _Interp86(unsigned int PC, int mod0);
 static unsigned int InterpOne(unsigned int PC, int *_basemode, int _flags);
 #define FLG_PREJIT 1
 
-unsigned int Interp86(unsigned int PC, int mod0)
+void Interp86(void)
 {
-    unsigned int ret = _Interp86(PC, mod0);
+    unsigned int ret = _Interp86(LONG_CS + TheCPU.eip, TheCPU.mode);
     assert(CurrIMeta<0);
     TheCPU.eip = ret - LONG_CS;
-    return ret;
 }
 
 static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)

@@ -497,7 +497,7 @@ char *showmode(unsigned int m)
 /*
  * Enter emulator in VM86 mode (sys_vm86)
  */
-static unsigned int Reg2Cpu(struct vm86_struct *info)
+static void Reg2Cpu(struct vm86_struct *info)
 {
   struct vm86_regs *regs = &info->regs;
  /*
@@ -545,7 +545,6 @@ static unsigned int Reg2Cpu(struct vm86_struct *info)
 	else e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n",
 		regs->eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags);
   }
-  return LONG_CS + TheCPU.eip;
 }
 
 /*
@@ -694,7 +693,7 @@ static void Cpu2Scp(cpuctx_t *scp, int trapno)
 /*
  * Enter emulator in DPMI mode (context_switch)
  */
-static int Scp2CpuD(cpuctx_t *scp)
+static void Scp2CpuD(cpuctx_t *scp)
 {
   unsigned char big; int mode=0;
 
@@ -725,7 +724,6 @@ erseg:
 			e_print_regs());
   }
   TheCPU.mode = mode;
-  return LONG_CS + _eip;
 }
 
 
@@ -989,8 +987,7 @@ static void prejit_dpmi(cpuctx_t *scp);
 
 int e_vm86(struct vm86_struct *info)
 {
-  unsigned int trans_addr, return_addr;	// PC
-  int xval,retval,mode;
+  int xval,retval;
 #ifdef SKIP_VM86_TRACE
   int demusav;
 #endif
@@ -1001,7 +998,7 @@ int e_vm86(struct vm86_struct *info)
   sigalrm_pending_w(0);
 
   e_sigpa_count = 0;
-  mode = ADDR16 | DATA16 | MREALA;
+  TheCPU.mode = ADDR16 | DATA16 | MREALA;
   TheCPU.StackMask = 0x0000ffff;
 #ifdef SKIP_VM86_TRACE
   demusav=debug_level('e'); if (debug_level('e')) set_debug_level('e', 1);
@@ -1013,7 +1010,7 @@ int e_vm86(struct vm86_struct *info)
  /* This emulates VM86_ENTER */
   /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */
   do {
-    trans_addr = Reg2Cpu(info);
+    Reg2Cpu(info);
     if (CONFIG_CPUSIM) {
       RFL.valid = V_INVALID;
     }
@@ -1022,10 +1019,10 @@ int e_vm86(struct vm86_struct *info)
       /* enter VM86 mode */
       AW(in_vm86_emu, 1);
       if (debug_level('e')>1)
-	dbug_printf("INTERP: enter=%08x\n",trans_addr);
-      return_addr = Interp86(trans_addr, mode);
+	dbug_printf("INTERP: enter=%08x\n",LONG_CS+TheCPU.eip);
+      Interp86();
       if (debug_level('e')>1)
-	dbug_printf("INTERP: exit=%08x err=%d\n",return_addr,TheCPU.err-1);
+	dbug_printf("INTERP: exit=%08x err=%d\n",LONG_CS+TheCPU.eip,TheCPU.err-1);
       xval = TheCPU.err;
       AW(in_vm86_emu, 0);
       /* 0 if ok, else exception code+1 or negative if dosemu err */
@@ -1034,7 +1031,6 @@ int e_vm86(struct vm86_struct *info)
         in_vm86=0;
         leavedos_main(1);
       }
-      trans_addr = return_addr;
     }
     while (xval==0);
     /* ---- INNER LOOP -- exit for exception ---------------------- */
@@ -1104,7 +1100,6 @@ int e_vm86(struct vm86_struct *info)
 
 int e_dpmi(cpuctx_t *scp)
 {
-  unsigned int trans_addr, return_addr;	// PC
   int xval,retval;
 #if PREJIT_TEST
   prejit_dpmi(scp);
@@ -1123,7 +1118,7 @@ int e_dpmi(cpuctx_t *scp)
   /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */
   do {
     TheCPU.err = 0;
-    trans_addr = Scp2CpuD(scp);
+    Scp2CpuD(scp);
     if (CONFIG_CPUSIM)
       RFL.valid = V_INVALID;
     if (TheCPU.err) {
@@ -1135,9 +1130,9 @@ int e_dpmi(cpuctx_t *scp)
     do {
       /* switch to DPMI process */
       AW(in_dpmi_emu, 1);
-      e_printf("INTERP: enter=%08x mode=%04x\n",trans_addr,TheCPU.mode);
-      return_addr = Interp86(trans_addr, TheCPU.mode);
-      e_printf("INTERP: exit=%08x err=%d\n",return_addr,TheCPU.err-1);
+      e_printf("INTERP: enter=%08x mode=%04x\n",LONG_CS+TheCPU.eip,TheCPU.mode);
+      Interp86();
+      e_printf("INTERP: exit=%08x err=%d\n",LONG_CS+TheCPU.eip,TheCPU.err-1);
       xval = TheCPU.err;
       AW(in_dpmi_emu, 0);
       /* 0 if ok, else exception code+1 or negative if dosemu err */
@@ -1146,7 +1141,6 @@ int e_dpmi(cpuctx_t *scp)
         error("@\n%s",e_print_regs());
         leavedos_main(0);
       }
-      trans_addr = return_addr;
     }
     while (xval==0);
     /* ---- INNER LOOP -- exit for exception ---------------------- */
@@ -1180,26 +1174,23 @@ int e_dpmi(cpuctx_t *scp)
 
 static void prejit_vm86(struct vm86_struct *info)
 {
-  int mode;
-
   if (CONFIG_CPUSIM)
     return;
   TheCPU.err = 0;
-  mode = ADDR16 | DATA16 | MREALA;
+  TheCPU.mode = ADDR16 | DATA16 | MREALA;
   TheCPU.StackMask = 0x0000ffff;
-  PreJit86(Reg2Cpu(info), mode);
+  Reg2Cpu(info);
+  PreJit86(LONG_CS + TheCPU.eip, TheCPU.mode);
   fesetenv(&dosemu_fenv);
 }
 
 static void prejit_dpmi(cpuctx_t *scp)
 {
-  unsigned int PC;
-
   if (CONFIG_CPUSIM)
     return;
   TheCPU.err = 0;
-  PC = Scp2CpuD(scp);  // don't inline as this updates TheCPU.MODE!
-  PreJit86(PC, TheCPU.mode);
+  Scp2CpuD(scp);  // don't inline as this updates TheCPU.MODE!
+  PreJit86(LONG_CS + TheCPU.eip, TheCPU.mode);
   fesetenv(&dosemu_fenv);
 }
 

@@ -709,7 +709,7 @@ extern int CEmuStat;
 extern int InCompiledCode;
 //
 unsigned char *do_hwint(int mode, int intno);
-unsigned int Interp86(unsigned int PC, int mode);
+void Interp86(void);
 void PreJit86(unsigned int PC, int mode);
 //
 int _ModRM(unsigned char opc, unsigned int PC, int mode);
