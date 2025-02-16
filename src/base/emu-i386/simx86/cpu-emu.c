@@ -1008,14 +1008,12 @@ int e_vm86(struct vm86_struct *info)
 //    	TheCPU.EMUtime>>16,sigEMUtime>>16);
 
  /* This emulates VM86_ENTER */
-  /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */
-  do {
-    Reg2Cpu(info);
-    if (CONFIG_CPUSIM) {
-      RFL.valid = V_INVALID;
-    }
+  Reg2Cpu(info);
+  if (CONFIG_CPUSIM) {
+    RFL.valid = V_INVALID;
+  }
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
-    do {
+  do {
       /* enter VM86 mode */
       AW(in_vm86_emu, 1);
       if (debug_level('e')>1)
@@ -1031,33 +1029,30 @@ int e_vm86(struct vm86_struct *info)
         in_vm86=0;
         leavedos_main(1);
       }
-    }
-    while (xval==0);
-    /* ---- INNER LOOP -- exit for exception ---------------------- */
-    if (CONFIG_CPUSIM)
-      FlagSync_All();
+  }
+  while (xval==0);
+  /* ---- INNER LOOP -- exit for exception ---------------------- */
+  if (CONFIG_CPUSIM)
+    FlagSync_All();
 
-    Cpu2Reg(info);
-    if (debug_level('e')>1) e_printf("---------------------\n\t   EMU86: EXCP %#x\n", xval-1);
+  Cpu2Reg(info);
+  if (debug_level('e')>1) e_printf("---------------------\n\t   EMU86: EXCP %#x\n", xval-1);
 
-    retval = -1;
+  retval = -1;
 
-    if (xval==EXCP_SIGNAL) {	/* coming here for async interruptions */
-	if (CEmuStat & (CeS_SIGPEND|CeS_SIGACT))
+  if (xval==EXCP_SIGNAL) {	/* coming here for async interruptions */
+    if (CEmuStat & (CeS_SIGPEND|CeS_SIGACT))
 		{ CEmuStat &= ~(CeS_SIGPEND|CeS_SIGACT); retval=VM86_SIGNAL; }
-    }
-    else if (xval==EXCP_PICSIGNAL) {
-        retval = VM86_PICRETURN;
-    }
-    else if (xval==EXCP_STISIGNAL) {
-        retval = VM86_STI;
-    }
-    else if (xval==EXCP_GOBACK) {
-        retval = 0;
-    } else if (xval==EXCP_EMULEAVE) {
-        instr_sim_leave(0);
-        retval = 0;
-    } else {
+  } else if (xval==EXCP_PICSIGNAL) {
+    retval = VM86_PICRETURN;
+  } else if (xval==EXCP_STISIGNAL) {
+    retval = VM86_STI;
+  } else if (xval==EXCP_GOBACK) {
+    retval = 0;
+  } else if (xval==EXCP_EMULEAVE) {
+    instr_sim_leave(0);
+    retval = 0;
+  } else {
 	switch (xval) {
 	    case EXCP0D_GPF: {	/* to kernel vm86 */
 		retval=handle_vm86_fault(info, &errcode);	/* kernel level */
@@ -1081,10 +1076,7 @@ int e_vm86(struct vm86_struct *info)
 		break;
 	    }
 	}
-    }
   }
-  while (retval < 0);
-  /* ------ OUTER LOOP -- exit to user level ---------------------- */
 
   if (debug_level('e')>1)
     e_printf("EMU86: retval=%s\n", retdescs[retval&7]);
@@ -1115,19 +1107,17 @@ int e_dpmi(cpuctx_t *scp)
 //    e_printf("DPM86: last sig at %lld, curr=%lld, next=%lld\n",lastEMUsig>>16,
 //    	TheCPU.EMUtime>>16,sigEMUtime>>16);
 
-  /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */
-  do {
-    TheCPU.err = 0;
-    Scp2CpuD(scp);
-    if (CONFIG_CPUSIM)
-      RFL.valid = V_INVALID;
-    if (TheCPU.err) {
-        error("DPM86: segment error %d\n", TheCPU.err);
-        leavedos_main(0);
-    }
+  TheCPU.err = 0;
+  Scp2CpuD(scp);
+  if (CONFIG_CPUSIM)
+    RFL.valid = V_INVALID;
+  if (TheCPU.err) {
+    error("DPM86: segment error %d\n", TheCPU.err);
+    leavedos_main(0);
+  }
 
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
-    do {
+  do {
       /* switch to DPMI process */
       AW(in_dpmi_emu, 1);
       e_printf("INTERP: enter=%08x mode=%04x\n",LONG_CS+TheCPU.eip,TheCPU.mode);
@@ -1141,32 +1131,30 @@ int e_dpmi(cpuctx_t *scp)
         error("@\n%s",e_print_regs());
         leavedos_main(0);
       }
-    }
-    while (xval==0);
-    /* ---- INNER LOOP -- exit for exception ---------------------- */
-    if (CONFIG_CPUSIM)
-      FlagSync_All();
+  }
+  while (xval==0);
+  /* ---- INNER LOOP -- exit for exception ---------------------- */
+  if (CONFIG_CPUSIM)
+    FlagSync_All();
 
-    if (debug_level('e')>1) e_printf("DPM86: EXCP %#x eflags=%08x\n",
+  if (debug_level('e')>1) e_printf("DPM86: EXCP %#x eflags=%08x\n",
 	xval-1, TheCPU.eflags);
 
-    Cpu2Scp (scp, xval-1);
+  Cpu2Scp(scp, xval-1);
 
-    retval = DPMI_RET_CLIENT;
+  retval = DPMI_RET_CLIENT;
 
-    if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
-        retval = DPMI_RET_DOSEMU;
-    }
-    else if (xval==EXCP_GOBACK) {
-        retval = DPMI_RET_DOSEMU;
-    } else if (xval==EXCP_EMULEAVE) {
-        instr_sim_leave(1);
-        retval = DPMI_RET_DOSEMU;
-    } else {
-	retval = DPMI_RET_FAULT;
-    }
+  if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
+    retval = DPMI_RET_DOSEMU;
   }
-  while (retval == DPMI_RET_CLIENT);
+  else if (xval==EXCP_GOBACK) {
+    retval = DPMI_RET_DOSEMU;
+  } else if (xval==EXCP_EMULEAVE) {
+    instr_sim_leave(1);
+    retval = DPMI_RET_DOSEMU;
+  } else {
+    retval = DPMI_RET_FAULT;
+  }
   /* ------ OUTER LOOP -- exit to user level ---------------------- */
 
   return retval;
