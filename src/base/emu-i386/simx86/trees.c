@@ -1280,7 +1280,7 @@ static void do_invalidate(unsigned data, int cnt)
 	InvalidateNodeRange(data, cnt, 0);
 }
 
-void e_invalidate(unsigned data, int cnt)
+static void _e_invalidate(unsigned data, int cnt)
 {
 	if (!IS_EMU_JIT())
 		return;
@@ -1292,6 +1292,13 @@ void e_invalidate(unsigned data, int cnt)
 	// no need to invalidate the whole page here,
 	// as the page does not need to be unprotected
 	InvalidateNodeRange(data, cnt, 0);
+}
+
+void e_invalidate(unsigned data, int cnt)
+{
+	prejit_lock();
+	_e_invalidate(data, cnt);
+	prejit_unlock();
 }
 
 void e_invalidate_pa(unsigned pa, int cnt)
@@ -1313,7 +1320,7 @@ void e_invalidate_full_pa(unsigned pa, int cnt)
 /* invalidate and unprotect even if we hit only data.
  * Needed if we are about to destroy the page protection by other means.
  * Otherwise use e_invalidate() */
-void e_invalidate_full(unsigned data, int cnt)
+static void _e_invalidate_full(unsigned data, int cnt)
 {
 	if (!IS_EMU_JIT())
 		return;
@@ -1321,6 +1328,13 @@ void e_invalidate_full(unsigned data, int cnt)
 	if (!e_querymprotrange(data, cnt))
 		return;
 	do_invalidate(data, cnt);
+}
+
+void e_invalidate_full(unsigned data, int cnt)
+{
+	prejit_lock();
+	_e_invalidate_full(data, cnt);
+	prejit_unlock();
 }
 
 int e_invalidate_page_full(unsigned data)

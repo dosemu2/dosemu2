@@ -37,6 +37,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <pthread.h>
 #include "econfig.h"
 #include <setjmp.h>
 #include "emu.h"
@@ -711,6 +712,8 @@ extern int InCompiledCode;
 unsigned char *do_hwint(int mode, int intno);
 void Interp86(void);
 void PreJit86(unsigned int PC, int mode);
+void prejit_lock(void);
+void prejit_unlock(void);
 //
 int _ModRM(unsigned char opc, unsigned int PC, int mode);
 #define ModRM(o, p, m) ({ \

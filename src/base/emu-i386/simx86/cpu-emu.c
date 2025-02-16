@@ -37,6 +37,8 @@
 #include <string.h>		/* for memset */
 #include <sys/time.h>
 #include <fenv.h>
+#include <pthread.h>
+#include <semaphore.h>
 #include "kvm.h"
 #include "mhpdbg.h"
 #include "cpu-emu.h"
@@ -46,6 +48,7 @@
 #include "mapping.h"
 #include "dis8086.h"
 #include "sig.h"
+#include "utilities.h"
 #if PROFILE >= 2
 #include "timers.h"
 #endif
@@ -60,6 +63,16 @@
 #if PROFILE
 hitimer_t AddTime, SearchTime, ExecTime, CleanupTime; // for debug
 hitimer_t GenTime, LinkTime;
+#endif
+
+static pthread_mutex_t prejit_mtx;
+static pthread_mutexattr_t prejit_mattr;
+static pthread_cond_t prejit_cnd = PTHREAD_COND_INITIALIZER;
+static int prejit_running;
+static pthread_t prejit_thr;
+static sem_t prejit_sem;
+#ifdef X86_JIT
+static void *prejit_thread(void *arg);
 #endif
 
 static hitimer_t TotalTime;
@@ -785,10 +798,15 @@ void init_emu_cpu(int cpu_type)
   else {
     InitGen_x86();
     InitTrees();
+    sem_init(&prejit_sem, 0, 0);
+    pthread_create(&prejit_thr, NULL, prejit_thread, NULL);
   }
 #else
   InitGen_sim();
 #endif
+  pthread_mutexattr_init(&prejit_mattr);
+  pthread_mutexattr_settype(&prejit_mattr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(&prejit_mtx, &prejit_mattr);
 
   IDT = NULL;
   if (GDT==NULL) {
@@ -937,6 +955,13 @@ void leave_cpu_emu(void)
 		dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 		if (debug_level('e')) print_statistics();
 	}
+	if (!CONFIG_CPUSIM) {
+		pthread_cancel(prejit_thr);
+		pthread_join(prejit_thr, NULL);
+		sem_destroy(&prejit_sem);
+	}
+	pthread_mutex_destroy(&prejit_mtx);
+	pthread_mutexattr_destroy(&prejit_mattr);
 	flush_log();
 }
 
@@ -998,8 +1023,6 @@ int e_vm86(struct vm86_struct *info)
   sigalrm_pending_w(0);
 
   e_sigpa_count = 0;
-  TheCPU.mode = ADDR16 | DATA16 | MREALA;
-  TheCPU.StackMask = 0x0000ffff;
 #ifdef SKIP_VM86_TRACE
   demusav=debug_level('e'); if (debug_level('e')) set_debug_level('e', 1);
 #endif
@@ -1008,6 +1031,9 @@ int e_vm86(struct vm86_struct *info)
 //    	TheCPU.EMUtime>>16,sigEMUtime>>16);
 
  /* This emulates VM86_ENTER */
+  prejit_lock();
+  TheCPU.mode = ADDR16 | DATA16 | MREALA;
+  TheCPU.StackMask = 0x0000ffff;
   Reg2Cpu(info);
   if (CONFIG_CPUSIM) {
     RFL.valid = V_INVALID;
@@ -1028,6 +1054,7 @@ int e_vm86(struct vm86_struct *info)
         error("EMU86: error %d\n", -xval);
         in_vm86=0;
         leavedos_main(1);
+        return -1;
       }
   }
   while (xval==0);
@@ -1036,6 +1063,7 @@ int e_vm86(struct vm86_struct *info)
     FlagSync_All();
 
   Cpu2Reg(info);
+  prejit_unlock();
   if (debug_level('e')>1) e_printf("---------------------\n\t   EMU86: EXCP %#x\n", xval-1);
 
   retval = -1;
@@ -1107,6 +1135,7 @@ int e_dpmi(cpuctx_t *scp)
 //    e_printf("DPM86: last sig at %lld, curr=%lld, next=%lld\n",lastEMUsig>>16,
 //    	TheCPU.EMUtime>>16,sigEMUtime>>16);
 
+  prejit_lock();
   TheCPU.err = 0;
   Scp2CpuD(scp);
   if (CONFIG_CPUSIM)
@@ -1114,6 +1143,7 @@ int e_dpmi(cpuctx_t *scp)
   if (TheCPU.err) {
     error("DPM86: segment error %d\n", TheCPU.err);
     leavedos_main(0);
+    return -1;
   }
 
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
@@ -1130,6 +1160,7 @@ int e_dpmi(cpuctx_t *scp)
         error("DPM86: error %d\n", -xval);
         error("@\n%s",e_print_regs());
         leavedos_main(0);
+        return -1;
       }
   }
   while (xval==0);
@@ -1141,6 +1172,7 @@ int e_dpmi(cpuctx_t *scp)
 	xval-1, TheCPU.eflags);
 
   Cpu2Scp(scp, xval-1);
+  prejit_unlock();
 
   retval = DPMI_RET_CLIENT;
 
@@ -1160,26 +1192,50 @@ int e_dpmi(cpuctx_t *scp)
   return retval;
 }
 
+#ifdef X86_JIT
+static void *prejit_thread(void *arg)
+{
+  while (1) {
+    sem_wait(&prejit_sem);
+    pthread_mutex_lock(&prejit_mtx);
+    PreJit86(LONG_CS + TheCPU.eip, TheCPU.mode);
+    fesetenv(&dosemu_fenv);
+    prejit_running = 0;
+    pthread_mutex_unlock(&prejit_mtx);
+    pthread_cond_signal(&prejit_cnd);
+  }
+  return NULL;
+}
+#endif
+
 static void prejit_vm86(struct vm86_struct *info)
 {
   if (CONFIG_CPUSIM)
     return;
+  pthread_mutex_lock(&prejit_mtx);
+  while (prejit_running)
+    cond_wait(&prejit_cnd, &prejit_mtx);
   TheCPU.err = 0;
   TheCPU.mode = ADDR16 | DATA16 | MREALA;
   TheCPU.StackMask = 0x0000ffff;
   Reg2Cpu(info);
-  PreJit86(LONG_CS + TheCPU.eip, TheCPU.mode);
-  fesetenv(&dosemu_fenv);
+  prejit_running = 1;
+  pthread_mutex_unlock(&prejit_mtx);
+  sem_post(&prejit_sem);
 }
 
 static void prejit_dpmi(cpuctx_t *scp)
 {
   if (CONFIG_CPUSIM)
     return;
+  pthread_mutex_lock(&prejit_mtx);
+  while (prejit_running)
+    cond_wait(&prejit_cnd, &prejit_mtx);
   TheCPU.err = 0;
   Scp2CpuD(scp);  // don't inline as this updates TheCPU.MODE!
-  PreJit86(LONG_CS + TheCPU.eip, TheCPU.mode);
-  fesetenv(&dosemu_fenv);
+  prejit_running = 1;
+  pthread_mutex_unlock(&prejit_mtx);
+  sem_post(&prejit_sem);
 }
 
 #ifdef USE_KVM
@@ -1437,6 +1493,18 @@ int _CPU_VM_DPMI(void)
     if (EMU_DPMI())
 	return CPUVM_EMU;
     return config.cpu_vm_dpmi;
+}
+
+void prejit_lock(void)
+{
+    pthread_mutex_lock(&prejit_mtx);
+    while (prejit_running)
+	cond_wait(&prejit_cnd, &prejit_mtx);
+}
+
+void prejit_unlock(void)
+{
+    pthread_mutex_unlock(&prejit_mtx);
 }
 
 /* ======================================================================= */
