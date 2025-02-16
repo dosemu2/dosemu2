@@ -8,6 +8,7 @@ from os.path import exists, isdir, join
 from pathlib import Path
 from shutil import copy
 from subprocess import call, check_call, CalledProcessError, run, STDOUT
+from sys import argv
 from time import mktime
 
 from common_framework import (BaseTestCase, main, main_setup, mkstring,
@@ -5061,7 +5062,16 @@ PPDOSGITTestCase = ppdosgit(OurTestCase, {
 if __name__ == '__main__':
 
     # Dynamically create tests
-    libi86_create_items(OurTestCase)
+    is_libi86 = False
+    specific = False
+    for arg in argv[1:]:
+        if 'test_' in arg:
+            specific = True
+            if 'test_libi86_item' in arg:
+                is_libi86 = True
+    if not specific or is_libi86:
+        libi86_create_items(OurTestCase)
+
     cpu_create_items(OurTestCase)
 
     argv = main_setup(OurTestCase)
