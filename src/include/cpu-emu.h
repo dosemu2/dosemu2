@@ -68,6 +68,8 @@ extern void e_priv_iopl(int);
 #define CeS_INSTREMU_RM	0x4000
 #define CeS_INSTREMU_PM	0x8000
 #define CeS_INSTREMU	(CeS_INSTREMU_RM | CeS_INSTREMU_PM) /* behave like former instr_emu, with counter for VGAEMU faults */
+#define CeS_PREJIT_RM	0x10000
+#define CeS_PREJIT_PM	0x20000
 
 extern int IsV86Emu;
 extern int IsDpmiEmu;

@@ -606,6 +606,10 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 				InvalidateNodeRange(P2, 1, NULL);
 			}
 			PC = P2;
+			if (CEmuStat & (CeS_PREJIT_RM | CeS_PREJIT_PM)) {
+				TheCPU.err = EXCP_GOBACK;
+				return PC;
+			}
 		}
 #if 0
 		/* this obviously can't happen with current code, but
