@@ -934,27 +934,25 @@ void leave_cpu_emu(void)
 {
 	if (CEmuStat & CeS_INSTREMU)
 		instr_sim_leave(CEmuStat & CeS_INSTREMU_PM);
-	if (IS_EMU()) {
 #ifdef SKIP_EMU_VBIOS
-		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
-			IOFF(0x10)=INT10_WATCHER_OFF;
+	if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
+		IOFF(0x10)=INT10_WATCHER_OFF;
 #endif
 #ifdef X86_JIT
-		EndGen();
+	EndGen();
 #endif
 #ifdef DEBUG_TREE
-		fclose(tLog); tLog = NULL;
+	fclose(tLog); tLog = NULL;
 #endif
 #ifdef ASM_DUMP
-		fclose(aLog); aLog = NULL;
+	fclose(aLog); aLog = NULL;
 #endif
-		mprot_end();
+	mprot_end();
 
-		free(GDT);
-		LDT = NULL; GDT = NULL; IDT = NULL;
-		dbug_printf("======================= LEAVE CPU-EMU ===============\n");
-		if (debug_level('e')) print_statistics();
-	}
+	free(GDT);
+	LDT = NULL; GDT = NULL; IDT = NULL;
+	dbug_printf("======================= LEAVE CPU-EMU ===============\n");
+	if (debug_level('e')) print_statistics();
 	if (!CONFIG_CPUSIM) {
 		pthread_cancel(prejit_thr);
 		pthread_join(prejit_thr, NULL);
