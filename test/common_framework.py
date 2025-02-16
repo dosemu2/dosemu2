@@ -513,14 +513,15 @@ class BaseTestCase(object):
         self.logfiles['xpt'][1] = "output.log"
         ret = 'No output'
         try:
-            ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT).decode('ASCII')
+            ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT).decode(
+                'ASCII', errors='backslashreplace')
         except CalledProcessError as e:
             if e.output is not None:
-                ret = e.output.decode('ASCII')
+                ret = e.output.decode('ASCII', errors='backslashreplace')
             ret += '\nNonZeroReturn:%d\n' % e.returncode
         except TimeoutExpired as e:
             if e.output is not None:
-                ret = e.output.decode('ASCII')
+                ret = e.output.decode('ASCII', errors='backslashreplace')
             ret += '\nTimeout:%d seconds\n' % timeout
             # Now wait for any further logging from dosemu as hopefully it's
             # dying.
