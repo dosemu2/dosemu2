@@ -1,8 +1,5 @@
 #!/usr/bin/python3
 
-import inspect
-import unittest
-
 import re
 
 from datetime import datetime
@@ -11,11 +8,14 @@ from os.path import exists, isdir, join
 from pathlib import Path
 from shutil import copy
 from subprocess import call, check_call, CalledProcessError, run, STDOUT
-from sys import argv, exit, modules
+from sys import argv
 from time import mktime
 
-from common_framework import (BaseTestCase, get_test_binaries, main, mkstring,
+from common_framework import (BaseTestCase, main, main_setup, mkstring,
                               IPROMPT, KNOWNFAIL, UNSUPPORTED)
+
+from common_os import (drdos701, frdos120, frdos130, frdosgit, msdos622,
+                       msdos700, msdos710, ppdosgit)
 
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
@@ -53,19 +53,6 @@ from func_mfs_truename import mfs_truename
 from func_network import network_pktdriver_mtcp
 from func_pit_mode_2 import pit_mode_2
 
-SYSTYPE_DRDOS_ENHANCED = "Enhanced DR-DOS"
-SYSTYPE_DRDOS_ORIGINAL = "Original DR-DOS"
-SYSTYPE_DRDOS_OLD = "Old DR-DOS"
-SYSTYPE_PCDOS_NEW = "New PC-DOS"
-SYSTYPE_PCDOS_OLD = "Old PC-DOS"
-SYSTYPE_MSDOS_NEW = "New MS-DOS"
-SYSTYPE_MSDOS_INTERMEDIATE = "Newer MS-DOS"
-SYSTYPE_MSDOS_OLD = "Old MS-DOS"
-SYSTYPE_MSDOS_NEC = "NEC MS-DOS"
-SYSTYPE_FRDOS_OLD = "Old FreeDOS"
-SYSTYPE_FRDOS_NEW = "FreeDOS"
-SYSTYPE_FDPP = "FDPP"
-
 PRGFIL_SFN = "PROGR~-I"
 PRGFIL_LFN = "Program Files"
 
@@ -74,7 +61,6 @@ class OurTestCase(BaseTestCase):
 
     attrs = ['cputest', 'dpmitest', 'hmatest', 'nettest', 'umatest', 'xmstest',
              'labeltest']
-    pname = "test_dos"
 
     def test_0_basic_boot(self):
         """Basic boot test"""
@@ -4910,573 +4896,183 @@ $_floppy_a = ""
 
         pit_mode_2(self)
 
+DRDOS701TestCase = drdos701(OurTestCase, {
+    r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
+    r"test_..._ds3_share_open_rename_one_process_fcb": KNOWNFAIL,
+    r"test_..._fcb_rename_simple": KNOWNFAIL,
+    r"test_..._fcb_rename_wild_\d": KNOWNFAIL,
+    "test_mfs_truename_ufs_sfn": KNOWNFAIL,
+    "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
+    "test_fat32_img_d_writable": UNSUPPORTED,
+    "test_lfn_volume_info_fat16": KNOWNFAIL,
+    "test_lfn_volume_info_fat32": UNSUPPORTED,
+    "test_lfn_volume_info_mfs": KNOWNFAIL,
+    "test_lfs_disk_info_fat32": UNSUPPORTED,
+    "test_floppy_vfs": KNOWNFAIL,
+    "test_memory_hma_alloc3": UNSUPPORTED,
+    "test_memory_hma_chain": UNSUPPORTED,
+    "test_pcmos_build": KNOWNFAIL,
+    "test_passing_dos_errorlevel_back": KNOWNFAIL,
+    "test_fat_label_create_bpb12": KNOWNFAIL,
+    "test_fat_label_create_bpb16": KNOWNFAIL,
+    "test_fat_label_create_bpb32": UNSUPPORTED,
+    "test_fat_label_create_on_lfns": UNSUPPORTED,
+})
 
-class DRDOS701TestCase(OurTestCase, unittest.TestCase):
-    # OpenDOS 7.01
+FRDOS120TestCase = frdos120(OurTestCase, {
+    "test_fat_fcb_rename_target_exists": KNOWNFAIL,
+    "test_fat_fcb_rename_source_missing": KNOWNFAIL,
+    "test_fat_fcb_rename_wild_1": KNOWNFAIL,
+    "test_fat_fcb_rename_wild_2": KNOWNFAIL,
+    "test_fat_fcb_rename_wild_3": KNOWNFAIL,
+    "test_mfs_fcb_rename_target_exists": KNOWNFAIL,
+    "test_mfs_fcb_rename_source_missing": KNOWNFAIL,
+    "test_mfs_fcb_rename_wild_1": KNOWNFAIL,
+    "test_mfs_fcb_rename_wild_2": KNOWNFAIL,
+    "test_mfs_fcb_rename_wild_3": KNOWNFAIL,
+    "test_mfs_fcb_rename_wild_4": KNOWNFAIL,
+    "test_fat_fcb_find_wild_1": KNOWNFAIL,
+    "test_fat_fcb_find_wild_2": KNOWNFAIL,
+    "test_fat_fcb_find_wild_3": KNOWNFAIL,
+    "test_mfs_fcb_find_wild_1": KNOWNFAIL,
+    "test_mfs_fcb_find_wild_2": KNOWNFAIL,
+    "test_mfs_fcb_find_wild_3": KNOWNFAIL,
+    "test_mfs_lfs_file_info_1MiB": KNOWNFAIL,
+    "test_mfs_lfs_file_info_6GiB": KNOWNFAIL,
+    "test_mfs_lfs_file_seek_tell_set": KNOWNFAIL,
+    "test_mfs_lfs_file_seek_tell_cur": KNOWNFAIL,
+    "test_mfs_lfs_file_seek_tell_end": KNOWNFAIL,
+    "test_mfs_lredir_command": KNOWNFAIL,
+    "test_mfs_lredir_command_no_perm": KNOWNFAIL,
+    "test_fat_ds3_lock_writable": KNOWNFAIL,
+    "test_fat_ds3_lock_readlckd": KNOWNFAIL,
+    "test_fat_ds3_lock_two_handles": KNOWNFAIL,
+    "test_mfs_truename_vfat_linux_mounted_lfn": KNOWNFAIL,
+    "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
+    "test_mfs_findfile_vfat_linux_mounted_lfn": KNOWNFAIL,
+    "test_mfs_findfile_vfat_linux_mounted_sfn": KNOWNFAIL,
+    "test_fat_ds3_share_open_twice": KNOWNFAIL,
+    r"test_fat_ds3_share_open_(delete|rename)_.*": KNOWNFAIL,
+    r"test_mfs_ds3_share_open_rename_(one|two)_process_fcb": KNOWNFAIL,
+    r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
+    "test_create_new_psp": KNOWNFAIL,
+    "test_command_com_keyword_exist": KNOWNFAIL,
+    "test_memory_emm286_borland": KNOWNFAIL,
+    "test_memory_hma_alloc": KNOWNFAIL,
+    "test_memory_hma_alloc3": UNSUPPORTED,
+    "test_memory_hma_chain": UNSUPPORTED,
+    "test_memory_uma_strategy": KNOWNFAIL,
+    "test_pcmos_build": KNOWNFAIL,
+    r"test_libi86_item_\d+": KNOWNFAIL,
+    "test_passing_dos_errorlevel_back": KNOWNFAIL,
+    "test_fat_label_create_bpb12": KNOWNFAIL,
+    "test_fat_label_create_bpb16": KNOWNFAIL,
+    "test_fat_label_create_bpb32": KNOWNFAIL,
+    "test_fat_label_create_prefile": KNOWNFAIL,
+    "test_fat_label_create_predir": KNOWNFAIL,
+})
 
-    @classmethod
-    def setUpClass(cls):
-        super(DRDOS701TestCase, cls).setUpClass()
-        cls.version = "Caldera OpenDOS 7.01"
-        cls.prettyname = "DR-DOS-7.01"
-        cls.files = [
-            ("ibmbio.com", "61211eb63329a67fdd9d336271f06e1bfdab2b6f"),
-            ("ibmdos.com", "52e71c8e9d74100f138071acaecdef4a79b67d3c"),
-            ("command.com", "4bc38f973b622509aedad8c6af0eca59a2d90fca"),
-            ("share.exe", "10f2c0e2cabe98617faa017806c80476b3b6c1e1"),
-        ]
-        cls.systype = SYSTYPE_DRDOS_ORIGINAL
-        cls.autoexec = "dautoemu.bat"
-        cls.confsys = "dconfig.sys"
-        cls.bootblocks = [
-            ("boot-306-4-17.blk", "1151ab9a3429163ac3ddf55b88d81359cb6975e5"),
-            ("boot-615-4-17.blk", "a18ee96e63e384b766bafc4ff936e4087c31bf59"),
-            ("boot-900-15-17.blk", "2ea4ea747f6e62a8ea46f14f6c9af1ad6fd0126b"),
-        ]
-        cls.images = [
-            ("boot-floppy.img", "d38fb2dba30185ce510cf3366bd71a1cbc2635da"),
-        ]
-        cls.actions = {
-            r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
-            r"test_..._ds3_share_open_rename_one_process_fcb": KNOWNFAIL,
-            r"test_..._fcb_rename_simple": KNOWNFAIL,
-            r"test_..._fcb_rename_wild_\d": KNOWNFAIL,
-            "test_mfs_truename_ufs_sfn": KNOWNFAIL,
-            "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
-            "test_fat32_img_d_writable": UNSUPPORTED,
-            "test_lfn_volume_info_fat16": KNOWNFAIL,
-            "test_lfn_volume_info_fat32": UNSUPPORTED,
-            "test_lfn_volume_info_mfs": KNOWNFAIL,
-            "test_lfs_disk_info_fat32": UNSUPPORTED,
-            "test_floppy_vfs": KNOWNFAIL,
-            "test_memory_hma_alloc3": UNSUPPORTED,
-            "test_memory_hma_chain": UNSUPPORTED,
-            "test_pcmos_build": KNOWNFAIL,
-            "test_passing_dos_errorlevel_back": KNOWNFAIL,
-            "test_fat_label_create_bpb12": KNOWNFAIL,
-            "test_fat_label_create_bpb16": KNOWNFAIL,
-            "test_fat_label_create_bpb32": UNSUPPORTED,
-            "test_fat_label_create_on_lfns": UNSUPPORTED,
-        }
+FRDOS130TestCase = frdos130(OurTestCase, {
+    "test_command_com_keyword_exist": KNOWNFAIL,
+    "test_create_new_psp": KNOWNFAIL,
+    "test_fat_ds3_lock_readlckd": KNOWNFAIL,
+    "test_fat_ds3_lock_two_handles": KNOWNFAIL,
+    "test_fat_ds3_lock_writable": KNOWNFAIL,
+    r"test_fat_ds3_share_open_(delete|rename)_.*": KNOWNFAIL,
+    r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
+    "test_fat_ds3_share_open_twice": KNOWNFAIL,
+    "test_fat_fcb_find_wild_1": KNOWNFAIL,
+    "test_fat_fcb_find_wild_2": KNOWNFAIL,
+    "test_fat_fcb_find_wild_3": KNOWNFAIL,
+    "test_fat_fcb_rename_wild_1": KNOWNFAIL,
+    "test_fat_fcb_rename_wild_2": KNOWNFAIL,
+    "test_fat_fcb_rename_wild_3": KNOWNFAIL,
+    "test_fat_fcb_rename_wild_4": KNOWNFAIL,
+    "test_fat_label_create_bpb12": KNOWNFAIL,
+    "test_fat_label_create_bpb16": KNOWNFAIL,
+    "test_fat_label_create_bpb32": KNOWNFAIL,
+    "test_fat_label_create_noduplicate": KNOWNFAIL,
+    "test_fat_label_create_predir": KNOWNFAIL,
+    "test_fat_label_create_prefile": KNOWNFAIL,
+    "test_lfs_disk_info_mfs": KNOWNFAIL,
+    "test_memory_emm286_borland": KNOWNFAIL,
+    "test_memory_hma_alloc": KNOWNFAIL,
+    "test_memory_hma_alloc3": UNSUPPORTED,
+    "test_memory_hma_chain": UNSUPPORTED,
+    "test_memory_uma_strategy": KNOWNFAIL,
+    "test_mfs_fcb_rename_wild_1": KNOWNFAIL,
+    "test_mfs_fcb_rename_wild_2": KNOWNFAIL,
+    "test_mfs_fcb_rename_wild_3": KNOWNFAIL,
+    "test_mfs_fcb_rename_wild_4": KNOWNFAIL,
+    "test_passing_dos_errorlevel_back": KNOWNFAIL,
+})
 
-        cls.setUpClassPost()
+FRDOSGITTestCase = frdosgit(OurTestCase, {
+    "test_fat_ds3_lock_concurrent": KNOWNFAIL,
+    "test_fat_ds3_lock_readlckd": KNOWNFAIL,
+    "test_fat_ds3_lock_two_handles": KNOWNFAIL,
+    "test_fat_ds3_lock_writable": KNOWNFAIL,
+    "test_fat_ds3_share_open_delete_one_process_ds2": KNOWNFAIL,
+    "test_fat_ds3_share_open_delete_one_process_fcb": KNOWNFAIL,
+    "test_fat_ds3_share_open_rename_one_process_ds2": KNOWNFAIL,
+    "test_fat_ds3_share_open_rename_one_process_fcb": KNOWNFAIL,
+    "test_fat_ds3_share_open_setfattrs_one_process": KNOWNFAIL,
+    "test_fat_ds3_share_open_twice": KNOWNFAIL,
+    "test_fat_label_create_bpb12": KNOWNFAIL,
+    "test_fat_label_create_bpb16": KNOWNFAIL,
+    "test_fat_label_create_bpb32": KNOWNFAIL,
+    "test_fat_label_create_noduplicate": KNOWNFAIL,
+    "test_fat_label_create_predir": KNOWNFAIL,
+    "test_fat_label_create_prefile": KNOWNFAIL,
+    "test_memory_emm286_borland": KNOWNFAIL,
+    "test_memory_hma_alloc3": UNSUPPORTED,
+    "test_memory_hma_chain": UNSUPPORTED,
+    "test_memory_uma_strategy": KNOWNFAIL,
+    "test_passing_dos_errorlevel_back": KNOWNFAIL,
+})
 
-    def setUpDosAutoexec(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / self.autoexec).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        self.mkfile(self.autoexec, contents, newline="\r\n")
+MSDOS622TestCase = msdos622(OurTestCase, {
+    "test_fat32_img_d_writable": UNSUPPORTED,
+    "test_lfn_volume_info_fat16": KNOWNFAIL,
+    "test_lfn_volume_info_fat32": UNSUPPORTED,
+    "test_lfs_disk_info_fat32": UNSUPPORTED,
+    "test_memory_hma_alloc3": UNSUPPORTED,
+    "test_memory_hma_chain": UNSUPPORTED,
+    "test_passing_dos_errorlevel_back": KNOWNFAIL,
+    "test_fat_label_create_bpb32": UNSUPPORTED,
+    "test_fat_label_create_on_lfns": UNSUPPORTED,
+})
 
-    def setUpDosConfig(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / self.confsys).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-        self.mkfile(self.confsys, contents, newline="\r\n")
+MSDOS700TestCase = msdos700(OurTestCase, {
+    "test_fat32_img_d_writable": UNSUPPORTED,
+    "test_fat_label_create_bpb32": UNSUPPORTED,
+    "test_lfn_volume_info_fat16": KNOWNFAIL,
+    "test_lfn_volume_info_fat32": UNSUPPORTED,
+    "test_lfs_disk_info_fat32": UNSUPPORTED,
+    "test_lfs_disk_info_mfs": KNOWNFAIL,
+})
 
-    def setUpDosVersion(self):
-        self.mkfile("version.bat", "ver\r\nrem end\r\n")
+MSDOS710TestCase = msdos710(OurTestCase, {})
 
-
-class FRDOS120TestCase(OurTestCase, unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super(FRDOS120TestCase, cls).setUpClass()
-        cls.version = "FreeDOS kernel 2042"
-        cls.prettyname = "FR-DOS-1.20"
-        cls.files = [
-            ("kernel.sys", "0709f4e7146a8ad9b8acb33fe3fed0f6da9cc6e0"),
-            ("command.com", "0733db7babadd73a1b98e8983c83b96eacef4e68"),
-            ("share.com", "cadc29d49115cb3a250f90921cca345e7c427464"),
-        ]
-        cls.systype = SYSTYPE_FRDOS_NEW
-        cls.autoexec = "fdautoem.bat"
-        cls.confsys = "fdconfig.sys"
-        cls.bootblocks = [
-            ("boot-302-4-17.blk", "8b5cfda502e59b067d1e34e993486440cad1d4f7"),
-            ("boot-603-4-17.blk", "5c89a0c9c20ba9d581d8bf6969fda88df8ab2d45"),
-            ("boot-900-15-17.blk", "523f699a79edde098fceee398b15711fac56a807"),
-        ]
-        cls.images = [
-            ("boot-floppy.img", "c3faba3620c578b6e42a6ef26554cfc9d2ee3258"),
-        ]
-        cls.actions = {
-            "test_fat_fcb_rename_target_exists": KNOWNFAIL,
-            "test_fat_fcb_rename_source_missing": KNOWNFAIL,
-            "test_fat_fcb_rename_wild_1": KNOWNFAIL,
-            "test_fat_fcb_rename_wild_2": KNOWNFAIL,
-            "test_fat_fcb_rename_wild_3": KNOWNFAIL,
-            "test_mfs_fcb_rename_target_exists": KNOWNFAIL,
-            "test_mfs_fcb_rename_source_missing": KNOWNFAIL,
-            "test_mfs_fcb_rename_wild_1": KNOWNFAIL,
-            "test_mfs_fcb_rename_wild_2": KNOWNFAIL,
-            "test_mfs_fcb_rename_wild_3": KNOWNFAIL,
-            "test_mfs_fcb_rename_wild_4": KNOWNFAIL,
-            "test_fat_fcb_find_wild_1": KNOWNFAIL,
-            "test_fat_fcb_find_wild_2": KNOWNFAIL,
-            "test_fat_fcb_find_wild_3": KNOWNFAIL,
-            "test_mfs_fcb_find_wild_1": KNOWNFAIL,
-            "test_mfs_fcb_find_wild_2": KNOWNFAIL,
-            "test_mfs_fcb_find_wild_3": KNOWNFAIL,
-            "test_mfs_lfs_file_info_1MiB": KNOWNFAIL,
-            "test_mfs_lfs_file_info_6GiB": KNOWNFAIL,
-            "test_mfs_lfs_file_seek_tell_set": KNOWNFAIL,
-            "test_mfs_lfs_file_seek_tell_cur": KNOWNFAIL,
-            "test_mfs_lfs_file_seek_tell_end": KNOWNFAIL,
-            "test_mfs_lredir_command": KNOWNFAIL,
-            "test_mfs_lredir_command_no_perm": KNOWNFAIL,
-            "test_fat_ds3_lock_writable": KNOWNFAIL,
-            "test_fat_ds3_lock_readlckd": KNOWNFAIL,
-            "test_fat_ds3_lock_two_handles": KNOWNFAIL,
-            "test_mfs_truename_vfat_linux_mounted_lfn": KNOWNFAIL,
-            "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
-            "test_mfs_findfile_vfat_linux_mounted_lfn": KNOWNFAIL,
-            "test_mfs_findfile_vfat_linux_mounted_sfn": KNOWNFAIL,
-            "test_fat_ds3_share_open_twice": KNOWNFAIL,
-            r"test_fat_ds3_share_open_(delete|rename)_.*": KNOWNFAIL,
-            r"test_mfs_ds3_share_open_rename_(one|two)_process_fcb": KNOWNFAIL,
-            r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
-            "test_create_new_psp": KNOWNFAIL,
-            "test_command_com_keyword_exist": KNOWNFAIL,
-            "test_memory_emm286_borland": KNOWNFAIL,
-            "test_memory_hma_alloc": KNOWNFAIL,
-            "test_memory_hma_alloc3": UNSUPPORTED,
-            "test_memory_hma_chain": UNSUPPORTED,
-            "test_memory_uma_strategy": KNOWNFAIL,
-            "test_pcmos_build": KNOWNFAIL,
-            r"test_libi86_item_\d+": KNOWNFAIL,
-            "test_passing_dos_errorlevel_back": KNOWNFAIL,
-            "test_fat_label_create_bpb12": KNOWNFAIL,
-            "test_fat_label_create_bpb16": KNOWNFAIL,
-            "test_fat_label_create_bpb32": KNOWNFAIL,
-            "test_fat_label_create_prefile": KNOWNFAIL,
-            "test_fat_label_create_predir": KNOWNFAIL,
-        }
-
-        cls.setUpClassPost()
-
-    def setUpDosAutoexec(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / self.autoexec).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        self.mkfile(self.autoexec, contents, newline="\r\n")
-
-    def setUpDosConfig(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / "c" / self.confsys).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-        self.mkfile(self.confsys, contents, newline="\r\n")
-
-
-class FRDOS130TestCase(OurTestCase, unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super(FRDOS130TestCase, cls).setUpClass()
-        cls.version = "FreeDOS kernel 2043"
-        cls.prettyname = "FR-DOS-1.30"
-        cls.files = [
-            ("kernel.sys", "2bdf90c8bc8c0406cfa01349265bf782507af016"),
-            ("command.com", "15abab3d3ee4a50449517131a13b2c5164610582"),
-            ("share.com", "cadc29d49115cb3a250f90921cca345e7c427464"),
-        ]
-        cls.systype = SYSTYPE_FRDOS_NEW
-        cls.autoexec = "fdautoem.bat"
-        cls.confsys = "fdconfig.sys"
-        cls.bootblocks = [
-            ("boot-306-4-17.blk", "0092a320500d7a8359d40bddc48f592686745aed"),
-            ("boot-615-4-17.blk", "2b757178c7ba97f8a439c83dc627d61c2d6b3cf6"),
-            ("boot-900-15-17.blk", "8cd7adeff4a0265e8a8e20f7942672c677cbc891"),
-        ]
-        cls.images = [
-            ("boot-floppy.img", "7b68b4dc2de5891bb3700816d8e1a323e8d150bb"),
-        ]
-        cls.actions = {
-            "test_command_com_keyword_exist": KNOWNFAIL,
-            "test_create_new_psp": KNOWNFAIL,
-            "test_fat_ds3_lock_readlckd": KNOWNFAIL,
-            "test_fat_ds3_lock_two_handles": KNOWNFAIL,
-            "test_fat_ds3_lock_writable": KNOWNFAIL,
-            r"test_fat_ds3_share_open_(delete|rename)_.*": KNOWNFAIL,
-            r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
-            "test_fat_ds3_share_open_twice": KNOWNFAIL,
-            "test_fat_fcb_find_wild_1": KNOWNFAIL,
-            "test_fat_fcb_find_wild_2": KNOWNFAIL,
-            "test_fat_fcb_find_wild_3": KNOWNFAIL,
-            "test_fat_fcb_rename_wild_1": KNOWNFAIL,
-            "test_fat_fcb_rename_wild_2": KNOWNFAIL,
-            "test_fat_fcb_rename_wild_3": KNOWNFAIL,
-            "test_fat_fcb_rename_wild_4": KNOWNFAIL,
-            "test_fat_label_create_bpb12": KNOWNFAIL,
-            "test_fat_label_create_bpb16": KNOWNFAIL,
-            "test_fat_label_create_bpb32": KNOWNFAIL,
-            "test_fat_label_create_noduplicate": KNOWNFAIL,
-            "test_fat_label_create_predir": KNOWNFAIL,
-            "test_fat_label_create_prefile": KNOWNFAIL,
-            "test_lfs_disk_info_mfs": KNOWNFAIL,
-            "test_memory_emm286_borland": KNOWNFAIL,
-            "test_memory_hma_alloc": KNOWNFAIL,
-            "test_memory_hma_alloc3": UNSUPPORTED,
-            "test_memory_hma_chain": UNSUPPORTED,
-            "test_memory_uma_strategy": KNOWNFAIL,
-            "test_mfs_fcb_rename_wild_1": KNOWNFAIL,
-            "test_mfs_fcb_rename_wild_2": KNOWNFAIL,
-            "test_mfs_fcb_rename_wild_3": KNOWNFAIL,
-            "test_mfs_fcb_rename_wild_4": KNOWNFAIL,
-            "test_passing_dos_errorlevel_back": KNOWNFAIL,
-        }
-
-        cls.setUpClassPost()
-
-    def setUpDosAutoexec(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / self.autoexec).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        self.mkfile(self.autoexec, contents, newline="\r\n")
-
-    def setUpDosConfig(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / "c" / self.confsys).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-        self.mkfile(self.confsys, contents, newline="\r\n")
-
-
-class FRDOSGITTestCase(OurTestCase, unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super(FRDOSGITTestCase, cls).setUpClass()
-        cls.version = "DOS version 7.10"
-        cls.prettyname = "FR-DOS-GIT"
-        cls.tarfile = ""
-        cls.systype = SYSTYPE_FRDOS_NEW
-        cls.autoexec = "fdautoem.bat"
-        cls.confsys = "fdconfig.sys"
-        cls.bootblocks = [
-        ]
-        cls.images = [
-        ]
-        cls.actions = {
-            "test_fat_ds3_lock_concurrent": KNOWNFAIL,
-            "test_fat_ds3_lock_readlckd": KNOWNFAIL,
-            "test_fat_ds3_lock_two_handles": KNOWNFAIL,
-            "test_fat_ds3_lock_writable": KNOWNFAIL,
-            "test_fat_ds3_share_open_delete_one_process_ds2": KNOWNFAIL,
-            "test_fat_ds3_share_open_delete_one_process_fcb": KNOWNFAIL,
-            "test_fat_ds3_share_open_rename_one_process_ds2": KNOWNFAIL,
-            "test_fat_ds3_share_open_rename_one_process_fcb": KNOWNFAIL,
-            "test_fat_ds3_share_open_setfattrs_one_process": KNOWNFAIL,
-            "test_fat_ds3_share_open_twice": KNOWNFAIL,
-            "test_fat_label_create_bpb12": KNOWNFAIL,
-            "test_fat_label_create_bpb16": KNOWNFAIL,
-            "test_fat_label_create_bpb32": KNOWNFAIL,
-            "test_fat_label_create_noduplicate": KNOWNFAIL,
-            "test_fat_label_create_predir": KNOWNFAIL,
-            "test_fat_label_create_prefile": KNOWNFAIL,
-            "test_memory_emm286_borland": KNOWNFAIL,
-            "test_memory_hma_alloc3": UNSUPPORTED,
-            "test_memory_hma_chain": UNSUPPORTED,
-            "test_memory_uma_strategy": KNOWNFAIL,
-            "test_passing_dos_errorlevel_back": KNOWNFAIL,
-        }
-
-        cls.setUpClassPost()
-
-        # Check files under test exist, or skip the whole thing
-        cls.files_to_copy = [
-            Path(environ.get("FDOS_KERNEL_SYS", "../fdos/kernel.git/bin/kernel.sys")),
-            Path(environ.get("FDOS_COMMAND_COM", "../fdos/freecom.git/command.com")),
-            Path(environ.get("FDOS_SHARE_COM", "../fdos/share.git/src/share.com")),
-        ]
-        for f in cls.files_to_copy:
-            if not f.is_file():
-                raise unittest.SkipTest("File '%s' not found" % f.name)
-
-    def setUp(self):
-        super(FRDOSGITTestCase, self).setUp()
-        for f in self.files_to_copy:
-            copy(f, self.workdir)
-
-    def setUpDosAutoexec(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / self.autoexec).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        self.mkfile(self.autoexec, contents, newline="\r\n")
-
-    def setUpDosConfig(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / "c" / self.confsys).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-        self.mkfile(self.confsys, contents, newline="\r\n")
-
-
-class MSDOS622TestCase(OurTestCase, unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super(MSDOS622TestCase, cls).setUpClass()
-        cls.version = "MS-DOS Version 6.22"
-        cls.prettyname = "MS-DOS-6.22"
-        cls.files = [
-            ("io.sys", "d697961ca6edaf9a1aafe8b7eb949597506f7f95"),
-            ("msdos.sys", "d6a5f54006e69c4407e56677cd77b82395acb60a"),
-            ("command.com", "c2179d2abfa241edd388ab875cfabbac89fec44d"),
-            ("share.exe", "9e7385cfa91a012638520e89b9884e4ce616d131"),
-            ("dos/himem.sys", "fb41fbc1c4bdd8652d445055508bc8265bc64aea"),
-        ]
-        cls.systype = SYSTYPE_MSDOS_INTERMEDIATE
-        cls.autoexec = "autoemu.bat"
-        cls.bootblocks = [
-            ("boot-306-4-17.blk", "d40c24ef5f5f9fd6ef28c29240786c70477a0b06"),
-            ("boot-615-4-17.blk", "7fc96777727072471dbaab6f817c8d13262260d2"),
-            ("boot-900-15-17.blk", "2a0ca1b87b82013fd417542a5ac28e965fb13e7a"),
-        ]
-        cls.images = [
-            ("boot-floppy.img", "14b8310910bf19d6e375298f3b06da7ffdec9932"),
-        ]
-        cls.actions = {
-            "test_fat32_img_d_writable": UNSUPPORTED,
-            "test_lfn_volume_info_fat16": KNOWNFAIL,
-            "test_lfn_volume_info_fat32": UNSUPPORTED,
-            "test_lfs_disk_info_fat32": UNSUPPORTED,
-            "test_memory_hma_alloc3": UNSUPPORTED,
-            "test_memory_hma_chain": UNSUPPORTED,
-            "test_passing_dos_errorlevel_back": KNOWNFAIL,
-            "test_fat_label_create_bpb32": UNSUPPORTED,
-            "test_fat_label_create_on_lfns": UNSUPPORTED,
-        }
-
-        cls.setUpClassPost()
-
-    def setUpDosAutoexec(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / self.autoexec).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        self.mkfile(self.autoexec, contents, newline="\r\n")
-
-    def setUpDosConfig(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / "c" / self.confsys).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-        self.mkfile(self.confsys, contents, newline="\r\n")
-
-    def setUpDosVersion(self):
-        self.mkfile("version.bat", "ver\r\nrem end\r\n")
-
-
-class MSDOS700TestCase(OurTestCase, unittest.TestCase):
-    # badged Win95 RTM at winworldpc.com
-
-    @classmethod
-    def setUpClass(cls):
-        super(MSDOS700TestCase, cls).setUpClass()
-        cls.version = "Windows 95. [Version 4.00.950]"
-        cls.prettyname = "MS-DOS-7.00"
-        cls.files = [
-            ("io.sys", "22924f93dd0f9ea6a4624ccdd1bbcdf5eb43a308"),
-            ("msdos.sys", "f5d01c68d518f4b8b2482d3815af8bb88003831d"),
-            ("command.com", "67696207c3963a0dc9afab8cf37dbdb966c1f663"),
-        ]
-        cls.systype = SYSTYPE_MSDOS_NEW
-        cls.autoexec = "autoemu.bat"
-        cls.bootblocks = [
-            ("boot-306-4-17.blk", "8c016e339ca6b8126fd2026ed3a7eeeb6cbb8903"),
-            ("boot-615-4-17.blk", "b6fdddbfb37442a2762d5897de1aa7d7a694286a"),
-            ("boot-900-15-17.blk", "8c1243481112f320f2a5f557f30db11174fe7e3d"),
-        ]
-        cls.images = [
-            ("boot-floppy.img", ""),
-        ]
-        cls.actions = {
-            "test_fat32_img_d_writable": UNSUPPORTED,
-            "test_fat_label_create_bpb32": UNSUPPORTED,
-            "test_lfn_volume_info_fat16": KNOWNFAIL,
-            "test_lfn_volume_info_fat32": UNSUPPORTED,
-            "test_lfs_disk_info_fat32": UNSUPPORTED,
-            "test_lfs_disk_info_mfs": KNOWNFAIL,
-        }
-
-        cls.setUpClassPost()
-
-    def setUpDosAutoexec(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / self.autoexec).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        self.mkfile(self.autoexec, contents, newline="\r\n")
-
-    def setUpDosConfig(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / "c" / self.confsys).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-        self.mkfile(self.confsys, contents, newline="\r\n")
-
-    def setUpDosVersion(self):
-        self.mkfile("version.bat", "ver\r\nrem end\r\n")
-
-        # Disable the logo here or we get blank screen
-        self.mkfile("msdos.sys", """
-[Options]
-BootGUI=0
-Logo=0
-""", newline="\r\n")
-
-
-class MSDOS710TestCase(OurTestCase, unittest.TestCase):
-    # badged CDU (Chinese DOS Union) at winworldpc.com
-
-    @classmethod
-    def setUpClass(cls):
-        super(MSDOS710TestCase, cls).setUpClass()
-        cls.version = "MS-DOS 7.1 [Version 7.10.1999]"
-        cls.prettyname = "MS-DOS-7.10"
-        cls.files = [
-            ("io.sys", "8c586b1bf38fc2042f2383ca873283a466be2f44"),
-            ("msdos.sys", "cd1e6103ce9cdebbc7a5611df13ff4fbd5e2159c"),
-            ("command.com", "f6547d81e625a784633c059e536e90ee45532202"),
-        ]
-        cls.systype = SYSTYPE_MSDOS_NEW
-        cls.autoexec = "autoemu.bat"
-        cls.bootblocks = [
-            ("boot-306-4-17.blk", "0f520de6e2a33ef8fd336b2844957689fc1060e9"),
-            ("boot-615-4-17.blk", "5e49a8ee7747191d87a2214cc0281736262687b9"),
-            ("boot-900-15-17.blk", "2c29d06909c7d5ca46a3ca26ddde9287a11ef315"),
-        ]
-        cls.images = [
-            ("boot-floppy.img", ""),
-        ]
-
-        cls.actions = {
-        }
-
-        cls.setUpClassPost()
-
-    def setUpDosAutoexec(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / self.autoexec).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        self.mkfile(self.autoexec, contents, newline="\r\n")
-
-    def setUpDosConfig(self):
-        # Use the (almost) standard shipped config
-        contents = (self.cmddir / "c" / self.confsys).read_text()
-        contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
-        contents = re.sub(r"rem SWITCHES=/F", r"SWITCHES=/F", contents)
-        self.mkfile(self.confsys, contents, newline="\r\n")
-
-    def setUpDosVersion(self):
-        self.mkfile("version.bat", "ver\r\nrem end\r\n")
-
-        # Disable the logo here or we get blank screen
-        self.mkfile("msdos.sys", """
-[Options]
-BootGUI=0
-Logo=0
-""", newline="\r\n")
-
-
-class PPDOSGITTestCase(OurTestCase, unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super(PPDOSGITTestCase, cls).setUpClass()
-        cls.version = "FDPP kernel"
-        cls.prettyname = "PP-DOS-GIT"
-        cls.actions = {
-            "test_floppy_img": UNSUPPORTED,
-            "test_floppy_vfs": UNSUPPORTED,
-        }
-
-        # Use the default files that FDPP installed
-        cls.tarfile = ""
-
-        cls.systype = SYSTYPE_FDPP
-        cls.autoexec = "fdppauto.bat"
-        cls.confsys = "fdppconf.sys"
-
-        cls.setUpClassPost()
-
+PPDOSGITTestCase = ppdosgit(OurTestCase, {
+    "test_floppy_img": UNSUPPORTED,
+    "test_floppy_vfs": UNSUPPORTED,
+})
 
 if __name__ == '__main__':
 
     # Dynamically create tests
-    libi86_create_items(OurTestCase)
+    is_libi86 = False
+    specific = False
+    for arg in argv[1:]:
+        if 'test_' in arg:
+            specific = True
+            if 'test_libi86_item' in arg:
+                is_libi86 = True
+    if not specific or is_libi86:
+        libi86_create_items(OurTestCase)
+
     cpu_create_items(OurTestCase)
 
-    tests = [t[0] for t in
-            inspect.getmembers(OurTestCase, predicate=inspect.isfunction)
-            if t[0].startswith("test")]
-
-    xtests = [t[0] for t in
-            inspect.getmembers(OurTestCase, predicate=inspect.isfunction)
-            if t[0].startswith("xtest")]
-
-    cases = [c[0] for c in
-            inspect.getmembers(modules[__name__], predicate=inspect.isclass)
-            if issubclass(c[1], OurTestCase) and c[0] != "OurTestCase"]
-
-    attrs = sorted(OurTestCase.attrs)
-
-    def explode(n, attr=None):
-        if n in tests:
-            return [c + "." + n for c in cases]
-        if n in xtests:
-            return [c + "." + n for c in cases]
-        if n in cases:
-            if attr:
-                return [n + "." + t[0] for t in
-                    inspect.getmembers(OurTestCase, predicate=inspect.isfunction)
-                    if hasattr(t[1], attr)]
-            else:
-                return [n,]
-        p = n.split('.')
-        if p and p[0] in cases and (p[1] in tests or p[1] in xtests):
-            return [n,]
-        return []
-
-    if len(argv) > 1:
-        if argv[1] == "--help":
-            print(("Usage: %s [--help | --get-test-binaries | " +
-                   "--list-attrs | --list-cases | --list-tests] | " +
-                   "[--require-attr=STRING TestCase ...] | " +
-                   "[TestCase[.testname] ...]") % argv[0])
-            exit(0)
-        elif argv[1] == "--get-test-binaries":
-            get_test_binaries()
-            exit(0)
-        elif argv[1] == "--list-attrs":
-            for a in attrs:
-                print(str(a))
-            exit(0)
-        elif argv[1] == "--list-cases":
-            for m in cases:
-                print(str(m))
-            exit(0)
-        elif argv[1] == "--list-tests":
-            for m in tests:
-                print(str(m))
-            exit(0)
-        else:
-            x = re.match(r"^--require-attr=(\S+).*$", argv[1])
-            if x:
-                attr = x.groups()[0]
-                del argv[1]
-            else:
-                attr = None
-
-            a = []
-            for b in [explode(x, attr=attr) for x in argv[1:]]:
-                a.extend(b)
-
-            if not len(a):
-                print("No tests found, was your testcase or testname incorrect? See --help")
-                exit(1)
-            argv = [argv[0],] + a
-            main(argv)
-
-    main()
+    argv = main_setup(OurTestCase)
+    main(argv)
