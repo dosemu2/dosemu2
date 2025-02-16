@@ -705,6 +705,7 @@ int main(int argc, char *argv[])
 
     # Check afterwards with mtools that each lfn still exists
     args = ['mdir', '-i', str(self.imagedir / image)]
-    output = check_output(args, timeout=5, stderr=STDOUT).decode('ASCII')
+    output = check_output(args, timeout=5, stderr=STDOUT).decode(
+        'ASCII', errors='backslashreplace')
     for n in names:
         self.assertIn(n, output)
