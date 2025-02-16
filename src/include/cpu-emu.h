@@ -72,7 +72,6 @@ extern void e_priv_iopl(int);
 extern int IsV86Emu;
 extern int IsDpmiEmu;
 
-void enter_cpu_emu(void);
 void leave_cpu_emu(void);
 void avltr_destroy(void);
 int e_vm86(struct vm86_struct *info);

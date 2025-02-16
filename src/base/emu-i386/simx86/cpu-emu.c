@@ -63,7 +63,7 @@ hitimer_t GenTime, LinkTime;
 #endif
 
 static hitimer_t TotalTime;
-static int iniflag = 0;
+static void enter_cpu_emu(void);
 
 /* This needs to be merged someday with 'mode' */
 int CEmuStat = 0;
@@ -816,6 +816,7 @@ void init_emu_cpu(int cpu_type)
   TheCPU.stub_read_16 = stub_read_16;
   TheCPU.stub_read_32 = stub_read_32;
 #endif
+  enter_cpu_emu();
 }
 
 /*
@@ -839,7 +840,7 @@ void e_gen_sigalrm_from_thread(void)
 	__atomic_store_n(&TheCPU.sigalrm_pending, 1, __ATOMIC_RELAXED);
 }
 
-void enter_cpu_emu(void)
+static void enter_cpu_emu(void)
 {
 	unsigned int realdelta = config.update / TIMER_DIVISOR;
 
@@ -862,7 +863,6 @@ void enter_cpu_emu(void)
 #endif
 	dbug_printf("======================= ENTER CPU-EMU ===============\n");
 	flush_log();
-	iniflag = 1;
 }
 
 static void print_statistics(void)
@@ -918,8 +918,7 @@ void leave_cpu_emu(void)
 {
 	if (CEmuStat & CeS_INSTREMU)
 		instr_sim_leave(CEmuStat & CeS_INSTREMU_PM);
-	if (IS_EMU() && iniflag) {
-		iniflag = 0;
+	if (IS_EMU()) {
 #ifdef SKIP_EMU_VBIOS
 		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
 			IOFF(0x10)=INT10_WATCHER_OFF;
@@ -996,7 +995,6 @@ int e_vm86(struct vm86_struct *info)
   int demusav;
 #endif
   int errcode;
-  if (iniflag==0) enter_cpu_emu();
 #if PREJIT_TEST
   prejit_vm86(info);
 #endif
@@ -1108,7 +1106,6 @@ int e_dpmi(cpuctx_t *scp)
 {
   unsigned int trans_addr, return_addr;	// PC
   int xval,retval;
-  if (iniflag==0) enter_cpu_emu();
 #if PREJIT_TEST
   prejit_dpmi(scp);
 #endif
