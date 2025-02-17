@@ -77,8 +77,14 @@ static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
 #ifdef X86_JIT
 static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 {
-	if (e_querymark(P0, PC - P0))
+	if (e_querymark(P0, PC - P0)) {
 	    InvalidateNodeRange(P0, PC - P0, NULL);
+	    if (!e_querymprotrange_full(P0, PC - P0)) {
+		/* re-populate cache */
+		Fetch(P0);
+		Fetch(PC);
+	    }
+	}
 	return Close_x86(PC, mode);
 }
 #endif

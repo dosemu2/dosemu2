@@ -742,6 +742,7 @@ int e_debug_check(unsigned int PC);
 void e_fetch(unsigned int addr, size_t len, void **ret);
 void e_mdrop(void);
 int e_querymprotrange(unsigned int addr, size_t len);
+int e_querymprotrange_full(unsigned int addr, size_t len);
 int e_markpage(unsigned int addr, size_t len);
 int e_unmarkpage(unsigned int addr, size_t len);
 void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip);

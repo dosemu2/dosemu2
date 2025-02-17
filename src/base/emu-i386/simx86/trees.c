@@ -926,12 +926,6 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   CodeBuf *mallmb;
   void **cp;
 
-  /* try to keep a limit to the number of nodes in the tree. 3000-4000
-   * nodes are probably enough before performance starts to suffer */
-  if (ninodes > NodeLimit) {
-	for (i=0; i<CreationIndex; i++) TraverseAndClean();
-  }
-
   key = I0->npc;
 
   found = 0;

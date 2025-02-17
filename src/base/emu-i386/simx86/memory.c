@@ -216,6 +216,26 @@ int e_querymprotrange(unsigned int addr, size_t len)
 	return 0;
 }
 
+int e_querymprotrange_full(unsigned int addr, size_t len)
+{
+	int a2l, a2h;
+	tMpMap *M = FindM(addr);
+
+	a2l = addr >> PAGE_SHIFT;
+	a2h = (addr+len-1) >> PAGE_SHIFT;
+
+	while (M && a2l <= a2h) {
+		if (!M->pagemap[a2l&255])
+			return 0;
+		a2l++;
+		if ((a2l&255)==0)
+			M = FindM(a2l);
+	}
+	if (!M)
+		return 0;
+	return 1;
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 
