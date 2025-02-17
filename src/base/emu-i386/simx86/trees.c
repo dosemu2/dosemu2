@@ -84,8 +84,8 @@ static TNode *findtree_cache[FINDTREE_CACHE_HASH_MASK+1];
 TNode *TNodePool;
 int NodeLimit = 10000;
 
-#define RANGE_IN_RANGE(al,ah,l,h)	({int _l2=(al);\
-	int _h2=(ah); ((_h2 >= (l)) && (_l2 < (h))); })
+#define RANGE_INTERSECT(al,ah,l,h)	({int _l2=(al);\
+	int _h2=(ah); ((_h2 > (l)) && (_l2 < (h))); })
 #define ADDR_IN_RANGE(a,l,h)		({typeof(a) _a2=(a);	\
 	((_a2 >= (l)) && (_a2 < (h))); })
 
@@ -1232,7 +1232,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
         break;
       if (G->addr && (G->alive>0)) {
 	int ahG = G->seqbase + G->seqlen;
-	if (RANGE_IN_RANGE(G->seqbase,ahG,al,ah)) {
+	if (RANGE_INTERSECT(G->seqbase,ahG,al,ah)) {
 	    unsigned char *ahE;
 	    if (debug_level('e')>1)
 		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
