@@ -100,9 +100,12 @@ static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 	if (e_querymark(P0, PC - P0)) {
 	    InvalidateNodeRange(P0, PC - P0, NULL);
 	    if (!e_querymprotrange_full(P0, PC - P0)) {
+		unsigned int abeg, aend;
+		abeg = P0 & _PAGE_MASK;
+		aend = PC & _PAGE_MASK;
 		/* re-populate cache */
-		Fetch(P0);
-		Fetch(PC);
+		for (; abeg <= aend; abeg += PAGE_SIZE)
+			Fetch(abeg);
 	    }
 	}
 	return Close_x86(PC, mode);
@@ -634,12 +637,13 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 			if (EFLAGS & TF)
 				CEmuStat |= CeS_TRAP;
 		} else {
+			/* don't exit with opened node - breaks prejitter */
+#if 0
 			if (CEmuStat & (CeS_SIGPEND|CeS_RPIC)) {
-				unsigned int P0 = PC;
-				CODE_FLUSH2(mode);
 				HandleEmuSignals();
 				if (TheCPU.err) return PC;
 			}
+#endif
 		}
 #ifdef X86_JIT
 		if (!CONFIG_CPUSIM && e_querymark(PC, 1)) {
