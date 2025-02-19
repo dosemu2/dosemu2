@@ -61,6 +61,7 @@ int ninodes = 0;
 int NodesCleaned = 0;
 int NodesParsed = 0;
 int NodesExecd = 0;
+int NodesPrejitted = 0;
 int CleanFreq = 8;
 int CreationIndex = 0;
 
@@ -70,6 +71,7 @@ int MaxNodes = 0;
 int MaxNodeSize = 0;
 int TotalNodesParsed = 0;
 int TotalNodesExecd = 0;
+int PrejitNodesExecd = 0;
 int NodesFound = 0;
 int NodesFastFound = 0;
 int NodesNotFound = 0;
@@ -82,8 +84,8 @@ static TNode *findtree_cache[FINDTREE_CACHE_HASH_MASK+1];
 TNode *TNodePool;
 int NodeLimit = 10000;
 
-#define RANGE_IN_RANGE(al,ah,l,h)	({int _l2=(al);\
-	int _h2=(ah); ((_h2 >= (l)) && (_l2 < (h))); })
+#define RANGE_INTERSECT(al,ah,l,h)	({int _l2=(al);\
+	int _h2=(ah); ((_h2 > (l)) && (_l2 < (h))); })
 #define ADDR_IN_RANGE(a,l,h)		({typeof(a) _a2=(a);	\
 	((_a2 >= (l)) && (_a2 < (h))); })
 
@@ -924,12 +926,6 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   CodeBuf *mallmb;
   void **cp;
 
-  /* try to keep a limit to the number of nodes in the tree. 3000-4000
-   * nodes are probably enough before performance starts to suffer */
-  if (ninodes > NodeLimit) {
-	for (i=0; i<CreationIndex; i++) TraverseAndClean();
-  }
-
   key = I0->npc;
 
   found = 0;
@@ -1230,7 +1226,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
         break;
       if (G->addr && (G->alive>0)) {
 	int ahG = G->seqbase + G->seqlen;
-	if (RANGE_IN_RANGE(G->seqbase,ahG,al,ah)) {
+	if (RANGE_INTERSECT(G->seqbase,ahG,al,ah)) {
 	    unsigned char *ahE;
 	    if (debug_level('e')>1)
 		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
@@ -1278,10 +1274,8 @@ static void do_invalidate(unsigned data, int cnt)
 	InvalidateNodeRange(data, cnt, 0);
 }
 
-void e_invalidate(unsigned data, int cnt)
+static void _e_invalidate(unsigned data, int cnt)
 {
-	if (!IS_EMU_JIT())
-		return;
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
 		return;
@@ -1290,6 +1284,13 @@ void e_invalidate(unsigned data, int cnt)
 	// no need to invalidate the whole page here,
 	// as the page does not need to be unprotected
 	InvalidateNodeRange(data, cnt, 0);
+}
+
+void e_invalidate(unsigned data, int cnt)
+{
+	prejit_lock();
+	_e_invalidate(data, cnt);
+	prejit_unlock();
 }
 
 void e_invalidate_pa(unsigned pa, int cnt)
@@ -1311,21 +1312,24 @@ void e_invalidate_full_pa(unsigned pa, int cnt)
 /* invalidate and unprotect even if we hit only data.
  * Needed if we are about to destroy the page protection by other means.
  * Otherwise use e_invalidate() */
-void e_invalidate_full(unsigned data, int cnt)
+static void _e_invalidate_full(unsigned data, int cnt)
 {
-	if (!IS_EMU_JIT())
-		return;
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
 		return;
 	do_invalidate(data, cnt);
 }
 
+void e_invalidate_full(unsigned data, int cnt)
+{
+	prejit_lock();
+	_e_invalidate_full(data, cnt);
+	prejit_unlock();
+}
+
 int e_invalidate_page_full(unsigned data)
 {
 	int cnt = PAGE_SIZE;
-	if (!IS_EMU_JIT())
-		return 0;
 	data &= _PAGE_MASK;
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))

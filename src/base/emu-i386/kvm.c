@@ -711,7 +711,7 @@ void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t
   do_munmap_kvm(phys_addr, mapsize);
   mmap_kvm_no_overlap(phys_addr, addr, mapsize, 0);
   /* monitor dirty pages on regular low ram for JIT */
-  if ((cap & MAPPING_LOWMEM) && IS_EMU_JIT())
+  if (cap & MAPPING_LOWMEM)
     kvm_set_dirty_log(phys_addr, mapsize);
   for (page = start; page < end; page++, phys_addr += pagesize) {
     int pde_entry = page >> 10;
@@ -1415,7 +1415,7 @@ static void kvm_vme_tf_popf_fixup(struct vm86_regs *regs)
 }
 
 /* Emulate vm86() using KVM */
-int kvm_vm86(struct vm86_struct *info)
+int true_kvm_vm86(struct vm86_struct *info)
 {
   struct vm86_regs *regs;
   int vm86_ret;
@@ -1478,7 +1478,7 @@ int kvm_vm86(struct vm86_struct *info)
 }
 
 /* Emulate do_dpmi_control() using KVM */
-int kvm_dpmi(cpuctx_t *scp)
+int true_kvm_dpmi(cpuctx_t *scp)
 {
   struct vm86_regs *regs;
   int ret;

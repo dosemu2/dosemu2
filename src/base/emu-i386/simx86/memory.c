@@ -216,6 +216,26 @@ int e_querymprotrange(unsigned int addr, size_t len)
 	return 0;
 }
 
+int e_querymprotrange_full(unsigned int addr, size_t len)
+{
+	int a2l, a2h;
+	tMpMap *M = FindM(addr);
+
+	a2l = addr >> PAGE_SHIFT;
+	a2h = (addr+len-1) >> PAGE_SHIFT;
+
+	while (M && a2l <= a2h) {
+		if (!M->pagemap[a2l&255])
+			return 0;
+		a2l++;
+		if ((a2l&255)==0)
+			M = FindM(a2l);
+	}
+	if (!M)
+		return 0;
+	return 1;
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -400,6 +420,7 @@ static void *NewC(unsigned int abeg)
 	ce->addr = abeg;
 	ce->data = p;
 	ce->alive_cnt = CALIVE_CNT;
+	e_printf("adding %x to cache\n", ce->addr);
 #if PROFILE
 	if (num_clist > MaxCPages)
 	    MaxCPages = num_clist;
@@ -429,7 +450,7 @@ static void *FindC(unsigned int addr, int remove)
 	return NULL;
 }
 
-static void DropC(void)
+static void DropC(int all)
 {
 	int i;
 
@@ -437,10 +458,10 @@ static void DropC(void)
 	    struct cache_ent *ce = &clist[i];
 	    if (!ce->data)
 		continue;
-	    if (--ce->alive_cnt > 0)
+	    if (!all && --ce->alive_cnt > 0)
 		continue;
 	    /* dropping means some instructions were not jitted */
-	    e_printf("dropping %p\n", ce->data);
+	    e_printf("dropping %x from cache\n", ce->addr);
 	    free(ce->data);
 	    ce->data = NULL;
 #if PROFILE
@@ -449,6 +470,11 @@ static void DropC(void)
 	}
 	while (num_clist && !clist[num_clist - 1].data)
 	    num_clist--;
+}
+
+void e_mdrop(void)
+{
+	DropC(1);
 }
 
 void e_fetch(unsigned int addr, size_t len, void **ret)
@@ -521,7 +547,7 @@ static void do_mprotect(unsigned int addr, size_t len)
 static void e_mprotect(unsigned int addr, size_t len)
 {
 	do_mprotect(addr, len);
-	DropC();
+	DropC(0);
 }
 
 static void e_munprotect(unsigned int addr, size_t len)

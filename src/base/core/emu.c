@@ -498,9 +498,7 @@ static void __leavedos_main(int code, int sig)
 
 #if defined(X86_EMULATOR)
     /* needs to be closed before kvm, as it may leave instr_emu to kvm  */
-    if (IS_EMU()) {
-	leave_cpu_emu();
-    }
+    leave_cpu_emu();
 #endif
     if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
       kvm_done();

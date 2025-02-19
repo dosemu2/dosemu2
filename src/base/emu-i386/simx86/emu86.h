@@ -37,6 +37,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <pthread.h>
 #include "econfig.h"
 #include <setjmp.h>
 #include "emu.h"
@@ -709,7 +710,10 @@ extern int CEmuStat;
 extern int InCompiledCode;
 //
 unsigned char *do_hwint(int mode, int intno);
-unsigned int Interp86(unsigned int PC, int mode);
+void Interp86(void);
+void PreJit86(unsigned int PC, int mode);
+void prejit_lock(void);
+void prejit_unlock(void);
 //
 int _ModRM(unsigned char opc, unsigned int PC, int mode);
 #define ModRM(o, p, m) ({ \
@@ -736,7 +740,9 @@ char *showreg(signed char r);
 char *showmode(unsigned int m);
 int e_debug_check(unsigned int PC);
 void e_fetch(unsigned int addr, size_t len, void **ret);
+void e_mdrop(void);
 int e_querymprotrange(unsigned int addr, size_t len);
+int e_querymprotrange_full(unsigned int addr, size_t len);
 int e_markpage(unsigned int addr, size_t len);
 int e_unmarkpage(unsigned int addr, size_t len);
 void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip);
