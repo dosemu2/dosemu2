@@ -57,6 +57,7 @@ extern int CpatchStkWrites;
 extern int CpatchInvalidates;
 extern int CPagesDropped;
 extern int MaxCPages;
+extern int SpecPrejits;
 #endif
 
 #ifdef X86_JIT
@@ -714,6 +715,8 @@ void Interp86(void);
 void PreJit86(unsigned int PC, int mode);
 void prejit_lock(void);
 void prejit_unlock(void);
+void prejit_init(void);
+void prejit_done(void);
 //
 int _ModRM(unsigned char opc, unsigned int PC, int mode);
 #define ModRM(o, p, m) ({ \
@@ -761,11 +764,13 @@ int e_querymark(unsigned int addr, size_t len);
 int e_querymark_all(unsigned int addr, size_t len);
 void mprot_init(void);
 void mprot_end(void);
+void prejit_sync(void);
 #else
 #define e_querymark(x,y) 0
 #define e_querymark_all(x,y) 0
 #define mprot_init()
 #define mprot_end()
+#define prejit_sync()
 #endif
 void init_emu_npu(void);
 

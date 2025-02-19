@@ -805,6 +805,7 @@ void init_emu_cpu(int cpu_type)
     InitTrees();
     sem_init(&prejit_sem, 0, 0);
     pthread_create(&prejit_thr, NULL, prejit_thread, NULL);
+    prejit_init();
   }
 #else
   InitGen_sim();
@@ -908,6 +909,7 @@ static void print_statistics(void)
 	dbug_printf("Nodes executed    %16d\n",TotalNodesExecd);
 	dbug_printf("Prejitted execed  %16d\n",PrejitNodesExecd);
 	dbug_printf("Nodes prejitted   %16d\n",NodesPrejitted);
+	dbug_printf("Speculative prej  %16d\n",SpecPrejits);
 	if (TotalNodesExecd) {
 		unsigned long long k;
 		k = ((long long)NodesFound * 100UL) /
@@ -956,6 +958,7 @@ void leave_cpu_emu(void)
 	dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 	if (debug_level('e')) print_statistics();
 	if (!CONFIG_CPUSIM) {
+		prejit_done();
 		pthread_cancel(prejit_thr);
 		pthread_join(prejit_thr, NULL);
 		sem_destroy(&prejit_sem);
@@ -1599,6 +1602,7 @@ static int lockcnt;
 
 void prejit_lock(void)
 {
+    prejit_sync();
     /* No actual locking: just wait til prejit stops. */
     pthread_mutex_lock(&run_mtx);
     lockcnt++;
