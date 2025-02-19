@@ -112,6 +112,7 @@ typedef struct {
 
 	int err;
 	unsigned int mode;
+	unsigned int basemode;
 	unsigned int sreg1;
 	unsigned int dreg1;
 	unsigned int xreg1;
