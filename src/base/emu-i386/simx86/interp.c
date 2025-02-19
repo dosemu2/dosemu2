@@ -95,11 +95,14 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 {
 #ifdef X86_JIT
     if (!CONFIG_CPUSIM) {
+	int ret;
 	unsigned P0 = InstrMeta[0].npc;
 	TNode *G = DoClose(PC, mode, P0);
 	if (!G)
 	    return P0;
-	return Exec_x86(G);
+	ret = Exec_x86(G);
+	TheCPU.err = TheCPU.err2;
+	return ret;
     } else {
 	return CloseAndExec_sim(PC, mode);
     }
@@ -434,6 +437,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 				TheCPU.err = EXCP_GOBACK;
 			} else {
 				_P1 = Exec_x86(G);
+				TheCPU.err = TheCPU.err2;
 			}
 		} else {
 			_P1 = CloseAndExec_sim(_P0, TheCPU.basemode);
@@ -500,6 +504,7 @@ static unsigned int FindExecCode(unsigned int PC)
 		else
 #endif
 			PC = Exec_x86(G);
+		TheCPU.err = TheCPU.err2;
 #if PROFILE
 		if (G->flags & F_PREJ)
 			PrejitNodesExecd++;
@@ -558,6 +563,7 @@ void Interp86(void)
     unsigned int ret;
 
     TheCPU.basemode = TheCPU.mode;
+    TheCPU.err2 = 0;
     ret = _Interp86(LONG_CS + TheCPU.eip, TheCPU.mode);
     assert(CurrIMeta<0);
     TheCPU.eip = ret - LONG_CS;
@@ -3659,6 +3665,7 @@ static void _PreJit86(unsigned int PC, int basemode)
 void PreJit86(unsigned int PC, int basemode)
 {
 	TheCPU.basemode = basemode;
+	TheCPU.err2 = 0;
 	_PreJit86(PC, basemode);
 	e_mdrop();
 }

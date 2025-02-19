@@ -110,6 +110,7 @@ typedef struct {
 /*80*/	//unsigned int end_mark[0] = cr[4]
 	unsigned int tr[2];
 
+	int err2;
 	int err;
 	unsigned int mode;
 	unsigned int basemode;
@@ -237,7 +238,7 @@ extern union _SynCPU TheCPU_union;
 #define Ofs_stub_read_8	(unsigned int)(offsetof(SynCPU,stub_read_8)-SCBASE)
 #define Ofs_stub_read_16	(unsigned int)(offsetof(SynCPU,stub_read_16)-SCBASE)
 #define Ofs_stub_read_32	(unsigned int)(offsetof(SynCPU,stub_read_32)-SCBASE)
-#define Ofs_ERR		(unsigned int)(offsetof(SynCPU,err)-SCBASE)
+#define Ofs_ERR		(unsigned int)(offsetof(SynCPU,err2)-SCBASE)
 #define Ofs_int_revectored	(unsigned int)(offsetof(SynCPU,int_revectored)-SCBASE)
 
 #define rAX		CPUWORD(Ofs_AX)
