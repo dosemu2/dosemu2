@@ -68,9 +68,7 @@ hitimer_t AddTime, SearchTime, ExecTime, CleanupTime; // for debug
 hitimer_t GenTime, LinkTime;
 #endif
 
-static pthread_mutex_t prejit_mtx;
-static pthread_mutexattr_t prejit_mattr;
-static pthread_cond_t prejit_cnd = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t run_cnd = PTHREAD_COND_INITIALIZER;
 static int prejit_running;
 static pthread_mutex_t run_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t prejit_thr;
@@ -809,9 +807,6 @@ void init_emu_cpu(int cpu_type)
 #else
   InitGen_sim();
 #endif
-  pthread_mutexattr_init(&prejit_mattr);
-  pthread_mutexattr_settype(&prejit_mattr, PTHREAD_MUTEX_RECURSIVE);
-  pthread_mutex_init(&prejit_mtx, &prejit_mattr);
 
   IDT = NULL;
   if (GDT==NULL) {
@@ -963,8 +958,6 @@ void leave_cpu_emu(void)
 		pthread_join(prejit_thr, NULL);
 		sem_destroy(&prejit_sem);
 	}
-	pthread_mutex_destroy(&prejit_mtx);
-	pthread_mutexattr_destroy(&prejit_mattr);
 	flush_log();
 }
 
@@ -1217,14 +1210,12 @@ static void *prejit_thread(void *arg)
 {
   while (1) {
     sem_wait(&prejit_sem);
-    pthread_mutex_lock(&prejit_mtx);
     PreJit86(LONG_CS + TheCPU.eip, TheCPU.mode);
     fesetenv(&dosemu_fenv);
     pthread_mutex_lock(&run_mtx);
     prejit_running = 0;
     pthread_mutex_unlock(&run_mtx);
-    pthread_mutex_unlock(&prejit_mtx);
-    pthread_cond_signal(&prejit_cnd);
+    pthread_cond_signal(&run_cnd);
   }
   return NULL;
 }
@@ -1245,8 +1236,9 @@ static int prejit_vm86(struct vm86_struct *info)
   pthread_mutex_unlock(&run_mtx);
   if (r)
     return 0;
-#endif
+#else
   prejit_lock();
+#endif
   TheCPU.err = 0;
   TheCPU.mode = ADDR16 | DATA16 | MREALA;
   TheCPU.StackMask = 0x0000ffff;
@@ -1266,7 +1258,6 @@ static int prejit_vm86(struct vm86_struct *info)
     }
     CEmuStat &= ~CeS_PREJIT_RM;
     if (TheCPU.err != EXCP_GOBACK) {
-      pthread_mutex_unlock(&prejit_mtx);
       assert(ret != PREJIT_RV_OFFS);
       return ret - PREJIT_RV_OFFS;
     }
@@ -1276,7 +1267,9 @@ static int prejit_vm86(struct vm86_struct *info)
   pthread_mutex_lock(&run_mtx);
   prejit_running = 1;
   pthread_mutex_unlock(&run_mtx);
+#if !PREJIT_ASYNC
   prejit_unlock();
+#endif
   sem_post(&prejit_sem);
   return 0;
 }
@@ -1294,8 +1287,9 @@ static int prejit_dpmi(cpuctx_t *scp)
   pthread_mutex_unlock(&run_mtx);
   if (r)
     return 0;
-#endif
+#else
   prejit_lock();
+#endif
   TheCPU.err = 0;
   Scp2CpuD(scp);  // don't inline as this updates TheCPU.MODE!
 #if PREJIT_EXEC
@@ -1320,7 +1314,6 @@ static int prejit_dpmi(cpuctx_t *scp)
     }
     CEmuStat &= ~CeS_PREJIT_PM;
     if (TheCPU.err != EXCP_GOBACK) {
-      pthread_mutex_unlock(&prejit_mtx);
       assert(ret != PREJIT_RV_OFFS);
       return ret - PREJIT_RV_OFFS;
     }
@@ -1330,7 +1323,9 @@ static int prejit_dpmi(cpuctx_t *scp)
   pthread_mutex_lock(&run_mtx);
   prejit_running = 1;
   pthread_mutex_unlock(&run_mtx);
+#if !PREJIT_ASYNC
   prejit_unlock();
+#endif
   sem_post(&prejit_sem);
   return 0;
 }
@@ -1598,16 +1593,24 @@ int _CPU_VM_DPMI(void)
     return config.cpu_vm_dpmi;
 }
 
+static int lockcnt;
+
 void prejit_lock(void)
 {
-    pthread_mutex_lock(&prejit_mtx);
+    /* No actual locking: just wait til prejit stops. */
+    pthread_mutex_lock(&run_mtx);
+    lockcnt++;
     while (prejit_running)
-	cond_wait(&prejit_cnd, &prejit_mtx);
+	cond_wait(&run_cnd, &run_mtx);
+    pthread_mutex_unlock(&run_mtx);
 }
 
 void prejit_unlock(void)
 {
-    pthread_mutex_unlock(&prejit_mtx);
+    pthread_mutex_lock(&run_mtx);
+    assert(lockcnt > 0);
+    lockcnt--;
+    pthread_mutex_unlock(&run_mtx);
 }
 
 /* ======================================================================= */
