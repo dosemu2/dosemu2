@@ -20,3 +20,6 @@ ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_fluidsynth.so: $(OBJS) | $(BINPATH)/bin
 	$(CC) $(LDFLAGS) -shared -o $@ $^ $(FLUSLIB)
 endif
+
+clean::
+	$(RM) fluid_rip/*.d fluid_rip/*.o
