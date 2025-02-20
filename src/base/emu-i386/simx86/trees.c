@@ -1351,10 +1351,10 @@ int NewIMeta(int npc, int *rc)
 		// add new opcode metadata
 		IMeta *I,*I0;
 
-		if (CurrIMeta>=MAXINODES) {
+		if (CurrIMeta>=MAXINODES-1) {
 			*rc = -1; goto quit;
 		}
-		I  = &InstrMeta[CurrIMeta];
+		I = &InstrMeta[CurrIMeta];
 		if (CurrIMeta==0) {		// no open code sequences
 			if (debug_level('e')>2) e_printf("============ Opening sequence at %08x\n",npc);
 			I0 = I;
@@ -1385,7 +1385,7 @@ int NewIMeta(int npc, int *rc)
 #endif
 		CurrIMeta++;
 		/* provoke caller to flush if we are about to overflow */
-		*rc = (CurrIMeta >= MAXINODES ? -1 : 1);
+		*rc = (CurrIMeta >= MAXINODES-1 ? -1 : 1);
 		I++;
 		I->ngen = 0;
 		I->flags = 0;
