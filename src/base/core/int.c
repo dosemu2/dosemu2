@@ -1820,6 +1820,7 @@ static int msdos_chainrevect(int stk_offs, int revect)
 
 static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
 {
+    int ret;
     di_printf("int_rvc 0x21 call for ax=0x%04x %x\n", LWORD(eax), old_ax);
 
     CARRY;
@@ -1828,7 +1829,6 @@ static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
 	if (LWORD(eax) != 0x7100)
 	    break;
 	if (config.lfn) {
-	    int ret;
 	    LWORD(eax) = old_ax;
 	    if (!(old_flags & CF))
 		NOCARRY;
@@ -1836,7 +1836,7 @@ static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
 	     * on unsupported */
 	    ret = mfs_lfn();
 	    if (!ret)
-		LWORD(eax) = 0x7100;
+		LO(ax) = 0;
 	}
 	break;
     case 0x73:
@@ -1845,7 +1845,9 @@ static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
 	LWORD(eax) = old_ax;
 	if (!(old_flags & CF))
 	    NOCARRY;
-	mfs_fat32();
+	ret = mfs_fat32();
+	if (!ret)
+	    LO(ax) = 0;
 	break;
     case 0x6c:
 	if (LWORD(eax) != 0x6c00)
@@ -1853,7 +1855,9 @@ static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
 	LWORD(eax) = old_ax;
 	if (!(old_flags & CF))
 	    NOCARRY;
-	msdos_remap_extended_open();
+	ret = msdos_remap_extended_open();
+	if (!ret)
+	    LO(ax) = 0;
 	break;
     case 0x60:
 	if (isset_CF()) {
@@ -1876,19 +1880,28 @@ static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
 
 static int msdos_xtra_norev(int stk_off, int revect)
 {
+    int ret;
     di_printf("int_norvc 0x21 call for ax=0x%04x\n", LWORD(eax));
     switch (HI(ax)) {
     case 0x71:
-	if (config.lfn)
-	    return mfs_lfn();
-	else
+	if (config.lfn) {
+	    ret = mfs_lfn();
+	    if (!ret)
+		LO(ax) = 0;
+	} else {
 	    CARRY;
+	    LO(ax) = 0;
+	}
 	break;
     case 0x73:
-	mfs_fat32();
+	ret = mfs_fat32();
+	if (!ret)
+	    LO(ax) = 0;
 	break;
     case 0x6c:
-	msdos_remap_extended_open();
+	ret = msdos_remap_extended_open();
+	if (!ret)
+	    LO(ax) = 0;
 	break;
     }
     return 0;
