@@ -50,6 +50,7 @@ int EmuSignals = 0;
 /* countdown to exit after handling VGAEMU faults, reset by
    planar VGA reads and writes */
 static int interp_inst_emu_count;
+unsigned int LONG_CS;
 
 static int ArOpsR[] =
 	{ O_ADD_R, O_OR_R, O_ADC_R, O_SBB_R, O_AND_R, O_SUB_R, O_XOR_R, O_CMP_R };
@@ -79,6 +80,7 @@ static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
 #ifdef X86_JIT
 static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 {
+	assert(PC > P0);
 	if (e_querymark(P0, PC - P0)) {
 	    InvalidateNodeRange(P0, PC - P0, NULL);
 	    if (!e_querymprotrange_full(P0, PC - P0)) {
@@ -102,6 +104,7 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 	    return P0;
 	ret = Exec_x86(G);
 	TheCPU.err = TheCPU.err2;
+	LONG_CS = _LONG_CS;
 	return ret;
     } else {
 	return CloseAndExec_sim(PC, mode);
@@ -201,7 +204,12 @@ static int _MAKESEG(int mode, int *basemode, int ofs, unsigned short sv)
 	return 0;
 }
 
-#define MAKESEG(mode, ofs, sv) _MAKESEG(mode, &basemode, ofs, sv)
+#define MAKESEG(mode, ofs, sv) ({ \
+    int _rv = _MAKESEG(mode, &basemode, ofs, sv); \
+    if (ofs == Ofs_CS) \
+      LONG_CS = _LONG_CS; \
+    _rv; \
+})
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -252,7 +260,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		if (mode&DATA16) d_t &= 0xffff;
 
 		/* jump address for taken branch */
-		j_t = d_t  + LONG_CS;
+		j_t = d_t + LONG_CS;
 	}
 
 	/* displacement for not taken branch */
@@ -438,6 +446,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 			} else {
 				_P1 = Exec_x86(G);
 				TheCPU.err = TheCPU.err2;
+				LONG_CS = _LONG_CS;
 			}
 		} else {
 			_P1 = CloseAndExec_sim(_P0, TheCPU.basemode);
@@ -505,6 +514,7 @@ static unsigned int FindExecCode(unsigned int PC)
 #endif
 			PC = Exec_x86(G);
 		TheCPU.err = TheCPU.err2;
+		LONG_CS = _LONG_CS;
 #if PROFILE
 		if (G->flags & F_PREJ)
 			PrejitNodesExecd++;
@@ -564,6 +574,7 @@ void Interp86(void)
 
     TheCPU.basemode = TheCPU.mode;
     TheCPU.err2 = 0;
+    LONG_CS = _LONG_CS;
     ret = _Interp86(LONG_CS + TheCPU.eip, TheCPU.mode);
     assert(CurrIMeta<0);
     TheCPU.eip = ret - LONG_CS;
@@ -3666,6 +3677,7 @@ void PreJit86(unsigned int PC, int basemode)
 {
 	TheCPU.basemode = basemode;
 	TheCPU.err2 = 0;
+	LONG_CS = _LONG_CS;
 	_PreJit86(PC, basemode);
 	e_mdrop();
 }

@@ -447,6 +447,8 @@ void AddrGen_sim(int op, int mode, ...)
 		SetSegReal(CPUWORD(o), o);
 		if (o == Ofs_SS)
 			CEmuStat |= CeS_MOVSS;
+		if (o == Ofs_CS)
+			LONG_CS = _LONG_CS;
 		}
 		break;
 	}
@@ -615,6 +617,8 @@ void Gen_sim(int op, int mode, ...)
 		GTRACE1("L_LXS2",o);
 		DR1.d = sim_read_word(AR1.d);
 		SetSegReal(DR1.w.l, o);
+		if (o == Ofs_CS)
+			LONG_CS = _LONG_CS;
 		}
 		break;
 	case L_ZXAX:

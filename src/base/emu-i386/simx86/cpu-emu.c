@@ -554,6 +554,7 @@ static void Reg2Cpu(struct vm86_struct *info)
 
   /* FPU state is loaded later on demand for JIT, not used for simulator */
   TheCPU.fpstate = &vm86_fpu_state;
+  LONG_CS = _LONG_CS;
   if (debug_level('e')>1) {
 	if (debug_level('e')==9) e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n%s\n",
 		regs->eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags,
@@ -740,6 +741,7 @@ erseg:
 			e_print_regs());
   }
   TheCPU.mode = mode;
+  LONG_CS = _LONG_CS;
 }
 
 
