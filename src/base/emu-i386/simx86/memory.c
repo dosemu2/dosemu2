@@ -78,7 +78,7 @@ struct cache_ent {
 	int alive_cnt;
 	void *data;
 };
-#define CLIST_MAX 8
+#define CLIST_MAX 256
 static struct cache_ent clist[CLIST_MAX];
 static int num_clist;
 

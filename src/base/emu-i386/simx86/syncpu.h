@@ -110,8 +110,10 @@ typedef struct {
 /*80*/	//unsigned int end_mark[0] = cr[4]
 	unsigned int tr[2];
 
+	int err2;
 	int err;
 	unsigned int mode;
+	unsigned int basemode;
 	unsigned int sreg1;
 	unsigned int dreg1;
 	unsigned int xreg1;
@@ -236,7 +238,7 @@ extern union _SynCPU TheCPU_union;
 #define Ofs_stub_read_8	(unsigned int)(offsetof(SynCPU,stub_read_8)-SCBASE)
 #define Ofs_stub_read_16	(unsigned int)(offsetof(SynCPU,stub_read_16)-SCBASE)
 #define Ofs_stub_read_32	(unsigned int)(offsetof(SynCPU,stub_read_32)-SCBASE)
-#define Ofs_ERR		(unsigned int)(offsetof(SynCPU,err)-SCBASE)
+#define Ofs_ERR		(unsigned int)(offsetof(SynCPU,err2)-SCBASE)
 #define Ofs_int_revectored	(unsigned int)(offsetof(SynCPU,int_revectored)-SCBASE)
 
 #define rAX		CPUWORD(Ofs_AX)
@@ -288,7 +290,7 @@ extern union _SynCPU TheCPU_union;
 #define FS_DTR		TheCPU.fs_cache
 #define GS_DTR		TheCPU.gs_cache
 
-#define LONG_CS		TheCPU.cs_cache.BoundL
+#define _LONG_CS	TheCPU.cs_cache.BoundL
 #define LONG_DS		TheCPU.ds_cache.BoundL
 #define LONG_ES		TheCPU.es_cache.BoundL
 #define LONG_SS		TheCPU.ss_cache.BoundL
@@ -296,6 +298,7 @@ extern union _SynCPU TheCPU_union;
 #define LONG_GS		TheCPU.gs_cache.BoundL
 
 extern char OVERR_DS, OVERR_SS;
+extern unsigned int LONG_CS;
 
 #define sigalrm_pending() __atomic_load_n(&TheCPU.sigalrm_pending, \
   __ATOMIC_RELAXED)

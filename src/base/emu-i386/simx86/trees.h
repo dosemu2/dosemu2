@@ -82,13 +82,14 @@ typedef struct _imgen {
 } IGen;
 
 typedef struct _ianpc {
-	unsigned short daddr __attribute__ ((packed));
-	signed short dnpc __attribute__ ((packed));
+	unsigned int daddr;
+	signed short dnpc;
 } Addr2Pc;
 
 typedef struct _imeta {
 	int seqbase, npc;
-	unsigned short ncount, len, flags, seqlen, totlen, daddr;
+	unsigned short ncount, flags, seqlen;
+	unsigned int len, totlen, daddr;
 	linkdesc clink;
 	int ngen;
 	IGen gen[NUMGENS];

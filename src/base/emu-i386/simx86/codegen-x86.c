@@ -3437,7 +3437,7 @@ unsigned int Exec_x86(TNode *G)
 			if ((exs & ~TheCPU.fpuc) & 0x3f) {
 				__asm__ __volatile__ ("fnclex\n" ::: "memory");
 				e_printf("FPU exception\n");
-				TheCPU.err = EXCP10_COPR;
+				TheCPU.err2 = EXCP10_COPR;
 			}
 		}
 	}
@@ -3529,7 +3529,7 @@ unsigned int Exec_x86_fast(TNode *G)
 			CEmuStat|=CeS_SIGPEND;
 			break;
 		}
-	} while (!TheCPU.err && (G=FindTree(ePC)) &&
+	} while (!TheCPU.err2 && (G=FindTree(ePC)) &&
 		 GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)));
 
 	Exec_x86_post(flg, mem_ref);
