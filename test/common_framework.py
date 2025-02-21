@@ -688,9 +688,17 @@ def main_setup(testcase):
             inspect.getmembers(testcase, predicate=inspect.isfunction)
             if t[0].startswith("xtest")]
 
-    cases = [c[0] for c in
+    ocases = [c[0] for c in
             inspect.getmembers(modules['__main__'], predicate=inspect.isclass)
             if issubclass(c[1], testcase) and c[0] != testcase.__name__]
+
+    # Place interesting testcases at the start
+    cases = []
+    for c in ['PPDOSGITTestCase', 'MSDOS622TestCase']:
+        if c in ocases:
+            cases.append(c)
+            ocases.remove(c)
+    cases.extend(ocases)
 
     attrs = sorted(testcase.attrs)
 
@@ -750,5 +758,5 @@ def main_setup(testcase):
                 exit(1)
             return [argv[0],] + a
 
-    return None
+    return [argv[0],] + cases
 
