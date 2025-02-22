@@ -56,6 +56,7 @@
 #include "softfloat/softfloat.h"
 #endif
 
+#define PREJIT 0
 #define PREJIT_TEST 0
 /* clever trick but too expensive in practice, so disable */
 #define PREJIT_EXEC 0
@@ -1233,6 +1234,9 @@ static int prejit_vm86(struct vm86_struct *info)
 #if PREJIT_ASYNC
   int r;
 #endif
+#if !PREJIT
+  return 0;
+#endif
   if (CONFIG_CPUSIM)
     return 0;
 #if PREJIT_ASYNC
@@ -1283,6 +1287,9 @@ static int prejit_dpmi(cpuctx_t *scp)
 {
 #if PREJIT_ASYNC
   int r;
+#endif
+#if !PREJIT
+  return 0;
 #endif
   if (CONFIG_CPUSIM)
     return 0;
