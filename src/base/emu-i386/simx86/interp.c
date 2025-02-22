@@ -47,6 +47,8 @@
 int EmuSignals = 0;
 #endif
 
+#define SPEC_PREJIT 0
+
 #ifdef X86_JIT
 #define FLG_PREJIT 1
 #define FLG_SPECULATIVE 2
@@ -3747,6 +3749,9 @@ static void *prejit_thread(void *arg)
 
 static void prejit_run(unsigned int PC)
 {
+#if !SPEC_PREJIT
+  return;
+#endif
   if (e_querymark(PC, 1))
     return;
 #if PROFILE
