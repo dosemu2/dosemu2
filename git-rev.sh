@@ -4,7 +4,7 @@ if [ $# != 2 ]; then
     echo "Usage: $0 <src_dir> <build_dir>" >&2
     exit 1
 fi
-DATE=`git -C $1 log -1 --format=%cd --date=format-local:'%m%d%H%M.%S'`
+DATE=`git -C $1 log -1 --format=%cd --date=format-local:'%Y%m%d%H%M.%S'`
 if [ $? != 0 ]; then
     echo "Non-git builds deprecated" >&2
     exit 1
