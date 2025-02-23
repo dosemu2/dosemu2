@@ -56,7 +56,7 @@
 #include "softfloat/softfloat.h"
 #endif
 
-#define PREJIT 0
+#define PREJIT 1
 #define PREJIT_TEST 0
 /* clever trick but too expensive in practice, so disable */
 #define PREJIT_EXEC 0
