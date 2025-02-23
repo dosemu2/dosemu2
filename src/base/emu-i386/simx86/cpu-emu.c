@@ -56,7 +56,7 @@
 #include "softfloat/softfloat.h"
 #endif
 
-#define PREJIT 0
+#define PREJIT 1
 #define PREJIT_TEST 0
 /* clever trick but too expensive in practice, so disable */
 #define PREJIT_EXEC 0
@@ -1455,10 +1455,18 @@ void instr_emu_sim(cpuctx_t *scp, int pmode)
 {
   int be = (pmode ? config.cpu_vm_dpmi : config.cpu_vm);
   assert(!(CEmuStat & CeS_INSTREMU));
-  if (be == CPUVM_KVM)
+  if (be == CPUVM_KVM) {
+    /* kvm_leave() invalidates lowmem cpuemu pages so lock */
+    prejit_lock();
     kvm_leave(pmode);
+    prejit_unlock();
+  }
   CEmuStat |= CeS_INSTREMUx(pmode);
-  e_invalidate_dirty_full();
+  if (pmode) {
+    prejit_lock();
+    e_invalidate_dirty_full();
+    prejit_unlock();
+  }
   instr_emu_sim_reset_count();
   do_cpuemu_enter(pmode);
 }
