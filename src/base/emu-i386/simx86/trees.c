@@ -54,9 +54,9 @@ IMeta	InstrMeta[MAXINODES];
 int	CurrIMeta = -1;
 
 /* Tree structure to store collected code sequences */
-avltr_tree CollectTree;
-avltr_traverser Traverser;
-int ninodes = 0;
+static avltr_tree CollectTree;
+static avltr_traverser Traverser;
+static int ninodes = 0;
 
 int NodesCleaned = 0;
 int NodesParsed = 0;
@@ -81,8 +81,8 @@ int TreeCleanups = 0;
 #define FINDTREE_CACHE_HASH_MASK 0xfff
 static TNode *findtree_cache[FINDTREE_CACHE_HASH_MASK+1];
 
-TNode *TNodePool;
-int NodeLimit = 10000;
+static TNode *TNodePool;
+//static int NodeLimit = 10000;
 
 #define RANGE_INTERSECT(al,ah,l,h)	({int _l2=(al);\
 	int _h2=(ah); ((_h2 > (l)) && (_l2 < (h))); })
@@ -290,7 +290,7 @@ static TNode *avltr_probe (const int key, int *found)
 }
 
 
-void avltr_delete (const int key)
+static void avltr_delete(const int key)
 {
   avltr_tree *tree = &CollectTree;
   TNode *pa[AVL_MAX_HEIGHT];		/* Stack P: Nodes. */

@@ -159,13 +159,8 @@ typedef struct avltr_tree
 #define MINUS -1
 
 #ifdef X86_JIT
-extern avltr_tree CollectTree;
-
-void avltr_delete (const int key);
-//
 TNode *FindTree(int key);
 TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf);
-//
 #endif
 
 void InitTrees(void);
