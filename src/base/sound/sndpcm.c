@@ -667,7 +667,7 @@ static void pcm_handle_get(int strm_idx, double time)
     case SNDBUF_STATE_STALLED:
 	if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
 	    if (fillup == 0 && pcm.stream[strm_idx].last_fillup == 0 &&
-		    stop_time - pcm.stream[strm_idx].last_adj_time > ADJ_PERIOD) {
+		    stop_time - pcm.stream[strm_idx].last_adj_time > ADJ_PERIOD * 10) {
 		pcm_reset_stream(strm_idx);
 		pcm.stream[strm_idx].raw_speed_adj = 1;
 	    } else {
