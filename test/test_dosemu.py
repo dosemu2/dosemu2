@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import re
+import unittest
 
 from datetime import datetime
 from os import statvfs, utime, environ
@@ -17,6 +18,7 @@ from common_framework import (BaseTestCase, main, main_setup, mkstring,
 from common_os import (drdos701, frdos120, frdos130, frdosgit, msdos622,
                        msdos700, msdos710, ppdosgit)
 
+from func_comcom_r200fix import comcom_r200fix
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
 from func_ds2_file_seek_tell import ds2_file_seek_tell
@@ -62,21 +64,16 @@ class OurTestCase(BaseTestCase):
     attrs = ['cputest', 'dpmitest', 'hmatest', 'nettest', 'umatest', 'xmstest',
              'labeltest']
 
-    def test_0_basic_boot(self):
-        """Basic boot test"""
-        # Since test names are processed alphabetically this test should
-        # get to run first, and if we fail then even if failfast is disabled
-        # we will still terminate the test run.
-        self.shouldStop = True
+    def test_comcom_r200fix_real(self):
+        """Comcom r200fix Real Mode"""
+        comcom_r200fix(self, 'REAL')
+    test_comcom_r200fix_real.comcomtest=True
 
-        results = self.runDosemu("version.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
-
-        self.assertNotIn('Timeout', results)
-        self.assertNotIn('NonZeroReturn', results)
-        self.assertIn(self.version, results)
+    @unittest.expectedFailure
+    def test_comcom_r200fix_protected(self):
+        """Comcom r200fix Protected Mode"""
+        comcom_r200fix(self, 'PROTECTED')
+    test_comcom_r200fix_protected.comcomtest=True
 
     # Tests using assembler
 
@@ -4737,18 +4734,21 @@ $_floppy_a = ""
         # Now need to download Watcom 1.9 packages and unpack
         # Path to watcom binaries will be 'c:/devel/watcomc/binw'
         pkgurl = 'https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/repositories/1.3/devel'
-        for pkg in ['watcomc', 'nasm']:
-            check_call([
-                "wget",
-                "-q",
-                pkgurl + '/%s.zip' % pkg,
-            ], stderr=STDOUT, cwd=self.imagedir)
-            check_call([
-                "unzip",
-                "-L",
-                "-q",
-                str(self.imagedir) + '/%s.zip' % pkg,
-            ], stderr=STDOUT, cwd=self.workdir)
+        try:
+            for pkg in ['watcomc', 'nasm']:
+                check_call([
+                    "wget",
+                    "-q",
+                    pkgurl + '/%s.zip' % pkg,
+                ], stderr=STDOUT, cwd=self.imagedir)
+                check_call([
+                    "unzip",
+                    "-L",
+                    "-q",
+                    str(self.imagedir) + '/%s.zip' % pkg,
+                ], stderr=STDOUT, cwd=self.workdir)
+        except:
+            self.skipTest("DOS pkgs unavailable")
 
         # Generate the configr
         # (note nasty interaction with comcom64, means switch to dos32a)
@@ -4877,6 +4877,8 @@ $_floppy_a = ""
         pit_mode_2(self)
 
 DRDOS701TestCase = drdos701(OurTestCase, {
+    "test_comcom_r200fix_real": UNSUPPORTED,
+    "test_comcom_r200fix_protected": UNSUPPORTED,
     r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
     r"test_..._ds3_share_open_rename_one_process_fcb": KNOWNFAIL,
     r"test_..._fcb_rename_simple": KNOWNFAIL,
@@ -4900,6 +4902,8 @@ DRDOS701TestCase = drdos701(OurTestCase, {
 })
 
 FRDOS120TestCase = frdos120(OurTestCase, {
+    "test_comcom_r200fix_real": UNSUPPORTED,
+    "test_comcom_r200fix_protected": UNSUPPORTED,
     "test_fat_fcb_rename_target_exists": KNOWNFAIL,
     "test_fat_fcb_rename_source_missing": KNOWNFAIL,
     "test_fat_fcb_rename_wild_1": KNOWNFAIL,
@@ -4953,6 +4957,8 @@ FRDOS120TestCase = frdos120(OurTestCase, {
 })
 
 FRDOS130TestCase = frdos130(OurTestCase, {
+    "test_comcom_r200fix_real": UNSUPPORTED,
+    "test_comcom_r200fix_protected": UNSUPPORTED,
     "test_command_com_keyword_exist": KNOWNFAIL,
     "test_create_new_psp": KNOWNFAIL,
     "test_fat_ds3_lock_readlckd": KNOWNFAIL,
@@ -4988,6 +4994,8 @@ FRDOS130TestCase = frdos130(OurTestCase, {
 })
 
 FRDOSGITTestCase = frdosgit(OurTestCase, {
+    "test_comcom_r200fix_real": UNSUPPORTED,
+    "test_comcom_r200fix_protected": UNSUPPORTED,
     "test_fat_ds3_lock_concurrent": KNOWNFAIL,
     "test_fat_ds3_lock_readlckd": KNOWNFAIL,
     "test_fat_ds3_lock_two_handles": KNOWNFAIL,
@@ -5012,6 +5020,8 @@ FRDOSGITTestCase = frdosgit(OurTestCase, {
 })
 
 MSDOS622TestCase = msdos622(OurTestCase, {
+    "test_comcom_r200fix_real": UNSUPPORTED,
+    "test_comcom_r200fix_protected": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
     "test_lfn_volume_info_fat16": KNOWNFAIL,
     "test_lfn_volume_info_fat32": UNSUPPORTED,
@@ -5024,6 +5034,8 @@ MSDOS622TestCase = msdos622(OurTestCase, {
 })
 
 MSDOS700TestCase = msdos700(OurTestCase, {
+    "test_comcom_r200fix_real": UNSUPPORTED,
+    "test_comcom_r200fix_protected": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
     "test_fat_label_create_bpb32": UNSUPPORTED,
     "test_lfn_volume_info_fat16": KNOWNFAIL,
@@ -5032,7 +5044,10 @@ MSDOS700TestCase = msdos700(OurTestCase, {
     "test_lfs_disk_info_mfs": KNOWNFAIL,
 })
 
-MSDOS710TestCase = msdos710(OurTestCase, {})
+MSDOS710TestCase = msdos710(OurTestCase, {
+    "test_comcom_r200fix_real": UNSUPPORTED,
+    "test_comcom_r200fix_protected": UNSUPPORTED,
+})
 
 PPDOSGITTestCase = ppdosgit(OurTestCase, {
     "test_floppy_img": UNSUPPORTED,
