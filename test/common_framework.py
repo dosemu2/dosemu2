@@ -646,6 +646,11 @@ class MyTestResult(unittest.TextTestResult):
 
         return ''.join(msgLines)
 
+    def addExpectedFailure(self, test, err):
+        super().addExpectedFailure(test, err)
+        for _, l in test.logfiles.items():
+            l[0].unlink(missing_ok=True)
+
     def addFailure(self, test, err):
         if self.showAll:
             self.stream.writeln("FAIL")
