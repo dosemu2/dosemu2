@@ -4734,18 +4734,21 @@ $_floppy_a = ""
         # Now need to download Watcom 1.9 packages and unpack
         # Path to watcom binaries will be 'c:/devel/watcomc/binw'
         pkgurl = 'https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/repositories/1.3/devel'
-        for pkg in ['watcomc', 'nasm']:
-            check_call([
-                "wget",
-                "-q",
-                pkgurl + '/%s.zip' % pkg,
-            ], stderr=STDOUT, cwd=self.imagedir)
-            check_call([
-                "unzip",
-                "-L",
-                "-q",
-                str(self.imagedir) + '/%s.zip' % pkg,
-            ], stderr=STDOUT, cwd=self.workdir)
+        try:
+            for pkg in ['watcomc', 'nasm']:
+                check_call([
+                    "wget",
+                    "-q",
+                    pkgurl + '/%s.zip' % pkg,
+                ], stderr=STDOUT, cwd=self.imagedir)
+                check_call([
+                    "unzip",
+                    "-L",
+                    "-q",
+                    str(self.imagedir) + '/%s.zip' % pkg,
+                ], stderr=STDOUT, cwd=self.workdir)
+        except:
+            self.skipTest("DOS pkgs unavailable")
 
         # Generate the configr
         # (note nasty interaction with comcom64, means switch to dos32a)
