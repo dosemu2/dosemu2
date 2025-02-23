@@ -47,7 +47,7 @@
 int EmuSignals = 0;
 #endif
 
-#define SPEC_PREJIT 0
+#define SPEC_PREJIT 1
 
 #ifdef X86_JIT
 #define FLG_PREJIT 1

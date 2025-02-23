@@ -311,10 +311,10 @@ DEFAULT_MMAP_THRESHOLD       default: 256K
 #define PROCEED_ON_ERROR 0
 #endif  /* PROCEED_ON_ERROR */
 #ifndef USE_LOCKS
-#define USE_LOCKS 0
+#define USE_LOCKS 1
 #endif  /* USE_LOCKS */
 #ifndef INSECURE
-#define INSECURE 0
+#define INSECURE 1
 #endif  /* INSECURE */
 #ifndef HAVE_MMAP
 #define HAVE_MMAP 1
