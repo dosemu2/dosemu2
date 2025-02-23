@@ -57,6 +57,7 @@ int	CurrIMeta = -1;
 static avltr_tree CollectTree;
 static avltr_traverser Traverser;
 static int ninodes = 0;
+static pthread_mutex_t trees_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 int NodesCleaned = 0;
 int NodesParsed = 0;
@@ -929,7 +930,9 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   key = I0->npc;
 
   found = 0;
+  pthread_mutex_lock(&trees_mtx);
   nG = avltr_probe(key, &found);
+  pthread_mutex_unlock(&trees_mtx);
 /**/ if (nG==NULL) leavedos_main(0x8201);
 
   if (found) {
@@ -1035,38 +1038,12 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   return nG;
 }
 
-
-TNode *FindTree(int key)
+static TNode *FindTree_tail(int key)
 {
   TNode *I;
   static int tccount=0;
 #if PROFILE >= 2
   hitimer_t t0 = 0;
-#endif
-
-  if (TheCPU.sigprof_pending) {
-	CollectStat();
-	TheCPU.sigprof_pending = 0;
-  }
-
-  /* fast path: using cache indexed by low 12 bits of PC:
-     ~99.99% success rate */
-  I = findtree_cache[key&FINDTREE_CACHE_HASH_MASK];
-  if (I && (I->alive>0) && (I->key==key)) {
-	if (debug_level('e')) {
-	    if (debug_level('e')>4)
-		e_printf("Found key %08x via cache\n", key);
-#if PROFILE
-	    NodesFastFound++;
-#endif
-	}
-	I->alive = NODELIFE(I);
-	return I;
-  }
-  if (!e_querymark(key, 1))
-	return NULL;
-
-#if PROFILE >= 2
   if (debug_level('e')) t0 = GETTSC();
 #endif
   I = CollectTree.root.link[0];
@@ -1089,7 +1066,6 @@ TNode *FindTree(int key)
   if (I && I->addr && (I->alive>0)) {
 	if (debug_level('e')>3) e_printf("Found key %08x\n",key);
 	I->alive = NODELIFE(I);
-	findtree_cache[key&FINDTREE_CACHE_HASH_MASK] = I;
 #if PROFILE
 	if (debug_level('e')) {
 	    NodesFound++;
@@ -1120,6 +1096,40 @@ endsrch:
 #endif
   }
   return NULL;
+}
+
+TNode *FindTree(int key)
+{
+  TNode *I;
+
+  if (TheCPU.sigprof_pending) {
+	CollectStat();
+	TheCPU.sigprof_pending = 0;
+  }
+
+  /* fast path: using cache indexed by low 12 bits of PC:
+     ~99.99% success rate */
+  I = findtree_cache[key&FINDTREE_CACHE_HASH_MASK];
+  if (I && (I->alive>0) && (I->key==key)) {
+	if (debug_level('e')) {
+	    if (debug_level('e')>4)
+		e_printf("Found key %08x via cache\n", key);
+#if PROFILE
+	    NodesFastFound++;
+#endif
+	}
+	I->alive = NODELIFE(I);
+	return I;
+  }
+  if (!e_querymark(key, 1))
+	return NULL;
+
+  pthread_mutex_lock(&trees_mtx);
+  I = FindTree_tail(key);
+  pthread_mutex_unlock(&trees_mtx);
+  if (I)
+	findtree_cache[key&FINDTREE_CACHE_HASH_MASK] = I;
+  return I;
 }
 
 
@@ -1187,6 +1197,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
   ah = al + len;
   if (debug_level('e')>1) dbug_printf("Invalidate area %08x..%08x\n",al,ah);
 
+  pthread_mutex_lock(&trees_mtx);
   G = CollectTree.root.link[0];
   if (G == NULL) goto quit;
   /* find nearest (lesser than) node */
@@ -1256,6 +1267,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
       G = NEXTNODE(G);
   }
 quit:
+  pthread_mutex_unlock(&trees_mtx);
   if (debug_level('e') && e_querymark(al, len))
     error("simx86: InvalidateNodeRange did not clear all code for %#08x, len=%x\n",
 	  al, len);
