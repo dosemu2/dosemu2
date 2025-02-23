@@ -1065,14 +1065,14 @@ void kvm_enter(int pm)
 
 void kvm_leave(int pm)
 {
+  int slot;
+
   kvm_get_fpu();
 
   /* collect and invalidate all touched low dirty pages with JIT code */
-  if (IS_EMU_JIT()) {
-    int slot;
-    struct kvm_userspace_memory_region *p = &maps[0];
-    for (slot = 0; slot < MAXSLOT; slot++, p++)
-      if (p->memory_size &&
+  struct kvm_userspace_memory_region *p = &maps[0];
+  for (slot = 0; slot < MAXSLOT; slot++, p++) {
+    if (p->memory_size &&
 	  p->guest_phys_addr + p->memory_size <= LOWMEM_SIZE+HMASIZE &&
 	  (p->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
 	  memcheck_is_system_ram(p->guest_phys_addr)) {
@@ -1082,7 +1082,7 @@ void kvm_leave(int pm)
 	for (i = 0; i < p->memory_size >> PAGE_SHIFT; i++)
 	  if (test_bit(i, bitmap))
 	    e_invalidate_page_dirty(p->guest_phys_addr + (i << PAGE_SHIFT));
-      }
+    }
   }
 }
 
