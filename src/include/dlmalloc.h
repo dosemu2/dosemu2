@@ -314,7 +314,7 @@ DEFAULT_MMAP_THRESHOLD       default: 256K
 #define USE_LOCKS 1
 #endif  /* USE_LOCKS */
 #ifndef INSECURE
-#define INSECURE 0
+#define INSECURE 1
 #endif  /* INSECURE */
 #ifndef HAVE_MMAP
 #define HAVE_MMAP 1
