@@ -525,6 +525,12 @@ static void _do_vm86(void)
 			_ESI, _EDI, _ES, _EFLAGS);
     }
 
+    if (retval < 0) {
+	error("unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
+	fatalerr = 4;
+	return;
+    }
+
     switch (VM86_TYPE(retval)) {
     case VM86_UNKNOWN:
 	vm86_GP_fault();
