@@ -1066,7 +1066,7 @@ static TNode *FindTree_tail(int key)
       else break;
   }
 
-  if (I && I->addr && (I->alive>0)) {
+  if (I->addr && (I->alive>0)) {
 	if (debug_level('e')>3) e_printf("Found key %08x\n",key);
 	I->alive = NODELIFE(I);
 #if PROFILE
