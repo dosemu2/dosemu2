@@ -701,10 +701,8 @@ again:
 		if (debug_level('e')>1)
 		    dbug_printf("MP_END %08x = RWX\n",addr);
 		mprotect_mapping(MAPPING_CPUEMU, addr, PAGE_SIZE, PROT_RWX);
-		if (do_rm_page(M2, M, i)) {
-		    M = (M2 ? M2->next : MpH);
+		if (do_rm_page(M2, M, i))
 		    goto again;
-		}
 	    }
 	    M2 = M;
 	    M = M->next;
