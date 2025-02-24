@@ -2523,7 +2523,9 @@ static void* sys_alloc(mstate m, size_t nb) {
       m->seg.base = m->least_addr = tbase;
       m->seg.size = tsize;
       m->seg.sflags = mmap_flag;
+      ACQUIRE_MAGIC_INIT_LOCK();
       m->magic = mparams.magic;
+      RELEASE_MAGIC_INIT_LOCK();
       init_bins(m);
       if (is_global(m))
         init_top(m, (mchunkptr)tbase, tsize - TOP_FOOT_SIZE);
