@@ -809,7 +809,8 @@ else
   AC_ARG_ENABLE(lto, AS_HELP_STRING([--disable-lto], [disable LTO]))
   if test "$enable_lto" != "no" ; then
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -flto=auto"
-    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -flto=auto -O2"
+    # use LDFLAGS as this opt is needed for plugins too
+    LDFLAGS="$LDFLAGS -flto=auto -O2"
   fi
 fi
 
