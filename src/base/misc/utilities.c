@@ -725,7 +725,7 @@ char *readlink_malloc (const char *filename)
     buffer = malloc(size);
     if (buffer != NULL) {
       nchars = readlink(filename, buffer, size);
-      if (nchars < 0) {
+      if (nchars < 0 || nchars >= size) {
         free(buffer);
         buffer = NULL;
       }
