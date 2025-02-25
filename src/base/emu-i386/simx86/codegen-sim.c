@@ -1567,7 +1567,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		else {
 			if (mode&DATA16) {
-				int32_t S = DR1.ws.l;
+				int32_t S;
 				RFL.RES.w.l = CPUWORD(Ofs_AX);
 				RFL.RES.w.h = CPUWORD(Ofs_DX);
 				S = DR1.ws.l;
