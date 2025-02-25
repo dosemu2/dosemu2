@@ -921,7 +921,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   if (debug_level('e')) t0 = GETTSC();
 #endif
   int key;
-  int len, found, nap;
+  int found, nap;
   IMeta *I;
   int i, apl=0;
   Addr2Pc *ap;
@@ -966,7 +966,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 #if PROFILE
   if (debug_level('e')) if (nG->len > MaxNodeSize) MaxNodeSize = nG->len;
 #endif
-  nG->len = len = I0->totlen;
+  nG->len = I0->totlen;
   nG->flags = I0->flags;
   nG->alive = NODELIFE(nG);
   pthread_mutex_lock(&cache_mtx);
