@@ -592,7 +592,6 @@ static int vbe_mode_info(unsigned mode, unsigned int vbemodeinfo)
 
 static int vbe_set_mode(unsigned mode)
 {
-  vga_mode_info *vmi;
   int err_code = VBE_ERROR_GENERAL_FAIL;
 
   mode &= 0xffff;
@@ -601,7 +600,7 @@ static int vbe_set_mode(unsigned mode)
   v_printf("VBE: [0x%02x] vbe_set_mode: bx = 0x%04x\n", (unsigned) _AL, (unsigned) _BX);
 #endif
 
-  if((vmi = vga_emu_find_mode(mode, NULL))) {
+  if(vga_emu_find_mode(mode, NULL)) {
     if(mode < 0x80 || mode >= 0x100) {
       err_code = 0;
       if(!set_video_mode(mode)) err_code = 1;
