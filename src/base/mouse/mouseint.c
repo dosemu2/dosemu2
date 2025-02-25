@@ -285,7 +285,6 @@ int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
 		  * (8.3ms for a byte at 1200 baud)
 		  */
 		 c = clock() + 3;
-		 n=0;
 		 do {
 		    n = RPT_SYSCALL(read(mice->fd, rBuf+i, 1));
 		    m_printf("MOUSEINT: Inside read waiting for input!\n");
