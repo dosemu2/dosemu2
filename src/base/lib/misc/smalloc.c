@@ -489,7 +489,7 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
       size_t overl = size > pmn->size ? size - pmn->size : 0;
       sm_uncommit(mp, mn->mem_area + overl, mn->size - overl);
     }
-    if (!nmn->used)	// merge with next
+    if (nmn && !nmn->used)	// merge with next
       mntruncate(mn, mn->size + nmn->size);
     mntruncate(pmn, size);
     new_mn = pmn;
