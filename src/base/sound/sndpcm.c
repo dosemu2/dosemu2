@@ -914,7 +914,7 @@ static void pcm_get_samples(double time,
     int i, j;
     int started;
     int have_prev;
-    struct sample s[SNDBUF_CHANS], prev_s[SNDBUF_CHANS];
+    struct sample s[SNDBUF_CHANS] = {}, prev_s[SNDBUF_CHANS];
 
     for (i = 0; i < pcm.num_streams; i++) {
 	for (j = 0; j < SNDBUF_CHANS; j++)
@@ -1031,7 +1031,7 @@ static void get_volumes(int id, double volume[][SNDBUF_CHANS][SNDBUF_CHANS])
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 			   struct player_params *params)
 {
-    int idxs[MAX_STREAMS], out_idx, handle, i;
+    int idxs[MAX_STREAMS] = {}, out_idx, handle, i;
     long long now;
     double start_time, stop_time, frame_period, frag_period, time;
     sndbuf_t samp[MAX_STREAMS][SNDBUF_CHANS];
