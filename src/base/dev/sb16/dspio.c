@@ -665,7 +665,7 @@ static void dspio_process_dma(struct dspio_state *state)
     unsigned long long time_dst;
     double output_time_cur = 0;
     int n[SNDBUF_CHANS];
-    sndbuf_t buf[PCM_MAX_BUF][SNDBUF_CHANS];
+    sndbuf_t buf[PCM_MAX_BUF][SNDBUF_CHANS] = {};
     static int warned;
 
     dma_cnt = in_fifo_cnt = out_fifo_cnt = 0;
