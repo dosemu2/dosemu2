@@ -725,10 +725,12 @@ static void tcp_thr(void *arg)
                     FILE *f = fdopen(dup(s->fd), "r");
                     char *s, buf[4096];
 
+                    _AX = 0;
+                    if (!f)
+                        break;
                     setbuf(f, NULL);
                     s = fgets(buf, sizeof(buf), f);
                     fclose(f);
-                    _AX = 0;
                     if (s) {
                         struct char_set_state kstate;
                         struct char_set_state dstate;
