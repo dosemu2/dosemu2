@@ -856,7 +856,7 @@ static void tcp_thr(void *arg)
         case TCP_STATUS: {
             TCP_PROLOG;
             if (s->fd == -1) {  // listener
-                struct sockaddr_in sin;
+                struct sockaddr_in sin = {};
                 socklen_t sil = sizeof(sin);
                 s->fd = accept(s->lfd, (struct sockaddr *)&sin, &sil);
                 if (s->fd != -1) {
