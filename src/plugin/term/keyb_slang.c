@@ -596,6 +596,7 @@ static int define_key(char *key, unsigned long scan,
 	define_key_keys = key_str +1;
 	define_key_keys_length = key_str[0] -1;
 	pre_key = SLang_do_key(m, define_getkey_callback);
+	define_key_keys = NULL;
 
 	/* Duplicate key definition, warn and ignore it */
 	if (pre_key && (pre_key->str[0] == key_str[0]) &&
