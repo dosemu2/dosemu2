@@ -3331,9 +3331,6 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
   char *deviceName;
 #endif
 
-  dos_mode = 0;
-  share_mode = 0;
-
   if (LOW(state->eax) == INSTALLATION_CHECK) {
     Debug0(("Installation check\n"));
     SETLOW(&state->eax, 0xFF);
