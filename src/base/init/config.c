@@ -716,8 +716,8 @@ void secure_option_preparse(int *argc, char **argv)
         error("--Flibdir: %s does not exist\n", opt);
         config.exitearly = 1;
       }
-      free(opt);
     }
+    free(opt);
 
     opt = get_option("--Fexecdir", 1, argc, argv);
     if (opt && opt[0]) {
@@ -730,8 +730,8 @@ void secure_option_preparse(int *argc, char **argv)
         error("--Fexecdir: %s does not exist\n", opt);
         config.exitearly = 1;
       }
-      free(opt);
     }
+    free(opt);
 
     opt = get_option("--Fplugindir", 1, argc, argv);
     if (opt && opt[0]) {
@@ -744,8 +744,8 @@ void secure_option_preparse(int *argc, char **argv)
         error("--Fplugindir: %s does not exist\n", opt);
         config.exitearly = 1;
       }
-      free(opt);
     }
+    free(opt);
 
     opt = get_option("--Fcmddir", 1, argc, argv);
     if (opt && opt[0]) {
@@ -758,8 +758,8 @@ void secure_option_preparse(int *argc, char **argv)
         error("--Fcmddir: %s does not exist\n", opt);
         config.exitearly = 1;
       }
-      free(opt);
     }
+    free(opt);
 
     opt = get_option("--Fimagedir", 1, argc, argv);
     if (opt && opt[0]) {
@@ -772,8 +772,8 @@ void secure_option_preparse(int *argc, char **argv)
         error("--Fimagedir: %s does not exist\n", opt);
         config.exitearly = 1;
       }
-      free(opt);
     }
+    free(opt);
 
     opt = get_option("--Fdrive_c", 1, argc, argv);
     if (opt && opt[0]) {
@@ -787,8 +787,8 @@ void secure_option_preparse(int *argc, char **argv)
         error("--Fdrive_c: %s does not exist\n", opt);
         config.exitearly = 1;
       }
-      free(opt);
     }
+    free(opt);
 
     opt = get_option("--Flocal_dir", 1, argc, argv);
     if (opt && opt[0]) {
@@ -801,8 +801,8 @@ void secure_option_preparse(int *argc, char **argv)
         error("--Flocal_dir: %s does not exist\n", opt);
         config.exitearly = 1;
       }
-      free(opt);
     }
+    free(opt);
 
   } while (cnt);
 
