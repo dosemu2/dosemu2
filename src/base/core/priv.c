@@ -545,7 +545,8 @@ void priv_init(void)
     if (s) {
       gid = atoi(s);
       if (gid) {
-        setregid(gid, egid);
+        err = setregid(gid, egid);
+        assert(!err);
       }
     }
     s = getenv("SUDO_UID");
@@ -555,7 +556,8 @@ void priv_init(void)
         skip_priv_setting = 0;
         under_root_login = 0;
         using_sudo = 1;
-        setreuid(uid, euid);
+        err = setreuid(uid, euid);
+        assert(!err);
       }
     }
   }
