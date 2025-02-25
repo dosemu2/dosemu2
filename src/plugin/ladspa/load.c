@@ -168,8 +168,8 @@ findLADSPAPluginDescriptor (void *pvLADSPAPluginLibrary,
           "library file \"%s\": %s.\n"
           "Are you sure this is a LADSPA plugin file?\n",
           pcPluginLibraryFilename, pcError);
-      exit (1);
     }
+    exit(1);
   }
 
   for (lPluginIndex = 0;; lPluginIndex++) {
