@@ -87,7 +87,6 @@ static int midoflus_init(void *arg)
     if (config.fluid_sfont && config.fluid_sfont[0]) {
 	if (access(config.fluid_sfont, R_OK) == 0) {
 	    sfont = strdup(config.fluid_sfont);
-	    ret = FLUID_OK;
 	} else {
 	    error("soundfont %s missing\n", config.fluid_sfont);
 	    goto err1;
