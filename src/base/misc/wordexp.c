@@ -510,6 +510,8 @@ static int eval_expr_val(char **expr, long int *result)
 	/* Skip white space */
 	for (digit = *expr; digit && *digit && isspace(*digit); ++digit);
 
+	if (!digit)
+		return 0;
 	switch (*digit) {
 	case '(':
 
