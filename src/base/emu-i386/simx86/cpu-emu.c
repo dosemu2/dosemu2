@@ -346,7 +346,7 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
    org2 = code - segbase;
 #ifdef USE_MHPDBG
    rc = dis_8086(code, frmtbuf, is32, &ref, segbase);
-   p = buf + sprintf(buf,"%08x: ",code);
+   p += sprintf(p, "%08x: ", code);
 #endif
    for (i=0; i<rc && i<8; i++) {
 	p += sprintf(p, "%02x", READ_BYTE(code+i));
