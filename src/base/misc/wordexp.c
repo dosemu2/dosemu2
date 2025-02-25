@@ -1599,7 +1599,7 @@ parse_param(char **word, size_t * word_length, size_t * max_length,
 			goto no_space;
 
 		do {
-			char *field_end = field_begin;
+			char *field_end;
 			char *next_field;
 
 			/* If this isn't the first field, start a new word */
