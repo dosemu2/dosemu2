@@ -310,7 +310,7 @@ static void vtmr_latch_smi(void *arg)
   port_outb(0x20, 0xb);
   isr = port_inb(0x20);
   port_outb(0xa0, 0xb);
-  isr = (port_inb(0xa0) << 8);
+  isr |= (port_inb(0xa0) << 8);
   from_irq = !!(isr & (1 << vip[timer].orig_irq));
   port_outb(VTMR_LATCH_PORT, timer | (from_irq << 7));
 }
