@@ -862,7 +862,7 @@ static void biosfn_write_pixel(Bit8u BH,Bit8u AL,Bit16u CX,Bit16u DX)
      mask = 0x80 >> (CX & 0x07);
      port_outw(VGAREG_GRDC_ADDRESS, (mask << 8) | 0x08);
      port_outw(VGAREG_GRDC_ADDRESS, 0x0205);
-     data = read_byte(0xa000,addr);
+//     data = read_byte(0xa000,addr);
      if (AL & 0x80)
       {
        port_outw(VGAREG_GRDC_ADDRESS, 0x1803);
