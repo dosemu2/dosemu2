@@ -183,7 +183,7 @@ int pic_read_irq(PICCommonState *s)
         irq = 7;
         intno = s->irq_base + irq;
     }
-
+#if 0
     if (irq == 2) {
         irq = irq2 + 8;
     }
@@ -196,6 +196,7 @@ int pic_read_irq(PICCommonState *s)
 #endif
 
     trace_pic_interrupt(irq, intno);
+#endif
     return intno;
 }
 
