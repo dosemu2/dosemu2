@@ -154,8 +154,6 @@ void Misc_set_misc_output(unsigned char data)
 
   vga.misc.misc_output = data;
 
-  u = ~(vga.misc.misc_output & 1);
-
   u = (vga.misc.misc_output & 1) ^ 1;
 
   if(u != vga.config.mono_port) {
