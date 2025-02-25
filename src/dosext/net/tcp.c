@@ -431,7 +431,12 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
         int sh;
         struct ses_wrp *s;
         socklen_t l = sizeof(msa);
-        getsockname(fd, (struct sockaddr *)&msa, &l);
+        err = getsockname(fd, (struct sockaddr *)&msa, &l);
+        if (err) {
+            error("TCP: getsockname() failed: %s\n", strerror(errno));
+            close(fd);
+            return ERR_CRITICAL;
+        }
         *r_port = ntohs(msa.sin_port);
         sh = alloc_ses();
         if (sh == -1) {
