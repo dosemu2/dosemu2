@@ -318,7 +318,7 @@ char *e_print_scp_regs(cpuctx_t *scp, int pmode)
 	    i += sprintf(buf + i, "Stack:");
 	    for (j = 0; j < 16; j++)
 		i += sprintf(buf + i, " %04hx", *stk++);
-	    i += sprintf(buf + i, "\n");
+	    sprintf(buf + i, "\n");
 	}
 	return buf;
 }
