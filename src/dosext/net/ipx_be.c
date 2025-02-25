@@ -35,7 +35,7 @@ static int __GetMyAddress(void)
 {
   int sock;
   struct sockaddr_ipx ipxs;
-  struct sockaddr_ipx ipxs2;
+  struct sockaddr_ipx ipxs2 = {};
   socklen_t len;
   int i;
 
@@ -110,7 +110,7 @@ static int do_open(u_short port, u_short *newPort, int *err)
   int opt;
   struct sockaddr_ipx ipxs;
   socklen_t len;
-  struct sockaddr_ipx ipxs2;
+  struct sockaddr_ipx ipxs2 = {};
 
   _GetMyAddress();
 

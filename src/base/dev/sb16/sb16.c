@@ -111,7 +111,7 @@ static int sb_get_dsp_irq_num(void)
     int idx = find_bit(sb.mixer_regs[0x80]);
     if (idx == -1 || idx > 3) {
 	error("SB IRQ wrong (%#x)\n", sb.mixer_regs[0x80]);
-	return -1;
+	return 5;
     }
     return sb_irq_tab[idx];
 }
@@ -121,7 +121,7 @@ int sb_get_dma_num(void)
     int idx = find_bit(sb.mixer_regs[0x81] & 0x0f);
     if (idx == -1 || idx == 2) {
 	error("SB DMA wrong (%#x)\n", sb.mixer_regs[0x81]);
-	return -1;
+	return 1;
     }
     return idx;
 }
@@ -131,7 +131,7 @@ int sb_get_hdma_num(void)
     int idx = find_bit(sb.mixer_regs[0x81] & 0xf0);
     if (idx == 4) {
 	error("SB HDMA wrong (%#x)\n", sb.mixer_regs[0x81]);
-	return -1;
+	return 5;
     }
     return idx;
 }

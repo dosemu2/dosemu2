@@ -1193,8 +1193,6 @@ static int e_dpmi_tail(cpuctx_t *scp)
 
   Cpu2Scp(scp, xval-1);
 
-  retval = DPMI_RET_CLIENT;
-
   if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
     retval = DPMI_RET_DOSEMU;
   }

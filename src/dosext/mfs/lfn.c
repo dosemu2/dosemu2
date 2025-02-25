@@ -282,7 +282,7 @@ static int truename(char *dest, const char *src, int allowwildcards,
   char *rootPos;
   char src0;
   enum { DONT_ADD, ADD, ADD_UNLESS_LAST } addSep;
-  const char *froot = get_root(src);
+  const char *froot;
 
   d_printf("truename(%s)\n", src);
 

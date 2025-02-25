@@ -577,7 +577,6 @@ void X_keycode_initialize(Display *display)
 	display_x_keyboard(display);
 	display_x_components(display);
 #endif
-	worked = FALSE;
 	worked = setup_keycode_to_keynum_mapping(display);
 	if (!worked) {
 		foreach_character_mapping(

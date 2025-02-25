@@ -183,7 +183,7 @@ static int DeleteDriveRedirection(const char *dStr)
 static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
         int resourceLength, int *r_idx, int *r_enab)
 {
-    uint16_t redirIndex = 0, ccode, opts;
+    uint16_t redirIndex = 0, opts;
     uint8_t stat;
     char dStr[MAX_DEVICE_STRING_LENGTH];
     char dStrSrc[MAX_DEVICE_STRING_LENGTH];
@@ -191,9 +191,9 @@ static int FindRedirectionByDevice(const char *deviceStr, char *presourceStr,
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%s", deviceStr);
     strupperDOS(dStrSrc);
-    while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
+    while (get_redirection(redirIndex, dStr, sizeof dStr,
                                        presourceStr, resourceLength,
-                                       NULL, &opts, &stat)) ==
+                                       NULL, &opts, &stat) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0) {
         *r_idx = REDIR_DEVICE_IDX(opts);

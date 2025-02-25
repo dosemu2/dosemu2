@@ -1906,7 +1906,7 @@ static int __vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
   print_dirty_map();
 #endif
 
-  for (i = j = pos; i <= end_page && ! vga.mem.dirty_map[i]; i++);
+  for (i = pos; i <= end_page && ! vga.mem.dirty_map[i]; i++);
   if(i == end_page + 1) {
 #if 0
     /* FIXME: this code not ready yet */

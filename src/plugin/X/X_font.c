@@ -206,7 +206,6 @@ static void X_set_text_palette(void *opaque, DAC_entry *col, int i)
 
   if(!(text_col_stats[i] = XAllocColor(text_display, text_cmap, &xc))) {
     get_approx_color(&xc, text_cmap, read_cmap);
-    read_cmap = 0;
     X_printf("X: refresh_text_palette: %d (%d -> app. %d)\n", i, (int) text_colors[i], (int) xc.pixel);
 
   }

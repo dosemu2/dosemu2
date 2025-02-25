@@ -548,12 +548,12 @@ int init_kvm_cpu(void)
     goto errcap;
   }
   ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_IMMEDIATE_EXIT);
-#ifndef KVM_IMMEDIATE_EXIT_SIG
   if (ret <= 0) {
     error("KVM: IMMEDIATE_EXIT unsupported %x\n", ret);
+#ifndef KVM_IMMEDIATE_EXIT_SIG
     goto errcap;
-  }
 #endif
+  }
 #else
   error("kernel is too old, KVM unsupported\n");
   goto errcap;

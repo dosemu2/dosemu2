@@ -25,7 +25,7 @@ sigchld(int dummy)
 }
 
 static void
-forkExec(char *s)
+forkExec(const char *s)
 {
     const char *argv[] = {"sh", "-c", "", NULL};
 
@@ -60,6 +60,7 @@ commxForkExec(const char *cmd, char *ptyslave)
        ptyslave += 5;
     sprintf(s, cmd, ptyslave);
     forkExec(s);
+    free(s);
 }
 #else
 void

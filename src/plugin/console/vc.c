@@ -213,12 +213,8 @@ static void __SIGRELEASE_call(void *arg)
 
 static void SIGRELEASE_call(void *arg)
 {
-  int logged = 0;
   while (in_vc_call) {
-    if (!logged) {
-      v_printf("VID: Cannot release console, waiting\n");
-      logged = 1;
-    }
+    v_printf("VID: Cannot release console, waiting\n");
     /* Thread resources are limited. The below yield() can overflow
      * coopth queue if the console thread stuck */
 #if 0

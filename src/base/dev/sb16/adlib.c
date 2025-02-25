@@ -205,7 +205,7 @@ static void adlib_run(void)
 	    nframes = OPL3_MAX_BUF;
 	if (nframes >= OPL3_MIN_BUF) {
 	    adlib_process_samples(nframes, adlib_time_cur, period);
-	    adlib_time_cur = pcm_get_stream_time(adlib_strm);
+//	    adlib_time_cur = pcm_get_stream_time(adlib_strm);
 	    if (debug_level('S') >= 7)
 		S_printf("SB: processed %i Adlib samples\n", nframes);
 	}

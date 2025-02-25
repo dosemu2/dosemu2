@@ -381,14 +381,14 @@ static void handle_console_input(char *line)
 /* returns 0: done, 1: more to do */
 static int handle_dbg_input(int *retval)
 {
-  char buf[MHP_BUFFERSIZE], *p;
+  char buf[MHP_BUFFERSIZE];
   int n;
 
   *retval = 0;
   n = read(fddbgin, buf, sizeof(buf));
 
   if (n > 0) {
-    if ((p = memchr(buf, 1, n)) != NULL) {
+    if (memchr(buf, 1, n) != NULL) {
       fprintf(fpconout, "\nDosemu process ended - quitting\n");
       fflush(fpconout);
       *retval = 0;

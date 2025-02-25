@@ -385,10 +385,10 @@ static int tty_lock(const char *path, int mode)
     }
 
     retval = unlink(saved_path);
+    fclose(fd);
     if (retval < 0) {
       error("tty: unlock: (%s): %s\n", saved_path,
              strerror(errno));
-      fclose(fd);
       return -1;
     }
   }

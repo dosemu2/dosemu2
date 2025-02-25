@@ -2350,11 +2350,13 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
 #else
   {
 #endif
+#ifdef HAVE_XVIDMODE
     static int prev_w, prev_h;
+#endif
     if (w == -1 && h == -1) { /* need to perform reset to windowed mode */
+#ifdef HAVE_XVIDMODE
       w = prev_w;
       h = prev_h;
-#ifdef HAVE_XVIDMODE
       vx = viewport_x;
       vy = viewport_y;
       restore_dotclock = 1;
@@ -2363,9 +2365,9 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
 #ifdef HAVE_XVIDMODE
       XF86VidModeGetModeLine(display,screen,&dotclock,&vidmode_modeline);
       XF86VidModeGetViewPort(display,screen,&viewport_x,&viewport_y);
-#endif
       prev_w = nw;
       prev_h = nh;
+#endif
       mainwindow = fullscreenwindow;
     }
 #ifdef HAVE_XVIDMODE

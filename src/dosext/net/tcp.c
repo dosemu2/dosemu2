@@ -431,7 +431,12 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
         int sh;
         struct ses_wrp *s;
         socklen_t l = sizeof(msa);
-        getsockname(fd, (struct sockaddr *)&msa, &l);
+        err = getsockname(fd, (struct sockaddr *)&msa, &l);
+        if (err) {
+            error("TCP: getsockname() failed: %s\n", strerror(errno));
+            close(fd);
+            return ERR_CRITICAL;
+        }
         *r_port = ntohs(msa.sin_port);
         sh = alloc_ses();
         if (sh == -1) {
@@ -720,10 +725,12 @@ static void tcp_thr(void *arg)
                     FILE *f = fdopen(dup(s->fd), "r");
                     char *s, buf[4096];
 
+                    _AX = 0;
+                    if (!f)
+                        break;
                     setbuf(f, NULL);
                     s = fgets(buf, sizeof(buf), f);
                     fclose(f);
-                    _AX = 0;
                     if (s) {
                         struct char_set_state kstate;
                         struct char_set_state dstate;
@@ -849,7 +856,7 @@ static void tcp_thr(void *arg)
         case TCP_STATUS: {
             TCP_PROLOG;
             if (s->fd == -1) {  // listener
-                struct sockaddr_in sin;
+                struct sockaddr_in sin = {};
                 socklen_t sil = sizeof(sin);
                 s->fd = accept(s->lfd, (struct sockaddr *)&sin, &sil);
                 if (s->fd != -1) {

@@ -200,7 +200,7 @@ static void add_input_file(char *filename)
     else
       ext = base + strlen(base);
   }
-  if ((strlen(base) == 0) || (strlen(base) > 8) ||
+  if ((strlen(base) == 0) || (strlen(base) > 8) || !ext ||
     (strlen(ext) > 3) || (strchr(ext, '.') != NULL))
   {
     fprintf(stderr, "%s: File name is not DOS-compatible\n", filename);
@@ -534,6 +534,7 @@ int main(int argc, char *argv[])
     p[11] = 0x08;
     m++;
   }
+  free(volume_label);
   fwrite(root_directory, 1, SECTORS_PER_ROOT_DIRECTORY*BYTES_PER_SECTOR, outfile);
 
   /* Write data area. */

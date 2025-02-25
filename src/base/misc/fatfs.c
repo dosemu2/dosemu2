@@ -903,7 +903,6 @@ static void set_vol_and_len(fatfs_t *f, unsigned oi)
     }
   }
 
-  o = f->obj + oi;
   u = f->cluster_secs << 9;
   o->len = (o->size + u - 1) / u;
 }

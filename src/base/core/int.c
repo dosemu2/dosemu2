@@ -2183,16 +2183,16 @@ int add_extra_drive(char *path, int ro, int cd, int grp)
 
 static int get_redirection_index(int drive, int *r_mfs_idx, uint16_t *r_udata)
 {
-    uint16_t redirIndex = 0, ccode;
+    uint16_t redirIndex = 0;
     char dStr[MAX_DEVICE_STRING_LENGTH];
     char dStrSrc[MAX_DEVICE_STRING_LENGTH];
     char res_backup[128];
     uint16_t opts;
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%c:", drive + 'A');
-    while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
+    while (get_redirection(redirIndex, dStr, sizeof dStr,
                                        res_backup, sizeof(res_backup),
-                                       r_udata, &opts, NULL)) ==
+                                       r_udata, &opts, NULL) ==
                                        CC_SUCCESS) {
         if (strcmp(dStrSrc, dStr) == 0) {
             if (r_mfs_idx)
@@ -2422,7 +2422,7 @@ char *getCWD(int drive)
 
 int get_redirection_root(int drive, char *presourceStr, int resourceLength)
 {
-    uint16_t redirIndex = 0, ccode;
+    uint16_t redirIndex = 0;
     char dStr[MAX_DEVICE_STRING_LENGTH];
     char dStrSrc[MAX_DEVICE_STRING_LENGTH];
     char res_backup[128];
@@ -2430,10 +2430,10 @@ int get_redirection_root(int drive, char *presourceStr, int resourceLength)
     int resLen = resourceLength > 0 ? resourceLength : sizeof(res_backup);
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%c:", drive + 'A');
-    while ((ccode = do_get_redirection(redirIndex, dStr, sizeof dStr,
+    while (do_get_redirection(redirIndex, dStr, sizeof dStr,
                                        resStr, resLen,
                                        NULL, NULL, NULL,
-                                       DOS_GET_REDIRECTION_EX6)) ==
+                                       DOS_GET_REDIRECTION_EX6) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0)
         return strlen(resStr);
@@ -2445,14 +2445,14 @@ int get_redirection_root(int drive, char *presourceStr, int resourceLength)
 
 static int get_redirection_drive(char *presourceStr)
 {
-    uint16_t redirIndex = 0, ccode;
+    uint16_t redirIndex = 0;
     char dStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_LENGTH_EXT];
 
-    while ((ccode = do_get_redirection(redirIndex, dStr, sizeof(dStr),
+    while (do_get_redirection(redirIndex, dStr, sizeof(dStr),
                                        resourceStr, sizeof(resourceStr),
                                        NULL, NULL, NULL,
-                                       DOS_GET_REDIRECTION_EX6)) ==
+                                       DOS_GET_REDIRECTION_EX6) ==
                                        CC_SUCCESS) {
       if (strcmp(resourceStr, presourceStr) == 0)
         return (dStr[0] - 'A');
@@ -2464,16 +2464,16 @@ static int get_redirection_drive(char *presourceStr)
 
 int is_redirection_ro(int drive)
 {
-    uint16_t redirIndex = 0, ccode;
+    uint16_t redirIndex = 0;
     char dStr[MAX_DEVICE_STRING_LENGTH];
     char dStrSrc[MAX_DEVICE_STRING_LENGTH];
     char res_backup[128];
     uint16_t opts;
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%c:", drive + 'A');
-    while ((ccode = get_redirection(redirIndex, dStr, sizeof dStr,
+    while (get_redirection(redirIndex, dStr, sizeof dStr,
                                        res_backup, sizeof(res_backup),
-                                       NULL, &opts, NULL)) ==
+                                       NULL, &opts, NULL) ==
                                        CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0)
         return !!(opts & REDIR_DEVICE_READ_ONLY);
@@ -2655,16 +2655,15 @@ static void update_group(uint16_t redirIndex, int mfs_idx)
 {
     char dStr[MAX_DEVICE_STRING_LENGTH];
     char rStr[MAX_RESOURCE_LENGTH_EXT];
-    uint16_t ccode;
     struct stat st;
     uint16_t opts, udata;
     int err;
     int redirIndex2 = redirIndex + 1;
 
-    while ((ccode = get_redirection_ux(redirIndex2,
+    while (get_redirection_ux(redirIndex2,
                                        dStr, sizeof(dStr),
                                        rStr, sizeof(rStr),
-                                       &udata, &opts, NULL)) ==
+                                       &udata, &opts, NULL) ==
                                        CC_SUCCESS) {
         if (REDIR_DEVICE_IDX(opts) != mfs_idx) {
             redirIndex2++;
@@ -2692,15 +2691,15 @@ int update_redir_group(int drive)
 
 static int rehash_redir_groups(void)
 {
-    uint16_t redirIndex = 0, ccode;
+    uint16_t redirIndex = 0;
     char dGrpStr[MAX_DEVICE_STRING_LENGTH];
     char grpRes[128];
     uint16_t opts, udata;
     int cnt = 0;
 
-    while ((ccode = get_redirection(redirIndex, dGrpStr, sizeof(dGrpStr),
+    while (get_redirection(redirIndex, dGrpStr, sizeof(dGrpStr),
                                        grpRes, sizeof(grpRes),
-                                       &udata, &opts, NULL)) ==
+                                       &udata, &opts, NULL) ==
                                        CC_SUCCESS) {
         if (udata & REDIR_F_GRP) {
             update_group(redirIndex, REDIR_DEVICE_IDX(opts));

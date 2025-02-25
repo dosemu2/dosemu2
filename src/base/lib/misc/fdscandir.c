@@ -24,7 +24,7 @@ int fdscandir(int dfd, struct dirent ***res,
 
 	if (!d) return -1;
 
-	while ((errno=0), (de = readdir(d))) {
+	while ((de = readdir(d))) {
 		if (sel && !sel(de)) continue;
 		if (cnt >= len) {
 			len = 2*len+1;
@@ -40,7 +40,7 @@ int fdscandir(int dfd, struct dirent ***res,
 
 	closedir(d);
 
-	if (errno) {
+	if (de) {
 		if (names) while (cnt-->0) free(names[cnt]);
 		free(names);
 		return -1;

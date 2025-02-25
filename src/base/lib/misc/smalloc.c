@@ -470,7 +470,7 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
 {
   struct memnode *new_mn;
   if (pmn && !pmn->used && pmn->size + mn->size +
-	(nmn->used ? 0 : nmn->size) >= size) {
+	(nmn ? (nmn->used ? 0 : nmn->size) : 0) >= size) {
     /* move to prev memnode */
     size_t psize = _min(size, pmn->size);
     if (!sm_commit_simple(mp, pmn->mem_area, psize))

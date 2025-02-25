@@ -3405,8 +3405,11 @@ static void rmcb_hlt(Bit16u off, HLT_ARG(arg))
 static int is_same_desc(unsigned short sel, unsigned desc[2])
 {
     unsigned lp[2];
+    int rc;
 
-    GetDescriptor(sel, lp);
+    rc = GetDescriptor(sel, lp);
+    if (rc)
+        return -1;
     lp[1] &= ~0x1f0100;
     desc[1] &= ~0x1f0100;
     return (memcmp(lp, desc, 8) == 0);
