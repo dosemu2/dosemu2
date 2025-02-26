@@ -304,10 +304,12 @@ static gint64 popen_1_svc(int subsys, const char *str, int cookie,
     if (rc >= 1) {
         int err = send_fd(sock_tx, file.from_child);
         assert(!err);
+        close(file.from_child);
     }
     if (rc >= 2) {
         int err = send_fd(sock_tx, file.to_child);
         assert(!err);
+        close(file.to_child);
     }
     return ((gint64)file.child_pid << 32) | rc;
 }
