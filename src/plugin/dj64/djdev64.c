@@ -36,7 +36,7 @@
 #if DJ64_API_VER < 11
 #error wrong djdev64 version
 #endif
-#if DJ64_API_VER != 15
+#if DJ64_API_VER != 16
 #warning djdev64 version mismatch
 #endif
 
@@ -62,6 +62,48 @@ static void call_thr(void *arg);
 static void stub_thr(void *arg);
 static void ctrl_hlt(Bit16u offs, void *sc, void *arg);
 static void do_retf(cpuctx_t *scp);
+
+struct ustore_s {
+    int val;
+    int used;
+};
+
+#define USTORE_MAX 10
+static struct ustore_s ustore[USTORE_MAX];
+static int num_ustore;
+
+static int ustore_put(int val)
+{
+    int i;
+    struct ustore_s *us = NULL;
+
+    for (i = 0; i < num_ustore; i++) {
+        if (!ustore[i].used)
+            break;
+    }
+    if (i == num_ustore) {
+        assert(num_ustore < USTORE_MAX);
+        num_ustore++;
+    }
+    us = &ustore[i];
+    us->used = 1;
+    us->val = val;
+    return i;
+}
+
+static int ustore_get(int handle)
+{
+    int ret;
+    if (handle >= num_ustore || !ustore[handle].used) {
+        dosemu_error("ustore: bad handle %i\n", handle);
+        return -1;
+    }
+    ret = ustore[handle].val;
+    ustore[handle].used = 0;
+    while (num_ustore && !ustore[num_ustore - 1].used)
+        num_ustore--;
+    return ret;
+}
 
 static uint8_t *dj64_addr2ptr(uint32_t addr)
 {
@@ -250,6 +292,9 @@ const struct dj64_api api = {
 #if DJ64_API_VER >= 15
     .elfload = dj64_elfload,
 #endif
+#if DJ64_API_VER >= 16
+    .uget = ustore_get,
+#endif
 };
 
 static int do_open(const char *path, unsigned short flags)
@@ -325,7 +370,11 @@ static void stub_thr(void *arg)
     envp[i] = NULL;
 
     err = djstub_main(argc, argv, envp, _eax & 0xffff, _edi, _eax >> 16,
-            &regs, addr2ptr, &dosops, &dpmiops, dj64_print);
+            &regs, addr2ptr, &dosops, &dpmiops, dj64_print
+#if DJ64_API_VER >= 16
+            , ustore_put
+#endif
+          );
     if (err) {
         _eax = err;
         error("djstub: load failed\n");
