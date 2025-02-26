@@ -184,13 +184,25 @@ static void io_select(void)
         if (FD_ISSET(i, &fds_masked))
           continue;
         if (FD_ISSET(i, &fds)) {
-          if (io_callback_func[i].flags & IOFLG_IMMED) {
-            if (io_callback_func[i].flags & IOFLG_MASKED)
+          struct io_callback_s *ff = &io_callback_func[i];
+
+          pthread_mutex_lock(&fun_mtx);
+          /* check for races */
+          if (!ff->func) {
+            pthread_mutex_unlock(&fun_mtx);
+            continue;
+          }
+          if (ff->flags & IOFLG_IMMED) {
+            struct io_callback_s f;
+            if (ff->flags & IOFLG_MASKED)
               FD_SET(i, &fds_masked);
-            io_callback_func[i].func(i, io_callback_func[i].arg);
+            f = *ff;
+            pthread_mutex_unlock(&fun_mtx);
+            f.func(i, f.arg);
           } else {
             struct io_callback_s *f = malloc(sizeof(*f));
-            *f = io_callback_func[i];
+            *f = *ff;
+            pthread_mutex_unlock(&fun_mtx);
             __atomic_fetch_add(&num_cbks, 1, __ATOMIC_RELAXED);
             FD_SET(i, &fds_masked);
             add_thread_callback(ioselect_demux, f, "ioselect");
@@ -226,10 +238,10 @@ add_to_io_select_new(int new_fd, void (*func)(int, void *), void *arg,
 	leavedos(76);
     }
 
+    pthread_mutex_lock(&fun_mtx);
     io_callback_stash[new_fd] = *f;
 
     g_printf("GEN: fd=%d gets SIGIO for %s\n", new_fd, name);
-    pthread_mutex_lock(&fun_mtx);
     f->func = func;
     f->arg = arg;
     f->name = name;
@@ -262,6 +274,7 @@ add_to_io_select_new(int new_fd, void (*func)(int, void *), void *arg,
  */
 void remove_from_io_select(int fd)
 {
+    void (*func)(int, void *);
     if (fd < 0 || !io_callback_func[fd].func) {
 	error("GEN: removing bogus fd %d (ignoring)\n", fd);
 	return;
@@ -269,10 +282,13 @@ void remove_from_io_select(int fd)
 
     pthread_mutex_lock(&fun_mtx);
     io_callback_func[fd] = io_callback_stash[fd];
+    func = io_callback_func[fd].func;
     pthread_mutex_unlock(&fun_mtx);
     io_callback_stash[fd].func = NULL;
 
-    if (!io_callback_func[fd].func) {
+    /* fd is supposed to be still opened and can't be reused and
+     * re-added while we remove it. */
+    if (!func) {
 	pthread_mutex_lock(&fds_mtx);
 	FD_CLR(fd, &fds_sigio);
 	pthread_mutex_unlock(&fds_mtx);
