@@ -73,7 +73,7 @@
 
 static int isInitialisedMFS(void)
 {
-    struct vm86_regs preg;
+    struct vm86_regs preg = REGS;
 
     preg.ebx = DOS_SUBHELPER_MFS_REDIR_STATE;
     if (mfs_helper(&preg) == TRUE) {
