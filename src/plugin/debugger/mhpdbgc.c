@@ -987,46 +987,6 @@ static void mhp_dump(int argc, char *argv[])
   }
 }
 
-static void mhp_dump_to_file(int argc, char *argv[])
-{
-  unsigned int nbytes;
-  dosaddr_t seekval;
-  const unsigned char *buf = 0;
-  unsigned int seg;
-  unsigned int off;
-  unsigned int limit = 0;
-  int fd;
-
-  if (argc <= 3) {
-    mhp_printf("USAGE: dump <addr> <size> <filename>\n");
-    return;
-  }
-
-  if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
-    mhp_printf("Invalid ADDR\n");
-    return;
-  }
-  if (linmode == 2 && seg == 0 && limit == 0xFFFFFFFF)
-    buf = (const unsigned char *)(uintptr_t)seekval;
-  else
-    buf = LINEAR2UNIX(seekval);
-
-  if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0) {
-    mhp_printf("Invalid size '%s'\n", argv[2]);
-    return;
-  }
-
-  fd = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 00640);
-  if (fd < 0) {
-    mhp_printf("cannot open/create file %s\n%s\n", argv[3], strerror(errno));
-    return;
-  }
-  if (write(fd, buf, nbytes) != nbytes) {
-    mhp_printf("write error: %s\n", strerror(errno));
-  }
-  close(fd);
-}
-
 static const char *get_type_from_mcb(struct MCB *mcb)
 {
   const char *dta = "Data", *env = "Environment", *inv = "Invalid";
@@ -2281,6 +2241,19 @@ static void mhp_bpload(int argc, char *argv[])
   return;
 }
 
+static void mhp_print_system_state(void)
+{
+  mhp_printf("system state: %s%s%s%s\n",
+#ifdef X86_EMULATOR
+      IS_EMU() ? "emulated," : "",
+#else
+      "",
+#endif
+      mhpdbgc.stopped ? "stopped" : "running",
+      IN_DPMI ? " in DPMI" : (dpmi_active() ? " in real mode while in DPMI" : ""),
+      IN_DPMI ? (dpmi_mhp_getcsdefault() ? "-32bit" : "-16bit") : "");
+}
+
 static void mhp_regs(int argc, char *argv[])
 {
   unsigned long newval;
@@ -2349,15 +2322,7 @@ static void mhp_regs(int argc, char *argv[])
     mhp_printf("General Protection Fault, ");
 
   if (!traceloop)
-    mhp_printf("system state: %s%s%s%s\n",
-#ifdef X86_EMULATOR
-        IS_EMU() ? "emulated," : "",
-#else
-        "",
-#endif
-        mhpdbgc.stopped ? "stopped" : "running",
-        IN_DPMI ? " in DPMI" : (dpmi_active() ? " in real mode while in DPMI" : ""),
-        IN_DPMI ? (dpmi_mhp_getcsdefault() ? "-32bit" : "-16bit") : "");
+    mhp_print_system_state();
 
   if (!dpmi_mhp_regs()) {
     mhp_printf("AX=%04x  BX=%04x  CX=%04x  DX=%04x", LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx));
@@ -2397,7 +2362,10 @@ static void mhp_r0(int argc, char *argv[])
   else
     trapped_bp = -1;
   mhp_bpclr();
-  mhp_regs(argc, argv);
+  if (mhpdbgc.stopped)
+    mhp_regs(argc, argv);
+  else
+    mhp_print_system_state();
 }
 
 static void mhp_kill(int argc, char *argv[])
@@ -3000,7 +2968,6 @@ static const struct cmd_db cmdtab[] = {
   {"kill",          mhp_kill},
   {"ldt",           mhp_print_ldt},
   {"log",           mhp_debuglog},
-  {"dump",          mhp_dump_to_file},
   {"ivec",          mhp_ivec},
   {"mcbs",          mhp_mcbs},
   {"devs",          mhp_devs},

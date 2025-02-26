@@ -143,8 +143,6 @@ static COMMAND cmds[] = {
    "                               by W(word) or L(dword), default size is byte.\n"},
   {"d", NULL,
    "ADDR SIZE         dump memory (limit 256 bytes)\n"},
-  {"dump", NULL,
-   "ADDR SIZE FILE    dump memory to file (binary)\n"},
   {"ivec", NULL,
    "[hexnum]          display interrupt vector hexnum (default whole table)\n"},
   {"u", NULL,
