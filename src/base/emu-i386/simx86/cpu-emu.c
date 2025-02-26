@@ -318,7 +318,7 @@ char *e_print_scp_regs(cpuctx_t *scp, int pmode)
 	    i += sprintf(buf + i, "Stack:");
 	    for (j = 0; j < 16; j++)
 		i += sprintf(buf + i, " %04hx", *stk++);
-	    i += sprintf(buf + i, "\n");
+	    sprintf(buf + i, "\n");
 	}
 	return buf;
 }
@@ -346,7 +346,7 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
    org2 = code - segbase;
 #ifdef USE_MHPDBG
    rc = dis_8086(code, frmtbuf, is32, &ref, segbase);
-   p = buf + sprintf(buf,"%08x: ",code);
+   p += sprintf(p, "%08x: ", code);
 #endif
    for (i=0; i<rc && i<8; i++) {
 	p += sprintf(p, "%02x", READ_BYTE(code+i));

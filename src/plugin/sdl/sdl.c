@@ -836,10 +836,9 @@ static void setup_ttf_winsize(int xtarget, int ytarget)
 
 static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
 {
-  int rc;
   struct rect_desc d;
 
-  while ((rc = rng_get(rng, &d))) {
+  while (rng_get(rng, &d)) {
     SDL_LockSurface(d.tex);
     SDL_UpdateTexture(tex, &d.rect, d.tex->pixels, d.tex->pitch);
     SDL_UnlockSurface(d.tex);

@@ -1924,7 +1924,7 @@ static size_t unicode_to_X_keysym(struct char_set_state *state,
 	if (out_len < sizeof(result)) {
 		goto too_little_space;
 	}
-	memcpy(out_str, &keysym_map[i].xkey, sizeof(result));
+	memcpy(out_str, &result, sizeof(result));
 	return sizeof(result);
  too_little_space:
 	errno = E2BIG;
