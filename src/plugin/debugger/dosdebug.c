@@ -438,32 +438,29 @@ int main (int argc, char **argv)
   struct timeval timeout;
   const char *rp = getenv("XDG_RUNTIME_DIR");
 
+  if (!rp || !rp[0]) {
+    perror("XDG_RUNTIME_DIR unset or empty");
+    exit(1);
+  }
+
   FD_ZERO(&readfds);
 
   if (!argv[1]) {
-    dospid = -1;
-    if (rp && rp[0]) {
-      char fname[256];
-      snprintf(fname, sizeof(fname), TMPFILE_VAR "dbgin.", rp);
-      dospid = find_dosemu_pid(fname, 0);
-    }
-  }
-  else dospid=strtol(argv[1], 0, 0);
+    char fname[256];
+
+    snprintf(fname, sizeof(fname), TMPFILE_VAR "dbgin.", rp);
+    dospid = find_dosemu_pid(fname, 0);
+  } else
+    dospid = strtol(argv[1], 0, 0);
 
   /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
-  fddbgout = -1;
-  if (rp && rp[0]) {
-    /* if we cannot open pipe and we were trying $HOME/.dosemu/run directory,
-       try with /var/run/dosemu directory */
-    ret = asprintf(&pipename_in, TMPFILE_VAR "dbgin.%d", rp, dospid);
-    assert(ret != -1);
+  ret = asprintf(&pipename_in, TMPFILE_VAR "dbgin.%d", rp, dospid);
+  assert(ret != -1);
 
-    ret = asprintf(&pipename_out, TMPFILE_VAR "dbgout.%d", rp, dospid);
-    assert(ret != -1);
+  ret = asprintf(&pipename_out, TMPFILE_VAR "dbgout.%d", rp, dospid);
+  assert(ret != -1);
 
-    fddbgout = open(pipename_in, O_WRONLY | O_NONBLOCK | O_CLOEXEC);
-  }
-
+  fddbgout = open(pipename_in, O_WRONLY | O_NONBLOCK | O_CLOEXEC);
   if (fddbgout == -1) {
     perror("can't open output fifo");
     free(pipename_in);
@@ -543,7 +540,7 @@ int main (int argc, char **argv)
           fputs("\n", fpconout);
           fflush(fpconout);
           break;
-	}
+        }
       }
 
       if (FD_ISSET(fddbgin, &readfds))
@@ -562,7 +559,7 @@ int main (int argc, char **argv)
             fprintf(fpconout, "dosemu process (pid %d) was killed\n", dospid);
           } else {
             fprintf(fpconout, "dosemu process (pid %d) was terminated\n", dospid);
-	  }
+          }
           ret = 1;
           break;
         }
