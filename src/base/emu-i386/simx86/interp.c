@@ -2430,8 +2430,11 @@ repag0:
 #ifdef X86_JIT
 				int rc = 0;
 				if (!CONFIG_CPUSIM) {
+					unsigned _P0 = P0;
 					NewIMeta(P0, &rc);
+					P0 = PC;
 					CODE_FLUSH();
+					P0 = _P0;
 					/* don't cache intermediate nodes */
 					InvalidateNodeRange(P0, PC - P0, NULL);
 				}
