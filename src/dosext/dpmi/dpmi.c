@@ -3557,6 +3557,26 @@ static void dpmi_dj64_open(cpuctx_t *scp)
   }
 }
 
+static void dpmi_dj64_elfload(cpuctx_t *scp)
+{
+  int handle = _LWORD(eax);
+  int djh;
+  void *dlh = load_plugin("dj64");
+
+  _eflags |= CF;
+  if (!dlh || !djdev64 || handle || !config.elfload2)
+    return;
+  djh = djdev64->elfopen(config.elfload2, _LWORD(ecx));
+  if (djh != -1) {
+    _eflags &= ~CF;
+    _eax = djh;
+    _es = dpmi_sel();
+    _edi = djdev64->call(djh);
+    _esi = djdev64->ctrl(djh);
+    D_printf("DPMI: dj64 loading %s\n", config.elfload2);
+  }
+}
+
 static void dpmi_dj64_close(cpuctx_t *scp)
 {
   int handle = (_LWORD(esi) << 16) | _LWORD(edi);
@@ -3572,6 +3592,15 @@ static void dpmi_dj64_close(cpuctx_t *scp)
   }
   djdev64->close(_eax);
   ptr->flags &= ~PMBF_DJ64;  // to not close again on exit
+  _eflags &= ~CF;
+}
+
+static void dpmi_dj64_elfclose(cpuctx_t *scp)
+{
+  _eflags |= CF;
+  if (!djdev64 || !config.elfload2)
+    return;
+  djdev64->close(_eax);
   _eflags &= ~CF;
 }
 
@@ -5133,8 +5162,14 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
           case 3:
             _eax = 2;  // version
             break;
+          case 4:
+            dpmi_dj64_elfload(scp);
+            break;
+          case 5:
+            dpmi_dj64_elfclose(scp);
+            break;
           default:
-            error("dj64: unknown cmd %x\n", _eax);
+            error("dj64: unknown cmd %x\n", _ebx);
             break;
           }
 #endif

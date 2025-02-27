@@ -1186,8 +1186,7 @@ config_init(int argc, char **argv)
     int             err;
     int             was_exec = 0, was_T1 = 0;
     const char * const getopt_string =
-       "23456A::B::C::c::D:d:E:e:f:H:hi:I:K:k::L:l:M:mNno:P:qSsT::t::VvwXx:Y"
-       "gp"/*NOPs kept for compat (not documented in usage())*/;
+       "23456A::B::C::c::D:d:E:e:f:g:H:hi:I:K:k::L:l:M:mNno:P:pqSsT::t::VvwXx:Y";
 
     basename = strrchr(argv[0], '/');   /* parse the program name */
     basename = basename ? basename + 1 : argv[0];
@@ -1330,22 +1329,42 @@ config_init(int argc, char **argv)
 	case 'L':
 	    dbug_printf("%s\n", optarg);
 	    break;
-	case 'l':
+	case 'l': {
 #ifdef USE_DJDEV64
-	    if (!exists_file(optarg)) {
+	    char *p = expand_path(optarg);
+	    if (!p || !exists_file(p)) {
 		error("Path %s does not exist\n", optarg);
 		config.exitearly = 1;
 		break;
 	    }
 	    free(config.elfload);
-	    config.elfload = strdup(optarg);
-	    permit_file_ro(optarg);
+	    config.elfload = p;
+	    permit_file_ro(p);
 	    was_exec++;
 #else
 	    error("dj64 support not compiled in\n");
 	    config.exitearly = 1;
 #endif
 	    break;
+	}
+	case 'g': {
+#ifdef USE_DJDEV64
+	    char *p = expand_path(optarg);
+	    if (!p || !exists_file(p)) {
+		error("Path %s does not exist\n", optarg);
+		config.exitearly = 1;
+		break;
+	    }
+	    free(config.elfload2);
+	    config.elfload2 = p;
+	    permit_file_ro(p);
+	    was_exec++;
+#else
+	    error("dj64 support not compiled in\n");
+	    config.exitearly = 1;
+#endif
+	    break;
+	}
 	case 'd': {
 	    char *p = strdup(optarg);
 	    char *d = strchr(p, ':');
@@ -1400,8 +1419,6 @@ config_init(int argc, char **argv)
 		else
 			fprintf(stderr,"error in CPU user override\n");
 	    }
-	    break;
-	case 'g': /* obsolete "graphics" option */
 	    break;
 	case 'A':
 	    config.hdiskboot = 0;
