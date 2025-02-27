@@ -322,8 +322,7 @@ close_all_printers(void)
   }
 }
 
-int
-printer_tick(u_long secno)
+int printer_tick(void)
 {
   int i;
 

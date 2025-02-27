@@ -408,7 +408,7 @@ extern int ___int16(void);
 extern int int17(void);
 extern void irq_select(void);
 extern int pd_receive_packet(void);
-extern int printer_tick(u_long);
+extern int printer_tick(void);
 extern void floppy_tick(void);
 #ifdef __linux__
 extern void open_kmem(void);

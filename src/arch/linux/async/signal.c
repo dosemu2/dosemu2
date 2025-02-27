@@ -710,13 +710,11 @@ static void SIGALRM_call(void *arg)
     }
   }
 
-  /* this should be for per-second activities, it is actually at
-   * 200ms more or less (PARTIALS=5) */
+  /* this should be for per-200ms (PARTIALS=5) */
   if ((pic_sys_time-cnt200) >= (PIT_TICK_RATE/PARTIALS)) {
     cnt200 = pic_sys_time;
 /*    g_printf("**** ALRM: %dms\n",(1000/PARTIALS)); */
 
-    printer_tick(0);
     floppy_tick();
   }
 
@@ -727,6 +725,7 @@ static void SIGALRM_call(void *arg)
     cnt1000 += PIT_TICK_RATE;
 /*    g_printf("**** ALRM: 1sec\n"); */
     rtc_update();
+    printer_tick();
   }
 }
 
