@@ -1229,6 +1229,9 @@ static void *prejit_thread(void *arg)
 
 static int prejit_vm86(struct vm86_struct *info)
 {
+#if PREJIT_EXEC
+  int kvm_left = 0;
+#endif
 #if PREJIT_ASYNC
   int r;
 #endif
@@ -1256,16 +1259,19 @@ static int prejit_vm86(struct vm86_struct *info)
   Reg2Cpu(info);
 #if PREJIT_EXEC
   if (e_querymark(LONG_CS + TheCPU.eip, 1)) {
+    kvm_leave(0);  // invalidates dirty pages
+    kvm_left = 1;
+  }
+  if (e_querymark(LONG_CS + TheCPU.eip, 1)) {
     int ret;
     CEmuStat |= CeS_PREJIT_RM;
-    if (config.cpu_vm == CPUVM_KVM) {
-      kvm_leave(0);
+    if (config.cpu_vm == CPUVM_KVM)
       do_cpuemu_enter(0);
-    }
     ret = e_vm86_tail(info);
     if (config.cpu_vm == CPUVM_KVM) {
       cpuemu_leave(0);
       kvm_enter(0);
+      kvm_left = 0;
     }
     CEmuStat &= ~CeS_PREJIT_RM;
     if (TheCPU.err != EXCP_GOBACK) {
@@ -1274,6 +1280,8 @@ static int prejit_vm86(struct vm86_struct *info)
     }
     TheCPU.err = 0;
   }
+  if (kvm_left)
+    kvm_enter(0);
 #endif
   pthread_mutex_lock(&run_mtx);
   prejit_running = 1;
@@ -1287,6 +1295,9 @@ static int prejit_vm86(struct vm86_struct *info)
 
 static int prejit_dpmi(cpuctx_t *scp)
 {
+#if PREJIT_EXEC
+  int kvm_left = 0;
+#endif
 #if PREJIT_ASYNC
   int r;
 #endif
@@ -1311,24 +1322,25 @@ static int prejit_dpmi(cpuctx_t *scp)
   TheCPU.err = 0;
   Scp2CpuD(scp);  // don't inline as this updates TheCPU.MODE!
 #if PREJIT_EXEC
-#if 1
-  if (config.cpu_vm_dpmi == CPUVM_KVM) {
-    if (LONG_CS + TheCPU.eip >= LOWMEM_SIZE + HMASIZE &&
-        e_querymark(LONG_CS + TheCPU.eip, 1))
+  if (e_querymark(LONG_CS + TheCPU.eip, 1)) {
+    kvm_leave(1);
+    kvm_left = 1;
+#if 0
+    if (config.cpu_vm_dpmi == CPUVM_KVM &&
+        (LONG_CS + TheCPU.eip >= LOWMEM_SIZE + HMASIZE))
       e_invalidate_dirty_full();
-  }
 #endif
+  }
   if (e_querymark(LONG_CS + TheCPU.eip, 1)) {
     int ret;
     CEmuStat |= CeS_PREJIT_PM;
-    if (config.cpu_vm_dpmi == CPUVM_KVM) {
-      kvm_leave(1);
+    if (config.cpu_vm_dpmi == CPUVM_KVM)
       do_cpuemu_enter(1);
-    }
     ret = e_dpmi_tail(scp);
     if (config.cpu_vm_dpmi == CPUVM_KVM) {
       cpuemu_leave(1);
       kvm_enter(1);
+      kvm_left = 0;
     }
     CEmuStat &= ~CeS_PREJIT_PM;
     if (TheCPU.err != EXCP_GOBACK) {
@@ -1337,6 +1349,8 @@ static int prejit_dpmi(cpuctx_t *scp)
     }
     TheCPU.err = 0;
   }
+  if (kvm_left)
+    kvm_enter(1);
 #endif
   pthread_mutex_lock(&run_mtx);
   prejit_running = 1;
