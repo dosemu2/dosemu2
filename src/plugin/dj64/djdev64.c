@@ -36,7 +36,7 @@
 #if DJ64_API_VER < 11
 #error wrong djdev64 version
 #endif
-#if DJ64_API_VER != 16
+#if DJ64_API_VER != 17
 #warning djdev64 version mismatch
 #endif
 
@@ -274,6 +274,39 @@ static int dj64_elfload(int num)
 }
 #endif
 
+#if DJ64_API_VER >= 17
+static char *dj64_elfparse64(int num, uint32_t addr, uint32_t size,
+        uint32_t mbase, uint32_t *r_size, uint32_t *r_entry)
+{
+    char *elf;
+    uint32_t sz;
+    void *eh;
+    int err;
+
+    if (num || !config.elfload2)
+        return NULL;
+    elf = djelf64_parse(config.elfload2, &sz);
+    if (!elf)
+        return NULL;
+    *r_size = sz;
+    eh = djelf_open(elf, sz);
+    if (!eh)
+        goto err1;
+    err = djelf_reloc(eh, dosaddr_to_unixaddr(mbase + addr), size,
+            addr, r_entry);
+    djelf_close(eh);
+    if (err) {
+        error("djelf_reloc() failed\n");
+        goto err1;
+    }
+    return elf;
+
+err1:
+    free(elf);
+    return NULL;
+}
+#endif
+
 const struct dj64_api api = {
     .addr2ptr = dj64_addr2ptr,
     .addr2ptr2 = dj64_addr2ptr2,
@@ -295,12 +328,14 @@ const struct dj64_api api = {
 #if DJ64_API_VER >= 16
     .uget = ustore_get,
 #endif
+#if DJ64_API_VER >= 17
+    .elfparse64 = dj64_elfparse64,
+#endif
 };
 
-static int do_open(const char *path, unsigned short flags)
+static int _do_open(const char *path, unsigned full_flags)
 {
     int ret;
-    unsigned full_flags = flags;
 
 #if USE_ASAN
     full_flags |= DJ64F_DLMOPEN;
@@ -318,6 +353,20 @@ static int do_open(const char *path, unsigned short flags)
         ctrl_off = hlt_register_handler_pm(hlt_hdlr);
     }
     return ret;
+}
+
+static int do_open(const char *path, unsigned short flags)
+{
+    return _do_open(path, flags);
+}
+
+static int do_open2(const char *path, unsigned short flags)
+{
+#if DJ64_API_VER >= 17
+    return _do_open(path, flags | DJ64F_NOMANGLE);
+#else
+    return -1;
+#endif
 }
 
 static void do_close(int handle)
@@ -451,6 +500,9 @@ static const struct djdev64_ops ops = {
     .stub = stub_entry,
 #if DJ64_API_VER >= 12
     .exec = exec_entry,
+#endif
+#if DJ64_API_VER >= 17
+    .elfopen = do_open2,
 #endif
 };
 
