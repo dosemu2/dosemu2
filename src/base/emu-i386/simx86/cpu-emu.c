@@ -1235,8 +1235,12 @@ static int prejit_vm86(struct vm86_struct *info)
 #if !PREJIT
   return 0;
 #endif
-  if (CONFIG_CPUSIM)
+  if (CONFIG_CPUSIM || isset_TF())
     return 0;
+#if !PREJIT_EXEC
+  if (!vga.inst_emu)
+    return 0;
+#endif
 #if PREJIT_ASYNC
   pthread_mutex_lock(&run_mtx);
   r = prejit_running;
@@ -1289,8 +1293,12 @@ static int prejit_dpmi(cpuctx_t *scp)
 #if !PREJIT
   return 0;
 #endif
-  if (CONFIG_CPUSIM)
+  if (CONFIG_CPUSIM || (_eflags & TF))
     return 0;
+#if !PREJIT_EXEC
+  if (!vga.inst_emu)
+    return 0;
+#endif
 #if PREJIT_ASYNC
   pthread_mutex_lock(&run_mtx);
   r = prejit_running;
