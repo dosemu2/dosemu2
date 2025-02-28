@@ -36,7 +36,7 @@
 #if DJ64_API_VER < 11
 #error wrong djdev64 version
 #endif
-#if DJ64_API_VER != 17
+#if DJ64_API_VER != 18
 #warning djdev64 version mismatch
 #endif
 
@@ -274,36 +274,12 @@ static int dj64_elfload(int num)
 }
 #endif
 
-#if DJ64_API_VER >= 17
-static char *dj64_elfparse64(int num, uint32_t addr, uint32_t size,
-        uint32_t mbase, uint32_t *r_size, uint32_t *r_entry)
+#if DJ64_API_VER >= 18
+static char *dj64_elfparse64(int num, uint32_t *r_size)
 {
-    char *elf;
-    uint32_t sz;
-    void *eh;
-    int err;
-
     if (num || !config.elfload2)
         return NULL;
-    elf = djelf64_parse(config.elfload2, &sz);
-    if (!elf)
-        return NULL;
-    *r_size = sz;
-    eh = djelf_open(elf, sz);
-    if (!eh)
-        goto err1;
-    err = djelf_reloc(eh, dosaddr_to_unixaddr(mbase + addr), size,
-            addr, r_entry);
-    djelf_close(eh);
-    if (err) {
-        error("djelf_reloc() failed\n");
-        goto err1;
-    }
-    return elf;
-
-err1:
-    free(elf);
-    return NULL;
+    return djelf64_parse(config.elfload2, r_size);
 }
 #endif
 
@@ -328,7 +304,7 @@ const struct dj64_api api = {
 #if DJ64_API_VER >= 16
     .uget = ustore_get,
 #endif
-#if DJ64_API_VER >= 17
+#if DJ64_API_VER >= 18
     .elfparse64 = dj64_elfparse64,
 #endif
 };
