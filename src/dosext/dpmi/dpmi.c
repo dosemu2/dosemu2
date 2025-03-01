@@ -3608,10 +3608,10 @@ static void dpmi_dj64_exec(cpuctx_t *scp)
 {
   int handle = (_LWORD(esi) << 16) | _LWORD(edi);
   const char *mp = "/dev/shm";
-  void *sp = SEL_ADR(_ss, _esp);
+  int argc = _ecx;
+  unsigned *argp = SEL_ADR(_ds, _edx);
   char *path;
   dpmi_pm_block *ptr;
-  dosaddr_t entry;
 
   _eflags |= CF;
   if (!djdev64)
@@ -3624,13 +3624,9 @@ static void dpmi_dj64_exec(cpuctx_t *scp)
   if (ptr->shm_dir)
     mp = ptr->shm_dir;
   path = assemble_path(mp, ptr->rshmname + ptr->nmoffs);
-  entry = djdev64->exec(path);
-  /* path freed after exec */
+  _eax = djdev64->exec(path, argc, argp, _eax, _ebx >> 16, 0, _ds);
+  free(path);
   _eflags &= ~CF;
-
-  make_retf_frame(scp, sp, _cs, _eip);
-  _cs = dpmi_sel();
-  _eip = entry;
 }
 
 static void dpmi_dj64_memfd(cpuctx_t *scp)
@@ -3656,6 +3652,22 @@ static void dpmi_dj64_memfd(cpuctx_t *scp)
   free(path);
   _eflags &= ~CF;
   _eax = fd;
+}
+
+static void dpmi_dj64_run(cpuctx_t *scp)
+{
+  void *sp = SEL_ADR(_ss, _esp);
+  dosaddr_t entry;
+
+  _eflags |= CF;
+  if (!djdev64)
+    return;
+  entry = djdev64->run64(_eax);
+  _eflags &= ~CF;
+
+  make_retf_frame(scp, sp, _cs, _eip);
+  _cs = dpmi_sel();
+  _eip = entry;
 }
 
 #endif
@@ -5185,7 +5197,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
             dpmi_dj64_exec(scp);
             break;
           case 3:
-            _eax = 3;  // version
+            _eax = 4;  // version
             break;
           case 4:
             dpmi_dj64_elfload(scp);
@@ -5195,6 +5207,9 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
             break;
           case 6:
             dpmi_dj64_memfd(scp);
+            break;
+          case 7:
+            dpmi_dj64_run(scp);
             break;
           default:
             error("dj64: unknown cmd %x\n", _ebx);
