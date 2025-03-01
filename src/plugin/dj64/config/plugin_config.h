@@ -10,6 +10,7 @@ struct djdev64_ops {
     unsigned (*stub)(void);
     unsigned (*exec)(char *path);
     int (*elfopen)(const char *path, unsigned short flags);
+    int (*memfd)(const char *path);
 };
 
 void register_djdev64(const struct djdev64_ops *ops);

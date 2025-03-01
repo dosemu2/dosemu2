@@ -36,7 +36,7 @@
 #if DJ64_API_VER < 11
 #error wrong djdev64 version
 #endif
-#if DJ64_API_VER != 18
+#if DJ64_API_VER != 19
 #warning djdev64 version mismatch
 #endif
 
@@ -265,12 +265,20 @@ static void dj64_exit(int rc)
     }
 }
 
-#if DJ64_API_VER >= 15
-static int dj64_elfload(int num)
+#if DJ64_API_VER >= 19
+static int dj64_elfload(int num, int handle, int libid, int *r_fd)
 {
+    int rc, fd;
     if (num || !config.elfload)
         return -1;
-    return djdev64_exec(config.elfload, 0, 0, NULL);
+    fd = open(config.elfload, O_RDONLY | O_CLOEXEC);
+    rc = djdev64_exec(config.elfload, handle, libid, 0, 0, NULL);
+    if (rc == -1) {
+        close(fd);
+        return -1;
+    }
+    *r_fd = ustore_put(fd);
+    return rc;
 }
 #endif
 
@@ -298,16 +306,22 @@ const struct dj64_api api = {
     .malloc = malloc,
     .free = free,
 #endif
-#if DJ64_API_VER >= 15
+#if DJ64_API_VER >= 19
     .elfload = dj64_elfload,
 #endif
-#if DJ64_API_VER >= 16
+#if DJ64_API_VER < 19
     .uget = ustore_get,
 #endif
 #if DJ64_API_VER >= 18
     .elfparse64 = dj64_elfparse64,
 #endif
 };
+
+#if DJ64_API_VER >= 19
+const struct djdev64_api devapi = {
+    .uget = ustore_get,
+};
+#endif
 
 static int _do_open(const char *path, unsigned full_flags)
 {
@@ -316,7 +330,11 @@ static int _do_open(const char *path, unsigned full_flags)
 #if USE_ASAN
     full_flags |= DJ64F_DLMOPEN;
 #endif
-    ret = djdev64_open(path, &api, DJ64_API_VER, full_flags);
+    ret = djdev64_open(path, &api, DJ64_API_VER, full_flags
+#if DJ64_API_VER >= 19
+            , &devapi
+#endif
+    );
     if (ret == -1)
         return ret;
     assert(ret < HNDL_MAX);
@@ -438,21 +456,21 @@ static void exec_thr(void *arg)
     char *path = coopth_get_udata_cur();
     struct udata ud = { scp, _eax };
     cpuctx_t old_scp = *scp;
-    unsigned flags = 0;
     int argc = _ecx;
     unsigned *argp = SEL_ADR(_ds, _edx);
     char **argv = alloca((argc + 1) * sizeof(char *));
     int i, rc;
 
-#if USE_ASAN
-    flags |= DJ64F_DLMOPEN;
-#endif
     for (i = 0; i < argc; i++)
         argv[i] = SEL_ADR(_ds, argp[i]);
     argv[i] = NULL;
     coopth_push_user_data_cur(&ud);
     J_printf("DJ64: exec %s\n", path);
-    rc = djdev64_exec(path, flags, argc, argv);
+#if DJ64_API_VER >= 19
+    rc = djdev64_exec(path, _eax, _ebx >> 16, 0, argc, argv);
+#else
+    rc = -1;
+#endif
     J_printf("DJ64: exec returned %i\n", rc);
     free(path);
     *scp = old_scp;
@@ -468,6 +486,14 @@ static unsigned exec_entry(char *path)
 }
 #endif
 
+static int do_memfd(const char *path)
+{
+    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    if (fd == -1)
+        return -1;
+    return ustore_put(fd);
+}
+
 static const struct djdev64_ops ops = {
     .open = do_open,
     .close = do_close,
@@ -480,6 +506,7 @@ static const struct djdev64_ops ops = {
 #if DJ64_API_VER >= 17
     .elfopen = do_open2,
 #endif
+    .memfd = do_memfd,
 };
 
 static void call_thr(void *arg)
