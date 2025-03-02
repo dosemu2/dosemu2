@@ -3608,8 +3608,6 @@ static void dpmi_dj64_exec(cpuctx_t *scp)
 {
   int handle = (_LWORD(esi) << 16) | _LWORD(edi);
   const char *mp = "/dev/shm";
-  int argc = _ecx;
-  unsigned *argp = SEL_ADR(_ds, _edx);
   char *path;
   dpmi_pm_block *ptr;
 
@@ -3624,7 +3622,7 @@ static void dpmi_dj64_exec(cpuctx_t *scp)
   if (ptr->shm_dir)
     mp = ptr->shm_dir;
   path = assemble_path(mp, ptr->rshmname + ptr->nmoffs);
-  _eax = djdev64->exec(path, argc, argp, _eax, _ebx >> 16, 0, _ds);
+  _eax = djdev64->exec(path, _eax, _ebx >> 16, _ecx);
   free(path);
   _eflags &= ~CF;
 }
@@ -3662,7 +3660,7 @@ static void dpmi_dj64_run(cpuctx_t *scp)
   _eflags |= CF;
   if (!djdev64)
     return;
-  entry = djdev64->run64(_eax);
+  entry = djdev64->run64();
   _eflags &= ~CF;
 
   make_retf_frame(scp, sp, _cs, _eip);

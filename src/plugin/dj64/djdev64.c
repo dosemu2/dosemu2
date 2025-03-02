@@ -36,7 +36,7 @@
 #if DJ64_API_VER < 11
 #error wrong djdev64 version
 #endif
-#if DJ64_API_VER != 20
+#if DJ64_API_VER != 21
 #warning djdev64 version mismatch
 #endif
 
@@ -44,7 +44,7 @@ static unsigned ctrl_off;
 #define HNDL_MAX 5
 static struct dos_helper_s call_hlp[HNDL_MAX];
 static struct dos_helper_s stub_hlp;
-#if DJ64_API_VER >= 20
+#if DJ64_API_VER >= 21
 static struct dos_helper_s run_hlp;
 #endif
 #define MAX_CLNUP_TIDS 5
@@ -265,14 +265,14 @@ static void dj64_exit(int rc)
     }
 }
 
-#if DJ64_API_VER >= 19
+#if DJ64_API_VER >= 21
 static int dj64_elfload(int num, int handle, int libid, int *r_fd)
 {
     int rc, fd;
     if (num || !config.elfload)
         return -1;
     fd = open(config.elfload, O_RDONLY | O_CLOEXEC);
-    rc = djdev64_exec(config.elfload, handle, libid, 0, 0, NULL);
+    rc = djdev64_exec(config.elfload, handle, libid, 0);
     if (rc == -1) {
         close(fd);
         return -1;
@@ -306,7 +306,7 @@ const struct dj64_api api = {
     .malloc = malloc,
     .free = free,
 #endif
-#if DJ64_API_VER >= 19
+#if DJ64_API_VER >= 21
     .elfload = dj64_elfload,
 #endif
 #if DJ64_API_VER < 19
@@ -449,46 +449,33 @@ static unsigned stub_entry(void)
     return stub_hlp.entry;
 }
 
-static int do_exec(const char *path, int argc, unsigned *argp,
-        int handle, int libid, unsigned flags, unsigned ds)
+#if DJ64_API_VER >= 21
+static void run_thr(void *arg)
 {
+    cpuctx_t *scp = arg;
+    struct udata ud = { scp, _eax };
+    cpuctx_t old_scp = *scp;
+    int argc = _ecx;
+    unsigned *argp = SEL_ADR(_ds, _edx);
     char **argv = alloca((argc + 1) * sizeof(char *));
     int i, rc;
 
     for (i = 0; i < argc; i++)
-        argv[i] = SEL_ADR(ds, argp[i]);
+        argv[i] = SEL_ADR(_ds, argp[i]);
     argv[i] = NULL;
-    J_printf("DJ64: exec %s\n", path);
-#if DJ64_API_VER >= 19
-    rc = djdev64_exec(path, handle, libid, flags, argc, argv);
-#else
-    rc = -1;
-#endif
-    return rc;
-}
-
-#if DJ64_API_VER >= 20
-static void run_thr(void *arg)
-{
-    cpuctx_t *scp = arg;
-    int eid = (uintptr_t)coopth_get_udata_cur();
-    struct udata ud = { scp, _eax };
-    cpuctx_t old_scp = *scp;
-    int rc;
 
     coopth_push_user_data_cur(&ud);
     J_printf("DJ64: run\n");
-    rc = djelf64_run(eid);
+    rc = djelf64_run(_ebx >> 16, argc, argv);
     J_printf("DJ64: run returned %i\n", rc);
     *scp = old_scp;
     _eax = rc;
 }
 
-static unsigned run_entry(int eid)
+static unsigned run_entry(void)
 {
     if (!run_hlp.tid)
         doshlp_setup(&run_hlp, "dj64 exec", run_thr, do_retf);
-    coopth_set_udata(run_hlp.tid, (void *)(uintptr_t)eid);
     return run_hlp.entry;
 }
 #endif
@@ -507,12 +494,14 @@ static const struct djdev64_ops ops = {
     .call = call_entry,
     .ctrl = ctrl_entry,
     .stub = stub_entry,
-    .exec = do_exec,
+#if DJ64_API_VER >= 21
+    .exec = djdev64_exec,
+#endif
 #if DJ64_API_VER >= 17
     .elfopen = do_open2,
 #endif
     .memfd = do_memfd,
-#if DJ64_API_VER >= 20
+#if DJ64_API_VER >= 21
     .run64 = run_entry,
 #endif
 };

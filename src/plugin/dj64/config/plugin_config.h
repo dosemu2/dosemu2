@@ -8,11 +8,10 @@ struct djdev64_ops {
     unsigned (*call)(int handle);
     unsigned (*ctrl)(int handle);
     unsigned (*stub)(void);
-    int (*exec)(const char *path, int argc, unsigned *argp,
-            int handle, int libid, unsigned flags, unsigned ds);
+    int (*exec)(const char *path, int handle, int libid, unsigned flags);
     int (*elfopen)(const char *path, unsigned short flags);
     int (*memfd)(const char *path);
-    unsigned (*run64)(int eid);
+    unsigned (*run64)(void);
 };
 
 void register_djdev64(const struct djdev64_ops *ops);
