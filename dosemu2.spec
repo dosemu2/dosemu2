@@ -74,6 +74,7 @@ Recommends: sudo
 Suggests:   valgrind
 Recommends: install-freedos
 Suggests:   install-otherdos
+Suggests:   install-win31
 # fuse is for mkdexe2
 Recommends: fuse-overlayfs
 Recommends: fuse3
