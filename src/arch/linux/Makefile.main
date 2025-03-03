@@ -169,6 +169,7 @@ endif
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/sysusers.conf $(DESTDIR)$(prefix)/lib/sysusers.d/$(PACKAGE_NAME).conf
 	$(INSTALL) -d $(DESTDIR)$(libexecdir)/dosemu2
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(libexecdir)/dosemu2
+	$(INSTALL) -d $(DESTDIR)$(libdir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSLIB) $(DESTDIR)$(libdir)
 ifneq ($(PRIV_SEP),)
 	if getent passwd $(username); then \
