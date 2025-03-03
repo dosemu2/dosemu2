@@ -79,16 +79,22 @@ $(top_builddir)/etc/Xfonts/%.pcf.gz: $(REALTOPDIR)/etc/%.bdf | $(top_builddir)/e
 
 $(LIBS_): | $(top_builddir)/lib
 
-$(BINPATH)/bin/$(DOSBIN): $(LIBS_)
+$(BINPATH)/bin/$(DOSLIB): $(LIBS_)
 ifeq ($(OS),Darwin)
-	$(LD) $(ALL_LDFLAGS) $(DOSBIN_LDFLAGS) -o $@ \
+	$(LD) $(ALL_LDFLAGS) -o $@ \
 	   -Wl,-all_load $(LIBS_) $(LIBS) \
-	   -Wl,-map,$(BINPATH)/bin/dosemu.map
+	   -Wl,-map,$(BINPATH)/bin/dosemu.map \
+	   -shared -Wl,-Bsymbolic
 else
-	$(LD) $(ALL_LDFLAGS) $(DOSBIN_LDFLAGS) -o $@ \
+	$(LD) $(ALL_LDFLAGS) -o $@ \
 	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS) \
-	   -Wl,-Map=$(BINPATH)/bin/dosemu.map
+	   -Wl,-Map=$(BINPATH)/bin/dosemu.map \
+	   -shared -Wl,-Bsymbolic
 endif
+
+$(BINPATH)/bin/$(DOSBIN): base/core/main.o $(BINPATH)/bin/$(DOSLIB)
+	$(LD) $(DOSBIN_LDFLAGS) -o $@ $< -L $(BINPATH)/bin -ldosemu2 \
+	  -Wl,-rpath,$(libdir)
 
 $(BINPATH)/bin/dosemu: $(SRCPATH)/dosemu.systemwide $(SRCPATH)/dosemu \
   $(top_builddir)/Makefile.conf
@@ -164,6 +170,7 @@ endif
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/sysusers.conf $(DESTDIR)$(prefix)/lib/sysusers.d/$(PACKAGE_NAME).conf
 	$(INSTALL) -d $(DESTDIR)$(libexecdir)/dosemu2
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(libexecdir)/dosemu2
+	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSLIB) $(DESTDIR)$(libdir)
 ifneq ($(PRIV_SEP),)
 	if getent passwd $(username); then \
 	  if chown $(username):$(username) $(DESTDIR)$(libexecdir)/dosemu2/$(DOSBIN); then \
@@ -254,6 +261,7 @@ endif
 uninstall:
 	$(RM) -r $(DESTDIR)$(dosemudir)
 	$(RM) -r $(DESTDIR)$(libexecdir)/$(PACKAGE_NAME)
+	$(RM) $(DESTDIR)$(libdir)/$(DOSLIB)
 	$(RM) $(DESTDIR)$(prefix)/lib/sysusers.d/$(PACKAGE_NAME).conf
 	$(RM) $(DESTDIR)$(bindir)/dosemu
 	$(RM) $(DESTDIR)$(bindir)/mkfatimage16
