@@ -16,6 +16,12 @@ get_binary() {
         --Flibdir $LOCAL_BUILD_PATH/etc \
         --Fplugindir $BINDIR \
         "
+    if [ -z "$LD_LIBRARY_PATH" ]; then
+      export LD_LIBRARY_PATH="$BINDIR"
+    else
+      export LD_LIBRARY_PATH="$BINDIR:$LD_LIBRARY_PATH"
+    fi
+
   else
     BINARY="$prefix"/libexec/dosemu2/dosemu2.bin
     if [ ! -f "$BINARY" ]; then

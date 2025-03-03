@@ -281,7 +281,7 @@ static int c_chk(void)
  * DANG_END_FUNCTION
  *
  */
-int main(int argc, char **argv, char * const *envp)
+int emulate(int argc, char **argv, char * const *envp)
 {
     dosemu_envp = envp;
     setlocale(LC_ALL,"");

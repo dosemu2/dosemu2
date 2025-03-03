@@ -3,6 +3,7 @@
 # This file is included by all Makefiles
 
 DOSBIN = dosemu2.bin
+DOSLIB = libdosemu2.so
 
 PACKAGE_TARNAME:=@PACKAGE_TARNAME@
 prefix:=@prefix@

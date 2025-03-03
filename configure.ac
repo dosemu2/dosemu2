@@ -725,8 +725,10 @@ if test "$machine" = "i386" -o "$with_target_bits" = "32" -o \
 else
     AC_MSG_NOTICE(Compiling as PIE for $machine...)
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
-    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -pie"
+    DOSBIN_LDFLAGS="$DOSEMU_LDFLAGS -pie"
 fi
+
+DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpic"
 
 if test "$CONFIG_HOST" = "Linux"; then
   if test "$machine" = "i386" -o "$machine" = "x86_64"; then
