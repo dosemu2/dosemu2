@@ -93,8 +93,7 @@ else
 endif
 
 $(BINPATH)/bin/$(DOSBIN): base/core/main.o $(BINPATH)/bin/$(DOSLIB)
-	$(LD) $(DOSBIN_LDFLAGS) -o $@ $< -L $(BINPATH)/bin -ldosemu2 \
-	  -Wl,-rpath,$(libdir)
+	$(LD) $(DOSBIN_LDFLAGS) -o $@ $< -L $(BINPATH)/bin -ldosemu2
 
 $(BINPATH)/bin/dosemu: $(SRCPATH)/dosemu.systemwide $(SRCPATH)/dosemu \
   $(top_builddir)/Makefile.conf
@@ -256,7 +255,7 @@ endif
 	@echo ""; \
 	 echo "---------------------------------DONE Installing-------------------------------"; \
 	 echo ""
-	@echo "  - You can type 'dosemu' to run DOSEMU2."
+	@echo "  - You may need to run 'sudo ldconfig' before running dosemu2."
 
 uninstall:
 	$(RM) -r $(DESTDIR)$(dosemudir)
