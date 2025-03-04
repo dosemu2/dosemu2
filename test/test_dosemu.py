@@ -5050,6 +5050,7 @@ MSDOS710TestCase = msdos710(OurTestCase, {
 })
 
 PPDOSGITTestCase = ppdosgit(OurTestCase, {
+    "test_comcom_r200fix_protected": UNSUPPORTED,
     "test_floppy_img": UNSUPPORTED,
     "test_floppy_vfs": UNSUPPORTED,
 })
