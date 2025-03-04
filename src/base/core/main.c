@@ -1,4 +1,4 @@
-#include "emu.h"
+#include "dosemu2/emu.h"
 
 int main(int argc, char **argv, char * const *envp)
 {

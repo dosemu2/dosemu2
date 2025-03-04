@@ -171,6 +171,8 @@ endif
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(libexecdir)/dosemu2
 	$(INSTALL) -d $(DESTDIR)$(libdir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSLIB) $(DESTDIR)$(libdir)
+	$(INSTALL) -d $(DESTDIR)$(includedir)/$(PACKAGE_NAME)
+	$(INSTALL) -m 0644 -D $(SRCPATH)/include/$(PACKAGE_NAME)/* $(DESTDIR)$(includedir)/$(PACKAGE_NAME)
 ifneq ($(PRIV_SEP),)
 	if getent passwd $(username); then \
 	  if chown $(username):$(username) $(DESTDIR)$(libexecdir)/dosemu2/$(DOSBIN); then \
@@ -261,6 +263,7 @@ endif
 uninstall:
 	$(RM) -r $(DESTDIR)$(dosemudir)
 	$(RM) -r $(DESTDIR)$(libexecdir)/$(PACKAGE_NAME)
+	$(RM) -r $(DESTDIR)$(includedir)/$(PACKAGE_NAME)
 	$(RM) $(DESTDIR)$(libdir)/$(DOSLIB)
 	$(RM) $(DESTDIR)$(prefix)/lib/sysusers.d/$(PACKAGE_NAME).conf
 	$(RM) $(DESTDIR)$(bindir)/dosemu

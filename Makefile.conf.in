@@ -13,6 +13,7 @@ sysconfdir:=@sysconfdir@
 confdir:=@confdir@
 libdir:=@libdir@
 libexecdir:=@libexecdir@
+includedir:=@includedir@
 plugindir:=@plugindir@
 datarootdir:=@datarootdir@
 datadir:=@datadir@

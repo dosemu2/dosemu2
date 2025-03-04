@@ -70,3 +70,11 @@ Suggests: vde2, valgrind, install-otherdos, install-win31
 Description: fast and secure DOS emulator
  dosemu2 is an emulator for running DOS programs under linux.
  It can also serve as a VM to boot various DOSes.
+
+Package: dosemu2-dev
+Architecture: any
+Section: libdevel
+Depends: dosemu2 (= ${binary:Version}), ${misc:Depends}
+Description: dosemu2 development libs and headers
+ This package contains libs and headers for building programs
+ that communicate with dosemu2.

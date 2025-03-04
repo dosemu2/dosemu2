@@ -127,6 +127,20 @@ make DESTDIR=%{buildroot} install
 %post
 setcap cap_setgid+p %{_libexecdir}/dosemu2/dosemu2.bin
 
+%package devel
+Summary: dosemu2 development libs and headers
+Requires: dosemu2 = %{version}
+
+%description devel
+This package contains libs and headers for building programs
+that communicate with dosemu2.
+%end
+
+%files devel
+%defattr(-,root,root)
+%{_includedir}/dosemu2
+%end
+
 %changelog
 * Tue Apr 09 2024 Stas Sergeev <stsp@users.sourceforge.net> 2.0pre9-2
 - 

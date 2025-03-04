@@ -1,0 +1,13 @@
+etc/dosemu2.alias etc/X11/fonts/misc/
+usr/bin/*
+usr/lib/*-linux-gnu/*.so
+usr/lib/sysusers.d/dosemu2.conf
+usr/libexec/dosemu2/dosemu2.bin
+usr/share/man/man1/*
+# hardcoding libdir here for plugins
+usr/lib/dosemu
+usr/share/dosemu
+usr/share/applications/dosemu.desktop
+usr/share/fonts/oldschool
+usr/share/doc/dosemu2
+etc/dosemu/dosemu.conf
