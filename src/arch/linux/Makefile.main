@@ -96,7 +96,7 @@ $(BINPATH)/bin/libdosemu2.so: $(BINPATH)/bin/$(DOSLIB)
 	$(LN_S) -f $(DOSLIB) $@
 
 $(BINPATH)/bin/$(DOSBIN): base/core/main.o $(BINPATH)/bin/libdosemu2.so
-	$(LD) $(DOSBIN_LDFLAGS) -o $@ $< -L $(BINPATH)/bin -ldosemu2
+	$(LD) $(DOSBIN_LDFLAGS) $(LDFLAGS) -o $@ $< -L $(BINPATH)/bin -ldosemu2
 
 $(BINPATH)/bin/dosemu: $(SRCPATH)/dosemu.systemwide $(SRCPATH)/dosemu \
   $(top_builddir)/Makefile.conf
