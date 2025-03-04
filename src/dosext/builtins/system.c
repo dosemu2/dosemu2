@@ -303,18 +303,6 @@ static int do_execute_cmdline(int parent)
   }
   if (config.dos_cmd)
     ret = do_system(config.dos_cmd);
-#ifdef USE_DJDEV64
-  if (config.elfload) {
-    switch (config.elfload_type) {
-    case 0:
-      ret = do_system("elfload 0");
-      break;
-    case 1:
-      ret = do_system("elfload2 0");
-      break;
-    }
-  }
-#endif
   return ret;
 }
 
@@ -341,6 +329,20 @@ static int do_set_dosenv(int argc, char **argv)
 
 static void system_scrub(void)
 {
+#ifdef USE_DJDEV64
+  if (config.elfload) {
+    free(config.dos_cmd);
+    switch (config.elfload_type) {
+    case 0:
+      config.dos_cmd = strdup("elfload 0");
+      break;
+    case 1:
+      config.dos_cmd = strdup("elfload2 0");
+      break;
+    }
+    return;
+  }
+#endif
   if (!config.unix_path)
     return;
   if (!config.unix_path[0]) {
