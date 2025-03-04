@@ -742,7 +742,6 @@ static void sb_dsp_write(Bit8u value)
 	S_printf("SB: Accepted byte %#x, index=%i\n", value,
 		 sb.command_idx);
 	sb.command[sb.command_idx++] = value;
-	sb.busy = 1;
     } else {
 	S_printf("SB: ERROR: command buffer overflowed!\n");
     }
@@ -1258,8 +1257,6 @@ static void sb_mixer_write(Bit8u value)
 	sb.mixer_regs[sb.mixer_index] = 0xff;
 	break;
     }
-
-    sb.busy = 1;
 }
 
 static Bit8u sb_mixer_read(void)
