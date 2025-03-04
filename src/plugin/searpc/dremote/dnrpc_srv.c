@@ -118,12 +118,12 @@ static int exit_1_svc(GError **error)
     return 0;
 }
 
-static int read_ldt_1_svc(int bytecount, guint64 base, GError **error)
+static int read_ldt_1_svc(int bytecount, gint64 base, GError **error)
 {
     return dnops->read_ldt(rpc_shared_page, bytecount, base);
 }
 
-static int write_ldt_1_svc(int bytecount, guint64 base, GError **error)
+static int write_ldt_1_svc(int bytecount, gint64 base, GError **error)
 {
     return dnops->write_ldt(rpc_shared_page, bytecount, base);
 }
