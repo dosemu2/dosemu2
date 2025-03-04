@@ -36,7 +36,7 @@
 #if DJ64_API_VER < 11
 #error wrong djdev64 version
 #endif
-#if DJ64_API_VER != 21
+#if DJ64_API_VER != 22
 #warning djdev64 version mismatch
 #endif
 
@@ -265,20 +265,35 @@ static void dj64_exit(int rc)
     }
 }
 
-#if DJ64_API_VER >= 21
-static int dj64_elfload(int num, int handle, int libid, int *r_fd)
+#if DJ64_API_VER >= 22
+static int dj64_elfload(int num, int handle, int libid)
 {
-    int rc, fd;
     if (num || !config.elfload)
         return -1;
-    fd = open(config.elfload, O_RDONLY | O_CLOEXEC);
-    rc = djdev64_exec(config.elfload, handle, libid, 0);
-    if (rc == -1) {
-        close(fd);
-        return -1;
+    return djdev64_exec(config.elfload, handle, libid, 0);
+}
+
+static int dj64_getfd(int num)
+{
+    int fd;
+
+    switch (num) {
+        case 0:
+            if (!config.elfload)
+                return -1;
+            fd = open(config.elfload, O_RDONLY | O_CLOEXEC);
+            if (fd == -1)
+                return -1;
+            break;
+        case 1:
+            fd = dup(dosemu_proc_self_fd);
+            if (fd == -1)
+                return -1;
+            break;
+        default:
+            return -1;
     }
-    *r_fd = ustore_put(fd);
-    return rc;
+    return ustore_put(fd);
 }
 #endif
 
@@ -306,8 +321,9 @@ const struct dj64_api api = {
     .malloc = malloc,
     .free = free,
 #endif
-#if DJ64_API_VER >= 21
+#if DJ64_API_VER >= 22
     .elfload = dj64_elfload,
+    .getfd = dj64_getfd,
 #endif
 #if DJ64_API_VER < 19
     .uget = ustore_get,

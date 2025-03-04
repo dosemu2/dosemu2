@@ -61,6 +61,7 @@ int config_check_only = 0;
 int dosemu_argc;
 char **dosemu_argv;
 char *dosemu_proc_self_exe = NULL;
+int dosemu_proc_self_fd;
 FILE *dosemu_proc_self_maps;
 
 static void usage(char *basename);
@@ -1195,6 +1196,7 @@ config_init(int argc, char **argv)
     dosemu_argv = argv;
     if (dosemu_proc_self_exe == NULL)
 	dosemu_proc_self_exe = dosemu_argv[0];
+    dosemu_proc_self_fd = open(dosemu_proc_self_exe, O_RDONLY | O_CLOEXEC);
 
     memcheck_type_init();
     our_envs_init();

@@ -35,6 +35,7 @@ char *checked_getenv(const char *name);
 extern char dosemu_conf[];
 extern char global_conf[];
 extern char *dosemu_proc_self_exe;
+extern int dosemu_proc_self_fd;
 extern FILE *dosemu_proc_self_maps;
 extern int dosemu_argc;
 extern char **dosemu_argv;
