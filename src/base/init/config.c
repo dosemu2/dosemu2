@@ -1347,24 +1347,9 @@ config_init(int argc, char **argv)
 #endif
 	    break;
 	}
-	case 'g': {
-#ifdef USE_DJDEV64
-	    char *p = expand_path(optarg);
-	    if (!p || !exists_file(p)) {
-		error("Path %s does not exist\n", optarg);
-		config.exitearly = 1;
-		break;
-	    }
-	    free(config.elfload2);
-	    config.elfload2 = p;
-	    permit_file_ro(p);
-	    was_exec++;
-#else
-	    error("dj64 support not compiled in\n");
-	    config.exitearly = 1;
-#endif
+	case 'g':
+	    config.elfload_type = atoi(optarg);
 	    break;
-	}
 	case 'd': {
 	    char *p = strdup(optarg);
 	    char *d = strchr(p, ':');

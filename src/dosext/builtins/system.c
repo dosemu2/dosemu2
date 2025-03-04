@@ -304,8 +304,16 @@ static int do_execute_cmdline(int parent)
   if (config.dos_cmd)
     ret = do_system(config.dos_cmd);
 #ifdef USE_DJDEV64
-  if (config.elfload)
-    ret = do_system("elfload 0");
+  if (config.elfload) {
+    switch (config.elfload_type) {
+    case 0:
+      ret = do_system("elfload 0");
+      break;
+    case 1:
+      ret = do_system("elfload2 0");
+      break;
+    }
+  }
 #endif
   return ret;
 }

@@ -3564,16 +3564,16 @@ static void dpmi_dj64_elfload(cpuctx_t *scp)
   void *dlh = load_plugin("dj64");
 
   _eflags |= CF;
-  if (!dlh || !djdev64 || handle || !config.elfload2)
+  if (!dlh || !djdev64 || handle || !config.elfload)
     return;
-  djh = djdev64->elfopen(config.elfload2, _LWORD(ecx));
+  djh = djdev64->elfopen(config.elfload, _LWORD(ecx));
   if (djh != -1) {
     _eflags &= ~CF;
     _eax = djh;
     _es = dpmi_sel();
     _edi = djdev64->call(djh);
     _esi = djdev64->ctrl(djh);
-    D_printf("DPMI: dj64 loading %s\n", config.elfload2);
+    D_printf("DPMI: dj64 loading %s\n", config.elfload);
   }
 }
 
@@ -3598,7 +3598,7 @@ static void dpmi_dj64_close(cpuctx_t *scp)
 static void dpmi_dj64_elfclose(cpuctx_t *scp)
 {
   _eflags |= CF;
-  if (!djdev64 || !config.elfload2)
+  if (!djdev64)
     return;
   djdev64->close(_eax);
   _eflags &= ~CF;

@@ -361,7 +361,7 @@ typedef struct config_info {
         char *unix_path;
         char *dos_path;
         char *elfload;
-        char *elfload2;
+        int elfload_type;
 
         char *unix_exec;
         char *lredir_paths;

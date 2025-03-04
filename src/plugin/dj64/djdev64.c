@@ -285,9 +285,9 @@ static int dj64_elfload(int num, int handle, int libid, int *r_fd)
 #if DJ64_API_VER >= 18
 static char *dj64_elfparse64(int num, uint32_t *r_size)
 {
-    if (num || !config.elfload2)
+    if (num || !config.elfload)
         return NULL;
-    return djelf64_parse(config.elfload2, r_size);
+    return djelf64_parse(config.elfload, r_size);
 }
 #endif
 
