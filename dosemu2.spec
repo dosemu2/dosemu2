@@ -106,7 +106,7 @@ make DESTDIR=%{buildroot} install
 %files
 %defattr(-,root,root)
 %{_bindir}/*
-%{_libdir}/*
+%{_libdir}/*.so.*
 %{_sysusersdir}/dosemu2.conf
 %dir %{_libexecdir}/dosemu2
 %attr(06755, dosemu2, dosemu2) %{_libexecdir}/dosemu2/dosemu2.bin
@@ -139,6 +139,7 @@ that communicate with dosemu2.
 %files devel
 %defattr(-,root,root)
 %{_includedir}/dosemu2
+%{_libdir}/*.so
 %end
 
 %changelog

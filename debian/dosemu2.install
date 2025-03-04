@@ -1,6 +1,6 @@
 etc/dosemu2.alias etc/X11/fonts/misc/
 usr/bin/*
-usr/lib/*-linux-gnu/*.so
+usr/lib/*-linux-gnu/*.so.*
 usr/lib/sysusers.d/dosemu2.conf
 usr/libexec/dosemu2/dosemu2.bin
 usr/share/man/man1/*
