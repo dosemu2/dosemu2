@@ -584,7 +584,7 @@ char *path_prefix(const char *suffix)
     char *ret = NULL;
 
     if (dosemu_proc_self_exe[0] != '/') {
-      error("cannot evaluate prefix from relative path %s\n",
+      warn("cannot evaluate prefix from relative path %s\n",
           dosemu_proc_self_exe);
       return assemble_path(PREFIX, suffix);
     }
@@ -605,7 +605,7 @@ char *path_prefix(const char *suffix)
       }
     }
     if (!ret) {
-      error("unable to evaluate prefix from %s\n", dosemu_proc_self_exe);
+      warn("unable to evaluate prefix from %s\n", dosemu_proc_self_exe);
       ret = assemble_path(PREFIX, suffix);
     }
     free(s);
