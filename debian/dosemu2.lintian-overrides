@@ -1,0 +1,4 @@
+dosemu2 binary: custom-library-search-path RUNPATH /usr/lib/fdpp [usr/lib/dosemu/libplugin_fdpp.so]
+dosemu2 binary: custom-library-search-path RUNPATH /usr/lib64/fdpp [usr/lib/dosemu/libplugin_fdpp.so]
+dosemu2 binary: custom-library-search-path RUNPATH /usr/local/lib/fdpp [usr/lib/dosemu/libplugin_fdpp.so]
+dosemu2 binary: custom-library-search-path RUNPATH /usr/local/lib64/fdpp [usr/lib/dosemu/libplugin_fdpp.so]

@@ -58,7 +58,7 @@
 #include "memory.h"
 
 #include "emu.h"
-
+#include "dosemu2/emu.h"
 #include "mhpdbg.h"
 #include "bios.h"
 #include "video.h"
