@@ -272,38 +272,6 @@ static int dj64_elfload(int num, int handle, int libid)
         return -1;
     return djdev64_exec(config.elfload, handle, libid, 0);
 }
-
-static int dj64_getfd(int num)
-{
-    int fd;
-
-    switch (num) {
-        case 0:
-            if (!config.elfload)
-                return -1;
-            fd = open(config.elfload, O_RDONLY | O_CLOEXEC);
-            if (fd == -1)
-                return -1;
-            break;
-        case 1:
-            fd = dup(dosemu_proc_self_fd);
-            if (fd == -1)
-                return -1;
-            break;
-        default:
-            return -1;
-    }
-    return ustore_put(fd);
-}
-#endif
-
-#if DJ64_API_VER >= 18
-static char *dj64_elfparse64(int num, uint32_t *r_size)
-{
-    if (num || !config.elfload)
-        return NULL;
-    return djelf64_parse(config.elfload, r_size);
-}
 #endif
 
 const struct dj64_api api = {
@@ -323,13 +291,9 @@ const struct dj64_api api = {
 #endif
 #if DJ64_API_VER >= 22
     .elfload = dj64_elfload,
-    .getfd = dj64_getfd,
 #endif
 #if DJ64_API_VER < 19
     .uget = ustore_get,
-#endif
-#if DJ64_API_VER >= 18
-    .elfparse64 = dj64_elfparse64,
 #endif
 };
 
