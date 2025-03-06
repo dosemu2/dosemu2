@@ -1568,3 +1568,8 @@ char lol_last_drive(lol_t lol)
 }
 // lol_nuldev(lol_t lol)		        ((lol)+lol_nuldev_off)
 // lol_njoined(lol_t lol)		((lol)+lol_njoined_off)
+
+void set_exit_after_load(void)
+{
+    misc_e6_store_options("DOSEMU_EXIT=1");
+}

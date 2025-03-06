@@ -38,7 +38,7 @@ void dosemu2_set_elfload_args(int argc, char **argv)
 
 void dosemu2_set_exit_after_load(void)
 {
-    misc_e6_store_options("DOSEMU_EXIT=1");
+    set_exit_after_load();
 }
 
 int dosemu2_emulate(int argc, char **argv, char * const *envp)

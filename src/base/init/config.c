@@ -1622,7 +1622,7 @@ again:
     }
 
     if (was_exec && !was_T1)
-      misc_e6_store_options("DOSEMU_EXIT=1");
+      set_exit_after_load();
 
     config_post_process();
     config_scrub();

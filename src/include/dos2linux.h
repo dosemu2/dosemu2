@@ -396,4 +396,6 @@ int name_ufs_to_dos(char *dest, const char *src);
 void dos2tty_init(void);
 void dos2tty_done(void);
 
+void set_exit_after_load(void);
+
 #endif /* DOS2LINUX_H */
