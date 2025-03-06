@@ -624,8 +624,8 @@ static void move_dosemu_lib_dir(void)
 static int find_option(const char *option, int argc, char **argv)
 {
   int i;
-  if (argc <=1 ) return 0;
-  for (i=1; i < argc; i++) {
+  if (argc <= 1) return 0;
+  for (i = 1; i < argc; i++) {
     if (!strcmp(argv[i], option)) {
       return i;
     }
@@ -637,7 +637,7 @@ static int option_delete(int option, int *argc, char **argv)
 {
   int i;
   if (option >= *argc) return 0;
-  for (i=option; i < *argc; i++) {
+  for (i = option; i < *argc; i++) {
     argv[i] = argv[i+1];
   }
   *argc -= 1;
@@ -1600,7 +1600,7 @@ again:
 	    was_exec++;
 	    optind++;
 	    /* collect args */
-	    while (argv[optind]) {
+	    while (argc > optind) {
 		if (strchr(argv[optind], '='))
 			goto again;
 		g_printf("DOS command given on command line: %s\n", argv[optind]);
@@ -1616,7 +1616,7 @@ again:
 	misc_e6_store_options(argv[optind]);
 	optind++;
     }
-    if (argv[optind]) {
+    if (argc > optind) {
 	fprintf(stderr, "unrecognized argument: %s\n\r", argv[optind]);
 	exit(1);
     }
