@@ -286,7 +286,6 @@ int emulate(int argc, char **argv, char * const *envp)
     dosemu_envp = envp;
     setlocale(LC_ALL,"");
     srand(time(NULL));
-    memset(&config, 0, sizeof(config));
 
     /* NOW! it is safe to touch the priv code.  */
     priv_init();  /* This must come first! */

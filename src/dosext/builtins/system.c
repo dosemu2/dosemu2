@@ -330,7 +330,7 @@ static int do_set_dosenv(int argc, char **argv)
 static void system_scrub(void)
 {
 #ifdef USE_DJDEV64
-  if (config.elfload) {
+  if (config.elfload || config.elfload_type == 2) {
     free(config.dos_cmd);
     switch (config.elfload_type) {
     case 0:
@@ -338,6 +338,9 @@ static void system_scrub(void)
       break;
     case 1:
       config.dos_cmd = strdup("elfload2 0");
+      break;
+    case 2:
+      config.dos_cmd = strdup("elfload 1");
       break;
     }
     return;

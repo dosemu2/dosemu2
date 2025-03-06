@@ -435,14 +435,25 @@ static void run_thr(void *arg)
     cpuctx_t *scp = arg;
     struct udata ud = { scp, _eax };
     cpuctx_t old_scp = *scp;
-    int argc = _ecx;
-    unsigned *argp = SEL_ADR(_ds, _edx);
-    char **argv = alloca((argc + 1) * sizeof(char *));
+    int argc;
+    char **argv;
+    unsigned *argp;
     int i, rc;
 
-    for (i = 0; i < argc; i++)
-        argv[i] = SEL_ADR(_ds, argp[i]);
-    argv[i] = NULL;
+    if (config.elfload_argc) {
+        argc = config.elfload_argc;
+        argv = config.elfload_argv;
+    } else if (_ecx) {
+        argc = _ecx;
+        argv = alloca((argc + 1) * sizeof(char *));
+        argp = SEL_ADR(_ds, _edx);
+        for (i = 0; i < argc; i++)
+            argv[i] = SEL_ADR(_ds, argp[i]);
+        argv[i] = NULL;
+    } else {
+        argc = 0;
+        argv = NULL;
+    }
 
     coopth_push_user_data_cur(&ud);
     J_printf("DJ64: run\n");

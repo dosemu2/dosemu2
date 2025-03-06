@@ -15,6 +15,9 @@
 #ifndef DOSEMU2_EMU_H
 #define DOSEMU2_EMU_H
 
-int emulate(int argc, char **argv, char * const *envp);
+int dosemu2_emulate(int argc, char **argv, char * const *envp);
+void dosemu2_set_elfload_type(int type);
+void dosemu2_set_elfload_args(int argc, char **argv);
+void dosemu2_set_exit_after_load(void);
 
 #endif

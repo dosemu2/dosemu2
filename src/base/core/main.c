@@ -2,5 +2,5 @@
 
 int main(int argc, char **argv, char * const *envp)
 {
-    return emulate(argc, argv, envp);
+    return dosemu2_emulate(argc, argv, envp);
 }
