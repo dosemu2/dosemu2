@@ -41,6 +41,12 @@ void dosemu2_set_exit_after_load(void)
     set_exit_after_load();
 }
 
+void dosemu2_set_unix_path(const char *path)
+{
+    free(config.unix_path);
+    config.unix_path = strdup(path);
+}
+
 int dosemu2_emulate(int argc, char **argv, char * const *envp)
 {
     return emulate(argc, argv, envp);

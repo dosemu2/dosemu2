@@ -343,7 +343,6 @@ static void system_scrub(void)
       config.dos_cmd = strdup("elfload 1");
       break;
     }
-    return;
   }
 #endif
   if (!config.unix_path)
