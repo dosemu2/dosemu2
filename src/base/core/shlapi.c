@@ -23,6 +23,7 @@
 #include "emu.h"
 #include "dosemu_config.h"
 #include "dos2linux.h"
+#include "render.h"
 #include "dosemu2/emu.h"
 
 void dosemu2_set_elfload_type(int type)
@@ -50,6 +51,16 @@ void dosemu2_set_unix_path(const char *path)
 void dosemu2_set_boot_cls(void)
 {
     set_boot_cls();
+}
+
+void dosemu2_render_disable(void)
+{
+    render_disable_global();
+}
+
+void dosemu2_render_enable(void)
+{
+    render_enable_global();
 }
 
 int dosemu2_emulate(int argc, char **argv, char * const *envp)

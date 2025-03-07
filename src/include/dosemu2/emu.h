@@ -21,5 +21,7 @@ void dosemu2_set_elfload_args(int argc, char **argv);
 void dosemu2_set_exit_after_load(void);
 void dosemu2_set_unix_path(const char *path);
 void dosemu2_set_boot_cls(void);
+void dosemu2_render_disable(void);
+void dosemu2_render_enable(void);
 
 #endif

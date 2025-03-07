@@ -44,4 +44,7 @@ void render_mode_unlock(void);
 void render_enable(struct render_system *render);
 void render_disable(struct render_system *render);
 
+void render_disable_global(void);
+void render_enable_global(void);
+
 #endif

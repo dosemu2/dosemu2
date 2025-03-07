@@ -32,6 +32,7 @@ static int is_updating;
 static pthread_mutex_t upd_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_rwlock_t text_mtx = PTHREAD_RWLOCK_INITIALIZER;
 static pthread_rwlock_t flg_mtx = PTHREAD_RWLOCK_INITIALIZER;
+static pthread_mutex_t endis_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_rwlock_t vga_mtx = PTHREAD_RWLOCK_INITIALIZER;
 #if RENDER_THREADED
 static pthread_t render_thr;
@@ -52,6 +53,7 @@ struct rs_wrp {
 struct render_wrp {
     struct rs_wrp wrp[MAX_RENDERS];
     int num_renders;
+    int disabled;
     int render_locked;
     int render_text;
     int text_locked;
@@ -63,6 +65,20 @@ static struct render_wrp Render;
 static int initialized;
 static int cur_mode_class;
 static struct vid_mode_params old_vmp;
+
+void render_disable_global(void)
+{
+  pthread_mutex_lock(&endis_mtx);
+  Render.disabled = 1;
+  pthread_mutex_unlock(&endis_mtx);
+}
+
+void render_enable_global(void)
+{
+  pthread_mutex_lock(&endis_mtx);
+  Render.disabled = 0;
+  pthread_mutex_unlock(&endis_mtx);
+}
 
 __attribute__((warn_unused_result))
 static int render_lock(void)
@@ -250,6 +266,12 @@ static void *render_thread(void *arg)
 {
   while (1) {
     sem_wait(&render_sem);
+    pthread_mutex_lock(&endis_mtx);
+    if (Render.disabled) {
+      pthread_mutex_unlock(&endis_mtx);
+      continue;
+    }
+    pthread_mutex_unlock(&endis_mtx);
     pthread_mutex_lock(&upd_mtx);
     is_updating = 1;
     pthread_mutex_unlock(&upd_mtx);
@@ -650,6 +672,13 @@ int update_screen(void)
     vga.reconfig.display = 0;
     vga_emu_update_unlock();
   }
+
+  pthread_mutex_lock(&endis_mtx);
+  if (Render.disabled) {
+    pthread_mutex_unlock(&endis_mtx);
+    return 0;
+  }
+  pthread_mutex_unlock(&endis_mtx);
 
 #if !RENDER_THREADED
   do_rend_gfx();
