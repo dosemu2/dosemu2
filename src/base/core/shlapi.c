@@ -47,6 +47,11 @@ void dosemu2_set_unix_path(const char *path)
     config.unix_path = strdup(path);
 }
 
+void dosemu2_set_boot_cls(void)
+{
+    set_boot_cls();
+}
+
 int dosemu2_emulate(int argc, char **argv, char * const *envp)
 {
     return emulate(argc, argv, envp);
