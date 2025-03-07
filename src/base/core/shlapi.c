@@ -63,6 +63,16 @@ void dosemu2_render_enable(void)
     render_enable_global();
 }
 
+void dosemu2_xtitle_disable(void)
+{
+    config.no_xtitle = 1;
+}
+
+void dosemu2_xtitle_enable(void)
+{
+    config.no_xtitle = 0;
+}
+
 int dosemu2_emulate(int argc, char **argv, char * const *envp)
 {
     return emulate(argc, argv, envp);

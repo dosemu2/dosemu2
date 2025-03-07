@@ -23,5 +23,7 @@ void dosemu2_set_unix_path(const char *path);
 void dosemu2_set_boot_cls(void);
 void dosemu2_render_disable(void);
 void dosemu2_render_enable(void);
+void dosemu2_xtitle_disable(void);
+void dosemu2_xtitle_enable(void);
 
 #endif

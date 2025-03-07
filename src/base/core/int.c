@@ -141,7 +141,7 @@ void jmp_to(int cs, int ip)
 
 static void change_window_title(char *title)
 {
-    if (Video->change_config)
+    if (Video->change_config && !config.no_xtitle)
 	Video->change_config(CHG_TITLE_APPNAME, title);
 }
 

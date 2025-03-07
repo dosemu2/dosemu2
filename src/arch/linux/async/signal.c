@@ -809,7 +809,7 @@ void do_periodic_stuff(void)
 #endif
     coopth_run();
 
-    if (video_initialized && Video && Video->change_config)
+    if (video_initialized && Video && Video->change_config && !config.no_xtitle)
 	update_xtitle();
 }
 
