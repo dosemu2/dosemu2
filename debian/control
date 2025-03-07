@@ -53,6 +53,7 @@ Architecture: any
 Depends:
     ${misc:Depends},
     ${shlibs:Depends},
+    libcap2-bin,
     fdpp,
     djdev64,
     comcom64
