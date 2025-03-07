@@ -73,6 +73,11 @@ void dosemu2_xtitle_enable(void)
     config.no_xtitle = 0;
 }
 
+void dosemu2_set_window_title(const char *title)
+{
+    config.X_title = strdup(title);
+}
+
 int dosemu2_emulate(int argc, char **argv, char * const *envp)
 {
     return emulate(argc, argv, envp);

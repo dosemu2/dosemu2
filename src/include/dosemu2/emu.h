@@ -25,5 +25,6 @@ void dosemu2_render_disable(void);
 void dosemu2_render_enable(void);
 void dosemu2_xtitle_disable(void);
 void dosemu2_xtitle_enable(void);
+void dosemu2_set_window_title(const char *title);
 
 #endif

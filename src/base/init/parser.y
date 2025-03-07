@@ -1070,7 +1070,12 @@ x_flags		: x_flag
 		| x_flags x_flag
 		;
 x_flag		: L_DISPLAY string_expr	{ free(config.X_display); config.X_display = $2; }
-		| L_TITLE string_expr	{ free(config.X_title); config.X_title = $2; }
+		| L_TITLE string_expr	{
+					  if (!config.no_xtitle) {
+					    free(config.X_title);
+					    config.X_title = $2;
+					  }
+					 }
 		| X_TITLE_SHOW_APPNAME bool	{ config.X_title_show_appname = ($2!=0); }
 		| ICON_NAME string_expr	{ free(config.X_icon_name); config.X_icon_name = $2; }
 		| X_BLINKRATE expression	{ config.X_blinkrate = $2; }
