@@ -172,6 +172,7 @@ typedef struct config_info {
        int vga;
        boolean X;
        boolean X_fullscreen;
+       boolean X_hidden;
        boolean sdl;
        boolean vga_fonts;
        int sdl_sound;

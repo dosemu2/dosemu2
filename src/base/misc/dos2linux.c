@@ -1578,3 +1578,8 @@ void set_boot_cls(void)
 {
     misc_e6_store_options("DOSEMU_BOOT_CLS=1");
 }
+
+void set_boot_showwin(void)
+{
+    misc_e6_store_options("DOSEMU_BOOT_SHOWWIN=1");
+}

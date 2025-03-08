@@ -1021,7 +1021,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     /* wayland may create threads here! */
     if (sig_threads_wa)
       signal_block_async_nosig(&oset);
-    SDL_ShowWindow(window);
+    if (!config.X_hidden)
+      SDL_ShowWindow(window);
     if (sig_threads_wa)
       sigprocmask(SIG_SETMASK, &oset, NULL);
     SDL_SetWindowResizable(window, !config.X_noresize);
@@ -1254,6 +1255,20 @@ static int SDL_change_config(unsigned item, void *buf)
         redraw_text();
       }
     }
+    break;
+  }
+
+  case CHG_MAP: {
+    int mode = *(int *)buf;
+    if (mode == -1)
+      SDL_ShowWindow(window);
+    break;
+  }
+
+  case CHG_UNMAP: {
+    int mode = *(int *)buf;
+    if (mode == -1)
+      SDL_HideWindow(window);
     break;
   }
 

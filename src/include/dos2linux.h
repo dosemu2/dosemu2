@@ -398,5 +398,6 @@ void dos2tty_done(void);
 
 void set_exit_after_load(void);
 void set_boot_cls(void);
+void set_boot_showwin(void);
 
 #endif /* DOS2LINUX_H */

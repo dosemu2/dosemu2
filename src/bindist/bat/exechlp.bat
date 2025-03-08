@@ -8,6 +8,7 @@ if ERRORLEVEL 1 exitemu 1
 if "%DOSEMU_SYS_CMD%" == "exit" goto cont
 if "%DOSEMU_SYS_CMD%" == "" goto done
 if not "%DOSEMU_BOOT_CLS%" == "" cls
+if not "%DOSEMU_BOOT_SHOWWIN%" == "" xmode -map -1
 call %DOSEMU_SYS_CMD%
 set SHELL_LOADHIGH_DEFAULT=
 :cont

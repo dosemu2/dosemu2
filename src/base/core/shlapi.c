@@ -78,6 +78,12 @@ void dosemu2_set_window_title(const char *title)
     config.X_title = strdup(title);
 }
 
+void dosemu2_set_blind_boot(void)
+{
+    config.X_hidden = 1;
+    set_boot_showwin();
+}
+
 int dosemu2_emulate(int argc, char **argv, char * const *envp)
 {
     return emulate(argc, argv, envp);
