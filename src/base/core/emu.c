@@ -122,6 +122,9 @@ char * const *dosemu_envp;
 FILE *real_stderr;
 int config_hdiskboot;
 
+static void (*init_hook)(void *);
+static void *init_hook_arg;
+
 #define MAX_EXIT_HANDLERS 5
 struct exit_hndl {
   void (*handler)(void);
@@ -321,6 +324,8 @@ int emulate(int argc, char **argv, char * const *envp)
     /* threads can be created only after signal_pre_init() so
      * it should be above device_init(), iodev_init(), cpu_setup() etc */
     signal_pre_init();          /* initialize sig's & sig handlers */
+    if (init_hook)
+      init_hook(init_hook_arg);
     cpu_setup();		/* setup the CPU */
     pci_setup();
     device_init();		/* priv initialization of video etc. */
@@ -599,3 +604,8 @@ void hardware_run(void)
 	rtc_run();
 }
 
+void set_init_hook(void (*hook)(void *), void *arg)
+{
+    init_hook = hook;
+    init_hook_arg = arg;
+}

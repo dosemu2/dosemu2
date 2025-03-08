@@ -27,5 +27,6 @@ void dosemu2_xtitle_disable(void);
 void dosemu2_xtitle_enable(void);
 void dosemu2_set_window_title(const char *title);
 void dosemu2_set_blind_boot(void);
+void dosemu2_set_init_hook(void (*hook)(void *), void *arg);
 
 #endif

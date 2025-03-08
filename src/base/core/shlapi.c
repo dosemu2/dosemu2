@@ -84,6 +84,11 @@ void dosemu2_set_blind_boot(void)
     set_boot_showwin();
 }
 
+void dosemu2_set_init_hook(void (*hook)(void *), void *arg)
+{
+    set_init_hook(hook, arg);
+}
+
 int dosemu2_emulate(int argc, char **argv, char * const *envp)
 {
     return emulate(argc, argv, envp);
