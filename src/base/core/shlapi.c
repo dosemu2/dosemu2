@@ -89,6 +89,11 @@ void dosemu2_set_init_hook(void (*hook)(void *), void *arg)
     set_init_hook(hook, arg);
 }
 
+void dosemu2_set_terminal_mode(void)
+{
+    config.term = 1;
+}
+
 int dosemu2_emulate(int argc, char **argv, char * const *envp)
 {
     return emulate(argc, argv, envp);
