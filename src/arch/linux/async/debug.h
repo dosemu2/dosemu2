@@ -2,6 +2,6 @@
 #define __DEBUG_H
 
 void siginfo_debug(const siginfo_t *si);
-void gdb_debug(void);
+int gdb_debug(void);
 
 #endif

@@ -205,7 +205,7 @@ static int do_gdb_debug(void)
   return ret;
 }
 
-void gdb_debug(void)
+int gdb_debug(void)
 {
     int ret = do_gdb_debug();
 #if 0
@@ -229,10 +229,12 @@ void gdb_debug(void)
 #endif
 
     log_printf("\n");
+    return ret;
 }
 
 void siginfo_debug(const siginfo_t *si)
 {
+    int rc = 0;
     error("@\n");
 #ifdef __linux__
     psiginfo(si, "");
@@ -245,11 +247,11 @@ void siginfo_debug(const siginfo_t *si)
 	  si->si_signo, si->si_code, si->si_errno, si->si_addr);
 
     if (dosemu_pid == getpid())
-      gdb_debug();
+      rc = gdb_debug();
 #ifdef HAVE_BACKTRACE
 #ifdef X86_EMULATOR
     /* backtrace() crashes in jit code */
-    if (!IS_EMU_JIT() || !e_in_compiled_code())
+    if (!rc || !IS_EMU_JIT() || !e_in_compiled_code())
 #endif
       print_trace();
 #endif
