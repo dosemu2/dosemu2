@@ -13,6 +13,8 @@ case "$1" in
 #            chmod ug+s /usr/libexec/dosemu2/dosemu2.bin
 #            setcap cap_setgid+p /usr/libexec/dosemu2/dosemu2.bin
 #        fi
+        chmod ug-s /usr/libexec/dosemu2/dosemu2.bin
+        setcap cap_setgid-p /usr/libexec/dosemu2/dosemu2.bin
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
