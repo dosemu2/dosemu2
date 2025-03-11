@@ -6,15 +6,13 @@ set -e
 
 case "$1" in
     configure)
-#        if getent group dosemu2 >/dev/null; then
-#            if ! chown dosemu2:dosemu2 /usr/libexec/dosemu2/dosemu2.bin; then
-#                exit 1
-#            fi
-#            chmod ug+s /usr/libexec/dosemu2/dosemu2.bin
-#            setcap cap_setgid+p /usr/libexec/dosemu2/dosemu2.bin
-#        fi
-        chmod ug-s /usr/libexec/dosemu2/dosemu2.bin
-        setcap cap_setgid-p /usr/libexec/dosemu2/dosemu2.bin
+        if getent group dosemu2 >/dev/null; then
+            if ! chown dosemu2:dosemu2 /usr/libexec/dosemu2/dosemu2.bin; then
+                exit 1
+            fi
+            chmod ug+s /usr/libexec/dosemu2/dosemu2.bin
+            setcap cap_setgid+p /usr/libexec/dosemu2/dosemu2.bin
+        fi
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
