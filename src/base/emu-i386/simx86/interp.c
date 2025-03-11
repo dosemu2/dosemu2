@@ -3692,9 +3692,13 @@ void instr_emu_sim_reset_count(void)
 }
 
 #ifdef X86_JIT
+/* safety gap should be definitely longer than 1 instruction to not
+ * overwrite something unintentionally */
+#define SAFE_PRJ_GAP 16
 static void _PreJit86(unsigned int PC, int basemode, int flags)
 {
 	unsigned int P0;
+	int gap = ((flags & FLG_SPECULATIVE) ? SAFE_PRJ_GAP : 1);
 
 	while (1) {
 		TheCPU.mode = basemode;
@@ -3714,7 +3718,7 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 		PC = interp_post(PC, basemode, P0, flags);
 		if (TheCPU.err)
 			return;
-		if (e_querymark(PC, 1)) {
+		if (e_querymark(PC, gap)) {
 			if (CurrIMeta>0) {
 				TNode *G = DoClose(PC, basemode,
 						InstrMeta[0].npc);
@@ -3755,7 +3759,7 @@ static void prejit_run(unsigned int PC)
 #if !SPEC_PREJIT
   return;
 #endif
-  if (e_querymark(PC, 1))
+  if (e_querymark(PC, SAFE_PRJ_GAP))
     return;
 #if PROFILE
   SpecPrejits++;
