@@ -933,7 +933,6 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   found = 0;
   pthread_mutex_lock(&trees_mtx);
   nG = avltr_probe(key, &found);
-  pthread_mutex_unlock(&trees_mtx);
 /**/ if (nG==NULL) leavedos_main(0x8201);
 
   if (found) {
@@ -958,6 +957,8 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 #endif
 	nG->key = key;
   }
+  nG->alive = NODELIFE(nG);
+  pthread_mutex_unlock(&trees_mtx);
 
   /* transfer info from first node of the Meta list to our new node */
   nG->seqbase = I0->seqbase;
@@ -968,7 +969,6 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 #endif
   nG->len = I0->totlen;
   nG->flags = I0->flags;
-  nG->alive = NODELIFE(nG);
   pthread_mutex_lock(&cache_mtx);
   findtree_cache[key&FINDTREE_CACHE_HASH_MASK] = nG;
   pthread_mutex_unlock(&cache_mtx);
