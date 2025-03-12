@@ -494,8 +494,8 @@ bool set_video_mode(int mode)
     i10_msg("look for mode with scan=%i font_height=%i\n",
         ts, READ_BYTE(BIOS_FONT_HEIGHT));
     while ((vmi2 = vga_emu_find_mode(mode, vmi2))) {
-      if (vmi2->height > ts ||
-          vmi2->char_height != READ_BYTE(BIOS_FONT_HEIGHT))
+      if (vmi2->height > ts /*||
+          vmi2->char_height != READ_BYTE(BIOS_FONT_HEIGHT)*/)
         continue;
       if (delta < 0 || ts - vmi2->height < delta) {
         i10_msg("better mode found: %ix%i %ix%i scan=%i\n",
