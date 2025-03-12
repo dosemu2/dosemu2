@@ -177,13 +177,11 @@ void Seq_init(void)
   while(i <= SEQ_MAX_INDEX) vga.seq.data[i++] = 0;
   vga.seq.data[0x0b] = CHIP_ID;
 
-  /* initialize non-standard modes */
-  if(j == 15) {
-    if(vga.mode_class == TEXT) {
-      if(vga.char_width == 9) vga.seq.data[1] = 0;
-      vga.seq.data[2] = 3;
-      vga.seq.data[4] = 2;
-    }
+  if (vga.mode_class == TEXT) {
+    if (vga.char_width == 9) vga.seq.data[1] = 0;
+    else vga.seq.data[1] = 1;
+    vga.seq.data[2] = 3;
+    vga.seq.data[4] = 2;
   }
 
   vga.seq.mode_ctrl_1_bak = vga.seq.mode_ctrl_2_bak = 0;
