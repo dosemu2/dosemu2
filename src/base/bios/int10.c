@@ -1363,10 +1363,10 @@ int int10(void) /* with dualmon */
 	      int text_scanlines = scanlines[LO(ax)];
 	      set_text_scanlines(text_scanlines);
               LO(ax) = 0x12;
-              i10_deb("select vert res: %d lines", text_scanlines);
+              i10_deb("select vert res: %d lines\n", text_scanlines);
             }
             else {
-              i10_msg("select vert res: invalid arg 0x%02x", LO(ax));
+              i10_msg("select vert res: invalid arg 0x%02x\n", LO(ax));
             }
           }
           break;
