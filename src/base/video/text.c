@@ -644,7 +644,7 @@ struct bitmap_desc convert_bitmap_string(int x, int y, const char *text,
       }
       if (vga.char_width >= 9) {	/* copy 8th->9th for line gfx */
 	/* (only if enabled by bit... */
-	if ((vga.attr.data[0x10] & 0x04) && ((text[cc] & 0xc0) == 0xc0)) {
+	if (((vga.attr.data[0x10] & 0x04) == 0) && ((text[cc] & 0xe0) == 0xc0)) {
 	  text_canvas[srcp2] = text_canvas[srcp2 - 1];
 	  srcp2++;
 	} else {		/* ...or fill with background */
