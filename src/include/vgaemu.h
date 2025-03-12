@@ -498,6 +498,7 @@ int vgaemu_switch_plane(unsigned);
 int vga_emu_switch_bank(unsigned);
 vga_mode_info *vga_emu_find_mode(int, vga_mode_info *);
 int vga_emu_setmode(int, int, int);
+int vga_emu_setmode_vmi(vga_mode_info *, int, int);
 int vgaemu_map_bank(void);
 int vga_emu_set_textsize(int, int);
 void dirty_all_video_pages(void);

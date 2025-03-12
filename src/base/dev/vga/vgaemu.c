@@ -2307,39 +2307,10 @@ vga_mode_info *vga_emu_find_mode(int mode, vga_mode_info* vmi)
  *
  */
 
-static int __vga_emu_setmode(int mode, int width, int height)
+static int __vga_emu_setmode(vga_mode_info *vmi, int width, int height)
 {
-  unsigned u = -1;
   int i;
-  vga_mode_info *vmi = NULL, *vmi2 = NULL;
-
-  vga_msg("vga_emu_setmode: requested mode: 0x%02x (%d x %d)\n", mode, width, height);
-
-  while((vmi = vga_emu_find_mode(mode, vmi))) {
-    if(vmi->mode_class == GRAPH || (vmi->text_width == width && vmi->text_height == height)) break;
-  }
-
-  if(vmi == NULL) {
-    /* Play it again, Sam!
-     * This is when we can't find the textmode with the appropriate sizes.
-     * Use the best matching text mode
-     */
-
-    while((vmi = vga_emu_find_mode(mode, vmi))) {
-      if(vmi->text_width >= width && vmi->text_height >= height && vmi->text_width * vmi->text_height < u) {
-        u = vmi->text_width * vmi->text_height;
-        vmi2 = vmi;
-      }
-    }
-    if(vmi == NULL && Video->setmode == NULL)
-      vmi2 = vga_emu_find_mode(mode, vmi);
-    vmi = vmi2;
-  }
-
-  if(vmi == NULL) {	/* no mode found */
-    vga_msg("vga_emu_setmode: no mode 0x%02x found\n", mode);
-    return False;
-  }
+  int mode = vmi->VGA_mode;
 
   if (vmi->buffer_start == 0xa000 && config.umb_a0) {
     error("VGA: avoid touching a000 as it is used for UMB\n");
@@ -2349,8 +2320,6 @@ static int __vga_emu_setmode(int mode, int width, int height)
     error("VGA: avoid touching b000 as it is used for UMB\n");
     return False;
   }
-
-  vga_msg("vga_emu_setmode: mode found in %s run\n", vmi == vmi2 ? "second" : "first");
 
   vga_msg("vga_emu_setmode: mode 0x%02x, (%d x %d x %d, %d x %d, %d x %d, %dk at 0x%04x)\n",
     mode, vmi->width, vmi->height, vmi->color_bits, vmi->text_width, vmi->text_height,
@@ -2514,10 +2483,49 @@ static int _is_dirty(void)
 int vga_emu_setmode(int mode, int width, int height)
 {
   int ret;
+  unsigned u = -1;
+  vga_mode_info *vmi = NULL, *vmi2 = NULL;
+
+  vga_msg("vga_emu_setmode: requested mode: 0x%02x (%d x %d)\n", mode, width, height);
+
+  while((vmi = vga_emu_find_mode(mode, vmi))) {
+    if(vmi->mode_class == GRAPH || (vmi->text_width == width && vmi->text_height == height)) break;
+  }
+
+  if(vmi == NULL) {
+    /* Play it again, Sam!
+     * This is when we can't find the textmode with the appropriate sizes.
+     * Use the best matching text mode
+     */
+
+    while((vmi = vga_emu_find_mode(mode, vmi))) {
+      if(vmi->text_width >= width && vmi->text_height >= height && vmi->text_width * vmi->text_height < u) {
+        u = vmi->text_width * vmi->text_height;
+        vmi2 = vmi;
+      }
+    }
+    if(vmi == NULL && Video->setmode == NULL)
+      vmi2 = vga_emu_find_mode(mode, vmi);
+    vmi = vmi2;
+  }
+
+  if(vmi == NULL) {	/* no mode found */
+    vga_msg("vga_emu_setmode: no mode 0x%02x found\n", mode);
+    return False;
+  }
   pthread_rwlock_wrlock(&mode_mtx);
-  ret = __vga_emu_setmode(mode, width, height);
+  ret = __vga_emu_setmode(vmi, width, height);
   pthread_rwlock_unlock(&mode_mtx);
 //  render_update_vidmode();
+  return ret;
+}
+
+int vga_emu_setmode_vmi(vga_mode_info *vmi, int width, int height)
+{
+  int ret;
+  pthread_rwlock_wrlock(&mode_mtx);
+  ret = __vga_emu_setmode(vmi, width, height);
+  pthread_rwlock_unlock(&mode_mtx);
   return ret;
 }
 

@@ -593,7 +593,7 @@ bool set_video_mode(int mode)
 #endif
 
   /* setmode needs video_mode to _still have_ the memory-clear bit -- sw */
-  vga_emu_setmode(mode, co, li);
+  vga_emu_setmode_vmi(vmi, co, li);
 
   /*
    * video_mode is expected to be the mode number _without_ the
