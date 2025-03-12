@@ -1288,7 +1288,7 @@ static int vga_emu_protect(unsigned page, int prot, int instremu)
   for (i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
     /* don't protect LFB in instremu mode */
     if (instremu && i == VGAEMU_MAP_LFB_MODE)
-      break;
+      continue;
     if (vga.mem.map[i].pages) {
       j = page - vga.mem.map[i].first_page;
       if(j >= 0 && j < vga.mem.map[i].pages) {
@@ -2817,8 +2817,10 @@ static void vgaemu_adjust_instremu(int value)
       for (i = 0; i < vga.mem.map[VGAEMU_MAP_LFB_MODE].pages; i++)
 	vga_emu_protect_page(vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page + i,
 		DEF_PROT, 1);
-      for (i = 0; i < vga.mem.map[VGAEMU_MAP_BANK_MODE].pages; i++)
-	_vga_emu_adjust_protection(i, NONE, 1, 1);
+      /* In text mode base_page is set to 0xb8, but we need to protect
+       * 0xa0 (graph_base) in any case, so do that by hands. */
+      for (i = 0; i < vga.mem.graph_size >> PAGE_SHIFT; i++)
+	vga_emu_protect_page((vga.mem.graph_base >> PAGE_SHIFT) + i, NONE, 1);
       pthread_mutex_unlock(&prot_mtx);
     }
   } else {
@@ -2831,6 +2833,8 @@ static void vgaemu_adjust_instremu(int value)
       for (i = 0; i < vga.mem.map[VGAEMU_MAP_LFB_MODE].pages; i++)
 	vga_emu_protect_page(vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page + i,
 		RW, 1);
+      for (i = 0; i < vga.mem.graph_size >> PAGE_SHIFT; i++)
+	vga_emu_protect_page((vga.mem.graph_base >> PAGE_SHIFT) + i, RW, 1);
     }
   }
   if (changed &&
