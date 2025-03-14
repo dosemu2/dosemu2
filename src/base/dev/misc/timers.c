@@ -58,6 +58,7 @@ typedef struct {
   uint32_t q_ticks;
   void *evtmr;
   int tmr_skip;
+  int latched_cnt;
 } pit_latch_struct;
 
 static pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
@@ -195,6 +196,7 @@ static int _pit_latch(int latch, uint64_t cur)
   }
 
   cur_time.td = cur;
+  p->latched_cnt++;
 
   if ((p->mode & 2)==0) {
     /* non-periodical modes 0,1,4,5 - used mainly by games
@@ -245,7 +247,7 @@ static int _pit_latch(int latch, uint64_t cur)
          * is lost or pending */
 	if (cur > pic_itime[latch]) {
 	  ticks = 1;
-	  ret++; // underflow seen
+	  ret = p->latched_cnt; // underflow seen
 	} else {
 	  ticks = NS_TO_TICKS(pic_itime[latch] - cur) + 1;
 	  if (ticks > p->cntr)
@@ -526,6 +528,7 @@ static int timer_irq_ack(int masked)
   int ret = 0;
 
   h_printf("PIT: timer 0 acknowledged, %i\n", q);
+  pit[0].latched_cnt = 0;
 
   if (q) {
     pit[0].time.td = pic_itime[0];

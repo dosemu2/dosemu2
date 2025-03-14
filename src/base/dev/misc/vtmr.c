@@ -182,7 +182,8 @@ static void vtmr_io_write(ioport_t port, Bit8u value, void *arg)
         int from_irq = masked;
         if (vth[timer].latch) {
             int rc = vth[timer].latch();
-            if (rc && !from_irq) {  // underflow seen not from IRQ
+            // underflow seen not from IRQ or seen more than once
+            if ((rc == 1 && !from_irq) || rc > 1) {
                 uint16_t irr;
                 pthread_mutex_lock(&irr_mtx);
                 irr = __atomic_fetch_and(&vtmr_irr, ~msk, __ATOMIC_RELAXED);
