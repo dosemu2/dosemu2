@@ -1,9 +1,18 @@
+from os import access, R_OK, W_OK
+
 # Note: The Borland/Turbo Pascal binaries are created using the script at
 # the end of this file as I don't want to have to download and install all
 # these compilers for this test, so I'm afraid that we have to just grab
 # my precompiled binaries, and trust that they are from the source below.
 
 def comcom_r200fix(self, mode):
+
+    # Since the issue that r200fix attempts to fixup is a timing
+    # problem, running with cpu emulation is slow enough to not
+    # trigger the problem code and can give us an unexpected success.
+    if not access("/dev/kvm", W_OK|R_OK):
+        self.skipTest("requires KVM")
+
     self.unTarOrSkip("TEST_R200.tar", [
         ("tp40.exe", "f34a8baff122ef865d6869a04eeb5d16777073bb"),
         ("tp55.exe", "3bc0eb626bb150680cce6dcf20dd19e18df29962"),
