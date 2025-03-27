@@ -310,18 +310,78 @@ unsigned char Misc_get_input_status_1(void)
    * We're in vertical retrace?  If so, set VR and DE flags
    * We're in horizontal retrace?  If so, just set DE flag, 0 in VR
    *
+   * Idea from Adam Moss:
+   * Wait 20 milliseconds before we tell the DOS program that the VGA is
+   * in a vertical retrace. This is to avoid that some programs run too
+   * _fast_ in Dosemu (yes, I know, this sounds odd, but such programs
+   * really exist!). This option works only if the system has
+   * gettimeofday().
+   *
+   * Now simpler and more 'realtime', for better or for worse.  Implements
+   * horizontal retrace too.  (--adm)
+   *
    */
+  static unsigned char hretrace = 0, vretrace = 0, first = 1;
+  static hitimer_t t_vretrace = 0;
   static int flip = 0;
+  /* Timings are 'ballpark' guesses and may vary from mode to mode, but
+     such accuracy is probably not important... I hope. (--adm) */
+  static int vvfreq = 17000;	/* 70 Hz - but the best we'll get with
+  				 * current PIC will be 50 Hz */
+  hitimer_t t, tdiff;
   unsigned char retval;
-  int vretrace, hretrace;
 
   vga.attr.flipflop = 0;	 	/* ATTR_INDEX_FLIPFLOP */
 
-  if (++flip > 10)
-    flip = 0;
-  hretrace = (flip & 3) == 3;
-  vretrace = flip >= 7 ? 9 : 0;
+#ifdef OLD_CGA_SNOW_CODE
+  /* old 'cga snow' code with the new variables - looks terrible,
+   * but since it sometimes works we keep it for emergencies */
+  hretrace ^= 0x01; vretrace++;
+  retval = 0xc6 | hretrace | (vretrace & 0xfc ? 0 : 0x09);
+#else
+  t = GETusTIME(0);
+
+  if(first) { t_vretrace = t; first = 0; }
+  tdiff = t - t_vretrace;
+
+#if DEBUG_MISC >= 2
+  r_printf("VGAEmu: Misc: VR diff = %ld\n", tdiff);
+#endif
+
+  if(vretrace) {
+    /* We're in 'display' mode and should return 0 in DE and VR */
+    /* set display after 1ms from retrace start */
+    if(tdiff > 1000) vretrace = hretrace = 0;
+  }
+  else {
+    /* set retrace on timeout */
+    if(tdiff > vvfreq) {
+      /* We're in vertical retrace?  If so, set VR and DE flags */
+      vretrace = 0x09; t_vretrace = t;
+    }
+    else {
+      /* The timer can't be relied upon for the very short intervals necessary
+	 for horizontal retrace emulation
+	 (such as the old "hretrace = (tdiff%49) > 35;").
+	 The following is a crude switch-on switch-off approach after
+	 10 reads taken from DosBox. It seems to work in most cases,
+         (in particular Commander Keen 4) */
+      flip++;
+      if (flip > 40) flip = 0;
+      /* We're in horizontal retrace?  If so, just set DE flag, 0 in VR */
+      hretrace = flip > 20;
+    }
+  }
+
   retval = 0xc4 | hretrace | vretrace;
+
+  /*
+   * Hercules cards use bit 7 for vertical retrace. This bit is not used
+   * by VGA cards, so there should be no conflict here. -- sw
+   */
+  if(vga.config.mono_port && vretrace) retval &= ~0x80;
+
+#endif	/* OLD_CGA_SNOW_CODE */
 
   misc_deb(
     "Misc_get_input_status_1: 0x%02x%s\n",
