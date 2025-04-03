@@ -1062,7 +1062,7 @@ int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
   dosaddr_t va = do_get_hardware_ram(addr, mapsize, &hw);
   if (va == (dosaddr_t)-1)
     return -1;
-  assert(addr >= LOWMEM_SIZE + HMASIZE);
+  assert(addr >= GRAPH_BASE);
   err = alias_mapping(cap, va, mapsize, protect, source);
   if (err)
     return err;

@@ -1482,7 +1482,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   }
   if (mapping == VGAEMU_MAP_BANK_MODE) {
     int cap = MAPPING_VGAEMU;
-    i = alias_mapping(cap,
+    i = alias_mapping_pa(cap,
       vmt->base_page * HOST_PAGE_SIZE, vmt->pages * HOST_PAGE_SIZE,
       prot, vga.mem.base + (first_page * HOST_PAGE_SIZE));
   }
