@@ -56,13 +56,17 @@ struct mem_map_struct {
   int len;
 };
 
+struct aliasmap_s {
+  unsigned char *ptr;
+};
+
 struct hardware_ram {
   size_t base;
   dosaddr_t default_vbase;
   dosaddr_t vbase;
   size_t size;
   int type;
-  unsigned char **aliasmap;
+  struct aliasmap_s *aliasmap;
   struct hardware_ram *next;
 };
 
@@ -101,7 +105,7 @@ static struct mappingdrivers *mappingdriver;
 static const struct mapping_hook *mapping_hook;
 
 #define ALIAS_SIZE (LOWMEM_SIZE + HMASIZE)
-static unsigned char *lowmem_aliasmap[ALIAS_SIZE/PAGE_SIZE];
+static struct aliasmap_s lowmem_aliasmap[ALIAS_SIZE/PAGE_SIZE];
 struct hardware_ram;
 static dosaddr_t do_get_hardware_ram(unsigned addr, uint32_t size,
 	struct hardware_ram **r_hw);
@@ -133,13 +137,13 @@ void *dosaddr_to_unixaddr(dosaddr_t addr)
   struct hardware_ram *hw;
 
   if (addr < ALIAS_SIZE)
-    return lowmem_aliasmap[addr >> PAGE_SHIFT] + (addr & (PAGE_SIZE - 1));
+    return lowmem_aliasmap[addr >> PAGE_SHIFT].ptr + (addr & (PAGE_SIZE - 1));
   addr2 = do_find_hardware_ram(addr, 1, &hw);
   /* since 517a4c61 lowmem_base follows VA, not PA */
   if (addr2 == (unsigned)-1)
     return LOWMEM(addr);
   off = addr - hw->vbase;
-  return hw->aliasmap[off >> PAGE_SHIFT] + (off & (PAGE_SIZE - 1));
+  return hw->aliasmap[off >> PAGE_SHIFT].ptr + (off & (PAGE_SIZE - 1));
 }
 
 void *physaddr_to_unixaddr(unsigned int addr)
@@ -722,18 +726,18 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
   return mappingdriver->resize(cap, addr, oldsize, newsize);
 }
 
-static void populate_aliasmap(unsigned char **map, unsigned char *addr,
+static void populate_aliasmap(struct aliasmap_s *map, unsigned char *addr,
 	int size)
 {
   int i;
 
   for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++)
-    map[i] = addr ? addr + (i << PAGE_SHIFT) : NULL;
+    map[i].ptr = addr ? addr + (i << PAGE_SHIFT) : NULL;
 }
 
-static unsigned char **alloc_aliasmap(unsigned char *addr, int size)
+static struct aliasmap_s *alloc_aliasmap(unsigned char *addr, int size)
 {
-  unsigned char **ret = malloc((PAGE_ALIGN(size) >> PAGE_SHIFT) * sizeof(*ret));
+  struct aliasmap_s *ret = malloc((PAGE_ALIGN(size) >> PAGE_SHIFT) * sizeof(*ret));
   populate_aliasmap(ret, addr, size);
   return ret;
 }
@@ -937,7 +941,7 @@ void *get_hardware_uaddr(unsigned addr)
     if (hw->vbase != -1 &&
 	hw->base <= addr && addr < hw->base + hw->size) {
       int off = addr - hw->base;
-      return hw->aliasmap[off >> PAGE_SHIFT] + (off & (PAGE_SIZE - 1));
+      return hw->aliasmap[off >> PAGE_SHIFT].ptr + (off & (PAGE_SIZE - 1));
     }
   }
   return MAP_FAILED;
