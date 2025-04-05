@@ -122,6 +122,8 @@ static void hwram_mprotect_aliasmap(struct hardware_ram *hw, unsigned addr,
 static int hwram_is_mapped(struct hardware_ram *hw, unsigned addr, int size);
 static int hwram_restore_mapping(struct hardware_ram *hw, unsigned addr,
 	int size, dosaddr_t va);
+static int hwram_prot_match(struct hardware_ram *hw, unsigned addr,
+	int size, int prot);
 static int madvise_mapping(dosaddr_t targ, size_t length, int flags);
 
 static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
@@ -584,6 +586,8 @@ int mprotect_mapping_pa(unsigned int addr, size_t mapsize, int protect)
   if (va == (dosaddr_t)-1)
     return -1;
   assert(addr >= GRAPH_BASE);
+  if (hwram_prot_match(hw, addr, mapsize, protect))
+    return 0;
   /* if not mapped, then don't touch */
   if (hwram_is_mapped(hw, addr, mapsize)) {
     err = mprotect_mapping(MAPPING_LOWMEM, va, mapsize, protect);
@@ -862,6 +866,17 @@ static int restore_mapping_aliasmap(struct aliasmap_s *map, int size,
   return 0;
 }
 
+static int prot_match_aliasmap(struct aliasmap_s *map, int size, int prot)
+{
+  int i;
+
+  for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++) {
+    if (map[i].protect != prot)
+      return 0;
+  }
+  return 1;
+}
+
 static struct aliasmap_s *alloc_aliasmap(unsigned char *addr, int size)
 {
   struct aliasmap_s *ret = malloc((PAGE_ALIGN(size) >> PAGE_SHIFT) * sizeof(*ret));
@@ -1093,6 +1108,14 @@ static int hwram_restore_mapping(struct hardware_ram *hw, unsigned addr,
   int off = addr - hw->base;
   assert(!(off & (PAGE_SIZE - 1))); // page-aligned
   return restore_mapping_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], size, va);
+}
+
+static int hwram_prot_match(struct hardware_ram *hw, unsigned addr,
+	int size, int prot)
+{
+  int off = addr - hw->base;
+  assert(!(off & (PAGE_SIZE - 1))); // page-aligned
+  return prot_match_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], size, prot);
 }
 
 void *get_hardware_uaddr(unsigned addr)
@@ -1350,6 +1373,8 @@ int mprotect_vga_pa(int idx, unsigned int addr, size_t mapsize, int protect)
   if (va == (dosaddr_t)-1)
     return -1;
   assert(addr >= GRAPH_BASE);
+  if (hwram_prot_match(hw, addr, mapsize, protect))
+    return 0;
   /* if not mapped, then don't touch */
   if (hwram_is_mapped(hw, addr, mapsize)) {
     int err = mprotect_vga(idx, va, mapsize, protect);

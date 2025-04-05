@@ -1171,38 +1171,6 @@ int vga_emu_fault(dosaddr_t lin_addr, unsigned err, cpuctx_t *scp)
   return True;
 }
 
-static void vgaemu_update_prot_cache(unsigned page, int prot)
-{
-  if(page >= VGA_A0 && page < VGA_C0) {
-    vga.mem.prot_map0[page - VGA_A0] = prot;
-  }
-
-  if(
-    vga.mem.lfb_base_page &&
-    page >= vga.mem.lfb_base_page &&
-    page < vga.mem.lfb_base_page + vga.mem.pages) {
-    vga.mem.prot_map1[page - vga.mem.lfb_base_page] = prot;
-  }
-}
-
-
-static int vgaemu_prot_ok(unsigned page, int prot)
-{
-  if(page >= VGA_A0 && page < VGA_C0) {
-    return vga.mem.prot_map0[page - VGA_A0] == prot ? 1 : 0;
-  }
-
-  if(
-    vga.mem.lfb_base_page &&
-    page >= vga.mem.lfb_base_page &&
-    page < vga.mem.lfb_base_page + vga.mem.pages) {
-    return vga.mem.prot_map1[page - vga.mem.lfb_base_page] == prot ? 1 : 0;
-  }
-
-  return 0;
-}
-
-
 /*
  * Change protection of a memory page
  *
@@ -1223,15 +1191,6 @@ int vga_emu_protect_page(unsigned page, int prot, int instremu)
     return 0;
 
   sys_prot = prot == RW ? VGA_EMU_RW_PROT : prot == RO ? VGA_EMU_RO_PROT : VGA_EMU_NONE_PROT;
-
-  if(vgaemu_prot_ok(page, sys_prot)) {
-    vga_deb2_map(
-      "vga_emu_protect_page: 0x%02x = %s (unchanged)\n",
-      page, prot == RW ? "RW" : prot == RO ? "RO" : "NONE"
-    );
-
-    return 0;
-  }
 
   vga_deb2_map(
     "vga_emu_protect_page: 0x%02x = %s\n",
@@ -1265,9 +1224,6 @@ int vga_emu_protect_page(unsigned page, int prot, int instremu)
       case EACCES: sys_prot = 0xfb; break;
     }
   }
-
-  vgaemu_update_prot_cache(page, sys_prot);
-
   return i;
 }
 
@@ -1494,7 +1450,6 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   }
 
   for(u = 0; u < vmt->pages; u++) {
-    vgaemu_update_prot_cache(vmt->base_page + u, prot);
     /* need to fix up protection for clean pages */
     if(vga.mode_class == GRAPH && !vga.mem.dirty_map[vmt->first_page + u] &&
 	    prot == VGA_EMU_RW_PROT)
@@ -1684,17 +1639,6 @@ int vga_emu_pre_init(void)
   memset(vga.mem.dirty_bitmap, 0, (vga.mem.pages+CHAR_BIT-1) / CHAR_BIT);
   dirty_all_video_pages();		/* all need an update */
 
-  if(
-    (vga.mem.prot_map0 = malloc(vgaemu_bios.pages * PAGE_SIZE / HOST_PAGE_SIZE + VGA_C0 - VGA_A0)) == NULL ||
-    (vga.mem.prot_map1 = (unsigned char *) malloc(vga.mem.pages)) == NULL
-  ) {
-    error("vga_emu_init: not enough memory for protection map\n");
-    config.exitearly = 1;
-    return 1;
-  }
-  memset(vga.mem.prot_map0, 0xff, vgaemu_bios.pages * PAGE_SIZE / HOST_PAGE_SIZE + 0x20);
-  memset(vga.mem.prot_map1, 0xff, vga.mem.pages);
-
   /*
    * vga.mem.map _must_ contain only valid mappings - otherwise _bad_ things will happen!
    * cf. vga_emu_protect()
@@ -1823,16 +1767,6 @@ static void print_prot_map()
 {
   int i, j;
 
-  vga_msg("prot_map: 0xa0000-0xc0000 & lfb\n");
-  v_printf("  ");
-  for(i = 0; i < 0x20; i++) {
-    if(!(i & 15))
-      v_printf(" ");
-    else if(!(i & 3))
-      v_printf(".");
-    v_printf("%c", prot2char(vga.mem.prot_map0[i]));
-  }
-  v_printf("\n");
   for(j = 0; j < 256; j += 64){
     v_printf("  ");
     for(i = 0; i < 64; i++) {
