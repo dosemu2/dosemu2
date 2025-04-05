@@ -115,8 +115,8 @@ static unsigned do_find_hardware_ram(dosaddr_t va, uint32_t size,
 	struct hardware_ram **r_hw);
 static void hwram_update_aliasmap(struct hardware_ram *hw, unsigned addr,
 	int size, unsigned char *src);
-static void hwram_unmap_aliasmap(struct hardware_ram *hw, unsigned addr,
-	int size);
+static void hwram_map_aliasmap(struct hardware_ram *hw, unsigned addr,
+	int size, int mapped);
 static void hwram_mprotect_aliasmap(struct hardware_ram *hw, unsigned addr,
 	int size, int protect);
 static int hwram_is_mapped(struct hardware_ram *hw, unsigned addr, int size);
@@ -137,6 +137,7 @@ static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
   addr2 = do_find_hardware_ram(dosaddr, mapsize, &hw);
   if (addr2 == (unsigned)-1)
     return;
+  hwram_map_aliasmap(hw, addr2, mapsize, 1);
   hwram_update_aliasmap(hw, addr2, mapsize, unixaddr);
   invalidate_unprotected_page_cache(dosaddr, mapsize);
 }
@@ -491,7 +492,7 @@ int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
   return ret;
 }
 
-int munmap_mapping_pa(unsigned int addr, size_t mapsize)
+int munmap_mapping_pa(int cap, unsigned int addr, size_t mapsize)
 {
   struct hardware_ram *hw;
   int err;
@@ -501,10 +502,12 @@ int munmap_mapping_pa(unsigned int addr, size_t mapsize)
   assert(addr >= GRAPH_BASE);
   if (!hwram_is_mapped(hw, addr, mapsize))
     return -1;
-  err = munmap_mapping(MAPPING_LOWMEM, va, mapsize);
-  if (err)
-    return err;
-  hwram_unmap_aliasmap(hw, addr, mapsize);
+  if (!(cap & MAPPING_INIT_LOWRAM)) {
+    err = munmap_mapping(MAPPING_LOWMEM, va, mapsize);
+    if (err)
+      return err;
+  }
+  hwram_map_aliasmap(hw, addr, mapsize, 0);
   return 0;
 }
 
@@ -801,7 +804,7 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
   return mappingdriver->resize(cap, addr, oldsize, newsize);
 }
 
-static void populate_aliasmap(struct aliasmap_s *map, unsigned char *addr,
+static void init_aliasmap(struct aliasmap_s *map, unsigned char *addr,
 	int size)
 {
   int i;
@@ -811,6 +814,15 @@ static void populate_aliasmap(struct aliasmap_s *map, unsigned char *addr,
     map[i].protect = addr ? PROT_READ | PROT_WRITE : PROT_NONE;
     map[i].mapped = !!addr;
   }
+}
+
+static void populate_aliasmap(struct aliasmap_s *map, unsigned char *addr,
+	int size)
+{
+  int i;
+
+  for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++)
+    map[i].ptr = addr ? addr + (i << PAGE_SHIFT) : NULL;
 }
 
 static void map_aliasmap(struct aliasmap_s *map, int size, int mapped)
@@ -880,7 +892,7 @@ static int prot_match_aliasmap(struct aliasmap_s *map, int size, int prot)
 static struct aliasmap_s *alloc_aliasmap(unsigned char *addr, int size)
 {
   struct aliasmap_s *ret = malloc((PAGE_ALIGN(size) >> PAGE_SHIFT) * sizeof(*ret));
-  populate_aliasmap(ret, addr, size);
+  init_aliasmap(ret, addr, size);
   return ret;
 }
 
@@ -1075,12 +1087,12 @@ static void hwram_update_aliasmap(struct hardware_ram *hw, unsigned addr,
   populate_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], src, size);
 }
 
-static void hwram_unmap_aliasmap(struct hardware_ram *hw, unsigned addr,
-	int size)
+static void hwram_map_aliasmap(struct hardware_ram *hw, unsigned addr,
+	int size, int mapped)
 {
   int off = addr - hw->base;
   assert(!(off & (PAGE_SIZE - 1))); // page-aligned
-  map_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], size, 0);
+  map_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], size, mapped);
 }
 
 static void hwram_mprotect_aliasmap(struct hardware_ram *hw, unsigned addr,
@@ -1252,13 +1264,17 @@ int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
   if (va == (dosaddr_t)-1)
     return -1;
   assert(addr >= GRAPH_BASE);
-  err = alias_mapping(cap, va, mapsize, protect, source);
-  if (err)
-    return err;
+  /* if not mapped, then don't touch */
+  if (hwram_is_mapped(hw, addr, mapsize)) {
+    err = alias_mapping(cap, va, mapsize, protect, source);
+    if (err)
+      return err;
+    invalidate_unprotected_page_cache(va, mapsize);
+    if (is_kvm_map(cap))
+      mprotect_kvm(cap, va, mapsize, protect);
+  }
   hwram_update_aliasmap(hw, addr, mapsize, source);
-  invalidate_unprotected_page_cache(va, mapsize);
-  if (is_kvm_map(cap))
-    mprotect_kvm(cap, va, mapsize, protect);
+  hwram_mprotect_aliasmap(hw, addr, mapsize, protect);
   return 0;
 }
 
@@ -1273,6 +1289,16 @@ int unalias_mapping_pa(int cap, unsigned addr, size_t mapsize)
   hwram_update_aliasmap(hw, addr, mapsize, NULL);
   invalidate_unprotected_page_cache(va, mapsize);
   return 1;
+}
+
+int mapping_is_mapped_pa(unsigned int addr, int mapsize)
+{
+  struct hardware_ram *hw;
+  dosaddr_t va = do_get_hardware_ram(addr, mapsize, &hw);
+  if (va == (dosaddr_t)-1)
+    return 0;
+  assert(addr >= GRAPH_BASE);
+  return hwram_is_mapped(hw, addr & _PAGE_MASK, PAGE_ALIGN(mapsize));
 }
 
 void mapping_register_hook(const struct mapping_hook *hook)

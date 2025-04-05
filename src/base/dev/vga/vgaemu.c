@@ -777,7 +777,7 @@ int vga_read_access(dosaddr_t m)
 	if (config.console_video)
 		return 0;
 	/* Using a planar mode */
-	return vga_bank_access(m);
+	return (vga_bank_access(m) && mapping_is_mapped_pa(m, 1));
 }
 
 int vga_write_access(dosaddr_t m)
@@ -788,9 +788,9 @@ int vga_write_access(dosaddr_t m)
 	 * the bank can be write-protected even in non-planar mode. */
 	if (m >= vga.mem.graph_base &&
 			m < vga.mem.graph_base + vga.mem.graph_size)
-		return 1;
+		return mapping_is_mapped_pa(m, 1);
 	if (m >= 0xb8000 && m < 0xc0000 + (vgaemu_bios.pages * PAGE_SIZE))
-		return 1;
+		return mapping_is_mapped_pa(m, 1);
 	if (vga.mem.lfb_base_page &&
 			(m / HOST_PAGE_SIZE) >= vga.mem.lfb_base_page &&
 			(m / HOST_PAGE_SIZE) < vga.mem.lfb_base_page + vga.mem.pages)

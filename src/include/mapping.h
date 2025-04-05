@@ -102,7 +102,7 @@ void *alias_mapping_ux(int cap, size_t mapsize, int protect, void *source);
 int alias_mapping_high(int cap, dosaddr_t targ, size_t mapsize, int protect,
     void *source);
 int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize);
-int munmap_mapping_pa(unsigned int addr, size_t mapsize);
+int munmap_mapping_pa(int cap, unsigned int addr, size_t mapsize);
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect);
 int mprotect_mapping_pa(unsigned int addr, size_t mapsize, int protect);
 int mprotect_vga(int idx, dosaddr_t targ, size_t mapsize, int protect);
@@ -114,6 +114,7 @@ int mcommit(void *addr, size_t size);
 /* below wrapper is needed only for remoting the mapping subsystem */
 void *mmap_shm_mapping(dosaddr_t targ, size_t length, int prot, int fd);
 int mapping_is_mapped(void *addr);
+int mapping_is_mapped_pa(unsigned int addr, int mapsize);
 
 typedef int mmap_hook_type(void *addr, size_t length, int prot,
                            int flags, int fd, off_t offset);
