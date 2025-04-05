@@ -120,6 +120,8 @@ static void hwram_unmap_aliasmap(struct hardware_ram *hw, unsigned addr,
 static void hwram_mprotect_aliasmap(struct hardware_ram *hw, unsigned addr,
 	int size, int protect);
 static int hwram_is_mapped(struct hardware_ram *hw, unsigned addr, int size);
+static int hwram_restore_mapping(struct hardware_ram *hw, unsigned addr,
+	int size, dosaddr_t va);
 static int madvise_mapping(dosaddr_t targ, size_t length, int flags);
 
 static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
@@ -516,6 +518,16 @@ int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
   return ret;
 }
 
+int restore_mapping_pa(unsigned int addr, size_t mapsize)
+{
+  struct hardware_ram *hw;
+  dosaddr_t va = do_get_hardware_ram(addr, mapsize, &hw);
+  if (va == (dosaddr_t)-1)
+    return -1;
+  assert(addr >= GRAPH_BASE);
+  return hwram_restore_mapping(hw, addr, mapsize, va);
+}
+
 static int do_mprot(dosaddr_t targ, size_t mapsize, int protect)
 {
   int i, ret = -1;
@@ -832,6 +844,24 @@ static void ensure_unmapped_aliasmap(struct aliasmap_s *map, int size)
     assert(!map[i].mapped);
 }
 
+static int restore_mapping_aliasmap(struct aliasmap_s *map, int size,
+	dosaddr_t va)
+{
+  int i;
+
+  for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++) {
+    struct aliasmap_s *am = &map[i];
+    dosaddr_t vad = va + (i << PAGE_SHIFT);
+    int err = alias_mapping(MAPPING_LOWMEM, vad, PAGE_SIZE, am->protect,
+	am->ptr);
+    if (err)
+      return err;
+    assert(!am->mapped);
+    am->mapped = 1;
+  }
+  return 0;
+}
+
 static struct aliasmap_s *alloc_aliasmap(unsigned char *addr, int size)
 {
   struct aliasmap_s *ret = malloc((PAGE_ALIGN(size) >> PAGE_SHIFT) * sizeof(*ret));
@@ -1055,6 +1085,14 @@ static int hwram_is_mapped(struct hardware_ram *hw, unsigned addr, int size)
   if (!ret)
     ensure_unmapped_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], size);
   return ret;
+}
+
+static int hwram_restore_mapping(struct hardware_ram *hw, unsigned addr,
+	int size, dosaddr_t va)
+{
+  int off = addr - hw->base;
+  assert(!(off & (PAGE_SIZE - 1))); // page-aligned
+  return restore_mapping_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], size, va);
 }
 
 void *get_hardware_uaddr(unsigned addr)
