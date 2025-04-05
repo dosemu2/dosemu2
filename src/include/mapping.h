@@ -104,6 +104,7 @@ int alias_mapping_high(int cap, dosaddr_t targ, size_t mapsize, int protect,
 int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize);
 int munmap_mapping_pa(unsigned int addr, size_t mapsize);
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect);
+int mprotect_mapping_pa(unsigned int addr, size_t mapsize, int protect);
 int mprotect_vga(int idx, dosaddr_t targ, size_t mapsize, int protect);
 int restore_mapping(int cap, dosaddr_t targ, size_t mapsize);
 int mcommit_mapping(dosaddr_t targ, size_t size);

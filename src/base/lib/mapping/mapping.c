@@ -58,6 +58,7 @@ struct mem_map_struct {
 
 struct aliasmap_s {
   unsigned char *ptr;
+  int protect;
   unsigned int mapped:1;
 };
 
@@ -116,6 +117,9 @@ static void hwram_update_aliasmap(struct hardware_ram *hw, unsigned addr,
 	int size, unsigned char *src);
 static void hwram_unmap_aliasmap(struct hardware_ram *hw, unsigned addr,
 	int size);
+static void hwram_mprotect_aliasmap(struct hardware_ram *hw, unsigned addr,
+	int size, int protect);
+static int hwram_is_mapped(struct hardware_ram *hw, unsigned addr, int size);
 static int madvise_mapping(dosaddr_t targ, size_t length, int flags);
 
 static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
@@ -491,6 +495,8 @@ int munmap_mapping_pa(unsigned int addr, size_t mapsize)
   if (va == (dosaddr_t)-1)
     return -1;
   assert(addr >= GRAPH_BASE);
+  if (!hwram_is_mapped(hw, addr, mapsize))
+    return -1;
   err = munmap_mapping(MAPPING_LOWMEM, va, mapsize);
   if (err)
     return err;
@@ -556,6 +562,24 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
   if (mapping_hook)
     ret = mapping_hook->mprotect(addr, mapsize, protect);
   return ret;
+}
+
+int mprotect_mapping_pa(unsigned int addr, size_t mapsize, int protect)
+{
+  struct hardware_ram *hw;
+  int err;
+  dosaddr_t va = do_get_hardware_ram(addr, mapsize, &hw);
+  if (va == (dosaddr_t)-1)
+    return -1;
+  assert(addr >= GRAPH_BASE);
+  /* if not mapped, then don't touch */
+  if (hwram_is_mapped(hw, addr, mapsize)) {
+    err = mprotect_mapping(MAPPING_LOWMEM, va, mapsize, protect);
+    if (err)
+      return err;
+  }
+  hwram_mprotect_aliasmap(hw, addr, mapsize, protect);
+  return 0;
 }
 
 /*
@@ -768,6 +792,7 @@ static void populate_aliasmap(struct aliasmap_s *map, unsigned char *addr,
 
   for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++) {
     map[i].ptr = addr ? addr + (i << PAGE_SHIFT) : NULL;
+    map[i].protect = addr ? PROT_READ | PROT_WRITE : PROT_NONE;
     map[i].mapped = !!addr;
   }
 }
@@ -778,6 +803,33 @@ static void map_aliasmap(struct aliasmap_s *map, int size, int mapped)
 
   for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++)
     map[i].mapped = mapped;
+}
+
+static void protect_aliasmap(struct aliasmap_s *map, int size, int protect)
+{
+  int i;
+
+  for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++)
+    map[i].protect = protect;
+}
+
+static int is_mapped_aliasmap(struct aliasmap_s *map, int size)
+{
+  int i;
+
+  for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++) {
+    if (!map[i].mapped)
+      return 0;
+  }
+  return 1;
+}
+
+static void ensure_unmapped_aliasmap(struct aliasmap_s *map, int size)
+{
+  int i;
+
+  for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++)
+    assert(!map[i].mapped);
 }
 
 static struct aliasmap_s *alloc_aliasmap(unsigned char *addr, int size)
@@ -984,6 +1036,25 @@ static void hwram_unmap_aliasmap(struct hardware_ram *hw, unsigned addr,
   int off = addr - hw->base;
   assert(!(off & (PAGE_SIZE - 1))); // page-aligned
   map_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], size, 0);
+}
+
+static void hwram_mprotect_aliasmap(struct hardware_ram *hw, unsigned addr,
+	int size, int protect)
+{
+  int off = addr - hw->base;
+  assert(!(off & (PAGE_SIZE - 1))); // page-aligned
+  protect_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], size, protect);
+}
+
+static int hwram_is_mapped(struct hardware_ram *hw, unsigned addr, int size)
+{
+  int ret;
+  int off = addr - hw->base;
+  assert(!(off & (PAGE_SIZE - 1))); // page-aligned
+  ret = is_mapped_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], size);
+  if (!ret)
+    ensure_unmapped_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], size);
+  return ret;
 }
 
 void *get_hardware_uaddr(unsigned addr)
