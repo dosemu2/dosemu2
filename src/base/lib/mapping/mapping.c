@@ -58,6 +58,7 @@ struct mem_map_struct {
 
 struct aliasmap_s {
   unsigned char *ptr;
+  unsigned int mapped:1;
 };
 
 struct hardware_ram {
@@ -113,6 +114,8 @@ static unsigned do_find_hardware_ram(dosaddr_t va, uint32_t size,
 	struct hardware_ram **r_hw);
 static void hwram_update_aliasmap(struct hardware_ram *hw, unsigned addr,
 	int size, unsigned char *src);
+static void hwram_unmap_aliasmap(struct hardware_ram *hw, unsigned addr,
+	int size);
 static int madvise_mapping(dosaddr_t targ, size_t length, int flags);
 
 static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
@@ -463,6 +466,38 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect)
   return addr;
 }
 
+int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
+{
+  int i, ret = -1;
+
+  for (i = 0; i < MAX_BASES; i++) {
+    void *addr = MEM_BASE32x(targ, i);
+    if (addr == MAP_FAILED)
+      continue;
+    ret = munmap(addr, mapsize);
+    if (ret) {
+      error("munmap() failed: %s\n", strerror(errno));
+      return ret;
+    }
+  }
+  return ret;
+}
+
+int munmap_mapping_pa(unsigned int addr, size_t mapsize)
+{
+  struct hardware_ram *hw;
+  int err;
+  dosaddr_t va = do_get_hardware_ram(addr, mapsize, &hw);
+  if (va == (dosaddr_t)-1)
+    return -1;
+  assert(addr >= GRAPH_BASE);
+  err = munmap_mapping(MAPPING_LOWMEM, va, mapsize);
+  if (err)
+    return err;
+  hwram_unmap_aliasmap(hw, addr, mapsize);
+  return 0;
+}
+
 /* Restore mapping previously broken by direct mmap() call. */
 int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
@@ -731,8 +766,18 @@ static void populate_aliasmap(struct aliasmap_s *map, unsigned char *addr,
 {
   int i;
 
-  for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++)
+  for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++) {
     map[i].ptr = addr ? addr + (i << PAGE_SHIFT) : NULL;
+    map[i].mapped = !!addr;
+  }
+}
+
+static void map_aliasmap(struct aliasmap_s *map, int size, int mapped)
+{
+  int i;
+
+  for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++)
+    map[i].mapped = mapped;
 }
 
 static struct aliasmap_s *alloc_aliasmap(unsigned char *addr, int size)
@@ -931,6 +976,14 @@ static void hwram_update_aliasmap(struct hardware_ram *hw, unsigned addr,
   // lowmem needs permanent aliasing
   assert(!(src == NULL && (hw->base + hw->size <= ALIAS_SIZE)));
   populate_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], src, size);
+}
+
+static void hwram_unmap_aliasmap(struct hardware_ram *hw, unsigned addr,
+	int size)
+{
+  int off = addr - hw->base;
+  assert(!(off & (PAGE_SIZE - 1))); // page-aligned
+  map_aliasmap(&hw->aliasmap[off >> PAGE_SHIFT], size, 0);
 }
 
 void *get_hardware_uaddr(unsigned addr)
