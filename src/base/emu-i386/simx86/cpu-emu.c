@@ -1462,6 +1462,8 @@ void cpuemu_enter(int pm)
 
 void cpuemu_leave(int pm)
 {
+  if (CEmuStat & CeS_INSTREMUx(pm))
+    instr_sim_leave(pm);
   save_fpu_state();
 }
 
