@@ -1649,9 +1649,13 @@ int vga_emu_pre_init(void)
 
   vga.mem.bank = vga.mem.bank_pages = 0;
 
-  vga.mem.graph_base = config.umb_a0 ? GRAPH_BASE + GRAPH_SIZE : GRAPH_BASE;
-  vga.mem.graph_size = (config.umb_b0 ? GRAPH_BASE + GRAPH_SIZE :
-			VGA_PHYS_TEXT_BASE) - vga.mem.graph_base;
+  vga.mem.graph_base = GRAPH_BASE;
+  vga.mem.graph_size = MDA_PHYS_TEXT_BASE - vga.mem.graph_base;
+  if (config.umb_a0)
+    munmap_mapping_pa(MAPPING_INIT_LOWRAM, GRAPH_BASE, GRAPH_SIZE);
+  if (config.umb_b0)
+    munmap_mapping_pa(MAPPING_INIT_LOWRAM, MDA_PHYS_TEXT_BASE,
+        MDA_TEXT_SIZE);
 
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) {
     if (vga.mem.graph_base + vga.mem.graph_size == VGA_PHYS_TEXT_BASE) {
@@ -2246,15 +2250,6 @@ static int __vga_emu_setmode(vga_mode_info *vmi, int width, int height)
   int i;
   int mode = vmi->VGA_mode;
 
-  if (vmi->buffer_start == 0xa000 && config.umb_a0) {
-    error("VGA: avoid touching a000 as it is used for UMB\n");
-    return False;
-  }
-  if (vmi->buffer_start == 0xb000 && config.umb_b0) {
-    error("VGA: avoid touching b000 as it is used for UMB\n");
-    return False;
-  }
-
   vga_msg("vga_emu_setmode: mode 0x%02x, (%d x %d x %d, %d x %d, %d x %d, %dk at 0x%04x)\n",
     mode, vmi->width, vmi->height, vmi->color_bits, vmi->text_width, vmi->text_height,
     vmi->char_width, vmi->char_height, vmi->buffer_len, vmi->buffer_start
@@ -2742,6 +2737,12 @@ static void vgaemu_adjust_instremu(int value)
   int changed = (vga.inst_emu != value);
   vga_mapping_type *vmt = &vga.mem.map[VGAEMU_MAP_BANK_MODE];
 
+  if (!changed)
+    return;
+  if (!mapping_is_mapped_pa(vga.mem.graph_base, vga.mem.graph_size)) {
+    error("VGA memory not mapped\n");
+    return;
+  }
   if (value == EMU_ALL_INST) {
     if (vga.inst_emu != EMU_ALL_INST) {
       v_printf("Seq_write_value: instemu on\n");
@@ -2771,8 +2772,7 @@ static void vgaemu_adjust_instremu(int value)
 	vga_emu_protect_page((vga.mem.graph_base >> PAGE_SHIFT) + i, RW, 1);
     }
   }
-  if (changed &&
-      (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM))
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
     kvm_set_mmio(vmt->base_page * HOST_PAGE_SIZE, vmt->pages * HOST_PAGE_SIZE,
 		 value != 0);
 }
