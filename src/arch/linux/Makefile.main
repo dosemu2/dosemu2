@@ -90,7 +90,7 @@ else
 	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS) \
 	   -Wl,-Map=$(BINPATH)/bin/dosemu.map \
 	   -shared -Wl,-Bsymbolic -Wl,-soname=$(DOSLIB) \
-	   -Wl,--no-undefined
+	   $(SO_LDFLAGS)
 endif
 
 $(BINPATH)/bin/libdosemu2.so: $(BINPATH)/bin/$(DOSLIB)

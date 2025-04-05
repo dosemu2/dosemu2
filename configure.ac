@@ -53,6 +53,7 @@ if $CC -v 2>&1|grep 'clang' >/dev/null; then
 else
   AC_MSG_RESULT([no])
   use_clang="no"
+  SO_LDFLAGS="$SO_LDFLAGS -Wl,--no-undefined"
 
   AC_MSG_CHECKING([for $CC actually being c++])
   if $CC -v 2>&1 | grep "g++" | grep "COLLECT_GCC" >/dev/null; then
@@ -63,6 +64,7 @@ else
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions -Wstrict-aliasing=3"
   fi
 fi
+AC_SUBST(SO_LDFLAGS)
 
 AX_SAVE_FLAGS([ce_check])
 CFLAGS="-std=gnu23"
