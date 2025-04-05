@@ -89,7 +89,8 @@ else
 	$(LD) $(ALL_LDFLAGS) -o $@ \
 	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS) \
 	   -Wl,-Map=$(BINPATH)/bin/dosemu.map \
-	   -shared -Wl,-Bsymbolic -Wl,-soname=$(DOSLIB)
+	   -shared -Wl,-Bsymbolic -Wl,-soname=$(DOSLIB) \
+	   -Wl,--no-undefined
 endif
 
 $(BINPATH)/bin/libdosemu2.so: $(BINPATH)/bin/$(DOSLIB)
