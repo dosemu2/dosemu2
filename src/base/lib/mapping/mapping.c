@@ -1343,6 +1343,23 @@ int mprotect_vga(int idx, dosaddr_t targ, size_t mapsize, int protect)
   return err;
 }
 
+int mprotect_vga_pa(int idx, unsigned int addr, size_t mapsize, int protect)
+{
+  struct hardware_ram *hw;
+  dosaddr_t va = do_get_hardware_ram(addr, mapsize, &hw);
+  if (va == (dosaddr_t)-1)
+    return -1;
+  assert(addr >= GRAPH_BASE);
+  /* if not mapped, then don't touch */
+  if (hwram_is_mapped(hw, addr, mapsize)) {
+    int err = mprotect_vga(idx, va, mapsize, protect);
+    if (err)
+      return err;
+  }
+  hwram_mprotect_aliasmap(hw, addr, mapsize, protect);
+  return 0;
+}
+
 int mapping_is_mapped(void *addr)
 {
   int i;

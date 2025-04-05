@@ -1251,10 +1251,10 @@ int vga_emu_protect_page(unsigned page, int prot, int instremu)
   }
   else {
     if (instremu)
-      i = mprotect_mapping(MAPPING_VGAEMU | MAPPING_LOWMEM, page * HOST_PAGE_SIZE,
+      i = mprotect_mapping_pa(page * HOST_PAGE_SIZE,
           1 * HOST_PAGE_SIZE, sys_prot);
     else
-      i = mprotect_vga(VGAEMU_MAP_BANK_MODE, page * HOST_PAGE_SIZE, 1 * HOST_PAGE_SIZE, sys_prot);
+      i = mprotect_vga_pa(VGAEMU_MAP_BANK_MODE, page * HOST_PAGE_SIZE, 1 * HOST_PAGE_SIZE, sys_prot);
   }
 
   if(i == -1) {
