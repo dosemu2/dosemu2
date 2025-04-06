@@ -107,7 +107,7 @@ static struct mappingdrivers *mappingdriver;
 static const struct mapping_hook *mapping_hook;
 
 #define ALIAS_SIZE (LOWMEM_SIZE + HMASIZE)
-static struct aliasmap_s lowmem_aliasmap[ALIAS_SIZE/PAGE_SIZE];
+static unsigned char *lowmem_aliasmap[ALIAS_SIZE/PAGE_SIZE];
 struct hardware_ram;
 static dosaddr_t do_get_hardware_ram(unsigned addr, uint32_t size,
 	struct hardware_ram **r_hw);
@@ -129,16 +129,14 @@ static int madvise_mapping(dosaddr_t targ, size_t length, int flags);
 static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
 			    unsigned char *unixaddr)
 {
-  unsigned addr2;
-  struct hardware_ram *hw;
+  unsigned dospage;
+  int i;
 
-  if (dosaddr >= mem_bases[MEM_BASE].size)
+  if (dosaddr >= ALIAS_SIZE)
     return;
-  addr2 = do_find_hardware_ram(dosaddr, mapsize, &hw);
-  if (addr2 == (unsigned)-1)
-    return;
-  hwram_map_aliasmap(hw, addr2, mapsize, 1);
-  hwram_update_aliasmap(hw, addr2, mapsize, unixaddr);
+  dospage = dosaddr >> PAGE_SHIFT;
+  for (i = 0; i < mapsize >> PAGE_SHIFT; i++)
+    lowmem_aliasmap[dospage + i] = unixaddr ? unixaddr + (i << PAGE_SHIFT) : NULL;
   invalidate_unprotected_page_cache(dosaddr, mapsize);
 }
 
@@ -149,7 +147,7 @@ void *dosaddr_to_unixaddr(dosaddr_t addr)
   struct hardware_ram *hw;
 
   if (addr < ALIAS_SIZE)
-    return lowmem_aliasmap[addr >> PAGE_SHIFT].ptr + (addr & (PAGE_SIZE - 1));
+    return lowmem_aliasmap[addr >> PAGE_SHIFT] + (addr & (PAGE_SIZE - 1));
   addr2 = do_find_hardware_ram(addr, 1, &hw);
   /* since 517a4c61 lowmem_base follows VA, not PA */
   if (addr2 == (unsigned)-1)
@@ -971,13 +969,7 @@ static int do_register_hwram(int type, unsigned base, unsigned size,
   hw->vbase = va;
   hw->size = size;
   hw->type = type;
-  if (base + size > ALIAS_SIZE)
-    hw->aliasmap = alloc_aliasmap(uaddr, size);
-  else {
-    /* for kmem, uaddr determined later. for !kmem alias on lowmem_base */
-    assert(!uaddr);
-    hw->aliasmap = &lowmem_aliasmap[base >> PAGE_SHIFT];
-  }
+  hw->aliasmap = alloc_aliasmap(uaddr, size);
   hw->next = hardware_ram;
   hardware_ram = hw;
   if (!uaddr && (base >= LOWMEM_SIZE || type == 'h'))
@@ -997,7 +989,7 @@ int register_hardware_ram(int type, unsigned base, unsigned int size)
 void register_hardware_ram_virtual2(int type, unsigned base, unsigned int size,
 	void *uaddr, dosaddr_t va)
 {
-  void *uaddr2 = base < ALIAS_SIZE ? NULL : MEM_BASE32(va);
+  void *uaddr2 = MEM_BASE32(va);
   do_register_hwram(type, base, size, uaddr2, va);
   if (config.cpu_vm_dpmi == CPUVM_KVM ||
       (config.cpu_vm == CPUVM_KVM && base + size <= LOWMEM_SIZE + HMASIZE)) {
