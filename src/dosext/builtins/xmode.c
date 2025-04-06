@@ -12,10 +12,10 @@
 #include "memory.h"
 #include "video.h"
 #include "builtins.h"
-
+#include "doshelpers.h"
 #include "xmode.h"
 
-static int X_change_config(unsigned, void *);
+static int X_change_config(unsigned, void *, int);
 
 int xmode_main(int argc, char **argv)
 {
@@ -44,7 +44,7 @@ int xmode_main(int argc, char **argv)
 
   while(argc) {
     if(!strcmp(*argv, "-title") && argc >= 2) {
-      X_change_config(CHG_TITLE_EMUNAME, argv[1]);
+      X_change_config(CHG_TITLE_EMUNAME, argv[1], strlen(argv[1]) + 1);
       argc -= 2; argv += 2;
     }
     else if (!strcmp(*argv, "-showapp") && argc >= 2) {
@@ -53,11 +53,11 @@ int xmode_main(int argc, char **argv)
       else
 	l = 1;
 
-      X_change_config(CHG_TITLE_SHOW_APPNAME, &l);
+      X_change_config(CHG_TITLE_SHOW_APPNAME, &l, sizeof(l));
       argc -= 2; argv += 2;
     }
     else if(!strcmp(*argv, "-font") && argc >= 2) {
-      X_change_config(CHG_FONT, argv[1]);
+      X_change_config(CHG_FONT, argv[1], strlen(argv[1]) + 1);
       argc -= 2; argv += 2;
     }
     else if (!strcmp(*argv, "-custom-font") && argc >= 2) {
@@ -66,7 +66,7 @@ int xmode_main(int argc, char **argv)
       else
 	l = 1;
 
-      X_change_config(CHG_USE_CUSTOM_FONT, &l);
+      X_change_config(CHG_USE_CUSTOM_FONT, &l, sizeof(l));
       argc -= 2; argv += 2;
     }
     else if(!strcmp(*argv, "-map") && argc >= 2) {
@@ -75,7 +75,7 @@ int xmode_main(int argc, char **argv)
         com_fprintf(com_stderr, "invalid mode number \"%s\"\n", argv[1]);
         return 2;
       }
-      X_change_config(CHG_MAP, &l);
+      X_change_config(CHG_MAP, &l, sizeof(l));
       argc -= 2; argv += 2;
     }
     else if(!strcmp(*argv, "-unmap") && argc >= 2) {
@@ -84,7 +84,7 @@ int xmode_main(int argc, char **argv)
         com_fprintf(com_stderr, "invalid mode number \"%s\"\n", argv[1]);
         return 2;
       }
-      X_change_config(CHG_UNMAP, &l);
+      X_change_config(CHG_UNMAP, &l, sizeof(l));
       argc -= 2; argv += 2;
     }
     else if(!strcmp(*argv, "-winsize") && argc >= 3) {
@@ -98,7 +98,7 @@ int xmode_main(int argc, char **argv)
         com_fprintf(com_stderr, "invalid height \"%s\"\n", argv[2]);
         return 2;
       }
-      X_change_config(CHG_WINSIZE, ll);
+      X_change_config(CHG_WINSIZE, ll, sizeof(ll));
       argc -= 3; argv += 3;
     }
     else if(!strcmp(*argv, "-mode") && argc >= 2) {
@@ -128,7 +128,7 @@ int xmode_main(int argc, char **argv)
       else
 	l = 1;
 
-      X_change_config(CHG_BACKGROUND_PAUSE, &l);
+      X_change_config(CHG_BACKGROUND_PAUSE, &l, sizeof(l));
       argc -= 2; argv += 2;
     }
     else if (!strcmp(*argv, "-fullscreen") && argc >= 2) {
@@ -137,7 +137,7 @@ int xmode_main(int argc, char **argv)
       else
 	l = 1;
 
-      X_change_config(CHG_FULLSCREEN, &l);
+      X_change_config(CHG_FULLSCREEN, &l, sizeof(l));
       argc -= 2; argv += 2;
     }
     else if (!strcmp(*argv, "-mouse-ungrab-tweak") && argc >= 2) {
@@ -158,11 +158,23 @@ int xmode_main(int argc, char **argv)
   return 0;
 }
 
-static int X_change_config(unsigned item, void *buf)
+static int X_change_config(unsigned item, void *buf, int len)
 {
-  if (Video->change_config) {
-	return Video->change_config(item, buf);
-  }
-  return -1;
-}
+  struct REGPACK r = REGPACK_INIT;
+  void *lbuf;
 
+  r.r_ax = DOS_HELPER_XCONFIG;
+  r.r_cx = len;
+  lbuf = lowmem_alloc(len);
+  memcpy(lbuf, buf, len);
+  r.r_dx = item;
+  r.r_es = DOSEMU_LMHEAP_SEG;
+  r.r_bx = DOSEMU_LMHEAP_OFFS_OF(lbuf);
+  com_intr(DOS_HELPER_INT, &r);
+  lowmem_free(lbuf);
+  if (r.r_flags & 1) {
+    com_printf("xmode helper failed\n");
+    return -1;
+  }
+  return r.r_ax;
+}
