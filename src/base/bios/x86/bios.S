@@ -65,7 +65,8 @@ _start:
    - the video BIOS init entry point at C000:3 or E000:3
    - second helper function (int 0xe6,al=9)
  */
-	movb	$DOS_HELPER_VIDEO_INIT,%al		/*  Start Video init */
+	movb	$DOS_HELPER_CONTROL_VIDEO, %al		/*  Start Video init */
+	movb	$DOS_SUBHELPER_VIDEO_GETCONF, %bl
 	int	$DOS_HELPER_INT
 	cmpb	$0, %al
 	je	no_vbios_post

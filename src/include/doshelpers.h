@@ -40,10 +40,11 @@
 #define DOS_HELPER_SHOW_INTS        0x02
 #define DOS_HELPER_ADJUST_IOPERMS   0x03  /* CY indicates get or set      */
 #define DOS_HELPER_CONTROL_VIDEO    0x04  /* BL indicates init or release */
+#define DOS_SUBHELPER_VIDEO_GETCONF 0
 #define DOS_HELPER_SHOW_BANNER      0x05
 #define DOS_HELPER_INSERT_INTO_KEYBUFFER 0x06 /* OLD, depreciated */
 #define DOS_HELPER_GET_BIOS_KEY     0x07  /* OLD, depreciated */
-#define DOS_HELPER_VIDEO_INIT       0x08
+
 #define DOS_HELPER_PRESTROKES_START 0x09
 
 #define DOS_HELPER_GET_DEBUG_STRING 0x10

@@ -420,35 +420,6 @@ static int dos_helper(int stk_offs, int revect)
 	revect_helper(stk_offs);
 	break;
 
-    case DOS_HELPER_CONTROL_VIDEO:	/* initialize video card */
-	if (LO(bx) == 0) {
-	    if (set_ioperm(0x3b0, 0x3db - 0x3b0, 0))
-		warn("couldn't shut off ioperms\n");
-	    SETIVEC(0x10, BIOSSEG, INT_OFF(0x10));	/* restore our old vector */
-	    config.vga = 0;
-	} else {
-	    unsigned int ssp, sp;
-
-	    if (!config.mapped_bios) {
-		error("CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
-		return 1;
-	    }
-	    if (set_ioperm(0x3b0, 0x3db - 0x3b0, 1))
-		warn("couldn't get range!\n");
-	    config.vga = 1;
-	    warn("WARNING: jumping to 0[c/e]000:0003\n");
-
-	    ssp = SEGOFF2LINEAR(SREG(ss), 0);
-	    sp = LWORD(esp);
-	    pushw(ssp, sp, SREG(cs));
-	    pushw(ssp, sp, LWORD(eip));
-	    LWORD(esp) -= 4;
-	    SREG(cs) = config.vbios_seg;
-	    LWORD(eip) = 3;
-	    show_regs();
-	}
-	break;
-
     case DOS_HELPER_SHOW_BANNER:	/* show banner */
 	if (config.fdisks + config.hdisks == 0) {
 	    error("No drives defined, exiting\n");
@@ -486,9 +457,16 @@ static int dos_helper(int stk_offs, int revect)
 	k_printf("HELPER: get_bios_key() returned %04x\n", _AX);
 	break;
 
-    case DOS_HELPER_VIDEO_INIT:
+    case DOS_HELPER_CONTROL_VIDEO:
 	v_printf("Starting Video initialization\n");
-	_AL = config.vbios_post;
+	switch (LO(bx)) {
+	    case DOS_SUBHELPER_VIDEO_GETCONF:
+		_AL = config.vbios_post;
+		break;
+	    default:
+		CARRY;
+		break;
+	}
 	break;
 
     case DOS_HELPER_GET_DEBUG_STRING:
