@@ -528,6 +528,8 @@ int restore_mapping_pa(unsigned int addr, size_t mapsize)
   if (va == (dosaddr_t)-1)
     return -1;
   assert(addr >= GRAPH_BASE);
+  if (hwram_is_mapped(hw, addr, mapsize))
+    return 0;
   return hwram_restore_mapping(hw, addr, mapsize, va);
 }
 

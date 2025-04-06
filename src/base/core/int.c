@@ -62,7 +62,7 @@
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
-
+#include "mapping.h"
 #include "emudpmi.h"
 
 #include "keyboard/keyb_server.h"
@@ -462,6 +462,28 @@ static int dos_helper(int stk_offs, int revect)
 	switch (LO(bx)) {
 	    case DOS_SUBHELPER_VIDEO_GETCONF:
 		_AL = config.vbios_post;
+		break;
+	    case DOS_SUBHELPER_VIDEO_MAP_a:
+		if (HI(bx)) {
+		    restore_mapping_pa(GRAPH_BASE, GRAPH_SIZE);
+		} else {
+		    munmap_mapping_pa(MAPPING_VGAEMU, GRAPH_BASE, GRAPH_SIZE);
+		    alias_mapping(MAPPING_LOWMEM, GRAPH_BASE, GRAPH_SIZE,
+			    PROT_READ | PROT_WRITE | PROT_EXEC,
+			    LOWMEM(GRAPH_BASE));
+		}
+		break;
+	    case DOS_SUBHELPER_VIDEO_MAP_b:
+		if (HI(bx)) {
+		    restore_mapping_pa(MDA_PHYS_TEXT_BASE, MDA_TEXT_SIZE);
+		} else {
+		    munmap_mapping_pa(MAPPING_VGAEMU, MDA_PHYS_TEXT_BASE,
+				      MDA_TEXT_SIZE);
+		    alias_mapping(MAPPING_LOWMEM, MDA_PHYS_TEXT_BASE,
+			    MDA_TEXT_SIZE,
+			    PROT_READ | PROT_WRITE | PROT_EXEC,
+			    LOWMEM(MDA_PHYS_TEXT_BASE));
+		}
 		break;
 	    default:
 		CARRY;

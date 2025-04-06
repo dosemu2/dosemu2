@@ -28,6 +28,8 @@ int xmode_main(int argc, char **argv)
     com_fprintf(com_stderr,
       "usage: xmode <some arguments>\n"
       "  -mode <mode>     activate graphics/text mode\n"
+      "  -vmem_a0 on|off  use vmem at 0xa0000 (off means 64K of RAM)\n"
+      "  -vmem_b0 on|off  use vmem at 0xb0000 (off means 32K of RAM)\n"
       "  -title <name>    set name of emulator (in window title)\n"
       "  -showapp on|off  show name of running application (in window title)\n"
       "  -font <font>     use <font> as text font\n"
@@ -120,6 +122,18 @@ int xmode_main(int argc, char **argv)
         r.r_ax = l & 0xff;
         com_intr(0x10, &r);
       }
+      argc -= 2; argv += 2;
+    }
+    else if (!strncmp(*argv, "-vmem_", 6) && argc >= 2) {
+      struct REGPACK r = REGPACK_INIT;
+      if (strequalDOS (argv[1], "OFF") || strequalDOS (argv[1], "0"))
+	l = 0;
+      else
+	l = 1;
+
+      r.r_ax = DOS_HELPER_CONTROL_VIDEO;
+      r.r_bx = (DOS_SUBHELPER_VIDEO_MAP_a + argv[0][6] - 'a') | (l << 8);
+      com_intr(DOS_HELPER_INT, &r);
       argc -= 2; argv += 2;
     }
     else if (!strcmp(*argv, "-bpause") && argc >= 2) {

@@ -41,6 +41,9 @@
 #define DOS_HELPER_ADJUST_IOPERMS   0x03  /* CY indicates get or set      */
 #define DOS_HELPER_CONTROL_VIDEO    0x04  /* BL indicates init or release */
 #define DOS_SUBHELPER_VIDEO_GETCONF 0
+#define DOS_SUBHELPER_VIDEO_MAP_a   1
+#define DOS_SUBHELPER_VIDEO_MAP_b   2
+
 #define DOS_HELPER_SHOW_BANNER      0x05
 #define DOS_HELPER_INSERT_INTO_KEYBUFFER 0x06 /* OLD, depreciated */
 #define DOS_HELPER_GET_BIOS_KEY     0x07  /* OLD, depreciated */
