@@ -153,7 +153,9 @@ void *dosaddr_to_unixaddr(dosaddr_t addr)
   if (addr2 == (unsigned)-1)
     return LOWMEM(addr);
   off = addr - hw->vbase;
-  return hw->aliasmap[off >> PAGE_SHIFT].ptr + (off & (PAGE_SIZE - 1));
+  if (hw->aliasmap[off >> PAGE_SHIFT].ptr)
+    return hw->aliasmap[off >> PAGE_SHIFT].ptr + (off & (PAGE_SIZE - 1));
+  return MEM_BASE32(addr);
 }
 
 void *physaddr_to_unixaddr(unsigned int addr)
@@ -804,15 +806,14 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
   return mappingdriver->resize(cap, addr, oldsize, newsize);
 }
 
-static void init_aliasmap(struct aliasmap_s *map, unsigned char *addr,
-	int size)
+static void init_aliasmap(struct aliasmap_s *map, int size)
 {
   int i;
 
   for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++) {
-    map[i].ptr = addr ? addr + (i << PAGE_SHIFT) : NULL;
-    map[i].protect = addr ? PROT_READ | PROT_WRITE : PROT_NONE;
-    map[i].mapped = !!addr;
+    map[i].ptr = NULL;
+    map[i].protect = PROT_READ | PROT_WRITE;
+    map[i].mapped = 1;
   }
 }
 
@@ -868,8 +869,11 @@ static int restore_mapping_aliasmap(struct aliasmap_s *map, int size,
   for (i = 0; i < PAGE_ALIGN(size) >> PAGE_SHIFT; i++) {
     struct aliasmap_s *am = &map[i];
     dosaddr_t vad = va + (i << PAGE_SHIFT);
-    int err = alias_mapping(MAPPING_LOWMEM, vad, PAGE_SIZE, am->protect,
-	am->ptr);
+    int err;
+
+    /* am->ptr==NULL means unaliasable mapping */
+    assert(am->ptr);
+    err = alias_mapping(MAPPING_LOWMEM, vad, PAGE_SIZE, am->protect, am->ptr);
     if (err)
       return err;
     assert(!am->mapped);
@@ -889,10 +893,10 @@ static int prot_match_aliasmap(struct aliasmap_s *map, int size, int prot)
   return 1;
 }
 
-static struct aliasmap_s *alloc_aliasmap(unsigned char *addr, int size)
+static struct aliasmap_s *alloc_aliasmap(int size)
 {
   struct aliasmap_s *ret = malloc((PAGE_ALIGN(size) >> PAGE_SHIFT) * sizeof(*ret));
-  init_aliasmap(ret, addr, size);
+  init_aliasmap(ret, size);
   return ret;
 }
 
@@ -957,7 +961,7 @@ void init_hardware_ram(void)
 }
 
 static int do_register_hwram(int type, unsigned base, unsigned size,
-	void *uaddr, dosaddr_t va)
+	dosaddr_t va)
 {
   struct hardware_ram *hw;
 
@@ -971,10 +975,10 @@ static int do_register_hwram(int type, unsigned base, unsigned size,
   hw->vbase = va;
   hw->size = size;
   hw->type = type;
-  hw->aliasmap = alloc_aliasmap(uaddr, size);
+  hw->aliasmap = alloc_aliasmap(size);
   hw->next = hardware_ram;
   hardware_ram = hw;
-  if (!uaddr && (base >= LOWMEM_SIZE || type == 'h'))
+  if (base >= LOWMEM_SIZE || type == 'h')
     memcheck_reserve(type, base, size);
   return 1;
 }
@@ -985,14 +989,13 @@ int register_hardware_ram(int type, unsigned base, unsigned int size)
     dosemu_error("can't use hardware ram in low feature (non-suid root) DOSEMU\n");
     return 0;
   }
-  return do_register_hwram(type, base, size, NULL, -1);
+  return do_register_hwram(type, base, size, -1);
 }
 
 void register_hardware_ram_virtual2(int type, unsigned base, unsigned int size,
 	void *uaddr, dosaddr_t va)
 {
-  void *uaddr2 = MEM_BASE32(va);
-  do_register_hwram(type, base, size, uaddr2, va);
+  do_register_hwram(type, base, size, va);
   if (config.cpu_vm_dpmi == CPUVM_KVM ||
       (config.cpu_vm == CPUVM_KVM && base + size <= LOWMEM_SIZE + HMASIZE)) {
     int prot = KVM_PROT_RWX;
@@ -1132,7 +1135,9 @@ void *get_hardware_uaddr(unsigned addr)
     if (hw->vbase != -1 &&
 	hw->base <= addr && addr < hw->base + hw->size) {
       int off = addr - hw->base;
-      return hw->aliasmap[off >> PAGE_SHIFT].ptr + (off & (PAGE_SIZE - 1));
+      if (hw->aliasmap[off >> PAGE_SHIFT].ptr)
+        return hw->aliasmap[off >> PAGE_SHIFT].ptr + (off & (PAGE_SIZE - 1));
+      return MEM_BASE32(addr);
     }
   }
   return MAP_FAILED;
