@@ -38,7 +38,10 @@ static int start_gdb(pid_t dosemu_pid)
 #ifdef __APPLE__
   ret = asprintf(&buf, "lldb %s", dosemu_proc_self_exe);
 #else
-  ret = asprintf(&buf, "sudo -n gdb %s", dosemu_proc_self_exe);
+  if (running_suid())
+    ret = asprintf(&buf, "sudo -n gdb %s", dosemu_proc_self_exe);
+  else
+    ret = asprintf(&buf, "gdb %s", dosemu_proc_self_exe);
 #endif
   assert(ret != -1);
 

@@ -33,6 +33,7 @@ uid_t get_orig_uid(void);  /* get the uid that was present at start of dosemu */
 gid_t get_orig_gid(void);  /* get the gid that was present at start of dosemu */
 uid_t get_suid(void);
 gid_t get_sgid(void);
+int running_suid(void);
 int running_suid_orig(void);
 int running_suid_changed(void);
 void priv_drop_root(void);
