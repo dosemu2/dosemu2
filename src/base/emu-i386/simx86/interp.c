@@ -3734,7 +3734,7 @@ void PreJit86(unsigned int PC, int basemode)
 	if (e_querymark(PC, 1))
 		return;
 	TheCPU.basemode = basemode;
-	TheCPU.err2 = 0;
+	TheCPU.err = 0;
 	LONG_CS = _LONG_CS;
 	_PreJit86(PC, basemode, FLG_PREJIT);
 	e_mdrop();
