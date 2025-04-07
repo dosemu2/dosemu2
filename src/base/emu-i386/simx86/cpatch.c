@@ -54,6 +54,10 @@ int CpatchInvalidates;
  */
 void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 {
+	/* Shut down prejitter before invalidating, or it may crash.
+	 * Also since mprot API currently lacks mutex, shut down prejitter
+	 * before querying the code marks. */
+	prejit_sync();
 	if (debug_level('e')>1) {
 		if (debug_level('e')>3)
 			e_printf("\tM_MUNPROT %08x:%p\n", addr,eip);
