@@ -802,6 +802,7 @@ void init_emu_cpu(int cpu_type)
   if (config.cpusim)
     InitGen_sim();
   else {
+    mprot_init();
     InitGen_x86();
     InitTrees();
     sem_init(&prejit_sem, 0, 0);

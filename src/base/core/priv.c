@@ -462,6 +462,13 @@ void priv_drop_total(void)
 #endif
 }
 
+int running_suid(void)
+{
+  if (!suid)
+    return 0;
+  return 1;
+}
+
 int running_suid_orig(void)
 {
   if (!suid)
