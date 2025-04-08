@@ -205,7 +205,7 @@ int uffd_attach(void)
 
 int uffd_open(int sock)
 {
-    int i, err;
+    int i, j, err;
 
     for (i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
         int err;
@@ -219,18 +219,19 @@ int uffd_open(int sock)
             break;
         ffds[i] = ffd;
     }
-    if (i < VGAEMU_MAX_MAPPINGS) {
-        /* undo */
-        while (--i >= 0)
-            close(ffds[i]);
-        return -1;
-    }
+    if (i < VGAEMU_MAX_MAPPINGS)
+        goto fail;
     err = uffd_attach();
     if (err)
-        return err;
-    for (i = 0; i < VGAEMU_MAX_MAPPINGS; i++)
-        send_fd(sock, ffds[i]);
+        goto fail;
+    for (j = 0; j < VGAEMU_MAX_MAPPINGS; j++)
+        send_fd(sock, ffds[j]);
     return 0;
+
+fail:
+    while (--i >= 0)
+        close(ffds[i]);
+    return -1;
 }
 
 void uffd_init(int sock)

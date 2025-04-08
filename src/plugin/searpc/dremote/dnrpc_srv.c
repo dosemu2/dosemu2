@@ -182,7 +182,11 @@ int dnrpc_srv_init(const char *svc_name, int fd)
             "debug_breakpoint_1",
             searpc_signature_int__int_int());
 
-    uffd_open(fd);
+    err = uffd_open(fd);
+    if (err) {
+        fprintf(stderr, "failure starting uffd\n");
+        return -1;
+    }
     signal_init();
     dnops = NULL;
     plu = load_plugin("dnative");
