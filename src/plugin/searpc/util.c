@@ -65,7 +65,7 @@ SearpcClient *clnt_init(int *sock_rx, init_cb_t init_cb,
     int transp[2];
     pid_t pid;
     int err;
-    pshared_sem_t svc_sem;
+    pshared_sem_t svc_sem, svc_sem2;
     struct sigaction act;
 
     err = socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, socks);
@@ -81,6 +81,9 @@ SearpcClient *clnt_init(int *sock_rx, init_cb_t init_cb,
     err = pshared_sem_init(&svc_sem, 0);
     if (err)
         goto err1;
+    err = pshared_sem_init(&svc_sem2, 0);
+    if (err)
+        goto err1;
     pid = fork();
     switch (pid) {
         case -1:
@@ -93,14 +96,18 @@ SearpcClient *clnt_init(int *sock_rx, init_cb_t init_cb,
             err = priv_drop();
             if (err) {
                 pshared_sem_post(svc_sem);
+                pshared_sem_wait(svc_sem2);
                 pshared_sem_destroy(&svc_sem);
+                pshared_sem_destroy(&svc_sem2);
                 _exit(1);
             }
             setsid();
             prctl(PR_SET_PDEATHSIG, SIGQUIT);
             err = init_cb(svc_name, socks[1], init_arg);
             pshared_sem_post(svc_sem);
+            pshared_sem_wait(svc_sem2);
             pshared_sem_destroy(&svc_sem);
+            pshared_sem_destroy(&svc_sem2);
             if (err) {
                 fprintf(stderr, "%s service failed\n", svc_name);
                 _exit(1);
@@ -115,7 +122,9 @@ SearpcClient *clnt_init(int *sock_rx, init_cb_t init_cb,
     sigchld_set_critical(chld_crash, &act);
     pshared_sem_wait(svc_sem);
     sigchld_unset_critical(&act);
+    pshared_sem_post(svc_sem2);
     pshared_sem_destroy(&svc_sem);
+    pshared_sem_destroy(&svc_sem2);
 
     clnt = searpc_client_new();
     clnt->send = transport_callback;
