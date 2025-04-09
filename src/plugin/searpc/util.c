@@ -102,7 +102,7 @@ SearpcClient *clnt_init(int *sock_rx, init_cb_t init_cb,
             pshared_sem_post(svc_sem);
             pshared_sem_destroy(&svc_sem);
             if (err) {
-                fprintf(stderr, "fs service failed\n");
+                fprintf(stderr, "%s service failed\n", svc_name);
                 _exit(1);
             }
             svc_run(svc_name, transp[1], svc_ex);
