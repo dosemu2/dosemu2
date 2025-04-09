@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
+#include <sys/wait.h>
 #include <searpc.h>
 #include "utilities.h"
 #include "mapping.h"
@@ -132,6 +133,10 @@ static int remote_dpmi_setup(void)
     }
     err = uffd_init(sock_tx);
     if (err) {
+        int stat;
+        /* signal_init() is not yet called so SIGCHLD is not delivered */
+        sigchld_enable_handler(dpmi_pid, 0);
+        waitpid(dpmi_pid, &stat, 0);
         searpc_client_free(clnt);
         clnt = NULL;
         return -1;
