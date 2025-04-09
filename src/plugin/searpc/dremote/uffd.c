@@ -90,7 +90,7 @@ static int uffd_preinit(int fd)
 #endif
     err = ioctl(fd, UFFDIO_API, &uffdio_api);
     if (err) {
-        perror("ioctl(UFFDIO_API 2)");
+        perror("ioctl(UFFDIO_API)");
 #ifdef __linux__
         if (kernel_version_code < KERNEL_VERSION(6, 7, 0))
             fprintf(stderr, "Your kernel is too old, needs v6.7+\n");
