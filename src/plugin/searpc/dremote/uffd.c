@@ -168,7 +168,7 @@ static int uffd_get_dirty_map(int idx, unsigned char *map)
 #define LEN(region)	((region.end - region.start) / PAGE_SIZE)
     cnt = 0;
     for (i = 0; i < ret; i++) {
-        int start_page = (DOSADDR_REL((void *)rgns[i].start) - base) >> PAGE_SHIFT;
+        int start_page = (DOSADDR_REL((void *)(uintptr_t)rgns[i].start) - base) >> PAGE_SHIFT;
         for (j = 0; j < LEN(rgns[i]); j++) {
             int page = start_page + j;
             unsigned char *bm = &map[page / 8];
