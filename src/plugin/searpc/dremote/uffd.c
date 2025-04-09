@@ -31,6 +31,10 @@
 #include <errno.h>
 #include <assert.h>
 #include <sys/ioctl.h>
+#ifdef __linux__
+#include <linux/version.h>
+#endif
+#include "emu.h"
 #include "vgaemu.h"
 #include "utilities.h"
 #include "ioselect.h"
@@ -87,6 +91,10 @@ static int uffd_preinit(int fd)
     err = ioctl(fd, UFFDIO_API, &uffdio_api);
     if (err) {
         perror("ioctl(UFFDIO_API 2)");
+#ifdef __linux__
+        if (kernel_version_code < KERNEL_VERSION(6, 7, 0))
+            fprintf(stderr, "Your kernel is too old, needs v6.7+\n");
+#endif
         return err;
     }
     return 0;
