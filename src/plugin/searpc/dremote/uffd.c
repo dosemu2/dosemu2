@@ -105,7 +105,8 @@ static void uffd_async(int fd, void *arg)
         perror("read()");
         return;
     }
-    page_fault = DOSADDR_REL((void *)(uintptr_t)msg.arg.pagefault.address) >> 12;
+    page_fault = DOSADDR_REL((void *)(uintptr_t)msg.arg.pagefault.address) >>
+            PAGE_SHIFT;
 
     j = page_fault - vga.mem.map[i].base_page;
     if (j >= 0 && j < vga.mem.map[i].pages) {
@@ -265,7 +266,7 @@ int uffd_init(int sock)
 int uffd_reattach(void *addr, size_t len)
 {
     int i, j;
-    unsigned page_fault = DOSADDR_REL(addr) >> 12;
+    unsigned page_fault = DOSADDR_REL(addr) >> PAGE_SHIFT;
 
     for (i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
         j = page_fault - vga.mem.map[i].base_page;
@@ -280,7 +281,7 @@ int uffd_reattach(void *addr, size_t len)
 int uffd_reinit(void *addr, size_t len)
 {
     int i, j;
-    unsigned page_fault = DOSADDR_REL(addr) >> 12;
+    unsigned page_fault = DOSADDR_REL(addr) >> PAGE_SHIFT;
 
     for (i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
         j = page_fault - vga.mem.map[i].base_page;
