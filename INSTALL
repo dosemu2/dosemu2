@@ -8,12 +8,8 @@ building and installing dosemu2 from sources
       https://copr.fedorainfracloud.org/coprs/stsp/dosemu2/
     - gcc >= 8.1 or clang >= 3.7.0
     - glibc >= 2.20
-    - linux >= 3.16 for x86-64, >= 4.7 recommended.
-      With older version than 3.16 there may be some problems
-      with DPMI, especially make sure to not use 3.14 and 3.15.
-      linux >= 4.3 for i386.
-      linux >= 4.11 if you want to run 32bit dosemu under x86_64 kernel
-      with multilib environment (you likely don't want to do this).
+    - linux >= 6.7 is recommended. With older kernels don't enable
+      native DPMI.
     - bison and flex
     - SDL >= 2.0.6, >= 2.26.0 is required for copy/paste support.
     - libslirp >= 4.1.0 recommended for networking
