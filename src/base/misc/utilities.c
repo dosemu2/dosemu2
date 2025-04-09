@@ -1413,7 +1413,7 @@ int recv_fd(int sock)
     msg.msg_flags = 0;
 
     nbytes = recvmsg(sock, &msg, 0);
-    if (nbytes == -1)
+    if (nbytes <= 0)
         return -1;
 
     cmsgp = CMSG_FIRSTHDR(&msg);
