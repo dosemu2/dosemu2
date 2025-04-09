@@ -117,7 +117,7 @@ static const struct mapping_hook mhook = {
 
 static int remote_dpmi_setup(void)
 {
-    int ret;
+    int ret, err;
     GError *error = NULL;
 
     if (clnt)
@@ -130,7 +130,12 @@ static int remote_dpmi_setup(void)
         fprintf(stderr, "failure registering RPC\n");
         return -1;
     }
-    uffd_init(sock_tx);
+    err = uffd_init(sock_tx);
+    if (err) {
+        searpc_client_free(clnt);
+        clnt = NULL;
+        return -1;
+    }
     ret = searpc_client_call__int(clnt, "setup_1", &error, 0);
     CHECK_RPC(error);
     return ret;

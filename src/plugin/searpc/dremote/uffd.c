@@ -234,7 +234,7 @@ fail:
     return -1;
 }
 
-void uffd_init(int sock)
+int uffd_init(int sock)
 {
     int i;
 #if HAVE_DECL_UFFD_FEATURE_WP_ASYNC
@@ -243,6 +243,10 @@ void uffd_init(int sock)
 
     for (i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
         ffds[i] = recv_fd(sock);
+        if (ffds[i] == -1) {
+            error("uffd init failed\n");
+            return -1;
+        }
 #if !HAVE_DECL_UFFD_FEATURE_WP_ASYNC
         add_to_io_select_threaded(ffds[i], uffd_async, (void *)(uintptr_t)i);
 #endif
@@ -250,10 +254,12 @@ void uffd_init(int sock)
 #if HAVE_DECL_UFFD_FEATURE_WP_ASYNC
     snprintf(buf, sizeof(buf), "/proc/%i/pagemap", dpmi_pid);
     pagemap_fd = open(buf, O_RDONLY | O_CLOEXEC);
-    assert(pagemap_fd != -1);
+    if (pagemap_fd == -1)
+        return -1;
     vgaemu_register_dirty_hook(uffd_get_dirty_map);
 #endif
     base0 = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page;
+    return 0;
 }
 
 int uffd_reattach(void *addr, size_t len)
