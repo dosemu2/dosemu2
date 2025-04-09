@@ -3331,14 +3331,14 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 		unsigned char *ecpu, unsigned char *SeqStart)
 {
 	unsigned ePC;
-	static void *jb;  // static so that "m" asm ref not using %rbp
+	void *jb;
 
 	jb = jit_base;
 	InCompiledCode = 1;
 	asm volatile (
-		/* Do this before modifying RSP to allow mem refs for arg.
-		 * For the same reason push doesn't work, use xchg to "m". */
-		"xchg	%[mb], "RE_REG(bp)"\n"
+		/* After modifying RSP, we can only use reg-based args. */
+		"push	"RE_REG(bp)"\n"
+		"mov	%[mb], "RE_REG(bp)"\n"
 #ifdef __x86_64__
 		"movq	%%rsp,%%r12\n"
 		"addq	$-128,%%rsp\n"	/* go below red zone		*/
@@ -3355,10 +3355,10 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 #ifdef __x86_64__
 		"movq	%%r12,%%rsp\n"
 #endif
-		"xchg	%[mb], "RE_REG(bp)"\n"
+		"pop	"RE_REG(bp)"\n"
 		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref)
 		: "b"(ecpu),"d"(*flg),"a"(SeqStart),
-		  [mb]"m"(jb)  // don't use "r" or can run out of regs
+		  [mb]"D"(jb)  // don't use "r" or can assign to %rbp
 		/* Note: we need to clobber "class-less" regs (like %rbp) even
 		 * if we save/restore them, to avoid gcc from allocating
 		 * them to "r". But in this case we don't need to save/restore.
@@ -3369,6 +3369,15 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 		 * Unfortunately in this case we can't pass do_seq_start,
 		 * at least on clang (doesn't support "m" for functions),
 		 * so it needs to be inlined.
+		 *
+		 * The above didn't work too, as w/o -fomit-frame-pointer
+		 * its quite difficult to tell gcc to not use %ebp
+		 * for mem refs (static storage as in 12e00030 doesn't
+		 * help with -fpic on i386). So the new strategy is to
+		 * avoid both "r" and "m", and use push/pop for %ebp.
+		 * The trick that should allow push to work, is to use
+		 * fixed reg for mem_base and move it to %ebp after push,
+		 * rather than using a mem-ref with modified %esp.
 		 */
 		: "memory", "cc", "ecx", "esi" EXEC_CLOBBERS
 	);
