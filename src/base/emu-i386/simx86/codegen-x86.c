@@ -125,7 +125,7 @@ static TNode *LastXNode = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
 
-#define	Offs_From_Arg()		(char)(va_arg(ap,int))
+#define	Offs_From_Arg()		(signed char)(va_arg(ap,int))
 
 /* This code is appended at the end of every instruction sequence. It
  * passes back the IP of the next instruction after the sequence.
@@ -2707,7 +2707,7 @@ static void Gen_x86(int op, int mode, ...)
 		break;
 
 	case O_POP:
-		if (mode & MRETISP) IG->p0 = Offs_From_Arg();
+		if (mode & MRETISP) IG->p0 = va_arg(ap,int);
 		break;
 
 	case O_PUSH2:

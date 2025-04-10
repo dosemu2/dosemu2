@@ -1953,7 +1953,7 @@ void Gen_sim(int op, int mode, ...)
 	case O_OPAX: {	/* used by DAA..AAD */
 		int n =	va_arg(ap,int);
 		// get n bytes from parameter stack
-		unsigned char subop = Offs_From_Arg();
+		unsigned char subop = va_arg(ap,int);
 		GTRACE3("O_OPAX",0xff,0xff,n);
 		RFL.mode = mode;
 		/* sync AF *before* changing RFL.valid */
@@ -2157,7 +2157,7 @@ void Gen_sim(int op, int mode, ...)
 		} break;
 
 	case O_POP: {
-		int imm16 = (mode&MRETISP) ? Offs_From_Arg() : 0;
+		int imm16 = (mode&MRETISP) ? va_arg(ap,int) : 0;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_POP",imm16);
 		if (mode & DATA16) {
