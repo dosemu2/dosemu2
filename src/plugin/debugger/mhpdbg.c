@@ -243,10 +243,9 @@ static int mhp_input(void)
   }
 
   if (nbytes == 0 && !wait_for_debug_terminal) {
-    if (mhpdbgc.stopped) {
+    mhp_clear_all_bp();
+    if (mhpdbgc.stopped)
       mhp_cmd("g");
-      mhp_send();
-    }
     mhpdbg.active = 0;
     reopen_fdin();
     return 0;

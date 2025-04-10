@@ -41,6 +41,7 @@ enum dosdebug_event {
 unsigned int mhp_debug(unsigned, unsigned int, unsigned int);
 void mhp_send(void);
 void mhp_close(void);
+void mhp_clear_all_bp(void);
 void mhp_printf(const char *, ...) FORMAT(printf, 1, 2);
 int mhp_getaxlist_value(int v, int mask);
 int mhp_getcsip_value(void);

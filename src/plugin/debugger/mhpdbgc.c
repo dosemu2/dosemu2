@@ -1994,6 +1994,18 @@ int mhp_clearbp(unsigned int seekval)
   return 0;
 }
 
+void mhp_clear_all_bp(void)
+{
+  int i1;
+
+  mhp_bpclr();
+  trapped_bp = -1;
+  for (i1 = 0; i1 < MAXBP; i1++) {
+    mhpdbgc.brktab[i1].brkaddr = 0;
+    mhpdbgc.brktab[i1].is_valid = 0;
+  }
+}
+
 static void mhp_bp(int argc, char *argv[])
 {
   dosaddr_t seekval;
