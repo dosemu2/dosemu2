@@ -92,6 +92,7 @@ void mhp_cmd(const char *);
 void mhp_bpset(void);
 void mhp_bpclr(void);
 int mhp_bpchk(unsigned int);
+int bpchk(unsigned int);
 int mhp_setbp(unsigned int seekval);
 int mhp_clearbp(unsigned int seekval);
 void mhp_regex(const char *fmt, va_list args);

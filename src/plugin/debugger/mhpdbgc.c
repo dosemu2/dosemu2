@@ -80,7 +80,6 @@ static int old_cbrk_on;
 
 /* prototypes */
 static void print_log_breakpoints(void);
-static int bpchk(unsigned int a1);
 static unsigned int mhp_getadr(char *, dosaddr_t *, unsigned int *,
     unsigned int *, unsigned int *, int);
 static unsigned long mhp_getreg(regnum_t);
@@ -2449,7 +2448,7 @@ void mhp_bpclr(void)
   return;
 }
 
-static int bpchk(unsigned int a1)
+int bpchk(unsigned int a1)
 {
   int i1;
 

@@ -528,7 +528,7 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
         }
         rtncd = 1; // suppress int 1
 
-        if (traceloop && mhp_bpchk(mhp_getcsip_value())) {
+        if (traceloop && bpchk(mhp_getcsip_value())) {
           traceloop = 0;
           loopbuf[0] = '\0';
         }
