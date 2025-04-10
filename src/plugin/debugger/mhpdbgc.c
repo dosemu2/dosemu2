@@ -808,9 +808,10 @@ static void mhp_trace(int argc, char *argv[])
 
   mhpdbgc.stopped = 0;
   dpmimode = 1;
-  if (dpmi_active())
+  if (in_dpmi_pm())
     dpmi_mhp_setTF(1);
-  set_TF();
+  else
+    set_TF();
 
   if (!strcmp(argv[0], "ti")) {
     mhpdbgc.trapcmd = 1;
