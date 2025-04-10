@@ -1676,6 +1676,9 @@ int vga_emu_pre_init(void)
       memcheck_addtype('e', "VGAEMU LFB");
       register_hardware_ram_virtual2('e', VGAEMU_PHYS_LFB_BASE, vga.mem.size,
 				     vga.mem.base, vga.mem.lfb_base);
+      vga.mem.lfb_base_page = vga.mem.lfb_base / HOST_PAGE_SIZE;
+      vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page = vga.mem.lfb_base_page;
+      vga.mem.map[VGAEMU_MAP_LFB_MODE].pages = vga.mem.pages;
       if (alias_mapping_pa(MAPPING_VGAEMU, VGAEMU_PHYS_LFB_BASE,
 			    vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base) == -1)
 	addr = NULL;
@@ -1698,11 +1701,6 @@ int vga_emu_pre_init(void)
 
 static int vga_emu_post_init(void)
 {
-  if(vga.mem.lfb_base != 0) {
-    vga.mem.lfb_base_page = vga.mem.lfb_base / HOST_PAGE_SIZE;
-    vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page = vga.mem.lfb_base_page;
-    vga.mem.map[VGAEMU_MAP_LFB_MODE].pages = vga.mem.pages;
-  }
   vga_emu_setup_mode_table();
 
   vgaemu_register_ports();

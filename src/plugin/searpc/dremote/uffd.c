@@ -162,7 +162,7 @@ static int uffd_get_dirty_map(int idx, unsigned char *map)
             /*PM_SCAN_WP_MATCHING | */PM_SCAN_CHECK_WPASYNC,
             0, PAGE_IS_WRITTEN, 0, 0, PAGE_IS_WRITTEN);
     if (ret < 0) {
-        perror("ioctl()");
+        perror("ioctl(PAGEMAP_SCAN)");
         return ret;
     }
 #define LEN(region)	((region.end - region.start) / PAGE_SIZE)
@@ -318,7 +318,9 @@ int uffd_wp(int idx, void *addr, size_t len, int wp)
     wpdata.mode = (wp ? UFFDIO_WRITEPROTECT_MODE_WP : 0);
     assert(idx < VGAEMU_MAX_MAPPINGS);
     err = ioctl(ffds[idx], UFFDIO_WRITEPROTECT, &wpdata);
-    if (err)
+    if (err) {
         perror("ioctl(UFFDIO_WRITEPROTECT)");
+        error("%llx %llx\n", wpdata.range.start,wpdata.range.len);
+    }
     return err;
 }
