@@ -300,7 +300,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 
 AC_CHECK_LIB(rt, shm_open)
 dnl below defines HAVE_xxx so needed even if AC_CHECK_LIB() succeeded
-AC_CHECK_FUNCS([shm_open memfd_create fopencookie sigtimedwait closefrom])
+AC_CHECK_FUNCS([shm_open fopencookie sigtimedwait closefrom])
 AC_CHECK_FUNCS([setxattr], [
     USE_XATTRS=1
     AC_SUBST(USE_XATTRS)
@@ -316,8 +316,10 @@ AC_CHECK_FUNCS([mremap])
 AC_CHECK_FUNCS([fls])
 AC_CHECK_FUNCS([statfs])
 
-# memfd_create is linkable on android, but may not be declared, so re-check
-AC_CHECK_DECLS([memfd_create],,, [[#include <sys/mman.h>]])
+AC_CHECK_FUNCS([memfd_create], [
+  # memfd_create is linkable on android, but may not be declared, so re-check
+  AC_CHECK_DECLS([memfd_create],,, [[#include <sys/mman.h>]])
+])
 
 AC_CHECK_DECLS([F_OFD_SETLK], [
     USE_OFD_LOCKS=1
@@ -494,7 +496,11 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <semaphore.h>]], [[
   AC_CHECK_LIB(android-posix-semaphore, libandroid_sem_open)
 ])
 
-AC_CHECK_HEADERS([scsi/sg.h linux/cdrom.h sys/io.h])
+AC_CHECK_HEADERS([scsi/sg.h linux/cdrom.h])
+# sys/io.h is present on emscripten, but is dummy
+if test "$machine" != "wasm32"; then
+  AC_CHECK_HEADERS([sys/io.h])
+fi
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h netpacket/packet.h])
 AC_CHECK_HEADERS([netinet/if_ether.h net/ethernet.h])
 AC_CHECK_HEADERS([asm/ucontext.h],,, [
@@ -800,8 +806,14 @@ AC_ARG_ENABLE(optimization,
                AS_HELP_STRING([--disable-optimization], [disable optimization]))
 if test "$enable_optimization" = "no" ; then
   if test "$enable_debug" = "yes"; then
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Og"
-    AC_MSG_NOTICE(optimization set to -Og)
+    if test "$machine" != "wasm32"; then
+      DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Og"
+      AC_MSG_NOTICE(optimization set to -Og)
+    else
+      # emscripten doesn't support -Og
+      DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O0"
+      AC_MSG_NOTICE(optimization set to -O0)
+    fi
   else
     # simx86 is too slow on gcc without -O
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O0"

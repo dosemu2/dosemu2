@@ -927,18 +927,6 @@ static int mfs_statvfs(const char *path, struct statvfs *sb, int drive)
   return do_mfs_statvfs(REDIR_DEVICE_IDX(drives[drive].options), path, sb);
 }
 
-int file_is_ro(int mfs_idx, const char *fname)
-{
-    int attr = mfs_getxattr_file(mfs_idx, fname);
-    /* NOTE: do not use unix file perms for R/O as that may crash
-     * some cdrom games:
-     * https://github.com/dosemu2/dosemu2/issues/989
-     */
-    if (attr == -1)
-        return 0;
-    return !!(attr & READ_ONLY_FILE);
-}
-
 static void init_drive(int dd, char *path, uint16_t user, uint16_t options)
 {
   drives[dd].root = strdup(path);
