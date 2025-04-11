@@ -1,0 +1,6 @@
+# run this for emscripten:
+# ./configure-emsdk ./default-configure -d
+
+LDFLAGS="-s USE_PTHREADS=1" emconfigure $* \
+  --disable-searpc --disable-dlplugins \
+  --disable-mcontext --disable-fdpp

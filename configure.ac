@@ -800,8 +800,14 @@ AC_ARG_ENABLE(optimization,
                AS_HELP_STRING([--disable-optimization], [disable optimization]))
 if test "$enable_optimization" = "no" ; then
   if test "$enable_debug" = "yes"; then
-    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Og"
-    AC_MSG_NOTICE(optimization set to -Og)
+    if test "$machine" != "wasm32"; then
+      DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Og"
+      AC_MSG_NOTICE(optimization set to -Og)
+    else
+      # emscripten doesn't support -Og
+      DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O0"
+      AC_MSG_NOTICE(optimization set to -O0)
+    fi
   else
     # simx86 is too slow on gcc without -O
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O0"
