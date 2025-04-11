@@ -300,7 +300,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 
 AC_CHECK_LIB(rt, shm_open)
 dnl below defines HAVE_xxx so needed even if AC_CHECK_LIB() succeeded
-AC_CHECK_FUNCS([shm_open memfd_create fopencookie sigtimedwait closefrom])
+AC_CHECK_FUNCS([shm_open fopencookie sigtimedwait closefrom])
 AC_CHECK_FUNCS([setxattr], [
     USE_XATTRS=1
     AC_SUBST(USE_XATTRS)
@@ -316,8 +316,10 @@ AC_CHECK_FUNCS([mremap])
 AC_CHECK_FUNCS([fls])
 AC_CHECK_FUNCS([statfs])
 
-# memfd_create is linkable on android, but may not be declared, so re-check
-AC_CHECK_DECLS([memfd_create],,, [[#include <sys/mman.h>]])
+AC_CHECK_FUNCS([memfd_create], [
+  # memfd_create is linkable on android, but may not be declared, so re-check
+  AC_CHECK_DECLS([memfd_create],,, [[#include <sys/mman.h>]])
+])
 
 AC_CHECK_DECLS([F_OFD_SETLK], [
     USE_OFD_LOCKS=1
