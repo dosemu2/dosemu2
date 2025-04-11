@@ -9,6 +9,7 @@ DEPENDS=$(OBJS:.o=.d)
 endif
 
 GENERATED = $(top_builddir)/src/include/version.hh \
+    $(top_builddir)/src/include/config.hh \
     $(top_builddir)/src/plugin/include/plugin_config.hh
 
 ifneq ($(GENHDRS),)

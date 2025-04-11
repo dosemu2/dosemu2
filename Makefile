@@ -21,11 +21,17 @@ else
 	$< || true
 endif
 
+src/include/config.hh: $(top_builddir)/config.status \
+  $(top_srcdir)/src/include/config.hh.in
+	$(top_builddir)/$<
+
 default install: config.status src/include/config.hh etc/dosemu.desktop
 	@$(MAKE) -C man $@
 	@$(MAKE) -C src $@
 
 clean realclean:
+	rm -f $(top_srcdir)/src/include/config.hh
+	rm -f $(top_srcdir)/src/include/version.hh
 	@$(MAKE) -C man $@
 	@$(MAKE) -C src $@
 
