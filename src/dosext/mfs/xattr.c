@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include "dosemu_debug.h"
 #include "mfs.h"
+#include "fslib.h"
 #include "xattr.h"
 
 #define XATTR_DOSATTR_NAME "user.DOSATTRIB"
@@ -125,4 +126,16 @@ int get_dos_xattr_fd(int fd, const char *name)
     fsetxattr(fd, XATTR_DOSATTR_NAME, xbuf, size, XATTR_REPLACE);
   }
   return do_extr_xattr(xbuf, size, name);
+}
+
+int file_is_ro(int mfs_idx, const char *fname)
+{
+    int attr = mfs_getxattr_file(mfs_idx, fname);
+    /* NOTE: do not use unix file perms for R/O as that may crash
+     * some cdrom games:
+     * https://github.com/dosemu2/dosemu2/issues/989
+     */
+    if (attr == -1)
+        return 0;
+    return !!(attr & READ_ONLY_FILE);
 }

@@ -26,7 +26,7 @@ int set_dos_xattr_fd(int fd, int attr, const char *name);
 
 #else
 
-static inline int file_is_ro(const char *fname)
+static inline int file_is_ro(int mfs_idx, const char *fname)
 {
     return 0;
 }
