@@ -127,7 +127,7 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
 
   default:
 sgleave:
-    error("unexpected CPU exception 0x%02x err=0x%08x cr2=%08x while in vm86 (DOS)\n",
+    dosemu_error("unexpected CPU exception 0x%02x err=0x%08x cr2=%08x while in vm86 (DOS)\n",
 	  trapno, err, cr2);
     show_regs();
     flush_log();
