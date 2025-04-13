@@ -15,11 +15,7 @@
 
 /*
 Currently missing DPMI-1.0 functions:
- - 0x508  Map device, 1.0, OPTIONAL. Maps phys ram to existing linear region.
-          But we do not "move"/unmap hwram currently, as all phys ram
-          is initially mapped into a 4Gb space, so 85434678 should be
-          reverted. The extra complication is that this allows to map
-          devices at 1Mb, like video memory and roms.
+  None known.
 Currently missing DPMI-0.9 functions:
  - 0xb0[0123]
           Debug watchpoints are not supported in KVM mode.
@@ -2861,11 +2857,12 @@ err:
 	  char *buf = (char *)SEL_ADR(_es, _edi);
 	  /*
 	   * Our capabilities include:
+	   * device mapping,
 	   * conventional memory mapping,
 	   * demand zero fill,
 	   * write-protect client,
 	   */
-	  _LWORD(eax) = 0x38;
+	  _LWORD(eax) = 0x3c;
 	  _LWORD(ecx) = 0;
 	  _LWORD(edx) = 0;
 	  *buf = DPMI_VERSION;
