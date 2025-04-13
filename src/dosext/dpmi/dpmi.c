@@ -3025,6 +3025,25 @@ err:
 	}
     }
     break;
+
+  case 0x0506:			/* Get Page Attributes */
+    D_printf("DPMI: Get Page Attributes for %i pages\n", _ecx);
+    if (!DPMIGetPageAttributes(_esi, _ebx, (uint16_t *)SEL_ADR(_es, _edx), _ecx))
+      _eflags |= CF;
+    break;
+
+  case 0x0507:			/* Set Page Attributes */
+    D_printf("DPMI: Set Page Attributes for %i pages\n", _ecx);
+    if (!DPMISetPageAttributes(_esi, _ebx, (uint16_t *)SEL_ADR(_es, _edx), _ecx))
+      _eflags |= CF;
+    break;
+
+  case 0x0508:	/* Map Device */
+    D_printf("DPMI: ERROR: device mapping not supported\n");
+    _LWORD(eax) = 0x8001;
+    _eflags |= CF;
+    break;
+
   case 0x0509:			/* Map conventional memory,1.0 */
     {
 	dosaddr_t low_addr;
@@ -3194,24 +3213,6 @@ err:
     _LWORD(eax) = 0x4d;
     break;
   case 0x0e01:	/* Set Coprocessor Emulation */
-    break;
-
-  case 0x0506:			/* Get Page Attributes */
-    D_printf("DPMI: Get Page Attributes for %i pages\n", _ecx);
-    if (!DPMIGetPageAttributes(_esi, _ebx, (uint16_t *)SEL_ADR(_es, _edx), _ecx))
-      _eflags |= CF;
-    break;
-
-  case 0x0507:			/* Set Page Attributes */
-    D_printf("DPMI: Set Page Attributes for %i pages\n", _ecx);
-    if (!DPMISetPageAttributes(_esi, _ebx, (uint16_t *)SEL_ADR(_es, _edx), _ecx))
-      _eflags |= CF;
-    break;
-
-  case 0x0508:	/* Map Device */
-    D_printf("DPMI: ERROR: device mapping not supported\n");
-    _LWORD(eax) = 0x8001;
-    _eflags |= CF;
     break;
 
   case 0x0702:	/* Mark Page as Demand Paging Candidate */
