@@ -58,6 +58,8 @@ int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle);
 void DPMI_freeAll(dpmi_pm_block_root *root, dpmi_pm_block *p);
 int DPMI_MapConventionalMemory(dpmi_pm_block_root *root, unsigned handle,
   unsigned offset, unsigned low_addr, unsigned cnt);
+int DPMI_MapDevice(dpmi_pm_block_root *root, unsigned handle,
+  unsigned offset, int cnt, unsigned paddr);
 dpmi_pm_block * DPMI_mapHWRam(dpmi_pm_block_root *root,
   dosaddr_t base, unsigned int size);
 int DPMI_unmapHWRam(dpmi_pm_block_root *root, dosaddr_t vbase);

@@ -190,6 +190,7 @@ dpmi_pm_block DPMIreallocLinear(unsigned handle, unsigned size,
   int committed);
 int DPMIMapConventionalMemory(unsigned handle, unsigned long offset,
 			  dosaddr_t low_addr, unsigned long cnt);
+int DPMIMapDevice(unsigned handle, int offs, int count, unsigned paddr);
 int DPMISetPageAttributes(unsigned handle, int offs, u_short attrs[], int count);
 int DPMIGetPageAttributes(unsigned handle, int offs, u_short attrs[], int count);
 void GetFreeMemoryInformation(unsigned int *lp);

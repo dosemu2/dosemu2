@@ -1075,6 +1075,32 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
     return 0;
 }
 
+int DPMI_MapDevice(dpmi_pm_block_root *root,
+		   unsigned handle, unsigned offset,
+		   int cnt, unsigned paddr)
+{
+    int i;
+    dpmi_pm_block *block;
+
+    if ((block = lookup_pm_block(root, handle)) == NULL)
+	return -2;
+
+    e_invalidate_full(block->base + offset, cnt*HOST_PAGE_SIZE);
+    if (alias_mapping_vapa(MAPPING_LOWMEM, block->base + offset, cnt*HOST_PAGE_SIZE,
+       DPMI_PROT_RWX, paddr) == -1) {
+
+	D_printf("DPMI MapDevice mmap failed\n");
+	return -1;
+    }
+
+    for (i = offset / HOST_PAGE_SIZE; i < cnt + offset / HOST_PAGE_SIZE; i++) {
+        block->attrs[i] &= ~3;
+        block->attrs[i] |= 2;	// mapped
+    }
+
+    return 0;
+}
+
 int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned handle,
   int offs, uint16_t attrs[], int count)
 {

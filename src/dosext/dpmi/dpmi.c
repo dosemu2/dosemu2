@@ -1876,11 +1876,19 @@ int DPMIMapConventionalMemory(unsigned handle, unsigned long offset,
     return DPMI_MapConventionalMemory(&DPMI_CLIENT.pm_block_root,
 	handle, offset, low_addr, cnt);
 }
+
+int DPMIMapDevice(unsigned handle, int offs, int count, unsigned paddr)
+{
+    return DPMI_MapDevice(&DPMI_CLIENT.pm_block_root,
+	handle, offs, count, paddr);
+}
+
 int DPMISetPageAttributes(unsigned handle, int offs, uint16_t attrs[], int count)
 {
     return DPMI_SetPageAttributes(&DPMI_CLIENT.pm_block_root,
 	handle, offs, attrs, count);
 }
+
 int DPMIGetPageAttributes(unsigned handle, int offs, uint16_t attrs[], int count)
 {
     return DPMI_GetPageAttributes(&DPMI_CLIENT.pm_block_root,
@@ -3039,9 +3047,28 @@ err:
     break;
 
   case 0x0508:	/* Map Device */
-    D_printf("DPMI: ERROR: device mapping not supported\n");
-    _LWORD(eax) = 0x8001;
-    _eflags |= CF;
+    {
+	unsigned offset;
+
+	offset = _ebx;
+	if (offset & 0xfff) {
+	    _eflags |= CF;
+	    _LWORD(eax) = 0x8025; /* invalid linear address */
+	    break;
+	}
+
+	D_printf("DPMI: Map Device at 0x%x, %i pages\n", _edx, _ecx);
+	switch (DPMIMapDevice(_esi, offset, _ecx, _edx)) {
+	  case -2:
+	    _eflags |= CF;
+	    _LWORD(eax) = 0x8023; /* invalid handle */
+	    break;
+	  case -1:
+	    _eflags |= CF;
+	    _LWORD(eax) = 0x8003; /* system integrity */
+	    break;
+	}
+    }
     break;
 
   case 0x0509:			/* Map conventional memory,1.0 */

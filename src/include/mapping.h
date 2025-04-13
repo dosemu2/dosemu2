@@ -96,6 +96,8 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize);
 void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect);
 void *mmap_mapping(int cap, void *target, size_t mapsize, int protect);
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source);
+int alias_mapping_vapa(int cap, dosaddr_t targ, size_t mapsize, int protect,
+    unsigned paddr);
 int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect, void *source);
 int unalias_mapping_pa(int cap, unsigned addr, size_t mapsize);
 void *alias_mapping_ux(int cap, size_t mapsize, int protect, void *source);

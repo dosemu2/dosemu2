@@ -1257,6 +1257,20 @@ int mcommit(void *addr, size_t size)
   return err;
 }
 
+int alias_mapping_vapa(int cap, dosaddr_t targ, size_t mapsize, int protect,
+    unsigned paddr)
+{
+  int err;
+  struct hardware_ram *hw;
+  dosaddr_t va = do_get_hardware_ram(paddr, mapsize, &hw);
+  if (va == (dosaddr_t)-1)
+    return -1;
+  err = hwram_restore_mapping(hw, paddr, mapsize, targ);
+  if (err)
+    return err;
+  return mprotect_mapping(cap, targ, mapsize, protect);
+}
+
 int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
        void *source)
 {
