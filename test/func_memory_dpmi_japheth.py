@@ -4,7 +4,9 @@ TTAR = "TEST_JAPHETH.tar"
 TFILES = {
     218: ("dpmihxrt218.exe", "65fda018f4422c39dbf36860aac2c537cfee466b"),
     219: ("dpmihxrt219.exe", "4b0f60346244a5be9e3208fe63063bd26209d234"),
-    220: ("dpmihxrt220.exe", "c2a37cf9b8bab4fe911186821989fc49e6c0feb2"), # Pre2
+    220: ("dpmihxrt220.exe", "7c08ae5fa510950485b3562791f83fd755f270ba"),
+    221: ("dpmihxrt221.exe", ""),  # Identical to 220
+    222: ("dpmihxrt222.exe", ""),  # Identical to 220
 }
 
 

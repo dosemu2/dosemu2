@@ -40,7 +40,7 @@ case "${RUNTYPE}" in
     export NO_FAILFAST=1
     export SKIP_EXPENSIVE=1
     export SKIP_UNCERTAIN=1
-    if [ "${OS}" = "ubuntu-20.04" -o "${OS}" = "ubuntu-22.04" ] ; then
+    if [ "${OS}" = "ubuntu-22.04" ] ; then
       export SKIP_NATIVE_DPMI=1
     fi
     export TEST_DOSEMU=/usr/bin/dosemu
