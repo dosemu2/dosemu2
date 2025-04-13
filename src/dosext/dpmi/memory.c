@@ -56,7 +56,7 @@ static const int dpmi_reserved_space = 4 * 1024 * 1024; // reserve 4Mb
 /* I don\'t think these function will ever become bottleneck, so just */
 /* keep it simple, --dong */
 /* alloc_pm_block: allocate a dpmi_pm_block struct and add it to the list */
-static dpmi_pm_block * alloc_pm_block(dpmi_pm_block_root *root, unsigned long size)
+static dpmi_pm_block * alloc_pm_block(dpmi_pm_block_root *root, unsigned size)
 {
     dpmi_pm_block *p = malloc(sizeof(dpmi_pm_block));
     if(!p)
@@ -74,7 +74,7 @@ static dpmi_pm_block * alloc_pm_block(dpmi_pm_block_root *root, unsigned long si
     return p;
 }
 
-static void * realloc_pm_block(dpmi_pm_block *block, unsigned long newsize)
+static void * realloc_pm_block(dpmi_pm_block *block, unsigned newsize)
 {
     u_short *new_addr = realloc(block->attrs, (newsize / HOST_PAGE_SIZE) * sizeof(u_short));
     if (!new_addr)
@@ -110,7 +110,7 @@ static int free_pm_block(dpmi_pm_block_root *root, dpmi_pm_block *p)
 }
 
 /* lookup_pm_block returns a dpmi_pm_block struct from its handle */
-dpmi_pm_block *lookup_pm_block(dpmi_pm_block_root *root, unsigned long h)
+dpmi_pm_block *lookup_pm_block(dpmi_pm_block_root *root, unsigned h)
 {
     dpmi_pm_block *tmp;
     for(tmp = root->first_pm_block; tmp; tmp = tmp->next) {
@@ -159,7 +159,7 @@ static int uncommit(void *ptr, size_t size)
   return 1;
 }
 
-unsigned long dpmi_mem_size(void)
+unsigned dpmi_mem_size(void)
 {
     if (!config.dpmi)
 	return 0;
@@ -920,7 +920,7 @@ int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle)
     return 0;
 }
 
-static void finish_realloc(dpmi_pm_block *block, unsigned long newsize,
+static void finish_realloc(dpmi_pm_block *block, unsigned newsize,
   int committed)
 {
     int npages, new_npages, i;
@@ -984,7 +984,7 @@ dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
 }
 
 dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
-  unsigned long handle, unsigned long newsize, int committed)
+  unsigned handle, unsigned newsize, int committed)
 {
     dpmi_pm_block *block;
     unsigned char *ptr;
@@ -1045,8 +1045,8 @@ void DPMI_freeAll(dpmi_pm_block_root *root, dpmi_pm_block *p)
 }
 
 int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
-			  unsigned long handle, unsigned long offset,
-			  unsigned long low_addr, unsigned long cnt)
+			  unsigned handle, unsigned offset,
+			  unsigned low_addr, unsigned cnt)
 {
     int i;
     /* NOTE:
@@ -1075,7 +1075,7 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
     return 0;
 }
 
-int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
+int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned handle,
   int offs, uint16_t attrs[], int count)
 {
   dpmi_pm_block *block;
@@ -1094,7 +1094,7 @@ int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
   return 1;
 }
 
-int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
+int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned handle,
   int offs, uint16_t attrs[], int count)
 {
   dpmi_pm_block *block;

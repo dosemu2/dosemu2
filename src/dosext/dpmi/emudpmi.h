@@ -182,16 +182,16 @@ void dpmi_mhp_modify_eip(int delta);
 #endif
 
 void dpmi_timer(void);
-dpmi_pm_block DPMImalloc(unsigned long size);
-dpmi_pm_block DPMImallocLinear(dosaddr_t base, unsigned long size, int committed);
-int DPMIfree(unsigned long handle);
-dpmi_pm_block DPMIrealloc(unsigned long handle, unsigned long size);
-dpmi_pm_block DPMIreallocLinear(unsigned long handle, unsigned long size,
+dpmi_pm_block DPMImalloc(unsigned size);
+dpmi_pm_block DPMImallocLinear(dosaddr_t base, unsigned size, int committed);
+int DPMIfree(unsigned handle);
+dpmi_pm_block DPMIrealloc(unsigned handle, unsigned size);
+dpmi_pm_block DPMIreallocLinear(unsigned handle, unsigned size,
   int committed);
-int DPMIMapConventionalMemory(unsigned long handle, unsigned long offset,
+int DPMIMapConventionalMemory(unsigned handle, unsigned long offset,
 			  dosaddr_t low_addr, unsigned long cnt);
-int DPMISetPageAttributes(unsigned long handle, int offs, u_short attrs[], int count);
-int DPMIGetPageAttributes(unsigned long handle, int offs, u_short attrs[], int count);
+int DPMISetPageAttributes(unsigned handle, int offs, u_short attrs[], int count);
+int DPMIGetPageAttributes(unsigned handle, int offs, u_short attrs[], int count);
 void GetFreeMemoryInformation(unsigned int *lp);
 int GetDescriptor(u_short selector, unsigned int *lp);
 unsigned int GetSegmentBase(unsigned short sel);
@@ -249,7 +249,7 @@ void dpmi_init(void);
 extern unsigned short dpmi_sel(void);
 extern unsigned short dpmi_sel16(void);
 extern unsigned short dpmi_sel32(void);
-unsigned long dpmi_mem_size(void);
+unsigned dpmi_mem_size(void);
 void dump_maps(void);
 
 int DPMIValidSelector(unsigned short selector);

@@ -1689,7 +1689,7 @@ static void get_ext_API(cpuctx_t *scp)
 }
 
 static int ResizeDescriptorBlock(cpuctx_t *scp,
- unsigned short begin_selector, unsigned long length)
+ unsigned short begin_selector, unsigned length)
 {
     unsigned short num_descs, old_num_descs;
     unsigned int old_length, base;
@@ -1798,7 +1798,7 @@ void dpmi_set_exception_handler(unsigned char num, DPMI_INTDESC desc)
     DPMI_CLIENT.Exception_Table[num].offset = desc.offset32;
 }
 
-dpmi_pm_block DPMImalloc(unsigned long size)
+dpmi_pm_block DPMImalloc(unsigned size)
 {
     dpmi_pm_block dummy, *ptr;
     memset(&dummy, 0, sizeof(dummy));
@@ -1807,7 +1807,7 @@ dpmi_pm_block DPMImalloc(unsigned long size)
 	return *ptr;
     return dummy;
 }
-dpmi_pm_block DPMImallocLinear(dosaddr_t base, unsigned long size, int committed)
+dpmi_pm_block DPMImallocLinear(dosaddr_t base, unsigned size, int committed)
 {
     dpmi_pm_block dummy, *ptr;
     memset(&dummy, 0, sizeof(dummy));
@@ -1816,7 +1816,7 @@ dpmi_pm_block DPMImallocLinear(dosaddr_t base, unsigned long size, int committed
 	return *ptr;
     return dummy;
 }
-int DPMIfree(unsigned long handle)
+int DPMIfree(unsigned handle)
 {
     dpmi_pm_block *ptr;
 
@@ -1833,7 +1833,7 @@ int DPMIfree(unsigned long handle)
     }
     return DPMI_free(&DPMI_CLIENT.pm_block_root, handle);
 }
-dpmi_pm_block DPMIrealloc(unsigned long handle, unsigned long size)
+dpmi_pm_block DPMIrealloc(unsigned handle, unsigned size)
 {
     dpmi_pm_block dummy, *ptr;
     memset(&dummy, 0, sizeof(dummy));
@@ -1842,7 +1842,7 @@ dpmi_pm_block DPMIrealloc(unsigned long handle, unsigned long size)
 	return *ptr;
     return dummy;
 }
-dpmi_pm_block DPMIreallocLinear(unsigned long handle, unsigned long size,
+dpmi_pm_block DPMIreallocLinear(unsigned handle, unsigned size,
   int committed)
 {
     dpmi_pm_block dummy, *ptr;
@@ -1870,18 +1870,18 @@ static void DPMIfreeAll(dpmi_pm_block_root *root)
 	DPMI_freeAll(root, root->first_pm_block);
 }
 
-int DPMIMapConventionalMemory(unsigned long handle, unsigned long offset,
+int DPMIMapConventionalMemory(unsigned handle, unsigned long offset,
 			  dosaddr_t low_addr, unsigned long cnt)
 {
     return DPMI_MapConventionalMemory(&DPMI_CLIENT.pm_block_root,
 	handle, offset, low_addr, cnt);
 }
-int DPMISetPageAttributes(unsigned long handle, int offs, uint16_t attrs[], int count)
+int DPMISetPageAttributes(unsigned handle, int offs, uint16_t attrs[], int count)
 {
     return DPMI_SetPageAttributes(&DPMI_CLIENT.pm_block_root,
 	handle, offs, attrs, count);
 }
-int DPMIGetPageAttributes(unsigned long handle, int offs, uint16_t attrs[], int count)
+int DPMIGetPageAttributes(unsigned handle, int offs, uint16_t attrs[], int count)
 {
     return DPMI_GetPageAttributes(&DPMI_CLIENT.pm_block_root,
 	handle, offs, attrs, count);
