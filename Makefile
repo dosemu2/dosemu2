@@ -21,9 +21,9 @@ else
 	$< || true
 endif
 
-src/include/config.hh: $(top_builddir)/config.status \
-  $(top_srcdir)/src/include/config.hh.in
-	$(top_builddir)/$<
+src/include/config.hh: $(top_srcdir)/src/include/config.hh.in \
+  | $(top_builddir)/config.status
+	$(top_builddir)/config.status
 
 default install: config.status src/include/config.hh etc/dosemu.desktop
 	@$(MAKE) -C man $@
