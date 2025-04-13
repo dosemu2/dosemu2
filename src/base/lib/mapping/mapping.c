@@ -525,6 +525,7 @@ int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
 
 int restore_mapping_pa(unsigned int addr, size_t mapsize)
 {
+  int err;
   struct hardware_ram *hw;
   dosaddr_t va = do_get_hardware_ram(addr, mapsize, &hw);
   if (va == (dosaddr_t)-1)
@@ -532,7 +533,11 @@ int restore_mapping_pa(unsigned int addr, size_t mapsize)
   assert(addr >= GRAPH_BASE);
   if (hwram_is_mapped(hw, addr, mapsize))
     return 0;
-  return hwram_restore_mapping(hw, addr, mapsize, va);
+  err = hwram_restore_mapping(hw, addr, mapsize, va);
+  if (err)
+    return err;
+  hwram_map_aliasmap(hw, addr, mapsize, 1);
+  return 0;
 }
 
 static int do_mprot(dosaddr_t targ, size_t mapsize, int protect)
@@ -876,8 +881,6 @@ static int restore_mapping_aliasmap(struct aliasmap_s *map, int size,
     err = alias_mapping(MAPPING_LOWMEM, vad, PAGE_SIZE, am->protect, am->ptr);
     if (err)
       return err;
-    assert(!am->mapped);
-    am->mapped = 1;
   }
   return 0;
 }
