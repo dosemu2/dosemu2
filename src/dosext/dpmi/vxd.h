@@ -6,3 +6,5 @@
 
 void get_VXD_entry(cpuctx_t *scp );
 void vxd_call(cpuctx_t *scp);
+
+void VXD_Sock(cpuctx_t *scp);

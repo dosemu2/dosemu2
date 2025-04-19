@@ -354,6 +354,20 @@ static int get_driver_info(struct driver_info_rec *di_out)
     return ret;
 }
 
+int tcp_get_driver_info(void *di_out, int len)
+{
+    struct driver_info_rec di;
+    int rc;
+
+    if (len > sizeof(di))
+        return -1;
+    rc = get_driver_info(&di);
+    if (rc)
+        return rc;
+    memcpy(di_out, &di, len);
+    return 0;
+}
+
 static enum CbkRet conn_cb(int fd, void *sa, int len, int *r_err)
 {
     int err = connect(fd, sa, len);
