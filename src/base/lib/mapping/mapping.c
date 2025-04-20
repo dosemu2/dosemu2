@@ -952,7 +952,7 @@ void init_hardware_ram(void)
       cap |= MAPPING_LOWMEM;
     uaddr = alloc_mapping_kmem(cap, hw->size, hw->base);
     if (uaddr == MAP_FAILED) {
-      error("failed to map KMEM at %lx, size %zx: %s\n", hw->base, hw->size,
+      error("failed to map KMEM at %zx, size %zx: %s\n", hw->base, hw->size,
           strerror(errno));
       continue;
     }
