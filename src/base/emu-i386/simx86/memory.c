@@ -634,6 +634,7 @@ void e_invalidate_dirty(unsigned int addr, unsigned int aend)
 	    if (p && subpage_dirty(p, EMU_BASE32(addr), M, page)) {
 		e_invalidate_page_full(addr);
 		bs = 1;
+		M = NULL;
 	    }
 	    if (debug_level('e')>1)
 		dbug_printf("MPMAP: check page=%08x dirty %i\n",addr,bs);
