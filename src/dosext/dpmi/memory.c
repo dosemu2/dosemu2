@@ -619,7 +619,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     assert(!err);
     if (st.st_size) {
         if (size > st.st_size) {
-            error("DPMI: reducing %s size from %i to %zi\n",
+            error("DPMI: reducing %s size from %i to %ji\n",
                     shmname, size, st.st_size);
             size = st.st_size;
         }
