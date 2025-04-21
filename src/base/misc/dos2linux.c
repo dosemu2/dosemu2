@@ -291,18 +291,19 @@ static void dos2tty_start(struct rd_args *args)
     char a;
     int rd;
 
-    create_thread(&reader, rd_thread, args, "dosemu: ttyrd");
-
     cbrk = com_setcbreak(0);
     /* flush pending input first */
     do {
 	rd = com_dosreadcon(&a, 1);
     } while (rd > 0);
-    *args->done = 0;
     /* must run with interrupts enabled to read keypresses */
     assert(!isset_IF());
     set_IF();
+
+    *args->done = 0;
+    create_thread(&reader, rd_thread, args, "dosemu: ttyrd");
     pty_worker(args);
+
     clear_IF();
     com_setcbreak(cbrk);
     pthread_join(reader, NULL);
