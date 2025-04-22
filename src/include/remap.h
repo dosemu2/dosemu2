@@ -62,7 +62,7 @@ struct remap_calls {
 #define MODE_CGA_1	(1 << 13)
 #define MODE_CGA_2	(1 << 14)
 #define MODE_HERC	(1 << 15)
-#define MODE_UNSUP	(1 << 31)
+#define MODE_UNSUP	(1 << 30)
 
 #define RFF_SCALE_ALL	(1 << 0)
 #define RFF_SCALE_1	(1 << 1)
