@@ -653,7 +653,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st, void *arg)
 	pth->stack = mmap(NULL, stk_size, PROT_READ | PROT_WRITE,
 		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (pth->stack == MAP_FAILED) {
-	    error("Unable to allocate stack\n");
+	    dosemu_error("Unable to allocate stack\n");
 	    exit(21);
 	    return -1;
 	}

@@ -660,14 +660,14 @@ static void sigstack_init(void)
   if (need_sas_wa) {
     cstack = alloc_mapping(MAPPING_SHARED, SIGSTACK_SIZE);
     if (cstack == MAP_FAILED) {
-      error("Unable to allocate stack\n");
+      dosemu_error("Unable to allocate stack\n");
       config.exitearly = 1;
       return;
     }
     backup_stack = alias_mapping_ux(MAPPING_OTHER, SIGSTACK_SIZE,
 	PROT_READ | PROT_WRITE, cstack);
     if (backup_stack == MAP_FAILED) {
-      error("Unable to allocate stack\n");
+      dosemu_error("Unable to allocate stack\n");
       config.exitearly = 1;
       return;
     }
@@ -675,7 +675,7 @@ static void sigstack_init(void)
     cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
 	MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (cstack == MAP_FAILED) {
-      error("Unable to allocate stack\n");
+      dosemu_error("Unable to allocate stack\n");
       config.exitearly = 1;
       return;
     }
@@ -699,7 +699,7 @@ static void sigstack_init(void)
   cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
 	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
   if (cstack == MAP_FAILED) {
-    error("Unable to allocate stack\n");
+    dosemu_error("Unable to allocate stack\n");
     config.exitearly = 1;
     return;
   }
