@@ -163,7 +163,6 @@ FILE *aLog = NULL;
  * 20	unsigned short gs, __gsh;
  * --------------------------------------------------------------
  */
-cpuctx_t e_scp; /* initialized to 0 */
 
 static void instr_sim_leave(int pmode);
 
