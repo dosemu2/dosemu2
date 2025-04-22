@@ -116,7 +116,7 @@ static void copy_to_dpmi(sigcontext_t *scp, cpuctx_t *s)
   _C(eflags);
   _C(trapno);
   _C(err);
-  _scp_cr2 = (uintptr_t)MEM_BASE32(get_cr2(s));
+  _scp_cr2 = 0; //(uintptr_t)MEM_BASE32(get_cr2(s));
 
   if (scp->fpregs) {
     void *fpregs = scp->fpregs;
@@ -155,7 +155,7 @@ static void copy_to_emu(cpuctx_t *d, sigcontext_t *scp)
   _D(eflags);
   _D(trapno);
   _D(err);
-  get_cr2(d) = DOSADDR_REL(LINP(_scp_cr2));
+  get_cr2(d) = _scp_cr2 ? DOSADDR_REL(LINP(_scp_cr2)) : 0;
   if (scp->fpregs) {
     void *fpregs = scp->fpregs;
 #ifdef __x86_64__
