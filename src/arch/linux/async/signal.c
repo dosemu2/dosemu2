@@ -318,7 +318,7 @@ static void abort_signal(int sig, siginfo_t *si, void *uc)
 static int do_fault(sigcontext_t *scp)
 {
 #ifdef __i386__
-  if (in_vm86 && config.cpu_vm == CPUVM_VM86) {
+  if (in_vm86 && _CPU_VM() == CPUVM_VM86) {
     true_vm86_fault(scp);
     return 1;
   }
