@@ -237,6 +237,7 @@ int remapper_init(int have_true_color, int have_shmap, int features,
   if(have_true_color) {
     switch(csd->bits) {
       case  1: ximage_mode = MODE_TRUE_1_MSB; break;
+      case  8: ximage_mode = MODE_TRUE_8; break;
       case 15: ximage_mode = MODE_TRUE_15; break;
       case 16: ximage_mode = MODE_TRUE_16; break;
       case 24: ximage_mode = MODE_TRUE_24; break;
