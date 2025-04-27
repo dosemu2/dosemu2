@@ -1076,7 +1076,7 @@ void kvm_leave(int pm)
 	  p->guest_phys_addr + p->memory_size <= LOWMEM_SIZE+HMASIZE &&
 	  (p->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
 	  memcheck_is_system_ram(p->guest_phys_addr)) {
-	unsigned char bitmap[(LOWMEM_SIZE+HMASIZE)/CHAR_BIT];
+	unsigned char bitmap[(LOWMEM_SIZE+HMASIZE)/CHAR_BIT] = {};
 	int i;
 	kvm_get_dirty_map(p->guest_phys_addr, bitmap);
 	for (i = 0; i < p->memory_size >> PAGE_SHIFT; i++)
