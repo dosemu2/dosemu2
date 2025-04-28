@@ -371,7 +371,7 @@ void cpu_setup(void)
     warn("KVM not available: %s\n", strerror(errno));
     /* if explicitly requested, don't continue */
     if (orig_vm == CPUVM_KVM || orig_vm_dpmi == CPUVM_KVM) {
-      leavedos(21);
+      exit(21);
       return;
     }
     if (config.cpu_vm == CPUVM_KVM)
