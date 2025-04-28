@@ -513,7 +513,15 @@ AC_CHECK_HEADERS([sys/soundcard.h], [
   AC_SUBST(USE_OSS)
 ])
 AC_CHECK_HEADERS([sanitizer/asan_interface.h])
-AC_CHECK_HEADERS([linux/landlock.h])
+AC_CHECK_HEADERS([linux/landlock.h], [
+  AC_ARG_ENABLE(landlock, [AS_HELP_STRING([--disable-landlock],
+        [disable landlock security restrictions])])
+  if test "$enable_landlock" != "no"; then
+    AC_DEFINE(USE_LANDLOCK)
+    USE_LANDLOCK=1
+    AC_SUBST(USE_LANDLOCK)
+  fi
+])
 
 DATE_FMT="%F %T %z"
 test -n "$SOURCE_DATE_EPOCH" || SOURCE_DATE_EPOCH=`date +%s`
@@ -930,6 +938,9 @@ AH_TEMPLATE(HAVE_EXECINFO,
 
 AH_TEMPLATE([USE_DL_PLUGINS],
 [ DEFINE this, if you want dynamically loaded plugins ])
+
+AH_TEMPLATE([USE_LANDLOCK],
+[ DEFINE this, if you want to use landlock security restrictions ])
 
 AH_TEMPLATE([X86_EMULATOR],
 [ Define this to use the X86 CPU emulator ])

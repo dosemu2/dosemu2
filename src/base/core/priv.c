@@ -70,7 +70,7 @@ int current_iopl;
 #define PRIVS_ARE_ON (euid == cur_euid)
 #define PRIVS_ARE_OFF (uid == cur_euid)
 
-#ifdef HAVE_LINUX_LANDLOCK_H
+#ifdef USE_LANDLOCK
 #define MAX_ALLOW_DIRS 10
 static const char *ro_dirs[MAX_ALLOW_DIRS];
 static int num_ro_dirs;
@@ -285,7 +285,7 @@ static void init_groups(uid_t uid, gid_t gid)
 
 int permit_dir_ro(const char *dir)
 {
-#ifdef HAVE_LINUX_LANDLOCK_H
+#ifdef USE_LANDLOCK
   assert(num_ro_dirs < MAX_ALLOW_DIRS);
   if (num_ro_dirs >= MAX_ALLOW_DIRS)  // maybe asserts are disabled
     return -1;
@@ -296,7 +296,7 @@ int permit_dir_ro(const char *dir)
 
 int permit_fd_rw(int fd)
 {
-#ifdef HAVE_LINUX_LANDLOCK_H
+#ifdef USE_LANDLOCK
   assert(num_rw_fds < MAX_ALLOW_FDS);
   if (num_rw_fds >= MAX_ALLOW_FDS)  // maybe asserts are disabled
     return -1;
@@ -307,7 +307,7 @@ int permit_fd_rw(int fd)
 
 int permit_file_ro(const char *path)
 {
-#ifdef HAVE_LINUX_LANDLOCK_H
+#ifdef USE_LANDLOCK
   assert(num_ro_files < MAX_ALLOW_FILES);
   if (num_ro_files >= MAX_ALLOW_FILES)  // maybe asserts are disabled
     return -1;
@@ -316,7 +316,7 @@ int permit_file_ro(const char *path)
   return 0;
 }
 
-#ifdef HAVE_LINUX_LANDLOCK_H
+#ifdef USE_LANDLOCK
 static void start_landlock(void)
 {
   int i;
@@ -449,7 +449,7 @@ void priv_drop_total(void)
     sgid++;
   }
 
-#ifdef HAVE_LINUX_LANDLOCK_H
+#ifdef USE_LANDLOCK
   if (!config.no_priv_sep)
     start_landlock();
 #endif
