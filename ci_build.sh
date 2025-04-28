@@ -19,6 +19,9 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
   echo "DEBUG_MODE = 1"  >  local.mak
   echo "EXTRA_DEBUG = 1" >> local.mak
   echo "USE_UBSAN = 1" >> local.mak
+  if [ "${SUBTYPE}" = "asan" ] ; then
+    echo "USE_ASAN = 1" >> local.mak
+  fi
 
   # Install the build dependancies based FDPP's debian/control file
   sudo add-apt-repository ppa:stsp-0/nasm-segelf
