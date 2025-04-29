@@ -381,6 +381,16 @@ static void msdos_done(int prev)
 
 static void msdos_set_client(int num)
 {
+    if (num >= msdos_client_max) {
+	error("msdos: can't switch to %i, total is %i\n", num,
+		msdos_client_max);
+	return;
+    }
+    if (!msdos_client[num].used) {
+	error("msdos: can't switch to unused client %i, total is %i\n", num,
+		msdos_client_max);
+	return;
+    }
     msdos_client_num = num;
 }
 
