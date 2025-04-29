@@ -161,7 +161,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	    /* data can't be executed... really? */
 	    if (!(wFlags & DF_CODE)) {
 		dbug_printf("Attempt to execute into data segment %lx\n",sel);
-		//return EXCP0D_GPF;
+		return EXCP0D_GPF;
 	    }
 	    a16 = (lbig? 0:ADDR16);
 	}
