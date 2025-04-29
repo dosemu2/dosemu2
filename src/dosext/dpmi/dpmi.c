@@ -3344,24 +3344,30 @@ static void make_xretf_frame(cpuctx_t *scp, void *sp,
   if (DPMI_CLIENT.is_32) {
     unsigned int *ssp = sp;
     *--ssp = in_dpmi_pm();
+    *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = cs;
     *--ssp = eip;
-    _esp -= 12;
+    _esp -= 16;
   } else {
     unsigned short *ssp = sp;
     *--ssp = in_dpmi_pm();
+    *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = cs;
     *--ssp = eip;
-    _LWORD(esp) -= 6;
+    _LWORD(esp) -= 8;
   }
   dpmi_set_pm(1);
+  dpmi_cli();
 }
 
 static void remove_xretf_frame(cpuctx_t *scp, void *sp)
 {
+  int pm;
   if (DPMI_CLIENT.is_32) {
     unsigned int *ssp = sp;
-    int pm = *ssp++;
+    _eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
+    pm = *ssp++;
+    _esp += 8;
     if (pm > 1) {
       error("DPMI: RSPcall stack corrupted\n");
       leavedos(38);
@@ -3369,7 +3375,9 @@ static void remove_xretf_frame(cpuctx_t *scp, void *sp)
     dpmi_set_pm(pm);
   } else {
     unsigned short *ssp = sp;
-    int pm = *ssp++;
+    _eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
+    pm = *ssp++;
+    _LWORD(esp) += 4;
     if (pm > 1) {
       error("DPMI: RSPcall stack corrupted\n");
       leavedos(38);
