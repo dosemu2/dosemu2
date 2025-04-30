@@ -2,8 +2,6 @@ id: io.github.dosemu2.dosemu2
 runtime: org.freedesktop.Sdk
 runtime-version: '24.08'
 sdk: org.freedesktop.Sdk
-sdk-extensions:
-  - org.freedesktop.Sdk.Extension.llvm18
 command: dosemu
 
 modules:
@@ -43,11 +41,8 @@ modules:
     buildsystem: simple
     build-commands:
       - make -j ${FLATPAK_BUILDER_N_JOBS} prefix=${FLATPAK_DEST} \
-          CROSS_LD=i686-unknown-linux-gnu-ld
+          CROSS_LD=i686-unknown-linux-gnu-ld CC=gcc CXX=g++
       - make install prefix=${FLATPAK_DEST}
-    build-options:
-      append-path: /usr/lib/sdk/llvm18/bin:/usr/lib/sdk/toolchain-i386/bin
-      prepend-ld-library-path: /usr/lib/sdk/llvm18/lib
     sources:
       - type: git
         url: https://github.com/dosemu2/fdpp.git
