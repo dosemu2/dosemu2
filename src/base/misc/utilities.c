@@ -878,12 +878,18 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
 
 int pclose2(struct popen2 *childinfo)
 {
-    int err;
+    return pclose2_custom(childinfo, NULL);
+}
+
+int pclose2_custom(struct popen2 *childinfo, int (*wait_cb)(int, int*))
+{
+    int err, stat;
     if (!childinfo->child_pid)
 	return -1;
     err = close(childinfo->from_child);
     err |= close(childinfo->to_child);
-    /* kill process too? */
+    if (wait_cb)
+	wait_cb(childinfo->child_pid, &stat);
     childinfo->child_pid = 0;
     return err;
 }

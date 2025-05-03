@@ -166,7 +166,7 @@ int lpt_popen(const char *str, int prnum, struct popen2 *file)
   int err;
 
   assert(prnum < config.num_lpt);
-  err = popen2(lpt[prnum].prtcmd, file);
+  err = popen2_custom(lpt[prnum].prtcmd, file);
   if (err)
     return -1;
   return 2;  // 2 fds to xfer
@@ -210,10 +210,20 @@ static int dev_printer_close(int prnum)
   return close(lpt[prnum].dev_fd);
 }
 
+static int do_waitpid(int pid, int *status)
+{
+  int retval;
+  while ((retval = fslib_waitpid(pid, status)) == 0)
+    dosemu_sleep();
+  if (retval == -1)
+    error("waitpid failed\n");
+  return retval;
+}
+
 static int pipe_printer_close(int prnum)
 {
   remove_from_io_select(lpt[prnum].file.from_child);
-  return pclose2(&lpt[prnum].file);
+  return pclose2_custom(&lpt[prnum].file, do_waitpid);
 }
 
 int printer_close(int prnum)

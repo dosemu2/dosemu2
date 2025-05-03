@@ -92,6 +92,7 @@ struct popen2 {
 int popen2(const char *cmdline, struct popen2 *childinfo);
 int popen2_custom(const char *cmdline, struct popen2 *childinfo);
 int pclose2(struct popen2 *childinfo);
+int pclose2_custom(struct popen2 *childinfo, int (*wait_cb)(int, int*));
 
 const char *findprog(const char *prog, const char *path);
 
