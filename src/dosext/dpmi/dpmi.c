@@ -3986,7 +3986,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
    * - We need to allow processing the different IRQ levels for performance
    * So simply mask the currently processing IRQ on PIC0 (in case of RTC
    * we mask entire PIC1 for a moment). */
-  if (i == 8 || i == 0x70) {
+  if (i == 8 || i == 0x70 || i == VTMR_INTERRUPT || i == VRTC_INTERRUPT) {
     /* PIT or RTC interrupt */
     unsigned char isr;
     port_outb(0x20, 0xb);
