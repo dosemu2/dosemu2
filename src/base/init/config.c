@@ -976,7 +976,6 @@ static void config_post_process(void)
 	config.emuretrace = 0;	/* already emulated */
 #ifdef SDL_SUPPORT
 	config.sdl = 1;
-	config.sdl_sound = 1;
 #else
 #ifdef X_SUPPORT
 	config.X = 1;
