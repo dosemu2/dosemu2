@@ -43,7 +43,7 @@
 
 
 #define pcm_printf(...) do { \
-    if (debug_level('S') >= 9) S_printf(__VA_ARGS__); \
+    if (debug_level('S') >= 2) S_printf(__VA_ARGS__); \
 } while (0)
 #define SND_BUFFER_SIZE 100000	/* enough to hold 1.1s of 44100/stereo */
 #define BUFFER_DELAY 40000.0
@@ -214,7 +214,7 @@ int pcm_init(void)
 #ifdef USE_DL_PLUGINS
     int ca = -1, cs = -1;
 #endif
-    pcm_printf("PCM: init\n");
+    S_printf("PCM: init\n");
     pthread_mutex_init(&pcm.strm_mtx, NULL);
     pthread_mutex_init(&pcm.time_mtx, NULL);
 
@@ -263,11 +263,11 @@ int pcm_init(void)
 
     /* init efps before players because players init code refers to efps */
     if (!pcm_init_plugins(pcm.efps, pcm.num_efps))
-      pcm_printf("no PCM effect processors initialized\n");
+      S_printf("no PCM effect processors initialized\n");
     if (!pcm_init_plugins(pcm.players, pcm.num_players))
-      pcm_printf("ERROR: no PCM output plugins initialized\n");
+      S_printf("ERROR: no PCM output plugins initialized\n");
     if (!pcm_init_plugins(pcm.recorders, pcm.num_recorders))
-      pcm_printf("ERROR: no PCM input plugins initialized\n");
+      S_printf("ERROR: no PCM input plugins initialized\n");
     return 1;
 }
 
@@ -305,7 +305,7 @@ int pcm_allocate_stream(int channels, const char *name, void *vol_arg)
     pcm.stream[index].buf_cnt = 0;
     pcm.stream[index].vol_arg = vol_arg;
     pcm_reset_stream(index);
-    pcm_printf("PCM: Stream %i allocated for \"%s\"\n", index, name);
+    S_printf("PCM: Stream %i allocated for \"%s\"\n", index, name);
     return __sync_fetch_and_add(&pcm.num_streams, 1);
 }
 
@@ -1154,7 +1154,7 @@ static void pcm_advance_time(double time)
 int pcm_register_player(const struct pcm_player *player, void *arg)
 {
     struct pcm_holder *p;
-    pcm_printf("PCM: registering player: %s\n", PL_LNAME(player));
+    S_printf("PCM: registering player: %s\n", PL_LNAME(player));
     if (pcm.num_players >= MAX_PLAYERS) {
 	error("PCM: attempt to register more than %i player\n", MAX_PLAYERS);
 	return 0;
@@ -1170,7 +1170,7 @@ int pcm_register_player(const struct pcm_player *player, void *arg)
 int pcm_register_recorder(const struct pcm_recorder *recorder, void *arg)
 {
     struct pcm_holder *p;
-    pcm_printf("PCM: registering recorder: %s\n", PL_LNAME(recorder));
+    S_printf("PCM: registering recorder: %s\n", PL_LNAME(recorder));
     if (pcm.num_recorders >= MAX_RECORDERS) {
 	error("PCM: attempt to register more than %i recorder\n", MAX_RECORDERS);
 	return 0;
@@ -1184,7 +1184,7 @@ int pcm_register_recorder(const struct pcm_recorder *recorder, void *arg)
 int pcm_register_efp(const struct pcm_efp *efp, enum EfpType type, void *arg)
 {
     struct pcm_holder *p;
-    pcm_printf("PCM: registering efp: %s\n", PL_LNAME(efp));
+    S_printf("PCM: registering efp: %s\n", PL_LNAME(efp));
     if (pcm.num_efps >= MAX_EFPS) {
 	error("PCM: attempt to register more than %i efps\n", MAX_EFPS);
 	return 0;
@@ -1273,7 +1273,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
     p->cfg_flags = (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
     if (p->cfg_flags & PCM_CF_ENABLED) {
       p->opened = SAFE_OPEN(p);
-      pcm_printf("PCM: Initializing selected plugin: %s: %s\n",
+      S_printf("PCM: Initializing selected plugin: %s: %s\n",
 	  PL_LNAME(p->plugin), p->opened ? "OK" : "Failed");
       if (p->opened) {
         cnt++;
@@ -1293,7 +1293,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
 	    !(p->plugin->flags & PCM_F_PASSTHRU))
       continue;
     p->opened = SAFE_OPEN(p);
-    pcm_printf("PCM: Initializing pass-through plugin: %s: %s\n",
+    S_printf("PCM: Initializing pass-through plugin: %s: %s\n",
 	    PL_LNAME(p->plugin), p->opened ? "OK" : "Failed");
     if (!p->opened)
       p->failed = 1;
@@ -1313,7 +1313,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
 	continue;
       if (p->plugin->weight > max_w) {
         if (max_i != -1)
-          pcm_printf("PCM: Bypassing plugin: %s: (%i < %i)\n",
+          S_printf("PCM: Bypassing plugin: %s: (%i < %i)\n",
 		PL_LNAME(plu[max_i].plugin), max_w,
 		p->plugin->weight);
         max_w = p->plugin->weight;
@@ -1323,7 +1323,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
     if (max_i != -1) {
       struct pcm_holder *p = &plu[max_i];
       p->opened = SAFE_OPEN(p);
-      pcm_printf("PCM: Initializing plugin: %s (w=%i): %s\n",
+      S_printf("PCM: Initializing plugin: %s (w=%i): %s\n",
 	    PL_LNAME(p->plugin), max_w, p->opened ? "OK" : "Failed");
       if (!p->opened)
         p->failed = 1;
@@ -1404,7 +1404,7 @@ int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
 	    assert(PL_PRIV(p)->num_efp_links <= MAX_EFP_LINKS);
 	    l->handle = EFPR(e)->setup(param1, param2, param3, e->arg);
 	    l->efp = e;
-	    pcm_printf("PCM: connected efp \"%s\" to player \"%s\"\n",
+	    S_printf("PCM: connected efp \"%s\" to player \"%s\"\n",
 		    e->plugin->name, p->plugin->name);
 	    return 1;
 	}
@@ -1426,13 +1426,13 @@ int pcm_parse_cfg(const char *string, const char *name)
     int off = (on && on[0] == '0');
     free(on);
     if (off) {
-	pcm_printf("PCM: %s driver disabled in the config\n", name);
+	S_printf("PCM: %s driver disabled in the config\n", name);
 	return PCM_CF_DISABLED;
     }
     l = strlen(name);
     p = strstr(string, name);
     if (p && (p == string || p[-1] == ',') && (p[l] == 0 || p[l] == ',')) {
-	pcm_printf("PCM: Enabling %s driver\n", name);
+	S_printf("PCM: Enabling %s driver\n", name);
 	return PCM_CF_ENABLED;
     }
     return 0;
@@ -1451,7 +1451,7 @@ char *pcm_parse_params(const char *string, const char *name, const char *param)
 	char *c = strchr(val, ' ');
 	if (c)
 	    *c = 0;
-	pcm_printf("PCM: Param \"%s\" for driver \"%s\": %s\n", param, name, val);
+	S_printf("PCM: Param \"%s\" for driver \"%s\": %s\n", param, name, val);
 	return val;
     }
     return NULL;
