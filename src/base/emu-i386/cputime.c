@@ -284,7 +284,10 @@ void untrigger_idle(void)
 void dosemu_sleep(void)
 {
 #ifndef __EMSCRIPTEN__
-  sigsuspend(&all_sigmask);
+  if (!in_leavedos)
+    sigsuspend(&all_sigmask);
+  else
+    usleep(10000);
 #else
   usleep(10000);
 #endif

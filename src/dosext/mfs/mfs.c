@@ -903,6 +903,10 @@ void mfs_done(void)
 {
   mfs_close_all();
   clear_sfn_bl();
+}
+
+void mfs_late_deinit(void)
+{
   fslib_done();
 }
 

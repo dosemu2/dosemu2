@@ -554,6 +554,7 @@ static void __leavedos_main(int code, int sig)
     for (i = 0; i < exit_hndl_num; i++)
       exit_hndl[i].handler();
 
+    mfs_late_deinit();
     flush_log();
 
     if (sig < 0)

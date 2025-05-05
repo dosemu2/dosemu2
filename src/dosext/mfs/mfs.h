@@ -424,4 +424,5 @@ struct file_fd
 extern struct file_fd open_files[MAX_OPENED_FILES];
 
 void mfs_priv_init(void);
+void mfs_late_deinit(void);
 void mfs_post_config(void);
