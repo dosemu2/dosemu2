@@ -85,6 +85,8 @@ modules:
 
   - name: dj64dev
     buildsystem: autotools
+    build-options:
+      env: ['CROSS_PREFIX=i686-unknown-linux-gnu-']
     sources:
       - type: git
         url: https://github.com/stsp/dj64dev.git
