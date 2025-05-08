@@ -3915,6 +3915,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
   unsigned short old_ss;
   unsigned int old_esp;
   unsigned char imr;
+  int protect_vtmr = 0;
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_pm=0x%02x\n",i,in_dpmi_pm());
 
@@ -3986,8 +3987,17 @@ static void do_pm_int(cpuctx_t *scp, int i)
    * - We need to allow processing the different IRQ levels for performance
    * So simply mask the currently processing IRQ on PIC0 (in case of RTC
    * we mask entire PIC1 for a moment). */
-  if (i == 8 || i == 0x70 || i == VTMR_INTERRUPT || i == VRTC_INTERRUPT) {
-    /* PIT or RTC interrupt */
+
+   /* VTMR normally doesn't need this, as it has our own, "safe" handler.
+    * But doom2 installs the wrapper handler, where it does STI that is
+    * not adjacent to IRET. Detect that scenario and mask out VTMR then too.
+    * See https://github.com/dosemu2/dosemu2/issues/2457#issuecomment-2861196098
+    */
+  if ((i == VTMR_INTERRUPT || i == VRTC_INTERRUPT) &&
+      DPMI_CLIENT.Interrupt_Table[i].selector != dpmi_sel())
+    protect_vtmr++;
+  if (i == 8 || i == 0x70 || protect_vtmr) {
+    /* PIT, RTC or VTMR interrupt */
     unsigned char isr;
     port_outb(0x20, 0xb);
     isr = port_inb(0x20);
