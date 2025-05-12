@@ -75,6 +75,7 @@ void dosemu2_xtitle_enable(void)
 
 void dosemu2_set_window_title(const char *title)
 {
+    free(config.X_title);
     config.X_title = strdup(title);
 }
 
