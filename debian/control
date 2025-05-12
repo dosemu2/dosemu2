@@ -49,15 +49,14 @@ Package: dosemu2
 Replaces: dosemu
 Conflicts: dosemu
 Architecture: any
-# note: explicit dep on djdev64 is needed as otherwise it goes to Recommends
 Depends:
     ${misc:Depends},
     ${shlibs:Depends},
     libcap2-bin,
     fdpp,
-    djdev64,
-    comcom64
-Recommends: ${shlibs-:Recommends},
+    comcom64,
+    ${shlibs-:Recommends}
+Recommends:
     ladspa-sdk,
     gdb,
     kbd,
