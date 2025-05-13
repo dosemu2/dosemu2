@@ -91,7 +91,6 @@ modules:
       - type: git
         url: https://github.com/stsp/dj64dev.git
         branch: master
-    no-parallel-make: true
     builddir: false
     cleanup:
       - '/include'
