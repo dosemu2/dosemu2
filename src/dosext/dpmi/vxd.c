@@ -106,6 +106,11 @@ void get_VXD_entry(cpuctx_t *scp )
 	    _es = dpmi_sel();
 	    _edi = DPMI_SEL_OFF(DPMI_VXD_VTDAPI);
 	    break;
+	case 0x1235:
+	    D_printf("DPMI: SOCK VxD entry point requested\n");
+	    _es = dpmi_sel();
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_SOCK);
+	    break;
 	default:
 	    D_printf("DPMI: ERROR: Unsupported VxD 0x%x\n", _LWORD(ebx));
 	    /* no entry point */
@@ -1872,5 +1877,9 @@ void vxd_call(cpuctx_t *scp)
     } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_VTDAPI)) {
       D_printf("DPMI: VTDAPI VxD called, ax=%#x\n", _LWORD(eax));
       VXD_TimerAPI(scp);
+
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_SOCK)) {
+      D_printf("DPMI: SOCK VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_Sock(scp);
     }
 }

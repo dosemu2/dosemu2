@@ -1340,11 +1340,10 @@ char *concat_strings(char *dst, const char *pref, const char *suff)
   return ret;
 }
 
-int handle_timeout(uint16_t to,
+static int do_to(uint32_t to, uint32_t inf, hitimer_t end,
     enum CbkRet (*cbk)(int, void *, int, int *),
     int arg, void *arg2, int arg3, int *r_err)
 {
-    hitimer_t end = GETusTIME(0) + TICKtoUS(to * 65536);
     int first = 1;
     enum CbkRet cbr;
 
@@ -1357,10 +1356,26 @@ int handle_timeout(uint16_t to,
         if (cbr == CBK_DONE)
             break;
         first = 0;
-    } while (to && (to == 0xffff || GETusTIME(0) < end));
+    } while (to && (to == inf || GETusTIME(0) < end));
     if (cbr != CBK_DONE)
         return 1;
     return 0;
+}
+
+int handle_timeout(uint16_t to,
+    enum CbkRet (*cbk)(int, void *, int, int *),
+    int arg, void *arg2, int arg3, int *r_err)
+{
+    hitimer_t end = GETusTIME(0) + TICKtoUS(to * 65536);
+    return do_to(to, 0xffff, end, cbk, arg, arg2, arg3, r_err);
+}
+
+int handle_timeout_us(uint32_t to,
+    enum CbkRet (*cbk)(int, void *, int, int *),
+    int arg, void *arg2, int arg3, int *r_err)
+{
+    hitimer_t end = GETusTIME(0) + to;
+    return do_to(to, 0xffffffff, end, cbk, arg, arg2, arg3, r_err);
 }
 
 int send_fd(int usock, int fd_tx)

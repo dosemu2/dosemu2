@@ -509,6 +509,7 @@ extern void HMA_init(void);
 extern void hardware_run(void);
 extern int register_exit_handler(void (*handler)(void));
 void tcp_helper(struct vm86_regs *);
+int tcp_get_driver_info(void *di_out, int len);
 void ipx_helper(struct vm86_regs *);
 void free_fonts(void);
 int emulate(int argc, char **argv, char * const *envp);
