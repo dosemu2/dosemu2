@@ -346,6 +346,7 @@ static Bit8u read_port60(void)
 Bit8u keyb_io_read(ioport_t port, void *arg)
 {
   Bit8u r = 0;
+  static Bit8u port61_ff;
 
   switch (port) {
   case 0x60:
@@ -358,6 +359,8 @@ Bit8u keyb_io_read(ioport_t port, void *arg)
   case 0x61:
     /* Handle only PC-Speaker right now */
     r = spkr_io_read(port);
+    port61_ff ^= 0x10;
+    r |= port61_ff;
     break;
 
   case 0x64:
