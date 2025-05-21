@@ -249,12 +249,14 @@ int priv_drop(void)
 {
   int err;
 
-  assert(!caps_present());
+  assert(!caps_present() || can_do_root_stuff);
   priv_drop_root();
+  assert(!caps_present() || under_root_login);
   if (suid != 1) {
     assert(suid == sgid);
     return 0;
   }
+  /* non-root setuid is ignored by priv_drop_root(), so drop it here */
   err = do_drop();
   if (err)
     return err;
@@ -523,7 +525,7 @@ void priv_init(void)
       groups_dropped = 1;
     }
   }
-  if (caps)
+  if (caps && !can_do_root_stuff)
     drop_caps();
   if (egid && gid && egid != gid) {
     mode_t um;
