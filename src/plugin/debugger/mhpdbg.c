@@ -33,6 +33,7 @@
 #include "dosemu_config.h"
 #include "utilities.h"
 #include "sig.h"
+#include "fslib.h"
 #define MHP_PRIVATE
 #include "mhpdbg.h"
 
@@ -51,6 +52,7 @@ static char mhp_banner[] = {
 struct mhpdbgc mhpdbgc = {0};
 
 static int fdin, fdout;
+static int fdin_idx;
 static unsigned char recvbuf[MHP_BUFFERSIZE];
 static int nbytes;
 static unsigned char sendbuf[MHP_BUFFERSIZE];
@@ -158,10 +160,28 @@ static void mhp_input_async(int fd, void *arg)
     ioselect_complete(fd);
 }
 
-static void mhp_init(void)
+int mhp_early_init(void)
 {
   int retval;
 
+  retval = asprintf(&pipename_in, "%s/dosemu.dbgin.%d", dosemu_rundir_path, getpid());
+  assert(retval != -1);
+
+  retval = asprintf(&pipename_out, "%s/dosemu.dbgout.%d", dosemu_rundir_path, getpid());
+  assert(retval != -1);
+
+  fdin_idx = -1;
+
+  retval = mkfifo(pipename_in, S_IFIFO | 0600);
+  if (!retval)
+    retval = mkfifo(pipename_out, S_IFIFO | 0600);
+  if (!retval)
+    fdin_idx = mfs_define_drive(pipename_in);
+  return retval;
+}
+
+void mhp_init(void)
+{
   mhpdbg_trace_init();
 
   fdin = fdout = -1;
@@ -171,33 +191,24 @@ static void mhp_init(void)
   memset(&mhpdbg.intxxtab, 0, sizeof(mhpdbg.intxxtab));
   memset(&mhpdbgc.intxxalt, 0, sizeof(mhpdbgc.intxxalt));
 
-  retval = asprintf(&pipename_in, "%s/dosemu.dbgin.%d", dosemu_rundir_path, getpid());
-  assert(retval != -1);
+  if (fdin_idx == -1)
+    return;
 
-  retval = asprintf(&pipename_out, "%s/dosemu.dbgout.%d", dosemu_rundir_path, getpid());
-  assert(retval != -1);
-
-  retval = mkfifo(pipename_in, S_IFIFO | 0600);
-  if (!retval) {
-    retval = mkfifo(pipename_out, S_IFIFO | 0600);
-    if (!retval) {
-      /* O_NONBLOCK avoids blocking of open() itself */
-      fdin = open(pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-      if (fdin != -1) {
-        /* NOTE: need to open read/write else it will block */
-        fdout = open(pipename_out, O_RDWR | O_CLOEXEC);
-        if (fdout != -1) {
-          /* Remove O_NONBLOCK. O_CLOEXEC unaffected. */
-          fcntl(fdin, F_SETFL, 0);
-          add_to_io_select(fdin, mhp_input_async, NULL);
-        } else {
-          close(fdin);
-          fdin = -1;
-        }
-      }
+  /* O_NONBLOCK avoids blocking of open() itself */
+  fdin = mfs_open_file(fdin_idx, pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+  if (fdin != -1) {
+    /* NOTE: need to open read/write else it will block */
+    fdout = open(pipename_out, O_RDWR | O_CLOEXEC);
+    if (fdout != -1) {
+      /* Remove O_NONBLOCK. O_CLOEXEC unaffected. */
+      fcntl(fdin, F_SETFL, 0);
+      add_to_io_select(fdin, mhp_input_async, NULL);
+    } else {
+      close(fdin);
+      fdin = -1;
     }
   }
-  if (retval || fdin == -1 || fdout == -1)
+  if (fdin == -1 || fdout == -1)
     fprintf(stderr, "Can't create debugger pipes, dosdebug not available\n");
   if (fdin == -1) {
     unlink(pipename_in);
@@ -222,11 +233,13 @@ static void reopen_fdin(void)
 {
   remove_from_io_select(fdin);
   close(fdin);
-  fdin = open(pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+  fdin = mfs_open_file(fdin_idx, pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
   if (fdin != -1) {
     /* Remove O_NONBLOCK. O_CLOEXEC unaffected. */
     fcntl(fdin, F_SETFL, 0);
     add_to_io_select(fdin, mhp_input_async, NULL);
+  } else {
+    error("unable to reopen %s: %s\n", pipename_in, strerror(errno));
   }
 }
 
@@ -440,7 +453,6 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
   mhpdbgc.currcode = code;
   switch (DBG_TYPE(mhpdbgc.currcode)) {
     case DBG_INIT:
-      mhp_init();
       break;
     case DBG_BOOT:
       mhp_boot();

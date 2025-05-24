@@ -38,6 +38,8 @@ enum dosdebug_event {
 #define DBGF_LOG_TEMPORARY              0x400
 #define DBGF_IN_LEAVEDOS           0x40000000
 
+int mhp_early_init(void);
+void mhp_init(void);
 unsigned int mhp_debug(unsigned, unsigned int, unsigned int);
 void mhp_send(void);
 void mhp_close(void);

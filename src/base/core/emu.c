@@ -307,6 +307,9 @@ int emulate(int argc, char **argv, char * const *envp)
     cp437_init();
     utf8_init();
     config_init(argc, argv);	/* parse the commands & config file(s) */
+#ifdef USE_MHPDBG
+    mhp_early_init();           /* before mfs_post_config() */
+#endif
     mfs_post_config();		/* called after config and all config_scrubs */
 #ifdef X86_EMULATOR
 #ifdef DONT_DEBUG_BOOT		/* cpuemu only */
@@ -368,7 +371,7 @@ int emulate(int argc, char **argv, char * const *envp)
      * the signal_pre_init(), which right now blocks the signals. */
     iodev_init();		/* initialize devices */
 #ifdef USE_MHPDBG
-    mhp_debug(DBG_INIT, 0, 0);
+    mhp_init();
 #endif
     priv_drop_total();
     dos2tty_init();
