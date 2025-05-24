@@ -167,6 +167,9 @@ static int set_raw_mode(void)
     if (err)
       return err;
   }
+#else
+  if (config.console_keyb == KEYB_RAW)
+    config.console_keyb = KEYB_TTY;
 #endif
   cfmakeraw(&buf);
   k_printf("KBD(raw): Setting TERMIOS Structure.\n");
