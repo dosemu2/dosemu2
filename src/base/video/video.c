@@ -93,7 +93,7 @@ static int no_real_terminal(void)
  * graphics.
  * code adapted from libdrm (drmCheckModesettingSupported)
  */
-static int using_kms(void)
+int using_kms(void)
 {
 #ifdef __linux__
     char pci_dev_dir[1024];
@@ -206,7 +206,7 @@ static int video_init(void)
       config.X = 1;	// for compatibility, to be removed
       config.X_fullscreen = 1;
       config.X_fixed_aspect = 0;
-      config.console_keyb = KEYB_OTHER;
+//      config.console_keyb = KEYB_OTHER;
       goto done;
     } else {
       error("failed to load sdl plugin\n");
