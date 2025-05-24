@@ -52,6 +52,7 @@ static int clnup_tids[HNDL_MAX][MAX_CLNUP_TIDS];
 static int num_clnup_tids[HNDL_MAX];
 static int exiting;
 static int exit_rc;
+static int closing_handle = -1;
 
 struct udata {
     cpuctx_t *scp;
@@ -243,7 +244,11 @@ static uint8_t *dj64_inc_esp(uint32_t len)
 
 static int dj64_get_handle(void)
 {
-    struct udata *ud = coopth_get_user_data_cur();
+    struct udata *ud;
+
+    if (closing_handle != -1)
+        return closing_handle;
+    ud = coopth_get_user_data_cur();
     return ud->handle;
 }
 
@@ -353,7 +358,9 @@ static void do_close(int handle)
             num_clnup_tids[handle]--;  // skip own thread
             continue;
         }
+        closing_handle = handle;
         coopth_unsafe_detach(tid, __FILE__);
+        closing_handle = -1;
     }
     djdev64_close(handle);
 }
