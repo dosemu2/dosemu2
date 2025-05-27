@@ -81,6 +81,8 @@ static int num_rw_fds;
 static const char *ro_files[MAX_ALLOW_FILES];
 static int num_ro_files;
 #endif
+static int caps_present(void);
+static int drop_caps(void);
 
 static int _priv_on(void)
 {
@@ -196,6 +198,10 @@ void priv_drop_root(void)
     return;
   assert(PRIVS_ARE_OFF);
   err = do_drop();
+  /* caps can only be dropped after dropping root, or otherwise
+   * we'll not have caps to drop root */
+  if (caps_present())
+    drop_caps();
   if (err) {
     leavedos(3);
     return;
