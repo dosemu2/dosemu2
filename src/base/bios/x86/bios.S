@@ -150,6 +150,17 @@ FCB_HLP_OFF:
 	.globl INT10_WATCHER_OFF
 INT10_WATCHER_OFF:
 WINT10:
+	jmp 2f
+	.globl bios_f000_int10_old
+bios_f000_int10_old:
+	.long 0
+	.word 0x424B	// signature "KB"
+	.byte 0		// flag
+	jmp 1f		// EB xx for compat
+	.space 7	// padding
+1:
+	lret
+2:
 	movzwl	%sp,%esp	/* make sure high of esp is zero */
 	cmpb	$1, %cs:bios_in_int10_callback
 	je	L10
@@ -577,10 +588,6 @@ INT_RVC_e6_OFF:
 	.globl	bios_f000_int10ptr
 bios_f000_int10ptr:
 	.long	0xc0000003
-
-	.globl	bios_f000_int10_old
-bios_f000_int10_old:
-	.long	0
 
 	.globl	bios_in_int10_callback
 bios_in_int10_callback:
