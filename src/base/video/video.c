@@ -310,6 +310,10 @@ void video_close(void)
     Video->close();
     v_printf("VID: video_close()->Video->close() called\n");
   }
+  if (console_fd != -1) {
+    close(console_fd);
+    console_fd = -1;
+  }
 }
 
 /* load <msize> bytes of file <name> starting at offset <foffset>
@@ -533,13 +537,22 @@ int on_console(void)
     struct stat chkbuf;
     int major, minor;
 
-    if (console_fd == -2)
+    if (console_fd == -1) {
+	const char *tname = getenv("SUDO_TTY");
+	if (!tname)
+	    tname = getenv("DOSEMU_SUDO_TTY");
+	if (!tname) {
+	    if (isatty(STDIN_FILENO))
+		console_fd = dup(STDIN_FILENO);
+	} else {
+	    console_fd = open(tname, O_RDWR | O_CLOEXEC);
+	}
+    }
+    if (console_fd == -1)
 	return 0;
 
-    console_fd = -2;
-
-    if (fstat(STDIN_FILENO, &chkbuf) != 0)
-	return 0;
+    if (fstat(console_fd, &chkbuf) != 0)
+	goto err;
 
     major = chkbuf.st_rdev >> 8;
     minor = chkbuf.st_rdev & 0xff;
@@ -547,10 +560,12 @@ int on_console(void)
     c_printf("major = %d minor = %d\n",
 	    major, minor);
     /* console major num is 4, minor 64 is the first serial line */
-    if (S_ISCHR(chkbuf.st_mode) && (major == 4) && (minor < 64)) {
-       console_fd = STDIN_FILENO;
+    if (S_ISCHR(chkbuf.st_mode) && (major == 4) && (minor < 64))
        return 1;
-    }
+
+err:
+    close(console_fd);
+    console_fd = -1;
 #endif
     return 0;
 }

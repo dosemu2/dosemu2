@@ -135,6 +135,7 @@ while [ $# -gt 0 ] ; do
       SUDOOPTS="-E --preserve-env=HOME,USER setpriv --no-new-privs"
       # sudo doesn't set SUDO_HOME but maybe it will - use another var
       export DOSEMU_SUDO_HOME="$HOME"
+      export DOSEMU_SUDO_TTY=`tty`
       ;;
     -no-priv-sep)
       shift
