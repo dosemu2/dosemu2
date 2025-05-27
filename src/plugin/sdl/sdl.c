@@ -1425,7 +1425,7 @@ static void SDL_handle_events(void)
 	int rc;
 	SDL_Keysym keysym = event.key.keysym;
 
-	if (wait_kup)
+	if (wait_kup || event.key.repeat)
 	  break;
 	if ((keysym.mod & KMOD_CTRL) && (keysym.mod & KMOD_ALT)) {
 	  if (keysym.sym == mgrab_key || keysym.sym == SDLK_k) {
