@@ -341,7 +341,8 @@ void cpu_setup(void)
 
   savefpstate(vm86_fpu_state);
 #ifdef FE_NOMASK_ENV
-  feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
+  /* FE_OVERFLOW causes crashes with llvmpipe */
+  feenableexcept(FE_DIVBYZERO);
 #endif
   fegetenv(&dosemu_fenv);
 
