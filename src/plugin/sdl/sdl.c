@@ -1412,7 +1412,7 @@ static void SDL_handle_events(void)
 		SDL_KEYDOWN);
 	while (rc == 1 && event.text.timestamp != key_event.key.timestamp);
 	if (rc != 1) {
-	  error("SDL: missing key event\n");
+	  k_printf("SDL: missing key event\n");
 	  break;
 	}
 	SDL_process_key_text(key_event.key, event.text);
