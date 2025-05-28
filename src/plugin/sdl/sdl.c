@@ -166,7 +166,6 @@ static int border_on;
 #define MODE_CLASS() ((current_mode_class == GRAPH || use_bitmap_font ) ? \
     GRAPH : TEXT)
 static SDL_Keycode mgrab_key = SDLK_HOME;
-static int sdl_subsy;
 
 #if SDL_VERSION_ATLEAST(2,26,0)
 #define CONFIG_SDL_SELECTION 1
@@ -245,10 +244,7 @@ static int SDL_early_init(void)
   fedisableexcept(FE_DIVBYZERO);
 #endif
 //  enter_priv_on();
-  sdl_subsy = SDL_INIT_VIDEO;
-  if (!using_kms())
-    sdl_subsy |= SDL_INIT_EVENTS;
-  ret = SDL_InitSubSystem(sdl_subsy);
+  ret = SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 //  leave_priv_setting();
 #ifdef FE_NOMASK_ENV
   fesetenv(&dosemu_fenv);
@@ -484,7 +480,7 @@ static int SDL_init(void)
   return 0;
 
 err:
-  SDL_QuitSubSystem(sdl_subsy);
+  SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   return -1;
 }
 
@@ -523,7 +519,7 @@ void SDL_close(void)
 #endif
   rng_destroy(&rects_rng);
   SDL_DestroyWindow(window);
-  SDL_QuitSubSystem(sdl_subsy);
+  SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 }
 
 static void do_redraw(void)
