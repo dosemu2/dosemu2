@@ -162,8 +162,10 @@ static int set_raw_mode(void)
   if (config.console_keyb == KEYB_RAW) {
     k_printf("KBD(raw): Setting keyboard to RAW mode\n");
     err = ioctl(kbd_fd, KDSKBMODE, K_RAW);
-    if (err)
-      return err;
+    if (err) {
+      error("kbd raw mode failed: %s\n", strerror(errno));
+      config.console_keyb = KEYB_TTY;
+    }
   }
 #else
   if (config.console_keyb == KEYB_RAW)
