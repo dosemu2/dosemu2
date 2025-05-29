@@ -991,7 +991,7 @@ static void config_post_process(void)
 	    config.console_video = 0;
 	    dbug_printf("no console on low feature (non-suid root) DOSEMU\n");
 	}
-	if (config.console_keyb == -1)
+	if (config.console_keyb == -1 && config.console_video)
 	    config.console_keyb = KEYB_RAW;
 	if (config.speaker == SPKR_EMULATED) {
 	    register_speaker((void *)(uintptr_t)console_fd,

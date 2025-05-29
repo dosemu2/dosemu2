@@ -21,6 +21,7 @@
 #include "keyboard.h"
 #include "keyb_clients.h"
 #include "keyb_server.h"
+#include "keyb_raw.h"
 
 static int initialized;
 
@@ -29,6 +30,7 @@ void keyb_priv_init(void)
 	/* this must be initialized before starting port-server */
 	keyb_8042_init();
 	open_console();
+	kbdraw_priv_init();
 }
 
 void keyb_init(void)

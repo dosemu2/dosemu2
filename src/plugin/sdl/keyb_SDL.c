@@ -24,7 +24,6 @@
 #include <string.h>
 
 #include "emu.h"
-#include "video.h"
 #include "keyboard/keyb_clients.h"
 #include "keyboard/keyboard.h"
 #include "keyboard/keynum.h"
@@ -165,9 +164,7 @@ void SDL_process_key_release(SDL_KeyboardEvent keyevent)
 
 static int sdl_kbd_probe(void)
 {
-	/* Under KMS this is incompatible with priv sep, as sdl
-	 * opens kbd nodes too late. */
-	return (config.sdl == 1 && !using_kms());
+	return (config.sdl == 1);
 }
 
 static int sdl_kbd_init(void)
