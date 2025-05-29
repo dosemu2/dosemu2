@@ -246,14 +246,25 @@ static int pci_open_proc(unsigned char bus, unsigned char device,
   static char proc_pci_name_buf[] = "/proc/bus/pci/00/00.0";
   int fd;
 
+  snprintf(proc_pci_name_buf + 14, sizeof(proc_pci_name_buf) - 14,
+      "%02hhx/%02hhx.%.1hhx", bus, device, fn);
+  Z_printf("PCI: opening %s\n", proc_pci_name_buf);
+  fd = open(proc_pci_name_buf, O_RDONLY);
+  return fd;
+}
+
+static int pci_open_proc_rw(unsigned char bus, unsigned char device,
+			 unsigned char fn)
+{
+  static char proc_pci_name_buf[] = "/proc/bus/pci/00/00.0";
+  int fd;
+
   PRIV_SAVE_AREA
   snprintf(proc_pci_name_buf + 14, sizeof(proc_pci_name_buf) - 14,
       "%02hhx/%02hhx.%.1hhx", bus, device, fn);
   Z_printf("PCI: opening %s\n", proc_pci_name_buf);
   enter_priv_on();
   fd = open(proc_pci_name_buf, O_RDWR);
-  if (fd == -1)
-    fd = open(proc_pci_name_buf, O_RDONLY);
   leave_priv_setting();
   return fd;
 }
@@ -291,7 +302,7 @@ static unsigned long pci_read_proc (unsigned char bus, unsigned char device,
 static void pci_write_proc (unsigned char bus, unsigned char device,
 			    unsigned char fn, unsigned long reg, unsigned long val, int len)
 {
-  int fd = pci_open_proc(bus, device, fn);
+  int fd = pci_open_proc_rw(bus, device, fn);
   if (fd == -1)
     return;
   Z_printf("PCI: writing reg %ld\n", reg);
