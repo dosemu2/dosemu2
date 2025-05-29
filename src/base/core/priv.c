@@ -50,6 +50,7 @@
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
+#include "video.h"  // for using_kms()
 #include "landlock.h"
 
 /* Some handy information to have around */
@@ -526,7 +527,11 @@ void priv_init(void)
      * any thread. So set groups now and drop caps. Hopefully the logged-in
      * user doesn't need supplementary groups, having the ACLs set at login
      * time instead. */
-    if (caps) {
+    /* Not the case for input devices, which are needed under kms.
+     * See https://github.com/dosemu2/dosemu2/issues/2463#issuecomment-2918920084
+     * TODO: Remove this hack when sdl fixed!
+     */
+    if (caps && !using_kms()) {
       init_groups(euid, egid);
       groups_dropped = 1;
     }

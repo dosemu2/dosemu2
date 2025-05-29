@@ -93,7 +93,7 @@ static int no_real_terminal(void)
  * graphics.
  * code adapted from libdrm (drmCheckModesettingSupported)
  */
-static int using_kms(void)
+int using_kms(void)
 {
 #ifdef __linux__
     char pci_dev_dir[1024];

@@ -147,5 +147,6 @@ enum {
 extern int load_file(const char *name, int foffset, unsigned char *mstart, int msize);
 extern void register_video_client(struct video_system *vid);
 extern struct video_system *video_get(const char *name);
+int using_kms(void);
 
 #endif
