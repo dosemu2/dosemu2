@@ -298,7 +298,7 @@ static int init_sg_device_list(void) {
   }
   while (!feof(f) && dev < maxdevs) {
     if (!fgets(buf, sizeof(buf), f)) break;
-    if (!strncmp(buf, attached, sizeof(attached))) {
+    if (!strncmp(buf, attached, sizeof(attached) - 1)) {
       if (strstr(buf, "none")) break;
       fgets(buf, sizeof(buf), f);
     }
@@ -332,6 +332,12 @@ static int init_sg_device_list(void) {
       devs[dev].devtype = query_device_type(devname);
     }
     s = strbetween(p,&p, "ANSI SCSI revision:", "");
+    if (!s) {
+      p = buf;
+      s = strbetween(p,&p, "ANSI  SCSI revision:", "");
+    }
+    if (!s)
+      break;
     if (s[2]) devs[dev].ansirev = 1;
     else devs[dev].ansirev = strtoul(s,0,16);
     dev++;
