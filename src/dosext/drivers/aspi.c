@@ -366,6 +366,9 @@ static int sg_scan_sysfs(struct scsi_device_info *devs, int maxdevs)
   int dev = 0;
   int err, i;
 
+#ifndef GLOB_ONLYDIR
+#define GLOB_ONLYDIR 0
+#endif
   err = glob("/sys/class/scsi_device/*", GLOB_ERR | GLOB_ONLYDIR, NULL, &gl);
   if (err)
     return 0;
