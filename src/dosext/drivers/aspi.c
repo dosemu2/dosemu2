@@ -56,7 +56,7 @@
 #include <sys/stat.h>
 #include <memory.h>
 #include <unistd.h>
-
+#include <glob.h>
 #include <scsi/sg.h>
 
 #include "aspi.h"
@@ -335,6 +335,74 @@ static int sg_scan_proc(struct scsi_device_info *devs, int maxdevs)
   return dev;
 }
 
+static char *sysfs_ent(const char *path, const char *item)
+{
+  char buf[1024];
+  char namebuf[1024];
+  FILE *f;
+  char *p;
+
+  snprintf(namebuf, sizeof(namebuf), "%s/device/%s", path, item);
+  f = fopen(namebuf, "r");
+  if (!f)
+    return NULL;
+  fgets(buf, sizeof(buf), f);
+  fclose(f);
+  p = buf + strlen(buf);
+  while (p > buf) {
+    p--;
+    if (*p == ' ' || *p == '\n')
+      *p = '\0';
+    else
+      break;
+  }
+  return strdup(buf);
+}
+
+static int sg_scan_sysfs(struct scsi_device_info *devs, int maxdevs)
+{
+  glob_t gl;
+  char *p;
+  int dev = 0;
+  int err, i;
+
+  err = glob("/sys/class/scsi_device/*", GLOB_ERR | GLOB_ONLYDIR, NULL, &gl);
+  if (err)
+    return 0;
+  if (gl.gl_pathc == 0) {
+    globfree(&gl);
+    return 0;
+  }
+  if (gl.gl_pathc > maxdevs) {
+    error("aspi: too many devs, %li\n", gl.gl_pathc);
+    globfree(&gl);
+    return 0;
+  }
+  for (i = 0; i < gl.gl_pathc; i++) {
+    p = strrchr(gl.gl_pathv[i], '/');
+    assert(p);
+    p++;
+    devs[dev].fd = -1;
+    devs[dev].sgminor = dev;
+    err = sscanf(p, "%i:%i:%i:%i", &devs[dev].hostId, &devs[dev].channel,
+        &devs[dev].target, &devs[dev].lun);
+    assert(err == 4);
+    devs[dev].dos_seen_target = devs[dev].target;
+    devs[dev].vendor = sysfs_ent(gl.gl_pathv[i], "vendor");
+    devs[dev].model = sysfs_ent(gl.gl_pathv[i], "model");
+    devs[dev].modelrev = sysfs_ent(gl.gl_pathv[i], "rev");
+    p = sysfs_ent(gl.gl_pathv[i], "type");
+    devs[dev].devtype = atoi(p);
+    free(p);
+    p = sysfs_ent(gl.gl_pathv[i], "scsi_level");  // correct?
+    devs[dev].ansirev = atoi(p);
+    free(p);
+    dev++;
+  }
+  globfree(&gl);
+  return dev;
+}
+
 static int init_sg_device_list(void)
 {
   struct scsi_device_info *devs;
@@ -346,7 +414,9 @@ static int init_sg_device_list(void)
   devs = malloc(sizeof(struct scsi_device_info) * (maxdevs+1));
   if (!devs)
     return 0;
-  dev = sg_scan_proc(devs, maxdevs);
+  dev = sg_scan_sysfs(devs, maxdevs);
+  if (!dev)
+    dev = sg_scan_proc(devs, maxdevs);
   if (dev) {
     devs = realloc(devs, sizeof(struct scsi_device_info) * (dev+1));
     memset(&devs[dev], 0, sizeof(struct scsi_device_info));
