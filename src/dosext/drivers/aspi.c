@@ -295,25 +295,41 @@ static int sg_scan_proc(struct scsi_device_info *devs, int maxdevs)
     devs[dev].sgminor = dev;
     p = buf;
     s = strbetween(p,&p, "Host:", "Channel:");
+    if (!s)
+      break;
     devs[dev].hostId = s[strlen(s)-1] -'0';
     s = strbetween(p,&p, "Channel:", "Id:");
+    if (!s)
+      break;
     devs[dev].channel = strtoul(s,0,10);
     s = strbetween(p,&p, "Id:", "Lun:");
+    if (!s)
+      break;
     devs[dev].target = strtoul(s,0,10);
     devs[dev].dos_seen_target = devs[dev].target;
     s = strbetween(p,&p, "Lun:", "");
+    if (!s)
+      break;
     devs[dev].lun = strtoul(s,0,10);
     fgets(buf, sizeof(buf), f);
     p = buf;
     s = strbetween(p,&p, "Vendor:", "Model:");
+    if (!s)
+      break;
     devs[dev].vendor = strdup(s);
     s = strbetween(p,&p, "Model:", "Rev:");
+    if (!s)
+      break;
     devs[dev].model = strdup(s);
     s = strbetween(p,&p, "Rev:", "");
+    if (!s)
+      break;
     devs[dev].modelrev = strdup(s);
     fgets(buf, sizeof(buf), f);
     p = buf;
     s = strbetween(p,&p, "Type:", "ANSI SCSI revision:");
+    if (!s)
+      break;
     devs[dev].devtype = decode_device_type(s);
     if (devs[dev].devtype == -1) {
       char devname[20];
