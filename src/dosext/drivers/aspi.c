@@ -277,25 +277,14 @@ static int decode_device_type(char *name)
   return -1;
 }
 
-static int init_sg_device_list(void) {
-  struct scsi_device_info *devs;
-  int maxdevs = 32;
-  int dev = 0;
-  FILE *f;
+static int sg_scan_proc(struct scsi_device_info *devs, int maxdevs)
+{
   char buf[1024];
   char *p, *s;
   static char attached[] = "Attached devices:";
-
-  if (sg_devices) return 1;
-
-  f = fopen(scsiprocfile, "r");
+  int dev = 0;
+  FILE *f = fopen(scsiprocfile, "r");
   if (!f) return 0;
-
-  devs = malloc(sizeof(struct scsi_device_info) * (maxdevs+1));
-  if (!devs) {
-    fclose(f);
-    return 0;
-  }
   while (!feof(f) && dev < maxdevs) {
     if (!fgets(buf, sizeof(buf), f)) break;
     if (!strncmp(buf, attached, sizeof(attached) - 1)) {
@@ -343,6 +332,21 @@ static int init_sg_device_list(void) {
     dev++;
   }
   fclose(f);
+  return dev;
+}
+
+static int init_sg_device_list(void)
+{
+  struct scsi_device_info *devs;
+  int maxdevs = 32;
+  int dev = 0;
+
+  if (sg_devices) return 1;
+
+  devs = malloc(sizeof(struct scsi_device_info) * (maxdevs+1));
+  if (!devs)
+    return 0;
+  dev = sg_scan_proc(devs, maxdevs);
   if (dev) {
     devs = realloc(devs, sizeof(struct scsi_device_info) * (dev+1));
     memset(&devs[dev], 0, sizeof(struct scsi_device_info));
