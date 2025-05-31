@@ -188,7 +188,7 @@ void virq_raise(int virq_num)
     if (!irr) {
         pic_request(VIRQ_IRQ_NUM);
         if (virq_is_masked())
-            error("VIRQ masked\n");
+            error_once0("VIRQ masked\n");
     }
     pthread_mutex_unlock(&irr_mtx);
     pthread_mutex_unlock(&hndl_mtx);
