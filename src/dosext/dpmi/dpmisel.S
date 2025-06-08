@@ -328,7 +328,8 @@ DPMI_\name\()_irq:
 	.globl DPMI_\name\()_post_irq
 DPMI_\name\()_post_irq:
 	hlt
-	/* sti+iret is atomic, and since f0bad5fe the ints remain disabled */
+	/* sti+iret is atomic, and since ed8550b4 (see also f0bad5fe)
+	 * the ints remain disabled when iret is done on ring-0 */
 	sti
 	iretl
 .endm
