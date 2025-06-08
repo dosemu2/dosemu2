@@ -3365,7 +3365,7 @@ static void remove_xretf_frame(cpuctx_t *scp, void *sp)
   int pm;
   if (DPMI_CLIENT.is_32) {
     unsigned int *ssp = sp;
-    _eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
+    _eflags = dpmi_flags_from_stack_r0(*ssp++);
     pm = *ssp++;
     _esp += 8;
     if (pm > 1) {
@@ -3375,7 +3375,7 @@ static void remove_xretf_frame(cpuctx_t *scp, void *sp)
     dpmi_set_pm(pm);
   } else {
     unsigned short *ssp = sp;
-    _eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
+    _eflags = dpmi_flags_from_stack_r0(*ssp++);
     pm = *ssp++;
     _LWORD(esp) += 4;
     if (pm > 1) {
