@@ -153,17 +153,27 @@ int p_direct_vstr(const char *fmt, va_list args);
 /* currently eflags are stored with IF reflecting the actual interrupt state,
  * so no translation is needed */
 #define dpmi_flags_to_stack(flags) (flags)
-static inline unsigned dpmi_flags_from_stack_iret(const cpuctx_t *scp,
-    unsigned flags)
+static inline unsigned _dpmi_flags_from_stack_iret(const cpuctx_t *scp,
+    int r0, unsigned flags)
 {
   int iopl = ((_eflags_ & IOPL_MASK) >> IOPL_SHIFT);
-  unsigned new_flags = (flags & 0xdd5) | 2 | (_eflags_ & IOPL_MASK);
+  unsigned new_flags = (flags & 0xdd5) | 2;
 
-  if (iopl == 3)
+  if (r0)
+    new_flags |= (flags & IOPL_MASK);
+  else
+    new_flags |= (_eflags_ & IOPL_MASK);
+
+  if (r0 || iopl == 3)
     new_flags |= (flags & IF);
   else
     new_flags |= (_eflags_ & IF);
   return new_flags;
+}
+static inline unsigned dpmi_flags_from_stack_iret(const cpuctx_t *scp,
+    unsigned flags)
+{
+  return _dpmi_flags_from_stack_iret(scp, 0, flags);
 }
 #define flags_to_pm(flags) ((flags & (0xdd5|IF)) | 2 | (_eflags_ & IOPL_MASK))
 #define flags_to_rm(flags) ((flags) | 2 | IOPL_MASK)

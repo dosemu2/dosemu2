@@ -4884,12 +4884,13 @@ static void do_dpmi_iret(cpuctx_t *scp, void * const sp)
 static void emu_dpmi_iret(cpuctx_t *scp, void * const sp)
 {
   int stk32 = Segments(_ss >> 3).is_32;
+  int r0 = (_cs == dpmi_sel());
 
   if (Segments(_cs >> 3).is_32) {
     unsigned int *ssp = sp;
     _eip = *ssp++;
     _cs = *ssp++;
-    _eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
+    _eflags = _dpmi_flags_from_stack_iret(scp, r0, *ssp++);
     if (stk32)
       _esp += 12;
     else
@@ -4898,7 +4899,7 @@ static void emu_dpmi_iret(cpuctx_t *scp, void * const sp)
     unsigned short *ssp = sp;
     _LWORD(eip) = *ssp++;
     _cs = *ssp++;
-    _eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
+    _eflags = _dpmi_flags_from_stack_iret(scp, r0, *ssp++);
     if (stk32)
       _esp += 6;
     else
