@@ -1,6 +1,7 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from sys import stderr
 import multiprocessing as mp
+from random import randbytes
 
 from common_framework import setup_tap_interface, teardown_tap_interface
 
@@ -8,37 +9,37 @@ from common_framework import setup_tap_interface, teardown_tap_interface
 HOST = '192.168.122.1'
 PORT = 8080
 
-CONTENT = b"""\
-This is very short string. Ideally we'd use the new random byte generator
-in python 3.9, but not all test platforms have that yet(mine included)"""
-
 
 class MyServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-type", "application/octet-stream")
+        self.send_header("Content-Length", str(len(self.content)))
         self.end_headers()
-        self.wfile.write(CONTENT)
+        self.wfile.write(self.content)
         raise KeyboardInterrupt     # Close afterwards
 
     def log_message(self, format, *args):
         pass                        # Quieten stderr
 
 
-def little_webserver():
+def little_webserver(content):
     with HTTPServer((HOST, PORT), MyServer) as ws:
         try:
+            ws.RequestHandlerClass.content = content
             ws.serve_forever()
         except KeyboardInterrupt:
             pass
 
 
 def network_pktdriver_mtcp(self, driver):
+    content = randbytes(1024*1024)
+
     setup_tap_interface(self)
     self.addCleanup(teardown_tap_interface, self)
 
     ctx = mp.get_context('spawn')
-    p = ctx.Process(target=little_webserver, daemon=True)
+    p = ctx.Process(target=little_webserver, args=(content,), daemon=True)
     p.start()
 
     self.unTarOrSkip("TEST_CRYNWR.tar", [
@@ -73,7 +74,7 @@ dhcp_lease_threshold 360
 %s
 set MTCPCFG=c:\\mtcp.cfg
 dhcp
-htget -o test.fil http://%s:%d/test.fil
+htget -v -o test.fil http://%s:%d/test.fil
 rem end
 """ % (mtcpcfg, HOST, PORT), newline="\r\n")
 
@@ -83,7 +84,7 @@ $_floppy_a = ""
 $_pktdriver = (on)
 $_vnet = "tap"
 $_tapdev = "tap0"
-""", timeout=30)
+""", timeout=60)
 
     p.join(timeout=45)
     if p.is_alive():
@@ -102,4 +103,5 @@ $_tapdev = "tap0"
     except FileNotFoundError:
         tbytes = b'File not found'
 
-    self.assertEqual(CONTENT, tbytes)
+    self.assertEqual(len(content), len(tbytes))
+    self.assertEqual(content, tbytes)
