@@ -30,16 +30,6 @@
 #include "pcl_ctx.h"
 
 #if WANT_UCONTEXT
-static int ctx_get_context(struct s_co_ctx *ctx)
-{
-	return getcontext((ucontext_t *)ctx->cc);
-}
-
-static int ctx_set_context(struct s_co_ctx *ctx)
-{
-	return setcontext((ucontext_t *)ctx->cc);
-}
-
 static int ctx_swap_context(struct s_co_ctx *ctx1, void *ctx2)
 {
 	return swapcontext((ucontext_t *)ctx1->cc, ctx2);
@@ -63,23 +53,11 @@ static int ctx_create_context(co_ctx_t *ctx, void (*func)(void*), void *arg,
 
 static struct pcl_ctx_ops ctx_ops = {
 	.create_context = ctx_create_context,
-	.get_context = ctx_get_context,
-	.set_context = ctx_set_context,
 	.swap_context = ctx_swap_context,
 };
 #endif
 
 #ifdef MCONTEXT
-static int mctx_get_context(struct s_co_ctx *ctx)
-{
-	return getmcontext((m_ucontext_t *)ctx->cc);
-}
-
-static int mctx_set_context(struct s_co_ctx *ctx)
-{
-	return setmcontext((m_ucontext_t *)ctx->cc);
-}
-
 static int mctx_swap_context(struct s_co_ctx *ctx1, void *ctx2)
 {
 	return swapmcontext((m_ucontext_t *)ctx1->cc, ctx2);
@@ -103,8 +81,6 @@ static int mctx_create_context(co_ctx_t *ctx, void (*func)(void*), void *arg,
 
 static struct pcl_ctx_ops mctx_ops = {
 	.create_context = mctx_create_context,
-	.get_context = mctx_get_context,
-	.set_context = mctx_set_context,
 	.swap_context = mctx_swap_context,
 };
 #endif
