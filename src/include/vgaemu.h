@@ -510,9 +510,9 @@ void vgaemu_adj_cfg(unsigned, unsigned);
 void vgaemu_scroll(int x0, int y0, int x1, int y1, int n, unsigned char attr);
 void vgaemu_put_char(unsigned char c, unsigned char page, unsigned char attr);
 void vgaemu_repeat_char(unsigned char c, unsigned char page,
-    unsigned char attr, unsigned char count);
+    unsigned char attr, int count);
 void vgaemu_repeat_char_attr(unsigned char c, unsigned char page,
-    unsigned char attr, unsigned char count);
+    unsigned char attr, int count);
 void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char attr);
 unsigned char vgaemu_get_pixel(int x, int y, unsigned char page);
 unsigned char vga_read(unsigned addr);

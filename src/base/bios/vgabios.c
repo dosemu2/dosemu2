@@ -823,7 +823,7 @@ static void biosfn_write_char_only (Bit8u car,Bit8u page,Bit8u attr,
 }
 
 void vgaemu_repeat_char_attr(unsigned char c, unsigned char page,
-    unsigned char attr, unsigned char count)
+    unsigned char attr, int count)
 {
  vga_msg(
     "vgaemu_repeat_char_attr: page %d, char 0x%02x, attr 0x%02x rep %d\n",
@@ -834,7 +834,7 @@ void vgaemu_repeat_char_attr(unsigned char c, unsigned char page,
 }
 
 void vgaemu_repeat_char(unsigned char c, unsigned char page,
-    unsigned char attr, unsigned char count)
+    unsigned char attr, int count)
 {
  vga_msg(
     "vgaemu_repeat_char: page %d, char 0x%02x, attr 0x%02x rep %d\n",
