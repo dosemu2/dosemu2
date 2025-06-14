@@ -88,9 +88,13 @@ static struct pcl_ctx_ops mctx_ops = {
 static struct pcl_ctx_ops *ops_arr[] = {
 #ifdef MCONTEXT
 	/*[PCL_C_MC] = */&mctx_ops,
+#else
+	NULL,
 #endif
 #if WANT_UCONTEXT
 	/*[PCL_C_UC] = */&ctx_ops,
+#else
+	NULL,
 #endif
 };
 
@@ -105,6 +109,8 @@ int ctx_init(enum CoBackend b, struct pcl_ctx_ops **ops)
 
 int ctx_sizeof(enum CoBackend b)
 {
+	if (!ops_arr[b])
+		return 0;
 	switch (b) {
 #ifdef MCONTEXT
 	case PCL_C_MC:

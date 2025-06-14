@@ -234,13 +234,22 @@ static void do_co_init(cothread_ctx *tctx)
 	tctx->co_curr = &tctx->co_main;
 }
 
-cohandle_t co_thread_init(enum CoBackend b)
+cohandle_t co_thread_init(void)
 {
-	int sz = ctx_sizeof(b);
-	cothread_ctx *tctx = malloc(sizeof(cothread_ctx) + CO_STK_ALIGN(sz));
+	int sz, i;
+	cothread_ctx *tctx;
+
+	for (i = 0; i < PCL_C_MAX; i++) {
+		sz = ctx_sizeof(i);
+		if (sz)
+			break;
+	}
+	if (i == PCL_C_MAX)
+		return NULL;
+	tctx = malloc(sizeof(cothread_ctx) + CO_STK_ALIGN(sz));
 
 	do_co_init(tctx);
-	ctx_init(b, &tctx->co_main.ctx.ops);
+	ctx_init(i, &tctx->co_main.ctx.ops);
 	tctx->ctx_sizeof = sz;
 	return tctx;
 }

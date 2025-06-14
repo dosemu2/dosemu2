@@ -39,19 +39,7 @@ typedef void *cohandle_t;
 #define WANT_UCONTEXT 0
 #endif
 
-enum CoBackend {
-#ifdef MCONTEXT
-    PCL_C_MC,
-#else
-/* our libmcontext doesn't yet support aarch64 */
-#define PCL_C_MC PCL_C_UC
-#endif
-#if WANT_UCONTEXT
-    PCL_C_UC,
-#endif
-    PCL_C_MAX };
-
-PCLXC cohandle_t co_thread_init(enum CoBackend b);
+PCLXC cohandle_t co_thread_init(void);
 PCLXC void co_thread_cleanup(cohandle_t handle);
 
 PCLXC coroutine_t co_create(cohandle_t handle, void (*func)(void *),
