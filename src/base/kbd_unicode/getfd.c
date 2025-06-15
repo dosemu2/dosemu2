@@ -3,6 +3,7 @@
  *
  * for details see file COPYING in the DOSEMU distribution
  */
+#ifdef __linux__
 
 #include "getfd.h"
 
@@ -14,8 +15,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include "Sys/kd.h"
-#include <sys/ioctl.h>
 #include <linux/keyboard.h>
+#include <sys/ioctl.h>
 #include "priv.h"
 #include "keyboard/keynum.h"
 #include "translate/translate.h"
@@ -463,3 +464,5 @@ int read_kbd_table(struct keytable_entry *kt,
 
 	return j;
 }
+
+#endif
