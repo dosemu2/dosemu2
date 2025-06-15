@@ -35,6 +35,7 @@
 #include "pcl_ctx.h"
 
 static cothread_ctx *co_get_thread_ctx(coroutine *co);
+static void co_exit(cohandle_t handle);
 
 #if USE_ASAN
 static void save_asan_stack(co_base *ctx, void *ptr, size_t size)
@@ -72,6 +73,7 @@ static void co_switch_context(co_base *octx, co_base *nctx)
 #if USE_ASAN
 __attribute__((no_sanitize("address")))
 #endif
+__attribute__((noreturn))
 static void co_runner(void *arg)
 {
 	coroutine *co = arg;
@@ -181,7 +183,7 @@ void co_resume(cohandle_t handle)
 	tctx->co_curr->restarget = tctx->co_curr->caller;
 }
 
-void co_exit(cohandle_t handle)
+static void co_exit(cohandle_t handle)
 {
 	cothread_ctx *tctx = (cothread_ctx *)handle;
 	co_base *newco = tctx->co_curr->restarget, *co = tctx->co_curr;
