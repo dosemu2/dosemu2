@@ -33,7 +33,7 @@ typedef void *coroutine_t;
 typedef void *cohandle_t;
 
 #define _WANT_UCONTEXT 0
-#if _WANT_UCONTEXT || !defined(MCONTEXT)
+#if defined(HAVE_UCONTEXT_H) && (_WANT_UCONTEXT || !defined(MCONTEXT))
 #define WANT_UCONTEXT 1
 #else
 #define WANT_UCONTEXT 0

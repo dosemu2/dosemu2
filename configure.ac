@@ -500,13 +500,15 @@ AC_CHECK_HEADERS([asm/ucontext.h],,, [
   #include <ucontext.h>
   #include <signal.h>
 ])
-AC_CHECK_HEADERS([ucontext.h],, [
-  AS_UNSET([ac_cv_header_ucontext_h])
-  AC_CHECK_HEADER([ucontext.h],
-    AC_DEFINE([_XOPEN_SOURCE], [500], [Use X/Open 5 with POSIX 1995]),
-    AC_MSG_ERROR([Can't use ucontext.h]), [
-  #define _XOPEN_SOURCE 500
-])])
+if test "$machine" != "wasm32"; then
+  AC_CHECK_HEADERS([ucontext.h],, [
+    AS_UNSET([ac_cv_header_ucontext_h])
+    AC_CHECK_HEADER([ucontext.h],
+      AC_DEFINE([_XOPEN_SOURCE], [500], [Use X/Open 5 with POSIX 1995]),
+      AC_MSG_ERROR([Can't use ucontext.h]), [
+    #define _XOPEN_SOURCE 500
+  ])])
+fi
 AC_CHECK_HEADERS([linux/signal.h],,, [#include <signal.h>])
 AC_CHECK_HEADERS([sys/soundcard.h], [
   USE_OSS=1
