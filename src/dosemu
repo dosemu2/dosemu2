@@ -172,6 +172,10 @@ while [ $# -gt 0 ] ; do
       STRING_I="$STRING_I cpu_vm emulated cpuemu 1 cpu_vm_dpmi kvm"
       shift
       ;;
+    -node)
+      DBG="node"
+      shift
+      ;;
     -gdb)
       DBG="gdb --args"
       shift
