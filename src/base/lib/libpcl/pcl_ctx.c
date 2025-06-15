@@ -22,12 +22,24 @@
 
 #include <ucontext.h>
 #include <assert.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include "utilities.h"  // for pthread_cancel() on android
+#include "sig.h"
 #ifdef MCONTEXT
 #include "mcontext.h"
 #endif
 #include "pcl.h"
 #include "pcl_private.h"
 #include "pcl_ctx.h"
+
+static void ctx_init_context_dummy(void *ctx)
+{
+}
+
+static void ctx_free_context_dummy(void *ctx)
+{
+}
 
 #if WANT_UCONTEXT
 static int ctx_swap_context(struct s_co_ctx *ctx1, void *ctx2)
@@ -53,6 +65,8 @@ static int ctx_create_context(co_ctx_t *ctx, void (*func)(void*), void *arg,
 
 static struct pcl_ctx_ops ctx_ops = {
 	.create_context = ctx_create_context,
+	.init_context = ctx_init_context_dummy,
+	.free_context = ctx_free_context_dummy,
 	.swap_context = ctx_swap_context,
 };
 #endif
@@ -81,9 +95,84 @@ static int mctx_create_context(co_ctx_t *ctx, void (*func)(void*), void *arg,
 
 static struct pcl_ctx_ops mctx_ops = {
 	.create_context = mctx_create_context,
+	.init_context = ctx_init_context_dummy,
+	.free_context = ctx_free_context_dummy,
 	.swap_context = mctx_swap_context,
 };
 #endif
+
+struct pt_ucontext {
+	pthread_t thr;
+	sem_t sem;
+	void (*func)(void*);
+	void *arg;
+};
+typedef struct pt_ucontext pt_ucontext_t;
+
+static int ptctx_swap_context(struct s_co_ctx *ctx1, void *ctx2)
+{
+	pt_ucontext_t *cc1 = ctx1->cc;
+	pt_ucontext_t *cc2 = ctx2;
+
+	sem_post(&cc2->sem);
+	sem_wait(&cc1->sem);
+	return 0;
+}
+
+static void *pt_starter(void *arg)
+{
+	pt_ucontext_t *cc = arg;
+
+	sem_wait(&cc->sem);
+	cc->func(cc->arg);
+	abort();
+	return NULL;
+}
+
+static int ptctx_create_context(co_ctx_t *ctx, void (*func)(void*), void *arg,
+		char *stkbase, long stksiz)
+{
+	pt_ucontext_t *cc = (pt_ucontext_t *)ctx->cc;
+	pthread_attr_t pa;
+	sigset_t oset;
+
+	cc->func = func;
+	cc->arg = arg;
+	sem_init(&cc->sem, 0, 0);
+	pthread_attr_init(&pa);
+	pthread_attr_setstack(&pa, stkbase, stksiz);
+	if (sig_threads_wa)
+		signal_block_async_nosig(&oset);
+	pthread_create(&cc->thr, &pa, pt_starter, cc);
+	if (sig_threads_wa)
+		sigprocmask(SIG_SETMASK, &oset, NULL);
+	pthread_attr_destroy(&pa);
+
+	return 0;
+}
+
+static void ptctx_init_context(void *ctx)
+{
+	pt_ucontext_t *cc = (pt_ucontext_t *)ctx;
+
+	sem_init(&cc->sem, 0, 0);
+}
+
+static void ptctx_free_context(void *ctx)
+{
+	pt_ucontext_t *cc = (pt_ucontext_t *)ctx;
+
+	pthread_cancel(cc->thr);
+	pthread_join(cc->thr, NULL);
+	sem_destroy(&cc->sem);
+}
+
+static struct pcl_ctx_ops ptctx_ops = {
+	.create_context = ptctx_create_context,
+	.init_context = ptctx_init_context,
+	.free_context = ptctx_free_context,
+	.swap_context = ptctx_swap_context,
+};
 
 static struct pcl_ctx_ops *ops_arr[] = {
 #ifdef MCONTEXT
@@ -96,14 +185,16 @@ static struct pcl_ctx_ops *ops_arr[] = {
 #else
 	NULL,
 #endif
+	/*[PCL_C_PTH] = */&ptctx_ops,
 };
 
-int ctx_init(enum CoBackend b, struct pcl_ctx_ops **ops)
+int ctx_init(enum CoBackend b, struct s_co_ctx *ctx)
 {
 	if (b >= PCL_C_MAX)
 		return -1;
 	assert(ops_arr[b]);
-	*ops = ops_arr[b];
+	ctx->ops = ops_arr[b];
+	ctx->ops->init_context(ctx->cc);
 	return 0;
 }
 
@@ -120,6 +211,8 @@ int ctx_sizeof(enum CoBackend b)
 	case PCL_C_UC:
 		return sizeof(ucontext_t);
 #endif
+	case PCL_C_PTH:
+		return sizeof(pt_ucontext_t);
 	default:
 		return -1;
 	}

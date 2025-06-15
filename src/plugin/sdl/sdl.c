@@ -53,6 +53,7 @@
 #include "dos2linux.h"
 #include "utilities.h"
 #include "ringbuf.h"
+#include "coopth.h"
 #include "sdl.h"
 
 #define THREADED_REND 1
@@ -233,9 +234,8 @@ static int SDL_early_init(void)
   if (!config.sdl_hwrend) {
       SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
       /* unaccelerated fb doesn't work with Wayland */
-#if 0
-      SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
-#endif
+      if (coopth_is_threaded())
+        SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
   }
 #ifdef FE_NOMASK_ENV
   /* workaround for non-fatal bug in Mesa on WSL2, see
@@ -936,7 +936,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   Uint32 flags;
   int is_text;
 
-  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
+  if (!coopth_is_threaded())
+    assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
 	   w_y_res, SDL_csd.bits);
   if (surface)
@@ -1340,7 +1341,8 @@ static void SDL_handle_events(void)
   SDL_Event event;
   sigset_t oset;
 
-  assert(pthread_equal(pthread_self(), dosemu_pthread_self));
+  if (!coopth_is_threaded())
+    assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   /* events may resize renderer, so lock */
   pthread_mutex_lock(&rend_mtx);
   /* SDL may spawn threads during event handling! */

@@ -25,6 +25,7 @@ enum { COOPTH_SL_YIELD, COOPTH_SL_WAIT, COOPTH_SL_SLEEP };
 typedef void (*coopth_sleep_hndl_t)(int tid, int sl_state);
 
 void coopth_init(void);
+int coopth_is_threaded(void);
 int coopth_create(const char *name, coopth_func_t func);
 int coopth_create_multi(const char *name, int len, coopth_func_t func);
 int coopth_create_vm86(const char *name, coopth_func_t func,

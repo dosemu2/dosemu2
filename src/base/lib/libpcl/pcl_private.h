@@ -42,6 +42,8 @@ struct s_co_ctx;
 struct pcl_ctx_ops {
 	int (*create_context)(struct s_co_ctx *ctx, void (*func)(void*),
 		void *arg, char *stkbase, long stksiz);
+	void (*init_context)(void *ctx);
+	void (*free_context)(void *ctx);
 	int (*swap_context)(struct s_co_ctx *ctx1, void *ctx2);
 };
 
@@ -67,7 +69,7 @@ struct s_coroutine : public co_base {
 struct s_coroutine {
 	co_base;
 #endif
-	int alloc;
+	unsigned int alloc:1;
 	void (*func)(void *);
 	void *data;
 	char stk[0];
@@ -76,6 +78,7 @@ struct s_coroutine {
 typedef struct s_cothread_ctx {
 	co_base co_main;
 	co_base *co_curr;
+	unsigned int threaded:1;
 	int ctx_sizeof;
 	char stk0[0];
 } cothread_ctx;

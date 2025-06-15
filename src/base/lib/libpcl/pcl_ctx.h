@@ -20,10 +20,11 @@
 enum CoBackend {
     PCL_C_MC,
     PCL_C_UC,
+    PCL_C_PTH,
     PCL_C_MAX
 };
 
-int ctx_init(enum CoBackend b, struct pcl_ctx_ops **ops);
+int ctx_init(enum CoBackend b, struct s_co_ctx *ctx);
 int ctx_sizeof(enum CoBackend b);
 
 #endif

@@ -156,6 +156,7 @@ void co_delete(coroutine_t coro)
 			tctx->co_curr);
 		exit(1);
 	}
+	co->ctx.ops->free_context(co->ctx.cc);
 	if (co->alloc)
 		free(co);
 }
@@ -251,8 +252,9 @@ cohandle_t co_thread_init(void)
 	tctx = malloc(sizeof(cothread_ctx) + CO_STK_ALIGN(sz));
 
 	do_co_init(tctx);
-	ctx_init(i, &tctx->co_main.ctx.ops);
+	ctx_init(i, &tctx->co_main.ctx);
 	tctx->ctx_sizeof = sz;
+	tctx->threaded = (i == PCL_C_PTH);
 	return tctx;
 }
 
@@ -261,6 +263,13 @@ void co_thread_cleanup(cohandle_t handle)
 	cothread_ctx *tctx = (cothread_ctx *)handle;
 
 	free(tctx);
+}
+
+int co_is_threaded(cohandle_t handle)
+{
+	cothread_ctx *tctx = (cothread_ctx *)handle;
+
+	return tctx->threaded;
 }
 
 static cothread_ctx *co_get_thread_ctx(coroutine *co)
