@@ -1,5 +1,5 @@
 #include "init.h"
-#include "translate.h"
+#include "translate/translate.h"
 
 static const t_unicode cp1251_c1_chars[] = {
 0x0402, 0x0403, 0x201A, 0x0453, 0x201E, 0x2026, 0x2020, 0x2021, /* 0x80-0x87 */

@@ -1,5 +1,5 @@
 #include "init.h"
-#include "translate.h"
+#include "translate/translate.h"
 
 static const t_unicode cp874_c1_chars[] = {
 0x20AC, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x2026, 0xfffd, 0xfffd, /* 0x80-0x87 */

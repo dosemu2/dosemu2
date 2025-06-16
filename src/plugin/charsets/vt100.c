@@ -1,5 +1,5 @@
 #include "init.h"
-#include "translate.h"
+#include "translate/translate.h"
 
 /* table from Linux kernel */
 static const t_unicode vt100_g0_chars[] = {

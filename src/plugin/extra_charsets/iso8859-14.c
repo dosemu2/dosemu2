@@ -1,5 +1,5 @@
 #include "init.h"
-#include "translate.h"
+#include "translate/translate.h"
 
 static const t_unicode iso8859_14_g1_chars[] = {
 0x00A0, 0x1E02, 0x1E03, 0x00A3, 0x010A, 0x010B, 0x1E0A, 0x00A7, /* 0xA0-0xA7 */

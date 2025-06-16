@@ -29,7 +29,7 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "kvm.h"
-#include "smalloc.h"
+#include "misc/smalloc.h"
 #include "mapping.h"
 #include "mpriv.h"
 #include <string.h>

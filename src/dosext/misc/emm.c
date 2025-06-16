@@ -54,7 +54,7 @@
 #include "emu.h"
 #include "cpu-emu.h"
 #include "memory.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "emm.h"
 #include "dos2linux.h"
 #include "utilities.h"

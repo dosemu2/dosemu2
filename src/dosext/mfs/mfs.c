@@ -175,7 +175,7 @@ TODO:
 #include "share.h"
 #include "xattr.h"
 #include "rlocks.h"
-#include "fslib.h"
+#include "fslib/fslib.h"
 #include "mfs.h"
 
 #ifdef __linux__

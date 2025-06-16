@@ -35,7 +35,7 @@
 #include "utilities.h"
 #include "lowmem.h"
 #include "coopth.h"
-#include "smalloc.h"
+#include "misc/smalloc.h"
 #include "redirect.h"
 #include "plugin_config.h"
 #include "msetenv.h"

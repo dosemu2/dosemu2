@@ -36,12 +36,12 @@
 #include "dos2linux.h"
 #include "utilities.h"
 #include "redirect.h"
-#include "shlock.h"
+#include "misc/shlock.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
 #include "mhpdbg.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 
 /*
  * Options used in config_init().

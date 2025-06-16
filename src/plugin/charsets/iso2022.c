@@ -2,8 +2,8 @@
 #include <setjmp.h>
 #include <string.h>
 #include "init.h"
-#include "translate.h"
-#include "unicode_symbols.h"
+#include "translate/translate.h"
+#include "translate/unicode_symbols.h"
 
 /* TODO:
  * implement multibyte final characters.

@@ -16,7 +16,7 @@
 #include "memory.h"
 #include "emu.h"
 #include "hma.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "bios.h"
 #include "utilities.h"
 #include "dos2linux.h"

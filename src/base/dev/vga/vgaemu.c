@@ -273,12 +273,12 @@
 #include "render.h"
 #include "vgaemu.h"
 #include "priv.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "utilities.h"
 #include "instremu.h"
 #include "cpu-emu.h"
 #include "kvm.h"
-#include "smalloc.h"
+#include "misc/smalloc.h"
 
 /* table with video mode definitions */
 #include "vgaemu_modelist.h"

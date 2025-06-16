@@ -1,7 +1,7 @@
 #include <errno.h>
 #include <string.h>
 #include "translate/dosemu_charset.h"
-#include "translate.h"
+#include "translate/translate.h"
 /* utf8 */
 
 static size_t utf8_to_unicode(

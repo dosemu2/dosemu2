@@ -20,7 +20,7 @@
 #include "lpt.h"
 #include "utilities.h"
 #include "dos2linux.h"
-#include "fslib.h"
+#include "fslib/fslib.h"
 #include "ioselect.h"
 
 /* status bits, Centronics */

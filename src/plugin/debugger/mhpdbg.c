@@ -33,7 +33,7 @@
 #include "dosemu_config.h"
 #include "utilities.h"
 #include "sig.h"
-#include "fslib.h"
+#include "fslib/fslib.h"
 #define MHP_PRIVATE
 #include "mhpdbg.h"
 

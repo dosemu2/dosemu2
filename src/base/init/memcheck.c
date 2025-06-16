@@ -6,7 +6,7 @@
 #include "utilities.h"
 #include "memory.h"
 #include "kvm.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 
 /* Notes:
  *   1.  leavedos() needs a real parameter

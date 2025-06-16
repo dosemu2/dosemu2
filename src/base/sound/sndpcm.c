@@ -37,7 +37,7 @@
 #include <assert.h>
 #include "emu.h"
 #include "utilities.h"
-#include "ringbuf.h"
+#include "misc/ringbuf.h"
 #include "timers.h"
 #include "sound/sound.h"
 

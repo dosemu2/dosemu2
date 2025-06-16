@@ -22,7 +22,7 @@
  */
 #include <stdlib.h>
 #include <assert.h>
-#include "ringbuf.h"
+#include "misc/ringbuf.h"
 #include "port.h"
 #include "dosemu_debug.h"
 #include "sound/midi.h"

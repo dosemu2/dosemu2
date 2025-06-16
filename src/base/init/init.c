@@ -37,10 +37,10 @@
 #include "doshelpers.h"
 #include "cpu-emu.h"
 #include "kvm.h"
-#include "mapping.h"
-#include "smalloc.h"
+#include "mapping/mapping.h"
+#include "misc/smalloc.h"
 #include "vgaemu.h"
-#include "cpi.h"
+#include "misc/cpi.h"
 
 #define GFX_CHARS       0xffa6e
 

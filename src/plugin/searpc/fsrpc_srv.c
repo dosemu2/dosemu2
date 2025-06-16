@@ -27,13 +27,13 @@
 #include <searpc-server.h>
 #include <searpc-utils.h>
 #include "utilities.h"
-#include "fslib.h"
-#include "fslib_ops.h"
+#include "fslib/fslib.h"
+#include "fslib/fslib_ops.h"
 #include "searpc-signature.h"
 #include "searpc-marshal.h"
 #include "test-object.h"
 #include "fsrpcdefs.h"
-#include "fssvc.h"
+#include "fslib/fssvc.h"
 
 #define MAX_PATHS 50
 static char *paths[MAX_PATHS];

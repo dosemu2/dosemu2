@@ -20,7 +20,7 @@
 #include "init.h"
 #include "utilities.h"
 #include "fssvc_priv.h"
-#include "fslib_ops.h"
+#include "fslib/fslib_ops.h"
 
 static int stat_file(int mfs_idx, const char *path, struct stat *sb)
 {

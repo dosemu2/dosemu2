@@ -20,7 +20,7 @@
  * Authors: Stas Sergeev, Bart Oldeman
  * Loosely based on dosemu1's sigsegv.c by James MacLean
  */
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "debug.h"
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
@@ -78,8 +78,7 @@
   #define SIGALTSTACK_WA 0
 #endif
 #if SIGALTSTACK_WA
-#include "mcontext.h"
-#include "mapping.h"
+#include "mcontext/mcontext.h"
 #endif
 /* SS_AUTODISARM is a dosemu-specific sigaltstack extension supported
  * by some kernels */

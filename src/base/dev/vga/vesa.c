@@ -54,7 +54,7 @@
 #include "video.h"
 #include "render.h"
 #include "vgaemu.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "emudpmi.h"
 #include "vesabios_pm_offsets.h"
 #include "vesabios_offsets.h"

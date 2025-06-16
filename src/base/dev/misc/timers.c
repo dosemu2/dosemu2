@@ -37,7 +37,7 @@
 #include "int.h"
 #include "emudpmi.h"
 #include "vtmr.h"
-#include "evtimer.h"
+#include "timer/evtimer.h"
 #include "timers.h"
 
 #undef  DEBUG_PIT
