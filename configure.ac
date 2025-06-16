@@ -9,7 +9,7 @@ AC_CONFIG_SRCDIR([src/include/emu.h])
 AC_CONFIG_MACRO_DIRS([m4])
 AC_PREREQ([2.64])
 
-AC_CONFIG_HEADERS([src/include/config.hh])
+AC_CONFIG_HEADERS([config.hh])
 
 dnl Checks for programs.
 : ${CFLAGS=""}

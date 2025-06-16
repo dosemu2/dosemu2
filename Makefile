@@ -21,17 +21,16 @@ else
 	$< || true
 endif
 
-src/include/config.hh: $(top_srcdir)/src/include/config.hh.in \
-  | $(top_builddir)/config.status
+config.hh: $(top_srcdir)/config.hh.in | $(top_builddir)/config.status
 	$(top_builddir)/config.status
 
-default install: config.status src/include/config.hh etc/dosemu.desktop
+default install: config.status config.hh etc/dosemu.desktop
 	@$(MAKE) -C man $@
 	@$(MAKE) -C src $@
 
 clean realclean:
-	rm -f $(top_srcdir)/src/include/config.hh
-	rm -f $(top_srcdir)/src/include/version.hh
+	rm -f $(top_builddir)/config.hh
+	rm -f $(top_builddir)/version.hh
 	@$(MAKE) -C man $@
 	@$(MAKE) -C src $@
 
@@ -93,10 +92,10 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	rm -rf debian/$(PACKAGE_NAME)
 	rm -f debian/*-stamp
 	rm -f debian/files
-	rm -f src/include/config.hh
+	rm -f config.hh
 	rm -f src/include/stamp-h1
-	rm -f src/include/config.hh.in
-	rm -f src/include/version.hh
+	rm -f config.hh.in
+	rm -f version.hh
 	rm -f `find . -name '*~'`
 	rm -f `find . -name '*[\.]o'`
 	rm -f `find src -type f -name '*.d'`

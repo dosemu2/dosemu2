@@ -4,7 +4,7 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
-#include <doshelpers.h>
+#include "doshelpers.h"
 
 .code16
 .text

@@ -27,9 +27,9 @@ cmdsuff:=@cmdsuff@
 abs_top_srcdir:=@abs_top_srcdir@
 abs_top_builddir:=$(realpath @abs_top_builddir@)
 
-INCDIR=-I${top_builddir}/src/include -I${top_builddir}/src/plugin/include \
-    -I${top_srcdir}/src/base/bios/x86 -I${top_srcdir}/src/include \
-    -I${top_srcdir}/src/base/lib
+INCDIR=-iquote ${top_builddir}/src/include -iquote ${top_builddir}/src/plugin \
+    -iquote ${top_srcdir}/src/base/bios/x86 -iquote ${top_srcdir}/src/include \
+    -iquote ${top_srcdir}/src/base/lib -iquote ${top_builddir}
 top_srcdir:=$(abs_top_srcdir)
 
 CFLAGS:=@CFLAGS@

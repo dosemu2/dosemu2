@@ -28,7 +28,7 @@
 #include <sys/user.h>
 #endif
 #include <sys/syscall.h>
-#include <Asm/ldt.h>
+#include "Asm/ldt.h"
 #include "init.h"
 #include "libpcl/pcl.h"
 #include "cpu.h"

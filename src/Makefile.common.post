@@ -8,9 +8,9 @@ ifndef DEPENDS
 DEPENDS=$(OBJS:.o=.d)
 endif
 
-GENERATED = $(top_builddir)/src/include/version.hh \
-    $(top_builddir)/src/include/config.hh \
-    $(top_builddir)/src/plugin/include/plugin_config.hh
+GENERATED = $(top_builddir)/version.hh \
+    $(top_builddir)/config.hh \
+    $(top_builddir)/src/plugin/plugin_config.hh
 
 ifneq ($(GENHDRS),)
 ALL_CPPFLAGS += -iquote .
@@ -46,7 +46,7 @@ $(top_builddir)/lib: | $(BINPATH)/lib
 
 GIT_REV := $(shell $(REALTOPDIR)/git-rev.sh $(REALTOPDIR) $(top_builddir))
 .LOW_RESOLUTION_TIME: $(GIT_REV)
-$(top_builddir)/src/include/version.hh: $(top_builddir)/Makefile.conf $(REALTOPDIR)/VERSION $(GIT_REV)
+$(top_builddir)/version.hh: $(top_builddir)/Makefile.conf $(REALTOPDIR)/VERSION $(GIT_REV)
 	echo "Updating version.h"; \
 	echo "#ifndef	VERSION_HH" > $@; \
 	echo "#define	VERSION_HH" >> $@; \
@@ -145,7 +145,7 @@ Makefile.conf: configure
 configure: configure.ac
 	autoreconf -v -I $(REALTOPDIR)/m4
 .SECONDARY: configure
-$(top_builddir)/src/plugin/include/plugin_config.hh:
+$(top_builddir)/src/plugin/plugin_config.hh:
 	cd $(top_builddir) && $(REALTOPDIR)/scripts/mkpluginhooks
 
 # this is mainly for debugging the makefile

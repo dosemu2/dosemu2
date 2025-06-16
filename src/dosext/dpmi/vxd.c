@@ -25,7 +25,7 @@
 #include "timers.h"
 #include "vxd.h"
 #include "windefs.h"
-#include <Asm/ldt.h>
+#include "Asm/ldt.h"
 #include <fcntl.h>
 #include <memory.h>
 #include <stdarg.h>

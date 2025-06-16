@@ -22,7 +22,7 @@
  */
 #include <string.h>
 #include <assert.h>
-#include <dpmi_api.h>
+#include "dpmi_api.h"
 #include "msdos_priv.h"
 #include "emm_msdos.h"
 
