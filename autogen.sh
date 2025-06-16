@@ -8,7 +8,7 @@ check_scr() {
 }
 
 rm -f aclocal.m4
-if ! autoreconf -v -I m4 --install --force $DIR; then
+if ! autoreconf -v --install --force $DIR; then
 	echo "Failure!"
 	exit 1
 fi

@@ -11,7 +11,7 @@ endif
 REALTOPDIR ?= $(abspath $(srcdir))
 
 $(REALTOPDIR)/configure configure: $(REALTOPDIR)/configure.ac
-	cd $(@D) && autoreconf --install -v -I m4
+	cd $(@D) && autoreconf --install -v
 
 Makefile.conf config.status etc/dosemu.desktop: $(REALTOPDIR)/configure
 ifeq ($(findstring $(MAKECMDGOALS), clean realclean pristine distclean),)

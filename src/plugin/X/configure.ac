@@ -1,5 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT
+AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_HEADERS([_x_config.h])
 AC_CONFIG_FILES([Makefile.conf])
 
