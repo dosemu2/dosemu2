@@ -25,7 +25,7 @@
 #include <assert.h>
 #include "emu.h"
 #include "memory.h"
-#include "smalloc.h"
+#include "misc/smalloc.h"
 #include "utilities.h"
 #include "emudpmi.h"
 #include "lowmem.h"

@@ -31,10 +31,10 @@
 #include <sys/mman.h>		/* for MREMAP_MAYMOVE */
 #include <errno.h>
 #include "utilities.h"
-#include "shlock.h"
-#include "fslib.h"
-#include "mapping.h"
-#include "smalloc.h"
+#include "misc/shlock.h"
+#include "fslib/fslib.h"
+#include "mapping/mapping.h"
+#include "misc/smalloc.h"
 #include "emudpmi.h"
 #include "dpmisel.h"
 #include "dmemory.h"

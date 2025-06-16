@@ -52,7 +52,7 @@
 #include "keyboard/keyb_clients.h"
 #include "dos2linux.h"
 #include "utilities.h"
-#include "ringbuf.h"
+#include "misc/ringbuf.h"
 #include "coopth.h"
 #include "sdl.h"
 

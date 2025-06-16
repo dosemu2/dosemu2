@@ -23,7 +23,7 @@
 #include "render.h"
 #include "vgaemu.h"
 #include "vc.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "utilities.h"
 #include "pci.h"
 #include "keyboard/keyb_clients.h"

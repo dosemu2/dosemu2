@@ -34,7 +34,7 @@
 #include "init.h"
 #include "dosemu_debug.h"
 #include "emu.h"
-#include "evtimer.h"
+#include "timer/evtimer.h"
 
 struct evtimer {
     SDL_TimerID tmr;

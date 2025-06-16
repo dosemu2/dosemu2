@@ -23,7 +23,7 @@
 #ifndef __SB16_H__
 #define __SB16_H__
 
-#include "ringbuf.h"		// for rng_s
+#include "misc/ringbuf.h"		// for rng_s
 #include "sound/sound.h"
 
 #define SB_NONE  0x000

@@ -24,7 +24,7 @@
 #include "emu.h"
 #include "fsrpcdefs.h"
 #include "util.h"
-#include "fssvc.h"
+#include "fslib/fssvc.h"
 #include "fssvc_priv.h"
 
 static SearpcClient *clnt;

@@ -80,7 +80,7 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "iodev.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "dosemu_config.h"
 #include "libpacket.h"
 #include "ne2000.h"

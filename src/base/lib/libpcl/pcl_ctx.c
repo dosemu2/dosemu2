@@ -27,7 +27,7 @@
 #include "utilities.h"  // for pthread_cancel() on android
 #include "sig.h"
 #ifdef MCONTEXT
-#include "mcontext.h"
+#include "mcontext/mcontext.h"
 #endif
 #include "pcl.h"
 #include "pcl_private.h"

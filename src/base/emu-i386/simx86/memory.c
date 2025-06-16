@@ -39,10 +39,10 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "dosemu_debug.h"
 #include "utilities.h"
-#include "dlmalloc.h"
+#include "misc/dlmalloc.h"
 #include "emu86.h"
 #include "trees.h"
 #include "codegen.h"

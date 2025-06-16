@@ -47,7 +47,7 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include "emu86.h"
-#include "dlmalloc.h"
+#include "misc/dlmalloc.h"
 #include "codegen-arch.h"
 
 IMeta	InstrMeta[MAXINODES];

@@ -30,12 +30,12 @@
 #include "int.h"
 #include "hma.h"
 #include "emm.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "dos2linux.h"
 #include "utilities.h"
 #include "cpu-emu.h"
-#include "smalloc.h"
-#include "pgalloc.h"
+#include "misc/smalloc.h"
+#include "misc/pgalloc.h"
 
 #undef  DEBUG_XMS
 

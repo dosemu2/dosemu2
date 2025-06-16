@@ -23,7 +23,7 @@
 
 #include <string.h>
 #include "emu.h"
-#include "ringbuf.h"
+#include "misc/ringbuf.h"
 #include "timers.h"
 #include "utilities.h"
 #include "sound/sound.h"

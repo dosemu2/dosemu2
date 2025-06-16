@@ -1,5 +1,5 @@
 #include "init.h"
-#include "translate.h"
+#include "translate/translate.h"
 
 /* Polish Mazovia pc character set */
 /* The Mazovia mapping table was taken from c-kermit 197 */

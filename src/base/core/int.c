@@ -62,7 +62,7 @@
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "emudpmi.h"
 
 #include "keyboard/keyb_server.h"

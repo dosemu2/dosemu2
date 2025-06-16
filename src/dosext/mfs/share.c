@@ -30,10 +30,10 @@
 #include "emu.h"
 #include "dosemu_debug.h"
 #include "dos2linux.h"
-#include "fslib.h"
+#include "fslib/fslib.h"
 #include "mfs.h"
 #include "xattr.h"
-#include "shlock.h"
+#include "misc/shlock.h"
 #include "rlocks.h"
 #include "share.h"
 

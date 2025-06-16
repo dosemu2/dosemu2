@@ -47,7 +47,7 @@
 #include "bios.h"
 #include "memory.h"
 #include "priv.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 
 /* ======================================================================= */
 

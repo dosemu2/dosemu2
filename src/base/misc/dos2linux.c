@@ -142,14 +142,14 @@
 #include "dos2linux.h"
 #include "vgaemu.h"
 #include "disks.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "redirect.h"
 #include "translate/translate.h"
 #include "../../dosext/mfs/lfn.h"
 #include "../../dosext/mfs/mfs.h"
 #include "mmio_tracing.h"
-#include "spscq.h"
-#include "fslib.h"
+#include "misc/spscq.h"
+#include "fslib/fslib.h"
 
 #define com_stderr      2
 

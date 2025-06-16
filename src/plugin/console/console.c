@@ -12,7 +12,7 @@
 #include "init.h"
 #include "video.h"
 #include "vc.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "bios.h"
 #include "coopth.h"
 #include "vgaemu.h"

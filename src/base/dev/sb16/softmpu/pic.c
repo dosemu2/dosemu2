@@ -28,7 +28,7 @@
  */
 #include <stddef.h>
 #include "sig.h"
-#include "evtimer.h"
+#include "timer/evtimer.h"
 /* SOFTMPU: Moved exported functions & types to header */
 #include "export.h"
 

@@ -36,7 +36,6 @@
 #include <stdint.h>
 
 #include "vgaemu.h"
-#include "mapping.h"
 #include "render.h"
 #include "render_priv.h"
 #include "remap_priv.h"

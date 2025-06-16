@@ -71,7 +71,7 @@
 #include "keyboard/keyb_server.h"
 #include "translate/dosemu_charset.h"
 #include "memory.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "utilities.h"
 #include "aspi.h"
 #include "int.h"

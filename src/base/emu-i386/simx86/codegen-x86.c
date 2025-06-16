@@ -112,8 +112,8 @@
 #include <string.h>
 #include "utilities.h"
 #include "emu86.h"
-#include "dlmalloc.h"
-#include "mapping.h"
+#include "misc/dlmalloc.h"
+#include "mapping/mapping.h"
 #include "codegen-x86.h"
 #include "cpatch.h"
 

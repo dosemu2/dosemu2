@@ -35,7 +35,7 @@
 #include "dos2linux.h"
 #include "redirect.h"
 #include "cpu-emu.h"
-#include "fslib.h"
+#include "fslib/fslib.h"
 
 static uint8_t mbr_boot_code[] = {
   /*

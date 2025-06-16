@@ -21,7 +21,7 @@
  */
 #include <stdint.h>
 #include <assert.h>
-#include "smalloc.h"
+#include "misc/smalloc.h"
 #include "emudpmi.h"
 #include "dpmisel.h"
 #include "coopth.h"

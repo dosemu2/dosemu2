@@ -21,7 +21,7 @@
 #include <sys/wait.h>
 #include <searpc.h>
 #include "utilities.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "dnative.h"
 #include "plugin_config.h"
 #include "init.h"

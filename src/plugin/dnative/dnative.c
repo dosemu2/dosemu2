@@ -36,7 +36,7 @@
 #include "dosemu_debug.h"
 #include "utilities.h"
 #include "bitops.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "emudpmi.h"
 #include "dnative.h"
 #include "dnpriv.h"

@@ -11,11 +11,11 @@
 #include "emu-ldt.h"
 #include "emudpmi.h"
 #include "int.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
-#include "dis8086.h"
+#include "misc/dis8086.h"
 
 char *emu_disasm(unsigned int ip)
 {

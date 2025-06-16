@@ -26,7 +26,7 @@
 #include "emu.h"
 #include "serial.h"
 #include "utilities.h"
-#include "ringbuf.h"
+#include "misc/ringbuf.h"
 #include "mouse.h"
 
 

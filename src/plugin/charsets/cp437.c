@@ -1,5 +1,5 @@
 #include "translate/dosemu_charset.h"
-#include "translate.h"
+#include "translate/translate.h"
 
 static const t_unicode cp437_c1_chars[] = {
 0x00c7, 0x00fc, 0x00e9, 0x00e2, 0x00e4, 0x00e0, 0x00e5, 0x00e7, /* 0x80-0x87 */

@@ -43,7 +43,7 @@
 #include "bios.h"
 #include "serial.h"
 #include "bitops.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "dosemu_config.h"
 #include "sig.h"
 #ifdef X86_EMULATOR

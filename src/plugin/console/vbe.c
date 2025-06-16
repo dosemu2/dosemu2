@@ -36,7 +36,7 @@
 #include "coopth.h"
 #include "vbe.h"
 #include "vesa.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "dosemu_config.h"
 
 static int vesa_regs_size, vesa_granularity, vesa_read_write;

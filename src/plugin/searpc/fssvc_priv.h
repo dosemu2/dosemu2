@@ -3,7 +3,7 @@
 
 #include <fcntl.h>  // for mode_t
 #include <time.h>   // for time_t
-#include "fssvc.h"
+#include "fslib/fssvc.h"
 
 int fssvc_init(plist_idx_t plist_idx, setattr_t settatr_cb,
     getattr_t getattr_cb);

@@ -29,7 +29,7 @@
 #include <stdint.h>
 #include "dosemu_debug.h"
 #include "mfs.h"
-#include "fslib.h"
+#include "fslib/fslib.h"
 #include "xattr.h"
 
 #define XATTR_DOSATTR_NAME "user.DOSATTRIB"

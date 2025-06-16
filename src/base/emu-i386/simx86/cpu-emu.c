@@ -45,8 +45,7 @@
 #include "emu86.h"
 #include "codegen-arch.h"
 #include "emudpmi.h"
-#include "mapping.h"
-#include "dis8086.h"
+#include "misc/dis8086.h"
 #include "utilities.h"
 #include "sig.h"
 #if PROFILE >= 2

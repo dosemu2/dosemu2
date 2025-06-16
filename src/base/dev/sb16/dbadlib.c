@@ -30,7 +30,7 @@
 #include "timers.h"
 #include "opl.h"
 #include "sound/oplplug.h"
-#include "sequencr.h"
+#include "misc/sequencr.h"
 #include "dbadlib.h"
 
 typedef struct _AdlibTimer AdlibTimer;

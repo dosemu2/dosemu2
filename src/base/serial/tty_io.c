@@ -28,7 +28,7 @@
 #include "utilities.h"
 #include "dosemu_config.h"
 #include "ioselect.h"
-#include "fslib.h"
+#include "fslib/fslib.h"
 #include "ser_defs.h"
 #include "tty_io.h"
 

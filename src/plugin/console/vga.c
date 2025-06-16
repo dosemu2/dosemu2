@@ -26,7 +26,7 @@
 #include "timers.h"
 #include "vbe.h"
 #include "pci.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "utilities.h"
 #include "sig.h"
 #ifdef USE_SVGALIB

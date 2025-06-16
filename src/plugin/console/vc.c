@@ -50,7 +50,7 @@
 #include "vc.h"
 #include "vga.h"
 #include "priv.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "timers.h"
 #include "vgaemu.h"
 #include "emudpmi.h"

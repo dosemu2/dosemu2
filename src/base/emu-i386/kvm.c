@@ -41,7 +41,7 @@
 #include "cpu-emu.h"
 #include "vgaemu.h"
 #include "dos2linux.h"
-#include "mapping.h"
+#include "mapping/mapping.h"
 #include "mhpdbg.h"
 #include "sig.h"
 #include "port.h"
