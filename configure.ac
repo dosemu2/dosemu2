@@ -577,6 +577,7 @@ if ! test -f Makefile.conf.in; then
   mkdir -p `(cd $abssrcdir; find doc man etc src test -type d -print)`
   for i in `(cd $abssrcdir; find . -path $builddir -prune \
       -o -name 'test-*' -prune \
+      -o -name '.flatpak-builder/*' -prune \
       -o -name 'bin' -prune -o -name 'commands' -prune \
       -o -name Makefile -print -o -name '*.mak' -print \
       -o -name '*.bat' -print -o -name '*.sys' -print \
