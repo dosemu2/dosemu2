@@ -31,6 +31,7 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <linux/kvm.h>
+#include <linux/version.h>
 #include <asm/kvm_para.h>
 
 #include "kvm.h"
@@ -504,6 +505,13 @@ int init_kvm_cpu(void)
 {
   int ret;
   int nent = 512;
+
+  if (kernel_version_code >= KERNEL_VERSION(6, 11, 0) &&
+      kernel_version_code < KERNEL_VERSION(6, 14, 0)) {
+    error("disabling KVM for kernels 6.11 .. 6.13\n");
+    error("See https://github.com/dosemu2/dosemu2/issues/2471\n");
+    return 0;
+  }
 
   kvmfd = open("/dev/kvm", O_RDWR | O_CLOEXEC);
   if (kvmfd == -1) {
