@@ -6,7 +6,7 @@ AC_CHECK_LIB(readline, main, [
   DOSDEBUG_LIBS="-lreadline"
   DOSDEBUG_DEFS="-DHAVE_LIBREADLINE"
 ], [
-  AC_MSG_ERROR(Please install libreadline-dev for readline support in dosdebug)
+  AC_MSG_ERROR(libreadline-dev missing)
 ])
 AC_CHECK_LIB(readline, rl_copy_text, [], [
   CPPFLAGS="$CPPFLAGS -I/usr/local/opt/readline/include"
