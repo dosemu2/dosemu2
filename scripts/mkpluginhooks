@@ -6,7 +6,7 @@ TOP=$(realpath `dirname $0`/..)
 PLUG=plugin
 SRCDIR=$TOP/src/$PLUG
 DESTDIR=src/$PLUG
-INC=$DESTDIR/include
+INC=$DESTDIR
 PREF=plugin_
 HDR=$PREF$HEADERS.hh
 SHDR=$PREF$HEADERS.h
@@ -27,15 +27,12 @@ gendummy() {
 
 if [ "$1" = "clean" ]; then
   gendummy clean
-  rm -rf $INC
-fi
-
-if [ "$1" = "clean" ]; then
+  rm -rf $INC/$HDR
   rm -f $DESTDIR/*/config/plugin_enable
   exit 0
 fi
 
-mkdir -p $INC
+[ -d "$INC" ] || mkdir -p $INC
 
 if [ "$1" = "" ]; then gendummy; fi
 

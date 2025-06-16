@@ -6,9 +6,10 @@ AM_SILENT_RULES
 AM_DEP_TRACK
 AM_MAINTAINER_MODE
 AC_CONFIG_SRCDIR([src/include/emu.h])
+AC_CONFIG_MACRO_DIRS([m4])
 AC_PREREQ([2.64])
 
-AC_CONFIG_HEADERS([src/include/config.hh])
+AC_CONFIG_HEADERS([config.hh])
 
 dnl Checks for programs.
 : ${CFLAGS=""}
@@ -576,6 +577,7 @@ if ! test -f Makefile.conf.in; then
   mkdir -p `(cd $abssrcdir; find doc man etc src test -type d -print)`
   for i in `(cd $abssrcdir; find . -path $builddir -prune \
       -o -name 'test-*' -prune \
+      -o -name '.flatpak-builder/*' -prune \
       -o -name 'bin' -prune -o -name 'commands' -prune \
       -o -name Makefile -print -o -name '*.mak' -print \
       -o -name '*.bat' -print -o -name '*.sys' -print \

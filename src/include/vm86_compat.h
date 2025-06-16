@@ -1,7 +1,7 @@
 #ifndef _VM86_COMPAT_H
 #define _VM86_COMPAT_H
 
-#include <Asm/processor-flags.h>
+#include "Asm/processor-flags.h"
 
 /*
  * I'm guessing at the VIF/VIP flag usage, but hope that this is how

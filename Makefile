@@ -11,7 +11,7 @@ endif
 REALTOPDIR ?= $(abspath $(srcdir))
 
 $(REALTOPDIR)/configure configure: $(REALTOPDIR)/configure.ac
-	cd $(@D) && autoreconf --install -v -I m4
+	cd $(@D) && autoreconf --install -v
 
 Makefile.conf config.status etc/dosemu.desktop: $(REALTOPDIR)/configure
 ifeq ($(findstring $(MAKECMDGOALS), clean realclean pristine distclean),)
@@ -21,17 +21,16 @@ else
 	$< || true
 endif
 
-src/include/config.hh: $(top_srcdir)/src/include/config.hh.in \
-  | $(top_builddir)/config.status
+config.hh: $(top_srcdir)/config.hh.in | $(top_builddir)/config.status
 	$(top_builddir)/config.status
 
-default install: config.status src/include/config.hh etc/dosemu.desktop
+default install: config.status config.hh etc/dosemu.desktop
 	@$(MAKE) -C man $@
 	@$(MAKE) -C src $@
 
 clean realclean:
-	rm -f $(top_srcdir)/src/include/config.hh
-	rm -f $(top_srcdir)/src/include/version.hh
+	rm -f $(top_builddir)/config.hh
+	rm -f $(top_builddir)/version.hh
 	@$(MAKE) -C man $@
 	@$(MAKE) -C src $@
 
@@ -89,14 +88,15 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	rm -f `find . -name configure`
 	rm -f `find . -name Makefile.conf`
 	rm -rf `find . -name autom4te*.cache`
-	rm -f debian/$(PACKAGE_NAME).*
-	rm -rf debian/$(PACKAGE_NAME)
+	rm -rf debian/$(PACKAGE_NAME)-dev
+	rm -rf debian/tmp
+	rm -rf debian/.debhelper
 	rm -f debian/*-stamp
 	rm -f debian/files
-	rm -f src/include/config.hh
+	rm -f config.hh
 	rm -f src/include/stamp-h1
-	rm -f src/include/config.hh.in
-	rm -f src/include/version.hh
+	rm -f config.hh.in
+	rm -f version.hh
 	rm -f `find . -name '*~'`
 	rm -f `find . -name '*[\.]o'`
 	rm -f `find src -type f -name '*.d'`

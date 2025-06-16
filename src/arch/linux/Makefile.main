@@ -61,7 +61,7 @@ DOCS= $(top_builddir)/man
 
 ###################################################################
 
-default: $(top_builddir)/src/include/version.hh doslib \
+default: $(top_builddir)/version.hh doslib \
 	$(TFONTS)
 	@echo ""
 	@echo "---------------------------------DONE compiling-------------------------------"

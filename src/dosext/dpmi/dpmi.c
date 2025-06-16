@@ -33,7 +33,7 @@ Currently missing DPMI-0.9 functions:
 #include <linux/version.h>
 #endif
 extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
-#include <Asm/ldt.h>
+#include "Asm/ldt.h"
 #include "version.h"
 #include "emu.h"
 #include "dosemu_config.h"

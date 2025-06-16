@@ -3,7 +3,7 @@
 #define _ASM_X86_PROCESSOR_FLAGS_H
 /* Various flags defined: can be included from assembler. */
 
-#include <Linux/const.h>
+#include "Linux/const.h"
 
 /*
  * EFLAGS bits
