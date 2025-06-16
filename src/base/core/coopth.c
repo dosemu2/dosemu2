@@ -165,7 +165,12 @@ static void check_tid(int tid);
 
 void coopth_init(void)
 {
-    co_handle = co_thread_init(PCL_C_MC);
+    co_handle = co_thread_init();
+}
+
+int coopth_is_threaded(void)
+{
+    return co_is_threaded(co_handle);
 }
 
 #define SW_ST(x) (struct coopth_state_t){ COOPTHS_SWITCH, idx_##x }

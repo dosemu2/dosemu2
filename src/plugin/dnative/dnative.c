@@ -866,7 +866,7 @@ static void dpmi_thr(void *arg)
 static int _setup(void)
 {
     signative_init();
-    co_handle = co_thread_init(PCL_C_MC);
+    co_handle = co_thread_init();
     return 0;
 }
 

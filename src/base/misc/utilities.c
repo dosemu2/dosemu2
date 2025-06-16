@@ -583,7 +583,7 @@ char *path_prefix(const char *suffix)
     char *p1, *s, *p;
     char *ret = NULL;
 
-    if (dosemu_proc_self_exe[0] != '/') {
+    if (!dosemu_proc_self_exe || dosemu_proc_self_exe[0] != '/') {
       warn("cannot evaluate prefix from relative path %s\n",
           dosemu_proc_self_exe);
       return assemble_path(PREFIX, suffix);

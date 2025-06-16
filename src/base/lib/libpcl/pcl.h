@@ -33,33 +33,21 @@ typedef void *coroutine_t;
 typedef void *cohandle_t;
 
 #define _WANT_UCONTEXT 0
-#if _WANT_UCONTEXT || !defined(MCONTEXT)
+#if defined(HAVE_UCONTEXT_H) && (_WANT_UCONTEXT || !defined(MCONTEXT))
 #define WANT_UCONTEXT 1
 #else
 #define WANT_UCONTEXT 0
 #endif
 
-enum CoBackend {
-#ifdef MCONTEXT
-    PCL_C_MC,
-#else
-/* our libmcontext doesn't yet support aarch64 */
-#define PCL_C_MC PCL_C_UC
-#endif
-#if WANT_UCONTEXT
-    PCL_C_UC,
-#endif
-    PCL_C_MAX };
-
-PCLXC cohandle_t co_thread_init(enum CoBackend b);
+PCLXC cohandle_t co_thread_init(void);
 PCLXC void co_thread_cleanup(cohandle_t handle);
+PCLXC int co_is_threaded(cohandle_t handle);
 
 PCLXC coroutine_t co_create(cohandle_t handle, void (*func)(void *),
 			    void *data, void *stack, int size);
 PCLXC void co_delete(coroutine_t coro);
 PCLXC void co_call(coroutine_t coro);
 PCLXC void co_resume(cohandle_t handle);
-PCLXC void co_exit(cohandle_t handle);
 PCLXC coroutine_t co_current(cohandle_t handle);
 PCLXC void *co_get_data(coroutine_t coro);
 PCLXC void *co_set_data(coroutine_t coro, void *data);

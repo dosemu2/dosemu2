@@ -35,6 +35,7 @@
 #include "pcl_ctx.h"
 
 static cothread_ctx *co_get_thread_ctx(coroutine *co);
+static void co_exit(cohandle_t handle);
 
 #if USE_ASAN
 static void save_asan_stack(co_base *ctx, void *ptr, size_t size)
@@ -72,6 +73,7 @@ static void co_switch_context(co_base *octx, co_base *nctx)
 #if USE_ASAN
 __attribute__((no_sanitize("address")))
 #endif
+__attribute__((noreturn))
 static void co_runner(void *arg)
 {
 	coroutine *co = arg;
@@ -154,6 +156,7 @@ void co_delete(coroutine_t coro)
 			tctx->co_curr);
 		exit(1);
 	}
+	co->ctx.ops->free_context(co->ctx.cc);
 	if (co->alloc)
 		free(co);
 }
@@ -181,7 +184,7 @@ void co_resume(cohandle_t handle)
 	tctx->co_curr->restarget = tctx->co_curr->caller;
 }
 
-void co_exit(cohandle_t handle)
+static void co_exit(cohandle_t handle)
 {
 	cothread_ctx *tctx = (cothread_ctx *)handle;
 	co_base *newco = tctx->co_curr->restarget, *co = tctx->co_curr;
@@ -234,14 +237,24 @@ static void do_co_init(cothread_ctx *tctx)
 	tctx->co_curr = &tctx->co_main;
 }
 
-cohandle_t co_thread_init(enum CoBackend b)
+cohandle_t co_thread_init(void)
 {
-	int sz = ctx_sizeof(b);
-	cothread_ctx *tctx = malloc(sizeof(cothread_ctx) + CO_STK_ALIGN(sz));
+	int sz, i;
+	cothread_ctx *tctx;
+
+	for (i = 0; i < PCL_C_MAX; i++) {
+		sz = ctx_sizeof(i);
+		if (sz)
+			break;
+	}
+	if (i == PCL_C_MAX)
+		return NULL;
+	tctx = malloc(sizeof(cothread_ctx) + CO_STK_ALIGN(sz));
 
 	do_co_init(tctx);
-	ctx_init(b, &tctx->co_main.ctx.ops);
+	ctx_init(i, &tctx->co_main.ctx);
 	tctx->ctx_sizeof = sz;
+	tctx->threaded = (i == PCL_C_PTH);
 	return tctx;
 }
 
@@ -250,6 +263,13 @@ void co_thread_cleanup(cohandle_t handle)
 	cothread_ctx *tctx = (cothread_ctx *)handle;
 
 	free(tctx);
+}
+
+int co_is_threaded(cohandle_t handle)
+{
+	cothread_ctx *tctx = (cothread_ctx *)handle;
+
+	return tctx->threaded;
 }
 
 static cothread_ctx *co_get_thread_ctx(coroutine *co)

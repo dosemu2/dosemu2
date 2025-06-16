@@ -9,7 +9,9 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
+#ifdef __linux__
 #include "Sys/kd.h"
+#endif
 #include <sys/ioctl.h>
 #include "vc.h"
 #include "ioselect.h"
