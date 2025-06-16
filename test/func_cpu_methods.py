@@ -1,4 +1,4 @@
-from os import uname, environ, access, R_OK, W_OK
+from os import environ
 from shutil import copy
 from difflib import unified_diff
 
@@ -19,10 +19,10 @@ def _dotest(self, cpu_vm, cpu_vm_dpmi):
     if ('jit' in cpu_vm_dpmi) or ('sim' in cpu_vm_dpmi):
         cpu_vm_dpmi = 'emulated'
 
-    if ('kvm' in cpu_vm or 'kvm' in cpu_vm_dpmi) and not access("/dev/kvm", W_OK|R_OK):
+    if ('kvm' in cpu_vm or 'kvm' in cpu_vm_dpmi) and not self.have_kvm:
         self.skipTest("requires KVM")
 
-    if cpu_vm == 'native' and uname()[4] != 'i686':
+    if cpu_vm == 'native' and not self.have_vm86:
         self.skipTest("native vm86() only on 32bit x86")
 
     if cpu_vm_dpmi == 'native' and environ.get("SKIP_NATIVE_DPMI"):

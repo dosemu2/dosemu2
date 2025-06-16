@@ -11,6 +11,7 @@ from hashlib import sha1
 from os import environ, rename
 from os.path import exists, join
 from pathlib import Path
+from platform import system, machine, release
 from ptyprocess import PtyProcessError
 from shutil import copy, rmtree
 from subprocess import (Popen, call, check_call, check_output,
@@ -154,6 +155,8 @@ class BaseTestCase(object):
 
         cls.logfiles = {}
         cls.msg = None
+        cls.have_kvm = False
+        cls.have_vm86 = False
 
     @classmethod
     def setUpClassPost(cls):
@@ -165,6 +168,18 @@ class BaseTestCase(object):
                 exit("\nUpdate tuple TEST_BINARIES for '%s'\n" % cls.prettyname)
             if not exists(join(BINSDIR, cls.tarfile)):
                 exit("\nMissing test binary file, please run again with argument --get-test-binaries\n")
+
+        if system() == 'Linux':
+            if machine() == 'i686':
+                cls.have_vm86 = True
+
+            try:
+                check_call(["kvm-ok",], stdout=DEVNULL)
+                major, minor = release().split('.')[0:2]
+                if not (major == '6' and minor in ['11', '12', '13']):
+                    cls.have_kvm = True
+            except CalledProcessError:
+                pass
 
     @classmethod
     def tearDownClass(cls):

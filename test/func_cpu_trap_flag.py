@@ -1,14 +1,13 @@
 import re
 
 from cpuinfo import get_cpu_info
-from os import access, R_OK, W_OK
 
 
 def cpu_trap_flag(self, cpu_vm):
     if cpu_vm not in ("kvm", "emulated"):
         raise ValueError('invalid argument')
 
-    if cpu_vm == "kvm" and not access("/dev/kvm", W_OK|R_OK):
+    if cpu_vm == "kvm" and not self.have_kvm:
         self.skipTest("requires KVM")
 
     config = """
