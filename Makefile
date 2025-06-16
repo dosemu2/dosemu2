@@ -88,8 +88,9 @@ pristine distclean mrproper:  Makefile.conf docsclean
 	rm -f `find . -name configure`
 	rm -f `find . -name Makefile.conf`
 	rm -rf `find . -name autom4te*.cache`
-	rm -f debian/$(PACKAGE_NAME).*
-	rm -rf debian/$(PACKAGE_NAME)
+	rm -rf debian/$(PACKAGE_NAME)-dev
+	rm -rf debian/tmp
+	rm -rf debian/.debhelper
 	rm -f debian/*-stamp
 	rm -f debian/files
 	rm -f config.hh
