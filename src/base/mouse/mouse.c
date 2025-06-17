@@ -344,6 +344,10 @@ void mouse_ps2bios(void)
     mouse.ps2.state = HI(bx);
     HI(ax) = 0;
     NOCARRY;
+    /* Our mouse driver doesn't use ps2. So if someone does, its
+     * not our driver and it will draw the cursor on its own. */
+    if (mouse.ps2.state)
+      mouse_cursor(-1);
     break;
   case 0x0001:
     mouse.ps2.state = 0;
