@@ -260,7 +260,7 @@ static cohandle_t _co_thread_init(int cmin, int cmax)
 
 cohandle_t co_thread_init(void)
 {
-	return _co_thread_init(0, PCL_C_MAX);
+	return _co_thread_init(PCL_C_PTH, PCL_C_MAX);
 }
 
 cohandle_t co_init(void)
