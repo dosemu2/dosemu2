@@ -100,11 +100,12 @@ static int control_1_svc(GError **error)
     cpuctx_t scp;
     int ret;
 
-    handle_signals();
     recv_state(&scp);
     ret = dnops->control(&scp, rpc_control_struct->data,
         &rpc_control_struct->size);
     send_state(&scp);
+    /* process signals in main process, reset here */
+    reset_signals();
     return ret;
 }
 

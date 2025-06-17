@@ -622,6 +622,11 @@ int signal_pending(void)
   return (_signal_pending() || callbacks_pending());
 }
 
+void reset_signals(void)
+{
+  SIGNAL_head = SIGNAL_tail;
+}
+
 /*
  * DANG_BEGIN_FUNCTION handle_signals
  *
