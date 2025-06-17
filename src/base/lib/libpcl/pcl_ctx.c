@@ -22,9 +22,7 @@
 
 #include <ucontext.h>
 #include <assert.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include "utilities.h"  // for pthread_cancel() on android
+#include "misc/pcontext.h"
 #include "sig.h"
 #ifdef MCONTEXT
 #include "mcontext/mcontext.h"
@@ -101,70 +99,42 @@ static struct pcl_ctx_ops mctx_ops = {
 };
 #endif
 
-struct pt_ucontext {
-	pthread_t thr;
-	sem_t sem;
-	void (*func)(void*);
-	void *arg;
-};
-typedef struct pt_ucontext pt_ucontext_t;
-
 static int ptctx_swap_context(struct s_co_ctx *ctx1, void *ctx2)
 {
-	pt_ucontext_t *cc1 = ctx1->cc;
-	pt_ucontext_t *cc2 = ctx2;
-
-	sem_post(&cc2->sem);
-	sem_wait(&cc1->sem);
-	return 0;
+	return swappcontext(ctx1->cc, ctx2);
 }
 
-static void *pt_starter(void *arg)
+static void pctx_pre(void *arg)
 {
-	pt_ucontext_t *cc = arg;
+	if (sig_threads_wa)
+		signal_block_async_nosig(arg);
+}
 
-	sem_wait(&cc->sem);
-	cc->func(cc->arg);
-	abort();
-	return NULL;
+static void pctx_post(void *arg)
+{
+	if (sig_threads_wa)
+		sigprocmask(SIG_SETMASK, arg, NULL);
 }
 
 static int ptctx_create_context(co_ctx_t *ctx, void (*func)(void*), void *arg,
 		char *stkbase, long stksiz)
 {
-	pt_ucontext_t *cc = (pt_ucontext_t *)ctx->cc;
-	pthread_attr_t pa;
 	sigset_t oset;
 
-	cc->func = func;
-	cc->arg = arg;
-	sem_init(&cc->sem, 0, 0);
-	pthread_attr_init(&pa);
-	pthread_attr_setstack(&pa, stkbase, stksiz);
-	if (sig_threads_wa)
-		signal_block_async_nosig(&oset);
-	pthread_create(&cc->thr, &pa, pt_starter, cc);
-	if (sig_threads_wa)
-		sigprocmask(SIG_SETMASK, &oset, NULL);
-	pthread_attr_destroy(&pa);
-
+	if (getpcontext(ctx->cc))
+		return -1;
+	makepcontext(ctx->cc, func, arg, pctx_pre, pctx_post, &oset);
 	return 0;
 }
 
 static void ptctx_init_context(void *ctx)
 {
-	pt_ucontext_t *cc = (pt_ucontext_t *)ctx;
-
-	sem_init(&cc->sem, 0, 0);
+	getpcontext(ctx);
 }
 
 static void ptctx_free_context(void *ctx)
 {
-	pt_ucontext_t *cc = (pt_ucontext_t *)ctx;
-
-	pthread_cancel(cc->thr);
-	pthread_join(cc->thr, NULL);
-	sem_destroy(&cc->sem);
+	freepcontext(ctx);
 }
 
 static struct pcl_ctx_ops ptctx_ops = {
@@ -212,7 +182,7 @@ int ctx_sizeof(enum CoBackend b)
 		return sizeof(ucontext_t);
 #endif
 	case PCL_C_PTH:
-		return sizeof(pt_ucontext_t);
+		return sizeof(pcontext_t);
 	default:
 		return -1;
 	}

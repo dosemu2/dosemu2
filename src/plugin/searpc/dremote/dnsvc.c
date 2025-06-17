@@ -21,6 +21,7 @@
 #include <sys/wait.h>
 #include <searpc.h>
 #include "utilities.h"
+#include "coopth.h"
 #include "mapping/mapping.h"
 #include "dnative.h"
 #include "plugin_config.h"
@@ -85,7 +86,8 @@ static int remote_mprotect(void *addr, size_t length, int prot)
 
     if (!clnt)
         return 0;
-    assert(pthread_equal(dosemu_pthread_self, pthread_self()));
+    if (!coopth_is_threaded())
+        assert(pthread_equal(dosemu_pthread_self, pthread_self()));
     ret = searpc_client_call__int(clnt, "mprotect_1",
                                   &error, 3,
                                   "int64", &addr,

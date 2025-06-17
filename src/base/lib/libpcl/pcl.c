@@ -237,17 +237,17 @@ static void do_co_init(cothread_ctx *tctx)
 	tctx->co_curr = &tctx->co_main;
 }
 
-cohandle_t co_thread_init(void)
+static cohandle_t _co_thread_init(int cmin, int cmax)
 {
 	int sz, i;
 	cothread_ctx *tctx;
 
-	for (i = 0; i < PCL_C_MAX; i++) {
+	for (i = cmin; i < cmax; i++) {
 		sz = ctx_sizeof(i);
 		if (sz)
 			break;
 	}
-	if (i == PCL_C_MAX)
+	if (i >= cmax)
 		return NULL;
 	tctx = malloc(sizeof(cothread_ctx) + CO_STK_ALIGN(sz));
 
@@ -256,6 +256,16 @@ cohandle_t co_thread_init(void)
 	tctx->ctx_sizeof = sz;
 	tctx->threaded = (i == PCL_C_PTH);
 	return tctx;
+}
+
+cohandle_t co_thread_init(void)
+{
+	return _co_thread_init(0, PCL_C_MAX);
+}
+
+cohandle_t co_init(void)
+{
+	return _co_thread_init(0, PCL_C_PTH);
 }
 
 void co_thread_cleanup(cohandle_t handle)
