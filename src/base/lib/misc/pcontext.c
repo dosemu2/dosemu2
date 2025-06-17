@@ -130,8 +130,12 @@ int swappcontext(pcontext_t *opct, const pcontext_t *pct)
 {
     assert(!pct->done);
     assert(!opct->done);
+    if (opct->pre)
+        opct->pre(opct->parg);
     sem_post(pct->sem);
     sem_wait(opct->sem);
+    if (opct->post)
+        opct->post(opct->parg);
     if (opct->done)
         longjmp(*(jmp_buf *)opct->jmp, 1);
     return 0;

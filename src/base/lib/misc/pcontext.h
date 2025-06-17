@@ -23,6 +23,9 @@ struct p_ucontext {
     void *done_sem;
     void (*func)(void*);
     void *arg;
+    void (*pre)(void*);
+    void (*post)(void*);
+    void *parg;
 };
 typedef struct p_ucontext pcontext_t;
 

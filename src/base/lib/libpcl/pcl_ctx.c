@@ -31,7 +31,7 @@
 #include "pcl_private.h"
 #include "pcl_ctx.h"
 
-static void ctx_init_context_dummy(void *ctx)
+static void ctx_init_context_dummy(co_ctx_t *ctx)
 {
 }
 
@@ -127,9 +127,19 @@ static int ptctx_create_context(co_ctx_t *ctx, void (*func)(void*), void *arg,
 	return 0;
 }
 
-static void ptctx_init_context(void *ctx)
+static void ptctx_init_context(co_ctx_t *ctx)
 {
-	getpcontext(ctx);
+	pcontext_t *pt = ctx->cc;
+
+	getpcontext(pt);
+	/* We block async signals on main thread when switching to
+	 * secondary thread. The problem is that leavedos() usually
+	 * is called from a coroutine, and if it is a separate thread
+	 * (as in this case) then signal_done() can't mask signals on
+	 * main thread. So we mask them in advance at context switch. :( */
+	pt->pre = pctx_pre;
+	pt->post = pctx_post;
+	pt->parg = &ctx->oset;
 }
 
 static void ptctx_free_context(void *ctx)
@@ -164,7 +174,7 @@ int ctx_init(enum CoBackend b, struct s_co_ctx *ctx)
 		return -1;
 	assert(ops_arr[b]);
 	ctx->ops = ops_arr[b];
-	ctx->ops->init_context(ctx->cc);
+	ctx->ops->init_context(ctx);
 	return 0;
 }
 
