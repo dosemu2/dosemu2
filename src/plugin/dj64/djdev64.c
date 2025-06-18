@@ -312,7 +312,7 @@ static int _do_open(const char *path, unsigned full_flags)
 {
     int ret;
 
-#if USE_ASAN
+#if USE_ASAN || USE_TSAN
     full_flags |= DJ64F_DLMOPEN;
 #endif
     ret = djdev64_open(path, &api, DJ64_API_VER, full_flags

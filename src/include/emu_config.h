@@ -8,11 +8,18 @@
 #else
 #define HAS_FEATURE(x) 0
 #endif
+
 #if (defined(__SANITIZE_ADDRESS__) || HAS_FEATURE(address_sanitizer)) && \
   defined(HAVE_SANITIZER_ASAN_INTERFACE_H)
 #define USE_ASAN 1
 #else
 #define USE_ASAN 0
+#endif
+
+#if defined(__SANITIZE_THREAD__) || HAS_FEATURE(thread_sanitizer)
+#define USE_TSAN 1
+#else
+#define USE_TSAN 0
 #endif
 
 #define PREFIX PREFIXDIR
