@@ -2302,8 +2302,7 @@ static enum VirqHwRet do_mouse_fifo(void *arg)
     error("mouse fifo empty\n");
     return VIRQ_HWRET_DONE;
   }
-  if (mouse_events)
-    pic_request(12);  // for ps2
+  pic_request(12);  // for ps2
   return (cnt ? VIRQ_HWRET_CONT : VIRQ_HWRET_DONE);
 }
 
