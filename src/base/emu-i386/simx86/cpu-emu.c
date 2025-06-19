@@ -84,9 +84,6 @@ static void do_cpuemu_enter(int pm);
 /* This needs to be merged someday with 'mode' */
 int CEmuStat = 0;
 
-int IsV86Emu = 1;
-int IsDpmiEmu = 1;
-
 /* This keeps the delta time in CPU clocks between SIGALRMs and
  * SIGPROFs, i.e. the time spent by the system outside of dosemu,
  * which should be considered in time stretching */

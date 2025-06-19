@@ -71,9 +71,6 @@ extern void e_priv_iopl(int);
 #define CeS_PREJIT_RM	0x10000
 #define CeS_PREJIT_PM	0x20000
 
-extern int IsV86Emu;
-extern int IsDpmiEmu;
-
 void leave_cpu_emu(void);
 void avltr_destroy(void);
 int e_vm86(struct vm86_struct *info);
