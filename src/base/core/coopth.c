@@ -533,7 +533,9 @@ struct crun_ret coopth_run_thread_internal(int tid)
 
 static void coopth_thread(void *arg)
 {
-    struct coopth_starter_args_t *volatile args = arg;
+    /* for pointers "const" should be enough to deal with longjmp(),
+     * as only _modified_ local vars are undefined after the jump. */
+    struct coopth_starter_args_t *const args = arg;
     enum CoopthJmp jret;
     if (args->thrdata->cancelled) {
 	/* can be cancelled before start - no cleanups set yet */

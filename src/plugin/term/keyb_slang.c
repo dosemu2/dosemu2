@@ -802,7 +802,7 @@ static int read_some_keys(void)
 	avail = get_avail();
 	assert(avail >= 0);
 	if (!avail) {
-		k_printf("KBD: buffer overflow\n");
+		error("KBD: buffer overflow, disabling\n");
 		return 0;
 	}
 	cc = read(keyb_state.kbd_fd, &keyb_state.kbp[keyb_state.kbcount],
@@ -1472,9 +1472,19 @@ static void process_slang_keys(void)
 
 static void do_slang_getkeys(int fd, void *arg)
 {
-	_do_slang_getkeys();
-	/* FIXME: check for buffer full and delay completion */
-	ioselect_complete(keyb_state.kbd_fd);
+	int rc = read_some_keys();
+	switch (rc) {
+	case 0:
+		error("kbd: EOF from stdin\n");
+		return;
+	case -1:
+		error("kbd: error reading stdin: %s\n", strerror(errno));
+		return;
+	default:
+		process_slang_keys();
+		ioselect_complete(fd);
+		break;
+	}
 }
 
 /*
@@ -1523,11 +1533,17 @@ static void do_pc_scancode_getkeys(int fd, void *arg)
 {
 	int rc = read_some_keys();
 	/* FIXME: check for buffer full and delay completion */
-	if (rc <= 0) {
-		error("term: tty read error (%i): %s\n", rc, strerror(errno));
+	switch (rc) {
+	case 0:
+		error("kbd: EOF from stdin\n");
 		return;
+	case -1:
+		error("kbd: error reading stdin: %s\n", strerror(errno));
+		return;
+	default:
+		ioselect_complete(fd);
+		break;
 	}
-	ioselect_complete(keyb_state.kbd_fd);
 	k_printf("KBD: do_pc_scancode_getkeys() found %d bytes\n", keyb_state.kbcount);
 
 	/* Now process the keys that are buffered up */

@@ -13,20 +13,26 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-#ifndef PGALLOC_H
-#define PGALLOC_H
+#ifndef PCONTEXT_H
+#define PCONTEXT_H
 
-void *pgainit(unsigned npages);
-void pgadone(void *pool);
-void pgareset(void *pool);
-int pgaalloc(void *pool, unsigned npages, unsigned id);
-void pgafree(void *pool, unsigned page);
-int pgaresize(void *pool, unsigned page, unsigned oldpages, unsigned newpages);
-int pgaavail_largest(void *pool);
-struct pgrm {
-    int id;
-    int pgoff;
+struct p_ucontext {
+    void *sem;
+    void *jmp;
+    int done;
+    void *done_sem;
+    void (*func)(void*);
+    void *arg;
+    void (*pre)(void*);
+    void (*post)(void*);
+    void *parg;
 };
-struct pgrm pgarmap(void *pool, unsigned page);
+typedef struct p_ucontext pcontext_t;
+
+int getpcontext(pcontext_t *pct);
+void makepcontext(pcontext_t *pct, void (*func)(void*), void *arg,
+        void (*pre)(void*), void (*post)(void*), void *carg);
+int swappcontext(pcontext_t *opct, const pcontext_t *pct);
+void freepcontext(pcontext_t *pct);
 
 #endif

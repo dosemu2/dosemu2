@@ -39,6 +39,7 @@ typedef void *cohandle_t;
 #define WANT_UCONTEXT 0
 #endif
 
+PCLXC cohandle_t co_init(void);
 PCLXC cohandle_t co_thread_init(void);
 PCLXC void co_thread_cleanup(cohandle_t handle);
 PCLXC int co_is_threaded(cohandle_t handle);

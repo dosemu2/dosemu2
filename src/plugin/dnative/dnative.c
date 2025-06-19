@@ -866,8 +866,8 @@ static void dpmi_thr(void *arg)
 static int _setup(void)
 {
     signative_init();
-    co_handle = co_thread_init();
-    return 0;
+    co_handle = co_init();
+    return (co_handle ? 0 : -1);
 }
 
 static void _done(void)

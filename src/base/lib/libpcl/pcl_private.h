@@ -29,6 +29,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 
 /*
  * The following value must be power of two (N^2).
@@ -42,7 +43,7 @@ struct s_co_ctx;
 struct pcl_ctx_ops {
 	int (*create_context)(struct s_co_ctx *ctx, void (*func)(void*),
 		void *arg, char *stkbase, long stksiz);
-	void (*init_context)(void *ctx);
+	void (*init_context)(struct s_co_ctx *ctx);
 	void (*free_context)(void *ctx);
 	int (*swap_context)(struct s_co_ctx *ctx1, void *ctx2);
 };
@@ -50,6 +51,7 @@ struct pcl_ctx_ops {
 typedef struct s_co_ctx {
 	void *cc;
 	struct pcl_ctx_ops *ops;
+	sigset_t oset;
 } co_ctx_t;
 
 typedef struct s_co_base {

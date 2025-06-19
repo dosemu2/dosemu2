@@ -464,6 +464,15 @@ void __leavedos(int code, int sig, const char *s, int num)
 
     /* try to regain control of keyboard and video first */
     keyb_close();
+    if (!config.exitearly) {
+      if (coopth_get_tid() != -1) {
+        video_early_close();
+      } else {
+        coopth_start(ld_tid, NULL);
+        /* vc switch may require vm86() so call it while waiting for thread */
+        coopth_join_vm86(ld_tid);
+      }
+    }
     /* abandon current thread if any */
     coopth_abandon();
     /* switch to RM before closing coopthreads-related stuff */
@@ -473,9 +482,6 @@ void __leavedos(int code, int sig, const char *s, int num)
       tmp = coopth_flush_vm86();
       if (tmp)
         dbug_printf("%i threads still active\n", tmp);
-      coopth_start(ld_tid, NULL);
-      /* vc switch may require vm86() so call it while waiting for thread */
-      coopth_join_vm86(ld_tid);
     }
     __leavedos_main(code, sig);
 }

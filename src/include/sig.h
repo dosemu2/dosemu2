@@ -168,6 +168,7 @@ typedef mcontext_t sigcontext_t;
 extern void SIGNAL_save( void (*signal_call)(void *), void *arg, size_t size,
 	const char *name );
 extern void handle_signals(void);
+extern void reset_signals(void);
 extern void do_periodic_stuff(void);
 extern void sig_ctx_prepare(int tid, void *arg, void *arg2);
 extern void sig_ctx_restore(int tid, void *arg, void *arg2);
