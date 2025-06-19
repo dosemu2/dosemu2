@@ -435,12 +435,14 @@ static int adjust_font_size(int vga_font_height)
     return 0;
   text_scanlines = li * vga_font_height;
 
-  port = READ_WORD(BIOS_VIDEO_PORT);
-  port_outw(port, 0x12 | (((text_scanlines-1) & 0xff) << 8));
-  port_outb(port, 0x14);
-  port_outb(port + 1, (port_inb(port + 1) & ~0x1f) + vga_font_height);
-  port_outb(port, 9);
-  port_outb(port + 1, (port_inb(port + 1) & ~0x1f) + vga_font_height -1);
+  if (using_text_mode()) {
+    port = READ_WORD(BIOS_VIDEO_PORT);
+    port_outw(port, 0x12 | (((text_scanlines-1) & 0xff) << 8));
+    port_outb(port, 0x14);
+    port_outb(port + 1, (port_inb(port + 1) & ~0x1f) + vga_font_height);
+    port_outb(port, 9);
+    port_outb(port + 1, (port_inb(port + 1) & ~0x1f) + vga_font_height -1);
+  }
   WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
 
   if (using_mono_mode())

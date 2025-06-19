@@ -2880,7 +2880,10 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 	      ((vga.crtc.data[0x9] & 0x20) << (9 - 5));
       vertical_blanking_end =
 	      vga.crtc.data[0x16] & 0x7F;
-      char_height = (vga.crtc.data[0x9] & 0x1f) + 1;
+      if (vga.mode_class == TEXT)
+        char_height = (vga.crtc.data[0x9] & 0x1f) + 1;
+      else
+        char_height = vga.char_height;
       vertical_multiplier = char_height << ((vga.crtc.data[0x9] & 0x80) >> 7);
       /* see VGADOC: CGA is special for reg 9 */
       if(vga.mode_type == CGA) vertical_multiplier = char_height;
@@ -2898,17 +2901,10 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         vga.line_compare = vga.crtc.line_compare / vertical_multiplier;
         dirty_all_video_pages();
       }
-      if (vga.mode_class == TEXT) {
+      if (vga.mode_class == TEXT)
         height *= char_height;
-      } else {
-        char_height = height / 25;
-        if (char_height >= 16)
-          char_height = 16;
-        else if (char_height >= 14)
-          char_height = 14;
-        else
-          char_height = 8;
-      }
+      else
+        height = vga.height;
       /* By Eric (eric@coli.uni-sb.de):                        */
       /* Required for 80x100 CGA "text graphics" with 8x2 font */
       if (vga.height != height || vga.char_height != char_height) {
