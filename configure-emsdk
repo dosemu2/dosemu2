@@ -1,6 +1,6 @@
 # run this for emscripten:
 # ./configure-emsdk ./default-configure -d
 
-LDFLAGS="-pthread -sNODERAWFS" emconfigure $* \
+LDFLAGS="-pthread -sNODERAWFS -sUSE_SDL=2" emconfigure $* \
   --disable-searpc --disable-dlplugins \
   --disable-mcontext --disable-fdpp
