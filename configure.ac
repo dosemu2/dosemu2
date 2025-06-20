@@ -598,8 +598,10 @@ for i in $(echo $enable_plugins | tr ',' ' '); do
     if test -z "$i"; then continue; fi
     if $srcdir/scripts/plugctl.sh $i yes --disable-option-checking $ac_configure_args; then
         PLUGINSUBDIRS="$PLUGINSUBDIRS plugin/$i"
-        if ! $EGREP 'USE_DL_PLUGINS|NO_LIB' $srcdir/src/plugin/$i/Makefile >/dev/null ; then
+        if ! $EGREP 'NO_LIB' $srcdir/src/plugin/$i/Makefile >/dev/null; then
+          if ! $EGREP 'USE_DL_PLUGINS' $srcdir/src/plugin/$i/Makefile >/dev/null || test "$enable_dlplugins" = "no"; then
             ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS plugin/$i"
+          fi
         fi
     fi
 done
