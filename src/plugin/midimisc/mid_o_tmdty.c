@@ -160,9 +160,11 @@ static int midotmdty_preinit(void)
 
 	/* unblock SIGIO and SIGALRM as timidity may use it */
 	sigemptyset(&sigs);
+#if 0
 	sigaddset(&sigs, SIGIO);
-	sigaddset(&sigs, SIGALRM);
 	signal(SIGIO, SIG_IGN);
+#endif
+	sigaddset(&sigs, SIGALRM);
 	signal(SIGALRM, SIG_IGN);
 	sigprocmask(SIG_UNBLOCK, &sigs, NULL);
 

@@ -20,7 +20,6 @@
  * Author: Stas Sergeev
  */
 
-#include <ucontext.h>
 #include <assert.h>
 #include "misc/pcontext.h"
 #include "sig.h"
@@ -30,6 +29,9 @@
 #include "pcl.h"
 #include "pcl_private.h"
 #include "pcl_ctx.h"
+#if WANT_UCONTEXT
+#include <ucontext.h>
+#endif
 
 static void ctx_init_context_dummy(co_ctx_t *ctx)
 {

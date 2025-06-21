@@ -5,6 +5,7 @@
 #include <signal.h>
 #if defined(__linux__)
 #include <sys/syscall.h>
+#include "sys_vm86.h"  // for SIG define
 #endif
 
 /* reserve 1024 uncommitted pages for stack */

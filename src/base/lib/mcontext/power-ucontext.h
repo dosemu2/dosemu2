@@ -26,7 +26,6 @@ struct ucontext
 		void *ss_sp;
 		uint ss_size;
 	} uc_stack;
-	sigset_t uc_sigmask;
 	mcontext_t mc;
 };
 
