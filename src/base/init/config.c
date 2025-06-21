@@ -79,7 +79,7 @@ char *dosemu_plugin_dir_path;
 char *commands_path;
 char *dosemu_image_dir_path;
 char *dosemu_drive_c_path;
-char keymaploadbase_default[] = PREFIX "/share/";
+char keymaploadbase_default[] = DATADIR "/";
 char *keymap_load_base_path = keymaploadbase_default;
 const char *keymap_dir_path = "keymap/";
 const char *owner_tty_locks = "uucp";
@@ -468,7 +468,7 @@ static void set_freedos_dir(void)
   const char *xdirs[] = {
     "/usr/share/dosemu2-extras",
     "/usr/local/share/dosemu2-extras",
-    PREFIX "/share/dosemu2-extras",
+    DATADIR "/dosemu2-extras",
     "/opt/dosemu2-extras",			/* gentoo */
     NULL,
   };
@@ -515,11 +515,11 @@ static void set_freedos_dir(void)
 #ifdef USE_DJDEV64
       "/usr/share/comcom64",
       "/usr/local/share/comcom64",
-      PREFIX "/share/comcom64",
+      DATADIR "/comcom64",
 #endif
       "/usr/share/comcom32",
       "/usr/local/share/comcom32",
-      PREFIX "/share/comcom32",
+      DATADIR "/comcom32",
       "/opt/comcom32",			/* gentoo */
       NULL,
     };

@@ -72,10 +72,10 @@ static int midoflus_init(void *arg)
     char *sfont = NULL;
     const char *def_sfonts[] = {
 	"/usr/share/soundfonts/default.sf2",		// fedora
-	PREFIX "/share/soundfonts/default.sf2",
+	DATADIR "/soundfonts/default.sf2",
 	"/usr/share/sounds/sf2/default-GM.sf2",		// ubuntu
 	"/usr/share/soundfonts/FluidR3_GM.sf2",		// fedora
-	PREFIX "/share/soundfonts/FluidR3_GM.sf2",	// termux
+	DATADIR "/soundfonts/FluidR3_GM.sf2",	// termux
 	"/usr/share/sounds/sf2/FluidR3_GM.sf2.flac",	// ubuntu
 	"/usr/share/sounds/sf2/FluidR3_GM.sf2",		// debian
 	NULL };

@@ -407,6 +407,7 @@ AC_DEFINE_DIR([CONFSUBDIR], [confdir], [ dosemu-specific config subdir ])
 # use PREFIXDIR instead of PREFIX to not corrupt PREFIX var used on Termux
 AC_DEFINE_DIR([PREFIXDIR], [prefix], [ prefix ])
 AC_DEFINE_DIR([LIBEXECDIR], [libexecdir], [ Where extra executables are placed to ])
+AC_DEFINE_DIR([DATADIR], [datadir], [ Where program data placed to ])
 AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 
 DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -imacros emu_config.h"
