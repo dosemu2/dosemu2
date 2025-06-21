@@ -4,7 +4,6 @@
 
 /* Copyright (c) 2005-2006 Russ Cox, MIT; see COPYRIGHT */
 
-#include <ucontext.h>
 #include <string.h>
 #include <inttypes.h>
 #include <stdlib.h>

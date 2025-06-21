@@ -13,6 +13,12 @@
 extern "C" {
 #endif
 
+typedef struct {
+	void *ss_sp;
+	int ss_flags;
+	unsigned int ss_size;
+} mstack_t;
+
 typedef struct m_mcontext m_mcontext_t;
 typedef struct m_ucontext m_ucontext_t;
 
@@ -31,19 +37,10 @@ typedef struct m_ucontext m_ucontext_t;
 #	endif
 
 struct m_ucontext {
-	/*
-	 * Keep the order of the first two fields. Also,
-	 * keep them the first two fields in the structure.
-	 * This way we can have a union with struct
-	 * sigcontext and ucontext_t. This allows us to
-	 * support them both at the same time.
-	 * note: the union is not defined, though.
-	 */
-	sigset_t	uc_sigmask;
 	m_mcontext_t	uc_mcontext;
 
 	struct __ucontext *uc_link;
-	stack_t		uc_stack;
+	mstack_t	uc_stack;
 	int		__spare__[8];
 };
 
