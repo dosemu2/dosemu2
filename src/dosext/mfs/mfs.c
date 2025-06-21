@@ -146,8 +146,10 @@ TODO:
 #ifdef __linux__
 #include <sys/vfs.h>
 #else
+#ifdef __FreeBSD__
 #include <sys/param.h>
 #include <sys/mount.h>
+#endif
 #endif
 #include <sys/ioctl.h>
 #include <errno.h>
