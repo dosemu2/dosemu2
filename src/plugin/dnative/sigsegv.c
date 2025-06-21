@@ -719,9 +719,11 @@ void signative_init(void)
   signative_pre_init();
   sigstack_init();
   asighandlers[SIGALRM] = signative_sigbreak;
+#ifdef SIG
   /* SIGIO is only used for irqs from vm86 */
   if (config.cpu_vm == CPUVM_VM86)
     asighandlers[SIGIO] = signative_sigbreak;
+#endif
   asighandlers[SIG_THREAD_NOTIFY] = signative_sigbreak;
   asighandlers[SIGQUIT] = signative_sigbreak;
   asighandlers[SIGINT] = signative_sigbreak;
