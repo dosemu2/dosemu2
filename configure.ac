@@ -337,7 +337,7 @@ AC_CHECK_TYPES([_Float128])
 AC_CHECK_TYPES([greg_t],,, [[#include <ucontext.h>]])
 AC_CHECK_MEMBERS(struct ethhdr.h_dest,,, [[#include <netinet/if_ether.h>]])
 
-AC_CHECK_FUNC(strlcpy,, [
+AC_CHECK_FUNCS([strlcpy strsep],, [
   PKG_CHECK_MODULES([LIBBSD], [libbsd], [
     dnl re-check for proper arch (multilib)
     AC_CHECK_LIB(bsd, strlcpy,, [AC_MSG_ERROR(libbsd not found)])
