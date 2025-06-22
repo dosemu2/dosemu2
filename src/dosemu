@@ -23,7 +23,7 @@ get_binary() {
     fi
 
   else
-    BINARY="$prefix"/libexec/dosemu2/dosemu2.bin
+    BINARY="$libexecdir"/dosemu2/dosemu2.bin
     if [ ! -f "$BINARY" ]; then
       echo "$BINARY does not exist"
       exit 1
