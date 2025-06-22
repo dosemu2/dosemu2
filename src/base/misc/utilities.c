@@ -598,7 +598,8 @@ char *path_prefix(const char *suffix)
         ret = assemble_path(p, suffix);
       else if (strcmp(p1 + 1, "dosemu2") == 0) {
         p1 = strrchr(p, '/');
-        if (p1 && strcmp(p1 + 1, "libexec") == 0) {
+        assert(strncmp(LIBEXECDIR, PREFIXDIR, sizeof(PREFIXDIR) - 1) == 0);
+        if (p1 && strcmp(p1 + 1, LIBEXECDIR + sizeof(PREFIXDIR)) == 0) {
           *p1 = '\0';
           ret = assemble_path(p, suffix);
         }
