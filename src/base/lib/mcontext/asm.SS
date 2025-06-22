@@ -53,6 +53,16 @@
 #endif
 #endif
 
+#if defined(__HAIKU__)
+#if defined(__i386__)
+#define SET setmcontext
+#define GET getmcontext
+#elif defined(__x86_64__)
+#define SET _setmcontext
+#define GET _getmcontext
+#endif
+#endif
+
 #if defined(__i386__)
 .globl SET
 SET:
