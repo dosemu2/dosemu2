@@ -53,15 +53,17 @@ extern int config_check_only;
 #define  FREEDOS_DIR        "freedos"         /* freedos dir name */
 #define  FDBOOT_DIR         "fdboot"          /* freedos boot dir name */
 #define  XBAT_DIR           "bat"             /* extras */
-#define  DOSEMULIB_DEFAULT  "share/dosemu"
-#define  DOSEMUCMDS_DEFAULT DOSEMULIB_DEFAULT "/" CMDS_SUFF
+#define  SUFF "/dosemu"
+#define  DSUFF(x) DATADIR x + sizeof(PREFIXDIR)
+#define  DOSEMULIB_DEFAULT  DSUFF(SUFF)
+#define  DOSEMUCMDS_DEFAULT DSUFF(SUFF "/" CMDS_SUFF)
 #define  DOSEMUEXEC_DEFAULT  LIBEXECDIR "/dosemu"
 #define  DOSEMUIMAGE_DEFAULT "~/" LOCALDIR_BASE_NAME
 #define  DRIVE_C_DIR        "drive_c"
 #define  DRIVE_C_DEFAULT    DOSEMUIMAGE_DEFAULT "/" DRIVE_C_DIR
 #define  DOSEMU_DRIVES_DIR  "drives"
 #define  DOSEMU_CONF_DIR       SYSCONFDIR "/" CONFSUBDIR
-#define  DOSEMUPLUGINDIR "lib/dosemu"
+#define  DOSEMUPLUGINDIR "lib" SUFF
 
 extern const char *config_script_name;
 extern const char *dosemu_loglevel_file_path;
