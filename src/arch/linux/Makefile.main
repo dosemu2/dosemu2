@@ -106,6 +106,7 @@ $(BINPATH)/bin/dosemu: $(SRCPATH)/dosemu.systemwide $(SRCPATH)/dosemu \
 	echo "LOCAL_BUILD_PATH=$(abs_top_builddir)" >> $@
 	echo "LOCAL_BIN_DIR=$(THISVERSION)/bin" >> $@
 	echo "prefix=$(prefix)" >> $@
+	echo "libexecdir=$(libexecdir)" >> $@
 	echo >> $@
 	cat $(SRCPATH)/dosemu >> $@
 	chmod +x $@
