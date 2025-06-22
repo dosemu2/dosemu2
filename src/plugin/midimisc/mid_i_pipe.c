@@ -26,6 +26,7 @@
 #include "init.h"
 #include "sound/midi.h"
 #include <sys/types.h>
+#include <sys/select.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
