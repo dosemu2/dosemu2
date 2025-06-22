@@ -87,10 +87,12 @@ static void fdpp_abort(const char *file, int line)
 {
     p_dos_str("\nfdpp crashed.\n");
     dosemu_error("fdpp: abort at %s:%i\n", file, line);
-    p_dos_str("Press any key to exit.\n");
-    set_IF();
-    com_biosgetch();
-    clear_IF();
+    if (!config.quiet) {
+        p_dos_str("Press any key to exit.\n");
+        set_IF();
+        com_biosgetch();
+        clear_IF();
+    }
     leavedos(3);
 }
 
