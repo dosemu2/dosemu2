@@ -24,7 +24,9 @@
 #include <sys/wait.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#ifdef __linux__
 #include "Linux/if_tun.h"
+#endif
 #ifdef HAVE_NETINET_IF_ETHER_H
 #include <netinet/if_ether.h>
 #endif
@@ -423,6 +425,7 @@ int GetDeviceMTU(void)
 
 int tun_alloc(char *dev)
 {
+#ifdef __linux__
       PRIV_SAVE_AREA
       struct ifreq ifr;
       int fd, err;
@@ -459,6 +462,10 @@ int tun_alloc(char *dev)
       strcpy(dev, ifr.ifr_name);
 
       return fd;
+#else
+    return -1;
+#endif
+
 }
 
 static ssize_t pkt_read_eth(int pkt_fd, void *buf, size_t count)
