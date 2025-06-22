@@ -93,7 +93,9 @@ static void (*qsighandlers[SIGMAX])(int sig, siginfo_t *si, void *uc);
 static void (*asighandlers[SIGMAX])(void *arg);
 
 static void SIGALRM_call(void *arg);
+#ifdef SIG
 static void SIGIO_call(void *arg);
+#endif
 static void sigasync(int sig, siginfo_t *si, void *uc);
 static void sigasync_std(int sig, siginfo_t *si, void *uc);
 
@@ -763,11 +765,12 @@ void SIGNAL_save(void (*signal_call)(void *), void *arg, size_t len,
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
 }
 
-
+#ifdef SIG
 static void SIGIO_call(void *arg){
   /* Call select to see if any I/O is ready on devices */
   irq_select();
 }
+#endif
 
 static void sigasync0(int sig)
 {
