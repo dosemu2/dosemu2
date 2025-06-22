@@ -1,38 +1,31 @@
 /* Copyright (c) 2005-2006 Russ Cox, MIT; see COPYRIGHT */
 
 #if defined(__FreeBSD__) && defined(__i386__) && __FreeBSD__ < 5
-#define NEEDX86CONTEXT 1
 #define SET setmcontext
 #define GET getmcontext
 #else
 #if defined(__FreeBSD__) && defined(__x86_64__)
-#define NEEDAMD64CONTEXT 1
 #define SET _setmcontext
 #define GET _getmcontext
 #endif
 #endif
 
 #if defined(__OpenBSD__) && defined(__i386__)
-#define NEEDX86CONTEXT 1
 #define SET setmcontext
 #define GET getmcontext
 #endif
 
 #if defined(__APPLE__)
 #if defined(__i386__)
-#define NEEDX86CONTEXT 1
 #define SET _setmcontext
 #define GET _getmcontext
 #elif defined(__x86_64__)
-#define NEEDAMD64CONTEXT 1
 #define SET __setmcontext
 #define GET __getmcontext
 #elif defined(__arm__)
-#define NEEDARMCONTEXT 1
 #define SET _setmcontext
 #define GET _getmcontext
 #else
-#define NEEDPOWERCONTEXT 1
 #define SET __setmcontext
 #define GET __getmcontext
 #endif
@@ -40,33 +33,27 @@
 
 #if defined(__linux__)
 #if defined(__i386__)
-#define NEEDX86CONTEXT 1
 #define SET _setmcontext
 #define GET _getmcontext
 #elif defined(__x86_64__)
-#define NEEDAMD64CONTEXT 1
 #define SET _setmcontext
 #define GET _getmcontext
 #elif defined(__aarch64__)
-#define NEEDAARCH64CONTEXT 1
 #define SET _setmcontext
 #define GET _getmcontext
 #elif defined(__arm__)
-#define NEEDARMCONTEXT 1
 #define SET _setmcontext
 #define GET _getmcontext
 #elif defined(__mips__)
-#define NEEDMIPSCONTEXT 1
 #define SET setmcontext
 #define GET getmcontext
 #else
-#define NEEDPOWERCONTEXT 1
 #define SET __setmcontext
 #define GET __getmcontext
 #endif
 #endif
 
-#ifdef NEEDX86CONTEXT
+#if defined(__i386__)
 .globl SET
 SET:
 	movl	4(%esp), %eax
@@ -113,7 +100,7 @@ GET:
 	ret
 #endif
 
-#ifdef NEEDAMD64CONTEXT
+#if defined(__x86_64__)
 .globl SET
 SET:
 	movq	16(%rdi), %rsi
@@ -163,7 +150,7 @@ GET:
 	ret
 #endif
 
-#ifdef NEEDPOWERCONTEXT
+#if defined(__ppc__)
 /* get FPR and VR use flags with sc 0x7FF3 */
 /* get vsave with mfspr reg, 256 */
 
@@ -247,7 +234,7 @@ SET:
 	blr
 #endif
 
-#ifdef NEEDARMCONTEXT
+#if defined(__arm__)
 .globl GET
 GET:
 	str	r1, [r0,#4]
@@ -291,8 +278,7 @@ SET:
 	mov	pc, lr
 #endif
 
-#ifdef NEEDAARCH64CONTEXT
-
+#if defined(__aarch64__)
 /* Size of an X regiser in bytes. */
 #define SZREG                8
 
@@ -399,7 +385,7 @@ SET:
 	br	x16
 #endif
 
-#ifdef NEEDMIPSCONTEXT
+#if defined(__mips__)
 .globl GET
 GET:
 	sw	$4, 24($4)
