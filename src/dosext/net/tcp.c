@@ -26,6 +26,7 @@
 #include <arpa/inet.h>
 #include "Netinet/tcp.h"
 #include <limits.h>
+#include <string.h>
 #ifdef HAVE_LIBBSD
 #include <bsd/string.h>
 #endif
