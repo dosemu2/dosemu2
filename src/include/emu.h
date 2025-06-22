@@ -384,19 +384,6 @@ typedef struct config_info {
 enum { SPKR_OFF, SPKR_NATIVE, SPKR_EMULATED };
 enum { CPUVM_VM86, CPUVM_KVM, CPUVM_EMU, CPUVM_NATIVE };
 
-/*
- * Right now, dosemu only supports two serial ports.
- */
-#define SIG_SER		SIGTTIN
-
-#define IO_READ  1
-#define IO_WRITE 2
-#define IO_RDWR	 (IO_READ | IO_WRITE)
-
-extern int port_readable(unsigned short);
-extern int port_writeable(unsigned short);
-extern unsigned char read_port(unsigned short);
-extern int write_port(unsigned int, unsigned short);
 extern void parent_nextscan(void);
 extern void disk_close(void);
 extern void cpu_setup(void);
