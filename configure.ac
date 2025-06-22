@@ -502,23 +502,14 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <semaphore.h>]], [[
 AC_CHECK_HEADERS([scsi/sg.h linux/cdrom.h])
 # sys/io.h is present on emscripten, but is dummy
 if test "$machine" != "wasm32"; then
-  AC_CHECK_HEADERS([sys/io.h])
+  AC_CHECK_HEADERS([sys/io.h ucontext.h])
+  AC_CHECK_HEADERS([asm/ucontext.h],,, [
+    #include <ucontext.h>
+    #include <signal.h>
+  ])
 fi
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h netpacket/packet.h])
 AC_CHECK_HEADERS([netinet/if_ether.h net/ethernet.h])
-AC_CHECK_HEADERS([asm/ucontext.h],,, [
-  #include <ucontext.h>
-  #include <signal.h>
-])
-if test "$machine" != "wasm32"; then
-  AC_CHECK_HEADERS([ucontext.h],, [
-    AS_UNSET([ac_cv_header_ucontext_h])
-    AC_CHECK_HEADER([ucontext.h],
-      AC_DEFINE([_XOPEN_SOURCE], [500], [Use X/Open 5 with POSIX 1995]),
-      AC_MSG_ERROR([Can't use ucontext.h]), [
-    #define _XOPEN_SOURCE 500
-  ])])
-fi
 AC_CHECK_HEADERS([linux/signal.h],,, [#include <signal.h>])
 AC_CHECK_HEADERS([sys/soundcard.h], [
   USE_OSS=1
