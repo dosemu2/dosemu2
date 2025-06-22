@@ -347,6 +347,11 @@ AC_CHECK_FUNCS([strlcpy strsep],, [
   ])
 ])
 
+dnl for Haiku
+AC_SEARCH_LIBS([accept], [network], [], [
+  AC_MSG_ERROR([Unable to find BSD sockets support])
+])
+
 PKG_CHECK_MODULES([LIBACL], [libacl], [
     AC_DEFINE(HAVE_LIBACL)
     CFLAGS="$CFLAGS $LIBACL_CFLAGS"
