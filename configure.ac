@@ -345,6 +345,7 @@ AC_CHECK_FUNCS([strlcpy strsep],, [
     dnl on Haiku libbsd has no .pc file
     AC_CHECK_LIB(bsd, strlcpy,, [AC_MSG_ERROR(libbsd not found)])
   ])
+  AC_CHECK_HEADERS([bsd/string.h])
 ])
 
 PKG_CHECK_MODULES([LIBACL], [libacl], [

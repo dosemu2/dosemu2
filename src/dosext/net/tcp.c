@@ -26,7 +26,7 @@
 #include <arpa/inet.h>
 #include "Netinet/tcp.h"
 #include <limits.h>
-#ifdef HAVE_LIBBSD
+#ifdef HAVE_BSD_STRING_H
 #include <bsd/string.h>
 #endif
 #include "emu.h"

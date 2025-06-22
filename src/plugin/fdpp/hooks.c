@@ -19,7 +19,7 @@
  *
  * Author: Stas Sergeev
  */
-#ifdef HAVE_LIBBSD
+#ifdef HAVE_BSD_STRING_H
 #include <bsd/string.h>
 #endif
 #include <stddef.h>

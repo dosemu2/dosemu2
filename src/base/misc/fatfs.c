@@ -62,7 +62,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>			/* RxDOS.3 lsv uses types */
-#ifdef HAVE_LIBBSD
+#ifdef HAVE_BSD_STRING_H
 #include <bsd/string.h>
 #endif
 
