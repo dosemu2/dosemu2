@@ -168,7 +168,7 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -valgrind)
-      DBG="valgrind --trace-children=yes --track-origins=yes"
+      DBG="valgrind --track-origins=yes"
       STRING_I="$STRING_I cpu_vm emulated cpuemu 1 cpu_vm_dpmi kvm"
       shift
       ;;
