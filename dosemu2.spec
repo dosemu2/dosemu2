@@ -57,6 +57,7 @@ BuildRequires: binutils-x86_64-linux-gnu
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp-devel
 BuildRequires: dj64dev-djdev64-devel
+BuildRequires: valgrind
 BuildRequires: systemd-rpm-macros
 %{?sysusers_requires_compat}
 
