@@ -4813,7 +4813,7 @@ $_floppy_a = ""
         # Run the equivalent of the MOSROOT/build.sh script from MOSROOT
         # Note:
         #     We have to avoid runDosemu() as this test is non-interactive
-        args = ["-K", r".:SOURCES\src", "-E", "MAKEMOS.BAT", r"path=%D\bin;%O"]
+        args = ["-q", "-K", r".:SOURCES\src", "-E", "MAKEMOS.BAT", r"path=%D\bin;%O"]
         results = self.runDosemuCmdline(args, cwd=mosroot, timeout=300, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
