@@ -4772,7 +4772,7 @@ set PATH=C:\\devel\\watcomc\\binw;C:\\devel\\nasm;C:\\bin;%OLDPATH%
         # Run build.bat script from git repository root
         # Note:
         #     We have to avoid runDosemu() as this test is non-interactive
-        args = ["-K", ".", "-E", "build.bat"]
+        args = ["-q", "-K", ".", "-E", "build.bat"]
         results = self.runDosemuCmdline(args, cwd=root, timeout=450, config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
