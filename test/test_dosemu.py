@@ -4743,7 +4743,7 @@ $_floppy_a = ""
                 ], stderr=STDOUT, cwd=self.imagedir)
                 check_call([
                     "unzip",
-                    "-L",
+                    "-LL",
                     "-q",
                     str(self.imagedir) + '/%s.zip' % pkg,
                 ], stderr=STDOUT, cwd=self.workdir)
