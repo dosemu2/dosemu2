@@ -483,7 +483,11 @@ line:		CHARSET '{' charset_flags '}' {}
 		| CPUEMU INTEGER
 			{
 #ifdef X86_EMULATOR
+#ifdef X86_JIT
 			config.cpusim = $2;
+#else
+			config.cpusim = 1;
+#endif
 			c_printf("CONF: CPUEMU set to %s\n",
 				config.cpusim ? "sim" : "jit");
 #endif
