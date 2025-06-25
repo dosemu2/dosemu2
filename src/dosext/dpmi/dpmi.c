@@ -3797,6 +3797,8 @@ static void quit_dpmi(cpuctx_t *scp, unsigned short errcode,
       LO(ax) = errcode;
       LWORD(edx) = tsr_para;
     }
+    SREG(ss) = DPMI_CLIENT.private_data_segment;
+    REG(esp) = DPMI_rm_stack_size * DPMI_CLIENT.in_dpmi_rm_stack;
     jmp_to(DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_exit));
   }
 }
