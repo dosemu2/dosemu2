@@ -444,6 +444,10 @@ void __leavedos(int code, int sig, const char *s, int num)
        error("leavedos called recursively, forgetting the graceful exit!\n");
        _exit(1);
       }
+    if (getenv("DOSEMU_FAST_EXIT")) {
+       dbug_printf("leavedos called with DOSEMU_FAST_EXIT\n");
+       _exit(1);
+    }
 
     if (!can_leavedos) {
       config.exitearly = 1;
