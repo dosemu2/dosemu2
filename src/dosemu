@@ -168,7 +168,13 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -valgrind)
-      DBG="valgrind --track-origins=yes --error-limit=no $VG_FLAGS"
+      DBG="valgrind --error-limit=no"
+      # track-origins is incompatible with some flags
+      if [ -n "$VG_FLAGS" ]; then
+        DBG="$DBG $VG_FLAGS"
+      else
+        DBG="$DBG --track-origins=yes"
+      fi
       STRING_I="$STRING_I cpu_vm emulated cpuemu 1 cpu_vm_dpmi emulated"
       shift
       ;;
