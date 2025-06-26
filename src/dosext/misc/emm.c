@@ -258,7 +258,7 @@ static void set_map_registers(const struct emm_reg *buf, int pages);
   (handle_info[handle].active)
 
 #define NOFUNC() \
-  { SETHI_BYTE(state->eax, EMM_FUNC_NOSUP); \
+  { SETHI_BYTE(state->eax, EMM_INVALID_SUB); \
     Kdebug0(("function not supported: 0x%04x\n", \
      (unsigned)LO_WORD(state->eax))); }
 
