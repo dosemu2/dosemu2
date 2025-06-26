@@ -167,6 +167,7 @@
 #define EMM_MOVE_1MB_LIM 0x96
 #define EMM_MOVE_OVLAPI	0x97
 #define EMM_NOT_FOUND	0xa0  /* 971120 <ki@kretz.co.at> acc to R.Brown's int list */
+#define EMM_HAN_NO_NAME	0xa1
 #define EMM_ARR_CORRUPT	0xa3
 
 #define EMM_ERROR -1
@@ -1094,7 +1095,10 @@ handle_dir(struct vm86_regs * state)
 	    continue;
 	  if (!strncmp(handle_info[handle].name, array, 8)) {
 	    Kdebug0(("name match %s!\n", array));
-	    SETHI_BYTE(state->eax, EMM_NO_ERR);
+	    if (handle_info[handle].name[0] == '\0')
+	      SETHI_BYTE(state->eax, EMM_HAN_NO_NAME);
+	    else
+	      SETHI_BYTE(state->eax, EMM_NO_ERR);
 	    SETLO_WORD(state->edx, handle);
 	    return;
 	  }
