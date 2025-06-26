@@ -167,6 +167,7 @@
 #define EMM_MOVE_1MB_LIM 0x96
 #define EMM_MOVE_OVLAPI	0x97
 #define EMM_NOT_FOUND	0xa0  /* 971120 <ki@kretz.co.at> acc to R.Brown's int list */
+#define EMM_ARR_CORRUPT	0xa3
 
 #define EMM_ERROR -1
 static u_char emm_error;
@@ -690,14 +691,14 @@ static int emm_get_partial_map_registers(void *ptr, const u_short *segs)
   return EMM_NO_ERR;
 }
 
-static void emm_set_partial_map_registers(const void *ptr)
+static int emm_set_partial_map_registers(const void *ptr)
 {
   const u_short *buf = ptr;
   const struct emm_reg_phy *buf2;
   int pages, i;
 
   if (!config.ems_size)
-    return;
+    return EMM_NO_ERR;
 
   pages = *buf;
   buf2 = ptr + sizeof(*buf);
@@ -705,6 +706,15 @@ static void emm_set_partial_map_registers(const void *ptr)
     uint16_t handle = buf2[i].handle;
     uint16_t logical_page = buf2[i].logical_page;
     uint16_t phy = buf2[i].physical_page;
+    if (handle >= MAX_HANDLES) {
+      E_printf("Invalid Handle handle=%x\n", handle);
+      return EMM_ARR_CORRUPT;
+    }
+    if (handle_info[handle].active == 0) {
+      E_printf("Invalid Handle handle=%x, active=%d\n",
+	     handle, handle_info[handle].active);
+      return EMM_INV_HAN;
+    }
     if (logical_page != NULL_PAGE)
       map_page(handle, phy, logical_page);
     else
@@ -713,6 +723,7 @@ static void emm_set_partial_map_registers(const void *ptr)
     Kdebug1(("phy %d h %x lp %d\n",
 	    phy, handle, logical_page));
   }
+  return EMM_NO_ERR;
 }
 
 static int emm_get_size_for_partial_page_map(int pages)
@@ -735,8 +746,8 @@ partial_map_registers(struct vm86_regs * state)
     SETHI_BYTE(state->eax, ret);
     break;
   case PARTIAL_SET:
-    emm_set_partial_map_registers(Addr(state, ds, esi));
-    SETHI_BYTE(state->eax, EMM_NO_ERR);
+    ret = emm_set_partial_map_registers(Addr(state, ds, esi));
+    SETHI_BYTE(state->eax, ret);
     break;
   case PARTIAL_GET_SIZE:
     ret = emm_get_size_for_partial_page_map(LO_WORD(state->ebx));
