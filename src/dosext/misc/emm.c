@@ -761,7 +761,7 @@ partial_map_registers(struct vm86_regs * state)
     break;
   default:
     Kdebug1(("bios_emm: Partial Page Map Regs unknown fn\n"));
-    SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+    SETHI_BYTE(state->eax, EMM_INVALID_SUB);
     break;
   }
 }
@@ -1050,7 +1050,7 @@ handle_name(struct vm86_regs * state)
   default:
     Kdebug0(("bad handle_name function %d\n",
 	     (int) LO_BYTE_d(state->eax)));
-    SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+    SETHI_BYTE(state->eax, EMM_INVALID_SUB);
     return;
   }
 }
@@ -1114,7 +1114,7 @@ handle_dir(struct vm86_regs * state)
   default:
       Kdebug0(("bad handle_dir function %d\n",
 	       (int) LO_BYTE_d(state->eax)));
-      SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+      SETHI_BYTE(state->eax, EMM_INVALID_SUB);
       return;
   }
 }
@@ -1188,7 +1188,7 @@ alter_map_and_jump(struct vm86_regs * state)
 
   default:
     Kdebug0(("bad alter_map_and_jump function %d\n", method));
-    SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+    SETHI_BYTE(state->eax, EMM_INVALID_SUB);
     break;
   }
 }
@@ -1259,7 +1259,7 @@ alter_map_and_call(struct vm86_regs * state)
   default:
     Kdebug0(("bad alter_map_and_call function %d\n",
 	     (int) LO_BYTE_d(state->eax)));
-    SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+    SETHI_BYTE(state->eax, EMM_INVALID_SUB);
     break;
   }
 }
@@ -1787,7 +1787,7 @@ alternate_map_register(struct vm86_regs * state)
        }
       break;
     default:
-      SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+      SETHI_BYTE(state->eax, EMM_INVALID_SUB);
       Kdebug1(("bios_emm: alternate_map_register Illegal Function\n"));
   }
   return;
@@ -2141,7 +2141,7 @@ ems_fn(struct vm86_regs *state)
       default:{
 	  Kdebug1(("bios_emm: Page Map Regs unknwn fn\n"));
 
-	  SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+	  SETHI_BYTE(state->eax, EMM_INVALID_SUB);
 	  break;
 	}
       }
