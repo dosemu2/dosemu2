@@ -1458,6 +1458,10 @@ exchange_memory_region(struct vm86_regs * state)
   if (mem_move->source_type == 0)
     source = MK_FP32(mem_move->source_segment, mem_move->source_offset);
   else {
+    if (mem_move->source_handle >= MAX_HANDLES) {
+      E_printf("EMS: Xchng memory region source handle invalid\n");
+      return (EMM_INV_HAN);
+    }
     if (!handle_info[mem_move->source_handle].active) {
       E_printf("EMS: Xchng memory region source handle not active\n");
       return (EMM_INV_HAN);
@@ -1480,6 +1484,10 @@ exchange_memory_region(struct vm86_regs * state)
   if (mem_move->dest_type == 0)
     dest = MK_FP32(mem_move->dest_segment, mem_move->dest_offset);
   else {
+    if (mem_move->dest_handle >= MAX_HANDLES) {
+      E_printf("EMS: Xchng memory region dest handle invalid\n");
+      return (EMM_INV_HAN);
+    }
     if (!handle_info[mem_move->dest_handle].active) {
       E_printf("EMS: Xchng memory region dest handle not active\n");
       return (EMM_INV_HAN);
