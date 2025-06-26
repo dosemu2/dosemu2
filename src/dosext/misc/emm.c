@@ -1367,6 +1367,10 @@ move_memory_region(struct vm86_regs * state)
     src = SEGOFF2LINEAR(mem_move->source_segment, mem_move->source_offset);
   }
   else {
+    if (mem_move->source_handle >= MAX_HANDLES) {
+      E_printf("EMS: Move memory region source handle invalid\n");
+      return (EMM_INV_HAN);
+    }
     if (!handle_info[mem_move->source_handle].active) {
       E_printf("EMS: Move memory region source handle not active\n");
       return (EMM_INV_HAN);
@@ -1400,6 +1404,10 @@ move_memory_region(struct vm86_regs * state)
     }
   }
   else {
+    if (mem_move->dest_handle >= MAX_HANDLES) {
+      E_printf("EMS: Move memory region dest handle invalid\n");
+      return (EMM_INV_HAN);
+    }
     if (!handle_info[mem_move->dest_handle].active) {
       E_printf("EMS: Move memory region dest handle not active\n");
       return (EMM_INV_HAN);
