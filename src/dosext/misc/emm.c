@@ -222,7 +222,7 @@ static u_short os_allow=1;
 
 static inline int unmap_page(int);
 static int get_map_registers(struct emm_reg *buf, int pages);
-static void set_map_registers(const struct emm_reg *buf, int pages);
+static int set_map_registers(const struct emm_reg *buf, int pages);
 
 /* FIXME -- inline function */
 #define CHECK_OS_HANDLE(handle) \
@@ -1647,14 +1647,18 @@ static void emm_get_map_registers(char *ptr)
   get_map_registers((struct emm_reg *)ptr, phys_pages);
 }
 
-static void set_map_registers(const struct emm_reg *buf, int pages)
+static int set_map_registers(const struct emm_reg *buf, int pages)
 {
   int i;
-  int handle;
+  unsigned int handle;
   int logical_page;
 
   for (i = 0; i < pages; i++) {
     handle = buf[i].handle;
+    if (handle >= MAX_HANDLES)
+      return EMM_INV_HAN;
+    if (!handle_info[handle].active)
+      return EMM_INV_HAN;
     logical_page = buf[i].logical_page;
     if (logical_page != NULL_PAGE)
       map_page(handle, i, logical_page);
@@ -1664,13 +1668,14 @@ static void set_map_registers(const struct emm_reg *buf, int pages)
     Kdebug1(("phy %d h %x lp %d\n",
 	    i, handle, logical_page));
   }
+  return EMM_NO_ERR;
 }
 
-static void emm_set_map_registers(char *ptr)
+static int emm_set_map_registers(char *ptr)
 {
   if (!config.ems_size)
-    return;
-  set_map_registers((struct emm_reg *)ptr, phys_pages);
+    return EMM_NO_ERR;
+  return set_map_registers((struct emm_reg *)ptr, phys_pages);
 }
 
 static int save_es=0;
@@ -1727,13 +1732,14 @@ alternate_map_register(struct vm86_regs * state)
       }
   switch (LO_BYTE_d(state->eax)) {
     case 1:{			/* Set Alternate Map Register */
-
+         Bit8u err;
 	 Kdebug1(("bios_emm: Set Alternate Registers\n"));
 
+         err = EMM_NO_ERR;
          if (state->es) {
-	   emm_set_map_registers((char *) Addr(state, es, edi));
+	   err = emm_set_map_registers((char *) Addr(state, es, edi));
          }
-         SETHI_BYTE(state->eax, EMM_NO_ERR);
+         SETHI_BYTE(state->eax, err);
          save_es=state->es;
          save_di=LO_WORD(state->edi);
 	 Kdebug1(("bios_emm: Set Alternate Registers - Setup ES:0x%x, DI:0x%x\n", save_es, save_di));
