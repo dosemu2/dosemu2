@@ -1235,6 +1235,14 @@ alter_map_and_call(struct vm86_regs * state)
     MEMCPY_2UNIX(&alter_map_call, SEGOFF2LINEAR(state->ds, LO_WORD(state->esi)),
 		 sizeof alter_map_call);
 
+    if (handle >= MAX_HANDLES) {
+      SETHI_BYTE(state->eax, EMM_INV_HAN);
+      return;
+    }
+    if (!handle_info[handle].active) {
+      SETHI_BYTE(state->eax, EMM_INV_HAN);
+      return;
+    }
     ret = alter_map(method, handle, &alter_map_call.new_map);
     SETHI_BYTE(state->eax, ret);
     if (ret != EMM_NO_ERR) break; /* mapping error */
