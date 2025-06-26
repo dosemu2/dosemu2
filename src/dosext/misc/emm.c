@@ -1168,13 +1168,21 @@ alter_map_and_jump(struct vm86_regs * state)
   case MULT_LOGSEG: {
     /* input parameters */
     struct alter_map_jmp_struct alter_map_jmp;
-    int handle;
+    unsigned int handle;
     u_short seg, off;
     int ret;
 
     MEMCPY_2UNIX(&alter_map_jmp, SEGOFF2LINEAR(state->ds, LO_WORD(state->esi)),
 		 sizeof alter_map_jmp);
     handle = LO_WORD(state->edx);
+    if (handle >= MAX_HANDLES) {
+      SETHI_BYTE(state->eax, EMM_INV_HAN);
+      return;
+    }
+    if (!handle_info[handle].active) {
+      SETHI_BYTE(state->eax, EMM_INV_HAN);
+      return;
+    }
     ret = alter_map(method, handle, &alter_map_jmp.alter_map);
     SETHI_BYTE(state->eax, ret);
 
