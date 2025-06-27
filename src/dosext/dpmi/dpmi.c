@@ -4199,6 +4199,7 @@ void dpmi_setup(void)
 		    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
     dpmi_api_init(data_sel, block->base, DPMI_page_size * 2);
 
+    msdoshlp_setup();
     if (config.pm_dos_api)
       msdos_setup();
 

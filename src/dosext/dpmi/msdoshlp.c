@@ -703,12 +703,16 @@ static void exthlp_thr(void *arg)
 }
 #endif
 
+void msdoshlp_setup(void)
+{
+    hlt_state = hlt_init(DPMI_SEL_OFF(MSDOS_hlt_end) -
+	    DPMI_SEL_OFF(MSDOS_hlt_start));
+}
+
 void msdoshlp_init(int (*is_32)(void), int len)
 {
     msdos.is_32 = is_32;
 #ifdef DOSEMU
-    hlt_state = hlt_init(DPMI_SEL_OFF(MSDOS_hlt_end) -
-	    DPMI_SEL_OFF(MSDOS_hlt_start));
     doshlp_setup_m(&ext_helper, "msdos ext thr", exthlp_thr, do_dpmi_iret,
 	    len);
     exechlp_setup();

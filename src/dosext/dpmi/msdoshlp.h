@@ -50,6 +50,7 @@ far_t get_exec_helper(void);
 far_t get_term_helper(void);
 
 void msdoshlp_init(int (*is_32)(void), int len);
+void msdoshlp_setup(void);
 
 struct dos_helper_s {
     int tid;
