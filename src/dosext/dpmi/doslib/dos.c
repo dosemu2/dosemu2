@@ -17,141 +17,158 @@
 #include "../emudpmi.h"
 #include "../dpmisel.h"
 #include "../dpmi_api.h"
-#include "../msdoshlp.h"
 #include "coopth.h"
 #include "dos.h"
 
 unsigned _dos_open(const char *pathname, unsigned mode, int *handle)
 {
   cpuctx_t *scp = dpmi_get_scp();
-  cpuctx_t saved_scp = *scp;
+  __dpmi_regs regs = {};
   int len = strlen(pathname) + 1;
-  __dpmi_paddr nm = dapi_alloc(len);
   unsigned ret = 0;
+  int is_32 = dpmi_is_32();
+  int sel;
+  int para = (len >> 4) + 1;
+  int seg;
 
-  _eax = 0x3d00 | (mode & 0xff);
-  _ecx = 0;
-  _ds = nm.selector;
-  _edx = nm.offset32;
-  memcpy(SEL_ADR(_ds, _edx), pathname, len);
-  doshlp_call_msdos(scp);
-  if (_eflags & CF)
-    ret = _eax;
+  if (len > 65536 - 16)
+    return -1;
+  seg = _dpmi_allocate_dos_memory(scp, is_32, para, &sel);
+  if (seg == -1)
+    return -1;
+
+  regs.d.eax = 0x3d00 | (mode & 0xff);
+  regs.d.ecx = 0;
+  regs.x.ds = seg;
+  regs.d.edx = 0;
+  MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0), pathname, len);
+  _dpmi_simulate_real_mode_interrupt(scp, is_32, 0x21, &regs);
+  if (regs.x.flags & CF)
+    ret = regs.d.eax;
   else
-    *handle = _eax;
+    *handle = regs.d.eax;
+  _dpmi_free_dos_memory(scp, is_32, sel);
 
-  dapi_free(nm);
-  *scp = saved_scp;
   return ret;
 }
 
 unsigned _dos_read(int handle, void *buffer, unsigned count, unsigned *numread)
 {
   cpuctx_t *scp = dpmi_get_scp();
-  cpuctx_t saved_scp = *scp;
-  __dpmi_paddr buf = dapi_alloc(count);
+  __dpmi_regs regs = {};
   unsigned ret = 0;
+  int is_32 = dpmi_is_32();
+  int sel;
+  int para = (count >> 4) + 1;
+  int seg;
 
-  _eax = 0x3f00;
-  _ebx = handle;
-  _ecx = count;
-  _ds = buf.selector;
-  _edx = buf.offset32;
-  doshlp_call_msdos(scp);
-  if (_eflags & CF)
-    ret = _eax;
+  if (count > 65536 - 16)
+    return -1;
+  seg = _dpmi_allocate_dos_memory(scp, is_32, para, &sel);
+  if (seg == -1)
+    return -1;
+
+  regs.d.eax = 0x3f00;
+  regs.d.ebx = handle;
+  regs.d.ecx = count;
+  regs.x.ds = seg;
+  regs.d.edx = 0;
+  _dpmi_simulate_real_mode_interrupt(scp, is_32, 0x21, &regs);
+  if (regs.x.flags & CF)
+    ret = regs.d.eax;
   else {
-    *numread = _eax;
-    memcpy(buffer, SEL_ADR(_ds, _edx), count);
+    *numread = regs.d.eax;
+    MEMCPY_2UNIX(buffer, SEGOFF2LINEAR(seg, 0), regs.d.eax);
   }
+  _dpmi_free_dos_memory(scp, is_32, sel);
 
-  dapi_free(buf);
-  *scp = saved_scp;
   return ret;
 }
 
 unsigned _dos_write(int handle, const void *buffer, unsigned count, unsigned *numwrt)
 {
   cpuctx_t *scp = dpmi_get_scp();
-  cpuctx_t saved_scp = *scp;
-  __dpmi_paddr buf = dapi_alloc(count);
+  __dpmi_regs regs = {};
   unsigned ret = 0;
+  int is_32 = dpmi_is_32();
+  int sel;
+  int para = (count >> 4) + 1;
+  int seg;
 
-  _eax = 0x4000;
-  _ebx = handle;
-  _ecx = count;
-  _ds = buf.selector;
-  _edx = buf.offset32;
-  memcpy(SEL_ADR(_ds, _edx), buffer, count);
-  doshlp_call_msdos(scp);
-  if (_eflags & CF)
-    ret = _eax;
+  if (count > 65536 - 16)
+    return -1;
+  seg = _dpmi_allocate_dos_memory(scp, is_32, para, &sel);
+  if (seg == -1)
+    return -1;
+
+  regs.d.eax = 0x4000;
+  regs.d.ebx = handle;
+  regs.d.ecx = count;
+  regs.x.ds = seg;
+  regs.d.edx = 0;
+  MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0), buffer, count);
+  _dpmi_simulate_real_mode_interrupt(scp, is_32, 0x21, &regs);
+  if (regs.x.flags & CF)
+    ret = regs.d.eax;
   else
-    *numwrt = _eax;
+    *numwrt = regs.d.eax;
+  _dpmi_free_dos_memory(scp, is_32, sel);
 
-  dapi_free(buf);
-  *scp = saved_scp;
   return ret;
 }
 
 unsigned long _dos_seek(int handle, unsigned long offset, int origin)
 {
   cpuctx_t *scp = dpmi_get_scp();
-  cpuctx_t saved_scp = *scp;
+  __dpmi_regs regs = {};
   unsigned ret = 0;
+  int is_32 = dpmi_is_32();
 
-  _eax = 0x4200 | (origin & 3);
-  _ebx = handle;
-  _ecx = offset >> 16;
-  _edx = offset & 0xffff;
-  doshlp_call_msdos(scp);
-  if (_eflags & CF)
+  regs.d.eax = 0x4200 | (origin & 3);
+  regs.d.ebx = handle;
+  regs.d.ecx = offset >> 16;
+  regs.d.edx = offset & 0xffff;
+  _dpmi_simulate_real_mode_interrupt(scp, is_32, 0x21, &regs);
+  if (regs.x.flags & CF)
     ret = -1;
   else
-    ret = (_edx << 16) | (_eax & 0xffff);
+    ret = (regs.d.edx << 16) | (regs.d.eax & 0xffff);
 
-  *scp = saved_scp;
   return ret;
 }
 
 int _dos_close(int handle)
 {
   cpuctx_t *scp = dpmi_get_scp();
-  cpuctx_t saved_scp = *scp;
+  __dpmi_regs regs = {};
   unsigned ret = 0;
+  int is_32 = dpmi_is_32();
 
-  _eax = 0x3e00;
-  _ebx = handle;
-  doshlp_call_msdos(scp);
-  if (_eflags & CF)
-    ret = _eax;
+  regs.d.eax = 0x3e00;
+  regs.d.ebx = handle;
+  _dpmi_simulate_real_mode_interrupt(scp, is_32, 0x21, &regs);
+  if (regs.x.flags & CF)
+    ret = regs.d.eax;
 
-  *scp = saved_scp;
   return ret;
 }
 
 int _dos_link_umb(int on)
 {
   cpuctx_t *scp = dpmi_get_scp();
-  cpuctx_t saved_scp = *scp;
-  unsigned ret = 0;
+  __dpmi_regs regs = {};
+  int is_32 = dpmi_is_32();
 
-  _eax = 0x5803;
-  _ebx = on;
-  doshlp_call_msdos(scp);
-  if (_eflags & CF) {
-    ret = _eax;
-    goto done;
-  }
-  _eax = 0x5801;
-  _ebx = on ? 0x80 : 0;
-  doshlp_call_msdos(scp);
-  if (_eflags & CF) {
-    ret = _eax;
-    goto done;
-  }
+  regs.d.eax = 0x5803;
+  regs.d.ebx = on;
+  _dpmi_simulate_real_mode_interrupt(scp, is_32, 0x21, &regs);
+  if (regs.x.flags & CF)
+    return regs.d.eax;
+  regs.d.eax = 0x5801;
+  regs.d.ebx = on ? 0x80 : 0;
+  _dpmi_simulate_real_mode_interrupt(scp, is_32, 0x21, &regs);
+  if (regs.x.flags & CF)
+    return regs.d.eax;
 
-done:
-  *scp = saved_scp;
-  return ret;
+  return 0;
 }
