@@ -901,16 +901,7 @@ LFN_42_A6_HELPER_COMMON:
         pushw	%di
         pushw	%bx
         pushw	%ax
-        movw	$0x1220, %ax
-        int	$0x2f
-        jc	1f
-        movzbw	%es:(%di), %bx
-        cmpb	$0xff, %bl
-        movw	$6, %ax		/* error code: invalid handle */
-        stc			/* initialise CY if jumping */
-        je	1f
-        movw	$0x1216, %ax
-        int	$0x2f
+        call	get_sft_entry
         jc	1f
         popw	%ax		/* restore function number */
         orb	$0x80, %al	/* add extension bit */
@@ -925,6 +916,20 @@ LFN_42_A6_HELPER_COMMON:
         popw	%es
         lret
 /* ----------------------------------------------------------------- */
+
+get_sft_entry:
+        movw	$0x1220, %ax	/* get JFT entry */
+        int	$0x2f
+        jc	1f
+        movzbw	%es:(%di), %bx	/* load SFT index */
+        cmpb	$0xff, %bl
+        movw	$6, %ax		/* error code: invalid handle */
+        stc			/* initialise CY if jumping */
+        je	1f
+        movw	$0x1216, %ax	/* get SFT entry */
+        int	$0x2f
+1:
+        ret
 
 	.globl DBGload_OFF
 DBGload_OFF:
