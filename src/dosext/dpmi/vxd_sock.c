@@ -39,8 +39,6 @@ struct sock_s {
 static struct sock_s socks[SOCK_MAX];
 static int num_socks;
 
-enum { P_TCP = 6, P_UDP = 17 };
-
 static struct sock_s *sock_alloc(void)
 {
     struct sock_s *ret;
@@ -133,7 +131,7 @@ void VXD_Sock(cpuctx_t *scp)
                 _eflags |= CF;
                 break;
             }
-            if (_ebx == P_TCP)
+            if (_ebx == IPPROTO_TCP)
                 sock->fd = socket(AF_INET, SOCK_STREAM, 0);
             else
                 sock->fd = socket(AF_INET, SOCK_DGRAM, 0);
