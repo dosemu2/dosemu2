@@ -84,7 +84,7 @@
 static serial_t *sptr;
 static serial_t nullser;
 static mouse_t *mptr = &config.mouse;
-static int c_ser = 0;
+#define c_ser config.num_ser
 
 static struct disk *dptr;
 static struct disk nulldisk;
@@ -2110,10 +2110,9 @@ static void stop_serial(void)
         sptr->mfs_idx_w = mfs_define_drive(sptr->wrfile);
     }
   }
-  if (!err) {
-    c_ser++;
-    config.num_ser = c_ser;
-  }
+  if (err)
+    return;
+  c_ser++;
 }
 
 	/* keyboard */
