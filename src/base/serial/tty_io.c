@@ -659,6 +659,7 @@ static int tty_open(com_t *c)
     if (c->fd == -1)
       return -1;
     c->cfg->pseudo = TRUE;
+    ser_set_params(c);
     add_to_io_select(c->fd, async_serial_run, (void *)c);
     return c->fd;
   }
@@ -680,6 +681,7 @@ static int tty_open(com_t *c)
       return -1;
     }
     c->cfg->pseudo = TRUE;
+    ser_set_params(c);
     add_to_io_select(c->fd, async_serial_run, (void *)c);
     return c->fd;
   }
