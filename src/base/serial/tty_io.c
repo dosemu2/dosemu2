@@ -620,13 +620,15 @@ static int pty_open(com_t *c, const char *cmd)
   int pty_fd;
 
   pty_fd = pty_init(c);
-  pid_t pid = run_external_command("/bin/sh", argc, argv, 1, -1, pty_fd);
-  if (pid == -1)
-    return -1;
-  sigchld_register_handler(pid, pty_exit, c);
-  c->pty_pid = pid;
   cfmakeraw(&t);
   tcsetattr(pty_fd, TCSANOW, &t);
+  pid_t pid = run_external_command("/bin/sh", argc, argv, 1, -1, pty_fd);
+  if (pid == -1) {
+    close(pty_fd);
+    return -1;
+  }
+  sigchld_register_handler(pid, pty_exit, c);
+  c->pty_pid = pid;
   return pty_fd;
 }
 
