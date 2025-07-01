@@ -1120,7 +1120,8 @@ static int pts_open(int pty_fd)
 	error("grantpt failed: %s\n", strerror(errno));
 	return err;
     }
-    pts_fd = open(ptsname(pty_fd), O_RDWR | O_CLOEXEC);
+    /* don't set O_CLOEXEC here */
+    pts_fd = open(ptsname(pty_fd), O_RDWR);
     if (pts_fd == -1) {
 	error("pts open failed: %s\n", strerror(errno));
 	return -1;
