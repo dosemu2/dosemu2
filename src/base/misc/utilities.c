@@ -434,6 +434,40 @@ char *expand_path(const char *dir)
 	return s;
 }
 
+char *expand_cmd(const char *cmd, const char **r_cmd)
+{
+	char *s, *f, *rt;
+	const char *rp;
+	wordexp_t p = {};
+	int err;
+
+	f = strdup(cmd);
+	s = strchr(f, ' ');
+	if (s)
+		*s = '\0';
+	err = wordexp_lite(f, &p, WRDE_NOCMD);
+	if (err)
+		goto err_fr1;
+	if (p.we_wordc != 1)
+		goto err_fr2;
+	*s = ' ';
+	rp = findprog(p.we_wordv[0], getenv("PATH"));
+	wordfree_lite(&p);
+	if (!rp)
+		goto err_fr1;
+	rt = concat_strings(rp, s);
+	free(f);
+	if (r_cmd)
+		*r_cmd = rp;
+	return rt;
+
+err_fr2:
+	wordfree_lite(&p);
+err_fr1:
+	free(f);
+	return NULL;
+}
+
 static int set_dir_acl(int fd)
 {
     int ret = 0;
@@ -1325,19 +1359,11 @@ int mktmp_in(const char *dir_tmpl, const char *fname, mode_t mode,
   return fd;
 }
 
-char *concat_strings(char *dst, const char *pref, const char *suff)
+char *concat_strings(const char *pref, const char *suff)
 {
-  char *ret = malloc((dst ? strlen(dst) : 0) + strlen(pref) + strlen(suff) + 1);
-  assert(ret);
-  if (dst) {
-    strcpy(ret, dst);
-    free(dst);
-    if (pref[0] != '\0')
-      strcat(ret, pref);
-    strcat(ret, suff);
-  } else {
-    strcpy(ret, suff);
-  }
+  char *ret = malloc(strlen(pref) + strlen(suff) + 1);
+  strcpy(ret, pref);
+  strcat(ret, suff);
   return ret;
 }
 

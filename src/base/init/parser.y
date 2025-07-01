@@ -1485,8 +1485,11 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 		| IRQ expression		{ sptr->irq = $2; }
 		| MOUSE			{ sptr->mouse = 1;
 					  config.num_serial_mices++; }
-		| EXEC string_expr	  { free(sptr->exec);
-					    sptr->exec = $2; }
+		| EXEC string_expr	  {
+					    free(sptr->exec);
+					    sptr->exec = expand_cmd($2, NULL);
+					    free($2);
+					  }
 		| PTS string_expr	  { free(sptr->pts);
 					    sptr->pts = $2; }
 		| WRFILE string_expr	  { free(sptr->wrfile);

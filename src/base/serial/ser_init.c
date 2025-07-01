@@ -382,13 +382,13 @@ void serial_init(void)
     com[i].dev_locked = FALSE;
     com[i].drv = com_cfg[i].mouse ? &serm_drv :
 	    (com_cfg[i].nullmm ? &nullmm_drv : &tty_drv);
-
-    /* Serial port init is skipped if the port is used for a mouse, and
-     * dosemu is running in Xwindows, or not at the console.  This is due
-     * to the fact the mouse is in use by Xwindows (internal driver is used)
-     * Direct access to the mouse by dosemu is useful mainly at the console.
-     */
     do_ser_init(i);
+    /* normally opening ports is delayed to the first access, as the
+     * port device (/dev/ttySx etc) may be used by other processes.
+     * But the "fake" ports can be opened early. And especially for
+     * exec, which is later not possible due to landlock restrictions. */
+    if (com_cfg[i].exec)
+      com[i].opened = ser_open(i);
   }
 
   init_dmxs();
