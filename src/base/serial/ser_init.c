@@ -387,7 +387,7 @@ void serial_init(void)
      * port device (/dev/ttySx etc) may be used by other processes.
      * But the "fake" ports can be opened early. And especially for
      * exec, which is later not possible due to landlock restrictions. */
-    if (com_cfg[i].exec)
+    if (com_cfg[i].exec || com_cfg[i].pts)
       com[i].opened = ser_open(i);
   }
 
