@@ -109,9 +109,6 @@ else
   AC_PATH_PROGS([XAS], [i686-linux-gnu-as i386-elf-as])
 fi
 if test -z "$XAS"; then
-  if test "$CONFIG_HOST" = "Darwin"; then
-    AC_MSG_ERROR([Please install i386-elf-binutils from https://github.com/nativeos/homebrew-i386-elf-toolchain])
-  fi
   AC_PATH_PROG([XAS], [x86_64-linux-gnu-as])
   if test -z "$XAS"; then
     if test "$machine" = "i386" -o "$machine" = "x86_64"; then
