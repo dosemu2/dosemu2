@@ -108,6 +108,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
     int heap_sz;
     int khigh = 0;
     int hhigh = 0;
+    uint16_t lseg = 0;
 
     if (!initialized) {
 	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
@@ -139,6 +140,15 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
         return -1;
     assert(off < 65536);
     assert(!kptr);
+#if defined(FDPP_LDR_VER) && FDPP_LDR_VER >= 2
+    lseg = FdppGetLoadSeg(hndl);
+#endif
+    if (config.dos_up && lseg) {
+        error("@Warning: fdpp: unrelocatable kernel, load_seg=%#x\n", lseg);
+        config.dos_up = 0;
+        /* Don't do anything further with this lseg, as fdpp APIs
+         * just ignore seg when the kernel is not relocatable. */
+    }
     if (config.dos_up) {
         int tot_sz;
         int to_hma = (config.dos_up == 2 && xms_helper_init_ext());
