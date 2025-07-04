@@ -253,6 +253,20 @@ void memory_init(void)
   lowmem_init();
 }
 
+void memory_late_init(void)
+{
+#if defined(__i386__) || defined(DNATIVE)
+  /* smalloc uses PROT_READ | PROT_WRITE, needs to add PROT_EXEC here */
+  mprotect_mapping(MAPPING_LOWMEM, 0, LOWMEM_SIZE + HMASIZE, PROT_RWX);
+#endif
+#if 0
+  mcommit_mapping(0, LOWMEM_SIZE + HMASIZE);
+#endif
+  /* map KVM memory */
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+    set_kvm_memory_regions();
+}
+
 /*
  * DANG_BEGIN_FUNCTION device_init
  *
@@ -419,13 +433,6 @@ void map_memory_space(void)
   sminit_f(&main_pool, mem_base, memsize, SMFLG_NOMEMSET);
   ptr = smalloc(&main_pool, LOWMEM_SIZE + HMASIZE);
   assert(ptr == mem_base);
-#if defined(__i386__) || defined(DNATIVE)
-  /* smalloc uses PROT_READ | PROT_WRITE, needs to add PROT_EXEC here */
-  mprotect_mapping(MAPPING_LOWMEM, 0, LOWMEM_SIZE + HMASIZE, PROT_RWX);
-#endif
-#if 0
-  mcommit_mapping(0, LOWMEM_SIZE + HMASIZE);
-#endif
   /* we have an uncommitted hole up to phys_low */
   ptr += phys_low;
   phys_rsv = phys_low - (LOWMEM_SIZE + HMASIZE);
