@@ -288,7 +288,7 @@ static in_addr_t get_ntp(const char *host)
     hints.ai_protocol = IPPROTO_UDP;
     err = getaddrinfo(host, "ntp", &hints, &res);
     if (err) {
-        error("getaddrinfo(): %s\n", strerror(errno));
+        error("getaddrinfo(): %s\n", gai_strerror(err));
         return 0;
     }
     sin = (struct sockaddr_in *)res->ai_addr;
