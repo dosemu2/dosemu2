@@ -387,9 +387,7 @@ int emulate(int argc, char **argv, char * const *envp)
 
     timer_interrupt_init();	/* start sending int 8h int signals */
 
-    /* map KVM memory */
-    if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
-      set_kvm_memory_regions();
+    memory_late_init();
 
     cpu_reset();
     if (config.cpu_vm == CPUVM_KVM)

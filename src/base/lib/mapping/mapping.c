@@ -82,6 +82,7 @@ static int init_done = 0;
 static struct {
   unsigned char *base;
   size_t size;
+  unsigned int nx:1;
 } mem_bases[MAX_BASES];
 unsigned char *_mem_base(void)
 {
@@ -322,7 +323,9 @@ int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *so
     if (target == MAP_FAILED)
       continue;
     /* protections on KVM_BASE go via page tables in the VM, not mprotect */
-    prot = i == KVM_BASE ? PROT_RWX : protect;
+    prot = i == KVM_BASE ? PROT_RW : protect;
+    if (mem_bases[i].nx)
+      prot &= ~PROT_EXEC;
     addr = mappingdriver->alias(cap, target, mapsize, prot, source);
     if (addr == MAP_FAILED)
       return -1;
@@ -420,6 +423,8 @@ void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect)
   if (cap & MAPPING_INIT_LOWRAM) {
     mem_bases[MEM_BASE].base = addr;
     mem_bases[MEM_BASE].size = mapsize;
+    if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+      mem_bases[MEM_BASE].nx = config.dpmi_remote;
     if (is_kvm_map(cap)) {
       mapsize = LOWMEM_SIZE + HMASIZE;
       protect = PROT_RWX;
@@ -433,6 +438,7 @@ void *mmap_mapping_huge_page_aligned(int cap, size_t mapsize, int protect)
     if (config.cpu_vm == CPUVM_VM86) {
       mem_bases[VM86_BASE].base = 0;
       mem_bases[VM86_BASE].size = ALIAS_SIZE;
+      mem_bases[VM86_BASE].nx = 0;
     }
 #endif
   }
@@ -549,6 +555,8 @@ static int do_mprot(dosaddr_t targ, size_t mapsize, int protect)
     /* protections on KVM_BASE go via page tables in the VM, not mprotect */
     if (addr == MAP_FAILED || i == KVM_BASE)
       continue;
+    if (mem_bases[i].nx)
+      protect &= ~PROT_EXEC;
     ret = mprotect(addr, mapsize, protect);
     if (ret) {
       error("mprotect() failed: %s\n", strerror(errno));
@@ -655,6 +663,7 @@ void mapping_init(void)
   for (i = 0; i < MAX_BASES; i++) {
     mem_bases[i].base = MAP_FAILED;
     mem_bases[i].size = 0;
+    mem_bases[i].nx = 1;
   }
 }
 
@@ -1371,10 +1380,13 @@ void *mmap_shm_mapping(dosaddr_t targ, size_t length, int prot, int fd)
   int flags = MAP_SHARED | MAP_FIXED;
 
   for (i = 0; i < MAX_BASES; i++) {
+    int prot2 = prot;
     addr = MEM_BASE32x(targ, i);
     if (addr == MAP_FAILED)
       continue;
-    ret = mmap(addr, length, prot, flags, fd, 0);
+    if (mem_bases[i].nx)
+      prot2 &= ~PROT_EXEC;
+    ret = mmap(addr, length, prot2, flags, fd, 0);
     if (ret != addr)
       return MAP_FAILED;
   }

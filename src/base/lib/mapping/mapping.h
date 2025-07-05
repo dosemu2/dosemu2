@@ -49,6 +49,7 @@
 #define PROT_RWX (PROT_READ | PROT_WRITE | _PROT_EXEC)
 #define DPMI_PROT_RWX (PROT_READ | PROT_WRITE | DPMI_PROT_EXEC)
 #define KVM_PROT_RWX (PROT_READ | PROT_WRITE | KVM_PROT_EXEC)
+#define PROT_RW (PROT_READ | PROT_WRITE)
 
 #define Q__printf(f,cap,a...) ({\
   Q_printf(f,decode_mapping_cap(cap),##a); \
