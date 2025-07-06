@@ -32,8 +32,6 @@
 #ifndef EMU_NETINET_TCP_H
 #define EMU_NETINET_TCP_H	1
 
-#include <features.h>
-
 /*
  * User-settable options (used with setsockopt).
  */
@@ -105,11 +103,11 @@ struct tcphdr
 	uint16_t th_dport;	/* destination port */
 	tcp_seq th_seq;		/* sequence number */
 	tcp_seq th_ack;		/* acknowledgement number */
-# if __BYTE_ORDER == __LITTLE_ENDIAN
+# if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	uint8_t th_x2:4;	/* (unused) */
 	uint8_t th_off:4;	/* data offset */
 # endif
-# if __BYTE_ORDER == __BIG_ENDIAN
+# if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	uint8_t th_off:4;	/* data offset */
 	uint8_t th_x2:4;	/* (unused) */
 # endif
@@ -130,7 +128,7 @@ struct tcphdr
 	uint16_t dest;
 	uint32_t seq;
 	uint32_t ack_seq;
-# if __BYTE_ORDER == __LITTLE_ENDIAN
+# if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	uint16_t res1:4;
 	uint16_t doff:4;
 	uint16_t fin:1;
@@ -140,7 +138,7 @@ struct tcphdr
 	uint16_t ack:1;
 	uint16_t urg:1;
 	uint16_t res2:2;
-# elif __BYTE_ORDER == __BIG_ENDIAN
+# elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	uint16_t doff:4;
 	uint16_t res1:4;
 	uint16_t res2:2;
