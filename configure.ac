@@ -306,6 +306,8 @@ AC_CHECK_FUNCS([timerfd_create], [
 AC_CHECK_FUNCS([mremap])
 AC_CHECK_FUNCS([fls])
 AC_CHECK_FUNCS([statfs])
+AC_CHECK_FUNCS([memrchr])
+AC_CHECK_FUNCS([mempcpy])
 
 AC_CHECK_FUNCS([memfd_create], [
   # memfd_create is linkable on android, but may not be declared, so re-check
