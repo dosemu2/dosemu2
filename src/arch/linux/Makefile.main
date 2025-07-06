@@ -84,7 +84,7 @@ ifeq ($(OS),Darwin)
 	$(LD) $(ALL_LDFLAGS) -o $@ \
 	   -Wl,-all_load $(LIBS_) $(LIBS) \
 	   -Wl,-map,$(BINPATH)/bin/dosemu.map \
-	   -shared -Wl,-Bsymbolic -Wl,-soname=$(DOSLIB)
+	   -shared
 else
 	$(LD) $(ALL_LDFLAGS) -o $@ \
 	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS) \
