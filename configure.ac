@@ -754,9 +754,11 @@ if test "$CONFIG_HOST" = "Linux"; then
   fi
 fi
 
+PLUGIN_LDFLAGS="-shared"
 if test "$CONFIG_HOST" = "Darwin"; then
-   DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -Wl,-undefined,dynamic_lookup"
+   PLUGIN_LDFLAGS="$PLUGIN_LDFLAGS -Wl,-undefined,dynamic_lookup"
 fi
+AC_SUBST(PLUGIN_LDFLAGS)
 
 if test "$machine" != "wasm32"; then
   AC_ARG_ENABLE(mcontext,
