@@ -108,6 +108,8 @@ typedef mcontext_t sigcontext_t;
 #define _scp_eflags ((*scp)->__ss.__rflags)
 #define _scp_rip    ((*scp)->__ss.__rip)
 #define _scp_rsp    ((*scp)->__ss.__rsp)
+#define _scp_rbp    ((*scp)->__ss.__rbp)
+#define _scp_rdi    ((*scp)->__ss.__rdi)
 #define _scp_cr2    ((*scp)->__es.__faultvaddr)
 #define _scp_trapno ((*scp)->__es.__trapno)
 #define _scp_err    ((*scp)->__es.__err)
