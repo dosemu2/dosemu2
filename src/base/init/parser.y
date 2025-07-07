@@ -2524,7 +2524,7 @@ static void set_hdimage(struct disk *dptr, char *name)
 
   c_printf("Setting up hdimage %s\n", name);
   if (l && strlen(l) == 4) {
-    const char *tmpl = "eval echo -n `cat %s`";
+    const char *tmpl = "eval printf %%s \\\"`cat %s`\\\"";
     char *cmd, path[1024], *rname;
     FILE *f;
     size_t ret;
