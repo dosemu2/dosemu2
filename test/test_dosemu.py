@@ -19,6 +19,7 @@ from common_os import (drdos701, frdos120, frdos130, frdosgit, msdos622,
                        msdos700, msdos710, ppdosgit)
 
 from func_comcom_r200fix import comcom_r200fix
+from func_command_com_cmdline_length import command_com_cmdline_length
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
 from func_ds2_file_seek_tell import ds2_file_seek_tell
@@ -3103,6 +3104,34 @@ $_debug = "-D+d"
                 break
 
         self.assertIn(self.systype, systypeline)
+
+    def test_command_com_cmdline_length_singlearg(self):
+        """Command.com cmdline length single arg"""
+        command_com_cmdline_length(self, 'singlearg')
+
+    def test_command_com_cmdline_length_multiargs(self):
+        """Command.com cmdline length multiple args"""
+        command_com_cmdline_length(self, 'multiargs')
+
+    def test_command_com_cmdline_length_truncate(self):
+        """Command.com cmdline length truncation"""
+        command_com_cmdline_length(self, 'truncate')
+
+    def test_command_com_command_copy(self):
+        """Command.com command copy"""
+
+        self.mkfile("testit.bat", r"""
+copy version.bat c:\tmp
+rem end
+""", newline="\r\n")
+
+        results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+""")
+        self.assertRegex(results,
+                r"1 [fF]ile\(s\) copied"
+                r"|"
+                r"version.bat =>+ c:\\tmp\\version.bat")
 
     def test_command_com_keyword_exist(self):
         """Command.com keyword exist"""
