@@ -17,5 +17,5 @@ include $(REALTOPDIR)/src/Makefile.common.post
 
 ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_lpt.so: $(OBJS) | $(BINPATH)/bin
-	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LPTLIB)
+	$(CC) $(LDFLAGS) $(PLUGIN_LDFLAGS) -o $@ $^ $(LPTLIB)
 endif

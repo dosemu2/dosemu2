@@ -349,6 +349,18 @@ char *assemble_path(const char *dir, const char *file)
 	return assemble_path2(dir, file, NULL);
 }
 
+#ifndef HAVE_MEMRCHR
+static void *memrchr(const void *s, int c, size_t n)
+{
+	const unsigned char *p = s;
+	while (n-- > 0) {
+		if (p[n] == c)
+			return &p[n];
+	}
+	return 0;
+}
+#endif
+
 // https://stackoverflow.com/questions/4774116/realpath-without-resolving-symlinks
 char *normalize_path(const char *src)
 {

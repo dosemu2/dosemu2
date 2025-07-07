@@ -26,7 +26,7 @@ include $(REALTOPDIR)/src/Makefile.common.post
 
 ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_sdl1.so: $(OBJS) | $(BINPATH)/bin
-	$(CC) $(LDFLAGS) -shared -o $@ $^ $(SDL_LIBS)
+	$(CC) $(LDFLAGS) $(PLUGIN_LDFLAGS) -o $@ $^ $(SDL_LIBS)
 endif
 
 install: all

@@ -105,6 +105,14 @@ static __inline__ char *w_addchar(char *buffer, size_t * actlen,
 
 	return buffer;
 }
+
+#ifndef HAVE_MEMPCPY
+static void *mempcpy(void *dest, const void *src, size_t n) {
+	memcpy(dest, src, n);
+	return (unsigned char *)dest + n;
+}
+#endif
+
 #ifndef MAX
 #define MAX( a, b ) ( ( ( a ) > ( b ) ) ? ( a ) : ( b ) )
 #endif

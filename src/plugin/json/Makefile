@@ -19,5 +19,5 @@ include $(REALTOPDIR)/src/Makefile.common.post
 
 ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_json.so: $(OBJS) | $(BINPATH)/bin
-	$(CC) $(LDFLAGS) -shared -o $@ $(OBJS) $(JSONCLIB)
+	$(CC) $(LDFLAGS) $(PLUGIN_LDFLAGS) -o $@ $(OBJS) $(JSONCLIB)
 endif

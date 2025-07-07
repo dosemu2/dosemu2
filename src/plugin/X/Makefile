@@ -20,7 +20,7 @@ ALL_CFLAGS+=$(DL_CFLAGS) -I$(srcdir)/include $(X_CFLAGS)
 
 ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_X.so: $(OBJS) | $(BINPATH)/bin
-	$(CC) $(LDFLAGS) -shared -o $@ $^ $(X_LIBS)
+	$(CC) $(LDFLAGS) $(PLUGIN_LDFLAGS) -o $@ $^ $(X_LIBS)
 endif
 
 _x_config.h.in: $(srcdir)/configure.ac

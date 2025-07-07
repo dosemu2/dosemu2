@@ -33,5 +33,5 @@ $(GEN_H) &: rpc_table.py
 
 ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_searpc.so: $(OBJS) | $(BINPATH)/bin
-	$(CC) $(LDFLAGS) -shared -o $@ $^ $(SR_LIBS)
+	$(CC) $(LDFLAGS) $(PLUGIN_LDFLAGS) -o $@ $^ $(SR_LIBS)
 endif

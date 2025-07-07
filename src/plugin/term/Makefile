@@ -22,5 +22,5 @@ include $(REALTOPDIR)/src/Makefile.common.post
 
 ifeq ($(USE_DL_PLUGINS),1)
 $(BINPATH)/bin/libplugin_term.so: $(OBJS) | $(BINPATH)/bin
-	$(CC) $(LDFLAGS) -shared -o $@ $(OBJS) $(SLANGLIB)
+	$(CC) $(LDFLAGS) $(PLUGIN_LDFLAGS) -o $@ $(OBJS) $(SLANGLIB)
 endif
