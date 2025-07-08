@@ -28,12 +28,10 @@ $(STUBSYMLINK): $(D1)/generic.com
 	$(LN_S) -f $(<F) $(D1)/$(@F)
 	$(LN_S) -f ../../$(THISVERSION)/commands/$(@F) $@
 
-%.com.elf: %.o
-	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0x100 -e _start16 -o $@ $<
+.PRECIOUS: $(subst $(D)/,$(D1)/,$(COM) $(STUBSYMLINK))
 
-.PRECIOUS: $(D1)/%
-$(D1)/%: %.elf
-	$(XOBJCOPY) -j .text -O binary $< $@
+$(D1)/%.com: %.o
+	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0x100 -e _start16 -o $@ $<
 	chmod -x $@
 
 install: all
