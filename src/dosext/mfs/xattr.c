@@ -43,11 +43,15 @@
 #define fsetxattr(fd,name,value,size,flags) fsetxattr(fd,name,value,size,0,flags)
 #endif
 
+#ifndef ENOATTR
+#define ENOATTR ENODATA
+#endif
+
 static int do_extr_xattr(const char *xbuf, ssize_t size, const char *name)
 {
   if (size == -1) {
     int errn = errno;
-    if (errn == ENODATA)
+    if (errn == ENODATA || errn == ENOATTR)
       return 0;
     error("MFS: failed to get xattrs for %s, %s\n", name, strerror(errn));
     return -1;
