@@ -12,6 +12,9 @@
 #include <limits.h>
 #include <sys/utsname.h>
 #include <sys/stat.h>
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#endif
 
 #include "version.h"
 #include "emu.h"
@@ -812,6 +815,34 @@ void secure_option_preparse(int *argc, char **argv)
 
 static void read_cpu_info(void)
 {
+#ifdef __APPLE__
+    long long chz = 0;
+    int val;
+    size_t len = sizeof(val);
+    config.realcpu = CPU_586;
+    config.cpuprefetcht0 = 1;
+    config.umip = 0; /* only needed for KVM, not used on MacOS */
+    if (config.mathco) {
+      sysctlbyname("hw.optional.floatingpoint", &val, &len, NULL, 0);
+      config.mathco = val;
+    }
+#ifdef __i386__
+    /* 32-bit Intel Macs untested but here for completeness */
+    sysctlbyname("hw.optional.sse", &val, &len, NULL, 0);
+    config.cpusse = val;
+    config.cpufxsr = val;
+#endif
+    sysctlbyname("hw.ncpu", &val, &len, NULL, 0);
+    config.smp = val > 1 ? 1 : 0;
+    len = sizeof(chz);
+    sysctlbyname("machdep.tsc.frequency", &chz, &len, NULL, 0);
+    /* speed division factor to get 1us from CPU clock */
+    config.cpu_spd = (LLF_US*1000000)/chz;
+    /* speed division factor to get 838ns from CPU clock */
+    config.cpu_tick_spd = (LLF_TICKS*1000000)/chz;
+    config.CPUSpeedInMhz = (chz+500000)/1000000;
+    warn ("CPU-EMU speed is %d MHz\n",config.CPUSpeedInMhz);
+#else
     char *cpuflags, *cpu;
     int k = 3;
     int err;
@@ -921,6 +952,7 @@ static void read_cpu_info(void)
       config.smp = 1;		/* for checking overrides, later */
     }
     close_proc_scan();
+#endif
 }
 
 static void config_post_process(void)
