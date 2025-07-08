@@ -163,21 +163,9 @@ if test -z "$OBJCOPY"; then
   OBJCOPY="$LOBJCOPY"
 fi
 
-if test -n "$CROSS_PREFIX"; then
-  AC_PATH_PROG([XOBJCOPY], [${CROSS_PREFIX}objcopy])
-  if test -z "$XOBJCOPY"; then
-    AC_MSG_ERROR([${CROSS_PREFIX}objcopy not found, CROSS_PREFIX is wrong])
-  fi
-else
-  AC_PATH_PROGS([XOBJCOPY], [i686-linux-gnu-objcopy x86_64-linux-gnu-objcopy llvm-objcopy objcopy])
-fi
-if test -z "$XOBJCOPY"; then
-  XOBJCOPY="$OBJCOPY"
-fi
 AC_SUBST(AS)
 AC_SUBST(XAS)
 AC_SUBST(AS_LD)
-AC_SUBST(XOBJCOPY)
 AC_PROG_INSTALL
 AC_PROG_LEX([noyywrap])
 if test -z "$LEX" -o "$LEX" = ":"; then
