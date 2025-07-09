@@ -111,7 +111,7 @@ fi
 if test -z "$XAS"; then
   AC_PATH_PROG([XAS], [x86_64-linux-gnu-as])
   if test -z "$XAS"; then
-    if test "$machine" = "i386" -o "$machine" = "x86_64"; then
+    if test \( "$machine" = "i386" -o "$machine" = "x86_64" \) -a "$CONFIG_HOST" != "Darwin"; then
       XAS="$AS"
       if test "$clang_as_as" = "1"; then
         XASFLAGS="$ASFLAGS -m32"
@@ -142,6 +142,9 @@ if test -n "$CROSS_PREFIX"; then
   fi
 else
   AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld i386-elf-ld x86_64-linux-gnu-ld ld.lld ld])
+  if test "$CONFIG_HOST" = "Darwin" -a `basename "$AS_LD"` = "ld"; then
+    AC_MSG_ERROR([Please install lld or i386-elf-binutils])
+  fi
 fi
 if test -z "$AS_LD"; then
   AS_LD="$LD"
