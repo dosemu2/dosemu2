@@ -178,6 +178,8 @@ static inline unsigned dpmi_flags_from_stack_iret(const cpuctx_t *scp,
 #define flags_to_pm(flags) ((flags & (0xdd5|IF)) | 2 | (_eflags_ & IOPL_MASK))
 #define flags_to_rm(flags) ((flags) | 2 | IOPL_MASK)
 
+void dpmi_retf(cpuctx_t *scp);
+
 #ifdef USE_MHPDBG   /* dosdebug support */
 int dpmi_mhp_regs(void);
 void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off);

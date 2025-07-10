@@ -23,6 +23,7 @@
 #include "dosemu_debug.h"
 #include "utilities.h"
 #include "emudpmi.h"
+#include "msdoshlp.h"
 #include "emu.h"
 #include "vxd.h"
 
@@ -38,6 +39,8 @@ struct sock_s {
 #define SOCK_MAX 32
 static struct sock_s socks[SOCK_MAX];
 static int num_socks;
+
+static struct dos_helper_s sock_hlp;
 
 static struct sock_s *sock_alloc(void)
 {
@@ -106,8 +109,9 @@ static enum CbkRet select_cb(int arg0, void *arg, int nfds, int *r_err)
 #define CSOCK_ERR_WOULD_BLOCK         0x00000b00
 #define CSOCK_ERR_NOT_LISTENING       0x00000c00
 
-void VXD_Sock(cpuctx_t *scp)
+static void sock_thr(void *arg)
 {
+    cpuctx_t *scp = arg;
     struct sock_s *sock;
     int rc;
 
@@ -398,4 +402,11 @@ void VXD_Sock(cpuctx_t *scp)
             break;
         }
     }
+}
+
+void VXD_Sock(cpuctx_t *scp)
+{
+    if (!sock_hlp.tid)
+        doshlp_setup(&sock_hlp, "sock vxd", sock_thr, dpmi_retf);
+    _eip = sock_hlp.entry;
 }

@@ -4867,6 +4867,11 @@ static void do_dpmi_retf(cpuctx_t *scp, void * const sp)
   }
 }
 
+void dpmi_retf(cpuctx_t *scp)
+{
+  do_dpmi_retf(scp, SEL_ADR(_ss, _esp));
+}
+
 /* rough iret emulation for HW handlers only */
 static void do_dpmi_iret(cpuctx_t *scp, void * const sp)
 {
