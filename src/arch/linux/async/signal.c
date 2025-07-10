@@ -772,7 +772,7 @@ static void SIGIO_call(void *arg){
 }
 #endif
 
-static void sigasync0(int sig)
+static int sigasync0(int sig)
 {
   pthread_t tid = pthread_self();
   if (!pthread_equal(tid, dosemu_pthread_self)) {
@@ -780,22 +780,28 @@ static void sigasync0(int sig)
     char name[128];
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("Async signal %i from thread %s\n", sig, name);
+#elif defined(__APPLE__)
+    /* somehow SIGALRM often gets unblocked in threads on MacOS,
+       forwarding to main thread */
+    pthread_kill(dosemu_pthread_self, sig);
 #else
     dosemu_error("Async signal %i from thread\n", sig);
 #endif
+    return 0;
   }
+  return 1;
 }
 
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
-  sigasync0(sig);
-  if (sighandlers[sig])
+  if (sigasync0(sig) && sighandlers[sig])
 	  sighandlers[sig](si);
 }
 
 static void sigasync_std(int sig, siginfo_t *si, void *uc)
 {
-  sigasync0(sig);
+  if (!sigasync0(sig))
+    return;
   if (!asighandlers[sig]) {
     error("handler for sig %i not registered\n", sig);
     return;

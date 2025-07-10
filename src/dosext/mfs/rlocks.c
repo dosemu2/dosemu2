@@ -161,9 +161,13 @@ int region_lock_offs(int fd, long long start, unsigned long len, int wr)
   int ret;
 
   /* needs to lock against lock changes in another process */
+#ifndef __APPLE__
+  /* on MacOS this kind of lock is incompatible with F_OFD_GETLK,
+     which then sets l_pid to -1 */
   ret = flock(fd, LOCK_EX);
   if (ret)
     return -1;
+#endif
   fl.l_type = wr ? F_WRLCK : F_RDLCK;
   fl.l_start = start;
   fl.l_len = len;
