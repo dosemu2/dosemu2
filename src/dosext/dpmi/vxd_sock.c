@@ -227,7 +227,7 @@ static void sock_thr(void *arg)
         }
 
         case SOCK_SELECT: {
-            struct sel_arg sel;
+            struct sel_arg sel = {};
             int i, err = 0, nfds = -1;
 
             for (i = 0; i < num_socks; i++) {
