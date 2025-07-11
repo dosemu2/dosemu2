@@ -266,9 +266,13 @@ static void sock_thr(void *arg)
                             _edx |= 1 << i;
                     }
                     break;
-                case 1:
+                case -1:
                     _eax = CSOCK_ERR_INTERNAL;
                     _eflags |= CF;
+                    break;
+                case 1:
+                    /* timeout */
+                    _eax = 0;
                     break;
             }
             break;
