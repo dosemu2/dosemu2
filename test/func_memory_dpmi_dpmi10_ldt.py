@@ -3,12 +3,6 @@ c:\\%s
 rem end
 """
 
-CONFIG = """\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-"""
-
-
 def memory_dpmi_dpmi10_ldt(self):
 
 # Note: Not sure if I need this
@@ -152,7 +146,7 @@ int main(int argc, char *argv[])
 }
 """)
 
-    results = self.runDosemu("testit.bat", config=CONFIG)
+    results = self.runDosemu("testit.bat")
 
     self.assertIn("Test 1 OK", results)
     self.assertIn("Test 2 OK", results)

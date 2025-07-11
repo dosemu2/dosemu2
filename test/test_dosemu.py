@@ -3080,10 +3080,7 @@ cmdline:
 
 """ % (1 + len(cmdline), cmdline))
 
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+        results = self.runDosemu("testit.bat")
 
         self.assertIn("PSP structure okay", results)
 
@@ -3141,9 +3138,8 @@ copy version.bat c:\tmp
 rem end
 """, newline="\r\n")
 
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-""")
+        results = self.runDosemu("testit.bat")
+
         self.assertRegex(results,
                 r"1 [fF]ile\(s\) copied"
                 r"|"
@@ -3207,10 +3203,7 @@ c:\\%s
 rem end
 """ % name, newline="\r\n")
 
-        return self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+        return self.runDosemu("testit.bat")
 
     def test_memory_dpmi_ecm_alloc(self):
         """Memory DPMI (ECM) alloc"""
@@ -3362,10 +3355,7 @@ c:\\tasm32 /h
 rem end
 """, newline="\r\n")
 
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+        results = self.runDosemu("testit.bat")
 
         # Look for last line of output to indicate successful load/run
         # /zi,/zd,/zn    Debug info: zi=full, zd=line numbers only, zn=none
@@ -3595,10 +3585,7 @@ lredir
 rem end
 """, newline="\r\n")
 
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+        results = self.runDosemu("testit.bat")
 
 # A:\>lredir
 # Current Drive Redirections:
@@ -4163,10 +4150,7 @@ int main(int argc, char *argv[]) {
 }
 """)
 
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+        results = self.runDosemu("testit.bat")
 
         self.assertNotIn("Call failed", results)
 
@@ -4818,10 +4802,7 @@ set PATH=C:\\devel\\watcomc\\binw;C:\\devel\\nasm;C:\\bin;%OLDPATH%
         # Note:
         #     We have to avoid runDosemu() as this test is non-interactive
         args = ["-q", "-K", ".", "-E", "build.bat"]
-        results = self.runDosemuCmdline(args, cwd=root, timeout=450, config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+        results = self.runDosemuCmdline(args, cwd=root, timeout=450)
 
         self.assertNotIn('Timeout', results)
         self.assertNotIn('NonZeroReturn', results)
@@ -4859,10 +4840,7 @@ $_floppy_a = ""
         # Note:
         #     We have to avoid runDosemu() as this test is non-interactive
         args = ["-q", "-K", r".:SOURCES\src", "-E", "MAKEMOS.BAT", r"path=%D\bin;%O"]
-        results = self.runDosemuCmdline(args, cwd=mosroot, timeout=300, config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+        results = self.runDosemuCmdline(args, cwd=mosroot, timeout=300)
 
         self.assertNotIn('Timeout', results)
         self.assertNotIn('NonZeroReturn', results)
@@ -4884,10 +4862,7 @@ rem end
 """, newline="\r\n")
 
         args = ["TESTVAR1=" + tstring1, "-E", "testit.bat"]
-        results = self.runDosemuCmdline(args, config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+        results = self.runDosemuCmdline(args)
 
         self.assertNotIn('Timeout', results)
         self.assertNotIn('NonZeroReturn', results)
@@ -4904,10 +4879,7 @@ int main(int argc, char *argv[])
 }
 """)
 
-        results = self.runDosemuCmdline(["-E", "justerro.com"], config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+        results = self.runDosemuCmdline(["-E", "justerro.com"])
 
         self.assertNotIn('Timeout', results)
         self.assertIn('NonZeroReturn:53', results)

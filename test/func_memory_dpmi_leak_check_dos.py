@@ -64,10 +64,7 @@ int main(int argc, char *argv[])
 }
 """)
 
-    results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+    results = self.runDosemu("testit.bat")
 
     # INFO: (TEST0) DPMI allocation (DOS) info: SEGMENT=04c5, SELECTOR=01bf
 

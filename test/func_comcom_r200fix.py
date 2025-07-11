@@ -30,10 +30,7 @@ r200fix bp701_rm
 rem end
 """, newline="\r\n")
 
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+        results = self.runDosemu("testit.bat")
 
         self.assertIn('Turbo Pascal 4.00', results)
         self.assertIn('Turbo Pascal 5.50', results)
@@ -52,10 +49,7 @@ r200fix bp701_pm
 rem end
 """, newline="\r\n")
 
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+        results = self.runDosemu("testit.bat")
 
         self.assertIn('Borland Pascal 7.01 Prot Mode', results)
         self.assertIn('Borland Pascal 7.00 Prot Mode', results)

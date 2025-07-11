@@ -3,12 +3,6 @@ c:\\%s
 rem end
 """
 
-CONFIG = """\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-"""
-
-
 def memory_hma_freespace(self):
 
     if 'FDPP' in self.version:
@@ -53,7 +47,7 @@ int main(int argc, char *argv[])
 
 """)
 
-    results = self.runDosemu("testit.bat", config=CONFIG)
+    results = self.runDosemu("testit.bat")
 
     self.assertIn("PASS:", results)
 
@@ -106,7 +100,7 @@ int main(int argc, char *argv[])
 
 """)
 
-    results = self.runDosemu("testit.bat", config=CONFIG)
+    results = self.runDosemu("testit.bat")
 
     self.assertIn("PASS:", results)
 
@@ -358,7 +352,7 @@ int main(int argc, char *argv[])
 
 """)
 
-    results = self.runDosemu("testit.bat", config=CONFIG)
+    results = self.runDosemu("testit.bat")
 
     self.assertIn("PASS:", results)
 
@@ -437,7 +431,7 @@ int main(int argc, char *argv[])
 
 """)
 
-    results = self.runDosemu("testit.bat", config=CONFIG)
+    results = self.runDosemu("testit.bat")
 
     self.assertIn("PASS:", results)
 
@@ -596,6 +590,6 @@ int main(int argc, char *argv[])
 
 """)
 
-    results = self.runDosemu("testit.bat", config=CONFIG)
+    results = self.runDosemu("testit.bat")
 
     self.assertIn("PASS:", results)
