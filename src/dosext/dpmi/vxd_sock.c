@@ -178,8 +178,8 @@ static void sock_thr(void *arg)
             switch (rc) { \
             case 0: \
                 error(n": EOF\n"); \
-                _eax = CSOCK_ERR_NOT_CONNECTED; \
-                _eflags |= CF; \
+                _eax = 0; \
+                _ecx = 0; \
                 break; \
             case -1: \
                 error(n": %s\n", strerror(errno)); \
