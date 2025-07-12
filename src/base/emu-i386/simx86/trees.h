@@ -59,15 +59,12 @@ typedef struct _bkref {
 #define TARGET_NT 2
 
 typedef struct _lnkdesc {
-	unsigned char t_type;
 	unsigned short nrefs;
 	union {
 		unsigned int *abs;
-		unsigned int rel;
 	} t_link;
 	union {
 		unsigned int *abs;
-		unsigned int rel;
 	} nt_link;
 	unsigned int t_target, nt_target;
 	unsigned unlinked_jmp_targets;
@@ -78,7 +75,6 @@ typedef struct _lnkdesc {
 typedef struct _imgen {
 	unsigned int op, mode, ovds;
 	unsigned int p0,p1,p2,p3,p4;
-	linkdesc *lt;
 } IGen;
 
 typedef struct _ianpc {
@@ -90,7 +86,6 @@ typedef struct _imeta {
 	int seqbase, npc;
 	unsigned short ncount, flags, seqlen;
 	unsigned int len, totlen, daddr;
-	linkdesc clink;
 	int ngen;
 	IGen gen[NUMGENS];
 } IMeta;

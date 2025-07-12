@@ -927,6 +927,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   Addr2Pc *ap;
   CodeBuf *mallmb;
   void **cp;
+  unsigned int op;
 
   key = I0->npc;
 
@@ -994,26 +995,29 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   nG->addr = (unsigned char *)&mallmb->meta[nap];
 
   /* setup structures for inter-node linking */
-  nG->clink.t_type  = I0->clink.t_type;
   nG->clink.unlinked_jmp_targets = 0;
-  if (I0->clink.t_type >= JMP_LINK) {
-    nG->clink.t_link.abs  = (unsigned int *)(nG->addr + I0->clink.t_link.rel);
-    nG->clink.t_target = *nG->clink.t_link.abs;
-    nG->clink.unlinked_jmp_targets |= TARGET_T;
+  op = I0[CurrIMeta-1].gen[I0[CurrIMeta-1].ngen-1].op;
+  if (op != JMP_INDIRECT) {
+    nG->clink.t_link.abs = (unsigned int *)(nG->addr + nG->len - TAILSIZE + TAILFIX);
+    if (op >= JMP_LINK) {
+      nG->clink.t_target = *nG->clink.t_link.abs;
+      nG->clink.unlinked_jmp_targets |= TARGET_T;
+    }
   }
   else
-    nG->clink.t_link.abs  = I0->clink.t_link.abs;
-  if (I0->clink.t_type > JMP_LINK) {
-    nG->clink.nt_link.abs = (unsigned int *)(nG->addr + I0->clink.nt_link.rel);
+    nG->clink.t_link.abs = NULL;
+  if (op > JMP_LINK) {
+    nG->clink.nt_link.abs = (unsigned int *)
+      (nG->addr + nG->len - 2*TAILSIZE + TAILFIX - (op == JB_LINK ? CKSIGNSIZE : 0));
     nG->clink.nt_target = *nG->clink.nt_link.abs;
     nG->clink.unlinked_jmp_targets |= TARGET_NT;
   }
   else
-    nG->clink.nt_link.abs = I0->clink.nt_link.abs;
-  if ((debug_level('e')>3) && nG->clink.t_type)
-	dbug_printf("Link %d: %p:%08x\n",nG->clink.t_type,
+    nG->clink.nt_link.abs = 0;
+  if ((debug_level('e')>3) && op >= JMP_LINK)
+	dbug_printf("Link %d: %p:%08x\n",op,
 		nG->clink.nt_link.abs,
-		(nG->clink.t_type>JMP_LINK? *nG->clink.nt_link.abs:0));
+		(op>JMP_LINK? *nG->clink.nt_link.abs:0));
 
   /* setup source/xlated instruction offsets */
   ap = nG->pmeta;
