@@ -387,7 +387,11 @@ static void avltr_delete(const int key)
 	    t->mblock->bkptr = t;
 	    s->addr = NULL;
 	    s->mblock = NULL;
-	    memset(&s->clink, 0, sizeof(linkdesc));
+	    s->nrefs = 0;
+	    memset(&s->clink_t, 0, sizeof(linkdesc));
+	    memset(&s->clink_nt, 0, sizeof(linkdesc));
+	    s->unlinked_jmp_targets = 0;
+	    memset(&s->bkr, 0, sizeof(backref));
 	    s->key = 0;
 
 	    if (s->rtag == PLUS) r->link[0] = s->link[1];
@@ -402,15 +406,15 @@ static void avltr_delete(const int key)
   if (debug_level('e')>2) e_printf("Remove node %p\n",p);
 #endif
 #ifdef DEBUG_LINKER
-	if (p->clink.nrefs) {
-	    dbug_printf("Cannot delete - nrefs=%d\n",p->clink.nrefs);
+	if (p->nrefs) {
+	    dbug_printf("Cannot delete - nrefs=%d\n",p->nrefs);
 	    leavedos_main(0x9140);
 	}
-	if (p->clink.bkr.next) {
+	if (p->bkr.next) {
 	    dbug_printf("Cannot delete - bkr busy\n");
 	    leavedos_main(0x9141);
 	}
-	if (p->clink.t_ref || p->clink.nt_ref) {
+	if (p->clink_t.ref || p->clink_nt.ref) {
 	    dbug_printf("Cannot delete - ref busy\n");
 	    leavedos_main(0x9142);
 	}
@@ -596,7 +600,7 @@ void avltr_destroy(void)
 		  p = p->link[1];
 		  break;
 	      }
-	      B = p->clink.bkr.next;
+	      B = p->bkr.next;
 	      while (B) {
 		  backref *B2 = B;
 		  B = B->next;
@@ -995,27 +999,27 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   nG->addr = (unsigned char *)&mallmb->meta[nap];
 
   /* setup structures for inter-node linking */
-  nG->clink.unlinked_jmp_targets = 0;
+  nG->unlinked_jmp_targets = 0;
   op = I0[CurrIMeta-1].gen[I0[CurrIMeta-1].ngen-1].op;
   if (op >= JMP_LINK) {
-    nG->clink.t_link.abs = (unsigned int *)(nG->addr + nG->len - TAILSIZE + TAILFIX);
-    nG->clink.t_target = *nG->clink.t_link.abs;
-    nG->clink.unlinked_jmp_targets |= TARGET_T;
+    nG->clink_t.link = (unsigned int *)(nG->addr + nG->len - TAILSIZE + TAILFIX);
+    nG->clink_t.target = *nG->clink_t.link;
+    nG->unlinked_jmp_targets |= TARGET_T;
   }
   else
-    nG->clink.t_link.abs = NULL;
+    nG->clink_t.link = NULL;
   if (op > JMP_LINK) {
-    nG->clink.nt_link.abs = (unsigned int *)
+    nG->clink_nt.link = (unsigned int *)
       (nG->addr + nG->len - 2*TAILSIZE + TAILFIX - (op == JB_LINK ? CKSIGNSIZE : 0));
-    nG->clink.nt_target = *nG->clink.nt_link.abs;
-    nG->clink.unlinked_jmp_targets |= TARGET_NT;
+    nG->clink_nt.target = *nG->clink_nt.link;
+    nG->unlinked_jmp_targets |= TARGET_NT;
   }
   else
-    nG->clink.nt_link.abs = 0;
+    nG->clink_nt.link = 0;
   if ((debug_level('e')>3) && op >= JMP_LINK)
 	dbug_printf("Link %d: %p:%08x\n",op,
-		nG->clink.nt_link.abs,
-		(op>JMP_LINK? *nG->clink.nt_link.abs:0));
+		nG->clink_nt.link,
+		(op>JMP_LINK? *nG->clink_nt.link:0));
 
   /* setup source/xlated instruction offsets */
   ap = nG->pmeta;
