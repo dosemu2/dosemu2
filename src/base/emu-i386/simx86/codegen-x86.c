@@ -2209,8 +2209,6 @@ shrot0:
 		break;
 
 	case JMP_INDIRECT: {	// input: %%{e}ax = %%{e}ip
-		linkdesc *lt = IG->lt;
-		lt->t_type = JMP_INDIRECT;
 		if (mode&DATA16)
 			// movz{wl} %%ax,%%eax
 			G3M(0x0f,0xb7,0xc0,Cp);
@@ -2281,7 +2279,6 @@ shrot0:
 		unsigned char opc = IG->p0;
 		int dspt = IG->p1;
 		int dspnt = IG->p2;
-		linkdesc *lt = IG->lt;
 		if (opc == CALLd || opc == CALLl) {
 			const unsigned char *p;
 			unsigned char *q;
@@ -2307,13 +2304,9 @@ shrot0:
 	        }
 		// t:	b8 [exit_pc] 5a c3
 		G1(0xb8,Cp);
-		lt->t_type = JMP_LINK;
-		/* {n}t_link = offset from codebuf start to immed value */
-		lt->t_link.rel = Cp-BaseGenBuf;
-		lt->nt_link.abs = 0;
 		G4(dspt,Cp); G2(0xc35a,Cp);
-		if (debug_level('e')>2) e_printf("JMP_Link %08x:%08x lk=%d:%08x:%p\n",
-			dspt,dspnt,lt->t_type,lt->t_link.rel,lt->nt_link.abs);
+		if (debug_level('e')>2) e_printf("JMP_Link %08x:%08x lk=%d\n",
+			dspt,dspnt,IG->op);
 		}
 		break;
 
@@ -2323,7 +2316,6 @@ shrot0:
 		int jpc = IG->p1;
 		int dspt = IG->p2;
 		int dspnt = IG->p3;
-		linkdesc *lt = IG->lt;
 		int sz;
 		//	JCXZ:	8b 4b Ofs_ECX e3 07 or 0f b7 4b Ofs_ECX e3 07
 		//	JCC:	7x 07
@@ -2331,7 +2323,7 @@ shrot0:
 		// t:	0f b7 4f [sig] e3 07
 		//	b8 [sig_pc] 5a c3
 		//	b8 [t_pc] 5a c3
-		sz = TAILSIZE + (mode & CKSIGN? 13:0);
+		sz = TAILSIZE + (mode & CKSIGN? CKSIGNSIZE:0);
 		if (opc==JCXZ) {
 			if (mode&ADDR16) {
 			    // movzwl Ofs_ECX(%%ebx),%%ecx
@@ -2357,11 +2349,8 @@ shrot0:
 		    // movl {exit_addr},%%eax; pop %%edx; ret
 		    G1(0xb8,Cp); G4(jpc,Cp); G2(0xc35a,Cp);
 	        }
-		lt->t_type = IG->op;
 		// not taken: continue with next instr
 		G1(0xb8,Cp);
-		/* {n}t_link = offset from codebuf start to immed value */
-		lt->nt_link.rel = Cp-BaseGenBuf;
 		G4(dspnt,Cp); G2(0xc35a,Cp);
 		// taken
 		if (IG->op==JB_LINK) {
@@ -2371,10 +2360,9 @@ shrot0:
 		    G1(0xb8,Cp); G4(jpc,Cp); G2(0xc35a,Cp);
 	        }
 		G1(0xb8,Cp);
-		lt->t_link.rel = Cp-BaseGenBuf;
 		G4(dspt,Cp); G2(0xc35a,Cp);
-		if (debug_level('e')>2) e_printf("J_Link %08x:%08x lk=%d:%08x:%08x\n",
-			dspt,dspnt,lt->t_type,lt->t_link.rel,lt->nt_link.rel);
+		if (debug_level('e')>2) e_printf("J_Link %08x:%08x lk=%d\n",
+			dspt,dspnt,IG->op);
 		}
 		break;
 
@@ -2382,7 +2370,6 @@ shrot0:
 		unsigned char opc = IG->p0;
 		int dspt = IG->p1;
 		int dspnt = IG->p2;
-		linkdesc *lt = IG->lt;
 		//	{66} dec Ofs_ECX(ebx)
 		//	LOOP:	jnz t
 		//	LOOPZ:  jz  nt; test 0x40,dl; jnz t
@@ -2418,11 +2405,8 @@ shrot0:
 		else {
 			G2M(0x75,TAILSIZE,Cp);	// jnz->t
 		}
-		lt->t_type = JLOOP_LINK;
 		// not taken: continue with next instr
 		G1(0xb8,Cp);
-		/* {n}t_link = offset from codebuf start to immed value */
-		lt->nt_link.rel = Cp-BaseGenBuf;
 		G4(dspnt,Cp); G2(0xc35a,Cp);
 		// taken
 #if 0
@@ -2439,10 +2423,9 @@ shrot0:
 	        }
 #endif
 		G1(0xb8,Cp);
-		lt->t_link.rel = Cp-BaseGenBuf;
 		G4(dspt,Cp); G2(0xc35a,Cp);
-		if (debug_level('e')>2) e_printf("JLOOP_Link %08x:%08x lk=%d:%08x:%08x\n",
-			dspt,dspnt,lt->t_type,lt->t_link.rel,lt->nt_link.rel);
+		if (debug_level('e')>2) e_printf("JLOOP_Link %08x:%08x lk=%d\n",
+			dspt,dspnt,IG->op);
 		}
 		break;
 
@@ -2758,7 +2741,6 @@ static void Gen_x86(int op, int mode, ...)
 		} break;
 
 	case JMP_INDIRECT:
-		IG->lt = va_arg(ap,linkdesc *);	// lt
 		break;
 
 	case JMP_LINK:		// opc, dspt, retaddr, link
@@ -2767,7 +2749,6 @@ static void Gen_x86(int op, int mode, ...)
 		IG->p0 = opc;
 		IG->p1 = va_arg(ap,int);	// dspt
 		IG->p2 = va_arg(ap,int);	// dspnt
-		IG->lt = va_arg(ap,linkdesc *);	// lt
 		}
 		break;
 
@@ -2778,7 +2759,6 @@ static void Gen_x86(int op, int mode, ...)
 		IG->p1 = va_arg(ap,int);	// jpc
 		IG->p2 = va_arg(ap,int);	// dspt
 		IG->p3 = va_arg(ap,int);	// dspnt
-		IG->lt = va_arg(ap,linkdesc *);	// lt
 		}
 		break;
 
@@ -2881,19 +2861,18 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 
 	/* If the code doesn't terminate with a jump/loop instruction
 	 * it still lacks the tail code; add it here */
-	if (I0->clink.t_type==0) {
+	IMeta *GL = &I0[CurrIMeta-1];
+	if (GL->gen[GL->ngen-1].op < JMP_INDIRECT) {
 		unsigned char *p = CodePtr;
 		/* copy tail instructions to the end of the code block */
 		memcpy(p, TailCode, TAILSIZE);
 		p += TAILFIX;
-		I0->clink.t_link.abs = (unsigned int *)p;
 		*((unsigned int *)p) = PC;
 		CodePtr += TAILSIZE;
 	}
 
 	/* show jump+tail code */
 	if ((debug_level('e')>6) && (CurrIMeta>0)) {
-		IMeta *GL = &I0[CurrIMeta-1];
 		unsigned char *pl = &BaseGenBuf[GL->daddr+GL->len];
 		GCPrint(pl, BaseGenBuf, CodePtr - pl);
 	}
@@ -2914,7 +2893,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 /*
  * The node linker.
  *
- * A code sequence can have one of two termination types:
+ * A code sequence can have one of three termination types:
  *
  *	1) straight end (no jump), or unconditional jump or call
  *
@@ -2922,6 +2901,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
  *		|
  *		|
  *		mov $next_addr,eax
+ *		pop edx (flags)
  *		ret
  *
  *	2) conditional jump or loop
@@ -2930,9 +2910,20 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
  *		|
  *		|
  *		jcond taken
+ *		<optional signal check code (CKSIGN)>
  *		mov $not_taken_addr,eax
+ *		pop edx (flags)
  *		ret
- *	taken:  mov $taken_addr,eax
+ *	taken:  <optional signal check code (JB_LINK)>
+ *		mov $taken_addr,eax
+ *		pop edx (flags)
+ *		ret
+ *
+ *      3) indirect jump or ret
+ *	key:	|
+ *		| <eax is new IP>
+ *		add eax, <CS Base>
+ *		pop edx (flags)
  *		ret
  *
  * In the first case, there's only one linking point; in the second, two.

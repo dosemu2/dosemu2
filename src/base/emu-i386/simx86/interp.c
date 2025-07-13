@@ -338,12 +338,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 			     * condition changing a flag */
 			    e_printf("### dsp=0 jmp=%x pskip=%d\n",opc,pskip);
 		    }
-		    if (CONFIG_CPUSIM)
-			Gen(JB_LINK, mode, opc, P2, j_t, j_nt);
-#ifdef X86_JIT
-		    else
-			Gen(JB_LINK, mode, opc, P2, j_t, j_nt, &InstrMeta[0].clink);
-#endif
+		    Gen(JB_LINK, mode, opc, P2, j_t, j_nt);
 		}
 		else {
 		    if (dsp == pskip) {
@@ -357,12 +352,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 #endif
 		    }
 		    /* forward jump or backward jump >=256 bytes */
-		    if (CONFIG_CPUSIM)
-			Gen(JF_LINK, mode, opc, P2, j_t, j_nt);
-#ifdef X86_JIT
-		    else
-			Gen(JF_LINK, mode, opc, P2, j_t, j_nt, &InstrMeta[0].clink);
-#endif
+		    Gen(JF_LINK, mode, opc, P2, j_t, j_nt);
 		}
 		break;
 	case JMPld: {   /* uncond jmp far */
@@ -385,12 +375,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		}
 #endif
 		if (dsp <= 0) mode |= CKSIGN;
-		if (CONFIG_CPUSIM)
-		    Gen(JMP_LINK, mode, opc, j_t, d_nt);
-#ifdef X86_JIT
-		else
-		    Gen(JMP_LINK, mode, opc, j_t, d_nt, &InstrMeta[0].clink);
-#endif
+		Gen(JMP_LINK, mode, opc, j_t, d_nt);
 		break;
 	case CALLl: {   /* call far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
@@ -401,12 +386,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	}
 	/* no break */
 	case CALLd:    /* call, unfortunately also uses JMP_LINK */
-		if (CONFIG_CPUSIM)
-		    Gen(JMP_LINK, mode, opc, j_t, d_nt);
-#ifdef X86_JIT
-		else
-		    Gen(JMP_LINK, mode, opc, j_t, d_nt, &InstrMeta[0].clink);
-#endif
+		Gen(JMP_LINK, mode, opc, j_t, d_nt);
 		break;
 	case LOOP: case LOOPZ_LOOPE: case LOOPNZ_LOOPNE:
 		if (dsp == 0) {
@@ -421,12 +401,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		    }
 #endif
 		}
-		if (CONFIG_CPUSIM)
-		    Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
-#ifdef X86_JIT
-		else
-		    Gen(JLOOP_LINK, mode, opc, j_t, j_nt, &InstrMeta[0].clink);
-#endif
+		Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
 		break;
 	case RETl: case RETlisp: case JMPli: case CALLli: // far ret, indirect
 	case INT:
@@ -435,12 +410,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		Gen(L_REG, mode, Ofs_EIP);
 		/* fall through */
 	case RET: case RETisp: case JMPi: case CALLi: // ret, indirect
-		if (CONFIG_CPUSIM)
-			Gen(JMP_INDIRECT, mode);
-#ifdef X86_JIT
-		else
-			Gen(JMP_INDIRECT, mode, &InstrMeta[0].clink);
-#endif
+		Gen(JMP_INDIRECT, mode);
 		break;
 	default: dbug_printf("JumpGen: unknown condition\n");
 		break;
