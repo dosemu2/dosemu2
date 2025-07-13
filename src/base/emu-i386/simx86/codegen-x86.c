@@ -2953,10 +2953,71 @@ static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
 	}
 }
 
+static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
+{
+	backref *B;
+	int ra;
+	unsigned int *lp = L->link;		// check 'taken' branch
+
+	// points to current node?
+	if (L->target!=G->key || !(LG->unlinked_jmp_targets & target_type))
+		return;
+
+	if (L->ref!=0) {
+		dbug_printf("Linker: ref at %08x busy\n",LG->key);
+		leavedos_main(0x8102 + (target_type == TARGET_NT));
+	}
+	LG->unlinked_jmp_targets &= ~target_type;
+	// b8 [npc] -> e9/eb reladr
+	ra = G->addr - (unsigned char *)L->link;
+	if ((ra > -127) && (ra < 128)) {
+		ra -= 1; ((char *)lp)[-1] = 0xeb;
+	}
+	else {
+		ra -= 4; ((char *)lp)[-1] = 0xe9;
+	}
+	*lp = ra;
+	L->ref = &G->mblock->bkptr;
+	B = calloc(1,sizeof(backref));
+	// head insertion
+	B->next = G->bkr.next;
+	G->bkr.next = B;
+	B->ref = &LG->mblock->bkptr;
+	B->branch = target_type == TARGET_T ? 'T' : 'N';
+	G->nrefs++;
+	if (G==LG) {
+		G->flags |= F_SLFL;
+		if (debug_level('e')>1) {
+			e_printf("Linker: node (%p:%08x:%p) SELF link\n"
+				 "\t\tjmp %08x, target=%08x, %c_ref %d=%p->%p\n",
+				 G,G->key,G->addr,
+				 ra, L->target, B->branch, G->nrefs, L->ref, *L->ref);
+		}
+	}
+	else if (debug_level('e')>1) {
+		e_printf("Linker: previous node (%p:%08x:%p)\n"
+			 "\t\tlinked to (%p:%08x:%p)\n"
+			 "\t\tjmp %08x, target=%08x, %c_ref %d=%p->%p\n",
+			 LG,LG->key,LG->addr,
+			 G,G->key,G->addr,
+			 ra, L->target, B->branch, G->nrefs, L->ref, *L->ref);
+	}
+	_nodeflagbackrefs(LG, G->flags);
+	if (debug_level('e')>8) {
+		backref *bk = G->bkr.next;
+#ifdef DEBUG_LINKER
+		if (bk==NULL) {
+			dbug_printf("bkr null\n");
+			leavedos_main(0x8108 + (target_type == TARGET_NT));
+		}
+#endif
+		while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
+			bk->ref,*bk->ref); bk=bk->next; }
+	}
+}
+
 static void NodeLinker(TNode *LG, TNode *G)
 {
-	unsigned int *lp;
-	backref *B;
 #if PROFILE >= 2
 	hitimer_t t0 = 0;
 #endif
@@ -2971,114 +3032,9 @@ static void NodeLinker(TNode *LG, TNode *G)
 #endif
 	if (debug_level('e')>8 && LG) e_printf("NodeLinker: %08x->%08x\n",LG->key,G->key);
 
-	if (LG && (LG->alive>0)) {
-	    int ra;
-	    linkdesc *L = &LG->clink_t;
-	    if (LG->unlinked_jmp_targets) {	// node ends with links
-		lp = L->link;			// check 'taken' branch
-		if (L->target==G->key && (LG->unlinked_jmp_targets & TARGET_T)) {	// points to current node?
-		    if (L->ref!=0) {
-			dbug_printf("Linker: t_ref at %08x busy\n",LG->key);
-			leavedos_main(0x8102);
-		    }
-		    LG->unlinked_jmp_targets &= ~TARGET_T;
-		    // b8 [npc] -> e9/eb reladr
-		    ra = G->addr - (unsigned char *)L->link;
-		    if ((ra > -127) && (ra < 128)) {
-			ra -= 1; ((char *)lp)[-1] = 0xeb;
-		    }
-		    else {
-			ra -= 4; ((char *)lp)[-1] = 0xe9;
-		    }
-		    *lp = ra;
-		    L->ref = &G->mblock->bkptr;
-		    B = calloc(1,sizeof(backref));
-		    // head insertion
-		    B->next = G->bkr.next;
-		    G->bkr.next = B;
-		    B->ref = &LG->mblock->bkptr;
-		    B->branch = 'T';
-		    G->nrefs++;
-		    if (G==LG) {
-			G->flags |= F_SLFL;
-			if (debug_level('e')>1) {
-			    e_printf("Linker: node (%p:%08x:%p) SELF link\n"
-				"\t\tjmp %08x, target=%08x, t_ref %d=%p->%p\n",
-				G,G->key,G->addr,
-				ra, L->target, G->nrefs, L->ref, *L->ref);
-			}
-		    }
-		    else if (debug_level('e')>1) {
-			e_printf("Linker: previous node (%p:%08x:%p)\n"
-			    "\t\tlinked to (%p:%08x:%p)\n"
-			    "\t\tjmp %08x, target=%08x, t_ref %d=%p->%p\n",
-			    LG,LG->key,LG->addr,
-			    G,G->key,G->addr,
-			    ra, L->target, G->nrefs, L->ref, *L->ref);
-		    }
-		    _nodeflagbackrefs(LG, G->flags);
-		    if (debug_level('e')>8) { backref *bk = G->bkr.next;
-#ifdef DEBUG_LINKER
-			if (bk==NULL) { dbug_printf("bkr null\n"); leavedos_main(0x8108); }
-#endif
-			while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
-			bk->ref,*bk->ref); bk=bk->next; }
-		    }
-		}
-		if (LG->unlinked_jmp_targets & TARGET_NT) {  // if it has a 'not taken' link
-		    L = &LG->clink_nt;
-		    lp = L->link;		// check 'not taken' branch
-		    if (L->target==G->key) {	// points to current node?
-			if (L->ref!=0) {
-			    dbug_printf("Linker: nt_ref at %08x busy\n",LG->key);
-			    leavedos_main(0x8103);
-			}
-			LG->unlinked_jmp_targets &= ~TARGET_NT;
-			// b8 [npc] -> e9/eb reladr
-			ra = G->addr - (unsigned char *)L->link;
-			if ((ra > -127) && (ra < 128)) {
-			    ra -= 1; ((char *)lp)[-1] = 0xeb;
-			}
-			else {
-			    ra -= 4; ((char *)lp)[-1] = 0xe9;
-			}
-			*lp = ra;
-			L->ref = &G->mblock->bkptr;
-			B = calloc(1,sizeof(backref));
-			// head insertion
-			B->next = G->bkr.next;
-			G->bkr.next = B;
-			B->ref = &LG->mblock->bkptr;
-			B->branch = 'N';
-			G->nrefs++;
-			if (G==LG) {
-			    G->flags |= F_SLFL;
-			    if (debug_level('e')>1) {
-				e_printf("Linker: node (%p:%08x:%p) SELF link\n"
-				"\t\tjmp %08x, target=%08x, nt_ref %d=%p->%p\n",
-				G,G->key,G->addr,
-				ra, L->target, G->nrefs, L->ref, *L->ref);
-			    }
-			}
-			else if (debug_level('e')>1) {
-			    e_printf("Linker: previous node (%p:%08x:%p)\n"
-				"\t\tlinked to (%p:%08x:%p)\n"
-				"\t\tjmp %08x, target=%08x, nt_ref %d=%p->%p\n",
-				LG,LG->key,LG->addr,
-				G,G->key,G->addr,
-				ra, L->target, G->nrefs, L->ref, *L->ref);
-			}
-			_nodeflagbackrefs(LG, G->flags);
-			if (debug_level('e')>8) { backref *bk = G->bkr.next;
-#ifdef DEBUG_LINKER
-			    if (bk==NULL) { dbug_printf("bkr null\n"); leavedos_main(0x8109); }
-#endif
-				while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
-				bk->ref,*bk->ref); bk=bk->next; }
-			}
-		    }
-		}
-	    }
+	if (LG && LG->alive>0 && LG->unlinked_jmp_targets) {	// node ends with links
+		linknode(LG, G, &LG->clink_t, TARGET_T);
+		linknode(LG, G, &LG->clink_nt, TARGET_NT);
 	}
 #if PROFILE >= 2
 	if (debug_level('e')) LinkTime += (GETTSC() - t0);
