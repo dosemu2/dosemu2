@@ -79,6 +79,10 @@ int NodesNotFound = 0;
 int TreeCleanups = 0;
 #endif
 
+#ifdef DEBUG_TREE
+static void DumpTree (FILE *fd);
+#endif
+
 #define FINDTREE_CACHE_HASH_MASK 0xfff
 static TNode *findtree_cache[FINDTREE_CACHE_HASH_MASK+1];
 static pthread_mutex_t cache_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -776,7 +780,7 @@ nquit:
 
 #ifdef DEBUG_TREE
 
-void DumpTree (FILE *fd)
+static void DumpTree (FILE *fd)
 {
   TNode *G = &CollectTree.root;
   linkdesc *L;
@@ -807,18 +811,19 @@ void DumpTree (FILE *fd)
 		G->bal,G->cache,G->pad,G->rtag);
     fprintf(fd,"     source:     instr=%d, len=%#x\n",G->seqnum,G->seqlen);
     fprintf(fd,"     translated: len=%#x\n",G->len);
-    L = &G->clink;
-    fprintf(fd,"     LINK type=%d refs=%d\n",L->t_type,L->nrefs);
-    if (L->t_type >= JMP_LINK) {
-	fprintf(fd,"         T ref=%p patch=%08x at %p\n",L->t_ref,
-		L->t_undo,L->t_link.abs);
-	if (L->t_type>JMP_LINK) {
-	    fprintf(fd,"         N ref=%p patch=%08x at %p\n",L->nt_ref,
-		L->nt_undo,L->nt_link.abs);
+    L = &G->clink_t;
+    fprintf(fd,"     LINK refs=%d\n",G->nrefs);
+    if (L->link) {
+	fprintf(fd,"         T ref=%p patch=%08x at %p\n",L->ref,
+		L->target,L->link);
+	L = &G->clink_nt;
+	if (L->link) {
+	    fprintf(fd,"         N ref=%p patch=%08x at %p\n",L->ref,
+		L->target,L->link);
 	}
     }
-    if (L->nrefs) {
-	B = L->bkr.next;
+    if (G->nrefs) {
+	B = G->bkr.next;
 	while (B) {
 	    fprintf(fd,"         bkref %c -> %p\n",B->branch,B->ref);
 	    B = B->next;

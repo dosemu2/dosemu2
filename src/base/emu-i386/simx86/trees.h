@@ -161,4 +161,8 @@ unsigned int FindPC(unsigned char *addr);
 int InvalidateNodeRange(int addr, int len, unsigned char *eip);
 #endif
 
+#ifdef DEBUG_TREE
+extern FILE *tLog;
+#endif
+
 #endif
