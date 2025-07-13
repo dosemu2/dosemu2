@@ -997,12 +997,10 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   /* setup structures for inter-node linking */
   nG->clink.unlinked_jmp_targets = 0;
   op = I0[CurrIMeta-1].gen[I0[CurrIMeta-1].ngen-1].op;
-  if (op != JMP_INDIRECT) {
+  if (op >= JMP_LINK) {
     nG->clink.t_link.abs = (unsigned int *)(nG->addr + nG->len - TAILSIZE + TAILFIX);
-    if (op >= JMP_LINK) {
-      nG->clink.t_target = *nG->clink.t_link.abs;
-      nG->clink.unlinked_jmp_targets |= TARGET_T;
-    }
+    nG->clink.t_target = *nG->clink.t_link.abs;
+    nG->clink.unlinked_jmp_targets |= TARGET_T;
   }
   else
     nG->clink.t_link.abs = NULL;
