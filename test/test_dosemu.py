@@ -3105,17 +3105,41 @@ $_debug = "-D+d"
 
         self.assertIn(self.systype, systypeline)
 
-    def test_command_com_cmdline_length_singlearg(self):
-        """Command.com cmdline length single arg"""
-        command_com_cmdline_length(self, 'singlearg')
+    def test_command_com_cmdline_length_multiargs01(self):
+        """Command.com cmdline length multiple args 01"""
+        command_com_cmdline_length(self, 'multiarg01')
 
-    def test_command_com_cmdline_length_multiargs(self):
-        """Command.com cmdline length multiple args"""
-        command_com_cmdline_length(self, 'multiargs')
+    def test_command_com_cmdline_length_singlearg01(self):
+        """Command.com cmdline length single arg 01"""
+        command_com_cmdline_length(self, 'singlearg01')
 
-    def test_command_com_cmdline_length_truncate(self):
-        """Command.com cmdline length truncation"""
-        command_com_cmdline_length(self, 'truncate')
+    def test_command_com_cmdline_length_singlearg02(self):
+        """Command.com cmdline length single arg 02"""
+        command_com_cmdline_length(self, 'singlearg02')
+
+    def test_command_com_cmdline_length_singlearg03(self):
+        """Command.com cmdline length single arg 03"""
+        command_com_cmdline_length(self, 'singlearg03')
+
+    def test_command_com_cmdline_length_singlearg04(self):
+        """Command.com cmdline length single arg 04"""
+        command_com_cmdline_length(self, 'singlearg04')
+
+    def test_command_com_cmdline_length_singlearg05(self):
+        """Command.com cmdline length single arg 05"""
+        command_com_cmdline_length(self, 'singlearg05')
+
+    def test_command_com_cmdline_length_singlearg06(self):
+        """Command.com cmdline length single arg 06"""
+        command_com_cmdline_length(self, 'singlearg06')
+
+    def test_command_com_cmdline_length_truncate01(self):
+        """Command.com cmdline length truncation 01"""
+        command_com_cmdline_length(self, 'truncate01')
+
+    def test_command_com_cmdline_length_truncate02(self):
+        """Command.com cmdline length truncation 02"""
+        command_com_cmdline_length(self, 'truncate02')
 
     def test_command_com_command_copy(self):
         """Command.com command copy"""
