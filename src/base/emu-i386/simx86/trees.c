@@ -664,14 +664,54 @@ unsigned int FindPC(unsigned char *addr)
 
 #ifdef DEBUG_LINKER
 
+static void checklink(const TNode *G, const linkdesc *L, char branch)
+{
+  if (!L->link) return;
+
+  const unsigned char *p = ((unsigned char *)L->link) - 1;
+  if (L->ref) {
+	    const TNode *GL = *L->ref;
+	    if (debug_level('e')>5)
+		e_printf("  %c: ref=%p link=%p\n",
+			 branch,GL,L->link);
+	    if ((*p!=0xe9)&&(*p!=0xeb)) {
+		error("bad %c link jmp\n", branch); goto nquit;
+	    }
+	    if (debug_level('e')>5)
+		e_printf("  %c: links to %p at %08x with jmp %08x\n",branch,GL,GL->key,
+		*L->link);
+	    const backref *B = GL->bkr.next;
+	    if ((B==NULL) || (GL->nrefs < 1)) {
+		error("bad backref B=%p n=%d\n",B,GL->nrefs);
+		goto nquit;
+	    }
+	    int n = 0;
+	    int brt = 0;
+	    while (B) {
+		if (B->ref==&G->mblock->bkptr) {
+		    n++;
+		    brt += B->branch;
+		    if (debug_level('e')>5) e_printf("  %c: backref %d from %p\n",branch,n,GL);
+		}
+		B = B->next;
+	    }
+	    if (n < 1 || n > 2 || (n == 2 && brt != 'N' + 'T')) {
+		error("0 or >1 backrefs1 (%i)\n", n); goto nquit;
+	    }
+  }
+  else {
+	    if (*p!=0xb8) {
+		error("bad %c link jmp\n", branch); goto nquit;
+	    }
+  }
+  return;
+nquit:
+  leavedos_main(0x9143);
+}
+
 static void CheckLinks(void)
 {
   TNode *G = &CollectTree.root;
-  TNode *GL;
-  unsigned char *p;
-  linkdesc *L;
-  backref *B;
-  int n, brt;
 
   for (;;) {
     /* walk to next node */
@@ -689,88 +729,12 @@ static void CheckLinks(void)
 	continue;
     }
     if (debug_level('e')>5) e_printf("Node %p at %08x selfr=%p\n",G,G->key,
-    	G->mblock->bkptr);
+	G->mblock->bkptr);
     if (G->mblock->bkptr != G) {
 	error("bad selfref\n"); goto nquit;
     }
-    L = &G->clink_t;
-    if (L->link) {
-	if (L->ref) {
-	    GL = *L->ref;
-	    if (debug_level('e')>5)
-		e_printf("  T: ref=%p link=%p\n",
-		    GL,L->link);
-	    p = ((unsigned char *)L->link) - 1;
-	    if ((*p!=0xe9)&&(*p!=0xeb)) {
-		error("bad t_link jmp\n"); goto nquit;
-	    }
-	    if (debug_level('e')>5)
-		e_printf("  T: links to %p at %08x with jmp %08x\n",GL,GL->key,
-		*L->link);
-	    B = GL->bkr.next;
-	    if ((B==NULL) || (GL->nrefs < 1)) {
-		error("bad backref B=%p n=%d\n",B,GL->nrefs);
-		goto nquit;
-	    }
-	    n = 0;
-	    brt = 0;
-	    while (B) {
-		if (B->ref==&G->mblock->bkptr) {
-		    n++;
-		    brt += B->branch;
-		    if (debug_level('e')>5) e_printf("  T: backref %d from %p\n",n,GL);
-		}
-		B = B->next;
-	    }
-	    if (n < 1 || n > 2 || (n == 2 && brt != 'N' + 'T')) {
-		error("0 or >1 backrefs1 (%i)\n", n); goto nquit;
-	    }
-	}
-	else {
-	    p = ((unsigned char *)L->link) - 1;
-	    if (*p!=0xb8) {
-		error("bad t_link jmp\n"); goto nquit;
-	    }
-	}
-	L = &G->clink_nt;
-	if (L->ref) {
-	    GL = *L->ref;
-	    if (debug_level('e')>5)
-		e_printf("  N: ref=%p link=%p\n",
-		    GL,L->link);
-	    p = ((unsigned char *)L->link) - 1;
-	    if ((*p!=0xe9)&&(*p!=0xeb)) {
-		error("bad nt_link jmp\n"); goto nquit;
-	    }
-	    if (debug_level('e')>5)
-		e_printf("  N: links to %p at %08x with jmp %08x\n",GL,GL->key,
-		*L->link);
-	    B = GL->bkr.next;
-	    if ((B==NULL) || (GL->nrefs < 1)) {
-		error("bad backref B=%p n=%d\n",B,GL->nrefs);
-		goto nquit;
-	    }
-	    n = 0;
-	    brt = 0;
-	    while (B) {
-		if (B->ref==&G->mblock->bkptr) {
-		    n++;
-		    brt += B->branch;
-		    if (debug_level('e')>5) e_printf("  N: backref %d from %p\n",n,GL);
-		}
-		B = B->next;
-	    }
-	    if (n < 1 || n > 2 || (n == 2 && brt != 'N' + 'T')) {
-		error("0 or >1 backrefs2 (%i)\n", n); goto nquit;
-	    }
-	}
-	else if (L->link) {
-	    p = ((unsigned char *)L->link) - 1;
-	    if (*p!=0xb8) {
-		error("bad nt_link jmp\n"); goto nquit;
-	    }
-	}
-    }
+    checklink(G, &G->clink_t, 'T');
+    checklink(G, &G->clink_nt, 'N');
   }
 nquit:
   leavedos_main(0x9143);
