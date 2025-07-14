@@ -37,6 +37,9 @@ section .text
     mov     bx, word [fhndl]
     int     21h
 
+    mov     al, 0
+    jmp     exit
+
 prfailcreate:
     mov     dx, failcreate
     jmp     @1
@@ -50,8 +53,9 @@ prnumwrite:
     jmp     @1
 
 @1:
-    mov     ah, 9               ; print string
+    mov     ah, 9               ; print error string
     int     21h
+    mov     al, 1
 
 exit:
     mov     ah, 4ch
