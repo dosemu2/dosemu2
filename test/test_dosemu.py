@@ -4932,6 +4932,8 @@ $_floppy_a = ""
 DRDOS701TestCase = drdos701(OurTestCase, {
     "test_comcom_r200fix_real": UNSUPPORTED,
     "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate01": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate02": UNSUPPORTED,
     r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
     r"test_..._ds3_share_open_rename_one_process_fcb": KNOWNFAIL,
     r"test_..._fcb_rename_simple": KNOWNFAIL,
@@ -4957,6 +4959,8 @@ DRDOS701TestCase = drdos701(OurTestCase, {
 FRDOS120TestCase = frdos120(OurTestCase, {
     "test_comcom_r200fix_real": UNSUPPORTED,
     "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate01": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate02": UNSUPPORTED,
     "test_fat_fcb_rename_target_exists": KNOWNFAIL,
     "test_fat_fcb_rename_source_missing": KNOWNFAIL,
     "test_fat_fcb_rename_wild_1": KNOWNFAIL,
@@ -5012,6 +5016,8 @@ FRDOS120TestCase = frdos120(OurTestCase, {
 FRDOS130TestCase = frdos130(OurTestCase, {
     "test_comcom_r200fix_real": UNSUPPORTED,
     "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate01": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate02": UNSUPPORTED,
     "test_command_com_keyword_exist": KNOWNFAIL,
     "test_create_new_psp": KNOWNFAIL,
     "test_fat_ds3_lock_readlckd": KNOWNFAIL,
@@ -5049,6 +5055,8 @@ FRDOS130TestCase = frdos130(OurTestCase, {
 FRDOSGITTestCase = frdosgit(OurTestCase, {
     "test_comcom_r200fix_real": UNSUPPORTED,
     "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate01": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate02": UNSUPPORTED,
     "test_fat_ds3_lock_concurrent": KNOWNFAIL,
     "test_fat_ds3_lock_readlckd": KNOWNFAIL,
     "test_fat_ds3_lock_two_handles": KNOWNFAIL,
@@ -5089,6 +5097,8 @@ MSDOS622TestCase = msdos622(OurTestCase, {
 MSDOS700TestCase = msdos700(OurTestCase, {
     "test_comcom_r200fix_real": UNSUPPORTED,
     "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate01": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate02": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
     "test_fat_label_create_bpb32": UNSUPPORTED,
     "test_lfn_volume_info_fat16": KNOWNFAIL,
@@ -5100,6 +5110,8 @@ MSDOS700TestCase = msdos700(OurTestCase, {
 MSDOS710TestCase = msdos710(OurTestCase, {
     "test_comcom_r200fix_real": UNSUPPORTED,
     "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate01": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate02": UNSUPPORTED,
 })
 
 PPDOSGITTestCase = ppdosgit(OurTestCase, {
