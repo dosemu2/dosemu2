@@ -3105,17 +3105,41 @@ $_debug = "-D+d"
 
         self.assertIn(self.systype, systypeline)
 
-    def test_command_com_cmdline_length_singlearg(self):
-        """Command.com cmdline length single arg"""
-        command_com_cmdline_length(self, 'singlearg')
+    def test_command_com_cmdline_length_multiargs01(self):
+        """Command.com cmdline length multiple args 01"""
+        command_com_cmdline_length(self, 'multiarg01')
 
-    def test_command_com_cmdline_length_multiargs(self):
-        """Command.com cmdline length multiple args"""
-        command_com_cmdline_length(self, 'multiargs')
+    def test_command_com_cmdline_length_singlearg01(self):
+        """Command.com cmdline length single arg 01"""
+        command_com_cmdline_length(self, 'singlearg01')
 
-    def test_command_com_cmdline_length_truncate(self):
-        """Command.com cmdline length truncation"""
-        command_com_cmdline_length(self, 'truncate')
+    def test_command_com_cmdline_length_singlearg02(self):
+        """Command.com cmdline length single arg 02"""
+        command_com_cmdline_length(self, 'singlearg02')
+
+    def test_command_com_cmdline_length_singlearg03(self):
+        """Command.com cmdline length single arg 03"""
+        command_com_cmdline_length(self, 'singlearg03')
+
+    def test_command_com_cmdline_length_singlearg04(self):
+        """Command.com cmdline length single arg 04"""
+        command_com_cmdline_length(self, 'singlearg04')
+
+    def test_command_com_cmdline_length_singlearg05(self):
+        """Command.com cmdline length single arg 05"""
+        command_com_cmdline_length(self, 'singlearg05')
+
+    def test_command_com_cmdline_length_singlearg06(self):
+        """Command.com cmdline length single arg 06"""
+        command_com_cmdline_length(self, 'singlearg06')
+
+    def test_command_com_cmdline_length_truncate01(self):
+        """Command.com cmdline length truncation 01"""
+        command_com_cmdline_length(self, 'truncate01')
+
+    def test_command_com_cmdline_length_truncate02(self):
+        """Command.com cmdline length truncation 02"""
+        command_com_cmdline_length(self, 'truncate02')
 
     def test_command_com_command_copy(self):
         """Command.com command copy"""
@@ -4908,6 +4932,8 @@ $_floppy_a = ""
 DRDOS701TestCase = drdos701(OurTestCase, {
     "test_comcom_r200fix_real": UNSUPPORTED,
     "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate01": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate02": UNSUPPORTED,
     r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
     r"test_..._ds3_share_open_rename_one_process_fcb": KNOWNFAIL,
     r"test_..._fcb_rename_simple": KNOWNFAIL,
@@ -4933,6 +4959,8 @@ DRDOS701TestCase = drdos701(OurTestCase, {
 FRDOS120TestCase = frdos120(OurTestCase, {
     "test_comcom_r200fix_real": UNSUPPORTED,
     "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate01": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate02": UNSUPPORTED,
     "test_fat_fcb_rename_target_exists": KNOWNFAIL,
     "test_fat_fcb_rename_source_missing": KNOWNFAIL,
     "test_fat_fcb_rename_wild_1": KNOWNFAIL,
@@ -4988,6 +5016,8 @@ FRDOS120TestCase = frdos120(OurTestCase, {
 FRDOS130TestCase = frdos130(OurTestCase, {
     "test_comcom_r200fix_real": UNSUPPORTED,
     "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate01": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate02": UNSUPPORTED,
     "test_command_com_keyword_exist": KNOWNFAIL,
     "test_create_new_psp": KNOWNFAIL,
     "test_fat_ds3_lock_readlckd": KNOWNFAIL,
@@ -5025,6 +5055,8 @@ FRDOS130TestCase = frdos130(OurTestCase, {
 FRDOSGITTestCase = frdosgit(OurTestCase, {
     "test_comcom_r200fix_real": UNSUPPORTED,
     "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate01": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate02": UNSUPPORTED,
     "test_fat_ds3_lock_concurrent": KNOWNFAIL,
     "test_fat_ds3_lock_readlckd": KNOWNFAIL,
     "test_fat_ds3_lock_two_handles": KNOWNFAIL,
@@ -5065,6 +5097,8 @@ MSDOS622TestCase = msdos622(OurTestCase, {
 MSDOS700TestCase = msdos700(OurTestCase, {
     "test_comcom_r200fix_real": UNSUPPORTED,
     "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate01": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate02": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
     "test_fat_label_create_bpb32": UNSUPPORTED,
     "test_lfn_volume_info_fat16": KNOWNFAIL,
@@ -5076,6 +5110,8 @@ MSDOS700TestCase = msdos700(OurTestCase, {
 MSDOS710TestCase = msdos710(OurTestCase, {
     "test_comcom_r200fix_real": UNSUPPORTED,
     "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate01": UNSUPPORTED,
+    "test_command_com_cmdline_length_truncate02": UNSUPPORTED,
 })
 
 PPDOSGITTestCase = ppdosgit(OurTestCase, {
