@@ -79,6 +79,10 @@ int NodesNotFound = 0;
 int TreeCleanups = 0;
 #endif
 
+#ifdef DEBUG_TREE
+static void DumpTree (FILE *fd);
+#endif
+
 #define FINDTREE_CACHE_HASH_MASK 0xfff
 static TNode *findtree_cache[FINDTREE_CACHE_HASH_MASK+1];
 static pthread_mutex_t cache_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -387,7 +391,11 @@ static void avltr_delete(const int key)
 	    t->mblock->bkptr = t;
 	    s->addr = NULL;
 	    s->mblock = NULL;
-	    memset(&s->clink, 0, sizeof(linkdesc));
+	    s->nrefs = 0;
+	    memset(&s->clink_t, 0, sizeof(linkdesc));
+	    memset(&s->clink_nt, 0, sizeof(linkdesc));
+	    s->unlinked_jmp_targets = 0;
+	    memset(&s->bkr, 0, sizeof(backref));
 	    s->key = 0;
 
 	    if (s->rtag == PLUS) r->link[0] = s->link[1];
@@ -402,15 +410,15 @@ static void avltr_delete(const int key)
   if (debug_level('e')>2) e_printf("Remove node %p\n",p);
 #endif
 #ifdef DEBUG_LINKER
-	if (p->clink.nrefs) {
-	    dbug_printf("Cannot delete - nrefs=%d\n",p->clink.nrefs);
+	if (p->nrefs) {
+	    dbug_printf("Cannot delete - nrefs=%d\n",p->nrefs);
 	    leavedos_main(0x9140);
 	}
-	if (p->clink.bkr.next) {
+	if (p->bkr.next) {
 	    dbug_printf("Cannot delete - bkr busy\n");
 	    leavedos_main(0x9141);
 	}
-	if (p->clink.t_ref || p->clink.nt_ref) {
+	if (p->clink_t.ref || p->clink_nt.ref) {
 	    dbug_printf("Cannot delete - ref busy\n");
 	    leavedos_main(0x9142);
 	}
@@ -596,7 +604,7 @@ void avltr_destroy(void)
 		  p = p->link[1];
 		  break;
 	      }
-	      B = p->clink.bkr.next;
+	      B = p->bkr.next;
 	      while (B) {
 		  backref *B2 = B;
 		  B = B->next;
@@ -656,14 +664,54 @@ unsigned int FindPC(unsigned char *addr)
 
 #ifdef DEBUG_LINKER
 
+static void checklink(const TNode *G, const linkdesc *L, char branch)
+{
+  if (!L->link) return;
+
+  const unsigned char *p = ((unsigned char *)L->link) - 1;
+  if (L->ref) {
+	    const TNode *GL = *L->ref;
+	    if (debug_level('e')>5)
+		e_printf("  %c: ref=%p link=%p\n",
+			 branch,GL,L->link);
+	    if ((*p!=0xe9)&&(*p!=0xeb)) {
+		error("bad %c link jmp\n", branch); goto nquit;
+	    }
+	    if (debug_level('e')>5)
+		e_printf("  %c: links to %p at %08x with jmp %08x\n",branch,GL,GL->key,
+		*L->link);
+	    const backref *B = GL->bkr.next;
+	    if ((B==NULL) || (GL->nrefs < 1)) {
+		error("bad backref B=%p n=%d\n",B,GL->nrefs);
+		goto nquit;
+	    }
+	    int n = 0;
+	    int brt = 0;
+	    while (B) {
+		if (B->ref==&G->mblock->bkptr) {
+		    n++;
+		    brt += B->branch;
+		    if (debug_level('e')>5) e_printf("  %c: backref %d from %p\n",branch,n,GL);
+		}
+		B = B->next;
+	    }
+	    if (n < 1 || n > 2 || (n == 2 && brt != 'N' + 'T')) {
+		error("0 or >1 backrefs1 (%i)\n", n); goto nquit;
+	    }
+  }
+  else {
+	    if (*p!=0xb8) {
+		error("bad %c link jmp\n", branch); goto nquit;
+	    }
+  }
+  return;
+nquit:
+  leavedos_main(0x9143);
+}
+
 static void CheckLinks(void)
 {
   TNode *G = &CollectTree.root;
-  TNode *GL;
-  unsigned char *p;
-  linkdesc *L, *T;
-  backref *B;
-  int n, brt;
 
   for (;;) {
     /* walk to next node */
@@ -681,89 +729,12 @@ static void CheckLinks(void)
 	continue;
     }
     if (debug_level('e')>5) e_printf("Node %p at %08x selfr=%p\n",G,G->key,
-    	G->mblock->bkptr);
+	G->mblock->bkptr);
     if (G->mblock->bkptr != G) {
 	error("bad selfref\n"); goto nquit;
     }
-    L = &G->clink;
-    if (L->t_type >= JMP_LINK) {
-	if (L->t_ref) {
-	    GL = *L->t_ref;
-	    if (debug_level('e')>5)
-		e_printf("  T: ref=%p link=%p\n",
-		    GL,L->t_link.abs);
-	    p = ((unsigned char *)L->t_link.abs) - 1;
-	    if ((*p!=0xe9)&&(*p!=0xeb)) {
-		error("bad t_link jmp\n"); goto nquit;
-	    }
-	    if (debug_level('e')>5)
-		e_printf("  T: links to %p at %08x with jmp %08x\n",GL,GL->key,
-		*L->t_link.abs);
-	    T = &GL->clink;
-	    B = T->bkr.next;
-	    if ((B==NULL) || (T->nrefs < 1)) {
-		error("bad backref B=%p n=%d\n",B,T->nrefs);
-		goto nquit;
-	    }
-	    n = 0;
-	    brt = 0;
-	    while (B) {
-		if (B->ref==&G->mblock->bkptr) {
-		    n++;
-		    brt += B->branch;
-		    if (debug_level('e')>5) e_printf("  T: backref %d from %p\n",n,GL);
-		}
-		B = B->next;
-	    }
-	    if (n < 1 || n > 2 || (n == 2 && brt != 'N' + 'T')) {
-		error("0 or >1 backrefs1 (%i)\n", n); goto nquit;
-	    }
-	}
-	else {
-	    p = ((unsigned char *)L->t_link.abs) - 1;
-	    if (*p!=0xb8) {
-		error("bad t_link jmp\n"); goto nquit;
-	    }
-	}
-	if (L->nt_ref) {
-	    GL = *L->nt_ref;
-	    if (debug_level('e')>5)
-		e_printf("  N: ref=%p link=%p\n",
-		    GL,L->nt_link.abs);
-	    p = ((unsigned char *)L->nt_link.abs) - 1;
-	    if ((*p!=0xe9)&&(*p!=0xeb)) {
-		error("bad nt_link jmp\n"); goto nquit;
-	    }
-	    if (debug_level('e')>5)
-		e_printf("  N: links to %p at %08x with jmp %08x\n",GL,GL->key,
-		*L->nt_link.abs);
-	    T = &GL->clink;
-	    B = T->bkr.next;
-	    if ((B==NULL) || (T->nrefs < 1)) {
-		error("bad backref B=%p n=%d\n",B,T->nrefs);
-		goto nquit;
-	    }
-	    n = 0;
-	    brt = 0;
-	    while (B) {
-		if (B->ref==&G->mblock->bkptr) {
-		    n++;
-		    brt += B->branch;
-		    if (debug_level('e')>5) e_printf("  N: backref %d from %p\n",n,GL);
-		}
-		B = B->next;
-	    }
-	    if (n < 1 || n > 2 || (n == 2 && brt != 'N' + 'T')) {
-		error("0 or >1 backrefs2 (%i)\n", n); goto nquit;
-	    }
-	}
-	else if (L->nt_link.abs) {
-	    p = ((unsigned char *)L->nt_link.abs) - 1;
-	    if (*p!=0xb8) {
-		error("bad nt_link jmp\n"); goto nquit;
-	    }
-	}
-    }
+    checklink(G, &G->clink_t, 'T');
+    checklink(G, &G->clink_nt, 'N');
   }
 nquit:
   leavedos_main(0x9143);
@@ -773,7 +744,7 @@ nquit:
 
 #ifdef DEBUG_TREE
 
-void DumpTree (FILE *fd)
+static void DumpTree (FILE *fd)
 {
   TNode *G = &CollectTree.root;
   linkdesc *L;
@@ -804,18 +775,19 @@ void DumpTree (FILE *fd)
 		G->bal,G->cache,G->pad,G->rtag);
     fprintf(fd,"     source:     instr=%d, len=%#x\n",G->seqnum,G->seqlen);
     fprintf(fd,"     translated: len=%#x\n",G->len);
-    L = &G->clink;
-    fprintf(fd,"     LINK type=%d refs=%d\n",L->t_type,L->nrefs);
-    if (L->t_type >= JMP_LINK) {
-	fprintf(fd,"         T ref=%p patch=%08x at %p\n",L->t_ref,
-		L->t_undo,L->t_link.abs);
-	if (L->t_type>JMP_LINK) {
-	    fprintf(fd,"         N ref=%p patch=%08x at %p\n",L->nt_ref,
-		L->nt_undo,L->nt_link.abs);
+    L = &G->clink_t;
+    fprintf(fd,"     LINK refs=%d\n",G->nrefs);
+    if (L->link) {
+	fprintf(fd,"         T ref=%p patch=%08x at %p\n",L->ref,
+		L->target,L->link);
+	L = &G->clink_nt;
+	if (L->link) {
+	    fprintf(fd,"         N ref=%p patch=%08x at %p\n",L->ref,
+		L->target,L->link);
 	}
     }
-    if (L->nrefs) {
-	B = L->bkr.next;
+    if (G->nrefs) {
+	B = G->bkr.next;
 	while (B) {
 	    fprintf(fd,"         bkref %c -> %p\n",B->branch,B->ref);
 	    B = B->next;
@@ -995,29 +967,27 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   nG->addr = (unsigned char *)&mallmb->meta[nap];
 
   /* setup structures for inter-node linking */
-  nG->clink.unlinked_jmp_targets = 0;
+  nG->unlinked_jmp_targets = 0;
   op = I0[CurrIMeta-1].gen[I0[CurrIMeta-1].ngen-1].op;
-  if (op != JMP_INDIRECT) {
-    nG->clink.t_link.abs = (unsigned int *)(nG->addr + nG->len - TAILSIZE + TAILFIX);
-    if (op >= JMP_LINK) {
-      nG->clink.t_target = *nG->clink.t_link.abs;
-      nG->clink.unlinked_jmp_targets |= TARGET_T;
-    }
+  if (op >= JMP_LINK) {
+    nG->clink_t.link = (unsigned int *)(nG->addr + nG->len - TAILSIZE + TAILFIX);
+    nG->clink_t.target = *nG->clink_t.link;
+    nG->unlinked_jmp_targets |= TARGET_T;
   }
   else
-    nG->clink.t_link.abs = NULL;
+    nG->clink_t.link = NULL;
   if (op > JMP_LINK) {
-    nG->clink.nt_link.abs = (unsigned int *)
+    nG->clink_nt.link = (unsigned int *)
       (nG->addr + nG->len - 2*TAILSIZE + TAILFIX - (op == JB_LINK ? CKSIGNSIZE : 0));
-    nG->clink.nt_target = *nG->clink.nt_link.abs;
-    nG->clink.unlinked_jmp_targets |= TARGET_NT;
+    nG->clink_nt.target = *nG->clink_nt.link;
+    nG->unlinked_jmp_targets |= TARGET_NT;
   }
   else
-    nG->clink.nt_link.abs = 0;
+    nG->clink_nt.link = 0;
   if ((debug_level('e')>3) && op >= JMP_LINK)
 	dbug_printf("Link %d: %p:%08x\n",op,
-		nG->clink.nt_link.abs,
-		(op>JMP_LINK? *nG->clink.nt_link.abs:0));
+		nG->clink_nt.link,
+		(op>JMP_LINK? *nG->clink_nt.link:0));
 
   /* setup source/xlated instruction offsets */
   ap = nG->pmeta;

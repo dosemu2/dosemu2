@@ -2948,16 +2948,76 @@ static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
 	if ((LG->flags & flags) != flags) {
 	    /* only go as far back as long as flags change */
 	    LG->flags |= flags;
-	    for (B=LG->clink.bkr.next; B; B=B->next)
+	    for (B=LG->bkr.next; B; B=B->next)
 		_nodeflagbackrefs(*B->ref, flags);
+	}
+}
+
+static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
+{
+	backref *B;
+	int ra;
+	unsigned int *lp = L->link;		// check 'taken' branch
+
+	// points to current node?
+	if (L->target!=G->key || !(LG->unlinked_jmp_targets & target_type))
+		return;
+
+	if (L->ref!=0) {
+		dbug_printf("Linker: ref at %08x busy\n",LG->key);
+		leavedos_main(0x8102 + (target_type == TARGET_NT));
+	}
+	LG->unlinked_jmp_targets &= ~target_type;
+	// b8 [npc] -> e9/eb reladr
+	ra = G->addr - (unsigned char *)L->link;
+	if ((ra > -127) && (ra < 128)) {
+		ra -= 1; ((char *)lp)[-1] = 0xeb;
+	}
+	else {
+		ra -= 4; ((char *)lp)[-1] = 0xe9;
+	}
+	*lp = ra;
+	L->ref = &G->mblock->bkptr;
+	B = calloc(1,sizeof(backref));
+	// head insertion
+	B->next = G->bkr.next;
+	G->bkr.next = B;
+	B->ref = &LG->mblock->bkptr;
+	B->branch = target_type == TARGET_T ? 'T' : 'N';
+	G->nrefs++;
+	if (G==LG) {
+		G->flags |= F_SLFL;
+		if (debug_level('e')>1) {
+			e_printf("Linker: node (%p:%08x:%p) SELF link\n"
+				 "\t\tjmp %08x, target=%08x, %c_ref %d=%p->%p\n",
+				 G,G->key,G->addr,
+				 ra, L->target, B->branch, G->nrefs, L->ref, *L->ref);
+		}
+	}
+	else if (debug_level('e')>1) {
+		e_printf("Linker: previous node (%p:%08x:%p)\n"
+			 "\t\tlinked to (%p:%08x:%p)\n"
+			 "\t\tjmp %08x, target=%08x, %c_ref %d=%p->%p\n",
+			 LG,LG->key,LG->addr,
+			 G,G->key,G->addr,
+			 ra, L->target, B->branch, G->nrefs, L->ref, *L->ref);
+	}
+	_nodeflagbackrefs(LG, G->flags);
+	if (debug_level('e')>8) {
+		backref *bk = G->bkr.next;
+#ifdef DEBUG_LINKER
+		if (bk==NULL) {
+			dbug_printf("bkr null\n");
+			leavedos_main(0x8108 + (target_type == TARGET_NT));
+		}
+#endif
+		while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
+			bk->ref,*bk->ref); bk=bk->next; }
 	}
 }
 
 static void NodeLinker(TNode *LG, TNode *G)
 {
-	unsigned int *lp;
-	linkdesc *T = &G->clink;
-	backref *B;
 #if PROFILE >= 2
 	hitimer_t t0 = 0;
 #endif
@@ -2972,125 +3032,47 @@ static void NodeLinker(TNode *LG, TNode *G)
 #endif
 	if (debug_level('e')>8 && LG) e_printf("NodeLinker: %08x->%08x\n",LG->key,G->key);
 
-	if (LG && (LG->alive>0)) {
-	    int ra;
-	    linkdesc *L = &LG->clink;
-	    if (L->unlinked_jmp_targets) {	// node ends with links
-		lp = L->t_link.abs;		// check 'taken' branch
-		if (L->t_target==G->key && (L->unlinked_jmp_targets & TARGET_T)) {	// points to current node?
-		    if (L->t_ref!=0) {
-			dbug_printf("Linker: t_ref at %08x busy\n",LG->key);
-			leavedos_main(0x8102);
-		    }
-		    L->unlinked_jmp_targets &= ~TARGET_T;
-		    // b8 [npc] -> e9/eb reladr
-		    ra = G->addr - (unsigned char *)L->t_link.abs;
-		    if ((ra > -127) && (ra < 128)) {
-			ra -= 1; ((char *)lp)[-1] = 0xeb;
-		    }
-		    else {
-			ra -= 4; ((char *)lp)[-1] = 0xe9;
-		    }
-		    *lp = ra;
-		    L->t_ref = &G->mblock->bkptr;
-		    B = calloc(1,sizeof(backref));
-		    // head insertion
-		    B->next = T->bkr.next;
-		    T->bkr.next = B;
-		    B->ref = &LG->mblock->bkptr;
-		    B->branch = 'T';
-		    T->nrefs++;
-		    if (G==LG) {
-			G->flags |= F_SLFL;
-			if (debug_level('e')>1) {
-			    e_printf("Linker: node (%p:%08x:%p) SELF link\n"
-				"\t\tjmp %08x, target=%08x, t_ref %d=%p->%p\n",
-				G,G->key,G->addr,
-				ra, L->t_target, T->nrefs, L->t_ref, *L->t_ref);
-			}
-		    }
-		    else if (debug_level('e')>1) {
-			e_printf("Linker: previous node (%p:%08x:%p)\n"
-			    "\t\tlinked to (%p:%08x:%p)\n"
-			    "\t\tjmp %08x, target=%08x, t_ref %d=%p->%p\n",
-			    LG,LG->key,LG->addr,
-			    G,G->key,G->addr,
-			    ra, L->t_target, T->nrefs, L->t_ref, *L->t_ref);
-		    }
-		    _nodeflagbackrefs(LG, G->flags);
-		    if (debug_level('e')>8) { backref *bk = T->bkr.next;
-#ifdef DEBUG_LINKER
-			if (bk==NULL) { dbug_printf("bkr null\n"); leavedos_main(0x8108); }
-#endif
-			while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
-			bk->ref,*bk->ref); bk=bk->next; }
-		    }
-		}
-		if (L->unlinked_jmp_targets & TARGET_NT) {  // if it has a 'not taken' link
-		    lp = L->nt_link.abs;	// check 'not taken' branch
-		    if (L->nt_target==G->key) {	// points to current node?
-			if (L->nt_ref!=0) {
-			    dbug_printf("Linker: nt_ref at %08x busy\n",LG->key);
-			    leavedos_main(0x8103);
-			}
-			L->unlinked_jmp_targets &= ~TARGET_NT;
-			// b8 [npc] -> e9/eb reladr
-			ra = G->addr - (unsigned char *)L->nt_link.abs;
-			if ((ra > -127) && (ra < 128)) {
-			    ra -= 1; ((char *)lp)[-1] = 0xeb;
-			}
-			else {
-			    ra -= 4; ((char *)lp)[-1] = 0xe9;
-			}
-			*lp = ra;
-			L->nt_ref = &G->mblock->bkptr;
-			B = calloc(1,sizeof(backref));
-			// head insertion
-			B->next = T->bkr.next;
-			T->bkr.next = B;
-			B->ref = &LG->mblock->bkptr;
-			B->branch = 'N';
-			T->nrefs++;
-			if (G==LG) {
-			    G->flags |= F_SLFL;
-			    if (debug_level('e')>1) {
-				e_printf("Linker: node (%p:%08x:%p) SELF link\n"
-				"\t\tjmp %08x, target=%08x, nt_ref %d=%p->%p\n",
-				G,G->key,G->addr,
-				ra, L->nt_target, T->nrefs, L->nt_ref, *L->nt_ref);
-			    }
-			}
-			else if (debug_level('e')>1) {
-			    e_printf("Linker: previous node (%p:%08x:%p)\n"
-				"\t\tlinked to (%p:%08x:%p)\n"
-				"\t\tjmp %08x, target=%08x, nt_ref %d=%p->%p\n",
-				LG,LG->key,LG->addr,
-				G,G->key,G->addr,
-				ra, L->nt_target, T->nrefs, L->nt_ref, *L->nt_ref);
-			}
-			_nodeflagbackrefs(LG, G->flags);
-			if (debug_level('e')>8) { backref *bk = T->bkr.next;
-#ifdef DEBUG_LINKER
-			    if (bk==NULL) { dbug_printf("bkr null\n"); leavedos_main(0x8109); }
-#endif
-				while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
-				bk->ref,*bk->ref); bk=bk->next; }
-			}
-		    }
-		}
-	    }
+	if (LG && LG->alive>0 && LG->unlinked_jmp_targets) {	// node ends with links
+		linknode(LG, G, &LG->clink_t, TARGET_T);
+		linknode(LG, G, &LG->clink_nt, TARGET_NT);
 	}
 #if PROFILE >= 2
 	if (debug_level('e')) LinkTime += (GETTSC() - t0);
 #endif
 }
 
+static void unlinknode(TNode *G, linkdesc *T, char branch)
+{
+	if (!T->ref) return;
+
+	TNode *H = *T->ref;
+	backref *Bq = &H->bkr;
+	backref *B  = H->bkr.next;
+	if (debug_level('e')>2) e_printf("Unlink fwd %c ref to node %p(%08x)\n",
+					 branch, H, H->key);
+	while (B) {
+		if (*B->ref==G) {
+			Bq->next = B->next;
+			H->nrefs--;
+			free(B);
+			break;
+		}
+		Bq = B;
+		B = B->next;
+	}
+	if (B==NULL) {	// not found...
+		dbug_printf("Unlinker: FW %c ref error\n", branch);
+		leavedos_main(0x8111 + (branch == 'N'));
+	}
+	T->ref = NULL;
+}
 
 void NodeUnlinker(TNode *G)
 {
 	unsigned int *lp;
-	linkdesc *T = &G->clink;
-	backref *B = T->bkr.next;
+	linkdesc *T_t = &G->clink_t;
+	linkdesc *T_nt = &G->clink_nt;
+	backref *B = G->bkr.next;
 #if PROFILE >= 2
 	hitimer_t t0 = 0;
 #endif
@@ -3108,37 +3090,30 @@ void NodeUnlinker(TNode *G)
 	    e_printf("Unlinker: bkr.next=%p\n",B);
 	while (B) {
 	    backref *b2 = B;
-	    if (B->branch=='T') {
+	    if (B->branch=='T' || B->branch=='N') {
 		TNode *H = *B->ref;
-		linkdesc *L = &H->clink;
-		if (debug_level('e')>2) e_printf("Unlinking T ref from node %p(%08x) to %08x\n",
-			H, L->t_target, G->key);
-		if (L->t_target != G->key) {
-		    dbug_printf("Unlinker: BK ref error t=%08x k=%08x\n",
-			L->t_target, G->key);
+		unsigned target_type;
+		linkdesc *L;
+		if (B->branch=='T') {
+			target_type = TARGET_T;
+			L = &H->clink_t;
+		}
+		else {
+			target_type = TARGET_NT;
+			L = &H->clink_nt;
+		}
+		if (debug_level('e')>2) e_printf("Unlinking %c ref from node %p(%08x) to %08x\n",
+			B->branch, H, L->target, G->key);
+		if (L->target != G->key) {
+		    dbug_printf("Unlinker: BK %c ref error t=%08x k=%08x\n",
+			B->branch, L->target, G->key);
 		    leavedos_main(0x8110);
 		}
-		lp = L->t_link.abs;
+		lp = L->link;
 		((char *)lp)[-1] = 0xb8;
-		*lp = L->t_target;
-		L->t_ref = NULL; L->unlinked_jmp_targets |= TARGET_T;
-		T->nrefs--;
-	    }
-	    else if (B->branch=='N') {
-		TNode *H = *B->ref;
-		linkdesc *L = &H->clink;
-		if (debug_level('e')>2) e_printf("Unlinking N ref from node %p(%08x) to %08x\n",
-			H, L->nt_target, G->key);
-		if (L->nt_target != G->key) {
-		    dbug_printf("Unlinker: BK ref error u=%08x k=%08x\n",
-			L->nt_target, G->key);
-		    leavedos_main(0x8110);
-		}
-		lp = L->nt_link.abs;
-		((char *)lp)[-1] = 0xb8;
-		*lp = L->nt_target;
-		L->nt_ref = NULL; L->unlinked_jmp_targets |= TARGET_NT;
-		T->nrefs--;
+		*lp = L->target;
+		L->ref = NULL; H->unlinked_jmp_targets |= target_type;
+		G->nrefs--;
 	    }
 	    else {
 		e_printf("Invalid unlink [%c] ref %p from node ?(?) to %08x\n",
@@ -3149,7 +3124,7 @@ void NodeUnlinker(TNode *G)
 	    free(b2);
 	}
 
-	if (T->nrefs) {
+	if (G->nrefs) {
 	    dbug_printf("Unlinker: nrefs error\n");
 	    leavedos_main(0x8115);
 	}
@@ -3157,52 +3132,14 @@ void NodeUnlinker(TNode *G)
 	// unlink forward references (from the current node to other
 	// nodes), which are backward refs for the other nodes
 	if (debug_level('e')>8)
-	    e_printf("Unlinker: refs=T%p N%p\n",T->t_ref,T->nt_ref);
-	if (T->t_ref) {
-	    TNode *Gt = *T->t_ref;
-	    backref *Btq = &Gt->clink.bkr;
-	    backref *Bt  = Gt->clink.bkr.next;
-	    if (debug_level('e')>2) e_printf("Unlink fwd T ref to node %p(%08x)\n",Gt,
-		Gt->key);
-	    while (Bt) {
-		if (*Bt->ref==G) {
-			Btq->next = Bt->next;
-			Gt->clink.nrefs--;
-			free(Bt);
-			break;
-		}
-		Btq = Bt;
-		Bt = Bt->next;
-	    }
-	    if (Bt==NULL) {	// not found...
-		dbug_printf("Unlinker: FW T ref error\n");
-		leavedos_main(0x8111);
-	    }
-	    T->t_ref = NULL;
-	}
-	if (T->nt_ref) {
-	    TNode *Gn = *T->nt_ref;
-	    backref *Bnq = &Gn->clink.bkr;
-	    backref *Bn  = Gn->clink.bkr.next;
-	    if (debug_level('e')>2) e_printf("Unlink fwd N ref to node %p(%08x)\n",Gn,
-		Gn->key);
-	    while (Bn) {
-		if (*Bn->ref==G) {
-			Bnq->next = Bn->next;
-			Gn->clink.nrefs--;
-			free(Bn);
-			break;
-		}
-		Bnq = Bn;
-		Bn = Bn->next;
-	    }
-	    if (Bn==NULL) {	// not found...
-		dbug_printf("Unlinker: FW N ref error\n");
-		leavedos_main(0x8112);
-	    }
-	    T->nt_ref = NULL;
-	}
-	memset(T, 0, sizeof(linkdesc));
+	    e_printf("Unlinker: refs=T%p N%p\n",T_t->ref,T_nt->ref);
+	unlinknode(G, T_t, 'T');
+	unlinknode(G, T_nt, 'N');
+	G->nrefs = 0;
+	memset(T_t, 0, sizeof(linkdesc));
+	memset(T_nt, 0, sizeof(linkdesc));
+	G->unlinked_jmp_targets = 0;
+	memset(&G->bkr, 0, sizeof(backref));
 #if PROFILE >= 2
 	if (debug_level('e')) LinkTime += (GETTSC() - t0);
 #endif
@@ -3519,9 +3456,9 @@ unsigned int Exec_x86_fast(TNode *G)
 	do {
 		ePC = Exec_x86_asm(&mem_ref, &flg, ecpu, G->addr);
 		if (G->alive > 0 && LastXNode && LastXNode->alive > 0) {
-			if (LastXNode->clink.unlinked_jmp_targets &&
-			    (LastXNode->clink.t_target == G->key ||
-			     LastXNode->clink.nt_target == G->key))
+			if (LastXNode->unlinked_jmp_targets &&
+			    (LastXNode->clink_t.target == G->key ||
+			     LastXNode->clink_nt.target == G->key))
 				NodeLinker(LastXNode, G);
 			LastXNode = G;
 		}

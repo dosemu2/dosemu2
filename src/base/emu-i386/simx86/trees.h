@@ -59,17 +59,9 @@ typedef struct _bkref {
 #define TARGET_NT 2
 
 typedef struct _lnkdesc {
-	unsigned short nrefs;
-	union {
-		unsigned int *abs;
-	} t_link;
-	union {
-		unsigned int *abs;
-	} nt_link;
-	unsigned int t_target, nt_target;
-	unsigned unlinked_jmp_targets;
-	struct avltr_node **t_ref, **nt_ref;
-	backref bkr;
+	unsigned int *link;
+	unsigned int target;
+	struct avltr_node **ref;
 } linkdesc;
 
 typedef struct _imgen {
@@ -130,7 +122,11 @@ typedef struct avltr_node
 	Addr2Pc *pmeta;
 	unsigned short len, flags, seqlen, seqnum __attribute__ ((packed));
 	int seqbase;
-	linkdesc clink;
+	unsigned short nrefs;
+	linkdesc clink_t;
+	linkdesc clink_nt;
+	unsigned unlinked_jmp_targets;
+	backref bkr;
 	unsigned cs;
 	unsigned mode;
 } TNode;
@@ -163,6 +159,10 @@ void InitTrees(void);
 #ifdef X86_JIT
 unsigned int FindPC(unsigned char *addr);
 int InvalidateNodeRange(int addr, int len, unsigned char *eip);
+#endif
+
+#ifdef DEBUG_TREE
+extern FILE *tLog;
 #endif
 
 #endif
