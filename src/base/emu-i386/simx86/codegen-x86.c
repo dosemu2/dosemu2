@@ -138,6 +138,13 @@ static TNode *LastXNode = NULL;
 unsigned char TailCode[TAILSIZE+1] =
 	{ 0xb8,0,0,0,0,0x5a,0xc3,0xf4 };
 
+#ifdef __x86_64__
+/* create space for 64 bit jumps (taking 12 bytes total) behing tail code */
+#define PADJMP		G5(0x9090909090,Cp)
+#else
+#define PADJMP
+#endif
+
 /*
  * This function is only here for looking at the generated binary code
  * with objdump.
@@ -2304,7 +2311,7 @@ shrot0:
 	        }
 		// t:	b8 [exit_pc] 5a c3
 		G1(0xb8,Cp);
-		G4(dspt,Cp); G2(0xc35a,Cp);
+		G4(dspt,Cp); G2(0xc35a,Cp); PADJMP;
 		if (debug_level('e')>2) e_printf("JMP_Link %08x:%08x lk=%d\n",
 			dspt,dspnt,IG->op);
 		}
@@ -2323,7 +2330,7 @@ shrot0:
 		// t:	0f b7 4f [sig] e3 07
 		//	b8 [sig_pc] 5a c3
 		//	b8 [t_pc] 5a c3
-		sz = TAILSIZE + (mode & CKSIGN? CKSIGNSIZE:0);
+		sz = JMPTAILSIZE + (mode & CKSIGN? CKSIGNSIZE:0);
 		if (opc==JCXZ) {
 			if (mode&ADDR16) {
 			    // movzwl Ofs_ECX(%%ebx),%%ecx
@@ -2351,7 +2358,7 @@ shrot0:
 	        }
 		// not taken: continue with next instr
 		G1(0xb8,Cp);
-		G4(dspnt,Cp); G2(0xc35a,Cp);
+		G4(dspnt,Cp); G2(0xc35a,Cp); PADJMP;
 		// taken
 		if (IG->op==JB_LINK) {
 		    // check signal on TAKEN branch for back jumps
@@ -2360,7 +2367,7 @@ shrot0:
 		    G1(0xb8,Cp); G4(jpc,Cp); G2(0xc35a,Cp);
 	        }
 		G1(0xb8,Cp);
-		G4(dspt,Cp); G2(0xc35a,Cp);
+		G4(dspt,Cp); G2(0xc35a,Cp); PADJMP;
 		if (debug_level('e')>2) e_printf("J_Link %08x:%08x lk=%d\n",
 			dspt,dspnt,IG->op);
 		}
@@ -2394,20 +2401,20 @@ shrot0:
 			G2M(0x74,0x06,Cp);		// jz->nt
 			// test flags (on stack)
 			G4M(0xf6,0x04,0x24,0x40,Cp);
-			G2M(0x75,TAILSIZE,Cp);	// jnz->t
+			G2M(0x75,JMPTAILSIZE,Cp);	// jnz->t
 		}
 		else if (opc==LOOPNZ_LOOPNE) {
 			G2M(0x74,0x06,Cp);		// jz->nt
 			// test flags (on stack)
 			G4M(0xf6,0x04,0x24,0x40,Cp);
-			G2M(0x74,TAILSIZE,Cp);	// jz->t
+			G2M(0x74,JMPTAILSIZE,Cp);	// jz->t
 		}
 		else {
-			G2M(0x75,TAILSIZE,Cp);	// jnz->t
+			G2M(0x75,JMPTAILSIZE,Cp);	// jnz->t
 		}
 		// not taken: continue with next instr
 		G1(0xb8,Cp);
-		G4(dspnt,Cp); G2(0xc35a,Cp);
+		G4(dspnt,Cp); G2(0xc35a,Cp); PADJMP;
 		// taken
 #if 0
 		/* CKSIGN is likely not needed for loops */
@@ -2423,7 +2430,7 @@ shrot0:
 	        }
 #endif
 		G1(0xb8,Cp);
-		G4(dspt,Cp); G2(0xc35a,Cp);
+		G4(dspt,Cp); G2(0xc35a,Cp); PADJMP;
 		if (debug_level('e')>2) e_printf("JLOOP_Link %08x:%08x lk=%d\n",
 			dspt,dspnt,IG->op);
 		}
@@ -2956,7 +2963,7 @@ static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
 static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 {
 	backref *B;
-	int ra;
+	ptrdiff_t ra;
 	unsigned int *lp = L->link;		// check 'taken' branch
 
 	// points to current node?
@@ -2970,13 +2977,25 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 	LG->unlinked_jmp_targets &= ~target_type;
 	// b8 [npc] -> e9/eb reladr
 	ra = G->addr - (unsigned char *)L->link;
-	if ((ra > -127) && (ra < 128)) {
-		ra -= 1; ((char *)lp)[-1] = 0xeb;
+#ifdef __x86_64__
+	if (ra - 4 < INT32_MIN || ra - 4 > INT32_MAX) {
+		unsigned char *Cp = (unsigned char *)lp - 1;
+		if (debug_level('e') > 1) e_printf("Linker: 64 bit jmp for ra=0x%tx\n", ra);
+		G2M(0x48,0xb8,Cp); // mov adr, %%rax
+		G8((uintptr_t)G->addr,Cp);
+		G2M(0xff,0xe0,Cp); // jmp %%rax
 	}
-	else {
-		ra -= 4; ((char *)lp)[-1] = 0xe9;
+	else
+#endif
+	{
+		if ((ra > -127) && (ra < 128)) {
+			ra -= 1; ((char *)lp)[-1] = 0xeb;
+		}
+		else {
+			ra -= 4; ((char *)lp)[-1] = 0xe9;
+		}
+		*lp = ra;
 	}
-	*lp = ra;
 	L->ref = &G->mblock->bkptr;
 	B = calloc(1,sizeof(backref));
 	// head insertion
@@ -2989,7 +3008,7 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 		G->flags |= F_SLFL;
 		if (debug_level('e')>1) {
 			e_printf("Linker: node (%p:%08x:%p) SELF link\n"
-				 "\t\tjmp %08x, target=%08x, %c_ref %d=%p->%p\n",
+				 "\t\tjmp %08tx, target=%08x, %c_ref %d=%p->%p\n",
 				 G,G->key,G->addr,
 				 ra, L->target, B->branch, G->nrefs, L->ref, *L->ref);
 		}
@@ -2997,7 +3016,7 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 	else if (debug_level('e')>1) {
 		e_printf("Linker: previous node (%p:%08x:%p)\n"
 			 "\t\tlinked to (%p:%08x:%p)\n"
-			 "\t\tjmp %08x, target=%08x, %c_ref %d=%p->%p\n",
+			 "\t\tjmp %08tx, target=%08x, %c_ref %d=%p->%p\n",
 			 LG,LG->key,LG->addr,
 			 G,G->key,G->addr,
 			 ra, L->target, B->branch, G->nrefs, L->ref, *L->ref);
@@ -3112,6 +3131,10 @@ void NodeUnlinker(TNode *G)
 		lp = L->link;
 		((char *)lp)[-1] = 0xb8;
 		*lp = L->target;
+#ifdef __x86_64__
+		unsigned char *Cp = (unsigned char *)(lp + 1);
+		G2(0xc35a,Cp); PADJMP;
+#endif
 		L->ref = NULL; H->unlinked_jmp_targets |= target_type;
 		G->nrefs--;
 	    }
