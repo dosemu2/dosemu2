@@ -205,15 +205,15 @@ static void SDL_done(void)
 
 void SDL_pre_init(void)
 {
-  int err;
+  int ok;
 
   if (pre_initialized)
     return;
   pre_initialized = 1;
 
   SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
-  err = SDL_Init(0);
-  if (err)
+  ok = SDL_Init(0);
+  if (!ok)
     return;
 
   register_exit_handler(SDL_done);
@@ -407,8 +407,8 @@ static int SDL_init(void)
   /* it is better to create window and renderer at once. They have
    * internal cyclic dependencies, so if you create renderer after
    * creating window, SDL will destroy and re-create the window. */
-  int err = SDL_CreateWindowAndRenderer(0, 0, flags, &window, &renderer);
-  if (err || !window || !renderer) {
+  int ok = SDL_CreateWindowAndRenderer(0, 0, flags, &window, &renderer);
+  if (!ok || !window || !renderer) {
     error("SDL window failed: %s\n", SDL_GetError());
     goto err;
   }
@@ -1281,7 +1281,7 @@ static int SDL_change_config(unsigned item, void *buf)
   }
 
   default:
-    err = 100;
+    err = -1;
   }
 
   return err;
