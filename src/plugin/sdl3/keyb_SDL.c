@@ -97,7 +97,7 @@ void SDL_process_key_text(SDL_KeyboardEvent keyevent,
 	int rc;
 	SDL_Keycode key = keyevent.key;
 	SDL_Keymod mod = keyevent.mod;
-	SDL_Scancode scan = SDL_GetScancodeFromKey(key, &mod);
+	SDL_Scancode scan = SDL_GetScancodeFromKey(key, NULL);
 	t_keynum keynum = sdl2_scancode_to_keynum(scan);
 
 	if (!kbd_inited)
@@ -130,7 +130,7 @@ void SDL_process_key_press(SDL_KeyboardEvent keyevent)
 
 	SDL_Keycode key = keyevent.key;
 	SDL_Keymod mod = keyevent.mod;
-	SDL_Scancode scan = SDL_GetScancodeFromKey(key, &mod);
+	SDL_Scancode scan = SDL_GetScancodeFromKey(key, NULL);
 	t_keynum keynum = sdl2_scancode_to_keynum(scan);
 
 	if (keynum == NUM_VOID) {
@@ -151,7 +151,7 @@ void SDL_process_key_release(SDL_KeyboardEvent keyevent)
 
 	SDL_Keycode key = keyevent.key;
 	SDL_Keymod mod = keyevent.mod;
-	SDL_Scancode scan = SDL_GetScancodeFromKey(key, &mod);
+	SDL_Scancode scan = SDL_GetScancodeFromKey(key, NULL);
 	t_keynum keynum = sdl2_scancode_to_keynum(scan);
 
 	if (keynum == NUM_VOID) {
