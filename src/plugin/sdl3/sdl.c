@@ -369,6 +369,7 @@ static int SDL_init(void)
   rng_init(&rects_rng, RECTS_UPD_THRESHOLD, sizeof(struct rect_desc));
   rng_allow_ovw(&rects_rng, 0);
 
+  SDL_SetHint(SDL_HINT_APP_ID, "dosemu");
   if (!config.sdl_hwrend)
     rflags = SDL_SOFTWARE_RENDERER;
 #ifdef SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR /* only available since SDL 2.0.8 */
