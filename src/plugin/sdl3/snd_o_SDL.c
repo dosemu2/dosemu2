@@ -1,0 +1,151 @@
+/*
+ *  Copyright (C) 2006 Stas Sergeev <stsp@users.sourceforge.net>
+ *
+ * The below copyright strings have to be distributed unchanged together
+ * with this file. This prefix can not be modified or separated.
+ */
+
+/*
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+/*
+ * Purpose: SDL sound output plugin.
+ *
+ * Author: Stas Sergeev.
+ */
+
+#include "emu.h"
+#include "init.h"
+#include "sound/sound.h"
+#include "sdl.h"
+#include <string.h>
+#include <SDL3/SDL.h>
+
+#define sdlsnd_name "sdl"
+#define sdlsnd_longname "Sound Output: SDL device"
+static struct player_params params;
+static SDL_AudioDeviceID dev;
+
+static void sdlsnd_callback(void *userdata, SDL_AudioStream *stream,
+	int add, int tot)
+{
+    Uint8 *data = SDL_stack_alloc(Uint8, add);
+    if (data) {
+	size_t sz = pcm_data_get(data, add, &params);
+	/* init reminder */
+	if (sz < add)
+	    SDL_memset(data + sz, 0, add - sz);
+	SDL_PutAudioStreamData(stream, data, add);
+	SDL_stack_free(data);
+    }
+}
+
+static void sdlsnd_start(void *arg)
+{
+    SDL_ResumeAudioDevice(dev);
+}
+
+static void sdlsnd_stop(void *arg)
+{
+    SDL_PauseAudioDevice(dev);
+}
+
+static int sndsdl_cfg(void *arg)
+{
+    if (config.sdl_sound == 1)
+	return PCM_CF_ENABLED;
+    return pcm_parse_cfg(config.sound_driver, sdlsnd_name);
+}
+
+static int sdlsnd_open(void *arg)
+{
+    SDL_AudioSpec spec;
+    SDL_AudioStream *stream;
+    int ok;
+    S_printf("Initializing SDL sound output\n");
+    SDL_pre_init();
+    ok = SDL_InitSubSystem(SDL_INIT_AUDIO);
+    if (ok == false) {
+	error("SDL audio init failed, %s\n", SDL_GetError());
+	return 0;
+    }
+    spec.freq = 44100;
+    spec.format = SDL_AUDIO_S16LE;
+    spec.channels = 2;
+    stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+	    &spec, sdlsnd_callback, NULL);
+    if (!stream) {
+	error("SDL sound init failed: %s\n", SDL_GetError());
+	goto fail;
+    }
+
+    dev = SDL_GetAudioStreamDevice(stream);
+    params.rate = spec.freq;
+    params.format = PCM_FORMAT_S16_LE;
+    params.channels = spec.channels;
+
+    pcm_setup_hpf(&params);
+
+    return 1;
+
+fail:
+    if (!config.sdl)
+	SDL_Quit();
+    else
+	SDL_QuitSubSystem(SDL_INIT_AUDIO);
+    return 0;
+}
+
+static void sdlsnd_close(void *arg)
+{
+    SDL_CloseAudioDevice(dev);
+    SDL_QuitSubSystem(SDL_INIT_AUDIO);
+}
+
+static const struct pcm_player player
+#ifdef __cplusplus
+{
+    sdlsnd_name,
+    sdlsnd_longname,
+    sndsdl_cfg,
+    sdlsnd_open,
+    sdlsnd_close,
+    NULL,
+    sdlsnd_start,
+    sdlsnd_stop,
+    0,
+    PCM_ID_P,
+    0
+};
+#else
+= {
+    .name = sdlsnd_name,
+    .longname = sdlsnd_longname,
+    .get_cfg = sndsdl_cfg,
+    .open = sdlsnd_open,
+    .close = sdlsnd_close,
+    .start = sdlsnd_start,
+    .stop = sdlsnd_stop,
+//    .lock = SDL_LockAudio,
+//    .unlock = SDL_UnlockAudio,
+    .id = PCM_ID_P,
+};
+#endif
+
+CONSTRUCTOR(static void sdlsnd_init(void))
+{
+    params.handle = pcm_register_player(&player, NULL);
+}
