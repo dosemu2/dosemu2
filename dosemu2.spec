@@ -17,8 +17,8 @@ VCS: https://github.com/dosemu2/dosemu2.git
 Source0: dosemu2.tar.gz
 Source1: etc/sysusers.conf
 
-BuildRequires: SDL2-devel
-BuildRequires: SDL2_ttf-devel
+BuildRequires: SDL3-devel
+BuildRequires: SDL3_ttf-devel
 BuildRequires: fontconfig-devel
 BuildRequires: libXext-devel
 BuildRequires: alsa-lib-devel
