@@ -40,6 +40,11 @@
 #include "vgaemu.h"
 
 #define TAILSIZE	7
+#ifdef __x86_64__
+#define JMPTAILSIZE	12
+#else
+#define JMPTAILSIZE	TAILSIZE
+#endif
 #define TAILFIX		1
 #define CKSIGNSIZE	13
 

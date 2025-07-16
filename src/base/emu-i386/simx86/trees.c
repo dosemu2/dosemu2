@@ -674,7 +674,7 @@ static void checklink(const TNode *G, const linkdesc *L, char branch)
 	    if (debug_level('e')>5)
 		e_printf("  %c: ref=%p link=%p\n",
 			 branch,GL,L->link);
-	    if ((*p!=0xe9)&&(*p!=0xeb)) {
+	    if ((*p!=0xe9)&&(*p!=0xeb)&&(*p!=0x48)) {
 		error("bad %c link jmp\n", branch); goto nquit;
 	    }
 	    if (debug_level('e')>5)
@@ -970,7 +970,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   nG->unlinked_jmp_targets = 0;
   op = I0[CurrIMeta-1].gen[I0[CurrIMeta-1].ngen-1].op;
   if (op >= JMP_LINK) {
-    nG->clink_t.link = (unsigned int *)(nG->addr + nG->len - TAILSIZE + TAILFIX);
+    nG->clink_t.link = (unsigned int *)(nG->addr + nG->len - JMPTAILSIZE + TAILFIX);
     nG->clink_t.target = *nG->clink_t.link;
     nG->unlinked_jmp_targets |= TARGET_T;
   }
@@ -978,7 +978,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
     nG->clink_t.link = NULL;
   if (op > JMP_LINK) {
     nG->clink_nt.link = (unsigned int *)
-      (nG->addr + nG->len - 2*TAILSIZE + TAILFIX - (op == JB_LINK ? CKSIGNSIZE : 0));
+      (nG->addr + nG->len - 2*JMPTAILSIZE + TAILFIX - (op == JB_LINK ? CKSIGNSIZE : 0));
     nG->clink_nt.target = *nG->clink_nt.link;
     nG->unlinked_jmp_targets |= TARGET_NT;
   }
