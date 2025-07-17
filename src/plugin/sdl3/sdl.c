@@ -1001,12 +1001,15 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   } else if (!config.X_fixed_aspect || is_text) {
     SDL_GetWindowSize(window, &w_x_res, &w_y_res);
   }
-  if (config.X_fixed_aspect) {
-    if (!is_text)
+  if (!is_text) {
+    if (config.X_fixed_aspect)
+      SDL_SetRenderLogicalPresentation(renderer, w_x_res, w_y_res,
+          SDL_LOGICAL_PRESENTATION_LETTERBOX);
+    else
       SDL_SetRenderLogicalPresentation(renderer, w_x_res, w_y_res,
           SDL_LOGICAL_PRESENTATION_STRETCH);
-    else
-      SDL_SetRenderLogicalPresentation(renderer, 0, 0,
+  } else {
+    SDL_SetRenderLogicalPresentation(renderer, 0, 0,
           SDL_LOGICAL_PRESENTATION_DISABLED);
   }
   if (!initialized) {
