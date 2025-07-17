@@ -18,6 +18,7 @@
  * Purpose: SDL video renderer
  *
  * Author: @stsp
+ * Author: @andrewbird (TTF fonts)
  */
 
 #include <stdio.h>
@@ -168,11 +169,7 @@ static int border_on;
     GRAPH : TEXT)
 static SDL_Keycode mgrab_key = SDLK_HOME;
 
-#if SDL_VERSION_ATLEAST(2,26,0)
 #define CONFIG_SDL_SELECTION 1
-#else
-#define CONFIG_SDL_SELECTION 0
-#endif
 
 #if defined(HAVE_SDL_TTF) && defined(HAVE_FONTCONFIG)
 static void SDL_draw_string(void *opaque, int x, int y, const char *text,
@@ -374,19 +371,6 @@ static int SDL_init(void)
     rflags = SDL_SOFTWARE_RENDERER;
 #ifdef SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR /* only available since SDL 2.0.8 */
   SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
-#endif
-#if 0
-  /* FIXME: TODO! */
-  /* hints are set before renderer is created */
-  if (config.X_bilin_filt) {
-    v_printf("SDL: enabling scaling filter \"best\"\n");
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
-  } else if (config.X_lin_filt) {
-    v_printf("SDL: enabling scaling filter \"linear\"\n");
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-  } else {
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-  }
 #endif
   if (!config.X_noresize)
     flags |= SDL_WINDOW_RESIZABLE;
@@ -811,6 +795,7 @@ static void setup_ttf_winsize(int xtarget, int ytarget)
 
   pthread_mutex_lock(&tex_mtx);
   texture_ttf = CreateTextureTarget(xtarget, ytarget, 1);
+  SDL_SetTextureScaleMode(texture_ttf, SDL_SCALEMODE_NEAREST);
   pthread_mutex_unlock(&tex_mtx);
   if (!texture_ttf) {
     error("SDL target texture failed: %s\n", SDL_GetError());
@@ -957,6 +942,17 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     if (!texture_buf) {
       error("SDL target texture failed: %s\n", SDL_GetError());
       leavedos(99);
+    }
+    if (config.X_bilin_filt) {
+#if SDL_VERSION_ATLEAST(3,4,0)
+      SDL_SetTextureScaleMode(texture_buf, SDL_SCALEMODE_PIXELART);
+#else
+      SDL_SetTextureScaleMode(texture_buf, SDL_SCALEMODE_LINEAR);
+#endif
+    } else if (config.X_lin_filt) {
+      SDL_SetTextureScaleMode(texture_buf, SDL_SCALEMODE_LINEAR);
+    } else {
+      SDL_SetTextureScaleMode(texture_buf, SDL_SCALEMODE_NEAREST);
     }
     surface = SDL_CreateSurface(x_res, y_res,
             SDL_GetPixelFormatForMasks(SDL_csd.bits,
