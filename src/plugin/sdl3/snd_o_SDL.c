@@ -74,9 +74,11 @@ static int sdlsnd_open(void *arg)
 {
     SDL_AudioSpec spec;
     SDL_AudioStream *stream;
-    int ok;
+    int ok, err;
     S_printf("Initializing SDL sound output\n");
-    SDL_pre_init();
+    err = sdl_pre_init();
+    if (err)
+	return 0;
     ok = SDL_InitSubSystem(SDL_INIT_AUDIO);
     if (ok == false) {
 	error("SDL audio init failed, %s\n", SDL_GetError());

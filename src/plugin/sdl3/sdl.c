@@ -200,20 +200,21 @@ static void SDL_done(void)
   SDL_Quit();
 }
 
-void SDL_pre_init(void)
+int sdl_pre_init(void)
 {
   int ok;
 
   if (pre_initialized)
-    return;
+    return 0;
   pre_initialized = 1;
 
   SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
   ok = SDL_Init(0);
   if (!ok)
-    return;
+    return -1;
 
   register_exit_handler(SDL_done);
+  return 0;
 }
 
 static int SDL_early_init(void)
@@ -225,7 +226,9 @@ static int SDL_early_init(void)
   int ret;
 
   assert(pthread_equal(pthread_self(), dosemu_pthread_self));
-  SDL_pre_init();
+  ret = sdl_pre_init();
+  if (ret)
+    return ret;
   /* RENDER_DRIVER hint appears to be the hint for video init,
    * not CreateRenderer */
   if (!config.sdl_hwrend) {
