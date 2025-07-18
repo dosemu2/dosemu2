@@ -19,6 +19,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include "cpu.h"
 #include "dosemu_debug.h"
 #include "utilities.h"
@@ -30,7 +31,7 @@
 enum { SOCK_VER, SOCK_OPEN, SOCK_CLOSE, SOCK_BIND, SOCK_SENDTO,
        SOCK_RECVFROM, SOCK_SELECT, SOCK_CONNECT, SOCK_SEND, SOCK_RECV,
        SOCK_LISTEN, SOCK_ACONNECT, SOCK_ACCEPT, SOCK_GETSOCKNAME,
-       SOCK_GETPEERNAME, SOCK_NBM, SOCK_GETFDS };
+       SOCK_GETPEERNAME, SOCK_NBM, SOCK_GETFDS, SOCK_FIONREAD };
 
 struct sock_s {
     int fd;
@@ -405,6 +406,19 @@ static void sock_thr(void *arg)
             }
             break;
         }
+
+        /* dosemu2-specific */
+        case SOCK_FIONREAD:
+            TCP_PROLOG0;
+
+            rc = ioctl(sock->fd, FIONREAD, &_ecx);
+            if (rc) {
+                _eax = CSOCK_ERR_INTERNAL;
+                _eflags |= CF;
+                break;
+            }
+            _eax = 0;
+            break;
     }
 }
 
