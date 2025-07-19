@@ -176,7 +176,11 @@ void dump_maps(void)
     char buf[64];
 
     log_printf("\nmemory maps dump:\n");
+#ifdef __HAIKU__
+    sprintf(buf, "listarea %i >&%i", getpid(), vlog_get_fd());
+#else
     sprintf(buf, "cat /proc/%i/maps >&%i", getpid(), vlog_get_fd());
+#endif
     system(buf);
 }
 

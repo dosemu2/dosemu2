@@ -128,7 +128,11 @@ static void collect_info(pid_t pid)
   const char *cmd0 = "ldd %s";
   const char *cmd1 = "getconf GNU_LIBC_VERSION";
   const char *cmd2 = "getconf GNU_LIBPTHREAD_VERSION";
+#ifdef __HAIKU__
+  const char *cmd3 = "listarea %i";
+#else
   const char *cmd3 = "cat /proc/%i/maps";
+#endif
   char *tmp;
   int ret;
 
