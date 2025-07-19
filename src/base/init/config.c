@@ -15,6 +15,9 @@
 #ifdef __APPLE__
 #include <sys/sysctl.h>
 #endif
+#ifdef __HAIKU__
+#include <kernel/OS.h>
+#endif
 
 #include "version.h"
 #include "emu.h"
@@ -842,6 +845,78 @@ static void read_cpu_info(void)
     config.cpu_tick_spd = (LLF_TICKS*1000000)/chz;
     config.CPUSpeedInMhz = (chz+500000)/1000000;
     warn ("CPU-EMU speed is %d MHz\n",config.CPUSpeedInMhz);
+#elif defined(__HAIKU__)
+    int k = 3;
+    int cores = 0;
+    int err;
+    cpuid_info info;
+
+    err = get_cpuid(&info, 1, 0);
+    if (err != B_OK)
+        return;
+
+    k = info.eax_1.family;
+    bool fpu = info.eax_1.extended_features & (1 << 0);
+    bool tsc = info.eax_1.extended_features & (1 << 4);
+    bool mmx = info.eax_1.extended_features & (1 << 23);
+    bool fxsr = info.eax_1.extended_features & (1 << 24);
+    bool sse = info.eax_1.extended_features & (1 << 25);
+
+    cpu_topology_node_info topology[128];
+    int count = 128;
+    get_cpu_topology_info(topology, &count);
+
+    if (k >= 5) {
+        config.realcpu = CPU_586;
+
+#ifdef X86_EMULATOR
+        if (mmx || sse) {
+	  config.cpuprefetcht0 = 1;
+        }
+#endif
+#ifdef __i386__
+        if (fxsr) {
+          config.cpufxsr = 1;
+	  if (sse)
+	    config.cpusse = 1;
+	}
+#endif
+        if (tsc) {
+            long long chz = 0;
+            for (int i = 0; i < count; i++) {
+                if (topology[i].type == B_TOPOLOGY_CORE) {
+                    chz = topology[i].data.core.default_frequency;
+                    cores ++;
+                }
+            }
+	    /* speed division factor to get 1us from CPU clock */
+	    config.cpu_spd = (LLF_US*1000000)/chz;
+
+	    /* speed division factor to get 838ns from CPU clock */
+	    config.cpu_tick_spd = (LLF_TICKS*1000000)/chz;
+
+	    config.CPUSpeedInMhz = chz / 1000000;
+
+        }
+    } else if (k == 4) {
+        config.realcpu = CPU_486;
+    } else if (k != 3) {
+        error("Unknown CPU type!\n");
+    }
+
+    if (config.mathco) {
+        config.mathco = fpu;
+    }
+
+    err = get_cpuid(&info, 9, 0);
+    if (err != B_OK)
+      return;
+
+    if (info.regs.ecx & (1 << 2))
+      config.umip = 1;
+
+    if (cores > 0)
+        config.smp = 1;
 #else
     char *cpuflags, *cpu;
     int k = 3;
