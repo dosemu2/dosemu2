@@ -4,7 +4,7 @@ AC_INIT
 dnl Check for SDL3 first
 PKG_CHECK_MODULES(SDL3, [sdl3], [
 	    AC_MSG_ERROR([sdl3 found, not enabling sdl2])
-])
+], [ ])
 
 dnl Check for SDL
 SDL_MIN_VERSION=2.0.6
