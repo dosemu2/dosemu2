@@ -679,6 +679,11 @@ static void pic_run(void)
         clear_VIP();
         return;
     }
+#ifdef USE_MHPDBG
+    mhp_debug(DBG_POLL, 0, 0);
+    if (mhpdbg_is_stopped())
+      return;
+#endif
 
     if (!isset_IF()) {
 #if 0

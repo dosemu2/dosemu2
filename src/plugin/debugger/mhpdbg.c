@@ -351,7 +351,7 @@ static void mhp_pre_vm86(void)
 
 static void mhp_poll(void)
 {
-
+  handle_signals();  // try to activate interface
   if (!mhpdbg.active) {
     nbytes = 0;
     return;
@@ -362,7 +362,6 @@ static void mhp_poll(void)
     mhpdbg.active++;
 
     mhp_printf("%s", mhp_banner);
-    mhp_poll_loop();
   }
   if (mhpdbgc.want_to_stop) {
     mhpdbgc.stopped = 1;
