@@ -12,8 +12,10 @@ REALTOPDIR ?= $(abspath $(srcdir))
 
 $(REALTOPDIR)/configure configure: $(REALTOPDIR)/configure.ac
 	cd $(@D) && autoreconf --install -v
+$(REALTOPDIR)/confing.hh.in: $(REALTOPDIR)/configure.ac
+	cd $(@D) && autoheader
 
-Makefile.conf config.status etc/dosemu.desktop: $(REALTOPDIR)/configure
+config.status: $(REALTOPDIR)/configure
 ifeq ($(findstring $(MAKECMDGOALS), clean realclean pristine distclean),)
 	@echo "Running configure ..."
 	$<
@@ -22,6 +24,11 @@ else
 endif
 
 config.hh: $(top_srcdir)/config.hh.in | $(top_builddir)/config.status
+	$(top_builddir)/config.status
+	touch $@
+Makefile.conf: $(top_srcdir)/Makefile.conf.in | $(top_builddir)/config.status
+	$(top_builddir)/config.status
+etc/dosemu.desktop: $(top_srcdir)/etc/dosemu.desktop.in
 	$(top_builddir)/config.status
 
 default install: config.status config.hh etc/dosemu.desktop
