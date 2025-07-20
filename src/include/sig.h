@@ -166,6 +166,43 @@ typedef mcontext_t sigcontext_t;
 #define _scp_rip _scp_eip
 #define _scp_rsp _scp_esp
 #endif
+#elif defined(__HAIKU__)
+
+#ifdef __x86_64__
+#define _scp_eax scp->rax
+#define _scp_edx scp->rdx
+#define _scp_edi scp->rdi
+#define _scp_rdi scp->rdi
+#define _scp_eflags scp->rflags
+#define _scp_eip scp->rip
+#define _scp_rip scp->rip
+#define _scp_esp scp->rsp
+#define _scp_rsp scp->rsp
+#define _scp_rbp scp->rbp
+#define _scp_trapno scp->fpu.fp_fxsave.trap_number
+#define _scp_err scp->fpu.fp_fxsave.error_code
+#define _scp_cr2 scp->fpu.fp_fxsave.fault_address
+#define _scp_cs scp->fpu.fp_fxsave.cs
+#define PRI_RG PRIx64
+#elif defined(__i386__)
+#define _scp_eax scp->eax
+#define _scp_edx scp->edx
+#define _scp_edi scp->edi
+#define _scp_rdi scp->edi
+#define _scp_eflags scp->eflags
+#define _scp_rip scp->eip
+#define _scp_eip scp->eip
+#define _scp_esp scp->esp
+#define _scp_rsp scp->esp
+#define _scp_rbp scp->ebp
+#define _scp_trapno scp->xregs.state.new_format.trap_number
+#define _scp_err scp->xregs.state.new_format.error_code
+#define _scp_cr2 scp->xregs.state.new_format.fault_address
+#define _scp_cs scp->xregs.state.new_format.cs
+#define PRI_RG PRIx32
+#else
+#error "Unknown or unupported CPU architecture"
+#endif
 #endif  // __linux__
 
 extern void SIGNAL_save( void (*signal_call)(void *), void *arg, size_t size,
