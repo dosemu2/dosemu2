@@ -3189,7 +3189,7 @@ repag0:
 			case 0x26: { /* MOVrdtd */ /* Privileged */
 				int *srg; int reg; unsigned char b,opd;
 				CODE_FLUSH();
-				if (REALMODE()) goto not_permitted;
+				if (V86MODE()) goto not_permitted;
 				b = Fetch(PC+2);
 				if (D_HO(b)!=3) goto illegal_op;
 				reg = D_MO(b); b = D_LO(b);
