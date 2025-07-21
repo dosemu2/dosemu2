@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include "cpu.h"
+#include "int.h"
 #include "dosemu_debug.h"
 #include "utilities.h"
 #include "emudpmi.h"
@@ -110,9 +111,9 @@ static enum CbkRet select_cb(int arg0, void *arg, int nfds, int *r_err)
 #define CSOCK_ERR_WOULD_BLOCK         0x00000b00
 #define CSOCK_ERR_NOT_LISTENING       0x00000c00
 
-static void sock_thr(void *arg)
+static void sock_handler(cpuctx_t *scp,
+        void *(SEL_ADR)(unsigned short sel, unsigned int reg))
 {
-    cpuctx_t *scp = arg;
     struct sock_s *sock;
     int rc;
 
@@ -420,6 +421,65 @@ static void sock_thr(void *arg)
             _eax = 0;
             break;
     }
+}
+
+static void pm_to_rm_regs(cpuctx_t *scp)
+{
+    REG(eflags) = _eflags;
+    REG(eax) = _eax;
+    REG(ebx) = _ebx;
+    REG(ecx) = _ecx;
+    REG(edx) = _edx;
+    REG(esi) = _esi;
+    REG(edi) = _edi;
+    REG(ebp) = _ebp;
+    SREG(ds) = _ds;
+    SREG(es) = _es;
+    SREG(fs) = _fs;
+    SREG(gs) = _gs;
+}
+
+static void rm_to_pm_regs(cpuctx_t *scp)
+{
+#define CP_16_32(reg) do { \
+    _##reg = REG(reg); \
+} while(0)
+    _eflags = REG(eflags);
+    CP_16_32(eax);
+    CP_16_32(ebx);
+    CP_16_32(ecx);
+    CP_16_32(edx);
+    CP_16_32(esi);
+    CP_16_32(edi);
+    CP_16_32(ebp);
+    _ds = SREG(ds);
+    _es = SREG(es);
+    _fs = SREG(fs);
+    _gs = SREG(gs);
+}
+
+static void *_SEG_ADR(unsigned short seg, unsigned int off)
+{
+    unsigned short _seg = off >> 16;
+    off &= 0xffff;
+    dosaddr_t lin = SEGOFF2LINEAR(_seg, off);
+    if (lin >= LOWMEM_SIZE + HMASIZE)
+        return NULL;
+    return LINEAR2UNIX(lin);
+}
+
+void sock_rm_handler(void)
+{
+    cpuctx_t sc = {};
+    rm_to_pm_regs(&sc);
+    sock_handler(&sc, _SEG_ADR);
+    pm_to_rm_regs(&sc);
+}
+
+static void sock_thr(void *arg)
+{
+    cpuctx_t *scp = arg;
+    sock_handler(scp, SEL_ADR);
 }
 
 void VXD_Sock(cpuctx_t *scp)

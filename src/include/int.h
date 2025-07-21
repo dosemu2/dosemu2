@@ -58,4 +58,6 @@ char *getCWD(int drive);
 int get_redirection_root(int drive, char *presourceStr, int resourceLength);
 int is_redirection_ro(int drive);
 
+void sock_rm_handler(void);
+
 #endif

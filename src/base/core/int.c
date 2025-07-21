@@ -123,6 +123,9 @@ static int can_change_title = 0;
 static u_short hlt_off;
 static int int_tid, int_rvc_tid;
 
+static int sock_tid;
+static u_short sock_hlt;
+
 static int cur_rvc_setup(void)
 {
     if (config.int_hooks == -1 || config.int_hooks == 1)
@@ -3026,6 +3029,11 @@ static int do_run_cmd(struct lowstring *str, struct ae00_tab *cmd)
     return rc;
 }
 
+static void sock_thr(void *arg)
+{
+    sock_rm_handler();
+}
+
 static int int2f(int stk_offs, int revect)
 {
     int ret = I_NOT_HANDLED;
@@ -3191,8 +3199,19 @@ hint_done:
 	    break;
 
 	case 0x84:		/* Win95 Get Device Entry Point */
-	    LWORD(edi) = 0;
-	    WRITE_SEG_REG(es, 0);	/* say NO to Win95 ;-) */
+	    switch (LWORD(ebx)) {
+	    case 0x1235:
+		if (!sock_tid)
+		    sock_tid = coopth_create_vm86("sock rm", sock_thr,
+			    fake_retf, &sock_hlt);
+		WRITE_SEG_REG(es, BIOS_HLT_BLK_SEG);
+		LWORD(edi) = sock_hlt;
+		break;
+	    default:
+		LWORD(edi) = 0;
+		WRITE_SEG_REG(es, 0);	/* say NO to Win95 ;-) */
+		break;
+	    }
 	    return 1;
 	case 0x85:		/* Win95 Switch VM + Call Back */
 	    CARRY;
