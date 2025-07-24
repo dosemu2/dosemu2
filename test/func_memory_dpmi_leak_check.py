@@ -65,10 +65,7 @@ int main(int argc, char *argv[])
 }
 """)
 
-    results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+    results = self.runDosemu("testit.bat")
 
     # INFO: (TEST0) DPMI allocation info: HNDL=00000012, SIZE=00020000, ADDR=21199000
 

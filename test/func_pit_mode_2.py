@@ -127,10 +127,7 @@ int main(void)
 """)
 
     starttime = self.utcnow()
-    results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""", timeout=150)
+    results = self.runDosemu("testit.bat", timeout=150)
     endtime = self.utcnow()
 
     self.assertIn("Continuous timestamp test - complete", results)

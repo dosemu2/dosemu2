@@ -3,12 +3,6 @@ c:\\%s
 rem end
 """
 
-CONFIG = """\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-"""
-
-
 def memory_uma_strategy(self):
 
     self.mkfile("testit.bat", BATCHFILE % 'umastrat', newline="\r\n")
@@ -158,7 +152,7 @@ int main()
 }
 """)
 
-    results = self.runDosemu("testit.bat", config=CONFIG)
+    results = self.runDosemu("testit.bat")
 
     self.assertIn("PASS:", results)
     self.assertNotIn("FAIL:", results)

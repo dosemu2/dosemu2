@@ -135,9 +135,7 @@ numwrite:
 
     self.mkfile("testit.bat", "%s\nrem end\n" % tests[name][0], newline="\r\n")
 
-    results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-""")
+    results = self.runDosemu("testit.bat")
 
     buffer1 = (self.workdir / 'psp_dump.bin').read_bytes()[0x80:]
     buffer2 = (self.workdir / 'env_dump.bin').read_bytes()

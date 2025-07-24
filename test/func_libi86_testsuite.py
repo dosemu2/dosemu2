@@ -6,6 +6,7 @@ from shutil import copy
 from subprocess import check_call, check_output, CalledProcessError, DEVNULL, TimeoutExpired
 from sys import stderr
 
+from common_framework import DOSEMU_CONF_DEFAULT
 
 TESTSUITE = "/usr/ia16-elf/libexec/libi86/tests/testsuite"
 
@@ -47,10 +48,7 @@ def libi86_create_items(testcase):
 
 
 def libi86_test_item(self, test):
-    self.mkfile("dosemu.conf", """\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""", dname=self.imagedir, mode="a")
+    self.mkfile("dosemu.conf", DOSEMU_CONF_DEFAULT, dname=self.imagedir)
 
     os.umask(0)
     build = self.imagedir / "libi86-test"

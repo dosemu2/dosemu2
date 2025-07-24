@@ -55,6 +55,11 @@ TEST_BINARIES = (
     'TEST_R200.tar',
 )
 
+DOSEMU_CONF_DEFAULT = """\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+"""
+
 
 def mkstring(length):
     return ''.join(random.choice(string.hexdigits) for x in range(length))
@@ -208,9 +213,6 @@ class BaseTestCase(object):
         # Extract the boot files
         if self.tarfile != "":
             self.unTarOrSkip(self.tarfile, self.files)
-
-        # Empty dosemu.conf for default values
-        self.mkfile("dosemu.conf", """\n""", self.imagedir)
 
         # Link back to std dosemu commands and scripts
         p = self.workdir / "dosemu"
@@ -465,7 +467,7 @@ class BaseTestCase(object):
                 f.seek(c[0])
                 f.write(c[2])
 
-    def runDosemu(self, cmd, opts=None, outfile=None, config=None, timeout=15,
+    def runDosemu(self, cmd, opts=None, outfile=None, config=DOSEMU_CONF_DEFAULT, timeout=15,
                     eofisok=False, interactions=[]):
         # Note: if debugging is turned on then times increase 10x
         dbin = str(self.dosemu)
@@ -478,8 +480,7 @@ class BaseTestCase(object):
         if opts is not None:
             args.extend(["-I", opts])
 
-        if config is not None:
-            self.mkfile("dosemu.conf", config, dname=self.imagedir, mode="a")
+        self.mkfile("dosemu.conf", config, dname=self.imagedir)
 
         child = pexpect.spawn(dbin, args)
         ret = ''
@@ -520,7 +521,7 @@ class BaseTestCase(object):
 
         return ret
 
-    def runDosemuCmdline(self, xargs, cwd=None, config=None, timeout=30):
+    def runDosemuCmdline(self, xargs, cwd=None, config=DOSEMU_CONF_DEFAULT, timeout=30):
         args = [str(self.dosemu),
                 "--Fimagedir", str(self.imagedir),
                 "-f", str(self.imagedir / "dosemu.conf"),
@@ -530,8 +531,7 @@ class BaseTestCase(object):
                 "-ks"]
         args.extend(xargs)
 
-        if config is not None:
-            self.mkfile("dosemu.conf", config, dname=self.imagedir, mode="a")
+        self.mkfile("dosemu.conf", config, dname=self.imagedir)
 
         self.logfiles['xpt'][1] = "output.log"
         ret = 'No output'
@@ -561,10 +561,7 @@ class BaseTestCase(object):
         # we will still terminate the test run.
         self.shouldStop = True
 
-        results = self.runDosemu("version.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""")
+        results = self.runDosemu("version.bat")
 
         self.assertNotIn('Timeout', results)
         self.assertNotIn('NonZeroReturn', results)

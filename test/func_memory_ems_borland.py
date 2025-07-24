@@ -18,10 +18,7 @@ c:\\emstest
 rem end
 """, newline="\r\n")
 
-    results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-""", timeout=40)
+    results = self.runDosemu("testit.bat", timeout=40)
 
     try:
         pt1start = results.index("  PART ONE")
