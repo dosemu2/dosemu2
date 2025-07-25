@@ -84,7 +84,8 @@ ifeq ($(OS),Darwin)
 	$(LD) $(ALL_LDFLAGS) -o $@ \
 	   -Wl,-all_load $(LIBS_) $(LIBS) \
 	   -Wl,-map,$(BINPATH)/bin/dosemu.map \
-	   -shared
+	   -dynamiclib -install_name $(libdir)/$(DOSLIB) \
+	   -compatibility_version $(SOVERSION) -current_version $(SOVERSION)
 else
 	$(LD) $(ALL_LDFLAGS) -o $@ \
 	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS) \
@@ -93,10 +94,11 @@ else
 	   $(SO_LDFLAGS)
 endif
 
-$(BINPATH)/bin/libdosemu2.so: $(BINPATH)/bin/$(DOSLIB)
+DOSLIBLINKNAME=$(subst .$(SOVERSION),,$(DOSLIB))
+$(BINPATH)/bin/$(DOSLIBLINKNAME): $(BINPATH)/bin/$(DOSLIB)
 	$(LN_S) -f $(DOSLIB) $@
 
-$(BINPATH)/bin/$(DOSBIN): base/core/main.o $(BINPATH)/bin/libdosemu2.so
+$(BINPATH)/bin/$(DOSBIN): base/core/main.o $(BINPATH)/bin/$(DOSLIBLINKNAME)
 	$(LD) $(DOSBIN_LDFLAGS) $(LDFLAGS) -o $@ $< -L $(BINPATH)/bin -ldosemu2
 
 $(BINPATH)/bin/dosemu: $(SRCPATH)/dosemu.systemwide $(SRCPATH)/dosemu \
@@ -176,7 +178,7 @@ endif
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(libexecdir)/dosemu2
 	$(INSTALL) -d $(DESTDIR)$(libdir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSLIB) $(DESTDIR)$(libdir)
-	$(LN_S) -f $(DOSLIB) $(DESTDIR)$(libdir)/libdosemu2.so
+	$(LN_S) -f $(DOSLIB) $(DESTDIR)$(libdir)/$(DOSLIBLINKNAME)
 	$(INSTALL) -d $(DESTDIR)$(includedir)/$(PACKAGE_NAME)
 	$(INSTALL) -m 0644 -D $(SRCPATH)/include/$(PACKAGE_NAME)/* $(DESTDIR)$(includedir)/$(PACKAGE_NAME)
 ifneq ($(PRIV_SEP),)
@@ -270,7 +272,7 @@ uninstall:
 	$(RM) -r $(DESTDIR)$(dosemudir)
 	$(RM) -r $(DESTDIR)$(libexecdir)/$(PACKAGE_NAME)
 	$(RM) -r $(DESTDIR)$(includedir)/$(PACKAGE_NAME)
-	$(RM) $(DESTDIR)$(libdir)/libdosemu2.so
+	$(RM) $(DESTDIR)$(libdir)/$(DOSLIBLINKNAME)
 	$(RM) $(DESTDIR)$(libdir)/$(DOSLIB)
 	$(RM) $(DESTDIR)$(prefix)/lib/sysusers.d/$(PACKAGE_NAME).conf
 	$(RM) $(DESTDIR)$(bindir)/dosemu
