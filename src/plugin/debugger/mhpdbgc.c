@@ -881,13 +881,15 @@ static void mhp_trace(int argc, char *argv[])
 
 static void mhp_tracec(int argc, char *argv[])
 {
+  int idx = 0;
   if (!check_for_stopped())
     return;
 
-  mhp_trace(argc, argv);
   traceloop = 1;
-  loopbuf[0] = 't';
-  loopbuf[1] = '\0';
+  loopbuf[idx++] = argv[0][0];
+  if (argc > 1)
+    loopbuf[idx++] = argv[1][0];  // for "tc i"
+  loopbuf[idx++] = '\0';
 }
 
 static void mhp_dump(int argc, char *argv[])
