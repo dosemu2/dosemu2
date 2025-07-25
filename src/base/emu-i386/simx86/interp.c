@@ -1459,7 +1459,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(L_REG, _mode|DATA16, REG1);
 			//Gen(L_ZXAX, _mode);
 			if (TheCPU.mode & RM_REG)
-			    Gen(S_REG, _mode|DATA16, REG3);
+			    Gen(S_REG, _mode, REG3);
 			else
 			    Gen(S_DI, _mode|DATA16);
 			break;
