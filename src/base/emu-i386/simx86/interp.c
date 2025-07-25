@@ -1523,9 +1523,15 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*8e*/	case MOVsrfrm:
 			if (REALADDR()) {
+			    int seg;
 			    PC += ModRM(opc, PC, _mode|SEGREG|DATA16|MLOAD);
+			    seg = e_ofsseg[REG1>>2];
+			    if (seg == Ofs_XCS) {
+				CODE_FLUSH();
+				goto illegal_op;
+			    }
 			    Gen(S_REG, _mode|DATA16, REG1);
-			    AddrGen(A_SR_SH4, _mode, REG1, e_ofsseg[REG1>>2]);
+			    AddrGen(A_SR_SH4, _mode, REG1, seg);
 			}
 			else {
 			    unsigned short sv = 0;
