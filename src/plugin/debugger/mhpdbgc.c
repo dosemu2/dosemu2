@@ -88,6 +88,7 @@ static int decode_symreg(char *, regnum_t *, int *);
 /* static data */
 static unsigned int linmode = 0;
 static unsigned int codeorg = 0;
+static int reg32;
 
 static unsigned int dpmimode=1, saved_dpmimode=1;
 #define IN_DPMI (in_dpmi_pm() && dpmimode)
@@ -2266,6 +2267,21 @@ static void mhp_print_system_state(void)
       IN_DPMI ? (dpmi_mhp_getcsdefault() ? "-32bit" : "-16bit") : "");
 }
 
+static void mhp_r32(void)
+{
+  mhp_printf("\nEAX: %08x EBX: %08x ECX: %08x EDX: %08x VFLAGS(h): %08lx",
+              REG(eax), REG(ebx), REG(ecx), REG(edx), (unsigned long)vflags);
+
+  mhp_printf("\nESI: %08x EDI: %08x EBP: %08x",
+              REG(esi), REG(edi), REG(ebp));
+
+  mhp_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
+              SREG(ds), SREG(es), SREG(fs), SREG(gs));
+
+  mhp_printf(" CS: %04x EIP: %08x SS: %04x ESP: %08x\n",
+              SREG(cs), REG(eip), SREG(ss), REG(esp));
+}
+
 static void mhp_regs(int argc, char *argv[])
 {
   unsigned long newval;
@@ -2330,6 +2346,10 @@ static void mhp_regs(int argc, char *argv[])
         mhp_printf("Trap %d, ", DBG_ARG(mhpdbgc.currcode));
     }
   }
+  if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTx)
+    mhp_printf("\nInterrupt 0x%02X", DBG_ARG(mhpdbgc.currcode));
+  if (DBG_TYPE(mhpdbgc.currcode) == DBG_TRAP)
+    mhp_printf("\nTrap 0x%02X", DBG_ARG(mhpdbgc.currcode));
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_GPF)
     mhp_printf("General Protection Fault, ");
 
@@ -2337,34 +2357,21 @@ static void mhp_regs(int argc, char *argv[])
     mhp_print_system_state();
 
   if (!dpmi_mhp_regs()) {
+   if (!reg32) {
     mhp_printf("AX=%04x  BX=%04x  CX=%04x  DX=%04x", LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx));
     mhp_printf("  SI=%04x  DI=%04x  SP=%04x  BP=%04x", LWORD(esi), LWORD(edi), LWORD(esp), LWORD(ebp));
     mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%08x", SREG(ds), SREG(es), SREG(fs), SREG(gs), REG(eflags));
     mhp_printf("\nCS:IP=%04x:%04x       SS:SP=%04x:%04x\n", SREG(cs), LWORD(eip), SREG(ss), LWORD(esp));
+   } else {
+    mhp_r32();
+   }
   }
   mhp_cmd("u * 1");
 }
 
 static void mhp_regs32(int argc, char *argv[])
 {
-  if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTx)
-    mhp_printf("\nInterrupt 0x%02X", DBG_ARG(mhpdbgc.currcode));
-  if (DBG_TYPE(mhpdbgc.currcode) == DBG_TRAP)
-    mhp_printf("\nTrap 0x%02X", DBG_ARG(mhpdbgc.currcode));
-  if (DBG_TYPE(mhpdbgc.currcode) == DBG_GPF)
-    mhp_printf("\nGeneral Protection Fault");
-
-  mhp_printf("\nEAX: %08x EBX: %08x ECX: %08x EDX: %08x VFLAGS(h): %08lx",
-              REG(eax), REG(ebx), REG(ecx), REG(edx), (unsigned long)vflags);
-
-  mhp_printf("\nESI: %08x EDI: %08x EBP: %08x",
-              REG(esi), REG(edi), REG(ebp));
-
-  mhp_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
-              SREG(ds), SREG(es), SREG(fs), SREG(gs));
-
-  mhp_printf(" CS: %04x IP: %04x SS: %04x SP: %04x\n",
-              SREG(cs), LWORD(eip), SREG(ss), LWORD(esp));
+  reg32 ^= 1;
 }
 
 static void mhp_r0(int argc, char *argv[])
