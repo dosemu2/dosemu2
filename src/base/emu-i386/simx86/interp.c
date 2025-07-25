@@ -3193,7 +3193,6 @@ repag0:
 				b = Fetch(PC+2);
 				if (D_HO(b)!=3) goto illegal_op;
 				reg = D_MO(b); b = D_LO(b);
-				if ((b==4)||(b==5)) goto illegal_op;
 				srg = (int *)CPUOFFS(R1Tab_l[b]);
 				opd = Fetch(PC+1)&2;
 		    		if (opc2&1) {
