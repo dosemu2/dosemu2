@@ -168,11 +168,15 @@ int cpu_trap_0f (unsigned char *csp, cpuctx_t *scp)
 				break;
 			case 3: srg = (scp ? &_ebx:&_EBX);
 				break;
+			case 4: srg = (scp ? &_esp:&_ESP);
+				break;
+			case 5: srg = (scp ? &_ebp:&_EBP);
+				break;
 			case 6: srg = (scp ? &_esi:&_ESI);
 				break;
 			case 7: srg = (scp ? &_edi:&_EDI);
 				break;
-			default:	/* ESP(4),EBP(5) */
+			default:	/* silence gcc warning */
 				return 0;
 		}
 		if (rnotw) {
