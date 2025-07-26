@@ -80,13 +80,15 @@ CONFIG_OS=`uname -o`
 AC_SUBST(CONFIG_HOST)
 machine=`$CC -dumpmachine | cut -d- -f1 | sed 's/i.86/i386/'`
 
-AC_ARG_WITH(target-bits-32, [AS_HELP_STRING([--with-target-bits-32],
+if test "$machine" = "x86_64"; then
+ AC_ARG_ENABLE(target-bits-32, [AS_HELP_STRING([--enable-target-bits-32],
     [build for 32bit target (multilib in case of x86_64 host)])],
   CPPFLAGS="$CPPFLAGS -m32"
   LDFLAGS="$LDFLAGS -m32"
   ASFLAGS="--32"
   with_target_bits="32"
-)
+ )
+fi
 
 if test -z "$AS"; then
   AC_PATH_PROG([AS], [as])
