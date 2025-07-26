@@ -152,14 +152,14 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 			      TNode *G = DoClose(P0, m, InstrMeta[0].npc); \
 			      G->flags |= F_PREJ; \
 			      NodesPrejitted++; \
-			    } \
+			    } else if (CurrIMeta == 0) CurrIMeta = -1; \
 			    TheCPU.err = EXCP_GOBACK; \
 			    return P0; \
 			  } else if (CONFIG_CPUSIM || CurrIMeta>0) { \
 			    unsigned int P2 = DoCloseAndExec(P0, m); \
 			    if (TheCPU.err) return P2; \
 			    PC = P0 = P2; \
-			  } \
+			  } else if (CurrIMeta == 0) CurrIMeta = -1; \
 			}
 #else
 #define CODE_FLUSH2(m)	{ \
@@ -174,13 +174,13 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 			      TNode *G = DoClose(P0, basemode, InstrMeta[0].npc); \
 			      G->flags |= F_PREJ; \
 			      NodesPrejitted++; \
-			    } \
+			    } else if (CurrIMeta == 0) CurrIMeta = -1; \
 			    TheCPU.err = EXCP_GOBACK; \
 			    return P0; \
 			  } else if (CONFIG_CPUSIM || CurrIMeta>0) { \
 			    unsigned int P2 = DoCloseAndExec(P0, basemode); \
 			    if (TheCPU.err || P0 != P2) return P2; \
-			  } \
+			  } else if (CurrIMeta == 0) CurrIMeta = -1; \
 			}
 #else
 #define CODE_FLUSH()	CODE_FLUSH2(_mode)
