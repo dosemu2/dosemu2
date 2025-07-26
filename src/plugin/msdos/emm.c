@@ -22,6 +22,7 @@
  */
 #include <string.h>
 #include <assert.h>
+#include "dosemu_debug.h"
 #include "dpmi_api.h"
 #include "msdos_priv.h"
 #include "emm_msdos.h"
@@ -118,6 +119,10 @@ int emm_get_mpa_array(cpuctx_t *scp, int is_32,
   _dpmi_simulate_real_mode_interrupt(scp, is_32, EMM_INT, &regs);
   if (regs.h.ah || regs.x.cx > max_len)
     return -1;
+  if (!regs.x.cx) { // emsmagic returns 0 in cx
+    error("working around emsmagic bug\n");
+    regs.x.cx = max_len;
+  }
   memcpy(array, rmaddr, regs.x.cx * sizeof(array[0]));
   return regs.x.cx;
 }
