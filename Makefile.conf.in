@@ -2,8 +2,14 @@
 #
 # This file is included by all Makefiles
 
+OS = @CONFIG_HOST@
 DOSBIN = dosemu2.bin
-DOSLIB = libdosemu2.so.0.1
+SOVERSION = 0.1
+ifeq ($(OS),Darwin)
+DOSLIB = libdosemu2.$(SOVERSION).dylib
+else
+DOSLIB = libdosemu2.so.$(SOVERSION)
+endif
 
 PACKAGE_TARNAME:=@PACKAGE_TARNAME@
 prefix:=@prefix@
@@ -74,7 +80,6 @@ ST_PLUGINSUBDIRS := @ST_PLUGINSUBDIRS@
 
 HAVE_LIBBFD := @HAVE_LIBBFD@
 
-OS=@CONFIG_HOST@
 RANLIB:=@RANLIB@
 
 PACKAGE_NAME:=@PACKAGE_TARNAME@

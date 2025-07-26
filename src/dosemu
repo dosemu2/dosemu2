@@ -16,10 +16,18 @@ get_binary() {
         --Flibdir $LOCAL_BUILD_PATH/etc \
         --Fplugindir $BINDIR \
         "
-    if [ -z "$LD_LIBRARY_PATH" ]; then
-      export LD_LIBRARY_PATH="$BINDIR"
+    if [ $(uname -s) == "Darwin" ]; then
+      if [ -z "$DYLD_LIBRARY_PATH" ]; then
+        export DYLD_LIBRARY_PATH="$BINDIR"
+      else
+        export DYLD_LIBRARY_PATH="$BINDIR:$DYLD_LIBRARY_PATH"
+      fi
     else
-      export LD_LIBRARY_PATH="$BINDIR:$LD_LIBRARY_PATH"
+      if [ -z "$LD_LIBRARY_PATH" ]; then
+        export LD_LIBRARY_PATH="$BINDIR"
+      else
+        export LD_LIBRARY_PATH="$BINDIR:$LD_LIBRARY_PATH"
+      fi
     fi
 
   else
