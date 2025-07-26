@@ -1467,7 +1467,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*8d*/	case LEA:
 			if (Fetch(PC+1) >= 0xc0) {
 			    CODE_FLUSH();
-			    goto not_permitted;
+			    goto illegal_op;
 			}
 			PC += ModRM(opc, PC, _mode|MLEA);
 			Gen(S_DI_R, _mode, REG1);
@@ -1476,7 +1476,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c4*/	case LES:
 			if (Fetch(PC+1) >= 0xc0) {
 			    CODE_FLUSH();
-			    goto not_permitted;
+			    goto illegal_op;
 			}
 			if (REALADDR()) {
 			    PC += ModRM(opc, PC, _mode);
@@ -1500,7 +1500,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c5*/	case LDS:
 			if (Fetch(PC+1) >= 0xc0) {
 			    CODE_FLUSH();
-			    goto not_permitted;
+			    goto illegal_op;
 			}
 			if (REALADDR()) {
 			    PC += ModRM(opc, PC, _mode);
@@ -3463,7 +3463,7 @@ repag0:
 			case 0xb2: /* LSS */
 				if (Fetch(PC+2) >= 0xc0) {
 				    CODE_FLUSH();
-				    goto not_permitted;
+				    goto illegal_op;
 				}
 				if (REALADDR()) {
 				    PC++; PC += ModRM(opc, PC, _mode);
@@ -3487,7 +3487,7 @@ repag0:
 			case 0xb4: /* LFS */
 				if (Fetch(PC+2) >= 0xc0) {
 				    CODE_FLUSH();
-				    goto not_permitted;
+				    goto illegal_op;
 				}
 				if (REALADDR()) {
 				    PC++; PC += ModRM(opc, PC, _mode);
@@ -3511,7 +3511,7 @@ repag0:
 			case 0xb5: /* LGS */
 				if (Fetch(PC+2) >= 0xc0) {
 				    CODE_FLUSH();
-				    goto not_permitted;
+				    goto illegal_op;
 				}
 				if (REALADDR()) {
 				    PC++; PC += ModRM(opc, PC, _mode);
