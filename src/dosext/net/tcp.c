@@ -415,10 +415,8 @@ static int do_timeout(uint16_t to,
     switch (handle_timeout(to, cbk, arg, arg2, arg3, r_err)) {
         case 0:
             return ERR_NO_ERROR;
-            break;
         case 1:
             return ERR_TIMEOUT;
-            break;
     }
     return ERR_CRITICAL;
 }
