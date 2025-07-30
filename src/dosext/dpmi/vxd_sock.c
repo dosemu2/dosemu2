@@ -179,7 +179,7 @@ static void sock_handler(cpuctx_t *scp,
             rc = op; \
             switch (rc) { \
             case 0: \
-                error(n": EOF\n"); \
+                L_printf(n": EOF\n"); \
                 _eax = 0; \
                 _ecx = 0; \
                 break; \
