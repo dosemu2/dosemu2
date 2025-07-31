@@ -1436,6 +1436,11 @@ void test_segs(void)
     TEST_ARPL("arpl", "w", 0x12345678 | 3, 0x762123c | 1);
     TEST_ARPL("arpl", "w", 0x12345678 | 1, 0x762123c | 3);
     TEST_ARPL("arpl", "w", 0x12345678 | 1, 0x762123c | 1);
+
+#ifdef __DJGPP__
+    __dpmi_free_ldt_descriptor(MK_SEL(1));
+    __dpmi_free_ldt_descriptor(MK_SEL(2));
+#endif
 }
 
 /* 16 bit code test */
@@ -1473,7 +1478,7 @@ void test_code16(void)
     unsigned base, limit;
     unsigned char buf[8];
     __dpmi_get_segment_base_address(_my_cs(), &csbase);
-    /* descriptor was already allocated before */
+    __dpmi_allocate_specific_ldt_descriptor(MK_SEL(1));
     __dpmi_get_descriptor(MK_SEL(1), &buf);
     base = csbase + (unsigned long)&code16_start;
     limit = &code16_end - &code16_start;
@@ -1505,6 +1510,10 @@ void test_code16(void)
                   : "=a" (res)
                   : "m" (jmp): "memory", "cc");
     printf("func3() = 0x%08x\n", res);
+
+#ifdef __DJGPP__
+    __dpmi_free_ldt_descriptor(MK_SEL(1));
+#endif
 }
 #endif
 
@@ -2182,6 +2191,10 @@ void test_exceptions(void)
 #endif
 #if TEST_SIGTRAP
     signal(SIGTRAP, SIG_DFL);
+#endif
+
+#ifdef __DJGPP__
+    __dpmi_free_ldt_descriptor(MK_SEL(1));
 #endif
 }
 
