@@ -520,7 +520,7 @@ static void Reg2Cpu(struct vm86_struct *info)
   * changed asynchronously by signals)
   * Note that IOPL=3 in the emulated flags so cpuemu works directly with
     IF, not VIF */
-  TheCPU.eflags = (regs->eflags & SAFE_MASK) | IOPL_MASK;
+  TheCPU.eflags = (regs->eflags & SAFE_MASK) | IOPL_MASK | EFLAGS_SET;
   if (regs->eflags & VIF)
     TheCPU.eflags |= EFLAGS_IF;
   TheCPU.eflags |= (VM | RF);	// RF is cosmetic...
