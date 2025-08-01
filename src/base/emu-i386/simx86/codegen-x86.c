@@ -3346,9 +3346,6 @@ unsigned int Exec_x86(TNode *G)
 	unsigned int ePC;
 	unsigned short seqflg = G->flags;
 	unsigned char *SeqStart = G->addr;
-#if PROFILE >= 2
-	hitimer_u TimeStartExec, TimeEndExec;
-#endif
 
 	ecpu = CPUOFFS(0);
 	if (debug_level('e')>1) {
@@ -3358,6 +3355,10 @@ unsigned int Exec_x86(TNode *G)
 	}
 #ifdef ASM_DUMP
 	fprintf(aLog,"%p: exec\n",G->key);
+#endif
+#if PROFILE >= 2
+	hitimer_t TimeStartExec;
+	if (debug_level('e')) TimeStartExec = GETTSC();
 #endif
 	if (seqflg & F_FPOP) {
 		if (TheCPU.fpstate) {
@@ -3372,19 +3373,7 @@ unsigned int Exec_x86(TNode *G)
 	}
 
 	flg = Exec_x86_pre(ecpu);
-#if PROFILE >= 2
-	__asm__ __volatile__ (
-		"rdtsc\n"
-		: "=a"(TimeStartExec.t.tl),"=d"(TimeStartExec.t.th)
-	);
-#endif
 	ePC = Exec_x86_asm(&mem_ref, &flg, ecpu, SeqStart);
-#if PROFILE >= 2
-	__asm__ __volatile__ (
-		"rdtsc\n"
-		: "=a"(TimeEndExec.t.tl),"=d"(TimeEndExec.t.th)
-	);
-#endif
 	Exec_x86_post(flg, mem_ref);
 
 	/* was there at least one FP op in the sequence? */
@@ -3404,8 +3393,7 @@ unsigned int Exec_x86(TNode *G)
 
 	if (debug_level('e')) {
 #if PROFILE >= 2
-	    TimeEndExec.td -= TimeStartExec.td;
-	    ExecTime += TimeEndExec.td;
+	    ExecTime += GETTSC() - TimeStartExec;
 #endif
 	    if (debug_level('e')>1) {
 		e_printf("** End code, PC=%08x sig=%x\n",ePC,
