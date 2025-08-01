@@ -46,14 +46,14 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-int ModRMSim(unsigned int PC, int mode)
+int ModRMSim(unsigned int PC, int mode, signed char overr_ds, signed char overr_ss)
 {
 	int l;
 	void (*AddrGen_save)(int op, int mode, ...);
 
 	AddrGen_save = AddrGen;
 	AddrGen = AddrGen_sim;
-	l = _ModRM(0, PC, mode);
+	l = _ModRM(0, PC, mode, overr_ds, overr_ss);
 	AddrGen = AddrGen_save;
 	TheCPU.mem_ref = AR1.d;
 	return l;

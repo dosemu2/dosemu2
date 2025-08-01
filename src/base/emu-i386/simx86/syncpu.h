@@ -297,7 +297,6 @@ extern union _SynCPU TheCPU_union;
 #define LONG_FS		TheCPU.fs_cache.BoundL
 #define LONG_GS		TheCPU.gs_cache.BoundL
 
-extern char OVERR_DS, OVERR_SS;
 extern unsigned int LONG_CS;
 
 #define sigalrm_pending() __atomic_load_n(&TheCPU.sigalrm_pending, \

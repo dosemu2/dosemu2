@@ -272,10 +272,10 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		} }
 		break;
 	case A_DI_2D: {			// modrm_sibd, 32-bit mode
-		int idsp = IG->p0;
-		unsigned char sh = IG->p2;
+		int idsp = IG->p1;
+		unsigned char sh = IG->p3;
 		// movl offs(%%ebx),%%edi
-		G3M(0x8b,0x7b,IG->p1,Cp);
+		G3M(0x8b,0x7b,IG->p2,Cp);
 		// shll $count,%%ecx
 		if (sh)	{
 			// shll $1,%%edi
@@ -288,7 +288,7 @@ static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
 		}
 		if (!(mode & MLEA)) {
 			// addl offs(%%ebx),%%edi (seg reg offset)
-			G3M(0x03,0x7b,IG->ovds,Cp);
+			G3M(0x03,0x7b,IG->p0,Cp);
 		} }
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
@@ -966,8 +966,8 @@ arith1:
 		}
 		break;
 	case O_XLAT:
-		// movl OVERR_DS(%%ebx),%%edi
-		G2(0x7b8b,Cp); G1(IG->ovds,Cp);
+		// movl (seg reg offset)(%%ebx),%%edi
+		G2(0x7b8b,Cp); G1(IG->p0,Cp);
 		// movzbl Ofs_AL(%%ebx),%%ecx
 		G4M(0x0f,0xb6,0x4b,Ofs_AL,Cp);
 		// movl Ofs_EBX(%%ebx),%%eax
@@ -1694,8 +1694,8 @@ shrot0:
 			    G1(INCax,Cp);
 #endif
 			}
-			// addl OVERR_DS(%%ebx),%%e[sd]i
-			G3M(0x03,modrm,IG->ovds,Cp);
+			// addl (seg reg offset)(%%ebx),%%e[sd]i
+			G3M(0x03,modrm,IG->p0,Cp);
 			if (mode&(MREP|MREPNE)) {
 			    // addl %%[re]bp,%%[re][sd]i
 			    Gen48(Cp); G2M(0x01,modrm2,Cp);
@@ -1796,8 +1796,8 @@ shrot0:
 		}
 		else {
 		    if (mode&MOVSSRC) {
-			// movl OVERR_DS(%%ebx),%%e[sd]i
-			G3M(0x8b,modrm,IG->ovds,Cp);
+			// movl (seg reg offset)(%%ebx),%%e[sd]i
+			G3M(0x8b,modrm,IG->p0,Cp);
 			// addl Ofs_ESI(%%ebx),%%e[sd]i
 			G3M(0x03,modrm,Ofs_ESI,Cp);
 		    }
@@ -1955,8 +1955,8 @@ shrot0:
 			// esi = base1 + CPU_(e)SI +- n
 			// subl %%[re]bp,%%[re]si
 			Gen48(Cp); G2M(0x29,0xee,Cp);
-			// subl OVERR_DS(%%ebx),%%esi
-			G2(0x732b,Cp); G1(IG->ovds,Cp);
+			// subl (seg reg offset)(%%ebx),%%esi
+			G2(0x732b,Cp); G1(IG->p0,Cp);
 			// movw %%si,Ofs_SI(%%ebx)
 			G4M(0x66,0x89,0x73,Ofs_SI,Cp);
 		    }
@@ -1990,8 +1990,8 @@ shrot0:
 			// esi = base1 + CPU_(e)SI +- n
 			// subl %%[re]bp,%%[re]si
 			Gen48(Cp); G2M(0x29,0xee,Cp);
-			// subl OVERR_DS(%%ebx),%%esi
-			G2(0x732b,Cp); G1(IG->ovds,Cp);
+			// subl (seg reg offset)(%%ebx),%%esi
+			G2(0x732b,Cp); G1(IG->p0,Cp);
 			// movl %%esi,Ofs_ESI(%%ebx)
 			G3M(0x89,0x73,Ofs_ESI,Cp);
 		    }
@@ -2469,7 +2469,6 @@ static void AddrGen_x86(int op, int mode, ...)
 	va_start(ap, mode);
 	IG->op = op;
 	IG->mode = mode;
-	IG->ovds = OVERR_DS;
 
 	switch(op) {
 	case A_DI_0:			// base(32), imm
@@ -2499,12 +2498,14 @@ static void AddrGen_x86(int op, int mode, ...)
 		break;
 	case A_DI_2D: {			// modrm_sibd, 32-bit mode
 		signed char o;
+		signed char ofs = (char)va_arg(ap,int);
 		unsigned char sh;
-		IG->p0 = va_arg(ap,int);
+		IG->p0 = ofs;
+		IG->p1 = va_arg(ap,int);
 		o = Offs_From_Arg();
-		IG->p1 = o;
+		IG->p2 = o;
 		sh = (unsigned char)(va_arg(ap,int));
-		IG->p2 = sh;
+		IG->p3 = sh;
 		}
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
@@ -2547,7 +2548,6 @@ static void Gen_x86(int op, int mode, ...)
 	va_start(ap, mode);
 	IG->op = op;
 	IG->mode = mode;
-	IG->ovds = OVERR_DS;
 
 	switch(op) {
 	case L_NOP:
@@ -2561,7 +2561,6 @@ static void Gen_x86(int op, int mode, ...)
 	case O_DEC:
 	case O_MUL:
 	case O_CBWD:
-	case O_XLAT:
 	case O_PUSH:
 	case O_PUSH1:
 	case O_PUSH2F:
@@ -2569,13 +2568,11 @@ static void Gen_x86(int op, int mode, ...)
 	case O_POP1:
 	case O_POP3:
 	case O_LEAVE:
-	case O_MOVS_SetA:
 	case O_MOVS_MovD:
 	case O_MOVS_LodD:
 	case O_MOVS_StoD:
 	case O_MOVS_ScaD:
 	case O_MOVS_CmpD:
-	case O_MOVS_SavA:
 	case O_RDTSC:
 	case O_INPDX:
 	case O_OUTPDX:
@@ -2590,6 +2587,9 @@ static void Gen_x86(int op, int mode, ...)
 	case O_TEST:
 	case O_SBSELF:
 	case O_BSWAP:
+	case O_XLAT:
+	case O_MOVS_SetA:
+	case O_MOVS_SavA:
 	case O_CMPXCHG: {
 		signed char o = Offs_From_Arg();
 		IG->p0 = o;

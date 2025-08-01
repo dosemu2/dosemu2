@@ -599,9 +599,6 @@ void Interp86(void)
 
 static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 {
-		OVERR_DS = Ofs_XDS;
-		OVERR_SS = Ofs_XSS;
-
 		if (CurrIMeta<0) {
 			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC|CeS_STI)) {
 				HandleEmuSignals();
@@ -775,6 +772,9 @@ static unsigned int InterpOne(unsigned int PC, int *_basemode, int _flags)
 	unsigned short ocs;
 	#define basemode (*_basemode)
 	int _mode = basemode;
+	/* WARNING - these are signed char offsets, NOT pointers! */
+	signed char OVERR_DS = Ofs_XDS;
+	signed char OVERR_SS = Ofs_XSS;
 
 override:
 	switch ((opc=Fetch(PC))) {
@@ -994,7 +994,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (Fetch(PC+1) >= 0xc0) {
 			    goto not_permitted;
 			}
-			PC += ModRMSim(PC, _mode);
+			PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
 			r = GetCPU_WL(_mode, REG1);
 			lo = DataGetWL_S(_mode,TheCPU.mem_ref);
 			TheCPU.mem_ref += BT24(BitDATA16, _mode);
@@ -1010,7 +1010,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*63*/	case ARPL:     {
 			unsigned short dest, src;
 			CODE_FLUSH();
-			PC += ModRMSim(PC, _mode);
+			PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
 			if (TheCPU.mode & RM_REG) {
 				dest = CPUWORD(REG3);
 			} else {
@@ -1032,7 +1032,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 		       }
 /*d7*/	case XLAT:
-			Gen(O_XLAT, _mode);
+			Gen(O_XLAT, _mode, OVERR_DS);
 			Gen(L_DI_R1, _mode|MBYTE);
 			Gen(S_REG, _mode|MBYTE, Ofs_AL);
 			PC++; break;
@@ -1487,7 +1487,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    unsigned short sv = 0;
 			    unsigned long rv;
 			    CODE_FLUSH();
-			    PC += ModRMSim(PC, _mode);
+			    PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
 			    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
 			    TheCPU.mem_ref += BT24(BitDATA16, _mode);
 			    sv = GetDWord(TheCPU.mem_ref);
@@ -1511,7 +1511,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    unsigned short sv = 0;
 			    unsigned long rv;
 			    CODE_FLUSH();
-			    PC += ModRMSim(PC, _mode);
+			    PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
 			    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
 			    TheCPU.mem_ref += BT24(BitDATA16, _mode);
 			    sv = GetDWord(TheCPU.mem_ref);
@@ -1536,7 +1536,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			else {
 			    unsigned short sv = 0;
 			    CODE_FLUSH();
-			    PC += ModRMSim(PC, _mode|SEGREG);
+			    PC += ModRMSim(PC, _mode|SEGREG, OVERR_DS, OVERR_SS);
 			    if (TheCPU.mode & RM_REG) {
 				sv = CPUWORD(REG3);
 			    } else {
@@ -1604,20 +1604,20 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 
 /*a4*/	case MOVSb: {	int m = _mode|(MBYTE|MOVSSRC|MOVSDST);
-			Gen(O_MOVS_SetA, m&~MOVSDST);
+			Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
 			Gen(L_DI_R1, m);
-			Gen(O_MOVS_SetA, m&~MOVSSRC);
+			Gen(O_MOVS_SetA, m&~MOVSSRC, OVERR_DS);
 			Gen(S_DI, m);
-			Gen(O_MOVS_SavA, m);
+			Gen(O_MOVS_SavA, m, OVERR_DS);
 			PC++;
 			} break;
 /*a5*/	case MOVSw: {	int m = _mode|(MOVSSRC|MOVSDST);
-			Gen(O_MOVS_SetA, m&~MOVSDST);
+			Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
 			Gen(L_DI_R1, m);
-			Gen(O_MOVS_SetA, m&~MOVSSRC);
+			Gen(O_MOVS_SetA, m&~MOVSSRC, OVERR_DS);
 			Gen(S_DI, m);
 			PC++;
-			Gen(O_MOVS_SavA, m);
+			Gen(O_MOVS_SavA, m, OVERR_DS);
 #ifndef SINGLESTEP
 			/* optimize common sequence MOVSw..MOVSw..MOVSb */
 			if (!(EFLAGS & TF)) {
@@ -1625,107 +1625,107 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				m = UNPREFIX(m);
 				while (++cnt < NUMGENS && Fetch(PC) == MOVSw &&
 						!e_querymark(PC, 1)) {
-					Gen(O_MOVS_SetA, m&~MOVSDST);
+					Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
 					Gen(L_DI_R1, m);
-					Gen(O_MOVS_SetA, m&~MOVSSRC);
+					Gen(O_MOVS_SetA, m&~MOVSSRC, OVERR_DS);
 					Gen(S_DI, m);
 					PC++;
-					Gen(O_MOVS_SavA, m);
+					Gen(O_MOVS_SavA, m, OVERR_DS);
 				}
 				if (Fetch(PC) == MOVSb && !e_querymark(PC, 1)) {
 					m |= MBYTE;
-					Gen(O_MOVS_SetA, m&~MOVSDST);
+					Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
 					Gen(L_DI_R1, m);
-					Gen(O_MOVS_SetA, m&~MOVSSRC);
+					Gen(O_MOVS_SetA, m&~MOVSSRC, OVERR_DS);
 					Gen(S_DI, m);
 					PC++;
-					Gen(O_MOVS_SavA, m);
+					Gen(O_MOVS_SavA, m, OVERR_DS);
 				}
 			}
 #endif
 			} break;
 /*a6*/	case CMPSb: {	int m = _mode|(MBYTE|MOVSSRC|MOVSDST);
-			Gen(O_MOVS_SetA, m&~MOVSDST);
+			Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
 			Gen(L_DI_R1, m);
-			Gen(O_MOVS_SetA, m&~MOVSSRC);
+			Gen(O_MOVS_SetA, m&~MOVSSRC, OVERR_DS);
 			Gen(O_MOVS_CmpD, m);
-			Gen(O_MOVS_SavA, m);
+			Gen(O_MOVS_SavA, m, OVERR_DS);
 			PC++; } break;
 /*a7*/	case CMPSw: {	int m = _mode|(MOVSSRC|MOVSDST);
-			Gen(O_MOVS_SetA, m&~MOVSDST);
+			Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
 			Gen(L_DI_R1, m);
-			Gen(O_MOVS_SetA, m&~MOVSSRC);
+			Gen(O_MOVS_SetA, m&~MOVSSRC, OVERR_DS);
 			Gen(O_MOVS_CmpD, m);
-			Gen(O_MOVS_SavA, m);
+			Gen(O_MOVS_SavA, m, OVERR_DS);
 			PC++; } break;
 /*aa*/	case STOSb: {	int m = _mode|(MBYTE|MOVSDST);
-			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_SetA, m, OVERR_DS);
 			Gen(L_REG, m, Ofs_AL);
 			Gen(S_DI, m);
-			Gen(O_MOVS_SavA, m);
+			Gen(O_MOVS_SavA, m, OVERR_DS);
 			PC++; } break;
 /*ab*/	case STOSw: {	int m = _mode|MOVSDST;
-			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_SetA, m, OVERR_DS);
 			Gen(L_REG, m, Ofs_EAX);
 			Gen(S_DI, m); PC++;
-			Gen(O_MOVS_SavA, m);
+			Gen(O_MOVS_SavA, m, OVERR_DS);
 #ifndef SINGLESTEP
 			if (!(EFLAGS & TF)) {
 			    int cnt = 3;
 			    m = UNPREFIX(m);
 			    while (++cnt < NUMGENS && Fetch(PC) == STOSw &&
 					!e_querymark(PC, 1)) {
-				Gen(O_MOVS_SetA, m);
+				Gen(O_MOVS_SetA, m, OVERR_DS);
 				Gen(S_DI, m);
-				Gen(O_MOVS_SavA, m);
+				Gen(O_MOVS_SavA, m, OVERR_DS);
 				PC++;
 			    }
 			}
 #endif
 			} break;
 /*ac*/	case LODSb: {	int m = _mode|(MBYTE|MOVSSRC);
-			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_SetA, m, OVERR_DS);
 			Gen(L_DI_R1, m);
 			Gen(S_REG, m, Ofs_AL); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSb-STOSb */
 			if (!(EFLAGS & TF) && Fetch(PC) == STOSb &&
 					!e_querymark(PC, 1)) {
-				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST);
+				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST, OVERR_DS);
 				Gen(S_DI, m);
 				m |= MOVSDST;
 				PC++;
 			}
 #endif
-			Gen(O_MOVS_SavA, m);
+			Gen(O_MOVS_SavA, m, OVERR_DS);
 			} break;
 /*ad*/	case LODSw: {	int m = _mode|MOVSSRC;
-			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_SetA, m, OVERR_DS);
 			Gen(L_DI_R1, m);
 			Gen(S_REG, m, Ofs_EAX); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSw-STOSw */
 			if (!(EFLAGS & TF) && Fetch(PC) == STOSw &&
 					!e_querymark(PC, 1)) {
-				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST);
+				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST, OVERR_DS);
 				Gen(S_DI, m);
 				m |= MOVSDST;
 				PC++;
 			}
 #endif
-			Gen(O_MOVS_SavA, m);
+			Gen(O_MOVS_SavA, m, OVERR_DS);
 			} break;
 /*ae*/	case SCASb: {	int m = _mode|(MBYTE|MOVSDST);
-			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_SetA, m, OVERR_DS);
 			Gen(L_DI_R1, m);		// mov al,[edi]
 			Gen(O_CMP_FR, m, Ofs_AL);	// cmp [ebx+reg],al
-			Gen(O_MOVS_SavA, m);
+			Gen(O_MOVS_SavA, m, OVERR_DS);
 			PC++; } break;
 /*af*/	case SCASw: {	int m = _mode|MOVSDST;
-			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_SetA, m, OVERR_DS);
 			Gen(L_DI_R1, m);		// mov ax,[edi]
 			Gen(O_CMP_FR, m, Ofs_EAX);	// cmp [ebx+reg],ax
-			Gen(O_MOVS_SavA, m);
+			Gen(O_MOVS_SavA, m, OVERR_DS);
 			PC++; } break;
 
 /*b0*/	case MOVial:
@@ -2253,7 +2253,7 @@ repag0:
 					goto not_permitted;
 				case LODSb:
 					repmod |= (MBYTE|MOVSSRC);
-					Gen(O_MOVS_SetA, repmod);
+					Gen(O_MOVS_SetA, repmod, OVERR_DS);
 					if (repmod & (MREPNE|MREP)) {
 						Gen(O_MOVS_LodD, repmod);
 					}
@@ -2261,11 +2261,11 @@ repag0:
 						Gen(L_DI_R1, repmod);
 					}
 					Gen(S_REG, repmod, Ofs_AL);
-					Gen(O_MOVS_SavA, repmod);
+					Gen(O_MOVS_SavA, repmod, OVERR_DS);
 					PC++; break;
 				case LODSw:
 					repmod |= MOVSSRC;
-					Gen(O_MOVS_SetA, repmod);
+					Gen(O_MOVS_SetA, repmod, OVERR_DS);
 					if (repmod & (MREPNE|MREP)) {
 						Gen(O_MOVS_LodD, repmod);
 					}
@@ -2273,65 +2273,65 @@ repag0:
 						Gen(L_DI_R1, repmod);
 					}
 					Gen(S_REG, repmod, Ofs_AX);
-					Gen(O_MOVS_SavA, repmod);
+					Gen(O_MOVS_SavA, repmod, OVERR_DS);
 					PC++; break;
 				case MOVSb:
 					repmod |= (MBYTE|MOVSSRC|MOVSDST);
 					if (repmod & (MREPNE|MREP)) {
-						Gen(O_MOVS_SetA, repmod);
+						Gen(O_MOVS_SetA, repmod, OVERR_DS);
 						Gen(O_MOVS_MovD, repmod);
 					}
 					else {
-						Gen(O_MOVS_SetA, repmod&~MOVSDST);
+						Gen(O_MOVS_SetA, repmod&~MOVSDST, OVERR_DS);
 						Gen(L_DI_R1, repmod);
-						Gen(O_MOVS_SetA, repmod&~MOVSSRC);
+						Gen(O_MOVS_SetA, repmod&~MOVSSRC, OVERR_DS);
 						Gen(S_DI, repmod);
 					}
-					Gen(O_MOVS_SavA, repmod);
+					Gen(O_MOVS_SavA, repmod, OVERR_DS);
 					PC++; break;
 				case MOVSw:
 					repmod |= (MOVSSRC|MOVSDST);
 					if (repmod & (MREPNE|MREP)) {
-						Gen(O_MOVS_SetA, repmod);
+						Gen(O_MOVS_SetA, repmod, OVERR_DS);
 						Gen(O_MOVS_MovD, repmod);
 					}
 					else {
-						Gen(O_MOVS_SetA, repmod&~MOVSDST);
+						Gen(O_MOVS_SetA, repmod&~MOVSDST, OVERR_DS);
 						Gen(L_DI_R1, repmod);
-						Gen(O_MOVS_SetA, repmod&~MOVSSRC);
+						Gen(O_MOVS_SetA, repmod&~MOVSSRC, OVERR_DS);
 						Gen(S_DI, repmod);
 					}
-					Gen(O_MOVS_SavA, repmod);
+					Gen(O_MOVS_SavA, repmod, OVERR_DS);
 					PC++; break;
 				case CMPSb:
 					repmod |= (MBYTE|MOVSSRC|MOVSDST|MREPCOND);
 					if (repmod & (MREPNE|MREP)) {
-						Gen(O_MOVS_SetA, repmod);
+						Gen(O_MOVS_SetA, repmod, OVERR_DS);
 					}
 					else {
-						Gen(O_MOVS_SetA, repmod&~MOVSDST);
+						Gen(O_MOVS_SetA, repmod&~MOVSDST, OVERR_DS);
 						Gen(L_DI_R1, repmod);
-						Gen(O_MOVS_SetA, repmod&~MOVSSRC);
+						Gen(O_MOVS_SetA, repmod&~MOVSSRC, OVERR_DS);
 					}
 					Gen(O_MOVS_CmpD, repmod);
-					Gen(O_MOVS_SavA, repmod);
+					Gen(O_MOVS_SavA, repmod, OVERR_DS);
 					PC++; break;
 				case CMPSw:
 					repmod |= (MOVSSRC|MOVSDST|MREPCOND);
 					if (repmod & (MREPNE|MREP)) {
-						Gen(O_MOVS_SetA, repmod);
+						Gen(O_MOVS_SetA, repmod, OVERR_DS);
 					}
 					else {
-						Gen(O_MOVS_SetA, repmod&~MOVSDST);
+						Gen(O_MOVS_SetA, repmod&~MOVSDST, OVERR_DS);
 						Gen(L_DI_R1, repmod);
-						Gen(O_MOVS_SetA, repmod&~MOVSSRC);
+						Gen(O_MOVS_SetA, repmod&~MOVSSRC, OVERR_DS);
 					}
 					Gen(O_MOVS_CmpD, repmod);
-					Gen(O_MOVS_SavA, repmod);
+					Gen(O_MOVS_SavA, repmod, OVERR_DS);
 					PC++; break;
 				case STOSb:
 					repmod |= (MBYTE|MOVSDST);
-					Gen(O_MOVS_SetA, repmod);
+					Gen(O_MOVS_SetA, repmod, OVERR_DS);
 					Gen(L_REG, repmod|MBYTE, Ofs_AL);
 					if (repmod & (MREPNE|MREP)) {
 						Gen(O_MOVS_StoD, repmod);
@@ -2339,11 +2339,11 @@ repag0:
 					else {
 						Gen(S_DI, repmod);
 					}
-					Gen(O_MOVS_SavA, repmod);
+					Gen(O_MOVS_SavA, repmod, OVERR_DS);
 					PC++; break;
 				case STOSw:
 					repmod |= MOVSDST;
-					Gen(O_MOVS_SetA, repmod);
+					Gen(O_MOVS_SetA, repmod, OVERR_DS);
 					Gen(L_REG, repmod, Ofs_EAX);
 					if (repmod & (MREPNE|MREP)) {
 						Gen(O_MOVS_StoD, repmod);
@@ -2351,11 +2351,11 @@ repag0:
 					else {
 						Gen(S_DI, repmod);
 					}
-					Gen(O_MOVS_SavA, repmod);
+					Gen(O_MOVS_SavA, repmod, OVERR_DS);
 					PC++; break;
 				case SCASb:
 					repmod |= (MBYTE|MOVSDST|MREPCOND);
-					Gen(O_MOVS_SetA, repmod);
+					Gen(O_MOVS_SetA, repmod, OVERR_DS);
 					Gen(L_REG, repmod|MBYTE, Ofs_AL);
 					if (repmod & (MREPNE|MREP)) {
 						Gen(O_MOVS_ScaD, repmod);
@@ -2364,11 +2364,11 @@ repag0:
 						Gen(L_DI_R1, repmod);
 						Gen(O_CMP_FR, repmod, Ofs_AL);
 					}
-					Gen(O_MOVS_SavA, repmod);
+					Gen(O_MOVS_SavA, repmod, OVERR_DS);
 					PC++; break;
 				case SCASw:
 					repmod |= MOVSDST|MREPCOND;
-					Gen(O_MOVS_SetA, repmod);
+					Gen(O_MOVS_SetA, repmod, OVERR_DS);
 					Gen(L_REG, repmod, Ofs_EAX);
 					if (repmod & (MREPNE|MREP)) {
 						Gen(O_MOVS_ScaD, repmod);
@@ -2377,7 +2377,7 @@ repag0:
 						Gen(L_DI_R1, repmod);
 						Gen(O_CMP_FR, repmod, Ofs_AL);
 					}
-					Gen(O_MOVS_SavA, repmod);
+					Gen(O_MOVS_SavA, repmod, OVERR_DS);
 					PC++; break;
 				case SEGes:
 					OVERR_DS = OVERR_SS = Ofs_XES; PC++; goto repag0;
@@ -2742,7 +2742,7 @@ repag0:
 					unsigned short jcs;
 					unsigned long oip,xcs,jip=0;
 					CODE_FLUSH();
-					PC += ModRMSim(PC, _mode|NOFLDR);
+					PC += ModRMSim(PC, _mode|NOFLDR, OVERR_DS, OVERR_SS);
 					TheCPU.eip = PC - LONG_CS;
 					/* get new cs:ip */
 					jip = DataGetWL_U(_mode, TheCPU.mem_ref);
@@ -3003,7 +3003,7 @@ repag0:
 			else {
 				if ((exop&0xeb)==0x21) {
 					CODE_FLUSH();
-					PC += ModRMSim(PC, _mode|NOFLDR);
+					PC += ModRMSim(PC, _mode|NOFLDR, OVERR_DS, OVERR_SS);
 					b = _mode; sim=1;
 				}
 				else {
@@ -3044,14 +3044,14 @@ repag0:
 				case 0: /* SLDT */
 				    CODE_FLUSH();
 				    if (REALMODE()) goto illegal_op;
-				    PC += ModRMSim(PC+1, _mode) + 1;
+				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
 				    error("SLDT not implemented\n");
 				    break;
 				case 1: /* STR */
 				    /* Store Task Register */
 				    CODE_FLUSH();
 				    if (REALMODE()) goto illegal_op;
-				    PC += ModRMSim(PC+1, _mode) + 1;
+				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
 				    error("STR not implemented\n");
 				    break;
 				case 2: /* LLDT */
@@ -3064,7 +3064,7 @@ repag0:
 				    unsigned short sv; int tmp;
 				    CODE_FLUSH();
 				    if (REALMODE()) goto illegal_op;
-				    PC += ModRMSim(PC+1, _mode) + 1;
+				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
 				    if (TheCPU.mode & RM_REG) {
 					sv = CPUWORD(REG3);
 				    } else {
@@ -3081,7 +3081,7 @@ repag0:
 				    unsigned short sv; int tmp;
 				    CODE_FLUSH();
 				    if (REALMODE()) goto illegal_op;
-				    PC += ModRMSim(PC+1, _mode) + 1;
+				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
 				    if (TheCPU.mode & RM_REG) {
 					sv = CPUWORD(REG3);
 				    } else {
@@ -3138,7 +3138,7 @@ repag0:
 				unsigned short sv; int tmp;
 				CODE_FLUSH();
 				if (REALMODE()) goto illegal_op;
-				PC += ModRMSim(PC+1, _mode) + 1;
+				PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
 				if (TheCPU.mode & RM_REG) {
 				    sv = CPUWORD(REG3);
 				} else {
@@ -3474,7 +3474,7 @@ repag0:
 				    unsigned short sv = 0;
 				    unsigned long rv;
 				    CODE_FLUSH();
-				    PC++; PC += ModRMSim(PC, _mode);
+				    PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
 				    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
 				    TheCPU.mem_ref += BT24(BitDATA16,_mode);
 				    sv = GetDWord(TheCPU.mem_ref);
@@ -3498,7 +3498,7 @@ repag0:
 				    unsigned short sv = 0;
 				    unsigned long rv;
 				    CODE_FLUSH();
-				    PC++; PC += ModRMSim(PC, _mode);
+				    PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
 				    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
 				    TheCPU.mem_ref += BT24(BitDATA16,_mode);
 				    sv = GetDWord(TheCPU.mem_ref);
@@ -3522,7 +3522,7 @@ repag0:
 				    unsigned short sv = 0;
 				    unsigned long rv;
 				    CODE_FLUSH();
-				    PC++; PC += ModRMSim(PC, _mode);
+				    PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
 				    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
 				    TheCPU.mem_ref += BT24(BitDATA16,_mode);
 				    sv = GetDWord(TheCPU.mem_ref);
@@ -3580,7 +3580,7 @@ repag0:
 				modrm = Fetch(PC+2);
 				if (D_MO(modrm) != 1 || D_HO(modrm) == 3)
 					goto illegal_op;
-				PC++; PC += ModRMSim(PC, _mode);
+				PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
 				edxeax = ((uint64_t)rEDX << 32) | rEAX;
 				m = sim_read_qword(TheCPU.mem_ref);
 				if (edxeax == m)
@@ -3680,8 +3680,6 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 	while (1) {
 		TheCPU.mode = basemode;
 		TheCPU.basemode = basemode;
-		OVERR_DS = Ofs_XDS;
-		OVERR_SS = Ofs_XSS;
 		P0 = PC;
 		if (debug_level('e')) {
 			char *ds;
