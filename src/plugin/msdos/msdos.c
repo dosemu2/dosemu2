@@ -586,6 +586,10 @@ static int prepare_ems_frame(cpuctx_t *scp)
 		uma_total++;
 	    }
 	}
+	if (!uma_total) {
+	    EMM_SEG = mpa[0].seg;
+	    uma_total = phys_total;
+	}
 	if (uma_total < 4) {
 	    error("MSDOS: EMS has %i UMA pages, needs 4\n", uma_total);
 	    return -1;
