@@ -1534,52 +1534,15 @@ get_mpa_array(struct vm86_regs * state)
       int i;
 
       Kdebug0(("GET_MPA addr %p called\n", ptr));
-#if WINDOWS_HACKS
-      /* the array must be given in ascending order of segment,
-         so give the page frame only after other pages */
-      if (win3x_mode == RM && config.ems_cnv_pages > 4) {
-        /* windows-3.0 doesn't like the ascending order so swap
-         * the last few pages */
-        for (i = cnv_pages_start; i < phys_pages - 4; i++) {
-          *ptr++ = PHYS_PAGE_SEGADDR(i);
-          *ptr++ = i;
-          Kdebug0(("seg_addr 0x%x page_no %d\n",
-                 PHYS_PAGE_SEGADDR(i), i));
-        }
-        for (i = phys_pages - 2; i < phys_pages; i++) {
-          *ptr++ = PHYS_PAGE_SEGADDR(i);
-          *ptr++ = i;
-          Kdebug0(("seg_addr 0x%x page_no %d\n",
-                 PHYS_PAGE_SEGADDR(i), i));
-        }
-        for (i = phys_pages - 4; i < phys_pages - 2; i++) {
-          *ptr++ = PHYS_PAGE_SEGADDR(i);
-          *ptr++ = i;
-          Kdebug0(("seg_addr 0x%x page_no %d\n",
-                 PHYS_PAGE_SEGADDR(i), i));
-        }
-      } else {
-        for (i = cnv_pages_start; i < phys_pages; i++) {
-          *ptr++ = PHYS_PAGE_SEGADDR(i);
-          *ptr++ = i;
-          Kdebug0(("seg_addr 0x%x page_no %d\n",
-                 PHYS_PAGE_SEGADDR(i), i));
-        }
-      }
-      for (i = 0; i < cnv_pages_start; i++) {
-        *ptr++ = PHYS_PAGE_SEGADDR(i);
-        *ptr++ = i;
-        Kdebug0(("seg_addr 0x%x page_no %d\n",
-                 PHYS_PAGE_SEGADDR(i), i));
-      }
-#else
+      /* "The array is sorted in ascending segment order" says the spec.
+       * But this hopefully doesn't mean cnv segments precedes UMA.
+       * So undo 0c325af94 */
       for (i = 0; i < phys_pages; i++) {
         *ptr++ = PHYS_PAGE_SEGADDR(i);
         *ptr++ = i;
         Kdebug0(("seg_addr 0x%x page_no %d\n",
                  PHYS_PAGE_SEGADDR(i), i));
       }
-#endif
       SETHI_BYTE(state->eax, EMM_NO_ERR);
       SETLO_WORD(state->ecx, phys_pages);
       return (TRUE);
