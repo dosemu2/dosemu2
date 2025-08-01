@@ -72,7 +72,13 @@
 
 #undef	DEBUG_MORE
 
+static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
+static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
+			 unsigned char *ecpu, void *SeqStart,
+			 unsigned short seqflg);
+
 static unsigned int P0 = (unsigned)-1;
+static unsigned char *currentIG = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -334,12 +340,9 @@ void FlagSync_All (void)
 
 void InitGen_sim(void)
 {
-	Fetch = read_byte;
-	FetchW = read_word;
-	FetchL = read_dword;
-
-	Gen = Gen_sim;
-	AddrGen = AddrGen_sim;
+	Exec = Exec_sim;
+	CodeGen = CodeGen_sim;
+	UseLinker = 0;
 	RFL.cout = RFL.RES.d = 0;
 	RFL.valid = V_INVALID;
 }
@@ -439,10 +442,6 @@ void AddrGen_sim(int op, int mode, ...)
 		signed char o = Offs_From_Arg();
 		GTRACE1("A_SR_SH4",o);
 		SetSegReal(CPUWORD(o), o);
-		if (o == Ofs_SS)
-			CEmuStat |= CeS_MOVSS;
-		if (o == Ofs_CS)
-			LONG_CS = _LONG_CS;
 		}
 		break;
 	}
@@ -477,8 +476,10 @@ void Gen_sim(int op, int mode, ...)
 		unsigned char exop = (unsigned char)va_arg(ap,int);
 		int reg = va_arg(ap,int);
 		GTRACE2("O_FPOP",exop,reg);
-		if (Fp87_op(exop, reg))
-		    TheCPU.err = -96;
+		if (Fp87_op(exop, reg)) {
+		    TheCPU.err2 = -96;
+		    P0 = FindPC(currentIG);
+		}
 		}
 		break;
 
@@ -611,8 +612,6 @@ void Gen_sim(int op, int mode, ...)
 		GTRACE1("L_LXS2",o);
 		DR1.d = sim_read_word(AR1.d);
 		SetSegReal(DR1.w.l, o);
-		if (o == Ofs_CS)
-			LONG_CS = _LONG_CS;
 		}
 		break;
 	case L_ZXAX:
@@ -1493,11 +1492,11 @@ void Gen_sim(int op, int mode, ...)
 			RFL.RES.w.h = 0;
 			S1 = DR1.b.bl;
 			if (S1==0)
-			    TheCPU.err = EXCP00_DIVZ;
+			    TheCPU.err2 = EXCP00_DIVZ;
 			else {
 			    unsigned v = RFL.RES.d / S1;
 			    if (v > 0xff)
-				TheCPU.err = EXCP00_DIVZ;
+				TheCPU.err2 = EXCP00_DIVZ;
 			    else {
 				CPUBYTE(Ofs_AL) = v;
 				CPUBYTE(Ofs_AH) = RFL.RES.d % S1;
@@ -1510,11 +1509,11 @@ void Gen_sim(int op, int mode, ...)
 				RFL.RES.w.h = CPUWORD(Ofs_DX);
 				S1 = DR1.w.l;
 				if (S1==0)
-				    TheCPU.err = EXCP00_DIVZ;
+				    TheCPU.err2 = EXCP00_DIVZ;
 		    		else {
 				    unsigned v = RFL.RES.d / S1;
 				    if (v > 0xffff)
-					TheCPU.err = EXCP00_DIVZ;
+					TheCPU.err2 = EXCP00_DIVZ;
 				    else {
 					CPUWORD(Ofs_AX) = v;
 					CPUWORD(Ofs_DX) = RFL.RES.d % S1;
@@ -1528,12 +1527,12 @@ void Gen_sim(int op, int mode, ...)
 				v.t.th = CPULONG(Ofs_EDX);
 				S1 = DR1.d;
 				if (S1==0)
-				    TheCPU.err = EXCP00_DIVZ;
+				    TheCPU.err2 = EXCP00_DIVZ;
 		    		else {
 				    rem = v.td % S1;
 				    v.td /= S1;
 				    if (v.t.th)
-					TheCPU.err = EXCP00_DIVZ;
+					TheCPU.err2 = EXCP00_DIVZ;
 				    else {
 					CPULONG(Ofs_EAX) = RFL.RES.d = v.t.tl;
 					CPULONG(Ofs_EDX) = rem;
@@ -1541,6 +1540,8 @@ void Gen_sim(int op, int mode, ...)
 		    		}
 			}
 		}
+		if (TheCPU.err2 == EXCP00_DIVZ)
+			P0 = va_arg(ap, dosaddr_t);
 		break;
 	case O_IDIV:		// no flags
 		GTRACE0("O_IDIV");
@@ -1548,11 +1549,11 @@ void Gen_sim(int op, int mode, ...)
 			int32_t S = DR1.bs.bl;
 			RFL.RES.ds = (signed short)CPUWORD(Ofs_AX);
 			if (S==0)
-			    TheCPU.err = EXCP00_DIVZ;
+			    TheCPU.err2 = EXCP00_DIVZ;
 	    		else {
 			    int v = RFL.RES.ds / S;
 			    if (v > 127 || v < -128)
-				TheCPU.err = EXCP00_DIVZ;
+				TheCPU.err2 = EXCP00_DIVZ;
 			    else {
 				CPUBYTE(Ofs_AL) = v;
 				CPUBYTE(Ofs_AH) = RFL.RES.ds % S;
@@ -1566,11 +1567,11 @@ void Gen_sim(int op, int mode, ...)
 				RFL.RES.w.h = CPUWORD(Ofs_DX);
 				S = DR1.ws.l;
 				if (S==0)
-				    TheCPU.err = EXCP00_DIVZ;
+				    TheCPU.err2 = EXCP00_DIVZ;
 		    		else {
 				    int v = RFL.RES.ds / S;
 				    if (v > 32767 || v < -32768)
-					TheCPU.err = EXCP00_DIVZ;
+					TheCPU.err2 = EXCP00_DIVZ;
 				    else {
 					CPUWORD(Ofs_AX) = v;
 					CPUWORD(Ofs_DX) = RFL.RES.ds % S;
@@ -1584,12 +1585,12 @@ void Gen_sim(int op, int mode, ...)
 				v = CPULONG(Ofs_EAX) |
 				  ((uint64_t)CPULONG(Ofs_EDX) << 32);
 				if (S==0)
-				    TheCPU.err = EXCP00_DIVZ;
+				    TheCPU.err2 = EXCP00_DIVZ;
 		    		else {
 				    rem = v % S;
 				    v /= S;
 				    if (v > 0x7fffffffLL || v < -0x80000000LL)
-					TheCPU.err = EXCP00_DIVZ;
+					TheCPU.err2 = EXCP00_DIVZ;
 				    else {
 					CPULONG(Ofs_EAX) = RFL.RES.d = v & 0xffffffff;
 					CPULONG(Ofs_EDX) = rem;
@@ -1597,6 +1598,8 @@ void Gen_sim(int op, int mode, ...)
 		    		}
 			}
 		}
+		if (TheCPU.err2 == EXCP00_DIVZ)
+			P0 = va_arg(ap, dosaddr_t);
 		break;
 	case O_CBWD:
 		GTRACE0("O_CBWD");
@@ -2256,7 +2259,7 @@ void Gen_sim(int op, int mode, ...)
 		// Check bitmap, GPF if revectored
 		if (test_bit(intno, &TheCPU.int_revectored)) {
 			P0 = va_arg(ap, dosaddr_t);
-			TheCPU.err = EXCP0D_GPF;
+			TheCPU.err2 = EXCP0D_GPF;
 		}
 		else {
 			AR1.d = intno * 4;
@@ -2319,7 +2322,8 @@ void Gen_sim(int op, int mode, ...)
 
 			/* misaligned overflow generates trap. */
 			if(minofs & (OPSIZE(mode)-1)) {
-			    TheCPU.err=EXCP0D_GPF;
+			    TheCPU.err2 = EXCP0D_GPF;
+			    P0 = FindPC(currentIG);
 			    break;
 			}
 
@@ -2449,7 +2453,8 @@ void Gen_sim(int op, int mode, ...)
 			if(AR1.d & (OPSIZE(mode)-1))
 			{
 				/* misaligned overflow generates trap. */
-				TheCPU.err=EXCP0D_GPF;
+				TheCPU.err2 = EXCP0D_GPF;
+				P0 = FindPC(currentIG);
 				break;
 			}
 			possible = minofs / (OPSIZE(mode));
@@ -2864,8 +2869,15 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 
+	case JMP_TAILCODE: {	// retaddr
+		P0 = va_arg(ap,unsigned int);
+		if (debug_level('e')>2) {
+			dbug_printf("** Tail code: return from %08x\n",P0);
+		} }
+		break;
+
 	case JMP_INDIRECT:
-		P0 = LONG_CS + ((mode & DATA16) ? DR1.w.l : DR1.d);
+		P0 = _LONG_CS + ((mode & DATA16) ? DR1.w.l : DR1.d);
 		if (debug_level('e')>2)
 			dbug_printf("** Jump taken to %08x\n",P0);
 		break;
@@ -2969,7 +2981,8 @@ void Gen_sim(int op, int mode, ...)
 			e_printf("FPU: error status %02x\n",exs);
 			if ((exs & ~TheCPU.fpuc) & 0x3f) {
 				e_printf("FPU exception\n");
-				TheCPU.err = EXCP10_COPR;
+				TheCPU.err2 = EXCP10_COPR;
+				P0 = FindPC(currentIG);
 			}
 		}
 	}
@@ -2983,48 +2996,67 @@ void Gen_sim(int op, int mode, ...)
 /////////////////////////////////////////////////////////////////////////////
 
 
-unsigned int CloseAndExec_sim(unsigned int PC, int mode)
+static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG)
 {
-	unsigned int ret;
-	if (debug_level('e')>1) {
-	    if (sigalrm_pending()>0) e_printf("** SIGALRM is pending\n");
-	    if (debug_level('e')>2) {
-		e_printf("==== Closing sequence at %08x\n", PC);
-	    }
-#if defined(SINGLESTEP)||defined(SINGLEBLOCK)
-	    dbug_printf("\n%s",e_print_regs());
+	memcpy(CodePtr, IG, sizeof(*IG));
+	return CodePtr + sizeof(*IG);
+}
+
+static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
+			 unsigned char *ecpu, void *SeqStart,
+			 unsigned short seqflg)
+{
+	IGen *IG = SeqStart;
+	P0 = (unsigned)-1;
+	do {
+		int op = IG->op;
+		if (op && op <= A_SR_SH4) {
+			AddrGen_sim(op, IG->mode, IG->p0, IG->p1, IG->p2, IG->p3, IG->p4);
+			if (V86MODE() && (0 == (IG->mode & (ADDR16 | MLEA))) && TR1.d > 0xffff) {
+				TheCPU.err2 = EXCP0D_GPF;
+				P0 = FindPC((unsigned char *)IG);
+			}
+		} else {
+			unsigned int p0 = IG->p0;
+			if (op == L_MOVZS) p0 >>= 3;
+			currentIG = (unsigned char *)IG;
+			Gen_sim(op, IG->mode, p0, IG->p1, IG->p2, IG->p3);
+		}
+		IG++;
+	} while (P0 == (unsigned int)-1);
+	currentIG = NULL;
+	*mem_ref = TheCPU.mem_ref;
+	FlagSync_All();
+	*flg = EFLAGS & EFLAGS_CC;
+
+#ifdef DEBUG_MORE
+	if (debug_level('e')>1)
+#else
+	if (debug_level('e')>3)
 #endif
-#ifndef DEBUG_MORE
-	    if (debug_level('e')>3)
-#endif
-	    {
+	{
 	    dbug_printf("(R) DR1=%08x DR2=%08x AR1=%08x AR2=%08x\n",
 		DR1.d,DR2.d,AR1.d,AR2.d);
 	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
 		SR1.d,TR1.d);
 	    dbug_printf("(R) RFL m=[%s] v=%d cout=%08x RES=%08x\n\n",
 		showmode(RFL.mode),RFL.valid,RFL.cout,RFL.RES.d);
-	    }
 	}
 
-	if (!(CEmuStat & CeS_INHI)) {
-	    if (sigalrm_pending()) {
-		CEmuStat|=CeS_SIGPEND;
-		sigalrm_pending_w(0);
-	    }
-	}
-	if (P0 == (unsigned)-1)
-		return PC;
-	ret = P0;
-	P0 = (unsigned)-1;
-	return ret;
+	return P0;
 }
 
 static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 {
-	/* err = -1 is special, hitting JIT protected page */
-	if (!in_emu_cpu() || err == -1) {
+	if (!in_emu_cpu()) {
 		default_sim_pagefault_handler(addr, err, op, len);
+		return;
+	}
+	/* err = -1 is special, hitting a page with code that's been converted
+	   to intermediate ops */
+	if (err == -1) {
+		if (e_querymark(addr, len))
+			InvalidateNodeRange(addr, len, currentIG);
 		return;
 	}
 	if ((err & 2) && msdos_ldt_access(addr)) {
@@ -3032,10 +3064,14 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 		return;
 	}
 	/* trigger an exception in DPMI */
-	TheCPU.err = EXCP0E_PAGE;
+	TheCPU.err2 = EXCP0E_PAGE;
 	TheCPU.scp_err = err;
 	TheCPU.cr2 = addr;
-	longjmp(jmp_env, 1);
+	if (currentIG)
+		P0 = FindPC(currentIG);
+	else
+		/* for faulting sim_read/write directly from interp.c */
+		longjmp(jmp_env, 1);
 }
 
 uint8_t sim_read_byte(dosaddr_t x)
