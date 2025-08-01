@@ -718,9 +718,9 @@ void prejit_unlock(void);
 void prejit_init(void);
 void prejit_done(void);
 //
-int _ModRM(unsigned char opc, unsigned int PC, int mode);
+int _ModRM(unsigned char opc, unsigned int PC, int mode, signed char overr_ds, signed char overr_ss);
 #define ModRM(o, p, m) ({ \
-    int __l = _ModRM(o, p, m); \
+    int __l = _ModRM(o, p, m, OVERR_DS, OVERR_SS); \
     if (REG1 == 0xff) { \
         CODE_FLUSH(); \
         goto illegal_op; \
@@ -731,7 +731,7 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode);
     } \
     __l; \
 })
-int ModRMSim(unsigned int PC, int mode);
+int ModRMSim(unsigned int PC, int mode, signed char overr_ds, signed char overr_ss);
 int ModGetReg1(unsigned int PC, int mode);
 //
 char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg);

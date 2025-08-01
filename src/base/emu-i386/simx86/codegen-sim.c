@@ -82,9 +82,6 @@ static unsigned int P0 = (unsigned)-1;
 
 #define	Offs_From_Arg()		(signed char)(va_arg(ap,int))
 
-/* WARNING - these are signed char offsets, NOT pointers! */
-char OVERR_DS=Ofs_XDS, OVERR_SS=Ofs_XSS;
-
 /* working registers of the host CPU */
 wkreg DR1;	// "eax"
 wkreg DR2;	// "edx"
@@ -427,16 +424,17 @@ void AddrGen_sim(int op, int mode, ...)
 			long idsp;
 			unsigned char sh;
 			signed char o;
+			signed char ofs = Offs_From_Arg();
 			if (mode & MLEA) {
 				AR1.d = 0;
 			}
 			else {
-				AR1.d = CPULONG(OVERR_DS);
+				AR1.d = CPULONG(ofs);
 			}
 			idsp = va_arg(ap,int);
 			o = Offs_From_Arg();
 			sh = (unsigned char)(va_arg(ap,int));
-			GTRACE4("A_DI_2D",o,0xff,idsp,sh);
+			GTRACE5("A_DI_2D",ofs,o,0xff,idsp,sh);
 			TR1.d = (CPULONG(o) << (sh & 0x1f)) + idsp;
 			AR1.d += TR1.d;
 		}
@@ -1626,14 +1624,16 @@ void Gen_sim(int op, int mode, ...)
 			CPULONG(Ofs_EDX) = (DR1.b.b3&0x80? 0xffffffff:0);
 		}
 		break;
-	case O_XLAT:
-		GTRACE0("XLAT");
-		AR1.d = CPULONG(OVERR_DS);
+	case O_XLAT: {
+		signed char ofs = Offs_From_Arg();
+		GTRACE1("XLAT",ofs);
+		AR1.d = CPULONG(ofs);
 		TR1.d = CPULONG(Ofs_EBX) + CPUBYTE(Ofs_AL);
 		if (mode & ADDR16) {
 			TR1.d &= 0xFFFF;
 		}
 		AR1.d += TR1.d;
+		}
 		break;
 
 	case O_ROL: {		// O(if sh==1),C(if sh>0)
@@ -2267,11 +2267,12 @@ void Gen_sim(int op, int mode, ...)
 		} }
 		break;
 
-	case O_MOVS_SetA:
-		GTRACE0("O_MOVS_SetA");
+	case O_MOVS_SetA: {
+		signed char ofs = Offs_From_Arg();
+		GTRACE1("O_MOVS_SetA",ofs);
 		if (mode&ADDR16) {
 		    if (mode&MOVSSRC) {
-	    		AR2.d = CPULONG(OVERR_DS);
+			AR2.d = CPULONG(ofs);
 			DR2.d = CPUWORD(Ofs_SI); /* for overflow calc */
 			AR2.d += DR2.d;
 		    }
@@ -2285,7 +2286,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		else {
 		    if (mode&MOVSSRC) {
-	    		AR2.d = CPULONG(OVERR_DS) + CPULONG(Ofs_ESI);
+			AR2.d = CPULONG(ofs) + CPULONG(Ofs_ESI);
 		    }
 		    if (mode&MOVSDST) {
 	    		AR1.d = CPULONG(Ofs_XES) + CPULONG(Ofs_EDI);
@@ -2294,6 +2295,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		if (!(mode&(MREP|MREPNE|MOVSDST))) {
 		    AR1.d = AR2.d; /* single lodsb uses L_DI_R1 */
+		}
 		}
 		break;
 
@@ -2575,8 +2577,9 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 
-	case O_MOVS_SavA:
-		GTRACE0("O_MOVS_SavA");
+	case O_MOVS_SavA: {
+		signed char ofs = Offs_From_Arg();
+		GTRACE1("O_MOVS_SavA",ofs);
 		if (!(mode&(MREP|MREPNE))) {
 		    // %%edx set to DF's increment
 		    DR2.d = (signed char)CPUBYTE(Ofs_DF_INCREMENTS+OPSIZEBIT(mode));
@@ -2598,7 +2601,7 @@ void Gen_sim(int op, int mode, ...)
 	    		CPUWORD(Ofs_CX) = TR1.w.l;
 		    }
 		    if (mode&MOVSSRC) {
-	    		AR2.d -= CPULONG(OVERR_DS);
+			AR2.d -= CPULONG(ofs);
 			CPUWORD(Ofs_SI) = AR2.w.l;
 		    }
 		    if (mode&MOVSDST) {
@@ -2611,13 +2614,14 @@ void Gen_sim(int op, int mode, ...)
 	    		CPULONG(Ofs_ECX) = TR1.d;
 		    }
 		    if (mode&MOVSSRC) {
-	    		AR2.d -= CPULONG(OVERR_DS);
+			AR2.d -= CPULONG(ofs);
 			CPULONG(Ofs_ESI) = AR2.d;
 		    }
 		    if (mode&MOVSDST) {
 	    		AR1.d -= CPULONG(Ofs_XES);
 			CPULONG(Ofs_EDI) = AR1.d;
 		    }
+		}
 		}
 		break;
 	case O_SLAHF: {

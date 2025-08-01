@@ -66,7 +66,7 @@ static void modrm_sib(unsigned char mod, unsigned char sib, unsigned int base)
 
 /////////////////////////////////////////////////////////////////////////////
 
-int _ModRM(unsigned char opc, unsigned int PC, int mode)
+int _ModRM(unsigned char opc, unsigned int PC, int mode, signed char overr_ds, signed char overr_ss)
 {
 	unsigned char mod,cab=Fetch(PC+1);
 	int l=2;
@@ -123,14 +123,14 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode)
 	}
 	if (mod == 0 && l > 3) {
 		if (index == Ofs_ESP)
-			AddrGen(A_DI_0, mode|IMMED, OVERR_DS, dsp);
+			AddrGen(A_DI_0, mode|IMMED, overr_ds, dsp);
 		else
 			/* no SS: override on index */
-			AddrGen(A_DI_2D, mode, dsp, index, shift);
+			AddrGen(A_DI_2D, mode, overr_ds, dsp, index, shift);
 	}
 	else {
 		int overr = (base == Ofs_ESP || base == Ofs_EBP) ?
-			OVERR_SS : OVERR_DS;
+			overr_ss : overr_ds;
 		if (mod==1) {
 			dsp=(signed char)Fetch(PC+l); l++;
 		}
