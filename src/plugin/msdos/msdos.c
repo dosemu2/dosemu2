@@ -562,8 +562,8 @@ static int prepare_ems_frame(cpuctx_t *scp)
     if (ems_handle == -1) {
 #define EMM_MAX_PHYS 64
 	struct emm_phys_page_desc mpa[EMM_MAX_PHYS];
-	int phys_total;
-
+	int phys_total, uma_total;
+	int i;
 	phys_total = emm_get_mpa_len(scp, MSDOS_CLIENT.is_32);
 	if (phys_total == -1) {
 	    error("MSDOS: EMS is disabled\n");
@@ -578,7 +578,18 @@ static int prepare_ems_frame(cpuctx_t *scp)
 	    error("MSDOS: EMS get_mpa failed\n");
 	    return err;
 	}
-	EMM_SEG = mpa[0].seg;
+	uma_total = 0;
+	for (i = 0; i < phys_total; i++) {
+	    if (mpa[i].seg > 0xa000) {
+		if (!uma_total)
+		    EMM_SEG = mpa[i].seg;
+		uma_total++;
+	    }
+	}
+	if (uma_total < 4) {
+	    error("MSDOS: EMS has %i UMA pages, needs 4\n", uma_total);
+	    return -1;
+	}
 	ems_handle = emm_allocate_handle(scp, MSDOS_CLIENT.is_32,
 		MSDOS_EMS_PAGES);
     }
