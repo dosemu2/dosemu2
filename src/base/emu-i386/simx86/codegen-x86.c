@@ -3234,6 +3234,14 @@ TNode *Close_x86(unsigned int PC, int mode)
 	return G;
 }
 
+#ifdef __i386__
+  __attribute__((target("sse")))
+#endif
+static inline void prefetch(unsigned char *p)
+{
+	__builtin_prefetch(p);
+}
+
 static unsigned int Exec_x86_pre(unsigned char *ecpu)
 {
 	unsigned long flg;
@@ -3246,12 +3254,10 @@ static unsigned int Exec_x86_pre(unsigned char *ecpu)
 	flg = (flg & ~(EFLAGS_CC|EFLAGS_IF|EFLAGS_DF|EFLAGS_TF)) |
 	       (EFLAGS & EFLAGS_CC) | EFLAGS_IF;
 
-#ifndef __x86_64__
+#ifdef __i386__
 	if (config.cpuprefetcht0)
 #endif
-	    __asm__ __volatile__ (
-"		prefetcht0 %0\n"
-		: : "m"(*ecpu) );
+		prefetch(ecpu);
 
 	return flg;
 }
