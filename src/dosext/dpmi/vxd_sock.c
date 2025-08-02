@@ -468,6 +468,11 @@ static void *_SEG_ADR(unsigned short seg, unsigned int off)
     return LINEAR2UNIX(lin);
 }
 
+static void *SEL_ADR16(unsigned short sel, unsigned int off)
+{
+    return SEL_ADR(off >> 16, off & 0xffff);
+}
+
 void sock_rm_handler(void)
 {
     cpuctx_t sc = {};
@@ -479,7 +484,7 @@ void sock_rm_handler(void)
 static void sock_thr(void *arg)
 {
     cpuctx_t *scp = arg;
-    sock_handler(scp, SEL_ADR);
+    sock_handler(scp, dpmi_is_32() ? SEL_ADR : SEL_ADR16);
 }
 
 void VXD_Sock(cpuctx_t *scp)
