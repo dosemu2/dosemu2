@@ -3344,6 +3344,40 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 	return ePC;
 }
 
+static unsigned Exec_x86_asm_fpu(unsigned *mem_ref, unsigned long *flg,
+		unsigned char *ecpu, unsigned char *SeqStart,
+		unsigned short seqflg)
+{
+	unsigned ePC;
+	if (seqflg & F_FPOP) {
+		if (TheCPU.fpstate) {
+			loadfpstate(*TheCPU.fpstate);
+			TheCPU.fpstate = NULL;
+		}
+		/* mask exceptions in generated code */
+		unsigned short fpuc;
+		asm ("fstcw	%0" : "=m"(TheCPU.fpuc));
+		fpuc = TheCPU.fpuc | 0x3f;
+		asm ("fldcw	%0" :: "m"(fpuc));
+	}
+	ePC = Exec_x86_asm(mem_ref, flg, ecpu, SeqStart);
+	/* was there at least one FP op in the sequence? */
+	if (seqflg & F_FPOP) {
+		int exs;
+		__asm__ __volatile__ ("fstsw	%0" : "=m"(exs));
+		exs &= 0x7f;
+		if (exs) {
+			e_printf("FPU: error status %02x\n",exs);
+			if ((exs & ~TheCPU.fpuc) & 0x3f) {
+				__asm__ __volatile__ ("fnclex\n" ::: "memory");
+				e_printf("FPU exception\n");
+				TheCPU.err2 = EXCP10_COPR;
+			}
+		}
+	}
+	return ePC;
+}
+
 unsigned int Exec_x86(TNode *G)
 {
 	unsigned long flg;
@@ -3366,36 +3400,9 @@ unsigned int Exec_x86(TNode *G)
 	hitimer_t TimeStartExec;
 	if (debug_level('e')) TimeStartExec = GETTSC();
 #endif
-	if (seqflg & F_FPOP) {
-		if (TheCPU.fpstate) {
-			loadfpstate(*TheCPU.fpstate);
-			TheCPU.fpstate = NULL;
-		}
-		/* mask exceptions in generated code */
-		unsigned short fpuc;
-		asm ("fstcw	%0" : "=m"(TheCPU.fpuc));
-		fpuc = TheCPU.fpuc | 0x3f;
-		asm ("fldcw	%0" :: "m"(fpuc));
-	}
-
 	flg = Exec_x86_pre(ecpu);
-	ePC = Exec_x86_asm(&mem_ref, &flg, ecpu, SeqStart);
+	ePC = Exec_x86_asm_fpu(&mem_ref, &flg, ecpu, SeqStart, seqflg);
 	Exec_x86_post(flg, mem_ref);
-
-	/* was there at least one FP op in the sequence? */
-	if (seqflg & F_FPOP) {
-		int exs;
-		__asm__ __volatile__ ("fstsw	%0" : "=m"(exs));
-		exs &= 0x7f;
-		if (exs) {
-			e_printf("FPU: error status %02x\n",exs);
-			if ((exs & ~TheCPU.fpuc) & 0x3f) {
-				__asm__ __volatile__ ("fnclex\n" ::: "memory");
-				e_printf("FPU exception\n");
-				TheCPU.err2 = EXCP10_COPR;
-			}
-		}
-	}
 
 	if (debug_level('e')) {
 #if PROFILE >= 2
