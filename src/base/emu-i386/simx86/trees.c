@@ -1145,9 +1145,9 @@ static void BreakNode(TNode *G, unsigned char *eip)
   ebase = eip - G->addr;
   for (i=0; i<G->seqnum; i++) {
     if (A->daddr >= ebase) {		// found following instr
+	IGen IG = (IGen){.op = JMP_TAILCODE, .p0 = G->key + A->dnpc};
 	p = G->addr + A->daddr;		// translated IP of following instr
-	memcpy(p, TailCode, TAILSIZE);
-	*((int *)(p+TAILFIX)) = G->key + A->dnpc;
+	CodeGen(p, G->addr, &IG);
 	if (debug_level('e')>1)
 		e_printf("============ Force node closing at %08x(%p)\n",
 			 (G->key+A->dnpc),p);
@@ -1360,7 +1360,7 @@ int NewIMeta(int npc, int *rc)
 		I0->ncount += 1;
 		I->npc = npc;
 
-		if (CurrIMeta>0) {
+		if (CurrIMeta>0 && I->gen[I->ngen-1].op != JMP_TAILCODE) {
 			/* F_INHI (pop ss/mov ss) only applies to the last
 			   instruction in the sequence and not twice in
 			   a row */

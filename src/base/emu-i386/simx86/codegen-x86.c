@@ -135,7 +135,7 @@ static TNode *LastXNode = NULL;
  *		popl edx (flags)
  *		ret
  */
-unsigned char TailCode[TAILSIZE+1] =
+static unsigned char TailCode[TAILSIZE+1] =
 	{ 0xb8,0,0,0,0,0x5a,0xc3,0xf4 };
 
 #ifdef __x86_64__
@@ -189,13 +189,11 @@ void InitGen_x86(void)
  * because of the OR operator, which would cause trouble if the parameter
  * is negative */
 
-static unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf,
-			      IMeta *I, int j)
+unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG)
 {
 	/* evil hack, keeping state from MOVS_SavA to MOVS_SetA in
 	   a static variable */
 	static unsigned char * rep_retry_ptr = (unsigned char*)0xdeadbeef;
-	IGen *IG = &(I->gen[j]);
 	unsigned char *Cp = CodePtr;
 	unsigned char * CpTemp;
 	int mode = IG->mode;
@@ -2215,6 +2213,12 @@ shrot0:
 		}
 		break;
 
+	case JMP_TAILCODE:
+		/* copy tail instructions to the end of the code block */
+		GNX(Cp, TailCode, TAILSIZE);
+		*((unsigned int *)(Cp - TAILSIZE + TAILFIX)) = IG->p0;
+		break;
+
 	case JMP_INDIRECT: {	// input: %%{e}ax = %%{e}ip
 		if (mode&DATA16)
 			// movz{wl} %%ax,%%eax
@@ -2620,7 +2624,8 @@ static void Gen_x86(int op, int mode, ...)
 	case O_DEC_R:
 	case O_DIV:
 	case O_IDIV:
-	case O_PUSHI: {
+	case O_PUSHI:
+	case JMP_TAILCODE: {
 		int v = va_arg(ap,int);
 		IG->p0 = v;
 		}
@@ -2836,7 +2841,8 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	    cp = cp1 = CodePtr;
 	    I->daddr = cp - BaseGenBuf;
 	    for (j=0; j<I->ngen; j++) {
-		CodePtr = CodeGen(CodePtr, BaseGenBuf, I, j);
+		IGen *IG = &I->gen[j];
+		CodePtr = CodeGen(CodePtr, BaseGenBuf, IG);
 		if (CodePtr-cp1 > MAX_GEND_BYTES_PER_OP) {
 		    dosemu_error("Generated code (%zd bytes) overflowed into buffer, please "
 				 "increase MAX_GEND_BYTES_PER_OP=%d\n",
@@ -2844,7 +2850,6 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 		    leavedos_main(0x535347);
 		}
 		if (debug_level('e')>1) {
-		    IGen *IG = &(I->gen[j]);
 		    int dg = CodePtr-cp1;
 		    e_printf("PGEN(%02d,%02d) %3d %6x %2d %08x %08x %08x %08x %08x\n",
 			i,j,IG->op,IG->mode,dg,
@@ -2865,24 +2870,6 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 
 	if (debug_level('e')>1)
 	    e_printf("---------------------------------------------\n");
-
-	/* If the code doesn't terminate with a jump/loop instruction
-	 * it still lacks the tail code; add it here */
-	IMeta *GL = &I0[CurrIMeta-1];
-	if (GL->gen[GL->ngen-1].op < JMP_INDIRECT) {
-		unsigned char *p = CodePtr;
-		/* copy tail instructions to the end of the code block */
-		memcpy(p, TailCode, TAILSIZE);
-		p += TAILFIX;
-		*((unsigned int *)p) = PC;
-		CodePtr += TAILSIZE;
-	}
-
-	/* show jump+tail code */
-	if ((debug_level('e')>6) && (CurrIMeta>0)) {
-		unsigned char *pl = &BaseGenBuf[GL->daddr+GL->len];
-		GCPrint(pl, BaseGenBuf, CodePtr - pl);
-	}
 
 	I0->totlen = CodePtr - BaseGenBuf;
 
