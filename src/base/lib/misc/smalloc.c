@@ -114,16 +114,14 @@ static int get_oom_pr(struct mempool *mp, size_t size)
     return 0;
 }
 
-static void sm_uncommit(struct mempool *mp, void *addr, size_t size)
+static void sm_uncommit(struct mempool *mp, void *addr, size_t comb_size)
 {
     /* align address up and align down size */
     uintptr_t a = (uintptr_t)addr;
     uintptr_t aa = PAGE_ALIGN(a);
-    size_t aligned_size = (size - (aa - a)) & _PAGE_MASK;
+    size_t aligned_size = (comb_size - (aa - a)) & _PAGE_MASK;
     void *aligned_addr = (void *)aa;
-    mp->avail += size;
-    assert(mp->avail <= mp->size);
-    if (!mp->uncommit)
+    if (!mp->uncommit || !aligned_size)
       return;
     mp->uncommit(aligned_addr, aligned_size);
 }
@@ -135,8 +133,10 @@ static int __sm_commit(struct mempool *mp, void *addr, size_t size,
     return 1;
   if (!mp->commit(addr, size)) {
     smerror(mp, "SMALLOC: failed to commit %p %zi\n", addr, size);
-    if (e_size)
+    if (e_size) {
+      mp->avail += e_size;
       sm_uncommit(mp, e_addr, e_size);
+    }
     return 0;
   }
   return 1;
@@ -446,7 +446,8 @@ int smfree(struct mempool *mp, void *ptr)
     return -1;
   }
   assert(mn->size > 0);
-  sm_uncommit(mp, mn->mem_area, mn->size);
+  mp->avail += mn->size;
+  assert(mp->avail <= mp->size);
   mn->used = 0;
   if (mn->next && !mn->next->used) {
     /* merge with next */
@@ -459,6 +460,9 @@ int smfree(struct mempool *mp, void *ptr)
     mntruncate(pmn, pmn->size + mn->size);
     mn = pmn;
   }
+  /* uncommit combined area */
+  assert(!mn->used);
+  sm_uncommit(mp, mn->mem_area, mn->size);
   return 0;
 }
 
@@ -487,11 +491,17 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
     mn->used = 0;
     if (size < pmn->size + mn->size) {
       size_t overl = size > pmn->size ? size - pmn->size : 0;
-      sm_uncommit(mp, mn->mem_area + overl, mn->size - overl);
+      mp->avail += mn->size - overl;
+      assert(mp->avail <= mp->size);
     }
     if (nmn && !nmn->used)	// merge with next
       mntruncate(mn, mn->size + nmn->size);
     mntruncate(pmn, size);
+    /* in a very unlikely case mn could be destroyed by resizing */
+    mn = pmn->next;
+    /* uncommit combined area */
+    if (mn && !mn->used)
+      sm_uncommit(mp, mn->mem_area, mn->size);
     new_mn = pmn;
   } else {
     /* relocate */
@@ -509,7 +519,7 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
 
 void *smrealloc(struct mempool *mp, void *ptr, size_t size)
 {
-  struct memnode *mn, *pmn;
+  struct memnode *mn, *pmn, *nmn;
   if (!ptr)
     return smalloc(mp, size);
   if (!(mn = find_mn(mp, (unsigned char *)ptr, &pmn))) {
@@ -528,11 +538,15 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
     return ptr;
   if (size < mn->size) {
     /* shrink */
-    sm_uncommit(mp, mn->mem_area + size, mn->size - size);
+    mp->avail += mn->size - size;
+    assert(mp->avail <= mp->size);
     mntruncate(mn, size);
+    nmn = mn->next;
+    assert(nmn && !nmn->used);
+    sm_uncommit(mp, nmn->mem_area, nmn->size);
   } else {
     /* grow */
-    struct memnode *nmn = mn->next;
+    nmn = mn->next;
     if (nmn && !nmn->used && mn->size + nmn->size >= size) {
       /* expand by shrinking next memnode */
       if (!sm_commit_simple(mp, nmn->mem_area, size - mn->size))
@@ -553,7 +567,7 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
 
 void *smrealloc_aligned(struct mempool *mp, void *ptr, int align, size_t size)
 {
-  struct memnode *mn, *pmn;
+  struct memnode *mn, *pmn, *nmn;
   assert(__builtin_popcount(align) == 1);
   if (!ptr)
     return smalloc_aligned(mp, align, size);
@@ -577,11 +591,15 @@ void *smrealloc_aligned(struct mempool *mp, void *ptr, int align, size_t size)
   }
   if (size < mn->size) {
     /* shrink */
-    sm_uncommit(mp, mn->mem_area + size, mn->size - size);
+    mp->avail += mn->size - size;
+    assert(mp->avail <= mp->size);
     mntruncate(mn, size);
+    nmn = mn->next;
+    assert(nmn && !nmn->used);
+    sm_uncommit(mp, nmn->mem_area, nmn->size);
   } else {
     /* grow */
-    struct memnode *nmn = mn->next;
+    nmn = mn->next;
     if (nmn && !nmn->used && mn->size + nmn->size >= size) {
       /* expand by shrinking next memnode */
       if (!sm_commit_simple(mp, nmn->mem_area, size - mn->size))
