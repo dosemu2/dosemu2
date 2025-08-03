@@ -205,7 +205,8 @@ static void msdos_ldt_update(int selector, int num)
         memset(&ldt_backbuf[(selector & 0xfff8) + (i << 3)], 0,
             LDT_ENTRY_SIZE);
         ldt_backbuf[(selector & 0xfff8) + (i << 3) + 5] = 0x70;
-        D_printf("DPMI: sel %x freed\n", (selector & 0xfff8) + (i << 3) + 7);
+        if (debug_level('D') >= 5)
+          D_printf("DPMI: sel %x freed\n", (selector & 0xfff8) + (i << 3) + 7);
       }
     }
   }

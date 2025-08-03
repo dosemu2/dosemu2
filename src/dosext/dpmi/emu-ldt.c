@@ -25,6 +25,7 @@ int emu_read_ldt(char *ptr, unsigned long bytecount)
 
 	for (i = 0; (i < LGDT_ENTRIES) && (size < bytecount); i++) {
 		if (*lp) {
+		    if (debug_level('D') >= 9)
 			D_printf("EMU86: read LDT entry %04x: %08x%08x\n",i,
 				lp[1], lp[0]);
 		}
@@ -62,7 +63,8 @@ int emu_update_LDT(const struct user_desc *ldt_info, uint8_t *buffer)
 	if (ldt_info->base_addr == 0 && ldt_info->limit == 0) {
 		if (LDT_empty(ldt_info)) {
 			memset(lp, 0, sizeof(*lp));
-			D_printf("EMU86: LDT entry %#x cleared\n",
+			if (debug_level('D') >= 9)
+			    D_printf("EMU86: LDT entry %#x cleared\n",
 				 ldt_info->entry_number);
 			return 0;
 		}
