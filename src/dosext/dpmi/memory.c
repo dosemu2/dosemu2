@@ -495,7 +495,7 @@ dpmi_pm_block * DPMI_mapHWRam(dpmi_pm_block_root *root,
 
 static void do_unmap_hwram(dpmi_pm_block_root *root, dpmi_pm_block *block)
 {
-    /* nothing to do? */
+    e_invalidate_full(block->base, block->size);
     free_pm_block(root, block);
 }
 
@@ -504,6 +504,7 @@ static void do_unmap_shm(dpmi_pm_block *block)
     int err = restore_mapping(MAPPING_DPMI, block->base, block->size);
     if (err)
         error("restore_mapping() failed\n");
+    e_invalidate_full(block->base, block->size);
     smfree(&mem_pool, MEM_BASE32(block->base));
     unregister_hardware_ram_virtual(block->base);
     block->mapped = 0;
@@ -543,7 +544,8 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	error("DPMI: wrong free smem, %s\n", block->shmname);
 	return -1;
     }
-    e_invalidate_full(block->base, block->size);
+    if (!block->shm)
+	e_invalidate_full(block->base, block->size);
     if (block->shm) {
 	if (block->mapped)
 	    do_unmap_shm(block);
