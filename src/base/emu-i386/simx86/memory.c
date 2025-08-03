@@ -211,7 +211,7 @@ int e_querymprotrange(unsigned int addr, size_t len)
 			return 1;
 		a2l++;
 		if ((a2l&255)==0)
-			M = FindM(a2l);
+			M = FindM(a2l << PAGE_SHIFT);
 	}
 	return 0;
 }
@@ -229,7 +229,7 @@ int e_querymprotrange_full(unsigned int addr, size_t len)
 			return 0;
 		a2l++;
 		if ((a2l&255)==0)
-			M = FindM(a2l);
+			M = FindM(a2l << PAGE_SHIFT);
 	}
 	if (!M)
 		return 0;
@@ -264,7 +264,7 @@ int e_markpage(unsigned int addr, size_t len)
 		set_bit(abeg&CGRMASK, M->subpage);
 		abeg++;
 		if ((abeg&CGRMASK) == 0) {
-			M = FindM(abeg);
+			M = FindM(abeg << CGRAN);
 			assert(M);
 		}
 	}
@@ -291,7 +291,7 @@ int e_unmarkpage(unsigned int addr, size_t len)
 		clear_bit(abeg&CGRMASK, M->subpage);
 		abeg++;
 		if ((abeg&CGRMASK) == 0) {
-			M = FindM(abeg);
+			M = FindM(abeg << CGRAN);
 			assert(M);
 		}
 	}
@@ -351,7 +351,7 @@ int e_querymark(unsigned int addr, size_t len)
 	for (abeg += UINT64_WIDTH, idx++; abeg < aend; abeg += UINT64_WIDTH,
 			idx++) {
 		if (!(abeg & CGRMASK)) {
-			M = FindM(abeg);
+			M = FindM(abeg << CGRAN);
 			if (!M)
 				return 0;
 			idx = 0;
@@ -364,7 +364,7 @@ int e_querymark(unsigned int addr, size_t len)
 		return 0;
 	/* see if aend crosses MB */
 	if (!(aend & CGRMASK)) {
-		M = FindM(aend);
+		M = FindM(aend << CGRAN);
 		if (!M)
 			return 0;
 		idx = 0;
@@ -399,7 +399,7 @@ int e_querymark_all(unsigned int addr, size_t len)
 			return 0;
 		abeg++;
 		if ((abeg&CGRMASK) == 0) {
-			M = FindM(abeg);
+			M = FindM(abeg << CGRAN);
 			if (!M)
 				return 0;
 		}
@@ -671,7 +671,7 @@ again:
 	while (M) {
 	    for (i=0; i<ARRAY_SIZE(M->pagemap); i++) {
 		void *p = M->pagemap[i];
-		unsigned int addr = (M->mega<<20) | (i<<PAGE_SHIFT);
+		dosaddr_t addr = (M->mega<<20) | (i<<PAGE_SHIFT);
 		void *p1 = EMU_BASE32(addr);
 		if (p && subpage_dirty(p, p1, M, i)) {
 		    if (debug_level('e')>1)
