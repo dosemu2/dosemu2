@@ -206,12 +206,19 @@ int e_querymprotrange(unsigned int addr, size_t len)
 	a2l = addr >> PAGE_SHIFT;
 	a2h = (addr+len-1) >> PAGE_SHIFT;
 
-	while (M && a2l <= a2h) {
-		if (M->pagemap[a2l&255])
-			return 1;
-		a2l++;
-		if ((a2l&255)==0)
+	if (!M)
+		a2l &= ~0xff;
+	while (a2l <= a2h) {
+		if (M) {
+			if (M->pagemap[a2l&255])
+				return 1;
+			a2l++;
+			if ((a2l&255)==0)
+				M = FindM(a2l << PAGE_SHIFT);
+		} else {
+			a2l += 256;
 			M = FindM(a2l << PAGE_SHIFT);
+		}
 	}
 	return 0;
 }
@@ -626,8 +633,12 @@ void e_invalidate_dirty(unsigned int addr, unsigned int aend)
 	    }
 	    if (!M) {
 		M = FindM(addr);
-		if (!M)
+		if (!M) {
+		    int inc = 255 - page;
+		    page = 255;
+		    addr += inc * PAGE_SIZE;
 		    continue;
+		}
 	    }
 	    p = M->pagemap[page];
 	    bs = 0;
