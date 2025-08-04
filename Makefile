@@ -38,6 +38,9 @@ default install: config.status config.hh etc/dosemu.desktop
 clean realclean:
 	rm -f $(top_builddir)/config.hh
 	rm -f $(top_builddir)/version.hh
+	rm -f $(top_builddir)/src/include/config.hh
+	rm -f $(top_builddir)/src/include/config.hh.in
+	rm -f $(top_builddir)/src/include/version.hh
 	@$(MAKE) -C man $@
 	@$(MAKE) -C src $@
 
