@@ -554,7 +554,7 @@ int dpmi_is_valid_range(dosaddr_t addr, int len)
     return 0;
   for (i = (addr - blk->base) / HOST_PAGE_SIZE;
        i < (HOST_PAGE_ALIGN(addr + len) - blk->base) / HOST_PAGE_SIZE; i++)
-    if ((blk->attrs[i] & 1) != 1)
+    if ((blk->attrs[i] & 9) != 9)
       return 0;
   return 1;
 }
