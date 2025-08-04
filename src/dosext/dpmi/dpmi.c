@@ -543,8 +543,6 @@ int dpmi_is_valid_range(dosaddr_t addr, int len)
   int i;
   dpmi_pm_block *blk;
 
-  if (addr + len <= LOWMEM_SIZE + HMASIZE)
-    return 1;
   if (!in_dpmi)
     return 0;
   blk = lookup_pm_blocks_by_addr(addr);
@@ -1282,10 +1280,8 @@ static void *enter_lpms(cpuctx_t *scp)
   }
 
   if (_ss == DPMI_CLIENT.PMSTACK_SEL || DPMI_CLIENT.in_dpmi_pm_stack) {
-    dosaddr_t saddr;
     pmstack_esp = client_esp(scp);
-    saddr = GetSegmentBase(pmstack_sel) + pmstack_esp;
-    if (pmstack_esp < 256 || !dpmi_is_valid_range(saddr - 256, 256)) {
+    if (pmstack_esp < 256) {
       error("PM stack invalid, in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
       if (_ss != DPMI_CLIENT.PMSTACK_SEL) {
         /* win31 sets ESP to 0 to re-enter lpms */
