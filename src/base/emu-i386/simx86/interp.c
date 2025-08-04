@@ -99,6 +99,15 @@ static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
 #ifdef X86_JIT
 static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 {
+	/* If the code doesn't terminate with a jump/loop instruction
+	 * it still lacks the tail code; add it here */
+	IMeta *GL = &InstrMeta[CurrIMeta-1];
+	if (GL->gen[GL->ngen-1].op < JMP_INDIRECT) {
+		int rc;
+		Gen(JMP_TAILCODE, mode, PC);
+		NewIMeta(PC, &rc);
+	}
+
 	assert(PC > P0);
 	if (e_querymark(P0, PC - P0)) {
 	    InvalidateNodeRange(P0, PC - P0, NULL);

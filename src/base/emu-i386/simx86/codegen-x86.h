@@ -126,8 +126,7 @@ unsigned int Exec_x86_fast(TNode *G);
 unsigned char *Fp87_op_x86(unsigned char *CodePtr, int exop, int reg);
 void InitGen_x86(void);
 void NodeUnlinker(TNode *G);
-
-extern unsigned char TailCode[];
+unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 
 static __inline__ int GoodNode(TNode *G, int mode)
 {
