@@ -4379,8 +4379,9 @@ void dpmi_init(void)
   }
 
   DPMI_CLIENT.private_data_segment = SREG(es);
-
-  DPMI_CLIENT.pm_stack = DPMI_malloc(&host_pm_block_root, DPMI_pm_stack_size);
+  /* alloc stack with a guard page */
+  DPMI_CLIENT.pm_stack = DPMI_malloc(&host_pm_block_root, DPMI_pm_stack_size +
+      HOST_PAGE_SIZE);
   if (DPMI_CLIENT.pm_stack == NULL) {
     error("DPMI: can't allocate memory for locked protected mode stack\n");
     goto err;
