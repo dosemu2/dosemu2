@@ -3943,6 +3943,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
     unsigned int *ssp = sp;
     *--ssp = imr;
     *--ssp = 0;	/* reserved */
+    *--ssp = 0;	/* reserved */
     *--ssp = in_dpmi_pm();
     *--ssp = old_ss;
     *--ssp = old_esp;
@@ -3955,11 +3956,13 @@ static void do_pm_int(cpuctx_t *scp, int i)
     *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
-    _esp -= 44;
+    _esp -= 48;
   } else {
     unsigned short *ssp = sp;
     *--ssp = imr;
-    /* store the high word of ESP, because CPU corrupts it */
+    /* store the high word of EIP in case we interrupted 32bit code */
+    *--ssp = HI_WORD(_eip);
+    /* full ESP must be preserved */
     *--ssp = HI_WORD(old_esp);
     *--ssp = in_dpmi_pm();
     *--ssp = old_ss;
@@ -3973,7 +3976,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
     *--ssp = (unsigned short) dpmi_flags_to_stack(_eflags);
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
-    LO_WORD(_esp) -= 22;
+    LO_WORD(_esp) -= 24;
   }
   _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
@@ -4958,6 +4961,7 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
     }
     dpmi_set_pm(pm);
     _HWORD(esp) = *ssp++;
+    _HWORD(eip) = *ssp++;
     imr = *ssp++;
   }
   in_dpmi_irq--;
