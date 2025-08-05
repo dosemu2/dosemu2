@@ -1210,7 +1210,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 int
 set_ioperm(int start, int size, int flag)
 {
-#ifdef HAVE_SYS_IO_H
+#if HAVE_DECL_IOPERM
 	PRIV_SAVE_AREA
 	int tmp;
 

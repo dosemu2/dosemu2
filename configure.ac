@@ -494,7 +494,12 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <semaphore.h>]], [[
 AC_CHECK_HEADERS([scsi/sg.h linux/cdrom.h])
 # sys/io.h is present on emscripten, but is dummy
 if test "$machine" != "wasm32"; then
-  AC_CHECK_HEADERS([sys/io.h ucontext.h])
+  AC_CHECK_HEADERS([sys/io.h], [
+    AC_CHECK_DECLS([outb],,, [[#include <sys/io.h>]])
+    AC_CHECK_DECLS([iopl],,, [[#include <sys/io.h>]])
+    AC_CHECK_DECLS([ioperm],,, [[#include <sys/io.h>]])
+  ])
+  AC_CHECK_HEADERS([ucontext.h])
   AC_CHECK_HEADERS([asm/ucontext.h],,, [
     #include <ucontext.h>
     #include <signal.h>
