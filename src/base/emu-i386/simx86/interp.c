@@ -2006,17 +2006,17 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				if (TheCPU.err) return PC;
 			}
 			else { /* restartable */
-				unsigned long dr;
+				int dr;
 				uint16_t sv=0;
 				CODE_FLUSH();
 				NOS_WORD(_mode, &sv);
-				dr = AddrFetchWL_U(_mode,PC+1);
+				dr = (signed short)FetchW(PC+1);
 				TheCPU.err = MAKESEG(_mode, Ofs_CS, sv);
 				if (TheCPU.err) return P0;
 				TheCPU.eip=0; POP(_mode, &TheCPU.eip);
 				POP_ONLY(_mode);
 				if (debug_level('e')>2)
-					e_printf("RET_%ld: ret=%08x\n",dr,TheCPU.eip);
+					e_printf("RET_%x: ret=%08x\n",dr,TheCPU.eip);
 				PC = LONG_CS + TheCPU.eip;
 				temp = rESP + dr;
 				rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
