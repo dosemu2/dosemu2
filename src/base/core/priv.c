@@ -131,7 +131,7 @@ int real_leave_priv_setting(void)
 
 int priv_iopl(int pl)
 {
-#ifdef HAVE_SYS_IO_H
+#if HAVE_DECL_IOPL
   int ret;
   assert(PRIVS_ARE_OFF);
   _priv_on();

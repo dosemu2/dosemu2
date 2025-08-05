@@ -578,12 +578,14 @@ static void HandleEmuSignals(void)
 	else if (CEmuStat & CeS_RPIC) {
 		/* force exit for PIC */
 		CEmuStat &= ~CeS_RPIC;
-		TheCPU.err=EXCP_PICSIGNAL;
+		if (EFLAGS & EFLAGS_IF)
+			TheCPU.err=EXCP_PICSIGNAL;
 	}
 	else if (CEmuStat & CeS_STI) {
-		/* force exit for IF set */
+		/* force exit after next instruction */
 		CEmuStat &= ~CeS_STI;
-		TheCPU.err=EXCP_STISIGNAL;
+		if (pic_pending())
+			CEmuStat |= CeS_RPIC;
 	}
 	/* clear optional exit conditions */
 	CEmuStat &= ~CeS_TRAP;
@@ -2004,17 +2006,17 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				if (TheCPU.err) return PC;
 			}
 			else { /* restartable */
-				unsigned long dr;
+				int dr;
 				uint16_t sv=0;
 				CODE_FLUSH();
 				NOS_WORD(_mode, &sv);
-				dr = AddrFetchWL_U(_mode,PC+1);
+				dr = (signed short)FetchW(PC+1);
 				TheCPU.err = MAKESEG(_mode, Ofs_CS, sv);
 				if (TheCPU.err) return P0;
 				TheCPU.eip=0; POP(_mode, &TheCPU.eip);
 				POP_ONLY(_mode);
 				if (debug_level('e')>2)
-					e_printf("RET_%ld: ret=%08x\n",dr,TheCPU.eip);
+					e_printf("RET_%x: ret=%08x\n",dr,TheCPU.eip);
 				PC = LONG_CS + TheCPU.eip;
 				temp = rESP + dr;
 				rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
@@ -2227,12 +2229,11 @@ stack_return_from_vm86:
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
-			    if (opc == POPF && (EFLAGS & EFLAGS_IF) && pic_pending()) {
+			    if (opc == POPF && (EFLAGS & EFLAGS_IF)) {
 				if (debug_level('e')>1)
 				    e_printf("Return for STI fl=%08x\n",
 					    EFLAGS);
-				TheCPU.err=EXCP_STISIGNAL;
-				return PC+1;
+				CEmuStat |= CeS_STI;
 			    }
 			}
 			if (opc==POPF) PC++;
@@ -2597,13 +2598,10 @@ repag0:
 			    }
 			    else
 				goto not_permitted;	/* GPF */
-			    if (pic_pending()) {
-				if (debug_level('e')>1)
+			    if (debug_level('e')>1)
 				    e_printf("Return for STI fl=%08x\n",
 					    EFLAGS);
-				TheCPU.err=EXCP_STISIGNAL;
-				return PC+1;
-			    }
+			    CEmuStat |= CeS_STI;
 			}
 			PC++;
 			break;

@@ -543,8 +543,6 @@ int dpmi_is_valid_range(dosaddr_t addr, int len)
   int i;
   dpmi_pm_block *blk;
 
-  if (addr + len <= LOWMEM_SIZE + HMASIZE)
-    return 1;
   if (!in_dpmi)
     return 0;
   blk = lookup_pm_blocks_by_addr(addr);
@@ -554,7 +552,7 @@ int dpmi_is_valid_range(dosaddr_t addr, int len)
     return 0;
   for (i = (addr - blk->base) / HOST_PAGE_SIZE;
        i < (HOST_PAGE_ALIGN(addr + len) - blk->base) / HOST_PAGE_SIZE; i++)
-    if ((blk->attrs[i] & 1) != 1)
+    if ((blk->attrs[i] & 9) != 9)
       return 0;
   return 1;
 }
@@ -1282,10 +1280,8 @@ static void *enter_lpms(cpuctx_t *scp)
   }
 
   if (_ss == DPMI_CLIENT.PMSTACK_SEL || DPMI_CLIENT.in_dpmi_pm_stack) {
-    dosaddr_t saddr;
     pmstack_esp = client_esp(scp);
-    saddr = GetSegmentBase(pmstack_sel) + pmstack_esp;
-    if (pmstack_esp < 256 || !dpmi_is_valid_range(saddr - 256, 256)) {
+    if (pmstack_esp < 256) {
       error("PM stack invalid, in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
       if (_ss != DPMI_CLIENT.PMSTACK_SEL) {
         /* win31 sets ESP to 0 to re-enter lpms */
@@ -3943,6 +3939,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
     unsigned int *ssp = sp;
     *--ssp = imr;
     *--ssp = 0;	/* reserved */
+    *--ssp = 0;	/* reserved */
     *--ssp = in_dpmi_pm();
     *--ssp = old_ss;
     *--ssp = old_esp;
@@ -3955,11 +3952,13 @@ static void do_pm_int(cpuctx_t *scp, int i)
     *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
-    _esp -= 44;
+    _esp -= 48;
   } else {
     unsigned short *ssp = sp;
     *--ssp = imr;
-    /* store the high word of ESP, because CPU corrupts it */
+    /* store the high word of EIP in case we interrupted 32bit code */
+    *--ssp = HI_WORD(_eip);
+    /* full ESP must be preserved */
     *--ssp = HI_WORD(old_esp);
     *--ssp = in_dpmi_pm();
     *--ssp = old_ss;
@@ -3973,7 +3972,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
     *--ssp = (unsigned short) dpmi_flags_to_stack(_eflags);
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
-    LO_WORD(_esp) -= 22;
+    LO_WORD(_esp) -= 24;
   }
   _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
@@ -4379,8 +4378,9 @@ void dpmi_init(void)
   }
 
   DPMI_CLIENT.private_data_segment = SREG(es);
-
-  DPMI_CLIENT.pm_stack = DPMI_malloc(&host_pm_block_root, DPMI_pm_stack_size);
+  /* alloc stack with a guard page */
+  DPMI_CLIENT.pm_stack = DPMI_malloc(&host_pm_block_root, DPMI_pm_stack_size +
+      HOST_PAGE_SIZE);
   if (DPMI_CLIENT.pm_stack == NULL) {
     error("DPMI: can't allocate memory for locked protected mode stack\n");
     goto err;
@@ -4957,6 +4957,7 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
     }
     dpmi_set_pm(pm);
     _HWORD(esp) = *ssp++;
+    _HWORD(eip) = *ssp++;
     imr = *ssp++;
   }
   in_dpmi_irq--;

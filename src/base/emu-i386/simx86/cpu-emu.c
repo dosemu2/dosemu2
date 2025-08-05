@@ -265,13 +265,13 @@ char *e_print_regs(void)
 		int i;
 		dosaddr_t csp = LONG_CS+TheCPU.eip;
 		dosaddr_t st = LONG_SS+TheCPU.esp;
-		if (csp < 0x110000 || dpmi_is_valid_range(csp, 4096)) {
+		if (csp < 0xa0000 - 256 || dpmi_is_valid_range(csp, 256)) {
 			unsigned char *op = EMU_BASE32(csp);
 			for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6); i+=3) {
 			   exprintb(*op++,buf,i);
 			}
 		}
-		if (st < 0x110000 || dpmi_is_valid_range(st, 4096)) {
+		if (st < 0xa0000 - 256 || dpmi_is_valid_range(st, 256)) {
 			unsigned short *stk = (unsigned short *)EMU_BASE32(st);
 			for (i=(ERB_L6+ERB_LEFTM); i<(ERB_L7-2); i+=5) {
 			   exprintw(*stk++,buf,i);
