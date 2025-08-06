@@ -462,7 +462,8 @@ char *expand_cmd(const char *cmd, const char **r_cmd)
 		goto err_fr1;
 	if (p.we_wordc != 1)
 		goto err_fr2;
-	*s = ' ';
+	if (s)
+		*s = ' ';
 	rp = findprog(p.we_wordv[0], getenv("PATH"));
 	wordfree_lite(&p);
 	if (!rp)
