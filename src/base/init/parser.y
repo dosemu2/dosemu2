@@ -1488,6 +1488,10 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 		| EXEC string_expr	  {
 					    free(sptr->exec);
 					    sptr->exec = expand_cmd($2, NULL);
+					    if (!sptr->exec) {
+					      error("SER: %s not found\n", $2);
+					      config.exitearly = 1;
+					    }
 					    free($2);
 					  }
 		| PTS string_expr	  { free(sptr->pts);
