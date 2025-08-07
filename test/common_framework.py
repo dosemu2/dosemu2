@@ -473,6 +473,7 @@ class BaseTestCase(object):
         dbin = str(self.dosemu)
         args = ["-f", str(self.imagedir / "dosemu.conf"),
                 "-n",
+                "-q",
                 "-o", str(self.topdir / self.logfiles['log'][0]),
                 "-td",
                 #    "-Da",
@@ -526,6 +527,7 @@ class BaseTestCase(object):
                 "--Fimagedir", str(self.imagedir),
                 "-f", str(self.imagedir / "dosemu.conf"),
                 "-n",
+                "-q",
                 "-o", str(self.topdir / self.logfiles['log'][0]),
                 "-td",
                 "-ks"]
