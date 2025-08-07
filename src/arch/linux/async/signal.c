@@ -469,6 +469,13 @@ static void signal_thr(void *arg)
   sig_c.signal_handler(sig_c.arg);
 }
 
+void sig_early_init(void)
+{
+  /* needed before fslib fork() */
+  dosemu_pthread_self = pthread_self();
+  dosemu_pid = getpid();
+}
+
 /* DANG_BEGIN_FUNCTION signal_pre_init
  *
  * description:
@@ -544,8 +551,6 @@ signal_pre_init(void)
   prctl(PR_SET_PDEATHSIG, SIGQUIT);
 #endif
 
-  dosemu_pthread_self = pthread_self();
-  dosemu_pid = getpid();
   rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 }
 

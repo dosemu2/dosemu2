@@ -286,6 +286,7 @@ typedef struct config_info {
 
        unsigned short detach;
        char *debugout;
+       int debugout_idx;
        char *pre_stroke;        /* pointer to keyboard pre strokes */
 
        /* Lock File business */
@@ -460,6 +461,7 @@ extern int in_leavedos;
  * DANG_END_REMARK
  */
 extern void dump_config_status(void (*printfunc)(const char *, ...));
+extern void sig_early_init(void);
 extern void signal_pre_init(void);
 extern void signal_init(void);
 extern void signal_done(void);

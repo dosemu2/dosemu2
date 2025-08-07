@@ -188,6 +188,11 @@ int fslib_waitpid(int pid, int *status)
   return fssvc->waitpid(pid, status);
 }
 
+int fslib_debug(int mfs_idx, const char *file)
+{
+  return fssvc->debug(mfs_idx - 1, file);
+}
+
 void fslib_register_ops(const struct fslib_ops *ops)
 {
   const char *expect = (config.fs_backend ?: def_name);

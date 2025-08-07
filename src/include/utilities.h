@@ -187,4 +187,6 @@ int fdscandir(int dfd, struct dirent ***res,
 	int (*sel)(const struct dirent *),
 	int (*cmp)(const struct dirent **, const struct dirent **));
 
+int gdb_debug(const char *file);
+
 #endif /* UTILITIES_H */

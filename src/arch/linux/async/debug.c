@@ -4,6 +4,8 @@
 #include "emudpmi.h"
 #include "cpu-emu.h"
 #include "sig.h"
+#include "utilities.h"
+#include "fslib/fslib.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,13 +51,15 @@ static int start_gdb(pid_t dosemu_pid)
   putchar('\n');
   fflush(stdout);
 
+  /* prevent gdb from printing escapes to log */
+  setenv("TERM", "dumb", 1);
   if (!(gdb_f = popen(buf, "w"))) {
     free(buf);
     return 0;
   }
   free(buf);
 
-  ret = asprintf(&buf, "attach %i\n", dosemu_pid);
+  ret = asprintf(&buf, "set pagination off\nattach %i\n", dosemu_pid);
   assert(ret != -1);
 
   gdb_command(buf);
@@ -168,8 +172,25 @@ static void collect_info(pid_t pid)
 
 static int do_gdb_debug(void)
 {
+  if (getuid() != geteuid())
+    return 0;
+
+  dup2(vlog_get_fd(), STDOUT_FILENO);
+  dup2(vlog_get_fd(), STDERR_FILENO);
+
+  collect_info(dosemu_pid);
+
+  if (!start_gdb(dosemu_pid))
+    return 0;
+  do_debug();
+  if (!stop_gdb())
+    return 0;
+  return 1;
+}
+
+static int do_fork_debug(void)
+{
   int ret = 0;
-  pid_t dosemu_pid = getpid();
   pid_t dbg_pid;
   int status;
   sigset_t oset;
@@ -183,17 +204,7 @@ static int do_gdb_debug(void)
       signal_done();
       sigprocmask(SIG_SETMASK, &oset, NULL);
 
-      dup2(vlog_get_fd(), STDOUT_FILENO);
-      dup2(vlog_get_fd(), STDERR_FILENO);
-
-      collect_info(dosemu_pid);
-
-      if (!start_gdb(dosemu_pid))
-        _exit(1);
-      do_debug();
-      if (!stop_gdb())
-        _exit(1);
-      _exit(0);
+      _exit(do_gdb_debug() ? 0 : 1);
       break;
     case -1:
       error("fork failed, %s\n", strerror(errno));
@@ -212,9 +223,16 @@ static int do_gdb_debug(void)
   return ret;
 }
 
-int gdb_debug(void)
+int gdb_debug(const char *file)
 {
-    int ret = do_gdb_debug();
+    int ret;
+
+    if (getpid() == dosemu_pid) {
+        ret = do_fork_debug();
+    } else {
+        vlog_append(file);
+        ret = do_gdb_debug();
+    }
 #if 0
     if (!ret) {
 #ifdef HAVE_BACKTRACE
@@ -254,7 +272,7 @@ void siginfo_debug(const siginfo_t *si)
 	  si->si_signo, si->si_code, si->si_errno, si->si_addr);
 
     if (dosemu_pid == getpid())
-      rc = gdb_debug();
+      rc = fslib_debug(config.debugout_idx, config.debugout);
 #ifdef HAVE_BACKTRACE
 #ifdef X86_EMULATOR
     /* backtrace() crashes in jit code */

@@ -52,6 +52,7 @@ struct fslib_ops {
       struct popen2 *file);
   int (*popen_knownpath)(int subsys, int cookie, struct popen2 *file);
   int (*waitpid)(int pid, int *status);
+  int (*debug)(int idx, const char *file);
   const char *name;
 #define FSFLG_NOSUID 1
   int flags;

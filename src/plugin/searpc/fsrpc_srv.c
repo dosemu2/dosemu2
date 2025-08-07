@@ -342,6 +342,15 @@ static int waitpid_1_svc(int pid, GError **error)
     return status + 1;
 }
 
+static GObject* debug_1_svc(int idx, const char *path, GError **error)
+{
+    TestObject *ret = g_object_new (TEST_OBJECT_TYPE, NULL);
+
+    ASSERT_P(path_ok(idx, path));
+    CALL(gdb_debug(path));
+    return G_OBJECT(ret);
+}
+
 int fsrpc_srv_init(const char *svc_name, int fd, plist_idx_t pi,
         setattr_t sa, getattr_t ga)
 {
@@ -396,6 +405,8 @@ int fsrpc_srv_init(const char *svc_name, int fd, plist_idx_t pi,
             searpc_signature_object__int_int());
     searpc_server_register_function(svc_name, waitpid_1_svc, "waitpid_1",
             searpc_signature_int__int());
+    searpc_server_register_function(svc_name, debug_1_svc, "debug_1",
+            searpc_signature_object__int_string());
 
     vlog_reset();
     vlog_init("-");

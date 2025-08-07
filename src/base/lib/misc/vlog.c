@@ -96,6 +96,16 @@ int vlog_init(const char *file)
     return 0;
 }
 
+int vlog_append(const char *file)
+{
+    if (strcmp(file, "-") == 0)
+        return -1;
+    log_fd = open(file, O_WRONLY | O_APPEND | O_CLOEXEC);
+    if (log_fd == -1)
+        return -1;
+    return 0;
+}
+
 void vlog_reset(void)
 {
     early_pos = 0;

@@ -58,5 +58,6 @@ int fslib_popen(int subsys, int mfs_idx, const char *path, int cookie,
     struct popen2 *file);
 int fslib_popen_knownpath(int subsys, int cookie, struct popen2 *file);
 int fslib_waitpid(int pid, int *status);
+int fslib_debug(int mfs_idx, const char *file);
 
 #endif

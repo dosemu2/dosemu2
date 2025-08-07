@@ -33,6 +33,7 @@
 #include "debug.h"
 #include "utilities.h"
 #include "dos2linux.h"
+#include "fslib/fslib.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -790,7 +791,7 @@ void dosemu_error(const char *fmt, ...)
     va_start(args, fmt);
     verror(fmt, args);
     va_end(args);
-    gdb_debug();
+    fslib_debug(config.debugout_idx, config.debugout);
 }
 
 #ifdef USE_DL_PLUGINS
