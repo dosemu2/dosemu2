@@ -30,5 +30,6 @@ int fssvc_popen(int subsys, int id, const char *path, int cookie,
     struct popen2 *file);
 int fssvc_popen_knownpath(int subsys, int cookie, struct popen2 *file);
 int fssvc_waitpid(int pid, int *status);
+int fssvc_debug(int id, const char *file);
 
 #endif

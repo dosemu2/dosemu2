@@ -26,9 +26,7 @@
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/wait.h>
-#if defined(__APPLE__) || defined(__ANDROID__) /* to redefine sem_init() and related functions */
 #include "utilities.h"
-#endif
 #include "fssvc.h"
 #include "fslib.h"
 #include "fslib_ops.h"
@@ -271,6 +269,12 @@ static int fslocal_waitpid(int pid, int *status)
   return waitpid(pid, status, WNOHANG);
 }
 
+static int fslocal_debug(int idx, const char *file)
+{
+  assert(path_ok(idx, file));
+  return gdb_debug(file);
+}
+
 static const struct fslib_ops fslops = {
   .add_path = add_path,
   .add_path_ex = add_path_ex,
@@ -297,6 +301,7 @@ static const struct fslib_ops fslops = {
   .popen = fslocal_popen,
   .popen_knownpath = fslocal_popen_knownpath,
   .waitpid = fslocal_waitpid,
+  .debug = fslocal_debug,
   .name = "local",
   .flags = FSFLG_NOSUID,
 };

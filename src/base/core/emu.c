@@ -299,8 +299,7 @@ int emulate(int argc, char **argv, char * const *envp)
      */
     secure_option_preparse(&argc, argv);
 
-    /* the transposal of (config_|stdio_)init allows the addition of -o */
-    /* to specify a debug out filename, if you're wondering */
+    sig_early_init();
     mfs_priv_init();
     port_init();		/* setup port structures, before config! */
     version_init();		/* Check the OS version */

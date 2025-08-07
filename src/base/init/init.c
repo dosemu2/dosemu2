@@ -39,6 +39,7 @@
 #include "kvm.h"
 #include "mapping/mapping.h"
 #include "misc/smalloc.h"
+#include "fslib/fslib.h"
 #include "vgaemu.h"
 #include "misc/cpi.h"
 
@@ -86,6 +87,8 @@ void stdio_init(void)
         err = vlog_init(config.debugout);
         if (err)
             error("can't open \"%s\" for writing\n", config.debugout);
+        else
+            config.debugout_idx = mfs_define_drive(config.debugout);
     }
 
     real_stderr = stderr;

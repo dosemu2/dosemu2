@@ -48,6 +48,7 @@ struct debug_class
 };
 
 int vlog_init(const char *file);
+int vlog_append(const char *file);
 void vlog_reset(void);
 int vlog_get_fd(void);
 int log_printf(const char *, ...) FORMAT(printf, 1, 2);

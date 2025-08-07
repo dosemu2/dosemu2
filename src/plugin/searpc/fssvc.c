@@ -367,3 +367,15 @@ int fssvc_waitpid(int pid, int *status)
     *status = ret - 1;
     return pid;
 }
+
+int fssvc_debug(int id, const char *file)
+{
+    int rv;
+    GObject* ret;
+    GError *error = NULL;
+    ret = searpc_client_call__object(clnt, "debug_1", TEST_OBJECT_TYPE,
+                                     &error, 2,
+                                     "int", id,
+                                     "string", file);
+    RPC_EPILOG();
+}
