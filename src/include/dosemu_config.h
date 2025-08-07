@@ -78,6 +78,7 @@ extern char *xbat_dir;
 extern char *commands_path;
 extern char *dosemu_lib_dir_path;
 extern const char *dosemu_exec_dir_path;
+extern int dosemu_exec_dir_idx;
 extern char *dosemu_plugin_dir_path;
 extern char *dosemu_image_dir_path;
 extern char *dosemu_drive_c_path;

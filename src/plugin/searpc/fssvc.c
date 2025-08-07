@@ -310,28 +310,48 @@ int fssvc_set_command(int subsys, int cookie, const char *cmd)
     return ret;
 }
 
-int fssvc_popen(int subsys, const char *str, int cookie, struct popen2 *file)
+static int popen_end(TestObject *ret, struct popen2 *file)
 {
-    gint64 ret;
-    int rc;
-    GError *error = NULL;
-    ret = searpc_client_call__int64(clnt, "popen_1",
-                                  &error, 3,
-                                  "int", subsys,
-                                  "string", str,
-                                  "int", cookie);
-    CHECK_RPC(error);
-    if (ret < 0)
-        return ret;
-    rc = ret & 0xffffffff;
+    int rc = ret->ret;
     file->from_child = -1;
     if (rc >= 1)
         file->from_child = recv_fd(sock_rx);
     file->to_child = -1;
     if (rc >= 2)
         file->to_child = recv_fd(sock_rx);
-    file->child_pid = ret >> 32;
+    file->child_pid = ret->xtra;
+    g_object_unref(G_OBJECT(ret));
     return 0;
+}
+
+int fssvc_popen(int subsys, int id, const char *path, int cookie,
+    struct popen2 *file)
+{
+    GObject* ret;
+    GError *error = NULL;
+    ret = searpc_client_call__object(clnt, "popen_1", TEST_OBJECT_TYPE,
+                                     &error, 4,
+                                     "int", subsys,
+                                     "int", id,
+                                     "string", path,
+                                     "int", cookie);
+    CHECK_RPC(error);
+    CHECK_RET(ret);
+    return popen_end(TEST_OBJECT(ret), file);
+}
+
+int fssvc_popen_knownpath(int subsys, int cookie, struct popen2 *file)
+{
+    GObject* ret;
+    GError *error = NULL;
+    ret = searpc_client_call__object(clnt, "popen_knownpath_1",
+                                        TEST_OBJECT_TYPE,
+                                     &error, 2,
+                                     "int", subsys,
+                                     "int", cookie);
+    CHECK_RPC(error);
+    CHECK_RET(ret);
+    return popen_end(TEST_OBJECT(ret), file);
 }
 
 int fssvc_waitpid(int pid, int *status)

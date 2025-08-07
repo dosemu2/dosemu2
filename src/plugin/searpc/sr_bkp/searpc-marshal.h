@@ -156,17 +156,33 @@ marshal_int__string_int_int (void *func, json_t *param_array, gsize *ret_len)
 
 
 static char *
-marshal_int64__int_string_int (void *func, json_t *param_array, gsize *ret_len)
+marshal_object__int_int (void *func, json_t *param_array, gsize *ret_len)
 {
     GError *error = NULL;
     int param1 = json_array_get_int_element (param_array, 1);
-    const char* param2 = json_array_get_string_or_null_element (param_array, 2);
-    int param3 = json_array_get_int_element (param_array, 3);
+    int param2 = json_array_get_int_element (param_array, 2);
 
-    gint64 ret = ((gint64 (*)(int, const char*, int, GError **))func) (param1, param2, param3, &error);
+    GObject* ret = ((GObject* (*)(int, int, GError **))func) (param1, param2, &error);
 
     json_t *object = json_object ();
-    searpc_set_int_to_ret_object (object, ret);
+    searpc_set_object_to_ret_object (object, ret);
+    return searpc_marshal_set_ret_common (object, ret_len, error);
+}
+
+
+static char *
+marshal_object__int_int_string_int (void *func, json_t *param_array, gsize *ret_len)
+{
+    GError *error = NULL;
+    int param1 = json_array_get_int_element (param_array, 1);
+    int param2 = json_array_get_int_element (param_array, 2);
+    const char* param3 = json_array_get_string_or_null_element (param_array, 3);
+    int param4 = json_array_get_int_element (param_array, 4);
+
+    GObject* ret = ((GObject* (*)(int, int, const char*, int, GError **))func) (param1, param2, param3, param4, &error);
+
+    json_t *object = json_object ();
+    searpc_set_object_to_ret_object (object, ret);
     return searpc_marshal_set_ret_common (object, ret_len, error);
 }
 
@@ -254,7 +270,12 @@ static void register_marshals(void)
 
 
     {
-        searpc_server_register_marshal (searpc_signature_int64__int_string_int(), marshal_int64__int_string_int);
+        searpc_server_register_marshal (searpc_signature_object__int_int(), marshal_object__int_int);
+    }
+
+
+    {
+        searpc_server_register_marshal (searpc_signature_object__int_int_string_int(), marshal_object__int_int_string_int);
     }
 
 

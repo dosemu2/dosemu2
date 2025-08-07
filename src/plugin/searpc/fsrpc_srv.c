@@ -286,7 +286,7 @@ static int set_command_1_svc(int subsys, int cookie, const char *cmd,
 {
     ASSERT0(!sealed);
     switch (subsys) {
-        case SUBSYS_LPT:
+        case SUBSYS_KP_LPT:
             lpt_set_command(cookie, strdup(cmd));
             return 0;
     }
@@ -294,24 +294,43 @@ static int set_command_1_svc(int subsys, int cookie, const char *cmd,
     return -1;
 }
 
-static gint64 popen_1_svc(int subsys, const char *str, int cookie,
+static GObject* popen_end(TestObject *ret, struct popen2 *file)
+{
+    int rc = ret->ret;
+    if (rc <= 0)
+        return G_OBJECT(ret);
+    if (rc >= 1) {
+        int err = send_fd(sock_tx, file->from_child);
+        assert(!err);
+        close(file->from_child);
+    }
+    if (rc >= 2) {
+        int err = send_fd(sock_tx, file->to_child);
+        assert(!err);
+        close(file->to_child);
+    }
+    ret->xtra = file->child_pid;
+    return G_OBJECT(ret);
+}
+
+static GObject* popen_1_svc(int subsys, int idx, const char *path, int cookie,
         GError **error)
 {
     struct popen2 file;
-    int rc = fslib_demux(subsys, str, cookie, &file);
-    if (rc <= 0)
-        return rc;
-    if (rc >= 1) {
-        int err = send_fd(sock_tx, file.from_child);
-        assert(!err);
-        close(file.from_child);
-    }
-    if (rc >= 2) {
-        int err = send_fd(sock_tx, file.to_child);
-        assert(!err);
-        close(file.to_child);
-    }
-    return ((gint64)file.child_pid << 32) | rc;
+    TestObject *ret = g_object_new (TEST_OBJECT_TYPE, NULL);
+
+    ASSERT_P(path_ok(idx, path));
+    CALL(fslib_demux(subsys, path, cookie, &file));
+    return popen_end(ret, &file);
+}
+
+static GObject* popen_knownpath_1_svc(int subsys, int cookie, GError **error)
+{
+    struct popen2 file;
+    TestObject *ret = g_object_new (TEST_OBJECT_TYPE, NULL);
+
+    CALL(fslib_demux_kp(subsys, cookie, &file));
+    return popen_end(ret, &file);
 }
 
 static int waitpid_1_svc(int pid, GError **error)
@@ -371,7 +390,10 @@ int fsrpc_srv_init(const char *svc_name, int fd, plist_idx_t pi,
     searpc_server_register_function(svc_name, set_command_1_svc, "set_command_1",
             searpc_signature_int__int_int_string());
     searpc_server_register_function(svc_name, popen_1_svc, "popen_1",
-            searpc_signature_int64__int_string_int());
+            searpc_signature_object__int_int_string_int());
+    searpc_server_register_function(svc_name, popen_knownpath_1_svc,
+            "popen_knownpath_1",
+            searpc_signature_object__int_int());
     searpc_server_register_function(svc_name, waitpid_1_svc, "waitpid_1",
             searpc_signature_int__int());
 

@@ -21,6 +21,7 @@ struct _TestObject {
     int ret;
     int errn;
     int args_err;
+    int xtra;
 };
 
 struct _TestObjectClass {

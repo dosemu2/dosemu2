@@ -26,7 +26,9 @@ int fssvc_exit(void);
 int fssvc_shm_open(const char *name, int oflag, mode_t mode);
 int fssvc_shm_unlink(const char *name);
 int fssvc_set_command(int subsys, int cookie, const char *cmd);
-int fssvc_popen(int subsys, const char *str, int cookie, struct popen2 *file);
+int fssvc_popen(int subsys, int id, const char *path, int cookie,
+    struct popen2 *file);
+int fssvc_popen_knownpath(int subsys, int cookie, struct popen2 *file);
 int fssvc_waitpid(int pid, int *status);
 
 #endif

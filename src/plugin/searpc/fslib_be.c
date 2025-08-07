@@ -80,6 +80,7 @@ static const struct fslib_ops fsops = {
   .set_command = fssvc_set_command,
   .waitpid = fssvc_waitpid,
   .popen = fssvc_popen,
+  .popen_knownpath = fssvc_popen_knownpath,
   .name = "rpc",
 };
 

@@ -236,7 +236,7 @@ static int fslocal_set_command(int subsys, int cookie, const char *cmd)
 {
   assert(!sealed);
   switch (subsys) {
-    case SUBSYS_LPT:
+    case SUBSYS_KP_LPT:
       lpt_set_command(cookie, strdup(cmd));
       return 0;
   }
@@ -244,10 +244,23 @@ static int fslocal_set_command(int subsys, int cookie, const char *cmd)
   return -1;
 }
 
-static int fslocal_popen(int subsys, const char *str, int cookie,
+static int fslocal_popen(int subsys, int mfs_idx, const char *path, int cookie,
     struct popen2 *file)
 {
-  int rc = fslib_demux(subsys, str, cookie, file);
+  int rc;
+
+  assert(path_ok(mfs_idx, path));
+  rc = fslib_demux(subsys, path, cookie, file);
+  if (rc <= 0)
+    return -1;
+  return 0;
+}
+
+static int fslocal_popen_knownpath(int subsys, int cookie, struct popen2 *file)
+{
+  int rc;
+
+  rc = fslib_demux_kp(subsys, cookie, file);
   if (rc <= 0)
     return -1;
   return 0;
@@ -282,6 +295,7 @@ static const struct fslib_ops fslops = {
   .shm_unlink = fslocal_shm_unlink,
   .set_command = fslocal_set_command,
   .popen = fslocal_popen,
+  .popen_knownpath = fslocal_popen_knownpath,
   .waitpid = fslocal_waitpid,
   .name = "local",
   .flags = FSFLG_NOSUID,

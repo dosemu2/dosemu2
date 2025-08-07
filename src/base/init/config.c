@@ -81,6 +81,7 @@ char *dosemu_tmpdir;
 
 char *dosemu_lib_dir_path;
 const char *dosemu_exec_dir_path = DOSEMUEXEC_DEFAULT;
+int dosemu_exec_dir_idx;
 char *dosemu_plugin_dir_path;
 char *commands_path;
 char *dosemu_image_dir_path;
@@ -1194,6 +1195,8 @@ static void config_post_process(void)
     if (config.opl2lpt_device)
         load_plugin("lpt");
 #endif
+
+    dosemu_exec_dir_idx = mfs_define_drive(dosemu_exec_dir_path);
 }
 
 static config_scrub_t config_scrub_func[100];

@@ -161,7 +161,7 @@ static void pipe_callback(int fd, void *arg)
   }
 }
 
-int lpt_popen(const char *str, int prnum, struct popen2 *file)
+int lpt_popen(int prnum, struct popen2 *file)
 {
   int err;
 
@@ -175,7 +175,7 @@ int lpt_popen(const char *str, int prnum, struct popen2 *file)
 static int pipe_printer_open(int prnum)
 {
   int err;
-  err = fslib_popen(SUBSYS_LPT, "", prnum, &lpt[prnum].file);
+  err = fslib_popen_knownpath(SUBSYS_KP_LPT, prnum, &lpt[prnum].file);
   if (err) {
     error("system(\"%s\") in lpt.c failed, cannot print! "
 	"Command returned error %s\n", lpt[prnum].prtcmd, strerror(errno));
@@ -365,7 +365,7 @@ void printer_config(int prnum, struct printer *pptr)
 
   if (prnum < NUM_PRINTERS) {
     destptr = &lpt[prnum];
-    fslib_set_command(SUBSYS_LPT, prnum, pptr->prtcmd);
+    fslib_set_command(SUBSYS_KP_LPT, prnum, pptr->prtcmd);
     if (!destptr->prtcmd)
       destptr->prtcmd = pptr->prtcmd;
     else

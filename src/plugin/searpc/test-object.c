@@ -7,6 +7,7 @@ enum {
     PROP_RET,
     PROP_ERRN,
     PROP_ARGSERR,
+    PROP_XTRA,
     N_PROPERTIES
 };
 
@@ -25,6 +26,9 @@ static void test_object_set_property (GObject *object, guint property_id, const 
         case PROP_ARGSERR:
             self->args_err = g_value_get_int (value);
             break;
+        case PROP_XTRA:
+            self->xtra = g_value_get_int (value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
     }
@@ -42,6 +46,9 @@ static void test_object_get_property (GObject *object, guint property_id, GValue
             break;
         case PROP_ARGSERR:
             g_value_set_int (value, self->args_err);
+            break;
+        case PROP_XTRA:
+            g_value_set_int (value, self->xtra);
             break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -67,9 +74,10 @@ static void test_object_class_init(TestObjectClass *klass)
     gobject_class->dispose = test_object_dispose;
     gobject_class->finalize = test_object_finalize;
 
-    obj_properties[PROP_RET] = g_param_spec_int ("len", "", "", -256, 256, 0, G_PARAM_READWRITE);
+    obj_properties[PROP_RET] = g_param_spec_int ("len", "", "", INT_MIN, INT_MAX, 0, G_PARAM_READWRITE);
     obj_properties[PROP_ERRN] = g_param_spec_int ("errn", "", "", 0, 256, 0, G_PARAM_READWRITE);
     obj_properties[PROP_ARGSERR] = g_param_spec_int ("argserr", "", "", 0, 256, 0, G_PARAM_READWRITE);
+    obj_properties[PROP_XTRA] = g_param_spec_int ("xtra", "", "", INT_MIN, INT_MAX, 0, G_PARAM_READWRITE);
     g_object_class_install_properties (gobject_class, N_PROPERTIES, obj_properties);
 }
 
@@ -78,4 +86,5 @@ static void test_object_init(TestObject *self)
     self->ret = 0;
     self->errn = 0;
     self->args_err = 0;
+    self->xtra = 0;
 }
