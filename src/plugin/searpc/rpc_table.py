@@ -9,7 +9,8 @@ func_table = [
     [ "object", ["int", "string", "int", "string"] ],
     [ "int", ["int", "string"] ],
     [ "int", ["string", "int", "int"] ],
-    [ "int64", ["int", "string", "int"] ],
+    [ "object", ["int", "int"] ],
+    [ "object", ["int", "int", "string", "int"] ],
     [ "int", ["int", "int", "string"] ],
     [ "int", ["int"] ],
 ]

@@ -48,12 +48,15 @@ int fslib_num_drives(void);
 int fslib_shm_open(const char *name, int oflag, mode_t mode);
 int fslib_shm_unlink(const char *name);
 
-enum { SUBSYS_LPT, SUBSYS_UX, SUBSYS_MAX };
+enum { SUBSYS_UX, SUBSYS_MAX };
+enum { SUBSYS_KP_LPT, SUBSYS_KP_MAX };
 void lpt_set_command(int prnum, char *cmd);
 int fslib_set_command(int subsys, int cookie, const char *cmd);
-int lpt_popen(const char *str, int prnum, struct popen2 *file);
+int lpt_popen(int prnum, struct popen2 *file);
 int unix_run_secure(const char *path, int pos, struct popen2 *file);
-int fslib_popen(int subsys, const char *str, int cookie, struct popen2 *file);
+int fslib_popen(int subsys, int mfs_idx, const char *path, int cookie,
+    struct popen2 *file);
+int fslib_popen_knownpath(int subsys, int cookie, struct popen2 *file);
 int fslib_waitpid(int pid, int *status);
 
 #endif

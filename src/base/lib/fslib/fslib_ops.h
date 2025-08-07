@@ -26,6 +26,9 @@ struct fslib_ops {
   int (*add_path)(const char *path);
   int (*add_path_ex)(const char *path);
   int (*add_path_list)(const char *list);
+  int (*set_command)(int subsys, int cookie, const char *cmd);
+  int (*seal)(void);
+
   int (*open)(int mfs_idx, const char *path, int flags);
   int (*create)(int mfs_idx, const char *path, int flags, mode_t mode);
   int (*unlink)(int mfs_idx, const char *path);
@@ -41,13 +44,13 @@ struct fslib_ops {
   int (*utime)(int mfs_idx, const char *fpath, time_t atime, time_t mtime);
   int (*init)(plist_idx_t plist_idx, setattr_t setattr_cb,
       getattr_t getattr_cb);
-  int (*seal)(void);
   int (*exit)(void);
   int (*path_ok)(int idx, const char *path);
   int (*shm_open)(const char *name, int oflag, mode_t mode);
   int (*shm_unlink)(const char *name);
-  int (*set_command)(int subsys, int cookie, const char *cmd);
-  int (*popen)(int subsys, const char *str, int cookie, struct popen2 *file);
+  int (*popen)(int subsys, int mfs_idx, const char *path, int cookie,
+      struct popen2 *file);
+  int (*popen_knownpath)(int subsys, int cookie, struct popen2 *file);
   int (*waitpid)(int pid, int *status);
   const char *name;
 #define FSFLG_NOSUID 1
@@ -58,6 +61,7 @@ void fslib_register_ops(const struct fslib_ops *ops);
 
 void fslocal_init(void);
 
-int fslib_demux(int subsys, const char *str, int cookie, struct popen2 *file);
+int fslib_demux(int subsys, const char *path, int cookie, struct popen2 *file);
+int fslib_demux_kp(int subsys, int cookie, struct popen2 *file);
 
 #endif

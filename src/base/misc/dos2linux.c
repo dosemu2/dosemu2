@@ -491,7 +491,7 @@ int run_unix_secure(const char *prg)
 	return -1;
     }
     g_printf("UNIX: run_secure %s '%s'\n", path, prg);
-    err = fslib_popen(SUBSYS_UX, path, pos, &file);
+    err = fslib_popen(SUBSYS_UX, dosemu_exec_dir_idx, path, pos, &file);
     free(path);
     if (err)
 	return err;
