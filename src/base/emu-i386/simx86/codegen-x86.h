@@ -36,7 +36,6 @@
 #define _EMU86_CODEGEN_X86_H
 
 #include "codegen.h"
-#include "trees.h"
 #include "vgaemu.h"
 
 #define TAILSIZE	7
@@ -47,12 +46,6 @@
 #endif
 #define TAILFIX		1
 #define CKSIGNSIZE	13
-
-/////////////////////////////////////////////////////////////////////////////
-
-TNode *Close_x86(unsigned int PC, int mode);
-unsigned int Exec_x86(TNode *G);
-unsigned int Exec_x86_fast(TNode *G);
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -124,7 +117,6 @@ unsigned int Exec_x86_fast(TNode *G);
 /////////////////////////////////////////////////////////////////////////////
 //
 unsigned char *Fp87_op_x86(unsigned char *CodePtr, int exop, int reg);
-void InitGen_x86(void);
 void NodeLinker(TNode *LG, TNode *G);
 void NodeUnlinker(TNode *G);
 unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
@@ -133,22 +125,5 @@ unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 unsigned Exec_x86_asm_fpu(unsigned *mem_ref, unsigned long *flg,
 			  unsigned char *ecpu, unsigned char *SeqStart,
 			  unsigned short seqflg);
-
-static __inline__ int GoodNode(TNode *G, int mode)
-{
-	if (G->cs != LONG_CS) {
-		/* CS mismatch can confuse relative jump/call */
-		e_printf("cs mismatch at %08x: old=%x new=%x\n",
-					G->key, G->cs, LONG_CS);
-		return 0;
-	}
-	if (G->mode != mode) {
-		/* mode mismatch can be 32/16 or MREALA */
-		e_printf("mode mismatch at %08x: old=%x new=%x\n",
-					G->key, G->mode, mode);
-		return 0;
-	}
-	return 1;
-}
 
 #endif

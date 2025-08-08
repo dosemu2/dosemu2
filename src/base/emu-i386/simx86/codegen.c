@@ -57,7 +57,7 @@
 #include "emu86.h"
 #include "misc/dlmalloc.h"
 #include "mapping/mapping.h"
-#include "codegen-x86.h"
+#include "codegen-arch.h"
 #include "cpatch.h"
 
 static void Gen_x86(int op, int mode, ...);

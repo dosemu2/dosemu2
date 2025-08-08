@@ -73,9 +73,7 @@ static int prejit_running;
 static pthread_mutex_t run_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t prejit_thr;
 static sem_t prejit_sem;
-#ifdef X86_JIT
 static void *prejit_thread(void *arg);
-#endif
 
 static hitimer_t TotalTime;
 static void enter_cpu_emu(void);
@@ -793,7 +791,6 @@ void init_emu_cpu(int cpu_type)
 		break;
   }
   e_printf("EMU86: tss mask=%08lx\n", eTSSMASK);
-#ifdef X86_JIT
   if (config.cpusim)
     InitGen_sim();
   else {
@@ -804,9 +801,6 @@ void init_emu_cpu(int cpu_type)
     pthread_create(&prejit_thr, NULL, prejit_thread, NULL);
     prejit_init();
   }
-#else
-  InitGen_sim();
-#endif
 
   IDT = NULL;
   if (GDT==NULL) {
@@ -939,9 +933,7 @@ void leave_cpu_emu(void)
 	if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
 		IOFF(0x10)=INT10_WATCHER_OFF;
 #endif
-#ifdef X86_JIT
 	EndGen();
-#endif
 #ifdef DEBUG_TREE
 	fclose(tLog); tLog = NULL;
 #endif
@@ -1205,7 +1197,6 @@ static int e_dpmi_tail(cpuctx_t *scp)
   return retval;
 }
 
-#ifdef X86_JIT
 static void *prejit_thread(void *arg)
 {
   while (1) {
@@ -1219,7 +1210,6 @@ static void *prejit_thread(void *arg)
   }
   return NULL;
 }
-#endif
 
 #define PREJIT_RV_OFFS 0xff
 

@@ -756,22 +756,16 @@ void FreeGenCodeBuf(void *ptr);
 void CollectStat(void);
 //
 /////////////////////////////////////////////////////////////////////////////
-#ifdef X86_JIT
 int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp);
 int e_handle_fault(sigcontext_t *scp);
+#ifdef X86_JIT
 void init_emu_npu_x86(void);
+#endif
 int e_querymark(unsigned int addr, size_t len);
 int e_querymark_all(unsigned int addr, size_t len);
 void mprot_init(void);
 void mprot_end(void);
 void prejit_sync(void);
-#else
-#define e_querymark(x,y) 0
-#define e_querymark_all(x,y) 0
-#define mprot_init()
-#define mprot_end()
-#define prejit_sync()
-#endif
 void init_emu_npu(void);
 
 void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,

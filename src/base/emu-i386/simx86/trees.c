@@ -969,13 +969,16 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   /* setup structures for inter-node linking */
   nG->unlinked_jmp_targets = 0;
   op = I0[CurrIMeta-1].gen[I0[CurrIMeta-1].ngen-1].op;
+#ifdef X86_JIT
   if (op >= JMP_LINK) {
     nG->clink_t.link = (unsigned int *)(nG->addr + nG->len - JMPTAILSIZE + TAILFIX);
     nG->clink_t.target = *nG->clink_t.link;
     nG->unlinked_jmp_targets |= TARGET_T;
   }
   else
+#endif
     nG->clink_t.link = NULL;
+#ifdef X86_JIT
   if (op > JMP_LINK) {
     nG->clink_nt.link = (unsigned int *)
       (nG->addr + nG->len - 2*JMPTAILSIZE + TAILFIX - (op == JB_LINK ? CKSIGNSIZE : 0));
@@ -983,6 +986,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
     nG->unlinked_jmp_targets |= TARGET_NT;
   }
   else
+#endif
     nG->clink_nt.link = 0;
   if ((debug_level('e')>3) && op >= JMP_LINK)
 	dbug_printf("Link %d: %p:%08x\n",op,

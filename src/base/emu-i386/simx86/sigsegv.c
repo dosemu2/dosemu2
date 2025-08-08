@@ -257,10 +257,8 @@ static int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	if (e_vgaemu_fault(scp, cr2) == 1)
 	    return 1;
 
-#ifdef X86_JIT
 	if (e_handle_pagefault(cr2, _scp_err, scp))
 	    return 1;
-#endif
 	/* use CPatch for LDT page faults, which should not fail */
 	if (msdos_ldt_access(cr2) && Cpatch(scp))
 	    return 1;
@@ -307,7 +305,6 @@ int e_emu_fault(sigcontext_t *scp, int in_vm86)
     return 0;
 }
 
-#ifdef X86_JIT
 int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 {
 	int v;
@@ -425,6 +422,5 @@ int e_handle_fault(sigcontext_t *scp)
 	_scp_rsp += sizeof(long);
 	return 1;
 }
-#endif
 
 /* ======================================================================= */

@@ -50,7 +50,6 @@ int EmuSignals = 0;
 /* this is probably unsafe with cpatch */
 #define SPEC_PREJIT 0
 
-#ifdef X86_JIT
 #define FLG_PREJIT 1
 #define FLG_SPECULATIVE 2
 static pthread_cond_t run_cnd = PTHREAD_COND_INITIALIZER;
@@ -63,7 +62,6 @@ static void prejit_run(unsigned int PC);
 static unsigned int prejit_PC;
 #if PROFILE
 int SpecPrejits;
-#endif
 #endif
 
 /* countdown to exit after handling VGAEMU faults, reset by
@@ -96,7 +94,6 @@ static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
 	if (m&DATA16) CPUWORD(o)=v; else CPULONG(o)=v;
 }
 
-#ifdef X86_JIT
 static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 {
 	/* If the code doesn't terminate with a jump/loop instruction
@@ -122,11 +119,9 @@ static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 	}
 	return Close_x86(PC, mode);
 }
-#endif
 
 static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 {
-#ifdef X86_JIT
     if (!CONFIG_CPUSIM) {
 	int ret;
 	unsigned P0 = InstrMeta[0].npc;
@@ -140,9 +135,6 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
     } else {
 	return CloseAndExec_sim(PC, mode);
     }
-#else
-    return CloseAndExec_sim(PC, mode);
-#endif
 }
 
 /*
@@ -154,7 +146,6 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
  *	from P0, abort the current instruction and resume the parsing
  *	loop at P2.
  */
-#ifdef X86_JIT
 #define CODE_FLUSH2(m)	{ \
 			  if (_flags & FLG_PREJIT) { \
 			    if (CurrIMeta>0) { \
@@ -170,13 +161,6 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 			    PC = P0 = P2; \
 			  } else if (CurrIMeta == 0) CurrIMeta = -1; \
 			}
-#else
-#define CODE_FLUSH2(m)	{ \
-			  unsigned int P2 = CloseAndExec_sim(P0, m);\
-			  if (TheCPU.err) return P2;\
-			}
-#endif
-#ifdef X86_JIT
 #define CODE_FLUSH()	{ \
 			  if (_flags & FLG_PREJIT) { \
 			    if (CurrIMeta>0) { \
@@ -191,9 +175,6 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 			    if (TheCPU.err || P0 != P2) return P2; \
 			  } else if (CurrIMeta == 0) CurrIMeta = -1; \
 			}
-#else
-#define CODE_FLUSH()	CODE_FLUSH2(_mode)
-#endif
 
 #define UNPREFIX(m)	((m)&~(DATA16|ADDR16))|(basemode&(DATA16|ADDR16))
 
@@ -435,7 +416,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 	int _rc;
 	_P1 = _JumpGen(P2, mode, opc, pskip, &_P0);
 	if (_P1 == (unsigned)-1) {
-#ifdef X86_JIT
 		if (!CONFIG_CPUSIM) {
 			int can_speculate = 1;
 			TNode *G;
@@ -477,9 +457,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 		} else {
 			_P1 = CloseAndExec_sim(_P0, TheCPU.basemode);
 		}
-#else
-		_P1 = DoCloseAndExec(_P0, TheCPU.basemode);
-#endif
 	}
 	if (sigalrm_pending())
 		CEmuStat |= CeS_SIGPEND;
@@ -488,7 +465,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 
 /////////////////////////////////////////////////////////////////////////////
 
-#if !defined(SINGLESTEP)&&defined(X86_JIT)
+#if !defined(SINGLESTEP)
 static unsigned int FindExecCode(unsigned int PC)
 {
 	int mode = TheCPU.mode;
@@ -626,7 +603,6 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 			}
 #endif
 		}
-#ifdef X86_JIT
 		if (!CONFIG_CPUSIM && e_querymark(PC, 1)) {
 			unsigned int P2 = PC;
 			if (CurrIMeta>=0) {
@@ -662,7 +638,6 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 		if (debug_level('e') && !CONFIG_CPUSIM && e_querymark(PC, 1))
 			error("simx86: code nodes clashed at %x\n", PC);
 #endif
-#endif
 		if (CurrIMeta<0) {
 			/* if NewNode was already 1, the registers are outdated */
 			if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
@@ -680,7 +655,6 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 	int _flags)
 {
-#ifdef X86_JIT
 		if (CurrIMeta>=0) {
 			int rc=0;
 			if (!CONFIG_CPUSIM && !(TheCPU.mode&SKIPOP)) {
@@ -693,7 +667,6 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 				}
 			}
 		}
-#endif
 
 #ifdef SINGLEBLOCK
 		if (!CONFIG_CPUSIM && CurrIMeta>=0) {
@@ -956,9 +929,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*9c*/	case PUSHF: {
 			if (V86MODE() && (IOPL<3)) {
 			    if (CONFIG_CPUSIM) FlagSync_All();
-#ifdef X86_JIT
 			    else CODE_FLUSH();
-#endif
 			    /* virtual-8086 monitor */
 			    if (!(TheCPU.cr[4] & CR4_VME))
 				goto not_permitted;	/* GPF */
@@ -2415,7 +2386,6 @@ repag0:
 			if ((EFLAGS & TF) && !(repmod & (MREP|MREPNE))) {
 				/* with TF set, we simulate REP and maybe back
 				   up IP */
-#ifdef X86_JIT
 				int rc = 0;
 				if (!CONFIG_CPUSIM) {
 					unsigned _P0 = P0;
@@ -2426,7 +2396,6 @@ repag0:
 					/* don't cache intermediate nodes */
 					InvalidateNodeRange(P0, PC - P0, NULL);
 				}
-#endif
 				if (CONFIG_CPUSIM) FlagSync_All();
 				if (repmod & ADDR16) {
 					rCX--;
@@ -3675,7 +3644,6 @@ void instr_emu_sim_reset_count(void)
 	interp_inst_emu_count = VGA_EMU_INST_EMU_COUNT;
 }
 
-#ifdef X86_JIT
 /* safety gap should be definitely longer than 1 instruction to not
  * overwrite something unintentionally */
 #define SAFE_PRJ_GAP 16
@@ -3774,4 +3742,3 @@ void prejit_done(void)
   pthread_join(prejit_thr, NULL);
   sem_destroy(&prejit_sem);
 }
-#endif
