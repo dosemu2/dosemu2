@@ -80,7 +80,8 @@ def _e(self):
     # Dosemu2 shuts down with stack exhaustion so we have to allow EOF
     results = doit(self, 219, "-e", eofisok=True)
     # We want to achieve in the future at least the current level of nesting (6)
-    self.assertIn('ERROR: DPMI: too many nested realmode invocations, in_dpmi_rm_stack=6', results)
+    self.assertIn('5. iteration', results)
+    self.assertNotIn('6. iteration', results)
 
 
 def _i(self):

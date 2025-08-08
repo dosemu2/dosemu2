@@ -105,10 +105,12 @@ static void fdpp_panic(const char *msg)
 {
     error("fdpp: PANIC: %s\n", msg);
     p_dos_str("PANIC: %s\n", msg);
-    p_dos_str("Press any key to exit.\n");
-    set_IF();
-    com_biosgetch();
-    clear_IF();
+    if (!config.quiet) {
+        p_dos_str("Press any key to exit.\n");
+        set_IF();
+        com_biosgetch();
+        clear_IF();
+    }
     leavedos(3);
 }
 
