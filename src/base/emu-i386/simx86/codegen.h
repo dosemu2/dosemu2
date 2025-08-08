@@ -37,6 +37,7 @@
 
 #include <string.h>
 #include "syncpu.h"
+#include "trees.h"
 #include "emudpmi.h"
 #include "dos2linux.h"
 
@@ -271,21 +272,37 @@ static __inline__ void POP_ONLY(int m)
 }
 
 void InitGen(void);
-#ifdef X86_JIT
 int NewIMeta(int npc, int *rc);
 extern int CurrIMeta;
-#else
-static inline int NewIMeta(int npc, int *rc) {return 0;}
-#define CurrIMeta -1
-#endif
 extern void (*Gen)(int op, int mode, ...);
 extern void (*AddrGen)(int op, int mode, ...);
 extern int  (*Fp87_op)(int exop, int reg);
+void InitGen_x86(void);
+TNode *Close_x86(unsigned int PC, int mode);
+unsigned int Exec_x86(TNode *G);
+unsigned int Exec_x86_fast(TNode *G);
 unsigned int CloseAndExec_sim(unsigned int PC, int mode);
 void EndGen(void);
 extern void fp87_set_rounding(void);
 extern void fp87_save_except(void);
 //
+static __inline__ int GoodNode(TNode *G, int mode)
+{
+	if (G->cs != LONG_CS) {
+		/* CS mismatch can confuse relative jump/call */
+		e_printf("cs mismatch at %08x: old=%x new=%x\n",
+					G->key, G->cs, LONG_CS);
+		return 0;
+	}
+	if (G->mode != mode) {
+		/* mode mismatch can be 32/16 or MREALA */
+		e_printf("mode mismatch at %08x: old=%x new=%x\n",
+					G->key, G->mode, mode);
+		return 0;
+	}
+	return 1;
+}
+
 extern unsigned char InterOps[];
 extern char RmIsReg[];
 extern char OpIsPush[];

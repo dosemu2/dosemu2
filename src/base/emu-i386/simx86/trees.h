@@ -149,17 +149,13 @@ typedef struct avltr_tree
 #define PLUS +1
 #define MINUS -1
 
-#ifdef X86_JIT
 TNode *FindTree(int key);
 TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf);
-#endif
 
 void InitTrees(void);
 
-#ifdef X86_JIT
 unsigned int FindPC(unsigned char *addr);
 int InvalidateNodeRange(int addr, int len, unsigned char *eip);
-#endif
 
 #ifdef DEBUG_TREE
 extern FILE *tLog;

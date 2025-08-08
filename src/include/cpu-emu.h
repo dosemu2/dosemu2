@@ -81,7 +81,6 @@ unsigned short emu_do_LAR (unsigned short selector);
 char *e_scp_disasm(cpuctx_t *scp, int pmode);
 
 /* called from mfs.c, fatfs.c and some places that memcpy */
-#ifdef X86_JIT
 void e_invalidate(unsigned data, int cnt);
 void e_invalidate_full(unsigned data, int cnt);
 void e_invalidate_full_pa(unsigned data, int cnt);
@@ -91,17 +90,6 @@ void e_invalidate_dirty(unsigned int addr, unsigned int aend);
 void e_invalidate_page_dirty(unsigned int addr);
 void e_invalidate_dirty_full(void);
 int e_querymprot(dosaddr_t addr);
-#else
-#define e_invalidate(x,y)
-#define e_invalidate_full(x,y)
-#define e_invalidate_full_pa(x,y)
-#define e_invalidate_page_full(x) 0
-#define e_invalidate_page_dirty(x)
-#define e_invalidate_pa(x,y)
-#define e_invalidate_dirty(x,y)
-#define e_invalidate_dirty_full()
-#define e_querymprot(x) 0
-#endif
 
 /* called from cpu.c */
 void init_emu_cpu(int cpu_type);
