@@ -1430,19 +1430,17 @@ static void do_cpuemu_enter(int pm)
 
 void cpuemu_enter(int pm)
 {
-  if (!CONFIG_CPUSIM) {
-    int need_inv = 0;
-    /* Note: KVM uses dirty logging to invalidate lowmem protections. */
-    if (pm) {
-      if (config.cpu_vm == CPUVM_VM86)
-        need_inv++;
-    } else {
-      if (config.cpu_vm_dpmi == CPUVM_NATIVE)
-        need_inv++;
-    }
-    if (need_inv)
-      e_invalidate_dirty(0, LOWMEM_SIZE + HMASIZE);
+  int need_inv = 0;
+  /* Note: KVM uses dirty logging to invalidate lowmem protections. */
+  if (pm) {
+    if (config.cpu_vm == CPUVM_VM86)
+      need_inv++;
+  } else {
+    if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+      need_inv++;
   }
+  if (need_inv)
+    e_invalidate_dirty(0, LOWMEM_SIZE + HMASIZE);
   do_cpuemu_enter(pm);
 }
 
