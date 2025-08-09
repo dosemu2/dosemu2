@@ -415,48 +415,46 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 	unsigned int _P0, _P1;
 	int _rc;
 	_P1 = _JumpGen(P2, mode, opc, pskip, &_P0);
-	if (_P1 == (unsigned)-1) {
-		if (!CONFIG_CPUSIM) {
-			int can_speculate = 1;
-			TNode *G;
-			NewIMeta(P0, &_rc);
-			switch (opc) {
-			/* With uncond JMP or RET nothing to speculate. */
-			case JMPld:
-			case JMPsid: case JMPd:
-			case RETl: case RETlisp: case JMPli:
-			case RET: case RETisp: case JMPi:
-				can_speculate = 0;
-				break;
-			}
-			G = DoClose(_P0, TheCPU.basemode, InstrMeta[0].npc);
-			if (!G)
-				return P0;
-			if (_flags & FLG_PREJIT) {
-				G->flags |= F_PREJ;
-				NodesPrejitted++;
-				TheCPU.err = EXCP_GOBACK;
-			} else {
-				if (can_speculate) {
-					if (debug_level('e')) {
-						char *ds;
-						unsigned short ocs = TheCPU.cs;
-						ds = e_emu_disasm(EMU_BASE32(P2),(~TheCPU.basemode&3),ocs);
-						e_printf("prejit after  %s\n", ds);
-						ds = e_emu_disasm(EMU_BASE32(_P0),(~TheCPU.basemode&3),ocs);
-						e_printf("prejit at  %s\n", ds);
-					}
-					prejit_run(_P0);
-				}
-				_P1 = DoExec(G);
-				if (can_speculate)
-					prejit_sync();
-				TheCPU.err = TheCPU.err2;
-				LONG_CS = _LONG_CS;
-			}
-		} else {
-			_P1 = CloseAndExec_sim(_P0, TheCPU.basemode);
+	if (_P1 == (unsigned)-1 && !CONFIG_CPUSIM) {
+		int can_speculate = 1;
+		TNode *G;
+		NewIMeta(P0, &_rc);
+		switch (opc) {
+		/* With uncond JMP or RET nothing to speculate. */
+		case JMPld:
+		case JMPsid: case JMPd:
+		case RETl: case RETlisp: case JMPli:
+		case RET: case RETisp: case JMPi:
+			can_speculate = 0;
+			break;
 		}
+		G = DoClose(_P0, TheCPU.basemode, InstrMeta[0].npc);
+		if (!G)
+			return P0;
+		if (_flags & FLG_PREJIT) {
+			G->flags |= F_PREJ;
+			NodesPrejitted++;
+			TheCPU.err = EXCP_GOBACK;
+		} else {
+			if (can_speculate) {
+				if (debug_level('e')) {
+					char *ds;
+					unsigned short ocs = TheCPU.cs;
+					ds = e_emu_disasm(EMU_BASE32(P2),(~TheCPU.basemode&3),ocs);
+					e_printf("prejit after  %s\n", ds);
+					ds = e_emu_disasm(EMU_BASE32(_P0),(~TheCPU.basemode&3),ocs);
+					e_printf("prejit at  %s\n", ds);
+				}
+				prejit_run(_P0);
+			}
+			_P1 = DoExec(G);
+			if (can_speculate)
+				prejit_sync();
+			TheCPU.err = TheCPU.err2;
+			LONG_CS = _LONG_CS;
+		}
+	} else if (_P1 == (unsigned)-1) {
+		_P1 = CloseAndExec_sim(_P0, TheCPU.basemode);
 	}
 	if (sigalrm_pending())
 		CEmuStat |= CeS_SIGPEND;
