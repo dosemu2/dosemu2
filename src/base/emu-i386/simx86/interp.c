@@ -333,13 +333,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		else {
 		    if (dsp == pskip) {
 			e_printf("### jmp %x 00\n",opc);
-#if !defined(SINGLESTEP)
-			if (CONFIG_CPUSIM && !(EFLAGS & TF)) {
-			    TheCPU.mode |= SKIPOP;
-			    TheCPU.eip = d_nt;
-			    return j_nt;
-			}
-#endif
 		    }
 		    /* forward jump or backward jump >=256 bytes */
 		    Gen(JF_LINK, mode, opc, P2, j_t, j_nt);
@@ -356,14 +349,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		    dbug_printf("!Forever loop!\n");
 		    leavedos_main(0xebfe);
 		}
-#if !defined(SINGLESTEP)
-		if (CONFIG_CPUSIM && !(EFLAGS & TF) && opc != JMPld) {
-		    if (debug_level('e')>1) dbug_printf("** JMP: ignored\n");
-		    TheCPU.mode |= SKIPOP;
-		    TheCPU.eip = d_t;
-		    return j_t;
-		}
-#endif
 		if (dsp <= 0) mode |= CKSIGN;
 		Gen(JMP_LINK, mode, opc, j_t, d_nt);
 		break;
@@ -379,18 +364,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		Gen(JMP_LINK, mode, opc, j_t, d_nt);
 		break;
 	case LOOP: case LOOPZ_LOOPE: case LOOPNZ_LOOPNE:
-		if (dsp == 0) {
-#if !defined(SINGLESTEP)
-		    if (CONFIG_CPUSIM && !(EFLAGS & TF)) {
-		    	// ndiags: shorten delay loops (e2 fe)
-			e_printf("### loop %x 0xfe\n",opc);
-			Gen(L_IMM, ((mode&ADDR16) ? (mode|DATA16) : mode),
-			    Ofs_ECX, 0);
-			TheCPU.eip = d_nt;
-			return j_nt;
-		    }
-#endif
-		}
 		Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
 		break;
 	case RETl: case RETlisp: case JMPli: case CALLli: // far ret, indirect
@@ -655,7 +628,7 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 {
 		if (CurrIMeta>=0) {
 			int rc=0;
-			if (!CONFIG_CPUSIM && !(TheCPU.mode&SKIPOP)) {
+			if (!CONFIG_CPUSIM) {
 				NewIMeta(P0, &rc);
 				if (rc < 0) {
 					if (debug_level('e')>2)
@@ -1539,11 +1512,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*9b*/	case oWAIT:
 /*90*/	case NOP:	//if (!IsCodeInBuf()) Gen(L_NOP, _mode);
-#if 1
 			Gen(L_NOP, _mode);
-#else
-			TheCPU.mode|=SKIPOP;
-#endif
 			PC++;
 			if (!(EFLAGS & TF))
 			    while (Fetch(PC)==NOP) PC++;

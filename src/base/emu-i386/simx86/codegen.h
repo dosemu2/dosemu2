@@ -181,7 +181,6 @@
 #define MREALA	0x00040000
 
 #define CKSIGN	0x00100000	// check signal: for jumps
-#define SKIPOP	0x00200000
 // for HOST_ARCH_SIM
 #define CLROVF	0x00200000
 #define SETOVF	0x00400000
