@@ -791,16 +791,12 @@ void init_emu_cpu(int cpu_type)
 		break;
   }
   e_printf("EMU86: tss mask=%08lx\n", eTSSMASK);
-  if (config.cpusim)
-    InitGen_sim();
-  else {
-    mprot_init();
-    InitGen_x86();
-    InitTrees();
-    sem_init(&prejit_sem, 0, 0);
-    pthread_create(&prejit_thr, NULL, prejit_thread, NULL);
-    prejit_init();
-  }
+  mprot_init();
+  InitGen();
+  InitTrees();
+  sem_init(&prejit_sem, 0, 0);
+  pthread_create(&prejit_thr, NULL, prejit_thread, NULL);
+  prejit_init();
 
   IDT = NULL;
   if (GDT==NULL) {
@@ -946,12 +942,10 @@ void leave_cpu_emu(void)
 	LDT = NULL; GDT = NULL; IDT = NULL;
 	dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 	if (debug_level('e')) print_statistics();
-	if (!CONFIG_CPUSIM) {
-		prejit_done();
-		pthread_cancel(prejit_thr);
-		pthread_join(prejit_thr, NULL);
-		sem_destroy(&prejit_sem);
-	}
+	prejit_done();
+	pthread_cancel(prejit_thr);
+	pthread_join(prejit_thr, NULL);
+	sem_destroy(&prejit_sem);
 	flush_log();
 }
 
@@ -1430,19 +1424,17 @@ static void do_cpuemu_enter(int pm)
 
 void cpuemu_enter(int pm)
 {
-  if (!CONFIG_CPUSIM) {
-    int need_inv = 0;
-    /* Note: KVM uses dirty logging to invalidate lowmem protections. */
-    if (pm) {
-      if (config.cpu_vm == CPUVM_VM86)
-        need_inv++;
-    } else {
-      if (config.cpu_vm_dpmi == CPUVM_NATIVE)
-        need_inv++;
-    }
-    if (need_inv)
-      e_invalidate_dirty(0, LOWMEM_SIZE + HMASIZE);
+  int need_inv = 0;
+  /* Note: KVM uses dirty logging to invalidate lowmem protections. */
+  if (pm) {
+    if (config.cpu_vm == CPUVM_VM86)
+      need_inv++;
+  } else {
+    if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+      need_inv++;
   }
+  if (need_inv)
+    e_invalidate_dirty(0, LOWMEM_SIZE + HMASIZE);
   do_cpuemu_enter(pm);
 }
 

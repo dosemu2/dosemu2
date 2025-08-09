@@ -11,7 +11,4 @@
 #else
 #define NodeLinker(LG,G)
 #define NodeUnlinker(nG)
-static inline unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG) { return NULL; }
-#define Exec_x86_asm(m,f,e,s) (*m=0, 0)
-#define Exec_x86_asm_fpu(m,f,e,s,sf) (*m=0, 0)
 #endif

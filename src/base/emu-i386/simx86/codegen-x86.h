@@ -116,14 +116,9 @@
 
 /////////////////////////////////////////////////////////////////////////////
 //
+void InitGen_x86(void);
 unsigned char *Fp87_op_x86(unsigned char *CodePtr, int exop, int reg);
 void NodeLinker(TNode *LG, TNode *G);
 void NodeUnlinker(TNode *G);
-unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
-unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
-		      unsigned char *ecpu, unsigned char *SeqStart);
-unsigned Exec_x86_asm_fpu(unsigned *mem_ref, unsigned long *flg,
-			  unsigned char *ecpu, unsigned char *SeqStart,
-			  unsigned short seqflg);
 
 #endif

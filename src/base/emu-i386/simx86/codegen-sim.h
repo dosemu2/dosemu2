@@ -85,6 +85,7 @@ extern void FlagSync_All (void);
 extern void Gen_sim(int op, int mode, ...);
 extern void AddrGen_sim(int op, int mode, ...);
 extern void InitGen_sim(void);
+unsigned int CloseAndExec_sim(unsigned int PC, int mode);
 
 /////////////////////////////////////////////////////////////////////////////
 

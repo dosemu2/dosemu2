@@ -1470,12 +1470,11 @@ void CollectStat (void)
 void InitTrees(void)
 {
 	g_printf("InitTrees\n");
-	if (!config.cpusim)
-	    TNodePool = calloc(NODES_IN_POOL, sizeof(TNode));
+	TNodePool = calloc(NODES_IN_POOL, sizeof(TNode));
 
 	avltr_init();
 
-	if (!config.cpusim && debug_level('e')>1) {
+	if (debug_level('e')>1) {
 	    e_printf("Root tree node at %p\n",&CollectTree.root);
 	    e_printf("TNode pool at %p\n",TNodePool);
 	}
@@ -1500,10 +1499,8 @@ void EndGen(void)
 	int csm = config.CPUSpeedInMhz*1000;
 #endif
 	CurrIMeta = -1;
-	if (!config.cpusim) {
-	    avltr_destroy();
-	    free(TNodePool); TNodePool=NULL;
-	}
+	avltr_destroy();
+	free(TNodePool); TNodePool=NULL;
 #ifdef SHOW_STAT
 	for (i=0; i<cstx; i++) {
 	    dbug_printf("%04d %16Ld %8d %8d(%3d) %8d %d\n",i,(xCST[i].a/csm),

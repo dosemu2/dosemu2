@@ -117,7 +117,7 @@ static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 			Fetch(abeg);
 	    }
 	}
-	return Close_x86(PC, mode);
+	return Close(PC, mode);
 }
 
 static unsigned int DoCloseAndExec(unsigned int PC, int mode)
@@ -128,7 +128,7 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 	TNode *G = DoClose(PC, mode, P0);
 	if (!G)
 	    return P0;
-	ret = Exec_x86(G);
+	ret = DoExec(G);
 	TheCPU.err = TheCPU.err2;
 	LONG_CS = _LONG_CS;
 	return ret;
@@ -333,13 +333,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		else {
 		    if (dsp == pskip) {
 			e_printf("### jmp %x 00\n",opc);
-#if !defined(SINGLESTEP)
-			if (CONFIG_CPUSIM && !(EFLAGS & TF)) {
-			    TheCPU.mode |= SKIPOP;
-			    TheCPU.eip = d_nt;
-			    return j_nt;
-			}
-#endif
 		    }
 		    /* forward jump or backward jump >=256 bytes */
 		    Gen(JF_LINK, mode, opc, P2, j_t, j_nt);
@@ -356,14 +349,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		    dbug_printf("!Forever loop!\n");
 		    leavedos_main(0xebfe);
 		}
-#if !defined(SINGLESTEP)
-		if (CONFIG_CPUSIM && !(EFLAGS & TF) && opc != JMPld) {
-		    if (debug_level('e')>1) dbug_printf("** JMP: ignored\n");
-		    TheCPU.mode |= SKIPOP;
-		    TheCPU.eip = d_t;
-		    return j_t;
-		}
-#endif
 		if (dsp <= 0) mode |= CKSIGN;
 		Gen(JMP_LINK, mode, opc, j_t, d_nt);
 		break;
@@ -379,18 +364,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		Gen(JMP_LINK, mode, opc, j_t, d_nt);
 		break;
 	case LOOP: case LOOPZ_LOOPE: case LOOPNZ_LOOPNE:
-		if (dsp == 0) {
-#if !defined(SINGLESTEP)
-		    if (CONFIG_CPUSIM && !(EFLAGS & TF)) {
-		    	// ndiags: shorten delay loops (e2 fe)
-			e_printf("### loop %x 0xfe\n",opc);
-			Gen(L_IMM, ((mode&ADDR16) ? (mode|DATA16) : mode),
-			    Ofs_ECX, 0);
-			TheCPU.eip = d_nt;
-			return j_nt;
-		    }
-#endif
-		}
 		Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
 		break;
 	case RETl: case RETlisp: case JMPli: case CALLli: // far ret, indirect
@@ -415,48 +388,46 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 	unsigned int _P0, _P1;
 	int _rc;
 	_P1 = _JumpGen(P2, mode, opc, pskip, &_P0);
-	if (_P1 == (unsigned)-1) {
-		if (!CONFIG_CPUSIM) {
-			int can_speculate = 1;
-			TNode *G;
-			NewIMeta(P0, &_rc);
-			switch (opc) {
-			/* With uncond JMP or RET nothing to speculate. */
-			case JMPld:
-			case JMPsid: case JMPd:
-			case RETl: case RETlisp: case JMPli:
-			case RET: case RETisp: case JMPi:
-				can_speculate = 0;
-				break;
-			}
-			G = DoClose(_P0, TheCPU.basemode, InstrMeta[0].npc);
-			if (!G)
-				return P0;
-			if (_flags & FLG_PREJIT) {
-				G->flags |= F_PREJ;
-				NodesPrejitted++;
-				TheCPU.err = EXCP_GOBACK;
-			} else {
-				if (can_speculate) {
-					if (debug_level('e')) {
-						char *ds;
-						unsigned short ocs = TheCPU.cs;
-						ds = e_emu_disasm(EMU_BASE32(P2),(~TheCPU.basemode&3),ocs);
-						e_printf("prejit after  %s\n", ds);
-						ds = e_emu_disasm(EMU_BASE32(_P0),(~TheCPU.basemode&3),ocs);
-						e_printf("prejit at  %s\n", ds);
-					}
-					prejit_run(_P0);
-				}
-				_P1 = Exec_x86(G);
-				if (can_speculate)
-					prejit_sync();
-				TheCPU.err = TheCPU.err2;
-				LONG_CS = _LONG_CS;
-			}
-		} else {
-			_P1 = CloseAndExec_sim(_P0, TheCPU.basemode);
+	if (_P1 == (unsigned)-1 && !CONFIG_CPUSIM) {
+		int can_speculate = 1;
+		TNode *G;
+		NewIMeta(P0, &_rc);
+		switch (opc) {
+		/* With uncond JMP or RET nothing to speculate. */
+		case JMPld:
+		case JMPsid: case JMPd:
+		case RETl: case RETlisp: case JMPli:
+		case RET: case RETisp: case JMPi:
+			can_speculate = 0;
+			break;
 		}
+		G = DoClose(_P0, TheCPU.basemode, InstrMeta[0].npc);
+		if (!G)
+			return P0;
+		if (_flags & FLG_PREJIT) {
+			G->flags |= F_PREJ;
+			NodesPrejitted++;
+			TheCPU.err = EXCP_GOBACK;
+		} else {
+			if (can_speculate) {
+				if (debug_level('e')) {
+					char *ds;
+					unsigned short ocs = TheCPU.cs;
+					ds = e_emu_disasm(EMU_BASE32(P2),(~TheCPU.basemode&3),ocs);
+					e_printf("prejit after  %s\n", ds);
+					ds = e_emu_disasm(EMU_BASE32(_P0),(~TheCPU.basemode&3),ocs);
+					e_printf("prejit at  %s\n", ds);
+				}
+				prejit_run(_P0);
+			}
+			_P1 = DoExec(G);
+			if (can_speculate)
+				prejit_sync();
+			TheCPU.err = TheCPU.err2;
+			LONG_CS = _LONG_CS;
+		}
+	} else if (_P1 == (unsigned)-1) {
+		_P1 = CloseAndExec_sim(_P0, TheCPU.basemode);
 	}
 	if (sigalrm_pending())
 		CEmuStat |= CeS_SIGPEND;
@@ -512,10 +483,10 @@ static unsigned int FindExecCode(unsigned int PC)
 		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI|CeS_MOVSS)) &&
 		    !debug_level('e') &&
 		    GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)))
-			PC = Exec_x86_fast(G);
+			PC = DoExec_fast(G);
 		else
 #endif
-			PC = Exec_x86(G);
+			PC = DoExec(G);
 		TheCPU.err = TheCPU.err2;
 		LONG_CS = _LONG_CS;
 #if PROFILE
@@ -657,7 +628,7 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 {
 		if (CurrIMeta>=0) {
 			int rc=0;
-			if (!CONFIG_CPUSIM && !(TheCPU.mode&SKIPOP)) {
+			if (!CONFIG_CPUSIM) {
 				NewIMeta(P0, &rc);
 				if (rc < 0) {
 					if (debug_level('e')>2)
@@ -1541,11 +1512,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*9b*/	case oWAIT:
 /*90*/	case NOP:	//if (!IsCodeInBuf()) Gen(L_NOP, _mode);
-#if 1
 			Gen(L_NOP, _mode);
-#else
-			TheCPU.mode|=SKIPOP;
-#endif
 			PC++;
 			if (!(EFLAGS & TF))
 			    while (Fetch(PC)==NOP) PC++;

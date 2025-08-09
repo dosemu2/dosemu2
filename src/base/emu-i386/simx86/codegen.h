@@ -181,7 +181,6 @@
 #define MREALA	0x00040000
 
 #define CKSIGN	0x00100000	// check signal: for jumps
-#define SKIPOP	0x00200000
 // for HOST_ARCH_SIM
 #define CLROVF	0x00200000
 #define SETOVF	0x00400000
@@ -277,11 +276,14 @@ extern int CurrIMeta;
 extern void (*Gen)(int op, int mode, ...);
 extern void (*AddrGen)(int op, int mode, ...);
 extern int  (*Fp87_op)(int exop, int reg);
-void InitGen_x86(void);
-TNode *Close_x86(unsigned int PC, int mode);
-unsigned int Exec_x86(TNode *G);
-unsigned int Exec_x86_fast(TNode *G);
-unsigned int CloseAndExec_sim(unsigned int PC, int mode);
+TNode *Close(unsigned int PC, int mode);
+extern unsigned char * (*CodeGen)(unsigned char *CodePtr,
+				  unsigned char *BaseGenBuf, const IGen *IG);
+extern unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
+			unsigned char *ecpu, void *SeqStart,
+			unsigned short seqflg);
+unsigned int DoExec(TNode *G);
+unsigned int DoExec_fast(TNode *G);
 void EndGen(void);
 extern void fp87_set_rounding(void);
 extern void fp87_save_except(void);

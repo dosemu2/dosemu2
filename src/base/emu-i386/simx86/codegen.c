@@ -60,9 +60,17 @@
 #include "codegen-arch.h"
 #include "cpatch.h"
 
-static void Gen_x86(int op, int mode, ...);
-static void AddrGen_x86(int op, int mode, ...);
+void (*Gen)(int op, int mode, ...);
+void (*AddrGen)(int op, int mode, ...);
+unsigned char * (*CodeGen)(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
+unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
+		 unsigned char *ecpu, void *SeqStart,
+		 unsigned short seqflg);
 
+static void Gen_IG(int op, int mode, ...);
+static void AddrGen_IG(int op, int mode, ...);
+
+int UseLinker = 0;
 hitimer_u TimeStartExec;
 static TNode *LastXNode = NULL;
 
@@ -96,15 +104,21 @@ static int goodmemref(dosaddr_t m)
 /////////////////////////////////////////////////////////////////////////////
 
 
-void InitGen_x86(void)
+void InitGen(void)
 {
 	Fetch = jit_fetch_byte;
 	FetchW = jit_fetch_word;
 	FetchL = jit_fetch_dword;
 
-	Gen = Gen_x86;
-	AddrGen = AddrGen_x86;
-	UseLinker = USE_LINKER;
+	Gen = Gen_IG;
+	AddrGen = AddrGen_IG;
+
+#ifdef X86_JIT
+	if (!CONFIG_CPUSIM)
+		InitGen_x86();
+	else
+#endif
+		InitGen_sim();
 }
 
 
@@ -114,7 +128,7 @@ void InitGen_x86(void)
  * address generator unit
  * careful - do not use eax, and NEVER change any flag!
  */
-static void AddrGen_x86(int op, int mode, ...)
+static void AddrGen_IG(int op, int mode, ...)
 {
 	va_list	ap;
 	IMeta *I;
@@ -192,7 +206,7 @@ static void AddrGen_x86(int op, int mode, ...)
 }
 
 
-static void Gen_x86(int op, int mode, ...)
+static void Gen_IG(int op, int mode, ...)
 {
 	int rcod=0;
 	va_list	ap;
@@ -550,16 +564,16 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
  * These are the functions which actually executes the generated code.
  *
  * There are two paths:
- * 1) for CloseAndExec_x86 we are ending a code generation phase, and our code
+ * 1) for CloseAndExec we are ending a code generation phase, and our code
  *	is still in the CodeBuf together with all its detailed info stored
  *	in InstrMeta. First we close the sequence adding the TailCode;
  *	it, and move it to the collecting tree and clear the temporary
- *	structures. Then, in Exec_x86 we execute the code.
+ *	structures. Then, in DoExec we execute the code.
  *	The PC parameter is the address in the source code of the next
  *	instruction following the end of the code block. It will be stored
  *	into the TailCode of the block.
  * 2) We are executing a sequence found in the collecting tree.
- *	Exec_x86 is called directly.
+ *	DoExec is called directly.
  *	G is the node we found (possibly the start of a chain of linked
  *	code sequences).
  *
@@ -568,7 +582,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
  *
  */
 
-TNode *Close_x86(unsigned int PC, int mode)
+TNode *Close(unsigned int PC, int mode)
 {
 	IMeta *I0;
 	TNode *G;
@@ -618,7 +632,7 @@ static inline void prefetch(unsigned char *p)
 	__builtin_prefetch(p);
 }
 
-static unsigned int Exec_x86_pre(unsigned char *ecpu)
+static unsigned int Exec_pre(unsigned char *ecpu)
 {
 	unsigned long flg;
 
@@ -638,13 +652,13 @@ static unsigned int Exec_x86_pre(unsigned char *ecpu)
 	return flg;
 }
 
-static void Exec_x86_post(unsigned long flg, unsigned int mem_ref)
+static void Exec_post(unsigned long flg, unsigned int mem_ref)
 {
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
 }
 
-unsigned int Exec_x86(TNode *G)
+unsigned int DoExec(TNode *G)
 {
 	unsigned long flg;
 	unsigned char *ecpu;
@@ -666,9 +680,9 @@ unsigned int Exec_x86(TNode *G)
 	hitimer_t TimeStartExec;
 	if (debug_level('e')) TimeStartExec = GETTSC();
 #endif
-	flg = Exec_x86_pre(ecpu);
-	ePC = Exec_x86_asm_fpu(&mem_ref, &flg, ecpu, SeqStart, seqflg);
-	Exec_x86_post(flg, mem_ref);
+	flg = Exec_pre(ecpu);
+	ePC = Exec(&mem_ref, &flg, ecpu, SeqStart, seqflg);
+	Exec_post(flg, mem_ref);
 
 	if (debug_level('e')) {
 #if PROFILE >= 2
@@ -735,16 +749,16 @@ unsigned int Exec_x86(TNode *G)
 }
 
 /* fast loop, only used if nothing special is going on; if anything
-   out of the ordinary happens, the above Exec_x86() is called */
-unsigned int Exec_x86_fast(TNode *G)
+   out of the ordinary happens, the above DoExec() is called */
+unsigned int DoExec_fast(TNode *G)
 {
 	unsigned char *ecpu = CPUOFFS(0);
-	unsigned long flg = Exec_x86_pre(ecpu);
+	unsigned long flg = Exec_pre(ecpu);
 	unsigned int ePC, mem_ref;
 	unsigned mode = G->mode;
 
 	do {
-		ePC = Exec_x86_asm(&mem_ref, &flg, ecpu, G->addr);
+		ePC = Exec(&mem_ref, &flg, ecpu, G->addr, 0);
 		if (G->alive > 0 && LastXNode && LastXNode->alive > 0) {
 			if (LastXNode->unlinked_jmp_targets &&
 			    (LastXNode->clink_t.target == G->key ||
@@ -759,7 +773,7 @@ unsigned int Exec_x86_fast(TNode *G)
 	} while (!TheCPU.err2 && (G=FindTree(ePC)) &&
 		 GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)));
 
-	Exec_x86_post(flg, mem_ref);
+	Exec_post(flg, mem_ref);
 	sigalrm_pending_w(0);
 	return ePC;
 }
