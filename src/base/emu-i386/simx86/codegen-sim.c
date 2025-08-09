@@ -71,11 +71,6 @@
 
 #undef	DEBUG_MORE
 
-void (*Gen)(int op, int mode, ...);
-void (*AddrGen)(int op, int mode, ...);
-
-int UseLinker = 0;
-
 static unsigned int P0 = (unsigned)-1;
 
 /////////////////////////////////////////////////////////////////////////////

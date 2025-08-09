@@ -792,10 +792,10 @@ void init_emu_cpu(int cpu_type)
   }
   e_printf("EMU86: tss mask=%08lx\n", eTSSMASK);
   if (config.cpusim)
-    InitGen_sim();
+    InitGen();
   else {
     mprot_init();
-    InitGen_x86();
+    InitGen();
     InitTrees();
     sem_init(&prejit_sem, 0, 0);
     pthread_create(&prejit_thr, NULL, prejit_thread, NULL);

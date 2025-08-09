@@ -104,6 +104,11 @@
 #include "emu86.h"
 #include "codegen-x86.h"
 
+static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
+static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
+			 unsigned char *ecpu, void *SeqStart,
+			 unsigned short seqflg);
+
 /////////////////////////////////////////////////////////////////////////////
 
 /* This code is appended at the end of every instruction sequence. It
@@ -139,12 +144,21 @@ static void _test_(void)
 
 /////////////////////////////////////////////////////////////////////////////
 
+void InitGen_x86(void)
+{
+	CodeGen = CodeGen_x86;
+	Exec = Exec_x86;
+	UseLinker = USE_LINKER;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
 
 /* NOTE: parameters IG->px must be the last argument in a Gn() macro
  * because of the OR operator, which would cause trouble if the parameter
  * is negative */
 
-unsigned char *CodeGen(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG)
+static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG)
 {
 	/* evil hack, keeping state from MOVS_SavA to MOVS_SetA in
 	   a static variable */
@@ -2692,7 +2706,7 @@ void NodeUnlinker(TNode *G)
 #define R_REG(r) "%e"#r
 #define EXEC_CLOBBERS
 #endif
-unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
+static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 		unsigned char *ecpu, unsigned char *SeqStart)
 {
 	unsigned ePC;
@@ -2752,8 +2766,8 @@ unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 	return ePC;
 }
 
-unsigned Exec_x86_asm_fpu(unsigned *mem_ref, unsigned long *flg,
-		unsigned char *ecpu, unsigned char *SeqStart,
+static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
+		unsigned char *ecpu, void *SeqStart,
 		unsigned short seqflg)
 {
 	unsigned ePC;

@@ -117,7 +117,7 @@ static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 			Fetch(abeg);
 	    }
 	}
-	return Close_x86(PC, mode);
+	return Close(PC, mode);
 }
 
 static unsigned int DoCloseAndExec(unsigned int PC, int mode)
@@ -128,7 +128,7 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 	TNode *G = DoClose(PC, mode, P0);
 	if (!G)
 	    return P0;
-	ret = Exec_x86(G);
+	ret = DoExec(G);
 	TheCPU.err = TheCPU.err2;
 	LONG_CS = _LONG_CS;
 	return ret;
@@ -448,7 +448,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 					}
 					prejit_run(_P0);
 				}
-				_P1 = Exec_x86(G);
+				_P1 = DoExec(G);
 				if (can_speculate)
 					prejit_sync();
 				TheCPU.err = TheCPU.err2;
@@ -512,10 +512,10 @@ static unsigned int FindExecCode(unsigned int PC)
 		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI|CeS_MOVSS)) &&
 		    !debug_level('e') &&
 		    GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)))
-			PC = Exec_x86_fast(G);
+			PC = DoExec_fast(G);
 		else
 #endif
-			PC = Exec_x86(G);
+			PC = DoExec(G);
 		TheCPU.err = TheCPU.err2;
 		LONG_CS = _LONG_CS;
 #if PROFILE
