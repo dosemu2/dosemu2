@@ -43,6 +43,10 @@
 #include "mpu401.h"
 #include "sb16.h"
 #include <string.h>
+#include <pthread.h>
+
+static pthread_t dspio_init_thread;
+static int dspio_joined;
 
 static int sb_irq_tab[] = { 9 /* 2 actually */, 5, 7, 10 };
 static int sb_dma_tab[] = { 0, 1, 3 };
@@ -564,9 +568,11 @@ static void sb_dsp_reset(void)
 {
     S_printf("SB: Resetting SB DSP\n");
 
-    stop_dma();
-    dspio_toggle_speaker(sb.dspio, 0);
-    dspio_clear_fifos(sb.dspio);
+    if (sb.dspio) {
+	stop_dma();
+	dspio_toggle_speaker(sb.dspio, 0);
+	dspio_clear_fifos(sb.dspio);
+    }
     rng_clear(&sb.dsp_queue);
     sb_deactivate_irq(SB_IRQ_ALL);
     sb.paused = 0;
@@ -1574,6 +1580,19 @@ int sb_mixer_get_chan_num(enum MixChan ch)
     }
 }
 
+static void sb_init_hook(void)
+{
+    if (!sb.dspio) {
+	assert(!dspio_joined);
+	pthread_join(dspio_init_thread, (void **)&sb.dspio);
+	dspio_joined++;
+	if (!sb.dspio) {
+	    error("dspio failed\n");
+	    leavedos(93);
+	}
+    }
+}
+
 /*
  * DANG_BEGIN_FUNCTION sb_io_write
  *
@@ -1593,6 +1612,10 @@ static void sb_io_write(ioport_t port, Bit8u value, void *arg)
 	S_printf("SB: Write to port 0x%04x, value 0x%02x\n", (Bit16u) port,
 		 value);
     }
+
+    sb_init_hook();
+    if (!sb.dspio)
+	return;
 
     switch (addr) {
 	/* == FM MUSIC == */
@@ -1800,7 +1823,7 @@ static void process_sb_midi_input(Bit8u val)
 
 void run_sb(void)
 {
-    if (!config.sound)
+    if (!config.sound || !sb.dspio)
 	return;
 
     /* https://github.com/dosemu2/dosemu2/issues/2172 */
@@ -1906,26 +1929,27 @@ void sound_init(void)
 {
     if (!config.sound)
 	return;
-    sb.dspio = dspio_init();
-    if (!sb.dspio) {
-	error("dspio failed\n");
-	leavedos(93);
-    }
+    sb.dspio = NULL;
     sb_init();
+    /* That loads many plugins and opens large soundfont file, so moved
+     * to a thread. */
+    pthread_create(&dspio_init_thread, NULL, dspio_init, NULL);
 }
 
 void sound_reset(void)
 {
-    if (config.sound) {
-	dspio_reset(sb.dspio);
+    if (config.sound)
 	sb_reset();
-    }
 }
 
 void sound_done(void)
 {
     if (config.sound) {
+	if (!sb.dspio && !dspio_joined)
+	    pthread_join(dspio_init_thread, (void **)&sb.dspio);
+	if (sb.dspio)
+	    dspio_done(sb.dspio);
+	sb.dspio = NULL;
 	sb_done();
-	dspio_done(sb.dspio);
     }
 }

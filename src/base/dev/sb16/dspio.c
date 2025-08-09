@@ -349,7 +349,7 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg);
 static int dspio_is_connected(int id, void *arg);
 static int dspio_checkid2(void *id2, void *arg);
 
-struct dspio_state *dspio_init(void)
+void *dspio_init(void *arg)
 {
     struct dspio_state *state;
     state = malloc(sizeof(struct dspio_state));
@@ -380,10 +380,6 @@ struct dspio_state *dspio_init(void)
 
     sigalrm_register_handler(run_sound);
     return state;
-}
-
-void dspio_reset(struct dspio_state *dspio)
-{
 }
 
 void dspio_done(struct dspio_state *dspio)
