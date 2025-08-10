@@ -66,6 +66,7 @@
 #include "dos2linux.h"
 #include "vgaemu.h"
 #include "video.h"
+#include "msdoshlp.h"
 #include "codegen.h"
 #include "codegen-sim.h"
 
@@ -3017,6 +3018,23 @@ unsigned int CloseAndExec_sim(unsigned int PC, int mode)
 	ret = P0;
 	P0 = (unsigned)-1;
 	return ret;
+}
+
+static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
+{
+	if (!in_emu_cpu()) {
+		default_sim_pagefault_handler(addr, err, op, len);
+		return;
+	}
+	if ((err & 2) && msdos_ldt_access(addr)) {
+		emu_ldt_write(addr, op, len);
+		return;
+	}
+	/* trigger an exception in DPMI */
+	TheCPU.err = EXCP0E_PAGE;
+	TheCPU.scp_err = err;
+	TheCPU.cr2 = addr;
+	longjmp(jmp_env, 1);
 }
 
 uint8_t sim_read_byte(dosaddr_t x)

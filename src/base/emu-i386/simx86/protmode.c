@@ -386,20 +386,3 @@ int emu_ldt_write(dosaddr_t addr, uint32_t op, int len)
 	if (_gs == 0) { TheCPU.gs = 0; SetSegProt(0,Ofs_GS,NULL,0); }
 	return 1;
 }
-
-void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
-{
-	if (!in_emu_cpu()) {
-		default_sim_pagefault_handler(addr, err, op, len);
-		return;
-	}
-	if ((err & 2) && msdos_ldt_access(addr)) {
-		emu_ldt_write(addr, op, len);
-		return;
-	}
-	/* trigger an exception in DPMI */
-	TheCPU.err = EXCP0E_PAGE;
-	TheCPU.scp_err = err;
-	TheCPU.cr2 = addr;
-	longjmp(jmp_env, 1);
-}

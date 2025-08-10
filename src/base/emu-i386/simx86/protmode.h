@@ -231,7 +231,6 @@ int e_larlsl(int mode, unsigned short sel);
 int hsw_verr(unsigned short sel);
 int hsw_verw(unsigned short sel);
 int emu_ldt_write(dosaddr_t addr, uint32_t op, int len);
-void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len);
 //
 
 extern Descriptor *GDT;
