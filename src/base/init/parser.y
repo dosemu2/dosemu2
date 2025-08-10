@@ -2082,7 +2082,7 @@ static int detect_ser_flags(serial_t *s)
 
   err = stat(s->dev, &st);
   if (err) {
-    error("SERIAL: stat(%s) failed: %s\n", s->dev, strerror(errno));
+    s_printf("SERIAL: stat(%s) failed: %s\n", s->dev, strerror(errno));
     return -1;
   }
   if (S_ISFIFO(st.st_mode)) {
@@ -2097,8 +2097,6 @@ static int detect_ser_flags(serial_t *s)
 
 static void stop_serial(void)
 {
-  int err = 0;
-
   if (c_ser >= MAX_SER) {
     c_printf("SER: too many ports, ignoring %s\n", sptr->dev);
     return;
@@ -2110,15 +2108,18 @@ static void stop_serial(void)
     c_printf(" irq %x", sptr->irq);
   c_printf("\n");
   if (sptr->dev) {
-    err = detect_ser_flags(sptr);
-    if (!err) {
-      sptr->mfs_idx = mfs_define_drive(sptr->dev);
-      if (sptr->wrfile)
-        sptr->mfs_idx_w = mfs_define_drive(sptr->wrfile);
+    int err = detect_ser_flags(sptr);
+    if (err)
+      sptr->is_file = TRUE;  // will be created
+    sptr->mfs_idx = mfs_define_drive(sptr->dev);
+  }
+  if (sptr->wrfile) {
+    sptr->mfs_idx_w = mfs_define_drive(sptr->wrfile);
+    if (!sptr->dev) {
+      sptr->dev = strdup(sptr->wrfile);
+      sptr->mfs_idx = sptr->mfs_idx_w;
     }
   }
-  if (err)
-    return;
   c_ser++;
 }
 
