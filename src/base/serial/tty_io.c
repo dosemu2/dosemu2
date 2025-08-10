@@ -443,8 +443,22 @@ static void ser_set_params(com_t *c)
 static void drop_iosel(com_t *c)
 {
   c->is_closed = TRUE;
-  if (IOSEL(c))
+  if (IOSEL(c)) {
     remove_from_io_select(c->fd);
+    fcntl(c->fd, F_SETFL, O_NONBLOCK);
+  }
+  /* else: non-iosel (plain files) do not re-connect after EOF (at least
+   * w/o new data), so no need to set non-blocking mode for them. */
+}
+
+static void acq_iosel(com_t *c)
+{
+  c->is_closed = FALSE;
+  if (IOSEL(c)) {
+    /* drop O_NONBLOCK flag */
+    fcntl(c->fd, F_SETFL, 0);
+    add_to_io_select(c->fd, async_serial_run, (void *)c);
+  }
 }
 
 /* This function checks for newly received data and fills the UART
@@ -458,6 +472,7 @@ static void drop_iosel(com_t *c)
 static int tty_uart_fill(com_t *c)
 {
   int size = 0;
+  int errn;
 
   if (c->fd < 0)
     return 0;
@@ -490,18 +505,43 @@ static int tty_uart_fill(com_t *c)
   size = RPT_SYSCALL(read(c->fd,
                               &c->rx_buf[c->rx_buf_end],
                               RX_BUFFER_SIZE - c->rx_buf_end));
-  if (size <= 0) {
+  errn = errno;
+/* EOF from tty is signalled with EIO, and from files - with 0.
+ * Not to confuse with stdio EOF, which is -1 from fgetc().
+ * Note that stdio's fread() has yet another EOF signalling,
+ * making things very confusing.
+ * Also note that the difference in select() behavior on EOF
+ * in blocking vs non-blocking mode is not observed, contrary
+ * to what the commit 4b555733 says. select() seems to fire read
+ * FD in either case, in a busy loop. But when 4b555733 was written,
+ * the ioselect acknowledge was done prematurely - it was only
+ * corrected later in d07ed969a
+ * Which means, in general, that we can't keep closed tty in an
+ * ioselect fdset, so at least the basic direction of 4b555733
+ * was seemingly correct. */
+#define IS_EOF() (size == 0 || (size == -1 && errn == EIO))
+  if (IS_EOF()) {
     if (c->is_closed)
       return 0;
-    s_printf("SER%d: Got %i (%s), setting is_closed\n", c->num, size, strerror(errno));
+    s_printf("SER%d: Got EOF, setting is_closed\n", c->num);
     drop_iosel(c);
     return 0;
   }
   if (c->is_closed) {
-    c->is_closed = FALSE;
-    if (IOSEL(c))
-      add_to_io_select(c->fd, async_serial_run, (void *)c);
-    s_printf("SER%d: re-connected\n", c->num);
+    if (size > 0 || errn == EAGAIN) {
+      acq_iosel(c);
+      s_printf("SER%d: re-connected (%i)\n", c->num, size);
+      if (size == -1)
+        return 0;
+    } else {
+      error("SER%d: %s\n", c->num, strerror(errn));
+      return 0;
+    }
+  }
+  if (size == -1) {
+    assert(!c->is_closed && errn != EIO);
+    error("SER%d: %s\n", c->num, strerror(errn));
+    return 0;
   }
 
   if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n", c->num,
