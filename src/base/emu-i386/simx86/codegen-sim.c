@@ -3022,7 +3022,8 @@ unsigned int CloseAndExec_sim(unsigned int PC, int mode)
 
 static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 {
-	if (!in_emu_cpu()) {
+	/* err = -1 is special, hitting JIT protected page */
+	if (!in_emu_cpu() || err == -1) {
 		default_sim_pagefault_handler(addr, err, op, len);
 		return;
 	}
