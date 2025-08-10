@@ -665,6 +665,11 @@ static inline void set_unprotected_page(dosaddr_t addr, void *uaddr)
 
 void default_sim_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 {
+  if (err == -1) {
+    /* err = -1 is special, hitting JIT protected page */
+    e_invalidate(addr, len);
+    return;
+  }
   if (err & 2)
     dosemu_error("Invalid write to addr %#x, ptr %p, len %d\n",
 		 addr, MEM_BASE32(addr), len);
@@ -753,7 +758,10 @@ static int check_write_pagefault(dosaddr_t addr, void *uaddr, uint32_t op, int l
     handler(addr, 6 + dpmi_read_access(addr), op, len);
     return 1;
   }
-  if (!e_querymprot(addr) && !memcheck_is_rom(addr))
+  if (e_querymprot(addr))
+    /* handle invalidations for writes to JIT protected pages */
+    handler(addr, -1, op, len);
+  else if (!memcheck_is_rom(addr))
     set_unprotected_page(addr, uaddr);
   return 0;
 }
@@ -769,7 +777,6 @@ void do_write_byte(dosaddr_t addr, uint8_t byte, sim_pagefault_handler_t handler
     }
     if (config.mmio_tracing && mmio_check(addr))
       mmio_trace_byte(addr, byte, MMIO_WRITE);
-    e_invalidate(addr, 1);
     uaddr = dosaddr_to_unixaddr(addr);
     if (check_write_pagefault(addr, uaddr, byte, 1, handler))
       return;
@@ -792,7 +799,6 @@ void do_write_word(dosaddr_t addr, uint16_t word, sim_pagefault_handler_t handle
     }
     if (config.mmio_tracing && mmio_check(addr))
       mmio_trace_word(addr, word, MMIO_WRITE);
-    e_invalidate(addr, 2);
     uaddr = dosaddr_to_unixaddr(addr);
     if (check_write_pagefault(addr, uaddr, word, 2, handler))
       return;
@@ -815,7 +821,6 @@ void do_write_dword(dosaddr_t addr, uint32_t dword, sim_pagefault_handler_t hand
     }
     if (config.mmio_tracing && mmio_check(addr))
       mmio_trace_dword(addr, dword, MMIO_WRITE);
-    e_invalidate(addr, 4);
     uaddr = dosaddr_to_unixaddr(addr);
     if (check_write_pagefault(addr, uaddr, dword, 4, handler))
       return;
