@@ -469,7 +469,10 @@ char *expand_cmd(const char *cmd, const char **r_cmd)
 	wordfree_lite(&p);
 	if (!rp)
 		goto err_fr1;
-	rt = concat_strings(rp, s);
+	if (s)
+		rt = concat_strings(rp, s);
+	else
+		rt = strdup(rp);
 	free(f);
 	if (r_cmd)
 		*r_cmd = rp;
@@ -1010,7 +1013,8 @@ const char *findprog(const char *prog, const char *pathc)
 	if (strchr(prog, '/')) {
 		if ((stat(prog, &sbuf) == 0) && S_ISREG(sbuf.st_mode) &&
 		    access(prog, X_OK) == 0) {
-			return prog;
+			strlcpy(filename, prog, sizeof(filename));
+			return filename;
 		} else {
 //			warnx("%s: Command not found.", prog);
 			return NULL;
