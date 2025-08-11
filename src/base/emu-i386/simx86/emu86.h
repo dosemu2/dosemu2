@@ -725,13 +725,20 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode, signed char overr_ds, s
         CODE_FLUSH(); \
         goto illegal_op; \
     } \
-    if (CONFIG_CPUSIM && V86MODE() && (0 == ((m) & (ADDR16 | MLEA))) && TR1.d > 0xffff) { \
-        CODE_FLUSH(); \
+    __l; \
+})
+int _ModRMSim(unsigned int PC, int mode, signed char overr_ds, signed char overr_ss);
+/* always already after a CODE_FLUSH() */
+#define ModRMSim(p, m, ods, oss) ({ \
+    int __l = _ModRMSim(p, m, ods, oss); \
+    if (REG1 == 0xff) { \
+        goto illegal_op; \
+    } \
+    if (V86MODE() && (0 == ((m) & (ADDR16 | MLEA))) && TR1.d > 0xffff) { \
         goto not_permitted; \
     } \
     __l; \
 })
-int ModRMSim(unsigned int PC, int mode, signed char overr_ds, signed char overr_ss);
 int ModGetReg1(unsigned int PC, int mode);
 //
 char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg);

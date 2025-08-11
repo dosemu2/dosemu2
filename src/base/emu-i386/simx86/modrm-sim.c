@@ -46,7 +46,7 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-int ModRMSim(unsigned int PC, int mode, signed char overr_ds, signed char overr_ss)
+int _ModRMSim(unsigned int PC, int mode, signed char overr_ds, signed char overr_ss)
 {
 	int l;
 	void (*AddrGen_save)(int op, int mode, ...);
