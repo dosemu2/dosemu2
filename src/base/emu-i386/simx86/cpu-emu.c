@@ -1218,7 +1218,7 @@ static int prejit_vm86(struct vm86_struct *info)
 #if !PREJIT
   return 0;
 #endif
-  if (CONFIG_CPUSIM || isset_TF())
+  if (isset_TF())
     return 0;
 #if !PREJIT_EXEC
   if (!vga.inst_emu)
@@ -1284,7 +1284,7 @@ static int prejit_dpmi(cpuctx_t *scp)
 #if !PREJIT
   return 0;
 #endif
-  if (CONFIG_CPUSIM || (_eflags & TF))
+  if (_eflags & TF)
     return 0;
 #if !PREJIT_EXEC
   if (!vga.inst_emu)

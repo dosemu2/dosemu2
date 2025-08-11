@@ -122,7 +122,6 @@ static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 
 static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 {
-    if (!CONFIG_CPUSIM) {
 	int ret;
 	unsigned P0 = InstrMeta[0].npc;
 	TNode *G = DoClose(PC, mode, P0);
@@ -132,9 +131,6 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 	TheCPU.err = TheCPU.err2;
 	LONG_CS = _LONG_CS;
 	return ret;
-    } else {
-	return CloseAndExec_sim(PC, mode);
-    }
 }
 
 /*
@@ -155,7 +151,7 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 			    } else if (CurrIMeta == 0) CurrIMeta = -1; \
 			    TheCPU.err = EXCP_GOBACK; \
 			    return P0; \
-			  } else if (CONFIG_CPUSIM || CurrIMeta>0) { \
+			  } else if (CurrIMeta>0) { \
 			    unsigned int P2 = DoCloseAndExec(P0, m); \
 			    if (TheCPU.err) return P2; \
 			    PC = P0 = P2; \
@@ -170,7 +166,7 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 			    } else if (CurrIMeta == 0) CurrIMeta = -1; \
 			    TheCPU.err = EXCP_GOBACK; \
 			    return P0; \
-			  } else if (CONFIG_CPUSIM || CurrIMeta>0) { \
+			  } else if (CurrIMeta>0) { \
 			    unsigned int P2 = DoCloseAndExec(P0, basemode); \
 			    if (TheCPU.err || P0 != P2) return P2; \
 			  } else if (CurrIMeta == 0) CurrIMeta = -1; \
@@ -388,7 +384,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 	unsigned int _P0, _P1;
 	int _rc;
 	_P1 = _JumpGen(P2, mode, opc, pskip, &_P0);
-	if (_P1 == (unsigned)-1 && !CONFIG_CPUSIM) {
+	if (_P1 == (unsigned)-1) {
 		int can_speculate = 1;
 		TNode *G;
 		NewIMeta(P0, &_rc);
@@ -426,8 +422,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 			TheCPU.err = TheCPU.err2;
 			LONG_CS = _LONG_CS;
 		}
-	} else if (_P1 == (unsigned)-1) {
-		_P1 = CloseAndExec_sim(_P0, TheCPU.basemode);
 	}
 	if (sigalrm_pending())
 		CEmuStat |= CeS_SIGPEND;
@@ -574,7 +568,7 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 			}
 #endif
 		}
-		if (!CONFIG_CPUSIM && e_querymark(PC, 1)) {
+		if (e_querymark(PC, 1)) {
 			unsigned int P2 = PC;
 			if (CurrIMeta>=0) {
 				unsigned int P0 = PC;
@@ -628,19 +622,17 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 {
 		if (CurrIMeta>=0) {
 			int rc=0;
-			if (!CONFIG_CPUSIM) {
+			NewIMeta(P0, &rc);
+			if (rc < 0) {
+				if (debug_level('e')>2)
+					e_printf("============ Tab full:cannot close sequence\n");
+				CODE_FLUSH2(mode);
 				NewIMeta(P0, &rc);
-				if (rc < 0) {
-					if (debug_level('e')>2)
-						e_printf("============ Tab full:cannot close sequence\n");
-					CODE_FLUSH2(mode);
-					NewIMeta(P0, &rc);
-				}
 			}
 		}
 
 #ifdef SINGLEBLOCK
-		if (!CONFIG_CPUSIM && CurrIMeta>=0) {
+		if (CurrIMeta>=0) {
 			P0 = PC;
 			CODE_FLUSH2(mode);
 		}
@@ -2354,15 +2346,13 @@ repag0:
 				/* with TF set, we simulate REP and maybe back
 				   up IP */
 				int rc = 0;
-				if (!CONFIG_CPUSIM) {
-					unsigned _P0 = P0;
-					NewIMeta(P0, &rc);
-					P0 = PC;
-					CODE_FLUSH();
-					P0 = _P0;
-					/* don't cache intermediate nodes */
-					InvalidateNodeRange(P0, PC - P0, NULL);
-				}
+				unsigned _P0 = P0;
+				NewIMeta(P0, &rc);
+				P0 = PC;
+				CODE_FLUSH();
+				P0 = _P0;
+				/* don't cache intermediate nodes */
+				InvalidateNodeRange(P0, PC - P0, NULL);
 				if (CONFIG_CPUSIM) FlagSync_All();
 				if (repmod & ADDR16) {
 					rCX--;
