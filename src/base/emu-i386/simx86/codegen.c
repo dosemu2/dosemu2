@@ -60,14 +60,12 @@
 #include "codegen-arch.h"
 #include "cpatch.h"
 
-void (*Gen)(int op, int mode, ...);
 void (*AddrGen)(int op, int mode, ...);
 unsigned char * (*CodeGen)(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
 		 unsigned char *ecpu, void *SeqStart,
 		 unsigned short seqflg);
 
-static void Gen_IG(int op, int mode, ...);
 static void AddrGen_IG(int op, int mode, ...);
 
 int UseLinker = 0;
@@ -110,7 +108,6 @@ void InitGen(void)
 	FetchW = jit_fetch_word;
 	FetchL = jit_fetch_dword;
 
-	Gen = Gen_IG;
 	AddrGen = AddrGen_IG;
 
 #ifdef X86_JIT
@@ -206,7 +203,7 @@ static void AddrGen_IG(int op, int mode, ...)
 }
 
 
-static void Gen_IG(int op, int mode, ...)
+void Gen(int op, int mode, ...)
 {
 	int rcod=0;
 	va_list	ap;

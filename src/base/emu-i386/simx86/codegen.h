@@ -273,7 +273,7 @@ static __inline__ void POP_ONLY(int m)
 void InitGen(void);
 int NewIMeta(int npc, int *rc);
 extern int CurrIMeta;
-extern void (*Gen)(int op, int mode, ...);
+extern void Gen(int op, int mode, ...);
 extern void (*AddrGen)(int op, int mode, ...);
 extern int  (*Fp87_op)(int exop, int reg);
 TNode *Close(unsigned int PC, int mode);
