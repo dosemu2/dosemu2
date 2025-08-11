@@ -454,6 +454,23 @@ void Gen_sim(int op, int mode, ...)
 	P0 = (unsigned)-1;
 	va_start(ap, mode);
 	switch(op) {
+	case A_DI_0:
+	case A_DI_1:
+	case A_DI_2:
+	case A_DI_2D:
+	case A_SR_SH4: {
+		int p0 = va_arg(ap,int);
+		int p1 = va_arg(ap,int);
+		int p2 = va_arg(ap,int);
+		int p3 = va_arg(ap,int);
+		int p4 = va_arg(ap,int);
+		AddrGen_sim(op, mode, p0, p1, p2, p3, p4);
+		if (V86MODE() && (0 == (mode & (ADDR16 | MLEA))) && TR1.d > 0xffff) {
+			TheCPU.err2 = EXCP0D_GPF;
+			P0 = FindPC(currentIG);
+		}
+		break;
+		}
 	case L_NOP:
 		GTRACE0("L_NOP");
 		break;
@@ -3000,17 +3017,8 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 	IGen *IG = SeqStart;
 	P0 = (unsigned)-1;
 	do {
-		int op = IG->op;
-		if (op && op <= A_SR_SH4) {
-			AddrGen_sim(op, IG->mode, IG->p0, IG->p1, IG->p2, IG->p3, IG->p4);
-			if (V86MODE() && (0 == (IG->mode & (ADDR16 | MLEA))) && TR1.d > 0xffff) {
-				TheCPU.err2 = EXCP0D_GPF;
-				P0 = FindPC((unsigned char *)IG);
-			}
-		} else {
-			currentIG = (unsigned char *)IG;
-			Gen_sim(op, IG->mode, IG->p0, IG->p1, IG->p2, IG->p3);
-		}
+		currentIG = (unsigned char *)IG;
+		Gen_sim(IG->op, IG->mode, IG->p0, IG->p1, IG->p2, IG->p3, IG->p4);
 		IG++;
 	} while (P0 == (unsigned int)-1);
 	currentIG = NULL;
