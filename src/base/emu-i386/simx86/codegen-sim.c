@@ -561,7 +561,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case L_MOVZS: {
 		signed char o;
-		int rcod = va_arg(ap,int)&1;	// 0=z 1=s
+		int rcod = va_arg(ap,int);	// 0=z 1=s
 		o = Offs_From_Arg();
 		GTRACE3("L_MOVZS",o,0xff,rcod);
 		if (mode & MBYTX) {
@@ -3008,10 +3008,8 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 				P0 = FindPC((unsigned char *)IG);
 			}
 		} else {
-			unsigned int p0 = IG->p0;
-			if (op == L_MOVZS) p0 >>= 3;
 			currentIG = (unsigned char *)IG;
-			Gen_sim(op, IG->mode, p0, IG->p1, IG->p2, IG->p3);
+			Gen_sim(op, IG->mode, IG->p0, IG->p1, IG->p2, IG->p3);
 		}
 		IG++;
 	} while (P0 == (unsigned int)-1);

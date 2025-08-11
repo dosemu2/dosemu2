@@ -330,7 +330,7 @@ void Gen(int op, int mode, ...)
 
 	case L_MOVZS: {
 		signed char o;
-		rcod = (va_arg(ap,int)&1)<<3;	// 0=z 8=s
+		rcod = va_arg(ap,int);	// 0=z 1=s
 		o = Offs_From_Arg();
 		IG->p0 = rcod;
 		IG->p1 = o;
