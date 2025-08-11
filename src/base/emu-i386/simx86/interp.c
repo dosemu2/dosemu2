@@ -891,8 +891,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*9c*/	case PUSHF: {
 			if (V86MODE() && (IOPL<3)) {
-			    if (CONFIG_CPUSIM) FlagSync_All();
-			    else CODE_FLUSH();
+			    CODE_FLUSH();
 			    /* virtual-8086 monitor */
 			    if (!(TheCPU.cr[4] & CR4_VME))
 				goto not_permitted;	/* GPF */
@@ -973,7 +972,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			} else {
 				EFLAGS &= ~EFLAGS_ZF;
 			}
-			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 			break;
 		       }
 /*d7*/	case XLAT:
@@ -1959,7 +1957,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			return PC;
 /*ce*/	case INTO:
 			CODE_FLUSH();
-			if (CONFIG_CPUSIM) FlagSync_O();
 			PC++;
 			if(EFLAGS & EFLAGS_OF)
 			{
@@ -1999,7 +1996,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    !test_bit(inum, &vm86s.int_revectored)) {
 				uint32_t segoffs;
 				segoffs = read_dword(inum << 2);
-				if (CONFIG_CPUSIM) FlagSync_All();
 				temp = (EFLAGS|IOPL_MASK) & (RETURN_MASK|EFLAGS_IF);
 				if (IOPL<3) {
 					temp &= ~EFLAGS_IF;
@@ -2073,7 +2069,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			/* in 16bit mode the manual doesn't seem to ask to
 			 * clear reserved bits... But bit1 is always set! */
-			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 			if (REALMODE())
 			    FLAGS = temp | 2;
 			else if (V86MODE()) {
@@ -2099,7 +2094,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*9d*/	case POPF: {
 			CODE_FLUSH();
 			temp=0; POP(_mode, &temp);
-			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 			if (V86MODE()) {
 			    int is_tf;
 stack_return_from_vm86:
@@ -2353,7 +2347,6 @@ repag0:
 				P0 = _P0;
 				/* don't cache intermediate nodes */
 				InvalidateNodeRange(P0, PC - P0, NULL);
-				if (CONFIG_CPUSIM) FlagSync_All();
 				if (repmod & ADDR16) {
 					rCX--;
 					if (rCX == 0) break;
@@ -3007,7 +3000,6 @@ repag0:
 				    if (tmp < 0) goto illegal_op;
 				    EFLAGS &= ~EFLAGS_ZF;
 				    if (tmp) EFLAGS |= EFLAGS_ZF;
-				    if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				    }
 				    break;
 				case 5: { /* VERW */
@@ -3024,7 +3016,6 @@ repag0:
 				    if (tmp < 0) goto illegal_op;
 				    EFLAGS &= ~EFLAGS_ZF;
 				    if (tmp) EFLAGS |= EFLAGS_ZF;
-				    if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				    }
 				    break;
 				case 6: /* JMP indirect to IA64 code */
@@ -3079,7 +3070,6 @@ repag0:
 				}
 				if (!e_larlsl(_mode, sv)) {
 				    EFLAGS &= ~EFLAGS_ZF;
-				    if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				}
 				else {
 				    if (opc2==0x02) {	/* LAR */
@@ -3092,7 +3082,6 @@ repag0:
 					tmp = GetSelectorByteLimit(sv);
 				    }
 				    EFLAGS |= EFLAGS_ZF;
-				    if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				    SetCPU_WL(_mode, REG1, tmp);
 				} }
 				break;
@@ -3526,7 +3515,6 @@ repag0:
 					rEAX = m & 0xffffffff;
 				}
 				sim_write_qword(TheCPU.mem_ref, m);
-				if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				break;
 				}
 

@@ -1029,9 +1029,6 @@ static int e_vm86_tail(struct vm86_struct *info)
   int demusav;
 #endif
   int errcode;
-  if (CONFIG_CPUSIM) {
-    RFL.valid = V_INVALID;
-  }
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
   do {
       /* enter VM86 mode */
@@ -1053,8 +1050,6 @@ static int e_vm86_tail(struct vm86_struct *info)
   }
   while (xval==0);
   /* ---- INNER LOOP -- exit for exception ---------------------- */
-  if (CONFIG_CPUSIM)
-    FlagSync_All();
 
   Cpu2Reg(info);
   if (debug_level('e')>1) e_printf("---------------------\n\t   EMU86: EXCP %#x\n", xval-1);
@@ -1140,8 +1135,6 @@ int e_dpmi(cpuctx_t *scp)
 static int e_dpmi_tail(cpuctx_t *scp)
 {
   int xval,retval;
-  if (CONFIG_CPUSIM)
-    RFL.valid = V_INVALID;
   if (TheCPU.err) {
     error("DPM86: segment error %d\n", TheCPU.err);
     leavedos_main(0);
@@ -1167,8 +1160,6 @@ static int e_dpmi_tail(cpuctx_t *scp)
   }
   while (xval==0);
   /* ---- INNER LOOP -- exit for exception ---------------------- */
-  if (CONFIG_CPUSIM)
-    FlagSync_All();
 
   if (debug_level('e')>1) e_printf("DPM86: EXCP %#x eflags=%08x\n",
 	xval-1, TheCPU.eflags);

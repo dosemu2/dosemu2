@@ -91,7 +91,7 @@ wkreg AR1;	// "edi"
 wkreg AR2;	// "esi"
 wkreg SR1;	// "ebp"
 wkreg TR1;	// "ecx"
-flgtmp RFL;
+static flgtmp RFL;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -238,7 +238,7 @@ static void SetOF(void)
 
 #define SET_OF(ov) { if(ov) SetOF(); else ClearOF(); }
 
-static inline int FlagSync_O_ (void)
+static inline int FlagSync_O (void)
 {
 	int nf;
 	// OF
@@ -264,15 +264,6 @@ static inline int FlagSync_O_ (void)
 	if (debug_level('e')>1) e_printf("Sync O flag = %04x\n", nf);
 	return nf;
 }
-
-void FlagSync_O (void)
-{
-	int nf;
-	if (RFL.mode & IGNOVF) return;
-	nf = FlagSync_O_();
-	CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & 0xf7ff) | nf;
-}
-
 
 static unsigned char parity[256] =
    { 4, 0, 0, 4, 0, 4, 4, 0, 0, 4, 4, 0, 4, 0, 0, 4,
@@ -312,7 +303,7 @@ static inline int FlagSync_AP_ (void)
 	return nf;
 }
 
-void FlagSync_AP (void)
+static void FlagSync_AP (void)
 {
 	int nf = FlagSync_AP_();
 	CPUBYTE(Ofs_FLAGS) = (CPUBYTE(Ofs_FLAGS) & 0xeb) | nf;
@@ -327,7 +318,7 @@ void FlagSync_All (void)
 	if (RFL.mode & IGNOVF)
 		mk = 0xff2b;
 	else {
-		nf |= FlagSync_O_();
+		nf |= FlagSync_O();
 		mk = 0xf72b;
 	}
 	if (debug_level('e')>1) e_printf("Sync ALL flags = %04x\n", nf);
