@@ -600,15 +600,13 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 #if 0
 		/* this obviously can't happen with current code, but
 		 * slows down execution under debug a lot */
-		if (debug_level('e') && !CONFIG_CPUSIM && e_querymark(PC, 1))
+		if (debug_level('e') && e_querymark(PC, 1))
 			error("simx86: code nodes clashed at %x\n", PC);
 #endif
-		if (CurrIMeta<0) {
-			/* if NewNode was already 1, the registers are outdated */
-			if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
-		} else if (CONFIG_CPUSIM && debug_level('e') == 9)
-			dbug_printf("\n%s",e_print_regs());
 		if (debug_level('e')>2) {
+			if (debug_level('e')==9 && CurrIMeta<0)
+				/* if CurrIMeta was already >= 0, the registers are outdated */
+				dbug_printf("\n%s",e_print_regs());
 			char *ds;
 			unsigned short ocs = TheCPU.cs;
 			ds = e_emu_disasm(EMU_BASE32(PC),(~mode&3),ocs);
@@ -2403,11 +2401,9 @@ repag0:
 				break;
 			case Ofs_DH:	/*6*/	/* DIV AL */
 				Gen(O_DIV, _mode|MBYTE, P0);			// ah:al/[edi]->AH:AL unsigned
-				if (CONFIG_CPUSIM && TheCPU.err) return P0;
 				break;
 			case Ofs_BH:	/*7*/	/* IDIV AL */
 				Gen(O_IDIV, _mode|MBYTE, P0);		// ah:al/[edi]->AH:AL signed
-				if (CONFIG_CPUSIM && TheCPU.err) return P0;
 				break;
 			} }
 			break;
@@ -2441,11 +2437,9 @@ repag0:
 				break;
 			case Ofs_SI:	/*6*/	/* DIV AX+DX */
 				Gen(O_DIV, _mode, P0);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX unsigned
-				if (CONFIG_CPUSIM && TheCPU.err) return P0;
 				break;
 			case Ofs_DI:	/*7*/	/* IDIV AX+DX */
 				Gen(O_IDIV, _mode, P0);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX signed
-				if (CONFIG_CPUSIM && TheCPU.err) return P0;
 				break;
 			} }
 			break;
