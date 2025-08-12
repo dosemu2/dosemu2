@@ -49,13 +49,16 @@
 int _ModRMSim(unsigned int PC, int mode, signed char overr_ds, signed char overr_ss)
 {
 	int l;
-	void (*AddrGen_save)(int op, int mode, ...);
 
-	AddrGen_save = AddrGen;
-	AddrGen = AddrGen_sim;
+	assert(CurrIMeta == -1); // this always follows a CODE_FLUSH
 	l = _ModRM(0, PC, mode, overr_ds, overr_ss);
-	AddrGen = AddrGen_save;
-	TheCPU.mem_ref = AR1.d;
+	if (CurrIMeta == 0) { // otherwise AddrGen isn't called (for reg-only)
+		IMeta *I = InstrMeta;
+		assert(I->ngen == 1); // needs to be exactly one intermediate op
+		Gen_sim(I->gen);
+		CurrIMeta = -1;
+		TheCPU.mem_ref = AR1.d;
+	}
 	return l;
 }
 

@@ -342,7 +342,7 @@ void InitGen_sim(void)
  * address generator unit
  * careful - do not use eax, and NEVER change any flag!
  */
-void AddrGen_sim(int op, int mode, ...)
+static void AddrGen_sim(int op, int mode, ...)
 {
 	va_list	ap;
 #if PROFILE >= 2
