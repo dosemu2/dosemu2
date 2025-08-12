@@ -483,6 +483,18 @@ void Gen_sim(const IGen *IG)
 		    TheCPU.err2 = -96;
 		    P0 = FindPC((const unsigned char *)IG);
 		}
+		int exs = TheCPU.fpus & 0x7f;
+		if (debug_level('e')>3) {
+		    e_printf("  %s\n", e_trace_fp());
+		}
+		if (exs) {
+			e_printf("FPU: error status %02x\n",exs);
+			if ((exs & ~TheCPU.fpuc) & 0x3f) {
+				e_printf("FPU exception\n");
+				TheCPU.err2 = EXCP10_COPR;
+				P0 = FindPC((const unsigned char *)IG);
+			}
+		}
 		}
 		break;
 
@@ -2972,21 +2984,6 @@ void Gen_sim(const IGen *IG)
 	    dbug_printf("(R) RFL m=[%s] v=%d cout=%08x RES=%08x\n",
 		showmode(RFL.mode),RFL.valid,RFL.cout,RFL.RES.d);
 //	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
-	}
-
-	if (op == O_FOP) {
-		int exs = TheCPU.fpus & 0x7f;
-		if (debug_level('e')>3) {
-		    e_printf("  %s\n", e_trace_fp());
-		}
-		if (exs) {
-			e_printf("FPU: error status %02x\n",exs);
-			if ((exs & ~TheCPU.fpuc) & 0x3f) {
-				e_printf("FPU exception\n");
-				TheCPU.err2 = EXCP10_COPR;
-				P0 = FindPC((const unsigned char *)IG);
-			}
-		}
 	}
 
 #if PROFILE >= 2
