@@ -66,7 +66,6 @@ extern wkreg AR1;	// "edi"
 extern wkreg AR2;	// "esi"
 extern wkreg SR1;	// "ebp"
 extern wkreg TR1;	// "ecx"
-extern flgtmp RFL;
 
 #define GTRACE0(s)		if (debug_level('e')>2) e_printf("(G) %-12s [%s]\n",(s),showmode(mode))
 #define GTRACE1(s,r)		if (debug_level('e')>2) e_printf("(G) %-12s %s [%s]\n",(s),\
@@ -79,10 +78,8 @@ extern flgtmp RFL;
 					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),showmode(mode))
 #define GTRACE5(s,r1,r2,a,b,c)	if (debug_level('e')>2) e_printf("(G) %-12s %s %s %08x %08x %08x [%s]\n",\
 					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),(int)(c),showmode(mode))
-extern void FlagSync_AP (void);
-extern void FlagSync_O (void);
 extern void FlagSync_All (void);
-extern void Gen_sim(int op, int mode, ...);
+extern void Gen_sim(const IGen *IG);
 extern void AddrGen_sim(int op, int mode, ...);
 extern void InitGen_sim(void);
 

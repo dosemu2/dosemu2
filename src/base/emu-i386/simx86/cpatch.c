@@ -196,12 +196,14 @@ void rep_movs_stos(struct rep_stack *stack)
 		if ((op & 0xf6) == 0xa6) { /* cmps */
 			repmod |= MOVSSRC;
 			AR2.d = EMUADDR_REL(stack->esi);
-			Gen_sim(O_MOVS_CmpD, repmod);
+			IGen IG = (IGen){.op = O_MOVS_CmpD, .mode = repmod};
+			Gen_sim(&IG);
 			stack->esi = EMU_BASE32(AR2.d);
 		}
 		else { /* scas */
 			DR1.d = stack->eax;
-			Gen_sim(O_MOVS_ScaD, repmod);
+			IGen IG = (IGen){.op = O_MOVS_ScaD, .mode = repmod};
+			Gen_sim(&IG);
 		}
 		FlagSync_All();
 		stack->edi = EMU_BASE32(AR1.d);

@@ -360,7 +360,7 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		if (mode & MBYTX) {
 			if (!(mode & DATA16)) {
 				// mov{sz}bw %%al,%%eax
-				G3M(0x0f,(0xb6|IG->p0),0xc0,Cp);
+				G3M(0x0f,(0xb6|(IG->p0<<3)),0xc0,Cp);
 			}
 			else if (IG->p0) {
 				// movsbw %%al,%%ax = cbw
@@ -374,7 +374,7 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		else {
 			if (mode & DATA16) {
 				// mov{sz}ww %%ax,%%ax
-				G4M(0x66,0x0f,(0xb7|IG->p0),0xc0,Cp);
+				G4M(0x66,0x0f,(0xb7|(IG->p0<<3)),0xc0,Cp);
 			}
 			else if (IG->p0) {
 				// movswl %%ax,%%eax = cwde
