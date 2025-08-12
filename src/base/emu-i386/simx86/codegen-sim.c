@@ -442,9 +442,10 @@ void AddrGen_sim(int op, int mode, ...)
 #endif
 }
 
-void Gen_sim(int op, int mode, ...)
+void Gen_sim(const IGen *IG)
 {
-	va_list ap;
+	int op = IG->op;
+	int mode = IG->mode;
 	uint32_t S1, S2;
 #if PROFILE >= 2
 	hitimer_t t0 = 0;
@@ -452,22 +453,16 @@ void Gen_sim(int op, int mode, ...)
 #endif
 
 	P0 = (unsigned)-1;
-	va_start(ap, mode);
 	switch(op) {
 	case A_DI_0:
 	case A_DI_1:
 	case A_DI_2:
 	case A_DI_2D:
 	case A_SR_SH4: {
-		int p0 = va_arg(ap,int);
-		int p1 = va_arg(ap,int);
-		int p2 = va_arg(ap,int);
-		int p3 = va_arg(ap,int);
-		int p4 = va_arg(ap,int);
-		AddrGen_sim(op, mode, p0, p1, p2, p3, p4);
+		AddrGen_sim(op, mode, IG->p0, IG->p1, IG->p2, IG->p3, IG->p4);
 		if (V86MODE() && (0 == (mode & (ADDR16 | MLEA))) && TR1.d > 0xffff) {
 			TheCPU.err2 = EXCP0D_GPF;
-			P0 = FindPC(currentIG);
+			P0 = FindPC((const unsigned char *)IG);
 		}
 		break;
 		}
@@ -481,18 +476,18 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case O_FOP: {
-		unsigned char exop = (unsigned char)va_arg(ap,int);
-		int reg = va_arg(ap,int);
+		unsigned char exop = (unsigned char)IG->p0;
+		int reg = IG->p1;
 		GTRACE2("O_FPOP",exop,reg);
 		if (Fp87_op(exop, reg)) {
 		    TheCPU.err2 = -96;
-		    P0 = FindPC(currentIG);
+		    P0 = FindPC((const unsigned char *)IG);
 		}
 		}
 		break;
 
 	case L_REG: {
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		if (mode&(MBYTE|MBYTX))	{
 			GTRACE1("L_REG_BYTE",o);
 			DR1.b.bl = CPUBYTE(o);
@@ -504,7 +499,7 @@ void Gen_sim(int op, int mode, ...)
 		} }
 		break;
 	case S_REG: {
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		if (mode&MBYTE)	{
 			GTRACE1("S_REG_BYTE",o);
 			CPUBYTE(o) = DR1.b.bl;
@@ -516,8 +511,8 @@ void Gen_sim(int op, int mode, ...)
 		} }
 		break;
 	case L_REG2REG: {
-		signed char o1 = Offs_From_Arg();
-		signed char o2 = Offs_From_Arg();
+		signed char o1 = (signed char)IG->p0;
+		signed char o2 = (signed char)IG->p1;
 		GTRACE2("REGtoREG",o1,o2);
 		if ((mode) & MBYTE) {
 			CPUBYTE(o2) = CPUBYTE(o1);
@@ -528,7 +523,7 @@ void Gen_sim(int op, int mode, ...)
 		} }
 		break;
 	case S_DI_R: {
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		GTRACE1("S_DI_R",o);
 		if (mode & DATA16)
 			CPUWORD(o) = AR1.w.l;
@@ -537,7 +532,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case S_DI_IMM: {
-		int v = va_arg(ap,int);
+		int v = IG->p0;
 		dosaddr_t addr = AR1.d;
 		if (mode&MBYTE) {
 			GTRACE3("S_DI_IMM_B",0xff,0xff,v);
@@ -550,8 +545,8 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case L_IMM: {
-		signed char o = Offs_From_Arg();
-		int v = va_arg(ap, int);
+		signed char o = (signed char)IG->p0;
+		int v = IG->p1;
 		GTRACE3("L_IMM",o,0xff,v);
 		if (mode & MBYTE) {
 			CPUBYTE(o) = (signed char)v;
@@ -564,7 +559,7 @@ void Gen_sim(int op, int mode, ...)
 		} }
 		break;
 	case L_IMM_R1: {
-		int v = va_arg(ap, int);
+		int v = IG->p0;
 		GTRACE3("L_IMM_R1",0xff,0xff,v);
 		if (mode & MBYTE) {
 			DR1.b.bl = (signed char)v;
@@ -578,8 +573,8 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case L_MOVZS: {
 		signed char o;
-		int rcod = va_arg(ap,int);	// 0=z 1=s
-		o = Offs_From_Arg();
+		int rcod = IG->p0;	// 0=z 1=s
+		o = (signed char)IG->p1;
 		GTRACE3("L_MOVZS",o,0xff,rcod);
 		if (mode & MBYTX) {
 		    if (rcod)
@@ -604,7 +599,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case L_LXS1: {
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		GTRACE1("L_LXS1",o);
 		if (mode&DATA16) {
 		    CPUWORD(o) = DR1.w.l = sim_read_word(AR1.d);
@@ -616,7 +611,7 @@ void Gen_sim(int op, int mode, ...)
 		} }
 		break;
 	case L_LXS2: {	/* real mode segment base from segment value */
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		GTRACE1("L_LXS2",o);
 		DR1.d = sim_read_word(AR1.d);
 		SetSegReal(DR1.w.l, o);
@@ -660,7 +655,7 @@ void Gen_sim(int op, int mode, ...)
 
 	case O_ADD_R: {		// OSZAPC
 		register wkreg v;
-		v.d = va_arg(ap, int);
+		v.d = IG->p0;
 		RFL.mode = mode;
 		RFL.valid = V_ADD;
 		if (mode & IMMED) {GTRACE3("O_ADD_R",0xff,0xff,v.d);}
@@ -690,7 +685,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_OR_R: {		// O=0 SZP C=0
-		int v = va_arg(ap, int);
+		int v = IG->p0;
 		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_OR_R",0xff,0xff,v);}
@@ -712,7 +707,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_AND_R: {		// O=0 SZP C=0
-		int v = va_arg(ap, int);
+		int v = IG->p0;
 		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_AND_R",0xff,0xff,v);}
@@ -734,7 +729,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_XOR_R: {		// O=0 SZP C=0
-		int v = va_arg(ap, int);
+		int v = IG->p0;
 		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_XOR_R",0xff,0xff,v);}
@@ -757,7 +752,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_SUB_R: {		// OSZAPC
 		register wkreg v;
-		v.d = va_arg(ap, int);
+		v.d = IG->p0;
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & IMMED) {GTRACE3("O_SUB_R",0xff,0xff,v.d);}
@@ -788,7 +783,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_CMP_R: {		// OSZAPC
 		register wkreg v;
-		v.d = va_arg(ap, int);
+		v.d = IG->p0;
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & IMMED) {GTRACE3("O_CMP_R",0xff,0xff,v.d);}
@@ -819,7 +814,7 @@ void Gen_sim(int op, int mode, ...)
 	case O_ADC_R: {		// OSZAPC
 		register wkreg v;
 		int cy;
-		v.d = va_arg(ap, int);
+		v.d = IG->p0;
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
 		RFL.mode = mode;
 		RFL.valid = (cy? V_ADC:V_ADD);
@@ -852,7 +847,7 @@ void Gen_sim(int op, int mode, ...)
 	case O_SBB_R: {		// OSZAPC
 		register wkreg v;
 		int cy;
-		v.d = va_arg(ap, int);
+		v.d = IG->p0;
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
 		RFL.mode = mode;
 		RFL.valid = V_SBB;
@@ -884,7 +879,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_CLEAR: {		// == XOR r,r
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		GTRACE1("O_CLEAR",o);
 		if (mode & MBYTE) {
 		    CPUBYTE(o) = 0;
@@ -900,7 +895,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_TEST: {		// == OR r,r
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		GTRACE1("O_TEST",o);
 		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
@@ -917,7 +912,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_SBSELF: {
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		GTRACE1("O_SBBSELF",o);
 		// if CY=0 -> reg=0,  flag=xx46, OF=0
 		// if CY=1 -> reg=-1, flag=xx97, OF=0
@@ -942,7 +937,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_INC_R: {		// OSZAP
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		GTRACE1("O_INC_R",o);
 		RFL.mode = mode;
 		RFL.valid = V_ADD;
@@ -964,7 +959,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_DEC_R: {		// OSZAP
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		GTRACE1("O_DEC_R",o);
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
@@ -987,9 +982,9 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_ADD_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		v.d = 0;
-		if (mode & IMMED) v.d = va_arg(ap,int);
+		if (mode & IMMED) v.d = IG->p1;
 		RFL.mode = mode;
 		RFL.valid = V_ADD;
 		if (mode & IMMED) {GTRACE3("O_ADD_FR",0xff,0xff,v.d);}
@@ -1020,9 +1015,9 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_OR_FR: {		// O=0 SZP C=0
 		register wkreg v;
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		v.d = 0;
-		if (mode & IMMED) v.d = va_arg(ap,int);
+		if (mode & IMMED) v.d = IG->p1;
 		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_OR_FR",0xff,0xff,v.d);}
@@ -1042,10 +1037,10 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_ADC_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		int cy;
 		v.d = 0;
-		if (mode & IMMED) v.d = va_arg(ap,int);
+		if (mode & IMMED) v.d = IG->p1;
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
 		RFL.mode = mode;
 		RFL.valid = (cy? V_ADC:V_ADD);
@@ -1077,10 +1072,10 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_SBB_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		int cy;
 		v.d = 0;
-		if (mode & IMMED) v.d = va_arg(ap,int);
+		if (mode & IMMED) v.d = IG->p1;
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
 		RFL.mode = mode;
 		RFL.valid = V_SBB;
@@ -1113,9 +1108,9 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_AND_FR: {		// O=0 SZP C=0
 		register wkreg v;
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		v.d = 0;
-		if (mode & IMMED) v.d = va_arg(ap,int);
+		if (mode & IMMED) v.d = IG->p1;
 		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_AND_FR",0xff,0xff,v.d);}
@@ -1135,9 +1130,9 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_SUB_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		v.d = 0;
-		if (mode & IMMED) v.d = va_arg(ap,int);
+		if (mode & IMMED) v.d = IG->p1;
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & IMMED) {GTRACE3("O_SUB_FR",0xff,0xff,v.d);}
@@ -1168,9 +1163,9 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_XOR_FR: {		// O=0 SZP C=0
 		register wkreg v;
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		v.d = 0;
-		if (mode & IMMED) v.d = va_arg(ap,int);
+		if (mode & IMMED) v.d = IG->p1;
 		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_XOR_FR",0xff,0xff,v.d);}
@@ -1190,9 +1185,9 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case O_CMP_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		v.d = 0;
-		if (mode & IMMED) v.d = va_arg(ap,int);
+		if (mode & IMMED) v.d = IG->p1;
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & IMMED) {GTRACE3("O_CMP_FR",0xff,0xff,v.d);}
@@ -1290,7 +1285,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_CMPXCHG: {		// OSZAPC
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		GTRACE1("O_CMPXCHG",o);
@@ -1327,7 +1322,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_XCHG: {
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		GTRACE1("O_XCHG",o);
 		if (mode & MBYTE) {
 			DR2.b.bl = DR1.b.bl;
@@ -1346,8 +1341,8 @@ void Gen_sim(int op, int mode, ...)
 		} }
 		break;
 	case O_XCHG_R: {
-		signed char o1 = Offs_From_Arg();
-		signed char o2 = Offs_From_Arg();
+		signed char o1 = (signed char)IG->p0;
+		signed char o2 = (signed char)IG->p1;
 		GTRACE2("O_XCHG_R",o1,o2);
 		if (mode & MBYTE) {
 			DR1.b.bl = CPUBYTE(o1);
@@ -1406,8 +1401,8 @@ void Gen_sim(int op, int mode, ...)
 		RFL.valid = V_GEN;
 		if (mode & MBYTE) {
 		    if ((mode&(IMMED|DATA16))==(IMMED|DATA16)) {
-			int b = va_arg(ap, int);
-			signed char o = Offs_From_Arg();
+			int b = IG->p0;
+			signed char o = (signed char)IG->p1;
 			GTRACE3("O_IMUL",o,0xff,b);
 			DR1.ds = (int)DR1.ws.l * b;
 			CPUWORD(o) = DR1.w.l;
@@ -1415,8 +1410,8 @@ void Gen_sim(int op, int mode, ...)
 			of = ((DR1.ds!=0) && (DR1.ds!=-1));
 		    }
 		    else if ((mode&(IMMED|DATA16))==IMMED) {
-			int b = va_arg(ap, int);
-			signed char o = Offs_From_Arg();
+			int b = IG->p0;
+			signed char o = (signed char)IG->p1;
 			int64_t v;
 			GTRACE3("O_IMUL",o,0xff,b);
 			v = (int64_t)DR1.ds * b;
@@ -1435,14 +1430,14 @@ void Gen_sim(int op, int mode, ...)
 		}
 		else if (mode&DATA16) {
 		    if (mode&IMMED) {
-			int b = va_arg(ap, int);
-			signed char o = Offs_From_Arg();
+			int b = IG->p0;
+			signed char o = (signed char)IG->p1;
 			GTRACE3("O_IMUL",o,0xff,b);
 		    	DR1.ds = (int)DR1.ws.l * b;
 		    	CPUWORD(o) = DR1.w.l;
 		    }
 		    else if (mode&MEMADR) {
-			signed char o = Offs_From_Arg();
+			signed char o = (signed char)IG->p0;
 			GTRACE1("O_IMUL",o);
 			DR1.ds = (int)(signed short)CPUWORD(o) * (int)DR1.ws.l;
 			CPUWORD(o) = DR1.w.l;
@@ -1460,14 +1455,14 @@ void Gen_sim(int op, int mode, ...)
 		else {
 		    int64_t v;
 		    if (mode&IMMED) {
-			int b = va_arg(ap, int);
-			signed char o = Offs_From_Arg();
+			int b = IG->p0;
+			signed char o = (signed char)IG->p1;
 			GTRACE3("O_IMUL",o,0xff,b);
 			v = (int64_t)DR1.ds * b;
 			CPULONG(o) = v & 0xffffffff;
 		    }
 		    else if (mode&MEMADR) {
-			signed char o = Offs_From_Arg();
+			signed char o = (signed char)IG->p0;
 			int vd = CPULONG(o);
 			GTRACE1("O_IMUL",o);
 			v = (int64_t)DR1.ds * (int64_t)vd;
@@ -1549,7 +1544,7 @@ void Gen_sim(int op, int mode, ...)
 			}
 		}
 		if (TheCPU.err2 == EXCP00_DIVZ)
-			P0 = va_arg(ap, dosaddr_t);
+			P0 = (dosaddr_t)IG->p0;
 		break;
 	case O_IDIV:		// no flags
 		GTRACE0("O_IDIV");
@@ -1607,7 +1602,7 @@ void Gen_sim(int op, int mode, ...)
 			}
 		}
 		if (TheCPU.err2 == EXCP00_DIVZ)
-			P0 = va_arg(ap, dosaddr_t);
+			P0 = (dosaddr_t)IG->p0;
 		break;
 	case O_CBWD:
 		GTRACE0("O_CBWD");
@@ -1632,7 +1627,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_XLAT: {
-		signed char ofs = Offs_From_Arg();
+		signed char ofs = (signed char)IG->p0;
 		GTRACE1("XLAT",ofs);
 		AR1.d = CPULONG(ofs);
 		TR1.d = CPULONG(Ofs_EBX) + CPUBYTE(Ofs_AL);
@@ -1644,7 +1639,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case O_ROL: {		// O(if sh==1),C(if sh>0)
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		unsigned int sh, rbef, raft, cy, ov;
 		GTRACE1("O_ROL",o);
 		if (mode & IMMED) sh = o;
@@ -1688,7 +1683,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_RCL: {		// O(if sh==1),C(if sh>0)
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		unsigned int sh, rbef, raft, cy, ov;
 		GTRACE1("O_RCL",o);
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
@@ -1734,7 +1729,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_SHL: {		// O(if sh==1),SZPC(if sh>0)
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		unsigned int sh, rbef, raft=0, cy=0;
 		GTRACE3("O_SHL",0xff,0xff,o);
 		if (mode & IMMED) sh = o;
@@ -1782,7 +1777,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_ROR: {		// O(if sh==1),C(if sh>0)
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		unsigned int sh, rbef, raft, cy, ov;
 		GTRACE1("O_ROR",o);
 		if (mode & IMMED) sh = o;
@@ -1826,7 +1821,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_RCR: {		// O(if sh==1),C(if sh>0)
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		unsigned int sh, rbef, raft, cy, ov;
 		GTRACE3("O_RCR",0xff,0xff,o);
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
@@ -1873,7 +1868,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_SHR: {		// O(if sh==1),SZPC(if sh>0)
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		unsigned int sh, rbef, raft, cy=0;
 		GTRACE3("O_SHR",0xff,0xff,o);
 		if (mode & IMMED) sh = o;
@@ -1917,7 +1912,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_SAR: {		// O(if sh==1),SZPC(if sh>0)
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		unsigned int sh, cy=0;
 		signed int rbef, raft=0;
 		GTRACE3("O_SHR",0xff,0xff,o);
@@ -1958,9 +1953,9 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case O_OPAX: {	/* used by DAA..AAD */
-		int n =	va_arg(ap,int);
+		int n =	IG->p0;
 		// get n bytes from parameter stack
-		unsigned char subop = va_arg(ap,int);
+		unsigned char subop = IG->p1;
 		GTRACE3("O_OPAX",0xff,0xff,n);
 		RFL.mode = mode;
 		/* sync AF *before* changing RFL.valid */
@@ -2036,7 +2031,7 @@ void Gen_sim(int op, int mode, ...)
 				break;
 			case AAM: {
 				signed char tmp = DR1.b.bl;
-				int base = Offs_From_Arg();
+				int base = (signed char)IG->p2;
 				DR1.b.bh = tmp / base;
 				RFL.RES.d = DR1.bs.bl = tmp % base;
 				/* clear AF (undefined: found experimentally) */
@@ -2044,7 +2039,7 @@ void Gen_sim(int op, int mode, ...)
 				}
 				break;
 			case AAD: {
-				int base = Offs_From_Arg();
+				int base = (signed char)IG->p2;
 				DR1.w.l = ((DR1.b.bh * base) + DR1.b.bl) & 0xff;
 				RFL.RES.d = DR1.bs.bl; /* for flags */
 				/* clear AF (undefined: found experimentally) */
@@ -2086,7 +2081,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case O_PUSH2: {
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_PUSH2",o);
 		if (mode & DATA16) {
@@ -2140,7 +2135,7 @@ void Gen_sim(int op, int mode, ...)
 		} break;
 
 	case O_PUSHI: {
-		int v = va_arg(ap, int);
+		int v = IG->p0;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE3("O_PUSHI",0xff,0xff,v);
 		if (mode & DATA16) {
@@ -2164,7 +2159,7 @@ void Gen_sim(int op, int mode, ...)
 		} break;
 
 	case O_POP: {
-		int imm16 = (mode&MRETISP) ? va_arg(ap,int) : 0;
+		int imm16 = (mode&MRETISP) ? IG->p0 : 0;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_POP",imm16);
 		if (mode & DATA16) {
@@ -2202,7 +2197,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case O_POP2: {
-		signed char o = Offs_From_Arg();
+		signed char o = (signed char)IG->p0;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_POP2",o);
 		if (mode & DATA16) {
@@ -2263,10 +2258,10 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case O_INT: {
-		unsigned char intno = va_arg(ap, int);
+		unsigned char intno = IG->p0;
 		// Check bitmap, GPF if revectored
 		if (test_bit(intno, &TheCPU.int_revectored)) {
-			P0 = va_arg(ap, dosaddr_t);
+			P0 = (dosaddr_t)IG->p1;
 			TheCPU.err2 = EXCP0D_GPF;
 		}
 		else {
@@ -2275,7 +2270,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case O_MOVS_SetA: {
-		signed char ofs = Offs_From_Arg();
+		signed char ofs = (signed char)IG->p0;
 		GTRACE1("O_MOVS_SetA",ofs);
 		if (mode&ADDR16) {
 		    if (mode&MOVSSRC) {
@@ -2331,7 +2326,7 @@ void Gen_sim(int op, int mode, ...)
 			/* misaligned overflow generates trap. */
 			if(minofs & (OPSIZE(mode)-1)) {
 			    TheCPU.err2 = EXCP0D_GPF;
-			    P0 = FindPC(currentIG);
+			    P0 = FindPC((const unsigned char *)IG);
 			    break;
 			}
 
@@ -2340,7 +2335,7 @@ void Gen_sim(int op, int mode, ...)
 			if (df < 0)
 			    possible++;
 			TR1.d = possible;
-			Gen_sim(O_MOVS_MovD,mode);
+			Gen_sim(IG);
 			/* emulate overflow */
 			if (df == -1) {
 			    if(SR1.d == minofs) {
@@ -2378,7 +2373,7 @@ void Gen_sim(int op, int mode, ...)
 
 			/* do the rest */
 			TR1.d = i - possible;
-			Gen_sim(O_MOVS_MovD,mode);
+			Gen_sim(IG);
 			break;
 		    }
 		}
@@ -2462,18 +2457,18 @@ void Gen_sim(int op, int mode, ...)
 			{
 				/* misaligned overflow generates trap. */
 				TheCPU.err2 = EXCP0D_GPF;
-				P0 = FindPC(currentIG);
+				P0 = FindPC((const unsigned char *)IG);
 				break;
 			}
 			possible = minofs / (OPSIZE(mode));
 			if (df < 0)
 			    possible++;
 			TR1.d = possible;
-			Gen_sim(O_MOVS_StoD,mode);
+			Gen_sim(IG);
 			SR1.d = (df == -1 ? 0xffff : 0);
 			AR1.d -= 0x10000*df;
 			TR1.d = i - possible;
-			Gen_sim(O_MOVS_StoD,mode);
+			Gen_sim(IG);
 			break;
 		    }
 		}
@@ -2587,7 +2582,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case O_MOVS_SavA: {
-		signed char ofs = Offs_From_Arg();
+		signed char ofs = (signed char)IG->p0;
 		GTRACE1("O_MOVS_SavA",ofs);
 		if (!(mode&(MREP|MREPNE))) {
 		    // %%edx set to DF's increment
@@ -2634,7 +2629,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_SLAHF: {
-		int rcod = va_arg(ap,int)&1;	// 0=LAHF 1=SAHF
+		int rcod = IG->p0&1;	// 0=LAHF 1=SAHF
 		if (rcod==0) {		/* LAHF */
 			GTRACE0("O_LAHF");
 			FlagSync_All();
@@ -2647,7 +2642,7 @@ void Gen_sim(int op, int mode, ...)
 		} }
 		break;
 	case O_SETFL: {
-		unsigned char o1 = (unsigned char)va_arg(ap,int);
+		unsigned char o1 = (unsigned char)IG->p0;
 		switch(o1) {	// these are direct on x86
 		case CMC:
 			GTRACE0("O_CMC");
@@ -2681,7 +2676,7 @@ void Gen_sim(int op, int mode, ...)
 		} }
 		break;
 	case O_BSWAP: {
-		unsigned char o1 = (unsigned char)va_arg(ap,int);
+		unsigned char o1 = (unsigned char)IG->p0;
 		register long v;
 		GTRACE1("O_BSWAP",o1);
 		v = CPULONG(o1);
@@ -2691,7 +2686,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_SETCC: {
-		unsigned char o1 = (unsigned char)va_arg(ap,int);
+		unsigned char o1 = (unsigned char)IG->p0;
 		GTRACE3("O_SETCC",0xff,0xff,o1);
 		FlagSync_All();
 		switch(o1) {
@@ -2719,8 +2714,8 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_BITOP: {
-		unsigned char o1 = (unsigned char)va_arg(ap,int);
-		signed char o2 = Offs_From_Arg();
+		unsigned char o1 = (unsigned char)IG->p0;
+		signed char o2 = (signed char)IG->p1;
 		int flg;
 		GTRACE3("O_BITOP",o2,0xff,o1);
 		if (o1 == 0x1c || o1 == 0x1d) { /* bsf/bsr */
@@ -2769,12 +2764,12 @@ void Gen_sim(int op, int mode, ...)
 		}
 		} break;
 	case O_SHFD: {
-		unsigned char l_r = (unsigned char)va_arg(ap,int)&8;
-		signed char o = Offs_From_Arg();
+		unsigned char l_r = (unsigned char)IG->p0&8;
+		signed char o = (signed char)IG->p1;
 		unsigned char shc;
 		int cy;
 		if (mode & IMMED) {
-			shc = (unsigned char)va_arg(ap,int)&0x1f;
+			shc = (unsigned char)IG->p2&0x1f;
 			GTRACE4("O_SHFD",o,0xff,l_r,shc);
 		}
 		else {
@@ -2878,7 +2873,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case JMP_TAILCODE: {	// retaddr
-		P0 = va_arg(ap,unsigned int);
+		P0 = (unsigned int)IG->p0;
 		if (debug_level('e')>2) {
 			dbug_printf("** Tail code: return from %08x\n",P0);
 		} }
@@ -2891,9 +2886,9 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case JMP_LINK: {	// opc, dspt, retaddr, link
-		int opc = va_arg(ap,int);
-		P0 = va_arg(ap,unsigned int);
-		unsigned int d_nt = va_arg(ap,unsigned int);
+		int opc = IG->p0;
+		P0 = (unsigned int)IG->p1;
+		unsigned int d_nt = (unsigned int)IG->p2;
 		if (opc == CALLd || opc == CALLl)
 			PUSH(mode, d_nt);
 		if (debug_level('e')>2) {
@@ -2905,10 +2900,10 @@ void Gen_sim(int op, int mode, ...)
 
 	case JF_LINK:
 	case JB_LINK: {		// opc, PC, dspt, dspnt, link
-		int opc = va_arg(ap,int);
-		unsigned int PC = va_arg(ap,unsigned int);
-		unsigned int j_t = va_arg(ap,unsigned int);
-		unsigned int j_nt = va_arg(ap,unsigned int);
+		int opc = IG->p0;
+		unsigned int PC = (unsigned int)IG->p1;
+		unsigned int j_t = (unsigned int)IG->p2;
+		unsigned int j_nt = (unsigned int)IG->p3;
 		(void)PC;
 		switch(opc) {
 		case JO:      P0 = is_of_set() ? j_t : j_nt; break;
@@ -2944,9 +2939,9 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case JLOOP_LINK: {	// opc, dspt, dspnt, link
-		int opc = va_arg(ap,int);
-		unsigned int j_t = va_arg(ap,unsigned int);
-		unsigned int j_nt = va_arg(ap,unsigned int);
+		int opc = IG->p0;
+		unsigned int j_t = (unsigned int)IG->p1;
+		unsigned int j_nt = (unsigned int)IG->p2;
 		int cxv = (mode&ADDR16? --rCX : --rECX);
 		switch(opc) {
 		case LOOP:
@@ -2965,7 +2960,6 @@ void Gen_sim(int op, int mode, ...)
 
 	}
 
-	va_end(ap);
 #ifdef DEBUG_MORE
 	if (debug_level('e')>3) {
 #else
@@ -2990,7 +2984,7 @@ void Gen_sim(int op, int mode, ...)
 			if ((exs & ~TheCPU.fpuc) & 0x3f) {
 				e_printf("FPU exception\n");
 				TheCPU.err2 = EXCP10_COPR;
-				P0 = FindPC(currentIG);
+				P0 = FindPC((const unsigned char *)IG);
 			}
 		}
 	}
@@ -3018,7 +3012,7 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 	P0 = (unsigned)-1;
 	do {
 		currentIG = (unsigned char *)IG;
-		Gen_sim(IG->op, IG->mode, IG->p0, IG->p1, IG->p2, IG->p3, IG->p4);
+		Gen_sim(IG);
 		IG++;
 	} while (P0 == (unsigned int)-1);
 	currentIG = NULL;

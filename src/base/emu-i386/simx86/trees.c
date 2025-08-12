@@ -633,7 +633,7 @@ quit:;
  * corresponding original PC. This is slow but it's only used for
  * DPMI exceptions.
  */
-unsigned int FindPC(unsigned char *addr)
+unsigned int FindPC(const unsigned char *addr)
 {
   TNode *G = &CollectTree.root;
   unsigned char *ahE;

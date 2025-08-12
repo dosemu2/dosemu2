@@ -154,7 +154,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf);
 
 void InitTrees(void);
 
-unsigned int FindPC(unsigned char *addr);
+unsigned int FindPC(const unsigned char *addr);
 int InvalidateNodeRange(int addr, int len, unsigned char *eip);
 
 #ifdef DEBUG_TREE
