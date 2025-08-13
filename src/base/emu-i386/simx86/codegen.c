@@ -60,13 +60,10 @@
 #include "codegen-arch.h"
 #include "cpatch.h"
 
-void (*AddrGen)(int op, int mode, ...);
 unsigned char * (*CodeGen)(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
 		 unsigned char *ecpu, void *SeqStart,
 		 unsigned short seqflg);
-
-static void AddrGen_IG(int op, int mode, ...);
 
 int UseLinker = 0;
 hitimer_u TimeStartExec;
@@ -108,8 +105,6 @@ void InitGen(void)
 	FetchW = jit_fetch_word;
 	FetchL = jit_fetch_dword;
 
-	AddrGen = AddrGen_IG;
-
 #ifdef X86_JIT
 	if (!CONFIG_CPUSIM)
 		InitGen_x86();
@@ -125,7 +120,7 @@ void InitGen(void)
  * address generator unit
  * careful - do not use eax, and NEVER change any flag!
  */
-static void AddrGen_IG(int op, int mode, ...)
+void AddrGen(int op, int mode, ...)
 {
 	va_list	ap;
 	IMeta *I;

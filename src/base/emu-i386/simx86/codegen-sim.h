@@ -80,7 +80,6 @@ extern wkreg TR1;	// "ecx"
 					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),(int)(c),showmode(mode))
 extern void FlagSync_All (void);
 extern void Gen_sim(const IGen *IG);
-extern void AddrGen_sim(int op, int mode, ...);
 extern void InitGen_sim(void);
 
 /////////////////////////////////////////////////////////////////////////////
