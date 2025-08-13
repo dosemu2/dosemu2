@@ -3055,10 +3055,12 @@ static int int2f(int stk_offs, int revect)
 #endif
 
     case 0xae00:{
-	    char cmdname[TITLE_APPNAME_MAXLEN];
-	    char appname[TITLE_APPNAME_MAXLEN + 5];
 	    struct lowstring *str = SEG_ADR((struct lowstring *), ds, si);
 	    struct ae00_tab *cmd = SEG_ADR((struct ae00_tab *), ds, bx);
+	    char cmdname[TITLE_APPNAME_MAXLEN];
+#if 0
+	    char appname[TITLE_APPNAME_MAXLEN + 5];
+#endif
 	    u_short psp_seg;
 	    struct MCB *mcb;
 	    int len, i;
@@ -3068,21 +3070,20 @@ static int int2f(int stk_offs, int revect)
 
 	    if (_DX != 0xffff)
 		break;
+	    if (do_run_cmd(str, cmd) != 0)
+		ret = I_HANDLED;
+
+	    if (!Video->change_config)
+		break;
 
 	    if (!sda)
 		break;
 	    psp_seg = sda_cur_psp(sda);
 	    if (!psp_seg)
 		break;
-	    if (do_run_cmd(str, cmd) != 0)
-		ret = I_HANDLED;
 	    mcb = (struct MCB *) SEG2UNIX(psp_seg - 1);
 	    if (!mcb)
 		break;
-
-	    if (!Video->change_config)
-		break;
-
 	    /* Check whether the program name is invalid (DOS < 4.0) */
 	    for (i=0; i<8 && mcb->name[i]; i++) {
 		if (iscntrlDOS(mcb->name[i])) {
@@ -3108,9 +3109,12 @@ hint_done:
 		change_window_title(title_current);
 		return ret;
 	    }
+#if 0
+	    /* updating title per every .bat cmd is too slow */
 	    snprintf(appname, sizeof(appname), "%s ( %s )",
 		     title_current, strlowerDOS(ptr));
 	    change_window_title(appname);
+#endif
 	}
 	break;
     case 0xae01:
