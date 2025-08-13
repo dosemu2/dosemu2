@@ -979,42 +979,42 @@ void scan_dir(fatfs_t *f, unsigned oi)
 
     if (sys_type == MS_D) {
         s = full_name(f, oi, dlist[0]->d_name); /* io.sys */
-        if (s && mfs_stat_file(f->mfs_idx, s, &sb) == 0) {
-            if((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
-                buf = malloc(sb.st_size + 1);
-                assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
-                size = read(fd, buf, sb.st_size);
-                if (size > 0) {
-                    if(buf[0] == 'M' && buf[1] == 'Z') {  /* MS-DOS >= 7 */
-                        sys_type = NEWMSD_D;
-                    } else {           /* see if it has a version string */
-                        buf[size] = '\0';
-                        for (buf_ptr=buf;buf_ptr < buf + size; buf_ptr++) {
-                            if(strncmp(buf_ptr, "NEC IO.SYS for MS-DOS", 21)==0) {
-                                sys_type = NECMSD_D;
+        if (s && (fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
+            int err = fstat(fd, &sb);
+            assert(!err);
+            buf = malloc(sb.st_size + 1);
+            assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
+            size = read(fd, buf, sb.st_size);
+            if (size > 0) {
+                if(buf[0] == 'M' && buf[1] == 'Z') {  /* MS-DOS >= 7 */
+                    sys_type = NEWMSD_D;
+                } else {           /* see if it has a version string */
+                    buf[size] = '\0';
+                    for (buf_ptr=buf;buf_ptr < buf + size; buf_ptr++) {
+                        if(strncmp(buf_ptr, "NEC IO.SYS for MS-DOS", 21)==0) {
+                            sys_type = NECMSD_D;
+                            break;
+                        }
+                        if(strncmp(buf_ptr, "Version ", 8) == 0) {
+                            char *vno = buf_ptr+8;
+                            if(*vno >= '1' && *vno <= '3') {
+                                sys_type = OLDMSD_D;
                                 break;
-                            }
-                            if(strncmp(buf_ptr, "Version ", 8) == 0) {
-                                char *vno = buf_ptr+8;
-                                if(*vno >= '1' && *vno <= '3') {
-                                    sys_type = OLDMSD_D;
-                                    break;
-                                } else if(*vno >= '4'&& *vno <= '6') {
-                                    sys_type = MIDMSD_D;
-                                    break;
-                                } else {
-                                    char sc[21];
-                                    strncpy(sc, buf_ptr, sizeof(sc));
-                                    sc[sizeof(sc)-1] = '\0';
-                                    fatfs_msg("fatfs: unknown version string \"%s\"\n", sc);
-                                }
+                            } else if(*vno >= '4'&& *vno <= '6') {
+                                sys_type = MIDMSD_D;
+                                break;
+                            } else {
+                                char sc[21];
+                                strncpy(sc, buf_ptr, sizeof(sc));
+                                sc[sizeof(sc)-1] = '\0';
+                                fatfs_msg("fatfs: unknown version string \"%s\"\n", sc);
                             }
                         }
                     }
                 }
-                free(buf);
-                close(fd);
             }
+            free(buf);
+            close(fd);
             if ((sys_type == MS_D) && (sb.st_size <= 26*1024)) {
                 sys_type = OLDMSD_D; /* unknown but small enough to be < v4 */
             }
@@ -1026,63 +1026,63 @@ void scan_dir(fatfs_t *f, unsigned oi)
     if (sys_type == PC_D) {
         /* see if it is PC-DOS or Original DR-DOS */
         s = full_name(f, oi, dlist[0]->d_name);
-        if (s && mfs_stat_file(f->mfs_idx, s, &sb) == 0) {
-            if((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
-                buf = malloc(sb.st_size + 1);
-                assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
-                size = read(fd, buf, sb.st_size);
-                if (size > 0) {
-                    buf[size] = 0;
-                    buf_ptr = buf;
-                    while (!strstr(buf_ptr, "IBM DOS") &&
-                           !strstr(buf_ptr, "PC-DOS") &&
-                           !strstr(buf_ptr, "DR-DOS") &&
-                           !strstr(buf_ptr, "DR-OpenDOS") &&
-                           !strstr(buf_ptr, "Caldera") &&
-                           !strstr(buf_ptr, "DIGITAL RESEARCH") &&
-                           !strstr(buf_ptr, "Novell") && buf_ptr < buf + size) {
-                        buf_ptr += strlen(buf_ptr) + 1;
-                    }
-                    if (buf_ptr < buf + size) {
-                        if (strstr(buf_ptr, "IBM DOS"))
-                            sys_type = NEWPCD_D;
-                        else if (strstr(buf_ptr, "DR-DOS") ||
-                                 strstr(buf_ptr, "DR-OpenDOS") ||
-                                 strstr(buf_ptr, "Caldera") ||
-                                 strstr(buf_ptr, "Novell") ||
-                                 strstr(buf_ptr, "DIGITAL RESEARCH"))
-                            sys_type = MIDDRD_D;
-                        else
-                            sys_type = OLDPCD_D;
-                    }
+        if (s && (fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
+            int err = fstat(fd, &sb);
+            assert(!err);
+            buf = malloc(sb.st_size + 1);
+            assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
+            size = read(fd, buf, sb.st_size);
+            if (size > 0) {
+                buf[size] = 0;
+                buf_ptr = buf;
+                while (!strstr(buf_ptr, "IBM DOS") &&
+                       !strstr(buf_ptr, "PC-DOS") &&
+                       !strstr(buf_ptr, "DR-DOS") &&
+                       !strstr(buf_ptr, "DR-OpenDOS") &&
+                       !strstr(buf_ptr, "Caldera") &&
+                       !strstr(buf_ptr, "DIGITAL RESEARCH") &&
+                       !strstr(buf_ptr, "Novell") && buf_ptr < buf + size) {
+                    buf_ptr += strlen(buf_ptr) + 1;
                 }
-                free(buf);
-                close(fd);
+                if (buf_ptr < buf + size) {
+                    if (strstr(buf_ptr, "IBM DOS"))
+                        sys_type = NEWPCD_D;
+                    else if (strstr(buf_ptr, "DR-DOS") ||
+                             strstr(buf_ptr, "DR-OpenDOS") ||
+                             strstr(buf_ptr, "Caldera") ||
+                             strstr(buf_ptr, "Novell") ||
+                             strstr(buf_ptr, "DIGITAL RESEARCH"))
+                        sys_type = MIDDRD_D;
+                    else
+                        sys_type = OLDPCD_D;
+                }
             }
+            free(buf);
+            close(fd);
             if ((sys_type == PC_D) && (sb.st_size <= 26*1024)) {
                 sys_type = OLDPCD_D; /* unknown but small enough to be < v4 */
             }
         }
         /* see if it is MS-DOS 4.0 */
         s = full_name(f, oi, dlist[1]->d_name);
-        if (s && mfs_stat_file(f->mfs_idx, s, &sb) == 0) {
-            if((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
-                buf = malloc(sb.st_size + 1);
-                assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
-                size = read(fd, buf, sb.st_size);
-                if (size > 0) {
-                    buf[size] = 0;
-                    buf_ptr = buf;
-                    while (!strstr(buf_ptr, "MS-DOS")
-                           && buf_ptr < buf + size) {
-                        buf_ptr += strlen(buf_ptr) + 1;
-                    }
-                    if (buf_ptr < buf + size)
-                        sys_type = OLDMSD_D;  // Multitasking DOS 4.0
+        if (s && (fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
+            int err = fstat(fd, &sb);
+            assert(!err);
+            buf = malloc(sb.st_size + 1);
+            assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
+            size = read(fd, buf, sb.st_size);
+            if (size > 0) {
+                buf[size] = 0;
+                buf_ptr = buf;
+                while (!strstr(buf_ptr, "MS-DOS")
+                       && buf_ptr < buf + size) {
+                    buf_ptr += strlen(buf_ptr) + 1;
                 }
-                free(buf);
-                close(fd);
+                if (buf_ptr < buf + size)
+                    sys_type = OLDMSD_D;  // Multitasking DOS 4.0
             }
+            free(buf);
+            close(fd);
         }
         if (sys_type == PC_D)
             sys_type = NEWPCD_D;     /* default to v4.x -> v7.x */
@@ -1091,15 +1091,17 @@ void scan_dir(fatfs_t *f, unsigned oi)
     if (sys_type == MOS_D) {
       /* see if it is old MOS */
       s = full_name(f, oi, dlist[0]->d_name);
-      if (s && mfs_stat_file(f->mfs_idx, s, &sb) == 0 && sb.st_size == 128880) {
-        if((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
+      if (s && ((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1)) {
           uint32_t buf;
-          lseek(fd, 0x175, SEEK_SET);
-          read(fd, &buf, sizeof(buf));
-          if (buf == 0x20200105)    /* 5.01 */
-            sys_type = OLDMOS_D;
+          int err = fstat(fd, &sb);
+          assert(!err);
+          if (sb.st_size == 128880) {
+              lseek(fd, 0x175, SEEK_SET);
+              read(fd, &buf, sizeof(buf));
+              if (buf == 0x20200105)    /* 5.01 */
+                  sys_type = OLDMOS_D;
+          }
           close(fd);
-        }
       }
     }
 
