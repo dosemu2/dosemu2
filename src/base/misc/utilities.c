@@ -1399,6 +1399,25 @@ enum CbkRet conn_cb(int fd, void *sa, int len, int *r_err)
     return CBK_CONT;
 }
 
+enum CbkRet accept_cb(int fd, void *buf, int len, int *r_err)
+{
+    socklen_t rlen;
+    int rc = accept(fd, buf, &rlen);
+    *r_err = rc;
+    if (rc == -1 && errno != EAGAIN) {
+        error("recv(): %s\n", strerror(errno));
+        return CBK_ERR;
+    }
+    if (rc >= 0) {
+        if (rlen != len) {
+            error("accept: len mismatch: %i %i\n", rlen, len);
+            return CBK_ERR;
+        }
+        return CBK_DONE;
+    }
+    return CBK_CONT;
+}
+
 enum CbkRet recv_cb(int fd, void *buf, int len, int *r_err)
 {
     int rc = recv(fd, buf, len, MSG_DONTWAIT);
@@ -1434,11 +1453,46 @@ static int do_to(uint32_t to, uint32_t inf, hitimer_t end,
     return 0;
 }
 
+enum CbkRet recvfrom_cb(int fd, void *buf, int len, struct sockaddr *addr,
+        socklen_t *slen, int *r_err)
+{
+    int rc = recvfrom(fd, buf, len, MSG_DONTWAIT, addr, slen);
+    *r_err = rc;
+    if (rc == -1 && errno != EAGAIN) {
+        error("recv(): %s\n", strerror(errno));
+        return CBK_ERR;
+    }
+    if (rc >= 0)
+        return CBK_DONE;
+    return CBK_CONT;
+}
+
+int handle_blk(enum CbkRet (*cbk)(int, void *, int, struct sockaddr *,
+        socklen_t *, int *),
+    int arg, void *arg2, int arg3, struct sockaddr *addr,
+        socklen_t *slen, int *r_err)
+{
+    int first = 1;
+    enum CbkRet cbr;
+
+    do {
+        if (!first)
+            coopth_wait();
+        cbr = cbk(arg, arg2, arg3, addr, slen, r_err);
+        if (cbr == CBK_ERR)
+            return -1;
+        if (cbr == CBK_DONE)
+            break;
+        first = 0;
+    } while (1);
+    return 0;
+}
+
 int handle_timeout(uint16_t to,
     enum CbkRet (*cbk)(int, void *, int, int *),
     int arg, void *arg2, int arg3, int *r_err)
 {
-    hitimer_t end = GETusTIME(0) + TICKtoUS(to * 65536);
+    hitimer_t end = GETusTIME(0) + TICKtoUS(to * 65536ULL);
     return do_to(to, 0xffff, end, cbk, arg, arg2, arg3, r_err);
 }
 

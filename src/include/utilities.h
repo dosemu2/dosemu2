@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <semaphore.h>
 #include <dirent.h>
 #include "dosemu_debug.h"
@@ -55,6 +56,13 @@ int handle_timeout_us(uint32_t to,
     int arg, void *arg2, int arg3, int *r_err);
 enum CbkRet conn_cb(int fd, void *sa, int len, int *r_err);
 enum CbkRet recv_cb(int fd, void *buf, int len, int *r_err);
+enum CbkRet recvfrom_cb(int fd, void *buf, int len, struct sockaddr *addr,
+        socklen_t *slen, int *r_err);
+enum CbkRet accept_cb(int fd, void *buf, int len, int *r_err);
+int handle_blk(enum CbkRet (*cbk)(int, void *, int, struct sockaddr *,
+        socklen_t *, int *),
+    int arg, void *arg2, int arg3, struct sockaddr *addr,
+        socklen_t *slen, int *r_err);
 
 int send_fd(int usock, int fd_tx);
 int recv_fd(int sock);

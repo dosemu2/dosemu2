@@ -37,6 +37,7 @@ enum { SOCK_VER, SOCK_OPEN, SOCK_CLOSE, SOCK_BIND, SOCK_SENDTO,
 struct sock_s {
     int fd;
     unsigned int used:1;
+    unsigned int nb:1;
 };
 #define SOCK_MAX 32
 static struct sock_s socks[SOCK_MAX];
@@ -65,6 +66,7 @@ static struct sock_s *sock_alloc(void)
     }
     ret = &socks[i];
     ret->used = 1;
+    ret->nb = 0;
     return ret;
 }
 
@@ -148,6 +150,7 @@ static void sock_handler(cpuctx_t *scp,
                 _eflags |= CF;
                 break;
             }
+            fcntl(sock->fd, F_SETFL, O_NONBLOCK);
             _edi = SOCK_IDX(sock);
             _eax = 0;
             break;
@@ -175,7 +178,7 @@ static void sock_handler(cpuctx_t *scp,
             sa.sin_port = _edx; \
             sa.sin_family = AF_INET
 
-#define TCP_IO(n, op, c) \
+#define TCP_IO(n, op, c) do { \
             rc = op; \
             switch (rc) { \
             case 0: \
@@ -184,8 +187,19 @@ static void sock_handler(cpuctx_t *scp,
                 _ecx = 0; \
                 break; \
             case -1: \
-                error(n": %s\n", strerror(errno)); \
-                _eax = CSOCK_ERR_WOULD_BLOCK; \
+                switch (errno) { \
+                case EAGAIN: \
+                    _eax = CSOCK_ERR_WOULD_BLOCK; \
+                    break; \
+                case ENOTCONN: \
+                case ECONNREFUSED: \
+                    _eax = CSOCK_ERR_NOT_CONNECTED; \
+                    break; \
+                default: \
+                    error(n": %s\n", strerror(errno)); \
+                    _eax = CSOCK_ERR_INTERNAL; \
+                    break; \
+                } \
                 _eflags |= CF; \
                 break; \
             default: \
@@ -193,7 +207,67 @@ static void sock_handler(cpuctx_t *scp,
                 _ecx = rc; \
                 c \
                 break; \
-            }
+            } \
+} while (0)
+
+#define TCP_IO_B(cbk, arg, arg2, arg3, c) do { \
+    switch (handle_timeout(0xffff, cbk, arg, arg2, arg3, &rc)) { \
+        case -1: \
+            switch (errno) { \
+            case EAGAIN: \
+                dosemu_error("blocking mode doesn't work?\n"); \
+                _eax = CSOCK_ERR_WOULD_BLOCK; \
+                break; \
+            case ENOTCONN: \
+            case ECONNREFUSED: \
+                _eax = CSOCK_ERR_NOT_CONNECTED; \
+                break; \
+            default: \
+                error("TCP: %s\n", strerror(errno)); \
+                _eax = CSOCK_ERR_INTERNAL; \
+                break; \
+            } \
+            _eflags |= CF; \
+            break; \
+        case 0: \
+            _eax = 0; \
+            _ecx = rc; \
+            c \
+            break; \
+        case 1: \
+            dosemu_error("inf timeout elapsed?\n"); \
+            _eax = CSOCK_ERR_WOULD_BLOCK; \
+            _eflags |= CF; \
+            break; \
+    } \
+} while (0)
+
+#define TCP_IO_B5(cbk, arg, arg2, arg3, arg4, arg5, c) do { \
+    switch (handle_blk(cbk, arg, arg2, arg3, arg4, arg5, &rc)) { \
+        case -1: \
+            switch (errno) { \
+            case EAGAIN: \
+                dosemu_error("blocking mode doesn't work?\n"); \
+                _eax = CSOCK_ERR_WOULD_BLOCK; \
+                break; \
+            case ENOTCONN: \
+            case ECONNREFUSED: \
+                _eax = CSOCK_ERR_NOT_CONNECTED; \
+                break; \
+            default: \
+                error("TCP: %s\n", strerror(errno)); \
+                _eax = CSOCK_ERR_INTERNAL; \
+                break; \
+            } \
+            _eflags |= CF; \
+            break; \
+        case 0: \
+            _eax = 0; \
+            _ecx = rc; \
+            c \
+            break; \
+    } \
+} while (0)
 
         case SOCK_BIND: {
             TCP_PROLOG;
@@ -220,11 +294,18 @@ static void sock_handler(cpuctx_t *scp,
             struct sockaddr_in sa;
             socklen_t len = sizeof(sa);
             TCP_PROLOG0;
-            TCP_IO("UDP recvfrom", recvfrom(sock->fd, SEL_ADR(_ds, _esi), _ecx, 0,
+            if (sock->nb)
+                TCP_IO("UDP recvfrom", recvfrom(sock->fd, SEL_ADR(_ds, _esi), _ecx, 0,
                     (struct sockaddr *)&sa, &len),
-                _ebx = sa.sin_addr.s_addr;
-                _edx = sa.sin_port;
-            );
+                    _ebx = sa.sin_addr.s_addr;
+                    _edx = sa.sin_port;
+                );
+            else
+                TCP_IO_B5(recvfrom_cb, sock->fd, SEL_ADR(_ds, _esi), _ecx,
+                    (struct sockaddr *)&sa, &len,
+                    _ebx = sa.sin_addr.s_addr;
+                    _edx = sa.sin_port;
+                );
             break;
         }
 
@@ -283,14 +364,12 @@ static void sock_handler(cpuctx_t *scp,
         case SOCK_CONNECT: {
             TCP_PROLOG;
 
-            rc = connect(sock->fd, (struct sockaddr *)&sa, sizeof(sa));
-            if (rc) {
-                error("TCP connect: %s\n", strerror(errno));
-                _eax = CSOCK_ERR_WOULD_BLOCK;
-                _eflags |= CF;
-                break;
-            }
-            _eax = 0;
+            if (sock->nb)
+                TCP_IO("TCP connect", connect(sock->fd,
+                        (struct sockaddr *)&sa, sizeof(sa)),);
+            else
+                TCP_IO_B(conn_cb, sock->fd,
+                        (struct sockaddr *)&sa, sizeof(sa),);
             break;
         }
 
@@ -301,7 +380,10 @@ static void sock_handler(cpuctx_t *scp,
 
         case SOCK_RECV:
             TCP_PROLOG0;
-            TCP_IO("TCP recv", recv(sock->fd, SEL_ADR(_ds, _esi), _ecx, 0),);
+            if (sock->nb)
+                TCP_IO("TCP recv", recv(sock->fd, SEL_ADR(_ds, _esi), _ecx, 0),);
+            else
+                TCP_IO_B(recv_cb, sock->fd, SEL_ADR(_ds, _esi), _ecx,);
             break;
 
         case SOCK_LISTEN:
@@ -327,25 +409,27 @@ static void sock_handler(cpuctx_t *scp,
             struct sockaddr_in sa;
             socklen_t len = sizeof(sa);
 
-            rc = accept(sock->fd, (struct sockaddr *)&sa, &len);
-            if (rc <= 0) {
-                error("TCP accept: %s\n", strerror(errno));
-                _eax = CSOCK_ERR_WOULD_BLOCK;
-                _eflags |= CF;
-                break;
-            }
-            s = sock_alloc();
-            if (!s) {
-                close(rc);
-                _eax = CSOCK_ERR_INTERNAL;
-                _eflags |= CF;
-                break;
-            }
-            s->fd = rc;
-            _edx = SOCK_IDX(s);
-            _eax = 0;
-            _ebx = sa.sin_port;
+#define ACOD \
+            s = sock_alloc(); \
+            if (!s) { \
+                close(rc); \
+                _eax = CSOCK_ERR_INTERNAL; \
+                _eflags |= CF; \
+                break; \
+            } \
+            s->fd = rc; \
+            _edx = SOCK_IDX(s); \
+            _eax = 0; \
+            _ebx = sa.sin_port; \
             _ecx = sa.sin_addr.s_addr;
+
+            if (sock->nb)
+                TCP_IO("TCP accept",
+                    accept(sock->fd, (struct sockaddr *)&sa, &len),
+                    ACOD);
+            else
+                TCP_IO_B(accept_cb, sock->fd, (struct sockaddr *)&sa,
+                    sizeof(sa), ACOD);
             break;
         }
 
@@ -389,9 +473,9 @@ static void sock_handler(cpuctx_t *scp,
             TCP_PROLOG0;
 
             if (!_ecx)
-                _edx = !!(fcntl(sock->fd, F_GETFL) & O_NONBLOCK);
+                _edx = sock->nb;
             else
-                fcntl(sock->fd, F_SETFL, _edx ? O_NONBLOCK : 0);
+                sock->nb = !!_edx;
             _eax = 0;
             break;
 
