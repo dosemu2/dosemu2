@@ -100,19 +100,6 @@ static void udp_async_callback(int fd, void *arg)
 //    ioselect_complete(fd);
 }
 
-static enum CbkRet recv_cb(int fd, void *buf, int len, int *r_err)
-{
-    int rc = recv(fd, buf, len, MSG_DONTWAIT);
-    *r_err = rc;
-    if (rc == -1 && errno != EAGAIN) {
-        error("recv(): %s\n", strerror(errno));
-        return CBK_ERR;
-    }
-    if (rc > 0)
-        return CBK_DONE;
-    return CBK_CONT;
-}
-
 static int __GetMyAddress(const char *host, uint16_t port)
 {
     struct sockaddr_in sin;

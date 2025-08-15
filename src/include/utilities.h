@@ -53,6 +53,8 @@ int handle_timeout(uint16_t to,
 int handle_timeout_us(uint32_t to,
     enum CbkRet (*cbk)(int, void *, int, int *),
     int arg, void *arg2, int arg3, int *r_err);
+enum CbkRet conn_cb(int fd, void *sa, int len, int *r_err);
+enum CbkRet recv_cb(int fd, void *buf, int len, int *r_err);
 
 int send_fd(int usock, int fd_tx);
 int recv_fd(int sock);

@@ -1386,6 +1386,32 @@ char *concat_strings(const char *pref, const char *suff)
   return ret;
 }
 
+enum CbkRet conn_cb(int fd, void *sa, int len, int *r_err)
+{
+    int err = connect(fd, sa, len);
+    *r_err = err;
+    if (err && errno != EINPROGRESS && errno != EALREADY && errno != EISCONN) {
+        error("connect(): %s\n", strerror(errno));
+        return CBK_ERR;
+    }
+    if (!err || errno == EISCONN)
+        return CBK_DONE;
+    return CBK_CONT;
+}
+
+enum CbkRet recv_cb(int fd, void *buf, int len, int *r_err)
+{
+    int rc = recv(fd, buf, len, MSG_DONTWAIT);
+    *r_err = rc;
+    if (rc == -1 && errno != EAGAIN) {
+        error("recv(): %s\n", strerror(errno));
+        return CBK_ERR;
+    }
+    if (rc > 0)
+        return CBK_DONE;
+    return CBK_CONT;
+}
+
 static int do_to(uint32_t to, uint32_t inf, hitimer_t end,
     enum CbkRet (*cbk)(int, void *, int, int *),
     int arg, void *arg2, int arg3, int *r_err)

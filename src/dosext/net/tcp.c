@@ -369,32 +369,6 @@ int tcp_get_driver_info(void *di_out, int len)
     return 0;
 }
 
-static enum CbkRet conn_cb(int fd, void *sa, int len, int *r_err)
-{
-    int err = connect(fd, sa, len);
-    *r_err = err;
-    if (err && errno != EINPROGRESS && errno != EALREADY && errno != EISCONN) {
-        error("connect(): %s\n", strerror(errno));
-        return CBK_ERR;
-    }
-    if (!err || errno == EISCONN)
-        return CBK_DONE;
-    return CBK_CONT;
-}
-
-static enum CbkRet recv_cb(int fd, void *buf, int len, int *r_err)
-{
-    int rc = recv(fd, buf, len, MSG_DONTWAIT);
-    *r_err = rc;
-    if (rc == -1 && errno != EAGAIN) {
-        error("recv(): %s\n", strerror(errno));
-        return CBK_ERR;
-    }
-    if (rc > 0)
-        return CBK_DONE;
-    return CBK_CONT;
-}
-
 static enum CbkRet read_cb(int fd, void *buf, int len, int *r_err)
 {
     int rc = read(fd, buf, len);
