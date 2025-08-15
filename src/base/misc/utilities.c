@@ -1407,7 +1407,7 @@ enum CbkRet recv_cb(int fd, void *buf, int len, int *r_err)
         error("recv(): %s\n", strerror(errno));
         return CBK_ERR;
     }
-    if (rc > 0)
+    if (rc >= 0)
         return CBK_DONE;
     return CBK_CONT;
 }
