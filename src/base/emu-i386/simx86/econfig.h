@@ -52,7 +52,7 @@
 #undef	ASM_DUMP
 #define ASM_DUMP_FILE	"/DOS/asmdump.log"
 
-#define AVL_MAX_HEIGHT	20
+#define AVL_MAX_HEIGHT	120
 #undef	DEBUG_TREE
 #define DEBUG_TREE_FILE	"/DOS/treedump.log"
 
@@ -65,7 +65,7 @@
 
 #undef	DEBUG_VGA
 
-#define NODES_IN_POOL	100000
+#define NODES_IN_POOL	1000000
 #define NODELIFE(n)	200
 #define CLEAN_SPEED(n)	(((n)<<2)+1)
 #define AGENODE		CreationIndex
