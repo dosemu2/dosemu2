@@ -113,10 +113,6 @@ static inline int is_zf_set(void)
 {
 	if (RFL.valid==V_INVALID)
 	    return (CPUBYTE(Ofs_FLAGS)&0x40) >> 6;
-	if (RFL.mode & MBYTE)
-	    return RFL.RES.b.bl==0;
-	if (RFL.mode & DATA16)
-	    return RFL.RES.w.l==0;
 	return RFL.RES.d==0;
 }
 
@@ -124,10 +120,6 @@ static inline int is_sf_set(void)
 {
 	if (RFL.valid==V_INVALID)
 	    return (CPUBYTE(Ofs_FLAGS)&0x80) >> 7;
-	if (RFL.mode & MBYTE)
-	    return (RFL.RES.b.bl & 0x80) >> 7;
-	if (RFL.mode & DATA16)
-	    return (RFL.RES.w.l & 0x8000) >> 15;
 	return (RFL.RES.d & 0x80000000) >> 31;
 }
 
@@ -197,18 +189,8 @@ static inline int FlagSync_NZ (void)
 {
 	int zr,pl,nf;
 	if (RFL.valid==V_INVALID) return (CPUBYTE(Ofs_FLAGS)&0xc0);
-	if (RFL.mode & MBYTE) {
-	    zr = (RFL.RES.b.bl==0) << 6;
-	    pl = RFL.RES.b.bl & 0x80;
-	}
-	else if (RFL.mode & DATA16) {
-	    zr = (RFL.RES.w.l==0) << 6;
-	    pl = (RFL.RES.d>>8) & 0x80;
-	}
-	else {
-	    zr = (RFL.RES.d==0) << 6;
-	    pl = (RFL.RES.d>>24) & 0x80;
-	}
+	zr = (RFL.RES.d==0) << 6;
+	pl = (RFL.RES.d>>24) & 0x80;
 	nf = zr | pl;
 	if (debug_level('e')>2) e_printf("Sync NZ flags = %02x\n", nf);
 	return nf;
@@ -297,7 +279,7 @@ static inline int FlagSync_AP_ (void)
 	else
 	    af = CPUBYTE(Ofs_FLAGS)&0x10; // Intel says undefined.
 	// PF
-	pf = parity[RFL.RES.b.bl];
+	pf = parity[RFL.RES.d & 0xff];
 	nf = af | pf;
 	if (debug_level('e')>2) e_printf("Sync AP flags = %02x\n", nf);
 	return nf;
