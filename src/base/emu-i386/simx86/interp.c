@@ -676,10 +676,12 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 static unsigned int _Interp86(unsigned int PC, int basemode)
 {
 	volatile unsigned int P0 = PC; /* volatile because of setjmp */
+	int val;
 
-	if (PROTMODE() && setjmp(jmp_env)) {
-		/* long jump to here from simulated page fault */
-		return P0;
+	if (PROTMODE() && (val = setjmp(jmp_env))) {
+		/* long jump to here from simulated page fault
+		   val == 2 comes from Gen_Sim, with different cs:eip */
+		return val == 2 ? LONG_CS + TheCPU.eip : P0;
 	}
 
 	TheCPU.err = 0;
