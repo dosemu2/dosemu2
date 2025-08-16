@@ -49,7 +49,7 @@ typedef union {
 } wkreg;
 
 typedef struct {
-	int valid, mode, cout;
+	int valid, cout;
 	uint32_t res;
 } flgtmp;
 
