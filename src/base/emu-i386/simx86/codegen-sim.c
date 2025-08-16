@@ -113,14 +113,14 @@ static inline int is_zf_set(void)
 {
 	if (RFL.valid==V_INVALID)
 	    return (CPUBYTE(Ofs_FLAGS)&0x40) >> 6;
-	return RFL.RES.d==0;
+	return RFL.res == 0;
 }
 
 static inline int is_sf_set(void)
 {
 	if (RFL.valid==V_INVALID)
 	    return (CPUBYTE(Ofs_FLAGS)&0x80) >> 7;
-	return (RFL.RES.d & 0x80000000) >> 31;
+	return RFL.res >> 31;
 }
 
 static inline int is_of_set(void)
@@ -162,7 +162,7 @@ static inline void FlagHandleAdd(unsigned src1, unsigned src2, unsigned res,
 	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
 	int cy = cout >> (wordsize - 1);
 	SET_CF(cy & 1);
-	RFL.RES.d = res;
+	RFL.res = res;
 }
 
 static inline void FlagHandleSub(unsigned src1, unsigned src2, unsigned res,
@@ -174,7 +174,7 @@ static inline void FlagHandleSub(unsigned src1, unsigned src2, unsigned res,
 	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
 	int cy = cout >> (wordsize - 1);
 	SET_CF(cy & 1);
-	RFL.RES.d = res;
+	RFL.res = res;
 }
 
 static inline void FlagHandleIncDec(unsigned low, unsigned high, int wordsize)
@@ -189,8 +189,8 @@ static inline int FlagSync_NZ (void)
 {
 	int zr,pl,nf;
 	if (RFL.valid==V_INVALID) return (CPUBYTE(Ofs_FLAGS)&0xc0);
-	zr = (RFL.RES.d==0) << 6;
-	pl = (RFL.RES.d>>24) & 0x80;
+	zr = (RFL.res==0) << 6;
+	pl = (RFL.res>>24) & 0x80;
 	nf = zr | pl;
 	if (debug_level('e')>2) e_printf("Sync NZ flags = %02x\n", nf);
 	return nf;
@@ -279,7 +279,7 @@ static inline int FlagSync_AP_ (void)
 	else
 	    af = CPUBYTE(Ofs_FLAGS)&0x10; // Intel says undefined.
 	// PF
-	pf = parity[RFL.RES.d & 0xff];
+	pf = parity[RFL.res & 0xff];
 	nf = af | pf;
 	if (debug_level('e')>2) e_printf("Sync AP flags = %02x\n", nf);
 	return nf;
@@ -316,7 +316,7 @@ void InitGen_sim(void)
 	Exec = Exec_sim;
 	CodeGen = CodeGen_sim;
 	UseLinker = 0;
-	RFL.cout = RFL.RES.d = 0;
+	RFL.cout = RFL.res = 0;
 	RFL.valid = V_INVALID;
 }
 
@@ -665,15 +665,15 @@ void Gen_sim(const IGen *IG)
 		    else {GTRACE3("O_OR_R",v,0xff,v);}
 		if (mode & MBYTE) {
 		    if (!(mode & IMMED)) v = CPUBYTE(v);
-		    RFL.RES.d = DR1.bs.bl |= v;
+		    RFL.res = DR1.bs.bl |= v;
 		}
 		else if (mode & DATA16) {
 		    if (!(mode & IMMED)) v = CPUWORD(v);
-		    RFL.RES.d = DR1.ws.l |= v;
+		    RFL.res = DR1.ws.l |= v;
 		}
 		else {
 		    if (!(mode & IMMED)) v = CPULONG(v);
-		    RFL.RES.d = DR1.d |= v;
+		    RFL.res = DR1.d |= v;
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
@@ -687,15 +687,15 @@ void Gen_sim(const IGen *IG)
 		    else {GTRACE3("O_AND_R",v,0xff,v);}
 		if (mode & MBYTE) {
 		    if (!(mode & IMMED)) v = CPUBYTE(v);
-		    RFL.RES.d = DR1.bs.bl &= v;
+		    RFL.res = DR1.bs.bl &= v;
 		}
 		else if (mode & DATA16) {
 		    if (!(mode & IMMED)) v = CPUWORD(v);
-		    RFL.RES.d = DR1.ws.l &= v;
+		    RFL.res = DR1.ws.l &= v;
 		}
 		else {
 		    if (!(mode & IMMED)) v = CPULONG(v);
-		    RFL.RES.d = DR1.d &= v;
+		    RFL.res = DR1.d &= v;
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
@@ -709,15 +709,15 @@ void Gen_sim(const IGen *IG)
 		    else {GTRACE3("O_XOR_R",v,0xff,v);}
 		if (mode & MBYTE) {
 		    if (!(mode & IMMED)) v = CPUBYTE(v);
-		    RFL.RES.d = DR1.bs.bl ^= v;
+		    RFL.res = DR1.bs.bl ^= v;
 		}
 		else if (mode & DATA16) {
 		    if (!(mode & IMMED)) v = CPUWORD(v);
-		    RFL.RES.d = DR1.ws.l ^= v;
+		    RFL.res = DR1.ws.l ^= v;
 		}
 		else {
 		    if (!(mode & IMMED)) v = CPULONG(v);
-		    RFL.RES.d = DR1.d ^= v;
+		    RFL.res = DR1.d ^= v;
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
@@ -870,13 +870,13 @@ void Gen_sim(const IGen *IG)
 		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & MBYTE) {
-		    RFL.RES.d = (int8_t)CPUBYTE(o);
+		    RFL.res = (int8_t)CPUBYTE(o);
 		}
 		else if (mode & DATA16) {
-		    RFL.RES.d = (int16_t)CPUWORD(o);
+		    RFL.res = (int16_t)CPUWORD(o);
 		}
 		else {
-		    RFL.RES.d = CPULONG(o);
+		    RFL.res = CPULONG(o);
 		}
 		SET_CF(0);
 		}
@@ -887,21 +887,21 @@ void Gen_sim(const IGen *IG)
 		// if CY=0 -> reg=0,  flag=xx46, OF=0
 		// if CY=1 -> reg=-1, flag=xx97, OF=0
 		if (CPUBYTE(Ofs_FLAGS)&1) {
-		    RFL.RES.d = 0xffffffff;
+		    RFL.res = 0xffffffff;
 		    CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & 0x7700) | 0x97;
 		}
 		else {
-		    RFL.RES.d = 0;
+		    RFL.res = 0;
 		    CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & 0x7700) | 0x46;
 		}
 		if (mode & MBYTE) {
-		    CPUBYTE(o) = RFL.RES.d;
+		    CPUBYTE(o) = RFL.res;
 		}
 		else if (mode & DATA16) {
-		    CPUWORD(o) = RFL.RES.d;
+		    CPUWORD(o) = RFL.res;
 		}
 		else {
-		    CPULONG(o) = RFL.RES.d;
+		    CPULONG(o) = RFL.res;
 		}
 		RFL.valid = V_INVALID;
 		}
@@ -913,18 +913,18 @@ void Gen_sim(const IGen *IG)
 		RFL.valid = V_ADD;
 		if (mode & MBYTE) {
 		    S1 = CPUBYTE(o);
-		    CPUBYTE(o) = RFL.RES.d = (int8_t)(S1 + 1);
-		    FlagHandleIncDec(S1, RFL.RES.d, 8);
+		    CPUBYTE(o) = RFL.res = (int8_t)(S1 + 1);
+		    FlagHandleIncDec(S1, RFL.res, 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = CPUWORD(o);
-		    CPUWORD(o) = RFL.RES.d = (int16_t)(S1 + 1);
-		    FlagHandleIncDec(S1, RFL.RES.d, 16);
+		    CPUWORD(o) = RFL.res = (int16_t)(S1 + 1);
+		    FlagHandleIncDec(S1, RFL.res, 16);
 		}
 		else {
 		    S1 = CPULONG(o);
-		    CPULONG(o) = RFL.RES.d = S1 + 1;
-		    FlagHandleIncDec(S1, RFL.RES.d, 32);
+		    CPULONG(o) = RFL.res = S1 + 1;
+		    FlagHandleIncDec(S1, RFL.res, 32);
 		}
 		}
 		break;
@@ -935,18 +935,18 @@ void Gen_sim(const IGen *IG)
 		RFL.valid = V_SUB;
 		if (mode & MBYTE) {
 		    S1 = CPUBYTE(o);
-		    CPUBYTE(o) = RFL.RES.d = (int8_t)(S1 - 1);
-		    FlagHandleIncDec(RFL.RES.d, S1, 8);
+		    CPUBYTE(o) = RFL.res = (int8_t)(S1 - 1);
+		    FlagHandleIncDec(RFL.res, S1, 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = CPUWORD(o);
-		    CPUWORD(o) = RFL.RES.d = (int16_t)(S1 - 1);
-		    FlagHandleIncDec(RFL.RES.d, S1, 16);
+		    CPUWORD(o) = RFL.res = (int16_t)(S1 - 1);
+		    FlagHandleIncDec(RFL.res, S1, 16);
 		}
 		else {
 		    S1 = CPULONG(o);
-		    CPULONG(o) = RFL.RES.d = S1 - 1;
-		    FlagHandleIncDec(RFL.RES.d, S1, 32);
+		    CPULONG(o) = RFL.res = S1 - 1;
+		    FlagHandleIncDec(RFL.res, S1, 32);
 		}
 		}
 		break;
@@ -993,13 +993,13 @@ void Gen_sim(const IGen *IG)
 		if (mode & IMMED) {GTRACE3("O_OR_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_OR_FR",v.d,0xff,v.d);}
 		if (mode & MBYTE) {
-		    RFL.RES.d = v.bs.bl = CPUBYTE(o) |= (mode & IMMED ? v.b.bl : DR1.b.bl);
+		    RFL.res = v.bs.bl = CPUBYTE(o) |= (mode & IMMED ? v.b.bl : DR1.b.bl);
 		}
 		else if (mode & DATA16) {
-		    RFL.RES.d = v.ws.l = CPUWORD(o) |= (mode & IMMED ? v.w.l : DR1.w.l);
+		    RFL.res = v.ws.l = CPUWORD(o) |= (mode & IMMED ? v.w.l : DR1.w.l);
 		}
 		else {
-		    RFL.RES.d = CPULONG(o) |= (mode & IMMED ? v.d : DR1.d);
+		    RFL.res = CPULONG(o) |= (mode & IMMED ? v.d : DR1.d);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
@@ -1086,13 +1086,13 @@ void Gen_sim(const IGen *IG)
 		if (mode & IMMED) {GTRACE3("O_AND_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_AND_FR",v.d,0xff,v.d);}
 		if (mode & MBYTE) {
-		    RFL.RES.d = v.bs.bl = CPUBYTE(o) &= (mode & IMMED ? v.b.bl : DR1.b.bl);
+		    RFL.res = v.bs.bl = CPUBYTE(o) &= (mode & IMMED ? v.b.bl : DR1.b.bl);
 		}
 		else if (mode & DATA16) {
-		    RFL.RES.d = v.ws.l = CPUWORD(o) &= (mode & IMMED ? v.w.l : DR1.w.l);
+		    RFL.res = v.ws.l = CPUWORD(o) &= (mode & IMMED ? v.w.l : DR1.w.l);
 		}
 		else {
-		    RFL.RES.d = CPULONG(o) &= (mode & IMMED ? v.d : DR1.d);
+		    RFL.res = CPULONG(o) &= (mode & IMMED ? v.d : DR1.d);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
@@ -1141,13 +1141,13 @@ void Gen_sim(const IGen *IG)
 		if (mode & IMMED) {GTRACE3("O_XOR_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_XOR_FR",v.d,0xff,v.d);}
 		if (mode & MBYTE) {
-		    RFL.RES.d = v.bs.bl = CPUBYTE(o) ^= (mode & IMMED ? v.b.bl : DR1.b.bl);
+		    RFL.res = v.bs.bl = CPUBYTE(o) ^= (mode & IMMED ? v.b.bl : DR1.b.bl);
 		}
 		else if (mode & DATA16) {
-		    RFL.RES.d = v.ws.l = CPUWORD(o) ^= (mode & IMMED ? v.w.l : DR1.w.l);
+		    RFL.res = v.ws.l = CPUWORD(o) ^= (mode & IMMED ? v.w.l : DR1.w.l);
 		}
 		else {
-		    RFL.RES.d = CPULONG(o) ^= (mode & IMMED ? v.d : DR1.d);
+		    RFL.res = CPULONG(o) ^= (mode & IMMED ? v.d : DR1.d);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
@@ -1217,18 +1217,18 @@ void Gen_sim(const IGen *IG)
 		RFL.valid = V_ADD;
 		if (mode & MBYTE) {
 			S1 = DR1.bs.bl;
-			DR1.b.bl = RFL.RES.d = (int8_t)(S1 + 1);
-			FlagHandleIncDec(S1, RFL.RES.d, 8);
+			DR1.b.bl = RFL.res = (int8_t)(S1 + 1);
+			FlagHandleIncDec(S1, RFL.res, 8);
 		}
 		else if (mode & DATA16) {
 			S1 = DR1.ws.l;
-			DR1.w.l = RFL.RES.d = (int16_t)(S1 + 1);
-			FlagHandleIncDec(S1, RFL.RES.d, 16);
+			DR1.w.l = RFL.res = (int16_t)(S1 + 1);
+			FlagHandleIncDec(S1, RFL.res, 16);
 		}
 		else {
 			S1 = DR1.d;
-			DR1.d = RFL.RES.d = S1 + 1;
-			FlagHandleIncDec(S1, RFL.RES.d, 32);
+			DR1.d = RFL.res = S1 + 1;
+			FlagHandleIncDec(S1, RFL.res, 32);
 		}
 		break;
 	case O_DEC:		// OSZAP
@@ -1237,18 +1237,18 @@ void Gen_sim(const IGen *IG)
 		RFL.valid = V_SUB;
 		if (mode & MBYTE) {
 			S1 = DR1.bs.bl;
-			DR1.b.bl = RFL.RES.d = (int8_t)(S1 - 1);
-			FlagHandleIncDec(RFL.RES.d, S1, 8);
+			DR1.b.bl = RFL.res = (int8_t)(S1 - 1);
+			FlagHandleIncDec(RFL.res, S1, 8);
 		}
 		else if (mode & DATA16) {
 			S1 = DR1.ws.l;
-			DR1.w.l = RFL.RES.d = (int16_t)(S1 - 1);
-			FlagHandleIncDec(RFL.RES.d, S1, 16);
+			DR1.w.l = RFL.res = (int16_t)(S1 - 1);
+			FlagHandleIncDec(RFL.res, S1, 16);
 		}
 		else {
 			S1 = DR1.d;
-			DR1.d = RFL.RES.d = S1 - 1;
-			FlagHandleIncDec(RFL.RES.d, S1, 32);
+			DR1.d = RFL.res = S1 - 1;
+			FlagHandleIncDec(RFL.res, S1, 32);
 		}
 		break;
 	case O_CMPXCHG: {		// OSZAPC
@@ -1260,7 +1260,7 @@ void Gen_sim(const IGen *IG)
 		    S1 = CPUBYTE(Ofs_AL);
 		    S2 = DR1.b.bl;
 		    FlagHandleSub(S1, S2, (int8_t)(S1 - S2), 8);
-		    if (RFL.RES.d == 0)
+		    if (RFL.res == 0)
 			DR1.b.bl = CPUBYTE(o);
 		    else
 			CPUBYTE(Ofs_AL) = DR1.b.bl;
@@ -1269,7 +1269,7 @@ void Gen_sim(const IGen *IG)
 		    S1 = CPUWORD(Ofs_AX);
 		    S2 = DR1.w.l;
 		    FlagHandleSub(S1, S2, (int16_t)(S1 - S2), 16);
-		    if (RFL.RES.d == 0)
+		    if (RFL.res == 0)
 			DR1.w.l = CPUWORD(o);
 		    else
 			CPUWORD(Ofs_AX) = DR1.w.l;
@@ -1278,7 +1278,7 @@ void Gen_sim(const IGen *IG)
 		    S1 = CPULONG(Ofs_EAX);
 		    S2 = DR1.d;
 		    FlagHandleSub(S1, S2, S1 - S2, 32);
-		    if (RFL.RES.d == 0)
+		    if (RFL.res == 0)
 			DR1.d = CPULONG(o);
 		    else
 			CPULONG(Ofs_EAX) = DR1.d;
@@ -1720,17 +1720,17 @@ void Gen_sim(const IGen *IG)
 
 		if (mode & MBYTE) {
 			cy = (raft & 0x100) != 0;
-			RFL.RES.d = DR1.bs.bl = raft;
+			RFL.res = DR1.bs.bl = raft;
 			RFL.cout = rbef << 24;
 		}
 		else if (mode & DATA16) {
 			cy = (raft & 0x10000) != 0;
-			RFL.RES.d = DR1.ws.l = raft;
+			RFL.res = DR1.ws.l = raft;
 			RFL.cout = rbef << 16;
 		}
 		else {
 			cy = (rbef>>(32-sh)) & 1;
-			RFL.RES.d = DR1.d = raft;
+			RFL.res = DR1.d = raft;
 			RFL.cout = rbef & 0xc0000000;
 		}
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
@@ -1856,15 +1856,15 @@ void Gen_sim(const IGen *IG)
 		raft = rbef >> sh;
 
 		if (mode & MBYTE) {
-			RFL.RES.d = DR1.bs.bl = raft;
+			RFL.res = DR1.bs.bl = raft;
 			RFL.cout = raft << 24;
 		}
 		else if (mode & DATA16) {
-			RFL.RES.d = DR1.ws.l = raft;
+			RFL.res = DR1.ws.l = raft;
 			RFL.cout = raft << 16;
 		}
 		else {
-			RFL.RES.d = DR1.d = raft;
+			RFL.res = DR1.d = raft;
 			RFL.cout = raft & 0xc0000000;
 		}
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
@@ -1900,11 +1900,11 @@ void Gen_sim(const IGen *IG)
 		raft = rbef >> sh;
 
 		if (mode & MBYTE)
-			RFL.RES.d = DR1.bs.bl = raft;
+			RFL.res = DR1.bs.bl = raft;
 		else if (mode & DATA16)
-			RFL.RES.d = DR1.ws.l = raft;
+			RFL.res = DR1.ws.l = raft;
 		else
-			RFL.RES.d = DR1.ds = raft;
+			RFL.res = DR1.ds = raft;
 
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
@@ -1939,7 +1939,7 @@ void Gen_sim(const IGen *IG)
 					cyaf |= 1;
 				}
 				SET_CF(cyaf & 1);
-				RFL.RES.d = DR1.bs.bl; /* for flags */
+				RFL.res = DR1.bs.bl; /* for flags */
 				RFL.cout = (RFL.cout & ~8) | (cyaf & 8);
 				}
 				break;
@@ -1956,7 +1956,7 @@ void Gen_sim(const IGen *IG)
 					cyaf |= 1;
 				}
 				SET_CF(cyaf & 1);
-				RFL.RES.d = DR1.bs.bl; /* for flags */
+				RFL.res = DR1.bs.bl; /* for flags */
 				RFL.cout = (RFL.cout & ~8) | (cyaf & 8);
 				}
 				break;
@@ -1994,17 +1994,17 @@ void Gen_sim(const IGen *IG)
 				signed char tmp = DR1.b.bl;
 				int base = (signed char)IG->p2;
 				DR1.b.bh = tmp / base;
-				RFL.RES.d = DR1.bs.bl = tmp % base;
+				RFL.res = DR1.bs.bl = tmp % base;
 				/* clear AF (undefined: found experimentally) */
-				S2 = RFL.RES.d;
+				S2 = RFL.res;
 				}
 				break;
 			case AAD: {
 				int base = (signed char)IG->p2;
 				DR1.w.l = ((DR1.b.bh * base) + DR1.b.bl) & 0xff;
-				RFL.RES.d = DR1.bs.bl; /* for flags */
+				RFL.res = DR1.bs.bl; /* for flags */
 				/* clear AF (undefined: found experimentally) */
-				S2 = RFL.RES.d;
+				S2 = RFL.res;
 				}
 				break;
 		}
@@ -2478,7 +2478,7 @@ void Gen_sim(const IGen *IG)
 			FlagHandleSub(S1, S2, S1 - S2, 32);
 			addr += 4*df;
 		    }
-		    z = (RFL.RES.d==0);
+		    z = (RFL.res==0);
 		    i--;
 		}
 		AR1.d = addr;
@@ -2536,7 +2536,7 @@ void Gen_sim(const IGen *IG)
 			FlagHandleSub(S1, S2, S1 - S2, 32);
 			addr1 += 4*df; addr2 += 4*df;
 		    }
-		    z = (RFL.RES.d==0);
+		    z = (RFL.res==0);
 		    i--;
 		}
 		TR1.d = i;
@@ -2753,15 +2753,15 @@ void Gen_sim(const IGen *IG)
 				/* undocumented: works like rotate internally */
 				DR1.d = (DR1.d << shc) | (DR1.d >> (32-shc));
 				cy = DR1.d & 1;
-				RFL.RES.d = DR1.ws.l = DR1.ws.h;
+				RFL.res = DR1.ws.l = DR1.ws.h;
 			}
 			else {		// right: >>mem|reg>>
 				DR1.w.h = CPUWORD(o);
 				/* undocumented: works like rotate internally */
 				DR1.d = (DR1.d >> shc) | (DR1.d << (32-shc));
 				cy = (DR1.d >> 31) & 1;
-				RFL.RES.d = DR1.ws.l;
-				RFL.cout = RFL.RES.d << 16;
+				RFL.res = DR1.ws.l;
+				RFL.cout = RFL.res << 16;
 			}
 		}
 		else {
@@ -2772,15 +2772,15 @@ void Gen_sim(const IGen *IG)
 				RFL.cout = v.t.th;
 				cy = (v.td >> (64-shc)) & 1;
 				v.td <<= shc;
-				RFL.RES.d = DR1.d = v.t.th;
+				RFL.res = DR1.d = v.t.th;
 			}
 			else {		// right: >>mem|reg>>
 				v.t.th = CPULONG(o);
 				v.t.tl = DR1.d;
 				cy = (v.td >> (shc-1)) & 1;
 				v.td >>= shc;
-				RFL.RES.d = DR1.d = v.t.tl;
-				RFL.cout = RFL.RES.d;
+				RFL.res = DR1.d = v.t.tl;
+				RFL.cout = RFL.res;
 			}
 		}
 		SET_CF(cy);
@@ -2935,7 +2935,7 @@ void Gen_sim(const IGen *IG)
 	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
 		SR1.d,TR1.d);
 	    dbug_printf("(R) RFL m=[%s] v=%d cout=%08x RES=%08x\n",
-		showmode(RFL.mode),RFL.valid,RFL.cout,RFL.RES.d);
+		showmode(RFL.mode),RFL.valid,RFL.cout,RFL.res);
 //	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
 	}
 
@@ -2981,7 +2981,7 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
 		SR1.d,TR1.d);
 	    dbug_printf("(R) RFL m=[%s] v=%d cout=%08x RES=%08x\n\n",
-		showmode(RFL.mode),RFL.valid,RFL.cout,RFL.RES.d);
+		showmode(RFL.mode),RFL.valid,RFL.cout,RFL.res);
 	}
 
 	return P0;
