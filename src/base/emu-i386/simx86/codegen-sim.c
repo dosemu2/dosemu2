@@ -1473,53 +1473,53 @@ void Gen_sim(const IGen *IG)
 	case O_DIV:		// no flags
 		GTRACE0("O_DIV");
 		if (mode & MBYTE) {
-			RFL.RES.w.l = CPUWORD(Ofs_AX);
-			RFL.RES.w.h = 0;
+			uint32_t v = CPUWORD(Ofs_AX);
 			S1 = DR1.b.bl;
 			if (S1==0)
 			    TheCPU.err2 = EXCP00_DIVZ;
 			else {
-			    unsigned v = RFL.RES.d / S1;
+			    uint32_t rem = v % S1;
+			    v /= S1;
 			    if (v > 0xff)
 				TheCPU.err2 = EXCP00_DIVZ;
 			    else {
 				CPUBYTE(Ofs_AL) = v;
-				CPUBYTE(Ofs_AH) = RFL.RES.d % S1;
+				CPUBYTE(Ofs_AH) = rem;
 			    }
 			}
 		}
 		else {
 			if (mode&DATA16) {
-				RFL.RES.w.l = CPUWORD(Ofs_AX);
-				RFL.RES.w.h = CPUWORD(Ofs_DX);
+				uint32_t v;;
+				v = ((uint32_t)CPUWORD(Ofs_DX) << 16) | CPUWORD(Ofs_AX);
 				S1 = DR1.w.l;
 				if (S1==0)
 				    TheCPU.err2 = EXCP00_DIVZ;
 		    		else {
-				    unsigned v = RFL.RES.d / S1;
+				    uint32_t rem = v % S1;
+				    v /= S1;
 				    if (v > 0xffff)
 					TheCPU.err2 = EXCP00_DIVZ;
 				    else {
 					CPUWORD(Ofs_AX) = v;
-					CPUWORD(Ofs_DX) = RFL.RES.d % S1;
+					CPUWORD(Ofs_DX) = rem;
 				    }
 				}
 			}
 			else {
 				u_int64_u v;
-				unsigned long rem;
 				v.t.tl = CPULONG(Ofs_EAX);
 				v.t.th = CPULONG(Ofs_EDX);
 				S1 = DR1.d;
 				if (S1==0)
 				    TheCPU.err2 = EXCP00_DIVZ;
 		    		else {
-				    rem = v.td % S1;
+				    uint32_t rem = v.td % S1;
 				    v.td /= S1;
 				    if (v.t.th)
 					TheCPU.err2 = EXCP00_DIVZ;
 				    else {
-					CPULONG(Ofs_EAX) = RFL.RES.d = v.t.tl;
+					CPULONG(Ofs_EAX) = v.t.tl;
 					CPULONG(Ofs_EDX) = rem;
 				    }
 		    		}
@@ -1531,53 +1531,54 @@ void Gen_sim(const IGen *IG)
 	case O_IDIV:		// no flags
 		GTRACE0("O_IDIV");
 		if (mode & MBYTE) {
+			int32_t v;
 			int32_t S = DR1.bs.bl;
-			RFL.RES.ds = (signed short)CPUWORD(Ofs_AX);
+			v = (signed short)CPUWORD(Ofs_AX);
 			if (S==0)
 			    TheCPU.err2 = EXCP00_DIVZ;
 	    		else {
-			    int v = RFL.RES.ds / S;
+			    int32_t rem = v % S;
+			    v /= S;
 			    if (v > 127 || v < -128)
 				TheCPU.err2 = EXCP00_DIVZ;
 			    else {
 				CPUBYTE(Ofs_AL) = v;
-				CPUBYTE(Ofs_AH) = RFL.RES.ds % S;
+				CPUBYTE(Ofs_AH) = rem;
 			    }
 			}
 		}
 		else {
 			if (mode&DATA16) {
-				int32_t S;
-				RFL.RES.w.l = CPUWORD(Ofs_AX);
-				RFL.RES.w.h = CPUWORD(Ofs_DX);
-				S = DR1.ws.l;
+				int32_t v;
+				int32_t S = DR1.ws.l;
+				v = ((uint32_t)CPUWORD(Ofs_DX) << 16) | CPUWORD(Ofs_AX);
 				if (S==0)
 				    TheCPU.err2 = EXCP00_DIVZ;
 		    		else {
-				    int v = RFL.RES.ds / S;
+				    int32_t rem = v % S;
+				    v /= S;
 				    if (v > 32767 || v < -32768)
 					TheCPU.err2 = EXCP00_DIVZ;
 				    else {
 					CPUWORD(Ofs_AX) = v;
-					CPUWORD(Ofs_DX) = RFL.RES.ds % S;
+					CPUWORD(Ofs_DX) = rem;
 				    }
 		    		}
 			}
 			else {
 				int64_t v;
-				long rem;
 				int32_t S = DR1.d;
 				v = CPULONG(Ofs_EAX) |
 				  ((uint64_t)CPULONG(Ofs_EDX) << 32);
 				if (S==0)
 				    TheCPU.err2 = EXCP00_DIVZ;
 		    		else {
-				    rem = v % S;
+				    int32_t rem = v % S;
 				    v /= S;
 				    if (v > 0x7fffffffLL || v < -0x80000000LL)
 					TheCPU.err2 = EXCP00_DIVZ;
 				    else {
-					CPULONG(Ofs_EAX) = RFL.RES.d = v & 0xffffffff;
+					CPULONG(Ofs_EAX) = v & 0xffffffff;
 					CPULONG(Ofs_EDX) = rem;
 				    }
 		    		}
