@@ -106,7 +106,10 @@ static inline TNode *Tmalloc(void)
 {
   TNode *G  = TNodePool->link[0];
   TNode *G1 = G->link[0];
-  if (G1==TNodePool) leavedos_main(0x4c4c); // return NULL;
+  if (G1==TNodePool) {
+    pthread_mutex_unlock(&trees_mtx);
+    leavedos_main(0x4c4c); // return NULL;
+  }
   TNodePool->link[0] = G1; G->link[0]=NULL;
   memset(G, 0, sizeof(TNode));	// "bug covering"
   return G;
@@ -187,7 +190,10 @@ static TNode *avltr_probe (const int key, int *found)
       if (q->bal != 0) t = p, s = q;
       p = q;
       k++;
-/**/ if (k>=AVL_MAX_HEIGHT) leavedos_main(0x777);
+/**/if (k>=AVL_MAX_HEIGHT) {
+      pthread_mutex_unlock(&trees_mtx);
+      leavedos_main(0x777);
+    }
 #if PROFILE
       if (debug_level('e')) if (k>MaxDepth) MaxDepth=k;
 #endif
@@ -323,7 +329,10 @@ static void avltr_delete(const int key)
 	  p = p->link[1]; a[k] = 1;
       }
       k++;
-/**/ if (k>=AVL_MAX_HEIGHT) leavedos_main(0x777);
+/**/  if (k>=AVL_MAX_HEIGHT) {
+        pthread_mutex_unlock(&trees_mtx);
+        leavedos_main(0x777);
+      }
   }
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
   if (debug_level('e')>2)
@@ -386,7 +395,10 @@ static void avltr_delete(const int key)
 	    if (t->mblock) dlfree(t->mblock);
 /* e_printf("<03 node exchange %p->%p>\n",s,t); */
 	    datacopy(t, s);
-/**/	    if (t->addr==NULL) leavedos_main(0x8130);
+/**/	    if (t->addr==NULL) {
+	      pthread_mutex_unlock(&trees_mtx);
+	      leavedos_main(0x8130);
+	    }
 	    /* keep the node reference to itself */
 	    t->mblock->bkptr = t;
 	    s->addr = NULL;
@@ -412,14 +424,17 @@ static void avltr_delete(const int key)
 #ifdef DEBUG_LINKER
 	if (p->nrefs) {
 	    dbug_printf("Cannot delete - nrefs=%d\n",p->nrefs);
+	    pthread_mutex_unlock(&trees_mtx);
 	    leavedos_main(0x9140);
 	}
 	if (p->bkr.next) {
 	    dbug_printf("Cannot delete - bkr busy\n");
+	    pthread_mutex_unlock(&trees_mtx);
 	    leavedos_main(0x9141);
 	}
 	if (p->clink_t.ref || p->clink_nt.ref) {
 	    dbug_printf("Cannot delete - ref busy\n");
+	    pthread_mutex_unlock(&trees_mtx);
 	    leavedos_main(0x9142);
 	}
 #endif
@@ -906,8 +921,10 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   found = 0;
   pthread_mutex_lock(&trees_mtx);
   nG = avltr_probe(key, &found);
-/**/ if (nG==NULL) leavedos_main(0x8201);
-
+  if (nG==NULL) {
+    pthread_mutex_unlock(&trees_mtx);
+    leavedos_main(0x8201);
+  }
   if (found) {
 	if (debug_level('e')>2) {
 		e_printf("Equal keys: replace node %p at %08x\n",
