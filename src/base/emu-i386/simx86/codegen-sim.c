@@ -77,7 +77,6 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 			 unsigned char *ecpu, void *SeqStart,
 			 unsigned short seqflg);
 
-static unsigned int P0 = (unsigned)-1;
 static unsigned char *currentIG = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -336,15 +335,17 @@ void InitGen_sim(void)
 	RFL.valid = V_INVALID;
 }
 
-static inline void check_v86_address_overflow(int mode, const IGen *IG)
+static inline unsigned int check_v86_address_overflow(int mode, const IGen *IG)
 {
+	unsigned int P0 = (unsigned int)-1;
 	if (V86MODE() && (0 == (mode & (ADDR16 | MLEA))) && TR1.d > 0xffff) {
 		TheCPU.err2 = EXCP0D_GPF;
 		P0 = FindPC((const unsigned char *)IG);
 	}
+	return P0;
 }
 
-void Gen_sim(const IGen *IG)
+unsigned int Gen_sim(const IGen *IG)
 {
 	int op = IG->op;
 	int mode = IG->mode;
@@ -354,7 +355,7 @@ void Gen_sim(const IGen *IG)
 	if (debug_level('e')) t0 = GETTSC();
 #endif
 
-	P0 = (unsigned)-1;
+	unsigned int P0 = (unsigned)-1;
 	switch(op) {
 	case A_DI_0:			// base(32), imm
 	case A_DI_1: {			// base(32), {imm}, reg, {shift}
@@ -370,7 +371,7 @@ void Gen_sim(const IGen *IG)
 			if (op==A_DI_0) {
 				GTRACE3("A_DI_0",0xff,0xff,idsp);
 				TR1.d = idsp;
-				check_v86_address_overflow(mode, IG);
+				P0 = check_v86_address_overflow(mode, IG);
 			}
 			else if (mode & ADDR16) {
 				signed char o = (signed char)IG->p2;
@@ -382,7 +383,7 @@ void Gen_sim(const IGen *IG)
 				signed char o = (signed char)IG->p2;
 				GTRACE3("A_DI_1",o,ofs,idsp);
 				TR1.d = CPULONG(o) + idsp;
-				check_v86_address_overflow(mode, IG);
+				P0 = check_v86_address_overflow(mode, IG);
 			}
 			AR1.d += TR1.d;
 		}
@@ -413,7 +414,7 @@ void Gen_sim(const IGen *IG)
 				TR1.d = CPULONG(o1) +
 				  (CPULONG(o2) << (sh & 0x1f)) + idsp;
 				AR1.d += TR1.d;
-				check_v86_address_overflow(mode, IG);
+				P0 = check_v86_address_overflow(mode, IG);
 			}
 		}
 		break;
@@ -434,7 +435,7 @@ void Gen_sim(const IGen *IG)
 			GTRACE5("A_DI_2D",ofs,o,0xff,idsp,sh);
 			TR1.d = (CPULONG(o) << (sh & 0x1f)) + idsp;
 			AR1.d += TR1.d;
-			check_v86_address_overflow(mode, IG);
+			P0 = check_v86_address_overflow(mode, IG);
 		}
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
@@ -2966,6 +2967,7 @@ void Gen_sim(const IGen *IG)
 #if PROFILE >= 2
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
+	return P0;
 }
 
 
@@ -2983,10 +2985,10 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 			 unsigned short seqflg)
 {
 	IGen *IG = SeqStart;
-	P0 = (unsigned)-1;
+	unsigned int P0;
 	do {
 		currentIG = (unsigned char *)IG;
-		Gen_sim(IG);
+		P0 = Gen_sim(IG);
 		IG++;
 	} while (P0 == (unsigned int)-1);
 	currentIG = NULL;
@@ -3037,7 +3039,7 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 	TheCPU.cr2 = addr;
 	if (currentIG) {
 		LONG_CS = _LONG_CS;
-		P0 = FindPC(currentIG);
+		unsigned int P0 = FindPC(currentIG);
 		TheCPU.eip = P0 - LONG_CS;
 		longjmp(jmp_env, 2);
 	} else
