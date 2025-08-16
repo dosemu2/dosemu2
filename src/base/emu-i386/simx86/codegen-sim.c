@@ -1735,24 +1735,22 @@ void Gen_sim(const IGen *IG)
 		// for sh==1. In that case, SHL r/m,1 behaves like ADD r/m,r/m.
 		// So flag state gets set up like that
 		raft = (rbef << sh);
-		RFL.RES.d = raft;
 
 		if (mode & MBYTE) {
 			cy = (raft & 0x100) != 0;
-			DR1.b.bl = raft;
+			RFL.RES.d = DR1.bs.bl = raft;
 			RFL.cout = rbef << 24;
 		}
 		else if (mode & DATA16) {
 			cy = (raft & 0x10000) != 0;
-			DR1.w.l = raft;
+			RFL.RES.d = DR1.ws.l = raft;
 			RFL.cout = rbef << 16;
 		}
 		else {
 			cy = (rbef>>(32-sh)) & 1;
-			DR1.d = raft;
+			RFL.RES.d = DR1.d = raft;
 			RFL.cout = rbef & 0xc0000000;
 		}
-		RFL.RES.d = raft;
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1) RFL.mode |= IGNOVF;
@@ -1874,18 +1872,17 @@ void Gen_sim(const IGen *IG)
 
 		cy = (rbef >> (sh-1)) & 1;
 		raft = rbef >> sh;
-		RFL.RES.d = raft;
 
 		if (mode & MBYTE) {
-			DR1.b.bl = raft;
+			RFL.RES.d = DR1.bs.bl = raft;
 			RFL.cout = raft << 24;
 		}
 		else if (mode & DATA16) {
-			DR1.w.l = raft;
+			RFL.RES.d = DR1.ws.l = raft;
 			RFL.cout = raft << 16;
 		}
 		else {
-			DR1.d = raft;
+			RFL.RES.d = DR1.d = raft;
 			RFL.cout = raft & 0xc0000000;
 		}
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
@@ -1919,14 +1916,13 @@ void Gen_sim(const IGen *IG)
 
 		cy = (rbef >> (sh-1)) & 1;
 		raft = rbef >> sh;
-		RFL.RES.d = raft;
 
 		if (mode & MBYTE)
-			DR1.bs.bl = raft;
+			RFL.RES.d = DR1.bs.bl = raft;
 		else if (mode & DATA16)
-			DR1.ws.l = raft;
+			RFL.RES.d = DR1.ws.l = raft;
 		else
-			DR1.ds = raft;
+			RFL.RES.d = DR1.ds = raft;
 
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
@@ -2775,14 +2771,14 @@ void Gen_sim(const IGen *IG)
 				/* undocumented: works like rotate internally */
 				DR1.d = (DR1.d << shc) | (DR1.d >> (32-shc));
 				cy = DR1.d & 1;
-				RFL.RES.d = DR1.w.l = DR1.w.h;
+				RFL.RES.d = DR1.ws.l = DR1.ws.h;
 			}
 			else {		// right: >>mem|reg>>
 				DR1.w.h = CPUWORD(o);
 				/* undocumented: works like rotate internally */
 				DR1.d = (DR1.d >> shc) | (DR1.d << (32-shc));
 				cy = (DR1.d >> 31) & 1;
-				RFL.RES.d = DR1.w.l;
+				RFL.RES.d = DR1.ws.l;
 				RFL.cout = RFL.RES.d << 16;
 			}
 		}
