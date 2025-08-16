@@ -3029,12 +3029,18 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 		return;
 	}
 	/* trigger an exception in DPMI */
-	TheCPU.err2 = EXCP0E_PAGE;
+	/* Need to shutdown prejitter to touch LONG_CS and TheCPU.err
+	   to return to _Interp86() */
+	prejit_sync();
+	TheCPU.err = EXCP0E_PAGE;
 	TheCPU.scp_err = err;
 	TheCPU.cr2 = addr;
-	if (currentIG)
+	if (currentIG) {
+		LONG_CS = _LONG_CS;
 		P0 = FindPC(currentIG);
-	else
+		TheCPU.eip = P0 - LONG_CS;
+		longjmp(jmp_env, 2);
+	} else
 		/* for faulting sim_read/write directly from interp.c */
 		longjmp(jmp_env, 1);
 }
