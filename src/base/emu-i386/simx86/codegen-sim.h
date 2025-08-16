@@ -50,7 +50,7 @@ typedef union {
 
 typedef struct {
 	int valid, mode, cout;
-	wkreg RES;
+	uint32_t res;
 } flgtmp;
 
 #define V_INVALID	0
