@@ -170,6 +170,7 @@ static inline void FlagHandleAdd(unsigned src1, unsigned src2, unsigned res,
 	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
 	int cy = cout >> (wordsize - 1);
 	SET_CF(cy & 1);
+	RFL.RES.d = res;
 }
 
 static inline void FlagHandleSub(unsigned src1, unsigned src2, unsigned res,
@@ -653,22 +654,22 @@ void Gen_sim(const IGen *IG)
 		    S1 = DR1.b.bl;
 		    if (mode & IMMED) S2 = v.b.bl;
 			else S2 = CPUBYTE(v.bs.bl);
-		    DR1.b.bl = RFL.RES.d = S1 + S2;
-		    FlagHandleAdd(S1, S2, RFL.RES.d, 8);
+		    DR1.bs.bl = S1 + S2;
+		    FlagHandleAdd(S1, S2, DR1.bs.bl, 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = DR1.w.l;
 		    if (mode & IMMED) S2 = v.w.l;
 			else S2 = CPUWORD(v.bs.bl);
-		    DR1.w.l = RFL.RES.d = S1 + S2;
-		    FlagHandleAdd(S1, S2, RFL.RES.d, 16);
+		    DR1.ws.l = S1 + S2;
+		    FlagHandleAdd(S1, S2, DR1.ws.l, 16);
 		}
 		else {
 		    S1 = DR1.d;
 		    if (mode & IMMED) S2 = v.d;
 			else S2 = CPULONG(v.bs.bl);
-		    DR1.d = RFL.RES.d = S1 + S2;
-		    FlagHandleAdd(S1, S2, RFL.RES.d, 32);
+		    DR1.d = S1 + S2;
+		    FlagHandleAdd(S1, S2, DR1.d, 32);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
@@ -813,22 +814,22 @@ void Gen_sim(const IGen *IG)
 		    S1 = DR1.b.bl;
 		    if (mode & IMMED) S2 = v.b.bl;
 			else S2 = CPUBYTE(v.bs.bl);
-		    DR1.b.bl = RFL.RES.d = S1 + S2 + cy;
-		    FlagHandleAdd(S1, S2, RFL.RES.d, 8);
+		    DR1.bs.bl = S1 + S2 + cy;
+		    FlagHandleAdd(S1, S2, DR1.bs.bl, 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = DR1.w.l;
 		    if (mode & IMMED) S2 = v.w.l;
 			else S2 = CPUWORD(v.bs.bl);
-		    DR1.w.l = RFL.RES.d = S1 + S2 + cy;
-		    FlagHandleAdd(S1, S2, RFL.RES.d, 16);
+		    DR1.ws.l = S1 + S2 + cy;
+		    FlagHandleAdd(S1, S2, DR1.ws.l, 16);
 		}
 		else {
 		    S1 = DR1.d;
 		    if (mode & IMMED) S2 = v.d;
 			else S2 = CPULONG(v.bs.bl);
-		    DR1.d = RFL.RES.d = S1 + S2 + cy;
-		    FlagHandleAdd(S1, S2, RFL.RES.d, 32);
+		    DR1.d = S1 + S2 + cy;
+		    FlagHandleAdd(S1, S2, DR1.d, 32);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
@@ -982,22 +983,22 @@ void Gen_sim(const IGen *IG)
 		    S1 = CPUBYTE(o);
 		    if (mode & IMMED) S2 = v.b.bl;
 			else S2 = DR1.b.bl;
-		    CPUBYTE(o) = RFL.RES.d = S1 + S2;
-		    FlagHandleAdd(S1, S2, RFL.RES.d, 8);
+		    CPUBYTE(o) = v.bs.bl = S1 + S2;
+		    FlagHandleAdd(S1, S2, v.bs.bl, 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = CPUWORD(o);
 		    if (mode & IMMED) S2 = v.w.l;
 			else S2 = DR1.w.l;
-		    CPUWORD(o) = RFL.RES.d = S1 + S2;
-		    FlagHandleAdd(S1, S2, RFL.RES.d, 16);
+		    CPUWORD(o) = v.ws.l = S1 + S2;
+		    FlagHandleAdd(S1, S2, v.ws.l, 16);
 		}
 		else {
 		    S1 = CPULONG(o);
 		    if (mode & IMMED) S2 = v.d;
 			else S2 = DR1.d;
-		    CPULONG(o) = RFL.RES.d = S1 + S2;
-		    FlagHandleAdd(S1, S2, RFL.RES.d, 32);
+		    CPULONG(o) = v.d = S1 + S2;
+		    FlagHandleAdd(S1, S2, v.d, 32);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
@@ -1039,22 +1040,22 @@ void Gen_sim(const IGen *IG)
 		    S1 = CPUBYTE(o);
 		    if (mode & IMMED) S2 = v.b.bl;
 			else S2 = DR1.b.bl;
-		    CPUBYTE(o) = RFL.RES.d = S1 + S2 + cy;
-		    FlagHandleAdd(S1, S2, RFL.RES.d, 8);
+		    CPUBYTE(o) = v.bs.bl = S1 + S2 + cy;
+		    FlagHandleAdd(S1, S2, v.bs.bl, 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = CPUWORD(o);
 		    if (mode & IMMED) S2 = v.w.l;
 			else S2 = DR1.w.l;
-		    CPUWORD(o) = RFL.RES.d = S1 + S2 + cy;
-		    FlagHandleAdd(S1, S2, RFL.RES.d, 16);
+		    CPUWORD(o) = v.ws.l = S1 + S2 + cy;
+		    FlagHandleAdd(S1, S2, v.ws.l, 16);
 		}
 		else {
 		    S1 = CPULONG(o);
 		    if (mode & IMMED) S2 = v.d;
 			else S2 = DR1.d;
-		    CPULONG(o) = RFL.RES.d = S1 + S2 + cy;
-		    FlagHandleAdd(S1, S2, RFL.RES.d, 32);
+		    CPULONG(o) = v.d = S1 + S2 + cy;
+		    FlagHandleAdd(S1, S2, v.d, 32);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
