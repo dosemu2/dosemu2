@@ -181,10 +181,6 @@
 #define MREALA	0x00040000
 
 #define CKSIGN	0x00100000	// check signal: for jumps
-// for HOST_ARCH_SIM
-#define CLROVF	0x00200000
-#define SETOVF	0x00400000
-#define IGNOVF	0x00800000
 // for HOST_ARCH_X86
 #define MREPCOND 0x01000000	// this is SCASx or CMPSx, REP can be terminated
 				// by flags
