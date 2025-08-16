@@ -931,12 +931,12 @@ void Gen_sim(const IGen *IG)
 		RFL.valid = V_ADD;
 		if (mode & MBYTE) {
 		    S1 = CPUBYTE(o);
-		    CPUBYTE(o) = RFL.RES.d = S1 + 1;
+		    CPUBYTE(o) = RFL.RES.d = (int8_t)(S1 + 1);
 		    FlagHandleIncDec(S1, RFL.RES.d, 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = CPUWORD(o);
-		    CPUWORD(o) = RFL.RES.d = S1 + 1;
+		    CPUWORD(o) = RFL.RES.d = (int16_t)(S1 + 1);
 		    FlagHandleIncDec(S1, RFL.RES.d, 16);
 		}
 		else {
@@ -953,12 +953,12 @@ void Gen_sim(const IGen *IG)
 		RFL.valid = V_SUB;
 		if (mode & MBYTE) {
 		    S1 = CPUBYTE(o);
-		    CPUBYTE(o) = RFL.RES.d = S1 - 1;
+		    CPUBYTE(o) = RFL.RES.d = (int8_t)(S1 - 1);
 		    FlagHandleIncDec(RFL.RES.d, S1, 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = CPUWORD(o);
-		    CPUWORD(o) = RFL.RES.d = S1 - 1;
+		    CPUWORD(o) = RFL.RES.d = (int16_t)(S1 - 1);
 		    FlagHandleIncDec(RFL.RES.d, S1, 16);
 		}
 		else {
@@ -1162,7 +1162,7 @@ void Gen_sim(const IGen *IG)
 		    RFL.RES.d = v.bs.bl = CPUBYTE(o) ^= (mode & IMMED ? v.b.bl : DR1.b.bl);
 		}
 		else if (mode & DATA16) {
-		    RFL.RES.d = v.ws.wl = CPUWORD(o) ^= (mode & IMMED ? v.w.l : DR1.w.l);
+		    RFL.RES.d = v.ws.l = CPUWORD(o) ^= (mode & IMMED ? v.w.l : DR1.w.l);
 		}
 		else {
 		    RFL.RES.d = CPULONG(o) ^= (mode & IMMED ? v.d : DR1.d);
@@ -1235,12 +1235,12 @@ void Gen_sim(const IGen *IG)
 		RFL.valid = V_ADD;
 		if (mode & MBYTE) {
 			S1 = DR1.bs.bl;
-			DR1.b.bl = RFL.RES.d = S1 + 1;
+			DR1.b.bl = RFL.RES.d = (int8_t)(S1 + 1);
 			FlagHandleIncDec(S1, RFL.RES.d, 8);
 		}
 		else if (mode & DATA16) {
 			S1 = DR1.ws.l;
-			DR1.w.l = RFL.RES.d = S1 + 1;
+			DR1.w.l = RFL.RES.d = (int16_t)(S1 + 1);
 			FlagHandleIncDec(S1, RFL.RES.d, 16);
 		}
 		else {
@@ -1255,12 +1255,12 @@ void Gen_sim(const IGen *IG)
 		RFL.valid = V_SUB;
 		if (mode & MBYTE) {
 			S1 = DR1.bs.bl;
-			DR1.b.bl = RFL.RES.d = S1 - 1;
+			DR1.b.bl = RFL.RES.d = (int8_t)(S1 - 1);
 			FlagHandleIncDec(RFL.RES.d, S1, 8);
 		}
 		else if (mode & DATA16) {
 			S1 = DR1.ws.l;
-			DR1.w.l = RFL.RES.d = S1 - 1;
+			DR1.w.l = RFL.RES.d = (int16_t)(S1 - 1);
 			FlagHandleIncDec(RFL.RES.d, S1, 16);
 		}
 		else {
