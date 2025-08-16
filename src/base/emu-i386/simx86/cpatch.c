@@ -193,7 +193,7 @@ void rep_movs_stos(struct rep_stack *stack)
 		AR1.d = EMUADDR_REL(stack->edi);
 		TR1.d = stack->ecx;
 		repmod |= MOVSDST|MREPCOND|(eip[-1]==REPNE? MREPNE:MREP);
-		if ((op & 0xf6) == 0xa6) { /* cmps */
+		if ((op & 0xfe) == 0xa6) { /* cmps */
 			repmod |= MOVSSRC;
 			AR2.d = EMUADDR_REL(stack->esi);
 			IGen IG = (IGen){.op = O_MOVS_CmpD, .mode = repmod};
