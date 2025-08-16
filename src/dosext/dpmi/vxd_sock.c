@@ -179,6 +179,7 @@ static void sock_handler(cpuctx_t *scp,
             sa.sin_family = AF_INET
 
 #define TCP_IO(n, op, c) do { \
+            __label__ _ok; \
             rc = op; \
             switch (rc) { \
             case 0: \
@@ -189,12 +190,18 @@ static void sock_handler(cpuctx_t *scp,
             case -1: \
                 switch (errno) { \
                 case EAGAIN: \
+                case EALREADY: \
+                case EINPROGRESS: \
                     _eax = CSOCK_ERR_WOULD_BLOCK; \
                     break; \
                 case ENOTCONN: \
                 case ECONNREFUSED: \
+                case ETIMEDOUT: \
+                case ENETUNREACH: \
                     _eax = CSOCK_ERR_NOT_CONNECTED; \
                     break; \
+                case EISCONN: \
+                    goto _ok; \
                 default: \
                     error(n": %s\n", strerror(errno)); \
                     _eax = CSOCK_ERR_INTERNAL; \
@@ -203,6 +210,7 @@ static void sock_handler(cpuctx_t *scp,
                 _eflags |= CF; \
                 break; \
             default: \
+_ok: \
                 _eax = 0; \
                 _ecx = rc; \
                 c \
@@ -214,12 +222,10 @@ static void sock_handler(cpuctx_t *scp,
     switch (handle_timeout(0xffff, cbk, arg, arg2, arg3, &rc)) { \
         case -1: \
             switch (errno) { \
-            case EAGAIN: \
-                dosemu_error("blocking mode doesn't work?\n"); \
-                _eax = CSOCK_ERR_WOULD_BLOCK; \
-                break; \
             case ENOTCONN: \
             case ECONNREFUSED: \
+            case ETIMEDOUT: \
+            case ENETUNREACH: \
                 _eax = CSOCK_ERR_NOT_CONNECTED; \
                 break; \
             default: \
@@ -229,7 +235,7 @@ static void sock_handler(cpuctx_t *scp,
             } \
             _eflags |= CF; \
             break; \
-        case 0: \
+        case 0: /* EISCONN also comes here */ \
             _eax = 0; \
             _ecx = rc; \
             c \

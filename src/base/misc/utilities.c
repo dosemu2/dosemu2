@@ -1390,7 +1390,8 @@ enum CbkRet conn_cb(int fd, void *sa, int len, int *r_err)
 {
     int err = connect(fd, sa, len);
     *r_err = err;
-    if (err && errno != EINPROGRESS && errno != EALREADY && errno != EISCONN) {
+    if (err && errno != EINPROGRESS && errno != EALREADY && errno != EISCONN &&
+            errno != EAGAIN) {
         error("connect(): %s\n", strerror(errno));
         return CBK_ERR;
     }
