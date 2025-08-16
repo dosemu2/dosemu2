@@ -683,11 +683,11 @@ void Gen_sim(const IGen *IG)
 		    else {GTRACE3("O_OR_R",v,0xff,v);}
 		if (mode & MBYTE) {
 		    if (!(mode & IMMED)) v = CPUBYTE(v);
-		    RFL.RES.d = DR1.b.bl |= v;
+		    RFL.RES.d = DR1.bs.bl |= v;
 		}
 		else if (mode & DATA16) {
 		    if (!(mode & IMMED)) v = CPUWORD(v);
-		    RFL.RES.d = DR1.w.l |= v;
+		    RFL.RES.d = DR1.ws.l |= v;
 		}
 		else {
 		    if (!(mode & IMMED)) v = CPULONG(v);
@@ -705,11 +705,11 @@ void Gen_sim(const IGen *IG)
 		    else {GTRACE3("O_AND_R",v,0xff,v);}
 		if (mode & MBYTE) {
 		    if (!(mode & IMMED)) v = CPUBYTE(v);
-		    RFL.RES.d = DR1.b.bl &= v;
+		    RFL.RES.d = DR1.bs.bl &= v;
 		}
 		else if (mode & DATA16) {
 		    if (!(mode & IMMED)) v = CPUWORD(v);
-		    RFL.RES.d = DR1.w.l &= v;
+		    RFL.RES.d = DR1.ws.l &= v;
 		}
 		else {
 		    if (!(mode & IMMED)) v = CPULONG(v);
@@ -727,11 +727,11 @@ void Gen_sim(const IGen *IG)
 		    else {GTRACE3("O_XOR_R",v,0xff,v);}
 		if (mode & MBYTE) {
 		    if (!(mode & IMMED)) v = CPUBYTE(v);
-		    RFL.RES.d = DR1.b.bl ^= v;
+		    RFL.RES.d = DR1.bs.bl ^= v;
 		}
 		else if (mode & DATA16) {
 		    if (!(mode & IMMED)) v = CPUWORD(v);
-		    RFL.RES.d = DR1.w.l ^= v;
+		    RFL.RES.d = DR1.ws.l ^= v;
 		}
 		else {
 		    if (!(mode & IMMED)) v = CPULONG(v);
@@ -888,10 +888,10 @@ void Gen_sim(const IGen *IG)
 		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & MBYTE) {
-		    RFL.RES.d = CPUBYTE(o);
+		    RFL.RES.d = (int8_t)CPUBYTE(o);
 		}
 		else if (mode & DATA16) {
-		    RFL.RES.d = CPUWORD(o);
+		    RFL.RES.d = (int16_t)CPUWORD(o);
 		}
 		else {
 		    RFL.RES.d = CPULONG(o);
@@ -913,10 +913,10 @@ void Gen_sim(const IGen *IG)
 		    CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & 0x7700) | 0x46;
 		}
 		if (mode & MBYTE) {
-		    CPUBYTE(o) = RFL.RES.b.bl;
+		    CPUBYTE(o) = RFL.RES.d;
 		}
 		else if (mode & DATA16) {
-		    CPUWORD(o) = RFL.RES.w.l;
+		    CPUWORD(o) = RFL.RES.d;
 		}
 		else {
 		    CPULONG(o) = RFL.RES.d;
@@ -1011,10 +1011,10 @@ void Gen_sim(const IGen *IG)
 		if (mode & IMMED) {GTRACE3("O_OR_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_OR_FR",v.d,0xff,v.d);}
 		if (mode & MBYTE) {
-		    RFL.RES.d = CPUBYTE(o) |= (mode & IMMED ? v.b.bl : DR1.b.bl);
+		    RFL.RES.d = v.bs.bl = CPUBYTE(o) |= (mode & IMMED ? v.b.bl : DR1.b.bl);
 		}
 		else if (mode & DATA16) {
-		    RFL.RES.d = CPUWORD(o) |= (mode & IMMED ? v.w.l : DR1.w.l);
+		    RFL.RES.d = v.ws.l = CPUWORD(o) |= (mode & IMMED ? v.w.l : DR1.w.l);
 		}
 		else {
 		    RFL.RES.d = CPULONG(o) |= (mode & IMMED ? v.d : DR1.d);
@@ -1104,10 +1104,10 @@ void Gen_sim(const IGen *IG)
 		if (mode & IMMED) {GTRACE3("O_AND_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_AND_FR",v.d,0xff,v.d);}
 		if (mode & MBYTE) {
-		    RFL.RES.d = CPUBYTE(o) &= (mode & IMMED ? v.b.bl : DR1.b.bl);
+		    RFL.RES.d = v.bs.bl = CPUBYTE(o) &= (mode & IMMED ? v.b.bl : DR1.b.bl);
 		}
 		else if (mode & DATA16) {
-		    RFL.RES.d = CPUWORD(o) &= (mode & IMMED ? v.w.l : DR1.w.l);
+		    RFL.RES.d = v.ws.l = CPUWORD(o) &= (mode & IMMED ? v.w.l : DR1.w.l);
 		}
 		else {
 		    RFL.RES.d = CPULONG(o) &= (mode & IMMED ? v.d : DR1.d);
@@ -1159,10 +1159,10 @@ void Gen_sim(const IGen *IG)
 		if (mode & IMMED) {GTRACE3("O_XOR_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_XOR_FR",v.d,0xff,v.d);}
 		if (mode & MBYTE) {
-		    RFL.RES.d = CPUBYTE(o) ^= (mode & IMMED ? v.b.bl : DR1.b.bl);
+		    RFL.RES.d = v.bs.bl = CPUBYTE(o) ^= (mode & IMMED ? v.b.bl : DR1.b.bl);
 		}
 		else if (mode & DATA16) {
-		    RFL.RES.d = CPUWORD(o) ^= (mode & IMMED ? v.w.l : DR1.w.l);
+		    RFL.RES.d = v.ws.wl = CPUWORD(o) ^= (mode & IMMED ? v.w.l : DR1.w.l);
 		}
 		else {
 		    RFL.RES.d = CPULONG(o) ^= (mode & IMMED ? v.d : DR1.d);
