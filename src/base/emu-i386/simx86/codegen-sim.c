@@ -182,6 +182,7 @@ static inline void FlagHandleSub(unsigned src1, unsigned src2, unsigned res,
 	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
 	int cy = cout >> (wordsize - 1);
 	SET_CF(cy & 1);
+	RFL.RES.d = res;
 }
 
 static inline void FlagHandleIncDec(unsigned low, unsigned high, int wordsize)
@@ -751,22 +752,22 @@ void Gen_sim(const IGen *IG)
 		    S1 = DR1.b.bl;
 		    if (mode & IMMED) S2 = v.b.bl;
 			else S2 = CPUBYTE(v.bs.bl);
-		    DR1.b.bl = RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 8);
+		    DR1.bs.bl = S1 - S2;
+		    FlagHandleSub(S1, S2, DR1.bs.bl, 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = DR1.w.l;
 		    if (mode & IMMED) S2 = v.w.l;
 			else S2 = CPUWORD(v.bs.bl);
-		    DR1.w.l = RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 16);
+		    DR1.ws.l = S1 - S2;
+		    FlagHandleSub(S1, S2, DR1.ws.l, 16);
 		}
 		else {
 		    S1 = DR1.d;
 		    if (mode & IMMED) S2 = v.d;
 			else S2 = CPULONG(v.bs.bl);
-		    DR1.d = RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 32);
+		    DR1.d = S1 - S2;
+		    FlagHandleSub(S1, S2, DR1.d, 32);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
@@ -782,22 +783,19 @@ void Gen_sim(const IGen *IG)
 		    S1 = DR1.b.bl;
 		    if (mode & IMMED) S2 = v.b.bl;
 			else S2 = CPUBYTE(v.bs.bl);
-		    RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 8);
+		    FlagHandleSub(S1, S2, (int8_t)(S1 - S2), 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = DR1.w.l;
 		    if (mode & IMMED) S2 = v.w.l;
 			else S2 = CPUWORD(v.bs.bl);
-		    RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 16);
+		    FlagHandleSub(S1, S2, (int16_t)(S1 - S2), 16);
 		}
 		else {
 		    S1 = DR1.d;
 		    if (mode & IMMED) S2 = v.d;
 			else S2 = CPULONG(v.bs.bl);
-		    RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 32);
+		    FlagHandleSub(S1, S2, S1 - S2, 32);
 		}
 		}
 		break;
@@ -848,22 +846,22 @@ void Gen_sim(const IGen *IG)
 		    // movzbl v.b.bl->eax; add cy,eax; neg eax
 		    if (mode & IMMED) S2 = v.b.bl;
 			else S2 = CPUBYTE(v.bs.bl);
-		    DR1.b.bl = RFL.RES.d = S1 - S2 - cy;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 8);
+		    DR1.bs.bl = S1 - S2 - cy;
+		    FlagHandleSub(S1, S2, DR1.bs.bl, 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = DR1.w.l;
 		    if (mode & IMMED) S2 = v.w.l;
 			else S2 = CPUWORD(v.bs.bl);
-		    DR1.w.l = RFL.RES.d = S1 - S2 - cy;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 16);
+		    DR1.ws.l = S1 - S2 - cy;
+		    FlagHandleSub(S1, S2, DR1.ws.l, 16);
 		}
 		else {
 		    S1 = DR1.d;
 		    if (mode & IMMED) S2 = v.d;
 			else S2 = CPULONG(v.bs.bl);
-		    DR1.d = RFL.RES.d = S1 - S2 - cy;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 32);
+		    DR1.d = S1 - S2 - cy;
+		    FlagHandleSub(S1, S2, DR1.d, 32);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
@@ -1076,22 +1074,22 @@ void Gen_sim(const IGen *IG)
 		    // movzbl v.bs.bl->eax; add cy,eax; neg eax
 		    if (mode & IMMED) S2 = v.b.bl;
 			else S2 = DR1.b.bl;
-		    CPUBYTE(o) = RFL.RES.d = S1 - S2 - cy;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 8);
+		    CPUBYTE(o) = v.bs.bl = S1 - S2 - cy;
+		    FlagHandleSub(S1, S2, v.bs.bl, 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = CPUWORD(o);
 		    if (mode & IMMED) S2 = v.w.l;
 			else S2 = DR1.w.l;
-		    CPUWORD(o) = RFL.RES.d = S1 - S2 - cy;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 16);
+		    CPUWORD(o) = v.ws.l = S1 - S2 - cy;
+		    FlagHandleSub(S1, S2, v.ws.l, 16);
 		}
 		else {
 		    S1 = CPULONG(o);
 		    if (mode & IMMED) S2 = v.d;
 			else S2 = DR1.d;
-		    CPULONG(o) = RFL.RES.d = S1 - S2 - cy;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 32);
+		    CPULONG(o) = v.d = S1 - S2 - cy;
+		    FlagHandleSub(S1, S2, v.d, 32);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
@@ -1131,22 +1129,22 @@ void Gen_sim(const IGen *IG)
 		    S1 = CPUBYTE(o);
 		    if (mode & IMMED) S2 = v.b.bl;
 			else S2 = DR1.b.bl;
-		    CPUBYTE(o) = RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 8);
+		    CPUBYTE(o) = v.bs.bl = S1 - S2;
+		    FlagHandleSub(S1, S2, v.bs.bl, 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = CPUWORD(o);
 		    if (mode & IMMED) S2 = v.w.l;
 			else S2 = DR1.w.l;
-		    CPUWORD(o) = RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 16);
+		    CPUWORD(o) = v.ws.l = S1 - S2;
+		    FlagHandleSub(S1, S2, v.ws.l, 16);
 		}
 		else {
 		    S1 = CPULONG(o);
 		    if (mode & IMMED) S2 = v.d;
 			else S2 = DR1.d;
-		    CPULONG(o) = RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d,32);
+		    CPULONG(o) = v.d = S1 - S2;
+		    FlagHandleSub(S1, S2, v.d, 32);
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
@@ -1186,22 +1184,19 @@ void Gen_sim(const IGen *IG)
 		    S1 = CPUBYTE(o);
 		    if (mode & IMMED) S2 = v.b.bl;
 			else S2 = DR1.b.bl;
-		    RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 8);
+		    FlagHandleSub(S1, S2, (int8_t)(S1 - S2), 8);
 		}
 		else if (mode & DATA16) {
 		    S1 = CPUWORD(o);
 		    if (mode & IMMED) S2 = v.w.l;
 			else S2 = DR1.w.l;
-		    RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 16);
+		    FlagHandleSub(S1, S2, (int16_t)(S1 - S2), 16);
 		}
 		else {
 		    S1 = CPULONG(o);
 		    if (mode & IMMED) S2 = v.d;
 			else S2 = DR1.d;
-		    RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 32);
+		    FlagHandleSub(S1, S2, S1 - S2, 32);
 		}
 		}
 		break;
@@ -1222,16 +1217,16 @@ void Gen_sim(const IGen *IG)
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & MBYTE) {
-			DR1.b.bl = RFL.RES.d = -(S2 = DR1.b.bl);
-			FlagHandleSub(0, S2, RFL.RES.d, 8);
+			DR1.bs.bl = -(S2 = DR1.b.bl);
+			FlagHandleSub(0, S2, DR1.bs.bl, 8);
 		}
 		else if (mode & DATA16) {
-			DR1.w.l = RFL.RES.d = -(S2 = DR1.w.l);
-			FlagHandleSub(0, S2, RFL.RES.d, 16);
+			DR1.ws.l = -(S2 = DR1.w.l);
+			FlagHandleSub(0, S2, DR1.ws.l, 16);
 		}
 		else {
-			DR1.d = RFL.RES.d = -(S2 = DR1.d);
-			FlagHandleSub(0, S2, RFL.RES.d, 32);
+			DR1.d = -(S2 = DR1.d);
+			FlagHandleSub(0, S2, DR1.d, 32);
 		}
 		break;
 	case O_INC:		// OSZAP
@@ -1282,8 +1277,7 @@ void Gen_sim(const IGen *IG)
 		if (mode & MBYTE) {
 		    S1 = CPUBYTE(Ofs_AL);
 		    S2 = DR1.b.bl;
-		    RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 8);
+		    FlagHandleSub(S1, S2, (int8_t)(S1 - S2), 8);
 		    if (RFL.RES.d == 0)
 			DR1.b.bl = CPUBYTE(o);
 		    else
@@ -1292,8 +1286,7 @@ void Gen_sim(const IGen *IG)
 		else if (mode & DATA16) {
 		    S1 = CPUWORD(Ofs_AX);
 		    S2 = DR1.w.l;
-		    RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 16);
+		    FlagHandleSub(S1, S2, (int16_t)(S1 - S2), 16);
 		    if (RFL.RES.d == 0)
 			DR1.w.l = CPUWORD(o);
 		    else
@@ -1302,8 +1295,7 @@ void Gen_sim(const IGen *IG)
 		else {
 		    S1 = CPULONG(Ofs_EAX);
 		    S2 = DR1.d;
-		    RFL.RES.d = S1 - S2;
-		    FlagHandleSub(S1, S2, RFL.RES.d, 32);
+		    FlagHandleSub(S1, S2, S1 - S2, 32);
 		    if (RFL.RES.d == 0)
 			DR1.d = CPULONG(o);
 		    else
@@ -2490,23 +2482,24 @@ void Gen_sim(const IGen *IG)
 		addr = AR1.d;
 		while (i && (z==k)) {
 		    if (mode&MBYTE) {
-			RFL.RES.d = (S1=DR1.b.bl) - (S2=sim_read_byte(addr));
-			FlagHandleSub(S1, S2, RFL.RES.d, 8);
+			S1 = DR1.b.bl;
+			S2 = sim_read_byte(addr);
+			FlagHandleSub(S1, S2, (int8_t)(S1 - S2), 8);
 			addr += df;
-			z = (RFL.RES.b.bl==0);
 		    }
 		    else if (mode&DATA16) {
-			RFL.RES.d = (S1=DR1.w.l) - (S2=sim_read_word(addr));
-			FlagHandleSub(S1, S2, RFL.RES.d, 16);
+			S1 = DR1.w.l;
+			S2 = sim_read_word(addr);
+			FlagHandleSub(S1, S2, (int16_t)(S1 - S2), 16);
 			addr += 2*df;
-			z = (RFL.RES.w.l==0);
 		    }
 		    else {
-			RFL.RES.d = (S1=DR1.d) - (S2=sim_read_dword(addr));
-			FlagHandleSub(S1, S2, RFL.RES.d, 32);
+			S1 = DR1.d;
+			S2 = sim_read_dword(addr);
+			FlagHandleSub(S1, S2, S1 - S2, 32);
 			addr += 4*df;
-			z = (RFL.RES.d==0);
 		    }
+		    z = (RFL.RES.d==0);
 		    i--;
 		}
 		AR1.d = addr;
@@ -2529,39 +2522,42 @@ void Gen_sim(const IGen *IG)
 		if(!(mode & (MREP|MREPNE))) {
 			// assumes DR1=*AR2
 			if (mode&MBYTE) {
-				DR2.b.bl = sim_read_byte(addr1);
-				RFL.RES.d = (S1=DR1.b.bl) - (S2=DR2.b.bl);
+				S1 = DR1.b.bl;
+				S2 = sim_read_byte(addr1);
+				FlagHandleSub(S1, S2, (int8_t)(S1 - S2), 8);
 			} else if (mode&DATA16) {
-				DR2.w.l = sim_read_word(addr1);
-				RFL.RES.d = (S1=DR1.w.l) - (S2=DR2.w.l);
+				S1 = DR1.w.l;
+				S2 = sim_read_word(addr1);
+				FlagHandleSub(S1, S2, (int16_t)(S1 - S2), 16);
 			} else {
-				DR2.d = sim_read_dword(addr1);
-				RFL.RES.d = (S1=DR1.d) - (S2=DR2.d);
+				S1 = DR1.d;
+				S2 = sim_read_dword(addr1);
+				FlagHandleSub(S1, S2, S1 - S2, 32);
 			}
-			FlagHandleSub(S1, S2, RFL.RES.d, OPSIZE(mode)*8);
 			break;
 		}
 		z = k = (mode&MREP? 1:0);
 		addr2 = AR2.d;
 		while (i && (z==k)) {
 		    if (mode&MBYTE) {
-			RFL.RES.d = (S1=sim_read_byte(addr2)) - (S2=sim_read_byte(addr1));
-			FlagHandleSub(S1, S2, RFL.RES.d, 8);
+			S1 = sim_read_byte(addr2);
+			S2 = sim_read_byte(addr1);
+			FlagHandleSub(S1, S2, (int8_t)(S1 - S2), 8);
 			addr1 += df; addr2 += df;
-			z = (RFL.RES.b.bl==0);
 		    }
 		    else if (mode&DATA16) {
-			RFL.RES.d = (S1=sim_read_word(addr2)) - (S2=sim_read_word(addr1));
-			FlagHandleSub(S1, S2, RFL.RES.d, 16);
+			S1 = sim_read_word(addr2);
+			S2 = sim_read_word(addr1);
+			FlagHandleSub(S1, S2, (int16_t)(S1 - S2), 16);
 			addr1 += 2*df; addr2 += 2*df;
-			z = (RFL.RES.w.l==0);
 		    }
 		    else {
-			RFL.RES.d = (S1=sim_read_dword(addr2)) - (S2=sim_read_dword(addr1));
-			FlagHandleSub(S1, S2, RFL.RES.d, 32);
+			S1 = sim_read_dword(addr2);
+			S2 = sim_read_dword(addr1);
+			FlagHandleSub(S1, S2, S1 - S2, 32);
 			addr1 += 4*df; addr2 += 4*df;
-			z = (RFL.RES.d==0);
 		    }
+		    z = (RFL.RES.d==0);
 		    i--;
 		}
 		TR1.d = i;
