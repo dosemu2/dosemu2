@@ -859,8 +859,10 @@ unsigned int Gen_sim(const IGen *IG)
 		else {
 		    CPULONG(o) = 0;
 		}
-		CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & 0x7700) | 0x46;
-		RFL.valid = V_INVALID;
+		RFL.res = 0;
+		SET_CF(0);
+		SET_OF(0);
+		RFL.valid = V_GEN;
 		}
 		break;
 	case O_TEST: {		// == OR r,r
@@ -887,11 +889,11 @@ unsigned int Gen_sim(const IGen *IG)
 		// if CY=1 -> reg=-1, flag=xx97, OF=0
 		if (is_cf_set()) {
 		    RFL.res = 0xffffffff;
-		    CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & 0x7700) | 0x97;
+		    RFL.cout = (1U << 31) | 0x8; // CF,AF set, OF=0
 		}
 		else {
 		    RFL.res = 0;
-		    CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & 0x7700) | 0x46;
+		    RFL.cout = 0;
 		}
 		if (mode & MBYTE) {
 		    CPUBYTE(o) = RFL.res;
@@ -902,7 +904,7 @@ unsigned int Gen_sim(const IGen *IG)
 		else {
 		    CPULONG(o) = RFL.res;
 		}
-		RFL.valid = V_INVALID;
+		RFL.valid = V_SBB;
 		}
 		break;
 	case O_INC_R: {		// OSZAP
@@ -2619,28 +2621,29 @@ unsigned int Gen_sim(const IGen *IG)
 	case O_SETCC: {
 		unsigned char o1 = (unsigned char)IG->p0;
 		GTRACE3("O_SETCC",0xff,0xff,o1);
-		FlagSync_All();
 		switch(o1) {
-			case 0x00: DR1.b.bl = IS_OF_SET; break;
-			case 0x01: DR1.b.bl = !IS_OF_SET; break;
-			case 0x02: DR1.b.bl = IS_CF_SET; break;
-			case 0x03: DR1.b.bl = !IS_CF_SET; break;
-			case 0x04: DR1.b.bl = IS_ZF_SET; break;
-			case 0x05: DR1.b.bl = !IS_ZF_SET; break;
-			case 0x06: DR1.b.bl = IS_CF_SET || IS_ZF_SET; break;
-			case 0x07: DR1.b.bl = !IS_CF_SET && !IS_ZF_SET; break;
-			case 0x08: DR1.b.bl = IS_SF_SET; break;
-			case 0x09: DR1.b.bl = !IS_SF_SET; break;
+			case 0x00: DR1.b.bl = is_of_set(); break;
+			case 0x01: DR1.b.bl = !is_of_set(); break;
+			case 0x02: DR1.b.bl = is_cf_set(); break;
+			case 0x03: DR1.b.bl = !is_cf_set(); break;
+			case 0x04: DR1.b.bl = is_zf_set(); break;
+			case 0x05: DR1.b.bl = !is_zf_set(); break;
+			case 0x06: DR1.b.bl = is_cf_set() || is_zf_set(); break;
+			case 0x07: DR1.b.bl = !is_cf_set() && !is_zf_set(); break;
+			case 0x08: DR1.b.bl = is_sf_set(); break;
+			case 0x09: DR1.b.bl = !is_sf_set(); break;
 			case 0x0a:
 				e_printf("!!! SETp\n");
+				FlagSync_AP();
 				DR1.b.bl = IS_PF_SET; break;
 			case 0x0b:
 				e_printf("!!! SETnp\n");
+				FlagSync_AP();
 				DR1.b.bl = !IS_PF_SET; break;
-			case 0x0c: DR1.b.bl = IS_SF_SET ^ IS_OF_SET; break;
-			case 0x0d: DR1.b.bl = !(IS_SF_SET ^ IS_OF_SET); break;
-			case 0x0e: DR1.b.bl = (IS_SF_SET ^ IS_OF_SET) || IS_ZF_SET; break;
-			case 0x0f: DR1.b.bl = !(IS_SF_SET ^ IS_OF_SET) && !IS_ZF_SET; break;
+			case 0x0c: DR1.b.bl = is_sf_set() ^ is_of_set(); break;
+			case 0x0d: DR1.b.bl = !(is_sf_set() ^ is_of_set()); break;
+			case 0x0e: DR1.b.bl = (is_sf_set() ^ is_of_set()) || is_zf_set(); break;
+			case 0x0f: DR1.b.bl = !(is_sf_set() ^ is_of_set()) && !is_zf_set(); break;
 		}
 		}
 		break;
