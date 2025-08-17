@@ -344,8 +344,8 @@ static int get_driver_info(struct driver_info_rec *di_out)
         di.tcp_mss = 1500;
         di.tcp_rwin = 4096;
         di.debug = 0;
-        /* use strncpy() to 0-pad entire buffer */
-        strncpy(di.domain, "localdomain", sizeof(di.domain));
+        memset(di.domain, 0, sizeof(di.domain));
+        gethostname(di.domain, sizeof(di.domain));
         *di_out = di;
         ret = 0;
     } else {
