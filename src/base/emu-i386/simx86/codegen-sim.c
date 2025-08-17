@@ -126,10 +126,6 @@ static inline int is_of_set(void)
 {
 	if (RFL.valid==V_INVALID)
 	    return (CPUWORD(Ofs_FLAGS)&0x800) >> 11;
-	if (RFL.mode & CLROVF)
-	    return 0;
-	if (RFL.mode & SETOVF)
-	    return 1;
 	return ((RFL.cout >> 31) ^ (RFL.cout >> 30)) & 1;
 }
 
@@ -199,10 +195,11 @@ static inline int FlagSync_NZ (void)
 static void ClearOF(void)
 {
 	// Working on lazy flags
-	if(RFL.valid!=V_INVALID)
-		RFL.mode = (RFL.mode & ~(IGNOVF | SETOVF)) | CLROVF;
+	if(RFL.valid!=V_INVALID) {
+		RFL.cout &= ~(1 << 30);
+		RFL.cout ^= (RFL.cout >> 1) & (1 << 30);
 	// Working on real flags
-	else
+	} else
 		CPUWORD(Ofs_FLAGS) = CPUWORD(Ofs_FLAGS) & ~0x800;
 }
 
@@ -210,10 +207,11 @@ static void ClearOF(void)
 static void SetOF(void)
 {
 	// Working on lazy flags
-	if(RFL.valid!=V_INVALID)
-		RFL.mode = (RFL.mode & ~(IGNOVF | CLROVF)) | SETOVF;
+	if(RFL.valid!=V_INVALID) {
+		RFL.cout |= 1 << 30;
+		RFL.cout ^= (RFL.cout >> 1) & (1 << 30);
 	// Working on real flags
-	else
+	} else
 		CPUWORD(Ofs_FLAGS) = CPUWORD(Ofs_FLAGS) | 0x800;
 }
 
@@ -235,13 +233,8 @@ static inline int FlagSync_O (void)
 	 *	  1    1    1    0  0
 	 */
 	if (RFL.valid==V_INVALID) return (CPUWORD(Ofs_FLAGS)&0x800);
-	if (RFL.mode & CLROVF)
-		nf = 0;
-	else if (RFL.mode & SETOVF)
-		nf = 0x800;
-	else
-		// 80000000->0800 ^ 40000000->0800
-		nf = ((RFL.cout >> 20) ^ (RFL.cout >> 19)) & 0x800;
+	// 80000000->0800 ^ 40000000->0800
+	nf = ((RFL.cout >> 20) ^ (RFL.cout >> 19)) & 0x800;
 	if (debug_level('e')>1) e_printf("Sync O flag = %04x\n", nf);
 	return nf;
 }
@@ -295,13 +288,8 @@ void FlagSync_All (void)
 {
 	int nf,mk;
 	if (RFL.valid==V_INVALID) return;
-	nf = FlagSync_AP_() | FlagSync_NZ();
-	if (RFL.mode & IGNOVF)
-		mk = 0xff2b;
-	else {
-		nf |= FlagSync_O();
-		mk = 0xf72b;
-	}
+	nf = FlagSync_AP_() | FlagSync_NZ() | FlagSync_O();
+	mk = ~(EFLAGS_CC & ~EFLAGS_CF);
 	if (debug_level('e')>1) e_printf("Sync ALL flags = %04x\n", nf);
 	CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & mk) | nf;
 	RFL.valid = V_INVALID;
@@ -630,7 +618,6 @@ unsigned int Gen_sim(const IGen *IG)
 	case O_ADD_R: {		// OSZAPC
 		register wkreg v;
 		v.d = IG->p0;
-		RFL.mode = mode;
 		RFL.valid = V_ADD;
 		if (mode & IMMED) {GTRACE3("O_ADD_R",0xff,0xff,v.d);}
 		    else {GTRACE3("O_ADD_R",v.bs.bl,0xff,v.d);}
@@ -660,7 +647,6 @@ unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_OR_R: {		// O=0 SZP C=0
 		int v = IG->p0;
-		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_OR_R",0xff,0xff,v);}
 		    else {GTRACE3("O_OR_R",v,0xff,v);}
@@ -678,11 +664,11 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
+		SET_OF(0);
 		}
 		break;
 	case O_AND_R: {		// O=0 SZP C=0
 		int v = IG->p0;
-		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_AND_R",0xff,0xff,v);}
 		    else {GTRACE3("O_AND_R",v,0xff,v);}
@@ -700,11 +686,11 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
+		SET_OF(0);
 		}
 		break;
 	case O_XOR_R: {		// O=0 SZP C=0
 		int v = IG->p0;
-		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_XOR_R",0xff,0xff,v);}
 		    else {GTRACE3("O_XOR_R",v,0xff,v);}
@@ -722,12 +708,12 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
+		SET_OF(0);
 		}
 		break;
 	case O_SUB_R: {		// OSZAPC
 		register wkreg v;
 		v.d = IG->p0;
-		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & IMMED) {GTRACE3("O_SUB_R",0xff,0xff,v.d);}
 		    else {GTRACE3("O_SUB_R",v.bs.bl,0xff,v.d);}
@@ -758,7 +744,6 @@ unsigned int Gen_sim(const IGen *IG)
 	case O_CMP_R: {		// OSZAPC
 		register wkreg v;
 		v.d = IG->p0;
-		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & IMMED) {GTRACE3("O_CMP_R",0xff,0xff,v.d);}
 		    else {GTRACE3("O_CMP_R",v.bs.bl,0xff,v.d);}
@@ -787,7 +772,6 @@ unsigned int Gen_sim(const IGen *IG)
 		int cy;
 		v.d = IG->p0;
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
-		RFL.mode = mode;
 		RFL.valid = (cy? V_ADC:V_ADD);
 		if (mode & IMMED) {GTRACE3("O_ADC_R",0xff,0xff,v.d);}
 		    else {GTRACE3("O_ADC_R",v.bs.bl,0xff,v.d);}
@@ -820,7 +804,6 @@ unsigned int Gen_sim(const IGen *IG)
 		int cy;
 		v.d = IG->p0;
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
-		RFL.mode = mode;
 		RFL.valid = V_SBB;
 		if (mode & IMMED) {GTRACE3("O_SBB_R",0xff,0xff,v.d);}
 		    else {GTRACE3("O_SBB_R",v.bs.bl,0xff,v.d);}
@@ -868,7 +851,6 @@ unsigned int Gen_sim(const IGen *IG)
 	case O_TEST: {		// == OR r,r
 		signed char o = (signed char)IG->p0;
 		GTRACE1("O_TEST",o);
-		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & MBYTE) {
 		    RFL.res = (int8_t)CPUBYTE(o);
@@ -880,6 +862,7 @@ unsigned int Gen_sim(const IGen *IG)
 		    RFL.res = CPULONG(o);
 		}
 		SET_CF(0);
+		SET_OF(0);
 		}
 		break;
 	case O_SBSELF: {
@@ -910,7 +893,6 @@ unsigned int Gen_sim(const IGen *IG)
 	case O_INC_R: {		// OSZAP
 		signed char o = (signed char)IG->p0;
 		GTRACE1("O_INC_R",o);
-		RFL.mode = mode;
 		RFL.valid = V_ADD;
 		if (mode & MBYTE) {
 		    S1 = CPUBYTE(o);
@@ -932,7 +914,6 @@ unsigned int Gen_sim(const IGen *IG)
 	case O_DEC_R: {		// OSZAP
 		signed char o = (signed char)IG->p0;
 		GTRACE1("O_DEC_R",o);
-		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & MBYTE) {
 		    S1 = CPUBYTE(o);
@@ -956,7 +937,6 @@ unsigned int Gen_sim(const IGen *IG)
 		signed char o = (signed char)IG->p0;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
-		RFL.mode = mode;
 		RFL.valid = V_ADD;
 		if (mode & IMMED) {GTRACE3("O_ADD_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_ADD_FR",v.bs.bl,0xff,v.d);}
@@ -989,7 +969,6 @@ unsigned int Gen_sim(const IGen *IG)
 		signed char o = (signed char)IG->p0;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
-		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_OR_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_OR_FR",v.d,0xff,v.d);}
@@ -1004,6 +983,7 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
+		SET_OF(0);
 		}
 		break;
 	case O_ADC_FR: {	// OSZAPC
@@ -1013,7 +993,6 @@ unsigned int Gen_sim(const IGen *IG)
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
-		RFL.mode = mode;
 		RFL.valid = (cy? V_ADC:V_ADD);
 		if (mode & IMMED) {GTRACE3("O_ADC_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_ADC_FR",v.bs.bl,0xff,v.d);}
@@ -1048,7 +1027,6 @@ unsigned int Gen_sim(const IGen *IG)
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
-		RFL.mode = mode;
 		RFL.valid = V_SBB;
 		if (mode & IMMED) {GTRACE3("O_SBB_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_SBB_FR",v.bs.bl,0xff,v.d);}
@@ -1082,7 +1060,6 @@ unsigned int Gen_sim(const IGen *IG)
 		signed char o = (signed char)IG->p0;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
-		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_AND_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_AND_FR",v.d,0xff,v.d);}
@@ -1097,6 +1074,7 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
+		SET_OF(0);
 		}
 		break;
 	case O_SUB_FR: {	// OSZAPC
@@ -1104,7 +1082,6 @@ unsigned int Gen_sim(const IGen *IG)
 		signed char o = (signed char)IG->p0;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
-		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & IMMED) {GTRACE3("O_SUB_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_SUB_FR",v.bs.bl,0xff,v.d);}
@@ -1137,7 +1114,6 @@ unsigned int Gen_sim(const IGen *IG)
 		signed char o = (signed char)IG->p0;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
-		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_XOR_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_XOR_FR",v.d,0xff,v.d);}
@@ -1152,6 +1128,7 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
+		SET_OF(0);
 		}
 		break;
 	case O_CMP_FR: {	// OSZAPC
@@ -1159,7 +1136,6 @@ unsigned int Gen_sim(const IGen *IG)
 		signed char o = (signed char)IG->p0;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
-		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & IMMED) {GTRACE3("O_CMP_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_CMP_FR",v.bs.bl,0xff,v.d);}
@@ -1197,7 +1173,6 @@ unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_NEG:		// OSZAPC
 		GTRACE0("O_NEG");
-		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & MBYTE) {
 			DR1.bs.bl = -(S2 = DR1.b.bl);
@@ -1214,7 +1189,6 @@ unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_INC:		// OSZAP
 		GTRACE0("O_INC");
-		RFL.mode = mode;
 		RFL.valid = V_ADD;
 		if (mode & MBYTE) {
 			S1 = DR1.bs.bl;
@@ -1234,7 +1208,6 @@ unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_DEC:		// OSZAP
 		GTRACE0("O_DEC");
-		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & MBYTE) {
 			S1 = DR1.bs.bl;
@@ -1254,7 +1227,6 @@ unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_CMPXCHG: {		// OSZAPC
 		signed char o = (signed char)IG->p0;
-		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		GTRACE1("O_CMPXCHG",o);
 		if (mode & MBYTE) {
@@ -1329,7 +1301,6 @@ unsigned int Gen_sim(const IGen *IG)
 	case O_MUL: {		// OC
 		int of;
 		GTRACE0("O_MUL");
-		RFL.mode = mode;
 		RFL.valid = V_GEN;
 		if (mode & MBYTE) {
 		    DR1.w.l =
@@ -1353,16 +1324,15 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (of) {
 		    SET_CF(1);
-		    RFL.mode |= SETOVF;
+		    SET_OF(1);
 		}
 		else {
 		    SET_CF(0);
-		    RFL.mode |= CLROVF;
+		    SET_OF(0);
 		} }
 		break;
 	case O_IMUL: {		// OC
 		int of;
-		RFL.mode = mode;
 		RFL.valid = V_GEN;
 		if (mode & MBYTE) {
 		    if ((mode&(IMMED|DATA16))==(IMMED|DATA16)) {
@@ -1445,11 +1415,11 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (of) {
 		    SET_CF(1);
-		    RFL.mode |= SETOVF;
+		    SET_OF(1);
 		}
 		else {
 		    SET_CF(0);
-		    RFL.mode |= CLROVF;
+		    SET_OF(0);
 		} }
 		break;
 
@@ -1641,9 +1611,7 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
-		if (sh>1)
-			RFL.mode |= IGNOVF;
-		else
+		if (sh==1)
 			SET_OF(ov);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
@@ -1687,9 +1655,7 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
-		if (sh>1)
-			RFL.mode |= IGNOVF;
-		else
+		if (sh==1)
 			SET_OF(ov);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
@@ -1705,7 +1671,6 @@ unsigned int Gen_sim(const IGen *IG)
 			// All flags unchanged (at least on PIII)
 			break;
 
-		RFL.mode = mode;
 		RFL.valid = V_GEN;
 		if (mode & MBYTE)
 			rbef = DR1.b.bl;
@@ -1736,7 +1701,6 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
-		if (sh>1) RFL.mode |= IGNOVF;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
@@ -1777,9 +1741,7 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
-		if (sh>1)
-			RFL.mode |= IGNOVF;
-		else
+		if (sh==1)
 			SET_OF(ov);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
@@ -1824,9 +1786,7 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
-		if (sh>1)
-			RFL.mode |= IGNOVF;
-		else
+		if (sh==1)
 			SET_OF(ov);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
@@ -1844,7 +1804,6 @@ unsigned int Gen_sim(const IGen *IG)
 			break;	// shift count 0, flags unchanged, except OVFL
 		}
 
-		RFL.mode = mode;
 		RFL.valid = V_GEN;
 		if (mode & MBYTE)
 			rbef = DR1.b.bl;
@@ -1870,7 +1829,7 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
-		if (sh>1) RFL.mode |= CLROVF;
+		if (sh>1) SET_OF(0);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
@@ -1888,7 +1847,6 @@ unsigned int Gen_sim(const IGen *IG)
 			break;	// shift count 0, flags unchanged, except OVFL
 		}
 
-		RFL.mode = mode;
 		RFL.valid = V_GEN;
 		if (mode & MBYTE)
 			rbef = DR1.bs.bl;
@@ -1919,7 +1877,6 @@ unsigned int Gen_sim(const IGen *IG)
 		// get n bytes from parameter stack
 		unsigned char subop = IG->p1;
 		GTRACE3("O_OPAX",0xff,0xff,n);
-		RFL.mode = mode;
 		/* sync AF *before* changing RFL.valid */
 		if (subop != AAM && subop != AAD)
 			FlagSync_AP();
@@ -2456,7 +2413,6 @@ unsigned int Gen_sim(const IGen *IG)
 		i = TR1.d;
 		GTRACE4("O_MOVS_ScaD",0xff,0xff,df,i);
 		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
-		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		z = k = (mode&MREP? 1:0);
 		addr = AR1.d;
@@ -2496,7 +2452,6 @@ unsigned int Gen_sim(const IGen *IG)
 		df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		GTRACE4("O_MOVS_CmpD",0xff,0xff,df,i);
 		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
-		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		addr1 = AR1.d;
 		if(!(mode & (MREP|MREPNE))) {
@@ -2744,7 +2699,6 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		shc &= 31;
 		if (shc==0) break;
-		RFL.mode = mode;
 		RFL.valid = V_GEN;
 		if (mode & DATA16) {
 			if (l_r==0) {	// left:  <<reg|mem<<
@@ -2785,7 +2739,6 @@ unsigned int Gen_sim(const IGen *IG)
 			}
 		}
 		SET_CF(cy);
-		if (shc>1) RFL.mode |= IGNOVF;
 		} break;
 
 	case O_RDTSC: {		// don't trust this one
@@ -2935,8 +2888,8 @@ unsigned int Gen_sim(const IGen *IG)
 		DR1.d,DR2.d,AR1.d,AR2.d);
 	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
 		SR1.d,TR1.d);
-	    dbug_printf("(R) RFL m=[%s] v=%d cout=%08x RES=%08x\n",
-		showmode(RFL.mode),RFL.valid,RFL.cout,RFL.res);
+	    dbug_printf("(R) RFL v=%d cout=%08x RES=%08x\n",
+		RFL.valid,RFL.cout,RFL.res);
 //	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
 	}
 
@@ -2982,8 +2935,8 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 		DR1.d,DR2.d,AR1.d,AR2.d);
 	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
 		SR1.d,TR1.d);
-	    dbug_printf("(R) RFL m=[%s] v=%d cout=%08x RES=%08x\n\n",
-		showmode(RFL.mode),RFL.valid,RFL.cout,RFL.res);
+	    dbug_printf("(R) RFL v=%d cout=%08x RES=%08x\n\n",
+		RFL.valid,RFL.cout,RFL.res);
 	}
 
 	return P0;
