@@ -59,10 +59,7 @@ static struct sock_s *sock_alloc(void)
             error("socket table overflow\n");
             return NULL;
         }
-        ret = &socks[num_socks++];
-        assert(!ret->used);
-        ret->used = 1;
-        return ret;
+        num_socks++;
     }
     ret = &socks[i];
     ret->used = 1;
