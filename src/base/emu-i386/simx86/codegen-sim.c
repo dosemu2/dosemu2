@@ -122,6 +122,13 @@ static inline int is_sf_set(void)
 	return RFL.res >> 31;
 }
 
+static inline int is_cf_set(void)
+{
+	if (RFL.valid==V_INVALID)
+	    return CPUBYTE(Ofs_FLAGS)&0x1;
+	return RFL.cout >> 31;
+}
+
 static inline int is_of_set(void)
 {
 	if (RFL.valid==V_INVALID)
@@ -129,7 +136,17 @@ static inline int is_of_set(void)
 	return ((RFL.cout >> 31) ^ (RFL.cout >> 30)) & 1;
 }
 
-#define SET_CF(c)	CPUBYTE(Ofs_FLAGS)=((CPUBYTE(Ofs_FLAGS)&0xfe)|(c))
+static inline void SET_CF(unsigned int c)
+{
+	// Working on lazy flags
+	if(RFL.valid!=V_INVALID) {
+		uint32_t of = ((RFL.cout >> 1) ^ RFL.cout) & (1 << 30);
+		RFL.cout &= ~((1U << 31) | (1 << 30));
+		RFL.cout |= (c << 31) | (of ^ (c << 30));
+	// Working on real flags
+	} else
+		CPUBYTE(Ofs_FLAGS) = (CPUBYTE(Ofs_FLAGS)&0xfe) | c;
+}
 
 /* add/sub rule for carry using MSB:
  * the carry-out expressions from Bochs 2.6 are used here.
@@ -155,8 +172,6 @@ static inline void FlagHandleAdd(unsigned src1, unsigned src2, unsigned res,
 	if (wordsize == 32) RFL.cout = cout;
 	if (wordsize == 16) RFL.cout = ((cout >> 14) << 30) | (cout & 8);
 	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
-	int cy = cout >> (wordsize - 1);
-	SET_CF(cy & 1);
 	RFL.res = res;
 }
 
@@ -167,17 +182,18 @@ static inline void FlagHandleSub(unsigned src1, unsigned src2, unsigned res,
 	if (wordsize == 32) RFL.cout = cout;
 	if (wordsize == 16) RFL.cout = ((cout >> 14) << 30) | (cout & 8);
 	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
-	int cy = cout >> (wordsize - 1);
-	SET_CF(cy & 1);
 	RFL.res = res;
 }
 
 static inline void FlagHandleIncDec(unsigned low, unsigned high, int wordsize)
 {
 	unsigned int cout = low & ~high;
+	int oldcy = is_cf_set();
 	if (wordsize == 32) RFL.cout = cout;
 	if (wordsize == 16) RFL.cout = ((cout >> 14) << 30) | (cout & 8);
 	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
+	RFL.valid = V_ADD;
+	SET_CF(oldcy);
 }
 
 static inline int FlagSync_NZ (void)
@@ -286,12 +302,11 @@ static void FlagSync_AP (void)
 
 void FlagSync_All (void)
 {
-	int nf,mk;
+	int nf;
 	if (RFL.valid==V_INVALID) return;
-	nf = FlagSync_AP_() | FlagSync_NZ() | FlagSync_O();
-	mk = ~(EFLAGS_CC & ~EFLAGS_CF);
+	nf = FlagSync_AP_() | FlagSync_NZ() | FlagSync_O() | is_cf_set();
 	if (debug_level('e')>1) e_printf("Sync ALL flags = %04x\n", nf);
-	CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & mk) | nf;
+	CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & ~EFLAGS_CC) | nf;
 	RFL.valid = V_INVALID;
 }
 
@@ -771,7 +786,7 @@ unsigned int Gen_sim(const IGen *IG)
 		register wkreg v;
 		int cy;
 		v.d = IG->p0;
-		cy = CPUBYTE(Ofs_FLAGS) & 1;
+		cy = is_cf_set();
 		RFL.valid = (cy? V_ADC:V_ADD);
 		if (mode & IMMED) {GTRACE3("O_ADC_R",0xff,0xff,v.d);}
 		    else {GTRACE3("O_ADC_R",v.bs.bl,0xff,v.d);}
@@ -803,7 +818,7 @@ unsigned int Gen_sim(const IGen *IG)
 		register wkreg v;
 		int cy;
 		v.d = IG->p0;
-		cy = CPUBYTE(Ofs_FLAGS) & 1;
+		cy = is_cf_set();
 		RFL.valid = V_SBB;
 		if (mode & IMMED) {GTRACE3("O_SBB_R",0xff,0xff,v.d);}
 		    else {GTRACE3("O_SBB_R",v.bs.bl,0xff,v.d);}
@@ -870,7 +885,7 @@ unsigned int Gen_sim(const IGen *IG)
 		GTRACE1("O_SBBSELF",o);
 		// if CY=0 -> reg=0,  flag=xx46, OF=0
 		// if CY=1 -> reg=-1, flag=xx97, OF=0
-		if (CPUBYTE(Ofs_FLAGS)&1) {
+		if (is_cf_set()) {
 		    RFL.res = 0xffffffff;
 		    CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & 0x7700) | 0x97;
 		}
@@ -893,7 +908,6 @@ unsigned int Gen_sim(const IGen *IG)
 	case O_INC_R: {		// OSZAP
 		signed char o = (signed char)IG->p0;
 		GTRACE1("O_INC_R",o);
-		RFL.valid = V_ADD;
 		if (mode & MBYTE) {
 		    S1 = CPUBYTE(o);
 		    CPUBYTE(o) = RFL.res = (int8_t)(S1 + 1);
@@ -914,7 +928,6 @@ unsigned int Gen_sim(const IGen *IG)
 	case O_DEC_R: {		// OSZAP
 		signed char o = (signed char)IG->p0;
 		GTRACE1("O_DEC_R",o);
-		RFL.valid = V_SUB;
 		if (mode & MBYTE) {
 		    S1 = CPUBYTE(o);
 		    CPUBYTE(o) = RFL.res = (int8_t)(S1 - 1);
@@ -992,7 +1005,7 @@ unsigned int Gen_sim(const IGen *IG)
 		int cy;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
-		cy = CPUBYTE(Ofs_FLAGS) & 1;
+		cy = is_cf_set();
 		RFL.valid = (cy? V_ADC:V_ADD);
 		if (mode & IMMED) {GTRACE3("O_ADC_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_ADC_FR",v.bs.bl,0xff,v.d);}
@@ -1026,7 +1039,7 @@ unsigned int Gen_sim(const IGen *IG)
 		int cy;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
-		cy = CPUBYTE(Ofs_FLAGS) & 1;
+		cy = is_cf_set();
 		RFL.valid = V_SBB;
 		if (mode & IMMED) {GTRACE3("O_SBB_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_SBB_FR",v.bs.bl,0xff,v.d);}
@@ -1189,7 +1202,6 @@ unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_INC:		// OSZAP
 		GTRACE0("O_INC");
-		RFL.valid = V_ADD;
 		if (mode & MBYTE) {
 			S1 = DR1.bs.bl;
 			DR1.b.bl = RFL.res = (int8_t)(S1 + 1);
@@ -1208,7 +1220,6 @@ unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_DEC:		// OSZAP
 		GTRACE0("O_DEC");
-		RFL.valid = V_SUB;
 		if (mode & MBYTE) {
 			S1 = DR1.bs.bl;
 			DR1.b.bl = RFL.res = (int8_t)(S1 - 1);
@@ -1620,7 +1631,7 @@ unsigned int Gen_sim(const IGen *IG)
 		signed char o = (signed char)IG->p0;
 		unsigned int sh, rbef, raft, cy, ov;
 		GTRACE1("O_RCL",o);
-		cy = CPUBYTE(Ofs_FLAGS) & 1;
+		cy = is_cf_set();
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
 		sh &= 31;
@@ -1750,7 +1761,7 @@ unsigned int Gen_sim(const IGen *IG)
 		signed char o = (signed char)IG->p0;
 		unsigned int sh, rbef, raft, cy, ov;
 		GTRACE3("O_RCR",0xff,0xff,o);
-		cy = CPUBYTE(Ofs_FLAGS) & 1;
+		cy = is_cf_set();
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
 		sh &= 31;
@@ -1866,8 +1877,8 @@ unsigned int Gen_sim(const IGen *IG)
 			RFL.res = DR1.ds = raft;
 
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
-		SET_CF(cy);
 		RFL.cout = 0;  /* clears overflow & auxiliary carry flag */
+		SET_CF(cy);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
@@ -1880,6 +1891,7 @@ unsigned int Gen_sim(const IGen *IG)
 		/* sync AF *before* changing RFL.valid */
 		if (subop != AAM && subop != AAD)
 			FlagSync_AP();
+		int cy = is_cf_set();
 		RFL.valid = V_ADD;
 		RFL.cout = 0; /* clears overflow & auxiliary carry flag */
 		DR1.d = CPULONG(Ofs_EAX);
@@ -1889,10 +1901,9 @@ unsigned int Gen_sim(const IGen *IG)
 				unsigned char altmp = DR1.b.bl;
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl += 6;
-					cyaf = ((CPUBYTE(Ofs_FLAGS)&1) ||
-					  (altmp > 0xf9)) | 8;
+					cyaf = (cy || (altmp > 0xf9)) | 8;
 				}
-				if ((altmp > 0x99) || (IS_CF_SET)) {
+				if ((altmp > 0x99) || cy) {
 					DR1.b.bl += 0x60;
 					cyaf |= 1;
 				}
@@ -1906,10 +1917,9 @@ unsigned int Gen_sim(const IGen *IG)
 				unsigned char altmp = DR1.b.bl;
 				if (((altmp & 0x0f) > 9) || (IS_AF_SET)) {
 					DR1.b.bl -= 6;
-					cyaf = ((CPUBYTE(Ofs_FLAGS)&1) ||
-						(altmp < 6)) | 8;
+					cyaf = (cy || (altmp < 6)) | 8;
 				}
-				if ((altmp > 0x99) || (IS_CF_SET)) {
+				if ((altmp > 0x99) || cy) {
 					DR1.b.bl -= 0x60;
 					cyaf |= 1;
 				}
@@ -2567,7 +2577,7 @@ unsigned int Gen_sim(const IGen *IG)
 		switch(o1) {	// these are direct on x86
 		case CMC:
 			GTRACE0("O_CMC");
-			CPUBYTE(Ofs_FLAGS) ^= 1;
+			SET_CF(is_cf_set()^1);
 			break;
 		case CLC:
 			GTRACE0("O_CLC");
@@ -2827,12 +2837,12 @@ unsigned int Gen_sim(const IGen *IG)
 		switch(opc) {
 		case JO:      P0 = is_of_set() ? j_t : j_nt; break;
 		case JNO:     P0 = !is_of_set() ? j_t : j_nt; break;
-		case JB_JNAE: P0 = IS_CF_SET ? j_t : j_nt; break;
-		case JNB_JAE: P0 = !IS_CF_SET ? j_t : j_nt; break;
+		case JB_JNAE: P0 = is_cf_set() ? j_t : j_nt; break;
+		case JNB_JAE: P0 = !is_cf_set() ? j_t : j_nt; break;
 		case JE_JZ:   P0 = is_zf_set() ? j_t : j_nt; break;
 		case JNE_JNZ: P0 = !is_zf_set() ? j_t : j_nt; break;
-		case JBE_JNA: P0 = IS_CF_SET || is_zf_set() ? j_t : j_nt; break;
-		case JNBE_JA: P0 = !IS_CF_SET && !is_zf_set() ? j_t : j_nt; break;
+		case JBE_JNA: P0 = is_cf_set() || is_zf_set() ? j_t : j_nt; break;
+		case JNBE_JA: P0 = !is_cf_set() && !is_zf_set() ? j_t : j_nt; break;
 		case JS:      P0 = is_sf_set() ? j_t : j_nt; break;
 		case JNS:     P0 = !is_sf_set() ? j_t : j_nt; break;
 		case JP_JPE:

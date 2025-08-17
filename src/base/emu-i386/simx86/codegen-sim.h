@@ -49,8 +49,8 @@ typedef union {
 } wkreg;
 
 typedef struct {
-	int valid, cout;
-	uint32_t res;
+	int valid;
+	uint32_t cout, res;
 } flgtmp;
 
 #define V_INVALID	0
