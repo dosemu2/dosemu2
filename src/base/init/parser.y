@@ -2118,6 +2118,7 @@ static void stop_serial(void)
     if (!sptr->dev) {
       sptr->dev = strdup(sptr->wrfile);
       sptr->mfs_idx = sptr->mfs_idx_w;
+      sptr->is_file = TRUE;  // will be created
     }
   }
   c_ser++;
