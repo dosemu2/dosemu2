@@ -110,42 +110,32 @@ static inline void MARK(void)	// oops...objdump shows all the code at the
 
 static inline int is_zf_set(void)
 {
-	if (RFL.valid==V_INVALID)
-	    return (CPUBYTE(Ofs_FLAGS)&0x40) >> 6;
 	return RFL.res == 0;
 }
 
 static inline int is_sf_set(void)
 {
-	if (RFL.valid==V_INVALID)
+	if (RFL.valid==V_OZC)
 	    return (CPUBYTE(Ofs_FLAGS)&0x80) >> 7;
 	return RFL.res >> 31;
 }
 
 static inline int is_cf_set(void)
 {
-	if (RFL.valid==V_INVALID)
-	    return CPUBYTE(Ofs_FLAGS)&0x1;
 	return RFL.cout >> 31;
 }
 
 static inline int is_of_set(void)
 {
-	if (RFL.valid==V_INVALID)
-	    return (CPUWORD(Ofs_FLAGS)&0x800) >> 11;
 	return ((RFL.cout >> 31) ^ (RFL.cout >> 30)) & 1;
 }
 
 static inline void SET_CF(unsigned int c)
 {
-	// Working on lazy flags
-	if(RFL.valid!=V_INVALID) {
-		uint32_t of = ((RFL.cout >> 1) ^ RFL.cout) & (1 << 30);
-		RFL.cout &= ~((1U << 31) | (1 << 30));
-		RFL.cout |= (c << 31) | (of ^ (c << 30));
-	// Working on real flags
-	} else
-		CPUBYTE(Ofs_FLAGS) = (CPUBYTE(Ofs_FLAGS)&0xfe) | c;
+	// Always working on lazy flags
+	uint32_t of = ((RFL.cout >> 1) ^ RFL.cout) & (1 << 30);
+	RFL.cout &= ~((1U << 31) | (1 << 30));
+	RFL.cout |= (c << 31) | (of ^ (c << 30));
 }
 
 /* add/sub rule for carry using MSB:
@@ -199,9 +189,11 @@ static inline void FlagHandleIncDec(unsigned low, unsigned high, int wordsize)
 static inline int FlagSync_NZ (void)
 {
 	int zr,pl,nf;
-	if (RFL.valid==V_INVALID) return (CPUBYTE(Ofs_FLAGS)&0xc0);
 	zr = (RFL.res==0) << 6;
-	pl = (RFL.res>>24) & 0x80;
+	if (RFL.valid==V_OZC)
+		pl = CPUBYTE(Ofs_FLAGS)&0x80;
+	else
+		pl = (RFL.res>>24) & 0x80;
 	nf = zr | pl;
 	if (debug_level('e')>2) e_printf("Sync NZ flags = %02x\n", nf);
 	return nf;
@@ -210,25 +202,17 @@ static inline int FlagSync_NZ (void)
 // Clear OF, leaving PF, AF, SF, ZF alone.
 static void ClearOF(void)
 {
-	// Working on lazy flags
-	if(RFL.valid!=V_INVALID) {
-		RFL.cout &= ~(1 << 30);
-		RFL.cout ^= (RFL.cout >> 1) & (1 << 30);
-	// Working on real flags
-	} else
-		CPUWORD(Ofs_FLAGS) = CPUWORD(Ofs_FLAGS) & ~0x800;
+	// Always working on lazy flags
+	RFL.cout &= ~(1 << 30);
+	RFL.cout ^= (RFL.cout >> 1) & (1 << 30);
 }
 
 // Set OF, leaving PF, AF, SF, ZF alone.
 static void SetOF(void)
 {
-	// Working on lazy flags
-	if(RFL.valid!=V_INVALID) {
-		RFL.cout |= 1 << 30;
-		RFL.cout ^= (RFL.cout >> 1) & (1 << 30);
-	// Working on real flags
-	} else
-		CPUWORD(Ofs_FLAGS) = CPUWORD(Ofs_FLAGS) | 0x800;
+	// Always working on lazy flags
+	RFL.cout |= 1 << 30;
+	RFL.cout ^= (RFL.cout >> 1) & (1 << 30);
 }
 
 #define SET_OF(ov) { if(ov) SetOF(); else ClearOF(); }
@@ -248,7 +232,6 @@ static inline int FlagSync_O (void)
 	 *	  1    1    0    1  0
 	 *	  1    1    1    0  0
 	 */
-	if (RFL.valid==V_INVALID) return (CPUWORD(Ofs_FLAGS)&0x800);
 	// 80000000->0800 ^ 40000000->0800
 	nf = ((RFL.cout >> 20) ^ (RFL.cout >> 19)) & 0x800;
 	if (debug_level('e')>1) e_printf("Sync O flag = %04x\n", nf);
@@ -277,7 +260,7 @@ static unsigned char parity[256] =
 static inline int FlagSync_AP_ (void)
 {
 	int af,pf,nf;
-	if (RFL.valid==V_INVALID) return (CPUBYTE(Ofs_FLAGS)&0x14);
+	if (RFL.valid==V_OZC) return (CPUBYTE(Ofs_FLAGS)&0x14);
 	// AF bit 4, S1, S2, RES:
 	// 0 0 0 -> NA  0 1 0 -> AC  1 0 0 -> AC  1 1 0 -> NA
 	// 0 0 1 -> AC  0 1 1 -> NA  1 0 1 -> NA  1 1 1 -> AC
@@ -303,13 +286,19 @@ static void FlagSync_AP (void)
 void FlagSync_All (void)
 {
 	int nf;
-	if (RFL.valid==V_INVALID) return;
 	nf = FlagSync_AP_() | FlagSync_NZ() | FlagSync_O() | is_cf_set();
 	if (debug_level('e')>1) e_printf("Sync ALL flags = %04x\n", nf);
 	CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & ~EFLAGS_CC) | nf;
-	RFL.valid = V_INVALID;
 }
 
+
+static void FlagSync_RFL_OZC (void)
+{
+	/* encode OF/ZF/CF into RFL */
+	RFL.res = IS_ZF_SET ? 0x0 : 0x100;
+	RFL.cout = (unsigned)IS_CF_SET << 31 | ((IS_CF_SET ^ IS_OF_SET) << 30);
+	RFL.valid = V_OZC;
+}
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -319,7 +308,7 @@ void InitGen_sim(void)
 	CodeGen = CodeGen_sim;
 	UseLinker = 0;
 	RFL.cout = RFL.res = 0;
-	RFL.valid = V_INVALID;
+	RFL.valid = V_OZC;
 }
 
 static inline unsigned int check_v86_address_overflow(int mode, const IGen *IG)
@@ -2570,8 +2559,10 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		else {			/* SAHF */
 			GTRACE0("O_SAHF");
-			CPUBYTE(Ofs_FLAGS) = (CPUBYTE(Ofs_AH)&0xd5)|0x02;
-			RFL.valid = V_INVALID;
+			CPUWORD(Ofs_FLAGS) =
+			  ((FlagSync_O() | CPUBYTE(Ofs_AH)) & EFLAGS_CC) |
+			  (CPUWORD(Ofs_FLAGS) & ~EFLAGS_CC);
+			FlagSync_RFL_OZC();
 		} }
 		break;
 	case O_SETFL: {
@@ -2655,8 +2646,9 @@ unsigned int Gen_sim(const IGen *IG)
 		if (o1 == 0x1c || o1 == 0x1d) { /* bsf/bsr */
 			if (mode & DATA16) DR1.d = DR1.w.l;
 			DR1.d = o1 == 0x1c ? find_bit(DR1.d) : find_bit_r(DR1.d);
+			FlagSync_All();
 			if (DR1.d == -1) {
-				flg = 0x40;
+				flg = 0x40; // ZF set
 			} else {
 				flg = 0;
 				if (mode & DATA16)
@@ -2667,6 +2659,7 @@ unsigned int Gen_sim(const IGen *IG)
 			// set ZF
 			FlagSync_All();
 			CPUBYTE(Ofs_FLAGS)=(CPUBYTE(Ofs_FLAGS)&0xbf)|flg;
+			FlagSync_RFL_OZC();
 			break;
 		}
 		if(o1 >= 0x20)
@@ -2928,6 +2921,8 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 {
 	IGen *IG = SeqStart;
 	unsigned int P0;
+
+	FlagSync_RFL_OZC();
 	do {
 		currentIG = (unsigned char *)IG;
 		P0 = Gen_sim(IG);

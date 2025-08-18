@@ -53,7 +53,7 @@ typedef struct {
 	uint32_t cout, res;
 } flgtmp;
 
-#define V_INVALID	0
+#define V_OZC		0
 #define V_GEN		1	// general case
 #define V_SUB		2
 #define V_SBB		3
