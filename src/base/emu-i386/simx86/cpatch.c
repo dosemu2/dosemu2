@@ -113,6 +113,8 @@ void rep_movs_stos(struct rep_stack *stack)
 	addr = EMUADDR_REL(paddr);
 	if (*eip == 0xf3) /* skip rep */
 		eip++;
+	else if (*eip == JMPsid) /* skip jmp and rep */
+		eip += 3;
 	op = eip[0];
 	size = 1;
 	if (*eip == 0x66) {
@@ -557,10 +559,18 @@ int Cpatch(sigcontext_t *scp)
     p = eip;
     if ((*p==0xf3 || *p==0xf2) && p[-1] == 0x90 && p[-2] == 0x90) {
 	// rep movs, rep stos, rep lods, rep scas, rep cmps
+	// we have a sequence:	90 90 f3 op (stos/movs/lods)
+	//		or	90 90 90 90 f2/f3 op (cmps/scas)
 	if (debug_level('e')>1) e_printf("### REP patch at %p\n",eip);
 	p-=2;
+	if (p[-1] == 0x90 && p[-2] == 0x90) /* cmps/scas */
+	    p-=2;
 	G2M(0xff,0x13,p); /* call (%ebx) */
 	_scp_rip -= 2; /* make sure call (%ebx) is performed the first time */
+	if (*p == 0x90) { /* cmps/scas */
+	    G2M(JMPsid,(p[3]==0x66?3:2),p); /* jmp over rep instruction */
+	    _scp_rip -= 2;
+	}
 	return 1;
     }
 
@@ -648,6 +658,7 @@ int UnCpatch(unsigned char *eip)
 #endif
     if (p[1] == 0x13) {
 	p[0] = p[1] = 0x90;
+	if (p[2] == JMPsid) p[2] = p[3] = 0x90;
     }
     else if (p[1] == 0x53) {
 	if ((unsigned char)p[2] == Ofs_stub_wri_8) {
