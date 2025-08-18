@@ -115,9 +115,7 @@ static inline int is_zf_set(void)
 
 static inline int is_sf_set(void)
 {
-	if (RFL.valid==V_OZAC)
-	    return (CPUBYTE(Ofs_FLAGS)&EFLAGS_SF) >> X86_EFLAGS_SF_BIT;
-	return RFL.res >> LF_BIT_RES_SF;
+	return (RFL.res >> LF_BIT_RES_SF) ^ ((RFL.cout >> LF_BIT_SD) & 1);
 }
 
 static inline int is_cf_set(void)
@@ -164,7 +162,7 @@ static inline void FlagHandleAdd(unsigned src1, unsigned src2, unsigned res,
 				 int wordsize)
 {
 	unsigned int cout = (src1 & src2) | ((src1 | src2) & ~res);
-	if (wordsize == 32) RFL.cout = cout;
+	if (wordsize == 32) RFL.cout = cout & ~LF_MASK_SD;
 	if (wordsize == 16) RFL.cout = (cout << 16) | (cout & LF_MASK_AF);
 	if (wordsize == 8) RFL.cout = (cout << 24) | (cout & LF_MASK_AF);
 	RFL.res = res;
@@ -174,7 +172,7 @@ static inline void FlagHandleSub(unsigned src1, unsigned src2, unsigned res,
 				 int wordsize)
 {
 	unsigned int cout = (~src1 & src2) | ((~src1 ^ src2) & res);
-	if (wordsize == 32) RFL.cout = cout;
+	if (wordsize == 32) RFL.cout = cout & ~LF_MASK_SD;
 	if (wordsize == 16) RFL.cout = (cout << 16) | (cout & LF_MASK_AF);
 	if (wordsize == 8) RFL.cout = (cout << 24) | (cout & LF_MASK_AF);
 	RFL.res = res;
@@ -184,7 +182,7 @@ static inline void FlagHandleIncDec(unsigned low, unsigned high, int wordsize)
 {
 	unsigned int cout = low & ~high;
 	int oldcy = is_cf_set();
-	if (wordsize == 32) RFL.cout = cout;
+	if (wordsize == 32) RFL.cout = cout & ~LF_MASK_SD;
 	if (wordsize == 16) RFL.cout = (cout << 16) | (cout & LF_MASK_AF);
 	if (wordsize == 8) RFL.cout = (cout << 24) | (cout & LF_MASK_AF);
 	RFL.valid = V_ADD;
@@ -195,10 +193,8 @@ static inline int FlagSync_NZ (void)
 {
 	int zr,pl,nf;
 	zr = (RFL.res==0) << X86_EFLAGS_ZF_BIT;
-	if (RFL.valid==V_OZAC)
-		pl = CPUBYTE(Ofs_FLAGS)&EFLAGS_SF;
-	else
-		pl = (RFL.res>>(LF_BIT_RES_SF-X86_EFLAGS_SF_BIT)) & EFLAGS_SF;
+	pl = ((RFL.res>>(LF_BIT_RES_SF-X86_EFLAGS_SF_BIT)) ^ RFL.cout) &
+	  EFLAGS_SF;
 	nf = zr | pl;
 	if (debug_level('e')>2) e_printf("Sync NZ flags = %02x\n", nf);
 	return nf;
@@ -267,7 +263,7 @@ static inline int FlagSync_AP_ (void)
 {
 	int af,pf,nf;
 	af = (RFL.cout & LF_MASK_AF) << (X86_EFLAGS_AF_BIT - LF_BIT_AF);
-	pf = (RFL.valid==V_OZAC ? (CPUBYTE(Ofs_FLAGS) & EFLAGS_PF) :
+	pf = (RFL.valid==V_OSZAC ? (CPUBYTE(Ofs_FLAGS) & EFLAGS_PF) :
 	      parity[RFL.res & 0xff]);
 	nf = af | pf;
 	if (debug_level('e')>2) e_printf("Sync AP flags = %02x\n", nf);
@@ -290,14 +286,14 @@ void FlagSync_All (void)
 }
 
 
-static void FlagSync_RFL_OZAC (void)
+static void FlagSync_RFL_OSZAC (void)
 {
-	/* encode OF/ZF/AF/CF into RFL */
+	/* encode OF/ZF/AF/CF/SF into RFL */
 	RFL.res = IS_ZF_SET ? 0x0 : 0x100;
 	RFL.cout = ((unsigned)IS_CF_SET << LF_BIT_CF) |
 	  ((IS_CF_SET ^ IS_OF_SET) << LF_BIT_PO) |
-	  (IS_AF_SET << LF_BIT_AF);
-	RFL.valid = V_OZAC;
+	  (IS_AF_SET << LF_BIT_AF) | (CPUBYTE(Ofs_FLAGS) & EFLAGS_SF);
+	RFL.valid = V_OSZAC;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -308,7 +304,7 @@ void InitGen_sim(void)
 	CodeGen = CodeGen_sim;
 	UseLinker = 0;
 	RFL.cout = RFL.res = 0;
-	RFL.valid = V_OZAC;
+	RFL.valid = V_OSZAC;
 }
 
 static inline unsigned int check_v86_address_overflow(int mode, const IGen *IG)
@@ -1891,7 +1887,7 @@ unsigned int Gen_sim(const IGen *IG)
 				}
 				SET_CF(cyaf & 1);
 				RFL.res = DR1.bs.bl; /* for flags */
-				RFL.cout = (RFL.cout & ~LF_MASK_AF) | (cyaf & LF_MASK_AF);
+				RFL.cout = (RFL.cout & ~(LF_MASK_AF|LF_MASK_SD)) | (cyaf & LF_MASK_AF);
 				}
 				break;
 			case DAS: {
@@ -1907,7 +1903,7 @@ unsigned int Gen_sim(const IGen *IG)
 				}
 				SET_CF(cyaf & 1);
 				RFL.res = DR1.bs.bl; /* for flags */
-				RFL.cout = (RFL.cout & ~LF_MASK_AF) | (cyaf & LF_MASK_AF);
+				RFL.cout = (RFL.cout & ~(LF_MASK_AF|LF_MASK_SD)) | (cyaf & LF_MASK_AF);
 				}
 				break;
 			case AAA: {
@@ -1922,7 +1918,7 @@ unsigned int Gen_sim(const IGen *IG)
 					DR1.b.bl &= 0x0f;
 				}
 				SET_CF(cyaf & 1);
-				RFL.cout = (RFL.cout & ~LF_MASK_AF) | (cyaf & LF_MASK_AF);
+				RFL.cout = (RFL.cout & ~(LF_MASK_AF|LF_MASK_SD)) | (cyaf & LF_MASK_AF);
 				}
 				break;
 			case AAS: {
@@ -1937,7 +1933,7 @@ unsigned int Gen_sim(const IGen *IG)
 					DR1.b.bl &= 0x0f;
 				}
 				SET_CF(cyaf & 1);
-				RFL.cout = (RFL.cout & ~LF_MASK_AF) | (cyaf & LF_MASK_AF);
+				RFL.cout = (RFL.cout & ~(LF_MASK_AF|LF_MASK_SD)) | (cyaf & LF_MASK_AF);
 				}
 				break;
 			case AAM: {
@@ -2553,7 +2549,7 @@ unsigned int Gen_sim(const IGen *IG)
 			CPUWORD(Ofs_FLAGS) =
 			  ((FlagSync_O() | CPUBYTE(Ofs_AH)) & EFLAGS_CC) |
 			  (CPUWORD(Ofs_FLAGS) & ~EFLAGS_CC);
-			FlagSync_RFL_OZAC();
+			FlagSync_RFL_OSZAC();
 		} }
 		break;
 	case O_SETFL: {
@@ -2650,7 +2646,7 @@ unsigned int Gen_sim(const IGen *IG)
 			// set ZF
 			FlagSync_All();
 			CPUBYTE(Ofs_FLAGS)=(CPUBYTE(Ofs_FLAGS)&0xbf)|flg;
-			FlagSync_RFL_OZAC();
+			FlagSync_RFL_OSZAC();
 			break;
 		}
 		if(o1 >= 0x20)
@@ -2914,7 +2910,7 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 	IGen *IG = SeqStart;
 	unsigned int P0;
 
-	FlagSync_RFL_OZAC();
+	FlagSync_RFL_OSZAC();
 	do {
 		currentIG = (unsigned char *)IG;
 		P0 = Gen_sim(IG);
