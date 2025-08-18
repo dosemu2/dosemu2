@@ -1825,7 +1825,7 @@ shrot0:
 		// Pointer to the jecxz distance byte
 		CpTemp = Cp-1;
 		GetDF(Cp);
-		G2M(NOP,NOP,Cp);
+		G4M(NOP,NOP,NOP,NOP,Cp);
 		G1((mode&MREP)?REP:REPNE,Cp);
 		if (mode&MBYTE)	{ G1(SCASb,Cp); }
 		else {
@@ -1868,7 +1868,7 @@ shrot0:
 		// Pointer to the jecxz distance byte
 		CpTemp = Cp-1;
 		GetDF(Cp);
-		G2M(NOP,NOP,Cp);
+		G4M(NOP,NOP,NOP,NOP,Cp);
 		G1((mode&MREP)?REP:REPNE,Cp);
 		if (mode&MBYTE)	{ G1(CMPSb,Cp); }
 		else {
