@@ -49,16 +49,8 @@ typedef union {
 } wkreg;
 
 typedef struct {
-	int valid;
 	uint32_t cout, res;
 } flgtmp;
-
-#define V_OSZAC		0
-#define V_GEN		1	// general case
-#define V_SUB		2
-#define V_SBB		3
-#define V_ADC		4
-#define V_ADD		5
 
 /* same constants as used in Bochs and QEMU */
 #define LF_BIT_PD	2	/* lazy Parity Delta, same bit as PF */
