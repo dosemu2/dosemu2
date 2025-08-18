@@ -116,26 +116,26 @@ static inline int is_zf_set(void)
 static inline int is_sf_set(void)
 {
 	if (RFL.valid==V_OZC)
-	    return (CPUBYTE(Ofs_FLAGS)&0x80) >> 7;
-	return RFL.res >> 31;
+	    return (CPUBYTE(Ofs_FLAGS)&EFLAGS_SF) >> X86_EFLAGS_SF_BIT;
+	return RFL.res >> LF_BIT_RES_SF;
 }
 
 static inline int is_cf_set(void)
 {
-	return RFL.cout >> 31;
+	return RFL.cout >> LF_BIT_CF;
 }
 
 static inline int is_of_set(void)
 {
-	return ((RFL.cout >> 31) ^ (RFL.cout >> 30)) & 1;
+	return ((RFL.cout >> LF_BIT_CF) ^ (RFL.cout >> LF_BIT_PO)) & 1;
 }
 
 static inline void SET_CF(unsigned int c)
 {
 	// Always working on lazy flags
-	uint32_t of = ((RFL.cout >> 1) ^ RFL.cout) & (1 << 30);
-	RFL.cout &= ~((1U << 31) | (1 << 30));
-	RFL.cout |= (c << 31) | (of ^ (c << 30));
+	uint32_t of = ((RFL.cout >> 1) ^ RFL.cout) & LF_MASK_PO;
+	RFL.cout &= ~(LF_MASK_CF | LF_MASK_PO);
+	RFL.cout |= (c << LF_BIT_CF) | (of ^ (c << LF_BIT_PO));
 }
 
 /* add/sub rule for carry using MSB:
@@ -160,8 +160,8 @@ static inline void FlagHandleAdd(unsigned src1, unsigned src2, unsigned res,
 {
 	unsigned int cout = (src1 & src2) | ((src1 | src2) & ~res);
 	if (wordsize == 32) RFL.cout = cout;
-	if (wordsize == 16) RFL.cout = ((cout >> 14) << 30) | (cout & 8);
-	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
+	if (wordsize == 16) RFL.cout = (cout << 16) | (cout & LF_MASK_AF);
+	if (wordsize == 8) RFL.cout = (cout << 24) | (cout & LF_MASK_AF);
 	RFL.res = res;
 }
 
@@ -170,8 +170,8 @@ static inline void FlagHandleSub(unsigned src1, unsigned src2, unsigned res,
 {
 	unsigned int cout = (~src1 & src2) | ((~src1 ^ src2) & res);
 	if (wordsize == 32) RFL.cout = cout;
-	if (wordsize == 16) RFL.cout = ((cout >> 14) << 30) | (cout & 8);
-	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
+	if (wordsize == 16) RFL.cout = (cout << 16) | (cout & LF_MASK_AF);
+	if (wordsize == 8) RFL.cout = (cout << 24) | (cout & LF_MASK_AF);
 	RFL.res = res;
 }
 
@@ -180,8 +180,8 @@ static inline void FlagHandleIncDec(unsigned low, unsigned high, int wordsize)
 	unsigned int cout = low & ~high;
 	int oldcy = is_cf_set();
 	if (wordsize == 32) RFL.cout = cout;
-	if (wordsize == 16) RFL.cout = ((cout >> 14) << 30) | (cout & 8);
-	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
+	if (wordsize == 16) RFL.cout = (cout << 16) | (cout & LF_MASK_AF);
+	if (wordsize == 8) RFL.cout = (cout << 24) | (cout & LF_MASK_AF);
 	RFL.valid = V_ADD;
 	SET_CF(oldcy);
 }
@@ -189,11 +189,11 @@ static inline void FlagHandleIncDec(unsigned low, unsigned high, int wordsize)
 static inline int FlagSync_NZ (void)
 {
 	int zr,pl,nf;
-	zr = (RFL.res==0) << 6;
+	zr = (RFL.res==0) << X86_EFLAGS_ZF_BIT;
 	if (RFL.valid==V_OZC)
-		pl = CPUBYTE(Ofs_FLAGS)&0x80;
+		pl = CPUBYTE(Ofs_FLAGS)&EFLAGS_SF;
 	else
-		pl = (RFL.res>>24) & 0x80;
+		pl = (RFL.res>>(LF_BIT_RES_SF-X86_EFLAGS_SF_BIT)) & EFLAGS_SF;
 	nf = zr | pl;
 	if (debug_level('e')>2) e_printf("Sync NZ flags = %02x\n", nf);
 	return nf;
@@ -203,16 +203,16 @@ static inline int FlagSync_NZ (void)
 static void ClearOF(void)
 {
 	// Always working on lazy flags
-	RFL.cout &= ~(1 << 30);
-	RFL.cout ^= (RFL.cout >> 1) & (1 << 30);
+	RFL.cout &= ~LF_MASK_PO;
+	RFL.cout ^= (RFL.cout >> (LF_BIT_CF - LF_BIT_PO)) & LF_MASK_PO;
 }
 
 // Set OF, leaving PF, AF, SF, ZF alone.
 static void SetOF(void)
 {
 	// Always working on lazy flags
-	RFL.cout |= 1 << 30;
-	RFL.cout ^= (RFL.cout >> 1) & (1 << 30);
+	RFL.cout |= LF_MASK_PO;
+	RFL.cout ^= (RFL.cout >> (LF_BIT_CF - LF_BIT_PO)) & LF_MASK_PO;
 }
 
 #define SET_OF(ov) { if(ov) SetOF(); else ClearOF(); }
@@ -233,7 +233,8 @@ static inline int FlagSync_O (void)
 	 *	  1    1    1    0  0
 	 */
 	// 80000000->0800 ^ 40000000->0800
-	nf = ((RFL.cout >> 20) ^ (RFL.cout >> 19)) & 0x800;
+	nf = ((RFL.cout >> (LF_BIT_CF - X86_EFLAGS_OF_BIT)) ^
+	      (RFL.cout >> (LF_BIT_PO - X86_EFLAGS_OF_BIT))) & EFLAGS_OF;
 	if (debug_level('e')>1) e_printf("Sync O flag = %04x\n", nf);
 	return nf;
 }
@@ -266,9 +267,9 @@ static inline int FlagSync_AP_ (void)
 	// 0 0 1 -> AC  0 1 1 -> NA  1 0 1 -> NA  1 1 1 -> AC
 	if ((RFL.valid==V_SUB)||(RFL.valid==V_SBB)||
 	    (RFL.valid==V_ADC)||(RFL.valid==V_ADD))
-	    af = (RFL.cout & 0x8) << 1;
+	    af = (RFL.cout & LF_MASK_AF) << (X86_EFLAGS_AF_BIT - LF_BIT_AF);
 	else
-	    af = CPUBYTE(Ofs_FLAGS)&0x10; // Intel says undefined.
+	    af = CPUBYTE(Ofs_FLAGS)&EFLAGS_AF; // Intel says undefined.
 	// PF
 	pf = parity[RFL.res & 0xff];
 	nf = af | pf;
@@ -279,7 +280,7 @@ static inline int FlagSync_AP_ (void)
 static void FlagSync_AP (void)
 {
 	int nf = FlagSync_AP_();
-	CPUBYTE(Ofs_FLAGS) = (CPUBYTE(Ofs_FLAGS) & 0xeb) | nf;
+	CPUBYTE(Ofs_FLAGS) = (CPUBYTE(Ofs_FLAGS) & ~(EFLAGS_AF|EFLAGS_PF)) | nf;
 }
 
 
@@ -296,7 +297,8 @@ static void FlagSync_RFL_OZC (void)
 {
 	/* encode OF/ZF/CF into RFL */
 	RFL.res = IS_ZF_SET ? 0x0 : 0x100;
-	RFL.cout = (unsigned)IS_CF_SET << 31 | ((IS_CF_SET ^ IS_OF_SET) << 30);
+	RFL.cout = ((unsigned)IS_CF_SET << LF_BIT_CF) |
+	  ((IS_CF_SET ^ IS_OF_SET) << LF_BIT_PO);
 	RFL.valid = V_OZC;
 }
 
@@ -878,7 +880,7 @@ unsigned int Gen_sim(const IGen *IG)
 		// if CY=1 -> reg=-1, flag=xx97, OF=0
 		if (is_cf_set()) {
 		    RFL.res = 0xffffffff;
-		    RFL.cout = (1U << 31) | 0x8; // CF,AF set, OF=0
+		    RFL.cout = LF_MASK_CF | LF_MASK_AF; // CF,AF set, OF=0
 		}
 		else {
 		    RFL.res = 0;
@@ -1892,7 +1894,7 @@ unsigned int Gen_sim(const IGen *IG)
 				unsigned char altmp = DR1.b.bl;
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl += 6;
-					cyaf = (cy || (altmp > 0xf9)) | 8;
+					cyaf = (cy || (altmp > 0xf9)) | LF_MASK_AF;
 				}
 				if ((altmp > 0x99) || cy) {
 					DR1.b.bl += 0x60;
@@ -1900,7 +1902,7 @@ unsigned int Gen_sim(const IGen *IG)
 				}
 				SET_CF(cyaf & 1);
 				RFL.res = DR1.bs.bl; /* for flags */
-				RFL.cout = (RFL.cout & ~8) | (cyaf & 8);
+				RFL.cout = (RFL.cout & ~LF_MASK_AF) | (cyaf & LF_MASK_AF);
 				}
 				break;
 			case DAS: {
@@ -1908,7 +1910,7 @@ unsigned int Gen_sim(const IGen *IG)
 				unsigned char altmp = DR1.b.bl;
 				if (((altmp & 0x0f) > 9) || (IS_AF_SET)) {
 					DR1.b.bl -= 6;
-					cyaf = (cy || (altmp < 6)) | 8;
+					cyaf = (cy || (altmp < 6)) | LF_MASK_AF;
 				}
 				if ((altmp > 0x99) || cy) {
 					DR1.b.bl -= 0x60;
@@ -1916,7 +1918,7 @@ unsigned int Gen_sim(const IGen *IG)
 				}
 				SET_CF(cyaf & 1);
 				RFL.res = DR1.bs.bl; /* for flags */
-				RFL.cout = (RFL.cout & ~8) | (cyaf & 8);
+				RFL.cout = (RFL.cout & ~LF_MASK_AF) | (cyaf & LF_MASK_AF);
 				}
 				break;
 			case AAA: {
@@ -1931,7 +1933,7 @@ unsigned int Gen_sim(const IGen *IG)
 					DR1.b.bl &= 0x0f;
 				}
 				SET_CF(cyaf & 1);
-				RFL.cout = (RFL.cout & ~8) | (cyaf & 8);
+				RFL.cout = (RFL.cout & ~LF_MASK_AF) | (cyaf & LF_MASK_AF);
 				}
 				break;
 			case AAS: {
@@ -1946,7 +1948,7 @@ unsigned int Gen_sim(const IGen *IG)
 					DR1.b.bl &= 0x0f;
 				}
 				SET_CF(cyaf & 1);
-				RFL.cout = (RFL.cout & ~8) | (cyaf & 8);
+				RFL.cout = (RFL.cout & ~LF_MASK_AF) | (cyaf & LF_MASK_AF);
 				}
 				break;
 			case AAM: {

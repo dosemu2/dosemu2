@@ -60,6 +60,20 @@ typedef struct {
 #define V_ADC		4
 #define V_ADD		5
 
+/* same constants as used in Bochs and QEMU */
+#define LF_BIT_PD	2	/* lazy Parity Delta, same bit as PF */
+#define LF_BIT_AF	3	/* lazy Adjust flag */
+#define LF_BIT_SD	7	/* lazy Sign Flag Delta, same bit as SF */
+#define LF_BIT_CF	31	/* lazy Carry Flag */
+#define LF_BIT_PO	30	/* lazy Partial Overflow = CF ^ OF */
+#define LF_BIT_RES_SF	31	/* lazy Partial Sign Flag in result, SF ^ SD */
+
+#define LF_MASK_SD	(1U << LF_BIT_SD)
+#define LF_MASK_AF	(1U << LF_BIT_AF)
+#define LF_MASK_PD	(1U << LF_BIT_PD)
+#define LF_MASK_CF	(1U << LF_BIT_CF)
+#define LF_MASK_PO	(1U << LF_BIT_PO)
+
 extern wkreg DR1;	// "eax"
 extern wkreg DR2;	// "edx"
 extern wkreg AR1;	// "edi"
