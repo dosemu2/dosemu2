@@ -2525,7 +2525,7 @@ unsigned int Gen_sim(const IGen *IG)
 		switch(o1) {	// these are direct on x86
 		case CMC:
 			GTRACE0("O_CMC");
-			SET_CF(is_cf_set()^1);
+			RFL.cout ^= LF_MASK_CF | LF_MASK_PO;
 			break;
 		case CLC:
 			GTRACE0("O_CLC");
