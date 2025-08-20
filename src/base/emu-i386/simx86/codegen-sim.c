@@ -1285,14 +1285,10 @@ unsigned int Gen_sim(const IGen *IG)
 		    CPULONG(Ofs_EDX) = v.t.th;
 		    of = (v.t.th != 0);
 		}
-		if (of) {
-		    SET_CF(1);
-		    SET_OF(1);
+		RFL.cout &= ~(LF_MASK_CF|LF_MASK_PO);
+		if (of)
+		    RFL.cout |= LF_MASK_CF; // also sets OF via PO
 		}
-		else {
-		    SET_CF(0);
-		    SET_OF(0);
-		} }
 		break;
 	case O_IMUL: {		// OC
 		int of;
@@ -1375,14 +1371,10 @@ unsigned int Gen_sim(const IGen *IG)
 		    v >>= 31;		// EDX:EAX sign extend of EAX?
 		    of = ((v != 0) && (v != -1));
 		}
-		if (of) {
-		    SET_CF(1);
-		    SET_OF(1);
+		RFL.cout &= ~(LF_MASK_CF|LF_MASK_PO);
+		if (of)
+		    RFL.cout |= LF_MASK_CF; // also sets OF via PO
 		}
-		else {
-		    SET_CF(0);
-		    SET_OF(0);
-		} }
 		break;
 
 	case O_DIV:		// no flags
