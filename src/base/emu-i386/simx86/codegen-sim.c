@@ -1830,70 +1830,69 @@ unsigned int Gen_sim(const IGen *IG)
 		// get n bytes from parameter stack
 		unsigned char subop = IG->p1;
 		GTRACE3("O_OPAX",0xff,0xff,n);
-		int cy = is_cf_set();
-		SET_OF(0);
+		uint32_t cy = is_cf_set();
 		DR1.d = CPULONG(Ofs_EAX);
 		switch (subop) {
 			case DAA: {
-				char cyaf = 0;
+				uint32_t cyaf = 0;
 				unsigned char altmp = DR1.b.bl;
 				if (((DR1.b.bl & 0x0f) > 9 ) || is_af_set()) {
 					DR1.b.bl += 6;
-					cyaf = (cy || (altmp > 0xf9)) | LF_MASK_AF;
+					cyaf = ((uint32_t)(cy || (altmp > 0xf9))
+						<< LF_BIT_CF) | LF_MASK_AF;
 				}
 				if ((altmp > 0x99) || cy) {
 					DR1.b.bl += 0x60;
-					cyaf |= 1;
+					cyaf |= LF_MASK_CF;
 				}
-				SET_CF(cyaf & 1);
 				RFL.res = DR1.bs.bl; /* for flags */
-				RFL.cout = (RFL.cout & ~(LF_MASK_AF|LF_MASK_SD|LF_MASK_PD)) | (cyaf & LF_MASK_AF);
+				RFL.cout = cyaf;
 				}
 				break;
 			case DAS: {
-				char cyaf = 0;
+				uint32_t cyaf = 0;
 				unsigned char altmp = DR1.b.bl;
 				if (((altmp & 0x0f) > 9) || is_af_set()) {
 					DR1.b.bl -= 6;
-					cyaf = (cy || (altmp < 6)) | LF_MASK_AF;
+					cyaf = ((uint32_t)(cy || (altmp < 6))
+						<< LF_BIT_CF) | LF_MASK_AF;
 				}
 				if ((altmp > 0x99) || cy) {
 					DR1.b.bl -= 0x60;
-					cyaf |= 1;
+					cyaf |= LF_MASK_CF;
 				}
-				SET_CF(cyaf & 1);
 				RFL.res = DR1.bs.bl; /* for flags */
-				RFL.cout = (RFL.cout & ~(LF_MASK_AF|LF_MASK_SD|LF_MASK_PD)) | (cyaf & LF_MASK_AF);
+				RFL.cout = cyaf;
 				}
 				break;
 			case AAA: {
-				char cyaf;
+				uint32_t cyaf;
 				char icarry = (DR1.b.bl > 0xf9);
 				if (((DR1.b.bl & 0x0f) > 9 ) || is_af_set()) {
 					DR1.b.bl = (DR1.b.bl + 6) & 0x0f;
 					DR1.b.bh = (DR1.b.bh + 1 + icarry);
-					cyaf = 9;
+					cyaf = LF_MASK_CF | LF_MASK_AF;
 				} else {
 					cyaf = 0;
 					DR1.b.bl &= 0x0f;
 				}
-				SET_CF(cyaf & 1);
-				RFL.cout = (RFL.cout & ~(LF_MASK_AF|LF_MASK_SD|LF_MASK_PD)) | (cyaf & LF_MASK_AF);
+				RFL.cout = (RFL.cout &
+				  ~(LF_MASK_AF|LF_MASK_CF|LF_MASK_PO)) | cyaf;
 				}
 				break;
 			case AAS: {
-				char cyaf;
+				uint32_t cyaf;
 				char icarry = (DR1.b.bl < 6);
 				if (((DR1.b.bl & 0x0f) > 9 ) || is_af_set()) {
 					DR1.b.bl = (DR1.b.bl - 6) & 0x0f;
 					DR1.b.bh = (DR1.b.bh - 1 - icarry);
-					cyaf = 9;
+					cyaf = LF_MASK_CF | LF_MASK_AF;
 				} else {
 					cyaf = 0;
 					DR1.b.bl &= 0x0f;
 				}
-				SET_CF(cyaf & 1);
-				RFL.cout = (RFL.cout & ~(LF_MASK_AF|LF_MASK_SD|LF_MASK_PD)) | (cyaf & LF_MASK_AF);
+				RFL.cout = (RFL.cout &
+				  ~(LF_MASK_AF|LF_MASK_CF|LF_MASK_PO)) | cyaf;
 				}
 				break;
 			case AAM: {
