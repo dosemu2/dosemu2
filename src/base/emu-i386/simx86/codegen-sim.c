@@ -145,6 +145,14 @@ static inline void SET_CF(unsigned int c)
 	RFL.cout ^= (c != is_cf_set()) * (LF_MASK_PO | LF_MASK_CF);
 }
 
+static inline void SET_ZF(unsigned int c)
+{
+	// to set ZF in RFL.res we must transfer SF/PF to RFL.cout
+	RFL.cout = (RFL.cout & ~(LF_MASK_PD | LF_MASK_SD)) |
+	  (((is_sf_set() << LF_BIT_SD) | (is_pf_set() << LF_BIT_PD)) ^ LF_MASK_PD);
+	RFL.res = (!c) << 8;
+}
+
 /* add/sub rule for carry using MSB:
  * the carry-out expressions from Bochs 2.6 are used here.
  * RFL.cout is a cheap-to-compute 32-bit word that encodes the following flags:
@@ -2542,25 +2550,19 @@ unsigned int Gen_sim(const IGen *IG)
 	case O_BITOP: {
 		unsigned char o1 = (unsigned char)IG->p0;
 		signed char o2 = (signed char)IG->p1;
-		int flg;
 		GTRACE3("O_BITOP",o2,0xff,o1);
 		if (o1 == 0x1c || o1 == 0x1d) { /* bsf/bsr */
 			if (mode & DATA16) DR1.d = DR1.w.l;
 			DR1.d = o1 == 0x1c ? find_bit(DR1.d) : find_bit_r(DR1.d);
-			FlagSync_All();
 			if (DR1.d == -1) {
-				flg = 0x40; // ZF set
+				SET_ZF(1);
 			} else {
-				flg = 0;
+				SET_ZF(0);
 				if (mode & DATA16)
 					CPUWORD(o2) = DR1.d;
 				else
 					CPULONG(o2) = DR1.d;
 			}
-			// set ZF
-			FlagSync_All();
-			CPUBYTE(Ofs_FLAGS)=(CPUBYTE(Ofs_FLAGS)&0xbf)|flg;
-			FlagSync_RFL();
 			break;
 		}
 		if(o1 >= 0x20)
