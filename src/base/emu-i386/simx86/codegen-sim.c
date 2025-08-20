@@ -125,12 +125,12 @@ static inline int is_cf_set(void)
 
 static inline int is_of_set(void)
 {
-	return ((RFL.cout >> LF_BIT_CF) ^ (RFL.cout >> LF_BIT_PO)) & 1;
+	return (RFL.cout + LF_MASK_PO) >> LF_BIT_CF;
 }
 
 static inline int is_af_set(void)
 {
-	return (RFL.cout >> 3) & 1;
+	return (RFL.cout >> LF_BIT_AF) & 1;
 }
 
 static unsigned char parity[256];
@@ -141,10 +141,8 @@ static inline int is_pf_set(void)
 
 static inline void SET_CF(unsigned int c)
 {
-	// Always working on lazy flags
-	uint32_t of = ((RFL.cout >> 1) ^ RFL.cout) & LF_MASK_PO;
-	RFL.cout &= ~(LF_MASK_CF | LF_MASK_PO);
-	RFL.cout |= (c << LF_BIT_CF) | (of ^ (c << LF_BIT_PO));
+	// Always working on lazy flags: if CF changes, flip PO and CF
+	RFL.cout ^= (c != is_cf_set()) * (LF_MASK_PO | LF_MASK_CF);
 }
 
 /* add/sub rule for carry using MSB:
