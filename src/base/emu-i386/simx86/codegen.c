@@ -517,7 +517,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 				 CodePtr-cp1, MAX_GEND_BYTES_PER_OP);
 		    leavedos_main(0x535347);
 		}
-		if (debug_level('e')>1) {
+		if (debug_level('e')>7) {
 		    int dg = CodePtr-cp1;
 		    e_printf("PGEN(%02d,%02d) %3d %6x %2d %08x %08x %08x %08x %08x\n",
 			i,j,IG->op,IG->mode,dg,

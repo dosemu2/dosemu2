@@ -439,7 +439,8 @@ static void *FindC(unsigned int addr, int remove)
 {
 	int i;
 
-	e_printf("find %x, remove=%i\n", addr, remove);
+	if (debug_level('e') >= 9)
+	    e_printf("find %x, remove=%i\n", addr, remove);
 	for (i = 0; i < num_clist; i++) {
 	    struct cache_ent *ce = &clist[i];
 	    if (!ce->data)
@@ -456,7 +457,8 @@ static void *FindC(unsigned int addr, int remove)
 		return p;
 	    }
 	}
-	e_printf("not found %x\n", addr);
+	if (debug_level('e') >= 9)
+	    e_printf("not found %x\n", addr);
 	assert(!remove);
 	return NULL;
 }

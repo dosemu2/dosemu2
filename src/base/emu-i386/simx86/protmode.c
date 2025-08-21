@@ -105,7 +105,8 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	sd = (SDTR *)CPUOFFS(e_ofsseg[(ofs>>2)]);
 
 	if ((sd->Oldsel==sel)&&((sd->Attrib&3)==1)) {
-	    e_printf("SetSeg PROT %s%04lx cached\n",MKOFSNAM(ofs,buf),sel);
+	    if (debug_level('e') >= 9)
+		e_printf("SetSeg PROT %s%04lx cached\n",MKOFSNAM(ofs,buf),sel);
 	    if (big) *big = (sd->Attrib&4? 0xff:0);
 	    return 0;
 	}
@@ -194,10 +195,11 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	sd->BoundL = GetPhysicalAddress(sel);
 	sd->BoundH = sd->BoundL + GetSelectorByteLimit(sel);
 	sd->Attrib = (lbig&4) | 1;
-	e_printf("SetSeg PROT %s%04lx\n",MKOFSNAM(ofs,buf),sel);
+	if (debug_level('e')>7)
+	    e_printf("SetSeg PROT %s%04lx\n",MKOFSNAM(ofs,buf),sel);
 
 	if (big) *big = lbig;
-	if (debug_level('e')>2) {
+	if (debug_level('e')>7) {
 		e_printf("PMSEL %#04lx bounds=%08x:%08x flg=%04x big=%d\n",
 			sel, sd->BoundL, sd->BoundH, wFlags, lbig&1);
 	}
