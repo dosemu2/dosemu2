@@ -331,8 +331,8 @@ static const char *second[] = {
   "push gs",          "pop gs",          0,                "bts %Ev,%Gv",
   "shrd %Ev,%Gv,%Ib", "shrd %Ev,%Gv,cl", 0,                "imul %Gv,%Ev",
 /* b */
-  "cmpxchg %Eb,%Gb",  "cmpxchg %Ev,%Gv", "lss %Mp",        "btr %Ev,%Gv",
-  "lfs %Mp",          "lgs %Mp",         "movzx %Gv,%Eb",  "movzx %Gv,%Ew",
+  "cmpxchg %Eb,%Gb",  "cmpxchg %Ev,%Gv", "lss %Gv,%Mp",    "btr %Ev,%Gv",
+  "lfs  %Gv,%Mp",     "lgs  %Gv,%Mp",    "movzx %Gv,%Eb",  "movzx %Gv,%Ew",
   0,                  0,                 "%g7 %Ev,%Ib",    "btc %Ev,%Gv",
   "bsf %Gv,%Ev",      "bsr %Gv,%Ev",     "movsx %Gv,%Eb",  "movsx %Gv,%Ew",
 /* c */
