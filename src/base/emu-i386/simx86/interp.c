@@ -58,7 +58,9 @@ static pthread_mutex_t run_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t prejit_thr;
 static sem_t prejit_sem;
 static void *prejit_thread(void *arg);
+#if SPEC_PREJIT
 static void prejit_run(unsigned int PC);
+#endif
 static unsigned int prejit_PC;
 #if PROFILE
 int SpecPrejits;
@@ -385,9 +387,12 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 	int _rc;
 	_P1 = _JumpGen(P2, mode, opc, pskip, &_P0);
 	if (_P1 == (unsigned)-1) {
+#if SPEC_PREJIT
 		int can_speculate = 1;
+#endif
 		TNode *G;
 		NewIMeta(P0, &_rc);
+#if SPEC_PREJIT
 		switch (opc) {
 		/* With uncond JMP or RET nothing to speculate. */
 		case JMPld:
@@ -397,6 +402,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 			can_speculate = 0;
 			break;
 		}
+#endif
 		G = DoClose(_P0, TheCPU.basemode, InstrMeta[0].npc);
 		if (!G)
 			return P0;
@@ -405,6 +411,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 			NodesPrejitted++;
 			TheCPU.err = EXCP_GOBACK;
 		} else {
+#if SPEC_PREJIT
 			if (can_speculate) {
 				if (debug_level('e')) {
 					char *ds;
@@ -416,9 +423,12 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 				}
 				prejit_run(_P0);
 			}
+#endif
 			_P1 = DoExec(G);
+#if SPEC_PREJIT
 			if (can_speculate)
 				prejit_sync();
+#endif
 			TheCPU.err = TheCPU.err2;
 			LONG_CS = _LONG_CS;
 		}
@@ -3645,11 +3655,9 @@ static void *prejit_thread(void *arg)
   return NULL;
 }
 
+#if SPEC_PREJIT
 static void prejit_run(unsigned int PC)
 {
-#if !SPEC_PREJIT
-  return;
-#endif
   if (e_querymark(PC, SAFE_PRJ_GAP))
     return;
 #if PROFILE
@@ -3662,6 +3670,7 @@ static void prejit_run(unsigned int PC)
   pthread_mutex_unlock(&run_mtx);
   sem_post(&prejit_sem);
 }
+#endif
 
 void prejit_sync(void)
 {
