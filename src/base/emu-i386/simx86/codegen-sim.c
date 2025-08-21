@@ -113,11 +113,6 @@ static inline int is_zf_set(void)
 	return RFL.res == 0;
 }
 
-static inline int is_sf_set(void)
-{
-	return (RFL.res >> LF_BIT_RES_SF) ^ ((RFL.cout >> LF_BIT_SD) & 1);
-}
-
 static inline int is_cf_set(void)
 {
 	return RFL.cout >> LF_BIT_CF;
@@ -125,26 +120,18 @@ static inline int is_cf_set(void)
 
 static inline int is_of_set(void)
 {
-	return ((RFL.cout >> LF_BIT_CF) ^ (RFL.cout >> LF_BIT_PO)) & 1;
+	return (RFL.cout + LF_MASK_PO) >> LF_BIT_CF;
 }
 
 static inline int is_af_set(void)
 {
-	return (RFL.cout >> 3) & 1;
-}
-
-static unsigned char parity[256];
-static inline int is_pf_set(void)
-{
-	return (parity[RFL.res & 0xff] ^ (RFL.cout & LF_MASK_PD)) >> LF_BIT_PD;
+	return (RFL.cout & LF_MASK_AF) != 0;
 }
 
 static inline void SET_CF(unsigned int c)
 {
-	// Always working on lazy flags
-	uint32_t of = ((RFL.cout >> 1) ^ RFL.cout) & LF_MASK_PO;
-	RFL.cout &= ~(LF_MASK_CF | LF_MASK_PO);
-	RFL.cout |= (c << LF_BIT_CF) | (of ^ (c << LF_BIT_PO));
+	// Always working on lazy flags: if CF changes, flip PO and CF
+	RFL.cout ^= (c != is_cf_set()) * (LF_MASK_PO | LF_MASK_CF);
 }
 
 /* add/sub rule for carry using MSB:
@@ -194,53 +181,40 @@ static inline void FlagHandleIncDec(unsigned low, unsigned high, int wordsize)
 	SET_CF(oldcy);
 }
 
-static inline int FlagSync_NZ (void)
+static inline void FlagHandleRotate(int sh, int cy, uint32_t cout, int wordsize)
 {
-	int zr,pl,nf;
-	zr = (RFL.res==0) << X86_EFLAGS_ZF_BIT;
-	pl = ((RFL.res>>(LF_BIT_RES_SF-X86_EFLAGS_SF_BIT)) ^ RFL.cout) &
+	if (sh == 1) {
+		if (wordsize == 32) cout &= (LF_MASK_CF | LF_MASK_PO);
+		if (wordsize == 16) cout <<= 16;
+		if (wordsize == 8) cout <<= 24;
+		RFL.cout = (RFL.cout & ~(LF_MASK_CF | LF_MASK_PO)) | cout;
+	}
+	if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
+	SET_CF(cy);
+}
+
+static inline void FlagHandleShift(int sh, int cy, uint32_t cout, int wordsize,
+				   unsigned res)
+{
+	FlagHandleRotate(sh, cy, cout, wordsize);
+	RFL.res = res;
+	RFL.cout &= ~(LF_MASK_SD|LF_MASK_PD);
+}
+
+static inline int FlagSync_S (void)
+{
+	return ((RFL.res>>(LF_BIT_RES_SF-X86_EFLAGS_SF_BIT)) ^ RFL.cout) &
 	  EFLAGS_SF;
-	nf = zr | pl;
-	if (debug_level('e')>2) e_printf("Sync NZ flags = %02x\n", nf);
-	return nf;
 }
 
-// Clear OF, leaving PF, AF, SF, ZF alone.
-static void ClearOF(void)
+static inline int is_sf_set(void)
 {
-	// Always working on lazy flags
-	RFL.cout &= ~LF_MASK_PO;
-	RFL.cout ^= (RFL.cout >> (LF_BIT_CF - LF_BIT_PO)) & LF_MASK_PO;
+	return FlagSync_S() != 0;
 }
-
-// Set OF, leaving PF, AF, SF, ZF alone.
-static void SetOF(void)
-{
-	// Always working on lazy flags
-	RFL.cout |= LF_MASK_PO;
-	RFL.cout ^= (RFL.cout >> (LF_BIT_CF - LF_BIT_PO)) & LF_MASK_PO;
-}
-
-#define SET_OF(ov) { if(ov) SetOF(); else ClearOF(); }
 
 static inline int FlagSync_O (void)
 {
-	int nf;
-	// OF
-	/* overflow rule using MSB:
-	 *	src1 src2 res OF ad/sub
-	 *	  0    0    0    0  0
-	 *	  0    0    1    1  0
-	 *	  0    1    0    0  0
-	 *	  0    1    1    0  1
-	 *	  1    0    0    0  1
-	 *	  1    0    1    0  0
-	 *	  1    1    0    1  0
-	 *	  1    1    1    0  0
-	 */
-	// 80000000->0800 ^ 40000000->0800
-	nf = ((RFL.cout >> (LF_BIT_CF - X86_EFLAGS_OF_BIT)) ^
-	      (RFL.cout >> (LF_BIT_PO - X86_EFLAGS_OF_BIT))) & EFLAGS_OF;
+	int nf = is_of_set() << X86_EFLAGS_OF_BIT;
 	if (debug_level('e')>1) e_printf("Sync O flag = %04x\n", nf);
 	return nf;
 }
@@ -264,34 +238,51 @@ static unsigned char parity[256] =
      4, 0, 0, 4, 0, 4, 4, 0, 0, 4, 4, 0, 4, 0, 0, 4 };
 
 
-static inline int FlagSync_AP (void)
+static inline int FlagSync_P (void)
 {
-	int af,pf,nf;
-	af = (RFL.cout & LF_MASK_AF) << (X86_EFLAGS_AF_BIT - LF_BIT_AF);
-	pf = parity[RFL.res & 0xff] ^ (RFL.cout & LF_MASK_PD);
-	nf = af | pf;
-	if (debug_level('e')>2) e_printf("Sync AP flags = %02x\n", nf);
+	return parity[RFL.res & 0xff] ^ (RFL.cout & LF_MASK_PD);
+}
+
+static inline int is_pf_set(void)
+{
+	return FlagSync_P() != 0;
+}
+
+static inline void SET_ZF(unsigned int c)
+{
+	// to set ZF in RFL.res we must transfer SF/PF to RFL.cout
+	RFL.cout = (RFL.cout & ~(LF_MASK_PD | LF_MASK_SD)) |
+	  ((FlagSync_S() | FlagSync_P()) ^ LF_MASK_PD);
+	RFL.res = (!c) << 8;
+}
+
+static inline int FlagSync_SZAPC (void)
+{
+	/* AF/CF can be can be quickly obtained using a rotation */
+	return (((RFL.cout << 1) | (RFL.cout >> 31)) & (EFLAGS_AF | EFLAGS_CF)) |
+	  (is_zf_set() << X86_EFLAGS_ZF_BIT) |
+	  FlagSync_S() | FlagSync_P();
+}
+
+int FlagSync_All (void)
+{
+	int nf = FlagSync_SZAPC() | FlagSync_O();
+	if (debug_level('e')>1) e_printf("Sync ALL flags = %04x\n", nf);
 	return nf;
 }
 
 
-void FlagSync_All (void)
-{
-	int nf;
-	nf = FlagSync_AP() | FlagSync_NZ() | FlagSync_O() | is_cf_set();
-	if (debug_level('e')>1) e_printf("Sync ALL flags = %04x\n", nf);
-	CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & ~EFLAGS_CC) | nf;
-}
-
-
-static void FlagSync_RFL (void)
+static void FlagSync_RFL (uint32_t flg)
 {
 	/* encode all CC flags into RFL */
-	RFL.res = IS_ZF_SET ? 0x0 : 0x100;
-	RFL.cout = ((unsigned)IS_CF_SET << LF_BIT_CF) |
-	  ((IS_CF_SET ^ IS_OF_SET) << LF_BIT_PO) |
-	  (IS_AF_SET << LF_BIT_AF) |
-	  ((CPUBYTE(Ofs_FLAGS) & (EFLAGS_SF|EFLAGS_PF)) ^ EFLAGS_PF);
+
+	/* AF/CF via rotation */
+	uint32_t cout = ((flg << 31) | (flg >> 1)) & (LF_MASK_AF | LF_MASK_CF);
+	/* PO derived from CF^OF */
+	cout |=  ((cout >> 1) ^ (flg << (LF_BIT_PO - X86_EFLAGS_OF_BIT))) & LF_MASK_PO;
+	/* PF/SF in PD/SD; since parity of RFL.res is even, must flip PD */
+	RFL.cout = cout | ((flg & (EFLAGS_SF|EFLAGS_PF)) ^ EFLAGS_PF);
+	RFL.res = (!(flg & EFLAGS_ZF)) << 8;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1287,14 +1278,10 @@ unsigned int Gen_sim(const IGen *IG)
 		    CPULONG(Ofs_EDX) = v.t.th;
 		    of = (v.t.th != 0);
 		}
-		if (of) {
-		    SET_CF(1);
-		    SET_OF(1);
+		RFL.cout &= ~(LF_MASK_CF|LF_MASK_PO);
+		if (of)
+		    RFL.cout |= LF_MASK_CF; // also sets OF via PO
 		}
-		else {
-		    SET_CF(0);
-		    SET_OF(0);
-		} }
 		break;
 	case O_IMUL: {		// OC
 		int of;
@@ -1377,14 +1364,10 @@ unsigned int Gen_sim(const IGen *IG)
 		    v >>= 31;		// EDX:EAX sign extend of EAX?
 		    of = ((v != 0) && (v != -1));
 		}
-		if (of) {
-		    SET_CF(1);
-		    SET_OF(1);
+		RFL.cout &= ~(LF_MASK_CF|LF_MASK_PO);
+		if (of)
+		    RFL.cout |= LF_MASK_CF; // also sets OF via PO
 		}
-		else {
-		    SET_CF(0);
-		    SET_OF(0);
-		} }
 		break;
 
 	case O_DIV:		// no flags
@@ -1540,7 +1523,7 @@ unsigned int Gen_sim(const IGen *IG)
 
 	case O_ROL: {		// O(if sh==1),C(if sh>0)
 		signed char o = (signed char)IG->p0;
-		unsigned int sh, rbef, raft, cy, ov;
+		unsigned int sh, rbef, raft, cy;
 		GTRACE1("O_ROL",o);
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
@@ -1554,7 +1537,7 @@ unsigned int Gen_sim(const IGen *IG)
 			raft = (rbef<<sh) | (rbef>>(8-sh));
 			DR1.b.bl = raft;
 			cy = raft & 1;
-			ov = (rbef & 0x80) != (raft & 0x80);
+			FlagHandleRotate(sh, cy, rbef, 8);
 		}
 		else if (mode & DATA16) {
 			sh &= 15;
@@ -1562,7 +1545,7 @@ unsigned int Gen_sim(const IGen *IG)
 			raft = (rbef<<sh) | (rbef>>(16-sh));
 			DR1.w.l = raft;
 			cy = raft & 1;
-			ov = (rbef & 0x8000) != (raft & 0x8000);
+			FlagHandleRotate(sh, cy, rbef, 16);
 		}
 		else {
 			// sh != 0, else we "break"ed above.
@@ -1571,18 +1554,14 @@ unsigned int Gen_sim(const IGen *IG)
 			raft = (rbef<<sh) | (rbef>>(32-sh));
 			DR1.d = raft;
 			cy = raft & 1;
-			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
+			FlagHandleRotate(sh, cy, rbef, 32);
 		}
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
-		SET_CF(cy);
-		if (sh==1)
-			SET_OF(ov);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
 	case O_RCL: {		// O(if sh==1),C(if sh>0)
 		signed char o = (signed char)IG->p0;
-		unsigned int sh, rbef, raft, cy, ov;
+		unsigned int sh, rbef, raft, cy;
 		GTRACE1("O_RCL",o);
 		cy = is_cf_set();
 		if (mode & IMMED) sh = o;
@@ -1596,7 +1575,7 @@ unsigned int Gen_sim(const IGen *IG)
 			raft = (rbef<<sh) | (rbef>>(9-sh)) | (cy<<(sh-1));
 			DR1.b.bl = raft;
 			cy = (rbef>>(8-sh)) & 1;
-			ov = (rbef & 0x80) != (raft & 0x80);
+			FlagHandleRotate(sh, cy, rbef, 8);
 		}
 		else if (mode & DATA16) {
 			sh %= 17;
@@ -1605,7 +1584,7 @@ unsigned int Gen_sim(const IGen *IG)
 			raft = (rbef<<sh) | (rbef>>(17-sh)) | (cy<<(sh-1));
 			DR1.w.l = raft;
 			cy = (rbef>>(16-sh)) & 1;
-			ov = (rbef & 0x8000) != (raft & 0x8000);
+			FlagHandleRotate(sh, cy, rbef, 16);
 		}
 		else {
 			if (!sh) break;
@@ -1613,14 +1592,9 @@ unsigned int Gen_sim(const IGen *IG)
 			raft = (rbef<<sh) | (cy<<(sh-1));
 			if (sh>1) raft |= (rbef>>(33-sh));
 			DR1.d = raft;
-			if(sh)
-				cy = (rbef>>(32-sh)) & 1;
-			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
+			cy = (rbef>>(32-sh)) & 1;
+			FlagHandleRotate(sh, cy, rbef, 32);
 		}
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
-		SET_CF(cy);
-		if (sh==1)
-			SET_OF(ov);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
@@ -1647,36 +1621,30 @@ unsigned int Gen_sim(const IGen *IG)
 		// So flag state gets set up like that
 		raft = (rbef << sh);
 
-		RFL.cout &= LF_MASK_AF;
 		if (mode & MBYTE) {
 			cy = (raft & 0x100) != 0;
-			RFL.res = DR1.bs.bl = raft;
-			RFL.cout |= rbef << 24;
+			FlagHandleShift(sh, cy, rbef, 8, DR1.bs.bl = raft);
 		}
 		else if (mode & DATA16) {
 			cy = (raft & 0x10000) != 0;
-			RFL.res = DR1.ws.l = raft;
-			RFL.cout |= rbef << 16;
+			FlagHandleShift(sh, cy, rbef, 16, DR1.ws.l = raft);
 		}
 		else {
 			cy = (rbef>>(32-sh)) & 1;
-			RFL.res = DR1.d = raft;
-			RFL.cout |= rbef & (LF_MASK_CF | LF_MASK_PO);
+			FlagHandleShift(sh, cy, rbef, 32, DR1.d = raft);
 		}
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
-		SET_CF(cy);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
 	case O_ROR: {		// O(if sh==1),C(if sh>0)
 		signed char o = (signed char)IG->p0;
-		unsigned int sh, rbef, raft, cy, ov;
+		unsigned int sh, rbef, raft, cy;
 		GTRACE1("O_ROR",o);
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
 		sh &= 31;
 		if(!sh)
-			break;	// Carry unmodified, Overflow undefined.
+			break;	// All flags unmodified
 
 		if (mode & MBYTE) {
 			sh &= 7;
@@ -1684,7 +1652,7 @@ unsigned int Gen_sim(const IGen *IG)
 			raft = (rbef>>sh) | (rbef<<(8-sh));
 			DR1.b.bl = raft;
 			cy = (raft & 0x80) != 0;
-			ov = (rbef & 0x80) != (raft & 0x80);
+			FlagHandleRotate(sh, cy, raft, 8);
 		}
 		else if (mode & DATA16) {
 			sh &= 15;
@@ -1692,7 +1660,7 @@ unsigned int Gen_sim(const IGen *IG)
 			raft = (rbef>>sh) | (rbef<<(16-sh));
 			DR1.w.l = raft;
 			cy = (raft & 0x8000) != 0;
-			ov = (rbef & 0x8000) != (raft & 0x8000);
+			FlagHandleRotate(sh, cy, raft, 16);
 		}
 		else {
 			// sh != 0, else we "break"ed above.
@@ -1701,25 +1669,21 @@ unsigned int Gen_sim(const IGen *IG)
 			raft = (rbef>>sh) | (rbef<<(32-sh));
 			DR1.d = raft;
 			cy = (raft & 0x80000000U) != 0;
-			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
+			FlagHandleRotate(sh, cy, raft, 32);
 		}
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
-		SET_CF(cy);
-		if (sh==1)
-			SET_OF(ov);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
 	case O_RCR: {		// O(if sh==1),C(if sh>0)
 		signed char o = (signed char)IG->p0;
-		unsigned int sh, rbef, raft, cy, ov;
+		unsigned int sh, rbef, raft, cy;
 		GTRACE3("O_RCR",0xff,0xff,o);
 		cy = is_cf_set();
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
 		sh &= 31;
 		if(!sh)
-			break;	// Carry unmodified, Overflow undefined.
+			break;	// All flags unmodified
 
 		if (mode & MBYTE) {
 			sh %= 9;
@@ -1729,7 +1693,7 @@ unsigned int Gen_sim(const IGen *IG)
 			if(sh)
 				cy = (rbef>>(sh-1)) & 1;
 			// else keep carry.
-			ov = (rbef & 0x80) != (raft & 0x80);
+			FlagHandleRotate(sh, cy, raft, 8);
 		}
 		else if (mode & DATA16) {
 			sh %= 17;
@@ -1738,7 +1702,7 @@ unsigned int Gen_sim(const IGen *IG)
 			DR1.w.l = raft;
 			if(sh)
 				cy = (rbef>>(sh-1)) & 1;
-			ov = (rbef & 0x8000) != (raft & 0x8000);
+			FlagHandleRotate(sh, cy, raft, 16);
 		}
 		else {
 			rbef = DR1.d;
@@ -1746,12 +1710,8 @@ unsigned int Gen_sim(const IGen *IG)
 			if (sh>1) raft |= (rbef<<(33-sh));
 			DR1.d = raft;
 			cy = (rbef>>(sh-1)) & 1;
-			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
+			FlagHandleRotate(sh, cy, raft, 32);
 		}
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
-		SET_CF(cy);
-		if (sh==1)
-			SET_OF(ov);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
@@ -1763,10 +1723,7 @@ unsigned int Gen_sim(const IGen *IG)
 		  else sh = CPUBYTE(Ofs_CL);
 		sh &= 31;
 		if (!sh)
-		{
-			ClearOF();
-			break;	// shift count 0, flags unchanged, except OVFL
-		}
+			break;	// shift count 0, flags unchanged
 
 		if (mode & MBYTE)
 			rbef = DR1.b.bl;
@@ -1778,22 +1735,12 @@ unsigned int Gen_sim(const IGen *IG)
 		cy = (rbef >> (sh-1)) & 1;
 		raft = rbef >> sh;
 
-		RFL.cout &= LF_MASK_AF;
-		if (mode & MBYTE) {
-			RFL.res = DR1.bs.bl = raft;
-			RFL.cout |= raft << 24;
-		}
-		else if (mode & DATA16) {
-			RFL.res = DR1.ws.l = raft;
-			RFL.cout |= raft << 16;
-		}
-		else {
-			RFL.res = DR1.d = raft;
-			RFL.cout |= raft & (LF_MASK_CF | LF_MASK_PO);
-		}
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
-		SET_CF(cy);
-		if (sh>1) SET_OF(0);
+		if (mode & MBYTE)
+			FlagHandleShift(sh, cy, raft, 8, DR1.bs.bl = raft);
+		else if (mode & DATA16)
+			FlagHandleShift(sh, cy, raft, 16, DR1.ws.l = raft);
+		else
+			FlagHandleShift(sh, cy, raft, 32, DR1.d = raft);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
@@ -1806,10 +1753,7 @@ unsigned int Gen_sim(const IGen *IG)
 		  else sh = CPUBYTE(Ofs_CL);
 		sh &= 31;
 		if (!sh)
-		{
-			ClearOF();
-			break;	// shift count 0, flags unchanged, except OVFL
-		}
+			break;	// shift count 0, flags unchanged
 
 		if (mode & MBYTE)
 			rbef = DR1.bs.bl;
@@ -1822,15 +1766,11 @@ unsigned int Gen_sim(const IGen *IG)
 		raft = rbef >> sh;
 
 		if (mode & MBYTE)
-			RFL.res = DR1.bs.bl = raft;
+			FlagHandleShift(sh, cy, raft, 8, DR1.bs.bl = raft);
 		else if (mode & DATA16)
-			RFL.res = DR1.ws.l = raft;
+			FlagHandleShift(sh, cy, raft, 16, DR1.ws.l = raft);
 		else
-			RFL.res = DR1.ds = raft;
-
-		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
-		RFL.cout &= LF_MASK_AF; /* clears overflow & auxiliary carry flag */
-		SET_CF(cy);
+			FlagHandleShift(sh, cy, raft, 16, DR1.ds = raft);
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
@@ -1840,70 +1780,69 @@ unsigned int Gen_sim(const IGen *IG)
 		// get n bytes from parameter stack
 		unsigned char subop = IG->p1;
 		GTRACE3("O_OPAX",0xff,0xff,n);
-		int cy = is_cf_set();
-		SET_OF(0);
+		uint32_t cy = is_cf_set();
 		DR1.d = CPULONG(Ofs_EAX);
 		switch (subop) {
 			case DAA: {
-				char cyaf = 0;
+				uint32_t cyaf = 0;
 				unsigned char altmp = DR1.b.bl;
 				if (((DR1.b.bl & 0x0f) > 9 ) || is_af_set()) {
 					DR1.b.bl += 6;
-					cyaf = (cy || (altmp > 0xf9)) | LF_MASK_AF;
+					cyaf = ((uint32_t)(cy || (altmp > 0xf9))
+						<< LF_BIT_CF) | LF_MASK_AF;
 				}
 				if ((altmp > 0x99) || cy) {
 					DR1.b.bl += 0x60;
-					cyaf |= 1;
+					cyaf |= LF_MASK_CF;
 				}
-				SET_CF(cyaf & 1);
 				RFL.res = DR1.bs.bl; /* for flags */
-				RFL.cout = (RFL.cout & ~(LF_MASK_AF|LF_MASK_SD|LF_MASK_PD)) | (cyaf & LF_MASK_AF);
+				RFL.cout = cyaf;
 				}
 				break;
 			case DAS: {
-				char cyaf = 0;
+				uint32_t cyaf = 0;
 				unsigned char altmp = DR1.b.bl;
 				if (((altmp & 0x0f) > 9) || is_af_set()) {
 					DR1.b.bl -= 6;
-					cyaf = (cy || (altmp < 6)) | LF_MASK_AF;
+					cyaf = ((uint32_t)(cy || (altmp < 6))
+						<< LF_BIT_CF) | LF_MASK_AF;
 				}
 				if ((altmp > 0x99) || cy) {
 					DR1.b.bl -= 0x60;
-					cyaf |= 1;
+					cyaf |= LF_MASK_CF;
 				}
-				SET_CF(cyaf & 1);
 				RFL.res = DR1.bs.bl; /* for flags */
-				RFL.cout = (RFL.cout & ~(LF_MASK_AF|LF_MASK_SD|LF_MASK_PD)) | (cyaf & LF_MASK_AF);
+				RFL.cout = cyaf;
 				}
 				break;
 			case AAA: {
-				char cyaf;
+				uint32_t cyaf;
 				char icarry = (DR1.b.bl > 0xf9);
 				if (((DR1.b.bl & 0x0f) > 9 ) || is_af_set()) {
 					DR1.b.bl = (DR1.b.bl + 6) & 0x0f;
 					DR1.b.bh = (DR1.b.bh + 1 + icarry);
-					cyaf = 9;
+					cyaf = LF_MASK_CF | LF_MASK_AF;
 				} else {
 					cyaf = 0;
 					DR1.b.bl &= 0x0f;
 				}
-				SET_CF(cyaf & 1);
-				RFL.cout = (RFL.cout & ~(LF_MASK_AF|LF_MASK_SD|LF_MASK_PD)) | (cyaf & LF_MASK_AF);
+				RFL.cout = (RFL.cout &
+				  ~(LF_MASK_AF|LF_MASK_CF|LF_MASK_PO)) | cyaf;
 				}
 				break;
 			case AAS: {
-				char cyaf;
+				uint32_t cyaf;
 				char icarry = (DR1.b.bl < 6);
 				if (((DR1.b.bl & 0x0f) > 9 ) || is_af_set()) {
 					DR1.b.bl = (DR1.b.bl - 6) & 0x0f;
 					DR1.b.bh = (DR1.b.bh - 1 - icarry);
-					cyaf = 9;
+					cyaf = LF_MASK_CF | LF_MASK_AF;
 				} else {
 					cyaf = 0;
 					DR1.b.bl &= 0x0f;
 				}
-				SET_CF(cyaf & 1);
-				RFL.cout = (RFL.cout & ~(LF_MASK_AF|LF_MASK_SD|LF_MASK_PD)) | (cyaf & LF_MASK_AF);
+				RFL.cout = (RFL.cout &
+				  ~(LF_MASK_AF|LF_MASK_CF|LF_MASK_PO)) | cyaf;
 				}
 				break;
 			case AAM: {
@@ -1988,12 +1927,12 @@ unsigned int Gen_sim(const IGen *IG)
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		int ftmp;
 		GTRACE0("O_PUSHF");
-		FlagSync_All();
+		ftmp = (CPULONG(Ofs_FLAGS) & ~EFLAGS_CC) | FlagSync_All();
 #if 0		// unused "extended PVI", if used should move to separate op
 		if (!V86MODE() && IOPL < 3 && (TheCPU.cr[4] & CR4_PVI))
 			ftmp = (ftmp & ~(EFLAGS_IF|EFLAGS_VIF)) | ((ftmp & EFLAGS_VIF) ? EFLAGS_IF : 0);
 #endif
-		ftmp = CPULONG(Ofs_EFLAGS) & (RETURN_MASK|EFLAGS_IF);
+		ftmp &= (RETURN_MASK|EFLAGS_IF);
 		AR2.d = CPULONG(Ofs_XSS);
 		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
@@ -2509,15 +2448,11 @@ unsigned int Gen_sim(const IGen *IG)
 		int rcod = IG->p0&1;	// 0=LAHF 1=SAHF
 		if (rcod==0) {		/* LAHF */
 			GTRACE0("O_LAHF");
-			FlagSync_All();
-			CPUBYTE(Ofs_AH) = CPUBYTE(Ofs_FLAGS);
+			CPUBYTE(Ofs_AH) = FlagSync_SZAPC();
 		}
 		else {			/* SAHF */
 			GTRACE0("O_SAHF");
-			CPUWORD(Ofs_FLAGS) =
-			  ((FlagSync_O() | CPUBYTE(Ofs_AH)) & EFLAGS_CC) |
-			  (CPUWORD(Ofs_FLAGS) & ~EFLAGS_CC);
-			FlagSync_RFL();
+			FlagSync_RFL(FlagSync_O() | CPUBYTE(Ofs_AH));
 		} }
 		break;
 	case O_SETFL: {
@@ -2594,25 +2529,19 @@ unsigned int Gen_sim(const IGen *IG)
 	case O_BITOP: {
 		unsigned char o1 = (unsigned char)IG->p0;
 		signed char o2 = (signed char)IG->p1;
-		int flg;
 		GTRACE3("O_BITOP",o2,0xff,o1);
 		if (o1 == 0x1c || o1 == 0x1d) { /* bsf/bsr */
 			if (mode & DATA16) DR1.d = DR1.w.l;
 			DR1.d = o1 == 0x1c ? find_bit(DR1.d) : find_bit_r(DR1.d);
-			FlagSync_All();
 			if (DR1.d == -1) {
-				flg = 0x40; // ZF set
+				SET_ZF(1);
 			} else {
-				flg = 0;
+				SET_ZF(0);
 				if (mode & DATA16)
 					CPUWORD(o2) = DR1.d;
 				else
 					CPULONG(o2) = DR1.d;
 			}
-			// set ZF
-			FlagSync_All();
-			CPUBYTE(Ofs_FLAGS)=(CPUBYTE(Ofs_FLAGS)&0xbf)|flg;
-			FlagSync_RFL();
 			break;
 		}
 		if(o1 >= 0x20)
@@ -2873,7 +2802,7 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 	IGen *IG = SeqStart;
 	unsigned int P0;
 
-	FlagSync_RFL();
+	FlagSync_RFL(*flg);
 	do {
 		currentIG = (unsigned char *)IG;
 		P0 = Gen_sim(IG);
@@ -2881,8 +2810,7 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 	} while (P0 == (unsigned int)-1);
 	currentIG = NULL;
 	*mem_ref = TheCPU.mem_ref;
-	FlagSync_All();
-	*flg = EFLAGS & EFLAGS_CC;
+	*flg = FlagSync_All();
 
 #ifdef DEBUG_MORE
 	if (debug_level('e')>1)
@@ -2929,6 +2857,7 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 		LONG_CS = _LONG_CS;
 		unsigned int P0 = FindPC(currentIG);
 		TheCPU.eip = P0 - LONG_CS;
+		EFLAGS = (EFLAGS & ~EFLAGS_CC) | FlagSync_All();
 		longjmp(jmp_env, 2);
 	} else
 		/* for faulting sim_read/write directly from interp.c */
