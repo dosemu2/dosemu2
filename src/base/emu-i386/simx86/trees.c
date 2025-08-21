@@ -302,7 +302,7 @@ static TNode *avltr_probe (const int key, int *found)
 }
 
 
-static void avltr_delete(const int key)
+void avltr_delete(const int key)
 {
   avltr_tree *tree = &CollectTree;
   TNode *pa[AVL_MAX_HEIGHT];		/* Stack P: Nodes. */

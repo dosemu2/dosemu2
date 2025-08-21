@@ -713,7 +713,6 @@ unsigned int DoExec(TNode *G)
 #if defined(SINGLESTEP)
 	InvalidateNodeRange(G->key, 1, NULL);
 	avltr_delete(G->key);
-	if (debug_level('e')>1) e_printf("\n%s",e_print_regs());
 #else
 	/*
 	 * After execution comes the linker stage.

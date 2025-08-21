@@ -614,7 +614,7 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 			error("simx86: code nodes clashed at %x\n", PC);
 #endif
 		if (debug_level('e')>2) {
-			if (debug_level('e')==9 && CurrIMeta<0)
+			if (debug_level('e')>=9 && CurrIMeta<0)
 				/* if CurrIMeta was already >= 0, the registers are outdated */
 				dbug_printf("\n%s",e_print_regs());
 			char *ds;
