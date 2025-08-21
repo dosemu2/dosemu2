@@ -169,8 +169,14 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
 			    TheCPU.err = EXCP_GOBACK; \
 			    return P0; \
 			  } else if (CurrIMeta>0) { \
+			    unsigned int _P0 = InstrMeta[0].npc; \
 			    unsigned int P2 = DoCloseAndExec(P0, basemode); \
-			    if (TheCPU.err || P0 != P2) return P2; \
+			    if (TheCPU.err) return P2; \
+			    assert(P2 > _P0 && P2 <= P0); \
+			    if (P2 != P0) { \
+			      TheCPU.err = EXCP_RETRY; /* BreakNode */ \
+			      return P2; \
+			    } \
 			  } else if (CurrIMeta == 0) CurrIMeta = -1; \
 			}
 
@@ -709,8 +715,13 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 			return PC;
 		P0 = PC;
 		PC = InterpOne(PC, &basemode, 0);
-		if (TheCPU.err)
+		if (TheCPU.err) {
+			if (TheCPU.err == EXCP_RETRY) {
+				TheCPU.err = 0;
+				continue;
+			}
 			return PC;
+		}
 		PC = interp_post(PC, basemode, P0, 0);
 		if (TheCPU.err)
 			return PC;
