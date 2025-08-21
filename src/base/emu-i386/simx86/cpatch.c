@@ -207,11 +207,9 @@ void rep_movs_stos(struct rep_stack *stack)
 			IGen IG = (IGen){.op = O_MOVS_ScaD, .mode = repmod};
 			Gen_sim(&IG);
 		}
-		FlagSync_All();
 		stack->edi = EMU_BASE32(AR1.d);
 		stack->ecx = TR1.d;
-		stack->eflags = (stack->eflags & ~EFLAGS_CC) |
-			(EFLAGS & EFLAGS_CC);
+		stack->eflags = (stack->eflags & ~EFLAGS_CC) | FlagSync_All();
 		goto done;
 	}
 	if (EFLAGS & EFLAGS_DF) addr -= len;

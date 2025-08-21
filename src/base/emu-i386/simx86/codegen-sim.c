@@ -264,25 +264,25 @@ static inline int FlagSync_SZAPC (void)
 	  FlagSync_S() | FlagSync_P();
 }
 
-void FlagSync_All (void)
+int FlagSync_All (void)
 {
 	int nf = FlagSync_SZAPC() | FlagSync_O();
 	if (debug_level('e')>1) e_printf("Sync ALL flags = %04x\n", nf);
-	CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & ~EFLAGS_CC) | nf;
+	return nf;
 }
 
 
-static void FlagSync_RFL (void)
+static void FlagSync_RFL (uint32_t flg)
 {
 	/* encode all CC flags into RFL */
-	uint32_t flg = CPULONG(Ofs_FLAGS);
+
 	/* AF/CF via rotation */
 	uint32_t cout = ((flg << 31) | (flg >> 1)) & (LF_MASK_AF | LF_MASK_CF);
 	/* PO derived from CF^OF */
 	cout |=  ((cout >> 1) ^ (flg << (LF_BIT_PO - X86_EFLAGS_OF_BIT))) & LF_MASK_PO;
 	/* PF/SF in PD/SD; since parity of RFL.res is even, must flip PD */
 	RFL.cout = cout | ((flg & (EFLAGS_SF|EFLAGS_PF)) ^ EFLAGS_PF);
-	RFL.res = (!IS_ZF_SET) << 8;
+	RFL.res = (!(flg & EFLAGS_ZF)) << 8;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1927,12 +1927,12 @@ unsigned int Gen_sim(const IGen *IG)
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		int ftmp;
 		GTRACE0("O_PUSHF");
-		FlagSync_All();
+		ftmp = (CPULONG(Ofs_FLAGS) & ~EFLAGS_CC) | FlagSync_All();
 #if 0		// unused "extended PVI", if used should move to separate op
 		if (!V86MODE() && IOPL < 3 && (TheCPU.cr[4] & CR4_PVI))
 			ftmp = (ftmp & ~(EFLAGS_IF|EFLAGS_VIF)) | ((ftmp & EFLAGS_VIF) ? EFLAGS_IF : 0);
 #endif
-		ftmp = CPULONG(Ofs_EFLAGS) & (RETURN_MASK|EFLAGS_IF);
+		ftmp &= (RETURN_MASK|EFLAGS_IF);
 		AR2.d = CPULONG(Ofs_XSS);
 		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
@@ -2452,10 +2452,7 @@ unsigned int Gen_sim(const IGen *IG)
 		}
 		else {			/* SAHF */
 			GTRACE0("O_SAHF");
-			CPUWORD(Ofs_FLAGS) =
-			  ((FlagSync_O() | CPUBYTE(Ofs_AH)) & EFLAGS_CC) |
-			  (CPUWORD(Ofs_FLAGS) & ~EFLAGS_CC);
-			FlagSync_RFL();
+			FlagSync_RFL(FlagSync_O() | CPUBYTE(Ofs_AH));
 		} }
 		break;
 	case O_SETFL: {
@@ -2805,7 +2802,7 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 	IGen *IG = SeqStart;
 	unsigned int P0;
 
-	FlagSync_RFL();
+	FlagSync_RFL(*flg);
 	do {
 		currentIG = (unsigned char *)IG;
 		P0 = Gen_sim(IG);
@@ -2813,8 +2810,7 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 	} while (P0 == (unsigned int)-1);
 	currentIG = NULL;
 	*mem_ref = TheCPU.mem_ref;
-	FlagSync_All();
-	*flg = EFLAGS & EFLAGS_CC;
+	*flg = FlagSync_All();
 
 #ifdef DEBUG_MORE
 	if (debug_level('e')>1)
@@ -2861,6 +2857,7 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 		LONG_CS = _LONG_CS;
 		unsigned int P0 = FindPC(currentIG);
 		TheCPU.eip = P0 - LONG_CS;
+		EFLAGS = (EFLAGS & ~EFLAGS_CC) | FlagSync_All();
 		longjmp(jmp_env, 2);
 	} else
 		/* for faulting sim_read/write directly from interp.c */
