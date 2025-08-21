@@ -113,11 +113,6 @@ static inline int is_zf_set(void)
 	return RFL.res == 0;
 }
 
-static inline int is_sf_set(void)
-{
-	return (RFL.res >> LF_BIT_RES_SF) ^ ((RFL.cout >> LF_BIT_SD) & 1);
-}
-
 static inline int is_cf_set(void)
 {
 	return RFL.cout >> LF_BIT_CF;
@@ -130,27 +125,13 @@ static inline int is_of_set(void)
 
 static inline int is_af_set(void)
 {
-	return (RFL.cout >> LF_BIT_AF) & 1;
-}
-
-static unsigned char parity[256];
-static inline int is_pf_set(void)
-{
-	return (parity[RFL.res & 0xff] ^ (RFL.cout & LF_MASK_PD)) >> LF_BIT_PD;
+	return (RFL.cout & LF_MASK_AF) != 0;
 }
 
 static inline void SET_CF(unsigned int c)
 {
 	// Always working on lazy flags: if CF changes, flip PO and CF
 	RFL.cout ^= (c != is_cf_set()) * (LF_MASK_PO | LF_MASK_CF);
-}
-
-static inline void SET_ZF(unsigned int c)
-{
-	// to set ZF in RFL.res we must transfer SF/PF to RFL.cout
-	RFL.cout = (RFL.cout & ~(LF_MASK_PD | LF_MASK_SD)) |
-	  (((is_sf_set() << LF_BIT_SD) | (is_pf_set() << LF_BIT_PD)) ^ LF_MASK_PD);
-	RFL.res = (!c) << 8;
 }
 
 /* add/sub rule for carry using MSB:
@@ -220,35 +201,20 @@ static inline void FlagHandleShift(int sh, int cy, uint32_t cout, int wordsize,
 	RFL.cout &= ~(LF_MASK_SD|LF_MASK_PD);
 }
 
-static inline int FlagSync_NZ (void)
+static inline int FlagSync_S (void)
 {
-	int zr,pl,nf;
-	zr = (RFL.res==0) << X86_EFLAGS_ZF_BIT;
-	pl = ((RFL.res>>(LF_BIT_RES_SF-X86_EFLAGS_SF_BIT)) ^ RFL.cout) &
+	return ((RFL.res>>(LF_BIT_RES_SF-X86_EFLAGS_SF_BIT)) ^ RFL.cout) &
 	  EFLAGS_SF;
-	nf = zr | pl;
-	if (debug_level('e')>2) e_printf("Sync NZ flags = %02x\n", nf);
-	return nf;
+}
+
+static inline int is_sf_set(void)
+{
+	return FlagSync_S() != 0;
 }
 
 static inline int FlagSync_O (void)
 {
-	int nf;
-	// OF
-	/* overflow rule using MSB:
-	 *	src1 src2 res OF ad/sub
-	 *	  0    0    0    0  0
-	 *	  0    0    1    1  0
-	 *	  0    1    0    0  0
-	 *	  0    1    1    0  1
-	 *	  1    0    0    0  1
-	 *	  1    0    1    0  0
-	 *	  1    1    0    1  0
-	 *	  1    1    1    0  0
-	 */
-	// 80000000->0800 ^ 40000000->0800
-	nf = ((RFL.cout >> (LF_BIT_CF - X86_EFLAGS_OF_BIT)) ^
-	      (RFL.cout >> (LF_BIT_PO - X86_EFLAGS_OF_BIT))) & EFLAGS_OF;
+	int nf = is_of_set() << X86_EFLAGS_OF_BIT;
 	if (debug_level('e')>1) e_printf("Sync O flag = %04x\n", nf);
 	return nf;
 }
@@ -272,21 +238,35 @@ static unsigned char parity[256] =
      4, 0, 0, 4, 0, 4, 4, 0, 0, 4, 4, 0, 4, 0, 0, 4 };
 
 
-static inline int FlagSync_AP (void)
+static inline int FlagSync_P (void)
 {
-	int af,pf,nf;
-	af = (RFL.cout & LF_MASK_AF) << (X86_EFLAGS_AF_BIT - LF_BIT_AF);
-	pf = parity[RFL.res & 0xff] ^ (RFL.cout & LF_MASK_PD);
-	nf = af | pf;
-	if (debug_level('e')>2) e_printf("Sync AP flags = %02x\n", nf);
-	return nf;
+	return parity[RFL.res & 0xff] ^ (RFL.cout & LF_MASK_PD);
 }
 
+static inline int is_pf_set(void)
+{
+	return FlagSync_P() != 0;
+}
+
+static inline void SET_ZF(unsigned int c)
+{
+	// to set ZF in RFL.res we must transfer SF/PF to RFL.cout
+	RFL.cout = (RFL.cout & ~(LF_MASK_PD | LF_MASK_SD)) |
+	  ((FlagSync_S() | FlagSync_P()) ^ LF_MASK_PD);
+	RFL.res = (!c) << 8;
+}
+
+static inline int FlagSync_SZAPC (void)
+{
+	/* AF/CF can be can be quickly obtained using a rotation */
+	return (((RFL.cout << 1) | (RFL.cout >> 31)) & (EFLAGS_AF | EFLAGS_CF)) |
+	  (is_zf_set() << X86_EFLAGS_ZF_BIT) |
+	  FlagSync_S() | FlagSync_P();
+}
 
 void FlagSync_All (void)
 {
-	int nf;
-	nf = FlagSync_AP() | FlagSync_NZ() | FlagSync_O() | is_cf_set();
+	int nf = FlagSync_SZAPC() | FlagSync_O();
 	if (debug_level('e')>1) e_printf("Sync ALL flags = %04x\n", nf);
 	CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & ~EFLAGS_CC) | nf;
 }
@@ -295,11 +275,14 @@ void FlagSync_All (void)
 static void FlagSync_RFL (void)
 {
 	/* encode all CC flags into RFL */
-	RFL.res = IS_ZF_SET ? 0x0 : 0x100;
-	RFL.cout = ((unsigned)IS_CF_SET << LF_BIT_CF) |
-	  ((IS_CF_SET ^ IS_OF_SET) << LF_BIT_PO) |
-	  (IS_AF_SET << LF_BIT_AF) |
-	  ((CPUBYTE(Ofs_FLAGS) & (EFLAGS_SF|EFLAGS_PF)) ^ EFLAGS_PF);
+	uint32_t flg = CPULONG(Ofs_FLAGS);
+	/* AF/CF via rotation */
+	uint32_t cout = ((flg << 31) | (flg >> 1)) & (LF_MASK_AF | LF_MASK_CF);
+	/* PO derived from CF^OF */
+	cout |=  ((cout >> 1) ^ (flg << (LF_BIT_PO - X86_EFLAGS_OF_BIT))) & LF_MASK_PO;
+	/* PF/SF in PD/SD; since parity of RFL.res is even, must flip PD */
+	RFL.cout = cout | ((flg & (EFLAGS_SF|EFLAGS_PF)) ^ EFLAGS_PF);
+	RFL.res = (!IS_ZF_SET) << 8;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2465,8 +2448,7 @@ unsigned int Gen_sim(const IGen *IG)
 		int rcod = IG->p0&1;	// 0=LAHF 1=SAHF
 		if (rcod==0) {		/* LAHF */
 			GTRACE0("O_LAHF");
-			FlagSync_All();
-			CPUBYTE(Ofs_AH) = CPUBYTE(Ofs_FLAGS);
+			CPUBYTE(Ofs_AH) = FlagSync_SZAPC();
 		}
 		else {			/* SAHF */
 			GTRACE0("O_SAHF");
