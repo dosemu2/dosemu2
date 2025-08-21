@@ -1667,14 +1667,15 @@ static void mhp_disasm(int argc, char *argv[])
   org = codeorg ? codeorg : seekval;
 
   for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
+    dosaddr_t base_addr = GetSegmentBase(seg);
     if (!(def_size & 4) && segmented) {
       if ((s = getsym_from_bios(seg, off + bytesdone)) || (s = getsym_from_dos_segofs(seg, off + bytesdone)))
         mhp_printf("%s:\n", s);
     }
-    if (IN_DPMI && !dpmi_is_valid_range(GetSegmentBase(seg) + off + bytesdone, 10))
+    if (IN_DPMI && base_addr + off + bytesdone > LOWMEM_SIZE + HMASIZE && !dpmi_is_valid_range(base_addr + off + bytesdone, 10))
       break;
     refseg = seg;
-    rc = dis_8086(buf + bytesdone, frmtbuf, def_size, &ref, (IN_DPMI ? GetSegmentBase(refseg) : refseg * 16));
+    rc = dis_8086(buf + bytesdone, frmtbuf, def_size, &ref, (IN_DPMI ? base_addr : refseg * 16));
     if (bytesdone + rc > 256)
       break;
     for (i = 0; i < rc; i++) {
@@ -1946,7 +1947,7 @@ static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1,
     return 0;
   }
 
-  if (!dpmi_is_valid_range(base_addr + off1, 10)) {
+  if (base_addr + off1 > LOWMEM_SIZE + HMASIZE && !dpmi_is_valid_range(base_addr + off1, 10)) {
     mhp_printf("CS:IP points to invalid memory\n");
     return 0;
   }
