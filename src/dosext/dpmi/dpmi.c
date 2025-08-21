@@ -4832,7 +4832,7 @@ static void do_cpu_exception(cpuctx_t *scp)
     D_printf("DPMI: %s\n", DPMI_show_state(scp));
 
 #ifdef USE_MHPDBG
-  if (mhpdbg.active && (_trapno == 3 || _trapno == 0xe)) {
+  if (mhpdbg.active && _trapno == 3) {
     mhp_intercept("\nINT3 occurred, invoking dosdebug\n\n", "+9M");
     return;
   }
