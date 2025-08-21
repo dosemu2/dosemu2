@@ -367,7 +367,7 @@ static void init_kvm_monitor(void)
   sregs.ldt.db = 0;
   sregs.ldt.g = 0;
 
-  monitor->tss.ss0 = 0x10;
+  monitor->tss.ss0 = GDT_SS << 3;
   monitor->tss.IOmapbase = offsetof(struct monitor, io_bitmap);
 
   // setup GDT
@@ -428,7 +428,7 @@ static void init_kvm_monitor(void)
 
   sregs.ss.base = sregs.tr.base;
   sregs.ss.limit = 0xffffffff;
-  sregs.ss.selector = 0x10;
+  sregs.ss.selector = GDT_SS << 3;
   sregs.ss.db = 1;
   sregs.ss.g = 1;
 
