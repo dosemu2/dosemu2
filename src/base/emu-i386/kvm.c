@@ -1530,7 +1530,20 @@ int true_kvm_dpmi(cpuctx_t *scp)
     _esi = regs->esi;
     _edi = regs->edi;
     _ebp = regs->ebp;
+#if 0
+    /* In 16bit mode, if we passed some value in high word of ESP,
+     * it will be zeroed by iret from kvmmon due to CPU iret bug+GDT_SS
+     * trick. But if the client itself have set some value, it will
+     * be here, and then we take it. */
+    if (dpmi_is_32() || (regs->esp & 0xffff0000))
+      _esp = regs->esp;
+    else
+      _LWORD(esp) = regs->esp;
+#else
+    /* The above code can't reliably detect real zeroing of high ESP
+     * word, like in "movzx esp, sp". */
     _esp = regs->esp;
+#endif
     _eip = regs->eip;
 
     _cs = regs->cs;
