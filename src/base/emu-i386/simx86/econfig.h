@@ -77,6 +77,7 @@
  * possibility of breaking some code, you can easily figure out how.
  * For 32-bit stacks, keeping ESP is also a waste of time. */
 #define KEEP_ESP 1
+#define STACK_WRAP_MP 1
 
 /////////////////////////////////////////////////////////////////////////////
 
