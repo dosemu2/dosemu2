@@ -734,7 +734,7 @@ int _ModRMSim(unsigned int PC, int mode, signed char overr_ds, signed char overr
     if (REG1 == 0xff) { \
         goto illegal_op; \
     } \
-    if (V86MODE() && (0 == ((m) & (ADDR16 | MLEA))) && TR1.d > 0xffff) { \
+    if (TheCPU.err2 == EXCP0D_GPF) { \
         goto not_permitted; \
     } \
     __l; \

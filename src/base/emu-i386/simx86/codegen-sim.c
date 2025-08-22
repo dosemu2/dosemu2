@@ -87,7 +87,7 @@ static wkreg DR2;	// "edx"
 wkreg AR1;	// "edi"
 static wkreg AR2;	// "esi"
 static wkreg SR1;	// "ebp"
-wkreg TR1;	// "ecx"
+static wkreg TR1;	// "ecx"
 static flgtmp RFL;
 
 /////////////////////////////////////////////////////////////////////////////
