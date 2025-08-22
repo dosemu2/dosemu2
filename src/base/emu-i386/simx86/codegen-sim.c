@@ -84,7 +84,7 @@ static unsigned char *currentIG = NULL;
 /* working registers of the host CPU */
 static wkreg DR1;	// "eax"
 static wkreg DR2;	// "edx"
-wkreg AR1;	// "edi"
+static wkreg AR1;	// "edi"
 static wkreg AR2;	// "esi"
 static wkreg SR1;	// "ebp"
 static wkreg TR1;	// "ecx"
@@ -423,7 +423,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		unsigned char exop = (unsigned char)IG->p0;
 		int reg = IG->p1;
 		GTRACE2("O_FPOP",exop,reg);
-		if (Fp87_op(exop, reg)) {
+		if (Fp87_op(exop, reg, AR1.d)) {
 		    TheCPU.err2 = -96;
 		    P0 = FindPC((const unsigned char *)IG);
 		}

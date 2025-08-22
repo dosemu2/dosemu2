@@ -66,8 +66,6 @@ typedef struct {
 #define LF_MASK_CF	(1U << LF_BIT_CF)
 #define LF_MASK_PO	(1U << LF_BIT_PO)
 
-extern wkreg AR1;	// "edi"
-
 #define GTRACE0(s)		if (debug_level('e')>2) e_printf("(G) %-12s [%s]\n",(s),showmode(mode))
 #define GTRACE1(s,r)		if (debug_level('e')>2) e_printf("(G) %-12s %s [%s]\n",(s),\
 					showreg(r),showmode(mode))
