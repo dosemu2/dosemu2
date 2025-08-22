@@ -97,6 +97,22 @@ struct rep_stack {
 } __attribute__((packed));
 
 
+#define CMPFLAGS(asmcon,eflags,op1,op2) \
+	asm volatile("cmp %1, %2; pushf; pop %0\n\t" \
+		     : "=g" (eflags) : #asmcon (op1), #asmcon (op2))
+
+#define SCASLOOP(bitsize,asmcon,eflags,addr,eax,df,ecx,repcond) \
+	do { \
+		CMPFLAGS(asmcon,eflags,read_##bitsize(addr),(uint##bitsize##_t)eax); \
+		addr += df; \
+	} while (--ecx && (eflags & X86_EFLAGS_ZF)==repcond)
+
+#define CMPSLOOP(bitsize,asmcon,eflags,addr,source,df,ecx,repcond) \
+	do { \
+		CMPFLAGS(asmcon,eflags,read_##bitsize(addr),read_##bitsize(source)); \
+		addr += df; source += df; \
+	} while (--ecx && (eflags & X86_EFLAGS_ZF)==repcond)
+
 void rep_movs_stos(struct rep_stack *stack)
 {
 	unsigned char *paddr = stack->edi;
@@ -191,26 +207,30 @@ void rep_movs_stos(struct rep_stack *stack)
 		if (EFLAGS & EFLAGS_DF) addr -= len;
 		else addr += len;
 	}
-	else if ((op & 0xf6) == 0xa6) { /* cmps/scas */
-		int repmod = (size == 1 ? MBYTE : size == 2 ? DATA16 : 0);
-		AR1.d = EMUADDR_REL(stack->edi);
-		TR1.d = stack->ecx;
-		repmod |= MOVSDST|MREPCOND|(eip[-1]==REPNE? MREPNE:MREP);
+	else if ((op & 0xf6) == 0xa6 && ecx > 0) { /* cmps/scas */
+		int df = size * (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
+		unsigned long repcond = (eip[-1]==REPNE ? 0 : X86_EFLAGS_ZF);
+		unsigned long eflags;
 		if ((op & 0xfe) == 0xa6) { /* cmps */
-			repmod |= MOVSSRC;
-			AR2.d = EMUADDR_REL(stack->esi);
-			IGen IG = (IGen){.op = O_MOVS_CmpD, .mode = repmod};
-			Gen_sim(&IG);
-			stack->esi = EMU_BASE32(AR2.d);
+			dosaddr_t source = EMUADDR_REL(stack->esi);
+			if (size == 1)
+				CMPSLOOP(8,q,eflags,addr,source,df,ecx,repcond);
+			else if (size == 2)
+				CMPSLOOP(16,r,eflags,addr,source,df,ecx,repcond);
+			else
+				CMPSLOOP(32,r,eflags,addr,source,df,ecx,repcond);
+			stack->esi = EMU_BASE32(source);
 		}
 		else { /* scas */
-			DR1.d = stack->eax;
-			IGen IG = (IGen){.op = O_MOVS_ScaD, .mode = repmod};
-			Gen_sim(&IG);
+			unsigned int eax = stack->eax;
+			if (size == 1)
+				SCASLOOP(8,q,eflags,addr,eax,df,ecx,repcond);
+			else if (size == 2)
+				SCASLOOP(16,r,eflags,addr,eax,df,ecx,repcond);
+			else
+				SCASLOOP(32,r,eflags,addr,eax,df,ecx,repcond);
 		}
-		addr = AR1.d;
-		ecx = TR1.d;
-		stack->eflags = (stack->eflags & ~EFLAGS_CC) | FlagSync_All();
+		stack->eflags = (stack->eflags & ~EFLAGS_CC) | (eflags & EFLAGS_CC);
 	}
 	stack->edi = EMU_BASE32(addr);
 	stack->ecx = ecx;
