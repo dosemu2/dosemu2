@@ -55,9 +55,8 @@ int _ModRMSim(unsigned int PC, int mode, signed char overr_ds, signed char overr
 	if (CurrIMeta == 0) { // otherwise AddrGen isn't called (for reg-only)
 		IMeta *I = InstrMeta;
 		assert(I->ngen == 1); // needs to be exactly one intermediate op
-		Gen_sim(I->gen);
+		TheCPU.mem_ref = AddrGen_sim(I->gen);
 		CurrIMeta = -1;
-		TheCPU.mem_ref = AR1.d;
 	}
 	return l;
 }
