@@ -82,11 +82,11 @@ static unsigned char *currentIG = NULL;
 /////////////////////////////////////////////////////////////////////////////
 
 /* working registers of the host CPU */
-wkreg DR1;	// "eax"
-wkreg DR2;	// "edx"
+static wkreg DR1;	// "eax"
+static wkreg DR2;	// "edx"
 wkreg AR1;	// "edi"
-wkreg AR2;	// "esi"
-wkreg SR1;	// "ebp"
+static wkreg AR2;	// "esi"
+static wkreg SR1;	// "ebp"
 wkreg TR1;	// "ecx"
 static flgtmp RFL;
 
@@ -264,7 +264,7 @@ static inline int FlagSync_SZAPC (void)
 	  FlagSync_S() | FlagSync_P();
 }
 
-int FlagSync_All (void)
+static int FlagSync_All (void)
 {
 	int nf = FlagSync_SZAPC() | FlagSync_O();
 	if (debug_level('e')>1) e_printf("Sync ALL flags = %04x\n", nf);
