@@ -122,13 +122,12 @@ static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 	return Close(PC, mode);
 }
 
-static unsigned int DoCloseAndExec(unsigned int PC, int mode)
+static unsigned int DoCloseAndExec(unsigned int PC, int mode, unsigned _P0)
 {
 	int ret;
-	unsigned P0 = InstrMeta[0].npc;
-	TNode *G = DoClose(PC, mode, P0);
+	TNode *G = DoClose(PC, mode, _P0);
 	if (!G)
-	    return P0;
+	    return _P0;
 	ret = DoExec(G);
 	TheCPU.err = TheCPU.err2;
 	LONG_CS = _LONG_CS;
@@ -144,40 +143,37 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode)
  *	from P0, abort the current instruction and resume the parsing
  *	loop at P2.
  */
+static unsigned int do_flush(unsigned P0, unsigned _P0,
+    unsigned mode, unsigned _flags)
+{
+  if (_flags & FLG_PREJIT) {
+    if (CurrIMeta>0) {
+      TNode *G = DoClose(P0, mode, _P0);
+      G->flags |= F_PREJ;
+      NodesPrejitted++;
+    } else if (CurrIMeta == 0) CurrIMeta = -1;
+    TheCPU.err = EXCP_GOBACK;
+  } else if (CurrIMeta>0) {
+    return DoCloseAndExec(P0, mode, _P0);
+  } else if (CurrIMeta == 0) CurrIMeta = -1;
+  return P0;
+}
+
 #define CODE_FLUSH2(m)	{ \
-			  if (_flags & FLG_PREJIT) { \
-			    if (CurrIMeta>0) { \
-			      TNode *G = DoClose(P0, m, InstrMeta[0].npc); \
-			      G->flags |= F_PREJ; \
-			      NodesPrejitted++; \
-			    } else if (CurrIMeta == 0) CurrIMeta = -1; \
-			    TheCPU.err = EXCP_GOBACK; \
-			    return P0; \
-			  } else if (CurrIMeta>0) { \
-			    unsigned int P2 = DoCloseAndExec(P0, m); \
-			    if (TheCPU.err) return P2; \
-			    PC = P0 = P2; \
-			  } else if (CurrIMeta == 0) CurrIMeta = -1; \
+			  unsigned int _P0 = InstrMeta[0].npc; \
+			  unsigned int P2 = do_flush(P0, _P0, m, _flags); \
+			  if (TheCPU.err) return P2; \
+			  PC = P0 = P2; \
 			}
 #define CODE_FLUSH()	{ \
-			  if (_flags & FLG_PREJIT) { \
-			    if (CurrIMeta>0) { \
-			      TNode *G = DoClose(P0, basemode, InstrMeta[0].npc); \
-			      G->flags |= F_PREJ; \
-			      NodesPrejitted++; \
-			    } else if (CurrIMeta == 0) CurrIMeta = -1; \
-			    TheCPU.err = EXCP_GOBACK; \
-			    return P0; \
-			  } else if (CurrIMeta>0) { \
-			    unsigned int _P0 = InstrMeta[0].npc; \
-			    unsigned int P2 = DoCloseAndExec(P0, basemode); \
-			    if (TheCPU.err) return P2; \
-			    assert(P2 > _P0 && P2 <= P0); \
-			    if (P2 != P0) { \
-			      TheCPU.err = EXCP_RETRY; /* BreakNode */ \
-			      return P2; \
-			    } \
-			  } else if (CurrIMeta == 0) CurrIMeta = -1; \
+			  unsigned int _P0 = InstrMeta[0].npc; \
+			  unsigned int P2 = do_flush(P0, _P0, basemode, _flags); \
+			  if (TheCPU.err) return P2; \
+			  assert(P2 > _P0 && P2 <= P0); \
+			  if (P2 != P0) { \
+			    TheCPU.err = EXCP_RETRY; /* BreakNode */ \
+			    return P2; \
+			  } \
 			}
 
 #define UNPREFIX(m)	((m)&~(DATA16|ADDR16))|(basemode&(DATA16|ADDR16))
