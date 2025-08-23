@@ -37,7 +37,7 @@
 
 #include "codegen-x86.h"
 
-static int Fp87_op_x86_sim(int exop, int reg);
+static int Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref);
 
 /*
  * Only mask bits 0-5 of the control word (fpuc),
@@ -399,7 +399,7 @@ fp_ok:
 	return Cp;
 }
 
-static int Fp87_op_x86_sim(int exop, int reg)
+static int Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref)
 {
 	e_printf("FPop %x.%d\n", exop, reg);
 
@@ -408,7 +408,7 @@ static int Fp87_op_x86_sim(int exop, int reg)
 /*25*/	case 0x25: {
 //*	21	D9 xx100nnn	FLDENV	14/28byte
 //	25	DD xx100nnn	FRSTOR	94/108byte
-		    void *p = LINEAR2UNIX(TheCPU.mem_ref);
+		    void *p = LINEAR2UNIX(mem_ref);
 		    if (reg&DATA16) {
 			struct float_env16 q;
 		        memcpy(&q, p, (exop == 0x21 ? 14 : 94));
@@ -482,7 +482,7 @@ static int Fp87_op_x86_sim(int exop, int reg)
 //*	31	D9 xx110nnn	FSTENV	14/28byte
 //	35	DD xx110nnn	FSAVE	94/108byte
 		    if (exop==0x31) {
-			struct float_env16 *p = (struct float_env16 *)LINEAR2UNIX(TheCPU.mem_ref);
+			struct float_env16 *p = (struct float_env16 *)LINEAR2UNIX(mem_ref);
 			if (reg&DATA16)
 			    __asm__ __volatile__ ("data16 fnstenv %0\n":"=m"(*p));
 			else
@@ -490,7 +490,7 @@ static int Fp87_op_x86_sim(int exop, int reg)
 			p->fpuc = (p->fpuc & ~0x3f) | (TheCPU.fpuc & 0x3f);
 		    }
 		    else {
-			struct float_env32 *p = (struct float_env32 *)LINEAR2UNIX(TheCPU.mem_ref);
+			struct float_env32 *p = (struct float_env32 *)LINEAR2UNIX(mem_ref);
 			if (reg&DATA16)
 			    __asm__ __volatile__ ("data16 fnsave %0\n" : "=m"(*p));
 			else

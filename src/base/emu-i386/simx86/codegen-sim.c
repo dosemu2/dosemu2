@@ -82,12 +82,12 @@ static unsigned char *currentIG = NULL;
 /////////////////////////////////////////////////////////////////////////////
 
 /* working registers of the host CPU */
-wkreg DR1;	// "eax"
-wkreg DR2;	// "edx"
-wkreg AR1;	// "edi"
-wkreg AR2;	// "esi"
-wkreg SR1;	// "ebp"
-wkreg TR1;	// "ecx"
+static wkreg DR1;	// "eax"
+static wkreg DR2;	// "edx"
+static wkreg AR1;	// "edi"
+static wkreg AR2;	// "esi"
+static wkreg SR1;	// "ebp"
+static wkreg TR1;	// "ecx"
 static flgtmp RFL;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -264,7 +264,7 @@ static inline int FlagSync_SZAPC (void)
 	  FlagSync_S() | FlagSync_P();
 }
 
-int FlagSync_All (void)
+static int FlagSync_All (void)
 {
 	int nf = FlagSync_SZAPC() | FlagSync_O();
 	if (debug_level('e')>1) e_printf("Sync ALL flags = %04x\n", nf);
@@ -295,17 +295,104 @@ void InitGen_sim(void)
 	RFL.cout = RFL.res = 0;
 }
 
-static inline unsigned int check_v86_address_overflow(int mode, const IGen *IG)
+static inline void check_v86_address_overflow(int mode, dosaddr_t offset)
 {
-	unsigned int P0 = (unsigned int)-1;
-	if (V86MODE() && (0 == (mode & (ADDR16 | MLEA))) && TR1.d > 0xffff) {
+	if (V86MODE() && (0 == (mode & (ADDR16 | MLEA))) && offset > 0xffff)
 		TheCPU.err2 = EXCP0D_GPF;
-		P0 = FindPC((const unsigned char *)IG);
-	}
-	return P0;
 }
 
-unsigned int Gen_sim(const IGen *IG)
+dosaddr_t AddrGen_sim(const IGen *IG)
+{
+	int op = IG->op;
+	int mode = IG->mode;
+	dosaddr_t mem_ref, offset;
+	switch(op) {
+	case A_DI_0:			// base(32), imm
+	case A_DI_1: {			// base(32), {imm}, reg, {shift}
+			long idsp=0;
+			signed char ofs;
+			ofs = (signed char)IG->p0;
+			if (mode & MLEA) {		// discard base	reg
+				mem_ref = 0;	// ofs = Ofs_RZERO;
+			}
+			else mem_ref = CPULONG(ofs);
+
+			idsp = IG->p1;
+			if (op==A_DI_0) {
+				GTRACE3("A_DI_0",0xff,0xff,idsp);
+				offset = idsp;
+				check_v86_address_overflow(mode, offset);
+			}
+			else if (mode & ADDR16) {
+				signed char o = (signed char)IG->p2;
+				GTRACE3("A_DI_1",o,ofs,idsp);
+				offset = (CPUWORD(o) + idsp) & 0xffff;
+			}
+			else {
+				signed char o = (signed char)IG->p2;
+				GTRACE3("A_DI_1",o,ofs,idsp);
+				offset = CPULONG(o) + idsp;
+				check_v86_address_overflow(mode, offset);
+			}
+			mem_ref += offset;
+		}
+		break;
+	case A_DI_2: {			// base(32), {imm}, reg, reg, {shift}
+			long idsp=0;
+			signed char ofs;
+			ofs = (signed char)IG->p0;
+			if (mode & MLEA) {		// discard base	reg
+				mem_ref = 0;	// ofs = Ofs_RZERO;
+			}
+			else mem_ref = CPULONG(ofs);
+
+			idsp = IG->p1;
+			if (mode & ADDR16) {
+				signed char o1 = (signed char)IG->p2;
+				signed char o2 = (signed char)IG->p3;
+				GTRACE4("A_DI_2",o1,ofs,o2,idsp);
+				offset = CPUWORD(o1) + CPUWORD(o2) + idsp;
+				mem_ref += offset & 0xffff;
+			}
+			else {
+				signed char o1 = (signed char)IG->p2;
+				signed char o2 = (signed char)IG->p3;
+				unsigned char sh;
+				sh = (unsigned char)IG->p4;
+				GTRACE5("A_DI_2",o1,ofs,o2,idsp,sh);
+				offset = CPULONG(o1) +
+				  (CPULONG(o2) << (sh & 0x1f)) + idsp;
+				mem_ref += offset;
+				check_v86_address_overflow(mode, offset);
+			}
+		}
+		break;
+	default:
+	case A_DI_2D: {			// modrm_sibd, 32-bit mode
+			long idsp;
+			unsigned char sh;
+			signed char o;
+			signed char ofs = (signed char)IG->p0;
+			if (mode & MLEA) {
+				mem_ref = 0;
+			}
+			else {
+				mem_ref = CPULONG(ofs);
+			}
+			idsp = IG->p1;
+			o = (signed char)IG->p2;
+			sh = (unsigned char)IG->p3;
+			GTRACE5("A_DI_2D",ofs,o,0xff,idsp,sh);
+			offset = (CPULONG(o) << (sh & 0x1f)) + idsp;
+			mem_ref += offset;
+			check_v86_address_overflow(mode, offset);
+		}
+		break;
+	}
+	return mem_ref;
+}
+
+static unsigned int Gen_sim(const IGen *IG)
 {
 	int op = IG->op;
 	int mode = IG->mode;
@@ -317,87 +404,6 @@ unsigned int Gen_sim(const IGen *IG)
 
 	unsigned int P0 = (unsigned)-1;
 	switch(op) {
-	case A_DI_0:			// base(32), imm
-	case A_DI_1: {			// base(32), {imm}, reg, {shift}
-			long idsp=0;
-			signed char ofs;
-			ofs = (signed char)IG->p0;
-			if (mode & MLEA) {		// discard base	reg
-				AR1.d = 0;	// ofs = Ofs_RZERO;
-			}
-			else AR1.d = CPULONG(ofs);
-
-			idsp = IG->p1;
-			if (op==A_DI_0) {
-				GTRACE3("A_DI_0",0xff,0xff,idsp);
-				TR1.d = idsp;
-				P0 = check_v86_address_overflow(mode, IG);
-			}
-			else if (mode & ADDR16) {
-				signed char o = (signed char)IG->p2;
-				GTRACE3("A_DI_1",o,ofs,idsp);
-				TR1.d = CPUWORD(o);
-				TR1.w.l += idsp;
-			}
-			else {
-				signed char o = (signed char)IG->p2;
-				GTRACE3("A_DI_1",o,ofs,idsp);
-				TR1.d = CPULONG(o) + idsp;
-				P0 = check_v86_address_overflow(mode, IG);
-			}
-			AR1.d += TR1.d;
-		}
-		break;
-	case A_DI_2: {			// base(32), {imm}, reg, reg, {shift}
-			long idsp=0;
-			signed char ofs;
-			ofs = (signed char)IG->p0;
-			if (mode & MLEA) {		// discard base	reg
-				AR1.d = 0;	// ofs = Ofs_RZERO;
-			}
-			else AR1.d = CPULONG(ofs);
-
-			idsp = IG->p1;
-			if (mode & ADDR16) {
-				signed char o1 = (signed char)IG->p2;
-				signed char o2 = (signed char)IG->p3;
-				GTRACE4("A_DI_2",o1,ofs,o2,idsp);
-				TR1.d = CPUWORD(o1) + CPUWORD(o2) + idsp;
-				AR1.d += TR1.w.l;
-			}
-			else {
-				signed char o1 = (signed char)IG->p2;
-				signed char o2 = (signed char)IG->p3;
-				unsigned char sh;
-				sh = (unsigned char)IG->p4;
-				GTRACE5("A_DI_2",o1,ofs,o2,idsp,sh);
-				TR1.d = CPULONG(o1) +
-				  (CPULONG(o2) << (sh & 0x1f)) + idsp;
-				AR1.d += TR1.d;
-				P0 = check_v86_address_overflow(mode, IG);
-			}
-		}
-		break;
-	case A_DI_2D: {			// modrm_sibd, 32-bit mode
-			long idsp;
-			unsigned char sh;
-			signed char o;
-			signed char ofs = (signed char)IG->p0;
-			if (mode & MLEA) {
-				AR1.d = 0;
-			}
-			else {
-				AR1.d = CPULONG(ofs);
-			}
-			idsp = IG->p1;
-			o = (signed char)IG->p2;
-			sh = (unsigned char)IG->p3;
-			GTRACE5("A_DI_2D",ofs,o,0xff,idsp,sh);
-			TR1.d = (CPULONG(o) << (sh & 0x1f)) + idsp;
-			AR1.d += TR1.d;
-			P0 = check_v86_address_overflow(mode, IG);
-		}
-		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
 		signed char o = (signed char)IG->p0;
 		GTRACE1("A_SR_SH4",o);
@@ -417,7 +423,7 @@ unsigned int Gen_sim(const IGen *IG)
 		unsigned char exop = (unsigned char)IG->p0;
 		int reg = IG->p1;
 		GTRACE2("O_FPOP",exop,reg);
-		if (Fp87_op(exop, reg)) {
+		if (Fp87_op(exop, reg, AR1.d)) {
 		    TheCPU.err2 = -96;
 		    P0 = FindPC((const unsigned char *)IG);
 		}
@@ -2804,6 +2810,14 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 
 	FlagSync_RFL(*flg);
 	do {
+		if (IG->op >= A_DI_0 && IG->op <= A_DI_2D) {
+			AR1.d = AddrGen_sim(IG);
+			if (TheCPU.err2 == EXCP0D_GPF) {
+				P0 =  FindPC((unsigned char *)IG);
+				break;
+			}
+			IG++;
+		} // no need for "else", a non-addr op always follows
 		currentIG = (unsigned char *)IG;
 		P0 = Gen_sim(IG);
 		IG++;
