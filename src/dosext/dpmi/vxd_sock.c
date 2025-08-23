@@ -32,7 +32,8 @@
 enum { SOCK_VER, SOCK_OPEN, SOCK_CLOSE, SOCK_BIND, SOCK_SENDTO,
        SOCK_RECVFROM, SOCK_SELECT, SOCK_CONNECT, SOCK_SEND, SOCK_RECV,
        SOCK_LISTEN, SOCK_ACONNECT, SOCK_ACCEPT, SOCK_GETSOCKNAME,
-       SOCK_GETPEERNAME, SOCK_NBM, SOCK_GETFDS, SOCK_FIONREAD };
+       SOCK_GETPEERNAME, SOCK_NBM, SOCK_GETFDS, SOCK_FIONREAD,
+       SOCK_GETSOERR };
 
 struct sock_s {
     int fd;
@@ -507,6 +508,20 @@ _ok: \
             }
             _eax = 0;
             break;
+
+        case SOCK_GETSOERR: {
+            TCP_PROLOG0;
+            socklen_t len = 4;
+
+            rc = getsockopt(sock->fd, SOL_SOCKET, SO_ERROR, &_edx, &len);
+            if (rc) {
+                _eax = CSOCK_ERR_INTERNAL;
+                _eflags |= CF;
+                break;
+            }
+            _eax = 0;
+            break;
+        }
     }
 }
 
