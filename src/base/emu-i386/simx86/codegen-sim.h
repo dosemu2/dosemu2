@@ -66,6 +66,13 @@ typedef struct {
 #define LF_MASK_CF	(1U << LF_BIT_CF)
 #define LF_MASK_PO	(1U << LF_BIT_PO)
 
+extern wkreg DR1;	// "eax"
+extern wkreg DR2;	// "edx"
+extern wkreg AR1;	// "edi"
+extern wkreg AR2;	// "esi"
+extern wkreg SR1;	// "ebp"
+extern wkreg TR1;	// "ecx"
+
 #define GTRACE0(s)		if (debug_level('e')>2) e_printf("(G) %-12s [%s]\n",(s),showmode(mode))
 #define GTRACE1(s,r)		if (debug_level('e')>2) e_printf("(G) %-12s %s [%s]\n",(s),\
 					showreg(r),showmode(mode))
@@ -77,6 +84,8 @@ typedef struct {
 					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),showmode(mode))
 #define GTRACE5(s,r1,r2,a,b,c)	if (debug_level('e')>2) e_printf("(G) %-12s %s %s %08x %08x %08x [%s]\n",\
 					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),(int)(c),showmode(mode))
+extern int FlagSync_All (void);
+extern unsigned int Gen_sim(const IGen *IG);
 extern dosaddr_t AddrGen_sim(const IGen *IG);
 extern void InitGen_sim(void);
 
