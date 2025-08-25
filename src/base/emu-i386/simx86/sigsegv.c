@@ -51,12 +51,9 @@
 
 /* ======================================================================= */
 
-void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
+void e_VgaMovs(dosaddr_t edi, dosaddr_t esi, unsigned int rep,
 	       int dp, unsigned int access)
 {
-  dosaddr_t edi = EMUADDR_REL(*rdi);
-  dosaddr_t esi = EMUADDR_REL(*rsi);
-
 #ifdef DEBUG_VGA
   e_printf("eVGAEmuFault: Movs ESI=%08x EDI=%08x ECX=%08x\n",esi,edi,rep);
 #endif
@@ -128,8 +125,6 @@ void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
 	}
 	break;
   }
-  *rsi = EMU_BASE32(esi);
-  *rdi = EMU_BASE32(edi);
 }
 
 #if 1
