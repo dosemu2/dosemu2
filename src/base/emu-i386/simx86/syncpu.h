@@ -52,15 +52,7 @@ typedef struct {
 /* offsets are 8-bit signed */
 #define FIELD0		unprotect_stub	/* field of SynCPU at offset 00 */
 /* ------------------------------------------------ */
-/*80*/  long double   *fpregs;
-/*84*/  PADDING32BIT(1)
-/*88*/	unsigned long long reserve;
-/*90*/	SDTR gs_cache;
-/*9c*/	SDTR fs_cache;
-/*a8*/	SDTR es_cache;
-/*b4*/	SDTR ds_cache;
-/*c0*/	SDTR cs_cache;
-/*cc*/	SDTR ss_cache;
+/*80*/	unsigned long long reserve[11];
 /* ------------------------------------------------ */
 /*d8*/  void (*stub_stk_16)(void);
 /*dc*/  PADDING32BIT(2)
@@ -76,40 +68,36 @@ typedef struct {
 /*00*/  void (*unprotect_stub)(void); /* must be at 0 for call (%ebx) */
 /*04*/  PADDING32BIT(7)
 /*08*/	unsigned int rzero;
-/*0c*/	unsigned short gs, __gsh;
-/*10*/	unsigned short fs, __fsh;
-/*14*/	unsigned short es, __esh;
-/*18*/	unsigned short ds, __dsh;
-/*1c*/	unsigned int edi;
-/*20*/	unsigned int esi;
-/*24*/	unsigned int ebp;
-/*28*/	unsigned int esp;
-/*2c*/	unsigned int ebx;
-/*30*/	unsigned int edx;
-/*34*/	unsigned int ecx;
-/*38*/	unsigned int eax;
-/*3c*/	unsigned int trapno;
-/*40*/	unsigned int scp_err;
-/*44*/	unsigned int eip;
-/*48*/	unsigned short cs, __csh;
-/*4c*/	unsigned int eflags;
-/* ----end of i386 sigcontext 1:1 correspondence--- */
-/*50*/	unsigned short ss, __ssh;
-/*54*/	unsigned int cr2;
+/*0c*/	unsigned int edi;
+/*10*/	unsigned int esi;
+/*14*/	unsigned int ebp;
+/*18*/	unsigned int esp;
+/*1c*/	unsigned int ebx;
+/*20*/	unsigned int edx;
+/*24*/	unsigned int ecx;
+/*28*/	unsigned int eax;
+/*2c*/	unsigned int eip;
+/*30*/	unsigned int eflags;
+/*34*/	unsigned short es, cs, ss, ds, fs, gs;
+/*40*/	SDTR es_cache;
+/*48*/	SDTR cs_cache;
+/*50*/	SDTR ss_cache;
+/*58*/	SDTR ds_cache;
+/*60*/	SDTR fs_cache;
+/*68*/	SDTR gs_cache;
 /* ------------------------------------------------ */
-/*58*/	unsigned short fpuc, fpus;
-/*5c*/	unsigned short fpstt, fptag;
+/*70*/	unsigned short fpuc;
 /* ------------------------------------------------ */
-/*60*/	/*sig_atomic_t*/unsigned sigalrm_pending;
-/*64*/	volatile /*sig_atomic_t*/unsigned sigprof_pending;
-/*68*/	unsigned int StackMask;
-/*6c*/ 	unsigned int df_increments; /* either 0x040201 or 0xfcfeff */
+/*72*/	/*sig_atomic_t*/unsigned short sigalrm_pending;
+/*74*/	unsigned int StackMask;
+/*78*/ 	unsigned int df_increments; /* either 0x040201 or 0xfcfeff */
 	/* begin of cr array */
-/*70*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
+/*7c*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
 /* ------------------------------------------------ */
-/*80*/	//unsigned int end_mark[0] = cr[4]
+/*80*/	//unsigned int end_mark[0] = cr[1]
 	unsigned int tr[2];
 
+	unsigned int scp_err;
 	int err2;
 	int err;
 	unsigned int mode;
@@ -117,6 +105,12 @@ typedef struct {
 	unsigned int sreg1;
 	unsigned int dreg1;
 	unsigned int xreg1;
+
+	volatile /*sig_atomic_t*/unsigned sigprof_pending;
+
+	unsigned short fpus;
+	unsigned short fpstt, fptag;
+	long double   *fpregs;
 
 /*
  * DR0-3 = linear address of breakpoint 0-3
@@ -173,7 +167,7 @@ extern union _SynCPU TheCPU_union;
 #define TheCPU TheCPU_union.s
 
 #define SCBASE		offsetof(SynCPU,FIELD0)
-#define Ofs_END		(int)(offsetof(SynCPU,cr[4])-SCBASE)
+#define Ofs_END		(int)(offsetof(SynCPU,cr[1])-SCBASE)
 
 #define SC(o) ((signed char)(o))
 #define CPUOFFS(o)	(((unsigned char *)&(TheCPU.FIELD0))+SC(o))
@@ -208,19 +202,13 @@ extern union _SynCPU TheCPU_union;
 #define Ofs_GS		(unsigned char)(offsetof(SynCPU,gs)-SCBASE)
 #define Ofs_EFLAGS	(unsigned char)(offsetof(SynCPU,eflags)-SCBASE)
 #define Ofs_CR0		(unsigned char)(offsetof(SynCPU,cr[0])-SCBASE)
-#define Ofs_CR2		(unsigned char)(offsetof(SynCPU,cr2)-SCBASE)
 #define Ofs_STACKM	(unsigned char)(offsetof(SynCPU,StackMask)-SCBASE)
 //#define Ofs_ETIME	(unsigned char)(offsetof(SynCPU,EMUtime)-SCBASE)
 #define Ofs_RZERO	(unsigned char)(offsetof(SynCPU,rzero)-SCBASE)
 #define Ofs_SIGAPEND	(unsigned char)(offsetof(SynCPU,sigalrm_pending)-SCBASE)
-#define Ofs_SIGFPEND	(unsigned char)(offsetof(SynCPU,sigprof_pending)-SCBASE)
 #define Ofs_DF_INCREMENTS (unsigned char)(offsetof(SynCPU,df_increments)-SCBASE)
 
-#define Ofs_FPR		(unsigned char)(offsetof(SynCPU,fpregs)-SCBASE)
-#define Ofs_FPSTT	(unsigned char)(offsetof(SynCPU,fpstt)-SCBASE)
-#define Ofs_FPUS	(unsigned char)(offsetof(SynCPU,fpus)-SCBASE)
 #define Ofs_FPUC	(unsigned char)(offsetof(SynCPU,fpuc)-SCBASE)
-#define Ofs_FPTAG	(unsigned char)(offsetof(SynCPU,fptag)-SCBASE)
 
 // 'Base' is 1st field of xs_cache
 #define Ofs_XDS		(unsigned char)(offsetof(SynCPU,ds_cache)-SCBASE)

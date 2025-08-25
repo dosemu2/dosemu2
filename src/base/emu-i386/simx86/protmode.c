@@ -65,20 +65,16 @@ static unsigned short sysxfer[] = {
 	DT_XFER_CG32, DT_NO_XFER, DT_XFER_IG32, DT_XFER_TRP32
 };
 
-static char ofsnam[] =	"??? ??? ??? GS: FS: ES: DS: ??? "
-			"??? ??? ??? ??? ??? ??? ??? ??? "
-			"??? ??? CS: ??? SS: ??? ??? ??? ";
+static char ofsnam[] =	"ES: CS: SS: DS: FS: GS:";
 
 static unsigned char ofsseg[] = {
-	0,   0,       0, Ofs_XGS, Ofs_XFS, Ofs_XES, Ofs_XDS, 0,
-	0,   0,       0,       0,       0,       0,       0, 0,
-	0,   0, Ofs_XCS,       0, Ofs_XSS,       0,       0, 0 };
+	Ofs_XES, Ofs_XCS, Ofs_XSS, Ofs_XDS, Ofs_XFS, Ofs_XGS };
 
-#define MKOFSNAM(o,b)   (memcpy((b), (ofsnam+(o)), 3), ((b)[3]=0), (b))
+#define MKOFSNAM(o,b)   (memcpy((b), (ofsnam+(((o)-Ofs_ES)<<1)), 3), ((b)[3]=0), (b))
 
 unsigned char e_ofsseg(int ofs)
 {
-	return ofsseg[ofs >> 2];
+	return ofsseg[(ofs-Ofs_ES)>>1];
 }
 
 int SetSegReal(unsigned short sel, int ofs)

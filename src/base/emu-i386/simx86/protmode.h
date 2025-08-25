@@ -39,7 +39,6 @@
 
 typedef struct {
 	unsigned int BoundL,BoundH;
-	unsigned short Oldsel, Attrib __attribute__ ((packed));
 } SDTR;
 
 // used to invalidate SDTRs, setting BoundH=BoundL+SDTR_INVALID_LIMIT
