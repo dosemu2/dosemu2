@@ -756,19 +756,10 @@ static int tty_open(com_t *c)
     RPT_SYSCALL(tcgetattr(c->fd, &c->oldset));
     ser_set_params(c);
     add_to_io_select(c->fd, async_serial_run, (void *)c);
-  } else {
-    err = access(c->cfg->dev, F_OK);
-    if (!err) {
-      err = ser_open_existing(c);
-      if (err)
-        goto fail_unlock;
-    } else {
-      c->fd = mfs_create_file(c->cfg->mfs_idx, c->cfg->dev, O_WRONLY | O_CREAT | O_EXCL, 0640);
-      if (c->fd == -1) {
-        error("SER%i: unable to open or create %s\n", c->num, c->cfg->dev);
-        goto fail_unlock;
-      }
-    }
+  } else if (c->cfg->dev) {
+    err = ser_open_existing(c);
+    if (err)
+      goto fail_unlock;
   }
   if (c->cfg->wrfile) {
     c->wr_fd = mfs_create_file(c->cfg->mfs_idx_w, c->cfg->wrfile, O_WRONLY | O_CREAT | O_TRUNC, 0640);
@@ -776,6 +767,8 @@ static int tty_open(com_t *c)
       error("SER%i: unable to open or create for write %s\n", c->num, c->cfg->dev);
       goto fail_unlock;
     }
+    if (!c->cfg->dev)
+      c->fd = c->wr_fd;
   }
 
   s_printf("SER%d: port opened, fd=%d\n", c->num, c->fd);

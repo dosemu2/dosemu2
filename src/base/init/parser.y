@@ -2115,11 +2115,8 @@ static void stop_serial(void)
   }
   if (sptr->wrfile) {
     sptr->mfs_idx_w = mfs_define_drive(sptr->wrfile);
-    if (!sptr->dev) {
-      sptr->dev = strdup(sptr->wrfile);
-      sptr->mfs_idx = sptr->mfs_idx_w;
+    if (!sptr->dev)
       sptr->is_file = TRUE;  // will be created
-    }
   }
   c_ser++;
 }

@@ -300,7 +300,8 @@ void serial_update(int num)
     modemu_update(num);
 #endif
   /* optimization: don't read() when enough data buffered */
-  if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger && !IOSEL_CUR(&com[num])) {
+  if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger && !IOSEL_CUR(&com[num]) &&
+      com_cfg[num].dev) {
     int size = uart_fill(num);
     if (size > 0)
       receive_engine(num);	/* Receive operations */

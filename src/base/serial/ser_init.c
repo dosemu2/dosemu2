@@ -274,7 +274,8 @@ static void do_ser_init(int num)
     com_cfg[num].dev = modemu_init(num);
 #endif
   /* Is the device file undef? */
-  if ((!com_cfg[num].dev || !com_cfg[num].dev[0]) && !com_cfg[num].mouse) {
+  if ((!com_cfg[num].dev || !com_cfg[num].dev[0]) && !com_cfg[num].mouse &&
+      !com_cfg[num].is_file) {
     /* Define it using std devs */
     com_cfg[num].dev = strdup(default_com[com_cfg[num].real_comport-1].dev);
   }
