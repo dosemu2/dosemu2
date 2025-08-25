@@ -776,7 +776,7 @@ void mprot_end(void);
 void prejit_sync(void);
 void init_emu_npu(void);
 
-void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
+void e_VgaMovs(dosaddr_t edi, dosaddr_t esi, unsigned int rep,
 	       int dp, unsigned int access);
 
 #endif // _EMU86_EMU86_H

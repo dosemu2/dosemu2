@@ -131,14 +131,13 @@ void rep_movs_stos(struct rep_stack *stack)
 		dosaddr_t source = EMUADDR_REL(stack->esi);
 		unsigned char *esi;
 		unsigned int v = vga_access(source, addr);
+		esi = LINEAR2UNIX(source);
 		if (v) {
 			int df = ((EFLAGS & EFLAGS_DF) ? -size:size);
-			e_VgaMovs(&stack->edi, &stack->esi, ecx, df, v);
-			stack->ecx = 0;
-			goto done;
+			e_VgaMovs(addr, source, ecx, df, v);
+			ecx = 0;
 		}
-		esi = LINEAR2UNIX(source);
-		if (ecx == len) {
+		else if (ecx == len) {
 			if (EFLAGS & EFLAGS_DF) repmovs(std,b,cld);
 			else repmovs(,b,);
 		}
@@ -150,8 +149,8 @@ void rep_movs_stos(struct rep_stack *stack)
 			if (EFLAGS & EFLAGS_DF) repmovs(std,l,cld);
 			else repmovs(,l,);
 		}
-		if (EFLAGS & EFLAGS_DF) source -= len;
-		else source += len;
+		if (EFLAGS & EFLAGS_DF) {source -= len; addr -= len;}
+		else {source += len; addr += len;}
 		stack->esi = EMU_BASE32(source);
 	}
 	else if ((op & 0xfe) == 0xaa) { /* stos */
@@ -189,6 +188,8 @@ void rep_movs_stos(struct rep_stack *stack)
 			else if (EFLAGS & EFLAGS_DF) repstos(std,l,cld);
 			else repstos(,l,);
 		}
+		if (EFLAGS & EFLAGS_DF) addr -= len;
+		else addr += len;
 	}
 	else if ((op & 0xf6) == 0xa6) { /* cmps/scas */
 		int repmod = (size == 1 ? MBYTE : size == 2 ? DATA16 : 0);
@@ -207,16 +208,12 @@ void rep_movs_stos(struct rep_stack *stack)
 			IGen IG = (IGen){.op = O_MOVS_ScaD, .mode = repmod};
 			Gen_sim(&IG);
 		}
-		stack->edi = EMU_BASE32(AR1.d);
-		stack->ecx = TR1.d;
+		addr = AR1.d;
+		ecx = TR1.d;
 		stack->eflags = (stack->eflags & ~EFLAGS_CC) | FlagSync_All();
-		goto done;
 	}
-	if (EFLAGS & EFLAGS_DF) addr -= len;
-	else addr += len;
 	stack->edi = EMU_BASE32(addr);
 	stack->ecx = ecx;
-done:
 	InCompiledCode++;
 #if PROFILE
 	CpatchReps++;
