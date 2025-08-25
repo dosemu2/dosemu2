@@ -104,19 +104,19 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 
 	sd = (SDTR *)CPUOFFS(e_ofsseg[(ofs>>2)]);
 
-	if ((sd->Oldsel==sel)&&((sd->Attrib&3)==1)) {
+	if ((CPUWORD(ofs)==sel)&&((sd->Attrib&3)==1)) {
 	    if (debug_level('e') >= 9)
 		e_printf("SetSeg PROT %s%04lx cached\n",MKOFSNAM(ofs,buf),sel);
 	    if (big) *big = (sd->Attrib&4? 0xff:0);
 	    return 0;
 	}
-	sd->Oldsel = sel;
 	sd->Attrib = 0;
 	TheCPU.scp_err = sel & 0xfffc;
 
 	if (sel < 4) {
 	    if ((ofs==Ofs_CS)||(ofs==Ofs_SS)) return EXCP0D_GPF;
 	    sd->BoundL = 0xc0000000;
+	    CPUWORD(ofs) = sel;
 	    return 0;	/* DS..GS can be 0 for some while */
 	}
 
@@ -154,6 +154,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	        e_printf("GDT system segment %#lx type %d\n",sel,sx);
 	    if (sx==DT_NO_XFER) return EXCP0D_GPF;
 	    sd->BoundH = 0;	  /* try to trap if not checked */
+	    CPUWORD(ofs) = sel;
 	    return 0;	  /* will check sys segment again later */
 	}
 	lbig = (wFlags & DF_32)? 0xff : 0;
@@ -204,6 +205,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 			sel, sd->BoundL, sd->BoundH, wFlags, lbig&1);
 	}
 	TheCPU.scp_err = 0;
+	CPUWORD(ofs) = sel;
 	return 0;
 }
 

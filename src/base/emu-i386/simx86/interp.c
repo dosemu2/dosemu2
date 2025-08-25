@@ -183,7 +183,6 @@ static unsigned int do_flush(unsigned P0, unsigned _P0,
 
 static int _MAKESEG(int mode, int *basemode, int ofs, unsigned short sv)
 {
-	SDTR tseg, *segc;
 	int e;
 	unsigned char big;
 
@@ -193,17 +192,9 @@ static int _MAKESEG(int mode, int *basemode, int ofs, unsigned short sv)
 		return SetSegReal(sv,ofs);
 	}
 
-	segc = (SDTR *)CPUOFFS(e_ofsseg[(ofs>>2)]);
-//	if (segc==NULL) return EXCP06_ILLOP;
-
-	memcpy(&tseg,segc,sizeof(SDTR));
 	e = SetSegProt(mode&ADDR16, ofs, &big, sv);
-	/* must NOT change segreg and LONG_xx if error! */
-	if (e) {
-		memcpy(segc,&tseg,sizeof(SDTR));
+	if (e)
 		return e;
-	}
-	CPUWORD(ofs) = sv;
 	if (ofs==Ofs_CS) {
 		if (big) *basemode &= ~(ADDR16|DATA16);
 		else *basemode |= (ADDR16|DATA16);

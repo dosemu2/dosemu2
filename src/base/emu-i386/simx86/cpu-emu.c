@@ -623,15 +623,7 @@ static void Scp2Cpu(cpuctx_t *scp)
   TheCPU.eip = _eip;
   TheCPU.eflags = _eflags | 2;
 
-  TheCPU.cs = _cs;
-  TheCPU.fs = _fs;
-  TheCPU.gs = _gs;
-
-  TheCPU.ds = _ds;
-  TheCPU.es = _es;
-
   TheCPU.scp_err = 0;
-  TheCPU.ss = _ss;
   TheCPU.cr[2] = _cr2;
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
@@ -713,20 +705,20 @@ static void Scp2CpuD(cpuctx_t *scp)
   /* make clear we are in PM now */
   TheCPU.cr[0] |= 1;
   mode |= ADDR16;
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_CS,&big,TheCPU.cs);
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_CS,&big,_cs);
   if (TheCPU.err) goto erseg;
   if (big) mode=0; else mode |= DATA16;
 
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_DS,&big,TheCPU.ds);
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_DS,&big,_ds);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_SS,&big,TheCPU.ss);
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_SS,&big,_ss);
   if (TheCPU.err) goto erseg;
   TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_ES,&big,TheCPU.es);
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_ES,&big,_es);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_FS,&big,TheCPU.fs);
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_FS,&big,_fs);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_GS,&big,TheCPU.gs);
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_GS,&big,_gs);
 erseg:
   if (debug_level('e')>1) {
 	e_printf("Scp2CpuD%s: CS:IP=%08x:%08x\n%s\n",
