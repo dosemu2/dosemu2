@@ -2419,10 +2419,10 @@ repag0:
 				Gen(O_IMUL, _mode|MBYTE);		// al*[edi]->AX signed
 				break;
 			case Ofs_DH:	/*6*/	/* DIV AL */
-				Gen(O_DIV, _mode|MBYTE, P0);			// ah:al/[edi]->AH:AL unsigned
+				Gen(O_DIV, _mode|MBYTE, P0 - LONG_CS);			// ah:al/[edi]->AH:AL unsigned
 				break;
 			case Ofs_BH:	/*7*/	/* IDIV AL */
-				Gen(O_IDIV, _mode|MBYTE, P0);		// ah:al/[edi]->AH:AL signed
+				Gen(O_IDIV, _mode|MBYTE, P0 - LONG_CS);		// ah:al/[edi]->AH:AL signed
 				break;
 			} }
 			break;
@@ -2455,10 +2455,10 @@ repag0:
 				Gen(O_IMUL, _mode);			// (e)ax*[edi]->(E)DX:(E)AX signed
 				break;
 			case Ofs_SI:	/*6*/	/* DIV AX+DX */
-				Gen(O_DIV, _mode, P0);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX unsigned
+				Gen(O_DIV, _mode, P0 - LONG_CS);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX unsigned
 				break;
 			case Ofs_DI:	/*7*/	/* IDIV AX+DX */
-				Gen(O_IDIV, _mode, P0);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX signed
+				Gen(O_IDIV, _mode, P0 - LONG_CS);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX signed
 				break;
 			} }
 			break;

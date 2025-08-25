@@ -415,9 +415,8 @@ int e_handle_fault(sigcontext_t *scp)
 		return 0;
 	}
 	TheCPU.err2 = EXCP00_DIVZ + _scp_trapno;
-	_scp_eax = TheCPU.cr2;
+	_scp_eax = _LONG_CS + TheCPU.eip;
 	_scp_edx = _scp_eflags;
-	TheCPU.cr2 = 0; // EMUADDR_REL(LINP(_scp_cr2));
 	_scp_rip = *(long *)_scp_rsp;
 	_scp_rsp += sizeof(long);
 	return 1;
