@@ -1484,7 +1484,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (REALADDR()) {
 			    int seg;
 			    PC += ModRM(opc, PC, _mode|SEGREG|DATA16|MLOAD);
-			    seg = e_ofsseg[REG1>>2];
+			    seg = e_ofsseg(REG1);
 			    if (seg == Ofs_XCS) {
 				CODE_FLUSH();
 				goto illegal_op;

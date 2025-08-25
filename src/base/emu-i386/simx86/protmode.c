@@ -69,19 +69,24 @@ static char ofsnam[] =	"??? ??? ??? GS: FS: ES: DS: ??? "
 			"??? ??? ??? ??? ??? ??? ??? ??? "
 			"??? ??? CS: ??? SS: ??? ??? ??? ";
 
-unsigned char e_ofsseg[] = {
+static unsigned char ofsseg[] = {
 	0,   0,       0, Ofs_XGS, Ofs_XFS, Ofs_XES, Ofs_XDS, 0,
 	0,   0,       0,       0,       0,       0,       0, 0,
 	0,   0, Ofs_XCS,       0, Ofs_XSS,       0,       0, 0 };
 
 #define MKOFSNAM(o,b)   (memcpy((b), (ofsnam+(o)), 3), ((b)[3]=0), (b))
 
+unsigned char e_ofsseg(int ofs)
+{
+	return ofsseg[ofs >> 2];
+}
+
 int SetSegReal(unsigned short sel, int ofs)
 {
 	static char buf[4];
 	SDTR *sd;
 
-	sd = (SDTR *)CPUOFFS(e_ofsseg[(ofs>>2)]);
+	sd = (SDTR *)CPUOFFS(e_ofsseg(ofs));
 
 	CPUWORD(ofs) = sel;
 	sd->BoundL = sel<<4;
@@ -101,7 +106,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	Descriptor *dt;
 	SDTR *sd;
 
-	sd = (SDTR *)CPUOFFS(e_ofsseg[(ofs>>2)]);
+	sd = (SDTR *)CPUOFFS(e_ofsseg(ofs));
 
 	if (CPUWORD(ofs) == sel && (sd->BoundH - sd->BoundL) != SDTR_INVALID_LIMIT) {
 	    if (debug_level('e') >= 9)
