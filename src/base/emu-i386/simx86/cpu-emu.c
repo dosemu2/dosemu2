@@ -178,12 +178,12 @@ void e_priv_iopl(int pl)
 
 void InvalidateSegs(void)
 {
-    CS_DTR.Attrib=0;
-    SS_DTR.Attrib=0;
-    DS_DTR.Attrib=0;
-    ES_DTR.Attrib=0;
-    FS_DTR.Attrib=0;
-    GS_DTR.Attrib=0;
+    CS_DTR.BoundH = CS_DTR.BoundL + SDTR_INVALID_LIMIT;
+    DS_DTR.BoundH = DS_DTR.BoundL + SDTR_INVALID_LIMIT;
+    ES_DTR.BoundH = ES_DTR.BoundL + SDTR_INVALID_LIMIT;
+    FS_DTR.BoundH = FS_DTR.BoundL + SDTR_INVALID_LIMIT;
+    GS_DTR.BoundH = GS_DTR.BoundL + SDTR_INVALID_LIMIT;
+    SS_DTR.BoundH = SS_DTR.BoundL + SDTR_INVALID_LIMIT;
 }
 
 /* ======================================================================= */
@@ -705,6 +705,7 @@ static void Scp2CpuD(cpuctx_t *scp)
   /* make clear we are in PM now */
   TheCPU.cr[0] |= 1;
   mode |= ADDR16;
+  InvalidateSegs(); // makes sure real mode segs aren't confused with PM sels
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_CS,&big,_cs);
   if (TheCPU.err) goto erseg;
   if (big) mode=0; else mode |= DATA16;

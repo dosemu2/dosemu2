@@ -86,7 +86,6 @@ int SetSegReal(unsigned short sel, int ofs)
 	CPUWORD(ofs) = sel;
 	sd->BoundL = sel<<4;
 	sd->BoundH = sd->BoundL + 0xffff;
-	sd->Attrib = 2;
 
 	if (debug_level('e')>1)
 	    dbug_printf("SetSeg REAL %s%04x\n",MKOFSNAM(ofs,buf),sel);
@@ -104,18 +103,18 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 
 	sd = (SDTR *)CPUOFFS(e_ofsseg[(ofs>>2)]);
 
-	if ((CPUWORD(ofs)==sel)&&((sd->Attrib&3)==1)) {
+	if (CPUWORD(ofs) == sel && (sd->BoundH - sd->BoundL) != SDTR_INVALID_LIMIT) {
 	    if (debug_level('e') >= 9)
 		e_printf("SetSeg PROT %s%04lx cached\n",MKOFSNAM(ofs,buf),sel);
-	    if (big) *big = (sd->Attrib&4? 0xff:0);
+	    if (big) *big = (GetSelectorFlags(sel) & DF_32)? 0xff : 0;
 	    return 0;
 	}
-	sd->Attrib = 0;
 	TheCPU.scp_err = sel & 0xfffc;
 
 	if (sel < 4) {
 	    if ((ofs==Ofs_CS)||(ofs==Ofs_SS)) return EXCP0D_GPF;
 	    sd->BoundL = 0xc0000000;
+	    sd->BoundH = sd->BoundL;
 	    CPUWORD(ofs) = sel;
 	    return 0;	/* DS..GS can be 0 for some while */
 	}
@@ -153,6 +152,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	    if (debug_level('e')>3)
 	        e_printf("GDT system segment %#lx type %d\n",sel,sx);
 	    if (sx==DT_NO_XFER) return EXCP0D_GPF;
+	    sd->BoundL = 0;
 	    sd->BoundH = 0;	  /* try to trap if not checked */
 	    CPUWORD(ofs) = sel;
 	    return 0;	  /* will check sys segment again later */
@@ -195,7 +195,6 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	SetFlagAccessed(sel);
 	sd->BoundL = GetPhysicalAddress(sel);
 	sd->BoundH = sd->BoundL + GetSelectorByteLimit(sel);
-	sd->Attrib = (lbig&4) | 1;
 	if (debug_level('e')>7)
 	    e_printf("SetSeg PROT %s%04lx\n",MKOFSNAM(ofs,buf),sel);
 

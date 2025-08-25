@@ -42,6 +42,10 @@ typedef struct {
 	unsigned short Oldsel, Attrib __attribute__ ((packed));
 } SDTR;
 
+// used to invalidate SDTRs, setting BoundH=BoundL+SDTR_INVALID_LIMIT
+// as big limits always have the 12 low bits set to 1
+#define SDTR_INVALID_LIMIT 0x80000000
+
 typedef struct {
 	unsigned int Base;
 	unsigned int Limit;
