@@ -2866,7 +2866,7 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 	prejit_sync();
 	TheCPU.err = EXCP0E_PAGE;
 	TheCPU.scp_err = err;
-	TheCPU.cr2 = addr;
+	TheCPU.cr[2] = addr;
 	if (currentIG) {
 		LONG_CS = _LONG_CS;
 		unsigned int P0 = FindPC(currentIG);

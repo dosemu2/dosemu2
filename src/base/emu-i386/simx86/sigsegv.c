@@ -269,7 +269,7 @@ static int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	e_printf("FindPC: found %x\n",_scp_eax);
 	_scp_edx = *(long *)_scp_rsp; // flags
 	_scp_rsp += sizeof(long);
-	TheCPU.cr2 = cr2;
+	TheCPU.cr[2] = cr2;
 	_scp_rip = *(long *)_scp_rsp;
 	_scp_rsp += sizeof(long);
 	return 1;

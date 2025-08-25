@@ -632,7 +632,7 @@ static void Scp2Cpu(cpuctx_t *scp)
 
   TheCPU.scp_err = 0;
   TheCPU.ss = _ss;
-  TheCPU.cr2 = _cr2;
+  TheCPU.cr[2] = _cr2;
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
   TheCPU.fpstate = &vm86_fpu_state;
@@ -666,7 +666,7 @@ static void Cpu2Scp(cpuctx_t *scp, int trapno)
 
   _err = TheCPU.scp_err;
   _ss = TheCPU.ss;
-  _cr2 = TheCPU.cr2;
+  _cr2 = TheCPU.cr[2];
   _trapno = trapno;
   /* Error code format:
    * b31-b16 = 0 (undef)
@@ -1087,7 +1087,7 @@ static int e_vm86_tail(struct vm86_struct *info)
 	      }
 	    default: {
 		/* FAULT, handled via signal callback */
-		vm86_fault(xval-1, TheCPU.scp_err, TheCPU.cr2);
+		vm86_fault(xval-1, TheCPU.scp_err, TheCPU.cr[2]);
 		retval = VM86_SIGNAL;
 		break;
 	    }
