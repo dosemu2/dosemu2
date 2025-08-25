@@ -1913,7 +1913,7 @@ unsigned int Gen_sim(const IGen *IG)
 			sim_write_word(AR2.d + SR1.d, DR1.w.l);
 		}
 		else {
-			DR1.d = CPULONG(o);
+			DR1.d = (mode & SEGREG) ? CPUWORD(o) : CPULONG(o);
 			SR1.d -= 4;
 			SR1.d &= stackm;
 			sim_write_dword(AR2.d + SR1.d, DR1.d);

@@ -1162,8 +1162,8 @@ shrot0:
 
 	case O_PUSH2: {		/* register push only */
 		const unsigned char pseq16[] = {
-			// movl offs(%%ebx),%%eax
-/*00*/			0x8b,0x43,0x00,
+			// movl offs(%%ebx),%%ax
+/*00*/			0x66,0x8b,0x43,0x00,
 			// leal -2(%%ecx),%%ecx
 			0x8d,0x49,0xfe,
 			// andl StackMask(%%ebx),%%ecx
@@ -1184,8 +1184,8 @@ shrot0:
 #endif
 		};
 		const unsigned char pseq32[] = {
-			// movl offs(%%ebx),%%eax
-/*00*/			0x8b,0x43,0x00,
+			// nop; movl offs(%%ebx),%%eax
+/*00*/			0x90,0x8b,0x43,0x00,
 			// leal -4(%%ecx),%%ecx
 			0x8d,0x49,0xfc,
 			// andl StackMask(%%ebx),%%ecx
@@ -1211,7 +1211,12 @@ shrot0:
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		q=Cp; GNX(Cp, p, sz);
-		q[2] = IG->p0;
+		q[3] = IG->p0;
+		if ((mode & (SEGREG|DATA16)) == SEGREG) {
+			// change to movzx for 32bit segreg
+			q[0] = 0x0f;
+			q[1] = 0xb7;
+		}
 		} break;
 
 	case O_PUSH3:
