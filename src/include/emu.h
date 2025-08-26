@@ -237,6 +237,8 @@ typedef struct config_info {
        boolean tcpdrv;
        char   *tcpiface;
        uint32_t tcpgw;
+       char   *dnsserver;
+       char   *ntpserver;
        boolean ne2k;
        boolean emuretrace;
        boolean mapped_bios;	/* video BIOS */

@@ -37,9 +37,6 @@
 #include "coopth.h"
 #include "doshelpers.h"
 
-static const char *DEFAULT_DNS = "8.8.8.8";
-static const char *DEFAULT_NTP = "pool.ntp.org";
-
 static uint16_t tcp_hlt_off;
 static int tcp_tid;
 static in_addr_t myip;
@@ -336,8 +333,8 @@ static int get_driver_info(struct driver_info_rec *di_out)
         di.myip = sin->sin_addr.s_addr;
         di.netmask = sinm->sin_addr.s_addr;
         di.gateway = gw;
-        di.dnsserver = inet_addr(DEFAULT_DNS);
-        di.timeserver = get_ntp(DEFAULT_NTP);
+        di.dnsserver = inet_addr(config.dnsserver);
+        di.timeserver = get_ntp(config.ntpserver);
         di.mtu = 1500;
         di.def_ttl = 64;
         di.def_tos = 0;

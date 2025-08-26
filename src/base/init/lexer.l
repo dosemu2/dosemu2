@@ -307,6 +307,8 @@ ipxsupport		RETURN(IPXSUPPORT);
 ipx_network		RETURN(IPXNETWORK);
 pktdriver		RETURN(PKTDRIVER);
 tcpdriver		RETURN(TCPDRIVER);
+dnsserver		RETURN(DNSSERVER);
+ntpserver		RETURN(NTPSERVER);
 ne2k			RETURN(NE2K);
 debug			RETURN(DEBUG);
 mouse			RETURN(MOUSE);
