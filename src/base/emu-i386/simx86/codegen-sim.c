@@ -1913,7 +1913,7 @@ static unsigned int Gen_sim(const IGen *IG)
 			sim_write_word(AR2.d + SR1.d, DR1.w.l);
 		}
 		else {
-			DR1.d = CPULONG(o);
+			DR1.d = (mode & SEGREG) ? CPUWORD(o) : CPULONG(o);
 			SR1.d -= 4;
 			SR1.d &= stackm;
 			sim_write_dword(AR2.d + SR1.d, DR1.d);
@@ -2866,7 +2866,7 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 	prejit_sync();
 	TheCPU.err = EXCP0E_PAGE;
 	TheCPU.scp_err = err;
-	TheCPU.cr2 = addr;
+	TheCPU.cr[2] = addr;
 	if (currentIG) {
 		LONG_CS = _LONG_CS;
 		unsigned int P0 = FindPC(currentIG);

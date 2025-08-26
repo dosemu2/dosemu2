@@ -183,7 +183,6 @@ static unsigned int do_flush(unsigned P0, unsigned _P0,
 
 static int _MAKESEG(int mode, int *basemode, int ofs, unsigned short sv)
 {
-	SDTR tseg, *segc;
 	int e;
 	unsigned char big;
 
@@ -193,17 +192,9 @@ static int _MAKESEG(int mode, int *basemode, int ofs, unsigned short sv)
 		return SetSegReal(sv,ofs);
 	}
 
-	segc = (SDTR *)CPUOFFS(e_ofsseg[(ofs>>2)]);
-//	if (segc==NULL) return EXCP06_ILLOP;
-
-	memcpy(&tseg,segc,sizeof(SDTR));
 	e = SetSegProt(mode&ADDR16, ofs, &big, sv);
-	/* must NOT change segreg and LONG_xx if error! */
-	if (e) {
-		memcpy(segc,&tseg,sizeof(SDTR));
+	if (e)
 		return e;
-	}
-	CPUWORD(ofs) = sv;
 	if (ofs==Ofs_CS) {
 		if (big) *basemode &= ~(ADDR16|DATA16);
 		else *basemode |= (ADDR16|DATA16);
@@ -340,7 +331,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		break;
 	case JMPld: {   /* uncond jmp far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
-		Gen(L_IMM, mode, Ofs_CS, jcs);
+		Gen(L_IMM, mode|DATA16, Ofs_CS, jcs);
 		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 	}
 	/* no break */
@@ -354,9 +345,11 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		break;
 	case CALLl: {   /* call far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
-		Gen(L_REG, mode, Ofs_CS);
+		Gen(L_REG, mode|DATA16, Ofs_CS);
+		if (!(mode & DATA16)) // 32-bit segreg padding
+		    Gen(L_ZXAX, mode);
 		Gen(O_PUSH, mode);
-		Gen(L_IMM, mode, Ofs_CS, jcs);
+		Gen(L_IMM, mode|DATA16, Ofs_CS, jcs);
 		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 	}
 	/* no break */
@@ -368,7 +361,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		break;
 	case RETl: case RETlisp: case JMPli: case CALLli: // far ret, indirect
 	case INT:
-		Gen(S_REG, mode, Ofs_CS);
+		Gen(S_REG, mode|DATA16, Ofs_CS);
 		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 		Gen(L_REG, mode, Ofs_EIP);
 		/* fall through */
@@ -1157,6 +1150,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			/* optimized multiple register push */
 			while (1) {
 			    int op;
+			    if (opc > 8 && !(_mode & DATA16)) // 32-bit segreg
+				m |= SEGREG;
 			    Gen(O_PUSH2, m, R1Tab_l[opc-1]);
 			    PC++;
 			    opc = OpIsPush[op = Fetch(PC)];
@@ -1164,7 +1159,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    if (++cnt >= NUMGENS || (!opc && !is_66) ||
 				    e_querymark(PC, 1 + is_66))
 				break;
-			    m &= ~DATA16;
+			    m &= ~(DATA16|SEGREG);
 			    if (is_66) {	// prefix 0x66
 				m |= (~basemode & DATA16);
 				if ((opc=OpIsPush[(op = Fetch(PC+1))])!=0) PC++;
@@ -1181,7 +1176,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_PUSH3, m); } else
 #endif
 			{
-			Gen(L_REG, _mode, R1Tab_l[opc-1]);
+			if (opc > 8 && !(_mode & DATA16)) { // 32-bit segreg
+			    Gen(L_REG, _mode|DATA16, R1Tab_l[opc-1]);
+			    Gen(L_ZXAX, _mode);
+			} else
+			    Gen(L_REG, _mode, R1Tab_l[opc-1]);
 			Gen(O_PUSH, _mode); PC++;
 			}
 			break;
@@ -1485,7 +1484,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (REALADDR()) {
 			    int seg;
 			    PC += ModRM(opc, PC, _mode|SEGREG|DATA16|MLOAD);
-			    seg = e_ofsseg[REG1>>2];
+			    seg = e_ofsseg(REG1);
 			    if (seg == Ofs_XCS) {
 				CODE_FLUSH();
 				goto illegal_op;
@@ -2419,10 +2418,10 @@ repag0:
 				Gen(O_IMUL, _mode|MBYTE);		// al*[edi]->AX signed
 				break;
 			case Ofs_DH:	/*6*/	/* DIV AL */
-				Gen(O_DIV, _mode|MBYTE, P0);			// ah:al/[edi]->AH:AL unsigned
+				Gen(O_DIV, _mode|MBYTE, P0 - LONG_CS);			// ah:al/[edi]->AH:AL unsigned
 				break;
 			case Ofs_BH:	/*7*/	/* IDIV AL */
-				Gen(O_IDIV, _mode|MBYTE, P0);		// ah:al/[edi]->AH:AL signed
+				Gen(O_IDIV, _mode|MBYTE, P0 - LONG_CS);		// ah:al/[edi]->AH:AL signed
 				break;
 			} }
 			break;
@@ -2455,10 +2454,10 @@ repag0:
 				Gen(O_IMUL, _mode);			// (e)ax*[edi]->(E)DX:(E)AX signed
 				break;
 			case Ofs_SI:	/*6*/	/* DIV AX+DX */
-				Gen(O_DIV, _mode, P0);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX unsigned
+				Gen(O_DIV, _mode, P0 - LONG_CS);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX unsigned
 				break;
 			case Ofs_DI:	/*7*/	/* IDIV AX+DX */
-				Gen(O_IDIV, _mode, P0);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX signed
+				Gen(O_IDIV, _mode, P0 - LONG_CS);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX signed
 				break;
 			} }
 			break;
@@ -2652,7 +2651,9 @@ repag0:
 					if (REG1==Ofs_BX) {
 					    /* ok, now push old cs:eip */
 					    oip = PC + len - LONG_CS;
-					    Gen(L_REG, _mode, Ofs_CS);
+					    Gen(L_REG, _mode|DATA16, Ofs_CS);
+					    if (!(_mode & DATA16)) // padding
+						Gen(L_ZXAX, _mode);
 					    Gen(O_PUSH, _mode);
 					    Gen(O_PUSHI, _mode, oip);
 					}

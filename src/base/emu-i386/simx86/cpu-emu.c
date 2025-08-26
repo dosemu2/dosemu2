@@ -178,12 +178,12 @@ void e_priv_iopl(int pl)
 
 void InvalidateSegs(void)
 {
-    CS_DTR.Attrib=0;
-    SS_DTR.Attrib=0;
-    DS_DTR.Attrib=0;
-    ES_DTR.Attrib=0;
-    FS_DTR.Attrib=0;
-    GS_DTR.Attrib=0;
+    CS_DTR.BoundH = CS_DTR.BoundL + SDTR_INVALID_LIMIT;
+    DS_DTR.BoundH = DS_DTR.BoundL + SDTR_INVALID_LIMIT;
+    ES_DTR.BoundH = ES_DTR.BoundL + SDTR_INVALID_LIMIT;
+    FS_DTR.BoundH = FS_DTR.BoundL + SDTR_INVALID_LIMIT;
+    GS_DTR.BoundH = GS_DTR.BoundL + SDTR_INVALID_LIMIT;
+    SS_DTR.BoundH = SS_DTR.BoundL + SDTR_INVALID_LIMIT;
 }
 
 /* ======================================================================= */
@@ -623,16 +623,8 @@ static void Scp2Cpu(cpuctx_t *scp)
   TheCPU.eip = _eip;
   TheCPU.eflags = _eflags | 2;
 
-  TheCPU.cs = _cs;
-  TheCPU.fs = _fs;
-  TheCPU.gs = _gs;
-
-  TheCPU.ds = _ds;
-  TheCPU.es = _es;
-
   TheCPU.scp_err = 0;
-  TheCPU.ss = _ss;
-  TheCPU.cr2 = _cr2;
+  TheCPU.cr[2] = _cr2;
   TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
   TheCPU.fpstate = &vm86_fpu_state;
@@ -666,7 +658,7 @@ static void Cpu2Scp(cpuctx_t *scp, int trapno)
 
   _err = TheCPU.scp_err;
   _ss = TheCPU.ss;
-  _cr2 = TheCPU.cr2;
+  _cr2 = TheCPU.cr[2];
   _trapno = trapno;
   /* Error code format:
    * b31-b16 = 0 (undef)
@@ -713,20 +705,21 @@ static void Scp2CpuD(cpuctx_t *scp)
   /* make clear we are in PM now */
   TheCPU.cr[0] |= 1;
   mode |= ADDR16;
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_CS,&big,TheCPU.cs);
+  InvalidateSegs(); // makes sure real mode segs aren't confused with PM sels
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_CS,&big,_cs);
   if (TheCPU.err) goto erseg;
   if (big) mode=0; else mode |= DATA16;
 
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_DS,&big,TheCPU.ds);
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_DS,&big,_ds);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_SS,&big,TheCPU.ss);
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_SS,&big,_ss);
   if (TheCPU.err) goto erseg;
   TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_ES,&big,TheCPU.es);
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_ES,&big,_es);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_FS,&big,TheCPU.fs);
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_FS,&big,_fs);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_GS,&big,TheCPU.gs);
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_GS,&big,_gs);
 erseg:
   if (debug_level('e')>1) {
 	e_printf("Scp2CpuD%s: CS:IP=%08x:%08x\n%s\n",
@@ -1087,7 +1080,7 @@ static int e_vm86_tail(struct vm86_struct *info)
 	      }
 	    default: {
 		/* FAULT, handled via signal callback */
-		vm86_fault(xval-1, TheCPU.scp_err, TheCPU.cr2);
+		vm86_fault(xval-1, TheCPU.scp_err, TheCPU.cr[2]);
 		retval = VM86_SIGNAL;
 		break;
 	    }

@@ -608,7 +608,7 @@ int Cpatch(sigcontext_t *scp)
 #endif
 	/* check for optimized multiple register push */
 	if (p[0]==0x89) return 1; //O_PUSH3
-	p += 12;
+	p += 13;
 	if (p[0]==0xff) return 1; // already JSRPATCH'ed
 	if (*p==0x66) w16=1,p++; else w16=0;
 	v = *((int *)p) & 0xffffff;
