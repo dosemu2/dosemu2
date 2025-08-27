@@ -96,7 +96,7 @@ static int _in_dpmi_emu;
 #define AW(v, n) __atomic_store_n(&_##v, n, __ATOMIC_RELAXED)
 jmp_buf jmp_env;
 
-union _SynCPU TheCPU_union;
+struct _SynCPU TheCPU_struct;
 
 int InCompiledCode;
 
@@ -764,7 +764,7 @@ void reset_emu_cpu(void)
 void init_emu_cpu(int cpu_type)
 {
   if (Ofs_END > 128) {
-    error("CPUEMU: Ofs_END is too large, %i\n", Ofs_END);
+    error("CPUEMU: Ofs_END is too large, %zx\n", Ofs_END);
     config.exitearly = 1;
   }
   init_emu_npu();
@@ -806,14 +806,14 @@ void init_emu_cpu(int cpu_type)
   }
 #ifdef X86_JIT
   TheCPU.unprotect_stub = stub_rep;
-  TheCPU.stub_wri_8 = stub_wri_8;
-  TheCPU.stub_wri_16 = stub_wri_16;
-  TheCPU.stub_wri_32 = stub_wri_32;
-  TheCPU.stub_stk_16 = stub_stk_16;
-  TheCPU.stub_stk_32 = stub_stk_32;
-  TheCPU.stub_read_8 = stub_read_8;
-  TheCPU.stub_read_16 = stub_read_16;
-  TheCPU.stub_read_32 = stub_read_32;
+  TheCPU_struct.stub_func[STUB_WRI_8] = stub_wri_8;
+  TheCPU_struct.stub_func[STUB_WRI_16] = stub_wri_16;
+  TheCPU_struct.stub_func[STUB_WRI_32] = stub_wri_32;
+  TheCPU_struct.stub_func[STUB_STK_16] = stub_stk_16;
+  TheCPU_struct.stub_func[STUB_STK_32] = stub_stk_32;
+  TheCPU_struct.stub_func[STUB_READ_8] = stub_read_8;
+  TheCPU_struct.stub_func[STUB_READ_16] = stub_read_16;
+  TheCPU_struct.stub_func[STUB_READ_32] = stub_read_32;
 #endif
   enter_cpu_emu();
 }

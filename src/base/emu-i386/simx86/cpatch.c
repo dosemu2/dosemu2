@@ -554,6 +554,17 @@ asm (
 "stub_read_32__:.globl stub_read_32__\n"STUB_READ(read_32)
 );
 
+// using negative byte offsets
+#define Ofs_stub(x) (unsigned char)(((x) - STUBS_LEN) * sizeof(stub_func_t))
+#define Ofs_stub_wri_8 Ofs_stub(STUB_WRI_8)
+#define Ofs_stub_wri_16 Ofs_stub(STUB_WRI_16)
+#define Ofs_stub_wri_32 Ofs_stub(STUB_WRI_32)
+#define Ofs_stub_stk_16 Ofs_stub(STUB_STK_16)
+#define Ofs_stub_stk_32 Ofs_stub(STUB_STK_32)
+#define Ofs_stub_read_8 Ofs_stub(STUB_READ_8)
+#define Ofs_stub_read_16 Ofs_stub(STUB_READ_16)
+#define Ofs_stub_read_32 Ofs_stub(STUB_READ_32)
+
 /* call N(%ebx) */
 #define JSRPATCH(p,N) *((short *)(p))=0x53ff;p[2]=N;
 

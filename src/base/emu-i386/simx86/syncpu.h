@@ -48,29 +48,24 @@
 #define PADDING32BIT(n) unsigned int padding##n;
 #endif
 
+#ifdef X86_JIT
+enum {
+	STUB_STK_16,
+	STUB_STK_32,
+	STUB_WRI_8,
+	STUB_WRI_16,
+	STUB_WRI_32,
+	STUB_READ_8,
+	STUB_READ_16,
+	STUB_READ_32,
+	STUBS_LEN
+};
+typedef void (*stub_func_t)(void);
+#endif
+
 typedef struct {
-/* offsets are 8-bit signed */
+/* offsets up to end_mark are 8-bit */
 #define FIELD0		unprotect_stub	/* field of SynCPU at offset 00 */
-/* ------------------------------------------------ */
-/*80*/	unsigned long long reserve[8];
-/* ------------------------------------------------ */
-/*c0*/  void (*stub_read_8)(void);
-/*c4*/  PADDING32BIT(0)
-/*c8*/  void (*stub_read_16)(void);
-/*cc*/  PADDING32BIT(1)
-/*d0*/  void (*stub_read_32)(void);
-/*d4*/  PADDING32BIT(2)
-/*d8*/  void (*stub_stk_16)(void);
-/*dc*/  PADDING32BIT(3)
-/*e0*/  void (*stub_stk_32)(void);
-/*e4*/  PADDING32BIT(4)
-/*e8*/  void (*stub_wri_8)(void);
-/*ec*/  PADDING32BIT(5)
-/*f0*/  void (*stub_wri_16)(void);
-/*f4*/  PADDING32BIT(6)
-/*f8*/  void (*stub_wri_32)(void);
-/*fc*/  PADDING32BIT(7)
-/* ------------------------------------------------ */
 /*00*/  void (*unprotect_stub)(void); /* must be at 0 for call (%ebx) */
 /*04*/  PADDING32BIT(7)
 /*08*/	unsigned int rzero;
@@ -158,78 +153,73 @@ typedef struct {
 	emu_fpregset_t fpstate;
 } SynCPU;
 
-union _SynCPU {
-	SynCPU s;
-	unsigned char b[sizeof(SynCPU)];
-	unsigned short w[sizeof(SynCPU)/2];
-	unsigned int d[sizeof(SynCPU)/4];
+struct _SynCPU {
+#ifdef X86_JIT
+	stub_func_t stub_func[STUBS_LEN];
+#endif
+	union {
+		SynCPU s;
+		unsigned char b[sizeof(SynCPU)];
+		unsigned short w[sizeof(SynCPU)/2];
+		unsigned int d[sizeof(SynCPU)/4];
+	};
 };
 
-extern union _SynCPU TheCPU_union;
-#define TheCPU TheCPU_union.s
+extern struct _SynCPU TheCPU_struct;
+#define TheCPU TheCPU_struct.s
 
-#define SCBASE		offsetof(SynCPU,FIELD0)
-#define Ofs_END		(int)(offsetof(SynCPU,cr[1])-SCBASE)
+#define Ofs_END		(offsetof(SynCPU,cr[1]))
 
-#define SC(o) ((signed char)(o))
-#define CPUOFFS(o)	(((unsigned char *)&(TheCPU.FIELD0))+SC(o))
+#define CPUOFFS(o)	(((unsigned char *)&(TheCPU.FIELD0))+o)
 
-#define CPUBYTE(o)	TheCPU_union.b[SCBASE+SC(o)]
-#define CPUWORD(o)	TheCPU_union.w[(SCBASE+SC(o))/2]
-#define CPULONG(o)	TheCPU_union.d[(SCBASE+SC(o))/4]
+#define CPUBYTE(o)	TheCPU_struct.b[o]
+#define CPUWORD(o)	TheCPU_struct.w[o/2]
+#define CPULONG(o)	TheCPU_struct.d[o/4]
 
 #define rEAX		TheCPU.eax
-#define Ofs_EAX		(unsigned char)(offsetof(SynCPU,eax)-SCBASE)
+#define Ofs_EAX		(offsetof(SynCPU,eax))
 #define rECX		TheCPU.ecx
-#define Ofs_ECX		(unsigned char)(offsetof(SynCPU,ecx)-SCBASE)
+#define Ofs_ECX		(offsetof(SynCPU,ecx))
 #define rEDX		TheCPU.edx
-#define Ofs_EDX		(unsigned char)(offsetof(SynCPU,edx)-SCBASE)
+#define Ofs_EDX		(offsetof(SynCPU,edx))
 #define rEBX		TheCPU.ebx
-#define Ofs_EBX		(unsigned char)(offsetof(SynCPU,ebx)-SCBASE)
+#define Ofs_EBX		(offsetof(SynCPU,ebx))
 #define rESP		TheCPU.esp
-#define Ofs_ESP		(unsigned char)(offsetof(SynCPU,esp)-SCBASE)
+#define Ofs_ESP		(offsetof(SynCPU,esp))
 #define rEBP		TheCPU.ebp
-#define Ofs_EBP		(unsigned char)(offsetof(SynCPU,ebp)-SCBASE)
+#define Ofs_EBP		(offsetof(SynCPU,ebp))
 #define rESI		TheCPU.esi
-#define Ofs_ESI		(unsigned char)(offsetof(SynCPU,esi)-SCBASE)
+#define Ofs_ESI		(offsetof(SynCPU,esi))
 #define rEDI		TheCPU.edi
-#define Ofs_EDI		(unsigned char)(offsetof(SynCPU,edi)-SCBASE)
-#define Ofs_EIP		(unsigned char)(offsetof(SynCPU,eip)-SCBASE)
+#define Ofs_EDI		(offsetof(SynCPU,edi))
+#define Ofs_EIP		(offsetof(SynCPU,eip))
 
-#define Ofs_CS		(unsigned char)(offsetof(SynCPU,cs)-SCBASE)
-#define Ofs_DS		(unsigned char)(offsetof(SynCPU,ds)-SCBASE)
-#define Ofs_ES		(unsigned char)(offsetof(SynCPU,es)-SCBASE)
-#define Ofs_SS		(unsigned char)(offsetof(SynCPU,ss)-SCBASE)
-#define Ofs_FS		(unsigned char)(offsetof(SynCPU,fs)-SCBASE)
-#define Ofs_GS		(unsigned char)(offsetof(SynCPU,gs)-SCBASE)
-#define Ofs_EFLAGS	(unsigned char)(offsetof(SynCPU,eflags)-SCBASE)
-#define Ofs_CR0		(unsigned char)(offsetof(SynCPU,cr[0])-SCBASE)
-#define Ofs_STACKM	(unsigned char)(offsetof(SynCPU,StackMask)-SCBASE)
-//#define Ofs_ETIME	(unsigned char)(offsetof(SynCPU,EMUtime)-SCBASE)
-#define Ofs_RZERO	(unsigned char)(offsetof(SynCPU,rzero)-SCBASE)
-#define Ofs_SIGAPEND	(unsigned char)(offsetof(SynCPU,sigalrm_pending)-SCBASE)
-#define Ofs_DF_INCREMENTS (unsigned char)(offsetof(SynCPU,df_increments)-SCBASE)
+#define Ofs_CS		(offsetof(SynCPU,cs))
+#define Ofs_DS		(offsetof(SynCPU,ds))
+#define Ofs_ES		(offsetof(SynCPU,es))
+#define Ofs_SS		(offsetof(SynCPU,ss))
+#define Ofs_FS		(offsetof(SynCPU,fs))
+#define Ofs_GS		(offsetof(SynCPU,gs))
+#define Ofs_EFLAGS	(offsetof(SynCPU,eflags))
+#define Ofs_CR0		(offsetof(SynCPU,cr[0]))
+#define Ofs_STACKM	(offsetof(SynCPU,StackMask))
+//#define Ofs_ETIME	(offsetof(SynCPU,EMUtime))
+#define Ofs_RZERO	(offsetof(SynCPU,rzero))
+#define Ofs_SIGAPEND	(offsetof(SynCPU,sigalrm_pending))
+#define Ofs_DF_INCREMENTS (offsetof(SynCPU,df_increments))
 
-#define Ofs_FPUC	(unsigned char)(offsetof(SynCPU,fpuc)-SCBASE)
+#define Ofs_FPUC	(offsetof(SynCPU,fpuc))
 
 // 'Base' is 1st field of xs_cache
-#define Ofs_XDS		(unsigned char)(offsetof(SynCPU,ds_cache)-SCBASE)
-#define Ofs_XSS		(unsigned char)(offsetof(SynCPU,ss_cache)-SCBASE)
-#define Ofs_XES		(unsigned char)(offsetof(SynCPU,es_cache)-SCBASE)
-#define Ofs_XCS		(unsigned char)(offsetof(SynCPU,cs_cache)-SCBASE)
-#define Ofs_XFS		(unsigned char)(offsetof(SynCPU,fs_cache)-SCBASE)
-#define Ofs_XGS		(unsigned char)(offsetof(SynCPU,gs_cache)-SCBASE)
+#define Ofs_XDS		(offsetof(SynCPU,ds_cache))
+#define Ofs_XSS		(offsetof(SynCPU,ss_cache))
+#define Ofs_XES		(offsetof(SynCPU,es_cache))
+#define Ofs_XCS		(offsetof(SynCPU,cs_cache))
+#define Ofs_XFS		(offsetof(SynCPU,fs_cache))
+#define Ofs_XGS		(offsetof(SynCPU,gs_cache))
 
-#define Ofs_stub_wri_8	(unsigned char)(offsetof(SynCPU,stub_wri_8)-SCBASE)
-#define Ofs_stub_wri_16	(unsigned char)(offsetof(SynCPU,stub_wri_16)-SCBASE)
-#define Ofs_stub_wri_32	(unsigned char)(offsetof(SynCPU,stub_wri_32)-SCBASE)
-#define Ofs_stub_stk_16	(unsigned char)(offsetof(SynCPU,stub_stk_16)-SCBASE)
-#define Ofs_stub_stk_32	(unsigned char)(offsetof(SynCPU,stub_stk_32)-SCBASE)
-#define Ofs_stub_read_8	(unsigned char)(offsetof(SynCPU,stub_read_8)-SCBASE)
-#define Ofs_stub_read_16	(unsigned char)(offsetof(SynCPU,stub_read_16)-SCBASE)
-#define Ofs_stub_read_32	(unsigned char)(offsetof(SynCPU,stub_read_32)-SCBASE)
-#define Ofs_ERR		(unsigned int)(offsetof(SynCPU,err2)-SCBASE)
-#define Ofs_int_revectored	(unsigned int)(offsetof(SynCPU,int_revectored)-SCBASE)
+#define Ofs_ERR		(offsetof(SynCPU,err2))
+#define Ofs_int_revectored	(offsetof(SynCPU,int_revectored))
 
 #define rAX		CPUWORD(Ofs_AX)
 #define Ofs_AX		(Ofs_EAX)
