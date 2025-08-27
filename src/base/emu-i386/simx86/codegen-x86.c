@@ -420,15 +420,12 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 
 	case L_DI_R1:
 		if (mode&(MBYTE|MBYTX)) {
-		    G3(0x2f048a,Cp); G1(0x90,Cp);
-		}
-		else if (mode&DATA16) {
-		    G1(0x66,Cp); G3(0x2f048b,Cp);
+		    G3(0x2f048a,Cp);
 		}
 		else {
-		    G3(0x2f048b,Cp); G1(0x90,Cp);
+		    Gen66(mode,Cp);
+		    G3(0x2f048b,Cp);
 		}
-		G2(0x9090,Cp);
 		break;
 	case S_DI:
 		if (mode&MBYTE) {

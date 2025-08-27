@@ -310,8 +310,8 @@ dosaddr_t AddrGen_sim(const IGen *IG)
 	case A_DI_0:			// base(32), imm
 	case A_DI_1: {			// base(32), {imm}, reg, {shift}
 			long idsp=0;
-			signed char ofs;
-			ofs = (signed char)IG->p0;
+			unsigned int ofs;
+			ofs = IG->p0;
 			if (mode & MLEA) {		// discard base	reg
 				mem_ref = 0;	// ofs = Ofs_RZERO;
 			}
@@ -324,12 +324,12 @@ dosaddr_t AddrGen_sim(const IGen *IG)
 				check_v86_address_overflow(mode, offset);
 			}
 			else if (mode & ADDR16) {
-				signed char o = (signed char)IG->p2;
+				unsigned int o = IG->p2;
 				GTRACE3("A_DI_1",o,ofs,idsp);
 				offset = (CPUWORD(o) + idsp) & 0xffff;
 			}
 			else {
-				signed char o = (signed char)IG->p2;
+				unsigned int o = IG->p2;
 				GTRACE3("A_DI_1",o,ofs,idsp);
 				offset = CPULONG(o) + idsp;
 				check_v86_address_overflow(mode, offset);
@@ -339,8 +339,8 @@ dosaddr_t AddrGen_sim(const IGen *IG)
 		break;
 	case A_DI_2: {			// base(32), {imm}, reg, reg, {shift}
 			long idsp=0;
-			signed char ofs;
-			ofs = (signed char)IG->p0;
+			unsigned int ofs;
+			ofs = IG->p0;
 			if (mode & MLEA) {		// discard base	reg
 				mem_ref = 0;	// ofs = Ofs_RZERO;
 			}
@@ -348,15 +348,15 @@ dosaddr_t AddrGen_sim(const IGen *IG)
 
 			idsp = IG->p1;
 			if (mode & ADDR16) {
-				signed char o1 = (signed char)IG->p2;
-				signed char o2 = (signed char)IG->p3;
+				unsigned int o1 = IG->p2;
+				unsigned int o2 = IG->p3;
 				GTRACE4("A_DI_2",o1,ofs,o2,idsp);
 				offset = CPUWORD(o1) + CPUWORD(o2) + idsp;
 				mem_ref += offset & 0xffff;
 			}
 			else {
-				signed char o1 = (signed char)IG->p2;
-				signed char o2 = (signed char)IG->p3;
+				unsigned int o1 = IG->p2;
+				unsigned int o2 = IG->p3;
 				unsigned char sh;
 				sh = (unsigned char)IG->p4;
 				GTRACE5("A_DI_2",o1,ofs,o2,idsp,sh);
@@ -371,8 +371,8 @@ dosaddr_t AddrGen_sim(const IGen *IG)
 	case A_DI_2D: {			// modrm_sibd, 32-bit mode
 			long idsp;
 			unsigned char sh;
-			signed char o;
-			signed char ofs = (signed char)IG->p0;
+			unsigned int o;
+			unsigned int ofs = IG->p0;
 			if (mode & MLEA) {
 				mem_ref = 0;
 			}
@@ -380,7 +380,7 @@ dosaddr_t AddrGen_sim(const IGen *IG)
 				mem_ref = CPULONG(ofs);
 			}
 			idsp = IG->p1;
-			o = (signed char)IG->p2;
+			o = IG->p2;
 			sh = (unsigned char)IG->p3;
 			GTRACE5("A_DI_2D",ofs,o,0xff,idsp,sh);
 			offset = (CPULONG(o) << (sh & 0x1f)) + idsp;
@@ -405,7 +405,7 @@ static unsigned int Gen_sim(const IGen *IG)
 	unsigned int P0 = (unsigned)-1;
 	switch(op) {
 	case A_SR_SH4: {	// real mode make base addr from seg
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		GTRACE1("A_SR_SH4",o);
 		SetSegReal(CPUWORD(o), o);
 		}
@@ -443,7 +443,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case L_REG: {
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		if (mode&(MBYTE|MBYTX))	{
 			GTRACE1("L_REG_BYTE",o);
 			DR1.b.bl = CPUBYTE(o);
@@ -455,7 +455,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		} }
 		break;
 	case S_REG: {
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		if (mode&MBYTE)	{
 			GTRACE1("S_REG_BYTE",o);
 			CPUBYTE(o) = DR1.b.bl;
@@ -467,8 +467,8 @@ static unsigned int Gen_sim(const IGen *IG)
 		} }
 		break;
 	case L_REG2REG: {
-		signed char o1 = (signed char)IG->p0;
-		signed char o2 = (signed char)IG->p1;
+		unsigned int o1 = IG->p0;
+		unsigned int o2 = IG->p1;
 		GTRACE2("REGtoREG",o1,o2);
 		if ((mode) & MBYTE) {
 			CPUBYTE(o2) = CPUBYTE(o1);
@@ -479,7 +479,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		} }
 		break;
 	case S_DI_R: {
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		GTRACE1("S_DI_R",o);
 		if (mode & DATA16)
 			CPUWORD(o) = AR1.w.l;
@@ -501,7 +501,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case L_IMM: {
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		int v = IG->p1;
 		GTRACE3("L_IMM",o,0xff,v);
 		if (mode & MBYTE) {
@@ -528,9 +528,9 @@ static unsigned int Gen_sim(const IGen *IG)
 		} }
 		break;
 	case L_MOVZS: {
-		signed char o;
+		unsigned int o;
 		int rcod = IG->p0;	// 0=z 1=s
-		o = (signed char)IG->p1;
+		o = IG->p1;
 		GTRACE3("L_MOVZS",o,0xff,rcod);
 		if (mode & MBYTX) {
 		    if (rcod)
@@ -555,7 +555,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case L_LXS1: {
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		GTRACE1("L_LXS1",o);
 		if (mode&DATA16) {
 		    CPUWORD(o) = DR1.w.l = sim_read_word(AR1.d);
@@ -567,7 +567,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		} }
 		break;
 	case L_LXS2: {	/* real mode segment base from segment value */
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		GTRACE1("L_LXS2",o);
 		DR1.d = sim_read_word(AR1.d);
 		SetSegReal(DR1.w.l, o);
@@ -816,7 +816,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_CLEAR: {		// == XOR r,r
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		GTRACE1("O_CLEAR",o);
 		if (mode & MBYTE) {
 		    CPUBYTE(o) = 0;
@@ -832,7 +832,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_TEST: {		// == OR r,r
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		GTRACE1("O_TEST",o);
 		if (mode & MBYTE) {
 		    RFL.res = (int8_t)CPUBYTE(o);
@@ -847,7 +847,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_SBSELF: {
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		GTRACE1("O_SBBSELF",o);
 		// if CY=0 -> reg=0,  flag=xx46, OF=0
 		// if CY=1 -> reg=-1, flag=xx97, OF=0
@@ -871,7 +871,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_INC_R: {		// OSZAP
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		GTRACE1("O_INC_R",o);
 		if (mode & MBYTE) {
 		    S1 = CPUBYTE(o);
@@ -891,7 +891,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_DEC_R: {		// OSZAP
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		GTRACE1("O_DEC_R",o);
 		if (mode & MBYTE) {
 		    S1 = CPUBYTE(o);
@@ -912,7 +912,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_ADD_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
 		if (mode & IMMED) {GTRACE3("O_ADD_FR",0xff,0xff,v.d);}
@@ -943,7 +943,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_OR_FR: {		// O=0 SZP C=0
 		register wkreg v;
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
 		if (mode & IMMED) {GTRACE3("O_OR_FR",0xff,0xff,v.d);}
@@ -963,7 +963,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_ADC_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		int cy;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
@@ -996,7 +996,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_SBB_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		int cy;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
@@ -1030,7 +1030,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_AND_FR: {		// O=0 SZP C=0
 		register wkreg v;
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
 		if (mode & IMMED) {GTRACE3("O_AND_FR",0xff,0xff,v.d);}
@@ -1050,7 +1050,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_SUB_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
 		if (mode & IMMED) {GTRACE3("O_SUB_FR",0xff,0xff,v.d);}
@@ -1081,7 +1081,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_XOR_FR: {		// O=0 SZP C=0
 		register wkreg v;
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
 		if (mode & IMMED) {GTRACE3("O_XOR_FR",0xff,0xff,v.d);}
@@ -1101,7 +1101,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_CMP_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		v.d = 0;
 		if (mode & IMMED) v.d = IG->p1;
 		if (mode & IMMED) {GTRACE3("O_CMP_FR",0xff,0xff,v.d);}
@@ -1190,7 +1190,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_CMPXCHG: {		// OSZAPC
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		GTRACE1("O_CMPXCHG",o);
 		if (mode & MBYTE) {
 		    S1 = CPUBYTE(Ofs_AL);
@@ -1222,7 +1222,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_XCHG: {
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		GTRACE1("O_XCHG",o);
 		if (mode & MBYTE) {
 			DR2.b.bl = DR1.b.bl;
@@ -1241,8 +1241,8 @@ static unsigned int Gen_sim(const IGen *IG)
 		} }
 		break;
 	case O_XCHG_R: {
-		signed char o1 = (signed char)IG->p0;
-		signed char o2 = (signed char)IG->p1;
+		unsigned int o1 = IG->p0;
+		unsigned int o2 = IG->p1;
 		GTRACE2("O_XCHG_R",o1,o2);
 		if (mode & MBYTE) {
 			DR1.b.bl = CPUBYTE(o1);
@@ -1294,7 +1294,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		if (mode & MBYTE) {
 		    if ((mode&(IMMED|DATA16))==(IMMED|DATA16)) {
 			int b = IG->p0;
-			signed char o = (signed char)IG->p1;
+			unsigned int o = IG->p1;
 			GTRACE3("O_IMUL",o,0xff,b);
 			DR1.ds = (int)DR1.ws.l * b;
 			CPUWORD(o) = DR1.w.l;
@@ -1303,7 +1303,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		    }
 		    else if ((mode&(IMMED|DATA16))==IMMED) {
 			int b = IG->p0;
-			signed char o = (signed char)IG->p1;
+			unsigned int o = IG->p1;
 			int64_t v;
 			GTRACE3("O_IMUL",o,0xff,b);
 			v = (int64_t)DR1.ds * b;
@@ -1323,13 +1323,13 @@ static unsigned int Gen_sim(const IGen *IG)
 		else if (mode&DATA16) {
 		    if (mode&IMMED) {
 			int b = IG->p0;
-			signed char o = (signed char)IG->p1;
+			unsigned int o = IG->p1;
 			GTRACE3("O_IMUL",o,0xff,b);
 		    	DR1.ds = (int)DR1.ws.l * b;
 		    	CPUWORD(o) = DR1.w.l;
 		    }
 		    else if (mode&MEMADR) {
-			signed char o = (signed char)IG->p0;
+			unsigned int o = IG->p0;
 			GTRACE1("O_IMUL",o);
 			DR1.ds = (int)(signed short)CPUWORD(o) * (int)DR1.ws.l;
 			CPUWORD(o) = DR1.w.l;
@@ -1348,13 +1348,13 @@ static unsigned int Gen_sim(const IGen *IG)
 		    int64_t v;
 		    if (mode&IMMED) {
 			int b = IG->p0;
-			signed char o = (signed char)IG->p1;
+			unsigned int o = IG->p1;
 			GTRACE3("O_IMUL",o,0xff,b);
 			v = (int64_t)DR1.ds * b;
 			CPULONG(o) = v & 0xffffffff;
 		    }
 		    else if (mode&MEMADR) {
-			signed char o = (signed char)IG->p0;
+			unsigned int o = IG->p0;
 			int vd = CPULONG(o);
 			GTRACE1("O_IMUL",o);
 			v = (int64_t)DR1.ds * (int64_t)vd;
@@ -1516,7 +1516,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_XLAT: {
-		signed char ofs = (signed char)IG->p0;
+		unsigned int ofs = IG->p0;
 		GTRACE1("XLAT",ofs);
 		AR1.d = CPULONG(ofs);
 		TR1.d = CPULONG(Ofs_EBX) + CPUBYTE(Ofs_AL);
@@ -1528,7 +1528,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case O_ROL: {		// O(if sh==1),C(if sh>0)
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		unsigned int sh, rbef, raft, cy;
 		GTRACE1("O_ROL",o);
 		if (mode & IMMED) sh = o;
@@ -1566,7 +1566,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_RCL: {		// O(if sh==1),C(if sh>0)
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		unsigned int sh, rbef, raft, cy;
 		GTRACE1("O_RCL",o);
 		cy = is_cf_set();
@@ -1605,7 +1605,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_SHL: {		// O(if sh==1),SZPC(if sh>0)
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		unsigned int sh, rbef, raft=0, cy=0;
 		GTRACE3("O_SHL",0xff,0xff,o);
 		if (mode & IMMED) sh = o;
@@ -1643,7 +1643,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_ROR: {		// O(if sh==1),C(if sh>0)
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		unsigned int sh, rbef, raft, cy;
 		GTRACE1("O_ROR",o);
 		if (mode & IMMED) sh = o;
@@ -1681,7 +1681,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_RCR: {		// O(if sh==1),C(if sh>0)
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		unsigned int sh, rbef, raft, cy;
 		GTRACE3("O_RCR",0xff,0xff,o);
 		cy = is_cf_set();
@@ -1722,7 +1722,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_SHR: {		// O(if sh==1),SZPC(if sh>0)
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		unsigned int sh, rbef, raft, cy=0;
 		GTRACE3("O_SHR",0xff,0xff,o);
 		if (mode & IMMED) sh = o;
@@ -1751,7 +1751,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_SAR: {		// O(if sh==1),SZPC(if sh>0)
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		unsigned int sh, cy=0;
 		signed int rbef, raft=0;
 		GTRACE3("O_SHR",0xff,0xff,o);
@@ -1903,7 +1903,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case O_PUSH2: {
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_PUSH2",o);
 		if (mode & DATA16) {
@@ -2019,7 +2019,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case O_POP2: {
-		signed char o = (signed char)IG->p0;
+		unsigned int o = IG->p0;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_POP2",o);
 		if (mode & DATA16) {
@@ -2092,7 +2092,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case O_MOVS_SetA: {
-		signed char ofs = (signed char)IG->p0;
+		unsigned int ofs = IG->p0;
 		GTRACE1("O_MOVS_SetA",ofs);
 		if (mode&ADDR16) {
 		    if (mode&MOVSSRC) {
@@ -2404,7 +2404,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case O_MOVS_SavA: {
-		signed char ofs = (signed char)IG->p0;
+		unsigned int ofs = IG->p0;
 		GTRACE1("O_MOVS_SavA",ofs);
 		if (!(mode&(MREP|MREPNE))) {
 		    // %%edx set to DF's increment
@@ -2534,7 +2534,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_BITOP: {
 		unsigned char o1 = (unsigned char)IG->p0;
-		signed char o2 = (signed char)IG->p1;
+		unsigned int o2 = IG->p1;
 		GTRACE3("O_BITOP",o2,0xff,o1);
 		if (o1 == 0x1c || o1 == 0x1d) { /* bsf/bsr */
 			if (mode & DATA16) DR1.d = DR1.w.l;
@@ -2580,7 +2580,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		} break;
 	case O_SHFD: {
 		unsigned char l_r = (unsigned char)IG->p0&8;
-		signed char o = (signed char)IG->p1;
+		unsigned int o = IG->p1;
 		unsigned char shc;
 		int cy;
 		if (mode & IMMED) {
