@@ -180,9 +180,6 @@ static int getgatewayandiface(in_addr_t *addr, char *interface)
     char buf[1024];
     FILE *file;
 
-    memset(iface, 0, sizeof(iface));
-    memset(buf, 0, sizeof(buf));
-
     file = fopen("/proc/net/route", "r");
     if (!file)
         return -1;
@@ -199,9 +196,32 @@ static int getgatewayandiface(in_addr_t *addr, char *interface)
     }
 
     /* default route not found */
-    if (file)
-        fclose(file);
+    fclose(file);
     return -1;
+}
+
+static in_addr_t get_dns(void)
+{
+    char buf[1024];
+    char dns[INET_ADDRSTRLEN];
+    FILE *file;
+
+    file = fopen("/etc/resolv.conf", "r");
+    if (!file) {
+        error("TCP: unable to open /etc/resolv.conf\n");
+        return -1;
+    }
+
+    while (fgets(buf, sizeof(buf), file)) {
+        if (sscanf(buf, "nameserver %s", dns) == 1) {
+            fclose(file);
+            return inet_addr(dns);
+        }
+    }
+
+    fclose(file);
+    error("TCP: nameserver not found\n");
+    return inet_addr(DEFAULT_DNS);
 }
 
 void tcp_helper(struct vm86_regs *regs)
@@ -336,7 +356,7 @@ static int get_driver_info(struct driver_info_rec *di_out)
         di.myip = sin->sin_addr.s_addr;
         di.netmask = sinm->sin_addr.s_addr;
         di.gateway = gw;
-        di.dnsserver = inet_addr(DEFAULT_DNS);
+        di.dnsserver = get_dns();
         di.timeserver = get_ntp(DEFAULT_NTP);
         di.mtu = 1500;
         di.def_ttl = 64;
