@@ -71,8 +71,6 @@ static TNode *LastXNode = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
 
-#define	Offs_From_Arg()		(signed char)(va_arg(ap,int))
-
 /*
  * This function is only here for looking at the generated binary code
  * with objdump.
@@ -145,47 +143,35 @@ void AddrGen(int op, int mode, ...)
 	switch(op) {
 	case A_DI_0:			// base(32), imm
 	case A_DI_1: {			// base(32), {imm}, reg, {shift}
-		signed char ofs = (char)va_arg(ap,int);
-		signed char o;
-		IG->p0 = ofs;
-		IG->p1 = va_arg(ap,int);
+		IG->p0 = va_arg(ap,unsigned int);
+		IG->p1 = va_arg(ap,unsigned int);
 		if (op==A_DI_0)	break;
-		o = Offs_From_Arg();
-		IG->p2 = o;
+		IG->p2 = va_arg(ap,unsigned int);
 		}
 		break;
 	case A_DI_2: {			// base(32), {imm}, reg, reg, {shift}
-		signed char o1,o2;
-		signed char ofs = (char)va_arg(ap,int);
 		unsigned char sh;
-		IG->p0 = ofs;
-		IG->p1 = va_arg(ap,int);
-		o1 = Offs_From_Arg();
-		o2 = Offs_From_Arg();
-		IG->p2 = o1;
-		IG->p3 = o2;
-		sh = (unsigned char)(va_arg(ap,int));
+		IG->p0 = va_arg(ap,unsigned int);
+		IG->p1 = va_arg(ap,unsigned int);
+		IG->p2 = va_arg(ap,unsigned int);
+		IG->p3 = va_arg(ap,unsigned int);
+		sh = (unsigned char)(va_arg(ap,unsigned int));
 		IG->p4 = sh;
 		}
 		break;
 	case A_DI_2D: {			// modrm_sibd, 32-bit mode
-		signed char o;
-		signed char ofs = (char)va_arg(ap,int);
 		unsigned char sh;
-		IG->p0 = ofs;
-		IG->p1 = va_arg(ap,int);
-		o = Offs_From_Arg();
-		IG->p2 = o;
-		sh = (unsigned char)(va_arg(ap,int));
+		IG->p0 = va_arg(ap,unsigned int);
+		IG->p1 = va_arg(ap,unsigned int);
+		IG->p2 = va_arg(ap,unsigned int);
+		sh = (unsigned char)(va_arg(ap,unsigned int));
 		IG->p3 = sh;
 		}
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
-		signed char o1 = Offs_From_Arg();
-		signed char o2 = Offs_From_Arg();
-		IG->p0 = o1;
-		IG->p1 = o2;
-		if (o1 == Ofs_SS)
+		IG->p0 = va_arg(ap,unsigned int);
+		IG->p1 = va_arg(ap,unsigned int);
+		if (IG->p0 == Ofs_SS)
 			I->flags |= F_INHI;
 		}
 		break;
@@ -262,22 +248,7 @@ void Gen(int op, int mode, ...)
 	case O_XLAT:
 	case O_MOVS_SetA:
 	case O_MOVS_SavA:
-	case O_CMPXCHG: {
-		signed char o = Offs_From_Arg();
-		IG->p0 = o;
-		}
-		break;
-
-	case L_REG2REG:
-	case L_LXS2:	/* real mode segment base from segment value */
-	case O_XCHG_R: {
-		signed char o1 = Offs_From_Arg();
-		signed char o2 = Offs_From_Arg();
-		IG->p0 = o1;
-		IG->p1 = o2;
-		}
-		break;
-
+	case O_CMPXCHG:
 	case S_DI_IMM:
 	case L_IMM_R1:
 	case O_ADD_R:				// acc = acc op	reg
@@ -293,10 +264,19 @@ void Gen(int op, int mode, ...)
 	case O_DIV:
 	case O_IDIV:
 	case O_PUSHI:
-	case JMP_TAILCODE: {
-		int v = va_arg(ap,int);
-		IG->p0 = v;
-		}
+	case O_PUSH2:
+	case O_POP2:
+	case JMP_TAILCODE:
+		IG->p0 = va_arg(ap,unsigned int);
+		break;
+
+	case L_REG2REG:
+	case L_LXS2:	/* real mode segment base from segment value */
+	case O_XCHG_R:
+	case L_IMM:
+	case L_MOVZS:
+		IG->p0 = va_arg(ap,unsigned int);
+		IG->p1 = va_arg(ap,unsigned int);
 		break;
 
 	case O_ADD_FR:				// reg = reg op	acc/imm
@@ -306,43 +286,20 @@ void Gen(int op, int mode, ...)
 	case O_AND_FR:
 	case O_SUB_FR:
 	case O_XOR_FR:
-	case O_CMP_FR: {
-		signed char o = Offs_From_Arg();
-		IG->p0 = o;
-		if (mode & IMMED) {
-			int v = va_arg(ap,int);
-			IG->p1 = v;
-		} }
-		break;
-
-	case L_IMM: {
-		signed char o = Offs_From_Arg();
-		int v = va_arg(ap,int);
-		IG->p0 = o;
-		IG->p1 = v;
-		}
-		break;
-
-	case L_MOVZS: {
-		signed char o;
-		rcod = va_arg(ap,int);	// 0=z 1=s
-		o = Offs_From_Arg();
-		IG->p0 = rcod;
-		IG->p1 = o;
-		}
+	case O_CMP_FR:
+		IG->p0 = va_arg(ap,unsigned int);
+		if (mode & IMMED)
+			IG->p1 = va_arg(ap,unsigned int);
 		break;
 
 	case O_IMUL:
 		if (mode&IMMED) {
-			int v = va_arg(ap,int);
-			signed char o = Offs_From_Arg();
-			IG->p0 = v;
-			IG->p1 = o;
+			IG->p0 = va_arg(ap,unsigned int);
+			IG->p1 = va_arg(ap,unsigned int);
 		}
 		if (!(mode&MBYTE)) {
 			if (mode&MEMADR) {
-				signed char o = Offs_From_Arg();
-				IG->p0 = o;
+				IG->p0 = va_arg(ap,unsigned int);
 			}
 		}
 		break;
@@ -355,39 +312,33 @@ void Gen(int op, int mode, ...)
 	case O_SHR:
 	case O_SAR:
 		if (mode & IMMED) {
-			unsigned char sh = (unsigned char)va_arg(ap,int);
+			unsigned char sh = (unsigned char)va_arg(ap,unsigned int);
 			IG->p0 = sh;
 		}
 		break;
 
 	case O_OPAX: {	/* used by DAA..AAD */
-			int n =	va_arg(ap,int);
+			int n =	va_arg(ap,unsigned int);
 			IG->p0 = n;
 			// get n>0,n<3 bytes from parameter stack
-			IG->p1 = va_arg(ap,int);
-			if (n==2) IG->p2 = va_arg(ap,int);
+			IG->p1 = va_arg(ap,unsigned int);
+			if (n==2) IG->p2 = va_arg(ap,unsigned int);
 		}
 		break;
 
 	case O_POP:
-		if (mode & MRETISP) IG->p0 = va_arg(ap,int);
+		if (mode & MRETISP) IG->p0 = va_arg(ap,unsigned int);
 		break;
 
-	case O_PUSH2:
-	case O_POP2: {
-		signed char o = Offs_From_Arg();
-		IG->p0 = o;
-		}
-		break;
 
 	case O_SLAHF:
-		rcod = va_arg(ap,int)&1;	// 0=LAHF 1=SAHF
+		rcod = va_arg(ap,unsigned int)&1;	// 0=LAHF 1=SAHF
 		IG->p0 = rcod;
 		break;
 
 	case O_SETFL:
 	case O_SETCC: {
-		unsigned char n = (unsigned char)va_arg(ap,int);
+		unsigned char n = (unsigned char)va_arg(ap,unsigned int);
 		IG->p0 = n;
 		}
 		break;
@@ -396,28 +347,23 @@ void Gen(int op, int mode, ...)
 		I->flags |= F_FPOP;
 		// fall through
 	case O_INT: {
-		unsigned char exop = (unsigned char)va_arg(ap,int);
+		unsigned char exop = (unsigned char)va_arg(ap,unsigned int);
 		IG->p0 = exop;
-		IG->p1 = va_arg(ap,int);	// reg
+		IG->p1 = va_arg(ap,unsigned int);	// reg
 		}
 		break;
 
-	case O_BITOP: {
-		unsigned char n = (unsigned char)va_arg(ap,int);
-		signed char o = Offs_From_Arg();
-		IG->p0 = n;
-		IG->p1 = o;
-		} break;
+	case O_BITOP:
+		IG->p0 = (unsigned char)va_arg(ap,unsigned int);
+		IG->p1 = va_arg(ap,unsigned int);
+		break;
 
-	case O_SHFD: {
-		unsigned char l_r = (unsigned char)va_arg(ap,int)&8;
-		signed char o = Offs_From_Arg();
-		IG->p0 = l_r;
-		IG->p1 = o;
+	case O_SHFD:
+		IG->p0 = (unsigned char)va_arg(ap,unsigned int)&8;
+		IG->p1 = va_arg(ap,unsigned int);
 		if (mode & IMMED) {
-			unsigned char shc = (unsigned char)va_arg(ap,int)&0x1f;
+			unsigned char shc = (unsigned char)va_arg(ap,unsigned int)&0x1f;
 			IG->p2 = shc;
-		}
 		} break;
 
 	case JMP_INDIRECT:
@@ -425,20 +371,20 @@ void Gen(int op, int mode, ...)
 
 	case JMP_LINK:		// opc, dspt, retaddr, link
 	case JLOOP_LINK: {
-		unsigned char opc = (unsigned char)va_arg(ap,int);
+		unsigned char opc = (unsigned char)va_arg(ap,unsigned int);
 		IG->p0 = opc;
-		IG->p1 = va_arg(ap,int);	// dspt
-		IG->p2 = va_arg(ap,int);	// dspnt
+		IG->p1 = va_arg(ap,unsigned int);	// dspt
+		IG->p2 = va_arg(ap,unsigned int);	// dspnt
 		}
 		break;
 
 	case JF_LINK:
 	case JB_LINK: {		// opc, PC, dspt, dspnt, link
-		unsigned char opc = (unsigned char)va_arg(ap,int);
+		unsigned char opc = (unsigned char)va_arg(ap,unsigned int);
 		IG->p0 = opc;
-		IG->p1 = va_arg(ap,int);	// jpc
-		IG->p2 = va_arg(ap,int);	// dspt
-		IG->p3 = va_arg(ap,int);	// dspnt
+		IG->p1 = va_arg(ap,unsigned int);	// jpc
+		IG->p2 = va_arg(ap,unsigned int);	// dspt
+		IG->p3 = va_arg(ap,unsigned int);	// dspnt
 		}
 		break;
 
