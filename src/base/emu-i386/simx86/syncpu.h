@@ -52,18 +52,24 @@ typedef struct {
 /* offsets are 8-bit signed */
 #define FIELD0		unprotect_stub	/* field of SynCPU at offset 00 */
 /* ------------------------------------------------ */
-/*80*/	unsigned long long reserve[11];
+/*80*/	unsigned long long reserve[8];
 /* ------------------------------------------------ */
+/*c0*/  void (*stub_read_8)(void);
+/*c4*/  PADDING32BIT(0)
+/*c8*/  void (*stub_read_16)(void);
+/*cc*/  PADDING32BIT(1)
+/*d0*/  void (*stub_read_32)(void);
+/*d4*/  PADDING32BIT(2)
 /*d8*/  void (*stub_stk_16)(void);
-/*dc*/  PADDING32BIT(2)
+/*dc*/  PADDING32BIT(3)
 /*e0*/  void (*stub_stk_32)(void);
-/*e4*/  PADDING32BIT(3)
+/*e4*/  PADDING32BIT(4)
 /*e8*/  void (*stub_wri_8)(void);
-/*ec*/  PADDING32BIT(4)
+/*ec*/  PADDING32BIT(5)
 /*f0*/  void (*stub_wri_16)(void);
-/*f4*/  PADDING32BIT(5)
+/*f4*/  PADDING32BIT(6)
 /*f8*/  void (*stub_wri_32)(void);
-/*fc*/  PADDING32BIT(6)
+/*fc*/  PADDING32BIT(7)
 /* ------------------------------------------------ */
 /*00*/  void (*unprotect_stub)(void); /* must be at 0 for call (%ebx) */
 /*04*/  PADDING32BIT(7)
@@ -143,10 +149,6 @@ typedef struct {
 	unsigned short TR_SEL;
 	DTR  TR;
 
-	void (*stub_read_8)(void);
-	void (*stub_read_16)(void);
-	void (*stub_read_32)(void);
-
 	/* should be moved to TSS once implemented */
 	struct revectored_struct int_revectored;
 
@@ -223,9 +225,9 @@ extern union _SynCPU TheCPU_union;
 #define Ofs_stub_wri_32	(unsigned char)(offsetof(SynCPU,stub_wri_32)-SCBASE)
 #define Ofs_stub_stk_16	(unsigned char)(offsetof(SynCPU,stub_stk_16)-SCBASE)
 #define Ofs_stub_stk_32	(unsigned char)(offsetof(SynCPU,stub_stk_32)-SCBASE)
-#define Ofs_stub_read_8	(unsigned int)(offsetof(SynCPU,stub_read_8)-SCBASE)
-#define Ofs_stub_read_16	(unsigned int)(offsetof(SynCPU,stub_read_16)-SCBASE)
-#define Ofs_stub_read_32	(unsigned int)(offsetof(SynCPU,stub_read_32)-SCBASE)
+#define Ofs_stub_read_8	(unsigned char)(offsetof(SynCPU,stub_read_8)-SCBASE)
+#define Ofs_stub_read_16	(unsigned char)(offsetof(SynCPU,stub_read_16)-SCBASE)
+#define Ofs_stub_read_32	(unsigned char)(offsetof(SynCPU,stub_read_32)-SCBASE)
 #define Ofs_ERR		(unsigned int)(offsetof(SynCPU,err2)-SCBASE)
 #define Ofs_int_revectored	(unsigned int)(offsetof(SynCPU,int_revectored)-SCBASE)
 

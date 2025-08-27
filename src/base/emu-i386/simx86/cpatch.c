@@ -556,7 +556,6 @@ asm (
 
 /* call N(%ebx) */
 #define JSRPATCH(p,N) *((short *)(p))=0x53ff;p[2]=N;
-#define JSRPATCHL(p,N) *((short *)(p))=0x93ff; *((int *)((p)+2))=N;
 
 /*
  * enters here only from a fault
@@ -639,18 +638,18 @@ int Cpatch(sigcontext_t *scp)
     if (v==0x2f048a) {		// movb (%%edi,%%ebp,1),%%al
 	// we have a sequence:	8a 04 2f 90 90 90
 	if (debug_level('e')>1) e_printf("### Byte read patch at %p\n",eip);
-	JSRPATCHL(p,Ofs_stub_read_8);
+	JSRPATCH(p,Ofs_stub_read_8);
 	return 1;
     }
     if (v==0x2f048b) {		// mov (%%edi,%%ebp,1),%%{e}ax
-	// we have a sequence:	8b 04 2f 90 90 90
-	//		or	66 8b 04 2f 90 90
+	// we have a sequence:	8b 04 2f
+	//		or	66 8b 04 2f
 	if (debug_level('e')>1) e_printf("### Word/Long read patch at %p\n",eip);
 	if (w16) {
-	    p--; JSRPATCHL(p,Ofs_stub_read_16);
+	    p[-1] = 0x90; JSRPATCH(p,Ofs_stub_read_16);
 	}
 	else {
-	    JSRPATCHL(p,Ofs_stub_read_32);
+	    JSRPATCH(p,Ofs_stub_read_32);
 	}
 	return 1;
     }
