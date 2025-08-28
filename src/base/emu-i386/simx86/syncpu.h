@@ -131,6 +131,9 @@ typedef struct {
 	emu_fpregset_t fpstate;
 } SynCPU;
 
+/* JIT uses byte offsets, make sure cr[0] is still ok */
+static_assert(offsetof(SynCPU,cr[1]) == 128);
+
 struct _SynCPU {
 #ifdef X86_JIT
 #define STUBS_LEN_MAX 16
@@ -147,8 +150,6 @@ struct _SynCPU {
 
 extern struct _SynCPU TheCPU_struct;
 #define TheCPU TheCPU_struct.s
-
-#define Ofs_END		(offsetof(SynCPU,cr[1]))
 
 #define CPUOFFS(o)	(((unsigned char *)&(TheCPU.FIELD0))+o)
 

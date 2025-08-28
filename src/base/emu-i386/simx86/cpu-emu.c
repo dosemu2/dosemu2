@@ -763,10 +763,6 @@ void reset_emu_cpu(void)
 
 void init_emu_cpu(int cpu_type)
 {
-  if (Ofs_END > 128) {
-    error("CPUEMU: Ofs_END is too large, %zx\n", Ofs_END);
-    config.exitearly = 1;
-  }
   init_emu_npu();
 
   switch (cpu_type) {
