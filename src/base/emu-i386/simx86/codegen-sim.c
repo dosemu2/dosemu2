@@ -83,7 +83,6 @@ static unsigned char *currentIG = NULL;
 
 /* working registers of the host CPU */
 static wkreg DR1;	// "eax"
-static wkreg DR2;	// "edx"
 static wkreg AR1;	// "edi"
 static wkreg AR2;	// "esi"
 static wkreg SR1;	// "ebp"
@@ -1223,6 +1222,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_XCHG: {
 		unsigned int o = IG->p0;
+		wkreg DR2;
 		GTRACE1("O_XCHG",o);
 		if (mode & MBYTE) {
 			DR2.b.bl = DR1.b.bl;
@@ -2097,13 +2097,11 @@ static unsigned int Gen_sim(const IGen *IG)
 		if (mode&ADDR16) {
 		    if (mode&MOVSSRC) {
 			AR2.d = CPULONG(ofs);
-			DR2.d = CPUWORD(Ofs_SI); /* for overflow calc */
-			AR2.d += DR2.d;
+			AR2.d += CPUWORD(Ofs_SI);
 		    }
 		    if (mode&MOVSDST) {
 	    		AR1.d = CPULONG(Ofs_XES);
-			SR1.d = CPUWORD(Ofs_DI); /* for overflow calc */
-			AR1.d += SR1.d;
+			AR1.d += CPUWORD(Ofs_DI);
 
 		    }
 		    TR1.d = (mode&(MREP|MREPNE)? CPUWORD(Ofs_CX) : 1);
@@ -2123,7 +2121,11 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 
-	case O_MOVS_MovD: do {
+	case O_MOVS_MovD: {
+		wkreg SR1, DR2;
+		DR2.d = CPUWORD(Ofs_SI); /* for overflow calc */
+		SR1.d = CPUWORD(Ofs_DI); /* for overflow calc */
+		do {
 		unsigned int minofs, bytesbefore, rest = 0;
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		dosaddr_t src, dest;
@@ -2227,6 +2229,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		    }
 		}
 		} while (1);
+		}
 		break;
 	case O_MOVS_LodD: {
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
@@ -2252,7 +2255,11 @@ static unsigned int Gen_sim(const IGen *IG)
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
-	case O_MOVS_StoD: do {
+	case O_MOVS_StoD: {
+		wkreg SR1;
+		SR1.d = CPUWORD(Ofs_DI); /* for overflow calc */
+
+		do {
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		dosaddr_t addr;
 		unsigned int i, rest = 0;
@@ -2301,6 +2308,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		SR1.d = (df == -1 ? 0xffff : 0);
 		AR1.d -= 0x10000*df;
 		} while (1);
+		}
 		break;
 	case O_MOVS_ScaD: {	// OSZAPC
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
@@ -2401,6 +2409,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		unsigned int ofs = IG->p0;
 		GTRACE1("O_MOVS_SavA",ofs);
 		if (!(mode&(MREP|MREPNE))) {
+		    wkreg DR2;
 		    // %%edx set to DF's increment
 		    DR2.d = (signed char)CPUBYTE(Ofs_DF_INCREMENTS+OPSIZEBIT(mode));
 		    if(mode & MOVSSRC) {
@@ -2527,6 +2536,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_BITOP: {
+		wkreg DR2;
 		unsigned char o1 = (unsigned char)IG->p0;
 		unsigned int o2 = IG->p1;
 		GTRACE3("O_BITOP",o2,0xff,o1);
@@ -2646,7 +2656,8 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 
-	case O_INPDX:
+	case O_INPDX: {
+		wkreg DR2;
 		GTRACE0("O_INPDX");
 		DR2.d = CPULONG(Ofs_EDX);
 		if (mode&MBYTE) {
@@ -2660,9 +2671,10 @@ static unsigned int Gen_sim(const IGen *IG)
 		else {
 			DR1.d = port_ind(DR2.w.l);
 			CPULONG(Ofs_EAX) = DR1.d;
-		}
+		} }
 		break;
-	case O_OUTPDX:
+	case O_OUTPDX: {
+		wkreg DR2;
 		GTRACE0("O_OUTPDX");
 		DR2.d = CPULONG(Ofs_EDX);
 		if (mode&MBYTE) {
@@ -2676,7 +2688,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		else {
 			DR1.d = CPULONG(Ofs_EAX);
 			port_outd(DR2.w.l,DR1.d);
-		}
+		} }
 		break;
 
 	case JMP_TAILCODE: {	// retaddr
@@ -2770,8 +2782,8 @@ static unsigned int Gen_sim(const IGen *IG)
 #else
 	if (debug_level('e')>6) {
 #endif
-	    dbug_printf("(R) DR1=%08x DR2=%08x AR1=%08x AR2=%08x\n",
-		DR1.d,DR2.d,AR1.d,AR2.d);
+	    dbug_printf("(R) DR1=%08x AR1=%08x AR2=%08x\n",
+		DR1.d,AR1.d,AR2.d);
 	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
 		SR1.d,TR1.d);
 	    dbug_printf("(R) RFL cout=%08x RES=%08x\n",
@@ -2826,8 +2838,8 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 	if (debug_level('e')>3)
 #endif
 	{
-	    dbug_printf("(R) DR1=%08x DR2=%08x AR1=%08x AR2=%08x\n",
-		DR1.d,DR2.d,AR1.d,AR2.d);
+	    dbug_printf("(R) DR1=%08x AR1=%08x AR2=%08x\n",
+		DR1.d,AR1.d,AR2.d);
 	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
 		SR1.d,TR1.d);
 	    dbug_printf("(R) RFL cout=%08x RES=%08x\n\n",
