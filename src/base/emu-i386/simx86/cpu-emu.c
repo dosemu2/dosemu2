@@ -805,7 +805,7 @@ void init_emu_cpu(int cpu_type)
 	TheCPU.LDTR.Limit = 0xffff;
   }
 #ifdef X86_JIT
-  TheCPU.unprotect_stub = stub_rep;
+  TheCPU_struct.stub_func[STUB_REP] = stub_rep;
   TheCPU_struct.stub_func[STUB_WRI_8] = stub_wri_8;
   TheCPU_struct.stub_func[STUB_WRI_16] = stub_wri_16;
   TheCPU_struct.stub_func[STUB_WRI_32] = stub_wri_32;

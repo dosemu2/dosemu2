@@ -42,14 +42,9 @@
 #include <limits.h>
 #include <stddef.h>
 
-#if ULONG_MAX > 0xffffffffUL
-#define PADDING32BIT(n)
-#else
-#define PADDING32BIT(n) unsigned int padding##n;
-#endif
-
 #ifdef X86_JIT
 enum {
+	STUB_REP,
 	STUB_STK_16,
 	STUB_STK_32,
 	STUB_WRI_8,
@@ -65,10 +60,9 @@ typedef void (*stub_func_t)(void);
 
 typedef struct {
 /* offsets up to end_mark are 8-bit */
-#define FIELD0		unprotect_stub	/* field of SynCPU at offset 00 */
-/*00*/  void (*unprotect_stub)(void); /* must be at 0 for call (%ebx) */
-/*04*/  PADDING32BIT(7)
-/*08*/	unsigned int rzero;
+#define FIELD0		rzero	/* field of SynCPU at offset 00 */
+/*00*/	unsigned int rzero;
+/*08*/	unsigned int reserved[2];
 /*0c*/	unsigned int edi;
 /*10*/	unsigned int esi;
 /*14*/	unsigned int ebp;

@@ -1793,32 +1793,47 @@ shrot0:
 
 	case O_MOVS_MovD:
 		GetDF(Cp);
-		G3M(NOP,NOP,REP,Cp);
-		if (mode&MBYTE)	{ G1(MOVSb,Cp); }
-		else {
-			Gen66(mode,Cp);
-			G1(MOVSw,Cp);
+		G1(REP,Cp);
+		if (mode&MBYTE)	{
+			G2M(MOVSb,NOP,Cp);
 		}
+		else if (mode&DATA16) {
+			G2M(OPERoverride,MOVSw,Cp);
+		}
+		else {
+			G2M(MOVSw,NOP,Cp);
+		}
+		G2M(NOP,NOP,Cp);
 		G1(CLD,Cp);
 		break;
 	case O_MOVS_LodD:
 		GetDF(Cp);
-		G3M(NOP,NOP,REP,Cp);
-		if (mode&MBYTE)	{ G1(LODSb,Cp); }
-		else {
-			Gen66(mode,Cp);
-			G1(LODSw,Cp);
+		G1(REP,Cp);
+		if (mode&MBYTE)	{
+			G2M(LODSb,NOP,Cp);
 		}
+		else if (mode&DATA16) {
+			G2M(OPERoverride,LODSw,Cp);
+		}
+		else {
+			G2M(LODSw,NOP,Cp);
+		}
+		G2M(NOP,NOP,Cp);
 		G1(CLD,Cp);
 		break;
 	case O_MOVS_StoD:
 		GetDF(Cp);
-		G3M(NOP,NOP,REP,Cp);
-		if (mode&MBYTE)	{ G1(STOSb,Cp); }
-		else {
-			Gen66(mode,Cp);
-			G1(STOSw,Cp);
+		G1(REP,Cp);
+		if (mode&MBYTE)	{
+			G2M(STOSb,NOP,Cp);
 		}
+		else if (mode&DATA16) {
+			G2M(OPERoverride,STOSw,Cp);
+		}
+		else {
+			G2M(STOSw,NOP,Cp);
+		}
+		G2M(NOP,NOP,Cp);
 		G1(CLD,Cp);
 		break;
 	case O_MOVS_ScaD:
@@ -1827,13 +1842,17 @@ shrot0:
 		// Pointer to the jecxz distance byte
 		CpTemp = Cp-1;
 		GetDF(Cp);
-		G4M(NOP,NOP,NOP,NOP,Cp);
 		G1((mode&MREP)?REP:REPNE,Cp);
-		if (mode&MBYTE)	{ G1(SCASb,Cp); }
-		else {
-			Gen66(mode,Cp);
-			G1(SCASw,Cp);
+		if (mode&MBYTE)	{
+			G2M(SCASb,NOP,Cp);
 		}
+		else if (mode&DATA16) {
+			G2M(OPERoverride,SCASw,Cp);
+		}
+		else {
+			G2M(SCASw,NOP,Cp);
+		}
+		G2M(NOP,NOP,Cp);
 		G3M(CLD,POPsi,PUSHF,Cp); // replace flags back on stack,esi=dummy
 		*CpTemp = (Cp-(CpTemp+1));
 		break;
@@ -1870,13 +1889,17 @@ shrot0:
 		// Pointer to the jecxz distance byte
 		CpTemp = Cp-1;
 		GetDF(Cp);
-		G4M(NOP,NOP,NOP,NOP,Cp);
 		G1((mode&MREP)?REP:REPNE,Cp);
-		if (mode&MBYTE)	{ G1(CMPSb,Cp); }
-		else {
-			Gen66(mode,Cp);
-			G1(CMPSw,Cp);
+		if (mode&MBYTE)	{
+			G2M(CMPSb,NOP,Cp);
 		}
+		else if (mode&DATA16) {
+			G2M(OPERoverride,CMPSw,Cp);
+		}
+		else {
+			G2M(CMPSw,NOP,Cp);
+		}
+		G2M(NOP,NOP,Cp);
 		G3M(CLD,POPax,PUSHF,Cp); // replace flags back on stack,eax=dummy
 		*CpTemp = (Cp-(CpTemp+1));
 		break;

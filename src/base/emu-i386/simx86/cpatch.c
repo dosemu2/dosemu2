@@ -90,10 +90,8 @@ void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 struct rep_stack {
 	unsigned char *esi, *edi;
 	unsigned long ecx, eflags, edx, eax;
-#ifdef __x86_64__
-	unsigned long eax_pad;
-#endif
 	unsigned char *eip;
+	unsigned long cpatch_op;
 } __attribute__((packed));
 
 
@@ -113,6 +111,8 @@ struct rep_stack {
 		addr += df; source += df; \
 	} while (--ecx && (eflags & X86_EFLAGS_ZF)==repcond)
 
+// the rep stub gets passed an argument on the stack:
+// the original op | 0x10 for operand override, | 0x40 for REPNE
 void rep_movs_stos(struct rep_stack *stack)
 {
 	unsigned char *paddr = stack->edi;
@@ -127,17 +127,13 @@ void rep_movs_stos(struct rep_stack *stack)
 	assert(InCompiledCode);
 	InCompiledCode--;
 	addr = EMUADDR_REL(paddr);
-	if (*eip == 0xf3) /* skip rep */
-		eip++;
-	else if (*eip == JMPsid) /* skip jmp and rep */
-		eip += 3;
-	op = eip[0];
+	op = stack->cpatch_op;
 	size = 1;
-	if (*eip == 0x66) {
+	if (op & 0x10) {
 		size = 2;
-		op = eip[1];
+		op &= ~0x10;
 	}
-	else if (*eip & 1)
+	else if (op & 1)
 		size = 4;
 	len *= size;
 	m_munprotect(addr - ((EFLAGS & EFLAGS_DF) ? (len - size) : 0),
@@ -207,11 +203,11 @@ void rep_movs_stos(struct rep_stack *stack)
 		if (EFLAGS & EFLAGS_DF) addr -= len;
 		else addr += len;
 	}
-	else if ((op & 0xf6) == 0xa6 && ecx > 0) { /* cmps/scas */
+	else if ((op & 0xb6) == 0xa6 && ecx > 0) { /* cmps/scas */
 		int df = size * (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
-		unsigned long repcond = (eip[-1]==REPNE ? 0 : X86_EFLAGS_ZF);
+		unsigned long repcond = (op & 0x40) ? 0 : X86_EFLAGS_ZF;
 		unsigned long eflags;
-		if ((op & 0xfe) == 0xa6) { /* cmps */
+		if ((op & 0xbe) == 0xa6) { /* cmps */
 			dosaddr_t source = EMUADDR_REL(stack->esi);
 			if (size == 1)
 				CMPSLOOP(8,q,eflags,addr,source,df,ecx,repcond);
@@ -473,7 +469,7 @@ asm (
 "		popfl\n"		/* real CPU flags back */
 "		popl	%edx\n"
 "		popl	%eax\n"
-"1:		ret\n"
+"1:		ret	$4\n"
 );
 
 /* ======================================================================= */
@@ -517,11 +513,11 @@ asm (
 "		popq	%rdi\n"		/* restore regs */ \
 "		ret\n"
 
+// Note: 6 pushes + the argument push and call means stack stays 16-bit aligned
 asm (
 ".text\n.globl stub_rep__\n"
 "stub_rep__:	jrcxz	1f\n"		/* zero move, nothing to do */
 "		pushq	%rax\n"		/* save regs */
-"		pushq	%rax\n"		/* save rax twice for 16-alignment */
 "		pushq	%rdx\n"
 "		pushfq\n"		/* push flags for DF */
 "		pushq	%rcx\n"
@@ -536,8 +532,7 @@ asm (
 "		popfq\n"		/* real CPU flags back */
 "		popq	%rdx\n"
 "		popq	%rax\n"
-"		popq	%rax\n"
-"1:		ret\n"
+"1:		ret	$8\n"
 );
 
 #endif
@@ -556,6 +551,7 @@ asm (
 
 // using negative byte offsets
 #define Ofs_stub(x) (unsigned char)(((x) - STUBS_LEN) * sizeof(stub_func_t))
+#define Ofs_stub_rep Ofs_stub(STUB_REP)
 #define Ofs_stub_wri_8 Ofs_stub(STUB_WRI_8)
 #define Ofs_stub_wri_16 Ofs_stub(STUB_WRI_16)
 #define Ofs_stub_wri_32 Ofs_stub(STUB_WRI_32)
@@ -582,20 +578,23 @@ int Cpatch(sigcontext_t *scp)
     CpatchTotal++;
 #endif
     p = eip;
-    if ((*p==0xf3 || *p==0xf2) && p[-1] == 0x90 && p[-2] == 0x90) {
+    if ((*p==0xf2 || *p==0xf3) && (p[1] == 0x66 || p[2] == 0x90) &&
+	p[3] == 0x90 && p[4] == 0x90) {
+	unsigned char op;
+
 	// rep movs, rep stos, rep lods, rep scas, rep cmps
-	// we have a sequence:	90 90 f3 op (stos/movs/lods)
-	//		or	90 90 90 90 f2/f3 op (cmps/scas)
+	// we have a sequence:	f2/f3 op 90 90 90
+	//		or	f2/f3 66 op 90 90 (f2 for cmps/scas only)
 	if (debug_level('e')>1) e_printf("### REP patch at %p\n",eip);
-	p-=2;
-	if (p[-1] == 0x90 && p[-2] == 0x90) /* cmps/scas */
-	    p-=2;
-	G2M(0xff,0x13,p); /* call (%ebx) */
-	_scp_rip -= 2; /* make sure call (%ebx) is performed the first time */
-	if (*p == 0x90) { /* cmps/scas */
-	    G2M(JMPsid,(p[3]==0x66?3:2),p); /* jmp over rep instruction */
-	    _scp_rip -= 2;
-	}
+	op = p[1];
+	/* as all ops are between 0xa4 and 0xaf we can encode override
+	   prefix as 0x10 and repne as 0x40 */
+	if (op == OPERoverride)
+	    op = p[2] | 0x10;
+	if (p[0] == REPNE)
+	    op |= 0x40;
+	G2M(PUSHbi,op,p); /* push $op; call ofs(%ebx) */
+	JSRPATCH(p,Ofs_stub_rep);
 	return 1;
     }
 
@@ -681,12 +680,20 @@ int UnCpatch(unsigned char *eip)
 #if PROFILE
     UncpatchTotal++;
 #endif
-    if (p[1] == 0x13) {
-	p[0] = p[1] = 0x90;
-	if (p[2] == JMPsid) p[2] = p[3] = 0x90;
-    }
-    else if (p[1] == 0x53) {
-	if ((unsigned char)p[2] == Ofs_stub_wri_8) {
+    if (p[1] == 0x53) {
+	if ((unsigned char)p[2] == Ofs_stub_rep) {
+	    unsigned char op = p[-1];
+	    p -= 2;
+	    G1((op&0x40)?REPNE:REP,p);
+	    if (op & 0x10) {
+		G2M(OPERoverride,op&~0x50,p);
+	    }
+	    else {
+		G2M(op&~0x50,NOP,p);
+	    }
+	    G2M(NOP,NOP,p);
+	}
+	else if ((unsigned char)p[2] == Ofs_stub_wri_8) {
 	    *((short *)p) = 0x0488; p[2] = 0x2f;
 	}
 	else if ((unsigned char)p[2] == Ofs_stub_wri_16) {
