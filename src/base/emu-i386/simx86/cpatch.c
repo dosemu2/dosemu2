@@ -549,8 +549,23 @@ asm (
 "stub_read_32__:.globl stub_read_32__\n"STUB_READ(read_32)
 );
 
+enum {
+	STUB_REP,
+	STUB_STK_16,
+	STUB_STK_32,
+	STUB_WRI_8,
+	STUB_WRI_16,
+	STUB_WRI_32,
+	STUB_READ_8,
+	STUB_READ_16,
+	STUB_READ_32,
+	STUBS_LEN
+};
+static_assert(STUBS_LEN <= STUBS_LEN_MAX);
+
 // using negative byte offsets
-#define Ofs_stub(x) (unsigned char)(((x) - STUBS_LEN) * sizeof(stub_func_t))
+#define Ofs_stub(x) (unsigned char)(((x) - STUBS_LEN_MAX) * \
+				    sizeof(TheCPU_struct.stub_func[STUB_REP]))
 #define Ofs_stub_rep Ofs_stub(STUB_REP)
 #define Ofs_stub_wri_8 Ofs_stub(STUB_WRI_8)
 #define Ofs_stub_wri_16 Ofs_stub(STUB_WRI_16)
@@ -716,6 +731,29 @@ int UnCpatch(unsigned char *eip)
 	    eip[0],eip[1],eip[2],eip[3],eip[4]);
     }
     return 0;
+}
+
+void stub_rep(void) asm ("stub_rep__");
+void stub_stk_16(void) asm ("stub_stk_16__");
+void stub_stk_32(void) asm ("stub_stk_32__");
+void stub_wri_8 (void) asm ("stub_wri_8__" );
+void stub_wri_16(void) asm ("stub_wri_16__");
+void stub_wri_32(void) asm ("stub_wri_32__");
+void stub_read_8 (void) asm ("stub_read_8__" );
+void stub_read_16(void) asm ("stub_read_16__");
+void stub_read_32(void) asm ("stub_read_32__");
+
+void Cpatch_init(void)
+{
+    TheCPU_struct.stub_func[STUB_REP] = stub_rep;
+    TheCPU_struct.stub_func[STUB_WRI_8] = stub_wri_8;
+    TheCPU_struct.stub_func[STUB_WRI_16] = stub_wri_16;
+    TheCPU_struct.stub_func[STUB_WRI_32] = stub_wri_32;
+    TheCPU_struct.stub_func[STUB_STK_16] = stub_stk_16;
+    TheCPU_struct.stub_func[STUB_STK_32] = stub_stk_32;
+    TheCPU_struct.stub_func[STUB_READ_8] = stub_read_8;
+    TheCPU_struct.stub_func[STUB_READ_16] = stub_read_16;
+    TheCPU_struct.stub_func[STUB_READ_32] = stub_read_32;
 }
 
 /* ======================================================================= */

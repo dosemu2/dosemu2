@@ -42,22 +42,6 @@
 #include <limits.h>
 #include <stddef.h>
 
-#ifdef X86_JIT
-enum {
-	STUB_REP,
-	STUB_STK_16,
-	STUB_STK_32,
-	STUB_WRI_8,
-	STUB_WRI_16,
-	STUB_WRI_32,
-	STUB_READ_8,
-	STUB_READ_16,
-	STUB_READ_32,
-	STUBS_LEN
-};
-typedef void (*stub_func_t)(void);
-#endif
-
 typedef struct {
 /* offsets up to end_mark are 8-bit */
 #define FIELD0		rzero	/* field of SynCPU at offset 00 */
@@ -149,7 +133,9 @@ typedef struct {
 
 struct _SynCPU {
 #ifdef X86_JIT
-	stub_func_t stub_func[STUBS_LEN];
+#define STUBS_LEN_MAX 16
+	/* reserve space for max 16 stub functions used by cpatch */
+	void (*stub_func[STUBS_LEN_MAX])(void);
 #endif
 	union {
 		SynCPU s;
