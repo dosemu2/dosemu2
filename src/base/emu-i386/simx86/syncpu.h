@@ -42,33 +42,11 @@
 #include <limits.h>
 #include <stddef.h>
 
-#if ULONG_MAX > 0xffffffffUL
-#define PADDING32BIT(n)
-#else
-#define PADDING32BIT(n) unsigned int padding##n;
-#endif
-
-#ifdef X86_JIT
-enum {
-	STUB_STK_16,
-	STUB_STK_32,
-	STUB_WRI_8,
-	STUB_WRI_16,
-	STUB_WRI_32,
-	STUB_READ_8,
-	STUB_READ_16,
-	STUB_READ_32,
-	STUBS_LEN
-};
-typedef void (*stub_func_t)(void);
-#endif
-
 typedef struct {
 /* offsets up to end_mark are 8-bit */
-#define FIELD0		unprotect_stub	/* field of SynCPU at offset 00 */
-/*00*/  void (*unprotect_stub)(void); /* must be at 0 for call (%ebx) */
-/*04*/  PADDING32BIT(7)
-/*08*/	unsigned int rzero;
+#define FIELD0		rzero	/* field of SynCPU at offset 00 */
+/*00*/	unsigned int rzero;
+/*08*/	unsigned int reserved[2];
 /*0c*/	unsigned int edi;
 /*10*/	unsigned int esi;
 /*14*/	unsigned int ebp;
@@ -153,9 +131,14 @@ typedef struct {
 	emu_fpregset_t fpstate;
 } SynCPU;
 
+/* JIT uses byte offsets, make sure cr[0] is still ok */
+static_assert(offsetof(SynCPU,cr[1]) == 128);
+
 struct _SynCPU {
 #ifdef X86_JIT
-	stub_func_t stub_func[STUBS_LEN];
+#define STUBS_LEN_MAX 16
+	/* reserve space for max 16 stub functions used by cpatch */
+	void (*stub_func[STUBS_LEN_MAX])(void);
 #endif
 	union {
 		SynCPU s;
@@ -167,8 +150,6 @@ struct _SynCPU {
 
 extern struct _SynCPU TheCPU_struct;
 #define TheCPU TheCPU_struct.s
-
-#define Ofs_END		(offsetof(SynCPU,cr[1]))
 
 #define CPUOFFS(o)	(((unsigned char *)&(TheCPU.FIELD0))+o)
 

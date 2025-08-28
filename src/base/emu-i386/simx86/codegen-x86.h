@@ -121,4 +121,8 @@ unsigned char *Fp87_op_x86(unsigned char *CodePtr, int exop, int reg);
 void NodeLinker(TNode *LG, TNode *G);
 void NodeUnlinker(TNode *G);
 
+int Cpatch(sigcontext_t *scp);
+int UnCpatch(unsigned char *eip);
+void Cpatch_init(void);
+
 #endif
