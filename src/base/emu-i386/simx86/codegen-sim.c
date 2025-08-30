@@ -2123,7 +2123,8 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 
-	case O_MOVS_MovD: {
+	case O_MOVS_MovD: do {
+		unsigned int minofs, bytesbefore, rest = 0;
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		dosaddr_t src, dest;
 		unsigned int i;
@@ -2132,7 +2133,6 @@ static unsigned int Gen_sim(const IGen *IG)
 		if(i == 0)
 		    break;
 		if(mode & ADDR16) {
-		    unsigned int minofs, bytesbefore;
 		    /* overflow check (DR2 is SI, SR1 is DI) */
 		    if (df == -1) {
 			minofs = min(SR1.d,DR2.d);
@@ -2156,47 +2156,8 @@ static unsigned int Gen_sim(const IGen *IG)
 			possible = minofs / (OPSIZE(mode));
 			if (df < 0)
 			    possible++;
-			TR1.d = possible;
-			Gen_sim(IG);
-			/* emulate overflow */
-			if (df == -1) {
-			    if(SR1.d == minofs) {
-				AR1.d -= df*0x10000;
-				SR1.d = 0xffff;
-				DR2.d -= minofs;
-				if (DR2.d > 0)
-				    DR2.d -= 1;
-				else
-				    DR2.d = 0xffff;
-			    }
-			    if(DR2.d == minofs) {
-				AR2.d -= df*0x10000;
-				DR2.d = 0xffff;
-				SR1.d -= minofs;
-				if (SR1.d > 0)
-				    SR1.d -= 1;
-				else
-				    SR1.d = 0xffff;
-			    }
-			} else {
-			    if(SR1.d == 0x10000 - minofs) {
-				AR1.d -= df*0x10000;
-				SR1.d = 0;
-				DR2.d += minofs;
-				DR2.d &= 0xffff;
-			    }
-			    if(DR2.d == 0x10000 - minofs) {
-				AR2.d -= df*0x10000;
-				DR2.d = 0;
-				SR1.d += minofs;
-				SR1.d &= 0xffff;
-			    }
-			}
-
-			/* do the rest */
-			TR1.d = i - possible;
-			Gen_sim(IG);
-			break;
+			rest = i - possible;
+			i = possible;
 		    }
 		}
 		dest = AR1.d;
@@ -2227,10 +2188,45 @@ static unsigned int Gen_sim(const IGen *IG)
 			    dest += 4; src += 4; }
 		    }
 		}
-		TR1.d = 0;
+		TR1.d = rest;
 		AR1.d = dest;
 		AR2.d = src;
+		if(rest == 0) break;
+		/* emulate overflow */
+		if (df == -1) {
+		    if(SR1.d == minofs) {
+			AR1.d -= df*0x10000;
+			SR1.d = 0xffff;
+			DR2.d -= minofs;
+			if (DR2.d > 0)
+			    DR2.d -= 1;
+			else
+			    DR2.d = 0xffff;
+		    }
+		    if(DR2.d == minofs) {
+			AR2.d -= df*0x10000;
+			DR2.d = 0xffff;
+			SR1.d -= minofs;
+			if (SR1.d > 0)
+			    SR1.d -= 1;
+			else
+			    SR1.d = 0xffff;
+		    }
+		} else {
+		    if(SR1.d == 0x10000 - minofs) {
+			AR1.d -= df*0x10000;
+			SR1.d = 0;
+			DR2.d += minofs;
+			DR2.d &= 0xffff;
+		    }
+		    if(DR2.d == 0x10000 - minofs) {
+			AR2.d -= df*0x10000;
+			DR2.d = 0;
+			SR1.d += minofs;
+			SR1.d &= 0xffff;
+		    }
 		}
+		} while (1);
 		break;
 	case O_MOVS_LodD: {
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
@@ -2256,10 +2252,10 @@ static unsigned int Gen_sim(const IGen *IG)
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
-	case O_MOVS_StoD: {
+	case O_MOVS_StoD: do {
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		dosaddr_t addr;
-		unsigned int i;
+		unsigned int i, rest = 0;
 		i = TR1.d;
 		GTRACE4("O_MOVS_StoD",0xff,0xff,df,i);
 		if((mode & ADDR16) && i) {
@@ -2285,13 +2281,8 @@ static unsigned int Gen_sim(const IGen *IG)
 			possible = minofs / (OPSIZE(mode));
 			if (df < 0)
 			    possible++;
-			TR1.d = possible;
-			Gen_sim(IG);
-			SR1.d = (df == -1 ? 0xffff : 0);
-			AR1.d -= 0x10000*df;
-			TR1.d = i - possible;
-			Gen_sim(IG);
-			break;
+			rest = i - possible;
+			i = possible;
 		    }
 		}
 		addr = AR1.d;
@@ -2305,8 +2296,11 @@ static unsigned int Gen_sim(const IGen *IG)
 		    while (i--) { sim_write_dword(addr, DR1.d); addr += 4*df; }
 		}
 		AR1.d = addr;
-		TR1.d = 0;
-		}
+		TR1.d = rest;
+		if (rest == 0) break;
+		SR1.d = (df == -1 ? 0xffff : 0);
+		AR1.d -= 0x10000*df;
+		} while (1);
 		break;
 	case O_MOVS_ScaD: {	// OSZAPC
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
