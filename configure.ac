@@ -616,6 +616,12 @@ AC_ARG_ENABLE(fdpp,
   enable_fdpp="yes"
 )
 
+DJ64_PLU=`echo $PLUGINS | $SED 's/ /\n/g' | $EGREP -x 'dj64'`
+AC_ARG_ENABLE(dj64,
+  [AS_HELP_STRING([--disable-dj64], [compile without dj64 support])],,
+  enable_dj64="yes"
+)
+
 SR_PLU=`echo $PLUGINS | $SED 's/ /\n/g' | $EGREP -x 'searpc'`
 AC_ARG_ENABLE(searpc,
   [AS_HELP_STRING([--disable-searpc], [compile without searpc support])],,
@@ -864,6 +870,9 @@ dnl Print some warnings (if neccessary)
 if test "$enable_fdpp" != "no" -a -z "$FDPP_PLU"; then
   AC_MSG_ERROR([fdpp not available!])
 fi
+if test "$enable_dj64" != "no" -a -z "$DJ64_PLU"; then
+  AC_MSG_ERROR([dj64dev not available!])
+fi
 if test "$enable_searpc" != "no" -a -z "$SR_PLU"; then
   AC_MSG_ERROR([searpc not available!])
 fi
@@ -894,6 +903,10 @@ fi
 if test -z "$FDPP_PLU"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([fdpp not available!])
+fi
+if test -z "$DJ64_PLU"; then
+  AC_MSG_RESULT()
+  AC_MSG_WARN([dj64dev not available!])
 fi
 if test -z "$SR_PLU"; then
   AC_MSG_RESULT()
