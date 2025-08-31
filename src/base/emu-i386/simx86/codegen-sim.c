@@ -555,17 +555,15 @@ static unsigned int Gen_sim(const IGen *IG)
 		GTRACE1("L_LXS1",o);
 		if (mode&DATA16) {
 		    CPUWORD(o) = DR1.w.l = sim_read_word(AR1.d);
-		    AR1.d += 2;
 		}
 		else {
 		    CPULONG(o) = DR1.d = sim_read_dword(AR1.d);
-		    AR1.d += 4;
 		} }
 		break;
 	case L_LXS2: {	/* real mode segment base from segment value */
 		unsigned int o = IG->p0;
 		GTRACE1("L_LXS2",o);
-		DR1.d = sim_read_word(AR1.d);
+		DR1.d = sim_read_word(AR1.d + BT24(BitDATA16, mode));
 		SetSegReal(DR1.w.l, o);
 		}
 		break;
