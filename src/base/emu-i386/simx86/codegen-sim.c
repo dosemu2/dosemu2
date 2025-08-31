@@ -84,7 +84,6 @@ static unsigned char *currentIG = NULL;
 /* working registers of the host CPU */
 static wkreg DR1;	// "eax"
 static wkreg AR1;	// "edi"
-static wkreg AR2;	// "esi"
 static wkreg TR1;	// "ecx"
 static flgtmp RFL;
 
@@ -1873,7 +1872,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case O_PUSH: {
-		wkreg SR1;
+		wkreg SR1, AR2;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE0("O_PUSH");
 		if (mode & DATA16) {
@@ -1898,14 +1897,14 @@ static unsigned int Gen_sim(const IGen *IG)
 /* PUSH derived (sub-)sequences: */
 	case O_PUSH1:
 		GTRACE0("O_PUSH1");
-		AR2.d = CPULONG(Ofs_XSS);
 		break;
 
 	case O_PUSH2: {
-		wkreg SR1;
+		wkreg SR1, AR2;
 		unsigned int o = IG->p0;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_PUSH2",o);
+		AR2.d = CPULONG(Ofs_XSS);
 		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
 			DR1.w.l = CPUWORD(o);
@@ -1931,7 +1930,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case O_PUSH2F: {
-		wkreg SR1;
+		wkreg SR1, AR2;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		int ftmp;
 		GTRACE0("O_PUSHF");
@@ -1959,7 +1958,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		} break;
 
 	case O_PUSHI: {
-		wkreg SR1;
+		wkreg SR1, AR2;
 		int v = IG->p0;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE3("O_PUSHI",0xff,0xff,v);
@@ -1984,7 +1983,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		} break;
 
 	case O_POP: {
-		wkreg SR1;
+		wkreg SR1, AR2;
 		int imm16 = (mode&MRETISP) ? IG->p0 : 0;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_POP",imm16);
@@ -2018,14 +2017,14 @@ static unsigned int Gen_sim(const IGen *IG)
 /* POP derived (sub-)sequences: */
 	case O_POP1:
 		GTRACE0("O_POP1");
-		AR2.d = CPULONG(Ofs_XSS);
 		break;
 
 	case O_POP2: {
-		wkreg SR1;
+		wkreg SR1, AR2;
 		unsigned int o = IG->p0;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_POP2",o);
+		AR2.d = CPULONG(Ofs_XSS);
 		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
 			SR1.d &= stackm;
@@ -2053,7 +2052,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case O_LEAVE: {
-		wkreg SR1;
+		wkreg SR1, AR2;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE0("O_LEAVE");
 		if (mode & DATA16) {
@@ -2102,10 +2101,9 @@ static unsigned int Gen_sim(const IGen *IG)
 		GTRACE1("O_MOVS_SetA",ofs);
 		if (mode&ADDR16) {
 		    if (mode&MOVSSRC) {
-			AR2.d = CPULONG(ofs);
-			AR2.d += CPUWORD(Ofs_SI);
-		    }
-		    if (mode&MOVSDST) {
+			AR1.d = CPULONG(ofs);
+			AR1.d += CPUWORD(Ofs_SI);
+		    } else {
 	    		AR1.d = CPULONG(Ofs_XES);
 			AR1.d += CPUWORD(Ofs_DI);
 
@@ -2114,23 +2112,24 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		else {
 		    if (mode&MOVSSRC) {
-			AR2.d = CPULONG(ofs) + CPULONG(Ofs_ESI);
-		    }
-		    if (mode&MOVSDST) {
+			AR1.d = CPULONG(ofs) + CPULONG(Ofs_ESI);
+		    } else {
 	    		AR1.d = CPULONG(Ofs_XES) + CPULONG(Ofs_EDI);
 		    }
 		    TR1.d = (mode&(MREP|MREPNE)? CPULONG(Ofs_ECX) : 1);
-		}
-		if (!(mode&(MREP|MREPNE|MOVSDST))) {
-		    AR1.d = AR2.d; /* single lodsb uses L_DI_R1 */
 		}
 		}
 		break;
 
 	case O_MOVS_MovD: {
-		wkreg SR1, DR2;
+		wkreg SR1, DR2, AR2;
 		DR2.d = CPUWORD(Ofs_SI); /* for overflow calc */
 		SR1.d = CPUWORD(Ofs_DI); /* for overflow calc */
+		AR2.d = CPULONG(Ofs_XES);
+		if (mode&ADDR16)
+		    AR2.d += CPUWORD(Ofs_DI);
+		else
+		    AR2.d += CPULONG(Ofs_EDI);
 		do {
 		unsigned int minofs, bytesbefore, rest = 0;
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
@@ -2168,8 +2167,8 @@ static unsigned int Gen_sim(const IGen *IG)
 			i = possible;
 		    }
 		}
-		dest = AR1.d;
-		src = AR2.d;
+		dest = AR2.d;
+		src = AR1.d;
 		if (df<0) {
 		    if (mode&MBYTE) {
 			while (i--) sim_write_byte(dest--, sim_read_byte(src--));
@@ -2197,13 +2196,13 @@ static unsigned int Gen_sim(const IGen *IG)
 		    }
 		}
 		TR1.d = rest;
-		AR1.d = dest;
-		AR2.d = src;
+		AR2.d = dest;
+		AR1.d = src;
 		if(rest == 0) break;
 		/* emulate overflow */
 		if (df == -1) {
 		    if(SR1.d == minofs) {
-			AR1.d -= df*0x10000;
+			AR2.d -= df*0x10000;
 			SR1.d = 0xffff;
 			DR2.d -= minofs;
 			if (DR2.d > 0)
@@ -2212,7 +2211,7 @@ static unsigned int Gen_sim(const IGen *IG)
 			    DR2.d = 0xffff;
 		    }
 		    if(DR2.d == minofs) {
-			AR2.d -= df*0x10000;
+			AR1.d -= df*0x10000;
 			DR2.d = 0xffff;
 			SR1.d -= minofs;
 			if (SR1.d > 0)
@@ -2222,19 +2221,24 @@ static unsigned int Gen_sim(const IGen *IG)
 		    }
 		} else {
 		    if(SR1.d == 0x10000 - minofs) {
-			AR1.d -= df*0x10000;
+			AR2.d -= df*0x10000;
 			SR1.d = 0;
 			DR2.d += minofs;
 			DR2.d &= 0xffff;
 		    }
 		    if(DR2.d == 0x10000 - minofs) {
-			AR2.d -= df*0x10000;
+			AR1.d -= df*0x10000;
 			DR2.d = 0;
 			SR1.d += minofs;
 			SR1.d &= 0xffff;
 		    }
 		}
 		} while (1);
+		AR2.d -= CPULONG(Ofs_XES);
+		if (mode&ADDR16)
+		    CPUWORD(Ofs_DI) = AR2.w.l;
+		else
+		    CPULONG(Ofs_EDI) = AR2.d;
 		}
 		break;
 	case O_MOVS_LodD: {
@@ -2246,7 +2250,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		if (mode&(MREP|MREPNE))	{
 		    dbug_printf("odd: REP LODS %d\n",i);
 		}
-		addr = AR2.d;
+		addr = AR1.d;
 		if (mode&MBYTE) {
 		    while (i--) { DR1.b.bl = sim_read_byte(addr); addr += df; }
 		}
@@ -2257,7 +2261,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		    while (i--) { DR1.d = sim_read_dword(addr); addr += 4*df; }
 		}
 		if (mode&(MREP|MREPNE))	TR1.d = 0;
-		AR2.d = addr;
+		AR1.d = addr;
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
@@ -2354,17 +2358,23 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_MOVS_CmpD: {	// OSZAPC
+		wkreg AR2;
 		int df;
 		dosaddr_t addr1, addr2;
 		unsigned int i;
 		char k, z;
+		AR2.d = CPULONG(Ofs_XES);
+		if (mode&ADDR16)
+		    AR2.d += CPUWORD(Ofs_DI);
+		else
+		    AR2.d += CPULONG(Ofs_EDI);
 		i = TR1.d;
 		df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		GTRACE4("O_MOVS_CmpD",0xff,0xff,df,i);
 		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
-		addr1 = AR1.d;
+		addr1 = AR2.d;
 		if(!(mode & (MREP|MREPNE))) {
-			// assumes DR1=*AR2
+			// assumes DR1=*AR1
 			if (mode&MBYTE) {
 				S1 = DR1.b.bl;
 				S2 = sim_read_byte(addr1);
@@ -2381,7 +2391,7 @@ static unsigned int Gen_sim(const IGen *IG)
 			break;
 		}
 		z = k = (mode&MREP? 1:0);
-		addr2 = AR2.d;
+		addr2 = AR1.d;
 		while (i && (z==k)) {
 		    if (mode&MBYTE) {
 			S1 = sim_read_byte(addr2);
@@ -2405,9 +2415,14 @@ static unsigned int Gen_sim(const IGen *IG)
 		    i--;
 		}
 		TR1.d = i;
-		AR1.d = addr1;
-		AR2.d = addr2;
+		AR2.d = addr1;
+		AR1.d = addr2;
 		// ! Warning DI,SI wrap	in 16-bit mode
+		AR2.d -= CPULONG(Ofs_XES);
+		if (mode&ADDR16)
+		    CPUWORD(Ofs_DI) = AR2.w.l;
+		else
+		    CPULONG(Ofs_EDI) = AR2.d;
 		}
 		break;
 
@@ -2436,10 +2451,9 @@ static unsigned int Gen_sim(const IGen *IG)
 	    		CPUWORD(Ofs_CX) = TR1.w.l;
 		    }
 		    if (mode&MOVSSRC) {
-			AR2.d -= CPULONG(ofs);
-			CPUWORD(Ofs_SI) = AR2.w.l;
-		    }
-		    if (mode&MOVSDST) {
+			AR1.d -= CPULONG(ofs);
+			CPUWORD(Ofs_SI) = AR1.w.l;
+		    } else {
 	    		AR1.d -= CPULONG(Ofs_XES);
 			CPUWORD(Ofs_DI) = AR1.w.l;
 		    }
@@ -2449,10 +2463,9 @@ static unsigned int Gen_sim(const IGen *IG)
 	    		CPULONG(Ofs_ECX) = TR1.d;
 		    }
 		    if (mode&MOVSSRC) {
-			AR2.d -= CPULONG(ofs);
-			CPULONG(Ofs_ESI) = AR2.d;
-		    }
-		    if (mode&MOVSDST) {
+			AR1.d -= CPULONG(ofs);
+			CPULONG(Ofs_ESI) = AR1.d;
+		    } else {
 	    		AR1.d -= CPULONG(Ofs_XES);
 			CPULONG(Ofs_EDI) = AR1.d;
 		    }
@@ -2788,8 +2801,8 @@ static unsigned int Gen_sim(const IGen *IG)
 #else
 	if (debug_level('e')>6) {
 #endif
-	    dbug_printf("(R) DR1=%08x AR1=%08x AR2=%08x\n",
-		DR1.d,AR1.d,AR2.d);
+	    dbug_printf("(R) DR1=%08x AR1=%08x\n",
+		DR1.d,AR1.d);
 	    dbug_printf("(R) TR1=%08x\n",
 		TR1.d);
 	    dbug_printf("(R) RFL cout=%08x RES=%08x\n",
@@ -2844,8 +2857,8 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 	if (debug_level('e')>3)
 #endif
 	{
-	    dbug_printf("(R) DR1=%08x AR1=%08x AR2=%08x\n",
-		DR1.d,AR1.d,AR2.d);
+	    dbug_printf("(R) DR1=%08x AR1=%08x\n",
+		DR1.d,AR1.d);
 	    dbug_printf("(R) TR1=%08x\n",
 		TR1.d);
 	    dbug_printf("(R) RFL cout=%08x RES=%08x\n\n",
