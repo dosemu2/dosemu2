@@ -85,7 +85,6 @@ static unsigned char *currentIG = NULL;
 static wkreg DR1;	// "eax"
 static wkreg AR1;	// "edi"
 static wkreg AR2;	// "esi"
-static wkreg SR1;	// "ebp"
 static wkreg TR1;	// "ecx"
 static flgtmp RFL;
 
@@ -1874,6 +1873,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case O_PUSH: {
+		wkreg SR1;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE0("O_PUSH");
 		if (mode & DATA16) {
@@ -1899,13 +1899,14 @@ static unsigned int Gen_sim(const IGen *IG)
 	case O_PUSH1:
 		GTRACE0("O_PUSH1");
 		AR2.d = CPULONG(Ofs_XSS);
-		SR1.d = CPULONG(Ofs_ESP);
 		break;
 
 	case O_PUSH2: {
+		wkreg SR1;
 		unsigned int o = IG->p0;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_PUSH2",o);
+		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
 			DR1.w.l = CPUWORD(o);
 			SR1.d -= 2;
@@ -1921,15 +1922,16 @@ static unsigned int Gen_sim(const IGen *IG)
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
 #endif
+		CPULONG(Ofs_ESP) = SR1.d;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 	case O_PUSH3:
 		GTRACE0("O_PUSH3");
-		CPULONG(Ofs_ESP) = SR1.d;
 		break;
 
 	case O_PUSH2F: {
+		wkreg SR1;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		int ftmp;
 		GTRACE0("O_PUSHF");
@@ -1957,6 +1959,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		} break;
 
 	case O_PUSHI: {
+		wkreg SR1;
 		int v = IG->p0;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE3("O_PUSHI",0xff,0xff,v);
@@ -1981,6 +1984,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		} break;
 
 	case O_POP: {
+		wkreg SR1;
 		int imm16 = (mode&MRETISP) ? IG->p0 : 0;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_POP",imm16);
@@ -2015,13 +2019,14 @@ static unsigned int Gen_sim(const IGen *IG)
 	case O_POP1:
 		GTRACE0("O_POP1");
 		AR2.d = CPULONG(Ofs_XSS);
-		SR1.d = CPULONG(Ofs_ESP);
 		break;
 
 	case O_POP2: {
+		wkreg SR1;
 		unsigned int o = IG->p0;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_POP2",o);
+		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
 			SR1.d &= stackm;
 			DR1.w.l = sim_read_word(AR2.d + SR1.d);
@@ -2040,14 +2045,15 @@ static unsigned int Gen_sim(const IGen *IG)
 		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
 #endif
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		CPULONG(Ofs_ESP) = SR1.d;
 		} break;
 
 	case O_POP3:
 		GTRACE0("O_POP3");
-		CPULONG(Ofs_ESP) = SR1.d;
 		break;
 
 	case O_LEAVE: {
+		wkreg SR1;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE0("O_LEAVE");
 		if (mode & DATA16) {
@@ -2784,8 +2790,8 @@ static unsigned int Gen_sim(const IGen *IG)
 #endif
 	    dbug_printf("(R) DR1=%08x AR1=%08x AR2=%08x\n",
 		DR1.d,AR1.d,AR2.d);
-	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
-		SR1.d,TR1.d);
+	    dbug_printf("(R) TR1=%08x\n",
+		TR1.d);
 	    dbug_printf("(R) RFL cout=%08x RES=%08x\n",
 		RFL.cout,RFL.res);
 //	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
@@ -2840,8 +2846,8 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 	{
 	    dbug_printf("(R) DR1=%08x AR1=%08x AR2=%08x\n",
 		DR1.d,AR1.d,AR2.d);
-	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
-		SR1.d,TR1.d);
+	    dbug_printf("(R) TR1=%08x\n",
+		TR1.d);
 	    dbug_printf("(R) RFL cout=%08x RES=%08x\n\n",
 		RFL.cout,RFL.res);
 	}
