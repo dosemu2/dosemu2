@@ -95,17 +95,6 @@ modules:
       - '/include'
       - '*.a'
 
-  - name: comcom64
-    buildsystem: simple
-    build-commands:
-      - make -j ${FLATPAK_BUILDER_N_JOBS} prefix=${FLATPAK_DEST} \
-          CROSS_PREFIX=i686-unknown-linux-gnu-
-      - make install prefix=${FLATPAK_DEST}
-    sources:
-      - type: git
-        url: https://github.com/dosemu2/comcom64.git
-        branch: master
-
   - name: jansson
     buildsystem: autotools
     sources:
@@ -155,16 +144,6 @@ modules:
     cleanup:
       - '/include'
 
-  - name: soundfont
-    buildsystem: simple
-    sources:
-      - type: git
-        url: https://github.com/TheGammaSqueeze/jelos_generaluser-gs.git
-        branch: main
-    build-commands:
-      - mkdir -p ${FLATPAK_DEST}/share/soundfonts
-      - cp "GeneralUser GS v1.471.sf2" ${FLATPAK_DEST}/share/soundfonts/default.sf2
-
   - name: libb64
     buildsystem: simple
     sources:
@@ -176,6 +155,26 @@ modules:
       - cp -r include ${FLATPAK_DEST}
       - cp src/libb64.a ${FLATPAK_DEST}/lib
 
+  - name: dosemu2
+    buildsystem: autotools
+    build-options:
+      env: ['CROSS_PREFIX=i686-unknown-linux-gnu-']
+      append-path: /app/sbin
+    sources:
+      - type: dir
+        path: .
+
+  - name: comcom64
+    buildsystem: simple
+    build-commands:
+      - make -j ${FLATPAK_BUILDER_N_JOBS} prefix=${FLATPAK_DEST} \
+          CROSS_PREFIX=i686-unknown-linux-gnu-
+      - make install prefix=${FLATPAK_DEST}
+    sources:
+      - type: git
+        url: https://github.com/dosemu2/comcom64.git
+        branch: master
+
   - name: install-freedos
     buildsystem: simple
     build-commands:
@@ -185,14 +184,15 @@ modules:
         url: https://github.com/dosemu2/install-freedos.git
         branch: master
 
-  - name: dosemu2
-    buildsystem: autotools
-    build-options:
-      env: ['CROSS_PREFIX=i686-unknown-linux-gnu-']
-      append-path: /app/sbin
+  - name: soundfont
+    buildsystem: simple
     sources:
-      - type: dir
-        path: .
+      - type: git
+        url: https://github.com/TheGammaSqueeze/jelos_generaluser-gs.git
+        branch: main
+    build-commands:
+      - mkdir -p ${FLATPAK_DEST}/share/soundfonts
+      - cp "GeneralUser GS v1.471.sf2" ${FLATPAK_DEST}/share/soundfonts/default.sf2
 
 finish-args:
   - --socket=wayland
