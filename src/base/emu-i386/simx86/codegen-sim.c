@@ -2232,16 +2232,6 @@ static unsigned int Gen_sim(const IGen *IG)
 		    }
 		}
 		} while (1);
-		AR2.d -= CPULONG(Ofs_XES);
-		if (mode&ADDR16) {
-		    CPUWORD(Ofs_DI) = AR2.w.l;
-		    if (mode&(MREP|MREPNE))
-			CPUWORD(Ofs_CX) = 0;
-		} else {
-		    CPULONG(Ofs_EDI) = AR2.d;
-		    if (mode&(MREP|MREPNE))
-			CPULONG(Ofs_ECX) = 0;
-		}
 		}
 		break;
 	case O_MOVS_LodD: {
@@ -2266,13 +2256,6 @@ static unsigned int Gen_sim(const IGen *IG)
 		else {
 		    while (i--) { DR1.d = sim_read_dword(addr); addr += 4*df; }
 		}
-		if (mode&(MREP|MREPNE)) {
-		    if (mode&ADDR16)
-			CPUWORD(Ofs_CX) = 0;
-		    else
-			CPULONG(Ofs_ECX) = 0;
-		}
-		AR1.d = addr;
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
@@ -2333,86 +2316,79 @@ static unsigned int Gen_sim(const IGen *IG)
 		SR1.d = (df == -1 ? 0xffff : 0);
 		AR1.d -= 0x10000*df;
 		} while (1);
-		if (mode&(MREP|MREPNE)) {
-		    if (mode&ADDR16)
-			CPUWORD(Ofs_CX) = 0;
-		    else
-			CPULONG(Ofs_ECX) = 0;
-		}
 		}
 		break;
-	case O_MOVS_ScaD: {	// OSZAPC
+	case O_MOVS_ScaD: {	// OSZAPC, never called with rep
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		dosaddr_t addr;
-		unsigned int i;
+		unsigned int i, di;
 		char k, z;
-		if (mode&ADDR16)
-		    i = (mode&(MREP|MREPNE)? CPUWORD(Ofs_CX) : 1);
-		else
-		    i = (mode&(MREP|MREPNE)? CPULONG(Ofs_ECX) : 1);
+		if (mode&ADDR16) {
+		    i = CPUWORD(Ofs_CX);
+		    di = CPUWORD(Ofs_DI);
+		} else {
+		    i = CPULONG(Ofs_ECX);
+		    di = CPULONG(Ofs_EDI);
+		}
 		GTRACE4("O_MOVS_ScaD",0xff,0xff,df,i);
 		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
 		z = k = (mode&MREP? 1:0);
-		addr = AR1.d;
+		addr = AR1.d - di;
 		while (i && (z==k)) {
 		    if (mode&MBYTE) {
 			S1 = DR1.b.bl;
-			S2 = sim_read_byte(addr);
+			S2 = sim_read_byte(addr+di);
 			FlagHandleSub(S1, S2, (int8_t)(S1 - S2), 8);
-			addr += df;
+			di += df;
 		    }
 		    else if (mode&DATA16) {
 			S1 = DR1.w.l;
-			S2 = sim_read_word(addr);
+			S2 = sim_read_word(addr+di);
 			FlagHandleSub(S1, S2, (int16_t)(S1 - S2), 16);
-			addr += 2*df;
+			di += 2*df;
 		    }
 		    else {
 			S1 = DR1.d;
-			S2 = sim_read_dword(addr);
+			S2 = sim_read_dword(addr+di);
 			FlagHandleSub(S1, S2, S1 - S2, 32);
-			addr += 4*df;
+			di += 4*df;
 		    }
+		    if (mode&ADDR16) di &= 0xffff;
 		    z = (RFL.res==0);
 		    i--;
 		}
-		AR1.d = addr;
-		if (mode&(MREP|MREPNE)) {
-		    if (mode&ADDR16)
-			CPUWORD(Ofs_CX) = i;
-		    else
-			CPULONG(Ofs_ECX) = i;
+		if (mode&ADDR16) {
+		    CPUWORD(Ofs_CX) = i;
+		    CPUWORD(Ofs_DI) = di;
 		}
-		// ! Warning DI,SI wrap	in 16-bit mode
+		else {
+		    CPULONG(Ofs_ECX) = i;
+		    CPULONG(Ofs_EDI) = di;
+		}
 		}
 		break;
 	case O_MOVS_CmpD: {	// OSZAPC
-		wkreg AR2;
 		int df;
 		dosaddr_t addr1, addr2;
-		unsigned int i;
+		unsigned int i, si, di;
 		char k, z;
-		AR2.d = CPULONG(Ofs_XES);
-		if (mode&ADDR16)
-		    AR2.d += CPUWORD(Ofs_DI);
-		else
-		    AR2.d += CPULONG(Ofs_EDI);
 		df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
-		addr1 = AR2.d;
+		addr1 = CPULONG(Ofs_XES);
+		di = (mode&ADDR16) ? CPUWORD(Ofs_DI) : CPULONG(Ofs_EDI);
 		if(!(mode & (MREP|MREPNE))) {
 			GTRACE4("O_MOVS_CmpD",0xff,0xff,df,1);
 			// assumes DR1=*AR1
 			if (mode&MBYTE) {
 				S1 = DR1.b.bl;
-				S2 = sim_read_byte(addr1);
+				S2 = sim_read_byte(addr1+di);
 				FlagHandleSub(S1, S2, (int8_t)(S1 - S2), 8);
 			} else if (mode&DATA16) {
 				S1 = DR1.w.l;
-				S2 = sim_read_word(addr1);
+				S2 = sim_read_word(addr1+di);
 				FlagHandleSub(S1, S2, (int16_t)(S1 - S2), 16);
 			} else {
 				S1 = DR1.d;
-				S2 = sim_read_dword(addr1);
+				S2 = sim_read_dword(addr1+di);
 				FlagHandleSub(S1, S2, S1 - S2, 32);
 			}
 			break;
@@ -2421,38 +2397,38 @@ static unsigned int Gen_sim(const IGen *IG)
 		GTRACE4("O_MOVS_CmpD",0xff,0xff,df,i);
 		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
 		z = k = (mode&MREP? 1:0);
-		addr2 = AR1.d;
+		si = (mode&ADDR16) ? CPUWORD(Ofs_SI) : CPULONG(Ofs_ESI);
+		addr2 = AR1.d - si;
 		while (i && (z==k)) {
 		    if (mode&MBYTE) {
-			S1 = sim_read_byte(addr2);
-			S2 = sim_read_byte(addr1);
+			S1 = sim_read_byte(addr2+si);
+			S2 = sim_read_byte(addr1+di);
 			FlagHandleSub(S1, S2, (int8_t)(S1 - S2), 8);
-			addr1 += df; addr2 += df;
+			si += df; di += df;
 		    }
 		    else if (mode&DATA16) {
-			S1 = sim_read_word(addr2);
-			S2 = sim_read_word(addr1);
+			S1 = sim_read_word(addr2+si);
+			S2 = sim_read_word(addr1+di);
 			FlagHandleSub(S1, S2, (int16_t)(S1 - S2), 16);
-			addr1 += 2*df; addr2 += 2*df;
+			si += 2*df; di += 2*df;
 		    }
 		    else {
-			S1 = sim_read_dword(addr2);
-			S2 = sim_read_dword(addr1);
+			S1 = sim_read_dword(addr2+si);
+			S2 = sim_read_dword(addr1+di);
 			FlagHandleSub(S1, S2, S1 - S2, 32);
-			addr1 += 4*df; addr2 += 4*df;
+			si += 4*df; di += 4*df;
 		    }
+		    if (mode&ADDR16) {si &= 0xffff; di &= 0xffff;}
 		    z = (RFL.res==0);
 		    i--;
 		}
-		AR2.d = addr1;
-		AR1.d = addr2;
-		// ! Warning DI,SI wrap	in 16-bit mode
-		AR2.d -= CPULONG(Ofs_XES);
 		if (mode&ADDR16) {
-		    CPUWORD(Ofs_DI) = AR2.w.l;
+		    CPUWORD(Ofs_SI) = si;
+		    CPUWORD(Ofs_DI) = di;
 		    CPUWORD(Ofs_CX) = i;
 		} else {
-		    CPULONG(Ofs_EDI) = AR2.d;
+		    CPULONG(Ofs_ESI) = si;
+		    CPULONG(Ofs_EDI) = di;
 		    CPULONG(Ofs_ECX) = i;
 		}
 		}
@@ -2461,39 +2437,28 @@ static unsigned int Gen_sim(const IGen *IG)
 	case O_MOVS_SavA: {
 		unsigned int ofs = IG->p0;
 		GTRACE1("O_MOVS_SavA",ofs);
-		if (!(mode&(MREP|MREPNE))) {
+		if (!(mode&(MREP|MREPNE)) || !(mode&MREPCOND)) {
+		    unsigned int count = (mode&(MREP|MREPNE)) ? CPULONG(Ofs_ECX):1;
 		    wkreg DR2;
 		    // %%edx set to DF's increment
 		    DR2.d = (signed char)CPUBYTE(Ofs_DF_INCREMENTS+OPSIZEBIT(mode));
 		    if(mode & MOVSSRC) {
 			if (mode & ADDR16)
-			    CPUWORD(Ofs_SI) += DR2.w.l;
+			    CPUWORD(Ofs_SI) += DR2.w.l * (count & 0xffff);
 			else
-			    CPULONG(Ofs_SI) += DR2.d;
+			    CPULONG(Ofs_ESI) += DR2.d * count;
 		    }
 		    if(mode & MOVSDST) {
 			if (mode & ADDR16)
-			    CPUWORD(Ofs_DI) += DR2.w.l;
+			    CPUWORD(Ofs_DI) += DR2.w.l * (count & 0xffff);
 			else
-			    CPULONG(Ofs_DI) += DR2.d;
+			    CPULONG(Ofs_EDI) += DR2.d * count;
 		    }
-		}
-		else if (mode&ADDR16) {
-		    if (mode&MOVSSRC) {
-			AR1.d -= CPULONG(ofs);
-			CPUWORD(Ofs_SI) = AR1.w.l;
-		    } else {
-	    		AR1.d -= CPULONG(Ofs_XES);
-			CPUWORD(Ofs_DI) = AR1.w.l;
-		    }
-		}
-		else {
-		    if (mode&MOVSSRC) {
-			AR1.d -= CPULONG(ofs);
-			CPULONG(Ofs_ESI) = AR1.d;
-		    } else {
-	    		AR1.d -= CPULONG(Ofs_XES);
-			CPULONG(Ofs_EDI) = AR1.d;
+		    if(mode&(MREP|MREPNE)) {
+			if (mode & ADDR16)
+			    CPUWORD(Ofs_CX) = 0;
+			else
+			    CPULONG(Ofs_ECX) = 0;
 		    }
 		}
 		}
