@@ -184,6 +184,15 @@ modules:
         url: https://github.com/dosemu2/install-freedos.git
         branch: master
 
+  - name: install-win31
+    buildsystem: simple
+    build-commands:
+      - make install prefix=${FLATPAK_DEST}
+    sources:
+      - type: git
+        url: https://github.com/dosemu2/install-win31.git
+        branch: master
+
   - name: soundfont
     buildsystem: simple
     sources:
