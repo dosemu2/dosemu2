@@ -38,11 +38,10 @@ modules:
       - '*'
 
   - name: fdpp
-    buildsystem: simple
-    build-commands:
-      - make -j ${FLATPAK_BUILDER_N_JOBS} prefix=${FLATPAK_DEST} \
-          CROSS_LD=i686-unknown-linux-gnu-ld CC=gcc CXX=g++
-      - make install prefix=${FLATPAK_DEST}
+    buildsystem: meson
+    config-opts:
+      - --cross-file
+      - "/run/build/fdpp/fdpp/kernel/toolchain.ini"
     sources:
       - type: git
         url: https://github.com/dosemu2/fdpp.git
