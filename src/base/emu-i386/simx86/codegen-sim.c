@@ -83,7 +83,6 @@ static unsigned char *currentIG = NULL;
 
 /* working registers of the host CPU */
 static wkreg DR1;	// "eax"
-static wkreg AR1;	// "edi"
 static flgtmp RFL;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -384,11 +383,56 @@ dosaddr_t AddrGen_sim(const IGen *IG)
 			check_v86_address_overflow(mode, offset);
 		}
 		break;
+	case O_XLAT: {
+		unsigned int ofs = IG->p0;
+		unsigned int offset;
+		GTRACE1("XLAT",ofs);
+		mem_ref = CPULONG(ofs);
+		offset = CPULONG(Ofs_EBX) + CPUBYTE(Ofs_AL);
+		if (mode & ADDR16) {
+			offset &= 0xFFFF;
+		}
+		mem_ref += offset;
+		}
+		break;
+	case O_INT: {
+		unsigned char intno = IG->p0;
+		// Check bitmap, GPF if revectored
+		if (test_bit(intno, &TheCPU.int_revectored)) {
+			TheCPU.err2 = EXCP0D_GPF;
+			mem_ref = (dosaddr_t)-1;
+		}
+		else {
+			mem_ref = intno * 4;
+		} }
+		break;
+	case O_MOVS_SetA: {
+		unsigned int ofs = IG->p0;
+		GTRACE1("O_MOVS_SetA",ofs);
+		if (mode&ADDR16) {
+		    if (mode&MOVSSRC) {
+			mem_ref = CPULONG(ofs);
+			mem_ref += CPUWORD(Ofs_SI);
+		    } else {
+			mem_ref = CPULONG(Ofs_XES);
+			mem_ref += CPUWORD(Ofs_DI);
+
+		    }
+		}
+		else {
+		    if (mode&MOVSSRC) {
+			mem_ref = CPULONG(ofs) + CPULONG(Ofs_ESI);
+		    } else {
+			mem_ref = CPULONG(Ofs_XES) + CPULONG(Ofs_EDI);
+		    }
+		}
+		}
+		break;
 	}
 	return mem_ref;
 }
 
-static unsigned int Gen_sim(const IGen *IG)
+static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 {
 	int op = IG->op;
 	int mode = IG->mode;
@@ -419,7 +463,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		unsigned char exop = (unsigned char)IG->p0;
 		int reg = IG->p1;
 		GTRACE2("O_FPOP",exop,reg);
-		if (Fp87_op(exop, reg, AR1.d)) {
+		if (Fp87_op(exop, reg, mem_ref)) {
 		    TheCPU.err2 = -96;
 		    P0 = FindPC((const unsigned char *)IG);
 		}
@@ -478,14 +522,14 @@ static unsigned int Gen_sim(const IGen *IG)
 		unsigned int o = IG->p0;
 		GTRACE1("S_DI_R",o);
 		if (mode & DATA16)
-			CPUWORD(o) = AR1.w.l;
+			CPUWORD(o) = mem_ref;
 		else
-			CPULONG(o) = AR1.d;
+			CPULONG(o) = mem_ref;
 		}
 		break;
 	case S_DI_IMM: {
 		int v = IG->p0;
-		dosaddr_t addr = AR1.d;
+		dosaddr_t addr = mem_ref;
 		if (mode&MBYTE) {
 			GTRACE3("S_DI_IMM_B",0xff,0xff,v);
 			sim_write_byte(addr, v);
@@ -554,16 +598,16 @@ static unsigned int Gen_sim(const IGen *IG)
 		unsigned int o = IG->p0;
 		GTRACE1("L_LXS1",o);
 		if (mode&DATA16) {
-		    CPUWORD(o) = DR1.w.l = sim_read_word(AR1.d);
+		    CPUWORD(o) = DR1.w.l = sim_read_word(mem_ref);
 		}
 		else {
-		    CPULONG(o) = DR1.d = sim_read_dword(AR1.d);
+		    CPULONG(o) = DR1.d = sim_read_dword(mem_ref);
 		} }
 		break;
 	case L_LXS2: {	/* real mode segment base from segment value */
 		unsigned int o = IG->p0;
 		GTRACE1("L_LXS2",o);
-		DR1.d = sim_read_word(AR1.d + BT24(BitDATA16, mode));
+		DR1.d = sim_read_word(mem_ref + BT24(BitDATA16, mode));
 		SetSegReal(DR1.w.l, o);
 		}
 		break;
@@ -573,7 +617,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case L_DI_R1: {
-		dosaddr_t addr = AR1.d;
+		dosaddr_t addr = mem_ref;
 		GTRACE0("L_DI");
 		if (mode & (MBYTE|MBYTX)) {
 		    DR1.b.bl = sim_read_byte(addr);
@@ -588,7 +632,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case S_DI: {
-		dosaddr_t addr = AR1.d;
+		dosaddr_t addr = mem_ref;
 		GTRACE0("S_DI");
 		if (mode&MBYTE) {
 		    sim_write_byte(addr, DR1.b.bl);
@@ -1510,19 +1554,6 @@ static unsigned int Gen_sim(const IGen *IG)
 			CPULONG(Ofs_EDX) = (DR1.b.b3&0x80? 0xffffffff:0);
 		}
 		break;
-	case O_XLAT: {
-		unsigned int ofs = IG->p0;
-		unsigned int offset;
-		GTRACE1("XLAT",ofs);
-		AR1.d = CPULONG(ofs);
-		offset = CPULONG(Ofs_EBX) + CPUBYTE(Ofs_AL);
-		if (mode & ADDR16) {
-			offset &= 0xFFFF;
-		}
-		AR1.d += offset;
-		}
-		break;
-
 	case O_ROL: {		// O(if sh==1),C(if sh>0)
 		unsigned int o = IG->p0;
 		unsigned int sh, rbef, raft, cy;
@@ -2082,46 +2113,12 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 
-	case O_INT: {
-		unsigned char intno = IG->p0;
-		// Check bitmap, GPF if revectored
-		if (test_bit(intno, &TheCPU.int_revectored)) {
-			P0 = (dosaddr_t)IG->p1;
-			TheCPU.err2 = EXCP0D_GPF;
-		}
-		else {
-			AR1.d = intno * 4;
-		} }
-		break;
-
-	case O_MOVS_SetA: {
-		unsigned int ofs = IG->p0;
-		GTRACE1("O_MOVS_SetA",ofs);
-		if (mode&ADDR16) {
-		    if (mode&MOVSSRC) {
-			AR1.d = CPULONG(ofs);
-			AR1.d += CPUWORD(Ofs_SI);
-		    } else {
-	    		AR1.d = CPULONG(Ofs_XES);
-			AR1.d += CPUWORD(Ofs_DI);
-
-		    }
-		}
-		else {
-		    if (mode&MOVSSRC) {
-			AR1.d = CPULONG(ofs) + CPULONG(Ofs_ESI);
-		    } else {
-	    		AR1.d = CPULONG(Ofs_XES) + CPULONG(Ofs_EDI);
-		    }
-		}
-		}
-		break;
-
 	case O_MOVS_MovD: {
-		wkreg SR1, DR2, AR2;
+		wkreg SR1, DR2, AR1, AR2;
 		unsigned int i;
 		DR2.d = CPUWORD(Ofs_SI); /* for overflow calc */
 		SR1.d = CPUWORD(Ofs_DI); /* for overflow calc */
+		AR1.d = mem_ref;
 		AR2.d = CPULONG(Ofs_XES);
 		if (mode&ADDR16) {
 		    AR2.d += CPUWORD(Ofs_DI);
@@ -2166,7 +2163,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		    }
 		}
 		dest = AR2.d;
-		src = AR1.d;
+		src = mem_ref;
 		if (df<0) {
 		    if (mode&MBYTE) {
 			while (i--) sim_write_byte(dest--, sim_read_byte(src--));
@@ -2246,7 +2243,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		if (mode&(MREP|MREPNE))	{
 		    dbug_printf("odd: REP LODS %d\n",i);
 		}
-		addr = AR1.d;
+		addr = mem_ref;
 		if (mode&MBYTE) {
 		    while (i--) { DR1.b.bl = sim_read_byte(addr); addr += df; }
 		}
@@ -2260,9 +2257,10 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_MOVS_StoD: {
-		wkreg SR1;
+		wkreg SR1, AR1;
 		unsigned int i;
 		SR1.d = CPUWORD(Ofs_DI); /* for overflow calc */
+		AR1.d = mem_ref;
 		if (mode&ADDR16)
 		    i = (mode&(MREP|MREPNE)? CPUWORD(Ofs_CX) : 1);
 		else
@@ -2333,7 +2331,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		GTRACE4("O_MOVS_ScaD",0xff,0xff,df,i);
 		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
 		z = k = (mode&MREP? 1:0);
-		addr = AR1.d - di;
+		addr = mem_ref - di;
 		while (i && (z==k)) {
 		    if (mode&MBYTE) {
 			S1 = DR1.b.bl;
@@ -2398,7 +2396,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
 		z = k = (mode&MREP? 1:0);
 		si = (mode&ADDR16) ? CPUWORD(Ofs_SI) : CPULONG(Ofs_ESI);
-		addr2 = AR1.d - si;
+		addr2 = mem_ref - si;
 		while (i && (z==k)) {
 		    if (mode&MBYTE) {
 			S1 = sim_read_byte(addr2+si);
@@ -2578,12 +2576,12 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		if (!(mode & RM_REG) && o1 < 0x20) {
 			/* add bit offset to effective address */
-			AR1.d += (mode&DATA16) ? 2*(DR2.d>>4) : 4*(DR2.d>>5);
+			mem_ref += (mode&DATA16) ? 2*(DR2.d>>4) : 4*(DR2.d>>5);
 			if (mode & DATA16) {
-				DR1.d = sim_read_word(AR1.d);
+				DR1.d = sim_read_word(mem_ref);
 			}
 			else {
-				DR1.d = sim_read_dword(AR1.d);
+				DR1.d = sim_read_dword(mem_ref);
 			}
 		}
 		if (mode & DATA16) DR1.d = DR1.w.l;
@@ -2599,10 +2597,10 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		if (!(mode & RM_REG) && o1 < 0x20 && o1 != 0x03) {
 			if (mode & DATA16) {
-				sim_write_word(AR1.d, DR1.w.l);
+				sim_write_word(mem_ref, DR1.w.l);
 			}
 			else {
-				sim_write_dword(AR1.d, DR1.d);
+				sim_write_dword(mem_ref, DR1.d);
 			}
 		}
 		} break;
@@ -2807,7 +2805,7 @@ static unsigned int Gen_sim(const IGen *IG)
 	if (debug_level('e')>6) {
 #endif
 	    dbug_printf("(R) DR1=%08x AR1=%08x\n",
-		DR1.d,AR1.d);
+		DR1.d,mem_ref);
 	    dbug_printf("(R) RFL cout=%08x RES=%08x\n",
 		RFL.cout,RFL.res);
 //	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
@@ -2829,29 +2827,33 @@ static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGen
 	return CodePtr + sizeof(*IG);
 }
 
-static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
+static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 			 unsigned char *ecpu, void *SeqStart,
 			 unsigned short seqflg)
 {
 	IGen *IG = SeqStart;
 	unsigned int P0;
+	dosaddr_t mem_ref = 0;
 
 	FlagSync_RFL(*flg);
 	do {
-		if (IG->op >= A_DI_0 && IG->op <= A_DI_2D) {
-			AR1.d = AddrGen_sim(IG);
+		if (IG->op <= O_MOVS_SetA) {
+			mem_ref = AddrGen_sim(IG);
 			if (TheCPU.err2 == EXCP0D_GPF) {
-				P0 =  FindPC((unsigned char *)IG);
+				if (IG->op == O_INT)
+					P0 = (dosaddr_t)IG->p1;
+				else
+					P0 =  FindPC((unsigned char *)IG);
 				break;
 			}
 			IG++;
 		} // no need for "else", a non-addr op always follows
 		currentIG = (unsigned char *)IG;
-		P0 = Gen_sim(IG);
+		P0 = Gen_sim(IG, mem_ref);
 		IG++;
 	} while (P0 == (unsigned int)-1);
 	currentIG = NULL;
-	*mem_ref = TheCPU.mem_ref;
+	*pmem_ref = mem_ref;
 	*flg = FlagSync_All();
 
 #ifdef DEBUG_MORE
@@ -2861,7 +2863,7 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 #endif
 	{
 	    dbug_printf("(R) DR1=%08x AR1=%08x\n",
-		DR1.d,AR1.d);
+		DR1.d,mem_ref);
 	    dbug_printf("(R) RFL cout=%08x RES=%08x\n\n",
 		RFL.cout,RFL.res);
 	}
