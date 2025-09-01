@@ -2576,8 +2576,18 @@ static unsigned int Gen_sim(const IGen *IG)
 			if (mode & RM_REG)
 				DR2.d &= 0x1f;
 		}
-		if ((mode & RM_REG) || o1 >= 0x20) {
-		    if ((o1 & ~0x18) == 0x03 || (o1 & ~0x18) == 0x20) {
+		if (!(mode & RM_REG) && o1 < 0x20) {
+			/* add bit offset to effective address */
+			AR1.d += (mode&DATA16) ? 2*(DR2.d>>4) : 4*(DR2.d>>5);
+			if (mode & DATA16) {
+				DR1.d = sim_read_word(AR1.d);
+			}
+			else {
+				DR1.d = sim_read_dword(AR1.d);
+			}
+		}
+		if (mode & DATA16) DR1.d = DR1.w.l;
+		if ((o1 & ~0x18) == 0x03 || (o1 & ~0x18) == 0x20) {
 			SET_CF((DR1.d >> DR2.d) & 1);
 			switch (o1 & 0x18) {
 			case 0x00: break;
@@ -2586,10 +2596,14 @@ static unsigned int Gen_sim(const IGen *IG)
 			case 0x18: DR1.d ^= 1U << DR2.d; break;
 			default: break;
 			}
-		    }
-		} else {
-		    /* add bit offset to effective address */
-		    AR1.d += (mode&DATA16) ? 2*(DR2.d>>4) : 4*(DR2.d>>5);
+		}
+		if (!(mode & RM_REG) && o1 < 0x20 && o1 != 0x03) {
+			if (mode & DATA16) {
+				sim_write_word(AR1.d, DR1.w.l);
+			}
+			else {
+				sim_write_dword(AR1.d, DR1.d);
+			}
 		}
 		} break;
 	case O_SHFD: {

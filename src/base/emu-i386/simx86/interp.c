@@ -3273,18 +3273,11 @@ repag0:
 				if (TheCPU.mode & RM_REG) {
 				    Gen(L_REG, _mode, REG3);
 				}
-				else {
-				    /* add bit offset to effective address,
-				       then load and store from there */
-				    Gen(O_BITOP, _mode, (opc2-0xa0), REG1);
-				    Gen(L_DI_R1, _mode);
-				}
-				Gen(O_BITOP, _mode|RM_REG, (opc2-0xa0), REG1);
+				Gen(O_BITOP, _mode | (TheCPU.mode & RM_REG),
+				    (opc2-0xa0), REG1);
 				if (opc2 != 0xa3) {
 				    if (TheCPU.mode & RM_REG)
 					Gen(S_REG, _mode, REG3);
-				    else
-					Gen(S_DI, _mode);
 				}
 				break;
 			case 0xbc: /* BSF */
