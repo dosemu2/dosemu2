@@ -2084,23 +2084,28 @@ shrot0:
 				// movl offs(%%ebx),%%edx
 				G3M(0x8b,0x53,IG->p1,Cp);
 			}
-			if (mode & RM_REG) {
-				// OP{wl} %%{e}dx,%%{e}ax
-				Gen66(mode,Cp);	G3M(0x0f,(n+0xa0),0xd0,Cp);
-			}
-			else {
+			if (!(mode & RM_REG)) {
 				/* add bit offset to effective address */
+				// movl %%edx, %%eax
+				G2M(0x89,0xd0,Cp);
 				if (mode&DATA16) {
-					// shrl $4, %%edx
-					G3M(0xc1,0xea,0x04,Cp);
-					// leal (%%edi,%%edx,2), %%edi
-					G3M(0x8d,0x3c,0x57,Cp);
+					// shrl $4, %%eax
+					G3M(0xc1,0xe8,0x04,Cp);
+					// leal (%%edi,%%eax,2), %%edi
+					G3M(0x8d,0x3c,0x47,Cp);
 				} else {
-					// shrl $5, %%edx
-					G3M(0xc1,0xea,0x05,Cp);
-					// leal (%%edi,%%edx,4), %%edi
-					G3M(0x8d,0x3c,0x97,Cp);
+					// shrl $5, %%eax
+					G3M(0xc1,0xe8,0x05,Cp);
+					// leal (%%edi,%%eax,4), %%edi
+					G3M(0x8d,0x3c,0x87,Cp);
 				}
+				// mov (%%edi,%%ebp,1), %%{e}ax
+				Gen66(mode,Cp); G3M(0x8b,0x04,0x2f,Cp);
+			}
+			// OP{wl} %%{e}dx,%%{e}ax
+			Gen66(mode,Cp);	G3M(0x0f,(n+0xa0),0xd0,Cp);
+			if (!(mode & RM_REG) && n != 0x03) {
+				STD_WRITE_WL(mode);
 			}
 			break;
 		case 0x1c: /* BSF */

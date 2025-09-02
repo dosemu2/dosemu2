@@ -359,10 +359,11 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	case LOOP: case LOOPZ_LOOPE: case LOOPNZ_LOOPNE:
 		Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
 		break;
-	case RETl: case RETlisp: case JMPli: case CALLli: // far ret, indirect
-	case INT:
+	case RETl: case RETlisp: // far ret, indirect
 		Gen(S_REG, mode|DATA16, Ofs_CS);
 		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		/* fall through */
+	case JMPli: case CALLli: case INT: // far jmp/call, indirect
 		Gen(L_REG, mode, Ofs_EIP);
 		/* fall through */
 	case RET: case RETisp: case JMPi: case CALLi: // ret, indirect
@@ -1996,7 +1997,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(O_PUSHI, _mode, PC + 2 - LONG_CS);
 				Gen(O_SETFL, _mode, INT);
 				Gen(L_LXS1, _mode, Ofs_EIP);
-				Gen(L_DI_R1, _mode);
+				Gen(L_LXS2, _mode, Ofs_CS, Ofs_XCS);
 				PC = JumpGen(PC, _mode, opc, 2, P0, _flags);
 				if (debug_level('e')>1)
 					dbug_printf("EMU86: directly called int %#x ax=%#x at %#x:%#x\n",
@@ -2658,7 +2659,7 @@ repag0:
 					    Gen(O_PUSHI, _mode, oip);
 					}
 					Gen(L_LXS1, _mode, Ofs_EIP);
-					Gen(L_DI_R1, _mode);
+					Gen(L_LXS2, _mode, Ofs_CS, Ofs_XCS);
 					PC = JumpGen(PC, _mode, (opc<<8)|REG1, len,
 						P0, _flags);
 					if (debug_level('e')>2) {
@@ -3272,18 +3273,11 @@ repag0:
 				if (TheCPU.mode & RM_REG) {
 				    Gen(L_REG, _mode, REG3);
 				}
-				else {
-				    /* add bit offset to effective address,
-				       then load and store from there */
-				    Gen(O_BITOP, _mode, (opc2-0xa0), REG1);
-				    Gen(L_DI_R1, _mode);
-				}
-				Gen(O_BITOP, _mode|RM_REG, (opc2-0xa0), REG1);
+				Gen(O_BITOP, _mode | (TheCPU.mode & RM_REG),
+				    (opc2-0xa0), REG1);
 				if (opc2 != 0xa3) {
 				    if (TheCPU.mode & RM_REG)
 					Gen(S_REG, _mode, REG3);
-				    else
-					Gen(S_DI, _mode);
 				}
 				break;
 			case 0xbc: /* BSF */
