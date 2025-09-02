@@ -83,11 +83,7 @@ static unsigned char *currentIG = NULL;
 
 /* working registers of the host CPU */
 static wkreg DR1;	// "eax"
-static wkreg DR2;	// "edx"
 static wkreg AR1;	// "edi"
-static wkreg AR2;	// "esi"
-static wkreg SR1;	// "ebp"
-static wkreg TR1;	// "ecx"
 static flgtmp RFL;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1223,6 +1219,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_XCHG: {
 		unsigned int o = IG->p0;
+		wkreg DR2;
 		GTRACE1("O_XCHG",o);
 		if (mode & MBYTE) {
 			DR2.b.bl = DR1.b.bl;
@@ -1517,13 +1514,14 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 	case O_XLAT: {
 		unsigned int ofs = IG->p0;
+		unsigned int offset;
 		GTRACE1("XLAT",ofs);
 		AR1.d = CPULONG(ofs);
-		TR1.d = CPULONG(Ofs_EBX) + CPUBYTE(Ofs_AL);
+		offset = CPULONG(Ofs_EBX) + CPUBYTE(Ofs_AL);
 		if (mode & ADDR16) {
-			TR1.d &= 0xFFFF;
+			offset &= 0xFFFF;
 		}
-		AR1.d += TR1.d;
+		AR1.d += offset;
 		}
 		break;
 
@@ -1874,6 +1872,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		break;
 
 	case O_PUSH: {
+		wkreg SR1, AR2;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE0("O_PUSH");
 		if (mode & DATA16) {
@@ -1898,14 +1897,15 @@ static unsigned int Gen_sim(const IGen *IG)
 /* PUSH derived (sub-)sequences: */
 	case O_PUSH1:
 		GTRACE0("O_PUSH1");
-		AR2.d = CPULONG(Ofs_XSS);
-		SR1.d = CPULONG(Ofs_ESP);
 		break;
 
 	case O_PUSH2: {
+		wkreg SR1, AR2;
 		unsigned int o = IG->p0;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_PUSH2",o);
+		AR2.d = CPULONG(Ofs_XSS);
+		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
 			DR1.w.l = CPUWORD(o);
 			SR1.d -= 2;
@@ -1921,15 +1921,16 @@ static unsigned int Gen_sim(const IGen *IG)
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
 #endif
+		CPULONG(Ofs_ESP) = SR1.d;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 	case O_PUSH3:
 		GTRACE0("O_PUSH3");
-		CPULONG(Ofs_ESP) = SR1.d;
 		break;
 
 	case O_PUSH2F: {
+		wkreg SR1, AR2;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		int ftmp;
 		GTRACE0("O_PUSHF");
@@ -1957,6 +1958,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		} break;
 
 	case O_PUSHI: {
+		wkreg SR1, AR2;
 		int v = IG->p0;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE3("O_PUSHI",0xff,0xff,v);
@@ -1981,6 +1983,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		} break;
 
 	case O_POP: {
+		wkreg SR1, AR2;
 		int imm16 = (mode&MRETISP) ? IG->p0 : 0;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_POP",imm16);
@@ -2014,14 +2017,15 @@ static unsigned int Gen_sim(const IGen *IG)
 /* POP derived (sub-)sequences: */
 	case O_POP1:
 		GTRACE0("O_POP1");
-		AR2.d = CPULONG(Ofs_XSS);
-		SR1.d = CPULONG(Ofs_ESP);
 		break;
 
 	case O_POP2: {
+		wkreg SR1, AR2;
 		unsigned int o = IG->p0;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_POP2",o);
+		AR2.d = CPULONG(Ofs_XSS);
+		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
 			SR1.d &= stackm;
 			DR1.w.l = sim_read_word(AR2.d + SR1.d);
@@ -2040,14 +2044,15 @@ static unsigned int Gen_sim(const IGen *IG)
 		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
 #endif
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		CPULONG(Ofs_ESP) = SR1.d;
 		} break;
 
 	case O_POP3:
 		GTRACE0("O_POP3");
-		CPULONG(Ofs_ESP) = SR1.d;
 		break;
 
 	case O_LEAVE: {
+		wkreg SR1, AR2;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE0("O_LEAVE");
 		if (mode & DATA16) {
@@ -2096,43 +2101,45 @@ static unsigned int Gen_sim(const IGen *IG)
 		GTRACE1("O_MOVS_SetA",ofs);
 		if (mode&ADDR16) {
 		    if (mode&MOVSSRC) {
-			AR2.d = CPULONG(ofs);
-			DR2.d = CPUWORD(Ofs_SI); /* for overflow calc */
-			AR2.d += DR2.d;
-		    }
-		    if (mode&MOVSDST) {
+			AR1.d = CPULONG(ofs);
+			AR1.d += CPUWORD(Ofs_SI);
+		    } else {
 	    		AR1.d = CPULONG(Ofs_XES);
-			SR1.d = CPUWORD(Ofs_DI); /* for overflow calc */
-			AR1.d += SR1.d;
+			AR1.d += CPUWORD(Ofs_DI);
 
 		    }
-		    TR1.d = (mode&(MREP|MREPNE)? CPUWORD(Ofs_CX) : 1);
 		}
 		else {
 		    if (mode&MOVSSRC) {
-			AR2.d = CPULONG(ofs) + CPULONG(Ofs_ESI);
-		    }
-		    if (mode&MOVSDST) {
+			AR1.d = CPULONG(ofs) + CPULONG(Ofs_ESI);
+		    } else {
 	    		AR1.d = CPULONG(Ofs_XES) + CPULONG(Ofs_EDI);
 		    }
-		    TR1.d = (mode&(MREP|MREPNE)? CPULONG(Ofs_ECX) : 1);
-		}
-		if (!(mode&(MREP|MREPNE|MOVSDST))) {
-		    AR1.d = AR2.d; /* single lodsb uses L_DI_R1 */
 		}
 		}
 		break;
 
 	case O_MOVS_MovD: {
+		wkreg SR1, DR2, AR2;
+		unsigned int i;
+		DR2.d = CPUWORD(Ofs_SI); /* for overflow calc */
+		SR1.d = CPUWORD(Ofs_DI); /* for overflow calc */
+		AR2.d = CPULONG(Ofs_XES);
+		if (mode&ADDR16) {
+		    AR2.d += CPUWORD(Ofs_DI);
+		    i = (mode&(MREP|MREPNE)? CPUWORD(Ofs_CX) : 1);
+		} else {
+		    AR2.d += CPULONG(Ofs_EDI);
+		    i = (mode&(MREP|MREPNE)? CPULONG(Ofs_ECX) : 1);
+		}
+		do {
+		unsigned int minofs, bytesbefore, rest = 0;
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		dosaddr_t src, dest;
-		unsigned int i;
-		i = TR1.d;
 		GTRACE4("O_MOVS_MovD",0xff,0xff,df,i);
 		if(i == 0)
 		    break;
 		if(mode & ADDR16) {
-		    unsigned int minofs, bytesbefore;
 		    /* overflow check (DR2 is SI, SR1 is DI) */
 		    if (df == -1) {
 			minofs = min(SR1.d,DR2.d);
@@ -2156,51 +2163,12 @@ static unsigned int Gen_sim(const IGen *IG)
 			possible = minofs / (OPSIZE(mode));
 			if (df < 0)
 			    possible++;
-			TR1.d = possible;
-			Gen_sim(IG);
-			/* emulate overflow */
-			if (df == -1) {
-			    if(SR1.d == minofs) {
-				AR1.d -= df*0x10000;
-				SR1.d = 0xffff;
-				DR2.d -= minofs;
-				if (DR2.d > 0)
-				    DR2.d -= 1;
-				else
-				    DR2.d = 0xffff;
-			    }
-			    if(DR2.d == minofs) {
-				AR2.d -= df*0x10000;
-				DR2.d = 0xffff;
-				SR1.d -= minofs;
-				if (SR1.d > 0)
-				    SR1.d -= 1;
-				else
-				    SR1.d = 0xffff;
-			    }
-			} else {
-			    if(SR1.d == 0x10000 - minofs) {
-				AR1.d -= df*0x10000;
-				SR1.d = 0;
-				DR2.d += minofs;
-				DR2.d &= 0xffff;
-			    }
-			    if(DR2.d == 0x10000 - minofs) {
-				AR2.d -= df*0x10000;
-				DR2.d = 0;
-				SR1.d += minofs;
-				SR1.d &= 0xffff;
-			    }
-			}
-
-			/* do the rest */
-			TR1.d = i - possible;
-			Gen_sim(IG);
-			break;
+			rest = i - possible;
+			i = possible;
 		    }
 		}
-		dest = AR1.d;
-		src = AR2.d;
+		dest = AR2.d;
+		src = AR1.d;
 		if (df<0) {
 		    if (mode&MBYTE) {
 			while (i--) sim_write_byte(dest--, sim_read_byte(src--));
@@ -2227,21 +2195,70 @@ static unsigned int Gen_sim(const IGen *IG)
 			    dest += 4; src += 4; }
 		    }
 		}
-		TR1.d = 0;
-		AR1.d = dest;
-		AR2.d = src;
+		i = rest;
+		AR2.d = dest;
+		AR1.d = src;
+		if(rest == 0) break;
+		/* emulate overflow */
+		if (df == -1) {
+		    if(SR1.d == minofs) {
+			AR2.d -= df*0x10000;
+			SR1.d = 0xffff;
+			DR2.d -= minofs;
+			if (DR2.d > 0)
+			    DR2.d -= 1;
+			else
+			    DR2.d = 0xffff;
+		    }
+		    if(DR2.d == minofs) {
+			AR1.d -= df*0x10000;
+			DR2.d = 0xffff;
+			SR1.d -= minofs;
+			if (SR1.d > 0)
+			    SR1.d -= 1;
+			else
+			    SR1.d = 0xffff;
+		    }
+		} else {
+		    if(SR1.d == 0x10000 - minofs) {
+			AR2.d -= df*0x10000;
+			SR1.d = 0;
+			DR2.d += minofs;
+			DR2.d &= 0xffff;
+		    }
+		    if(DR2.d == 0x10000 - minofs) {
+			AR1.d -= df*0x10000;
+			DR2.d = 0;
+			SR1.d += minofs;
+			SR1.d &= 0xffff;
+		    }
+		}
+		} while (1);
+		AR2.d -= CPULONG(Ofs_XES);
+		if (mode&ADDR16) {
+		    CPUWORD(Ofs_DI) = AR2.w.l;
+		    if (mode&(MREP|MREPNE))
+			CPUWORD(Ofs_CX) = 0;
+		} else {
+		    CPULONG(Ofs_EDI) = AR2.d;
+		    if (mode&(MREP|MREPNE))
+			CPULONG(Ofs_ECX) = 0;
+		}
 		}
 		break;
 	case O_MOVS_LodD: {
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		dosaddr_t addr;
 		unsigned int i;
-		i = TR1.d;
+		if (mode&ADDR16)
+		    i = (mode&(MREP|MREPNE)? CPUWORD(Ofs_CX) : 1);
+		else
+		    i = (mode&(MREP|MREPNE)? CPULONG(Ofs_ECX) : 1);
 		GTRACE4("O_MOVS_LodD",0xff,0xff,df,i);
 		if (mode&(MREP|MREPNE))	{
 		    dbug_printf("odd: REP LODS %d\n",i);
 		}
-		addr = AR2.d;
+		addr = AR1.d;
 		if (mode&MBYTE) {
 		    while (i--) { DR1.b.bl = sim_read_byte(addr); addr += df; }
 		}
@@ -2251,16 +2268,29 @@ static unsigned int Gen_sim(const IGen *IG)
 		else {
 		    while (i--) { DR1.d = sim_read_dword(addr); addr += 4*df; }
 		}
-		if (mode&(MREP|MREPNE))	TR1.d = 0;
-		AR2.d = addr;
+		if (mode&(MREP|MREPNE)) {
+		    if (mode&ADDR16)
+			CPUWORD(Ofs_CX) = 0;
+		    else
+			CPULONG(Ofs_ECX) = 0;
+		}
+		AR1.d = addr;
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
 	case O_MOVS_StoD: {
+		wkreg SR1;
+		unsigned int i;
+		SR1.d = CPUWORD(Ofs_DI); /* for overflow calc */
+		if (mode&ADDR16)
+		    i = (mode&(MREP|MREPNE)? CPUWORD(Ofs_CX) : 1);
+		else
+		    i = (mode&(MREP|MREPNE)? CPULONG(Ofs_ECX) : 1);
+
+		do {
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		dosaddr_t addr;
-		unsigned int i;
-		i = TR1.d;
+		unsigned int rest = 0;
 		GTRACE4("O_MOVS_StoD",0xff,0xff,df,i);
 		if((mode & ADDR16) && i) {
 		    unsigned int minofs, bytesbefore;
@@ -2285,13 +2315,8 @@ static unsigned int Gen_sim(const IGen *IG)
 			possible = minofs / (OPSIZE(mode));
 			if (df < 0)
 			    possible++;
-			TR1.d = possible;
-			Gen_sim(IG);
-			SR1.d = (df == -1 ? 0xffff : 0);
-			AR1.d -= 0x10000*df;
-			TR1.d = i - possible;
-			Gen_sim(IG);
-			break;
+			rest = i - possible;
+			i = possible;
 		    }
 		}
 		addr = AR1.d;
@@ -2305,7 +2330,17 @@ static unsigned int Gen_sim(const IGen *IG)
 		    while (i--) { sim_write_dword(addr, DR1.d); addr += 4*df; }
 		}
 		AR1.d = addr;
-		TR1.d = 0;
+		i = rest;
+		if (rest == 0) break;
+		SR1.d = (df == -1 ? 0xffff : 0);
+		AR1.d -= 0x10000*df;
+		} while (1);
+		if (mode&(MREP|MREPNE)) {
+		    if (mode&ADDR16)
+			CPUWORD(Ofs_CX) = 0;
+		    else
+			CPULONG(Ofs_ECX) = 0;
+		}
 		}
 		break;
 	case O_MOVS_ScaD: {	// OSZAPC
@@ -2313,7 +2348,10 @@ static unsigned int Gen_sim(const IGen *IG)
 		dosaddr_t addr;
 		unsigned int i;
 		char k, z;
-		i = TR1.d;
+		if (mode&ADDR16)
+		    i = (mode&(MREP|MREPNE)? CPUWORD(Ofs_CX) : 1);
+		else
+		    i = (mode&(MREP|MREPNE)? CPULONG(Ofs_ECX) : 1);
 		GTRACE4("O_MOVS_ScaD",0xff,0xff,df,i);
 		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
 		z = k = (mode&MREP? 1:0);
@@ -2341,22 +2379,31 @@ static unsigned int Gen_sim(const IGen *IG)
 		    i--;
 		}
 		AR1.d = addr;
-		TR1.d = i;
+		if (mode&(MREP|MREPNE)) {
+		    if (mode&ADDR16)
+			CPUWORD(Ofs_CX) = i;
+		    else
+			CPULONG(Ofs_ECX) = i;
+		}
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
 	case O_MOVS_CmpD: {	// OSZAPC
+		wkreg AR2;
 		int df;
 		dosaddr_t addr1, addr2;
 		unsigned int i;
 		char k, z;
-		i = TR1.d;
+		AR2.d = CPULONG(Ofs_XES);
+		if (mode&ADDR16)
+		    AR2.d += CPUWORD(Ofs_DI);
+		else
+		    AR2.d += CPULONG(Ofs_EDI);
 		df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
-		GTRACE4("O_MOVS_CmpD",0xff,0xff,df,i);
-		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
-		addr1 = AR1.d;
+		addr1 = AR2.d;
 		if(!(mode & (MREP|MREPNE))) {
-			// assumes DR1=*AR2
+			GTRACE4("O_MOVS_CmpD",0xff,0xff,df,1);
+			// assumes DR1=*AR1
 			if (mode&MBYTE) {
 				S1 = DR1.b.bl;
 				S2 = sim_read_byte(addr1);
@@ -2372,8 +2419,11 @@ static unsigned int Gen_sim(const IGen *IG)
 			}
 			break;
 		}
+		i = (mode&ADDR16) ? CPUWORD(Ofs_CX) : CPULONG(Ofs_ECX);
+		GTRACE4("O_MOVS_CmpD",0xff,0xff,df,i);
+		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
 		z = k = (mode&MREP? 1:0);
-		addr2 = AR2.d;
+		addr2 = AR1.d;
 		while (i && (z==k)) {
 		    if (mode&MBYTE) {
 			S1 = sim_read_byte(addr2);
@@ -2396,10 +2446,17 @@ static unsigned int Gen_sim(const IGen *IG)
 		    z = (RFL.res==0);
 		    i--;
 		}
-		TR1.d = i;
-		AR1.d = addr1;
-		AR2.d = addr2;
+		AR2.d = addr1;
+		AR1.d = addr2;
 		// ! Warning DI,SI wrap	in 16-bit mode
+		AR2.d -= CPULONG(Ofs_XES);
+		if (mode&ADDR16) {
+		    CPUWORD(Ofs_DI) = AR2.w.l;
+		    CPUWORD(Ofs_CX) = i;
+		} else {
+		    CPULONG(Ofs_EDI) = AR2.d;
+		    CPULONG(Ofs_ECX) = i;
+		}
 		}
 		break;
 
@@ -2407,6 +2464,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		unsigned int ofs = IG->p0;
 		GTRACE1("O_MOVS_SavA",ofs);
 		if (!(mode&(MREP|MREPNE))) {
+		    wkreg DR2;
 		    // %%edx set to DF's increment
 		    DR2.d = (signed char)CPUBYTE(Ofs_DF_INCREMENTS+OPSIZEBIT(mode));
 		    if(mode & MOVSSRC) {
@@ -2423,27 +2481,19 @@ static unsigned int Gen_sim(const IGen *IG)
 		    }
 		}
 		else if (mode&ADDR16) {
-		    if (mode&(MREP|MREPNE)) {
-	    		CPUWORD(Ofs_CX) = TR1.w.l;
-		    }
 		    if (mode&MOVSSRC) {
-			AR2.d -= CPULONG(ofs);
-			CPUWORD(Ofs_SI) = AR2.w.l;
-		    }
-		    if (mode&MOVSDST) {
+			AR1.d -= CPULONG(ofs);
+			CPUWORD(Ofs_SI) = AR1.w.l;
+		    } else {
 	    		AR1.d -= CPULONG(Ofs_XES);
 			CPUWORD(Ofs_DI) = AR1.w.l;
 		    }
 		}
 		else {
-		    if (mode&(MREP|MREPNE)) {
-	    		CPULONG(Ofs_ECX) = TR1.d;
-		    }
 		    if (mode&MOVSSRC) {
-			AR2.d -= CPULONG(ofs);
-			CPULONG(Ofs_ESI) = AR2.d;
-		    }
-		    if (mode&MOVSDST) {
+			AR1.d -= CPULONG(ofs);
+			CPULONG(Ofs_ESI) = AR1.d;
+		    } else {
 	    		AR1.d -= CPULONG(Ofs_XES);
 			CPULONG(Ofs_EDI) = AR1.d;
 		    }
@@ -2533,6 +2583,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 	case O_BITOP: {
+		wkreg DR2;
 		unsigned char o1 = (unsigned char)IG->p0;
 		unsigned int o2 = IG->p1;
 		GTRACE3("O_BITOP",o2,0xff,o1);
@@ -2652,7 +2703,8 @@ static unsigned int Gen_sim(const IGen *IG)
 		}
 		break;
 
-	case O_INPDX:
+	case O_INPDX: {
+		wkreg DR2;
 		GTRACE0("O_INPDX");
 		DR2.d = CPULONG(Ofs_EDX);
 		if (mode&MBYTE) {
@@ -2666,9 +2718,10 @@ static unsigned int Gen_sim(const IGen *IG)
 		else {
 			DR1.d = port_ind(DR2.w.l);
 			CPULONG(Ofs_EAX) = DR1.d;
-		}
+		} }
 		break;
-	case O_OUTPDX:
+	case O_OUTPDX: {
+		wkreg DR2;
 		GTRACE0("O_OUTPDX");
 		DR2.d = CPULONG(Ofs_EDX);
 		if (mode&MBYTE) {
@@ -2682,7 +2735,7 @@ static unsigned int Gen_sim(const IGen *IG)
 		else {
 			DR1.d = CPULONG(Ofs_EAX);
 			port_outd(DR2.w.l,DR1.d);
-		}
+		} }
 		break;
 
 	case JMP_TAILCODE: {	// retaddr
@@ -2776,10 +2829,8 @@ static unsigned int Gen_sim(const IGen *IG)
 #else
 	if (debug_level('e')>6) {
 #endif
-	    dbug_printf("(R) DR1=%08x DR2=%08x AR1=%08x AR2=%08x\n",
-		DR1.d,DR2.d,AR1.d,AR2.d);
-	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
-		SR1.d,TR1.d);
+	    dbug_printf("(R) DR1=%08x AR1=%08x\n",
+		DR1.d,AR1.d);
 	    dbug_printf("(R) RFL cout=%08x RES=%08x\n",
 		RFL.cout,RFL.res);
 //	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
@@ -2832,10 +2883,8 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 	if (debug_level('e')>3)
 #endif
 	{
-	    dbug_printf("(R) DR1=%08x DR2=%08x AR1=%08x AR2=%08x\n",
-		DR1.d,DR2.d,AR1.d,AR2.d);
-	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
-		SR1.d,TR1.d);
+	    dbug_printf("(R) DR1=%08x AR1=%08x\n",
+		DR1.d,AR1.d);
 	    dbug_printf("(R) RFL cout=%08x RES=%08x\n\n",
 		RFL.cout,RFL.res);
 	}
