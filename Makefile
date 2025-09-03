@@ -28,10 +28,10 @@ config.hh: $(top_srcdir)/config.hh.in | $(top_builddir)/config.status
 	touch $@
 Makefile.conf: $(top_srcdir)/Makefile.conf.in | $(top_builddir)/config.status
 	$(top_builddir)/config.status
-etc/dosemu.desktop: $(top_srcdir)/etc/dosemu.desktop.in
+etc/dosemu.desktop: $(top_srcdir)/etc/dosemu.desktop.in | $(top_builddir)/config.status
 	$(top_builddir)/config.status
 
-default install: config.status config.hh etc/dosemu.desktop
+default install: $(top_builddir)/config.status config.hh etc/dosemu.desktop
 	@$(MAKE) -C man $@
 	@$(MAKE) -C src $@
 
