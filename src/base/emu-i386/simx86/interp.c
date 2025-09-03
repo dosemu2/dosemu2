@@ -1415,50 +1415,30 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    CODE_FLUSH();
 			    goto illegal_op;
 			}
+			PC += ModRM(opc, PC, _mode);
+			Gen(L_LXS2, _mode);
 			if (REALADDR()) {
-			    PC += ModRM(opc, PC, _mode);
-			    Gen(L_LXS2, _mode);
 			    AddrGen(A_SR_SH4, _mode, Ofs_ES, Ofs_XES);
-			    Gen(L_LXS1, _mode, REG1);
 			}
 			else {
-			    unsigned short sv = 0;
-			    unsigned long rv;
-			    CODE_FLUSH();
-			    PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-			    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
-			    TheCPU.mem_ref += BT24(BitDATA16, _mode);
-			    sv = GetDWord(TheCPU.mem_ref);
-			    TheCPU.err = MAKESEG(_mode, Ofs_ES, sv);
-			    if (TheCPU.err) return P0;
-			    SetCPU_WL(_mode, REG1, rv);
-			    TheCPU.es = sv;
+			    AddrGen(A_SR_PROT, _mode, Ofs_ES, P0);
 			}
+			Gen(L_LXS1, _mode, REG1);
 			break;
 /*c5*/	case LDS:
 			if (Fetch(PC+1) >= 0xc0) {
 			    CODE_FLUSH();
 			    goto illegal_op;
 			}
+			PC += ModRM(opc, PC, _mode);
+			Gen(L_LXS2, _mode);
 			if (REALADDR()) {
-			    PC += ModRM(opc, PC, _mode);
-			    Gen(L_LXS2, _mode);
 			    AddrGen(A_SR_SH4, _mode, Ofs_DS, Ofs_XDS);
-			    Gen(L_LXS1, _mode, REG1);
 			}
 			else {
-			    unsigned short sv = 0;
-			    unsigned long rv;
-			    CODE_FLUSH();
-			    PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-			    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
-			    TheCPU.mem_ref += BT24(BitDATA16, _mode);
-			    sv = GetDWord(TheCPU.mem_ref);
-			    TheCPU.err = MAKESEG(_mode, Ofs_DS, sv);
-			    if (TheCPU.err) return P0;
-			    SetCPU_WL(_mode, REG1, rv);
-			    TheCPU.ds = sv;
+			    AddrGen(A_SR_PROT, _mode, Ofs_DS, P0);
 			}
+			Gen(L_LXS1, _mode, REG1);
 			break;
 /*8e*/	case MOVsrfrm:
 			PC += ModRM(opc, PC, _mode|SEGREG|DATA16|MLOAD);
@@ -3348,75 +3328,45 @@ repag0:
 				    CODE_FLUSH();
 				    goto illegal_op;
 				}
+				PC++; PC += ModRM(opc, PC, _mode);
+				Gen(L_LXS2, _mode);
 				if (REALADDR()) {
-				    PC++; PC += ModRM(opc, PC, _mode);
-				    Gen(L_LXS2, _mode);
 				    AddrGen(A_SR_SH4, _mode, Ofs_SS, Ofs_XSS);
-				    Gen(L_LXS1, _mode, REG1);
 				}
 				else {
-				    unsigned short sv = 0;
-				    unsigned long rv;
-				    CODE_FLUSH();
-				    PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-				    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
-				    TheCPU.mem_ref += BT24(BitDATA16,_mode);
-				    sv = GetDWord(TheCPU.mem_ref);
-				    TheCPU.err = MAKESEG(_mode, Ofs_SS, sv);
-				    if (TheCPU.err) return P0;
-				    SetCPU_WL(_mode, REG1, rv);
-				    TheCPU.ss = sv;
+				    AddrGen(A_SR_PROT, _mode, Ofs_SS, P0);
 				}
+				Gen(L_LXS1, _mode, REG1);
 				break;
 			case 0xb4: /* LFS */
 				if (Fetch(PC+2) >= 0xc0) {
 				    CODE_FLUSH();
 				    goto illegal_op;
 				}
+				PC++; PC += ModRM(opc, PC, _mode);
+				Gen(L_LXS2, _mode);
 				if (REALADDR()) {
-				    PC++; PC += ModRM(opc, PC, _mode);
-				    Gen(L_LXS2, _mode);
 				    AddrGen(A_SR_SH4, _mode, Ofs_FS, Ofs_XFS);
-				    Gen(L_LXS1, _mode, REG1);
 				}
 				else {
-				    unsigned short sv = 0;
-				    unsigned long rv;
-				    CODE_FLUSH();
-				    PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-				    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
-				    TheCPU.mem_ref += BT24(BitDATA16,_mode);
-				    sv = GetDWord(TheCPU.mem_ref);
-				    TheCPU.err = MAKESEG(_mode, Ofs_FS, sv);
-				    if (TheCPU.err) return P0;
-				    SetCPU_WL(_mode, REG1, rv);
-				    TheCPU.fs = sv;
+				    AddrGen(A_SR_PROT, _mode, Ofs_FS, P0);
 				}
+				Gen(L_LXS1, _mode, REG1);
 				break;
 			case 0xb5: /* LGS */
 				if (Fetch(PC+2) >= 0xc0) {
 				    CODE_FLUSH();
 				    goto illegal_op;
 				}
+				PC++; PC += ModRM(opc, PC, _mode);
+				Gen(L_LXS2, _mode);
 				if (REALADDR()) {
-				    PC++; PC += ModRM(opc, PC, _mode);
-				    Gen(L_LXS2, _mode);
 				    AddrGen(A_SR_SH4, _mode, Ofs_GS, Ofs_XGS);
-				    Gen(L_LXS1, _mode, REG1);
 				}
 				else {
-				    unsigned short sv = 0;
-				    unsigned long rv;
-				    CODE_FLUSH();
-				    PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-				    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
-				    TheCPU.mem_ref += BT24(BitDATA16,_mode);
-				    sv = GetDWord(TheCPU.mem_ref);
-				    TheCPU.err = MAKESEG(_mode, Ofs_GS, sv);
-				    if (TheCPU.err) return P0;
-				    SetCPU_WL(_mode, REG1, rv);
-				    TheCPU.gs = sv;
+				    AddrGen(A_SR_PROT, _mode, Ofs_GS, P0);
 				}
+				Gen(L_LXS1, _mode, REG1);
 				break;
 			case 0xb6: /* MOVZXb */
 				PC++; PC += ModRM(opc, PC, _mode|MBYTX|MLOAD);
