@@ -447,7 +447,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 	case A_SR_SH4: {	// real mode make base addr from seg
 		unsigned int o = IG->p0;
 		GTRACE1("A_SR_SH4",o);
-		SetSegReal(CPUWORD(o), o);
+		SetSegReal(DR1.w.l, o);
 		}
 		break;
 	case A_SR_PROT: {	// protected mode make base addr from seg

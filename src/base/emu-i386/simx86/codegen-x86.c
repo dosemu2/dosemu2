@@ -260,8 +260,10 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		} }
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
-		// movzwl ofs(%%ebx),%%eax
-		G4M(0x0f,0xb7,0x43,IG->p0,Cp);
+		// movw %%ax,offs(%%ebx)
+		G4M(0x66,0x89,0x43,IG->p0,Cp);
+		// movzwl %%ax,%%eax
+		G3(0xc0b70f,Cp);
 		// shll $4,%%eax
 		G3M(0xc1,0xe0,0x04,Cp);
 		// movl %%eax,ofs(%%ebx)

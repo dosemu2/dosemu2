@@ -331,7 +331,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		break;
 	case JMPld: {   /* uncond jmp far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
-		Gen(L_IMM, mode|DATA16, Ofs_CS, jcs);
+		Gen(L_IMM_R1, mode|DATA16, jcs);
 		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 	}
 	/* no break */
@@ -349,7 +349,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		if (!(mode & DATA16)) // 32-bit segreg padding
 		    Gen(L_ZXAX, mode);
 		Gen(O_PUSH, mode);
-		Gen(L_IMM, mode|DATA16, Ofs_CS, jcs);
+		Gen(L_IMM_R1, mode|DATA16, jcs);
 		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 	}
 	/* no break */
@@ -360,7 +360,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
 		break;
 	case RETl: case RETlisp: // far ret, indirect
-		Gen(S_REG, mode|DATA16, Ofs_CS);
 		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 		/* fall through */
 	case JMPli: case CALLli: case INT: // far jmp/call, indirect
@@ -997,7 +996,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*07*/	case POPes:	if (REALADDR()) {
 			    Gen(O_POP, _mode);
-			    Gen(S_REG, _mode, Ofs_ES);
 			    AddrGen(A_SR_SH4, _mode, Ofs_ES, Ofs_XES);
 			} else { /* restartable */
 			    unsigned short sv = 0;
@@ -1012,7 +1010,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*17*/	case POPss:	if (REALADDR()) {
 			    Gen(O_POP, _mode);
-			    Gen(S_REG, _mode, Ofs_SS);
 			    AddrGen(A_SR_SH4, _mode, Ofs_SS, Ofs_XSS);
 			} else { /* restartable */
 			    unsigned short sv = 0;
@@ -1028,7 +1025,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*1f*/	case POPds:	if (REALADDR()) {
 			    Gen(O_POP, _mode);
-			    Gen(S_REG, _mode, Ofs_DS);
 			    AddrGen(A_SR_SH4, _mode, Ofs_DS, Ofs_XDS);
 			} else { /* restartable */
 			    unsigned short sv = 0;
@@ -1481,21 +1477,17 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    TheCPU.ds = sv;
 			}
 			break;
-/*8e*/	case MOVsrfrm:	{
-			int seg;
+/*8e*/	case MOVsrfrm:
 			PC += ModRM(opc, PC, _mode|SEGREG|DATA16|MLOAD);
-			seg = e_ofsseg(REG1);
-			if (seg == Ofs_XCS) {
+			if (REG1 == Ofs_CS) {
 			    CODE_FLUSH();
 			    goto illegal_op;
 			}
 			if (REALADDR()) {
-			    Gen(S_REG, _mode|DATA16, REG1);
-			    AddrGen(A_SR_SH4, _mode, REG1, seg);
+			    AddrGen(A_SR_SH4, _mode, REG1, e_ofsseg(REG1));
 			}
 			else {
 			    AddrGen(A_SR_PROT, _mode, REG1, P0);
-			}
 			}
 			break;
 
@@ -3221,7 +3213,6 @@ repag0:
 			case 0xa1: /* POPfs */
 				if (REALADDR()) {
 				    Gen(O_POP, _mode);
-				    Gen(S_REG, _mode, Ofs_FS);
 				    AddrGen(A_SR_SH4, _mode, Ofs_FS, Ofs_XFS);
 				} else { /* restartable */
 				    unsigned short sv = 0;
@@ -3331,7 +3322,6 @@ repag0:
 			case 0xa9: /* POPgs */
 				if (REALADDR()) {
 				    Gen(O_POP, _mode);
-				    Gen(S_REG, _mode, Ofs_GS);
 				    AddrGen(A_SR_SH4, _mode, Ofs_GS, Ofs_XGS);
 				} else { /* restartable */
 				    unsigned short sv = 0;
