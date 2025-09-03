@@ -275,6 +275,12 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		}
 		break;
 	case A_SR_PROT: {	// prot mode make base addr from seg
+#ifdef __x86_64__
+		// pushq %rdi: save memory address for LDS etc.
+		G1(0x57,Cp);
+		// pushq %rsi: save stack address for O_POP3
+		G1(0x56,Cp);
+#endif
 		// pushb Ofs
 		G2M(0x6a,IG->p0,Cp)
 #ifdef __x86_64__
@@ -288,7 +294,10 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 #endif
 		// call Ofs_SetSegProt(%%ebx)
 		G3M(0xff,0x53,Ofs_SetSegProt(),Cp);
-#ifndef __x86_64__
+#ifdef __x86_64__
+		// popq %rsi; popq %rdi
+		G2M(0x5e,0x5f,Cp);
+#else
 		// popl %edx; popl %edx
 		G2M(0x5a,0x5a,Cp);
 #endif

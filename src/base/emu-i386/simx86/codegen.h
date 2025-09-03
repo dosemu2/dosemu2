@@ -251,12 +251,6 @@ static __inline__ void POP(int m, uint32_t *w)
 	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
 }
 
-static __inline__ void TOS_WORD(int m, uint16_t *w)		// for segments
-{
-	unsigned int sp = TheCPU.esp & TheCPU.StackMask;
-	GetSWord(w);
-}
-
 static __inline__ void NOS_WORD(int m, uint16_t *w)		// for segments
 {
 	unsigned int sp = (TheCPU.esp+(m&DATA16? 2:4)) & TheCPU.StackMask;

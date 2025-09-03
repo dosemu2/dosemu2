@@ -998,13 +998,13 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    Gen(O_POP, _mode);
 			    AddrGen(A_SR_SH4, _mode, Ofs_ES, Ofs_XES);
 			} else { /* restartable */
-			    unsigned short sv = 0;
-			    CODE_FLUSH();
-			    TOS_WORD(_mode, &sv);
-			    TheCPU.err = MAKESEG(_mode, Ofs_ES, sv);
-			    if (TheCPU.err) return P0;
-			    POP_ONLY(_mode);
-			    TheCPU.es = sv;
+			    Gen(O_POP1, _mode);
+			    Gen(O_POP2, _mode|MPOPRM, 0);
+			    /* same principle applies as for POPrm: this
+			       segment load may fault, above pops into
+			       temporary storage without adjusting (E)SP */
+			    AddrGen(A_SR_PROT, _mode, Ofs_ES, P0);
+			    Gen(O_POP3, _mode|MPOPRM);
 			}
 			PC++;
 			break;
@@ -1012,14 +1012,10 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    Gen(O_POP, _mode);
 			    AddrGen(A_SR_SH4, _mode, Ofs_SS, Ofs_XSS);
 			} else { /* restartable */
-			    unsigned short sv = 0;
-			    CODE_FLUSH();
-			    TOS_WORD(_mode, &sv);
-			    TheCPU.err = MAKESEG(_mode, Ofs_SS, sv);
-			    if (TheCPU.err) return P0;
-			    POP_ONLY(_mode);
-			    TheCPU.ss = sv;
-			    CEmuStat |= CeS_MOVSS;
+			    Gen(O_POP1, _mode);
+			    Gen(O_POP2, _mode|MPOPRM, 0);
+			    AddrGen(A_SR_PROT, _mode, Ofs_SS, P0);
+			    Gen(O_POP3, _mode|MPOPRM);
 			}
 			PC++;
 			break;
@@ -1027,13 +1023,10 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    Gen(O_POP, _mode);
 			    AddrGen(A_SR_SH4, _mode, Ofs_DS, Ofs_XDS);
 			} else { /* restartable */
-			    unsigned short sv = 0;
-			    CODE_FLUSH();
-			    TOS_WORD(_mode, &sv);
-			    TheCPU.err = MAKESEG(_mode, Ofs_DS, sv);
-			    if (TheCPU.err) return P0;
-			    POP_ONLY(_mode);
-			    TheCPU.ds = sv;
+			    Gen(O_POP1, _mode);
+			    Gen(O_POP2, _mode|MPOPRM, 0);
+			    AddrGen(A_SR_PROT, _mode, Ofs_DS, P0);
+			    Gen(O_POP3, _mode|MPOPRM);
 			}
 			PC++;
 			break;
@@ -3215,13 +3208,10 @@ repag0:
 				    Gen(O_POP, _mode);
 				    AddrGen(A_SR_SH4, _mode, Ofs_FS, Ofs_XFS);
 				} else { /* restartable */
-				    unsigned short sv = 0;
-				    CODE_FLUSH();
-				    TOS_WORD(_mode, &sv);
-				    TheCPU.err = MAKESEG(_mode, Ofs_FS, sv);
-				    if (TheCPU.err) return P0;
-				    POP_ONLY(_mode);
-				    TheCPU.fs = sv;
+				    Gen(O_POP1, _mode);
+				    Gen(O_POP2, _mode|MPOPRM, 0);
+				    AddrGen(A_SR_PROT, _mode, Ofs_FS, P0);
+				    Gen(O_POP3, _mode|MPOPRM);
 				}
 				PC+=2;
 				break;
@@ -3324,13 +3314,10 @@ repag0:
 				    Gen(O_POP, _mode);
 				    AddrGen(A_SR_SH4, _mode, Ofs_GS, Ofs_XGS);
 				} else { /* restartable */
-				    unsigned short sv = 0;
-				    CODE_FLUSH();
-				    TOS_WORD(_mode, &sv);
-				    TheCPU.err = MAKESEG(_mode, Ofs_GS, sv);
-				    if (TheCPU.err) return P0;
-				    POP_ONLY(_mode);
-				    TheCPU.gs = sv;
+				    Gen(O_POP1, _mode);
+				    Gen(O_POP2, _mode|MPOPRM, 0);
+				    AddrGen(A_SR_PROT, _mode, Ofs_GS, P0);
+				    Gen(O_POP3, _mode|MPOPRM);
 				}
 				PC+=2;
 				break;
