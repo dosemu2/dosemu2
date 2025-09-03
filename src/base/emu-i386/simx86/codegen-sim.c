@@ -613,12 +613,9 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		    CPULONG(o) = DR1.d = sim_read_dword(mem_ref);
 		} }
 		break;
-	case L_LXS2: {	/* real mode segment base from segment value */
-		unsigned int o = IG->p0;
-		GTRACE1("L_LXS2",o);
+	case L_LXS2:	/* real mode segment base from segment value */
+		GTRACE0("L_LXS2");
 		DR1.d = sim_read_word(mem_ref + BT24(BitDATA16, mode));
-		SetSegReal(DR1.w.l, o);
-		}
 		break;
 	case L_ZXAX:
 		GTRACE0("L_ZXAX");

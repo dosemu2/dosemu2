@@ -432,23 +432,15 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		Gen66(mode,Cp); G3M(0x8b,0x04,0x2f,Cp);
 		// mov{wl} %%{e}ax,offs(%%ebx)
 		Gen66(mode,Cp);	G3M(0x89,0x43,IG->p0,Cp);
-		// leal {2|4}(%%edi),%%edi
-		G2M(0x8d,0x7f,Cp); G1((mode&DATA16? 2:4),Cp);
 		}
 		break;
-	case L_LXS2: {	/* real mode segment base from segment value */
+	case L_LXS2: {	/* load segment from memory + 2/4 */
+		// leal {2|4}(%%edi),%%edi
+		G2M(0x8d,0x7f,Cp); G1((mode&DATA16? 2:4),Cp);
 		// movzwl (%%edi,%%ebp,1),%%eax
 		G4M(0x0f,0xb7,0x04,0x2f,Cp);
-		// movw %%ax,ofs(%%ebx)
-		G4M(0x66,0x89,0x43,IG->p0,Cp);
-		// shll $4,%%eax
-		G3M(0xc1,0xe0,0x04,Cp);
-		// movl %%eax,ofs(%%ebx)
-		G3M(0x89,0x43,IG->p1,Cp);
-		// addl $0xffff,%eax
-		G1(0x05,Cp); G4(0x0000ffff,Cp);
-		// movl %%eax,ofs(%%ebx)
-		G3M(0x89,0x43,IG->p1+4,Cp);
+		// leal {-2|-4}(%%edi),%%edi
+		G2M(0x8d,0x7f,Cp); G1((mode&DATA16? -2:-4),Cp);
 		}
 		break;
 	case L_ZXAX:

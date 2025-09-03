@@ -1017,6 +1017,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    AddrGen(A_SR_PROT, _mode, Ofs_SS, P0);
 			    Gen(O_POP3, _mode|MPOPRM);
 			}
+			InstrMeta[CurrIMeta].flags |= F_INHI;
 			PC++;
 			break;
 /*1f*/	case POPds:	if (REALADDR()) {
@@ -1429,8 +1430,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			if (REALADDR()) {
 			    PC += ModRM(opc, PC, _mode);
+			    Gen(L_LXS2, _mode);
+			    AddrGen(A_SR_SH4, _mode, Ofs_ES, Ofs_XES);
 			    Gen(L_LXS1, _mode, REG1);
-			    Gen(L_LXS2, _mode, Ofs_ES, Ofs_XES);
 			}
 			else {
 			    unsigned short sv = 0;
@@ -1453,8 +1455,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			if (REALADDR()) {
 			    PC += ModRM(opc, PC, _mode);
+			    Gen(L_LXS2, _mode);
+			    AddrGen(A_SR_SH4, _mode, Ofs_DS, Ofs_XDS);
 			    Gen(L_LXS1, _mode, REG1);
-			    Gen(L_LXS2, _mode, Ofs_DS, Ofs_XDS);
 			}
 			else {
 			    unsigned short sv = 0;
@@ -1482,6 +1485,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			else {
 			    AddrGen(A_SR_PROT, _mode, REG1, P0);
 			}
+			if (REG1 == Ofs_SS)
+			    InstrMeta[CurrIMeta].flags |= F_INHI;
 			break;
 
 /*9b*/	case oWAIT:
@@ -1963,8 +1968,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(O_PUSH, _mode);
 				Gen(O_PUSHI, _mode, PC + 2 - LONG_CS);
 				Gen(O_SETFL, _mode, INT);
+				Gen(L_LXS2, _mode);
+				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(L_LXS1, _mode, Ofs_EIP);
-				Gen(L_LXS2, _mode, Ofs_CS, Ofs_XCS);
 				PC = JumpGen(PC, _mode, opc, 2, P0, _flags);
 				if (debug_level('e')>1)
 					dbug_printf("EMU86: directly called int %#x ax=%#x at %#x:%#x\n",
@@ -2625,8 +2631,9 @@ repag0:
 					    Gen(O_PUSH, _mode);
 					    Gen(O_PUSHI, _mode, oip);
 					}
+					Gen(L_LXS2, _mode);
+					AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 					Gen(L_LXS1, _mode, Ofs_EIP);
-					Gen(L_LXS2, _mode, Ofs_CS, Ofs_XCS);
 					PC = JumpGen(PC, _mode, (opc<<8)|REG1, len,
 						P0, _flags);
 					if (debug_level('e')>2) {
@@ -3356,8 +3363,9 @@ repag0:
 				}
 				if (REALADDR()) {
 				    PC++; PC += ModRM(opc, PC, _mode);
+				    Gen(L_LXS2, _mode);
+				    AddrGen(A_SR_SH4, _mode, Ofs_SS, Ofs_XSS);
 				    Gen(L_LXS1, _mode, REG1);
-				    Gen(L_LXS2, _mode, Ofs_SS, Ofs_XSS);
 				}
 				else {
 				    unsigned short sv = 0;
@@ -3380,8 +3388,9 @@ repag0:
 				}
 				if (REALADDR()) {
 				    PC++; PC += ModRM(opc, PC, _mode);
+				    Gen(L_LXS2, _mode);
+				    AddrGen(A_SR_SH4, _mode, Ofs_FS, Ofs_XFS);
 				    Gen(L_LXS1, _mode, REG1);
-				    Gen(L_LXS2, _mode, Ofs_FS, Ofs_XFS);
 				}
 				else {
 				    unsigned short sv = 0;
@@ -3404,8 +3413,9 @@ repag0:
 				}
 				if (REALADDR()) {
 				    PC++; PC += ModRM(opc, PC, _mode);
+				    Gen(L_LXS2, _mode);
+				    AddrGen(A_SR_SH4, _mode, Ofs_GS, Ofs_XGS);
 				    Gen(L_LXS1, _mode, REG1);
-				    Gen(L_LXS2, _mode, Ofs_GS, Ofs_XGS);
 				}
 				else {
 				    unsigned short sv = 0;
