@@ -6,16 +6,22 @@ all: default
 srcdir=.
 top_builddir=.
 ifeq ($(filter deb rpm flatpak-% %/configure configure,$(MAKECMDGOALS)),)
-  -include Makefile.conf
+ifneq ($(wildcard Makefile.conf),)
+  include Makefile.conf
+else
+  $(warning unconfigured, assuming in-tree build)
+  top_srcdir = $(abspath $(srcdir))
+  top_builddir = $(abspath $(srcdir))
+endif
 endif
 REALTOPDIR ?= $(abspath $(srcdir))
 
 $(REALTOPDIR)/configure configure: $(REALTOPDIR)/configure.ac
 	cd $(@D) && autoreconf --install -v
-$(REALTOPDIR)/confing.hh.in: $(REALTOPDIR)/configure.ac
+$(top_srcdir)/config.hh.in: $(REALTOPDIR)/configure.ac
 	cd $(@D) && autoheader
 
-config.status: $(REALTOPDIR)/configure
+$(top_builddir)/config.status: $(REALTOPDIR)/configure
 ifeq ($(findstring $(MAKECMDGOALS), clean realclean pristine distclean),)
 	@echo "Running configure ..."
 	$<
@@ -28,10 +34,10 @@ config.hh: $(top_srcdir)/config.hh.in | $(top_builddir)/config.status
 	touch $@
 Makefile.conf: $(top_srcdir)/Makefile.conf.in | $(top_builddir)/config.status
 	$(top_builddir)/config.status
-etc/dosemu.desktop: $(top_srcdir)/etc/dosemu.desktop.in
+etc/dosemu.desktop: $(top_srcdir)/etc/dosemu.desktop.in | $(top_builddir)/config.status
 	$(top_builddir)/config.status
 
-default install: config.status config.hh etc/dosemu.desktop
+default install: $(top_builddir)/config.status config.hh etc/dosemu.desktop
 	@$(MAKE) -C man $@
 	@$(MAKE) -C src $@
 
