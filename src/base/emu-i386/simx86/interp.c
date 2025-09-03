@@ -1481,39 +1481,21 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    TheCPU.ds = sv;
 			}
 			break;
-/*8e*/	case MOVsrfrm:
+/*8e*/	case MOVsrfrm:	{
+			int seg;
+			PC += ModRM(opc, PC, _mode|SEGREG|DATA16|MLOAD);
+			seg = e_ofsseg(REG1);
+			if (seg == Ofs_XCS) {
+			    CODE_FLUSH();
+			    goto illegal_op;
+			}
 			if (REALADDR()) {
-			    int seg;
-			    PC += ModRM(opc, PC, _mode|SEGREG|DATA16|MLOAD);
-			    seg = e_ofsseg(REG1);
-			    if (seg == Ofs_XCS) {
-				CODE_FLUSH();
-				goto illegal_op;
-			    }
 			    Gen(S_REG, _mode|DATA16, REG1);
 			    AddrGen(A_SR_SH4, _mode, REG1, seg);
 			}
 			else {
-			    unsigned short sv = 0;
-			    CODE_FLUSH();
-			    PC += ModRMSim(PC, _mode|SEGREG, OVERR_DS, OVERR_SS);
-			    if (TheCPU.mode & RM_REG) {
-				sv = CPUWORD(REG3);
-			    } else {
-				sv = GetDWord(TheCPU.mem_ref);
-			    }
-			    TheCPU.err = MAKESEG(_mode, REG1, sv);
-			    if (TheCPU.err) return P0;
-			    switch (REG1) {
-				case Ofs_DS: TheCPU.ds=sv; break;
-				case Ofs_SS: TheCPU.ss=sv;
-				    CEmuStat |= CeS_MOVSS;
-				    break;
-				case Ofs_ES: TheCPU.es=sv; break;
-				case Ofs_FS: TheCPU.fs=sv; break;
-				case Ofs_GS: TheCPU.gs=sv; break;
-				default: goto illegal_op;
-			    }
+			    AddrGen(A_SR_PROT, _mode, REG1, P0);
+			}
 			}
 			break;
 

@@ -450,6 +450,15 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		SetSegReal(CPUWORD(o), o);
 		}
 		break;
+	case A_SR_PROT: {	// protected mode make base addr from seg
+		unsigned int o = IG->p0;
+		int e;
+		GTRACE1("A_SR_PROT",o);
+		e = SetDataSegProt(DR1.w.l, o);
+		if (e)
+			P0 = IG->p1;
+		}
+		break;
 	case L_NOP:
 		GTRACE0("L_NOP");
 		break;

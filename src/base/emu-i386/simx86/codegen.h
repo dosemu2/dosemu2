@@ -43,18 +43,19 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-/* #define LEA_DI_R	1 */
-#define A_DI_0		2
-#define A_DI_1		3
-#define A_DI_2		4
-#define A_DI_2D		5
-#define O_XLAT		6
-#define O_INT		7
-#define O_MOVS_SetA	8
+/* #define LEA_DI_R	0 */
+#define A_DI_0		1
+#define A_DI_1		2
+#define A_DI_2		3
+#define A_DI_2D		4
+#define O_XLAT		5
+#define O_INT		6
+#define O_MOVS_SetA	7
 /* The above all generate an address, the below only consume it
    (except for string instructions O_MOVS_* in the JIT only) */
 
-#define A_SR_SH4	9
+#define A_SR_SH4	8
+#define A_SR_PROT	9
 
 #define L_REG		10
 #define S_REG		11

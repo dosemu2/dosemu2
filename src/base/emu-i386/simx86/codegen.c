@@ -168,6 +168,7 @@ void AddrGen(int op, int mode, ...)
 		IG->p3 = sh;
 		}
 		break;
+	case A_SR_PROT:		// prot mode make base addr from seg
 	case A_SR_SH4: {	// real mode make base addr from seg
 		IG->p0 = va_arg(ap,unsigned int);
 		IG->p1 = va_arg(ap,unsigned int);

@@ -93,6 +93,19 @@ int SetSegReal(unsigned short sel, int ofs)
 	return 0;
 }
 
+// not for CS; this function is called from JIT-generated code
+int SetDataSegProt(unsigned short sel, int ofs)
+{
+	unsigned char big;
+	int e = SetSegProt(TheCPU.basemode&ADDR16, ofs, &big, sel);
+	if (e) {
+		TheCPU.err2 = e;
+	} else if (ofs==Ofs_SS) {
+		TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
+		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",big&1,TheCPU.basemode);
+	}
+	return e;
+}
 
 int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 {

@@ -272,6 +272,32 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		G3M(0x89,0x43,IG->p1+4,Cp);
 		}
 		break;
+	case A_SR_PROT: {	// prot mode make base addr from seg
+		// pushb Ofs
+		G2M(0x6a,IG->p0,Cp)
+#ifdef __x86_64__
+		// popq %%rsi
+		G1(0x5e,Cp);
+		// movq %%rax,%%rdi
+		G2M(0x89,0xc7,Cp);
+#else
+		// pushl %eax
+		G1(0x50,Cp);
+#endif
+		// call Ofs_SetSegProt(%%ebx)
+		G3M(0xff,0x53,Ofs_SetSegProt(),Cp);
+#ifndef __x86_64__
+		// popl %edx; popl %edx
+		G2M(0x5a,0x5a,Cp);
+#endif
+		// or %%eax,%%eax
+		G2M(0x09,0xc0,Cp);
+		// jz skip
+		G2M(0x74,TAILSIZE,Cp);
+		// movl {exit_addr},%%eax; pop %%edx; ret
+		G1(0xb8,Cp); G4(IG->p1,Cp); G2M(0x5a,0xc3,Cp);
+		}
+		break;
 	case L_NOP:
 		G1(0x90,Cp);
 		break;
