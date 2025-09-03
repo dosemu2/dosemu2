@@ -479,7 +479,7 @@ static unsigned int FindExecCode(unsigned int PC)
 		TotalNodesExecd++;
 #elif !defined(ASM_DUMP)
 		/* try fast inner loop if nothing special is going on */
-		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI|CeS_MOVSS)) &&
+		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI)) &&
 		    !debug_level('e') &&
 		    GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)))
 			PC = DoExec_fast(G);
@@ -644,19 +644,6 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 		if (CurrIMeta>=0 && (CEmuStat & CeS_TRAP)) {
 			P0 = PC;
 			CODE_FLUSH2(mode);
-		}
-		if (CEmuStat & CeS_MOVSS) {
-			/* following non-compiled (sim or protected mode)
-			   mov ss / pop ss only */
-			if (!(CEmuStat & CeS_INHI)) {
-				// directly following mov ss / pop ss
-				CEmuStat |= CeS_INHI;
-				CEmuStat &= ~CeS_TRAP;
-			} else {
-				// instruction after clear unconditionally
-				// even if it's another mov ss / pop ss
-				CEmuStat &= ~(CeS_INHI|CeS_MOVSS);
-			}
 		}
 		if (CEmuStat & CeS_INSTREMUx(PROTMODE())) {
 			if (debug_level('e')>1)

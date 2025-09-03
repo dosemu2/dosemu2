@@ -647,7 +647,7 @@ unsigned int DoExec(TNode *G)
 		CEmuStat |= CeS_INHI;
 		CEmuStat &= ~CeS_TRAP;
 	} else {
-		CEmuStat &= ~(CeS_INHI|CeS_MOVSS);
+		CEmuStat &= ~CeS_INHI;
 		if (sigalrm_pending()) {
 			CEmuStat|=CeS_SIGPEND;
 			sigalrm_pending_w(0);
