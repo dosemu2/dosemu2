@@ -83,6 +83,7 @@ static unsigned char *currentIG = NULL;
 
 /* working registers of the host CPU */
 static wkreg DR1;	// "eax"
+static wkreg SR1;	// "ecx"
 static flgtmp RFL;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1926,15 +1927,15 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 /* PUSH derived (sub-)sequences: */
 	case O_PUSH1:
 		GTRACE0("O_PUSH1");
+		SR1.d = CPULONG(Ofs_ESP);
 		break;
 
 	case O_PUSH2: {
-		wkreg SR1, AR2;
+		wkreg AR2;
 		unsigned int o = IG->p0;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_PUSH2",o);
 		AR2.d = CPULONG(Ofs_XSS);
-		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
 			DR1.w.l = CPUWORD(o);
 			SR1.d -= 2;
@@ -1950,12 +1951,12 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
 #endif
-		CPULONG(Ofs_ESP) = SR1.d;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 	case O_PUSH3:
 		GTRACE0("O_PUSH3");
+		CPULONG(Ofs_ESP) = SR1.d;
 		break;
 
 	case O_PUSH2F: {
@@ -2046,15 +2047,15 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 /* POP derived (sub-)sequences: */
 	case O_POP1:
 		GTRACE0("O_POP1");
+		SR1.d = CPULONG(Ofs_ESP);
 		break;
 
 	case O_POP2: {
-		wkreg SR1, AR2;
+		wkreg AR2;
 		unsigned int o = IG->p0;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_POP2",o);
 		AR2.d = CPULONG(Ofs_XSS);
-		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
 			SR1.d &= stackm;
 			DR1.w.l = sim_read_word(AR2.d + SR1.d);
@@ -2073,11 +2074,11 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
 #endif
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
-		CPULONG(Ofs_ESP) = SR1.d;
 		} break;
 
 	case O_POP3:
 		GTRACE0("O_POP3");
+		CPULONG(Ofs_ESP) = SR1.d;
 		break;
 
 	case O_LEAVE: {
