@@ -1472,7 +1472,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 			}
 		}
 		if (TheCPU.err2 == EXCP00_DIVZ)
-			P0 = (dosaddr_t)IG->p0;
+			P0 = _LONG_CS + (dosaddr_t)IG->p0;
 		break;
 	case O_IDIV:		// no flags
 		GTRACE0("O_IDIV");
@@ -1531,7 +1531,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 			}
 		}
 		if (TheCPU.err2 == EXCP00_DIVZ)
-			P0 = (dosaddr_t)IG->p0;
+			P0 = _LONG_CS + (dosaddr_t)IG->p0;
 		break;
 	case O_CBWD:
 		GTRACE0("O_CBWD");
