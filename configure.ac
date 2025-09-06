@@ -354,7 +354,7 @@ PKG_CHECK_MODULES([LIBACL], [libacl], [
 )
 
 PKG_CHECK_MODULES([LIBCAP], [libcap], [
-    AC_PATH_PROGS([SETCAP], [setcap], [], [$PATH${PATH_SEPARATOR}/usr/sbin])
+    AC_PATH_PROGS([SETCAP], [setcap], [], [$PATH${PATH_SEPARATOR}/usr/sbin${PATH_SEPARATOR}/sbin])
     if test -z "$SETCAP"; then
       AC_MSG_ERROR([setcap not found])
     fi
