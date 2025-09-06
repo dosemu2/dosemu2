@@ -758,7 +758,7 @@ override:
 /*38*/	case CMPbfrm:
 intop28:		{ int m = _mode | MBYTE;
 			PC += ModRM(opc, PC, m);	// DI=mem
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 			    int op = ArOpsFR[D_MO(opc)];
 			    Gen(L_REG, m, REG1);	// mov al,[ebx+reg]
 			    Gen(op, m, REG3);		// op [ebx+rmreg],al	rmreg=rmreg op reg
@@ -813,7 +813,7 @@ intop3a:		{ int m = _mode | MBYTE;
 /*11*/	case ADCwfrm:
 /*39*/	case CMPwfrm:
 intop29:		PC += ModRM(opc, PC, _mode);	// DI=mem
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 			    int op = ArOpsFR[D_MO(opc)];
 			    Gen(L_REG, _mode, REG1);	// mov (e)ax,[ebx+reg]
 			    Gen(op, _mode, REG3);	// op [ebx+rmreg],(e)ax	rmreg=rmreg op reg
@@ -952,7 +952,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			unsigned short dest, src;
 			CODE_FLUSH();
 			PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 				dest = CPUWORD(REG3);
 			} else {
 				dest = GetDWord(TheCPU.mem_ref);
@@ -961,7 +961,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if ((dest & 3) < (src & 3)) {
 				EFLAGS |= EFLAGS_ZF;
 				dest = (dest & ~3) | (src & 3);
-				if (TheCPU.mode & RM_REG) {
+				if (REG3) {
 					CPUWORD(REG3) = dest;
 				} else {
 					WRITE_WORD(TheCPU.mem_ref, dest);
@@ -1227,7 +1227,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			// now calculate address. This way when using %esp
 			//	as index we use the value AFTER the pop
 			PC += ModRM(opc, PC, _mode|MPOPRM);
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 				// pop data into temporary storage and adjust esp
 				Gen(O_POP, _mode);
 				// store data
@@ -1276,7 +1276,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			int m = _mode | MBYTE;
 			int op = D_MO(Fetch(PC+1));
 			PC += ModRM(opc, PC, m);
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 				op = ArOpsFR[op];
 				// op [ebx+reg],#imm
 				Gen(op, m|IMMED, REG3, Fetch(PC));
@@ -1293,7 +1293,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*81*/	case IMMEDwrm: {
 			int op = D_MO(Fetch(PC+1));
 			PC += ModRM(opc, PC, _mode);
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 				op = ArOpsFR[op];
 				// op [ebx+reg],#imm
 				Gen(op, _mode|IMMED, REG3, DataFetchWL_U(_mode,PC));
@@ -1313,7 +1313,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			long v;
 			PC += ModRM(opc, PC, _mode);
 			v = (signed char)Fetch(PC);
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 				op = ArOpsFR[op];
 				// op [ebx+reg],#imm
 				Gen(op, _mode|IMMED, REG3, v);
@@ -1333,7 +1333,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			else {
 			    PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);// al=[rm]
-			    if (TheCPU.mode & RM_REG) {
+			    if (REG3) {
 				Gen(O_XCHG, _mode|MBYTE, REG1);
 				Gen(S_REG, _mode|MBYTE, REG3);
 			    }
@@ -1349,7 +1349,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			else {
 			    PC += ModRM(opc, PC, _mode|MLOAD);	// (e)ax=[rm]
-			    if (TheCPU.mode & RM_REG) {
+			    if (REG3) {
 				Gen(O_XCHG, _mode, REG1);
 				Gen(S_REG, _mode, REG3);
 			    }
@@ -1394,7 +1394,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*8c*/	case MOVsrtrm:
 			PC += ModRM(opc, PC, _mode|SEGREG);
 			Gen(L_REG, _mode|DATA16, REG1);
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 			    if (!(_mode & DATA16))
 				Gen(L_ZXAX, _mode);
 			    Gen(S_REG, _mode, REG3);
@@ -1683,7 +1683,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(O_SAR, m, count);
 				break;
 			}
-			if (TheCPU.mode & RM_REG)
+			if (REG3)
 				Gen(S_REG, m, REG3);
 			else
 				Gen(S_DI, m);
@@ -1727,7 +1727,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(O_SAR, m, count);
 				break;
 			}
-			if (TheCPU.mode & RM_REG)
+			if (REG3)
 				Gen(S_REG, m, REG3);
 			else
 				Gen(S_DI, m);
@@ -1816,14 +1816,14 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*c6*/	case MOVbirm:
 			PC += ModRM(opc, PC, _mode|MBYTE);
-			if (TheCPU.mode & RM_REG)
+			if (REG3)
 			    Gen(L_IMM, _mode|MBYTE, REG3, Fetch(PC));
 			else
 			    Gen(S_DI_IMM, _mode|MBYTE, Fetch(PC));
 			PC++; break;
 /*c7*/	case MOVwirm:
 			PC += ModRM(opc, PC, _mode);
-			if (TheCPU.mode & RM_REG)
+			if (REG3)
 			    Gen(L_IMM, _mode, REG3, DataFetchWL_U(_mode,PC));
 			else
 			    Gen(S_DI_IMM, _mode, DataFetchWL_U(_mode,PC));
@@ -2340,14 +2340,14 @@ repag0:
 				break;
 			case Ofs_DL:	/*2*/	/* NOT */
 				Gen(O_NOT, _mode|MBYTE);			// not al
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 					Gen(S_REG, _mode|MBYTE, REG3);
 				else
 					Gen(S_DI, _mode|MBYTE);
 				break;
 			case Ofs_BL:	/*3*/	/* NEG */
 				Gen(O_NEG, _mode|MBYTE);			// neg al
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 					Gen(S_REG, _mode|MBYTE, REG3);
 				else
 					Gen(S_DI, _mode|MBYTE);
@@ -2376,14 +2376,14 @@ repag0:
 				break;
 			case Ofs_DX:	/*2*/	/* NOT */
 				Gen(O_NOT, _mode);			// not (e)ax
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 					Gen(S_REG, _mode, REG3);
 				else
 					Gen(S_DI, _mode);
 				break;
 			case Ofs_BX:	/*3*/	/* NEG */
 				Gen(O_NEG, _mode);			// neg (e)ax
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 					Gen(S_REG, _mode, REG3);
 				else
 					Gen(S_DI, _mode);
@@ -2567,7 +2567,7 @@ repag0:
 				int len = ModRM(opc, PC, _mode|NOFLDR);
 				dosaddr_t ret = PC + len - LONG_CS;
 				Gen(O_PUSHI, _mode, ret);
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 					Gen(L_REG, _mode, REG3);
 				else
 					Gen(L_DI_R1, _mode);
@@ -2935,7 +2935,7 @@ repag0:
 				    CODE_FLUSH();
 				    if (REALMODE()) goto illegal_op;
 				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				    if (TheCPU.mode & RM_REG) {
+				    if (REG3) {
 					sv = CPUWORD(REG3);
 				    } else {
 					sv = GetDWord(TheCPU.mem_ref);
@@ -2951,7 +2951,7 @@ repag0:
 				    CODE_FLUSH();
 				    if (REALMODE()) goto illegal_op;
 				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				    if (TheCPU.mode & RM_REG) {
+				    if (REG3) {
 					sv = CPUWORD(REG3);
 				    } else {
 					sv = GetDWord(TheCPU.mem_ref);
@@ -3007,7 +3007,7 @@ repag0:
 				CODE_FLUSH();
 				if (REALMODE()) goto illegal_op;
 				PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				if (TheCPU.mode & RM_REG) {
+				if (REG3) {
 				    sv = CPUWORD(REG3);
 				} else {
 				    sv = GetDWord(TheCPU.mem_ref);
@@ -3195,20 +3195,19 @@ repag0:
 			case 0xb3: /* BTR */
 			case 0xbb: /* BTC */
 				PC++; PC += ModRM(opc, PC, _mode);
-				if (TheCPU.mode & RM_REG) {
+				if (REG3) {
 				    Gen(L_REG, _mode, REG3);
 				}
-				Gen(O_BITOP, _mode | (TheCPU.mode & RM_REG),
+				Gen(O_BITOP, _mode | (REG3 ? RM_REG : 0),
 				    (opc2-0xa0), REG1);
 				if (opc2 != 0xa3) {
-				    if (TheCPU.mode & RM_REG)
+				    if (REG3)
 					Gen(S_REG, _mode, REG3);
 				}
 				break;
 			case 0xbc: /* BSF */
 			case 0xbd: /* BSR */
 				PC++; PC += ModRM(opc, PC, _mode|MLOAD);
-				_mode |= (TheCPU.mode & RM_REG);
 				Gen(O_BITOP, _mode, (opc2-0xa0), REG1);
 				break;
 			case 0xba: { /* GRP8 - Code Extension 22 */
@@ -3225,10 +3224,9 @@ repag0:
 				case 0x30: /* BTR imm8 */
 				case 0x38: /* BTC imm8 */
 					PC++; PC += ModRM(opc, PC, _mode|MLOAD);
-					_mode |= (TheCPU.mode & RM_REG);
 					Gen(O_BITOP, _mode, opm, Fetch(PC));
 					if (opm != 0x20) {
-					    if (TheCPU.mode & RM_REG) {
+					    if (REG3) {
 						Gen(S_REG, _mode, REG3);
 					    }
 					    else {
@@ -3256,7 +3254,7 @@ repag0:
 					Gen(O_SHFD, _mode|IMMED, (opc2&8), REG1, Fetch(PC));
 					PC++;
 				}
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 					Gen(S_REG, _mode, REG3);
 				else
 					Gen(S_DI, _mode);
@@ -3294,18 +3292,16 @@ repag0:
 				break;
 			case 0xb0:		/* CMPXCHGb */
 				PC++; PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);
-				_mode |= (TheCPU.mode & RM_REG);
 				Gen(O_CMPXCHG, _mode | MBYTE, REG1);
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 				    Gen(S_REG, _mode | MBYTE, REG3);
 				else
 				    Gen(S_DI, _mode | MBYTE);
 				break;
 			case 0xb1:		/* CMPXCHGw */
 				PC++; PC += ModRM(opc, PC, _mode|MLOAD);
-				_mode |= (TheCPU.mode & RM_REG);
 				Gen(O_CMPXCHG, _mode, REG1);
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 				    Gen(S_REG, _mode, REG3);
 				else
 				    Gen(S_DI, _mode);
@@ -3381,7 +3377,7 @@ repag0:
 				PC++; PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);
 				Gen(O_XCHG, _mode | MBYTE, REG1);
 				Gen(O_ADD_R, _mode | MBYTE, REG1);
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 				    Gen(S_REG, _mode|MBYTE, REG3);
 				else
 				    Gen(S_DI, _mode|MBYTE);
@@ -3390,7 +3386,7 @@ repag0:
 				PC++; PC += ModRM(opc, PC, _mode|MLOAD);
 				Gen(O_XCHG, _mode, REG1);
 				Gen(O_ADD_R, _mode, REG1);
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 				    Gen(S_REG, _mode, REG3);
 				else
 				    Gen(S_DI, _mode);
