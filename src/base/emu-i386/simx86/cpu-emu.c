@@ -708,7 +708,7 @@ static void Scp2CpuD(cpuctx_t *scp)
   InvalidateSegs(); // makes sure real mode segs aren't confused with PM sels
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_CS,&big,_cs);
   if (TheCPU.err) goto erseg;
-  if (big) mode=0; else mode |= DATA16;
+  if (big) mode=MBIGCS; else mode |= DATA16;
 
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_DS,&big,_ds);
   if (TheCPU.err) goto erseg;

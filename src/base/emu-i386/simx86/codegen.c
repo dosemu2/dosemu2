@@ -690,7 +690,6 @@ unsigned int DoExec_fast(TNode *G)
 	unsigned char *ecpu = CPUOFFS(0);
 	unsigned long flg = Exec_pre(ecpu);
 	unsigned int ePC, mem_ref;
-	unsigned mode = G->mode;
 
 	do {
 		ePC = Exec(&mem_ref, &flg, ecpu, G->addr, 0);
@@ -706,7 +705,7 @@ unsigned int DoExec_fast(TNode *G)
 			break;
 		}
 	} while (!TheCPU.err2 && (G=FindTree(ePC)) &&
-		 GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)));
+		 GoodNode(G) && !(G->flags & (F_FPOP|F_INHI)));
 
 	Exec_post(flg, mem_ref);
 	sigalrm_pending_w(0);

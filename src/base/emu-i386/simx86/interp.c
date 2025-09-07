@@ -59,9 +59,9 @@ static pthread_t prejit_thr;
 static sem_t prejit_sem;
 static void *prejit_thread(void *arg);
 #if SPEC_PREJIT
-static void prejit_run(unsigned int PC);
+static void prejit_run(unsigned int PC, unsigned int basemode);
 #endif
-static unsigned int prejit_PC;
+static unsigned int prejit_PC, prejit_mode;
 #if PROFILE
 int SpecPrejits;
 #endif
@@ -176,7 +176,10 @@ static unsigned int do_flush(unsigned P0, unsigned _P0,
 			  } \
 			}
 
-#define UNPREFIX(m)	((m)&~(DATA16|ADDR16))|(basemode&(DATA16|ADDR16))
+static inline unsigned int UNPREFIX(unsigned int m)
+{
+	return (m&~(DATA16|ADDR16))|((m&MBIGCS)?0:(DATA16|ADDR16));
+}
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -199,7 +202,8 @@ static int MAKESEG(int mode, int ofs, unsigned short sv)
 	if (e)
 		return e;
 	if (ofs==Ofs_CS) {
-		if (big) TheCPU.mode &= ~(ADDR16|DATA16);
+		TheCPU.mode &= ~(ADDR16|DATA16|MBIGCS);
+		if (big) TheCPU.mode |= MBIGCS;
 		else TheCPU.mode |= (ADDR16|DATA16);
 		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
 		LONG_CS = _LONG_CS;
@@ -382,6 +386,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 #if SPEC_PREJIT
 		int can_speculate = 1;
 #endif
+		unsigned int basemode = UNPREFIX(mode);
 		TNode *G;
 		NewIMeta(P0, &_rc);
 #if SPEC_PREJIT
@@ -395,7 +400,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 			break;
 		}
 #endif
-		G = DoClose(_P0, TheCPU.basemode, InstrMeta[0].npc);
+		G = DoClose(_P0, basemode, InstrMeta[0].npc);
 		if (!G)
 			return P0;
 		if (_flags & FLG_PREJIT) {
@@ -408,12 +413,12 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 				if (debug_level('e')) {
 					char *ds;
 					unsigned short ocs = TheCPU.cs;
-					ds = e_emu_disasm(EMU_BASE32(P2),(~TheCPU.basemode&3),ocs);
+					ds = e_emu_disasm(EMU_BASE32(P2),mode&MBIGCS,ocs);
 					e_printf("prejit after  %s\n", ds);
-					ds = e_emu_disasm(EMU_BASE32(_P0),(~TheCPU.basemode&3),ocs);
+					ds = e_emu_disasm(EMU_BASE32(_P0),mode&MBIGCS,ocs);
 					e_printf("prejit at  %s\n", ds);
 				}
-				prejit_run(_P0);
+				prejit_run(_P0, basemode);
 			}
 #endif
 			_P1 = DoExec(G);
@@ -435,7 +440,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 #if !defined(SINGLESTEP)
 static unsigned int FindExecCode(unsigned int PC)
 {
-	int mode = TheCPU.mode;
 	TNode *G;
 
 	/* for a sequence to be found, it must begin with
@@ -446,7 +450,7 @@ static unsigned int FindExecCode(unsigned int PC)
 	 */
 	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND)) &&
 	       (G=FindTree(PC))) {
-		if (!GoodNode(G, mode)) {
+		if (!GoodNode(G)) {
 			InvalidateNodeRange(G->seqbase, G->seqlen, NULL);
 			return PC;
 		}
@@ -478,7 +482,7 @@ static unsigned int FindExecCode(unsigned int PC)
 		/* try fast inner loop if nothing special is going on */
 		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI)) &&
 		    !debug_level('e') &&
-		    GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)))
+		    GoodNode(G) && !(G->flags & (F_FPOP|F_INHI)))
 			PC = DoExec_fast(G);
 		else
 #endif
@@ -544,7 +548,6 @@ void Interp86(void)
 {
     unsigned int ret;
 
-    TheCPU.basemode = TheCPU.mode;
     TheCPU.err2 = 0;
     LONG_CS = _LONG_CS;
     ret = _Interp86(LONG_CS + TheCPU.eip, TheCPU.mode);
@@ -611,7 +614,7 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 				dbug_printf("\n%s",e_print_regs());
 			char *ds;
 			unsigned short ocs = TheCPU.cs;
-			ds = e_emu_disasm(EMU_BASE32(PC),(~mode&3),ocs);
+			ds = e_emu_disasm(EMU_BASE32(PC),mode&MBIGCS,ocs);
 			e_printf("  %s\n", ds);
 		}
 		return PC;
@@ -687,7 +690,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 		P0 = PC;
 		PC = InterpOne(PC, basemode, 0);
 		/* InterpOne can change CS */
-		TheCPU.basemode = basemode = TheCPU.mode;
+		basemode = TheCPU.mode;
 		if (TheCPU.err) {
 			if (TheCPU.err == EXCP_RETRY) {
 				TheCPU.err = 0;
@@ -3495,10 +3498,12 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 		if (debug_level('e')) {
 			char *ds;
 			unsigned short ocs = TheCPU.cs;
-			ds = e_emu_disasm(EMU_BASE32(PC),(~basemode&3),ocs);
+			ds = e_emu_disasm(EMU_BASE32(PC),basemode&MBIGCS,ocs);
 			e_printf("  %s\n", ds);
 		}
 		PC = InterpOne(PC, basemode, flags);
+		/* InterpOne can NOT change CS with PreJit, basemode
+		   stays the same */
 		if (TheCPU.err)
 			return;
 		PC = interp_post(PC, basemode, P0, flags);
@@ -3519,7 +3524,6 @@ void PreJit86(unsigned int PC, int basemode)
 {
 	if (e_querymark(PC, 1))
 		return;
-	TheCPU.basemode = basemode;
 	TheCPU.err = 0;
 	LONG_CS = _LONG_CS;
 	_PreJit86(PC, basemode, FLG_PREJIT);
@@ -3530,7 +3534,8 @@ static void *prejit_thread(void *arg)
 {
   while (1) {
     sem_wait(&prejit_sem);
-    _PreJit86(__atomic_load_n(&prejit_PC, __ATOMIC_RELAXED), TheCPU.basemode,
+    _PreJit86(__atomic_load_n(&prejit_PC, __ATOMIC_RELAXED),
+	    __atomic_load_n(&prejit_mode, __ATOMIC_RELAXED),
 	    FLG_PREJIT | FLG_SPECULATIVE);
     pthread_mutex_lock(&run_mtx);
     prejit_running = 0;
@@ -3541,7 +3546,7 @@ static void *prejit_thread(void *arg)
 }
 
 #if SPEC_PREJIT
-static void prejit_run(unsigned int PC)
+static void prejit_run(unsigned int PC, unsigned int basemode)
 {
   if (e_querymark(PC, SAFE_PRJ_GAP))
     return;
@@ -3549,6 +3554,7 @@ static void prejit_run(unsigned int PC)
   SpecPrejits++;
 #endif
   __atomic_store_n(&prejit_PC, PC, __ATOMIC_RELAXED);
+  __atomic_store_n(&prejit_mode, basemode, __ATOMIC_RELAXED);
   pthread_mutex_lock(&run_mtx);
   assert(!prejit_running);
   prejit_running = 1;
