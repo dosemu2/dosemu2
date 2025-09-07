@@ -1059,11 +1059,16 @@ static void config_post_process(void)
     }
     if (config.cpu_vm_dpmi == CPUVM_NATIVE && !config.dpmi_remote) {
 #ifdef DNATIVE
+#ifdef SEARPC_SUPPORT
       if (config.no_priv_sep)
         error("@Security warning: native DPMI mode is insecure, "
           "adjust $_cpu_vm_dpmi\n");
       else
         config.dpmi_remote = 1;
+#else
+      error("@Security warning: native DPMI mode is insecure, "
+          "adjust $_cpu_vm_dpmi\n");
+#endif
 #else
       error("%s DPMI backend unavailable\n",
           config.dpmi_remote ? "remote" : "native");
