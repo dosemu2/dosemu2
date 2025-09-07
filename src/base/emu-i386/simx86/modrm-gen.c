@@ -84,8 +84,8 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode, signed char overr_ds, s
 			REG1 = (mode&ADDR16? R1Tab_w[mod]:R1Tab_l[mod]);
 	}
 	mod = D_HO(cab);
+	REG3 = 0;
 	if (mod == 3) {
-		TheCPU.mode |= RM_REG;
 		if (mode & (MBYTE|MBYTX))
 			REG3 = R1Tab_b[cab&7];
 		else if (mode & ADDR16)
@@ -165,8 +165,8 @@ int ModGetReg1(unsigned int PC, int mode)
 	else
 		REG1 = (mode&ADDR16? R1Tab_w[mod]:R1Tab_l[mod]);
 	mod = D_HO(cab);
+	REG3 = 0;
 	if (mod==3) {
-		TheCPU.mode |= RM_REG;
 		if (mode & MBYTE)
 			REG3 = R1Tab_b[cab&7];
 		else if (mode & ADDR16)

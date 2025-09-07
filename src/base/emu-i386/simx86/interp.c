@@ -59,9 +59,9 @@ static pthread_t prejit_thr;
 static sem_t prejit_sem;
 static void *prejit_thread(void *arg);
 #if SPEC_PREJIT
-static void prejit_run(unsigned int PC);
+static void prejit_run(unsigned int PC, unsigned int basemode);
 #endif
-static unsigned int prejit_PC;
+static unsigned int prejit_PC, prejit_mode;
 #if PROFILE
 int SpecPrejits;
 #endif
@@ -69,7 +69,7 @@ int SpecPrejits;
 /* countdown to exit after handling VGAEMU faults, reset by
    planar VGA reads and writes */
 static int interp_inst_emu_count;
-unsigned int LONG_CS;
+static unsigned int Interp_LONG_CS;
 
 static int ArOpsR[] =
 	{ O_ADD_R, O_OR_R, O_ADC_R, O_SBB_R, O_AND_R, O_SUB_R, O_XOR_R, O_CMP_R };
@@ -119,7 +119,7 @@ static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 			Fetch(abeg);
 	    }
 	}
-	return Close(PC, mode);
+	return Close(PC, Interp_LONG_CS, mode);
 }
 
 static unsigned int DoCloseAndExec(unsigned int PC, int mode, unsigned _P0)
@@ -130,7 +130,7 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode, unsigned _P0)
 	    return _P0;
 	ret = DoExec(G);
 	TheCPU.err = TheCPU.err2;
-	LONG_CS = _LONG_CS;
+	Interp_LONG_CS = LONG_CS;
 	return ret;
 }
 
@@ -176,12 +176,15 @@ static unsigned int do_flush(unsigned P0, unsigned _P0,
 			  } \
 			}
 
-#define UNPREFIX(m)	((m)&~(DATA16|ADDR16))|(basemode&(DATA16|ADDR16))
+static inline unsigned int UNPREFIX(unsigned int m)
+{
+	return (m&~(DATA16|ADDR16))|((m&MBIGCS)?0:(DATA16|ADDR16));
+}
 
 /////////////////////////////////////////////////////////////////////////////
 
 
-static int _MAKESEG(int mode, int *basemode, int ofs, unsigned short sv)
+static int MAKESEG(int mode, int ofs, unsigned short sv)
 {
 	int e;
 	unsigned char big;
@@ -189,30 +192,28 @@ static int _MAKESEG(int mode, int *basemode, int ofs, unsigned short sv)
 //	if ((ofs<0)||(ofs>=0x60)) return EXCP06_ILLOP;
 
 	if (REALADDR()) {
-		return SetSegReal(sv,ofs);
+		e = SetSegReal(sv,ofs);
+		if (ofs == Ofs_CS)
+			Interp_LONG_CS = LONG_CS;
+		return e;
 	}
 
 	e = SetSegProt(mode&ADDR16, ofs, &big, sv);
 	if (e)
 		return e;
 	if (ofs==Ofs_CS) {
-		if (big) *basemode &= ~(ADDR16|DATA16);
-		else *basemode |= (ADDR16|DATA16);
-		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,*basemode);
+		TheCPU.mode &= ~(ADDR16|DATA16|MBIGCS);
+		if (big) TheCPU.mode |= MBIGCS;
+		else TheCPU.mode |= (ADDR16|DATA16);
+		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
+		Interp_LONG_CS = LONG_CS;
 	}
 	if (ofs==Ofs_SS) {
 		TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
-		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",big&1,*basemode);
+		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
 	}
 	return 0;
 }
-
-#define MAKESEG(mode, ofs, sv) ({ \
-    int _rv = _MAKESEG(mode, &basemode, ofs, sv); \
-    if (ofs == Ofs_CS) \
-      LONG_CS = _LONG_CS; \
-    _rv; \
-})
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -259,19 +260,19 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 				P2+pskip-BT24(BitDATA16,mode));
 
 		/* displacement for taken branch */
-		d_t = P2 - LONG_CS + dsp;
+		d_t = P2 - Interp_LONG_CS + dsp;
 		if (mode&DATA16) d_t &= 0xffff;
 
 		/* jump address for taken branch */
-		j_t = d_t + LONG_CS;
+		j_t = d_t + Interp_LONG_CS;
 	}
 
 	/* displacement for not taken branch */
-	d_nt = P2 - LONG_CS + pskip;
+	d_nt = P2 - Interp_LONG_CS + pskip;
 	if (mode&DATA16) d_nt &= 0xffff;
 
 	/* jump address for not taken branch, usually next instruction */
-	j_nt = d_nt + LONG_CS;
+	j_nt = d_nt + Interp_LONG_CS;
 	assert(j_nt > P2);
 	*r_P0 = j_nt;
 
@@ -288,9 +289,9 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		  if (Fetch(P1)==JMPsid) {	/* eb xx */
 		    int dsp2 = (signed char)Fetch(P1+1) + 2;
 	    	    if (dsp2 < 0) mode |= CKSIGN;
-		    d_nt = P1 - LONG_CS + dsp2;
+		    d_nt = P1 - Interp_LONG_CS + dsp2;
 		    if (mode&DATA16) d_nt &= 0xffff;
-		    j_nt = d_nt + LONG_CS;
+		    j_nt = d_nt + Interp_LONG_CS;
 		    if (debug_level('e')>1)
 			e_printf("JMPs (%02x,%d) at %08x after Jcc: t=%08x nt=%08x\n",
 				 Fetch(P1),dsp2,P1,j_t,j_nt);
@@ -299,9 +300,9 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		    int skp2 = BT24(BitDATA16,mode) + 1;
 		    int dsp2 = skp2 + (int)DataFetchWL_S(mode, P1+1);
 	    	    if (dsp2 < 0) mode |= CKSIGN;
-		    d_nt = P1 - LONG_CS + dsp2;
+		    d_nt = P1 - Interp_LONG_CS + dsp2;
 		    if (mode&DATA16) d_nt &= 0xffff;
-		    j_nt = d_nt + LONG_CS;
+		    j_nt = d_nt + Interp_LONG_CS;
 		    if (debug_level('e')>1)
 			e_printf("JMPl (%02x,%d) at %08x after Jcc: t=%08x nt=%08x\n",
 				 Fetch(P1),dsp2,P1,j_t,j_nt);
@@ -385,6 +386,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 #if SPEC_PREJIT
 		int can_speculate = 1;
 #endif
+		unsigned int basemode = UNPREFIX(mode);
 		TNode *G;
 		NewIMeta(P0, &_rc);
 #if SPEC_PREJIT
@@ -398,7 +400,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 			break;
 		}
 #endif
-		G = DoClose(_P0, TheCPU.basemode, InstrMeta[0].npc);
+		G = DoClose(_P0, basemode, InstrMeta[0].npc);
 		if (!G)
 			return P0;
 		if (_flags & FLG_PREJIT) {
@@ -411,12 +413,12 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 				if (debug_level('e')) {
 					char *ds;
 					unsigned short ocs = TheCPU.cs;
-					ds = e_emu_disasm(EMU_BASE32(P2),(~TheCPU.basemode&3),ocs);
+					ds = e_emu_disasm(EMU_BASE32(P2),mode&MBIGCS,ocs);
 					e_printf("prejit after  %s\n", ds);
-					ds = e_emu_disasm(EMU_BASE32(_P0),(~TheCPU.basemode&3),ocs);
+					ds = e_emu_disasm(EMU_BASE32(_P0),mode&MBIGCS,ocs);
 					e_printf("prejit at  %s\n", ds);
 				}
-				prejit_run(_P0);
+				prejit_run(_P0, basemode);
 			}
 #endif
 			_P1 = DoExec(G);
@@ -425,7 +427,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 				prejit_sync();
 #endif
 			TheCPU.err = TheCPU.err2;
-			LONG_CS = _LONG_CS;
+			Interp_LONG_CS = LONG_CS;
 		}
 	}
 	if (sigalrm_pending())
@@ -438,7 +440,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 #if !defined(SINGLESTEP)
 static unsigned int FindExecCode(unsigned int PC)
 {
-	int mode = TheCPU.mode;
 	TNode *G;
 
 	/* for a sequence to be found, it must begin with
@@ -449,7 +450,7 @@ static unsigned int FindExecCode(unsigned int PC)
 	 */
 	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND)) &&
 	       (G=FindTree(PC))) {
-		if (!GoodNode(G, mode)) {
+		if (!GoodNode(G)) {
 			InvalidateNodeRange(G->seqbase, G->seqlen, NULL);
 			return PC;
 		}
@@ -481,13 +482,13 @@ static unsigned int FindExecCode(unsigned int PC)
 		/* try fast inner loop if nothing special is going on */
 		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI)) &&
 		    !debug_level('e') &&
-		    GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)))
+		    GoodNode(G) && !(G->flags & (F_FPOP|F_INHI)))
 			PC = DoExec_fast(G);
 		else
 #endif
 			PC = DoExec(G);
 		TheCPU.err = TheCPU.err2;
-		LONG_CS = _LONG_CS;
+		Interp_LONG_CS = LONG_CS;
 #if PROFILE
 		if (G->flags & F_PREJ)
 			PrejitNodesExecd++;
@@ -541,18 +542,17 @@ static void HandleEmuSignals(void)
 }
 
 static unsigned int _Interp86(unsigned int PC, int mod0);
-static unsigned int InterpOne(unsigned int PC, int *_basemode, int _flags);
+static unsigned int InterpOne(unsigned int PC, int basemode, int _flags);
 
 void Interp86(void)
 {
     unsigned int ret;
 
-    TheCPU.basemode = TheCPU.mode;
     TheCPU.err2 = 0;
-    LONG_CS = _LONG_CS;
-    ret = _Interp86(LONG_CS + TheCPU.eip, TheCPU.mode);
+    Interp_LONG_CS = LONG_CS;
+    ret = _Interp86(Interp_LONG_CS + TheCPU.eip, TheCPU.mode);
     assert(CurrIMeta<0);
-    TheCPU.eip = ret - LONG_CS;
+    TheCPU.eip = ret - Interp_LONG_CS;
 }
 
 static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
@@ -611,10 +611,10 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 		if (debug_level('e')>2) {
 			if (debug_level('e')>=9 && CurrIMeta<0)
 				/* if CurrIMeta was already >= 0, the registers are outdated */
-				dbug_printf("\n%s",e_print_regs());
+				dbug_printf("\n%s",e_print_regs(Interp_LONG_CS));
 			char *ds;
 			unsigned short ocs = TheCPU.cs;
-			ds = e_emu_disasm(EMU_BASE32(PC),(~mode&3),ocs);
+			ds = e_emu_disasm(EMU_BASE32(PC),mode&MBIGCS,ocs);
 			e_printf("  %s\n", ds);
 		}
 		return PC;
@@ -684,13 +684,14 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
 #endif
 	while (1) {
-		TheCPU.mode = basemode;
-		TheCPU.basemode = basemode;
 		PC = interp_pre(PC, basemode, 0);
 		if (TheCPU.err)
 			return PC;
 		P0 = PC;
-		PC = InterpOne(PC, &basemode, 0);
+		PC = InterpOne(PC, basemode, 0);
+		/* InterpOne can change CS */
+		Interp_LONG_CS = LONG_CS;
+		basemode = TheCPU.mode;
 		if (TheCPU.err) {
 			if (TheCPU.err == EXCP_RETRY) {
 				TheCPU.err = 0;
@@ -708,13 +709,12 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 	return 0;
 }
 
-static unsigned int InterpOne(unsigned int PC, int *_basemode, int _flags)
+static unsigned int InterpOne(unsigned int PC, int basemode, int _flags)
 {
 	unsigned int P0 = PC;
 	unsigned char opc;
 	unsigned int temp;
 	unsigned short ocs;
-	#define basemode (*_basemode)
 	int _mode = basemode;
 	/* WARNING - these are signed char offsets, NOT pointers! */
 	signed char OVERR_DS = Ofs_XDS;
@@ -758,7 +758,7 @@ override:
 /*38*/	case CMPbfrm:
 intop28:		{ int m = _mode | MBYTE;
 			PC += ModRM(opc, PC, m);	// DI=mem
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 			    int op = ArOpsFR[D_MO(opc)];
 			    Gen(L_REG, m, REG1);	// mov al,[ebx+reg]
 			    Gen(op, m, REG3);		// op [ebx+rmreg],al	rmreg=rmreg op reg
@@ -813,7 +813,7 @@ intop3a:		{ int m = _mode | MBYTE;
 /*11*/	case ADCwfrm:
 /*39*/	case CMPwfrm:
 intop29:		PC += ModRM(opc, PC, _mode);	// DI=mem
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 			    int op = ArOpsFR[D_MO(opc)];
 			    Gen(L_REG, _mode, REG1);	// mov (e)ax,[ebx+reg]
 			    Gen(op, _mode, REG3);	// op [ebx+rmreg],(e)ax	rmreg=rmreg op reg
@@ -952,7 +952,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			unsigned short dest, src;
 			CODE_FLUSH();
 			PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 				dest = CPUWORD(REG3);
 			} else {
 				dest = GetDWord(TheCPU.mem_ref);
@@ -961,7 +961,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if ((dest & 3) < (src & 3)) {
 				EFLAGS |= EFLAGS_ZF;
 				dest = (dest & ~3) | (src & 3);
-				if (TheCPU.mode & RM_REG) {
+				if (REG3) {
 					CPUWORD(REG3) = dest;
 				} else {
 					WRITE_WORD(TheCPU.mem_ref, dest);
@@ -1227,7 +1227,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			// now calculate address. This way when using %esp
 			//	as index we use the value AFTER the pop
 			PC += ModRM(opc, PC, _mode|MPOPRM);
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 				// pop data into temporary storage and adjust esp
 				Gen(O_POP, _mode);
 				// store data
@@ -1276,7 +1276,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			int m = _mode | MBYTE;
 			int op = D_MO(Fetch(PC+1));
 			PC += ModRM(opc, PC, m);
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 				op = ArOpsFR[op];
 				// op [ebx+reg],#imm
 				Gen(op, m|IMMED, REG3, Fetch(PC));
@@ -1293,7 +1293,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*81*/	case IMMEDwrm: {
 			int op = D_MO(Fetch(PC+1));
 			PC += ModRM(opc, PC, _mode);
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 				op = ArOpsFR[op];
 				// op [ebx+reg],#imm
 				Gen(op, _mode|IMMED, REG3, DataFetchWL_U(_mode,PC));
@@ -1313,7 +1313,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			long v;
 			PC += ModRM(opc, PC, _mode);
 			v = (signed char)Fetch(PC);
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 				op = ArOpsFR[op];
 				// op [ebx+reg],#imm
 				Gen(op, _mode|IMMED, REG3, v);
@@ -1333,7 +1333,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			else {
 			    PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);// al=[rm]
-			    if (TheCPU.mode & RM_REG) {
+			    if (REG3) {
 				Gen(O_XCHG, _mode|MBYTE, REG1);
 				Gen(S_REG, _mode|MBYTE, REG3);
 			    }
@@ -1349,7 +1349,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			else {
 			    PC += ModRM(opc, PC, _mode|MLOAD);	// (e)ax=[rm]
-			    if (TheCPU.mode & RM_REG) {
+			    if (REG3) {
 				Gen(O_XCHG, _mode, REG1);
 				Gen(S_REG, _mode, REG3);
 			    }
@@ -1394,7 +1394,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*8c*/	case MOVsrtrm:
 			PC += ModRM(opc, PC, _mode|SEGREG);
 			Gen(L_REG, _mode|DATA16, REG1);
-			if (TheCPU.mode & RM_REG) {
+			if (REG3) {
 			    if (!(_mode & DATA16))
 				Gen(L_ZXAX, _mode);
 			    Gen(S_REG, _mode, REG3);
@@ -1683,7 +1683,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(O_SAR, m, count);
 				break;
 			}
-			if (TheCPU.mode & RM_REG)
+			if (REG3)
 				Gen(S_REG, m, REG3);
 			else
 				Gen(S_DI, m);
@@ -1727,7 +1727,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(O_SAR, m, count);
 				break;
 			}
-			if (TheCPU.mode & RM_REG)
+			if (REG3)
 				Gen(S_REG, m, REG3);
 			else
 				Gen(S_DI, m);
@@ -1745,15 +1745,15 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*ea*/	case JMPld:
 		    if (REALADDR()) {
 			int len = 3 + BT24(BitDATA16,_mode);
-			dosaddr_t oip = PC + len - LONG_CS;
+			dosaddr_t oip = PC + len - Interp_LONG_CS;
 			ocs = TheCPU.cs;
 			PC = JumpGen(PC, _mode, opc, len, P0, _flags);
 			if (debug_level('e')>2) {
 			    if (opc==CALLl)
 				e_printf("CALL_FAR: ret=%04x:%08x\n  calling:	   %04x:%08x\n",
-					 ocs,oip,TheCPU.cs,PC-LONG_CS);
+					 ocs,oip,TheCPU.cs,PC-Interp_LONG_CS);
 			    else
-				e_printf("JMP_FAR: %04x:%08x\n",TheCPU.cs,PC-LONG_CS);
+				e_printf("JMP_FAR: %04x:%08x\n",TheCPU.cs,PC-Interp_LONG_CS);
 			}
 			if (TheCPU.err) return PC;
 		    }
@@ -1768,7 +1768,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC+=2;
 			/* check if new cs is valid, save old for error */
 			ocs = TheCPU.cs;
-			xcs = LONG_CS;
+			xcs = Interp_LONG_CS;
 			TheCPU.err = MAKESEG(_mode, Ofs_CS, jcs);
 			if (TheCPU.err) {
 			    TheCPU.cs = ocs;
@@ -1790,7 +1790,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				e_printf("JMP_FAR: %04x:%08lx\n",jcs,jip);
 			}
 			TheCPU.eip = jip;
-			PC = LONG_CS + jip;
+			PC = Interp_LONG_CS + jip;
 #ifdef SKIP_EMU_VBIOS
 			if ((jcs&0xf000)==config.vbios_seg) {
 			    /* return the new PC after the jump */
@@ -1805,25 +1805,25 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_POP, _mode|MRETISP, dr);
 			PC = JumpGen(PC, _mode, opc, 3, P0, _flags);
 			if (debug_level('e')>2)
-				e_printf("RET: ret=%08x inc_sp=%d\n",PC-LONG_CS,dr);
+				e_printf("RET: ret=%08x inc_sp=%d\n",PC-Interp_LONG_CS,dr);
 			if (TheCPU.err) return PC; }
 			break;
 /*c3*/	case RET:
 			Gen(O_POP, _mode);
 			PC = JumpGen(PC, _mode, opc, 1, P0, _flags);
-			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",PC-LONG_CS);
+			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",PC-Interp_LONG_CS);
 			if (TheCPU.err) return PC;
 			break;
 /*c6*/	case MOVbirm:
 			PC += ModRM(opc, PC, _mode|MBYTE);
-			if (TheCPU.mode & RM_REG)
+			if (REG3)
 			    Gen(L_IMM, _mode|MBYTE, REG3, Fetch(PC));
 			else
 			    Gen(S_DI_IMM, _mode|MBYTE, Fetch(PC));
 			PC++; break;
 /*c7*/	case MOVwirm:
 			PC += ModRM(opc, PC, _mode);
-			if (TheCPU.mode & RM_REG)
+			if (REG3)
 			    Gen(L_IMM, _mode, REG3, DataFetchWL_U(_mode,PC));
 			else
 			    Gen(S_DI_IMM, _mode, DataFetchWL_U(_mode,PC));
@@ -1901,7 +1901,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				POP_ONLY(_mode);
 				if (debug_level('e')>2)
 					e_printf("RET_%x: ret=%08x\n",dr,TheCPU.eip);
-				PC = LONG_CS + TheCPU.eip;
+				PC = Interp_LONG_CS + TheCPU.eip;
 				temp = rESP + dr;
 				rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
 			}
@@ -1933,7 +1933,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(O_PUSH2F, _mode);
 				Gen(L_REG, _mode, Ofs_CS);
 				Gen(O_PUSH, _mode);
-				Gen(O_PUSHI, _mode, PC + 2 - LONG_CS);
+				Gen(O_PUSHI, _mode, PC + 2 - Interp_LONG_CS);
 				Gen(O_SETFL, _mode, INT);
 				Gen(L_LXS2, _mode);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
@@ -1941,7 +1941,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				PC = JumpGen(PC, _mode, opc, 2, P0, _flags);
 				if (debug_level('e')>1)
 					dbug_printf("EMU86: directly called int %#x ax=%#x at %#x:%#x\n",
-						    inum, TheCPU.eax, TheCPU.cs, PC - LONG_CS);
+						    inum, TheCPU.eax, TheCPU.cs, PC - Interp_LONG_CS);
 				if (TheCPU.err) return PC;
 				break;
 			}
@@ -1961,11 +1961,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				}
 				PUSH(_mode, temp);
 				PUSH(_mode, TheCPU.cs);
-				PUSH(_mode, PC + 2 - LONG_CS);
+				PUSH(_mode, PC + 2 - Interp_LONG_CS);
 				TheCPU.err = MAKESEG(_mode, Ofs_CS, segoffs >> 16);
 				if (TheCPU.err) return P0;
 				TheCPU.eip = segoffs & 0xffff;
-				PC = LONG_CS + TheCPU.eip;
+				PC = Interp_LONG_CS + TheCPU.eip;
 				EFLAGS &= ~(TF|RF|AC|NT);
 				EFLAGS &= ~(IOPL==3 ? EFLAGS_IF : EFLAGS_VIF);
 				if (debug_level('e')>1)
@@ -2010,7 +2010,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (TheCPU.err) return P0;
 			TheCPU.eip=0; POP(m, &TheCPU.eip);
 			POP_ONLY(m);
-			PC = LONG_CS + TheCPU.eip;
+			PC = Interp_LONG_CS + TheCPU.eip;
 			if (opc==RETl) {
 			    if (debug_level('e')>1)
 				e_printf("RET_FAR: ret=%04x:%08x\n",sv,TheCPU.eip);
@@ -2340,14 +2340,14 @@ repag0:
 				break;
 			case Ofs_DL:	/*2*/	/* NOT */
 				Gen(O_NOT, _mode|MBYTE);			// not al
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 					Gen(S_REG, _mode|MBYTE, REG3);
 				else
 					Gen(S_DI, _mode|MBYTE);
 				break;
 			case Ofs_BL:	/*3*/	/* NEG */
 				Gen(O_NEG, _mode|MBYTE);			// neg al
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 					Gen(S_REG, _mode|MBYTE, REG3);
 				else
 					Gen(S_DI, _mode|MBYTE);
@@ -2359,10 +2359,10 @@ repag0:
 				Gen(O_IMUL, _mode|MBYTE);		// al*[edi]->AX signed
 				break;
 			case Ofs_DH:	/*6*/	/* DIV AL */
-				Gen(O_DIV, _mode|MBYTE, P0 - LONG_CS);			// ah:al/[edi]->AH:AL unsigned
+				Gen(O_DIV, _mode|MBYTE, P0 - Interp_LONG_CS);			// ah:al/[edi]->AH:AL unsigned
 				break;
 			case Ofs_BH:	/*7*/	/* IDIV AL */
-				Gen(O_IDIV, _mode|MBYTE, P0 - LONG_CS);		// ah:al/[edi]->AH:AL signed
+				Gen(O_IDIV, _mode|MBYTE, P0 - Interp_LONG_CS);		// ah:al/[edi]->AH:AL signed
 				break;
 			} }
 			break;
@@ -2376,14 +2376,14 @@ repag0:
 				break;
 			case Ofs_DX:	/*2*/	/* NOT */
 				Gen(O_NOT, _mode);			// not (e)ax
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 					Gen(S_REG, _mode, REG3);
 				else
 					Gen(S_DI, _mode);
 				break;
 			case Ofs_BX:	/*3*/	/* NEG */
 				Gen(O_NEG, _mode);			// neg (e)ax
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 					Gen(S_REG, _mode, REG3);
 				else
 					Gen(S_DI, _mode);
@@ -2395,10 +2395,10 @@ repag0:
 				Gen(O_IMUL, _mode);			// (e)ax*[edi]->(E)DX:(E)AX signed
 				break;
 			case Ofs_SI:	/*6*/	/* DIV AX+DX */
-				Gen(O_DIV, _mode, P0 - LONG_CS);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX unsigned
+				Gen(O_DIV, _mode, P0 - Interp_LONG_CS);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX unsigned
 				break;
 			case Ofs_DI:	/*7*/	/* IDIV AX+DX */
-				Gen(O_IDIV, _mode, P0 - LONG_CS);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX signed
+				Gen(O_IDIV, _mode, P0 - Interp_LONG_CS);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX signed
 				break;
 			} }
 			break;
@@ -2565,9 +2565,9 @@ repag0:
 			case Ofs_DX: {	/*2*/	 // CALL near indirect
 				/* don't use MLOAD as O_PUSHI clobbers eax */
 				int len = ModRM(opc, PC, _mode|NOFLDR);
-				dosaddr_t ret = PC + len - LONG_CS;
+				dosaddr_t ret = PC + len - Interp_LONG_CS;
 				Gen(O_PUSHI, _mode, ret);
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 					Gen(L_REG, _mode, REG3);
 				else
 					Gen(L_DI_R1, _mode);
@@ -2575,7 +2575,7 @@ repag0:
 					P0, _flags);
 				if (debug_level('e')>2)
 					e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
-						 ret,PC-LONG_CS);
+						 ret,PC-Interp_LONG_CS);
 				if (TheCPU.err) return PC;
 				}
 				break;
@@ -2591,7 +2591,7 @@ repag0:
 					ocs = TheCPU.cs;
 					if (REG1==Ofs_BX) {
 					    /* ok, now push old cs:eip */
-					    oip = PC + len - LONG_CS;
+					    oip = PC + len - Interp_LONG_CS;
 					    Gen(L_REG, _mode|DATA16, Ofs_CS);
 					    if (!(_mode & DATA16)) // padding
 						Gen(L_ZXAX, _mode);
@@ -2605,7 +2605,7 @@ repag0:
 						P0, _flags);
 					if (debug_level('e')>2) {
 					    unsigned short jcs = TheCPU.cs;
-					    dosaddr_t jip = PC - LONG_CS;
+					    dosaddr_t jip = PC - Interp_LONG_CS;
 					    if (REG1==Ofs_BX)
 						e_printf("CALL_FAR indirect: ret=%04x:%08x\n\tcalling: %04x:%08x\n",
 							 ocs,oip,jcs,jip);
@@ -2625,13 +2625,13 @@ repag0:
 					unsigned long oip,xcs,jip=0;
 					CODE_FLUSH();
 					PC += ModRMSim(PC, _mode|NOFLDR, OVERR_DS, OVERR_SS);
-					TheCPU.eip = PC - LONG_CS;
+					TheCPU.eip = PC - Interp_LONG_CS;
 					/* get new cs:ip */
 					jip = DataGetWL_U(_mode, TheCPU.mem_ref);
 					jcs = GetDWord(TheCPU.mem_ref+BT24(BitDATA16,_mode));
 					/* check if new cs is valid, save old for error */
 					ocs = TheCPU.cs;
-					xcs = LONG_CS;
+					xcs = Interp_LONG_CS;
 					TheCPU.err = MAKESEG(_mode, Ofs_CS, jcs);
 					if (TheCPU.err) {
 					    TheCPU.cs = ocs;
@@ -2653,7 +2653,7 @@ repag0:
 						e_printf("JMP_FAR indirect: %04x:%08lx\n",jcs,jip);
 					}
 					TheCPU.eip = jip;
-					PC = LONG_CS + jip;
+					PC = Interp_LONG_CS + jip;
 				}
 				break;
 			case Ofs_SI:	/*6*/	 // PUSH
@@ -2893,18 +2893,6 @@ repag0:
 				}
 			}
 			b &= 7;
-			if (TheCPU.fpstate) {
-				/* For simulator, only need to mask all
-				   exceptions, and set rounding properly;
-				   for JIT, load emulated FPU state
-				   into real FPU */
-				if (CONFIG_CPUSIM) {
-					fesetenv(FE_DFL_ENV);
-					fp87_set_rounding();
-				} else
-					loadfpstate(*TheCPU.fpstate);
-				TheCPU.fpstate = NULL;
-			}
 			if (sim) {
 			    if (Fp87_op(exop,b,TheCPU.mem_ref)) {
 				TheCPU.err = -96;
@@ -2947,7 +2935,7 @@ repag0:
 				    CODE_FLUSH();
 				    if (REALMODE()) goto illegal_op;
 				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				    if (TheCPU.mode & RM_REG) {
+				    if (REG3) {
 					sv = CPUWORD(REG3);
 				    } else {
 					sv = GetDWord(TheCPU.mem_ref);
@@ -2963,7 +2951,7 @@ repag0:
 				    CODE_FLUSH();
 				    if (REALMODE()) goto illegal_op;
 				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				    if (TheCPU.mode & RM_REG) {
+				    if (REG3) {
 					sv = CPUWORD(REG3);
 				    } else {
 					sv = GetDWord(TheCPU.mem_ref);
@@ -3019,7 +3007,7 @@ repag0:
 				CODE_FLUSH();
 				if (REALMODE()) goto illegal_op;
 				PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				if (TheCPU.mode & RM_REG) {
+				if (REG3) {
 				    sv = CPUWORD(REG3);
 				} else {
 				    sv = GetDWord(TheCPU.mem_ref);
@@ -3207,20 +3195,19 @@ repag0:
 			case 0xb3: /* BTR */
 			case 0xbb: /* BTC */
 				PC++; PC += ModRM(opc, PC, _mode);
-				if (TheCPU.mode & RM_REG) {
+				if (REG3) {
 				    Gen(L_REG, _mode, REG3);
 				}
-				Gen(O_BITOP, _mode | (TheCPU.mode & RM_REG),
+				Gen(O_BITOP, _mode | (REG3 ? RM_REG : 0),
 				    (opc2-0xa0), REG1);
 				if (opc2 != 0xa3) {
-				    if (TheCPU.mode & RM_REG)
+				    if (REG3)
 					Gen(S_REG, _mode, REG3);
 				}
 				break;
 			case 0xbc: /* BSF */
 			case 0xbd: /* BSR */
 				PC++; PC += ModRM(opc, PC, _mode|MLOAD);
-				_mode |= (TheCPU.mode & RM_REG);
 				Gen(O_BITOP, _mode, (opc2-0xa0), REG1);
 				break;
 			case 0xba: { /* GRP8 - Code Extension 22 */
@@ -3237,10 +3224,9 @@ repag0:
 				case 0x30: /* BTR imm8 */
 				case 0x38: /* BTC imm8 */
 					PC++; PC += ModRM(opc, PC, _mode|MLOAD);
-					_mode |= (TheCPU.mode & RM_REG);
 					Gen(O_BITOP, _mode, opm, Fetch(PC));
 					if (opm != 0x20) {
-					    if (TheCPU.mode & RM_REG) {
+					    if (REG3) {
 						Gen(S_REG, _mode, REG3);
 					    }
 					    else {
@@ -3268,7 +3254,7 @@ repag0:
 					Gen(O_SHFD, _mode|IMMED, (opc2&8), REG1, Fetch(PC));
 					PC++;
 				}
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 					Gen(S_REG, _mode, REG3);
 				else
 					Gen(S_DI, _mode);
@@ -3306,18 +3292,16 @@ repag0:
 				break;
 			case 0xb0:		/* CMPXCHGb */
 				PC++; PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);
-				_mode |= (TheCPU.mode & RM_REG);
 				Gen(O_CMPXCHG, _mode | MBYTE, REG1);
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 				    Gen(S_REG, _mode | MBYTE, REG3);
 				else
 				    Gen(S_DI, _mode | MBYTE);
 				break;
 			case 0xb1:		/* CMPXCHGw */
 				PC++; PC += ModRM(opc, PC, _mode|MLOAD);
-				_mode |= (TheCPU.mode & RM_REG);
 				Gen(O_CMPXCHG, _mode, REG1);
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 				    Gen(S_REG, _mode, REG3);
 				else
 				    Gen(S_DI, _mode);
@@ -3393,7 +3377,7 @@ repag0:
 				PC++; PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);
 				Gen(O_XCHG, _mode | MBYTE, REG1);
 				Gen(O_ADD_R, _mode | MBYTE, REG1);
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 				    Gen(S_REG, _mode|MBYTE, REG3);
 				else
 				    Gen(S_DI, _mode|MBYTE);
@@ -3402,7 +3386,7 @@ repag0:
 				PC++; PC += ModRM(opc, PC, _mode|MLOAD);
 				Gen(O_XCHG, _mode, REG1);
 				Gen(O_ADD_R, _mode, REG1);
-				if (TheCPU.mode & RM_REG)
+				if (REG3)
 				    Gen(S_REG, _mode, REG3);
 				else
 				    Gen(S_DI, _mode);
@@ -3471,8 +3455,8 @@ repag0:
 			return P0;
 
 		/* check segment boundaries. TODO for prot _mode */
-		if (REALADDR() && (PC - LONG_CS > 0xffff)) {
-			e_printf("PC out of bounds, %x\n", PC - LONG_CS);
+		if (REALADDR() && (PC - Interp_LONG_CS > 0xffff)) {
+			e_printf("PC out of bounds, %x\n", PC - Interp_LONG_CS);
 			CODE_FLUSH();
 			goto not_permitted;
 		}
@@ -3492,7 +3476,6 @@ illegal_op:
 	dbug_printf("!!! Illegal op %02x %02x %02x\n",opc,
 		    Fetch(PC+1),Fetch(PC+2));
 	TheCPU.err = EXCP06_ILLOP; return P0;
-#undef basemode
 }
 
 /* reset for VGA reads and writes */
@@ -3512,16 +3495,16 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 	int gap = ((flags & FLG_SPECULATIVE) ? SAFE_PRJ_GAP : 1);
 
 	while (1) {
-		TheCPU.mode = basemode;
-		TheCPU.basemode = basemode;
 		P0 = PC;
 		if (debug_level('e')) {
 			char *ds;
 			unsigned short ocs = TheCPU.cs;
-			ds = e_emu_disasm(EMU_BASE32(PC),(~basemode&3),ocs);
+			ds = e_emu_disasm(EMU_BASE32(PC),basemode&MBIGCS,ocs);
 			e_printf("  %s\n", ds);
 		}
-		PC = InterpOne(PC, &basemode, flags);
+		PC = InterpOne(PC, basemode, flags);
+		/* InterpOne can NOT change CS with PreJit, basemode
+		   stays the same */
 		if (TheCPU.err)
 			return;
 		PC = interp_post(PC, basemode, P0, flags);
@@ -3542,9 +3525,8 @@ void PreJit86(unsigned int PC, int basemode)
 {
 	if (e_querymark(PC, 1))
 		return;
-	TheCPU.basemode = basemode;
 	TheCPU.err = 0;
-	LONG_CS = _LONG_CS;
+	Interp_LONG_CS = LONG_CS;
 	_PreJit86(PC, basemode, FLG_PREJIT);
 	e_mdrop();
 }
@@ -3553,7 +3535,8 @@ static void *prejit_thread(void *arg)
 {
   while (1) {
     sem_wait(&prejit_sem);
-    _PreJit86(__atomic_load_n(&prejit_PC, __ATOMIC_RELAXED), TheCPU.basemode,
+    _PreJit86(__atomic_load_n(&prejit_PC, __ATOMIC_RELAXED),
+	    __atomic_load_n(&prejit_mode, __ATOMIC_RELAXED),
 	    FLG_PREJIT | FLG_SPECULATIVE);
     pthread_mutex_lock(&run_mtx);
     prejit_running = 0;
@@ -3564,7 +3547,7 @@ static void *prejit_thread(void *arg)
 }
 
 #if SPEC_PREJIT
-static void prejit_run(unsigned int PC)
+static void prejit_run(unsigned int PC, unsigned int basemode)
 {
   if (e_querymark(PC, SAFE_PRJ_GAP))
     return;
@@ -3572,6 +3555,7 @@ static void prejit_run(unsigned int PC)
   SpecPrejits++;
 #endif
   __atomic_store_n(&prejit_PC, PC, __ATOMIC_RELAXED);
+  __atomic_store_n(&prejit_mode, basemode, __ATOMIC_RELAXED);
   pthread_mutex_lock(&run_mtx);
   assert(!prejit_running);
   prejit_running = 1;

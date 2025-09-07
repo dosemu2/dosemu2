@@ -235,7 +235,7 @@ static inline void exprintb(unsigned char val,char *bf,unsigned int pos)
 	while (v) { *p-- = ehextab[v&15]; v>>=4; }
 }
 
-char *e_print_regs(void)
+char *e_print_regs(unsigned int Interp_LONG_CS)
 {
 	static char buf[sizeof(eregbuf) + 300];
 	char *p = buf;
@@ -261,7 +261,7 @@ char *e_print_regs(void)
 	exprintl(TheCPU.eip,buf,(ERB_L4+ERB_LEFTM)+39);
 	{
 		int i;
-		dosaddr_t csp = LONG_CS+TheCPU.eip;
+		dosaddr_t csp = Interp_LONG_CS+TheCPU.eip;
 		dosaddr_t st = LONG_SS+TheCPU.esp;
 		if (csp < 0xa0000 - 256 || dpmi_is_valid_range(csp, 256)) {
 			unsigned char *op = EMU_BASE32(csp);
@@ -548,11 +548,10 @@ static void Reg2Cpu(struct vm86_struct *info)
 
   /* FPU state is loaded later on demand for JIT, not used for simulator */
   TheCPU.fpstate = &vm86_fpu_state;
-  LONG_CS = _LONG_CS;
   if (debug_level('e')>1) {
 	if (debug_level('e')==9) e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n%s\n",
 		regs->eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags,
-		e_print_regs());
+		e_print_regs(LONG_CS));
 	else e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x\n",
 		regs->eflags,get_FLAGS(TheCPU.eflags),TheCPU.eflags);
   }
@@ -708,7 +707,7 @@ static void Scp2CpuD(cpuctx_t *scp)
   InvalidateSegs(); // makes sure real mode segs aren't confused with PM sels
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_CS,&big,_cs);
   if (TheCPU.err) goto erseg;
-  if (big) mode=0; else mode |= DATA16;
+  if (big) mode=MBIGCS; else mode |= DATA16;
 
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_DS,&big,_ds);
   if (TheCPU.err) goto erseg;
@@ -725,10 +724,9 @@ erseg:
 	e_printf("Scp2CpuD%s: CS:IP=%08x:%08x\n%s\n",
 			(TheCPU.err? " ERR":""),
 			LONG_CS, _eip,
-			e_print_regs());
+			e_print_regs(LONG_CS));
   }
   TheCPU.mode = mode;
-  LONG_CS = _LONG_CS;
 }
 
 
@@ -1131,7 +1129,7 @@ static int e_dpmi_tail(cpuctx_t *scp)
       /* 0 if ok, else exception code+1 or negative if dosemu err */
       if (xval < 0) {
         error("DPM86: error %d\n", -xval);
-        error("@\n%s",e_print_regs());
+        error("@\n%s",e_print_regs(LONG_CS));
         leavedos_main(0);
         return -1;
       }

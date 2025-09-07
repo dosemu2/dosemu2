@@ -182,6 +182,7 @@
 #define MPOPRM	0x00010000
 #define MRETISP	0x00020000
 #define MREALA	0x00040000
+#define MBIGCS	0x00080000
 
 #define CKSIGN	0x00100000	// check signal: for jumps
 // for HOST_ARCH_X86
@@ -269,7 +270,7 @@ extern int CurrIMeta;
 extern void Gen(int op, int mode, ...);
 extern void AddrGen(int op, int mode, ...);
 extern int  (*Fp87_op)(int exop, int reg, unsigned mem_ref);
-TNode *Close(unsigned int PC, int mode);
+TNode *Close(unsigned int PC, unsigned int Interp_LONGCS, int mode);
 extern unsigned char * (*CodeGen)(unsigned char *CodePtr,
 				  unsigned char *BaseGenBuf, const IGen *IG);
 extern unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
@@ -278,10 +279,10 @@ extern unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
 unsigned int DoExec(TNode *G);
 unsigned int DoExec_fast(TNode *G);
 void EndGen(void);
-extern void fp87_set_rounding(void);
+extern void fp87_mask_except(void);
 extern void fp87_save_except(void);
 //
-static __inline__ int GoodNode(TNode *G, int mode)
+static __inline__ int GoodNode(TNode *G)
 {
 	if (G->cs != LONG_CS) {
 		/* CS mismatch can confuse relative jump/call */
@@ -289,10 +290,10 @@ static __inline__ int GoodNode(TNode *G, int mode)
 					G->key, G->cs, LONG_CS);
 		return 0;
 	}
-	if (G->mode != mode) {
-		/* mode mismatch can be 32/16 or MREALA */
+	if (G->mode != TheCPU.mode) {
+		/* mode mismatch can be 32/16(MBIGCS) or MREALA */
 		e_printf("mode mismatch at %08x: old=%x new=%x\n",
-					G->key, G->mode, mode);
+					G->key, G->mode, TheCPU.mode);
 		return 0;
 	}
 	return 1;

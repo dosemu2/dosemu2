@@ -518,7 +518,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
  *
  */
 
-TNode *Close(unsigned int PC, int mode)
+TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
 {
 	IMeta *I0;
 	TNode *G;
@@ -551,7 +551,7 @@ TNode *Close(unsigned int PC, int mode)
 	 * if some other code tries to write over the page including
 	 * this node */
 	e_markpage(G->seqbase, G->seqlen);
-	G->cs = LONG_CS;
+	G->cs = Interp_LONG_CS;
 	G->mode = mode;
 	/* check links INSIDE current node */
 	if (0 == (EFLAGS & EFLAGS_TF) ) {
@@ -690,7 +690,6 @@ unsigned int DoExec_fast(TNode *G)
 	unsigned char *ecpu = CPUOFFS(0);
 	unsigned long flg = Exec_pre(ecpu);
 	unsigned int ePC, mem_ref;
-	unsigned mode = G->mode;
 
 	do {
 		ePC = Exec(&mem_ref, &flg, ecpu, G->addr, 0);
@@ -706,7 +705,7 @@ unsigned int DoExec_fast(TNode *G)
 			break;
 		}
 	} while (!TheCPU.err2 && (G=FindTree(ePC)) &&
-		 GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)));
+		 GoodNode(G) && !(G->flags & (F_FPOP|F_INHI)));
 
 	Exec_post(flg, mem_ref);
 	sigalrm_pending_w(0);
