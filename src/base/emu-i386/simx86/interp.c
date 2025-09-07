@@ -331,7 +331,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		break;
 	case JMPld: {   /* uncond jmp far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
-		Gen(L_IMM, mode|DATA16, Ofs_CS, jcs);
+		Gen(L_IMM_R1, mode|DATA16, jcs);
 		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 	}
 	/* no break */
@@ -349,7 +349,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		if (!(mode & DATA16)) // 32-bit segreg padding
 		    Gen(L_ZXAX, mode);
 		Gen(O_PUSH, mode);
-		Gen(L_IMM, mode|DATA16, Ofs_CS, jcs);
+		Gen(L_IMM_R1, mode|DATA16, jcs);
 		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 	}
 	/* no break */
@@ -360,7 +360,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
 		break;
 	case RETl: case RETlisp: // far ret, indirect
-		Gen(S_REG, mode|DATA16, Ofs_CS);
 		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 		/* fall through */
 	case JMPli: case CALLli: case INT: // far jmp/call, indirect
@@ -480,7 +479,7 @@ static unsigned int FindExecCode(unsigned int PC)
 		TotalNodesExecd++;
 #elif !defined(ASM_DUMP)
 		/* try fast inner loop if nothing special is going on */
-		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI|CeS_MOVSS)) &&
+		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI)) &&
 		    !debug_level('e') &&
 		    GoodNode(G, mode) && !(G->flags & (F_FPOP|F_INHI)))
 			PC = DoExec_fast(G);
@@ -645,19 +644,6 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 		if (CurrIMeta>=0 && (CEmuStat & CeS_TRAP)) {
 			P0 = PC;
 			CODE_FLUSH2(mode);
-		}
-		if (CEmuStat & CeS_MOVSS) {
-			/* following non-compiled (sim or protected mode)
-			   mov ss / pop ss only */
-			if (!(CEmuStat & CeS_INHI)) {
-				// directly following mov ss / pop ss
-				CEmuStat |= CeS_INHI;
-				CEmuStat &= ~CeS_TRAP;
-			} else {
-				// instruction after clear unconditionally
-				// even if it's another mov ss / pop ss
-				CEmuStat &= ~(CeS_INHI|CeS_MOVSS);
-			}
 		}
 		if (CEmuStat & CeS_INSTREMUx(PROTMODE())) {
 			if (debug_level('e')>1)
@@ -997,47 +983,38 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*07*/	case POPes:	if (REALADDR()) {
 			    Gen(O_POP, _mode);
-			    Gen(S_REG, _mode, Ofs_ES);
 			    AddrGen(A_SR_SH4, _mode, Ofs_ES, Ofs_XES);
 			} else { /* restartable */
-			    unsigned short sv = 0;
-			    CODE_FLUSH();
-			    TOS_WORD(_mode, &sv);
-			    TheCPU.err = MAKESEG(_mode, Ofs_ES, sv);
-			    if (TheCPU.err) return P0;
-			    POP_ONLY(_mode);
-			    TheCPU.es = sv;
+			    Gen(O_POP1, _mode);
+			    Gen(O_POP2, _mode|MPOPRM, 0);
+			    /* same principle applies as for POPrm: this
+			       segment load may fault, above pops into
+			       temporary storage without adjusting (E)SP */
+			    AddrGen(A_SR_PROT, _mode, Ofs_ES, P0);
+			    Gen(O_POP3, _mode|MPOPRM);
 			}
 			PC++;
 			break;
 /*17*/	case POPss:	if (REALADDR()) {
 			    Gen(O_POP, _mode);
-			    Gen(S_REG, _mode, Ofs_SS);
 			    AddrGen(A_SR_SH4, _mode, Ofs_SS, Ofs_XSS);
 			} else { /* restartable */
-			    unsigned short sv = 0;
-			    CODE_FLUSH();
-			    TOS_WORD(_mode, &sv);
-			    TheCPU.err = MAKESEG(_mode, Ofs_SS, sv);
-			    if (TheCPU.err) return P0;
-			    POP_ONLY(_mode);
-			    TheCPU.ss = sv;
-			    CEmuStat |= CeS_MOVSS;
+			    Gen(O_POP1, _mode);
+			    Gen(O_POP2, _mode|MPOPRM, 0);
+			    AddrGen(A_SR_PROT, _mode, Ofs_SS, P0);
+			    Gen(O_POP3, _mode|MPOPRM);
 			}
+			InstrMeta[CurrIMeta].flags |= F_INHI;
 			PC++;
 			break;
 /*1f*/	case POPds:	if (REALADDR()) {
 			    Gen(O_POP, _mode);
-			    Gen(S_REG, _mode, Ofs_DS);
 			    AddrGen(A_SR_SH4, _mode, Ofs_DS, Ofs_XDS);
 			} else { /* restartable */
-			    unsigned short sv = 0;
-			    CODE_FLUSH();
-			    TOS_WORD(_mode, &sv);
-			    TheCPU.err = MAKESEG(_mode, Ofs_DS, sv);
-			    if (TheCPU.err) return P0;
-			    POP_ONLY(_mode);
-			    TheCPU.ds = sv;
+			    Gen(O_POP1, _mode);
+			    Gen(O_POP2, _mode|MPOPRM, 0);
+			    AddrGen(A_SR_PROT, _mode, Ofs_DS, P0);
+			    Gen(O_POP3, _mode|MPOPRM);
 			}
 			PC++;
 			break;
@@ -1438,83 +1415,45 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    CODE_FLUSH();
 			    goto illegal_op;
 			}
+			PC += ModRM(opc, PC, _mode);
+			Gen(L_LXS2, _mode);
 			if (REALADDR()) {
-			    PC += ModRM(opc, PC, _mode);
-			    Gen(L_LXS1, _mode, REG1);
-			    Gen(L_LXS2, _mode, Ofs_ES, Ofs_XES);
+			    AddrGen(A_SR_SH4, _mode, Ofs_ES, Ofs_XES);
 			}
 			else {
-			    unsigned short sv = 0;
-			    unsigned long rv;
-			    CODE_FLUSH();
-			    PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-			    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
-			    TheCPU.mem_ref += BT24(BitDATA16, _mode);
-			    sv = GetDWord(TheCPU.mem_ref);
-			    TheCPU.err = MAKESEG(_mode, Ofs_ES, sv);
-			    if (TheCPU.err) return P0;
-			    SetCPU_WL(_mode, REG1, rv);
-			    TheCPU.es = sv;
+			    AddrGen(A_SR_PROT, _mode, Ofs_ES, P0);
 			}
+			Gen(L_LXS1, _mode, REG1);
 			break;
 /*c5*/	case LDS:
 			if (Fetch(PC+1) >= 0xc0) {
 			    CODE_FLUSH();
 			    goto illegal_op;
 			}
+			PC += ModRM(opc, PC, _mode);
+			Gen(L_LXS2, _mode);
 			if (REALADDR()) {
-			    PC += ModRM(opc, PC, _mode);
-			    Gen(L_LXS1, _mode, REG1);
-			    Gen(L_LXS2, _mode, Ofs_DS, Ofs_XDS);
+			    AddrGen(A_SR_SH4, _mode, Ofs_DS, Ofs_XDS);
 			}
 			else {
-			    unsigned short sv = 0;
-			    unsigned long rv;
-			    CODE_FLUSH();
-			    PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-			    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
-			    TheCPU.mem_ref += BT24(BitDATA16, _mode);
-			    sv = GetDWord(TheCPU.mem_ref);
-			    TheCPU.err = MAKESEG(_mode, Ofs_DS, sv);
-			    if (TheCPU.err) return P0;
-			    SetCPU_WL(_mode, REG1, rv);
-			    TheCPU.ds = sv;
+			    AddrGen(A_SR_PROT, _mode, Ofs_DS, P0);
 			}
+			Gen(L_LXS1, _mode, REG1);
 			break;
 /*8e*/	case MOVsrfrm:
+			PC += ModRM(opc, PC, _mode|SEGREG|DATA16|MLOAD);
+			if (REG1 == Ofs_CS) {
+			    CODE_FLUSH();
+			    goto illegal_op;
+			}
 			if (REALADDR()) {
-			    int seg;
-			    PC += ModRM(opc, PC, _mode|SEGREG|DATA16|MLOAD);
-			    seg = e_ofsseg(REG1);
-			    if (seg == Ofs_XCS) {
-				CODE_FLUSH();
-				goto illegal_op;
-			    }
-			    Gen(S_REG, _mode|DATA16, REG1);
-			    AddrGen(A_SR_SH4, _mode, REG1, seg);
+			    AddrGen(A_SR_SH4, _mode, REG1, e_ofsseg(REG1));
 			}
 			else {
-			    unsigned short sv = 0;
-			    CODE_FLUSH();
-			    PC += ModRMSim(PC, _mode|SEGREG, OVERR_DS, OVERR_SS);
-			    if (TheCPU.mode & RM_REG) {
-				sv = CPUWORD(REG3);
-			    } else {
-				sv = GetDWord(TheCPU.mem_ref);
-			    }
-			    TheCPU.err = MAKESEG(_mode, REG1, sv);
-			    if (TheCPU.err) return P0;
-			    switch (REG1) {
-				case Ofs_DS: TheCPU.ds=sv; break;
-				case Ofs_SS: TheCPU.ss=sv;
-				    CEmuStat |= CeS_MOVSS;
-				    break;
-				case Ofs_ES: TheCPU.es=sv; break;
-				case Ofs_FS: TheCPU.fs=sv; break;
-				case Ofs_GS: TheCPU.gs=sv; break;
-				default: goto illegal_op;
-			    }
+			    AddrGen(A_SR_PROT, _mode, REG1, P0);
 			}
+			if (REG1 == Ofs_SS)
+			    InstrMeta[CurrIMeta].flags |= F_INHI;
 			break;
 
 /*9b*/	case oWAIT:
@@ -1996,8 +1935,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(O_PUSH, _mode);
 				Gen(O_PUSHI, _mode, PC + 2 - LONG_CS);
 				Gen(O_SETFL, _mode, INT);
+				Gen(L_LXS2, _mode);
+				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(L_LXS1, _mode, Ofs_EIP);
-				Gen(L_LXS2, _mode, Ofs_CS, Ofs_XCS);
 				PC = JumpGen(PC, _mode, opc, 2, P0, _flags);
 				if (debug_level('e')>1)
 					dbug_printf("EMU86: directly called int %#x ax=%#x at %#x:%#x\n",
@@ -2658,8 +2598,9 @@ repag0:
 					    Gen(O_PUSH, _mode);
 					    Gen(O_PUSHI, _mode, oip);
 					}
+					Gen(L_LXS2, _mode);
+					AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 					Gen(L_LXS1, _mode, Ofs_EIP);
-					Gen(L_LXS2, _mode, Ofs_CS, Ofs_XCS);
 					PC = JumpGen(PC, _mode, (opc<<8)|REG1, len,
 						P0, _flags);
 					if (debug_level('e')>2) {
@@ -3239,16 +3180,12 @@ repag0:
 			case 0xa1: /* POPfs */
 				if (REALADDR()) {
 				    Gen(O_POP, _mode);
-				    Gen(S_REG, _mode, Ofs_FS);
 				    AddrGen(A_SR_SH4, _mode, Ofs_FS, Ofs_XFS);
 				} else { /* restartable */
-				    unsigned short sv = 0;
-				    CODE_FLUSH();
-				    TOS_WORD(_mode, &sv);
-				    TheCPU.err = MAKESEG(_mode, Ofs_FS, sv);
-				    if (TheCPU.err) return P0;
-				    POP_ONLY(_mode);
-				    TheCPU.fs = sv;
+				    Gen(O_POP1, _mode);
+				    Gen(O_POP2, _mode|MPOPRM, 0);
+				    AddrGen(A_SR_PROT, _mode, Ofs_FS, P0);
+				    Gen(O_POP3, _mode|MPOPRM);
 				}
 				PC+=2;
 				break;
@@ -3349,16 +3286,12 @@ repag0:
 			case 0xa9: /* POPgs */
 				if (REALADDR()) {
 				    Gen(O_POP, _mode);
-				    Gen(S_REG, _mode, Ofs_GS);
 				    AddrGen(A_SR_SH4, _mode, Ofs_GS, Ofs_XGS);
 				} else { /* restartable */
-				    unsigned short sv = 0;
-				    CODE_FLUSH();
-				    TOS_WORD(_mode, &sv);
-				    TheCPU.err = MAKESEG(_mode, Ofs_GS, sv);
-				    if (TheCPU.err) return P0;
-				    POP_ONLY(_mode);
-				    TheCPU.gs = sv;
+				    Gen(O_POP1, _mode);
+				    Gen(O_POP2, _mode|MPOPRM, 0);
+				    AddrGen(A_SR_PROT, _mode, Ofs_GS, P0);
+				    Gen(O_POP3, _mode|MPOPRM);
 				}
 				PC+=2;
 				break;
@@ -3395,72 +3328,45 @@ repag0:
 				    CODE_FLUSH();
 				    goto illegal_op;
 				}
+				PC++; PC += ModRM(opc, PC, _mode);
+				Gen(L_LXS2, _mode);
 				if (REALADDR()) {
-				    PC++; PC += ModRM(opc, PC, _mode);
-				    Gen(L_LXS1, _mode, REG1);
-				    Gen(L_LXS2, _mode, Ofs_SS, Ofs_XSS);
+				    AddrGen(A_SR_SH4, _mode, Ofs_SS, Ofs_XSS);
 				}
 				else {
-				    unsigned short sv = 0;
-				    unsigned long rv;
-				    CODE_FLUSH();
-				    PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-				    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
-				    TheCPU.mem_ref += BT24(BitDATA16,_mode);
-				    sv = GetDWord(TheCPU.mem_ref);
-				    TheCPU.err = MAKESEG(_mode, Ofs_SS, sv);
-				    if (TheCPU.err) return P0;
-				    SetCPU_WL(_mode, REG1, rv);
-				    TheCPU.ss = sv;
+				    AddrGen(A_SR_PROT, _mode, Ofs_SS, P0);
 				}
+				Gen(L_LXS1, _mode, REG1);
 				break;
 			case 0xb4: /* LFS */
 				if (Fetch(PC+2) >= 0xc0) {
 				    CODE_FLUSH();
 				    goto illegal_op;
 				}
+				PC++; PC += ModRM(opc, PC, _mode);
+				Gen(L_LXS2, _mode);
 				if (REALADDR()) {
-				    PC++; PC += ModRM(opc, PC, _mode);
-				    Gen(L_LXS1, _mode, REG1);
-				    Gen(L_LXS2, _mode, Ofs_FS, Ofs_XFS);
+				    AddrGen(A_SR_SH4, _mode, Ofs_FS, Ofs_XFS);
 				}
 				else {
-				    unsigned short sv = 0;
-				    unsigned long rv;
-				    CODE_FLUSH();
-				    PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-				    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
-				    TheCPU.mem_ref += BT24(BitDATA16,_mode);
-				    sv = GetDWord(TheCPU.mem_ref);
-				    TheCPU.err = MAKESEG(_mode, Ofs_FS, sv);
-				    if (TheCPU.err) return P0;
-				    SetCPU_WL(_mode, REG1, rv);
-				    TheCPU.fs = sv;
+				    AddrGen(A_SR_PROT, _mode, Ofs_FS, P0);
 				}
+				Gen(L_LXS1, _mode, REG1);
 				break;
 			case 0xb5: /* LGS */
 				if (Fetch(PC+2) >= 0xc0) {
 				    CODE_FLUSH();
 				    goto illegal_op;
 				}
+				PC++; PC += ModRM(opc, PC, _mode);
+				Gen(L_LXS2, _mode);
 				if (REALADDR()) {
-				    PC++; PC += ModRM(opc, PC, _mode);
-				    Gen(L_LXS1, _mode, REG1);
-				    Gen(L_LXS2, _mode, Ofs_GS, Ofs_XGS);
+				    AddrGen(A_SR_SH4, _mode, Ofs_GS, Ofs_XGS);
 				}
 				else {
-				    unsigned short sv = 0;
-				    unsigned long rv;
-				    CODE_FLUSH();
-				    PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-				    rv = DataGetWL_U(_mode,TheCPU.mem_ref);
-				    TheCPU.mem_ref += BT24(BitDATA16,_mode);
-				    sv = GetDWord(TheCPU.mem_ref);
-				    TheCPU.err = MAKESEG(_mode, Ofs_GS, sv);
-				    if (TheCPU.err) return P0;
-				    SetCPU_WL(_mode, REG1, rv);
-				    TheCPU.gs = sv;
+				    AddrGen(A_SR_PROT, _mode, Ofs_GS, P0);
 				}
+				Gen(L_LXS1, _mode, REG1);
 				break;
 			case 0xb6: /* MOVZXb */
 				PC++; PC += ModRM(opc, PC, _mode|MBYTX|MLOAD);

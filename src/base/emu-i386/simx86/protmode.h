@@ -229,6 +229,7 @@ typedef struct {
 extern unsigned char e_ofsseg(int ofs);
 //
 int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel);
+int SetDataSegProt(unsigned short sv, int ofs);
 int SetSegReal(unsigned short sel, int ofs);
 int e_larlsl(int mode, unsigned short sel);
 int hsw_verr(unsigned short sel);

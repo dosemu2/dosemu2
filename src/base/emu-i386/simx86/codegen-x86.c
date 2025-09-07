@@ -260,8 +260,10 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		} }
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
-		// movzwl ofs(%%ebx),%%eax
-		G4M(0x0f,0xb7,0x43,IG->p0,Cp);
+		// movw %%ax,offs(%%ebx)
+		G4M(0x66,0x89,0x43,IG->p0,Cp);
+		// movzwl %%ax,%%eax
+		G3(0xc0b70f,Cp);
 		// shll $4,%%eax
 		G3M(0xc1,0xe0,0x04,Cp);
 		// movl %%eax,ofs(%%ebx)
@@ -270,6 +272,41 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		G1(0x05,Cp); G4(0x0000ffff,Cp);
 		// movl %%eax,ofs(%%ebx)
 		G3M(0x89,0x43,IG->p1+4,Cp);
+		}
+		break;
+	case A_SR_PROT: {	// prot mode make base addr from seg
+#ifdef __x86_64__
+		// pushq %rdi: save memory address for LDS etc.
+		G1(0x57,Cp);
+		// pushq %rsi: save stack address for O_POP3
+		G1(0x56,Cp);
+#endif
+		// pushb Ofs
+		G2M(0x6a,IG->p0,Cp)
+#ifdef __x86_64__
+		// popq %%rsi
+		G1(0x5e,Cp);
+		// movq %%rax,%%rdi
+		G2M(0x89,0xc7,Cp);
+#else
+		// pushl %eax
+		G1(0x50,Cp);
+#endif
+		// call Ofs_SetSegProt(%%ebx)
+		G3M(0xff,0x53,Ofs_SetSegProt(),Cp);
+#ifdef __x86_64__
+		// popq %rsi; popq %rdi
+		G2M(0x5e,0x5f,Cp);
+#else
+		// popl %edx; popl %edx
+		G2M(0x5a,0x5a,Cp);
+#endif
+		// or %%eax,%%eax
+		G2M(0x09,0xc0,Cp);
+		// jz skip
+		G2M(0x74,TAILSIZE,Cp);
+		// movl {exit_addr},%%eax; pop %%edx; ret
+		G1(0xb8,Cp); G4(IG->p1,Cp); G2M(0x5a,0xc3,Cp);
 		}
 		break;
 	case L_NOP:
@@ -395,23 +432,15 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		Gen66(mode,Cp); G3M(0x8b,0x04,0x2f,Cp);
 		// mov{wl} %%{e}ax,offs(%%ebx)
 		Gen66(mode,Cp);	G3M(0x89,0x43,IG->p0,Cp);
-		// leal {2|4}(%%edi),%%edi
-		G2M(0x8d,0x7f,Cp); G1((mode&DATA16? 2:4),Cp);
 		}
 		break;
-	case L_LXS2: {	/* real mode segment base from segment value */
+	case L_LXS2: {	/* load segment from memory + 2/4 */
+		// leal {2|4}(%%edi),%%edi
+		G2M(0x8d,0x7f,Cp); G1((mode&DATA16? 2:4),Cp);
 		// movzwl (%%edi,%%ebp,1),%%eax
 		G4M(0x0f,0xb7,0x04,0x2f,Cp);
-		// movw %%ax,ofs(%%ebx)
-		G4M(0x66,0x89,0x43,IG->p0,Cp);
-		// shll $4,%%eax
-		G3M(0xc1,0xe0,0x04,Cp);
-		// movl %%eax,ofs(%%ebx)
-		G3M(0x89,0x43,IG->p1,Cp);
-		// addl $0xffff,%eax
-		G1(0x05,Cp); G4(0x0000ffff,Cp);
-		// movl %%eax,ofs(%%ebx)
-		G3M(0x89,0x43,IG->p1+4,Cp);
+		// leal {-2|-4}(%%edi),%%edi
+		G2M(0x8d,0x7f,Cp); G1((mode&DATA16? -2:-4),Cp);
 		}
 		break;
 	case L_ZXAX:

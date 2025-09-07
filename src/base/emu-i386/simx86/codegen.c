@@ -168,12 +168,10 @@ void AddrGen(int op, int mode, ...)
 		IG->p3 = sh;
 		}
 		break;
-	case A_SR_SH4: {	// real mode make base addr from seg
+	case A_SR_PROT:		// prot mode make base addr from seg
+	case A_SR_SH4:		// real mode make base addr from seg
 		IG->p0 = va_arg(ap,unsigned int);
 		IG->p1 = va_arg(ap,unsigned int);
-		if (IG->p0 == Ofs_SS)
-			I->flags |= F_INHI;
-		}
 		break;
 	}
 	va_end(ap);
@@ -212,6 +210,7 @@ void Gen(int op, int mode, ...)
 	case L_CR0:
 	case L_ZXAX:
 	case L_DI_R1:
+	case L_LXS2:	/* load segment value from mem +2/4 */
 	case S_DI:
 	case O_NOT:
 	case O_NEG:
@@ -271,7 +270,6 @@ void Gen(int op, int mode, ...)
 		break;
 
 	case L_REG2REG:
-	case L_LXS2:	/* real mode segment base from segment value */
 	case O_XCHG_R:
 	case L_IMM:
 	case L_MOVZS:
@@ -649,7 +647,7 @@ unsigned int DoExec(TNode *G)
 		CEmuStat |= CeS_INHI;
 		CEmuStat &= ~CeS_TRAP;
 	} else {
-		CEmuStat &= ~(CeS_INHI|CeS_MOVSS);
+		CEmuStat &= ~CeS_INHI;
 		if (sigalrm_pending()) {
 			CEmuStat|=CeS_SIGPEND;
 			sigalrm_pending_w(0);
