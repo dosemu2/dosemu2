@@ -278,7 +278,7 @@ extern unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
 unsigned int DoExec(TNode *G);
 unsigned int DoExec_fast(TNode *G);
 void EndGen(void);
-extern void fp87_set_rounding(void);
+extern void fp87_mask_except(void);
 extern void fp87_save_except(void);
 //
 static __inline__ int GoodNode(TNode *G, int mode)

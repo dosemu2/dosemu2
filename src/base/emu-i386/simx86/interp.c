@@ -2893,18 +2893,6 @@ repag0:
 				}
 			}
 			b &= 7;
-			if (TheCPU.fpstate) {
-				/* For simulator, only need to mask all
-				   exceptions, and set rounding properly;
-				   for JIT, load emulated FPU state
-				   into real FPU */
-				if (CONFIG_CPUSIM) {
-					fesetenv(FE_DFL_ENV);
-					fp87_set_rounding();
-				} else
-					loadfpstate(*TheCPU.fpstate);
-				TheCPU.fpstate = NULL;
-			}
 			if (sim) {
 			    if (Fp87_op(exop,b,TheCPU.mem_ref)) {
 				TheCPU.err = -96;

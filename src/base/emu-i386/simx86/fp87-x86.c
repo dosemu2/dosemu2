@@ -402,6 +402,12 @@ fp_ok:
 static int Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref)
 {
 	e_printf("FPop %x.%d\n", exop, reg);
+	if (TheCPU.fpstate) {
+		/* load emulated FPU state into real FPU, if not already
+		   done so by Exec_x86 */
+		loadfpstate(*TheCPU.fpstate);
+		TheCPU.fpstate = NULL;
+	}
 
 	switch(exop) {
 /*21*/	case 0x21:

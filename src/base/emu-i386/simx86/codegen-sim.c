@@ -2842,6 +2842,10 @@ static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 	unsigned int P0;
 	dosaddr_t mem_ref = 0;
 
+	if (seqflg & F_FPOP)
+		/* mask all exceptions, and set rounding properly */
+		fp87_mask_except();
+
 	FlagSync_RFL(*flg);
 	do {
 		if (IG->op <= O_MOVS_SetA) {
