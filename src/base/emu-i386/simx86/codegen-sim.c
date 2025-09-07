@@ -1478,7 +1478,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 			}
 		}
 		if (TheCPU.err2 == EXCP00_DIVZ)
-			P0 = _LONG_CS + (dosaddr_t)IG->p0;
+			P0 = LONG_CS + (dosaddr_t)IG->p0;
 		break;
 	case O_IDIV:		// no flags
 		GTRACE0("O_IDIV");
@@ -1537,7 +1537,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 			}
 		}
 		if (TheCPU.err2 == EXCP00_DIVZ)
-			P0 = _LONG_CS + (dosaddr_t)IG->p0;
+			P0 = LONG_CS + (dosaddr_t)IG->p0;
 		break;
 	case O_CBWD:
 		GTRACE0("O_CBWD");
@@ -2728,7 +2728,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		break;
 
 	case JMP_INDIRECT:
-		P0 = _LONG_CS + ((mode & DATA16) ? DR1.w.l : DR1.d);
+		P0 = LONG_CS + ((mode & DATA16) ? DR1.w.l : DR1.d);
 		if (debug_level('e')>2)
 			dbug_printf("** Jump taken to %08x\n",P0);
 		break;
@@ -2900,14 +2900,13 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 		return;
 	}
 	/* trigger an exception in DPMI */
-	/* Need to shutdown prejitter to touch LONG_CS and TheCPU.err
+	/* Need to shutdown prejitter to touch TheCPU.err
 	   to return to _Interp86() */
 	prejit_sync();
 	TheCPU.err = EXCP0E_PAGE;
 	TheCPU.scp_err = err;
 	TheCPU.cr[2] = addr;
 	if (currentIG) {
-		LONG_CS = _LONG_CS;
 		unsigned int P0 = FindPC(currentIG);
 		TheCPU.eip = P0 - LONG_CS;
 		EFLAGS = (EFLAGS & ~EFLAGS_CC) | FlagSync_All();

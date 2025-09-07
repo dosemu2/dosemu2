@@ -518,7 +518,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
  *
  */
 
-TNode *Close(unsigned int PC, int mode)
+TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
 {
 	IMeta *I0;
 	TNode *G;
@@ -551,7 +551,7 @@ TNode *Close(unsigned int PC, int mode)
 	 * if some other code tries to write over the page including
 	 * this node */
 	e_markpage(G->seqbase, G->seqlen);
-	G->cs = LONG_CS;
+	G->cs = Interp_LONG_CS;
 	G->mode = mode;
 	/* check links INSIDE current node */
 	if (0 == (EFLAGS & EFLAGS_TF) ) {

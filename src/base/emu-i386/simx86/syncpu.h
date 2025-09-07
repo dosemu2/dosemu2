@@ -250,14 +250,12 @@ extern struct _SynCPU TheCPU_struct;
 #define FS_DTR		TheCPU.fs_cache
 #define GS_DTR		TheCPU.gs_cache
 
-#define _LONG_CS	TheCPU.cs_cache.BoundL
+#define LONG_CS		TheCPU.cs_cache.BoundL
 #define LONG_DS		TheCPU.ds_cache.BoundL
 #define LONG_ES		TheCPU.es_cache.BoundL
 #define LONG_SS		TheCPU.ss_cache.BoundL
 #define LONG_FS		TheCPU.fs_cache.BoundL
 #define LONG_GS		TheCPU.gs_cache.BoundL
-
-extern unsigned int LONG_CS;
 
 #define sigalrm_pending() __atomic_load_n(&TheCPU.sigalrm_pending, \
   __ATOMIC_RELAXED)

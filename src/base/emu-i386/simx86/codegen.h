@@ -270,7 +270,7 @@ extern int CurrIMeta;
 extern void Gen(int op, int mode, ...);
 extern void AddrGen(int op, int mode, ...);
 extern int  (*Fp87_op)(int exop, int reg, unsigned mem_ref);
-TNode *Close(unsigned int PC, int mode);
+TNode *Close(unsigned int PC, unsigned int Interp_LONGCS, int mode);
 extern unsigned char * (*CodeGen)(unsigned char *CodePtr,
 				  unsigned char *BaseGenBuf, const IGen *IG);
 extern unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
