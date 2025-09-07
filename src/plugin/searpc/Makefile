@@ -14,9 +14,6 @@ GEN_H = searpc-signature.h searpc-marshal.h
 
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_searpc.so
-ifeq ($(DREMOTE),1)
-	$(MAKE) -C dremote
-endif
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post
@@ -24,7 +21,6 @@ vpath %.py $(srcdir)
 
 clean::
 	$(RM) $(GENCFILES) $(GEN_H)
-	$(MAKE) -C dremote clean
 
 fsrpc_srv.o: fsrpc_srv.c $(GEN_H)
 
