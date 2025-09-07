@@ -32,45 +32,29 @@ CONFIG_HOST=`uname -s`
 CONFIG_OS=`uname -o`
 machine=`$CC -dumpmachine | cut -d- -f1 | sed 's/i.86/i386/'`
 if test "$CONFIG_HOST" != "Linux"; then
-  nok=1
-  AC_MSG_RESULT([unsupported host])
+  AC_MSG_ERROR([unsupported host])
 fi
-if test "$nok" != "1"; then
-  if test "$machine" != "i386" -a "$machine" != "x86_64"; then
-    nok=1
-    AC_MSG_RESULT([unsupported arch])
-  fi
+if test "$machine" != "i386" -a "$machine" != "x86_64"; then
+  AC_MSG_ERROR([unsupported arch])
 fi
-if test "$nok" != "1"; then
-  if test "$CONFIG_OS" = "Android"; then
-    nok=1
-    AC_MSG_RESULT([no, uffd unsupported on android])
-  fi
+if test "$CONFIG_OS" = "Android"; then
+  AC_MSG_ERROR([uffd unsupported on android])
 fi
-if test "$nok" != "1"; then
-  AC_MSG_RESULT([ok])
-fi
-if test "$nok" != "1"; then
-  PKG_CHECK_MODULES([SECCOMP], [libseccomp],,
-    [
-      nok=1
-      AC_MSG_WARN(libseccomp-devel not found)
-    ]
-  )
-fi
-if test "$nok" != "1"; then
-  AC_CHECK_DECLS([UFFD_FEATURE_WP_HUGETLBFS_SHMEM],,
-    [
-      nok=1
-      AC_MSG_WARN(uffd not supported)
-    ], [[#include <linux/userfaultfd.h>]]
-  )
-fi
-if test "$nok" != "1"; then
-  AC_MSG_NOTICE([remote DPMI supported])
-  DREMOTE=1
-  AC_SUBST(DREMOTE)
-fi
+AC_MSG_RESULT([ok])
+
+PKG_CHECK_MODULES([SECCOMP], [libseccomp],,
+  [
+    AC_MSG_ERROR([libseccomp-devel not found])
+  ]
+)
+AC_CHECK_DECLS([UFFD_FEATURE_WP_HUGETLBFS_SHMEM],,
+  [
+    AC_MSG_ERROR([uffd not supported])
+  ], [[#include <linux/userfaultfd.h>]]
+)
+AC_MSG_NOTICE([remote DPMI supported])
+DREMOTE=1
+AC_SUBST(DREMOTE)
 
 AC_CHECK_DECLS([UFFD_FEATURE_WP_ASYNC],,,[[#include <linux/userfaultfd.h>]])
 
