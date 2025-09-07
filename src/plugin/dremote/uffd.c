@@ -38,7 +38,7 @@
 #include "vgaemu.h"
 #include "utilities.h"
 #include "ioselect.h"
-#include "../searpc_config.hh"
+#include "searpc_config.hh"
 #include "uffd.h"
 
 #ifndef PAGE_SIZE

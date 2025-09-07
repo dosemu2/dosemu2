@@ -72,7 +72,7 @@ int native_dpmi_setup(void)
 {
     int ret, i;
 
-#ifdef SEARPC_SUPPORT
+#ifdef DREMOTE
     if (!dnops && config.dpmi_remote)
         load_plugin("dremote");
 #endif

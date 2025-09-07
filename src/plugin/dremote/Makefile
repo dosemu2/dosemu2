@@ -4,15 +4,15 @@
 # for details see file COPYING.DOSEMU in the DOSEMU distribution
 #
 
-top_builddir=../../../..
-include ../../plugins_simp.mak
+top_builddir=../../..
+include ../plugins_simp.mak
 ifeq ($(findstring $(MAKECMDGOALS), clean realclean configure),)
-include ../Makefile.conf
+include Makefile.conf
 endif
 
 ALL_CFLAGS += $(DL_CFLAGS) $(SR_CFLAGS) $(SECCOMP_CFLAGS) \
   -Wno-strict-prototypes
-ALL_CPPFLAGS += -I.
+ALL_CPPFLAGS += -I. -I$(srcdir)/../searpc
 
 CFILES = util.c dnsvc.c dnrpc_srv.c uffd.c sc_filter.c
 GEN_H = searpc-signature.h searpc-marshal.h
@@ -23,7 +23,7 @@ endif
 
 include $(REALTOPDIR)/src/Makefile.common.post
 vpath %.py $(srcdir)
-vpath util.c $(srcdir)/..
+vpath util.c $(srcdir)/../searpc
 
 clean::
 	$(RM) $(GENCFILES) $(GEN_H)

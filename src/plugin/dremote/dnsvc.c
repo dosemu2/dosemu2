@@ -28,7 +28,7 @@
 #include "init.h"
 #include "emu.h"
 #include "vgaemu.h"
-#include "../util.h"
+#include "util.h"
 #include "uffd.h"
 #include "dnrpcdefs.h"
 
