@@ -181,7 +181,7 @@ static unsigned int do_flush(unsigned P0, unsigned _P0,
 /////////////////////////////////////////////////////////////////////////////
 
 
-static int _MAKESEG(int mode, int *basemode, int ofs, unsigned short sv)
+static int MAKESEG(int mode, int ofs, unsigned short sv)
 {
 	int e;
 	unsigned char big;
@@ -189,30 +189,27 @@ static int _MAKESEG(int mode, int *basemode, int ofs, unsigned short sv)
 //	if ((ofs<0)||(ofs>=0x60)) return EXCP06_ILLOP;
 
 	if (REALADDR()) {
-		return SetSegReal(sv,ofs);
+		e = SetSegReal(sv,ofs);
+		if (ofs == Ofs_CS)
+			LONG_CS = _LONG_CS;
+		return e;
 	}
 
 	e = SetSegProt(mode&ADDR16, ofs, &big, sv);
 	if (e)
 		return e;
 	if (ofs==Ofs_CS) {
-		if (big) *basemode &= ~(ADDR16|DATA16);
-		else *basemode |= (ADDR16|DATA16);
-		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,*basemode);
+		if (big) TheCPU.mode &= ~(ADDR16|DATA16);
+		else TheCPU.mode |= (ADDR16|DATA16);
+		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
+		LONG_CS = _LONG_CS;
 	}
 	if (ofs==Ofs_SS) {
 		TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
-		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",big&1,*basemode);
+		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
 	}
 	return 0;
 }
-
-#define MAKESEG(mode, ofs, sv) ({ \
-    int _rv = _MAKESEG(mode, &basemode, ofs, sv); \
-    if (ofs == Ofs_CS) \
-      LONG_CS = _LONG_CS; \
-    _rv; \
-})
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -541,7 +538,7 @@ static void HandleEmuSignals(void)
 }
 
 static unsigned int _Interp86(unsigned int PC, int mod0);
-static unsigned int InterpOne(unsigned int PC, int *_basemode, int _flags);
+static unsigned int InterpOne(unsigned int PC, int basemode, int _flags);
 
 void Interp86(void)
 {
@@ -684,13 +681,13 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
 #endif
 	while (1) {
-		TheCPU.mode = basemode;
-		TheCPU.basemode = basemode;
 		PC = interp_pre(PC, basemode, 0);
 		if (TheCPU.err)
 			return PC;
 		P0 = PC;
-		PC = InterpOne(PC, &basemode, 0);
+		PC = InterpOne(PC, basemode, 0);
+		/* InterpOne can change CS */
+		TheCPU.basemode = basemode = TheCPU.mode;
 		if (TheCPU.err) {
 			if (TheCPU.err == EXCP_RETRY) {
 				TheCPU.err = 0;
@@ -708,13 +705,12 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 	return 0;
 }
 
-static unsigned int InterpOne(unsigned int PC, int *_basemode, int _flags)
+static unsigned int InterpOne(unsigned int PC, int basemode, int _flags)
 {
 	unsigned int P0 = PC;
 	unsigned char opc;
 	unsigned int temp;
 	unsigned short ocs;
-	#define basemode (*_basemode)
 	int _mode = basemode;
 	/* WARNING - these are signed char offsets, NOT pointers! */
 	signed char OVERR_DS = Ofs_XDS;
@@ -3476,7 +3472,6 @@ illegal_op:
 	dbug_printf("!!! Illegal op %02x %02x %02x\n",opc,
 		    Fetch(PC+1),Fetch(PC+2));
 	TheCPU.err = EXCP06_ILLOP; return P0;
-#undef basemode
 }
 
 /* reset for VGA reads and writes */
@@ -3496,8 +3491,6 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 	int gap = ((flags & FLG_SPECULATIVE) ? SAFE_PRJ_GAP : 1);
 
 	while (1) {
-		TheCPU.mode = basemode;
-		TheCPU.basemode = basemode;
 		P0 = PC;
 		if (debug_level('e')) {
 			char *ds;
@@ -3505,7 +3498,7 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 			ds = e_emu_disasm(EMU_BASE32(PC),(~basemode&3),ocs);
 			e_printf("  %s\n", ds);
 		}
-		PC = InterpOne(PC, &basemode, flags);
+		PC = InterpOne(PC, basemode, flags);
 		if (TheCPU.err)
 			return;
 		PC = interp_post(PC, basemode, P0, flags);
