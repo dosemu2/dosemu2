@@ -174,6 +174,7 @@ static unsigned int do_flush(unsigned P0, unsigned _P0,
 			    TheCPU.err = EXCP_RETRY; /* BreakNode */ \
 			    return P2; \
 			  } \
+			  basemode = TheCPU.mode; \
 			}
 
 static inline unsigned int UNPREFIX(unsigned int m)
@@ -541,7 +542,7 @@ static void HandleEmuSignals(void)
 		CEmuStat &= ~(CeS_SIGPEND | CeS_RPIC | CeS_STI);
 }
 
-static unsigned int _Interp86(unsigned int PC, int mod0);
+static unsigned int _Interp86(unsigned int PC);
 static unsigned int InterpOne(unsigned int PC, int basemode, int _flags);
 
 void Interp86(void)
@@ -550,7 +551,7 @@ void Interp86(void)
 
     TheCPU.err2 = 0;
     Interp_LONG_CS = LONG_CS;
-    ret = _Interp86(Interp_LONG_CS + TheCPU.eip, TheCPU.mode);
+    ret = _Interp86(Interp_LONG_CS + TheCPU.eip);
     assert(CurrIMeta<0);
     TheCPU.eip = ret - Interp_LONG_CS;
 }
@@ -665,7 +666,7 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 		return PC;
 }
 
-static unsigned int _Interp86(unsigned int PC, int basemode)
+static unsigned int _Interp86(unsigned int PC)
 {
 	volatile unsigned int P0 = PC; /* volatile because of setjmp */
 	int val;
@@ -684,14 +685,11 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
 #endif
 	while (1) {
-		PC = interp_pre(PC, basemode, 0);
+		PC = interp_pre(PC, TheCPU.mode, 0);
 		if (TheCPU.err)
 			return PC;
 		P0 = PC;
-		PC = InterpOne(PC, basemode, 0);
-		/* InterpOne can change CS */
-		Interp_LONG_CS = LONG_CS;
-		basemode = TheCPU.mode;
+		PC = InterpOne(PC, TheCPU.mode, 0);
 		if (TheCPU.err) {
 			if (TheCPU.err == EXCP_RETRY) {
 				TheCPU.err = 0;
@@ -699,7 +697,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 			}
 			return PC;
 		}
-		PC = interp_post(PC, basemode, P0, 0);
+		PC = interp_post(PC, TheCPU.mode, P0, 0);
 		if (TheCPU.err)
 			return PC;
 	}
