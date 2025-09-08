@@ -1502,9 +1502,7 @@ shrot0:
 			0x8d,0x14,0x0e,
 			// movw (%%edx,%%ebp,1),%%ax
 			0x66,0x8b,0x04,0x2a,
-			// movw %%ax,offs(%%ebx)
-/*0a*/			0x66,0x89,0x43,0x00,
-			// leal 2(%%ecx),%%ecx
+/*0a*/			// leal 2(%%ecx),%%ecx
 			0x8d,0x49,0x02,
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 			// movl StackMask(%%ebx),%%edx
@@ -1524,9 +1522,7 @@ shrot0:
 			0x8d,0x14,0x0e,
 			// movl (%%edx,%%ebp,1),%%eax
 			0x90,0x8b,0x04,0x2a,
-			// movl %%eax,offs(%%ebx)
-/*0a*/			0x90,0x89,0x43,0x00,
-			// leal 4(%%ecx),%%ecx
+/*0a*/			// leal 4(%%ecx),%%ecx
 			0x8d,0x49,0x04,
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 			// movl StackMask(%%ebx),%%edx
@@ -1548,13 +1544,15 @@ shrot0:
 		//	first do address calculation, then pop,
 		//	then store data, and last adjust stack
 		q=Cp; GNX(Cp, p, sz);
-		q[0x0d] = IG->p0;
+		if (IG->p0 != Ofs_RZERO) {
+			// mov{wl} %%{e}ax,offs(%%ebx)
+			Gen66(mode, Cp); G3M(0x89,0x43,IG->p0,Cp);
+		}
 		if (mode&MPOPRM) {
-			// NOP the register write, save ecx into esi
+			// save ecx into esi
 			// which is preserved in CPatches
-			*(uint32_t *)(q+0x0a) = 0x90909090;
 			// Use leal {2|4}(%%ecx),%%esi
-			q[0x0f] = 0x71;
+			q[0x0b] = 0x71;
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 			// use orl %%edx,%%esi
 			q[sz-1] = 0xd6;

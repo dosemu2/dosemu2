@@ -2069,14 +2069,14 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		if (mode & DATA16) {
 			SR1.d &= stackm;
 			DR1.w.l = sim_read_word(AR2.d + SR1.d);
-			if (!(mode & MPOPRM))
+			if (o != Ofs_RZERO)
 				CPUWORD(o) = DR1.w.l;
 			SR1.d += 2;
 		}
 		else {
 			SR1.d &= stackm;
 			DR1.d = sim_read_dword(AR2.d + SR1.d);
-			if (!(mode & MPOPRM))
+			if (o != Ofs_RZERO)
 				CPULONG(o) = DR1.d;
 			SR1.d += 4;
 		}

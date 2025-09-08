@@ -388,7 +388,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
 		break;
 	case RETl: case RETlisp: // far ret, indirect
-		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		if (REALADDR()) AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 		/* fall through */
 	case JMPli: case CALLli: case INT: // far jmp/call, indirect
 		Gen(L_REG, mode, Ofs_EIP);
@@ -1010,7 +1010,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    AddrGen(A_SR_SH4, _mode, Ofs_ES, Ofs_XES);
 			} else { /* restartable */
 			    Gen(O_POP1, _mode);
-			    Gen(O_POP2, _mode|MPOPRM, 0);
+			    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
 			    /* same principle applies as for POPrm: this
 			       segment load may fault, above pops into
 			       temporary storage without adjusting (E)SP */
@@ -1024,7 +1024,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    AddrGen(A_SR_SH4, _mode, Ofs_SS, Ofs_XSS);
 			} else { /* restartable */
 			    Gen(O_POP1, _mode);
-			    Gen(O_POP2, _mode|MPOPRM, 0);
+			    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
 			    AddrGen(A_SR_PROT, _mode, Ofs_SS, P0);
 			    Gen(O_POP3, _mode|MPOPRM);
 			}
@@ -1036,7 +1036,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    AddrGen(A_SR_SH4, _mode, Ofs_DS, Ofs_XDS);
 			} else { /* restartable */
 			    Gen(O_POP1, _mode);
-			    Gen(O_POP2, _mode|MPOPRM, 0);
+			    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
 			    AddrGen(A_SR_PROT, _mode, Ofs_DS, P0);
 			    Gen(O_POP3, _mode|MPOPRM);
 			}
@@ -1259,7 +1259,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			} else {
 				// read data into temporary storage
 				Gen(O_POP1, _mode);
-				Gen(O_POP2, _mode|MPOPRM, 0);
+				Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
 				// store data
 				// S_DI may fault, in which case the instruction
 				// may need to be restarted with the original
@@ -1972,7 +1972,13 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 		}
 
 /*cb*/	case RETl:
-		   if (REALADDR()) {
+			if (!REALADDR()) {
+			    /* pop from stack without adjusting esp */
+			    Gen(O_POP1, _mode);
+			    Gen(O_POP2, _mode, Ofs_RZERO);
+			    Gen(O_POP2, _mode, Ofs_RZERO);
+			    AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
+			}
 			Gen(O_POP, _mode);
 			Gen(S_REG, _mode, Ofs_EIP);
 			Gen(O_POP, _mode);
@@ -1980,9 +1986,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (debug_level('e')>1)
 			    e_printf("RET_FAR: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
 			if (TheCPU.err) return PC;
-			break;	/* un-fall */
-		   }
-		   /* fall through */
+			break;
+
 /*cf*/	case IRET: {	/* restartable */
 			uint16_t sv=0;
 			int m = _mode;
@@ -1993,11 +1998,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			TheCPU.eip=0; POP(m, &TheCPU.eip);
 			POP_ONLY(m);
 			PC = Interp_LONG_CS + TheCPU.eip;
-			if (opc==RETl) {
-			    if (debug_level('e')>1)
-				e_printf("RET_FAR: ret=%04x:%08x\n",sv,TheCPU.eip);
-			    break;	/* un-fall */
-			}
 			if (debug_level('e')>1) {
 				e_printf("IRET: ret=%04x:%08x\n",sv,TheCPU.eip);
 			}
@@ -3118,7 +3118,7 @@ repag0:
 				    AddrGen(A_SR_SH4, _mode, Ofs_FS, Ofs_XFS);
 				} else { /* restartable */
 				    Gen(O_POP1, _mode);
-				    Gen(O_POP2, _mode|MPOPRM, 0);
+				    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
 				    AddrGen(A_SR_PROT, _mode, Ofs_FS, P0);
 				    Gen(O_POP3, _mode|MPOPRM);
 				}
@@ -3222,7 +3222,7 @@ repag0:
 				    AddrGen(A_SR_SH4, _mode, Ofs_GS, Ofs_XGS);
 				} else { /* restartable */
 				    Gen(O_POP1, _mode);
-				    Gen(O_POP2, _mode|MPOPRM, 0);
+				    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
 				    AddrGen(A_SR_PROT, _mode, Ofs_GS, P0);
 				    Gen(O_POP3, _mode|MPOPRM);
 				}
