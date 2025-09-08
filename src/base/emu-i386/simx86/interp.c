@@ -240,14 +240,15 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	 *	eb ff	dsp=1	illegal or tricky
 	 *	eb fe	dsp=0	loop forever
 	 */
-	if ((opc>>8) == GRP2wrm || opc == INT) {	// indirect jump
+	switch(opc) {
+	case RET: case RETisp: case JMPi: case CALLi:
+	case RETl: case RETlisp: case JMPli: case CALLli:
+	case INT: // indirect jumps
 		dsp = 0;
 		j_t = 0;
-		j_nt = 0;
 		d_t = 0;
-		d_nt = 0;
-	}
-	else if (opc == JMPld || opc == CALLl) { // far jmp/call
+		break;
+	case JMPld: case CALLl: // far jmp/call
 		d_t = DataFetchWL_U(mode, P2+1);
 		if (REALADDR()) {
 			j_t = SEGOFF2LINEAR(FetchW(P2 + pskip - 2), d_t);
@@ -256,8 +257,8 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 			j_t = 0;
 			dsp = 0;
 		}
-	}
-	else {
+		break;
+	default:
 		dsp = pskip;
 		if (pskip == 2)	// short branch (byte)
 			dsp += (signed char)Fetch(P2+1);
@@ -271,6 +272,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 
 		/* jump address for taken branch */
 		j_t = d_t + Interp_LONG_CS;
+		break;
 	}
 
 	/* displacement for not taken branch */
