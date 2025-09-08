@@ -260,6 +260,10 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		} }
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
+		if (IG->p0 == Ofs_CS) {
+			// movzwl offs(%%ebx),%%edx
+			G4M(0x0f,0xb7,0x53,IG->p0,Cp);
+		}
 		// movw %%ax,offs(%%ebx)
 		G4M(0x66,0x89,0x43,IG->p0,Cp);
 		// movzwl %%ax,%%eax
@@ -272,6 +276,10 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		G1(0x05,Cp); G4(0x0000ffff,Cp);
 		// movl %%eax,ofs(%%ebx)
 		G3M(0x89,0x43,IG->p1+4,Cp);
+		if (IG->p0 == Ofs_CS) {
+			// movl %%edx,%%eax : old cs in eax
+			G2M(0x89,0xd0,Cp);
+		}
 		}
 		break;
 	case A_SR_PROT: {	// prot mode make base addr from seg
@@ -303,8 +311,8 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 #endif
 		// or %%eax,%%eax
 		G2M(0x09,0xc0,Cp);
-		// jz skip
-		G2M(0x74,TAILSIZE,Cp);
+		// jns skip
+		G2M(0x79,TAILSIZE,Cp);
 		// movl {exit_addr},%%eax; pop %%edx; ret
 		G1(0xb8,Cp); G4(IG->p1,Cp); G2M(0x5a,0xc3,Cp);
 		}

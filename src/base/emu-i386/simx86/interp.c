@@ -249,8 +249,13 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	}
 	else if (opc == JMPld || opc == CALLl) { // far jmp/call
 		d_t = DataFetchWL_U(mode, P2+1);
-		j_t = SEGOFF2LINEAR(FetchW(P2 + pskip - 2), d_t);
-		dsp = j_t - P2;
+		if (REALADDR()) {
+			j_t = SEGOFF2LINEAR(FetchW(P2 + pskip - 2), d_t);
+			dsp = j_t - P2;
+		} else {
+			j_t = 0;
+			dsp = 0;
+		}
 	}
 	else {
 		dsp = pskip;
@@ -334,7 +339,17 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	case JMPld: {   /* uncond jmp far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
 		Gen(L_IMM_R1, mode|DATA16, jcs);
-		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		if (REALADDR()) {
+		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		}
+		else {
+		    AddrGen(A_SR_PROT, mode, Ofs_CS, P2);
+		    /* transfer to new PC
+		       (new cs base dynamic, so indirect jmp) */
+		    Gen(L_IMM_R1, mode, d_t);
+		    Gen(JMP_INDIRECT, mode);
+		    break;
+		}
 	}
 	/* no break */
 	case JMPsid: case JMPd:   /* uncond jmp */
@@ -347,14 +362,23 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		break;
 	case CALLl: {   /* call far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
-		Gen(L_REG, mode|DATA16, Ofs_CS);
-		if (!(mode & DATA16)) // 32-bit segreg padding
-		    Gen(L_ZXAX, mode);
-		Gen(O_PUSH, mode);
 		Gen(L_IMM_R1, mode|DATA16, jcs);
-		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		if (REALADDR())
+		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		else
+		    /* check if new cs is valid, load if so */
+		    AddrGen(A_SR_PROT, mode, Ofs_CS, P2);
+		/* ok, now push old cs (returned by A_SR_*):eip */
+		Gen(O_PUSH, mode);
+		if (!REALADDR()) {
+		    Gen(O_PUSHI, mode, d_nt);
+		    /* transfer to new PC (indirect jmp) */
+		    Gen(L_IMM_R1, mode, d_t);
+		    Gen(JMP_INDIRECT, mode);
+		    break;
+		}
 	}
-	/* no break */
+	/* no break for realaddr call */
 	case CALLd:    /* call, unfortunately also uses JMP_LINK */
 		Gen(JMP_LINK, mode, opc, j_t, d_nt);
 		break;
@@ -615,7 +639,7 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 				dbug_printf("\n%s",e_print_regs(Interp_LONG_CS));
 			char *ds;
 			unsigned short ocs = TheCPU.cs;
-			ds = e_emu_disasm(EMU_BASE32(PC),mode&MBIGCS,ocs);
+			ds = e_emu_disasm(EMU_BASE32(PC),TheCPU.mode&MBIGCS,ocs);
 			e_printf("  %s\n", ds);
 		}
 		return PC;
@@ -1740,61 +1764,19 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 		    break;
 
 /*9a*/	case CALLl:
-/*ea*/	case JMPld:
-		    if (REALADDR()) {
-			int len = 3 + BT24(BitDATA16,_mode);
-			dosaddr_t oip = PC + len - Interp_LONG_CS;
-			ocs = TheCPU.cs;
-			PC = JumpGen(PC, _mode, opc, len, P0, _flags);
-			if (debug_level('e')>2) {
-			    if (opc==CALLl)
-				e_printf("CALL_FAR: ret=%04x:%08x\n  calling:	   %04x:%08x\n",
-					 ocs,oip,TheCPU.cs,PC-Interp_LONG_CS);
-			    else
-				e_printf("JMP_FAR: %04x:%08x\n",TheCPU.cs,PC-Interp_LONG_CS);
-			}
-			if (TheCPU.err) return PC;
+/*ea*/	case JMPld: {
+		    int len = 3 + BT24(BitDATA16,_mode);
+		    dosaddr_t oip = PC + len - LONG_CS;
+		    ocs = TheCPU.cs;
+		    PC = JumpGen(PC, _mode, opc, len, P0, _flags);
+		    if (debug_level('e')>2) {
+			if (opc==CALLl)
+			    e_printf("CALL_FAR: ret=%04x:%08x\n  calling:	   %04x:%08x\n",
+				     ocs,oip,TheCPU.cs,PC-LONG_CS);
+			else
+			    e_printf("JMP_FAR: %04x:%08x\n",TheCPU.cs,PC-LONG_CS);
 		    }
-		    else {
-			unsigned short jcs;
-			unsigned long oip,xcs,jip=0;
-			CODE_FLUSH();
-			/* get new cs:ip */
-			jip = DataFetchWL_U(_mode, PC+1);
-			INC_WL_PC(_mode,1);
-			jcs = FetchW(PC);
-			PC+=2;
-			/* check if new cs is valid, save old for error */
-			ocs = TheCPU.cs;
-			xcs = Interp_LONG_CS;
-			TheCPU.err = MAKESEG(_mode, Ofs_CS, jcs);
-			if (TheCPU.err) {
-			    TheCPU.cs = ocs;
-			    TheCPU.cs_cache.BoundL = xcs;
-			    // should not change
-			    return P0;
-			}
-			if (opc==CALLl) {
-			    /* ok, now push old cs:eip */
-			    oip = PC - xcs;
-			    PUSH(_mode, ocs);
-			    PUSH(_mode, oip);
-			    if (debug_level('e')>2)
-				e_printf("CALL_FAR: ret=%04x:%08lx\n  calling:      %04x:%08lx\n",
-					ocs,oip,jcs,jip);
-			}
-			else {
-			    if (debug_level('e')>2)
-				e_printf("JMP_FAR: %04x:%08lx\n",jcs,jip);
-			}
-			TheCPU.eip = jip;
-			PC = Interp_LONG_CS + jip;
-#ifdef SKIP_EMU_VBIOS
-			if ((jcs&0xf000)==config.vbios_seg) {
-			    /* return the new PC after the jump */
-			    TheCPU.err = EXCP_GOBACK; return PC;
-			}
-#endif
+		    if (TheCPU.err) return PC;
 		    }
 		    break;
 

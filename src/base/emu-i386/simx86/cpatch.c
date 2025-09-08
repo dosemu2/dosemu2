@@ -761,7 +761,7 @@ void Cpatch_init(void)
     TheCPU_struct.stub_func[STUB_READ_8] = stub_read_8;
     TheCPU_struct.stub_func[STUB_READ_16] = stub_read_16;
     TheCPU_struct.stub_func[STUB_READ_32] = stub_read_32;
-    TheCPU_struct.stub_func[STUB_SETSEGPROT] = (stubfunc_t)SetDataSegProt;
+    TheCPU_struct.stub_func[STUB_SETSEGPROT] = (stubfunc_t)SetSegProt_helper;
 }
 
 /* ======================================================================= */

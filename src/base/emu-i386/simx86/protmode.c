@@ -93,18 +93,25 @@ int SetSegReal(unsigned short sel, int ofs)
 	return 0;
 }
 
-// not for CS; this function is called from JIT-generated code
-int SetDataSegProt(unsigned short sel, int ofs)
+// this function is called from JIT-generated code
+int SetSegProt_helper(unsigned short sel, int ofs)
 {
 	unsigned char big;
+	int oldsel = CPUWORD(ofs);
 	int e = SetSegProt(TheCPU.mode&ADDR16, ofs, &big, sel);
 	if (e) {
 		TheCPU.err2 = e;
+		oldsel = -1; /* invalid old value flags error */
 	} else if (ofs==Ofs_SS) {
 		TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
 		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
+	} else if (ofs==Ofs_CS) {
+		TheCPU.mode &= ~(ADDR16|DATA16|MBIGCS);
+		if (big) TheCPU.mode |= MBIGCS;
+		else TheCPU.mode |= (ADDR16|DATA16);
+		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
 	}
-	return e;
+	return oldsel;
 }
 
 int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
