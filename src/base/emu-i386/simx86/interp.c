@@ -1860,8 +1860,15 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c9*/	case LEAVE:
 			Gen(O_LEAVE, _mode); PC++;
 			break;
-/*ca*/	case RETlisp:
-			if (REALADDR()) {
+/*ca*/	case RETlisp:	/* restartable */
+			if (!REALADDR()) {
+				/* pop from stack without adjusting esp */
+				Gen(O_POP1, _mode);
+				Gen(O_POP2, _mode, Ofs_RZERO);
+				Gen(O_POP2, _mode, Ofs_RZERO);
+				AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
+			}
+			{
 				int dr = (signed short)FetchW(PC+1);
 				Gen(O_POP, _mode);
 				Gen(S_REG, _mode, Ofs_EIP);
@@ -1870,22 +1877,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				if (debug_level('e')>2)
 					e_printf("RET_%d: ret=%08x\n",dr,TheCPU.eip);
 				if (TheCPU.err) return PC;
-			}
-			else { /* restartable */
-				int dr;
-				uint16_t sv=0;
-				CODE_FLUSH();
-				NOS_WORD(_mode, &sv);
-				dr = (signed short)FetchW(PC+1);
-				TheCPU.err = MAKESEG(_mode, Ofs_CS, sv);
-				if (TheCPU.err) return P0;
-				TheCPU.eip=0; POP(_mode, &TheCPU.eip);
-				POP_ONLY(_mode);
-				if (debug_level('e')>2)
-					e_printf("RET_%x: ret=%08x\n",dr,TheCPU.eip);
-				PC = Interp_LONG_CS + TheCPU.eip;
-				temp = rESP + dr;
-				rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
 			}
 			break;
 /*cc*/	case INT3:
