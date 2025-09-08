@@ -2565,21 +2565,21 @@ repag0:
 					CODE_FLUSH();
 					goto illegal_op;
 				}
-				if (REALADDR()) {
+				{
 					dosaddr_t oip = 0;
 					int len = ModRM(opc, PC, _mode|NOFLDR);
 					ocs = TheCPU.cs;
+					Gen(L_LXS2, _mode);
+					if (REALADDR())
+					    AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
+					else
+					    AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
 					if (REG1==Ofs_BX) {
 					    /* ok, now push old cs:eip */
 					    oip = PC + len - Interp_LONG_CS;
-					    Gen(L_REG, _mode|DATA16, Ofs_CS);
-					    if (!(_mode & DATA16)) // padding
-						Gen(L_ZXAX, _mode);
 					    Gen(O_PUSH, _mode);
 					    Gen(O_PUSHI, _mode, oip);
 					}
-					Gen(L_LXS2, _mode);
-					AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 					Gen(L_LXS1, _mode, Ofs_EIP);
 					PC = JumpGen(PC, _mode, (opc<<8)|REG1, len,
 						P0, _flags);
@@ -2599,41 +2599,6 @@ repag0:
 					}
 #endif
 					if (TheCPU.err) return PC;
-				}
-				else {
-					unsigned short jcs;
-					unsigned long oip,xcs,jip=0;
-					CODE_FLUSH();
-					PC += ModRMSim(PC, _mode|NOFLDR, OVERR_DS, OVERR_SS);
-					TheCPU.eip = PC - Interp_LONG_CS;
-					/* get new cs:ip */
-					jip = DataGetWL_U(_mode, TheCPU.mem_ref);
-					jcs = GetDWord(TheCPU.mem_ref+BT24(BitDATA16,_mode));
-					/* check if new cs is valid, save old for error */
-					ocs = TheCPU.cs;
-					xcs = Interp_LONG_CS;
-					TheCPU.err = MAKESEG(_mode, Ofs_CS, jcs);
-					if (TheCPU.err) {
-					    TheCPU.cs = ocs;
-					    TheCPU.cs_cache.BoundL = xcs;
-					    // should not change
-					    return P0;
-					}
-					if (REG1==Ofs_BX) {
-					    /* ok, now push old cs:eip */
-					    oip = PC - xcs;
-					    PUSH(_mode, ocs);
-					    PUSH(_mode, oip);
-					    if (debug_level('e')>2)
-						e_printf("CALL_FAR indirect: ret=%04x:%08lx\n\tcalling: %04x:%08lx\n",
-							ocs,oip,jcs,jip);
-					}
-					else {
-					    if (debug_level('e')>2)
-						e_printf("JMP_FAR indirect: %04x:%08lx\n",jcs,jip);
-					}
-					TheCPU.eip = jip;
-					PC = Interp_LONG_CS + jip;
 				}
 				break;
 			case Ofs_SI:	/*6*/	 // PUSH
