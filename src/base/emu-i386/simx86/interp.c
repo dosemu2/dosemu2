@@ -174,6 +174,7 @@ static unsigned int do_flush(unsigned P0, unsigned _P0,
 			    TheCPU.err = EXCP_RETRY; /* BreakNode */ \
 			    return P2; \
 			  } \
+			  basemode = TheCPU.mode; \
 			}
 
 static inline unsigned int UNPREFIX(unsigned int m)
@@ -239,19 +240,25 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	 *	eb ff	dsp=1	illegal or tricky
 	 *	eb fe	dsp=0	loop forever
 	 */
-	if ((opc>>8) == GRP2wrm || opc == INT) {	// indirect jump
+	switch(opc) {
+	case RET: case RETisp: case JMPi: case CALLi:
+	case RETl: case RETlisp: case JMPli: case CALLli:
+	case INT: // indirect jumps
 		dsp = 0;
 		j_t = 0;
-		j_nt = 0;
 		d_t = 0;
-		d_nt = 0;
-	}
-	else if (opc == JMPld || opc == CALLl) { // far jmp/call
+		break;
+	case JMPld: case CALLl: // far jmp/call
 		d_t = DataFetchWL_U(mode, P2+1);
-		j_t = SEGOFF2LINEAR(FetchW(P2 + pskip - 2), d_t);
-		dsp = j_t - P2;
-	}
-	else {
+		if (REALADDR()) {
+			j_t = SEGOFF2LINEAR(FetchW(P2 + pskip - 2), d_t);
+			dsp = j_t - P2;
+		} else {
+			j_t = 0;
+			dsp = 0;
+		}
+		break;
+	default:
 		dsp = pskip;
 		if (pskip == 2)	// short branch (byte)
 			dsp += (signed char)Fetch(P2+1);
@@ -265,6 +272,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 
 		/* jump address for taken branch */
 		j_t = d_t + Interp_LONG_CS;
+		break;
 	}
 
 	/* displacement for not taken branch */
@@ -333,7 +341,17 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	case JMPld: {   /* uncond jmp far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
 		Gen(L_IMM_R1, mode|DATA16, jcs);
-		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		if (REALADDR()) {
+		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		}
+		else {
+		    AddrGen(A_SR_PROT, mode, Ofs_CS, P2);
+		    /* transfer to new PC
+		       (new cs base dynamic, so indirect jmp) */
+		    Gen(L_IMM_R1, mode, d_t);
+		    Gen(JMP_INDIRECT, mode);
+		    break;
+		}
 	}
 	/* no break */
 	case JMPsid: case JMPd:   /* uncond jmp */
@@ -346,14 +364,23 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		break;
 	case CALLl: {   /* call far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
-		Gen(L_REG, mode|DATA16, Ofs_CS);
-		if (!(mode & DATA16)) // 32-bit segreg padding
-		    Gen(L_ZXAX, mode);
-		Gen(O_PUSH, mode);
 		Gen(L_IMM_R1, mode|DATA16, jcs);
-		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		if (REALADDR())
+		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		else
+		    /* check if new cs is valid, load if so */
+		    AddrGen(A_SR_PROT, mode, Ofs_CS, P2);
+		/* ok, now push old cs (returned by A_SR_*):eip */
+		Gen(O_PUSH, mode);
+		if (!REALADDR()) {
+		    Gen(O_PUSHI, mode, d_nt);
+		    /* transfer to new PC (indirect jmp) */
+		    Gen(L_IMM_R1, mode, d_t);
+		    Gen(JMP_INDIRECT, mode);
+		    break;
+		}
 	}
-	/* no break */
+	/* no break for realaddr call */
 	case CALLd:    /* call, unfortunately also uses JMP_LINK */
 		Gen(JMP_LINK, mode, opc, j_t, d_nt);
 		break;
@@ -361,7 +388,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
 		break;
 	case RETl: case RETlisp: // far ret, indirect
-		AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		if (REALADDR()) AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 		/* fall through */
 	case JMPli: case CALLli: case INT: // far jmp/call, indirect
 		Gen(L_REG, mode, Ofs_EIP);
@@ -541,7 +568,7 @@ static void HandleEmuSignals(void)
 		CEmuStat &= ~(CeS_SIGPEND | CeS_RPIC | CeS_STI);
 }
 
-static unsigned int _Interp86(unsigned int PC, int mod0);
+static unsigned int _Interp86(unsigned int PC);
 static unsigned int InterpOne(unsigned int PC, int basemode, int _flags);
 
 void Interp86(void)
@@ -550,7 +577,7 @@ void Interp86(void)
 
     TheCPU.err2 = 0;
     Interp_LONG_CS = LONG_CS;
-    ret = _Interp86(Interp_LONG_CS + TheCPU.eip, TheCPU.mode);
+    ret = _Interp86(Interp_LONG_CS + TheCPU.eip);
     assert(CurrIMeta<0);
     TheCPU.eip = ret - Interp_LONG_CS;
 }
@@ -614,7 +641,7 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 				dbug_printf("\n%s",e_print_regs(Interp_LONG_CS));
 			char *ds;
 			unsigned short ocs = TheCPU.cs;
-			ds = e_emu_disasm(EMU_BASE32(PC),mode&MBIGCS,ocs);
+			ds = e_emu_disasm(EMU_BASE32(PC),TheCPU.mode&MBIGCS,ocs);
 			e_printf("  %s\n", ds);
 		}
 		return PC;
@@ -665,7 +692,7 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 		return PC;
 }
 
-static unsigned int _Interp86(unsigned int PC, int basemode)
+static unsigned int _Interp86(unsigned int PC)
 {
 	volatile unsigned int P0 = PC; /* volatile because of setjmp */
 	int val;
@@ -684,14 +711,11 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
 #endif
 	while (1) {
-		PC = interp_pre(PC, basemode, 0);
+		PC = interp_pre(PC, TheCPU.mode, 0);
 		if (TheCPU.err)
 			return PC;
 		P0 = PC;
-		PC = InterpOne(PC, basemode, 0);
-		/* InterpOne can change CS */
-		Interp_LONG_CS = LONG_CS;
-		basemode = TheCPU.mode;
+		PC = InterpOne(PC, TheCPU.mode, 0);
 		if (TheCPU.err) {
 			if (TheCPU.err == EXCP_RETRY) {
 				TheCPU.err = 0;
@@ -699,7 +723,7 @@ static unsigned int _Interp86(unsigned int PC, int basemode)
 			}
 			return PC;
 		}
-		PC = interp_post(PC, basemode, P0, 0);
+		PC = interp_post(PC, TheCPU.mode, P0, 0);
 		if (TheCPU.err)
 			return PC;
 	}
@@ -986,7 +1010,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    AddrGen(A_SR_SH4, _mode, Ofs_ES, Ofs_XES);
 			} else { /* restartable */
 			    Gen(O_POP1, _mode);
-			    Gen(O_POP2, _mode|MPOPRM, 0);
+			    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
 			    /* same principle applies as for POPrm: this
 			       segment load may fault, above pops into
 			       temporary storage without adjusting (E)SP */
@@ -1000,7 +1024,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    AddrGen(A_SR_SH4, _mode, Ofs_SS, Ofs_XSS);
 			} else { /* restartable */
 			    Gen(O_POP1, _mode);
-			    Gen(O_POP2, _mode|MPOPRM, 0);
+			    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
 			    AddrGen(A_SR_PROT, _mode, Ofs_SS, P0);
 			    Gen(O_POP3, _mode|MPOPRM);
 			}
@@ -1012,7 +1036,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    AddrGen(A_SR_SH4, _mode, Ofs_DS, Ofs_XDS);
 			} else { /* restartable */
 			    Gen(O_POP1, _mode);
-			    Gen(O_POP2, _mode|MPOPRM, 0);
+			    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
 			    AddrGen(A_SR_PROT, _mode, Ofs_DS, P0);
 			    Gen(O_POP3, _mode|MPOPRM);
 			}
@@ -1235,7 +1259,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			} else {
 				// read data into temporary storage
 				Gen(O_POP1, _mode);
-				Gen(O_POP2, _mode|MPOPRM, 0);
+				Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
 				// store data
 				// S_DI may fault, in which case the instruction
 				// may need to be restarted with the original
@@ -1742,61 +1766,19 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 		    break;
 
 /*9a*/	case CALLl:
-/*ea*/	case JMPld:
-		    if (REALADDR()) {
-			int len = 3 + BT24(BitDATA16,_mode);
-			dosaddr_t oip = PC + len - Interp_LONG_CS;
-			ocs = TheCPU.cs;
-			PC = JumpGen(PC, _mode, opc, len, P0, _flags);
-			if (debug_level('e')>2) {
-			    if (opc==CALLl)
-				e_printf("CALL_FAR: ret=%04x:%08x\n  calling:	   %04x:%08x\n",
-					 ocs,oip,TheCPU.cs,PC-Interp_LONG_CS);
-			    else
-				e_printf("JMP_FAR: %04x:%08x\n",TheCPU.cs,PC-Interp_LONG_CS);
-			}
-			if (TheCPU.err) return PC;
+/*ea*/	case JMPld: {
+		    int len = 3 + BT24(BitDATA16,_mode);
+		    dosaddr_t oip = PC + len - LONG_CS;
+		    ocs = TheCPU.cs;
+		    PC = JumpGen(PC, _mode, opc, len, P0, _flags);
+		    if (debug_level('e')>2) {
+			if (opc==CALLl)
+			    e_printf("CALL_FAR: ret=%04x:%08x\n  calling:	   %04x:%08x\n",
+				     ocs,oip,TheCPU.cs,PC-LONG_CS);
+			else
+			    e_printf("JMP_FAR: %04x:%08x\n",TheCPU.cs,PC-LONG_CS);
 		    }
-		    else {
-			unsigned short jcs;
-			unsigned long oip,xcs,jip=0;
-			CODE_FLUSH();
-			/* get new cs:ip */
-			jip = DataFetchWL_U(_mode, PC+1);
-			INC_WL_PC(_mode,1);
-			jcs = FetchW(PC);
-			PC+=2;
-			/* check if new cs is valid, save old for error */
-			ocs = TheCPU.cs;
-			xcs = Interp_LONG_CS;
-			TheCPU.err = MAKESEG(_mode, Ofs_CS, jcs);
-			if (TheCPU.err) {
-			    TheCPU.cs = ocs;
-			    TheCPU.cs_cache.BoundL = xcs;
-			    // should not change
-			    return P0;
-			}
-			if (opc==CALLl) {
-			    /* ok, now push old cs:eip */
-			    oip = PC - xcs;
-			    PUSH(_mode, ocs);
-			    PUSH(_mode, oip);
-			    if (debug_level('e')>2)
-				e_printf("CALL_FAR: ret=%04x:%08lx\n  calling:      %04x:%08lx\n",
-					ocs,oip,jcs,jip);
-			}
-			else {
-			    if (debug_level('e')>2)
-				e_printf("JMP_FAR: %04x:%08lx\n",jcs,jip);
-			}
-			TheCPU.eip = jip;
-			PC = Interp_LONG_CS + jip;
-#ifdef SKIP_EMU_VBIOS
-			if ((jcs&0xf000)==config.vbios_seg) {
-			    /* return the new PC after the jump */
-			    TheCPU.err = EXCP_GOBACK; return PC;
-			}
-#endif
+		    if (TheCPU.err) return PC;
 		    }
 		    break;
 
@@ -1878,8 +1860,15 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c9*/	case LEAVE:
 			Gen(O_LEAVE, _mode); PC++;
 			break;
-/*ca*/	case RETlisp:
-			if (REALADDR()) {
+/*ca*/	case RETlisp:	/* restartable */
+			if (!REALADDR()) {
+				/* pop from stack without adjusting esp */
+				Gen(O_POP1, _mode);
+				Gen(O_POP2, _mode, Ofs_RZERO);
+				Gen(O_POP2, _mode, Ofs_RZERO);
+				AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
+			}
+			{
 				int dr = (signed short)FetchW(PC+1);
 				Gen(O_POP, _mode);
 				Gen(S_REG, _mode, Ofs_EIP);
@@ -1888,22 +1877,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				if (debug_level('e')>2)
 					e_printf("RET_%d: ret=%08x\n",dr,TheCPU.eip);
 				if (TheCPU.err) return PC;
-			}
-			else { /* restartable */
-				int dr;
-				uint16_t sv=0;
-				CODE_FLUSH();
-				NOS_WORD(_mode, &sv);
-				dr = (signed short)FetchW(PC+1);
-				TheCPU.err = MAKESEG(_mode, Ofs_CS, sv);
-				if (TheCPU.err) return P0;
-				TheCPU.eip=0; POP(_mode, &TheCPU.eip);
-				POP_ONLY(_mode);
-				if (debug_level('e')>2)
-					e_printf("RET_%x: ret=%08x\n",dr,TheCPU.eip);
-				PC = Interp_LONG_CS + TheCPU.eip;
-				temp = rESP + dr;
-				rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
 			}
 			break;
 /*cc*/	case INT3:
@@ -1990,7 +1963,13 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 		}
 
 /*cb*/	case RETl:
-		   if (REALADDR()) {
+			if (!REALADDR()) {
+			    /* pop from stack without adjusting esp */
+			    Gen(O_POP1, _mode);
+			    Gen(O_POP2, _mode, Ofs_RZERO);
+			    Gen(O_POP2, _mode, Ofs_RZERO);
+			    AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
+			}
 			Gen(O_POP, _mode);
 			Gen(S_REG, _mode, Ofs_EIP);
 			Gen(O_POP, _mode);
@@ -1998,9 +1977,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (debug_level('e')>1)
 			    e_printf("RET_FAR: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
 			if (TheCPU.err) return PC;
-			break;	/* un-fall */
-		   }
-		   /* fall through */
+			break;
+
 /*cf*/	case IRET: {	/* restartable */
 			uint16_t sv=0;
 			int m = _mode;
@@ -2011,11 +1989,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			TheCPU.eip=0; POP(m, &TheCPU.eip);
 			POP_ONLY(m);
 			PC = Interp_LONG_CS + TheCPU.eip;
-			if (opc==RETl) {
-			    if (debug_level('e')>1)
-				e_printf("RET_FAR: ret=%04x:%08x\n",sv,TheCPU.eip);
-			    break;	/* un-fall */
-			}
 			if (debug_level('e')>1) {
 				e_printf("IRET: ret=%04x:%08x\n",sv,TheCPU.eip);
 			}
@@ -2585,21 +2558,21 @@ repag0:
 					CODE_FLUSH();
 					goto illegal_op;
 				}
-				if (REALADDR()) {
+				{
 					dosaddr_t oip = 0;
 					int len = ModRM(opc, PC, _mode|NOFLDR);
 					ocs = TheCPU.cs;
+					Gen(L_LXS2, _mode);
+					if (REALADDR())
+					    AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
+					else
+					    AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
 					if (REG1==Ofs_BX) {
 					    /* ok, now push old cs:eip */
 					    oip = PC + len - Interp_LONG_CS;
-					    Gen(L_REG, _mode|DATA16, Ofs_CS);
-					    if (!(_mode & DATA16)) // padding
-						Gen(L_ZXAX, _mode);
 					    Gen(O_PUSH, _mode);
 					    Gen(O_PUSHI, _mode, oip);
 					}
-					Gen(L_LXS2, _mode);
-					AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 					Gen(L_LXS1, _mode, Ofs_EIP);
 					PC = JumpGen(PC, _mode, (opc<<8)|REG1, len,
 						P0, _flags);
@@ -2619,41 +2592,6 @@ repag0:
 					}
 #endif
 					if (TheCPU.err) return PC;
-				}
-				else {
-					unsigned short jcs;
-					unsigned long oip,xcs,jip=0;
-					CODE_FLUSH();
-					PC += ModRMSim(PC, _mode|NOFLDR, OVERR_DS, OVERR_SS);
-					TheCPU.eip = PC - Interp_LONG_CS;
-					/* get new cs:ip */
-					jip = DataGetWL_U(_mode, TheCPU.mem_ref);
-					jcs = GetDWord(TheCPU.mem_ref+BT24(BitDATA16,_mode));
-					/* check if new cs is valid, save old for error */
-					ocs = TheCPU.cs;
-					xcs = Interp_LONG_CS;
-					TheCPU.err = MAKESEG(_mode, Ofs_CS, jcs);
-					if (TheCPU.err) {
-					    TheCPU.cs = ocs;
-					    TheCPU.cs_cache.BoundL = xcs;
-					    // should not change
-					    return P0;
-					}
-					if (REG1==Ofs_BX) {
-					    /* ok, now push old cs:eip */
-					    oip = PC - xcs;
-					    PUSH(_mode, ocs);
-					    PUSH(_mode, oip);
-					    if (debug_level('e')>2)
-						e_printf("CALL_FAR indirect: ret=%04x:%08lx\n\tcalling: %04x:%08lx\n",
-							ocs,oip,jcs,jip);
-					}
-					else {
-					    if (debug_level('e')>2)
-						e_printf("JMP_FAR indirect: %04x:%08lx\n",jcs,jip);
-					}
-					TheCPU.eip = jip;
-					PC = Interp_LONG_CS + jip;
 				}
 				break;
 			case Ofs_SI:	/*6*/	 // PUSH
@@ -3171,7 +3109,7 @@ repag0:
 				    AddrGen(A_SR_SH4, _mode, Ofs_FS, Ofs_XFS);
 				} else { /* restartable */
 				    Gen(O_POP1, _mode);
-				    Gen(O_POP2, _mode|MPOPRM, 0);
+				    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
 				    AddrGen(A_SR_PROT, _mode, Ofs_FS, P0);
 				    Gen(O_POP3, _mode|MPOPRM);
 				}
@@ -3275,7 +3213,7 @@ repag0:
 				    AddrGen(A_SR_SH4, _mode, Ofs_GS, Ofs_XGS);
 				} else { /* restartable */
 				    Gen(O_POP1, _mode);
-				    Gen(O_POP2, _mode|MPOPRM, 0);
+				    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
 				    AddrGen(A_SR_PROT, _mode, Ofs_GS, P0);
 				    Gen(O_POP3, _mode|MPOPRM);
 				}

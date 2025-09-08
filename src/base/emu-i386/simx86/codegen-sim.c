@@ -447,17 +447,21 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 	switch(op) {
 	case A_SR_SH4: {	// real mode make base addr from seg
 		unsigned int o = IG->p0;
+		unsigned int v = CPUWORD(o);
 		GTRACE1("A_SR_SH4",o);
 		SetSegReal(DR1.w.l, o);
+		DR1.d = v; // only needed for pushing old CS
 		}
 		break;
 	case A_SR_PROT: {	// protected mode make base addr from seg
 		unsigned int o = IG->p0;
 		int e;
 		GTRACE1("A_SR_PROT",o);
-		e = SetDataSegProt(DR1.w.l, o);
-		if (e)
+		e = SetSegProt_helper(DR1.w.l, o);
+		if (e < 0)
 			P0 = IG->p1;
+		else
+			DR1.d = e;
 		}
 		break;
 	case L_NOP:
@@ -2065,14 +2069,14 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		if (mode & DATA16) {
 			SR1.d &= stackm;
 			DR1.w.l = sim_read_word(AR2.d + SR1.d);
-			if (!(mode & MPOPRM))
+			if (o != Ofs_RZERO)
 				CPUWORD(o) = DR1.w.l;
 			SR1.d += 2;
 		}
 		else {
 			SR1.d &= stackm;
 			DR1.d = sim_read_dword(AR2.d + SR1.d);
-			if (!(mode & MPOPRM))
+			if (o != Ofs_RZERO)
 				CPULONG(o) = DR1.d;
 			SR1.d += 4;
 		}
