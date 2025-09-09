@@ -12,15 +12,16 @@ XSFILES = aspi.s cdrom.s ems.s emufs.s isemu.s umb.s
 all: $(COM2) $(SYS)
 $(COM2) $(SYS): | $(top_builddir)/commands
 
-$(D1)/%.sys: %.o
+%.sys.elf: %.o
 	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0 -e _start16 -o $@ $<
-	chmod -x $@
 
-$(D1)/%.com: %.o
+%.com.elf: %.o
 	$(AS_LD) $(AS_LDFLAGS) -static --section-start .text=0x100 -e _start16 -o $@ $<
-	chmod -x $@
 
-.PRECIOUS: $(subst $(D)/,$(D1)/,$(COM2) $(SYS))
+.PRECIOUS: $(D1)/%
+$(D1)/%: %.elf
+	$(XOBJCOPY) -j .text -O binary $< $(D1)/$(@F)
+	chmod -x $@
 
 $(D)/%: $(D1)/%
 	$(LN_S) -f ../../$(THISVERSION)/commands/$(@F) $@
