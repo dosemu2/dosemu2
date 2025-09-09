@@ -577,9 +577,15 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 		break;
 
 /*50*/	case 0x50:
+/*54*/	case 0x54:
+/*56*/	case 0x56:
 /*58*/	case 0x58:
+/*5c*/	case 0x5c:
 //*	50	D8 11010nnn	FCOM	st,st(n)
+//*	54	DC 11010nnn	FCOM2*	st,st(n) (alias)
+//*	56	DE 11010nnn	FCOMP5*	st,st(n) (alias)
 //*	58	D8 11011nnn	FCOMP	st,st(n)
+//*	5C	DC 11011nnn	FCOMP3*	st,st(n) (alias)
 		WFR0 = *ST0;
 		WFR1 = *STn(reg);
 		TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
@@ -590,7 +596,7 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 			else if (WFR0 > WFR1); /* do nothing */
 			else /* not comparable */
 			    TheCPU.fpus |= FPUS_C0 | FPUS_C2 | FPUS_C3;
-		if (exop&8) INCFSPP;
+		if (exop>=0x56) INCFSPP;
 		break;
 
 /*6a*/	case 0x6a: if (reg!=1) goto fp_notok;
@@ -695,11 +701,13 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 		break;
 
 /*45*/	case 0x45:
+/*45*/	case 0x47:
 //	45	DD 11000nnn	FFREE	st(n)		set tag(n) empty
+//	47	DF 11000nnn	FFREEP6*	st(n) (semi-alias)
 		FREETAG(reg);
+		if (exop==0x47) INCFSPP;
 		break;
 /*51*/	case 0x51:
-/*59*/	case 0x59:
 		 if (reg==0) {
 //*	51.0	D9 11010000	FNOP
 			break;		// nop
@@ -708,7 +716,11 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 		   break;
 
 /*49*/	case 0x49:
+/*4d*/	case 0x4d:
+/*4f*/	case 0x4f:
 //*	49	D9 11001nnn	FXCH	st,st(n)
+//*	4D	DD 11001nnn	FXCH4*	st,st(n) (alias)
+//*	4F	DF 11001nnn	FXCH7*	st,st(n) (alias)
 		{ long double t;
 		  memcpy(&t, ST0, sizeof t);
 		  memcpy(ST0, STn(reg), sizeof t);
@@ -716,13 +728,27 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 		}
 		break;
 
+/*59*/	case 0x59:
+//	59	D9 11011nnn	FSTPNCE1* st(n) (semi-alias)
+		// https://en.wikipedia.org/wiki/X86_instruction_listings#cite_note-339
+		// If the top-of-stack register st(0) is Empty, then the FSTPNCE
+		// instruction will behave like FINCSTP, incrementing the stack pointer
+		// with no data movement and no exceptions reported.
+		if (((TheCPU.fptag >> 2*S_reg(TheCPU.fpstt,0)) & 3) == 3) {
+			INCFSP;
+			break;
+		} // else fall through
 /*55*/	case 0x55:
+/*57*/	case 0x57:
 /*5d*/	case 0x5d:
+/*5f*/	case 0x5f:
 //	55	DD 11010nnn	FST	st(n)
+//	57	DF 11010nnn	FSTP8*	st(n) (alias)
 //	5D	DD 11011nnn	FSTP	st(n)
+//	5F	DF 11011nnn	FSTP9*	st(n) (alias)
 		*STn(reg) = *ST0;
 		UNFREETAG(reg);
-		if (exop==0x5d) INCFSPP;
+		if (exop>=0x57) INCFSPP;
 		break;
 
 /*61*/	case 0x61:
@@ -771,6 +797,10 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 			feclearexcept(FE_ALL_EXCEPT);
 			WFR0 = WFR1 = 0.0;
 			break;
+		   case 5:
+		   case 6:
+		   case 7:
+			goto fp_notok;
 		   default: /* FNENI,FNDISI: 8087 */
 			    /* FSETPM,FRSTPM: 80287 */
 			goto fp_ok;	// do nothing
