@@ -179,10 +179,13 @@ fi
 if test -z "$XOBJCOPY"; then
   XOBJCOPY="$OBJCOPY"
 fi
+XOBJCOPY_FLAGS=--remove-section=.note.gnu.property
+
 AC_SUBST(AS)
 AC_SUBST(XAS)
 AC_SUBST(AS_LD)
 AC_SUBST(XOBJCOPY)
+AC_SUBST(XOBJCOPY_FLAGS)
 AC_PROG_INSTALL
 AC_PROG_LEX([noyywrap])
 if test -z "$LEX" -o "$LEX" = ":"; then
