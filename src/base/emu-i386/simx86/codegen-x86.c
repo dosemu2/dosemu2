@@ -1516,7 +1516,7 @@ shrot0:
 		//	first do address calculation, then pop,
 		//	then store data, and last adjust stack
 		GNX(Cp, p, sz);
-		if (IG->p0 != Ofs_RZERO) {
+		if (!(mode & MNOREG)) {
 			// mov{wl} %%{e}ax,offs(%%ebx)
 			Gen66(mode, Cp); G3M(0x89,0x43,IG->p0,Cp);
 		}

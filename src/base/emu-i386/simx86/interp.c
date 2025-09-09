@@ -1010,12 +1010,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    AddrGen(A_SR_SH4, _mode, Ofs_ES, Ofs_XES);
 			} else { /* restartable */
 			    Gen(O_POP1, _mode);
-			    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
+			    Gen(O_POP2, _mode|MNOREG);
 			    /* same principle applies as for POPrm: this
 			       segment load may fault, above pops into
 			       temporary storage without adjusting (E)SP */
 			    AddrGen(A_SR_PROT, _mode, Ofs_ES, P0);
-			    Gen(O_POP3, _mode|MPOPRM);
+			    Gen(O_POP3, _mode);
 			}
 			PC++;
 			break;
@@ -1024,9 +1024,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    AddrGen(A_SR_SH4, _mode, Ofs_SS, Ofs_XSS);
 			} else { /* restartable */
 			    Gen(O_POP1, _mode);
-			    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
+			    Gen(O_POP2, _mode|MNOREG);
 			    AddrGen(A_SR_PROT, _mode, Ofs_SS, P0);
-			    Gen(O_POP3, _mode|MPOPRM);
+			    Gen(O_POP3, _mode);
 			}
 			InstrMeta[CurrIMeta].flags |= F_INHI;
 			PC++;
@@ -1036,9 +1036,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    AddrGen(A_SR_SH4, _mode, Ofs_DS, Ofs_XDS);
 			} else { /* restartable */
 			    Gen(O_POP1, _mode);
-			    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
+			    Gen(O_POP2, _mode|MNOREG);
 			    AddrGen(A_SR_PROT, _mode, Ofs_DS, P0);
-			    Gen(O_POP3, _mode|MPOPRM);
+			    Gen(O_POP3, _mode);
 			}
 			PC++;
 			break;
@@ -1259,13 +1259,13 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			} else {
 				// read data into temporary storage
 				Gen(O_POP1, _mode);
-				Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
+				Gen(O_POP2, _mode|MNOREG);
 				// store data
 				// S_DI may fault, in which case the instruction
 				// may need to be restarted with the original
 				// value of ESP!
 				Gen(S_DI, _mode);	// mov [edi],{e}ax
-				Gen(O_POP3, _mode|MPOPRM);
+				Gen(O_POP3, _mode);
 			}
 			break;
 
@@ -1864,8 +1864,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (!REALADDR()) {
 				/* pop from stack without adjusting esp */
 				Gen(O_POP1, _mode);
-				Gen(O_POP2, _mode, Ofs_RZERO);
-				Gen(O_POP2, _mode, Ofs_RZERO);
+				Gen(O_POP2, _mode|MNOREG);
+				Gen(O_POP2, _mode|MNOREG);
 				AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
 			}
 			{
@@ -1966,8 +1966,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (!REALADDR()) {
 			    /* pop from stack without adjusting esp */
 			    Gen(O_POP1, _mode);
-			    Gen(O_POP2, _mode, Ofs_RZERO);
-			    Gen(O_POP2, _mode, Ofs_RZERO);
+			    Gen(O_POP2, _mode|MNOREG);
+			    Gen(O_POP2, _mode|MNOREG);
 			    AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
 			}
 			Gen(O_POP, _mode);
@@ -3109,9 +3109,9 @@ repag0:
 				    AddrGen(A_SR_SH4, _mode, Ofs_FS, Ofs_XFS);
 				} else { /* restartable */
 				    Gen(O_POP1, _mode);
-				    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
+				    Gen(O_POP2, _mode|MNOREG);
 				    AddrGen(A_SR_PROT, _mode, Ofs_FS, P0);
-				    Gen(O_POP3, _mode|MPOPRM);
+				    Gen(O_POP3, _mode);
 				}
 				PC+=2;
 				break;
@@ -3213,9 +3213,9 @@ repag0:
 				    AddrGen(A_SR_SH4, _mode, Ofs_GS, Ofs_XGS);
 				} else { /* restartable */
 				    Gen(O_POP1, _mode);
-				    Gen(O_POP2, _mode|MPOPRM, Ofs_RZERO);
+				    Gen(O_POP2, _mode|MNOREG);
 				    AddrGen(A_SR_PROT, _mode, Ofs_GS, P0);
-				    Gen(O_POP3, _mode|MPOPRM);
+				    Gen(O_POP3, _mode);
 				}
 				PC+=2;
 				break;

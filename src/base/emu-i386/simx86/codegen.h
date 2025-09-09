@@ -185,6 +185,7 @@
 #define MBIGCS	0x00080000
 
 #define CKSIGN	0x00100000	// check signal: for jumps
+#define MNOREG  0x00200000
 // for HOST_ARCH_X86
 #define MREPCOND 0x01000000	// this is SCASx or CMPSx, REP can be terminated
 				// by flags
