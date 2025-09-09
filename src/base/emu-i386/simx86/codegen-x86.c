@@ -1530,6 +1530,10 @@ shrot0:
 		} break;
 
 	case O_POP3: {
+#ifdef STACK_WRAP_MP	/* mask after incrementing */
+		// andl StackMask(%%ebx),%%ecx
+		G3M(0x23,0x4b,Ofs_STACKM,Cp);
+#endif
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 		const unsigned char pseq[] = {
 			// movl StackMask(%%ebx),%%edx

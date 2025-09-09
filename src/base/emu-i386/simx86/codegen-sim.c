@@ -2085,6 +2085,9 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 
 	case O_POP3:
 		GTRACE0("O_POP3");
+#ifdef STACK_WRAP_MP	/* mask after incrementing */
+		SR1.d &= CPULONG(Ofs_STACKM);
+#endif
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 		SR1.d |= (CPULONG(Ofs_ESP) & ~CPULONG(Ofs_STACKM));
 #endif
