@@ -1495,7 +1495,7 @@ shrot0:
 			0x8d,0x14,0x0e,
 			// movw (%%edx,%%ebp,1),%%ax
 			0x66,0x8b,0x04,0x2a,
-/*0a*/			// leal 2(%%esi),%%esi
+			// leal 2(%%esi),%%esi
 			0x8d,0x76,0x02,
 		};
 		const unsigned char pseq32[] = {
@@ -1505,7 +1505,7 @@ shrot0:
 			0x8d,0x14,0x0e,
 			// movl (%%edx,%%ebp,1),%%eax
 			0x90,0x8b,0x04,0x2a,
-/*0a*/			// leal 4(%%esi),%%esi
+			// leal 4(%%esi),%%esi
 			0x8d,0x76,0x04,
 		};
 		const unsigned char *p;
@@ -1516,6 +1516,10 @@ shrot0:
 		//	first do address calculation, then pop,
 		//	then store data, and last adjust stack
 		GNX(Cp, p, sz);
+		if (mode & MRETISP) {
+			// leal IG->p0(%%esi),%%esi
+			G2M(0x8d,0xb6,Cp); G4(IG->p0,Cp);
+		}
 		if (!(mode & MNOREG)) {
 			// mov{wl} %%{e}ax,offs(%%ebx)
 			Gen66(mode, Cp); G3M(0x89,0x43,IG->p0,Cp);

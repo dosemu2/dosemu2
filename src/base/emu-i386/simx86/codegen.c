@@ -269,7 +269,7 @@ void Gen(int op, int mode, ...)
 		break;
 
 	case O_POP2:
-		if (!(mode & MNOREG))
+		if (!(mode & MNOREG) || (mode && MRETISP))
 			IG->p0 = va_arg(ap,unsigned int);
 		break;
 

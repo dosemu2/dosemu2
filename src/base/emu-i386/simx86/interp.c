@@ -388,8 +388,6 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
 		break;
 	case RETl: case RETlisp: // far ret, indirect
-		if (REALADDR()) AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
-		/* fall through */
 	case JMPli: case CALLli: case INT: // far jmp/call, indirect
 		Gen(L_REG, mode, Ofs_EIP);
 		/* fall through */
@@ -1860,23 +1858,21 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c9*/	case LEAVE:
 			Gen(O_LEAVE, _mode); PC++;
 			break;
-/*ca*/	case RETlisp:	/* restartable */
-			if (!REALADDR()) {
-				/* pop from stack without adjusting esp */
-				Gen(O_POP1, _mode);
-				Gen(O_POP2, _mode|MNOREG);
-				Gen(O_POP2, _mode|MNOREG);
+/*ca*/	case RETlisp: {	/* restartable */
+			/* pop from stack without adjusting esp before A_SR_* */
+			int dr = (signed short)FetchW(PC+1);
+			Gen(O_POP1, _mode);
+			Gen(O_POP2, _mode, Ofs_EIP);
+			Gen(O_POP2, _mode|MNOREG|MRETISP, dr);
+			if (REALADDR())
+				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
+			else
 				AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
-			}
-			{
-				int dr = (signed short)FetchW(PC+1);
-				Gen(O_POP, _mode);
-				Gen(S_REG, _mode, Ofs_EIP);
-				Gen(O_POP, _mode|MRETISP, dr);
-				PC = JumpGen(PC, _mode, opc, 3, P0, _flags);
-				if (debug_level('e')>2)
-					e_printf("RET_%d: ret=%08x\n",dr,TheCPU.eip);
-				if (TheCPU.err) return PC;
+			Gen(O_POP3, _mode);
+			PC = JumpGen(PC, _mode, opc, 3, P0, _flags);
+			if (debug_level('e')>2)
+				e_printf("RET_%d: ret=%08x\n",dr,TheCPU.eip);
+			if (TheCPU.err) return PC;
 			}
 			break;
 /*cc*/	case INT3:
@@ -1963,16 +1959,15 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 		}
 
 /*cb*/	case RETl:
-			if (!REALADDR()) {
-			    /* pop from stack without adjusting esp */
-			    Gen(O_POP1, _mode);
-			    Gen(O_POP2, _mode|MNOREG);
-			    Gen(O_POP2, _mode|MNOREG);
-			    AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
-			}
-			Gen(O_POP, _mode);
-			Gen(S_REG, _mode, Ofs_EIP);
-			Gen(O_POP, _mode);
+			/* pop from stack without adjusting esp before A_SR_* */
+			Gen(O_POP1, _mode);
+			Gen(O_POP2, _mode, Ofs_EIP);
+			Gen(O_POP2, _mode|MNOREG);
+			if (REALADDR())
+				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
+			else
+				AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
+			Gen(O_POP3, _mode);
 			PC = JumpGen(PC, _mode, opc, 1, P0, _flags);
 			if (debug_level('e')>1)
 			    e_printf("RET_FAR: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
