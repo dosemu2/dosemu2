@@ -1958,14 +1958,14 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 			SR1.d &= stackm;
 			sim_write_dword(AR2.d + SR1.d, DR1.d);
 		}
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 	case O_PUSH3:
 		GTRACE0("O_PUSH3");
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+		SR1.d |= (CPULONG(Ofs_ESP) & ~CPULONG(Ofs_STACKM));
+#endif
 		CPULONG(Ofs_ESP) = SR1.d;
 		break;
 
@@ -2080,14 +2080,14 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 				CPULONG(o) = DR1.d;
 			SR1.d += 4;
 		}
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 	case O_POP3:
 		GTRACE0("O_POP3");
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+		SR1.d |= (CPULONG(Ofs_ESP) & ~CPULONG(Ofs_STACKM));
+#endif
 		CPULONG(Ofs_ESP) = SR1.d;
 		break;
 
