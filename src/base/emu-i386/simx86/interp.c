@@ -277,7 +277,15 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 
 	/* displacement for not taken branch */
 	d_nt = P2 - Interp_LONG_CS + pskip;
-	if (mode&DATA16) d_nt &= 0xffff;
+	/* d_nt is allowed to be exactly 0x10000 for
+	   unconditional jumps; if the jump is conditional
+	   and not taken it'll GPF at the bottom of InterpOne.
+	   If it's higher do an early return so it can GPF there
+	   asap. OperandSize-based masking should only happen for the
+	   *taken* branch (see Intel manuals!)
+	*/
+	if (REALADDR() && d_nt > 0x10000)
+		return P2 + pskip;
 
 	/* jump address for not taken branch, usually next instruction */
 	j_nt = d_nt + Interp_LONG_CS;
