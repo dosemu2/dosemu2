@@ -36,8 +36,9 @@
 #include "emu86.h"
 
 #include "codegen-x86.h"
+#include "utilities.h"
 
-static int Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref);
+static void Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref);
 
 /*
  * Only mask bits 0-5 of the control word (fpuc),
@@ -249,11 +250,21 @@ fp_mem:
 //*	68	D8 11101nnn	FSUBR	st,st(n)
 //*	70	D8 11110nnn	FDIV	st,st(n)
 //*	78	D8 11111nnn	FDIVR	st,st(n)
+		goto fp_op;
 
 /*50*/	case 0x50:
-/*58*/	case 0x58:
+/*54*/	case 0x54:
 //*	50	D8 11010nnn	FCOM	st,st(n)
+//*	54	DC 11010nnn	FCOM2*	st,st(n) (alias)
+		exop = 0x50;
+		goto fp_op;
+/*56*/	case 0x56:
+/*58*/	case 0x58:
+/*58*/	case 0x5c:
+//*	56	DE 11010nnn	FCOMP5*	st,st(n) (alias)
 //*	58	D8 11011nnn	FCOMP	st,st(n)
+//*	5C	DC 11011nnn	FCOMP3*	st,st(n) (alias)
+		exop = 0x58;
 		goto fp_op;
 
 /*6a*/	case 0x6a: if (reg!=1) goto fp_notok;
@@ -307,7 +318,6 @@ fp_mem:
 
 /*45*/	case 0x45: goto fp_op;
 /*51*/	case 0x51:
-/*59*/	case 0x59:
 		if (reg==0) {
 //	45	DD 11000nnn	FFREE	st(n)		set tag(n) empty
 //*	51.0	D9 11010000	FNOP
@@ -316,14 +326,59 @@ fp_mem:
 		   else goto fp_notok;
 		   break;
 
+/*47*/	case 0x47:
+//	47	DF 11000nnn	FFREEP*6	st(n) (semi-alias)
+		// ffree %st(reg)
+		G2M(0xdd,0xc0|reg,Cp);
+		// fstp %st(0)
+		G2M(0xdd,0xd8,Cp);
+		break;
+
 /*49*/	case 0x49:
+/*4D*/	case 0x4d:
+/*4F*/	case 0x4f:
 //*	49	D9 11001nnn	FXCH	st,st(n)
+//*	4D	DD 11001nnn	FXCH4*	st,st(n) (alias)
+//*	4F	DF 11001nnn	FXCH7*	st,st(n) (alias)
+		exop = 0x49;
+		goto fp_op;
 
 /*55*/	case 0x55:
-/*5d*/	case 0x5d:
 //	55	DD 11010nnn	FST	st(n)
-//	5D	DD 11011nnn	FSTP	st(n)
 		goto fp_op;
+
+/*57*/	case 0x57:
+/*5d*/	case 0x5d:
+/*5f*/	case 0x5f:
+//	57	DF 11010nnn	FSTP8*	st(n) (alias)
+//	5D	DD 11011nnn	FSTP	st(n)
+//	5F	DF 11011nnn	FSTP9*	st(n) (alias)
+		exop = 0x5d;
+		goto fp_op;
+
+/*59*/	case 0x59:
+//	59	D9 11011nnn	FSTPNCE1* st(n) (semi-alias)
+		// https://en.wikipedia.org/wiki/X86_instruction_listings#cite_note-339
+		// If the top-of-stack register st(0) is Empty, then the FSTPNCE
+		// instruction will behave like FINCSTP, incrementing the stack pointer
+		// with no data movement and no exceptions reported.
+		// fxam
+		G2M(0xd9,0xe5,Cp);
+		// fnstsw %ax
+		G2M(0xdf,0xe0,Cp);
+		// andb $0x45,%ah
+		G3M(0x80,0xe4,0x45,Cp);
+		// cmpb $0x41,%ah tests for empty st(0)
+		G3M(0x80,0xfc,0x41,Cp);
+		// jne 1f:
+		G2M(0x75,0x04,Cp);
+		// fincstp
+		G2M(0xd9,0xf7,Cp);
+		// jmp 2f
+		G2M(0xeb,0x02,Cp);
+		// 1: fstp %st(reg)
+		G2M(0xdd,0xd8|reg,Cp);
+		break;
 
 /*61*/	case 0x61:
 //*	61.0	D9 11100000	FCHS
@@ -350,6 +405,10 @@ fp_mem:
 			// movw	0x37f,FPUC(ebx)
 			G3M(0x66,0xc7,0x43,Cp); G1(Ofs_FPUC,Cp); G2(0x37f,Cp);
 			goto fp_op;
+		   case 5:
+		   case 6:
+		   case 7:
+			goto fp_notok;
 		   default: /* FNENI,FNDISI: 8087 */
 			    /* FSETPM,FRSTPM: 80287 */
 			goto fp_ok;	// do nothing
@@ -393,13 +452,14 @@ fp_mem:
 
 /*xx*/	default:
 fp_notok:
-	return NULL;
+	// should be caught by Fp87_illegal_op
+	dosemu_error("Unknown FPop %x.%d\n", exop, reg);
 	}
 fp_ok:
 	return Cp;
 }
 
-static int Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref)
+static void Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref)
 {
 	e_printf("FPop %x.%d\n", exop, reg);
 	if (TheCPU.fpstate) {
@@ -512,7 +572,7 @@ static int Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref)
 		   break;
 
 /*xx*/	default:
-	return -1;
+	// should be caught by Fp87_illegal_op
+	dosemu_error("Unknown FPop %x.%d\n", exop, reg);
 	}
-	return 0;
 }

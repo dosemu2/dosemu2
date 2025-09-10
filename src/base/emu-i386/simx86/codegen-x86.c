@@ -327,12 +327,8 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		// andl $0x3f,%%eax
 		G3(0x3fe083,Cp);
 		break;
-	case O_FOP: {
-		unsigned char *p = Fp87_op_x86(CodePtr, IG->p0, IG->p1);
-		if (p == NULL)
-		    TheCPU.err = -96;
-		else Cp = p;
-		}
+	case O_FOP:
+		Cp = Fp87_op_x86(Cp, IG->p0, IG->p1);
 		break;
 
 	case L_REG: {
