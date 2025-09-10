@@ -1958,14 +1958,14 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 			SR1.d &= stackm;
 			sim_write_dword(AR2.d + SR1.d, DR1.d);
 		}
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 	case O_PUSH3:
 		GTRACE0("O_PUSH3");
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+		SR1.d |= (CPULONG(Ofs_ESP) & ~CPULONG(Ofs_STACKM));
+#endif
 		CPULONG(Ofs_ESP) = SR1.d;
 		break;
 
@@ -2062,32 +2062,36 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 
 	case O_POP2: {
 		wkreg AR2;
-		unsigned int o = IG->p0;
+		unsigned int o = (mode & MNOREG) ? 0 : IG->p0;
 		long stackm = CPULONG(Ofs_STACKM);
-		GTRACE1("O_POP2",o);
+		int imm16 = (mode&MRETISP) ? IG->p0 : 0;
+		GTRACE2("O_POP2",o,imm16);
 		AR2.d = CPULONG(Ofs_XSS);
 		if (mode & DATA16) {
 			SR1.d &= stackm;
 			DR1.w.l = sim_read_word(AR2.d + SR1.d);
-			if (o != Ofs_RZERO)
+			if (!(mode & MNOREG))
 				CPUWORD(o) = DR1.w.l;
-			SR1.d += 2;
+			SR1.d += 2 + imm16;
 		}
 		else {
 			SR1.d &= stackm;
 			DR1.d = sim_read_dword(AR2.d + SR1.d);
-			if (o != Ofs_RZERO)
+			if (!(mode & MNOREG))
 				CPULONG(o) = DR1.d;
-			SR1.d += 4;
+			SR1.d += 4 + imm16;
 		}
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 	case O_POP3:
 		GTRACE0("O_POP3");
+#ifdef STACK_WRAP_MP	/* mask after incrementing */
+		SR1.d &= CPULONG(Ofs_STACKM);
+#endif
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+		SR1.d |= (CPULONG(Ofs_ESP) & ~CPULONG(Ofs_STACKM));
+#endif
 		CPULONG(Ofs_ESP) = SR1.d;
 		break;
 

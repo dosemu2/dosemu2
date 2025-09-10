@@ -634,11 +634,12 @@ int Cpatch(sigcontext_t *scp)
 	    JSRPATCH(p,Ofs_stub_stk_32);
 	}
 	p+=3;
-#ifdef KEEP_ESP
-	p += 10;
-#endif
 	/* check for optimized multiple register push */
+#ifdef KEEP_ESP
+	if (p[10]==0x89) return 1; //O_PUSH3
+#else
 	if (p[0]==0x89) return 1; //O_PUSH3
+#endif
 	p += 13;
 	if (p[0]==0xff) return 1; // already JSRPATCH'ed
 	if (*p==0x66) w16=1,p++; else w16=0;

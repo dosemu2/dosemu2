@@ -264,9 +264,13 @@ void Gen(int op, int mode, ...)
 	case O_IDIV:
 	case O_PUSHI:
 	case O_PUSH2:
-	case O_POP2:
 	case JMP_TAILCODE:
 		IG->p0 = va_arg(ap,unsigned int);
+		break;
+
+	case O_POP2:
+		if (!(mode & MNOREG) || (mode && MRETISP))
+			IG->p0 = va_arg(ap,unsigned int);
 		break;
 
 	case L_REG2REG:
