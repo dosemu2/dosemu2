@@ -37,6 +37,7 @@
 #include <math.h>
 #include "dos2linux.h"
 #include "emu86.h"
+#include "utilities.h"
 #include "codegen.h"
 #include "codegen-sim.h"
 #ifndef HAVE___FLOAT80
@@ -74,8 +75,8 @@
 #define M_LOG2El 1.442695040888963407359924681001892137L
 #endif
 
-int (*Fp87_op)(int exop, int reg, unsigned mem_ref);
-static int Fp87_op_sim(int exop, int reg, unsigned mem_ref);
+void (*Fp87_op)(int exop, int reg, unsigned mem_ref);
+static void Fp87_op_sim(int exop, int reg, unsigned mem_ref);
 
 static long double WFR0, WFR1;
 
@@ -256,7 +257,7 @@ static void write_long_double(dosaddr_t addr, long double ld)
 	sim_write_word(addr+8, x.u32[2]);
 }
 
-static int Fp87_op_sim(int exop, int reg, unsigned mem_ref)
+static void Fp87_op_sim(int exop, int reg, unsigned mem_ref)
 {
 //	42	DA 11000nnn	FCMOVB	st(0),st(n)
 //	43	DB 11000nnn	FCMOVNB	st(0),st(n)
@@ -1176,9 +1177,116 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 
 /*xx*/	default:
 fp_notok:
-	return -1;
+	// should be caught by Fp87_illegal_op
+	dosemu_error("Unknown FPop %x.%d\n", exop, reg);
 	}
 fp_ok:
-	return 0;
 }
 
+int Fp87_illegal_op(int exop, int reg)
+{
+	e_printf("FPop %x.%d\n", exop, reg);
+
+	switch(exop) {
+//	09	D9 xx001nnn	undefined
+/*09*/	case 0x09:
+
+//	0B	DB xx001nnn	FISTTP	dw // SSE3 capable CPUs
+//	0D	DD xx001nnn	FISTTP	qw // SSE3 capable CPUs
+//	0F	DF xx001nnn	FISTTP	w  // SSE3 capable CPUs
+	case 0x0b: case 0x0d: case 0x0f:
+
+//	23	DB xx100nnn	undefined
+//	2D	DD xx101nnn	undefined
+//	33	DB xx110nnn	undefined
+	case 0x23: case 0x2d: case 0x33:
+
+//	42	DA 11000nnn	FCMOVB	st(0),st(n) (CPUID)
+//	43	DB 11000nnn	FCMOVNB	st(0),st(n) (CPUID)
+//	4A	DA 11001nnn	FCMOVE	st(0),st(n) (CPUID)
+//	4B	DB 11001nnn	FCMOVNE	st(0),st(n) (CPUID)
+	case 0x42: case 0x43: case 0x4a: case 0x4b:
+		break;
+
+//	51	D9 11010nnn	51.0=FNOP, others undefined
+/*51*/	case 0x51:
+		if (reg==0) goto fp_ok;
+		break;
+
+//	52	DA 11010nnn	FCMOVBE	st(0),st(n) (CPUID)
+//	53	DB 11010nnn	FCMOVNBE st(0),st(n) (CPUID)
+//	5A	DA 11011nnn	FCMOVU	st(0),st(n) (CPUID)
+//	5B	DB 11011nnn	FCMOVNU	st(0),st(n) (CPUID)
+	case 0x52: case 0x53: case 0x5a: case 0x5b:
+		break;
+
+//	5E	DE 11011nnn	5E.1 = FCOMPP, others undefined
+		if (reg==1) goto fp_ok;
+		break;
+
+	case 0x5e:
+
+//	61	D9 11100nnn     0,1,4,5 valid, others undefined
+	case 0x61:
+		switch(reg) {
+		   case 0:		/* FCHS */
+		   case 1:		/* FABS */
+		   case 4:		/* FTST */
+		   case 5:		/* FXAM */
+			goto fp_ok;
+		   default:
+			break;
+		}
+		break;
+
+//	62	DA 11100nnn	invalid
+	case 0x62:
+
+//	63	DB 11000nnn	63.5, 63.6, 63.7 are invalid
+/*63*/	case 0x63:
+		if (reg < 5) goto fp_ok;
+		break;
+
+//	67	DF 11100nnn	67.0=FNSTSW AX, others undefined
+	case 0x67:
+		if (reg==0) goto fp_ok;
+		break;
+
+//	69	D9 11101nnn	<7 defined, 7 invalid
+	case 0x69:
+		if (reg!=7) goto fp_ok;
+	        break;
+
+//	6A	DA 11101nnn	6A.1=FUCOMPP, others undefined
+	case 0x6a:
+		if (reg==1) goto fp_ok;
+		break;
+
+//	6B	DB 11101nnn	FUCOMI (CPUID)
+//	6F	DF 11101nnn	FUCOMIP (CPUID)
+	case 0x6b: case 0x6f:
+
+//	72	DA 11110nnn	undefined
+/*72*/	case 0x72:
+
+//	73	DB 11110nnn	FCOMI (CPUID)
+/*73*/	case 0x73:
+
+//	75	DD 11110nnn	undefined
+/*75*/	case 0x75:
+
+//	77	DF 11110nnn	FCOMIP (CPUID)
+/*77*/	case 0x77:
+
+//	7A	DA 11111nnn	undefined
+//	7B	DB 11111nnn	undefined
+//	7D	DD 11111nnn	undefined
+//	7F	DF 11111nnn	undefined
+	case 0x7a: case 0x7b: case 0x7d: case 0x7f:
+		break;
+
+	default:
+fp_ok:	return 0;
+	}
+	return 1;
+}

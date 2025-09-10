@@ -537,9 +537,6 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
 	}
 
 	GenCodeBuf = ProduceCode(PC, I0);
-	/* check for fatal error */
-	if (TheCPU.err < 0)
-		return NULL;
 
 	NodesParsed++;
 #if PROFILE

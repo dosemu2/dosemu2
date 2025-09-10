@@ -2831,11 +2831,12 @@ repag0:
 				}
 			}
 			b &= 7;
+			if (Fp87_illegal_op(exop, b)) {
+				CODE_FLUSH();
+				goto illegal_op;
+			}
 			if (sim) {
-			    if (Fp87_op(exop,b,TheCPU.mem_ref)) {
-				TheCPU.err = -96;
-				return P0;
-			    }
+			    Fp87_op(exop,b,TheCPU.mem_ref);
 			}
 			else
 			    Gen(O_FOP, _mode, exop, b);

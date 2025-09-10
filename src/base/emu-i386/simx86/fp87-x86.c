@@ -36,8 +36,9 @@
 #include "emu86.h"
 
 #include "codegen-x86.h"
+#include "utilities.h"
 
-static int Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref);
+static void Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref);
 
 /*
  * Only mask bits 0-5 of the control word (fpuc),
@@ -451,13 +452,14 @@ fp_mem:
 
 /*xx*/	default:
 fp_notok:
-	return NULL;
+	// should be caught by Fp87_illegal_op
+	dosemu_error("Unknown FPop %x.%d\n", exop, reg);
 	}
 fp_ok:
 	return Cp;
 }
 
-static int Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref)
+static void Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref)
 {
 	e_printf("FPop %x.%d\n", exop, reg);
 	if (TheCPU.fpstate) {
@@ -570,7 +572,7 @@ static int Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref)
 		   break;
 
 /*xx*/	default:
-	return -1;
+	// should be caught by Fp87_illegal_op
+	dosemu_error("Unknown FPop %x.%d\n", exop, reg);
 	}
-	return 0;
 }

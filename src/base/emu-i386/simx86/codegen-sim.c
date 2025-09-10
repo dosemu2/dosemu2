@@ -477,10 +477,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		unsigned char exop = (unsigned char)IG->p0;
 		int reg = IG->p1;
 		GTRACE2("O_FPOP",exop,reg);
-		if (Fp87_op(exop, reg, mem_ref)) {
-		    TheCPU.err2 = -96;
-		    P0 = FindPC((const unsigned char *)IG);
-		}
+		Fp87_op(exop, reg, mem_ref);
 		int exs = TheCPU.fpus & 0x7f;
 		if (debug_level('e')>3) {
 		    e_printf("  %s\n", e_trace_fp());

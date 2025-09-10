@@ -269,7 +269,8 @@ int NewIMeta(int npc, int *rc);
 extern int CurrIMeta;
 extern void Gen(int op, int mode, ...);
 extern void AddrGen(int op, int mode, ...);
-extern int  (*Fp87_op)(int exop, int reg, unsigned mem_ref);
+extern void (*Fp87_op)(int exop, int reg, unsigned mem_ref);
+extern int Fp87_illegal_op(int exop, int reg);
 TNode *Close(unsigned int PC, unsigned int Interp_LONGCS, int mode);
 extern unsigned char * (*CodeGen)(unsigned char *CodePtr,
 				  unsigned char *BaseGenBuf, const IGen *IG);
