@@ -168,6 +168,9 @@ if test -z "$OBJCOPY"; then
   OBJCOPY="$LOBJCOPY"
 fi
 
+# cross-objcopy is used to convert elf to binary.
+# We can't use --oformat=binary on linker level, because with
+# objcopy we copy only the section .text and not anything else.
 if test -n "$CROSS_PREFIX"; then
   AC_PATH_PROG([XOBJCOPY], [${CROSS_PREFIX}objcopy])
   if test -z "$XOBJCOPY"; then
@@ -179,13 +182,10 @@ fi
 if test -z "$XOBJCOPY"; then
   XOBJCOPY="$OBJCOPY"
 fi
-XOBJCOPY_FLAGS=--remove-section=.note.gnu.property
-
 AC_SUBST(AS)
 AC_SUBST(XAS)
 AC_SUBST(AS_LD)
 AC_SUBST(XOBJCOPY)
-AC_SUBST(XOBJCOPY_FLAGS)
 AC_PROG_INSTALL
 AC_PROG_LEX([noyywrap])
 if test -z "$LEX" -o "$LEX" = ":"; then

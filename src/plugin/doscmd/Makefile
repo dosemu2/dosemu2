@@ -33,7 +33,7 @@ $(STUBSYMLINK): $(D1)/generic.com
 
 .PRECIOUS: $(D1)/%
 $(D1)/%: %.elf
-	$(XOBJCOPY) $(XOBJCOPY_FLAGS) -j .text -O binary $< $@
+	$(XOBJCOPY) -j .text -O binary $< $@
 	chmod -x $@
 
 install: all
