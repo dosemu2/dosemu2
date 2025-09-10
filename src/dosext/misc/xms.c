@@ -989,6 +989,7 @@ xms_realloc_EMB(int api)
 {
   int h;
   unsigned int newsize;
+  int delta;
   void *newaddr;
 
   h = LWORD(edx);
@@ -1016,7 +1017,11 @@ xms_realloc_EMB(int api)
     error("XMS: accounting inconsistency\n");
     return 0xa0; /* Out of memory */
   }
-
+  delta = newsize - handles[h].size;
+  if (totalBytes + delta > config.xms_size * 1024) {
+    error("XMS: OOM reallocating %i bytes EMB\n", delta);
+    return 0xa0;
+  }
   x_printf("XMS realloc EMB(%s) %d to size 0x%04x\n",
 	   api == OLDXMS ? "old" : "new", h, newsize);
 
@@ -1025,8 +1030,7 @@ xms_realloc_EMB(int api)
     x_printf("XMS: out of memory on realloc\n");
     return 0xa0; /* Out of memory */
   }
-  totalBytes -= handles[h].size;
-  totalBytes += newsize;
+  totalBytes += delta;
   handles[h].addr = newaddr;
   handles[h].size = newsize;
 
