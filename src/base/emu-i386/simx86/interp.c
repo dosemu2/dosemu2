@@ -2106,7 +2106,7 @@ repag0:
 			realrepmod = repmod;
 			if ((EFLAGS & TF) &&
 			    ((repmod & ADDR16) ? rCX : rECX) > 0) {
-				/* simulate rep below with TF set, because
+				/* use LOOP for REP below with TF set, because
 				   we must trap for every string ins */
 				repmod = repmod & ~(MREPNE|MREP);
 			}
@@ -2270,29 +2270,15 @@ repag0:
 					PC++; goto repag0;
 			}
 			if ((EFLAGS & TF) && !(repmod & (MREP|MREPNE))) {
-				/* with TF set, we simulate REP and maybe back
-				   up IP */
-				int rc = 0;
-				unsigned _P0 = P0;
-				NewIMeta(P0, &rc);
-				P0 = PC;
-				CODE_FLUSH();
-				P0 = _P0;
-				/* don't cache intermediate nodes */
-				InvalidateNodeRange(P0, PC - P0, NULL);
-				if (repmod & ADDR16) {
-					rCX--;
-					if (rCX == 0) break;
-				} else {
-					rECX--;
-					if (rECX == 0) break;
-				}
-				if ((repop != CMPSb && repop != CMPSw &&
-				     repop != SCASb && repop != SCASw) ||
-				    ((realrepmod&MREP?1:0)==(EFLAGS&ZF?1:0))) {
-					PC = P0;
-					break;
-				}
+				/* with TF set, we use LOOP instead of REP so we can stop at
+				   every iteration */
+				int op = LOOP;
+				if (repmod & MREPCOND)
+					op = (realrepmod&MREP) ? LOOPZ_LOOPE : LOOPNZ_LOOPNE;
+				Gen(JLOOP_LINK, _mode, op, P0, PC);
+				/* code will be flushed immediately
+				   in interp_post because TF is set */
+				break;
 			} }
 			break;
 /*f4*/	case HLT:
