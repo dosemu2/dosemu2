@@ -804,7 +804,7 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 			goto fp_notok;
 		   default: /* FNENI,FNDISI: 8087 */
 			    /* FSETPM,FRSTPM: 80287 */
-			goto fp_ok;	// do nothing
+			break;	// do nothing
 		   }
 		   break;
 
@@ -1180,7 +1180,6 @@ fp_notok:
 	// should be caught by Fp87_illegal_op
 	dosemu_error("Unknown FPop %x.%d\n", exop, reg);
 	}
-fp_ok:
 }
 
 int Fp87_illegal_op(int exop, int reg)
