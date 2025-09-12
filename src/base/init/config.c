@@ -542,9 +542,13 @@ static void set_freedos_dir(void)
     fatfs_set_sys_hook(comcom_hook);
 
   if (!fddir_default && !comcom_dir)
+#ifdef USE_DJDEV64
+    error("comcom64 not found, exiting.\n");
+#else
     error("Neither freecom nor comcom32 installation found.\n"
         "Use DOSEMU2_EXTRAS_DIR env var to specify location of freedos\n"
         "or DOSEMU2_COMCOM_DIR env var for alternative location of comcom32\n");
+#endif
 
   if (!xdir || !check_bat(xdir)) {
     int i;
