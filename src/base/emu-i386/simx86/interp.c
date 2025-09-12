@@ -1129,7 +1129,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 					PC++; goto override;
 				}
 			}
-			CODE_FLUSH();
 			goto illegal_op;
 			}
 /*40*/	case INCax:
@@ -1447,7 +1446,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*8d*/	case LEA:
 			if (Fetch(PC+1) >= 0xc0) {
-			    CODE_FLUSH();
 			    goto illegal_op;
 			}
 			PC += ModRM(opc, PC, _mode|MLEA);
@@ -1456,7 +1454,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*c4*/	case LES:
 			if (Fetch(PC+1) >= 0xc0) {
-			    CODE_FLUSH();
 			    goto illegal_op;
 			}
 			PC += ModRM(opc, PC, _mode);
@@ -1471,7 +1468,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*c5*/	case LDS:
 			if (Fetch(PC+1) >= 0xc0) {
-			    CODE_FLUSH();
 			    goto illegal_op;
 			}
 			PC += ModRM(opc, PC, _mode);
@@ -1487,7 +1483,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*8e*/	case MOVsrfrm:
 			PC += ModRM(opc, PC, _mode|SEGREG|DATA16|MLOAD);
 			if (REG1 == Ofs_CS) {
-			    CODE_FLUSH();
 			    goto illegal_op;
 			}
 			if (REALADDR()) {
@@ -1713,7 +1708,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				break;
 			case Ofs_DH:	/*6*/	// undoc
 				if (opc==SHIFTbv) {
-					CODE_FLUSH();
 					goto illegal_op;
 				}
 				break;
@@ -1758,7 +1752,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				break;
 			case Ofs_SI:	/*6*/	// undoc
 				if ((opc==SHIFTw)||(opc==SHIFTwv)) {
-					CODE_FLUSH();
 					goto illegal_op;
 				}
 			case Ofs_SP:	/*4*/	// SHL,SAL
@@ -2499,7 +2492,6 @@ repag0:
 				Gen(S_DI, _mode|MBYTE);
 				break;
 			default:
-				CODE_FLUSH();
 				goto illegal_op;
 			}
 			break;
@@ -2558,7 +2550,6 @@ repag0:
 			case Ofs_BX:	/*3*/	 // CALL long indirect restartable
 			case Ofs_BP:	/*5*/	 // JMP long indirect restartable
 				if (Fetch(PC+1) >= 0xc0) {
-					CODE_FLUSH();
 					goto illegal_op;
 				}
 				{
@@ -2602,7 +2593,6 @@ repag0:
 				Gen(O_PUSH, _mode); break;	// push [rm]
 				break;
 			default:
-				CODE_FLUSH();
 				goto illegal_op;
 			}
 			break;
@@ -2835,7 +2825,6 @@ repag0:
 			}
 			b &= 7;
 			if (Fp87_illegal_op(exop, b)) {
-				CODE_FLUSH();
 				goto illegal_op;
 			}
 			if (sim) {
@@ -2855,7 +2844,6 @@ repag0:
 				switch (opm) {
 				case 0: /* SLDT */
 				    if (REALMODE()) {
-					CODE_FLUSH();
 					goto illegal_op;
 				    }
 				    CODE_FLUSH();
@@ -2865,7 +2853,6 @@ repag0:
 				case 1: /* STR */
 				    /* Store Task Register */
 				    if (REALMODE()) {
-					CODE_FLUSH();
 					goto illegal_op;
 				    }
 				    CODE_FLUSH();
@@ -2881,7 +2868,6 @@ repag0:
 				case 4: { /* VERR */
 				    unsigned short sv; int tmp;
 				    if (!PROTMODE()) {
-					CODE_FLUSH();
 					goto illegal_op;
 				    }
 				    CODE_FLUSH();
@@ -2899,7 +2885,6 @@ repag0:
 				case 5: { /* VERW */
 				    unsigned short sv; int tmp;
 				    if (!PROTMODE()) {
-					CODE_FLUSH();
 					goto illegal_op;
 				    }
 				    CODE_FLUSH();
@@ -2916,7 +2901,6 @@ repag0:
 				    break;
 				case 6: /* JMP indirect to IA64 code */
 				case 7: /* Illegal */
-				    CODE_FLUSH();
 				    goto illegal_op;
 				} }
 				break;
@@ -2948,7 +2932,6 @@ repag0:
 				case 6: /* LMSW, 80286 compatibility, Privileged */
 				    /* Load Machine Status Word */
 				case 7: /* Illegal */
-				    CODE_FLUSH();
 				    goto illegal_op;
 				} }
 				break;
@@ -2957,7 +2940,6 @@ repag0:
 			case 0x03: { /* LSL */ /* Load Segment Limit */
 				unsigned short sv; int tmp;
 				if (REALMODE()) {
-				    CODE_FLUSH();
 				    goto illegal_op;
 				}
 				CODE_FLUSH();
@@ -3021,7 +3003,6 @@ repag0:
 				if (D_HO(b)!=3 ||
 				    ((opc2&4) && (reg<6)) ||
 				    (!(opc2&5) && ((reg==1)||(reg>4)))) {
-				    CODE_FLUSH();
 				    goto illegal_op;
 				}
 				CODE_FLUSH();
@@ -3180,7 +3161,6 @@ repag0:
 				case 0x08: /* Illegal */
 				case 0x10: /* Illegal */
 				case 0x18: /* Illegal */
-				    CODE_FLUSH();
 				    goto illegal_op;
 				case 0x20: /* BT imm8 */
 				case 0x28: /* BTS imm8 */
@@ -3267,7 +3247,6 @@ repag0:
 ///
 			case 0xb2: /* LSS */
 				if (Fetch(PC+2) >= 0xc0) {
-				    CODE_FLUSH();
 				    goto illegal_op;
 				}
 				PC++; PC += ModRM(opc, PC, _mode);
@@ -3282,7 +3261,6 @@ repag0:
 				break;
 			case 0xb4: /* LFS */
 				if (Fetch(PC+2) >= 0xc0) {
-				    CODE_FLUSH();
 				    goto illegal_op;
 				}
 				PC++; PC += ModRM(opc, PC, _mode);
@@ -3297,7 +3275,6 @@ repag0:
 				break;
 			case 0xb5: /* LGS */
 				if (Fetch(PC+2) >= 0xc0) {
-				    CODE_FLUSH();
 				    goto illegal_op;
 				}
 				PC++; PC += ModRM(opc, PC, _mode);
@@ -3354,7 +3331,6 @@ repag0:
 				unsigned char modrm;
 				modrm = Fetch(PC+2);
 				if (D_MO(modrm) != 1 || D_HO(modrm) == 3) {
-					CODE_FLUSH();
 					goto illegal_op;
 				}
 				CODE_FLUSH();
@@ -3400,13 +3376,11 @@ repag0:
 			   modrm and cause #PF or #GP if they straddle the
 			   page or segment limit, instead of #UD */
 			default: /* MMX etc */
-			    CODE_FLUSH();
 			    goto illegal_op;
 			} }
 			break;
 
 /*xx*/	default:
-			CODE_FLUSH();
 			goto illegal_op;
 		}
 		if (TheCPU.err < 0)
@@ -3427,6 +3401,7 @@ not_permitted:
 //	dbug_printf("!!! Div by 0 %02x\n",opc);
 //	TheCPU.err = -6; return P0;
 illegal_op:
+	CODE_FLUSH();
 	dbug_printf("!!! Illegal op %02x %02x %02x\n",opc,
 		    Fetch(PC+1),Fetch(PC+2));
 	TheCPU.err = EXCP06_ILLOP; return P0;
