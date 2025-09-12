@@ -853,7 +853,7 @@ else
   if test "$enable_lto" != "no" ; then
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -flto=auto"
     # use LDFLAGS as this opt is needed for plugins too
-    LDFLAGS="$LDFLAGS -flto=auto -O2"
+    LDFLAGS="$LDFLAGS -flto=auto -O2 -fpic"
   fi
 fi
 
