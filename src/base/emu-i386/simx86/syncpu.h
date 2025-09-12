@@ -46,7 +46,8 @@ typedef struct {
 /* offsets up to end_mark are 8-bit */
 #define FIELD0		rzero	/* field of SynCPU at offset 00 */
 /*00*/	unsigned int rzero;
-/*08*/	unsigned int reserved[2];
+/*04*/	int err2;
+/*08*/	unsigned int reserved[1];
 /*0c*/	unsigned int edi;
 /*10*/	unsigned int esi;
 /*14*/	unsigned int ebp;
@@ -77,7 +78,6 @@ typedef struct {
 	unsigned int tr[2];
 
 	unsigned int scp_err;
-	int err2;
 	int err;
 	unsigned int mode;
 	unsigned int sreg1;

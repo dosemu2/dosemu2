@@ -468,6 +468,19 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 	return _P1;
 }
 
+static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
+	unsigned int P0, int _flags)
+{
+	int rc = 0;
+	Gen(L_IMM, basemode, Ofs_ERR, trapno);
+	NewIMeta(P0, &rc);
+	P0 = PC;
+	CODE_FLUSH();
+	assert(TheCPU.err == trapno ||
+	       TheCPU.err == EXCP_GOBACK || TheCPU.err == EXCP_RETRY);
+	return PC;
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 #if !defined(SINGLESTEP)
@@ -1885,10 +1898,10 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			break;
 /*cc*/	case INT3:
-			CODE_FLUSH();
 			e_printf("Interrupt 03\n");
-			TheCPU.err=EXCP03_INT3; PC++;
-			return PC;
+			PC = P0 = ExceptionGen(PC+1, _mode, EXCP03_INT3, P0,
+					       _flags);
+			break;
 /*ce*/	case INTO:
 			CODE_FLUSH();
 			PC++;
