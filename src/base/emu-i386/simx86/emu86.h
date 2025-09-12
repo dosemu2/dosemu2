@@ -723,6 +723,7 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode, signed char overr_ds, s
 #define ModRM(o, p, m) ({ \
     int __l = _ModRM(o, p, m, OVERR_DS, OVERR_SS); \
     if (REG1 == 0xff) { \
+        PC += __l; \
         goto illegal_op; \
     } \
     __l; \

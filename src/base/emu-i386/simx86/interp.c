@@ -101,7 +101,7 @@ static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 	/* If the code doesn't terminate with a jump/loop instruction
 	 * it still lacks the tail code; add it here */
 	IMeta *GL = &InstrMeta[CurrIMeta-1];
-	if (GL->gen[GL->ngen-1].op < JMP_INDIRECT) {
+	if (GL->gen[GL->ngen-1].op < JMP_TAILCODE) {
 		int rc;
 		Gen(JMP_TAILCODE, mode, PC);
 		NewIMeta(PC, &rc);
@@ -473,6 +473,8 @@ static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 {
 	int rc = 0;
 	Gen(L_IMM, basemode, Ofs_ERR, trapno);
+	if (trapno != EXCP03_INT3 && trapno != EXCP04_INTO)
+		Gen(JMP_TAILCODE, basemode, P0); // fault: use current instr
 	NewIMeta(P0, &rc);
 	P0 = PC;
 	CODE_FLUSH();
@@ -1129,7 +1131,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 					PC++; goto override;
 				}
 			}
-			goto illegal_op;
+			PC += i+1; goto illegal_op;
 			}
 /*40*/	case INCax:
 /*41*/	case INCcx:
@@ -1446,7 +1448,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*8d*/	case LEA:
 			if (Fetch(PC+1) >= 0xc0) {
-			    goto illegal_op;
+			    PC += 2; goto illegal_op;
 			}
 			PC += ModRM(opc, PC, _mode|MLEA);
 			Gen(S_DI_R, _mode, REG1);
@@ -1454,7 +1456,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*c4*/	case LES:
 			if (Fetch(PC+1) >= 0xc0) {
-			    goto illegal_op;
+			    PC += 2; goto illegal_op;
 			}
 			PC += ModRM(opc, PC, _mode);
 			Gen(L_LXS2, _mode);
@@ -1468,7 +1470,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*c5*/	case LDS:
 			if (Fetch(PC+1) >= 0xc0) {
-			    goto illegal_op;
+			    PC += 2; goto illegal_op;
 			}
 			PC += ModRM(opc, PC, _mode);
 			Gen(L_LXS2, _mode);
@@ -2492,7 +2494,7 @@ repag0:
 				Gen(S_DI, _mode|MBYTE);
 				break;
 			default:
-				goto illegal_op;
+				PC += 2; goto illegal_op;
 			}
 			break;
 /*ff*/	case GRP2wrm:
@@ -2550,7 +2552,7 @@ repag0:
 			case Ofs_BX:	/*3*/	 // CALL long indirect restartable
 			case Ofs_BP:	/*5*/	 // JMP long indirect restartable
 				if (Fetch(PC+1) >= 0xc0) {
-					goto illegal_op;
+					PC += 2; goto illegal_op;
 				}
 				{
 					dosaddr_t oip = 0;
@@ -2593,7 +2595,7 @@ repag0:
 				Gen(O_PUSH, _mode); break;	// push [rm]
 				break;
 			default:
-				goto illegal_op;
+				PC += 2; goto illegal_op;
 			}
 			break;
 
@@ -2844,7 +2846,7 @@ repag0:
 				switch (opm) {
 				case 0: /* SLDT */
 				    if (REALMODE()) {
-					goto illegal_op;
+					PC += 3; goto illegal_op;
 				    }
 				    CODE_FLUSH();
 				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
@@ -2853,7 +2855,7 @@ repag0:
 				case 1: /* STR */
 				    /* Store Task Register */
 				    if (REALMODE()) {
-					goto illegal_op;
+					PC += 3; goto illegal_op;
 				    }
 				    CODE_FLUSH();
 				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
@@ -2868,7 +2870,7 @@ repag0:
 				case 4: { /* VERR */
 				    unsigned short sv; int tmp;
 				    if (!PROTMODE()) {
-					goto illegal_op;
+					PC += 3; goto illegal_op;
 				    }
 				    CODE_FLUSH();
 				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
@@ -2885,7 +2887,7 @@ repag0:
 				case 5: { /* VERW */
 				    unsigned short sv; int tmp;
 				    if (!PROTMODE()) {
-					goto illegal_op;
+					PC += 3; goto illegal_op;
 				    }
 				    CODE_FLUSH();
 				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
@@ -2901,7 +2903,7 @@ repag0:
 				    break;
 				case 6: /* JMP indirect to IA64 code */
 				case 7: /* Illegal */
-				    goto illegal_op;
+				    PC += 3; goto illegal_op;
 				} }
 				break;
 			case 0x01: { /* GRP7 - Extended Opcode 21 */
@@ -2932,7 +2934,7 @@ repag0:
 				case 6: /* LMSW, 80286 compatibility, Privileged */
 				    /* Load Machine Status Word */
 				case 7: /* Illegal */
-				    goto illegal_op;
+				    PC += 3; goto illegal_op;
 				} }
 				break;
 
@@ -2940,7 +2942,7 @@ repag0:
 			case 0x03: { /* LSL */ /* Load Segment Limit */
 				unsigned short sv; int tmp;
 				if (REALMODE()) {
-				    goto illegal_op;
+				    PC += 3; goto illegal_op;
 				}
 				CODE_FLUSH();
 				PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
@@ -3003,7 +3005,7 @@ repag0:
 				if (D_HO(b)!=3 ||
 				    ((opc2&4) && (reg<6)) ||
 				    (!(opc2&5) && ((reg==1)||(reg>4)))) {
-				    goto illegal_op;
+				    PC += 3; goto illegal_op;
 				}
 				CODE_FLUSH();
 				b = D_LO(b);
@@ -3161,7 +3163,7 @@ repag0:
 				case 0x08: /* Illegal */
 				case 0x10: /* Illegal */
 				case 0x18: /* Illegal */
-				    goto illegal_op;
+				    PC += 3; goto illegal_op;
 				case 0x20: /* BT imm8 */
 				case 0x28: /* BTS imm8 */
 				case 0x30: /* BTR imm8 */
@@ -3247,7 +3249,7 @@ repag0:
 ///
 			case 0xb2: /* LSS */
 				if (Fetch(PC+2) >= 0xc0) {
-				    goto illegal_op;
+				    PC += 3; goto illegal_op;
 				}
 				PC++; PC += ModRM(opc, PC, _mode);
 				Gen(L_LXS2, _mode);
@@ -3261,7 +3263,7 @@ repag0:
 				break;
 			case 0xb4: /* LFS */
 				if (Fetch(PC+2) >= 0xc0) {
-				    goto illegal_op;
+				    PC += 3; goto illegal_op;
 				}
 				PC++; PC += ModRM(opc, PC, _mode);
 				Gen(L_LXS2, _mode);
@@ -3275,7 +3277,7 @@ repag0:
 				break;
 			case 0xb5: /* LGS */
 				if (Fetch(PC+2) >= 0xc0) {
-				    goto illegal_op;
+				    PC += 3; goto illegal_op;
 				}
 				PC++; PC += ModRM(opc, PC, _mode);
 				Gen(L_LXS2, _mode);
@@ -3331,7 +3333,7 @@ repag0:
 				unsigned char modrm;
 				modrm = Fetch(PC+2);
 				if (D_MO(modrm) != 1 || D_HO(modrm) == 3) {
-					goto illegal_op;
+					PC += 3; goto illegal_op;
 				}
 				CODE_FLUSH();
 				PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
@@ -3376,12 +3378,12 @@ repag0:
 			   modrm and cause #PF or #GP if they straddle the
 			   page or segment limit, instead of #UD */
 			default: /* MMX etc */
-			    goto illegal_op;
+			    PC += 2; goto illegal_op;
 			} }
 			break;
 
 /*xx*/	default:
-			goto illegal_op;
+			PC++; goto illegal_op;
 		}
 		if (TheCPU.err < 0)
 			return P0;
@@ -3401,10 +3403,9 @@ not_permitted:
 //	dbug_printf("!!! Div by 0 %02x\n",opc);
 //	TheCPU.err = -6; return P0;
 illegal_op:
-	CODE_FLUSH();
-	dbug_printf("!!! Illegal op %02x %02x %02x\n",opc,
-		    Fetch(PC+1),Fetch(PC+2));
-	TheCPU.err = EXCP06_ILLOP; return P0;
+	dbug_printf("!!! Illegal op %02x %02x %02x\n",Fetch(P0),
+		    Fetch(P0+1),Fetch(P0+2));
+	return ExceptionGen(PC, _mode, EXCP06_ILLOP, P0, _flags);
 }
 
 /* reset for VGA reads and writes */
