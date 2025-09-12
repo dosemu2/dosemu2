@@ -955,9 +955,10 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_OPAX, _mode, 2, AAD, Fetch(PC+1)); PC+=2; break;
 
 /*d6*/	case 0xd6:	/* Undocumented */
-			CODE_FLUSH();
 			e_printf("Undocumented op 0xd6\n");
-			rAL = (EFLAGS & EFLAGS_CF? 0xff:0x00);
+			Gen(O_SETCC, _mode, 2);
+			Gen(O_NEG, _mode|MBYTE);
+			Gen(S_REG, _mode|MBYTE, Ofs_AL);
 			PC++; break;
 /*62*/	case BOUND:    {
 	  		signed int lo, hi, r;
