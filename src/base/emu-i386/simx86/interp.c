@@ -2854,15 +2854,21 @@ repag0:
 				unsigned char opm = D_MO(Fetch(PC+2));
 				switch (opm) {
 				case 0: /* SLDT */
+				    if (REALMODE()) {
+					CODE_FLUSH();
+					goto illegal_op;
+				    }
 				    CODE_FLUSH();
-				    if (REALMODE()) goto illegal_op;
 				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
 				    error("SLDT not implemented\n");
 				    break;
 				case 1: /* STR */
 				    /* Store Task Register */
+				    if (REALMODE()) {
+					CODE_FLUSH();
+					goto illegal_op;
+				    }
 				    CODE_FLUSH();
-				    if (REALMODE()) goto illegal_op;
 				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
 				    error("STR not implemented\n");
 				    break;
@@ -2874,8 +2880,11 @@ repag0:
 				    goto not_permitted;
 				case 4: { /* VERR */
 				    unsigned short sv; int tmp;
+				    if (!PROTMODE()) {
+					CODE_FLUSH();
+					goto illegal_op;
+				    }
 				    CODE_FLUSH();
-				    if (REALMODE()) goto illegal_op;
 				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
 				    if (REG3) {
 					sv = CPUWORD(REG3);
@@ -2883,15 +2892,17 @@ repag0:
 					sv = GetDWord(TheCPU.mem_ref);
 				    }
 				    tmp = hsw_verr(sv);
-				    if (tmp < 0) goto illegal_op;
 				    EFLAGS &= ~EFLAGS_ZF;
 				    if (tmp) EFLAGS |= EFLAGS_ZF;
 				    }
 				    break;
 				case 5: { /* VERW */
 				    unsigned short sv; int tmp;
+				    if (!PROTMODE()) {
+					CODE_FLUSH();
+					goto illegal_op;
+				    }
 				    CODE_FLUSH();
-				    if (REALMODE()) goto illegal_op;
 				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
 				    if (REG3) {
 					sv = CPUWORD(REG3);
@@ -2899,7 +2910,6 @@ repag0:
 					sv = GetDWord(TheCPU.mem_ref);
 				    }
 				    tmp = hsw_verw(sv);
-				    if (tmp < 0) goto illegal_op;
 				    EFLAGS &= ~EFLAGS_ZF;
 				    if (tmp) EFLAGS |= EFLAGS_ZF;
 				    }
@@ -2946,8 +2956,11 @@ repag0:
 			case 0x02:   /* LAR */ /* Load Access Rights Byte */
 			case 0x03: { /* LSL */ /* Load Segment Limit */
 				unsigned short sv; int tmp;
+				if (REALMODE()) {
+				    CODE_FLUSH();
+				    goto illegal_op;
+				}
 				CODE_FLUSH();
-				if (REALMODE()) goto illegal_op;
 				PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
 				if (REG3) {
 				    sv = CPUWORD(REG3);
@@ -2999,11 +3012,20 @@ repag0:
 			case 0x24:   /* MOVtdrd */ /* Privileged */
 			case 0x26: { /* MOVrdtd */ /* Privileged */
 				int *srg; int reg; unsigned char b,opd;
-				CODE_FLUSH();
-				if (V86MODE()) goto not_permitted;
+				if (V86MODE()) {
+				    CODE_FLUSH();
+				    goto not_permitted;
+				}
 				b = Fetch(PC+2);
-				if (D_HO(b)!=3) goto illegal_op;
-				reg = D_MO(b); b = D_LO(b);
+				reg = D_MO(b);
+				if (D_HO(b)!=3 ||
+				    ((opc2&4) && (reg<6)) ||
+				    (!(opc2&5) && ((reg==1)||(reg>4)))) {
+				    CODE_FLUSH();
+				    goto illegal_op;
+				}
+				CODE_FLUSH();
+				b = D_LO(b);
 				srg = (int *)CPUOFFS(R1Tab_l[b]);
 				opd = Fetch(PC+1)&2;
 		    		if (opc2&1) {
@@ -3011,12 +3033,11 @@ repag0:
 					else *srg = TheCPU.dr[reg];
 		    		}
 		    		else if (opc2&4) {
-				    reg-=6; if (reg<0) goto illegal_op;
+				    reg-=6;
 				    if (opd) TheCPU.tr[reg] = *srg;
 					else *srg = TheCPU.tr[reg];
 		    		}
 		    		else {
-				    if ((reg==1)||(reg>4)) goto illegal_op;
 		    		    if (opd) {	/* write to CRs */
 					if (reg==0) {
 			    		    if ((TheCPU.cr[0] ^ *srg) & 1) {
@@ -3331,10 +3352,12 @@ repag0:
 			case 0xc7: { /*	Code Extension 23 - 01=CMPXCHG8B mem */
 				uint64_t edxeax, m;
 				unsigned char modrm;
-				CODE_FLUSH();
 				modrm = Fetch(PC+2);
-				if (D_MO(modrm) != 1 || D_HO(modrm) == 3)
+				if (D_MO(modrm) != 1 || D_HO(modrm) == 3) {
+					CODE_FLUSH();
 					goto illegal_op;
+				}
+				CODE_FLUSH();
 				PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
 				edxeax = ((uint64_t)rEDX << 32) | rEAX;
 				m = sim_read_qword(TheCPU.mem_ref);

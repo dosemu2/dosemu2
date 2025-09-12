@@ -305,7 +305,6 @@ unsigned short GetSelectorXfer(unsigned short w)
 int hsw_verr(unsigned short sel)
 {
 	unsigned short wFlags;
-	if (V86MODE()) return -1;	/* maybe error */
 	/* test for present && CPL>=DPL && readable */
 	wFlags = GetSelectorFlags(sel);
 	if (wFlags & DF_PRESENT) {
@@ -318,7 +317,6 @@ int hsw_verr(unsigned short sel)
 int hsw_verw(unsigned short sel)
 {
 	unsigned short wFlags;
-	if (V86MODE()) return -1;	/* maybe error */
 	/* test for present && CPL>=DPL && writeable */
 	wFlags = GetSelectorFlags(sel);
 	if (wFlags & DF_PRESENT) {

@@ -732,9 +732,6 @@ int _ModRMSim(unsigned int PC, int mode, signed char overr_ds, signed char overr
 /* always already after a CODE_FLUSH() */
 #define ModRMSim(p, m, ods, oss) ({ \
     int __l = _ModRMSim(p, m, ods, oss); \
-    if (REG1 == 0xff) { \
-        goto illegal_op; \
-    } \
     if (TheCPU.err2 == EXCP0D_GPF) { \
         goto not_permitted; \
     } \
