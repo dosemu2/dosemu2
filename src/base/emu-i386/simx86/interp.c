@@ -934,10 +934,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*9c*/	case PUSHF: {
 			if (V86MODE() && (IOPL<3)) {
 			    /* virtual-8086 monitor */
-			    if (!(TheCPU.cr[4] & CR4_VME)) {
-				CODE_FLUSH();
+			    if (!(TheCPU.cr[4] & CR4_VME))
 				goto not_permitted;	/* GPF */
-			    }
 			    CODE_FLUSH();
 			    temp = (EFLAGS|IOPL_MASK) & RETURN_MASK;
 			    if (EFLAGS & VIF) temp |= EFLAGS_IF;
@@ -980,7 +978,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*62*/	case BOUND:    {
 	  		signed int lo, hi, r;
 			if (Fetch(PC+1) >= 0xc0) {
-			    CODE_FLUSH();
 			    goto not_permitted;
 			}
 			CODE_FLUSH();
@@ -1935,10 +1932,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				break;
 			}
 			// V86: always #GP(0) if revectored or without VME
-			if (V86MODE() && !(TheCPU.cr[4] & CR4_VME) && IOPL<3) {
-				CODE_FLUSH();
+			if (V86MODE() && !(TheCPU.cr[4] & CR4_VME) && IOPL<3)
 				goto not_permitted;
-			}
 			if (V86MODE() && (TheCPU.cr[4] & CR4_VME) &&
 			    !test_bit(inum, &vm86s.int_revectored)) {
 				CODE_FLUSH();
@@ -1978,7 +1973,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				return PC;
 			}
 			TheCPU.scp_err = (inum << 3) | 2;
-			CODE_FLUSH();
 			goto not_permitted;
 			break;
 		}
@@ -2000,10 +1994,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 
 /*cf*/	case IRET: {	/* restartable */
-			if (V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)) {
-			    CODE_FLUSH();
+			if (V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME))
 			    goto not_permitted;	/* GPF */
-			}
 			uint16_t sv=0;
 			int m = _mode;
 			CODE_FLUSH();
@@ -2046,10 +2038,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			} break;
 
 /*9d*/	case POPF: {
-			if (V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)) {
-			    CODE_FLUSH();
+			if (V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME))
 			    goto not_permitted;	/* GPF */
-			}
 			CODE_FLUSH();
 			temp=0; POP(_mode, &temp);
 			if (V86MODE()) {
@@ -2139,7 +2129,6 @@ repag0:
 				case INSw:
 				case OUTSb:
 				case OUTSw:
-					CODE_FLUSH();
 					goto not_permitted;
 				case LODSb:
 					repmod |= (MBYTE|MOVSSRC);
@@ -2305,7 +2294,6 @@ repag0:
 			} }
 			break;
 /*f4*/	case HLT:
-			CODE_FLUSH();
 			goto not_permitted;
 /*f5*/	case CMC:	PC++;
 #if 0
@@ -2409,10 +2397,8 @@ repag0:
 			}
 			else {
 			    if ((V86MODE() && !(TheCPU.cr[4] & CR4_VME)) ||
-				(!V86MODE() && !(TheCPU.cr[4] & CR4_PVI))) {
-				CODE_FLUSH();
+				(!V86MODE() && !(TheCPU.cr[4] & CR4_PVI)))
 				goto not_permitted;	/* GPF */
-			    }
 			    /* virtual-8086 monitor */
 			    if (debug_level('e')>2) {
 				if (V86MODE())
@@ -2430,10 +2416,8 @@ repag0:
 				e_printf("Virtual VM86 STI\n");
 			if (!(REALMODE() || (CPL <= IOPL) || (IOPL==3)) &&
 			    ((V86MODE() && !(TheCPU.cr[4] & CR4_VME)) ||
-			     (!V86MODE() && !(TheCPU.cr[4] & CR4_PVI)))) {
-				CODE_FLUSH();
+			     (!V86MODE() && !(TheCPU.cr[4] & CR4_PVI))))
 				goto not_permitted;	/* GPF */
-			}
 			CODE_FLUSH();
 			if (V86MODE()) {    /* traps always (Intel man) */
 				/* virtual-8086 monitor */
@@ -2620,7 +2604,7 @@ repag0:
 			unsigned int rd;
 			CODE_FLUSH();
 			a = rDX;
-			if (!test_ioperm(a)) goto not_permitted;
+			if (!test_ioperm(a)) goto not_permitted_portio;
 			rd = (_mode&ADDR16? rDI:rEDI);
 			WRITE_BYTE(LONG_ES+rd, port_inb(a));
 			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
@@ -2694,7 +2678,7 @@ repag0:
 			    }
 			}
 #endif
-			if (!test_ioperm(a)) goto not_permitted;
+			if (!test_ioperm(a)) goto not_permitted_portio;
 #ifdef CPUEMU_DIRECT_IO
 			Gen(O_INPDX, _mode|MBYTE);
 #else
@@ -2708,14 +2692,14 @@ repag0:
 			/* there's no reason to compile this, as most of
 			 * the ports under 0x100 are emulated by dosemu */
 			a = Fetch(PC+1);
-			if (!test_ioperm(a)) goto not_permitted;
+			if (!test_ioperm(a)) goto not_permitted_portio;
 			rAL = port_inb(a);
 			PC += 2; } break;
 /*6d*/	case INSw: {
 			unsigned int rd;
 			int dp;
 			CODE_FLUSH();
-			if (!test_ioperm(rDX)) goto not_permitted;
+			if (!test_ioperm(rDX)) goto not_permitted_portio;
 			rd = (_mode&ADDR16? rDI:rEDI);
 			if (_mode&DATA16) {
 				WRITE_WORD(LONG_ES+rd, port_inw(rDX)); dp=2;
@@ -2728,7 +2712,7 @@ repag0:
 			PC++; } break;
 /*ed*/	case INvw: {
 			CODE_FLUSH();
-			if (!test_ioperm(rDX)) goto not_permitted;
+			if (!test_ioperm(rDX)) goto not_permitted_portio;
 			if (_mode&DATA16) rAX = port_inw(rDX);
 			else rEAX = port_ind(rDX);
 			} PC++; break;
@@ -2736,7 +2720,7 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = Fetch(PC+1);
-			if (!test_ioperm(a)) goto not_permitted;
+			if (!test_ioperm(a)) goto not_permitted_portio;
 			if (_mode&DATA16) rAX = port_inw(a);
 			else rEAX = port_ind(a);
 			PC += 2; } break;
@@ -2746,7 +2730,7 @@ repag0:
 			unsigned long rs;
 			CODE_FLUSH();
 			a = rDX;
-			if (!test_ioperm(a)) goto not_permitted;
+			if (!test_ioperm(a)) goto not_permitted_portio;
 			rs = (_mode&ADDR16? rSI:rESI);
 			do {
 			    port_outb(a,Fetch(LONG_DS+rs));
@@ -2765,7 +2749,7 @@ repag0:
 				PC++;
 				break;
 			}
-			if (!test_ioperm(a)) goto not_permitted;
+			if (!test_ioperm(a)) goto not_permitted_portio;
 #ifdef CPUEMU_DIRECT_IO
 			Gen(O_OUTPDX, _mode|MBYTE);
 #else
@@ -2779,11 +2763,10 @@ repag0:
 			a = Fetch(PC+1);
 			/* there's no reason to compile this, as most of
 			 * the ports under 0x100 are emulated by dosemu */
-			if (!test_ioperm(a)) goto not_permitted;
+			if (!test_ioperm(a)) goto not_permitted_portio;
 			port_outb(a,rAL);
 			PC += 2; } break;
 /*6f*/	case OUTSw:
-			CODE_FLUSH();
 			goto not_permitted;
 /*ef*/	case OUTvw: {
 			unsigned short a;
@@ -2795,7 +2778,7 @@ repag0:
 				PC++;
 				break;
 			}
-			if (!test_ioperm(a)) goto not_permitted;
+			if (!test_ioperm(a)) goto not_permitted_portio;
 #ifdef CPUEMU_DIRECT_IO
 			Gen(O_OUTPDX, _mode);
 #else
@@ -2808,7 +2791,7 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = Fetch(PC+1);
-			if (!test_ioperm(a)) goto not_permitted;
+			if (!test_ioperm(a)) goto not_permitted_portio;
 			if (_mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
 			PC += 2; } break;
 
@@ -2881,7 +2864,6 @@ repag0:
 				    /* Load Local Descriptor Table Register */
 				case 3: /* LTR */
 				    /* Load Task Register */
-				    CODE_FLUSH();
 				    goto not_permitted;
 				case 4: { /* VERR */
 				    unsigned short sv; int tmp;
@@ -2939,7 +2921,6 @@ repag0:
 				    /* Load Global Descriptor Table Register */
 				case 3: /* LIDT */ /* PM privileged AND real _mode */
 				    /* Load Interrupt Descriptor Table Register */
-				    CODE_FLUSH();
 				    goto not_permitted;
 				case 4: /* SMSW, 80286 compatibility */
 				    /* Store Machine Status Word */
@@ -2989,10 +2970,7 @@ repag0:
 			/* case 0x05:	LOADALL(286) - SYSCALL(K6) */
 			case 0x06: /* CLTS */ /* Privileged */
 				/* Clear Task State Register */
-				if (CPL != 0) {
-					CODE_FLUSH();
-					goto not_permitted;
-				}
+				if (CPL != 0) goto not_permitted;
 				CODE_FLUSH();
 				TheCPU.cr[0] &= ~8;
 				PC += 2; break;
@@ -3015,10 +2993,8 @@ repag0:
 			case 0x24:   /* MOVtdrd */ /* Privileged */
 			case 0x26: { /* MOVrdtd */ /* Privileged */
 				int *srg; int reg; unsigned char b,opd;
-				if (V86MODE()) {
-				    CODE_FLUSH();
+				if (V86MODE())
 				    goto not_permitted;
-				}
 				b = Fetch(PC+2);
 				reg = D_MO(b);
 				if (D_HO(b)!=3 ||
@@ -3055,14 +3031,12 @@ repag0:
 		    		}
 		    		} PC += 3; break;
 			case 0x30: /* WRMSR */
-			    CODE_FLUSH();
 			    goto not_permitted;
 
 			case 0x31: /* RDTSC */
 				Gen(O_RDTSC, _mode);
 				PC+=2; break;
 			case 0x32: /* RDMSR */
-			    CODE_FLUSH();
 			    goto not_permitted;
 
 			/* case 0x33:	RDPMC(P6) */
@@ -3410,12 +3384,13 @@ repag0:
 		/* check segment boundaries. TODO for prot _mode */
 		if (REALADDR() && (PC - Interp_LONG_CS > 0xffff)) {
 			e_printf("PC out of bounds, %x\n", PC - Interp_LONG_CS);
-			CODE_FLUSH();
 			goto not_permitted;
 		}
 	return PC;
 
 not_permitted:
+	CODE_FLUSH();
+not_permitted_portio:
 	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
 	TheCPU.err = EXCP0D_GPF; return P0;
 //div_by_zero:
