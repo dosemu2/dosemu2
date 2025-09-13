@@ -121,6 +121,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	unsigned char lbig;
 	Descriptor *dt;
 	SDTR *sd;
+	unsigned int orig_scp_err = TheCPU.scp_err;
 
 	sd = (SDTR *)CPUOFFS(e_ofsseg(ofs));
 
@@ -224,7 +225,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 		e_printf("PMSEL %#04lx bounds=%08x:%08x flg=%04x big=%d\n",
 			sel, sd->BoundL, sd->BoundH, wFlags, lbig&1);
 	}
-	TheCPU.scp_err = 0;
+	TheCPU.scp_err = orig_scp_err;
 	CPUWORD(ofs) = sel;
 	return 0;
 }

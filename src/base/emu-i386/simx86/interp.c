@@ -933,10 +933,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*9c*/	case PUSHF: {
 			if (V86MODE() && (IOPL<3)) {
-			    CODE_FLUSH();
 			    /* virtual-8086 monitor */
-			    if (!(TheCPU.cr[4] & CR4_VME))
+			    if (!(TheCPU.cr[4] & CR4_VME)) {
+				CODE_FLUSH();
 				goto not_permitted;	/* GPF */
+			    }
+			    CODE_FLUSH();
 			    temp = (EFLAGS|IOPL_MASK) & RETURN_MASK;
 			    if (EFLAGS & VIF) temp |= EFLAGS_IF;
 			    PUSH(_mode, temp);
@@ -977,10 +979,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC++; break;
 /*62*/	case BOUND:    {
 	  		signed int lo, hi, r;
-			CODE_FLUSH();
 			if (Fetch(PC+1) >= 0xc0) {
+			    CODE_FLUSH();
 			    goto not_permitted;
 			}
+			CODE_FLUSH();
 			PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
 			r = GetCPU_WL(_mode, REG1);
 			lo = DataGetWL_S(_mode,TheCPU.mem_ref);
@@ -1931,12 +1934,14 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				if (TheCPU.err) return PC;
 				break;
 			}
-			CODE_FLUSH();
 			// V86: always #GP(0) if revectored or without VME
-			if (V86MODE() && !(TheCPU.cr[4] & CR4_VME) && IOPL<3)
+			if (V86MODE() && !(TheCPU.cr[4] & CR4_VME) && IOPL<3) {
+				CODE_FLUSH();
 				goto not_permitted;
+			}
 			if (V86MODE() && (TheCPU.cr[4] & CR4_VME) &&
 			    !test_bit(inum, &vm86s.int_revectored)) {
+				CODE_FLUSH();
 				uint32_t segoffs;
 				segoffs = read_dword(inum << 2);
 				temp = (EFLAGS|IOPL_MASK) & (RETURN_MASK|EFLAGS_IF);
@@ -1962,15 +1967,18 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			/* protected _mode INT or revectored V86 with IOPL=3 */
 			if (PROTMODE()) switch(inum) {
 			case 0x03:
+				CODE_FLUSH();
 				TheCPU.err=EXCP03_INT3;
 				PC += 2;
 				return PC;
 			case 0x04:
+				CODE_FLUSH();
 				TheCPU.err=EXCP04_INTO;
 				PC += 2;
 				return PC;
 			}
 			TheCPU.scp_err = (inum << 3) | 2;
+			CODE_FLUSH();
 			goto not_permitted;
 			break;
 		}
@@ -1992,6 +2000,10 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 
 /*cf*/	case IRET: {	/* restartable */
+			if (V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)) {
+			    CODE_FLUSH();
+			    goto not_permitted;	/* GPF */
+			}
 			uint16_t sv=0;
 			int m = _mode;
 			CODE_FLUSH();
@@ -2034,6 +2046,10 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			} break;
 
 /*9d*/	case POPF: {
+			if (V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)) {
+			    CODE_FLUSH();
+			    goto not_permitted;	/* GPF */
+			}
 			CODE_FLUSH();
 			temp=0; POP(_mode, &temp);
 			if (V86MODE()) {
@@ -2053,8 +2069,6 @@ stack_return_from_vm86:
 			    }
 			    else {
 				/* virtual-8086 monitor */
-				if (!(TheCPU.cr[4] & CR4_VME))
-				    goto not_permitted;	/* GPF */
 				/* move mask from pop{e}flags to regs->eflags */
 				if (_mode & DATA16)
 				    FLAGS &= ~SAFE_MASK;
@@ -2394,35 +2408,39 @@ repag0:
 				Gen(O_SETFL, _mode, CLI);
 			}
 			else {
-			    CODE_FLUSH();
-			    /* virtual-8086 monitor */
-			    if (V86MODE()) {
-				if (debug_level('e')>2) e_printf("Virtual VM86 CLI\n");
-				if (TheCPU.cr[4] & CR4_VME)
-				    EFLAGS &= ~EFLAGS_VIF;
-				else
-				    goto not_permitted;	/* GPF */
-			    }
-			    else if (TheCPU.cr[4] & CR4_PVI) {
-				if (debug_level('e')>2) e_printf("Virtual DPMI CLI\n");
-				EFLAGS &= ~EFLAGS_VIF;
-			    }
-			    else
+			    if ((V86MODE() && !(TheCPU.cr[4] & CR4_VME)) ||
+				(!V86MODE() && !(TheCPU.cr[4] & CR4_PVI))) {
+				CODE_FLUSH();
 				goto not_permitted;	/* GPF */
+			    }
+			    /* virtual-8086 monitor */
+			    if (debug_level('e')>2) {
+				if (V86MODE())
+				    e_printf("Virtual VM86 CLI\n");
+				else
+				    e_printf("Virtual DPMI CLI\n");
+			    }
+			    CODE_FLUSH();
+			    EFLAGS &= ~EFLAGS_VIF;
 			}
 			PC++;
 			break;
 /*fb*/	case STI:
+			if (debug_level('e')>2 && V86MODE())
+				e_printf("Virtual VM86 STI\n");
+			if (!(REALMODE() || (CPL <= IOPL) || (IOPL==3)) &&
+			    ((V86MODE() && !(TheCPU.cr[4] & CR4_VME)) ||
+			     (!V86MODE() && !(TheCPU.cr[4] & CR4_PVI)))) {
+				CODE_FLUSH();
+				goto not_permitted;	/* GPF */
+			}
 			CODE_FLUSH();
 			if (V86MODE()) {    /* traps always (Intel man) */
 				/* virtual-8086 monitor */
-				if (debug_level('e')>2) e_printf("Virtual VM86 STI\n");
 				if (IOPL==3)
 				    EFLAGS |= EFLAGS_IF;
-				else if (TheCPU.cr[4]&CR4_VME)
-				    EFLAGS |= EFLAGS_VIF;
 				else
-				    goto not_permitted;	/* GPF */
+				    EFLAGS |= EFLAGS_VIF;
 				if (vm86s.regs.eflags & VIP) {
 				    if (debug_level('e')>1)
 					e_printf("Return for STI fl=%08x\n",
@@ -2435,12 +2453,10 @@ repag0:
 			    if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
 				EFLAGS |= EFLAGS_IF;
 			    }
-			    else if (TheCPU.cr[4] & CR4_PVI) {
+			    else {
 				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
 				EFLAGS |= EFLAGS_VIF;
 			    }
-			    else
-				goto not_permitted;	/* GPF */
 			    if (debug_level('e')>1)
 				    e_printf("Return for STI fl=%08x\n",
 					    EFLAGS);
@@ -2973,8 +2989,11 @@ repag0:
 			/* case 0x05:	LOADALL(286) - SYSCALL(K6) */
 			case 0x06: /* CLTS */ /* Privileged */
 				/* Clear Task State Register */
+				if (CPL != 0) {
+					CODE_FLUSH();
+					goto not_permitted;
+				}
 				CODE_FLUSH();
-				if (CPL != 0) goto not_permitted;
 				TheCPU.cr[0] &= ~8;
 				PC += 2; break;
 			/* case 0x07:	LOADALL(386) - SYSRET(K6) etc. */
