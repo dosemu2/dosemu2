@@ -476,11 +476,6 @@ bool set_video_mode(int mode)
   int co, li, vga_font_height, orig_mode;
   ioport_t port;
 
-  if (config.dumb_video) {
-    i10_msg("set_video_mode: no video!\n");
-    return 0;
-  }
-
   i10_msg("set_video_mode: mode 0x%02x\n", mode);
 
   if((vmi = vga_emu_find_mode(mode, NULL)) == NULL) {
@@ -649,7 +644,7 @@ bool set_video_mode(int mode)
   WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height); // before set_cursor_shape()
   set_cursor_shape(vmi->type == TEXT_MONO ? 0x0b0d : 0x0607);
 
-  if (using_text_mode()) {
+  if (!config.dumb_video && using_text_mode()) {
     v_printf("INT10: X_set_video_mode: 8x%d ROM font -> bank 0\n",
              vga_font_height);
     vga_ROM_to_RAM(vga_font_height, 0); /* 0 is default bank */

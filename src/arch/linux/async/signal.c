@@ -704,7 +704,7 @@ static void SIGALRM_call(void *arg)
 
   if ((pic_sys_time-cnt10) >= (PIT_TICK_RATE/100) || dosemu_frozen) {
     cnt10 = pic_sys_time;
-    if (video_initialized && !config.vga)
+    if (video_initialized && !config.vga && !config.dumb_video)
       update_screen();
   }
 
