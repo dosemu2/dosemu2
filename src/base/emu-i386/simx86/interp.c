@@ -2972,16 +2972,12 @@ repag0:
 			case 0x09: /* WBINVD */
 				/* Write-Back and INValiDate cache */
 				PC += 2; break;
-			case 0x0a:
-			case 0x0b:
-				CODE_FLUSH();
-				goto illegal_op;	/* UD2 */
+			/* case 0x0a: */
+			/* case 0x0b: UD2 */
 			/* case 0x0d:	Code Extension 25(AMD-3D) */
 			/* case 0x0e:	FEMMS(K6-3D) */
-			case 0x0f:	/* AMD-3D */
+			/* case 0x0f:	AMD-3D */
 			/* case 0x10-0x1f:	various V20/MMX instr. */
-				CODE_FLUSH();
-				goto not_implemented;
 			case 0x20:   /* MOVcdrd */ /* Privileged */
 			case 0x22:   /* MOVrdcd */ /* Privileged */
 			case 0x21:   /* MOVddrd */ /* Privileged */
@@ -3023,27 +3019,25 @@ repag0:
 		    		} PC += 3; break;
 			case 0x30: /* WRMSR */
 			    CODE_FLUSH();
-			    goto not_implemented;
+			    goto not_permitted;
 
 			case 0x31: /* RDTSC */
 				Gen(O_RDTSC, _mode);
 				PC+=2; break;
 			case 0x32: /* RDMSR */
 			    CODE_FLUSH();
-			    goto not_implemented;
+			    goto not_permitted;
 
 			/* case 0x33:	RDPMC(P6) */
 			/* case 0x34:	SYSENTER(PII) */
 			/* case 0x35:	SYSEXIT(PII) */
 			/* case 0x40-0x4f:	CMOV(P6) */
 			/* case 0x50-0x5f:	various Cyrix/MMX */
-			case 0x60 ... 0x6b:	/* MMX */
-			case 0x6e: case 0x6f:
-			case 0x74 ... 0x77:
+			/* case 0x60 ... 0x6b:	MMX */
+			/* case 0x6e: case 0x6f: */
+			/* case 0x74 ... 0x77: */
 			/* case 0x78-0x7e:	Cyrix */
-			case 0x7e: case 0x7f:
-			    CODE_FLUSH();
-			    goto not_implemented;
+			/* case 0x7e: case 0x7f: */
 //
 			case JOimmdisp:		/*80*/
 			case JNOimmdisp:	/*81*/
@@ -3109,11 +3103,17 @@ repag0:
 			case 0xa2: /* CPUID */
 				CODE_FLUSH();
 				if (rEAX==0) {
+					/* "GenuineIntel" */
 					rEAX = 1; rEBX = 0x756e6547;
 					rECX = 0x6c65746e; rEDX = 0x49656e69;
 				}
 				else if (rEAX==1) {
+					/* family 5, model 2, stepping 12 =
+					   Pentium 133-200MHz (no MMX) */
 					rEAX = 0x052c; rEBX = rECX = 0;
+					/* fpu, vme, de, pse,
+					   tsc, msr, mce,
+					   cx8 */
 					rEDX = 0x1bf;
 				}
 				PC+=2; break;
@@ -3188,10 +3188,8 @@ repag0:
 					Gen(S_DI, _mode);
 				break;
 
-			case 0xa6: /* CMPXCHGb (486 STEP A only) */
-			case 0xa7: /* CMPXCHGw (486 STEP A only) */
-			    CODE_FLUSH();
-			    goto not_implemented;
+			/* case 0xa6: CMPXCHGb (486 STEP A only) */
+			/* case 0xa7: CMPXCHGw (486 STEP A only) */
 ///
 			case 0xa8: /* PUSHgs */
 				Gen(L_REG, _mode, Ofs_GS);
@@ -3209,10 +3207,7 @@ repag0:
 				}
 				PC+=2;
 				break;
-///
-			case 0xaa:
-			    CODE_FLUSH();
-			    goto illegal_op;
+			/* case 0xaa: */
 			/* case 0xae:	Code Extension 24(MMX) */
 			case 0xaf: /* IMULregrm */
 				PC++; PC += ModRM(opc, PC, _mode|MLOAD);
@@ -3297,10 +3292,8 @@ repag0:
 				Gen(L_MOVZS, _mode, 1, REG1);
 				break;
 ///
-			case 0xb8:	/* JMP absolute to IA64 code */
-			case 0xb9:
-			    CODE_FLUSH();
-			    goto illegal_op;	/* UD2 */
+			/* case 0xb8:      JMP absolute to IA64 code */
+			/* case 0xb9: UD1 */
 			case 0xc0: /* XADDb */
 				PC++; PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);
 				Gen(O_XCHG, _mode | MBYTE, REG1);
@@ -3356,28 +3349,28 @@ repag0:
 					Gen(O_BSWAP, 0, R1Tab_l[D_LO(opc2)]);
 				} /* else undefined */
 				PC+=2; break;
-			case 0xd1 ... 0xd3:	/* MMX */
+			/* case 0xd1 ... 0xd3:     MMX
 			case 0xd5: case 0xd7: case 0xda: case 0xde:
 			case 0xdf:
 			case 0xe0 ... 0xe5:
 			case 0xf1 ... 0xf3:
 			case 0xf5 ... 0xf7:
-			case 0xfc ... 0xfe:
-			    CODE_FLUSH();
-			    goto not_implemented;
+			case 0xfc ... 0xfe: */
 ///
-			case 0xff: /* illegal, used by Windows */
+			/* case 0xff: UD0, used by Windows */
+			/* XXX there is a small difference between
+			   UD0, UD1 and UD2: UD0 & UD1 should decode
+			   modrm and cause #PF or #GP if they straddle the
+			   page or segment limit, instead of #UD */
+			default: /* MMX etc */
 			    CODE_FLUSH();
 			    goto illegal_op;
-			default:
-			    CODE_FLUSH();
-			    goto not_implemented;
 			} }
 			break;
 
 /*xx*/	default:
 			CODE_FLUSH();
-			goto not_implemented;
+			goto illegal_op;
 		}
 		if (TheCPU.err < 0)
 			return P0;
@@ -3390,10 +3383,6 @@ repag0:
 		}
 	return PC;
 
-not_implemented:
-	dbug_printf("!!! Unimplemented %02x %02x %02x at %08x\n",opc,
-		    Fetch(PC+1),Fetch(PC+2),PC);
-	TheCPU.err = -2; return P0;
 not_permitted:
 	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
 	TheCPU.err = EXCP0D_GPF; return P0;
