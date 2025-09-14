@@ -1915,6 +1915,7 @@ void test_vm86(void)
 jmp_buf jmp_env;
 int v1;
 int tab[2];
+static size_t eip_base;
 
 #ifdef SA_SIGINFO
 void sig_handler(int sig, siginfo_t *info, void *puc)
@@ -1937,7 +1938,7 @@ void sig_handler(int sig)
     printf("trapno=" FMTLX " err=" FMTLX,
            (long)uc->uc_mcontext.gregs[REG_TRAPNO],
            (long)uc->uc_mcontext.gregs[REG_ERR]);
-    printf(" EIP=" FMTLX, (long)uc->uc_mcontext.gregs[REG_EIP]);
+    printf(" EIP=+" FMTLX, (long)uc->uc_mcontext.gregs[REG_EIP] - eip_base);
 #else
     printf("si_signo=%d\n", sig);
 #endif
@@ -1946,12 +1947,16 @@ void sig_handler(int sig)
 	printf("trapno=" FMTLX " err=" FMTLX,
 	       __djgpp_exception_state->__signum,
 	       __djgpp_exception_state->__sigmask & 0xffff);
-	printf(" EIP=" FMTLX, __djgpp_exception_state->__eip);
+	printf(" EIP=+" FMTLX, __djgpp_exception_state->__eip - eip_base);
     }
 #endif
     printf("\n");
     siglongjmp(jmp_env, 1);
 }
+
+#define EXCEPTION(ins,...) \
+    asm volatile ("call 0f; 0: pop (%[eip_base]); " ins : \
+                  __VA_ARGS__ [eip_base] "r"(&eip_base) : "memory")
 
 void test_exceptions(void)
 {
@@ -1982,8 +1987,8 @@ void test_exceptions(void)
     printf("DIVZ exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
         /* now divide by zero */
-        v1 = 0;
-        v1 = 2 / v1;
+        unsigned int divhi, divlo;
+        EXCEPTION("idiv %3", "=a"(divlo), "=d"(divhi): "a"(1), "d"(0),);
     }
 
 #if !defined(__x86_64__)
@@ -1992,7 +1997,7 @@ void test_exceptions(void)
         /* bound exception */
         tab[0] = 1;
         tab[1] = 10;
-        asm volatile ("bound %0, %1" : : "r" (11), "m" (tab[0]));
+        EXCEPTION("bound %0, %1", : "r" (11), "m" (tab[0]),);
     }
 #endif
 
@@ -2002,13 +2007,13 @@ void test_exceptions(void)
         /* load an invalid segment */
         /* DOSEMU DPMI/msdos.c will create a selector for the segment
 	   (0x1234 << 3) | 1 instead and not fault */
-        asm volatile ("mov %0, %%fs" : : "r" ((0x1234 << 3) | 1));
+        EXCEPTION("mov %0, %%fs", : "r" ((0x1234 << 3) | 1),);
     }
     if (_sigsetjmp(jmp_env) == 0) {
         /* null data segment is valid */
-        asm volatile ("mov %0, %%fs" : : "r" (3));
+        EXCEPTION("mov %0, %%fs", : "r" (3),);
         /* null stack segment */
-        asm volatile ("mov %0, %%ss" : : "r" (3));
+        EXCEPTION("mov %0, %%ss", : "r" (3),);
     }
 
     {
@@ -2048,7 +2053,7 @@ void test_exceptions(void)
 
         if (_sigsetjmp(jmp_env) == 0) {
             /* segment not present */
-            asm volatile ("mov %0, %%fs" : : "r" (MK_SEL(1)));
+            EXCEPTION("mov %0, %%fs", : "r" (MK_SEL(1)),);
         }
     }
 #endif
@@ -2061,9 +2066,9 @@ void test_exceptions(void)
         asm volatile ("nop");
         /* now store in an invalid address */
 #ifdef __DJGPP__
-        *(char *)0x234 = 1;
+        EXCEPTION("movb %0, (0x234)", : "r"((char)val),);
 #else
-        *(char *)0x1234 = 1;
+        EXCEPTION("movb %0, (0x1234)", : "r"((char)val),);
 #endif
     }
 
@@ -2073,9 +2078,9 @@ void test_exceptions(void)
         val = 1;
         /* read from an invalid address */
 #ifdef __DJGPP__
-        v1 = *(char *)0x234;
+        EXCEPTION("movzbl (0x234), %0", "=r"(v1) :);
 #else
-        v1 = *(char *)0x1234;
+        EXCEPTION("movzbl (0x1234), %0", "=r"(v1) :);
 #endif
     }
 
@@ -2083,90 +2088,90 @@ void test_exceptions(void)
     printf("UD2 exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
         /* now execute an invalid instruction */
-        asm volatile("ud2");
+        EXCEPTION("ud2",:);
     }
     printf("lock nop exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
         /* now execute an invalid instruction */
-        asm volatile(".byte 0xf0; nop");
+        EXCEPTION(".byte 0xf0; nop",:);
     }
 
     printf("INT exception:\n");
 #ifndef __DJGPP__ /* goes to reserved real mode interrupt 0xfd */
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile ("int $0xfd");
+        EXCEPTION("int $0xfd",:);
     }
 #endif
 #if TEST_SIGTRAP
     if (_sigsetjmp(jmp_env) == 0) { /* calls real mode int 1 */
-        asm volatile ("int $0x01");
+        EXCEPTION("int $0x01",:);
     }
     /* INT 3 and 4 cause exceptions because Linux uses an interrupt gate
        for them and sets _trapno to 3 and 4 */
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile (".byte 0xcd, 0x03");
+        EXCEPTION(".byte 0xcd, 0x03",:);
     }
 #endif
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile ("int $0x04");
+        EXCEPTION("int $0x04",:);
     }
 #ifndef __DJGPP__ /* INT 5 causes a printscreen in DPMI ! */
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile ("int $0x05");
+        EXCEPTION("int $0x05",:);
     }
 #endif
 
 #if TEST_SIGTRAP
     printf("INT3 exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile ("int3");
+        EXCEPTION("int3",:);
     }
 #endif
 
     /* CLI and STI are emulated by DOSEMU -> no exception */
     printf("CLI exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile ("cli");
+        EXCEPTION("cli",:);
     }
 
     printf("STI exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile ("cli");
+        EXCEPTION("sti",:);
     }
 
 #if !defined(__x86_64__)
     printf("INTO exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
         /* overflow exception */
-        asm volatile ("addl $1, %0 ; into" : : "r" (0x7fffffff));
+        EXCEPTION("addl $1, %0 ; into", : "r" (0x7fffffff),);
     }
 #endif
 
     /* OUT/IN are emulated by DOSEMU -> no exception */
     printf("OUTB exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile ("outb %%al, %%dx" : : "d" (0x4321), "a" (0));
+        EXCEPTION("outb %%al, %%dx", : "d" (0x4321), "a" (0),);
     }
 
     printf("INB exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile ("inb %%dx, %%al" : "=a" (val) : "d" (0x4321));
+        EXCEPTION("inb %%dx, %%al", "=a" (val) : "d" (0x4321),);
     }
 
     printf("REP OUTSB exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile ("rep outsb" : : "d" (0x4321), "S" (tab), "c" (1));
+        EXCEPTION("rep outsb", : "d" (0x4321), "S" (tab), "c" (1),);
     }
 
     printf("REP INSB exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile ("rep insb" : : "d" (0x4321), "D" (tab), "c" (1));
+        EXCEPTION("rep insb", : "d" (0x4321), "D" (tab), "c" (1),);
     }
 
 #if 0 // DOSEMU gets HLT into an infinite loop now (!)
     printf("HLT exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile ("hlt");
+        EXCEPTION("hlt");
     }
 #endif
 
@@ -2174,11 +2179,13 @@ void test_exceptions(void)
     printf("single step exception:\n");
     val = 0;
     if (_sigsetjmp(jmp_env) == 0) {
-        asm volatile ("pushf\n"
+        asm volatile ("call 0f\n"
+                      "0:pop (%1)\n"
+                      "pushf\n"
                       "orl $0x00100, (%%esp)\n"
                       "popf\n"
                       "movl $0xabcd, %0\n"
-                      "movl $0x0, %0\n" : "=m" (val) : : "cc", "memory");
+                      "movl $0x0, %0\n" : "=m" (val) : "r" (&eip_base) : "cc", "memory");
     }
     printf("val=0x%x\n", val);
 #endif
@@ -2204,13 +2211,13 @@ void test_exceptions(void)
 void sig_trap_handler(int sig, siginfo_t *info, void *puc)
 {
     ucontext_t *uc = puc;
-    printf("EIP=" FMTLX "\n", (long)uc->uc_mcontext.gregs[REG_EIP]);
+    printf("EIP=+" FMTLX "\n", (long)uc->uc_mcontext.gregs[REG_EIP] - eip_base);
 }
 #else
 void sig_trap_handler(int sig)
 {
 #ifdef __DJGPP
-    printf("EIP=" FMTLX "\n", __djgpp_exception_state->__eip);
+    printf("EIP=+" FMTLX "\n", __djgpp_exception_state->__eip - eip_base);
     siglongjmp(__djgpp_exception_state, 0);
 #endif
 }
@@ -2239,7 +2246,10 @@ void test_single_step(void)
     act.sa_flags = 0;
 #endif
     sigaction(SIGTRAP, &act, NULL);
-    asm volatile ("pushf\n"
+    asm volatile ("call 0f\n"
+                  "0:\n"
+                  "pop (%1)\n"
+                  "pushf\n"
                   "orl $0x00100, (%%esp)\n"
                   "popf\n"
                   "movl $0xabcd, %0\n"
@@ -2303,7 +2313,7 @@ void test_single_step(void)
                   "andl $~0x00100, (%%esp)\n"
                   "popf\n"
                   : "=m" (val)
-                  :
+                  : "r" (&eip_base)
                   : "cc", "memory", "eax", "ecx", "esi", "edi");
     printf("val=%d\n", val);
     for(i = 0; i < 4; i++)
@@ -2404,7 +2414,12 @@ long enter_stack[4096];
     printf("esp_val=" FMTLX "\n", esp_val - (long)stack_end);\
     printf("ebp_val=" FMTLX "\n", ebp_val - (long)stack_end);\
     for(ptr = (stack_type *)esp_val; ptr < stack_end; ptr++)\
-        printf(FMTLX "\n", (long)ptr[0]);\
+        if (ptr == (stack_type *)(esp_val + 8) || \
+            ptr == (stack_type *)(esp_val + 8) + level) \
+            printf("stack_end + " FMTLX "\n", (long)ptr[0] - \
+                   ((long)stack_end & (size[0] == 'w' ? 0xffff : 0xffffffff)));\
+        else \
+            printf(FMTLX "\n", (long)ptr[0]);\
 }
 
 static void test_enter(void)
