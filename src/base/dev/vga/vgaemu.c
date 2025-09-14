@@ -1591,6 +1591,7 @@ int vga_emu_pre_init(void)
   vga_mapping_type vmt = {0, 0, 0};
 
   if (config.dumb_video) {
+    vga_emu_setup_mode_table();
     vgaemu_register_ports();
     return 0;
   }
