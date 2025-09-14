@@ -45,7 +45,7 @@ def _dotest(self, cpu_vm, cpu_vm_dpmi):
 
     # output from DOS under test
     self.mkfile("testit.bat", """\
-dosbin --common-tests > %s
+dosbin > %s
 rem end
 """ % dosfile.name, newline="\r\n")
 
