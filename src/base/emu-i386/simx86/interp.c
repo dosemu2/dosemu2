@@ -1963,22 +1963,26 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				break;
 			}
 			/* protected _mode INT or revectored V86 with IOPL=3 */
-			if (PROTMODE()) switch(inum) {
+			switch(inum) {
 			case 0x03:
-				CODE_FLUSH();
-				TheCPU.err=EXCP03_INT3;
-				PC += 2;
-				return PC;
+			    if (PROTMODE())
+				PC = P0 = ExceptionGen(PC+2, _mode,
+						       EXCP03_INT3, 0, P0,
+						       _flags);
+			    break;
 			case 0x04:
-				CODE_FLUSH();
-				TheCPU.err=EXCP04_INTO;
-				PC += 2;
-				return PC;
+			    if (PROTMODE())
+				PC = P0 = ExceptionGen(PC+2, _mode,
+						       EXCP04_INTO, 0, P0,
+						       _flags);
+			    break;
+			default:
+			    if (debug_level('e')>1)
+				e_printf("!!! Not permitted int %x\n",inum);
+			    PC = P0 = ExceptionGen(PC+2, _mode, EXCP0D_GPF,
+						   (inum << 3) | 2, P0, _flags);
+			    break;
 			}
-			if (debug_level('e')>1)
-			    e_printf("!!! Not permitted int %x\n",inum);
-			PC = P0 = ExceptionGen(PC+2, _mode, EXCP0D_GPF,
-					       (inum << 3) | 2, P0, _flags);
 			break;
 		}
 
