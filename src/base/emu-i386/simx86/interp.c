@@ -808,6 +808,19 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 /*dd*/	case ESC5:
 			Fp87_op(arg, mode, mem_ref);
 			break;
+/*100*/	case 0x100: {	/* GRP6 - Extended Opcode 20 */
+			unsigned char opm = arg;
+			switch (opm) {
+			case 0: /* SLDT */
+			    data = TheCPU.LDT_SEL;
+			    break;
+			case 1: /* STR */
+			    /* Store Task Register */
+			    data = TheCPU.TR_SEL;
+			    break;
+			}
+			break;
+			}
 	}
 	return data;
 }
@@ -2873,21 +2886,16 @@ repag0:
 				unsigned char opm = D_MO(Fetch(PC+2));
 				switch (opm) {
 				case 0: /* SLDT */
-				    if (REALMODE()) {
+				case 1: /* STR: Store Task Register */
+				    if (!PROTMODE()) {
 					PC += 3; goto illegal_op;
 				    }
-				    CODE_FLUSH();
-				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				    error("SLDT not implemented\n");
-				    break;
-				case 1: /* STR */
-				    /* Store Task Register */
-				    if (REALMODE()) {
-					PC += 3; goto illegal_op;
-				    }
-				    CODE_FLUSH();
-				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				    error("STR not implemented\n");
+				    PC++; PC += ModRM(opc, PC, _mode);
+				    Gen(O_SIM, _mode, 0x100, opm, P0);
+				    if (REG3)
+					Gen(S_REG, _mode, REG3);
+				    else
+					Gen(S_DI, _mode);
 				    break;
 				case 2: /* LLDT */
 				    /* Load Local Descriptor Table Register */
