@@ -849,6 +849,22 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			    SetCPU_WL(mode, arg, tmp);
 			} }
 			break;
+/*1c7*/	case 0x1c7: { /* Code Extension 23 - 01=CMPXCHG8B mem */
+			uint64_t edxeax, m;
+			edxeax = ((uint64_t)rEDX << 32) | rEAX;
+			m = sim_read_qword(mem_ref);
+			if (edxeax == m)
+			{
+				*flags |= EFLAGS_ZF;
+				m = ((uint64_t)rECX << 32) | rEBX;
+			} else {
+				*flags &= ~EFLAGS_ZF;
+				rEDX = m >> 32;
+				rEAX = m & 0xffffffff;
+			}
+			sim_write_qword(mem_ref, m);
+			break;
+			}
 	}
 	return data;
 }
@@ -3340,26 +3356,13 @@ repag0:
 
 			/* case 0xc2-0xc6:	MMX */
 			case 0xc7: { /*	Code Extension 23 - 01=CMPXCHG8B mem */
-				uint64_t edxeax, m;
 				unsigned char modrm;
 				modrm = Fetch(PC+2);
 				if (D_MO(modrm) != 1 || D_HO(modrm) == 3) {
 					PC += 3; goto illegal_op;
 				}
-				CODE_FLUSH();
-				PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-				edxeax = ((uint64_t)rEDX << 32) | rEAX;
-				m = sim_read_qword(TheCPU.mem_ref);
-				if (edxeax == m)
-				{
-					EFLAGS |= EFLAGS_ZF;
-					m = ((uint64_t)rECX << 32) | rEBX;
-				} else {
-					EFLAGS &= ~EFLAGS_ZF;
-					rEDX = m >> 32;
-					rEAX = m & 0xffffffff;
-				}
-				sim_write_qword(TheCPU.mem_ref, m);
+				PC++; PC += ModRM(opc, PC, _mode);
+				Gen(O_SIM, _mode, 0x1c7, 1, P0);
 				break;
 				}
 
