@@ -728,15 +728,6 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode, signed char overr_ds, s
     } \
     __l; \
 })
-int _ModRMSim(unsigned int PC, int mode, signed char overr_ds, signed char overr_ss);
-/* always already after a CODE_FLUSH() */
-#define ModRMSim(p, m, ods, oss) ({ \
-    int __l = _ModRMSim(p, m, ods, oss); \
-    if (TheCPU.err2 == EXCP0D_GPF) { \
-        goto not_permitted_sim; \
-    } \
-    __l; \
-})
 int ModGetReg1(unsigned int PC, int mode);
 //
 char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg);
@@ -772,6 +763,9 @@ void mprot_init(void);
 void mprot_end(void);
 void prejit_sync(void);
 void init_emu_npu(void);
+
+unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
+			uint32_t *flags, unsigned int opc, unsigned int arg);
 
 void e_VgaMovs(dosaddr_t edi, dosaddr_t esi, unsigned int rep,
 	       int dp, unsigned int access);

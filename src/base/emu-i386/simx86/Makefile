@@ -14,7 +14,7 @@ ifeq ($(X86_JIT),1)
 JITFILES = codegen-x86.c fp87-x86.c sigsegv.c cpatch.c
 endif
 CFILES = interp.c cpu-emu.c modrm-gen.c $(JITFILES) \
-	codegen-sim.c fp87-sim.c modrm-sim.c protmode.c tables.c \
+	codegen-sim.c fp87-sim.c protmode.c tables.c \
 	codegen.c trees.c memory.c
 ALL_CPPFLAGS +=-I$(EM86DIR) $(EM86FLG)
 

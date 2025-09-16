@@ -756,6 +756,119 @@ static unsigned int _Interp86(unsigned int PC)
 	return 0;
 }
 
+/* This generic helper function is called from JIT generated code to
+ * simulate hard-to-compile and rarely used ops.
+ * parameters:
+ * mem_ref: linear address, passed via %edi in JIT
+ * data: loaded data, passed via %eax in JIT (instruction-dependent)
+ * mode: operand size, address size, etc.
+ * flags: pointer to EFLAGS (on stack in JIT)
+ * opc: original opcode, 0x1ab denotes 0x0f prefixed opcode 0xab (from IG->p0)
+ * arg: instruction-dependent argument passed via IG->p1 at compile time
+ * returns data (could be modified), so compiled code can write it back
+ */
+unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
+			uint32_t *flags, unsigned int opc, unsigned int arg)
+{
+	switch (opc) {
+/*62*/	case BOUND:    {
+			signed int lo, hi, r = data;
+			lo = DataGetWL_S(mode, mem_ref);
+			mem_ref += BT24(BitDATA16, mode);
+			hi = DataGetWL_S(mode, mem_ref);
+			if(r < lo || r > hi)
+			{
+				e_printf("Bound interrupt 05\n");
+				TheCPU.err2=EXCP05_BOUND;
+			}
+			break;
+		       }
+/*63*/	case ARPL:	{
+			unsigned short dest, src = data;
+			unsigned int reg3 = arg;
+			if (reg3) {
+				dest = CPUWORD(reg3);
+			} else {
+				dest = sim_read_word(mem_ref);
+			}
+			if ((dest & 3) < (src & 3)) {
+				*flags |= EFLAGS_ZF;
+				dest = (dest & ~3) | (src & 3);
+				if (reg3) {
+					CPUWORD(reg3) = dest;
+				} else {
+					sim_write_word(mem_ref, dest);
+				}
+			} else {
+				*flags &= ~EFLAGS_ZF;
+			}
+			break;
+			}
+/*d9*/	case ESC1:
+/*dd*/	case ESC5:
+			Fp87_op(arg, mode, mem_ref);
+			break;
+/*100*/	case 0x100: {	/* GRP6 - Extended Opcode 20 */
+			unsigned char opm = arg;
+			switch (opm) {
+			case 0: /* SLDT */
+			    data = TheCPU.LDT_SEL;
+			    break;
+			case 1: /* STR */
+			    /* Store Task Register */
+			    data = TheCPU.TR_SEL;
+			    break;
+			case 4:   /* VERR */
+			case 5: { /* VERW */
+			    unsigned short sv = data; int tmp;
+			    tmp = opm == 4 ? hsw_verr(sv) : hsw_verw(sv);
+			    *flags &= ~EFLAGS_ZF;
+			    if (tmp) *flags |= EFLAGS_ZF;
+			    }
+			    break;
+			    }
+			break;
+			}
+/*102*/	case 0x102:   /* LAR */ /* Load Access Rights Byte */
+/*103*/	case 0x103: { /* LSL */ /* Load Segment Limit */
+			unsigned short sv = data; int tmp;
+			if (!e_larlsl(mode, sv)) {
+			    *flags &= ~EFLAGS_ZF;
+			}
+			else {
+			    if (opc==0x102) {	/* LAR */
+				tmp = GetSelectorFlags(sv);
+				if (mode&DATA16) tmp &= 0xff;
+				tmp <<= 8;
+				if (tmp) SetFlagAccessed(sv);
+			    }
+			    else {		/* LSL */
+				tmp = GetSelectorByteLimit(sv);
+			    }
+			    *flags |= EFLAGS_ZF;
+			    SetCPU_WL(mode, arg, tmp);
+			} }
+			break;
+/*1c7*/	case 0x1c7: { /* Code Extension 23 - 01=CMPXCHG8B mem */
+			uint64_t edxeax, m;
+			edxeax = ((uint64_t)rEDX << 32) | rEAX;
+			m = sim_read_qword(mem_ref);
+			if (edxeax == m)
+			{
+				*flags |= EFLAGS_ZF;
+				m = ((uint64_t)rECX << 32) | rEBX;
+			} else {
+				*flags &= ~EFLAGS_ZF;
+				rEDX = m >> 32;
+				rEAX = m & 0xffffffff;
+			}
+			sim_write_qword(mem_ref, m);
+			break;
+			}
+	}
+	return data;
+}
+
 static unsigned int InterpOne(unsigned int PC, int basemode, int _flags)
 {
 	unsigned int P0 = PC;
@@ -977,48 +1090,19 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_NEG, _mode|MBYTE);
 			Gen(S_REG, _mode|MBYTE, Ofs_AL);
 			PC++; break;
-/*62*/	case BOUND:    {
-	  		signed int lo, hi, r;
+/*62*/	case BOUND:
 			if (Fetch(PC+1) >= 0xc0) {
 			    PC += 2; goto not_permitted;
 			}
-			CODE_FLUSH();
-			PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-			r = GetCPU_WL(_mode, REG1);
-			lo = DataGetWL_S(_mode,TheCPU.mem_ref);
-			TheCPU.mem_ref += BT24(BitDATA16, _mode);
-			hi = DataGetWL_S(_mode,TheCPU.mem_ref);
-			if(r < lo || r > hi)
-			{
-				e_printf("Bound interrupt 05\n");
-				TheCPU.err=EXCP05_BOUND;
-				return P0;
-			}
+			PC += ModRM(opc, PC, _mode);
+			Gen(L_REG, _mode, REG1);
+			Gen(O_SIM, _mode, opc, REG3, P0);
 			break;
-		       }
-/*63*/	case ARPL:     {
-			unsigned short dest, src;
-			CODE_FLUSH();
-			PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-			if (REG3) {
-				dest = CPUWORD(REG3);
-			} else {
-				dest = GetDWord(TheCPU.mem_ref);
-			}
-			src = GetCPU_WL(_mode, REG1);
-			if ((dest & 3) < (src & 3)) {
-				EFLAGS |= EFLAGS_ZF;
-				dest = (dest & ~3) | (src & 3);
-				if (REG3) {
-					CPUWORD(REG3) = dest;
-				} else {
-					WRITE_WORD(TheCPU.mem_ref, dest);
-				}
-			} else {
-				EFLAGS &= ~EFLAGS_ZF;
-			}
+/*63*/	case ARPL:
+			PC += ModRM(opc, PC, _mode);
+			Gen(L_REG, _mode|DATA16, REG1);
+			Gen(O_SIM, _mode, opc, REG3, P0);
 			break;
-		       }
 /*d7*/	case XLAT:
 			Gen(O_XLAT, _mode, OVERR_DS);
 			Gen(L_DI_R1, _mode|MBYTE);
@@ -2820,28 +2904,19 @@ repag0:
 			// D8 -> 00,08,10,18...38
 			// DF -> 07,0f,17,1f...3f
 			int exop = (b & 0x38) | (opc & 7);
-			int sim = 0;
 			if ((b&0xc0)==0xc0) {
 				exop |= 0x40;
 				PC += 2;
 			}
 			else {
-				if ((exop&0xeb)==0x21) {
-					CODE_FLUSH();
-					PC += ModRMSim(PC, _mode|NOFLDR, OVERR_DS, OVERR_SS);
-					b = _mode; sim=1;
-				}
-				else {
-					PC += ModRM(opc, PC, _mode|NOFLDR);
-				}
+				PC += ModRM(opc, PC, _mode|NOFLDR);
 			}
 			b &= 7;
 			if (Fp87_illegal_op(exop, b)) {
 				goto illegal_op;
 			}
-			if (sim) {
-			    Fp87_op(exop,b,TheCPU.mem_ref);
-			}
+			if ((exop&0xeb)==0x21)
+			    Gen(O_SIM, _mode, opc, exop, P0);
 			else
 			    Gen(O_FOP, _mode, exop, b);
 			}
@@ -2855,60 +2930,29 @@ repag0:
 				unsigned char opm = D_MO(Fetch(PC+2));
 				switch (opm) {
 				case 0: /* SLDT */
-				    if (REALMODE()) {
+				case 1: /* STR: Store Task Register */
+				    if (!PROTMODE()) {
 					PC += 3; goto illegal_op;
 				    }
-				    CODE_FLUSH();
-				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				    error("SLDT not implemented\n");
-				    break;
-				case 1: /* STR */
-				    /* Store Task Register */
-				    if (REALMODE()) {
-					PC += 3; goto illegal_op;
-				    }
-				    CODE_FLUSH();
-				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				    error("STR not implemented\n");
+				    PC++; PC += ModRM(opc, PC, _mode);
+				    Gen(O_SIM, _mode, 0x100, opm, P0);
+				    if (REG3)
+					Gen(S_REG, _mode, REG3);
+				    else
+					Gen(S_DI, _mode);
 				    break;
 				case 2: /* LLDT */
 				    /* Load Local Descriptor Table Register */
 				case 3: /* LTR */
 				    /* Load Task Register */
 				    PC += 3; goto not_permitted;
-				case 4: { /* VERR */
-				    unsigned short sv; int tmp;
+				case 4: /* VERR */
+				case 5: /* VERW */
 				    if (!PROTMODE()) {
 					PC += 3; goto illegal_op;
 				    }
-				    CODE_FLUSH();
-				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				    if (REG3) {
-					sv = CPUWORD(REG3);
-				    } else {
-					sv = GetDWord(TheCPU.mem_ref);
-				    }
-				    tmp = hsw_verr(sv);
-				    EFLAGS &= ~EFLAGS_ZF;
-				    if (tmp) EFLAGS |= EFLAGS_ZF;
-				    }
-				    break;
-				case 5: { /* VERW */
-				    unsigned short sv; int tmp;
-				    if (!PROTMODE()) {
-					PC += 3; goto illegal_op;
-				    }
-				    CODE_FLUSH();
-				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				    if (REG3) {
-					sv = CPUWORD(REG3);
-				    } else {
-					sv = GetDWord(TheCPU.mem_ref);
-				    }
-				    tmp = hsw_verw(sv);
-				    EFLAGS &= ~EFLAGS_ZF;
-				    if (tmp) EFLAGS |= EFLAGS_ZF;
-				    }
+				    PC++; PC += ModRM(opc, PC, _mode|DATA16|MLOAD);
+				    Gen(O_SIM, _mode, 0x100, opm, P0);
 				    break;
 				case 6: /* JMP indirect to IA64 code */
 				case 7: /* Illegal */
@@ -2947,34 +2991,12 @@ repag0:
 				break;
 
 			case 0x02:   /* LAR */ /* Load Access Rights Byte */
-			case 0x03: { /* LSL */ /* Load Segment Limit */
-				unsigned short sv; int tmp;
+			case 0x03:   /* LSL */ /* Load Segment Limit */
 				if (REALMODE()) {
 				    PC += 3; goto illegal_op;
 				}
-				CODE_FLUSH();
-				PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				if (REG3) {
-				    sv = CPUWORD(REG3);
-				} else {
-				    sv = GetDWord(TheCPU.mem_ref);
-				}
-				if (!e_larlsl(_mode, sv)) {
-				    EFLAGS &= ~EFLAGS_ZF;
-				}
-				else {
-				    if (opc2==0x02) {	/* LAR */
-					tmp = GetSelectorFlags(sv);
-					if (_mode&DATA16) tmp &= 0xff;
-					tmp <<= 8;
-					if (tmp) SetFlagAccessed(sv);
-				    }
-				    else {		/* LSL */
-					tmp = GetSelectorByteLimit(sv);
-				    }
-				    EFLAGS |= EFLAGS_ZF;
-				    SetCPU_WL(_mode, REG1, tmp);
-				} }
+				PC++; PC += ModRM(opc, PC, _mode|DATA16|MLOAD);
+				Gen(O_SIM, _mode, 0x100+opc2, REG1, P0);
 				break;
 
 			/* case 0x04:	LOADALL */
@@ -3334,26 +3356,13 @@ repag0:
 
 			/* case 0xc2-0xc6:	MMX */
 			case 0xc7: { /*	Code Extension 23 - 01=CMPXCHG8B mem */
-				uint64_t edxeax, m;
 				unsigned char modrm;
 				modrm = Fetch(PC+2);
 				if (D_MO(modrm) != 1 || D_HO(modrm) == 3) {
 					PC += 3; goto illegal_op;
 				}
-				CODE_FLUSH();
-				PC++; PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-				edxeax = ((uint64_t)rEDX << 32) | rEAX;
-				m = sim_read_qword(TheCPU.mem_ref);
-				if (edxeax == m)
-				{
-					EFLAGS |= EFLAGS_ZF;
-					m = ((uint64_t)rECX << 32) | rEBX;
-				} else {
-					EFLAGS &= ~EFLAGS_ZF;
-					rEDX = m >> 32;
-					rEAX = m & 0xffffffff;
-				}
-				sim_write_qword(TheCPU.mem_ref, m);
+				PC++; PC += ModRM(opc, PC, _mode);
+				Gen(O_SIM, _mode, 0x1c7, 1, P0);
 				break;
 				}
 
