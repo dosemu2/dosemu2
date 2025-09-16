@@ -804,6 +804,10 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			}
 			break;
 			}
+/*d9*/	case ESC1:
+/*dd*/	case ESC5:
+			Fp87_op(arg, mode, mem_ref);
+			break;
 	}
 	return data;
 }
@@ -2843,28 +2847,19 @@ repag0:
 			// D8 -> 00,08,10,18...38
 			// DF -> 07,0f,17,1f...3f
 			int exop = (b & 0x38) | (opc & 7);
-			int sim = 0;
 			if ((b&0xc0)==0xc0) {
 				exop |= 0x40;
 				PC += 2;
 			}
 			else {
-				if ((exop&0xeb)==0x21) {
-					CODE_FLUSH();
-					PC += ModRMSim(PC, _mode|NOFLDR, OVERR_DS, OVERR_SS);
-					b = _mode; sim=1;
-				}
-				else {
-					PC += ModRM(opc, PC, _mode|NOFLDR);
-				}
+				PC += ModRM(opc, PC, _mode|NOFLDR);
 			}
 			b &= 7;
 			if (Fp87_illegal_op(exop, b)) {
 				goto illegal_op;
 			}
-			if (sim) {
-			    Fp87_op(exop,b,TheCPU.mem_ref);
-			}
+			if ((exop&0xeb)==0x21)
+			    Gen(O_SIM, _mode, opc, exop, P0);
 			else
 			    Gen(O_FOP, _mode, exop, b);
 			}
