@@ -829,6 +829,26 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			    }
 			break;
 			}
+/*102*/	case 0x102:   /* LAR */ /* Load Access Rights Byte */
+/*103*/	case 0x103: { /* LSL */ /* Load Segment Limit */
+			unsigned short sv = data; int tmp;
+			if (!e_larlsl(mode, sv)) {
+			    *flags &= ~EFLAGS_ZF;
+			}
+			else {
+			    if (opc==0x102) {	/* LAR */
+				tmp = GetSelectorFlags(sv);
+				if (mode&DATA16) tmp &= 0xff;
+				tmp <<= 8;
+				if (tmp) SetFlagAccessed(sv);
+			    }
+			    else {		/* LSL */
+				tmp = GetSelectorByteLimit(sv);
+			    }
+			    *flags |= EFLAGS_ZF;
+			    SetCPU_WL(mode, arg, tmp);
+			} }
+			break;
 	}
 	return data;
 }
@@ -2955,34 +2975,12 @@ repag0:
 				break;
 
 			case 0x02:   /* LAR */ /* Load Access Rights Byte */
-			case 0x03: { /* LSL */ /* Load Segment Limit */
-				unsigned short sv; int tmp;
+			case 0x03:   /* LSL */ /* Load Segment Limit */
 				if (REALMODE()) {
 				    PC += 3; goto illegal_op;
 				}
-				CODE_FLUSH();
-				PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				if (REG3) {
-				    sv = CPUWORD(REG3);
-				} else {
-				    sv = GetDWord(TheCPU.mem_ref);
-				}
-				if (!e_larlsl(_mode, sv)) {
-				    EFLAGS &= ~EFLAGS_ZF;
-				}
-				else {
-				    if (opc2==0x02) {	/* LAR */
-					tmp = GetSelectorFlags(sv);
-					if (_mode&DATA16) tmp &= 0xff;
-					tmp <<= 8;
-					if (tmp) SetFlagAccessed(sv);
-				    }
-				    else {		/* LSL */
-					tmp = GetSelectorByteLimit(sv);
-				    }
-				    EFLAGS |= EFLAGS_ZF;
-				    SetCPU_WL(_mode, REG1, tmp);
-				} }
+				PC++; PC += ModRM(opc, PC, _mode|DATA16|MLOAD);
+				Gen(O_SIM, _mode, 0x100+opc2, REG1, P0);
 				break;
 
 			/* case 0x04:	LOADALL */
