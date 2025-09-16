@@ -771,6 +771,18 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			uint32_t *flags, unsigned int opc, unsigned int arg)
 {
 	switch (opc) {
+/*62*/	case BOUND:    {
+			signed int lo, hi, r = data;
+			lo = DataGetWL_S(mode, mem_ref);
+			mem_ref += BT24(BitDATA16, mode);
+			hi = DataGetWL_S(mode, mem_ref);
+			if(r < lo || r > hi)
+			{
+				e_printf("Bound interrupt 05\n");
+				TheCPU.err2=EXCP05_BOUND;
+			}
+			break;
+		       }
 /*63*/	case ARPL:	{
 			unsigned short dest, src = data;
 			unsigned int reg3 = arg;
@@ -1017,25 +1029,14 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_NEG, _mode|MBYTE);
 			Gen(S_REG, _mode|MBYTE, Ofs_AL);
 			PC++; break;
-/*62*/	case BOUND:    {
-	  		signed int lo, hi, r;
+/*62*/	case BOUND:
 			if (Fetch(PC+1) >= 0xc0) {
 			    PC += 2; goto not_permitted;
 			}
-			CODE_FLUSH();
-			PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-			r = GetCPU_WL(_mode, REG1);
-			lo = DataGetWL_S(_mode,TheCPU.mem_ref);
-			TheCPU.mem_ref += BT24(BitDATA16, _mode);
-			hi = DataGetWL_S(_mode,TheCPU.mem_ref);
-			if(r < lo || r > hi)
-			{
-				e_printf("Bound interrupt 05\n");
-				TheCPU.err=EXCP05_BOUND;
-				return P0;
-			}
+			PC += ModRM(opc, PC, _mode);
+			Gen(L_REG, _mode, REG1);
+			Gen(O_SIM, _mode, opc, REG3, P0);
 			break;
-		       }
 /*63*/	case ARPL:
 			PC += ModRM(opc, PC, _mode);
 			Gen(L_REG, _mode|DATA16, REG1);
