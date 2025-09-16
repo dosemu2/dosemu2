@@ -818,7 +818,15 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			    /* Store Task Register */
 			    data = TheCPU.TR_SEL;
 			    break;
-			}
+			case 4:   /* VERR */
+			case 5: { /* VERW */
+			    unsigned short sv = data; int tmp;
+			    tmp = opm == 4 ? hsw_verr(sv) : hsw_verw(sv);
+			    *flags &= ~EFLAGS_ZF;
+			    if (tmp) *flags |= EFLAGS_ZF;
+			    }
+			    break;
+			    }
 			break;
 			}
 	}
@@ -2902,39 +2910,13 @@ repag0:
 				case 3: /* LTR */
 				    /* Load Task Register */
 				    PC += 3; goto not_permitted;
-				case 4: { /* VERR */
-				    unsigned short sv; int tmp;
+				case 4: /* VERR */
+				case 5: /* VERW */
 				    if (!PROTMODE()) {
 					PC += 3; goto illegal_op;
 				    }
-				    CODE_FLUSH();
-				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				    if (REG3) {
-					sv = CPUWORD(REG3);
-				    } else {
-					sv = GetDWord(TheCPU.mem_ref);
-				    }
-				    tmp = hsw_verr(sv);
-				    EFLAGS &= ~EFLAGS_ZF;
-				    if (tmp) EFLAGS |= EFLAGS_ZF;
-				    }
-				    break;
-				case 5: { /* VERW */
-				    unsigned short sv; int tmp;
-				    if (!PROTMODE()) {
-					PC += 3; goto illegal_op;
-				    }
-				    CODE_FLUSH();
-				    PC += ModRMSim(PC+1, _mode, OVERR_DS, OVERR_SS) + 1;
-				    if (REG3) {
-					sv = CPUWORD(REG3);
-				    } else {
-					sv = GetDWord(TheCPU.mem_ref);
-				    }
-				    tmp = hsw_verw(sv);
-				    EFLAGS &= ~EFLAGS_ZF;
-				    if (tmp) EFLAGS |= EFLAGS_ZF;
-				    }
+				    PC++; PC += ModRM(opc, PC, _mode|DATA16|MLOAD);
+				    Gen(O_SIM, _mode, 0x100, opm, P0);
 				    break;
 				case 6: /* JMP indirect to IA64 code */
 				case 7: /* Illegal */
