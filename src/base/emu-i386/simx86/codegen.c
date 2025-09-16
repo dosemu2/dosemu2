@@ -368,6 +368,12 @@ void Gen(int op, int mode, ...)
 			IG->p2 = shc;
 		} break;
 
+	case O_SIM:		// opc, arg, P0
+		IG->p0 = va_arg(ap,unsigned int);
+		IG->p1 = va_arg(ap,unsigned int);
+		IG->p2 = va_arg(ap,unsigned int);
+		break;
+
 	case JMP_INDIRECT:
 		break;
 

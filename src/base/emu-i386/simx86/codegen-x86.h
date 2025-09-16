@@ -125,5 +125,6 @@ int Cpatch(sigcontext_t *scp);
 int UnCpatch(unsigned char *eip);
 void Cpatch_init(void);
 int Ofs_SetSegProt(void);
+int Ofs_SimHelper(void);
 
 #endif

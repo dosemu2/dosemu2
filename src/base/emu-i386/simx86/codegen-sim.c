@@ -2125,6 +2125,16 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		}
 		break;
 
+	case O_SIM: {
+		uint32_t flags = FlagSync_All();
+		DR1.d = Sim_helper(mem_ref, DR1.d, mode,
+				   &flags, IG->p0, IG->p1);
+		FlagSync_RFL(flags);
+		if (TheCPU.err2)
+			P0 = IG->p2;
+		break;
+		}
+
 	case O_MOVS_MovD: {
 		wkreg SR1, DR2, AR1, AR2;
 		unsigned int i;

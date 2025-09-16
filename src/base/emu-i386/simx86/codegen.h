@@ -136,6 +136,8 @@
 #define O_POP3		91
 #define O_LEAVE		92
 
+#define O_SIM		100
+
 #define O_MOVS_MovD	101
 #define O_MOVS_SavA	102
 #define O_MOVS_LodD	103

@@ -773,6 +773,9 @@ void mprot_end(void);
 void prejit_sync(void);
 void init_emu_npu(void);
 
+unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
+			uint32_t *flags, unsigned int opc, unsigned int arg);
+
 void e_VgaMovs(dosaddr_t edi, dosaddr_t esi, unsigned int rep,
 	       int dp, unsigned int access);
 

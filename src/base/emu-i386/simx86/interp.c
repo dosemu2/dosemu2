@@ -756,6 +756,46 @@ static unsigned int _Interp86(unsigned int PC)
 	return 0;
 }
 
+/* This generic helper function is called from JIT generated code to
+ * simulate hard-to-compile and rarely used ops.
+ * parameters:
+ * mem_ref: linear address, passed via %edi in JIT
+ * data: loaded data, passed via %eax in JIT (instruction-dependent)
+ * mode: operand size, address size, etc.
+ * flags: pointer to EFLAGS (on stack in JIT)
+ * opc: original opcode, 0x1ab denotes 0x0f prefixed opcode 0xab (from IG->p0)
+ * arg: instruction-dependent argument passed via IG->p1 at compile time
+ * returns data (could be modified), so compiled code can write it back
+ */
+unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
+			uint32_t *flags, unsigned int opc, unsigned int arg)
+{
+	switch (opc) {
+/*63*/	case ARPL:	{
+			unsigned short dest, src = data;
+			unsigned int reg3 = arg;
+			if (reg3) {
+				dest = CPUWORD(reg3);
+			} else {
+				dest = sim_read_word(mem_ref);
+			}
+			if ((dest & 3) < (src & 3)) {
+				*flags |= EFLAGS_ZF;
+				dest = (dest & ~3) | (src & 3);
+				if (reg3) {
+					CPUWORD(reg3) = dest;
+				} else {
+					sim_write_word(mem_ref, dest);
+				}
+			} else {
+				*flags &= ~EFLAGS_ZF;
+			}
+			break;
+			}
+	}
+	return data;
+}
+
 static unsigned int InterpOne(unsigned int PC, int basemode, int _flags)
 {
 	unsigned int P0 = PC;
@@ -996,29 +1036,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			break;
 		       }
-/*63*/	case ARPL:     {
-			unsigned short dest, src;
-			CODE_FLUSH();
-			PC += ModRMSim(PC, _mode, OVERR_DS, OVERR_SS);
-			if (REG3) {
-				dest = CPUWORD(REG3);
-			} else {
-				dest = GetDWord(TheCPU.mem_ref);
-			}
-			src = GetCPU_WL(_mode, REG1);
-			if ((dest & 3) < (src & 3)) {
-				EFLAGS |= EFLAGS_ZF;
-				dest = (dest & ~3) | (src & 3);
-				if (REG3) {
-					CPUWORD(REG3) = dest;
-				} else {
-					WRITE_WORD(TheCPU.mem_ref, dest);
-				}
-			} else {
-				EFLAGS &= ~EFLAGS_ZF;
-			}
+/*63*/	case ARPL:
+			PC += ModRM(opc, PC, _mode);
+			Gen(L_REG, _mode|DATA16, REG1);
+			Gen(O_SIM, _mode, opc, REG3, P0);
 			break;
-		       }
 /*d7*/	case XLAT:
 			Gen(O_XLAT, _mode, OVERR_DS);
 			Gen(L_DI_R1, _mode|MBYTE);

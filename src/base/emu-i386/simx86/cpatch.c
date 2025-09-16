@@ -560,6 +560,7 @@ enum {
 	STUB_READ_16,
 	STUB_READ_32,
 	STUB_SETSEGPROT,
+	STUB_SIMHELPER,
 	STUBS_LEN
 };
 static_assert(STUBS_LEN <= STUBS_LEN_MAX);
@@ -581,6 +582,11 @@ typedef void (*stubfunc_t)(void);
 int Ofs_SetSegProt(void)
 {
 	return Ofs_stub(STUB_SETSEGPROT);
+}
+
+int Ofs_SimHelper(void)
+{
+	return Ofs_stub(STUB_SIMHELPER);
 }
 
 /* call N(%ebx) */
@@ -763,6 +769,7 @@ void Cpatch_init(void)
     TheCPU_struct.stub_func[STUB_READ_16] = stub_read_16;
     TheCPU_struct.stub_func[STUB_READ_32] = stub_read_32;
     TheCPU_struct.stub_func[STUB_SETSEGPROT] = (stubfunc_t)SetSegProt_helper;
+    TheCPU_struct.stub_func[STUB_SIMHELPER] = (stubfunc_t)Sim_helper;
 }
 
 /* ======================================================================= */
