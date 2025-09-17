@@ -231,8 +231,6 @@ void Gen(int op, int mode, ...)
 	case O_MOVS_ScaD:
 	case O_MOVS_CmpD:
 	case O_RDTSC:
-	case O_INPDX:
-	case O_OUTPDX:
 		break;
 
 	case L_REG:

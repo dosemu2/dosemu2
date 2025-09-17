@@ -2700,41 +2700,6 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		}
 		break;
 
-	case O_INPDX: {
-		wkreg DR2;
-		GTRACE0("O_INPDX");
-		DR2.d = CPULONG(Ofs_EDX);
-		if (mode&MBYTE) {
-			DR1.b.bl = port_inb(DR2.w.l);
-			CPUBYTE(Ofs_AL) = DR1.b.bl;
-		}
-		else if (mode & DATA16) {
-			DR1.w.l = port_inw(DR2.w.l);
-			CPUWORD(Ofs_AX) = DR1.w.l;
-		}
-		else {
-			DR1.d = port_ind(DR2.w.l);
-			CPULONG(Ofs_EAX) = DR1.d;
-		} }
-		break;
-	case O_OUTPDX: {
-		wkreg DR2;
-		GTRACE0("O_OUTPDX");
-		DR2.d = CPULONG(Ofs_EDX);
-		if (mode&MBYTE) {
-			DR1.b.bl = CPUBYTE(Ofs_AL);
-			port_outb(DR2.w.l,DR1.b.bl);
-		}
-		else if (mode & DATA16) {
-			DR1.w.l = CPUWORD(Ofs_AX);
-			port_outw(DR2.w.l,DR1.w.l);
-		}
-		else {
-			DR1.d = CPULONG(Ofs_EAX);
-			port_outd(DR2.w.l,DR1.d);
-		} }
-		break;
-
 	case JMP_TAILCODE: {	// retaddr
 		P0 = (unsigned int)IG->p0;
 		if (debug_level('e')>2) {
