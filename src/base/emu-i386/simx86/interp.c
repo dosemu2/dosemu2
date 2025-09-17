@@ -811,7 +811,7 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			if (!test_ioperm(a)) goto not_permitted_sim;
 			rd = (mode&ADDR16? rDI:rEDI);
 			sim_write_byte(LONG_ES+rd, port_inb(a));
-			if (*flags & EFLAGS_DF) rd--; else rd++;
+			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			} break;
 /*ec*/	case INvb: {
@@ -842,7 +842,7 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			else {
 				sim_write_dword(LONG_ES+rd, port_ind(rDX)); dp=4;
 			}
-			if (*flags & EFLAGS_DF) rd-=dp; else rd+=dp;
+			if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			} break;
 /*ed*/	case INvw:
@@ -863,7 +863,7 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			if (!test_ioperm(a)) goto not_permitted_sim;
 			rs = (mode&ADDR16? rSI:rESI);
 			port_outb(a,sim_read_byte(LONG_DS+rs));
-			if (*flags & EFLAGS_DF) rs--; else rs++;
+			if (EFLAGS & EFLAGS_DF) rs--; else rs++;
 			if (mode&ADDR16) rSI=rs; else rESI=rs;
 			} break;
 /*ee*/	case OUTvb: {
