@@ -146,11 +146,6 @@
 #define O_MOVS_CmpD	106
 #define O_RDTSC		107
 
-#define O_INPDX		108
-#define O_INPPC		109
-#define O_OUTPDX	110
-#define O_OUTPPC	111
-
 #define JMP_TAILCODE	112
 
 #define JMP_INDIRECT	113

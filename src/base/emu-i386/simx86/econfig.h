@@ -70,8 +70,6 @@
 #define CLEAN_SPEED(n)	(((n)<<2)+1)
 #define AGENODE		CreationIndex
 
-#undef	TRAP_RETRACE
-
 /* If you undefine this, in 16-bit stack mode the high 16 bits of ESP
  * will be zeroed after every push/pop operation. There's a small
  * possibility of breaking some code, you can easily figure out how.

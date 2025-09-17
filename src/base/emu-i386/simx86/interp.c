@@ -804,6 +804,103 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			}
 			break;
 			}
+/*6c*/	case INSb: {
+			unsigned short a;
+			unsigned int rd;
+			a = rDX;
+			if (!test_ioperm(a)) goto not_permitted_sim;
+			rd = (mode&ADDR16? rDI:rEDI);
+			sim_write_byte(LONG_ES+rd, port_inb(a));
+			if (*flags & EFLAGS_DF) rd--; else rd++;
+			if (mode&ADDR16) rDI=rd; else rEDI=rd;
+			} break;
+/*ec*/	case INvb: {
+			unsigned short a = rDX;
+			int uc;
+			if ((CEmuStat & CeS_INSTREMU) &&
+			    (uc=VGA_emulate_inb(a, NULL)) != -1) {
+				rAL = uc;
+				break;
+			}
+			if (!test_ioperm(a)) goto not_permitted_sim;
+			rAL = port_inb(a);
+			}
+			break;
+/*e4*/	case INb: {
+			unsigned short a = arg;
+			if (!test_ioperm(a)) goto not_permitted_sim;
+			rAL = port_inb(a);
+			} break;
+/*6d*/	case INSw: {
+			unsigned int rd;
+			int dp;
+			if (!test_ioperm(rDX)) goto not_permitted_sim;
+			rd = (mode&ADDR16? rDI:rEDI);
+			if (mode&DATA16) {
+				sim_write_word(LONG_ES+rd, port_inw(rDX)); dp=2;
+			}
+			else {
+				sim_write_dword(LONG_ES+rd, port_ind(rDX)); dp=4;
+			}
+			if (*flags & EFLAGS_DF) rd-=dp; else rd+=dp;
+			if (mode&ADDR16) rDI=rd; else rEDI=rd;
+			} break;
+/*ed*/	case INvw:
+			if (!test_ioperm(rDX)) goto not_permitted_sim;
+			if (mode&DATA16) rAX = port_inw(rDX);
+			else rEAX = port_ind(rDX);
+			break;
+/*e5*/	case INw: {
+			unsigned short a = arg;
+			if (!test_ioperm(a)) goto not_permitted_sim;
+			if (mode&DATA16) rAX = port_inw(a);
+			else rEAX = port_ind(a);
+			} break;
+
+/*6e*/	case OUTSb: {
+			unsigned short a = rDX;
+			unsigned long rs;
+			if (!test_ioperm(a)) goto not_permitted_sim;
+			rs = (mode&ADDR16? rSI:rESI);
+			port_outb(a,sim_read_byte(LONG_DS+rs));
+			if (*flags & EFLAGS_DF) rs--; else rs++;
+			if (mode&ADDR16) rSI=rs; else rESI=rs;
+			} break;
+/*ee*/	case OUTvb: {
+			unsigned short a = rDX;
+			/* Note that we short circuit for vgaemu planar */
+			if ((CEmuStat & CeS_INSTREMU) &&
+			    VGA_emulate_outb(a, rAL, NULL) != -1) {
+				break;
+			}
+			if (!test_ioperm(a)) goto not_permitted_sim;
+			port_outb(a,rAL);
+			}
+			break;
+/*e6*/	case OUTb:  {
+			unsigned short a = arg;
+			if (!test_ioperm(a)) goto not_permitted_sim;
+			port_outb(a,rAL);
+			} break;
+/*ef*/	case OUTvw: {
+			unsigned short a;
+			a = rDX;
+			if ((CEmuStat & CeS_INSTREMU) &&
+			    VGA_emulate_outb(a, rAL, NULL) != -1 &&
+			    VGA_emulate_outb(a+1, rAH, NULL) != -1) {
+				break;
+			}
+			if (!test_ioperm(a)) goto not_permitted_sim;
+			if (mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
+			}
+			break;
+
+/*e7*/	case OUTw:  {
+			unsigned short a = arg;
+			if (!test_ioperm(a)) goto not_permitted_sim;
+			if (mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
+			} break;
+
 /*d9*/	case ESC1:
 /*dd*/	case ESC5:
 			Fp87_op(arg, mode, mem_ref);
@@ -866,6 +963,11 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			break;
 			}
 	}
+	return data;
+
+not_permitted_sim:
+	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
+	TheCPU.err2 = EXCP0D_GPF;
 	return data;
 }
 
@@ -2694,201 +2796,26 @@ repag0:
 			}
 			break;
 
-/*6c*/	case INSb: {
-			unsigned short a;
-			unsigned int rd;
-			CODE_FLUSH();
-			a = rDX;
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			rd = (_mode&ADDR16? rDI:rEDI);
-			WRITE_BYTE(LONG_ES+rd, port_inb(a));
-			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
-			if (_mode&ADDR16) rDI=rd; else rEDI=rd;
-			PC++; } break;
-/*ec*/	case INvb: {
-			unsigned short a;
-			int uc;
-			CODE_FLUSH();
-			a = rDX;
-			if ((CEmuStat & CeS_INSTREMU) &&
-			    (uc=VGA_emulate_inb(a, NULL)) != -1) {
-				rAL = uc;
-				PC++;
-				break;
-			}
-#ifdef TRAP_RETRACE
-			if (a==0x3da) {		// video retrace bits
-			    /* bit 0 = DE  bit 3 = VR
-			     * display=0 hor.retr.=1 ver.retr.=9 */
-			    int c1 = *((int *)(PC+1));
-			    int c2 = *((int *)(PC+5));
-			    int tp = test_ioperm(a) & 1;
-			    dbug_printf("IN 3DA %08lx %08lx PP=%d\n",c1,c2,tp);
-			    if (c1==0xfb7408a8) {
-				// 74 fb = wait for VR==1
-				if (tp==0) set_ioperm(a,1,1);
-				while (((rAL=port_inb(a))&8)==0);
-				if (tp==0) set_ioperm(a,1,0);
-				PC+=5; break;
-			    }
-			    //else if (c1==0xfb7508a8) {
-				// 75 fb = wait for VR==0
-			    //}
-			    //else if (c1==0xfbe008a8) {
-				// e0 fb = loop while VR==1
-				//unsigned int rcx = _mode&DATA16? rCX:rECX;
-				//if (tp==0) set_ioperm(a,1,1);
-				//while ((((rAL=port_inb(a))&8)!=0) && rcx)
-				//    rcx--;
-				//if (tp==0) set_ioperm(a,1,0);
-				//if (_mode&DATA16) rCX=rcx; else rECX=rcx;
-				//PC+=5; break;
-			    //}
-			    else if (c1==0xfbe108a8) {
-				// e1 fb = loop while VR==0
-				unsigned int rcx = _mode&DATA16? rCX:rECX;
-				if (tp==0) set_ioperm(a,1,1);
-				while ((((rAL=port_inb(a))&8)==0) && rcx)
-				    rcx--;
-				if (tp==0) set_ioperm(a,1,0);
-				if (_mode&DATA16) rCX=rcx; else rECX=rcx;
-				PC+=5; break;
-			    }
-			    else if (((c1&0xfffff6ff)==0xc0080024) &&
-				((c2&0xfffffffe)==0xf4eb0274)) {
-				// 74 02 eb f4 = wait for HR,VR==0
-				// 75 02 eb f4 = wait for HR,VR==1
-				unsigned char amk = Fetch(PC+1);
-				if (amk==8) {
-				    if (tp==0) set_ioperm(a,1,1);
-				    if (PC[5]&1)
-					while (((rAL=port_inb(a))&amk)==0);
-				    else
-					while (((rAL=port_inb(a))&amk)!=0);
-				    if (tp==0) set_ioperm(a,1,0);
-				}
-				else
-				    rAL = (PC[5]&1? amk:0);
-				PC+=9; break;
-			    }
-			}
-#endif
-			if (!test_ioperm(a)) goto not_permitted_sim;
-#ifdef CPUEMU_DIRECT_IO
-			Gen(O_INPDX, _mode|MBYTE);
-#else
-			rAL = port_inb(a);
-#endif
-			}
-			PC++; break;
-/*e4*/	case INb: {
-			unsigned short a;
-			CODE_FLUSH();
-			/* there's no reason to compile this, as most of
-			 * the ports under 0x100 are emulated by dosemu */
-			a = Fetch(PC+1);
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			rAL = port_inb(a);
-			PC += 2; } break;
-/*6d*/	case INSw: {
-			unsigned int rd;
-			int dp;
-			CODE_FLUSH();
-			if (!test_ioperm(rDX)) goto not_permitted_sim;
-			rd = (_mode&ADDR16? rDI:rEDI);
-			if (_mode&DATA16) {
-				WRITE_WORD(LONG_ES+rd, port_inw(rDX)); dp=2;
-			}
-			else {
-				WRITE_DWORD(LONG_ES+rd, port_ind(rDX)); dp=4;
-			}
-			if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
-			if (_mode&ADDR16) rDI=rd; else rEDI=rd;
-			PC++; } break;
-/*ed*/	case INvw: {
-			CODE_FLUSH();
-			if (!test_ioperm(rDX)) goto not_permitted_sim;
-			if (_mode&DATA16) rAX = port_inw(rDX);
-			else rEAX = port_ind(rDX);
-			} PC++; break;
-/*e5*/	case INw: {
-			unsigned short a;
-			CODE_FLUSH();
-			a = Fetch(PC+1);
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			if (_mode&DATA16) rAX = port_inw(a);
-			else rEAX = port_ind(a);
-			PC += 2; } break;
+/*6c*/	case INSb:
+/*6d*/	case INSw:
+/*6e*/	case OUTSb:
+/*ec*/	case INvb:
+/*ed*/	case INvw:
+/*ee*/	case OUTvb:
+/*ef*/	case OUTvw:
+			Gen(O_SIM, _mode, opc, 0, P0);
+			PC++;
+			break;
+/*e4*/	case INb:
+/*e5*/	case INw:
+/*e6*/	case OUTb:
+/*e7*/	case OUTw:
+			Gen(O_SIM, _mode, opc, Fetch(PC+1), P0);
+			PC += 2;
+			break;
 
-/*6e*/	case OUTSb: {
-			unsigned short a;
-			unsigned long rs;
-			CODE_FLUSH();
-			a = rDX;
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			rs = (_mode&ADDR16? rSI:rESI);
-			do {
-			    port_outb(a,Fetch(LONG_DS+rs));
-			    if (EFLAGS & EFLAGS_DF) rs--; else rs++;
-			    PC++;
-			} while (Fetch(PC)==OUTSb);
-			if (_mode&ADDR16) rSI=rs; else rESI=rs;
-			} break;
-/*ee*/	case OUTvb: {
-			unsigned short a;
-			CODE_FLUSH();
-			a = rDX;
-			/* Note that we short circuit for vgaemu planar */
-			if ((CEmuStat & CeS_INSTREMU) &&
-			    VGA_emulate_outb(a, rAL, NULL) != -1) {
-				PC++;
-				break;
-			}
-			if (!test_ioperm(a)) goto not_permitted_sim;
-#ifdef CPUEMU_DIRECT_IO
-			Gen(O_OUTPDX, _mode|MBYTE);
-#else
-			port_outb(a,rAL);
-#endif
-			}
-			PC++; break;
-/*e6*/	case OUTb:  {
-			unsigned short a;
-			CODE_FLUSH();
-			a = Fetch(PC+1);
-			/* there's no reason to compile this, as most of
-			 * the ports under 0x100 are emulated by dosemu */
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			port_outb(a,rAL);
-			PC += 2; } break;
 /*6f*/	case OUTSw:
 			PC++; goto not_permitted;
-/*ef*/	case OUTvw: {
-			unsigned short a;
-			CODE_FLUSH();
-			a = rDX;
-			if ((CEmuStat & CeS_INSTREMU) &&
-			    VGA_emulate_outb(a, rAL, NULL) != -1 &&
-			    VGA_emulate_outb(a+1, rAH, NULL) != -1) {
-				PC++;
-				break;
-			}
-			if (!test_ioperm(a)) goto not_permitted_sim;
-#ifdef CPUEMU_DIRECT_IO
-			Gen(O_OUTPDX, _mode);
-#else
-			if (_mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
-#endif
-			}
-			PC++; break;
-
-/*e7*/	case OUTw:  {
-			unsigned short a;
-			CODE_FLUSH();
-			a = Fetch(PC+1);
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			if (_mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
-			PC += 2; } break;
 
 /*d8*/	case ESC0:
 /*d9*/	case ESC1:
@@ -3412,9 +3339,6 @@ repag0:
 not_permitted:
 	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
 	return ExceptionGen(PC, _mode, EXCP0D_GPF, 0, P0, _flags);
-not_permitted_sim:
-	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
-	TheCPU.err = EXCP0D_GPF; return P0;
 //div_by_zero:
 //	dbug_printf("!!! Div by 0 %02x\n",opc);
 //	TheCPU.err = -6; return P0;

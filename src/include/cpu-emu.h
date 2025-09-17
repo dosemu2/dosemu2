@@ -33,16 +33,6 @@ extern void e_priv_iopl(int);
 #define SKIP_VM86_TRACE
 #endif
 
-/* If you set this to 1, some I/O instructions will be compiled in,
- * otherwise all I/O will be interpreted.
- * Because of fault overhead, only instructions which access an
- * untrapped port will be allowed to compile. This is not 100% safe
- * since DX can dynamically change.
- */
-#if 0
-#define CPUEMU_DIRECT_IO
-#endif
-
 #if defined(__x86_64__) || defined(__i386__)
 #define HOST_ARCH_X86
 #endif

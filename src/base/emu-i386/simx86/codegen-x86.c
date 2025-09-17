@@ -2244,35 +2244,6 @@ shrot0:
 		}
 		break;
 
-	case O_INPDX:
-		// movl Ofs_EDX(%%ebx),%%edx
-		G3M(0x8b,0x53,Ofs_EDX,Cp);
-		if (mode&MBYTE) {
-			// inb (%%dx),%%al; movb %%al,Ofs_AL(%%ebx)
-			G4M(0xec,0x88,0x43,Ofs_AL,Cp);
-		}
-		else {
-			// in{wl} (%%dx),%%{e}ax
-			Gen66(mode,Cp);	G1(0xed,Cp);
-			// mov{wl} %%{e}ax,Ofs_EAX(%%ebx)
-			Gen66(mode,Cp);	G3M(0x89,0x43,Ofs_EAX,Cp);
-		}
-		break;
-	case O_OUTPDX:
-		// movl Ofs_EDX(%%ebx),%%edx
-		G3M(0x8b,0x53,Ofs_EDX,Cp);
-		if (mode&MBYTE) {
-			// movb Ofs_AL(%%ebx),%%al; outb %%al,(%%dx)
-			G4M(0x8a,0x43,Ofs_AL,0xee,Cp);
-		}
-		else {
-			// movl Ofs_EAX(%%ebx),%%eax
-			G3M(0x8b,0x43,Ofs_EAX,Cp);
-			// out{wl} %%{e}ax,(%%dx)
-			Gen66(mode,Cp);	G1(0xef,Cp);
-		}
-		break;
-
 	case JMP_TAILCODE:
 		/* copy tail instructions to the end of the code block */
 		GNX(Cp, TailCode, TAILSIZE);
