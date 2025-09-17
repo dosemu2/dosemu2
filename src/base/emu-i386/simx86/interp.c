@@ -816,6 +816,23 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			}
 			break;
 			}
+/*c8*/	case ENTER: {
+			// This simulates only the middle part for level >=2
+			unsigned int bp;
+			int level, ds;
+			level = arg;
+			assert(level > 1); // level 0 and 1 are compiled
+			ds = BT24(BitDATA16, mode);
+			bp = rEBP & TheCPU.StackMask;
+			while (--level) {
+				bp -= ds;
+				bp &= TheCPU.StackMask;
+				PUSH(mode, (mode&DATA16) ?
+				     sim_read_word(LONG_SS + bp) :
+				     sim_read_dword(LONG_SS + bp));
+			}
+			}
+			break;
 /*6c*/	case INSb: {
 			unsigned short a;
 			unsigned int rd;
@@ -2022,48 +2039,27 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			INC_WL_PC(_mode,0);
 			break;
 /*c8*/	case ENTER: {
-			unsigned int sp, bp, frm;
-			int level, ds;
-			level = Fetch(PC+3) & 0x1f;
-			if (level <= 1) {
-				int allocsize = FetchW(PC+1);
-				Gen(L_REG, _mode, Ofs_EBP);
+			int allocsize = FetchW(PC+1);
+			int level = Fetch(PC+3) & 0x1f;
+			Gen(L_REG, _mode, Ofs_EBP);
+			Gen(O_PUSH, _mode);
+			if (level >= 1) {
+				Gen(L_REG, _mode, Ofs_ESP);
+				if (level >= 2)
+					Gen(O_SIM, _mode, opc, level, P0);
 				Gen(O_PUSH, _mode);
-				if (level == 1) {
-					Gen(L_REG, _mode, Ofs_ESP);
-					Gen(O_PUSH, _mode);
-					Gen(S_REG, _mode, Ofs_EBP);
-				}
-				else {
-					Gen(L_REG2REG, _mode, Ofs_ESP, Ofs_EBP);
-				}
-				// subtract AllocSize from ESP via
-				// "lea -allocsize(%esp), %esp"
-				if (allocsize) {
-					AddrGen(A_DI_1,
-						_mode|MLEA|((_mode&DATA16)?ADDR16:0)|IMMED,
-						0, -allocsize, Ofs_ESP);
-					Gen(S_DI_R, _mode, Ofs_ESP);
-				}
+				Gen(S_REG, _mode, Ofs_EBP);
 			}
 			else {
-				CODE_FLUSH();
-				ds = BT24(BitDATA16, _mode);
-				sp = LONG_SS + ((rESP - ds) & TheCPU.StackMask);
-				bp = LONG_SS + (rEBP & TheCPU.StackMask);
-				PUSH(_mode, rEBP);
-				frm = sp - LONG_SS;
-				sp -= ds*level;
-				while (--level) {
-					bp -= ds;
-					PUSH(_mode, (_mode&DATA16) ?
-					     READ_WORD(bp) : READ_DWORD(bp));
-				}
-				PUSH(_mode, frm);
-				if (_mode&DATA16) rBP = frm; else rEBP = frm;
-				sp -= FetchW(PC+1);
-				temp = sp - LONG_SS;
-				rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
+				Gen(L_REG2REG, _mode, Ofs_ESP, Ofs_EBP);
+			}
+			// subtract AllocSize from ESP via
+			// "lea -allocsize(%esp), %esp"
+			if (allocsize) {
+				AddrGen(A_DI_1,
+					_mode|MLEA|((_mode&DATA16)?ADDR16:0)|IMMED,
+					0, -allocsize, Ofs_ESP);
+				Gen(S_DI_R, _mode, Ofs_ESP);
 			}
 			PC += 4; }
 			break;
