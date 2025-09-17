@@ -771,6 +771,18 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			uint32_t *flags, unsigned int opc, unsigned int arg)
 {
 	switch (opc) {
+/*9c*/	case PUSHF:    { /* flag handling for VME-case only,
+			    not used presently with IOPL==3 */
+			unsigned int temp;
+			assert(V86MODE() && IOPL<3 && (TheCPU.cr[4] & CR4_VME));
+			temp = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
+			data = (temp|IOPL_MASK) & RETURN_MASK;
+			if (temp & VIF) data |= EFLAGS_IF;
+			if (debug_level('e')>1)
+				e_printf("Pushing flags %08x fl=%08x\n",
+					 data,temp);
+			break;
+		       }
 /*62*/	case BOUND:    {
 			signed int lo, hi, r = data;
 			lo = DataGetWL_S(mode, mem_ref);
@@ -1154,13 +1166,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    /* virtual-8086 monitor */
 			    if (!(TheCPU.cr[4] & CR4_VME))
 				goto not_permitted;	/* GPF */
-			    CODE_FLUSH();
-			    temp = (EFLAGS|IOPL_MASK) & RETURN_MASK;
-			    if (EFLAGS & VIF) temp |= EFLAGS_IF;
-			    PUSH(_mode, temp);
-			    if (debug_level('e')>1)
-				e_printf("Pushed flags %08x fl=%08x\n",
-					temp,EFLAGS);
+			    Gen(O_SIM, _mode, opc, 0, P0);
+			    Gen(O_PUSH, _mode);
 			}
 			else {
 				Gen(O_PUSH2F, _mode);
