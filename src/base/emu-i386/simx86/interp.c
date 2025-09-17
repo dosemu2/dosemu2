@@ -833,6 +833,13 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			}
 			}
 			break;
+/*ce*/	case INTO:
+			if(*flags & EFLAGS_OF)
+			{
+				e_printf("Overflow interrupt 04\n");
+				TheCPU.err2=EXCP04_INTO;
+			}
+			break;
 /*6c*/	case INSb: {
 			unsigned short a;
 			unsigned int rd;
@@ -2089,14 +2096,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 					       P0, _flags);
 			break;
 /*ce*/	case INTO:
-			CODE_FLUSH();
 			PC++;
-			if(EFLAGS & EFLAGS_OF)
-			{
-				e_printf("Overflow interrupt 04\n");
-				TheCPU.err=EXCP04_INTO;
-				return PC;
-			}
+			Gen(O_SIM, _mode, opc, 0, PC);
 			break;
 /*cd*/	case INT: {
 			int inum = Fetch(PC+1);
