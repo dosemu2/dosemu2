@@ -840,6 +840,29 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 				TheCPU.err2=EXCP04_INTO;
 			}
 			break;
+/*cd*/	case INT:      {
+			/* flag handling for non-revectored VME-case only,
+			   not used presently with IOPL=3 */
+			int inum = arg;
+			unsigned int temp;
+			assert(V86MODE() && IOPL < 3 && (TheCPU.cr[4] & CR4_VME)
+			       && !test_bit(inum, &vm86s.int_revectored));
+			temp = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
+			temp = (temp|IOPL_MASK) & (RETURN_MASK|EFLAGS_IF);
+			if (IOPL<3) {
+				temp &= ~EFLAGS_IF;
+				if (EFLAGS & VIF)
+					temp |= EFLAGS_IF;
+			}
+			data = temp;
+			EFLAGS &= ~(TF|RF|AC|NT);
+			EFLAGS &= ~(IOPL==3 ? EFLAGS_IF : EFLAGS_VIF);
+			if (debug_level('e')>1)
+				dbug_printf("EMU86: directly calling int "
+					    "%#x ax=%#x at %#x:%#x\n",
+					    inum, _AX, _CS, _IP);
+			break;
+		       }
 /*fa*/	case CLI:
 			/* only for PVI/VME IOPL<3 CLI, not used presently */
 			assert(!(REALMODE() || (CPL <= IOPL) || (IOPL==3)) &&
@@ -2177,14 +2200,19 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			fprintf(aLog,"%08x:\t\tint %02x\n", P0, inum);
 #endif
 			CEmuStat &= ~CeS_TRAP;  // INT suppresses trap
-			if (V86MODE() && (TheCPU.cr[4] & CR4_VME) && IOPL == 3) {
-				Gen(O_INT, _mode, inum, P0);
-				if (TheCPU.err) return P0;
-				Gen(O_PUSH2F, _mode);
+			if (V86MODE() && (TheCPU.cr[4] & CR4_VME)) {
+				if (IOPL == 3) {
+					Gen(O_INT, _mode, inum, P0);
+					Gen(O_PUSH2F, _mode);
+					Gen(O_SETFL, _mode, INT);
+				} else {
+					Gen(O_INT, _mode, inum, P0);
+					Gen(O_SIM, _mode, opc, inum, P0);
+					Gen(O_PUSH, _mode);
+				}
 				Gen(L_REG, _mode, Ofs_CS);
 				Gen(O_PUSH, _mode);
 				Gen(O_PUSHI, _mode, PC + 2 - Interp_LONG_CS);
-				Gen(O_SETFL, _mode, INT);
 				Gen(L_LXS2, _mode);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(L_LXS1, _mode, Ofs_EIP);
@@ -2199,32 +2227,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (V86MODE() && !(TheCPU.cr[4] & CR4_VME) && IOPL<3) {
 				PC += 2; goto not_permitted;
 			}
-			if (V86MODE() && (TheCPU.cr[4] & CR4_VME) &&
-			    !test_bit(inum, &vm86s.int_revectored)) {
-				CODE_FLUSH();
-				uint32_t segoffs;
-				segoffs = read_dword(inum << 2);
-				temp = (EFLAGS|IOPL_MASK) & (RETURN_MASK|EFLAGS_IF);
-				if (IOPL<3) {
-					temp &= ~EFLAGS_IF;
-					if (EFLAGS & VIF)
-						temp |= EFLAGS_IF;
-				}
-				PUSH(_mode, temp);
-				PUSH(_mode, TheCPU.cs);
-				PUSH(_mode, PC + 2 - Interp_LONG_CS);
-				TheCPU.err = MAKESEG(_mode, Ofs_CS, segoffs >> 16);
-				if (TheCPU.err) return P0;
-				TheCPU.eip = segoffs & 0xffff;
-				PC = Interp_LONG_CS + TheCPU.eip;
-				EFLAGS &= ~(TF|RF|AC|NT);
-				EFLAGS &= ~(IOPL==3 ? EFLAGS_IF : EFLAGS_VIF);
-				if (debug_level('e')>1)
-					dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
-						    inum, _AX, _CS, _IP);
-				break;
-			}
-			/* protected _mode INT or revectored V86 with IOPL=3 */
+			/* protected _mode INT or revectored V86 with IOPL<3 */
 			switch(inum) {
 			case 0x03:
 			    if (PROTMODE())
