@@ -771,6 +771,18 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			uint32_t *flags, unsigned int opc, unsigned int arg)
 {
 	switch (opc) {
+/*9c*/	case PUSHF:    { /* flag handling for VME-case only,
+			    not used presently with IOPL==3 */
+			unsigned int temp;
+			assert(V86MODE() && IOPL<3 && (TheCPU.cr[4] & CR4_VME));
+			temp = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
+			data = (temp|IOPL_MASK) & RETURN_MASK;
+			if (temp & VIF) data |= EFLAGS_IF;
+			if (debug_level('e')>1)
+				e_printf("Pushing flags %08x fl=%08x\n",
+					 data,temp);
+			break;
+		       }
 /*62*/	case BOUND:    {
 			signed int lo, hi, r = data;
 			lo = DataGetWL_S(mode, mem_ref);
@@ -804,6 +816,67 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			}
 			break;
 			}
+/*c8*/	case ENTER: {
+			// This simulates only the middle part for level >=2
+			unsigned int bp;
+			int level, ds;
+			level = arg;
+			assert(level > 1); // level 0 and 1 are compiled
+			ds = BT24(BitDATA16, mode);
+			bp = rEBP & TheCPU.StackMask;
+			while (--level) {
+				bp -= ds;
+				bp &= TheCPU.StackMask;
+				PUSH(mode, (mode&DATA16) ?
+				     sim_read_word(LONG_SS + bp) :
+				     sim_read_dword(LONG_SS + bp));
+			}
+			}
+			break;
+/*ce*/	case INTO:
+			if(*flags & EFLAGS_OF)
+			{
+				e_printf("Overflow interrupt 04\n");
+				TheCPU.err2=EXCP04_INTO;
+			}
+			break;
+/*cd*/	case INT:      {
+			/* flag handling for non-revectored VME-case only,
+			   not used presently with IOPL=3 */
+			int inum = arg;
+			unsigned int temp;
+			assert(V86MODE() && IOPL < 3 && (TheCPU.cr[4] & CR4_VME)
+			       && !test_bit(inum, &vm86s.int_revectored));
+			temp = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
+			temp = (temp|IOPL_MASK) & (RETURN_MASK|EFLAGS_IF);
+			if (IOPL<3) {
+				temp &= ~EFLAGS_IF;
+				if (EFLAGS & VIF)
+					temp |= EFLAGS_IF;
+			}
+			data = temp;
+			EFLAGS &= ~(TF|RF|AC|NT);
+			EFLAGS &= ~(IOPL==3 ? EFLAGS_IF : EFLAGS_VIF);
+			if (debug_level('e')>1)
+				dbug_printf("EMU86: directly calling int "
+					    "%#x ax=%#x at %#x:%#x\n",
+					    inum, _AX, _CS, _IP);
+			break;
+		       }
+/*fa*/	case CLI:
+			/* only for PVI/VME IOPL<3 CLI, not used presently */
+			assert(!(REALMODE() || (CPL <= IOPL) || (IOPL==3)) &&
+			       !((V86MODE() && !(TheCPU.cr[4] & CR4_VME)) ||
+				 (!V86MODE() && !(TheCPU.cr[4] & CR4_PVI))));
+			/* virtual-8086 monitor */
+			if (debug_level('e')>2) {
+			    if (V86MODE())
+				e_printf("Virtual VM86 CLI\n");
+			    else
+				e_printf("Virtual DPMI CLI\n");
+			}
+			EFLAGS &= ~EFLAGS_VIF;
+			break;
 /*6c*/	case INSb: {
 			unsigned short a;
 			unsigned int rd;
@@ -811,7 +884,7 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			if (!test_ioperm(a)) goto not_permitted_sim;
 			rd = (mode&ADDR16? rDI:rEDI);
 			sim_write_byte(LONG_ES+rd, port_inb(a));
-			if (*flags & EFLAGS_DF) rd--; else rd++;
+			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			} break;
 /*ec*/	case INvb: {
@@ -842,7 +915,7 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			else {
 				sim_write_dword(LONG_ES+rd, port_ind(rDX)); dp=4;
 			}
-			if (*flags & EFLAGS_DF) rd-=dp; else rd+=dp;
+			if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			} break;
 /*ed*/	case INvw:
@@ -863,7 +936,7 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			if (!test_ioperm(a)) goto not_permitted_sim;
 			rs = (mode&ADDR16? rSI:rESI);
 			port_outb(a,sim_read_byte(LONG_DS+rs));
-			if (*flags & EFLAGS_DF) rs--; else rs++;
+			if (EFLAGS & EFLAGS_DF) rs--; else rs++;
 			if (mode&ADDR16) rSI=rs; else rESI=rs;
 			} break;
 /*ee*/	case OUTvb: {
@@ -945,6 +1018,64 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			    *flags |= EFLAGS_ZF;
 			    SetCPU_WL(mode, arg, tmp);
 			} }
+			break;
+/*106*/	case 0x106: /* CLTS */ /* Privileged */
+			/* Clear Task State Register */
+			TheCPU.cr[0] &= ~8;
+			break;
+/*120*/	case 0x120:   /* MOVcdrd */ /* Privileged */
+/*122*/	case 0x122:   /* MOVrdcd */ /* Privileged */
+/*121*/	case 0x121:   /* MOVddrd */ /* Privileged */
+/*123*/	case 0x123:   /* MOVrddd */ /* Privileged */
+/*124*/	case 0x124:   /* MOVtdrd */ /* Privileged */
+/*126*/	case 0x126: { /* MOVrdtd */ /* Privileged */
+			int *srg; int reg; unsigned char b,opd,opc2;
+			opc2 = opc - 0x100;
+			b = arg;
+			reg = D_MO(b);
+			b = D_LO(b);
+			srg = (int *)CPUOFFS(R1Tab_l[b]);
+			opd = opc2&2;
+			if (opc2&1) {
+			    if (opd) TheCPU.dr[reg] = *srg;
+				else *srg = TheCPU.dr[reg];
+			}
+			else if (opc2&4) {
+			    reg-=6;
+			    if (opd) TheCPU.tr[reg] = *srg;
+				else *srg = TheCPU.tr[reg];
+			}
+			else {
+			    if (opd) {	/* write to CRs */
+				if (reg==0) {
+				    if ((TheCPU.cr[0] ^ *srg) & 1) {
+					dbug_printf("RM/PM switch not allowed\n");
+					TheCPU.err2 = -94; break;
+				    }
+				    TheCPU.cr[0] = (*srg&0xe005002f)|0x10;
+				}
+				else TheCPU.cr[reg] = *srg;
+			    } else {
+				*srg = TheCPU.cr[reg];
+			    }
+			}
+			} break;
+/*1a2*/	case 0x1a2:	/* CPUID */
+			if (rEAX==0) {
+				/* "GenuineIntel" */
+				rEAX = 1; rEBX = 0x756e6547;
+				rECX = 0x6c65746e; rEDX = 0x49656e69;
+			}
+			else if (rEAX==1) {
+				/* family 5, model 2, stepping 12 =
+				   Pentium 133-200MHz (no MMX) */
+				rEAX = 0x052c; rEBX = rECX = 0;
+				/* 0x1bf */
+				rEDX = CPUID_FEATURE_FPU | CPUID_FEATURE_VME |
+				  CPUID_FEATURE_DBGE | CPUID_FEATURE_PGSZE |
+				  CPUID_FEATURE_TSC  | CPUID_FEATURE_MSR |
+				  CPUID_FEATURE_MCK  | CPUID_FEATURE_CPMX;
+			}
 			break;
 /*1c7*/	case 0x1c7: { /* Code Extension 23 - 01=CMPXCHG8B mem */
 			uint64_t edxeax, m;
@@ -1154,13 +1285,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    /* virtual-8086 monitor */
 			    if (!(TheCPU.cr[4] & CR4_VME))
 				goto not_permitted;	/* GPF */
-			    CODE_FLUSH();
-			    temp = (EFLAGS|IOPL_MASK) & RETURN_MASK;
-			    if (EFLAGS & VIF) temp |= EFLAGS_IF;
-			    PUSH(_mode, temp);
-			    if (debug_level('e')>1)
-				e_printf("Pushed flags %08x fl=%08x\n",
-					temp,EFLAGS);
+			    Gen(O_SIM, _mode, opc, 0, P0);
+			    Gen(O_PUSH, _mode);
 			}
 			else {
 				Gen(O_PUSH2F, _mode);
@@ -2015,48 +2141,27 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			INC_WL_PC(_mode,0);
 			break;
 /*c8*/	case ENTER: {
-			unsigned int sp, bp, frm;
-			int level, ds;
-			level = Fetch(PC+3) & 0x1f;
-			if (level <= 1) {
-				int allocsize = FetchW(PC+1);
-				Gen(L_REG, _mode, Ofs_EBP);
+			int allocsize = FetchW(PC+1);
+			int level = Fetch(PC+3) & 0x1f;
+			Gen(L_REG, _mode, Ofs_EBP);
+			Gen(O_PUSH, _mode);
+			if (level >= 1) {
+				Gen(L_REG, _mode, Ofs_ESP);
+				if (level >= 2)
+					Gen(O_SIM, _mode, opc, level, P0);
 				Gen(O_PUSH, _mode);
-				if (level == 1) {
-					Gen(L_REG, _mode, Ofs_ESP);
-					Gen(O_PUSH, _mode);
-					Gen(S_REG, _mode, Ofs_EBP);
-				}
-				else {
-					Gen(L_REG2REG, _mode, Ofs_ESP, Ofs_EBP);
-				}
-				// subtract AllocSize from ESP via
-				// "lea -allocsize(%esp), %esp"
-				if (allocsize) {
-					AddrGen(A_DI_1,
-						_mode|MLEA|((_mode&DATA16)?ADDR16:0)|IMMED,
-						0, -allocsize, Ofs_ESP);
-					Gen(S_DI_R, _mode, Ofs_ESP);
-				}
+				Gen(S_REG, _mode, Ofs_EBP);
 			}
 			else {
-				CODE_FLUSH();
-				ds = BT24(BitDATA16, _mode);
-				sp = LONG_SS + ((rESP - ds) & TheCPU.StackMask);
-				bp = LONG_SS + (rEBP & TheCPU.StackMask);
-				PUSH(_mode, rEBP);
-				frm = sp - LONG_SS;
-				sp -= ds*level;
-				while (--level) {
-					bp -= ds;
-					PUSH(_mode, (_mode&DATA16) ?
-					     READ_WORD(bp) : READ_DWORD(bp));
-				}
-				PUSH(_mode, frm);
-				if (_mode&DATA16) rBP = frm; else rEBP = frm;
-				sp -= FetchW(PC+1);
-				temp = sp - LONG_SS;
-				rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
+				Gen(L_REG2REG, _mode, Ofs_ESP, Ofs_EBP);
+			}
+			// subtract AllocSize from ESP via
+			// "lea -allocsize(%esp), %esp"
+			if (allocsize) {
+				AddrGen(A_DI_1,
+					_mode|MLEA|((_mode&DATA16)?ADDR16:0)|IMMED,
+					0, -allocsize, Ofs_ESP);
+				Gen(S_DI_R, _mode, Ofs_ESP);
 			}
 			PC += 4; }
 			break;
@@ -2086,14 +2191,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 					       P0, _flags);
 			break;
 /*ce*/	case INTO:
-			CODE_FLUSH();
 			PC++;
-			if(EFLAGS & EFLAGS_OF)
-			{
-				e_printf("Overflow interrupt 04\n");
-				TheCPU.err=EXCP04_INTO;
-				return PC;
-			}
+			Gen(O_SIM, _mode, opc, 0, PC);
 			break;
 /*cd*/	case INT: {
 			int inum = Fetch(PC+1);
@@ -2101,14 +2200,19 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			fprintf(aLog,"%08x:\t\tint %02x\n", P0, inum);
 #endif
 			CEmuStat &= ~CeS_TRAP;  // INT suppresses trap
-			if (V86MODE() && (TheCPU.cr[4] & CR4_VME) && IOPL == 3) {
-				Gen(O_INT, _mode, inum, P0);
-				if (TheCPU.err) return P0;
-				Gen(O_PUSH2F, _mode);
+			if (V86MODE() && (TheCPU.cr[4] & CR4_VME)) {
+				if (IOPL == 3) {
+					Gen(O_INT, _mode, inum, P0);
+					Gen(O_PUSH2F, _mode);
+					Gen(O_SETFL, _mode, INT);
+				} else {
+					Gen(O_INT, _mode, inum, P0);
+					Gen(O_SIM, _mode, opc, inum, P0);
+					Gen(O_PUSH, _mode);
+				}
 				Gen(L_REG, _mode, Ofs_CS);
 				Gen(O_PUSH, _mode);
 				Gen(O_PUSHI, _mode, PC + 2 - Interp_LONG_CS);
-				Gen(O_SETFL, _mode, INT);
 				Gen(L_LXS2, _mode);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(L_LXS1, _mode, Ofs_EIP);
@@ -2123,32 +2227,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (V86MODE() && !(TheCPU.cr[4] & CR4_VME) && IOPL<3) {
 				PC += 2; goto not_permitted;
 			}
-			if (V86MODE() && (TheCPU.cr[4] & CR4_VME) &&
-			    !test_bit(inum, &vm86s.int_revectored)) {
-				CODE_FLUSH();
-				uint32_t segoffs;
-				segoffs = read_dword(inum << 2);
-				temp = (EFLAGS|IOPL_MASK) & (RETURN_MASK|EFLAGS_IF);
-				if (IOPL<3) {
-					temp &= ~EFLAGS_IF;
-					if (EFLAGS & VIF)
-						temp |= EFLAGS_IF;
-				}
-				PUSH(_mode, temp);
-				PUSH(_mode, TheCPU.cs);
-				PUSH(_mode, PC + 2 - Interp_LONG_CS);
-				TheCPU.err = MAKESEG(_mode, Ofs_CS, segoffs >> 16);
-				if (TheCPU.err) return P0;
-				TheCPU.eip = segoffs & 0xffff;
-				PC = Interp_LONG_CS + TheCPU.eip;
-				EFLAGS &= ~(TF|RF|AC|NT);
-				EFLAGS &= ~(IOPL==3 ? EFLAGS_IF : EFLAGS_VIF);
-				if (debug_level('e')>1)
-					dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
-						    inum, _AX, _CS, _IP);
-				break;
-			}
-			/* protected _mode INT or revectored V86 with IOPL=3 */
+			/* protected _mode INT or revectored V86 with IOPL<3 */
 			switch(inum) {
 			case 0x03:
 			    if (PROTMODE())
@@ -2597,15 +2676,7 @@ repag0:
 			    if ((V86MODE() && !(TheCPU.cr[4] & CR4_VME)) ||
 				(!V86MODE() && !(TheCPU.cr[4] & CR4_PVI)))
 				goto not_permitted;	/* GPF */
-			    /* virtual-8086 monitor */
-			    if (debug_level('e')>2) {
-				if (V86MODE())
-				    e_printf("Virtual VM86 CLI\n");
-				else
-				    e_printf("Virtual DPMI CLI\n");
-			    }
-			    CODE_FLUSH();
-			    EFLAGS &= ~EFLAGS_VIF;
+			    Gen(O_SIM, _mode, opc, 0, P0);
 			}
 			break;
 /*fb*/	case STI:
@@ -2930,10 +3001,10 @@ repag0:
 			/* case 0x05:	LOADALL(286) - SYSCALL(K6) */
 			case 0x06: /* CLTS */ /* Privileged */
 				/* Clear Task State Register */
-				if (CPL != 0) {PC += 2; goto not_permitted;}
-				CODE_FLUSH();
-				TheCPU.cr[0] &= ~8;
-				PC += 2; break;
+				PC += 2;
+				if (CPL != 0) goto not_permitted;
+				Gen(O_SIM, _mode, 0x100+opc2, 0, P0);
+				break;
 			/* case 0x07:	LOADALL(386) - SYSRET(K6) etc. */
 			case 0x08: /* INVD */
 				/* INValiDate cache */
@@ -2952,7 +3023,7 @@ repag0:
 			case 0x23:   /* MOVrddd */ /* Privileged */
 			case 0x24:   /* MOVtdrd */ /* Privileged */
 			case 0x26: { /* MOVrdtd */ /* Privileged */
-				int *srg; int reg; unsigned char b,opd;
+				int reg; unsigned char b;
 				if (V86MODE()) {
 				    PC += 3; goto not_permitted;
 				}
@@ -2963,33 +3034,7 @@ repag0:
 				    (!(opc2&5) && ((reg==1)||(reg>4)))) {
 				    PC += 3; goto illegal_op;
 				}
-				CODE_FLUSH();
-				b = D_LO(b);
-				srg = (int *)CPUOFFS(R1Tab_l[b]);
-				opd = Fetch(PC+1)&2;
-		    		if (opc2&1) {
-				    if (opd) TheCPU.dr[reg] = *srg;
-					else *srg = TheCPU.dr[reg];
-		    		}
-		    		else if (opc2&4) {
-				    reg-=6;
-				    if (opd) TheCPU.tr[reg] = *srg;
-					else *srg = TheCPU.tr[reg];
-		    		}
-		    		else {
-		    		    if (opd) {	/* write to CRs */
-					if (reg==0) {
-			    		    if ((TheCPU.cr[0] ^ *srg) & 1) {
-						dbug_printf("RM/PM switch not allowed\n");
-						TheCPU.err = -94; return P0;
-					    }
-			    		    TheCPU.cr[0] = (*srg&0xe005002f)|0x10;
-					}
-					else TheCPU.cr[reg] = *srg;
-		    		    } else {
-					*srg = TheCPU.cr[reg];
-		    		    }
-		    		}
+				Gen(O_SIM, _mode, 0x100+opc2, b, P0);
 		    		} PC += 3; break;
 			case 0x30: /* WRMSR */
 			    PC += 2; goto not_permitted;
@@ -3073,21 +3118,7 @@ repag0:
 				break;
 ///
 			case 0xa2: /* CPUID */
-				CODE_FLUSH();
-				if (rEAX==0) {
-					/* "GenuineIntel" */
-					rEAX = 1; rEBX = 0x756e6547;
-					rECX = 0x6c65746e; rEDX = 0x49656e69;
-				}
-				else if (rEAX==1) {
-					/* family 5, model 2, stepping 12 =
-					   Pentium 133-200MHz (no MMX) */
-					rEAX = 0x052c; rEBX = rECX = 0;
-					/* fpu, vme, de, pse,
-					   tsc, msr, mce,
-					   cx8 */
-					rEDX = 0x1bf;
-				}
+				Gen(O_SIM, _mode, 0x100+opc2, 0, P0);
 				PC+=2; break;
 
 			case 0xa3: /* BT */
