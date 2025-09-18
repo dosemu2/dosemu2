@@ -1023,6 +1023,23 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			    }
 			}
 			} break;
+/*1a2*/	case 0x1a2:	/* CPUID */
+			if (rEAX==0) {
+				/* "GenuineIntel" */
+				rEAX = 1; rEBX = 0x756e6547;
+				rECX = 0x6c65746e; rEDX = 0x49656e69;
+			}
+			else if (rEAX==1) {
+				/* family 5, model 2, stepping 12 =
+				   Pentium 133-200MHz (no MMX) */
+				rEAX = 0x052c; rEBX = rECX = 0;
+				/* 0x1bf */
+				rEDX = CPUID_FEATURE_FPU | CPUID_FEATURE_VME |
+				  CPUID_FEATURE_DBGE | CPUID_FEATURE_PGSZE |
+				  CPUID_FEATURE_TSC  | CPUID_FEATURE_MSR |
+				  CPUID_FEATURE_MCK  | CPUID_FEATURE_CPMX;
+			}
+			break;
 /*1c7*/	case 0x1c7: { /* Code Extension 23 - 01=CMPXCHG8B mem */
 			uint64_t edxeax, m;
 			edxeax = ((uint64_t)rEDX << 32) | rEAX;
@@ -3092,21 +3109,7 @@ repag0:
 				break;
 ///
 			case 0xa2: /* CPUID */
-				CODE_FLUSH();
-				if (rEAX==0) {
-					/* "GenuineIntel" */
-					rEAX = 1; rEBX = 0x756e6547;
-					rECX = 0x6c65746e; rEDX = 0x49656e69;
-				}
-				else if (rEAX==1) {
-					/* family 5, model 2, stepping 12 =
-					   Pentium 133-200MHz (no MMX) */
-					rEAX = 0x052c; rEBX = rECX = 0;
-					/* fpu, vme, de, pse,
-					   tsc, msr, mce,
-					   cx8 */
-					rEDX = 0x1bf;
-				}
+				Gen(O_SIM, _mode, 0x100+opc2, 0, P0);
 				PC+=2; break;
 
 			case 0xa3: /* BT */
