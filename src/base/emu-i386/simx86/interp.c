@@ -982,6 +982,10 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			    SetCPU_WL(mode, arg, tmp);
 			} }
 			break;
+/*106*/	case 0x106: /* CLTS */ /* Privileged */
+			/* Clear Task State Register */
+			TheCPU.cr[0] &= ~8;
+			break;
 /*1c7*/	case 0x1c7: { /* Code Extension 23 - 01=CMPXCHG8B mem */
 			uint64_t edxeax, m;
 			edxeax = ((uint64_t)rEDX << 32) | rEAX;
@@ -2934,10 +2938,10 @@ repag0:
 			/* case 0x05:	LOADALL(286) - SYSCALL(K6) */
 			case 0x06: /* CLTS */ /* Privileged */
 				/* Clear Task State Register */
-				if (CPL != 0) {PC += 2; goto not_permitted;}
-				CODE_FLUSH();
-				TheCPU.cr[0] &= ~8;
-				PC += 2; break;
+				PC += 2;
+				if (CPL != 0) goto not_permitted;
+				Gen(O_SIM, _mode, 0x100+opc2, 0, P0);
+				break;
 			/* case 0x07:	LOADALL(386) - SYSRET(K6) etc. */
 			case 0x08: /* INVD */
 				/* INValiDate cache */
