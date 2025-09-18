@@ -840,6 +840,20 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 				TheCPU.err2=EXCP04_INTO;
 			}
 			break;
+/*fa*/	case CLI:
+			/* only for PVI/VME IOPL<3 CLI, not used presently */
+			assert(!(REALMODE() || (CPL <= IOPL) || (IOPL==3)) &&
+			       !((V86MODE() && !(TheCPU.cr[4] & CR4_VME)) ||
+				 (!V86MODE() && !(TheCPU.cr[4] & CR4_PVI))));
+			/* virtual-8086 monitor */
+			if (debug_level('e')>2) {
+			    if (V86MODE())
+				e_printf("Virtual VM86 CLI\n");
+			    else
+				e_printf("Virtual DPMI CLI\n");
+			}
+			EFLAGS &= ~EFLAGS_VIF;
+			break;
 /*6c*/	case INSb: {
 			unsigned short a;
 			unsigned int rd;
@@ -2659,15 +2673,7 @@ repag0:
 			    if ((V86MODE() && !(TheCPU.cr[4] & CR4_VME)) ||
 				(!V86MODE() && !(TheCPU.cr[4] & CR4_PVI)))
 				goto not_permitted;	/* GPF */
-			    /* virtual-8086 monitor */
-			    if (debug_level('e')>2) {
-				if (V86MODE())
-				    e_printf("Virtual VM86 CLI\n");
-				else
-				    e_printf("Virtual DPMI CLI\n");
-			    }
-			    CODE_FLUSH();
-			    EFLAGS &= ~EFLAGS_VIF;
+			    Gen(O_SIM, _mode, opc, 0, P0);
 			}
 			break;
 /*fb*/	case STI:
