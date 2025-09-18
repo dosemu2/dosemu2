@@ -986,6 +986,43 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			/* Clear Task State Register */
 			TheCPU.cr[0] &= ~8;
 			break;
+/*120*/	case 0x120:   /* MOVcdrd */ /* Privileged */
+/*122*/	case 0x122:   /* MOVrdcd */ /* Privileged */
+/*121*/	case 0x121:   /* MOVddrd */ /* Privileged */
+/*123*/	case 0x123:   /* MOVrddd */ /* Privileged */
+/*124*/	case 0x124:   /* MOVtdrd */ /* Privileged */
+/*126*/	case 0x126: { /* MOVrdtd */ /* Privileged */
+			int *srg; int reg; unsigned char b,opd,opc2;
+			opc2 = opc - 0x100;
+			b = arg;
+			reg = D_MO(b);
+			b = D_LO(b);
+			srg = (int *)CPUOFFS(R1Tab_l[b]);
+			opd = opc2&2;
+			if (opc2&1) {
+			    if (opd) TheCPU.dr[reg] = *srg;
+				else *srg = TheCPU.dr[reg];
+			}
+			else if (opc2&4) {
+			    reg-=6;
+			    if (opd) TheCPU.tr[reg] = *srg;
+				else *srg = TheCPU.tr[reg];
+			}
+			else {
+			    if (opd) {	/* write to CRs */
+				if (reg==0) {
+				    if ((TheCPU.cr[0] ^ *srg) & 1) {
+					dbug_printf("RM/PM switch not allowed\n");
+					TheCPU.err2 = -94; break;
+				    }
+				    TheCPU.cr[0] = (*srg&0xe005002f)|0x10;
+				}
+				else TheCPU.cr[reg] = *srg;
+			    } else {
+				*srg = TheCPU.cr[reg];
+			    }
+			}
+			} break;
 /*1c7*/	case 0x1c7: { /* Code Extension 23 - 01=CMPXCHG8B mem */
 			uint64_t edxeax, m;
 			edxeax = ((uint64_t)rEDX << 32) | rEAX;
@@ -2960,7 +2997,7 @@ repag0:
 			case 0x23:   /* MOVrddd */ /* Privileged */
 			case 0x24:   /* MOVtdrd */ /* Privileged */
 			case 0x26: { /* MOVrdtd */ /* Privileged */
-				int *srg; int reg; unsigned char b,opd;
+				int reg; unsigned char b;
 				if (V86MODE()) {
 				    PC += 3; goto not_permitted;
 				}
@@ -2971,33 +3008,7 @@ repag0:
 				    (!(opc2&5) && ((reg==1)||(reg>4)))) {
 				    PC += 3; goto illegal_op;
 				}
-				CODE_FLUSH();
-				b = D_LO(b);
-				srg = (int *)CPUOFFS(R1Tab_l[b]);
-				opd = Fetch(PC+1)&2;
-		    		if (opc2&1) {
-				    if (opd) TheCPU.dr[reg] = *srg;
-					else *srg = TheCPU.dr[reg];
-		    		}
-		    		else if (opc2&4) {
-				    reg-=6;
-				    if (opd) TheCPU.tr[reg] = *srg;
-					else *srg = TheCPU.tr[reg];
-		    		}
-		    		else {
-		    		    if (opd) {	/* write to CRs */
-					if (reg==0) {
-			    		    if ((TheCPU.cr[0] ^ *srg) & 1) {
-						dbug_printf("RM/PM switch not allowed\n");
-						TheCPU.err = -94; return P0;
-					    }
-			    		    TheCPU.cr[0] = (*srg&0xe005002f)|0x10;
-					}
-					else TheCPU.cr[reg] = *srg;
-		    		    } else {
-					*srg = TheCPU.cr[reg];
-		    		    }
-		    		}
+				Gen(O_SIM, _mode, 0x100+opc2, b, P0);
 		    		} PC += 3; break;
 			case 0x30: /* WRMSR */
 			    PC += 2; goto not_permitted;
