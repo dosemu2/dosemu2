@@ -68,7 +68,7 @@ typedef struct {
 /* ------------------------------------------------ */
 /*70*/	unsigned short fpuc;
 /* ------------------------------------------------ */
-/*72*/	/*sig_atomic_t*/unsigned short sigalrm_pending;
+/*72*/	/*sig_atomic_t*/unsigned short exit_pending;
 /*74*/	unsigned int StackMask;
 /*78*/ 	unsigned int df_increments; /* either 0x040201 or 0xfcfeff */
 	/* begin of cr array */
@@ -184,7 +184,7 @@ extern struct _SynCPU TheCPU_struct;
 #define Ofs_STACKM	(offsetof(SynCPU,StackMask))
 //#define Ofs_ETIME	(offsetof(SynCPU,EMUtime))
 #define Ofs_RZERO	(offsetof(SynCPU,rzero))
-#define Ofs_SIGAPEND	(offsetof(SynCPU,sigalrm_pending))
+#define Ofs_EXITPEND	(offsetof(SynCPU,exit_pending))
 #define Ofs_DF_INCREMENTS (offsetof(SynCPU,df_increments))
 
 #define Ofs_FPUC	(offsetof(SynCPU,fpuc))
@@ -257,9 +257,13 @@ extern struct _SynCPU TheCPU_struct;
 #define LONG_FS		TheCPU.fs_cache.BoundL
 #define LONG_GS		TheCPU.gs_cache.BoundL
 
-#define sigalrm_pending() __atomic_load_n(&TheCPU.sigalrm_pending, \
+#define exit_pending() __atomic_load_n(&TheCPU.exit_pending, \
   __ATOMIC_RELAXED)
-#define sigalrm_pending_w(v) __atomic_store_n(&TheCPU.sigalrm_pending, v, \
+#define exit_pending_w(v) __atomic_store_n(&TheCPU.exit_pending, v, \
+  __ATOMIC_RELAXED)
+#define exit_pending_or(v) __atomic_fetch_or(&TheCPU.exit_pending, v, \
+  __ATOMIC_RELAXED)
+#define exit_pending_xchg(v) __atomic_exchange_n(&TheCPU.exit_pending, v, \
   __ATOMIC_RELAXED)
 
 #endif

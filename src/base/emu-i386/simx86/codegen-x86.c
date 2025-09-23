@@ -2337,9 +2337,9 @@ shrot0:
 		} else if (mode & CKSIGN) {
 		    // check signal on TAKEN branch
 		    // for backjmp-after-jcc:
-		    // movzwl Ofs_SIGAPEND(%%ebx),%%ecx
-		    G4M(0x0f,0xb7,0x4b,Ofs_SIGAPEND,Cp);
-		    // jecxz {continue}: exit if sigpend not 0
+		    // movzwl Ofs_EXITPEND(%%ebx),%%ecx
+		    G4M(0x0f,0xb7,0x4b,Ofs_EXITPEND,Cp);
+		    // jecxz {continue}: exit if exitpend not 0
 		    G2M(0xe3,TAILSIZE,Cp);
 		    // movl {exit_addr},%%eax; pop %%edx; ret
 		    G1(0xb8,Cp); G4(dspt,Cp); G2(0xc35a,Cp);
@@ -2384,9 +2384,9 @@ shrot0:
 		if (mode & CKSIGN) {
 		    // check signal on NOT TAKEN branch
 		    // for backjmp-after-jcc:
-		    // movzwl Ofs_SIGAPEND(%%ebx),%%ecx
-		    G4M(0x0f,0xb7,0x4b,Ofs_SIGAPEND,Cp);
-		    // jecxz {continue}: exit if sigpend not 0
+		    // movzwl Ofs_EXITPEND(%%ebx),%%ecx
+		    G4M(0x0f,0xb7,0x4b,Ofs_EXITPEND,Cp);
+		    // jecxz {continue}: exit if exitpend not 0
 		    G2M(0xe3,TAILSIZE,Cp);
 		    // movl {exit_addr},%%eax; pop %%edx; ret
 		    G1(0xb8,Cp); G4(jpc,Cp); G2(0xc35a,Cp);
@@ -2397,7 +2397,7 @@ shrot0:
 		// taken
 		if (IG->op==JB_LINK) {
 		    // check signal on TAKEN branch for back jumps
-		    G4M(0x0f,0xb7,0x4b,Ofs_SIGAPEND,Cp);
+		    G4M(0x0f,0xb7,0x4b,Ofs_EXITPEND,Cp);
 		    G2M(0xe3,TAILSIZE,Cp);
 		    G1(0xb8,Cp); G4(jpc,Cp); G2(0xc35a,Cp);
 	        }
@@ -2456,9 +2456,9 @@ shrot0:
 		if (mode & CKSIGN) {
 		    // check signal on TAKEN branch
 		    // for backjmp-after-jcc:
-		    // movzwl Ofs_SIGAPEND(%%ebx),%%ecx
-		    G4M(0x0f,0xb7,0x4b,Ofs_SIGAPEND,Cp);
-		    // jecxz {continue}: exit if sigpend not 0
+		    // movzwl Ofs_EXITPEND(%%ebx),%%ecx
+		    G4M(0x0f,0xb7,0x4b,Ofs_EXITPEND,Cp);
+		    // jecxz {continue}: exit if exitpend not 0
 		    G2M(0xe3,TAILSIZE,Cp);
 		    // movl {exit_addr},%%eax; pop %%edx; ret
 		    G1(0xb8,Cp); G4(dspt,Cp); G2(0xc35a,Cp);
