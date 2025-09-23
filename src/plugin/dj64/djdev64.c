@@ -378,27 +378,11 @@ static char *addr2ptr(dosaddr_t addr)
     return dosaddr_to_unixaddr(addr);
 }
 
-static void stub_thr(void *arg)
+static void stub_enter(cpuctx_t *scp, int argc, char *argv[], char *envp[],
+    unsigned psp_sel, int ifile, int ver)
 {
-    cpuctx_t *scp = arg;
     struct stub_ret_regs regs = {};
-    int argc = _ecx;
-    unsigned *argp = SEL_ADR(_ds, _edx);
-    char **argv = alloca((argc + 1) * sizeof(char *));
-    int envc = _ebx;
-    unsigned *envpp = SEL_ADR(_ds, _esi);
-    char **envp = alloca((envc + 1) * sizeof(char *));
-    int i;
-    int err;
-
-    for (i = 0; i < argc; i++)
-        argv[i] = SEL_ADR(_ds, argp[i]);
-    argv[i] = NULL;
-    for (i = 0; i < envc; i++)
-        envp[i] = SEL_ADR(_ds, envpp[i]);
-    envp[i] = NULL;
-
-    err = djstub_main(argc, argv, envp, _eax & 0xffff, _edi, _eax >> 16,
+    int err = djstub_main(argc, argv, envp, psp_sel, ifile, ver,
             &regs, addr2ptr, &dosops, &dpmiops, dj64_print
 #if DJ64_API_VER >= 16
             , ustore_put
@@ -416,6 +400,27 @@ static void stub_thr(void *arg)
     _ds = regs.ds;
     _cs = regs.cs;
     _eip = regs.eip;
+}
+
+static void stub_thr(void *arg)
+{
+    cpuctx_t *scp = arg;
+    int argc = _ecx;
+    unsigned *argp = SEL_ADR(_ds, _edx);
+    char **argv = alloca((argc + 1) * sizeof(char *));
+    int envc = _ebx;
+    unsigned *envpp = SEL_ADR(_ds, _esi);
+    char **envp = alloca((envc + 1) * sizeof(char *));
+    int i;
+
+    for (i = 0; i < argc; i++)
+        argv[i] = SEL_ADR(_ds, argp[i]);
+    argv[i] = NULL;
+    for (i = 0; i < envc; i++)
+        envp[i] = SEL_ADR(_ds, envpp[i]);
+    envp[i] = NULL;
+
+    stub_enter(scp, argc, argv, envp, _eax & 0xffff, _edi, _eax >> 16);
 }
 
 static unsigned call_entry(int handle)
