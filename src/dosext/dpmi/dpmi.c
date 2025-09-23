@@ -4340,10 +4340,10 @@ static void dpmi_reinit(cpuctx_t *scp)
 
 void dpmi_init(void)
 {
-  /* Holding spots for REGS and Return Code */
-  unsigned short CS, DS, ES, SS, psp, my_cs;
-  unsigned int ssp, sp;
-  unsigned int my_ip, i;
+  /* DPMI spec explicitly states HWORD(esp)=0, so sp have to be short here */
+  unsigned short CS, DS, ES, SS, psp, my_cs, my_ip, sp;
+  dosaddr_t ssp;
+  int i;
   unsigned char *cp;
   int inherit_idt;
   cpuctx_t *scp;
