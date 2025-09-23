@@ -750,11 +750,13 @@ DPMI_save_restore_rm:
 	lret
 	.globl	DPMI_exit
 DPMI_exit:
-	jnz 1f
+	jcxz 1f
+2:
+	int $0x21
+1:
 	/* last client terminated, reinit FPU */
 	fninit
-1:
-	int $0x21
+	jmp 2b
 	.globl	DPMI_end
 DPMI_end:
 

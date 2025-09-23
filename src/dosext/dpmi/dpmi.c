@@ -3734,13 +3734,10 @@ static void dpmi_cleanup(void)
       in_dpmi--;
     while (in_dpmi && DPMIclient[in_dpmi - 1].terminated);
   }
-  if (in_dpmi) {
+  if (in_dpmi)
     clnt_switch(in_dpmi - 1);
-    clear_ZF();
-  } else {
+  else
     current_client = -1;
-    set_ZF(); /* reset FPU */
-  }
 }
 
 static void dpmi_soft_cleanup(void)
@@ -3797,6 +3794,7 @@ static void quit_dpmi(cpuctx_t *scp, unsigned short errcode,
       LO(ax) = errcode;
       LWORD(edx) = tsr_para;
     }
+    LWORD(ecx) = in_dpmi;
     jmp_to(DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_exit));
   }
 }
