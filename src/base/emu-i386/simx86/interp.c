@@ -2348,6 +2348,7 @@ stack_return_from_vm86:
 			    }
 			}
 			else {
+			    int is_tf = !!(EFLAGS & TF);
 			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) |
 					(CPL<=IOPL? 0:EFLAGS_IF) |
 					(EFLAGS_VM|EFLAGS_RF);
@@ -2371,7 +2372,7 @@ stack_return_from_vm86:
 				if (debug_level('e')>1)
 				    e_printf("Return for STI fl=%08x\n",
 					    EFLAGS);
-				TheCPU.err = EXCP_STISIGNAL;
+				TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
 				return PC+1;
 			    }
 			}
