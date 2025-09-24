@@ -336,14 +336,14 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 			     * condition changing a flag */
 			    e_printf("### dsp=0 jmp=%x pskip=%d\n",opc,pskip);
 		    }
-		    Gen(JB_LINK, mode, opc, P2, j_t, j_nt);
+		    Gen(JB_LINK, mode, opc, j_t, j_nt);
 		}
 		else {
 		    if (dsp == pskip) {
 			e_printf("### jmp %x 00\n",opc);
 		    }
 		    /* forward jump or backward jump >=256 bytes */
-		    Gen(JF_LINK, mode, opc, P2, j_t, j_nt);
+		    Gen(JF_LINK, mode, opc, j_t, j_nt);
 		}
 		break;
 	case JMPld: {   /* uncond jmp far */

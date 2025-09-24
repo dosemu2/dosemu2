@@ -376,24 +376,15 @@ void Gen(int op, int mode, ...)
 		break;
 
 	case JMP_LINK:		// opc, dspt, retaddr, link
-	case JLOOP_LINK: {
+	case JLOOP_LINK:
+	case JF_LINK:
+	case JB_LINK: {		// opc, dspt, dspnt, link
 		unsigned char opc = (unsigned char)va_arg(ap,unsigned int);
 		IG->p0 = opc;
 		IG->p1 = va_arg(ap,unsigned int);	// dspt
 		IG->p2 = va_arg(ap,unsigned int);	// dspnt
 		}
 		break;
-
-	case JF_LINK:
-	case JB_LINK: {		// opc, PC, dspt, dspnt, link
-		unsigned char opc = (unsigned char)va_arg(ap,unsigned int);
-		IG->p0 = opc;
-		IG->p1 = va_arg(ap,unsigned int);	// jpc
-		IG->p2 = va_arg(ap,unsigned int);	// dspt
-		IG->p3 = va_arg(ap,unsigned int);	// dspnt
-		}
-		break;
-
 	}
 
 	va_end(ap);
