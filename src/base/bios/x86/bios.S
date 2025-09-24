@@ -760,6 +760,24 @@ DPMI_exit:
 	.globl	DPMI_end
 DPMI_end:
 
+	/* bx:cx - RM entry
+	 * si:di - PM entry
+	 */
+	.globl DPMI_rmentry
+DPMI_rmentry:
+	pushw %bx
+	pushw %cx
+	lcall *(%esp)
+	popl %ebx  /* restore SP */
+	jc 1f
+	pushw %si
+	pushw %di
+	lcall *(%esp)
+	popl %esi  /* restore SP */
+1:
+	movb $0x4c, %ah
+	int $0x21
+	retf       /* never here */
 
 /* ----------------------------------------------------------------- */
 	.globl XMSControl_OFF

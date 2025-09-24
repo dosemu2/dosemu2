@@ -182,6 +182,8 @@ void dpmi_retf(cpuctx_t *scp);
 void dpmi_retf16(cpuctx_t *scp);
 void dpmi_retf32(cpuctx_t *scp);
 
+int dpmi_rmentry(unsigned short entry16, int is_32);
+
 #ifdef USE_MHPDBG   /* dosdebug support */
 int dpmi_mhp_regs(void);
 void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off);

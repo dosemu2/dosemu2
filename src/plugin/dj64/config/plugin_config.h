@@ -16,4 +16,10 @@ struct djdev64_ops {
 
 void register_djdev64(const struct djdev64_ops *ops);
 
+typedef void stub_enter_t(struct pm_regs *scp,
+    int argc, char *argv[], char *envp[],
+    unsigned psp_sel, int ifile, int ver);
+
+void register_elfloader(stub_enter_t *ldr);
+
 #endif

@@ -129,6 +129,9 @@
 					    bit5 = console graphics
 					    bit6 = dualmon */
 
+#define DOS_HELPER_ELFLOAD          0x60
+#define ELFLOAD_PLUGIN_VERSION      1
+
 #define DOS_HELPER_GETCWD           0x80
 #define DOS_HELPER_CHDIR            0x81
 #define DOS_HELPER_GETPID           0x82

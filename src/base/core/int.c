@@ -66,6 +66,8 @@
 #endif
 #include "mapping/mapping.h"
 #include "emudpmi.h"
+#include "msdoshlp.h"
+#include "dos.h"
 
 #include "keyboard/keyb_server.h"
 
@@ -73,6 +75,10 @@
 
 #if WINDOWS_HACKS
 enum win3x_mode_enum win3x_mode;
+#endif
+#ifdef USE_DJDEV64
+static stub_enter_t *elfldr;
+static struct dos_helper_s elfhlp;
 #endif
 
 static char win3x_title[256];
@@ -368,6 +374,95 @@ static void emufs_helper(void)
 	break;
     }
 }
+
+#ifdef USE_DJDEV64
+void register_elfloader(stub_enter_t *ldr)
+{
+    elfldr = ldr;
+}
+
+static void elf_thr(void *arg)
+{
+    cpuctx_t *scp = arg;
+    unsigned short psp = _es;
+    struct PSP *ps = SEL_ADR_CLNT(psp, 0, 1);
+    char *env = SEL_ADR_CLNT(ps->envir_frame, 0, 1);
+    int ver = _LWORD(edx);  // the only reg preserved from RM
+    int err, fd;
+    char name[128];
+    char *argv[] = { name, NULL };
+    char *p;
+    char **envp;
+    int envc, i, letter;
+
+    CARRY;
+    p = memchr(env, 1, 0x10000);
+    if (!p)
+        return;
+    p += 2;
+    strlcpy(name, p, sizeof(name));
+    p = strrchr(name, '.');
+    if (!p || strlen(p) < 4)
+        return;
+    strcpy(p + 1, "ELF");
+
+    for (envc = i = letter = 0;; i++) {
+        if (env[i] == '\0') {
+            letter = 0;
+        if (env[i + 1] == '\0')
+            break;
+        } else {
+            if (!letter) {
+                letter = 1;
+                envc++;
+            }
+        }
+    }
+    envp = alloca((envc + 1) * sizeof(char *));
+    envp[envc] = NULL;
+    if (envc) {
+        int envc2;
+        for (envc2 = i = letter = 0;; i++) {
+            if (env[i] == '\0') {
+                letter = 0;
+                if (env[i + 1] == '\0')
+                    break;
+            } else {
+                if (!letter) {
+                    letter = 1;
+                    envp[envc2++] = &env[i];
+                }
+            }
+        }
+    }
+
+    if (!elfldr)
+        load_plugin("dj64");
+    if (!elfldr)
+        return;
+    err = _dos_open(name, O_RDONLY, &fd);
+    if (!err)
+        elfldr(scp, 1, argv, envp, psp, fd, ver);
+}
+
+static void do_elfload(void)
+{
+    int err;
+
+    CARRY;
+    if (HI(ax) != ELFLOAD_PLUGIN_VERSION) {
+	com_error("builtins plugin version mismatch: found %i, required %i\n",
+		HI(ax), ELFLOAD_PLUGIN_VERSION);
+	return;
+    }
+    if (!elfhlp.tid)
+	doshlp_setup(&elfhlp, "dj64 elfload", elf_thr, dpmi_retf16);
+
+    err = dpmi_rmentry(elfhlp.entry, 1);
+    if (!err)
+        NOCARRY;
+}
+#endif
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
 /* dos helper and mfs startup (was 0xfe) */
@@ -776,6 +871,12 @@ static int dos_helper(int stk_offs, int revect)
     case DOS_HELPER_SET_RETCODE:
 	if (!commands_plugin_inte6_set_retcode())
 	    return 0;
+	break;
+#endif
+
+#ifdef USE_DJDEV64
+    case DOS_HELPER_ELFLOAD:
+	do_elfload();
 	break;
 #endif
 

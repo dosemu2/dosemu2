@@ -541,4 +541,5 @@ static void ctrl_hlt(Bit16u offs, void *sc, void *arg)
 CONSTRUCTOR(static void djdev64_init(void))
 {
     register_djdev64(&ops);
+    register_elfloader(stub_enter);
 }
