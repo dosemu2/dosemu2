@@ -61,7 +61,6 @@ struct udata {
 static void call_thr(void *arg);
 static void stub_thr(void *arg);
 static void ctrl_hlt(Bit16u offs, void *sc, void *arg);
-static void do_retf(cpuctx_t *scp);
 
 struct ustore_s {
     int val;
@@ -323,7 +322,7 @@ static int _do_open(const char *path, unsigned full_flags)
         return ret;
     assert(ret < HNDL_MAX);
     if (!call_hlp[ret].tid)
-        doshlp_setup(&call_hlp[ret], "dj64 call", call_thr, do_retf);
+        doshlp_setup(&call_hlp[ret], "dj64 call", call_thr, dpmi_retf32);
     if (!ctrl_off) {
         emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
         hlt_hdlr.name = "dj64 ctrl";
@@ -436,7 +435,7 @@ static unsigned ctrl_entry(int handle)
 static unsigned stub_entry(void)
 {
     if (!stub_hlp.tid)
-        doshlp_setup(&stub_hlp, "dj64 stub", stub_thr, do_retf);
+        doshlp_setup(&stub_hlp, "dj64 stub", stub_thr, dpmi_retf32);
     return stub_hlp.entry;
 }
 
@@ -477,7 +476,7 @@ static void run_thr(void *arg)
 static unsigned run_entry(void)
 {
     if (!run_hlp.tid)
-        doshlp_setup(&run_hlp, "dj64 exec", run_thr, do_retf);
+        doshlp_setup(&run_hlp, "dj64 exec", run_thr, dpmi_retf32);
     return run_hlp.entry;
 }
 #endif
@@ -530,19 +529,11 @@ static void call_thr(void *arg)
         leavedos(exit_rc);
 }
 
-static void do_retf(cpuctx_t *scp)
-{
-    unsigned int *ssp = SEL_ADR(_ss, _esp);
-    _eip = *ssp++;
-    _cs = *ssp++;
-    _esp += 8;
-}
-
 static void ctrl_hlt(Bit16u offs, void *sc, void *arg)
 {
     cpuctx_t *scp = sc;
     unsigned char *sp = SEL_ADR(_ss, _edx);  // sp in edx
-    do_retf(scp);
+    dpmi_retf32(scp);
     J_printf("DJ64: djdev64_ctrl() %s\n", DPMI_show_state(scp));
     _eax = djdev64_ctrl(_eax, _ebx, _ecx, _esi, sp);
 }
