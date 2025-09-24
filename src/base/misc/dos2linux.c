@@ -1098,6 +1098,19 @@ int com_printf(const char *format, ...)
 	return ret;
 }
 
+int com_error(const char *format, ...)
+{
+	int ret;
+	va_list args;
+	va_start(args, format);
+	ret = com_vprintf(format, args);
+	va_end(args);
+	va_start(args, format);
+	verror(format, args);
+	va_end(args);
+	return ret;
+}
+
 int com_puts(const char *s)
 {
 	return com_printf("%s", s);
@@ -1326,6 +1339,34 @@ int com_setcbreak(int on)
 	call_msdos();
 	post_msdos();
 	return old_b;
+}
+
+int com_dosallocmem(u_short para)
+{
+    int ret;
+    pre_msdos();
+    HI(ax) = 0x48;
+    LWORD(ebx) = para;
+    call_msdos();
+    if (REG(eflags) & CF)
+        ret = 0;
+    else
+        ret = LWORD(eax);
+    post_msdos();
+    return ret;
+}
+
+int com_dosfreemem(u_short para)
+{
+    int ret = 0;
+    pre_msdos();
+    HI(ax) = 0x49;
+    SREG(es) = para;
+    call_msdos();
+    if (REG(eflags) & CF)
+        ret = -1;
+    post_msdos();
+    return ret;
 }
 
 /* Output a character to the screen. */

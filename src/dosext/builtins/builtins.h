@@ -51,17 +51,13 @@ struct SREGS {
 #define com_stdout	1
 #define com_stderr	2
 
-int com_error(const char *format, ...);
 char *com_getenv(const char *keyword);
 int com_system(const char *command);
 unsigned short get_dos_ver(void);
 int com_dosgetdrive(void);
 int com_dossetdrive(int drive);
 int com_dossetcurrentdir(const char *path);
-int com_dosallocmem(u_short para);
-int com_dosfreemem(u_short para);
 void com_intr(int intno, struct REGPACK *regpack);
-void call_msdos(void);
 void call_msdos_interruptible(void);
 void register_com_program(const char *name, com_program_type *program);
 char *skip_white_and_delim(char *s, int delim);
