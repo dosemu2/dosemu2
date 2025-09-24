@@ -169,24 +169,6 @@ int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
 
 static void reinit_thr(void *arg);
 
-static void do_retf16(cpuctx_t *scp)
-{
-    void *sp = SEL_ADR_CLNT(_ss, _esp, 0);
-    unsigned short *ssp = sp;
-    _LWORD(eip) = *ssp++;
-    _cs = *ssp++;
-    _LWORD(esp) += 4;
-}
-
-static void do_retf32(cpuctx_t *scp)
-{
-    void *sp = SEL_ADR_CLNT(_ss, _esp, 1);
-    unsigned *ssp = sp;
-    _eip = *ssp++;
-    _cs = *ssp++;
-    _esp += 8;
-}
-
 static const struct msdos_ldt_ops ops = {
     .reset = _msdos_reset,
     .access = _msdos_ldt_access,
@@ -202,7 +184,7 @@ CONSTRUCTOR(static void _msdos_setup(void))
     xmshlp_init();
     /* bitness may change on reinit so we specify particular retf version */
     doshlp_setup(&reinit_hlp, "msdos reinit thr", reinit_thr,
-            MSDOS_CLIENT.is_32 ? do_retf32 : do_retf16);
+            MSDOS_CLIENT.is_32 ? dpmi_retf32 : dpmi_retf16);
     msdos_register_ops(&ops);
 }
 

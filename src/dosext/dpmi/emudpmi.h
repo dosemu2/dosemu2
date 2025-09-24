@@ -179,6 +179,8 @@ static inline unsigned dpmi_flags_from_stack_iret(const cpuctx_t *scp,
 #define flags_to_rm(flags) ((flags) | 2 | IOPL_MASK)
 
 void dpmi_retf(cpuctx_t *scp);
+void dpmi_retf16(cpuctx_t *scp);
+void dpmi_retf32(cpuctx_t *scp);
 
 #ifdef USE_MHPDBG   /* dosdebug support */
 int dpmi_mhp_regs(void);
