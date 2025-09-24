@@ -698,6 +698,7 @@ void dpmi_get_entry_point(void)
       return;
     }
 
+    NOCARRY;
     REG(eax) = 0; /* no error */
 
     /* 32 bit programs are O.K. */
