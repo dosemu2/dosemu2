@@ -619,8 +619,13 @@ static void dpmi_pic_run(cpuctx_t *scp)
 {
   int inum;
 
-  if (!_isset_IF() || !pic_pending())
+  clear_VIP();
+  if (!pic_pending())
     return;
+  if (!_isset_IF()) {
+    set_VIP();
+    return;
+  }
   inum = pic_get_inum();
   do_pm_int(scp, inum);
 }

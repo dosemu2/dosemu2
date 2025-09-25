@@ -814,12 +814,12 @@ void e_gen_sigalrm(void)
 	/* here we come from the kernel with cs==UCODESEL, as
 	 * the passed context is that of dosemu, NOT that of the
 	 * emulated CPU! */
-	sigalrm_pending_w(1);
+	exit_pending_or(CeS_SIGPEND);
 }
 
 void e_gen_sigalrm_from_thread(void)
 {
-	__atomic_store_n(&TheCPU.sigalrm_pending, 1, __ATOMIC_RELAXED);
+	exit_pending_or(CeS_SIGPEND);
 }
 
 static void enter_cpu_emu(void)
@@ -978,7 +978,7 @@ int e_vm86(struct vm86_struct *info)
 #if PREJIT_TEST
   prejit_vm86(info);
 #endif
-  sigalrm_pending_w(0);
+  exit_pending_w(0);
 
   e_sigpa_count = 0;
 #ifdef SKIP_VM86_TRACE
@@ -1089,7 +1089,7 @@ int e_dpmi(cpuctx_t *scp)
 #if PREJIT_TEST
   prejit_dpmi(scp);
 #endif
-  sigalrm_pending_w(0);
+  exit_pending_w(0);
 
   e_sigpa_count = 0;
 

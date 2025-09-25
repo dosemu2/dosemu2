@@ -336,14 +336,14 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 			     * condition changing a flag */
 			    e_printf("### dsp=0 jmp=%x pskip=%d\n",opc,pskip);
 		    }
-		    Gen(JB_LINK, mode, opc, P2, j_t, j_nt);
+		    Gen(JB_LINK, mode, opc, j_t, j_nt);
 		}
 		else {
 		    if (dsp == pskip) {
 			e_printf("### jmp %x 00\n",opc);
 		    }
 		    /* forward jump or backward jump >=256 bytes */
-		    Gen(JF_LINK, mode, opc, P2, j_t, j_nt);
+		    Gen(JF_LINK, mode, opc, j_t, j_nt);
 		}
 		break;
 	case JMPld: {   /* uncond jmp far */
@@ -463,8 +463,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 			Interp_LONG_CS = LONG_CS;
 		}
 	}
-	if (sigalrm_pending())
-		CEmuStat |= CeS_SIGPEND;
 	return _P1;
 }
 
@@ -498,7 +496,7 @@ static unsigned int FindExecCode(unsigned int PC)
 	 * any signal processing. Jumps are defined as
 	 * a 'descheduling point' for checking signals.
 	 */
-	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND)) &&
+	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) &&
 	       (G=FindTree(PC))) {
 		if (!GoodNode(G)) {
 			InvalidateNodeRange(G->seqbase, G->seqlen, NULL);
@@ -579,16 +577,10 @@ static void HandleEmuSignals(void)
 		if (EFLAGS & EFLAGS_IF)
 			TheCPU.err=EXCP_PICSIGNAL;
 	}
-	else if (CEmuStat & CeS_STI) {
-		/* force exit after next instruction */
-		CEmuStat &= ~CeS_STI;
-		if (pic_pending())
-			CEmuStat |= CeS_RPIC;
-	}
 	/* clear optional exit conditions */
 	CEmuStat &= ~CeS_TRAP;
 	if (TheCPU.err)
-		CEmuStat &= ~(CeS_SIGPEND | CeS_RPIC | CeS_STI);
+		CEmuStat &= ~(CeS_SIGPEND | CeS_RPIC);
 }
 
 static unsigned int _Interp86(unsigned int PC);
@@ -608,7 +600,7 @@ void Interp86(void)
 static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 {
 		if (CurrIMeta<0) {
-			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC|CeS_STI)) {
+			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
 				HandleEmuSignals();
 				if (TheCPU.err) return PC;
 			}
@@ -634,7 +626,7 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 			if (!(EFLAGS & TF)) {
 				P2 = FindExecCode(PC);
 				if (TheCPU.err) return P2;
-				if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC|CeS_STI)) {
+				if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
 					HandleEmuSignals();
 					if (TheCPU.err) return P2;
 					if (EFLAGS & TF)
@@ -2356,6 +2348,7 @@ stack_return_from_vm86:
 			    }
 			}
 			else {
+			    int is_tf = !!(EFLAGS & TF);
 			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) |
 					(CPL<=IOPL? 0:EFLAGS_IF) |
 					(EFLAGS_VM|EFLAGS_RF);
@@ -2375,11 +2368,12 @@ stack_return_from_vm86:
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
-			    if (opc == POPF && (EFLAGS & EFLAGS_IF)) {
+			    if (opc == POPF && (EFLAGS & EFLAGS_IF) && isset_VIP()) {
 				if (debug_level('e')>1)
 				    e_printf("Return for STI fl=%08x\n",
 					    EFLAGS);
-				CEmuStat |= CeS_STI;
+				TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
+				return PC+1;
 			    }
 			}
 			if (opc==POPF) PC++;
@@ -2710,10 +2704,13 @@ repag0:
 				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
 				EFLAGS |= EFLAGS_VIF;
 			    }
-			    if (debug_level('e')>1)
-				    e_printf("Return for STI fl=%08x\n",
-					    EFLAGS);
-			    CEmuStat |= CeS_STI;
+			    if (isset_VIP()) {
+				if (debug_level('e')>1)
+				    e_printf("Return for STI ASAP fl=%08x\n",
+					     EFLAGS);
+				/* force exit after next compiled block execution */
+				exit_pending_or(CeS_RPIC);
+			    }
 			}
 			break;
 /*fc*/	case CLD:	PC++;

@@ -376,24 +376,15 @@ void Gen(int op, int mode, ...)
 		break;
 
 	case JMP_LINK:		// opc, dspt, retaddr, link
-	case JLOOP_LINK: {
+	case JLOOP_LINK:
+	case JF_LINK:
+	case JB_LINK: {		// opc, dspt, dspnt, link
 		unsigned char opc = (unsigned char)va_arg(ap,unsigned int);
 		IG->p0 = opc;
 		IG->p1 = va_arg(ap,unsigned int);	// dspt
 		IG->p2 = va_arg(ap,unsigned int);	// dspnt
 		}
 		break;
-
-	case JF_LINK:
-	case JB_LINK: {		// opc, PC, dspt, dspnt, link
-		unsigned char opc = (unsigned char)va_arg(ap,unsigned int);
-		IG->p0 = opc;
-		IG->p1 = va_arg(ap,unsigned int);	// jpc
-		IG->p2 = va_arg(ap,unsigned int);	// dspt
-		IG->p3 = va_arg(ap,unsigned int);	// dspnt
-		}
-		break;
-
 	}
 
 	va_end(ap);
@@ -610,7 +601,9 @@ unsigned int DoExec(TNode *G)
 
 	ecpu = CPUOFFS(0);
 	if (debug_level('e')>1) {
-		if (sigalrm_pending()>0) e_printf("** SIGALRM is pending\n");
+		unsigned e = exit_pending();
+		if (e & CeS_SIGPEND) e_printf("** SIGALRM is pending\n");
+		if (e & CeS_RPIC) e_printf("** PIC is pending\n");
 		e_printf("==== Executing code at %p flg=%04x\n",
 			SeqStart,seqflg);
 	}
@@ -631,7 +624,7 @@ unsigned int DoExec(TNode *G)
 #endif
 	    if (debug_level('e')>1) {
 		e_printf("** End code, PC=%08x sig=%x\n",ePC,
-		    sigalrm_pending());
+		    exit_pending());
 		if ((debug_level('e')>3) && (seqflg & F_FPOP)) {
 		    e_printf("  %s\n", e_trace_fp());
 		}
@@ -653,10 +646,7 @@ unsigned int DoExec(TNode *G)
 		CEmuStat &= ~CeS_TRAP;
 	} else {
 		CEmuStat &= ~CeS_INHI;
-		if (sigalrm_pending()) {
-			CEmuStat|=CeS_SIGPEND;
-			sigalrm_pending_w(0);
-		}
+		CEmuStat |= exit_pending_xchg(0);
 	}
 
 #if defined(SINGLESTEP)
@@ -694,7 +684,7 @@ unsigned int DoExec_fast(TNode *G)
 {
 	unsigned char *ecpu = CPUOFFS(0);
 	unsigned long flg = Exec_pre(ecpu);
-	unsigned int ePC, mem_ref;
+	unsigned int ePC, mem_ref, e;
 
 	do {
 		ePC = Exec(&mem_ref, &flg, ecpu, G->addr, 0);
@@ -705,15 +695,15 @@ unsigned int DoExec_fast(TNode *G)
 				NodeLinker(LastXNode, G);
 			LastXNode = G;
 		}
-		if (sigalrm_pending()) {
-			CEmuStat|=CeS_SIGPEND;
+		e = exit_pending_xchg(0);
+		if (e) {
+			CEmuStat |= e;
 			break;
 		}
 	} while (!TheCPU.err2 && (G=FindTree(ePC)) &&
 		 GoodNode(G) && !(G->flags & (F_FPOP|F_INHI)));
 
 	Exec_post(flg, mem_ref);
-	sigalrm_pending_w(0);
 	return ePC;
 }
 
