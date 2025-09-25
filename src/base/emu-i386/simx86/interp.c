@@ -959,6 +959,37 @@ stack_return_from_vm86:
 			}
 			EFLAGS &= ~EFLAGS_VIF;
 			break;
+/*fb*/	case STI:
+			if (V86MODE()) {    /* traps always (Intel man) */
+				/* virtual-8086 monitor */
+				if (IOPL==3)
+				    EFLAGS |= EFLAGS_IF;
+				else
+				    EFLAGS |= EFLAGS_VIF;
+				if (vm86s.regs.eflags & VIP) {
+				    if (debug_level('e')>1)
+					e_printf("Return for STI fl=%08x\n",
+					    EFLAGS);
+				    TheCPU.err2=EXCP_STISIGNAL;
+				}
+			}
+			else {
+			    if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
+				EFLAGS |= EFLAGS_IF;
+			    }
+			    else {
+				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
+				EFLAGS |= EFLAGS_VIF;
+			    }
+			    if (isset_VIP()) {
+				if (debug_level('e')>1)
+				    e_printf("Return for STI ASAP fl=%08x\n",
+					    EFLAGS);
+				/* force exit after next compiled block execution */
+				exit_pending_or(CeS_RPIC);
+			    }
+			}
+			break;
 /*6c*/	case INSb: {
 			unsigned short a;
 			unsigned int rd;
@@ -2680,37 +2711,11 @@ repag0:
 			    ((V86MODE() && !(TheCPU.cr[4] & CR4_VME)) ||
 			     (!V86MODE() && !(TheCPU.cr[4] & CR4_PVI))))
 				goto not_permitted;	/* GPF */
-			CODE_FLUSH();
-			if (V86MODE()) {    /* traps always (Intel man) */
-				/* virtual-8086 monitor */
-				if (IOPL==3)
-				    EFLAGS |= EFLAGS_IF;
-				else
-				    EFLAGS |= EFLAGS_VIF;
-				if (vm86s.regs.eflags & VIP) {
-				    if (debug_level('e')>1)
-					e_printf("Return for STI fl=%08x\n",
-					    EFLAGS);
-				    TheCPU.err=EXCP_STISIGNAL;
-				    return PC;
-				}
-			}
-			else {
-			    if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
-				EFLAGS |= EFLAGS_IF;
-			    }
-			    else {
-				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
-				EFLAGS |= EFLAGS_VIF;
-			    }
-			    if (isset_VIP()) {
-				if (debug_level('e')>1)
-				    e_printf("Return for STI ASAP fl=%08x\n",
-					     EFLAGS);
-				/* force exit after next compiled block execution */
-				exit_pending_or(CeS_RPIC);
-			    }
-			}
+			Gen(O_SIM, _mode, opc, 0, PC);
+			/* real mode inhibits after STI as well but
+			   we've always relied on trapping behaviour with vm86 */
+			if (!V86MODE())
+				InstrMeta[CurrIMeta].flags |= F_INHI;
 			break;
 /*fc*/	case CLD:	PC++;
 #if 0
