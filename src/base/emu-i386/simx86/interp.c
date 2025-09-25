@@ -129,6 +129,8 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode, unsigned _P0)
 	if (!G)
 	    return _P0;
 	ret = DoExec(G);
+	if (TheCPU.err2 == EXCP_TFSET)
+		TheCPU.err2 = 0;
 	TheCPU.err = TheCPU.err2;
 	Interp_LONG_CS = LONG_CS;
 	return ret;
@@ -182,39 +184,6 @@ static inline unsigned int UNPREFIX(unsigned int m)
 	return (m&~(DATA16|ADDR16))|((m&MBIGCS)?0:(DATA16|ADDR16));
 }
 
-/////////////////////////////////////////////////////////////////////////////
-
-
-static int MAKESEG(int mode, int ofs, unsigned short sv)
-{
-	int e;
-	unsigned char big;
-
-//	if ((ofs<0)||(ofs>=0x60)) return EXCP06_ILLOP;
-
-	if (REALADDR()) {
-		e = SetSegReal(sv,ofs);
-		if (ofs == Ofs_CS)
-			Interp_LONG_CS = LONG_CS;
-		return e;
-	}
-
-	e = SetSegProt(mode&ADDR16, ofs, &big, sv);
-	if (e)
-		return e;
-	if (ofs==Ofs_CS) {
-		TheCPU.mode &= ~(ADDR16|DATA16|MBIGCS);
-		if (big) TheCPU.mode |= MBIGCS;
-		else TheCPU.mode |= (ADDR16|DATA16);
-		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
-		Interp_LONG_CS = LONG_CS;
-	}
-	if (ofs==Ofs_SS) {
-		TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
-		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
-	}
-	return 0;
-}
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -243,7 +212,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	switch(opc) {
 	case RET: case RETisp: case JMPi: case CALLi:
 	case RETl: case RETlisp: case JMPli: case CALLli:
-	case INT: // indirect jumps
+	case IRET: case INT: // indirect jumps
 		dsp = 0;
 		j_t = 0;
 		d_t = 0;
@@ -395,7 +364,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	case LOOP: case LOOPZ_LOOPE: case LOOPNZ_LOOPNE:
 		Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
 		break;
-	case RETl: case RETlisp: // far ret, indirect
+	case RETl: case RETlisp: case IRET: // far ret, indirect
 	case JMPli: case CALLli: case INT: // far jmp/call, indirect
 		Gen(L_REG, mode, Ofs_EIP);
 		/* fall through */
@@ -427,7 +396,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 		/* With uncond JMP or RET nothing to speculate. */
 		case JMPld:
 		case JMPsid: case JMPd:
-		case RETl: case RETlisp: case JMPli:
+		case RETl: case RETlisp: case JMPli: case IRET:
 		case RET: case RETisp: case JMPi:
 			can_speculate = 0;
 			break;
@@ -459,6 +428,8 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 			if (can_speculate)
 				prejit_sync();
 #endif
+			if (TheCPU.err2 == EXCP_TFSET)
+				TheCPU.err2 = 0;
 			TheCPU.err = TheCPU.err2;
 			Interp_LONG_CS = LONG_CS;
 		}
@@ -625,13 +596,15 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 #ifndef SINGLESTEP
 			if (!(EFLAGS & TF)) {
 				P2 = FindExecCode(PC);
+				if (TheCPU.err == EXCP_TFSET)
+					TheCPU.err = TheCPU.err2 = 0;
 				if (TheCPU.err) return P2;
 				if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
 					HandleEmuSignals();
 					if (TheCPU.err) return P2;
-					if (EFLAGS & TF)
-						CEmuStat |= CeS_TRAP;
 				}
+				if (EFLAGS & TF)
+					CEmuStat |= CeS_TRAP;
 			}
 #endif
 			if (P2 == PC || e_querymark(P2, 1)) {
@@ -762,6 +735,7 @@ static unsigned int _Interp86(unsigned int PC)
 unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			uint32_t *flags, unsigned int opc, unsigned int arg)
 {
+	unsigned int temp;
 	switch (opc) {
 /*9c*/	case PUSHF:    { /* flag handling for VME-case only,
 			    not used presently with IOPL==3 */
@@ -855,6 +829,122 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 					    inum, _AX, _CS, _IP);
 			break;
 		       }
+/*cf*/	case IRET: {	/* restartable */
+			/* GPF handled in interpreter */
+			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
+			temp = data;
+			/* IRET always returns with the new PC, we need to
+			   flag that TF is set via an exception code that doesn't
+			   interrupt the IRET */
+			data = (temp & TF) ? EXCP_TFSET : 0;
+			if (debug_level('e')>1) {
+				e_printf("IRET: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
+			}
+			EFLAGS = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
+			if (!(mode & DATA16)) {
+			    temp &= EFLAGS_ALL & ~(VM|VIF|VIP);
+			    temp |= EFLAGS & (VM|VIF|VIP);
+			}
+			/* in 16bit mode the manual doesn't seem to ask to
+			 * clear reserved bits... But bit1 is always set! */
+			if (REALMODE())
+			    FLAGS = temp | 2;
+			else if (V86MODE()) {
+			    goto stack_return_from_vm86;
+			}
+			else {
+			    /* if (EFLAGS&EFLAGS_NT) goto task_return */
+			    /* if (temp&EFLAGS_VM) goto stack_return_to_vm86 */
+			    /* else stack_return */
+			    int amask = (CPL==0? 0:(EFLAGS_IOPL_MASK|VIF|VIP)) |
+					(CPL<=IOPL? 0:EFLAGS_IF);
+			    if (mode & DATA16)
+				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask) | 2;
+			    else	/* should use eTSSMASK */
+				EFLAGS = (EFLAGS&amask) |
+					 ((temp&(eTSSMASK|0xfd7))&~amask) | 2;
+			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
+			    if (debug_level('e')>1)
+				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_FLAGS(EFLAGS));
+			}
+			*flags = EFLAGS & EFLAGS_CC;
+			} break;
+/*9d*/	case POPF: {
+			/* GPF handled in interpreter */
+			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
+			temp = data;
+			if (temp & TF)
+			    TheCPU.err2 = EXCP_TFSET;
+			EFLAGS = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
+			if (V86MODE()) {
+			    int is_tf;
+stack_return_from_vm86:
+			    if (debug_level('e')>1)
+				e_printf("Popped flags %08x fl=%08x\n",
+					temp,EFLAGS);
+			    is_tf = !!(EFLAGS & TF);
+			    if (IOPL==3) {	/* Intel manual */
+				/* keep reserved bits + IOPL,VIP,VIF,VM,RF */
+				if (mode & DATA16)
+				    FLAGS &= ~(SAFE_MASK|EFLAGS_IF);
+				else
+				    EFLAGS &= ~(SAFE_MASK|EFLAGS_IF);
+				EFLAGS |= (temp & (SAFE_MASK|EFLAGS_IF)) | 2;
+			    }
+			    else {
+				/* virtual-8086 monitor */
+				/* move mask from pop{e}flags to regs->eflags */
+				if (mode & DATA16)
+				    FLAGS &= ~SAFE_MASK;
+				else
+				    EFLAGS &= ~SAFE_MASK;
+				EFLAGS |= (temp & SAFE_MASK) | 2;
+				if (temp & EFLAGS_IF)
+				    EFLAGS |= EFLAGS_VIF;
+			    }
+			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
+			    if (temp & EFLAGS_IF) {
+				if (vm86s.regs.eflags & VIP) {
+				    if (debug_level('e')>1)
+					e_printf("Return for STI fl=%08x\n",
+						 EFLAGS);
+				    if (opc == POPF)
+					TheCPU.err2 = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
+				    else
+					data = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
+				}
+			    }
+			}
+			else {
+			    int is_tf = !!(EFLAGS & TF);
+			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) |
+					(CPL<=IOPL? 0:EFLAGS_IF) |
+					(EFLAGS_VM|EFLAGS_RF);
+			    if (mode & DATA16)
+				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask) | 2;
+			    else
+				EFLAGS = (EFLAGS&amask) |
+					 ((temp&(eTSSMASK|0xfd7))&~amask) | 2;
+			    // unused "extended PVI" since real PVI does not
+			    // affect POPF
+			    if (IOPL<3 && (TheCPU.cr[4]&CR4_PVI)) {
+				if (temp & EFLAGS_IF)
+				    EFLAGS |= EFLAGS_VIF;
+				else
+				    EFLAGS &= ~EFLAGS_VIF;
+			    }
+			    if (debug_level('e')>1)
+				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
+			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
+			    if ((EFLAGS & EFLAGS_IF) && isset_VIP()) {
+				if (debug_level('e')>1)
+				    e_printf("Return for STI fl=%08x\n",
+					    EFLAGS);
+				TheCPU.err2 = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
+			    }
+			}
+			*flags = EFLAGS & EFLAGS_CC;
+			} break;
 /*fa*/	case CLI:
 			/* only for PVI/VME IOPL<3 CLI, not used presently */
 			assert(!(REALMODE() || (CPL <= IOPL) || (IOPL==3)) &&
@@ -868,6 +958,37 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 				e_printf("Virtual DPMI CLI\n");
 			}
 			EFLAGS &= ~EFLAGS_VIF;
+			break;
+/*fb*/	case STI:
+			if (V86MODE()) {    /* traps always (Intel man) */
+				/* virtual-8086 monitor */
+				if (IOPL==3)
+				    EFLAGS |= EFLAGS_IF;
+				else
+				    EFLAGS |= EFLAGS_VIF;
+				if (vm86s.regs.eflags & VIP) {
+				    if (debug_level('e')>1)
+					e_printf("Return for STI fl=%08x\n",
+					    EFLAGS);
+				    TheCPU.err2=EXCP_STISIGNAL;
+				}
+			}
+			else {
+			    if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
+				EFLAGS |= EFLAGS_IF;
+			    }
+			    else {
+				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
+				EFLAGS |= EFLAGS_VIF;
+			    }
+			    if (isset_VIP()) {
+				if (debug_level('e')>1)
+				    e_printf("Return for STI ASAP fl=%08x\n",
+					    EFLAGS);
+				/* force exit after next compiled block execution */
+				exit_pending_or(CeS_RPIC);
+			    }
+			}
 			break;
 /*6c*/	case INSb: {
 			unsigned short a;
@@ -1098,7 +1219,6 @@ static unsigned int InterpOne(unsigned int PC, int basemode, int _flags)
 {
 	unsigned int P0 = PC;
 	unsigned char opc;
-	unsigned int temp;
 	unsigned short ocs;
 	int _mode = basemode;
 	/* WARNING - these are signed char offsets, NOT pointers! */
@@ -2259,126 +2379,36 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (TheCPU.err) return PC;
 			break;
 
-/*cf*/	case IRET: {	/* restartable */
+/*cf*/	case IRET:	/* restartable */
 			if (V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)) {
 			    PC++; goto not_permitted;	/* GPF */
 			}
-			uint16_t sv=0;
-			int m = _mode;
-			CODE_FLUSH();
-			NOS_WORD(m, &sv);	/* get segment */
-			TheCPU.err = MAKESEG(m, Ofs_CS, sv);
-			if (TheCPU.err) return P0;
-			TheCPU.eip=0; POP(m, &TheCPU.eip);
-			POP_ONLY(m);
-			PC = Interp_LONG_CS + TheCPU.eip;
-			if (debug_level('e')>1) {
-				e_printf("IRET: ret=%04x:%08x\n",sv,TheCPU.eip);
-			}
-			temp=0; POP(m, &temp);
-			if (!(m & DATA16)) {
-			    temp &= EFLAGS_ALL & ~(VM|VIF|VIP);
-			    temp |= EFLAGS & (VM|VIF|VIP);
-			}
-			/* in 16bit mode the manual doesn't seem to ask to
-			 * clear reserved bits... But bit1 is always set! */
-			if (REALMODE())
-			    FLAGS = temp | 2;
-			else if (V86MODE()) {
-			    goto stack_return_from_vm86;
-			}
-			else {
-			    /* if (EFLAGS&EFLAGS_NT) goto task_return */
-			    /* if (temp&EFLAGS_VM) goto stack_return_to_vm86 */
-			    /* else stack_return */
-			    int amask = (CPL==0? 0:(EFLAGS_IOPL_MASK|VIF|VIP)) |
-					(CPL<=IOPL? 0:EFLAGS_IF);
-			    if (_mode & DATA16)
-				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask) | 2;
-			    else	/* should use eTSSMASK */
-				EFLAGS = (EFLAGS&amask) |
-					 ((temp&(eTSSMASK|0xfd7))&~amask) | 2;
-			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
-			    if (debug_level('e')>1)
-				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_FLAGS(EFLAGS));
-			}
-			} break;
-
-/*9d*/	case POPF: {
+			/* pop from stack without adjusting esp before A_SR_* */
+			Gen(O_POP1, _mode);
+			Gen(O_POP2, _mode, Ofs_EIP);
+			Gen(O_POP2, _mode|MNOREG);
+			if (REALADDR())
+				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
+			else
+				AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
+			Gen(O_POP3, _mode);
+			Gen(O_POP, _mode);
+			Gen(O_SIM, _mode, opc, 0, P0);
+			/* to process EXCP_TFSET */
+			Gen(S_REG, _mode & ~DATA16, Ofs_ERR);
+			PC = JumpGen(PC, _mode, opc, 1, P0, _flags);
+			if (debug_level('e')>1)
+			    e_printf("IRET: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
+			if (TheCPU.err) return PC;
+			break;
+/*9d*/	case POPF:
+			PC++;
 			if (V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)) {
-			    PC++; goto not_permitted;	/* GPF */
+			    goto not_permitted;	/* GPF */
 			}
-			CODE_FLUSH();
-			temp=0; POP(_mode, &temp);
-			if (V86MODE()) {
-			    int is_tf;
-stack_return_from_vm86:
-			    if (debug_level('e')>1)
-				e_printf("Popped flags %08x fl=%08x\n",
-					temp,EFLAGS);
-			    is_tf = !!(EFLAGS & TF);
-			    if (IOPL==3) {	/* Intel manual */
-				/* keep reserved bits + IOPL,VIP,VIF,VM,RF */
-				if (_mode & DATA16)
-				    FLAGS &= ~(SAFE_MASK|EFLAGS_IF);
-				else
-				    EFLAGS &= ~(SAFE_MASK|EFLAGS_IF);
-				EFLAGS |= (temp & (SAFE_MASK|EFLAGS_IF)) | 2;
-			    }
-			    else {
-				/* virtual-8086 monitor */
-				/* move mask from pop{e}flags to regs->eflags */
-				if (_mode & DATA16)
-				    FLAGS &= ~SAFE_MASK;
-				else
-				    EFLAGS &= ~SAFE_MASK;
-				EFLAGS |= (temp & SAFE_MASK) | 2;
-				if (temp & EFLAGS_IF)
-				    EFLAGS |= EFLAGS_VIF;
-			    }
-			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
-			    if (temp & EFLAGS_IF) {
-				if (vm86s.regs.eflags & VIP) {
-				    if (debug_level('e')>1)
-					e_printf("Return for STI fl=%08x\n",
-						 EFLAGS);
-				    TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
-				    return PC + (opc==POPF);
-				}
-			    }
-			}
-			else {
-			    int is_tf = !!(EFLAGS & TF);
-			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) |
-					(CPL<=IOPL? 0:EFLAGS_IF) |
-					(EFLAGS_VM|EFLAGS_RF);
-			    if (_mode & DATA16)
-				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask) | 2;
-			    else
-				EFLAGS = (EFLAGS&amask) |
-					 ((temp&(eTSSMASK|0xfd7))&~amask) | 2;
-			    // unused "extended PVI" since real PVI does not
-			    // affect POPF
-			    if (IOPL<3 && (TheCPU.cr[4]&CR4_PVI)) {
-				if (temp & EFLAGS_IF)
-				    EFLAGS |= EFLAGS_VIF;
-				else
-				    EFLAGS &= ~EFLAGS_VIF;
-			    }
-			    if (debug_level('e')>1)
-				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
-			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
-			    if (opc == POPF && (EFLAGS & EFLAGS_IF) && isset_VIP()) {
-				if (debug_level('e')>1)
-				    e_printf("Return for STI fl=%08x\n",
-					    EFLAGS);
-				TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
-				return PC+1;
-			    }
-			}
-			if (opc==POPF) PC++;
-		}
-		break;
+			Gen(O_POP, _mode);
+			Gen(O_SIM, _mode, opc, 0, PC);
+			break;
 
 /*f2*/	case REPNE:
 /*f3*/	case REP: /* also is REPE */ {
@@ -2681,37 +2711,11 @@ repag0:
 			    ((V86MODE() && !(TheCPU.cr[4] & CR4_VME)) ||
 			     (!V86MODE() && !(TheCPU.cr[4] & CR4_PVI))))
 				goto not_permitted;	/* GPF */
-			CODE_FLUSH();
-			if (V86MODE()) {    /* traps always (Intel man) */
-				/* virtual-8086 monitor */
-				if (IOPL==3)
-				    EFLAGS |= EFLAGS_IF;
-				else
-				    EFLAGS |= EFLAGS_VIF;
-				if (vm86s.regs.eflags & VIP) {
-				    if (debug_level('e')>1)
-					e_printf("Return for STI fl=%08x\n",
-					    EFLAGS);
-				    TheCPU.err=EXCP_STISIGNAL;
-				    return PC;
-				}
-			}
-			else {
-			    if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
-				EFLAGS |= EFLAGS_IF;
-			    }
-			    else {
-				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
-				EFLAGS |= EFLAGS_VIF;
-			    }
-			    if (isset_VIP()) {
-				if (debug_level('e')>1)
-				    e_printf("Return for STI ASAP fl=%08x\n",
-					     EFLAGS);
-				/* force exit after next compiled block execution */
-				exit_pending_or(CeS_RPIC);
-			    }
-			}
+			Gen(O_SIM, _mode, opc, 0, PC);
+			/* real mode inhibits after STI as well but
+			   we've always relied on trapping behaviour with vm86 */
+			if (!V86MODE())
+				InstrMeta[CurrIMeta].flags |= F_INHI;
 			break;
 /*fc*/	case CLD:	PC++;
 #if 0

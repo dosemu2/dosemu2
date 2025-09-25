@@ -681,6 +681,7 @@ extern int SpecPrejits;
 #define EXCP_MODESWITCH	68
 #define EXCP_EMULEAVE	69
 #define EXCP_RETRY	70
+#define EXCP_TFSET	71
 
 /////////////////////////////////////////////////////////////////////////////
 
