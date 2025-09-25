@@ -1399,8 +1399,9 @@ int NewIMeta(int npc, int *rc)
 		if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
 		CurrIMeta++;
-		/* provoke caller to flush if we are about to overflow */
-		*rc = (CurrIMeta >= MAXINODES-1 ? -1 : 1);
+		/* provoke caller to flush if we are about to overflow:
+		   we need space for one more instruction to close */
+		*rc = (CurrIMeta >= MAXINODES-2 ? -1 : 1);
 		I++;
 		I->ngen = 0;
 		I->flags = 0;

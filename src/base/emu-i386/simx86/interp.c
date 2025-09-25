@@ -642,10 +642,14 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 			int rc=0;
 			NewIMeta(P0, &rc);
 			if (rc < 0) {
+				unsigned int Interp_P0 = P0, Interp_PC = PC;
 				if (debug_level('e')>2)
 					e_printf("============ Tab full:cannot close sequence\n");
+				P0 = PC;
 				CODE_FLUSH2(mode);
-				NewIMeta(P0, &rc);
+				/* this may return a different PC because of BreakNode */
+				if (PC == Interp_PC)
+					NewIMeta(Interp_P0, &rc);
 			}
 		}
 
