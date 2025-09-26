@@ -100,11 +100,9 @@ static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 {
 	/* If the code doesn't terminate with a jump/loop instruction
 	 * it still lacks the tail code; add it here */
-	IMeta *GL = &InstrMeta[CurrIMeta-1];
+	IMeta *GL = &InstrMeta[CurrIMeta];
 	if (GL->gen[GL->ngen-1].op < JMP_TAILCODE) {
-		int rc;
 		Gen(JMP_TAILCODE, mode, PC);
-		NewIMeta(PC, &rc);
 	}
 
 	assert(PC > P0);
@@ -149,15 +147,15 @@ static unsigned int do_flush(unsigned P0, unsigned _P0,
     unsigned mode, unsigned _flags)
 {
   if (_flags & FLG_PREJIT) {
-    if (CurrIMeta>0) {
+    if (CurrIMeta>=0) {
       TNode *G = DoClose(P0, mode, _P0);
       G->flags |= F_PREJ;
       NodesPrejitted++;
-    } else if (CurrIMeta == 0) CurrIMeta = -1;
+    }
     TheCPU.err = EXCP_GOBACK;
-  } else if (CurrIMeta>0) {
+  } else if (CurrIMeta>=0) {
     return DoCloseAndExec(P0, mode, _P0);
-  } else if (CurrIMeta == 0) CurrIMeta = -1;
+  }
   return P0;
 }
 
@@ -382,7 +380,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 	unsigned int P0, int _flags)
 {
 	unsigned int _P0, _P1;
-	int _rc;
 	_P1 = _JumpGen(P2, mode, opc, pskip, &_P0);
 	if (_P1 == (unsigned)-1) {
 #if SPEC_PREJIT
@@ -390,7 +387,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 #endif
 		unsigned int basemode = UNPREFIX(mode);
 		TNode *G;
-		NewIMeta(P0, &_rc);
 #if SPEC_PREJIT
 		switch (opc) {
 		/* With uncond JMP or RET nothing to speculate. */
@@ -440,13 +436,11 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 	unsigned int scp_err, unsigned int P0, int _flags)
 {
-	int rc = 0;
 	Gen(L_IMM, basemode, Ofs_ERR, trapno);
 	if (trapno == EXCP0D_GPF)
 		Gen(L_IMM, basemode, Ofs_SCP_ERR, scp_err);
 	if (trapno != EXCP03_INT3 && trapno != EXCP04_INTO)
 		Gen(JMP_TAILCODE, basemode, P0); // fault: use current instr
-	NewIMeta(P0, &rc);
 	P0 = PC;
 	CODE_FLUSH();
 	assert(TheCPU.err == trapno ||
@@ -638,21 +632,6 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 	int _flags)
 {
-		if (CurrIMeta>=0) {
-			int rc=0;
-			NewIMeta(P0, &rc);
-			if (rc < 0) {
-				unsigned int Interp_P0 = P0, Interp_PC = PC;
-				if (debug_level('e')>2)
-					e_printf("============ Tab full:cannot close sequence\n");
-				P0 = PC;
-				CODE_FLUSH2(mode);
-				/* this may return a different PC because of BreakNode */
-				if (PC == Interp_PC)
-					NewIMeta(Interp_P0, &rc);
-			}
-		}
-
 #ifdef SINGLEBLOCK
 		if (CurrIMeta>=0) {
 			P0 = PC;
@@ -1228,6 +1207,13 @@ static unsigned int InterpOne(unsigned int PC, int basemode, int _flags)
 	/* WARNING - these are signed char offsets, NOT pointers! */
 	signed char OVERR_DS = Ofs_XDS;
 	signed char OVERR_SS = Ofs_XSS;
+
+	if (!NewIMeta(P0)) {
+		if (debug_level('e')>2)
+			e_printf("============ Tab full:cannot close sequence\n");
+		CODE_FLUSH();
+		NewIMeta(P0);
+	}
 
 override:
 	switch ((opc=Fetch(PC))) {
@@ -3417,7 +3403,7 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 		if (TheCPU.err)
 			return;
 		if (e_querymark(PC, gap)) {
-			if (CurrIMeta>0) {
+			if (CurrIMeta>=0) {
 				TNode *G = DoClose(PC, basemode,
 						InstrMeta[0].npc);
 				G->flags |= F_PREJ;
