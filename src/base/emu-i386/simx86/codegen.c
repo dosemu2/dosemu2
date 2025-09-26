@@ -128,9 +128,6 @@ void AddrGen(int op, int mode, ...)
 	if (debug_level('e')) t0 = GETTSC();
 #endif
 
-	if (CurrIMeta<0) {
-		CurrIMeta=0; InstrMeta[0].ngen=0; InstrMeta[0].flags=0;
-	}
 	I = &InstrMeta[CurrIMeta];
 	if (I->ngen >= NUMGENS) { leavedos_main(0xbac1); return; }
 	IG = &(I->gen[I->ngen]);
@@ -193,9 +190,6 @@ void Gen(int op, int mode, ...)
 	if (debug_level('e')) t0 = GETTSC();
 #endif
 
-	if (CurrIMeta<0) {
-		CurrIMeta=0; InstrMeta[0].ngen=0; InstrMeta[0].flags=0;
-	}
 	I = &InstrMeta[CurrIMeta];
 	if (I->ngen >= NUMGENS) leavedos_main(0xbac2);
 	IG = &(I->gen[I->ngen]);
@@ -430,7 +424,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	 *
 	 */
 	GenBufSize = 0;
-	for (i=0; i<CurrIMeta; i++)
+	for (i=0; i<=CurrIMeta; i++)
 	    GenBufSize += I0[i].ngen * MAX_GEND_BYTES_PER_OP;
 	mall_req = GenBufSize + offsetof(CodeBuf, meta) + sizeof(Addr2Pc) * nap + 32;// 32 for tail
 	GenCodeBuf = dlmalloc(mall_req);
@@ -440,7 +434,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	if (debug_level('e')>1)
 	    e_printf("CodeBuf=%p siz %zd CodePtr=%p\n",GenCodeBuf,GenBufSize,CodePtr);
 
-	for (i=0; i<CurrIMeta; i++) {
+	for (i=0; i<=CurrIMeta; i++) {
 	    IMeta *I = &I0[i];
 	    if (i==0) {
 		adr_lo = adr_hi = I->npc;
@@ -469,7 +463,23 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 		cp1 = CodePtr;
 	    }
 	    I->len = CodePtr - cp;
-	    if (debug_level('e')>3) GCPrint(cp, BaseGenBuf, I->len);
+	    if (i > 0) {
+		/* F_INHI (pop ss/mov ss) only applies to the last
+		   instruction in the sequence and not twice in
+		   a row */
+		if ((I->flags & F_INHI) && !(I0->flags & F_INHI))
+		    I0->flags |= F_INHI;
+		else
+		    I0->flags &= ~F_INHI;
+		I0->flags |= I->flags & ~F_INHI;
+	    }
+	    if (debug_level('e')>3) {
+		if (debug_level('e')>4) {
+		    e_printf("Metadata %03d PC=%08x flags=%x(%x) ng=%d\n",
+			     i,I->npc,I->flags,I0->flags,I->ngen);
+		}
+		GCPrint(cp, BaseGenBuf, I->len);
+	    }
 	}
 	if (debug_level('e')>1)
 	    e_printf("Size=%td guess=%zd\n",(CodePtr-BaseGenBuf),GenBufSize);
@@ -523,7 +533,7 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
 	TNode *G;
 	CodeBuf *GenCodeBuf;
 
-	if (CurrIMeta <= 0) {
+	if (CurrIMeta < 0) {
 /**/		e_printf("(X) Nothing to exec at %08x\n",PC);
 		return NULL;
 	}

@@ -985,7 +985,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 
   /* setup structures for inter-node linking */
   nG->unlinked_jmp_targets = 0;
-  op = I0[CurrIMeta-1].gen[I0[CurrIMeta-1].ngen-1].op;
+  op = I0[CurrIMeta].gen[I0[CurrIMeta].ngen-1].op;
 #ifdef X86_JIT
   if (op >= JMP_LINK) {
     nG->clink_t.link = (unsigned int *)(nG->addr + nG->len - JMPTAILSIZE + TAILFIX);
@@ -1355,20 +1355,19 @@ int e_invalidate_page_full(unsigned data)
 
 /////////////////////////////////////////////////////////////////////////////
 
-int NewIMeta(int npc, int *rc)
+int NewIMeta(int npc)
 {
+	int ret = 0;
 #if PROFILE >= 2
 	hitimer_t t0 = 0;
 
 	if (debug_level('e')) t0 = GETTSC();
 #endif
-	if (CurrIMeta >= 0) {
+	if (CurrIMeta < MAXINODES-1) {
 		// add new opcode metadata
 		IMeta *I,*I0;
 
-		if (CurrIMeta>=MAXINODES-1) {
-			*rc = -1; goto quit;
-		}
+		CurrIMeta++;
 		I = &InstrMeta[CurrIMeta];
 		if (CurrIMeta==0) {		// no open code sequences
 			if (debug_level('e')>2) e_printf("============ Opening sequence at %08x\n",npc);
@@ -1381,38 +1380,15 @@ int NewIMeta(int npc, int *rc)
 		I0->ncount += 1;
 		I->npc = npc;
 
-		if (CurrIMeta>0 && I->gen[I->ngen-1].op != JMP_TAILCODE) {
-			/* F_INHI (pop ss/mov ss) only applies to the last
-			   instruction in the sequence and not twice in
-			   a row */
-			if ((I->flags & F_INHI) && !(I0->flags & F_INHI))
-				I0->flags |= F_INHI;
-			else
-				I0->flags &= ~F_INHI;
-			I0->flags |= I->flags & ~F_INHI;
-		}
-		if (debug_level('e')>4) {
-			e_printf("Metadata %03d PC=%08x flags=%x(%x) ng=%d\n",
-				CurrIMeta,I->npc,I->flags,I0->flags,I->ngen);
-		}
-#if PROFILE >= 2
-		if (debug_level('e')) AddTime += (GETTSC() - t0);
-#endif
-		CurrIMeta++;
-		/* provoke caller to flush if we are about to overflow:
-		   we need space for one more instruction to close */
-		*rc = (CurrIMeta >= MAXINODES-2 ? -1 : 1);
-		I++;
 		I->ngen = 0;
 		I->flags = 0;
-		return CurrIMeta;
+		ret = 1;
 	}
-	*rc = 0;
-quit:
+
 #if PROFILE >= 2
 	if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
-	return -1;
+	return ret;
 }
 
 /////////////////////////////////////////////////////////////////////////////
