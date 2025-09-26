@@ -849,10 +849,14 @@ void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
     if (!i)
       error("callback queue overflow, %s\n", name);
   }
-  if (in_emu_cpu())
-    e_gen_sigalrm_from_thread();
-  else
+  if (in_emu_cpu()) {
+    if (strcmp(name, "pic") == 0)
+      e_gen_rpic_from_thread();
+    else
+      e_gen_sigalrm_from_thread();
+  } else {
     pthread_kill(dosemu_pthread_self, SIG_THREAD_NOTIFY);
+  }
 }
 
 static void process_callbacks(void)

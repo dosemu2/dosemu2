@@ -822,6 +822,11 @@ void e_gen_sigalrm_from_thread(void)
 	exit_pending_or(CeS_SIGPEND);
 }
 
+void e_gen_rpic_from_thread(void)
+{
+	exit_pending_or(CeS_RPIC);
+}
+
 static void enter_cpu_emu(void)
 {
 	unsigned int realdelta = config.update / TIMER_DIVISOR;
