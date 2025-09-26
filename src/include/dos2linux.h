@@ -371,12 +371,15 @@ int com_dosread(int dosfilefd, char *buf32, u_short size);
 int com_dosreadcon(char *buf32, u_short size);
 int com_doswritecon(const char *buf32, u_short size);
 int com_dosprint(const char *buf32);
+int com_error(const char *format, ...);
 int com_dosopen(const char *name, int flags);
 int com_dosclose(int fd);
 int com_biosgetch(void);
 int com_bioscheckkey(void);
 int com_biosread(char *buf32, u_short size);
 int com_setcbreak(int on);
+int com_dosallocmem(u_short para);
+int com_dosfreemem(u_short para);
 
 void init_all_DOS_tables(void);
 extern unsigned char upperDOS_table[0x100];

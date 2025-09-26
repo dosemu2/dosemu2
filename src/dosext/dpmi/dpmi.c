@@ -703,6 +703,7 @@ void dpmi_get_entry_point(void)
       return;
     }
 
+    NOCARRY;
     REG(eax) = 0; /* no error */
 
     /* 32 bit programs are O.K. */
@@ -4873,6 +4874,24 @@ static void do_dpmi_retf(cpuctx_t *scp, void * const sp)
 void dpmi_retf(cpuctx_t *scp)
 {
   do_dpmi_retf(scp, SEL_ADR(_ss, _esp));
+}
+
+void dpmi_retf16(cpuctx_t *scp)
+{
+    void *sp = SEL_ADR_CLNT(_ss, _esp, 0);
+    unsigned short *ssp = sp;
+    _LWORD(eip) = *ssp++;
+    _cs = *ssp++;
+    _LWORD(esp) += 4;
+}
+
+void dpmi_retf32(cpuctx_t *scp)
+{
+    void *sp = SEL_ADR_CLNT(_ss, _esp, 1);
+    unsigned *ssp = sp;
+    _eip = *ssp++;
+    _cs = *ssp++;
+    _esp += 8;
 }
 
 /* rough iret emulation for HW handlers only */

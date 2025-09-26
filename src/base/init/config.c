@@ -543,7 +543,7 @@ static void set_freedos_dir(void)
 
   if (!fddir_default && !comcom_dir)
 #ifdef USE_DJDEV64
-    error("comcom64 not found, exiting.\n");
+    error("comcom64 not found\n");
 #else
     error("Neither freecom nor comcom32 installation found.\n"
         "Use DOSEMU2_EXTRAS_DIR env var to specify location of freedos\n"

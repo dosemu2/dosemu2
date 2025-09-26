@@ -139,19 +139,6 @@ int com_system(const char *command)
 	return BMEM(run_dos)(command);
 }
 
-int com_error(const char *format, ...)
-{
-	int ret;
-	va_list args;
-	va_start(args, format);
-	ret = com_vprintf(format, args);
-	va_end(args);
-	va_start(args, format);
-	verror(format, args);
-	va_end(args);
-	return ret;
-}
-
 static int com_argparse(char *s, int i_argc, char **argvx, int maxarg)
 {
    int mode = 0;
@@ -215,34 +202,6 @@ static int com_argparse(char *s, int i_argc, char **argvx, int maxarg)
    }
    argvx[argcx] = 0;
    return(argcx);
-}
-
-int com_dosallocmem(u_short para)
-{
-    int ret;
-    pre_msdos();
-    HI(ax) = 0x48;
-    LWORD(ebx) = para;
-    call_msdos();
-    if (REG(eflags) & CF)
-        ret = 0;
-    else
-        ret = LWORD(eax);
-    post_msdos();
-    return ret;
-}
-
-int com_dosfreemem(u_short para)
-{
-    int ret = 0;
-    pre_msdos();
-    HI(ax) = 0x49;
-    SREG(es) = para;
-    call_msdos();
-    if (REG(eflags) & CF)
-        ret = -1;
-    post_msdos();
-    return ret;
 }
 
 int com_dosgetdrive(void)
@@ -479,7 +438,7 @@ int commands_plugin_inte6(void)
 	int i;
 	int err;
 
-	CARRY;		// prevents pligin_done() call
+	CARRY;		// prevents plugin_done() call
 	if (HI(ax) != BUILTINS_PLUGIN_VERSION) {
 	    com_error("builtins plugin version mismatch: found %i, required %i\n",
 		HI(ax), BUILTINS_PLUGIN_VERSION);

@@ -37,6 +37,7 @@ extern const unsigned DPMI_raw_mode_switch_rm;
 extern const unsigned DPMI_save_restore_rm;
 extern const unsigned DPMI_exit;
 extern const unsigned DPMI_end;
+extern const unsigned DPMI_rmentry;
 extern const unsigned XMSControl_OFF;
 extern const unsigned EOI_OFF;
 extern const unsigned EOI2_OFF;
