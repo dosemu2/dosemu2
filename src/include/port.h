@@ -35,48 +35,60 @@ extern int in_crit_section;
 
 static __inline__ void port_real_outb(ioport_t port, Bit8u value)
 {
+#ifdef HAVE_SYS_IO_H
 #if HAVE_DECL_OUTB
   outb(value, port);
+#endif
 #endif
 }
 
 static __inline__ Bit8u port_real_inb(ioport_t port)
 {
   Bit8u _v = 0;
+#ifdef HAVE_SYS_IO_H
 #if HAVE_DECL_OUTB
   _v = inb(port);
+#endif
 #endif
   return _v;
 }
 
 static __inline__ void port_real_outw(ioport_t port, Bit16u value)
 {
+#ifdef HAVE_SYS_IO_H
 #if HAVE_DECL_OUTB
   outw(value, port);
+#endif
 #endif
 }
 
 static __inline__ Bit16u port_real_inw(ioport_t port)
 {
   Bit16u _v = 0;
+#ifdef HAVE_SYS_IO_H
 #if HAVE_DECL_OUTB
   _v = inw(port);
+#endif
 #endif
   return _v;
 }
 
 static __inline__ void port_real_outd(ioport_t port, Bit32u value)
 {
+#ifdef HAVE_SYS_IO_H
 #if HAVE_DECL_OUTB
   outl(value, port);
+#endif
 #endif
 }
 
 static __inline__ Bit32u port_real_ind(ioport_t port)
 {
   Bit32u _v = 0;
+#ifdef HAVE_SYS_IO_H
 #if HAVE_DECL_OUTB
   _v = inl(port);
+#endif
 #endif
   return _v;
 }

@@ -1210,9 +1210,10 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 int
 set_ioperm(int start, int size, int flag)
 {
+	int tmp = -1;
+#ifdef HAVE_SYS_IO_H
 #if HAVE_DECL_IOPERM
 	PRIV_SAVE_AREA
-	int tmp;
 
 	if ((!can_do_root_stuff && flag == 1))
 	    return -1;		/* don't bother */
@@ -1237,10 +1238,9 @@ set_ioperm(int start, int size, int flag)
 	    }
 	}
 	i_printf ("nPORT: set_ioperm [%x:%d:%d] returns %d\n",start,size,flag,tmp);
-	return tmp;
-#else
-	return -1;
 #endif
+#endif
+	return tmp;
 }
 
 void port_enter_critical_section(const char *caller)

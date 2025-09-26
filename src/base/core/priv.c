@@ -131,8 +131,9 @@ int real_leave_priv_setting(void)
 
 int priv_iopl(int pl)
 {
+  int ret = -1;
+#ifdef HAVE_SYS_IO_H
 #if HAVE_DECL_IOPL
-  int ret;
   assert(PRIVS_ARE_OFF);
   _priv_on();
   ret = iopl(pl);
@@ -142,10 +143,9 @@ int priv_iopl(int pl)
 #endif
   if (ret == 0)
     current_iopl = pl;
-  return ret;
-#else
-  return -1;
 #endif
+#endif
+  return ret;
 }
 
 uid_t get_orig_uid(void)
