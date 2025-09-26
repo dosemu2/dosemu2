@@ -110,6 +110,7 @@ int e_emu_fault(sigcontext_t *scp, int in_vm86);
 int e_in_compiled_code(void);
 void e_gen_sigalrm(void);
 void e_gen_sigalrm_from_thread(void);
+void e_gen_rpic_from_thread(void);
 int EMU_V86(void);
 int EMU_DPMI(void);
 int _CPU_VM(void);
