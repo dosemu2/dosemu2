@@ -183,7 +183,7 @@ typedef struct vm86_regs state_t;
  * Dos error codes
  */
 /* MS-DOS version 2 error codes */
-#define FUNC_NUM_IVALID		0x01
+#define FUNC_NUM_INVALID		0x01
 #define FILE_NOT_FOUND		0x02
 #define PATH_NOT_FOUND		0x03
 #define TOO_MANY_OPEN_FILES	0x04
@@ -191,7 +191,7 @@ typedef struct vm86_regs state_t;
 #define HANDLE_INVALID		0x06
 #define MEM_CB_DEST		0x07
 #define INSUF_MEM		0x08
-#define MEM_BLK_ADDR_IVALID	0x09
+#define MEM_BLK_ADDR_INVALID	0x09
 #define ENV_INVALID		0x0a
 #define FORMAT_INVALID		0x0b
 #define ACCESS_CODE_INVALID	0x0c

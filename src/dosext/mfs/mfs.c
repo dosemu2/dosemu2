@@ -2724,7 +2724,7 @@ static int RedirectPrinter(struct vm86_regs *state, const char *resourceName)
   p++;
 
   drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
-  if (drive >= MAX_DRIVES || drives[drive].root)
+  if (drive >= MAX_DRIVES || drive < PRINTER_BASE_DRIVE || drives[drive].root)
     return FALSE;
   drives[drive].root = strdup(p);
   drives[drive].root_len = strlen(p);
@@ -2746,7 +2746,7 @@ static int DoRedirectDevice(struct vm86_regs *state)
 {
   const char *resourceName;
   const char *deviceName;
-  uint8_t drive;
+  int drive;
 
   /* first, see if this is our resource to be redirected */
   resourceName = Addr(state, es, edi);
@@ -2765,10 +2765,14 @@ static int DoRedirectDevice(struct vm86_regs *state)
   /* see what device is to be redirected */
   /* we only support disk redirection right now */
   if (LOW(state->ebx) != REDIR_DISK_TYPE || deviceName[1] != ':') {
-    SETWORD(&state->eax, FUNC_NUM_IVALID);
+    SETWORD(&state->eax, FUNC_NUM_INVALID);
     return FALSE;
   }
   drive = toupperDOS(deviceName[0]) - 'A';
+  if (drive < 0 || drive >= MAX_DRIVE) {
+    SETWORD(&state->eax, DISK_DRIVE_INVALID);
+    return FALSE;
+  }
 
   return RedirectDisk(state, drive, resourceName + strlen(LINUX_RESOURCE));
 }
@@ -2818,7 +2822,8 @@ static int
 CancelRedirection(struct vm86_regs *state)
 {
   char *deviceName;
-  uint8_t drive, curdrv;
+  int drive;
+  uint8_t curdrv;
   cds_t cds;
 
   /* first, see if this is one of our current redirections */
@@ -2831,6 +2836,10 @@ CancelRedirection(struct vm86_regs *state)
     return REDIRECT;
   }
   drive = toupperDOS(deviceName[0]) - 'A';
+  if (drive < 0 || drive >= MAX_DRIVE) {
+    SETWORD(&state->eax, DISK_DRIVE_INVALID);
+    return FALSE;
+  }
   /* If we don't own this drive, pass it through to next redirector */
   if (!drives[drive].root)
     return REDIRECT;
@@ -4390,7 +4399,7 @@ do_create_truncate:
         case DOS_CANCEL_REDIRECTION:
           return CancelRedirection(state);
         default:
-          SETWORD(&state->eax, FUNC_NUM_IVALID);
+          SETWORD(&state->eax, FUNC_NUM_INVALID);
           return FALSE;
       }
       break;
@@ -4547,7 +4556,7 @@ do_create_truncate:
 	  }
 	default:
 	  d_printf("invalid seek origin=%02"PRIX8"h\n", (uint8_t)LOW(state->ecx));
-	  SETWORD(&state->eax, FUNC_NUM_IVALID);
+	  SETWORD(&state->eax, FUNC_NUM_INVALID);
 	  return FALSE;
       }
       d_printf("result seek=%08"PRIX64"h\n", f->seek);
