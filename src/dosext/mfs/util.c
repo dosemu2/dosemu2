@@ -223,7 +223,7 @@ int get_drive_from_path(char *path, int *drive)
     return 0;
 
   c = toupper(path[0]);
-  if (c < 'A' || c > 'Z' || path[1] != ':')
+  if (c < 'A' || c > '`' || path[1] != ':')
     return 0;
 
   *drive = c - 'A';

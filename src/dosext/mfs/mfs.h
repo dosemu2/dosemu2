@@ -15,7 +15,7 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 #define d_namlen d_reclen
 #endif
 
-#define MAX_DRIVE 26
+#define MAX_DRIVE 32
 #define PRINTER_BASE_DRIVE MAX_DRIVE
 #define MAX_PRINTER 9
 
