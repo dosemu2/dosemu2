@@ -598,6 +598,11 @@ static void Exec_post(unsigned long flg, unsigned int mem_ref)
 {
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
+	CEmuStat &= ~CeS_STI;
+	if (TheCPU.err2 == EXCP_STISHADOW) {
+		CEmuStat |= CeS_STI;
+		TheCPU.err2 = 0;
+	}
 }
 
 unsigned int DoExec(TNode *G)
@@ -648,14 +653,15 @@ unsigned int DoExec(TNode *G)
 	/* signal_pending at this point is 1 if there was ANY signal,
 	 * not just a SIGALRM
 	 */
-	if ((G->flags & F_INHI) && !(G->seqnum == 1 && (CEmuStat & CeS_INHI))) {
+	if (((G->flags & F_INHI) || (CEmuStat & CeS_STI)) &&
+	    !(G->seqnum == 1 && (CEmuStat & CeS_INHI))) {
 		/* ignore signals and traps for movss/popss; if there is just
 		   one compiled instruction it should be ignored unconditionally
 		   if signals and traps were already ignored */
 		CEmuStat |= CeS_INHI;
 		CEmuStat &= ~CeS_TRAP;
 	} else {
-		CEmuStat &= ~CeS_INHI;
+		CEmuStat &= ~(CeS_INHI|CeS_STI);
 		CEmuStat |= exit_pending_xchg(0);
 	}
 
@@ -704,6 +710,13 @@ unsigned int DoExec_fast(TNode *G)
 			     LastXNode->clink_nt.target == G->key))
 				NodeLinker(LastXNode, G);
 			LastXNode = G;
+		}
+		if (TheCPU.err2 == EXCP_STISHADOW) {
+			/* as STI can exit here as well from the middle
+			   of a block we must mirror DoExec here */
+			CEmuStat |= CeS_INHI;
+			CEmuStat &= ~CeS_TRAP;
+			break;
 		}
 		e = exit_pending_xchg(0);
 		if (e) {

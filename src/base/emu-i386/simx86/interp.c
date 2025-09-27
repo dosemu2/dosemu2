@@ -461,7 +461,7 @@ static unsigned int FindExecCode(unsigned int PC)
 	 * any signal processing. Jumps are defined as
 	 * a 'descheduling point' for checking signals.
 	 */
-	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) &&
+	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC|CeS_STI)) &&
 	       (G=FindTree(PC))) {
 		if (!GoodNode(G)) {
 			InvalidateNodeRange(G->seqbase, G->seqlen, NULL);
@@ -639,7 +639,7 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 		}
 #endif
 
-		if (CurrIMeta>=0 && (CEmuStat & CeS_TRAP)) {
+		if (CurrIMeta>=0 && (CEmuStat & (CeS_TRAP|CeS_STI))) {
 			P0 = PC;
 			CODE_FLUSH2(mode);
 		}
@@ -675,7 +675,7 @@ static unsigned int _Interp86(unsigned int PC)
 	}
 
 	TheCPU.err = 0;
-	CEmuStat &= ~CeS_TRAP;
+	CEmuStat &= ~(CeS_TRAP|CeS_STI);
 
 #ifndef __clang__
 #pragma GCC diagnostic push
@@ -970,6 +970,7 @@ stack_return_from_vm86:
 					    EFLAGS);
 				/* force exit after next compiled block execution */
 				exit_pending_or(CeS_RPIC);
+				TheCPU.err2 = EXCP_STISHADOW;
 			    }
 			}
 			break;
