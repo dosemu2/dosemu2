@@ -133,6 +133,7 @@ if test -z "$XAS"; then
   fi
 fi
 
+AS_LDFLAGS=""
 AC_PATH_PROGS([LD], [ld ld.lld])
 if test -z "$LD"; then
   AC_MSG_ERROR(ld not found)
@@ -146,6 +147,10 @@ else
   AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld i386-elf-ld x86_64-linux-gnu-ld ld.lld ld])
   if test "$CONFIG_HOST" = "Darwin" -a `basename "$AS_LD"` = "ld"; then
     AC_MSG_ERROR([Please install lld or i386-elf-binutils])
+  fi
+  if test `basename "$AS_LD"` = "ld.lld"; then
+    # newer lld (>=21) needs this, for older it's optional
+    AS_LDFLAGS="$AS_LDFLAGS --image-base 0"
   fi
 fi
 if test -z "$AS_LD"; then
@@ -161,7 +166,14 @@ if test -n "$OBJCOPY"; then
   fi
 fi
 if test -z "$OBJCOPY"; then
-  AC_PATH_PROG([LOBJCOPY], [llvm-objcopy], [], [$PATH${PATH_SEPARATOR}/usr/local/opt/llvm/bin])
+  AC_PATH_PROG([LOBJCOPY], [llvm-objcopy])
+  if test -z "$LOBJCOPY" -a "$CONFIG_HOST" = "Darwin"; then
+    brew_llvm_bin=`brew --prefix llvm`/bin
+    AC_PATH_PROG([LOBJCOPY], [llvm-objcopy], [], [$PATH${PATH_SEPARATOR}$brew_llvm_bin])
+    if test -z "$LOBJCOPY"; then
+      AC_MSG_ERROR([llvm-objcopy not found, please install llvm])
+    fi
+  fi
   if test -z "$LOBJCOPY"; then
     AC_MSG_ERROR(objcopy not found)
   fi
@@ -860,7 +872,7 @@ fi
 DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"
 DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MD -DCFLAGS_STR=\"$DOSEMU_CFLAGS $CFLAGS\""
 DOSEMU_VERSION=`cd $srcdir && ./getversion -b`
-AS_LDFLAGS="-melf_i386"
+AS_LDFLAGS="$AS_LDFLAGS -melf_i386"
 
 AC_SUBST(XASFLAGS)
 AC_SUBST(ASFLAGS)

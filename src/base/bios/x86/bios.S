@@ -777,7 +777,7 @@ DPMI_rmentry:
 1:
 	movb $0x4c, %ah
 	int $0x21
-	retf       /* never here */
+	lret       /* never here */
 
 /* ----------------------------------------------------------------- */
 	.globl XMSControl_OFF
