@@ -390,6 +390,7 @@ static void elf_thr(void *arg)
     int ver = _LWORD(edx);  // the only reg preserved from RM
     int err, fd;
     char name[128];
+    char elfname[128];
     char *argv[] = { name, NULL };
     char *p;
     char **envp;
@@ -401,7 +402,8 @@ static void elf_thr(void *arg)
         return;
     p += 2;
     strlcpy(name, p, sizeof(name));
-    p = strrchr(name, '.');
+    strlcpy(elfname, p, sizeof(elfname));
+    p = strrchr(elfname, '.');
     if (!p || strlen(p) < 4)
         return;
     strcpy(p + 1, "ELF");
@@ -440,7 +442,7 @@ static void elf_thr(void *arg)
         load_plugin("dj64");
     if (!elfldr)
         return;
-    err = _dos_open(name, O_RDONLY, &fd);
+    err = _dos_open(elfname, O_RDONLY, &fd);
     if (!err)
         elfldr(scp, 1, argv, envp, psp, fd, ver);
 }
