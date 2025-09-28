@@ -161,7 +161,14 @@ if test -n "$OBJCOPY"; then
   fi
 fi
 if test -z "$OBJCOPY"; then
-  AC_PATH_PROG([LOBJCOPY], [llvm-objcopy], [], [$PATH${PATH_SEPARATOR}/usr/local/opt/llvm/bin])
+  AC_PATH_PROG([LOBJCOPY], [llvm-objcopy])
+  if test -z "$LOBJCOPY" -a "$CONFIG_HOST" = "Darwin"; then
+    brew_llvm_bin=`brew --prefix llvm`/bin
+    AC_PATH_PROG([LOBJCOPY], [llvm-objcopy], [], [$PATH${PATH_SEPARATOR}$brew_llvm_bin])
+    if test -z "$LOBJCOPY"; then
+      AC_MSG_ERROR([llvm-objcopy not found, please install llvm])
+    fi
+  fi
   if test -z "$LOBJCOPY"; then
     AC_MSG_ERROR(objcopy not found)
   fi
