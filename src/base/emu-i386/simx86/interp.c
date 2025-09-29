@@ -129,7 +129,7 @@ static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
  *	from P0, abort the current instruction and resume the parsing
  *	loop at P2.
  */
-static unsigned int do_flush(unsigned P0, unsigned _P0,
+static TNode *do_flush(unsigned P0, unsigned _P0,
     unsigned mode, unsigned _flags)
 {
   assert (CurrIMeta>=0);
@@ -137,16 +137,8 @@ static unsigned int do_flush(unsigned P0, unsigned _P0,
   if (_flags & FLG_PREJIT) {
     G->flags |= F_PREJ;
     NodesPrejitted++;
-    TheCPU.err = EXCP_GOBACK;
-    return P0;
-  } else {
-    int ret = DoExec(G);
-    if (TheCPU.err2 == EXCP_TFSET)
-      TheCPU.err2 = 0;
-    TheCPU.err = TheCPU.err2;
-    Interp_LONG_CS = LONG_CS;
-    return ret;
   }
+  return G;
 }
 
 static inline unsigned int UNPREFIX(unsigned int m)
@@ -574,22 +566,23 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 	return PC;
 }
 
-static unsigned int interp_post(unsigned int PC, const int mode,
+static TNode *interp_post(unsigned int PC, const int mode,
 	int _flags, int gap)
 {
-		int inst_emu_leave = 0;
+		TNode *G = NULL;
 
 		if (CEmuStat & CeS_INSTREMUx(PROTMODE())) {
 			if (debug_level('e')>1)
 				dbug_printf("CeS_INSTREMU, count=%d\n",
 					    interp_inst_emu_count);
-			if (--interp_inst_emu_count == 0) {
+			if (interp_inst_emu_count == 0 ||
+			    --interp_inst_emu_count == 0) {
 				if ((CEmuStat & CeS_INSTREMU_PM) &&
 							config.dpmi_remote &&
 							vga.inst_emu) {
 					instr_emu_sim_reset_count();
 				} else {
-					inst_emu_leave = 1;
+					TheCPU.err = EXCP_EMULEAVE;
 				}
 			}
 		}
@@ -597,28 +590,23 @@ static unsigned int interp_post(unsigned int PC, const int mode,
 		if (CurrIMeta>=0) {
 #ifndef SINGLEBLOCK
 			IMeta *GL = &InstrMeta[CurrIMeta];
-			if ((CEmuStat & (CeS_TRAP|CeS_STI)) || inst_emu_leave ||
+			if ((CEmuStat & (CeS_TRAP|CeS_STI)) ||
+			    TheCPU.err == EXCP_EMULEAVE ||
 			    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
 			    e_querymark(PC, gap))
 #endif
-				PC = do_flush(PC, InstrMeta[0].npc, mode,
-					      _flags);
+				G = do_flush(PC, InstrMeta[0].npc, mode,
+					     _flags);
 		}
 
-		if (inst_emu_leave == 1) {
-			if (TheCPU.err)
-				++interp_inst_emu_count;
-			else
-				TheCPU.err = EXCP_EMULEAVE;
-		}
-
-		return PC;
+		return G;
 }
 
 static unsigned int _Interp86(unsigned int PC)
 {
 	volatile unsigned int P0 = PC; /* volatile because of setjmp */
 	int val;
+	TNode *G;
 
 	if (PROTMODE() && (val = setjmp(jmp_env))) {
 		/* long jump to here from simulated page fault
@@ -643,7 +631,19 @@ static unsigned int _Interp86(unsigned int PC)
 		PC = InterpOne(PC, TheCPU.mode, 0);
 		if (TheCPU.err)
 			return PC;
-		PC = interp_post(PC, TheCPU.mode, 0, 1);
+		G = interp_post(PC, TheCPU.mode, 0, 1);
+		if (!G) {
+			if (TheCPU.err)
+				return PC;
+			continue;
+		}
+		PC = DoExec(G);
+		if (TheCPU.err2 == EXCP_TFSET)
+			TheCPU.err2 = 0;
+		if (TheCPU.err2)
+			TheCPU.err = TheCPU.err2;
+		Interp_LONG_CS = LONG_CS;
+
 		if (TheCPU.err)
 			return PC;
 	}
@@ -3294,16 +3294,9 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 {
 	int gap = ((flags & FLG_SPECULATIVE) ? SAFE_PRJ_GAP : 1);
 
-	while (1) {
+	do {
 		PC = InterpOne(PC, basemode, flags);
-		/* InterpOne can NOT change CS with PreJit, basemode
-		   stays the same */
-		if (TheCPU.err)
-			return;
-		PC = interp_post(PC, basemode, flags, gap);
-		if (TheCPU.err)
-			return;
-	}
+	} while (!TheCPU.err && !interp_post(PC, basemode, flags, gap));
 }
 
 void PreJit86(unsigned int PC, int basemode)
