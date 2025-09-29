@@ -2587,12 +2587,7 @@ repag0:
 /*f4*/	case HLT:
 			PC++; goto not_permitted;
 /*f5*/	case CMC:	PC++;
-#if 0
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
-				EFLAGS ^= EFLAGS_CF;
-			else
-#endif
-				Gen(O_SETFL, _mode, CMC);
+			Gen(O_SETFL, _mode, CMC);
 			break;
 /*f6*/	case GRP1brm: {
 			PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);	// al=[rm]
@@ -2667,20 +2662,10 @@ repag0:
 			} }
 			break;
 /*f8*/	case CLC:	PC++;
-#if 0
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
-				EFLAGS &= ~EFLAGS_CF;
-			else
-#endif
-				Gen(O_SETFL, _mode, CLC);
+			Gen(O_SETFL, _mode, CLC);
 			break;
 /*f9*/	case STC:	PC++;
-#if 0
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
-				EFLAGS |= EFLAGS_CF;
-			else
-#endif
-				Gen(O_SETFL, _mode, STC);
+			Gen(O_SETFL, _mode, STC);
 			break;
 /*fa*/	case CLI:
 			PC++;
@@ -2709,24 +2694,10 @@ repag0:
 				InstrMeta[CurrIMeta].flags |= F_INHI;
 			break;
 /*fc*/	case CLD:	PC++;
-#if 0
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1)) {
-				EFLAGS &= ~EFLAGS_DF;
-				TheCPU.df_increments = 0x040201;
-			}
-			else
-#endif
-				Gen(O_SETFL, _mode, CLD);
+			Gen(O_SETFL, _mode, CLD);
 			break;
 /*fd*/	case STD:	PC++;
-#if 0
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1)) {
-				EFLAGS |= EFLAGS_DF;
-				TheCPU.df_increments = 0xfcfeff;
-			}
-			else
-#endif
-				Gen(O_SETFL, _mode, STD);
+			Gen(O_SETFL, _mode, STD);
 			break;
 /*fe*/	case GRP2brm:	/* only INC and DEC are legal on bytes */
 			ModGetReg1(PC, _mode);
