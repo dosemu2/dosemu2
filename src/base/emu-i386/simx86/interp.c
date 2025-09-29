@@ -120,18 +120,6 @@ static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
 	return Close(PC, Interp_LONG_CS, mode);
 }
 
-static unsigned int DoCloseAndExec(unsigned int PC, int mode, unsigned _P0)
-{
-	int ret;
-	TNode *G = DoClose(PC, mode, _P0);
-	ret = DoExec(G);
-	if (TheCPU.err2 == EXCP_TFSET)
-		TheCPU.err2 = 0;
-	TheCPU.err = TheCPU.err2;
-	Interp_LONG_CS = LONG_CS;
-	return ret;
-}
-
 /*
  * close any pending instruction in the code cache and execute the
  * current sequence.
@@ -144,17 +132,21 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode, unsigned _P0)
 static unsigned int do_flush(unsigned P0, unsigned _P0,
     unsigned mode, unsigned _flags)
 {
+  assert (CurrIMeta>=0);
+  TNode *G = DoClose(P0, mode, _P0);
   if (_flags & FLG_PREJIT) {
-    if (CurrIMeta>=0) {
-      TNode *G = DoClose(P0, mode, _P0);
-      G->flags |= F_PREJ;
-      NodesPrejitted++;
-    }
+    G->flags |= F_PREJ;
+    NodesPrejitted++;
     TheCPU.err = EXCP_GOBACK;
-  } else if (CurrIMeta>=0) {
-    return DoCloseAndExec(P0, mode, _P0);
+    return P0;
+  } else {
+    int ret = DoExec(G);
+    if (TheCPU.err2 == EXCP_TFSET)
+      TheCPU.err2 = 0;
+    TheCPU.err = TheCPU.err2;
+    Interp_LONG_CS = LONG_CS;
+    return ret;
   }
-  return P0;
 }
 
 static inline unsigned int UNPREFIX(unsigned int m)
