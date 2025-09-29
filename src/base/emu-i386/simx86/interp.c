@@ -165,17 +165,6 @@ static unsigned int do_flush(unsigned P0, unsigned _P0,
 			  if (TheCPU.err) return P2; \
 			  PC = P0 = P2; \
 			}
-#define CODE_FLUSH()	{ \
-			  unsigned int _P0 = InstrMeta[0].npc; \
-			  unsigned int P2 = do_flush(P0, _P0, basemode, _flags); \
-			  if (TheCPU.err) return P2; \
-			  assert(P2 > _P0 && P2 <= P0); \
-			  if (P2 != P0) { \
-			    TheCPU.err = EXCP_RETRY; /* BreakNode */ \
-			    return P2; \
-			  } \
-			  basemode = TheCPU.mode; \
-			}
 
 static inline unsigned int UNPREFIX(unsigned int m)
 {
@@ -1211,7 +1200,15 @@ static unsigned int InterpOne(unsigned int PC, int basemode, int _flags)
 	if (!NewIMeta(P0)) {
 		if (debug_level('e')>2)
 			e_printf("============ Tab full:cannot close sequence\n");
-		CODE_FLUSH();
+		unsigned int _P0 = InstrMeta[0].npc;
+		unsigned int P2 = do_flush(P0, _P0, basemode, _flags);
+		if (TheCPU.err) return P2;
+		assert(P2 > _P0 && P2 <= P0);
+		if (P2 != P0) {
+			TheCPU.err = EXCP_RETRY; /* BreakNode */
+			return P2;
+		}
+		basemode = TheCPU.mode;
 		NewIMeta(P0);
 	}
 
