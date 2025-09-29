@@ -1727,10 +1727,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*e0*/	case LOOPNZ_LOOPNE:
 /*e1*/	case LOOPZ_LOOPE:
 /*e2*/	case LOOP:
-/*e3*/	case JCXZ:	{
-			  PC = JumpGen(PC, _mode, opc, 2, P0, _flags);
-			  if (TheCPU.err) return PC;
-			}
+/*e3*/	case JCXZ:
+			PC = JumpGen(PC, _mode, opc, 2, P0, _flags);
 			break;
 
 /*82*/	case IMMEDbrm2:		// add mem8,signed imm8: no AND,OR,XOR
@@ -2194,7 +2192,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*e8*/	case CALLd:
 		    PC = JumpGen(PC, _mode, opc, 1 + BT24(BitDATA16,_mode),
 			    P0, _flags);
-		    if (TheCPU.err) return PC;
 		    break;
 
 /*9a*/	case CALLl:
@@ -2210,7 +2207,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			else
 			    e_printf("JMP_FAR: %04x:%08x\n",TheCPU.cs,PC-LONG_CS);
 		    }
-		    if (TheCPU.err) return PC;
 		    }
 		    break;
 
@@ -2220,13 +2216,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC = JumpGen(PC, _mode, opc, 3, P0, _flags);
 			if (debug_level('e')>2)
 				e_printf("RET: ret=%08x inc_sp=%d\n",PC-Interp_LONG_CS,dr);
-			if (TheCPU.err) return PC; }
+			}
 			break;
 /*c3*/	case RET:
 			Gen(O_POP, _mode);
 			PC = JumpGen(PC, _mode, opc, 1, P0, _flags);
 			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",PC-Interp_LONG_CS);
-			if (TheCPU.err) return PC;
 			break;
 /*c6*/	case MOVbirm:
 			PC += ModRM(opc, PC, _mode|MBYTE);
@@ -2285,7 +2280,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC = JumpGen(PC, _mode, opc, 3, P0, _flags);
 			if (debug_level('e')>2)
 				e_printf("RET_%d: ret=%08x\n",dr,TheCPU.eip);
-			if (TheCPU.err) return PC;
 			}
 			break;
 /*cc*/	case INT3:
@@ -2323,7 +2317,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				if (debug_level('e')>1)
 					dbug_printf("EMU86: directly called int %#x ax=%#x at %#x:%#x\n",
 						    inum, TheCPU.eax, TheCPU.cs, PC - Interp_LONG_CS);
-				if (TheCPU.err) return PC;
 				break;
 			}
 			// V86: always #GP(0) if revectored or without VME
@@ -2367,7 +2360,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC = JumpGen(PC, _mode, opc, 1, P0, _flags);
 			if (debug_level('e')>1)
 			    e_printf("RET_FAR: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
-			if (TheCPU.err) return PC;
 			break;
 
 /*cf*/	case IRET:	/* restartable */
@@ -2390,7 +2382,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC = JumpGen(PC, _mode, opc, 1, P0, _flags);
 			if (debug_level('e')>1)
 			    e_printf("IRET: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
-			if (TheCPU.err) return PC;
 			break;
 /*9d*/	case POPF:
 			PC++;
@@ -2761,7 +2752,6 @@ repag0:
 				PC = JumpGen(PC, _mode, (opc<<8)|REG1,
 					ModRM(opc, PC, _mode|NOFLDR|MLOAD),
 					P0, _flags);
-				if (TheCPU.err) return PC;
 				break;
 			case Ofs_DX: {	/*2*/	 // CALL near indirect
 				/* don't use MLOAD as O_PUSHI clobbers eax */
@@ -2777,7 +2767,6 @@ repag0:
 				if (debug_level('e')>2)
 					e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
 						 ret,PC-Interp_LONG_CS);
-				if (TheCPU.err) return PC;
 				}
 				break;
 			case Ofs_BX:	/*3*/	 // CALL long indirect restartable
@@ -2818,7 +2807,6 @@ repag0:
 					    TheCPU.err = EXCP_GOBACK;
 					}
 #endif
-					if (TheCPU.err) return PC;
 				}
 				break;
 			case Ofs_SI:	/*6*/	 // PUSH
@@ -3039,7 +3027,6 @@ repag0:
 				  PC = JumpGen(PC, _mode, JO+(opc2-JOimmdisp),
 					       2 + BT24(BitDATA16,_mode),
 					       P0, _flags);
-				  if (TheCPU.err) return PC;
 				}
 				break;
 ///
@@ -3322,7 +3309,7 @@ repag0:
 		}
 
 		/* check segment boundaries. TODO for prot _mode */
-		if (REALADDR() && (PC - Interp_LONG_CS > 0xffff)) {
+		if (!TheCPU.err && REALADDR() && (PC - Interp_LONG_CS > 0xffff)) {
 			e_printf("PC out of bounds, %x\n", PC - Interp_LONG_CS);
 			goto not_permitted;
 		}
