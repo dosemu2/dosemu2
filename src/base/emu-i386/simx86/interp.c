@@ -545,63 +545,46 @@ void Interp86(void)
 
 static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 {
-		if (CurrIMeta<0) {
-			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
-				HandleEmuSignals();
-				if (TheCPU.err) return PC;
-			}
-			if (EFLAGS & TF)
-				CEmuStat |= CeS_TRAP;
+	if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
+		HandleEmuSignals();
+		if (TheCPU.err) return PC;
+	}
+	if (EFLAGS & TF)
+		CEmuStat |= CeS_TRAP;
 
-			unsigned int P2 = PC;
+	unsigned int P2 = PC;
 #ifndef SINGLESTEP
-			if (!(EFLAGS & TF)) {
-				P2 = FindExecCode(PC);
-				if (TheCPU.err == EXCP_TFSET)
-					TheCPU.err = TheCPU.err2 = 0;
-				if (TheCPU.err) return P2;
-				if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
-					HandleEmuSignals();
-					if (TheCPU.err) return P2;
-				}
-				if (EFLAGS & TF)
-					CEmuStat |= CeS_TRAP;
-			}
-#endif
-			if (P2 == PC || e_querymark(P2, 1)) {
-				/* slow path */
-				InvalidateNodeRange(P2, 1, NULL);
-			}
-			PC = P2;
-			if (CEmuStat & (CeS_PREJIT_RM | CeS_PREJIT_PM)) {
-				TheCPU.err = EXCP_GOBACK;
-				return PC;
-			}
-		} else {
-			/* don't exit with opened node - breaks prejitter */
-#if 0
-			if (CEmuStat & (CeS_SIGPEND|CeS_RPIC)) {
-				HandleEmuSignals();
-				if (TheCPU.err) return PC;
-			}
-#endif
+	if (!(EFLAGS & TF)) {
+		P2 = FindExecCode(PC);
+		if (TheCPU.err == EXCP_TFSET)
+			TheCPU.err = TheCPU.err2 = 0;
+		if (TheCPU.err) return P2;
+		if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
+			HandleEmuSignals();
+			if (TheCPU.err) return P2;
 		}
-#if 0
-		/* this obviously can't happen with current code, but
-		 * slows down execution under debug a lot */
-		if (debug_level('e') && e_querymark(PC, 1))
-			error("simx86: code nodes clashed at %x\n", PC);
+		if (EFLAGS & TF)
+			CEmuStat |= CeS_TRAP;
+	}
 #endif
-		if (debug_level('e')>2) {
-			if (debug_level('e')>=9 && CurrIMeta<0)
-				/* if CurrIMeta was already >= 0, the registers are outdated */
-				dbug_printf("\n%s",e_print_regs(Interp_LONG_CS));
-			char *ds;
-			unsigned short ocs = TheCPU.cs;
-			ds = e_emu_disasm(EMU_BASE32(PC),TheCPU.mode&MBIGCS,ocs);
-			e_printf("  %s\n", ds);
-		}
+	if (P2 == PC || e_querymark(P2, 1)) {
+		/* slow path */
+		InvalidateNodeRange(P2, 1, NULL);
+	}
+	PC = P2;
+	if (CEmuStat & (CeS_PREJIT_RM | CeS_PREJIT_PM)) {
+		TheCPU.err = EXCP_GOBACK;
 		return PC;
+	}
+#if 0
+	/* this obviously can't happen with current code, but
+	 * slows down execution under debug a lot */
+	if (debug_level('e') && e_querymark(PC, 1))
+		error("simx86: code nodes clashed at %x\n", PC);
+#endif
+	if (debug_level('e')>=9)
+		dbug_printf("\n%s",e_print_regs(Interp_LONG_CS));
+	return PC;
 }
 
 static unsigned int interp_post(unsigned int PC, const int mode,
@@ -662,9 +645,11 @@ static unsigned int _Interp86(unsigned int PC)
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
 #endif
 	while (1) {
-		PC = interp_pre(PC, TheCPU.mode, 0);
-		if (TheCPU.err)
-			return PC;
+		if (CurrIMeta < 0) {
+			PC = interp_pre(PC, TheCPU.mode, 0);
+			if (TheCPU.err)
+				return PC;
+		}
 		P0 = PC;
 		PC = InterpOne(PC, TheCPU.mode, 0);
 		if (TheCPU.err) {
@@ -1188,6 +1173,13 @@ static unsigned int InterpOne(unsigned int PC, int basemode, int _flags)
 	/* WARNING - these are signed char offsets, NOT pointers! */
 	signed char OVERR_DS = Ofs_XDS;
 	signed char OVERR_SS = Ofs_XSS;
+
+	if (debug_level('e')>2) {
+		char *ds;
+		unsigned short ocs = TheCPU.cs;
+		ds = e_emu_disasm(EMU_BASE32(PC),TheCPU.mode&MBIGCS,ocs);
+		e_printf("  %s\n", ds);
+	}
 
 	if (!NewIMeta(P0)) {
 		if (debug_level('e')>2)
@@ -3328,12 +3320,6 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 	int gap = ((flags & FLG_SPECULATIVE) ? SAFE_PRJ_GAP : 1);
 
 	while (1) {
-		if (debug_level('e')) {
-			char *ds;
-			unsigned short ocs = TheCPU.cs;
-			ds = e_emu_disasm(EMU_BASE32(PC),basemode&MBIGCS,ocs);
-			e_printf("  %s\n", ds);
-		}
 		PC = InterpOne(PC, basemode, flags);
 		/* InterpOne can NOT change CS with PreJit, basemode
 		   stays the same */
