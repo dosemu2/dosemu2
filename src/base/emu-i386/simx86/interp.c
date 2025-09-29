@@ -441,8 +441,7 @@ static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 		Gen(L_IMM, basemode, Ofs_SCP_ERR, scp_err);
 	if (trapno != EXCP03_INT3 && trapno != EXCP04_INTO)
 		Gen(JMP_TAILCODE, basemode, P0); // fault: use current instr
-	P0 = PC;
-	CODE_FLUSH();
+	PC = do_flush(PC, InstrMeta[0].npc, basemode, _flags);
 	assert(TheCPU.err == trapno ||
 	       TheCPU.err == EXCP_GOBACK || TheCPU.err == EXCP_RETRY);
 	return PC;
