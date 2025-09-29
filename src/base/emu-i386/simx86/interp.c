@@ -124,8 +124,6 @@ static unsigned int DoCloseAndExec(unsigned int PC, int mode, unsigned _P0)
 {
 	int ret;
 	TNode *G = DoClose(PC, mode, _P0);
-	if (!G)
-	    return _P0;
 	ret = DoExec(G);
 	if (TheCPU.err2 == EXCP_TFSET)
 		TheCPU.err2 = 0;
@@ -381,8 +379,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 		}
 #endif
 		G = DoClose(_P0, basemode, InstrMeta[0].npc);
-		if (!G)
-			return P0;
 		if (_flags & FLG_PREJIT) {
 			G->flags |= F_PREJ;
 			NodesPrejitted++;

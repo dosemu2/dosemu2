@@ -533,10 +533,7 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
 	TNode *G;
 	CodeBuf *GenCodeBuf;
 
-	if (CurrIMeta < 0) {
-/**/		e_printf("(X) Nothing to exec at %08x\n",PC);
-		return NULL;
-	}
+	assert (CurrIMeta >= 0);
 
 	// we're creating a new node
 	I0 = &InstrMeta[0];
