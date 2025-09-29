@@ -641,13 +641,8 @@ static unsigned int _Interp86(unsigned int PC)
 		}
 		P0 = PC;
 		PC = InterpOne(PC, TheCPU.mode, 0);
-		if (TheCPU.err) {
-			if (TheCPU.err == EXCP_RETRY) {
-				TheCPU.err = 0;
-				continue;
-			}
+		if (TheCPU.err)
 			return PC;
-		}
 		PC = interp_post(PC, TheCPU.mode, 0, 1);
 		if (TheCPU.err)
 			return PC;
@@ -1173,16 +1168,10 @@ static unsigned int InterpOne(unsigned int PC, int basemode, int _flags)
 	if (!NewIMeta(P0)) {
 		if (debug_level('e')>2)
 			e_printf("============ Tab full:cannot close sequence\n");
-		unsigned int _P0 = InstrMeta[0].npc;
-		unsigned int P2 = do_flush(P0, _P0, basemode, _flags);
-		if (TheCPU.err) return P2;
-		assert(P2 > _P0 && P2 <= P0);
-		if (P2 != P0) {
-			TheCPU.err = EXCP_RETRY; /* BreakNode */
-			return P2;
-		}
-		basemode = TheCPU.mode;
-		NewIMeta(P0);
+
+		// close previous instruction with tail code and try again later
+		Gen(JMP_TAILCODE, basemode, P0);
+		return P0;
 	}
 
 override:
