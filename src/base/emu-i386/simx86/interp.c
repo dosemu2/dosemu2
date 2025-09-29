@@ -159,13 +159,6 @@ static unsigned int do_flush(unsigned P0, unsigned _P0,
   return P0;
 }
 
-#define CODE_FLUSH2(m)	{ \
-			  unsigned int _P0 = InstrMeta[0].npc; \
-			  unsigned int P2 = do_flush(P0, _P0, m, _flags); \
-			  if (TheCPU.err) return P2; \
-			  PC = P0 = P2; \
-			}
-
 static inline unsigned int UNPREFIX(unsigned int m)
 {
 	return (m&~(DATA16|ADDR16))|((m&MBIGCS)?0:(DATA16|ADDR16));
@@ -611,20 +604,11 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 		return PC;
 }
 
-static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
+static unsigned int interp_post(unsigned int PC, const int mode,
 	int _flags, int gap)
 {
-#ifdef SINGLEBLOCK
-		if (CurrIMeta>=0) {
-			P0 = PC;
-			CODE_FLUSH2(mode);
-		}
-#endif
+		int inst_emu_leave = 0;
 
-		if (CurrIMeta>=0 && (CEmuStat & (CeS_TRAP|CeS_STI))) {
-			P0 = PC;
-			CODE_FLUSH2(mode);
-		}
 		if (CEmuStat & CeS_INSTREMUx(PROTMODE())) {
 			if (debug_level('e')>1)
 				dbug_printf("CeS_INSTREMU, count=%d\n",
@@ -635,17 +619,25 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 							vga.inst_emu) {
 					instr_emu_sim_reset_count();
 				} else {
-					P0 = PC;
-					CODE_FLUSH2(mode);
-					TheCPU.err = EXCP_EMULEAVE;
-					return PC;
+					inst_emu_leave = 1;
 				}
 			}
 		}
 
-		if (CurrIMeta>=0 && e_querymark(PC, gap)) {
-			unsigned int P0 = PC;
-			CODE_FLUSH2(mode);
+#ifdef SINGLEBLOCK
+		if (CurrIMeta>=0)
+#else
+		if (CurrIMeta>=0 &&
+		    ((CEmuStat & (CeS_TRAP|CeS_STI)) || inst_emu_leave ||
+		     e_querymark(PC, gap)))
+#endif
+			PC = do_flush(PC, InstrMeta[0].npc, mode, _flags);
+
+		if (inst_emu_leave == 1) {
+			if (TheCPU.err)
+				++interp_inst_emu_count;
+			else
+				TheCPU.err = EXCP_EMULEAVE;
 		}
 
 		return PC;
@@ -682,7 +674,7 @@ static unsigned int _Interp86(unsigned int PC)
 			}
 			return PC;
 		}
-		PC = interp_post(PC, TheCPU.mode, P0, 0, 1);
+		PC = interp_post(PC, TheCPU.mode, 0, 1);
 		if (TheCPU.err)
 			return PC;
 	}
@@ -3333,11 +3325,9 @@ void instr_emu_sim_reset_count(void)
 #define SAFE_PRJ_GAP 16
 static void _PreJit86(unsigned int PC, int basemode, int flags)
 {
-	unsigned int P0;
 	int gap = ((flags & FLG_SPECULATIVE) ? SAFE_PRJ_GAP : 1);
 
 	while (1) {
-		P0 = PC;
 		if (debug_level('e')) {
 			char *ds;
 			unsigned short ocs = TheCPU.cs;
@@ -3349,7 +3339,7 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 		   stays the same */
 		if (TheCPU.err)
 			return;
-		PC = interp_post(PC, basemode, P0, flags, gap);
+		PC = interp_post(PC, basemode, flags, gap);
 		if (TheCPU.err)
 			return;
 	}
