@@ -559,22 +559,8 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 			}
 			if (EFLAGS & TF)
 				CEmuStat |= CeS_TRAP;
-		} else {
-			/* don't exit with opened node - breaks prejitter */
-#if 0
-			if (CEmuStat & (CeS_SIGPEND|CeS_RPIC)) {
-				HandleEmuSignals();
-				if (TheCPU.err) return PC;
-			}
-#endif
-		}
-		if (e_querymark(PC, 1)) {
+
 			unsigned int P2 = PC;
-			if (CurrIMeta>=0) {
-				unsigned int P0 = PC;
-				CODE_FLUSH2(mode);
-			}
-			assert(CurrIMeta<0);  // don't exec with open node
 #ifndef SINGLESTEP
 			if (!(EFLAGS & TF)) {
 				P2 = FindExecCode(PC);
@@ -598,6 +584,14 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 				TheCPU.err = EXCP_GOBACK;
 				return PC;
 			}
+		} else {
+			/* don't exit with opened node - breaks prejitter */
+#if 0
+			if (CEmuStat & (CeS_SIGPEND|CeS_RPIC)) {
+				HandleEmuSignals();
+				if (TheCPU.err) return PC;
+			}
+#endif
 		}
 #if 0
 		/* this obviously can't happen with current code, but
@@ -618,7 +612,7 @@ static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 }
 
 static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
-	int _flags)
+	int _flags, int gap)
 {
 #ifdef SINGLEBLOCK
 		if (CurrIMeta>=0) {
@@ -648,6 +642,12 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 				}
 			}
 		}
+
+		if (CurrIMeta>=0 && e_querymark(PC, gap)) {
+			unsigned int P0 = PC;
+			CODE_FLUSH2(mode);
+		}
+
 		return PC;
 }
 
@@ -682,7 +682,7 @@ static unsigned int _Interp86(unsigned int PC)
 			}
 			return PC;
 		}
-		PC = interp_post(PC, TheCPU.mode, P0, 0);
+		PC = interp_post(PC, TheCPU.mode, P0, 0, 1);
 		if (TheCPU.err)
 			return PC;
 	}
@@ -3349,17 +3349,9 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 		   stays the same */
 		if (TheCPU.err)
 			return;
-		PC = interp_post(PC, basemode, P0, flags);
+		PC = interp_post(PC, basemode, P0, flags, gap);
 		if (TheCPU.err)
 			return;
-		if (e_querymark(PC, gap)) {
-			if (CurrIMeta>=0) {
-				TNode *G = DoClose(PC, basemode,
-						InstrMeta[0].npc);
-				G->flags |= F_PREJ;
-			}
-			return;
-		}
 	}
 }
 
