@@ -1021,13 +1021,7 @@ static int e_vm86_tail(struct vm86_struct *info)
 	dbug_printf("INTERP: exit=%08x err=%d\n",LONG_CS+TheCPU.eip,TheCPU.err-1);
       xval = TheCPU.err;
       AW(in_vm86_emu, 0);
-      /* 0 if ok, else exception code+1 or negative if dosemu err */
-      if (xval < 0) {
-        error("EMU86: error %d\n", -xval);
-        in_vm86=0;
-        leavedos_main(1);
-        return -1;
-      }
+      /* 0 if ok, else exception code+1 */
   }
   while (xval==0);
   /* ---- INNER LOOP -- exit for exception ---------------------- */
@@ -1131,13 +1125,7 @@ static int e_dpmi_tail(cpuctx_t *scp)
       e_printf("INTERP: exit=%08x err=%d\n",LONG_CS+TheCPU.eip,TheCPU.err-1);
       xval = TheCPU.err;
       AW(in_dpmi_emu, 0);
-      /* 0 if ok, else exception code+1 or negative if dosemu err */
-      if (xval < 0) {
-        error("DPM86: error %d\n", -xval);
-        error("@\n%s",e_print_regs(LONG_CS));
-        leavedos_main(0);
-        return -1;
-      }
+      /* 0 if ok, else exception code+1 */
   }
   while (xval==0);
   /* ---- INNER LOOP -- exit for exception ---------------------- */

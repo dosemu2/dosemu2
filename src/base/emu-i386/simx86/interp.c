@@ -159,24 +159,6 @@ static unsigned int do_flush(unsigned P0, unsigned _P0,
   return P0;
 }
 
-#define CODE_FLUSH2(m)	{ \
-			  unsigned int _P0 = InstrMeta[0].npc; \
-			  unsigned int P2 = do_flush(P0, _P0, m, _flags); \
-			  if (TheCPU.err) return P2; \
-			  PC = P0 = P2; \
-			}
-#define CODE_FLUSH()	{ \
-			  unsigned int _P0 = InstrMeta[0].npc; \
-			  unsigned int P2 = do_flush(P0, _P0, basemode, _flags); \
-			  if (TheCPU.err) return P2; \
-			  assert(P2 > _P0 && P2 <= P0); \
-			  if (P2 != P0) { \
-			    TheCPU.err = EXCP_RETRY; /* BreakNode */ \
-			    return P2; \
-			  } \
-			  basemode = TheCPU.mode; \
-			}
-
 static inline unsigned int UNPREFIX(unsigned int m)
 {
 	return (m&~(DATA16|ADDR16))|((m&MBIGCS)?0:(DATA16|ADDR16));
@@ -441,8 +423,7 @@ static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 		Gen(L_IMM, basemode, Ofs_SCP_ERR, scp_err);
 	if (trapno != EXCP03_INT3 && trapno != EXCP04_INTO)
 		Gen(JMP_TAILCODE, basemode, P0); // fault: use current instr
-	P0 = PC;
-	CODE_FLUSH();
+	PC = do_flush(PC, InstrMeta[0].npc, basemode, _flags);
 	assert(TheCPU.err == trapno ||
 	       TheCPU.err == EXCP_GOBACK || TheCPU.err == EXCP_RETRY);
 	return PC;
@@ -564,85 +545,53 @@ void Interp86(void)
 
 static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
 {
-		if (CurrIMeta<0) {
-			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
-				HandleEmuSignals();
-				if (TheCPU.err) return PC;
-			}
-			if (EFLAGS & TF)
-				CEmuStat |= CeS_TRAP;
-		} else {
-			/* don't exit with opened node - breaks prejitter */
-#if 0
-			if (CEmuStat & (CeS_SIGPEND|CeS_RPIC)) {
-				HandleEmuSignals();
-				if (TheCPU.err) return PC;
-			}
-#endif
-		}
-		if (e_querymark(PC, 1)) {
-			unsigned int P2 = PC;
-			if (CurrIMeta>=0) {
-				unsigned int P0 = PC;
-				CODE_FLUSH2(mode);
-			}
-			assert(CurrIMeta<0);  // don't exec with open node
+	if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
+		HandleEmuSignals();
+		if (TheCPU.err) return PC;
+	}
+	if (EFLAGS & TF)
+		CEmuStat |= CeS_TRAP;
+
+	unsigned int P2 = PC;
 #ifndef SINGLESTEP
-			if (!(EFLAGS & TF)) {
-				P2 = FindExecCode(PC);
-				if (TheCPU.err == EXCP_TFSET)
-					TheCPU.err = TheCPU.err2 = 0;
-				if (TheCPU.err) return P2;
-				if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
-					HandleEmuSignals();
-					if (TheCPU.err) return P2;
-				}
-				if (EFLAGS & TF)
-					CEmuStat |= CeS_TRAP;
-			}
-#endif
-			if (P2 == PC || e_querymark(P2, 1)) {
-				/* slow path */
-				InvalidateNodeRange(P2, 1, NULL);
-			}
-			PC = P2;
-			if (CEmuStat & (CeS_PREJIT_RM | CeS_PREJIT_PM)) {
-				TheCPU.err = EXCP_GOBACK;
-				return PC;
-			}
+	if (!(EFLAGS & TF)) {
+		P2 = FindExecCode(PC);
+		if (TheCPU.err == EXCP_TFSET)
+			TheCPU.err = TheCPU.err2 = 0;
+		if (TheCPU.err) return P2;
+		if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
+			HandleEmuSignals();
+			if (TheCPU.err) return P2;
 		}
-#if 0
-		/* this obviously can't happen with current code, but
-		 * slows down execution under debug a lot */
-		if (debug_level('e') && e_querymark(PC, 1))
-			error("simx86: code nodes clashed at %x\n", PC);
+		if (EFLAGS & TF)
+			CEmuStat |= CeS_TRAP;
+	}
 #endif
-		if (debug_level('e')>2) {
-			if (debug_level('e')>=9 && CurrIMeta<0)
-				/* if CurrIMeta was already >= 0, the registers are outdated */
-				dbug_printf("\n%s",e_print_regs(Interp_LONG_CS));
-			char *ds;
-			unsigned short ocs = TheCPU.cs;
-			ds = e_emu_disasm(EMU_BASE32(PC),TheCPU.mode&MBIGCS,ocs);
-			e_printf("  %s\n", ds);
-		}
+	if (P2 == PC || e_querymark(P2, 1)) {
+		/* slow path */
+		InvalidateNodeRange(P2, 1, NULL);
+	}
+	PC = P2;
+	if (CEmuStat & (CeS_PREJIT_RM | CeS_PREJIT_PM)) {
+		TheCPU.err = EXCP_GOBACK;
 		return PC;
+	}
+#if 0
+	/* this obviously can't happen with current code, but
+	 * slows down execution under debug a lot */
+	if (debug_level('e') && e_querymark(PC, 1))
+		error("simx86: code nodes clashed at %x\n", PC);
+#endif
+	if (debug_level('e')>=9)
+		dbug_printf("\n%s",e_print_regs(Interp_LONG_CS));
+	return PC;
 }
 
-static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
-	int _flags)
+static unsigned int interp_post(unsigned int PC, const int mode,
+	int _flags, int gap)
 {
-#ifdef SINGLEBLOCK
-		if (CurrIMeta>=0) {
-			P0 = PC;
-			CODE_FLUSH2(mode);
-		}
-#endif
+		int inst_emu_leave = 0;
 
-		if (CurrIMeta>=0 && (CEmuStat & (CeS_TRAP|CeS_STI))) {
-			P0 = PC;
-			CODE_FLUSH2(mode);
-		}
 		if (CEmuStat & CeS_INSTREMUx(PROTMODE())) {
 			if (debug_level('e')>1)
 				dbug_printf("CeS_INSTREMU, count=%d\n",
@@ -653,13 +602,27 @@ static unsigned int interp_post(unsigned int PC, const int mode, unsigned P0,
 							vga.inst_emu) {
 					instr_emu_sim_reset_count();
 				} else {
-					P0 = PC;
-					CODE_FLUSH2(mode);
-					TheCPU.err = EXCP_EMULEAVE;
-					return PC;
+					inst_emu_leave = 1;
 				}
 			}
 		}
+
+#ifdef SINGLEBLOCK
+		if (CurrIMeta>=0)
+#else
+		if (CurrIMeta>=0 &&
+		    ((CEmuStat & (CeS_TRAP|CeS_STI)) || inst_emu_leave ||
+		     e_querymark(PC, gap)))
+#endif
+			PC = do_flush(PC, InstrMeta[0].npc, mode, _flags);
+
+		if (inst_emu_leave == 1) {
+			if (TheCPU.err)
+				++interp_inst_emu_count;
+			else
+				TheCPU.err = EXCP_EMULEAVE;
+		}
+
 		return PC;
 }
 
@@ -682,9 +645,11 @@ static unsigned int _Interp86(unsigned int PC)
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
 #endif
 	while (1) {
-		PC = interp_pre(PC, TheCPU.mode, 0);
-		if (TheCPU.err)
-			return PC;
+		if (CurrIMeta < 0) {
+			PC = interp_pre(PC, TheCPU.mode, 0);
+			if (TheCPU.err)
+				return PC;
+		}
 		P0 = PC;
 		PC = InterpOne(PC, TheCPU.mode, 0);
 		if (TheCPU.err) {
@@ -694,7 +659,7 @@ static unsigned int _Interp86(unsigned int PC)
 			}
 			return PC;
 		}
-		PC = interp_post(PC, TheCPU.mode, P0, 0);
+		PC = interp_post(PC, TheCPU.mode, 0, 1);
 		if (TheCPU.err)
 			return PC;
 	}
@@ -1147,7 +1112,7 @@ stack_return_from_vm86:
 				if (reg==0) {
 				    if ((TheCPU.cr[0] ^ *srg) & 1) {
 					dbug_printf("RM/PM switch not allowed\n");
-					TheCPU.err2 = -94; break;
+					break;
 				    }
 				    TheCPU.cr[0] = (*srg&0xe005002f)|0x10;
 				}
@@ -1209,10 +1174,25 @@ static unsigned int InterpOne(unsigned int PC, int basemode, int _flags)
 	signed char OVERR_DS = Ofs_XDS;
 	signed char OVERR_SS = Ofs_XSS;
 
+	if (debug_level('e')>2) {
+		char *ds;
+		unsigned short ocs = TheCPU.cs;
+		ds = e_emu_disasm(EMU_BASE32(PC),TheCPU.mode&MBIGCS,ocs);
+		e_printf("  %s\n", ds);
+	}
+
 	if (!NewIMeta(P0)) {
 		if (debug_level('e')>2)
 			e_printf("============ Tab full:cannot close sequence\n");
-		CODE_FLUSH();
+		unsigned int _P0 = InstrMeta[0].npc;
+		unsigned int P2 = do_flush(P0, _P0, basemode, _flags);
+		if (TheCPU.err) return P2;
+		assert(P2 > _P0 && P2 <= P0);
+		if (P2 != P0) {
+			TheCPU.err = EXCP_RETRY; /* BreakNode */
+			return P2;
+		}
+		basemode = TheCPU.mode;
 		NewIMeta(P0);
 	}
 
@@ -1727,10 +1707,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*e0*/	case LOOPNZ_LOOPNE:
 /*e1*/	case LOOPZ_LOOPE:
 /*e2*/	case LOOP:
-/*e3*/	case JCXZ:	{
-			  PC = JumpGen(PC, _mode, opc, 2, P0, _flags);
-			  if (TheCPU.err) return PC;
-			}
+/*e3*/	case JCXZ:
+			PC = JumpGen(PC, _mode, opc, 2, P0, _flags);
 			break;
 
 /*82*/	case IMMEDbrm2:		// add mem8,signed imm8: no AND,OR,XOR
@@ -2194,7 +2172,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*e8*/	case CALLd:
 		    PC = JumpGen(PC, _mode, opc, 1 + BT24(BitDATA16,_mode),
 			    P0, _flags);
-		    if (TheCPU.err) return PC;
 		    break;
 
 /*9a*/	case CALLl:
@@ -2210,7 +2187,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			else
 			    e_printf("JMP_FAR: %04x:%08x\n",TheCPU.cs,PC-LONG_CS);
 		    }
-		    if (TheCPU.err) return PC;
 		    }
 		    break;
 
@@ -2220,13 +2196,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC = JumpGen(PC, _mode, opc, 3, P0, _flags);
 			if (debug_level('e')>2)
 				e_printf("RET: ret=%08x inc_sp=%d\n",PC-Interp_LONG_CS,dr);
-			if (TheCPU.err) return PC; }
+			}
 			break;
 /*c3*/	case RET:
 			Gen(O_POP, _mode);
 			PC = JumpGen(PC, _mode, opc, 1, P0, _flags);
 			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",PC-Interp_LONG_CS);
-			if (TheCPU.err) return PC;
 			break;
 /*c6*/	case MOVbirm:
 			PC += ModRM(opc, PC, _mode|MBYTE);
@@ -2285,7 +2260,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC = JumpGen(PC, _mode, opc, 3, P0, _flags);
 			if (debug_level('e')>2)
 				e_printf("RET_%d: ret=%08x\n",dr,TheCPU.eip);
-			if (TheCPU.err) return PC;
 			}
 			break;
 /*cc*/	case INT3:
@@ -2323,7 +2297,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				if (debug_level('e')>1)
 					dbug_printf("EMU86: directly called int %#x ax=%#x at %#x:%#x\n",
 						    inum, TheCPU.eax, TheCPU.cs, PC - Interp_LONG_CS);
-				if (TheCPU.err) return PC;
 				break;
 			}
 			// V86: always #GP(0) if revectored or without VME
@@ -2367,7 +2340,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC = JumpGen(PC, _mode, opc, 1, P0, _flags);
 			if (debug_level('e')>1)
 			    e_printf("RET_FAR: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
-			if (TheCPU.err) return PC;
 			break;
 
 /*cf*/	case IRET:	/* restartable */
@@ -2390,7 +2362,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC = JumpGen(PC, _mode, opc, 1, P0, _flags);
 			if (debug_level('e')>1)
 			    e_printf("IRET: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
-			if (TheCPU.err) return PC;
 			break;
 /*9d*/	case POPF:
 			PC++;
@@ -2587,12 +2558,7 @@ repag0:
 /*f4*/	case HLT:
 			PC++; goto not_permitted;
 /*f5*/	case CMC:	PC++;
-#if 0
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
-				EFLAGS ^= EFLAGS_CF;
-			else
-#endif
-				Gen(O_SETFL, _mode, CMC);
+			Gen(O_SETFL, _mode, CMC);
 			break;
 /*f6*/	case GRP1brm: {
 			PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);	// al=[rm]
@@ -2667,20 +2633,10 @@ repag0:
 			} }
 			break;
 /*f8*/	case CLC:	PC++;
-#if 0
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
-				EFLAGS &= ~EFLAGS_CF;
-			else
-#endif
-				Gen(O_SETFL, _mode, CLC);
+			Gen(O_SETFL, _mode, CLC);
 			break;
 /*f9*/	case STC:	PC++;
-#if 0
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
-				EFLAGS |= EFLAGS_CF;
-			else
-#endif
-				Gen(O_SETFL, _mode, STC);
+			Gen(O_SETFL, _mode, STC);
 			break;
 /*fa*/	case CLI:
 			PC++;
@@ -2709,24 +2665,10 @@ repag0:
 				InstrMeta[CurrIMeta].flags |= F_INHI;
 			break;
 /*fc*/	case CLD:	PC++;
-#if 0
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1)) {
-				EFLAGS &= ~EFLAGS_DF;
-				TheCPU.df_increments = 0x040201;
-			}
-			else
-#endif
-				Gen(O_SETFL, _mode, CLD);
+			Gen(O_SETFL, _mode, CLD);
 			break;
 /*fd*/	case STD:	PC++;
-#if 0
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1)) {
-				EFLAGS |= EFLAGS_DF;
-				TheCPU.df_increments = 0xfcfeff;
-			}
-			else
-#endif
-				Gen(O_SETFL, _mode, STD);
+			Gen(O_SETFL, _mode, STD);
 			break;
 /*fe*/	case GRP2brm:	/* only INC and DEC are legal on bytes */
 			ModGetReg1(PC, _mode);
@@ -2790,7 +2732,6 @@ repag0:
 				PC = JumpGen(PC, _mode, (opc<<8)|REG1,
 					ModRM(opc, PC, _mode|NOFLDR|MLOAD),
 					P0, _flags);
-				if (TheCPU.err) return PC;
 				break;
 			case Ofs_DX: {	/*2*/	 // CALL near indirect
 				/* don't use MLOAD as O_PUSHI clobbers eax */
@@ -2806,7 +2747,6 @@ repag0:
 				if (debug_level('e')>2)
 					e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
 						 ret,PC-Interp_LONG_CS);
-				if (TheCPU.err) return PC;
 				}
 				break;
 			case Ofs_BX:	/*3*/	 // CALL long indirect restartable
@@ -2847,7 +2787,6 @@ repag0:
 					    TheCPU.err = EXCP_GOBACK;
 					}
 #endif
-					if (TheCPU.err) return PC;
 				}
 				break;
 			case Ofs_SI:	/*6*/	 // PUSH
@@ -3068,7 +3007,6 @@ repag0:
 				  PC = JumpGen(PC, _mode, JO+(opc2-JOimmdisp),
 					       2 + BT24(BitDATA16,_mode),
 					       P0, _flags);
-				  if (TheCPU.err) return PC;
 				}
 				break;
 ///
@@ -3349,11 +3287,9 @@ repag0:
 /*xx*/	default:
 			PC++; goto illegal_op;
 		}
-		if (TheCPU.err < 0)
-			return P0;
 
 		/* check segment boundaries. TODO for prot _mode */
-		if (REALADDR() && (PC - Interp_LONG_CS > 0xffff)) {
+		if (!TheCPU.err && REALADDR() && (PC - Interp_LONG_CS > 0xffff)) {
 			e_printf("PC out of bounds, %x\n", PC - Interp_LONG_CS);
 			goto not_permitted;
 		}
@@ -3362,9 +3298,6 @@ repag0:
 not_permitted:
 	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
 	return ExceptionGen(PC, _mode, EXCP0D_GPF, 0, P0, _flags);
-//div_by_zero:
-//	dbug_printf("!!! Div by 0 %02x\n",opc);
-//	TheCPU.err = -6; return P0;
 illegal_op:
 	dbug_printf("!!! Illegal op %02x %02x %02x\n",Fetch(P0),
 		    Fetch(P0+1),Fetch(P0+2));
@@ -3384,33 +3317,17 @@ void instr_emu_sim_reset_count(void)
 #define SAFE_PRJ_GAP 16
 static void _PreJit86(unsigned int PC, int basemode, int flags)
 {
-	unsigned int P0;
 	int gap = ((flags & FLG_SPECULATIVE) ? SAFE_PRJ_GAP : 1);
 
 	while (1) {
-		P0 = PC;
-		if (debug_level('e')) {
-			char *ds;
-			unsigned short ocs = TheCPU.cs;
-			ds = e_emu_disasm(EMU_BASE32(PC),basemode&MBIGCS,ocs);
-			e_printf("  %s\n", ds);
-		}
 		PC = InterpOne(PC, basemode, flags);
 		/* InterpOne can NOT change CS with PreJit, basemode
 		   stays the same */
 		if (TheCPU.err)
 			return;
-		PC = interp_post(PC, basemode, P0, flags);
+		PC = interp_post(PC, basemode, flags, gap);
 		if (TheCPU.err)
 			return;
-		if (e_querymark(PC, gap)) {
-			if (CurrIMeta>=0) {
-				TNode *G = DoClose(PC, basemode,
-						InstrMeta[0].npc);
-				G->flags |= F_PREJ;
-			}
-			return;
-		}
 	}
 }
 
