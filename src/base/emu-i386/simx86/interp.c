@@ -340,50 +340,45 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	return (unsigned)-1;
 }
 
+#if SPEC_PREJIT
+static int can_speculate(void)
+{
+	IMeta *GL = &InstrMeta[CurrIMeta];
+	IGen *IG = &GL->gen[GL->ngen-1];
+	int opc = IG->op;
+	/* With uncond JMP or RET nothing to speculate. */
+	if (opc < JMP_LINK ||
+	    (opc == JMP_LINK && IG->p0 != CALLd && IG->p0 != CALLl))
+		return 0;
+	return F_SPEC;
+}
+#else
+#define can_speculate() 0
+#endif
+
 static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 	unsigned int P0, int _flags)
 {
 	unsigned int _P0, _P1;
 	_P1 = _JumpGen(P2, mode, opc, pskip, &_P0);
 	if (_P1 == (unsigned)-1) {
-#if SPEC_PREJIT
-		int can_speculate = 1;
-#endif
-		unsigned int basemode = UNPREFIX(mode);
+		unsigned int basemode = UNPREFIX(mode), Gflags;
 		TNode *G;
-#if SPEC_PREJIT
-		switch (opc) {
-		/* With uncond JMP or RET nothing to speculate. */
-		case JMPld:
-		case JMPsid: case JMPd:
-		case RETl: case RETlisp: case JMPli: case IRET:
-		case RET: case RETisp: case JMPi:
-			can_speculate = 0;
-			break;
-		}
-#endif
+		Gflags = can_speculate();
 		G = DoClose(_P0, basemode, InstrMeta[0].npc);
+		G->flags |= Gflags;
 		if (_flags & FLG_PREJIT) {
 			G->flags |= F_PREJ;
 			NodesPrejitted++;
 			TheCPU.err = EXCP_GOBACK;
 		} else {
 #if SPEC_PREJIT
-			if (can_speculate) {
-				if (debug_level('e')) {
-					char *ds;
-					unsigned short ocs = TheCPU.cs;
-					ds = e_emu_disasm(EMU_BASE32(P2),mode&MBIGCS,ocs);
-					e_printf("prejit after  %s\n", ds);
-					ds = e_emu_disasm(EMU_BASE32(_P0),mode&MBIGCS,ocs);
-					e_printf("prejit at  %s\n", ds);
-				}
+			if (G->flags & F_SPEC)
 				prejit_run(_P0, basemode);
-			}
 #endif
 			_P1 = DoExec(G);
 #if SPEC_PREJIT
-			if (can_speculate)
+			if (G->flags & F_SPEC)
 				prejit_sync();
 #endif
 			if (TheCPU.err2 == EXCP_TFSET)
@@ -3327,6 +3322,15 @@ static void *prejit_thread(void *arg)
 #if SPEC_PREJIT
 static void prejit_run(unsigned int PC, unsigned int basemode)
 {
+  if (debug_level('e')) {
+    char *ds;
+    unsigned short ocs = TheCPU.cs;
+    unsigned int P2 = InstrMeta[CurrIMeta].npc;
+    ds = e_emu_disasm(EMU_BASE32(P2),basemode&MBIGCS,ocs);
+    e_printf("prejit after  %s\n", ds);
+    ds = e_emu_disasm(EMU_BASE32(PC),basemode&MBIGCS,ocs);
+    e_printf("prejit at  %s\n", ds);
+  }
   if (e_querymark(PC, SAFE_PRJ_GAP))
     return;
 #if PROFILE
