@@ -404,16 +404,15 @@ static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 }
 
 static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
-	unsigned int scp_err, unsigned int P0, int _flags)
+	unsigned int scp_err, unsigned int P0)
 {
 	Gen(L_IMM, basemode, Ofs_ERR, trapno);
 	if (trapno == EXCP0D_GPF)
 		Gen(L_IMM, basemode, Ofs_SCP_ERR, scp_err);
 	if (trapno != EXCP03_INT3 && trapno != EXCP04_INTO)
 		Gen(JMP_TAILCODE, basemode, P0); // fault: use current instr
-	PC = do_flush(PC, InstrMeta[0].npc, basemode, _flags);
-	assert(TheCPU.err == trapno ||
-	       TheCPU.err == EXCP_GOBACK || TheCPU.err == EXCP_RETRY);
+	else
+		Gen(JMP_TAILCODE, basemode, PC); // trap: use next instr
 	return PC;
 }
 
@@ -595,14 +594,16 @@ static unsigned int interp_post(unsigned int PC, const int mode,
 			}
 		}
 
-#ifdef SINGLEBLOCK
-		if (CurrIMeta>=0)
-#else
-		if (CurrIMeta>=0 &&
-		    ((CEmuStat & (CeS_TRAP|CeS_STI)) || inst_emu_leave ||
-		     e_querymark(PC, gap)))
+		if (CurrIMeta>=0) {
+#ifndef SINGLEBLOCK
+			IMeta *GL = &InstrMeta[CurrIMeta];
+			if ((CEmuStat & (CeS_TRAP|CeS_STI)) || inst_emu_leave ||
+			    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
+			    e_querymark(PC, gap))
 #endif
-			PC = do_flush(PC, InstrMeta[0].npc, mode, _flags);
+				PC = do_flush(PC, InstrMeta[0].npc, mode,
+					      _flags);
+		}
 
 		if (inst_emu_leave == 1) {
 			if (TheCPU.err)
@@ -2252,8 +2253,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*cc*/	case INT3:
 			e_printf("Interrupt 03\n");
-			PC = P0 = ExceptionGen(PC+1, _mode, EXCP03_INT3, 0,
-					       P0, _flags);
+			PC = P0 = ExceptionGen(PC+1, _mode, EXCP03_INT3, 0, P0);
 			break;
 /*ce*/	case INTO:
 			PC++;
@@ -2296,20 +2296,18 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			case 0x03:
 			    if (PROTMODE())
 				PC = P0 = ExceptionGen(PC+2, _mode,
-						       EXCP03_INT3, 0, P0,
-						       _flags);
+						       EXCP03_INT3, 0, P0);
 			    break;
 			case 0x04:
 			    if (PROTMODE())
 				PC = P0 = ExceptionGen(PC+2, _mode,
-						       EXCP04_INTO, 0, P0,
-						       _flags);
+						       EXCP04_INTO, 0, P0);
 			    break;
 			default:
 			    if (debug_level('e')>1)
 				e_printf("!!! Not permitted int %x\n",inum);
 			    PC = P0 = ExceptionGen(PC+2, _mode, EXCP0D_GPF,
-						   (inum << 3) | 2, P0, _flags);
+						   (inum << 3) | 2, P0);
 			    break;
 			}
 			break;
@@ -3285,11 +3283,11 @@ repag0:
 
 not_permitted:
 	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
-	return ExceptionGen(PC, _mode, EXCP0D_GPF, 0, P0, _flags);
+	return ExceptionGen(PC, _mode, EXCP0D_GPF, 0, P0);
 illegal_op:
 	dbug_printf("!!! Illegal op %02x %02x %02x\n",Fetch(P0),
 		    Fetch(P0+1),Fetch(P0+2));
-	return ExceptionGen(PC, _mode, EXCP06_ILLOP, 0, P0, _flags);
+	return ExceptionGen(PC, _mode, EXCP06_ILLOP, 0, P0);
 }
 
 /* reset for VGA reads and writes */
