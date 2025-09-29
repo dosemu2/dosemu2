@@ -1147,7 +1147,7 @@ stack_return_from_vm86:
 				if (reg==0) {
 				    if ((TheCPU.cr[0] ^ *srg) & 1) {
 					dbug_printf("RM/PM switch not allowed\n");
-					TheCPU.err2 = -94; break;
+					break;
 				    }
 				    TheCPU.cr[0] = (*srg&0xe005002f)|0x10;
 				}
@@ -3349,8 +3349,6 @@ repag0:
 /*xx*/	default:
 			PC++; goto illegal_op;
 		}
-		if (TheCPU.err < 0)
-			return P0;
 
 		/* check segment boundaries. TODO for prot _mode */
 		if (REALADDR() && (PC - Interp_LONG_CS > 0xffff)) {
@@ -3362,9 +3360,6 @@ repag0:
 not_permitted:
 	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
 	return ExceptionGen(PC, _mode, EXCP0D_GPF, 0, P0, _flags);
-//div_by_zero:
-//	dbug_printf("!!! Div by 0 %02x\n",opc);
-//	TheCPU.err = -6; return P0;
 illegal_op:
 	dbug_printf("!!! Illegal op %02x %02x %02x\n",Fetch(P0),
 		    Fetch(P0+1),Fetch(P0+2));
