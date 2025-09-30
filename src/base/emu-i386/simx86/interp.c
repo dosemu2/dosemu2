@@ -59,7 +59,10 @@ static pthread_t prejit_thr;
 static sem_t prejit_sem;
 static void *prejit_thread(void *arg);
 #if SPEC_PREJIT
+static int can_speculate(void);
 static void prejit_run(unsigned int PC, unsigned int basemode);
+#else
+#define can_speculate() 0
 #endif
 static unsigned int prejit_PC, prejit_mode;
 #if PROFILE
@@ -133,7 +136,9 @@ static TNode *do_flush(unsigned P0, unsigned _P0,
     unsigned mode, unsigned _flags)
 {
   assert (CurrIMeta>=0);
+  unsigned int Gflags = can_speculate();
   TNode *G = DoClose(P0, mode, _P0);
+  G->flags |= Gflags;
   if (_flags & FLG_PREJIT) {
     G->flags |= F_PREJ;
     NodesPrejitted++;
@@ -156,13 +161,14 @@ static inline unsigned int UNPREFIX(unsigned int m)
 //
 
 static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
-			      int pskip, unsigned int *r_P0)
+			      int pskip)
 {
 #if !defined(SINGLESTEP)
 	unsigned int P1;
 #endif
 	int dsp;
 	unsigned int d_t, d_nt, j_t, j_nt;
+	unsigned int PC;
 
 	/* pskip points to start of next instruction
 	 * dsp is the displacement relative to this jump instruction,
@@ -221,7 +227,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 	/* jump address for not taken branch, usually next instruction */
 	j_nt = d_nt + Interp_LONG_CS;
 	assert(j_nt > P2);
-	*r_P0 = j_nt;
+	PC = j_nt;
 
 #if !defined(SINGLESTEP)
 	P1 = P2 + pskip;
@@ -337,7 +343,7 @@ static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
 		break;
 	}
 
-	return (unsigned)-1;
+	return PC;
 }
 
 #if SPEC_PREJIT
@@ -352,42 +358,12 @@ static int can_speculate(void)
 		return 0;
 	return F_SPEC;
 }
-#else
-#define can_speculate() 0
 #endif
 
 static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
 	unsigned int P0, int _flags)
 {
-	unsigned int _P0, _P1;
-	_P1 = _JumpGen(P2, mode, opc, pskip, &_P0);
-	if (_P1 == (unsigned)-1) {
-		unsigned int basemode = UNPREFIX(mode), Gflags;
-		TNode *G;
-		Gflags = can_speculate();
-		G = DoClose(_P0, basemode, InstrMeta[0].npc);
-		G->flags |= Gflags;
-		if (_flags & FLG_PREJIT) {
-			G->flags |= F_PREJ;
-			NodesPrejitted++;
-			TheCPU.err = EXCP_GOBACK;
-		} else {
-#if SPEC_PREJIT
-			if (G->flags & F_SPEC)
-				prejit_run(_P0, basemode);
-#endif
-			_P1 = DoExec(G);
-#if SPEC_PREJIT
-			if (G->flags & F_SPEC)
-				prejit_sync();
-#endif
-			if (TheCPU.err2 == EXCP_TFSET)
-				TheCPU.err2 = 0;
-			TheCPU.err = TheCPU.err2;
-			Interp_LONG_CS = LONG_CS;
-		}
-	}
-	return _P1;
+	return _JumpGen(P2, mode, opc, pskip);
 }
 
 static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
@@ -632,7 +608,15 @@ static unsigned int _Interp86(unsigned int PC)
 				return PC;
 			continue;
 		}
+#if SPEC_PREJIT
+		if (G->flags & F_SPEC)
+			prejit_run(PC, TheCPU.mode);
+#endif
 		PC = DoExec(G);
+#if SPEC_PREJIT
+		if (G->flags & F_SPEC)
+			prejit_sync();
+#endif
 		if (TheCPU.err2 == EXCP_TFSET)
 			TheCPU.err2 = 0;
 		if (TheCPU.err2)
