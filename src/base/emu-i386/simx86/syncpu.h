@@ -46,7 +46,7 @@ typedef struct {
 /* offsets up to end_mark are 8-bit */
 #define FIELD0		rzero	/* field of SynCPU at offset 00 */
 /*00*/	unsigned int rzero;
-/*04*/	int err2;
+/*04*/	int err;
 /*08*/	unsigned int scp_err;
 /*0c*/	unsigned int edi;
 /*10*/	unsigned int esi;
@@ -77,7 +77,6 @@ typedef struct {
 /*80*/	//unsigned int end_mark[0] = cr[1]
 	unsigned int tr[2];
 
-	int err;
 	unsigned int mode;
 	unsigned int sreg1;
 	unsigned int dreg1;
@@ -197,7 +196,7 @@ extern struct _SynCPU TheCPU_struct;
 #define Ofs_XFS		(offsetof(SynCPU,fs_cache))
 #define Ofs_XGS		(offsetof(SynCPU,gs_cache))
 
-#define Ofs_ERR		(offsetof(SynCPU,err2))
+#define Ofs_ERR		(offsetof(SynCPU,err))
 #define Ofs_SCP_ERR		(offsetof(SynCPU,scp_err))
 #define Ofs_int_revectored	(offsetof(SynCPU,int_revectored))
 

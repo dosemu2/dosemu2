@@ -294,7 +294,7 @@ void InitGen_sim(void)
 static inline void check_v86_address_overflow(int mode, dosaddr_t offset)
 {
 	if (V86MODE() && (0 == (mode & (ADDR16 | MLEA))) && offset > 0xffff)
-		TheCPU.err2 = EXCP0D_GPF;
+		TheCPU.err = EXCP0D_GPF;
 }
 
 dosaddr_t AddrGen_sim(const IGen *IG)
@@ -400,7 +400,7 @@ dosaddr_t AddrGen_sim(const IGen *IG)
 		unsigned char intno = IG->p0;
 		// Check bitmap, GPF if revectored
 		if (test_bit(intno, &TheCPU.int_revectored)) {
-			TheCPU.err2 = EXCP0D_GPF;
+			TheCPU.err = EXCP0D_GPF;
 			mem_ref = (dosaddr_t)-1;
 		}
 		else {
@@ -486,7 +486,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 			e_printf("FPU: error status %02x\n",exs);
 			if ((exs & ~TheCPU.fpuc) & 0x3f) {
 				e_printf("FPU exception\n");
-				TheCPU.err2 = EXCP10_COPR;
+				TheCPU.err = EXCP10_COPR;
 				P0 = FindPC((const unsigned char *)IG);
 			}
 		}
@@ -1429,12 +1429,12 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 			uint32_t v = CPUWORD(Ofs_AX);
 			S1 = DR1.b.bl;
 			if (S1==0)
-			    TheCPU.err2 = EXCP00_DIVZ;
+			    TheCPU.err = EXCP00_DIVZ;
 			else {
 			    uint32_t rem = v % S1;
 			    v /= S1;
 			    if (v > 0xff)
-				TheCPU.err2 = EXCP00_DIVZ;
+				TheCPU.err = EXCP00_DIVZ;
 			    else {
 				CPUBYTE(Ofs_AL) = v;
 				CPUBYTE(Ofs_AH) = rem;
@@ -1447,12 +1447,12 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 				v = ((uint32_t)CPUWORD(Ofs_DX) << 16) | CPUWORD(Ofs_AX);
 				S1 = DR1.w.l;
 				if (S1==0)
-				    TheCPU.err2 = EXCP00_DIVZ;
+				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
 				    uint32_t rem = v % S1;
 				    v /= S1;
 				    if (v > 0xffff)
-					TheCPU.err2 = EXCP00_DIVZ;
+					TheCPU.err = EXCP00_DIVZ;
 				    else {
 					CPUWORD(Ofs_AX) = v;
 					CPUWORD(Ofs_DX) = rem;
@@ -1465,12 +1465,12 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 				v.t.th = CPULONG(Ofs_EDX);
 				S1 = DR1.d;
 				if (S1==0)
-				    TheCPU.err2 = EXCP00_DIVZ;
+				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
 				    uint32_t rem = v.td % S1;
 				    v.td /= S1;
 				    if (v.t.th)
-					TheCPU.err2 = EXCP00_DIVZ;
+					TheCPU.err = EXCP00_DIVZ;
 				    else {
 					CPULONG(Ofs_EAX) = v.t.tl;
 					CPULONG(Ofs_EDX) = rem;
@@ -1478,7 +1478,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		    		}
 			}
 		}
-		if (TheCPU.err2 == EXCP00_DIVZ)
+		if (TheCPU.err == EXCP00_DIVZ)
 			P0 = LONG_CS + (dosaddr_t)IG->p0;
 		break;
 	case O_IDIV:		// no flags
@@ -1488,12 +1488,12 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 			int32_t S = DR1.bs.bl;
 			v = (signed short)CPUWORD(Ofs_AX);
 			if (S==0)
-			    TheCPU.err2 = EXCP00_DIVZ;
+			    TheCPU.err = EXCP00_DIVZ;
 	    		else {
 			    int32_t rem = v % S;
 			    v /= S;
 			    if (v > 127 || v < -128)
-				TheCPU.err2 = EXCP00_DIVZ;
+				TheCPU.err = EXCP00_DIVZ;
 			    else {
 				CPUBYTE(Ofs_AL) = v;
 				CPUBYTE(Ofs_AH) = rem;
@@ -1506,12 +1506,12 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 				int32_t S = DR1.ws.l;
 				v = ((uint32_t)CPUWORD(Ofs_DX) << 16) | CPUWORD(Ofs_AX);
 				if (S==0)
-				    TheCPU.err2 = EXCP00_DIVZ;
+				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
 				    int32_t rem = v % S;
 				    v /= S;
 				    if (v > 32767 || v < -32768)
-					TheCPU.err2 = EXCP00_DIVZ;
+					TheCPU.err = EXCP00_DIVZ;
 				    else {
 					CPUWORD(Ofs_AX) = v;
 					CPUWORD(Ofs_DX) = rem;
@@ -1524,12 +1524,12 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 				v = CPULONG(Ofs_EAX) |
 				  ((uint64_t)CPULONG(Ofs_EDX) << 32);
 				if (S==0)
-				    TheCPU.err2 = EXCP00_DIVZ;
+				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
 				    int32_t rem = v % S;
 				    v /= S;
 				    if (v > 0x7fffffffLL || v < -0x80000000LL)
-					TheCPU.err2 = EXCP00_DIVZ;
+					TheCPU.err = EXCP00_DIVZ;
 				    else {
 					CPULONG(Ofs_EAX) = v & 0xffffffff;
 					CPULONG(Ofs_EDX) = rem;
@@ -1537,7 +1537,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		    		}
 			}
 		}
-		if (TheCPU.err2 == EXCP00_DIVZ)
+		if (TheCPU.err == EXCP00_DIVZ)
 			P0 = LONG_CS + (dosaddr_t)IG->p0;
 		break;
 	case O_CBWD:
@@ -2130,7 +2130,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		DR1.d = Sim_helper(mem_ref, DR1.d, mode,
 				   &flags, IG->p0, IG->p1);
 		FlagSync_RFL(flags);
-		if (TheCPU.err2)
+		if (TheCPU.err)
 			P0 = IG->p2;
 		break;
 		}
@@ -2171,7 +2171,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 
 			/* misaligned overflow generates trap. */
 			if(minofs & (OPSIZE(mode)-1)) {
-			    TheCPU.err2 = EXCP0D_GPF;
+			    TheCPU.err = EXCP0D_GPF;
 			    P0 = FindPC((const unsigned char *)IG);
 			    break;
 			}
@@ -2309,7 +2309,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 			if(AR1.d & (OPSIZE(mode)-1))
 			{
 				/* misaligned overflow generates trap. */
-				TheCPU.err2 = EXCP0D_GPF;
+				TheCPU.err = EXCP0D_GPF;
 				P0 = FindPC((const unsigned char *)IG);
 				break;
 			}
@@ -2828,7 +2828,7 @@ static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 	do {
 		if (IG->op <= O_MOVS_SetA) {
 			mem_ref = AddrGen_sim(IG);
-			if (TheCPU.err2 == EXCP0D_GPF) {
+			if (TheCPU.err == EXCP0D_GPF) {
 				if (IG->op == O_INT)
 					P0 = (dosaddr_t)IG->p1;
 				else

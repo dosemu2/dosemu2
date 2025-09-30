@@ -420,7 +420,6 @@ static unsigned int FindExecCode(unsigned int PC)
 		else
 #endif
 			PC = DoExec(G);
-		TheCPU.err = TheCPU.err2;
 		Interp_LONG_CS = LONG_CS;
 #if PROFILE
 		if (G->flags & F_PREJ)
@@ -475,7 +474,7 @@ void Interp86(void)
 {
     unsigned int ret;
 
-    TheCPU.err2 = 0;
+    TheCPU.err = 0;
     Interp_LONG_CS = LONG_CS;
     ret = _Interp86(Interp_LONG_CS + TheCPU.eip);
     assert(CurrIMeta<0);
@@ -496,7 +495,7 @@ static unsigned int interp_pre(unsigned int PC, const int mode)
 	if (!(EFLAGS & TF)) {
 		P2 = FindExecCode(PC);
 		if (TheCPU.err == EXCP_TFSET)
-			TheCPU.err = TheCPU.err2 = 0;
+			TheCPU.err = 0;
 		if (TheCPU.err) return P2;
 		if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
 			HandleEmuSignals();
@@ -575,7 +574,6 @@ static unsigned int _Interp86(unsigned int PC)
 		return val == 2 ? LONG_CS + TheCPU.eip : P0;
 	}
 
-	TheCPU.err = 0;
 	CEmuStat &= ~(CeS_TRAP|CeS_STI);
 
 #ifndef __clang__
@@ -603,11 +601,10 @@ static unsigned int _Interp86(unsigned int PC)
 #endif
 		if (G->flags & F_LEAV) {
 			G->flags &= ~F_LEAV;
-			TheCPU.err2 = EXCP_EMULEAVE;
+			TheCPU.err = EXCP_EMULEAVE;
 		}
-		if (TheCPU.err2 == EXCP_TFSET)
-			TheCPU.err2 = 0;
-		TheCPU.err = TheCPU.err2;
+		if (TheCPU.err == EXCP_TFSET)
+			TheCPU.err = 0;
 		Interp_LONG_CS = LONG_CS;
 
 		if (TheCPU.err)
@@ -655,7 +652,7 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			if(r < lo || r > hi)
 			{
 				e_printf("Bound interrupt 05\n");
-				TheCPU.err2=EXCP05_BOUND;
+				TheCPU.err=EXCP05_BOUND;
 			}
 			break;
 		       }
@@ -701,7 +698,7 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			if(*flags & EFLAGS_OF)
 			{
 				e_printf("Overflow interrupt 04\n");
-				TheCPU.err2=EXCP04_INTO;
+				TheCPU.err=EXCP04_INTO;
 			}
 			break;
 /*cd*/	case INT:      {
@@ -772,7 +769,7 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
 			temp = data;
 			if (temp & TF)
-			    TheCPU.err2 = EXCP_TFSET;
+			    TheCPU.err = EXCP_TFSET;
 			EFLAGS = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
 			if (V86MODE()) {
 			    int is_tf;
@@ -807,7 +804,7 @@ stack_return_from_vm86:
 					e_printf("Return for STI fl=%08x\n",
 						 EFLAGS);
 				    if (opc == POPF)
-					TheCPU.err2 = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
+					TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
 				    else
 					data = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
 				}
@@ -838,7 +835,7 @@ stack_return_from_vm86:
 				if (debug_level('e')>1)
 				    e_printf("Return for STI fl=%08x\n",
 					    EFLAGS);
-				TheCPU.err2 = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
+				TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
 			    }
 			}
 			*flags = EFLAGS & EFLAGS_CC;
@@ -868,7 +865,7 @@ stack_return_from_vm86:
 				    if (debug_level('e')>1)
 					e_printf("Return for STI fl=%08x\n",
 					    EFLAGS);
-				    TheCPU.err2=EXCP_STISIGNAL;
+				    TheCPU.err=EXCP_STISIGNAL;
 				}
 			}
 			else {
@@ -885,7 +882,7 @@ stack_return_from_vm86:
 					    EFLAGS);
 				/* force exit after next compiled block execution */
 				exit_pending_or(CeS_RPIC);
-				TheCPU.err2 = EXCP_STISHADOW;
+				TheCPU.err = EXCP_STISHADOW;
 			    }
 			}
 			break;
@@ -1110,7 +1107,7 @@ stack_return_from_vm86:
 
 not_permitted_sim:
 	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
-	TheCPU.err2 = EXCP0D_GPF;
+	TheCPU.err = EXCP0D_GPF;
 	return data;
 }
 
@@ -3257,7 +3254,6 @@ void PreJit86(unsigned int PC, int basemode)
 {
 	if (e_querymark(PC, 1))
 		return;
-	TheCPU.err = 0;
 	Interp_LONG_CS = LONG_CS;
 	_PreJit86(PC, basemode, 1);
 	e_mdrop();
