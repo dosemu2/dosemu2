@@ -58,11 +58,11 @@ static sem_t prejit_sem;
 static void *prejit_thread(void *arg);
 #if SPEC_PREJIT
 static int can_speculate(void);
-static void prejit_run(unsigned int PC, unsigned int basemode);
+static void prejit_run(TNode *G);
 #else
 #define can_speculate() 0
 #endif
-static unsigned int prejit_PC, prejit_mode;
+static TNode *prejit_G;
 #if PROFILE
 int SpecPrejits;
 #endif
@@ -592,12 +592,14 @@ static unsigned int _Interp86(unsigned int PC)
 		} while (!G);
 #if SPEC_PREJIT
 		if (G->flags & F_SPEC)
-			prejit_run(PC, TheCPU.mode);
+			prejit_run(G);
 #endif
 		PC = DoExec(G);
 #if SPEC_PREJIT
-		if (G->flags & F_SPEC)
+		if (G->flags & F_SPEC) {
+			G->flags &= ~F_SPEC;
 			prejit_sync();
+		}
 #endif
 		if (G->flags & F_LEAV) {
 			G->flags &= ~F_LEAV;
@@ -3266,8 +3268,8 @@ static void *prejit_thread(void *arg)
 {
   while (1) {
     sem_wait(&prejit_sem);
-    _PreJit86(__atomic_load_n(&prejit_PC, __ATOMIC_RELAXED),
-	    __atomic_load_n(&prejit_mode, __ATOMIC_RELAXED),
+    TNode *G = __atomic_load_n(&prejit_G, __ATOMIC_RELAXED);
+    _PreJit86(G->seqbase + G->seqlen, G->mode,
 	    SAFE_PRJ_GAP);
     pthread_mutex_lock(&run_mtx);
     prejit_running = 0;
@@ -3278,12 +3280,14 @@ static void *prejit_thread(void *arg)
 }
 
 #if SPEC_PREJIT
-static void prejit_run(unsigned int PC, unsigned int basemode)
+static void prejit_run(TNode *G)
 {
+  unsigned int PC = G->seqbase + G->seqlen;
   if (debug_level('e')) {
     char *ds;
     unsigned short ocs = TheCPU.cs;
     unsigned int P2 = InstrMeta[CurrIMeta].npc;
+    unsigned int basemode = G->mode;
     ds = e_emu_disasm(EMU_BASE32(P2),basemode&MBIGCS,ocs);
     e_printf("prejit after  %s\n", ds);
     ds = e_emu_disasm(EMU_BASE32(PC),basemode&MBIGCS,ocs);
@@ -3294,8 +3298,7 @@ static void prejit_run(unsigned int PC, unsigned int basemode)
 #if PROFILE
   SpecPrejits++;
 #endif
-  __atomic_store_n(&prejit_PC, PC, __ATOMIC_RELAXED);
-  __atomic_store_n(&prejit_mode, basemode, __ATOMIC_RELAXED);
+  __atomic_store_n(&prejit_G, G, __ATOMIC_RELAXED);
   pthread_mutex_lock(&run_mtx);
   assert(!prejit_running);
   prejit_running = 1;
