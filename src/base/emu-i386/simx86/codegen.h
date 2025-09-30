@@ -193,6 +193,8 @@
 #define F_SLFL	0x0004
 #define F_INHI	0x0008
 #define F_PREJ	0x0010
+#define F_SPEC	0x0020
+#define F_LEAV	0x0040
 
 /////////////////////////////////////////////////////////////////////////////
 
