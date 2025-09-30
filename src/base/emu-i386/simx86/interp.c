@@ -50,8 +50,6 @@ int EmuSignals = 0;
 /* this is probably unsafe with cpatch */
 #define SPEC_PREJIT 0
 
-#define FLG_PREJIT 1
-#define FLG_SPECULATIVE 2
 static pthread_cond_t run_cnd = PTHREAD_COND_INITIALIZER;
 static int prejit_running;
 static pthread_mutex_t run_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -134,16 +132,12 @@ static TNode *DoClose(unsigned int PC, int mode)
  *	from P0, abort the current instruction and resume the parsing
  *	loop at P2.
  */
-static TNode *do_flush(unsigned P0, unsigned mode, unsigned _flags)
+static TNode *do_flush(unsigned P0, unsigned mode)
 {
   assert (CurrIMeta>=0);
-  unsigned int Gflags = can_speculate();
+  unsigned int flags = can_speculate();
   TNode *G = DoClose(P0, mode);
-  G->flags |= Gflags;
-  if (_flags & FLG_PREJIT) {
-    G->flags |= F_PREJ;
-    NodesPrejitted++;
-  }
+  G->flags |= flags;
   return G;
 }
 
@@ -532,11 +526,10 @@ static unsigned int interp_pre(unsigned int PC, const int mode)
 	return PC;
 }
 
-static TNode *interp_post(unsigned int PC, const int mode,
-	int _flags, int gap)
+static TNode *interp_post(unsigned int PC, const int mode, int gap)
 {
 		TNode *G = NULL;
-		unsigned int Gflags = 0;
+		unsigned int flags = 0;
 		assert (CurrIMeta>=0);
 
 		if (CEmuStat & CeS_INSTREMUx(PROTMODE())) {
@@ -550,7 +543,7 @@ static TNode *interp_post(unsigned int PC, const int mode,
 							vga.inst_emu) {
 					instr_emu_sim_reset_count();
 				} else {
-					Gflags = F_LEAV;
+					flags = F_LEAV;
 				}
 			}
 		}
@@ -558,13 +551,13 @@ static TNode *interp_post(unsigned int PC, const int mode,
 #ifndef SINGLEBLOCK
 		IMeta *GL = &InstrMeta[CurrIMeta];
 		if ((CEmuStat & (CeS_TRAP|CeS_STI)) ||
-		    Gflags == F_LEAV ||
+		    flags == F_LEAV ||
 		    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
 		    e_querymark(PC, gap))
 #endif
 		{
-			G = do_flush(PC, mode, _flags);
-			G->flags |= Gflags;
+			G = do_flush(PC, mode);
+			G->flags |= flags;
 		}
 
 		return G;
@@ -597,7 +590,7 @@ static unsigned int _Interp86(unsigned int PC)
 		do {
 			P0 = PC;
 			PC = InterpOne(PC, TheCPU.mode);
-			G = interp_post(PC, TheCPU.mode, 0, 1);
+			G = interp_post(PC, TheCPU.mode, 1);
 		} while (!G);
 #if SPEC_PREJIT
 		if (G->flags & F_SPEC)
@@ -3249,16 +3242,15 @@ void instr_emu_sim_reset_count(void)
 	interp_inst_emu_count = VGA_EMU_INST_EMU_COUNT;
 }
 
-/* safety gap should be definitely longer than 1 instruction to not
- * overwrite something unintentionally */
-#define SAFE_PRJ_GAP 16
-static void _PreJit86(unsigned int PC, int basemode, int flags)
+static void _PreJit86(unsigned int PC, int basemode, int gap)
 {
-	int gap = ((flags & FLG_SPECULATIVE) ? SAFE_PRJ_GAP : 1);
+	TNode *G;
 
 	do {
 		PC = InterpOne(PC, basemode);
-	} while (!interp_post(PC, basemode, flags, gap));
+	} while (!(G = interp_post(PC, basemode, gap)));
+	G->flags |= F_PREJ;
+	NodesPrejitted++;
 }
 
 void PreJit86(unsigned int PC, int basemode)
@@ -3267,17 +3259,20 @@ void PreJit86(unsigned int PC, int basemode)
 		return;
 	TheCPU.err = 0;
 	Interp_LONG_CS = LONG_CS;
-	_PreJit86(PC, basemode, FLG_PREJIT);
+	_PreJit86(PC, basemode, 1);
 	e_mdrop();
 }
 
+/* safety gap should be definitely longer than 1 instruction to not
+ * overwrite something unintentionally */
+#define SAFE_PRJ_GAP 16
 static void *prejit_thread(void *arg)
 {
   while (1) {
     sem_wait(&prejit_sem);
     _PreJit86(__atomic_load_n(&prejit_PC, __ATOMIC_RELAXED),
 	    __atomic_load_n(&prejit_mode, __ATOMIC_RELAXED),
-	    FLG_PREJIT | FLG_SPECULATIVE);
+	    SAFE_PRJ_GAP);
     pthread_mutex_lock(&run_mtx);
     prejit_running = 0;
     pthread_mutex_unlock(&run_mtx);
