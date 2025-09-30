@@ -630,6 +630,11 @@ unsigned int DoExec(TNode *G)
 	ePC = Exec(&mem_ref, &flg, ecpu, SeqStart, seqflg);
 	Exec_post(flg, mem_ref);
 
+#ifdef SKIP_EMU_VBIOS
+	if ((jcs&0xf000)==config.vbios_seg && !TheCPU.err2)
+		TheCPU.err2 = EXCP_GOBACK;
+#endif
+
 	if (debug_level('e')) {
 #if PROFILE >= 2
 	    ExecTime += GETTSC() - TimeStartExec;
@@ -720,6 +725,10 @@ unsigned int DoExec_fast(TNode *G)
 			CEmuStat |= e;
 			break;
 		}
+#ifdef SKIP_EMU_VBIOS
+		if ((jcs&0xf000)==config.vbios_seg && !TheCPU.err2)
+			TheCPU.err2 = EXCP_GOBACK;
+#endif
 	} while (!TheCPU.err2 && (G=FindTree(ePC)) &&
 		 GoodNode(G) && !(G->flags & (F_FPOP|F_INHI)));
 

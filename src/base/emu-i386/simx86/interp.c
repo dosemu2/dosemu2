@@ -536,6 +536,8 @@ static TNode *interp_post(unsigned int PC, const int mode,
 	int _flags, int gap)
 {
 		TNode *G = NULL;
+		unsigned int Gflags = 0;
+		assert (CurrIMeta>=0);
 
 		if (CEmuStat & CeS_INSTREMUx(PROTMODE())) {
 			if (debug_level('e')>1)
@@ -548,20 +550,21 @@ static TNode *interp_post(unsigned int PC, const int mode,
 							vga.inst_emu) {
 					instr_emu_sim_reset_count();
 				} else {
-					TheCPU.err = EXCP_EMULEAVE;
+					Gflags = F_LEAV;
 				}
 			}
 		}
 
-		if (CurrIMeta>=0) {
 #ifndef SINGLEBLOCK
-			IMeta *GL = &InstrMeta[CurrIMeta];
-			if ((CEmuStat & (CeS_TRAP|CeS_STI)) ||
-			    TheCPU.err == EXCP_EMULEAVE ||
-			    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
-			    e_querymark(PC, gap))
+		IMeta *GL = &InstrMeta[CurrIMeta];
+		if ((CEmuStat & (CeS_TRAP|CeS_STI)) ||
+		    Gflags == F_LEAV ||
+		    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
+		    e_querymark(PC, gap))
 #endif
-				G = do_flush(PC, mode, _flags);
+		{
+			G = do_flush(PC, mode, _flags);
+			G->flags |= Gflags;
 		}
 
 		return G;
@@ -587,21 +590,15 @@ static unsigned int _Interp86(unsigned int PC)
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
 #endif
 	while (1) {
-		if (CurrIMeta < 0) {
-			PC = interp_pre(PC, TheCPU.mode);
-			if (TheCPU.err)
-				return PC;
-		}
-		P0 = PC;
-		PC = InterpOne(PC, TheCPU.mode);
+		assert(CurrIMeta < 0);
+		PC = interp_pre(PC, TheCPU.mode);
 		if (TheCPU.err)
 			return PC;
-		G = interp_post(PC, TheCPU.mode, 0, 1);
-		if (!G) {
-			if (TheCPU.err)
-				return PC;
-			continue;
-		}
+		do {
+			P0 = PC;
+			PC = InterpOne(PC, TheCPU.mode);
+			G = interp_post(PC, TheCPU.mode, 0, 1);
+		} while (!G);
 #if SPEC_PREJIT
 		if (G->flags & F_SPEC)
 			prejit_run(PC, TheCPU.mode);
@@ -611,10 +608,13 @@ static unsigned int _Interp86(unsigned int PC)
 		if (G->flags & F_SPEC)
 			prejit_sync();
 #endif
+		if (G->flags & F_LEAV) {
+			G->flags &= ~F_LEAV;
+			TheCPU.err2 = EXCP_EMULEAVE;
+		}
 		if (TheCPU.err2 == EXCP_TFSET)
 			TheCPU.err2 = 0;
-		if (TheCPU.err2)
-			TheCPU.err = TheCPU.err2;
+		TheCPU.err = TheCPU.err2;
 		Interp_LONG_CS = LONG_CS;
 
 		if (TheCPU.err)
@@ -2725,12 +2725,6 @@ repag0:
 					    else
 						e_printf("JMP_FAR indirect: %04x:%08x\n",jcs,jip);
 					}
-#ifdef SKIP_EMU_VBIOS
-					if ((jcs&0xf000)==config.vbios_seg) {
-					    /* return the new PC after the jump */
-					    TheCPU.err = EXCP_GOBACK;
-					}
-#endif
 				}
 				break;
 			case Ofs_SI:	/*6*/	 // PUSH
@@ -3232,7 +3226,7 @@ repag0:
 		}
 
 		/* check segment boundaries. TODO for prot _mode */
-		if (!TheCPU.err && REALADDR() && (PC - Interp_LONG_CS > 0xffff)) {
+		if (REALADDR() && (PC - Interp_LONG_CS > 0xffff)) {
 			e_printf("PC out of bounds, %x\n", PC - Interp_LONG_CS);
 			goto not_permitted;
 		}
@@ -3264,7 +3258,7 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 
 	do {
 		PC = InterpOne(PC, basemode);
-	} while (!TheCPU.err && !interp_post(PC, basemode, flags, gap));
+	} while (!interp_post(PC, basemode, flags, gap));
 }
 
 void PreJit86(unsigned int PC, int basemode)
