@@ -99,8 +99,10 @@ static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
 	if (m&DATA16) CPUWORD(o)=v; else CPULONG(o)=v;
 }
 
-static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
+static TNode *DoClose(unsigned int PC, int mode)
 {
+	unsigned int P0 = InstrMeta[0].npc;
+
 	/* If the code doesn't terminate with a jump/loop instruction
 	 * it still lacks the tail code; add it here */
 	IMeta *GL = &InstrMeta[CurrIMeta];
@@ -132,12 +134,11 @@ static TNode *DoClose(unsigned int PC, int mode, unsigned int P0)
  *	from P0, abort the current instruction and resume the parsing
  *	loop at P2.
  */
-static TNode *do_flush(unsigned P0, unsigned _P0,
-    unsigned mode, unsigned _flags)
+static TNode *do_flush(unsigned P0, unsigned mode, unsigned _flags)
 {
   assert (CurrIMeta>=0);
   unsigned int Gflags = can_speculate();
-  TNode *G = DoClose(P0, mode, _P0);
+  TNode *G = DoClose(P0, mode);
   G->flags |= Gflags;
   if (_flags & FLG_PREJIT) {
     G->flags |= F_PREJ;
@@ -160,8 +161,8 @@ static inline unsigned int UNPREFIX(unsigned int m)
 //	link	7x 06 e9 l l l l -- -- e9 l l l l -- --
 //
 
-static unsigned int _JumpGen(unsigned int P2, int mode, int opc,
-			      int pskip)
+static unsigned int JumpGen(unsigned int P2, int mode, int opc,
+			    int pskip)
 {
 #if !defined(SINGLESTEP)
 	unsigned int P1;
@@ -360,12 +361,6 @@ static int can_speculate(void)
 }
 #endif
 
-static unsigned int JumpGen(unsigned int P2, int mode, int opc, int pskip,
-	unsigned int P0, int _flags)
-{
-	return _JumpGen(P2, mode, opc, pskip);
-}
-
 static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 	unsigned int scp_err, unsigned int P0)
 {
@@ -480,7 +475,7 @@ static void HandleEmuSignals(void)
 }
 
 static unsigned int _Interp86(unsigned int PC);
-static unsigned int InterpOne(unsigned int PC, int basemode, int _flags);
+static unsigned int InterpOne(unsigned int PC, int basemode);
 
 void Interp86(void)
 {
@@ -493,7 +488,7 @@ void Interp86(void)
     TheCPU.eip = ret - Interp_LONG_CS;
 }
 
-static unsigned int interp_pre(unsigned int PC, const int mode, int _flags)
+static unsigned int interp_pre(unsigned int PC, const int mode)
 {
 	if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
 		HandleEmuSignals();
@@ -566,8 +561,7 @@ static TNode *interp_post(unsigned int PC, const int mode,
 			    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
 			    e_querymark(PC, gap))
 #endif
-				G = do_flush(PC, InstrMeta[0].npc, mode,
-					     _flags);
+				G = do_flush(PC, mode, _flags);
 		}
 
 		return G;
@@ -594,12 +588,12 @@ static unsigned int _Interp86(unsigned int PC)
 #endif
 	while (1) {
 		if (CurrIMeta < 0) {
-			PC = interp_pre(PC, TheCPU.mode, 0);
+			PC = interp_pre(PC, TheCPU.mode);
 			if (TheCPU.err)
 				return PC;
 		}
 		P0 = PC;
-		PC = InterpOne(PC, TheCPU.mode, 0);
+		PC = InterpOne(PC, TheCPU.mode);
 		if (TheCPU.err)
 			return PC;
 		G = interp_post(PC, TheCPU.mode, 0, 1);
@@ -1127,7 +1121,7 @@ not_permitted_sim:
 	return data;
 }
 
-static unsigned int InterpOne(unsigned int PC, int basemode, int _flags)
+static unsigned int InterpOne(unsigned int PC, int basemode)
 {
 	unsigned int P0 = PC;
 	unsigned char opc;
@@ -1665,7 +1659,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*e1*/	case LOOPZ_LOOPE:
 /*e2*/	case LOOP:
 /*e3*/	case JCXZ:
-			PC = JumpGen(PC, _mode, opc, 2, P0, _flags);
+			PC = JumpGen(PC, _mode, opc, 2);
 			break;
 
 /*82*/	case IMMEDbrm2:		// add mem8,signed imm8: no AND,OR,XOR
@@ -2127,8 +2121,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*e9*/	case JMPd:
 /*e8*/	case CALLd:
-		    PC = JumpGen(PC, _mode, opc, 1 + BT24(BitDATA16,_mode),
-			    P0, _flags);
+		    PC = JumpGen(PC, _mode, opc, 1 + BT24(BitDATA16,_mode));
 		    break;
 
 /*9a*/	case CALLl:
@@ -2136,7 +2129,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 		    int len = 3 + BT24(BitDATA16,_mode);
 		    dosaddr_t oip = PC + len - LONG_CS;
 		    ocs = TheCPU.cs;
-		    PC = JumpGen(PC, _mode, opc, len, P0, _flags);
+		    PC = JumpGen(PC, _mode, opc, len);
 		    if (debug_level('e')>2) {
 			if (opc==CALLl)
 			    e_printf("CALL_FAR: ret=%04x:%08x\n  calling:	   %04x:%08x\n",
@@ -2150,14 +2143,14 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c2*/	case RETisp: {
 			int dr = (signed short)FetchW(PC+1);
 			Gen(O_POP, _mode|MRETISP, dr);
-			PC = JumpGen(PC, _mode, opc, 3, P0, _flags);
+			PC = JumpGen(PC, _mode, opc, 3);
 			if (debug_level('e')>2)
 				e_printf("RET: ret=%08x inc_sp=%d\n",PC-Interp_LONG_CS,dr);
 			}
 			break;
 /*c3*/	case RET:
 			Gen(O_POP, _mode);
-			PC = JumpGen(PC, _mode, opc, 1, P0, _flags);
+			PC = JumpGen(PC, _mode, opc, 1);
 			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",PC-Interp_LONG_CS);
 			break;
 /*c6*/	case MOVbirm:
@@ -2214,7 +2207,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			else
 				AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
 			Gen(O_POP3, _mode);
-			PC = JumpGen(PC, _mode, opc, 3, P0, _flags);
+			PC = JumpGen(PC, _mode, opc, 3);
 			if (debug_level('e')>2)
 				e_printf("RET_%d: ret=%08x\n",dr,TheCPU.eip);
 			}
@@ -2249,7 +2242,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(L_LXS2, _mode);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(L_LXS1, _mode, Ofs_EIP);
-				PC = JumpGen(PC, _mode, opc, 2, P0, _flags);
+				PC = JumpGen(PC, _mode, opc, 2);
 				if (debug_level('e')>1)
 					dbug_printf("EMU86: directly called int %#x ax=%#x at %#x:%#x\n",
 						    inum, TheCPU.eax, TheCPU.cs, PC - Interp_LONG_CS);
@@ -2291,7 +2284,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			else
 				AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
 			Gen(O_POP3, _mode);
-			PC = JumpGen(PC, _mode, opc, 1, P0, _flags);
+			PC = JumpGen(PC, _mode, opc, 1);
 			if (debug_level('e')>1)
 			    e_printf("RET_FAR: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
 			break;
@@ -2313,7 +2306,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_SIM, _mode, opc, 0, P0);
 			/* to process EXCP_TFSET */
 			Gen(S_REG, _mode & ~DATA16, Ofs_ERR);
-			PC = JumpGen(PC, _mode, opc, 1, P0, _flags);
+			PC = JumpGen(PC, _mode, opc, 1);
 			if (debug_level('e')>1)
 			    e_printf("IRET: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
 			break;
@@ -2684,8 +2677,7 @@ repag0:
 				break;
 			case Ofs_SP:	/*4*/	 // JMP near indirect
 				PC = JumpGen(PC, _mode, (opc<<8)|REG1,
-					ModRM(opc, PC, _mode|NOFLDR|MLOAD),
-					P0, _flags);
+					ModRM(opc, PC, _mode|NOFLDR|MLOAD));
 				break;
 			case Ofs_DX: {	/*2*/	 // CALL near indirect
 				/* don't use MLOAD as O_PUSHI clobbers eax */
@@ -2696,8 +2688,7 @@ repag0:
 					Gen(L_REG, _mode, REG3);
 				else
 					Gen(L_DI_R1, _mode);
-				PC = JumpGen(PC, _mode, (opc<<8)|REG1, len,
-					P0, _flags);
+				PC = JumpGen(PC, _mode, (opc<<8)|REG1, len);
 				if (debug_level('e')>2)
 					e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
 						 ret,PC-Interp_LONG_CS);
@@ -2724,8 +2715,7 @@ repag0:
 					    Gen(O_PUSHI, _mode, oip);
 					}
 					Gen(L_LXS1, _mode, Ofs_EIP);
-					PC = JumpGen(PC, _mode, (opc<<8)|REG1, len,
-						P0, _flags);
+					PC = JumpGen(PC, _mode, (opc<<8)|REG1, len);
 					if (debug_level('e')>2) {
 					    unsigned short jcs = TheCPU.cs;
 					    dosaddr_t jip = PC - Interp_LONG_CS;
@@ -2959,8 +2949,7 @@ repag0:
 			case JNLEimmdisp:	/*8f*/
 				{
 				  PC = JumpGen(PC, _mode, JO+(opc2-JOimmdisp),
-					       2 + BT24(BitDATA16,_mode),
-					       P0, _flags);
+					       2 + BT24(BitDATA16,_mode));
 				}
 				break;
 ///
@@ -3274,7 +3263,7 @@ static void _PreJit86(unsigned int PC, int basemode, int flags)
 	int gap = ((flags & FLG_SPECULATIVE) ? SAFE_PRJ_GAP : 1);
 
 	do {
-		PC = InterpOne(PC, basemode, flags);
+		PC = InterpOne(PC, basemode);
 	} while (!TheCPU.err && !interp_post(PC, basemode, flags, gap));
 }
 
