@@ -369,7 +369,6 @@ static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 
 /////////////////////////////////////////////////////////////////////////////
 
-#if !defined(SINGLESTEP)
 static unsigned int FindExecCode(unsigned int PC)
 {
 	TNode *G;
@@ -380,8 +379,7 @@ static unsigned int FindExecCode(unsigned int PC)
 	 * any signal processing. Jumps are defined as
 	 * a 'descheduling point' for checking signals.
 	 */
-	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC|CeS_STI)) &&
-	       (G=FindTree(PC))) {
+	while ((G=FindTree(PC))) {
 		if (!GoodNode(G)) {
 			InvalidateNodeRange(G->seqbase, G->seqlen, NULL);
 			return PC;
@@ -410,15 +408,32 @@ static unsigned int FindExecCode(unsigned int PC)
 		NodesExecd++;
 #if PROFILE
 		TotalNodesExecd++;
-#elif !defined(ASM_DUMP)
+#endif
+#if !defined(ASM_DUMP) && !defined(SINGLESTEP)
 		/* try fast inner loop if nothing special is going on */
 		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI)) &&
 		    !debug_level('e') &&
-		    GoodNode(G) && !(G->flags & (F_FPOP|F_INHI)))
+		    GoodNode(G) && !(G->flags & (F_FPOP|F_INHI|F_SPEC|F_LEAV)))
 			PC = DoExec_fast(G);
 		else
 #endif
+		{
+#if SPEC_PREJIT
+			if (G->flags & F_SPEC)
+				prejit_run(G);
+#endif
 			PC = DoExec(G);
+#if SPEC_PREJIT
+			if (G->flags & F_SPEC) {
+				G->flags &= ~F_SPEC;
+				prejit_sync();
+			}
+#endif
+			if (G->flags & F_LEAV) {
+				G->flags &= ~F_LEAV;
+				TheCPU.err = EXCP_EMULEAVE;
+			}
+		}
 #if PROFILE
 		if (G->flags & F_PREJ)
 			PrejitNodesExecd++;
@@ -427,11 +442,16 @@ static unsigned int FindExecCode(unsigned int PC)
 			error("CPU-EMU: Zero-len code node?\n");
 			break;
 		}
+#ifdef SINGLESTEP
+		return PC;
+#else
 		if (TheCPU.err) return PC;
+		if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC|CeS_STI))
+			  return PC;
+#endif
 	}
 	return PC;
 }
-#endif
 
 static void HandleEmuSignals(void)
 {
@@ -479,30 +499,18 @@ void Interp86(void)
     TheCPU.eip = ret - LONG_CS;
 }
 
-static unsigned int interp_pre(unsigned int PC, const int mode)
+static unsigned int interp_pre(unsigned int PC)
 {
+	unsigned int P2 = FindExecCode(PC);
+	if (TheCPU.err == EXCP_TFSET)
+		TheCPU.err = 0;
+	if (TheCPU.err) return P2;
 	if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
 		HandleEmuSignals();
-		if (TheCPU.err) return PC;
+		if (TheCPU.err) return P2;
 	}
 	if (EFLAGS & TF)
 		CEmuStat |= CeS_TRAP;
-
-	unsigned int P2 = PC;
-#ifndef SINGLESTEP
-	if (!(EFLAGS & TF)) {
-		P2 = FindExecCode(PC);
-		if (TheCPU.err == EXCP_TFSET)
-			TheCPU.err = 0;
-		if (TheCPU.err) return P2;
-		if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
-			HandleEmuSignals();
-			if (TheCPU.err) return P2;
-		}
-		if (EFLAGS & TF)
-			CEmuStat |= CeS_TRAP;
-	}
-#endif
 	if (P2 == PC || e_querymark(P2, 1)) {
 		/* slow path */
 		InvalidateNodeRange(P2, 1, NULL);
@@ -581,7 +589,7 @@ static unsigned int _Interp86(unsigned int PC)
 #endif
 	while (1) {
 		assert(CurrIMeta < 0);
-		PC = interp_pre(PC, TheCPU.mode);
+		PC = interp_pre(PC);
 		if (TheCPU.err)
 			return PC;
 		do {
@@ -589,26 +597,7 @@ static unsigned int _Interp86(unsigned int PC)
 			PC = InterpOne(PC, LONG_CS, TheCPU.mode);
 			G = interp_post(PC, LONG_CS, TheCPU.mode, 1);
 		} while (!G);
-#if SPEC_PREJIT
-		if (G->flags & F_SPEC)
-			prejit_run(G);
-#endif
-		PC = DoExec(G);
-#if SPEC_PREJIT
-		if (G->flags & F_SPEC) {
-			G->flags &= ~F_SPEC;
-			prejit_sync();
-		}
-#endif
-		if (G->flags & F_LEAV) {
-			G->flags &= ~F_LEAV;
-			TheCPU.err = EXCP_EMULEAVE;
-		}
-		if (TheCPU.err == EXCP_TFSET)
-			TheCPU.err = 0;
-
-		if (TheCPU.err)
-			return PC;
+		PC = G->key;
 	}
 #ifndef __clang__
 #pragma GCC diagnostic pop
