@@ -297,7 +297,7 @@ static inline void check_v86_address_overflow(int mode, dosaddr_t offset)
 		TheCPU.err = EXCP0D_GPF;
 }
 
-dosaddr_t AddrGen_sim(const IGen *IG)
+static dosaddr_t AddrGen_sim(const IGen *IG)
 {
 	int op = IG->op;
 	int mode = IG->mode;

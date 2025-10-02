@@ -77,7 +77,6 @@ typedef struct {
 					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),showmode(mode))
 #define GTRACE5(s,r1,r2,a,b,c)	if (debug_level('e')>2) e_printf("(G) %-12s %s %s %08x %08x %08x [%s]\n",\
 					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),(int)(c),showmode(mode))
-extern dosaddr_t AddrGen_sim(const IGen *IG);
 extern void InitGen_sim(void);
 
 /////////////////////////////////////////////////////////////////////////////
