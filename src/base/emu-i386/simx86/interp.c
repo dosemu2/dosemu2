@@ -567,14 +567,12 @@ static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 
 static unsigned int _Interp86(unsigned int PC)
 {
-	volatile unsigned int P0 = PC; /* volatile because of setjmp */
-	int val;
 	TNode *G;
 
-	if (PROTMODE() && (val = setjmp(jmp_env))) {
+	if (PROTMODE() && setjmp(jmp_env)) {
 		/* long jump to here from simulated page fault
-		   val == 2 comes from Gen_Sim, with different cs:eip */
-		return val == 2 ? LONG_CS + TheCPU.eip : P0;
+		   via Gen_sim or Sim_helper, with different cs:eip */
+		return LONG_CS + TheCPU.eip;
 	}
 
 	CEmuStat &= ~(CeS_TRAP|CeS_STI);
@@ -589,7 +587,6 @@ static unsigned int _Interp86(unsigned int PC)
 		if (TheCPU.err)
 			return PC;
 		do {
-			P0 = PC;
 			PC = InterpOne(PC, LONG_CS, TheCPU.mode);
 			G = interp_post(PC, LONG_CS, TheCPU.mode, 1);
 		} while (!G);

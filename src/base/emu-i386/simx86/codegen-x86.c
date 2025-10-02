@@ -1653,6 +1653,10 @@ shrot0:
 		G2M(0x41,0xb9,Cp); G4(IG->p1,Cp);
 		// push %%rdi // keep mem_ref (2x for alignment)
 		G2M(PUSHdi,PUSHdi,Cp);
+		// call 1f (to push eip)
+		G1(CALLd,Cp); G4(2+4+2+TAILSIZE,Cp);
+		// pop %%rdi // mem_ref
+		G2M(POPdi,POPdi,Cp);
 #else
 		// mov %esp, %ecx // flags
 		G2M(0x89,0xe1,Cp);
@@ -1668,22 +1672,21 @@ shrot0:
 		G1(PUSHax,Cp);
 		// push %%edi // mem_ref
 		G1(PUSHdi,Cp);
-#endif
-		// call Ofs_SimHelper(%%ebx)
-		G3M(0xff,0x53,Ofs_SimHelper(),Cp);
-#ifdef __x86_64__
-		// pop %%rdi // mem_ref
-		G2M(POPdi,POPdi,Cp);
-#else
-		// addl $24,%%esp
+		// call 1f (to push eip)
+		G1(CALLd,Cp); G4(3+4+2+TAILSIZE,Cp);
+		// 2: addl $24,%%esp
 		G3M(0x83,0xc4,24,Cp)
 #endif
 		// cmpl $0x0,Ofs_ERR(%rbx)
 		G4M(0x83,0x7b,Ofs_ERR,0x00,Cp);
 		// jz skip
-		G2M(JE_JZ,TAILSIZE,Cp);
+		G2M(JE_JZ,TAILSIZE+4,Cp);
 		// movl {exit_addr},%%eax; pop %%edx; ret
 		G1(MOViax,Cp); G4(IG->p2,Cp); G2M(POPdx,RET,Cp);
+		// 1: call Ofs_SimHelper(%%ebx)
+		G3M(0xff,0x53,Ofs_SimHelper(),Cp);
+		G1(RET,Cp);
+		// skip:
 
 	case O_MOVS_SetA: {
 		/* use edi for loads unless MOVSDST or REP is set */
