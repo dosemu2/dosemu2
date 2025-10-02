@@ -1032,34 +1032,31 @@ stack_return_from_vm86:
 /*123*/	case 0x123:   /* MOVrddd */ /* Privileged */
 /*124*/	case 0x124:   /* MOVtdrd */ /* Privileged */
 /*126*/	case 0x126: { /* MOVrdtd */ /* Privileged */
-			int *srg; int reg; unsigned char b,opd,opc2;
+			int reg; unsigned char opd,opc2;
 			opc2 = opc - 0x100;
-			b = arg;
-			reg = D_MO(b);
-			b = D_LO(b);
-			srg = (int *)CPUOFFS(R1Tab_l[b]);
+			reg = arg;
 			opd = opc2&2;
 			if (opc2&1) {
-			    if (opd) TheCPU.dr[reg] = *srg;
-				else *srg = TheCPU.dr[reg];
+			    if (opd) TheCPU.dr[reg] = data;
+				else data = TheCPU.dr[reg];
 			}
 			else if (opc2&4) {
 			    reg-=6;
-			    if (opd) TheCPU.tr[reg] = *srg;
-				else *srg = TheCPU.tr[reg];
+			    if (opd) TheCPU.tr[reg] = data;
+				else data = TheCPU.tr[reg];
 			}
 			else {
 			    if (opd) {	/* write to CRs */
 				if (reg==0) {
-				    if ((TheCPU.cr[0] ^ *srg) & 1) {
+				    if ((TheCPU.cr[0] ^ data) & 1) {
 					dbug_printf("RM/PM switch not allowed\n");
 					break;
 				    }
-				    TheCPU.cr[0] = (*srg&0xe005002f)|0x10;
+				    TheCPU.cr[0] = (data&0xe005002f)|0x10;
 				}
-				else TheCPU.cr[reg] = *srg;
+				else TheCPU.cr[reg] = data;
 			    } else {
-				*srg = TheCPU.cr[reg];
+				data = TheCPU.cr[reg];
 			    }
 			}
 			} break;
@@ -2886,12 +2883,17 @@ repag0:
 				}
 				b = Fetch(PC+2);
 				reg = D_MO(b);
-				if (D_HO(b)!=3 ||
-				    ((opc2&4) && (reg<6)) ||
+				/* D_HO(b) (mod field) ignored */
+				if (((opc2&4) && (reg<6)) ||
 				    (!(opc2&5) && ((reg==1)||(reg>4)))) {
 				    PC += 3; goto illegal_op;
 				}
-				Gen(O_SIM, _mode, 0x100+opc2, b, P0);
+				b = D_LO(b);
+				if (opc2&2)
+				    Gen(L_REG, _mode&~DATA16, b);
+				Gen(O_SIM, _mode, 0x100+opc2, reg, P0);
+				if (!(opc2&2))
+				    Gen(S_REG, _mode&~DATA16, b);
 		    		} PC += 3; break;
 			case 0x30: /* WRMSR */
 			    PC += 2; goto not_permitted;
