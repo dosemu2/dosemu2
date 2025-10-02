@@ -35,8 +35,6 @@
 #ifndef _EMU86_CODEGEN_SIM_H
 #define _EMU86_CODEGEN_SIM_H
 
-#include "vgaemu.h"
-
 /////////////////////////////////////////////////////////////////////////////
 
 typedef union {
@@ -80,5 +78,19 @@ typedef struct {
 extern void InitGen_sim(void);
 
 /////////////////////////////////////////////////////////////////////////////
+
+uint8_t sim_read_byte(dosaddr_t x);
+uint16_t sim_read_word(dosaddr_t x);
+uint32_t sim_read_dword(dosaddr_t x);
+uint64_t sim_read_qword(dosaddr_t x);
+void sim_write_byte(dosaddr_t x, uint8_t y);
+void sim_write_word(dosaddr_t x, uint16_t y);
+void sim_write_dword(dosaddr_t x, uint32_t y);
+void sim_write_qword(dosaddr_t x, uint64_t y);
+
+#define GetDWord(a)	sim_read_word(a)
+#define GetDLong(a)	sim_read_dword(a)
+#define DataGetWL_U(m,a) ((m)&DATA16? GetDWord(a):GetDLong(a))
+#define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(int)GetDLong(a))
 
 #endif

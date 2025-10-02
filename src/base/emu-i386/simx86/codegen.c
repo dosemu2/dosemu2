@@ -58,7 +58,6 @@
 #include "misc/dlmalloc.h"
 #include "mapping/mapping.h"
 #include "codegen-arch.h"
-#include "cpatch.h"
 
 unsigned char * (*CodeGen)(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,

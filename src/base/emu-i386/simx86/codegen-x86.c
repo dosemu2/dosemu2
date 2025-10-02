@@ -102,6 +102,7 @@
 #include <string.h>
 #include "utilities.h"
 #include "emu86.h"
+#include "cpatch.h"
 #include "codegen-x86.h"
 
 static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);

@@ -36,7 +36,8 @@
 #include <string.h>
 #include <pthread.h>
 #include "emu86.h"
-#include "codegen-arch.h"
+#include "codegen.h"
+#include "vgaemu.h"
 #include "port.h"
 #include "emudpmi.h"
 #include "mhpdbg.h"

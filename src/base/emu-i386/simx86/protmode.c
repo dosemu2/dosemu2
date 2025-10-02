@@ -50,7 +50,7 @@
 #include "pic.h"
 #include "emu86.h"
 #include "cpu-emu.h"
-#include "codegen-arch.h"
+#include "codegen.h"
 #include "protmode.h"
 #include "msdoshlp.h"
 
