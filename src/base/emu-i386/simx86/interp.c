@@ -481,18 +481,36 @@ static void HandleEmuSignals(void)
 		CEmuStat &= ~(CeS_SIGPEND | CeS_RPIC);
 }
 
-static unsigned int _Interp86(unsigned int PC);
+static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			      int basemode, int flags);
+static unsigned int interp_pre(unsigned int PC);
 static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 			      int basemode);
 
 void Interp86(void)
 {
-    unsigned int ret;
+    unsigned int PC;
 
     TheCPU.err = 0;
-    ret = _Interp86(LONG_CS + TheCPU.eip);
+
+    if (PROTMODE() && setjmp(jmp_env)) {
+      /* long jump to here from simulated page fault
+         via Gen_sim or Sim_helper, with different cs:eip */
+      return;
+    }
+
+    CEmuStat &= ~(CeS_TRAP|CeS_STI);
+
+    PC = LONG_CS + TheCPU.eip;
+    while (1) {
+      assert(CurrIMeta < 0);
+      PC = interp_pre(PC);
+      if (TheCPU.err)
+        break;
+      PC = _Interp86(PC, LONG_CS, TheCPU.mode, 0);
+    }
     assert(CurrIMeta<0);
-    TheCPU.eip = ret - LONG_CS;
+    TheCPU.eip = PC - LONG_CS;
 }
 
 static unsigned int interp_pre(unsigned int PC)
@@ -527,11 +545,15 @@ static unsigned int interp_pre(unsigned int PC)
 	return PC;
 }
 
+/* safety gap should be definitely longer than 1 instruction to not
+ * overwrite something unintentionally */
+#define SAFE_PRJ_GAP 16
+
 static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
-			  const int mode, int gap)
+			  const int mode, int flags)
 {
 		TNode *G = NULL;
-		unsigned int flags = 0;
+		int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
 		assert (CurrIMeta>=0);
 
 		if (CEmuStat & CeS_INSTREMUx(PROTMODE())) {
@@ -545,7 +567,7 @@ static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 							vga.inst_emu) {
 					instr_emu_sim_reset_count();
 				} else {
-					flags = F_LEAV;
+					flags |= F_LEAV;
 				}
 			}
 		}
@@ -553,7 +575,7 @@ static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 #ifndef SINGLEBLOCK
 		IMeta *GL = &InstrMeta[CurrIMeta];
 		if ((CEmuStat & (CeS_TRAP|CeS_STI)) ||
-		    flags == F_LEAV ||
+		    (flags & F_LEAV) ||
 		    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
 		    e_querymark(PC, gap))
 #endif
@@ -565,37 +587,16 @@ static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 		return G;
 }
 
-static unsigned int _Interp86(unsigned int PC)
+static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			      int basemode, int flags)
 {
 	TNode *G;
 
-	if (PROTMODE() && setjmp(jmp_env)) {
-		/* long jump to here from simulated page fault
-		   via Gen_sim or Sim_helper, with different cs:eip */
-		return LONG_CS + TheCPU.eip;
-	}
-
-	CEmuStat &= ~(CeS_TRAP|CeS_STI);
-
-#ifndef __clang__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
-#endif
-	while (1) {
-		assert(CurrIMeta < 0);
-		PC = interp_pre(PC);
-		if (TheCPU.err)
-			return PC;
-		do {
-			PC = InterpOne(PC, LONG_CS, TheCPU.mode);
-			G = interp_post(PC, LONG_CS, TheCPU.mode, 1);
-		} while (!G);
-		PC = G->key;
-	}
-#ifndef __clang__
-#pragma GCC diagnostic pop
-#endif
-	return 0;
+	do {
+		PC = InterpOne(PC, Interp_LONG_CS, basemode);
+		G = interp_post(PC, Interp_LONG_CS, basemode, flags);
+	} while (!G);
+	return G->key;
 }
 
 static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
@@ -2737,14 +2738,9 @@ void instr_emu_sim_reset_count(void)
 }
 
 static void _PreJit86(unsigned int PC, unsigned int Interp_LONG_CS,
-		      int basemode, int gap)
+		      int basemode, int flags)
 {
-	TNode *G;
-
-	do {
-		PC = InterpOne(PC, Interp_LONG_CS, basemode);
-	} while (!(G = interp_post(PC, Interp_LONG_CS, basemode, gap)));
-	G->flags |= F_PREJ;
+	_Interp86(PC, Interp_LONG_CS, basemode, flags);
 	NodesPrejitted++;
 }
 
@@ -2752,20 +2748,16 @@ void PreJit86(unsigned int PC, int basemode)
 {
 	if (e_querymark(PC, 1))
 		return;
-	_PreJit86(PC, LONG_CS, basemode, 1);
+	_PreJit86(PC, LONG_CS, basemode, F_PREJ);
 	e_mdrop();
 }
 
-/* safety gap should be definitely longer than 1 instruction to not
- * overwrite something unintentionally */
-#define SAFE_PRJ_GAP 16
 static void *prejit_thread(void *arg)
 {
   while (1) {
     sem_wait(&prejit_sem);
     TNode *G = __atomic_load_n(&prejit_G, __ATOMIC_RELAXED);
-    _PreJit86(G->key + G->seqlen, G->cs, G->mode,
-	    SAFE_PRJ_GAP);
+    _PreJit86(G->key + G->seqlen, G->cs, G->mode, F_PREJ|F_SPRJ);
     pthread_mutex_lock(&run_mtx);
     prejit_running = 0;
     pthread_mutex_unlock(&run_mtx);
