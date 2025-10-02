@@ -2854,7 +2854,7 @@ static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
 			if ((exs & ~TheCPU.fpuc) & 0x3f) {
 				__asm__ __volatile__ ("fnclex\n" ::: "memory");
 				e_printf("FPU exception\n");
-				TheCPU.err2 = EXCP10_COPR;
+				TheCPU.err = EXCP10_COPR;
 			}
 		}
 	}

@@ -100,7 +100,7 @@ int SetSegProt_helper(unsigned short sel, int ofs)
 	int oldsel = CPUWORD(ofs);
 	int e = SetSegProt(TheCPU.mode&ADDR16, ofs, &big, sel);
 	if (e) {
-		TheCPU.err2 = e;
+		TheCPU.err = e;
 		oldsel = -1; /* invalid old value flags error */
 	} else if (ofs==Ofs_SS) {
 		TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);

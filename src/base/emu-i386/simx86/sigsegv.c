@@ -259,7 +259,7 @@ static int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	    return 1;
 	TheCPU.scp_err = _scp_err;
 	/* save eip, eflags, and do a "ret" out of compiled code */
-	TheCPU.err2 = EXCP0E_PAGE;
+	TheCPU.err = EXCP0E_PAGE;
 	_scp_eax = FindPC((unsigned char *)_scp_rip);
 	e_printf("FindPC: found %x\n",_scp_eax);
 	_scp_edx = *(long *)_scp_rsp; // flags
@@ -409,7 +409,7 @@ int e_handle_fault(sigcontext_t *scp)
 		error("Fault %i in jit-compiled code\n", _scp_trapno);
 		return 0;
 	}
-	TheCPU.err2 = EXCP00_DIVZ + _scp_trapno;
+	TheCPU.err = EXCP00_DIVZ + _scp_trapno;
 	_scp_eax = LONG_CS + TheCPU.eip;
 	_scp_edx = _scp_eflags;
 	_scp_rip = *(long *)_scp_rsp;

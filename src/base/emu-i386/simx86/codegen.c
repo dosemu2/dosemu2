@@ -596,9 +596,9 @@ static void Exec_post(unsigned long flg, unsigned int mem_ref)
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
 	CEmuStat &= ~CeS_STI;
-	if (TheCPU.err2 == EXCP_STISHADOW) {
+	if (TheCPU.err == EXCP_STISHADOW) {
 		CEmuStat |= CeS_STI;
-		TheCPU.err2 = 0;
+		TheCPU.err = 0;
 	}
 }
 
@@ -631,8 +631,8 @@ unsigned int DoExec(TNode *G)
 	Exec_post(flg, mem_ref);
 
 #ifdef SKIP_EMU_VBIOS
-	if ((jcs&0xf000)==config.vbios_seg && !TheCPU.err2)
-		TheCPU.err2 = EXCP_GOBACK;
+	if ((jcs&0xf000)==config.vbios_seg && !TheCPU.err)
+		TheCPU.err = EXCP_GOBACK;
 #endif
 
 	if (debug_level('e')) {
@@ -713,7 +713,7 @@ unsigned int DoExec_fast(TNode *G)
 				NodeLinker(LastXNode, G);
 			LastXNode = G;
 		}
-		if (TheCPU.err2 == EXCP_STISHADOW) {
+		if (TheCPU.err == EXCP_STISHADOW) {
 			/* as STI can exit here as well from the middle
 			   of a block we must mirror DoExec here */
 			CEmuStat |= CeS_INHI;
@@ -726,10 +726,10 @@ unsigned int DoExec_fast(TNode *G)
 			break;
 		}
 #ifdef SKIP_EMU_VBIOS
-		if ((jcs&0xf000)==config.vbios_seg && !TheCPU.err2)
-			TheCPU.err2 = EXCP_GOBACK;
+		if ((jcs&0xf000)==config.vbios_seg && !TheCPU.err)
+			TheCPU.err = EXCP_GOBACK;
 #endif
-	} while (!TheCPU.err2 && (G=FindTree(ePC)) &&
+	} while (!TheCPU.err && (G=FindTree(ePC)) &&
 		 GoodNode(G) && !(G->flags & (F_FPOP|F_INHI)));
 
 	Exec_post(flg, mem_ref);
