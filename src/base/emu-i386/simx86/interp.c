@@ -2219,7 +2219,14 @@ repag0:
 			break;
 
 /*6c*/	case INSb:
-/*6d*/	case INSw:
+/*6d*/	case INSw: {	int m = _mode|MOVSDST;
+			if (opc == INSb) m |= MBYTE;
+			Gen(O_MOVS_SetA, m, OVERR_DS);
+			Gen(O_SIM, m, opc, 0, P0);
+			Gen(S_DI, m);
+			Gen(O_MOVS_SavA, m, OVERR_DS);
+			PC++; }
+			break;
 /*6e*/	case OUTSb:
 /*ec*/	case INvb:
 /*ed*/	case INvw:

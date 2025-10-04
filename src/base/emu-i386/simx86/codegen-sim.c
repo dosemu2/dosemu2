@@ -3209,15 +3209,17 @@ stack_return_from_vm86:
 			    }
 			}
 			break;
-/*6c*/	case INSb: {
+/*6c*/	case INSb:
+/*6d*/	case INSw: {
 			unsigned short a;
-			unsigned int rd;
 			a = rDX;
 			if (!test_ioperm(a)) goto not_permitted_sim;
-			rd = (mode&ADDR16? rDI:rEDI);
-			sim_write_byte(LONG_ES+rd, port_inb(a));
-			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
-			if (mode&ADDR16) rDI=rd; else rEDI=rd;
+			if (mode&MBYTE)
+				data = port_inb(a);
+			else if (mode&DATA16)
+				data = port_inw(a);
+			else
+				data = port_ind(a);
 			} break;
 /*ec*/	case INvb: {
 			unsigned short a = rDX;
@@ -3235,20 +3237,6 @@ stack_return_from_vm86:
 			unsigned short a = arg;
 			if (!test_ioperm(a)) goto not_permitted_sim;
 			rAL = port_inb(a);
-			} break;
-/*6d*/	case INSw: {
-			unsigned int rd;
-			int dp;
-			if (!test_ioperm(rDX)) goto not_permitted_sim;
-			rd = (mode&ADDR16? rDI:rEDI);
-			if (mode&DATA16) {
-				sim_write_word(LONG_ES+rd, port_inw(rDX)); dp=2;
-			}
-			else {
-				sim_write_dword(LONG_ES+rd, port_ind(rDX)); dp=4;
-			}
-			if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
-			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			} break;
 /*ed*/	case INvw:
 			if (!test_ioperm(rDX)) goto not_permitted_sim;
