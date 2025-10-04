@@ -3249,15 +3249,16 @@ stack_return_from_vm86:
 			if (mode&DATA16) rAX = port_inw(a);
 			else rEAX = port_ind(a);
 			} break;
-
-/*6e*/	case OUTSb: {
+/*6e*/	case OUTSb:
+/*6f*/	case OUTSw: {
 			unsigned short a = rDX;
-			unsigned long rs;
 			if (!test_ioperm(a)) goto not_permitted_sim;
-			rs = (mode&ADDR16? rSI:rESI);
-			port_outb(a,sim_read_byte(LONG_DS+rs));
-			if (EFLAGS & EFLAGS_DF) rs--; else rs++;
-			if (mode&ADDR16) rSI=rs; else rESI=rs;
+			if (mode&MBYTE)
+				port_outb(a, data);
+			else if (mode&DATA16)
+				port_outw(a, data);
+			else
+				port_outd(a, data);
 			} break;
 /*ee*/	case OUTvb: {
 			unsigned short a = rDX;

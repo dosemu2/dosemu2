@@ -2228,6 +2228,14 @@ repag0:
 			PC++; }
 			break;
 /*6e*/	case OUTSb:
+/*6f*/	case OUTSw: {	int m = _mode|MOVSSRC;
+			if (opc == OUTSb) m |= MBYTE;
+			Gen(O_MOVS_SetA, m, OVERR_DS);
+			Gen(L_DI_R1, m);
+			Gen(O_SIM, m, opc, 0, P0);
+			Gen(O_MOVS_SavA, m, OVERR_DS);
+			PC++; }
+			break;
 /*ec*/	case INvb:
 /*ed*/	case INvw:
 /*ee*/	case OUTvb:
@@ -2242,9 +2250,6 @@ repag0:
 			Gen(O_SIM, _mode, opc, Fetch(PC+1), P0);
 			PC += 2;
 			break;
-
-/*6f*/	case OUTSw:
-			PC++; goto not_permitted;
 
 /*d8*/	case ESC0:
 /*d9*/	case ESC1:
