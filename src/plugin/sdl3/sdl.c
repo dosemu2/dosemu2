@@ -414,6 +414,7 @@ static int SDL_init(void)
 #endif
 
   SDL_SetWindowMinimumSize(window, MIN_X, MIN_Y);
+  SDL_StartTextInput(window);
 
   if (config.X_fullscreen) {
     window_grab(1, 1);
@@ -1425,7 +1426,7 @@ static void SDL_handle_events(void)
     case SDL_EVENT_KEY_DOWN:
       {
 	SDL_Event text_event;
-	int rc;
+	int rc, rc1;
 	SDL_Keycode key = event.key.key;
 	SDL_Keymod mod = event.key.mod;
 
@@ -1464,10 +1465,13 @@ static void SDL_handle_events(void)
 #if CONFIG_SDL_SELECTION
 	clear_if_in_selection();
 #endif
-	do
-	  rc = SDL_PeepEvents(&text_event, 1, SDL_GETEVENT, SDL_EVENT_TEXT_INPUT,
+	rc = 0;
+	do {
+	  rc1 = SDL_PeepEvents(&text_event, 1, SDL_GETEVENT, SDL_EVENT_TEXT_INPUT,
 		SDL_EVENT_TEXT_INPUT);
-	while (rc == 1 && event.key.timestamp != text_event.text.timestamp);
+	  if (rc1)
+	    rc = rc1;
+	} while (rc1 == 1 && event.key.timestamp != text_event.text.timestamp);
 	if (rc == 1) {
 	    SDL_Event key_event;
 	    int rc2 = SDL_PeepEvents(&key_event, 1, SDL_PEEKEVENT, SDL_EVENT_KEY_DOWN,
