@@ -155,6 +155,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf);
 void InitTrees(void);
 
 unsigned int FindPC(const unsigned char *addr);
+int InvalidateNodeRangeP0(int addr, int len, unsigned char *eip, unsigned int P0);
 int InvalidateNodeRange(int addr, int len, unsigned char *eip);
 void avltr_delete(const int key);
 

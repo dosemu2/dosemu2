@@ -576,14 +576,13 @@ static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 
 static unsigned int _Interp86(unsigned int PC)
 {
-	volatile unsigned int P0 = PC; /* volatile because of setjmp */
 	int val;
 	TNode *G;
 
 	if (PROTMODE() && (val = setjmp(jmp_env))) {
 		/* long jump to here from simulated page fault
-		   val == 2 comes from Gen_Sim, with different cs:eip */
-		return val == 2 ? LONG_CS + TheCPU.eip : P0;
+		   from Gen_Sim, with different cs:eip */
+		return LONG_CS + TheCPU.eip;
 	}
 
 	CEmuStat &= ~(CeS_TRAP|CeS_STI);
@@ -598,7 +597,6 @@ static unsigned int _Interp86(unsigned int PC)
 		if (TheCPU.err)
 			return PC;
 		do {
-			P0 = PC;
 			PC = InterpOne(PC, LONG_CS, TheCPU.mode);
 			G = interp_post(PC, LONG_CS, TheCPU.mode, 1);
 		} while (!G);
@@ -622,9 +620,17 @@ static unsigned int _Interp86(unsigned int PC)
  * returns data (could be modified), so compiled code can write it back
  */
 unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
-			uint32_t *flags, unsigned int opc, unsigned int arg)
+			uint32_t *flags, unsigned int opc, unsigned int arg,
+			unsigned int P0)
 {
 	unsigned int temp;
+	if (opc != IRET) {
+			// save for emu_pagefault_handler(),
+			// except for IRET where it's not used from
+			// here and TheCPU.eip contains the popped eip.
+			TheCPU.eip = P0 - LONG_CS;
+			EFLAGS = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
+	}
 	switch (opc) {
 /*9c*/	case PUSHF:    { /* flag handling for VME-case only,
 			    not used presently with IOPL==3 */
@@ -762,7 +768,7 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_FLAGS(EFLAGS));
 			}
-			*flags = EFLAGS & EFLAGS_CC;
+			*flags = (*flags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
 			} break;
 /*9d*/	case POPF: {
 			/* GPF handled in interpreter */
@@ -838,7 +844,7 @@ stack_return_from_vm86:
 				TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
 			    }
 			}
-			*flags = EFLAGS & EFLAGS_CC;
+			*flags = (*flags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
 			} break;
 /*fa*/	case CLI:
 			/* only for PVI/VME IOPL<3 CLI, not used presently */

@@ -2128,7 +2128,7 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 	case O_SIM: {
 		uint32_t flags = FlagSync_All();
 		DR1.d = Sim_helper(mem_ref, DR1.d, mode,
-				   &flags, IG->p0, IG->p1);
+				   &flags, IG->p0, IG->p1, IG->p2);
 		FlagSync_RFL(flags);
 		if (TheCPU.err)
 			P0 = IG->p2;
@@ -2863,8 +2863,10 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 	/* err = -1 is special, hitting a page with code that's been converted
 	   to intermediate ops */
 	if (err == -1) {
+		/* currentIG==NULL in JIT, where this is called via Sim_helper */
+		unsigned int P0 = currentIG ? (unsigned)-1: LONG_CS + TheCPU.eip;
 		if (e_querymark(addr, len))
-			InvalidateNodeRange(addr, len, currentIG);
+			InvalidateNodeRangeP0(addr, len, currentIG, P0);
 		return;
 	}
 	if ((err & 2) && msdos_ldt_access(addr)) {
@@ -2872,8 +2874,7 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 		return;
 	}
 	/* trigger an exception in DPMI */
-	/* Need to shutdown prejitter to touch TheCPU.err
-	   to return to _Interp86() */
+	/* Need to shutdown prejitter to return to _Interp86() */
 	prejit_sync();
 	TheCPU.err = EXCP0E_PAGE;
 	TheCPU.scp_err = err;
@@ -2882,10 +2883,8 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 		unsigned int P0 = FindPC(currentIG);
 		TheCPU.eip = P0 - LONG_CS;
 		EFLAGS = (EFLAGS & ~EFLAGS_CC) | FlagSync_All();
-		longjmp(jmp_env, 2);
-	} else
-		/* for faulting sim_read/write directly from interp.c */
-		longjmp(jmp_env, 1);
+	} // else Sim_helper sets these
+	longjmp(jmp_env, 1);
 }
 
 uint8_t sim_read_byte(dosaddr_t x)

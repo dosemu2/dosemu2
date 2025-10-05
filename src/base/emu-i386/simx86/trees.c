@@ -1165,7 +1165,7 @@ static void BreakNode(TNode *G, unsigned char *eip)
 
   ebase = eip - G->addr;
   for (i=0; i<G->seqnum; i++) {
-    if (A->daddr >= ebase) {		// found following instr
+    if (A->daddr > ebase) {		// found following instr
 	IGen IG = (IGen){.op = JMP_TAILCODE, .p0 = G->key + A->dnpc};
 	p = G->addr + A->daddr;		// translated IP of following instr
 	CodeGen(p, G->addr, &IG);
@@ -1187,7 +1187,7 @@ static TNode *DoDelNode(TNode *G)
   return CollectTree.root.link[0];
 }
 
-int InvalidateNodeRange(int al, int len, unsigned char *eip)
+int InvalidateNodeRangeP0(int al, int len, unsigned char *eip, unsigned int P0)
 {
   TNode *G;
   int ah;
@@ -1258,6 +1258,20 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	    */
 	    /* Exclude last instruction, as there is no need to break
 	     * node after last instruction (it ends there anyway). */
+	    if (!eip && P0 != (unsigned)-1) {
+	      ahG = G->key + G->pmeta[G->seqnum - 1].dnpc;
+	      if (ADDR_IN_RANGE(P0,G->seqbase,ahG)) {
+		int i;
+		Addr2Pc *A;
+		for (i=0, A=G->pmeta; i<G->seqnum; i++, A++) {
+		  if (G->key + A->dnpc == P0) {
+		    /* Find corresponding eip if only P0 is given */
+		    eip = G->addr + A->daddr;
+		    break;
+		  }
+		}
+	      }
+	    }
 	    ahE = G->addr + G->pmeta[G->seqnum - 1].daddr;
 	    if (eip && ADDR_IN_RANGE(eip,G->addr,ahE)) {
 		if (debug_level('e')>1)
@@ -1280,6 +1294,10 @@ quit:
   return cleaned;
 }
 
+int InvalidateNodeRange(int al, int len, unsigned char *eip)
+{
+  return InvalidateNodeRangeP0(al, len, eip, (unsigned)-1);
+}
 
 /////////////////////////////////////////////////////////////////////////////
 static void do_invalidate(unsigned data, int cnt)

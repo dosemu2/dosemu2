@@ -1650,11 +1650,15 @@ shrot0:
 		G2M(0x41,0xb8,Cp); G4(IG->p0,Cp);
 		// mov $arg, %%r9d
 		G2M(0x41,0xb9,Cp); G4(IG->p1,Cp);
-		// push %%rdi // keep mem_ref (2x for alignment)
-		G2M(PUSHdi,PUSHdi,Cp);
+		// push %%rdi // keep mem_ref
+		G1(PUSHdi,Cp);
+		// push $P0
+		G1(PUSHwi,Cp); G4(IG->p2,Cp);
 #else
 		// mov %esp, %ecx // flags
 		G2M(0x89,0xe1,Cp);
+		// push $P0
+		G1(PUSHwi,Cp); G4(IG->p2,Cp);
 		// push $arg
 		G1(PUSHwi,Cp); G4(IG->p1,Cp);
 		// push $opc
@@ -1674,8 +1678,8 @@ shrot0:
 		// pop %%rdi // mem_ref
 		G2M(POPdi,POPdi,Cp);
 #else
-		// addl $24,%%esp
-		G3M(0x83,0xc4,24,Cp)
+		// addl $28,%%esp
+		G3M(0x83,0xc4,28,Cp)
 #endif
 		// cmpl $0x0,Ofs_ERR(%rbx)
 		G4M(0x83,0x7b,Ofs_ERR,0x00,Cp);
