@@ -299,7 +299,7 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		    leavedos_main(0xebfe);
 		}
 		if (dsp <= 0) mode |= CKSIGN;
-		Gen(JMP_LINK, mode, opc, j_t, d_nt);
+		Gen(JMP_LINK, mode, j_t);
 		break;
 	case CALLl: {   /* call far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
@@ -321,7 +321,8 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 	}
 	/* no break for realaddr call */
 	case CALLd:    /* call, unfortunately also uses JMP_LINK */
-		Gen(JMP_LINK, mode, opc, j_t, d_nt);
+		Gen(O_PUSHI, mode, d_nt);
+		Gen(JMP_LINK, mode, j_t);
 		break;
 	case LOOP: case LOOPZ_LOOPE: case LOOPNZ_LOOPNE:
 		Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
@@ -347,8 +348,12 @@ static int can_speculate(void)
 	IGen *IG = &GL->gen[GL->ngen-1];
 	int opc = IG->op;
 	/* With uncond JMP or RET nothing to speculate. */
-	if (opc < JMP_LINK ||
-	    (opc == JMP_LINK && IG->p0 != CALLd && IG->p0 != CALLl))
+	if (opc == JMP_LINK && GL->ngen > 1) {
+		IG = &GL->gen[GL->ngen-2];
+		if (IG->op == O_PUSHI) // PUSHI before means CALL
+			return F_SPEC;
+	}
+	if (opc <= JMP_LINK)
 		return 0;
 	return F_SPEC;
 }

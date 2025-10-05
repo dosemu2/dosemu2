@@ -2713,17 +2713,11 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 			dbug_printf("** Jump taken to %08x\n",P0);
 		break;
 
-	case JMP_LINK: {	// opc, dspt, retaddr, link
-		int opc = IG->p0;
-		P0 = (unsigned int)IG->p1;
-		unsigned int d_nt = (unsigned int)IG->p2;
-		if (opc == CALLd || opc == CALLl)
-			PUSH(mode, d_nt);
+	case JMP_LINK:		// dspt
+		P0 = (unsigned int)IG->p0;
 		if (debug_level('e')>2) {
-			if(opc == CALLd || opc == CALLl)
-				dbug_printf("CALL: ret=%08x\n",d_nt);
 			dbug_printf("** Jump taken to %08x\n",P0);
-		} }
+		}
 		break;
 
 	case JF_LINK:

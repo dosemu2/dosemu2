@@ -2261,80 +2261,9 @@ shrot0:
 		}
 		break;
 
-	case JMP_LINK: {	// opc, dspt, retaddr, link
-		const unsigned char pseq16[] = {
-			// movw $RA,%%ax
-/*00*/			0xb8,0,0,0,0,
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -2(%%ecx),%%ecx
-			0x8d,0x49,0xfe,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%edi
-			0x8d,0x14,0x0e,
-			// movw %%ax,(%%edx,%%ebp,1)
-			0x66,0x89,0x04,0x2a,
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char pseq32[] = {
-			// movl $RA,%%eax
-/*00*/			0xb8,0,0,0,0,
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -4(%%ecx),%%ecx
-			0x8d,0x49,0xfc,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%edi
-			0x8d,0x14,0x0e,
-			// movl %%eax,(%%edx,%%ebp,1)
-			0x89,0x04,0x2a,
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		unsigned char opc = IG->p0;
-		int dspt = IG->p1;
-		int dspnt = IG->p2;
-		if (opc == CALLd || opc == CALLl) {
-			const unsigned char *p;
-			unsigned char *q;
-			int sz;
-			if (mode&DATA16) {
-				p=pseq16,sz=sizeof(pseq16);
-			}
-			else {
-				p=pseq32,sz=sizeof(pseq32);
-			}
-			q = Cp; GNX(Cp, p, sz);
-			*((int *)(q+1)) = dspnt;
-			if (debug_level('e')>1) e_printf("CALL: ret=%08x\n",dspnt);
-		} else if (mode & CKSIGN) {
+	case JMP_LINK: {	// dspt
+		int dspt = IG->p0;
+		if (mode & CKSIGN) {
 		    // check signal on TAKEN branch
 		    // for backjmp-after-jcc:
 		    // movzwl Ofs_EXITPEND(%%ebx),%%ecx
@@ -2347,8 +2276,7 @@ shrot0:
 		// t:	b8 [exit_pc] 5a c3
 		G1(0xb8,Cp);
 		G4(dspt,Cp); G2(0xc35a,Cp); PADJMP;
-		if (debug_level('e')>2) e_printf("JMP_Link %08x:%08x lk=%d\n",
-			dspt,dspnt,IG->op);
+		if (debug_level('e')>2) e_printf("JMP_Link %08x\n", dspt);
 		}
 		break;
 
