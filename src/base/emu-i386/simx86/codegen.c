@@ -369,7 +369,10 @@ void Gen(int op, int mode, ...)
 	case JMP_INDIRECT:
 		break;
 
-	case JMP_LINK:		// opc, dspt, retaddr, link
+	case JMP_LINK:		// dspt
+		IG->p0 = va_arg(ap,unsigned int);	// dspt
+		break;
+
 	case JLOOP_LINK:
 	case JF_LINK:
 	case JB_LINK: {		// opc, dspt, dspnt, link
