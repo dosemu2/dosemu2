@@ -398,7 +398,6 @@ void Gen(int op, int mode, ...)
 static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 {
 	int i,j,nap,mall_req;
-	unsigned int adr_lo=0, adr_hi=0;
 	unsigned char *cp, *cp1, *BaseGenBuf, *CodePtr;
 	size_t GenBufSize;
 	CodeBuf *GenCodeBuf;
@@ -439,13 +438,6 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 
 	for (i=0; i<=CurrIMeta; i++) {
 	    IMeta *I = &I0[i];
-	    if (i==0) {
-		adr_lo = adr_hi = I->npc;
-	    }
-	    else {
-		if (I->npc < adr_lo) adr_lo = I->npc;
-		    else if (I->npc > adr_hi) adr_hi = I->npc;
-	    }
 	    cp = cp1 = CodePtr;
 	    I->daddr = cp - BaseGenBuf;
 	    for (j=0; j<I->ngen; j++) {
@@ -487,10 +479,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	if (debug_level('e')>1)
 	    e_printf("Size=%td guess=%zd\n",(CodePtr-BaseGenBuf),GenBufSize);
 /**/ if ((CodePtr-BaseGenBuf) > GenBufSize) leavedos_main(0x535347);
-	if (PC < adr_lo) adr_lo = PC;
-	    else if (PC > adr_hi) adr_hi = PC;
-	I0->seqbase = adr_lo;
-	I0->seqlen  = adr_hi - adr_lo;
+	I0->seqlen  = PC - I0->npc;
 
 	if (debug_level('e')>1)
 	    e_printf("---------------------------------------------\n");
@@ -556,7 +545,7 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
 	/* mprotect the page here; a page fault will be triggered
 	 * if some other code tries to write over the page including
 	 * this node */
-	e_markpage(G->seqbase, G->seqlen);
+	e_markpage(G->key, G->seqlen);
 	G->cs = Interp_LONG_CS;
 	G->mode = mode;
 	/* check links INSIDE current node */

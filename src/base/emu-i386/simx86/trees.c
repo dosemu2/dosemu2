@@ -735,10 +735,6 @@ static void CheckLinks(void)
 	e_printf("DEBUG: node link check ok\n");
 	return;
     }
-    if (G->key<=0) {
-	error("Invalid key %08x\n",G->key);
-	goto nquit;
-    }
     if (G->alive <= 0) {
 	e_printf("Node %p invalidated\n",G);
 	continue;
@@ -785,7 +781,7 @@ static void DumpTree (FILE *fd)
 	continue;
     }
     fprintf(fd,"%04d Node %p at %08x..%08x mblock=%p flags=%#x\n",
-	nn,G,G->key,(G->seqbase+G->seqlen-1),G->mblock,G->flags);
+	nn,G,G->key,(G->key+G->seqlen-1),G->mblock,G->flags);
     fprintf(fd,"     AVL (%p:%p),%d,%d,%d,%d\n",G->link[0],G->link[1],
 		G->bal,G->cache,G->pad,G->rtag);
     fprintf(fd,"     source:     instr=%d, len=%#x\n",G->seqnum,G->seqlen);
@@ -870,7 +866,7 @@ static int TraverseAndClean(void)
       G->alive -= AGENODE;
       if (G->alive <= 0) {
 	if (debug_level('e')>2) e_printf("TraverseAndClean: node at %08x decayed\n",G->key);
-	e_unmarkpage(G->seqbase, G->seqlen);
+	e_unmarkpage(G->key, G->seqlen);
 	NodeUnlinker(G);
       }
   }
@@ -951,7 +947,6 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   pthread_mutex_unlock(&trees_mtx);
 
   /* transfer info from first node of the Meta list to our new node */
-  nG->seqbase = I0->seqbase;
   nG->seqlen = I0->seqlen;
   nG->seqnum = I0->ncount;
 #if PROFILE
@@ -1239,13 +1234,13 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
       if (G == &CollectTree.root || G->key >= ah)
         break;
       if (G->addr && (G->alive>0)) {
-	int ahG = G->seqbase + G->seqlen;
-	if (RANGE_INTERSECT(G->seqbase,ahG,al,ah)) {
+	int ahG = G->key + G->seqlen;
+	if (RANGE_INTERSECT(G->key,ahG,al,ah)) {
 	    unsigned char *ahE;
 	    if (debug_level('e')>1)
 		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
 	    G->alive = 0;
-	    e_unmarkpage(G->seqbase, G->seqlen);
+	    e_unmarkpage(G->key, G->seqlen);
 	    NodeUnlinker(G);
 	    cleaned++;
 	    NodesCleaned++;

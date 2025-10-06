@@ -18,8 +18,6 @@ CFILES = interp.c cpu-emu.c modrm-gen.c $(JITFILES) \
 	codegen.c trees.c memory.c
 ALL_CPPFLAGS +=-I$(EM86DIR) $(EM86FLG)
 
-#ALL_CPPFLAGS +=-DNOJUMPS
-
 SFILES=
 ALL=$(CFILES) $(SFILES)
 

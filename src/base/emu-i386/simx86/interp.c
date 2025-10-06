@@ -386,28 +386,28 @@ static unsigned int FindExecCode(unsigned int PC)
 	 */
 	while ((G=FindTree(PC))) {
 		if (!GoodNode(G)) {
-			InvalidateNodeRange(G->seqbase, G->seqlen, NULL);
+			InvalidateNodeRange(G->key, G->seqlen, NULL);
 			return PC;
 		}
 		if (debug_level('e')>2)
 			e_printf("** Found compiled code at %08x\n",PC);
 		if (debug_level('e') &&
 				/* check for codemarks inconsistency */
-				e_querymark_all(G->seqbase, G->seqlen) == 0) {
+				e_querymark_all(G->key, G->seqlen) == 0) {
 			int i, j;
 			error("no mark at %x (%i)\n",
-					G->seqbase,
-					e_querymark(G->seqbase, G->seqlen));
+					G->key,
+					e_querymark(G->key, G->seqlen));
 			j = -1;
 			for (i = 0; i < G->seqlen; i++) {
-				int mrk = e_querymark(G->seqbase + i, 1);
+				int mrk = e_querymark(G->key + i, 1);
 				error("@%i ", mrk);
 				if (!mrk && j == -1)
 					j = i;
 			}
 			error("@\n");
 			if (j != -1)
-				error("@corrupted at %x\n", G->seqbase + j);
+				error("@corrupted at %x\n", G->key + j);
 		}
 		/* ---- this is the MAIN EXECUTE point ---- */
 		NodesExecd++;
@@ -3266,7 +3266,7 @@ static void *prejit_thread(void *arg)
   while (1) {
     sem_wait(&prejit_sem);
     TNode *G = __atomic_load_n(&prejit_G, __ATOMIC_RELAXED);
-    _PreJit86(G->seqbase + G->seqlen, G->cs, G->mode,
+    _PreJit86(G->key + G->seqlen, G->cs, G->mode,
 	    SAFE_PRJ_GAP);
     pthread_mutex_lock(&run_mtx);
     prejit_running = 0;
@@ -3279,7 +3279,7 @@ static void *prejit_thread(void *arg)
 #if SPEC_PREJIT
 static void prejit_run(TNode *G)
 {
-  unsigned int PC = G->seqbase + G->seqlen;
+  unsigned int PC = G->key + G->seqlen;
   if (debug_level('e')) {
     char *ds;
     unsigned short ocs = TheCPU.cs;

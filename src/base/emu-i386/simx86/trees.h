@@ -75,7 +75,7 @@ typedef struct _ianpc {
 } Addr2Pc;
 
 typedef struct _imeta {
-	int seqbase, npc;
+	int npc;
 	unsigned short ncount, flags, seqlen;
 	unsigned int len, totlen, daddr;
 	int ngen;
@@ -121,7 +121,6 @@ typedef struct avltr_node
 	unsigned char *addr;
 	Addr2Pc *pmeta;
 	unsigned short len, flags, seqlen, seqnum __attribute__ ((packed));
-	int seqbase;
 	unsigned short nrefs;
 	linkdesc clink_t;
 	linkdesc clink_nt;
