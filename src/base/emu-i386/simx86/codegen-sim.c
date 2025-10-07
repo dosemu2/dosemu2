@@ -2954,18 +2954,15 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 
 	unsigned int temp;
 	switch (opc) {
-/*9c*/	case PUSHF:    { /* flag handling for VME-case only,
+/*9c*/	case PUSHF:	/* flag handling for VME-case only,
 			    not used presently with IOPL==3 */
-			unsigned int temp;
 			assert(V86MODE() && IOPL<3 && (TheCPU.cr[4] & CR4_VME));
-			temp = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
-			data = (temp|IOPL_MASK) & RETURN_MASK;
-			if (temp & VIF) data |= EFLAGS_IF;
+			data = (EFLAGS|IOPL_MASK) & RETURN_MASK;
+			if (EFLAGS & VIF) data |= EFLAGS_IF;
 			if (debug_level('e')>1)
 				e_printf("Pushing flags %08x fl=%08x\n",
-					 data,temp);
+					 data,EFLAGS);
 			break;
-		       }
 /*62*/	case BOUND:    {
 			signed int lo, hi, r = data;
 			lo = DataGetWL_S(mode, mem_ref);
@@ -3001,7 +2998,7 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			}
 /*c8*/	case ENTER: {
 			// This simulates only the middle part for level >=2
-			unsigned int bp;
+			unsigned int bp, sp, val;
 			int level, ds;
 			level = arg;
 			assert(level > 1); // level 0 and 1 are compiled
@@ -3010,9 +3007,15 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			while (--level) {
 				bp -= ds;
 				bp &= TheCPU.StackMask;
-				PUSH(mode, (mode&DATA16) ?
+				val = (mode&DATA16) ?
 				     sim_read_word(LONG_SS + bp) :
-				     sim_read_dword(LONG_SS + bp));
+				     sim_read_dword(LONG_SS + bp);
+				sp = (rESP - ds) & TheCPU.StackMask;
+				if (mode&DATA16)
+					sim_write_word(LONG_SS + sp, val);
+				else
+					sim_write_dword(LONG_SS + sp, val);
+				rESP = sp | (rESP&~TheCPU.StackMask);
 			}
 			}
 			break;
@@ -3057,7 +3060,6 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			if (debug_level('e')>1) {
 				e_printf("IRET: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
 			}
-			EFLAGS = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
 			if (!(mode & DATA16)) {
 			    temp &= EFLAGS_ALL & ~(VM|VIF|VIP);
 			    temp |= EFLAGS & (VM|VIF|VIP);
@@ -3092,7 +3094,6 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			temp = data;
 			if (temp & TF)
 			    TheCPU.err = EXCP_TFSET;
-			EFLAGS = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
 			if (V86MODE()) {
 			    int is_tf;
 stack_return_from_vm86:
@@ -3208,15 +3209,17 @@ stack_return_from_vm86:
 			    }
 			}
 			break;
-/*6c*/	case INSb: {
+/*6c*/	case INSb:
+/*6d*/	case INSw: {
 			unsigned short a;
-			unsigned int rd;
 			a = rDX;
 			if (!test_ioperm(a)) goto not_permitted_sim;
-			rd = (mode&ADDR16? rDI:rEDI);
-			sim_write_byte(LONG_ES+rd, port_inb(a));
-			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
-			if (mode&ADDR16) rDI=rd; else rEDI=rd;
+			if (mode&MBYTE)
+				data = port_inb(a);
+			else if (mode&DATA16)
+				data = port_inw(a);
+			else
+				data = port_ind(a);
 			} break;
 /*ec*/	case INvb: {
 			unsigned short a = rDX;
@@ -3235,20 +3238,6 @@ stack_return_from_vm86:
 			if (!test_ioperm(a)) goto not_permitted_sim;
 			rAL = port_inb(a);
 			} break;
-/*6d*/	case INSw: {
-			unsigned int rd;
-			int dp;
-			if (!test_ioperm(rDX)) goto not_permitted_sim;
-			rd = (mode&ADDR16? rDI:rEDI);
-			if (mode&DATA16) {
-				sim_write_word(LONG_ES+rd, port_inw(rDX)); dp=2;
-			}
-			else {
-				sim_write_dword(LONG_ES+rd, port_ind(rDX)); dp=4;
-			}
-			if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
-			if (mode&ADDR16) rDI=rd; else rEDI=rd;
-			} break;
 /*ed*/	case INvw:
 			if (!test_ioperm(rDX)) goto not_permitted_sim;
 			if (mode&DATA16) rAX = port_inw(rDX);
@@ -3260,15 +3249,16 @@ stack_return_from_vm86:
 			if (mode&DATA16) rAX = port_inw(a);
 			else rEAX = port_ind(a);
 			} break;
-
-/*6e*/	case OUTSb: {
+/*6e*/	case OUTSb:
+/*6f*/	case OUTSw: {
 			unsigned short a = rDX;
-			unsigned long rs;
 			if (!test_ioperm(a)) goto not_permitted_sim;
-			rs = (mode&ADDR16? rSI:rESI);
-			port_outb(a,sim_read_byte(LONG_DS+rs));
-			if (EFLAGS & EFLAGS_DF) rs--; else rs++;
-			if (mode&ADDR16) rSI=rs; else rESI=rs;
+			if (mode&MBYTE)
+				port_outb(a, data);
+			else if (mode&DATA16)
+				port_outw(a, data);
+			else
+				port_outd(a, data);
 			} break;
 /*ee*/	case OUTvb: {
 			unsigned short a = rDX;

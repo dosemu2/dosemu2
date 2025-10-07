@@ -198,10 +198,6 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-/* x386 */
-#define GetSWord(w)	((*w) = read_word(LONG_SS+sp))
-#define GetSLong(w)	((*w) = read_dword(LONG_SS+sp))
-
 // returns 1(16 bit), 0(32 bit)
 #define BTA(bpos, mode) (((mode) >> (bpos)) & 1)
 
@@ -214,55 +210,6 @@ static __inline__ int FastLog2(int v)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-
-static __inline__ void PUSH(int m, uint32_t w)
-{
-	unsigned int sp;
-	unsigned int addr;
-
-	sp = (TheCPU.esp-BT24(BitDATA16, m)) & TheCPU.StackMask;
-	addr = LONG_SS + sp;
-	if (m&DATA16) {
-		e_invalidate(addr, 2);
-		WRITE_WORD(addr, w);
-	} else {
-		e_invalidate(addr, 4);
-		WRITE_DWORD(addr, w);
-	}
-#ifdef KEEP_ESP
-	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
-#else
-	TheCPU.esp = sp;
-#endif
-}
-
-/////////////////////////////////////////////////////////////////////////////
-
-static __inline__ void POP(int m, uint32_t *w)
-{
-	unsigned int sp = TheCPU.esp & TheCPU.StackMask;
-	if (m&DATA16) {
-		uint16_t w16;
-		GetSWord(&w16);
-		*w = (*w & 0xffff0000) | w16; sp+=2;
-	}
-	else {
-		GetSLong(w); sp+=4;
-	}
-	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
-}
-
-static __inline__ void NOS_WORD(int m, uint16_t *w)		// for segments
-{
-	unsigned int sp = (TheCPU.esp+(m&DATA16? 2:4)) & TheCPU.StackMask;
-	GetSWord(w);
-}
-
-static __inline__ void POP_ONLY(int m)
-{
-	unsigned int sp = TheCPU.esp + (m&DATA16? 2:4);
-	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
-}
 
 void InitGen(void);
 int NewIMeta(int npc);
