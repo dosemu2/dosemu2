@@ -36,7 +36,6 @@
 #define _EMU86_CODEGEN_X86_H
 
 #include "codegen.h"
-#include "vgaemu.h"
 
 #define TAILSIZE	7
 #ifdef __x86_64__
@@ -120,11 +119,5 @@ void InitGen_x86(void);
 unsigned char *Fp87_op_x86(unsigned char *CodePtr, int exop, int reg);
 void NodeLinker(TNode *LG, TNode *G);
 void NodeUnlinker(TNode *G);
-
-int Cpatch(sigcontext_t *scp);
-int UnCpatch(unsigned char *eip);
-void Cpatch_init(void);
-int Ofs_SetSegProt(void);
-int Ofs_SimHelper(void);
 
 #endif

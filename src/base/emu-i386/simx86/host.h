@@ -35,15 +35,6 @@
 #ifndef _EMU86_HOST_H
 #define _EMU86_HOST_H
 
-uint8_t sim_read_byte(dosaddr_t x);
-uint16_t sim_read_word(dosaddr_t x);
-uint32_t sim_read_dword(dosaddr_t x);
-uint64_t sim_read_qword(dosaddr_t x);
-void sim_write_byte(dosaddr_t x, uint8_t y);
-void sim_write_word(dosaddr_t x, uint16_t y);
-void sim_write_dword(dosaddr_t x, uint32_t y);
-void sim_write_qword(dosaddr_t x, uint64_t y);
-
 uint8_t jit_fetch_byte(dosaddr_t x);
 uint16_t jit_fetch_word(dosaddr_t x);
 uint32_t jit_fetch_dword(dosaddr_t x);
@@ -57,11 +48,6 @@ extern uint32_t (*FetchL)(dosaddr_t a);
 #define DataFetchWL_S(m,a) ((m)&DATA16? (short)FetchW(a):(int)FetchL(a))
 #define AddrFetchWL_U(m,a) ((m)&ADDR16? FetchW(a):FetchL(a))
 #define AddrFetchWL_S(m,a) ((m)&ADDR16? (short)FetchW(a):(int)FetchL(a))
-
-#define GetDWord(a)	sim_read_word(a)
-#define GetDLong(a)	sim_read_dword(a)
-#define DataGetWL_U(m,a) ((m)&DATA16? GetDWord(a):GetDLong(a))
-#define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(int)GetDLong(a))
 
 #if defined(HOST_ARCH_X86) && !defined(HAVE___FLOAT80)
 typedef long double __float80;

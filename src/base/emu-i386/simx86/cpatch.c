@@ -37,6 +37,7 @@
 #include "trees.h"
 #include "codegen-arch.h"
 #include "cpatch.h"
+#include "vgaemu.h"
 
 #define UNCPATCH_WRITES 0
 

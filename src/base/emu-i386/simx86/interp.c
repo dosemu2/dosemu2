@@ -36,7 +36,8 @@
 #include <string.h>
 #include <pthread.h>
 #include "emu86.h"
-#include "codegen-arch.h"
+#include "codegen.h"
+#include "vgaemu.h"
 #include "port.h"
 #include "emudpmi.h"
 #include "mhpdbg.h"
@@ -85,16 +86,6 @@ static char R1Tab_l[14] =
 
 #define INC_WL_PCA(m,i)	PC=(PC+(i)+BT24(BitADDR16, m))
 #define INC_WL_PC(m,i)	PC=(PC+(i)+BT24(BitDATA16, m))
-
-static __inline__ unsigned long GetCPU_WL(int m, signed char o)
-{
-	if (m&DATA16) return CPUWORD(o); else return CPULONG(o);
-}
-
-static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
-{
-	if (m&DATA16) CPUWORD(o)=v; else CPULONG(o)=v;
-}
 
 static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
 {
@@ -490,18 +481,36 @@ static void HandleEmuSignals(void)
 		CEmuStat &= ~(CeS_SIGPEND | CeS_RPIC);
 }
 
-static unsigned int _Interp86(unsigned int PC);
+static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			      int basemode, int flags);
+static unsigned int interp_pre(unsigned int PC);
 static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 			      int basemode);
 
 void Interp86(void)
 {
-    unsigned int ret;
+    unsigned int PC;
 
     TheCPU.err = 0;
-    ret = _Interp86(LONG_CS + TheCPU.eip);
+
+    if (PROTMODE() && setjmp(jmp_env)) {
+      /* long jump to here from simulated page fault
+         via Gen_sim or Sim_helper, with different cs:eip */
+      return;
+    }
+
+    CEmuStat &= ~(CeS_TRAP|CeS_STI);
+
+    PC = LONG_CS + TheCPU.eip;
+    while (1) {
+      assert(CurrIMeta < 0);
+      PC = interp_pre(PC);
+      if (TheCPU.err)
+        break;
+      PC = _Interp86(PC, LONG_CS, TheCPU.mode, 0);
+    }
     assert(CurrIMeta<0);
-    TheCPU.eip = ret - LONG_CS;
+    TheCPU.eip = PC - LONG_CS;
 }
 
 static unsigned int interp_pre(unsigned int PC)
@@ -536,11 +545,15 @@ static unsigned int interp_pre(unsigned int PC)
 	return PC;
 }
 
+/* safety gap should be definitely longer than 1 instruction to not
+ * overwrite something unintentionally */
+#define SAFE_PRJ_GAP 16
+
 static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
-			  const int mode, int gap)
+			  const int mode, int flags)
 {
 		TNode *G = NULL;
-		unsigned int flags = 0;
+		int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
 		assert (CurrIMeta>=0);
 
 		if (CEmuStat & CeS_INSTREMUx(PROTMODE())) {
@@ -554,7 +567,7 @@ static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 							vga.inst_emu) {
 					instr_emu_sim_reset_count();
 				} else {
-					flags = F_LEAV;
+					flags |= F_LEAV;
 				}
 			}
 		}
@@ -562,7 +575,7 @@ static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 #ifndef SINGLEBLOCK
 		IMeta *GL = &InstrMeta[CurrIMeta];
 		if ((CEmuStat & (CeS_TRAP|CeS_STI)) ||
-		    flags == F_LEAV ||
+		    (flags & F_LEAV) ||
 		    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
 		    e_querymark(PC, gap))
 #endif
@@ -574,535 +587,16 @@ static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 		return G;
 }
 
-static unsigned int _Interp86(unsigned int PC)
+static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			      int basemode, int flags)
 {
-	volatile unsigned int P0 = PC; /* volatile because of setjmp */
-	int val;
 	TNode *G;
 
-	if (PROTMODE() && (val = setjmp(jmp_env))) {
-		/* long jump to here from simulated page fault
-		   val == 2 comes from Gen_Sim, with different cs:eip */
-		return val == 2 ? LONG_CS + TheCPU.eip : P0;
-	}
-
-	CEmuStat &= ~(CeS_TRAP|CeS_STI);
-
-#ifndef __clang__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
-#endif
-	while (1) {
-		assert(CurrIMeta < 0);
-		PC = interp_pre(PC);
-		if (TheCPU.err)
-			return PC;
-		do {
-			P0 = PC;
-			PC = InterpOne(PC, LONG_CS, TheCPU.mode);
-			G = interp_post(PC, LONG_CS, TheCPU.mode, 1);
-		} while (!G);
-		PC = G->key;
-	}
-#ifndef __clang__
-#pragma GCC diagnostic pop
-#endif
-	return 0;
-}
-
-/* This generic helper function is called from JIT generated code to
- * simulate hard-to-compile and rarely used ops.
- * parameters:
- * mem_ref: linear address, passed via %edi in JIT
- * data: loaded data, passed via %eax in JIT (instruction-dependent)
- * mode: operand size, address size, etc.
- * flags: pointer to EFLAGS (on stack in JIT)
- * opc: original opcode, 0x1ab denotes 0x0f prefixed opcode 0xab (from IG->p0)
- * arg: instruction-dependent argument passed via IG->p1 at compile time
- * returns data (could be modified), so compiled code can write it back
- */
-unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
-			uint32_t *flags, unsigned int opc, unsigned int arg)
-{
-	unsigned int temp;
-	switch (opc) {
-/*9c*/	case PUSHF:    { /* flag handling for VME-case only,
-			    not used presently with IOPL==3 */
-			unsigned int temp;
-			assert(V86MODE() && IOPL<3 && (TheCPU.cr[4] & CR4_VME));
-			temp = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
-			data = (temp|IOPL_MASK) & RETURN_MASK;
-			if (temp & VIF) data |= EFLAGS_IF;
-			if (debug_level('e')>1)
-				e_printf("Pushing flags %08x fl=%08x\n",
-					 data,temp);
-			break;
-		       }
-/*62*/	case BOUND:    {
-			signed int lo, hi, r = data;
-			lo = DataGetWL_S(mode, mem_ref);
-			mem_ref += BT24(BitDATA16, mode);
-			hi = DataGetWL_S(mode, mem_ref);
-			if(r < lo || r > hi)
-			{
-				e_printf("Bound interrupt 05\n");
-				TheCPU.err=EXCP05_BOUND;
-			}
-			break;
-		       }
-/*63*/	case ARPL:	{
-			unsigned short dest, src = data;
-			unsigned int reg3 = arg;
-			if (reg3) {
-				dest = CPUWORD(reg3);
-			} else {
-				dest = sim_read_word(mem_ref);
-			}
-			if ((dest & 3) < (src & 3)) {
-				*flags |= EFLAGS_ZF;
-				dest = (dest & ~3) | (src & 3);
-				if (reg3) {
-					CPUWORD(reg3) = dest;
-				} else {
-					sim_write_word(mem_ref, dest);
-				}
-			} else {
-				*flags &= ~EFLAGS_ZF;
-			}
-			break;
-			}
-/*c8*/	case ENTER: {
-			// This simulates only the middle part for level >=2
-			unsigned int bp;
-			int level, ds;
-			level = arg;
-			assert(level > 1); // level 0 and 1 are compiled
-			ds = BT24(BitDATA16, mode);
-			bp = rEBP & TheCPU.StackMask;
-			while (--level) {
-				bp -= ds;
-				bp &= TheCPU.StackMask;
-				PUSH(mode, (mode&DATA16) ?
-				     sim_read_word(LONG_SS + bp) :
-				     sim_read_dword(LONG_SS + bp));
-			}
-			}
-			break;
-/*ce*/	case INTO:
-			if(*flags & EFLAGS_OF)
-			{
-				e_printf("Overflow interrupt 04\n");
-				TheCPU.err=EXCP04_INTO;
-			}
-			break;
-/*cd*/	case INT:      {
-			/* flag handling for non-revectored VME-case only,
-			   not used presently with IOPL=3 */
-			int inum = arg;
-			unsigned int temp;
-			assert(V86MODE() && IOPL < 3 && (TheCPU.cr[4] & CR4_VME)
-			       && !test_bit(inum, &vm86s.int_revectored));
-			temp = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
-			temp = (temp|IOPL_MASK) & (RETURN_MASK|EFLAGS_IF);
-			if (IOPL<3) {
-				temp &= ~EFLAGS_IF;
-				if (EFLAGS & VIF)
-					temp |= EFLAGS_IF;
-			}
-			data = temp;
-			EFLAGS &= ~(TF|RF|AC|NT);
-			EFLAGS &= ~(IOPL==3 ? EFLAGS_IF : EFLAGS_VIF);
-			if (debug_level('e')>1)
-				dbug_printf("EMU86: directly calling int "
-					    "%#x ax=%#x at %#x:%#x\n",
-					    inum, _AX, _CS, _IP);
-			break;
-		       }
-/*cf*/	case IRET: {	/* restartable */
-			/* GPF handled in interpreter */
-			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
-			temp = data;
-			/* IRET always returns with the new PC, we need to
-			   flag that TF is set via an exception code that doesn't
-			   interrupt the IRET */
-			data = (temp & TF) ? EXCP_TFSET : 0;
-			if (debug_level('e')>1) {
-				e_printf("IRET: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
-			}
-			EFLAGS = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
-			if (!(mode & DATA16)) {
-			    temp &= EFLAGS_ALL & ~(VM|VIF|VIP);
-			    temp |= EFLAGS & (VM|VIF|VIP);
-			}
-			/* in 16bit mode the manual doesn't seem to ask to
-			 * clear reserved bits... But bit1 is always set! */
-			if (REALMODE())
-			    FLAGS = temp | 2;
-			else if (V86MODE()) {
-			    goto stack_return_from_vm86;
-			}
-			else {
-			    /* if (EFLAGS&EFLAGS_NT) goto task_return */
-			    /* if (temp&EFLAGS_VM) goto stack_return_to_vm86 */
-			    /* else stack_return */
-			    int amask = (CPL==0? 0:(EFLAGS_IOPL_MASK|VIF|VIP)) |
-					(CPL<=IOPL? 0:EFLAGS_IF);
-			    if (mode & DATA16)
-				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask) | 2;
-			    else	/* should use eTSSMASK */
-				EFLAGS = (EFLAGS&amask) |
-					 ((temp&(eTSSMASK|0xfd7))&~amask) | 2;
-			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
-			    if (debug_level('e')>1)
-				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_FLAGS(EFLAGS));
-			}
-			*flags = EFLAGS & EFLAGS_CC;
-			} break;
-/*9d*/	case POPF: {
-			/* GPF handled in interpreter */
-			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
-			temp = data;
-			if (temp & TF)
-			    TheCPU.err = EXCP_TFSET;
-			EFLAGS = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
-			if (V86MODE()) {
-			    int is_tf;
-stack_return_from_vm86:
-			    if (debug_level('e')>1)
-				e_printf("Popped flags %08x fl=%08x\n",
-					temp,EFLAGS);
-			    is_tf = !!(EFLAGS & TF);
-			    if (IOPL==3) {	/* Intel manual */
-				/* keep reserved bits + IOPL,VIP,VIF,VM,RF */
-				if (mode & DATA16)
-				    FLAGS &= ~(SAFE_MASK|EFLAGS_IF);
-				else
-				    EFLAGS &= ~(SAFE_MASK|EFLAGS_IF);
-				EFLAGS |= (temp & (SAFE_MASK|EFLAGS_IF)) | 2;
-			    }
-			    else {
-				/* virtual-8086 monitor */
-				/* move mask from pop{e}flags to regs->eflags */
-				if (mode & DATA16)
-				    FLAGS &= ~SAFE_MASK;
-				else
-				    EFLAGS &= ~SAFE_MASK;
-				EFLAGS |= (temp & SAFE_MASK) | 2;
-				if (temp & EFLAGS_IF)
-				    EFLAGS |= EFLAGS_VIF;
-			    }
-			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
-			    if (temp & EFLAGS_IF) {
-				if (vm86s.regs.eflags & VIP) {
-				    if (debug_level('e')>1)
-					e_printf("Return for STI fl=%08x\n",
-						 EFLAGS);
-				    if (opc == POPF)
-					TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
-				    else
-					data = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
-				}
-			    }
-			}
-			else {
-			    int is_tf = !!(EFLAGS & TF);
-			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) |
-					(CPL<=IOPL? 0:EFLAGS_IF) |
-					(EFLAGS_VM|EFLAGS_RF);
-			    if (mode & DATA16)
-				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask) | 2;
-			    else
-				EFLAGS = (EFLAGS&amask) |
-					 ((temp&(eTSSMASK|0xfd7))&~amask) | 2;
-			    // unused "extended PVI" since real PVI does not
-			    // affect POPF
-			    if (IOPL<3 && (TheCPU.cr[4]&CR4_PVI)) {
-				if (temp & EFLAGS_IF)
-				    EFLAGS |= EFLAGS_VIF;
-				else
-				    EFLAGS &= ~EFLAGS_VIF;
-			    }
-			    if (debug_level('e')>1)
-				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
-			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
-			    if ((EFLAGS & EFLAGS_IF) && isset_VIP()) {
-				if (debug_level('e')>1)
-				    e_printf("Return for STI fl=%08x\n",
-					    EFLAGS);
-				TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
-			    }
-			}
-			*flags = EFLAGS & EFLAGS_CC;
-			} break;
-/*fa*/	case CLI:
-			/* only for PVI/VME IOPL<3 CLI, not used presently */
-			assert(!(REALMODE() || (CPL <= IOPL) || (IOPL==3)) &&
-			       !((V86MODE() && !(TheCPU.cr[4] & CR4_VME)) ||
-				 (!V86MODE() && !(TheCPU.cr[4] & CR4_PVI))));
-			/* virtual-8086 monitor */
-			if (debug_level('e')>2) {
-			    if (V86MODE())
-				e_printf("Virtual VM86 CLI\n");
-			    else
-				e_printf("Virtual DPMI CLI\n");
-			}
-			EFLAGS &= ~EFLAGS_VIF;
-			break;
-/*fb*/	case STI:
-			if (V86MODE()) {    /* traps always (Intel man) */
-				/* virtual-8086 monitor */
-				if (IOPL==3)
-				    EFLAGS |= EFLAGS_IF;
-				else
-				    EFLAGS |= EFLAGS_VIF;
-				if (vm86s.regs.eflags & VIP) {
-				    if (debug_level('e')>1)
-					e_printf("Return for STI fl=%08x\n",
-					    EFLAGS);
-				    TheCPU.err=EXCP_STISIGNAL;
-				}
-			}
-			else {
-			    if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
-				EFLAGS |= EFLAGS_IF;
-			    }
-			    else {
-				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
-				EFLAGS |= EFLAGS_VIF;
-			    }
-			    if (isset_VIP()) {
-				if (debug_level('e')>1)
-				    e_printf("Return for STI ASAP fl=%08x\n",
-					    EFLAGS);
-				/* force exit after next compiled block execution */
-				exit_pending_or(CeS_RPIC);
-				TheCPU.err = EXCP_STISHADOW;
-			    }
-			}
-			break;
-/*6c*/	case INSb: {
-			unsigned short a;
-			unsigned int rd;
-			a = rDX;
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			rd = (mode&ADDR16? rDI:rEDI);
-			sim_write_byte(LONG_ES+rd, port_inb(a));
-			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
-			if (mode&ADDR16) rDI=rd; else rEDI=rd;
-			} break;
-/*ec*/	case INvb: {
-			unsigned short a = rDX;
-			int uc;
-			if ((CEmuStat & CeS_INSTREMU) &&
-			    (uc=VGA_emulate_inb(a, NULL)) != -1) {
-				rAL = uc;
-				break;
-			}
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			rAL = port_inb(a);
-			}
-			break;
-/*e4*/	case INb: {
-			unsigned short a = arg;
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			rAL = port_inb(a);
-			} break;
-/*6d*/	case INSw: {
-			unsigned int rd;
-			int dp;
-			if (!test_ioperm(rDX)) goto not_permitted_sim;
-			rd = (mode&ADDR16? rDI:rEDI);
-			if (mode&DATA16) {
-				sim_write_word(LONG_ES+rd, port_inw(rDX)); dp=2;
-			}
-			else {
-				sim_write_dword(LONG_ES+rd, port_ind(rDX)); dp=4;
-			}
-			if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
-			if (mode&ADDR16) rDI=rd; else rEDI=rd;
-			} break;
-/*ed*/	case INvw:
-			if (!test_ioperm(rDX)) goto not_permitted_sim;
-			if (mode&DATA16) rAX = port_inw(rDX);
-			else rEAX = port_ind(rDX);
-			break;
-/*e5*/	case INw: {
-			unsigned short a = arg;
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			if (mode&DATA16) rAX = port_inw(a);
-			else rEAX = port_ind(a);
-			} break;
-
-/*6e*/	case OUTSb: {
-			unsigned short a = rDX;
-			unsigned long rs;
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			rs = (mode&ADDR16? rSI:rESI);
-			port_outb(a,sim_read_byte(LONG_DS+rs));
-			if (EFLAGS & EFLAGS_DF) rs--; else rs++;
-			if (mode&ADDR16) rSI=rs; else rESI=rs;
-			} break;
-/*ee*/	case OUTvb: {
-			unsigned short a = rDX;
-			/* Note that we short circuit for vgaemu planar */
-			if ((CEmuStat & CeS_INSTREMU) &&
-			    VGA_emulate_outb(a, rAL, NULL) != -1) {
-				break;
-			}
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			port_outb(a,rAL);
-			}
-			break;
-/*e6*/	case OUTb:  {
-			unsigned short a = arg;
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			port_outb(a,rAL);
-			} break;
-/*ef*/	case OUTvw: {
-			unsigned short a;
-			a = rDX;
-			if ((CEmuStat & CeS_INSTREMU) &&
-			    VGA_emulate_outb(a, rAL, NULL) != -1 &&
-			    VGA_emulate_outb(a+1, rAH, NULL) != -1) {
-				break;
-			}
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			if (mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
-			}
-			break;
-
-/*e7*/	case OUTw:  {
-			unsigned short a = arg;
-			if (!test_ioperm(a)) goto not_permitted_sim;
-			if (mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
-			} break;
-
-/*d9*/	case ESC1:
-/*dd*/	case ESC5:
-			Fp87_op(arg, mode, mem_ref);
-			break;
-/*100*/	case 0x100: {	/* GRP6 - Extended Opcode 20 */
-			unsigned char opm = arg;
-			switch (opm) {
-			case 0: /* SLDT */
-			    data = TheCPU.LDT_SEL;
-			    break;
-			case 1: /* STR */
-			    /* Store Task Register */
-			    data = TheCPU.TR_SEL;
-			    break;
-			case 4:   /* VERR */
-			case 5: { /* VERW */
-			    unsigned short sv = data; int tmp;
-			    tmp = opm == 4 ? hsw_verr(sv) : hsw_verw(sv);
-			    *flags &= ~EFLAGS_ZF;
-			    if (tmp) *flags |= EFLAGS_ZF;
-			    }
-			    break;
-			    }
-			break;
-			}
-/*102*/	case 0x102:   /* LAR */ /* Load Access Rights Byte */
-/*103*/	case 0x103: { /* LSL */ /* Load Segment Limit */
-			unsigned short sv = data; int tmp;
-			if (!e_larlsl(mode, sv)) {
-			    *flags &= ~EFLAGS_ZF;
-			}
-			else {
-			    if (opc==0x102) {	/* LAR */
-				tmp = GetSelectorFlags(sv);
-				if (mode&DATA16) tmp &= 0xff;
-				tmp <<= 8;
-				if (tmp) SetFlagAccessed(sv);
-			    }
-			    else {		/* LSL */
-				tmp = GetSelectorByteLimit(sv);
-			    }
-			    *flags |= EFLAGS_ZF;
-			    SetCPU_WL(mode, arg, tmp);
-			} }
-			break;
-/*106*/	case 0x106: /* CLTS */ /* Privileged */
-			/* Clear Task State Register */
-			TheCPU.cr[0] &= ~8;
-			break;
-/*120*/	case 0x120:   /* MOVcdrd */ /* Privileged */
-/*122*/	case 0x122:   /* MOVrdcd */ /* Privileged */
-/*121*/	case 0x121:   /* MOVddrd */ /* Privileged */
-/*123*/	case 0x123:   /* MOVrddd */ /* Privileged */
-/*124*/	case 0x124:   /* MOVtdrd */ /* Privileged */
-/*126*/	case 0x126: { /* MOVrdtd */ /* Privileged */
-			int *srg; int reg; unsigned char b,opd,opc2;
-			opc2 = opc - 0x100;
-			b = arg;
-			reg = D_MO(b);
-			b = D_LO(b);
-			srg = (int *)CPUOFFS(R1Tab_l[b]);
-			opd = opc2&2;
-			if (opc2&1) {
-			    if (opd) TheCPU.dr[reg] = *srg;
-				else *srg = TheCPU.dr[reg];
-			}
-			else if (opc2&4) {
-			    reg-=6;
-			    if (opd) TheCPU.tr[reg] = *srg;
-				else *srg = TheCPU.tr[reg];
-			}
-			else {
-			    if (opd) {	/* write to CRs */
-				if (reg==0) {
-				    if ((TheCPU.cr[0] ^ *srg) & 1) {
-					dbug_printf("RM/PM switch not allowed\n");
-					break;
-				    }
-				    TheCPU.cr[0] = (*srg&0xe005002f)|0x10;
-				}
-				else TheCPU.cr[reg] = *srg;
-			    } else {
-				*srg = TheCPU.cr[reg];
-			    }
-			}
-			} break;
-/*1a2*/	case 0x1a2:	/* CPUID */
-			if (rEAX==0) {
-				/* "GenuineIntel" */
-				rEAX = 1; rEBX = 0x756e6547;
-				rECX = 0x6c65746e; rEDX = 0x49656e69;
-			}
-			else if (rEAX==1) {
-				/* family 5, model 2, stepping 12 =
-				   Pentium 133-200MHz (no MMX) */
-				rEAX = 0x052c; rEBX = rECX = 0;
-				/* 0x1bf */
-				rEDX = CPUID_FEATURE_FPU | CPUID_FEATURE_VME |
-				  CPUID_FEATURE_DBGE | CPUID_FEATURE_PGSZE |
-				  CPUID_FEATURE_TSC  | CPUID_FEATURE_MSR |
-				  CPUID_FEATURE_MCK  | CPUID_FEATURE_CPMX;
-			}
-			break;
-/*1c7*/	case 0x1c7: { /* Code Extension 23 - 01=CMPXCHG8B mem */
-			uint64_t edxeax, m;
-			edxeax = ((uint64_t)rEDX << 32) | rEAX;
-			m = sim_read_qword(mem_ref);
-			if (edxeax == m)
-			{
-				*flags |= EFLAGS_ZF;
-				m = ((uint64_t)rECX << 32) | rEBX;
-			} else {
-				*flags &= ~EFLAGS_ZF;
-				rEDX = m >> 32;
-				rEAX = m & 0xffffffff;
-			}
-			sim_write_qword(mem_ref, m);
-			break;
-			}
-	}
-	return data;
-
-not_permitted_sim:
-	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
-	TheCPU.err = EXCP0D_GPF;
-	return data;
+	do {
+		PC = InterpOne(PC, Interp_LONG_CS, basemode);
+		G = interp_post(PC, Interp_LONG_CS, basemode, flags);
+	} while (!G);
+	return G->key;
 }
 
 static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
@@ -2886,12 +2380,17 @@ repag0:
 				}
 				b = Fetch(PC+2);
 				reg = D_MO(b);
-				if (D_HO(b)!=3 ||
-				    ((opc2&4) && (reg<6)) ||
+				/* D_HO(b) (mod field) ignored */
+				if (((opc2&4) && (reg<6)) ||
 				    (!(opc2&5) && ((reg==1)||(reg>4)))) {
 				    PC += 3; goto illegal_op;
 				}
-				Gen(O_SIM, _mode, 0x100+opc2, b, P0);
+				b = D_LO(b);
+				if (opc2&2)
+				    Gen(L_REG, _mode&~DATA16, b);
+				Gen(O_SIM, _mode, 0x100+opc2, reg, P0);
+				if (!(opc2&2))
+				    Gen(S_REG, _mode&~DATA16, b);
 		    		} PC += 3; break;
 			case 0x30: /* WRMSR */
 			    PC += 2; goto not_permitted;
@@ -3239,14 +2738,9 @@ void instr_emu_sim_reset_count(void)
 }
 
 static void _PreJit86(unsigned int PC, unsigned int Interp_LONG_CS,
-		      int basemode, int gap)
+		      int basemode, int flags)
 {
-	TNode *G;
-
-	do {
-		PC = InterpOne(PC, Interp_LONG_CS, basemode);
-	} while (!(G = interp_post(PC, Interp_LONG_CS, basemode, gap)));
-	G->flags |= F_PREJ;
+	_Interp86(PC, Interp_LONG_CS, basemode, flags);
 	NodesPrejitted++;
 }
 
@@ -3254,20 +2748,16 @@ void PreJit86(unsigned int PC, int basemode)
 {
 	if (e_querymark(PC, 1))
 		return;
-	_PreJit86(PC, LONG_CS, basemode, 1);
+	_PreJit86(PC, LONG_CS, basemode, F_PREJ);
 	e_mdrop();
 }
 
-/* safety gap should be definitely longer than 1 instruction to not
- * overwrite something unintentionally */
-#define SAFE_PRJ_GAP 16
 static void *prejit_thread(void *arg)
 {
   while (1) {
     sem_wait(&prejit_sem);
     TNode *G = __atomic_load_n(&prejit_G, __ATOMIC_RELAXED);
-    _PreJit86(G->key + G->seqlen, G->cs, G->mode,
-	    SAFE_PRJ_GAP);
+    _PreJit86(G->key + G->seqlen, G->cs, G->mode, F_PREJ|F_SPRJ);
     pthread_mutex_lock(&run_mtx);
     prejit_running = 0;
     pthread_mutex_unlock(&run_mtx);

@@ -35,8 +35,6 @@
 #ifndef _EMU86_CODEGEN_SIM_H
 #define _EMU86_CODEGEN_SIM_H
 
-#include "vgaemu.h"
-
 /////////////////////////////////////////////////////////////////////////////
 
 typedef union {
@@ -77,9 +75,22 @@ typedef struct {
 					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),showmode(mode))
 #define GTRACE5(s,r1,r2,a,b,c)	if (debug_level('e')>2) e_printf("(G) %-12s %s %s %08x %08x %08x [%s]\n",\
 					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),(int)(c),showmode(mode))
-extern dosaddr_t AddrGen_sim(const IGen *IG);
 extern void InitGen_sim(void);
 
 /////////////////////////////////////////////////////////////////////////////
+
+uint8_t sim_read_byte(dosaddr_t x);
+uint16_t sim_read_word(dosaddr_t x);
+uint32_t sim_read_dword(dosaddr_t x);
+uint64_t sim_read_qword(dosaddr_t x);
+void sim_write_byte(dosaddr_t x, uint8_t y);
+void sim_write_word(dosaddr_t x, uint16_t y);
+void sim_write_dword(dosaddr_t x, uint32_t y);
+void sim_write_qword(dosaddr_t x, uint64_t y);
+
+#define GetDWord(a)	sim_read_word(a)
+#define GetDLong(a)	sim_read_dword(a)
+#define DataGetWL_U(m,a) ((m)&DATA16? GetDWord(a):GetDLong(a))
+#define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(int)GetDLong(a))
 
 #endif

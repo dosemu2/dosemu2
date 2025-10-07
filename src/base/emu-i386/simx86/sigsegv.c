@@ -38,11 +38,12 @@
 #include <string.h>
 #include "utilities.h"
 #include "emu86.h"
-#include "codegen-arch.h"
+#include "cpatch.h"
 #include "trees.h"
 #include "emudpmi.h"
 #include "msdoshlp.h"
 
+#include "vgaemu.h"
 #include "video.h"
 #include "bios.h"
 #include "memory.h"
