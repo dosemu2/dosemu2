@@ -10,6 +10,7 @@ DOSLIB = libdosemu2.$(SOVERSION).dylib
 else
 DOSLIB = libdosemu2.so.$(SOVERSION)
 endif
+SOLIB := @SOLIB@
 
 PACKAGE_TARNAME:=@PACKAGE_TARNAME@
 prefix:=@prefix@

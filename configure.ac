@@ -579,6 +579,7 @@ fi
 if test "$enable_plugins" = "no"; then
     enable_plugins=""
 fi
+
 AC_ARG_WITH(plugin-options,
     [AS_HELP_STRING([--with-plugin-options=PLUGIN,OPTS],
         [Pass options OPTS to plugin PLUGIN])],
@@ -588,6 +589,15 @@ AC_ARG_WITH(plugin-options,
         export ${plu}_OPTS="$val"
     ]
 )
+
+SOLIB=1
+AC_ARG_ENABLE(solib,
+    [AS_HELP_STRING([--disable-solib], [Disable dosemu2 solib])])
+if test "$enable_solib" = "no"; then
+  AC_MSG_NOTICE([Disabling build of a solib...])
+  SOLIB=0
+fi
+AC_SUBST(SOLIB)
 
 if ! test -f Makefile.conf.in; then
   AC_MSG_NOTICE([Populating makefiles...])
