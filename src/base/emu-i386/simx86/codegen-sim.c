@@ -3001,7 +3001,7 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			}
 /*c8*/	case ENTER: {
 			// This simulates only the middle part for level >=2
-			unsigned int bp;
+			unsigned int bp, sp, val;
 			int level, ds;
 			level = arg;
 			assert(level > 1); // level 0 and 1 are compiled
@@ -3010,9 +3010,15 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			while (--level) {
 				bp -= ds;
 				bp &= TheCPU.StackMask;
-				PUSH(mode, (mode&DATA16) ?
+				val = (mode&DATA16) ?
 				     sim_read_word(LONG_SS + bp) :
-				     sim_read_dword(LONG_SS + bp));
+				     sim_read_dword(LONG_SS + bp);
+				sp = (rESP - ds) & TheCPU.StackMask;
+				if (mode&DATA16)
+					sim_write_word(LONG_SS + sp, val);
+				else
+					sim_write_dword(LONG_SS + sp, val);
+				rESP = sp | (rESP&~TheCPU.StackMask);
 			}
 			}
 			break;
