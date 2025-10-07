@@ -2954,18 +2954,15 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 
 	unsigned int temp;
 	switch (opc) {
-/*9c*/	case PUSHF:    { /* flag handling for VME-case only,
+/*9c*/	case PUSHF:	/* flag handling for VME-case only,
 			    not used presently with IOPL==3 */
-			unsigned int temp;
 			assert(V86MODE() && IOPL<3 && (TheCPU.cr[4] & CR4_VME));
-			temp = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
-			data = (temp|IOPL_MASK) & RETURN_MASK;
-			if (temp & VIF) data |= EFLAGS_IF;
+			data = (EFLAGS|IOPL_MASK) & RETURN_MASK;
+			if (EFLAGS & VIF) data |= EFLAGS_IF;
 			if (debug_level('e')>1)
 				e_printf("Pushing flags %08x fl=%08x\n",
-					 data,temp);
+					 data,EFLAGS);
 			break;
-		       }
 /*62*/	case BOUND:    {
 			signed int lo, hi, r = data;
 			lo = DataGetWL_S(mode, mem_ref);
@@ -3063,7 +3060,6 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			if (debug_level('e')>1) {
 				e_printf("IRET: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
 			}
-			EFLAGS = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
 			if (!(mode & DATA16)) {
 			    temp &= EFLAGS_ALL & ~(VM|VIF|VIP);
 			    temp |= EFLAGS & (VM|VIF|VIP);
@@ -3098,7 +3094,6 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			temp = data;
 			if (temp & TF)
 			    TheCPU.err = EXCP_TFSET;
-			EFLAGS = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
 			if (V86MODE()) {
 			    int is_tf;
 stack_return_from_vm86:
