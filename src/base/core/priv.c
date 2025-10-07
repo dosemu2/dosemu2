@@ -512,9 +512,11 @@ void priv_init(void)
   gid = getgid();
   egid = cur_egid = getegid();
 
+#if !defined(__ANDROID__) /* on android it points to some linker64 */
   /* must store the /proc/self/exe symlink contents before dropping
      privs! */
   dosemu_proc_self_exe = readlink_malloc("/proc/self/exe");
+#endif
   /* For Fedora we must also save a file descriptor to /proc/self/maps */
   dosemu_proc_self_maps = fopen("/proc/self/maps", "r");
 
