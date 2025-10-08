@@ -284,6 +284,8 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		}
 		break;
 	case A_SR_PROT: {	// prot mode make base addr from seg
+		// movzwl %%ax,%%eax: zero extend segreg
+		G3(0xc0b70f,Cp);
 #ifdef __x86_64__
 		// pushq %rdi: save memory address for LDS etc.
 		G1(0x57,Cp);
