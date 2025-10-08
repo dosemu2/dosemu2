@@ -2944,7 +2944,7 @@ static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
  * arg: instruction-dependent argument passed via IG->p1 at compile time
  * returns data (could be modified), so compiled code can write it back
  */
-unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
+static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			uint32_t *flags, unsigned int opc, unsigned int arg,
 			unsigned char *eip)
 {
@@ -3418,4 +3418,16 @@ not_permitted_sim:
 	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
 	TheCPU.err = EXCP0D_GPF;
 	return data;
+}
+
+unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
+			uint32_t *flags, unsigned int opc, unsigned int arg,
+			unsigned char *eip)
+{
+	unsigned int ret;
+
+	InCompiledCode--;
+	ret = _Sim_helper(mem_ref, data, mode, flags, opc, arg, eip);
+	InCompiledCode++;
+	return ret;
 }

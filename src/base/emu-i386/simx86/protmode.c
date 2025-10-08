@@ -94,7 +94,7 @@ int SetSegReal(unsigned short sel, int ofs)
 }
 
 // this function is called from JIT-generated code
-int SetSegProt_helper(unsigned short sel, int ofs)
+static int _SetSegProt_helper(unsigned short sel, int ofs)
 {
 	unsigned char big;
 	int oldsel = CPUWORD(ofs);
@@ -112,6 +112,16 @@ int SetSegProt_helper(unsigned short sel, int ofs)
 		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
 	}
 	return oldsel;
+}
+
+int SetSegProt_helper(unsigned short sel, int ofs)
+{
+	int ret;
+
+	InCompiledCode--;
+	ret = _SetSegProt_helper(sel, ofs);
+	InCompiledCode++;
+	return ret;
 }
 
 int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
