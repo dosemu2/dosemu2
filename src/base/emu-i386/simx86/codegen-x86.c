@@ -1653,12 +1653,12 @@ shrot0:
 		G2M(0x41,0xb8,Cp); G4(IG->p0,Cp);
 		// mov $arg, %%r9d
 		G2M(0x41,0xb9,Cp); G4(IG->p1,Cp);
-		// push %%rdi // keep mem_ref (2x for alignment)
-		G2M(PUSHdi,PUSHdi,Cp);
+		// push %%rdi // keep mem_ref
+		G1(PUSHdi,Cp);
 		// call 1f (to push eip)
-		G1(CALLd,Cp); G4(2+4+2+TAILSIZE,Cp);
+		G1(CALLd,Cp); G4(1+4+2+TAILSIZE,Cp);
 		// pop %%rdi // mem_ref
-		G2M(POPdi,POPdi,Cp);
+		G1(POPdi,Cp);
 #else
 		// mov %esp, %ecx // flags
 		G2M(0x89,0xe1,Cp);
