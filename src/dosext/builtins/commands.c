@@ -82,7 +82,6 @@ static int do_doshelper(int ax, int bx)
 static int emudpmi_main(int argc, char **argv)
 {
 	if (argc == 1) {
-		int len;
 		com_printf("dosemu DPMI control program.\n\n");
 		com_printf("Usage: emudpmi <switch> <value>\n\n");
 		com_printf("The following table lists the available parameters, "
@@ -93,10 +92,10 @@ static int emudpmi_main(int argc, char **argv)
 		com_printf("+--------------------------+-----------+----+---------------------------------+\n");
 		com_printf("|$_dpmi                    |");
 		if (config.dpmi)
-			com_printf("%#x%n", config.dpmi, &len);
+			com_printf("%#11x", config.dpmi);
 		else
-			com_printf("%7s%n", "off", &len);
-		com_printf("%*s| -m | DPMI memory size in Kbytes      |\n", 11-len, "");
+			com_printf("%7s    ", "off");
+		com_printf("| -m | DPMI memory size in Kbytes      |\n");
 #if 0
 		if (config.dpmi_base == -1)
 			com_printf("|$_dpmi_base               |    auto   | -b | Address of the DPMI memory pool |\n");
@@ -107,7 +106,7 @@ static int emudpmi_main(int argc, char **argv)
 			    config.pm_dos_api ? "on " : "off");
 		com_printf("|$_ignore_djgpp_null_derefs|    %s    | -n | Disable DJGPP NULL-deref protec.|\n",
 			    config.no_null_checks ? "on " : "off");
-		com_printf("|$_cli_timeout             |%i %s   | -t | See EMUfailure.txt, sect. 1.6.1 |\n",
+		com_printf("|$_cli_timeout             | %i %s   | -t | See EMUfailure.txt, sect. 1.6.1 |\n",
 			    config.cli_timeout, config.cli_timeout ? "     " : "(off)");
 		com_printf("+--------------------------+-----------+----+---------------------------------+\n\n");
 	} else {
