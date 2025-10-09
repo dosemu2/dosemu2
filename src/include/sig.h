@@ -140,7 +140,11 @@ typedef mcontext_t sigcontext_t;
 #define _scp_ss     (((union g_reg *)&scp->gregs[REG_CSGSFS])->w[3])
 #define _scp_eflags LO_WORD(scp->gregs[REG_EFL])
 #define _scp_cr2    (scp->gregs[REG_CR2])
+#ifdef __GLIBC__
 #define PRI_RG  "llx"
+#else
+#define PRI_RG  PRIx64
+#endif
 #else
 #define _scp_es     (scp->gregs[REG_ES])
 #define _scp_ds     (scp->gregs[REG_DS])
