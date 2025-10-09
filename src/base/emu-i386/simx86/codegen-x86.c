@@ -1662,6 +1662,23 @@ shrot0:
 #else
 		// mov %esp, %ecx // flags
 		G2M(0x89,0xe1,Cp);
+		// call 1f (to push eip)
+		G1(CALLd,Cp); G4(4+2+TAILSIZE,Cp);
+#endif
+
+		// cmpl $0x0,Ofs_ERR(%rbx)
+		G4M(0x83,0x7b,Ofs_ERR,0x00,Cp);
+		// jz skip
+#ifdef __x86_64__
+		G2M(JE_JZ,TAILSIZE+4,Cp);
+#else
+		G2M(JE_JZ,TAILSIZE+1+4+1+4+1+1+4+1+1+3+3+1,Cp);
+#endif
+		// movl {exit_addr},%%eax; pop %%edx; ret
+		G1(MOViax,Cp); G4(IG->p2,Cp); G2M(POPdx,RET,Cp);
+
+		// 1:
+#ifndef __x86_64__
 		// push $arg
 		G1(PUSHwi,Cp); G4(IG->p1,Cp);
 		// push $opc
@@ -1674,19 +1691,13 @@ shrot0:
 		G1(PUSHax,Cp);
 		// push %%edi // mem_ref
 		G1(PUSHdi,Cp);
-		// call 1f (to push eip)
-		G1(CALLd,Cp); G4(3+4+2+TAILSIZE,Cp);
-		// 2: addl $24,%%esp
+#endif
+		// call Ofs_SimHelper(%%ebx)
+		G3M(0xff,0x53,Ofs_SimHelper(),Cp);
+#ifndef __x86_64__
+		// addl $24,%%esp
 		G3M(0x83,0xc4,24,Cp)
 #endif
-		// cmpl $0x0,Ofs_ERR(%rbx)
-		G4M(0x83,0x7b,Ofs_ERR,0x00,Cp);
-		// jz skip
-		G2M(JE_JZ,TAILSIZE+4,Cp);
-		// movl {exit_addr},%%eax; pop %%edx; ret
-		G1(MOViax,Cp); G4(IG->p2,Cp); G2M(POPdx,RET,Cp);
-		// 1: call Ofs_SimHelper(%%ebx)
-		G3M(0xff,0x53,Ofs_SimHelper(),Cp);
 		G1(RET,Cp);
 		// skip:
 
