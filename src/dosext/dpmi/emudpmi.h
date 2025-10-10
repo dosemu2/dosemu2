@@ -191,6 +191,7 @@ void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off);
 int dpmi_mhp_getcsdefault(void);
 int dpmi_mhp_setTF(int on);
 int dpmi_mhp_issetTF(void);
+int dpmi_mhp_setIF(int on);
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp);
 uint32_t dpmi_mhp_getreg(regnum_t regnum);
 void dpmi_mhp_setreg(regnum_t regnum, uint32_t val);
@@ -364,6 +365,16 @@ static inline int dpmi_mhp_regs(void)
 }
 
 static inline int dpmi_mhp_setTF(int on)
+{
+    return 0;
+}
+
+static inline int dpmi_mhp_issetTF(void)
+{
+    return 0;
+}
+
+static inline int dpmi_mhp_setIF(int on)
 {
     return 0;
 }

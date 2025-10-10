@@ -6355,12 +6355,14 @@ static int dpmi_mhp_intxx_check(cpuctx_t *scp, int intno)
 int dpmi_mhp_setTF(int on)
 {
   cpuctx_t *scp;
+  int ret;
   if (!in_dpmi_pm())
     return 0;
   scp=&DPMI_CLIENT.stack_frame;
+  ret = _isset_TF();
   if (on) _eflags |=TF;
   else _eflags &=~TF;
-  return 1;
+  return ret;
 }
 
 int dpmi_mhp_issetTF(void)
@@ -6370,6 +6372,19 @@ int dpmi_mhp_issetTF(void)
     return 0;
   scp=&DPMI_CLIENT.stack_frame;
   return !!(_eflags & TF);
+}
+
+int dpmi_mhp_setIF(int on)
+{
+  cpuctx_t *scp;
+  int ret;
+  if (!in_dpmi_pm())
+    return 0;
+  scp=&DPMI_CLIENT.stack_frame;
+  ret = _isset_IF();
+  if (on) dpmi_sti();
+  else dpmi_cli();
+  return ret;
 }
 
 #endif /* dosdebug support */
