@@ -744,6 +744,7 @@ static void mhp_go(int argc, char *argv[])
     dpmi_mhp_setTF(0);
     clear_TF();
     mhp_bpset();
+    restart_cputime(1);
   }
 }
 
@@ -752,6 +753,7 @@ static void mhp_stop(int argc, char *argv[])
   if (mhpdbgc.stopped) {
     mhp_printf("already in stopped state\n");
   } else {
+    stop_cputime(1);
     mhpdbgc.stopped = 1;
     mhp_cmd("r0");
   }
