@@ -2445,7 +2445,7 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 {
 	backref *B;
 	ptrdiff_t ra;
-	unsigned int *lp = L->link;		// check 'taken' branch
+	unsigned char *Cp;
 
 	// points to current node?
 	if (L->target!=G->key || !(LG->unlinked_jmp_targets & target_type))
@@ -2456,11 +2456,12 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 		leavedos_main(0x8102 + (target_type == TARGET_NT));
 	}
 	LG->unlinked_jmp_targets &= ~target_type;
+	Cp = LG->addr + L->link;
+	if (Cp[0] == 0x0f) Cp += CKSIGNSIZE;
 	// b8 [npc] -> e9/eb reladr
-	ra = G->addr - (unsigned char *)L->link;
+	ra = G->addr - (Cp + TAILFIX);
 #ifdef __x86_64__
 	if (ra - 4 < INT32_MIN || ra - 4 > INT32_MAX) {
-		unsigned char *Cp = (unsigned char *)lp - 1;
 		if (debug_level('e') > 1) e_printf("Linker: 64 bit jmp for ra=0x%tx\n", ra);
 		G2M(0x48,0xb8,Cp); // mov adr, %%rax
 		G8((uintptr_t)G->addr,Cp);
@@ -2470,12 +2471,12 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 #endif
 	{
 		if ((ra > -127) && (ra < 128)) {
-			ra -= 1; ((char *)lp)[-1] = 0xeb;
+			ra -= 1; G1(JMPsid,Cp);
 		}
 		else {
-			ra -= 4; ((char *)lp)[-1] = 0xe9;
+			ra -= 4; G1(JMPd,Cp);
 		}
-		*lp = ra;
+		G4(ra,Cp);
 	}
 	L->ref = &G->mblock->bkptr;
 	B = calloc(1,sizeof(backref));
@@ -2569,7 +2570,6 @@ static void unlinknode(TNode *G, linkdesc *T, char branch)
 
 void NodeUnlinker(TNode *G)
 {
-	unsigned int *lp;
 	linkdesc *T_t = &G->clink_t;
 	linkdesc *T_nt = &G->clink_nt;
 	backref *B = G->bkr.next;
@@ -2593,6 +2593,7 @@ void NodeUnlinker(TNode *G)
 	    if (B->branch=='T' || B->branch=='N') {
 		TNode *H = *B->ref;
 		unsigned target_type;
+		unsigned char *Cp;
 		linkdesc *L;
 		if (B->branch=='T') {
 			target_type = TARGET_T;
@@ -2609,11 +2610,11 @@ void NodeUnlinker(TNode *G)
 			B->branch, L->target, G->key);
 		    leavedos_main(0x8110);
 		}
-		lp = L->link;
-		((char *)lp)[-1] = 0xb8;
-		*lp = L->target;
+		Cp = H->addr + L->link;
+		if (Cp[0] == 0x0f) Cp += CKSIGNSIZE;
+		G1(0xb8,Cp);
+		G4(L->target,Cp);
 #ifdef __x86_64__
-		unsigned char *Cp = (unsigned char *)(lp + 1);
 		G2(0xc35a,Cp); PADJMP;
 #endif
 		L->ref = NULL; H->unlinked_jmp_targets |= target_type;

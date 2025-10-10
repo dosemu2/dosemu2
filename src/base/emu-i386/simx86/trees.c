@@ -981,31 +981,24 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 
   /* setup structures for inter-node linking */
   nG->unlinked_jmp_targets = 0;
+  nG->clink_nt.link = nG->clink_t.link = 0;
   IG = &I0[CurrIMeta].gen[I0[CurrIMeta].ngen-1];
   op = IG->op;
-#ifdef X86_JIT
   if (op == JMP_LINK) {
-    nG->clink_t.link = (unsigned int *)(nG->addr + nG->len - JMPTAILSIZE + TAILFIX);
-    nG->clink_t.target = *nG->clink_t.link;
+    nG->clink_t.link = IG->p1;
+    nG->clink_t.target = IG->p0;
     nG->unlinked_jmp_targets |= TARGET_T;
-  }
-  else
-#endif
-    nG->clink_t.link = NULL;
-#ifdef X86_JIT
-  if (I0[CurrIMeta].ngen > 1 && (IG-1)->op == JMP_LINK) {
-    nG->clink_nt.link = (unsigned int *)
-      (nG->addr + nG->len - 2*JMPTAILSIZE + TAILFIX - ((IG->mode & CKSIGN) ? CKSIGNSIZE : 0));
-    nG->clink_nt.target = *nG->clink_nt.link;
-    nG->unlinked_jmp_targets |= TARGET_NT;
-  }
-  else
-#endif
-    nG->clink_nt.link = 0;
-  if ((debug_level('e')>3) && op == JMP_LINK)
-	dbug_printf("Link %d: %p:%08x\n",op,
+    if (I0[CurrIMeta].ngen > 1 && (IG-1)->op == JMP_LINK) {
+      IG--;
+      nG->clink_nt.link = IG->p1;
+      nG->clink_nt.target = IG->p0;
+      nG->unlinked_jmp_targets |= TARGET_NT;
+    }
+    if ((debug_level('e')>3))
+	dbug_printf("Link %d: %x:%08x\n",op,
 		nG->clink_nt.link,
 		((nG->unlinked_jmp_targets & TARGET_NT)? nG->clink_nt.target:0));
+  }
 
   /* setup source/xlated instruction offsets */
   ap = nG->pmeta;

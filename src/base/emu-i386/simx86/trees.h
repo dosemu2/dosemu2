@@ -59,7 +59,7 @@ typedef struct _bkref {
 #define TARGET_NT 2
 
 typedef struct _lnkdesc {
-	unsigned int *link;
+	unsigned int link;
 	unsigned int target;
 	struct avltr_node **ref;
 } linkdesc;

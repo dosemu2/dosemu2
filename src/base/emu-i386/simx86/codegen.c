@@ -439,6 +439,8 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	    I->daddr = cp - BaseGenBuf;
 	    for (j=0; j<I->ngen; j++) {
 		IGen *IG = &I->gen[j];
+		if (IG->op == JMP_LINK)
+			IG->p1 = CodePtr - BaseGenBuf;
 		CodePtr = CodeGen(CodePtr, BaseGenBuf, IG);
 		if (CodePtr-cp1 > MAX_GEND_BYTES_PER_OP) {
 		    dosemu_error("Generated code (%zd bytes) overflowed into buffer, please "
