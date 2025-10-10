@@ -8,7 +8,4 @@
 #include "codegen-sim.h"
 #ifdef X86_JIT
 #include "codegen-x86.h"
-#else
-#define NodeLinker(LG,G)
-#define NodeUnlinker(nG)
 #endif

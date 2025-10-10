@@ -117,7 +117,5 @@
 //
 void InitGen_x86(void);
 unsigned char *Fp87_op_x86(unsigned char *CodePtr, int exop, int reg);
-void NodeLinker(TNode *LG, TNode *G);
-void NodeUnlinker(TNode *G);
 
 #endif

@@ -48,7 +48,7 @@
 #include <sys/mman.h>
 #include "emu86.h"
 #include "misc/dlmalloc.h"
-#include "codegen-arch.h"
+#include "codegen.h"
 
 IMeta	InstrMeta[MAXINODES];
 int	CurrIMeta = -1;
@@ -673,6 +673,251 @@ unsigned int FindPC(const unsigned char *addr)
       return G->key+(AP-1)->dnpc;
   }
   return 0;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+/*
+ * The node linker.
+ *
+ * For the x86 target, code sequence can have one of three termination types:
+ *
+ *	1) straight end (no jump), or unconditional jump or call
+ *
+ *	key:	|
+ *		|
+ *		|
+ *		mov $next_addr,eax
+ *		pop edx (flags)
+ *		ret
+ *
+ *	2) conditional jump or loop
+ *
+ *	key:	|
+ *		|
+ *		|
+ *		jcond taken
+ *		<optional signal check code (CKSIGN)>
+ *		mov $not_taken_addr,eax
+ *		pop edx (flags)
+ *		ret
+ *	taken:  <optional signal check code (JB_LINK)>
+ *		mov $taken_addr,eax
+ *		pop edx (flags)
+ *		ret
+ *
+ *      3) indirect jump or ret
+ *	key:	|
+ *		| <eax is new IP>
+ *		add eax, <CS Base>
+ *		pop edx (flags)
+ *		ret
+ *
+ * In the first case, there's only one linking point; in the second, two.
+ * Linking means replacing the "mov addr,eax" instruction with a direct
+ * jump to the start point of the next code fragment.
+ * The parameters used are (t_ means taken, nt_ means not taken):
+ *	t_ref,nt_ref	pointers to next node
+ *	t_link,nt_link	addresses of the patch point
+ *	t_target,nt_target jump targets, also used for unlinking
+ * Since a node can be referred from many others, we need to keep
+ * "back-references" in a list in order to unlink it.
+ */
+
+static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
+{
+	/* helper routine to flag all back references:
+	   if the current node uses FP then all nodes that link to
+	   it must be flagged as such, which is a recursive procedure
+	*/
+	backref *B;
+
+	if ((LG->flags & flags) != flags) {
+	    /* only go as far back as long as flags change */
+	    LG->flags |= flags;
+	    for (B=LG->bkr.next; B; B=B->next)
+		_nodeflagbackrefs(*B->ref, flags);
+	}
+}
+
+static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
+{
+	backref *B;
+
+	// points to current node?
+	if (L->target!=G->key || !(LG->unlinked_jmp_targets & target_type))
+		return;
+
+	if (L->ref!=0) {
+		dbug_printf("Linker: ref at %08x busy\n",LG->key);
+		leavedos_main(0x8102 + (target_type == TARGET_NT));
+	}
+	LG->unlinked_jmp_targets &= ~target_type;
+	IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH|MLINK, .link = G->addr};
+	CodeGen(LG->addr + L->link, LG->addr, &IG);
+	L->ref = &G->mblock->bkptr;
+	B = calloc(1,sizeof(backref));
+	// head insertion
+	B->next = G->bkr.next;
+	G->bkr.next = B;
+	B->ref = &LG->mblock->bkptr;
+	B->branch = target_type == TARGET_T ? 'T' : 'N';
+	G->nrefs++;
+	if (G==LG) {
+		G->flags |= F_SLFL;
+		if (debug_level('e')>1) {
+			e_printf("Linker: node (%p:%08x:%p) SELF link\n"
+				 "\t\ttarget=%08x, %c_ref %d=%p->%p\n",
+				 G,G->key,G->addr,
+				 L->target, B->branch, G->nrefs, L->ref, *L->ref);
+		}
+	}
+	else if (debug_level('e')>1) {
+		e_printf("Linker: previous node (%p:%08x:%p)\n"
+			 "\t\tlinked to (%p:%08x:%p)\n"
+			 "\t\ttarget=%08x, %c_ref %d=%p->%p\n",
+			 LG,LG->key,LG->addr,
+			 G,G->key,G->addr,
+			 L->target, B->branch, G->nrefs, L->ref, *L->ref);
+	}
+	_nodeflagbackrefs(LG, G->flags);
+	if (debug_level('e')>8) {
+		backref *bk = G->bkr.next;
+#ifdef DEBUG_LINKER
+		if (bk==NULL) {
+			dbug_printf("bkr null\n");
+			leavedos_main(0x8108 + (target_type == TARGET_NT));
+		}
+#endif
+		while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
+			bk->ref,*bk->ref); bk=bk->next; }
+	}
+}
+
+void NodeLinker(TNode *LG, TNode *G)
+{
+#if PROFILE >= 2
+	hitimer_t t0 = 0;
+#endif
+
+#if !defined(SINGLESTEP)
+	if (!UseLinker)
+#endif
+	    return;
+
+#if PROFILE >= 2
+	if (debug_level('e')) t0 = GETTSC();
+#endif
+	if (debug_level('e')>8 && LG) e_printf("NodeLinker: %08x->%08x\n",LG->key,G->key);
+
+	if (LG && LG->alive>0 && LG->unlinked_jmp_targets) {	// node ends with links
+		linknode(LG, G, &LG->clink_t, TARGET_T);
+		linknode(LG, G, &LG->clink_nt, TARGET_NT);
+	}
+#if PROFILE >= 2
+	if (debug_level('e')) LinkTime += (GETTSC() - t0);
+#endif
+}
+
+static void unlinknode(TNode *G, linkdesc *T, char branch)
+{
+	if (!T->ref) return;
+
+	TNode *H = *T->ref;
+	backref *Bq = &H->bkr;
+	backref *B  = H->bkr.next;
+	if (debug_level('e')>2) e_printf("Unlink fwd %c ref to node %p(%08x)\n",
+					 branch, H, H->key);
+	while (B) {
+		if (*B->ref==G) {
+			Bq->next = B->next;
+			H->nrefs--;
+			free(B);
+			break;
+		}
+		Bq = B;
+		B = B->next;
+	}
+	if (B==NULL) {	// not found...
+		dbug_printf("Unlinker: FW %c ref error\n", branch);
+		leavedos_main(0x8111 + (branch == 'N'));
+	}
+	T->ref = NULL;
+}
+
+static void NodeUnlinker(TNode *G)
+{
+	linkdesc *T_t = &G->clink_t;
+	linkdesc *T_nt = &G->clink_nt;
+	backref *B = G->bkr.next;
+#if PROFILE >= 2
+	hitimer_t t0 = 0;
+#endif
+
+#if !defined(SINGLESTEP)
+	if (!UseLinker)
+#endif
+	    return;
+#if PROFILE >= 2
+	if (debug_level('e')) t0 = GETTSC();
+#endif
+	// unlink backward references (from other nodes to the current
+	// node)
+	if (debug_level('e')>8)
+	    e_printf("Unlinker: bkr.next=%p\n",B);
+	while (B) {
+	    backref *b2 = B;
+	    if (B->branch=='T' || B->branch=='N') {
+		TNode *H = *B->ref;
+		unsigned target_type;
+		linkdesc *L;
+		if (B->branch=='T') {
+			target_type = TARGET_T;
+			L = &H->clink_t;
+		}
+		else {
+			target_type = TARGET_NT;
+			L = &H->clink_nt;
+		}
+		if (debug_level('e')>2) e_printf("Unlinking %c ref from node %p(%08x) to %08x\n",
+			B->branch, H, L->target, G->key);
+		if (L->target != G->key) {
+		    dbug_printf("Unlinker: BK %c ref error t=%08x k=%08x\n",
+			B->branch, L->target, G->key);
+		    leavedos_main(0x8110);
+		}
+		IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH, .p0 = L->target};
+		CodeGen(H->addr + L->link, H->addr, &IG);
+		L->ref = NULL; H->unlinked_jmp_targets |= target_type;
+		G->nrefs--;
+	    }
+	    else {
+		e_printf("Invalid unlink [%c] ref %p from node ?(?) to %08x\n",
+			B->branch, B->ref, G->key);
+		leavedos_main(0x8116);
+	    }
+	    B = B->next;
+	    free(b2);
+	}
+
+	if (G->nrefs) {
+	    dbug_printf("Unlinker: nrefs error\n");
+	    leavedos_main(0x8115);
+	}
+
+	// unlink forward references (from the current node to other
+	// nodes), which are backward refs for the other nodes
+	if (debug_level('e')>8)
+	    e_printf("Unlinker: refs=T%p N%p\n",T_t->ref,T_nt->ref);
+	unlinknode(G, T_t, 'T');
+	unlinknode(G, T_nt, 'N');
+	G->nrefs = 0;
+	memset(T_t, 0, sizeof(linkdesc));
+	memset(T_nt, 0, sizeof(linkdesc));
+	G->unlinked_jmp_targets = 0;
+	memset(&G->bkr, 0, sizeof(backref));
+#if PROFILE >= 2
+	if (debug_level('e')) LinkTime += (GETTSC() - t0);
+#endif
 }
 
 /////////////////////////////////////////////////////////////////////////////
