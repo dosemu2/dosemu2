@@ -2281,8 +2281,7 @@ shrot0:
 	case JMP_LINK: {	// dspt
 		int dspt = IG->p0;
 		if (mode & CKSIGN) {
-		    // check signal on TAKEN branch
-		    // for backjmp-after-jcc:
+		    // check signal on TAKEN or non-TAKEN branch
 		    // movzwl Ofs_EXITPEND(%%ebx),%%ecx
 		    G4M(0x0f,0xb7,0x4b,Ofs_EXITPEND,Cp);
 		    // jecxz {continue}: exit if exitpend not 0
@@ -2300,8 +2299,6 @@ shrot0:
 	case JF_LINK:
 	case JB_LINK: {		// opc, PC, dspt, dspnt, link
 		unsigned char opc = IG->p0;
-		int dspt = IG->p1;
-		int dspnt = IG->p2;
 		int sz;
 		//	JCXZ:	8b 4b Ofs_ECX e3 07 or 0f b7 4b Ofs_ECX e3 07
 		//	JCC:	7x 07
@@ -2325,37 +2322,13 @@ shrot0:
 			PopPushF(Cp);	// get flags from stack
 			G2M(opc,sz,Cp);	// normal condition (Jcc)
 		}
-		if (mode & CKSIGN) {
-		    // check signal on NOT TAKEN branch
-		    // for backjmp-after-jcc:
-		    // movzwl Ofs_EXITPEND(%%ebx),%%ecx
-		    G4M(0x0f,0xb7,0x4b,Ofs_EXITPEND,Cp);
-		    // jecxz {continue}: exit if exitpend not 0
-		    G2M(0xe3,TAILSIZE,Cp);
-		    // movl {exit_addr},%%eax; pop %%edx; ret
-		    G1(0xb8,Cp); G4(dspnt,Cp); G2(0xc35a,Cp);
-	        }
-		// not taken: continue with next instr
-		G1(0xb8,Cp);
-		G4(dspnt,Cp); G2(0xc35a,Cp); PADJMP;
-		// taken
-		if (IG->op==JB_LINK) {
-		    // check signal on TAKEN branch for back jumps
-		    G4M(0x0f,0xb7,0x4b,Ofs_EXITPEND,Cp);
-		    G2M(0xe3,TAILSIZE,Cp);
-		    G1(0xb8,Cp); G4(dspt,Cp); G2(0xc35a,Cp);
-	        }
-		G1(0xb8,Cp);
-		G4(dspt,Cp); G2(0xc35a,Cp); PADJMP;
-		if (debug_level('e')>2) e_printf("J_Link %08x:%08x lk=%d\n",
-			dspt,dspnt,IG->op);
+		// followed by not-taken (optional CKSIGN + JMPTAILSIZE bytes)
+		// followed by taken (CKSIGN for JB_LINK + JMPTAILSIZE bytes)
 		}
 		break;
 
 	case JLOOP_LINK: {	// opc, PC, dspt, dspnt, link
 		unsigned char opc = IG->p0;
-		int dspt = IG->p1;
-		int dspnt = IG->p2;
 		//	{66} dec Ofs_ECX(ebx)
 		//	LOOP:	jnz t
 		//	LOOPZ:  jz  nt; test 0x40,dl; jnz t
@@ -2391,27 +2364,8 @@ shrot0:
 		else {
 			G2M(0x75,JMPTAILSIZE,Cp);	// jnz->t
 		}
-		// not taken: continue with next instr
-		G1(0xb8,Cp);
-		G4(dspnt,Cp); G2(0xc35a,Cp); PADJMP;
-		// taken
-#if 0
-		/* CKSIGN is likely not needed for loops */
-		if (mode & CKSIGN) {
-		    // check signal on TAKEN branch
-		    // for backjmp-after-jcc:
-		    // movzwl Ofs_EXITPEND(%%ebx),%%ecx
-		    G4M(0x0f,0xb7,0x4b,Ofs_EXITPEND,Cp);
-		    // jecxz {continue}: exit if exitpend not 0
-		    G2M(0xe3,TAILSIZE,Cp);
-		    // movl {exit_addr},%%eax; pop %%edx; ret
-		    G1(0xb8,Cp); G4(dspt,Cp); G2(0xc35a,Cp);
-	        }
-#endif
-		G1(0xb8,Cp);
-		G4(dspt,Cp); G2(0xc35a,Cp); PADJMP;
-		if (debug_level('e')>2) e_printf("JLOOP_Link %08x:%08x lk=%d\n",
-			dspt,dspnt,IG->op);
+		// followed by not-taken (JMPTAILSIZE bytes)
+		// followed by taken (JMPTAILSIZE bytes)
 		}
 		break;
 

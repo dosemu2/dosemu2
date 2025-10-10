@@ -248,14 +248,18 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 			     * condition changing a flag */
 			    e_printf("### dsp=0 jmp=%x pskip=%d\n",opc,pskip);
 		    }
-		    Gen(JB_LINK, mode, opc, j_t, j_nt);
+		    Gen(JB_LINK, mode, opc);
+		    Gen(JMP_LINK, mode, j_nt);
+		    Gen(JMP_LINK, mode|CKSIGN, j_t);
 		}
 		else {
 		    if (dsp == pskip) {
 			e_printf("### jmp %x 00\n",opc);
 		    }
 		    /* forward jump or backward jump >=256 bytes */
-		    Gen(JF_LINK, mode, opc, j_t, j_nt);
+		    Gen(JF_LINK, mode, opc);
+		    Gen(JMP_LINK, mode, j_nt);
+		    Gen(JMP_LINK, mode&~CKSIGN, j_t);
 		}
 		break;
 	case JMPld: {   /* uncond jmp far */
@@ -306,7 +310,10 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		Gen(JMP_LINK, mode, j_t);
 		break;
 	case LOOP: case LOOPZ_LOOPE: case LOOPNZ_LOOPNE:
-		Gen(JLOOP_LINK, mode, opc, j_t, j_nt);
+		Gen(JLOOP_LINK, mode, opc);
+		/* CKSIGN is likely not needed for loops */
+		Gen(JMP_LINK, mode, j_nt);
+		Gen(JMP_LINK, mode, j_t);
 		break;
 	case RETl: case RETlisp: case IRET: // far ret, indirect
 	case JMPli: case CALLli: case INT: // far jmp/call, indirect
@@ -329,11 +336,14 @@ static int can_speculate(void)
 	IGen *IG = &GL->gen[GL->ngen-1];
 	int opc = IG->op;
 	/* With uncond JMP or RET nothing to speculate. */
-	if (opc < JMP_LINK)
+	if (opc != JMP_LINK)
 		return 0;
-	if (opc == JMP_LINK &&
-	    (GL->ngen <= 1 || GL->gen[GL->ngen-2].op != O_PUSHI))
-		// PUSHI before means CALL
+	/* we need two JMP_LINKs (conditional jump),
+	   or PUSHI followed by JMP_LINK (call) */
+	if (GL->ngen <= 1)
+		return 0;
+	opc = (IG-1)->op;
+	if (opc != O_PUSHI && opc != JMP_LINK)
 		return 0;
 	if (debug_level('e')) {
 		unsigned short ocs = TheCPU.cs;
@@ -1970,7 +1980,9 @@ repag0:
 				int op = LOOP;
 				if (repmod & MREPCOND)
 					op = (realrepmod&MREP) ? LOOPZ_LOOPE : LOOPNZ_LOOPNE;
-				Gen(JLOOP_LINK, _mode, op, P0, PC);
+				Gen(JLOOP_LINK, _mode, op);
+				Gen(JMP_LINK, _mode, PC);
+				Gen(JMP_LINK, _mode, P0);
 				/* code will be flushed immediately
 				   in interp_post because TF is set */
 				break;

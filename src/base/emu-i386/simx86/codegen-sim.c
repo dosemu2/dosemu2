@@ -2723,8 +2723,8 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 	case JF_LINK:
 	case JB_LINK: {		// opc, PC, dspt, dspnt, link
 		int opc = IG->p0;
-		unsigned int j_t = (unsigned int)IG->p1;
-		unsigned int j_nt = (unsigned int)IG->p2;
+		unsigned int j_t = (unsigned int)(IG+2)->p0;
+		unsigned int j_nt = (unsigned int)(IG+1)->p0;
 		switch(opc) {
 		case JO:      P0 = is_of_set() ? j_t : j_nt; break;
 		case JNO:     P0 = !is_of_set() ? j_t : j_nt; break;
@@ -2758,8 +2758,8 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		break;
 	case JLOOP_LINK: {	// opc, dspt, dspnt, link
 		int opc = IG->p0;
-		unsigned int j_t = (unsigned int)IG->p1;
-		unsigned int j_nt = (unsigned int)IG->p2;
+		unsigned int j_t = (unsigned int)(IG+2)->p0;
+		unsigned int j_nt = (unsigned int)(IG+1)->p0;
 		int cxv = (mode&ADDR16? --rCX : --rECX);
 		switch(opc) {
 		case LOOP:
