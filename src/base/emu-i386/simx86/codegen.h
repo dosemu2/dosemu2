@@ -183,6 +183,8 @@
 
 #define CKSIGN	0x00100000	// check signal: for jumps
 #define MNOREG  0x00200000
+#define MPATCH	0x00400000	// patch existing code in JMP_LINK
+#define MLINK	0x00800000	// convert to link in JMP_LINK
 // for HOST_ARCH_X86
 #define MREPCOND 0x01000000	// this is SCASx or CMPSx, REP can be terminated
 				// by flags

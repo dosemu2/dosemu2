@@ -66,7 +66,12 @@ typedef struct _lnkdesc {
 
 typedef struct _imgen {
 	unsigned int op, mode;
-	unsigned int p0,p1,p2,p3,p4;
+	union {
+		struct {
+			unsigned int p0,p1,p2,p3,p4;
+		};
+		unsigned char *link;
+	};
 } IGen;
 
 typedef struct _ianpc {

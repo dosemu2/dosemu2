@@ -2279,6 +2279,34 @@ shrot0:
 		break;
 
 	case JMP_LINK: {	// dspt
+		// check if signal check is present
+		if ((mode & MPATCH) && Cp[0] == 0x0f) Cp += CKSIGNSIZE;
+		if (mode & MLINK) {
+		    ptrdiff_t ra;
+		    // patch code to directly jump to the next block
+		    // b8 [npc] -> e9/eb reladr
+		    ra = IG->link - (Cp + TAILFIX);
+#ifdef __x86_64__
+		    if (ra - 4 < INT32_MIN || ra - 4 > INT32_MAX) {
+			if (debug_level('e') > 1)
+			    e_printf("Linker: 64 bit jmp for ra=0x%tx\n", ra);
+			G2M(0x48,0xb8,Cp); // mov adr, %%rax
+			G8((uintptr_t)IG->link,Cp);
+			G2M(0xff,0xe0,Cp); // jmp %%rax
+		    }
+		    else
+#endif
+		    {
+			if ((ra > -127) && (ra < 128)) {
+			    ra -= 1; G1(JMPsid,Cp);
+			}
+			else {
+			  ra -= 4; G1(JMPd,Cp);
+			}
+			G4(ra,Cp);
+		    }
+		    break;
+		}
 		int dspt = IG->p0;
 		if (mode & CKSIGN) {
 		    // check signal on TAKEN or non-TAKEN branch
@@ -2444,8 +2472,6 @@ static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
 static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 {
 	backref *B;
-	ptrdiff_t ra;
-	unsigned char *Cp;
 
 	// points to current node?
 	if (L->target!=G->key || !(LG->unlinked_jmp_targets & target_type))
@@ -2456,28 +2482,8 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 		leavedos_main(0x8102 + (target_type == TARGET_NT));
 	}
 	LG->unlinked_jmp_targets &= ~target_type;
-	Cp = LG->addr + L->link;
-	if (Cp[0] == 0x0f) Cp += CKSIGNSIZE;
-	// b8 [npc] -> e9/eb reladr
-	ra = G->addr - (Cp + TAILFIX);
-#ifdef __x86_64__
-	if (ra - 4 < INT32_MIN || ra - 4 > INT32_MAX) {
-		if (debug_level('e') > 1) e_printf("Linker: 64 bit jmp for ra=0x%tx\n", ra);
-		G2M(0x48,0xb8,Cp); // mov adr, %%rax
-		G8((uintptr_t)G->addr,Cp);
-		G2M(0xff,0xe0,Cp); // jmp %%rax
-	}
-	else
-#endif
-	{
-		if ((ra > -127) && (ra < 128)) {
-			ra -= 1; G1(JMPsid,Cp);
-		}
-		else {
-			ra -= 4; G1(JMPd,Cp);
-		}
-		G4(ra,Cp);
-	}
+	IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH|MLINK, .link = G->addr};
+	CodeGen(LG->addr + L->link, LG->addr, &IG);
 	L->ref = &G->mblock->bkptr;
 	B = calloc(1,sizeof(backref));
 	// head insertion
@@ -2490,18 +2496,18 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 		G->flags |= F_SLFL;
 		if (debug_level('e')>1) {
 			e_printf("Linker: node (%p:%08x:%p) SELF link\n"
-				 "\t\tjmp %08tx, target=%08x, %c_ref %d=%p->%p\n",
+				 "\t\ttarget=%08x, %c_ref %d=%p->%p\n",
 				 G,G->key,G->addr,
-				 ra, L->target, B->branch, G->nrefs, L->ref, *L->ref);
+				 L->target, B->branch, G->nrefs, L->ref, *L->ref);
 		}
 	}
 	else if (debug_level('e')>1) {
 		e_printf("Linker: previous node (%p:%08x:%p)\n"
 			 "\t\tlinked to (%p:%08x:%p)\n"
-			 "\t\tjmp %08tx, target=%08x, %c_ref %d=%p->%p\n",
+			 "\t\ttarget=%08x, %c_ref %d=%p->%p\n",
 			 LG,LG->key,LG->addr,
 			 G,G->key,G->addr,
-			 ra, L->target, B->branch, G->nrefs, L->ref, *L->ref);
+			 L->target, B->branch, G->nrefs, L->ref, *L->ref);
 	}
 	_nodeflagbackrefs(LG, G->flags);
 	if (debug_level('e')>8) {
@@ -2593,7 +2599,6 @@ void NodeUnlinker(TNode *G)
 	    if (B->branch=='T' || B->branch=='N') {
 		TNode *H = *B->ref;
 		unsigned target_type;
-		unsigned char *Cp;
 		linkdesc *L;
 		if (B->branch=='T') {
 			target_type = TARGET_T;
@@ -2610,13 +2615,8 @@ void NodeUnlinker(TNode *G)
 			B->branch, L->target, G->key);
 		    leavedos_main(0x8110);
 		}
-		Cp = H->addr + L->link;
-		if (Cp[0] == 0x0f) Cp += CKSIGNSIZE;
-		G1(0xb8,Cp);
-		G4(L->target,Cp);
-#ifdef __x86_64__
-		G2(0xc35a,Cp); PADJMP;
-#endif
+		IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH, .p0 = L->target};
+		CodeGen(H->addr + L->link, H->addr, &IG);
 		L->ref = NULL; H->unlinked_jmp_targets |= target_type;
 		G->nrefs--;
 	    }
