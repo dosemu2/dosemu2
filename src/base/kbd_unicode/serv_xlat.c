@@ -2180,6 +2180,12 @@ int move_keynum_grpsym(Boolean make, t_keynum keynum, t_unicode sym)
 	return 0;
 }
 
+void kbd_reset_layout(void)
+{
+	struct keyboard_state *state = &input_keyboard_state;
+	state->rules->activemap = 0;
+}
+
 /*
  * DANG_BEGIN_FUNCTION keysym_to_keynum
  *

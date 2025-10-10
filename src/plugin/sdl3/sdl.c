@@ -1077,6 +1077,8 @@ static void window_grab(int on, int kbd)
 {
   if (on) {
     if (kbd) {
+      SDL_StopTextInput(window);
+      kbd_reset_layout();
       SDL_SetWindowKeyboardGrab(window, true);
       v_printf("SDL: keyboard grab activated\n");
     } else {
@@ -1092,6 +1094,7 @@ static void window_grab(int on, int kbd)
     v_printf("SDL: grab released\n");
     SDL_SetWindowMouseGrab(window, false);
     SDL_SetWindowKeyboardGrab(window, false);
+    SDL_StartTextInput(window);
     if (m_cursor_visible)
       SDL_ShowCursor();
     SDL_SetWindowRelativeMouseMode(window, false);
