@@ -285,7 +285,6 @@ void InitGen_sim(void)
 {
 	Exec = Exec_sim;
 	CodeGen = CodeGen_sim;
-	UseLinker = 0;
 	RFL.cout = RFL.res = 0;
 }
 
@@ -2733,6 +2732,11 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 		break;
 
 	case JMP_LINK:		// dspt
+		if ((IG->mode & MLINK) &&
+		    !((IG->mode & CKSIGN) && exit_pending())) {
+			IG = (IGen *)IG->link;
+			continue;
+		}
 		P0 = (unsigned int)IG->p0;
 		if (debug_level('e')>2) {
 			dbug_printf("** Jump taken to %08x\n",P0);
@@ -2742,53 +2746,65 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 	case JF_LINK:
 	case JB_LINK: {		// opc, PC, dspt, dspnt, link
 		int opc = IG->p0;
-		unsigned int j_t = (unsigned int)(IG+2)->p0;
-		unsigned int j_nt = (unsigned int)(IG+1)->p0;
+		IG++;
 		switch(opc) {
-		case JO:      P0 = is_of_set() ? j_t : j_nt; break;
-		case JNO:     P0 = !is_of_set() ? j_t : j_nt; break;
-		case JB_JNAE: P0 = is_cf_set() ? j_t : j_nt; break;
-		case JNB_JAE: P0 = !is_cf_set() ? j_t : j_nt; break;
-		case JE_JZ:   P0 = is_zf_set() ? j_t : j_nt; break;
-		case JNE_JNZ: P0 = !is_zf_set() ? j_t : j_nt; break;
-		case JBE_JNA: P0 = is_cf_set() || is_zf_set() ? j_t : j_nt; break;
-		case JNBE_JA: P0 = !is_cf_set() && !is_zf_set() ? j_t : j_nt; break;
-		case JS:      P0 = is_sf_set() ? j_t : j_nt; break;
-		case JNS:     P0 = !is_sf_set() ? j_t : j_nt; break;
+		case JO:      IG += is_of_set(); break;
+		case JNO:     IG += !is_of_set(); break;
+		case JB_JNAE: IG += is_cf_set(); break;
+		case JNB_JAE: IG += !is_cf_set(); break;
+		case JE_JZ:   IG += is_zf_set(); break;
+		case JNE_JNZ: IG += !is_zf_set(); break;
+		case JBE_JNA: IG += is_cf_set() || is_zf_set(); break;
+		case JNBE_JA: IG += !is_cf_set() && !is_zf_set(); break;
+		case JS:      IG += is_sf_set(); break;
+		case JNS:     IG += !is_sf_set(); break;
 		case JP_JPE:
 			e_printf("!!! JPset\n");
-			P0 = is_pf_set() ? j_t : j_nt; break;
+			IG += is_pf_set(); break;
 		case JNP_JPO:
 			e_printf("!!! JPclr\n");
-			P0 = !is_pf_set() ? j_t : j_nt; break;
+			IG += !is_pf_set(); break;
 		case JL_JNGE:
-			P0 = is_sf_set() ^ is_of_set() ? j_t : j_nt; break;
+			IG += is_sf_set() ^ is_of_set(); break;
 		case JNL_JGE:
-			P0 = !(is_sf_set() ^ is_of_set()) ? j_t : j_nt; break;
+			IG += !(is_sf_set() ^ is_of_set()); break;
 		case JLE_JNG:
-			P0 = (is_sf_set() ^ is_of_set()) || is_zf_set() ? j_t : j_nt; break;
+			IG += (is_sf_set() ^ is_of_set()) || is_zf_set(); break;
 		case JNLE_JG:
-			P0 = !(is_sf_set() ^ is_of_set()) && !is_zf_set() ? j_t : j_nt; break;
+			IG += !(is_sf_set() ^ is_of_set()) && !is_zf_set(); break;
 		case JCXZ:
-			P0 = ((mode&ADDR16? rCX : rECX) == 0) ? j_t : j_nt; break;
+			IG += ((mode&ADDR16? rCX : rECX) == 0); break;
 		}
-		if (debug_level('e')>2 && P0 == j_t) dbug_printf("** Jump taken to %08x\n",j_t);
+		if ((IG->mode & MLINK) &&
+		    !((IG->mode & CKSIGN) && exit_pending())) {
+			IG = (IGen *)IG->link;
+			continue;
+		}
+		P0 = IG->p0;
+		if (debug_level('e')>2 && (IG-1)->op == JMP_LINK)
+			dbug_printf("** Jump taken to %08x\n",P0);
 		}
 		break;
 	case JLOOP_LINK: {	// opc, dspt, dspnt, link
 		int opc = IG->p0;
-		unsigned int j_t = (unsigned int)(IG+2)->p0;
-		unsigned int j_nt = (unsigned int)(IG+1)->p0;
 		int cxv = (mode&ADDR16? --rCX : --rECX);
+		IG++;
 		switch(opc) {
 		case LOOP:
-			P0 = cxv != 0 ? j_t : j_nt; break;
+			IG += cxv != 0; break;
 		case LOOPZ_LOOPE:
-			P0 = cxv != 0 && is_zf_set() ? j_t : j_nt; break;
+			IG += cxv != 0 && is_zf_set(); break;
 		case LOOPNZ_LOOPNE:
-			P0 = cxv != 0 && !is_zf_set() ? j_t : j_nt; break;
+			IG += cxv != 0 && !is_zf_set(); break;
 		}
-		if (debug_level('e')>2 && P0 == j_t) dbug_printf("** Jump taken to %08x\n",j_t);
+		/* CKSIGN is likely not needed for loops */
+		if (IG->mode & MLINK) {
+			IG = (IGen *)IG->link;
+			continue;
+		}
+		P0 = IG->p0;
+		if (debug_level('e')>2 && (IG-1)->op == JMP_LINK)
+			dbug_printf("** Jump taken to %08x\n",P0);
 		}
 		break;
 	default:
@@ -2837,7 +2853,15 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 
 static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG)
 {
-	memcpy(CodePtr, IG, sizeof(*IG));
+	if (IG->mode & MPATCH) {
+		/* keep CKSIGN bit of existing mode */
+		IGen* orig = (IGen *)CodePtr;
+		unsigned int cksign = orig->mode & CKSIGN;
+		memcpy(orig, IG, sizeof(*IG));
+		orig->mode |= cksign;
+	} else {
+		memcpy(CodePtr, IG, sizeof(*IG));
+	}
 	return CodePtr + sizeof(*IG);
 }
 
@@ -2846,12 +2870,15 @@ static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 			 unsigned short seqflg)
 {
 	unsigned int P0;
+	static int count;
 
 	if (seqflg & F_FPOP)
 		/* mask all exceptions, and set rounding properly */
 		fp87_mask_except();
 
 	FlagSync_RFL(*flg);
+	count++;
+	if (count %1000==0) dbug_printf("%d\n", count);
 	P0 = Gen_sim(SeqStart, pmem_ref);
 	currentIG = NULL;
 	*flg = FlagSync_All();
