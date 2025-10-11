@@ -433,17 +433,34 @@ static dosaddr_t AddrGen_sim(const IGen *IG)
 	return mem_ref;
 }
 
-static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
+static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 {
-	int op = IG->op;
-	int mode = IG->mode;
-	uint32_t S1, S2;
+    unsigned int mem_ref = 0;
+    unsigned int P0 = (unsigned)-1;
 #if PROFILE >= 2
-	hitimer_t t0 = 0;
-	if (debug_level('e')) t0 = GETTSC();
+    hitimer_t t0 = 0;
+    if (debug_level('e')) t0 = GETTSC();
 #endif
 
-	unsigned int P0 = (unsigned)-1;
+    do {
+	int op, mode;
+	uint32_t S1, S2;
+
+	if (IG->op <= O_MOVS_SetA) {
+	    mem_ref = AddrGen_sim(IG);
+	    if (TheCPU.err == EXCP0D_GPF) {
+		if (IG->op == O_INT)
+		    P0 = (dosaddr_t)IG->p1;
+		else
+		    P0 =  FindPC((const unsigned char *)IG);
+		break;
+	    }
+	    IG++;
+	} // no need for "else", a non-addr op always follows
+	currentIG = (unsigned char *)IG;
+
+	op = IG->op;
+	mode = IG->mode;
 	switch(op) {
 	case A_SR_SH4: {	// real mode make base addr from seg
 		unsigned int o = IG->p0;
@@ -2790,10 +2807,14 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 //	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
 	}
 
+	IG++;
+    } while (P0 == (unsigned int)-1);
+
 #if PROFILE >= 2
-	if (debug_level('e')) GenTime += (GETTSC() - t0);
+    if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
-	return P0;
+    *pmem_ref = mem_ref;
+    return P0;
 }
 
 
@@ -2810,33 +2831,17 @@ static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 			 unsigned char *ecpu, void *SeqStart,
 			 unsigned short seqflg)
 {
-	IGen *IG = SeqStart;
 	unsigned int P0;
-	dosaddr_t mem_ref = 0;
+	dosaddr_t mem_ref;
 
 	if (seqflg & F_FPOP)
 		/* mask all exceptions, and set rounding properly */
 		fp87_mask_except();
 
 	FlagSync_RFL(*flg);
-	do {
-		if (IG->op <= O_MOVS_SetA) {
-			mem_ref = AddrGen_sim(IG);
-			if (TheCPU.err == EXCP0D_GPF) {
-				if (IG->op == O_INT)
-					P0 = (dosaddr_t)IG->p1;
-				else
-					P0 =  FindPC((unsigned char *)IG);
-				break;
-			}
-			IG++;
-		} // no need for "else", a non-addr op always follows
-		currentIG = (unsigned char *)IG;
-		P0 = Gen_sim(IG, mem_ref);
-		IG++;
-	} while (P0 == (unsigned int)-1);
+	P0 = Gen_sim(SeqStart, pmem_ref);
 	currentIG = NULL;
-	*pmem_ref = mem_ref;
+	mem_ref = *pmem_ref;
 	*flg = FlagSync_All();
 
 #ifdef DEBUG_MORE
