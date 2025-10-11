@@ -81,9 +81,7 @@ static unsigned char *currentIG = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
 
-/* working registers of the host CPU */
-static wkreg DR1;	// "eax"
-static wkreg SR1;	// "ecx"
+/* lazy flags */
 static flgtmp RFL;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -435,6 +433,10 @@ static dosaddr_t AddrGen_sim(const IGen *IG)
 
 static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 {
+    /* working registers of the host CPU */
+    wkreg DR1;	// "eax"
+    wkreg SR1;	// "ecx"
+
     unsigned int mem_ref = 0;
     unsigned int P0 = (unsigned)-1;
 #if PROFILE >= 2
@@ -2810,6 +2812,18 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 	IG++;
     } while (P0 == (unsigned int)-1);
 
+#ifdef DEBUG_MORE
+    if (debug_level('e')>1)
+#else
+    if (debug_level('e')>3)
+#endif
+    {
+	dbug_printf("(R) DR1=%08x AR1=%08x\n",
+		    DR1.d,mem_ref);
+	dbug_printf("(R) RFL cout=%08x RES=%08x\n\n",
+		    RFL.cout,RFL.res);
+    }
+
 #if PROFILE >= 2
     if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
@@ -2832,7 +2846,6 @@ static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 			 unsigned short seqflg)
 {
 	unsigned int P0;
-	dosaddr_t mem_ref;
 
 	if (seqflg & F_FPOP)
 		/* mask all exceptions, and set rounding properly */
@@ -2841,20 +2854,7 @@ static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 	FlagSync_RFL(*flg);
 	P0 = Gen_sim(SeqStart, pmem_ref);
 	currentIG = NULL;
-	mem_ref = *pmem_ref;
 	*flg = FlagSync_All();
-
-#ifdef DEBUG_MORE
-	if (debug_level('e')>1)
-#else
-	if (debug_level('e')>3)
-#endif
-	{
-	    dbug_printf("(R) DR1=%08x AR1=%08x\n",
-		DR1.d,mem_ref);
-	    dbug_printf("(R) RFL cout=%08x RES=%08x\n\n",
-		RFL.cout,RFL.res);
-	}
 
 	return P0;
 }
