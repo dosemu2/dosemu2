@@ -4837,7 +4837,7 @@ static void do_cpu_exception(cpuctx_t *scp)
 
 #ifdef USE_MHPDBG
   if (mhpdbg.active && _trapno == 3) {
-    mhp_intercept("\nINT3 occurred, invoking dosdebug\n\n", "+9M");
+    mhp_intercept("\nINT3 occurred, invoking dosdebug\n\n", "");
     return;
   }
 #endif
