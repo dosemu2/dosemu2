@@ -406,6 +406,7 @@ void mhp_intercept(const char *msg, const char *logflags)
 {
   if (!mhpdbg.active || (fdin == -1))
     return;
+  stop_cputime(1);
   mhpdbgc.stopped = 1;
   mhpdbgc.want_to_stop = 0;
   traceloop = 0;

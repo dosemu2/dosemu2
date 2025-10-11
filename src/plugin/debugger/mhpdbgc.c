@@ -726,7 +726,6 @@ static void mhp_setreg(regnum_t symreg, unsigned long val)
 
 static void mhp_go(int argc, char *argv[])
 {
-  unfreeze_dosemu();
   if (!mhpdbgc.stopped) {
     mhp_printf("already in running state\n");
   } else {
