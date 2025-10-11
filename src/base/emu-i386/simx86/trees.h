@@ -59,14 +59,19 @@ typedef struct _bkref {
 #define TARGET_NT 2
 
 typedef struct _lnkdesc {
-	unsigned int *link;
+	unsigned int link;
 	unsigned int target;
 	struct avltr_node **ref;
 } linkdesc;
 
 typedef struct _imgen {
 	unsigned int op, mode;
-	unsigned int p0,p1,p2,p3,p4;
+	union {
+		struct {
+			unsigned int p0,p1,p2,p3,p4;
+		};
+		unsigned char *link;
+	};
 } IGen;
 
 typedef struct _ianpc {
@@ -156,6 +161,7 @@ void InitTrees(void);
 unsigned int FindPC(const unsigned char *addr);
 int InvalidateNodeRange(int addr, int len, unsigned char *eip);
 void avltr_delete(const int key);
+void NodeLinker(TNode *LG, TNode *G);
 
 #ifdef DEBUG_TREE
 extern FILE *tLog;

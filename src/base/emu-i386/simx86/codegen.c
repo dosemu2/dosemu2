@@ -374,11 +374,9 @@ void Gen(int op, int mode, ...)
 
 	case JLOOP_LINK:
 	case JF_LINK:
-	case JB_LINK: {		// opc, dspt, dspnt, link
+	case JB_LINK: {		// opc
 		unsigned char opc = (unsigned char)va_arg(ap,unsigned int);
 		IG->p0 = opc;
-		IG->p1 = va_arg(ap,unsigned int);	// dspt
-		IG->p2 = va_arg(ap,unsigned int);	// dspnt
 		}
 		break;
 	}
@@ -441,6 +439,8 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	    I->daddr = cp - BaseGenBuf;
 	    for (j=0; j<I->ngen; j++) {
 		IGen *IG = &I->gen[j];
+		if (IG->op == JMP_LINK)
+			IG->p1 = CodePtr - BaseGenBuf;
 		CodePtr = CodeGen(CodePtr, BaseGenBuf, IG);
 		if (CodePtr-cp1 > MAX_GEND_BYTES_PER_OP) {
 		    dosemu_error("Generated code (%zd bytes) overflowed into buffer, please "
