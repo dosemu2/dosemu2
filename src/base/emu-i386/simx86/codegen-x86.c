@@ -149,7 +149,6 @@ void InitGen_x86(void)
 {
 	CodeGen = CodeGen_x86;
 	Exec = Exec_x86;
-	UseLinker = USE_LINKER;
 	Cpatch_init();
 }
 

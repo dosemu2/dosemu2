@@ -752,7 +752,8 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 		leavedos_main(0x8102 + (target_type == TARGET_NT));
 	}
 	LG->unlinked_jmp_targets &= ~target_type;
-	IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH|MLINK, .link = G->addr};
+	IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH|MLINK,
+			 .p0 = L->target, .link = G->addr};
 	CodeGen(LG->addr + L->link, LG->addr, &IG);
 	L->ref = &G->mblock->bkptr;
 	B = calloc(1,sizeof(backref));

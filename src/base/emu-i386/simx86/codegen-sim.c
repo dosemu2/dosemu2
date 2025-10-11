@@ -81,9 +81,7 @@ static unsigned char *currentIG = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
 
-/* working registers of the host CPU */
-static wkreg DR1;	// "eax"
-static wkreg SR1;	// "ecx"
+/* lazy flags */
 static flgtmp RFL;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -287,7 +285,6 @@ void InitGen_sim(void)
 {
 	Exec = Exec_sim;
 	CodeGen = CodeGen_sim;
-	UseLinker = 0;
 	RFL.cout = RFL.res = 0;
 }
 
@@ -433,17 +430,38 @@ static dosaddr_t AddrGen_sim(const IGen *IG)
 	return mem_ref;
 }
 
-static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
+static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 {
-	int op = IG->op;
-	int mode = IG->mode;
-	uint32_t S1, S2;
+    /* working registers of the host CPU */
+    wkreg DR1;	// "eax"
+    wkreg SR1;	// "ecx"
+
+    unsigned int mem_ref = 0;
+    unsigned int P0 = (unsigned)-1;
 #if PROFILE >= 2
-	hitimer_t t0 = 0;
-	if (debug_level('e')) t0 = GETTSC();
+    hitimer_t t0 = 0;
+    if (debug_level('e')) t0 = GETTSC();
 #endif
 
-	unsigned int P0 = (unsigned)-1;
+    do {
+	int op, mode;
+	uint32_t S1, S2;
+
+	if (IG->op <= O_MOVS_SetA) {
+	    mem_ref = AddrGen_sim(IG);
+	    if (TheCPU.err == EXCP0D_GPF) {
+		if (IG->op == O_INT)
+		    P0 = (dosaddr_t)IG->p1;
+		else
+		    P0 =  FindPC((const unsigned char *)IG);
+		break;
+	    }
+	    IG++;
+	} // no need for "else", a non-addr op always follows
+	currentIG = (unsigned char *)IG;
+
+	op = IG->op;
+	mode = IG->mode;
 	switch(op) {
 	case A_SR_SH4: {	// real mode make base addr from seg
 		unsigned int o = IG->p0;
@@ -2714,6 +2732,11 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 		break;
 
 	case JMP_LINK:		// dspt
+		if ((IG->mode & MLINK) &&
+		    !((IG->mode & CKSIGN) && exit_pending())) {
+			IG = (IGen *)IG->link;
+			continue;
+		}
 		P0 = (unsigned int)IG->p0;
 		if (debug_level('e')>2) {
 			dbug_printf("** Jump taken to %08x\n",P0);
@@ -2723,53 +2746,65 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 	case JF_LINK:
 	case JB_LINK: {		// opc, PC, dspt, dspnt, link
 		int opc = IG->p0;
-		unsigned int j_t = (unsigned int)(IG+2)->p0;
-		unsigned int j_nt = (unsigned int)(IG+1)->p0;
+		IG++;
 		switch(opc) {
-		case JO:      P0 = is_of_set() ? j_t : j_nt; break;
-		case JNO:     P0 = !is_of_set() ? j_t : j_nt; break;
-		case JB_JNAE: P0 = is_cf_set() ? j_t : j_nt; break;
-		case JNB_JAE: P0 = !is_cf_set() ? j_t : j_nt; break;
-		case JE_JZ:   P0 = is_zf_set() ? j_t : j_nt; break;
-		case JNE_JNZ: P0 = !is_zf_set() ? j_t : j_nt; break;
-		case JBE_JNA: P0 = is_cf_set() || is_zf_set() ? j_t : j_nt; break;
-		case JNBE_JA: P0 = !is_cf_set() && !is_zf_set() ? j_t : j_nt; break;
-		case JS:      P0 = is_sf_set() ? j_t : j_nt; break;
-		case JNS:     P0 = !is_sf_set() ? j_t : j_nt; break;
+		case JO:      IG += is_of_set(); break;
+		case JNO:     IG += !is_of_set(); break;
+		case JB_JNAE: IG += is_cf_set(); break;
+		case JNB_JAE: IG += !is_cf_set(); break;
+		case JE_JZ:   IG += is_zf_set(); break;
+		case JNE_JNZ: IG += !is_zf_set(); break;
+		case JBE_JNA: IG += is_cf_set() || is_zf_set(); break;
+		case JNBE_JA: IG += !is_cf_set() && !is_zf_set(); break;
+		case JS:      IG += is_sf_set(); break;
+		case JNS:     IG += !is_sf_set(); break;
 		case JP_JPE:
 			e_printf("!!! JPset\n");
-			P0 = is_pf_set() ? j_t : j_nt; break;
+			IG += is_pf_set(); break;
 		case JNP_JPO:
 			e_printf("!!! JPclr\n");
-			P0 = !is_pf_set() ? j_t : j_nt; break;
+			IG += !is_pf_set(); break;
 		case JL_JNGE:
-			P0 = is_sf_set() ^ is_of_set() ? j_t : j_nt; break;
+			IG += is_sf_set() ^ is_of_set(); break;
 		case JNL_JGE:
-			P0 = !(is_sf_set() ^ is_of_set()) ? j_t : j_nt; break;
+			IG += !(is_sf_set() ^ is_of_set()); break;
 		case JLE_JNG:
-			P0 = (is_sf_set() ^ is_of_set()) || is_zf_set() ? j_t : j_nt; break;
+			IG += (is_sf_set() ^ is_of_set()) || is_zf_set(); break;
 		case JNLE_JG:
-			P0 = !(is_sf_set() ^ is_of_set()) && !is_zf_set() ? j_t : j_nt; break;
+			IG += !(is_sf_set() ^ is_of_set()) && !is_zf_set(); break;
 		case JCXZ:
-			P0 = ((mode&ADDR16? rCX : rECX) == 0) ? j_t : j_nt; break;
+			IG += ((mode&ADDR16? rCX : rECX) == 0); break;
 		}
-		if (debug_level('e')>2 && P0 == j_t) dbug_printf("** Jump taken to %08x\n",j_t);
+		if ((IG->mode & MLINK) &&
+		    !((IG->mode & CKSIGN) && exit_pending())) {
+			IG = (IGen *)IG->link;
+			continue;
+		}
+		P0 = IG->p0;
+		if (debug_level('e')>2 && (IG-1)->op == JMP_LINK)
+			dbug_printf("** Jump taken to %08x\n",P0);
 		}
 		break;
 	case JLOOP_LINK: {	// opc, dspt, dspnt, link
 		int opc = IG->p0;
-		unsigned int j_t = (unsigned int)(IG+2)->p0;
-		unsigned int j_nt = (unsigned int)(IG+1)->p0;
 		int cxv = (mode&ADDR16? --rCX : --rECX);
+		IG++;
 		switch(opc) {
 		case LOOP:
-			P0 = cxv != 0 ? j_t : j_nt; break;
+			IG += cxv != 0; break;
 		case LOOPZ_LOOPE:
-			P0 = cxv != 0 && is_zf_set() ? j_t : j_nt; break;
+			IG += cxv != 0 && is_zf_set(); break;
 		case LOOPNZ_LOOPNE:
-			P0 = cxv != 0 && !is_zf_set() ? j_t : j_nt; break;
+			IG += cxv != 0 && !is_zf_set(); break;
 		}
-		if (debug_level('e')>2 && P0 == j_t) dbug_printf("** Jump taken to %08x\n",j_t);
+		/* CKSIGN is likely not needed for loops */
+		if (IG->mode & MLINK) {
+			IG = (IGen *)IG->link;
+			continue;
+		}
+		P0 = IG->p0;
+		if (debug_level('e')>2 && (IG-1)->op == JMP_LINK)
+			dbug_printf("** Jump taken to %08x\n",P0);
 		}
 		break;
 	default:
@@ -2790,10 +2825,26 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 //	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
 	}
 
-#if PROFILE >= 2
-	if (debug_level('e')) GenTime += (GETTSC() - t0);
+	IG++;
+    } while (P0 == (unsigned int)-1);
+
+#ifdef DEBUG_MORE
+    if (debug_level('e')>1)
+#else
+    if (debug_level('e')>3)
 #endif
-	return P0;
+    {
+	dbug_printf("(R) DR1=%08x AR1=%08x\n",
+		    DR1.d,mem_ref);
+	dbug_printf("(R) RFL cout=%08x RES=%08x\n\n",
+		    RFL.cout,RFL.res);
+    }
+
+#if PROFILE >= 2
+    if (debug_level('e')) GenTime += (GETTSC() - t0);
+#endif
+    *pmem_ref = mem_ref;
+    return P0;
 }
 
 
@@ -2802,7 +2853,15 @@ static unsigned int Gen_sim(const IGen *IG, dosaddr_t mem_ref)
 
 static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG)
 {
-	memcpy(CodePtr, IG, sizeof(*IG));
+	if (IG->mode & MPATCH) {
+		/* keep CKSIGN bit of existing mode */
+		IGen* orig = (IGen *)CodePtr;
+		unsigned int cksign = orig->mode & CKSIGN;
+		memcpy(orig, IG, sizeof(*IG));
+		orig->mode |= cksign;
+	} else {
+		memcpy(CodePtr, IG, sizeof(*IG));
+	}
 	return CodePtr + sizeof(*IG);
 }
 
@@ -2810,46 +2869,19 @@ static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 			 unsigned char *ecpu, void *SeqStart,
 			 unsigned short seqflg)
 {
-	IGen *IG = SeqStart;
 	unsigned int P0;
-	dosaddr_t mem_ref = 0;
+	static int count;
 
 	if (seqflg & F_FPOP)
 		/* mask all exceptions, and set rounding properly */
 		fp87_mask_except();
 
 	FlagSync_RFL(*flg);
-	do {
-		if (IG->op <= O_MOVS_SetA) {
-			mem_ref = AddrGen_sim(IG);
-			if (TheCPU.err == EXCP0D_GPF) {
-				if (IG->op == O_INT)
-					P0 = (dosaddr_t)IG->p1;
-				else
-					P0 =  FindPC((unsigned char *)IG);
-				break;
-			}
-			IG++;
-		} // no need for "else", a non-addr op always follows
-		currentIG = (unsigned char *)IG;
-		P0 = Gen_sim(IG, mem_ref);
-		IG++;
-	} while (P0 == (unsigned int)-1);
+	count++;
+	if (count %1000==0) dbug_printf("%d\n", count);
+	P0 = Gen_sim(SeqStart, pmem_ref);
 	currentIG = NULL;
-	*pmem_ref = mem_ref;
 	*flg = FlagSync_All();
-
-#ifdef DEBUG_MORE
-	if (debug_level('e')>1)
-#else
-	if (debug_level('e')>3)
-#endif
-	{
-	    dbug_printf("(R) DR1=%08x AR1=%08x\n",
-		DR1.d,mem_ref);
-	    dbug_printf("(R) RFL cout=%08x RES=%08x\n\n",
-		RFL.cout,RFL.res);
-	}
 
 	return P0;
 }

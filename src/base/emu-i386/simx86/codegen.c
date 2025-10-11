@@ -98,6 +98,8 @@ static int goodmemref(dosaddr_t m)
 
 void InitGen(void)
 {
+	UseLinker = USE_LINKER;
+
 	Fetch = jit_fetch_byte;
 	FetchW = jit_fetch_word;
 	FetchL = jit_fetch_dword;
