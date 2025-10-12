@@ -4288,6 +4288,7 @@ static void dpmi_reinit(cpuctx_t *scp)
 {
   unsigned short DS, ES, SS, rights;
   int i, err;
+  int change = 0;
 
   _eflags |= CF;
   D_printf("DPMI: reinit called, %i %i\n", _LWORD(eax), DPMI_CLIENT.is_32);
@@ -4298,27 +4299,34 @@ static void dpmi_reinit(cpuctx_t *scp)
     _eflags &= ~CF;
   else if (DPMI_CLIENT.is_32)
     return;
+  else
+    change = 1;
 
   DPMI_CLIENT.is_32 = (_LWORD(eax) & 1);
-  DS = CreateAliasDescriptor(_ds);
-  SetSegmentLimit(DS, 0xffff);
-  err = GetDescriptorAccessRights(DS, &rights);
-  assert(!err);
-  if (DPMI_CLIENT.is_32)
-    SetDescriptorAccessRights(DS, rights | 0x4000);	// 32bit
-  else
-    SetDescriptorAccessRights(DS, rights & ~0x4000);	// 16bit
-  if (_ss == _ds) {
-    SS = DS;
-  } else {
-    SS = CreateAliasDescriptor(_ss);
-    SetSegmentLimit(SS, 0xffff);
-    err = GetDescriptorAccessRights(SS, &rights);
+  if (change) {
+    DS = CreateAliasDescriptor(_ds);
+    SetSegmentLimit(DS, 0xffff);
+    err = GetDescriptorAccessRights(DS, &rights);
     assert(!err);
     if (DPMI_CLIENT.is_32)
-      SetDescriptorAccessRights(SS, rights | 0x4000);	// 32bit
+      SetDescriptorAccessRights(DS, rights | 0x4000);	// 32bit
     else
-      SetDescriptorAccessRights(SS, rights & ~0x4000);	// 16bit
+      SetDescriptorAccessRights(DS, rights & ~0x4000);	// 16bit
+    if (_ss == _ds) {
+      SS = DS;
+    } else {
+      SS = CreateAliasDescriptor(_ss);
+      SetSegmentLimit(SS, 0xffff);
+      err = GetDescriptorAccessRights(SS, &rights);
+      assert(!err);
+      if (DPMI_CLIENT.is_32)
+        SetDescriptorAccessRights(SS, rights | 0x4000);	// 32bit
+      else
+        SetDescriptorAccessRights(SS, rights & ~0x4000);	// 16bit
+    }
+  } else {
+    DS = _ds;
+    SS = _ss;
   }
   ES = DPMI_CLIENT.psp_sel;
 
