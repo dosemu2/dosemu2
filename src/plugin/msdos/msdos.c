@@ -167,6 +167,22 @@ static unsigned short trans_buffer_seg(void)
 
 int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
 
+static void msdos_retf(cpuctx_t *scp)
+{
+  void *sp = SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32);
+  if (MSDOS_CLIENT.is_32) {
+    unsigned int *ssp = sp;
+    _eip = *ssp++;
+    _cs = *ssp++;
+    _esp += 8;
+  } else {
+    unsigned short *ssp = sp;
+    _LWORD(eip) = *ssp++;
+    _cs = *ssp++;
+    _LWORD(esp) += 4;
+  }
+}
+
 static void reinit_thr(void *arg);
 
 static const struct msdos_ldt_ops ops = {
@@ -183,8 +199,7 @@ CONSTRUCTOR(static void _msdos_setup(void))
     lio_init();
     xmshlp_init();
     /* bitness may change on reinit so we specify particular retf version */
-    doshlp_setup(&reinit_hlp, "msdos reinit thr", reinit_thr,
-            MSDOS_CLIENT.is_32 ? dpmi_retf32 : dpmi_retf16);
+    doshlp_setup(&reinit_hlp, "msdos reinit thr", reinit_thr, msdos_retf);
     msdos_register_ops(&ops);
 }
 
@@ -1684,6 +1699,7 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    pma = doshlp_get_entry(reinit_hlp.entry);
 	    _es = pma.selector;
 	    _LWORD(edi) = pma.offset;
+	    _eflags &= ~CF;
 	    return MSDOS_DONE;
 	}
 	case 0x1688:
