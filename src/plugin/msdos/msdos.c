@@ -1684,6 +1684,7 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    pma = doshlp_get_entry(reinit_hlp.entry);
 	    _es = pma.selector;
 	    _LWORD(edi) = pma.offset;
+	    _eflags &= ~CF;
 	    return MSDOS_DONE;
 	}
 	case 0x1688:
