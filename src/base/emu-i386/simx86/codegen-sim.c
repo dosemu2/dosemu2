@@ -2870,15 +2870,12 @@ static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 			 unsigned short seqflg)
 {
 	unsigned int P0;
-	static int count;
 
 	if (seqflg & F_FPOP)
 		/* mask all exceptions, and set rounding properly */
 		fp87_mask_except();
 
 	FlagSync_RFL(*flg);
-	count++;
-	if (count %1000==0) dbug_printf("%d\n", count);
 	P0 = Gen_sim(SeqStart, pmem_ref);
 	currentIG = NULL;
 	*flg = FlagSync_All();
