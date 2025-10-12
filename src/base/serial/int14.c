@@ -182,8 +182,16 @@ int int14(void)
         HI(ax) &= ~0x80;
         s_printf("SER%d: INT14 0x2: Read char 0x%x\n",num,LO(ax));
       } else {
+/* disabled, see https://github.com/dosemu2/dosemu2/issues/2610 */
+#if 0
         HI(ax) |= 0x80;
         s_printf("SER%d: INT14 0x2: Read but no DSR.\n",num);
+#else
+        HI(ax) &= ~0x80;
+        error_once("SER%d: INT14 0x2: Read but no DSR.\n"
+            "You may want to add \"pseudo\" flag to port configuration\n",
+            num);
+#endif
       }
     }
     else {
