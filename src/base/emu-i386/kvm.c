@@ -1441,6 +1441,8 @@ int true_kvm_vm86(struct vm86_struct *info)
 
   regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
   regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+  if ((regs->eflags & X86_EFLAGS_VIP) && !(sregs.cr4 & X86_CR4_VME))
+    run->request_interrupt_window = 1;
 
   do {
     exit_reason = kvm_run();
@@ -1520,6 +1522,8 @@ int true_kvm_dpmi(cpuctx_t *scp)
   regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP |
             X86_EFLAGS_IF);
   regs->eflags |= X86_EFLAGS_FIXED;
+  if ((regs->eflags & X86_EFLAGS_VIP) && !(sregs.cr4 & X86_CR4_PVI))
+    run->request_interrupt_window = 1;
 
   exit_reason = kvm_run();
 
