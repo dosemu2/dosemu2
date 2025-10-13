@@ -1754,6 +1754,10 @@ DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num)
 
 void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
 {
+    unsigned short old_sel = DPMI_CLIENT.Interrupt_Table[num].selector;
+    if (old_sel == desc.selector &&
+        DPMI_CLIENT.Interrupt_Table[num].offset == desc.offset32)
+      return;
     DPMI_CLIENT.Interrupt_Table[num].selector = desc.selector;
     DPMI_CLIENT.Interrupt_Table[num].offset = desc.offset32;
     switch (config.cpu_vm_dpmi) {
@@ -1776,8 +1780,11 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
           error("DPMI: interrupt 0x80 is used, expect crash or no sound\n");
         break;
     }
-    D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%x\n", num,
-      desc.selector, desc.offset32);
+
+    /* reduce log spamming a little */
+    if (desc.selector != dpmi_sel() || old_sel != dpmi_sel())
+      D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%x\n", num,
+          desc.selector, desc.offset32);
 }
 
 DPMI_INTDESC dpmi_get_exception_handler(unsigned char num)
