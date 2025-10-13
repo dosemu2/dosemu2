@@ -1475,15 +1475,14 @@ int true_kvm_vm86(struct vm86_struct *info)
     unsigned trapno = (regs->orig_eax >> 16) & 0xff;
     unsigned err = regs->orig_eax & 0xffff;
     vm86_fault(trapno, err, monitor->cr2);
-  } else if (exit_reason == KVM_EXIT_MMIO) {
-    /* disable instr_emu for now, as coalesced_mmio is slightly faster
-     * than sim. However JIT is much faster than those. */
+  }
 #if USE_INSTREMU
+  else if (exit_reason == KVM_EXIT_MMIO) {
     dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
     if (vga.inst_emu && vga_access(addr, addr))
       instr_emu_sim(NULL, 0);
-#endif
   }
+#endif
   return vm86_ret;
 }
 
