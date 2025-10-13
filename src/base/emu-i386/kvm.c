@@ -1441,6 +1441,8 @@ int true_kvm_vm86(struct vm86_struct *info)
 
   regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
   regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+  if ((regs->eflags & X86_EFLAGS_VIP) && !(sregs.cr4 & X86_CR4_VME))
+    run->request_interrupt_window = 1;
 
   do {
     exit_reason = kvm_run();
@@ -1475,15 +1477,14 @@ int true_kvm_vm86(struct vm86_struct *info)
     unsigned trapno = (regs->orig_eax >> 16) & 0xff;
     unsigned err = regs->orig_eax & 0xffff;
     vm86_fault(trapno, err, monitor->cr2);
-  } else if (exit_reason == KVM_EXIT_MMIO) {
-    /* disable instr_emu for now, as coalesced_mmio is slightly faster
-     * than sim. However JIT is much faster than those. */
+  }
 #if USE_INSTREMU
+  else if (exit_reason == KVM_EXIT_MMIO) {
     dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
     if (vga.inst_emu && vga_access(addr, addr))
       instr_emu_sim(NULL, 0);
-#endif
   }
+#endif
   return vm86_ret;
 }
 
@@ -1500,70 +1501,71 @@ int true_kvm_dpmi(cpuctx_t *scp)
   memcpy(&monitor->fpstate, &vm86_fpu_state, sizeof(vm86_fpu_state));
 #endif
   regs = &monitor->regs;
-  do {
-    regs->eax = _eax;
-    regs->ebx = _ebx;
-    regs->ecx = _ecx;
-    regs->edx = _edx;
-    regs->esi = _esi;
-    regs->edi = _edi;
-    regs->ebp = _ebp;
-    regs->esp = _esp;
-    regs->eip = _eip;
+  regs->eax = _eax;
+  regs->ebx = _ebx;
+  regs->ecx = _ecx;
+  regs->edx = _edx;
+  regs->esi = _esi;
+  regs->edi = _edi;
+  regs->ebp = _ebp;
+  regs->esp = _esp;
+  regs->eip = _eip;
 
-    regs->cs = _cs;
-    regs->__null_ds = _ds;
-    regs->__null_es = _es;
-    regs->ss = _ss;
-    regs->__null_fs = _fs;
-    regs->__null_gs = _gs;
+  regs->cs = _cs;
+  regs->__null_ds = _ds;
+  regs->__null_es = _es;
+  regs->ss = _ss;
+  regs->__null_fs = _fs;
+  regs->__null_gs = _gs;
 
-    regs->eflags = _eflags;
-    regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP |
+  regs->eflags = _eflags;
+  regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP |
             X86_EFLAGS_IF);
-    regs->eflags |= X86_EFLAGS_FIXED;
+  regs->eflags |= X86_EFLAGS_FIXED;
+  if ((regs->eflags & X86_EFLAGS_VIP) && !(sregs.cr4 & X86_CR4_PVI))
+    run->request_interrupt_window = 1;
 
-    exit_reason = kvm_run();
+  exit_reason = kvm_run();
 
-    _eax = regs->eax;
-    _ebx = regs->ebx;
-    _ecx = regs->ecx;
-    _edx = regs->edx;
-    _esi = regs->esi;
-    _edi = regs->edi;
-    _ebp = regs->ebp;
+  _eax = regs->eax;
+  _ebx = regs->ebx;
+  _ecx = regs->ecx;
+  _edx = regs->edx;
+  _esi = regs->esi;
+  _edi = regs->edi;
+  _ebp = regs->ebp;
 #if 0
-    /* In 16bit mode, if we passed some value in high word of ESP,
-     * it will be zeroed by iret from kvmmon due to CPU iret bug+GDT_SS
-     * trick. But if the client itself have set some value, it will
-     * be here, and then we take it. */
-    if (dpmi_is_32() || (regs->esp & 0xffff0000))
-      _esp = regs->esp;
-    else
-      _LWORD(esp) = regs->esp;
-#else
-    /* The above code can't reliably detect real zeroing of high ESP
-     * word, like in "movzx esp, sp". */
+  /* In 16bit mode, if we passed some value in high word of ESP,
+   * it will be zeroed by iret from kvmmon due to CPU iret bug+GDT_SS
+   * trick. But if the client itself have set some value, it will
+   * be here, and then we take it. */
+  if (dpmi_is_32() || (regs->esp & 0xffff0000))
     _esp = regs->esp;
+  else
+    _LWORD(esp) = regs->esp;
+#else
+  /* The above code can't reliably detect real zeroing of high ESP
+   * word, like in "movzx esp, sp". */
+  _esp = regs->esp;
 #endif
-    _eip = regs->eip;
+  _eip = regs->eip;
 
-    _cs = regs->cs;
-    _ds = regs->__null_ds;
-    _es = regs->__null_es;
-    _ss = regs->ss;
-    _fs = regs->__null_fs;
-    _gs = regs->__null_gs;
+  _cs = regs->cs;
+  _ds = regs->__null_ds;
+  _es = regs->__null_es;
+  _ss = regs->ss;
+  _fs = regs->__null_fs;
+  _gs = regs->__null_gs;
 
-    _eflags = regs->eflags;
+  _eflags = regs->eflags;
 
 #if 0
   /* we do not update fpstate for performance reasons */
   memcpy(&vm86_fpu_state, &monitor->fpstate, sizeof(vm86_fpu_state));
 #endif
 
-    ret = DPMI_RET_DOSEMU; /* mirroring sigio/sigalrm */
-    if (exit_reason == KVM_EXIT_HLT) {
+  ret = DPMI_RET_DOSEMU; /* mirroring sigio/sigalrm */
+  if (exit_reason == KVM_EXIT_HLT) {
       /* orig_eax >> 16 = exception number */
       /* orig_eax & 0xffff = error code */
       _cr2 = monitor->cr2;
@@ -1574,9 +1576,9 @@ int true_kvm_dpmi(cpuctx_t *scp)
 	_err = (_trapno << 3) + 2;
 	_trapno = 0xd;
 	_eip -= 2;
-      }
+    }
 
-      if (_trapno == 0x10) {
+    if (_trapno == 0x10) {
 #if 0
         struct kvm_fpu fpu;
         ioctl(vcpufd, KVM_GET_FPU, &fpu);
@@ -1606,16 +1608,15 @@ int true_kvm_dpmi(cpuctx_t *scp)
         ret = DPMI_RET_DOSEMU;
       } else
 	ret = DPMI_RET_FAULT;
-    } else if (exit_reason == KVM_EXIT_MMIO) {
-      dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
-      if (vga.inst_emu && vga_access(addr, addr)) {
-        instr_emu_sim(scp, 1);
-        ret = DPMI_RET_DOSEMU;
-      } else {
-        ret = DPMI_RET_CLIENT;
-      }
-    }
-  } while (!signal_pending() && ret == DPMI_RET_CLIENT);
+  }
+#if USE_INSTREMU
+  else if (exit_reason == KVM_EXIT_MMIO) {
+    dosaddr_t addr = (dosaddr_t)run->mmio.phys_addr;
+    if (vga.inst_emu && vga_access(addr, addr))
+      instr_emu_sim(scp, 1);
+    ret = DPMI_RET_DOSEMU;
+  }
+#endif
   return ret;
 }
 
