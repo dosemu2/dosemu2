@@ -85,7 +85,6 @@ static void DumpTree (FILE *fd);
 
 #define FINDTREE_CACHE_HASH_MASK 0xfff
 static TNode *findtree_cache[FINDTREE_CACHE_HASH_MASK+1];
-static pthread_mutex_t cache_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static TNode *TNodePool;
 //static int NodeLimit = 10000;
@@ -1201,9 +1200,8 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 #endif
   nG->len = I0->totlen;
   nG->flags = I0->flags;
-  pthread_mutex_lock(&cache_mtx);
-  findtree_cache[key&FINDTREE_CACHE_HASH_MASK] = nG;
-  pthread_mutex_unlock(&cache_mtx);
+  __atomic_store_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK], nG,
+		   __ATOMIC_RELAXED);
 
   /* allocate the extra memory used by the node. This includes the
    * translated code plus the table of correspondences between source
@@ -1343,9 +1341,8 @@ TNode *FindTree(int key)
 
   /* fast path: using cache indexed by low 12 bits of PC:
      ~99.99% success rate */
-  pthread_mutex_lock(&cache_mtx);
-  I = findtree_cache[key&FINDTREE_CACHE_HASH_MASK];
-  pthread_mutex_unlock(&cache_mtx);
+  I = __atomic_load_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK],
+		      __ATOMIC_RELAXED);
   if (I && (I->alive>0) && (I->key==key)) {
 	if (debug_level('e')) {
 	    if (debug_level('e')>4)
@@ -1364,9 +1361,8 @@ TNode *FindTree(int key)
   I = FindTree_tail(key);
   pthread_mutex_unlock(&trees_mtx);
   if (I) {
-	pthread_mutex_lock(&cache_mtx);
-	findtree_cache[key&FINDTREE_CACHE_HASH_MASK] = I;
-	pthread_mutex_unlock(&cache_mtx);
+	__atomic_store_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK], I,
+			 __ATOMIC_RELAXED);
   }
   return I;
 }
