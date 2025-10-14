@@ -279,9 +279,9 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 	}
 	/* no break */
 	case JMPsid: case JMPd:   /* uncond jmp */
-		if (dsp == 0 && !(EFLAGS & (VIF|IF|TF))) {	// eb fe
-		    dbug_printf("!Forever loop!\n");
-		    leavedos_main(0xebfe);
+		if (dsp == 0) {      // eb fe
+		    dbug_printf("!Possible forever loop!\n");
+		    InstrMeta[CurrIMeta].flags |= F_SLFJ;
 		}
 		if (dsp <= 0) mode |= CKSIGN;
 		Gen(JMP_LINK, mode, j_t);
@@ -439,6 +439,11 @@ static unsigned int FindExecCode(unsigned int PC)
 		if (G->flags & F_PREJ)
 			PrejitNodesExecd++;
 #endif
+		/* checking for infinite loops, flagged in JumpGen() */
+		if ((G->flags & F_SLFJ) && !(EFLAGS & (VIF|IF|TF))) {
+			error("!Forever loop!\n");
+			leavedos_main(0xebfe);
+		}
 		if (G->seqlen == 0) {
 			error("CPU-EMU: Zero-len code node?\n");
 			break;
