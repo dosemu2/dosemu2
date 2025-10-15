@@ -742,8 +742,9 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 {
 	backref *B;
 
-	// points to current node?
-	if (L->target!=G->key || !(LG->unlinked_jmp_targets & target_type))
+	// points to current node, which can't be a forever loop?
+	if (L->target!=G->key || !(LG->unlinked_jmp_targets & target_type) ||
+	    (G->flags & F_SLFJ))
 		return;
 
 	if (L->ref!=0) {

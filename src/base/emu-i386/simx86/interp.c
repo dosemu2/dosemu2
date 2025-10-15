@@ -440,11 +440,6 @@ static unsigned int FindExecCode(unsigned int PC)
 		if (G->flags & F_PREJ)
 			PrejitNodesExecd++;
 #endif
-		/* checking for infinite loops, flagged in JumpGen() */
-		if ((G->flags & F_SLFJ) && !(EFLAGS & (VIF|IF|TF))) {
-			error("!Forever loop!\n");
-			leavedos_main(0xebfe);
-		}
 		if (G->seqlen == 0) {
 			error("CPU-EMU: Zero-len code node?\n");
 			break;

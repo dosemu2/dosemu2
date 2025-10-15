@@ -584,7 +584,7 @@ static unsigned int Exec_pre(unsigned char *ecpu)
 	return flg;
 }
 
-static void Exec_post(unsigned long flg, unsigned int mem_ref)
+static void Exec_post(unsigned long flg, unsigned int mem_ref, const TNode *G)
 {
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
@@ -592,6 +592,11 @@ static void Exec_post(unsigned long flg, unsigned int mem_ref)
 	if (TheCPU.err == EXCP_STISHADOW) {
 		CEmuStat |= CeS_STI;
 		TheCPU.err = 0;
+	}
+	/* checking for infinite loops, flagged in JumpGen() */
+	if (G && (G->flags & F_SLFJ) && !(EFLAGS & (VIF|IF|TF))) {
+		error("!Forever loop!\n");
+		leavedos_main(0xebfe);
 	}
 }
 
@@ -621,7 +626,7 @@ unsigned int DoExec(TNode *G)
 #endif
 	flg = Exec_pre(ecpu);
 	ePC = Exec(&mem_ref, &flg, ecpu, SeqStart, seqflg);
-	Exec_post(flg, mem_ref);
+	Exec_post(flg, mem_ref, G);
 
 #ifdef SKIP_EMU_VBIOS
 	if ((jcs&0xf000)==config.vbios_seg && !TheCPU.err)
@@ -723,9 +728,9 @@ unsigned int DoExec_fast(TNode *G)
 			TheCPU.err = EXCP_GOBACK;
 #endif
 	} while (!TheCPU.err && (G=FindTree(ePC)) &&
-		 GoodNode(G) && !(G->flags & (F_FPOP|F_INHI)));
+		 GoodNode(G) && !(G->flags & (F_FPOP|F_INHI|F_SLFJ)));
 
-	Exec_post(flg, mem_ref);
+	Exec_post(flg, mem_ref, G);
 	return ePC;
 }
 
