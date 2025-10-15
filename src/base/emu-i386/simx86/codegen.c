@@ -550,7 +550,7 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
 	G->cs = Interp_LONG_CS;
 	G->mode = mode;
 	/* check links INSIDE current node */
-	if (0 == (EFLAGS & EFLAGS_TF) ) {
+	if (!(CEmuStat & CeS_TRAP)) {
 		NodeLinker(G, G);
 	}
 	return G;

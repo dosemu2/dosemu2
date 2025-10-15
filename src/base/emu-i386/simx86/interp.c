@@ -213,7 +213,7 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		if (dsp < 0) mode |= CKSIGN;
 		/* is there a jump after the condition? if yes, simplify */
 #if !defined(SINGLESTEP)
-		if (!(EFLAGS & TF)) {
+		if (!(CEmuStat & CeS_TRAP)) {
 		  if (Fetch(P1)==JMPsid) {	/* eb xx */
 		    int dsp2 = (signed char)Fetch(P1+1) + 2;
 	    	    if (dsp2 < 0) mode |= CKSIGN;
@@ -279,9 +279,9 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 	}
 	/* no break */
 	case JMPsid: case JMPd:   /* uncond jmp */
-		if (dsp == 0 && !(EFLAGS & (VIF|IF|TF))) {	// eb fe
-		    dbug_printf("!Forever loop!\n");
-		    leavedos_main(0xebfe);
+		if (dsp == 0) {      // eb fe
+		    dbug_printf("!Possible forever loop!\n");
+		    InstrMeta[CurrIMeta].flags |= F_SLFJ;
 		}
 		if (dsp <= 0) mode |= CKSIGN;
 		Gen(JMP_LINK, mode, j_t);
@@ -439,6 +439,11 @@ static unsigned int FindExecCode(unsigned int PC)
 		if (G->flags & F_PREJ)
 			PrejitNodesExecd++;
 #endif
+		/* checking for infinite loops, flagged in JumpGen() */
+		if ((G->flags & F_SLFJ) && !(EFLAGS & (VIF|IF|TF))) {
+			error("!Forever loop!\n");
+			leavedos_main(0xebfe);
+		}
 		if (G->seqlen == 0) {
 			error("CPU-EMU: Zero-len code node?\n");
 			break;
@@ -998,7 +1003,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*56*/	case PUSHsi:
 /*57*/	case PUSHdi:	opc = OpIsPush[opc];
 #ifndef SINGLESTEP
-			if (!(EFLAGS & TF)) {
+			if (!(CEmuStat & CeS_TRAP)) {
 			int m = _mode;		// enter with prefix
 			int cnt = 2;
 			int is_66;
@@ -1079,7 +1084,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*5e*/	case POPsi:
 /*5f*/	case POPdi:
 #ifndef SINGLESTEP
-			if (!(EFLAGS & TF)) {
+			if (!(CEmuStat & CeS_TRAP)) {
 			int m = _mode;
 			int cnt = 2;
 			Gen(O_POP1, m);
@@ -1332,7 +1337,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*90*/	case NOP:	//if (!IsCodeInBuf()) Gen(L_NOP, _mode);
 			Gen(L_NOP, _mode);
 			PC++;
-			if (!(EFLAGS & TF))
+			if (!(CEmuStat & CeS_TRAP))
 			    while (Fetch(PC)==NOP) PC++;
 			break;
 /*91*/	case XCHGcx:
@@ -1387,7 +1392,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_MOVS_SavA, m, OVERR_DS);
 #ifndef SINGLESTEP
 			/* optimize common sequence MOVSw..MOVSw..MOVSb */
-			if (!(EFLAGS & TF)) {
+			if (!(CEmuStat & CeS_TRAP)) {
 				int cnt = 3;
 				m = UNPREFIX(m);
 				while (++cnt < NUMGENS && Fetch(PC) == MOVSw &&
@@ -1437,7 +1442,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_DI, m); PC++;
 			Gen(O_MOVS_SavA, m, OVERR_DS);
 #ifndef SINGLESTEP
-			if (!(EFLAGS & TF)) {
+			if (!(CEmuStat & CeS_TRAP)) {
 			    int cnt = 3;
 			    m = UNPREFIX(m);
 			    while (++cnt < NUMGENS && Fetch(PC) == STOSw &&
@@ -1456,7 +1461,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_REG, m, Ofs_AL); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSb-STOSb */
-			if (!(EFLAGS & TF) && Fetch(PC) == STOSb &&
+			if (!(CEmuStat & CeS_TRAP) && Fetch(PC) == STOSb &&
 					!e_querymark(PC, 1)) {
 				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST, OVERR_DS);
 				Gen(S_DI, m);
@@ -1472,7 +1477,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_REG, m, Ofs_EAX); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSw-STOSw */
-			if (!(EFLAGS & TF) && Fetch(PC) == STOSw &&
+			if (!(CEmuStat & CeS_TRAP) && Fetch(PC) == STOSw &&
 					!e_querymark(PC, 1)) {
 				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST, OVERR_DS);
 				Gen(S_DI, m);
@@ -1810,7 +1815,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			repmod = _mode | (opc==REPNE? MREPNE:MREP);
 repag0:
 			realrepmod = repmod;
-			if ((EFLAGS & TF) &&
+			if ((CEmuStat & CeS_TRAP) &&
 			    ((repmod & ADDR16) ? rCX : rECX) > 0) {
 				/* use LOOP for REP below with TF set, because
 				   we must trap for every string ins */
@@ -1974,7 +1979,7 @@ repag0:
 					    e_printf("ADDRoverride: new _mode %04x\n",repmod);
 					PC++; goto repag0;
 			}
-			if ((EFLAGS & TF) && !(repmod & (MREP|MREPNE))) {
+			if ((CEmuStat & CeS_TRAP) && !(repmod & (MREP|MREPNE))) {
 				/* with TF set, we use LOOP instead of REP so we can stop at
 				   every iteration */
 				int op = LOOP;
