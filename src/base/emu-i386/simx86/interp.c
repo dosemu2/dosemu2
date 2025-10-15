@@ -163,6 +163,7 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 	case JMPld: case CALLl: // far jmp/call
 		d_t = DataFetchWL_U(mode, P2+1);
 		if (REALADDR()) {
+			InstrMeta[CurrIMeta].flags |= F_LJMP;
 			j_t = SEGOFF2LINEAR(FetchW(P2 + pskip - 2), d_t);
 			dsp = j_t - P2;
 		} else {
@@ -604,12 +605,33 @@ static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
 			      unsigned short ocs, int basemode, int flags)
 {
 	TNode *G;
+	unsigned ret;
+	int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
+	int i = 0;
 
 	do {
 		PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
 		G = interp_post(PC, Interp_LONG_CS, basemode, flags);
 	} while (!G);
-	return G->key;
+	ret = G->key;
+#ifndef SINGLEBLOCK
+	if (!(flags & F_PREJ) && (CEmuStat & (CeS_TRAP|CeS_STI)))
+		return ret;
+	while ((G->unlinked_jmp_targets & TARGET_T) && !(G->flags & (F_LJMP|F_LEAV))) {
+		TNode *oldG = G;
+		PC = G->clink_t.target;
+		if (e_querymark(PC, gap)) break;
+		do {
+			PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
+			G = interp_post(PC, Interp_LONG_CS, basemode, flags);
+		} while (!G);
+		i++;
+		NodeLinker(oldG, G);
+	}
+	if (debug_level('e') && i)
+		dbug_printf("Linked %d TARGET_T nodes in advance\n", i);
+#endif
+	return ret;
 }
 
 static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
