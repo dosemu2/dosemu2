@@ -601,15 +601,15 @@ static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
 {
 	TNode *G;
 	unsigned ret;
-	int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
-	int i = 0;
 
 	do {
 		PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
 		G = interp_post(PC, Interp_LONG_CS, basemode, flags);
 	} while (!G);
 	ret = G->key;
-#ifndef SINGLEBLOCK
+#if !defined(SINGLEBLOCK) && SPEC_PREJIT
+	int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
+	int i = 0;
 	if (!(flags & F_PREJ) && (CEmuStat & (CeS_TRAP|CeS_STI)))
 		return ret;
 	while ((G->unlinked_jmp_targets & TARGET_T) && !(G->flags & (F_LJMP|F_LEAV))) {
