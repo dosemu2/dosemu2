@@ -593,6 +593,8 @@ static void Exec_post(unsigned long flg, unsigned int mem_ref, const TNode *G)
 		CEmuStat |= CeS_STI;
 		TheCPU.err = 0;
 	}
+	if (TheCPU.err == EXCP_TFSET)
+		TheCPU.err = 0;
 	/* checking for infinite loops, flagged in JumpGen() */
 	if (G && (G->flags & F_SLFJ) && !(EFLAGS & (VIF|IF|TF))) {
 		error("!Forever loop!\n");

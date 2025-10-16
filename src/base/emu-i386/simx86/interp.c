@@ -371,6 +371,10 @@ static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 
 /////////////////////////////////////////////////////////////////////////////
 
+static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			unsigned short ocs, int basemode, int flags);
+static void HandleEmuSignals(void);
+
 static unsigned int FindExecCode(unsigned int PC)
 {
 	TNode *G;
@@ -381,13 +385,37 @@ static unsigned int FindExecCode(unsigned int PC)
 	 * any signal processing. Jumps are defined as
 	 * a 'descheduling point' for checking signals.
 	 */
-	while ((G=FindTree(PC))) {
-		if (!GoodNode(G)) {
-			InvalidateNodeRange(G->key, G->seqlen, NULL);
-			return PC;
+	while (1) {
+		if (EFLAGS & TF)
+			CEmuStat |= CeS_TRAP;
+		G = FindTree(PC);
+		if (G) {
+			if (!GoodNode(G) || (CEmuStat & (CeS_TRAP|CeS_STI))) {
+				InvalidateNodeRange(G->key, G->seqlen, NULL);
+				G = NULL;
+			}
+			else if (debug_level('e')>2)
+				e_printf("** Found compiled code at %08x\n",PC);
 		}
-		if (debug_level('e')>2)
-			e_printf("** Found compiled code at %08x\n",PC);
+		else if (e_querymark(PC, 1)) {
+			/* slow path */
+			InvalidateNodeRange(PC, 1, NULL);
+		}
+		if (!G) {
+			if (CEmuStat & (CeS_PREJIT_RM | CeS_PREJIT_PM)) {
+				TheCPU.err = EXCP_GOBACK;
+				return PC;
+			}
+#if 0
+			/* this obviously can't happen with current code, but
+			 * slows down execution under debug a lot */
+			if (debug_level('e') && e_querymark(PC, 1))
+				error("simx86: code nodes clashed at %x\n", PC);
+#endif
+			if (debug_level('e')>=9)
+				dbug_printf("\n%s",e_print_regs(LONG_CS));
+			G = _Interp86(PC, LONG_CS, TheCPU.cs, TheCPU.mode, 0);
+		}
 		if (debug_level('e') &&
 				/* check for codemarks inconsistency */
 				e_querymark_all(G->key, G->seqlen) == 0) {
@@ -440,17 +468,11 @@ static unsigned int FindExecCode(unsigned int PC)
 		if (G->flags & F_PREJ)
 			PrejitNodesExecd++;
 #endif
-		if (G->seqlen == 0) {
-			error("CPU-EMU: Zero-len code node?\n");
-			break;
-		}
-#ifdef SINGLESTEP
-		return PC;
-#else
+		assert(G->seqlen);
 		if (TheCPU.err) return PC;
-		if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC|CeS_STI))
-			  return PC;
-#endif
+		if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC))
+			HandleEmuSignals();
+		if (TheCPU.err) return PC;
 	}
 	return PC;
 }
@@ -487,9 +509,6 @@ static void HandleEmuSignals(void)
 		CEmuStat &= ~(CeS_SIGPEND | CeS_RPIC);
 }
 
-static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
-			      unsigned short ocs, int basemode, int flags);
-static unsigned int interp_pre(unsigned int PC);
 static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 			      unsigned short ocs, int basemode);
 
@@ -508,47 +527,10 @@ void Interp86(void)
     CEmuStat &= ~(CeS_TRAP|CeS_STI);
 
     PC = LONG_CS + TheCPU.eip;
-    while (1) {
-      assert(CurrIMeta < 0);
-      PC = interp_pre(PC);
-      if (TheCPU.err)
-        break;
-      PC = _Interp86(PC, LONG_CS, TheCPU.cs, TheCPU.mode, 0);
-    }
-    assert(CurrIMeta<0);
+    assert(CurrIMeta < 0);
+    PC = FindExecCode(PC);
+    assert(CurrIMeta < 0);
     TheCPU.eip = PC - LONG_CS;
-}
-
-static unsigned int interp_pre(unsigned int PC)
-{
-	unsigned int P2 = FindExecCode(PC);
-	if (TheCPU.err == EXCP_TFSET)
-		TheCPU.err = 0;
-	if (TheCPU.err) return P2;
-	if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC)) {
-		HandleEmuSignals();
-		if (TheCPU.err) return P2;
-	}
-	if (EFLAGS & TF)
-		CEmuStat |= CeS_TRAP;
-	if (P2 == PC || e_querymark(P2, 1)) {
-		/* slow path */
-		InvalidateNodeRange(P2, 1, NULL);
-	}
-	PC = P2;
-	if (CEmuStat & (CeS_PREJIT_RM | CeS_PREJIT_PM)) {
-		TheCPU.err = EXCP_GOBACK;
-		return PC;
-	}
-#if 0
-	/* this obviously can't happen with current code, but
-	 * slows down execution under debug a lot */
-	if (debug_level('e') && e_querymark(PC, 1))
-		error("simx86: code nodes clashed at %x\n", PC);
-#endif
-	if (debug_level('e')>=9)
-		dbug_printf("\n%s",e_print_regs(LONG_CS));
-	return PC;
 }
 
 /* safety gap should be definitely longer than 1 instruction to not
@@ -596,17 +578,16 @@ static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 		return G;
 }
 
-static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
-			      unsigned short ocs, int basemode, int flags)
+static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			unsigned short ocs, int basemode, int flags)
 {
-	TNode *G;
-	unsigned ret;
+	TNode *G, *ret;
 
 	do {
 		PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
 		G = interp_post(PC, Interp_LONG_CS, basemode, flags);
 	} while (!G);
-	ret = G->key;
+	ret = G;
 #if !defined(SINGLEBLOCK) && SPEC_PREJIT
 	int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
 	int i = 0;
