@@ -179,12 +179,15 @@ class BaseTestCase(object):
                 cls.have_vm86 = True
 
             try:
-                check_call(["kvm-ok",], stdout=DEVNULL)
-                major, minor = release().split('.')[0:2]
-                if not (major == '6' and minor in ['11', '12', '13']):
-                    cls.have_kvm = True
-            except CalledProcessError:
+                with open("/dev/kvm", "r+b") as f:
+                    major, minor = release().split('.')[0:2]
+                    if not (major == '6' and minor in ['11', '12', '13']):
+                         cls.have_kvm = True
+            except FileNotFoundError:
                 pass
+            except PermissionError:
+                op = check_output(["getfacl", "/dev/kvm"])
+                print("\nPermissions wrong on /dev/kvm\n%s\n" % op.decode('ASCII'))
 
     @classmethod
     def tearDownClass(cls):
