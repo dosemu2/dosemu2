@@ -17,7 +17,6 @@ jobs:
 
     uses: ./.github/workflows/ci-build.yml
     with:
-      jobtype: 'triggered'
       subtype: ''
       runtype: 'normal'
       FAILURE_SUFFIX: 'triggered-normal'
@@ -30,7 +29,6 @@ jobs:
 
     uses: ./.github/workflows/ci-build.yml
     with:
-      jobtype: 'triggered'
       subtype: 'asan'
       runtype: 'simple'
       FAILURE_SUFFIX: 'triggered-asan'
@@ -43,7 +41,6 @@ jobs:
 
     uses: ./.github/workflows/ci-build.yml
     with:
-      jobtype: 'triggered'
       subtype: ''
       runtype: 'full'
       FAILURE_SUFFIX: 'triggered-full'

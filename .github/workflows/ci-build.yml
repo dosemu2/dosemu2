@@ -2,9 +2,6 @@ name: Build
 on:
   workflow_call:
     inputs:
-      jobtype:
-        required: true
-        type: string
       subtype:
         required: true
         type: string
@@ -28,7 +25,6 @@ jobs:
 
     - name: Build or install software under test
       env:
-        JOBTYPE: ${{ inputs.jobtype }}
         SUBTYPE: ${{ inputs.subtype }}
         RUNTYPE: ${{ inputs.runtype }}
       run: ./ci_build_or_install.sh
@@ -56,7 +52,6 @@ jobs:
     - name: Test
       id: test
       env:
-        JOBTYPE: ${{ inputs.jobtype }}
         SUBTYPE: ${{ inputs.subtype }}
         RUNTYPE: ${{ inputs.runtype }}
       run: ./ci_test.sh
