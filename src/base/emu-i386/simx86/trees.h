@@ -47,11 +47,11 @@
 // Tree node key definition.
 //
 
-struct avltr_node;
+struct TNode;
 
 typedef struct _bkref {
 	struct _bkref *next;
-	struct avltr_node **ref;
+	struct TNode **ref;
 	char branch;
 } backref;
 
@@ -61,7 +61,7 @@ typedef struct _bkref {
 typedef struct _lnkdesc {
 	unsigned int link;
 	unsigned int target;
-	struct avltr_node **ref;
+	struct TNode **ref;
 } linkdesc;
 
 typedef struct _imgen {
@@ -90,7 +90,7 @@ typedef struct _imeta {
 } IMeta;
 
 typedef struct _codebufhdr {
-	struct avltr_node *bkptr;
+	struct TNode *bkptr;
 	void *selfptr;
 	Addr2Pc meta[0]; /* there are nap of these */
 	/* behind these follows the code */
@@ -115,11 +115,16 @@ extern int TreeCleanups;
 typedef struct avltr_node
 {
 /* ----- Structure for a node in a right-threaded AVL tree. ----- */
+    struct TNode *data;		/* Pointer to data. */
     struct avltr_node *link[2];	/* Subtrees or threads. */
     signed char bal;		/* Balance factor. */
     char cache;			/* Used during insertion. */
     char pad;			/* Reserved for fully threaded trees. */
     signed char rtag;		/* Right thread tag. */
+} avltr_node;
+
+typedef struct TNode
+{
 /* -------------------------------------------------------------- */
 	int key;		/* signed! and don't move it from here! */
 /* -------------------------------------------------------------- */
