@@ -2,6 +2,17 @@
 
 set -e
 
+if [ "${RUNTYPE}" = "packaged" ] ; then
+  sudo add-apt-repository -y -c main -c main/debug ppa:dosemu2/ppa
+  sudo apt install -y \
+    dosemu2 \
+    dosemu2-dbgsym \
+    fdpp \
+    fdpp-dbgsym
+  exit 0
+fi
+
+# Build dosemu2 and fdpp locally
 LOCALFDPP="localfdpp.git"
 LOCALFDPPINST="$(pwd)/localfdpp"
 FDPPBRANCH=""

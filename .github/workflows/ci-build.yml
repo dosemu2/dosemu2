@@ -26,12 +26,12 @@ jobs:
     - name: Package install
       run: ./ci_prereq.sh
 
-    - name: Build
+    - name: Build or install software under test
       env:
         JOBTYPE: ${{ inputs.jobtype }}
         SUBTYPE: ${{ inputs.subtype }}
         RUNTYPE: ${{ inputs.runtype }}
-      run: ./ci_build.sh
+      run: ./ci_build_or_install.sh
 
     - name: Cache binaries
       uses: actions/cache@v4
