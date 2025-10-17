@@ -506,6 +506,9 @@ int init_kvm_cpu(void)
   int ret;
   int nent = 512;
 
+  if (!config.kvm)
+    return 0;
+
   if ((kernel_version_code >= KERNEL_VERSION(6, 11, 0) &&
        kernel_version_code < KERNEL_VERSION(6, 12, 44)) ||
       (kernel_version_code >= KERNEL_VERSION(6, 13, 0) &&

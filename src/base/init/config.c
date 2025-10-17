@@ -1305,7 +1305,7 @@ config_init(int argc, char **argv)
     int             err;
     int             was_exec = 0, was_T1 = 0;
     const char * const getopt_string =
-       "23456A::B::C::c::D:d:E:e:f:g:H:hi:I:K:k::L:l:M:mNno:P:pqSsT::t::VvwXx:Y";
+       "23456A::B::C::c::D:d:E:e:f:g:H:hi:I:K:k::L:l:M:mNno:P:pqSsT::t::VvwXx:Yz:";
 
     basename = strrchr(argv[0], '/');   /* parse the program name */
     basename = basename ? basename + 1 : argv[0];
@@ -1416,6 +1416,7 @@ config_init(int argc, char **argv)
     if (config_check_only) set_debug_level('c',1);
 
     shlock_init(dosemu_tmpdir);
+    config.kvm = 1;
 
     if (nodosrc && dosrcname) {
         c_printf("CONF: using %s as primary config\n", dosrcname);
@@ -1680,6 +1681,9 @@ config_init(int argc, char **argv)
 	      was_T1++;
 	    if (optarg && strchr(optarg, 'h'))
 	      misc_e6_store_options("SHELL_LOADHIGH_DEFAULT=1");
+	    break;
+	case 'z':
+	    config.kvm = atoi(optarg);
 	    break;
 
 	case '?':

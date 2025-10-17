@@ -161,6 +161,7 @@ typedef struct config_info {
        int cpu_vm;
        int cpu_vm_dpmi;
        boolean dpmi_remote;
+       boolean kvm;
        int CPUSpeedInMhz;
        /* for video */
        int console_video;
