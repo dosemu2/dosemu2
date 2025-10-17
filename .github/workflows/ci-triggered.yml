@@ -19,7 +19,7 @@ jobs:
     with:
       bldtype: 'standard'
       runtype: 'normal'
-      FAILURE_SUFFIX: 'triggered-normal'
+      os: 'ubuntu-24.04'
 
   asan:
     name: ASAN
@@ -31,7 +31,7 @@ jobs:
     with:
       bldtype: 'asan'
       runtype: 'simple'
-      FAILURE_SUFFIX: 'triggered-asan'
+      os: 'ubuntu-24.04'
 
   full:
     name: Full
@@ -43,4 +43,4 @@ jobs:
     with:
       bldtype: 'standard'
       runtype: 'full'
-      FAILURE_SUFFIX: 'triggered-full'
+      os: 'ubuntu-24.04'

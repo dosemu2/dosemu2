@@ -9,4 +9,4 @@ jobs:
     with:
       bldtype: 'asan'
       runtype: 'simple'
-      FAILURE_SUFFIX: 'manual-asan'
+      os: 'ubuntu-24.04'

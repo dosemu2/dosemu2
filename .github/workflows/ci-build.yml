@@ -1,4 +1,4 @@
-name: Build
+name: Worker
 on:
   workflow_call:
     inputs:
@@ -8,14 +8,13 @@ on:
       runtype:
         required: true
         type: string
-      FAILURE_SUFFIX:
+      os:
         required: true
         type: string
 
 jobs:
-  build:
-
-    runs-on: ubuntu-24.04
+  worker:
+    runs-on: ${{ inputs.os }}
 
     steps:
     - uses: actions/checkout@v4
@@ -27,6 +26,7 @@ jobs:
       env:
         BLDTYPE: ${{ inputs.bldtype }}
         RUNTYPE: ${{ inputs.runtype }}
+        OS: ${{ inputs.os }}
       run: ./ci_build_or_install.sh
 
     - name: Cache binaries
@@ -54,11 +54,12 @@ jobs:
       env:
         BLDTYPE: ${{ inputs.bldtype }}
         RUNTYPE: ${{ inputs.runtype }}
+        OS: ${{ inputs.os }}
       run: ./ci_test.sh
 
     - name: Upload failure logs
       if: ${{ always() && (steps.test.outcome == 'failure') }}
       uses: actions/upload-artifact@v4
       with:
-        name: failure-logs-${{ inputs.FAILURE_SUFFIX }}
+        name: failure-logs-${{ format('{0}-{1}-{2}', inputs.bldtype, inputs.runtype, inputs.os) }}
         path: test_*

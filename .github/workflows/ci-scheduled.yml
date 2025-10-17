@@ -13,7 +13,7 @@ jobs:
     with:
       bldtype: 'asan'
       runtype: 'simple'
-      FAILURE_SUFFIX: 'asan'
+      os: 'ubuntu-24.04'
 
   full:
     name: Full
@@ -22,7 +22,7 @@ jobs:
     with:
       bldtype: 'standard'
       runtype: 'full'
-      FAILURE_SUFFIX: 'full'
+      os: 'ubuntu-24.04'
 
   packaged:
     name: Packaged

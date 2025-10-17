@@ -9,4 +9,4 @@ jobs:
     with:
       bldtype: 'standard'
       runtype: 'full'
-      FAILURE_SUFFIX: 'manual-full'
+      os: 'ubuntu-24.04'
