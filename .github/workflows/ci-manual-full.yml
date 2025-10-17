@@ -5,7 +5,7 @@ on:
 jobs:
   manual_full:
     name: Manual (FULL)
-    uses: ./.github/workflows/ci-build.yml
+    uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'standard'
       runtype: 'full'

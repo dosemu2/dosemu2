@@ -15,7 +15,7 @@ jobs:
          contains(github.event.head_commit.message, '[full ci]') == false &&
          contains(github.event.head_commit.message, '[asan ci]') == false)
 
-    uses: ./.github/workflows/ci-build.yml
+    uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'standard'
       runtype: 'normal'
@@ -27,7 +27,7 @@ jobs:
          contains(github.event.head_commit.message, '[full ci]') == false &&
          contains(github.event.head_commit.message, '[asan ci]') == true)
 
-    uses: ./.github/workflows/ci-build.yml
+    uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'asan'
       runtype: 'simple'
@@ -39,7 +39,7 @@ jobs:
          contains(github.event.head_commit.message, '[full ci]') == true &&
          contains(github.event.head_commit.message, '[asan ci]') == false)
 
-    uses: ./.github/workflows/ci-build.yml
+    uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'standard'
       runtype: 'full'

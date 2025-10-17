@@ -5,7 +5,7 @@ on:
 jobs:
   manual_asan:
     name: Manual (ASAN)
-    uses: ./.github/workflows/ci-build.yml
+    uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'asan'
       runtype: 'simple'

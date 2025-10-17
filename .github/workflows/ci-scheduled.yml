@@ -9,7 +9,7 @@ jobs:
   asan:
     name: ASAN
     if: (github.repository_owner == 'dosemu2')
-    uses: ./.github/workflows/ci-build.yml
+    uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'asan'
       runtype: 'simple'
@@ -18,7 +18,7 @@ jobs:
   full:
     name: Full
     if: (github.repository_owner == 'dosemu2')
-    uses: ./.github/workflows/ci-build.yml
+    uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'standard'
       runtype: 'full'
