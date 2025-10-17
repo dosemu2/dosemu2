@@ -114,12 +114,16 @@ static inline avltr_node *Tmalloc(void)
   return G;
 }
 
-static inline void Tfree(avltr_node *G)
+static inline void Tfree(avltr_node *p)
 {
-  free(G->data);
-  G->data = NULL;
-  G->link[0] = TNodePool->link[0];
-  TNodePool->link[0] = G;
+  TNode *G = p->data;
+  if (G)
+    __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
+		     NULL, __ATOMIC_RELAXED);
+  free(G);
+  p->data = NULL;
+  p->link[0] = TNodePool->link[0];
+  TNodePool->link[0] = p;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -396,6 +400,8 @@ void avltr_delete(const int key)
 	    TNode *Gt = t->data;
 	    TNode *Gs = s->data;
 	    if (Gt->mblock) dlfree(Gt->mblock);
+	    __atomic_store_n(&findtree_cache[Gt->key&FINDTREE_CACHE_HASH_MASK],
+			     NULL, __ATOMIC_RELAXED);
 /* e_printf("<03 node exchange %p->%p>\n",s,t); */
 	    datacopy(Gt, Gs);
 /**/	    if (Gt->addr==NULL) {
