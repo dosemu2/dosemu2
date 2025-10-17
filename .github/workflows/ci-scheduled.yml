@@ -11,7 +11,7 @@ jobs:
     if: (github.repository_owner == 'dosemu2')
     uses: ./.github/workflows/ci-build.yml
     with:
-      subtype: 'asan'
+      bldtype: 'asan'
       runtype: 'simple'
       FAILURE_SUFFIX: 'asan'
 
@@ -20,7 +20,7 @@ jobs:
     if: (github.repository_owner == 'dosemu2')
     uses: ./.github/workflows/ci-build.yml
     with:
-      subtype: ''
+      bldtype: 'standard'
       runtype: 'full'
       FAILURE_SUFFIX: 'full'
 

@@ -7,6 +7,6 @@ jobs:
     name: Manual (Normal)
     uses: ./.github/workflows/ci-build.yml
     with:
-      subtype: ''
+      bldtype: 'standard'
       runtype: 'normal'
       FAILURE_SUFFIX: 'manual-normal'

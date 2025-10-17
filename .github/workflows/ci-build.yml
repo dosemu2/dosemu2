@@ -2,7 +2,7 @@ name: Build
 on:
   workflow_call:
     inputs:
-      subtype:
+      bldtype:
         required: true
         type: string
       runtype:
@@ -25,7 +25,7 @@ jobs:
 
     - name: Build or install software under test
       env:
-        SUBTYPE: ${{ inputs.subtype }}
+        BLDTYPE: ${{ inputs.bldtype }}
         RUNTYPE: ${{ inputs.runtype }}
       run: ./ci_build_or_install.sh
 
@@ -52,7 +52,7 @@ jobs:
     - name: Test
       id: test
       env:
-        SUBTYPE: ${{ inputs.subtype }}
+        BLDTYPE: ${{ inputs.bldtype }}
         RUNTYPE: ${{ inputs.runtype }}
       run: ./ci_test.sh
 

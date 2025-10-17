@@ -7,6 +7,6 @@ jobs:
     name: Manual (ASAN)
     uses: ./.github/workflows/ci-build.yml
     with:
-      subtype: 'asan'
+      bldtype: 'asan'
       runtype: 'simple'
       FAILURE_SUFFIX: 'manual-asan'
