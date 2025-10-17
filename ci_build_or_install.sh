@@ -2,7 +2,7 @@
 
 set -e
 
-if [ "${RUNTYPE}" = "packaged" ] ; then
+if [ "${BLDTYPE}" = "packaged" ] ; then
   sudo add-apt-repository -y -c main -c main/debug ppa:dosemu2/ppa
   sudo apt install -y \
     dosemu2 \

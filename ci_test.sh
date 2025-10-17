@@ -35,20 +35,16 @@ export PYTHONUNBUFFERED=1
 export TEST_DOSEMU=/usr/local/bin/dosemu
 export TEST_CMDDIR=/usr/local/share/dosemu/commands
 
+if [ "${BLDTYPE}" = "packaged" ] ; then
+  export SKIP_UNCERTAIN=1
+  if [ "${OS}" = "ubuntu-22.04" ] ; then
+    export SKIP_NATIVE_DPMI=1
+  fi
+  export TEST_DOSEMU=/usr/bin/dosemu
+  export TEST_CMDDIR=/usr/share/dosemu/dosemu2-cmds-0.3
+fi
+
 case "${RUNTYPE}" in
-  "packaged")
-    export NO_FAILFAST=1
-    export SKIP_UNCERTAIN=1
-    if [ "${OS}" = "ubuntu-22.04" ] ; then
-      export SKIP_NATIVE_DPMI=1
-    fi
-    export TEST_DOSEMU=/usr/bin/dosemu
-    export TEST_CMDDIR=/usr/share/dosemu/dosemu2-cmds-0.3
-    python3 test/test_dosemu.py PPDOSGITTestCase
-    python3 test/test_dosemu.py MSDOS622TestCase
-    python3 test/test_dosemu.py FRDOS130TestCase
-    python3 test/test_dosemu.py DRDOS701TestCase
-    ;;
   "full")
     export NO_FAILFAST=1
     python3 test/test_dosemu.py PPDOSGITTestCase

@@ -56,13 +56,13 @@ jobs:
     - name: Install test prerequisites
       id: test_prereq
       env:
-        RUNTYPE: packaged
+        BLDTYPE: packaged
       run: ./ci_test_prereq.sh
 
     - name: Test
       id: test
       env:
-        RUNTYPE: packaged
+        BLDTYPE: packaged
         OS: ${{ matrix.os }}
       run: ./ci_test.sh
 
