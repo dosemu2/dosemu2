@@ -1654,7 +1654,8 @@ static int xCS1 = 0;
 
 void CollectStat (void)
 {
-	int i, m = 0;
+	int i;
+	unsigned int m = 0;
 #ifdef SHOW_STAT
 	int csm = config.CPUSpeedInMhz*1000;
 //	xCST[cstx].a = TheCPU.EMUtime;
