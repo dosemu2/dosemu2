@@ -87,7 +87,7 @@ static void DumpTree (FILE *fd);
 static TNode *findtree_cache[FINDTREE_CACHE_HASH_MASK+1];
 
 static avltr_node *TNodePool;
-//static int NodeLimit = 10000;
+static int NodeLimit = 10000;
 
 #define RANGE_INTERSECT(al,ah,l,h)	({int _l2=(al);\
 	int _h2=(ah); ((_h2 > (l)) && (_l2 < (h))); })
@@ -1291,6 +1291,15 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
   return nG;
+}
+
+void tree_gc(void)
+{
+  int i;
+
+  if (ninodes > NodeLimit) {
+	for (i=0; i<CreationIndex; i++) TraverseAndClean();
+  }
 }
 
 static TNode *FindTree_tail(int key)

@@ -162,6 +162,7 @@ typedef struct avltr_tree
 
 TNode *FindTree(int key);
 TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf);
+void tree_gc(void);
 
 void InitTrees(void);
 

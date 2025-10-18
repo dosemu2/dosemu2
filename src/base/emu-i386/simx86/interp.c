@@ -124,7 +124,7 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 			Fetch(abeg);
 	    }
 	}
-	return Close(PC, Interp_LONG_CS, mode);
+	return Close(PC, Interp_LONG_CS, mode, flags);
 }
 
 static inline unsigned int UNPREFIX(unsigned int m)

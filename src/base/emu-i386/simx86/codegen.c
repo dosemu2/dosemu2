@@ -520,7 +520,8 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
  *
  */
 
-TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
+TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
+		int flags)
 {
 	IMeta *I0;
 	TNode *G;
@@ -553,6 +554,10 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
 	if (!(CEmuStat & CeS_TRAP)) {
 		NodeLinker(G, G);
 	}
+
+	/* must be done after a_markpage() to avoid excessive m_unprots */
+	if (!(flags & (F_PREJ | F_SPRJ)))
+		tree_gc();
 	return G;
 }
 
