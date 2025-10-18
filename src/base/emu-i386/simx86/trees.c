@@ -116,25 +116,12 @@ static inline avltr_node *Tmalloc(void)
 
 static inline void Tfree(avltr_node *p)
 {
-  TNode *G = p->data;
-  if (G)
-    __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
-		     NULL, __ATOMIC_RELAXED);
-  free(G);
   p->data = NULL;
   p->link[0] = TNodePool->link[0];
   TNodePool->link[0] = p;
 }
 
 /////////////////////////////////////////////////////////////////////////////
-
-static inline void datacopy(TNode *nd, TNode *ns)
-{
-  char *s = (char *)&(ns->key);
-  char *d = (char *)&(nd->key);
-  int l = sizeof(TNode)-offsetof(TNode,key);
-  memcpy(d,s,l);
-}
 
 static TNode **avltr_probe (TNode *item)
 {
@@ -314,6 +301,7 @@ void avltr_delete(const int key)
   unsigned char a[AVL_MAX_HEIGHT];	/* Stack P: Bits. */
   int k = 1;				/* Stack P: Pointer. */
   avltr_node *p;
+  TNode *G;
 
   a[0] = 0;
   pa[0] = &tree->root;
@@ -345,6 +333,8 @@ void avltr_delete(const int key)
 #endif
   tree->count--;
   ninodes = tree->count;
+
+  G = p->data;
 
   {
     avltr_node *t = p;
@@ -397,29 +387,8 @@ void avltr_delete(const int key)
 		pa[k++] = r;
 	    }
 
-	    TNode *Gt = t->data;
-	    TNode *Gs = s->data;
-	    if (Gt->mblock) dlfree(Gt->mblock);
-	    __atomic_store_n(&findtree_cache[Gt->key&FINDTREE_CACHE_HASH_MASK],
-			     NULL, __ATOMIC_RELAXED);
+	    t->data = s->data;
 /* e_printf("<03 node exchange %p->%p>\n",s,t); */
-	    datacopy(Gt, Gs);
-/**/	    if (Gt->addr==NULL) {
-	      pthread_mutex_unlock(&trees_mtx);
-	      leavedos_main(0x8130);
-	    }
-	    /* keep the node reference to itself */
-	    Gt->mblock->bkptr = Gt;
-	    Gs->addr = NULL;
-	    Gs->mblock = NULL;
-	    Gs->nrefs = 0;
-	    memset(&Gs->clink_t, 0, sizeof(linkdesc));
-	    memset(&Gs->clink_nt, 0, sizeof(linkdesc));
-	    Gs->unlinked_jmp_targets = 0;
-	    memset(&Gs->bkr, 0, sizeof(backref));
-	    Gs->key = 0;
-	    free(Gs);
-	    s->data = NULL;
 
 	    if (s->rtag == PLUS) r->link[0] = s->link[1];
 	      else r->link[0] = NULL;
@@ -449,7 +418,14 @@ void avltr_delete(const int key)
 	    leavedos_main(0x9142);
 	}
 #endif
-  if (p->data && p->data->mblock) dlfree(p->data->mblock);
+/**/ if (G->addr==NULL) {
+      pthread_mutex_unlock(&trees_mtx);
+      leavedos_main(0x8130);
+  }
+  if (G->mblock) dlfree(G->mblock);
+  __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
+		   NULL, __ATOMIC_RELAXED);
+  free(G);
   Tfree(p);
 
   while (--k) {
