@@ -222,7 +222,7 @@ extern void Gen(int op, int mode, ...);
 extern void AddrGen(int op, int mode, ...);
 extern void (*Fp87_op)(int exop, int reg, unsigned mem_ref);
 extern int Fp87_illegal_op(int exop, int reg);
-TNode *Close(unsigned int PC, unsigned int Interp_LONGCS, int mode);
+TNode *Close(unsigned int PC, unsigned int Interp_LONGCS, int mode, int flags);
 extern unsigned char * (*CodeGen)(unsigned char *CodePtr,
 				  unsigned char *BaseGenBuf, const IGen *IG);
 extern unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,

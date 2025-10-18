@@ -816,6 +816,9 @@ void e_gen_sigalrm(void)
 	 * the passed context is that of dosemu, NOT that of the
 	 * emulated CPU! */
 	exit_pending_or(CeS_SIGPEND);
+
+	/* this triggers calculation of paramaters for garbage collect */
+	TheCPU.sigprof_pending = 1;
 }
 
 void e_gen_sigalrm_from_thread(void)

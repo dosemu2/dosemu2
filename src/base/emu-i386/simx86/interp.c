@@ -95,7 +95,8 @@ static char R1Tab_l[14] =
  * The compiled code is then moved into the tree and can be picked up
  * by the next DoExec.
  */
-static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
+static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
+		int flags)
 {
 	unsigned int P0 = InstrMeta[0].npc;
 
@@ -111,6 +112,11 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
 	    InvalidateNodeRange(P0, PC - P0, NULL);
 	    if (!e_querymprotrange_full(P0, PC - P0)) {
 		unsigned int abeg, aend;
+
+		/* in case of prejit, the page content could
+		 * be altered, so we better re-jit */
+		if (flags & (F_PREJ | F_SPRJ))
+			return NULL;
 		abeg = P0 & _PAGE_MASK;
 		aend = PC & _PAGE_MASK;
 		/* re-populate cache */
@@ -118,7 +124,7 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode)
 			Fetch(abeg);
 	    }
 	}
-	return Close(PC, Interp_LONG_CS, mode);
+	return Close(PC, Interp_LONG_CS, mode, flags);
 }
 
 static inline unsigned int UNPREFIX(unsigned int m)
@@ -401,7 +407,9 @@ static unsigned int FindExecCode(unsigned int PC)
 			/* slow path */
 			InvalidateNodeRange(PC, 1, NULL);
 		}
-		if (!G) {
+		/* future proofing: _Interp86() can't fail now in non-prejit mode
+		   but if it ever does, retry */
+		while (!G) {
 			if (CEmuStat & (CeS_PREJIT_RM | CeS_PREJIT_PM)) {
 				TheCPU.err = EXCP_GOBACK;
 				return PC;
@@ -537,10 +545,9 @@ void Interp86(void)
  * overwrite something unintentionally */
 #define SAFE_PRJ_GAP 16
 
-static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
-			  const int mode, int flags)
+static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
+		       const int mode, int flags)
 {
-		TNode *G = NULL;
 		int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
 		assert (CurrIMeta>=0);
 
@@ -571,11 +578,11 @@ static TNode *interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 			if (!(flags & F_SPRJ))
 				/* don't do recursive speculation ! */
 				flags |= can_speculate();
-			G = DoClose(PC, Interp_LONG_CS, mode);
-			G->flags |= flags;
+			InstrMeta[0].flags |= flags;
+			return 1;
 		}
 
-		return G;
+		return 0;
 }
 
 static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
@@ -585,8 +592,8 @@ static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
 
 	do {
 		PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
-		G = interp_post(PC, Interp_LONG_CS, basemode, flags);
-	} while (!G);
+	} while (!interp_post(PC, Interp_LONG_CS, basemode, flags));
+	G = DoClose(PC, Interp_LONG_CS, basemode, flags);
 	ret = G;
 #if !defined(SINGLEBLOCK) && SPEC_PREJIT
 	int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
@@ -599,8 +606,8 @@ static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
 		if (e_querymark(PC, gap)) break;
 		do {
 			PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
-			G = interp_post(PC, Interp_LONG_CS, basemode, flags);
-		} while (!G);
+		} while (!interp_post(PC, Interp_LONG_CS, basemode, flags));
+		G = DoClose(PC, Interp_LONG_CS, basemode, flags);
 		i++;
 		NodeLinker(oldG, G);
 	}
