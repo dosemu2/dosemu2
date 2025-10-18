@@ -182,7 +182,14 @@ class BaseTestCase(object):
                 with open("/dev/kvm", "r+b") as f:
                     major, minor = release().split('.')[0:2]
                     if not (major == '6' and minor in ['11', '12', '13']):
-                         cls.have_kvm = True
+                        if environ.get("NO_KVM", '0') == '1':
+                            print("\nUsable KVM found but NO_KVM=1 - Disabling\n")
+                        else:
+                            print("\nUsable KVM found\n")
+                            cls.have_kvm = True
+                    else:
+                        print("\nUsable KVM found but blacklisted kernel (6.11 - 6.13) - Disabling\n")
+
             except FileNotFoundError:
                 pass
             except PermissionError:
@@ -481,6 +488,9 @@ class BaseTestCase(object):
                 "-td",
                 #    "-Da",
                 "--Fimagedir", str(self.imagedir)]
+        if environ.get("NO_KVM", '0') == '1':
+            args.extend(["-z", "0"])
+
         if opts is not None:
             args.extend(["-I", opts])
 
@@ -534,6 +544,8 @@ class BaseTestCase(object):
                 "-o", str(self.topdir / self.logfiles['log'][0]),
                 "-td",
                 "-ks"]
+        if environ.get("NO_KVM", '0') == '1':
+            args.extend(["-z", "0"])
         args.extend(xargs)
 
         self.mkfile("dosemu.conf", config, dname=self.imagedir)
