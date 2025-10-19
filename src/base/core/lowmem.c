@@ -159,8 +159,8 @@ void rm_stack_leave(void)
 		set_TF();
 }
 
-#define LMHEAP_OFF 0xa000
-#define LMHEAP_SIZE 0x4000
+#define LMHEAP_OFF 0x9000
+#define LMHEAP_SIZE 0x5000
 
 static uint16_t lmheap_add(void)
 {
