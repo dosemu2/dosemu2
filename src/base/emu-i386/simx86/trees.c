@@ -1464,7 +1464,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
   pthread_mutex_lock(&trees_mtx);
   p = CollectTree.root.link[0];
   if (p == NULL) goto quit;
-  /* find nearest (lesser than) node */
+  /* find crossing-or-in-range node */
   for (;;) {
       if (p == NULL) goto quit;
       G = p->data;
@@ -1474,10 +1474,26 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	if (p->link[0]==NULL) break;
 	p = p->link[0];
       }
-      else if (G->key < al) {
+      else if (G->key + G->seqlen <= al) {
         avltr_node *G2;
 	G2 = p->link[1];
 	if (G2 == &CollectTree.root || G2->data->key > al) {
+	  avltr_node *G3;
+	  if (G->alive <= 0) {
+	    /* remove dead node as it may be overlapped by good one */
+	    p = DoDelNode(p);
+	    continue;
+	  }
+	  G3 = NEXTNODE(p);
+	  if (G3 == &CollectTree.root)
+	    G3 = NULL;
+	  if (!G3 || G3->data->key >= ah)
+	    goto quit;  // no overlap
+	  p = G3;
+	  if (G3->data->key <= al)
+	    continue;
+	  /* found first fully-in-range node - return it */
+	  G = p->data;
 	  if (G->alive <= 0) {
 	    /* remove dead node as it may be overlapped by good one */
 	    p = DoDelNode(p);
@@ -1487,6 +1503,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	} else p = G2;
       }
       else {
+        /* crossing lower boundary or exact match start */
 	if (G->alive <= 0) {
 	  p = DoDelNode(p);
 	  continue;
