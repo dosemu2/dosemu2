@@ -425,6 +425,7 @@ void avltr_delete(const int key)
   if (G->mblock) dlfree(G->mblock);
   __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
 		   NULL, __ATOMIC_RELAXED);
+  if (G == LastXNode) LastXNode = NULL;
   free(G);
   Tfree(p);
 
@@ -613,6 +614,7 @@ void avltr_destroy(void)
 		  free(B2);
 	      }
 	      if (p->data->mblock) dlfree(p->data->mblock);
+	      if (p->data == LastXNode) LastXNode = NULL;
 	      free(p->data);
 	      p->data = NULL;
 	  }
@@ -1174,6 +1176,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 	   compiled version */
 	NodeUnlinker(nG);
 	if (nG->mblock) dlfree(nG->mblock);
+	if (nG == LastXNode) LastXNode = NULL;
 	free(nG);
   }
   else {

@@ -66,7 +66,7 @@ unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
 
 int UseLinker = 0;
 hitimer_u TimeStartExec;
-static TNode *LastXNode = NULL;
+TNode *LastXNode = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
 
