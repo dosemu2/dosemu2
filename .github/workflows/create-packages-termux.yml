@@ -1,4 +1,4 @@
-name: Packages
+name: Create Packages (Termux)
 
 on:
   push:
