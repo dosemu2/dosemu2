@@ -1490,7 +1490,6 @@ static void BreakNode(TNode *G, unsigned char *eip)
 
 int InvalidateNodeRange(int al, int len, unsigned char *eip)
 {
-  avltr_node *p;
   TNode *G;
   int ah;
   int cleaned = 0;
@@ -1508,15 +1507,13 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
   if (G == NULL) goto quit;
   if (debug_level('e')>1) e_printf("Invalidate from node %08x on\n",G->key);
 
-  p = _avltr_find(G->key);
-  assert(p);
   /* walk tree in ascending, hopefully sorted, address order */
   for (;;) {
-      if (p == &CollectTree.root || p->data->key >= ah)
+      int ahG;
+      if (!G || G->key >= ah)
         break;
-      G = p->data;
+      ahG = G->key + G->seqlen;
       if (G->addr && (G->alive>0)) {
-	int ahG = G->key + G->seqlen;
 	if (RANGE_INTERSECT(G->key,ahG,al,ah)) {
 	    unsigned char *ahE;
 	    if (debug_level('e')>1)
@@ -1544,7 +1541,9 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	    }
 	}
       }
-      p = NEXTNODE(p);
+      if (ahG >= ah)
+        break;
+      G = find_node(ahG, ah - ahG);
   }
 quit:
   pthread_mutex_unlock(&trees_mtx);
