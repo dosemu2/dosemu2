@@ -1279,15 +1279,9 @@ void tree_gc(void)
   }
 }
 
-static TNode *FindTree_tail(int key)
+static avltr_node *_avltr_find(int key)
 {
   avltr_node *I;
-  TNode *G;
-  static int tccount=0;
-#if PROFILE >= 2
-  hitimer_t t0 = 0;
-  if (debug_level('e')) t0 = GETTSC();
-#endif
   I = CollectTree.root.link[0];
   if (I == NULL) return NULL;	/* always NULL the first time! */
 
@@ -1296,16 +1290,39 @@ static TNode *FindTree_tail(int key)
 
       if (diff < 0) {
 	  I = I->link[0];
-	  if (I == NULL) goto endsrch;
+	  if (I == NULL) return NULL;
       }
       else if (diff > 0) {
-	  if (I->rtag == MINUS) goto endsrch;
+	  if (I->rtag == MINUS) return NULL;
 	  I = I->link[1];
       }
       else break;
   }
+  return I;
+}
 
-  G = I->data;
+static TNode **avltr_find(int key)
+{
+  avltr_node *I = _avltr_find(key);
+  if (!I)
+    return NULL;
+  return &I->data;
+}
+
+static TNode *FindTree_tail(int key)
+{
+  TNode **I;
+  TNode *G;
+  static int tccount=0;
+#if PROFILE >= 2
+  hitimer_t t0 = 0;
+  if (debug_level('e')) t0 = GETTSC();
+#endif
+
+  I = avltr_find(key);
+  if (!I) goto endsrch;
+  G = *I;
+  assert(G);
   if (G->addr && (G->alive>0)) {
 	if (debug_level('e')>3) e_printf("Found key %08x\n",key);
 	G->alive = NODELIFE(G);
