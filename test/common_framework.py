@@ -183,18 +183,18 @@ class BaseTestCase(object):
                     major, minor = release().split('.')[0:2]
                     if not (major == '6' and minor in ['11', '12', '13']):
                         if environ.get("NO_KVM", '0') == '1':
-                            print("\nUsable KVM found but NO_KVM=1 - Disabling\n")
+                            print(" \nUsable KVM found but NO_KVM=1 - Disabling", file=stderr, flush=True)
                         else:
-                            print("\nUsable KVM found\n")
+                            print(" \nUsable KVM found", file=stderr, flush=True)
                             cls.have_kvm = True
                     else:
-                        print("\nUsable KVM found but blacklisted kernel (6.11 - 6.13) - Disabling\n")
+                        print(" \nUsable KVM found but blacklisted kernel (6.11 - 6.13) - Disabling", file=stderr, flush=True)
 
             except FileNotFoundError:
                 pass
             except PermissionError:
                 op = check_output(["getfacl", "/dev/kvm"])
-                print("\nPermissions wrong on /dev/kvm\n%s\n" % op.decode('ASCII'))
+                print(" \nPermissions wrong on /dev/kvm\n%s" % op.decode('ASCII'), file=stderr, flush=True)
 
     @classmethod
     def tearDownClass(cls):
@@ -587,11 +587,6 @@ class BaseTestCase(object):
 
 class MyTestResult(unittest.TextTestResult):
 
-    def startTestRun(self):
-        super(MyTestResult, self).startTestRun()
-        self.stream.writeln(" ")
-        self.stream.flush()
-
     def getDescription(self, test):
         if 'SubTest' in strclass(test.__class__):
             return str(test)
@@ -723,6 +718,12 @@ class MyTestResult(unittest.TextTestResult):
 
 class MyTestRunner(unittest.TextTestRunner):
     resultclass = MyTestResult
+
+    def run(self, test):
+        self.stream.flush()
+        result = super().run(test)
+        self.stream.flush()
+        return result
 
 
 def main(argv=None):

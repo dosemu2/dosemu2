@@ -22,10 +22,11 @@ python3 test/test_dosemu.py --get-test-binaries
 # Make cpu tests here so that we see any failures
 make -C test/cpu clean all
 
-echo
-echo "====================================================="
-echo "=        Tests run on various flavours of DOS       ="
-echo "====================================================="
+cat >&2 << EOF
+=====================================================
+=        Tests run on various flavours of DOS       =
+=====================================================
+EOF
 # all DOS flavours, all tests
 # python3 test/test_dosemu.py
 # single DOS example
