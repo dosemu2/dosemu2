@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eo pipefail
+
 if [ "${GITHUB_ACTIONS}" = "true" ] ; then
   # CI is already set
   export CI_BRANCH="$(echo ${GITHUB_REF} | cut -d/ -f3)"
@@ -35,20 +37,73 @@ export PYTHONUNBUFFERED=1
 export TEST_DOSEMU=/usr/local/bin/dosemu
 export TEST_CMDDIR=/usr/local/share/dosemu/commands
 
-case "${RUNTYPE}" in
-  "packaged")
-    export NO_FAILFAST=1
-    export SKIP_UNCERTAIN=1
-    if [ "${OS}" = "ubuntu-22.04" ] ; then
-      export SKIP_NATIVE_DPMI=1
+if [ "${BLDTYPE}" = "packaged" ] ; then
+  export SKIP_UNCERTAIN=1
+  if [ "${OS}" = "ubuntu-22.04" ] ; then
+    export SKIP_NATIVE_DPMI=1
+  fi
+  export TEST_DOSEMU=/usr/bin/dosemu
+  export TEST_CMDDIR=/usr/share/dosemu/dosemu2-cmds-0.3
+fi
+
+if [ "${BLDTYPE}" != "packaged" ] ; then  # Only makes sense if we are building the source
+  is_primary() {
+    [ "${GITHUB_REPOSITORY:-}" = "dosemu2/dosemu2" ]
+  }
+
+  is_devel() {
+    [ "$(git branch --show-current)" = "devel" ]
+  }
+
+  is_merge() {
+    git log -1 HEAD | grep -Fq 'Merge pull request'
+  }
+
+  branch_has_kvmoff() {
+    git log ${BASE_SHA:-}..HEAD | grep -Fq '[kvmoff ci]'
+  }
+
+  head_has_kvmoff() {
+    git log -1 HEAD | grep -Fq '[kvmoff ci]'
+  }
+
+  merge_has_kvmoff() {
+    git log HEAD ^HEAD^1 | grep -Fq '[kvmoff ci]'
+  }
+
+  branch_has_emulator_changes() {
+    git diff --name-only ${BASE_SHA:-}..HEAD -- src/base/emu-i386/simx8
+  }
+
+  last5_has_emulator_changes() {
+    git diff --name-only HEAD~5 -- src/base/emu-i386/simx86
+  }
+
+  merge_has_emulator_changes() {
+    git diff --name-only HEAD ^HEAD^1 -- src/base/emu-i386/simx8
+  }
+
+  if is_primary ; then
+    if is_devel ; then # could be push direct to devel, or merge commit
+      if (is_merge && (merge_has_kvmoff || merge_has_emulator_changes)) ||
+          head_has_kvmoff || last5_has_emulator_changes ; then
+        export NO_KVM=1
+      fi
+    else # could be test merge for a PR (I tested), or a topic branch for dosemu2
+      if branch_has_kvmoff || branch_has_emulator_changes ; then
+        export NO_KVM=1
+      fi
     fi
-    export TEST_DOSEMU=/usr/bin/dosemu
-    export TEST_CMDDIR=/usr/share/dosemu/dosemu2-cmds-0.3
-    python3 test/test_dosemu.py PPDOSGITTestCase
-    python3 test/test_dosemu.py MSDOS622TestCase
-    python3 test/test_dosemu.py FRDOS130TestCase
-    python3 test/test_dosemu.py DRDOS701TestCase
-    ;;
+
+  else # someone else's repo, default or topic branch prior to PR (I tested)
+    # Can't assume anything about repo, main branch name, whether it's up to date, etc.
+    if head_has_kvmoff || last5_has_emulator_changes ; then
+      export NO_KVM=1
+    fi
+  fi
+fi
+
+case "${RUNTYPE}" in
   "full")
     export NO_FAILFAST=1
     python3 test/test_dosemu.py PPDOSGITTestCase

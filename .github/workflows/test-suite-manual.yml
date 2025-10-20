@@ -1,0 +1,39 @@
+name: Test Suite (Manual)
+on:
+  workflow_dispatch:
+    inputs:
+      bldtype:
+        description: "Type of build"
+        required: true
+        default: "standard"
+        type: choice
+        options:
+          - standard
+          - asan
+          - packaged
+      runtype:
+        description: "Breadth of tests"
+        required: true
+        default: "normal"
+        type: choice
+        options:
+          - simple
+          - normal
+          - full
+      os:
+        description: "OS version"
+        required: true
+        default: "ubuntu-24.04"
+        type: choice
+        options:
+          - ubuntu-22.04
+          - ubuntu-24.04
+
+jobs:
+  manual:
+    name: Test Suite (${{ inputs.bldtype }}-${{ inputs.runtype }}-${{ inputs.os }})
+    uses: ./.github/workflows/test-suite-worker.yml
+    with:
+      bldtype: ${{ inputs.bldtype }}
+      runtype: ${{ inputs.runtype }}
+      os: ${{ inputs.os }}

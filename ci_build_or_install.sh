@@ -2,6 +2,17 @@
 
 set -e
 
+if [ "${BLDTYPE}" = "packaged" ] ; then
+  sudo add-apt-repository -y -c main -c main/debug ppa:dosemu2/ppa
+  sudo apt install -y \
+    dosemu2 \
+    dosemu2-dbgsym \
+    fdpp \
+    fdpp-dbgsym
+  exit 0
+fi
+
+# Build dosemu2 and fdpp locally
 LOCALFDPP="localfdpp.git"
 LOCALFDPPINST="$(pwd)/localfdpp"
 FDPPBRANCH=""
@@ -19,7 +30,7 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
   echo "DEBUG_MODE = 1"  >  local.mak
   echo "EXTRA_DEBUG = 1" >> local.mak
   echo "USE_UBSAN = 1" >> local.mak
-  if [ "${SUBTYPE}" = "asan" ] ; then
+  if [ "${BLDTYPE}" = "asan" ] ; then
     echo "USE_ASAN = 1" >> local.mak
   fi
 
@@ -38,7 +49,7 @@ sudo add-apt-repository -y -c main -c main/debug ppa:dosemu2/ppa
 mk-build-deps --install --root-cmd sudo
 sudo apt remove -y fdpp
 
-if [ "${SUBTYPE}" = "asan" ] ; then
+if [ "${BLDTYPE}" = "asan" ] ; then
   sed -i 's/asan off/asan on/g' compiletime-settings.devel
 fi
 ./default-configure -d

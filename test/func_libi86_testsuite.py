@@ -55,6 +55,9 @@ def libi86_test_item(self, test):
     build.mkdir()
 
     options = '-f {0}/dosemu.conf -n --Fimagedir {0} -o {1}'.format(self.imagedir, self.logfiles['log'][0])
+    if environ.get("NO_KVM", '0') == '1':
+        options += " -z 0"
+
     args = [
         '--x-installcheck',
         '--x-test-underlying',

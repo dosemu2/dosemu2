@@ -1,37 +1,35 @@
-name: Build
+name: Worker
 on:
   workflow_call:
     inputs:
-      jobtype:
-        required: true
-        type: string
-      subtype:
+      bldtype:
         required: true
         type: string
       runtype:
         required: true
         type: string
-      FAILURE_SUFFIX:
+      os:
         required: true
         type: string
 
 jobs:
-  build:
-
-    runs-on: ubuntu-24.04
+  worker:
+    runs-on: ${{ inputs.os }}
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 50
 
     - name: Package install
       run: ./ci_prereq.sh
 
-    - name: Build
+    - name: Build or install software under test
       env:
-        JOBTYPE: ${{ inputs.jobtype }}
-        SUBTYPE: ${{ inputs.subtype }}
+        BLDTYPE: ${{ inputs.bldtype }}
         RUNTYPE: ${{ inputs.runtype }}
-      run: ./ci_build.sh
+        OS: ${{ inputs.os }}
+      run: ./ci_build_or_install.sh
 
     - name: Cache binaries
       uses: actions/cache@v4
@@ -56,14 +54,15 @@ jobs:
     - name: Test
       id: test
       env:
-        JOBTYPE: ${{ inputs.jobtype }}
-        SUBTYPE: ${{ inputs.subtype }}
+        BLDTYPE: ${{ inputs.bldtype }}
         RUNTYPE: ${{ inputs.runtype }}
+        OS: ${{ inputs.os }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
       run: ./ci_test.sh
 
     - name: Upload failure logs
       if: ${{ always() && (steps.test.outcome == 'failure') }}
       uses: actions/upload-artifact@v4
       with:
-        name: failure-logs-${{ inputs.FAILURE_SUFFIX }}
+        name: failure-logs-${{ format('{0}-{1}-{2}', inputs.bldtype, inputs.runtype, inputs.os) }}
         path: test_*

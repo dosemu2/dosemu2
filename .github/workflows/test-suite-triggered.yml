@@ -1,0 +1,21 @@
+name: Test Suite (Triggered)
+
+on:
+  push:
+
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+# workflow_dispatch:
+
+jobs:
+  triggered:
+    name: Test Suite (standard-normal-ubuntu-24.04)
+    uses: ./.github/workflows/test-suite-worker.yml
+    with:
+      bldtype: 'standard'
+      runtype: 'normal'
+      os: 'ubuntu-24.04'

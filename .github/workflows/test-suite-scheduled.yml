@@ -1,0 +1,39 @@
+name: Test Suite (Scheduled)
+
+on:
+  schedule:
+    - cron: '23 23 * * 0' # 23:23 Every Sunday
+
+  workflow_dispatch:
+
+jobs:
+  asan:
+    name: Test Suite (asan-simple-ubuntu-24.04)
+    if: (github.repository_owner == 'dosemu2')
+    uses: ./.github/workflows/test-suite-worker.yml
+    with:
+      bldtype: 'asan'
+      runtype: 'simple'
+      os: 'ubuntu-24.04'
+
+  full:
+    name: Test Suite (standard-full-ubuntu-24.04)
+    if: (github.repository_owner == 'dosemu2')
+    uses: ./.github/workflows/test-suite-worker.yml
+    with:
+      bldtype: 'standard'
+      runtype: 'full'
+      os: 'ubuntu-24.04'
+
+  packaged:
+    name: Test Suite (packaged-full-*)
+    if: (github.repository_owner == 'dosemu2')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    uses: ./.github/workflows/test-suite-worker.yml
+    with:
+      bldtype: 'packaged'
+      runtype: 'full'
+      os: ${{ matrix.os }}
