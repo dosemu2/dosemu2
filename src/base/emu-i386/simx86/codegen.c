@@ -589,7 +589,8 @@ static unsigned int Exec_pre(unsigned char *ecpu)
 	return flg;
 }
 
-static void Exec_post(unsigned long flg, unsigned int mem_ref, const TNode *G)
+static void Exec_post(unsigned long flg, unsigned int mem_ref,
+		      unsigned short seqflg)
 {
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
@@ -601,7 +602,7 @@ static void Exec_post(unsigned long flg, unsigned int mem_ref, const TNode *G)
 	if (TheCPU.err == EXCP_TFSET)
 		TheCPU.err = 0;
 	/* checking for infinite loops, flagged in JumpGen() */
-	if (G && (G->flags & F_SLFJ) && !(EFLAGS & (VIF|IF|TF))) {
+	if ((seqflg & F_SLFJ) && !(EFLAGS & (VIF|IF|TF))) {
 		error("!Forever loop!\n");
 		leavedos_main(0xebfe);
 	}
@@ -655,7 +656,8 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 
 	flg = Exec_pre(ecpu);
 	ePC = Exec(&mem_ref, &flg, ecpu, SeqStart, seqflg, pLastXKey);
-	Exec_post(flg, mem_ref, G);
+	// G is unreliable (maybe deleted) past this point!
+	Exec_post(flg, mem_ref, seqflg);
 
 	if (debug_level('e')>2 && *pLastXKey != ePC)
 		e_printf("New LastXKey=%08x\n",*pLastXKey);
@@ -685,7 +687,7 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	/* signal_pending at this point is 1 if there was ANY signal,
 	 * not just a SIGALRM
 	 */
-	if (((G->flags & F_INHI) || (CEmuStat & CeS_STI)) &&
+	if (((seqflg & F_INHI) || (CEmuStat & CeS_STI)) &&
 	    !(G->seqnum == 1 && (CEmuStat & CeS_INHI))) {
 		/* ignore signals and traps for movss/popss; if there is just
 		   one compiled instruction it should be ignored unconditionally
@@ -713,11 +715,13 @@ unsigned int DoExec_fast(TNode *G, unsigned *pLastXKey)
 	unsigned LastXKey = *pLastXKey;
 	unsigned long flg = Exec_pre(ecpu);
 	unsigned int ePC, mem_ref, e;
+	unsigned short seqflg = G->flags;
 
 	do {
 		if (LastXKey != G->key)
 			NodeLinker(FindTree(LastXKey), G);
 		ePC = Exec(&mem_ref, &flg, ecpu, G->addr, 0, &LastXKey);
+		// G is unreliable (maybe deleted) past this point!
 		if (TheCPU.err == EXCP_STISHADOW) {
 			/* as STI can exit here as well from the middle
 			   of a block we must mirror DoExec here */
@@ -735,9 +739,9 @@ unsigned int DoExec_fast(TNode *G, unsigned *pLastXKey)
 			TheCPU.err = EXCP_GOBACK;
 #endif
 	} while (!TheCPU.err && (G=FindTree(ePC)) &&
-		 GoodNode(G) && !(G->flags & (F_FPOP|F_INHI|F_SLFJ)));
+		 !((seqflg=G->flags) & (F_FPOP|F_INHI|F_SLFJ)) && GoodNode(G));
 
-	Exec_post(flg, mem_ref, G);
+	Exec_post(flg, mem_ref, G ? seqflg : 0);
 	*pLastXKey = LastXKey;
 	return ePC;
 }

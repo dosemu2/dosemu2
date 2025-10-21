@@ -447,7 +447,10 @@ static unsigned int FindExecCode(unsigned int PC)
 		NodesExecd++;
 #if PROFILE
 		TotalNodesExecd++;
+		if (G->flags & F_PREJ)
+			PrejitNodesExecd++;
 #endif
+		assert(G->seqlen);
 #if !defined(ASM_DUMP) && !defined(SINGLESTEP)
 		/* try fast inner loop if nothing special is going on */
 		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI)) &&
@@ -457,27 +460,25 @@ static unsigned int FindExecCode(unsigned int PC)
 		else
 #endif
 		{
+			unsigned short seqflg = G->flags;
+			G->flags &= ~(F_SPEC|F_LEAV);
 #if SPEC_PREJIT
-			if (G->flags & F_SPEC)
+			if (seqflg & F_SPEC)
 				prejit_run(G);
 #endif
 			PC = DoExec(G, &LastXKey);
+			// G is unreliable (maybe deleted) past this point!
 #if SPEC_PREJIT
-			if (G->flags & F_SPEC) {
-				G->flags &= ~F_SPEC;
+			if (seqflg & F_SPEC) {
 				prejit_sync();
 			}
 #endif
-			if (G->flags & F_LEAV) {
-				G->flags &= ~F_LEAV;
+			if (seqflg & F_LEAV) {
 				TheCPU.err = EXCP_EMULEAVE;
 			}
 		}
 #if PROFILE
-		if (G->flags & F_PREJ)
-			PrejitNodesExecd++;
 #endif
-		assert(G->seqlen);
 		if (TheCPU.err) return PC;
 		if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC))
 			HandleEmuSignals();
