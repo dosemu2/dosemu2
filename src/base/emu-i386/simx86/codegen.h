@@ -229,7 +229,6 @@ extern unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
 			unsigned char *ecpu, void *SeqStart,
 			unsigned short seqflg, unsigned *seqbase);
 unsigned int DoExec(TNode *G, unsigned *LastXKey);
-unsigned int DoExec_fast(TNode *G, unsigned *LastXKey);
 void EndGen(void);
 extern void fp87_mask_except(void);
 extern void fp87_save_except(void);
