@@ -22,10 +22,11 @@ python3 test/test_dosemu.py --get-test-binaries
 # Make cpu tests here so that we see any failures
 make -C test/cpu clean all
 
-echo
-echo "====================================================="
-echo "=        Tests run on various flavours of DOS       ="
-echo "====================================================="
+cat >&2 << EOF
+=====================================================
+=        Tests run on various flavours of DOS       =
+=====================================================
+EOF
 # all DOS flavours, all tests
 # python3 test/test_dosemu.py
 # single DOS example
@@ -72,15 +73,15 @@ if [ "${BLDTYPE}" != "packaged" ] ; then  # Only makes sense if we are building 
   }
 
   branch_has_emulator_changes() {
-    git diff --name-only ${BASE_SHA:-}..HEAD -- src/base/emu-i386/simx8
+    [ "$(git diff --name-only ${BASE_SHA:-}..HEAD -- src/base/emu-i386/simx86 | wc -l)" != "0" ]
   }
 
   last5_has_emulator_changes() {
-    git diff --name-only HEAD~5 -- src/base/emu-i386/simx86
+    [ "$(git diff --name-only HEAD~5 -- src/base/emu-i386/simx86 | wc -l)" != "0" ]
   }
 
   merge_has_emulator_changes() {
-    git diff --name-only HEAD ^HEAD^1 -- src/base/emu-i386/simx8
+    [ "$(git diff --name-only HEAD ^HEAD^1 -- src/base/emu-i386/simx86 | wc -l)" != "0" ]
   }
 
   if is_primary ; then

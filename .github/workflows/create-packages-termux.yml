@@ -1,4 +1,4 @@
-name: Packages
+name: Create Packages (Termux)
 
 on:
   push:
@@ -16,6 +16,7 @@ permissions: {} # none
 
 jobs:
   build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     permissions:
       contents: read # actions/upload-artifact doesn't need contents: write
     runs-on: ubuntu-24.04

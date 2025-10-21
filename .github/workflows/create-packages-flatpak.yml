@@ -4,11 +4,11 @@ on:
 #    branches:
 #      - devel
 
-name: Flatpack build
+name: Create Packages (Flatpak)
 
 jobs:
   build:
-    name: "Flatpak"
+    name: "build"
     runs-on: ubuntu-24.04
     if: (github.repository_owner == 'dosemu2')
     container:
