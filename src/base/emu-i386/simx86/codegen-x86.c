@@ -108,7 +108,7 @@
 static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
 			 unsigned char *ecpu, void *SeqStart,
-			 unsigned short seqflg);
+			 unsigned short seqflg, unsigned *seqbase);
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -117,18 +117,13 @@ static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
  * (the one where we switch back to interpreted code).
  *
  *		movl #return_PC,eax
+ *		movl eax, ecx (signal no link)
  *		popl edx (flags)
  *		ret
  */
-static unsigned char TailCode[TAILSIZE+1] =
-	{ 0xb8,0,0,0,0,0x5a,0xc3,0xf4 };
 
-#ifdef __x86_64__
-/* create space for 64 bit jumps (taking 12 bytes total) behing tail code */
-#define PADJMP		G5(0x9090909090,Cp)
-#else
-#define PADJMP
-#endif
+static unsigned char TailCode[TAILSIZE+1] =
+	{ 0xb8,0,0,0,0,0x89,0xc1,0x5a,0xc3,0xf4 };
 
 /*
  * This function is only here for looking at the generated binary code
@@ -315,8 +310,8 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		G2M(0x09,0xc0,Cp);
 		// jns skip
 		G2M(0x79,TAILSIZE,Cp);
-		// movl {exit_addr},%%eax; pop %%edx; ret
-		G1(0xb8,Cp); G4(IG->p1,Cp); G2M(0x5a,0xc3,Cp);
+		// movl {exit_addr},%%eax; movl %%eax, %%ecx; pop %%edx; ret
+		G1(0xb8,Cp); G4(IG->p1,Cp); G4M(0x89,0xc1,0x5a,0xc3,Cp);
 		}
 		break;
 	case L_NOP:
@@ -1632,8 +1627,8 @@ shrot0:
 		G2M(0x73,TAILSIZE+7,Cp);
 		// movb EXCP0D_GPF, Ofs_ERR(%%ebx)
 		G2M(0xc6,0x83,Cp); G4(Ofs_ERR,Cp); G1(EXCP0D_GPF,Cp);
-		// movl {exit_addr},%%eax; pop %%edx; ret
-		G1(0xb8,Cp); G4(jpc,Cp); G2M(0x5a,0xc3,Cp);
+		// movl {exit_addr},%%eax; mov %%eax, %%ecx; pop %%edx; ret
+		G1(0xb8,Cp); G4(jpc,Cp); G4M(0x89,0xc1,0x5a,0xc3,Cp);
 		// address to call in edi
 		// movl $(inum*4), %edi
 		G1(0xbf,Cp); G4(intno*4, Cp);
@@ -1673,8 +1668,8 @@ shrot0:
 #else
 		G2M(JE_JZ,TAILSIZE+1+4+1+4+1+1+4+1+1+3+3+1,Cp);
 #endif
-		// movl {exit_addr},%%eax; pop %%edx; ret
-		G1(MOViax,Cp); G4(IG->p2,Cp); G2M(POPdx,RET,Cp);
+		// movl {exit_addr},%%eax; movl %eax,%ecx;  pop %%edx; ret
+		G1(MOViax,Cp); G4(IG->p2,Cp); G4M(0x89,0xc1,POPdx,RET,Cp);
 
 		// 1:
 #ifndef __x86_64__
@@ -2272,6 +2267,8 @@ shrot0:
 			G3M(0x0f,0xb7,0xc0,Cp);
 		// addl Ofs_XCS(%%ebx),%%eax
 		G3M(0x03,0x43,Ofs_XCS,Cp);
+		// movl %%eax, %%ecx // signals indirect
+		G2M(0x89,0xc1,Cp);
 		// pop %%edx; ret
 		G2M(0x5a,0xc3,Cp);
 		}
@@ -2313,13 +2310,15 @@ shrot0:
 		    G4M(0x0f,0xb7,0x4b,Ofs_EXITPEND,Cp);
 		    // jecxz {continue}: exit if exitpend not 0
 		    G2M(0xe3,TAILSIZE,Cp);
-		    // movl {exit_addr},%%eax; pop %%edx; ret
-		    G1(0xb8,Cp); G4(dspt,Cp); G2(0xc35a,Cp);
+		    // movl {exit_addr},%%eax; pop %%edx; movl %%eax, %%ecx; ret
+		    G1(0xb8,Cp); G4(dspt,Cp); G4M(0x89,0xc1,0x5a,0xc3,Cp);
 	        }
+		// mov [node_pc], %%ecx
+		G1(0xb9,Cp); G4(IG->p1,Cp);
 		// t:	b8 [exit_pc] 5a c3
 		G1(0xb8,Cp);
-		G4(dspt,Cp); G2(0xc35a,Cp); PADJMP;
-		if (debug_level('e')>2) e_printf("JMP_Link %08x\n", dspt);
+		G4(dspt,Cp); G2(0xc35a,Cp);
+		if (debug_level('e')>2) e_printf("JMP_Link %08x %08x\n", dspt, IG->p1);
 		}
 		break;
 
@@ -2422,7 +2421,8 @@ shrot0:
 #define EXEC_CLOBBERS
 #endif
 static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
-		unsigned char *ecpu, unsigned char *SeqStart)
+		unsigned char *ecpu, unsigned char *SeqStart,
+		unsigned int *seqbase)
 {
 	unsigned ePC;
 	void *jb;
@@ -2443,14 +2443,14 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 		"call	1f\n"		/* save return addr		*/
 		"jmp	2f\n"
 		"1:\n"
-		"push	%4\n"
-		"jmp	*%5\n"
+		"push	%5\n"
+		"jmp	*%6\n"
 		"2:\n"
 #ifdef __x86_64__
 		"movq	%%r12,%%rsp\n"
 #endif
 		"pop	"RE_REG(bp)"\n"
-		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref)
+		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref),"=c"(*seqbase)
 		: "b"(ecpu),"d"(*flg),"a"(SeqStart),
 		  [mb]"D"(jb)  // don't use "r" or can assign to %rbp
 		/* Note: we need to clobber "class-less" regs (like %rbp) even
@@ -2473,7 +2473,7 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 		 * fixed reg for mem_base and move it to %ebp after push,
 		 * rather than using a mem-ref with modified %esp.
 		 */
-		: "memory", "cc", "ecx", "esi" EXEC_CLOBBERS
+		: "memory", "cc", "esi" EXEC_CLOBBERS
 	);
 	InCompiledCode = 0;
 	/* even though InCompiledCode is volatile, we also need a barrier */
@@ -2483,7 +2483,7 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 
 static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
 		unsigned char *ecpu, void *SeqStart,
-		unsigned short seqflg)
+		unsigned short seqflg, unsigned int *seqbase)
 {
 	unsigned ePC;
 	if (seqflg & F_FPOP) {
@@ -2497,7 +2497,7 @@ static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
 		fpuc = TheCPU.fpuc | 0x3f;
 		asm ("fldcw	%0" :: "m"(fpuc));
 	}
-	ePC = Exec_x86_asm(mem_ref, flg, ecpu, SeqStart);
+	ePC = Exec_x86_asm(mem_ref, flg, ecpu, SeqStart, seqbase);
 	/* was there at least one FP op in the sequence? */
 	if (seqflg & F_FPOP) {
 		int exs;

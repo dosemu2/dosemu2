@@ -75,7 +75,7 @@
 static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 			 unsigned char *ecpu, void *SeqStart,
-			 unsigned short seqflg);
+			 unsigned short seqflg, unsigned *seqbase);
 
 static unsigned char *currentIG = NULL;
 
@@ -430,7 +430,8 @@ static dosaddr_t AddrGen_sim(const IGen *IG)
 	return mem_ref;
 }
 
-static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
+static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
+			    unsigned int *seqbase)
 {
     /* working registers of the host CPU */
     wkreg DR1;	// "eax"
@@ -2720,6 +2721,7 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 
 	case JMP_TAILCODE: {	// retaddr
 		P0 = (unsigned int)IG->p0;
+		*seqbase = P0;
 		if (debug_level('e')>2) {
 			dbug_printf("** Tail code: return from %08x\n",P0);
 		} }
@@ -2727,6 +2729,7 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 
 	case JMP_INDIRECT:
 		P0 = LONG_CS + ((mode & DATA16) ? DR1.w.l : DR1.d);
+		*seqbase = P0;
 		if (debug_level('e')>2)
 			dbug_printf("** Jump taken to %08x\n",P0);
 		break;
@@ -2738,6 +2741,7 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 			continue;
 		}
 		P0 = (unsigned int)IG->p0;
+		*seqbase = IG->p1;
 		if (debug_level('e')>2) {
 			dbug_printf("** Jump taken to %08x\n",P0);
 		}
@@ -2781,6 +2785,7 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 			continue;
 		}
 		P0 = IG->p0;
+		*seqbase = IG->p1;
 		if (debug_level('e')>2 && (IG-1)->op == JMP_LINK)
 			dbug_printf("** Jump taken to %08x\n",P0);
 		}
@@ -2803,6 +2808,7 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 			continue;
 		}
 		P0 = IG->p0;
+		*seqbase = IG->p1;
 		if (debug_level('e')>2 && (IG-1)->op == JMP_LINK)
 			dbug_printf("** Jump taken to %08x\n",P0);
 		}
@@ -2867,7 +2873,7 @@ static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGen
 
 static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 			 unsigned char *ecpu, void *SeqStart,
-			 unsigned short seqflg)
+			 unsigned short seqflg, unsigned int *seqbase)
 {
 	unsigned int P0;
 
@@ -2876,9 +2882,10 @@ static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 		fp87_mask_except();
 
 	FlagSync_RFL(*flg);
-	P0 = Gen_sim(SeqStart, pmem_ref);
+	P0 = Gen_sim(SeqStart, pmem_ref, seqbase);
 	currentIG = NULL;
 	*flg = FlagSync_All();
+	if (TheCPU.err) *seqbase = P0;
 
 	return P0;
 }

@@ -227,9 +227,9 @@ extern unsigned char * (*CodeGen)(unsigned char *CodePtr,
 				  unsigned char *BaseGenBuf, const IGen *IG);
 extern unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
 			unsigned char *ecpu, void *SeqStart,
-			unsigned short seqflg);
-unsigned int DoExec(TNode *G);
-unsigned int DoExec_fast(TNode *G);
+			unsigned short seqflg, unsigned *seqbase);
+unsigned int DoExec(TNode *G, unsigned *LastXKey);
+unsigned int DoExec_fast(TNode *G, unsigned *LastXKey);
 void EndGen(void);
 extern void fp87_mask_except(void);
 extern void fp87_save_except(void);
@@ -256,7 +256,6 @@ extern char RmIsReg[];
 extern char OpIsPush[];
 extern char OpSize[];
 extern char OpSizeBit[];
-extern TNode *LastXNode;
 
 #define OPSIZE(m) (OpSize[(m)&(DATA16|MBYTE)])
 #define OPSIZEBIT(m) (OpSizeBit[(m)&(DATA16|MBYTE)])

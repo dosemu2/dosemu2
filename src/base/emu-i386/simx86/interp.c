@@ -256,8 +256,8 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 			    e_printf("### dsp=0 jmp=%x pskip=%d\n",opc,pskip);
 		    }
 		    Gen(JB_LINK, mode, opc);
-		    Gen(JMP_LINK, mode, j_nt);
-		    Gen(JMP_LINK, mode|CKSIGN, j_t);
+		    Gen(JMP_LINK, mode, j_nt, InstrMeta[0].npc);
+		    Gen(JMP_LINK, mode|CKSIGN, j_t, InstrMeta[0].npc);
 		}
 		else {
 		    if (dsp == pskip) {
@@ -265,8 +265,8 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		    }
 		    /* forward jump or backward jump >=256 bytes */
 		    Gen(JF_LINK, mode, opc);
-		    Gen(JMP_LINK, mode, j_nt);
-		    Gen(JMP_LINK, mode&~CKSIGN, j_t);
+		    Gen(JMP_LINK, mode, j_nt, InstrMeta[0].npc);
+		    Gen(JMP_LINK, mode&~CKSIGN, j_t, InstrMeta[0].npc);
 		}
 		break;
 	case JMPld: {   /* uncond jmp far */
@@ -291,7 +291,7 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		    InstrMeta[CurrIMeta].flags |= F_SLFJ;
 		}
 		if (dsp <= 0) mode |= CKSIGN;
-		Gen(JMP_LINK, mode, j_t);
+		Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
 		break;
 	case CALLl: {   /* call far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
@@ -314,13 +314,13 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 	/* no break for realaddr call */
 	case CALLd:    /* call, unfortunately also uses JMP_LINK */
 		Gen(O_PUSHI, mode, d_nt);
-		Gen(JMP_LINK, mode, j_t);
+		Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
 		break;
 	case LOOP: case LOOPZ_LOOPE: case LOOPNZ_LOOPNE:
 		Gen(JLOOP_LINK, mode, opc);
 		/* CKSIGN is likely not needed for loops */
-		Gen(JMP_LINK, mode, j_nt);
-		Gen(JMP_LINK, mode, j_t);
+		Gen(JMP_LINK, mode, j_nt, InstrMeta[0].npc);
+		Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
 		break;
 	case RETl: case RETlisp: case IRET: // far ret, indirect
 	case JMPli: case CALLli: case INT: // far jmp/call, indirect
@@ -384,6 +384,7 @@ static void HandleEmuSignals(void);
 static unsigned int FindExecCode(unsigned int PC)
 {
 	TNode *G;
+	unsigned LastXKey = PC;
 
 	/* for a sequence to be found, it must begin with
 	 * an allowable opcode. Look into table.
@@ -446,37 +447,38 @@ static unsigned int FindExecCode(unsigned int PC)
 		NodesExecd++;
 #if PROFILE
 		TotalNodesExecd++;
+		if (G->flags & F_PREJ)
+			PrejitNodesExecd++;
 #endif
+		assert(G->seqlen);
 #if !defined(ASM_DUMP) && !defined(SINGLESTEP)
 		/* try fast inner loop if nothing special is going on */
 		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI)) &&
 		    !debug_level('e') &&
 		    GoodNode(G) && !(G->flags & (F_FPOP|F_INHI|F_SPEC|F_LEAV)))
-			PC = DoExec_fast(G);
+			PC = DoExec_fast(G, &LastXKey);
 		else
 #endif
 		{
+			unsigned short seqflg = G->flags;
+			G->flags &= ~(F_SPEC|F_LEAV);
 #if SPEC_PREJIT
-			if (G->flags & F_SPEC)
+			if (seqflg & F_SPEC)
 				prejit_run(G);
 #endif
-			PC = DoExec(G);
+			PC = DoExec(G, &LastXKey);
+			// G is unreliable (maybe deleted) past this point!
 #if SPEC_PREJIT
-			if (G->flags & F_SPEC) {
-				G->flags &= ~F_SPEC;
+			if (seqflg & F_SPEC) {
 				prejit_sync();
 			}
 #endif
-			if (G->flags & F_LEAV) {
-				G->flags &= ~F_LEAV;
+			if (seqflg & F_LEAV) {
 				TheCPU.err = EXCP_EMULEAVE;
 			}
 		}
 #if PROFILE
-		if (G->flags & F_PREJ)
-			PrejitNodesExecd++;
 #endif
-		assert(G->seqlen);
 		if (TheCPU.err) return PC;
 		if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC))
 			HandleEmuSignals();
@@ -1991,8 +1993,8 @@ repag0:
 				if (repmod & MREPCOND)
 					op = (realrepmod&MREP) ? LOOPZ_LOOPE : LOOPNZ_LOOPNE;
 				Gen(JLOOP_LINK, _mode, op);
-				Gen(JMP_LINK, _mode, PC);
-				Gen(JMP_LINK, _mode, P0);
+				Gen(JMP_LINK, _mode, PC, InstrMeta[0].npc);
+				Gen(JMP_LINK, _mode, P0, InstrMeta[0].npc);
 				/* code will be flushed immediately
 				   in interp_post because TF is set */
 				break;
