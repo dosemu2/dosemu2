@@ -425,7 +425,6 @@ void avltr_delete(const int key)
   if (G->mblock) dlfree(G->mblock);
   __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
 		   NULL, __ATOMIC_RELAXED);
-  if (G == LastXNode) LastXNode = NULL;
   free(G);
   Tfree(p);
 
@@ -614,7 +613,6 @@ void avltr_destroy(void)
 		  free(B2);
 	      }
 	      if (p->data->mblock) dlfree(p->data->mblock);
-	      if (p->data == LastXNode) LastXNode = NULL;
 	      free(p->data);
 	      p->data = NULL;
 	  }
@@ -880,7 +878,8 @@ static void NodeUnlinker(TNode *G)
 			B->branch, L->target, G->key);
 		    leavedos_main(0x8110);
 		}
-		IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH, .p0 = L->target};
+		IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH,
+				 .p0 = L->target, .p1 = H->key};
 		CodeGen(H->addr + L->link, H->addr, &IG);
 		L->ref = NULL; H->unlinked_jmp_targets |= target_type;
 		G->nrefs--;
@@ -1176,7 +1175,6 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 	   compiled version */
 	NodeUnlinker(nG);
 	if (nG->mblock) dlfree(nG->mblock);
-	if (nG == LastXNode) LastXNode = NULL;
 	free(nG);
   }
   else {
@@ -1231,12 +1229,12 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   IG = &I0[CurrIMeta].gen[I0[CurrIMeta].ngen-1];
   op = IG->op;
   if (op == JMP_LINK) {
-    nG->clink_t.link = IG->p1;
+    nG->clink_t.link = IG->p2;
     nG->clink_t.target = IG->p0;
     nG->unlinked_jmp_targets |= TARGET_T;
     if (I0[CurrIMeta].ngen > 1 && (IG-1)->op == JMP_LINK) {
       IG--;
-      nG->clink_nt.link = IG->p1;
+      nG->clink_nt.link = IG->p2;
       nG->clink_nt.target = IG->p0;
       nG->unlinked_jmp_targets |= TARGET_NT;
     }

@@ -62,11 +62,10 @@
 unsigned char * (*CodeGen)(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
 		 unsigned char *ecpu, void *SeqStart,
-		 unsigned short seqflg);
+		 unsigned short seqflg, unsigned *seqbase);
 
 int UseLinker = 0;
 hitimer_u TimeStartExec;
-TNode *LastXNode = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -372,6 +371,7 @@ void Gen(int op, int mode, ...)
 
 	case JMP_LINK:		// dspt
 		IG->p0 = va_arg(ap,unsigned int);	// dspt
+		IG->p1 = va_arg(ap,unsigned int);	// PC of node
 		break;
 
 	case JLOOP_LINK:
@@ -442,7 +442,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	    for (j=0; j<I->ngen; j++) {
 		IGen *IG = &I->gen[j];
 		if (IG->op == JMP_LINK)
-			IG->p1 = CodePtr - BaseGenBuf;
+			IG->p2 = CodePtr - BaseGenBuf;
 		CodePtr = CodeGen(CodePtr, BaseGenBuf, IG);
 		if (CodePtr-cp1 > MAX_GEND_BYTES_PER_OP) {
 		    dosemu_error("Generated code (%zd bytes) overflowed into buffer, please "
@@ -607,7 +607,7 @@ static void Exec_post(unsigned long flg, unsigned int mem_ref, const TNode *G)
 	}
 }
 
-unsigned int DoExec(TNode *G)
+unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 {
 	unsigned long flg;
 	unsigned char *ecpu;
@@ -631,9 +631,34 @@ unsigned int DoExec(TNode *G)
 	hitimer_t TimeStartExec;
 	if (debug_level('e')) TimeStartExec = GETTSC();
 #endif
+	/*
+	 * Just before execution comes the linker stage.
+	 * So the order is:
+	 *	1) build code sequence in the IMeta buffer
+	 *	2) move buffer to a newly allocated node in the tree
+	 *	3) link the previous node to this node
+	 *	4) execute it, always returning back at the end
+	 * Linking: a node is linked with the next
+	 * one in execution order, provided that the end source address
+	 * of the preceding node matches the start source address of the
+	 * following (i.e. no interpreted instructions in between).
+	 *
+	 * A complication here is that the previous node may already
+	 * be linked, so an unlinked exit will return the start PC
+	 * of the original (unlinked) block in seqbase.
+	 * Unlinkable exits are flagged using ePC==LastXKey; self-links
+	 * are already handled at the compile stage.
+	 */
+	/* check links FROM LastXNode TO current node */
+	if (*pLastXKey != G->key)
+		NodeLinker(FindTree(*pLastXKey), G);
+
 	flg = Exec_pre(ecpu);
-	ePC = Exec(&mem_ref, &flg, ecpu, SeqStart, seqflg);
+	ePC = Exec(&mem_ref, &flg, ecpu, SeqStart, seqflg, pLastXKey);
 	Exec_post(flg, mem_ref, G);
+
+	if (debug_level('e')>2 && *pLastXKey != ePC)
+		e_printf("New LastXKey=%08x\n",*pLastXKey);
 
 #ifdef SKIP_EMU_VBIOS
 	if ((jcs&0xf000)==config.vbios_seg && !TheCPU.err)
@@ -675,27 +700,6 @@ unsigned int DoExec(TNode *G)
 #if defined(SINGLESTEP)
 	InvalidateNodeRange(G->key, 1, NULL);
 	avltr_delete(G->key);
-#else
-	/*
-	 * After execution comes the linker stage.
-	 * So the order is:
-	 *	1) build code sequence in the IMeta buffer
-	 *	2) move buffer to a newly allocated node in the tree
-	 *	3) execute it, always returning back at the end
-	 *	4) link it to other nodes
-	 * Linking: a node is linked with the next
-	 * one in execution order, provided that the end source address
-	 * of the preceding node matches the start source address of the
-	 * following (i.e. no interpreted instructions in between).
-	 */
-	if (G && G->alive>0) {
-		/* check links FROM LastXNode TO current node */
-		if (LastXNode && LastXNode->alive > 0)
-			NodeLinker(LastXNode, G);
-		if (debug_level('e')>2 && G != LastXNode)
-			e_printf("New LastXNode=%08x\n",G->key);
-		LastXNode = G;
-	}
 #endif
 
 	return ePC;
@@ -703,21 +707,17 @@ unsigned int DoExec(TNode *G)
 
 /* fast loop, only used if nothing special is going on; if anything
    out of the ordinary happens, the above DoExec() is called */
-unsigned int DoExec_fast(TNode *G)
+unsigned int DoExec_fast(TNode *G, unsigned *pLastXKey)
 {
 	unsigned char *ecpu = CPUOFFS(0);
+	unsigned LastXKey = *pLastXKey;
 	unsigned long flg = Exec_pre(ecpu);
 	unsigned int ePC, mem_ref, e;
 
 	do {
-		ePC = Exec(&mem_ref, &flg, ecpu, G->addr, 0);
-		if (G->alive > 0 && LastXNode && LastXNode->alive > 0) {
-			if (LastXNode->unlinked_jmp_targets &&
-			    (LastXNode->clink_t.target == G->key ||
-			     LastXNode->clink_nt.target == G->key))
-				NodeLinker(LastXNode, G);
-			LastXNode = G;
-		}
+		if (LastXKey != G->key)
+			NodeLinker(FindTree(LastXKey), G);
+		ePC = Exec(&mem_ref, &flg, ecpu, G->addr, 0, &LastXKey);
 		if (TheCPU.err == EXCP_STISHADOW) {
 			/* as STI can exit here as well from the middle
 			   of a block we must mirror DoExec here */
@@ -738,6 +738,7 @@ unsigned int DoExec_fast(TNode *G)
 		 GoodNode(G) && !(G->flags & (F_FPOP|F_INHI|F_SLFJ)));
 
 	Exec_post(flg, mem_ref, G);
+	*pLastXKey = LastXKey;
 	return ePC;
 }
 
