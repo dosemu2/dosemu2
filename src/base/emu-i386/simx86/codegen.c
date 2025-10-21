@@ -714,7 +714,7 @@ unsigned int DoExec_fast(TNode *G, unsigned *pLastXKey)
 	unsigned char *ecpu = CPUOFFS(0);
 	unsigned LastXKey = *pLastXKey;
 	unsigned long flg = Exec_pre(ecpu);
-	unsigned int ePC, mem_ref, e;
+	unsigned int ePC, mem_ref;
 	unsigned short seqflg = G->flags;
 
 	do {
@@ -729,11 +729,8 @@ unsigned int DoExec_fast(TNode *G, unsigned *pLastXKey)
 			CEmuStat &= ~CeS_TRAP;
 			break;
 		}
-		e = exit_pending_xchg(0);
-		if (e) {
-			CEmuStat |= e;
+		if (exit_pending())
 			break;
-		}
 #ifdef SKIP_EMU_VBIOS
 		if ((jcs&0xf000)==config.vbios_seg && !TheCPU.err)
 			TheCPU.err = EXCP_GOBACK;
@@ -741,6 +738,7 @@ unsigned int DoExec_fast(TNode *G, unsigned *pLastXKey)
 	} while (!TheCPU.err && (G=FindTree(ePC)) &&
 		 !((seqflg=G->flags) & (F_FPOP|F_INHI|F_SLFJ)) && GoodNode(G));
 
+	CEmuStat |= exit_pending_xchg(0);
 	Exec_post(flg, mem_ref, G ? seqflg : 0);
 	*pLastXKey = LastXKey;
 	return ePC;
