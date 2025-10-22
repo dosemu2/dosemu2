@@ -188,6 +188,7 @@
 // for HOST_ARCH_X86
 #define MREPCOND 0x01000000	// this is SCASx or CMPSx, REP can be terminated
 				// by flags
+#define MSSTP	0x02000000	// generate only one instruction
 
 // values for TNode.flags and IMeta.flags
 #define F_FPOP	0x0001	// has at least one FP instruction
@@ -242,7 +243,7 @@ static __inline__ int GoodNode(TNode *G)
 		return 0;
 	}
 	if (G->mode != TheCPU.mode) {
-		/* mode mismatch can be 32/16(MBIGCS) or MREALA */
+		/* mode mismatch can be 32/16(MBIGCS), MREALA, or MSSTP */
 		e_printf("mode mismatch at %08x: old=%x new=%x\n",
 					G->key, G->mode, TheCPU.mode);
 		return 0;
