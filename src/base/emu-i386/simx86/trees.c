@@ -89,6 +89,8 @@ static TNode *findtree_cache[FINDTREE_CACHE_HASH_MASK+1];
 static avltr_node *TNodePool;
 static int NodeLimit = 10000;
 
+TNode *FindTree_unlocked(int key);
+
 #define RANGE_INTERSECT(al,ah,l,h)	({int _l2=(al);\
 	int _h2=(ah); ((_h2 > (l)) && (_l2 < (h))); })
 #define ADDR_IN_RANGE(a,l,h)		({typeof(a) _a2=(a);	\
@@ -100,6 +102,28 @@ static int NodeLimit = 10000;
 			  if ((g)->rtag == PLUS) \
 			    while (_g->link[0]!=NULL) _g=_g->link[0]; \
 			  _g; })
+
+static TNode *find_node(unsigned a, int l)
+{
+  TNode *ret;
+  int64_t key = m_findnode(a, l);
+  if (key == -1)
+    return NULL;
+  ret = FindTree_unlocked(key);
+  assert(ret);
+  return ret;
+}
+
+static TNode *find_node_start(unsigned a, int l)
+{
+  TNode *ret;
+  int64_t key = m_findnodestart(a);
+  if (key == -1)
+    return find_node(a, l);
+  ret = FindTree_unlocked(key);
+  assert(ret);
+  return ret;
+}
 
 static inline avltr_node *Tmalloc(void)
 {
@@ -1395,6 +1419,31 @@ TNode *FindTree(int key)
   return I;
 }
 
+TNode *FindTree_unlocked(int key)
+{
+  TNode *I;
+
+  /* fast path: using cache indexed by low 12 bits of PC:
+     ~99.99% success rate */
+  I = findtree_cache[key&FINDTREE_CACHE_HASH_MASK];
+  if (I && (I->alive>0) && (I->key==key)) {
+	if (debug_level('e')) {
+	    if (debug_level('e')>4)
+		e_printf("Found key %08x via cache\n", key);
+#if PROFILE
+	    NodesFastFound++;
+#endif
+	}
+	I->alive = NODELIFE(I);
+	return I;
+  }
+
+  I = FindTree_tail(key);
+  if (I)
+	findtree_cache[key&FINDTREE_CACHE_HASH_MASK] = I;
+  return I;
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 /*
@@ -1439,14 +1488,6 @@ static void BreakNode(TNode *G, unsigned char *eip)
   e_printf("============ Node %08x break failed\n",G->key);
 }
 
-static avltr_node *DoDelNode(avltr_node *G)
-{
-  if (Traverser.p == G)
-    Traverser.p = NEXTNODE(G);
-  avltr_delete(G->data->key);
-  return CollectTree.root.link[0];
-}
-
 int InvalidateNodeRange(int al, int len, unsigned char *eip)
 {
   avltr_node *p;
@@ -1462,57 +1503,13 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
   if (debug_level('e')>1) dbug_printf("Invalidate area %08x..%08x\n",al,ah);
 
   pthread_mutex_lock(&trees_mtx);
-  p = CollectTree.root.link[0];
-  if (p == NULL) goto quit;
   /* find crossing-or-in-range node */
-  for (;;) {
-      if (p == NULL) goto quit;
-      G = p->data;
-      if (G->key > al) {
-	/* no need to check for dead node here as the left-most
-	 * node will not be overlapped by anything from left */
-	if (p->link[0]==NULL) break;
-	p = p->link[0];
-      }
-      else if (G->key + G->seqlen <= al) {
-        avltr_node *G2;
-	G2 = p->link[1];
-	if (G2 == &CollectTree.root || G2->data->key > al) {
-	  avltr_node *G3;
-	  if (G->alive <= 0) {
-	    /* remove dead node as it may be overlapped by good one */
-	    p = DoDelNode(p);
-	    continue;
-	  }
-	  G3 = NEXTNODE(p);
-	  if (G3 == &CollectTree.root)
-	    G3 = NULL;
-	  if (!G3 || G3->data->key >= ah)
-	    goto quit;  // no overlap
-	  p = G3;
-	  if (G3->data->key <= al)
-	    continue;
-	  /* found first fully-in-range node - return it */
-	  G = p->data;
-	  if (G->alive <= 0) {
-	    /* remove dead node as it may be overlapped by good one */
-	    p = DoDelNode(p);
-	    continue;
-	  }
-	  break;
-	} else p = G2;
-      }
-      else {
-        /* crossing lower boundary or exact match start */
-	if (G->alive <= 0) {
-	  p = DoDelNode(p);
-	  continue;
-	}
-	break;
-      }
-  }
+  G = find_node_start(al, len);
+  if (G == NULL) goto quit;
   if (debug_level('e')>1) e_printf("Invalidate from node %08x on\n",G->key);
 
+  p = _avltr_find(G->key);
+  assert(p);
   /* walk tree in ascending, hopefully sorted, address order */
   for (;;) {
       if (p == &CollectTree.root || p->data->key >= ah)
