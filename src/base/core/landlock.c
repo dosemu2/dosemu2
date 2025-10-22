@@ -24,9 +24,14 @@
 #include "landlock.h"
 
 #ifndef LANDLOCK_ACCESS_FS_TRUNCATE
-#define LANDLOCK_ACCESS_FS_TRUNCATE 0
+#warning LANDLOCK_ACCESS_FS_TRUNCATE not defined
+#define _LANDLOCK_ACCESS_FS_TRUNCATE 0
+#else
+#define _LANDLOCK_ACCESS_FS_TRUNCATE LANDLOCK_ACCESS_FS_TRUNCATE
 #endif
+
 #ifndef LANDLOCK_ACCESS_FS_REFER
+#warning LANDLOCK_ACCESS_FS_REFER not defined
 #define _LANDLOCK_ACCESS_FS_REFER 0
 #else
 #define _LANDLOCK_ACCESS_FS_REFER LANDLOCK_ACCESS_FS_REFER
@@ -35,7 +40,7 @@
 #define ACCESS_FILE_RW ( \
 	LANDLOCK_ACCESS_FS_WRITE_FILE | \
 	LANDLOCK_ACCESS_FS_READ_FILE | \
-	LANDLOCK_ACCESS_FS_TRUNCATE)
+	_LANDLOCK_ACCESS_FS_TRUNCATE)
 
 #define ACCESS_FILE_RO ( \
 	LANDLOCK_ACCESS_FS_READ_FILE)
@@ -81,7 +86,7 @@ int landlock_init(void)
     }
 
     assert(ruleset_fd == -1);
-#ifdef LANDLOCK_ACCESS_FS_REFER
+#if defined(LANDLOCK_ACCESS_FS_REFER) && defined(LANDLOCK_ACCESS_FS_TRUNCATE)
     ruleset_fd = landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
     if (ruleset_fd < 0) {
         perror("Failed to create a ruleset");
@@ -89,8 +94,14 @@ int landlock_init(void)
     }
     return 0;
 #else
+#ifndef LANDLOCK_ACCESS_FS_REFER
     fprintf(stderr, "Landlock ABI %i but "
             "LANDLOCK_ACCESS_FS_REFER not defined\n", abi);
+#endif
+#ifndef LANDLOCK_ACCESS_FS_TRUNCATE
+    fprintf(stderr, "Landlock ABI %i but "
+            "LANDLOCK_ACCESS_FS_TRUNCATE not defined\n", abi);
+#endif
     return 1;
 #endif
 }
