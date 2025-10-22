@@ -220,7 +220,7 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		if (dsp < 0) mode |= CKSIGN;
 		/* is there a jump after the condition? if yes, simplify */
 #if !defined(SINGLESTEP)
-		if (!(CEmuStat & CeS_TRAP)) {
+		if (!(mode & MSSTP)) {
 		  if (Fetch(P1)==JMPsid) {	/* eb xx */
 		    int dsp2 = (signed char)Fetch(P1+1) + 2;
 	    	    if (dsp2 < 0) mode |= CKSIGN;
@@ -395,9 +395,13 @@ static unsigned int FindExecCode(unsigned int PC)
 	while (1) {
 		if (EFLAGS & TF)
 			CEmuStat |= CeS_TRAP;
+		if (CEmuStat & (CeS_TRAP|CeS_STI))
+			TheCPU.mode |= MSSTP;
+		else
+			TheCPU.mode &= ~MSSTP;
 		G = FindTree(PC);
 		if (G) {
-			if (!GoodNode(G) || (CEmuStat & (CeS_TRAP|CeS_STI))) {
+			if (!GoodNode(G)) {
 				InvalidateNodeRange(G->key, G->seqlen, NULL);
 				G = NULL;
 			}
@@ -557,7 +561,7 @@ static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 
 #ifndef SINGLEBLOCK
 		IMeta *GL = &InstrMeta[CurrIMeta];
-		if ((CEmuStat & (CeS_TRAP|CeS_STI)) ||
+		if ((mode & MSSTP) ||
 		    (flags & F_LEAV) ||
 		    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
 		    e_querymark(PC, gap))
@@ -586,7 +590,7 @@ static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
 #if !defined(SINGLEBLOCK) && SPEC_PREJIT
 	int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
 	int i = 0;
-	if (!(flags & F_PREJ) && (CEmuStat & (CeS_TRAP|CeS_STI)))
+	if (!(flags & F_PREJ) && (basemode & MSSTP))
 		return ret;
 	while ((G->unlinked_jmp_targets & TARGET_T) && !(G->flags & (F_LJMP|F_LEAV))) {
 		TNode *oldG = G;
@@ -996,7 +1000,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*56*/	case PUSHsi:
 /*57*/	case PUSHdi:	opc = OpIsPush[opc];
 #ifndef SINGLESTEP
-			if (!(CEmuStat & CeS_TRAP)) {
+			if (!(_mode & MSSTP)) {
 			int m = _mode;		// enter with prefix
 			int cnt = 2;
 			int is_66;
@@ -1077,7 +1081,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*5e*/	case POPsi:
 /*5f*/	case POPdi:
 #ifndef SINGLESTEP
-			if (!(CEmuStat & CeS_TRAP)) {
+			if (!(_mode & MSSTP)) {
 			int m = _mode;
 			int cnt = 2;
 			Gen(O_POP1, m);
@@ -1330,7 +1334,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*90*/	case NOP:	//if (!IsCodeInBuf()) Gen(L_NOP, _mode);
 			Gen(L_NOP, _mode);
 			PC++;
-			if (!(CEmuStat & CeS_TRAP))
+			if (!(_mode & MSSTP))
 			    while (Fetch(PC)==NOP) PC++;
 			break;
 /*91*/	case XCHGcx:
@@ -1385,7 +1389,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_MOVS_SavA, m, OVERR_DS);
 #ifndef SINGLESTEP
 			/* optimize common sequence MOVSw..MOVSw..MOVSb */
-			if (!(CEmuStat & CeS_TRAP)) {
+			if (!(_mode & MSSTP)) {
 				int cnt = 3;
 				m = UNPREFIX(m);
 				while (++cnt < NUMGENS && Fetch(PC) == MOVSw &&
@@ -1435,7 +1439,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_DI, m); PC++;
 			Gen(O_MOVS_SavA, m, OVERR_DS);
 #ifndef SINGLESTEP
-			if (!(CEmuStat & CeS_TRAP)) {
+			if (!(_mode & MSSTP)) {
 			    int cnt = 3;
 			    m = UNPREFIX(m);
 			    while (++cnt < NUMGENS && Fetch(PC) == STOSw &&
@@ -1454,7 +1458,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_REG, m, Ofs_AL); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSb-STOSb */
-			if (!(CEmuStat & CeS_TRAP) && Fetch(PC) == STOSb &&
+			if (!(_mode & MSSTP) && Fetch(PC) == STOSb &&
 					!e_querymark(PC, 1)) {
 				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST, OVERR_DS);
 				Gen(S_DI, m);
@@ -1470,7 +1474,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_REG, m, Ofs_EAX); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSw-STOSw */
-			if (!(CEmuStat & CeS_TRAP) && Fetch(PC) == STOSw &&
+			if (!(_mode & MSSTP) && Fetch(PC) == STOSw &&
 					!e_querymark(PC, 1)) {
 				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST, OVERR_DS);
 				Gen(S_DI, m);
@@ -1711,7 +1715,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 #ifdef ASM_DUMP
 			fprintf(aLog,"%08x:\t\tint %02x\n", P0, inum);
 #endif
-			CEmuStat &= ~CeS_TRAP;  // INT suppresses trap
 			if (V86MODE() && (TheCPU.cr[4] & CR4_VME)) {
 				if (IOPL == 3) {
 					Gen(O_INT, _mode, inum, P0);
@@ -1808,7 +1811,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			repmod = _mode | (opc==REPNE? MREPNE:MREP);
 repag0:
 			realrepmod = repmod;
-			if ((CEmuStat & CeS_TRAP) &&
+			if ((_mode & MSSTP) &&
 			    ((repmod & ADDR16) ? rCX : rECX) > 0) {
 				/* use LOOP for REP below with TF set, because
 				   we must trap for every string ins */
@@ -1972,7 +1975,7 @@ repag0:
 					    e_printf("ADDRoverride: new _mode %04x\n",repmod);
 					PC++; goto repag0;
 			}
-			if ((CEmuStat & CeS_TRAP) && !(repmod & (MREP|MREPNE))) {
+			if ((_mode & MSSTP) && !(repmod & (MREP|MREPNE))) {
 				/* with TF set, we use LOOP instead of REP so we can stop at
 				   every iteration */
 				int op = LOOP;
