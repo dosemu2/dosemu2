@@ -608,30 +608,10 @@ static void Exec_post(unsigned long flg, unsigned int mem_ref,
 	}
 }
 
-unsigned int DoExec(TNode *G, unsigned *pLastXKey)
+static unsigned ExecOne(TNode *G, unsigned *mem_ref, unsigned long *flg,
+		unsigned char *ecpu, unsigned int *pLastXKey)
 {
-	unsigned long flg;
-	unsigned char *ecpu;
-	unsigned int mem_ref;
 	unsigned int ePC;
-	unsigned short seqflg = G->flags;
-	unsigned char *SeqStart = G->addr;
-
-	ecpu = CPUOFFS(0);
-	if (debug_level('e')>1) {
-		unsigned e = exit_pending();
-		if (e & CeS_SIGPEND) e_printf("** SIGALRM is pending\n");
-		if (e & CeS_RPIC) e_printf("** PIC is pending\n");
-		e_printf("==== Executing code at %p flg=%04x\n",
-			SeqStart,seqflg);
-	}
-#ifdef ASM_DUMP
-	fprintf(aLog,"%p: exec\n",G->key);
-#endif
-#if PROFILE >= 2
-	hitimer_t TimeStartExec;
-	if (debug_level('e')) TimeStartExec = GETTSC();
-#endif
 	/*
 	 * Just before execution comes the linker stage.
 	 * So the order is:
@@ -653,25 +633,75 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	/* check links FROM LastXNode TO current node */
 	if (*pLastXKey != G->key)
 		NodeLinker(FindTree(*pLastXKey), G);
-
-	flg = Exec_pre(ecpu);
-	ePC = Exec(&mem_ref, &flg, ecpu, SeqStart, seqflg, pLastXKey);
-	// G is unreliable (maybe deleted) past this point!
-	Exec_post(flg, mem_ref, seqflg);
-
-	if (debug_level('e')>2 && *pLastXKey != ePC)
-		e_printf("New LastXKey=%08x\n",*pLastXKey);
-
+	ePC = Exec(mem_ref, flg, ecpu, G->addr, G->flags, pLastXKey);
 #ifdef SKIP_EMU_VBIOS
-	if ((jcs&0xf000)==config.vbios_seg && !TheCPU.err)
+	if ((TheCPU.cs&0xf000)==config.vbios_seg && !TheCPU.err)
 		TheCPU.err = EXCP_GOBACK;
 #endif
+	return ePC;
+}
+
+unsigned int DoExec(TNode *G, unsigned *pLastXKey)
+{
+	unsigned long flg;
+	unsigned char *ecpu;
+	unsigned int mem_ref;
+	unsigned int ePC;
+	unsigned short seqflg = G->flags;
+	int block_inhibit;
+#if defined(SINGLESTEP)
+        unsigned int key = G->key;
+#endif
+
+	ecpu = CPUOFFS(0);
+	if (debug_level('e')>1) {
+		unsigned e = exit_pending();
+		if (e & CeS_SIGPEND) e_printf("** SIGALRM is pending\n");
+		if (e & CeS_RPIC) e_printf("** PIC is pending\n");
+		e_printf("==== Executing code at %p flg=%04x\n",
+			G->addr,seqflg);
+	}
+#ifdef ASM_DUMP
+	fprintf(aLog,"%p: exec\n",G->key);
+#endif
+#if PROFILE >= 2
+	hitimer_t TimeStartExec;
+	if (debug_level('e')) TimeStartExec = GETTSC();
+#endif
+	/* these flags need to be checked only once for the node */
+	G->flags &= ~(F_SPEC|F_LEAV);
+	/* if there is just one compiled instruction inhibition
+	   should be ignored unconditionally if signals and traps
+	   were already ignored, e.g. two "sti"s in a row */
+	block_inhibit = (seqflg & F_INHI) && G->seqnum == 1 &&
+	  (CEmuStat & CeS_INHI);
+	flg = Exec_pre(ecpu);
+#if !defined(ASM_DUMP) && !defined(SINGLESTEP)
+	/* try fast inner loop if nothing special is going on */
+	if (!(EFLAGS & TF) && !block_inhibit && !debug_level('e')) {
+		while (1) {
+			ePC = ExecOne(G, &mem_ref, &flg, ecpu, pLastXKey);
+			if (TheCPU.err || exit_pending() ||
+			    (seqflg & (F_INHI|F_SLFJ|F_SPEC|F_LEAV)))
+				break;
+			G = FindTree(ePC);
+			if (!G || !GoodNode(G))
+				break;
+			seqflg = G->flags;
+		}
+	} else
+#endif
+		ePC = ExecOne(G, &mem_ref, &flg, ecpu, pLastXKey);
+	// G is unreliable (maybe deleted) past this point!
+	Exec_post(flg, mem_ref, seqflg);
 
 	if (debug_level('e')) {
 #if PROFILE >= 2
 	    ExecTime += GETTSC() - TimeStartExec;
 #endif
 	    if (debug_level('e')>1) {
+		if (debug_level('e')>2 && *pLastXKey != ePC)
+			e_printf("New LastXKey=%08x\n",*pLastXKey);
 		e_printf("** End code, PC=%08x sig=%x\n",ePC,
 		    exit_pending());
 		if ((debug_level('e')>3) && (seqflg & F_FPOP)) {
@@ -684,14 +714,11 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 		}
 	    }
 	}
-	/* signal_pending at this point is 1 if there was ANY signal,
+	/* exit_pending at this point is non-zero if there was ANY signal,
 	 * not just a SIGALRM
 	 */
-	if (((seqflg & F_INHI) || (CEmuStat & CeS_STI)) &&
-	    !(G->seqnum == 1 && (CEmuStat & CeS_INHI))) {
-		/* ignore signals and traps for movss/popss; if there is just
-		   one compiled instruction it should be ignored unconditionally
-		   if signals and traps were already ignored */
+	if (((seqflg & F_INHI) || (CEmuStat & CeS_STI)) && !block_inhibit) {
+		/* ignore signals and traps for movss/popss */
 		CEmuStat |= CeS_INHI;
 		CEmuStat &= ~CeS_TRAP;
 	} else {
@@ -700,47 +727,10 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	}
 
 #if defined(SINGLESTEP)
-	InvalidateNodeRange(G->key, 1, NULL);
-	avltr_delete(G->key);
+	InvalidateNodeRange(key, 1, NULL);
+	avltr_delete(key);
 #endif
 
-	return ePC;
-}
-
-/* fast loop, only used if nothing special is going on; if anything
-   out of the ordinary happens, the above DoExec() is called */
-unsigned int DoExec_fast(TNode *G, unsigned *pLastXKey)
-{
-	unsigned char *ecpu = CPUOFFS(0);
-	unsigned LastXKey = *pLastXKey;
-	unsigned long flg = Exec_pre(ecpu);
-	unsigned int ePC, mem_ref;
-	unsigned short seqflg = G->flags;
-
-	do {
-		if (LastXKey != G->key)
-			NodeLinker(FindTree(LastXKey), G);
-		ePC = Exec(&mem_ref, &flg, ecpu, G->addr, 0, &LastXKey);
-		// G is unreliable (maybe deleted) past this point!
-		if (TheCPU.err == EXCP_STISHADOW) {
-			/* as STI can exit here as well from the middle
-			   of a block we must mirror DoExec here */
-			CEmuStat |= CeS_INHI;
-			CEmuStat &= ~CeS_TRAP;
-			break;
-		}
-		if (exit_pending())
-			break;
-#ifdef SKIP_EMU_VBIOS
-		if ((jcs&0xf000)==config.vbios_seg && !TheCPU.err)
-			TheCPU.err = EXCP_GOBACK;
-#endif
-	} while (!TheCPU.err && (G=FindTree(ePC)) &&
-		 !((seqflg=G->flags) & (F_FPOP|F_INHI|F_SLFJ)) && GoodNode(G));
-
-	CEmuStat |= exit_pending_xchg(0);
-	Exec_post(flg, mem_ref, G ? seqflg : 0);
-	*pLastXKey = LastXKey;
 	return ePC;
 }
 

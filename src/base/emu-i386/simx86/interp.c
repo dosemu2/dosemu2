@@ -444,41 +444,27 @@ static unsigned int FindExecCode(unsigned int PC)
 				error("@corrupted at %x\n", G->key + j);
 		}
 		/* ---- this is the MAIN EXECUTE point ---- */
+		unsigned short seqflg = G->flags;
 		NodesExecd++;
 #if PROFILE
 		TotalNodesExecd++;
-		if (G->flags & F_PREJ)
+		if (seqflg & F_PREJ)
 			PrejitNodesExecd++;
 #endif
 		assert(G->seqlen);
-#if !defined(ASM_DUMP) && !defined(SINGLESTEP)
-		/* try fast inner loop if nothing special is going on */
-		if (!(EFLAGS & TF) && !(CEmuStat & (CeS_INHI)) &&
-		    !debug_level('e') &&
-		    GoodNode(G) && !(G->flags & (F_FPOP|F_INHI|F_SPEC|F_LEAV)))
-			PC = DoExec_fast(G, &LastXKey);
-		else
-#endif
-		{
-			unsigned short seqflg = G->flags;
-			G->flags &= ~(F_SPEC|F_LEAV);
 #if SPEC_PREJIT
-			if (seqflg & F_SPEC)
-				prejit_run(G);
+		if (seqflg & F_SPEC)
+			prejit_run(G);
 #endif
-			PC = DoExec(G, &LastXKey);
-			// G is unreliable (maybe deleted) past this point!
+		PC = DoExec(G, &LastXKey);
+		// G is unreliable (maybe deleted) past this point!
 #if SPEC_PREJIT
-			if (seqflg & F_SPEC) {
-				prejit_sync();
-			}
+		if (seqflg & F_SPEC)
+			prejit_sync();
 #endif
-			if (seqflg & F_LEAV) {
-				TheCPU.err = EXCP_EMULEAVE;
-			}
-		}
-#if PROFILE
-#endif
+		if (seqflg & F_LEAV)
+			TheCPU.err = EXCP_EMULEAVE;
+
 		if (TheCPU.err) return PC;
 		if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC))
 			HandleEmuSignals();
