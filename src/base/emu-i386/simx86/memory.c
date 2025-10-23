@@ -64,10 +64,9 @@ typedef struct _mpmap {
 	int mega;
 	void *pagemap[256];	/* 256 pages *4096 = 1M */
 	uint64_t subpage[(0x100000>>CGRAN)/UINT64_WIDTH];	/* 2^CGRAN-byte granularity, 1M/2^CGRAN bits */
-#if MPMAP_DEBUG
 	uint64_t nodemap[0x100000/UINT64_WIDTH];
-#endif
 } tMpMap;
+#define NM_MASK (0x100000/UINT64_WIDTH - 1)
 
 static tMpMap *MpH = NULL;
 int PageFaults = 0;
@@ -263,9 +262,7 @@ int e_markpage(unsigned int addr, size_t len)
 	if (debug_level('e')>1)
 		dbug_printf("MARK from %08x to %08x for %08x\n",
 			    abeg<<CGRAN,((aend+1)<<CGRAN)-1,addr);
-#if MPMAP_DEBUG
 	set_bit(abeg&CGRMASK, M->nodemap);
-#endif
 	while (abeg <= aend) {
 		assert(!test_bit(abeg&CGRMASK, M->subpage));
 		set_bit(abeg&CGRMASK, M->subpage);
@@ -292,9 +289,7 @@ int e_unmarkpage(unsigned int addr, size_t len)
 		dbug_printf("UNMARK from %08x to %08x for %08x\n",
 			    abeg<<CGRAN,((aend+1)<<CGRAN)-1,addr);
 	while (abeg <= aend) {
-#if MPMAP_DEBUG
 		clear_bit(abeg&CGRMASK, M->nodemap);
-#endif
 		clear_bit(abeg&CGRMASK, M->subpage);
 		abeg++;
 		if ((abeg&CGRMASK) == 0) {
@@ -695,6 +690,96 @@ again:
 	    }
 	    M = M->next;
 	}
+}
+
+int64_t m_findnode(unsigned int addr, size_t len)
+{
+/* we use 64bit-optimized searches for speed-up */
+#define LOG64 6
+	unsigned int abeg, aend, aabeg;
+	tMpMap *M;
+	int i, n, m, c = 0, f = -1;
+
+	assert(len);
+	abeg = addr;
+	aend = (addr+len-1);
+
+	n = abeg & ((1 << LOG64) - 1);
+	m = aend & ((1 << LOG64) - 1);
+	abeg >>= LOG64;
+	aend >>= LOG64;
+	i = (abeg & NM_MASK);
+	do {
+	    unsigned addr2 = (abeg << LOG64) & ~CGRMASK;
+	    M = FindM(addr2);
+	    if (!M) {
+		addr2 += CGRMASK + 1;
+		abeg = addr2 >> LOG64;
+		c += NM_MASK + 1 - i;
+		i = 0;
+		n = 0;
+	    }
+	} while (!M && abeg <= aend);
+	if (!M)
+	    return -1;
+	while (abeg <= aend) {
+	    f = find_bit64_from(M->nodemap[i], n);
+	    if (f != -1)
+		break;
+	    n = 0;
+	    abeg++;
+	    i++;
+	    c++;
+	    if ((i & NM_MASK) == 0) {
+		unsigned addr2 = abeg << LOG64;
+		assert((addr2 & CGRMASK) == 0);
+		i = 0;
+		do {
+		    M = FindM(addr2);
+		    if (!M) {
+			addr2 += CGRMASK + 1;
+			abeg = addr2 >> LOG64;
+			c += NM_MASK + 1;
+		    }
+		} while (!M && abeg <= aend);
+		if (!M)
+		    break;
+	    }
+	}
+	if (f == -1)
+	    return -1;
+	if (abeg == aend && f > m)
+	    return -1;
+	aabeg = addr & ~((1 << LOG64) - 1);
+	return aabeg + c * 64 + f;
+}
+
+int64_t m_findnodestart(unsigned int addr)
+{
+	unsigned int abeg, ah;
+	tMpMap *M;
+	int once = 0;  // for debug
+
+	M = FindM(addr);
+	if (!M)
+	    return -1;
+	abeg = (addr >> CGRAN) & CGRMASK;
+	ah = (addr >> CGRAN) & ~CGRMASK;
+	while (test_bit(abeg, M->subpage)) {
+	    once = 1;
+	    if (test_bit(abeg, M->nodemap))
+		return (abeg | ah) << CGRAN;
+	    if (abeg == 0) {
+		assert(ah);
+		abeg = CGRMASK + 1;
+		ah -= CGRMASK + 1;
+		M = FindM(ah << CGRAN);
+		assert(M);  // unmapped nodes are a problem
+	    }
+	    abeg--;
+	}
+	assert(!once);  // if lookup started - should not fail
+	return -1;
 }
 
 /////////////////////////////////////////////////////////////////////////////
