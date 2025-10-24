@@ -147,3 +147,121 @@ int main(void)
         self.assertRegex(results, r"X: = .*LINUX\\FS/mnt/dosemu")
 
     self.assertNotIn("FAIL", results)
+
+
+def sfn_truename(self, tests):
+    ename = "sfntruen"
+
+    self.mkfile("testit.bat", """\
+REM - FAT16
+D:
+mkdir test
+echo hello > hello.txt
+C:\\{0}
+
+REM - MFS
+C:
+mkdir test
+echo hello > hello.txt
+C:\\{0}
+
+rem end
+""".format(ename), newline="\r\n")
+
+    testdir = self.mkworkdir('d')
+    (testdir / "there.txt").write_text('there')
+    iname = self.mkimage_vbr("16", cwd=testdir)
+
+    config="""\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+$_lfn_support = (off)
+""" % iname
+
+    def mkctests(xtests):
+        results = "test_t test[] = {\n"
+        for t in xtests:
+            results += '    {"%s", "%s"},\n' % (t[0], t[1])
+        results += '  };\n'
+        results += '  int tlen = %d;' % len(xtests)
+        return results
+
+    # compile sources
+    self.mkcom_with_ia16(ename, r"""
+
+#include <dos.h>
+#include <i86.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+typedef struct {
+  const char *input;
+  const char *expected;
+} test_t;
+
+%s
+
+int main(void)
+{
+  int ret = 0;
+  union REGS r = {};
+  struct SREGS rs;
+  unsigned drive;
+  int i;
+  char *p;
+  char src[1024];
+  char dst[1024];
+  char exp[1024];
+  void __far *dta;
+
+  // Get current drive
+  _dos_getdrive(&drive);
+
+  for (i = 0; i < tlen; i++) {
+    strncpy(src, test[i].input, sizeof src);
+    if ((p = strchr(src, '$')))
+      *p = 'A' + drive - 1;
+    strncpy(exp, test[i].expected, sizeof exp);
+    if ((p = strchr(exp, '$')))
+      *p = 'A' + drive - 1;
+
+    r.x.ax = 0x6000;
+    rs.ds = FP_SEG(src);
+    r.x.si = FP_OFF(src);
+    rs.es = FP_SEG(dst);
+    r.x.di = FP_OFF(dst);
+    // need to set CF so we can detect if the function is implemented
+    r.x.cflag = 1;
+    int86x(0x21, &r, &r, &rs);
+    if (r.x.cflag) {
+      if (r.x.ax == 0x2) {
+        snprintf(dst, sizeof dst, "ERROR: 0x0002 - File not found");
+      } else if (r.x.ax == 0x3) {
+        snprintf(dst, sizeof dst, "ERROR: 0x0003 - Path not found");
+      } else if (r.x.ax == 0x12) {
+        snprintf(dst, sizeof dst, "ERROR: 0x0012 - No more files");
+      } else {
+        snprintf(dst, sizeof dst, "ERROR: 0x%%04x - unknown error code", r.x.ax);
+      }
+    }
+
+    if (strcmp(dst, exp) != 0) {
+      printf("FAIL: (sent '%%s', expected '%%s', got '%%s')\n", src, exp, dst);
+      ret += 1;
+    } else {
+      printf("OKAY: (sent '%%s', got '%%s')\n", src, dst);
+    }
+  }
+
+  if (ret == 0)
+    printf("PASS: all\n");
+  else
+    printf("FAIL: one or more\n");
+  return ret;
+}
+""" % mkctests(tests))
+
+    results = self.runDosemu("testit.bat", config=config)
+
+    self.assertNotIn("FAIL", results)

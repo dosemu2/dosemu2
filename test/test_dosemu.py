@@ -52,7 +52,7 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
 from func_mfs_findfile import mfs_findfile
-from func_mfs_truename import mfs_truename
+from func_truename import mfs_truename, sfn_truename
 from func_network import network_pktdriver_mtcp
 from func_pit_mode_2 import pit_mode_2
 
@@ -3832,6 +3832,37 @@ rem end
         )
         mfs_truename(self, "VFAT", names_to_create, tests)
 
+    def test_sfn_truename(self):
+        """SFN truename devices"""
+
+        # Note: these all tested on qemu with ms-dos 6.22 and no redirector loaded, so
+        #       results are certain to be from the kernel's truename not int 2f/1123
+        tests = (
+            # sent                 expected
+
+            (r"nul",               r"$:/NUL"),
+            (r"nul.ext",           r"$:/NUL.EXT"),
+            (r"\\dev\\nul",        r"$:/NUL"),
+            (r"\\dev\\nul.ext",    r"$:/NUL.EXT"),
+
+            (r"\\nul",             r"$:\\NUL"),
+            (r"\\nul.ext",         r"$:\\NUL.EXT"),
+            (r"\\test\\nul",       r"$:\\TEST\\NUL"),
+            (r"\\nonexist\\nul",   r"$:\\NONEXIST\\NUL"),
+# This omitted for now as too many things may break if FDPP is fixed
+# see https://github.com/dosemu2/fdpp/issues/282
+#            (r"$:\\nul",           r"$:\\NUL"),
+            (r"$:\\test\\nul",     r"$:\\TEST\\NUL"),
+            (r"$:\\nonexist\\nul", r"$:\\NONEXIST\\NUL"),
+
+            (r"?:\\nul",           r"ERROR: 0x0003 - Path not found"),
+            (r"X:\\nul",           r"ERROR: 0x0003 - Path not found"),
+            (r"X:\\test\\nul",     r"ERROR: 0x0003 - Path not found"),
+            (r"X:\\nonexist\\nul", r"ERROR: 0x0003 - Path not found"),
+
+        )
+        sfn_truename(self, tests)
+
     def _test_mfs_file_read(self, nametype):
         if nametype == "LFN":
             testname = "verylongname.txt"
@@ -4920,6 +4951,7 @@ DRDOS701TestCase = drdos701(OurTestCase, {
     "test_fat_label_create_bpb16": KNOWNFAIL,
     "test_fat_label_create_bpb32": UNSUPPORTED,
     "test_fat_label_create_on_lfns": UNSUPPORTED,
+    "test_sfn_truename": KNOWNFAIL,
 })
 
 FRDOS120TestCase = frdos120(OurTestCase, {
@@ -4977,6 +5009,7 @@ FRDOS120TestCase = frdos120(OurTestCase, {
     "test_fat_label_create_bpb32": KNOWNFAIL,
     "test_fat_label_create_prefile": KNOWNFAIL,
     "test_fat_label_create_predir": KNOWNFAIL,
+    "test_sfn_truename": KNOWNFAIL,
 })
 
 FRDOS130TestCase = frdos130(OurTestCase, {
@@ -5016,6 +5049,7 @@ FRDOS130TestCase = frdos130(OurTestCase, {
     "test_mfs_fcb_rename_wild_3": KNOWNFAIL,
     "test_mfs_fcb_rename_wild_4": KNOWNFAIL,
     "test_passing_dos_errorlevel_back": KNOWNFAIL,
+    "test_sfn_truename": KNOWNFAIL,
 })
 
 FRDOSGITTestCase = frdosgit(OurTestCase, {
