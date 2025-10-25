@@ -2969,6 +2969,14 @@ static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
 	if (m&DATA16) CPUWORD(o)=v; else CPULONG(o)=v;
 }
 
+#define POPw(sp) ({ \
+	unsigned int __res = sim_read_word(LONG_SS + sp); \
+	sp += 2; sp &= TheCPU.StackMask; __res; })
+
+#define POPl(sp) ({ \
+	unsigned int __res = sim_read_dword(LONG_SS + sp); \
+	sp += 4; sp &= TheCPU.StackMask; __res; })
+
 /* This generic helper function is called from JIT generated code and from
  * Gen_sim to simulate hard-to-compile and rarely used ops.
  * parameters:
@@ -3086,7 +3094,27 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 			break;
 		       }
 /*cf*/	case IRET: {	/* restartable */
-			/* GPF handled in interpreter */
+			if (!REALADDR()) {
+				unsigned int cs, eip;
+				unsigned int sp = rESP & TheCPU.StackMask;
+				if (mode&DATA16) {
+					eip = POPw(sp);
+					cs = POPw(sp);
+					data = POPw(sp);
+				}
+				else {
+					eip = POPl(sp);
+					cs = POPl(sp);
+					data = POPl(sp);
+				}
+				rESP = sp | (rESP&~TheCPU.StackMask);
+				if (SetSegProt_helper(cs, Ofs_CS) < 0)
+					break;
+				/* safe to do here after any potential
+				   page fault: we return to the main loop after */
+				TheCPU.eip = eip;
+			}
+			/* non-segment GPF handled in interpreter */
 			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
 			temp = data;
 			/* IRET always returns with the new PC, we need to

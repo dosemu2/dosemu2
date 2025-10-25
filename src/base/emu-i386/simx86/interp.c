@@ -1780,16 +1780,15 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)) {
 			    PC++; goto not_permitted;	/* GPF */
 			}
-			/* pop from stack without adjusting esp before A_SR_* */
-			Gen(O_POP1, _mode);
-			Gen(O_POP2, _mode, Ofs_EIP);
-			Gen(O_POP2, _mode|MNOREG);
-			if (REALADDR())
+			if (REALADDR()) {
+				/* pop from stack without adjusting esp before A_SR_* */
+				Gen(O_POP1, _mode);
+				Gen(O_POP2, _mode, Ofs_EIP);
+				Gen(O_POP2, _mode|MNOREG);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
-			else
-				AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
-			Gen(O_POP3, _mode);
-			Gen(O_POP, _mode);
+				Gen(O_POP3, _mode);
+				Gen(O_POP, _mode);
+			}
 			Gen(O_SIM, _mode, opc, 0, P0);
 			/* to process EXCP_TFSET */
 			Gen(S_REG, _mode & ~DATA16, Ofs_ERR);
