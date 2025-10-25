@@ -538,6 +538,7 @@ void Interp86(void)
 static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 		       const int mode, int flags)
 {
+		int ret = 0;
 		int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
 		assert (CurrIMeta>=0);
 
@@ -560,7 +561,6 @@ static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 #ifndef SINGLEBLOCK
 		IMeta *GL = &InstrMeta[CurrIMeta];
 		if ((mode & MSSTP) ||
-		    (flags & F_LEAV) ||
 		    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
 		    e_querymark(PC, gap))
 #endif
@@ -568,11 +568,11 @@ static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 			if (!(flags & F_SPRJ))
 				/* don't do recursive speculation ! */
 				flags |= can_speculate();
-			InstrMeta[0].flags |= flags;
-			return 1;
+			ret = 1;
 		}
+		InstrMeta[0].flags |= flags;
 
-		return 0;
+		return ret;
 }
 
 static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
