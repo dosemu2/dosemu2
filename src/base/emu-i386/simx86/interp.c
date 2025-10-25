@@ -577,36 +577,36 @@ static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 		return 0;
 }
 
-static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
-			unsigned short ocs, int basemode, int flags)
+static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
+		unsigned short ocs, int basemode, int flags)
 {
-	TNode *G, *ret;
-
-	do {
-		PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
-	} while (!interp_post(PC, Interp_LONG_CS, basemode, flags));
-	G = DoClose(PC, Interp_LONG_CS, basemode, flags);
-	ret = G;
-#if !defined(SINGLEBLOCK) && SPEC_PREJIT
-	int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
+#ifdef SPEC_PREJIT
 	int i = 0;
-	if (!(flags & F_PREJ) && (basemode & MSSTP))
-		return ret;
+
 	while ((G->unlinked_jmp_targets & TARGET_T) && !(G->flags & (F_LJMP|F_LEAV))) {
 		TNode *oldG = G;
 		PC = G->clink_t.target;
-		if (e_querymark(PC, gap)) break;
+		if (e_querymark(PC, SAFE_PRJ_GAP)) break;
 		do {
 			PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
 		} while (!interp_post(PC, Interp_LONG_CS, basemode, flags));
 		G = DoClose(PC, Interp_LONG_CS, basemode, flags);
 		i++;
+		NodesPrejitted++;
 		NodeLinker(oldG, G);
 	}
 	if (debug_level('e') && i)
 		dbug_printf("Linked %d TARGET_T nodes in advance\n", i);
 #endif
-	return ret;
+}
+
+static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			unsigned short ocs, int basemode, int flags)
+{
+	do {
+		PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
+	} while (!interp_post(PC, Interp_LONG_CS, basemode, flags));
+	return DoClose(PC, Interp_LONG_CS, basemode, flags);
 }
 
 static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
@@ -2754,8 +2754,11 @@ void instr_emu_sim_reset_count(void)
 static void _PreJit86(unsigned int PC, unsigned int Interp_LONG_CS,
 		      unsigned short ocs, int basemode, int flags)
 {
-	_Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
-	NodesPrejitted++;
+	TNode * G = _Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
+	if (G && (flags & F_SPRJ)) {
+		NodesPrejitted++;
+		sprj_deep(G, PC, Interp_LONG_CS, ocs, basemode, flags);
+	}
 }
 
 void PreJit86(unsigned int PC, int basemode)
