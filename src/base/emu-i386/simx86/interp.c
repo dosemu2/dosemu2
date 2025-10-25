@@ -100,6 +100,7 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 {
 	unsigned int P0 = InstrMeta[0].npc;
 
+	assert(InstrMeta[0].ncount > 1);
 	/* If the code doesn't terminate with a jump/loop instruction
 	 * it still lacks the tail code; add it here */
 	IMeta *GL = &InstrMeta[CurrIMeta];
@@ -630,6 +631,10 @@ static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 		// close previous instruction with tail code and try again later
 		Gen(JMP_TAILCODE, basemode, P0);
 		return P0;
+	}
+	if (CurrIMeta == 0) {
+		Gen(L_IMM, basemode&~DATA16, Ofs_EIP, PC - Interp_LONG_CS);
+		NewIMeta(P0);
 	}
 
 override:
