@@ -3093,6 +3093,7 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 					    inum, _AX, _CS, _IP);
 			break;
 		       }
+/*ca*/	case RETlisp:
 /*cb*/	case RETl:
 /*cf*/	case IRET: {	/* restartable */
 			if (!REALADDR()) {
@@ -3107,6 +3108,10 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 					eip = POPl(sp);
 					cs = POPl(sp);
 					if (opc == IRET) data = POPl(sp);
+				}
+				if (opc == RETlisp) {
+					sp += arg;
+					sp &= TheCPU.StackMask;
 				}
 				rESP = sp | (rESP&~TheCPU.StackMask);
 				if (SetSegProt_helper(cs, Ofs_CS) < 0)
