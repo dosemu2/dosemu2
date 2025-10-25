@@ -323,9 +323,9 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
 		break;
 	case RETl: case RETlisp: case IRET: // far ret, indirect
-	case JMPli: case CALLli: case INT: // far jmp/call, indirect
 		Gen(L_REG, mode, Ofs_EIP);
 		/* fall through */
+	case JMPli: case CALLli: case INT: // far jmp/call, indirect
 	case RET: case RETisp: case JMPi: case CALLi: // ret, indirect
 		Gen(JMP_INDIRECT, mode);
 		break;
@@ -1733,7 +1733,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(O_PUSHI, _mode, PC + 2 - Interp_LONG_CS);
 				Gen(L_LXS2, _mode);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
-				Gen(L_LXS1, _mode, Ofs_EIP);
+				Gen(L_DI_R1, _mode);
 				PC = JumpGen(PC, Interp_LONG_CS, _mode, opc, 2);
 				if (debug_level('e')>1)
 					dbug_printf("EMU86: directly called int %#x ax=%#x at %#x:%#x\n",
@@ -2205,7 +2205,7 @@ repag0:
 					    Gen(O_PUSH, _mode);
 					    Gen(O_PUSHI, _mode, oip);
 					}
-					Gen(L_LXS1, _mode, Ofs_EIP);
+					Gen(L_DI_R1, _mode);
 					PC = JumpGen(PC, Interp_LONG_CS, _mode,
 						     (opc<<8)|REG1, len);
 					if (debug_level('e')>2) {
