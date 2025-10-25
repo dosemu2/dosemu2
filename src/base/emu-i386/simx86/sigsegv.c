@@ -245,6 +245,22 @@ static int e_vgaemu_fault(sigcontext_t *scp, dosaddr_t cr2)
 
 #define GetSegmentBaseAddress(s)	GetSegmentBase(s)
 
+/* save eip, eflags, and do a "ret" out of compiled code */
+static int e_return_from_jit(sigcontext_t *scp, int pop_flags)
+{
+	_scp_eax = FindPC((unsigned char *)_scp_rip);
+	e_printf("FindPC: found %x\n",_scp_eax);
+	if (pop_flags) {
+		_scp_edx = *(long *)_scp_rsp; // flags
+		_scp_rsp += sizeof(long);
+	}
+	else
+		_scp_edx = _scp_eflags;
+	_scp_rip = *(long *)_scp_rsp;
+	_scp_rsp += sizeof(long);
+	return 1;
+}
+
 /* this function is called from dosemu_fault */
 static int e_emu_pagefault(sigcontext_t *scp, int pmode)
 {
@@ -259,16 +275,9 @@ static int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	if (msdos_ldt_access(cr2) && Cpatch(scp))
 	    return 1;
 	TheCPU.scp_err = _scp_err;
-	/* save eip, eflags, and do a "ret" out of compiled code */
 	TheCPU.err = EXCP0E_PAGE;
-	_scp_eax = FindPC((unsigned char *)_scp_rip);
-	e_printf("FindPC: found %x\n",_scp_eax);
-	_scp_edx = *(long *)_scp_rsp; // flags
-	_scp_rsp += sizeof(long);
 	TheCPU.cr[2] = cr2;
-	_scp_rip = *(long *)_scp_rsp;
-	_scp_rsp += sizeof(long);
-	return 1;
+	return e_return_from_jit(scp, 1);
     }
     return 0;
 }
@@ -411,11 +420,7 @@ int e_handle_fault(sigcontext_t *scp)
 		return 0;
 	}
 	TheCPU.err = EXCP00_DIVZ + _scp_trapno;
-	_scp_eax = LONG_CS + TheCPU.eip;
-	_scp_edx = _scp_eflags;
-	_scp_rip = *(long *)_scp_rsp;
-	_scp_rsp += sizeof(long);
-	return 1;
+	return e_return_from_jit(scp, 0);
 }
 
 /* ======================================================================= */
