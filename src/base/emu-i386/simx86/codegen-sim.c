@@ -3093,6 +3093,7 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 					    inum, _AX, _CS, _IP);
 			break;
 		       }
+/*cb*/	case RETl:
 /*cf*/	case IRET: {	/* restartable */
 			if (!REALADDR()) {
 				unsigned int cs, eip;
@@ -3100,12 +3101,12 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 				if (mode&DATA16) {
 					eip = POPw(sp);
 					cs = POPw(sp);
-					data = POPw(sp);
+					if (opc == IRET) data = POPw(sp);
 				}
 				else {
 					eip = POPl(sp);
 					cs = POPl(sp);
-					data = POPl(sp);
+					if (opc == IRET) data = POPl(sp);
 				}
 				rESP = sp | (rESP&~TheCPU.StackMask);
 				if (SetSegProt_helper(cs, Ofs_CS) < 0)
@@ -3114,6 +3115,7 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 				   page fault: we return to the main loop after */
 				TheCPU.eip = eip;
 			}
+			if (opc != IRET) break;
 			/* non-segment GPF handled in interpreter */
 			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
 			temp = data;

@@ -1765,14 +1765,16 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*cb*/	case RETl:
 			/* pop from stack without adjusting esp before A_SR_* */
-			Gen(O_POP1, _mode);
-			Gen(O_POP2, _mode, Ofs_EIP);
-			Gen(O_POP2, _mode|MNOREG);
-			if (REALADDR())
+			if (REALADDR()) {
+				Gen(O_POP1, _mode);
+				Gen(O_POP2, _mode, Ofs_EIP);
+				Gen(O_POP2, _mode|MNOREG);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
-			else
-				AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
-			Gen(O_POP3, _mode);
+				Gen(O_POP3, _mode);
+			}
+			else {
+				Gen(O_SIM, _mode, opc, 0, P0);
+			}
 			PC = JumpGen(PC, Interp_LONG_CS, _mode, opc, 1);
 			break;
 
