@@ -3096,34 +3096,37 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 /*ca*/	case RETlisp:
 /*cb*/	case RETl:
 /*cf*/	case IRET: {	/* restartable */
-			if (!REALADDR()) {
+			temp = data;
+			if (!REALADDR() || opc == IRET) {
 				unsigned int cs, eip;
 				unsigned int sp = rESP & TheCPU.StackMask;
 				if (mode&DATA16) {
 					eip = POPw(sp);
 					cs = POPw(sp);
-					if (opc == IRET) data = POPw(sp);
+					if (opc == IRET) temp = POPw(sp);
 				}
 				else {
 					eip = POPl(sp);
 					cs = POPl(sp);
-					if (opc == IRET) data = POPl(sp);
+					if (opc == IRET) temp = POPl(sp);
 				}
 				if (opc == RETlisp) {
 					sp += arg;
 					sp &= TheCPU.StackMask;
 				}
 				rESP = sp | (rESP&~TheCPU.StackMask);
-				if (SetSegProt_helper(cs, Ofs_CS) < 0)
+				if (REALADDR()) {
+					TheCPU.cs = cs;
+					LONG_CS = cs << 4;
+				}
+				else if (SetSegProt_helper(cs, Ofs_CS) < 0)
 					break;
-				/* safe to do here after any potential
-				   page fault: we return to the main loop after */
-				TheCPU.eip = eip;
+				/* eax used by JMP_INDIRECT */
+				data = eip;
 			}
 			if (opc != IRET) break;
 			/* non-segment GPF handled in interpreter */
 			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
-			temp = data;
 			/* IRET always returns with the new PC;
 			   TF is set via a negative exception code that doesn't
 			   interrupt the IRET */
