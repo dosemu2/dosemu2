@@ -704,18 +704,18 @@ static void Scp2CpuD(cpuctx_t *scp)
   TheCPU.cr[0] |= 1;
   InvalidateSegs(); // makes sure real mode segs aren't confused with PM sels
   TheCPU.mode = 0;
-  TheCPU.err = SetSegProt(Ofs_CS,_cs);
+  SetSegProt(Ofs_CS,_cs);
   if (TheCPU.err) goto erseg;
 
-  TheCPU.err = SetSegProt(Ofs_DS,_ds);
+  SetSegProt(Ofs_DS,_ds);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(Ofs_SS,_ss);
+  SetSegProt(Ofs_SS,_ss);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(Ofs_ES,_es);
+  SetSegProt(Ofs_ES,_es);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(Ofs_FS,_fs);
+  SetSegProt(Ofs_FS,_fs);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(Ofs_GS,_gs);
+  SetSegProt(Ofs_GS,_gs);
 erseg:
   if (debug_level('e')>1) {
 	e_printf("Scp2CpuD%s: CS:IP=%08x:%08x\n%s\n",
