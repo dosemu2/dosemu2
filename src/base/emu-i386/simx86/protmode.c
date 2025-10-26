@@ -98,7 +98,7 @@ static int _SetSegProt_helper(unsigned short sel, int ofs)
 {
 	unsigned char big;
 	int oldsel = CPUWORD(ofs);
-	int e = SetSegProt(TheCPU.mode&ADDR16, ofs, &big, sel);
+	int e = SetSegProt(ofs, &big, sel);
 	if (e) {
 		TheCPU.err = e;
 		oldsel = -1; /* invalid old value flags error */
@@ -124,13 +124,14 @@ int SetSegProt_helper(unsigned short sel, int ofs)
 	return ret;
 }
 
-int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
+int SetSegProt(int ofs, unsigned char *big, unsigned long sel)
 {
 	static char buf[4];
 	unsigned short wFlags, sys;
 	unsigned char lbig;
 	Descriptor *dt;
 	SDTR *sd;
+	int a16;
 	unsigned int orig_scp_err = TheCPU.scp_err;
 
 	sd = (SDTR *)CPUOFFS(e_ofsseg(ofs));
@@ -200,6 +201,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	    a16 = (lbig? 0:ADDR16);
 	}
 	else {
+	    a16 = TheCPU.mode & ADDR16;
 	    /* we CAN move a code sel into [DEFG]S provided that it
 	     * can be read - but how can we trap writes? */
 	    /* Error summary (Intel):
@@ -413,9 +415,9 @@ int emu_ldt_write(dosaddr_t addr, uint32_t op, int len)
 	_fs = TheCPU.fs;
 	_gs = TheCPU.gs;
 	msdos_ldt_write(scp, op, len, _cr2);
-	if (_ds == 0) { TheCPU.ds = 0; SetSegProt(0,Ofs_DS,NULL,0); }
-	if (_es == 0) { TheCPU.es = 0; SetSegProt(0,Ofs_ES,NULL,0); }
-	if (_fs == 0) { TheCPU.fs = 0; SetSegProt(0,Ofs_FS,NULL,0); }
-	if (_gs == 0) { TheCPU.gs = 0; SetSegProt(0,Ofs_GS,NULL,0); }
+	if (_ds == 0) { TheCPU.ds = 0; SetSegProt(Ofs_DS,NULL,0); }
+	if (_es == 0) { TheCPU.es = 0; SetSegProt(Ofs_ES,NULL,0); }
+	if (_fs == 0) { TheCPU.fs = 0; SetSegProt(Ofs_FS,NULL,0); }
+	if (_gs == 0) { TheCPU.gs = 0; SetSegProt(Ofs_GS,NULL,0); }
 	return 1;
 }
