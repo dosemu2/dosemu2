@@ -195,7 +195,7 @@ static int _SetSegProt_check(int ofs, unsigned long sel)
 	return 0;
 }
 
-static int SetSegProt_check(int ofs, unsigned long sel)
+int SetSegProt_check(int ofs, unsigned long sel)
 {
 	int e = _SetSegProt_check(ofs, sel);
 	if (e > 0) {
@@ -205,7 +205,7 @@ static int SetSegProt_check(int ofs, unsigned long sel)
 	return e;
 }
 
-static void SetSegProt_set(int ofs, unsigned long sel)
+void SetSegProt_set(int ofs, unsigned long sel)
 {
 	static char buf[4];
 	unsigned short wFlags = GetSelectorFlags(sel);

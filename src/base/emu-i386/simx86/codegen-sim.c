@@ -2977,6 +2977,14 @@ static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
 	unsigned int __res = sim_read_dword(LONG_SS + sp); \
 	sp += 4; sp &= TheCPU.StackMask; __res; })
 
+#define PUSHw(sp,w) ({ \
+	sp -= 2; sp &= TheCPU.StackMask; \
+	sim_write_word(LONG_SS + sp, w); })
+
+#define PUSHl(sp,l) ({ \
+	sp -= 4; sp &= TheCPU.StackMask; \
+	sim_write_dword(LONG_SS + sp, l); })
+
 /* This generic helper function is called from JIT generated code and from
  * Gen_sim to simulate hard-to-compile and rarely used ops.
  * parameters:
@@ -3093,6 +3101,33 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 					    inum, _AX, _CS, _IP);
 			break;
 		       }
+/*9a*/	case CALLl: {	/* restartable */
+			unsigned int oldcs = TheCPU.cs;
+			unsigned int oldeip = arg;
+			unsigned int newcs = data;
+			unsigned int sp;
+			int e = SetSegProt_check(Ofs_CS, newcs);
+			if (e > 0)
+				break;
+			sp = rESP;
+			if (mode&DATA16) {
+				PUSHw(sp,oldcs);
+				PUSHw(sp,oldeip);
+			}
+			else {
+				PUSHl(sp,oldcs);
+				PUSHl(sp,oldeip);
+			}
+			if (debug_level('e')>2) {
+				dbug_printf("CALL_FAR: ret=%04x:%08x\n  calling:      cs=%04x\n",
+					    oldcs,oldeip,newcs);
+			}
+			rESP = sp | (rESP&~TheCPU.StackMask);
+			// -1 means cached, nothing to set
+			if (e == 0)
+				SetSegProt_set(Ofs_CS, data);
+			break;
+			}
 /*ca*/	case RETlisp:
 /*cb*/	case RETl:
 /*cf*/	case IRET: {	/* restartable */
