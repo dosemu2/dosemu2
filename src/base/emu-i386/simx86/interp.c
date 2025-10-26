@@ -1794,8 +1794,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(O_POP, _mode);
 			}
 			Gen(O_SIM, _mode, opc, 0, P0);
-			/* to process EXCP_TFSET */
-			Gen(S_REG, _mode & ~DATA16, Ofs_ERR);
 			PC = JumpGen(PC, Interp_LONG_CS, _mode, opc, 1);
 			break;
 /*9d*/	case POPF:

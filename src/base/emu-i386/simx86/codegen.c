@@ -595,6 +595,7 @@ static void Exec_post(unsigned long flg, unsigned int mem_ref,
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
 	CEmuStat &= ~CeS_STI;
+	TheCPU.err = abs(TheCPU.err);
 	if (TheCPU.err == EXCP_STISHADOW) {
 		CEmuStat |= CeS_STI;
 		TheCPU.err = 0;
