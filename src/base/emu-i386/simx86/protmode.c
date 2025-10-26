@@ -96,20 +96,11 @@ int SetSegReal(unsigned short sel, int ofs)
 // this function is called from JIT-generated code
 static int _SetSegProt_helper(unsigned short sel, int ofs)
 {
-	unsigned char big;
 	int oldsel = CPUWORD(ofs);
-	int e = SetSegProt(ofs, &big, sel);
+	int e = SetSegProt(ofs, sel);
 	if (e) {
 		TheCPU.err = e;
 		oldsel = -1; /* invalid old value flags error */
-	} else if (ofs==Ofs_SS) {
-		TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
-		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
-	} else if (ofs==Ofs_CS) {
-		TheCPU.mode &= ~(ADDR16|DATA16|MBIGCS);
-		if (big) TheCPU.mode |= MBIGCS;
-		else TheCPU.mode |= (ADDR16|DATA16);
-		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
 	}
 	return oldsel;
 }
@@ -124,11 +115,11 @@ int SetSegProt_helper(unsigned short sel, int ofs)
 	return ret;
 }
 
-int SetSegProt(int ofs, unsigned char *big, unsigned long sel)
+int SetSegProt(int ofs, unsigned long sel)
 {
 	static char buf[4];
 	unsigned short wFlags, sys;
-	unsigned char lbig;
+	unsigned char lbig = 0;
 	Descriptor *dt;
 	SDTR *sd;
 	int a16;
@@ -139,7 +130,6 @@ int SetSegProt(int ofs, unsigned char *big, unsigned long sel)
 	if (CPUWORD(ofs) == sel && (sd->BoundH - sd->BoundL) != SDTR_INVALID_LIMIT) {
 	    if (debug_level('e') >= 9)
 		e_printf("SetSeg PROT %s%04lx cached\n",MKOFSNAM(ofs,buf),sel);
-	    if (big) *big = (GetSelectorFlags(sel) & DF_32)? 0xff : 0;
 	    return 0;
 	}
 	TheCPU.scp_err = sel & 0xfffc;
@@ -148,8 +138,7 @@ int SetSegProt(int ofs, unsigned char *big, unsigned long sel)
 	    if ((ofs==Ofs_CS)||(ofs==Ofs_SS)) return EXCP0D_GPF;
 	    sd->BoundL = 0xc0000000;
 	    sd->BoundH = sd->BoundL;
-	    CPUWORD(ofs) = sel;
-	    return 0;	/* DS..GS can be 0 for some while */
+	    goto valid;	/* DS..GS can be 0 for some while */
 	}
 
 	/* DT checks */
@@ -180,6 +169,7 @@ int SetSegProt(int ofs, unsigned char *big, unsigned long sel)
 	    if (ofs==Ofs_SS) return EXCP0C_STACK;
 		else return EXCP0B_NOSEG;
 	}
+	lbig = (wFlags & DF_32)? 0xff : 0;
 	if (!sys) {	/* must be GDT now */
 	    unsigned short sx = sysxfer[wFlags&15];
 	    if (debug_level('e')>3)
@@ -187,10 +177,8 @@ int SetSegProt(int ofs, unsigned char *big, unsigned long sel)
 	    if (sx==DT_NO_XFER) return EXCP0D_GPF;
 	    sd->BoundL = 0;
 	    sd->BoundH = 0;	  /* try to trap if not checked */
-	    CPUWORD(ofs) = sel;
-	    return 0;	  /* will check sys segment again later */
+	    goto valid;	  /* will check sys segment again later */
 	}
-	lbig = (wFlags & DF_32)? 0xff : 0;
 	/* check data/code */
 	if (ofs==Ofs_CS) {
 	    /* data can't be executed... really? */
@@ -232,13 +220,22 @@ int SetSegProt(int ofs, unsigned char *big, unsigned long sel)
 	if (debug_level('e')>7)
 	    e_printf("SetSeg PROT %s%04lx\n",MKOFSNAM(ofs,buf),sel);
 
-	if (big) *big = lbig;
 	if (debug_level('e')>7) {
 		e_printf("PMSEL %#04lx bounds=%08x:%08x flg=%04x big=%d\n",
 			sel, sd->BoundL, sd->BoundH, wFlags, lbig&1);
 	}
+valid:
 	TheCPU.scp_err = orig_scp_err;
 	CPUWORD(ofs) = sel;
+	if (ofs==Ofs_SS) {
+		TheCPU.StackMask = (lbig? 0xffffffff : 0x0000ffff);
+		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",lbig&1,TheCPU.mode);
+	} else if (ofs==Ofs_CS) {
+		TheCPU.mode &= ~(ADDR16|DATA16|MBIGCS);
+		if (lbig) TheCPU.mode |= MBIGCS;
+		else TheCPU.mode |= (ADDR16|DATA16);
+		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",lbig&1,TheCPU.mode);
+	}
 	return 0;
 }
 
@@ -415,9 +412,9 @@ int emu_ldt_write(dosaddr_t addr, uint32_t op, int len)
 	_fs = TheCPU.fs;
 	_gs = TheCPU.gs;
 	msdos_ldt_write(scp, op, len, _cr2);
-	if (_ds == 0) { TheCPU.ds = 0; SetSegProt(Ofs_DS,NULL,0); }
-	if (_es == 0) { TheCPU.es = 0; SetSegProt(Ofs_ES,NULL,0); }
-	if (_fs == 0) { TheCPU.fs = 0; SetSegProt(Ofs_FS,NULL,0); }
-	if (_gs == 0) { TheCPU.gs = 0; SetSegProt(Ofs_GS,NULL,0); }
+	if (_ds == 0) { TheCPU.ds = 0; SetSegProt(Ofs_DS,0); }
+	if (_es == 0) { TheCPU.es = 0; SetSegProt(Ofs_ES,0); }
+	if (_fs == 0) { TheCPU.fs = 0; SetSegProt(Ofs_FS,0); }
+	if (_gs == 0) { TheCPU.gs = 0; SetSegProt(Ofs_GS,0); }
 	return 1;
 }
