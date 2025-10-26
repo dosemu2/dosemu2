@@ -323,8 +323,6 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
 		break;
 	case RETl: case RETlisp: case IRET: // far ret, indirect
-		Gen(L_REG, mode, Ofs_EIP);
-		/* fall through */
 	case JMPli: case CALLli: case INT: // far jmp/call, indirect
 	case RET: case RETisp: case JMPi: case CALLi: // ret, indirect
 		Gen(JMP_INDIRECT, mode);
@@ -1695,11 +1693,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(O_POP2, _mode|MNOREG|MRETISP, dr);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(O_POP3, _mode);
+				Gen(L_REG, _mode, Ofs_EIP);
 			}
 			else {
 				Gen(O_SIM, _mode, opc, dr, P0);
 			}
-			Gen(O_POP3, _mode);
 			PC = JumpGen(PC, Interp_LONG_CS, _mode, opc, 3);
 			if (debug_level('e')>2)
 				e_printf("RET_%d: ret=%08x\n",dr,TheCPU.eip);
@@ -1774,6 +1772,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(O_POP2, _mode|MNOREG);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(O_POP3, _mode);
+				Gen(L_REG, _mode, Ofs_EIP);
 			}
 			else {
 				Gen(O_SIM, _mode, opc, 0, P0);
@@ -1785,18 +1784,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)) {
 			    PC++; goto not_permitted;	/* GPF */
 			}
-			if (REALADDR()) {
-				/* pop from stack without adjusting esp before A_SR_* */
-				Gen(O_POP1, _mode);
-				Gen(O_POP2, _mode, Ofs_EIP);
-				Gen(O_POP2, _mode|MNOREG);
-				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
-				Gen(O_POP3, _mode);
-				Gen(O_POP, _mode);
-			}
 			Gen(O_SIM, _mode, opc, 0, P0);
-			/* to process EXCP_TFSET */
-			Gen(S_REG, _mode & ~DATA16, Ofs_ERR);
 			PC = JumpGen(PC, Interp_LONG_CS, _mode, opc, 1);
 			break;
 /*9d*/	case POPF:

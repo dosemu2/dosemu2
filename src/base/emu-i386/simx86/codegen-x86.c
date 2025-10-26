@@ -1644,11 +1644,11 @@ shrot0:
 
 		// cmpl $0x0,Ofs_ERR(%rbx)
 		G4M(0x83,0x7b,Ofs_ERR,0x00,Cp);
-		// jz skip
+		// jle skip: negative TheCPU.err allow completion
 #ifdef __x86_64__
-		G2M(JE_JZ,TAILSIZE+4,Cp);
+		G2M(JLE_JNG,TAILSIZE+4,Cp);
 #else
-		G2M(JE_JZ,TAILSIZE+1+4+1+4+1+1+4+1+1+3+3+1,Cp);
+		G2M(JLE_JNG,TAILSIZE+1+4+1+4+1+1+4+1+1+3+3+1,Cp);
 #endif
 		// movl {exit_addr},%%eax; movl %eax,%ecx;  pop %%edx; ret
 		G1(MOViax,Cp); G4(IG->p2,Cp); G4M(0x89,0xc1,POPdx,RET,Cp);

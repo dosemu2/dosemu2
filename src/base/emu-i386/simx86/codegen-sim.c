@@ -2149,7 +2149,7 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		DR1.d = Sim_helper(mem_ref, DR1.d, mode,
 				   &flags, IG->p0, IG->p1, currentIG);
 		FlagSync_RFL(flags);
-		if (TheCPU.err)
+		if (TheCPU.err > 0)
 			P0 = IG->p2;
 		break;
 		}
@@ -3096,38 +3096,42 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 /*ca*/	case RETlisp:
 /*cb*/	case RETl:
 /*cf*/	case IRET: {	/* restartable */
-			if (!REALADDR()) {
+			temp = data;
+			if (!REALADDR() || opc == IRET) {
 				unsigned int cs, eip;
 				unsigned int sp = rESP & TheCPU.StackMask;
 				if (mode&DATA16) {
 					eip = POPw(sp);
 					cs = POPw(sp);
-					if (opc == IRET) data = POPw(sp);
+					if (opc == IRET) temp = POPw(sp);
 				}
 				else {
 					eip = POPl(sp);
 					cs = POPl(sp);
-					if (opc == IRET) data = POPl(sp);
+					if (opc == IRET) temp = POPl(sp);
 				}
 				if (opc == RETlisp) {
 					sp += arg;
 					sp &= TheCPU.StackMask;
 				}
 				rESP = sp | (rESP&~TheCPU.StackMask);
-				if (SetSegProt_helper(cs, Ofs_CS) < 0)
+				if (REALADDR()) {
+					TheCPU.cs = cs;
+					LONG_CS = cs << 4;
+				}
+				else if (SetSegProt_helper(cs, Ofs_CS) < 0)
 					break;
-				/* safe to do here after any potential
-				   page fault: we return to the main loop after */
-				TheCPU.eip = eip;
+				/* eax used by JMP_INDIRECT */
+				data = eip;
 			}
 			if (opc != IRET) break;
 			/* non-segment GPF handled in interpreter */
 			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
-			temp = data;
-			/* IRET always returns with the new PC, we need to
-			   flag that TF is set via an exception code that doesn't
+			/* IRET always returns with the new PC;
+			   TF is set via a negative exception code that doesn't
 			   interrupt the IRET */
-			data = (temp & TF) ? EXCP_TFSET : 0;
+			if (temp & TF)
+			    TheCPU.err = -EXCP_TFSET;
 			if (debug_level('e')>1) {
 				e_printf("IRET: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
 			}
@@ -3197,10 +3201,9 @@ stack_return_from_vm86:
 				    if (debug_level('e')>1)
 					e_printf("Return for STI fl=%08x\n",
 						 EFLAGS);
-				    if (opc == POPF)
-					TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
-				    else
-					data = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
+				    TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
+				    if (opc == IRET)
+					TheCPU.err = -TheCPU.err; /* avoid early exit */
 				}
 			    }
 			}
