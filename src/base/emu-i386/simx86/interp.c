@@ -1699,7 +1699,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			else {
 				Gen(O_SIM, _mode, opc, dr, P0);
 			}
-			Gen(O_POP3, _mode);
 			PC = JumpGen(PC, Interp_LONG_CS, _mode, opc, 3);
 			if (debug_level('e')>2)
 				e_printf("RET_%d: ret=%08x\n",dr,TheCPU.eip);
