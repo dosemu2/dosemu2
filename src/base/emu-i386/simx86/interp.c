@@ -295,16 +295,16 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		break;
 	case CALLl: {   /* call far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
-		Gen(L_IMM_R1, mode|DATA16, jcs);
-		if (REALADDR())
+		Gen(L_IMM_R1, mode&~DATA16, jcs);
+		if (REALADDR()) {
 		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
-		else
-		    /* check if new cs is valid, load if so */
-		    AddrGen(A_SR_PROT, mode, Ofs_CS, P2);
-		/* ok, now push old cs (returned by A_SR_*):eip */
-		Gen(O_PUSH, mode);
-		if (!REALADDR()) {
-		    Gen(O_PUSHI, mode, d_nt);
+		    /* ok, now push old cs (returned by A_SR_SH4):eip */
+		    Gen(O_PUSH, mode);
+		    /* fall through */
+		}
+		else {
+		    /* handle PM far calls via Sim_helper() */
+		    Gen(O_SIM, mode, opc, d_nt, P2);
 		    /* transfer to new PC (indirect jmp) */
 		    Gen(L_IMM_R1, mode, d_t);
 		    Gen(JMP_INDIRECT, mode);
@@ -2185,13 +2185,19 @@ repag0:
 					Gen(L_LXS2, _mode);
 					if (REALADDR())
 					    AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
-					else
+					else if (REG1==Ofs_BP) /* PM JMP */
 					    AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
 					if (REG1==Ofs_BX) {
 					    /* ok, now push old cs:eip */
 					    oip = PC + len - Interp_LONG_CS;
-					    Gen(O_PUSH, _mode);
-					    Gen(O_PUSHI, _mode, oip);
+					    if (REALADDR()) {
+						Gen(O_PUSH, _mode);
+						Gen(O_PUSHI, _mode, oip);
+					    }
+					    else {
+						/* handle PM far calls via Sim_helper() */
+						Gen(O_SIM, _mode, CALLl, oip, P0);
+					    }
 					}
 					Gen(L_DI_R1, _mode);
 					PC = JumpGen(PC, Interp_LONG_CS, _mode,

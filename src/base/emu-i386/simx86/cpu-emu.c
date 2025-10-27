@@ -698,28 +698,24 @@ static void Cpu2Scp(cpuctx_t *scp, int trapno)
  */
 static void Scp2CpuD(cpuctx_t *scp)
 {
-  unsigned char big; int mode=0;
-
   Scp2Cpu(scp);
 
   /* make clear we are in PM now */
   TheCPU.cr[0] |= 1;
-  mode |= ADDR16;
   InvalidateSegs(); // makes sure real mode segs aren't confused with PM sels
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_CS,&big,_cs);
+  TheCPU.mode = 0;
+  SetSegProt(Ofs_CS,_cs);
   if (TheCPU.err) goto erseg;
-  if (big) mode=MBIGCS; else mode |= DATA16;
 
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_DS,&big,_ds);
+  SetSegProt(Ofs_DS,_ds);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_SS,&big,_ss);
+  SetSegProt(Ofs_SS,_ss);
   if (TheCPU.err) goto erseg;
-  TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_ES,&big,_es);
+  SetSegProt(Ofs_ES,_es);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_FS,&big,_fs);
+  SetSegProt(Ofs_FS,_fs);
   if (TheCPU.err) goto erseg;
-  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_GS,&big,_gs);
+  SetSegProt(Ofs_GS,_gs);
 erseg:
   if (debug_level('e')>1) {
 	e_printf("Scp2CpuD%s: CS:IP=%08x:%08x\n%s\n",
@@ -727,7 +723,6 @@ erseg:
 			LONG_CS, _eip,
 			e_print_regs(LONG_CS));
   }
-  TheCPU.mode = mode;
 }
 
 

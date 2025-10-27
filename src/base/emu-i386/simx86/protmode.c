@@ -96,21 +96,10 @@ int SetSegReal(unsigned short sel, int ofs)
 // this function is called from JIT-generated code
 static int _SetSegProt_helper(unsigned short sel, int ofs)
 {
-	unsigned char big;
 	int oldsel = CPUWORD(ofs);
-	int e = SetSegProt(TheCPU.mode&ADDR16, ofs, &big, sel);
-	if (e) {
-		TheCPU.err = e;
-		oldsel = -1; /* invalid old value flags error */
-	} else if (ofs==Ofs_SS) {
-		TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
-		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
-	} else if (ofs==Ofs_CS) {
-		TheCPU.mode &= ~(ADDR16|DATA16|MBIGCS);
-		if (big) TheCPU.mode |= MBIGCS;
-		else TheCPU.mode |= (ADDR16|DATA16);
-		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,TheCPU.mode);
-	}
+	SetSegProt(ofs, sel);
+	if (TheCPU.err)
+		return -1; /* -1 flags error */
 	return oldsel;
 }
 
@@ -124,30 +113,23 @@ int SetSegProt_helper(unsigned short sel, int ofs)
 	return ret;
 }
 
-int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
+static int _SetSegProt_check(int ofs, unsigned long sel)
 {
 	static char buf[4];
 	unsigned short wFlags, sys;
-	unsigned char lbig;
 	Descriptor *dt;
 	SDTR *sd;
-	unsigned int orig_scp_err = TheCPU.scp_err;
 
 	sd = (SDTR *)CPUOFFS(e_ofsseg(ofs));
 
 	if (CPUWORD(ofs) == sel && (sd->BoundH - sd->BoundL) != SDTR_INVALID_LIMIT) {
 	    if (debug_level('e') >= 9)
 		e_printf("SetSeg PROT %s%04lx cached\n",MKOFSNAM(ofs,buf),sel);
-	    if (big) *big = (GetSelectorFlags(sel) & DF_32)? 0xff : 0;
-	    return 0;
+	    return -1;
 	}
-	TheCPU.scp_err = sel & 0xfffc;
 
 	if (sel < 4) {
 	    if ((ofs==Ofs_CS)||(ofs==Ofs_SS)) return EXCP0D_GPF;
-	    sd->BoundL = 0xc0000000;
-	    sd->BoundH = sd->BoundL;
-	    CPUWORD(ofs) = sel;
 	    return 0;	/* DS..GS can be 0 for some while */
 	}
 
@@ -171,7 +153,6 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	    }
 #endif
 	}
-	/* should set CPL here if seg==CS ??? */
 	wFlags = GetSelectorFlags(sel);
 	sys = (wFlags & DF_USER);
 	if (!(wFlags & DF_PRESENT)) {
@@ -184,12 +165,8 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	    if (debug_level('e')>3)
 	        e_printf("GDT system segment %#lx type %d\n",sel,sx);
 	    if (sx==DT_NO_XFER) return EXCP0D_GPF;
-	    sd->BoundL = 0;
-	    sd->BoundH = 0;	  /* try to trap if not checked */
-	    CPUWORD(ofs) = sel;
 	    return 0;	  /* will check sys segment again later */
 	}
-	lbig = (wFlags & DF_32)? 0xff : 0;
 	/* check data/code */
 	if (ofs==Ofs_CS) {
 	    /* data can't be executed... really? */
@@ -197,7 +174,6 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 		dbug_printf("Attempt to execute into data segment %lx\n",sel);
 		return EXCP0D_GPF;
 	    }
-	    a16 = (lbig? 0:ADDR16);
 	}
 	else {
 	    /* we CAN move a code sel into [DEFG]S provided that it
@@ -216,6 +192,32 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	    if ((wFlags & DF_CODE)&&(!(wFlags & DF_CREADABLE)))
 		    return EXCP0D_GPF;
 	}
+	return 0;
+}
+
+int SetSegProt_check(int ofs, unsigned long sel)
+{
+	int e = _SetSegProt_check(ofs, sel);
+	if (e > 0) {
+		TheCPU.err = e;
+		TheCPU.scp_err = sel & 0xfffc;
+	}
+	return e;
+}
+
+void SetSegProt_set(int ofs, unsigned long sel)
+{
+	static char buf[4];
+	unsigned short wFlags = GetSelectorFlags(sel);
+	unsigned char lbig = (wFlags & DF_32)? 0xff : 0;
+	SDTR *sd = (SDTR *)CPUOFFS(e_ofsseg(ofs));
+	int a16;
+
+	/* should set CPL here if seg==CS ??? */
+	if (ofs==Ofs_CS)
+	    a16 = (lbig? 0:ADDR16);
+	else
+	    a16 = TheCPU.mode & ADDR16;
 	if (lbig && a16) {
 	    if (debug_level('e')>3)
 	        e_printf("Large segment %#lx in 16-bit mode\n",sel);
@@ -224,20 +226,42 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	    if (debug_level('e')>3)
 	        e_printf("Small segment %#lx in 32-bit mode\n",sel);
 	}
-	SetFlagAccessed(sel);
-	sd->BoundL = GetPhysicalAddress(sel);
-	sd->BoundH = sd->BoundL + GetSelectorByteLimit(sel);
-	if (debug_level('e')>7)
-	    e_printf("SetSeg PROT %s%04lx\n",MKOFSNAM(ofs,buf),sel);
-
-	if (big) *big = lbig;
+	if (sel < 4) {
+	    sd->BoundL = 0xc0000000;
+	    sd->BoundH = sd->BoundL;
+	}
+	else if (!(wFlags & DF_USER)) { /* must be GDT now */
+	    sd->BoundL = 0;
+	    sd->BoundH = 0;	  /* try to trap if not checked */
+	}
+	else {
+	    SetFlagAccessed(sel);
+	    sd->BoundL = GetPhysicalAddress(sel);
+	    sd->BoundH = sd->BoundL + GetSelectorByteLimit(sel);
+	}
 	if (debug_level('e')>7) {
+		e_printf("SetSeg PROT %s%04lx\n",MKOFSNAM(ofs,buf),sel);
 		e_printf("PMSEL %#04lx bounds=%08x:%08x flg=%04x big=%d\n",
 			sel, sd->BoundL, sd->BoundH, wFlags, lbig&1);
 	}
-	TheCPU.scp_err = orig_scp_err;
 	CPUWORD(ofs) = sel;
-	return 0;
+	if (ofs==Ofs_SS) {
+		TheCPU.StackMask = (lbig? 0xffffffff : 0x0000ffff);
+		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",lbig&1,TheCPU.mode);
+	} else if (ofs==Ofs_CS) {
+		TheCPU.mode &= ~(ADDR16|DATA16|MBIGCS);
+		if (lbig) TheCPU.mode |= MBIGCS;
+		else TheCPU.mode |= (ADDR16|DATA16);
+		if (debug_level('e')>1) e_printf("MAKESEG CS: big=%d basemode=%04x\n",lbig&1,TheCPU.mode);
+	}
+}
+
+void SetSegProt(int ofs, unsigned long sel)
+{
+	int e = SetSegProt_check(ofs, sel);
+	/* e == -1 means cached, no need to set */
+	if (e == 0)
+		SetSegProt_set(ofs, sel);
 }
 
 #if 0
@@ -413,9 +437,9 @@ int emu_ldt_write(dosaddr_t addr, uint32_t op, int len)
 	_fs = TheCPU.fs;
 	_gs = TheCPU.gs;
 	msdos_ldt_write(scp, op, len, _cr2);
-	if (_ds == 0) { TheCPU.ds = 0; SetSegProt(0,Ofs_DS,NULL,0); }
-	if (_es == 0) { TheCPU.es = 0; SetSegProt(0,Ofs_ES,NULL,0); }
-	if (_fs == 0) { TheCPU.fs = 0; SetSegProt(0,Ofs_FS,NULL,0); }
-	if (_gs == 0) { TheCPU.gs = 0; SetSegProt(0,Ofs_GS,NULL,0); }
+	if (_ds == 0) { TheCPU.ds = 0; SetSegProt(Ofs_DS,0); }
+	if (_es == 0) { TheCPU.es = 0; SetSegProt(Ofs_ES,0); }
+	if (_fs == 0) { TheCPU.fs = 0; SetSegProt(Ofs_FS,0); }
+	if (_gs == 0) { TheCPU.gs = 0; SetSegProt(Ofs_GS,0); }
 	return 1;
 }
