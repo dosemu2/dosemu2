@@ -2187,22 +2187,26 @@ repag0:
 				{
 					dosaddr_t oip = 0;
 					int len = ModRM(opc, PC, _mode|NOFLDR);
-					Gen(L_LXS2, _mode);
-					if (REALADDR())
-					    AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
-					else if (REG1==Ofs_BP) /* PM JMP */
-					    AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
 					if (REG1==Ofs_BX) {
-					    /* ok, now push old cs:eip */
+					    /* first push old cs:eip */
 					    oip = PC + len - Interp_LONG_CS;
 					    if (REALADDR()) {
+						Gen(L_REG, _mode, Ofs_CS);
 						Gen(O_PUSH, _mode);
 						Gen(O_PUSHI, _mode, oip);
 					    }
 					    else {
+						Gen(L_LXS2, _mode);
 						/* handle PM far calls via Sim_helper() */
 						Gen(O_SIM, _mode, CALLl, oip, P0);
 					    }
+					}
+					if (REG1!=Ofs_BX || REALADDR()) { /* JMP or RM call */
+					    Gen(L_LXS2, _mode);
+					    if (REALADDR())
+						AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
+					    else
+						AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
 					}
 					Gen(L_DI_R1, _mode);
 					PC = JumpGen(PC, Interp_LONG_CS, _mode,
