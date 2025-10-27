@@ -760,6 +760,8 @@ void init_emu_npu_x86(void);
 #endif
 int e_querymark(unsigned int addr, size_t len);
 int e_querymark_all(unsigned int addr, size_t len);
+int64_t m_findnode(unsigned int addr, size_t len);
+int64_t m_findnodestart(unsigned int addr);
 void mprot_init(void);
 void mprot_end(void);
 void prejit_sync(void);
