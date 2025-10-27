@@ -100,6 +100,7 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 {
 	unsigned int P0 = InstrMeta[0].npc;
 
+	assert(InstrMeta[0].ncount > 1);
 	/* If the code doesn't terminate with a jump/loop instruction
 	 * it still lacks the tail code; add it here */
 	IMeta *GL = &InstrMeta[CurrIMeta];
@@ -538,6 +539,7 @@ void Interp86(void)
 static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 		       const int mode, int flags)
 {
+		int ret = 0;
 		int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
 		assert (CurrIMeta>=0);
 
@@ -560,7 +562,6 @@ static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 #ifndef SINGLEBLOCK
 		IMeta *GL = &InstrMeta[CurrIMeta];
 		if ((mode & MSSTP) ||
-		    (flags & F_LEAV) ||
 		    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
 		    e_querymark(PC, gap))
 #endif
@@ -568,11 +569,11 @@ static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 			if (!(flags & F_SPRJ))
 				/* don't do recursive speculation ! */
 				flags |= can_speculate();
-			InstrMeta[0].flags |= flags;
-			return 1;
+			ret = 1;
 		}
+		InstrMeta[0].flags |= flags;
 
-		return 0;
+		return ret;
 }
 
 static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
@@ -630,6 +631,10 @@ static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 		// close previous instruction with tail code and try again later
 		Gen(JMP_TAILCODE, basemode, P0);
 		return P0;
+	}
+	if (CurrIMeta == 0) {
+		Gen(L_IMM, basemode&~DATA16, Ofs_EIP, PC - Interp_LONG_CS);
+		NewIMeta(P0);
 	}
 
 override:

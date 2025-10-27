@@ -639,31 +639,22 @@ quit:;
  */
 unsigned int FindPC(const unsigned char *addr)
 {
-  avltr_node *p = &CollectTree.root;
   TNode *G;
-  unsigned char *ahE;
   Addr2Pc *AP;
-  unsigned int i;
+  int i;
 
-  for (;;) {
-      /* walk to next node */
-      p = NEXTNODE(p);
-      if (p == &CollectTree.root) break;
-      G = p->data;
-      if (!G->addr || !G->pmeta || G->alive<=0) continue;
-      ahE = G->addr + G->len;
-      if (!ADDR_IN_RANGE(addr,G->addr,ahE)) continue;
-      e_printf("### FindPC: Found node %p->%p..%p", addr,G->addr,ahE);
-      AP = G->pmeta;
-      for (i=0; i<G->seqnum; i++) {
-	  e_printf("     %08x:%p",(G->key+AP->dnpc),G->addr+AP->daddr);
-	  if (addr < G->addr+AP->daddr) break;
-	  AP++;
-      }
-      e_printf("\nFindPC: PC=%x\n", G->key+(AP-1)->dnpc);
-      return G->key+(AP-1)->dnpc;
+  G = FindTree(LONG_CS + TheCPU.eip);
+  if (!G)
+    return 0;
+  AP = G->pmeta;
+  for (i = 0; i < G->seqnum + 1; i++) {
+    e_printf("     %08x:%p",(G->key+AP->dnpc),G->addr+AP->daddr);
+    if (addr < G->addr+AP->daddr) break;
+    AP++;
   }
-  return 0;
+  assert(i > 0 && i <= G->seqnum);
+  e_printf("\nFindPC: PC=%x\n", G->key+(AP-1)->dnpc);
+  return G->key+(AP-1)->dnpc;
 }
 
 /////////////////////////////////////////////////////////////////////////////
