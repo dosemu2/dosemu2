@@ -1928,25 +1928,23 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		break;
 
 	case O_PUSH: {
-		wkreg SR1, AR2;
+		dosaddr_t esp, addr;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE0("O_PUSH");
-		if (mode & DATA16) {
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d = CPULONG(Ofs_ESP) - 2;
-			SR1.d &= stackm;
-			sim_write_word(AR2.d + SR1.d, DR1.w.l);
-		}
-		else {
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d = CPULONG(Ofs_ESP) - 4;
-			SR1.d &= stackm;
-			sim_write_dword(AR2.d + SR1.d, DR1.d);
-		}
+		if (mode & DATA16)
+			esp = CPULONG(Ofs_ESP) - 2;
+		else
+			esp = CPULONG(Ofs_ESP) - 4;
+		esp &= stackm;
+		addr = CPULONG(Ofs_XSS) + esp;
+		if (mode & (SEGREG|DATA16))
+			sim_write_word(addr, DR1.w.l);
+		else
+			sim_write_dword(addr, DR1.d);
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
+		esp |= (CPULONG(Ofs_ESP) & ~stackm);
 #endif
-		CPULONG(Ofs_ESP) = SR1.d;
+		CPULONG(Ofs_ESP) = esp;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
@@ -1957,23 +1955,20 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		break;
 
 	case O_PUSH2: {
-		wkreg AR2;
+		dosaddr_t addr;
 		unsigned int o = IG->p0;
 		unsigned long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_PUSH2",o);
-		AR2.d = CPULONG(Ofs_XSS);
-		if (mode & DATA16) {
-			DR1.w.l = CPUWORD(o);
+		if (mode & DATA16)
 			SR1.d -= 2;
-			SR1.d &= stackm;
-			sim_write_word(AR2.d + SR1.d, DR1.w.l);
-		}
-		else {
-			DR1.d = (mode & SEGREG) ? CPUWORD(o) : CPULONG(o);
+		else
 			SR1.d -= 4;
-			SR1.d &= stackm;
-			sim_write_dword(AR2.d + SR1.d, DR1.d);
-		}
+		SR1.d &= stackm;
+		addr = CPULONG(Ofs_XSS) + SR1.d;
+		if (mode & (SEGREG|DATA16))
+			sim_write_word(addr, CPUWORD(o));
+		else
+			sim_write_dword(addr, CPULONG(o));
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
@@ -2981,6 +2976,10 @@ static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
 	sp -= 2; sp &= TheCPU.StackMask; \
 	sim_write_word(LONG_SS + sp, w); })
 
+#define PUSHwl(sp,w) ({ \
+	sp -= 4; sp &= TheCPU.StackMask; \
+	sim_write_word(LONG_SS + sp, w); })
+
 #define PUSHl(sp,l) ({ \
 	sp -= 4; sp &= TheCPU.StackMask; \
 	sim_write_dword(LONG_SS + sp, l); })
@@ -3115,7 +3114,7 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 				PUSHw(sp,oldeip);
 			}
 			else {
-				PUSHl(sp,oldcs);
+				PUSHwl(sp,oldcs);
 				PUSHl(sp,oldeip);
 			}
 			if (debug_level('e')>2) {

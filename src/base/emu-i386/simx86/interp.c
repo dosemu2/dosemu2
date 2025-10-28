@@ -298,8 +298,8 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		unsigned short jcs = FetchW(P2 + pskip - 2);
 		if (REALADDR()) {
 		    /* ok, first push old cs:eip */
-		    Gen(L_REG, mode, Ofs_CS);
-		    Gen(O_PUSH, mode);
+		    Gen(L_REG, mode|DATA16, Ofs_CS);
+		    Gen(O_PUSH, mode|SEGREG);
 		    Gen(O_PUSHI, mode, d_nt);
 		    Gen(L_IMM_R1, mode&~DATA16, jcs);
 		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
@@ -1013,7 +1013,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			/* optimized multiple register push */
 			while (1) {
 			    int op;
-			    if (opc > 8 && !(m & DATA16)) // 32-bit segreg
+			    if (opc > 8)
 				m |= SEGREG;
 			    Gen(O_PUSH2, m, R1Tab_l[opc-1]);
 			    PC++;
@@ -1039,9 +1039,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_PUSH3, m); } else
 #endif
 			{
-			if (opc > 8 && !(_mode & DATA16)) { // 32-bit segreg
+			if (opc > 8) {
+			    _mode |= SEGREG;
 			    Gen(L_REG, _mode|DATA16, R1Tab_l[opc-1]);
-			    Gen(L_ZXAX, _mode);
 			} else
 			    Gen(L_REG, _mode, R1Tab_l[opc-1]);
 			Gen(O_PUSH, _mode); PC++;
@@ -1724,6 +1724,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			fprintf(aLog,"%08x:\t\tint %02x\n", P0, inum);
 #endif
 			if (V86MODE() && (TheCPU.cr[4] & CR4_VME)) {
+				_mode |= DATA16|ADDR16; // no operand size prefix
 				if (IOPL == 3) {
 					Gen(O_INT, _mode, inum, P0);
 					Gen(O_PUSH2F, _mode);
@@ -2193,8 +2194,8 @@ repag0:
 					    /* first push old cs:eip */
 					    oip = PC + len - Interp_LONG_CS;
 					    if (REALADDR()) {
-						Gen(L_REG, _mode, Ofs_CS);
-						Gen(O_PUSH, _mode);
+						Gen(L_REG, _mode|DATA16, Ofs_CS);
+						Gen(O_PUSH, _mode|SEGREG);
 						Gen(O_PUSHI, _mode, oip);
 					    }
 					    else {
@@ -2480,9 +2481,7 @@ repag0:
 ///
 			case 0xa0: /* PUSHfs */
 				Gen(L_REG, _mode|DATA16, Ofs_FS);
-				if (!(_mode & DATA16)) // 32-bit segreg padding
-				    Gen(L_ZXAX, _mode);
-				Gen(O_PUSH, _mode); PC+=2;
+				Gen(O_PUSH, _mode|SEGREG); PC+=2;
 				break;
 			case 0xa1: /* POPfs */
 				if (REALADDR()) {
@@ -2575,9 +2574,7 @@ repag0:
 ///
 			case 0xa8: /* PUSHgs */
 				Gen(L_REG, _mode|DATA16, Ofs_GS);
-				if (!(_mode & DATA16)) // 32-bit segreg padding
-				    Gen(L_ZXAX, _mode);
-				Gen(O_PUSH, _mode); PC+=2;
+				Gen(O_PUSH, _mode|SEGREG); PC+=2;
 				break;
 			case 0xa9: /* POPgs */
 				if (REALADDR()) {
