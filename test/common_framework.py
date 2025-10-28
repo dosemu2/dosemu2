@@ -688,6 +688,9 @@ class MyTestResult(unittest.TextTestResult):
             if not environ.get("CI"):
                 msgLines.append("Further info in file '%s'\n" % l[0])
                 continue
+
+            msgLines.append("::group::%s\n" % l[0])
+
             name = TITLE_NAME_FMT.format(l[1])
             msgLines.append(TITLE_BANNER_FMT.format(name))
             try:
@@ -697,6 +700,8 @@ class MyTestResult(unittest.TextTestResult):
                 msgLines.append(cnt)
             except FileNotFoundError:
                 msgLines.append("File not present\n")
+
+            msgLines.append("::endgroup::\n")
 
         return ''.join(msgLines)
 
