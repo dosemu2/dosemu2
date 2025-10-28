@@ -270,14 +270,26 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		    Gen(JMP_LINK, mode&~CKSIGN, j_t, InstrMeta[0].npc);
 		}
 		break;
+	case CALLl:	/* call far */
+		if (REALADDR()) {
+		    /* ok, first push old cs:eip */
+		    Gen(L_REG, mode|DATA16, Ofs_CS);
+		    Gen(O_PUSH, mode|SEGREG);
+		    Gen(O_PUSHI, mode, d_nt);
+		}
+		/* fall through */
 	case JMPld: {   /* uncond jmp far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
-		Gen(L_IMM_R1, mode|DATA16, jcs);
+		Gen(L_IMM_R1, mode&~DATA16, jcs);
 		if (REALADDR()) {
 		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
 		}
 		else {
-		    AddrGen(A_SR_PROT, mode, Ofs_CS, P2);
+		    if (opc == CALLl)
+			/* handle PM far calls via Sim_helper() */
+			Gen(O_SIM, mode, opc, d_nt, P2);
+		    else
+			AddrGen(A_SR_PROT, mode, Ofs_CS, P2);
 		    /* transfer to new PC
 		       (new cs base dynamic, so indirect jmp) */
 		    Gen(L_IMM_R1, mode, d_t);
@@ -294,27 +306,6 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		if (dsp <= 0) mode |= CKSIGN;
 		Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
 		break;
-	case CALLl: {   /* call far */
-		unsigned short jcs = FetchW(P2 + pskip - 2);
-		if (REALADDR()) {
-		    /* ok, first push old cs:eip */
-		    Gen(L_REG, mode|DATA16, Ofs_CS);
-		    Gen(O_PUSH, mode|SEGREG);
-		    Gen(O_PUSHI, mode, d_nt);
-		    Gen(L_IMM_R1, mode&~DATA16, jcs);
-		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
-		    Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
-		}
-		else {
-		    Gen(L_IMM_R1, mode&~DATA16, jcs);
-		    /* handle PM far calls via Sim_helper() */
-		    Gen(O_SIM, mode, opc, d_nt, P2);
-		    /* transfer to new PC (indirect jmp) */
-		    Gen(L_IMM_R1, mode, d_t);
-		    Gen(JMP_INDIRECT, mode);
-		}
-		break;
-	}
 	case CALLd:    /* call, unfortunately also uses JMP_LINK */
 		Gen(O_PUSHI, mode, d_nt);
 		Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
