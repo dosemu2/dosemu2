@@ -867,7 +867,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*99*/	case CWD:
 			Gen(O_CBWD, _mode); PC++; break;
 
-/*07*/	case POPes:	if (REALADDR()) {
+/*07*/	case POPes:	_mode |= SEGREG;
+			if (REALADDR()) {
 			    Gen(O_POP, _mode);
 			    AddrGen(A_SR_SH4, _mode, Ofs_ES, Ofs_XES);
 			} else { /* restartable */
@@ -881,7 +882,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			PC++;
 			break;
-/*17*/	case POPss:	if (REALADDR()) {
+/*17*/	case POPss:	_mode |= SEGREG;
+			if (REALADDR()) {
 			    Gen(O_POP, _mode);
 			    AddrGen(A_SR_SH4, _mode, Ofs_SS, Ofs_XSS);
 			} else { /* restartable */
@@ -893,7 +895,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			InstrMeta[CurrIMeta].flags |= F_INHI;
 			PC++;
 			break;
-/*1f*/	case POPds:	if (REALADDR()) {
+/*1f*/	case POPds:	_mode |= SEGREG;
+			if (REALADDR()) {
 			    Gen(O_POP, _mode);
 			    AddrGen(A_SR_SH4, _mode, Ofs_DS, Ofs_XDS);
 			} else { /* restartable */
@@ -1697,7 +1700,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (REALADDR()) {
 				Gen(O_POP1, _mode);
 				Gen(O_POP2, _mode, Ofs_EIP);
-				Gen(O_POP2, _mode|MNOREG|MRETISP, dr);
+				Gen(O_POP2, _mode|MNOREG|SEGREG|MRETISP, dr);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(O_POP3, _mode);
 				Gen(L_REG, _mode, Ofs_EIP);
@@ -1777,7 +1780,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (REALADDR()) {
 				Gen(O_POP1, _mode);
 				Gen(O_POP2, _mode, Ofs_EIP);
-				Gen(O_POP2, _mode|MNOREG);
+				Gen(O_POP2, _mode|MNOREG|SEGREG);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(O_POP3, _mode);
 				Gen(L_REG, _mode, Ofs_EIP);
@@ -2484,6 +2487,7 @@ repag0:
 				Gen(O_PUSH, _mode|SEGREG); PC+=2;
 				break;
 			case 0xa1: /* POPfs */
+				_mode |= SEGREG;
 				if (REALADDR()) {
 				    Gen(O_POP, _mode);
 				    AddrGen(A_SR_SH4, _mode, Ofs_FS, Ofs_XFS);
@@ -2577,6 +2581,7 @@ repag0:
 				Gen(O_PUSH, _mode|SEGREG); PC+=2;
 				break;
 			case 0xa9: /* POPgs */
+				_mode |= SEGREG;
 				if (REALADDR()) {
 				    Gen(O_POP, _mode);
 				    AddrGen(A_SR_SH4, _mode, Ofs_GS, Ofs_XGS);

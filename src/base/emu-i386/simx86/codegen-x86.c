@@ -1445,12 +1445,17 @@ shrot0:
 		};
 		const unsigned char *p; int sz;
 		unsigned char *q;
-		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
+		if (mode&(SEGREG|DATA16)) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		// for popping into memory the sequence is:
 		//	first do address calculation, then pop,
 		//	then store data, and last adjust stack
 		q = Cp; GNX(Cp, p, sz);
+		if ((mode & (SEGREG|DATA16)) == SEGREG) {
+			// use pseq16 but +4 for 32-bit segreg
+			// mirroring recent Intel CPUs
+			q[12] = 0x04;
+		}
 		if (mode&MRETISP)
 			/* adjust stack after pop */
 			*(int32_t *)(q+0x12) += IG->p0;
@@ -1475,7 +1480,7 @@ shrot0:
 			0x8d,0x14,0x0e,
 			// movw (%%edx,%%ebp,1),%%ax
 			0x66,0x8b,0x04,0x2a,
-			// leal 2(%%esi),%%esi
+/*10*/			// leal 2(%%esi),%%esi
 			0x8d,0x76,0x02,
 		};
 		const unsigned char pseq32[] = {
@@ -1490,12 +1495,17 @@ shrot0:
 		};
 		const unsigned char *p;
 		int sz;
-		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
+		if (mode&(SEGREG|DATA16)) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		// for popping into memory the sequence is:
 		//	first do address calculation, then pop,
 		//	then store data, and last adjust stack
 		GNX(Cp, p, sz);
+		if ((mode & (SEGREG|DATA16)) == SEGREG) {
+			// use pseq16 but +4 for 32-bit segreg
+			// mirroring recent Intel CPUs
+			Cp[-sz+12] = 0x04;
+		}
 		if (mode & MRETISP) {
 			// leal IG->p0(%%esi),%%esi
 			G2M(0x8d,0xb6,Cp); G4(IG->p0,Cp);

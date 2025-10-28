@@ -2034,34 +2034,27 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		} break;
 
 	case O_POP: {
-		wkreg SR1, AR2;
+		dosaddr_t esp, addr;
 		int imm16 = (mode&MRETISP) ? IG->p0 : 0;
 		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE1("O_POP",imm16);
-		if (mode & DATA16) {
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d = CPULONG(Ofs_ESP);
-			SR1.d &= stackm;
-			DR1.w.l = sim_read_word(AR2.d + SR1.d);
-			SR1.d += 2 + imm16;
+		esp = CPULONG(Ofs_ESP) & stackm;
+		addr = CPULONG(Ofs_XSS) + esp;
+		if (mode & (DATA16|SEGREG))
+			DR1.w.l = sim_read_word(addr);
+		else
+			DR1.d = sim_read_dword(addr);
+		if (mode & DATA16)
+			esp += 2 + imm16;
+		else
+			esp += 4 + imm16;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
-			SR1.d &= stackm;
+		esp &= stackm;
 #endif
-		}
-		else {
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d = CPULONG(Ofs_ESP);
-			SR1.d &= stackm;
-			DR1.d = sim_read_dword(AR2.d + SR1.d);
-			SR1.d += 4 + imm16;
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			SR1.d &= stackm;
-#endif
-		}
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
+		esp |= (CPULONG(Ofs_ESP) & ~stackm);
 #endif
-		CPULONG(Ofs_ESP) = SR1.d;
+		CPULONG(Ofs_ESP) = esp;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
@@ -2072,26 +2065,31 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		break;
 
 	case O_POP2: {
-		wkreg AR2;
+		dosaddr_t addr;
 		unsigned int o = (mode & MNOREG) ? 0 : IG->p0;
 		long stackm = CPULONG(Ofs_STACKM);
 		int imm16 = (mode&MRETISP) ? IG->p0 : 0;
 		GTRACE2("O_POP2",o,imm16);
-		AR2.d = CPULONG(Ofs_XSS);
-		if (mode & DATA16) {
-			SR1.d &= stackm;
-			DR1.w.l = sim_read_word(AR2.d + SR1.d);
-			if (!(mode & MNOREG))
-				CPUWORD(o) = DR1.w.l;
-			SR1.d += 2 + imm16;
+		SR1.d &= stackm;
+		addr = CPULONG(Ofs_XSS) + SR1.d;
+		if (mode & (DATA16|SEGREG)) {
+			uint16_t v = sim_read_word(addr);
+			if (mode & MNOREG)
+				DR1.w.l = v;
+			else
+				CPUWORD(o) = v;
 		}
 		else {
-			SR1.d &= stackm;
-			DR1.d = sim_read_dword(AR2.d + SR1.d);
-			if (!(mode & MNOREG))
-				CPULONG(o) = DR1.d;
-			SR1.d += 4 + imm16;
+			uint32_t v = sim_read_dword(addr);
+			if (mode & MNOREG)
+				DR1.d = v;
+			else
+				CPULONG(o) = v;
 		}
+		if (mode & DATA16)
+			SR1.d += 2 + imm16;
+		else
+			SR1.d += 4 + imm16;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
@@ -2968,6 +2966,11 @@ static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
 	unsigned int __res = sim_read_word(LONG_SS + sp); \
 	sp += 2; sp &= TheCPU.StackMask; __res; })
 
+/* for popping segment registers in 32-bit mode */
+#define POPwl(sp) ({ \
+	unsigned int __res = sim_read_word(LONG_SS + sp); \
+	sp += 4; sp &= TheCPU.StackMask; __res; })
+
 #define POPl(sp) ({ \
 	unsigned int __res = sim_read_dword(LONG_SS + sp); \
 	sp += 4; sp &= TheCPU.StackMask; __res; })
@@ -3141,7 +3144,7 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 				}
 				else {
 					eip = POPl(sp);
-					cs = POPl(sp);
+					cs = POPwl(sp);
 					if (opc == IRET) temp = POPl(sp);
 				}
 				if (opc == RETlisp) {
