@@ -1279,13 +1279,17 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*8c*/	case MOVsrtrm:
 			PC += ModRM(opc, PC, _mode|SEGREG);
-			Gen(L_REG, _mode|DATA16, REG1);
 			if (REG3) {
-			    if (!(_mode & DATA16))
-				Gen(L_ZXAX, _mode);
-			    Gen(S_REG, _mode, REG3);
-			} else
+			    if (_mode & DATA16)
+				Gen(L_REG2REG, _mode, REG1, REG3);
+			    else {
+				Gen(L_REG, _mode|DATA16, REG1);
+				Gen(L_MOVZS, _mode&~DATA16, 0, REG3);
+			    }
+			} else {
+			    Gen(L_REG, _mode|DATA16, REG1);
 			    Gen(S_DI, _mode|DATA16);
+			}
 			break;
 /*8d*/	case LEA:
 			if (Fetch(PC+1) >= 0xc0) {

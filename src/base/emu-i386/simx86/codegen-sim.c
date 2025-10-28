@@ -638,10 +638,6 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		GTRACE0("L_LXS2");
 		DR1.d = sim_read_word(mem_ref + BT24(BitDATA16, mode));
 		break;
-	case L_ZXAX:
-		GTRACE0("L_ZXAX");
-		DR1.w.h = 0;
-		break;
 
 	case L_DI_R1: {
 		dosaddr_t addr = mem_ref;

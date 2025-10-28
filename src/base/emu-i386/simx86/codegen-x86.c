@@ -444,10 +444,6 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		G2M(0x8d,0x7f,Cp); G1((mode&DATA16? -2:-4),Cp);
 		}
 		break;
-	case L_ZXAX:
-		// movzwl %%ax,%%eax
-		G3(0xc0b70f,Cp);
-		break;
 
 	case L_DI_R1:
 		if (mode&(MBYTE|MBYTX)) {
