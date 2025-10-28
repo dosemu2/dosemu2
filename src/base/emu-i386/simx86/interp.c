@@ -296,23 +296,25 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		break;
 	case CALLl: {   /* call far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
-		Gen(L_IMM_R1, mode&~DATA16, jcs);
 		if (REALADDR()) {
-		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
-		    /* ok, now push old cs (returned by A_SR_SH4):eip */
+		    /* ok, first push old cs:eip */
+		    Gen(L_REG, mode, Ofs_CS);
 		    Gen(O_PUSH, mode);
-		    /* fall through */
+		    Gen(O_PUSHI, mode, d_nt);
+		    Gen(L_IMM_R1, mode&~DATA16, jcs);
+		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		    Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
 		}
 		else {
+		    Gen(L_IMM_R1, mode&~DATA16, jcs);
 		    /* handle PM far calls via Sim_helper() */
 		    Gen(O_SIM, mode, opc, d_nt, P2);
 		    /* transfer to new PC (indirect jmp) */
 		    Gen(L_IMM_R1, mode, d_t);
 		    Gen(JMP_INDIRECT, mode);
-		    break;
 		}
+		break;
 	}
-	/* no break for realaddr call */
 	case CALLd:    /* call, unfortunately also uses JMP_LINK */
 		Gen(O_PUSHI, mode, d_nt);
 		Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
@@ -1011,7 +1013,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			/* optimized multiple register push */
 			while (1) {
 			    int op;
-			    if (opc > 8 && !(_mode & DATA16)) // 32-bit segreg
+			    if (opc > 8 && !(m & DATA16)) // 32-bit segreg
 				m |= SEGREG;
 			    Gen(O_PUSH2, m, R1Tab_l[opc-1]);
 			    PC++;
@@ -2187,22 +2189,26 @@ repag0:
 				{
 					dosaddr_t oip = 0;
 					int len = ModRM(opc, PC, _mode|NOFLDR);
-					Gen(L_LXS2, _mode);
-					if (REALADDR())
-					    AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
-					else if (REG1==Ofs_BP) /* PM JMP */
-					    AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
 					if (REG1==Ofs_BX) {
-					    /* ok, now push old cs:eip */
+					    /* first push old cs:eip */
 					    oip = PC + len - Interp_LONG_CS;
 					    if (REALADDR()) {
+						Gen(L_REG, _mode, Ofs_CS);
 						Gen(O_PUSH, _mode);
 						Gen(O_PUSHI, _mode, oip);
 					    }
 					    else {
+						Gen(L_LXS2, _mode);
 						/* handle PM far calls via Sim_helper() */
 						Gen(O_SIM, _mode, CALLl, oip, P0);
 					    }
+					}
+					if (REG1!=Ofs_BX || REALADDR()) { /* JMP or RM call */
+					    Gen(L_LXS2, _mode);
+					    if (REALADDR())
+						AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
+					    else
+						AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
 					}
 					Gen(L_DI_R1, _mode);
 					PC = JumpGen(PC, Interp_LONG_CS, _mode,
@@ -2473,7 +2479,9 @@ repag0:
 				break;
 ///
 			case 0xa0: /* PUSHfs */
-				Gen(L_REG, _mode, Ofs_FS);
+				Gen(L_REG, _mode|DATA16, Ofs_FS);
+				if (!(_mode & DATA16)) // 32-bit segreg padding
+				    Gen(L_ZXAX, _mode);
 				Gen(O_PUSH, _mode); PC+=2;
 				break;
 			case 0xa1: /* POPfs */
@@ -2566,7 +2574,9 @@ repag0:
 			/* case 0xa7: CMPXCHGw (486 STEP A only) */
 ///
 			case 0xa8: /* PUSHgs */
-				Gen(L_REG, _mode, Ofs_GS);
+				Gen(L_REG, _mode|DATA16, Ofs_GS);
+				if (!(_mode & DATA16)) // 32-bit segreg padding
+				    Gen(L_ZXAX, _mode);
 				Gen(O_PUSH, _mode); PC+=2;
 				break;
 			case 0xa9: /* POPgs */
