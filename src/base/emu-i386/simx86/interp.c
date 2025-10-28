@@ -1013,7 +1013,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			/* optimized multiple register push */
 			while (1) {
 			    int op;
-			    if (opc > 8 && !(_mode & DATA16)) // 32-bit segreg
+			    if (opc > 8 && !(m & DATA16)) // 32-bit segreg
 				m |= SEGREG;
 			    Gen(O_PUSH2, m, R1Tab_l[opc-1]);
 			    PC++;
@@ -2479,7 +2479,9 @@ repag0:
 				break;
 ///
 			case 0xa0: /* PUSHfs */
-				Gen(L_REG, _mode, Ofs_FS);
+				Gen(L_REG, _mode|DATA16, Ofs_FS);
+				if (!(_mode & DATA16)) // 32-bit segreg padding
+				    Gen(L_ZXAX, _mode);
 				Gen(O_PUSH, _mode); PC+=2;
 				break;
 			case 0xa1: /* POPfs */
@@ -2572,7 +2574,9 @@ repag0:
 			/* case 0xa7: CMPXCHGw (486 STEP A only) */
 ///
 			case 0xa8: /* PUSHgs */
-				Gen(L_REG, _mode, Ofs_GS);
+				Gen(L_REG, _mode|DATA16, Ofs_GS);
+				if (!(_mode & DATA16)) // 32-bit segreg padding
+				    Gen(L_ZXAX, _mode);
 				Gen(O_PUSH, _mode); PC+=2;
 				break;
 			case 0xa9: /* POPgs */
