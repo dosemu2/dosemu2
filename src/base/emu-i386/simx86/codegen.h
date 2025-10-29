@@ -67,7 +67,6 @@
 #define L_MOVZS		17
 #define L_LXS1		18
 #define L_LXS2		19
-#define L_ZXAX		20
 #define L_CR0		21
 #define L_DI_R1		22
 #define S_DI		23

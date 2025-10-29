@@ -202,7 +202,6 @@ void Gen(int op, int mode, ...)
 	switch(op) {
 	case L_NOP:
 	case L_CR0:
-	case L_ZXAX:
 	case L_DI_R1:
 	case L_LXS2:	/* load segment value from mem +2/4 */
 	case S_DI:

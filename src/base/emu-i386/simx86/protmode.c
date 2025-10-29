@@ -94,23 +94,11 @@ int SetSegReal(unsigned short sel, int ofs)
 }
 
 // this function is called from JIT-generated code
-static int _SetSegProt_helper(unsigned short sel, int ofs)
+void SetSegProt_helper(unsigned short sel, int ofs)
 {
-	int oldsel = CPUWORD(ofs);
-	SetSegProt(ofs, sel);
-	if (TheCPU.err)
-		return -1; /* -1 flags error */
-	return oldsel;
-}
-
-int SetSegProt_helper(unsigned short sel, int ofs)
-{
-	int ret;
-
 	InCompiledCode--;
-	ret = _SetSegProt_helper(sel, ofs);
+	SetSegProt(ofs, sel);
 	InCompiledCode++;
-	return ret;
 }
 
 static int _SetSegProt_check(int ofs, unsigned long sel)
