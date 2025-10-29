@@ -148,8 +148,8 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 #if !defined(SINGLESTEP)
 	unsigned int P1;
 #endif
-	int dsp;
-	unsigned int d_t, d_nt, j_t, j_nt;
+	int dsp = 0;
+	unsigned int d_t = 0, d_nt, j_t = 0, j_nt;
 	unsigned int PC;
 
 	/* pskip points to start of next instruction
@@ -163,20 +163,11 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 	case RET: case RETisp: case JMPi: case CALLi:
 	case RETl: case RETlisp: case JMPli: case CALLli:
 	case IRET: case INT: // indirect jumps
-		dsp = 0;
-		j_t = 0;
-		d_t = 0;
 		break;
 	case JMPld: case CALLl: // far jmp/call
 		d_t = DataFetchWL_U(mode, P2+1);
-		if (REALADDR()) {
+		if (REALADDR())
 			InstrMeta[CurrIMeta].flags |= F_LJMP;
-			j_t = SEGOFF2LINEAR(FetchW(P2 + pskip - 2), d_t);
-			dsp = j_t - P2;
-		} else {
-			j_t = 0;
-			dsp = 0;
-		}
 		break;
 	default:
 		dsp = pskip;
@@ -280,11 +271,16 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		/* fall through */
 	case JMPld: {   /* uncond jmp far */
 		unsigned short jcs = FetchW(P2 + pskip - 2);
-		Gen(L_IMM_R1, mode&~DATA16, jcs);
 		if (REALADDR()) {
-		    AddrGen(A_SR_SH4, mode, Ofs_CS, Ofs_XCS);
+		    dosaddr_t xcs = jcs << 4;
+		    j_t = xcs + d_t;
+		    dsp = j_t - P2;
+		    Gen(L_IMM, mode|DATA16, Ofs_CS, jcs);
+		    Gen(L_IMM, mode&~DATA16, Ofs_XCS, xcs);
+		    Gen(L_IMM, mode&~DATA16, Ofs_XCS+4, xcs + 0xffff);
 		}
 		else {
+		    Gen(L_IMM_R1, mode&~DATA16, jcs);
 		    if (opc == CALLl)
 			/* handle PM far calls via Sim_helper() */
 			Gen(O_SIM, mode, opc, d_nt, P2);
