@@ -466,21 +466,16 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 	switch(op) {
 	case A_SR_SH4: {	// real mode make base addr from seg
 		unsigned int o = IG->p0;
-		unsigned int v = CPUWORD(o);
 		GTRACE1("A_SR_SH4",o);
 		SetSegReal(DR1.w.l, o);
-		DR1.d = v; // only needed for pushing old CS
 		}
 		break;
 	case A_SR_PROT: {	// protected mode make base addr from seg
 		unsigned int o = IG->p0;
-		int e;
 		GTRACE1("A_SR_PROT",o);
-		e = SetSegProt_helper(DR1.w.l, o);
-		if (e < 0)
+		SetSegProt_helper(DR1.w.l, o);
+		if (TheCPU.err)
 			P0 = IG->p1;
-		else
-			DR1.d = e;
 		}
 		break;
 	case L_NOP:
@@ -3152,7 +3147,8 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 					TheCPU.cs = cs;
 					LONG_CS = cs << 4;
 				}
-				else if (SetSegProt_helper(cs, Ofs_CS) < 0)
+				SetSegProt(Ofs_CS, cs);
+				if (TheCPU.err)
 					break;
 				/* eax used by JMP_INDIRECT */
 				data = eip;
