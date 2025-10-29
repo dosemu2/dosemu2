@@ -1133,10 +1133,10 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
     entry->time = 0;
     entry->attr = 0;
   } else if (is_dos_device(buf)) {
-    entry->mode = S_IFREG;
+    entry->mode = S_IFCHR;
     entry->size = 0;
     entry->time = time(NULL);
-    entry->attr = REGULAR_FILE;
+    entry->attr = DEVICE_FILE;
   } else {
     entry->mode = sbuf.st_mode;
     entry->size = sbuf.st_size;
