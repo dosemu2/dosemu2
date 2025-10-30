@@ -4293,9 +4293,11 @@ do_create_truncate:
          * DOS will not open such devices via redirector, and
          * we would avoid the problem of opening NUL device,
          * see https://github.com/dosemu2/dosemu2/issues/1359 */
-        int pos = slash - name;
+        int i, pos = slash - name;
         strcpy(dst, name);
         dst[pos] = '/';
+        for (i = pos + 1; dst[i]; i++)
+          dst[i] = toupperDOS(dst[i]);
         Debug0(("Qualify Filename: %s -> %s\n", name, dst));
         return TRUE;
       }
