@@ -1277,7 +1277,7 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
     dos83_to_ufs(buf, mname, mext);
     if (exists(name, buf, &sbuf, drive, buf2, sizeof(buf2)))
     {
-      Debug0(("filename exists, %s %.8s%.3s\r\n", name, mname, mext));
+      Debug0(("filename exists, %s %.8s%.3s\n", name, mname, mext));
       dir_list = make_dir_list(1);
       entry = make_entry(dir_list);
 
