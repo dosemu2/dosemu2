@@ -1622,7 +1622,7 @@ int e_invalidate_page_full(unsigned data)
 
 /////////////////////////////////////////////////////////////////////////////
 
-int NewIMeta(int npc)
+int NewIMeta(int npc, int override)
 {
 	int ret = 0;
 #if PROFILE >= 2
@@ -1630,7 +1630,9 @@ int NewIMeta(int npc)
 
 	if (debug_level('e')) t0 = GETTSC();
 #endif
-	if (CurrIMeta < MAXINODES-1) {
+	/* normally we have max MAXINODES-1 instructions in the buffer, but
+	   we allow one more for the instruction following STI/POPss/MOVss */
+	if (CurrIMeta < MAXINODES-2+override) {
 		// add new opcode metadata
 		IMeta *I,*I0;
 
