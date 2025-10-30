@@ -607,12 +607,6 @@ static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 	signed char OVERR_DS = Ofs_XDS;
 	signed char OVERR_SS = Ofs_XSS;
 
-	if (debug_level('e')>2) {
-		char *ds;
-		ds = e_emu_disasm(EMU_BASE32(PC),TheCPU.mode&MBIGCS,ocs);
-		e_printf("  %s\n", ds);
-	}
-
 	if (!NewIMeta(P0)) {
 		if (debug_level('e')>2)
 			e_printf("============ Tab full:cannot close sequence\n");
@@ -621,6 +615,13 @@ static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 		Gen(JMP_TAILCODE, basemode, P0);
 		return P0;
 	}
+
+	if (debug_level('e')>2) {
+		char *ds;
+		ds = e_emu_disasm(EMU_BASE32(PC),basemode&MBIGCS,ocs);
+		e_printf("  %s\n", ds);
+	}
+
 	if (CurrIMeta == 0)
 		Gen(L_IMM, basemode&~DATA16, Ofs_EIP, PC - Interp_LONG_CS);
 
