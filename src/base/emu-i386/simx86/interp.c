@@ -48,6 +48,8 @@
 int EmuSignals = 0;
 #endif
 
+static void JMPGen(int op, int mode, ...);
+
 /* this is probably unsafe with cpatch */
 #define SPEC_PREJIT 0
 
@@ -105,7 +107,7 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 	 * it still lacks the tail code; add it here */
 	IMeta *GL = &InstrMeta[CurrIMeta];
 	if (GL->gen[GL->ngen-1].op < JMP_TAILCODE) {
-		Gen(JMP_TAILCODE, mode, PC);
+		JMPGen(JMP_TAILCODE, mode, PC);
 	}
 
 	assert(PC > P0);
@@ -141,6 +143,42 @@ static inline unsigned int UNPREFIX(unsigned int m)
 // jcc  	7x 06 b8 a a a a 5a c3 b8 b b b b 5a c3
 //	link	7x 06 e9 l l l l -- -- e9 l l l l -- --
 //
+
+/* generates the actual jumps */
+static void JMPGen(int op, int mode, ...)
+{
+	va_list	ap;
+	va_start(ap, mode);
+	unsigned int P0 = InstrMeta[0].npc;
+	switch(op) {
+	case JMP_TAILCODE:
+		Gen(op, mode, va_arg(ap, unsigned int));
+		break;
+	case JMP_INDIRECT:
+		Gen(op, mode);
+		break;
+	case JMP_LINK:
+		Gen(op, mode, va_arg(ap, unsigned int), P0);
+		break;
+	case JB_LINK:
+		Gen(op, mode, va_arg(ap, unsigned int));
+		Gen(JMP_LINK, mode, va_arg(ap, unsigned int), P0);
+		Gen(JMP_LINK, mode|CKSIGN, va_arg(ap, unsigned int), P0);
+		break;
+	case JF_LINK:
+		Gen(op, mode, va_arg(ap, unsigned int));
+		Gen(JMP_LINK, mode, va_arg(ap, unsigned int), P0);
+		Gen(JMP_LINK, mode&~CKSIGN, va_arg(ap, unsigned int), P0);
+		break;
+	case JLOOP_LINK:
+		Gen(op, mode, va_arg(ap, unsigned int));
+		/* CKSIGN is likely not needed for loops */
+		Gen(JMP_LINK, mode, va_arg(ap, unsigned int), P0);
+		Gen(JMP_LINK, mode, va_arg(ap, unsigned int), P0);
+		break;
+	}
+	va_end(ap);
+}
 
 static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 			    int mode, int opc, int pskip)
@@ -247,18 +285,14 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 			     * condition changing a flag */
 			    e_printf("### dsp=0 jmp=%x pskip=%d\n",opc,pskip);
 		    }
-		    Gen(JB_LINK, mode, opc);
-		    Gen(JMP_LINK, mode, j_nt, InstrMeta[0].npc);
-		    Gen(JMP_LINK, mode|CKSIGN, j_t, InstrMeta[0].npc);
+		    JMPGen(JB_LINK, mode, opc, j_nt, j_t);
 		}
 		else {
 		    if (dsp == pskip) {
 			e_printf("### jmp %x 00\n",opc);
 		    }
 		    /* forward jump or backward jump >=256 bytes */
-		    Gen(JF_LINK, mode, opc);
-		    Gen(JMP_LINK, mode, j_nt, InstrMeta[0].npc);
-		    Gen(JMP_LINK, mode&~CKSIGN, j_t, InstrMeta[0].npc);
+		    JMPGen(JF_LINK, mode, opc, j_nt, j_t);
 		}
 		break;
 	case CALLl:	/* call far */
@@ -289,7 +323,7 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		    /* transfer to new PC
 		       (new cs base dynamic, so indirect jmp) */
 		    Gen(L_IMM_R1, mode, d_t);
-		    Gen(JMP_INDIRECT, mode);
+		    JMPGen(JMP_INDIRECT, mode);
 		    break;
 		}
 	}
@@ -300,22 +334,20 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		    InstrMeta[CurrIMeta].flags |= F_SLFJ;
 		}
 		if (dsp <= 0) mode |= CKSIGN;
-		Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
+		JMPGen(JMP_LINK, mode, j_t);
 		break;
 	case CALLd:    /* call, unfortunately also uses JMP_LINK */
 		Gen(O_PUSHI, mode, d_nt);
-		Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
+		JMPGen(JMP_LINK, mode, j_t);
 		break;
 	case LOOP: case LOOPZ_LOOPE: case LOOPNZ_LOOPNE:
-		Gen(JLOOP_LINK, mode, opc);
 		/* CKSIGN is likely not needed for loops */
-		Gen(JMP_LINK, mode, j_nt, InstrMeta[0].npc);
-		Gen(JMP_LINK, mode, j_t, InstrMeta[0].npc);
+		JMPGen(JLOOP_LINK, mode, opc, j_nt, j_t);
 		break;
 	case RETl: case RETlisp: case IRET: // far ret, indirect
 	case JMPli: case CALLli: case INT: // far jmp/call, indirect
 	case RET: case RETisp: case JMPi: case CALLi: // ret, indirect
-		Gen(JMP_INDIRECT, mode);
+		JMPGen(JMP_INDIRECT, mode);
 		break;
 	default: dbug_printf("JumpGen: unknown condition\n");
 		break;
@@ -357,9 +389,9 @@ static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 	if (trapno == EXCP0D_GPF)
 		Gen(L_IMM, basemode, Ofs_SCP_ERR, scp_err);
 	if (trapno != EXCP03_INT3 && trapno != EXCP04_INTO)
-		Gen(JMP_TAILCODE, basemode, P0); // fault: use current instr
+		JMPGen(JMP_TAILCODE, basemode, P0); // fault: use current instr
 	else
-		Gen(JMP_TAILCODE, basemode, PC); // trap: use next instr
+		JMPGen(JMP_TAILCODE, basemode, PC); // trap: use next instr
 	return PC;
 }
 
@@ -619,7 +651,7 @@ static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 			e_printf("============ Tab full:cannot close sequence\n");
 
 		// close previous instruction with tail code and try again later
-		Gen(JMP_TAILCODE, basemode, P0);
+		JMPGen(JMP_TAILCODE, basemode, P0);
 		return P0;
 	}
 
@@ -1984,9 +2016,7 @@ repag0:
 				int op = LOOP;
 				if (repmod & MREPCOND)
 					op = (realrepmod&MREP) ? LOOPZ_LOOPE : LOOPNZ_LOOPNE;
-				Gen(JLOOP_LINK, _mode, op);
-				Gen(JMP_LINK, _mode, PC, InstrMeta[0].npc);
-				Gen(JMP_LINK, _mode, P0, InstrMeta[0].npc);
+				JMPGen(JLOOP_LINK, _mode, op, PC, P0);
 				/* code will be flushed immediately
 				   in interp_post because TF is set */
 				break;
@@ -2106,7 +2136,7 @@ repag0:
 				   already a jump */
 				IMeta *GL = &InstrMeta[CurrIMeta];
 				if (GL->gen[GL->ngen-1].op < JMP_TAILCODE)
-					Gen(JMP_LINK, _mode|CKSIGN, PC, InstrMeta[0].npc);
+					JMPGen(JMP_LINK, _mode|CKSIGN, PC);
 			}
 			break;
 /*fc*/	case CLD:	PC++;
