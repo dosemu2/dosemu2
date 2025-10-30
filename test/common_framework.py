@@ -60,6 +60,12 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 """
 
+RED = "\x1b[31m"
+GREEN = "\x1b[32m"
+YELLOW = "\x1b[33m"
+LIGHT_BLUE = "\x1b[94m"
+RESET = "\x1b[0m"
+
 
 def mkstring(length):
     return ''.join(random.choice(string.hexdigits) for x in range(length))
@@ -587,6 +593,13 @@ class BaseTestCase(object):
 
 class MyTestResult(unittest.TextTestResult):
 
+    with_color_terminal = False
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if (self.stream.isatty() or environ.get("CI")) and not environ.get("NO_COLOR"):
+            self.with_color_terminal = True
+
     def getDescription(self, test):
         if 'SubTest' in strclass(test.__class__):
             return str(test)
@@ -636,6 +649,23 @@ class MyTestResult(unittest.TextTestResult):
             exctype, value, tb, limit=length, capture_locals=self.tb_locals)
         msgLines = list(tb_e.format())
 
+        # Decode(maybe wrap) and add colour if the line is long
+        maxLineLen = 0
+        for l in msgLines:
+            if len(l) > maxLineLen:
+                maxLineLen = len(l)
+        if maxLineLen > 120:
+            n = list()
+            for l in msgLines:
+                lf = l.encode('utf-8').decode('unicode_escape')
+                if self.with_color_terminal:
+                    lf = lf.replace("FAIL:", f"{RED}FAIL{RESET}:")
+                    lf = lf.replace("PASS:", f"{GREEN}PASS{RESET}:")
+                    lf = lf.replace("OKAY:", f"{YELLOW}OKAY{RESET}:")
+                    lf = lf.replace("INFO:", f"{LIGHT_BLUE}INFO{RESET}:")
+                n += [ lf, ]
+            msgLines = n
+
         # Stdout, Stderr
         if self.buffer:
             output = stdout.getvalue()
@@ -658,6 +688,9 @@ class MyTestResult(unittest.TextTestResult):
             if not environ.get("CI"):
                 msgLines.append("Further info in file '%s'\n" % l[0])
                 continue
+
+            msgLines.append("::group::%s\n" % l[0])
+
             name = TITLE_NAME_FMT.format(l[1])
             msgLines.append(TITLE_BANNER_FMT.format(name))
             try:
@@ -668,6 +701,8 @@ class MyTestResult(unittest.TextTestResult):
             except FileNotFoundError:
                 msgLines.append("File not present\n")
 
+            msgLines.append("::endgroup::\n")
+
         return ''.join(msgLines)
 
     def addExpectedFailure(self, test, err):
@@ -677,7 +712,10 @@ class MyTestResult(unittest.TextTestResult):
 
     def addFailure(self, test, err):
         if self.showAll:
-            self.stream.writeln("FAIL")
+            if self.with_color_terminal:
+                self.stream.writeln(f"{RED}FAIL{RESET}")
+            else:
+                self.stream.writeln("FAIL")
         elif self.dots:
             self.stream.write('F')
             self.stream.flush()
