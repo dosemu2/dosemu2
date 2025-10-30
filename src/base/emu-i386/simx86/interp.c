@@ -2123,7 +2123,8 @@ repag0:
 			Gen(O_SIM, _mode, opc, 0, PC);
 			/* real mode inhibits after STI as well but
 			   we've always relied on trapping behaviour with vm86 */
-			if (!V86MODE() && !(_mode & MINHI)) {
+			/* note that TF does not inhibit after STI! */
+			if (!V86MODE() && !(_mode & (MTRAP|MINHI))) {
 				PC = InterpOne(PC, Interp_LONG_CS, ocs,
 					       basemode|MINHI|MSSTP);
 				/* check signals immediately after the
