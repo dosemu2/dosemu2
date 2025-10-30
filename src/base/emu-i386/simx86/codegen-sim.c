@@ -3310,7 +3310,6 @@ stack_return_from_vm86:
 					    EFLAGS);
 				/* force exit after next compiled block execution */
 				exit_pending_or(CeS_RPIC);
-				TheCPU.err = EXCP_STISHADOW;
 			    }
 			}
 			break;

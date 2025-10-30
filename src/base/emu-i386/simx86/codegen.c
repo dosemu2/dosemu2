@@ -458,16 +458,7 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 		cp1 = CodePtr;
 	    }
 	    I->len = CodePtr - cp;
-	    if (i > 0) {
-		/* F_INHI (pop ss/mov ss) only applies to the last
-		   instruction in the sequence and not twice in
-		   a row */
-		if ((I->flags & F_INHI) && !(I0->flags & F_INHI))
-		    I0->flags |= F_INHI;
-		else
-		    I0->flags &= ~F_INHI;
-		I0->flags |= I->flags & ~F_INHI;
-	    }
+	    I0->flags |= I->flags;
 	    if (debug_level('e')>3) {
 		if (debug_level('e')>4) {
 		    e_printf("Metadata %03d PC=%08x flags=%x(%x) ng=%d\n",
@@ -593,12 +584,7 @@ static void Exec_post(unsigned long flg, unsigned int mem_ref,
 {
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
-	CEmuStat &= ~CeS_STI;
 	TheCPU.err = abs(TheCPU.err);
-	if (TheCPU.err == EXCP_STISHADOW) {
-		CEmuStat |= CeS_STI;
-		TheCPU.err = 0;
-	}
 	if (TheCPU.err == EXCP_TFSET)
 		TheCPU.err = 0;
 	/* checking for infinite loops, flagged in JumpGen() */
@@ -648,7 +634,6 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	unsigned int mem_ref;
 	unsigned int ePC;
 	unsigned short seqflg = G->flags;
-	int block_inhibit;
 #if defined(SINGLESTEP)
         unsigned int key = G->key;
 #endif
@@ -670,19 +655,14 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 #endif
 	/* these flags need to be checked only once for the node */
 	G->flags &= ~(F_SPEC|F_LEAV);
-	/* if there is just one compiled instruction inhibition
-	   should be ignored unconditionally if signals and traps
-	   were already ignored, e.g. two "sti"s in a row */
-	block_inhibit = (seqflg & F_INHI) && G->seqnum == 1 &&
-	  (CEmuStat & CeS_INHI);
 	flg = Exec_pre(ecpu);
 #if !defined(ASM_DUMP) && !defined(SINGLESTEP)
 	/* try fast inner loop if nothing special is going on */
-	if (!(EFLAGS & TF) && !block_inhibit && !debug_level('e')) {
+	if (!(EFLAGS & TF) && !debug_level('e')) {
 		while (1) {
 			ePC = ExecOne(G, &mem_ref, &flg, ecpu, pLastXKey);
 			if (TheCPU.err || exit_pending() ||
-			    (seqflg & (F_INHI|F_SLFJ|F_SPEC|F_LEAV)))
+			    (seqflg & (F_SLFJ|F_SPEC|F_LEAV)))
 				break;
 			G = FindTree(ePC);
 			if (!G || !GoodNode(G))
@@ -717,14 +697,7 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	/* exit_pending at this point is non-zero if there was ANY signal,
 	 * not just a SIGALRM
 	 */
-	if (((seqflg & F_INHI) || (CEmuStat & CeS_STI)) && !block_inhibit) {
-		/* ignore signals and traps for movss/popss */
-		CEmuStat |= CeS_INHI;
-		CEmuStat &= ~CeS_TRAP;
-	} else {
-		CEmuStat &= ~(CeS_INHI|CeS_STI);
-		CEmuStat |= exit_pending_xchg(0);
-	}
+	CEmuStat |= exit_pending_xchg(0);
 
 #if defined(SINGLESTEP)
 	InvalidateNodeRange(key, 1, NULL);

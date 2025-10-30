@@ -50,8 +50,6 @@ extern void e_priv_iopl(int);
 #define CeS_SIGPEND	0x01	/* signal pending mask */
 #define CeS_SIGACT	0x02	/* signal active mask */
 #define CeS_RPIC	0x04	/* pic asks for interruption */
-#define CeS_STI		0x08	/* STI shadow active */
-#define CeS_INHI	0x800	/* inhibit interrupts(pop ss; pop sp et sim.) */
 #define CeS_TRAP	0x1000	/* INT01 Sstep active */
 #define CeS_DRTRAP	0x2000	/* Debug Registers active */
 #define CeS_INSTREMU_RM	0x4000

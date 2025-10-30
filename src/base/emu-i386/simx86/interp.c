@@ -383,7 +383,7 @@ static unsigned int FindExecCode(unsigned int PC)
 	while (1) {
 		if (EFLAGS & TF)
 			CEmuStat |= CeS_TRAP;
-		if (CEmuStat & (CeS_TRAP|CeS_STI))
+		if (CEmuStat & CeS_TRAP)
 			TheCPU.mode |= MSSTP;
 		else
 			TheCPU.mode &= ~MSSTP;
@@ -512,7 +512,7 @@ void Interp86(void)
       return;
     }
 
-    CEmuStat &= ~(CeS_TRAP|CeS_STI);
+    CEmuStat &= ~CeS_TRAP;
 
     PC = LONG_CS + TheCPU.eip;
     assert(CurrIMeta < 0);
@@ -607,7 +607,14 @@ static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 	signed char OVERR_DS = Ofs_XDS;
 	signed char OVERR_SS = Ofs_XSS;
 
-	if (!NewIMeta(P0)) {
+	/* sti, pop ss, or mov ss recursively call InterpOne to make
+	   sure the next instruction is in the same block so it
+	   it cannot be interrupted. This only applies strictly to the
+	   next instruction, the inhibition doesn't last past two "sti"s
+	   for example. We must signal to NewIMeta that we want one more
+	   item.
+	*/
+	if (!NewIMeta(P0, (basemode & MINHI) ? 1 : 0)) {
 		if (debug_level('e')>2)
 			e_printf("============ Tab full:cannot close sequence\n");
 
@@ -878,8 +885,10 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    AddrGen(A_SR_PROT, _mode, Ofs_SS, P0);
 			    Gen(O_POP3, _mode);
 			}
-			InstrMeta[CurrIMeta].flags |= F_INHI;
 			PC++;
+			if (!(_mode & MINHI))
+			    PC = InterpOne(PC, Interp_LONG_CS, ocs,
+					   basemode|MINHI);
 			break;
 /*1f*/	case POPds:	_mode |= SEGREG;
 			if (REALADDR()) {
@@ -1324,8 +1333,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			else {
 			    AddrGen(A_SR_PROT, _mode, REG1, P0);
 			}
-			if (REG1 == Ofs_SS)
-			    InstrMeta[CurrIMeta].flags |= F_INHI;
+			if (REG1 == Ofs_SS && !(_mode & MINHI))
+			    PC = InterpOne(PC, Interp_LONG_CS, ocs,
+					   basemode|MINHI);
 			break;
 
 /*9b*/	case oWAIT:
@@ -2088,8 +2098,16 @@ repag0:
 			Gen(O_SIM, _mode, opc, 0, PC);
 			/* real mode inhibits after STI as well but
 			   we've always relied on trapping behaviour with vm86 */
-			if (!V86MODE())
-				InstrMeta[CurrIMeta].flags |= F_INHI;
+			if (!V86MODE() && !(_mode & MINHI)) {
+				PC = InterpOne(PC, Interp_LONG_CS, ocs,
+					       basemode|MINHI|MSSTP);
+				/* check signals immediately after the
+				   instruction following STI, if it's not
+				   already a jump */
+				IMeta *GL = &InstrMeta[CurrIMeta];
+				if (GL->gen[GL->ngen-1].op < JMP_TAILCODE)
+					Gen(JMP_LINK, _mode|CKSIGN, PC, InstrMeta[0].npc);
+			}
 			break;
 /*fc*/	case CLD:	PC++;
 			Gen(O_SETFL, _mode, CLD);
