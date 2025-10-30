@@ -3142,14 +3142,16 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 					sp += arg;
 					sp &= TheCPU.StackMask;
 				}
-				rESP = sp | (rESP&~TheCPU.StackMask);
 				if (REALADDR()) {
 					TheCPU.cs = cs;
 					LONG_CS = cs << 4;
 				}
-				SetSegProt(Ofs_CS, cs);
-				if (TheCPU.err)
-					break;
+				else {
+					SetSegProt(Ofs_CS, cs);
+					if (TheCPU.err)
+						break;
+				}
+				rESP = sp | (rESP&~TheCPU.StackMask);
 				/* eax used by JMP_INDIRECT */
 				data = eip;
 			}
