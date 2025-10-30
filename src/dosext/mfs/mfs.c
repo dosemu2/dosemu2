@@ -1133,10 +1133,10 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
     entry->time = 0;
     entry->attr = 0;
   } else if (is_dos_device(buf)) {
-    entry->mode = S_IFREG;
+    entry->mode = S_IFCHR;
     entry->size = 0;
     entry->time = time(NULL);
-    entry->attr = REGULAR_FILE;
+    entry->attr = DEVICE_FILE;
   } else {
     entry->mode = sbuf.st_mode;
     entry->size = sbuf.st_size;
@@ -1277,7 +1277,7 @@ static struct dir_list *get_dir_ff(char *name, char *mname, char *mext,
     dos83_to_ufs(buf, mname, mext);
     if (exists(name, buf, &sbuf, drive, buf2, sizeof(buf2)))
     {
-      Debug0(("filename exists, %s %.8s%.3s\r\n", name, mname, mext));
+      Debug0(("filename exists, %s %.8s%.3s\n", name, mname, mext));
       dir_list = make_dir_list(1);
       entry = make_entry(dir_list);
 
@@ -4293,9 +4293,11 @@ do_create_truncate:
          * DOS will not open such devices via redirector, and
          * we would avoid the problem of opening NUL device,
          * see https://github.com/dosemu2/dosemu2/issues/1359 */
-        int pos = slash - name;
+        int i, pos = slash - name;
         strcpy(dst, name);
         dst[pos] = '/';
+        for (i = pos + 1; dst[i]; i++)
+          dst[i] = toupperDOS(dst[i]);
         Debug0(("Qualify Filename: %s -> %s\n", name, dst));
         return TRUE;
       }

@@ -356,6 +356,7 @@ extern int mfs_enabled;
 #define VOLUME_LABEL	0x08
 #define DIRECTORY	0x10
 #define ARCHIVE_NEEDED	0x20
+#define DEVICE_FILE	0x40
 
 /* dos access mode constants */
 #define READ_ACC	0x00
