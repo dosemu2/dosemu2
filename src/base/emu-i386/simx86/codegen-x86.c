@@ -1165,10 +1165,10 @@ shrot0:
 
 	case O_PUSH2: {		/* register push only */
 		const unsigned char pseq16[] = {
-			// movw offs(%%ebx),%%ax (with 66 prefix)
-/*00*/			0x8b,0x43,0x00,
+			// movw offs(%%ebx),%%ax
+/*00*/			0x66,0x8b,0x43,0x00,
 			// leal -2(%%ecx),%%ecx
-/*03*/			0x8d,0x49,0xfe,
+/*04*/			0x8d,0x49,0xfe,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%esi,%%ecx,1),%%edx
@@ -1178,7 +1178,7 @@ shrot0:
 		};
 		const unsigned char pseq32[] = {
 			// movl offs(%%ebx),%%eax
-/*00*/			0x8b,0x43,0x00,
+/*00*/			0x90,0x8b,0x43,0x00,
 			// leal -4(%%ecx),%%ecx
 			0x8d,0x49,0xfc,
 			// andl StackMask(%%ebx),%%ecx
@@ -1191,14 +1191,14 @@ shrot0:
 		const unsigned char *p;
 		unsigned char *q;
 		int sz;
-		if (mode&(SEGREG|DATA16)) G1(0x66,Cp),p=pseq16,sz=sizeof(pseq16);
+		if (mode&(SEGREG|DATA16)) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		q=Cp; GNX(Cp, p, sz);
-		q[2] = IG->p0;
+		q[3] = IG->p0;
 		if ((mode & (SEGREG|DATA16)) == SEGREG) {
 			// use pseq16 but -4 for 32-bit segreg
 			// mirroring recent Intel CPUs
-			q[5] = 0xfc;
+			q[6] = 0xfc;
 		}
 		} break;
 
