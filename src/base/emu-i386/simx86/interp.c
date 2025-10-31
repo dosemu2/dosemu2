@@ -148,6 +148,10 @@ static inline unsigned int UNPREFIX(unsigned int m)
 static void JMPGen(int op, int mode, ...)
 {
 	va_list	ap;
+
+	if (mode & MTRAP)
+		Gen(L_IMM, mode, Ofs_ERR, EXCP01_SSTP);
+
 	va_start(ap, mode);
 	unsigned int P0 = InstrMeta[0].npc;
 	switch(op) {
@@ -385,6 +389,7 @@ static int can_speculate(void)
 static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 	unsigned int scp_err, unsigned int P0)
 {
+	basemode &= ~MTRAP; // exceptions override single step trap
 	Gen(L_IMM, basemode, Ofs_ERR, trapno);
 	if (trapno == EXCP0D_GPF)
 		Gen(L_IMM, basemode, Ofs_SCP_ERR, scp_err);
@@ -413,12 +418,9 @@ static unsigned int FindExecCode(unsigned int PC)
 	 * a 'descheduling point' for checking signals.
 	 */
 	while (1) {
+		TheCPU.mode &= ~(MSSTP|MTRAP);
 		if (EFLAGS & TF)
-			CEmuStat |= CeS_TRAP;
-		if (CEmuStat & CeS_TRAP)
-			TheCPU.mode |= MSSTP;
-		else
-			TheCPU.mode &= ~MSSTP;
+			TheCPU.mode |= MSSTP|MTRAP;
 		G = FindTree(PC);
 		if (G) {
 			if (!GoodNode(G)) {
@@ -490,7 +492,7 @@ static unsigned int FindExecCode(unsigned int PC)
 			TheCPU.err = EXCP_EMULEAVE;
 
 		if (TheCPU.err) return PC;
-		if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC))
+		if (CEmuStat & (CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC))
 			HandleEmuSignals();
 		if (TheCPU.err) return PC;
 	}
@@ -502,17 +504,12 @@ static void HandleEmuSignals(void)
 #if PROFILE
 	if (debug_level('e')) EmuSignals++;
 #endif
-	if (CEmuStat & CeS_TRAP) {
-		/* force exit for single step trap */
-		if (!TheCPU.err)
-			TheCPU.err = EXCP01_SSTP;
-	}
 	//else if (CEmuStat & CeS_DRTRAP) {
 	//	if (e_debug_check(PC)) {
 	//		TheCPU.err = EXCP01_SSTP;
 	//	}
 	//}
-	else if (CEmuStat & CeS_SIGPEND) {
+	if (CEmuStat & CeS_SIGPEND) {
 		/* force exit after signal */
 		CEmuStat = (CEmuStat & ~CeS_SIGPEND) | CeS_SIGACT;
 		TheCPU.err=EXCP_SIGNAL;
@@ -524,7 +521,6 @@ static void HandleEmuSignals(void)
 			TheCPU.err=EXCP_PICSIGNAL;
 	}
 	/* clear optional exit conditions */
-	CEmuStat &= ~CeS_TRAP;
 	if (TheCPU.err)
 		CEmuStat &= ~(CeS_SIGPEND | CeS_RPIC);
 }
@@ -543,8 +539,6 @@ void Interp86(void)
          via Gen_sim or Sim_helper, with different cs:eip */
       return;
     }
-
-    CEmuStat &= ~CeS_TRAP;
 
     PC = LONG_CS + TheCPU.eip;
     assert(CurrIMeta < 0);
@@ -1760,6 +1754,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 #endif
 			if (V86MODE() && (TheCPU.cr[4] & CR4_VME)) {
 				_mode |= DATA16|ADDR16; // no operand size prefix
+				_mode &= ~MTRAP; // INT clears TF
 				if (IOPL == 3) {
 					Gen(O_INT, _mode, inum, P0);
 					Gen(O_PUSH2F, _mode);
