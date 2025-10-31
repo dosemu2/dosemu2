@@ -1031,8 +1031,7 @@ static int e_vm86_tail(struct vm86_struct *info)
   retval = -1;
 
   if (xval==EXCP_SIGNAL) {	/* coming here for async interruptions */
-    if (CEmuStat & (CeS_SIGPEND|CeS_SIGACT))
-		{ CEmuStat &= ~(CeS_SIGPEND|CeS_SIGACT); retval=VM86_SIGNAL; }
+    retval=VM86_SIGNAL;
   } else if (xval==EXCP_PICSIGNAL) {
     retval = VM86_PICRETURN;
   } else if (xval==EXCP_STISIGNAL) {

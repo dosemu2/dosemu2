@@ -48,7 +48,6 @@ extern void e_priv_iopl(int);
 /* Cpuemu status register - pack as much info as possible here, so to
  * use a single test to check if we have to go further or not */
 #define CeS_SIGPEND	0x01	/* signal pending mask */
-#define CeS_SIGACT	0x02	/* signal active mask */
 #define CeS_RPIC	0x04	/* pic asks for interruption */
 #define CeS_DRTRAP	0x2000	/* Debug Registers active */
 #define CeS_INSTREMU_RM	0x4000

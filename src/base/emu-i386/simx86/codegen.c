@@ -629,28 +629,25 @@ static unsigned ExecOne(TNode *G, unsigned *mem_ref, unsigned long *flg,
 
 static void HandleEmuSignals(void)
 {
+	int e = exit_pending_xchg(0);
 #if PROFILE
 	if (debug_level('e')) EmuSignals++;
 #endif
-	//else if (CEmuStat & CeS_DRTRAP) {
+	//XXX need to figure out something for DRTRAP
+	//if (e & CeS_DRTRAP) {
 	//	if (e_debug_check(PC)) {
 	//		TheCPU.err = EXCP01_SSTP;
 	//	}
 	//}
-	if (CEmuStat & CeS_SIGPEND) {
+	if (e & CeS_SIGPEND) {
 		/* force exit after signal */
-		CEmuStat = (CEmuStat & ~CeS_SIGPEND) | CeS_SIGACT;
 		TheCPU.err=EXCP_SIGNAL;
 	}
-	else if (CEmuStat & CeS_RPIC) {
+	else if (e & CeS_RPIC) {
 		/* force exit for PIC */
-		CEmuStat &= ~CeS_RPIC;
 		if (EFLAGS & EFLAGS_IF)
 			TheCPU.err=EXCP_PICSIGNAL;
 	}
-	/* clear optional exit conditions */
-	if (TheCPU.err)
-		CEmuStat &= ~(CeS_SIGPEND | CeS_RPIC);
 }
 
 unsigned int DoExec(TNode *G, unsigned *pLastXKey)
@@ -723,11 +720,8 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	/* exit_pending at this point is non-zero if there was ANY signal,
 	 * not just a SIGALRM
 	 */
-	if (exit_pending()) {
-		CEmuStat |= exit_pending_xchg(0);
-		if (!TheCPU.err)
-			HandleEmuSignals();
-	}
+	if (!TheCPU.err && exit_pending())
+		HandleEmuSignals();
 
 #if defined(SINGLESTEP)
 	InvalidateNodeRange(key, 1, NULL);
