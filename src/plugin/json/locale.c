@@ -149,7 +149,7 @@ done:
     json_object_put(jobj);
 }
 
-CONSTRUCTOR(static void init(void))
+CONSTRUCTOR2(json)
 {
     charset_init();
 }

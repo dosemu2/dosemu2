@@ -1192,7 +1192,7 @@ static void config_post_process(void)
     if (!config.internal_cset) {
 #ifdef LOCALE_PLUGIN
         /* json plugin loads locale settings */
-        load_plugin("json");
+        LOAD_PLUGIN(json);
 #else
         set_internal_charset("cp437");
 #endif
