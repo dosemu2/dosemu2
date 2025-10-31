@@ -634,16 +634,16 @@ static void HandleEmuSignals(void)
 	if (debug_level('e')) EmuSignals++;
 #endif
 	//XXX need to figure out something for DRTRAP
-	//if (e & CeS_DRTRAP) {
+	//if (TheCPU.dr[7] & 0xff) {
 	//	if (e_debug_check(PC)) {
 	//		TheCPU.err = EXCP01_SSTP;
 	//	}
 	//}
-	if (e & CeS_SIGPEND) {
+	if (e & exit_SIGPEND) {
 		/* force exit after signal */
 		TheCPU.err=EXCP_SIGNAL;
 	}
-	else if (e & CeS_RPIC) {
+	else if (e & exit_RPIC) {
 		/* force exit for PIC */
 		if (EFLAGS & EFLAGS_IF)
 			TheCPU.err=EXCP_PICSIGNAL;
@@ -664,8 +664,8 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	ecpu = CPUOFFS(0);
 	if (debug_level('e')>1) {
 		unsigned e = exit_pending();
-		if (e & CeS_SIGPEND) e_printf("** SIGALRM is pending\n");
-		if (e & CeS_RPIC) e_printf("** PIC is pending\n");
+		if (e & exit_SIGPEND) e_printf("** SIGALRM is pending\n");
+		if (e & exit_RPIC) e_printf("** PIC is pending\n");
 		e_printf("==== Executing code at %p flg=%04x\n",
 			G->addr,seqflg);
 	}

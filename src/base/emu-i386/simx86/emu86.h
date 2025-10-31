@@ -682,6 +682,9 @@ extern int SpecPrejits;
 #define EXCP_EMULEAVE	69
 #define EXCP_TFSET	71
 
+#define exit_SIGPEND	0x01	/* signal pending mask */
+#define exit_RPIC	0x02	/* pic asks for interruption */
+
 /////////////////////////////////////////////////////////////////////////////
 
 #ifndef min

@@ -3309,7 +3309,7 @@ stack_return_from_vm86:
 				    e_printf("Return for STI ASAP fl=%08x\n",
 					    EFLAGS);
 				/* force exit after next compiled block execution */
-				exit_pending_or(CeS_RPIC);
+				exit_pending_or(exit_RPIC);
 			    }
 			}
 			break;
