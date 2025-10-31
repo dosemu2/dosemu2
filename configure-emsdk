@@ -1,6 +1,8 @@
 # run this for emscripten:
 # ./configure-emsdk ./default-configure -d
 
-LDFLAGS="-pthread -sNODERAWFS -sUSE_SDL=2" emconfigure $* \
-  --disable-searpc --disable-dlplugins \
-  --disable-mcontext --disable-fdpp
+export CONFIGURE_WRAPPER=emconfigure
+LDFLAGS="-pthread -sNODERAWFS -sUSE_SDL=3 -sTOTAL_MEMORY=26214400" \
+  $CONFIGURE_WRAPPER $* \
+  --disable-searpc --disable-dlplugins --disable-solib \
+  --disable-mcontext --disable-fdpp --disable-dj64
