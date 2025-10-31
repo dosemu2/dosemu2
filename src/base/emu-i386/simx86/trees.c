@@ -47,7 +47,6 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include "emu86.h"
-#include "misc/dlmalloc.h"
 #include "codegen.h"
 
 IMeta	InstrMeta[MAXINODES];
@@ -446,7 +445,7 @@ void avltr_delete(const int key)
       pthread_mutex_unlock(&trees_mtx);
       leavedos_main(0x8130);
   }
-  if (G->addr) dlfree(G->addr);
+  FreeGenCodeBuf(G->addr);
   __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
 		   NULL, __ATOMIC_RELAXED);
   free(G);
@@ -636,7 +635,7 @@ void avltr_destroy(void)
 		  B = B->next;
 		  free(B2);
 	      }
-	      if (p->data->addr) dlfree(p->data->addr);
+	      FreeGenCodeBuf(p->data->addr);
 	      free(p->data);
 	      p->data = NULL;
 	  }
@@ -1148,7 +1147,7 @@ static int TraverseAndClean(void)
  * code addresses. At the end, we reset both CodeBuf and InstrMeta to prepare
  * for a new sequence.
  */
-TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
+TNode *Move2Tree(IMeta *I0, struct cbptr GenCodeBuf)
 {
   TNode *nG = NULL;
 #if PROFILE >= 2
@@ -1184,7 +1183,7 @@ TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
 	/* ->REPLACE the code of the node found with the latest
 	   compiled version */
 	NodeUnlinker(nG);
-	if (nG->addr) dlfree(nG->addr);
+	FreeGenCodeBuf(nG->addr);
 	free(nG);
   }
   else {
@@ -1213,7 +1212,7 @@ TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
   __atomic_store_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK], nG,
 		   __ATOMIC_RELAXED);
 
-  nG->addr = GenCodeBuf;
+  nG->addr = GenCodeBuf.ptr;
 
   /* setup structures for inter-node linking */
   nG->unlinked_jmp_targets = 0;
@@ -1530,7 +1529,7 @@ static void do_invalidate(unsigned data, int cnt)
 {
 	cnt = PAGE_ALIGN(data + cnt) - (data & _PAGE_MASK);
 	data &= _PAGE_MASK;
-	InvalidateNodeRange(data, cnt, 0);
+	InvalidateNodeRange(data, cnt, NULL);
 }
 
 static void _e_invalidate(unsigned data, int cnt)
@@ -1542,7 +1541,7 @@ static void _e_invalidate(unsigned data, int cnt)
 		return;
 	// no need to invalidate the whole page here,
 	// as the page does not need to be unprotected
-	InvalidateNodeRange(data, cnt, 0);
+	InvalidateNodeRange(data, cnt, NULL);
 }
 
 void e_invalidate(unsigned data, int cnt)

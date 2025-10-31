@@ -15,7 +15,7 @@ JITFILES = codegen-x86.c fp87-x86.c sigsegv.c cpatch.c
 endif
 CFILES = interp.c cpu-emu.c modrm-gen.c $(JITFILES) \
 	codegen-sim.c fp87-sim.c protmode.c tables.c \
-	codegen.c trees.c memory.c
+	codegen.c trees.c memory.c codebuf.c
 ALL_CPPFLAGS +=-I$(EM86DIR) $(EM86FLG)
 
 SFILES=

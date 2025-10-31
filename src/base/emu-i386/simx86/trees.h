@@ -153,13 +153,21 @@ typedef struct avltr_tree
 #define MINUS -1
 
 TNode *FindTree(int key);
-TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf);
+TNode *Move2Tree(IMeta *I0, struct cbptr GenCodeBuf);
 void tree_gc(void);
 
 void InitTrees(void);
 
 unsigned int FindPC(const unsigned char *addr);
+static inline unsigned int FindPC_X(const unsigned char *addr)
+{
+    return FindPC(GetGenCodeBuf(addr));
+}
 int InvalidateNodeRange(int addr, int len, unsigned char *eip);
+static inline int InvalidateNodeRange_X(int addr, int len, unsigned char *eip)
+{
+    return InvalidateNodeRange(addr, len, GetGenCodeBuf(eip));
+}
 void avltr_delete(const int key);
 void NodeLinker(TNode *LG, TNode *G);
 

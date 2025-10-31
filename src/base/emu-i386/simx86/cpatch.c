@@ -70,7 +70,7 @@ void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 		return;
 	// no need to invalidate the whole page here,
 	// as the page does not need to be unprotected
-	InvalidateNodeRange(addr, len, eip);
+	InvalidateNodeRange_X(addr, len, eip);
 #if PROFILE
 	CpatchInvalidates++;
 #endif
@@ -260,7 +260,7 @@ void stk_32(dosaddr_t addr, Bit32u value)
 static void wri8_slow(dosaddr_t addr, Bit8u value, unsigned char *eip)
 {
 	if (e_querymark(addr, 1)) {
-		InvalidateNodeRange(addr, 1, eip);
+		InvalidateNodeRange_X(addr, 1, eip);
 #if PROFILE
 		CpatchInvalidates++;
 #endif
@@ -271,7 +271,7 @@ static void wri8_slow(dosaddr_t addr, Bit8u value, unsigned char *eip)
 static void wri16_slow(dosaddr_t addr, Bit16u value, unsigned char *eip)
 {
 	if (e_querymark(addr, 2)) {
-		InvalidateNodeRange(addr, 2, eip);
+		InvalidateNodeRange_X(addr, 2, eip);
 #if PROFILE
 		CpatchInvalidates++;
 #endif
@@ -282,7 +282,7 @@ static void wri16_slow(dosaddr_t addr, Bit16u value, unsigned char *eip)
 static void wri32_slow(dosaddr_t addr, Bit32u value, unsigned char *eip)
 {
 	if (e_querymark(addr, 4)) {
-		InvalidateNodeRange(addr, 4, eip);
+		InvalidateNodeRange_X(addr, 4, eip);
 #if PROFILE
 		CpatchInvalidates++;
 #endif

@@ -248,7 +248,7 @@ static int e_vgaemu_fault(sigcontext_t *scp, dosaddr_t cr2)
 /* save eip, eflags, and do a "ret" out of compiled code */
 static int e_return_from_jit(sigcontext_t *scp, int pop_flags)
 {
-	_scp_eax = FindPC((unsigned char *)_scp_rip);
+	_scp_eax = FindPC_X((unsigned char *)_scp_rip);
 	e_printf("FindPC: found %x\n",_scp_eax);
 	if (pop_flags) {
 		_scp_edx = *(long *)_scp_rsp; // flags
@@ -397,7 +397,7 @@ int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 	/* We HAVE to invalidate all the code in the page
 	 * if the page is going to be unprotected */
 	addr &= _PAGE_MASK;
-	return InvalidateNodeRange(addr, PAGE_SIZE, p);
+	return InvalidateNodeRange_X(addr, PAGE_SIZE, p);
 }
 
 int e_handle_fault(sigcontext_t *scp)

@@ -775,6 +775,7 @@ void init_emu_cpu(int cpu_type)
   }
   e_printf("EMU86: tss mask=%08lx\n", eTSSMASK);
   mprot_init();
+  InitGenCodeBuf();
   InitGen();
   InitTrees();
   sem_init(&prejit_sem, 0, 0);
@@ -910,6 +911,7 @@ void leave_cpu_emu(void)
 		IOFF(0x10)=INT10_WATCHER_OFF;
 #endif
 	EndGen();
+	EndGenCodeBuf();
 #ifdef DEBUG_TREE
 	fclose(tLog); tLog = NULL;
 #endif

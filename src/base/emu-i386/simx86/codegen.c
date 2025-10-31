@@ -55,8 +55,6 @@
 #include <string.h>
 #include "utilities.h"
 #include "emu86.h"
-#include "misc/dlmalloc.h"
-#include "mapping/mapping.h"
 #include "codegen-arch.h"
 
 unsigned char * (*CodeGen)(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
@@ -393,11 +391,12 @@ void Gen(int op, int mode, ...)
 /////////////////////////////////////////////////////////////////////////////
 
 
-static unsigned char *ProduceCode(unsigned int PC, IMeta *I0)
+static struct cbptr ProduceCode(unsigned int PC, IMeta *I0)
 {
 	int i,j,mall_req;
 	unsigned char *cp, *cp1, *BaseGenBuf, *CodePtr;
 	size_t GenBufSize;
+	struct cbptr cbp;
 
 	if (debug_level('e')>1) {
 	    e_printf("---------------------------------------------\n");
@@ -415,7 +414,8 @@ static unsigned char *ProduceCode(unsigned int PC, IMeta *I0)
 	for (i=0; i<=CurrIMeta; i++)
 	    GenBufSize += I0[i].ngen * MAX_GEND_BYTES_PER_OP;
 	mall_req = GenBufSize + 32;// 32 for tail
-	BaseGenBuf = dlmalloc(mall_req);
+	cbp = AllocGenCodeBuf(mall_req);
+	BaseGenBuf = cbp.ptr;
 	/* actual code buffer starts from here */
 	CodePtr = BaseGenBuf;
 	I0->daddr = 0;
@@ -467,11 +467,11 @@ static unsigned char *ProduceCode(unsigned int PC, IMeta *I0)
 
 	/* shrink buffer to what is actually needed */
 	mall_req = I0->totlen;
-	BaseGenBuf = dlrealloc(BaseGenBuf, mall_req);
+	ShrinkGenCodeBuf(cbp, mall_req);
 	if (debug_level('e')>3)
 		e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
 
-	return BaseGenBuf;
+	return cbp;
 }
 
 
@@ -503,7 +503,7 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 {
 	IMeta *I0;
 	TNode *G;
-	unsigned char *GenCodeBuf;
+	struct cbptr GenCodeBuf;
 
 	assert (CurrIMeta >= 0);
 

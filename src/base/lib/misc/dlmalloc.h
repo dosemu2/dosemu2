@@ -1,5 +1,11 @@
 #define USE_LOCKS 1
 #define INSECURE 1
+#define HAVE_MORECORE 0
+#define HAVE_MMAP 0
+#define NO_MALLINFO 1
+#define MSPACES 1
+#define ONLY_MSPACES 1
+#define USE_DL_PREFIX 1
 
 /*
   This is a version (aka dlmalloc) of malloc/free/realloc written by
@@ -43,10 +49,7 @@ FOOTERS                  default: 0
 
 INSECURE                 default: 0
   If true, omit checks for usage errors and heap space overwrites.
-*/
-#define USE_DL_PREFIX 1
 
-/*
 USE_DL_PREFIX            default: NOT defined
   Causes compiler to prefix all public routines with the string 'dl'.
   This can be useful when you only want to use this malloc in one part
@@ -95,10 +98,7 @@ ABORT_ON_ASSERT_FAILURE   default: defined as 1 (true)
 MALLOC_FAILURE_ACTION     default: sets errno to ENOMEM, or no-op on win32
   The action to take before "return 0" when malloc fails to be able to
   return memory because there is none available.
-*/
-#define HAVE_MORECORE 0
 
-/*
 HAVE_MORECORE             default: 1 (true) unless win32 or ONLY_MSPACES
   True if this system supports sbrk or an emulation of it.
 
