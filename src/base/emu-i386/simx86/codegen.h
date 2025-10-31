@@ -188,7 +188,8 @@
 #define MREPCOND 0x01000000	// this is SCASx or CMPSx, REP can be terminated
 				// by flags
 #define MSSTP	0x02000000	// generate only one instruction
-#define MINHI	0x04000000	// inhibits IRQs (MOVss/POPss/STI)
+#define MTRAP	0x04000000	// INT01 Sstep active: generate EXCP01_SSTP
+#define MINHI	0x08000000	// inhibits IRQs (MOVss/POPss/STI)
 
 // values for TNode.flags and IMeta.flags
 #define F_FPOP	0x0001	// has at least one FP instruction
