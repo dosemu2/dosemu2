@@ -79,6 +79,10 @@ $(top_builddir)/etc/Xfonts/%.pcf.gz: $(REALTOPDIR)/etc/%.bdf | $(top_builddir)/e
 
 $(LIBS_): | $(top_builddir)/lib
 
+ifeq ($(USE_DL_PLUGINS),0)
+include $(CONFFILES)
+endif
+
 ifeq ($(SOLIB),1)
 $(BINPATH)/bin/$(DOSLIB): $(LIBS_)
 ifeq ($(OS),Darwin)

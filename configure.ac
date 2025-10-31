@@ -456,13 +456,13 @@ if test "$enable_dlplugins" != "no"; then
               AC_MSG_NOTICE(Using dynamically loaded plugins...)
               AC_DEFINE(USE_DL_PLUGINS)
               USE_DL_PLUGINS=1
-              AC_SUBST(USE_DL_PLUGINS)
               DOSBIN_LDFLAGS="-rdynamic"
-              AC_SUBST(DOSBIN_LDFLAGS)
               AC_CHECK_LIB(dl, dlopen)
 else
+              USE_DL_PLUGINS=0
               AC_MSG_NOTICE(Not using dynamically loaded plugins...)
 fi
+AC_SUBST(USE_DL_PLUGINS)
 
 SIG_PROTO_PFX="__attribute__((no_instrument_function))"
 dnl check for stack protector disabling functionaity
@@ -627,6 +627,7 @@ fi
 AC_MSG_NOTICE([Creating plug-in hooks...])
 PLUGINSUBDIRS=
 ST_PLUGINSUBDIRS=
+CONFFILES=
 $srcdir/scripts/mkpluginhooks clean
 for i in $(echo $enable_plugins | tr ',' ' '); do
     if test -z "$i"; then continue; fi
@@ -635,6 +636,9 @@ for i in $(echo $enable_plugins | tr ',' ' '); do
         if ! $EGREP 'NO_LIB' $srcdir/src/plugin/$i/Makefile >/dev/null; then
           if ! $EGREP 'USE_DL_PLUGINS' $srcdir/src/plugin/$i/Makefile >/dev/null || test "$enable_dlplugins" = "no"; then
             ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS plugin/$i"
+          fi
+          if test -f $srcdir/src/plugin/$i/Makefile.conf.in; then
+            CONFFILES="$CONFFILES plugin/$i/Makefile.conf"
           fi
         fi
     fi
@@ -738,6 +742,7 @@ AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
 AC_SUBST(PLUGINSUBDIRS)
 AC_SUBST(ST_PLUGINSUBDIRS)
+AC_SUBST(CONFFILES)
 RELEASE_DATE=`cd $srcdir && ./getversion -d`
 AC_SUBST(RELEASE_DATE)
 
@@ -785,6 +790,7 @@ else
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
     DOSBIN_LDFLAGS="$DOSEMU_LDFLAGS -pie"
 fi
+AC_SUBST(DOSBIN_LDFLAGS)
 
 DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpic"
 

@@ -9,3 +9,5 @@
 
 X_CFLAGS:=@X11_CFLAGS@
 X_LIBS:=@X11_LIBS@
+
+LIBS += $(X_LIBS)
