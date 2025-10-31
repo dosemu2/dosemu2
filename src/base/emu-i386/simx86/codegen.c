@@ -584,7 +584,6 @@ static void Exec_post(unsigned long flg, unsigned int mem_ref,
 {
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
-	TheCPU.err = abs(TheCPU.err);
 	/* checking for infinite loops, flagged in JumpGen() */
 	if ((seqflg & F_SLFJ) && !(EFLAGS & (VIF|IF|TF))) {
 		error("!Forever loop!\n");
@@ -645,6 +644,10 @@ static void HandleEmuSignals(void)
 		/* force exit for PIC */
 		if (EFLAGS & EFLAGS_IF)
 			TheCPU.err=EXCP_PICSIGNAL;
+	}
+	else if (e & exit_STI) {
+		/* force exit for IF set */
+		TheCPU.err=EXCP_STISIGNAL;
 	}
 }
 

@@ -684,6 +684,7 @@ extern int SpecPrejits;
 #define exit_SIGPEND	0x01	/* signal pending mask */
 #define exit_RPIC	0x02	/* pic asks for interruption */
 #define exit_TFSET	0x04	/* popf/iret sets TF */
+#define exit_STI	0x08	/* IF is set with VIP active */
 
 /////////////////////////////////////////////////////////////////////////////
 
