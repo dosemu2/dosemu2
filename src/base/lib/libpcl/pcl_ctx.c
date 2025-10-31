@@ -33,6 +33,7 @@
 #include <ucontext.h>
 #endif
 
+#if WANT_UCONTEXT || defined(MCONTEXT)
 static void ctx_init_context_dummy(co_ctx_t *ctx)
 {
 }
@@ -40,6 +41,7 @@ static void ctx_init_context_dummy(co_ctx_t *ctx)
 static void ctx_free_context_dummy(void *ctx)
 {
 }
+#endif
 
 #if WANT_UCONTEXT
 static int ctx_swap_context(struct s_co_ctx *ctx1, void *ctx2)
