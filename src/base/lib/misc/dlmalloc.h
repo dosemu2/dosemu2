@@ -1,3 +1,6 @@
+#define USE_LOCKS 1
+#define INSECURE 1
+
 /*
   This is a version (aka dlmalloc) of malloc/free/realloc written by
   Doug Lea and released to the public domain, as explained at
@@ -311,10 +314,10 @@ DEFAULT_MMAP_THRESHOLD       default: 256K
 #define PROCEED_ON_ERROR 0
 #endif  /* PROCEED_ON_ERROR */
 #ifndef USE_LOCKS
-#define USE_LOCKS 1
+#define USE_LOCKS 0
 #endif  /* USE_LOCKS */
 #ifndef INSECURE
-#define INSECURE 1
+#define INSECURE 0
 #endif  /* INSECURE */
 #ifndef HAVE_MMAP
 #define HAVE_MMAP 1
