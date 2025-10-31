@@ -579,16 +579,10 @@ static unsigned int Exec_pre(unsigned char *ecpu)
 	return flg;
 }
 
-static void Exec_post(unsigned long flg, unsigned int mem_ref,
-		      unsigned short seqflg)
+static void Exec_post(unsigned long flg, unsigned int mem_ref)
 {
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
-	/* checking for infinite loops, flagged in JumpGen() */
-	if ((seqflg & F_SLFJ) && !(EFLAGS & (VIF|IF|TF))) {
-		error("!Forever loop!\n");
-		leavedos_main(0xebfe);
-	}
 }
 
 static unsigned ExecOne(TNode *G, unsigned *mem_ref, unsigned long *flg,
@@ -682,22 +676,20 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	flg = Exec_pre(ecpu);
 #if !defined(ASM_DUMP) && !defined(SINGLESTEP)
 	/* try fast inner loop if nothing special is going on */
-	if (!(EFLAGS & TF) && !debug_level('e')) {
+	if (!(seqflg & (F_SPEC|F_LEAV)) && !debug_level('e')) {
 		while (1) {
 			ePC = ExecOne(G, &mem_ref, &flg, ecpu, pLastXKey);
-			if (TheCPU.err || exit_pending() ||
-			    (seqflg & (F_SLFJ|F_SPEC|F_LEAV)))
+			if (TheCPU.err || exit_pending())
 				break;
 			G = FindTree(ePC);
 			if (!G || !GoodNode(G))
 				break;
-			seqflg = G->flags;
 		}
 	} else
 #endif
 		ePC = ExecOne(G, &mem_ref, &flg, ecpu, pLastXKey);
 	// G is unreliable (maybe deleted) past this point!
-	Exec_post(flg, mem_ref, seqflg);
+	Exec_post(flg, mem_ref);
 
 	if (debug_level('e')) {
 #if PROFILE >= 2
@@ -721,8 +713,21 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	/* exit_pending at this point is non-zero if there was ANY signal,
 	 * not just a SIGALRM
 	 */
-	if (!TheCPU.err && exit_pending())
+	if (!TheCPU.err && exit_pending()) {
+		/* checking for infinite loops, flagged in JumpGen() */
+		/* TheCPU.eip points to the first instruction of the last
+		   executed block, except for real-mode retf, which cannot
+		   cause forever loops */
+		if (!(EFLAGS & (VIF|IF|TF))) {
+			TNode *LastG = FindTree(LONG_CS + TheCPU.eip);
+			seqflg = LastG ? LastG->flags : 0;
+			if (seqflg & F_SLFJ) {
+				error("!Forever loop!\n");
+				leavedos_main(0xebfe);
+			}
+		}
 		HandleEmuSignals();
+	}
 
 #if defined(SINGLESTEP)
 	InvalidateNodeRange(key, 1, NULL);

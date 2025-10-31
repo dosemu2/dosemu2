@@ -751,7 +751,7 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 
 	// points to current node, which can't be a forever loop?
 	if (L->target!=G->key || !(LG->unlinked_jmp_targets & target_type) ||
-	    (G->flags & F_SLFJ))
+	    (G->mode & MTRAP) || (LG->mode & MTRAP))
 		return;
 
 	if (L->ref!=0) {
@@ -787,7 +787,7 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 			 G,G->key,G->addr,
 			 L->target, B->branch, G->nrefs, L->ref, *L->ref);
 	}
-	_nodeflagbackrefs(LG, G->flags);
+	_nodeflagbackrefs(LG, G->flags & F_FPOP);
 	if (debug_level('e')>8) {
 		backref *bk = G->bkr.next;
 #ifdef DEBUG_LINKER
