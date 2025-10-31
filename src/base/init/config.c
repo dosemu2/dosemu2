@@ -480,12 +480,13 @@ static void set_freedos_dir(void)
     NULL,
   };
 #ifdef USE_FDPP
-  if (load_plugin("fdpp")) {
+  loaded = fdpp_l;
+  if (!loaded && load_plugin("fdpp")) {
     loaded = fdpp_l;
     c_printf("fdpp: plugin loaded: %i\n", loaded);
-  } else {
-    error("can't load fdpp\n");
   }
+  if (!loaded)
+    error("can't load fdpp\n");
 #else
   warn("fdpp support is not compiled in.\n");
 #endif
