@@ -127,8 +127,9 @@ static int hwram_restore_mapping(struct hardware_ram *hw, unsigned addr,
 	int size, dosaddr_t va);
 static int hwram_prot_match(struct hardware_ram *hw, unsigned addr,
 	int size, int prot);
+#if HAVE_DECL_MADV_POPULATE_WRITE
 static int madvise_mapping(dosaddr_t targ, size_t length, int flags);
-
+#endif
 static void update_aliasmap(dosaddr_t dosaddr, size_t mapsize,
 			    unsigned char *unixaddr)
 {
@@ -1352,6 +1353,7 @@ void *mmap_shm_hook(int cap, void *addr, size_t length, int prot, int flags,
   return ret;
 }
 
+#if HAVE_DECL_MADV_POPULATE_WRITE
 static int madvise_mapping(dosaddr_t targ, size_t length, int flags)
 {
   int i, err;
@@ -1374,6 +1376,7 @@ static int madvise_mapping(dosaddr_t targ, size_t length, int flags)
     err = mapping_hook->madvise(addr, length, flags);
   return err;
 }
+#endif
 
 void *mmap_shm_mapping(dosaddr_t targ, size_t length, int prot, int fd)
 {
