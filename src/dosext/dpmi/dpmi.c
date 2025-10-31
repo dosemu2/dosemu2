@@ -3572,10 +3572,10 @@ static void dpmi_dj64_open(cpuctx_t *scp)
   char *path;
   dpmi_pm_block *ptr;
   int djh;
-  void *dlh = load_plugin("dj64");
 
   _eflags |= CF;
-  if (!dlh || !djdev64)
+  load_plugin("dj64");
+  if (!djdev64)
     return;
   ptr = lookup_pm_block(&DPMI_CLIENT.pm_block_root, handle);
   if (!ptr) {
@@ -3603,10 +3603,10 @@ static void dpmi_dj64_elfload(cpuctx_t *scp)
 {
   int handle = _LWORD(eax);
   int djh;
-  void *dlh = load_plugin("dj64");
 
   _eflags |= CF;
-  if (!dlh || !djdev64 || handle || !config.elfload)
+  load_plugin("dj64");
+  if (!djdev64 || handle || !config.elfload)
     return;
   djh = djdev64->elfopen(config.elfload, _LWORD(ecx));
   if (djh != -1) {
