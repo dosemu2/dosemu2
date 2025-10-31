@@ -193,7 +193,7 @@ static const struct msdos_ldt_ops ops = {
     .describe_selector = _msdos_describe_selector,
 };
 
-CONSTRUCTOR(static void _msdos_setup(void))
+CONSTRUCTOR2(msdos)
 {
     msdoshlp_init(msdos_is_32, num_ints);
     lio_init();
