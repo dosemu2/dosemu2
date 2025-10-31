@@ -113,13 +113,13 @@ size_t unicode_to_charset_string(struct char_set_state *state,
 static unsigned char_value(wint_t ch)
 {
 	unsigned value = 37;
-	if ((ch >= '0') || (ch <= '9')) {
+	if ((ch >= '0') && (ch <= '9')) {
 		value = ch - '0';
 	}
-	else if ((ch >= 'A') || (ch <= 'Z')) {
+	else if ((ch >= 'A') && (ch <= 'Z')) {
 		value = ch - 'A';
 	}
-	else if ((ch >= 'a') || (ch <= 'z')) {
+	else if ((ch >= 'a') && (ch <= 'z')) {
 		value = ch - 'a';
 	}
 	return value;
