@@ -749,9 +749,14 @@ int e_querymprotrange_full(unsigned int addr, size_t len);
 int e_markpage(unsigned int addr, size_t len);
 int e_unmarkpage(unsigned int addr, size_t len);
 void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip);
+
 void InitGenCodeBuf(void);
-void *AllocGenCodeBuf(size_t size);
+void EndGenCodeBuf(void);
+unsigned char *AllocGenCodeBuf(size_t size);
+void ShrinkGenCodeBuf(unsigned char *ptr, size_t size);
 void FreeGenCodeBuf(void *ptr);
+unsigned char *GetGenCodeBuf(const unsigned char *eip);
+unsigned char *GetExecCodeBuf(const unsigned char *ptr);
 //
 void CollectStat(void);
 //

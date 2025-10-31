@@ -118,7 +118,7 @@ void rep_movs_stos(struct rep_stack *stack)
 {
 	unsigned char *paddr = stack->edi;
 	unsigned int ecx = stack->ecx;
-	unsigned char *eip = stack->eip;
+	unsigned char *eip = GetGenCodeBuf(stack->eip);
 	dosaddr_t addr;
 	unsigned int len = ecx;
 	unsigned char *edi;

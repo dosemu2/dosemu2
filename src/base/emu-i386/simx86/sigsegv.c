@@ -248,7 +248,7 @@ static int e_vgaemu_fault(sigcontext_t *scp, dosaddr_t cr2)
 /* save eip, eflags, and do a "ret" out of compiled code */
 static int e_return_from_jit(sigcontext_t *scp, int pop_flags)
 {
-	_scp_eax = FindPC((unsigned char *)_scp_rip);
+	_scp_eax = FindPC_X((unsigned char *)_scp_rip);
 	e_printf("FindPC: found %x\n",_scp_eax);
 	if (pop_flags) {
 		_scp_edx = *(long *)_scp_rsp; // flags
@@ -364,7 +364,7 @@ int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 	else if (DPMIValidSelector(_scp_cs))
 		p = (unsigned char *)EMU_BASE32(GetSegmentBase(_scp_cs) + _scp_rip);
 	else
-		p = (unsigned char *) _scp_rip;
+		p = GetGenCodeBuf((unsigned char *) _scp_rip);
 	if (debug_level('e')>1 || in_dosemu) {
 		v = *((int *)p);
 		__asm__("bswap %0" : "=r" (v) : "0" (v));
