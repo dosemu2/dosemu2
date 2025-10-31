@@ -3158,11 +3158,8 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 			if (opc != IRET) break;
 			/* non-segment GPF handled in interpreter */
 			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
-			/* IRET always returns with the new PC;
-			   TF is set via a negative exception code that doesn't
-			   interrupt the IRET */
 			if (temp & TF)
-			    TheCPU.err = -EXCP_TFSET;
+			    exit_pending_or(exit_TFSET);
 			if (debug_level('e')>1) {
 				e_printf("IRET: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
 			}
@@ -3199,14 +3196,12 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
 			temp = data;
 			if (temp & TF)
-			    TheCPU.err = EXCP_TFSET;
+			    exit_pending_or(exit_TFSET);
 			if (V86MODE()) {
-			    int is_tf;
 stack_return_from_vm86:
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x fl=%08x\n",
 					temp,EFLAGS);
-			    is_tf = !!(EFLAGS & TF);
 			    if (IOPL==3) {	/* Intel manual */
 				/* keep reserved bits + IOPL,VIP,VIF,VM,RF */
 				if (mode & DATA16)
@@ -3232,14 +3227,11 @@ stack_return_from_vm86:
 				    if (debug_level('e')>1)
 					e_printf("Return for STI fl=%08x\n",
 						 EFLAGS);
-				    TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
-				    if (opc == IRET)
-					TheCPU.err = -TheCPU.err; /* avoid early exit */
+				    exit_pending_or(exit_STI);
 				}
 			    }
 			}
 			else {
-			    int is_tf = !!(EFLAGS & TF);
 			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) |
 					(CPL<=IOPL? 0:EFLAGS_IF) |
 					(EFLAGS_VM|EFLAGS_RF);
@@ -3263,7 +3255,7 @@ stack_return_from_vm86:
 				if (debug_level('e')>1)
 				    e_printf("Return for STI fl=%08x\n",
 					    EFLAGS);
-				TheCPU.err = (is_tf ? EXCP01_SSTP : EXCP_STISIGNAL);
+				exit_pending_or(exit_STI);
 			    }
 			}
 			*flags = (EFLAGS & EFLAGS_CC) | (*flags & ~EFLAGS_CC);
@@ -3293,7 +3285,7 @@ stack_return_from_vm86:
 				    if (debug_level('e')>1)
 					e_printf("Return for STI fl=%08x\n",
 					    EFLAGS);
-				    TheCPU.err=EXCP_STISIGNAL;
+				    exit_pending_or(exit_STI);
 				}
 			}
 			else {
@@ -3309,7 +3301,7 @@ stack_return_from_vm86:
 				    e_printf("Return for STI ASAP fl=%08x\n",
 					    EFLAGS);
 				/* force exit after next compiled block execution */
-				exit_pending_or(CeS_RPIC);
+				exit_pending_or(exit_RPIC);
 			    }
 			}
 			break;

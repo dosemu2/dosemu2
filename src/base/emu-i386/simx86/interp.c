@@ -404,7 +404,6 @@ static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 
 static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
 			unsigned short ocs, int basemode, int flags);
-static void HandleEmuSignals(void);
 
 static unsigned int FindExecCode(unsigned int PC)
 {
@@ -492,37 +491,8 @@ static unsigned int FindExecCode(unsigned int PC)
 			TheCPU.err = EXCP_EMULEAVE;
 
 		if (TheCPU.err) return PC;
-		if (CEmuStat & (CeS_DRTRAP|CeS_SIGPEND|CeS_RPIC))
-			HandleEmuSignals();
-		if (TheCPU.err) return PC;
 	}
 	return PC;
-}
-
-static void HandleEmuSignals(void)
-{
-#if PROFILE
-	if (debug_level('e')) EmuSignals++;
-#endif
-	//else if (CEmuStat & CeS_DRTRAP) {
-	//	if (e_debug_check(PC)) {
-	//		TheCPU.err = EXCP01_SSTP;
-	//	}
-	//}
-	if (CEmuStat & CeS_SIGPEND) {
-		/* force exit after signal */
-		CEmuStat = (CEmuStat & ~CeS_SIGPEND) | CeS_SIGACT;
-		TheCPU.err=EXCP_SIGNAL;
-	}
-	else if (CEmuStat & CeS_RPIC) {
-		/* force exit for PIC */
-		CEmuStat &= ~CeS_RPIC;
-		if (EFLAGS & EFLAGS_IF)
-			TheCPU.err=EXCP_PICSIGNAL;
-	}
-	/* clear optional exit conditions */
-	if (TheCPU.err)
-		CEmuStat &= ~(CeS_SIGPEND | CeS_RPIC);
 }
 
 static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
@@ -1832,6 +1802,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			Gen(O_POP, _mode);
 			Gen(O_SIM, _mode, opc, 0, PC);
+			JMPGen(JMP_LINK, _mode|CKSIGN, PC);
 			break;
 
 /*f2*/	case REPNE:
@@ -2123,8 +2094,12 @@ repag0:
 			Gen(O_SIM, _mode, opc, 0, PC);
 			/* real mode inhibits after STI as well but
 			   we've always relied on trapping behaviour with vm86 */
+			if (V86MODE()) {
+				// picks up exit_STI
+				JMPGen(JMP_LINK, _mode|CKSIGN, PC);
+			}
 			/* note that TF does not inhibit after STI! */
-			if (!V86MODE() && !(_mode & (MTRAP|MINHI))) {
+			else if (!(_mode & (MTRAP|MINHI))) {
 				PC = InterpOne(PC, Interp_LONG_CS, ocs,
 					       basemode|MINHI|MSSTP);
 				/* check signals immediately after the

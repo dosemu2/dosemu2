@@ -810,7 +810,7 @@ void e_gen_sigalrm(void)
 	/* here we come from the kernel with cs==UCODESEL, as
 	 * the passed context is that of dosemu, NOT that of the
 	 * emulated CPU! */
-	exit_pending_or(CeS_SIGPEND);
+	exit_pending_or(exit_SIGPEND);
 
 	/* this triggers calculation of paramaters for garbage collect */
 	TheCPU.sigprof_pending = 1;
@@ -818,12 +818,12 @@ void e_gen_sigalrm(void)
 
 void e_gen_sigalrm_from_thread(void)
 {
-	exit_pending_or(CeS_SIGPEND);
+	exit_pending_or(exit_SIGPEND);
 }
 
 void e_gen_rpic_from_thread(void)
 {
-	exit_pending_or(CeS_RPIC);
+	exit_pending_or(exit_RPIC);
 }
 
 static void enter_cpu_emu(void)
@@ -1031,8 +1031,7 @@ static int e_vm86_tail(struct vm86_struct *info)
   retval = -1;
 
   if (xval==EXCP_SIGNAL) {	/* coming here for async interruptions */
-    if (CEmuStat & (CeS_SIGPEND|CeS_SIGACT))
-		{ CEmuStat &= ~(CeS_SIGPEND|CeS_SIGACT); retval=VM86_SIGNAL; }
+    retval=VM86_SIGNAL;
   } else if (xval==EXCP_PICSIGNAL) {
     retval = VM86_PICRETURN;
   } else if (xval==EXCP_STISIGNAL) {
@@ -1489,7 +1488,6 @@ void e_dpmi_b0x(int op,cpuctx_t *scp)
 	_eflags |= CF;
 	break;
   }
-  if (TheCPU.dr[7] & 0xff) CEmuStat|=CeS_DRTRAP; else CEmuStat&=~CeS_DRTRAP;
 /*
   e_printf("DR0=%08lx DR1=%08lx DR2=%08lx DR3=%08lx\n",DRs[0],DRs[1],DRs[2],DRs[3]);
   e_printf("DR6=%08lx DR7=%08lx\n",DRs[6],DRs[7]);

@@ -579,19 +579,10 @@ static unsigned int Exec_pre(unsigned char *ecpu)
 	return flg;
 }
 
-static void Exec_post(unsigned long flg, unsigned int mem_ref,
-		      unsigned short seqflg)
+static void Exec_post(unsigned long flg, unsigned int mem_ref)
 {
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
-	TheCPU.err = abs(TheCPU.err);
-	if (TheCPU.err == EXCP_TFSET)
-		TheCPU.err = 0;
-	/* checking for infinite loops, flagged in JumpGen() */
-	if ((seqflg & F_SLFJ) && !(EFLAGS & (VIF|IF|TF))) {
-		error("!Forever loop!\n");
-		leavedos_main(0xebfe);
-	}
 }
 
 static unsigned ExecOne(TNode *G, unsigned *mem_ref, unsigned long *flg,
@@ -627,6 +618,33 @@ static unsigned ExecOne(TNode *G, unsigned *mem_ref, unsigned long *flg,
 	return ePC;
 }
 
+static void HandleEmuSignals(void)
+{
+	int e = exit_pending_xchg(0);
+#if PROFILE
+	if (debug_level('e')) EmuSignals++;
+#endif
+	//XXX need to figure out something for DRTRAP
+	//if (TheCPU.dr[7] & 0xff) {
+	//	if (e_debug_check(PC)) {
+	//		TheCPU.err = EXCP01_SSTP;
+	//	}
+	//}
+	if (e & exit_SIGPEND) {
+		/* force exit after signal */
+		TheCPU.err=EXCP_SIGNAL;
+	}
+	else if (e & exit_RPIC) {
+		/* force exit for PIC */
+		if (EFLAGS & EFLAGS_IF)
+			TheCPU.err=EXCP_PICSIGNAL;
+	}
+	else if (e & exit_STI) {
+		/* force exit for IF set */
+		TheCPU.err=EXCP_STISIGNAL;
+	}
+}
+
 unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 {
 	unsigned long flg;
@@ -641,8 +659,8 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	ecpu = CPUOFFS(0);
 	if (debug_level('e')>1) {
 		unsigned e = exit_pending();
-		if (e & CeS_SIGPEND) e_printf("** SIGALRM is pending\n");
-		if (e & CeS_RPIC) e_printf("** PIC is pending\n");
+		if (e & exit_SIGPEND) e_printf("** SIGALRM is pending\n");
+		if (e & exit_RPIC) e_printf("** PIC is pending\n");
 		e_printf("==== Executing code at %p flg=%04x\n",
 			G->addr,seqflg);
 	}
@@ -658,22 +676,20 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	flg = Exec_pre(ecpu);
 #if !defined(ASM_DUMP) && !defined(SINGLESTEP)
 	/* try fast inner loop if nothing special is going on */
-	if (!(EFLAGS & TF) && !debug_level('e')) {
+	if (!(seqflg & (F_SPEC|F_LEAV)) && !debug_level('e')) {
 		while (1) {
 			ePC = ExecOne(G, &mem_ref, &flg, ecpu, pLastXKey);
-			if (TheCPU.err || exit_pending() ||
-			    (seqflg & (F_SLFJ|F_SPEC|F_LEAV)))
+			if (TheCPU.err || exit_pending())
 				break;
 			G = FindTree(ePC);
 			if (!G || !GoodNode(G))
 				break;
-			seqflg = G->flags;
 		}
 	} else
 #endif
 		ePC = ExecOne(G, &mem_ref, &flg, ecpu, pLastXKey);
 	// G is unreliable (maybe deleted) past this point!
-	Exec_post(flg, mem_ref, seqflg);
+	Exec_post(flg, mem_ref);
 
 	if (debug_level('e')) {
 #if PROFILE >= 2
@@ -697,7 +713,21 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	/* exit_pending at this point is non-zero if there was ANY signal,
 	 * not just a SIGALRM
 	 */
-	CEmuStat |= exit_pending_xchg(0);
+	if (!TheCPU.err && exit_pending()) {
+		/* checking for infinite loops, flagged in JumpGen() */
+		/* TheCPU.eip points to the first instruction of the last
+		   executed block, except for real-mode retf, which cannot
+		   cause forever loops */
+		if (!(EFLAGS & (VIF|IF|TF))) {
+			TNode *LastG = FindTree(LONG_CS + TheCPU.eip);
+			seqflg = LastG ? LastG->flags : 0;
+			if (seqflg & F_SLFJ) {
+				error("!Forever loop!\n");
+				leavedos_main(0xebfe);
+			}
+		}
+		HandleEmuSignals();
+	}
 
 #if defined(SINGLESTEP)
 	InvalidateNodeRange(key, 1, NULL);
