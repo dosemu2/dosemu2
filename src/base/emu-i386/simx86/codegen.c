@@ -413,11 +413,8 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	 * estimate based on measured bytes per opcode.
 	 *
 	 * Code buffer layout:
-	 *	0000	(GenCodeBuf) pointed from {TNode}.mblock
-	 *		contains a back pointer to the TNode
-	 * 0008/0004	self-pointer (address of this location)
-	 * 0010/0008	Addr2Pc table (nap) pointed from {TNode}.pmeta
-	 *	nap+10/8 actual code produced (BaseGenBuf)
+	 * 0000/0000	Addr2Pc table (nap) pointed from {TNode}.pmeta
+	 *	nap	actual code produced (BaseGenBuf)
 	 *		plus tail code
 	 * Only the code part is filled here.
 	 * GenBufSize contain a first guess of the amount of space required

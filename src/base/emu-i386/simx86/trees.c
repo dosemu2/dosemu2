@@ -741,7 +741,7 @@ static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
 	    /* only go as far back as long as flags change */
 	    LG->flags |= flags;
 	    for (B=LG->bkr.next; B; B=B->next)
-		_nodeflagbackrefs(*B->ref, flags);
+		_nodeflagbackrefs(B->ref, flags);
 	}
 }
 
@@ -762,30 +762,30 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 	IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH|MLINK,
 			 .p0 = L->target, .link = G->addr};
 	CodeGen(LG->addr + L->link, LG->addr, &IG);
-	L->ref = &G->mblock->bkptr;
+	L->ref = G;
 	B = calloc(1,sizeof(backref));
 	// head insertion
 	B->next = G->bkr.next;
 	G->bkr.next = B;
-	B->ref = &LG->mblock->bkptr;
+	B->ref = LG;
 	B->branch = target_type == TARGET_T ? 'T' : 'N';
 	G->nrefs++;
 	if (G==LG) {
 		G->flags |= F_SLFL;
 		if (debug_level('e')>1) {
 			e_printf("Linker: node (%p:%08x:%p) SELF link\n"
-				 "\t\ttarget=%08x, %c_ref %d=%p->%p\n",
+				 "\t\ttarget=%08x, %c_ref %d=%p\n",
 				 G,G->key,G->addr,
-				 L->target, B->branch, G->nrefs, L->ref, *L->ref);
+				 L->target, B->branch, G->nrefs, L->ref);
 		}
 	}
 	else if (debug_level('e')>1) {
 		e_printf("Linker: previous node (%p:%08x:%p)\n"
 			 "\t\tlinked to (%p:%08x:%p)\n"
-			 "\t\ttarget=%08x, %c_ref %d=%p->%p\n",
+			 "\t\ttarget=%08x, %c_ref %d=%p\n",
 			 LG,LG->key,LG->addr,
 			 G,G->key,G->addr,
-			 L->target, B->branch, G->nrefs, L->ref, *L->ref);
+			 L->target, B->branch, G->nrefs, L->ref);
 	}
 	_nodeflagbackrefs(LG, G->flags & F_FPOP);
 	if (debug_level('e')>8) {
@@ -796,8 +796,8 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 			leavedos_main(0x8108 + (target_type == TARGET_NT));
 		}
 #endif
-		while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
-			bk->ref,*bk->ref); bk=bk->next; }
+		while (bk) { dbug_printf("bkref=%c%p\n",bk->branch,
+			bk->ref); bk=bk->next; }
 	}
 }
 
@@ -830,13 +830,13 @@ static void unlinknode(TNode *G, linkdesc *T, char branch)
 {
 	if (!T->ref) return;
 
-	TNode *H = *T->ref;
+	TNode *H = T->ref;
 	backref *Bq = &H->bkr;
 	backref *B  = H->bkr.next;
 	if (debug_level('e')>2) e_printf("Unlink fwd %c ref to node %p(%08x)\n",
 					 branch, H, H->key);
 	while (B) {
-		if (*B->ref==G) {
+		if (B->ref==G) {
 			Bq->next = B->next;
 			H->nrefs--;
 			free(B);
@@ -875,7 +875,7 @@ static void NodeUnlinker(TNode *G)
 	while (B) {
 	    backref *b2 = B;
 	    if (B->branch=='T' || B->branch=='N') {
-		TNode *H = *B->ref;
+		TNode *H = B->ref;
 		unsigned target_type;
 		linkdesc *L;
 		if (B->branch=='T') {
@@ -939,7 +939,7 @@ static void checklink(const TNode *G, const linkdesc *L, char branch)
 
   const unsigned char *p = ((unsigned char *)L->link) - 1;
   if (L->ref) {
-	    const TNode *GL = *L->ref;
+	    const TNode *GL = L->ref;
 	    if (debug_level('e')>5)
 		e_printf("  %c: ref=%p link=%p\n",
 			 branch,GL,L->link);
@@ -957,7 +957,7 @@ static void checklink(const TNode *G, const linkdesc *L, char branch)
 	    int n = 0;
 	    int brt = 0;
 	    while (B) {
-		if (B->ref==&G->mblock->bkptr) {
+		if (B->ref==G) {
 		    n++;
 		    brt += B->branch;
 		    if (debug_level('e')>5) e_printf("  %c: backref %d from %p\n",branch,n,GL);
@@ -993,11 +993,7 @@ static void CheckLinks(void)
 	e_printf("Node %p invalidated\n",G);
 	continue;
     }
-    if (debug_level('e')>5) e_printf("Node %p at %08x selfr=%p\n",G,G->key,
-	G->mblock->bkptr);
-    if (G->mblock->bkptr != G) {
-	error("bad selfref\n"); goto nquit;
-    }
+    if (debug_level('e')>5) e_printf("Node %p at %08x\n",G,G->key);
     checklink(G, &G->clink_t, 'T');
     checklink(G, &G->clink_nt, 'N');
   }
@@ -1167,7 +1163,6 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   int i, apl=0;
   Addr2Pc *ap;
   CodeBuf *mallmb;
-  void **cp;
   unsigned int op;
 
   key = I0->npc;
@@ -1218,22 +1213,9 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   __atomic_store_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK], nG,
 		   __ATOMIC_RELAXED);
 
-  /* allocate the extra memory used by the node. This includes the
-   * translated code plus the table of correspondences between source
-   * and translated addresses.
-   * The first longword of the memory block is special; it stores a
-   * back-pointer to the node. This because nodes can be moved in
-   * memory when rebalancing the AVL tree, while we need absolute and
-   * constant memory references.
-   * The second longword is equal to its own address. Guess why.
-   * After that come the offset table, then the code.
-   */
   nap = nG->seqnum+1;
   mallmb = GenCodeBuf;
   nG->mblock = GenCodeBuf;
-  nG->mblock->bkptr = nG;
-  cp = &nG->mblock->selfptr;
-  *cp = cp;
   nG->pmeta = mallmb->meta;
   if (nG->pmeta==NULL) leavedos_main(0x504d45);
   nG->addr = (unsigned char *)&mallmb->meta[nap];

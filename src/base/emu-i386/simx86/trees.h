@@ -51,7 +51,7 @@ struct TNode;
 
 typedef struct _bkref {
 	struct _bkref *next;
-	struct TNode **ref;
+	struct TNode *ref;
 	char branch;
 } backref;
 
@@ -61,7 +61,7 @@ typedef struct _bkref {
 typedef struct _lnkdesc {
 	unsigned int link;
 	unsigned int target;
-	struct TNode **ref;
+	struct TNode *ref;
 } linkdesc;
 
 typedef struct _imgen {
@@ -90,8 +90,6 @@ typedef struct _imeta {
 } IMeta;
 
 typedef struct _codebufhdr {
-	struct TNode *bkptr;
-	void *selfptr;
 	Addr2Pc meta[0]; /* there are nap of these */
 	/* behind these follows the code */
 } CodeBuf;
