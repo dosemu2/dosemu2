@@ -89,11 +89,6 @@ typedef struct _imeta {
 	IGen gen[NUMGENS];
 } IMeta;
 
-typedef struct _codebufhdr {
-	Addr2Pc meta[0]; /* there are nap of these */
-	/* behind these follows the code */
-} CodeBuf;
-
 extern IMeta InstrMeta[MAXINODES];
 extern int NodesExecd;
 extern int TotalNodesExecd;
@@ -127,9 +122,7 @@ typedef struct TNode
 	int key;		/* signed! and don't move it from here! */
 /* -------------------------------------------------------------- */
 	int alive;
-	CodeBuf *mblock;
 	unsigned char *addr;
-	Addr2Pc *pmeta;
 	unsigned short len, flags, seqlen, seqnum __attribute__ ((packed));
 	unsigned short nrefs;
 	linkdesc clink_t;
@@ -138,6 +131,7 @@ typedef struct TNode
 	backref bkr;
 	unsigned cs;
 	unsigned mode;
+	Addr2Pc meta[]; /* there are seqnum+1 of these */
 } TNode;
 
 /* Used for traversing a right-threaded AVL tree. */
@@ -159,7 +153,7 @@ typedef struct avltr_tree
 #define MINUS -1
 
 TNode *FindTree(int key);
-TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf);
+TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf);
 void tree_gc(void);
 
 void InitTrees(void);

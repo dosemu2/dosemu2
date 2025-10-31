@@ -393,12 +393,11 @@ void Gen(int op, int mode, ...)
 /////////////////////////////////////////////////////////////////////////////
 
 
-static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
+static unsigned char *ProduceCode(unsigned int PC, IMeta *I0)
 {
-	int i,j,nap,mall_req;
+	int i,j,mall_req;
 	unsigned char *cp, *cp1, *BaseGenBuf, *CodePtr;
 	size_t GenBufSize;
-	CodeBuf *GenCodeBuf;
 
 	if (debug_level('e')>1) {
 	    e_printf("---------------------------------------------\n");
@@ -406,30 +405,22 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	}
 	if (CurrIMeta < 0) leavedos_main(0xbac3);
 
-	/* reserve space for auto-ptr and info structures */
-	nap = I0->ncount+1;
-
 	/* allocate the actual code buffer here; size is a worst-case
 	 * estimate based on measured bytes per opcode.
 	 *
-	 * Code buffer layout:
-	 * 0000/0000	Addr2Pc table (nap) pointed from {TNode}.pmeta
-	 *	nap	actual code produced (BaseGenBuf)
-	 *		plus tail code
-	 * Only the code part is filled here.
 	 * GenBufSize contain a first guess of the amount of space required
 	 *
 	 */
 	GenBufSize = 0;
 	for (i=0; i<=CurrIMeta; i++)
 	    GenBufSize += I0[i].ngen * MAX_GEND_BYTES_PER_OP;
-	mall_req = GenBufSize + offsetof(CodeBuf, meta) + sizeof(Addr2Pc) * nap + 32;// 32 for tail
-	GenCodeBuf = dlmalloc(mall_req);
+	mall_req = GenBufSize + 32;// 32 for tail
+	BaseGenBuf = dlmalloc(mall_req);
 	/* actual code buffer starts from here */
-	BaseGenBuf = CodePtr = (unsigned char *)&GenCodeBuf->meta[nap];
+	CodePtr = BaseGenBuf;
 	I0->daddr = 0;
 	if (debug_level('e')>1)
-	    e_printf("CodeBuf=%p siz %zd CodePtr=%p\n",GenCodeBuf,GenBufSize,CodePtr);
+	    e_printf("CodeBuf=%p siz %zd\n",BaseGenBuf,GenBufSize);
 
 	for (i=0; i<=CurrIMeta; i++) {
 	    IMeta *I = &I0[i];
@@ -475,12 +466,12 @@ static CodeBuf *ProduceCode(unsigned int PC, IMeta *I0)
 	I0->totlen = CodePtr - BaseGenBuf;
 
 	/* shrink buffer to what is actually needed */
-	mall_req = I0->totlen + offsetof(CodeBuf, meta) + sizeof(Addr2Pc) * nap;
-	GenCodeBuf = dlrealloc(GenCodeBuf, mall_req);
+	mall_req = I0->totlen;
+	BaseGenBuf = dlrealloc(BaseGenBuf, mall_req);
 	if (debug_level('e')>3)
 		e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
 
-	return GenCodeBuf;
+	return BaseGenBuf;
 }
 
 
@@ -512,7 +503,7 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 {
 	IMeta *I0;
 	TNode *G;
-	CodeBuf *GenCodeBuf;
+	unsigned char *GenCodeBuf;
 
 	assert (CurrIMeta >= 0);
 

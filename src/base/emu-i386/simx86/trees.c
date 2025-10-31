@@ -446,7 +446,7 @@ void avltr_delete(const int key)
       pthread_mutex_unlock(&trees_mtx);
       leavedos_main(0x8130);
   }
-  if (G->mblock) dlfree(G->mblock);
+  if (G->addr) dlfree(G->addr);
   __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
 		   NULL, __ATOMIC_RELAXED);
   free(G);
@@ -636,7 +636,7 @@ void avltr_destroy(void)
 		  B = B->next;
 		  free(B2);
 	      }
-	      if (p->data->mblock) dlfree(p->data->mblock);
+	      if (p->data->addr) dlfree(p->data->addr);
 	      free(p->data);
 	      p->data = NULL;
 	  }
@@ -670,7 +670,7 @@ unsigned int FindPC(const unsigned char *addr)
   G = FindTree(LONG_CS + TheCPU.eip);
   if (!G)
     return 0;
-  AP = G->pmeta;
+  AP = G->meta;
   for (i = 0; i < G->seqnum + 1; i++) {
     e_printf("     %08x:%p",(G->key+AP->dnpc),G->addr+AP->daddr);
     if (addr < G->addr+AP->daddr) break;
@@ -1030,8 +1030,8 @@ static void DumpTree (FILE *fd)
 	nn++;
 	continue;
     }
-    fprintf(fd,"%04d Node %p at %08x..%08x mblock=%p flags=%#x\n",
-	nn,G,G->key,(G->key+G->seqlen-1),G->mblock,G->flags);
+    fprintf(fd,"%04d Node %p at %08x..%08x addr=%p flags=%#x\n",
+	nn,G,G->key,(G->key+G->seqlen-1),G->addr,G->flags);
     fprintf(fd,"     AVL (%p:%p),%d,%d,%d,%d\n",G->link[0],G->link[1],
 		G->bal,G->cache,G->pad,G->rtag);
     fprintf(fd,"     source:     instr=%d, len=%#x\n",G->seqnum,G->seqlen);
@@ -1054,10 +1054,10 @@ static void DumpTree (FILE *fd)
 	    B = B->next;
 	}
     }
-    if (G->addr && G->pmeta) {
+    if (G->addr) {
 	int i, j, k;
 	unsigned char *p = G->addr;
-	Addr2Pc *AP = G->pmeta;
+	Addr2Pc *AP = G->meta;
 	for (i=0; i<G->seqnum; i++) {
 	    fprintf(fd,"     %08x:%p",(G->key+AP->dnpc),G->addr+AP->daddr);
 	    k = 0;
@@ -1148,7 +1148,7 @@ static int TraverseAndClean(void)
  * code addresses. At the end, we reset both CodeBuf and InstrMeta to prepare
  * for a new sequence.
  */
-TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
+TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
 {
   TNode *nG = NULL;
 #if PROFILE >= 2
@@ -1162,12 +1162,12 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   IGen *IG;
   int i, apl=0;
   Addr2Pc *ap;
-  CodeBuf *mallmb;
   unsigned int op;
 
   key = I0->npc;
 
-  TNode *G = calloc(1, sizeof(TNode));
+  nap = I0->ncount + 1;
+  TNode *G = calloc(1, sizeof(TNode) + sizeof(Addr2Pc) * nap);
   if (G==NULL) {
     leavedos_main(0x8201);
   }
@@ -1184,7 +1184,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 	/* ->REPLACE the code of the node found with the latest
 	   compiled version */
 	NodeUnlinker(nG);
-	if (nG->mblock) dlfree(nG->mblock);
+	if (nG->addr) dlfree(nG->addr);
 	free(nG);
   }
   else {
@@ -1213,12 +1213,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   __atomic_store_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK], nG,
 		   __ATOMIC_RELAXED);
 
-  nap = nG->seqnum+1;
-  mallmb = GenCodeBuf;
-  nG->mblock = GenCodeBuf;
-  nG->pmeta = mallmb->meta;
-  if (nG->pmeta==NULL) leavedos_main(0x504d45);
-  nG->addr = (unsigned char *)&mallmb->meta[nap];
+  nG->addr = GenCodeBuf;
 
   /* setup structures for inter-node linking */
   nG->unlinked_jmp_targets = 0;
@@ -1242,7 +1237,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   }
 
   /* setup source/xlated instruction offsets */
-  ap = nG->pmeta;
+  ap = nG->meta;
   I = I0;
   for (i=0; i<nG->seqnum; i++) {
 	ap->daddr = I->daddr;
@@ -1435,7 +1430,7 @@ TNode *FindTree_unlocked(int key)
 
 static void BreakNode(TNode *G, unsigned char *eip)
 {
-  Addr2Pc *A = G->pmeta;
+  Addr2Pc *A = G->meta;
   int ebase;
   unsigned char *p;
   int i;
@@ -1505,7 +1500,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	    */
 	    /* Exclude last instruction, as there is no need to break
 	     * node after last instruction (it ends there anyway). */
-	    ahE = G->addr + G->pmeta[G->seqnum - 1].daddr;
+	    ahE = G->addr + G->meta[G->seqnum - 1].daddr;
 	    if (eip && ADDR_IN_RANGE(eip,G->addr,ahE)) {
 		if (debug_level('e')>1)
 		    e_printf("### Node self hit %p->%p..%p\n",
