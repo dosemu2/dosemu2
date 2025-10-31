@@ -690,6 +690,9 @@ AC_ARG_ENABLE(debug,
 if test "$enable_debug" != "no"; then
   AC_MSG_NOTICE(Compiling with debug info...)
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -ggdb3"
+  if test "$machine" = "wasm32"; then
+    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -g3 -gsource-map"
+  fi
   if test "$use_clang" = "yes" ; then
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fdebug-macro"
   fi
