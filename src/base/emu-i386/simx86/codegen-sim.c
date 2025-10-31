@@ -3158,11 +3158,8 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 			if (opc != IRET) break;
 			/* non-segment GPF handled in interpreter */
 			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
-			/* IRET always returns with the new PC;
-			   TF is set via a negative exception code that doesn't
-			   interrupt the IRET */
 			if (temp & TF)
-			    TheCPU.err = -EXCP_TFSET;
+			    exit_pending_or(exit_TFSET);
 			if (debug_level('e')>1) {
 				e_printf("IRET: ret=%04x:%08x\n",TheCPU.cs,TheCPU.eip);
 			}
@@ -3199,7 +3196,7 @@ static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mod
 			assert(!(V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)));
 			temp = data;
 			if (temp & TF)
-			    TheCPU.err = EXCP_TFSET;
+			    exit_pending_or(exit_TFSET);
 			if (V86MODE()) {
 			    int is_tf;
 stack_return_from_vm86:

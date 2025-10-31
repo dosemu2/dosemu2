@@ -1802,6 +1802,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			Gen(O_POP, _mode);
 			Gen(O_SIM, _mode, opc, 0, PC);
+			JMPGen(JMP_LINK, _mode|CKSIGN, PC);
 			break;
 
 /*f2*/	case REPNE:

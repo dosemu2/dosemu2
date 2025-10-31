@@ -585,8 +585,6 @@ static void Exec_post(unsigned long flg, unsigned int mem_ref,
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
 	TheCPU.err = abs(TheCPU.err);
-	if (TheCPU.err == EXCP_TFSET)
-		TheCPU.err = 0;
 	/* checking for infinite loops, flagged in JumpGen() */
 	if ((seqflg & F_SLFJ) && !(EFLAGS & (VIF|IF|TF))) {
 		error("!Forever loop!\n");
