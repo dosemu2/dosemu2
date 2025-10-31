@@ -2151,7 +2151,8 @@ void setup_default_keytable(void)
   if (handle && XDetectLayout)
     idx = XDetectLayout();
 #else
-  idx = X11_DetectLayout();
+  if (XDetectLayout)
+    idx = XDetectLayout();
 #endif
 #endif
   if (idx && kt->name == NULL) {
