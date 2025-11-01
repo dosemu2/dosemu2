@@ -446,7 +446,7 @@ void avltr_delete(const int key)
       pthread_mutex_unlock(&trees_mtx);
       leavedos_main(0x8130);
   }
-  if (G->mblock) dlfree(G->mblock);
+  if (G->addr) dlfree(G->addr);
   __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
 		   NULL, __ATOMIC_RELAXED);
   free(G);
@@ -636,7 +636,7 @@ void avltr_destroy(void)
 		  B = B->next;
 		  free(B2);
 	      }
-	      if (p->data->mblock) dlfree(p->data->mblock);
+	      if (p->data->addr) dlfree(p->data->addr);
 	      free(p->data);
 	      p->data = NULL;
 	  }
@@ -670,7 +670,7 @@ unsigned int FindPC(const unsigned char *addr)
   G = FindTree(LONG_CS + TheCPU.eip);
   if (!G)
     return 0;
-  AP = G->pmeta;
+  AP = G->meta;
   for (i = 0; i < G->seqnum + 1; i++) {
     e_printf("     %08x:%p",(G->key+AP->dnpc),G->addr+AP->daddr);
     if (addr < G->addr+AP->daddr) break;
@@ -741,7 +741,7 @@ static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
 	    /* only go as far back as long as flags change */
 	    LG->flags |= flags;
 	    for (B=LG->bkr.next; B; B=B->next)
-		_nodeflagbackrefs(*B->ref, flags);
+		_nodeflagbackrefs(B->ref, flags);
 	}
 }
 
@@ -762,30 +762,30 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 	IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH|MLINK,
 			 .p0 = L->target, .link = G->addr};
 	CodeGen(LG->addr + L->link, LG->addr, &IG);
-	L->ref = &G->mblock->bkptr;
+	L->ref = G;
 	B = calloc(1,sizeof(backref));
 	// head insertion
 	B->next = G->bkr.next;
 	G->bkr.next = B;
-	B->ref = &LG->mblock->bkptr;
+	B->ref = LG;
 	B->branch = target_type == TARGET_T ? 'T' : 'N';
 	G->nrefs++;
 	if (G==LG) {
 		G->flags |= F_SLFL;
 		if (debug_level('e')>1) {
 			e_printf("Linker: node (%p:%08x:%p) SELF link\n"
-				 "\t\ttarget=%08x, %c_ref %d=%p->%p\n",
+				 "\t\ttarget=%08x, %c_ref %d=%p\n",
 				 G,G->key,G->addr,
-				 L->target, B->branch, G->nrefs, L->ref, *L->ref);
+				 L->target, B->branch, G->nrefs, L->ref);
 		}
 	}
 	else if (debug_level('e')>1) {
 		e_printf("Linker: previous node (%p:%08x:%p)\n"
 			 "\t\tlinked to (%p:%08x:%p)\n"
-			 "\t\ttarget=%08x, %c_ref %d=%p->%p\n",
+			 "\t\ttarget=%08x, %c_ref %d=%p\n",
 			 LG,LG->key,LG->addr,
 			 G,G->key,G->addr,
-			 L->target, B->branch, G->nrefs, L->ref, *L->ref);
+			 L->target, B->branch, G->nrefs, L->ref);
 	}
 	_nodeflagbackrefs(LG, G->flags & F_FPOP);
 	if (debug_level('e')>8) {
@@ -796,8 +796,8 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 			leavedos_main(0x8108 + (target_type == TARGET_NT));
 		}
 #endif
-		while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
-			bk->ref,*bk->ref); bk=bk->next; }
+		while (bk) { dbug_printf("bkref=%c%p\n",bk->branch,
+			bk->ref); bk=bk->next; }
 	}
 }
 
@@ -830,13 +830,13 @@ static void unlinknode(TNode *G, linkdesc *T, char branch)
 {
 	if (!T->ref) return;
 
-	TNode *H = *T->ref;
+	TNode *H = T->ref;
 	backref *Bq = &H->bkr;
 	backref *B  = H->bkr.next;
 	if (debug_level('e')>2) e_printf("Unlink fwd %c ref to node %p(%08x)\n",
 					 branch, H, H->key);
 	while (B) {
-		if (*B->ref==G) {
+		if (B->ref==G) {
 			Bq->next = B->next;
 			H->nrefs--;
 			free(B);
@@ -875,7 +875,7 @@ static void NodeUnlinker(TNode *G)
 	while (B) {
 	    backref *b2 = B;
 	    if (B->branch=='T' || B->branch=='N') {
-		TNode *H = *B->ref;
+		TNode *H = B->ref;
 		unsigned target_type;
 		linkdesc *L;
 		if (B->branch=='T') {
@@ -939,7 +939,7 @@ static void checklink(const TNode *G, const linkdesc *L, char branch)
 
   const unsigned char *p = ((unsigned char *)L->link) - 1;
   if (L->ref) {
-	    const TNode *GL = *L->ref;
+	    const TNode *GL = L->ref;
 	    if (debug_level('e')>5)
 		e_printf("  %c: ref=%p link=%p\n",
 			 branch,GL,L->link);
@@ -957,7 +957,7 @@ static void checklink(const TNode *G, const linkdesc *L, char branch)
 	    int n = 0;
 	    int brt = 0;
 	    while (B) {
-		if (B->ref==&G->mblock->bkptr) {
+		if (B->ref==G) {
 		    n++;
 		    brt += B->branch;
 		    if (debug_level('e')>5) e_printf("  %c: backref %d from %p\n",branch,n,GL);
@@ -993,11 +993,7 @@ static void CheckLinks(void)
 	e_printf("Node %p invalidated\n",G);
 	continue;
     }
-    if (debug_level('e')>5) e_printf("Node %p at %08x selfr=%p\n",G,G->key,
-	G->mblock->bkptr);
-    if (G->mblock->bkptr != G) {
-	error("bad selfref\n"); goto nquit;
-    }
+    if (debug_level('e')>5) e_printf("Node %p at %08x\n",G,G->key);
     checklink(G, &G->clink_t, 'T');
     checklink(G, &G->clink_nt, 'N');
   }
@@ -1034,8 +1030,8 @@ static void DumpTree (FILE *fd)
 	nn++;
 	continue;
     }
-    fprintf(fd,"%04d Node %p at %08x..%08x mblock=%p flags=%#x\n",
-	nn,G,G->key,(G->key+G->seqlen-1),G->mblock,G->flags);
+    fprintf(fd,"%04d Node %p at %08x..%08x addr=%p flags=%#x\n",
+	nn,G,G->key,(G->key+G->seqlen-1),G->addr,G->flags);
     fprintf(fd,"     AVL (%p:%p),%d,%d,%d,%d\n",G->link[0],G->link[1],
 		G->bal,G->cache,G->pad,G->rtag);
     fprintf(fd,"     source:     instr=%d, len=%#x\n",G->seqnum,G->seqlen);
@@ -1058,10 +1054,10 @@ static void DumpTree (FILE *fd)
 	    B = B->next;
 	}
     }
-    if (G->addr && G->pmeta) {
+    if (G->addr) {
 	int i, j, k;
 	unsigned char *p = G->addr;
-	Addr2Pc *AP = G->pmeta;
+	Addr2Pc *AP = G->meta;
 	for (i=0; i<G->seqnum; i++) {
 	    fprintf(fd,"     %08x:%p",(G->key+AP->dnpc),G->addr+AP->daddr);
 	    k = 0;
@@ -1152,7 +1148,7 @@ static int TraverseAndClean(void)
  * code addresses. At the end, we reset both CodeBuf and InstrMeta to prepare
  * for a new sequence.
  */
-TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
+TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
 {
   TNode *nG = NULL;
 #if PROFILE >= 2
@@ -1166,13 +1162,12 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   IGen *IG;
   int i, apl=0;
   Addr2Pc *ap;
-  CodeBuf *mallmb;
-  void **cp;
   unsigned int op;
 
   key = I0->npc;
 
-  TNode *G = calloc(1, sizeof(TNode));
+  nap = I0->ncount + 1;
+  TNode *G = calloc(1, sizeof(TNode) + sizeof(Addr2Pc) * nap);
   if (G==NULL) {
     leavedos_main(0x8201);
   }
@@ -1189,7 +1184,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
 	/* ->REPLACE the code of the node found with the latest
 	   compiled version */
 	NodeUnlinker(nG);
-	if (nG->mblock) dlfree(nG->mblock);
+	if (nG->addr) dlfree(nG->addr);
 	free(nG);
   }
   else {
@@ -1218,25 +1213,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   __atomic_store_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK], nG,
 		   __ATOMIC_RELAXED);
 
-  /* allocate the extra memory used by the node. This includes the
-   * translated code plus the table of correspondences between source
-   * and translated addresses.
-   * The first longword of the memory block is special; it stores a
-   * back-pointer to the node. This because nodes can be moved in
-   * memory when rebalancing the AVL tree, while we need absolute and
-   * constant memory references.
-   * The second longword is equal to its own address. Guess why.
-   * After that come the offset table, then the code.
-   */
-  nap = nG->seqnum+1;
-  mallmb = GenCodeBuf;
-  nG->mblock = GenCodeBuf;
-  nG->mblock->bkptr = nG;
-  cp = &nG->mblock->selfptr;
-  *cp = cp;
-  nG->pmeta = mallmb->meta;
-  if (nG->pmeta==NULL) leavedos_main(0x504d45);
-  nG->addr = (unsigned char *)&mallmb->meta[nap];
+  nG->addr = GenCodeBuf;
 
   /* setup structures for inter-node linking */
   nG->unlinked_jmp_targets = 0;
@@ -1260,7 +1237,7 @@ TNode *Move2Tree(IMeta *I0, CodeBuf *GenCodeBuf)
   }
 
   /* setup source/xlated instruction offsets */
-  ap = nG->pmeta;
+  ap = nG->meta;
   I = I0;
   for (i=0; i<nG->seqnum; i++) {
 	ap->daddr = I->daddr;
@@ -1453,7 +1430,7 @@ TNode *FindTree_unlocked(int key)
 
 static void BreakNode(TNode *G, unsigned char *eip)
 {
-  Addr2Pc *A = G->pmeta;
+  Addr2Pc *A = G->meta;
   int ebase;
   unsigned char *p;
   int i;
@@ -1523,7 +1500,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	    */
 	    /* Exclude last instruction, as there is no need to break
 	     * node after last instruction (it ends there anyway). */
-	    ahE = G->addr + G->pmeta[G->seqnum - 1].daddr;
+	    ahE = G->addr + G->meta[G->seqnum - 1].daddr;
 	    if (eip && ADDR_IN_RANGE(eip,G->addr,ahE)) {
 		if (debug_level('e')>1)
 		    e_printf("### Node self hit %p->%p..%p\n",
