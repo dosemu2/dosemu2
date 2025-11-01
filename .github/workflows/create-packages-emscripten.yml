@@ -1,0 +1,26 @@
+on:
+  workflow_dispatch:
+
+name: Create Packages (Emscripten)
+
+jobs:
+  build:
+    name: "build"
+    runs-on: ubuntu-24.04
+    if: (github.repository_owner == 'dosemu2')
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Emscripten
+      uses: numworks/setup-emscripten@v1 # Or another similar action like lovasoa/setup-emscripten
+      with:
+        sdk: latest # You can specify a specific SDK version, e.g., '3.1.45' or 'latest-fastcomp'
+
+    - name: Verify Emscripten installation
+      run: emcc --version
+
+    - name: Build project
+      run: |
+        mkdir build
+        cd build
+        ../configure-emsdk ../default-configure
+        make
