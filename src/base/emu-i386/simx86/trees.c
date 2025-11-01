@@ -1009,7 +1009,8 @@ static void CheckLinks(void)
 
 static void DumpTree (FILE *fd)
 {
-  TNode *G = &CollectTree.root;
+  avltr_node *p = &CollectTree.root;
+  TNode *G;
   linkdesc *L;
   backref *B;
   int nn;
@@ -1020,13 +1021,14 @@ static void DumpTree (FILE *fd)
 
   while (nn < 10000) {		// sorry,only 4 digits available
     /* walk to next node */
-    G = NEXTNODE(G);
-    if (G == &CollectTree.root) {
+    p = NEXTNODE(p);
+    if (p == &CollectTree.root) {
 	fprintf(fd,"\n== EOT ====================================================\n");
 	fflush(fd);
 	return;
     }
     fprintf(fd,"\n-----------------------------------------------------------\n");
+    G = p->data;
     if (G->alive <= 0) {
 	fprintf(fd,"%04d Node %p invalidated\n",nn,G);
 	nn++;
@@ -1034,18 +1036,18 @@ static void DumpTree (FILE *fd)
     }
     fprintf(fd,"%04d Node %p at %08x..%08x addr=%p flags=%#x\n",
 	nn,G,G->key,(G->key+G->seqlen-1),G->addr,G->flags);
-    fprintf(fd,"     AVL (%p:%p),%d,%d,%d,%d\n",G->link[0],G->link[1],
-		G->bal,G->cache,G->pad,G->rtag);
+    fprintf(fd,"     AVL (%p:%p),%d,%d,%d,%d\n",p->link[0],p->link[1],
+		p->bal,p->cache,p->pad,p->rtag);
     fprintf(fd,"     source:     instr=%d, len=%#x\n",G->seqnum,G->seqlen);
     fprintf(fd,"     translated: len=%#x\n",G->len);
     L = &G->clink_t;
     fprintf(fd,"     LINK refs=%d\n",G->nrefs);
     if (L->link) {
-	fprintf(fd,"         T ref=%p patch=%08x at %p\n",L->ref,
+	fprintf(fd,"         T ref=%p patch=%08x at %x\n",L->ref,
 		L->target,L->link);
 	L = &G->clink_nt;
 	if (L->link) {
-	    fprintf(fd,"         N ref=%p patch=%08x at %p\n",L->ref,
+	    fprintf(fd,"         N ref=%p patch=%08x at %x\n",L->ref,
 		L->target,L->link);
 	}
     }
