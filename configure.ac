@@ -615,7 +615,7 @@ if ! test -f Makefile.conf.in; then
       -o -name 'bin' -prune -o -name 'commands' -prune \
       -o -name Makefile -print -o -name '*.mak' -print \
       -o -name '*.bat' -print -o -name '*.sys' -print \
-      -o -name '*.conf' -print -o -name '*.cpi' -print \
+      -o -name '*.cpi' -print \
     )`; do
     echo  $LN_S -f $abssrcdir/${i#./} $i
     $LN_S -f $abssrcdir/${i#./} $i
