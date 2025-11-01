@@ -528,9 +528,9 @@ void print_version(void)
   dbug_printf(" 64bit\n");
 #endif
 #ifdef CFLAGS_STR
-#define __S(...) #__VA_ARGS__
-#define _S(x) __S(x)
-  dbug_printf("CFLAGS: %s\n", _S(CFLAGS_STR));
+#define v__S(...) #__VA_ARGS__
+#define v_S(x) v__S(x)
+  dbug_printf("CFLAGS: %s\n", v_S(CFLAGS_STR));
 #endif
 }
 
