@@ -39,7 +39,7 @@ void InitGenCodeBuf(void)
 {
     void *addr;
 
-#if HAVE_DECL_MREMAP_MAYMOVE && 0
+#if HAVE_DECL_MREMAP_MAYMOVE
     int err;
 
     addr = mmap(NULL, CODEBUF_SZ, PROT_NONE,
