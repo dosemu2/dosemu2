@@ -425,17 +425,17 @@ void avltr_delete(const int key)
   if (debug_level('e')>2) e_printf("Remove node %p\n",p);
 #endif
 #ifdef DEBUG_LINKER
-	if (p->nrefs) {
-	    dbug_printf("Cannot delete - nrefs=%d\n",p->nrefs);
+	if (G->nrefs) {
+	    dbug_printf("Cannot delete - nrefs=%d\n",G->nrefs);
 	    pthread_mutex_unlock(&trees_mtx);
 	    leavedos_main(0x9140);
 	}
-	if (p->bkr.next) {
+	if (G->bkr.next) {
 	    dbug_printf("Cannot delete - bkr busy\n");
 	    pthread_mutex_unlock(&trees_mtx);
 	    leavedos_main(0x9141);
 	}
-	if (p->clink_t.ref || p->clink_nt.ref) {
+	if (G->clink_t.ref || G->clink_nt.ref) {
 	    dbug_printf("Cannot delete - ref busy\n");
 	    pthread_mutex_unlock(&trees_mtx);
 	    leavedos_main(0x9142);
@@ -931,23 +931,25 @@ static void NodeUnlinker(TNode *G)
 /////////////////////////////////////////////////////////////////////////////
 
 #ifdef DEBUG_LINKER
+#include "codegen-x86.h"
 
 static void checklink(const TNode *G, const linkdesc *L, char branch)
 {
   if (!L->link) return;
 
-  const unsigned char *p = ((unsigned char *)L->link) - 1;
+  const unsigned char *p = G->addr + L->link;
+  if (p[0] == 0x0f) p += CKSIGNSIZE;
   if (L->ref) {
 	    const TNode *GL = L->ref;
 	    if (debug_level('e')>5)
-		e_printf("  %c: ref=%p link=%p\n",
+		e_printf("  %c: ref=%p link=%x\n",
 			 branch,GL,L->link);
 	    if ((*p!=0xe9)&&(*p!=0xeb)&&(*p!=0x48)) {
 		error("bad %c link jmp\n", branch); goto nquit;
 	    }
 	    if (debug_level('e')>5)
 		e_printf("  %c: links to %p at %08x with jmp %08x\n",branch,GL,GL->key,
-		*L->link);
+		*p);
 	    const backref *B = GL->bkr.next;
 	    if ((B==NULL) || (GL->nrefs < 1)) {
 		error("bad backref B=%p n=%d\n",B,GL->nrefs);
@@ -968,7 +970,7 @@ static void checklink(const TNode *G, const linkdesc *L, char branch)
 	    }
   }
   else {
-	    if (*p!=0xb8) {
+	    if (*p!=0xb9) {
 		error("bad %c link jmp\n", branch); goto nquit;
 	    }
   }
@@ -979,15 +981,17 @@ nquit:
 
 static void CheckLinks(void)
 {
-  TNode *G = &CollectTree.root;
+  avltr_node *p = &CollectTree.root;
+  TNode *G;
 
   for (;;) {
     /* walk to next node */
-    G = NEXTNODE(G);
-    if (G == &CollectTree.root) {
+    p = NEXTNODE(p);
+    if (p == &CollectTree.root) {
 	e_printf("DEBUG: node link check ok\n");
 	return;
     }
+    G = p->data;
     if (G->alive <= 0) {
 	e_printf("Node %p invalidated\n",G);
 	continue;
@@ -996,7 +1000,6 @@ static void CheckLinks(void)
     checklink(G, &G->clink_t, 'T');
     checklink(G, &G->clink_nt, 'N');
   }
-nquit:
   leavedos_main(0x9143);
 }
 
