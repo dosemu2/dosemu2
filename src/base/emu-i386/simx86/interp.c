@@ -567,7 +567,7 @@ static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
 #ifdef SPEC_PREJIT
 	int i = 0;
 
-	while ((G->unlinked_jmp_targets & TARGET_T) && !(G->flags & (F_LJMP|F_LEAV))) {
+	while (G->clink_t.link && !(G->flags & (F_LJMP|F_LEAV))) {
 		TNode *oldG = G;
 		PC = G->clink_t.target;
 		if (e_querymark(PC, SAFE_PRJ_GAP)) break;

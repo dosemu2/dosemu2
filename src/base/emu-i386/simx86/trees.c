@@ -744,20 +744,19 @@ static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
 	}
 }
 
-static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
+static void linknode(TNode *LG, TNode *G, linkdesc *L, char branch)
 {
 	backref *B;
 
 	// points to current node, which can't be a forever loop?
-	if (L->target!=G->key || !(LG->unlinked_jmp_targets & target_type) ||
+	if (L->target!=G->key || !L->link ||
 	    (G->mode & MTRAP) || (LG->mode & MTRAP))
 		return;
 
 	if (L->ref!=0) {
 		dbug_printf("Linker: ref at %08x busy\n",LG->key);
-		leavedos_main(0x8102 + (target_type == TARGET_NT));
+		leavedos_main(0x8102 + (branch == 'N'));
 	}
-	LG->unlinked_jmp_targets &= ~target_type;
 	IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH|MLINK,
 			 .p0 = L->target, .link = G->addr};
 	CodeGen(LG->addr + L->link, LG->addr, &IG);
@@ -767,7 +766,7 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 	B->next = G->bkr.next;
 	G->bkr.next = B;
 	B->ref = LG;
-	B->branch = target_type == TARGET_T ? 'T' : 'N';
+	B->branch = branch;
 	G->nrefs++;
 	if (G==LG) {
 		G->flags |= F_SLFL;
@@ -792,7 +791,7 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, unsigned target_type)
 #ifdef DEBUG_LINKER
 		if (bk==NULL) {
 			dbug_printf("bkr null\n");
-			leavedos_main(0x8108 + (target_type == TARGET_NT));
+			leavedos_main(0x8108 + (branch == 'N'));
 		}
 #endif
 		while (bk) { dbug_printf("bkref=%c%p\n",bk->branch,
@@ -816,9 +815,9 @@ void NodeLinker(TNode *LG, TNode *G)
 #endif
 	if (debug_level('e')>8 && LG) e_printf("NodeLinker: %08x->%08x\n",LG->key,G->key);
 
-	if (LG && LG->alive>0 && LG->unlinked_jmp_targets) {	// node ends with links
-		linknode(LG, G, &LG->clink_t, TARGET_T);
-		linknode(LG, G, &LG->clink_nt, TARGET_NT);
+	if (LG && LG->alive>0) {
+		linknode(LG, G, &LG->clink_t, 'T');
+		linknode(LG, G, &LG->clink_nt, 'N');
 	}
 #if PROFILE >= 2
 	if (debug_level('e')) LinkTime += (GETTSC() - t0);
@@ -875,16 +874,8 @@ static void NodeUnlinker(TNode *G)
 	    backref *b2 = B;
 	    if (B->branch=='T' || B->branch=='N') {
 		TNode *H = B->ref;
-		unsigned target_type;
 		linkdesc *L;
-		if (B->branch=='T') {
-			target_type = TARGET_T;
-			L = &H->clink_t;
-		}
-		else {
-			target_type = TARGET_NT;
-			L = &H->clink_nt;
-		}
+		L = (B->branch=='T') ? &H->clink_t : &H->clink_nt;
 		if (debug_level('e')>2) e_printf("Unlinking %c ref from node %p(%08x) to %08x\n",
 			B->branch, H, L->target, G->key);
 		if (L->target != G->key) {
@@ -895,7 +886,7 @@ static void NodeUnlinker(TNode *G)
 		IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH,
 				 .p0 = L->target, .p1 = H->key};
 		CodeGen(H->addr + L->link, H->addr, &IG);
-		L->ref = NULL; H->unlinked_jmp_targets |= target_type;
+		L->ref = NULL;
 		G->nrefs--;
 	    }
 	    else {
@@ -921,7 +912,6 @@ static void NodeUnlinker(TNode *G)
 	G->nrefs = 0;
 	memset(T_t, 0, sizeof(linkdesc));
 	memset(T_nt, 0, sizeof(linkdesc));
-	G->unlinked_jmp_targets = 0;
 	memset(&G->bkr, 0, sizeof(backref));
 #if PROFILE >= 2
 	if (debug_level('e')) LinkTime += (GETTSC() - t0);
@@ -1220,24 +1210,23 @@ TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
   nG->addr = GenCodeBuf;
 
   /* setup structures for inter-node linking */
-  nG->unlinked_jmp_targets = 0;
   nG->clink_nt.link = nG->clink_t.link = 0;
   IG = &I0[CurrIMeta].gen[I0[CurrIMeta].ngen-1];
   op = IG->op;
   if (op == JMP_LINK) {
+    assert(IG->p2); // because TheCPU.eip is set first, this can never be 0
     nG->clink_t.link = IG->p2;
     nG->clink_t.target = IG->p0;
-    nG->unlinked_jmp_targets |= TARGET_T;
     if (I0[CurrIMeta].ngen > 1 && (IG-1)->op == JMP_LINK) {
       IG--;
+      assert(IG->p2);
       nG->clink_nt.link = IG->p2;
       nG->clink_nt.target = IG->p0;
-      nG->unlinked_jmp_targets |= TARGET_NT;
     }
     if ((debug_level('e')>3))
 	dbug_printf("Link %d: %x:%08x\n",op,
 		nG->clink_nt.link,
-		((nG->unlinked_jmp_targets & TARGET_NT)? nG->clink_nt.target:0));
+		(nG->clink_nt.link? nG->clink_nt.target:0));
   }
 
   /* setup source/xlated instruction offsets */

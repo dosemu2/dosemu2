@@ -55,9 +55,6 @@ typedef struct _bkref {
 	char branch;
 } backref;
 
-#define TARGET_T 1
-#define TARGET_NT 2
-
 typedef struct _lnkdesc {
 	unsigned int link;
 	unsigned int target;
@@ -127,7 +124,6 @@ typedef struct TNode
 	unsigned short nrefs;
 	linkdesc clink_t;
 	linkdesc clink_nt;
-	unsigned unlinked_jmp_targets;
 	backref bkr;
 	unsigned cs;
 	unsigned mode;
