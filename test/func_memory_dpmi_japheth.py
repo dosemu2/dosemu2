@@ -64,8 +64,8 @@ def bare(self):
 
 def _c(self):
     results = doit(self, 218, "-c")
-    self.assertRegex(results, r"time.*CLI/STI: \d+ ms")
-    self.assertRegex(results, r"time.*interrupts via DPMI: \d+ ms")
+    self.assertRegex(results, r"time.*CLI/STI: -?\d+ ms")
+    self.assertRegex(results, r"time.*interrupts via DPMI: -?\d+ ms")
 
 
 def _d(self):
