@@ -158,6 +158,7 @@ static int open_mapping_pshm(int cap)
 }
 #endif
 
+#ifdef HAVE_MEMFD_CREATE
 #if HAVE_DECL_MEMFD_CREATE
 static int do_open_mshm(void)
 {
@@ -184,6 +185,7 @@ static int open_mapping_mshm(int cap)
   }
   return 1;
 }
+#endif
 #endif
 
 static void do_free_mapping(struct file_mapping *p)
@@ -305,6 +307,7 @@ struct mappingdrivers mappingdriver_shm = {
 };
 #endif
 
+#ifdef HAVE_MEMFD_CREATE
 #if HAVE_DECL_MEMFD_CREATE
 struct mappingdrivers mappingdriver_mshm = {
   "mapmshm",
@@ -316,6 +319,7 @@ struct mappingdrivers mappingdriver_mshm = {
   resize_mapping_file,
   alias_mapping_file
 };
+#endif
 #endif
 
 struct mappingdrivers mappingdriver_file = {

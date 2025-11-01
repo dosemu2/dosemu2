@@ -1165,6 +1165,7 @@ static void *prejit_thread(void *arg)
 
 #define PREJIT_RV_OFFS 0xff
 
+#ifdef USE_KVM
 static int prejit_vm86(struct vm86_struct *info)
 {
 #if PREJIT_EXEC
@@ -1300,7 +1301,6 @@ static int prejit_dpmi(cpuctx_t *scp)
   return 0;
 }
 
-#ifdef USE_KVM
 int kvm_vm86(struct vm86_struct *info)
 {
   int rc = prejit_vm86(info);

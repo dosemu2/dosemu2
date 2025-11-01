@@ -8,3 +8,5 @@
 # This file is included by all Makefiles
 
 SLIRP_LIBS:=@SLIRP_LIBS@
+
+LIBS += $(SLIRP_LIBS)

@@ -8,3 +8,5 @@
 # This file is included by all Makefiles
 
 MUNTLIB:=@LIBS@
+
+LIBS += $(MUNTLIB)

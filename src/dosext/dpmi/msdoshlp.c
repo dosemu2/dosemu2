@@ -23,6 +23,7 @@
 
 #ifdef DOSEMU
 #include "emu.h"
+#include "init.h"
 #include "utilities.h"
 #include "dos2linux.h"
 #include "int.h"
@@ -728,7 +729,7 @@ void msdos_register_ops(const struct msdos_ldt_ops *ops)
 
 void msdos_setup(void)
 {
-    load_plugin("msdos");
+    LOAD_PLUGIN(msdos);
 }
 
 void msdos_reset(void)

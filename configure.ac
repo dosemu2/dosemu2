@@ -439,7 +439,7 @@ AC_DEFINE_DIR([SYSTEM_XFONTS_PATH], [x11fontdir], [ Directory for x11 fonts ])
 
 DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -imacros emu_config.h"
 DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wall -Wstrict-prototypes -Wmissing-declarations \
--Wnested-externs -fms-extensions -pthread \
+-fms-extensions -pthread \
 -Wno-unused-result -Wcast-qual -Wwrite-strings -Wundef"
 AX_CHECK_COMPILE_FLAG([-Waddress-of-packed-member],
   [DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-address-of-packed-member"],, [-Werror])
@@ -456,13 +456,13 @@ if test "$enable_dlplugins" != "no"; then
               AC_MSG_NOTICE(Using dynamically loaded plugins...)
               AC_DEFINE(USE_DL_PLUGINS)
               USE_DL_PLUGINS=1
-              AC_SUBST(USE_DL_PLUGINS)
               DOSBIN_LDFLAGS="-rdynamic"
-              AC_SUBST(DOSBIN_LDFLAGS)
               AC_CHECK_LIB(dl, dlopen)
 else
+              USE_DL_PLUGINS=0
               AC_MSG_NOTICE(Not using dynamically loaded plugins...)
 fi
+AC_SUBST(USE_DL_PLUGINS)
 
 SIG_PROTO_PFX="__attribute__((no_instrument_function))"
 dnl check for stack protector disabling functionaity
@@ -615,7 +615,7 @@ if ! test -f Makefile.conf.in; then
       -o -name 'bin' -prune -o -name 'commands' -prune \
       -o -name Makefile -print -o -name '*.mak' -print \
       -o -name '*.bat' -print -o -name '*.sys' -print \
-      -o -name '*.conf' -print -o -name '*.cpi' -print \
+      -o -name '*.cpi' -print \
     )`; do
     echo  $LN_S -f $abssrcdir/${i#./} $i
     $LN_S -f $abssrcdir/${i#./} $i
@@ -627,6 +627,7 @@ fi
 AC_MSG_NOTICE([Creating plug-in hooks...])
 PLUGINSUBDIRS=
 ST_PLUGINSUBDIRS=
+CONFFILES=
 $srcdir/scripts/mkpluginhooks clean
 for i in $(echo $enable_plugins | tr ',' ' '); do
     if test -z "$i"; then continue; fi
@@ -635,6 +636,9 @@ for i in $(echo $enable_plugins | tr ',' ' '); do
         if ! $EGREP 'NO_LIB' $srcdir/src/plugin/$i/Makefile >/dev/null; then
           if ! $EGREP 'USE_DL_PLUGINS' $srcdir/src/plugin/$i/Makefile >/dev/null || test "$enable_dlplugins" = "no"; then
             ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS plugin/$i"
+          fi
+          if test -f $srcdir/src/plugin/$i/Makefile.conf.in; then
+            CONFFILES="$CONFFILES plugin/$i/Makefile.conf"
           fi
         fi
     fi
@@ -690,6 +694,9 @@ AC_ARG_ENABLE(debug,
 if test "$enable_debug" != "no"; then
   AC_MSG_NOTICE(Compiling with debug info...)
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -ggdb3"
+  if test "$machine" = "wasm32"; then
+    DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -g3 -gsource-map"
+  fi
   if test "$use_clang" = "yes" ; then
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fdebug-macro"
   fi
@@ -735,6 +742,7 @@ AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
 AC_SUBST(PLUGINSUBDIRS)
 AC_SUBST(ST_PLUGINSUBDIRS)
+AC_SUBST(CONFFILES)
 RELEASE_DATE=`cd $srcdir && ./getversion -d`
 AC_SUBST(RELEASE_DATE)
 
@@ -782,6 +790,7 @@ else
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
     DOSBIN_LDFLAGS="$DOSEMU_LDFLAGS -pie"
 fi
+AC_SUBST(DOSBIN_LDFLAGS)
 
 DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpic"
 

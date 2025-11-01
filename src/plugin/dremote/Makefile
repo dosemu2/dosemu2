@@ -14,16 +14,16 @@ ALL_CFLAGS += $(DL_CFLAGS) $(SR_CFLAGS) $(SECCOMP_CFLAGS) \
   -Wno-strict-prototypes
 ALL_CPPFLAGS += -I. -I$(srcdir)/../searpc
 
-CFILES = util.c dnsvc.c dnrpc_srv.c uffd.c sc_filter.c
+CFILES = dnsvc.c dnrpc_srv.c uffd.c sc_filter.c
 GEN_H = searpc-signature.h searpc-marshal.h
 
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_dremote.so
+CFILES += $(srcdir)/../searpc/util.c
 endif
 
 include $(REALTOPDIR)/src/Makefile.common.post
 vpath %.py $(srcdir)
-vpath util.c $(srcdir)/../searpc
 
 clean::
 	$(RM) $(GENCFILES) $(GEN_H)

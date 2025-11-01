@@ -36,12 +36,6 @@ AC_ARG_WITH([fdpp-lib-dir], AS_HELP_STRING([--with-fdpp-lib-dir=DIR],
   ],
   [
     if test "x$prefix" = xNONE; then
-      if test "x$PKG_CONFIG_PATH" = x
-      then
-        export PKG_CONFIG_PATH="$ac_default_prefix/lib/pkgconfig"
-      else
-        export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$ac_default_prefix/lib/pkgconfig"
-      fi
       AC_ARG_WITH([fdpp-rpath], AS_HELP_STRING([--with-fdpp-rpath=DIR],
         [add alternate fdpp rpath]),
         [FDPP_RPATH="$fdpp_rpath"],

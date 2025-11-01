@@ -8,3 +8,5 @@
 # This file is included by all Makefiles
 
 GPMLIB:=@LIBS@
+
+LIBS += $(GPMLIB)
