@@ -1,5 +1,13 @@
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - devel
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 name: Create Packages (Emscripten)
 
