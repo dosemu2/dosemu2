@@ -121,7 +121,6 @@ typedef struct TNode
 	int alive;
 	unsigned char *addr;
 	unsigned short len, flags, seqlen, seqnum __attribute__ ((packed));
-	unsigned short nrefs;
 	linkdesc clink_t;
 	linkdesc clink_nt;
 	backref *bkr;
