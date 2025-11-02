@@ -118,7 +118,7 @@ void rep_movs_stos(struct rep_stack *stack)
 {
 	unsigned char *paddr = stack->edi;
 	unsigned int ecx = stack->ecx;
-	unsigned char *eip = stack->eip;
+	unsigned char *eip = GetGenCodeBuf(stack->eip);
 	dosaddr_t addr;
 	unsigned int len = ecx;
 	unsigned char *edi;
@@ -319,8 +319,9 @@ static void UnCpatch_wri32(unsigned char *eip)
 }
 #endif
 
-void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
+void wri_8(dosaddr_t addr, Bit8u value, unsigned char *rip)
 {
+	unsigned char *eip = GetGenCodeBuf(rip);
 #if PROFILE
 	CpatchWrites++;
 #endif
@@ -347,8 +348,9 @@ void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 	InCompiledCode++;
 }
 
-void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
+void wri_16(dosaddr_t addr, Bit16u value, unsigned char *rip)
 {
+	unsigned char *eip = GetGenCodeBuf(rip);
 #if PROFILE
 	CpatchWrites++;
 #endif
@@ -375,8 +377,9 @@ void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 	InCompiledCode++;
 }
 
-void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
+void wri_32(dosaddr_t addr, Bit32u value, unsigned char *rip)
 {
+	unsigned char *eip = GetGenCodeBuf(rip);
 #if PROFILE
 	CpatchWrites++;
 #endif
@@ -606,7 +609,7 @@ int Cpatch(sigcontext_t *scp)
 #if PROFILE
     CpatchTotal++;
 #endif
-    p = eip;
+    p = GetGenCodeBuf(eip);
     if ((*p==0xf2 || *p==0xf3) && (p[1] == 0x66 || p[2] == 0x90) &&
 	p[3] == 0x90 && p[4] == 0x90) {
 	unsigned char op;
@@ -614,7 +617,7 @@ int Cpatch(sigcontext_t *scp)
 	// rep movs, rep stos, rep lods, rep scas, rep cmps
 	// we have a sequence:	f2/f3 op 90 90 90
 	//		or	f2/f3 66 op 90 90 (f2 for cmps/scas only)
-	if (debug_level('e')>1) e_printf("### REP patch at %p\n",eip);
+	if (debug_level('e')>1) e_printf("### REP patch at %p\n",p);
 	op = p[1];
 	/* as all ops are between 0xa4 and 0xaf we can encode override
 	   prefix as 0x10 and repne as 0x40 */
@@ -659,14 +662,14 @@ int Cpatch(sigcontext_t *scp)
     }
     if (v==0x2f0488) {		// movb %%al,(%%edi,%%ebp,1)
 	// we have a sequence:	88 04 2f
-	if (debug_level('e')>1) e_printf("### Byte write patch at %p\n",eip);
+	if (debug_level('e')>1) e_printf("### Byte write patch at %p\n",p);
 	JSRPATCH(p,Ofs_stub_wri_8);
 	return 1;
     }
     if (v==0x2f0489) {		// mov %%{e}ax,(%%edi,%%ebp,1)
 	// we have a sequence:	89 04 2f
 	//		or	66 89 04 2f
-	if (debug_level('e')>1) e_printf("### Word/Long write patch at %p\n",eip);
+	if (debug_level('e')>1) e_printf("### Word/Long write patch at %p\n",p);
 	if (w16) {
 	    p[-1] = 0x90; JSRPATCH(p,Ofs_stub_wri_16);;
 	}
@@ -677,14 +680,14 @@ int Cpatch(sigcontext_t *scp)
     }
     if (v==0x2f048a) {		// movb (%%edi,%%ebp,1),%%al
 	// we have a sequence:	8a 04 2f 90 90 90
-	if (debug_level('e')>1) e_printf("### Byte read patch at %p\n",eip);
+	if (debug_level('e')>1) e_printf("### Byte read patch at %p\n",p);
 	JSRPATCH(p,Ofs_stub_read_8);
 	return 1;
     }
     if (v==0x2f048b) {		// mov (%%edi,%%ebp,1),%%{e}ax
 	// we have a sequence:	8b 04 2f
 	//		or	66 8b 04 2f
-	if (debug_level('e')>1) e_printf("### Word/Long read patch at %p\n",eip);
+	if (debug_level('e')>1) e_printf("### Word/Long read patch at %p\n",p);
 	if (w16) {
 	    p[-1] = 0x90; JSRPATCH(p,Ofs_stub_read_16);
 	}
@@ -700,12 +703,12 @@ int Cpatch(sigcontext_t *scp)
 int UnCpatch(unsigned char *eip)
 {
     unsigned char *p;
-    p = eip;
+    p = GetGenCodeBuf(eip);
 
-    if (*eip != 0xff) return 1;
+    if (*p != 0xff) return 1;
     if (debug_level('e')) {
-	e_printf("UnCpatch   at %p was %02x%02x%02x%02x%02x\n",eip,
-	    eip[0],eip[1],eip[2],eip[3],eip[4]);
+	e_printf("UnCpatch   at %p was %02x%02x%02x%02x%02x\n",p,
+	    p[0],p[1],p[2],p[3],p[4]);
     }
 #if PROFILE
     UncpatchTotal++;
@@ -742,8 +745,8 @@ int UnCpatch(unsigned char *eip)
     }
     else return 1;
     if (debug_level('e')) {
-	e_printf("UnCpatched at %p  is %02x%02x%02x%02x%02x\n",eip,
-	    eip[0],eip[1],eip[2],eip[3],eip[4]);
+	e_printf("UnCpatched at %p  is %02x%02x%02x%02x%02x\n",p,
+	    p[0],p[1],p[2],p[3],p[4]);
     }
     return 0;
 }

@@ -55,8 +55,6 @@
 #include <string.h>
 #include "utilities.h"
 #include "emu86.h"
-#include "misc/dlmalloc.h"
-#include "mapping/mapping.h"
 #include "codegen-arch.h"
 
 unsigned char * (*CodeGen)(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
@@ -415,7 +413,7 @@ static unsigned char *ProduceCode(unsigned int PC, IMeta *I0)
 	for (i=0; i<=CurrIMeta; i++)
 	    GenBufSize += I0[i].ngen * MAX_GEND_BYTES_PER_OP;
 	mall_req = GenBufSize + 32;// 32 for tail
-	BaseGenBuf = dlmalloc(mall_req);
+	BaseGenBuf = AllocGenCodeBuf(mall_req);
 	/* actual code buffer starts from here */
 	CodePtr = BaseGenBuf;
 	I0->daddr = 0;
@@ -467,7 +465,7 @@ static unsigned char *ProduceCode(unsigned int PC, IMeta *I0)
 
 	/* shrink buffer to what is actually needed */
 	mall_req = I0->totlen;
-	BaseGenBuf = dlrealloc(BaseGenBuf, mall_req);
+	ShrinkGenCodeBuf(BaseGenBuf, mall_req);
 	if (debug_level('e')>3)
 		e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
 

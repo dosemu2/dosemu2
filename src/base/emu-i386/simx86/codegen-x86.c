@@ -2436,7 +2436,7 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 #endif
 		"pop	"RE_REG(bp)"\n"
 		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref),"=c"(*seqbase)
-		: "b"(ecpu),"d"(*flg),"a"(SeqStart),
+		: "b"(ecpu),"d"(*flg),"a"(GetExecCodeBuf(SeqStart)),
 		  [mb]"D"(jb)  // don't use "r" or can assign to %rbp
 		/* Note: we need to clobber "class-less" regs (like %rbp) even
 		 * if we save/restore them, to avoid gcc from allocating

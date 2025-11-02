@@ -42,7 +42,6 @@
 #include "mapping/mapping.h"
 #include "dosemu_debug.h"
 #include "utilities.h"
-#include "misc/dlmalloc.h"
 #include "emu86.h"
 #include "trees.h"
 #include "codegen.h"

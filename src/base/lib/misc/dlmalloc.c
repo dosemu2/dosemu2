@@ -1138,6 +1138,7 @@ static msegmentptr segment_holding(mstate m, char* addr) {
   }
 }
 
+#if HAVE_MMAP
 /* Return true if segment contains a segment link */
 static int has_segment_link(mstate m, msegmentptr ss) {
   msegmentptr sp = &m->seg;
@@ -1148,6 +1149,7 @@ static int has_segment_link(mstate m, msegmentptr ss) {
       return 0;
   }
 }
+#endif
 
 #ifndef MORECORE_CANNOT_TRIM
 #define should_trim(M,s)  ((s) > (M)->trim_check)
@@ -2639,6 +2641,7 @@ static int sys_trim(mstate m, size_t pad) {
 
       if (!is_extern_segment(sp)) {
         if (is_mmapped_segment(sp)) {
+#if HAVE_MMAP
           if (HAVE_MMAP &&
               sp->size >= extra &&
               !has_segment_link(m, sp)) { /* can't shrink if pinned */
@@ -2649,6 +2652,7 @@ static int sys_trim(mstate m, size_t pad) {
               released = extra;
             }
           }
+#endif
         }
         else if (HAVE_MORECORE) {
           if (extra >= HALF_MAX_SIZE_T) /* Avoid wrapping negative */
@@ -3493,6 +3497,7 @@ mspace create_mspace_with_base(void* base, size_t capacity, int locked) {
 
 size_t destroy_mspace(mspace msp) {
   size_t freed = 0;
+#if HAVE_MMAP
   mstate ms = (mstate)msp;
   if (ok_magic(ms)) {
     msegmentptr sp = &ms->seg;
@@ -3509,6 +3514,7 @@ size_t destroy_mspace(mspace msp) {
   else {
     USAGE_ERROR_ACTION(ms,ms);
   }
+#endif
   return freed;
 }
 
