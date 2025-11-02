@@ -906,8 +906,6 @@ static void NodeUnlinker(TNode *G)
 	    e_printf("Unlinker: refs=T%p N%p\n",T_t->ref,T_nt->ref);
 	unlinknode(G, T_t, 'T');
 	unlinknode(G, T_nt, 'N');
-	memset(T_t, 0, sizeof(linkdesc));
-	memset(T_nt, 0, sizeof(linkdesc));
 #if PROFILE >= 2
 	if (debug_level('e')) LinkTime += (GETTSC() - t0);
 #endif
