@@ -430,7 +430,7 @@ void avltr_delete(const int key)
 	    pthread_mutex_unlock(&trees_mtx);
 	    leavedos_main(0x9140);
 	}
-	if (G->bkr.next) {
+	if (G->bkr) {
 	    dbug_printf("Cannot delete - bkr busy\n");
 	    pthread_mutex_unlock(&trees_mtx);
 	    leavedos_main(0x9141);
@@ -629,7 +629,7 @@ void avltr_destroy(void)
 		  p = p->link[1];
 		  break;
 	      }
-	      B = p->data->bkr.next;
+	      B = p->data->bkr;
 	      while (B) {
 		  backref *B2 = B;
 		  B = B->next;
@@ -739,7 +739,7 @@ static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
 	if ((LG->flags & flags) != flags) {
 	    /* only go as far back as long as flags change */
 	    LG->flags |= flags;
-	    for (B=LG->bkr.next; B; B=B->next)
+	    for (B=LG->bkr; B; B=B->next)
 		_nodeflagbackrefs(B->ref, flags);
 	}
 }
@@ -763,8 +763,8 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, char branch)
 	L->ref = G;
 	B = calloc(1,sizeof(backref));
 	// head insertion
-	B->next = G->bkr.next;
-	G->bkr.next = B;
+	B->next = G->bkr;
+	G->bkr = B;
 	B->ref = LG;
 	B->branch = branch;
 	G->nrefs++;
@@ -787,7 +787,7 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, char branch)
 	}
 	_nodeflagbackrefs(LG, G->flags & F_FPOP);
 	if (debug_level('e')>8) {
-		backref *bk = G->bkr.next;
+		backref *bk = G->bkr;
 #ifdef DEBUG_LINKER
 		if (bk==NULL) {
 			dbug_printf("bkr null\n");
@@ -829,18 +829,18 @@ static void unlinknode(TNode *G, linkdesc *T, char branch)
 	if (!T->ref) return;
 
 	TNode *H = T->ref;
-	backref *Bq = &H->bkr;
-	backref *B  = H->bkr.next;
+	backref **Bq = &H->bkr;
+	backref *B  = H->bkr;
 	if (debug_level('e')>2) e_printf("Unlink fwd %c ref to node %p(%08x)\n",
 					 branch, H, H->key);
 	while (B) {
 		if (B->ref==G) {
-			Bq->next = B->next;
+			*Bq = B->next;
 			H->nrefs--;
 			free(B);
 			break;
 		}
-		Bq = B;
+		Bq = &B->next;
 		B = B->next;
 	}
 	if (B==NULL) {	// not found...
@@ -854,7 +854,7 @@ static void NodeUnlinker(TNode *G)
 {
 	linkdesc *T_t = &G->clink_t;
 	linkdesc *T_nt = &G->clink_nt;
-	backref *B = G->bkr.next;
+	backref *B = G->bkr;
 #if PROFILE >= 2
 	hitimer_t t0 = 0;
 #endif
@@ -869,7 +869,7 @@ static void NodeUnlinker(TNode *G)
 	// unlink backward references (from other nodes to the current
 	// node)
 	if (debug_level('e')>8)
-	    e_printf("Unlinker: bkr.next=%p\n",B);
+	    e_printf("Unlinker: bkr=%p\n",B);
 	while (B) {
 	    backref *b2 = B;
 	    if (B->branch=='T' || B->branch=='N') {
@@ -912,7 +912,7 @@ static void NodeUnlinker(TNode *G)
 	G->nrefs = 0;
 	memset(T_t, 0, sizeof(linkdesc));
 	memset(T_nt, 0, sizeof(linkdesc));
-	memset(&G->bkr, 0, sizeof(backref));
+	G->bkr = NULL;
 #if PROFILE >= 2
 	if (debug_level('e')) LinkTime += (GETTSC() - t0);
 #endif
@@ -940,7 +940,7 @@ static void checklink(const TNode *G, const linkdesc *L, char branch)
 	    if (debug_level('e')>5)
 		e_printf("  %c: links to %p at %08x with jmp %08x\n",branch,GL,GL->key,
 		*p);
-	    const backref *B = GL->bkr.next;
+	    const backref *B = GL->bkr;
 	    if ((B==NULL) || (GL->nrefs < 1)) {
 		error("bad backref B=%p n=%d\n",B,GL->nrefs);
 		goto nquit;
@@ -1042,7 +1042,7 @@ static void DumpTree (FILE *fd)
 	}
     }
     if (G->nrefs) {
-	B = G->bkr.next;
+	B = G->bkr;
 	while (B) {
 	    fprintf(fd,"         bkref %c -> %p\n",B->branch,B->ref);
 	    B = B->next;

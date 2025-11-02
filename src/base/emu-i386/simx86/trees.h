@@ -124,7 +124,7 @@ typedef struct TNode
 	unsigned short nrefs;
 	linkdesc clink_t;
 	linkdesc clink_nt;
-	backref bkr;
+	backref *bkr;
 	unsigned cs;
 	unsigned mode;
 	Addr2Pc meta[]; /* there are seqnum+1 of these */
