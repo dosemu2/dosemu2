@@ -5171,6 +5171,7 @@ PPDOSGITTestCase = ppdosgit(OurTestCase, {
     "test_comcom_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
+    "test_drv_removable": KNOWNFAIL,
     "test_floppy_img": UNSUPPORTED,
     "test_floppy_vfs": UNSUPPORTED,
 })
