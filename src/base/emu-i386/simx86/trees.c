@@ -1147,7 +1147,7 @@ static int TraverseAndClean(void)
  * code addresses. At the end, we reset both CodeBuf and InstrMeta to prepare
  * for a new sequence.
  */
-TNode *Move2Tree(IMeta *I0, struct cbptr GenCodeBuf)
+TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
 {
   TNode *nG = NULL;
 #if PROFILE >= 2
@@ -1212,7 +1212,7 @@ TNode *Move2Tree(IMeta *I0, struct cbptr GenCodeBuf)
   __atomic_store_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK], nG,
 		   __ATOMIC_RELAXED);
 
-  nG->addr = GenCodeBuf.ptr;
+  nG->addr = GenCodeBuf;
 
   /* setup structures for inter-node linking */
   nG->unlinked_jmp_targets = 0;

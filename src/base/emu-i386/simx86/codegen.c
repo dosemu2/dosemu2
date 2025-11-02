@@ -391,12 +391,11 @@ void Gen(int op, int mode, ...)
 /////////////////////////////////////////////////////////////////////////////
 
 
-static struct cbptr ProduceCode(unsigned int PC, IMeta *I0)
+static unsigned char *ProduceCode(unsigned int PC, IMeta *I0)
 {
 	int i,j,mall_req;
 	unsigned char *cp, *cp1, *BaseGenBuf, *CodePtr;
 	size_t GenBufSize;
-	struct cbptr cbp;
 
 	if (debug_level('e')>1) {
 	    e_printf("---------------------------------------------\n");
@@ -414,8 +413,7 @@ static struct cbptr ProduceCode(unsigned int PC, IMeta *I0)
 	for (i=0; i<=CurrIMeta; i++)
 	    GenBufSize += I0[i].ngen * MAX_GEND_BYTES_PER_OP;
 	mall_req = GenBufSize + 32;// 32 for tail
-	cbp = AllocGenCodeBuf(mall_req);
-	BaseGenBuf = cbp.ptr;
+	BaseGenBuf = AllocGenCodeBuf(mall_req);
 	/* actual code buffer starts from here */
 	CodePtr = BaseGenBuf;
 	I0->daddr = 0;
@@ -467,11 +465,11 @@ static struct cbptr ProduceCode(unsigned int PC, IMeta *I0)
 
 	/* shrink buffer to what is actually needed */
 	mall_req = I0->totlen;
-	ShrinkGenCodeBuf(cbp, mall_req);
+	ShrinkGenCodeBuf(BaseGenBuf, mall_req);
 	if (debug_level('e')>3)
 		e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
 
-	return cbp;
+	return BaseGenBuf;
 }
 
 
@@ -503,7 +501,7 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 {
 	IMeta *I0;
 	TNode *G;
-	struct cbptr GenCodeBuf;
+	unsigned char *GenCodeBuf;
 
 	assert (CurrIMeta >= 0);
 

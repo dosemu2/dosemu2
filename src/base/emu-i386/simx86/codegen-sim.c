@@ -77,6 +77,10 @@ static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 			 unsigned char *ecpu, void *SeqStart,
 			 unsigned short seqflg, unsigned *seqbase);
 
+static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
+			uint32_t *flags, unsigned int opc, unsigned int arg,
+			unsigned char *eip);
+
 static unsigned char *currentIG = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2130,7 +2134,7 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 
 	case O_SIM: {
 		uint32_t flags = FlagSync_All();
-		DR1.d = Sim_helper(mem_ref, DR1.d, mode,
+		DR1.d = _Sim_helper(mem_ref, DR1.d, mode,
 				   &flags, IG->p0, IG->p1, currentIG);
 		FlagSync_RFL(flags);
 		if (TheCPU.err > 0)
@@ -3518,9 +3522,10 @@ not_permitted_sim:
 
 unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			uint32_t *flags, unsigned int opc, unsigned int arg,
-			unsigned char *eip)
+			uintptr_t rip)
 {
 	unsigned int ret;
+	unsigned char *eip = GetGenCodeBuf(rip);
 
 	InCompiledCode--;
 	ret = _Sim_helper(mem_ref, data, mode, flags, opc, arg, eip);

@@ -70,7 +70,7 @@ void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 		return;
 	// no need to invalidate the whole page here,
 	// as the page does not need to be unprotected
-	InvalidateNodeRange_X(addr, len, eip);
+	InvalidateNodeRange(addr, len, eip);
 #if PROFILE
 	CpatchInvalidates++;
 #endif
@@ -91,7 +91,7 @@ void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 struct rep_stack {
 	unsigned char *esi, *edi;
 	unsigned long ecx, eflags, edx, eax;
-	unsigned char *eip;
+	uintptr_t rip;
 	unsigned long cpatch_op;
 } __attribute__((packed));
 
@@ -118,7 +118,7 @@ void rep_movs_stos(struct rep_stack *stack)
 {
 	unsigned char *paddr = stack->edi;
 	unsigned int ecx = stack->ecx;
-	unsigned char *eip = stack->eip;
+	unsigned char *eip = GetGenCodeBuf(stack->rip);
 	dosaddr_t addr;
 	unsigned int len = ecx;
 	unsigned char *edi;
@@ -260,7 +260,7 @@ void stk_32(dosaddr_t addr, Bit32u value)
 static void wri8_slow(dosaddr_t addr, Bit8u value, unsigned char *eip)
 {
 	if (e_querymark(addr, 1)) {
-		InvalidateNodeRange_X(addr, 1, eip);
+		InvalidateNodeRange(addr, 1, eip);
 #if PROFILE
 		CpatchInvalidates++;
 #endif
@@ -271,7 +271,7 @@ static void wri8_slow(dosaddr_t addr, Bit8u value, unsigned char *eip)
 static void wri16_slow(dosaddr_t addr, Bit16u value, unsigned char *eip)
 {
 	if (e_querymark(addr, 2)) {
-		InvalidateNodeRange_X(addr, 2, eip);
+		InvalidateNodeRange(addr, 2, eip);
 #if PROFILE
 		CpatchInvalidates++;
 #endif
@@ -282,7 +282,7 @@ static void wri16_slow(dosaddr_t addr, Bit16u value, unsigned char *eip)
 static void wri32_slow(dosaddr_t addr, Bit32u value, unsigned char *eip)
 {
 	if (e_querymark(addr, 4)) {
-		InvalidateNodeRange_X(addr, 4, eip);
+		InvalidateNodeRange(addr, 4, eip);
 #if PROFILE
 		CpatchInvalidates++;
 #endif
@@ -319,8 +319,9 @@ static void UnCpatch_wri32(unsigned char *eip)
 }
 #endif
 
-void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
+void wri_8(dosaddr_t addr, Bit8u value, uintptr_t rip)
 {
+	unsigned char *eip = GetGenCodeBuf(rip);
 #if PROFILE
 	CpatchWrites++;
 #endif
@@ -347,8 +348,9 @@ void wri_8(dosaddr_t addr, Bit8u value, unsigned char *eip)
 	InCompiledCode++;
 }
 
-void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
+void wri_16(dosaddr_t addr, Bit16u value, uintptr_t rip)
 {
+	unsigned char *eip = GetGenCodeBuf(rip);
 #if PROFILE
 	CpatchWrites++;
 #endif
@@ -375,8 +377,9 @@ void wri_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 	InCompiledCode++;
 }
 
-void wri_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
+void wri_32(dosaddr_t addr, Bit32u value, uintptr_t rip)
 {
+	unsigned char *eip = GetGenCodeBuf(rip);
 #if PROFILE
 	CpatchWrites++;
 #endif
@@ -601,7 +604,7 @@ int Cpatch(sigcontext_t *scp)
     unsigned char *p;
     int w16;
     unsigned int v;
-    unsigned char *eip = (unsigned char *)_scp_rip;
+    uintptr_t eip = _scp_rip;
 
 #if PROFILE
     CpatchTotal++;
@@ -697,10 +700,10 @@ int Cpatch(sigcontext_t *scp)
     return 0;
 }
 
-int UnCpatch(unsigned char *eip)
+int UnCpatch(uintptr_t rip)
 {
     unsigned char *p;
-    p = GetGenCodeBuf(eip);
+    p = GetGenCodeBuf(rip);
 
     if (*p != 0xff) return 1;
     if (debug_level('e')) {

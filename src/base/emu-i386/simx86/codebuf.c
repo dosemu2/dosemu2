@@ -33,11 +33,12 @@
 #define CODEBUF_SZ (128 * 1024 * 1024)
 static mspace cspace;
 static unsigned char *wbase;
-static unsigned char *xbase;
+static uintptr_t xoffset;
 
 void InitGenCodeBuf(void)
 {
     void *addr;
+    unsigned char *xbase;
 
 #if HAVE_DECL_MREMAP_MAYMOVE
     int err;
@@ -58,6 +59,7 @@ void InitGenCodeBuf(void)
     xbase = addr;
 #endif
     wbase = addr;
+    xoffset = xbase - wbase;
     cspace = create_mspace_with_base(addr, CODEBUF_SZ, 0);
     assert(cspace);
 }
@@ -65,25 +67,24 @@ void InitGenCodeBuf(void)
 void EndGenCodeBuf(void)
 {
     destroy_mspace(cspace);
-    if (xbase != wbase)
-        munmap(xbase, CODEBUF_SZ);
+    if (xoffset)
+        munmap(wbase + xoffset, CODEBUF_SZ);
     munmap(wbase, CODEBUF_SZ);
 }
 
-struct cbptr AllocGenCodeBuf(size_t size)
+void *AllocGenCodeBuf(size_t size)
 {
-    struct cbptr ret;
+    void *ret;
 
-    ret.ptr = mspace_malloc(cspace, size);
-    assert(ret.ptr);
-    ret.xptr = xbase + (ret.ptr - wbase);
+    ret = mspace_malloc(cspace, size);
+    assert(ret);
     return ret;
 }
 
-void ShrinkGenCodeBuf(struct cbptr ptr, size_t size)
+void ShrinkGenCodeBuf(void *ptr, size_t size)
 {
-    void *ptr2 = mspace_realloc(cspace, ptr.ptr, size);
-    assert(ptr2 == ptr.ptr);
+    void *ptr2 = mspace_realloc(cspace, ptr, size);
+    assert(ptr2 == ptr);
 }
 
 void FreeGenCodeBuf(void *ptr)
@@ -93,14 +94,15 @@ void FreeGenCodeBuf(void *ptr)
     mspace_free(cspace, ptr);
 }
 
-unsigned char *GetGenCodeBuf(const unsigned char *eip)
+unsigned char *GetGenCodeBuf(uintptr_t eip)
 {
-    assert(eip >= xbase && eip < xbase + CODEBUF_SZ);
-    return wbase + (eip - xbase);
+    unsigned char *p = (unsigned char *)eip - xoffset;
+    assert(p >= wbase && p < wbase + CODEBUF_SZ);
+    return p;
 }
 
-unsigned char *GetExecCodeBuf(const unsigned char *ptr)
+uintptr_t GetExecCodeBuf(const unsigned char *ptr)
 {
     assert(ptr >= wbase && ptr < wbase + CODEBUF_SZ);
-    return xbase + (ptr - wbase);
+    return (uintptr_t)ptr + xoffset;
 }

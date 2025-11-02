@@ -750,17 +750,13 @@ int e_markpage(unsigned int addr, size_t len);
 int e_unmarkpage(unsigned int addr, size_t len);
 void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip);
 
-struct cbptr {
-    unsigned char *ptr;
-    unsigned char *xptr;
-};
 void InitGenCodeBuf(void);
 void EndGenCodeBuf(void);
-struct cbptr AllocGenCodeBuf(size_t size);
-void ShrinkGenCodeBuf(struct cbptr ptr, size_t size);
+void *AllocGenCodeBuf(size_t size);
+void ShrinkGenCodeBuf(void *ptr, size_t size);
 void FreeGenCodeBuf(void *ptr);
-unsigned char *GetGenCodeBuf(const unsigned char *eip);
-unsigned char *GetExecCodeBuf(const unsigned char *ptr);
+unsigned char *GetGenCodeBuf(uintptr_t eip);
+uintptr_t GetExecCodeBuf(const unsigned char *ptr);
 //
 void CollectStat(void);
 //
@@ -781,7 +777,7 @@ void init_emu_npu(void);
 
 unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			uint32_t *flags, unsigned int opc, unsigned int arg,
-			unsigned char *eip);
+			uintptr_t rip);
 
 void e_VgaMovs(dosaddr_t edi, dosaddr_t esi, unsigned int rep,
 	       int dp, unsigned int access);
