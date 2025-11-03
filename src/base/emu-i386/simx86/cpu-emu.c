@@ -99,8 +99,6 @@ jmp_buf jmp_env;
 
 struct _SynCPU TheCPU_struct;
 
-int InCompiledCode;
-
 #ifdef DEBUG_TREE
 FILE *tLog = NULL;
 #endif
@@ -1534,11 +1532,6 @@ int e_debug_check(unsigned int PC)
 	}
     }
     return 0;
-}
-
-int e_in_compiled_code(void)
-{
-    return InCompiledCode;
 }
 
 int in_emu_cpu(void)

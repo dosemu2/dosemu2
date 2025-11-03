@@ -50,6 +50,13 @@
 #include "priv.h"
 #include "mapping/mapping.h"
 
+int InCompiledCode;
+
+int e_in_compiled_code(void)
+{
+    return InCompiledCode;
+}
+
 /* ======================================================================= */
 
 void e_VgaMovs(dosaddr_t edi, dosaddr_t esi, unsigned int rep,
