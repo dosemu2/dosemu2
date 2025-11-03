@@ -761,6 +761,18 @@ void stub_read_8 (void) asm ("stub_read_8__" );
 void stub_read_16(void) asm ("stub_read_16__");
 void stub_read_32(void) asm ("stub_read_32__");
 
+static unsigned int Sim_helper_jit(unsigned int mem_ref, unsigned int data,
+				   int mode, uint32_t *flags, unsigned int opc,
+				   unsigned int arg, unsigned char *rip)
+{
+    unsigned int ret;
+
+    InCompiledCode--;
+    ret = Sim_helper(mem_ref, data, mode, flags, opc, arg, GetGenCodeBuf(rip));
+    InCompiledCode++;
+    return ret;
+}
+
 void Cpatch_init(void)
 {
     TheCPU_struct.stub_func[STUB_REP] = stub_rep;
@@ -773,7 +785,7 @@ void Cpatch_init(void)
     TheCPU_struct.stub_func[STUB_READ_16] = stub_read_16;
     TheCPU_struct.stub_func[STUB_READ_32] = stub_read_32;
     TheCPU_struct.stub_func[STUB_SETSEGPROT] = (stubfunc_t)SetSegProt_helper;
-    TheCPU_struct.stub_func[STUB_SIMHELPER] = (stubfunc_t)Sim_helper;
+    TheCPU_struct.stub_func[STUB_SIMHELPER] = (stubfunc_t)Sim_helper_jit;
 }
 
 /* ======================================================================= */

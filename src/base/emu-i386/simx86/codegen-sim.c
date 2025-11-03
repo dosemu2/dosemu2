@@ -76,9 +76,6 @@ static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGen
 static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 			 unsigned char *ecpu, void *SeqStart,
 			 unsigned short seqflg, unsigned *seqbase);
-static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
-			uint32_t *flags, unsigned int opc, unsigned int arg,
-			unsigned char *eip);
 
 static unsigned char *currentIG = NULL;
 
@@ -2133,7 +2130,7 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 
 	case O_SIM: {
 		uint32_t flags = FlagSync_All();
-		DR1.d = _Sim_helper(mem_ref, DR1.d, mode,
+		DR1.d = Sim_helper(mem_ref, DR1.d, mode,
 				   &flags, IG->p0, IG->p1, currentIG);
 		FlagSync_RFL(flags);
 		if (TheCPU.err > 0)
@@ -2992,10 +2989,12 @@ static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
  * arg: instruction-dependent argument passed via IG->p1 at compile time
  * returns data (could be modified), so compiled code can write it back
  */
-static unsigned int _Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
+unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			uint32_t *flags, unsigned int opc, unsigned int arg,
 			unsigned char *eip)
 {
+	/* needed in emu_pagefault_handler */
+	currentIG = eip;
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (*flags & EFLAGS_CC);
 
 	unsigned int temp;
@@ -3515,18 +3514,4 @@ not_permitted_sim:
 	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
 	TheCPU.err = EXCP0D_GPF;
 	return data;
-}
-
-unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
-			uint32_t *flags, unsigned int opc, unsigned int arg,
-			unsigned char *rip)
-{
-	unsigned int ret;
-
-	InCompiledCode--;
-	/* needed in emu_pagefault_handler */
-	currentIG = GetGenCodeBuf(rip);
-	ret = _Sim_helper(mem_ref, data, mode, flags, opc, arg, currentIG);
-	InCompiledCode++;
-	return ret;
 }
