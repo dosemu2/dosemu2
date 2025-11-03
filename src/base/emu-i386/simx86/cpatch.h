@@ -10,6 +10,7 @@
 #endif
 
 struct rep_stack;
+struct sim_stack;
 
 ASMLINKAGE(void,rep_movs_stos,(struct rep_stack *stack));
 ASMLINKAGE(void,stk_16,(dosaddr_t addr, Bit16u value));
@@ -20,6 +21,9 @@ ASMLINKAGE(void,wri_32,(dosaddr_t addr, Bit32u value, unsigned char *eip));
 ASMLINKAGE(Bit8u,read_8,(dosaddr_t addr));
 ASMLINKAGE(Bit16u,read_16,(dosaddr_t addr));
 ASMLINKAGE(Bit32u,read_32,(dosaddr_t addr));
+ASMLINKAGE(unsigned int,Sim_helper_jit,(unsigned int mem_ref, \
+					unsigned int data, \
+					struct sim_stack *s));
 
 int Cpatch(sigcontext_t *scp);
 int UnCpatch(unsigned char *eip);

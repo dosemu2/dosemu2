@@ -476,6 +476,17 @@ asm (
 "1:		ret	$4\n"
 );
 
+asm (
+".text\n.globl stub_simhelper__\n"
+"stub_simhelper__:\n"
+"		pushl	%esp\n"		// stack
+"		pushl	%eax\n"		// data
+"		pushl	%edi\n"		// mem_ref
+"		call	Sim_helper_jit\n"
+"		addl	$12,%esp\n"	// remove stack parameters
+"		ret	$12\n"
+);
+
 /* ======================================================================= */
 
 #else //__x86_64__
@@ -539,6 +550,18 @@ asm (
 "1:		ret	$8\n"
 );
 
+asm (
+".text\n.globl stub_simhelper__\n"
+"stub_simhelper__:\n"
+"		mov	%eax, %esi\n"	// data
+"		mov	%rsp, %rdx\n"	// stack
+"		push	%rdi\n"		// keep mem_ref
+"		push	%rdi\n"		// stack align
+"		call	Sim_helper_jit\n"
+"		pop	%rdi\n"		// stack align
+"		pop	%rdi\n"		// mem_ref
+"		ret	$24\n"
+);
 #endif
 
 asm (
@@ -760,6 +783,7 @@ void stub_wri_32(void) asm ("stub_wri_32__");
 void stub_read_8 (void) asm ("stub_read_8__" );
 void stub_read_16(void) asm ("stub_read_16__");
 void stub_read_32(void) asm ("stub_read_32__");
+void stub_simhelper(void) asm ("stub_simhelper__");
 
 // this function is called from JIT-generated code
 static void SetSegProt_helper(unsigned short sel, int ofs)
@@ -769,14 +793,24 @@ static void SetSegProt_helper(unsigned short sel, int ofs)
     InCompiledCode++;
 }
 
-static unsigned int Sim_helper_jit(unsigned int mem_ref, unsigned int data,
-				   int mode, uint32_t *flags, unsigned int opc,
-				   unsigned int arg, unsigned char *rip)
+struct sim_stack {
+    unsigned char *rip;
+    long mode;
+    unsigned long opc, arg;
+    unsigned int flags;
+#ifdef __x86_64__
+    unsigned int padding;
+#endif
+} __attribute__((packed));
+
+unsigned int Sim_helper_jit(unsigned int mem_ref, unsigned int data,
+			    struct sim_stack *s)
 {
     unsigned int ret;
 
     InCompiledCode--;
-    ret = Sim_helper(mem_ref, data, mode, flags, opc, arg, GetGenCodeBuf(rip));
+    ret = Sim_helper(mem_ref, data, s->mode, &s->flags, s->opc, s->arg,
+		     GetGenCodeBuf(s->rip));
     InCompiledCode++;
     return ret;
 }
@@ -793,7 +827,7 @@ void Cpatch_init(void)
     TheCPU_struct.stub_func[STUB_READ_16] = stub_read_16;
     TheCPU_struct.stub_func[STUB_READ_32] = stub_read_32;
     TheCPU_struct.stub_func[STUB_SETSEGPROT] = (stubfunc_t)SetSegProt_helper;
-    TheCPU_struct.stub_func[STUB_SIMHELPER] = (stubfunc_t)Sim_helper_jit;
+    TheCPU_struct.stub_func[STUB_SIMHELPER] = stub_simhelper;
 }
 
 /* ======================================================================= */
