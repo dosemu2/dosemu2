@@ -476,6 +476,28 @@ asm (
 "1:		ret	$4\n"
 );
 
+asm (
+".text\n.globl stub_setsegprot__\n"
+"stub_setsegprot__:\n"
+"		pushl	%edx\n"		// ofs
+"		movzx	%ax, %eax\n"
+"		pushl	%eax\n"		// sel (zero-extend)
+"		call	SetSegProt_helper\n"
+"		addl	$8,%esp\n"	// remove stack parameters
+"		ret\n"
+);
+
+asm (
+".text\n.globl stub_simhelper__\n"
+"stub_simhelper__:\n"
+"		pushl	%esp\n"		// stack
+"		pushl	%eax\n"		// data
+"		pushl	%edi\n"		// mem_ref
+"		call	Sim_helper_jit\n"
+"		addl	$12,%esp\n"	// remove stack parameters
+"		ret	$12\n"
+);
+
 /* ======================================================================= */
 
 #else //__x86_64__
@@ -539,6 +561,33 @@ asm (
 "1:		ret	$8\n"
 );
 
+asm (
+".text\n.globl stub_setsegprot__\n"
+"stub_setsegprot__:\n"
+"		pushq	%rdi\n"		// save memory address for LDS etc.
+"		pushq	%rsi\n"		// save stack address for O_POP3
+"		pushq	%rsi\n"		// stack align
+"		mov	%edx, %esi\n"	// ofs
+"		movzx	%ax, %edi\n"	// sel (zero-extend)
+"		call	SetSegProt_helper\n"
+"		pop	%rsi\n"
+"		pop	%rsi\n"
+"		pop	%rdi\n"
+"		ret\n"
+);
+
+asm (
+".text\n.globl stub_simhelper__\n"
+"stub_simhelper__:\n"
+"		mov	%eax, %esi\n"	// data
+"		mov	%rsp, %rdx\n"	// stack
+"		push	%rdi\n"		// keep mem_ref
+"		push	%rdi\n"		// stack align
+"		call	Sim_helper_jit\n"
+"		pop	%rdi\n"		// stack align
+"		pop	%rdi\n"		// mem_ref
+"		ret	$24\n"
+);
 #endif
 
 asm (
@@ -760,6 +809,38 @@ void stub_wri_32(void) asm ("stub_wri_32__");
 void stub_read_8 (void) asm ("stub_read_8__" );
 void stub_read_16(void) asm ("stub_read_16__");
 void stub_read_32(void) asm ("stub_read_32__");
+void stub_setsegprot(void) asm ("stub_setsegprot__");
+void stub_simhelper(void) asm ("stub_simhelper__");
+
+// this function is called from JIT-generated code
+void SetSegProt_helper(unsigned short sel, int ofs)
+{
+    InCompiledCode--;
+    SetSegProt(ofs, sel);
+    InCompiledCode++;
+}
+
+struct sim_stack {
+    unsigned char *rip;
+    long mode;
+    unsigned long opc, arg;
+    unsigned int flags;
+#ifdef __x86_64__
+    unsigned int padding;
+#endif
+} __attribute__((packed));
+
+unsigned int Sim_helper_jit(unsigned int mem_ref, unsigned int data,
+			    struct sim_stack *s)
+{
+    unsigned int ret;
+
+    InCompiledCode--;
+    ret = Sim_helper(mem_ref, data, s->mode, &s->flags, s->opc, s->arg,
+		     GetGenCodeBuf(s->rip));
+    InCompiledCode++;
+    return ret;
+}
 
 void Cpatch_init(void)
 {
@@ -772,8 +853,8 @@ void Cpatch_init(void)
     TheCPU_struct.stub_func[STUB_READ_8] = stub_read_8;
     TheCPU_struct.stub_func[STUB_READ_16] = stub_read_16;
     TheCPU_struct.stub_func[STUB_READ_32] = stub_read_32;
-    TheCPU_struct.stub_func[STUB_SETSEGPROT] = (stubfunc_t)SetSegProt_helper;
-    TheCPU_struct.stub_func[STUB_SIMHELPER] = (stubfunc_t)Sim_helper;
+    TheCPU_struct.stub_func[STUB_SETSEGPROT] = stub_setsegprot;
+    TheCPU_struct.stub_func[STUB_SIMHELPER] = stub_simhelper;
 }
 
 /* ======================================================================= */

@@ -95,13 +95,14 @@ void InvalidateSegs(void);
 #ifdef X86_JIT
 /* called from sigsegv.c */
 int e_emu_fault(sigcontext_t *scp, int in_vm86);
+int e_in_compiled_code(void);
 #else
 #define e_emu_fault(scp, in_vm86) 0
+#define e_in_compiled_code() 0
 #endif
 
 #ifdef X86_EMULATOR
 /* called from signal.c */
-int e_in_compiled_code(void);
 void e_gen_sigalrm(void);
 void e_gen_sigalrm_from_thread(void);
 void e_gen_rpic_from_thread(void);
@@ -112,7 +113,6 @@ int _CPU_VM_DPMI(void);
 #else
 #define e_gen_sigalrm()
 #define e_gen_sigalrm_from_thread()
-#define e_in_compiled_code() 0
 #define EMU_V86() 0
 #define EMU_DPMI() 0
 #define _CPU_VM() config.cpu_vm

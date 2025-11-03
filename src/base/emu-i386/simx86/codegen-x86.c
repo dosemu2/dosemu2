@@ -270,34 +270,10 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		}
 		break;
 	case A_SR_PROT: {	// prot mode make base addr from seg
-		// movzwl %%ax,%%eax: zero extend segreg
-		G3(0xc0b70f,Cp);
-#ifdef __x86_64__
-		// pushq %rdi: save memory address for LDS etc.
-		G1(0x57,Cp);
-		// pushq %rsi: save stack address for O_POP3
-		G1(0x56,Cp);
-#endif
-		// pushb Ofs
-		G2M(0x6a,IG->p0,Cp)
-#ifdef __x86_64__
-		// popq %%rsi
-		G1(0x5e,Cp);
-		// movq %%rax,%%rdi
-		G2M(0x89,0xc7,Cp);
-#else
-		// pushl %eax
-		G1(0x50,Cp);
-#endif
+		// movl Ofs,%%edx
+		G1(0xba,Cp); G4(IG->p0,Cp);
 		// call Ofs_SetSegProt(%%ebx)
 		G3M(0xff,0x53,Ofs_SetSegProt(),Cp);
-#ifdef __x86_64__
-		// popq %rsi; popq %rdi
-		G2M(0x5e,0x5f,Cp);
-#else
-		// popl %edx; popl %edx
-		G2M(0x5a,0x5a,Cp);
-#endif
 		// cmpl $0x0,Ofs_ERR(%rbx)
 		G4M(0x83,0x7b,Ofs_ERR,0x00,Cp);
 		// jz skip
@@ -1621,64 +1597,20 @@ shrot0:
 		}
 
 	case O_SIM:
-#ifdef __x86_64__
-		// mov %%eax, %%esi
-		G2M(0x89,0xc6,Cp);
-		// mov $mode, %%edx
-		G1(MOVidx,Cp); G4(mode,Cp);
-		// mov %rsp, %rcx // &flags
-		G3M(0x48,0x89,0xe1,Cp);
-		// mov $opc, %%r8d
-		G2M(0x41,0xb8,Cp); G4(IG->p0,Cp);
-		// mov $arg, %%r9d
-		G2M(0x41,0xb9,Cp); G4(IG->p1,Cp);
-		// push %%rdi // keep mem_ref
-		G1(PUSHdi,Cp);
-		// call 1f (to push eip)
-		G1(CALLd,Cp); G4(1+4+2+TAILSIZE,Cp);
-		// pop %%rdi // mem_ref
-		G1(POPdi,Cp);
-#else
-		// mov %esp, %ecx // flags
-		G2M(0x89,0xe1,Cp);
-		// call 1f (to push eip)
-		G1(CALLd,Cp); G4(4+2+TAILSIZE,Cp);
-#endif
-
-		// cmpl $0x0,Ofs_ERR(%rbx)
-		G4M(0x83,0x7b,Ofs_ERR,0x00,Cp);
-		// jle skip: negative TheCPU.err allow completion
-#ifdef __x86_64__
-		G2M(JLE_JNG,TAILSIZE+4,Cp);
-#else
-		G2M(JLE_JNG,TAILSIZE+1+4+1+4+1+1+4+1+1+3+3+1,Cp);
-#endif
-		// movl {exit_addr},%%eax; movl %eax,%ecx;  pop %%edx; ret
-		G1(MOViax,Cp); G4(IG->p2,Cp); G4M(0x89,0xc1,POPdx,RET,Cp);
-
-		// 1:
-#ifndef __x86_64__
 		// push $arg
 		G1(PUSHwi,Cp); G4(IG->p1,Cp);
 		// push $opc
 		G1(PUSHwi,Cp); G4(IG->p0,Cp);
-		// push %%ecx // &flags
-		G1(PUSHcx,Cp);
 		// push $mode
 		G1(PUSHwi,Cp); G4(mode,Cp);
-		// push %%eax // data
-		G1(PUSHax,Cp);
-		// push %%edi // mem_ref
-		G1(PUSHdi,Cp);
-#endif
 		// call Ofs_SimHelper(%%ebx)
 		G3M(0xff,0x53,Ofs_SimHelper(),Cp);
-#ifndef __x86_64__
-		// addl $24,%%esp
-		G3M(0x83,0xc4,24,Cp)
-#endif
-		G1(RET,Cp);
-		// skip:
+		// cmpl $0x0,Ofs_ERR(%rbx)
+		G4M(0x83,0x7b,Ofs_ERR,0x00,Cp);
+		// je skip
+		G2M(JE_JZ,TAILSIZE,Cp);
+		// movl {exit_addr},%%eax; movl %eax,%ecx;  pop %%edx; ret
+		G1(MOViax,Cp); G4(IG->p2,Cp); G4M(0x89,0xc1,POPdx,RET,Cp);
 
 	case O_MOVS_SetA: {
 		/* use edi for loads unless MOVSDST or REP is set */

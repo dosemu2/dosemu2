@@ -713,7 +713,6 @@ extern int UseLinker;
 extern int PageFaults;
 
 extern int CEmuStat;
-extern int InCompiledCode;
 //
 unsigned char *do_hwint(int mode, int intno);
 void Interp86(void);
@@ -761,9 +760,10 @@ unsigned char *GetExecCodeBuf(const unsigned char *ptr);
 void CollectStat(void);
 //
 /////////////////////////////////////////////////////////////////////////////
+#ifdef X86_JIT
+extern int InCompiledCode;
 int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp);
 int e_handle_fault(sigcontext_t *scp);
-#ifdef X86_JIT
 void init_emu_npu_x86(void);
 #endif
 int e_querymark(unsigned int addr, size_t len);
