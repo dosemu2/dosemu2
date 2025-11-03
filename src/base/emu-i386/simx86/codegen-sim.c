@@ -473,7 +473,7 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 	case A_SR_PROT: {	// protected mode make base addr from seg
 		unsigned int o = IG->p0;
 		GTRACE1("A_SR_PROT",o);
-		SetSegProt_helper(DR1.w.l, o);
+		SetSegProt(o, DR1.w.l);
 		if (TheCPU.err)
 			P0 = IG->p1;
 		}

@@ -761,6 +761,14 @@ void stub_read_8 (void) asm ("stub_read_8__" );
 void stub_read_16(void) asm ("stub_read_16__");
 void stub_read_32(void) asm ("stub_read_32__");
 
+// this function is called from JIT-generated code
+static void SetSegProt_helper(unsigned short sel, int ofs)
+{
+    InCompiledCode--;
+    SetSegProt(ofs, sel);
+    InCompiledCode++;
+}
+
 static unsigned int Sim_helper_jit(unsigned int mem_ref, unsigned int data,
 				   int mode, uint32_t *flags, unsigned int opc,
 				   unsigned int arg, unsigned char *rip)

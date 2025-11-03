@@ -93,14 +93,6 @@ int SetSegReal(unsigned short sel, int ofs)
 	return 0;
 }
 
-// this function is called from JIT-generated code
-void SetSegProt_helper(unsigned short sel, int ofs)
-{
-	InCompiledCode--;
-	SetSegProt(ofs, sel);
-	InCompiledCode++;
-}
-
 static int _SetSegProt_check(int ofs, unsigned long sel)
 {
 	static char buf[4];

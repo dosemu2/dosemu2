@@ -231,7 +231,6 @@ extern unsigned char e_ofsseg(int ofs);
 int SetSegProt_check(int ofs, unsigned long sel);
 void SetSegProt_set(int ofs, unsigned long sel);
 void SetSegProt(int ofs, unsigned long sel);
-void SetSegProt_helper(unsigned short sv, int ofs);
 int SetSegReal(unsigned short sel, int ofs);
 int e_larlsl(int mode, unsigned short sel);
 int hsw_verr(unsigned short sel);
