@@ -21,6 +21,7 @@ ASMLINKAGE(void,wri_32,(dosaddr_t addr, Bit32u value, unsigned char *eip));
 ASMLINKAGE(Bit8u,read_8,(dosaddr_t addr));
 ASMLINKAGE(Bit16u,read_16,(dosaddr_t addr));
 ASMLINKAGE(Bit32u,read_32,(dosaddr_t addr));
+ASMLINKAGE(void,SetSegProt_helper,(unsigned short sel, int ofs));
 ASMLINKAGE(unsigned int,Sim_helper_jit,(unsigned int mem_ref, \
 					unsigned int data, \
 					struct sim_stack *s));
