@@ -190,6 +190,7 @@
 #define MSSTP	0x02000000	// generate only one instruction
 #define MTRAP	0x04000000	// INT01 Sstep active: generate EXCP01_SSTP
 #define MINHI	0x08000000	// inhibits IRQs (MOVss/POPss/STI)
+#define MOPT	0x10000000	// optimize this op
 
 // values for TNode.flags and IMeta.flags
 #define F_FPOP	0x0001	// has at least one FP instruction

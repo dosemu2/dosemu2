@@ -997,49 +997,19 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*54*/	case PUSHsp:
 /*55*/	case PUSHbp:
 /*56*/	case PUSHsi:
-/*57*/	case PUSHdi:	opc = OpIsPush[opc];
-#ifndef SINGLESTEP
-			if (!(_mode & MSSTP)) {
-			int m = _mode;		// enter with prefix
-			int cnt = 2;
-			int is_66;
-			Gen(O_PUSH1, m);
-			/* optimized multiple register push */
-			while (1) {
-			    int op;
-			    if (opc > 8)
-				m |= SEGREG;
-			    Gen(O_PUSH2, m, R1Tab_l[opc-1]);
-			    PC++;
-			    opc = OpIsPush[op = Fetch(PC)];
-			    is_66 = (op == 0x66);
-			    if (++cnt >= NUMGENS || (!opc && !is_66) ||
-				    e_querymark(PC, 1 + is_66))
-				break;
-			    m &= ~(DATA16|SEGREG);
-			    if (is_66) {	// prefix 0x66
-				m |= (~basemode & DATA16);
-				if ((opc=OpIsPush[(op = Fetch(PC+1))])!=0) PC++;
-				else break;
-			    }
-			    else {
-				m |= (basemode & DATA16);
-			    }
-			    if (op == PUSHsp) {
-				/* reload SP before pushing it */
-				Gen(O_PUSH3, m);
-			    }
-			}
-			Gen(O_PUSH3, m); } else
-#endif
-			{
-			if (opc > 8) {
-			    _mode |= SEGREG;
-			    Gen(L_REG, _mode|DATA16, R1Tab_l[opc-1]);
-			} else
-			    Gen(L_REG, _mode, R1Tab_l[opc-1]);
-			Gen(O_PUSH, _mode); PC++;
-			}
+/*57*/	case PUSHdi:
+			if (opc == PUSHsp)
+				/* don't optimize: force a reload for eSP */
+				Gen(O_PUSH1, _mode);
+			else
+				Gen(O_PUSH1, _mode|MOPT);
+			opc = OpIsPush[opc];
+			if (opc > 8)
+				_mode |= SEGREG;
+			Gen(O_PUSH2, _mode, R1Tab_l[opc-1]);
+			Gen(O_PUSH3, _mode|MOPT);
+			PC++;
+			/* this can be optimized later in OptimizeCode */
 			break;
 /*68*/	case PUSHwi:
 			Gen(O_PUSHI, _mode, DataFetchWL_U(_mode,(PC+1)));
@@ -1075,32 +1045,20 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*59*/	case POPcx:
 /*5a*/	case POPdx:
 /*5b*/	case POPbx:
-/*5c*/	case POPsp:
 /*5d*/	case POPbp:
 /*5e*/	case POPsi:
 /*5f*/	case POPdi:
-#ifndef SINGLESTEP
-			if (!(_mode & MSSTP)) {
-			int m = _mode;
-			int cnt = 2;
-			Gen(O_POP1, m);
-			do {
-				opc = Fetch(PC);
-				Gen(O_POP2, m, R1Tab_l[D_LO(opc)]);
-				m = UNPREFIX(m);
-				PC++;
-				/* for pop sp reload stack pointer */
-				if (opc == POPsp)
-					Gen(O_POP1, m);
-			} while (++cnt < NUMGENS && (Fetch(PC)&0xf8)==0x58 &&
-					!e_querymark(PC, 1));
-			if (opc!=POPsp) Gen(O_POP3, m);
-			} else
-#endif
-			{
+			Gen(O_POP1, _mode|MOPT);
+			Gen(O_POP2, _mode, R1Tab_l[D_LO(opc)]);
+			Gen(O_POP3, _mode|MOPT);
+			PC++;
+			/* this can be optimized later in OptimizeCode */
+			break;
+
+/*5c*/	case POPsp:	// this one doesn't fit nicely in pop1/pop2/pop3
+			// as eSP needs to be reloaded.
 			Gen(O_POP, _mode);
-			Gen(S_REG, _mode, R1Tab_l[D_LO(opc)]); PC++;
-			}
+			Gen(S_REG, _mode, Ofs_ESP); PC++;
 			break;
 /*8f*/	case POPrm:
 			// now calculate address. This way when using %esp
@@ -2492,8 +2450,12 @@ repag0:
 				break;
 ///
 			case 0xa0: /* PUSHfs */
-				Gen(L_REG, _mode|DATA16, Ofs_FS);
-				Gen(O_PUSH, _mode|SEGREG); PC+=2;
+			case 0xa8: /* PUSHgs */
+				Gen(O_PUSH1, _mode|MOPT);
+				Gen(O_PUSH2, _mode|SEGREG,
+				    opc2 == 0xa0 ? Ofs_FS : Ofs_GS);
+				Gen(O_PUSH3, _mode|MOPT);
+				PC+=2;
 				break;
 			case 0xa1: /* POPfs */
 				_mode |= SEGREG;
@@ -2585,10 +2547,6 @@ repag0:
 			/* case 0xa6: CMPXCHGb (486 STEP A only) */
 			/* case 0xa7: CMPXCHGw (486 STEP A only) */
 ///
-			case 0xa8: /* PUSHgs */
-				Gen(L_REG, _mode|DATA16, Ofs_GS);
-				Gen(O_PUSH, _mode|SEGREG); PC+=2;
-				break;
 			case 0xa9: /* POPgs */
 				_mode |= SEGREG;
 				if (REALADDR()) {
