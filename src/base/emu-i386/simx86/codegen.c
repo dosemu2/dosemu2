@@ -390,6 +390,25 @@ void Gen(int op, int mode, ...)
 
 /////////////////////////////////////////////////////////////////////////////
 
+static void OptimizeCode(IMeta *I)
+{
+	/* check if we can optimize away the first intermediate op
+	   of the next instruction against the last intermediate op
+	   of the present instruction */
+	IMeta *I1 = I + 1;
+	IGen *lastIG = &I->gen[I->ngen-1];
+	IGen *firstIG = &I1->gen[0];
+
+	if ((lastIG->mode & MOPT) && (firstIG->mode & MOPT) &&
+	    (lastIG->op == O_PUSH3 && firstIG->op == O_PUSH1)) {
+		I->ngen--;
+		I1->ngen--;
+		memmove(I1->gen, I1->gen+1, I1->ngen * sizeof(IGen));
+		if (debug_level('e')>1)
+			e_printf("Optimized op=%x at PC=%x\n",
+				 firstIG->op, I1->npc);
+	}
+}
 
 static unsigned char *ProduceCode(unsigned int PC, IMeta *I0)
 {
@@ -422,6 +441,8 @@ static unsigned char *ProduceCode(unsigned int PC, IMeta *I0)
 
 	for (i=0; i<=CurrIMeta; i++) {
 	    IMeta *I = &I0[i];
+	    if (i < CurrIMeta)
+		OptimizeCode(I);
 	    cp = cp1 = CodePtr;
 	    I->daddr = cp - BaseGenBuf;
 	    for (j=0; j<I->ngen; j++) {
