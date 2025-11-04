@@ -1365,29 +1365,16 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_MOVS_SavA, m, OVERR_DS);
 			PC++; } break;
 /*aa*/	case STOSb: {	int m = _mode|(MBYTE|MOVSDST);
+			Gen(L_REG, m|MOPT, Ofs_AL);
 			Gen(O_MOVS_SetA, m, OVERR_DS);
-			Gen(L_REG, m, Ofs_AL);
 			Gen(S_DI, m);
-			Gen(O_MOVS_SavA, m, OVERR_DS);
+			Gen(O_MOVS_SavA, m|MOPT, OVERR_DS);
 			PC++; } break;
 /*ab*/	case STOSw: {	int m = _mode|MOVSDST;
+			Gen(L_REG, m|MOPT, Ofs_EAX);
 			Gen(O_MOVS_SetA, m, OVERR_DS);
-			Gen(L_REG, m, Ofs_EAX);
 			Gen(S_DI, m); PC++;
-			Gen(O_MOVS_SavA, m, OVERR_DS);
-#ifndef SINGLESTEP
-			if (!(_mode & MSSTP)) {
-			    int cnt = 3;
-			    m = UNPREFIX(m);
-			    while (++cnt < NUMGENS && Fetch(PC) == STOSw &&
-					!e_querymark(PC, 1)) {
-				Gen(O_MOVS_SetA, m, OVERR_DS);
-				Gen(S_DI, m);
-				Gen(O_MOVS_SavA, m, OVERR_DS);
-				PC++;
-			    }
-			}
-#endif
+			Gen(O_MOVS_SavA, m|MOPT, OVERR_DS);
 			} break;
 /*ac*/	case LODSb: {	int m = _mode|(MBYTE|MOVSSRC);
 			Gen(O_MOVS_SetA, m, OVERR_DS);
