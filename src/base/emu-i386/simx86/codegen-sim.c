@@ -430,12 +430,44 @@ static dosaddr_t AddrGen_sim(const IGen *IG)
 	return mem_ref;
 }
 
+static void Gen_A_SR_SH4(const IGen *IG, unsigned seg)
+{
+	int mode = IG->mode;
+	unsigned int o = IG->p0;
+	GTRACE1("A_SR_SH4",o);
+	SetSegReal(seg, o);
+}
+
+static unsigned int Gen_A_SR_PROT(const IGen *IG, unsigned seg)
+{
+	int mode = IG->mode;
+	unsigned int o = IG->p0;
+	GTRACE1("A_SR_PROT",o);
+	SetSegProt(o, seg);
+	return TheCPU.err ? IG->p1 : (unsigned)-1;
+}
+
+static void Gen_S_DI(const IGen *IG, dosaddr_t addr, unsigned v)
+{
+	int mode = IG->mode;
+	GTRACE0("S_DI");
+	if (mode&MBYTE) {
+		sim_write_byte(addr, v);
+	}
+	else if (mode & DATA16) {
+		sim_write_word(addr, v);
+	}
+	else {
+		sim_write_dword(addr, v);
+	}
+	if (debug_level('e')>3) dbug_printf("(V) %08x\n",v);
+}
+
 static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 			    unsigned int *seqbase)
 {
     /* working registers of the host CPU */
     wkreg DR1;	// "eax"
-    wkreg SR1;	// "ecx"
 
     unsigned int mem_ref = 0;
     unsigned int P0 = (unsigned)-1;
@@ -464,19 +496,11 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 	op = IG->op;
 	mode = IG->mode;
 	switch(op) {
-	case A_SR_SH4: {	// real mode make base addr from seg
-		unsigned int o = IG->p0;
-		GTRACE1("A_SR_SH4",o);
-		SetSegReal(DR1.w.l, o);
-		}
+	case A_SR_SH4:		// real mode make base addr from seg
+		Gen_A_SR_SH4(IG, DR1.w.l);
 		break;
-	case A_SR_PROT: {	// protected mode make base addr from seg
-		unsigned int o = IG->p0;
-		GTRACE1("A_SR_PROT",o);
-		SetSegProt(o, DR1.w.l);
-		if (TheCPU.err)
-			P0 = IG->p1;
-		}
+	case A_SR_PROT: 	// protected mode make base addr from seg
+		P0 = Gen_A_SR_PROT(IG, DR1.w.l);
 		break;
 	case L_NOP:
 		GTRACE0("L_NOP");
@@ -649,20 +673,8 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
-	case S_DI: {
-		dosaddr_t addr = mem_ref;
-		GTRACE0("S_DI");
-		if (mode&MBYTE) {
-		    sim_write_byte(addr, DR1.b.bl);
-		}
-		else if (mode & DATA16) {
-		    sim_write_word(addr, DR1.w.l);
-		}
-		else {
-		    sim_write_dword(addr, DR1.d);
-		}
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
-		}
+	case S_DI:
+		Gen_S_DI(IG, mem_ref, DR1.d);
 		break;
 
 	case O_ADD_R: {		// OSZAPC
@@ -2057,49 +2069,62 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		} break;
 
 /* POP derived (sub-)sequences: */
-	case O_POP1:
+	case O_POP1: {
+		uint32_t sp, v = 0;
 		GTRACE0("O_POP1");
-		SR1.d = CPULONG(Ofs_ESP);
-		break;
+		sp = CPULONG(Ofs_ESP);
+		IG++;
 
-	case O_POP2: {
-		dosaddr_t addr;
-		unsigned int o = (mode & MNOREG) ? 0 : IG->p0;
-		long stackm = CPULONG(Ofs_STACKM);
-		int imm16 = (mode&MRETISP) ? IG->p0 : 0;
-		GTRACE2("O_POP2",o,imm16);
-		SR1.d &= stackm;
-		addr = CPULONG(Ofs_XSS) + SR1.d;
-		if (mode & (DATA16|SEGREG)) {
-			uint16_t v = sim_read_word(addr);
-			if (mode & MNOREG)
-				DR1.w.l = v;
+		assert(IG->op == O_POP2);
+		do {
+			mode = IG->mode;
+			dosaddr_t addr;
+			unsigned int o = (mode & MNOREG) ? 0 : IG->p0;
+			long stackm = CPULONG(Ofs_STACKM);
+			int imm16 = (mode&MRETISP) ? IG->p0 : 0;
+			GTRACE2("O_POP2",o,imm16);
+			sp &= stackm;
+			addr = CPULONG(Ofs_XSS) + sp;
+			currentIG = (unsigned char *)IG;
+			if (mode & (DATA16|SEGREG)) {
+				v = sim_read_word(addr);
+				if (!(mode & MNOREG))
+					CPUWORD(o) = v;
+			}
+			else {
+				v = sim_read_dword(addr);
+				if (!(mode & MNOREG))
+					CPULONG(o) = v;
+			}
+			if (mode & DATA16)
+				sp += 2 + imm16;
 			else
-				CPUWORD(o) = v;
-		}
-		else {
-			uint32_t v = sim_read_dword(addr);
-			if (mode & MNOREG)
-				DR1.d = v;
-			else
-				CPULONG(o) = v;
-		}
-		if (mode & DATA16)
-			SR1.d += 2 + imm16;
-		else
-			SR1.d += 4 + imm16;
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
-		} break;
+				sp += 4 + imm16;
+			if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+			IG++;
+		} while (IG->op == O_POP2);
 
-	case O_POP3:
+		if (IG->op == A_SR_SH4) // for "pop segreg"
+			Gen_A_SR_SH4(IG++, v);
+		else if (IG->op == A_SR_PROT) {
+			P0 = Gen_A_SR_PROT(IG, v);
+			if (P0 != (unsigned)-1) break;
+			IG++;
+		}
+		else if (IG->op == S_DI) // for "pop [mem]"
+			Gen_S_DI(IG++, mem_ref, v);
+
+		assert(IG->op==O_POP3);
+		mode = IG->mode;
 		GTRACE0("O_POP3");
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
-		SR1.d &= CPULONG(Ofs_STACKM);
+		sp &= CPULONG(Ofs_STACKM);
 #endif
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		SR1.d |= (CPULONG(Ofs_ESP) & ~CPULONG(Ofs_STACKM));
+		sp |= (CPULONG(Ofs_ESP) & ~CPULONG(Ofs_STACKM));
 #endif
-		CPULONG(Ofs_ESP) = SR1.d;
+		CPULONG(Ofs_ESP) = sp;
+		}
 		break;
 
 	case O_LEAVE: {
