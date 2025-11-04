@@ -1349,31 +1349,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_DI, m);
 			PC++;
 			Gen(O_MOVS_SavA, m, OVERR_DS);
-#ifndef SINGLESTEP
-			/* optimize common sequence MOVSw..MOVSw..MOVSb */
-			if (!(_mode & MSSTP)) {
-				int cnt = 3;
-				m = UNPREFIX(m);
-				while (++cnt < NUMGENS && Fetch(PC) == MOVSw &&
-						!e_querymark(PC, 1)) {
-					Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
-					Gen(L_DI_R1, m);
-					Gen(O_MOVS_SetA, m&~MOVSSRC, OVERR_DS);
-					Gen(S_DI, m);
-					PC++;
-					Gen(O_MOVS_SavA, m, OVERR_DS);
-				}
-				if (Fetch(PC) == MOVSb && !e_querymark(PC, 1)) {
-					m |= MBYTE;
-					Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
-					Gen(L_DI_R1, m);
-					Gen(O_MOVS_SetA, m&~MOVSSRC, OVERR_DS);
-					Gen(S_DI, m);
-					PC++;
-					Gen(O_MOVS_SavA, m, OVERR_DS);
-				}
-			}
-#endif
 			} break;
 /*a6*/	case CMPSb: {	int m = _mode|(MBYTE|MOVSSRC|MOVSDST);
 			Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
