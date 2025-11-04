@@ -1045,32 +1045,20 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*59*/	case POPcx:
 /*5a*/	case POPdx:
 /*5b*/	case POPbx:
-/*5c*/	case POPsp:
 /*5d*/	case POPbp:
 /*5e*/	case POPsi:
 /*5f*/	case POPdi:
-#ifndef SINGLESTEP
-			if (!(_mode & MSSTP)) {
-			int m = _mode;
-			int cnt = 2;
-			Gen(O_POP1, m);
-			do {
-				opc = Fetch(PC);
-				Gen(O_POP2, m, R1Tab_l[D_LO(opc)]);
-				m = UNPREFIX(m);
-				PC++;
-				/* for pop sp reload stack pointer */
-				if (opc == POPsp)
-					Gen(O_POP1, m);
-			} while (++cnt < NUMGENS && (Fetch(PC)&0xf8)==0x58 &&
-					!e_querymark(PC, 1));
-			if (opc!=POPsp) Gen(O_POP3, m);
-			} else
-#endif
-			{
+			Gen(O_POP1, _mode|MOPT);
+			Gen(O_POP2, _mode, R1Tab_l[D_LO(opc)]);
+			Gen(O_POP3, _mode|MOPT);
+			PC++;
+			/* this can be optimized later in OptimizeCode */
+			break;
+
+/*5c*/	case POPsp:	// this one doesn't fit nicely in pop1/pop2/pop3
+			// as eSP needs to be reloaded.
 			Gen(O_POP, _mode);
-			Gen(S_REG, _mode, R1Tab_l[D_LO(opc)]); PC++;
-			}
+			Gen(S_REG, _mode, Ofs_ESP); PC++;
 			break;
 /*8f*/	case POPrm:
 			// now calculate address. This way when using %esp

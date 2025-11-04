@@ -400,7 +400,8 @@ static void OptimizeCode(IMeta *I)
 	IGen *firstIG = &I1->gen[0];
 
 	if ((lastIG->mode & MOPT) && (firstIG->mode & MOPT) &&
-	    (lastIG->op == O_PUSH3 && firstIG->op == O_PUSH1)) {
+	    ((lastIG->op == O_PUSH3 && firstIG->op == O_PUSH1) ||
+	     (lastIG->op == O_POP3  && firstIG->op == O_POP1))) {
 		I->ngen--;
 		I1->ngen--;
 		memmove(I1->gen, I1->gen+1, I1->ngen * sizeof(IGen));
