@@ -77,10 +77,10 @@ Any comments/updates/bug reports to:
 #define INLINE static inline
 #undef REG
 static int disasunix;
-static inline unsigned char mem_readb(unsigned int x)
+static inline unsigned char mem_readb(uintptr_t x)
 {
   if (disasunix)
-    return UNIX_READ_BYTE((uintptr_t)x);
+    return UNIX_READ_BYTE(x);
   else
     return READ_BYTE(x);
 }
@@ -88,7 +88,8 @@ static inline unsigned char mem_readb(unsigned int x)
 typedef Bit8u  UINT8;
 typedef Bit16u UINT16;
 typedef Bit32u UINT32;
-typedef unsigned int PhysPt;
+typedef Bit64u UINT64;
+typedef uintptr_t PhysPt;
 
 typedef Bit8s  INT8;
 typedef Bit16s INT16;
@@ -119,7 +120,7 @@ INLINE UINT32 le_uint32(const void* ptr) {
 static UINT8 must_do_size;   /* used with size of operand */
 static int wordop;           /* dealing with word or byte operand */
 
-static int instruction_offset;
+static PhysPt instruction_offset;
 //static UINT16 instruction_segment;
 
 static char* ubufs;           /* start of buffer */
@@ -135,6 +136,10 @@ static int addrsize;
 static int addr32bit=0;
 
 static int refoff;
+
+#ifdef __x86_64__
+static int x86_64_rex_w = 0;
+#endif
 
 /* some defines for extracting instruction bit fields from bytes */
 
@@ -448,14 +453,19 @@ static const char *floatops[] = { /* assumed " %EF" at end of each.  mod != 3 on
        "fbldt", "fildq", "fbstpt", "fistpq"
 };
 
-static char *addr_to_hex(UINT32 addr) {
-  static char buffer[11];
+static char *addr_to_hex(UINT64 addr) {
+  static char buffer[21];
 
+#ifdef __x86_64__
+  if (disasunix)
+    sprintf(buffer, "%lx", addr);
+  else
+#endif
   if (opsize == 32)
-    sprintf(buffer, "%08X", addr);
+    sprintf(buffer, "%08X", (UINT32)addr);
   else {
     addr = fp_offset(addr);
-    sprintf(buffer, "%04X", addr);
+    sprintf(buffer, "%04X", (UINT32)addr);
   }
   refoff = addr;
   return buffer;
@@ -684,6 +694,11 @@ static void reg_name(int regnum, char size)
     uprintf("st(%d)", regnum);
     return;
   }
+#ifdef __x86_64__
+  if (x86_64_rex_w)
+    uputchar('r');
+  else
+#endif
   if ((((size == 'c') || (size == 'v')) && (opsize == 32)) || (size == 'd'))
     uputchar('e');
   if ((size=='q' || size == 'b' || size=='c') && !wordop) {
@@ -744,6 +759,52 @@ static void do_sib(int m)
   }
 }
 
+#ifdef __x86_64__
+// No RIP-relative addressing yet (unused in JIT)
+static void do_sib64(int m)
+{
+  int s, i, b;
+
+  s = SCALE(sib());
+  i = INDEX(sib());
+  b = BASE(sib());
+  switch (b) {     /* pick base */
+  case 0: ua_str("%p:[rax"); break;
+  case 1: ua_str("%p:[rcx"); break;
+  case 2: ua_str("%p:[rdx"); break;
+  case 3: ua_str("%p:[rbx"); break;
+  case 4: ua_str("%p:[rsp"); break;
+  case 5:
+       if (m == 0) {
+         ua_str("%p:[");
+         outhex('d', 4, 0, addrsize, 0);
+       } else {
+         ua_str("%p:[rbp");
+       }
+       break;
+  case 6: ua_str("%p:[rsi"); break;
+  case 7: ua_str("%p:[rdi"); break;
+  }
+  switch (i) {     /* and index */
+  case 0: uprintf("+rax"); break;
+  case 1: uprintf("+rcx"); break;
+  case 2: uprintf("+rdx"); break;
+  case 3: uprintf("+rbx"); break;
+  case 4: break;
+  case 5: uprintf("+rbp"); break;
+  case 6: uprintf("+rsi"); break;
+  case 7: uprintf("+rdi"); break;
+  }
+  if (i != 4) {
+    switch (s) {    /* and scale */
+      case 0: /*uprintf("");*/ break;
+      case 1: uprintf("*2"); break;
+      case 2: uprintf("*4"); break;
+      case 3: uprintf("*8"); break;
+    }
+  }
+}
+#endif
 
 
 /*------------------------------------------------------------------------*/
@@ -782,6 +843,20 @@ static void do_modrm(char subtype)
   }
   if ((addrsize != 32) || (rm != 4))
     ua_str("%p:[");
+#ifdef __x86_64__
+  if (disasunix) {
+    switch (rm) {
+    case 0: uprintf("rax"); break;
+    case 1: uprintf("rcx"); break;
+    case 2: uprintf("rdx"); break;
+    case 3: uprintf("rbx"); break;
+    case 4: do_sib64(mod); break;
+    case 5: uprintf("rbp"); break;
+    case 6: uprintf("rsi"); break;
+    case 7: uprintf("rdi"); break;
+    }
+  } else
+#endif
   if (addrsize == 16) {
     switch (rm) {
     case 0: uprintf("bx+si"); break;
@@ -1097,7 +1172,8 @@ static void ua_str(const char *str)
 }
 
 
-static Bitu DasmI386(char* buffer, PhysPt pc, Bitu cur_ip, bool bit32)
+#include "dosemu_debug.h"
+static Bitu DasmI386(char* buffer, PhysPt pc, PhysPt cur_ip, bool bit32)
 {
   	Bitu c;
 
@@ -1119,6 +1195,15 @@ static Bitu DasmI386(char* buffer, PhysPt pc, Bitu cur_ip, bool bit32)
 	if (bit32) opsize = addrsize = 32;
 	else opsize = addrsize = 16;
 	c = getbyte();
+#ifdef __x86_64__
+	/* this is extremely basic and bare-bones and only
+	   meant for disassembling JIT-generated code */
+	x86_64_rex_w = 0;
+	if (disasunix && c == 0x48) {
+		x86_64_rex_w = 1;
+		c = getbyte();
+	}
+#endif
 	wordop = c & 1;
 	must_do_size = 1;
 	invalid_opcode = 0;
@@ -1136,7 +1221,7 @@ static Bitu DasmI386(char* buffer, PhysPt pc, Bitu cur_ip, bool bit32)
 	return getbyte_mac-pc;
 }
 
-int  dis_8086(unsigned int code,
+int  dis_8086(uintptr_t code,
 	      char *outbuf,
 	      int def_size,
 	      unsigned int * refof,
