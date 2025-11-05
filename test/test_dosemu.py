@@ -34,6 +34,7 @@ from func_ds3_lock_twice import ds3_lock_twice
 from func_ds3_lock_writable import ds3_lock_writable
 from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
+from func_ioctl import drv_removable
 from func_lfn_voln_info import lfn_voln_info
 from func_lfs_disk_info import lfs_disk_info
 from func_label_create import (label_create, label_create_on_lfns,
@@ -75,6 +76,10 @@ class OurTestCase(BaseTestCase):
         """Comcom r200fix Protected Mode"""
         comcom_r200fix(self, 'PROTECTED')
     test_comcom_r200fix_protected.comcomtest=True
+
+    def test_drv_removable(self):
+        """Drive is removable (IOCTL)"""
+        drv_removable(self)
 
     # Tests using assembler
 
@@ -5001,6 +5006,7 @@ FRDOS120TestCase = frdos120(OurTestCase, {
     "test_comcom_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
+    "test_drv_removable": KNOWNFAIL,
     "test_fat_fcb_rename_target_exists": KNOWNFAIL,
     "test_fat_fcb_rename_source_missing": KNOWNFAIL,
     "test_fat_fcb_rename_wild_1": KNOWNFAIL,
@@ -5061,6 +5067,7 @@ FRDOS130TestCase = frdos130(OurTestCase, {
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_command_com_keyword_exist": KNOWNFAIL,
+    "test_drv_removable": KNOWNFAIL,
     "test_create_new_psp": KNOWNFAIL,
     "test_fat_ds3_lock_readlckd": KNOWNFAIL,
     "test_fat_ds3_lock_two_handles": KNOWNFAIL,
@@ -5164,6 +5171,7 @@ PPDOSGITTestCase = ppdosgit(OurTestCase, {
     "test_comcom_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
+    "test_drv_removable": KNOWNFAIL,
     "test_floppy_img": UNSUPPORTED,
     "test_floppy_vfs": UNSUPPORTED,
 })
