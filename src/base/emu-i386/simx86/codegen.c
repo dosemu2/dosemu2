@@ -399,10 +399,13 @@ static void OptimizeCode(IMeta *I)
 	IGen *lastIG = &I->gen[I->ngen-1];
 	IGen *firstIG = &I1->gen[0];
 
-	if ((lastIG->mode & MOPT) && (firstIG->mode & MOPT) &&
+	if ((firstIG->mode & MOPT) && (firstIG->mode == lastIG->mode) &&
 	    ((lastIG->op == O_PUSH3 && firstIG->op == O_PUSH1) ||
-	     (lastIG->op == O_POP3  && firstIG->op == O_POP1))) {
-		I->ngen--;
+	     (lastIG->op == O_POP3  && firstIG->op == O_POP1) ||
+	     (lastIG->op == O_MOVS_SavA && firstIG->op == L_REG))) {
+		if (lastIG->op != O_MOVS_SavA)
+			/* multiple stosb/stosw only eliminate L_REG */
+			I->ngen--;
 		I1->ngen--;
 		memmove(I1->gen, I1->gen+1, I1->ngen * sizeof(IGen));
 		if (debug_level('e')>1)

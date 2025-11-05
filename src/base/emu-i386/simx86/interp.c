@@ -1349,31 +1349,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(S_DI, m);
 			PC++;
 			Gen(O_MOVS_SavA, m, OVERR_DS);
-#ifndef SINGLESTEP
-			/* optimize common sequence MOVSw..MOVSw..MOVSb */
-			if (!(_mode & MSSTP)) {
-				int cnt = 3;
-				m = UNPREFIX(m);
-				while (++cnt < NUMGENS && Fetch(PC) == MOVSw &&
-						!e_querymark(PC, 1)) {
-					Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
-					Gen(L_DI_R1, m);
-					Gen(O_MOVS_SetA, m&~MOVSSRC, OVERR_DS);
-					Gen(S_DI, m);
-					PC++;
-					Gen(O_MOVS_SavA, m, OVERR_DS);
-				}
-				if (Fetch(PC) == MOVSb && !e_querymark(PC, 1)) {
-					m |= MBYTE;
-					Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
-					Gen(L_DI_R1, m);
-					Gen(O_MOVS_SetA, m&~MOVSSRC, OVERR_DS);
-					Gen(S_DI, m);
-					PC++;
-					Gen(O_MOVS_SavA, m, OVERR_DS);
-				}
-			}
-#endif
 			} break;
 /*a6*/	case CMPSb: {	int m = _mode|(MBYTE|MOVSSRC|MOVSDST);
 			Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
@@ -1390,61 +1365,28 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_MOVS_SavA, m, OVERR_DS);
 			PC++; } break;
 /*aa*/	case STOSb: {	int m = _mode|(MBYTE|MOVSDST);
+			Gen(L_REG, m|MOPT, Ofs_AL);
 			Gen(O_MOVS_SetA, m, OVERR_DS);
-			Gen(L_REG, m, Ofs_AL);
 			Gen(S_DI, m);
-			Gen(O_MOVS_SavA, m, OVERR_DS);
+			Gen(O_MOVS_SavA, m|MOPT, OVERR_DS);
 			PC++; } break;
 /*ab*/	case STOSw: {	int m = _mode|MOVSDST;
+			Gen(L_REG, m|MOPT, Ofs_EAX);
 			Gen(O_MOVS_SetA, m, OVERR_DS);
-			Gen(L_REG, m, Ofs_EAX);
 			Gen(S_DI, m); PC++;
-			Gen(O_MOVS_SavA, m, OVERR_DS);
-#ifndef SINGLESTEP
-			if (!(_mode & MSSTP)) {
-			    int cnt = 3;
-			    m = UNPREFIX(m);
-			    while (++cnt < NUMGENS && Fetch(PC) == STOSw &&
-					!e_querymark(PC, 1)) {
-				Gen(O_MOVS_SetA, m, OVERR_DS);
-				Gen(S_DI, m);
-				Gen(O_MOVS_SavA, m, OVERR_DS);
-				PC++;
-			    }
-			}
-#endif
+			Gen(O_MOVS_SavA, m|MOPT, OVERR_DS);
 			} break;
 /*ac*/	case LODSb: {	int m = _mode|(MBYTE|MOVSSRC);
 			Gen(O_MOVS_SetA, m, OVERR_DS);
 			Gen(L_DI_R1, m);
 			Gen(S_REG, m, Ofs_AL); PC++;
-#ifndef SINGLESTEP
-			/* optimize common sequence LODSb-STOSb */
-			if (!(_mode & MSSTP) && Fetch(PC) == STOSb &&
-					!e_querymark(PC, 1)) {
-				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST, OVERR_DS);
-				Gen(S_DI, m);
-				m |= MOVSDST;
-				PC++;
-			}
-#endif
-			Gen(O_MOVS_SavA, m, OVERR_DS);
+			Gen(O_MOVS_SavA, m|MOPT, OVERR_DS);
 			} break;
 /*ad*/	case LODSw: {	int m = _mode|MOVSSRC;
 			Gen(O_MOVS_SetA, m, OVERR_DS);
 			Gen(L_DI_R1, m);
 			Gen(S_REG, m, Ofs_EAX); PC++;
-#ifndef SINGLESTEP
-			/* optimize common sequence LODSw-STOSw */
-			if (!(_mode & MSSTP) && Fetch(PC) == STOSw &&
-					!e_querymark(PC, 1)) {
-				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST, OVERR_DS);
-				Gen(S_DI, m);
-				m |= MOVSDST;
-				PC++;
-			}
-#endif
-			Gen(O_MOVS_SavA, m, OVERR_DS);
+			Gen(O_MOVS_SavA, m|MOPT, OVERR_DS);
 			} break;
 /*ae*/	case SCASb: {	int m = _mode|(MBYTE|MOVSDST);
 			Gen(O_MOVS_SetA, m, OVERR_DS);
