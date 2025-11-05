@@ -1995,8 +1995,6 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		break;
 
 	case O_PUSH2F: {
-		wkreg SR1, AR2;
-		unsigned long stackm = CPULONG(Ofs_STACKM);
 		int ftmp;
 		GTRACE0("O_PUSHF");
 		ftmp = (CPULONG(Ofs_FLAGS) & ~EFLAGS_CC) | FlagSync_All();
@@ -2005,21 +2003,8 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 			ftmp = (ftmp & ~(EFLAGS_IF|EFLAGS_VIF)) | ((ftmp & EFLAGS_VIF) ? EFLAGS_IF : 0);
 #endif
 		ftmp &= (RETURN_MASK|EFLAGS_IF);
-		AR2.d = CPULONG(Ofs_XSS);
-		SR1.d = CPULONG(Ofs_ESP);
-		if (mode & DATA16) {
-			SR1.d = (SR1.d - 2) & stackm;
-			sim_write_word(AR2.d + SR1.d, ftmp);
-		}
-		else {
-			SR1.d = (SR1.d - 4) & stackm;
-			sim_write_dword(AR2.d + SR1.d, ftmp);
-		}
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
-		CPULONG(Ofs_ESP) = SR1.d;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",ftmp);
+		DR1.d = ftmp;
 		} break;
 
 	case O_POP: {

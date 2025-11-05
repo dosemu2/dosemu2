@@ -808,6 +808,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			else {
 				Gen(O_PUSH2F, _mode);
+				Gen(O_PUSH, _mode);
 			}
 			break;
 /*9e*/	case SAHF:
@@ -1638,6 +1639,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				if (IOPL == 3) {
 					Gen(O_INT, _mode, inum, P0);
 					Gen(O_PUSH2F, _mode);
+					Gen(O_PUSH, _mode);
 					Gen(O_SETFL, _mode, INT);
 				} else {
 					Gen(O_INT, _mode, inum, P0);

@@ -1201,15 +1201,7 @@ shrot0:
 		} break;
 
 	case O_PUSH2F: {
-		const unsigned char pseqpre[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -4(%%ecx),%%ecx
-/*08*/			0x8d,0x49,0xfc,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
+		const unsigned char pseq[] = {
 			// movl (%%esp),%%edx	(get flags on stack)
 			0x8b,0x14,0x24,
 			// movl Ofs_FLAGS(%%ebx),%%eax
@@ -1221,21 +1213,7 @@ shrot0:
 			// orw %%dx,%%ax
 			0x66,0x09,0xd0,
 		};
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		const unsigned char pseqpost[] = {
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-		};
-#endif
-		unsigned char *q=Cp;
-		GNX(Cp, pseqpre, sizeof(pseqpre));
-		if (mode&DATA16) q[8] = 0xfe; /* use -2 in lea ins */
+		GNX(Cp, pseq, sizeof(pseq));
 #if 0		// unused "extended PVI", if used should move to separate op
 		if (!V86MODE() && IOPL < 3 && (TheCPU.cr[4] & CR4_PVI)) {
 		    /* This solves the DOSX 'System test 8' error.
@@ -1262,22 +1240,10 @@ shrot0:
 			G4M(0x13,0xc1,0xd0,0x0a,Cp);
 		}
 #endif
-		// leal (%%esi,%%ecx,1),%%edx
-		G3M(0x8d,0x14,0x0e,Cp);
-		if (mode&DATA16) {
-			// movw %%ax,(%%edx,%%ebp,1)
-			G4M(0x66,0x89,0x04,0x2a,Cp);
-		} else {
+		if (!(mode&DATA16)) {
 			// andl RETURN_MASK|EFLAGS_IF,%%eax
 			G1(0x25,Cp); G4(RETURN_MASK|EFLAGS_IF,Cp);
-			// movl %%eax,(%%edx,%%ebp,1)
-			G3M(0x89,0x04,0x2a,Cp);
 		}
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		GNX(Cp, pseqpost, sizeof(pseqpost));
-#endif
-		// movl %%ecx,Ofs_ESP(%%ebx)
-		G3M(0x89,0x4b,Ofs_ESP,Cp);
 		} break;
 
 	case O_POP: {
