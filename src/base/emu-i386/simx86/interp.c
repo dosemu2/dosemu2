@@ -804,12 +804,13 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    if (!(TheCPU.cr[4] & CR4_VME))
 				goto not_permitted;	/* GPF */
 			    Gen(O_SIM, _mode, opc, 0, P0);
-			    Gen(O_PUSH, _mode);
 			}
 			else {
 				Gen(O_PUSH2F, _mode);
-				Gen(O_PUSH, _mode);
 			}
+			Gen(O_PUSH1, _mode);
+			Gen(O_PUSH2, _mode|MNOREG);
+			Gen(O_PUSH3, _mode|MOPT);
 			break;
 /*9e*/	case SAHF:
 			Gen(O_SLAHF, _mode, 1);
@@ -1582,7 +1583,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				Gen(L_REG, _mode, Ofs_ESP);
 				if (level >= 2)
 					Gen(O_SIM, _mode, opc, level, P0);
-				Gen(O_PUSH, _mode);
+				Gen(O_PUSH1, _mode);
+				Gen(O_PUSH2, _mode|MNOREG);
+				Gen(O_PUSH3, _mode);
 				Gen(S_REG, _mode, Ofs_EBP);
 			}
 			else {
@@ -1639,14 +1642,13 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				if (IOPL == 3) {
 					Gen(O_INT, _mode, inum, P0);
 					Gen(O_PUSH2F, _mode);
-					Gen(O_PUSH, _mode);
 					Gen(O_SETFL, _mode, INT);
 				} else {
 					Gen(O_INT, _mode, inum, P0);
 					Gen(O_SIM, _mode, opc, inum, P0);
-					Gen(O_PUSH, _mode);
 				}
 				Gen(O_PUSH1, _mode);
+				Gen(O_PUSH2, _mode|MNOREG);
 				Gen(O_PUSH2, _mode, Ofs_CS);
 				Gen(O_PUSH2, _mode|IMMED, PC + 2 - Interp_LONG_CS);
 				Gen(O_PUSH3, _mode);
@@ -2151,7 +2153,9 @@ repag0:
 				break;
 			case Ofs_SI:	/*6*/	 // PUSH
 				PC += ModRM(opc, PC, _mode|MLOAD);
-				Gen(O_PUSH, _mode); break;	// push [rm]
+				Gen(O_PUSH1, _mode);
+				Gen(O_PUSH2, _mode|MNOREG); 	// push [rm]
+				Gen(O_PUSH3, _mode|MOPT);
 				break;
 			default:
 				PC += 2; goto illegal_op;

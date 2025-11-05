@@ -1062,72 +1062,6 @@ shrot0:
 		}
 		break;
 
-	case O_PUSH: {
-		const unsigned char pseq16[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-/*06*/			// leal -2(%%ecx),%%ecx
-			0x8d,0x49,0xfe,
-			// 16-bit stack seg w/underflow (RM)
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%edx
-			0x8d,0x14,0x0e,
-			// movw %%ax,(%%edx,%%ebp,1)
-			0x66,0x89,0x04,0x2a,
-			// do 16-bit PM apps exist which use a 32-bit stack seg?
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char pseq32[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -4(%%ecx),%%ecx
-			0x8d,0x49,0xfc,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%edx
-			0x8d,0x14,0x0e,
-			// movl %%eax,(%%edx,%%ebp,1)
-			0x89,0x04,0x2a,
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char *p; int sz;
-		if (mode&(SEGREG|DATA16)) p=pseq16,sz=sizeof(pseq16);
-			else p=pseq32,sz=sizeof(pseq32);
-		GNX(Cp, p, sz);
-		if ((mode & (SEGREG|DATA16)) == SEGREG) {
-			// use pseq16 but -4 for 32-bit segreg
-			// mirroring Core Intel CPUs and newer
-			Cp[-sz+8] = 0xfc;
-		}
-		} break;
-
 /* PUSH derived (sub-)sequences: */
 	case O_PUSH1: {
 		const unsigned char pseq[] = {
@@ -1175,6 +1109,8 @@ shrot0:
 			// use pseq16 but -4 for 32-bit segreg
 			// mirroring recent Intel CPUs
 			q[7] = 0xfc;
+		} else if (mode & MNOREG) {
+			memset(q, 0x90, 5);
 		} else if (mode & IMMED) {
 			uint32_t v = IG->p0;
 			q[0] = 0xb8; // movl $v, %%eax

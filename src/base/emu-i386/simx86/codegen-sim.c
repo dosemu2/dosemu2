@@ -1930,27 +1930,6 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		}
 		break;
 
-	case O_PUSH: {
-		dosaddr_t esp, addr;
-		unsigned long stackm = CPULONG(Ofs_STACKM);
-		GTRACE0("O_PUSH");
-		if (mode & DATA16)
-			esp = CPULONG(Ofs_ESP) - 2;
-		else
-			esp = CPULONG(Ofs_ESP) - 4;
-		esp &= stackm;
-		addr = CPULONG(Ofs_XSS) + esp;
-		if (mode & (SEGREG|DATA16))
-			sim_write_word(addr, DR1.w.l);
-		else
-			sim_write_dword(addr, DR1.d);
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		esp |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
-		CPULONG(Ofs_ESP) = esp;
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
-		} break;
-
 /* PUSH derived (sub-)sequences: */
 	case O_PUSH1: {
 		uint32_t sp;
@@ -1973,11 +1952,13 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 			addr = CPULONG(Ofs_XSS) + sp;
 			currentIG = (unsigned char *)IG;
 			if (mode & (SEGREG|DATA16)) {
-				if (!(mode&IMMED)) o = CPUWORD(o);
+				if (mode&MNOREG) o = DR1.w.l;
+				else if (!(mode&IMMED)) o = CPUWORD(o);
 				sim_write_word(addr, o);
 			}
 			else {
-				if (!(mode&IMMED)) o = CPULONG(o);
+				if (mode&MNOREG) o = DR1.d;
+				else if (!(mode&IMMED)) o = CPULONG(o);
 				sim_write_dword(addr, o);
 			}
 			if (debug_level('e')>3) dbug_printf("(V) %08x\n",o);
