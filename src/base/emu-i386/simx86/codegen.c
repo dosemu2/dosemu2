@@ -251,7 +251,6 @@ void Gen(int op, int mode, ...)
 	case O_DEC_R:
 	case O_DIV:
 	case O_IDIV:
-	case O_PUSHI:
 	case O_PUSH2:
 	case JMP_TAILCODE:
 		IG->p0 = va_arg(ap,unsigned int);

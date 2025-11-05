@@ -304,7 +304,9 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		    /* ok, first push old cs:eip */
 		    Gen(L_REG, mode|DATA16, Ofs_CS);
 		    Gen(O_PUSH, mode|SEGREG);
-		    Gen(O_PUSHI, mode, d_nt);
+		    Gen(O_PUSH1, mode);
+		    Gen(O_PUSH2, mode|IMMED, d_nt);
+		    Gen(O_PUSH3, mode);
 		}
 		/* fall through */
 	case JMPld: {   /* uncond jmp far */
@@ -341,7 +343,9 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		JMPGen(JMP_LINK, mode, j_t);
 		break;
 	case CALLd:    /* call, unfortunately also uses JMP_LINK */
-		Gen(O_PUSHI, mode, d_nt);
+		Gen(O_PUSH1, mode);
+		Gen(O_PUSH2, mode|IMMED, d_nt);
+		Gen(O_PUSH3, mode);
 		JMPGen(JMP_LINK, mode, j_t);
 		break;
 	case LOOP: case LOOPZ_LOOPE: case LOOPNZ_LOOPNE:
@@ -370,11 +374,11 @@ static int can_speculate(void)
 	if (opc != JMP_LINK)
 		return 0;
 	/* we need two JMP_LINKs (conditional jump),
-	   or PUSHI followed by JMP_LINK (call) */
+	   or PUSH3 followed by JMP_LINK (call) */
 	if (GL->ngen <= 1)
 		return 0;
 	opc = (IG-1)->op;
-	if (opc != O_PUSHI && opc != JMP_LINK)
+	if (opc != O_PUSH3 && opc != JMP_LINK)
 		return 0;
 	if (debug_level('e')) {
 		unsigned short ocs = TheCPU.cs;
@@ -1012,11 +1016,17 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			/* this can be optimized later in OptimizeCode */
 			break;
 /*68*/	case PUSHwi:
-			Gen(O_PUSHI, _mode, DataFetchWL_U(_mode,(PC+1)));
+			Gen(O_PUSH1, _mode);
+			Gen(O_PUSH2, _mode|IMMED, DataFetchWL_U(_mode,(PC+1)));
+			Gen(O_PUSH3, _mode);
 			INC_WL_PC(_mode,1);
 			break;
 /*6a*/	case PUSHbi:
-			Gen(O_PUSHI, _mode, (signed char)Fetch(PC+1)); PC+=2; break;
+			Gen(O_PUSH1, _mode);
+			Gen(O_PUSH2, _mode|IMMED, (signed char)Fetch(PC+1));
+			Gen(O_PUSH3, _mode);
+			PC+=2;
+			break;
 /*60*/	case PUSHA:
 			/* push order: eax ecx edx ebx esp ebp esi edi */
 			Gen(O_PUSH1, _mode);
@@ -1636,7 +1646,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				}
 				Gen(L_REG, _mode, Ofs_CS);
 				Gen(O_PUSH, _mode);
-				Gen(O_PUSHI, _mode, PC + 2 - Interp_LONG_CS);
+				Gen(O_PUSH1, _mode);
+				Gen(O_PUSH2, _mode|IMMED, PC + 2 - Interp_LONG_CS);
+				Gen(O_PUSH3, _mode);
 				Gen(L_LXS2, _mode);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(L_DI_R1, _mode);
@@ -2079,10 +2091,12 @@ repag0:
 					ModRM(opc, PC, _mode|NOFLDR|MLOAD));
 				break;
 			case Ofs_DX: {	/*2*/	 // CALL near indirect
-				/* don't use MLOAD as O_PUSHI clobbers eax */
+				/* don't use MLOAD as O_PUSH2 clobbers eax */
 				int len = ModRM(opc, PC, _mode|NOFLDR);
 				dosaddr_t ret = PC + len - Interp_LONG_CS;
-				Gen(O_PUSHI, _mode, ret);
+				Gen(O_PUSH1, _mode);
+				Gen(O_PUSH2, _mode|IMMED, ret);
+				Gen(O_PUSH3, _mode);
 				if (REG3)
 					Gen(L_REG, _mode, REG3);
 				else
@@ -2108,7 +2122,9 @@ repag0:
 					    if (REALADDR()) {
 						Gen(L_REG, _mode|DATA16, Ofs_CS);
 						Gen(O_PUSH, _mode|SEGREG);
-						Gen(O_PUSHI, _mode, oip);
+						Gen(O_PUSH1, _mode);
+						Gen(O_PUSH2, _mode|IMMED, oip);
+						Gen(O_PUSH3, _mode);
 					    }
 					    else {
 						Gen(L_LXS2, _mode);
