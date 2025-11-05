@@ -302,9 +302,8 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 	case CALLl:	/* call far */
 		if (REALADDR()) {
 		    /* ok, first push old cs:eip */
-		    Gen(L_REG, mode|DATA16, Ofs_CS);
-		    Gen(O_PUSH, mode|SEGREG);
-		    Gen(O_PUSH1, mode);
+		    Gen(O_PUSH1, mode|MOPT);
+		    Gen(O_PUSH2, mode|SEGREG, Ofs_CS);
 		    Gen(O_PUSH2, mode|IMMED, d_nt);
 		    Gen(O_PUSH3, mode);
 		}
@@ -343,7 +342,7 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		JMPGen(JMP_LINK, mode, j_t);
 		break;
 	case CALLd:    /* call, unfortunately also uses JMP_LINK */
-		Gen(O_PUSH1, mode);
+		Gen(O_PUSH1, mode|MOPT);
 		Gen(O_PUSH2, mode|IMMED, d_nt);
 		Gen(O_PUSH3, mode);
 		JMPGen(JMP_LINK, mode, j_t);
@@ -1016,15 +1015,15 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			/* this can be optimized later in OptimizeCode */
 			break;
 /*68*/	case PUSHwi:
-			Gen(O_PUSH1, _mode);
+			Gen(O_PUSH1, _mode|MOPT);
 			Gen(O_PUSH2, _mode|IMMED, DataFetchWL_U(_mode,(PC+1)));
-			Gen(O_PUSH3, _mode);
+			Gen(O_PUSH3, _mode|MOPT);
 			INC_WL_PC(_mode,1);
 			break;
 /*6a*/	case PUSHbi:
-			Gen(O_PUSH1, _mode);
+			Gen(O_PUSH1, _mode|MOPT);
 			Gen(O_PUSH2, _mode|IMMED, (signed char)Fetch(PC+1));
-			Gen(O_PUSH3, _mode);
+			Gen(O_PUSH3, _mode|MOPT);
 			PC+=2;
 			break;
 /*60*/	case PUSHA:
@@ -1038,7 +1037,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_PUSH2, _mode, Ofs_EBP);
 			Gen(O_PUSH2, _mode, Ofs_ESI);
 			Gen(O_PUSH2, _mode, Ofs_EDI);
-			Gen(O_PUSH3, _mode); PC++; break;
+			Gen(O_PUSH3, _mode|MOPT); PC++; break;
 /*61*/	case POPA:
 			Gen(O_POP1, _mode);
 			Gen(O_POP2, _mode, Ofs_EDI);
@@ -1575,8 +1574,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c8*/	case ENTER: {
 			int allocsize = FetchW(PC+1);
 			int level = Fetch(PC+3) & 0x1f;
-			Gen(L_REG, _mode, Ofs_EBP);
-			Gen(O_PUSH, _mode);
+			Gen(O_PUSH1, _mode|MOPT);
+			Gen(O_PUSH2, _mode, Ofs_EBP);
+			Gen(O_PUSH3, _mode);
 			if (level >= 1) {
 				Gen(L_REG, _mode, Ofs_ESP);
 				if (level >= 2)
@@ -1644,9 +1644,8 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 					Gen(O_SIM, _mode, opc, inum, P0);
 					Gen(O_PUSH, _mode);
 				}
-				Gen(L_REG, _mode, Ofs_CS);
-				Gen(O_PUSH, _mode);
 				Gen(O_PUSH1, _mode);
+				Gen(O_PUSH2, _mode, Ofs_CS);
 				Gen(O_PUSH2, _mode|IMMED, PC + 2 - Interp_LONG_CS);
 				Gen(O_PUSH3, _mode);
 				Gen(L_LXS2, _mode);
@@ -2120,9 +2119,8 @@ repag0:
 					    /* first push old cs:eip */
 					    oip = PC + len - Interp_LONG_CS;
 					    if (REALADDR()) {
-						Gen(L_REG, _mode|DATA16, Ofs_CS);
-						Gen(O_PUSH, _mode|SEGREG);
 						Gen(O_PUSH1, _mode);
+						Gen(O_PUSH2, _mode|SEGREG, Ofs_CS);
 						Gen(O_PUSH2, _mode|IMMED, oip);
 						Gen(O_PUSH3, _mode);
 					    }
