@@ -315,11 +315,6 @@ void Gen(int op, int mode, ...)
 		}
 		break;
 
-	case O_POP:
-		if (mode & MRETISP) IG->p0 = va_arg(ap,unsigned int);
-		break;
-
-
 	case O_SLAHF:
 		rcod = va_arg(ap,unsigned int)&1;	// 0=LAHF 1=SAHF
 		IG->p0 = rcod;

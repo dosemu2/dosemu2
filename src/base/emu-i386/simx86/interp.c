@@ -863,9 +863,13 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*07*/	case POPes:	_mode |= SEGREG;
 			if (REALADDR()) {
-			    Gen(O_POP, _mode);
+			    Gen(O_POP1, _mode|MOPT);
+			    Gen(O_POP2, _mode|MNOREG);
 			    AddrGen(A_SR_SH4, _mode, Ofs_ES, Ofs_XES);
+			    Gen(O_POP3, _mode|MOPT);
 			} else { /* restartable */
+			    // have TheCPU.esp correct for exceptions,
+			    // no MOPT!
 			    Gen(O_POP1, _mode);
 			    Gen(O_POP2, _mode|MNOREG);
 			    /* same principle applies as for POPrm: this
@@ -878,14 +882,15 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*17*/	case POPss:	_mode |= SEGREG;
 			if (REALADDR()) {
-			    Gen(O_POP, _mode);
+			    Gen(O_POP1, _mode|MOPT);
+			    Gen(O_POP2, _mode|MNOREG);
 			    AddrGen(A_SR_SH4, _mode, Ofs_SS, Ofs_XSS);
 			} else { /* restartable */
 			    Gen(O_POP1, _mode);
 			    Gen(O_POP2, _mode|MNOREG);
 			    AddrGen(A_SR_PROT, _mode, Ofs_SS, P0);
-			    Gen(O_POP3, _mode);
 			}
+			Gen(O_POP3, _mode); // SS needs to be reloaded, no MOPT!
 			PC++;
 			if (!(_mode & MINHI))
 			    PC = InterpOne(PC, Interp_LONG_CS, ocs,
@@ -893,8 +898,10 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*1f*/	case POPds:	_mode |= SEGREG;
 			if (REALADDR()) {
-			    Gen(O_POP, _mode);
+			    Gen(O_POP1, _mode|MOPT);
+			    Gen(O_POP2, _mode|MNOREG);
 			    AddrGen(A_SR_SH4, _mode, Ofs_DS, Ofs_XDS);
+			    Gen(O_POP3, _mode|MOPT);
 			} else { /* restartable */
 			    Gen(O_POP1, _mode);
 			    Gen(O_POP2, _mode|MNOREG);
@@ -1041,7 +1048,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_PUSH2, _mode, Ofs_EDI);
 			Gen(O_PUSH3, _mode|MOPT); PC++; break;
 /*61*/	case POPA:
-			Gen(O_POP1, _mode);
+			Gen(O_POP1, _mode|MOPT);
 			Gen(O_POP2, _mode, Ofs_EDI);
 			Gen(O_POP2, _mode, Ofs_ESI);
 			Gen(O_POP2, _mode, Ofs_EBP);
@@ -1050,7 +1057,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_POP2, _mode, Ofs_EDX);
 			Gen(O_POP2, _mode, Ofs_ECX);
 			Gen(O_POP2, _mode, Ofs_EAX);
-			Gen(O_POP3, _mode); PC++; break;
+			Gen(O_POP3, _mode|MOPT); PC++; break;
 
 /*58*/	case POPax:
 /*59*/	case POPcx:
@@ -1068,18 +1075,23 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*5c*/	case POPsp:	// this one doesn't fit nicely in pop1/pop2/pop3
 			// as eSP needs to be reloaded.
-			Gen(O_POP, _mode);
-			Gen(S_REG, _mode, Ofs_ESP); PC++;
+			Gen(O_POP1, _mode|MOPT);
+			Gen(O_POP2, _mode, Ofs_ESP); PC++;
+			// no POP3!
 			break;
 /*8f*/	case POPrm:
 			// now calculate address. This way when using %esp
 			//	as index we use the value AFTER the pop
 			PC += ModRM(opc, PC, _mode|MPOPRM);
-			if (REG3) {
+			if (REG3 == Ofs_ESP) {
+				Gen(O_POP1, _mode|MOPT);
+				Gen(O_POP2, _mode, Ofs_ESP);
+			}
+			else if (REG3) {
 				// pop data into temporary storage and adjust esp
-				Gen(O_POP, _mode);
-				// store data
-				Gen(S_REG, _mode, REG3);
+				Gen(O_POP1, _mode|MOPT);
+				Gen(O_POP2, _mode, REG3);
+				Gen(O_POP3, _mode|MOPT);
 			} else {
 				// read data into temporary storage
 				Gen(O_POP1, _mode);
@@ -1089,6 +1101,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				// may need to be restarted with the original
 				// value of ESP!
 				Gen(S_DI, _mode);	// mov [edi],{e}ax
+				// cpatch'ed stores can modify %ecx (SS base) in JIT
+				// which is reloaded with O_POP1, so do not optimize this
+				// one away against it
 				Gen(O_POP3, _mode);
 			}
 			break;
@@ -1547,14 +1562,18 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*c2*/	case RETisp: {
 			int dr = (signed short)FetchW(PC+1);
-			Gen(O_POP, _mode|MRETISP, dr);
+			Gen(O_POP1, _mode|MOPT);
+			Gen(O_POP2, _mode|MRETISP|MNOREG, dr);
+			Gen(O_POP3, _mode);
 			PC = JumpGen(PC, Interp_LONG_CS, _mode, opc, 3);
 			if (debug_level('e')>2)
 				e_printf("RET: ret=%08x inc_sp=%d\n",PC-Interp_LONG_CS,dr);
 			}
 			break;
 /*c3*/	case RET:
-			Gen(O_POP, _mode);
+			Gen(O_POP1, _mode|MOPT);
+			Gen(O_POP2, _mode|MNOREG);
+			Gen(O_POP3, _mode);
 			PC = JumpGen(PC, Interp_LONG_CS, _mode, opc, 1);
 			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",PC-Interp_LONG_CS);
 			break;
@@ -1608,7 +1627,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			/* pop from stack without adjusting esp before A_SR_* */
 			int dr = (signed short)FetchW(PC+1);
 			if (REALADDR()) {
-				Gen(O_POP1, _mode);
+				Gen(O_POP1, _mode|MOPT);
 				Gen(O_POP2, _mode, Ofs_EIP);
 				Gen(O_POP2, _mode|MNOREG|SEGREG|MRETISP, dr);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
@@ -1690,7 +1709,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*cb*/	case RETl:
 			/* pop from stack without adjusting esp before A_SR_* */
 			if (REALADDR()) {
-				Gen(O_POP1, _mode);
+				Gen(O_POP1, _mode|MOPT);
 				Gen(O_POP2, _mode, Ofs_EIP);
 				Gen(O_POP2, _mode|MNOREG|SEGREG);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
@@ -1715,7 +1734,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (V86MODE() && IOPL!=3 && !(TheCPU.cr[4] & CR4_VME)) {
 			    goto not_permitted;	/* GPF */
 			}
-			Gen(O_POP, _mode);
+			Gen(O_POP1, _mode|MOPT);
+			Gen(O_POP2, _mode|MNOREG);
+			Gen(O_POP3, _mode);
 			Gen(O_SIM, _mode, opc, 0, PC);
 			JMPGen(JMP_LINK, _mode|CKSIGN, PC);
 			break;
@@ -2422,8 +2443,10 @@ repag0:
 			case 0xa1: /* POPfs */
 				_mode |= SEGREG;
 				if (REALADDR()) {
-				    Gen(O_POP, _mode);
+				    Gen(O_POP1, _mode|MOPT);
+				    Gen(O_POP2, _mode|MNOREG);
 				    AddrGen(A_SR_SH4, _mode, Ofs_FS, Ofs_XFS);
+				    Gen(O_POP3, _mode|MOPT);
 				} else { /* restartable */
 				    Gen(O_POP1, _mode);
 				    Gen(O_POP2, _mode|MNOREG);
@@ -2512,8 +2535,10 @@ repag0:
 			case 0xa9: /* POPgs */
 				_mode |= SEGREG;
 				if (REALADDR()) {
-				    Gen(O_POP, _mode);
+				    Gen(O_POP1, _mode|MOPT);
+				    Gen(O_POP2, _mode|MNOREG);
 				    AddrGen(A_SR_SH4, _mode, Ofs_GS, Ofs_XGS);
+				    Gen(O_POP3, _mode|MOPT);
 				} else { /* restartable */
 				    Gen(O_POP1, _mode);
 				    Gen(O_POP2, _mode|MNOREG);

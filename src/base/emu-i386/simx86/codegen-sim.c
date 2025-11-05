@@ -1988,34 +1988,10 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		DR1.d = ftmp;
 		} break;
 
-	case O_POP: {
-		dosaddr_t esp, addr;
-		int imm16 = (mode&MRETISP) ? IG->p0 : 0;
-		long stackm = CPULONG(Ofs_STACKM);
-		GTRACE1("O_POP",imm16);
-		esp = CPULONG(Ofs_ESP) & stackm;
-		addr = CPULONG(Ofs_XSS) + esp;
-		if (mode & (DATA16|SEGREG))
-			DR1.w.l = sim_read_word(addr);
-		else
-			DR1.d = sim_read_dword(addr);
-		if (mode & DATA16)
-			esp += 2 + imm16;
-		else
-			esp += 4 + imm16;
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-		esp &= stackm;
-#endif
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		esp |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
-		CPULONG(Ofs_ESP) = esp;
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
-		} break;
-
 /* POP derived (sub-)sequences: */
 	case O_POP1: {
 		uint32_t sp, v = 0;
+		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE0("O_POP1");
 		sp = CPULONG(Ofs_ESP);
 		IG++;
@@ -2025,7 +2001,6 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 			mode = IG->mode;
 			dosaddr_t addr;
 			unsigned int o = (mode & MNOREG) ? 0 : IG->p0;
-			long stackm = CPULONG(Ofs_STACKM);
 			int imm16 = (mode&MRETISP) ? IG->p0 : 0;
 			GTRACE2("O_POP2",o,imm16);
 			sp &= stackm;
@@ -2041,35 +2016,39 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 				if (!(mode & MNOREG))
 					CPULONG(o) = v;
 			}
+			if (!(mode & MNOREG) && o == Ofs_ESP &&
+			    (IG+1)->op != O_POP2)
+				goto quit_pop;
 			if (mode & DATA16)
 				sp += 2 + imm16;
 			else
 				sp += 4 + imm16;
-			if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+			if (debug_level('e')>3) dbug_printf("(V) %08x\n",v);
 			IG++;
+			if (IG->op == A_SR_SH4) // for "pop segreg"
+				Gen_A_SR_SH4(IG++, v);
+			else if (IG->op == A_SR_PROT) {
+				P0 = Gen_A_SR_PROT(IG, v);
+				if (P0 != (unsigned)-1) goto quit_pop;
+				IG++;
+			}
+			else if (IG->op == S_DI) // for "pop [mem]"
+				Gen_S_DI(IG++, mem_ref, v);
 		} while (IG->op == O_POP2);
-
-		if (IG->op == A_SR_SH4) // for "pop segreg"
-			Gen_A_SR_SH4(IG++, v);
-		else if (IG->op == A_SR_PROT) {
-			P0 = Gen_A_SR_PROT(IG, v);
-			if (P0 != (unsigned)-1) break;
-			IG++;
-		}
-		else if (IG->op == S_DI) // for "pop [mem]"
-			Gen_S_DI(IG++, mem_ref, v);
+		DR1.d = v;
 
 		assert(IG->op==O_POP3);
 		mode = IG->mode;
 		GTRACE0("O_POP3");
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
-		sp &= CPULONG(Ofs_STACKM);
+		sp &= stackm;
 #endif
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		sp |= (CPULONG(Ofs_ESP) & ~CPULONG(Ofs_STACKM));
+		sp |= CPULONG(Ofs_ESP) & ~stackm;
 #endif
 		CPULONG(Ofs_ESP) = sp;
 		}
+		quit_pop:
 		break;
 
 	case O_LEAVE: {
