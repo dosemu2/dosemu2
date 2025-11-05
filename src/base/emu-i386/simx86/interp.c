@@ -1621,7 +1621,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC += 4; }
 			break;
 /*c9*/	case LEAVE:
-			Gen(O_LEAVE, _mode); PC++;
+			Gen(L_REG2REG, _mode, Ofs_EBP, Ofs_ESP);
+			Gen(O_POP1, _mode);
+			Gen(O_POP2, _mode, Ofs_EBP);
+			Gen(O_POP3, _mode|MOPT);
+			PC++;
 			break;
 /*ca*/	case RETlisp: {	/* restartable */
 			/* pop from stack without adjusting esp before A_SR_* */

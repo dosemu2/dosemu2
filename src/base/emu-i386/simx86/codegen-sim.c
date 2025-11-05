@@ -2051,39 +2051,6 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		quit_pop:
 		break;
 
-	case O_LEAVE: {
-		wkreg SR1, AR2;
-		long stackm = CPULONG(Ofs_STACKM);
-		GTRACE0("O_LEAVE");
-		if (mode & DATA16) {
-			SR1.d = CPUWORD(Ofs_BP);
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d &= stackm;
-			DR1.w.l = sim_read_word(AR2.d + SR1.d);
-			CPUWORD(Ofs_BP) = DR1.w.l;
-			SR1.d += 2;
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			SR1.d &= stackm;
-#endif
-		}
-		else {
-			SR1.d = CPULONG(Ofs_EBP);
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d &= stackm;
-			DR1.d = sim_read_dword(AR2.d + SR1.d);
-			CPULONG(Ofs_EBP) = DR1.d;
-			SR1.d += 4;
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			SR1.d &= stackm;
-#endif
-		}
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
-		CPULONG(Ofs_ESP) = SR1.d;
-		}
-		break;
-
 	case O_SIM: {
 		uint32_t flags = FlagSync_All();
 		DR1.d = Sim_helper(mem_ref, DR1.d, mode,

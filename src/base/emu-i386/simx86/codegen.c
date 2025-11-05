@@ -214,7 +214,6 @@ void Gen(int op, int mode, ...)
 	case O_PUSH3:
 	case O_POP1:
 	case O_POP3:
-	case O_LEAVE:
 	case O_MOVS_MovD:
 	case O_MOVS_LodD:
 	case O_MOVS_StoD:
