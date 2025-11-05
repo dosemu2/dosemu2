@@ -48,7 +48,7 @@
 #define MAXINODES	4096
 #define MAX_GEND_BYTES_PER_OP 76
 /* NUMGENS must be large enough in !SINGLESTEP mode */
-#define NUMGENS		128
+#define NUMGENS		16
 #undef	ASM_DUMP
 #define ASM_DUMP_FILE	"/DOS/asmdump.log"
 
