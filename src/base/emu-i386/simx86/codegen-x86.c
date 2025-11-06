@@ -1898,12 +1898,11 @@ shrot0:
 #endif
 		    {
 			if ((ra > -127) && (ra < 128)) {
-			    ra -= 1; G1(JMPsid,Cp);
+			    ra -= 1; G1(JMPsid,Cp); G1(ra,Cp);
 			}
 			else {
-			    ra -= 4; G1(JMPd,Cp);
+			    ra -= 4; G1(JMPd,Cp); G4(ra,Cp);
 			}
-			G4(ra,Cp);
 		    }
 		    break;
 		}
