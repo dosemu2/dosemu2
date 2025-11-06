@@ -1930,27 +1930,6 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		}
 		break;
 
-	case O_PUSH: {
-		dosaddr_t esp, addr;
-		unsigned long stackm = CPULONG(Ofs_STACKM);
-		GTRACE0("O_PUSH");
-		if (mode & DATA16)
-			esp = CPULONG(Ofs_ESP) - 2;
-		else
-			esp = CPULONG(Ofs_ESP) - 4;
-		esp &= stackm;
-		addr = CPULONG(Ofs_XSS) + esp;
-		if (mode & (SEGREG|DATA16))
-			sim_write_word(addr, DR1.w.l);
-		else
-			sim_write_dword(addr, DR1.d);
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		esp |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
-		CPULONG(Ofs_ESP) = esp;
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
-		} break;
-
 /* PUSH derived (sub-)sequences: */
 	case O_PUSH1: {
 		uint32_t sp;
@@ -1972,11 +1951,17 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 			sp &= stackm;
 			addr = CPULONG(Ofs_XSS) + sp;
 			currentIG = (unsigned char *)IG;
-			if (mode & (SEGREG|DATA16))
-				sim_write_word(addr, CPUWORD(o));
-			else
-				sim_write_dword(addr, CPULONG(o));
-			if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+			if (mode & (SEGREG|DATA16)) {
+				if (mode&MNOREG) o = DR1.w.l;
+				else if (!(mode&IMMED)) o = CPUWORD(o);
+				sim_write_word(addr, o);
+			}
+			else {
+				if (mode&MNOREG) o = DR1.d;
+				else if (!(mode&IMMED)) o = CPULONG(o);
+				sim_write_dword(addr, o);
+			}
+			if (debug_level('e')>3) dbug_printf("(V) %08x\n",o);
 			IG++;
 		} while (IG->op == O_PUSH2);
 
@@ -1991,8 +1976,6 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		break;
 
 	case O_PUSH2F: {
-		wkreg SR1, AR2;
-		unsigned long stackm = CPULONG(Ofs_STACKM);
 		int ftmp;
 		GTRACE0("O_PUSHF");
 		ftmp = (CPULONG(Ofs_FLAGS) & ~EFLAGS_CC) | FlagSync_All();
@@ -2001,76 +1984,14 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 			ftmp = (ftmp & ~(EFLAGS_IF|EFLAGS_VIF)) | ((ftmp & EFLAGS_VIF) ? EFLAGS_IF : 0);
 #endif
 		ftmp &= (RETURN_MASK|EFLAGS_IF);
-		AR2.d = CPULONG(Ofs_XSS);
-		SR1.d = CPULONG(Ofs_ESP);
-		if (mode & DATA16) {
-			SR1.d = (SR1.d - 2) & stackm;
-			sim_write_word(AR2.d + SR1.d, ftmp);
-		}
-		else {
-			SR1.d = (SR1.d - 4) & stackm;
-			sim_write_dword(AR2.d + SR1.d, ftmp);
-		}
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
-		CPULONG(Ofs_ESP) = SR1.d;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",ftmp);
-		} break;
-
-	case O_PUSHI: {
-		wkreg SR1, AR2;
-		int v = IG->p0;
-		unsigned long stackm = CPULONG(Ofs_STACKM);
-		GTRACE3("O_PUSHI",0xff,0xff,v);
-		if (mode & DATA16) {
-			DR1.w.l = (short)v;
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d = CPULONG(Ofs_ESP) - 2;
-			SR1.d &= stackm;
-			sim_write_word(AR2.d + SR1.d, DR1.w.l);
-		}
-		else {
-			DR1.d = v;
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d = CPULONG(Ofs_ESP) - 4;
-			SR1.d &= stackm;
-			sim_write_dword(AR2.d + SR1.d, DR1.d);
-		}
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
-		CPULONG(Ofs_ESP) = SR1.d;
-		} break;
-
-	case O_POP: {
-		dosaddr_t esp, addr;
-		int imm16 = (mode&MRETISP) ? IG->p0 : 0;
-		long stackm = CPULONG(Ofs_STACKM);
-		GTRACE1("O_POP",imm16);
-		esp = CPULONG(Ofs_ESP) & stackm;
-		addr = CPULONG(Ofs_XSS) + esp;
-		if (mode & (DATA16|SEGREG))
-			DR1.w.l = sim_read_word(addr);
-		else
-			DR1.d = sim_read_dword(addr);
-		if (mode & DATA16)
-			esp += 2 + imm16;
-		else
-			esp += 4 + imm16;
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-		esp &= stackm;
-#endif
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		esp |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
-		CPULONG(Ofs_ESP) = esp;
-		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		DR1.d = ftmp;
 		} break;
 
 /* POP derived (sub-)sequences: */
 	case O_POP1: {
 		uint32_t sp, v = 0;
+		long stackm = CPULONG(Ofs_STACKM);
 		GTRACE0("O_POP1");
 		sp = CPULONG(Ofs_ESP);
 		IG++;
@@ -2080,7 +2001,6 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 			mode = IG->mode;
 			dosaddr_t addr;
 			unsigned int o = (mode & MNOREG) ? 0 : IG->p0;
-			long stackm = CPULONG(Ofs_STACKM);
 			int imm16 = (mode&MRETISP) ? IG->p0 : 0;
 			GTRACE2("O_POP2",o,imm16);
 			sp &= stackm;
@@ -2096,68 +2016,39 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 				if (!(mode & MNOREG))
 					CPULONG(o) = v;
 			}
+			if (!(mode & MNOREG) && o == Ofs_ESP &&
+			    (IG+1)->op != O_POP2)
+				goto quit_pop;
 			if (mode & DATA16)
 				sp += 2 + imm16;
 			else
 				sp += 4 + imm16;
-			if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+			if (debug_level('e')>3) dbug_printf("(V) %08x\n",v);
 			IG++;
+			if (IG->op == A_SR_SH4) // for "pop segreg"
+				Gen_A_SR_SH4(IG++, v);
+			else if (IG->op == A_SR_PROT) {
+				P0 = Gen_A_SR_PROT(IG, v);
+				if (P0 != (unsigned)-1) goto quit_pop;
+				IG++;
+			}
+			else if (IG->op == S_DI) // for "pop [mem]"
+				Gen_S_DI(IG++, mem_ref, v);
 		} while (IG->op == O_POP2);
-
-		if (IG->op == A_SR_SH4) // for "pop segreg"
-			Gen_A_SR_SH4(IG++, v);
-		else if (IG->op == A_SR_PROT) {
-			P0 = Gen_A_SR_PROT(IG, v);
-			if (P0 != (unsigned)-1) break;
-			IG++;
-		}
-		else if (IG->op == S_DI) // for "pop [mem]"
-			Gen_S_DI(IG++, mem_ref, v);
+		DR1.d = v;
 
 		assert(IG->op==O_POP3);
 		mode = IG->mode;
 		GTRACE0("O_POP3");
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
-		sp &= CPULONG(Ofs_STACKM);
+		sp &= stackm;
 #endif
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		sp |= (CPULONG(Ofs_ESP) & ~CPULONG(Ofs_STACKM));
+		sp |= CPULONG(Ofs_ESP) & ~stackm;
 #endif
 		CPULONG(Ofs_ESP) = sp;
 		}
-		break;
-
-	case O_LEAVE: {
-		wkreg SR1, AR2;
-		long stackm = CPULONG(Ofs_STACKM);
-		GTRACE0("O_LEAVE");
-		if (mode & DATA16) {
-			SR1.d = CPUWORD(Ofs_BP);
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d &= stackm;
-			DR1.w.l = sim_read_word(AR2.d + SR1.d);
-			CPUWORD(Ofs_BP) = DR1.w.l;
-			SR1.d += 2;
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			SR1.d &= stackm;
-#endif
-		}
-		else {
-			SR1.d = CPULONG(Ofs_EBP);
-			AR2.d = CPULONG(Ofs_XSS);
-			SR1.d &= stackm;
-			DR1.d = sim_read_dword(AR2.d + SR1.d);
-			CPULONG(Ofs_EBP) = DR1.d;
-			SR1.d += 4;
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			SR1.d &= stackm;
-#endif
-		}
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
-#endif
-		CPULONG(Ofs_ESP) = SR1.d;
-		}
+		quit_pop:
 		break;
 
 	case O_SIM: {

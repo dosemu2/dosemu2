@@ -1062,72 +1062,6 @@ shrot0:
 		}
 		break;
 
-	case O_PUSH: {
-		const unsigned char pseq16[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-/*06*/			// leal -2(%%ecx),%%ecx
-			0x8d,0x49,0xfe,
-			// 16-bit stack seg w/underflow (RM)
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%edx
-			0x8d,0x14,0x0e,
-			// movw %%ax,(%%edx,%%ebp,1)
-			0x66,0x89,0x04,0x2a,
-			// do 16-bit PM apps exist which use a 32-bit stack seg?
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char pseq32[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -4(%%ecx),%%ecx
-			0x8d,0x49,0xfc,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%edx
-			0x8d,0x14,0x0e,
-			// movl %%eax,(%%edx,%%ebp,1)
-			0x89,0x04,0x2a,
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char *p; int sz;
-		if (mode&(SEGREG|DATA16)) p=pseq16,sz=sizeof(pseq16);
-			else p=pseq32,sz=sizeof(pseq32);
-		GNX(Cp, p, sz);
-		if ((mode & (SEGREG|DATA16)) == SEGREG) {
-			// use pseq16 but -4 for 32-bit segreg
-			// mirroring Core Intel CPUs and newer
-			Cp[-sz+8] = 0xfc;
-		}
-		} break;
-
 /* PUSH derived (sub-)sequences: */
 	case O_PUSH1: {
 		const unsigned char pseq[] = {
@@ -1142,9 +1076,9 @@ shrot0:
 	case O_PUSH2: {		/* register push only */
 		const unsigned char pseq16[] = {
 			// movw offs(%%ebx),%%ax
-/*00*/			0x66,0x8b,0x43,0x00,
+/*00*/			0x90,0x66,0x8b,0x43,0x00,
 			// leal -2(%%ecx),%%ecx
-/*04*/			0x8d,0x49,0xfe,
+/*05*/			0x8d,0x49,0xfe,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// leal (%%esi,%%ecx,1),%%edx
@@ -1154,7 +1088,7 @@ shrot0:
 		};
 		const unsigned char pseq32[] = {
 			// movl offs(%%ebx),%%eax
-/*00*/			0x90,0x8b,0x43,0x00,
+/*00*/			0x90,0x90,0x8b,0x43,0x00,
 			// leal -4(%%ecx),%%ecx
 			0x8d,0x49,0xfc,
 			// andl StackMask(%%ebx),%%ecx
@@ -1170,11 +1104,17 @@ shrot0:
 		if (mode&(SEGREG|DATA16)) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		q=Cp; GNX(Cp, p, sz);
-		q[3] = IG->p0;
+		q[4] = IG->p0;
 		if ((mode & (SEGREG|DATA16)) == SEGREG) {
 			// use pseq16 but -4 for 32-bit segreg
 			// mirroring recent Intel CPUs
-			q[6] = 0xfc;
+			q[7] = 0xfc;
+		} else if (mode & MNOREG) {
+			memset(q, 0x90, 5);
+		} else if (mode & IMMED) {
+			uint32_t v = IG->p0;
+			q[0] = 0xb8; // movl $v, %%eax
+			memcpy(q + 1, &v, 4);
 		}
 		} break;
 
@@ -1197,15 +1137,7 @@ shrot0:
 		} break;
 
 	case O_PUSH2F: {
-		const unsigned char pseqpre[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -4(%%ecx),%%ecx
-/*08*/			0x8d,0x49,0xfc,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
+		const unsigned char pseq[] = {
 			// movl (%%esp),%%edx	(get flags on stack)
 			0x8b,0x14,0x24,
 			// movl Ofs_FLAGS(%%ebx),%%eax
@@ -1217,21 +1149,7 @@ shrot0:
 			// orw %%dx,%%ax
 			0x66,0x09,0xd0,
 		};
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		const unsigned char pseqpost[] = {
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-		};
-#endif
-		unsigned char *q=Cp;
-		GNX(Cp, pseqpre, sizeof(pseqpre));
-		if (mode&DATA16) q[8] = 0xfe; /* use -2 in lea ins */
+		GNX(Cp, pseq, sizeof(pseq));
 #if 0		// unused "extended PVI", if used should move to separate op
 		if (!V86MODE() && IOPL < 3 && (TheCPU.cr[4] & CR4_PVI)) {
 		    /* This solves the DOSX 'System test 8' error.
@@ -1258,171 +1176,10 @@ shrot0:
 			G4M(0x13,0xc1,0xd0,0x0a,Cp);
 		}
 #endif
-		// leal (%%esi,%%ecx,1),%%edx
-		G3M(0x8d,0x14,0x0e,Cp);
-		if (mode&DATA16) {
-			// movw %%ax,(%%edx,%%ebp,1)
-			G4M(0x66,0x89,0x04,0x2a,Cp);
-		} else {
+		if (!(mode&DATA16)) {
 			// andl RETURN_MASK|EFLAGS_IF,%%eax
 			G1(0x25,Cp); G4(RETURN_MASK|EFLAGS_IF,Cp);
-			// movl %%eax,(%%edx,%%ebp,1)
-			G3M(0x89,0x04,0x2a,Cp);
 		}
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-		GNX(Cp, pseqpost, sizeof(pseqpost));
-#endif
-		// movl %%ecx,Ofs_ESP(%%ebx)
-		G3M(0x89,0x4b,Ofs_ESP,Cp);
-		} break;
-
-	case O_PUSHI: {
-		const unsigned char pseq16[] = {
-			// movw $immed,%%ax
-/*00*/			0xb8,0,0,0,0,
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -2(%%ecx),%%ecx
-			0x8d,0x49,0xfe,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%edx
-			0x8d,0x14,0x0e,
-			// movw %%ax,(%%edx,%%ebp,1)
-			0x66,0x89,0x04,0x2a,
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char pseq32[] = {
-			// movl $immed,%%eax
-/*00*/			0xb8,0,0,0,0,
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -4(%%ecx),%%ecx
-			0x8d,0x49,0xfc,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%edx
-			0x8d,0x14,0x0e,
-			// movw %eax,(%%edx,%%ebp,1)
-			0x89,0x04,0x2a,
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char *p;
-		unsigned char *q;
-		int sz;
-		if (mode&DATA16) {
-			p = pseq16,sz=sizeof(pseq16);
-		}
-		else {
-			p = pseq32,sz=sizeof(pseq32);
-		}
-		q=Cp; GNX(Cp, p, sz);
-		*((int *)(q+1)) = IG->p0;
-		} break;
-
-	case O_POP: {
-		const unsigned char pseq16[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%edx
-			0x8d,0x14,0x0e,
-			// movw (%%edx,%%ebp,1),%%ax,
-			0x66,0x8b,0x04,0x2a,
-			// leal 2(%%ecx),%%ecx
-/*10*/			0x8d,0x89,0x02,0x00,0x00,0x00,
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-#endif
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char pseq32[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%edx
-			0x8d,0x14,0x0e,
-			// movl (%%edx,%%ebp,1),%%eax
-			0x90,0x8b,0x04,0x2a,
-			// leal 4(%%ecx),%%ecx
-/*10*/			0x8d,0x89,0x04,0x00,0x00,0x00,
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-#endif
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char *p; int sz;
-		unsigned char *q;
-		if (mode&(SEGREG|DATA16)) p=pseq16,sz=sizeof(pseq16);
-			else p=pseq32,sz=sizeof(pseq32);
-		// for popping into memory the sequence is:
-		//	first do address calculation, then pop,
-		//	then store data, and last adjust stack
-		q = Cp; GNX(Cp, p, sz);
-		if ((mode & (SEGREG|DATA16)) == SEGREG) {
-			// use pseq16 but +4 for 32-bit segreg
-			// mirroring recent Intel CPUs
-			q[12] = 0x04;
-		}
-		if (mode&MRETISP)
-			/* adjust stack after pop */
-			*(int32_t *)(q+0x12) += IG->p0;
 		} break;
 
 /* POP derived (sub-)sequences: */
@@ -1500,77 +1257,6 @@ shrot0:
 #endif
 		// movl %%esi,Ofs_ESP(%%ebx)
 		G3M(0x89,0x73,Ofs_ESP,Cp);
-		} break;
-
-	case O_LEAVE: {
-		const unsigned char pseq16[] = {
-			// movzwl Ofs_BP(%%ebx),%%ecx
-			0x0f,0xb7,0x4b,Ofs_EBP,
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%edx
-			0x8d,0x14,0x0e,
-			// movw (%%edx,%%ebp,1),%%ax
-			0x66,0x8b,0x04,0x2a,
-			// movw %%ax,Ofs_BP(%%ebx)
-			0x66,0x89,0x43,Ofs_BP,
-			// leal 2(%%ecx),%%ecx
-			0x8d,0x49,0x02,
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-#endif
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char pseq32[] = {
-			// movl Ofs_EBP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_EBP,
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// leal (%%esi,%%ecx,1),%%edx
-			0x8d,0x14,0x0e,
-			// movl (%%edx,%%ebp,1),%%eax
-			0x8b,0x04,0x2a,
-			// movl %%eax,Ofs_EBP(%%ebx)
-			0x89,0x43,Ofs_EBP,
-			// leal 4(%%ecx),%%ecx
-			0x8d,0x49,0x04,
-#ifdef STACK_WRAP_MP	/* mask after incrementing */
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-#endif
-#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
-			// movl StackMask(%%ebx),%%edx
-			0x8b,0x53,Ofs_STACKM,
-			// notl %%edx
-			0xf7,0xd2,
-			// andl Ofs_ESP(%%ebx),%%edx
-			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ecx
-			0x09,0xd1,
-#endif
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		const unsigned char *p; int sz;
-		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
-			else p=pseq32,sz=sizeof(pseq32);
-		GNX(Cp, p, sz);
 		} break;
 
 	case O_INT: {

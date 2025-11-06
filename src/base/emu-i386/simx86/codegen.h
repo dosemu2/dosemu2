@@ -123,9 +123,6 @@
 #define O_AND_FR	78
 #define O_XOR_FR	79
 
-#define O_PUSH		80
-#define O_PUSHI		81
-#define O_POP		82
 #define O_PUSH1		85
 #define O_PUSH2		86
 #define O_PUSH2F	87
@@ -133,7 +130,6 @@
 #define O_POP1		89
 #define O_POP2		90
 #define O_POP3		91
-#define O_LEAVE		92
 
 #define O_SIM		100
 

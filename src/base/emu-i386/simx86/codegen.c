@@ -209,13 +209,11 @@ void Gen(int op, int mode, ...)
 	case O_DEC:
 	case O_MUL:
 	case O_CBWD:
-	case O_PUSH:
 	case O_PUSH1:
 	case O_PUSH2F:
 	case O_PUSH3:
 	case O_POP1:
 	case O_POP3:
-	case O_LEAVE:
 	case O_MOVS_MovD:
 	case O_MOVS_LodD:
 	case O_MOVS_StoD:
@@ -251,12 +249,11 @@ void Gen(int op, int mode, ...)
 	case O_DEC_R:
 	case O_DIV:
 	case O_IDIV:
-	case O_PUSHI:
-	case O_PUSH2:
 	case JMP_TAILCODE:
 		IG->p0 = va_arg(ap,unsigned int);
 		break;
 
+	case O_PUSH2:
 	case O_POP2:
 		if (!(mode & MNOREG) || (mode & MRETISP))
 			IG->p0 = va_arg(ap,unsigned int);
@@ -316,11 +313,6 @@ void Gen(int op, int mode, ...)
 			if (n==2) IG->p2 = va_arg(ap,unsigned int);
 		}
 		break;
-
-	case O_POP:
-		if (mode & MRETISP) IG->p0 = va_arg(ap,unsigned int);
-		break;
-
 
 	case O_SLAHF:
 		rcod = va_arg(ap,unsigned int)&1;	// 0=LAHF 1=SAHF
