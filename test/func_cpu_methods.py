@@ -69,23 +69,24 @@ $_ignore_djgpp_null_derefs = (off)
         diff = unified_diff(refoutput, dosoutput, fromfile=reffile.name, tofile=dosfile.name)
         self.fail('differences detected\n' + ''.join(list(diff)))
 
-TESTS = (
-#   cpu (native, kvm, jit, sim),  dpmi(native, kvm, remote)
-
+EMU_TESTS = (
     ('native', 'native'), #  CPU native vm86(i386 only) + native DPMI
-    ('kvm',    'native'), #  CPU KVM vm86 + native DPMI
+
     ('jit',    'native'), #  CPU JIT vm86 + native DPMI
     ('sim',    'native'), #  CPU simulated vm86 + native DPMI
 
+    ('jit',    'jit'),    #  CPU JIT vm86 + JIT DPMI
+    ('sim',    'sim'),    #  CPU simulated vm86 + simulated DPMI
+)
+
+KVM_TESTS = (
+    ('kvm',    'native'), #  CPU KVM vm86 + native DPMI
     ('kvm',    'kvm'),    #  CPU KVM vm86 + KVM DPMI
+    ('kvm',    'jit'),    #  CPU KVM vm86 + JIT DPMI
+    ('kvm',    'sim'),    #  CPU KVM vm86 + simulated DPMI
+
     ('jit',    'kvm'),    #  CPU JIT vm86 + KVM DPMI
     ('sim',    'kvm'),    #  CPU simulated vm86 + KVM DPMI
-
-    ('kvm',    'jit'),    #  CPU KVM vm86 + JIT DPMI
-    ('jit',    'jit'),    #  CPU JIT vm86 + JIT DPMI
-
-    ('kvm',    'sim'),    #  CPU KVM vm86 + simulated DPMI
-    ('sim',    'sim'),    #  CPU simulated vm86 + simulated DPMI
 )
 
 
@@ -112,8 +113,11 @@ def create_test(test):
 
 
 def cpu_create_items(testcase):
+
+    tests = KVM_TESTS if testcase.use_cpu == 'kvm' else EMU_TESTS
+
     # Insert each test into the testcase
-    for test in TESTS:
+    for test in tests:
         name = 'test_cpu_method_%s_%s' % test
         setattr(testcase, name, create_test(test))
 

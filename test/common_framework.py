@@ -132,6 +132,7 @@ def get_test_binaries():
 class BaseTestCase(object):
 
     attrs = []
+    use_cpu = None
 
     @classmethod
     def setUpClass(cls):
@@ -184,23 +185,40 @@ class BaseTestCase(object):
             if machine() == 'i686':
                 cls.have_vm86 = True
 
+            if cls.use_cpu == 'emu':
+                print(" \nUsing Emulation", file=stderr, flush=True)
+                return
+
+            reason = ""
             try:
-                with open("/dev/kvm", "r+b") as f:
+                with open("/dev/kvm", "r+b"):
                     major, minor = release().split('.')[0:2]
                     if not (major == '6' and minor in ['11', '12', '13']):
                         if environ.get("NO_KVM", '0') == '1':
-                            print(" \nUsable KVM found but NO_KVM=1 - Disabling", file=stderr, flush=True)
+                            reason = "NO_KVM=1"
                         else:
-                            print(" \nUsable KVM found", file=stderr, flush=True)
                             cls.have_kvm = True
                     else:
-                        print(" \nUsable KVM found but blacklisted kernel (6.11 - 6.13) - Disabling", file=stderr, flush=True)
+                        reason = "Blacklisted kernel [6.11 - 6.13]"
 
             except FileNotFoundError:
                 pass
             except PermissionError:
                 op = check_output(["getfacl", "/dev/kvm"])
-                print(" \nPermissions wrong on /dev/kvm\n%s" % op.decode('ASCII'), file=stderr, flush=True)
+                reason = "Permissions wrong on /dev/kvm\n%s" % op.decode('ASCII')
+
+            if cls.use_cpu == 'kvm':
+                if not cls.have_kvm:
+                    print(" \nUsing KVM ", end='', file=stderr, flush=True)
+                    raise unittest.SkipTest("KVM not available: %s" % reason)
+                print(" \nUsing KVM", file=stderr, flush=True)
+                return
+
+            # No use_cpu specified, use whatever
+            if cls.have_kvm:
+                print(" \nUsable KVM found", file=stderr, flush=True)
+            else:
+                print(" \nUsable KVM not found, falling back to emulation: %s" % reason , file=stderr, flush=True)
 
     @classmethod
     def tearDownClass(cls):
@@ -523,7 +541,7 @@ class BaseTestCase(object):
                 "-td",
                 #    "-Da",
                 "--Fimagedir", str(self.imagedir)]
-        if environ.get("NO_KVM", '0') == '1':
+        if environ.get("NO_KVM", '0') == '1' or self.use_cpu == 'emu':
             args.extend(["-z", "0"])
 
         if opts is not None:
@@ -579,7 +597,7 @@ class BaseTestCase(object):
                 "-o", str(self.topdir / self.logfiles['log'][0]),
                 "-td",
                 "-ks"]
-        if environ.get("NO_KVM", '0') == '1':
+        if environ.get("NO_KVM", '0') == '1' or self.use_cpu == 'emu':
             args.extend(["-z", "0"])
         args.extend(xargs)
 
