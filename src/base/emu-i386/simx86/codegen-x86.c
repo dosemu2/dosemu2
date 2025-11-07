@@ -104,6 +104,7 @@
 #include "emu86.h"
 #include "cpatch.h"
 #include "codegen-x86.h"
+#include "misc/dis8086.h"
 
 static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
@@ -1897,12 +1898,11 @@ shrot0:
 #endif
 		    {
 			if ((ra > -127) && (ra < 128)) {
-			    ra -= 1; G1(JMPsid,Cp);
+			    ra -= 1; G1(JMPsid,Cp); G1(ra,Cp);
 			}
 			else {
-			    ra -= 4; G1(JMPd,Cp);
+			    ra -= 4; G1(JMPd,Cp); G4(ra,Cp);
 			}
-			G4(ra,Cp);
 		    }
 		    break;
 		}
@@ -1999,6 +1999,26 @@ shrot0:
 		break;
 
 	}
+
+#ifdef USE_MHPDBG
+	CpTemp = CodePtr;
+	if (debug_level('e')>7) do {
+		static char frmtbuf[256];
+		int i;
+		unsigned int ref;
+		int rc = dis_8086((uintptr_t)CpTemp, frmtbuf, 5, &ref, 0);
+		dbug_printf("%16p: ", CpTemp);
+		for (i=0; i < 11; i++) {
+			if (i < rc)
+				dbug_printf("%02x", CpTemp[i]);
+			else
+				dbug_printf("%s", "  ");
+		}
+		dbug_printf("%s\n", frmtbuf);
+		CpTemp += rc;
+	} while (CpTemp < Cp);
+#endif
+
 #if PROFILE >= 2
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
