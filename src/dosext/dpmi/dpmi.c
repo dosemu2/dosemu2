@@ -5005,6 +5005,30 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
   if (mhpdbg.active && tf)
     _eflags |= TF;
 #endif
+
+  /* DJGPP's int75 pm handler for example does not use fnclex;
+     if we can't emulate IGNNE we can force the fnclex if needed
+     here, just before returning to the faulting instruction,
+     as a workaround */
+  if (fpu_get_ignne()) {
+    fpu_clear_ignne();
+    if (config.cpu_vm_dpmi == CPUVM_KVM)
+      kvm_get_fpu();
+    if (vm86_fpu_state.swd & 0x80) {
+      // 0x80 = FPU_ES, set when an unmasked FP exception has
+      // occurred. In real DOS after outb(0xf0,0) is done, IGNNE
+      // is active until the FPU_ES bit is no longer set, and
+      // will mask all further FPU exceptions.
+      // As that's hard to do we force an fnclex if not already
+      // done so in the int75 handler to avoid retriggering a
+      // floating point exception; the best we can do without single
+      // stepping. See also bios.S for the real mode handler.
+      D_printf("DPMI: forcing fnclex\n");
+      vm86_fpu_state.swd &= 0x7f00;
+      if (config.cpu_vm_dpmi == CPUVM_KVM)
+	kvm_update_fpu();
+    }
+  }
 }
 
 static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)

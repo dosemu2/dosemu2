@@ -1581,8 +1581,10 @@ int true_kvm_dpmi(cpuctx_t *scp)
 	_eip -= 2;
     }
 
-#if 0
     if (_trapno == 0x10) {
+        kvm_get_fpu(); // needed for the swd check in the port f0 handler
+    }
+#if 0
         struct kvm_fpu fpu;
         ioctl(vcpufd, KVM_GET_FPU, &fpu);
 #ifdef __x86_64__

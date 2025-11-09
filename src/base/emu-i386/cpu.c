@@ -279,6 +279,18 @@ static void fpu_reset(void)
     kvm_update_fpu();
 }
 
+static int fpu_ignne;
+
+int fpu_get_ignne(void)
+{
+  return fpu_ignne;
+}
+
+void fpu_clear_ignne(void)
+{
+  fpu_ignne = 0;
+}
+
 static Bit8u fpu_io_read(ioport_t port, void *arg)
 {
   return 0xff;
@@ -290,9 +302,14 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
   case 0xf0:
     /* We need to check if the FPU exception is pending, and set IGNNE
      * if it is, before untriggering an IRQ. But we don't (and probably
-     * can't) emulate IGNNE properly. So the trick is to do fnclex in
+     * can't) always emulate IGNNE properly. So the trick is to do fnclex in
      * bios.S, then untrigger IRQ unconditionally. */
     pic_untrigger(13); /* done by default via int75 handler in bios.S */
+    /* DJGPP's int75 pm handler for example does not use fnclex;
+       but we can force it in return_from_hw_int() in dpmi.c, so
+       this only makes sense in DPMI, as this variable is not checked in RM */
+    if (in_dpmi_pm()) // this also implies we are not using the handler in bios.S
+      fpu_ignne = !!(vm86_fpu_state.swd & 0x80);
     break;
   case 0xf1:
     fpu_reset();
