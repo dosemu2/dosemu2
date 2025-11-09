@@ -5216,5 +5216,15 @@ if __name__ == '__main__':
 
     cpu_create_items(OurTestCase)
 
-    argv = main_setup(OurTestCase)
-    main(argv)
+    cases = [
+        PPDOSGITTestCase,
+        MSDOS622TestCase,
+        DRDOS701TestCase,
+        FRDOS120TestCase,
+        FRDOS130TestCase,
+        FRDOSGITTestCase,
+        MSDOS700TestCase,
+        MSDOS710TestCase,
+    ]
+    xargv = main_setup(cases)
+    main(xargv)
