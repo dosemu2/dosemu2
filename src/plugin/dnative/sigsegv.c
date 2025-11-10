@@ -287,11 +287,7 @@ static void dosemu_fault1(int signum, sigcontext_t *scp, const siginfo_t *si)
     int ret;
     assert(config.cpu_vm_dpmi == CPUVM_NATIVE);
     if (_scp_trapno == 0x10) {
-      dbug_printf("coprocessor exception, calling IRQ13\n");
       print_exception_info(scp);
-      raise_fpu_irq();
-      dpmi_return(scp, DPMI_RET_DOSEMU);
-      return;
     }
 
     /* Not in dosemu code: dpmi_fault() will handle that */

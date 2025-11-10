@@ -1582,6 +1582,8 @@ int true_kvm_dpmi(cpuctx_t *scp)
     }
 
     if (_trapno == 0x10) {
+        kvm_get_fpu(); // needed for the swd check in the port f0 handler
+    }
 #if 0
         struct kvm_fpu fpu;
         ioctl(vcpufd, KVM_GET_FPU, &fpu);
@@ -1605,12 +1607,9 @@ int true_kvm_dpmi(cpuctx_t *scp)
         __fpstate->datasel = _ds;
 #endif
         print_exception_info(scp);
-#endif
-        dbug_printf("coprocessor exception, calling IRQ13\n");
-        raise_fpu_irq();
-        ret = DPMI_RET_DOSEMU;
       } else
-	ret = DPMI_RET_FAULT;
+#endif
+      ret = DPMI_RET_FAULT;
   }
 #if USE_INSTREMU
   else if (exit_reason == KVM_EXIT_MMIO) {
