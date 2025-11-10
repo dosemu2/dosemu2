@@ -137,8 +137,15 @@ numwrite:
 
     results = self.runDosemu("testit.bat")
 
-    buffer1 = (self.workdir / 'psp_dump.bin').read_bytes()[0x80:]
-    buffer2 = (self.workdir / 'env_dump.bin').read_bytes()
+    try:
+        buffer1 = (self.workdir / 'psp_dump.bin').read_bytes()[0x80:]
+    except:
+        raise self.failureException("Read error on 'psp_dump.bin'") from None
+    try:
+        buffer2 = (self.workdir / 'env_dump.bin').read_bytes()
+    except:
+        raise self.failureException("Read error on 'env_dump.bin'") from None
+
     endofenv = buffer2.find(b'\x00\x00')
     if endofenv != -1:
         buffer2 = buffer2[0:endofenv + 2]

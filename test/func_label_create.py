@@ -172,7 +172,10 @@ int main(int argc, char *argv[])
     elif itype in ['bpb12', 'bpb16', 'bpb32']:
         fat = itype[3:5]
         img = self.topdir / IMAGEDIR / ("fat%s.img" % fat)
-        data = img.read_bytes()
+        try:
+            data = img.read_bytes()
+        except:
+            raise self.failureException("Read error on '%s'" % img.name) from None
         if data[0x26] == 0x29:      # v4 BPB
             v1 = 0x2b
             v2 = v1 + len(name)
