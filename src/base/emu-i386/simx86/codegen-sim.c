@@ -2872,6 +2872,24 @@ static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
 	if (m&DATA16) CPUWORD(o)=v; else CPULONG(o)=v;
 }
 
+static int check_stack_limit(unsigned int sp, unsigned int size)
+{
+	unsigned int limit = TheCPU.ss_cache.BoundH - TheCPU.ss_cache.BoundL;
+	unsigned int top = (sp + size - 1) & TheCPU.StackMask;
+	unsigned short wFlags = GetSelectorFlags(TheCPU.ss);
+	sp &= TheCPU.StackMask;
+	if (wFlags & DF_EXPANDDOWN) {
+		if (size <= TheCPU.StackMask - limit && sp > limit)
+			return 1;
+	}
+	else {
+		if (size <= limit && top <= limit)
+			return 1;
+	}
+	TheCPU.err = EXCP0C_STACK;
+	return 0;
+}
+
 #define POPw(sp) ({ \
 	unsigned int __res = sim_read_word(LONG_SS + sp); \
 	sp += 2; sp &= TheCPU.StackMask; __res; })
@@ -3023,10 +3041,14 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 				break;
 			sp = rESP;
 			if (mode&DATA16) {
+				if (!check_stack_limit(sp - 4, 4))
+					break;
 				PUSHw(sp,oldcs);
 				PUSHw(sp,oldeip);
 			}
 			else {
+				if (!check_stack_limit(sp - 8, 8))
+					break;
 				PUSHwl(sp,oldcs);
 				PUSHl(sp,oldeip);
 			}
@@ -3048,11 +3070,15 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 				unsigned int cs, eip;
 				unsigned int sp = rESP & TheCPU.StackMask;
 				if (mode&DATA16) {
+					if (!check_stack_limit(sp, (opc == IRET ? 6 : 4)))
+						break;
 					eip = POPw(sp);
 					cs = POPw(sp);
 					if (opc == IRET) temp = POPw(sp);
 				}
 				else {
+					if (!check_stack_limit(sp, (opc == IRET ? 12 : 8)))
+						break;
 					eip = POPl(sp);
 					cs = POPwl(sp);
 					if (opc == IRET) temp = POPl(sp);
