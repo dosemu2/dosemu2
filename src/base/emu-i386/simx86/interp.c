@@ -1318,7 +1318,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 					   basemode|MINHI);
 			break;
 
-/*9b*/	case oWAIT:
 /*90*/	case NOP:	//if (!IsCodeInBuf()) Gen(L_NOP, _mode);
 			Gen(L_NOP, _mode);
 			PC++;
@@ -2220,6 +2219,10 @@ repag0:
 			PC += 2;
 			break;
 
+/*9b*/	case oWAIT:
+			Gen(O_FOP, _mode, opc, 0);
+			PC++;
+			break;
 /*d8*/	case ESC0:
 /*d9*/	case ESC1:
 /*da*/	case ESC2:

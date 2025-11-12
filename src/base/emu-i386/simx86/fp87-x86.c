@@ -91,6 +91,9 @@ unsigned char *Fp87_op_x86(unsigned char *CodePtr, int exop, int reg)
 	e_printf("FPop %x.%d\n", exop, reg);
 
 	switch(exop) {
+/*9b*/	case oWAIT:
+		G1(exop,Cp);
+		break;
 /*01*/	case 0x01:
 /*03*/	case 0x03:
 /*05*/	case 0x05:

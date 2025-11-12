@@ -310,6 +310,9 @@ static void Fp87_op_sim(int exop, int reg, unsigned mem_ref)
 	}
 
 	switch(exop) {
+/*9b*/	case oWAIT:
+		/* only checks for exceptions, above */
+		break;
 /*01*/	case 0x01:
 /*03*/	case 0x03:
 /*05*/	case 0x05:
