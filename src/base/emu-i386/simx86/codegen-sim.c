@@ -516,18 +516,11 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		int reg = IG->p1;
 		GTRACE2("O_FPOP",exop,reg);
 		Fp87_op(exop, reg, mem_ref);
-		int exs = TheCPU.fpus & 0x7f;
 		if (debug_level('e')>3) {
 		    e_printf("  %s\n", e_trace_fp());
 		}
-		if (exs) {
-			e_printf("FPU: error status %02x\n",exs);
-			if ((exs & ~TheCPU.fpuc) & 0x3f) {
-				e_printf("FPU exception\n");
-				TheCPU.err = EXCP10_COPR;
-				P0 = FindPC((const unsigned char *)IG);
-			}
-		}
+		if (TheCPU.err == EXCP10_COPR)
+			P0 = FindPC((const unsigned char *)IG);
 		}
 		break;
 
@@ -2784,9 +2777,12 @@ static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 {
 	unsigned int P0;
 
-	if (seqflg & F_FPOP)
+	if ((seqflg & F_FPOP) && TheCPU.fpstate) {
 		/* mask all exceptions, and set rounding properly */
 		fp87_mask_except();
+		cpuemu_update_fpu();
+		TheCPU.fpstate = NULL;
+	}
 
 	FlagSync_RFL(*flg);
 	P0 = Gen_sim(SeqStart, pmem_ref, seqbase);
