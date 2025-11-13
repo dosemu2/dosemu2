@@ -750,6 +750,8 @@ DPMI_save_restore_rm:
 	lret
 	.globl	DPMI_exit
 DPMI_exit:
+	/* reset pending FPU exceptions */
+	fnclex
 	jcxz 1f
 2:
 	int $0x21
