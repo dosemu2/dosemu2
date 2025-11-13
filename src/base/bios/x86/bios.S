@@ -752,6 +752,10 @@ DPMI_save_restore_rm:
 DPMI_exit:
 	/* reset pending FPU exceptions */
 	fnclex
+	pushw %ax
+	xorb %al, %al
+	outb %al, $0xf0
+	popw %ax
 	jcxz 1f
 2:
 	int $0x21
