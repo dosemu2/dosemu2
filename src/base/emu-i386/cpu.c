@@ -281,16 +281,6 @@ static void fpu_reset(void)
 
 static int fpu_ignne;
 
-int fpu_get_ignne(void)
-{
-  return fpu_ignne;
-}
-
-void fpu_clear_ignne(void)
-{
-  fpu_ignne = 0;
-}
-
 static Bit8u fpu_io_read(ioport_t port, void *arg)
 {
   return 0xff;

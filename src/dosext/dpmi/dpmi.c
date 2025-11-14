@@ -3948,7 +3948,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
   D_printf("DPMI: Calling protected mode handler for int 0x%02x\n", i);
   if (DPMI_CLIENT.is_32) {
     unsigned int *ssp = sp;
-    *--ssp = imr;
+    *--ssp = imr | (i << 8);
     *--ssp = 0;	/* reserved */
     *--ssp = 0;	/* reserved */
     *--ssp = in_dpmi_pm();
@@ -3966,7 +3966,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
     _esp -= 48;
   } else {
     unsigned short *ssp = sp;
-    *--ssp = imr;
+    *--ssp = imr | (i << 8);
     /* store the high word of EIP in case we interrupted 32bit code */
     *--ssp = HI_WORD(_eip);
     /* full ESP must be preserved */
@@ -4960,6 +4960,8 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
   int tf = _isset_TF();
 #endif
   unsigned char imr;
+  unsigned int val;
+  int inum;
   leave_lpms(scp);
       D_printf("DPMI: Return from hardware interrupt handler, "
     "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
@@ -4979,7 +4981,7 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
     dpmi_set_pm(pm);
     ssp++;  // reserve
     ssp++;  // reserve
-    imr = *ssp++;
+    val = *ssp++;
   } else {
     unsigned short *ssp = sp;
     int pm;
@@ -4996,11 +4998,14 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
     dpmi_set_pm(pm);
     _HWORD(esp) = *ssp++;
     _HWORD(eip) = *ssp++;
-    imr = *ssp++;
+    val = *ssp++;
   }
   in_dpmi_irq--;
+  imr = val & 0xff;
   port_outb(0x21, imr);
   dpmi_sti();
+  inum = val >> 8;
+
 #ifdef USE_MHPDBG
   /* allow tracing from PM hwints */
   if (mhpdbg.active && tf)
@@ -5010,9 +5015,12 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
   /* DJGPP's int75 pm handler for example does not use fnclex;
      if we can't emulate IGNNE we can force the fnclex if needed
      here, just before returning to the faulting instruction,
-     as a workaround */
-  if (fpu_get_ignne()) {
-    fpu_clear_ignne();
+     as a workaround
+     Also, in general we need to reset IGNNE via port 0xf0 to mirror
+     the bios.S handler, see
+     https://github.com/dosemu2/dosemu2/pull/2687
+   */
+  if (inum == 0x75) {
     if (config.cpu_vm_dpmi == CPUVM_KVM)
       kvm_get_fpu();
     if (vm86_fpu_state.swd & 0x80) {
@@ -5029,6 +5037,7 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
       if (config.cpu_vm_dpmi == CPUVM_KVM)
 	kvm_update_fpu();
     }
+    port_outb(0xf0, 0);
   }
 }
 
