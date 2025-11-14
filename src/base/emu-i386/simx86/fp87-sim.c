@@ -171,7 +171,7 @@ static void fxam(long double d)
    we need to save before and clear after */
 void fp87_save_except(void)
 {
-	unsigned short fps = TheCPU.fpus;
+	unsigned short fps = TheCPU.fpus & ~(FPUS_ES | FPUS_B);
 #if FE_ALL_EXCEPT > 0
 	int exceptions = fetestexcept(FE_ALL_EXCEPT);
 	if (exceptions & FE_INVALID) fps |= FPUS_IE;
