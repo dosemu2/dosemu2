@@ -1926,14 +1926,19 @@ void sig_handler(int sig, siginfo_t *info, void *puc)
 void sig_handler(int sig)
 #endif
 {
+    static int fpe_cnt;
+    int cnt = 1;
 #ifdef SA_SIGINFO
     ucontext_t *uc = puc;
 #endif
 
 #ifdef __DJGPP__
     /* clear FPU exceptions before anything else */
-    if (sig == SIGFPE)
+    if (sig == SIGFPE && (__djgpp_exception_state->__signum == 0x75 ||
+            __djgpp_exception_state->__signum == 0x10)) {
         asm volatile ("fnclex; outb %b0, $0xf0\n" ::"a"(0));
+        cnt = ++fpe_cnt;
+    }
 #endif
 
 #ifdef SA_SIGINFO
@@ -1959,7 +1964,7 @@ void sig_handler(int sig)
     }
 #endif
     printf("\n");
-    siglongjmp(jmp_env, 1);
+    siglongjmp(jmp_env, cnt);
 }
 
 #define EXCEPTION(ins,...) \
@@ -1970,6 +1975,8 @@ void test_exceptions(void)
 {
     struct sigaction act;
     volatile int val;
+    int rc;
+    uint16_t orig_fpuc, fpuc;
 
 #ifdef SA_SIGINFO
     act.sa_sigaction = sig_handler;
@@ -1999,18 +2006,23 @@ void test_exceptions(void)
         EXCEPTION("idiv %3", "=a"(divlo), "=d"(divhi): "a"(1), "d"(0),);
     }
 
-    printf("FPE exception:\n");
-    if (_sigsetjmp(jmp_env) == 0) {
-        uint16_t orig_fpuc, fpuc;
-        asm volatile ("fnclex; fnstcw  %0" : "=m"(orig_fpuc));
-        fpuc = orig_fpuc & ~0x3f;
+    asm volatile ("fnclex; fnstcw  %0" : "=m"(orig_fpuc));
+    fpuc = orig_fpuc & ~0x3f;
+    asm volatile ("fldcw %0" : "=m"(fpuc));
+    switch ((rc = _sigsetjmp(jmp_env))) {
+    case 0:
+    case 1: {
         /* now divide by zero (FP); the lret triggers a segment limit check
            in dosemu2, which DJGPP catches */
+        printf("FPE exception %i:\n", rc + 1);
         EXCEPTION("push %%cs; call 1f; jmp 2f; "
-                  "1: sti; fldcw %0; fldz; fld1; fdivp; wait; lret; "
-                  "2: fnclex; fldcw %1",
-                  : "m"(fpuc), "m"(orig_fpuc),);
+                  "1: sti; fldz; fld1; fdivp; wait; lret; "
+                  "2: fnclex", :);
+        printf("Exception didn't work\n");
+        break;
     }
+    }
+    asm volatile ("fldcw %0" : "=m"(orig_fpuc));
 
 #if !defined(__x86_64__)
     printf("BOUND exception:\n");
