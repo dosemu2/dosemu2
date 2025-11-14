@@ -275,21 +275,10 @@ static void fpu_reset(void)
   vm86_fpu_state.cwd = 0x0040;
   vm86_fpu_state.swd = 0;
 //  vm86_fpu_state.ftw = 0x5555;       //bochs
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
-    kvm_update_fpu();
 }
 
 static int fpu_ignne;
-
-int fpu_get_ignne(void)
-{
-  return fpu_ignne;
-}
-
-void fpu_clear_ignne(void)
-{
-  fpu_ignne = 0;
-}
+static int fpu_orig_mask;
 
 static Bit8u fpu_io_read(ioport_t port, void *arg)
 {
@@ -298,23 +287,35 @@ static Bit8u fpu_io_read(ioport_t port, void *arg)
 
 static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
 {
+  int old_ignne = fpu_ignne;
+  int mask = old_ignne ? fpu_orig_mask : (vm86_fpu_state.cwd & 0x7f);
+
   switch (port) {
   case 0xf0:
-    /* We need to check if the FPU exception is pending, and set IGNNE
-     * if it is, before untriggering an IRQ. But we don't (and probably
-     * can't) always emulate IGNNE properly. So the trick is to do fnclex in
-     * bios.S, then untrigger IRQ unconditionally. */
-    pic_untrigger(13); /* done by default via int75 handler in bios.S */
-    /* DJGPP's int75 pm handler for example does not use fnclex;
-       but we can force it in return_from_hw_int() in dpmi.c, so
-       this only makes sense in DPMI, as this variable is not checked in RM */
-    if (in_dpmi_pm()) // this also implies we are not using the handler in bios.S
-      fpu_ignne = !!(vm86_fpu_state.swd & 0x80);
+    pic_untrigger(13);
+    /* don't trust bit7 (ES) as it may be suppressed by our fake IGNNE,
+     * which is actually an exception mask in CWD */
+    fpu_ignne = !!(vm86_fpu_state.swd & 0x7f & ~mask);
+    /* Note: we emuate the "unrecommended" (by Intel) design where the
+     * untriggering of IGNNE requires an extra write to 0xf0 after fnclex */
+    if (fpu_ignne) {
+      if (!old_ignne)
+        fpu_orig_mask = mask;
+      vm86_fpu_state.cwd |= 0x7f;
+    } else if (old_ignne) {
+      vm86_fpu_state.cwd &= ~0x7f;
+      vm86_fpu_state.cwd |= mask;
+    }
     break;
   case 0xf1:
     fpu_reset();
     break;
   }
+
+  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+    kvm_update_fpu();
+  if (config.cpu_vm == CPUVM_EMU || config.cpu_vm_dpmi == CPUVM_EMU)
+    cpuemu_update_fpu();
 }
 
 static int fpu_is_masked(void)
