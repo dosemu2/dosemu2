@@ -1018,11 +1018,13 @@ INT75_OFF:
 			   handler hasn't already done so, so we won't
 			   get stuck (in real mode IGNNE would prevent
 			   further exceptions but we don't emulate that) */
+	pushw %ax
 	xorb %al, %al
 	outb %al, $0xf0
 	movb $0x20, %al
 	outb %al, $0xa0
 	outb %al, $0x20
+	popw %ax
 	iret
 
 /* ----------------------------------------------------------------- */
