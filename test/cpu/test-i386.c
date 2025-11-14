@@ -1930,9 +1930,11 @@ void sig_handler(int sig)
     ucontext_t *uc = puc;
 #endif
 
+#ifdef __DJGPP__
     /* clear FPU exceptions before anything else */
     if (sig == SIGFPE)
         asm volatile ("fnclex; outb %b0, $0xf0\n" ::"a"(0));
+#endif
 
 #ifdef SA_SIGINFO
     printf("si_signo=%d si_errno=%d si_code=%d",
