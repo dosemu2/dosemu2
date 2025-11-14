@@ -200,16 +200,10 @@ fp_mem:
 //*	29	D9 xx101nnn	FLDCW	2b
 		// movw	(edi,ebp,1),ax
 		G4(0x2f048b66,Cp);
-		// movl	eax,ecx
-		G2(0xc189,Cp);
-		// orb 0x3f,al
-		G2(0x3f0c,Cp);
 		// movw	ax,FPUC(ebx)
 		G3(0x438966,Cp); G1(Ofs_FPUC,Cp);
 		// fldcw FPUC(ebx)
 		G2(0x6bd9,Cp); G1(Ofs_FPUC,Cp);
-		// movw	cx,FPUC(ebx)
-		G3(0x4b8966,Cp); G1(Ofs_FPUC,Cp);
 		break;
 /*39*/	case 0x39:
 //*	39	D9 xx111nnn	FSTCW	2b
@@ -479,8 +473,6 @@ static void Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref)
 			struct float_env16 q;
 		        memcpy(&q, p, (exop == 0x21 ? 14 : 94));
 			TheCPU.fpuc = q.fpuc;
-			/* mask exceptions in real FPU control word */
-			q.fpuc |= 0x3f;
 			if (exop==0x21)
 			    __asm__ __volatile__ ("data16 fldenv %0\n" :: "m"(q));
 			else
@@ -490,8 +482,6 @@ static void Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref)
 			struct float_env32 q;
 		        memcpy(&q, p, (exop == 0x21 ? 28 : 108));
 			TheCPU.fpuc = q.fpuc;
-			/* mask exceptions in real FPU control word */
-			q.fpuc |= 0x3f;
 			if (exop==0x21)
 			    __asm__ __volatile__ ("fldenv	%0\n" :: "m"(q));
 			else

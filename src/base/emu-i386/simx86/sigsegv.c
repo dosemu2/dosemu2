@@ -421,13 +421,14 @@ int e_handle_fault(sigcontext_t *scp)
 		return 0;
 	}
 #endif
-	/* page-faults are handled not here and only DE remains */
-	if (_scp_trapno != 0) {
+	/* page-faults are handled not here and only DE and FPE remain */
+	int err = EXCP00_DIVZ + _scp_trapno;
+	if (err != EXCP00_DIVZ && err != EXCP10_COPR) {
 		error("Fault %i in jit-compiled code\n", _scp_trapno);
 		return 0;
 	}
-	TheCPU.err = EXCP00_DIVZ + _scp_trapno;
-	return e_return_from_jit(scp, 0);
+	TheCPU.err = err;
+	return e_return_from_jit(scp, (err == EXCP10_COPR));
 }
 
 /* ======================================================================= */
