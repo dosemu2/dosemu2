@@ -1928,7 +1928,13 @@ void sig_handler(int sig)
 {
 #ifdef SA_SIGINFO
     ucontext_t *uc = puc;
+#endif
 
+    /* clear FPU exceptions before anything else */
+    if (sig == SIGFPE)
+        asm volatile ("fnclex; outb %b0, $0xf0\n" ::"a"(0));
+
+#ifdef SA_SIGINFO
     printf("si_signo=%d si_errno=%d si_code=%d",
            info->si_signo, info->si_errno, info->si_code);
     printf(" si_addr=0x%08lx",
