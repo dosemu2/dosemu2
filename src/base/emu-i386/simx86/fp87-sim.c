@@ -184,6 +184,13 @@ void fp87_save_except(void)
 #else
 #warning FPU exceptions unsupported
 #endif
+	if (fps) {
+		e_printf("FPU: error status %02x\n",fps);
+		if ((fps & ~TheCPU.fpuc) & 0x3f) {
+			e_printf("FPU exception\n");
+			fps |= FPUS_ES | FPUS_B;
+		}
+	}
 	TheCPU.fpus = (fps&~FPUS_TOP)|(TheCPU.fpstt<<FPUS_TOP_BIT);
 }
 
@@ -270,7 +277,42 @@ static void Fp87_op_sim(int exop, int reg, unsigned mem_ref)
 
 	e_printf("FPop %x.%d\n", exop, reg);
 
+	if (~TheCPU.fpuc & 0x3f)
+		// always check for unmasked exception
+		// and set FPU_ES if there is one
+		fp87_save_except();
+
 	switch(exop) {
+/*31*/	case 0x31:
+/*35*/	case 0x35:
+//*	31	D9 xx110nnn	FNSTENV	14/28byte
+//	35	DD xx110nnn	FNSAVE	94/108byte
+/*39*/	case 0x39:
+//*	39	D9 xx111nnn	FNSTCW	2b
+/*3d*/	case 0x3d:
+/*67*/	case 0x67:
+//	3D	DD xx111nnn	FNSTSW	2b
+//	67.0	DF 11000000	FNSTSW	ax
+/*63*/	case 0x63:
+//	63.0*	DB 11000000	FNENI (8087)
+//	63.1*	DB 11000001	FNDISI (8087)
+//	63.2*	DB 11000010	FNCLEX
+//	63.3*	DB 11000011	FNINIT
+//	63.4*	DB 11000011	FNSETPM (80287)
+		// "nowait" instructions don't cause an exception
+		break;
+	default:
+		if (TheCPU.fpus & FPUS_ES) {
+			TheCPU.err = EXCP10_COPR;
+			return;
+		}
+		break;
+	}
+
+	switch(exop) {
+/*9b*/	case oWAIT:
+		/* only checks for exceptions, above */
+		break;
 /*01*/	case 0x01:
 /*03*/	case 0x03:
 /*05*/	case 0x05:

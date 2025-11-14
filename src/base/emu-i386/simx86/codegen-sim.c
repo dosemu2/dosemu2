@@ -516,18 +516,11 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		int reg = IG->p1;
 		GTRACE2("O_FPOP",exop,reg);
 		Fp87_op(exop, reg, mem_ref);
-		int exs = TheCPU.fpus & 0x7f;
 		if (debug_level('e')>3) {
 		    e_printf("  %s\n", e_trace_fp());
 		}
-		if (exs) {
-			e_printf("FPU: error status %02x\n",exs);
-			if ((exs & ~TheCPU.fpuc) & 0x3f) {
-				e_printf("FPU exception\n");
-				TheCPU.err = EXCP10_COPR;
-				P0 = FindPC((const unsigned char *)IG);
-			}
-		}
+		if (TheCPU.err == EXCP10_COPR)
+			P0 = FindPC((const unsigned char *)IG);
 		}
 		break;
 
@@ -2784,9 +2777,12 @@ static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 {
 	unsigned int P0;
 
-	if (seqflg & F_FPOP)
+	if ((seqflg & F_FPOP) && TheCPU.fpstate) {
 		/* mask all exceptions, and set rounding properly */
 		fp87_mask_except();
+		cpuemu_update_fpu();
+		TheCPU.fpstate = NULL;
+	}
 
 	FlagSync_RFL(*flg);
 	P0 = Gen_sim(SeqStart, pmem_ref, seqbase);
@@ -2874,6 +2870,24 @@ void sim_write_qword(dosaddr_t x, uint64_t y)
 static __inline__ void SetCPU_WL(int m, signed char o, unsigned long v)
 {
 	if (m&DATA16) CPUWORD(o)=v; else CPULONG(o)=v;
+}
+
+static int check_stack_limit(unsigned int sp, unsigned int size)
+{
+	unsigned int limit = TheCPU.ss_cache.BoundH - TheCPU.ss_cache.BoundL;
+	unsigned int top = (sp + size - 1) & TheCPU.StackMask;
+	unsigned short wFlags = GetSelectorFlags(TheCPU.ss);
+	sp &= TheCPU.StackMask;
+	if (wFlags & DF_EXPANDDOWN) {
+		if (size <= TheCPU.StackMask - limit && sp > limit)
+			return 1;
+	}
+	else {
+		if (size <= limit && top <= limit)
+			return 1;
+	}
+	TheCPU.err = EXCP0C_STACK;
+	return 0;
 }
 
 #define POPw(sp) ({ \
@@ -3027,10 +3041,14 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 				break;
 			sp = rESP;
 			if (mode&DATA16) {
+				if (!check_stack_limit(sp - 4, 4))
+					break;
 				PUSHw(sp,oldcs);
 				PUSHw(sp,oldeip);
 			}
 			else {
+				if (!check_stack_limit(sp - 8, 8))
+					break;
 				PUSHwl(sp,oldcs);
 				PUSHl(sp,oldeip);
 			}
@@ -3052,11 +3070,15 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 				unsigned int cs, eip;
 				unsigned int sp = rESP & TheCPU.StackMask;
 				if (mode&DATA16) {
+					if (!check_stack_limit(sp, (opc == IRET ? 6 : 4)))
+						break;
 					eip = POPw(sp);
 					cs = POPw(sp);
 					if (opc == IRET) temp = POPw(sp);
 				}
 				else {
+					if (!check_stack_limit(sp, (opc == IRET ? 12 : 8)))
+						break;
 					eip = POPl(sp);
 					cs = POPwl(sp);
 					if (opc == IRET) temp = POPl(sp);

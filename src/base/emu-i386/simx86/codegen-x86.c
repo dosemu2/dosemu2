@@ -2108,34 +2108,13 @@ static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
 		unsigned char *ecpu, void *SeqStart,
 		unsigned short seqflg, unsigned int *seqbase)
 {
-	unsigned ePC;
-	if (seqflg & F_FPOP) {
-		if (TheCPU.fpstate) {
-			loadfpstate(*TheCPU.fpstate);
-			TheCPU.fpstate = NULL;
-		}
-		/* mask exceptions in generated code */
-		unsigned short fpuc;
-		asm ("fstcw	%0" : "=m"(TheCPU.fpuc));
-		fpuc = TheCPU.fpuc | 0x3f;
-		asm ("fldcw	%0" :: "m"(fpuc));
-	}
-	ePC = Exec_x86_asm(mem_ref, flg, ecpu, SeqStart, seqbase);
 	/* was there at least one FP op in the sequence? */
-	if (seqflg & F_FPOP) {
-		int exs;
-		__asm__ __volatile__ ("fstsw	%0" : "=m"(exs));
-		exs &= 0x7f;
-		if (exs) {
-			e_printf("FPU: error status %02x\n",exs);
-			if ((exs & ~TheCPU.fpuc) & 0x3f) {
-				__asm__ __volatile__ ("fnclex\n" ::: "memory");
-				e_printf("FPU exception\n");
-				TheCPU.err = EXCP10_COPR;
-			}
-		}
+	if ((seqflg & F_FPOP) && TheCPU.fpstate) {
+		TheCPU.fpuc = TheCPU.fpstate->cwd;
+		loadfpstate(*TheCPU.fpstate);
+		TheCPU.fpstate = NULL;
 	}
-	return ePC;
+	return Exec_x86_asm(mem_ref, flg, ecpu, SeqStart, seqbase);
 }
 
 /////////////////////////////////////////////////////////////////////////////

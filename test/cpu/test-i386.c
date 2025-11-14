@@ -1991,6 +1991,19 @@ void test_exceptions(void)
         EXCEPTION("idiv %3", "=a"(divlo), "=d"(divhi): "a"(1), "d"(0),);
     }
 
+    printf("FPE exception:\n");
+    if (_sigsetjmp(jmp_env) == 0) {
+        uint16_t orig_fpuc, fpuc;
+        asm volatile ("fnclex; fnstcw  %0" : "=m"(orig_fpuc));
+        fpuc = orig_fpuc & ~0x3f;
+        /* now divide by zero (FP); the lret triggers a segment limit check
+           in dosemu2, which DJGPP catches */
+        EXCEPTION("push %%cs; call 1f; jmp 2f; "
+                  "1: sti; fldcw %0; fldz; fld1; fdivp; wait; lret; "
+                  "2: fnclex; fldcw %1",
+                  : "m"(fpuc), "m"(orig_fpuc),);
+    }
+
 #if !defined(__x86_64__)
     printf("BOUND exception:\n");
     if (_sigsetjmp(jmp_env) == 0) {

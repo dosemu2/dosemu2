@@ -4494,6 +4494,9 @@ smc_code2(4) = 4
 DIVZ exception:
 si_signo=289
 trapno=00000000 err=00000000 EIP=+00000002
+FPE exception:
+si_signo=289
+trapno=00000075 err=00000000 EIP=+00000015
 BOUND exception:
 si_signo=291
 trapno=00000005 err=00000000 EIP=+00000002

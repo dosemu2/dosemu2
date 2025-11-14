@@ -79,6 +79,7 @@ static void *prejit_thread(void *arg);
 static hitimer_t TotalTime;
 static void enter_cpu_emu(void);
 static void do_cpuemu_enter(int pm);
+static void save_fpu_state(void);
 
 /* This needs to be merged someday with 'mode' */
 int CEmuStat = 0;
@@ -595,8 +596,10 @@ static void Cpu2Reg(struct vm86_struct *info)
   if (TheCPU.fpstate == NULL) {
     if (!CONFIG_CPUSIM)
       savefpstate(vm86_fpu_state);
-    else
+    else {
       fp87_save_except();
+      save_fpu_state();
+    }
     fesetenv(&dosemu_fenv);
   }
 
@@ -667,8 +670,10 @@ static void Cpu2Scp(cpuctx_t *scp, int trapno)
   if (TheCPU.fpstate == NULL) {
     if (!CONFIG_CPUSIM)
       savefpstate(vm86_fpu_state);
-    else
+    else {
       fp87_save_except();
+      save_fpu_state();
+    }
     /* there is no real need to save and restore the FPU state of the
        emulator itself: savefpstate (fnsave) also resets the current FPU
        state using fninit; fesetenv then restores trapping of division by
