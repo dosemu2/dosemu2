@@ -1936,7 +1936,7 @@ void sig_handler(int sig)
     /* clear FPU exceptions before anything else */
     if (sig == SIGFPE && (__djgpp_exception_state->__signum == 0x75 ||
             __djgpp_exception_state->__signum == 0x10)) {
-        asm volatile ("fnclex; outb %b0, $0xf0\n" ::"a"(0));
+        asm volatile ("fnclex\n" ::"a"(0));
         cnt = ++fpe_cnt;
     }
 #endif
