@@ -4977,7 +4977,8 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
       leavedos(38);
     }
     dpmi_set_pm(pm);
-    ssp++;
+    ssp++;  // reserve
+    ssp++;  // reserve
     imr = *ssp++;
   } else {
     unsigned short *ssp = sp;
