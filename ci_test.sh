@@ -19,9 +19,6 @@ else
 fi
 python3 test/test_dosemu.py --get-test-binaries
 
-# Make cpu tests here so that we see any failures
-make -C test/cpu clean all
-
 export PYTHONUNBUFFERED=1
 export TEST_DOSEMU=/usr/local/bin/dosemu
 export TEST_CMDDIR=/usr/local/share/dosemu/commands

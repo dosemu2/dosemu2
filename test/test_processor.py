@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+from subprocess import check_call
+
 from common_framework import BaseTestCase, main, main_setup
 from common_os import ppdosgit
 
@@ -30,6 +32,9 @@ class EMUTestCase(ppdosgit(OurTestCase, { })):
 
 
 if __name__ == '__main__':
+
+    # Make cpu tests here so that we see any failures
+    check_call(["make", "--quiet", "-C", "test/cpu", "clean", "all"])
 
     cases = [
         EMUTestCase,
