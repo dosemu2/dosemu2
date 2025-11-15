@@ -310,6 +310,17 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
   case 0xf1:
     fpu_reset();
     break;
+  /* undocumented port for our "unrecommended" design */
+  case 0xf2:
+    if (fpu_ignne) {
+      fpu_ignne = 0;
+      /* restore mask */
+      vm86_fpu_state.cwd &= ~0x7f;
+      vm86_fpu_state.cwd |= mask;
+      /* fnclex */
+      vm86_fpu_state.swd &= 0x7f00;
+    }
+    break;
   }
 
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)

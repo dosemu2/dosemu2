@@ -5005,11 +5005,11 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
   port_outb(0x21, imr);
   dpmi_sti();
   inum = val >> 8;
-  /* w/a for CW extender, see
+  /* w/a for DJGPP, see
    * https://github.com/dosemu2/dosemu2/pull/2687
    */
   if (inum == 0x75)
-    port_outb(0xf0, 0);
+    port_outb(0xf2, 0);
 #ifdef USE_MHPDBG
   /* allow tracing from PM hwints */
   if (mhpdbg.active && tf)
