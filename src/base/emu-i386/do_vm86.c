@@ -77,7 +77,8 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
     return 0;
 
   case 0x10: /* coprocessor error */
-    raise_fpu_irq(); /* this is the 386 way of signalling this */
+    unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
+    LWORD(eip) += fpu_fpe_handler(csp);
     return 0;
 
   case 0x11: /* alignment check */
