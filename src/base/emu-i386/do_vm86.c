@@ -76,10 +76,11 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
     do_int(trapno);
     return 0;
 
-  case 0x10: /* coprocessor error */
+  case 0x10: {/* coprocessor error */
     unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
     LWORD(eip) += fpu_fpe_handler(csp);
     return 0;
+  }
 
   case 0x11: /* alignment check */
     /* we are now safe; nevertheless, fall into the default
