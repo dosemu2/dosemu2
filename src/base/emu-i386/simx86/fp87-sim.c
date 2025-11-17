@@ -196,13 +196,10 @@ void fp87_save_except(void)
 
 void fp87_mask_except(void)
 {
-	if (TheCPU.fpstate) {
-		/* For simulator, only need to mask all
-		   exceptions, and set rounding properly */
-		fesetenv(FE_DFL_ENV);
-		fp87_set_rounding();
-	}
-	TheCPU.fpstate = NULL;
+	/* For simulator, only need to mask all
+	   exceptions, and set rounding properly */
+	fesetenv(FE_DFL_ENV);
+	fp87_set_rounding();
 }
 
 static float read_float(dosaddr_t addr)
@@ -1092,7 +1089,6 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 //	25	DD xx100nnn	FRSTOR	94/108byte
 		    dosaddr_t p = mem_ref, q;
 		    TheCPU.fpuc = sim_read_word(p) | 0x40;
-		    fp87_mask_except();
 		    feclearexcept(FE_ALL_EXCEPT);
 		    fp87_set_rounding();
 		    if (reg&DATA16) {
@@ -1104,6 +1100,7 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 			q = p+28;
 		    }
 		    TheCPU.fpstt = (TheCPU.fpus>>FPUS_TOP_BIT)&7;
+		    fp87_save_except();
 		    if (exop==0x25) {
 			int i, k;
 			k = TheCPU.fpstt;
@@ -1165,7 +1162,6 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 		    unsigned fptag, ntag;
 //*	31	D9 xx110nnn	FSTENV	14/28byte
 //	35	DD xx110nnn	FSAVE	94/108byte
-		    fp87_mask_except();
 		    fp87_save_except();
 		    TheCPU.fpus = (TheCPU.fpus & ~FPUS_TOP) | (TheCPU.fpstt<<FPUS_TOP_BIT);
 //
@@ -1199,6 +1195,7 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 			q = p+28;
 		    }
 		    TheCPU.fpuc |= 0x3f;
+		    fp87_save_except();
 		    if (exop==0x35) {
 			int i, k;
 			k = TheCPU.fpstt;
