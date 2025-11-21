@@ -101,13 +101,23 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 		int flags)
 {
 	unsigned int P0 = InstrMeta[0].npc;
+	TNode *G, *nextG = NULL;
 
 	assert(InstrMeta[0].ncount > 0);
 	/* If the code doesn't terminate with a jump/loop instruction
 	 * it still lacks the tail code; add it here */
 	IMeta *GL = &InstrMeta[CurrIMeta];
 	if (GL->gen[GL->ngen-1].op < JMP_TAILCODE) {
-		JMPGen(JMP_TAILCODE, mode, PC);
+		/* almost always we get here because e_querymark() in
+		   interp_post() found code. If there is no overlap
+		   and the node is compatible we can generate a jump
+		   to it and link as well */
+		nextG = FindTree(PC);
+		if (nextG && nextG->mode == mode &&
+		    nextG->cs == Interp_LONG_CS)
+			JMPGen(JMP_LINK, mode, PC);
+		else
+			JMPGen(JMP_TAILCODE, mode, PC);
 	}
 
 	assert(PC > P0);
@@ -127,7 +137,10 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 			Fetch(abeg);
 	    }
 	}
-	return Close(PC, Interp_LONG_CS, mode, flags);
+	G = Close(PC, Interp_LONG_CS, mode, flags);
+	if (nextG)
+		NodeLinker(G, nextG);
+	return G;
 }
 
 static inline unsigned int UNPREFIX(unsigned int m)
