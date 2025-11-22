@@ -75,7 +75,7 @@
 static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
 			 unsigned char *ecpu, void *SeqStart,
-			 unsigned short seqflg, unsigned *seqbase);
+			 unsigned *seqbase);
 
 static unsigned char *currentIG = NULL;
 
@@ -2773,16 +2773,9 @@ static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGen
 
 static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
 			 unsigned char *ecpu, void *SeqStart,
-			 unsigned short seqflg, unsigned int *seqbase)
+			 unsigned int *seqbase)
 {
 	unsigned int P0;
-
-	if ((seqflg & F_FPOP) && TheCPU.fpstate) {
-		/* mask all exceptions, and set rounding properly */
-		fp87_mask_except();
-		cpuemu_update_fpu();
-		TheCPU.fpstate = NULL;
-	}
 
 	FlagSync_RFL(*flg);
 	P0 = Gen_sim(SeqStart, pmem_ref, seqbase);
@@ -3336,6 +3329,7 @@ stack_return_from_vm86:
 			if (mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
 			} break;
 
+/*9b*/	case oWAIT:
 /*d9*/	case ESC1:
 /*dd*/	case ESC5:
 			Fp87_op(arg, mode, mem_ref);

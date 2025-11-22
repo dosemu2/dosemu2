@@ -733,22 +733,6 @@ static unsigned tnode_nrefs(const TNode *G)
 	return nrefs;
 }
 
-static void _nodeflagbackrefs(TNode *LG, unsigned short flags)
-{
-	/* helper routine to flag all back references:
-	   if the current node uses FP then all nodes that link to
-	   it must be flagged as such, which is a recursive procedure
-	*/
-	backref *B;
-
-	if ((LG->flags & flags) != flags) {
-	    /* only go as far back as long as flags change */
-	    LG->flags |= flags;
-	    for (B=LG->bkr; B; B=B->next)
-		_nodeflagbackrefs(B->ref, flags);
-	}
-}
-
 static void linknode(TNode *LG, TNode *G, linkdesc *L, char branch)
 {
 	backref *B;
@@ -789,7 +773,6 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, char branch)
 			 G,G->key,G->addr,
 			 L->target, B->branch, tnode_nrefs(G), L->ref);
 	}
-	_nodeflagbackrefs(LG, G->flags & F_FPOP);
 	if (debug_level('e')>8) {
 		backref *bk = G->bkr;
 #ifdef DEBUG_LINKER

@@ -60,7 +60,7 @@
 unsigned char * (*CodeGen)(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
 		 unsigned char *ecpu, void *SeqStart,
-		 unsigned short seqflg, unsigned *seqbase);
+		 unsigned *seqbase);
 
 int UseLinker = 0;
 hitimer_u TimeStartExec;
@@ -327,8 +327,6 @@ void Gen(int op, int mode, ...)
 		break;
 
 	case O_FOP:
-		I->flags |= F_FPOP;
-		// fall through
 	case O_INT: {
 		unsigned char exop = (unsigned char)va_arg(ap,unsigned int);
 		IG->p0 = exop;
@@ -613,7 +611,7 @@ static unsigned ExecOne(TNode *G, unsigned *mem_ref, unsigned long *flg,
 	/* check links FROM LastXNode TO current node */
 	if (*pLastXKey != G->key)
 		NodeLinker(FindTree(*pLastXKey), G);
-	ePC = Exec(mem_ref, flg, ecpu, G->addr, G->flags, pLastXKey);
+	ePC = Exec(mem_ref, flg, ecpu, G->addr, pLastXKey);
 #ifdef SKIP_EMU_VBIOS
 	if ((TheCPU.cs&0xf000)==config.vbios_seg && !TheCPU.err)
 		TheCPU.err = EXCP_GOBACK;

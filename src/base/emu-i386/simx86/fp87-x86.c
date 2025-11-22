@@ -459,14 +459,20 @@ fp_ok:
 static void Fp87_op_x86_sim(int exop, int reg, unsigned mem_ref)
 {
 	e_printf("FPop %x.%d\n", exop, reg);
-	if (TheCPU.fpstate) {
-		/* load emulated FPU state into real FPU, if not already
-		   done so by Exec_x86 */
-		loadfpstate(*TheCPU.fpstate);
-		TheCPU.fpstate = NULL;
-	}
 
 	switch(exop) {
+/*9b*/	case oWAIT:
+		/* this is called with oWAIT for the first FP op in the
+		   sequence */
+		if (TheCPU.fpstate) {
+			/* load emulated FPU state into real FPU,
+			   if not already done so */
+			TheCPU.fpuc = TheCPU.fpstate->cwd;
+			loadfpstate(*TheCPU.fpstate);
+			TheCPU.fpstate = NULL;
+		}
+		break;
+
 /*21*/	case 0x21:
 /*25*/	case 0x25: {
 //*	21	D9 xx100nnn	FLDENV	14/28byte

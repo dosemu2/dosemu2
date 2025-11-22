@@ -194,7 +194,7 @@ void fp87_save_except(void)
 	TheCPU.fpus = (fps&~FPUS_TOP)|(TheCPU.fpstt<<FPUS_TOP_BIT);
 }
 
-void fp87_mask_except(void)
+static void fp87_mask_except(void)
 {
 	/* For simulator, only need to mask all
 	   exceptions, and set rounding properly */
@@ -273,6 +273,14 @@ static void Fp87_op_sim(int exop, int reg, unsigned mem_ref)
 //	5B	DB 11011nnn	FCMOVNU	st(0),st(n)
 
 	e_printf("FPop %x.%d\n", exop, reg);
+
+	/* this is called with oWAIT for the first FP op in the sequence */
+	if (exop == oWAIT && TheCPU.fpstate) {
+		/* mask all exceptions, and set rounding properly */
+		fp87_mask_except();
+		cpuemu_update_fpu();
+		TheCPU.fpstate = NULL;
+	}
 
 	if (~TheCPU.fpuc & 0x3f)
 		// always check for unmasked exception

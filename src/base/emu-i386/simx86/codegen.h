@@ -225,10 +225,9 @@ extern unsigned char * (*CodeGen)(unsigned char *CodePtr,
 				  unsigned char *BaseGenBuf, const IGen *IG);
 extern unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
 			unsigned char *ecpu, void *SeqStart,
-			unsigned short seqflg, unsigned *seqbase);
+			unsigned *seqbase);
 unsigned int DoExec(TNode *G, unsigned *LastXKey);
 void EndGen(void);
-extern void fp87_mask_except(void);
 extern void fp87_save_except(void);
 //
 static __inline__ int GoodNode(TNode *G)
