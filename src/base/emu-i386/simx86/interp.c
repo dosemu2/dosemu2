@@ -2233,9 +2233,6 @@ repag0:
 			break;
 
 /*9b*/	case oWAIT:
-			Gen(O_FOP, _mode, opc, 0);
-			PC++;
-			break;
 /*d8*/	case ESC0:
 /*d9*/	case ESC1:
 /*da*/	case ESC2:
@@ -2244,6 +2241,17 @@ repag0:
 /*dd*/	case ESC5:
 /*de*/	case ESC6:
 /*df*/	case ESC7:  {
+			if (~(InstrMeta[0].flags & F_FPOP)) {
+				/* load fp state if needed for
+				   first FPOP in sequence */
+				InstrMeta[0].flags |= F_FPOP;
+				Gen(O_SIM, _mode, oWAIT, oWAIT, P0);
+			}
+			if (opc == oWAIT) {
+				Gen(O_FOP, _mode, opc, 0);
+				PC++;
+				break;
+			}
 			unsigned char b=Fetch(PC+1);
 			// extended opcode
 			// 1101.1ooo xxeeerrr -> eeeooo,rrr

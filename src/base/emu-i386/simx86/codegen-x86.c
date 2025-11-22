@@ -109,7 +109,7 @@
 static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
 			 unsigned char *ecpu, void *SeqStart,
-			 unsigned short seqflg, unsigned *seqbase);
+			 unsigned *seqbase);
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -2043,8 +2043,8 @@ shrot0:
 #define R_REG(r) "%e"#r
 #define EXEC_CLOBBERS
 #endif
-static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
-		unsigned char *ecpu, unsigned char *SeqStart,
+static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
+		unsigned char *ecpu, void *SeqStart,
 		unsigned int *seqbase)
 {
 	unsigned ePC;
@@ -2102,19 +2102,6 @@ static unsigned Exec_x86_asm(unsigned *mem_ref, unsigned long *flg,
 	/* even though InCompiledCode is volatile, we also need a barrier */
 	asm volatile ("":::"memory");
 	return ePC;
-}
-
-static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
-		unsigned char *ecpu, void *SeqStart,
-		unsigned short seqflg, unsigned int *seqbase)
-{
-	/* was there at least one FP op in the sequence? */
-	if ((seqflg & F_FPOP) && TheCPU.fpstate) {
-		TheCPU.fpuc = TheCPU.fpstate->cwd;
-		loadfpstate(*TheCPU.fpstate);
-		TheCPU.fpstate = NULL;
-	}
-	return Exec_x86_asm(mem_ref, flg, ecpu, SeqStart, seqbase);
 }
 
 /////////////////////////////////////////////////////////////////////////////
