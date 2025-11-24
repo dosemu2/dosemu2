@@ -20,8 +20,6 @@ jobs:
     - uses: actions/checkout@v4
     - name: Setup Emscripten
       uses: mymindstorm/setup-emsdk@v14
-      with:
-        sdk: latest # You can specify a specific SDK version, e.g., '3.1.45' or 'latest-fastcomp'
 
     - name: Verify Emscripten installation
       run: emcc --version
