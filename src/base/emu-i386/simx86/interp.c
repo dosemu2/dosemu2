@@ -166,7 +166,6 @@ static void JMPGen(int op, int mode, ...)
 		Gen(L_IMM, mode, Ofs_ERR, EXCP01_SSTP);
 
 	va_start(ap, mode);
-	unsigned int P0 = InstrMeta[0].npc;
 	switch(op) {
 	case JMP_TAILCODE:
 		Gen(op, mode, va_arg(ap, unsigned int));
@@ -175,23 +174,23 @@ static void JMPGen(int op, int mode, ...)
 		Gen(op, mode);
 		break;
 	case JMP_LINK:
-		Gen(op, mode, va_arg(ap, unsigned int), P0);
+		Gen(op, mode, va_arg(ap, unsigned int));
 		break;
 	case JB_LINK:
 		Gen(op, mode, va_arg(ap, unsigned int));
-		Gen(JMP_LINK, mode, va_arg(ap, unsigned int), P0);
-		Gen(JMP_LINK, mode|CKSIGN, va_arg(ap, unsigned int), P0);
+		Gen(JMP_LINK, mode, va_arg(ap, unsigned int));
+		Gen(JMP_LINK, mode|CKSIGN, va_arg(ap, unsigned int));
 		break;
 	case JF_LINK:
 		Gen(op, mode, va_arg(ap, unsigned int));
-		Gen(JMP_LINK, mode, va_arg(ap, unsigned int), P0);
-		Gen(JMP_LINK, mode&~CKSIGN, va_arg(ap, unsigned int), P0);
+		Gen(JMP_LINK, mode, va_arg(ap, unsigned int));
+		Gen(JMP_LINK, mode&~CKSIGN, va_arg(ap, unsigned int));
 		break;
 	case JLOOP_LINK:
 		Gen(op, mode, va_arg(ap, unsigned int));
 		/* CKSIGN is likely not needed for loops */
-		Gen(JMP_LINK, mode, va_arg(ap, unsigned int), P0);
-		Gen(JMP_LINK, mode, va_arg(ap, unsigned int), P0);
+		Gen(JMP_LINK, mode, va_arg(ap, unsigned int));
+		Gen(JMP_LINK, mode, va_arg(ap, unsigned int));
 		break;
 	}
 	va_end(ap);
@@ -424,7 +423,7 @@ static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
 static unsigned int FindExecCode(unsigned int PC)
 {
 	TNode *G;
-	unsigned LastXKey = PC;
+	TheCPU.key = PC;
 
 	/* for a sequence to be found, it must begin with
 	 * an allowable opcode. Look into table.
@@ -497,7 +496,7 @@ static unsigned int FindExecCode(unsigned int PC)
 		if (seqflg & F_SPEC)
 			prejit_run(G);
 #endif
-		PC = DoExec(G, &LastXKey);
+		PC = DoExec(G);
 		// G is unreliable (maybe deleted) past this point!
 #if SPEC_PREJIT
 		if (seqflg & F_SPEC)
@@ -642,7 +641,7 @@ static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 	}
 
 	if (CurrIMeta == 0)
-		Gen(L_IMM, basemode&~DATA16, Ofs_EIP, PC - Interp_LONG_CS);
+		Gen(L_IMM, basemode&~DATA16, Ofs_KEY, PC);
 
 override:
 	switch ((opc=Fetch(PC))) {
@@ -1644,11 +1643,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			int dr = (signed short)FetchW(PC+1);
 			if (REALADDR()) {
 				Gen(O_POP1, _mode|MOPT);
-				Gen(O_POP2, _mode, Ofs_EIP);
+				Gen(O_POP2, _mode, Ofs_TEMP);
 				Gen(O_POP2, _mode|MNOREG|SEGREG|MRETISP, dr);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(O_POP3, _mode);
-				Gen(L_REG, _mode, Ofs_EIP);
+				Gen(L_REG, _mode, Ofs_TEMP);
 			}
 			else {
 				Gen(O_SIM, _mode, opc, dr, P0);
@@ -1726,11 +1725,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			/* pop from stack without adjusting esp before A_SR_* */
 			if (REALADDR()) {
 				Gen(O_POP1, _mode|MOPT);
-				Gen(O_POP2, _mode, Ofs_EIP);
+				Gen(O_POP2, _mode, Ofs_TEMP);
 				Gen(O_POP2, _mode|MNOREG|SEGREG);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(O_POP3, _mode);
-				Gen(L_REG, _mode, Ofs_EIP);
+				Gen(L_REG, _mode, Ofs_TEMP);
 			}
 			else {
 				Gen(O_SIM, _mode, opc, 0, P0);

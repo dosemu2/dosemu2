@@ -108,8 +108,7 @@
 
 static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
-			 unsigned char *ecpu, void *SeqStart,
-			 unsigned *seqbase);
+			 unsigned char *ecpu, void *SeqStart);
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -124,7 +123,7 @@ static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
  */
 
 static unsigned char TailCode[TAILSIZE+1] =
-	{ 0xb8,0,0,0,0,0x89,0xc1,0x5a,0xc3,0xf4 };
+	{ 0xb8,0,0,0,0,0x89,0x43,Ofs_KEY,0x5a,0xc3,0xf4 };
 
 /*
  * This function is only here for looking at the generated binary code
@@ -279,8 +278,10 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		G4M(0x83,0x7b,Ofs_ERR,0x00,Cp);
 		// jz skip
 		G2M(JE_JZ,TAILSIZE,Cp);
-		// movl {exit_addr},%%eax; movl %%eax, %%ecx; pop %%edx; ret
-		G1(0xb8,Cp); G4(IG->p1,Cp); G4M(0x89,0xc1,0x5a,0xc3,Cp);
+		// movl {exit_addr},%%eax; movl %%eax, %%Ofs_KEY(%%ebx)
+		G1(0xb8,Cp); G4(IG->p1,Cp); G3M(0x89,0x43,Ofs_EBX,Cp);
+		// pop %%edx; ret
+		G2M(0x5a,0xc3,Cp);
 		}
 		break;
 	case L_NOP:
@@ -289,7 +290,7 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 	// Special case: CR0&0x3f
 	case L_CR0:
 		// movl Ofs_CR0(%%ebx),%%eax
-		G3M(0x8b,0x43,Ofs_CR0,Cp);
+		G2M(0x8b,0x83,Cp); G4(Ofs_CR0,Cp);
 		// andl $0x3f,%%eax
 		G3(0x3fe083,Cp);
 		break;
@@ -1275,8 +1276,10 @@ shrot0:
 		G2M(0x73,TAILSIZE+7,Cp);
 		// movb EXCP0D_GPF, Ofs_ERR(%%ebx)
 		G2M(0xc6,0x83,Cp); G4(Ofs_ERR,Cp); G1(EXCP0D_GPF,Cp);
-		// movl {exit_addr},%%eax; mov %%eax, %%ecx; pop %%edx; ret
-		G1(0xb8,Cp); G4(jpc,Cp); G4M(0x89,0xc1,0x5a,0xc3,Cp);
+		// movl {exit_addr},%%eax; mov %%eax, Ofs_KEY(%%ebx);
+		G1(0xb8,Cp); G4(jpc,Cp); G3M(0x89,0x43,Ofs_KEY,Cp);
+		// pop %%edx; ret
+		G2M(0x5a,0xc3,Cp);
 		// address to call in edi
 		// movl $(inum*4), %edi
 		G1(0xbf,Cp); G4(intno*4, Cp);
@@ -1296,8 +1299,10 @@ shrot0:
 		G4M(0x83,0x7b,Ofs_ERR,0x00,Cp);
 		// je skip
 		G2M(JE_JZ,TAILSIZE,Cp);
-		// movl {exit_addr},%%eax; movl %eax,%ecx;  pop %%edx; ret
-		G1(MOViax,Cp); G4(IG->p2,Cp); G4M(0x89,0xc1,POPdx,RET,Cp);
+		// movl {exit_addr},%%eax; movl %eax,Ofs_KEY(%ebx);
+		G1(MOViax,Cp); G4(IG->p2,Cp); G3M(0x89,0x43,Ofs_KEY,Cp);
+		// pop %%edx; ret
+		G2M(POPdx,RET,Cp);
 
 	case O_MOVS_SetA: {
 		/* use edi for loads unless MOVSDST or REP is set */
@@ -1871,8 +1876,8 @@ shrot0:
 			G3M(0x0f,0xb7,0xc0,Cp);
 		// addl Ofs_XCS(%%ebx),%%eax
 		G3M(0x03,0x43,Ofs_XCS,Cp);
-		// movl %%eax, %%ecx // signals indirect
-		G2M(0x89,0xc1,Cp);
+		// movl %%eax, Ofs_KEY(%%ecx) // signals indirect
+		G3M(0x89,0x43,Ofs_KEY,Cp);
 		// pop %%edx; ret
 		G2M(0x5a,0xc3,Cp);
 		}
@@ -1913,14 +1918,15 @@ shrot0:
 		    G4M(0x0f,0xb7,0x4b,Ofs_EXITPEND,Cp);
 		    // jecxz {continue}: exit if exitpend not 0
 		    G2M(0xe3,TAILSIZE,Cp);
-		    // movl {exit_addr},%%eax; pop %%edx; movl %%eax, %%ecx; ret
-		    G1(0xb8,Cp); G4(dspt,Cp); G4M(0x89,0xc1,0x5a,0xc3,Cp);
+		    // movl {exit_addr},%%eax; movl %%eax,Ofs_KEY(%%ebx)
+		    G1(0xb8,Cp); G4(dspt,Cp); G3M(0x89,0x43,Ofs_KEY,Cp);
+		    // pop %%edx; ret
+		    G2M(0x5a,0xc3,Cp);
 	        }
-		// mov [node_pc], %%ecx
-		G1(0xb9,Cp); G4(IG->p1,Cp);
 		// t:	b8 [exit_pc] 5a c3
 		G1(0xb8,Cp);
 		G4(dspt,Cp); G2(0xc35a,Cp);
+		G5(0x9090909090,Cp); // padding for 64-bit jump
 		if (debug_level('e')>2) e_printf("JMP_Link %08x %08x\n", dspt, IG->p1);
 		}
 		break;
@@ -2044,8 +2050,7 @@ shrot0:
 #define EXEC_CLOBBERS
 #endif
 static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
-		unsigned char *ecpu, void *SeqStart,
-		unsigned int *seqbase)
+		unsigned char *ecpu, void *SeqStart)
 {
 	unsigned ePC;
 	void *jb;
@@ -2066,14 +2071,14 @@ static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
 		"call	1f\n"		/* save return addr		*/
 		"jmp	2f\n"
 		"1:\n"
-		"push	%5\n"
-		"jmp	*%6\n"
+		"push	%4\n"
+		"jmp	*%5\n"
 		"2:\n"
 #ifdef __x86_64__
 		"movq	%%r12,%%rsp\n"
 #endif
 		"pop	"RE_REG(bp)"\n"
-		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref),"=c"(*seqbase)
+		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref)
 		: "b"(ecpu),"d"(*flg),"a"(GetExecCodeBuf(SeqStart)),
 		  [mb]"D"(jb)  // don't use "r" or can assign to %rbp
 		/* Note: we need to clobber "class-less" regs (like %rbp) even

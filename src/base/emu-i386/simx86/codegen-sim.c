@@ -74,8 +74,7 @@
 
 static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
-			 unsigned char *ecpu, void *SeqStart,
-			 unsigned *seqbase);
+			 unsigned char *ecpu, void *SeqStart);
 
 static unsigned char *currentIG = NULL;
 
@@ -463,8 +462,7 @@ static void Gen_S_DI(const IGen *IG, dosaddr_t addr, unsigned v)
 	if (debug_level('e')>3) dbug_printf("(V) %08x\n",v);
 }
 
-static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
-			    unsigned int *seqbase)
+static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 {
     /* working registers of the host CPU */
     wkreg DR1;	// "eax"
@@ -2621,7 +2619,7 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 
 	case JMP_TAILCODE: {	// retaddr
 		P0 = (unsigned int)IG->p0;
-		*seqbase = P0;
+		TheCPU.key = P0;
 		if (debug_level('e')>2) {
 			dbug_printf("** Tail code: return from %08x\n",P0);
 		} }
@@ -2629,19 +2627,20 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 
 	case JMP_INDIRECT:
 		P0 = LONG_CS + ((mode & DATA16) ? DR1.w.l : DR1.d);
-		*seqbase = P0;
+		TheCPU.key = P0;
 		if (debug_level('e')>2)
 			dbug_printf("** Jump taken to %08x\n",P0);
 		break;
 
 	case JMP_LINK:		// dspt
-		if ((IG->mode & MLINK) &&
-		    !((IG->mode & CKSIGN) && exit_pending())) {
+		if ((IG->mode & CKSIGN) && exit_pending()) {
+			TheCPU.key = IG->p0;
+		}
+		else if (IG->mode & MLINK) {
 			IG = (IGen *)IG->link;
 			continue;
 		}
 		P0 = (unsigned int)IG->p0;
-		*seqbase = IG->p1;
 		if (debug_level('e')>2) {
 			dbug_printf("** Jump taken to %08x\n",P0);
 		}
@@ -2679,13 +2678,14 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 		case JCXZ:
 			IG += ((mode&ADDR16? rCX : rECX) == 0); break;
 		}
-		if ((IG->mode & MLINK) &&
-		    !((IG->mode & CKSIGN) && exit_pending())) {
+		if ((IG->mode & CKSIGN) && exit_pending()) {
+			TheCPU.key = IG->p0;
+		}
+		else if (IG->mode & MLINK) {
 			IG = (IGen *)IG->link;
 			continue;
 		}
 		P0 = IG->p0;
-		*seqbase = IG->p1;
 		if (debug_level('e')>2 && (IG-1)->op == JMP_LINK)
 			dbug_printf("** Jump taken to %08x\n",P0);
 		}
@@ -2708,7 +2708,6 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref,
 			continue;
 		}
 		P0 = IG->p0;
-		*seqbase = IG->p1;
 		if (debug_level('e')>2 && (IG-1)->op == JMP_LINK)
 			dbug_printf("** Jump taken to %08x\n",P0);
 		}
@@ -2772,16 +2771,15 @@ static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGen
 }
 
 static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
-			 unsigned char *ecpu, void *SeqStart,
-			 unsigned int *seqbase)
+			 unsigned char *ecpu, void *SeqStart)
 {
 	unsigned int P0;
 
 	FlagSync_RFL(*flg);
-	P0 = Gen_sim(SeqStart, pmem_ref, seqbase);
+	P0 = Gen_sim(SeqStart, pmem_ref);
 	currentIG = NULL;
 	*flg = FlagSync_All();
-	if (TheCPU.err) *seqbase = P0;
+	if (TheCPU.err) TheCPU.key = P0;
 
 	return P0;
 }

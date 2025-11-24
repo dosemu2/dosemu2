@@ -224,9 +224,8 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONGCS, int mode, int flags);
 extern unsigned char * (*CodeGen)(unsigned char *CodePtr,
 				  unsigned char *BaseGenBuf, const IGen *IG);
 extern unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
-			unsigned char *ecpu, void *SeqStart,
-			unsigned *seqbase);
-unsigned int DoExec(TNode *G, unsigned *LastXKey);
+			unsigned char *ecpu, void *SeqStart);
+unsigned int DoExec(TNode *G);
 void EndGen(void);
 extern void fp87_save_except(void);
 //

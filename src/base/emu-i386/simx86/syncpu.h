@@ -56,7 +56,7 @@ typedef struct {
 /*20*/	unsigned int edx;
 /*24*/	unsigned int ecx;
 /*28*/	unsigned int eax;
-/*2c*/	unsigned int eip;
+/*2c*/	unsigned int key;
 /*30*/	unsigned int eflags;
 /*34*/	unsigned short es, cs, ss, ds, fs, gs;
 /*40*/	SDTR es_cache;
@@ -71,11 +71,13 @@ typedef struct {
 /*72*/	/*sig_atomic_t*/unsigned short exit_pending;
 /*74*/	unsigned int StackMask;
 /*78*/ 	unsigned int df_increments; /* either 0x040201 or 0xfcfeff */
+/*7c*/	unsigned int temp;
 	/* begin of cr array */
-/*7c*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
 /* ------------------------------------------------ */
-/*80*/	//unsigned int end_mark[0] = cr[1]
+/*80*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
 	unsigned int tr[2];
+
+	unsigned int eip;
 
 	unsigned int mode;
 	unsigned int sreg1;
@@ -128,8 +130,8 @@ typedef struct {
 	emu_fpregset_t fpstate;
 } SynCPU;
 
-/* JIT uses byte offsets, make sure cr[0] is still ok */
-static_assert(offsetof(SynCPU,cr[1]) == 128);
+/* JIT uses byte offsets, make sure temp is still ok */
+static_assert(offsetof(SynCPU,temp) == 124);
 
 struct _SynCPU {
 #ifdef X86_JIT
@@ -170,7 +172,7 @@ extern struct _SynCPU TheCPU_struct;
 #define Ofs_ESI		(offsetof(SynCPU,esi))
 #define rEDI		TheCPU.edi
 #define Ofs_EDI		(offsetof(SynCPU,edi))
-#define Ofs_EIP		(offsetof(SynCPU,eip))
+#define Ofs_KEY		(offsetof(SynCPU,key))
 
 #define Ofs_CS		(offsetof(SynCPU,cs))
 #define Ofs_DS		(offsetof(SynCPU,ds))
@@ -196,6 +198,7 @@ extern struct _SynCPU TheCPU_struct;
 #define Ofs_XFS		(offsetof(SynCPU,fs_cache))
 #define Ofs_XGS		(offsetof(SynCPU,gs_cache))
 
+#define Ofs_TEMP	(offsetof(SynCPU,temp))
 #define Ofs_ERR		(offsetof(SynCPU,err))
 #define Ofs_SCP_ERR		(offsetof(SynCPU,scp_err))
 #define Ofs_int_revectored	(offsetof(SynCPU,int_revectored))
