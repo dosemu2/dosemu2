@@ -642,7 +642,7 @@ static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 	}
 
 	if (CurrIMeta == 0)
-		Gen(L_IMM, basemode&~DATA16, Ofs_EIP, PC - Interp_LONG_CS);
+		Gen(L_IMM, basemode&~DATA16, Ofs_KEY, PC);
 
 override:
 	switch ((opc=Fetch(PC))) {
@@ -1644,11 +1644,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			int dr = (signed short)FetchW(PC+1);
 			if (REALADDR()) {
 				Gen(O_POP1, _mode|MOPT);
-				Gen(O_POP2, _mode, Ofs_EIP);
+				Gen(O_POP2, _mode, Ofs_TEMP);
 				Gen(O_POP2, _mode|MNOREG|SEGREG|MRETISP, dr);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(O_POP3, _mode);
-				Gen(L_REG, _mode, Ofs_EIP);
+				Gen(L_REG, _mode, Ofs_TEMP);
 			}
 			else {
 				Gen(O_SIM, _mode, opc, dr, P0);
@@ -1726,11 +1726,11 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			/* pop from stack without adjusting esp before A_SR_* */
 			if (REALADDR()) {
 				Gen(O_POP1, _mode|MOPT);
-				Gen(O_POP2, _mode, Ofs_EIP);
+				Gen(O_POP2, _mode, Ofs_TEMP);
 				Gen(O_POP2, _mode|MNOREG|SEGREG);
 				AddrGen(A_SR_SH4, _mode, Ofs_CS, Ofs_XCS);
 				Gen(O_POP3, _mode);
-				Gen(L_REG, _mode, Ofs_EIP);
+				Gen(L_REG, _mode, Ofs_TEMP);
 			}
 			else {
 				Gen(O_SIM, _mode, opc, 0, P0);

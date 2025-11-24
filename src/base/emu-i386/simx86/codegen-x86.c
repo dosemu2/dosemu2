@@ -289,7 +289,7 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 	// Special case: CR0&0x3f
 	case L_CR0:
 		// movl Ofs_CR0(%%ebx),%%eax
-		G3M(0x8b,0x43,Ofs_CR0,Cp);
+		G2M(0x8b,0x83,Cp); G4(Ofs_CR0,Cp);
 		// andl $0x3f,%%eax
 		G3(0x3fe083,Cp);
 		break;

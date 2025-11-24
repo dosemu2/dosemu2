@@ -661,7 +661,7 @@ unsigned int FindPC(const unsigned char *addr)
   Addr2Pc *AP;
   int i;
 
-  G = FindTree(LONG_CS + TheCPU.eip);
+  G = FindTree(TheCPU.key);
   if (!G)
     return 0;
   AP = G->meta;

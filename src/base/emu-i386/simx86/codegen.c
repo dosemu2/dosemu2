@@ -716,11 +716,11 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	 */
 	if (!TheCPU.err && exit_pending()) {
 		/* checking for infinite loops, flagged in JumpGen() */
-		/* TheCPU.eip points to the first instruction of the last
-		   executed block, except for real-mode retf, which cannot
+		/* TheCPU.key points to the first instruction of the last
+		   executed block, except for indirect jumps, which cannot
 		   cause forever loops */
 		if (!(EFLAGS & (VIF|IF|TF))) {
-			TNode *LastG = FindTree(LONG_CS + TheCPU.eip);
+			TNode *LastG = FindTree(TheCPU.key);
 			seqflg = LastG ? LastG->flags : 0;
 			if (seqflg & F_SLFJ) {
 				error("!Forever loop!\n");
