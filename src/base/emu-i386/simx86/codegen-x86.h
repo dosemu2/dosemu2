@@ -37,10 +37,10 @@
 
 #include "codegen.h"
 
-#define TAILSIZE	9
+#define TAILSIZE	10
 #define JMPTAILSIZE	12
 #define TAILFIX		1
-#define CKSIGNSIZE	15
+#define CKSIGNSIZE	16
 
 /////////////////////////////////////////////////////////////////////////////
 

@@ -59,8 +59,7 @@
 
 unsigned char * (*CodeGen)(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
 unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
-		 unsigned char *ecpu, void *SeqStart,
-		 unsigned *seqbase);
+		 unsigned char *ecpu, void *SeqStart);
 
 int UseLinker = 0;
 hitimer_u TimeStartExec;
@@ -358,7 +357,6 @@ void Gen(int op, int mode, ...)
 
 	case JMP_LINK:		// dspt
 		IG->p0 = va_arg(ap,unsigned int);	// dspt
-		IG->p1 = va_arg(ap,unsigned int);	// PC of node
 		break;
 
 	case JLOOP_LINK:
@@ -587,7 +585,7 @@ static void Exec_post(unsigned long flg, unsigned int mem_ref)
 }
 
 static unsigned ExecOne(TNode *G, unsigned *mem_ref, unsigned long *flg,
-		unsigned char *ecpu, unsigned int *pLastXKey)
+		unsigned char *ecpu)
 {
 	unsigned int ePC;
 	/*
@@ -605,13 +603,13 @@ static unsigned ExecOne(TNode *G, unsigned *mem_ref, unsigned long *flg,
 	 * A complication here is that the previous node may already
 	 * be linked, so an unlinked exit will return the start PC
 	 * of the original (unlinked) block in seqbase.
-	 * Unlinkable exits are flagged using ePC==LastXKey; self-links
+	 * Unlinkable exits are flagged using ePC==TheCPU.key; self-links
 	 * are already handled at the compile stage.
 	 */
 	/* check links FROM LastXNode TO current node */
-	if (*pLastXKey != G->key)
-		NodeLinker(FindTree(*pLastXKey), G);
-	ePC = Exec(mem_ref, flg, ecpu, G->addr, pLastXKey);
+	if (TheCPU.key != G->key)
+		NodeLinker(FindTree(TheCPU.key), G);
+	ePC = Exec(mem_ref, flg, ecpu, G->addr);
 #ifdef SKIP_EMU_VBIOS
 	if ((TheCPU.cs&0xf000)==config.vbios_seg && !TheCPU.err)
 		TheCPU.err = EXCP_GOBACK;
@@ -646,7 +644,7 @@ static void HandleEmuSignals(void)
 	}
 }
 
-unsigned int DoExec(TNode *G, unsigned *pLastXKey)
+unsigned int DoExec(TNode *G)
 {
 	unsigned long flg;
 	unsigned char *ecpu;
@@ -679,7 +677,7 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	/* try fast inner loop if nothing special is going on */
 	if (!(seqflg & (F_SPEC|F_LEAV)) && !debug_level('e')) {
 		while (1) {
-			ePC = ExecOne(G, &mem_ref, &flg, ecpu, pLastXKey);
+			ePC = ExecOne(G, &mem_ref, &flg, ecpu);
 			if (TheCPU.err || exit_pending())
 				break;
 			G = FindTree(ePC);
@@ -688,7 +686,7 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 		}
 	} else
 #endif
-		ePC = ExecOne(G, &mem_ref, &flg, ecpu, pLastXKey);
+		ePC = ExecOne(G, &mem_ref, &flg, ecpu);
 	// G is unreliable (maybe deleted) past this point!
 	Exec_post(flg, mem_ref);
 
@@ -697,8 +695,8 @@ unsigned int DoExec(TNode *G, unsigned *pLastXKey)
 	    ExecTime += GETTSC() - TimeStartExec;
 #endif
 	    if (debug_level('e')>1) {
-		if (debug_level('e')>2 && *pLastXKey != ePC)
-			e_printf("New LastXKey=%08x\n",*pLastXKey);
+		if (debug_level('e')>2 && TheCPU.key != ePC)
+			e_printf("New TheCPU.key=%08x\n",TheCPU.key);
 		e_printf("** End code, PC=%08x sig=%x\n",ePC,
 		    exit_pending());
 		if ((debug_level('e')>3) && (seqflg & F_FPOP)) {
