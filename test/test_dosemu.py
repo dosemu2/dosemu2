@@ -840,6 +840,21 @@ altdta:
         label_create_noduplicate(self, "FAT")
     test_fat_label_create_noduplicate.labeltest = True
 
+    def test_fat_label_create_nonrootdir(self):
+        """FAT FCB label create non-rootdir"""
+        label_create_nonrootdir(self, "FAT")
+    test_fat_label_create_nonrootdir.labeltest = True
+
+    def test_fat_label_delete_recreate(self):
+        """FAT FCB label delete recreate"""
+        label_delete_recreate(self, "FAT")
+    test_fat_label_delete_recreate.labeltest = True
+
+    def test_fat_label_delete_wildcard(self):
+        """FAT FCB label delete wildcard"""
+        label_delete_wildcard(self, "FAT")
+    test_fat_label_delete_wildcard.labeltest = True
+
     def _test_fcb_write(self, fstype):
         testdir = self.mkworkdir('d')
 
@@ -4997,6 +5012,9 @@ DRDOS701TestCase = drdos701(OurTestCase, {
     "test_fat_label_create_bpb16": KNOWNFAIL,
     "test_fat_label_create_bpb32": UNSUPPORTED,
     "test_fat_label_create_on_lfns": UNSUPPORTED,
+    "test_fat_label_create_nonrootdir": KNOWNFAIL,
+    "test_fat_label_delete_recreate": KNOWNFAIL,
+    "test_fat_label_delete_wildcard": KNOWNFAIL,
     "test_sfn_truename": KNOWNFAIL,
     "test_sfn_findfirst": KNOWNFAIL,
 })
@@ -5034,6 +5052,8 @@ FRDOS120TestCase = frdos120(OurTestCase, {
     "test_fat_ds3_lock_writable": KNOWNFAIL,
     "test_fat_ds3_lock_readlckd": KNOWNFAIL,
     "test_fat_ds3_lock_two_handles": KNOWNFAIL,
+    "test_lfs_disk_info_fat32": KNOWNFAIL,
+    "test_lfs_disk_info_mfs": KNOWNFAIL,
     "test_mfs_truename_vfat_linux_mounted_lfn": KNOWNFAIL,
     "test_mfs_truename_vfat_linux_mounted_sfn": KNOWNFAIL,
     "test_mfs_findfile_vfat_linux_mounted_lfn": KNOWNFAIL,
@@ -5055,6 +5075,8 @@ FRDOS120TestCase = frdos120(OurTestCase, {
     "test_fat_label_create_bpb12": KNOWNFAIL,
     "test_fat_label_create_bpb16": KNOWNFAIL,
     "test_fat_label_create_bpb32": KNOWNFAIL,
+    "test_fat_label_create_noduplicate": KNOWNFAIL,
+    "test_fat_label_create_nonrootdir": KNOWNFAIL,
     "test_fat_label_create_prefile": KNOWNFAIL,
     "test_fat_label_create_predir": KNOWNFAIL,
     "test_sfn_truename": KNOWNFAIL,
@@ -5086,8 +5108,10 @@ FRDOS130TestCase = frdos130(OurTestCase, {
     "test_fat_label_create_bpb16": KNOWNFAIL,
     "test_fat_label_create_bpb32": KNOWNFAIL,
     "test_fat_label_create_noduplicate": KNOWNFAIL,
+    "test_fat_label_create_nonrootdir": KNOWNFAIL,
     "test_fat_label_create_predir": KNOWNFAIL,
     "test_fat_label_create_prefile": KNOWNFAIL,
+    "test_lfs_disk_info_fat32": KNOWNFAIL,
     "test_lfs_disk_info_mfs": KNOWNFAIL,
     "test_memory_emm286_borland": KNOWNFAIL,
     "test_memory_hma_alloc": KNOWNFAIL,
@@ -5122,6 +5146,7 @@ FRDOSGITTestCase = frdosgit(OurTestCase, {
     "test_fat_label_create_bpb16": KNOWNFAIL,
     "test_fat_label_create_bpb32": KNOWNFAIL,
     "test_fat_label_create_noduplicate": KNOWNFAIL,
+    "test_fat_label_create_nonrootdir": KNOWNFAIL,
     "test_fat_label_create_predir": KNOWNFAIL,
     "test_fat_label_create_prefile": KNOWNFAIL,
     "test_memory_emm286_borland": KNOWNFAIL,

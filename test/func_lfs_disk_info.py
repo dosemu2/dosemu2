@@ -119,26 +119,41 @@ int main(int argc, char *argv[]) {
 
     self.assertNotIn("Call failed", results)
 
-    t = re.search(r'total_bytes\((\d+)\)', results)
-    self.assertIsNotNone(t, "Unable to parse 'total_bytes'")
-    dfs_total = int(t.group(1))
-    a = re.search(r'avail_bytes\((\d+)\)', results)
-    self.assertIsNotNone(a, "Unable to parse 'avail_bytes'")
-    dfs_avail = int(a.group(1))
-
     if fstype == 'MFS':
         fsinfo = statvfs(self.workdir)
         lfs_total = fsinfo.f_blocks * fsinfo.f_bsize
         lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
+
+        t = re.search(r'total_bytes\((\d+)\)', results)
+        self.assertIsNotNone(t, "Unable to parse 'total_bytes'")
+        dfs_total = int(t.group(1))
+        a = re.search(r'avail_bytes\((\d+)\)', results)
+        self.assertIsNotNone(a, "Unable to parse 'avail_bytes'")
+        dfs_avail = int(a.group(1))
+
+        # see if we are within 5% of the values expected
+        msg = "total dos %d, expected %d" % (dfs_total, lfs_total)
+        self.assertLessEqual(dfs_total, lfs_total * 1.05, msg)
+        self.assertGreaterEqual(dfs_total, lfs_total * 0.95, msg)
+
+        msg = "avail dos %d, expected %d" % (dfs_avail, lfs_avail)
+        self.assertLessEqual(dfs_avail, lfs_avail * 1.05, msg)
+        self.assertGreaterEqual(dfs_avail, lfs_avail * 0.95, msg)
+
     else: #  FAT32
-        lfs_total = (self.imagedir / name).stat().st_size
-        lfs_avail = lfs_total - size
+        # Since we are working with an image file, not subject to
+        # change by external users / processes, we can check exact
+        # values.
 
-    # see if we are within 5% of the values expected
-    msg = "total dos %d, expected %d" % (dfs_total, lfs_total)
-    self.assertLessEqual(dfs_total, lfs_total * 1.05, msg)
-    self.assertGreaterEqual(dfs_total, lfs_total * 0.95, msg)
+        t = re.search(r'avail_clusters\s+(0x[0-9a-fA-F]+)', results)
+        self.assertIsNotNone(t, "Unable to parse 'avail_clusters'")
+        clu_avail = int(t.group(1), 0)
 
-    msg = "avail dos %d, expected %d" % (dfs_avail, lfs_avail)
-    self.assertLessEqual(dfs_avail, lfs_avail * 1.05, msg)
-    self.assertGreaterEqual(dfs_avail, lfs_avail * 0.95, msg)
+        t = re.search(r'total_clusters\s+(0x[0-9a-fA-F]+)', results)
+        self.assertIsNotNone(t, "Unable to parse 'total_clusters'")
+        clu_total = int(t.group(1), 0)
+
+        # dosfsck shows 25601/261627 clusters used/total
+        self.assertEqual(clu_total - clu_avail, 25601)
+        self.assertEqual(clu_total, 261627)
+
