@@ -16,7 +16,7 @@ from ptyprocess import PtyProcessError
 from shutil import copy, rmtree
 from subprocess import (Popen, call, check_call, check_output,
                         DEVNULL, STDOUT, TimeoutExpired, CalledProcessError)
-from sys import argv, exit, modules, stdout, stderr, version_info
+from sys import argv, exit, stdout, stderr, version_info
 from tarfile import open as topen
 from time import sleep
 from unittest.util import strclass
@@ -132,6 +132,7 @@ def get_test_binaries():
 class BaseTestCase(object):
 
     attrs = []
+    use_cpu = None
 
     @classmethod
     def setUpClass(cls):
@@ -184,27 +185,73 @@ class BaseTestCase(object):
             if machine() == 'i686':
                 cls.have_vm86 = True
 
+            if cls.use_cpu == 'emu':
+                print(" \nUsing Emulation", file=stderr, flush=True)
+                return
+
+            reason = ""
             try:
-                with open("/dev/kvm", "r+b") as f:
+                with open("/dev/kvm", "r+b"):
                     major, minor = release().split('.')[0:2]
                     if not (major == '6' and minor in ['11', '12', '13']):
                         if environ.get("NO_KVM", '0') == '1':
-                            print(" \nUsable KVM found but NO_KVM=1 - Disabling", file=stderr, flush=True)
+                            reason = "NO_KVM=1"
                         else:
-                            print(" \nUsable KVM found", file=stderr, flush=True)
                             cls.have_kvm = True
                     else:
-                        print(" \nUsable KVM found but blacklisted kernel (6.11 - 6.13) - Disabling", file=stderr, flush=True)
+                        reason = "Blacklisted kernel [6.11 - 6.13]"
 
             except FileNotFoundError:
                 pass
             except PermissionError:
                 op = check_output(["getfacl", "/dev/kvm"])
-                print(" \nPermissions wrong on /dev/kvm\n%s" % op.decode('ASCII'), file=stderr, flush=True)
+                reason = "Permissions wrong on /dev/kvm\n%s" % op.decode('ASCII')
+
+            if cls.use_cpu == 'kvm':
+                if not cls.have_kvm:
+                    print(" \nUsing KVM ", end='', file=stderr, flush=True)
+                    raise unittest.SkipTest("KVM not available: %s" % reason)
+                print(" \nUsing KVM", file=stderr, flush=True)
+                return
+
+            # No use_cpu specified, use whatever
+            if cls.have_kvm:
+                print(" \nUsable KVM found", file=stderr, flush=True)
+            else:
+                print(" \nUsable KVM not found, falling back to emulation: %s" % reason , file=stderr, flush=True)
 
     @classmethod
     def tearDownClass(cls):
         pass
+
+    @classmethod
+    def getTests(cls):
+        funcs = inspect.getmembers(cls, predicate=inspect.isfunction)
+        return [t for t in funcs if t[0].startswith('test')]
+
+    @classmethod
+    def getTestsDefinedIn(cls):
+        parent = []
+        us = []
+
+        funcs = cls.getTests()
+        for f in funcs:
+            if f[0] in cls.__dict__:
+                us += [f,]
+            else:
+                parent += [f,]
+
+        return (parent, us)
+
+    @classmethod
+    def getTestnames(cls):
+        funcs = cls.getTests()
+        return [cls.__name__ + '.' + t[0] for t in funcs]
+
+    @classmethod
+    def getTestnames_with_attr(cls, attr):
+        funcs = cls.getTests()
+        return [cls.__name__ + '.' + t[0] for t in funcs if hasattr(t[1], attr)]
 
     def setUp(self):
         # Process and skip actions
@@ -494,7 +541,7 @@ class BaseTestCase(object):
                 "-td",
                 #    "-Da",
                 "--Fimagedir", str(self.imagedir)]
-        if environ.get("NO_KVM", '0') == '1':
+        if environ.get("NO_KVM", '0') == '1' or self.use_cpu == 'emu':
             args.extend(["-z", "0"])
 
         if opts is not None:
@@ -550,7 +597,7 @@ class BaseTestCase(object):
                 "-o", str(self.topdir / self.logfiles['log'][0]),
                 "-td",
                 "-ks"]
-        if environ.get("NO_KVM", '0') == '1':
+        if environ.get("NO_KVM", '0') == '1' or self.use_cpu == 'emu':
             args.extend(["-z", "0"])
         args.extend(xargs)
 
@@ -606,7 +653,7 @@ class MyTestResult(unittest.TextTestResult):
         return '%-80s' % test.shortDescription()
 
     def startTest(self, test):
-        super(MyTestResult, self).startTest(test)
+        super().startTest(test)
         self.starttime = test.utcnow()
 
         name = test.id()
@@ -771,47 +818,7 @@ def main(argv=None):
     unittest.main(testRunner=MyTestRunner, argv=argv, verbosity=2, failfast=failfast)
 
 
-def main_setup(testcase):
-
-    tests = [t[0] for t in
-            inspect.getmembers(testcase, predicate=inspect.isfunction)
-            if t[0].startswith("test")]
-
-    xtests = [t[0] for t in
-            inspect.getmembers(testcase, predicate=inspect.isfunction)
-            if t[0].startswith("xtest")]
-
-    ocases = [c[0] for c in
-            inspect.getmembers(modules['__main__'], predicate=inspect.isclass)
-            if issubclass(c[1], testcase) and c[0] != testcase.__name__]
-
-    # Place interesting testcases at the start
-    cases = []
-    for c in ['PPDOSGITTestCase', 'MSDOS622TestCase']:
-        if c in ocases:
-            cases.append(c)
-            ocases.remove(c)
-    cases.extend(ocases)
-
-    attrs = sorted(testcase.attrs)
-
-    def explode(n, attr=None):
-        if n in tests:
-            return [c + "." + n for c in cases]
-        if n in xtests:
-            return [c + "." + n for c in cases]
-        if n in cases:
-            if attr:
-                return [n + "." + t[0] for t in
-                    inspect.getmembers(testcase, predicate=inspect.isfunction)
-                    if hasattr(t[1], attr)]
-            else:
-                return [n,]
-        p = n.split('.')
-        if p and p[0] in cases and (p[1] in tests or p[1] in xtests):
-            return [n,]
-        return []
-
+def main_setup(cases):
     if len(argv) > 1:
         if argv[1] == "--help":
             print(("Usage: %s [--help | --get-test-binaries | " +
@@ -819,37 +826,86 @@ def main_setup(testcase):
                    "[--require-attr=STRING TestCase ...] | " +
                    "[TestCase[.testname] ...]") % argv[0])
             exit(0)
-        elif argv[1] == "--get-test-binaries":
+
+        if argv[1] == "--get-test-binaries":
             get_test_binaries()
             exit(0)
-        elif argv[1] == "--list-attrs":
-            for a in attrs:
-                print(str(a))
-            exit(0)
-        elif argv[1] == "--list-cases":
-            for m in cases:
-                print(str(m))
-            exit(0)
-        elif argv[1] == "--list-tests":
-            for m in tests:
-                print(str(m))
-            exit(0)
-        else:
-            x = re.match(r"^--require-attr=(\S+).*$", argv[1])
-            if x:
-                attr = x.groups()[0]
-                del argv[1]
-            else:
-                attr = None
 
-            a = []
-            for b in [explode(x, attr=attr) for x in argv[1:]]:
-                a.extend(b)
+        if argv[1] == "--list-attrs":
+            for c in cases:
+                print(c.__name__)
+                print("    %s" % str(c.attrs))
+            exit(0)
 
-            if not len(a):
-                print("No tests found, was your testcase or testname incorrect? See --help")
+        if argv[1] == "--list-cases":
+            for c in cases:
+                print(c.__name__)
+            exit(0)
+
+        if argv[1] == "--list-tests":
+            common = set()
+            children = {}
+            for c in cases:
+                parent, child = c.getTestsDefinedIn()
+                common.update(parent)
+                children[c.__name__] = child
+
+            print("Common:")
+            for tname in sorted([t[0] for t in common]):
+                print("    %s" % tname)
+
+            for cname, tests in children.items():
+                print("%s:" % cname)
+                for tname in sorted([t[0] for t in tests]):
+                    print("    %s" % tname)
+            exit(0)
+
+        x = re.match(r"^--require-attr=(\S+).*$", argv[1])
+        if x:
+            attr = x.groups()[0]
+            tests = []
+            for c in cases:
+                for arg in argv[2:]:
+                    if c.__name__ == arg:
+                        tests += [n for n in c.getTestnames_with_attr(attr)]
+            if not len(tests):
+                print("No tests found with attr, was it correct? See --help")
                 exit(1)
-            return [argv[0],] + a
+            return [argv[0],] + tests
 
-    return [argv[0],] + cases
+        # Need to expand multiple TestCases on command line
+        cnames = [ c.__name__ for c in cases]
+        cvalid = []
+        tvalid = []
+        for a in argv[1:]:
+            if a in cnames:  # Test case
+                cvalid += [a,]
+
+            elif '.' in a:  # Potentially it's a fully qualified test name
+                cname, tname = a.split('.')
+                for c in cases:
+                    if c.__name__ == cname and hasattr(c, tname):
+                        tvalid += [a,]
+
+            else:  # Maybe we are a test name, and qualify if so
+                for c in cases:
+                    if hasattr(c, a):
+                        tvalid += [c.__name__ + '.' + a,]
+
+        if len(cvalid) == 0 and len(tvalid) == 0:
+            print("No valid testcases or testnames on command line")
+            exit(1)
+
+        if len(cvalid) and len(tvalid):
+            print("Invalid to have both testcases and testnames on command line")
+            exit(1)
+
+        return [argv[0],] + sorted(cvalid + tvalid)
+
+    else:  # No args, so expand all tests from all cases
+        tests = []
+        for c in cases:
+            tests += [c.__name__ + '.' + t[0] for t in c.getTests()]
+
+        return [argv[0],] + tests
 

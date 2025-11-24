@@ -8,7 +8,7 @@ from os import statvfs, utime, environ
 from os.path import exists, isdir, join
 from pathlib import Path
 from shutil import copy
-from subprocess import call, check_call, CalledProcessError, run, STDOUT
+from subprocess import call, CalledProcessError, run
 from sys import argv
 from time import mktime
 
@@ -20,8 +20,6 @@ from common_os import (drdos701, frdos120, frdos130, frdosgit, msdos622,
 
 from func_comcom_r200fix import comcom_r200fix
 from func_command_com_cmdline_length import command_com_cmdline_length
-from func_cpu_trap_flag import cpu_trap_flag
-from func_cpu_methods import cpu_create_items
 from func_ds2_file_seek_tell import ds2_file_seek_tell
 from func_ds2_file_seek_read import ds2_file_seek_read
 from func_ds2_set_fattrs import ds2_set_fattrs
@@ -63,8 +61,7 @@ PRGFIL_LFN = "Program Files"
 
 class OurTestCase(BaseTestCase):
 
-    attrs = ['cputest', 'dpmitest', 'hmatest', 'nettest', 'umatest', 'xmstest',
-             'labeltest']
+    attrs = ['dpmitest', 'hmatest', 'nettest', 'umatest', 'xmstest', 'labeltest']
 
     def test_comcom_r200fix_real(self):
         """Comcom r200fix Real Mode"""
@@ -4829,79 +4826,6 @@ $_floppy_a = ""
         network_pktdriver_mtcp(self, 'ne2000')
     test_network_pktdriver_mtcp_ne2000.nettest = True
 
-    def test_cpu_trap_flag_emulated(self):
-        """CPU Trap Flag emulated"""
-        cpu_trap_flag(self, 'emulated')
-    test_cpu_trap_flag_emulated.cputest = True
-
-    def test_cpu_trap_flag_kvm(self):
-        """CPU Trap Flag KVM"""
-        cpu_trap_flag(self, 'kvm')
-    test_cpu_trap_flag_kvm.cputest = True
-
-    def test_freecom_build(self):
-        """FreeCOM build script"""
-        if environ.get("SKIP_EXPENSIVE"):
-            self.skipTest("expensive test")
-
-        giturl = 'https://github.com/FDOS/freecom.git'
-        root = self.imagedir / 'freecom.git'
-
-        try:
-            run(["git", "clone", "-q", "--depth=1", giturl, str(root)], check=True)
-        except CalledProcessError:
-            self.skipTest("repository unavailable")
-
-        # Now need to download Watcom 1.9 packages and unpack
-        # Path to watcom binaries will be 'c:/devel/watcomc/binw'
-        pkgurl = 'https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/repositories/1.3/devel'
-        try:
-            for pkg in ['watcomc', 'nasm']:
-                check_call([
-                    "wget",
-                    "-q",
-                    pkgurl + '/%s.zip' % pkg,
-                ], stderr=STDOUT, cwd=self.imagedir)
-                check_call([
-                    "unzip",
-                    "-LL",
-                    "-q",
-                    str(self.imagedir) + '/%s.zip' % pkg,
-                ], stderr=STDOUT, cwd=self.workdir)
-        except:
-            self.skipTest("DOS pkgs unavailable")
-
-        # Generate the configr
-        # (note nasty interaction with comcom64, means switch to dos32a)
-        self.mkfile("config.bat", """\
-set COMPILER=WATCOM
-set WATCOM=C:\\devel\\watcomc
-set DOS4GPATH=%WATCOM%\\binw\\dos32a.exe
-set XCPU=386
-set XFAT=32
-set XNASM=nasm
-set OLDPATH=%PATH%
-set PATH=C:\\devel\\watcomc\\binw;C:\\devel\\nasm;C:\\bin;%OLDPATH%
-""", dname=root, newline="\r\n")
-
-        check_call([
-            "cp",
-            "config.std",
-            "config.mak",
-        ], stderr=STDOUT, cwd=root)
-
-        # Run build.bat script from git repository root
-        # Note:
-        #     We have to avoid runDosemu() as this test is non-interactive
-        args = ["-q", "-K", ".", "-E", "build.bat"]
-        results = self.runDosemuCmdline(args, cwd=root, timeout=450)
-
-        self.assertNotIn('Timeout', results)
-        self.assertNotIn('NonZeroReturn', results)
-
-        # Test for resultant command.com file
-        self.assertTrue((root / 'command.com').exists(), "Resultant (command.com) missing")
-
     def test_pcmos_build(self):
         """PC-MOS build script"""
         if environ.get("SKIP_EXPENSIVE"):
@@ -5214,7 +5138,15 @@ if __name__ == '__main__':
     if not specific or is_libi86:
         libi86_create_items(OurTestCase)
 
-    cpu_create_items(OurTestCase)
-
-    argv = main_setup(OurTestCase)
-    main(argv)
+    cases = [
+        PPDOSGITTestCase,
+        MSDOS622TestCase,
+        DRDOS701TestCase,
+        FRDOS120TestCase,
+        FRDOS130TestCase,
+        FRDOSGITTestCase,
+        MSDOS700TestCase,
+        MSDOS710TestCase,
+    ]
+    xargv = main_setup(cases)
+    main(xargv)
