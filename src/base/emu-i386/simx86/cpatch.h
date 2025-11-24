@@ -25,9 +25,12 @@ ASMLINKAGE(void,SetSegProt_helper,(unsigned short sel, int ofs));
 ASMLINKAGE(unsigned int,Sim_helper_jit,(unsigned int mem_ref, \
 					unsigned int data, \
 					struct sim_stack *s));
+ASMLINKAGE(unsigned char *,Jmp_indirect_helper,(unsigned int ePC, \
+						unsigned char *tailcode));
 
 int Cpatch(sigcontext_t *scp);
 int UnCpatch(unsigned char *eip);
 void Cpatch_init(void);
 int Ofs_SetSegProt(void);
 int Ofs_SimHelper(void);
+int Ofs_JmpIndirect(void);
