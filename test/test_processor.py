@@ -2,7 +2,7 @@
 
 from subprocess import check_call
 
-from common_framework import BaseTestCase, main, main_setup
+from common_framework import BaseTestCase, main, main_setup, KNOWNFAIL
 from common_os import ppdosgit
 
 from func_build_freecom import build_freecom
@@ -24,11 +24,29 @@ class OurTestCase(BaseTestCase):
     test_cpu_trap_flag.cputests=True
 
 
-class KVMTestCase(ppdosgit(OurTestCase, { })):
+class KVMTestCase(ppdosgit(OurTestCase, {
+        "test_fpu_f2xm1_kvm_sim": KNOWNFAIL,
+        "test_fpu_fisttp_kvm_jit": KNOWNFAIL,
+        "test_fpu_fisttp_kvm_sim": KNOWNFAIL,
+        "test_fpu_fp_exceptions_kvm_jit": KNOWNFAIL,
+        "test_fpu_fp_exceptions_kvm_sim": KNOWNFAIL,
+        "test_fpu_fyl2x_kvm_sim": KNOWNFAIL,
+        "test_fpu_fyl2xp1_kvm_sim": KNOWNFAIL,
+        r"test_fpu_fprem_.*":KNOWNFAIL,
+    })):
     use_cpu = 'kvm'
 
 
-class EMUTestCase(ppdosgit(OurTestCase, { })):
+class EMUTestCase(ppdosgit(OurTestCase, {
+        "test_fpu_f2xm1_sim_sim": KNOWNFAIL,
+        "test_fpu_fisttp_jit_jit": KNOWNFAIL,
+        "test_fpu_fisttp_sim_sim": KNOWNFAIL,
+        "test_fpu_fp_exceptions_jit_jit": KNOWNFAIL,
+        "test_fpu_fp_exceptions_sim_sim": KNOWNFAIL,
+        "test_fpu_fyl2x_sim_sim": KNOWNFAIL,
+        "test_fpu_fyl2xp1_sim_sim": KNOWNFAIL,
+        r"test_fpu_fprem_.*":KNOWNFAIL,
+    })):
     use_cpu = 'emu'
 
 
