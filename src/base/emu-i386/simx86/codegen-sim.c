@@ -2625,11 +2625,18 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 		} }
 		break;
 
-	case JMP_INDIRECT:
-		P0 = LONG_CS + ((mode & DATA16) ? DR1.w.l : DR1.d);
-		TheCPU.key = P0;
+	case JMP_INDIRECT: {
+		unsigned ePC = LONG_CS + ((mode & DATA16) ? DR1.w.l : DR1.d);
+		TheCPU.key = ePC;
+		TNode *G = FindTree(ePC);
+		if (G && GoodNode(G)) {
+			IG = (IGen *)G->addr;
+			continue;
+		}
+		P0 = ePC;
 		if (debug_level('e')>2)
 			dbug_printf("** Jump taken to %08x\n",P0);
+		}
 		break;
 
 	case JMP_LINK:		// dspt
