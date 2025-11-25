@@ -614,6 +614,7 @@ enum {
 	STUB_READ_32,
 	STUB_SETSEGPROT,
 	STUB_SIMHELPER,
+	STUB_JMP_INDIRECT,
 	STUBS_LEN
 };
 static_assert(STUBS_LEN <= STUBS_LEN_MAX);
@@ -640,6 +641,11 @@ int Ofs_SetSegProt(void)
 int Ofs_SimHelper(void)
 {
 	return Ofs_stub(STUB_SIMHELPER);
+}
+
+int Ofs_JmpIndirect(void)
+{
+	return Ofs_stub(STUB_JMP_INDIRECT);
 }
 
 /* call N(%ebx) */
@@ -842,6 +848,21 @@ unsigned int Sim_helper_jit(unsigned int mem_ref, unsigned int data,
     return ret;
 }
 
+unsigned char *Jmp_indirect_helper(unsigned int ePC,
+				   unsigned char *tailcode)
+{
+    unsigned char *ret;
+    TNode *G;
+
+    InCompiledCode--;
+
+    G = FindTree(ePC);
+    ret = G && GoodNode(G) ? GetExecCodeBuf(G->addr) : tailcode;
+
+    InCompiledCode++;
+    return ret;
+}
+
 void Cpatch_init(void)
 {
     TheCPU_struct.stub_func[STUB_REP] = stub_rep;
@@ -855,6 +876,8 @@ void Cpatch_init(void)
     TheCPU_struct.stub_func[STUB_READ_32] = stub_read_32;
     TheCPU_struct.stub_func[STUB_SETSEGPROT] = stub_setsegprot;
     TheCPU_struct.stub_func[STUB_SIMHELPER] = stub_simhelper;
+    TheCPU_struct.stub_func[STUB_JMP_INDIRECT] = (stubfunc_t)
+        Jmp_indirect_helper;
 }
 
 /* ======================================================================= */

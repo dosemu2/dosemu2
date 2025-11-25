@@ -1878,6 +1878,29 @@ shrot0:
 		G3M(0x03,0x43,Ofs_XCS,Cp);
 		// movl %%eax, Ofs_KEY(%%ecx) // signals indirect
 		G3M(0x89,0x43,Ofs_KEY,Cp);
+#ifdef __x86_64__
+		// movl %%eax,%%edi
+		G2M(0x89,0xc7,Cp);
+		// lea 3+2(%%rip), %%rsi // tailcode
+		G3M(0x48,0x8d,0x35,Cp); G4(3+2,Cp);
+#else
+		// push address of tailcode
+		G1(PUSHwi,Cp); G4((uintptr_t)GetExecCodeBuf(Cp+4+1+3+2+2),Cp);
+		// push ePC
+		G1(PUSHax,Cp);
+#endif
+		// call Ofs_JmpIndirect(%%ebx)
+		G3M(0xff,0x53,Ofs_JmpIndirect(),Cp);
+#ifndef __x86_64__
+		// need to pop arguments for i386
+		G2M(POPdx,POPdx,Cp);
+#endif
+		// jump to next block if a compatible one exists
+		// otherwise to the tail code
+		// jmp *%rax
+		G2M(0xff,0xe0,Cp);
+		// movl Ofs_KEY(%%ebx),%%eax
+		G3M(0x8b,0x43,Ofs_KEY,Cp);
 		// pop %%edx; ret
 		G2M(0x5a,0xc3,Cp);
 		}
