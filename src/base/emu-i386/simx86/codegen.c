@@ -673,20 +673,7 @@ unsigned int DoExec(TNode *G)
 	/* these flags need to be checked only once for the node */
 	G->flags &= ~(F_SPEC|F_LEAV);
 	flg = Exec_pre(ecpu);
-#if !defined(ASM_DUMP) && !defined(SINGLESTEP)
-	/* try fast inner loop if nothing special is going on */
-	if (!(seqflg & (F_SPEC|F_LEAV)) && !debug_level('e')) {
-		while (1) {
-			ePC = ExecOne(G, &mem_ref, &flg, ecpu);
-			if (TheCPU.err || exit_pending())
-				break;
-			G = FindTree(ePC);
-			if (!G || !GoodNode(G))
-				break;
-		}
-	} else
-#endif
-		ePC = ExecOne(G, &mem_ref, &flg, ecpu);
+	ePC = ExecOne(G, &mem_ref, &flg, ecpu);
 	// G is unreliable (maybe deleted) past this point!
 	Exec_post(flg, mem_ref);
 
