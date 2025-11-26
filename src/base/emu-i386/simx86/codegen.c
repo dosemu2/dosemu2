@@ -58,8 +58,7 @@
 #include "codegen-arch.h"
 
 unsigned char * (*CodeGen)(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
-unsigned (*Exec)(unsigned *mem_ref, unsigned long *flg,
-		 unsigned char *ecpu, void *SeqStart);
+unsigned (*Exec)(void *SeqStart);
 
 int UseLinker = 0;
 hitimer_u TimeStartExec;
@@ -558,36 +557,10 @@ static inline void prefetch(unsigned char *p)
 	__builtin_prefetch(p);
 }
 
-static unsigned int Exec_pre(unsigned char *ecpu)
-{
-	unsigned long flg;
-
-	/* get the protected mode flags. Note that RF and VM are cleared
-	 * by pushfd (but not by ints and traps) */
-	flg = getflags();
-
-	/* pass TF=0, IF=1, DF=0 */
-	flg = (flg & ~(EFLAGS_CC|EFLAGS_IF|EFLAGS_DF|EFLAGS_TF)) |
-	       (EFLAGS & EFLAGS_CC) | EFLAGS_IF;
-
-#ifdef __i386__
-	if (config.cpuprefetcht0)
-#endif
-		prefetch(ecpu);
-
-	return flg;
-}
-
-static void Exec_post(unsigned long flg, unsigned int mem_ref)
-{
-	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
-	TheCPU.mem_ref = mem_ref;
-}
-
-static unsigned ExecOne(TNode *G, unsigned *mem_ref, unsigned long *flg,
-		unsigned char *ecpu)
+static unsigned ExecOne(TNode *G)
 {
 	unsigned int ePC;
+
 	/*
 	 * Just before execution comes the linker stage.
 	 * So the order is:
@@ -609,7 +582,11 @@ static unsigned ExecOne(TNode *G, unsigned *mem_ref, unsigned long *flg,
 	/* check links FROM LastXNode TO current node */
 	if (TheCPU.key != G->key)
 		NodeLinker(FindTree(TheCPU.key), G);
-	ePC = Exec(mem_ref, flg, ecpu, G->addr);
+#ifdef __i386__
+	if (config.cpuprefetcht0)
+#endif
+		prefetch(CPUOFFS(0));
+	ePC = Exec(G->addr);
 #ifdef SKIP_EMU_VBIOS
 	if ((TheCPU.cs&0xf000)==config.vbios_seg && !TheCPU.err)
 		TheCPU.err = EXCP_GOBACK;
@@ -646,16 +623,12 @@ static void HandleEmuSignals(void)
 
 unsigned int DoExec(TNode *G)
 {
-	unsigned long flg;
-	unsigned char *ecpu;
-	unsigned int mem_ref;
 	unsigned int ePC;
 	unsigned short seqflg = G->flags;
 #if defined(SINGLESTEP)
         unsigned int key = G->key;
 #endif
 
-	ecpu = CPUOFFS(0);
 	if (debug_level('e')>1) {
 		unsigned e = exit_pending();
 		if (e & exit_SIGPEND) e_printf("** SIGALRM is pending\n");
@@ -672,10 +645,8 @@ unsigned int DoExec(TNode *G)
 #endif
 	/* these flags need to be checked only once for the node */
 	G->flags &= ~(F_SPEC|F_LEAV);
-	flg = Exec_pre(ecpu);
-	ePC = ExecOne(G, &mem_ref, &flg, ecpu);
+	ePC = ExecOne(G);
 	// G is unreliable (maybe deleted) past this point!
-	Exec_post(flg, mem_ref);
 
 	if (debug_level('e')) {
 #if PROFILE >= 2
@@ -690,6 +661,7 @@ unsigned int DoExec(TNode *G)
 		    e_printf("  %s\n", e_trace_fp());
 		}
 		/* DANGEROUS - can crash dosemu! */
+		unsigned int mem_ref = TheCPU.mem_ref;
 		if ((debug_level('e')>4) && goodmemref(mem_ref)) {
 		    e_printf("*mem_ref [%#08x] = %08x\n",mem_ref,
 			     READ_DWORD(mem_ref));

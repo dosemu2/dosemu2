@@ -107,8 +107,7 @@
 #include "misc/dis8086.h"
 
 static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
-static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
-			 unsigned char *ecpu, void *SeqStart);
+static unsigned Exec_x86(void *SeqStart);
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -2072,11 +2071,18 @@ shrot0:
 #define R_REG(r) "%e"#r
 #define EXEC_CLOBBERS
 #endif
-static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
-		unsigned char *ecpu, void *SeqStart)
+static unsigned Exec_x86(void *SeqStart)
 {
 	unsigned ePC;
 	void *jb;
+
+	/* get the protected mode flags. Note that RF and VM are cleared
+	 * by pushfd (but not by ints and traps) */
+	unsigned long flg = getflags();
+
+	/* pass TF=0, IF=1, DF=0 */
+	flg = (flg & ~(EFLAGS_CC|EFLAGS_IF|EFLAGS_DF|EFLAGS_TF)) |
+	       (EFLAGS & EFLAGS_CC) | EFLAGS_IF;
 
 	jb = jit_base;
 	InCompiledCode = 1;
@@ -2101,8 +2107,8 @@ static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
 		"movq	%%r12,%%rsp\n"
 #endif
 		"pop	"RE_REG(bp)"\n"
-		: "=d"(*flg),"=a"(ePC),"=D"(*mem_ref)
-		: "b"(ecpu),"d"(*flg),"a"(GetExecCodeBuf(SeqStart)),
+		: "=d"(flg),"=a"(ePC),"=D"(TheCPU.mem_ref)
+		: "b"(CPUOFFS(0)),"d"(flg),"a"(GetExecCodeBuf(SeqStart)),
 		  [mb]"D"(jb)  // don't use "r" or can assign to %rbp
 		/* Note: we need to clobber "class-less" regs (like %rbp) even
 		 * if we save/restore them, to avoid gcc from allocating
@@ -2129,6 +2135,7 @@ static unsigned Exec_x86(unsigned *mem_ref, unsigned long *flg,
 	InCompiledCode = 0;
 	/* even though InCompiledCode is volatile, we also need a barrier */
 	asm volatile ("":::"memory");
+	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	return ePC;
 }
 
