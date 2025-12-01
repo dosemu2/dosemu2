@@ -32,13 +32,21 @@ if [ "${BLDTYPE}" = "packaged" ] ; then
   export TEST_CMDDIR=/usr/share/dosemu/dosemu2-cmds-0.3
 fi
 
+if [ "${RUNTYPE}" = "simple" ] ; then
+  export SKIP_EXPENSIVE=1
+  export SKIP_UNCERTAIN=1
+elif [ "${RUNTYPE}" = "normal" ] ; then
+  export SKIP_UNCERTAIN=1
+else
+  export NO_FAILFAST=1
+fi
+
 cat >&2 << EOF
 =====================================================
 =         Tests run on KVM and emulated CPU         =
 =====================================================
 EOF
-
-env NO_FAILFAST=1 python3 test/test_processor.py
+python3 test/test_processor.py
 
 cat >&2 << EOF2
 =====================================================
@@ -48,20 +56,16 @@ EOF2
 
 case "${RUNTYPE}" in
   "full")
-    export NO_FAILFAST=1
     python3 test/test_dosemu.py PPDOSGITTestCase
     python3 test/test_dosemu.py MSDOS622TestCase
     python3 test/test_dosemu.py FRDOS130TestCase
     python3 test/test_dosemu.py DRDOS701TestCase
     ;;
   "normal")
-    export SKIP_UNCERTAIN=1
     python3 test/test_dosemu.py PPDOSGITTestCase
     python3 test/test_dosemu.py MSDOS622TestCase
     ;;
   "simple")
-    export SKIP_EXPENSIVE=1
-    export SKIP_UNCERTAIN=1
     python3 test/test_dosemu.py PPDOSGITTestCase
     ;;
 esac
