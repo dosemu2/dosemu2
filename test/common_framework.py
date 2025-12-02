@@ -870,8 +870,7 @@ def main_setup(cases):
                     if c.__name__ == arg:
                         tests += [n for n in c.getTestnames_with_attr(attr)]
             if not len(tests):
-                print("No tests found with attr, was it correct? See --help")
-                exit(1)
+                exit("No tests found with attr, was it correct? See --help")
             return [argv[0],] + tests
 
         # Need to expand multiple TestCases on command line
@@ -894,12 +893,10 @@ def main_setup(cases):
                         tvalid += [c.__name__ + '.' + a,]
 
         if len(cvalid) == 0 and len(tvalid) == 0:
-            print("No valid testcases or testnames on command line")
-            exit(1)
+            exit("No valid testcases or testnames on command line")
 
         if len(cvalid) and len(tvalid):
-            print("Invalid to have both testcases and testnames on command line")
-            exit(1)
+            exit("Invalid to have both testcases and testnames on command line")
 
         return [argv[0],] + sorted(cvalid + tvalid)
 
