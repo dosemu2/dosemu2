@@ -824,7 +824,7 @@ def main_setup(cases):
         if argv[1] == "--help":
             print(("Usage: %s [--help | --get-test-binaries | " +
                    "--list-attrs | --list-cases | --list-tests] | " +
-                   "[--require-attr=STRING TestCase ...] | " +
+                   "[--require-attr=STRING [TestCase1 .. TestCaseN]] | " +
                    "[TestCase[.testname] ...]") % argv[0])
             exit(0)
 
@@ -865,10 +865,12 @@ def main_setup(cases):
         if x:
             attr = x.groups()[0]
             tests = []
+            # Check if we have valid cases following on the command line
+            xcases = [c for c in cases if c.__name__ in argv[2:]]
+            if len(xcases):
+                cases = xcases
             for c in cases:
-                for arg in argv[2:]:
-                    if c.__name__ == arg:
-                        tests += [n for n in c.getTestnames_with_attr(attr)]
+                tests += [n for n in c.getTestnames_with_attr(attr)]
             if not len(tests):
                 exit("No tests found with attr, was it correct? See --help")
             return [argv[0],] + tests
