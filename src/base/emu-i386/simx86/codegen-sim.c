@@ -73,8 +73,7 @@
 #undef	DEBUG_MORE
 
 static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGenBuf, const IGen *IG);
-static unsigned Exec_sim(unsigned *mem_ref, unsigned long *flg,
-			 unsigned char *ecpu, void *SeqStart);
+static unsigned Exec_sim(void *SeqStart);
 
 static unsigned char *currentIG = NULL;
 
@@ -2777,15 +2776,14 @@ static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGen
 	return CodePtr + sizeof(*IG);
 }
 
-static unsigned Exec_sim(unsigned *pmem_ref, unsigned long *flg,
-			 unsigned char *ecpu, void *SeqStart)
+static unsigned Exec_sim(void *SeqStart)
 {
 	unsigned int P0;
 
-	FlagSync_RFL(*flg);
-	P0 = Gen_sim(SeqStart, pmem_ref);
+	FlagSync_RFL(EFLAGS & EFLAGS_CC);
+	P0 = Gen_sim(SeqStart, &TheCPU.mem_ref);
 	currentIG = NULL;
-	*flg = FlagSync_All();
+	EFLAGS = (EFLAGS & ~EFLAGS_CC) | FlagSync_All();
 	if (TheCPU.err) TheCPU.key = P0;
 
 	return P0;
