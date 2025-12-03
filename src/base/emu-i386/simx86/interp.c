@@ -420,6 +420,26 @@ static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
 			      unsigned short ocs, int basemode, int flags);
 
+static int leave_instremu(void)
+{
+	if (CEmuStat & CeS_INSTREMUx(PROTMODE())) {
+		if (debug_level('e')>1)
+			dbug_printf("CeS_INSTREMU, count=%d\n",
+				    interp_inst_emu_count);
+		if (interp_inst_emu_count == 0 ||
+		    --interp_inst_emu_count == 0) {
+			if ((CEmuStat & CeS_INSTREMU_PM) &&
+						config.dpmi_remote &&
+						vga.inst_emu) {
+				instr_emu_sim_reset_count();
+			} else {
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
 static unsigned int FindExecCode(unsigned int PC)
 {
 	TNode *G;
@@ -491,11 +511,10 @@ static unsigned int FindExecCode(unsigned int PC)
 				error("@corrupted at %x\n", G->key + j);
 		}
 		/* ---- this is the MAIN EXECUTE point ---- */
-		unsigned short seqflg = G->flags;
 		NodesExecd++;
 #if PROFILE
 		TotalNodesExecd++;
-		if (seqflg & F_PREJ)
+		if (G->flags & F_PREJ)
 			PrejitNodesExecd++;
 #endif
 		assert(G->seqlen);
@@ -511,7 +530,7 @@ static unsigned int FindExecCode(unsigned int PC)
 			speculate = 0;
 		}
 #endif
-		if (seqflg & F_LEAV)
+		if (leave_instremu())
 			TheCPU.err = EXCP_EMULEAVE;
 
 		if (TheCPU.err) return PC;
@@ -552,22 +571,6 @@ static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 		int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
 		assert (CurrIMeta>=0);
 
-		if (CEmuStat & CeS_INSTREMUx(PROTMODE())) {
-			if (debug_level('e')>1)
-				dbug_printf("CeS_INSTREMU, count=%d\n",
-					    interp_inst_emu_count);
-			if (interp_inst_emu_count == 0 ||
-			    --interp_inst_emu_count == 0) {
-				if ((CEmuStat & CeS_INSTREMU_PM) &&
-							config.dpmi_remote &&
-							vga.inst_emu) {
-					instr_emu_sim_reset_count();
-				} else {
-					flags |= F_LEAV;
-				}
-			}
-		}
-
 #ifndef SINGLEBLOCK
 		IMeta *GL = &InstrMeta[CurrIMeta];
 		if ((mode & MSSTP) ||
@@ -586,7 +589,7 @@ static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
 #ifdef SPEC_PREJIT
 	int i = 0;
 
-	while (G->clink_t.link && !(G->flags & (F_LJMP|F_LEAV))) {
+	while (G->clink_t.link && !(G->flags & F_LJMP)) {
 		TNode *oldG = G;
 		PC = G->clink_t.target;
 		if (e_querymark(PC, SAFE_PRJ_GAP)) break;
