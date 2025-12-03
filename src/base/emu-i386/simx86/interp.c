@@ -397,7 +397,7 @@ static int can_speculate(void)
 		char *ds = e_emu_disasm(EMU_BASE32(P2),IG->mode&MBIGCS,ocs);
 		e_printf("prejit after  %s\n", ds);
 	}
-	return F_SPEC;
+	return 1;
 }
 #endif
 
@@ -417,13 +417,16 @@ static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 
 /////////////////////////////////////////////////////////////////////////////
 
-static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
-			unsigned short ocs, int basemode, int flags);
+static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			      unsigned short ocs, int basemode, int flags);
 
 static unsigned int FindExecCode(unsigned int PC)
 {
 	TNode *G;
 	TheCPU.key = PC;
+#if SPEC_PREJIT
+	int speculate = 0;
+#endif
 
 	/* for a sequence to be found, it must begin with
 	 * an allowable opcode. Look into table.
@@ -463,7 +466,11 @@ static unsigned int FindExecCode(unsigned int PC)
 #endif
 			if (debug_level('e')>=9)
 				dbug_printf("\n%s",e_print_regs(LONG_CS));
-			G = _Interp86(PC, LONG_CS, TheCPU.cs, TheCPU.mode, 0);
+			PC = _Interp86(PC, LONG_CS, TheCPU.cs, TheCPU.mode, 0);
+#if SPEC_PREJIT
+			speculate = can_speculate();
+#endif
+			G = DoClose(PC, LONG_CS, TheCPU.mode, 0);
 		}
 		if (debug_level('e') &&
 				/* check for codemarks inconsistency */
@@ -493,14 +500,16 @@ static unsigned int FindExecCode(unsigned int PC)
 #endif
 		assert(G->seqlen);
 #if SPEC_PREJIT
-		if (seqflg & F_SPEC)
+		if (speculate)
 			prejit_run(G);
 #endif
 		PC = DoExec(G);
 		// G is unreliable (maybe deleted) past this point!
 #if SPEC_PREJIT
-		if (seqflg & F_SPEC)
+		if (speculate) {
 			prejit_sync();
+			speculate = 0;
+		}
 #endif
 		if (seqflg & F_LEAV)
 			TheCPU.err = EXCP_EMULEAVE;
@@ -565,12 +574,7 @@ static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 		    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
 		    e_querymark(PC, gap))
 #endif
-		{
-			if (!(flags & F_SPRJ))
-				/* don't do recursive speculation ! */
-				flags |= can_speculate();
 			ret = 1;
-		}
 		InstrMeta[0].flags |= flags;
 
 		return ret;
@@ -586,9 +590,7 @@ static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
 		TNode *oldG = G;
 		PC = G->clink_t.target;
 		if (e_querymark(PC, SAFE_PRJ_GAP)) break;
-		do {
-			PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
-		} while (!interp_post(PC, Interp_LONG_CS, basemode, flags));
+		PC = _Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
 		G = DoClose(PC, Interp_LONG_CS, basemode, flags);
 		i++;
 		NodesPrejitted++;
@@ -599,13 +601,13 @@ static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
 #endif
 }
 
-static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
-			unsigned short ocs, int basemode, int flags)
+static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			      unsigned short ocs, int basemode, int flags)
 {
 	do {
 		PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
 	} while (!interp_post(PC, Interp_LONG_CS, basemode, flags));
-	return DoClose(PC, Interp_LONG_CS, basemode, flags);
+	return PC;
 }
 
 static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
@@ -2750,7 +2752,8 @@ void instr_emu_sim_reset_count(void)
 static void _PreJit86(unsigned int PC, unsigned int Interp_LONG_CS,
 		      unsigned short ocs, int basemode, int flags)
 {
-	TNode * G = _Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
+	PC = _Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
+	TNode *G = DoClose(PC, Interp_LONG_CS, basemode, flags);
 	if (G && (flags & F_SPRJ)) {
 		NodesPrejitted++;
 		sprj_deep(G, PC, Interp_LONG_CS, ocs, basemode, flags);

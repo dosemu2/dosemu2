@@ -644,7 +644,7 @@ unsigned int DoExec(TNode *G)
 	if (debug_level('e')) TimeStartExec = GETTSC();
 #endif
 	/* these flags need to be checked only once for the node */
-	G->flags &= ~(F_SPEC|F_LEAV);
+	G->flags &= ~F_LEAV;
 	ePC = ExecOne(G);
 	// G is unreliable (maybe deleted) past this point!
 
