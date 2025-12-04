@@ -56,6 +56,12 @@ struct evtimer {
     int running;
 };
 
+#if SDL_VERSION_ATLEAST(2,0,18)
+#define GetTicks64() SDL_GetTicks64()
+#else
+#define GetTicks64() SDL_GetTicks()
+#endif
+
 static int getoverrun(struct evtimer *t, Uint64 now, Uint32 *r_rem)
 {
     Uint64 delta;
@@ -86,7 +92,7 @@ static Uint32 evhandler(Uint32 interval, void *arg)
         return 0;
     }
 
-    now = SDL_GetTicks64();
+    now = GetTicks64();
     pthread_mutex_lock(&t->block_mtx);
     bl = t->blocked;
     ticks = t->ticks + getoverrun(t, now, &rem);
@@ -120,7 +126,7 @@ static void *sdltmr_create(void (*cbk)(int ticks, void *), void *arg)
     t->ticks = 0;
     t->in_cbk = 0;
     t->stopped = 0;
-    t->start = SDL_GetTicks64();
+    t->start = GetTicks64();
     __atomic_store_n(&t->running, 0, __ATOMIC_RELAXED);
     pthread_mutex_init(&t->start_mtx, NULL);
     pthread_mutex_init(&t->interv_mtx, NULL);
@@ -164,7 +170,7 @@ static void sdltmr_set_rel(void *tmr, uint64_t ns, int periodic)
 
     assert(periodic);
     rel = ns / SCALE_MS;
-    start = SDL_GetTicks64();
+    start = GetTicks64();
     pthread_mutex_lock(&t->start_mtx);
     t->start = start;
     pthread_mutex_unlock(&t->start_mtx);
@@ -185,7 +191,7 @@ static uint64_t sdltmr_gettime(void *tmr)
     struct evtimer *t = tmr;
     Uint64 abs, rel;
 
-    abs = SDL_GetTicks64();
+    abs = GetTicks64();
     pthread_mutex_lock(&t->start_mtx);
     rel = abs - t->start;
     pthread_mutex_unlock(&t->start_mtx);
