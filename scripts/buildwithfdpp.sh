@@ -16,7 +16,7 @@ if [ ! -d src ] ; then
   exit 3
 fi
 
-FDPP_LIBRARY_SOURCE=$(realpath "$1")
+FDPP_LIBRARY_SOURCE=$(readlink -f "$1")
 if [ ! -d ${FDPP_LIBRARY_SOURCE} ] ; then
   echo Local FDPP git directory \"${FDPP_LIBRARY_SOURCE}\" does\'t exist
   exit 2

@@ -1,6 +1,6 @@
 #! /bin/sh
 
-TOP=$(realpath `dirname $0`/..)
+TOP=$(readlink -f `dirname $0`/..)
 PLUG=plugin
 SRCDIR=$TOP/src/$PLUG
 DESTDIR=src/$PLUG
