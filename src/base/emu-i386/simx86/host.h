@@ -60,6 +60,9 @@ typedef long double __float80;
 typedef _Float128 __float128;
 #elif !defined(HOST_ARCH_X86) && defined(HAVE_LONG_DOUBLE_WIDER)
 typedef long double __float128;
+#else
+typedef double __float128;
+#define NO_FLOAT128 1
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
