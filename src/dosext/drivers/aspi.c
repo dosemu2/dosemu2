@@ -393,7 +393,7 @@ static int sg_scan_sysfs(struct scsi_device_info *devs, int maxdevs)
     return 0;
   }
   if (gl.gl_pathc > maxdevs) {
-    error("aspi: too many devs, %li\n", gl.gl_pathc);
+    error("aspi: too many devs, %zi\n", gl.gl_pathc);
     globfree(&gl);
     return 0;
   }
