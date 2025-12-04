@@ -680,6 +680,7 @@ extern int SpecPrejits;
 #define EXCP_STISIGNAL	67
 #define EXCP_MODESWITCH	68
 #define EXCP_EMULEAVE	69
+#define EXCP_BREAKNODE	70
 
 #define exit_SIGPEND	0x01	/* signal pending mask */
 #define exit_RPIC	0x02	/* pic asks for interruption */

@@ -1863,10 +1863,15 @@ shrot0:
 		}
 		break;
 
-	case JMP_TAILCODE:
+	case JMP_TAILCODE: {
 		/* copy tail instructions to the end of the code block */
+		unsigned char *p = Cp;
 		GNX(Cp, TailCode, TAILSIZE);
-		*((unsigned int *)(Cp - TAILSIZE + TAILFIX)) = IG->p0;
+		/* Keep TheCPU.eip for BreakNode */
+		if (mode & MPATCH)
+			p[5] = p[6] = p[7] = NOP;
+		*((unsigned int *)(p + TAILFIX)) = IG->p0;
+		}
 		break;
 
 	case JMP_INDIRECT: {	// input: %%{e}ax = %%{e}ip

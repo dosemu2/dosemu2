@@ -58,7 +58,6 @@ static avltr_traverser Traverser;
 static int ninodes = 0;
 static pthread_mutex_t trees_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-int NodesCleaned = 0;
 int NodesParsed = 0;
 int NodesExecd = 0;
 int NodesPrejitted = 0;
@@ -577,7 +576,6 @@ static void avltr_init(void)
 
   g_printf("avltr_init\n");
   CurrIMeta = -1;
-  NodesCleaned = 0;
   ninodes = 0;
 }
 
@@ -1271,7 +1269,6 @@ static TNode *FindTree_tail(int key)
 {
   TNode **I;
   TNode *G;
-  static int tccount=0;
 #if PROFILE >= 2
   hitimer_t t0 = 0;
   if (debug_level('e')) t0 = GETTSC();
@@ -1299,13 +1296,6 @@ endsrch:
 #if PROFILE >= 2
   if (debug_level('e')) SearchTime += (GETTSC() - t0);
 #endif
-  if ((ninodes>500) && (((++tccount) >= CleanFreq) || NodesCleaned)) {
-	while (NodesCleaned > 0) {
-	    (void)TraverseAndClean();
-	    if (NodesCleaned) NodesCleaned--;
-	}
-	tccount=0;
-  }
 
   if (debug_level('e')) {
     if (debug_level('e')>4) e_printf("Not found key %08x\n",key);
@@ -1409,7 +1399,8 @@ static void BreakNode(TNode *G, unsigned char *eip)
   ebase = eip - G->addr;
   for (i=0; i<G->seqnum; i++) {
     if (A->daddr >= ebase) {		// found following instr
-	IGen IG = (IGen){.op = JMP_TAILCODE, .p0 = G->key + A->dnpc};
+	IGen IG = (IGen){.op = JMP_TAILCODE, .mode = MPATCH,
+			 .p0 = G->key + A->dnpc};
 	p = G->addr + A->daddr;		// translated IP of following instr
 	CodeGen(p, G->addr, &IG);
 	if (debug_level('e')>1)
@@ -1456,7 +1447,6 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	    e_unmarkpage(G->key, G->seqlen);
 	    NodeUnlinker(G);
 	    cleaned++;
-	    NodesCleaned++;
 	    /* if the current eip is in *any* chunk of code that is deleted
 	        (not just the one written to)
 	       then we need to break the node immediately to go back to
@@ -1464,14 +1454,18 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	       not officially exist anymore) that the SIGSEGV or patched
 	       call returns to may write to the current unprotected page.
 	    */
-	    /* Exclude last instruction, as there is no need to break
-	     * node after last instruction (it ends there anyway). */
-	    ahE = G->addr + G->meta[G->seqnum - 1].daddr;
+	    ahE = G->addr + G->len;
 	    if (eip && ADDR_IN_RANGE(eip,G->addr,ahE)) {
 		if (debug_level('e')>1)
 		    e_printf("### Node self hit %p->%p..%p\n",
 			     eip,G->addr,ahE);
 		BreakNode(G, eip);
+		TheCPU.err = EXCP_BREAKNODE;
+		/* we can only call avltr_delete in codegen.c */
+	    }
+	    else {
+		if (debug_level('e')>2) e_printf("Delete node %08x\n",G->key);
+		avltr_delete(G->key);
 	    }
 	}
       }

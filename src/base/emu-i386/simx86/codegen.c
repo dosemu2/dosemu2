@@ -587,6 +587,12 @@ static unsigned ExecOne(TNode *G)
 #endif
 		prefetch(CPUOFFS(0));
 	ePC = Exec(G->addr);
+	if (TheCPU.err == EXCP_BREAKNODE) {
+		if (debug_level('e')>2)
+			e_printf("Delete broken node %08x\n",TheCPU.key);
+		avltr_delete(TheCPU.key);
+		TheCPU.err = 0;
+	}
 #ifdef SKIP_EMU_VBIOS
 	if ((TheCPU.cs&0xf000)==config.vbios_seg && !TheCPU.err)
 		TheCPU.err = EXCP_GOBACK;
@@ -687,7 +693,6 @@ unsigned int DoExec(TNode *G)
 
 #if defined(SINGLESTEP)
 	InvalidateNodeRange(key, 1, NULL);
-	avltr_delete(key);
 #endif
 
 	return ePC;
