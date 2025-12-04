@@ -800,7 +800,7 @@ if test "$CONFIG_HOST" = "Darwin"; then
 fi
 AC_SUBST(PLUGIN_LDFLAGS)
 
-if test "$machine" != "wasm32" -a "$machine" != "armv7l"; then
+if test "$machine" != "wasm32" -a "$machine" != "armv7hl" -a "$machine" != "armv7l"; then
   AC_ARG_ENABLE(mcontext,
                AS_HELP_STRING([--disable-mcontext], [disable fast context switch]))
   if test "$enable_mcontext" != "no"; then
