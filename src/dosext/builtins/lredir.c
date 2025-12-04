@@ -45,9 +45,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <assert.h>
-#ifdef HAVE_LIBBSD
-#include <bsd/string.h>
-#endif
+#include "libbsd/string.h"
 
 #include "emu.h"
 #include "memory.h"

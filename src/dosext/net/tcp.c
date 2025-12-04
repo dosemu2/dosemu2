@@ -27,9 +27,7 @@
 #include "Netinet/tcp.h"
 #include <limits.h>
 #include <string.h>
-#ifdef HAVE_LIBBSD
-#include <bsd/string.h>
-#endif
+#include "libbsd/string.h"
 #include "emu.h"
 #include "hlt.h"
 #include "int.h"

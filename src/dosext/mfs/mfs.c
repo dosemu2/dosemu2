@@ -158,9 +158,7 @@ TODO:
 #include <stdint.h>	// types used for seek/size
 
 #include <string.h>
-#ifdef HAVE_LIBBSD
-#include <bsd/string.h>
-#endif
+#include "libbsd/string.h"
 #include "emu.h"
 #include "int.h"
 #include "lfn.h"

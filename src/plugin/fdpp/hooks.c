@@ -20,9 +20,7 @@
  * Author: Stas Sergeev
  */
 #include <string.h>  // needed before bsd/string.h
-#ifdef HAVE_LIBBSD
-#include <bsd/string.h>
-#endif
+#include "libbsd/string.h"
 #include <stddef.h>
 #include <fdpp/loader.h>
 #include <fdpp/thunks.h>
