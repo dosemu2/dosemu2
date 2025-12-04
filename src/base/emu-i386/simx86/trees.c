@@ -800,7 +800,7 @@ void NodeLinker(TNode *LG, TNode *G)
 #endif
 	if (debug_level('e')>8 && LG) e_printf("NodeLinker: %08x->%08x\n",LG->key,G->key);
 
-	if (LG && LG->alive>0) {
+	if (LG) {
 		linknode(LG, G, &LG->clink_t, 'T');
 		linknode(LG, G, &LG->clink_nt, 'N');
 	}
@@ -953,10 +953,6 @@ static void CheckLinks(void)
 	return;
     }
     G = p->data;
-    if (G->alive <= 0) {
-	e_printf("Node %p invalidated\n",G);
-	continue;
-    }
     if (debug_level('e')>5) e_printf("Node %p at %08x\n",G,G->key);
     checklink(G, &G->clink_t, 'T');
     checklink(G, &G->clink_nt, 'N');
@@ -990,11 +986,6 @@ static void DumpTree (FILE *fd)
     }
     fprintf(fd,"\n-----------------------------------------------------------\n");
     G = p->data;
-    if (G->alive <= 0) {
-	fprintf(fd,"%04d Node %p invalidated\n",nn,G);
-	nn++;
-	continue;
-    }
     fprintf(fd,"%04d Node %p at %08x..%08x addr=%p flags=%#x\n",
 	nn,G,G->key,(G->key+G->seqlen-1),G->addr,G->flags);
     fprintf(fd,"     AVL (%p:%p),%d,%d,%d,%d\n",p->link[0],p->link[1],
@@ -1019,7 +1010,8 @@ static void DumpTree (FILE *fd)
 	    B = B->next;
 	}
     }
-    if (G->addr) {
+    assert(G->addr);
+    {
 	int i, j, k;
 	unsigned char *p = G->addr;
 	Addr2Pc *AP = G->meta;
@@ -1079,15 +1071,11 @@ static int TraverseAndClean(void)
   }
 
   G = p->data;
-  if ((G->addr != NULL) && (G->alive>0)) {
-      G->alive -= AGENODE;
-      if (G->alive <= 0) {
-	if (debug_level('e')>2) e_printf("TraverseAndClean: node at %08x decayed\n",G->key);
-	e_unmarkpage(G->key, G->seqlen);
-	NodeUnlinker(G);
-      }
-  }
-  if ((G->addr == NULL) || (G->alive<=0)) {
+  G->alive -= AGENODE;
+  if (G->alive <= 0) {
+      if (debug_level('e')>2) e_printf("TraverseAndClean: node at %08x decayed\n",G->key);
+      e_unmarkpage(G->key, G->seqlen);
+      NodeUnlinker(G);
       if (debug_level('e')>2) e_printf("Delete node %08x\n",G->key);
       avltr_delete(G->key);
       cnt++;
@@ -1275,10 +1263,9 @@ static TNode *FindTree_tail(int key)
 #endif
 
   I = avltr_find(key);
-  if (!I) goto endsrch;
-  G = *I;
-  assert(G);
-  if (G->addr && (G->alive>0)) {
+  if (I) {
+	G = *I;
+	assert(G && G->addr);
 	if (debug_level('e')>3) e_printf("Found key %08x\n",key);
 	G->alive = NODELIFE(G);
 #if PROFILE
@@ -1292,7 +1279,6 @@ static TNode *FindTree_tail(int key)
 	return G;
   }
 
-endsrch:
 #if PROFILE >= 2
   if (debug_level('e')) SearchTime += (GETTSC() - t0);
 #endif
@@ -1319,7 +1305,7 @@ TNode *FindTree(int key)
      ~99.99% success rate */
   I = __atomic_load_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK],
 		      __ATOMIC_RELAXED);
-  if (I && (I->alive>0) && (I->key==key)) {
+  if (I && (I->key==key)) {
 	if (debug_level('e')) {
 	    if (debug_level('e')>4)
 		e_printf("Found key %08x via cache\n", key);
@@ -1350,7 +1336,7 @@ TNode *FindTree_unlocked(int key)
   /* fast path: using cache indexed by low 12 bits of PC:
      ~99.99% success rate */
   I = findtree_cache[key&FINDTREE_CACHE_HASH_MASK];
-  if (I && (I->alive>0) && (I->key==key)) {
+  if (I && (I->key==key)) {
 	if (debug_level('e')) {
 	    if (debug_level('e')>4)
 		e_printf("Found key %08x via cache\n", key);
@@ -1438,12 +1424,11 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
       if (!G || G->key >= ah)
         break;
       ahG = G->key + G->seqlen;
-      if (G->addr && (G->alive>0)) {
-	if (RANGE_INTERSECT(G->key,ahG,al,ah)) {
+      assert (G->addr);
+      if (RANGE_INTERSECT(G->key,ahG,al,ah)) {
 	    unsigned char *ahE;
 	    if (debug_level('e')>1)
 		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
-	    G->alive = 0;
 	    e_unmarkpage(G->key, G->seqlen);
 	    NodeUnlinker(G);
 	    cleaned++;
@@ -1467,7 +1452,6 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 		if (debug_level('e')>2) e_printf("Delete node %08x\n",G->key);
 		avltr_delete(G->key);
 	    }
-	}
       }
       if (ahG >= ah)
         break;
