@@ -255,14 +255,15 @@ class BaseTestCase(object):
 
     def setUp(self):
         # Process and skip actions
-        for key, value in self.actions.items():
-            if re.match(key, self._testMethodName):
-                d = {
-                    SKIP: "",
-                    KNOWNFAIL: "known failure",
-                    UNSUPPORTED: "unsupported",
-                }
-                self.skipTest(d.get(value, "unknown key"))
+        if not environ.get("NO_ACTIONS", '0') == '1':
+            for key, value in self.actions.items():
+                if re.match(key, self._testMethodName):
+                    d = {
+                        SKIP: "",
+                        KNOWNFAIL: "known failure",
+                        UNSUPPORTED: "unsupported",
+                    }
+                    self.skipTest(d.get(value, "unknown key"))
 
         for p in self.imagedir.iterdir():
             if p.is_dir():
@@ -823,7 +824,7 @@ def main_setup(cases):
         if argv[1] == "--help":
             print(("Usage: %s [--help | --get-test-binaries | " +
                    "--list-attrs | --list-cases | --list-tests] | " +
-                   "[--require-attr=STRING TestCase ...] | " +
+                   "[--require-attr=STRING [TestCase1 .. TestCaseN]] | " +
                    "[TestCase[.testname] ...]") % argv[0])
             exit(0)
 
@@ -864,13 +865,14 @@ def main_setup(cases):
         if x:
             attr = x.groups()[0]
             tests = []
+            # Check if we have valid cases following on the command line
+            xcases = [c for c in cases if c.__name__ in argv[2:]]
+            if len(xcases):
+                cases = xcases
             for c in cases:
-                for arg in argv[2:]:
-                    if c.__name__ == arg:
-                        tests += [n for n in c.getTestnames_with_attr(attr)]
+                tests += [n for n in c.getTestnames_with_attr(attr)]
             if not len(tests):
-                print("No tests found with attr, was it correct? See --help")
-                exit(1)
+                exit("No tests found with attr, was it correct? See --help")
             return [argv[0],] + tests
 
         # Need to expand multiple TestCases on command line
@@ -893,12 +895,10 @@ def main_setup(cases):
                         tvalid += [c.__name__ + '.' + a,]
 
         if len(cvalid) == 0 and len(tvalid) == 0:
-            print("No valid testcases or testnames on command line")
-            exit(1)
+            exit("No valid testcases or testnames on command line")
 
         if len(cvalid) and len(tvalid):
-            print("Invalid to have both testcases and testnames on command line")
-            exit(1)
+            exit("Invalid to have both testcases and testnames on command line")
 
         return [argv[0],] + sorted(cvalid + tvalid)
 
