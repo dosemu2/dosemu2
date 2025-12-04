@@ -108,7 +108,7 @@ if test -n "$CROSS_PREFIX"; then
     AC_MSG_ERROR([${CROSS_PREFIX}as not found, CROSS_PREFIX is wrong])
   fi
 else
-  AC_PATH_PROGS([XAS], [i686-linux-gnu-as i386-elf-as])
+  AC_PATH_PROGS([XAS], [i686-linux-gnu-as i686-unknown-linux-gnu-as i386-elf-as])
 fi
 if test -z "$XAS"; then
   AC_PATH_PROG([XAS], [x86_64-linux-gnu-as])
@@ -144,7 +144,7 @@ if test -n "$CROSS_PREFIX"; then
     AC_MSG_ERROR([${CROSS_PREFIX}ld not found, CROSS_PREFIX is wrong])
   fi
 else
-  AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld i386-elf-ld x86_64-linux-gnu-ld ld.lld ld])
+  AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld i686-unknown-linux-gnu-ld i386-elf-ld x86_64-linux-gnu-ld ld.lld ld])
   if test "$CONFIG_HOST" = "Darwin" -a `basename "$AS_LD"` = "ld"; then
     AC_MSG_ERROR([Please install lld or i386-elf-binutils])
   fi
@@ -189,7 +189,7 @@ if test -n "$CROSS_PREFIX"; then
     AC_MSG_ERROR([${CROSS_PREFIX}objcopy not found, CROSS_PREFIX is wrong])
   fi
 else
-  AC_PATH_PROGS([XOBJCOPY], [i686-linux-gnu-objcopy x86_64-linux-gnu-objcopy llvm-objcopy objcopy])
+  AC_PATH_PROGS([XOBJCOPY], [i686-linux-gnu-objcopy i686-unknown-linux-gnu-objcopy x86_64-linux-gnu-objcopy llvm-objcopy objcopy])
 fi
 if test -z "$XOBJCOPY"; then
   XOBJCOPY="$OBJCOPY"
