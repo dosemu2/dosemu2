@@ -30,7 +30,6 @@ BuildRequires: slang-devel
 BuildRequires: libslirp-devel
 BuildRequires: libieee1284-devel
 BuildRequires: mt32emu-devel
-BuildRequires: libbsd-devel
 BuildRequires: gcc
 BuildRequires: bison
 BuildRequires: flex

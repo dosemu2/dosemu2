@@ -27,7 +27,6 @@ Build-Depends:
     libao-dev,
     libieee1284-3-dev,
     libslirp-dev,
-    libbsd-dev,
     libreadline-dev,
     libjson-c-dev,
     libb64-dev,
