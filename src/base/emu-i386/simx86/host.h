@@ -57,11 +57,11 @@ typedef long double __float80;
 #endif
 
 #if defined(HAVE__FLOAT128)
-typedef _Float128 __float128;
+typedef _Float128 ___float128;
 #elif !defined(HOST_ARCH_X86) && defined(HAVE_LONG_DOUBLE_WIDER)
-typedef long double __float128;
+typedef long double ___float128;
 #else
-typedef double __float128;
+typedef double ___float128;
 #define NO_FLOAT128 1
 #endif
 
