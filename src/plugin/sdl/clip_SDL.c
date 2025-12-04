@@ -23,9 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#ifdef HAVE_LIBBSD
-#include <bsd/string.h>
-#endif
+#include "libbsd/string.h"
 #include <SDL_clipboard.h>
 #include <SDL_error.h>
 #include <SDL_video.h>

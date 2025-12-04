@@ -33,9 +33,7 @@ Modified by O.V.Zhirov, July 1998
 #include "translate/translate.h"
 #include <ctype.h>
 #include <string.h>
-#ifdef HAVE_LIBBSD
-#include <bsd/string.h>
-#endif
+#include "libbsd/string.h"
 #else
 #include "includes.h"
 #include "loadparm.h"
