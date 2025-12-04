@@ -222,10 +222,6 @@ if test -z "$MAKE"; then
 fi
 # export MAKE to run from scripts
 export MAKE="$MAKE"
-AC_CHECK_PROGS([REALPATH], [realpath])
-if test -z "$REALPATH"; then
-  AC_MSG_ERROR(You don't have realpath installed)
-fi
 #AC_PROG_AR
 AC_CHECK_TOOL([AR], [ar], [:])
 if test -z "$AR" -o "$AR" = ":"; then
