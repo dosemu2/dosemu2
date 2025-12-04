@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DIR=$(dirname $0 | xargs realpath)
+DIR=$(dirname $0 | xargs readlink -f)
 echo "Generating toplevel configure script in $DIR..."
 
 check_scr() {

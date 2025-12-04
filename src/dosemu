@@ -4,8 +4,8 @@ if test -n "$PREFIX" -a "$prefix" != "$PREFIX"; then
 fi
 
 get_binary() {
-  BINDIR=$(realpath `dirname "$1"`)
-  if [ "$BINDIR" = "$(realpath -q $LOCAL_BUILD_PATH/$LOCAL_BIN_DIR)" ]; then
+  BINDIR=$(readlink -f `dirname "$1"`)
+  if [ "$BINDIR" = "$(readlink -f -q $LOCAL_BUILD_PATH/$LOCAL_BIN_DIR)" ]; then
     BINARY="$BINDIR"/dosemu2.bin
     if [ ! -f "$BINARY" ]; then
       echo "$BINARY does not exist"
@@ -75,7 +75,7 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -cdrom)
-      CDROM_PATH=`realpath "$2"`
+      CDROM_PATH=`readlink -f "$2"`
       OPTS="$OPTS -d ${CDROM_PATH}:C"
       CDDEV=`findmnt -n -o SOURCE "$2"`
       shift
