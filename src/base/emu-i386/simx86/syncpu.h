@@ -131,7 +131,7 @@ typedef struct {
 } SynCPU;
 
 /* JIT uses byte offsets, make sure temp is still ok */
-static_assert(offsetof(SynCPU,temp) == 124);
+static_assert(offsetof(SynCPU,temp) == 124, "bad offset");
 
 struct _SynCPU {
 #ifdef X86_JIT

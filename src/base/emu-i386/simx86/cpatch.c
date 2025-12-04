@@ -617,7 +617,7 @@ enum {
 	STUB_JMP_INDIRECT,
 	STUBS_LEN
 };
-static_assert(STUBS_LEN <= STUBS_LEN_MAX);
+static_assert(STUBS_LEN <= STUBS_LEN_MAX, "bad stub len");
 
 // using negative byte offsets
 #define Ofs_stub(x) (unsigned char)(((x) - STUBS_LEN_MAX) * \
