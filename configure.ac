@@ -349,6 +349,7 @@ AC_CHECK_TYPES([__float80],, [
   ]
 )
 AC_CHECK_TYPES([_Float128])
+AC_TYPE_LONG_DOUBLE_WIDER
 AC_CHECK_TYPES([greg_t],,, [[#include <ucontext.h>]])
 AC_CHECK_MEMBERS(struct ethhdr.h_dest,,, [[#include <netinet/if_ether.h>]])
 
