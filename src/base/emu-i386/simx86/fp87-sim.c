@@ -221,7 +221,11 @@ static long double read_long_double(dosaddr_t addr)
 #else
 	float_status s;
 	union { uint32_t u32[sizeof(floatx80)/4]; floatx80 ld; } x;
+#ifndef NO_FLOAT128
 	union { float128 f; ___float128 ld; } y;
+#else
+	union { float64 f; ___float64 ld; } y;
+#endif
 #endif
 	x.u32[0] = sim_read_dword(addr);
 	x.u32[1] = sim_read_dword(addr+4);
@@ -229,7 +233,11 @@ static long double read_long_double(dosaddr_t addr)
 #ifdef HAVE___FLOAT80
 	return x.ld;
 #else
+#ifndef NO_FLOAT128
 	y.f = floatx80_to_float128(x.ld, &s);
+#else
+	y.f = floatx80_to_float64(x.ld, &s);
+#endif
 	return y.ld;
 #endif
 }
@@ -253,8 +261,15 @@ static void write_long_double(dosaddr_t addr, long double ld)
 #else
 	float_status s;
 	union { uint32_t u32[sizeof(floatx80)/4]; floatx80 ld; } x;
+#ifndef NO_FLOAT128
 	union { float128 f; ___float128 ld; } y = { .ld = ld };
+
 	x.ld = float128_to_floatx80(y.f, &s);
+#else
+	union { float64 f; ___float64 ld; } y = { .ld = ld };
+
+	x.ld = float64_to_floatx80(y.f, &s);
+#endif
 #endif
 	sim_write_dword(addr, x.u32[0]);
 	sim_write_dword(addr+4, x.u32[1]);

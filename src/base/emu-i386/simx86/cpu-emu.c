@@ -1340,10 +1340,18 @@ static void load_fpu_state(void)
 #else
     float_status s;
     union { uint32_t u32[sizeof(floatx80)/4]; floatx80 ld; } x;
+#ifndef NO_FLOAT128
     union { float128 f; ___float128 ld; } y;
+#else
+    union { float64 f; ___float64 ld; } y;
+#endif
 
     memcpy(x.u32, &fs.st[i], sizeof(fs.st[i]));
+#ifndef NO_FLOAT128
     y.f = floatx80_to_float128(x.ld, &s);
+#else
+    y.f = floatx80_to_float64(x.ld, &s);
+#endif
     TheCPU.fpregs[i] = y.ld;
 #endif
   }
@@ -1367,9 +1375,16 @@ static void save_fpu_state(void)
 #else
     float_status s;
     union { uint32_t u32[sizeof(floatx80)/4]; floatx80 ld; } x;
+#ifndef NO_FLOAT128
     union { float128 f; ___float128 ld; } y = { .ld = TheCPU.fpregs[k] };
 
     x.ld = float128_to_floatx80(y.f, &s);
+#else
+    union { float64 f; ___float64 ld; } y = { .ld = TheCPU.fpregs[k] };
+
+    x.ld = float64_to_floatx80(y.f, &s);
+#endif
+
     memcpy(&fs.st[i], x.u32, sizeof(fs.st[i]));
 #endif
     k = (k + 1) & 7;
