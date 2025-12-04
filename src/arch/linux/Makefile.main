@@ -41,7 +41,7 @@ DPMI = dosext/dpmi dosext/dpmi/doslib dosext/dpmi/dnative
 _LIBSUBDIRS=base/video base/dev/vga base/core base/kbd_unicode \
 	arch/linux/async base/lib/mapping $(LIBMC) \
 	base/misc base/lib/misc base/lib/libpcl base/lib/timer \
-	base/lib/fslib \
+	base/lib/fslib base/lib/libbsd \
 	base/dev/misc \
 	base/emu-i386 $(XCPUEMU) base/speaker \
 	base/dev/pic base/dev/ne2k \
