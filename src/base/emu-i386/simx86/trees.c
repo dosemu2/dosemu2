@@ -58,7 +58,6 @@ static avltr_traverser Traverser;
 static int ninodes = 0;
 static pthread_mutex_t trees_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-int NodesCleaned = 0;
 int NodesParsed = 0;
 int NodesExecd = 0;
 int NodesPrejitted = 0;
@@ -317,7 +316,7 @@ static TNode **avltr_probe (TNode *item)
 }
 
 
-void avltr_delete(const int key)
+static TNode *avltr_delete(const int key)
 {
   avltr_tree *tree = &CollectTree;
   avltr_node *pa[AVL_MAX_HEIGHT];	/* Stack P: Nodes. */
@@ -329,7 +328,7 @@ void avltr_delete(const int key)
   a[0] = 0;
   pa[0] = &tree->root;
   p = tree->root.link[0];
-  if (p == NULL) return;
+  if (p == NULL) return NULL;
 
   for (;;) {
       int diff = (key - p->data->key);
@@ -337,11 +336,11 @@ void avltr_delete(const int key)
       if (diff==0) break;
       pa[k] = p;
       if (diff < 0) {
-	  if (p->link[0] == NULL) return;
+	  if (p->link[0] == NULL) return NULL;
 	  p = p->link[0]; a[k] = 0;
       }
       else if (diff > 0) {
-	  if (p->rtag != PLUS) return;
+	  if (p->rtag != PLUS) return NULL;
 	  p = p->link[1]; a[k] = 1;
       }
       k++;
@@ -424,26 +423,6 @@ void avltr_delete(const int key)
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
   if (debug_level('e')>2) e_printf("Remove node %p\n",p);
 #endif
-#ifdef DEBUG_LINKER
-	if (G->bkr) {
-	    dbug_printf("Cannot delete - bkr busy\n");
-	    pthread_mutex_unlock(&trees_mtx);
-	    leavedos_main(0x9141);
-	}
-	if (G->clink_t.ref || G->clink_nt.ref) {
-	    dbug_printf("Cannot delete - ref busy\n");
-	    pthread_mutex_unlock(&trees_mtx);
-	    leavedos_main(0x9142);
-	}
-#endif
-/**/ if (G->addr==NULL) {
-      pthread_mutex_unlock(&trees_mtx);
-      leavedos_main(0x8130);
-  }
-  FreeGenCodeBuf(G->addr);
-  __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
-		   NULL, __ATOMIC_RELAXED);
-  free(G);
   Tfree(p);
 
   while (--k) {
@@ -552,6 +531,7 @@ void avltr_delete(const int key)
 	  }
       }
   }
+  return G;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -577,7 +557,6 @@ static void avltr_init(void)
 
   g_printf("avltr_init\n");
   CurrIMeta = -1;
-  NodesCleaned = 0;
   ninodes = 0;
 }
 
@@ -802,7 +781,7 @@ void NodeLinker(TNode *LG, TNode *G)
 #endif
 	if (debug_level('e')>8 && LG) e_printf("NodeLinker: %08x->%08x\n",LG->key,G->key);
 
-	if (LG && LG->alive>0) {
+	if (LG) {
 		linknode(LG, G, &LG->clink_t, 'T');
 		linknode(LG, G, &LG->clink_nt, 'N');
 	}
@@ -955,10 +934,6 @@ static void CheckLinks(void)
 	return;
     }
     G = p->data;
-    if (G->alive <= 0) {
-	e_printf("Node %p invalidated\n",G);
-	continue;
-    }
     if (debug_level('e')>5) e_printf("Node %p at %08x\n",G,G->key);
     checklink(G, &G->clink_t, 'T');
     checklink(G, &G->clink_nt, 'N');
@@ -992,11 +967,6 @@ static void DumpTree (FILE *fd)
     }
     fprintf(fd,"\n-----------------------------------------------------------\n");
     G = p->data;
-    if (G->alive <= 0) {
-	fprintf(fd,"%04d Node %p invalidated\n",nn,G);
-	nn++;
-	continue;
-    }
     fprintf(fd,"%04d Node %p at %08x..%08x addr=%p flags=%#x\n",
 	nn,G,G->key,(G->key+G->seqlen-1),G->addr,G->flags);
     fprintf(fd,"     AVL (%p:%p),%d,%d,%d,%d\n",p->link[0],p->link[1],
@@ -1021,7 +991,8 @@ static void DumpTree (FILE *fd)
 	    B = B->next;
 	}
     }
-    if (G->addr) {
+    assert(G->addr);
+    {
 	int i, j, k;
 	unsigned char *p = G->addr;
 	Addr2Pc *AP = G->meta;
@@ -1081,17 +1052,10 @@ static int TraverseAndClean(void)
   }
 
   G = p->data;
-  if ((G->addr != NULL) && (G->alive>0)) {
-      G->alive -= AGENODE;
-      if (G->alive <= 0) {
-	if (debug_level('e')>2) e_printf("TraverseAndClean: node at %08x decayed\n",G->key);
-	e_unmarkpage(G->key, G->seqlen);
-	NodeUnlinker(G);
-      }
-  }
-  if ((G->addr == NULL) || (G->alive<=0)) {
-      if (debug_level('e')>2) e_printf("Delete node %08x\n",G->key);
-      avltr_delete(G->key);
+  G->alive -= AGENODE;
+  if (G->alive <= 0) {
+      if (debug_level('e')>2) e_printf("TraverseAndClean: node at %08x decayed, delete\n",G->key);
+      RemoveNode(G);
       cnt++;
   }
   else {
@@ -1117,7 +1081,6 @@ static int TraverseAndClean(void)
  */
 TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
 {
-  TNode *nG = NULL;
 #if PROFILE >= 2
   hitimer_t t0 = 0;
   if (debug_level('e')) t0 = GETTSC();
@@ -1134,37 +1097,23 @@ TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
   key = I0->npc;
 
   nap = I0->ncount + 1;
-  TNode *G = calloc(1, sizeof(TNode) + sizeof(Addr2Pc) * nap);
-  if (G==NULL) {
-    leavedos_main(0x8201);
-  }
-  G->key = key;
+  TNode *nG = calloc(1, sizeof(TNode) + sizeof(Addr2Pc) * nap);
+  assert(nG);
+  nG->key = key;
   pthread_mutex_lock(&trees_mtx);
-  found = avltr_probe(G);
-  if (*found != G) {
-	nG = *found;
-	*found = G;
-	if (debug_level('e')>2) {
-		e_printf("Equal keys: replace node %p at %08x\n",
-			nG,key);
-	}
-	/* ->REPLACE the code of the node found with the latest
-	   compiled version */
-	NodeUnlinker(nG);
-	FreeGenCodeBuf(nG->addr);
-	free(nG);
-  }
-  else {
+  found = avltr_probe(nG);
+  /* since existing code was invalidated in DoClose(),
+     we must find a new node */
+  assert(*found == nG);
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
-	if (debug_level('e')>2) {
+  if (debug_level('e')>2) {
 		e_printf("New TNode %d at=%p key=%08x\n",
 			ninodes,nG,key);
 		if (debug_level('e')>3)
 			e_printf("Header: len=%d n_ops=%d PC=%08x\n",
 				I0->totlen, I0->ncount, I0->npc);
-	}
-#endif
   }
+#endif
   nG = *found;
   nG->alive = NODELIFE(nG);
   pthread_mutex_unlock(&trees_mtx);
@@ -1271,17 +1220,15 @@ static TNode *FindTree_tail(int key)
 {
   TNode **I;
   TNode *G;
-  static int tccount=0;
 #if PROFILE >= 2
   hitimer_t t0 = 0;
   if (debug_level('e')) t0 = GETTSC();
 #endif
 
   I = avltr_find(key);
-  if (!I) goto endsrch;
-  G = *I;
-  assert(G);
-  if (G->addr && (G->alive>0)) {
+  if (I) {
+	G = *I;
+	assert(G && G->addr);
 	if (debug_level('e')>3) e_printf("Found key %08x\n",key);
 	G->alive = NODELIFE(G);
 #if PROFILE
@@ -1295,17 +1242,9 @@ static TNode *FindTree_tail(int key)
 	return G;
   }
 
-endsrch:
 #if PROFILE >= 2
   if (debug_level('e')) SearchTime += (GETTSC() - t0);
 #endif
-  if ((ninodes>500) && (((++tccount) >= CleanFreq) || NodesCleaned)) {
-	while (NodesCleaned > 0) {
-	    (void)TraverseAndClean();
-	    if (NodesCleaned) NodesCleaned--;
-	}
-	tccount=0;
-  }
 
   if (debug_level('e')) {
     if (debug_level('e')>4) e_printf("Not found key %08x\n",key);
@@ -1329,7 +1268,7 @@ TNode *FindTree(int key)
      ~99.99% success rate */
   I = __atomic_load_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK],
 		      __ATOMIC_RELAXED);
-  if (I && (I->alive>0) && (I->key==key)) {
+  if (I && (I->key==key)) {
 	if (debug_level('e')) {
 	    if (debug_level('e')>4)
 		e_printf("Found key %08x via cache\n", key);
@@ -1360,7 +1299,7 @@ TNode *FindTree_unlocked(int key)
   /* fast path: using cache indexed by low 12 bits of PC:
      ~99.99% success rate */
   I = findtree_cache[key&FINDTREE_CACHE_HASH_MASK];
-  if (I && (I->alive>0) && (I->key==key)) {
+  if (I && (I->key==key)) {
 	if (debug_level('e')) {
 	    if (debug_level('e')>4)
 		e_printf("Found key %08x via cache\n", key);
@@ -1409,7 +1348,8 @@ static void BreakNode(TNode *G, unsigned char *eip)
   ebase = eip - G->addr;
   for (i=0; i<G->seqnum; i++) {
     if (A->daddr >= ebase) {		// found following instr
-	IGen IG = (IGen){.op = JMP_TAILCODE, .p0 = G->key + A->dnpc};
+	IGen IG = (IGen){.op = JMP_TAILCODE, .mode = MPATCH,
+			 .p0 = G->key + A->dnpc};
 	p = G->addr + A->daddr;		// translated IP of following instr
 	CodeGen(p, G->addr, &IG);
 	if (debug_level('e')>1)
@@ -1420,6 +1360,26 @@ static void BreakNode(TNode *G, unsigned char *eip)
     A++;
   }
   e_printf("============ Node %08x break failed\n",G->key);
+}
+
+static void RemoveNode_unlocked(TNode *G)
+{
+  e_unmarkpage(G->key, G->seqlen);
+  NodeUnlinker(G);
+  assert(!G->bkr && !G->clink_t.ref && !G->clink_nt.ref && G->addr);
+  FreeGenCodeBuf(G->addr);
+  __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
+		   NULL, __ATOMIC_RELAXED);
+  TNode *deleted = avltr_delete(G->key);
+  assert(deleted == G);
+  free(G);
+}
+
+void RemoveNode(TNode *G)
+{
+  pthread_mutex_lock(&trees_mtx);
+  RemoveNode_unlocked(G);
+  pthread_mutex_unlock(&trees_mtx);
 }
 
 int InvalidateNodeRange(int al, int len, unsigned char *eip)
@@ -1447,16 +1407,12 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
       if (!G || G->key >= ah)
         break;
       ahG = G->key + G->seqlen;
-      if (G->addr && (G->alive>0)) {
-	if (RANGE_INTERSECT(G->key,ahG,al,ah)) {
+      assert (G->addr);
+      if (RANGE_INTERSECT(G->key,ahG,al,ah)) {
 	    unsigned char *ahE;
 	    if (debug_level('e')>1)
 		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
-	    G->alive = 0;
-	    e_unmarkpage(G->key, G->seqlen);
-	    NodeUnlinker(G);
 	    cleaned++;
-	    NodesCleaned++;
 	    /* if the current eip is in *any* chunk of code that is deleted
 	        (not just the one written to)
 	       then we need to break the node immediately to go back to
@@ -1464,16 +1420,19 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	       not officially exist anymore) that the SIGSEGV or patched
 	       call returns to may write to the current unprotected page.
 	    */
-	    /* Exclude last instruction, as there is no need to break
-	     * node after last instruction (it ends there anyway). */
-	    ahE = G->addr + G->meta[G->seqnum - 1].daddr;
+	    ahE = G->addr + G->len;
 	    if (eip && ADDR_IN_RANGE(eip,G->addr,ahE)) {
 		if (debug_level('e')>1)
 		    e_printf("### Node self hit %p->%p..%p\n",
 			     eip,G->addr,ahE);
 		BreakNode(G, eip);
+		TheCPU.err = EXCP_BREAKNODE;
+		/* we can only call RemoveNode in codegen.c */
 	    }
-	}
+	    else {
+		if (debug_level('e')>2) e_printf("Delete node %08x\n",G->key);
+		RemoveNode_unlocked(G);
+	    }
       }
       if (ahG >= ah)
         break;

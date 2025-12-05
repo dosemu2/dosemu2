@@ -159,7 +159,7 @@ static inline unsigned int FindPC_X(const unsigned char *addr)
     return FindPC(GetGenCodeBuf(addr));
 }
 int InvalidateNodeRange(int addr, int len, unsigned char *eip);
-void avltr_delete(const int key);
+void RemoveNode(TNode *G);
 void NodeLinker(TNode *LG, TNode *G);
 
 #ifdef DEBUG_TREE

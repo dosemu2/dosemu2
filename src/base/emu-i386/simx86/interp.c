@@ -461,7 +461,7 @@ static unsigned int FindExecCode(unsigned int PC)
 		G = FindTree(PC);
 		if (G) {
 			if (!GoodNode(G)) {
-				InvalidateNodeRange(G->key, G->seqlen, NULL);
+				RemoveNode(G);
 				G = NULL;
 			}
 			else if (debug_level('e')>2)

@@ -2618,7 +2618,8 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 
 	case JMP_TAILCODE: {	// retaddr
 		P0 = (unsigned int)IG->p0;
-		TheCPU.key = P0;
+		if (!(mode & MPATCH))
+			TheCPU.key = P0;
 		if (debug_level('e')>2) {
 			dbug_printf("** Tail code: return from %08x\n",P0);
 		} }
@@ -2784,7 +2785,7 @@ static unsigned Exec_sim(void *SeqStart)
 	P0 = Gen_sim(SeqStart, &TheCPU.mem_ref);
 	currentIG = NULL;
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | FlagSync_All();
-	if (TheCPU.err) TheCPU.key = P0;
+	if (TheCPU.err && TheCPU.err != EXCP_BREAKNODE) TheCPU.key = P0;
 
 	return P0;
 }
