@@ -927,6 +927,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 {
   Uint32 flags;
   int is_text;
+  sigset_t oset;
 
   if (!coopth_is_threaded())
     assert(pthread_equal(pthread_self(), dosemu_pthread_self));
@@ -1001,7 +1002,6 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
           SDL_LOGICAL_PRESENTATION_DISABLED);
   }
   if (!initialized) {
-    sigset_t oset;
     initialized = 1;
     if (config.X_fullscreen) {
       const SDL_DisplayMode *dm;
@@ -1027,7 +1027,11 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   }
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
   SDL_RenderClear(renderer);
+  if (sig_threads_wa)
+    signal_block_async_nosig(&oset);
   SDL_RenderPresent(renderer);
+  if (sig_threads_wa)
+    sigprocmask(SIG_SETMASK, &oset, NULL);
 #if defined(HAVE_SDL_TTF) && defined(HAVE_FONTCONFIG)
   if (is_text)
     setup_ttf_winsize(w_x_res, w_y_res);
