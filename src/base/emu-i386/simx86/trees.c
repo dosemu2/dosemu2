@@ -316,7 +316,7 @@ static TNode **avltr_probe (TNode *item)
 }
 
 
-void avltr_delete(const int key)
+static TNode *avltr_delete(const int key)
 {
   avltr_tree *tree = &CollectTree;
   avltr_node *pa[AVL_MAX_HEIGHT];	/* Stack P: Nodes. */
@@ -328,7 +328,7 @@ void avltr_delete(const int key)
   a[0] = 0;
   pa[0] = &tree->root;
   p = tree->root.link[0];
-  if (p == NULL) return;
+  if (p == NULL) return NULL;
 
   for (;;) {
       int diff = (key - p->data->key);
@@ -336,11 +336,11 @@ void avltr_delete(const int key)
       if (diff==0) break;
       pa[k] = p;
       if (diff < 0) {
-	  if (p->link[0] == NULL) return;
+	  if (p->link[0] == NULL) return NULL;
 	  p = p->link[0]; a[k] = 0;
       }
       else if (diff > 0) {
-	  if (p->rtag != PLUS) return;
+	  if (p->rtag != PLUS) return NULL;
 	  p = p->link[1]; a[k] = 1;
       }
       k++;
@@ -423,26 +423,6 @@ void avltr_delete(const int key)
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
   if (debug_level('e')>2) e_printf("Remove node %p\n",p);
 #endif
-#ifdef DEBUG_LINKER
-	if (G->bkr) {
-	    dbug_printf("Cannot delete - bkr busy\n");
-	    pthread_mutex_unlock(&trees_mtx);
-	    leavedos_main(0x9141);
-	}
-	if (G->clink_t.ref || G->clink_nt.ref) {
-	    dbug_printf("Cannot delete - ref busy\n");
-	    pthread_mutex_unlock(&trees_mtx);
-	    leavedos_main(0x9142);
-	}
-#endif
-/**/ if (G->addr==NULL) {
-      pthread_mutex_unlock(&trees_mtx);
-      leavedos_main(0x8130);
-  }
-  FreeGenCodeBuf(G->addr);
-  __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
-		   NULL, __ATOMIC_RELAXED);
-  free(G);
   Tfree(p);
 
   while (--k) {
@@ -551,6 +531,7 @@ void avltr_delete(const int key)
 	  }
       }
   }
+  return G;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1073,11 +1054,8 @@ static int TraverseAndClean(void)
   G = p->data;
   G->alive -= AGENODE;
   if (G->alive <= 0) {
-      if (debug_level('e')>2) e_printf("TraverseAndClean: node at %08x decayed\n",G->key);
-      e_unmarkpage(G->key, G->seqlen);
-      NodeUnlinker(G);
-      if (debug_level('e')>2) e_printf("Delete node %08x\n",G->key);
-      avltr_delete(G->key);
+      if (debug_level('e')>2) e_printf("TraverseAndClean: node at %08x decayed, delete\n",G->key);
+      RemoveNode(G);
       cnt++;
   }
   else {
@@ -1103,7 +1081,6 @@ static int TraverseAndClean(void)
  */
 TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
 {
-  TNode *nG = NULL;
 #if PROFILE >= 2
   hitimer_t t0 = 0;
   if (debug_level('e')) t0 = GETTSC();
@@ -1120,37 +1097,23 @@ TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
   key = I0->npc;
 
   nap = I0->ncount + 1;
-  TNode *G = calloc(1, sizeof(TNode) + sizeof(Addr2Pc) * nap);
-  if (G==NULL) {
-    leavedos_main(0x8201);
-  }
-  G->key = key;
+  TNode *nG = calloc(1, sizeof(TNode) + sizeof(Addr2Pc) * nap);
+  assert(nG);
+  nG->key = key;
   pthread_mutex_lock(&trees_mtx);
-  found = avltr_probe(G);
-  if (*found != G) {
-	nG = *found;
-	*found = G;
-	if (debug_level('e')>2) {
-		e_printf("Equal keys: replace node %p at %08x\n",
-			nG,key);
-	}
-	/* ->REPLACE the code of the node found with the latest
-	   compiled version */
-	NodeUnlinker(nG);
-	FreeGenCodeBuf(nG->addr);
-	free(nG);
-  }
-  else {
+  found = avltr_probe(nG);
+  /* since existing code was invalidated in DoClose(),
+     we must find a new node */
+  assert(*found == nG);
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
-	if (debug_level('e')>2) {
+  if (debug_level('e')>2) {
 		e_printf("New TNode %d at=%p key=%08x\n",
 			ninodes,nG,key);
 		if (debug_level('e')>3)
 			e_printf("Header: len=%d n_ops=%d PC=%08x\n",
 				I0->totlen, I0->ncount, I0->npc);
-	}
-#endif
   }
+#endif
   nG = *found;
   nG->alive = NODELIFE(nG);
   pthread_mutex_unlock(&trees_mtx);
@@ -1399,6 +1362,26 @@ static void BreakNode(TNode *G, unsigned char *eip)
   e_printf("============ Node %08x break failed\n",G->key);
 }
 
+static void RemoveNode_unlocked(TNode *G)
+{
+  e_unmarkpage(G->key, G->seqlen);
+  NodeUnlinker(G);
+  assert(!G->bkr && !G->clink_t.ref && !G->clink_nt.ref && G->addr);
+  FreeGenCodeBuf(G->addr);
+  __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
+		   NULL, __ATOMIC_RELAXED);
+  TNode *deleted = avltr_delete(G->key);
+  assert(deleted == G);
+  free(G);
+}
+
+void RemoveNode(TNode *G)
+{
+  pthread_mutex_lock(&trees_mtx);
+  RemoveNode_unlocked(G);
+  pthread_mutex_unlock(&trees_mtx);
+}
+
 int InvalidateNodeRange(int al, int len, unsigned char *eip)
 {
   TNode *G;
@@ -1429,8 +1412,6 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	    unsigned char *ahE;
 	    if (debug_level('e')>1)
 		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
-	    e_unmarkpage(G->key, G->seqlen);
-	    NodeUnlinker(G);
 	    cleaned++;
 	    /* if the current eip is in *any* chunk of code that is deleted
 	        (not just the one written to)
@@ -1446,11 +1427,11 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 			     eip,G->addr,ahE);
 		BreakNode(G, eip);
 		TheCPU.err = EXCP_BREAKNODE;
-		/* we can only call avltr_delete in codegen.c */
+		/* we can only call RemoveNode in codegen.c */
 	    }
 	    else {
 		if (debug_level('e')>2) e_printf("Delete node %08x\n",G->key);
-		avltr_delete(G->key);
+		RemoveNode_unlocked(G);
 	    }
       }
       if (ahG >= ah)

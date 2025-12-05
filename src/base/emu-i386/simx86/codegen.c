@@ -590,7 +590,9 @@ static unsigned ExecOne(TNode *G)
 	if (TheCPU.err == EXCP_BREAKNODE) {
 		if (debug_level('e')>2)
 			e_printf("Delete broken node %08x\n",TheCPU.key);
-		avltr_delete(TheCPU.key);
+		G = FindTree(TheCPU.key);
+		assert(G);
+		RemoveNode(G);
 		TheCPU.err = 0;
 	}
 #ifdef SKIP_EMU_VBIOS
@@ -692,7 +694,8 @@ unsigned int DoExec(TNode *G)
 	}
 
 #if defined(SINGLESTEP)
-	InvalidateNodeRange(key, 1, NULL);
+	G = FindTree(key);
+	if (G) RemoveNode(G);
 #endif
 
 	return ePC;
