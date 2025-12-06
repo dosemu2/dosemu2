@@ -1072,34 +1072,16 @@ static int TraverseAndClean(void)
 
 /*
  * Add a node to the collector tree.
- * The code is linearly stored in the CodeBuf and its associated structures
- * are in the InstrMeta array. We allocate a buffer and copy the code, then
- * we copy the sequence data from the head element of InstrMeta. In this
- * process we lose all the correspondences between original code and compiled
- * code addresses. At the end, we reset both CodeBuf and InstrMeta to prepare
- * for a new sequence.
  */
-TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
+void Move2Tree(TNode *nG)
 {
 #if PROFILE >= 2
   hitimer_t t0 = 0;
   if (debug_level('e')) t0 = GETTSC();
 #endif
-  int key;
-  int nap;
   TNode **found;
-  IMeta *I;
-  IGen *IG;
-  int i, apl=0;
-  Addr2Pc *ap;
-  unsigned int op;
 
-  key = I0->npc;
-
-  nap = I0->ncount + 1;
-  TNode *nG = calloc(1, sizeof(TNode) + sizeof(Addr2Pc) * nap);
-  assert(nG);
-  nG->key = key;
+  nG->alive = NODELIFE(G);
   pthread_mutex_lock(&trees_mtx);
   found = avltr_probe(nG);
   /* since existing code was invalidated in DoClose(),
@@ -1108,73 +1090,24 @@ TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf)
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
   if (debug_level('e')>2) {
 		e_printf("New TNode %d at=%p key=%08x\n",
-			ninodes,nG,key);
+			ninodes,nG,nG->key);
 		if (debug_level('e')>3)
 			e_printf("Header: len=%d n_ops=%d PC=%08x\n",
-				I0->totlen, I0->ncount, I0->npc);
+				nG->len, nG->seqnum, nG->key);
   }
 #endif
-  nG = *found;
-  nG->alive = NODELIFE(nG);
-  pthread_mutex_unlock(&trees_mtx);
-
-  /* transfer info from first node of the Meta list to our new node */
-  nG->seqlen = I0->seqlen;
-  nG->seqnum = I0->ncount;
 #if PROFILE
   if (debug_level('e')) if (nG->len > MaxNodeSize) MaxNodeSize = nG->len;
 #endif
-  nG->len = I0->totlen;
-  nG->flags = I0->flags;
-  __atomic_store_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK], nG,
-		   __ATOMIC_RELAXED);
-
-  nG->addr = GenCodeBuf;
-
-  /* setup structures for inter-node linking */
-  nG->clink_nt.link = nG->clink_t.link = 0;
-  IG = &I0[CurrIMeta].gen[I0[CurrIMeta].ngen-1];
-  op = IG->op;
-  if (op == JMP_LINK) {
-    assert(IG->p2); // because TheCPU.eip is set first, this can never be 0
-    nG->clink_t.link = IG->p2;
-    nG->clink_t.target = IG->p0;
-    if (I0[CurrIMeta].ngen > 1 && (IG-1)->op == JMP_LINK) {
-      IG--;
-      assert(IG->p2);
-      nG->clink_nt.link = IG->p2;
-      nG->clink_nt.target = IG->p0;
-    }
-    if ((debug_level('e')>3))
-	dbug_printf("Link %d: %x:%08x\n",op,
-		nG->clink_nt.link,
-		(nG->clink_nt.link? nG->clink_nt.target:0));
-  }
-
-  /* setup source/xlated instruction offsets */
-  ap = nG->meta;
-  I = I0;
-  for (i=0; i<nG->seqnum; i++) {
-	ap->daddr = I->daddr;
-	apl = ap->daddr + I->len;
-	ap->dnpc  = I->npc - I0->npc;
-	if (debug_level('e')>8)
-	    e_printf("Pmeta %03d: %p(%04x):%08x(%04x)\n",i,
-		nG->addr+ap->daddr,ap->daddr,I->npc,ap->dnpc);
-	ap++, I++;
-  }
-  ap->daddr = apl;
-  if (debug_level('e')>8) e_printf("Pmeta %03d:         (%04x)\n",i,apl);
-
 #ifdef DEBUG_LINKER
   CheckLinks();
 #endif
-  CurrIMeta = -1;
-  memset(&InstrMeta[0],0,sizeof(IMeta));
+  pthread_mutex_unlock(&trees_mtx);
+  __atomic_store_n(&findtree_cache[nG->key&FINDTREE_CACHE_HASH_MASK], nG,
+		   __ATOMIC_RELAXED);
 #if PROFILE >= 2
   if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
-  return nG;
 }
 
 void tree_gc(void)
@@ -1536,21 +1469,15 @@ int NewIMeta(int npc, int override)
 	   we allow one more for the instruction following STI/POPss/MOVss */
 	if (CurrIMeta < MAXINODES-2+override) {
 		// add new opcode metadata
-		IMeta *I,*I0;
+		IMeta *I;
 
 		CurrIMeta++;
 		I = &InstrMeta[CurrIMeta];
 		if (CurrIMeta==0) {		// no open code sequences
 			if (debug_level('e')>2) e_printf("============ Opening sequence at %08x\n",npc);
-			I0 = I;
-		}
-		else {
-			I0 = &InstrMeta[0];
 		}
 
-		I0->ncount += 1;
 		I->npc = npc;
-
 		I->ngen = 0;
 		I->flags = 0;
 		ret = 1;

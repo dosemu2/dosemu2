@@ -401,11 +401,28 @@ static void OptimizeCode(IMeta *I)
 	}
 }
 
-static unsigned char *ProduceCode(unsigned int PC, IMeta *I0)
+/*
+ * The intermediate code and its associated structures are in the InstrMeta
+ * array. We allocate a buffer and generate the code, then
+ * we copy the sequence data from the head element of InstrMeta. In this
+ * process we lose all the correspondences between original code and compiled
+ * code addresses. At the end, we reset InstrMeta to prepare for a new
+ * sequence.
+ */
+static TNode *ProduceCode(unsigned int PC, IMeta *I0)
 {
 	int i,j,mall_req;
 	unsigned char *cp, *cp1, *BaseGenBuf, *CodePtr;
 	size_t GenBufSize;
+	Addr2Pc *ap;
+	int nap = CurrIMeta + 2;
+
+	TNode *G = calloc(1, sizeof(TNode) + sizeof(Addr2Pc) * nap);
+	assert(G);
+
+	/* transfer info from first node of the Meta list to our new node */
+	G->key = I0->npc;
+	G->seqnum = nap - 1;
 
 	if (debug_level('e')>1) {
 	    e_printf("---------------------------------------------\n");
@@ -426,20 +443,34 @@ static unsigned char *ProduceCode(unsigned int PC, IMeta *I0)
 	BaseGenBuf = AllocGenCodeBuf(mall_req);
 	/* actual code buffer starts from here */
 	CodePtr = BaseGenBuf;
-	I0->daddr = 0;
 	if (debug_level('e')>1)
 	    e_printf("CodeBuf=%p siz %zd\n",BaseGenBuf,GenBufSize);
 
-	for (i=0; i<=CurrIMeta; i++) {
+	/* setup structures for inter-node linking */
+	G->clink_nt.link = G->clink_t.link = 0;
+	/* setup source/xlated instruction offsets in G->meta */
+	for (i=0, ap=G->meta; i<=CurrIMeta; i++, ap++) {
 	    IMeta *I = &I0[i];
 	    if (i < CurrIMeta)
 		OptimizeCode(I);
 	    cp = cp1 = CodePtr;
-	    I->daddr = cp - BaseGenBuf;
 	    for (j=0; j<I->ngen; j++) {
 		IGen *IG = &I->gen[j];
-		if (IG->op == JMP_LINK)
-			IG->p2 = CodePtr - BaseGenBuf;
+		if (IG->op == JMP_LINK) {
+		    unsigned int link = CodePtr - BaseGenBuf;
+		    assert(link); // because TheCPU.eip is set first, this can never be 0
+		    if (j < I->ngen - 1) {
+			G->clink_nt.link = link;
+			G->clink_nt.target = IG->p0;
+		    }
+		    else {
+			assert(j == I->ngen - 1);
+			G->clink_t.link = link;
+			G->clink_t.target = IG->p0;
+		    }
+		    if ((debug_level('e')>3))
+			dbug_printf("Link %d: %x:%08x\n",IG->op,link,IG->p0);
+		}
 		CodePtr = CodeGen(CodePtr, BaseGenBuf, IG);
 		if (CodePtr-cp1 > MAX_GEND_BYTES_PER_OP) {
 		    dosemu_error("Generated code (%zd bytes) overflowed into buffer, please "
@@ -455,33 +486,43 @@ static unsigned char *ProduceCode(unsigned int PC, IMeta *I0)
 		}
 		cp1 = CodePtr;
 	    }
-	    I->len = CodePtr - cp;
-	    I0->flags |= I->flags;
+	    G->flags |= I->flags;
 	    if (debug_level('e')>3) {
 		if (debug_level('e')>4) {
 		    e_printf("Metadata %03d PC=%08x flags=%x(%x) ng=%d\n",
-			     i,I->npc,I->flags,I0->flags,I->ngen);
+			     i,I->npc,I->flags,G->flags,I->ngen);
 		}
-		GCPrint(cp, BaseGenBuf, I->len);
+		GCPrint(cp, BaseGenBuf, CodePtr - cp);
 	    }
+	    ap->daddr = cp - BaseGenBuf;
+	    ap->dnpc  = I->npc - I0->npc;
+	    if (debug_level('e')>8)
+		e_printf("Pmeta %03d: %p(%04x):%08x(%04x)\n",i,
+			 cp,ap->daddr,I->npc,ap->dnpc);
 	}
+	G->len = ap->daddr = CodePtr - BaseGenBuf;
+	if (debug_level('e')>8) e_printf("Pmeta %03d:         (%04x)\n",i,G->len);
+
+	CurrIMeta = -1;
+	memset(I0,0,sizeof(IMeta));
+
 	if (debug_level('e')>1)
 	    e_printf("Size=%td guess=%zd\n",(CodePtr-BaseGenBuf),GenBufSize);
 /**/ if ((CodePtr-BaseGenBuf) > GenBufSize) leavedos_main(0x535347);
-	I0->seqlen  = PC - I0->npc;
+	G->seqlen = PC - G->key;
 
 	if (debug_level('e')>1)
 	    e_printf("---------------------------------------------\n");
 
-	I0->totlen = CodePtr - BaseGenBuf;
-
 	/* shrink buffer to what is actually needed */
-	mall_req = I0->totlen;
+	mall_req = G->len;
 	ShrinkGenCodeBuf(BaseGenBuf, mall_req);
-	if (debug_level('e')>3)
-		e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
 
-	return BaseGenBuf;
+	if (debug_level('e')>3)
+		e_printf("Seq len %#x:%#x\n",G->seqlen,G->len);
+
+	G->addr = BaseGenBuf;
+	return G;
 }
 
 
@@ -513,7 +554,6 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 {
 	IMeta *I0;
 	TNode *G;
-	unsigned char *GenCodeBuf;
 
 	assert (CurrIMeta >= 0);
 
@@ -524,13 +564,13 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 		e_printf("==== Closing sequence at %08x\n", PC);
 	}
 
-	GenCodeBuf = ProduceCode(PC, I0);
+	G = ProduceCode(PC, I0);
 
 	NodesParsed++;
 #if PROFILE
 	if (debug_level('e')) TotalNodesParsed++;
 #endif
-	G = Move2Tree(I0, GenCodeBuf);		/* when is G==NULL? */
+	Move2Tree(G);
 	/* InstrMeta will be zeroed at this point */
 	/* mprotect the page here; a page fault will be triggered
 	 * if some other code tries to write over the page including

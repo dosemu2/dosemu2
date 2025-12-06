@@ -80,8 +80,7 @@ typedef struct _ianpc {
 
 typedef struct _imeta {
 	int npc;
-	unsigned short ncount, flags, seqlen;
-	unsigned int len, totlen, daddr;
+	unsigned short flags;
 	int ngen;
 	IGen gen[NUMGENS];
 } IMeta;
@@ -148,7 +147,7 @@ typedef struct avltr_tree
 #define MINUS -1
 
 TNode *FindTree(int key);
-TNode *Move2Tree(IMeta *I0, unsigned char *GenCodeBuf);
+void Move2Tree(TNode *G);
 void tree_gc(void);
 
 void InitTrees(void);
