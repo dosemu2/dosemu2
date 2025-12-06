@@ -103,7 +103,7 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 	unsigned int P0 = InstrMeta[0].npc;
 	TNode *G, *nextG = NULL;
 
-	assert(InstrMeta[0].ncount > 0);
+	assert(CurrIMeta >= 0);
 	/* If the code doesn't terminate with a jump/loop instruction
 	 * it still lacks the tail code; add it here */
 	IMeta *GL = &InstrMeta[CurrIMeta];
