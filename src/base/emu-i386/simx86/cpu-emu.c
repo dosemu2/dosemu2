@@ -1590,6 +1590,10 @@ static int lockcnt;
 void prejit_lock(void)
 {
     prejit_sync();
+#if !PREJIT_TEST
+    if (config.cpu_vm != CPUVM_KVM && config.cpu_vm_dpmi != CPUVM_KVM)
+	return;
+#endif
     /* No actual locking: just wait til prejit stops. */
     pthread_mutex_lock(&run_mtx);
     lockcnt++;
@@ -1600,6 +1604,10 @@ void prejit_lock(void)
 
 void prejit_unlock(void)
 {
+#if !PREJIT_TEST
+    if (config.cpu_vm != CPUVM_KVM && config.cpu_vm_dpmi != CPUVM_KVM)
+	return;
+#endif
     pthread_mutex_lock(&run_mtx);
     assert(lockcnt > 0);
     lockcnt--;

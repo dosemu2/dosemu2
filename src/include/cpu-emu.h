@@ -64,6 +64,7 @@ char *e_scp_disasm(cpuctx_t *scp, int pmode);
 
 /* called from mfs.c, fatfs.c and some places that memcpy */
 void e_invalidate(unsigned data, int cnt);
+void e_invalidate_unlocked(unsigned data, int cnt);
 void e_invalidate_full(unsigned data, int cnt);
 void e_invalidate_full_pa(unsigned data, int cnt);
 int e_invalidate_page_full(unsigned data);

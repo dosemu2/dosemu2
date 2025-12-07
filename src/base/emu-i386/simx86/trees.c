@@ -56,7 +56,14 @@ int	CurrIMeta = -1;
 static avltr_tree CollectTree;
 static avltr_traverser Traverser;
 static int ninodes = 0;
+#if SPEC_PREJIT
 static pthread_mutex_t trees_mtx = PTHREAD_MUTEX_INITIALIZER;
+#define pthread_mutex_lock_trees() pthread_mutex_lock(&trees_mtx)
+#define pthread_mutex_unlock_trees() pthread_mutex_unlock(&trees_mtx)
+#else
+#define pthread_mutex_lock_trees()
+#define pthread_mutex_unlock_trees()
+#endif
 
 int NodesParsed = 0;
 int NodesExecd = 0;
@@ -128,7 +135,7 @@ static inline avltr_node *Tmalloc(void)
   avltr_node *G  = TNodePool->link[0];
   avltr_node *G1 = G->link[0];
   if (G1==TNodePool) {
-    pthread_mutex_unlock(&trees_mtx);
+    pthread_mutex_unlock_trees();
     leavedos_main(0x4c4c); // return NULL;
   }
   TNodePool->link[0] = G1; G->link[0]=NULL;
@@ -204,7 +211,7 @@ static TNode **avltr_probe (TNode *item)
       p = q;
       k++;
 /**/if (k>=AVL_MAX_HEIGHT) {
-      pthread_mutex_unlock(&trees_mtx);
+      pthread_mutex_unlock_trees();
       leavedos_main(0x777);
     }
 #if PROFILE
@@ -345,7 +352,7 @@ static TNode *avltr_delete(const int key)
       }
       k++;
 /**/  if (k>=AVL_MAX_HEIGHT) {
-        pthread_mutex_unlock(&trees_mtx);
+        pthread_mutex_unlock_trees();
         leavedos_main(0x777);
       }
   }
@@ -1082,7 +1089,7 @@ void Move2Tree(TNode *nG)
   TNode **found;
 
   nG->alive = NODELIFE(G);
-  pthread_mutex_lock(&trees_mtx);
+  pthread_mutex_lock_trees();
   found = avltr_probe(nG);
   /* since existing code was invalidated in DoClose(),
      we must find a new node */
@@ -1102,7 +1109,7 @@ void Move2Tree(TNode *nG)
 #ifdef DEBUG_LINKER
   CheckLinks();
 #endif
-  pthread_mutex_unlock(&trees_mtx);
+  pthread_mutex_unlock_trees();
   __atomic_store_n(&findtree_cache[nG->key&FINDTREE_CACHE_HASH_MASK], nG,
 		   __ATOMIC_RELAXED);
 #if PROFILE >= 2
@@ -1215,9 +1222,9 @@ TNode *FindTree(int key)
   if (!e_querymark(key, 1))
 	return NULL;
 
-  pthread_mutex_lock(&trees_mtx);
+  pthread_mutex_lock_trees();
   I = FindTree_tail(key);
-  pthread_mutex_unlock(&trees_mtx);
+  pthread_mutex_unlock_trees();
   if (I) {
 	__atomic_store_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK], I,
 			 __ATOMIC_RELAXED);
@@ -1310,9 +1317,9 @@ static void RemoveNode_unlocked(TNode *G)
 
 void RemoveNode(TNode *G)
 {
-  pthread_mutex_lock(&trees_mtx);
+  pthread_mutex_lock_trees();
   RemoveNode_unlocked(G);
-  pthread_mutex_unlock(&trees_mtx);
+  pthread_mutex_unlock_trees();
 }
 
 int InvalidateNodeRange(int al, int len, unsigned char *eip)
@@ -1328,7 +1335,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
   ah = al + len;
   if (debug_level('e')>1) dbug_printf("Invalidate area %08x..%08x\n",al,ah);
 
-  pthread_mutex_lock(&trees_mtx);
+  pthread_mutex_lock_trees();
   /* find crossing-or-in-range node */
   G = find_node_start(al, len);
   if (G == NULL) goto quit;
@@ -1372,7 +1379,7 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
       G = find_node(ahG, ah - ahG);
   }
 quit:
-  pthread_mutex_unlock(&trees_mtx);
+  pthread_mutex_unlock_trees();
   if (debug_level('e') && e_querymark(al, len))
     error("simx86: InvalidateNodeRange did not clear all code for %#08x, len=%x\n",
 	  al, len);
@@ -1391,7 +1398,7 @@ static void do_invalidate(unsigned data, int cnt)
 	InvalidateNodeRange(data, cnt, NULL);
 }
 
-static void _e_invalidate(unsigned data, int cnt)
+void e_invalidate_unlocked(unsigned data, int cnt)
 {
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
@@ -1406,7 +1413,7 @@ static void _e_invalidate(unsigned data, int cnt)
 void e_invalidate(unsigned data, int cnt)
 {
 	prejit_lock();
-	_e_invalidate(data, cnt);
+	e_invalidate_unlocked(data, cnt);
 	prejit_unlock();
 }
 
