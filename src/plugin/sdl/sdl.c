@@ -232,9 +232,11 @@ static int SDL_early_init(void)
   /* RENDER_DRIVER hint appears to be the hint for video init,
    * not CreateRenderer */
   if (!config.sdl_hwrend) {
+      const char *ses = getenv("XDG_SESSION_TYPE");
+      int is_wayland = ses && strcmp(ses, "wayland") == 0;
       SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
       /* unaccelerated fb doesn't work with Wayland */
-      if (coopth_is_threaded())
+      if (coopth_is_threaded() || !is_wayland)
         SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
   }
 #ifdef FE_NOMASK_ENV
