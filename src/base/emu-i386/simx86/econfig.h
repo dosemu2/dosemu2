@@ -76,6 +76,9 @@
 #define KEEP_ESP 1
 #define STACK_WRAP_MP 1
 
+/* speculative prejit: this is probably unsafe with cpatch */
+#define SPEC_PREJIT 0
+
 /////////////////////////////////////////////////////////////////////////////
 
 #endif

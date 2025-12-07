@@ -50,9 +50,6 @@ int EmuSignals = 0;
 
 static void JMPGen(int op, int mode, ...);
 
-/* this is probably unsafe with cpatch */
-#define SPEC_PREJIT 0
-
 #if SPEC_PREJIT
 static pthread_cond_t run_cnd = PTHREAD_COND_INITIALIZER;
 static int prejit_running;
