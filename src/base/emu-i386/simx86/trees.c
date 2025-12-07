@@ -1398,7 +1398,7 @@ static void do_invalidate(unsigned data, int cnt)
 	InvalidateNodeRange(data, cnt, NULL);
 }
 
-static void _e_invalidate(unsigned data, int cnt)
+void e_invalidate_unlocked(unsigned data, int cnt)
 {
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
@@ -1413,7 +1413,7 @@ static void _e_invalidate(unsigned data, int cnt)
 void e_invalidate(unsigned data, int cnt)
 {
 	prejit_lock();
-	_e_invalidate(data, cnt);
+	e_invalidate_unlocked(data, cnt);
 	prejit_unlock();
 }
 

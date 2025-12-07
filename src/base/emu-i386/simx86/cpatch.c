@@ -53,7 +53,7 @@ int CpatchInvalidates;
 /*
  * Return address of the stub function is passed into eip
  */
-void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
+static void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 {
 	/* Shut down prejitter before invalidating, or it may crash.
 	 * Also since mprot API currently lacks mutex, shut down prejitter
@@ -241,7 +241,8 @@ void rep_movs_stos(struct rep_stack *stack)
 
 void stk_16(dosaddr_t addr, Bit16u value)
 {
-	e_invalidate(addr, 2);
+	prejit_sync();
+	e_invalidate_unlocked(addr, 2);
 	WRITE_WORD(addr, value);
 #if PROFILE
 	CpatchStkWrites++;
@@ -250,7 +251,8 @@ void stk_16(dosaddr_t addr, Bit16u value)
 
 void stk_32(dosaddr_t addr, Bit32u value)
 {
-	e_invalidate(addr, 4);
+	prejit_sync();
+	e_invalidate_unlocked(addr, 4);
 	WRITE_DWORD(addr, value);
 #if PROFILE
 	CpatchStkWrites++;
@@ -325,6 +327,7 @@ void wri_8(dosaddr_t addr, Bit8u value, unsigned char *rip)
 #if PROFILE
 	CpatchWrites++;
 #endif
+	prejit_sync();
 	if (e_querymprot(addr)) {
 		wri8_slow(addr, value, eip);
 		return;
@@ -354,6 +357,7 @@ void wri_16(dosaddr_t addr, Bit16u value, unsigned char *rip)
 #if PROFILE
 	CpatchWrites++;
 #endif
+	prejit_sync();
 	if (e_querymprotrange(addr, 2)) {
 		wri16_slow(addr, value, eip);
 		return;
@@ -383,6 +387,7 @@ void wri_32(dosaddr_t addr, Bit32u value, unsigned char *rip)
 #if PROFILE
 	CpatchWrites++;
 #endif
+	prejit_sync();
 	if (e_querymprotrange(addr, 4)) {
 		wri32_slow(addr, value, eip);
 		return;

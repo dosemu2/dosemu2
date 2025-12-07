@@ -748,7 +748,6 @@ int e_querymprotrange(unsigned int addr, size_t len);
 int e_querymprotrange_full(unsigned int addr, size_t len);
 int e_markpage(unsigned int addr, size_t len);
 int e_unmarkpage(unsigned int addr, size_t len);
-void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip);
 
 void InitGenCodeBuf(void);
 void EndGenCodeBuf(void);
@@ -773,7 +772,11 @@ int64_t m_findnode(unsigned int addr, size_t len);
 int64_t m_findnodestart(unsigned int addr);
 void mprot_init(void);
 void mprot_end(void);
+#if SPEC_PREJIT
 void prejit_sync(void);
+#else
+#define prejit_sync()
+#endif
 void init_emu_npu(void);
 
 unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,

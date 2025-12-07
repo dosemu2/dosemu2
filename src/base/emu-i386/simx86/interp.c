@@ -2809,15 +2809,15 @@ static void prejit_run(TNode *G)
 }
 #endif
 
+#if SPEC_PREJIT
 void prejit_sync(void)
 {
-#if SPEC_PREJIT
   pthread_mutex_lock(&run_mtx);
   while (prejit_running)
     cond_wait(&run_cnd, &run_mtx);
   pthread_mutex_unlock(&run_mtx);
-#endif
 }
+#endif
 
 void prejit_init(void)
 {
