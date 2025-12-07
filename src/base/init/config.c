@@ -1060,6 +1060,9 @@ static void config_post_process(void)
 	vm86s.cpu_type = config.realcpu;
 	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",(int)vm86s.cpu_type);
     }
+#ifndef SEARPC_SUPPORT
+    config.no_priv_sep = 1;
+#endif
     if (config.cpu_vm_dpmi == CPUVM_NATIVE && !config.dpmi_remote) {
 #ifdef DNATIVE
 #ifdef DREMOTE
