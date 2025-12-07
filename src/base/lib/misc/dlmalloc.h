@@ -1,4 +1,7 @@
+#include "../../../base/emu-i386/simx86/econfig.h"
+#if SPEC_PREJIT
 #define USE_LOCKS 1
+#endif
 #define INSECURE 1
 #define HAVE_MORECORE 0
 #define HAVE_MMAP 0
