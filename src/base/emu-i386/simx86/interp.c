@@ -53,20 +53,20 @@ static void JMPGen(int op, int mode, ...);
 /* this is probably unsafe with cpatch */
 #define SPEC_PREJIT 0
 
+#if SPEC_PREJIT
 static pthread_cond_t run_cnd = PTHREAD_COND_INITIALIZER;
 static int prejit_running;
 static pthread_mutex_t run_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t prejit_thr;
 static sem_t prejit_sem;
 static void *prejit_thread(void *arg);
-#if SPEC_PREJIT
 static int can_speculate(void);
 static void prejit_run(TNode *G);
+static TNode *prejit_G;
+static unsigned short prejit_cs;
 #else
 #define can_speculate() 0
 #endif
-static TNode *prejit_G;
-static unsigned short prejit_cs;
 #if PROFILE
 int SpecPrejits;
 #endif
@@ -2771,6 +2771,7 @@ void PreJit86(unsigned int PC, int basemode)
 	e_mdrop();
 }
 
+#if SPEC_PREJIT
 static void *prejit_thread(void *arg)
 {
   while (1) {
@@ -2786,7 +2787,6 @@ static void *prejit_thread(void *arg)
   return NULL;
 }
 
-#if SPEC_PREJIT
 static void prejit_run(TNode *G)
 {
   unsigned int PC = G->key + G->seqlen;
@@ -2814,21 +2814,27 @@ static void prejit_run(TNode *G)
 
 void prejit_sync(void)
 {
+#if SPEC_PREJIT
   pthread_mutex_lock(&run_mtx);
   while (prejit_running)
     cond_wait(&run_cnd, &run_mtx);
   pthread_mutex_unlock(&run_mtx);
+#endif
 }
 
 void prejit_init(void)
 {
+#if SPEC_PREJIT
   sem_init(&prejit_sem, 0, 0);
   pthread_create(&prejit_thr, NULL, prejit_thread, NULL);
+#endif
 }
 
 void prejit_done(void)
 {
+#if SPEC_PREJIT
   pthread_cancel(prejit_thr);
   pthread_join(prejit_thr, NULL);
   sem_destroy(&prejit_sem);
+#endif
 }
