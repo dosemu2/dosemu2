@@ -486,7 +486,8 @@ class BaseTestCase(object):
         elif fat == "32":
             bcount = 1048576        # 1 GiB
         else:
-            raise ValueError
+            raise ValueError("Invalid arg '%s'" % fat)
+
         name = "fat%s.img" % fat
 
         # mkfs.fat [OPTIONS] DEVICE [BLOCK-COUNT]
