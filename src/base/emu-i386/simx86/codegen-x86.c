@@ -2135,7 +2135,7 @@ static unsigned Exec_x86(void *SeqStart)
 		 * fixed reg for mem_base and move it to %ebp after push,
 		 * rather than using a mem-ref with modified %esp.
 		 */
-		: "memory", "cc", "esi" EXEC_CLOBBERS
+		: "memory", "cc", "ecx", "esi" EXEC_CLOBBERS
 	);
 	InCompiledCode = 0;
 	/* even though InCompiledCode is volatile, we also need a barrier */
