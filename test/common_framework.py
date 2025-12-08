@@ -7,6 +7,7 @@ import traceback
 import unittest
 
 from datetime import datetime, timezone
+from functools import wraps
 from hashlib import sha1
 from os import environ, rename
 from os.path import exists, join
@@ -127,6 +128,27 @@ def get_test_binaries():
                 "--no-verbose",
                 TEST_BINARY_HOST + '/' + tfile,
             ], stderr=STDOUT, cwd=tbindir)
+
+
+def mark(attr_names):
+    """
+    Usage:
+      @mark('attr')            -> sets attr = True
+      @mark(['a', 'b'])       -> sets a = True and b = True
+    """
+    if isinstance(attr_names, str):
+        names = (attr_names,)
+    else:
+        names = tuple(attr_names)
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        for n in names:
+            setattr(wrapper, n, True)
+        return wrapper
+    return decorator
 
 
 class BaseTestCase(object):

@@ -61,18 +61,18 @@ PRGFIL_LFN = "Program Files"
 
 class OurTestCase(BaseTestCase):
 
-    attrs = {'dpmitest', 'hmatest', 'nettest', 'umatest', 'xmstest', 'labeltest'}
+    attrs = {'comcomtest', 'dpmitest', 'emstest', 'hmatest', 'labeltest', 'memtest', 'nettest', 'umatest', 'xmstest'}
 
+    @mark('comcomtest')
     def test_comcom_r200fix_real(self):
         """Comcom r200fix Real Mode"""
         comcom_r200fix(self, 'REAL')
-    test_comcom_r200fix_real.comcomtest=True
 
     @unittest.expectedFailure
+    @mark('comcomtest')
     def test_comcom_r200fix_protected(self):
         """Comcom r200fix Protected Mode"""
         comcom_r200fix(self, 'PROTECTED')
-    test_comcom_r200fix_protected.comcomtest=True
 
     def test_drv_removable(self):
         """Drive is removable (IOCTL)"""
@@ -787,70 +787,70 @@ altdta:
         """MFS FCB file read alternate DTA"""
         self._test_fcb_read_alt_dta("MFS")
 
+    @mark('labeltest')
     def test_fat_label_create_simple(self):
         """FAT FCB label create simple"""
         label_create(self, "FAT", None)
-    test_fat_label_create_simple.labeltest = True
 
+    @mark('labeltest')
     def test_fat_label_create_bpb12(self):
         """FAT FCB label create BPB FAT12"""
         label_create(self, "FAT", 'bpb12')
-    test_fat_label_create_bpb12.labeltest = True
 
+    @mark('labeltest')
     def test_fat_label_create_bpb16(self):
         """FAT FCB label create BPB FAT16"""
         label_create(self, "FAT", 'bpb16')
-    test_fat_label_create_bpb16.labeltest = True
 
+    @mark('labeltest')
     def test_fat_label_create_bpb32(self):
         """FAT FCB label create BPB FAT32"""
         label_create(self, "FAT", 'bpb32')
-    test_fat_label_create_bpb32.labeltest = True
 
+    @mark('labeltest')
     def test_fat_label_create_prefile(self):
         """FAT FCB label create file beforehand"""
         label_create(self, "FAT", 'prefile')
-    test_fat_label_create_prefile.labeltest = True
 
+    @mark('labeltest')
     def test_fat_label_create_predir(self):
         """FAT FCB label create directory beforehand"""
         label_create(self, "FAT", 'predir')
-    test_fat_label_create_predir.labeltest = True
 
+    @mark('labeltest')
     def test_fat_label_create_postfile(self):
         """FAT FCB label create file afterwards"""
         label_create(self, "FAT", 'postfile')
-    test_fat_label_create_postfile.labeltest = True
 
+    @mark('labeltest')
     def test_fat_label_create_postdir(self):
         """FAT FCB label create directory afterwards"""
         label_create(self, "FAT", 'postdir')
-    test_fat_label_create_postdir.labeltest = True
 
+    @mark('labeltest')
     def test_fat_label_create_on_lfns(self):
         """FAT FCB label create on top of LFNs"""
         label_create_on_lfns(self)
-    test_fat_label_create_on_lfns.labeltest = True
 
+    @mark('labeltest')
     def test_fat_label_create_noduplicate(self):
         """FAT FCB label create no duplicate"""
         label_create_noduplicate(self, "FAT")
-    test_fat_label_create_noduplicate.labeltest = True
 
+    @mark('labeltest')
     def test_fat_label_create_nonrootdir(self):
         """FAT FCB label create non-rootdir"""
         label_create_nonrootdir(self, "FAT")
-    test_fat_label_create_nonrootdir.labeltest = True
 
+    @mark('labeltest')
     def test_fat_label_delete_recreate(self):
         """FAT FCB label delete recreate"""
         label_delete_recreate(self, "FAT")
-    test_fat_label_delete_recreate.labeltest = True
 
+    @mark('labeltest')
     def test_fat_label_delete_wildcard(self):
         """FAT FCB label delete wildcard"""
         label_delete_wildcard(self, "FAT")
-    test_fat_label_delete_wildcard.labeltest = True
 
     def _test_fcb_write(self, fstype):
         testdir = self.mkworkdir('d')
@@ -3222,6 +3222,7 @@ rem end
 
         return self.runDosemu("testit.bat")
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_alloc(self):
         """Memory DPMI (ECM) alloc"""
         results = self._test_memory_dpmi_ecm("dpmialoc")
@@ -3247,8 +3248,8 @@ rem end
         self.assertRegex(results, r"Calling real mode procedure which called callback successful")
         self.assertRegex(results, r"Child process terminated okay, back in real mode")
         self.assertNotIn("fail", results)
-    test_memory_dpmi_ecm_alloc.dpmitest=True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_mini(self):
         """Memory DPMI (ECM) mini"""
         results = self._test_memory_dpmi_ecm("dpmimini")
@@ -3263,8 +3264,8 @@ rem end
         self.assertRegex(results, r"32-bit code segment breakpoint at")
         self.assertRegex(results, r"Welcome in 32-bit protected mode")
         self.assertNotIn("fail", results)
-    test_memory_dpmi_ecm_mini.dpmitest=True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_modeswitch(self):
         """Memory DPMI (ECM) Mode Switch"""
         results = self._test_memory_dpmi_ecm("dpmims")
@@ -3281,8 +3282,8 @@ rem end
         self.assertRegex(results, r"Mode-switched to real mode")
         self.assertRegex(results, r"In protected mode again")
         self.assertNotIn("fail", results)
-    test_memory_dpmi_ecm_modeswitch.dpmitest=True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_psp(self):
         """Memory DPMI (ECM) psp"""
         results = self._test_memory_dpmi_ecm("dpmipsp")
@@ -3305,53 +3306,53 @@ rem end
         self.assertRegex(results, r"Calling real mode procedure which called callback successful")
         self.assertRegex(results, r"Child process terminated okay, back in real mode")
         self.assertNotIn("fail", results)
-    test_memory_dpmi_ecm_psp.dpmitest=True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth(self):
         """Memory DPMI (Japheth) ''"""
         memory_dpmi_japheth(self, '')
-    test_memory_dpmi_japheth.dpmitest=True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_c(self):
         """Memory DPMI (Japheth) '-c'"""
         memory_dpmi_japheth(self, '-c')
-    test_memory_dpmi_japheth_c.dpmitest=True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_d(self):
         """Memory DPMI (Japheth) '-d'"""
         memory_dpmi_japheth(self, '-d')
-    test_memory_dpmi_japheth_d.dpmitest=True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_e(self):
         """Memory DPMI (Japheth) '-e'"""
         memory_dpmi_japheth(self, '-e')
-    test_memory_dpmi_japheth_e.dpmitest=True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_i(self):
         """Memory DPMI (Japheth) '-i'"""
         memory_dpmi_japheth(self, '-i')
-    test_memory_dpmi_japheth_i.dpmitest=True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_m(self):
         """Memory DPMI (Japheth) '-m'"""
         memory_dpmi_japheth(self, '-m')
-    test_memory_dpmi_japheth_m.dpmitest=True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_r(self):
         """Memory DPMI (Japheth) '-r'"""
         memory_dpmi_japheth(self, '-r')
-    test_memory_dpmi_japheth_r.dpmitest=True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_t(self):
         """Memory DPMI (Japheth) '-t'"""
         memory_dpmi_japheth(self, '-t')
-    test_memory_dpmi_japheth_t.dpmitest=True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_z(self):
         """Memory DPMI (Japheth) '-z'"""
         memory_dpmi_japheth(self, '-z')
-    test_memory_dpmi_japheth_z.dpmitest=True
 
+    @mark(['memtest', 'emstest'])
     def test_memory_emm286_borland(self):
         """Memory EMM286 (Borland)"""
 
@@ -3378,69 +3379,70 @@ rem end
         # /zi,/zd,/zn    Debug info: zi=full, zd=line numbers only, zn=none
         self.assertRegex(results, r"/zi.*Debug info: zi=full")
 
+    @mark(['memtest', 'emstest'])
     def test_memory_ems_borland(self):
         """Memory EMS (Borland)"""
         memory_ems_borland(self)
 
+    @mark(['memtest', 'hmatest'])
     def test_memory_hma_a20(self):
         """Memory HMA a20 toggle"""
         memory_hma_a20(self)
-    test_memory_hma_a20.hmatest = True
 
+    @mark(['memtest', 'hmatest'])
     def test_memory_hma_alloc(self):
         """Memory HMA allocation"""
         memory_hma_alloc(self)
-    test_memory_hma_alloc.hmatest = True
 
+    @mark(['memtest', 'hmatest'])
     def test_memory_hma_alloc3(self):
         """Memory HMA alloc/resize/dealloc"""
         memory_hma_alloc3(self)
-    test_memory_hma_alloc3.hmatest = True
 
+    @mark(['memtest', 'hmatest'])
     def test_memory_hma_freespace(self):
         """Memory HMA freespace"""
         memory_hma_freespace(self)
-    test_memory_hma_freespace.hmatest = True
 
+    @mark(['memtest', 'hmatest'])
     def test_memory_hma_chain(self):
         """Memory HMA get chain"""
         memory_hma_chain(self)
-    test_memory_hma_chain.hmatest = True
 
+    @mark(['memtest', 'xmstest'])
     def test_memory_xms(self):
         """Memory XMS"""
         memory_xms(self)
-    test_memory_xms.xmstest = True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi10_ldt(self):
         """Memory DPMI-1.0 LDT"""
         memory_dpmi_dpmi10_ldt(self)
-    test_memory_dpmi10_ldt.dpmitest = True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_nofree(self):
         """Memory DPMI Leak Check No Free"""
         memory_dpmi_leak_check(self, 'nofree')
-    test_memory_dpmi_leak_check_nofree.dpmitest = True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_normal(self):
         """Memory DPMI Leak Check Normal"""
         memory_dpmi_leak_check(self, 'normal')
-    test_memory_dpmi_leak_check_normal.dpmitest = True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_dos_nofree(self):
         """Memory DPMI Leak Check DOS No Free"""
         memory_dpmi_leak_check_dos(self, 'nofree')
-    test_memory_dpmi_leak_check_dos_nofree.dpmitest = True
 
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_dos_normal(self):
         """Memory DPMI Leak Check DOS Normal"""
         memory_dpmi_leak_check_dos(self, 'normal')
-    test_memory_dpmi_leak_check_dos_normal.dpmitest = True
 
+    @mark(['memtest', 'umatest'])
     def test_memory_uma_strategy(self):
         """Memory UMA Strategy"""
         memory_uma_strategy(self)
-    test_memory_uma_strategy.umatest = True
 
     def test_floppy_img(self):
         """Floppy image file"""
@@ -4816,15 +4818,15 @@ $_floppy_a = ""
         """FAT DOSv3 share open set file attrs two process DOSv2"""
         ds3_share_open_access(self, "TWO", "FAT", "SETATT")
 
+    @mark('nettest')
     def test_network_pktdriver_mtcp_builtin(self):
         """Network pktdriver mTCP built-in"""
         network_pktdriver_mtcp(self, 'builtin')
-    test_network_pktdriver_mtcp_builtin.nettest = True
 
+    @mark('nettest')
     def test_network_pktdriver_mtcp_ne2000(self):
         """Network pktdriver mTCP NE2000"""
         network_pktdriver_mtcp(self, 'ne2000')
-    test_network_pktdriver_mtcp_ne2000.nettest = True
 
     def test_pcmos_build(self):
         """PC-MOS build script"""
