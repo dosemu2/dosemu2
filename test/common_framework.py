@@ -131,7 +131,7 @@ def get_test_binaries():
 
 class BaseTestCase(object):
 
-    attrs = []
+    attrs = set()
     use_cpu = None
 
     @classmethod

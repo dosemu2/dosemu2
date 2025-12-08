@@ -61,7 +61,7 @@ PRGFIL_LFN = "Program Files"
 
 class OurTestCase(BaseTestCase):
 
-    attrs = ['dpmitest', 'hmatest', 'nettest', 'umatest', 'xmstest', 'labeltest']
+    attrs = {'dpmitest', 'hmatest', 'nettest', 'umatest', 'xmstest', 'labeltest'}
 
     def test_comcom_r200fix_real(self):
         """Comcom r200fix Real Mode"""

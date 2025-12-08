@@ -121,5 +121,4 @@ def cpu_create_items(testcase):
         name = 'test_cpu_method_%s_%s' % test
         setattr(testcase, name, create_test(test))
 
-    if 'cputest' not in testcase.attrs:
-        testcase.attrs += ['cputest',]
+    testcase.attrs.add('cputest')

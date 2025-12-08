@@ -44,7 +44,7 @@ def libi86_create_items(testcase):
         name = 'test_libi86_item_%03d' % int(test[0])
         setattr(testcase, name, create_test(test))
 
-    testcase.attrs += ['libi86test',]
+    testcase.attrs.add('libi86test')
 
 
 def libi86_test_item(self, test):
