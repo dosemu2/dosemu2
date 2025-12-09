@@ -278,7 +278,7 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		// jz skip
 		G2M(JE_JZ,TAILSIZE,Cp);
 		// movl {exit_addr},%%eax; movl %%eax, %%Ofs_KEY(%%ebx)
-		G1(0xb8,Cp); G4(IG->p1,Cp); G3M(0x89,0x43,Ofs_EBX,Cp);
+		G1(0xb8,Cp); G4(IG->p1,Cp); G3M(0x89,0x43,Ofs_KEY,Cp);
 		// pop %%edx; ret
 		G2M(0x5a,0xc3,Cp);
 		}
@@ -1880,7 +1880,7 @@ shrot0:
 			G3M(0x0f,0xb7,0xc0,Cp);
 		// addl Ofs_XCS(%%ebx),%%eax
 		G3M(0x03,0x43,Ofs_XCS,Cp);
-		// movl %%eax, Ofs_KEY(%%ecx) // signals indirect
+		// movl %%eax, Ofs_KEY(%%ebx) // signals indirect
 		G3M(0x89,0x43,Ofs_KEY,Cp);
 #ifdef __x86_64__
 		// movl %%eax,%%edi
