@@ -2,7 +2,7 @@
 
 from subprocess import check_call
 
-from common_framework import BaseTestCase, main, main_setup, KNOWNFAIL
+from common_framework import BaseTestCase, main, main_setup, mark, KNOWNFAIL
 from common_os import ppdosgit
 
 from func_build_freecom import build_freecom
@@ -17,11 +17,10 @@ class OurTestCase(BaseTestCase):
         """Build FreeCOM"""
         build_freecom(self)
 
+    @mark('cputest')
     def test_cpu_trap_flag(self):
         """CPU Trap Flag"""
         cpu_trap_flag(self)
-
-    test_cpu_trap_flag.cputests=True
 
 
 class KVMTestCase(ppdosgit(OurTestCase, {

@@ -121,5 +121,4 @@ def fpu_create_items(testcase):
                 name = 'test_fpu_%s_%s_%s' % (ctest.replace('-', '_'), *test)
                 setattr(testcase, name, t)
 
-    if 'fputest' not in testcase.attrs:
-        testcase.attrs += ['fputest',]
+    testcase.attrs.add('fputest')
