@@ -6,6 +6,7 @@ from common_framework import BaseTestCase, main, main_setup, mark, KNOWNFAIL
 from common_os import ppdosgit
 
 from func_build_freecom import build_freecom
+from func_build_freedos import build_freedos
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
 from fpu.qemu import fpu_create_items
@@ -13,9 +14,15 @@ from fpu.qemu import fpu_create_items
 
 class OurTestCase(BaseTestCase):
 
+    @mark('buildtest')
     def test_build_freecom(self):
         """Build FreeCOM"""
         build_freecom(self)
+
+    @mark('buildtest')
+    def test_build_freedos(self):
+        """Build FreeDOS kernel"""
+        build_freedos(self)
 
     @mark('cputest')
     def test_cpu_trap_flag(self):
