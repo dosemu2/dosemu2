@@ -3359,6 +3359,22 @@ stack_return_from_vm86:
 			    }
 			break;
 			}
+/*101*/	case 0x101: { /* GRP7 - Extended Opcode 21 */
+			unsigned char opm = arg;
+			switch (opm) {
+			case 0: /* SGDT */
+			    /* Store Global Descriptor Table Register */
+			    sim_write_word(mem_ref, TheCPU.GDTR.Limit);
+			    sim_write_dword(mem_ref+2, TheCPU.GDTR.Base);
+			    break;
+			case 1: /* SIDT */
+			    /* Store Interrupt Descriptor Table Register */
+			    sim_write_word(mem_ref, TheCPU.IDTR.Limit);
+			    sim_write_dword(mem_ref+2, TheCPU.IDTR.Base);
+			    break;
+			}
+			break;
+			}
 /*102*/	case 0x102:   /* LAR */ /* Load Access Rights Byte */
 /*103*/	case 0x103: { /* LSL */ /* Load Segment Limit */
 			unsigned short sv = data; int tmp;

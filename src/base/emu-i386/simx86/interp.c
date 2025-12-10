@@ -2318,14 +2318,11 @@ repag0:
 				unsigned char opm = D_MO(Fetch(PC+2));
 				switch (opm) {
 				case 0: /* SGDT */
-				    /* Store Global Descriptor Table Register */
-				    PC++; PC += ModRM(opc, PC, _mode|DATA16|MSTORE);
-				    error("SGDT not implemented\n");
-				    break;
 				case 1: /* SIDT */
+				    /* Store Global Descriptor Table Register */
 				    /* Store Interrupt Descriptor Table Register */
-				    PC++; PC += ModRM(opc, PC, _mode|DATA16|MSTORE);
-				    error("SIDT not implemented\n");
+				    PC++; PC += ModRM(opc, PC, _mode);
+				    Gen(O_SIM, _mode, 0x100+opc2, opm, P0);
 				    break;
 				case 2: /* LGDT */ /* PM privileged AND real _mode */
 				    /* Load Global Descriptor Table Register */
