@@ -7,6 +7,7 @@ from common_os import ppdosgit
 
 from func_build_freecom import build_freecom
 from func_build_freedos import build_freedos
+from func_build_pcmos import build_pcmos
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
 from fpu.qemu import fpu_create_items
@@ -23,6 +24,11 @@ class OurTestCase(BaseTestCase):
     def test_build_freedos(self):
         """Build FreeDOS kernel"""
         build_freedos(self)
+
+    @mark('buildtest')
+    def test_build_pcmos(self):
+        """Build PC-MOS"""
+        build_pcmos(self)
 
     @mark('cputest')
     def test_cpu_trap_flag(self):
