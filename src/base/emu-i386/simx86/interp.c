@@ -106,7 +106,7 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 	IMeta *GL = &InstrMeta[CurrIMeta];
 	if (GL->gen[GL->ngen-1].op < JMP_TAILCODE) {
 		/* almost always we get here because e_querymark() in
-		   interp_post() found code. If there is no overlap
+		   _Interp86() found code. If there is no overlap
 		   and the node is compatible we can generate a jump
 		   to it and link as well */
 		nextG = FindTree(PC);
@@ -558,25 +558,6 @@ void Interp86(void)
  * overwrite something unintentionally */
 #define SAFE_PRJ_GAP 16
 
-static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
-		       const int mode, int flags)
-{
-		int ret = 0;
-		int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
-		assert (CurrIMeta>=0);
-
-#ifndef SINGLEBLOCK
-		IMeta *GL = &InstrMeta[CurrIMeta];
-		if ((mode & MSSTP) ||
-		    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
-		    e_querymark(PC, gap))
-#endif
-			ret = 1;
-		InstrMeta[0].flags |= flags;
-
-		return ret;
-}
-
 static void sprj_deep(TNode *G, unsigned int Interp_LONG_CS,
 		unsigned short ocs, int basemode, int flags)
 {
@@ -600,11 +581,22 @@ static void sprj_deep(TNode *G, unsigned int Interp_LONG_CS,
 static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
 			unsigned short ocs, int basemode, int flags)
 {
+	int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
 	CurrIMeta = -1;
 	if (debug_level('e')>2) e_printf("============ Opening sequence at %08x\n",PC);
-	do {
+	for (;;) {
 		PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
-	} while (!interp_post(PC, Interp_LONG_CS, basemode, flags));
+		assert (CurrIMeta>=0);
+
+#ifndef SINGLEBLOCK
+		IMeta *GL = &InstrMeta[CurrIMeta];
+		if ((basemode & MSSTP) ||
+		    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
+		    e_querymark(PC, gap))
+#endif
+			break;
+	}
+	InstrMeta[0].flags |= flags;
 	return DoClose(PC, Interp_LONG_CS, basemode, flags);
 }
 
@@ -1935,7 +1927,7 @@ repag0:
 					op = (realrepmod&MREP) ? LOOPZ_LOOPE : LOOPNZ_LOOPNE;
 				JMPGen(JLOOP_LINK, _mode, op, PC, P0);
 				/* code will be flushed immediately
-				   in interp_post because TF is set */
+				   in _Interp86() because TF is set */
 				break;
 			} }
 			break;
