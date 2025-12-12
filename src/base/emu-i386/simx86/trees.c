@@ -50,7 +50,7 @@
 #include "codegen.h"
 
 IMeta	InstrMeta[MAXINODES];
-int	CurrIMeta = -1;
+int	CurrIMeta;
 
 /* Tree structure to store collected code sequences */
 static avltr_tree CollectTree;
@@ -563,7 +563,6 @@ static void avltr_init(void)
   G->link[0] = TNodePool;
 
   g_printf("avltr_init\n");
-  CurrIMeta = -1;
   ninodes = 0;
 }
 
@@ -1480,10 +1479,6 @@ int NewIMeta(int npc, int override)
 
 		CurrIMeta++;
 		I = &InstrMeta[CurrIMeta];
-		if (CurrIMeta==0) {		// no open code sequences
-			if (debug_level('e')>2) e_printf("============ Opening sequence at %08x\n",npc);
-		}
-
 		I->npc = npc;
 		I->ngen = 0;
 		I->flags = 0;
@@ -1598,7 +1593,6 @@ void EndGen(void)
 	int i;
 	int csm = config.CPUSpeedInMhz*1000;
 #endif
-	CurrIMeta = -1;
 	avltr_destroy();
 	free(TNodePool); TNodePool=NULL;
 #ifdef SHOW_STAT

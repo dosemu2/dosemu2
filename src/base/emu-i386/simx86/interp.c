@@ -551,9 +551,7 @@ void Interp86(void)
     }
 
     PC = LONG_CS + TheCPU.eip;
-    assert(CurrIMeta < 0);
     PC = FindExecCode(PC);
-    assert(CurrIMeta < 0);
     TheCPU.eip = PC - LONG_CS;
 }
 
@@ -604,6 +602,8 @@ static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
 static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
 			      unsigned short ocs, int basemode, int flags)
 {
+	CurrIMeta = -1;
+	if (debug_level('e')>2) e_printf("============ Opening sequence at %08x\n",PC);
 	do {
 		PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
 	} while (!interp_post(PC, Interp_LONG_CS, basemode, flags));
