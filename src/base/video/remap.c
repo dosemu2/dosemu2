@@ -821,9 +821,6 @@ void bre_update(RemapObject *ro)
       }
       else {
         ii[i] = bre_s(i, ro->src_height, l) * ro->src_scan_len;
-        /* planar VESA modes may exceed 64K per plane */
-        if (ii[i] >= 0x10000 && ro->src_mode == MODE_VGA_4)
-          ii[i] += 0x30000;
       }
     }
   }
