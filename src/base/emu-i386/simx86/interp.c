@@ -414,8 +414,8 @@ static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 
 /////////////////////////////////////////////////////////////////////////////
 
-static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
-			      unsigned short ocs, int basemode, int flags);
+static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			unsigned short ocs, int basemode, int flags);
 
 static int leave_instremu(void)
 {
@@ -483,11 +483,10 @@ static unsigned int FindExecCode(unsigned int PC)
 #endif
 			if (debug_level('e')>=9)
 				dbug_printf("\n%s",e_print_regs(LONG_CS));
-			PC = _Interp86(PC, LONG_CS, TheCPU.cs, TheCPU.mode, 0);
+			G = _Interp86(PC, LONG_CS, TheCPU.cs, TheCPU.mode, 0);
 #if SPEC_PREJIT
 			speculate = can_speculate();
 #endif
-			G = DoClose(PC, LONG_CS, TheCPU.mode, 0);
 		}
 		if (debug_level('e') &&
 				/* check for codemarks inconsistency */
@@ -578,7 +577,7 @@ static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
 		return ret;
 }
 
-static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
+static void sprj_deep(TNode *G, unsigned int Interp_LONG_CS,
 		unsigned short ocs, int basemode, int flags)
 {
 #ifdef SPEC_PREJIT
@@ -586,10 +585,9 @@ static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
 
 	while (G->clink_t.link && !(G->flags & F_LJMP)) {
 		TNode *oldG = G;
-		PC = G->clink_t.target;
+		unsigned int PC = G->clink_t.target;
 		if (e_querymark(PC, SAFE_PRJ_GAP)) break;
-		PC = _Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
-		G = DoClose(PC, Interp_LONG_CS, basemode, flags);
+		G = _Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
 		i++;
 		NodesPrejitted++;
 		NodeLinker(oldG, G);
@@ -599,15 +597,15 @@ static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
 #endif
 }
 
-static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
-			      unsigned short ocs, int basemode, int flags)
+static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			unsigned short ocs, int basemode, int flags)
 {
 	CurrIMeta = -1;
 	if (debug_level('e')>2) e_printf("============ Opening sequence at %08x\n",PC);
 	do {
 		PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
 	} while (!interp_post(PC, Interp_LONG_CS, basemode, flags));
-	return PC;
+	return DoClose(PC, Interp_LONG_CS, basemode, flags);
 }
 
 static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
@@ -2749,11 +2747,10 @@ void instr_emu_sim_reset_count(void)
 static void _PreJit86(unsigned int PC, unsigned int Interp_LONG_CS,
 		      unsigned short ocs, int basemode, int flags)
 {
-	PC = _Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
-	TNode *G = DoClose(PC, Interp_LONG_CS, basemode, flags);
+	TNode *G = _Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
 	if (G && (flags & F_SPRJ)) {
 		NodesPrejitted++;
-		sprj_deep(G, PC, Interp_LONG_CS, ocs, basemode, flags);
+		sprj_deep(G, Interp_LONG_CS, ocs, basemode, flags);
 	}
 }
 
