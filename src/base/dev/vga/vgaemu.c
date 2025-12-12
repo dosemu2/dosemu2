@@ -1956,7 +1956,6 @@ void vga_emu_prot_unlock(void)
 int vgaemu_switch_plane(unsigned plane)
 {
   vga.mem.write_plane = vga.mem.read_plane = plane;
-  vga.mem.bank = 0;
 
   if(vgaemu_map_bank()) {
     vga_msg("vgaemu_switch_plane: failed to access plane %u\n", plane);
