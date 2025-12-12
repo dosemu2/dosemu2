@@ -607,16 +607,26 @@ static Bit32u color2pixels[16] = {0,0xff,0xff00,0xffff,0xff0000,0xff00ff,0xffff0
 
 #define VGALatch	vga.latch
 
+static unsigned int bank_offs()
+{
+    return vga.mem.bank * vga.mem.bank_pages * PAGE_SIZE * vga.mem.planes;
+}
+
+static unsigned char *vga_base(void)
+{
+    return vga.mem.base + bank_offs();
+}
+
 static unsigned char Logical_VGA_read(unsigned offset)
 {
   instr_emu_sim_reset_count();
 
   switch (ReadMode) {
     case 0: /* read mode 0 */
-      VGALatch[0] = vga.mem.base[          offset];
-      VGALatch[1] = vga.mem.base[1*65536 + offset];
-      VGALatch[2] = vga.mem.base[2*65536 + offset];
-      VGALatch[3] = vga.mem.base[3*65536 + offset];
+      VGALatch[0] = vga_base()[          offset];
+      VGALatch[1] = vga_base()[1*65536 + offset];
+      VGALatch[2] = vga_base()[2*65536 + offset];
+      VGALatch[3] = vga_base()[3*65536 + offset];
       return(VGALatch[ReadMapSelect]);
       break;
 
@@ -625,10 +635,10 @@ static unsigned char Logical_VGA_read(unsigned offset)
       Bit32u latch;
       Bit8u retval;
 
-      latch =  (((VGALatch[0] = vga.mem.base[          offset])        |
-                ((VGALatch[1] = vga.mem.base[1*65536 + offset]) <<  8) |
-                ((VGALatch[2] = vga.mem.base[2*65536 + offset]) << 16) |
-                ((uint32_t)(VGALatch[3] = vga.mem.base[3*65536 + offset]) << 24) ) &
+      latch =  (((VGALatch[0] = vga_base()[          offset])        |
+                ((VGALatch[1] = vga_base()[1*65536 + offset]) <<  8) |
+                ((VGALatch[2] = vga_base()[2*65536 + offset]) << 16) |
+                ((uint32_t)(VGALatch[3] = vga_base()[3*65536 + offset]) << 24) ) &
 		  color2pixels[ColorDontCare & 0xf]) ^
                     color2pixels[ColorCompare & ColorDontCare & 0xf];
 	    /* XORing gives all bits that are different */
@@ -735,8 +745,8 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
 
   new_val = Logical_VGA_CalcNewVal(value);
 
-  vga_page = offset / HOST_PAGE_SIZE;
-  p = (unsigned char *)(vga.mem.base + offset);
+  vga_page = (bank_offs() + offset) / HOST_PAGE_SIZE;
+  p = (unsigned char *)(vga_base() + offset);
 
   if(MapMask & 0x01) {
     *p = new_val;
