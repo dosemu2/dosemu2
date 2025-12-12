@@ -395,17 +395,17 @@ static void *do_huge_page(int flags, size_t mapsize, int protect)
   unsigned char *addr = mmap(NULL, mapsize + HUGE_PAGE_SIZE, protect,
 			     MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
   if (addr == MAP_FAILED)
-    return addr;
+    return MAP_FAILED;
 
   /* align up to next 2MB */
   edge = (unsigned char *)HUGE_PAGE_ALIGN((uintptr_t)addr + PAGE_SIZE) - addr;
 
+  /* create guard page to trap bad things */
+  mprotect(&addr[edge - PAGE_SIZE], PAGE_SIZE, PROT_NONE);
+
   /* trim front */
   if (edge > PAGE_SIZE)
     munmap(addr, edge - PAGE_SIZE);
-
-  /* create guard page to trap bad things */
-  mprotect(&addr[edge - PAGE_SIZE], PAGE_SIZE, PROT_NONE);
 
   addr += edge;
 
