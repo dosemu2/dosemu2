@@ -2358,8 +2358,8 @@ static int __vga_emu_setmode(vga_mode_info *vmi, int width, int height)
   vga.mem.wrap = vmi->buffer_len * 1024;
   // unmap ???
 
-  /* In Super-VGA modes, do *not* wrap memory at 64k */
-  if((vga.color_bits >= 8 || vga.mem.planes > 1) && (vga.mode & 0xffff) > 0x13) {
+  /* In Super-VGA modes, do *not* wrap memory at 256k */
+  if(vga.color_bits >= 8 && (vga.mode & 0xffff) > 0x13) {
     vga.mem.wrap = vga.mem.size;
     if(vga.mem.lfb_base_page) {
       vga_emu_map(VGAEMU_MAP_LFB_MODE, 0);	/* map the VGA memory to LFB */
