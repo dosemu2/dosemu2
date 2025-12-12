@@ -501,13 +501,11 @@ static TNode *ProduceCode(unsigned int PC, IMeta *I0)
 			 cp,ap->daddr,I->npc,ap->dnpc);
 	}
 	G->len = ap->daddr = CodePtr - BaseGenBuf;
-	if (debug_level('e')>8) e_printf("Pmeta %03d:         (%04x)\n",i,G->len);
 
-	CurrIMeta = -1;
-	memset(I0,0,sizeof(IMeta));
-
-	if (debug_level('e')>1)
+	if (debug_level('e')>1) {
+	    if (debug_level('e')>8) e_printf("Pmeta %03d:         (%04x)\n",i,G->len);
 	    e_printf("Size=%td guess=%zd\n",(CodePtr-BaseGenBuf),GenBufSize);
+	}
 /**/ if ((CodePtr-BaseGenBuf) > GenBufSize) leavedos_main(0x535347);
 	G->seqlen = PC - G->key;
 

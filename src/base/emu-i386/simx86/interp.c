@@ -95,23 +95,20 @@ static char R1Tab_l[14] =
  * by the next DoExec.
  */
 static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
-		int flags)
+		int flags, TNode *nextG)
 {
 	unsigned int P0 = InstrMeta[0].npc;
-	TNode *G, *nextG = NULL;
+	TNode *G;
 
 	assert(CurrIMeta >= 0);
 	/* If the code doesn't terminate with a jump/loop instruction
 	 * it still lacks the tail code; add it here */
 	IMeta *GL = &InstrMeta[CurrIMeta];
 	if (GL->gen[GL->ngen-1].op < JMP_TAILCODE) {
-		/* almost always we get here because e_querymark() in
-		   interp_post() found code. If there is no overlap
-		   and the node is compatible we can generate a jump
+		/* we get here because _Interp86() found code or in
+		   single-step mode. For code we can generate a jump
 		   to it and link as well */
-		nextG = FindTree(PC);
-		if (nextG && nextG->mode == mode &&
-		    nextG->cs == Interp_LONG_CS)
+		if (nextG)
 			JMPGen(JMP_LINK, mode, PC);
 		else
 			JMPGen(JMP_TAILCODE, mode, PC);
@@ -125,7 +122,7 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 
 		/* in case of prejit, the page content could
 		 * be altered, so we better re-jit */
-		if (flags & (F_PREJ | F_SPRJ))
+		if (flags & F_PREJ)
 			return NULL;
 		abeg = P0 & _PAGE_MASK;
 		aend = PC & _PAGE_MASK;
@@ -414,8 +411,8 @@ static unsigned int ExceptionGen(unsigned int PC, int basemode, int trapno,
 
 /////////////////////////////////////////////////////////////////////////////
 
-static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
-			      unsigned short ocs, int basemode, int flags);
+static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			unsigned short ocs, int basemode, int flags);
 
 static int leave_instremu(void)
 {
@@ -464,10 +461,6 @@ static unsigned int FindExecCode(unsigned int PC)
 			else if (debug_level('e')>2)
 				e_printf("** Found compiled code at %08x\n",PC);
 		}
-		else if (e_querymark(PC, 1)) {
-			/* slow path */
-			InvalidateNodeRange(PC, 1, NULL);
-		}
 		/* future proofing: _Interp86() can't fail now in non-prejit mode
 		   but if it ever does, retry */
 		while (!G) {
@@ -475,19 +468,12 @@ static unsigned int FindExecCode(unsigned int PC)
 				TheCPU.err = EXCP_GOBACK;
 				return PC;
 			}
-#if 0
-			/* this obviously can't happen with current code, but
-			 * slows down execution under debug a lot */
-			if (debug_level('e') && e_querymark(PC, 1))
-				error("simx86: code nodes clashed at %x\n", PC);
-#endif
 			if (debug_level('e')>=9)
 				dbug_printf("\n%s",e_print_regs(LONG_CS));
-			PC = _Interp86(PC, LONG_CS, TheCPU.cs, TheCPU.mode, 0);
+			G = _Interp86(PC, LONG_CS, TheCPU.cs, TheCPU.mode, 0);
 #if SPEC_PREJIT
 			speculate = can_speculate();
 #endif
-			G = DoClose(PC, LONG_CS, TheCPU.mode, 0);
 		}
 		if (debug_level('e') &&
 				/* check for codemarks inconsistency */
@@ -551,36 +537,11 @@ void Interp86(void)
     }
 
     PC = LONG_CS + TheCPU.eip;
-    assert(CurrIMeta < 0);
     PC = FindExecCode(PC);
-    assert(CurrIMeta < 0);
     TheCPU.eip = PC - LONG_CS;
 }
 
-/* safety gap should be definitely longer than 1 instruction to not
- * overwrite something unintentionally */
-#define SAFE_PRJ_GAP 16
-
-static int interp_post(unsigned int PC, unsigned int Interp_LONG_CS,
-		       const int mode, int flags)
-{
-		int ret = 0;
-		int gap = (flags & F_SPRJ) ? SAFE_PRJ_GAP : 1;
-		assert (CurrIMeta>=0);
-
-#ifndef SINGLEBLOCK
-		IMeta *GL = &InstrMeta[CurrIMeta];
-		if ((mode & MSSTP) ||
-		    GL->gen[GL->ngen-1].op >= JMP_TAILCODE ||
-		    e_querymark(PC, gap))
-#endif
-			ret = 1;
-		InstrMeta[0].flags |= flags;
-
-		return ret;
-}
-
-static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
+static void sprj_deep(TNode *G, unsigned int Interp_LONG_CS,
 		unsigned short ocs, int basemode, int flags)
 {
 #ifdef SPEC_PREJIT
@@ -588,10 +549,9 @@ static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
 
 	while (G->clink_t.link && !(G->flags & F_LJMP)) {
 		TNode *oldG = G;
-		PC = G->clink_t.target;
-		if (e_querymark(PC, SAFE_PRJ_GAP)) break;
-		PC = _Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
-		G = DoClose(PC, Interp_LONG_CS, basemode, flags);
+		unsigned int PC = G->clink_t.target;
+		G = _Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
+		if (!G) break;
 		i++;
 		NodesPrejitted++;
 		NodeLinker(oldG, G);
@@ -601,13 +561,42 @@ static void sprj_deep(TNode *G, unsigned PC, unsigned int Interp_LONG_CS,
 #endif
 }
 
-static unsigned int _Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
-			      unsigned short ocs, int basemode, int flags)
+static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
+			unsigned short ocs, int basemode, int flags)
 {
-	do {
-		PC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
-	} while (!interp_post(PC, Interp_LONG_CS, basemode, flags));
-	return PC;
+	TNode *nextG = NULL;
+	CurrIMeta = -1;
+	if (debug_level('e')>2) e_printf("============ Opening sequence at %08x\n",PC);
+	for (;;) {
+		unsigned int newPC = InterpOne(PC, Interp_LONG_CS, ocs, basemode);
+		assert (CurrIMeta>=0);
+#ifdef SPEC_PREJIT
+		/* let SPEC_PREJIT give up if it overwrites */
+		if ((flags & F_SPRJ) && e_querymark(PC, newPC - PC))
+			return NULL;
+#endif
+		PC = newPC;
+
+#ifndef SINGLEBLOCK
+		IMeta *GL = &InstrMeta[CurrIMeta];
+		if ((basemode & MSSTP) ||
+		    GL->gen[GL->ngen-1].op >= JMP_TAILCODE)
+			break;
+
+		/* if we find compatible code, stop compiling and let
+		   DoClose() generate a jump to it */
+		nextG = FindTree(PC);
+		if (nextG) {
+			if (nextG->mode == basemode && nextG->cs == Interp_LONG_CS)
+				break;
+			nextG = NULL;
+		}
+#else
+		break;
+#endif
+	}
+	InstrMeta[0].flags |= flags;
+	return DoClose(PC, Interp_LONG_CS, basemode, flags, nextG);
 }
 
 static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
@@ -1937,7 +1926,7 @@ repag0:
 					op = (realrepmod&MREP) ? LOOPZ_LOOPE : LOOPNZ_LOOPNE;
 				JMPGen(JLOOP_LINK, _mode, op, PC, P0);
 				/* code will be flushed immediately
-				   in interp_post because TF is set */
+				   in _Interp86() because TF is set */
 				break;
 			} }
 			break;
@@ -2318,14 +2307,11 @@ repag0:
 				unsigned char opm = D_MO(Fetch(PC+2));
 				switch (opm) {
 				case 0: /* SGDT */
-				    /* Store Global Descriptor Table Register */
-				    PC++; PC += ModRM(opc, PC, _mode|DATA16|MSTORE);
-				    error("SGDT not implemented\n");
-				    break;
 				case 1: /* SIDT */
+				    /* Store Global Descriptor Table Register */
 				    /* Store Interrupt Descriptor Table Register */
-				    PC++; PC += ModRM(opc, PC, _mode|DATA16|MSTORE);
-				    error("SIDT not implemented\n");
+				    PC++; PC += ModRM(opc, PC, _mode);
+				    Gen(O_SIM, _mode, 0x100+opc2, opm, P0);
 				    break;
 				case 2: /* LGDT */ /* PM privileged AND real _mode */
 				    /* Load Global Descriptor Table Register */
@@ -2752,11 +2738,10 @@ void instr_emu_sim_reset_count(void)
 static void _PreJit86(unsigned int PC, unsigned int Interp_LONG_CS,
 		      unsigned short ocs, int basemode, int flags)
 {
-	PC = _Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
-	TNode *G = DoClose(PC, Interp_LONG_CS, basemode, flags);
+	TNode *G = _Interp86(PC, Interp_LONG_CS, ocs, basemode, flags);
 	if (G && (flags & F_SPRJ)) {
 		NodesPrejitted++;
-		sprj_deep(G, PC, Interp_LONG_CS, ocs, basemode, flags);
+		sprj_deep(G, Interp_LONG_CS, ocs, basemode, flags);
 	}
 }
 
@@ -2794,7 +2779,7 @@ static void prejit_run(TNode *G)
     ds = e_emu_disasm(EMU_BASE32(PC),basemode&MBIGCS,ocs);
     e_printf("prejit at  %s\n", ds);
   }
-  if (e_querymark(PC, SAFE_PRJ_GAP))
+  if (e_querymark(PC, 1))
     return;
 #if PROFILE
   SpecPrejits++;
