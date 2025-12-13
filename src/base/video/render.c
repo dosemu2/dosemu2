@@ -514,7 +514,7 @@ static void update_graphics_screen(void)
 
   if (display_end > wrap) {
     unsigned bs = vga.mem.bank_pages * PAGE_SIZE;
-    unsigned start2 = (display_end <= bs ? 0 : bs * vga.mem.planes);
+    unsigned start2 = ((display_end - 1) & ~(bs - 1)) * vga.mem.planes;
     int len = wrap - display_start;
     int rem = len % vga.scan_len;
     int align = 0;
