@@ -513,6 +513,8 @@ static void update_graphics_screen(void)
   update_graphics_loop(display_start, wrap, 0, 0, &veut);
 
   if (display_end > wrap) {
+    unsigned bs = vga.mem.bank_pages * PAGE_SIZE;
+    unsigned start2 = (display_end <= bs ? 0 : bs * vga.mem.planes);
     int len = wrap - display_start;
     int rem = len % vga.scan_len;
     int align = 0;
@@ -531,7 +533,7 @@ static void update_graphics_screen(void)
      */
     if (rem)
       align = vga.scan_len - rem;
-    update_graphics_loop(0, display_end - wrap, -len, len + align, &veut);
+    update_graphics_loop(start2, start2 + display_end - wrap, -len, len + align, &veut);
   }
 }
 
