@@ -275,6 +275,8 @@ def msdos700(baseclass, actions):
                 ("io.sys", "22924f93dd0f9ea6a4624ccdd1bbcdf5eb43a308"),
                 ("msdos.sys", "f5d01c68d518f4b8b2482d3815af8bb88003831d"),
                 ("command.com", "67696207c3963a0dc9afab8cf37dbdb966c1f663"),
+                ("share.exe", "67d6524f7d700147013365e1656e93c842b9af07"),
+                ("dos/himem.sys", "837993a3ec3edec102de9ab78a39ae049007d991"),
             ]
             cls.systype = SYSTYPE_MSDOS_NEW
             cls.autoexec = "autoemu.bat"
