@@ -373,7 +373,7 @@ static void reserve_video_memory(void)
 }
 
 void
-gettermcap(int i, int *co, int *li)
+gettermcap(int *co, int *li)
 {
   struct winsize ws;		/* buffer for TIOCSWINSZ */
 

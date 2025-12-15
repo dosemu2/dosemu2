@@ -88,7 +88,7 @@ static int console_post_init(void)
    */
   if (!config.vga) {
     int co, li;
-    gettermcap(0, &co, &li);
+    gettermcap(&co, &li);
     fprintf(stdout,"\033[?25h\033[0m\033[H\033[2J");
     vga_emu_setmode(config.cardtype == CARD_MDA ? 7 : 3, co, li);
   }
@@ -154,7 +154,7 @@ int console_size(void)
 static int console_init(void)
 {
   int co, li;
-  gettermcap(0, &co, &li);
+  gettermcap(&co, &li);
   consolesize = TEXT_SIZE(co,li);
   register_hardware_ram('v', VGA_PHYS_TEXT_BASE, TEXT_SIZE(co,li));
 

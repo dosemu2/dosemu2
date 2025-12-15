@@ -1674,7 +1674,7 @@ void video_mem_setup(void)
   li = LI;
   co = CO;
   if (config.term && !config.dumb_video)
-    gettermcap(0, &co, &li);
+    gettermcap(&co, &li);
 
   WRITE_WORD(BIOS_SCREEN_COLUMNS, co);     /* chars per line */
   WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1); /* lines on screen - 1 */

@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-extern void gettermcap(int,int *, int *);
+extern void gettermcap(int *, int *);
 
 /* if you set this to 1, then you will be able to use your MDA + monitor
    as second display. This currently is possible together with
