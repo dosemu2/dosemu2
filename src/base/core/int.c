@@ -789,7 +789,7 @@ static int dos_helper(int stk_offs, int revect)
 	    if (config.dumb_video)
 		i |= 0x100;
 	    LWORD(eax) = i;
-	    if (config.term) {
+	    if (config.term && !config.dumb_video) {
 		gettermcap(0, &co, &li);
 	    } else {
 		co = vga.text_width;

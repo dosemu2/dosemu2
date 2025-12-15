@@ -278,9 +278,7 @@ done:
     config.X = 0;
     config.sdl = 0;
 #ifndef USE_SLANG
-    if (config.dumb_video) {
-      config.term = 0;
-    } else {
+    if (!config.dumb_video) {
       error("terminal support not compiled in\n");
       leavedos(2);
     }
