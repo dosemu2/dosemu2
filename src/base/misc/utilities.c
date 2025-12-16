@@ -620,10 +620,10 @@ char *get_dosemu_local_home(void)
     int err, errn;
     char *ret = get_path_in_HOME(LOCALDIR_BASE_NAME);
     /* usually this dir is created by wrapper script, but to make sure */
-    err = mkdir(ret, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    err = mkdir_p(ret, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
     errn = errno;
     if (err == -1 && errn != EEXIST) {
-      error("mkdir(%s): %s\n", ret, strerror(errn));
+      error("mkdir_p(%s): %s\n", ret, strerror(errn));
       free(ret);
       return NULL;
     }
@@ -1560,4 +1560,70 @@ void create_thread(pthread_t *restrict thread,
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
     pthread_setname_np(*thread, name);
 #endif
+}
+
+/* https://gist.github.com/JonathonReinhart/8c0d90191c38af2dcadb102c4e202950 */
+/* Make a directory; already existing dir okay */
+static int maybe_mkdir(const char* path, mode_t mode)
+{
+    struct stat st;
+    errno = 0;
+
+    /* Try to make the directory */
+    if (mkdir(path, mode) == 0)
+        return 0;
+
+    /* If it fails for any reason but EEXIST, fail */
+    if (errno != EEXIST)
+        return -1;
+
+    /* Check if the existing path is a directory */
+    if (stat(path, &st) != 0)
+        return -1;
+
+    /* If not, fail with ENOTDIR */
+    if (!S_ISDIR(st.st_mode)) {
+        errno = ENOTDIR;
+        return -1;
+    }
+
+    errno = 0;
+    return 0;
+}
+
+int mkdir_p(const char *path, mode_t mode)
+{
+    /* Adapted from http://stackoverflow.com/a/2336245/119527 */
+    char *_path = NULL;
+    char *p;
+    int result = -1;
+
+    errno = 0;
+
+    /* Copy string so it's mutable */
+    _path = strdup(path);
+    if (_path == NULL)
+        goto out;
+
+    /* Iterate the string */
+    for (p = _path + 1; *p; p++) {
+        if (*p == '/') {
+            /* Temporarily truncate */
+            *p = '\0';
+
+            if (maybe_mkdir(_path, mode) != 0)
+                goto out;
+
+            *p = '/';
+        }
+    }
+
+    if (maybe_mkdir(_path, mode) != 0)
+        goto out;
+
+    result = 0;
+
+out:
+    free(_path);
+    return result;
 }
