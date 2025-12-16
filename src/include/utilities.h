@@ -199,4 +199,6 @@ int fdscandir(int dfd, struct dirent ***res,
 
 int gdb_debug(const char *file);
 
+int mkdir_p(const char *path, mode_t mode);
+
 #endif /* UTILITIES_H */
