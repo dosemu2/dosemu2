@@ -2523,9 +2523,10 @@ static void close_file(FILE * file)
 
 static void set_hdimage(struct disk *dptr, char *name)
 {
-  char *l = strstr(name, ".lnk");
+//  char *l = strstr(name, ".lnk");
 
   c_printf("Setting up hdimage %s\n", name);
+#if 0
   if (l && strlen(l) == 4) {
     const char *tmpl = "eval printf %%s \\\"`cat %s`\\\"";
     char *cmd, path[1024], *rname;
@@ -2554,6 +2555,7 @@ static void set_hdimage(struct disk *dptr, char *name)
     c_printf("Set up as a directory\n");
     return;
   }
+#endif
   dptr->type = IMAGE;
   free(dptr->dev_name);
   dptr->dev_name = name;
