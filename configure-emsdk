@@ -2,7 +2,7 @@
 # ./configure-emsdk ./default-configure -d
 
 export CONFIGURE_WRAPPER=emconfigure
-LDFLAGS="-pthread -sNODERAWFS -sUSE_SDL=3 -sTOTAL_MEMORY=26214400" \
+LDFLAGS="-pthread -lnodefs.js -sUSE_SDL=3 -sTOTAL_MEMORY=26214400" \
   $CONFIGURE_WRAPPER $* \
   --disable-searpc --disable-dlplugins --disable-solib \
   --disable-mcontext --disable-fdpp --disable-dj64
