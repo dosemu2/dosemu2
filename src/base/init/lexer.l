@@ -287,6 +287,7 @@ no			RETURN(L_NO);
 "strcspn"		RETURN(STRCSPN);
 "defined"		RETURN(DEFINED);
 "test_d"		RETURN(TEST_D);
+"test_f"		RETURN(TEST_F);
 "shell"			RETURN(SHELL);
 
 	/* just for test purposes */
