@@ -966,16 +966,16 @@ bool_expr:	  typed_expr EQ_OP typed_expr
 			$$ = get_config_variable($3) !=0;
 			free($3);
 		}
-		| TEST_D '(' string_expr ')' {
+		| TEST_D '(' strarglist ')' {
 			struct stat st;
 			$$ = (stat($3, &st) == 0 && S_ISDIR(st.st_mode));
 			free($3);
 		}
-		| TEST_F '(' string_expr ')' {
+		| TEST_F '(' strarglist ')' {
 			$$ = (access($3, F_OK) == 0);
 			free($3);
 		}
-		| TEST_R '(' string_expr ')' {
+		| TEST_R '(' strarglist ')' {
 			$$ = (access($3, R_OK) == 0);
 			free($3);
 		}
