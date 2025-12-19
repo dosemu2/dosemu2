@@ -138,22 +138,9 @@ static void ser_reset_dev(int num)
   com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
   com[num].dlm = 0;			/* Baudrate divisor MSB: 2400bps */
   com[num].IER = 0;			/* Interrupt Enable Register */
-  com[num].IIR.mask = 0;		/* Interrupt I.D. Register */
   com[num].LCR = UART_LCR_WLEN8;	/* Line Control Register: 5N1 */
   com[num].FCReg = 0; 			/* FIFO Control Register */
-  com[num].rx_fifo_trigger = 1;		/* Receive FIFO trigger level */
   com[num].MCR = 0;			/* Modem Control Register */
-  com[num].LSR = UART_LSR_TEMT | UART_LSR_THRE;   /* Txmit Hold Reg Empty */
-  com[num].MSR = 0;			/* Modem Status Register */
-  com[num].SCR = 0; 			/* Scratch Register */
-  com[num].int_condition = TX_INTR;	/* FLAG: Pending xmit intr */
-  com[num].IIR.flags = 0;		/* FLAG: FIFO disabled */
-  com[num].ms_timer = 0;		/* Modem Status check timer */
-  com[num].rx_timer = 0;		/* Receive read() polling timer */
-  com[num].rx_timeout = 0;		/* FLAG: No Receive timeout */
-  com[num].rx_fifo_size = 16;		/* Size of receive FIFO to emulate */
-  com[num].tx_cnt = 0;
-  uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */
 }
 
 static void ser_setup_custom(int num)
