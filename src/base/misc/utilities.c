@@ -1627,3 +1627,50 @@ out:
     free(_path);
     return result;
 }
+
+static char *push_string(char *dst, int *len, const char *delim,
+        const char *str)
+{
+    int dlm = 1;
+
+    if (!dst) {
+        dlm = 0;
+        *len = 1024;
+        dst = malloc(*len);
+        assert(dst);
+        dst[0] = '\0';
+    }
+    while (strlen(dst) + strlen(str) + strlen(delim) + 1 > *len) {
+        *len += 1024;
+        dst = realloc(dst, *len);
+        assert(dst);
+    }
+    if (dlm)
+        strcat(dst, delim);
+    strcat(dst, str);
+    return dst;
+}
+
+char *list_files(const char *dirname)
+{
+    DIR *dir;
+    struct dirent *entry;
+    char *out = NULL;
+    int len;
+
+    dir = opendir(dirname);
+    if (!dir) {
+        error("opendir(%s): %s\n", dirname, strerror(errno));
+        return NULL;
+    }
+
+    while ((entry = readdir(dir))) {
+        if (strcmp(entry->d_name, ".") == 0 ||
+                strcmp(entry->d_name, "..") == 0)
+            continue;
+        out = push_string(out, &len, " ", entry->d_name);
+    }
+
+    closedir(dir);
+    return out;
+}

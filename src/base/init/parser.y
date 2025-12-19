@@ -216,7 +216,7 @@ enum {
 %right UMINUS UPLUS BIT_NOT_OP
 
 %token	STRLEN STRTOL STRNCMP STRCAT STRPBRK STRSPLIT STRCHR STRRCHR STRSTR
-%token	STRDEL STRSPN STRCSPN SHELL TEST_D TEST_F TEST_R
+%token	STRDEL STRSPN STRCSPN SHELL TEST_D TEST_F TEST_R REALPATH LS
 %token	DEFINED
 %type	<i_value> expression int_expr bool_expr
 %type	<r_value> real_expression real_expr
@@ -969,16 +969,16 @@ bool_expr:	  typed_expr EQ_OP typed_expr
 			$$ = get_config_variable($3) !=0;
 			free($3);
 		}
-		| TEST_D '(' string_expr ')' {
+		| TEST_D '(' strarglist ')' {
 			struct stat st;
 			$$ = (stat($3, &st) == 0 && S_ISDIR(st.st_mode));
 			free($3);
 		}
-		| TEST_F '(' string_expr ')' {
+		| TEST_F '(' strarglist ')' {
 			$$ = (access($3, F_OK) == 0);
 			free($3);
 		}
-		| TEST_R '(' string_expr ')' {
+		| TEST_R '(' strarglist ')' {
 			$$ = (access($3, R_OK) == 0);
 			free($3);
 		}
@@ -1042,6 +1042,16 @@ string_expr:	string_unquoted
 			}
 			free($3);
 			$$ = s;
+		}
+		| REALPATH '(' strarglist ')' {
+			$$ = expand_path($3);
+			free($3);
+		}
+		| LS '(' strarglist ')' {
+			char *s = list_files($3);
+			if (!s) s = strdup("");
+			$$ = s;
+			free($3);
 		}
 		| SHELL '(' strarglist ')' {
 			$$ = run_shell($3);
