@@ -220,8 +220,10 @@ static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
       break;
   assert(i < MAX_FILE_MAPPINGS);
   fd = open_cb();
-  if (fd < 0)
+  if (fd < 0) {
+    error("mapping: open() failed\n");
     return MAP_FAILED;
+  }
   rc = ftruncate(fd, mapsize);
   assert(rc != -1);
 
@@ -230,8 +232,10 @@ static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
   else
     target = NULL;
   target = mmap(target, mapsize, prot, MAP_SHARED | fixed, fd, 0);
-  if (target == MAP_FAILED)
+  if (target == MAP_FAILED) {
+    error("mapping: mmap(%x) failed: %s\n", fixed, strerror(errno));
     return MAP_FAILED;
+  }
   p->addr = target;
   p->size = mapsize;
   p->fsize = mapsize;
