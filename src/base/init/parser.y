@@ -1475,8 +1475,7 @@ ttylocks_flag	: DIRECTORY string_expr	{ free(config.tty_lockdir); config.tty_loc
 serial_flags	: serial_flag
 		| serial_flags serial_flag
 		;
-serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
-		| VIRTUAL		  {
+serial_flag	: VIRTUAL		  {
 					   if (isatty(0)) {
 					     sptr->virt = TRUE;
 					     sptr->pseudo = TRUE;
@@ -1514,10 +1513,20 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 					    sptr->pts = $2; }
 		| WRFILE string_expr	  { free(sptr->wrfile);
 					    sptr->wrfile = $2; }
-		| NULLMM string_expr	  { sptr->nullmm = atoi($2); free($2); }
+		| NULLMM expression	  { sptr->nullmm = $2; }
 		| READONLY		{ sptr->ro = 1; }
-		| STRING
-		    { yyerror("unrecognized serial flag '%s'", $1); free($1); }
+		| DEVICE string_expr	{   // compatibility syntax for -I
+					    free(sptr->dev);
+					    sptr->dev = $2;
+					}
+		| string_expr {
+					if (!sptr->dev) {
+						sptr->dev = $1;
+					} else {
+						yyerror("unrecognized serial flag '%s'", $1);
+						free($1);
+					}
+		}
 		| error
 		;
 
