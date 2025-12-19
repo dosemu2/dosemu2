@@ -809,10 +809,13 @@ line:		CHARSET '{' charset_flags '}' {}
 		    { config.timer_tweaks = ($2 != 0); }
 		| UEXEC string_expr
 		    {
+#ifndef __EMSCRIPTEN__
 			if (under_root_login) {
 			  error("$_unix_exec not allowed under root login\n");
 			  config.exitearly = 1;
-			} else {
+			} else
+#endif
+			{
 			  free(config.unix_exec);
 			  config.unix_exec = $2;
 			}
