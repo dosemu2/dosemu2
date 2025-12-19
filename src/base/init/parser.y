@@ -143,7 +143,6 @@ static void set_irq_value(int bits, int i1);
 static void set_irq_range(int bits, int i1, int i2);
 static int undefine_config_variable(const char *name);
 static void check_user_var(char *name);
-static char *run_shell(char *command);
 static int for_each_handling(int loopid, char *varname, char *delim, char *list);
 static void handle_features(int which, int value);
 static void set_joy_device(char *devstring);
@@ -216,7 +215,7 @@ enum {
 %right UMINUS UPLUS BIT_NOT_OP
 
 %token	STRLEN STRTOL STRNCMP STRCAT STRPBRK STRSPLIT STRCHR STRRCHR STRSTR
-%token	STRDEL STRSPN STRCSPN SHELL TEST_D TEST_F TEST_R REALPATH LS
+%token	STRDEL STRSPN STRCSPN TEST_D TEST_F TEST_R REALPATH LS
 %token	DEFINED
 %type	<i_value> expression int_expr bool_expr
 %type	<r_value> real_expression real_expr
@@ -375,11 +374,6 @@ line:		CHARSET '{' charset_flags '}' {}
 		| FOREACHSTATEMENT INTEGER ',' VARIABLE '(' string_expr ',' strarglist ')' {
 			tell_lexer_loop($2, for_each_handling($2,$4,$6,$8));
 			free($4); free($6); free($8);
-		}
-		| SHELL '(' strarglist ')' {
-			char *s = run_shell($3);
-			if (s) free(s);
-			free($3);
 		}
 		| VARIABLE '=' strarglist {
 		    if (!parser_version_3_style_used) {
@@ -1051,10 +1045,6 @@ string_expr:	string_unquoted
 			char *s = list_files($3);
 			if (!s) s = strdup("");
 			$$ = s;
-			free($3);
-		}
-		| SHELL '(' strarglist ')' {
-			$$ = run_shell($3);
 			free($3);
 		}
 		| variable_content {$$ = $1;}
@@ -2893,65 +2883,6 @@ static void check_user_var(char *name)
 		unsetenv(name_);
 	}
 	free(name_);
-}
-
-
-static char *run_shell(char *command)
-{
-	int pipefds[2];
-	pid_t pid;
-	char excode[16] = "1";
-
-	setenv("DOSEMU_SHELL_RETURN", excode, 1);
-	if (pipe(pipefds)) return strdup("");
-	pid = fork();
-	if (pid == -1) return strdup("");
-	if (!pid) {
-		/* child */
-		int ret;
-		close(pipefds[0]);	/* we won't read from the pipe */
-		dup2(pipefds[1], 1);	/* make the pipe child's stdout */
-		priv_drop();	/* drop any priviledges */
-		ret = system(command);
-			/* tell the parent: "we have finished",
-			 * this way we need not to play games with select()
-			 */
-		if (ret == -1) ret = errno;
-		else ret >>=8;
-		write(pipefds[1],"\0\0\0",4);
-		close(pipefds[1]);
-		_exit(ret);
-	}
-	else {
-		/* parent */
-		char *buf = 0;
-		int recsize = 128;
-		int bufsize = 0;
-		int ptr =0;
-		int ret;
-		int status;
-
-		close(pipefds[1]);	/* we won't write to the pipe */
-		do {
-			bufsize = ptr + recsize;
-			if (!buf) buf = malloc(bufsize);
-			else buf = realloc(buf, bufsize);
-			ret = read(pipefds[0], buf+ptr, recsize -1);
-			if (ret > 0) {
-				ptr += ret;
-			}
-		} while (ret >0 && (ret < 4 || memcmp(buf+ptr-4,"\0\0\0",4)));
-		close(pipefds[0]);
-		waitpid(pid, &status, 0);
-		buf[ptr] = 0;
-		if (!buf[0]) {
-			free(buf);
-			buf = strdup("");
-		}
-		sprintf(excode, "%d", WEXITSTATUS(status));
-		setenv("DOSEMU_SHELL_RETURN", excode, 1);
-		return buf;
-	}
 }
 
 
