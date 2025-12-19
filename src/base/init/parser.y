@@ -1044,6 +1044,12 @@ string_expr:	string_unquoted
 			$$ = expand_path($3);
 			free($3);
 		}
+		| LS '(' strarglist ')' {
+			char *s = list_files($3);
+			if (!s) s = strdup("");
+			$$ = s;
+			free($3);
+		}
 		| SHELL '(' strarglist ')' {
 			$$ = run_shell($3);
 			free($3);

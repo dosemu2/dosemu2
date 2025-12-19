@@ -290,6 +290,7 @@ no			RETURN(L_NO);
 "test_f"		RETURN(TEST_F);
 "test_r"		RETURN(TEST_R);
 "realpath"		RETURN(REALPATH);
+"ls"			RETURN(LS);
 "shell"			RETURN(SHELL);
 
 	/* just for test purposes */
