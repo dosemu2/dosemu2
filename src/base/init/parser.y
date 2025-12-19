@@ -216,7 +216,7 @@ enum {
 %right UMINUS UPLUS BIT_NOT_OP
 
 %token	STRLEN STRTOL STRNCMP STRCAT STRPBRK STRSPLIT STRCHR STRRCHR STRSTR
-%token	STRDEL STRSPN STRCSPN SHELL TEST_D TEST_F TEST_R
+%token	STRDEL STRSPN STRCSPN SHELL TEST_D TEST_F TEST_R REALPATH LS
 %token	DEFINED
 %type	<i_value> expression int_expr bool_expr
 %type	<r_value> real_expression real_expr
@@ -1039,6 +1039,10 @@ string_expr:	string_unquoted
 			}
 			free($3);
 			$$ = s;
+		}
+		| REALPATH '(' strarglist ')' {
+			$$ = expand_path($3);
+			free($3);
 		}
 		| SHELL '(' strarglist ')' {
 			$$ = run_shell($3);

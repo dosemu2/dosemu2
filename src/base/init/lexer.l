@@ -289,6 +289,7 @@ no			RETURN(L_NO);
 "test_d"		RETURN(TEST_D);
 "test_f"		RETURN(TEST_F);
 "test_r"		RETURN(TEST_R);
+"realpath"		RETURN(REALPATH);
 "shell"			RETURN(SHELL);
 
 	/* just for test purposes */
