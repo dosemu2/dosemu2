@@ -216,7 +216,7 @@ enum {
 %right UMINUS UPLUS BIT_NOT_OP
 
 %token	STRLEN STRTOL STRNCMP STRCAT STRPBRK STRSPLIT STRCHR STRRCHR STRSTR
-%token	STRDEL STRSPN STRCSPN SHELL
+%token	STRDEL STRSPN STRCSPN SHELL TEST_D
 %token	DEFINED
 %type	<i_value> expression int_expr bool_expr
 %type	<r_value> real_expression real_expr
@@ -964,6 +964,11 @@ bool_expr:	  typed_expr EQ_OP typed_expr
 		| L_OFF		{$$ = 0; }
 		| DEFINED '(' string_unquoted ')' {
 			$$ = get_config_variable($3) !=0;
+			free($3);
+		}
+		| TEST_D '(' string_expr ')' {
+			struct stat st;
+			$$ = (stat($3, &st) == 0 && S_ISDIR(st.st_mode));
 			free($3);
 		}
 		;
