@@ -319,7 +319,6 @@ AC_CHECK_FUNCS([timerfd_create], [
     USE_EVTIMER_FD=1
     AC_SUBST(USE_EVTIMER_FD)
 ])])
-AC_CHECK_FUNCS([mremap])
 AC_CHECK_FUNCS([fls])
 AC_CHECK_FUNCS([statfs])
 AC_CHECK_FUNCS([memrchr])
@@ -335,7 +334,6 @@ AC_CHECK_DECLS([F_OFD_SETLK], [
     AC_SUBST(USE_OFD_LOCKS)
   ],, [[#include <fcntl.h>]]
 )
-AC_CHECK_DECLS([MREMAP_MAYMOVE],,, [[#include <sys/mman.h>]])
 AC_CHECK_DECLS([MADV_POPULATE_WRITE, MADV_COLD],,,
   [[#include <sys/mman.h>]])
 AC_CHECK_DECLS([MAP_32BIT],,, [[#include <sys/mman.h>]])
@@ -521,6 +519,9 @@ if test "$machine" != "wasm32"; then
     #include <ucontext.h>
     #include <signal.h>
   ])
+
+  AC_CHECK_FUNCS([mremap])
+  AC_CHECK_DECLS([MREMAP_MAYMOVE],,, [[#include <sys/mman.h>]])
 fi
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h netpacket/packet.h])
 AC_CHECK_HEADERS([netinet/if_ether.h net/ethernet.h])
