@@ -198,6 +198,10 @@ while [ $# -gt 0 ] ; do
       DBG="perf record --call-graph dwarf --"
       shift
       ;;
+    -strace)
+      DBG="strace -f -o strace.log --string-limit=1024"
+      shift
+      ;;
     --)
       break
       ;;
