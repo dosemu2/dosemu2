@@ -775,7 +775,7 @@ static void *do_alloc_mapping(int cap, size_t mapsize, void *addr)
   addr = mappingdriver->alloc(cap, mapsize, addr);
   if (addr == MAP_FAILED) {
     error("failed to alloc %zx\n", mapsize);
-    leavedos(2);
+    exit(2);
     return NULL;
   }
   if (cap & MAPPING_LOWMEM) {
