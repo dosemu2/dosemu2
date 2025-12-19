@@ -1513,7 +1513,7 @@ serial_flag	: VIRTUAL		  {
 					    sptr->pts = $2; }
 		| WRFILE string_expr	  { free(sptr->wrfile);
 					    sptr->wrfile = $2; }
-		| NULLMM string_expr	  { sptr->nullmm = atoi($2); free($2); }
+		| NULLMM expression	  { sptr->nullmm = $2; }
 		| READONLY		{ sptr->ro = 1; }
 		| DEVICE string_expr	{   // compatibility syntax for -I
 					    free(sptr->dev);
