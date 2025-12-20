@@ -1045,7 +1045,7 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     frag_period = nframes * pcm_frame_period_us(params->rate);
     stop_time = start_time + frag_period;
     if (start_time < now - MAX_BUFFER_DELAY) {
-	error("PCM: \"%s\" too large delay, start=%f min=%f d=%f\n",
+	S_printf("PCM: \"%s\" too large delay, start=%f min=%f d=%f\n",
 		  p->plugin->name, start_time,
 		  now - MAX_BUFFER_DELAY, now - MAX_BUFFER_DELAY - start_time);
 	start_time = now - INIT_BUFFER_DELAY;
