@@ -1359,7 +1359,9 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	       not officially exist anymore) that the SIGSEGV or patched
 	       call returns to may write to the current unprotected page.
 	    */
-	    ahE = G->addr + G->len;
+	    /* Exclude last instruction, as there is no need to break
+	     * node after last instruction (it ends there anyway). */
+	    ahE = G->addr + G->meta[G->seqnum - 1].daddr;
 	    if (eip && ADDR_IN_RANGE(eip,G->addr,ahE)) {
 		if (debug_level('e')>1)
 		    e_printf("### Node self hit %p->%p..%p\n",
