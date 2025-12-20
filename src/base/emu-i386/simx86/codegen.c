@@ -580,10 +580,6 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 	if (!(mode & MSSTP)) {
 		NodeLinker(G, G);
 	}
-
-	/* must be done after a_markpage() to avoid excessive m_unprots */
-	if (!(flags & (F_PREJ | F_SPRJ)))
-		tree_gc();
 	return G;
 }
 

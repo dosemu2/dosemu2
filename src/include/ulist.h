@@ -79,6 +79,9 @@ static inline struct ulist_head *ulist_get_head(struct ulist_ent *entry)
 
 #define ulist_entry(ptr, type, member) container_of(ptr, type, member)
 
+#define ulist_first(head) \
+	ulist_entry((head)->next, struct ulist_ent, list)
+
 #define ulist_first_entry(ptr, type, member) \
 	ulist_entry((ptr)->next, type, member.list)
 

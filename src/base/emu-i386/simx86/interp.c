@@ -137,12 +137,6 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 	return G;
 }
 
-static inline unsigned int UNPREFIX(unsigned int m)
-{
-	return (m&~(DATA16|ADDR16))|((m&MBIGCS)?0:(DATA16|ADDR16));
-}
-
-
 /////////////////////////////////////////////////////////////////////////////
 //
 // jmp		b8 j j j j 5a c3
