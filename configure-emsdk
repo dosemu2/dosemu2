@@ -2,7 +2,7 @@
 # ./configure-emsdk ./default-configure -d
 
 export CONFIGURE_WRAPPER=emconfigure
-LDFLAGS="-pthread -sWASMFS -sEXIT_RUNTIME -sUSE_SDL=3 -sTOTAL_MEMORY=26214400 \
+LDFLAGS="-pthread -sWASMFS -sEXIT_RUNTIME -sUSE_SDL=3 -sTOTAL_MEMORY=67108864 \
   -sALLOW_MEMORY_GROWTH -sPROXY_TO_PTHREAD" \
   $CONFIGURE_WRAPPER $* \
   --disable-searpc --disable-dlplugins --disable-solib \
