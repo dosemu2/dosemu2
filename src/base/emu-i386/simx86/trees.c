@@ -593,8 +593,6 @@ TNode *FindTree(int key)
 	I->alive = NODELIFE(I);
 	return I;
   }
-  if (!e_querymark(key, 1))
-	return NULL;
 
   pthread_mutex_lock_trees();
   I = FindTree_tail(key);
