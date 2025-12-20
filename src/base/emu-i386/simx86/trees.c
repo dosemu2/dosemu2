@@ -39,15 +39,10 @@
  *
  ***************************************************************************/
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/mman.h>
+#include <pthread.h>
 #include "emu86.h"
 #include "codegen.h"
+#include "trees.h"
 
 IMeta	InstrMeta[MAXINODES];
 int	CurrIMeta;
@@ -91,7 +86,8 @@ static void DumpTree (FILE *fd);
 #define FINDTREE_CACHE_HASH_MASK 0xfff
 static TNode *findtree_cache[FINDTREE_CACHE_HASH_MASK+1];
 
-static avltr_node *TNodePool;
+static struct ulist_head TNodePool;
+static avltr_node *TNodePoolPtr;
 static int NodeLimit = 10000;
 
 TNode *FindTree_unlocked(int key);
@@ -132,22 +128,20 @@ static TNode *find_node_start(unsigned a, int l)
 
 static inline avltr_node *Tmalloc(void)
 {
-  avltr_node *G  = TNodePool->link[0];
-  avltr_node *G1 = G->link[0];
-  if (G1==TNodePool) {
+  avltr_node *G = ulist_first_entry(&TNodePool, avltr_node, list);
+  ulist_del(&G->list);
+  if (ulist_empty(&TNodePool)) {
     pthread_mutex_unlock_trees();
     leavedos_main(0x4c4c); // return NULL;
   }
-  TNodePool->link[0] = G1; G->link[0]=NULL;
-  memset(G, 0, sizeof(avltr_node));	// "bug covering"
+//  memset(G, 0, sizeof(avltr_node));	// "bug covering"
   return G;
 }
 
 static inline void Tfree(avltr_node *p)
 {
   p->data = NULL;
-  p->link[0] = TNodePool->link[0];
-  TNodePool->link[0] = p;
+  ulist_add(&p->list, &TNodePool);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -555,12 +549,11 @@ static void avltr_init(void)
   Traverser.init = 0;
   Traverser.p = NULL;
 
-  G = TNodePool;
+  G = TNodePoolPtr;
   for (i=0; i<(NODES_IN_POOL-1); i++) {
-	avltr_node *G1 = G; G++;
-	G1->link[0] = G;
+	ulist_add(&G->list, &TNodePool);
+	G++;
   }
-  G->link[0] = TNodePool;
 
   g_printf("avltr_init\n");
   ninodes = 0;
@@ -1567,13 +1560,13 @@ void CollectStat (void)
 void InitTrees(void)
 {
 	g_printf("InitTrees\n");
-	TNodePool = calloc(NODES_IN_POOL, sizeof(avltr_node));
+	TNodePoolPtr = calloc(NODES_IN_POOL, sizeof(avltr_node));
 
 	avltr_init();
 
 	if (debug_level('e')>1) {
 	    e_printf("Root tree node at %p\n",&CollectTree.root);
-	    e_printf("TNode pool at %p\n",TNodePool);
+	    e_printf("TNode pool at %p\n",TNodePoolPtr);
 	}
 	NodesParsed = NodesExecd = 0;
 	CleanFreq = 8;
@@ -1596,7 +1589,7 @@ void EndGen(void)
 	int csm = config.CPUSpeedInMhz*1000;
 #endif
 	avltr_destroy();
-	free(TNodePool); TNodePool=NULL;
+	free(TNodePoolPtr); TNodePoolPtr=NULL;
 #ifdef SHOW_STAT
 	for (i=0; i<cstx; i++) {
 	    dbug_printf("%04d %16Ld %8d %8d(%3d) %8d %d\n",i,(xCST[i].a/csm),
