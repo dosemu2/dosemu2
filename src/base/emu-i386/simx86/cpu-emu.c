@@ -1585,6 +1585,11 @@ int _CPU_VM_DPMI(void)
     return config.cpu_vm_dpmi;
 }
 
+int _CPU_VM_CURRENT(void)
+{
+    return in_dpmi_pm() ? _CPU_VM_DPMI() : _CPU_VM();
+}
+
 static int lockcnt;
 
 void prejit_lock(void)
