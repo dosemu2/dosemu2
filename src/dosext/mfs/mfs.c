@@ -259,7 +259,9 @@ static int dos_fs_redirect(struct vm86_regs *, char *stk);
 static int is_long_path(const char *s);
 static void path_to_ufs(char *ufs, size_t ufs_offset, const char *path,
                         int PreserveEnvVar, int lowercase);
+#ifdef __linux__
 static int dos_would_allow(char *fpath, const char *op, int equal);
+#endif
 static void RemoveRedirection(int drive, cds_t cds);
 static int mfs_statvfs(const char *path, struct statvfs *sb, int drive);
 static int path_list_contains(const char *clist, const char *path);
@@ -2918,6 +2920,7 @@ static void open_device(unsigned int devptr, char *fname, sft_t sft)
   _sft_position(sft) = 0;
 }
 
+#ifdef __linux__
 /* In any Linux directory it is possible to have uids not equal
    to your own one. In that case Linux denies any chmod or utime,
    but DOS really expects any attribute/time set to succeed. We'll fake it
@@ -2942,6 +2945,7 @@ static int dos_would_allow(char *fpath, const char *op, int equal)
        op, fpath, strerror(errno));
   return TRUE;
 }
+#endif
 
 static void set_32bit_size_or_position(uint32_t* sftfield, uint64_t fullvalue) {
   if (fullvalue < 0x100000000) {
