@@ -1,4 +1,10 @@
 #include "../../../base/emu-i386/simx86/econfig.h"
+#ifndef IN_DLMALLOC
+/* prevent conflicting definitions */
+#pragma push_macro("HAVE_MMAP")
+#pragma push_macro("HAVE_MREMAP")
+#endif
+
 #if SPEC_PREJIT
 #define USE_LOCKS 1
 #endif
@@ -944,3 +950,8 @@ int mspace_mallopt(int, int);
 #ifdef __cplusplus
 };  /* end of extern "C" */
 #endif /* __cplusplus */
+
+#ifndef IN_DLMALLOC
+#pragma pop_macro("HAVE_MREMAP")
+#pragma pop_macro("HAVE_MMAP")
+#endif

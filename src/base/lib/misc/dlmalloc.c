@@ -204,6 +204,7 @@
   originating spaces.
 */
 
+#define IN_DLMALLOC 1
 #include "dlmalloc.h"
 
 /*------------------------------ internal #includes ---------------------- */
