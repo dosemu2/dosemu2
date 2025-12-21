@@ -275,7 +275,7 @@ static void fpu_reset(void)
   vm86_fpu_state.cwd = 0x0040;
   vm86_fpu_state.swd = 0;
 //  vm86_fpu_state.ftw = 0x5555;       //bochs
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (_CPU_VM_CURRENT() == CPUVM_KVM)
     kvm_update_fpu();
 }
 
@@ -291,6 +291,8 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
   switch (port) {
   case 0xf0:
     pic_untrigger(13);
+    if (_CPU_VM_CURRENT() == CPUVM_KVM)
+      kvm_get_fpu();
     fpu_ignne = !!(vm86_fpu_state.swd & 0x80);
     /* Note: we emuate the "unrecommended" (by Intel) design where the
      * untriggering of IGNNE requires an extra write to 0xf0 after fnclex */
@@ -304,10 +306,8 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
       fpu_ignne = 0;
       /* fnclex */
       vm86_fpu_state.swd &= 0x7f00;
-      if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+      if (_CPU_VM_CURRENT() == CPUVM_KVM)
         kvm_update_fpu();
-      if (config.cpu_vm == CPUVM_EMU || config.cpu_vm_dpmi == CPUVM_EMU)
-        cpuemu_update_fpu();
     }
     break;
   }
@@ -368,10 +368,8 @@ int fpu_fpe_handler (unsigned char *csp)
       case 0x29: //fldcw
 	dbug_printf("coprocessor exception, disabling CW load exception because of IGNNE#\n");
 	vm86_fpu_state.cwd = 0x37f;
-	if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+	if (_CPU_VM_CURRENT() == CPUVM_KVM)
 	  kvm_update_fpu();
-	if (config.cpu_vm == CPUVM_EMU || config.cpu_vm_dpmi == CPUVM_EMU)
-	  cpuemu_update_fpu();
 	return 0;
       }
     }

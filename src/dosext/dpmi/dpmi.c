@@ -1486,10 +1486,8 @@ static void finish_clnt_switch(void)
   assert(in_dpmi);
   if (config.cpu_vm_dpmi == CPUVM_KVM)
     update_kvm_idt();
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (_CPU_VM_CURRENT() == CPUVM_KVM)
     kvm_update_fpu();
-  if (_CPU_VM() == CPUVM_EMU || _CPU_VM_DPMI() == CPUVM_EMU)
-    cpuemu_update_fpu();
 }
 
 static int do_ldt_write(unsigned short ldt_entry, unsigned int *lp)
@@ -1540,7 +1538,7 @@ static int ldt_write_low(unsigned short ldt_entry, unsigned int *lp)
 
 static void save_prev_clnt_state(void)
 {
-  if (_CPU_VM() == CPUVM_KVM || _CPU_VM_DPMI() == CPUVM_KVM)
+  if (_CPU_VM_CURRENT() == CPUVM_KVM)
     kvm_get_fpu();
   memcpy(&DPMI_CLIENT.saved_fpu_state, &vm86_fpu_state,
     sizeof(vm86_fpu_state));
@@ -4380,7 +4378,7 @@ void dpmi_init(void)
 
   in_dpmi++;
   memset(&DPMIclient[in_dpmi - 1], 0, sizeof(DPMI_CLIENT));
-  if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
+  if (_CPU_VM_CURRENT() == CPUVM_KVM)
     kvm_get_fpu();
   memcpy(&DPMIclient[in_dpmi - 1].saved_fpu_state, &vm86_fpu_state,
     sizeof(vm86_fpu_state));

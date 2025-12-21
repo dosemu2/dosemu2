@@ -111,6 +111,7 @@ int EMU_V86(void);
 int EMU_DPMI(void);
 int _CPU_VM(void);
 int _CPU_VM_DPMI(void);
+int _CPU_VM_CURRENT(void);
 #else
 #define e_gen_sigalrm()
 #define e_gen_sigalrm_from_thread()
