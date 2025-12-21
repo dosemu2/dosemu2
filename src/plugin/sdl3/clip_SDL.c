@@ -40,7 +40,7 @@ static int clipboard_clear(void)
 {
   cnn_clear();
   // SDL3 TODO: SDL_ClearClipboardData()
-  if (SDL_SetClipboardText("")) {
+  if (!SDL_SetClipboardText("")) {
     v_printf("SDL_clipboard: Clear failed, error '%s'\n", SDL_GetError());
     return FALSE;
   }
@@ -49,12 +49,9 @@ static int clipboard_clear(void)
 
 static int clipboard_write(int type, const char *p, int size)
 {
-  int ret;
-
   if (!cnn_write(type, p, size))
     return FALSE;
-  ret = SDL_SetClipboardText(clip_str);
-  return ret == 0 ? TRUE : FALSE;
+  return SDL_SetClipboardText(clip_str);
 }
 
 static int clipboard_open(void)
@@ -139,12 +136,10 @@ void sdlclip_setnative(int on)
 
 int sdlclip_copy(SDL_Window *window)
 {
-  int ret;
   if (!clip_str)
     return FALSE;
   // SDL3 TODO: SDL_ClearWindowNotification()
-  ret = SDL_SetClipboardText(clip_str);
-  return ret == 0 ? TRUE : FALSE;
+  return SDL_SetClipboardText(clip_str);
 }
 
 int sdlclip_paste(SDL_Window *window)
