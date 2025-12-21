@@ -42,6 +42,8 @@
 #ifndef _EMU86_TREES_H
 #define _EMU86_TREES_H
 
+#include "ulist.h"
+
 /////////////////////////////////////////////////////////////////////////////
 //
 // Tree node key definition.
@@ -110,6 +112,7 @@ typedef struct avltr_node
     char cache;			/* Used during insertion. */
     char pad;			/* Reserved for fully threaded trees. */
     signed char rtag;		/* Right thread tag. */
+    struct ulist_ent list;
 } avltr_node;
 
 typedef struct TNode
