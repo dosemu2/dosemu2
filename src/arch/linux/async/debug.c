@@ -274,11 +274,15 @@ void siginfo_debug(const siginfo_t *si)
     if (dosemu_pid == getpid())
       rc = fslib_debug(config.debugout_idx, config.debugout);
 #ifdef HAVE_BACKTRACE
+    if (!rc
 #ifdef X86_EMULATOR
     /* backtrace() crashes in jit code */
-    if (!rc || !IS_EMU_JIT() || !e_in_compiled_code())
+            || !IS_EMU_JIT() || !e_in_compiled_code()
 #endif
+       )
       print_trace();
+#else
+    (void)rc;  // silence warning
 #endif
     dump_state();
 }
