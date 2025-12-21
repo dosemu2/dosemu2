@@ -37,26 +37,35 @@ static unsigned char *xbase;
 
 void InitGenCodeBuf(void)
 {
-    void *addr;
+    void *addr = NULL;
 
+    if (CONFIG_CPUSIM) {
+        xbase = addr = malloc(CODEBUF_SZ);
+    } else {
 #if defined(HAVE_MREMAP) && HAVE_DECL_MREMAP_MAYMOVE
-    int err;
+        int err;
 
-    addr = mmap(NULL, CODEBUF_SZ, PROT_NONE,
-            MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    assert(addr != MAP_FAILED);
-    xbase = mremap(addr, 0, CODEBUF_SZ, MREMAP_MAYMOVE);
-    assert(xbase != MAP_FAILED && xbase != addr);
-    err = mprotect(addr, CODEBUF_SZ, PROT_READ | PROT_WRITE);
-    assert(!err);
-    err = mprotect(xbase, CODEBUF_SZ, PROT_EXEC);
-    assert(!err);
+        addr = mmap(NULL, CODEBUF_SZ, PROT_NONE,
+                MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+        assert(addr != MAP_FAILED);
+        xbase = mremap(addr, 0, CODEBUF_SZ, MREMAP_MAYMOVE);
+        assert(xbase != MAP_FAILED && xbase != addr);
+        err = mprotect(addr, CODEBUF_SZ, PROT_READ | PROT_WRITE);
+        assert(!err);
+        err = mprotect(xbase, CODEBUF_SZ, PROT_EXEC);
+        assert(!err);
 #else
-    addr = mmap(NULL, CODEBUF_SZ, PROT_READ | PROT_WRITE | PROT_EXEC,
-            MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT, -1, 0);
-    assert(addr != MAP_FAILED);
-    xbase = addr;
+        addr = mmap(NULL, CODEBUF_SZ, PROT_READ | PROT_WRITE | PROT_EXEC,
+                MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT, -1, 0);
+        assert(addr != MAP_FAILED);
+        xbase = addr;
 #endif
+    }
+    if (!addr) {
+        error("Unable to allocate memory for codebuf\n");
+        leavedos(2);
+        return;
+    }
     wbase = addr;
     cspace = create_mspace_with_base(addr, CODEBUF_SZ, 0);
     assert(cspace);
