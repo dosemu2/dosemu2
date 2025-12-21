@@ -288,7 +288,7 @@ static void *resize_mapping_file(int cap, void *addr, size_t oldsize, size_t new
       p->fsize = newsize;
     }
     p->size = newsize;
-#if HAVE_DECL_MREMAP_MAYMOVE
+#if defined(HAVE_MREMAP) && HAVE_DECL_MREMAP_MAYMOVE
     p->addr = mremap(addr, oldsize, newsize, MREMAP_MAYMOVE);
 #else
     p->addr = mmap(NULL, newsize, p->prot, MAP_SHARED, p->fd, 0);

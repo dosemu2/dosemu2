@@ -521,8 +521,11 @@ if test "$machine" != "wasm32"; then
   ])
 
   AC_CHECK_FUNCS([mremap])
-  AC_CHECK_DECLS([MREMAP_MAYMOVE],,, [[#include <sys/mman.h>]])
 fi
+# CHECK_DECLS cannot be done conditionally (like, not for wasm32)
+# because they define macro to 0 or 1, and undefined state does not suit.
+AC_CHECK_DECLS([MREMAP_MAYMOVE],,, [[#include <sys/mman.h>]])
+
 AC_CHECK_HEADERS([netipx/ipx.h linux/ipx.h netpacket/packet.h])
 AC_CHECK_HEADERS([netinet/if_ether.h net/ethernet.h])
 AC_CHECK_HEADERS([linux/signal.h],,, [#include <signal.h>])
