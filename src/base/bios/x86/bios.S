@@ -1015,17 +1015,21 @@ INT75_OFF:
 	pushw %ax
 	xorb %al, %al
 	outb %al, $0xf0	/* set IGNNE */
+	movb $0x20, %al
+	outb %al, $0xa0
+	outb %al, $0x20
+	popw %ax
+
 	int $2		/* Bochs does this; RBIL says: redirected to INT 02 */
 			/* by the BIOS, for compatibility with the PC */
 	fnclex		/* Clear FP exceptions just in case a hooked
 			   handler hasn't already done so, so we won't
 			   get stuck (in real mode IGNNE would prevent
 			   further exceptions but we don't emulate that) */
+
+	pushw %ax
 	xorb %al, %al
 	outb %al, $0xf0	/* clear IGNNE */
-	movb $0x20, %al
-	outb %al, $0xa0
-	outb %al, $0x20
 	popw %ax
 	iret
 
