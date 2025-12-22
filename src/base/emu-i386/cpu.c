@@ -290,12 +290,14 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
 {
   switch (port) {
   case 0xf0:
-    pic_untrigger(13);
-    if (_CPU_VM_CURRENT() == CPUVM_KVM)
-      kvm_get_fpu();
-    fpu_ignne = !!(vm86_fpu_state.swd & 0x80);
-    /* Note: we emuate the "unrecommended" (by Intel) design where the
-     * untriggering of IGNNE requires an extra write to 0xf0 after fnclex */
+    /* We need to check if the FPU exception is pending, and set IGNNE
+     * if it is, before untriggering an IRQ. But we don't (and probably
+     * can't) always emulate IGNNE properly. So the trick is to do fnclex in
+     * bios.S, then untrigger IRQ unconditionally. */
+    pic_untrigger(13); /* done by default via int75 handler in bios.S */
+    /* DJGPP's int75 pm handler for example does not use fnclex;
+       but we can force it in return_from_hw_int() in dpmi.c, so
+       this only makes sense in DPMI, as this variable is not checked in RM */
     break;
   case 0xf1:
     fpu_reset();
@@ -320,7 +322,7 @@ static int fpu_is_masked(void)
     return ((imr[0] & 4) || !!(real_imr & (1 << 13)));
 }
 
-static void raise_fpu_irq(void)
+void raise_fpu_irq(void)
 {
   if (fpu_is_masked() || !isset_IF_async()) {
     error("FPU IRQ cannot be injected (%i %i), bye\n",
@@ -328,56 +330,6 @@ static void raise_fpu_irq(void)
     leavedos(2);
   }
   pic_request(13);
-}
-
-int fpu_fpe_handler (unsigned char *csp)
-{
-  if (fpu_ignne) {
-    /* do some basic emulation:
-       we only deal with control FPU instructions,
-       non-control FPU instructions always cause an exception
-    */
-    if (csp[0] == 0x9b) csp++; // wait
-    if (csp[0] >= 0xd8 && csp[0] <= 0xdf) {
-      int exop = (csp[1] & 0x38) | (csp[0] & 7); // same as interp.c
-      if (exop == 0x63 || exop == 0x67)
-	exop |= ((csp[1] & 7) << 8);
-      if ((csp[1]&0xc0)==0xc0) exop |= 0x40;
-      switch (exop) {
-      case 0x31: //fstenv
-      case 0x35: //fsave
-      case 0x0263: //fclex
-      case 0x0363: //finit
-	fpu_ignne = 0;
-	g_printf("FPU_IGNNE set to %x\n", fpu_ignne);
-	/* fall through */
-      case 0x39: //fstcw
-      case 0x3d: //fstsw
-      case 0x0063: //fneni
-      case 0x0163: //fndisi
-      case 0x0463: //fnsetpm
-      case 0x0067: //fstsw %ax
-	assert(csp[-1] == 0x9b);
-	dbug_printf("coprocessor exception, skipping WAIT because of IGNNE#\n");
-	return 1;
-      case 0x21: //fldenv
-      case 0x25: //frstor
-	fpu_ignne = 0;
-	g_printf("FPU_IGNNE set to %x\n", fpu_ignne);
-	/* fall through */
-      case 0x29: //fldcw
-	dbug_printf("coprocessor exception, disabling CW load exception because of IGNNE#\n");
-	vm86_fpu_state.cwd = 0x37f;
-	if (_CPU_VM_CURRENT() == CPUVM_KVM)
-	  kvm_update_fpu();
-	return 0;
-      }
-    }
-  }
-
-  dbug_printf("coprocessor exception, calling IRQ13\n");
-  raise_fpu_irq();
-  return 0;
 }
 
 /*
