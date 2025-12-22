@@ -392,6 +392,26 @@ class BaseTestCase(object):
         ofile = basename.with_suffix('.com')
         check_call(["nasm", "-f", "bin", "-o", str(ofile), str(sfile)])
 
+    def mkexe_with_watcom(self, fname, content, dname=None, extraargs=None):
+        if dname is None:
+            p = self.workdir
+        else:
+            p = Path(dname).resolve()
+        basename = p / fname
+
+        sfile = basename.with_suffix('.c')
+        sfile.write_text(content)
+
+        watcom = environ.get("WATCOM", '0')
+        if watcom == '0':
+            raise ValueError('WATCOM variable not set')
+        environ['INCLUDE'] = f'{watcom}/h'
+
+        args = ["wcl", "-zq", "-bt=dos", "-fpi87", f"-fe={basename}.exe", f"-fm={basename}.map", sfile]
+        if extraargs:
+            args += extraargs
+        check_call(args)
+
     def mkfile(self, fname, content, dname=None, mode="w", newline=None):
         if dname is None:
             p = self.workdir / fname
