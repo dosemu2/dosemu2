@@ -1020,12 +1020,12 @@ INT75_OFF:
 	outb %al, $0x20
 	popw %ax
 
+	int $2		/* Bochs does this; RBIL says: redirected to INT 02 */
+			/* by the BIOS, for compatibility with the PC */
 	fnclex		/* Clear FP exceptions just in case a hooked
 			   handler hasn't already done so, so we won't
 			   get stuck (in real mode IGNNE would prevent
 			   further exceptions but we don't emulate that) */
-	int $2		/* Bochs does this; RBIL says: redirected to INT 02 */
-			/* by the BIOS, for compatibility with the PC */
 
 	pushw %ax
 	xorb %al, %al
