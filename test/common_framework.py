@@ -22,6 +22,8 @@ from tarfile import open as topen
 from time import sleep
 from unittest.util import strclass
 
+__common_framework = True
+
 BINSDIR = "test-binaries"
 IMAGEDIR = "test-imagedir"
 PASS = 0
@@ -689,7 +691,8 @@ class MyTestResult(unittest.TextTestResult):
         test.msg = None
 
     def _is_relevant_tb_level(self, tb):
-        return '__unittest' in tb.tb_frame.f_globals
+        return ('__unittest' in tb.tb_frame.f_globals
+            or '__common_framework' in tb.tb_frame.f_globals)
 
     def _count_relevant_tb_levels(self, tb):
         length = 0

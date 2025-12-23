@@ -52,6 +52,8 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
 from func_findfile import mfs_findfile, sfn_findfirst
+from func_serial import (serial_simple_read_echo, serial_simple_write_file,
+                         lpt_simple_write_pipe)
 from func_truename import mfs_truename, sfn_truename
 from func_network import network_pktdriver_mtcp
 from func_pit_mode_2 import pit_mode_2
@@ -62,7 +64,8 @@ PRGFIL_LFN = "Program Files"
 
 class OurTestCase(BaseTestCase):
 
-    attrs = {'comcomtest', 'dpmitest', 'emstest', 'hmatest', 'labeltest', 'memtest', 'nettest', 'umatest', 'xmstest'}
+    attrs = {'comcomtest', 'dpmitest', 'emstest', 'hmatest', 'labeltest', 'memtest', 'nettest',
+             'serialtest', 'umatest', 'xmstest'}
 
     @mark('comcomtest')
     def test_comcom_r200fix_real(self):
@@ -3148,6 +3151,22 @@ cmdline:
         self.assertIn("PSP structure okay", results)
 
 # Tests using neither compiler nor assembler
+
+    @mark('serialtest')
+    def test_serial_simple_read_echo(self):
+        """Serial Simple Read Echo"""
+        serial_simple_read_echo(self)
+
+    @mark('serialtest')
+    def test_serial_simple_write_file(self):
+        """Serial Simple Write File"""
+        serial_simple_write_file(self)
+
+    # Obviously not a serial device, but may as well group together
+    @mark('serialtest')
+    def test_lpt_simple_write_pipe(self):
+        """LPT Simple Write Pipe"""
+        lpt_simple_write_pipe(self)
 
     def test_systype(self):
         """SysType"""
