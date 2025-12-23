@@ -14,3 +14,20 @@ rem end
     results = self.runDosemu("testit.bat", config=config)
 
     self.assertIn('hello_world', results)
+
+
+def serial_simple_write_file(self):
+    ofile = self.workdir / 'a.txt'
+
+    config = DOSEMU_CONF_DEFAULT
+    config += f"""\
+$_com1 = "wrfile {ofile}"
+"""
+    self.mkfile("testit.bat", """\
+echo hello > com1
+rem end
+""", newline="\r\n")
+
+    self.runDosemu("testit.bat", config=config)
+    text = ofile.read_text()
+    self.assertIn('hello', text)

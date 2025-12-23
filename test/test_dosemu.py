@@ -52,7 +52,7 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
 from func_findfile import mfs_findfile, sfn_findfirst
-from func_serial import serial_simple_read_echo
+from func_serial import serial_simple_read_echo, serial_simple_write_file
 from func_truename import mfs_truename, sfn_truename
 from func_network import network_pktdriver_mtcp
 from func_pit_mode_2 import pit_mode_2
@@ -3155,6 +3155,11 @@ cmdline:
     def test_serial_simple_read_echo(self):
         """Serial Simple Read Echo"""
         serial_simple_read_echo(self)
+
+    @mark('serialtest')
+    def test_serial_simple_write_file(self):
+        """Serial Simple Write File"""
+        serial_simple_write_file(self)
 
     def test_systype(self):
         """SysType"""
