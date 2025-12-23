@@ -291,6 +291,7 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
 {
   int old_ignne = fpu_ignne;
   int mask = old_ignne ? fpu_orig_mask : (vm86_fpu_state.cwd & 0x7f);
+  int new_ignne;
 
   switch (port) {
   case 0xf0:
@@ -299,7 +300,10 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
       kvm_get_fpu();
     /* don't trust bit7 (ES) as it may be suppressed by our fake IGNNE,
      * which is actually an exception mask in CWD */
-    fpu_ignne = !!(vm86_fpu_state.swd & 0x7f & ~mask);
+    new_ignne = !!(vm86_fpu_state.swd & 0x7f & ~mask);
+    if (new_ignne && fpu_ignne)
+        error("FPU: stuck IGNNE\n");
+    fpu_ignne = new_ignne;
     /* Note: we emuate the "unrecommended" (by Intel) design where the
      * untriggering of IGNNE requires an extra write to 0xf0 after fnclex */
     if (fpu_ignne) {
