@@ -31,3 +31,23 @@ rem end
     self.runDosemu("testit.bat", config=config)
     text = ofile.read_text()
     self.assertIn('hello', text)
+
+
+def lpt_simple_write_pipe(self):
+    ofile = self.workdir / 'a.txt'
+
+    config = DOSEMU_CONF_DEFAULT
+    config += f"""\
+$_lpt1 = "cat - > {ofile}"
+"""
+    self.mkfile("testit.bat", """\
+echo hello > lpt1
+rem end
+""", newline="\r\n")
+
+    self.runDosemu("testit.bat", config=config)
+    try:
+        text = ofile.read_text()
+        self.assertIn('hello', text)
+    except FileNotFoundError:
+        self.fail(f"file {ofile} was not created")
