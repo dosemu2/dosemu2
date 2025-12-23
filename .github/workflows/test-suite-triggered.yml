@@ -13,10 +13,10 @@ on:
 
 jobs:
   triggered:
-    name: Test Suite (standard-normal-ubuntu-24.04)
+    name: Test Suite (standard-normal-ubuntu-22.04)
     if: (github.event_name != 'push' || github.repository_owner != 'dosemu2')
     uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'standard'
       runtype: 'normal'
-      os: 'ubuntu-24.04'
+      os: 'ubuntu-22.04'
