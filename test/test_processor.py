@@ -11,7 +11,7 @@ from func_build_freedos import build_freedos
 from func_build_pcmos import build_pcmos
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
-from func_fpu_bart_exceptions import fpu_bart_exceptions_fpex
+from func_fpu_bart_exceptions import fpu_bart_exceptions_fpex, fpu_bart_exceptions_fpexes
 from fpu.qemu import fpu_create_items
 
 
@@ -41,6 +41,11 @@ class OurTestCase(BaseTestCase):
     def test_fpu_bart_exceptions_fpex(self):
         """FPU Exceptions (Bart) (fpex)"""
         fpu_bart_exceptions_fpex(self)
+
+    @mark('fputest')
+    def test_fpu_bart_exceptions_fpexes(self):
+        """FPU Exceptions (Bart) (fpexes)"""
+        fpu_bart_exceptions_fpexes(self)
 
 
 class KVMTestCase(ppdosgit(OurTestCase, {
