@@ -122,7 +122,7 @@ static unsigned Exec_x86(void *SeqStart);
  */
 
 static unsigned char TailCode[TAILSIZE+1] =
-	{ 0xb8,0,0,0,0,0x89,0x43,Ofs_KEY,0x5a,0xc3,0xf4 };
+	{ 0xb8,0,0,0,0,0x5a,0xc3,0xf4 };
 
 /*
  * This function is only here for looking at the generated binary code
@@ -277,8 +277,8 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 		G4M(0x83,0x7b,Ofs_ERR,0x00,Cp);
 		// jz skip
 		G2M(JE_JZ,TAILSIZE,Cp);
-		// movl {exit_addr},%%eax; movl %%eax, %%Ofs_KEY(%%ebx)
-		G1(0xb8,Cp); G4(IG->p1,Cp); G3M(0x89,0x43,Ofs_KEY,Cp);
+		// movl {exit_addr},%%eax
+		G1(0xb8,Cp); G4(IG->p1,Cp)
 		// pop %%edx; ret
 		G2M(0x5a,0xc3,Cp);
 		}
@@ -1275,8 +1275,8 @@ shrot0:
 		G2M(0x73,TAILSIZE+7,Cp);
 		// movb EXCP0D_GPF, Ofs_ERR(%%ebx)
 		G2M(0xc6,0x83,Cp); G4(Ofs_ERR,Cp); G1(EXCP0D_GPF,Cp);
-		// movl {exit_addr},%%eax; mov %%eax, Ofs_KEY(%%ebx);
-		G1(0xb8,Cp); G4(jpc,Cp); G3M(0x89,0x43,Ofs_KEY,Cp);
+		// movl {exit_addr},%%eax
+		G1(0xb8,Cp); G4(jpc,Cp)
 		// pop %%edx; ret
 		G2M(0x5a,0xc3,Cp);
 		// address to call in edi
@@ -1298,8 +1298,8 @@ shrot0:
 		G4M(0x83,0x7b,Ofs_ERR,0x00,Cp);
 		// je skip
 		G2M(JE_JZ,TAILSIZE,Cp);
-		// movl {exit_addr},%%eax; movl %eax,Ofs_KEY(%ebx);
-		G1(MOViax,Cp); G4(IG->p2,Cp); G3M(0x89,0x43,Ofs_KEY,Cp);
+		// movl {exit_addr},%%eax
+		G1(MOViax,Cp); G4(IG->p2,Cp)
 		// pop %%edx; ret
 		G2M(POPdx,RET,Cp);
 
@@ -1867,9 +1867,6 @@ shrot0:
 		/* copy tail instructions to the end of the code block */
 		unsigned char *p = Cp;
 		GNX(Cp, TailCode, TAILSIZE);
-		/* Keep TheCPU.eip for BreakNode */
-		if (mode & MPATCH)
-			p[5] = p[6] = p[7] = NOP;
 		*((unsigned int *)(p + TAILFIX)) = IG->p0;
 		}
 		break;
@@ -1880,8 +1877,8 @@ shrot0:
 			G3M(0x0f,0xb7,0xc0,Cp);
 		// addl Ofs_XCS(%%ebx),%%eax
 		G3M(0x03,0x43,Ofs_XCS,Cp);
-		// movl %%eax, Ofs_KEY(%%ebx) // signals indirect
-		G3M(0x89,0x43,Ofs_KEY,Cp);
+		// movl %%eax, Ofs_TEMP(%%ebx) // new PC
+		G3M(0x89,0x43,Ofs_TEMP,Cp);
 #ifdef __x86_64__
 		// movl %%eax,%%edi
 		G2M(0x89,0xc7,Cp);
@@ -1903,8 +1900,8 @@ shrot0:
 		// otherwise to the tail code
 		// jmp *%rax
 		G2M(0xff,0xe0,Cp);
-		// movl Ofs_KEY(%%ebx),%%eax
-		G3M(0x8b,0x43,Ofs_KEY,Cp);
+		// movl Ofs_TEMP(%%ebx),%%eax
+		G3M(0x8b,0x43,Ofs_TEMP,Cp);
 		// pop %%edx; ret
 		G2M(0x5a,0xc3,Cp);
 		}
@@ -1945,8 +1942,8 @@ shrot0:
 		    G4M(0x0f,0xb7,0x4b,Ofs_EXITPEND,Cp);
 		    // jecxz {continue}: exit if exitpend not 0
 		    G2M(0xe3,TAILSIZE,Cp);
-		    // movl {exit_addr},%%eax; movl %%eax,Ofs_KEY(%%ebx)
-		    G1(0xb8,Cp); G4(dspt,Cp); G3M(0x89,0x43,Ofs_KEY,Cp);
+		    // movl {exit_addr},%%eax
+		    G1(0xb8,Cp); G4(dspt,Cp)
 		    // pop %%edx; ret
 		    G2M(0x5a,0xc3,Cp);
 	        }

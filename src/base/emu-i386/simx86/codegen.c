@@ -614,10 +614,9 @@ static unsigned ExecOne(TNode *G)
 	 * A complication here is that the previous node may already
 	 * be linked, so an unlinked exit will return the start PC
 	 * of the original (unlinked) block in seqbase.
-	 * Unlinkable exits are flagged using ePC==TheCPU.key; self-links
+	 * check links FROM LastXNode TO current node, if different: self-links
 	 * are already handled at the compile stage.
 	 */
-	/* check links FROM LastXNode TO current node */
 	if (TheCPU.key != G->key)
 		NodeLinker(FindTree(TheCPU.key), G);
 #ifdef __i386__

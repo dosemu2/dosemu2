@@ -716,14 +716,10 @@ static void linknode(TNode *LG, TNode *G, linkdesc *L, char branch)
 	backref *B;
 
 	// points to current node, which can't be a forever loop?
-	if (L->target!=G->key || !L->link ||
+	if (L->target!=G->key || !L->link || L->ref!=0 ||
 	    (G->mode & MTRAP) || (LG->mode & MTRAP))
 		return;
 
-	if (L->ref!=0) {
-		dbug_printf("Linker: ref at %08x busy\n",LG->key);
-		leavedos_main(0x8102 + (branch == 'N'));
-	}
 	IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH|MLINK,
 			 .p0 = L->target, .link = G->addr};
 	CodeGen(LG->addr + L->link, LG->addr, &IG);
@@ -1352,14 +1348,18 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
 	       not officially exist anymore) that the SIGSEGV or patched
 	       call returns to may write to the current unprotected page.
 	    */
-	    /* Exclude last instruction, as there is no need to break
-	     * node after last instruction (it ends there anyway). */
-	    ahE = G->addr + G->meta[G->seqnum - 1].daddr;
+	    ahE = G->addr + G->len;
 	    if (eip && ADDR_IN_RANGE(eip,G->addr,ahE)) {
 		if (debug_level('e')>1)
 		    e_printf("### Node self hit %p->%p..%p\n",
 			     eip,G->addr,ahE);
-		BreakNode(G, eip);
+		/* Exclude last instruction, as there is no need to break
+		 * node after last instruction (it ends there anyway), but
+		 * we must still delay deletion until AFTER returning from JIT!,
+		 * or otherwise we'd return into free()ed code. */
+		ahE = G->addr + G->meta[G->seqnum - 1].daddr;
+		if (ADDR_IN_RANGE(eip,G->addr,ahE))
+		    BreakNode(G, eip);
 		TheCPU.err = EXCP_BREAKNODE;
 		/* we can only call RemoveNode in codegen.c */
 	    }
