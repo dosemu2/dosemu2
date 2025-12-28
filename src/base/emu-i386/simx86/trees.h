@@ -160,7 +160,8 @@ static inline unsigned int FindPC_X(const unsigned char *addr)
 {
     return FindPC(GetGenCodeBuf(addr));
 }
-int InvalidateNodeRange(int addr, int len, unsigned char *eip);
+void InvalidateNodeRange(int addr, int len);
+int TryInvalidateNodeRange(int addr, int len, unsigned char *eip);
 void RemoveNode(TNode *G);
 void NodeLinker(TNode *LG, TNode *G);
 

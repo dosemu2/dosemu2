@@ -116,7 +116,7 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 
 	assert(PC > P0);
 	if (e_querymark(P0, PC - P0)) {
-	    InvalidateNodeRange(P0, PC - P0, NULL);
+	    InvalidateNodeRange(P0, PC - P0);
 	    if (!e_querymprotrange_full(P0, PC - P0)) {
 		unsigned int abeg, aend;
 

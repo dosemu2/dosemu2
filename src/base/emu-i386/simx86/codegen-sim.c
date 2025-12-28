@@ -2785,7 +2785,7 @@ static unsigned Exec_sim(void *SeqStart)
 	P0 = Gen_sim(SeqStart, &TheCPU.mem_ref);
 	currentIG = NULL;
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | FlagSync_All();
-	if (TheCPU.err && TheCPU.err != EXCP_BREAKNODE) TheCPU.key = P0;
+	if (TheCPU.err) TheCPU.key = P0;
 
 	return P0;
 }
@@ -2800,7 +2800,7 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 	   to intermediate ops */
 	if (err == -1) {
 		if (e_querymark(addr, len))
-			InvalidateNodeRange(addr, len, currentIG);
+			TryInvalidateNodeRange(addr, len, currentIG);
 		return;
 	}
 	if ((err & 2) && msdos_ldt_access(addr)) {

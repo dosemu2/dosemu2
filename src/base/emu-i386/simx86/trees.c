@@ -1162,7 +1162,8 @@ static TNode *FindTree_tail(int key)
 	G = *I;
 	assert(G && G->addr);
 	if (debug_level('e')>3) e_printf("Found key %08x\n",key);
-	G->alive = NODELIFE(G);
+	if (G->alive > 0)
+	    G->alive = NODELIFE(G);
 #if PROFILE
 	if (debug_level('e')) {
 	    NodesFound++;
@@ -1208,7 +1209,8 @@ TNode *FindTree(int key)
 	    NodesFastFound++;
 #endif
 	}
-	I->alive = NODELIFE(I);
+	if (I->alive > 0)
+	    I->alive = NODELIFE(I);
 	return I;
   }
   if (!e_querymark(key, 1))
@@ -1239,7 +1241,8 @@ TNode *FindTree_unlocked(int key)
 	    NodesFastFound++;
 #endif
 	}
-	I->alive = NODELIFE(I);
+	if (I->alive > 0)
+	    I->alive = NODELIFE(I);
 	return I;
   }
 
@@ -1314,11 +1317,40 @@ void RemoveNode(TNode *G)
   pthread_mutex_unlock_trees();
 }
 
-int InvalidateNodeRange(int al, int len, unsigned char *eip)
+static int BreakNodeHook(TNode *G, unsigned char *eip)
+{
+    unsigned char *ahE;
+    /* if the current eip is in *any* chunk of code that is deleted
+        (not just the one written to)
+       then we need to break the node immediately to go back to
+       the interpreter; otherwise the remaining chunk (that does
+       not officially exist anymore) that the SIGSEGV or patched
+       call returns to may write to the current unprotected page.
+    */
+    ahE = G->addr + G->len;
+    if (ADDR_IN_RANGE(eip,G->addr,ahE)) {
+	/* Exclude last instruction, as there is no need to break
+	 * node after last instruction (it ends there anyway). */
+	unsigned char *ahE1 = G->addr + G->meta[G->seqnum - 1].daddr;
+	if (debug_level('e')>1)
+	    e_printf("### Node self hit %p->%p..%p\n",
+		     eip,G->addr,ahE);
+	if (ADDR_IN_RANGE(eip,G->addr,ahE1))
+	    BreakNode(G, eip);
+	/* we can only call RemoveNode in codegen.c */
+	NodeUnlinker(G);
+	G->alive = 0;
+	return -1;
+    }
+    return 0;
+}
+
+static int DoInvalidateNodeRange(int al, int len, unsigned char *eip,
+    int (*hook)(TNode *, unsigned char *))
 {
   TNode *G;
   int ah;
-  int cleaned = 0;
+  int rc = 0;
 #if PROFILE >= 2
   hitimer_t t0 = 0;
 
@@ -1341,32 +1373,14 @@ int InvalidateNodeRange(int al, int len, unsigned char *eip)
       ahG = G->key + G->seqlen;
       assert (G->addr);
       if (RANGE_INTERSECT(G->key,ahG,al,ah)) {
-	    unsigned char *ahE;
 	    if (debug_level('e')>1)
 		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
-	    cleaned++;
-	    /* if the current eip is in *any* chunk of code that is deleted
-	        (not just the one written to)
-	       then we need to break the node immediately to go back to
-	       the interpreter; otherwise the remaining chunk (that does
-	       not officially exist anymore) that the SIGSEGV or patched
-	       call returns to may write to the current unprotected page.
-	    */
-	    /* Exclude last instruction, as there is no need to break
-	     * node after last instruction (it ends there anyway). */
-	    ahE = G->addr + G->meta[G->seqnum - 1].daddr;
-	    if (eip && ADDR_IN_RANGE(eip,G->addr,ahE)) {
-		if (debug_level('e')>1)
-		    e_printf("### Node self hit %p->%p..%p\n",
-			     eip,G->addr,ahE);
-		BreakNode(G, eip);
-		TheCPU.err = EXCP_BREAKNODE;
-		/* we can only call RemoveNode in codegen.c */
-	    }
-	    else {
-		if (debug_level('e')>2) e_printf("Delete node %08x\n",G->key);
-		RemoveNode_unlocked(G);
-	    }
+	    if (eip && hook)
+		rc = hook(G, eip);
+	    if (rc == -1)
+		return rc;
+	    if (debug_level('e')>2) e_printf("Delete node %08x\n",G->key);
+	    RemoveNode_unlocked(G);
       }
       if (ahG >= ah)
         break;
@@ -1377,19 +1391,25 @@ quit:
   if (debug_level('e') && e_querymark(al, len))
     error("simx86: InvalidateNodeRange did not clear all code for %#08x, len=%x\n",
 	  al, len);
-#if PROFILE >= 2
-  if (debug_level('e')) CleanupTime += (GETTSC() - t0);
-#endif
-  return cleaned;
+  return rc;
 }
 
+void InvalidateNodeRange(int al, int len)
+{
+  DoInvalidateNodeRange(al, len, NULL, NULL);
+}
+
+int TryInvalidateNodeRange(int al, int len, unsigned char *eip)
+{
+  return DoInvalidateNodeRange(al, len, eip, BreakNodeHook);
+}
 
 /////////////////////////////////////////////////////////////////////////////
 static void do_invalidate(unsigned data, int cnt)
 {
 	cnt = PAGE_ALIGN(data + cnt) - (data & _PAGE_MASK);
 	data &= _PAGE_MASK;
-	InvalidateNodeRange(data, cnt, NULL);
+	InvalidateNodeRange(data, cnt);
 }
 
 void e_invalidate_unlocked(unsigned data, int cnt)
@@ -1401,7 +1421,7 @@ void e_invalidate_unlocked(unsigned data, int cnt)
 		return;
 	// no need to invalidate the whole page here,
 	// as the page does not need to be unprotected
-	InvalidateNodeRange(data, cnt, NULL);
+	InvalidateNodeRange(data, cnt);
 }
 
 void e_invalidate(unsigned data, int cnt)
