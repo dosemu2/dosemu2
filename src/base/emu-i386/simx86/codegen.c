@@ -625,6 +625,10 @@ static unsigned ExecOne(TNode *G)
 #endif
 		prefetch(CPUOFFS(0));
 	ePC = Exec(G->addr);
+	if (BrokenCodePtr) {
+		FreeGenCodeBuf(BrokenCodePtr);
+		BrokenCodePtr = NULL;
+	}
 #ifdef SKIP_EMU_VBIOS
 	if ((TheCPU.cs&0xf000)==config.vbios_seg && !TheCPU.err)
 		TheCPU.err = EXCP_GOBACK;
