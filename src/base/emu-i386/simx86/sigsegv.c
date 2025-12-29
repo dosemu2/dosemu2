@@ -320,7 +320,7 @@ int e_emu_fault(sigcontext_t *scp, int in_vm86)
 int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 {
 	int v;
-	unsigned char *p;
+	unsigned char *p, *pjit;
 	int in_dosemu;
 
 	/* err:
@@ -366,12 +366,14 @@ int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 	if (debug_level('e')) PageFaults++;
 #endif
 	in_dosemu = !(InCompiledCode || in_vm86 || DPMIValidSelector(_scp_cs));
+	p = (unsigned char *) _scp_rip;
+	pjit = InCompiledCode ? GetGenCodeBuf(p) : NULL;
 	if (in_vm86)
 		p = SEG_ADR((unsigned char *), cs, ip);
 	else if (DPMIValidSelector(_scp_cs))
 		p = (unsigned char *)EMU_BASE32(GetSegmentBase(_scp_cs) + _scp_rip);
-	else
-		p = GetGenCodeBuf((unsigned char *) _scp_rip);
+	else if (InCompiledCode)
+		p = pjit;
 	if (debug_level('e')>1 || in_dosemu) {
 		v = *((int *)p);
 		__asm__("bswap %0" : "=r" (v) : "0" (v));
@@ -404,7 +406,8 @@ int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 	/* We HAVE to invalidate all the code in the page
 	 * if the page is going to be unprotected */
 	addr &= _PAGE_MASK;
-	return InvalidateNodeRange(addr, PAGE_SIZE, p);
+	InvalidateNodeRangeFromFault(addr, PAGE_SIZE, pjit);
+	return 1;
 }
 
 int e_handle_fault(sigcontext_t *scp)
