@@ -46,6 +46,7 @@
 
 IMeta	InstrMeta[MAXINODES];
 int	CurrIMeta;
+unsigned char *BrokenCodePtr;
 
 /* Tree structure to store collected code sequences */
 static avltr_tree CollectTree;
@@ -1162,8 +1163,7 @@ static TNode *FindTree_tail(int key)
 	G = *I;
 	assert(G && G->addr);
 	if (debug_level('e')>3) e_printf("Found key %08x\n",key);
-	if (G->alive > 0)
-	    G->alive = NODELIFE(G);
+	G->alive = NODELIFE(G);
 #if PROFILE
 	if (debug_level('e')) {
 	    NodesFound++;
@@ -1209,8 +1209,7 @@ TNode *FindTree(int key)
 	    NodesFastFound++;
 #endif
 	}
-	if (I->alive > 0)
-	    I->alive = NODELIFE(I);
+	I->alive = NODELIFE(I);
 	return I;
   }
   if (!e_querymark(key, 1))
@@ -1241,8 +1240,7 @@ TNode *FindTree_unlocked(int key)
 	    NodesFastFound++;
 #endif
 	}
-	if (I->alive > 0)
-	    I->alive = NODELIFE(I);
+	I->alive = NODELIFE(I);
 	return I;
   }
 
@@ -1302,7 +1300,6 @@ static void RemoveNode_unlocked(TNode *G)
   e_unmarkpage(G->key, G->seqlen);
   NodeUnlinker(G);
   assert(!G->bkr && !G->clink_t.ref && !G->clink_nt.ref && G->addr);
-  FreeGenCodeBuf(G->addr);
   __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
 		   NULL, __ATOMIC_RELAXED);
   TNode *deleted = avltr_delete(G->key);
@@ -1313,11 +1310,13 @@ static void RemoveNode_unlocked(TNode *G)
 void RemoveNode(TNode *G)
 {
   pthread_mutex_lock_trees();
+  unsigned char *p = G->addr;
   RemoveNode_unlocked(G);
+  FreeGenCodeBuf(p);
   pthread_mutex_unlock_trees();
 }
 
-static int BreakNodeHook(TNode *G, unsigned char *eip)
+static unsigned char *BreakNodeHook(TNode *G, unsigned char *eip)
 {
     unsigned char *ahE;
     /* if the current eip is in *any* chunk of code that is deleted
@@ -1328,6 +1327,7 @@ static int BreakNodeHook(TNode *G, unsigned char *eip)
        call returns to may write to the current unprotected page.
     */
     ahE = G->addr + G->len;
+    e_printf("BreakNodeHook %p ahE=%p eip=%p\n", G->addr, ahE, eip);
     if (ADDR_IN_RANGE(eip,G->addr,ahE)) {
 	/* Exclude last instruction, as there is no need to break
 	 * node after last instruction (it ends there anyway). */
@@ -1337,20 +1337,19 @@ static int BreakNodeHook(TNode *G, unsigned char *eip)
 		     eip,G->addr,ahE);
 	if (ADDR_IN_RANGE(eip,G->addr,ahE1))
 	    BreakNode(G, eip);
-	/* we can only call RemoveNode in codegen.c */
-	NodeUnlinker(G);
-	G->alive = 0;
-	return -1;
+	/* return pointer to JIT code that can only be freed in codegen.c
+	   because we are returning to it */
+	return G->addr;
     }
-    return 0;
+    return NULL;
 }
 
-static int DoInvalidateNodeRange(int al, int len, unsigned char *eip,
-    int (*hook)(TNode *, unsigned char *))
+static unsigned char *DoInvalidateNodeRange(int al, int len, unsigned char *eip,
+    unsigned char * (*hook)(TNode *, unsigned char *))
 {
   TNode *G;
   int ah;
-  int rc = 0;
+  unsigned char *rc = NULL;
 #if PROFILE >= 2
   hitimer_t t0 = 0;
 
@@ -1373,14 +1372,19 @@ static int DoInvalidateNodeRange(int al, int len, unsigned char *eip,
       ahG = G->key + G->seqlen;
       assert (G->addr);
       if (RANGE_INTERSECT(G->key,ahG,al,ah)) {
+	    unsigned char *p = NULL;
 	    if (debug_level('e')>1)
 		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
-	    if (eip && hook)
-		rc = hook(G, eip);
-	    if (rc == -1)
-		return rc;
+	    if (eip && hook) {
+		p = hook(G, eip);
+		if (p)
+		    rc = p;
+	    }
 	    if (debug_level('e')>2) e_printf("Delete node %08x\n",G->key);
+	    unsigned char *q = G->addr;
 	    RemoveNode_unlocked(G);
+	    if (p == NULL)
+		FreeGenCodeBuf(q);
       }
       if (ahG >= ah)
         break;
@@ -1399,9 +1403,9 @@ void InvalidateNodeRange(int al, int len)
   DoInvalidateNodeRange(al, len, NULL, NULL);
 }
 
-int TryInvalidateNodeRange(int al, int len, unsigned char *eip)
+void InvalidateNodeRangeFromFault(int al, int len, unsigned char *eip)
 {
-  return DoInvalidateNodeRange(al, len, eip, BreakNodeHook);
+  BrokenCodePtr = DoInvalidateNodeRange(al, len, eip, BreakNodeHook);
 }
 
 /////////////////////////////////////////////////////////////////////////////

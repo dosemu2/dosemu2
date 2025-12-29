@@ -2800,7 +2800,7 @@ static void emu_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len)
 	   to intermediate ops */
 	if (err == -1) {
 		if (e_querymark(addr, len))
-			TryInvalidateNodeRange(addr, len, currentIG);
+			InvalidateNodeRangeFromFault(addr, len, currentIG);
 		return;
 	}
 	if ((err & 2) && msdos_ldt_access(addr)) {

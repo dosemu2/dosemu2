@@ -240,8 +240,6 @@ static __inline__ int GoodNode(TNode *G)
 					G->key, G->mode, TheCPU.mode);
 		return 0;
 	}
-	if (G->alive <= 0)
-		return 0;
 	return 1;
 }
 
