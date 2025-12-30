@@ -290,7 +290,6 @@ static Bit8u fpu_io_read(ioport_t port, void *arg)
 static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
 {
   int old_ignne = fpu_ignne;
-  int mask = old_ignne ? fpu_orig_mask : (vm86_fpu_state.cwd & 0x7f);
   int new_ignne;
 
   switch (port) {
@@ -298,22 +297,27 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
     pic_untrigger(13);
     if (_CPU_VM_CURRENT() == CPUVM_KVM)
       kvm_get_fpu();
-    /* don't trust bit7 (ES) as it may be suppressed by our fake IGNNE,
-     * which is actually an exception mask in CWD */
-    new_ignne = !!(vm86_fpu_state.swd & 0x7f & ~mask);
+    if (!old_ignne)
+      new_ignne = !!(vm86_fpu_state.swd & 0x80);
+    else
+      /* don't trust bit7 (ES) as it may be suppressed by our fake IGNNE,
+       * which is actually an exception mask in CWD */
+      new_ignne = !!(vm86_fpu_state.swd & 0x7f & ~fpu_orig_mask);
     if (new_ignne && fpu_ignne)
         error("FPU: stuck IGNNE\n");
     fpu_ignne = new_ignne;
-    /* Note: we emuate the "unrecommended" (by Intel) design where the
+    /* Note: we emulate the "unrecommended" (by Intel) design where the
      * untriggering of IGNNE requires an extra write to 0xf0 after fnclex */
     if (fpu_ignne) {
       if (!old_ignne)
-        fpu_orig_mask = mask;
+        fpu_orig_mask = vm86_fpu_state.cwd & 0x7f;
       vm86_fpu_state.cwd |= 0x7f;
     } else if (old_ignne) {
       vm86_fpu_state.cwd &= ~0x7f;
-      vm86_fpu_state.cwd |= mask;
+      vm86_fpu_state.cwd |= fpu_orig_mask;
     }
+    if (_CPU_VM_CURRENT() == CPUVM_KVM)
+      kvm_update_fpu();
     break;
   case 0xf1:
     fpu_reset();
@@ -322,16 +326,17 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
   case 0xf2:
     if (fpu_ignne) {
       fpu_ignne = 0;
+      if (_CPU_VM_CURRENT() == CPUVM_KVM)
+	kvm_get_fpu();
       vm86_fpu_state.cwd &= ~0x7f;
-      vm86_fpu_state.cwd |= mask;
+      vm86_fpu_state.cwd |= fpu_orig_mask;
       /* fnclex */
       vm86_fpu_state.swd &= 0x7f00;
+      if (_CPU_VM_CURRENT() == CPUVM_KVM)
+	kvm_update_fpu();
     }
     break;
   }
-
-  if (_CPU_VM_CURRENT() == CPUVM_KVM)
-    kvm_update_fpu();
 }
 
 static int fpu_is_masked(void)
