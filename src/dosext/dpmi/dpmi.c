@@ -5949,8 +5949,7 @@ out:
       }
     }
     else if (_trapno == 0x10) {
-      dbug_printf("coprocessor exception, calling IRQ13\n");
-      raise_fpu_irq();
+      _eip += fpu_fpe_handler(csp);
       return ret;
     }
 
