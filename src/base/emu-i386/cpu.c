@@ -290,7 +290,6 @@ static Bit8u fpu_io_read(ioport_t port, void *arg)
 static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
 {
   int old_ignne = fpu_ignne;
-  int mask = old_ignne ? fpu_orig_mask : (vm86_fpu_state.cwd & 0x7f);
   int new_ignne;
 
   switch (port) {
@@ -298,21 +297,27 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
     pic_untrigger(13);
     if (_CPU_VM_CURRENT() == CPUVM_KVM)
       kvm_get_fpu();
-    /* don't trust bit7 (ES) as it may be suppressed by our fake IGNNE,
-     * which is actually an exception mask in CWD */
-    new_ignne = !!(vm86_fpu_state.swd & 0x7f & ~mask);
+    if (!old_ignne || fpu_orig_mask == -1)
+      /* either IGNNE was not set or we never needed to use the
+       * exception mask in CWD */
+      new_ignne = !!(vm86_fpu_state.swd & 0x80);
+    else
+      /* don't trust bit7 (ES) as it may be suppressed by our fake IGNNE,
+       * which is actually an exception mask in CWD */
+      new_ignne = !!(vm86_fpu_state.swd & 0x7f & ~fpu_orig_mask);
     if (new_ignne && fpu_ignne)
         error("FPU: stuck IGNNE\n");
     fpu_ignne = new_ignne;
-    /* Note: we emuate the "unrecommended" (by Intel) design where the
+    /* Note: we emulate the "unrecommended" (by Intel) design where the
      * untriggering of IGNNE requires an extra write to 0xf0 after fnclex */
     if (fpu_ignne) {
       if (!old_ignne)
-        fpu_orig_mask = mask;
-      vm86_fpu_state.cwd |= 0x7f;
-    } else if (old_ignne) {
+        fpu_orig_mask = -1;
+    } else if (old_ignne && fpu_orig_mask != -1) {
       vm86_fpu_state.cwd &= ~0x7f;
-      vm86_fpu_state.cwd |= mask;
+      vm86_fpu_state.cwd |= fpu_orig_mask;
+      if (_CPU_VM_CURRENT() == CPUVM_KVM)
+	kvm_update_fpu();
     }
     break;
   case 0xf1:
@@ -322,16 +327,19 @@ static void fpu_io_write(ioport_t port, Bit8u val, void *arg)
   case 0xf2:
     if (fpu_ignne) {
       fpu_ignne = 0;
-      vm86_fpu_state.cwd &= ~0x7f;
-      vm86_fpu_state.cwd |= mask;
+      if (_CPU_VM_CURRENT() == CPUVM_KVM)
+        kvm_get_fpu();
+      if (fpu_orig_mask != -1) {
+        vm86_fpu_state.cwd &= ~0x7f;
+        vm86_fpu_state.cwd |= fpu_orig_mask;
+      }
       /* fnclex */
       vm86_fpu_state.swd &= 0x7f00;
+      if (_CPU_VM_CURRENT() == CPUVM_KVM)
+	kvm_update_fpu();
     }
     break;
   }
-
-  if (_CPU_VM_CURRENT() == CPUVM_KVM)
-    kvm_update_fpu();
 }
 
 static int fpu_is_masked(void)
@@ -341,7 +349,7 @@ static int fpu_is_masked(void)
     return ((imr[0] & 4) || !!(real_imr & (1 << 13)));
 }
 
-void raise_fpu_irq(void)
+static void raise_fpu_irq(void)
 {
   if (fpu_is_masked() || !isset_IF_async()) {
     error("FPU IRQ cannot be injected (%i %i), bye\n",
@@ -349,6 +357,51 @@ void raise_fpu_irq(void)
     leavedos(2);
   }
   pic_request(13);
+}
+
+int fpu_fpe_handler (unsigned char *csp)
+{
+  if (config.ignore_fpe) {
+    if (_CPU_VM_CURRENT() == CPUVM_KVM)
+      kvm_get_fpu();
+    dbug_printf("coprocessor exception, ignoring by masking in CW because of $_ignore_fpe\n");
+    vm86_fpu_state.cwd |= 0x7f;
+    if (_CPU_VM_CURRENT() == CPUVM_KVM)
+      kvm_update_fpu();
+    return 0;
+  }
+  if (fpu_ignne) {
+    /* do some basic emulation:
+       we only deal with control FPU instructions,
+       for non-control FPU instructions we need to
+       mask using cwd
+    */
+    if (csp[0] == 0x9b) {
+      dbug_printf("coprocessor exception, skipping WAIT because of IGNNE#\n");
+      return 1; // fwait
+    }
+    assert (csp[0] >= 0xd8 && csp[0] <= 0xdf);
+    if ((csp[0] == 0xd9 || csp[0] == 0xdd) && csp[1] < 0xc0 &&
+	((csp[1] & 0x30) == 0x20)) {
+      // fldenv d9 /4, fldcw d9 /5, or frstor dd /4 (dd/5 = SIGILL):
+      // since CW is loaded, no need to save the original
+      dbug_printf("coprocessor exception, disabling CW load exception because of IGNNE#\n");
+      vm86_fpu_state.cwd = 0x37f;
+    }
+    else {
+      if (_CPU_VM_CURRENT() == CPUVM_KVM)
+        kvm_get_fpu();
+      fpu_orig_mask = vm86_fpu_state.cwd & 0x7f;
+      dbug_printf("coprocessor exception, workaround by masking in CW because of IGNNE#\n");
+      vm86_fpu_state.cwd |= 0x7f;
+    }
+    if (_CPU_VM_CURRENT() == CPUVM_KVM)
+      kvm_update_fpu();
+    return 0;
+  }
+  dbug_printf("coprocessor exception, calling IRQ13\n");
+  raise_fpu_irq();
+  return 0;
 }
 
 /*

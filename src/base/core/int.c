@@ -1692,6 +1692,10 @@ static int msdos(void)
 	    can_change_title = 0;
 	    return 0;
 	}
+    case 0x4c: {
+	    port_outb(0xf2, 0);
+	    break;
+	}
     }
     return 0;
 }

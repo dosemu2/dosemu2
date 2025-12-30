@@ -225,7 +225,7 @@ typedef struct config_info {
        boolean exitearly;
        boolean quiet;
        int     realcpu;
-       boolean mathco, smp, cpuprefetcht0, cpufxsr, cpusse, umip;
+       boolean mathco, ignore_fpe, smp, cpuprefetcht0, cpufxsr, cpusse, umip;
        boolean ipxsup;
        unsigned ipx_net;
        int     vnet;
@@ -390,7 +390,7 @@ extern void parent_nextscan(void);
 extern void disk_close(void);
 extern void cpu_setup(void);
 extern void cpu_reset(void);
-extern void raise_fpu_irq(void);
+extern int fpu_fpe_handler(unsigned char *csp);
 extern void real_run_int(int);
 extern void mfs_reset(void);
 extern void mfs_done(void);
