@@ -27,7 +27,7 @@ modules:
     buildsystem: autotools
     sources:
       - type: git
-        url: https://sourceware.org/git/binutils-gdb.git
+        url: git://sourceware.org/git/binutils-gdb.git
         branch: master
     config-opts:
       - --target=i686-unknown-linux-gnu
