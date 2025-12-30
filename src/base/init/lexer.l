@@ -321,6 +321,7 @@ terminal		RETURN(TERMINAL);
 video			RETURN(VIDEO);
 emuretrace		RETURN(EMURETRACE);
 mathco			RETURN(MATHCO);
+ignore_fpe		RETURN(IGNORE_FPE);
 cpu			RETURN(CPU);
 cpuspeed		RETURN(CPUSPEED);
 bootdrive		RETURN(BOOTDRIVE);

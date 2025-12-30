@@ -225,7 +225,7 @@ typedef struct config_info {
        boolean exitearly;
        boolean quiet;
        int     realcpu;
-       boolean mathco, smp, cpuprefetcht0, cpufxsr, cpusse, umip;
+       boolean mathco, ignore_fpe, smp, cpuprefetcht0, cpufxsr, cpusse, umip;
        boolean ipxsup;
        unsigned ipx_net;
        int     vnet;

@@ -361,6 +361,15 @@ static void raise_fpu_irq(void)
 
 int fpu_fpe_handler (unsigned char *csp)
 {
+  if (config.ignore_fpe) {
+    if (_CPU_VM_CURRENT() == CPUVM_KVM)
+      kvm_get_fpu();
+    dbug_printf("coprocessor exception, ignoring by masking in CW because of $_ignore_fpe\n");
+    vm86_fpu_state.cwd |= 0x7f;
+    if (_CPU_VM_CURRENT() == CPUVM_KVM)
+      kvm_update_fpu();
+    return 0;
+  }
   if (fpu_ignne) {
     /* do some basic emulation:
        we only deal with control FPU instructions,
