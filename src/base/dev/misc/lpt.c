@@ -368,8 +368,6 @@ void printer_config(int prnum, struct printer *pptr)
     fslib_set_command(SUBSYS_KP_LPT, prnum, pptr->prtcmd);
     if (!destptr->prtcmd)
       destptr->prtcmd = pptr->prtcmd;
-    else
-      free(pptr->prtcmd);
     destptr->dev = pptr->dev;
     destptr->delay = pptr->delay;
   }
