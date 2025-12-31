@@ -812,6 +812,13 @@ static void unlinknode(TNode *G, linkdesc *T, char branch)
 		dbug_printf("Unlinker: FW %c ref error\n", branch);
 		leavedos_main(0x8111 + (branch == 'N'));
 	}
+	/* we must unlink the forward ref code since the node we linked to
+	   may also get deleted, and we may currently be executing G,
+	   where in BreakNodeHook the last instruction is excluded from
+	   tail code patching */
+	IGen IG = (IGen){.op = JMP_LINK, .mode = MPATCH,
+			 .p0 = T->target, .p1 = G->key};
+	CodeGen(G->addr + T->link, G->addr, &IG);
 	T->ref = NULL;
 }
 
