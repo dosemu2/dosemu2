@@ -537,133 +537,135 @@ int main(void)
         ret = 1;
     }
 
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (1.5L) : "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != PE) {
-        printf("FAIL: fisttp inexact\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (32768.0L) : "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttp 32768\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (32768.5L) : "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttp 32768.5\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (-32769.0L) : "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttp -32769\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (-32769.5L) : "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttp -32769.5\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (ld_nan) : "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttp nan\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (ld_invalid_1.ld) :
-                      "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttp invalid\n");
-        ret = 1;
-    }
+    if (__builtin_cpu_supports("sse3")) {
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (1.5L) : "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != PE) {
+            printf("FAIL: fisttp inexact\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (32768.0L) : "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttp 32768\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (32768.5L) : "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttp 32768.5\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (-32769.0L) : "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttp -32769\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (-32769.5L) : "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttp -32769.5\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (ld_nan) : "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttp nan\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttps %0" : "=m" (res_16) : "t" (ld_invalid_1.ld) :
+                          "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttp invalid\n");
+            ret = 1;
+        }
 
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttpl %0" : "=m" (res_32) : "t" (1.5L) : "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != PE) {
-        printf("FAIL: fisttpl inexact\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttpl %0" : "=m" (res_32) : "t" (2147483648.0L) :
-                      "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttpl 2147483648\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttpl %0" : "=m" (res_32) : "t" (-2147483649.0L) :
-                      "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttpl -2147483649\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttpl %0" : "=m" (res_32) : "t" (ld_nan) : "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttpl nan\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttpl %0" : "=m" (res_32) : "t" (ld_invalid_1.ld) :
-                      "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttpl invalid\n");
-        ret = 1;
-    }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttpl %0" : "=m" (res_32) : "t" (1.5L) : "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != PE) {
+            printf("FAIL: fisttpl inexact\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttpl %0" : "=m" (res_32) : "t" (2147483648.0L) :
+                          "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttpl 2147483648\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttpl %0" : "=m" (res_32) : "t" (-2147483649.0L) :
+                          "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttpl -2147483649\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttpl %0" : "=m" (res_32) : "t" (ld_nan) : "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttpl nan\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttpl %0" : "=m" (res_32) : "t" (ld_invalid_1.ld) :
+                          "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttpl invalid\n");
+            ret = 1;
+        }
 
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttpll %0" : "=m" (res_64) : "t" (1.5L) : "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != PE) {
-        printf("FAIL: fisttpll inexact\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttpll %0" : "=m" (res_64) : "t" (0x1p63) :
-                      "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttpll 0x1p63\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttpll %0" : "=m" (res_64) : "t" (-0x1.1p63L) :
-                      "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttpll -0x1.1p63\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttpll %0" : "=m" (res_64) : "t" (ld_nan) : "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttpll nan\n");
-        ret = 1;
-    }
-    __asm__ volatile ("fnclex");
-    __asm__ volatile ("fisttpll %0" : "=m" (res_64) : "t" (ld_invalid_1.ld) :
-                      "st");
-    __asm__ volatile ("fnstsw" : "=a" (sw));
-    if ((sw & EXC) != IE) {
-        printf("FAIL: fisttpll invalid\n");
-        ret = 1;
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttpll %0" : "=m" (res_64) : "t" (1.5L) : "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != PE) {
+            printf("FAIL: fisttpll inexact\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttpll %0" : "=m" (res_64) : "t" (0x1p63) :
+                          "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttpll 0x1p63\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttpll %0" : "=m" (res_64) : "t" (-0x1.1p63L) :
+                          "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttpll -0x1.1p63\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttpll %0" : "=m" (res_64) : "t" (ld_nan) : "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttpll nan\n");
+            ret = 1;
+        }
+        __asm__ volatile ("fnclex");
+        __asm__ volatile ("fisttpll %0" : "=m" (res_64) : "t" (ld_invalid_1.ld) :
+                          "st");
+        __asm__ volatile ("fnstsw" : "=a" (sw));
+        if ((sw & EXC) != IE) {
+            printf("FAIL: fisttpll invalid\n");
+            ret = 1;
+        }
     }
 
     __asm__ volatile ("fnclex");

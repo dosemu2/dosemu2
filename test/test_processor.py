@@ -2,7 +2,8 @@
 
 from subprocess import check_call
 
-from common_framework import BaseTestCase, main, main_setup, mark, KNOWNFAIL
+from common_framework import (BaseTestCase, main, main_setup, mark,
+                              KNOWNFAIL, UNSUPPORTED)
 from common_os import ppdosgit
 
 from func_build_freecom import build_freecom
@@ -38,9 +39,8 @@ class OurTestCase(BaseTestCase):
 
 class KVMTestCase(ppdosgit(OurTestCase, {
         "test_fpu_f2xm1_kvm_sim": KNOWNFAIL,
-        "test_fpu_fisttp_kvm_jit": KNOWNFAIL,
-        "test_fpu_fisttp_kvm_sim": KNOWNFAIL,
-        "test_fpu_fp_exceptions_kvm_jit": KNOWNFAIL,
+        "test_fpu_fisttp_kvm_jit": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
+        "test_fpu_fisttp_kvm_sim": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
         "test_fpu_fp_exceptions_kvm_sim": KNOWNFAIL,
         "test_fpu_fyl2x_kvm_sim": KNOWNFAIL,
         "test_fpu_fyl2xp1_kvm_sim": KNOWNFAIL,
@@ -51,9 +51,8 @@ class KVMTestCase(ppdosgit(OurTestCase, {
 
 class EMUTestCase(ppdosgit(OurTestCase, {
         "test_fpu_f2xm1_sim_sim": KNOWNFAIL,
-        "test_fpu_fisttp_jit_jit": KNOWNFAIL,
-        "test_fpu_fisttp_sim_sim": KNOWNFAIL,
-        "test_fpu_fp_exceptions_jit_jit": KNOWNFAIL,
+        "test_fpu_fisttp_jit_jit": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
+        "test_fpu_fisttp_sim_sim": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
         "test_fpu_fp_exceptions_sim_sim": KNOWNFAIL,
         "test_fpu_fyl2x_sim_sim": KNOWNFAIL,
         "test_fpu_fyl2xp1_sim_sim": KNOWNFAIL,
