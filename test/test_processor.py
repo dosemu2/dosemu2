@@ -53,9 +53,9 @@ class KVMTestCase(ppdosgit(OurTestCase, {
         "test_fpu_fisttp_kvm_jit": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
         "test_fpu_fisttp_kvm_sim": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
         "test_fpu_fp_exceptions_kvm_sim": KNOWNFAIL,
+        "test_fpu_fprem_kvm_sim": KNOWNFAIL,
         "test_fpu_fyl2x_kvm_sim": KNOWNFAIL,
         "test_fpu_fyl2xp1_kvm_sim": KNOWNFAIL,
-        r"test_fpu_fprem_.*":KNOWNFAIL,
     })):
     use_cpu = 'kvm'
 
@@ -65,9 +65,9 @@ class EMUTestCase(ppdosgit(OurTestCase, {
         "test_fpu_fisttp_jit_jit": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
         "test_fpu_fisttp_sim_sim": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
         "test_fpu_fp_exceptions_sim_sim": KNOWNFAIL,
+        "test_fpu_fprem_sim_sim": KNOWNFAIL,
         "test_fpu_fyl2x_sim_sim": KNOWNFAIL,
         "test_fpu_fyl2xp1_sim_sim": KNOWNFAIL,
-        r"test_fpu_fprem_.*":KNOWNFAIL,
     })):
     use_cpu = 'emu'
 

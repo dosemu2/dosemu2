@@ -1,5 +1,6 @@
 
 from shutil import copy
+from subprocess import check_output, CalledProcessError, STDOUT
 from os import environ
 
 CTESTS = [
@@ -47,9 +48,9 @@ def _dotest(self, test, cpu_vm, cpu_vm_dpmi):
         raise ValueError("Invalid JIT/SIM combination")
 
     if ('sim' in cpu_vm) or ('sim' in cpu_vm_dpmi):
-        cpu_emu = 1
+        cpuemu = 1
     else:
-        cpu_emu = 0
+        cpuemu = 0
 
     if ('jit' in cpu_vm) or ('sim' in cpu_vm):
         cpu_vm = 'emulated'
@@ -65,27 +66,47 @@ def _dotest(self, test, cpu_vm, cpu_vm_dpmi):
     if cpu_vm_dpmi == 'native' and environ.get("SKIP_NATIVE_DPMI"):
         self.skipTest("no native dpmi")
 
-    efil = self.topdir / "test" / "fpu" / ("test-i386-" + test + ".exe")
+    config = f"""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+$_cpu_vm = "{cpu_vm}"
+$_cpu_vm_dpmi = "{cpu_vm_dpmi}"
+$_cpuemu = ({cpuemu})
+$_ignore_djgpp_null_derefs = (off)
+"""
 
-    # DOS test binary is built as part of normal build process
-    copy(efil, self.workdir / "fputest.exe")
+    # DOS test binary is built as part of processor test
+    exefile = self.topdir / "test" / "fpu" / f"test-i386-{test}.exe"
+    copy(exefile, self.workdir / "fputest.exe")
 
-    self.mkfile("testit.bat", """\
+    if test in ['fprem',]:
+        # These tests are different as we have to capture output and
+        # diff against a reference file
+        reffile = exefile.with_suffix('.ref')
+        if not reffile.exists():
+            try:
+                check_output(['make', '--quiet', '-C', reffile.parent, reffile.name], stderr=STDOUT)
+            except CalledProcessError as e:
+                raise self.failureException(e.output) from None
+
+        dosfile = self.workdir / "dosfile.log"
+        self.mkfile("testit.bat", f"""\
+c:\\fputest > {dosfile.name}
+rem end
+""", newline="\r\n")
+        results = self.runDosemu("testit.bat", config=config, timeout=120)
+
+        self.assertFilesEqual(reffile, dosfile)
+
+    else:
+        # Standard FPU tests that produce PASS / FAIL
+        self.mkfile("testit.bat", """\
 c:\\fputest
 rem end
 """, newline="\r\n")
-
-    results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-$_cpu_vm = "%s"
-$_cpu_vm_dpmi = "%s"
-$_cpuemu = (%i)
-$_ignore_djgpp_null_derefs = (off)
-""" % (cpu_vm, cpu_vm_dpmi, cpu_emu))
-
-    self.assertNotIn("FAIL:", results)
-    self.assertIn("PASS:", results)
+        results = self.runDosemu("testit.bat", config=config)
+        self.assertNotIn("FAIL:", results)
+        self.assertIn("PASS:", results)
 
 
 def create_test(test):
