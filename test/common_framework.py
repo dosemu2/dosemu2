@@ -856,10 +856,19 @@ def main(argv=None):
 def main_setup(cases):
     if len(argv) > 1:
         if argv[1] == "--help":
-            print(("Usage: %s [--help | --get-test-binaries | " +
+            print(f"Usage: {argv[0]} [--help | --get-test-binaries | " +
                    "--list-attrs | --list-cases | --list-tests] | " +
                    "[--require-attr=STRING [TestCase1 .. TestCaseN]] | " +
-                   "[TestCase[.testname] ...]") % argv[0])
+                   "[TestCase[.testname] ...]")
+            print("Significant environment variables:\n" +
+                  "  NO_ACTIONS=1        Allow a test that is marked as known failure or unsupported to be run\n" +
+                  "  NO_COLOR=1          Override the terminal detection and disable colour printing of PASS|FAIL etc\n" +
+                  "  NO_FAILFAST=1       Don't quit on the first test failure, run all specified\n" +
+                  "  NO_KVM=1            Disables KVM, equivalent to autodetection not finding /dev/kvm\n" +
+                  "  NO_TESTRUN=1        Exit the test runner after setting up the test environment and print the command line to be used\n" +
+                  "  SKIP_EXPENSIVE=1    Tests that have been marked as expensive are not run\n" +
+                  "  SKIP_NATIVE_DPMI=1  Tests that use native DPMI are not run\n" +
+                  "  SKIP_UNCERTAIN=1    Tests that have non-deterministic behaviour are not run\n")
             exit(0)
 
         if argv[1] == "--get-test-binaries":
