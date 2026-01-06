@@ -9,7 +9,7 @@ import unittest
 from datetime import datetime, timezone
 from functools import wraps
 from hashlib import sha1
-from os import environ, rename
+from os import environ, rename, _exit
 from os.path import exists, join
 from pathlib import Path
 from platform import system, machine, release
@@ -575,6 +575,10 @@ class BaseTestCase(object):
 
         self.mkfile("dosemu.conf", config, dname=self.imagedir)
 
+        if environ.get("NO_TESTRUN", '0') == '1':
+            print(f'\n\nNO_TESTRUN=1, command line to run test is\n{dbin} {" ".join(args)}\n')
+            _exit(0)  # Don't let unittest handle it, just exit
+
         child = pexpect.spawn(dbin, args)
         ret = ''
         with open(self.logfiles['xpt'][0], "wb") as fout:
@@ -628,6 +632,10 @@ class BaseTestCase(object):
         args.extend(xargs)
 
         self.mkfile("dosemu.conf", config, dname=self.imagedir)
+
+        if environ.get("NO_TESTRUN", '0') == '1':
+            print(f'\n\nNO_TESTRUN=1, command line to run test is\n{" ".join(args)}\n')
+            _exit(0)  # Don't let unittest handle it, just exit
 
         self.logfiles['xpt'][1] = "output.log"
         ret = 'No output'
