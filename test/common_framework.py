@@ -808,10 +808,14 @@ class MyTestResult(unittest.TextTestResult):
         # Our logs
         for _, l in test.logfiles.items():
             if not environ.get("CI"):
-                msgLines.append("Further info in file '%s'\n" % l[0])
+                msgLines.append(f"Further info in file '{l[0].name}'\n")
                 continue
 
-            msgLines.append("::group::%s\n" % l[0])
+            if l[0].stat().st_size > 16*1024:
+                msgLines.append(f"File too large for CI, see file '{l[0].name}' in job artifacts\n")
+                continue
+
+            msgLines.append(f"::group::{l[0].name}\n")
 
             name = TITLE_NAME_FMT.format(l[1])
             msgLines.append(TITLE_BANNER_FMT.format(name))
