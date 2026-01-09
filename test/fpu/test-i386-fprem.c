@@ -80,12 +80,14 @@ static const union float80u pos_inf = {
     .ieee.mantissa = 0,
 };
 
+#if 0
 static const union float80u pseudo_pos_inf = {  /* "unsupported" */
     .ieee.negative = 0,
     .ieee.exponent = 0x7fff,
     .ieee.one = 0,
     .ieee.mantissa = 0,
 };
+#endif
 
 static const union float80u pos_denorm = {
     .ieee.negative = 0,
@@ -230,7 +232,12 @@ static void test_fprem_cases(void)
     do_fprem(s_nan.d, 1.0);
     do_fprem(1.0, 0.0);
     do_fprem(pos_inf.d, 1.0);
-    do_fprem(pseudo_pos_inf.d, 1.0);
+
+    /*
+       Disable this test as the reference file is generated with
+       inconsistent values depending upon the hardware it's run.
+     */
+    // do_fprem(pseudo_pos_inf.d, 1.0);
 
     printf("= denormal =\n");
     do_fprem(pos_denorm.d, 1.0);
