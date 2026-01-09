@@ -46,7 +46,7 @@ cat >&2 << EOF
 =         Tests run on KVM and emulated CPU         =
 =====================================================
 EOF
-python3 test/test_processor.py
+env NO_FAILFAST=1 python3 test/test_processor.py
 
 cat >&2 << EOF2
 =====================================================
