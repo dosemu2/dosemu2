@@ -1926,13 +1926,14 @@ void sig_handler(int sig, siginfo_t *info, void *puc)
 void sig_handler(int sig)
 #endif
 {
-    static int fpe_cnt;
     int cnt = 1;
 #ifdef SA_SIGINFO
     ucontext_t *uc = puc;
 #endif
 
 #ifdef __DJGPP__
+    static int fpe_cnt;
+
     /* clear FPU exceptions before anything else */
     if (sig == SIGFPE && (__djgpp_exception_state->__signum == 0x75 ||
             __djgpp_exception_state->__signum == 0x10)) {
@@ -1975,8 +1976,10 @@ void test_exceptions(void)
 {
     struct sigaction act;
     volatile int val;
+#ifdef __DJGPP__
     int rc;
     uint16_t orig_fpuc, fpuc;
+#endif
 
 #ifdef SA_SIGINFO
     act.sa_sigaction = sig_handler;
@@ -2006,6 +2009,7 @@ void test_exceptions(void)
         EXCEPTION("idiv %3", "=a"(divlo), "=d"(divhi): "a"(1), "d"(0),);
     }
 
+#ifdef __DJGPP__
     asm volatile ("fnclex; fnstcw  %0" : "=m"(orig_fpuc));
     fpuc = orig_fpuc & ~0x3f;
     asm volatile ("fldcw %0" : "=m"(fpuc));
@@ -2023,6 +2027,9 @@ void test_exceptions(void)
     }
     }
     asm volatile ("fldcw %0" : "=m"(orig_fpuc));
+#else
+    printf("FPE exception test only runs on DOS\n");
+#endif
 
 #if !defined(__x86_64__)
     printf("BOUND exception:\n");

@@ -20,8 +20,8 @@ ALL_SRC = $(SOURCES) $(wildcard *.h)
 
 all: dosbin.exe
 
-reffile.log: native32
-	./native32 --common-tests > $@
+reffile.log:
+	echo "please run dosbin.exe using FreeDOS on a real machine"
 
 # i386/x86_64 emulation test (test various opcodes) */
 dosbin.exe: $(ALL_SRC)
