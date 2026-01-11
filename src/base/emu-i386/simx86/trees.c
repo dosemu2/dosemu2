@@ -76,7 +76,6 @@ int TotalNodesParsed = 0;
 int TotalNodesExecd = 0;
 int PrejitNodesExecd = 0;
 int NodesFound = 0;
-int NodesFastFound = 0;
 int NodesNotFound = 0;
 int TreeCleanups = 0;
 #endif
@@ -84,9 +83,6 @@ int TreeCleanups = 0;
 #ifdef DEBUG_TREE
 static void DumpTree (FILE *fd);
 #endif
-
-#define FINDTREE_CACHE_HASH_MASK 0xfff
-static TNode *findtree_cache[FINDTREE_CACHE_HASH_MASK+1];
 
 //static int NodeLimit = 10000;
 
@@ -525,8 +521,6 @@ void Move2Tree(TNode *nG)
   CheckLinks();
 #endif
   pthread_mutex_unlock_trees();
-  __atomic_store_n(&findtree_cache[nG->key&FINDTREE_CACHE_HASH_MASK], nG,
-		   __ATOMIC_RELAXED);
 #if PROFILE >= 2
   if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
@@ -578,29 +572,9 @@ TNode *FindTree(int key)
 	TheCPU.sigprof_pending = 0;
   }
 
-  /* fast path: using cache indexed by low 12 bits of PC:
-     ~99.99% success rate */
-  I = __atomic_load_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK],
-		      __ATOMIC_RELAXED);
-  if (I && (I->key==key)) {
-	if (debug_level('e')) {
-	    if (debug_level('e')>4)
-		e_printf("Found key %08x via cache\n", key);
-#if PROFILE
-	    NodesFastFound++;
-#endif
-	}
-	I->alive = NODELIFE(I);
-	return I;
-  }
-
   pthread_mutex_lock_trees();
   I = FindTree_tail(key);
   pthread_mutex_unlock_trees();
-  if (I) {
-	__atomic_store_n(&findtree_cache[key&FINDTREE_CACHE_HASH_MASK], I,
-			 __ATOMIC_RELAXED);
-  }
   return I;
 }
 
@@ -608,24 +582,7 @@ TNode *FindTree_unlocked(int key)
 {
   TNode *I;
 
-  /* fast path: using cache indexed by low 12 bits of PC:
-     ~99.99% success rate */
-  I = findtree_cache[key&FINDTREE_CACHE_HASH_MASK];
-  if (I && (I->key==key)) {
-	if (debug_level('e')) {
-	    if (debug_level('e')>4)
-		e_printf("Found key %08x via cache\n", key);
-#if PROFILE
-	    NodesFastFound++;
-#endif
-	}
-	I->alive = NODELIFE(I);
-	return I;
-  }
-
   I = FindTree_tail(key);
-  if (I)
-	findtree_cache[key&FINDTREE_CACHE_HASH_MASK] = I;
   return I;
 }
 
@@ -679,8 +636,6 @@ static void RemoveNode_unlocked(TNode *G)
   e_unmarkpage(G->key, G->seqlen);
   NodeUnlinker(G);
   assert(!G->bkr && !G->clink_t.ref && !G->clink_nt.ref && G->addr);
-  __atomic_store_n(&findtree_cache[G->key&FINDTREE_CACHE_HASH_MASK],
-		   NULL, __ATOMIC_RELAXED);
   avltr_delete(G);
 }
 
@@ -972,7 +927,7 @@ void InitTrees(void)
 	if (debug_level('e')) {
 	    MaxDepth = MaxNodes = MaxNodeSize = 0;
 	    TotalNodesParsed = TotalNodesExecd = 0;
-	    NodesFound = NodesFastFound = NodesNotFound = 0;
+	    NodesFound = NodesNotFound = 0;
 	    TreeCleanups = 0;
 	}
 #endif
