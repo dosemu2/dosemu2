@@ -22,13 +22,18 @@ TESTS = test-i386-f2xm1.exe \
 # test-i386-pcmpistri.c
 # test-i386-sse-exceptions.c
 
-CC = i586-pc-msdosdjgpp-gcc
-CFLAGS=-ggdb -O0
+CFLAGS=-Wall -O0 -g -gdwarf-2 -fno-strict-aliasing -fno-pic -fno-pie -no-pie
 
-all: $(TESTS)
+all: $(TESTS) test-i386-fprem.u32
+
+test-i386-fprem.u32: test-i386-fprem.c
+	gcc -m32 $(CFLAGS) -o $@ $< -lm
+
+test-i386-fprem.ref: test-i386-fprem.u32
+	./test-i386-fprem.u32 > $@
 
 clean:
-	rm -f $(TESTS) $(TESTS:.exe=)
+	rm -f $(TESTS) test-i386-fprem.ref test-i386-fprem.u32
 
 %.exe: %.c
-	$(CC) $(CFLAGS) $< -o $@
+	i586-pc-msdosdjgpp-gcc $(CFLAGS) -o $@ $< -lm

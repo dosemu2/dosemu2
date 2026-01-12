@@ -80,12 +80,14 @@ static const union float80u pos_inf = {
     .ieee.mantissa = 0,
 };
 
+#if 0
 static const union float80u pseudo_pos_inf = {  /* "unsupported" */
     .ieee.negative = 0,
     .ieee.exponent = 0x7fff,
     .ieee.one = 0,
     .ieee.mantissa = 0,
 };
+#endif
 
 static const union float80u pos_denorm = {
     .ieee.negative = 0,
@@ -174,33 +176,28 @@ static void do_fprem(long double a, long double b)
     union float80u ru;
     uint16_t sw;
 
-    printf("A: S=%d Exp=%04x Int=%d (QNaN=%d) Sig=%016llx (%.06Le)\n",
+    printf("A: S=%d Exp=%04x Int=%d (QNaN=%d) Sig=%016llx\n",
            au.ieee.negative, au.ieee.exponent, au.ieee.one,
-           au.ieee_nan.quiet_nan, (unsigned long long)au.ieee.mantissa,
-           a);
-    printf("B: S=%d Exp=%04x Int=%d (QNaN=%d) Sig=%016llx (%.06Le)\n",
+           au.ieee_nan.quiet_nan, (unsigned long long)au.ieee.mantissa);
+    printf("B: S=%d Exp=%04x Int=%d (QNaN=%d) Sig=%016llx\n",
            bu.ieee.negative, bu.ieee.exponent, bu.ieee.one,
-           bu.ieee_nan.quiet_nan, (unsigned long long)bu.ieee.mantissa,
-           b);
-    fflush(stdout);
+           bu.ieee_nan.quiet_nan, (unsigned long long)bu.ieee.mantissa);
 
     fninit();
     ru.d = fprem(a, b, &sw);
     psw(sw);
 
-    printf("R : S=%d Exp=%04x Int=%d (QNaN=%d) Sig=%016llx (%.06Le)\n",
+    printf("R : S=%d Exp=%04x Int=%d (QNaN=%d) Sig=%016llx\n",
            ru.ieee.negative, ru.ieee.exponent, ru.ieee.one,
-           ru.ieee_nan.quiet_nan, (unsigned long long)ru.ieee.mantissa,
-           ru.d);
+           ru.ieee_nan.quiet_nan, (unsigned long long)ru.ieee.mantissa);
 
     fninit();
     ru.d = fprem1(a, b, &sw);
     psw(sw);
 
-    printf("R1: S=%d Exp=%04x Int=%d (QNaN=%d) Sig=%016llx (%.06Le)\n",
+    printf("R1: S=%d Exp=%04x Int=%d (QNaN=%d) Sig=%016llx\n",
            ru.ieee.negative, ru.ieee.exponent, ru.ieee.one,
-           ru.ieee_nan.quiet_nan, (unsigned long long)ru.ieee.mantissa,
-           ru.d);
+           ru.ieee_nan.quiet_nan, (unsigned long long)ru.ieee.mantissa);
 
     printf("\n");
 }
@@ -219,10 +216,9 @@ static void do_fprem_stack_underflow(void)
                   : "st(1)");
     psw(sw);
 
-    printf("R: S=%d Exp=%04x Int=%d (QNaN=%d) Sig=%016llx (%.06Le)\n",
+    printf("R: S=%d Exp=%04x Int=%d (QNaN=%d) Sig=%016llx\n",
            ru.ieee.negative, ru.ieee.exponent, ru.ieee.one,
-           ru.ieee_nan.quiet_nan, (unsigned long long)ru.ieee.mantissa,
-           ru.d);
+           ru.ieee_nan.quiet_nan, (unsigned long long)ru.ieee.mantissa);
     printf("\n");
 }
 
@@ -236,7 +232,12 @@ static void test_fprem_cases(void)
     do_fprem(s_nan.d, 1.0);
     do_fprem(1.0, 0.0);
     do_fprem(pos_inf.d, 1.0);
-    do_fprem(pseudo_pos_inf.d, 1.0);
+
+    /*
+       Disable this test as the reference file is generated with
+       inconsistent values depending upon the hardware it's run.
+     */
+    // do_fprem(pseudo_pos_inf.d, 1.0);
 
     printf("= denormal =\n");
     do_fprem(pos_denorm.d, 1.0);
@@ -353,5 +354,7 @@ int main(int argc, char **argv)
 {
     test_fprem_cases();
     test_fprem_pairs();
+
+    fflush(stdout);
     return 0;
 }

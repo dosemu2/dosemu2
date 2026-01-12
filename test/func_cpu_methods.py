@@ -1,6 +1,5 @@
 from os import environ
 from shutil import copy
-from difflib import unified_diff
 
 
 def _dotest(self, cpu_vm, cpu_vm_dpmi):
@@ -31,13 +30,8 @@ def _dotest(self, cpu_vm, cpu_vm_dpmi):
     edir = self.topdir / "test" / "cpu"
 
     # Native reference file is now checked in to git and will
-    # only need to be updated if the test source changes. We open()
-    # here without try/except as if it's missing we should 'ERROR'
-    # not 'FAIL'
+    # only need to be updated if the test source changes.
     reffile = edir / "reffile.log"
-    refoutput = []
-    with reffile.open("r") as f:
-        refoutput = f.readlines()
 
     # DOS test binary is built as part of normal build process
     copy(edir / "dosbin.exe", self.workdir / "dosbin.exe")
@@ -58,16 +52,7 @@ $_cpuemu = (%i)
 $_ignore_djgpp_null_derefs = (off)
 """%(cpu_vm, cpu_vm_dpmi, cpu_emu))
 
-    try:
-        with dosfile.open("r") as f:
-            dosoutput = f.readlines()
-    except Exception as e:   # Ensure we 'FAIL' not 'ERROR'
-        raise self.failureException(e) from None
-
-    # Compare DOS output to reference file
-    if dosoutput != refoutput:
-        diff = unified_diff(refoutput, dosoutput, fromfile=reffile.name, tofile=dosfile.name)
-        self.fail('differences detected\n' + ''.join(list(diff)))
+    self.assertFilesEqual(reffile, dosfile)
 
 EMU_TESTS = (
     ('native', 'native'), #  CPU native vm86(i386 only) + native DPMI

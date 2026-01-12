@@ -678,6 +678,26 @@ class BaseTestCase(object):
 
         return ret
 
+    def assertFilesEqual(self, reffile, dosfile):
+        """Compare DOS output to reference file"""
+
+        # Note difflib can't cope with the size/number of diffs, use an external tool
+        try:
+            diff = check_output(['diff', '-urN', '--strip-trailing-cr', reffile, dosfile])
+        except CalledProcessError as e:
+            diff = e.stdout.decode("cp437")
+
+            self.logfiles['dif'] = [self.topdir / f'{self.id()}.dif', "output.dif"]
+            self.logfiles['dif'][0].write_text(diff)
+
+            lines = diff.splitlines()
+            if len(lines) > 20:
+                lines = lines[:20]
+                lines.extend(['', 'Display truncated for brevity, check differences file'])
+
+            msg = "DOS output did not match reference file\n%s\n" % '\n'.join(lines)
+            raise self.failureException(msg) from None
+
     def test_0_basic_boot(self):
         """Basic boot test"""
         # Since test names are processed alphabetically this test should
@@ -788,10 +808,14 @@ class MyTestResult(unittest.TextTestResult):
         # Our logs
         for _, l in test.logfiles.items():
             if not environ.get("CI"):
-                msgLines.append("Further info in file '%s'\n" % l[0])
+                msgLines.append(f"Further info in file '{l[0].name}'\n")
                 continue
 
-            msgLines.append("::group::%s\n" % l[0])
+            if l[0].stat().st_size > 16*1024:
+                msgLines.append(f"File too large for CI, see file '{l[0].name}' in job artifacts\n")
+                continue
+
+            msgLines.append(f"::group::{l[0].name}\n")
 
             name = TITLE_NAME_FMT.format(l[1])
             msgLines.append(TITLE_BANNER_FMT.format(name))
