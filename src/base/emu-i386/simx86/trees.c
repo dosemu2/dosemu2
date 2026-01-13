@@ -535,32 +535,24 @@ static TNode *FindTree_tail(int key)
 #endif
 
   G = fh_find(&CollectTree, key, TNode, fhnode);
-  if (G) {
-	assert(G->addr);
-	if (debug_level('e')>3) e_printf("Found key %08x\n",key);
-	G->alive = NODELIFE(G);
+# if 0
+  assert(G && G->addr);
+#else
+  if (!G)
+    return NULL;
+  assert(G->addr);
+#endif
+  if (debug_level('e')>3) e_printf("Found key %08x\n",key);
+  G->alive = NODELIFE(G);
 #if PROFILE
-	if (debug_level('e')) {
-	    NodesFound++;
-#if PROFILE >= 2
-	    SearchTime += (GETTSC() - t0);
-#endif
-	}
-#endif
-	return G;
-  }
-
-#if PROFILE >= 2
-  if (debug_level('e')) SearchTime += (GETTSC() - t0);
-#endif
-
   if (debug_level('e')) {
-    if (debug_level('e')>4) e_printf("Not found key %08x\n",key);
-#if PROFILE
-    NodesNotFound++;
+    NodesFound++;
+#if PROFILE >= 2
+    SearchTime += (GETTSC() - t0);
 #endif
   }
-  return NULL;
+#endif
+  return G;
 }
 
 TNode *FindTree(int key)

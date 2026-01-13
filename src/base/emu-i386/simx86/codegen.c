@@ -614,7 +614,7 @@ static unsigned ExecOne(TNode *G)
 	 * are already handled at the compile stage.
 	 */
 	/* check links FROM LastXNode TO current node */
-	if (TheCPU.key != G->key)
+	if (TheCPU.key != G->key && e_querynode(TheCPU.key))
 		NodeLinker(FindTree(TheCPU.key), G);
 #ifdef __i386__
 	if (config.cpuprefetcht0)
@@ -714,8 +714,7 @@ unsigned int DoExec(TNode *G)
 		   cause forever loops */
 		if (!(EFLAGS & (VIF|IF|TF))) {
 			TNode *LastG = FindTree(TheCPU.key);
-			seqflg = LastG ? LastG->flags : 0;
-			if (seqflg & F_SLFJ) {
+			if (LastG && LastG->flags & F_SLFJ) {
 				error("!Forever loop!\n");
 				leavedos_main(0xebfe);
 			}

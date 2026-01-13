@@ -2628,10 +2628,20 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 	case JMP_INDIRECT: {
 		unsigned ePC = LONG_CS + ((mode & DATA16) ? DR1.w.l : DR1.d);
 		TheCPU.key = ePC;
-		TNode *G = FindTree(ePC);
-		if (G && GoodNode(G)) {
-			IG = (IGen *)G->addr;
-			continue;
+#if 0
+		/* this check likely returns true most of the time */
+		if (e_querynode(ePC))
+#endif
+		{
+			TNode *G = FindTree(ePC);
+			if (
+#if 1
+					G &&
+#endif
+					GoodNode(G)) {
+				IG = (IGen *)G->addr;
+				continue;
+			}
 		}
 		P0 = ePC;
 		if (debug_level('e')>2)

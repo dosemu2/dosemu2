@@ -857,13 +857,22 @@ unsigned char *Jmp_indirect_helper(unsigned int ePC,
 				   unsigned char *tailcode)
 {
     unsigned char *ret;
-    TNode *G;
 
     InCompiledCode--;
-
-    G = FindTree(ePC);
-    ret = G && GoodNode(G) ? GetExecCodeBuf(G->addr) : tailcode;
-
+#if 0
+    if (e_querynode(ePC)) {
+        TNode *G = FindTree(ePC);
+        ret = GoodNode(G) ? GetExecCodeBuf(G->addr) : tailcode;
+    } else {
+        ret = tailcode;
+    }
+#else
+    /* excessive e_querynode() seems to not help */
+    {
+        TNode *G = FindTree(ePC);
+        ret = (G && GoodNode(G)) ? GetExecCodeBuf(G->addr) : tailcode;
+    }
+#endif
     InCompiledCode++;
     return ret;
 }
