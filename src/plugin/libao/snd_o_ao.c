@@ -84,7 +84,7 @@ static int aosnd_open(void *arg)
     info.bits = 16;
     id = ao_default_driver_id();
     if (id == -1) {
-	S_printf("libao: default driver not specified, trying alsa\n");
+	error("libao: default driver not specified, trying alsa\n");
 	id = ao_driver_id("alsa");
     }
     if (id == -1) {
