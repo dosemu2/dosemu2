@@ -64,8 +64,3 @@ void keyb_close(void)
 	keyb_client_close();
 	initialized = 0;
 }
-
-CONSTRUCTOR(static void init(void))
-{
-	iodev_register("keyb", keyb_init, keyb_reset, keyb_close);
-}
