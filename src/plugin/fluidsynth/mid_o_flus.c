@@ -79,7 +79,9 @@ static int midoflus_init(void *arg)
 	"/usr/share/sounds/sf2/FluidR3_GM.sf2.flac",	// ubuntu
 	"/usr/share/sounds/sf2/FluidR3_GM.sf2",		// debian
 	NULL };
+    const char *adrivers[] = { NULL };
 
+    fluid_audio_driver_register(adrivers);
     settings = new_fluid_settings();
     fluid_settings_setint(settings, "synth.lock-memory", 0);
     fluid_settings_setnum(settings, "synth.gain", config.fluid_volume / 4.0);
