@@ -1817,7 +1817,7 @@ static void SDL_set_text_palette(void *opaque, DAC_entry *col, int i)
   text_colors[i].r = col->r << shift;
   text_colors[i].g = col->g << shift;
   text_colors[i].b = col->b << shift;
-  text_colors[i].a = 0;
+  text_colors[i].a = SDL_ALPHA_OPAQUE;
 }
 
 static void SDL_text_lock(void *opaque)
