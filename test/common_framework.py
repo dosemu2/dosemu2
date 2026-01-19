@@ -681,6 +681,12 @@ class BaseTestCase(object):
     def assertFilesEqual(self, reffile, dosfile):
         """Compare DOS output to reference file"""
 
+        # See if the reference file exists and generate test ERROR if not
+        reffile.read_text()
+
+        if not dosfile.exists():
+            self.fail("DOS output does not exist")
+
         # Note difflib can't cope with the size/number of diffs, use an external tool
         try:
             diff = check_output(['diff', '-urN', '--strip-trailing-cr', reffile, dosfile])
@@ -812,7 +818,7 @@ class MyTestResult(unittest.TextTestResult):
                 continue
 
             if l[0].stat().st_size > 16*1024:
-                msgLines.append(f"File too large for CI, see file '{l[0].name}' in job artifacts\n")
+                msgLines.append(f" '{l[0].name}' file too large for CI, see job artifacts\n")
                 continue
 
             msgLines.append(f"::group::{l[0].name}\n")
