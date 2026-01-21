@@ -42,7 +42,20 @@
 #ifndef _EMU86_TREES_H
 #define _EMU86_TREES_H
 
-#include "ulist.h"
+#define ZONED 0
+#if ZONED
+/* large zoned hash table w/o collisions at 1st mb */
+#define FH_SIZE (1024*1024*4)
+#define ZONE_P2SZ 20  /* 2^20=1M, can also use 19 for 512K */
+#define FH_STATS 0
+#else
+/* small linear layout */
+#define FH_SIZE (1024*128)
+#define ZONE_P2SZ 17  /* 2^17=128K, no zoning */
+
+#define FH_STATS 0  /* not expensive due to small amount of buckets */
+#endif
+#include "misc/fhmap.h"  // FH_STATS must be defined before
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -103,26 +116,15 @@ extern int EmuSignals;
 extern int NodesFound;
 extern int TreeCleanups;
 
-typedef struct avltr_node
-{
-/* ----- Structure for a node in a right-threaded AVL tree. ----- */
-    struct TNode *data;		/* Pointer to data. */
-    struct avltr_node *link[2];	/* Subtrees or threads. */
-    signed char bal;		/* Balance factor. */
-    char cache;			/* Used during insertion. */
-    char pad;			/* Reserved for fully threaded trees. */
-    signed char rtag;		/* Right thread tag. */
-    struct ulist_ent list;
-} avltr_node;
-
 typedef struct TNode
 {
 /* -------------------------------------------------------------- */
 	int key;		/* signed! and don't move it from here! */
 /* -------------------------------------------------------------- */
+	struct fh_node fhnode;
 	int alive;
 	unsigned char *addr;
-	unsigned short len, flags, seqlen, seqnum __attribute__ ((packed));
+	unsigned short len, flags, seqlen, seqnum;
 	linkdesc clink_t;
 	linkdesc clink_nt;
 	backref *bkr;
@@ -131,27 +133,8 @@ typedef struct TNode
 	Addr2Pc meta[]; /* there are seqnum+1 of these */
 } TNode;
 
-/* Used for traversing a right-threaded AVL tree. */
-typedef struct avltr_traverser
-{
-    int init;				/* Initialized? */
-    struct avltr_node *p;		/* Last node returned. */
-} avltr_traverser;
-
-/* Structure which holds information about a threaded AVL tree. */
-typedef struct avltr_tree
-{
-    struct avltr_node root;	/* Tree root node. */
-    int count;			/* Number of nodes in the tree. */
-} avltr_tree;
-
-/* Tag types. */
-#define PLUS +1
-#define MINUS -1
-
 TNode *FindTree(int key);
 void Move2Tree(TNode *G);
-void tree_gc(void);
 
 void InitTrees(void);
 

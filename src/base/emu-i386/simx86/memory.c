@@ -408,6 +408,18 @@ int e_querymark_all(unsigned int addr, size_t len)
 	return 1;
 }
 
+int e_querynode(unsigned int addr)
+{
+	unsigned int abeg;
+	tMpMap *M;
+
+	M = FindM(addr);
+	if (!M)
+	    return 0;
+	abeg = (addr >> CGRAN) & CGRMASK;
+	return test_bit(abeg, M->nodemap);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 static void *NewC(unsigned int abeg)

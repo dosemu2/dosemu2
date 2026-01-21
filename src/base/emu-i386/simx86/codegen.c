@@ -580,10 +580,6 @@ TNode *Close(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 	if (!(mode & MSSTP)) {
 		NodeLinker(G, G);
 	}
-
-	/* must be done after a_markpage() to avoid excessive m_unprots */
-	if (!(flags & (F_PREJ | F_SPRJ)))
-		tree_gc();
 	return G;
 }
 
@@ -618,7 +614,7 @@ static unsigned ExecOne(TNode *G)
 	 * are already handled at the compile stage.
 	 */
 	/* check links FROM LastXNode TO current node */
-	if (TheCPU.key != G->key)
+	if (TheCPU.key != G->key && e_querynode(TheCPU.key))
 		NodeLinker(FindTree(TheCPU.key), G);
 #ifdef __i386__
 	if (config.cpuprefetcht0)
@@ -718,8 +714,7 @@ unsigned int DoExec(TNode *G)
 		   cause forever loops */
 		if (!(EFLAGS & (VIF|IF|TF))) {
 			TNode *LastG = FindTree(TheCPU.key);
-			seqflg = LastG ? LastG->flags : 0;
-			if (seqflg & F_SLFJ) {
+			if (LastG && LastG->flags & F_SLFJ) {
 				error("!Forever loop!\n");
 				leavedos_main(0xebfe);
 			}

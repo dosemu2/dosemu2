@@ -137,12 +137,6 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 	return G;
 }
 
-static inline unsigned int UNPREFIX(unsigned int m)
-{
-	return (m&~(DATA16|ADDR16))|((m&MBIGCS)?0:(DATA16|ADDR16));
-}
-
-
 /////////////////////////////////////////////////////////////////////////////
 //
 // jmp		b8 j j j j 5a c3
@@ -452,8 +446,9 @@ static unsigned int FindExecCode(unsigned int PC)
 		TheCPU.mode &= ~(MSSTP|MTRAP);
 		if (EFLAGS & TF)
 			TheCPU.mode |= MSSTP|MTRAP;
-		G = FindTree(PC);
-		if (G) {
+		G = NULL;
+		if (e_querynode(PC)) {
+			G = FindTree(PC);
 			if (!GoodNode(G)) {
 				RemoveNode(G);
 				G = NULL;
@@ -585,8 +580,8 @@ static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
 
 		/* if we find compatible code, stop compiling and let
 		   DoClose() generate a jump to it */
-		nextG = FindTree(PC);
-		if (nextG) {
+		if (e_querynode(PC)) {
+			nextG = FindTree(PC);
 			if (nextG->mode == basemode && nextG->cs == Interp_LONG_CS)
 				break;
 			nextG = NULL;
