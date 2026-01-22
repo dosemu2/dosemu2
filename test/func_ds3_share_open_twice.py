@@ -6,13 +6,37 @@ def _run_all(self, fstype, tests):
 
     share = "rem Internal share" if self.version == "FDPP kernel" else "c:\\share"
 
-    tfile = "set LFN=n\r\n" + "d:\r\n" + share + "\r\n"
+    tfile = f"echo off\r\nset LFN=n\r\nd:\r\n{share}\r\n"
     for t in tests:
         tfile += ("c:\\sharopen primary %s %s %s %s %s\r\n" % t)
+    tfile += "echo on\r\n"
     tfile += "rem tests complete\r\n"
     tfile += "rem end\r\n"
-
     self.mkfile("testit.bat", tfile)
+
+    # assemble handler
+    handler_S = self.workdir / 'handler.S'
+    handler_S.write_text("""
+.code32
+
+.text
+.global _int24_handler
+_int24_handler:
+    movw $1, _int24_received
+
+/* Values for critical error handler action code:
+      00h ignore error and continue processing request;
+      01h retry operation
+      02h terminate program as though INT 21/AH=4Ch called (INT 20h for DOS 1.x)
+      03h fail system call in progress (DOS 3+) */
+    movb $3, %al
+    iret
+
+.data
+.global _int24_received
+_int24_received:
+    .word 0
+""")
 
     # compile sources
     self.mkexe_with_djgpp("sharopen", r"""
@@ -22,10 +46,37 @@ def _run_all(self, fstype, tests):
 #include <io.h>
 #include <process.h>
 #include <share.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <dpmi.h>
+#include <go32.h>
 
 #define FNAME "FOO.DAT"
+
+extern void *int24_handler;
+extern volatile uint16_t int24_received;
+
+static __dpmi_paddr old_vec;
+
+int install_int24(void)
+{
+  __dpmi_paddr new_vec;
+
+  __dpmi_get_protected_mode_interrupt_vector(0x24, &old_vec);
+
+  new_vec.selector = _go32_my_cs();
+  new_vec.offset32 = (uintptr_t)&int24_handler;
+  if (__dpmi_set_protected_mode_interrupt_vector(0x24, &new_vec) == -1)
+    return -1;
+
+  return 0;
+}
+
+void restore_int24(void)
+{
+  __dpmi_set_protected_mode_interrupt_vector(0x24, &old_vec);
+}
 
 unsigned short sharemode(const char *s) {
   if (strcmp(s, "SH_COMPAT") == 0)
@@ -116,15 +167,32 @@ int main(int argc, char *argv[]) {
 
   } else { // secondary
     unsigned short mode = secsmode | secomode;
+    int rc;
+
+    if ((rc = install_int24()) != 0) {
+        printf("FAIL: Failed to install int24 handler (%d)\n", rc);
+        return 1;
+    }
+
     ret = _dos_open(FNAME, mode, &handle);
     if (ret != 0) {
-      if (strcmp(argv[6], "DENY") == 0 || strcmp(argv[6], "INT24") == 0) {
+      if (strcmp(argv[6], "DENY") == 0) {
         printf("PASS:('%s', '%s', '%s', '%s', '%s')[secondary denied]\n",
             argv[2], argv[3], argv[4], argv[5], argv[6]);
+      } else if (strcmp(argv[6], "INT24") == 0) {
+//      printf("INFO: int24_received = 0x%04x\n", int24_received);
+        if (int24_received) {
+          printf("PASS:('%s', '%s', '%s', '%s', '%s')[secondary denied]\n",
+              argv[2], argv[3], argv[4], argv[5], argv[6]);
+        } else {
+          printf("FAIL:('%s', '%s', '%s', '%s', '%s')[secondary denied]\n",
+              argv[2], argv[3], argv[4], argv[5], argv[6]);
+        }
       } else {
         printf("FAIL:('%s', '%s', '%s', '%s', '%s')[secondary denied]\n",
             argv[2], argv[3], argv[4], argv[5], argv[6]);
       }
+      restore_int24();
       return -1;
     }
     if (strcmp(argv[6], "ALLOW") == 0) {
@@ -134,12 +202,13 @@ int main(int argc, char *argv[]) {
       printf("FAIL:('%s', '%s', '%s', '%s', '%s')[secondary allowed]\n",
           argv[2], argv[3], argv[4], argv[5], argv[6]);
     }
+    restore_int24();
   }
 
   _dos_close(handle);
   return 0;
 }
-""")
+""", extraargs=[f'{handler_S}',])
 
     self.mkfile("FOO.DAT", "some data", dname=testdir)
 
@@ -701,11 +770,6 @@ OPEN_HYBRID = (
     ("SH_DENYNO", "RW", "SH_DENYNO", "RW", "ALLOW"),
 )
 
-def _check_single_result(self, results, t):
-    m = re.search(r"FAIL:\('%s', '%s', '%s', '%s', '%s'\)\[.*\]" % t, results)
-    if m:
-        self.fail(msg=m.group(0))
-
 
 def ds3_share_open_twice(self, fstype):
     if 'FDPP' in self.version or fstype == 'MFS':
@@ -714,7 +778,5 @@ def ds3_share_open_twice(self, fstype):
         tests = OPEN_622
 
     results = _run_all(self, fstype, tests)
-    for t in tests:
-        with self.subTest(t=t):
-            _check_single_result(self, results, t)
     self.assertIn("rem tests complete", results)
+    self.assertNotIn("FAIL:", results)
