@@ -9,6 +9,9 @@ https://code.launchpad.net/~dosemu2/+archive/ubuntu/ppa
 Binary packages for fedora are here:
 https://copr.fedorainfracloud.org/coprs/stsp/dosemu2
 
+Binary packages for openSUSE are here:
+https://build.opensuse.org/project/show/home:mnhauke:dosemu2
+
 Please send bug reports to
 https://github.com/dosemu2/dosemu2/issues
 
