@@ -46,7 +46,7 @@ from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
 from func_memory_dpmi_japheth import memory_dpmi_japheth
 from func_memory_dpmi_leak_check import memory_dpmi_leak_check
 from func_memory_dpmi_leak_check_dos import memory_dpmi_leak_check_dos
-from func_memory_ems_borland import memory_ems_borland
+from func_memory_ems_borland import memory_ems_borland, memory_emm286_borland
 from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_a20,
                              memory_hma_alloc3, memory_hma_chain)
 from func_memory_uma import memory_uma_strategy
@@ -3420,29 +3420,7 @@ rem end
     @mark(['memtest', 'emstest'])
     def test_memory_emm286_borland(self):
         """Memory EMM286 (Borland)"""
-
-        self.unTarOrSkip("TEST_EMM286.tar", [
-            ("tasm32.exe", "61c2ddb2c193f49dd29c083579ec7f47566278a7"),
-            ("emm286.exe", "d8388a574f024d500515e4f0575958cf52939f26"),
-            ("32rtm.exe", "720c8bdcb0b3b2634e95c89c56c0cc1573272cd9"),
-        ])
-
-        # Modify the config.sys
-        contents = (self.workdir / self.confsys).read_text()
-        contents = re.sub(r"device=(c:\\)?dosemu\\umb.sys", r"device=\1dosemu\\umb.sys /full", contents)
-        contents = re.sub(r"devicehigh=(c:\\)?dosemu\\ems.sys", r"devicehigh=c:\\emm286.exe 2048", contents)
-        self.mkfile(self.confsys, contents, newline="\r\n")
-
-        self.mkfile("testit.bat", """\
-c:\\tasm32 /h
-rem end
-""", newline="\r\n")
-
-        results = self.runDosemu("testit.bat")
-
-        # Look for last line of output to indicate successful load/run
-        # /zi,/zd,/zn    Debug info: zi=full, zd=line numbers only, zn=none
-        self.assertRegex(results, r"/zi.*Debug info: zi=full")
+        memory_emm286_borland(self)
 
     @mark(['memtest', 'emstest'])
     def test_memory_ems_borland(self):
