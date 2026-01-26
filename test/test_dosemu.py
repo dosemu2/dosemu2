@@ -5156,6 +5156,7 @@ MSDOS700TestCase = msdos700(OurTestCase, {
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
+    "test_fat_ds3_share_open_twice": UNSUPPORTED,
     "test_fat_label_create_bpb32": UNSUPPORTED,
     "test_lfn_volume_info_fat16": KNOWNFAIL,
     "test_lfn_volume_info_fat32": UNSUPPORTED,
@@ -5168,6 +5169,7 @@ MSDOS710TestCase = msdos710(OurTestCase, {
     "test_comcom_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
+    "test_fat_ds3_share_open_twice": UNSUPPORTED,
 })
 
 PPDOSGITTestCase = ppdosgit(OurTestCase, {
