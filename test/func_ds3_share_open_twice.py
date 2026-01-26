@@ -530,12 +530,56 @@ OPEN_HYBRID = fixup_matrix(OPEN_622, [
     ("SH_DENYNO", "R" , "SH_COMPAT", "R" , "ALLOW"), # File RO success, W fails INT24. For MS-DOS-7: always success.
 ])
 
+# Choosing to not support Int24 on MFS. It should have no effect on
+# most DJGPP compiled programs as the default Int24 handler always
+# returns failure anyway, see discussion here:
+# https://github.com/dosemu2/dosemu2/pull/2759#issuecomment-3794907783
+OPEN_HYBRID_NO_INT24 = fixup_matrix(OPEN_HYBRID, [
+    ("SH_DENYRW", "R" , "SH_COMPAT", "R" , "DENY"),
+    ("SH_DENYRW", "R" , "SH_COMPAT", "W" , "DENY"),
+    ("SH_DENYRW", "R" , "SH_COMPAT", "RW", "DENY"),
+    ("SH_DENYRW", "W" , "SH_COMPAT", "R" , "DENY"),
+    ("SH_DENYRW", "W" , "SH_COMPAT", "W" , "DENY"),
+    ("SH_DENYRW", "W" , "SH_COMPAT", "RW", "DENY"),
+    ("SH_DENYRW", "RW", "SH_COMPAT", "R" , "DENY"),
+    ("SH_DENYRW", "RW", "SH_COMPAT", "W" , "DENY"),
+    ("SH_DENYRW", "RW", "SH_COMPAT", "RW", "DENY"),
+    ("SH_DENYWR", "R" , "SH_COMPAT", "W" , "DENY"),
+    ("SH_DENYWR", "R" , "SH_COMPAT", "RW", "DENY"),
+    ("SH_DENYWR", "W" , "SH_COMPAT", "R" , "DENY"),
+    ("SH_DENYWR", "W" , "SH_COMPAT", "W" , "DENY"),
+    ("SH_DENYWR", "W" , "SH_COMPAT", "RW", "DENY"),
+    ("SH_DENYWR", "RW", "SH_COMPAT", "R" , "DENY"),
+    ("SH_DENYWR", "RW", "SH_COMPAT", "W" , "DENY"),
+    ("SH_DENYWR", "RW", "SH_COMPAT", "RW", "DENY"),
+    ("SH_DENYRD", "R" , "SH_COMPAT", "R" , "DENY"),
+    ("SH_DENYRD", "R" , "SH_COMPAT", "W" , "DENY"),
+    ("SH_DENYRD", "R" , "SH_COMPAT", "RW", "DENY"),
+    ("SH_DENYRD", "W" , "SH_COMPAT", "R" , "DENY"),
+    ("SH_DENYRD", "W" , "SH_COMPAT", "W" , "DENY"),
+    ("SH_DENYRD", "W" , "SH_COMPAT", "RW", "DENY"),
+    ("SH_DENYRD", "RW", "SH_COMPAT", "R" , "DENY"),
+    ("SH_DENYRD", "RW", "SH_COMPAT", "W" , "DENY"),
+    ("SH_DENYRD", "RW", "SH_COMPAT", "RW", "DENY"),
+    ("SH_DENYNO", "R" , "SH_COMPAT", "W" , "DENY"),
+    ("SH_DENYNO", "R" , "SH_COMPAT", "RW", "DENY"),
+    ("SH_DENYNO", "W" , "SH_COMPAT", "R" , "DENY"),
+    ("SH_DENYNO", "W" , "SH_COMPAT", "W" , "DENY"),
+    ("SH_DENYNO", "W" , "SH_COMPAT", "RW", "DENY"),
+    ("SH_DENYNO", "RW", "SH_COMPAT", "R" , "DENY"),
+    ("SH_DENYNO", "RW", "SH_COMPAT", "W" , "DENY"),
+    ("SH_DENYNO", "RW", "SH_COMPAT", "RW", "DENY"),
+])
+
 
 def ds3_share_open_twice(self, fstype):
-    if 'FDPP' in self.version or fstype == 'MFS':
-        tests = OPEN_HYBRID
+    if fstype == 'MFS':
+        tests = OPEN_HYBRID_NO_INT24
     else:
-        tests = OPEN_622
+        if 'FDPP' in self.version:
+            tests = OPEN_HYBRID
+        else:
+            tests = OPEN_622
 
     results = _run_all(self, fstype, tests)
     self.assertIn("rem tests complete", results)
