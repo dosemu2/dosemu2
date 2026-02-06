@@ -25,7 +25,8 @@
 
 struct dspio_state;
 
-extern void *dspio_init(void *arg);
+extern struct dspio_state *dspio_init(void);
+extern void dspio_reset(struct dspio_state *dspio);
 extern void dspio_done(struct dspio_state *dspio);
 extern void dspio_start_dma(struct dspio_state *dspio);
 extern void dspio_stop_dma(struct dspio_state *dspio);
