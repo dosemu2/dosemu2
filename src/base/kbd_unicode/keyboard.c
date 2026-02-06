@@ -39,11 +39,15 @@ void keyb_init(void)
 		error("can't init keyboard server\n");
 		leavedos(19);
 	}
+	initialized = 1;
+}
+
+static void keyb_late_init(void)
+{
 	if (!keyb_client_init()) {
 		error("can't open keyboard client\n");
 		leavedos(19);
 	}
-	initialized = 1;
 }
 
 void keyb_reset(void)
@@ -63,4 +67,9 @@ void keyb_close(void)
 	keyb_server_close();
 	keyb_client_close();
 	initialized = 0;
+}
+
+CONSTRUCTOR(static void init(void))
+{
+       iodev_register("keyb_client", keyb_late_init, NULL, NULL);
 }
