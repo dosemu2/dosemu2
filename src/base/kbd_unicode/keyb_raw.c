@@ -221,8 +221,15 @@ static int raw_keyboard_init(void)
   k_printf("KBD(raw): raw_keyboard_init()\n");
 
 #ifdef __linux__
-  if (config.console_keyb == KEYB_RAW)
-    ioctl(kbd_fd, KDGKBMODE, &save_mode);
+  if (config.console_keyb == KEYB_RAW) {
+    int rc = ioctl(kbd_fd, KDGKBMODE, &save_mode);
+    if (rc == -1)
+      error("kbd: RAW mode failed\n");
+  }
+#endif
+#ifdef USE_SLANG
+  if (config.console_keyb == KEYB_OTHER)
+    return FALSE;
 #endif
   if (tcgetattr(kbd_fd, &save_termios) < 0) {
     error("KBD(raw): Couldn't tcgetattr(kbd_fd,...) !\n");

@@ -412,7 +412,6 @@ static void init_video_term(void)
 {
 #ifdef USE_SLANG
   config.X = 0;
-  config.console_keyb = KEYB_OTHER;
   load_plugin("term");
   Video = video_get("term");
   if (!Video) {

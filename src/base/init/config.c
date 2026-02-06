@@ -1573,6 +1573,9 @@ config_init(int argc, char **argv)
 		case 'o':
 		    config.console_keyb = KEYB_OTHER;
 		    break;
+		case 'y':
+		    config.console_keyb = KEYB_TTY;
+		    break;
 		}
 	    } else {
 		config.console_keyb = KEYB_RAW;
@@ -1805,7 +1808,7 @@ usage(char *basename)
 	"    -i[bootdir] (re-)install a DOS from bootdir or interactively\n"
 	"    -h display this help\n"
 	"    -H wait for dosdebug terminal at startup and pass dflags\n"
-	"    -k use PC console keyboard (!)\n"
+	"    -k[mode] kbd input mode: r - raw, t - term, s - stdio, y - tty\n"
 	"    -K Specify unix path for program running with -E\n"
 	"    -M set memory size to SIZE kilobytes (!)\n"
 	"    -m toggle internal mouse driver\n"
