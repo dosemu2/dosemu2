@@ -137,6 +137,8 @@ modules:
 
   - name: fluidsynth
     buildsystem: cmake
+    config-opts:
+      - -Denable-limiter=OFF
     sources:
       - type: git
         url: https://github.com/FluidSynth/fluidsynth.git
