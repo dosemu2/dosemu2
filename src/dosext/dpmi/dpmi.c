@@ -3195,18 +3195,25 @@ err:
     quit_dpmi(scp, _LO(bx), 1, _LWORD(edx), 1);
     break;
 
-  case 0x0d00: {	/* Allocate Shared Memory */
-    struct SHM_desc shm;
+  case 0x0d00: {        /* Allocate Shared Memory */
     dosaddr_t p;
+    void *p2;
     int err;
+
     if (API_32(scp))
       p = GetSegmentBase(_es) + _edi;
     else
       p = GetSegmentBase(_es) + LO_WORD(_edi);
     e_invalidate(p, sizeof(struct SHM_desc));
-    memcpy(&shm, LINEAR2UNIX(p), sizeof(shm));
-    err = DPMIAllocateShared(&shm);
-    memcpy(LINEAR2UNIX(p), &shm, sizeof(shm));
+
+    p2 = LINEAR2UNIX(p);
+    if ((uintptr_t)p2 % sizeof(void *)) {    // unaligned
+      struct SHM_desc shm;
+      memcpy(&shm, p2, sizeof(shm));
+      err = DPMIAllocateShared(&shm);
+      memcpy(p2, &shm, sizeof(shm));
+    } else
+      err = DPMIAllocateShared(p2);
     if (err) {
       _eflags |= CF;
       _LWORD(eax) = 0x8014;
