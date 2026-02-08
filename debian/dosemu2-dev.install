@@ -1,2 +1,2 @@
 usr/include/dosemu2/*
-usr/lib/*-linux-gnu/*.so
+usr/lib/*-linux-gnu*/*.so
