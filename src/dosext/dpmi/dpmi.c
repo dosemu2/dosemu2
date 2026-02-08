@@ -3196,6 +3196,7 @@ err:
     break;
 
   case 0x0d00: {	/* Allocate Shared Memory */
+    struct SHM_desc shm;
     dosaddr_t p;
     int err;
     if (API_32(scp))
@@ -3203,7 +3204,9 @@ err:
     else
       p = GetSegmentBase(_es) + LO_WORD(_edi);
     e_invalidate(p, sizeof(struct SHM_desc));
-    err = DPMIAllocateShared(LINEAR2UNIX(p));
+    memcpy(&shm, LINEAR2UNIX(p), sizeof(shm));
+    err = DPMIAllocateShared(&shm);
+    memcpy(LINEAR2UNIX(p), &shm, sizeof(shm));
     if (err) {
       _eflags |= CF;
       _LWORD(eax) = 0x8014;
