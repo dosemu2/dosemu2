@@ -607,7 +607,7 @@ static Bit32u color2pixels[16] = {0,0xff,0xff00,0xffff,0xff0000,0xff00ff,0xffff0
 
 #define VGALatch	vga.latch
 
-static unsigned int bank_offs()
+static unsigned int bank_offs(void)
 {
     return vga.mem.bank * vga.mem.bank_pages * PAGE_SIZE * vga.mem.planes;
 }
