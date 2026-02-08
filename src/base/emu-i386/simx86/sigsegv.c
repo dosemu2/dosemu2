@@ -136,7 +136,7 @@ void e_VgaMovs(dosaddr_t edi, dosaddr_t esi, unsigned int rep,
 }
 
 #if 1
-static int jitx86_instr_len(const unsigned char *rip)
+static int _jitx86_instr_len(const unsigned char *rip)
 {
   const unsigned char *p = rip;
   int len;
@@ -178,6 +178,15 @@ static int jitx86_instr_len(const unsigned char *rip)
   if (*p >= 0xa4 && *p <= 0xad)
     return p - rip + 1;
   return 0;
+}
+
+static int jitx86_instr_len(const unsigned char *rip)
+{
+  int rc;
+  InCompiledCode--;
+  rc = _jitx86_instr_len(GetGenCodeBuf(rip));
+  InCompiledCode++;
+  return rc;
 }
 
 static int e_vgaemu_fault(sigcontext_t *scp, dosaddr_t cr2)
@@ -227,14 +236,14 @@ static int e_vgaemu_fault(sigcontext_t *scp, dosaddr_t cr2)
   }
 
   if (vga_page < vga.mem.pages) {
-/**/  e_printf("eVGAEmuFault: trying %08x\n",*((int *)_scp_rip));
+/**/  e_printf("eVGAEmuFault: trying %08x\n",*(const unsigned *)GetGenCodeBuf((unsigned char *)_scp_rip));
     /* try CPatch, which should not fail */
     if (Cpatch(scp))
       return 1;
   }
 
   error("eVGAEmuFault: unimplemented decode instr at %08"PRI_RG": %08x\n",
-	_scp_rip, *((int *)_scp_rip));
+	_scp_rip, *(const unsigned *)GetGenCodeBuf((unsigned char *)_scp_rip));
   leavedos_from_sig(0x5643);
   return 0;
 }
