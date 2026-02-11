@@ -4159,7 +4159,7 @@ void dpmi_setup(void)
     MEMCPY_2DOS(block->base, _binary_dpmisel_o_bin_start,
 		_binary_dpmisel_o_bin_end - _binary_dpmisel_o_bin_start);
     mprotect_mapping(MAPPING_DPMI, block->base,
-	    PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start),
+	    HOST_PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start),
 	    PROT_READ | DPMI_PROT_EXEC);
     err = SetSelector(_dpmi_sel16, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,

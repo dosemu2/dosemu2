@@ -145,6 +145,7 @@ dpmi_pm_block *lookup_pm_block_by_shmname(dpmi_pm_block_root *root,
 static int commit(void *ptr, size_t size)
 {
   dosaddr_t targ = DOSADDR_REL(ptr);
+  size = HOST_PAGE_ALIGN(size);
   if (mprotect_mapping(MAPPING_DPMI, targ, size,
 	PROT_READ | PROT_WRITE | DPMI_PROT_EXEC) == -1)
     return 0;
@@ -154,6 +155,7 @@ static int commit(void *ptr, size_t size)
 
 static int uncommit(void *ptr, size_t size)
 {
+  size = HOST_PAGE_ALIGN(size);
   if (mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(ptr), size, PROT_NONE) == -1)
     return 0;
   return 1;
@@ -163,12 +165,12 @@ unsigned dpmi_mem_size(void)
 {
     if (!config.dpmi)
 	return 0;
-    return PAGE_ALIGN(config.dpmi * 1024) +
-      PAGE_ALIGN(DPMI_pm_stack_size * DPMI_MAX_CLIENTS) +
-      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) +
-      PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) +
+    return HOST_PAGE_ALIGN(config.dpmi * 1024) +
+      HOST_PAGE_ALIGN(DPMI_pm_stack_size * DPMI_MAX_CLIENTS) +
+      HOST_PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) +
+      HOST_PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) +
       dpmi_reserved_space +
-      (5 * DPMI_page_size); /* 5 extra pages */
+      HOST_PAGE_ALIGN(5 * DPMI_page_size); /* 5 extra pages */
 }
 
 void dump_maps(void)
