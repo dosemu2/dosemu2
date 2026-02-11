@@ -413,8 +413,8 @@ int e_handle_pagefault(dosaddr_t addr, unsigned err, sigcontext_t *scp)
 #endif
 	/* We HAVE to invalidate all the code in the page
 	 * if the page is going to be unprotected */
-	addr &= _PAGE_MASK;
-	InvalidateNodeRangeFromFault(addr, PAGE_SIZE, pjit);
+	addr &= HOST_PAGE_MASK;
+	InvalidateNodeRangeFromFault(addr, HOST_PAGE_SIZE, pjit);
 	return 1;
 }
 

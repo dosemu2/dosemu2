@@ -124,10 +124,10 @@ static TNode *DoClose(unsigned int PC, unsigned int Interp_LONG_CS, int mode,
 		 * be altered, so we better re-jit */
 		if (flags & F_PREJ)
 			return NULL;
-		abeg = P0 & _PAGE_MASK;
-		aend = PC & _PAGE_MASK;
+		abeg = P0 & HOST_PAGE_MASK;
+		aend = PC & HOST_PAGE_MASK;
 		/* re-populate cache */
-		for (; abeg <= aend; abeg += PAGE_SIZE)
+		for (; abeg <= aend; abeg += HOST_PAGE_SIZE)
 			Fetch(abeg);
 	    }
 	}

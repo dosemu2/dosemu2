@@ -694,13 +694,6 @@ extern int SpecPrejits;
 #ifndef max
 #define max(a,b)	((a)>(b)?(a):(b))
 #endif
-#ifndef PAGE_SHIFT
-#define PAGE_SHIFT		12
-#endif
-#ifndef PAGE_SIZE
-#define PAGE_SIZE		(1UL << PAGE_SHIFT)
-#endif
-#define _PAGE_MASK		(~(PAGE_SIZE-1))
 #define CGRAN		0		/* 2^n */
 #define CGRMASK		(0xfffff>>CGRAN)
 

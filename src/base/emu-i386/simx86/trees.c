@@ -735,8 +735,8 @@ void InvalidateNodeRangeFromFault(int al, int len, unsigned char *eip)
 /////////////////////////////////////////////////////////////////////////////
 static void do_invalidate(unsigned data, int cnt)
 {
-	cnt = PAGE_ALIGN(data + cnt) - (data & _PAGE_MASK);
-	data &= _PAGE_MASK;
+	cnt = PAGE_ALIGN(data + cnt) - (data & HOST_PAGE_MASK);
+	data &= HOST_PAGE_MASK;
 	InvalidateNodeRange(data, cnt);
 }
 
@@ -795,8 +795,8 @@ void e_invalidate_full(unsigned data, int cnt)
 
 int e_invalidate_page_full(unsigned data)
 {
-	int cnt = PAGE_SIZE;
-	data &= _PAGE_MASK;
+	int cnt = HOST_PAGE_SIZE;
+	data &= HOST_PAGE_MASK;
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
 		return 0;
