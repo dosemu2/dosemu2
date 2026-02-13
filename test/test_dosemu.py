@@ -7,8 +7,6 @@ from datetime import datetime
 from os import statvfs, utime, environ
 from os.path import exists, isdir, join
 from pathlib import Path
-from shutil import copy
-from subprocess import call
 from sys import argv
 from time import mktime
 
@@ -43,10 +41,12 @@ from func_lfs_file_info import lfs_file_info
 from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
 from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
+from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
+                                  memory_dpmi_ecm_modeswitch, memory_dpmi_ecm_psp)
 from func_memory_dpmi_japheth import memory_dpmi_japheth
 from func_memory_dpmi_leak_check import memory_dpmi_leak_check
 from func_memory_dpmi_leak_check_dos import memory_dpmi_leak_check_dos
-from func_memory_ems_borland import memory_ems_borland
+from func_memory_ems_borland import memory_ems_borland, memory_emm286_borland
 from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_a20,
                              memory_hma_alloc3, memory_hma_chain)
 from func_memory_uma import memory_uma_strategy
@@ -3273,104 +3273,25 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
             with self.subTest("Subtest %02d" % i):
                 self.assertRegex(results, r"(?m)^%02d_True.*" % i)
 
-    def _test_memory_dpmi_ecm(self, name):
-        ename = "%s.com" % name
-        edir = self.topdir / "test" / "ecm" / "dpmitest"
-
-        call(["make", "--quiet", "-C", str(edir), ename])
-        copy(edir / ename, self.workdir)
-
-        self.mkfile("testit.bat", """\
-c:\\%s
-rem end
-""" % name, newline="\r\n")
-
-        return self.runDosemu("testit.bat")
-
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_alloc(self):
         """Memory DPMI (ECM) alloc"""
-        results = self._test_memory_dpmi_ecm("dpmialoc")
-# About to Execute : dpmialoc.com
-# Protected mode breakpoint at 0221h.
-# 32-bit code segment breakpoint at 0233h.
-# Return from child process at 0403h.
-
-# Welcome in 32-bit protected mode.
-# DPMI allocation at 02121000h.
-# DPMI allocation entrypoint at 00EFh:00000000h.
-# Real mode procedure called at 00EFh:00000044h.
-# DPMI allocation exit at 00EFh:0000006Ch.
-# Hello from DPMI memory section!
-# Calling real mode procedure which called callback successful.
-# Child process terminated okay, back in real mode.
-
-        self.assertRegex(results, r"Protected mode breakpoint at")
-        self.assertRegex(results, r"32-bit code segment breakpoint at")
-        self.assertRegex(results, r"Return from child process at")
-        self.assertRegex(results, r"Welcome in 32-bit protected mode")
-        self.assertRegex(results, r"Hello from DPMI memory section!")
-        self.assertRegex(results, r"Calling real mode procedure which called callback successful")
-        self.assertRegex(results, r"Child process terminated okay, back in real mode")
-        self.assertNotIn("fail", results)
+        memory_dpmi_ecm_alloc(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_mini(self):
         """Memory DPMI (ECM) mini"""
-        results = self._test_memory_dpmi_ecm("dpmimini")
-
-# About to Execute : dpmimini.com
-# Protected mode breakpoint at 015Ah.
-# 32-bit code segment breakpoint at 016Ch.
-#
-# Welcome in 32-bit protected mode.
-
-        self.assertRegex(results, r"Protected mode breakpoint at")
-        self.assertRegex(results, r"32-bit code segment breakpoint at")
-        self.assertRegex(results, r"Welcome in 32-bit protected mode")
-        self.assertNotIn("fail", results)
+        memory_dpmi_ecm_mini(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_modeswitch(self):
-        """Memory DPMI (ECM) Mode Switch"""
-        results = self._test_memory_dpmi_ecm("dpmims")
-
-# About to Execute : dpmims.com
-# Protected mode breakpoint at 015Eh.
-#
-# Welcome in protected mode.
-# Mode-switched to real mode.
-# In protected mode again.
-
-        self.assertRegex(results, r"Protected mode breakpoint at")
-        self.assertRegex(results, r"Welcome in protected mode")
-        self.assertRegex(results, r"Mode-switched to real mode")
-        self.assertRegex(results, r"In protected mode again")
-        self.assertNotIn("fail", results)
+        """Memory DPMI (ECM) mode switch"""
+        memory_dpmi_ecm_modeswitch(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_psp(self):
         """Memory DPMI (ECM) psp"""
-        results = self._test_memory_dpmi_ecm("dpmipsp")
-
-# About to Execute : dpmipsp.com
-# Protected mode breakpoint at 0221h.
-# 32-bit code segment breakpoint at 0233h.
-# Real mode procedure called at 0275h.
-# Return from child process at 02FCh.
-#
-# Welcome in 32-bit protected mode.
-# Calling real mode procedure which called callback successful.
-# Child process terminated okay, back in real mode.
-
-        self.assertRegex(results, r"Protected mode breakpoint at")
-        self.assertRegex(results, r"32-bit code segment breakpoint at")
-        self.assertRegex(results, r"Real mode procedure called at")
-        self.assertRegex(results, r"Return from child process at")
-        self.assertRegex(results, r"Welcome in 32-bit protected mode")
-        self.assertRegex(results, r"Calling real mode procedure which called callback successful")
-        self.assertRegex(results, r"Child process terminated okay, back in real mode")
-        self.assertNotIn("fail", results)
+        memory_dpmi_ecm_psp(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth(self):
@@ -3420,29 +3341,7 @@ rem end
     @mark(['memtest', 'emstest'])
     def test_memory_emm286_borland(self):
         """Memory EMM286 (Borland)"""
-
-        self.unTarOrSkip("TEST_EMM286.tar", [
-            ("tasm32.exe", "61c2ddb2c193f49dd29c083579ec7f47566278a7"),
-            ("emm286.exe", "d8388a574f024d500515e4f0575958cf52939f26"),
-            ("32rtm.exe", "720c8bdcb0b3b2634e95c89c56c0cc1573272cd9"),
-        ])
-
-        # Modify the config.sys
-        contents = (self.workdir / self.confsys).read_text()
-        contents = re.sub(r"device=(c:\\)?dosemu\\umb.sys", r"device=\1dosemu\\umb.sys /full", contents)
-        contents = re.sub(r"devicehigh=(c:\\)?dosemu\\ems.sys", r"devicehigh=c:\\emm286.exe 2048", contents)
-        self.mkfile(self.confsys, contents, newline="\r\n")
-
-        self.mkfile("testit.bat", """\
-c:\\tasm32 /h
-rem end
-""", newline="\r\n")
-
-        results = self.runDosemu("testit.bat")
-
-        # Look for last line of output to indicate successful load/run
-        # /zi,/zd,/zn    Debug info: zi=full, zd=line numbers only, zn=none
-        self.assertRegex(results, r"/zi.*Debug info: zi=full")
+        memory_emm286_borland(self)
 
     @mark(['memtest', 'emstest'])
     def test_memory_ems_borland(self):

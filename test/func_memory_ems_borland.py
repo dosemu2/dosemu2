@@ -1,3 +1,6 @@
+import re
+
+
 def memory_ems_borland(self):
     self.unTarOrSkip("VARIOUS.tar", [
         ("emstest.com", "d0a07e97905492a5cb9d742513cefeb36d09886d"),
@@ -96,3 +99,32 @@ rem end
     self.assertIn("Erasing temp file EMSTEST.$$$: OK", pt3)
     self.assertIn("Restoring page map: OK", pt3)
     self.assertIn("De-allocating 128 pages EMS memory: OK", pt3)
+
+
+def memory_emm286_borland(self):
+    self.unTarOrSkip("TEST_EMM286.tar", [
+        ("tasm32.exe", "61c2ddb2c193f49dd29c083579ec7f47566278a7"),
+        ("emm286.exe", "d8388a574f024d500515e4f0575958cf52939f26"),
+        ("32rtm.exe", "720c8bdcb0b3b2634e95c89c56c0cc1573272cd9"),
+    ])
+
+    # Modify the config.sys
+    contents = (self.workdir / self.confsys).read_text()
+    contents = re.sub(r"device=(c:\\)?dosemu\\umb.sys", r"device=\1dosemu\\umb.sys /full", contents)
+    contents = re.sub(r"devicehigh=(c:\\)?dosemu\\ems.sys", r"devicehigh=c:\\emm286.exe 2048", contents)
+    self.mkfile(self.confsys, contents, newline="\r\n")
+
+    self.mkfile("testit.bat", """\
+c:\\emm286.exe /?
+c:\\tasm32 /h
+rem end
+""", newline="\r\n")
+
+    results = self.runDosemu("testit.bat")
+
+    # See that we got the memory we asked for
+    self.assertIn("Available expanded memory . . . . . . . 2048k", results)
+
+    # Look for last line of output to indicate successful load/run
+    # /zi,/zd,/zn    Debug info: zi=full, zd=line numbers only, zn=none
+    self.assertRegex(results, r"/zi.*Debug info: zi=full")
