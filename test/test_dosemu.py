@@ -8,7 +8,7 @@ from os.path import exists, isdir, join
 from pathlib import Path
 from sys import argv
 
-from common_framework import (BaseTestCase, main, main_setup, mark, mkstring,
+from common_framework import (BaseTestCase, main, main_setup, mark,
                               IPROMPT, KNOWNFAIL, UNSUPPORTED)
 
 from common_os import (drdos701, frdos120, frdos130, frdosgit, msdos622,
@@ -838,7 +838,7 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
 """ % self.mkimage("12", cwd=testdir)
 
-        testdata = mkstring(32)
+        testdata = self.mkstring(32)
 
         self.mkfile("testit.bat", """\
 d:
@@ -985,7 +985,7 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
 """ % self.mkimage("12", cwd=testdir)
 
-        testdata = mkstring(32)
+        testdata = self.mkstring(32)
 
         self.mkfile("testit.bat", """\
 d:
@@ -3011,7 +3011,7 @@ rem end
         else:
             raise ValueError("Incorrect argument")
 
-        testdata = mkstring(128)
+        testdata = self.mkstring(128)
         testdir = self.mkworkdir('d')
 
         self.mkfile("testit.bat", """\
@@ -3108,7 +3108,7 @@ $_floppy_a = ""
         else:
             raise ValueError("Incorrect argument")
 
-        testdata = mkstring(64)   # need to be fairly short to pass as arg
+        testdata = self.mkstring(64)   # need to be fairly short to pass as arg
         testdir = self.mkworkdir('d')
 
         self.mkfile("testit.bat", """\

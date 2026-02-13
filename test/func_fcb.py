@@ -1,7 +1,5 @@
 from os.path import exists, join
 
-from common_framework import mkstring
-
 
 def fcb_read(self, fstype):
     testdir = self.mkworkdir('d')
@@ -19,7 +17,7 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
 """ % self.mkimage("12", cwd=testdir)
 
-    testdata = mkstring(32)
+    testdata = self.mkstring(32)
 
     self.mkfile("testit.bat", """\
 d:
@@ -141,7 +139,7 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
 """ % self.mkimage("12", cwd=testdir)
 
-    testdata = mkstring(32)
+    testdata = self.mkstring(32)
 
     self.mkfile("testit.bat", """\
 d:
@@ -285,7 +283,7 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
 """ % self.mkimage("12", cwd=testdir)
 
-    testdata = mkstring(32)
+    testdata = self.mkstring(32)
 
     self.mkfile("testit.bat", """\
 d:

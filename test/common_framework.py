@@ -70,10 +70,6 @@ LIGHT_BLUE = "\x1b[94m"
 RESET = "\x1b[0m"
 
 
-def mkstring(length):
-    return ''.join(random.choice(string.hexdigits) for x in range(length))
-
-
 def setup_vfat_mounted_image(self):
     if not exists(VFAT_HELPER):
         self.skipTest("mount helper not installed")
@@ -157,6 +153,14 @@ class BaseTestCase(object):
 
     attrs = set()
     use_cpu = None
+
+    @staticmethod
+    def mkstring(length):
+        return ''.join(random.choice(string.hexdigits) for x in range(length))
+
+    @staticmethod
+    def utcnow():
+        return datetime.now(timezone.utc)
 
     @classmethod
     def setUpClass(cls):
@@ -346,9 +350,6 @@ class BaseTestCase(object):
         return '%s.%s.%s' % (pname, *myid)
 
 # helpers
-
-    def utcnow(self):
-        return datetime.now(timezone.utc)
 
     def mkcom_with_ia16(self, fname, content, dname=None, extraargs=None):
         if dname is None:
