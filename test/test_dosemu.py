@@ -3270,8 +3270,7 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 """ % name)
 
         for i in range(15):
-            with self.subTest("Subtest %02d" % i):
-                self.assertRegex(results, r"(?m)^%02d_True.*" % i)
+            self.assertRegex(results, r"(?m)^%02d_True.*" % i)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_alloc(self):
