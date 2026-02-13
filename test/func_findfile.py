@@ -93,8 +93,7 @@ int main(void) {
         self.assertRegex(results, r"X: = .*LINUX\\FS/mnt/dosemu")
 
     for name in names:
-        with self.subTest(t=name):
-            self.assertIn(name, results)
+        self.assertIn(name, results)
 
 
 def sfn_findfirst(self, tests):
