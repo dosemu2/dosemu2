@@ -4600,19 +4600,29 @@ $_floppy_a = ""
         """FAT DOSv2 set file time"""
         self._test_ds2_set_ftime("FAT")
 
-    def test_mfs_ds2_set_fattrs(self):
-        """MFS DOSv2 set file attrs"""
-        tests = ('RDONLY', 'HIDDEN', 'SYSTEM')
-        for t in tests:
-            with self.subTest(t=t):
-                ds2_set_fattrs(self, "MFS", t)
+    def test_fat_ds2_set_fattr_rdonly(self):
+        """FAT DOSv2 set file attr RDONLY"""
+        ds2_set_fattrs(self, "FAT", "RDONLY")
 
-    def test_fat_ds2_set_fattrs(self):
-        """FAT DOSv2 set file attrs"""
-        tests = ('RDONLY', 'HIDDEN', 'SYSTEM')
-        for t in tests:
-            with self.subTest(t=t):
-                ds2_set_fattrs(self, "FAT", t)
+    def test_fat_ds2_set_fattr_hidden(self):
+        """FAT DOSv2 set file attr HIDDEN"""
+        ds2_set_fattrs(self, "FAT", "HIDDEN")
+
+    def test_fat_ds2_set_fattr_system(self):
+        """FAT DOSv2 set file attr SYSTEM"""
+        ds2_set_fattrs(self, "FAT", "SYSTEM")
+
+    def test_mfs_ds2_set_fattr_rdonly(self):
+        """MFS DOSv2 set file attr RDONLY"""
+        ds2_set_fattrs(self, "MFS", "RDONLY")
+
+    def test_mfs_ds2_set_fattr_hidden(self):
+        """MFS DOSv2 set file attr HIDDEN"""
+        ds2_set_fattrs(self, "MFS", "HIDDEN")
+
+    def test_mfs_ds2_set_fattr_system(self):
+        """MFS DOSv2 set file attr SYSTEM"""
+        ds2_set_fattrs(self, "MFS", "SYSTEM")
 
     def test_fat_ds3_file_access_read(self):
         """FAT DOSv3 file access read"""
