@@ -56,7 +56,9 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
 from func_mfs_directory import mfs_directory_common, mfs_get_current_directory
-from func_findfile import mfs_findfile, sfn_findfirst
+from func_findfile import (mfs_findfile_ufs_lfn, mfs_findfile_ufs_sfn,
+                           mfs_findfile_vfat_linux_mounted_lfn, mfs_findfile_vfat_linux_mounted_sfn,
+                           sfn_findfirst)
 from func_serial import (serial_simple_read_echo, serial_simple_write_file,
                          lpt_simple_write_pipe)
 from func_truename import mfs_truename, sfn_truename
@@ -1449,55 +1451,30 @@ rem end
 
         self.assertRegex(results, r"Error 5 \(access denied\) while redirecting drive X:")
 
-# Tests using the DJGPP DOS compiler
-
+    @mark(['mfstest', 'lfntest'])
     def test_mfs_findfile_ufs_lfn(self):
         """MFS findfile UFS LFN"""
-        tests = (
-            # Type, Create, Find
-            ("DIR", "Program Files", "Program Files"),
-            ("FILE", "verylongfilename.txt", "verylongfilename.txt"),
-            ("FILE", "verylongfilename2.txt", "verylongfilename2.txt"),
-            ("FILE", "space embedded filename.txt", "space embedded filename.txt"),
-            ("FILE", "MixedCaseFilename.ext", "MixedCaseFilename.ext"),
-        )
-        mfs_findfile(self, "UFS", "LFN", tests)
+        mfs_findfile_ufs_lfn(self)
 
+    @mark(['mfstest', 'sfntest'])
     def test_mfs_findfile_ufs_sfn(self):
         """MFS findfile UFS SFN"""
-        tests = (
-            # Type, Create, Find
-            ("DIR", "Program Files", "PROGR~-I"),
-            ("FILE", "verylongfilename.txt", "VERYL~3G.TXT"),
-            ("FILE", "verylongfilename2.txt", "VERYL~2N.TXT"),
-            ("FILE", "space embedded filename.txt", "SPACE~L#.TXT"),
-            ("FILE", "MixedCaseFilename.ext", "MIXED~G4.EXT"),
-        )
-        mfs_findfile(self, "UFS", "SFN", tests)
+        mfs_findfile_ufs_sfn(self)
 
+    @mark(['mfstest', 'lfntest'])
     def test_mfs_findfile_vfat_linux_mounted_lfn(self):
         """MFS findfile VFAT Linux mounted LFN"""
-        tests = (
-            # Type, Create, Find
-            ("DIR", "Program Files", "Program Files"),
-            ("FILE", "verylongfilename.txt", "verylongfilename.txt"),
-            ("FILE", "verylongfilename2.txt", "verylongfilename2.txt"),
-            ("FILE", "space embedded filename.txt", "space embedded filename.txt"),
-            ("FILE", "MixedCaseFilename.ext", "MixedCaseFilename.ext"),
-        )
-        mfs_findfile(self, "VFAT", "LFN", tests)
+        mfs_findfile_vfat_linux_mounted_lfn(self)
 
+    @mark(['mfstest', 'sfntest'])
     def test_mfs_findfile_vfat_linux_mounted_sfn(self):
         """MFS findfile VFAT Linux mounted SFN"""
-        tests = (
-            # Type, Create, Find
-            ("DIR", "Program Files", "PROGRA~1"),
-            ("FILE", "verylongfilename.txt", "VERYLO~1.TXT"),
-            ("FILE", "verylongfilename2.txt", "VERYLO~2.TXT"),
-            ("FILE", "space embedded filename.txt", "SPACEE~1.TXT"),
-            ("FILE", "MixedCaseFilename.ext", "MIXEDC~1.EXT"),
-        )
-        mfs_findfile(self, "VFAT", "SFN", tests)
+        mfs_findfile_vfat_linux_mounted_sfn(self)
+
+    @mark('sfntest')
+    def test_sfn_findfirst(self):
+        """SFN findfile devices, files, directories"""
+        sfn_findfirst(self)
 
     def test_mfs_truename_ufs_lfn(self):
         """MFS truename UFS LFN"""
@@ -1564,47 +1541,6 @@ rem end
             ("LFN2", r"D:\\PROGR~-I",                             r"D:\\Program Files"),
         )
         mfs_truename(self, "UFS", names_to_create, tests)
-
-    def test_sfn_findfirst(self):
-        """SFN findfile devices, files, directories"""
-
-        # Notes:
-        #       1/ these all tested on qemu with ms-dos 6.22 and no redirector loaded, so
-        #       results are certain to be from the kernel itself not int 2f/1123.
-        #       2/ '$' is special as it's replaced with the current drive at run time.
-
-        tests = (
-            # sent                 expected
-
-        # devices
-            (r"nul",               r"NUL attrib 0x0040"),
-            (r"nul.ext",           r"NUL attrib 0x0040"),
-            (r"$:nul",             r"NUL attrib 0x0040"),
-            (r"$:test\\nul",       r"NUL attrib 0x0040"),
-            (r"\\dev\\nul",        r"NUL attrib 0x0040"),
-            (r"\\dev\\nul.ext",    r"NUL attrib 0x0040"),
-            (r"\\nul",             r"NUL attrib 0x0040"),
-            (r"\\nul.ext",         r"NUL attrib 0x0040"),
-            (r"\\test\\nul",       r"NUL attrib 0x0040"),
-            (r"\\nonexist\\nul",   r"ERROR: 0x0003 - Path not found"),
-            (r"$:\\nul",           r"NUL attrib 0x0040"),
-            (r"$:\\test\\nul",     r"NUL attrib 0x0040"),
-            (r"$:\\nonexist\\nul", r"ERROR: 0x0003 - Path not found"),
-            (r"?:\\nul",           r"ERROR: 0x0003 - Path not found"),
-            (r"X:\\nul",           r"ERROR: 0x0003 - Path not found"),
-            (r"X:\\test\\nul",     r"ERROR: 0x0003 - Path not found"),
-            (r"X:\\nonexist\\nul", r"ERROR: 0x0003 - Path not found"),
-
-        # files
-            (r"bob",               r"ERROR: 0x0012 - No more files"),
-            (r"hello.txt",         r"HELLO.TXT attrib 0x0020"),
-
-        # directories
-            (r"test",              r"TEST attrib 0x0010"),
-            (r"test\\sub",         r"SUB attrib 0x0010"),
-            (r"test\\nosub",       r"ERROR: 0x0012 - No more files"),
-        )
-        sfn_findfirst(self, tests)
 
     def test_mfs_truename_ufs_sfn(self):
         """MFS truename UFS SFN"""
