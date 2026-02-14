@@ -57,6 +57,7 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
 from func_mfs_directory import mfs_directory_common, mfs_get_current_directory
+from func_mfs_read_write import mfs_file_read, mfs_file_write
 from func_findfile import (mfs_findfile_ufs_lfn, mfs_findfile_ufs_sfn,
                            mfs_findfile_vfat_linux_mounted_lfn, mfs_findfile_vfat_linux_mounted_sfn,
                            sfn_findfirst)
@@ -1366,214 +1367,55 @@ rem end
         """SFN truename devices"""
         sfn_truename(self)
 
-    def _test_mfs_file_read(self, nametype):
-        if nametype == "LFN":
-            testname = "verylongname.txt"
-            disablelfn = ""
-        elif nametype == "SFN":
-            testname = "shrtname.txt"
-            disablelfn = "set LFN=n"
-        else:
-            raise ValueError("Incorrect argument")
-
-        testdata = self.mkstring(128)
-        testdir = self.mkworkdir('d')
-
-        self.mkfile("testit.bat", """\
-%s
-d:
-c:\\mfsread %s %s
-rem end
-""" % (disablelfn, testname, testdata), newline="\r\n")
-
-        self.mkfile(testname, testdata, dname=testdir)
-
-        # compile sources
-        self.mkexe_with_djgpp("mfsread", r"""
-#include <dir.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-int main(int argc, char *argv[]) {
-  char b[512];
-  int f, size;
-
-  if (argc < 1) {
-    printf("missing filename argument\n");
-    return 3;
-  }
-
-  f = open(argv[1], O_RDONLY | O_TEXT);
-  if (f < 0) {
-    printf("open failed\n");
-    return 2;
-  }
-
-  size = read(f, b, sizeof(b));
-  if (size < 0) {
-    printf("read failed\n");
-    return 1;
-  }
-
-  write(1, b, size);
-  close(f);
-  return 0;
-}
-""")
-
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
-$_floppy_a = ""
-""")
-
-        self.assertIn(testdata, results)
-
+    @mark(['mfstest', 'lfntest'])
     def test_mfs_lfn_file_read(self):
         """MFS LFN file read"""
-        self._test_mfs_file_read("LFN")
+        mfs_file_read(self, "LFN")
 
+    @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_file_read(self):
         """MFS SFN file read"""
-        self._test_mfs_file_read("SFN")
+        mfs_file_read(self, "SFN")
 
-    def _test_mfs_file_write(self, nametype, operation):
-        if nametype == "LFN":
-            ename = "mfslfn"
-            testname = "verylongname.txt"
-            disablelfn = ""
-        elif nametype == "SFN":
-            ename = "mfssfn"
-            testname = "shrtname.txt"
-            disablelfn = "set LFN=n"
-        else:
-            raise ValueError("Incorrect argument")
-
-        if operation == "create":
-            ename += "wc"
-            testprfx = ""
-            openflags = "O_WRONLY | O_CREAT | O_TEXT"
-            mode = ", 0222"
-        elif operation == "createreadonly":
-            ename += "wk"
-            testprfx = ""
-            openflags = "O_WRONLY | O_CREAT | O_TEXT"
-            mode = ", 0444"
-        elif operation == "truncate":
-            ename += "wt"
-            testprfx = "dummy data"
-            openflags = "O_WRONLY | O_CREAT | O_TRUNC | O_TEXT"
-            mode = ", 0222"
-        elif operation == "append":
-            ename += "wa"
-            testprfx = "Original Data"
-            openflags = "O_RDWR | O_APPEND | O_TEXT"
-            mode = ""
-        else:
-            raise ValueError("Incorrect argument")
-
-        testdata = self.mkstring(64)   # need to be fairly short to pass as arg
-        testdir = self.mkworkdir('d')
-
-        self.mkfile("testit.bat", """\
-%s
-d:
-c:\\%s %s %s
-rem end
-""" % (disablelfn, ename, testname, testdata), newline="\r\n")
-
-        if operation != "create" and operation != "createreadonly":
-            self.mkfile(testname, testprfx, dname=testdir)
-
-        # compile sources
-        self.mkexe_with_djgpp(ename, r"""
-#include <dir.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
-int main(int argc, char *argv[]) {
-  int f, size;
-
-  if (argc < 2) {
-    printf("missing filename argument\n");
-    return 4;
-  }
-
-  if (argc < 3) {
-    printf("missing data argument\n");
-    return 3;
-  }
-
-  f = open(argv[1], %s %s);
-  if (f < 0) {
-    printf("open failed\n");
-    return 2;
-  }
-
-  size = write(f, argv[2], strlen(argv[2]));
-  if (size < strlen(argv[2])) {
-    printf("write failed\n");
-    return 1;
-  }
-
-  close(f);
-  return 0;
-}
-""" % (openflags, mode))
-
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
-$_floppy_a = ""
-""")
-
-        self.assertNotIn("open failed", results)
-
-        try:
-            filedata = (testdir / testname).read_text()
-        except Exception as e:   # Ensure we 'FAIL' not 'ERROR'
-            raise self.failureException(e) from None
-
-        if operation == "truncate":
-            self.assertNotIn(testprfx, filedata)
-        elif operation == "append":
-            self.assertIn(testprfx + testdata, filedata)
-        self.assertIn(testdata, filedata)
-
+    @mark(['mfstest', 'lfntest'])
     def test_mfs_lfn_file_create(self):
         """MFS LFN file create"""
-        self._test_mfs_file_write("LFN", "create")
+        mfs_file_write(self, "LFN", "create")
 
+    @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_file_create(self):
         """MFS SFN file create"""
-        self._test_mfs_file_write("SFN", "create")
+        mfs_file_write(self, "SFN", "create")
 
+    @mark(['mfstest', 'lfntest'])
     def test_mfs_lfn_file_create_readonly(self):
         """MFS LFN file create readonly"""
-        self._test_mfs_file_write("LFN", "createreadonly")
+        mfs_file_write(self, "LFN", "createreadonly")
 
+    @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_file_create_readonly(self):
         """MFS SFN file create readonly"""
-        self._test_mfs_file_write("SFN", "createreadonly")
+        mfs_file_write(self, "SFN", "createreadonly")
 
+    @mark(['mfstest', 'lfntest'])
     def test_mfs_lfn_file_truncate(self):
         """MFS LFN file truncate"""
-        self._test_mfs_file_write("LFN", "truncate")
+        mfs_file_write(self, "LFN", "truncate")
 
+    @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_file_truncate(self):
         """MFS SFN file truncate"""
-        self._test_mfs_file_write("SFN", "truncate")
+        mfs_file_write(self, "SFN", "truncate")
 
+    @mark(['mfstest', 'lfntest'])
     def test_mfs_lfn_file_append(self):
         """MFS LFN file append"""
-        self._test_mfs_file_write("LFN", "append")
+        mfs_file_write(self, "LFN", "append")
 
+    @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_file_append(self):
         """MFS SFN file append"""
-        self._test_mfs_file_write("SFN", "append")
+        mfs_file_write(self, "SFN", "append")
 
     def test_lfn_volume_info_mfs(self):
         """LFN volume info on MFS"""
