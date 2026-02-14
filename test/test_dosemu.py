@@ -4,8 +4,7 @@ import re
 import unittest
 
 from os import statvfs, environ
-from os.path import exists, isdir, join
-from pathlib import Path
+from os.path import exists, join
 from sys import argv
 
 from common_framework import (BaseTestCase, main, main_setup, mark,
@@ -52,6 +51,7 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
                              memory_hma_alloc3, memory_hma_chain)
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
+from func_mfs_directory import mfs_directory_common, mfs_get_current_directory
 from func_findfile import mfs_findfile, sfn_findfirst
 from func_serial import (serial_simple_read_echo, serial_simple_write_file,
                          lpt_simple_write_pipe)
@@ -59,14 +59,11 @@ from func_truename import mfs_truename, sfn_truename
 from func_network import network_pktdriver_mtcp
 from func_pit_mode_2 import pit_mode_2
 
-PRGFIL_SFN = "PROGR~-I"
-PRGFIL_LFN = "Program Files"
-
 
 class OurTestCase(BaseTestCase):
 
-    attrs = {'comcomtest', 'dpmitest', 'emstest', 'fcbtest', 'hmatest', 'labeltest', 'memtest', 'nettest',
-             'serialtest', 'umatest', 'xmstest'}
+    attrs = {'comcomtest', 'dpmitest', 'emstest', 'fcbtest', 'hmatest', 'labeltest', 'lfntest',
+             'memtest', 'mfstest', 'nettest', 'serialtest', 'sfntest', 'umatest', 'xmstest'}
 
     @mark('comcomtest')
     def test_comcom_r200fix_real(self):
@@ -83,276 +80,55 @@ class OurTestCase(BaseTestCase):
         """Drive is removable (IOCTL)"""
         drv_removable(self)
 
-    # Tests using assembler
-
-    def _test_mfs_directory_common(self, nametype, operation):
-        if nametype == "LFN":
-            ename = "mfslfn"
-            testname = "test very long directory"
-        elif nametype == "SFN":
-            ename = "mfssfn"
-            testname = "testdir"
-        else:
-            raise ValueError("Incorrect argument")
-
-        testdir = self.mkworkdir('d')
-
-        cwdnum = "0x0"
-
-        if operation == "Create":
-            ename += "dc"
-            if nametype == "SFN":
-                intnum = "0x3900"  # create
-            else:
-                intnum = "0x7139"
-        elif operation in ["Delete", "DeleteNotEmpty"]:
-            ename += "dd"
-            if nametype == "SFN":
-                intnum = "0x3a00"  # delete
-            else:
-                intnum = "0x713a"
-            Path(testdir / testname).mkdir()
-            if operation == "DeleteNotEmpty":
-                self.mkfile("DirNotEm.pty", """hello\r\n""", join(testdir, testname))
-        elif operation == "Chdir":
-            ename += "dh"
-            if nametype == "SFN":
-                intnum = "0x3b00"  # chdir
-                cwdnum = "0x4700"  # getcwd
-            else:
-                intnum = "0x713b"
-                cwdnum = "0x7147"
-            Path(testdir / testname).mkdir()
-        else:
-            raise ValueError("Incorrect argument")
-
-        self.mkfile("testit.bat", """\
-d:
-c:\\%s
-rem end
-""" % ename, newline="\r\n")
-
-
-        # compile sources
-        self.mkcom_with_nasm(ename, r"""
-bits 16
-cpu 386
-
-org 100h
-
-section .text
-
-    push    cs
-    pop     ds
-
-    mov     ax, %s
-    mov     dx, dname
-    int     21h
-
-    jnc     prsucc
-
-prfail:
-    mov     dx, failmsg
-    jmp     @1
-prsucc:
-    mov     dx, succmsg
-@1:
-    mov     ah, 9
-    int     21h
-
-    mov     ax, %s
-    cmp     ax, 0x7147
-    je      prcwd
-    cmp     ax, 0x4700
-    je      prcwd
-
-exit:
-    mov     ah, 4ch
-    int     21h
-
-prcwd:
-; get cwd
-    mov     dl, 0
-    mov     si, curdir
-    int     21h
-
-    push    ds
-    pop     es
-    mov     di, si
-
-    mov     cx, 128
-    mov     al, 0
-    cld
-    repne   scasb
-    mov     byte [di-1], ')'
-    mov     byte [di], '$'
-
-    mov     ah, 9
-    mov     dx, pcurdir
-    int     21h
-
-    jmp     exit
-
-section .data
-
-dname:
-    db  "%s",0
-
-succmsg:
-    db  "Directory Operation Success",13,10,'$'
-failmsg:
-    db  "Directory Operation Failed",13,10,'$'
-
-pcurdir:
-    db '('
-curdir:
-    times 128 db '$'
-
-""" % (intnum, cwdnum, testname))
-
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
-$_floppy_a = ""
-""")
-
-        # test to see if the directory intnum made it through to linux
-        if operation == "Create":
-            self.assertIn("Directory Operation Success", results)
-            self.assertTrue(isdir(join(testdir, testname)), "Directory not created")
-        elif operation == "Delete":
-            self.assertIn("Directory Operation Success", results)
-            self.assertFalse(isdir(join(testdir, testname)), "Directory not deleted")
-        elif operation == "DeleteNotEmpty":
-            self.assertIn("Directory Operation Failed", results)
-            self.assertTrue(isdir(join(testdir, testname)), "Directory incorrectly deleted")
-        elif operation == "Chdir":
-            self.assertIn("Directory Operation Success", results)
-            if nametype == "SFN":
-                self.assertIn("(" + testname.upper() + ")", results)
-            else:
-                self.assertIn("(" + testname + ")", results)
-
+    @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_directory_create(self):
         """MFS SFN directory create"""
-        self._test_mfs_directory_common("SFN", "Create")
+        mfs_directory_common(self, "SFN", "Create")
 
+    @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_directory_delete(self):
         """MFS SFN directory delete"""
-        self._test_mfs_directory_common("SFN", "Delete")
+        mfs_directory_common(self, "SFN", "Delete")
 
+    @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_directory_delete_not_empty(self):
         """MFS SFN directory delete not empty"""
-        self._test_mfs_directory_common("SFN", "DeleteNotEmpty")
+        mfs_directory_common(self, "SFN", "DeleteNotEmpty")
 
+    @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_directory_chdir(self):
         """MFS SFN directory change current"""
-        self._test_mfs_directory_common("SFN", "Chdir")
+        mfs_directory_common(self, "SFN", "Chdir")
 
+    @mark(['mfstest', 'lfntest'])
     def test_mfs_lfn_directory_create(self):
         """MFS LFN directory create"""
-        self._test_mfs_directory_common("LFN", "Create")
+        mfs_directory_common(self, "LFN", "Create")
 
+    @mark(['mfstest', 'lfntest'])
     def test_mfs_lfn_directory_delete(self):
         """MFS LFN directory delete"""
-        self._test_mfs_directory_common("LFN", "Delete")
+        mfs_directory_common(self, "LFN", "Delete")
 
+    @mark(['mfstest', 'lfntest'])
     def test_mfs_lfn_directory_delete_not_empty(self):
         """MFS LFN directory delete not empty"""
-        self._test_mfs_directory_common("LFN", "DeleteNotEmpty")
+        mfs_directory_common(self, "LFN", "DeleteNotEmpty")
 
+    @mark(['mfstest', 'lfntest'])
     def test_mfs_lfn_directory_chdir(self):
         """MFS LFN directory change current"""
-        self._test_mfs_directory_common("LFN", "Chdir")
+        mfs_directory_common(self, "LFN", "Chdir")
 
-    def _test_mfs_get_current_directory(self, nametype):
-        if nametype == "LFN":
-            ename = "mfslfngd"
-            testname = PRGFIL_LFN
-        elif nametype == "SFN":
-            ename = "mfssfngd"
-            testname = PRGFIL_SFN
-        else:
-            raise ValueError("Incorrect argument")
-
-        testdir = self.mkworkdir('d')
-
-        if nametype == "SFN":
-            cwdnum = "0x4700"  # getcwd
-        else:
-            cwdnum = "0x7147"
-
-        Path(testdir / PRGFIL_LFN).mkdir()
-
-        self.mkfile("testit.bat", """\
-d:
-cd %s
-c:\\%s
-rem end
-""" % (PRGFIL_SFN, ename), newline="\r\n")
-
-        # compile sources
-        self.mkcom_with_nasm(ename, r"""
-bits 16
-cpu 386
-
-org 100h
-
-section .text
-
-    push    cs
-    pop     ds
-
-; get cwd
-    mov     ax, %s
-    mov     dl, 0
-    mov     si, curdir
-    int     21h
-
-    push    ds
-    pop     es
-    mov     di, si
-
-    mov     cx, 128
-    mov     al, 0
-    cld
-    repne   scasb
-    mov     byte [di-1], ')'
-    mov     byte [di], '$'
-
-    mov     ah, 9
-    mov     dx, pcurdir
-    int     21h
-
-exit:
-    mov     ah, 4ch
-    int     21h
-
-section .data
-
-pcurdir:
-    db '('
-curdir:
-    times 128 db '$'
-
-""" % cwdnum)
-
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
-$_floppy_a = ""
-""")
-
-        if nametype == "SFN":
-            self.assertIn("(" + testname.upper() + ")", results)
-        else:
-            self.assertIn("(" + testname + ")", results)
-
+    @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_get_current_directory(self):
         """MFS SFN get current directory"""
-        self._test_mfs_get_current_directory("SFN")
+        mfs_get_current_directory(self, "SFN")
 
+    @mark(['mfstest', 'lfntest'])
     def test_mfs_lfn_get_current_directory(self):
         """MFS LFN get current directory"""
-        self._test_mfs_get_current_directory("LFN")
+        mfs_get_current_directory(self, "LFN")
 
     def _test_lfn_support(self, fstype, confsw):
         ename = "lfnsuppt"
