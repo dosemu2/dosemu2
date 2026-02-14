@@ -14,7 +14,8 @@ from common_os import (drdos701, frdos120, frdos130, frdosgit, msdos622,
                        msdos700, msdos710, ppdosgit)
 
 from func_bpb_set import bpb_set
-from func_comcom_r200fix import comcom_r200fix
+from func_command_com_r200fix import command_com_r200fix
+from func_command_com_builtins import command_com_copy, command_com_keyword_exist
 from func_command_com_cmdline_length import command_com_cmdline_length
 from func_ds2_file_seek_tell import ds2_file_seek_tell
 from func_ds2_file_seek_read import ds2_file_seek_read
@@ -62,19 +63,19 @@ from func_pit_mode_2 import pit_mode_2
 
 class OurTestCase(BaseTestCase):
 
-    attrs = {'comcomtest', 'dpmitest', 'emstest', 'fcbtest', 'hmatest', 'labeltest', 'lfntest',
+    attrs = {'cmdtest', 'dpmitest', 'emstest', 'fcbtest', 'hmatest', 'labeltest', 'lfntest',
              'memtest', 'mfstest', 'nettest', 'serialtest', 'sfntest', 'umatest', 'xmstest'}
 
-    @mark('comcomtest')
-    def test_comcom_r200fix_real(self):
-        """Comcom r200fix Real Mode"""
-        comcom_r200fix(self, 'REAL')
+    @mark('cmdtest')
+    def test_command_com_r200fix_real(self):
+        """Command.com r200fix Real Mode"""
+        command_com_r200fix(self, 'REAL')
 
     @unittest.expectedFailure
-    @mark('comcomtest')
-    def test_comcom_r200fix_protected(self):
-        """Comcom r200fix Protected Mode"""
-        comcom_r200fix(self, 'PROTECTED')
+    @mark('cmdtest')
+    def test_command_com_r200fix_protected(self):
+        """Command.com r200fix Protected Mode"""
+        command_com_r200fix(self, 'PROTECTED')
 
     def test_drv_removable(self):
         """Drive is removable (IOCTL)"""
@@ -2075,93 +2076,50 @@ $_debug = "-D+d"
 
         self.assertIn(self.systype, systypeline)
 
+    @mark('cmdtest')
     def test_command_com_cmdline_length_new_dos01(self):
         """Command.com cmdline length(127) new DOS (env var) 01"""
         command_com_cmdline_length(self, 'new_dos01')
 
+    @mark('cmdtest')
     def test_command_com_cmdline_length_new_dos02(self):
         """Command.com cmdline length(150) new DOS (env var) 02"""
         command_com_cmdline_length(self, 'new_dos02')
 
+    @mark('cmdtest')
     def test_command_com_cmdline_length_multiargs01(self):
         """Command.com cmdline length( 30) multiple args 01"""
         command_com_cmdline_length(self, 'multiarg01')
 
+    @mark('cmdtest')
     def test_command_com_cmdline_length_singlearg01(self):
         """Command.com cmdline length( 60) single arg 01"""
         command_com_cmdline_length(self, 'singlearg01')
 
+    @mark('cmdtest')
     def test_command_com_cmdline_length_singlearg02(self):
         """Command.com cmdline length(126) single arg 02"""
         command_com_cmdline_length(self, 'singlearg02')
 
+    @mark('cmdtest')
     def test_command_com_cmdline_length_old_dos01(self):
         """Command.com cmdline length(127) old DOS (truncate) 01"""
         command_com_cmdline_length(self, 'old_dos01')
 
+    @mark('cmdtest')
     def test_command_com_cmdline_length_old_dos02(self):
         """Command.com cmdline length(150) old DOS (truncate) 02"""
         command_com_cmdline_length(self, 'old_dos02')
 
+    @mark('cmdtest')
     def test_command_com_command_copy(self):
         """Command.com command copy"""
+        command_com_copy(self)
 
-        self.mkfile("testit.bat", r"""
-copy version.bat c:\tmp
-rem end
-""", newline="\r\n")
-
-        results = self.runDosemu("testit.bat")
-
-        self.assertRegex(results,
-                r"1 [fF]ile\(s\) copied"
-                r"|"
-                r"version.bat =>+ c:\\tmp\\version.bat")
-
+    @mark('cmdtest')
     def test_command_com_keyword_exist(self):
         """Command.com keyword exist"""
-        self.mkfile("testit.bat", r"""
-rem X: is a non-existent drive
-if not exist X:\ANYTHING.EXE       echo 00_True
-if not exist X:\NUL                echo 01_True
-if not exist X:\FAKEDIR\NUL        echo 02_True
-
-rem D: is a FAT(local) drive
-D:
-cd \
-mkdir ISDIR
-echo hello > ISDIR\EXIST.TRU
-if exist D:\NUL                    echo 03_True
-if not exist D:\EXIST.NOT          echo 04_True
-if not exist D:\NODIR\NUL          echo 05_True
-if not exist D:\NODIR\ANYTHING.EXE echo 06_True
-if exist D:\ISDIR\EXIST.TRU        echo 07_True
-if not exist D:\ISDIR\EXIST.NOT    echo 08_True
-
-rem C: is an MFS(network redirected) drive
-C:
-cd \
-mkdir ISDIR
-echo hello > ISDIR\EXIST.TRU
-if exist C:\NUL                    echo 09_True
-if not exist C:\EXIST.NOT          echo 10_True
-if not exist C:\NODIR\NUL          echo 11_True
-if not exist C:\NODIR\ANYTHING.EXE echo 12_True
-if exist C:\ISDIR\EXIST.TRU        echo 13_True
-if not exist C:\ISDIR\EXIST.NOT    echo 14_True
-
-rem end
-""", newline="\r\n")
-
-        testdir = self.mkworkdir('d')
-        name = self.mkimage("12", cwd=testdir)
-
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 %s +1"
-""" % name)
-
-        for i in range(15):
-            self.assertRegex(results, r"(?m)^%02d_True.*" % i)
+        command_com_keyword_exist(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_alloc(self):
@@ -3421,8 +3379,8 @@ int main(int argc, char *argv[])
         pit_mode_2(self)
 
 DRDOS701TestCase = drdos701(OurTestCase, {
-    "test_comcom_r200fix_real": UNSUPPORTED,
-    "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_r200fix_real": UNSUPPORTED,
+    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos02": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
@@ -3458,8 +3416,8 @@ DRDOS701TestCase = drdos701(OurTestCase, {
 })
 
 FRDOS120TestCase = frdos120(OurTestCase, {
-    "test_comcom_r200fix_real": UNSUPPORTED,
-    "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_r200fix_real": UNSUPPORTED,
+    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_drv_removable": KNOWNFAIL,
@@ -3531,8 +3489,8 @@ FRDOS120TestCase = frdos120(OurTestCase, {
 })
 
 FRDOS130TestCase = frdos130(OurTestCase, {
-    "test_comcom_r200fix_real": UNSUPPORTED,
-    "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_r200fix_real": UNSUPPORTED,
+    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_command_com_keyword_exist": KNOWNFAIL,
@@ -3584,8 +3542,8 @@ FRDOS130TestCase = frdos130(OurTestCase, {
 })
 
 FRDOSGITTestCase = frdosgit(OurTestCase, {
-    "test_comcom_r200fix_real": UNSUPPORTED,
-    "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_r200fix_real": UNSUPPORTED,
+    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_fat_bpb_set_fstype_dinfo": KNOWNFAIL,
@@ -3616,8 +3574,8 @@ FRDOSGITTestCase = frdosgit(OurTestCase, {
 })
 
 MSDOS622TestCase = msdos622(OurTestCase, {
-    "test_comcom_r200fix_real": UNSUPPORTED,
-    "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_r200fix_real": UNSUPPORTED,
+    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos02": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
@@ -3635,8 +3593,8 @@ MSDOS622TestCase = msdos622(OurTestCase, {
 })
 
 MSDOS700TestCase = msdos700(OurTestCase, {
-    "test_comcom_r200fix_real": UNSUPPORTED,
-    "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_r200fix_real": UNSUPPORTED,
+    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
@@ -3649,15 +3607,15 @@ MSDOS700TestCase = msdos700(OurTestCase, {
 })
 
 MSDOS710TestCase = msdos710(OurTestCase, {
-    "test_comcom_r200fix_real": UNSUPPORTED,
-    "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_r200fix_real": UNSUPPORTED,
+    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_fat_ds3_share_open_twice": UNSUPPORTED,
 })
 
 PPDOSGITTestCase = ppdosgit(OurTestCase, {
-    "test_comcom_r200fix_protected": UNSUPPORTED,
+    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_drv_removable": KNOWNFAIL,
