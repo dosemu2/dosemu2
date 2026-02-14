@@ -32,6 +32,7 @@ from func_ds3_lock_twice import ds3_lock_twice
 from func_ds3_lock_writable import ds3_lock_writable
 from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
+from func_fat_img_d_writable import fat_img_d_writable
 from func_fcb import (fcb_delete_common, fcb_find_common, fcb_read, fcb_read_alt_dta,
                       fcb_rename_common, fcb_write)
 from func_ioctl import drv_removable
@@ -1376,61 +1377,25 @@ $_floppy_a = ""
 
         self.assertIn(self.version, results)   # Just to check we booted
 
-    def _test_fat_img_d_writable(self, fat):
-        self.mkfile("testit.bat", """\
-D:
-mkdir test
-echo hello > hello.txt
-DIR
-rem end
-""", newline="\r\n")
-
-        testdir = self.mkworkdir('d')
-
-        testfil = testdir / "there.txt"
-        testfil.write_text('there')
-
-        name = self.mkimage_vbr(fat, cwd=testdir)
-
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 %s +1"
-""" % name)
-
-        # Std DOS format
-        # TEST         <DIR>
-        # HELLO    TXT 8
-        #
-        # ComCom32 format
-        # 2019-06-28 22:29 <DIR>         TEST
-        # 2019-06-28 22:29             8 HELLO.TXT
-        self.assertRegex(results,
-                r"TEST[\t ]+<DIR>"
-                r"|"
-                r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s<DIR>\s+TEST")
-        self.assertRegex(results,
-                r"HELLO[\t ]+TXT[\t ]+8"
-                r"|"
-                r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s+8\s+HELLO.TXT")
-        self.assertRegex(results,
-                r"THERE[\t ]+TXT[\t ]+5"
-                r"|"
-                r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s+5\s+THERE.TXT")
-
+    @mark(['fattest', 'imgtest'])
     def test_fat12_img_d_writable(self):
         """FAT12 image file D writable"""
-        self._test_fat_img_d_writable("12")
+        fat_img_d_writable(self, "12")
 
+    @mark(['fattest', 'imgtest'])
     def test_fat16_img_d_writable(self):
         """FAT16 image file D writable"""
-        self._test_fat_img_d_writable("16")
+        fat_img_d_writable(self, "16")
 
+    @mark(['fattest', 'imgtest'])
     def test_fat16b_img_d_writable(self):
         """FAT16B image file D writable"""
-        self._test_fat_img_d_writable("16b")
+        fat_img_d_writable(self, "16b")
 
+    @mark(['fattest', 'imgtest'])
     def test_fat32_img_d_writable(self):
         """FAT32 image file D writable"""
-        self._test_fat_img_d_writable("32")
+        fat_img_d_writable(self, "32")
 
     def test_mfs_lredir_auto_hdc(self):
         """MFS lredir auto C drive redirection"""
