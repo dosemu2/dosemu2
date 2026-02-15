@@ -45,6 +45,7 @@ from func_label_create import (label_create, label_create_on_lfns,
 from func_lfs_file_info import lfs_file_info
 from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
+from func_lredir import mfs_lredir_auto_hdc, mfs_lredir_command, mfs_lredir_command_no_perm
 from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
 from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
                                   memory_dpmi_ecm_modeswitch, memory_dpmi_ecm_psp)
@@ -1078,57 +1079,20 @@ class OurTestCase(BaseTestCase):
         """FAT32 image file D writable"""
         fat_img_d_writable(self, "32")
 
+    @mark('mfstest')
     def test_mfs_lredir_auto_hdc(self):
         """MFS lredir auto C drive redirection"""
-        self.mkfile("testit.bat", "lredir\r\nrem end\r\n")
+        mfs_lredir_auto_hdc(self)
 
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-""")
-
-# C:\>lredir
-# Current Drive Redirections:
-# C: = LINUX\FS\dosemu2.git\test-imagedir\dXXXXs\c\ attrib = READ/WRITE
-
-        self.assertRegex(results, r"C: = /.*")
-
+    @mark('mfstest')
     def test_mfs_lredir_command(self):
         """MFS lredir command redirection"""
-        self.mkfile("testit.bat", """\
-lredir X: /tmp
-lredir
-rem end
-""", newline="\r\n")
+        mfs_lredir_command(self)
 
-        results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-$_lredir_paths = "/tmp"
-""")
-
-# A:\>lredir
-# Current Drive Redirections:
-# C: = LINUX\FS\dosemu2.git\test-imagedir\dXXXXs\c\ attrib = READ/WRITE
-# X: = LINUX\FS\tmp\        attrib = READ/WRITE
-
-        self.assertRegex(results, r"X: = /tmp")
-
+    @mark('mfstest')
     def test_mfs_lredir_command_no_perm(self):
         """MFS lredir command redirection permission fail"""
-        self.mkfile("testit.bat", """\
-lredir X: /tmp
-lredir
-rem end
-""", newline="\r\n")
-
-        results = self.runDosemu("testit.bat")
-
-# A:\>lredir
-# Current Drive Redirections:
-# C: = LINUX\FS\dosemu2.git\test-imagedir\dXXXXs\c\ attrib = READ/WRITE
-# X: = LINUX\FS\tmp\        attrib = READ/WRITE
-
-        self.assertRegex(results, r"Error 5 \(access denied\) while redirecting drive X:")
+        mfs_lredir_command_no_perm(self)
 
     @mark(['mfstest', 'lfntest'])
     def test_mfs_findfile_ufs_lfn(self):
