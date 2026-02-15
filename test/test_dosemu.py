@@ -3,7 +3,7 @@
 import re
 import unittest
 
-from os import statvfs, environ
+from os import statvfs
 from sys import argv
 
 from common_framework import (BaseTestCase, main, main_setup, mark,
@@ -1680,11 +1680,6 @@ int main(int argc, char *argv[]) {
 
     def test_pit_mode_2(self):
         """PIT Mode 2"""
-        if environ.get("SKIP_EXPENSIVE"):
-            self.skipTest("expensive test")
-        if environ.get("SKIP_UNCERTAIN"):
-            self.skipTest("uncertain test")
-
         pit_mode_2(self)
 
 DRDOS701TestCase = drdos701(OurTestCase, {
