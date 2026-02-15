@@ -7,7 +7,7 @@ from os import statvfs
 from sys import argv
 
 from common_framework import (BaseTestCase, main, main_setup, mark,
-                              IPROMPT, KNOWNFAIL, UNSUPPORTED)
+                              KNOWNFAIL, UNSUPPORTED)
 
 from common_os import (drdos701, frdos120, frdos130, frdosgit, msdos622,
                        msdos700, msdos710, ppdosgit)
@@ -35,6 +35,7 @@ from func_ds3_share_open_twice import ds3_share_open_twice
 from func_fat_img_d_writable import fat_img_d_writable
 from func_fcb import (fcb_delete_common, fcb_find_common, fcb_read, fcb_read_alt_dta,
                       fcb_rename_common, fcb_write)
+from func_floppy import floppy_img, floppy_vfs
 from func_ioctl import drv_removable
 from func_lfn_support import lfn_support
 from func_lfn_voln_info import lfn_voln_info
@@ -1048,51 +1049,11 @@ class OurTestCase(BaseTestCase):
 
     def test_floppy_img(self):
         """Floppy image file"""
-        # Note: image must have
-        # dosemu directory
-        # autoexec.bat
-        # version.bat
-
-        self.unTarImageOrSkip("boot-floppy.img")
-
-        results = self.runDosemu("version.bat", config="""\
-$_hdimage = ""
-$_floppy_a = "boot-floppy.img"
-$_bootdrive = "a"
-""")
-
-        self.assertIn(self.version, results)
+        floppy_img(self)
 
     def test_floppy_vfs(self):
         """Floppy vfs directory"""
-        self.mkfile(self.confsys, """\
-DOS=UMB,HIGH
-lastdrive=Z
-files=40
-stacks=0,0
-buffers=10
-device=a:\\dosemu\\emufs.sys
-device=a:\\dosemu\\umb.sys
-devicehigh=a:\\dosemu\\ems.sys
-devicehigh=a:\\dosemu\\cdrom.sys
-install=a:\\dosemu\\emufs.com
-shell=command.com /e:1024 /k %s
-""" % self.autoexec, newline="\r\n")
-
-        self.mkfile(self.autoexec, """\
-prompt $P$G
-path a:\\bin;a:\\gnu;a:\\dosemu
-system -s DOSEMU_VERSION
-@echo %s
-""" % IPROMPT, newline="\r\n")
-
-        results = self.runDosemu("version.bat", config="""\
-$_hdimage = ""
-$_floppy_a = "dXXXXs/c:fiveinch_360"
-$_bootdrive = "a"
-""")
-
-        self.assertIn(self.version, results)
+        floppy_vfs(self)
 
     def test_three_drives_vfs(self):
         """Three vfs directories configured"""
