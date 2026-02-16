@@ -450,7 +450,6 @@ def ds3_share_open_access(self, numprocs, fstype, testtype):
 
     results = _run_all(self, numprocs, fstype, tests, testtype)
     for t in tests:
-        with self.subTest(t=t):
-            _check_single_result(self, results, t)
+        _check_single_result(self, results, t)
     self.assertIn("rem tests complete", results)
 

@@ -93,11 +93,95 @@ int main(void) {
         self.assertRegex(results, r"X: = .*LINUX\\FS/mnt/dosemu")
 
     for name in names:
-        with self.subTest(t=name):
-            self.assertIn(name, results)
+        self.assertIn(name, results)
 
 
-def sfn_findfirst(self, tests):
+def mfs_findfile_ufs_lfn(self):
+    tests = (
+        # Type, Create, Find
+        ("DIR", "Program Files", "Program Files"),
+        ("FILE", "verylongfilename.txt", "verylongfilename.txt"),
+        ("FILE", "verylongfilename2.txt", "verylongfilename2.txt"),
+        ("FILE", "space embedded filename.txt", "space embedded filename.txt"),
+        ("FILE", "MixedCaseFilename.ext", "MixedCaseFilename.ext"),
+    )
+    mfs_findfile(self, "UFS", "LFN", tests)
+
+
+def mfs_findfile_ufs_sfn(self):
+    tests = (
+        # Type, Create, Find
+        ("DIR", "Program Files", "PROGR~-I"),
+        ("FILE", "verylongfilename.txt", "VERYL~3G.TXT"),
+        ("FILE", "verylongfilename2.txt", "VERYL~2N.TXT"),
+        ("FILE", "space embedded filename.txt", "SPACE~L#.TXT"),
+        ("FILE", "MixedCaseFilename.ext", "MIXED~G4.EXT"),
+    )
+    mfs_findfile(self, "UFS", "SFN", tests)
+
+
+def mfs_findfile_vfat_linux_mounted_lfn(self):
+    tests = (
+        # Type, Create, Find
+        ("DIR", "Program Files", "Program Files"),
+        ("FILE", "verylongfilename.txt", "verylongfilename.txt"),
+        ("FILE", "verylongfilename2.txt", "verylongfilename2.txt"),
+        ("FILE", "space embedded filename.txt", "space embedded filename.txt"),
+        ("FILE", "MixedCaseFilename.ext", "MixedCaseFilename.ext"),
+    )
+    mfs_findfile(self, "VFAT", "LFN", tests)
+
+
+def mfs_findfile_vfat_linux_mounted_sfn(self):
+    tests = (
+        # Type, Create, Find
+        ("DIR", "Program Files", "PROGRA~1"),
+        ("FILE", "verylongfilename.txt", "VERYLO~1.TXT"),
+        ("FILE", "verylongfilename2.txt", "VERYLO~2.TXT"),
+        ("FILE", "space embedded filename.txt", "SPACEE~1.TXT"),
+        ("FILE", "MixedCaseFilename.ext", "MIXEDC~1.EXT"),
+    )
+    mfs_findfile(self, "VFAT", "SFN", tests)
+
+
+def sfn_findfirst(self):
+    # Notes:
+    #       1/ these all tested on qemu with ms-dos 6.22 and no redirector loaded, so
+    #       results are certain to be from the kernel itself not int 2f/1123.
+    #       2/ '$' is special as it's replaced with the current drive at run time.
+
+    tests = (
+        # sent                 expected
+
+    # devices
+        (r"nul",               r"NUL attrib 0x0040"),
+        (r"nul.ext",           r"NUL attrib 0x0040"),
+        (r"$:nul",             r"NUL attrib 0x0040"),
+        (r"$:test\\nul",       r"NUL attrib 0x0040"),
+        (r"\\dev\\nul",        r"NUL attrib 0x0040"),
+        (r"\\dev\\nul.ext",    r"NUL attrib 0x0040"),
+        (r"\\nul",             r"NUL attrib 0x0040"),
+        (r"\\nul.ext",         r"NUL attrib 0x0040"),
+        (r"\\test\\nul",       r"NUL attrib 0x0040"),
+        (r"\\nonexist\\nul",   r"ERROR: 0x0003 - Path not found"),
+        (r"$:\\nul",           r"NUL attrib 0x0040"),
+        (r"$:\\test\\nul",     r"NUL attrib 0x0040"),
+        (r"$:\\nonexist\\nul", r"ERROR: 0x0003 - Path not found"),
+        (r"?:\\nul",           r"ERROR: 0x0003 - Path not found"),
+        (r"X:\\nul",           r"ERROR: 0x0003 - Path not found"),
+        (r"X:\\test\\nul",     r"ERROR: 0x0003 - Path not found"),
+        (r"X:\\nonexist\\nul", r"ERROR: 0x0003 - Path not found"),
+
+    # files
+        (r"bob",               r"ERROR: 0x0012 - No more files"),
+        (r"hello.txt",         r"HELLO.TXT attrib 0x0020"),
+
+    # directories
+        (r"test",              r"TEST attrib 0x0010"),
+        (r"test\\sub",         r"SUB attrib 0x0010"),
+        (r"test\\nosub",       r"ERROR: 0x0012 - No more files"),
+    )
+
     ename = "sfnfindf"
 
     self.mkfile("testit.bat", """\

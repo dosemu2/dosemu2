@@ -3,7 +3,7 @@
 # these compilers for this test, so I'm afraid that we have to just grab
 # my precompiled binaries, and trust that they are from the source below.
 
-def comcom_r200fix(self, mode):
+def command_com_r200fix(self, mode):
     self.unTarOrSkip("TEST_R200.tar", [
         ("tp40.exe", "f34a8baff122ef865d6869a04eeb5d16777073bb"),
         ("tp55.exe", "3bc0eb626bb150680cce6dcf20dd19e18df29962"),

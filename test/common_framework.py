@@ -70,10 +70,6 @@ LIGHT_BLUE = "\x1b[94m"
 RESET = "\x1b[0m"
 
 
-def mkstring(length):
-    return ''.join(random.choice(string.hexdigits) for x in range(length))
-
-
 def setup_vfat_mounted_image(self):
     if not exists(VFAT_HELPER):
         self.skipTest("mount helper not installed")
@@ -157,6 +153,14 @@ class BaseTestCase(object):
 
     attrs = set()
     use_cpu = None
+
+    @staticmethod
+    def mkstring(length):
+        return ''.join(random.choice(string.hexdigits) for x in range(length))
+
+    @staticmethod
+    def utcnow():
+        return datetime.now(timezone.utc)
 
     @classmethod
     def setUpClass(cls):
@@ -346,9 +350,6 @@ class BaseTestCase(object):
         return '%s.%s.%s' % (pname, *myid)
 
 # helpers
-
-    def utcnow(self):
-        return datetime.now(timezone.utc)
 
     def mkcom_with_ia16(self, fname, content, dname=None, extraargs=None):
         if dname is None:
@@ -787,10 +788,10 @@ class MyTestResult(unittest.TextTestResult):
             for l in msgLines:
                 lf = l.encode('utf-8').decode('unicode_escape')
                 if self.with_color_terminal:
-                    lf = lf.replace("FAIL:", f"{RED}FAIL{RESET}:")
-                    lf = lf.replace("PASS:", f"{GREEN}PASS{RESET}:")
-                    lf = lf.replace("OKAY:", f"{YELLOW}OKAY{RESET}:")
-                    lf = lf.replace("INFO:", f"{LIGHT_BLUE}INFO{RESET}:")
+                    lf = re.sub(r'(?m)^FAIL:', f"{RED}FAIL{RESET}:", lf)
+                    lf = re.sub(r'(?m)^PASS:', f"{GREEN}PASS{RESET}:", lf)
+                    lf = re.sub(r'(?m)^OKAY:', f"{YELLOW}OKAY{RESET}:", lf)
+                    lf = re.sub(r'(?m)^INFO:', f"{LIGHT_BLUE}INFO{RESET}:", lf)
                 n += [ lf, ]
             msgLines = n
 
