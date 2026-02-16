@@ -787,10 +787,10 @@ class MyTestResult(unittest.TextTestResult):
             for l in msgLines:
                 lf = l.encode('utf-8').decode('unicode_escape')
                 if self.with_color_terminal:
-                    lf = lf.replace("FAIL:", f"{RED}FAIL{RESET}:")
-                    lf = lf.replace("PASS:", f"{GREEN}PASS{RESET}:")
-                    lf = lf.replace("OKAY:", f"{YELLOW}OKAY{RESET}:")
-                    lf = lf.replace("INFO:", f"{LIGHT_BLUE}INFO{RESET}:")
+                    lf = re.sub(r'(?m)^FAIL:', f"{RED}FAIL{RESET}:", lf)
+                    lf = re.sub(r'(?m)^PASS:', f"{GREEN}PASS{RESET}:", lf)
+                    lf = re.sub(r'(?m)^OKAY:', f"{YELLOW}OKAY{RESET}:", lf)
+                    lf = re.sub(r'(?m)^INFO:', f"{LIGHT_BLUE}INFO{RESET}:", lf)
                 n += [ lf, ]
             msgLines = n
 
