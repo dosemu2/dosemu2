@@ -609,7 +609,7 @@ class BaseTestCase(object):
                 prompt = r'(system -e|unix -e|' + IPROMPT + ')'
                 child.expect([prompt + '[\r\n]*'], timeout=40)
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
-                child.send(cmd + '\r\n')
+                child.send(cmd + '\n')
                 for resp in interactions:
                     child.expect(resp[0])
                     child.send(resp[1])
