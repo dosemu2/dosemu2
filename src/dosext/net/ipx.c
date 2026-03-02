@@ -78,17 +78,23 @@ static void ipx_int7a_thr(void *arg)
   do_int7a();
 }
 
+static int set_def_ops(void)
+{
+#ifdef IPX
+  iops = &native_ipx_ops;
+  return 0;
+#else
+  error("IPX unavailable\n");
+  return -1;
+#endif
+}
+
 static void ipx_call(uint16_t idx, HLT_ARG(arg))
 {
   fake_retf();
-  if (!iops) {
-#ifdef IPX
-    iops = &native_ipx_ops;
-#else
-    error("IPX unavailable\n");
+  if (!iops && set_def_ops() == -1) {
     CARRY;
     return;
-#endif
   }
   coopth_start(int7a_tid, NULL);
 }
@@ -782,6 +788,10 @@ static enum VirqHwRet ipx_receive(void *arg)
 
 int ipx_int7a(void)
 {
+  if (!iops && set_def_ops() == -1) {
+    CARRY;
+    return 0;
+  }
   do_int7a();
   return 1;
 }
