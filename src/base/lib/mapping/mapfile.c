@@ -51,7 +51,11 @@ static struct file_mapping {
 } file_mappings[MAX_FILE_MAPPINGS];
 
 typedef int (*open_cb_t)(void);
-static open_cb_t open_cb;
+struct mfops_s {
+  open_cb_t open;
+};
+
+static struct mfops_s *mfops;
 
 static struct file_mapping *find_file_mapping(unsigned char *target)
 {
@@ -112,6 +116,10 @@ static int do_open_file(void)
   return fd;
 }
 
+static struct mfops_s file_mfops = {
+  .open = do_open_file,
+};
+
 static int open_mapping_file(int cap)
 {
   if (cap == MAPPING_PROBE) {
@@ -120,7 +128,7 @@ static int open_mapping_file(int cap)
     if (fd == -1)
       return 0;
     close(fd);
-    open_cb = o;
+    mfops = &file_mfops;
   }
   return 1;
 }
@@ -144,6 +152,10 @@ static int do_open_pshm(void)
   return fd;
 }
 
+static struct mfops_s pshm_mfops = {
+  .open = do_open_pshm,
+};
+
 static int open_mapping_pshm(int cap)
 {
   if (cap == MAPPING_PROBE) {
@@ -152,7 +164,7 @@ static int open_mapping_pshm(int cap)
     if (fd == -1)
       return 0;
     close(fd);
-    open_cb = o;
+    mfops = &pshm_mfops;
   }
   return 1;
 }
@@ -173,6 +185,10 @@ static int do_open_mshm(void)
   return fd;
 }
 
+static struct mfops_s mshm_mfops = {
+  .open = do_open_mshm,
+};
+
 static int open_mapping_mshm(int cap)
 {
   if (cap == MAPPING_PROBE) {
@@ -181,7 +197,7 @@ static int open_mapping_mshm(int cap)
     if (fd == -1)
       return 0;
     close(fd);
-    open_cb = o;
+    mfops = &mshm_mfops;
   }
   return 1;
 }
@@ -219,7 +235,7 @@ static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
     if (p->size == 0)
       break;
   assert(i < MAX_FILE_MAPPINGS);
-  fd = open_cb();
+  fd = mfops->open();
   if (fd < 0) {
     error("mapping: open() failed\n");
     return MAP_FAILED;
