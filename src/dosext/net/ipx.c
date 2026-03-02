@@ -63,7 +63,7 @@ static void do_int7a(void);
 static enum VirqHwRet ipx_receive(void *arg);
 static enum VirqHwRet IPXCheckForAESReady(void *arg);
 static const struct ipx_ops *iops;
-#define MyAddress iops->GetMyAddress()
+static const unsigned char *MyAddress(void) { return iops->GetMyAddress(); }
 
 int ipx_register_ops(const struct ipx_ops *ops)
 {
@@ -449,7 +449,7 @@ static u_char IPXSendPacket(far_t ECBPtr)
   /* first field is an IPX convention, not really a checksum */
   IPXHeader->Checksum = 0xffff;
   IPXHeader->Length = htons(dataLen);	/* in network order */
-  memcpy(&IPXHeader->Source, MyAddress, 10);
+  memcpy(&IPXHeader->Source, MyAddress(), 10);
   memcpy(&IPXHeader->Source.Socket, &ECBp->ECBSocket, 2);
   printIPXHeader(IPXHeader);
   mysock = ipx_find_socket(ECBp->ECBSocket);
@@ -818,7 +818,7 @@ static void do_int7a(void)
     /* the ECB ImmediateAddress is never used, so just return */
     network = READ_DWORD(SEGOFF2LINEAR(SREG(es), LWORD(esi)));
     n_printf("IPX: GetLocalTarget for network %08lx\n", network );
-    if( network==0 || memcmp(&network, MyAddress, 4) == 0 ) {
+    if( network==0 || memcmp(&network, MyAddress(), 4) == 0 ) {
       n_printf("IPX: returning GLT success for local address\n");
       LO(ax) = RCODE_SUCCESS;
       LWORD(ecx) = 1;
@@ -894,7 +894,7 @@ static void do_int7a(void)
   case IPX_GET_INTERNETWORK_ADDRESS:
     n_printf("IPX: get internetwork address\n");
     AddrPtr = SEG_ADR((u_char *), es, si);
-    memcpy(AddrPtr, MyAddress, 10);
+    memcpy(AddrPtr, MyAddress(), 10);
     break;
   case IPX_RELINQUISH_CONTROL:
     n_printf("IPX: relinquish control\n");
