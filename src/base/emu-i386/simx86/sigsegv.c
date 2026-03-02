@@ -207,8 +207,7 @@ static int e_vgaemu_fault(sigcontext_t *scp, dosaddr_t cr2)
   }
 
   if (i == VGAEMU_MAX_MAPPINGS) {
-    if (cr2 >= vga.mem.graph_base && cr2 - vga.mem.graph_base <
-        vga.mem.graph_size) {	/* unmapped VGA area */
+    if (vga_write_access(cr2)) {	/* unmapped VGA area */
       u = jitx86_instr_len((unsigned char *)_scp_rip);
       _scp_rip += u;
       if (u==0) {
