@@ -115,7 +115,7 @@ static void do_raw_getkeys(int fd, void *arg)
 	break;
   }
   k_printf("KBD(raw): do_raw_getkeys() found %d characters (Raw)\n", count);
-  buf[count] = 0;
+  buf[count] = '\0';
   if (config.console_keyb == KEYB_RAW) {
     for (i = 0; i < count; i++) {
       k_printf("KBD(raw): readcode: %02x \n", buf[i]);
