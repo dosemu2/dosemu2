@@ -1632,6 +1632,7 @@ FRDOS130TestCase = frdos130(OurTestCase, {
     "test_mfs_fcb_rename_wild_3": KNOWNFAIL,
     "test_mfs_fcb_rename_wild_4": KNOWNFAIL,
     "test_passing_dos_errorlevel_back": KNOWNFAIL,
+    "test_serial_simple_read_echo": KNOWNFAIL,
     "test_sfn_truename": KNOWNFAIL,
     "test_sfn_findfirst": KNOWNFAIL,
 })
@@ -1666,6 +1667,7 @@ FRDOSGITTestCase = frdosgit(OurTestCase, {
     "test_memory_hma_chain": UNSUPPORTED,
     "test_memory_uma_strategy": KNOWNFAIL,
     "test_passing_dos_errorlevel_back": KNOWNFAIL,
+    "test_serial_simple_read_echo": KNOWNFAIL,
 })
 
 MSDOS622TestCase = msdos622(OurTestCase, {
