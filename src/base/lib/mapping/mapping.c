@@ -70,6 +70,7 @@ struct hardware_ram {
   int type;
   struct aliasmap_s *aliasmap;
   struct hardware_ram *next;
+  void *shm;
 };
 
 #ifdef __linux__
@@ -692,7 +693,7 @@ char *decode_mapping_cap(int cap)
     if (cap & MAPPING_VGAEMU) p += sprintf(p, " VGAEMU");
     if (cap & MAPPING_VIDEO) p += sprintf(p, " VIDEO");
     if (cap & MAPPING_VC) p += sprintf(p, " VC");
-    if (cap & MAPPING_HGC) p += sprintf(p, " HGC");
+    if (cap & MAPPING_SHM) p += sprintf(p, " SHM");
     if (cap & MAPPING_HMA) p += sprintf(p, " HMA");
     if (cap & MAPPING_SHARED) p += sprintf(p, " SHARED");
     if (cap & MAPPING_INIT_HWRAM) p += sprintf(p, " INIT_HWRAM");
@@ -991,6 +992,7 @@ static int do_register_hwram(int type, unsigned base, unsigned size,
   hw->size = size;
   hw->type = type;
   hw->aliasmap = alloc_aliasmap(size);
+  hw->shm = NULL;
   hw->next = hardware_ram;
   hardware_ram = hw;
   if (base >= LOWMEM_SIZE || type == 'h')
@@ -1042,7 +1044,9 @@ int unregister_hardware_ram_virtual(unsigned base)
       else
         hardware_ram = hw->next;
       if (hw->base + hw->size > ALIAS_SIZE)
-	free(hw->aliasmap);
+        free(hw->aliasmap);
+      if (hw->shm)
+        mappingdriver->detach(hw->shm);
       free(hw);
       return 0;
     }
@@ -1303,6 +1307,8 @@ int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
   }
   hwram_update_aliasmap(hw, addr, mapsize, source);
   hwram_mprotect_aliasmap(hw, addr, mapsize, protect);
+  if (cap & MAPPING_SHM)
+    hw->shm = source;
   return 0;
 }
 
@@ -1378,23 +1384,18 @@ static int madvise_mapping(dosaddr_t targ, size_t length, int flags)
 }
 #endif
 
-void *mmap_shm_mapping(dosaddr_t targ, size_t length, int prot, int fd)
+void *mmap_shm_mapping(unsigned targ, size_t length, int prot, int fd)
 {
-  int i, err;
+  int err;
   void *addr, *ret;
   int flags = MAP_SHARED | MAP_FIXED;
 
-  for (i = 0; i < MAX_BASES; i++) {
-    int prot2 = prot;
-    addr = MEM_BASE32x(targ, i);
-    if (addr == MAP_FAILED)
-      continue;
-    if (mem_bases[i].nx)
-      prot2 &= ~PROT_EXEC;
-    ret = mmap(addr, length, prot2, flags, fd, 0);
-    if (ret != addr)
-      return MAP_FAILED;
-  }
+  ret = mappingdriver->attach(fd, length, prot);
+  if (ret == MAP_FAILED)
+    return MAP_FAILED;
+  err = alias_mapping_pa(MAPPING_SHM, targ, length, prot, ret);
+  if (err)
+    return MAP_FAILED;
   addr = MEM_BASE32(targ);
   if ((unsigned char *)addr < mem_bases[MEM_BASE].base ||
       (unsigned char *)addr + length > mem_bases[MEM_BASE].base +

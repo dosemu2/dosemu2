@@ -64,7 +64,7 @@
 #define MAPPING_VGAEMU		0x000008
 #define MAPPING_VIDEO		0x000010
 #define MAPPING_VC		MAPPING_VIDEO
-#define MAPPING_HGC		0x000020
+#define MAPPING_SHM		0x000020
 #define MAPPING_HMA		0x000040
 #define MAPPING_SHARED		0x000080
 #define MAPPING_INIT_HWRAM	0x000100
@@ -115,7 +115,7 @@ int restore_mapping_pa(unsigned int addr, size_t mapsize);
 int mcommit_mapping(dosaddr_t targ, size_t size);
 int mcommit(void *addr, size_t size);
 /* below wrapper is needed only for remoting the mapping subsystem */
-void *mmap_shm_mapping(dosaddr_t targ, size_t length, int prot, int fd);
+void *mmap_shm_mapping(unsigned targ, size_t length, int prot, int fd);
 int mapping_is_mapped(void *addr);
 int mapping_is_mapped_pa(unsigned int addr, int mapsize);
 
@@ -135,6 +135,8 @@ void mapping_register_hook(const struct mapping_hook *hook);
 typedef int open_mapping_type(int cap);
 typedef void close_mapping_type(int cap);
 typedef void *alloc_mapping_type(int cap, size_t mapsize, void *target);
+typedef void *attach_mapping_type(int fd, size_t mapsize, int prot);
+typedef void detach_mapping_type(void *target);
 typedef void free_mapping_type(int cap, void *addr, size_t mapsize);
 typedef void *resize_mapping_type(int cap, void *addr, size_t oldsize, size_t newsize);
 typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int protect, void *source);
@@ -148,6 +150,8 @@ struct mappingdrivers {
   free_mapping_type *free;
   resize_mapping_type *resize;
   alias_mapping_type *alias;
+  attach_mapping_type *attach;
+  detach_mapping_type *detach;
 };
 char *decode_mapping_cap(int cap);
 
