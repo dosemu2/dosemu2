@@ -51,7 +51,11 @@ static struct file_mapping {
 } file_mappings[MAX_FILE_MAPPINGS];
 
 typedef int (*open_cb_t)(void);
-static open_cb_t open_cb;
+struct mfops_s {
+  open_cb_t open;
+};
+
+static struct mfops_s *mfops;
 
 static struct file_mapping *find_file_mapping(unsigned char *target)
 {
@@ -112,6 +116,10 @@ static int do_open_file(void)
   return fd;
 }
 
+static struct mfops_s file_mfops = {
+  .open = do_open_file,
+};
+
 static int open_mapping_file(int cap)
 {
   if (cap == MAPPING_PROBE) {
@@ -120,7 +128,7 @@ static int open_mapping_file(int cap)
     if (fd == -1)
       return 0;
     close(fd);
-    open_cb = o;
+    mfops = &file_mfops;
   }
   return 1;
 }
@@ -144,6 +152,10 @@ static int do_open_pshm(void)
   return fd;
 }
 
+static struct mfops_s pshm_mfops = {
+  .open = do_open_pshm,
+};
+
 static int open_mapping_pshm(int cap)
 {
   if (cap == MAPPING_PROBE) {
@@ -152,7 +164,7 @@ static int open_mapping_pshm(int cap)
     if (fd == -1)
       return 0;
     close(fd);
-    open_cb = o;
+    mfops = &pshm_mfops;
   }
   return 1;
 }
@@ -173,6 +185,10 @@ static int do_open_mshm(void)
   return fd;
 }
 
+static struct mfops_s mshm_mfops = {
+  .open = do_open_mshm,
+};
+
 static int open_mapping_mshm(int cap)
 {
   if (cap == MAPPING_PROBE) {
@@ -181,7 +197,7 @@ static int open_mapping_mshm(int cap)
     if (fd == -1)
       return 0;
     close(fd);
-    open_cb = o;
+    mfops = &mshm_mfops;
   }
   return 1;
 }
@@ -208,25 +224,17 @@ static void close_mapping_file(int cap)
   }
 }
 
-static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
+static void *alloc_tail(int fd, size_t mapsize, int prot, void *target)
 {
-  int i, fixed = 0, prot = PROT_READ | PROT_WRITE;
+  int i, fixed = 0;
   struct file_mapping *p;
-  int fd, rc;
+  int rc = ftruncate(fd, mapsize);
+  assert(rc != -1);
 
-  Q__printf("MAPPING: alloc, cap=%s, mapsize=%zx\n", cap, mapsize);
   for (i = 0, p = file_mappings; i < MAX_FILE_MAPPINGS; i++, p++)
     if (p->size == 0)
       break;
   assert(i < MAX_FILE_MAPPINGS);
-  fd = open_cb();
-  if (fd < 0) {
-    error("mapping: open() failed\n");
-    return MAP_FAILED;
-  }
-  rc = ftruncate(fd, mapsize);
-  assert(rc != -1);
-
   if (target != (void *)-1)
     fixed = MAP_FIXED;
   else
@@ -242,6 +250,33 @@ static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
   p->fd = fd;
   p->prot = prot;
   return target;
+}
+
+static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
+{
+  int prot = PROT_READ | PROT_WRITE;
+  int fd;
+
+  Q__printf("MAPPING: alloc, cap=%s, mapsize=%zx\n", cap, mapsize);
+  fd = mfops->open();
+  if (fd < 0) {
+    error("mapping: open() failed\n");
+    return MAP_FAILED;
+  }
+  return alloc_tail(fd, mapsize, prot, target);
+}
+
+static void *attach_mapping_file(int fd, size_t mapsize, int prot)
+{
+  return alloc_tail(fd, mapsize, prot, (void *)-1);
+}
+
+static void detach_mapping_file(void *target)
+{
+  struct file_mapping *p = find_file_mapping(target);
+
+  munmap(p->addr, p->size);
+  p->size = 0;
 }
 
 static void free_mapping_file(int cap, void *addr, size_t mapsize)
@@ -307,7 +342,9 @@ struct mappingdrivers mappingdriver_shm = {
   alloc_mapping_file,
   free_mapping_file,
   resize_mapping_file,
-  alias_mapping_file
+  alias_mapping_file,
+  attach_mapping_file,
+  detach_mapping_file,
 };
 #endif
 
@@ -321,7 +358,9 @@ struct mappingdrivers mappingdriver_mshm = {
   alloc_mapping_file,
   free_mapping_file,
   resize_mapping_file,
-  alias_mapping_file
+  alias_mapping_file,
+  attach_mapping_file,
+  detach_mapping_file,
 };
 #endif
 #endif
@@ -334,5 +373,7 @@ struct mappingdrivers mappingdriver_file = {
   alloc_mapping_file,
   free_mapping_file,
   resize_mapping_file,
-  alias_mapping_file
+  alias_mapping_file,
+  attach_mapping_file,
+  detach_mapping_file,
 };
