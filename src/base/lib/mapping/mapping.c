@@ -1028,9 +1028,12 @@ void register_hardware_ram_virtual2(int type, unsigned base, unsigned int size,
 void register_hardware_ram_virtual(int type, unsigned base, unsigned int size,
 	dosaddr_t va)
 {
-  void *uaddr = base < mem_bases[KVM_BASE].size ?
+  void *kuaddr = NULL;
+
+  if (config.cpu_vm_dpmi == CPUVM_KVM || config.cpu_vm == CPUVM_KVM)
+    kuaddr = base < mem_bases[KVM_BASE].size ?
 	MEM_BASE32x(base, KVM_BASE) : MEM_BASE32(va);
-  register_hardware_ram_virtual2(type, base, size, uaddr, va);
+  register_hardware_ram_virtual2(type, base, size, kuaddr, va);
 }
 
 int unregister_hardware_ram_virtual(unsigned base)
