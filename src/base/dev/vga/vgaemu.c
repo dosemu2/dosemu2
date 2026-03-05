@@ -1602,6 +1602,7 @@ static int vga_emu_post_init(void);
 int vga_emu_pre_init(void)
 {
   int i;
+  void *base;
   vga_mapping_type vmt = {0, 0, 0};
 
   if (config.dumb_video) {
@@ -1633,8 +1634,8 @@ int vga_emu_pre_init(void)
   vga.mem.size = (vga.mem.size + ((1 << 18) - 1)) & ~((1 << 18) - 1);
   vga.mem.pages = vga.mem.size / HOST_PAGE_SIZE;
 
-  vga.mem.base = alloc_mapping_huge_page_aligned(MAPPING_VGAEMU, vga.mem.size);
-  if(vga.mem.base == MAP_FAILED) {
+  base = smalloc_aligned_topdown(&main_pool, NULL, HOST_PAGE_SIZE, vga.mem.size);
+  if(!base) {
     error("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     config.exitearly = 1;
     return 1;
@@ -1683,29 +1684,22 @@ int vga_emu_pre_init(void)
     }
   }
 
-  vga.mem.lfb_base = 0;
-  if (config.X_lfb && config.dpmi) {
-    void *addr = smalloc_aligned_topdown(&main_pool, NULL, HOST_PAGE_SIZE, vga.mem.size);
-    if (addr) {
-      vga.mem.lfb_base = DOSADDR_REL(addr);
-      memcheck_addtype('e', "VGAEMU LFB");
-      register_hardware_ram_virtual2('e', VGAEMU_PHYS_LFB_BASE, vga.mem.size,
-				     vga.mem.base, vga.mem.lfb_base);
-      vga.mem.lfb_base_page = vga.mem.lfb_base / HOST_PAGE_SIZE;
-      vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page = vga.mem.lfb_base_page;
-      vga.mem.map[VGAEMU_MAP_LFB_MODE].pages = vga.mem.pages;
-      if (alias_mapping_pa(MAPPING_VGAEMU, VGAEMU_PHYS_LFB_BASE,
-			    vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base) == -1)
-	addr = NULL;
-    }
-    if (addr && config.cpu_vm_dpmi == CPUVM_KVM)
-	kvm_set_dirty_log(VGAEMU_PHYS_LFB_BASE, vga.mem.size);
-    if(addr == NULL || addr == MAP_FAILED) {
-      error("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
-      config.exitearly = 1;
-      return 1;
-    }
+  vga.mem.lfb_base = DOSADDR_REL(base);
+  vga.mem.base = dosaddr_to_unixaddr(vga.mem.lfb_base);
+  memcheck_addtype('e', "VGAEMU LFB");
+  register_hardware_ram_virtual2('e', VGAEMU_PHYS_LFB_BASE, vga.mem.size,
+				    vga.mem.base, vga.mem.lfb_base);
+  vga.mem.lfb_base_page = vga.mem.lfb_base / HOST_PAGE_SIZE;
+  vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page = vga.mem.lfb_base_page;
+  vga.mem.map[VGAEMU_MAP_LFB_MODE].pages = vga.mem.pages;
+  if (alias_mapping_pa(MAPPING_VGAEMU, VGAEMU_PHYS_LFB_BASE,
+			    vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base) == -1) {
+    error("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
+    config.exitearly = 1;
+    return 1;
   }
+  if (config.cpu_vm_dpmi == CPUVM_KVM)
+    kvm_set_dirty_log(VGAEMU_PHYS_LFB_BASE, vga.mem.size);
 
   if(vga.mem.lfb_base == 0) {
     vga_msg("vga_emu_init: linear frame buffer (lfb) disabled\n");
