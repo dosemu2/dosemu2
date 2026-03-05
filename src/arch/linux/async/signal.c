@@ -364,6 +364,23 @@ static void minfault(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;
   sigcontext_t *scp = &uct->uc_mcontext;
+  pthread_t tid = pthread_self();
+
+  if (!pthread_equal(tid, dosemu_pthread_self)) {
+    signal(sig, SIG_DFL);
+
+#if defined(HAVE_PTHREAD_GETNAME_NP) && defined(__GLIBC__)
+    char name[128];
+    pthread_getname_np(tid, name, sizeof(name));
+    dosemu_error("Sync signal %i from thread %s\n", sig, name);
+#else
+    dosemu_error("Sync signal %i from thread\n", sig);
+#endif
+
+    siginfo_debug(si);
+    leavedos_from_sig(sig);
+    return;
+  }
   handle_fault(sig, si, scp);
 }
 

@@ -1009,8 +1009,8 @@ int register_hardware_ram(int type, unsigned base, unsigned int size)
   return do_register_hwram(type, base, size, -1);
 }
 
-void register_hardware_ram_virtual2(int type, unsigned base, unsigned int size,
-	void *uaddr, dosaddr_t va)
+static void register_hardware_ram_virtual2(int type, unsigned base,
+	unsigned int size, void *uaddr, dosaddr_t va)
 {
   do_register_hwram(type, base, size, va);
   if (config.cpu_vm_dpmi == CPUVM_KVM ||
@@ -1312,6 +1312,13 @@ int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
   hwram_mprotect_aliasmap(hw, addr, mapsize, protect);
   if (cap & MAPPING_SHM)
     hw->shm = source;
+  if ((cap & MAPPING_INIT_LOWRAM) && (config.cpu_vm_dpmi == CPUVM_KVM ||
+      (config.cpu_vm == CPUVM_KVM && addr + mapsize <= LOWMEM_SIZE + HMASIZE))) {
+    int prot = KVM_PROT_RWX;
+    if (addr + mapsize > ALIAS_SIZE)
+      cap |= MAPPING_EXTMEM;
+    mmap_kvm(cap, addr, mapsize, source, va, prot);
+  }
   return 0;
 }
 
