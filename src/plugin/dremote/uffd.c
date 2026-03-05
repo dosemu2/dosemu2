@@ -119,7 +119,7 @@ static void uffd_async(int fd, void *arg)
     j = page_fault - vga.mem.map[i].base_page;
     if (j >= 0 && j < vga.mem.map[i].pages) {
         int vga_page = j + vga.mem.map[i].first_page;
-        vga_emu_adjust_protection(vga_page, VGA_PROT_RW, 1, 0);
+        vga_emu_adjust_protection(vga_page, VGA_PROT_RW, VGA_PROT_RW, 1, 0);
     }
 }
 

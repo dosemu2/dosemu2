@@ -190,7 +190,9 @@
 #define RW	VGA_PROT_RW
 #define RO	VGA_PROT_RO
 #define NONE	VGA_PROT_NONE
-#define DEF_PROT (vga.inst_emu==EMU_ALL_INST ? NONE : RO)
+#define DEF_PROT_BANK (vga.inst_emu==EMU_ALL_INST ? NONE : RO)
+#define DEF_PROT_LFB (RO)
+#define DEF_PROT (int[]){DEF_PROT_BANK,DEF_PROT_LFB}
 
 /*
  * We add PROT_EXEC just because pages should be executable. Of course
@@ -288,10 +290,10 @@
  * functions local to this file
  */
 
-static int vga_emu_protect(unsigned, int, int);
+static int vga_emu_protect(unsigned, int[VGAEMU_MAX_MAPPINGS], int);
 static int vga_emu_map(unsigned, unsigned);
 static int _vga_emu_adjust_protection(unsigned page,
-	int prot, int dirty, int instremu);
+	int prot[VGAEMU_MAX_MAPPINGS], int dirty, int instremu);
 static void _vgaemu_dirty_page(int page, int dirty);
 #if 0
 static int vgaemu_unmap(unsigned);
@@ -1157,7 +1159,7 @@ int vga_emu_fault(dosaddr_t lin_addr, unsigned err, cpuctx_t *scp)
   if(vga_page < vga.mem.pages) {
     if(!vga.inst_emu) {
       /* Normal: make the display page writeable then mark it dirty */
-      vga_emu_adjust_protection(vga_page, RW, 1, 0);
+      vga_emu_adjust_protection(vga_page, RW, RW, 1, 0);
     }
     if(vga.inst_emu) {
 #if 1
@@ -1212,6 +1214,7 @@ int vga_emu_protect_page(unsigned page, int prot, int instremu)
     page >= vga.mem.lfb_base_page &&
     page < vga.mem.lfb_base_page + vga.mem.pages) {
     dosaddr_t p;
+    assert(sys_prot != VGA_EMU_NONE_PROT);
     p = vga.mem.lfb_base + ((page - vga.mem.lfb_base_page) * HOST_PAGE_SIZE);
     if (instremu)
       i = mprotect_mapping(MAPPING_VGAEMU, p, 1 * HOST_PAGE_SIZE, sys_prot);
@@ -1242,7 +1245,8 @@ int vga_emu_protect_page(unsigned page, int prot, int instremu)
  * Change protection of a VGA memory page in all mappings.
  */
 
-static int vga_emu_protect(unsigned page, int prot, int instremu)
+static int vga_emu_protect(unsigned page, int prot[VGAEMU_MAX_MAPPINGS],
+    int instremu)
 {
   int i, j = 0, err = 0;
 
@@ -1258,10 +1262,10 @@ static int vga_emu_protect(unsigned page, int prot, int instremu)
     if (vga.mem.map[i].pages) {
       j = page - vga.mem.map[i].first_page;
       if(j >= 0 && j < vga.mem.map[i].pages) {
-        err = vga_emu_protect_page(vga.mem.map[i].base_page + j, prot, instremu);
+        err = vga_emu_protect_page(vga.mem.map[i].base_page + j, prot[i], instremu);
         vga_deb2_map(
           "vga_emu_protect: error = %d, region = %d, page = 0x%x --> map_addr = 0x%x, prot = %s\n",
-          err, i, page, vga.mem.map[i].base_page + j, prot == RW ? "RW" : prot == RO ? "RO" : "NONE"
+          err, i, page, vga.mem.map[i].base_page + j, prot[0] == RW ? "RW" : prot[0] == RO ? "RO" : "NONE"
         );
       }
     }
@@ -1286,7 +1290,7 @@ static int vga_emu_protect(unsigned page, int prot, int instremu)
  */
 
 static int _vga_emu_adjust_protection(const unsigned page,
-	int prot, int dirty, int instremu)
+	int prot[VGAEMU_MAX_MAPPINGS], int dirty, int instremu)
 {
   int err;
   unsigned page1 = page;
@@ -1351,11 +1355,11 @@ static int _vga_emu_adjust_protection(const unsigned page,
 }
 
 int vga_emu_adjust_protection(unsigned page,
-	int prot, int dirty, int instremu)
+	int prot1, int prot2, int dirty, int instremu)
 {
   int ret;
   vga_emu_prot_lock();
-  ret = _vga_emu_adjust_protection(page, prot, dirty, instremu);
+  ret = _vga_emu_adjust_protection(page, (int[]){prot1, prot2}, dirty, instremu);
   vga_emu_prot_unlock();
   return ret;
 }
@@ -1463,7 +1467,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
     /* need to fix up protection for clean pages */
     if(vga.mode_class == GRAPH && !vga.mem.dirty_map[vmt->first_page + u] &&
 	    prot == VGA_EMU_RW_PROT)
-      _vga_emu_adjust_protection(vmt->first_page + u, VGA_PROT_RO, 0, 0);
+      _vga_emu_adjust_protection(vmt->first_page + u, (int[]){VGA_PROT_RO, VGA_PROT_RO}, 0, 0);
   }
   pthread_mutex_unlock(&prot_mtx);
 
@@ -2759,7 +2763,7 @@ static void vgaemu_adjust_instremu(int value)
       /* protect entire LFB to avoid the update thread reprotecting it */
       for (i = 0; i < vga.mem.map[VGAEMU_MAP_LFB_MODE].pages; i++)
 	vga_emu_protect_page(vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page + i,
-		DEF_PROT, 1);
+		DEF_PROT_LFB, 1);
       /* In text mode base_page is set to 0xb8, but we need to protect
        * 0xa0 (graph_base) in any case, so do that by hands. */
       for (i = 0; i < vga.mem.graph_size >> PAGE_SHIFT; i++)
