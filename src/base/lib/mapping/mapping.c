@@ -579,6 +579,9 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 	cap, targ, mapsize, protect);
   invalidate_unprotected_page_cache(targ, mapsize);
   if (cap & MAPPING_CPUEMU) {
+    /* no need to mprotect with fullsim */
+    if (EMU_FULLSIM())
+      return 0;
     /* for cpuemu only mprotect JIT_BASE */
     ret = mprotect(MEM_BASE32x(targ, JIT_BASE), mapsize, protect);
     if (ret)

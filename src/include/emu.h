@@ -154,7 +154,8 @@ typedef struct config_info {
        uint64_t boot_dos;
 
 #ifdef X86_EMULATOR
-       #define EMU_FULL() (EMU_V86() && EMU_DPMI())
+       #define EMU_FULL() (config.cpu_vm == CPUVM_EMU && config.cpu_vm_dpmi == CPUVM_EMU)
+       #define EMU_FULLSIM() (EMU_FULL() && config.cpusim)
        #define IS_EMU() (EMU_V86() || EMU_DPMI())
        boolean cpusim;
 #endif
