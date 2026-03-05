@@ -1687,12 +1687,12 @@ int vga_emu_pre_init(void)
   vga.mem.lfb_base = DOSADDR_REL(base);
   vga.mem.base = dosaddr_to_unixaddr(vga.mem.lfb_base);
   memcheck_addtype('e', "VGAEMU LFB");
-  register_hardware_ram_virtual2('e', VGAEMU_PHYS_LFB_BASE, vga.mem.size,
-				    vga.mem.base, vga.mem.lfb_base);
+  register_hardware_ram_virtual('e', VGAEMU_PHYS_LFB_BASE, vga.mem.size,
+				    vga.mem.lfb_base);
   vga.mem.lfb_base_page = vga.mem.lfb_base / HOST_PAGE_SIZE;
   vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page = vga.mem.lfb_base_page;
   vga.mem.map[VGAEMU_MAP_LFB_MODE].pages = vga.mem.pages;
-  if (alias_mapping_pa(MAPPING_VGAEMU, VGAEMU_PHYS_LFB_BASE,
+  if (alias_mapping_pa(MAPPING_VGAEMU | MAPPING_INIT_LOWRAM, VGAEMU_PHYS_LFB_BASE,
 			    vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base) == -1) {
     error("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     config.exitearly = 1;
