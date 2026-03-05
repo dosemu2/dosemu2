@@ -413,17 +413,29 @@ void wri_32(dosaddr_t addr, Bit32u value, unsigned char *rip)
 
 Bit8u read_8(dosaddr_t addr)
 {
-	return vga_read_access(addr) ? vga_read(addr) : READ_BYTE(addr);
+	Bit8u ret;
+	InCompiledCode--;
+	ret = vga_read_access(addr) ? vga_read(addr) : READ_BYTE(addr);
+	InCompiledCode++;
+	return ret;
 }
 
 Bit16u read_16(dosaddr_t addr)
 {
-	return vga_read_access(addr) ? vga_read_word(addr) : READ_WORD(addr);
+	Bit16u ret;
+	InCompiledCode--;
+	ret = vga_read_access(addr) ? vga_read_word(addr) : READ_WORD(addr);
+	InCompiledCode++;
+	return ret;
 }
 
 Bit32u read_32(dosaddr_t addr)
 {
-	return vga_read_access(addr) ? vga_read_dword(addr) : READ_DWORD(addr);
+	Bit32u ret;
+	InCompiledCode--;
+	ret = vga_read_access(addr) ? vga_read_dword(addr) : READ_DWORD(addr);
+	InCompiledCode++;
+	return ret;
 }
 
 #ifdef __i386__
