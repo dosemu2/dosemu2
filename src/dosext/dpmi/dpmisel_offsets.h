@@ -7,6 +7,7 @@ extern const unsigned    DPMI_VXD_end;
 extern const unsigned    DPMI_return_from_RSPcall;
 extern const unsigned    DPMI_return_from_RSPcall_exit;
 extern const unsigned    DPMI_return_from_LDTcall;
+extern const unsigned    DPMI_return_from_LDTcall16;
 extern const unsigned    DPMI_return_from_LDTExitCall;
 extern const unsigned    DPMI_return_from_int_1c;
 extern const unsigned    DPMI_return_from_int_23;

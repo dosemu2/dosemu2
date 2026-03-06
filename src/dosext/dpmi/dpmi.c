@@ -192,6 +192,8 @@ static void make_retf_frame(cpuctx_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
 static void make_xretf_frame(cpuctx_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
+static void make_iret_frame(cpuctx_t *scp, void *sp,
+	uint32_t cs, uint32_t eip);
 static void do_pm_int(cpuctx_t *scp, int i);
 static void msdos_set_client(cpuctx_t *scp, int num);
 static int rsp_get_para(void);
@@ -2204,15 +2206,67 @@ static void _do_ldt_call(cpuctx_t *scp, ldt_calldesc call, int ent,
     _gs = 0;
 }
 
+static void dpmi_pusha(cpuctx_t *scp, void *sp, int is_32)
+{
+    if (is_32) {
+        unsigned int *ssp = sp;
+        *--ssp = _eax;
+        *--ssp = _ecx;
+        *--ssp = _edx;
+        *--ssp = _ebx;
+        *--ssp = _esp;
+        *--ssp = _ebp;
+        *--ssp = _esi;
+        *--ssp = _edi;
+        _esp -= 8*4;
+    } else {
+        unsigned short *ssp = sp;
+        *--ssp = _LWORD(eax);
+        *--ssp = _LWORD(ecx);
+        *--ssp = _LWORD(edx);
+        *--ssp = _LWORD(ebx);
+        *--ssp = _LWORD(esp);
+        *--ssp = _LWORD(ebp);
+        *--ssp = _LWORD(esi);
+        *--ssp = _LWORD(edi);
+        _LWORD(esp) -= 8*2;
+    }
+}
+
+static void dpmi_pushsr(cpuctx_t *scp, void *sp)
+{
+    if (DPMI_CLIENT.is_32) {
+        unsigned int *ssp = sp;
+        *--ssp = _ds;
+        *--ssp = _es;
+        *--ssp = _fs;
+        *--ssp = _gs;
+        _esp -= 4*4;
+    } else {
+        unsigned short *ssp = sp;
+        *--ssp = _LWORD(ds);
+        *--ssp = _LWORD(es);
+        *--ssp = _LWORD(fs);
+        *--ssp = _LWORD(gs);
+        _LWORD(esp) -= 4*2;
+    }
+}
+
 static void do_ldt_call(cpuctx_t *scp, ldt_calldesc call, int ent,
         int num, int cnt)
 {
     void *sp;
 
-    save_pm_regs(scp);
-    sp = enter_lpms(scp);
+    sp = SEL_ADR(_ss, _esp);
+    make_iret_frame(scp, sp, _cs, _eip);
+    sp = SEL_ADR(_ss, _esp);
+    dpmi_pushsr(scp, sp);
+    sp = SEL_ADR(_ss, _esp);
+    dpmi_pusha(scp, sp, 1);
+    sp = SEL_ADR(_ss, _esp);
     make_retf_frame(scp, sp, dpmi_sel(),
-            DPMI_SEL_OFF(DPMI_return_from_LDTcall));
+            DPMI_CLIENT.is_32 ? DPMI_SEL_OFF(DPMI_return_from_LDTcall) :
+            DPMI_SEL_OFF(DPMI_return_from_LDTcall16));
     _do_ldt_call(scp, call, ent, num);
     D_printf("DPMI: LDT call %i to %x:%x sel=%x,%i\n",
                     cnt, _cs, _eip, _ebx, _ecx);
@@ -5205,12 +5259,6 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  pm_to_rm_regs(scp, 1 << eax_INDEX);
 	  restore_pm_regs(scp);
 	  dpmi_set_pm(0);
-
-        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_LDTcall)) {
-	  D_printf("DPMI: Return from LDT call, in_dpmi_pm_stack=%i\n",
-	    DPMI_CLIENT.in_dpmi_pm_stack);
-	  leave_lpms(scp);
-	  restore_pm_regs(scp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_LDTExitCall)) {
 	  remove_xretf_frame(scp, sp);
