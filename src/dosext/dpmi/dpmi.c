@@ -5705,13 +5705,12 @@ static int dpmi_fault1(cpuctx_t *scp)
       if (!in_dpmi_pm())
         return ret;
       scp = &DPMI_CLIENT.stack_frame;  // update, could change
-      if (ldt_bitmap_cnt)
+      if (ldt_bitmap_cnt) {
         dpmi_ldt_call(scp);
-      lina = (unsigned char *) SEL_ADR(_cs, _eip);
-      sp = SEL_ADR(_ss, _esp);
-      if (*lina == 0xf4) {
-        D_printf("DPMI: more hlt to handle\n");
-        dpmi_gpf_simple(scp, lina, sp, &ret);
+        lina = (unsigned char *) SEL_ADR(_cs, _eip);
+        sp = SEL_ADR(_ss, _esp);
+        if (ret == DPMI_RET_CLIENT && *lina == 0xf4)
+          do_dpmi_hlt(scp, lina, sp);
       }
       return ret;
     }
