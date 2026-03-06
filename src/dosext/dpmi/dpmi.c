@@ -197,6 +197,7 @@ static void make_iret_frame(cpuctx_t *scp, void *sp,
 static void do_pm_int(cpuctx_t *scp, int i);
 static void msdos_set_client(cpuctx_t *scp, int num);
 static int rsp_get_para(void);
+static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp);
 
 static uint32_t ldt_bitmap[LDT_ENTRIES / 32];
 static int ldt_bitmap_cnt;
@@ -636,12 +637,28 @@ static int dpmi_control(void)
 {
     int ret;
     cpuctx_t *scp = &DPMI_CLIENT.stack_frame;
+    unsigned char *csp = (unsigned char *) SEL_ADR(_cs, _eip);
+    int hlt_cnt = 0;
 
     do {
 #ifdef USE_MHPDBG
       if (mhpdbg.active)
         mhp_debug(DBG_POLL, 0, 0);
 #endif
+      while (*csp == 0xf4) {
+        do_dpmi_hlt(scp, csp, SEL_ADR(_ss, _esp));
+        hlt_cnt++;
+        if (!in_dpmi_pm())
+          break;
+        scp = &DPMI_CLIENT.stack_frame;
+        csp = (unsigned char *) SEL_ADR(_cs, _eip);
+      }
+      if (hlt_cnt && debug_level('M') >= 5)
+        D_printf("DPMI: handled %i hlts\n", hlt_cnt);
+      if (!in_dpmi_pm()) {
+        ret = DPMI_RET_DOSEMU;
+        break;
+      }
       dpmi_pic_run(scp);
       if (!in_dpmi_pm()) {
         ret = DPMI_RET_DOSEMU;
