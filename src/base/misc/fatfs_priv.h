@@ -65,9 +65,6 @@ struct fatfs_s {
 
   unsigned char *boot_sec;
 
-  int fd;
-  unsigned fd_obj;
-
   int sys_found[MAX_SYS_IDX];
   struct sys_dsc sfiles[MAX_SYS_IDX];
 };

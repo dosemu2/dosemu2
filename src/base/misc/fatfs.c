@@ -280,9 +280,6 @@ void fatfs_init(struct disk *dp)
   f->obj = NULL;
   f->objs = f->alloc_objs = 0;
 
-  f->fd = -1;
-  f->fd_obj = 0;
-
   new_obj(f);			/* going to be our root dir object */
   if(f->obj == NULL) {
     fatfs_msg("init failed: no memory left\n");
@@ -1503,14 +1500,9 @@ int read_file(fatfs_t *f, unsigned oi, unsigned clu, unsigned pos,
   obj_t *o = f->obj + oi;
   char *s;
   off_t ofs;
+  int fd, rd;
 
-  if(f->fd_obj && oi != f->fd_obj) {
-     close(f->fd);
-     f->fd = -1;
-     f->fd_obj = 0;
-  }
-
-  fatfs_deb2("read_file: obj %u, cluster %u, sec %u%s\n", oi, clu, pos, f->fd_obj ? " (fd cached)" : "");
+  fatfs_deb2("read_file: obj %u, cluster %u, sec %u\n", oi, clu, pos);
 
   if(clu && o->start == 0) return -1;
   if(clu < o->start) return -1;
@@ -1525,19 +1517,18 @@ int read_file(fatfs_t *f, unsigned oi, unsigned clu, unsigned pos,
   s = o->full_name;
   fatfs_deb2("going to read 0x200 bytes from file \"%s\", ofs 0x%x \n", s, pos);
 
-  if(f->fd_obj == 0) {
-    if((f->fd = mfs_open_file(f->mfs_idx, s, O_RDONLY | O_CLOEXEC)) == -1) {
+  if ((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY | O_CLOEXEC)) == -1) {
       fatfs_deb("fatfs: open %s failed\n", s);
       return -1;
-    }
-    f->fd_obj = oi;
   }
 
-  if((ofs = lseek(f->fd, pos, SEEK_SET)) == -1) return -1;
+  if ((ofs = lseek(fd, pos, SEEK_SET)) == -1) return -1;
 
-  if(ofs != pos) return -1;
+  if (ofs != pos) { close(fd); return -1; }
 
-  if(read(f->fd, buf, 0x200) == -1) return -2;
+  rd = read(fd, buf, 0x200);
+  close(fd);
+  if (rd == -1) return -2;
 
   return 0;
 }
