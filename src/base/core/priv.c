@@ -348,7 +348,6 @@ static void start_landlock(void)
   };
   static const char *allow_files_rw[] = {
     "/dev/null",
-    "/dev/ptmx",
     NULL
   };
 

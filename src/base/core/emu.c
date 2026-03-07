@@ -372,8 +372,8 @@ int emulate(int argc, char **argv, char * const *envp)
 #ifdef USE_MHPDBG
     mhp_init();
 #endif
-    priv_drop_total();
     dos2tty_init();
+    priv_drop_total();
     init_all_DOS_tables();	/* longest init function! needs to be optimized */
     signal_init();              /* initialize sig's & sig handlers */
     if (config.exitearly) {
