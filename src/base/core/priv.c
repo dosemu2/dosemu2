@@ -331,17 +331,18 @@ static void start_landlock(void)
   int i;
   int err;
   const char **p;
+  /* most of the below is needed for exec'ed children, not for dosemu */
   static const char *allow_rw[] = {
     "/dev/shm",
     "/dev/pts",
     "/tmp",
-    "/var",
     "/run/lock",
     "/proc",
     NULL
   };
   static const char *allow_ro[] = {
     "/usr",
+    "/var",
     "/sys",
     "/etc",
     NULL
