@@ -332,7 +332,8 @@ static void start_landlock(void)
   int err;
   const char **p;
   static const char *allow_rw[] = {
-    "/dev",
+    "/dev/shm",
+    "/dev/pts",
     "/tmp",
     "/var",
     "/run",
@@ -343,6 +344,11 @@ static void start_landlock(void)
     "/usr",
     "/sys",
     "/etc",
+    NULL
+  };
+  static const char *allow_files_rw[] = {
+    "/dev/null",
+    "/dev/ptmx",
     NULL
   };
 
@@ -383,6 +389,14 @@ static void start_landlock(void)
     err = landlock_allow_fd(fd, 0);
     if (err) {
       error("landlock_allow_rw(%i) failed\n", fd);
+      leavedos(3);
+      return;
+    }
+  }
+  for (p = allow_files_rw; *p; p++) {
+    err = landlock_allow_file(*p, 0);
+    if (err) {
+      error("landlock_allow_rw(%s) failed\n", *p);
       leavedos(3);
       return;
     }
