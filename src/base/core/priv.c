@@ -336,7 +336,7 @@ static void start_landlock(void)
     "/dev/pts",
     "/tmp",
     "/var",
-    "/run",
+    "/run/lock",
     "/proc",
     NULL
   };
