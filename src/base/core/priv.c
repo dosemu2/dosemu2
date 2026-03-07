@@ -337,13 +337,11 @@ static void start_landlock(void)
     "/dev/pts",
     "/tmp",
     "/run/lock",
-    "/proc",
     NULL
   };
   static const char *allow_ro[] = {
     "/usr",
     "/var",
-    "/sys",
     "/etc",
     NULL
   };
