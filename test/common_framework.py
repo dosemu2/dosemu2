@@ -614,13 +614,13 @@ class BaseTestCase(object):
                     child.expect(resp[0])
                     child.send(resp[1])
                     if outfile is None:
-                        ret += child.before.decode('ASCII', 'replace')
+                        ret += child.before.decode('cp437', 'replace')
                 trms = ['rem end',]
                 if eofisok:
                     trms += [pexpect.EOF,]
                 child.expect(trms, timeout=timeout)
                 if outfile is None:
-                    ret += child.before.decode('ASCII', 'replace')
+                    ret += child.before.decode('cp437', 'replace')
                 else:
                     ret = outfile.read_text()
             except pexpect.TIMEOUT:
@@ -786,13 +786,12 @@ class MyTestResult(unittest.TextTestResult):
         if maxLineLen > 120:
             n = list()
             for l in msgLines:
-                lf = l.encode('utf-8').decode('unicode_escape')
                 if self.with_color_terminal:
-                    lf = re.sub(r'(?m)^FAIL:', f"{RED}FAIL{RESET}:", lf)
-                    lf = re.sub(r'(?m)^PASS:', f"{GREEN}PASS{RESET}:", lf)
-                    lf = re.sub(r'(?m)^OKAY:', f"{YELLOW}OKAY{RESET}:", lf)
-                    lf = re.sub(r'(?m)^INFO:', f"{LIGHT_BLUE}INFO{RESET}:", lf)
-                n += [ lf, ]
+                    l = re.sub(r'(?m)^FAIL:', f"{RED}FAIL{RESET}:", l)
+                    l = re.sub(r'(?m)^PASS:', f"{GREEN}PASS{RESET}:", l)
+                    l = re.sub(r'(?m)^OKAY:', f"{YELLOW}OKAY{RESET}:", l)
+                    l = re.sub(r'(?m)^INFO:', f"{LIGHT_BLUE}INFO{RESET}:", l)
+                n += [ l, ]
             msgLines = n
 
         # Stdout, Stderr
