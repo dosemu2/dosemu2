@@ -274,6 +274,11 @@ static void revect_helper(int stk_offs)
     case DOS_SUBHELPER_RVC_NEXT_VEC: {
 	int start = (ah == 0xff ? 0 : ah + 1);
 	int i;
+
+	if (config.force_revect) {
+	    set_ZF();
+	    break;
+	}
 	for (i = start; i < 256; i++) {
 	    if (int_handlers[i].interrupt_function[REVECT])
 		break;
@@ -1819,7 +1824,7 @@ RVC_SETUP(x) \
 static far_t int##x##_unrevect(uint16_t seg, uint16_t offs) \
 { \
   far_t ret = {}; \
-  if (int##x##_hooked) \
+  if (int##x##_hooked || config.force_revect) \
     return ret; \
   int##x##_hooked = 1; \
   di_printf("int_rvc: unrevect 0x%s\n", #x); \
@@ -1838,7 +1843,8 @@ static far_t int##x##_unrevect(uint16_t seg, uint16_t offs) \
 } \
 static int int##x##_unrevect_simple(void) \
 { \
-  if (int##x##_hooked || !int_handlers[0x##x].interrupt_function[REVECT]) \
+  if (int##x##_hooked || !int_handlers[0x##x].interrupt_function[REVECT] || \
+        config.force_revect) \
     return 0; \
   int##x##_hooked = 1; \
   di_printf("int_rvc: unrevect 0x%s\n", #x); \
