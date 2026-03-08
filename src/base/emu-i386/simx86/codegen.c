@@ -730,18 +730,18 @@ unsigned int DoExec(TNode *G)
 	return ePC;
 }
 
-#define fB(c,x) (((uint8_t *)(c))[(x) & ~_PAGE_MASK])
+#define fB(c,x) (((uint8_t *)(c))[(x) & ~HOST_PAGE_MASK])
 static inline uint16_t fW(void *c, dosaddr_t x)
 {
 	if (x & 1)
 		return ((fB(c, x + 1) << 8) | fB(c, x));
-	return (((uint16_t *)(c))[(x & ~_PAGE_MASK) >> 1]);
+	return (((uint16_t *)(c))[(x & ~HOST_PAGE_MASK) >> 1]);
 }
 static inline uint32_t fD(void *c, dosaddr_t x)
 {
 	if (x & 3)
 		return (((uint32_t)fW(c, x + 2) << 16) | fW(c, x));
-	return (((uint32_t *)(c))[(x & ~_PAGE_MASK) >> 2]);
+	return (((uint32_t *)(c))[(x & ~HOST_PAGE_MASK) >> 2]);
 }
 
 uint8_t jit_fetch_byte(dosaddr_t x)
@@ -759,7 +759,7 @@ uint16_t jit_fetch_word(dosaddr_t x)
 	if ((x & ~CGRMASK) != ((x + 1) & ~CGRMASK))
 		return ((jit_fetch_byte(x + 1) << 8) | jit_fetch_byte(x));
 	e_fetch(x, 2, cache);
-	if ((x & _PAGE_MASK) != ((x + 1) & _PAGE_MASK))
+	if ((x & HOST_PAGE_MASK) != ((x + 1) & HOST_PAGE_MASK))
 		return ((fB(cache[1], x + 1) << 8) | fB(cache[0], x));
 	return fW(cache[0], x);
 }
@@ -772,7 +772,7 @@ uint32_t jit_fetch_dword(dosaddr_t x)
 		return (((uint32_t)jit_fetch_word(x + 2) << 16) |
 				jit_fetch_word(x));
 	e_fetch(x, 4, cache);
-	if ((x & _PAGE_MASK) != ((x + 3) & _PAGE_MASK)) {
+	if ((x & HOST_PAGE_MASK) != ((x + 3) & HOST_PAGE_MASK)) {
 		if (!(x & 1))
 			return (((uint32_t)fW(cache[1], x + 2) << 16) |
 					fW(cache[0], x));

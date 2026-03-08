@@ -60,12 +60,13 @@ int MaxCPages;
 
 typedef struct _mpmap {
 	struct _mpmap *next;
-	int mega;
-	void *pagemap[256];	/* 256 pages *4096 = 1M */
+	int mega, pages;
 	uint64_t subpage[(0x100000>>CGRAN)/UINT64_WIDTH];	/* 2^CGRAN-byte granularity, 1M/2^CGRAN bits */
 	uint64_t nodemap[0x100000/UINT64_WIDTH];
+	void *pagemap[];	/* pages=1M/HOST_PAGE_SIZE entries */
 } tMpMap;
 #define NM_MASK (0x100000/UINT64_WIDTH - 1)
+#define MEGA_SHIFT 20
 
 static tMpMap *MpH = NULL;
 int PageFaults = 0;
@@ -88,7 +89,7 @@ static void *FindC(unsigned int addr, int remove);
 
 static inline tMpMap *FindM(unsigned int addr)
 {
-	int a2l = addr >> (PAGE_SHIFT+8);
+	int a2l = addr >> MEGA_SHIFT;
 	tMpMap *M = LastMp;
 
 	if (M && (M->mega==a2l)) return M;
@@ -106,22 +107,25 @@ static void AddMpMap(unsigned int addr, unsigned int aend)
 {
 	int bs;
 	int page;
+	int pagespermega = (1<<MEGA_SHIFT) / HOST_PAGE_SIZE;
 	tMpMap *M;
 
 	M = FindM(addr);
 	if (M == NULL) {
-	    M = (tMpMap *)calloc(1,sizeof(tMpMap));
+	    M = (tMpMap *)calloc(1,sizeof(tMpMap) + pagespermega * sizeof(void *));
+	    M->pages = pagespermega;
 	    M->next = MpH; MpH = M;
-	    M->mega = addr >> 20;
+	    M->mega = addr >> MEGA_SHIFT;
 	}
-	page = (addr >> PAGE_SHIFT) & 255;
-	for (; addr <= aend; addr += PAGE_SIZE, page++) {
-	    if (page == 256) {
+	page = (addr / HOST_PAGE_SIZE) & (pagespermega - 1);
+	for (; addr <= aend; addr += HOST_PAGE_SIZE, page++) {
+	    if (page == pagespermega) {
 		M = FindM(addr);
 		if (M == NULL) {
-		    M = (tMpMap *)calloc(1,sizeof(tMpMap));
+		    M = (tMpMap *)calloc(1,sizeof(tMpMap) + (pagespermega * sizeof(void *)));
+		    M->pages = pagespermega;
 		    M->next = MpH; MpH = M;
-		    M->mega = addr >> 20;
+		    M->mega = addr >> MEGA_SHIFT;
 		}
 		page = 0;
 	    }
@@ -140,12 +144,12 @@ static int do_rm_page(tMpMap *P, tMpMap *M, int page)
 
 	free(M->pagemap[page]);
 	M->pagemap[page] = NULL;
-	for (i = 0; i < ARRAY_SIZE(M->pagemap); i++) {
+	for (i = 0; i < M->pages; i++) {
 	    if (M->pagemap[i])
 		break;
 	}
 	/* completely empty, remove */
-	if (i == ARRAY_SIZE(M->pagemap)) {
+	if (i == M->pages) {
 	    if (debug_level('e')>1)
 		dbug_printf("MPMAP: removing 0x%x\n", M->mega);
 	    if (P)
@@ -167,17 +171,17 @@ static void RmMpMap(unsigned int addr, unsigned int aend)
 	tMpMap *M, *P;
 	void *p;
 
-	for (; addr <= aend; addr += PAGE_SIZE) {
-	    page = addr >> PAGE_SHIFT;
+	for (; addr <= aend; addr += HOST_PAGE_SIZE) {
+	    page = addr / HOST_PAGE_SIZE;
 	    P = NULL;
 	    M = MpH;
 	    while (M) {
-		if (M->mega==(page>>8)) break;
+		if (M->mega==(page/M->pages)) break;
 		P = M;
 		M = M->next;
 	    }
 	    if (M==NULL) continue;
-	    page &= 255;
+	    page &= M->pages - 1;
 	    p = M->pagemap[page];
 	    bs = !!p;
 	    if (p)
@@ -189,33 +193,34 @@ static void RmMpMap(unsigned int addr, unsigned int aend)
 
 int e_querymprot(dosaddr_t addr)
 {
-	int a2 = addr >> PAGE_SHIFT;
+	int a2 = addr / HOST_PAGE_SIZE;
 	tMpMap *M = FindM(addr);
 
 	if (M==NULL) return 0;
-	return !!M->pagemap[a2&255];
+	return !!M->pagemap[a2&(M->pages-1)];
 }
 
 int e_querymprotrange(unsigned int addr, size_t len)
 {
 	int a2l, a2h;
+	int pagespermega = (1<<MEGA_SHIFT) / HOST_PAGE_SIZE;
 	tMpMap *M = FindM(addr);
 
-	a2l = addr >> PAGE_SHIFT;
-	a2h = (addr+len-1) >> PAGE_SHIFT;
+	a2l = addr / HOST_PAGE_SIZE;
+	a2h = (addr+len-1) / HOST_PAGE_SIZE;
 
 	if (!M)
-		a2l &= ~0xff;
+		a2l &= ~(pagespermega-1);
 	while (a2l <= a2h) {
 		if (M) {
-			if (M->pagemap[a2l&255])
+			if (M->pagemap[a2l&(M->pages-1)])
 				return 1;
 			a2l++;
-			if ((a2l&255)==0)
-				M = FindM(a2l << PAGE_SHIFT);
+			if ((a2l&(M->pages-1))==0)
+				M = FindM(a2l * HOST_PAGE_SIZE);
 		} else {
-			a2l += 256;
-			M = FindM(a2l << PAGE_SHIFT);
+			a2l += pagespermega;
+			M = FindM(a2l * HOST_PAGE_SIZE);
 		}
 	}
 	return 0;
@@ -226,15 +231,15 @@ int e_querymprotrange_full(unsigned int addr, size_t len)
 	int a2l, a2h;
 	tMpMap *M = FindM(addr);
 
-	a2l = addr >> PAGE_SHIFT;
-	a2h = (addr+len-1) >> PAGE_SHIFT;
+	a2l = addr / HOST_PAGE_SIZE;
+	a2h = (addr+len-1) / HOST_PAGE_SIZE;
 
 	while (M && a2l <= a2h) {
-		if (!M->pagemap[a2l&255])
+		if (!M->pagemap[a2l&(M->pages-1)])
 			return 0;
 		a2l++;
-		if ((a2l&255)==0)
-			M = FindM(a2l << PAGE_SHIFT);
+		if ((a2l&(M->pages-1))==0)
+			M = FindM(a2l * HOST_PAGE_SIZE);
 	}
 	if (!M)
 		return 0;
@@ -298,14 +303,14 @@ int e_unmarkpage(unsigned int addr, size_t len)
 	}
 
 	/* check if unmarked pages have no more code, and if so, unprotect */
-	abeg = addr & _PAGE_MASK;
-	aend = PAGE_ALIGN(addr + len);
+	abeg = addr & HOST_PAGE_MASK;
+	aend = HOST_PAGE_ALIGN(addr + len);
 	/* don't unprotect partial first page with code */
 	if (abeg != addr && e_querymark(abeg, addr - abeg))
-		abeg += PAGE_SIZE;
+		abeg += HOST_PAGE_SIZE;
 	/* don't unprotect partial last page with code */
 	if (aend != addr + len && e_querymark(addr + len, aend - (addr + len)))
-		aend -= PAGE_SIZE;
+		aend -= HOST_PAGE_SIZE;
 
 	if (aend > abeg)
 		e_munprotect(abeg, aend - abeg);
@@ -429,7 +434,7 @@ static void *NewC(unsigned int abeg)
 
 	assert(num_clist < CLIST_MAX);
 	ce = &clist[num_clist++];
-	p = malloc(PAGE_SIZE);
+	p = malloc(HOST_PAGE_SIZE);
 	ce->addr = abeg;
 	ce->data = p;
 	ce->alive_cnt = CALIVE_CNT;
@@ -499,17 +504,18 @@ void e_mdrop(void)
 void e_fetch(unsigned int addr, size_t len, void **ret)
 {
 	unsigned int abeg, aend, page, off, l;
+	int pagespermega = (1<<MEGA_SHIFT) / HOST_PAGE_SIZE;
 	void *p0 = NULL, *p1 = NULL;
 	tMpMap *M = NULL;
 
 	/* cover only 2 pages max */
-	assert(len && len <= PAGE_SIZE);
-	abeg = addr & _PAGE_MASK;
-	aend = (addr+len-1) & _PAGE_MASK;
+	assert(len && len <= HOST_PAGE_SIZE);
+	abeg = addr & HOST_PAGE_MASK;
+	aend = (addr+len-1) & HOST_PAGE_MASK;
 	/* we do not support MB-crossing transactions */
 	assert((abeg & ~CGRMASK) == (aend & ~CGRMASK));
-	page = (abeg >> PAGE_SHIFT) & 255;
-	off = addr & ~_PAGE_MASK;
+	page = (abeg / HOST_PAGE_SIZE) & (pagespermega - 1);
+	off = addr & ~HOST_PAGE_MASK;
 	p0 = FindC(abeg, 0);
 	if (!p0 && (M = FindM(abeg)))
 	    p0 = M->pagemap[page];  // may be NULL
@@ -540,10 +546,10 @@ static void do_mprotect(unsigned int addr, size_t len)
 	unsigned a;
 
 	assert(len);
-	abeg = addr & _PAGE_MASK;
-	aend = (addr+len-1) & _PAGE_MASK;
+	abeg = addr & HOST_PAGE_MASK;
+	aend = (addr+len-1) & HOST_PAGE_MASK;
 	/* only protect ranges that were not already protected by e_mprotect */
-	for (a = abeg; a <= aend; a += PAGE_SIZE) {
+	for (a = abeg; a <= aend; a += HOST_PAGE_SIZE) {
 	    int qp = e_querymprot(a);
 	    if (!qp) {
 		if (abeg1 == (unsigned)-1)
@@ -551,13 +557,13 @@ static void do_mprotect(unsigned int addr, size_t len)
 		aend1 = a;
 	    }
 	    if ((a == aend || qp) && abeg1 != (unsigned)-1) {
-		e = mprotect_mapping(MAPPING_CPUEMU, abeg1, aend1-abeg1+PAGE_SIZE,
+		e = mprotect_mapping(MAPPING_CPUEMU, abeg1, aend1-abeg1+HOST_PAGE_SIZE,
 			    PROT_READ | _PROT_EXEC);
 		if (e<0) {
 		    error("MPMAP: %s\n",strerror(errno));
 		    exit(1);
 		}
-		AddMpMap(abeg1, aend1+PAGE_SIZE-1);
+		AddMpMap(abeg1, aend1+HOST_PAGE_SIZE-1);
 		abeg1 = (unsigned)-1;
 	    }
 	}
@@ -576,15 +582,15 @@ static void e_munprotect(unsigned int addr, size_t len)
 	unsigned int abeg1 = (unsigned)-1;
 	unsigned a;
 
-	abeg = addr & _PAGE_MASK;
+	abeg = addr & HOST_PAGE_MASK;
 	if (len==0) {
 	    aend = abeg;
 	}
 	else {
-	    aend = (addr+len-1) & _PAGE_MASK;
+	    aend = (addr+len-1) & HOST_PAGE_MASK;
 	}
 	/* only unprotect ranges that were protected by e_mprotect */
-	for (a = abeg; a <= aend; a += PAGE_SIZE) {
+	for (a = abeg; a <= aend; a += HOST_PAGE_SIZE) {
 	    int qp = e_querymprot(a);
 	    if (qp) {
 		if (abeg1 == (unsigned)-1)
@@ -592,13 +598,13 @@ static void e_munprotect(unsigned int addr, size_t len)
 		aend1 = a;
 	    }
 	    if ((a == aend || !qp) && abeg1 != (unsigned)-1) {
-		e = mprotect_mapping(MAPPING_CPUEMU, abeg1, aend1-abeg1+PAGE_SIZE,
+		e = mprotect_mapping(MAPPING_CPUEMU, abeg1, aend1-abeg1+HOST_PAGE_SIZE,
 			     PROT_RWX);
 		if (e<0) {
 		    e_printf("MPUNMAP: %s\n",strerror(errno));
 		    exit(1);
 		}
-		RmMpMap(abeg1, aend1+PAGE_SIZE-1);
+		RmMpMap(abeg1, aend1+HOST_PAGE_SIZE-1);
 		abeg1 = (unsigned)-1;
 	    }
 	}
@@ -608,13 +614,13 @@ static void e_munprotect(unsigned int addr, size_t len)
 static int subpage_dirty(uint8_t *p, uint8_t *p1, tMpMap *M, int page)
 {
     int i, n;
-    uint64_t *bitmask = &M->subpage[page << (PAGE_SHIFT - 6)];
-    for (i = 0; i < PAGE_SIZE >> 6 /*64*/; i++) {
+    uint64_t *bitmask = &M->subpage[page * (HOST_PAGE_SIZE >> 6)];
+    for (i = 0; i < HOST_PAGE_SIZE >> 6; i++) {
 	n = -1;
 	while ((n = find_bit64_from(bitmask[i], n + 1)) != -1) {
 	    int bnum = i * 64 + n;
 #if MPMAP_DEBUG
-	    dosaddr_t addr = (M->mega << 20) | (page << PAGE_SHIFT) | bnum;
+	    dosaddr_t addr = (M->mega << MEGA_SHIFT) | (page * HOST_PAGE_SIZE) | bnum;
 	    if (test_bit(addr&CGRMASK, M->nodemap))
 		assert(FindTree(addr));
 #endif
@@ -630,21 +636,22 @@ void e_invalidate_dirty(unsigned int addr, unsigned int aend)
 {
 	int bs=0;
 	int page;
+	int pagespermega = (1<<MEGA_SHIFT) / HOST_PAGE_SIZE;
 	tMpMap *M = NULL;
 	void *p;
 
-	page = (addr >> PAGE_SHIFT) & 255;
-	for (; addr <= aend; addr += PAGE_SIZE, page++) {
-	    if (page == 256) {
+	page = (addr / HOST_PAGE_SIZE) & (pagespermega - 1);
+	for (; addr <= aend; addr += HOST_PAGE_SIZE, page++) {
+	    if (page == pagespermega) {
 		M = NULL;
 		page = 0;
 	    }
 	    if (!M) {
 		M = FindM(addr);
 		if (!M) {
-		    int inc = 255 - page;
-		    page = 255;
-		    addr += inc * PAGE_SIZE;
+		    int inc = pagespermega - 1 - page;
+		    page = pagespermega - 1;
+		    addr += inc * HOST_PAGE_SIZE;
 		    continue;
 		}
 	    }
@@ -669,7 +676,7 @@ void e_invalidate_page_dirty(unsigned int addr)
 
 	M = FindM(addr);
 	if (M==NULL) return;
-	page = (addr >> PAGE_SHIFT) & 255;
+	page = (addr / HOST_PAGE_SIZE) & (M->pages - 1);
 	p = M->pagemap[page];
 	bs = 0;
 	if (p && subpage_dirty(p, EMU_BASE32(addr), M, page)) {
@@ -688,9 +695,9 @@ void e_invalidate_dirty_full(void)
 again:
 	M = MpH;
 	while (M) {
-	    for (i=0; i<ARRAY_SIZE(M->pagemap); i++) {
+	    for (i=0; i<M->pages; i++) {
 		void *p = M->pagemap[i];
-		dosaddr_t addr = (M->mega<<20) | (i<<PAGE_SHIFT);
+		dosaddr_t addr = (M->mega<<MEGA_SHIFT) | (i*HOST_PAGE_SIZE);
 		void *p1 = EMU_BASE32(addr);
 		if (p && subpage_dirty(p, p1, M, i)) {
 		    if (debug_level('e')>1)
@@ -810,11 +817,11 @@ again:
 	M = MpH;
 	M2 = NULL;
 	while (M) {
-	    for (i=0; i<ARRAY_SIZE(M->pagemap); i++) if (M->pagemap[i]) {
-		unsigned int addr = (M->mega<<20) | (i<<PAGE_SHIFT);
+	    for (i=0; i<M->pages; i++) if (M->pagemap[i]) {
+		unsigned int addr = (M->mega<<MEGA_SHIFT) | (i*HOST_PAGE_SIZE);
 		if (debug_level('e')>1)
 		    dbug_printf("MP_END %08x = RWX\n",addr);
-		mprotect_mapping(MAPPING_CPUEMU, addr, PAGE_SIZE, PROT_RWX);
+		mprotect_mapping(MAPPING_CPUEMU, addr, HOST_PAGE_SIZE, PROT_RWX);
 		if (do_rm_page(M2, M, i))
 		    goto again;
 	    }
