@@ -3352,13 +3352,13 @@ err:
      * to check that the entire area belongs to this client.
      * Fortunately DPMI spec doesn't demand the 0x703 pages to be
      * zeroed out. */
-    int rc;
+    int rc = 0;
     dosaddr_t addr = (_LWORD_(ebx) << 16) | (_LWORD_(ecx));
     unsigned size = (_LWORD_(esi) << 16) | (_LWORD_(edi));
     if (addr + size > config.dpmi_base + dpmi_mem_size()) {
       D_printf("DPMI: Failing bad paging call\n");
       rc = -1;
-    } else {
+    } else if (!EMU_FULLSIM()) {
       rc = madvise(MEM_BASE32(addr), size, MADV_COLD);
     }
     if (rc == -1) {
