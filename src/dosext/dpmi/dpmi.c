@@ -2016,7 +2016,11 @@ int DPMI_allocate_specific_ldt_descriptor(unsigned short selector)
 
 far_t DPMI_get_real_mode_interrupt_vector(int vec)
 {
-    return get_int_vector(vec);
+    far_t addr;
+
+    addr.segment = ISEG(vec);
+    addr.offset = IOFF(vec);
+    return addr;
 }
 
 int DPMIAllocateShared(struct SHM_desc *shm)
