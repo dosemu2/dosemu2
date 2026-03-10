@@ -156,6 +156,7 @@ struct mappingdrivers {
 };
 char *decode_mapping_cap(int cap);
 
+extern struct mappingdrivers mappingdriver_softmmu;
 extern struct mappingdrivers mappingdriver_shm;
 extern struct mappingdrivers mappingdriver_mshm;
 extern struct mappingdrivers mappingdriver_file;

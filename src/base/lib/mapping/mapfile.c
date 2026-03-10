@@ -36,6 +36,7 @@
 #include "dosemu_debug.h"
 #include "mapping.h"
 #include "mpriv.h"
+#include "emu.h"
 
 /* ------------------------------------------------------------ */
 
@@ -207,7 +208,8 @@ static int open_mapping_mshm(int cap)
 static void do_free_mapping(struct file_mapping *p)
 {
   munmap(p->addr, p->size);
-  close(p->fd);
+  if (p->fd != -1)
+    close(p->fd);
   p->size = 0;
 }
 
@@ -228,8 +230,10 @@ static void *alloc_tail(int fd, size_t mapsize, int prot, void *target)
 {
   int i, fixed = 0;
   struct file_mapping *p;
-  int rc = ftruncate(fd, mapsize);
-  assert(rc != -1);
+  if (fd != -1) {
+    int rc = ftruncate(fd, mapsize);
+    assert(rc != -1);
+  }
 
   for (i = 0, p = file_mappings; i < MAX_FILE_MAPPINGS; i++, p++)
     if (p->size == 0)
@@ -239,7 +243,16 @@ static void *alloc_tail(int fd, size_t mapsize, int prot, void *target)
     fixed = MAP_FIXED;
   else
     target = NULL;
-  target = mmap(target, mapsize, prot, MAP_SHARED | fixed, fd, 0);
+  if (fd == -1) {
+    if (fixed)
+      /* on emscripten mprotect is a no-op, elsewhere this just
+	 overrides the protection from do_huge_page */
+      mprotect(target, mapsize, prot);
+    else
+      target = mmap(target, mapsize, prot, MAP_PRIVATE | MAP_ANONYMOUS, fd, 0);
+  } else {
+    target = mmap(target, mapsize, prot, MAP_SHARED | fixed, fd, 0);
+  }
   if (target == MAP_FAILED) {
     error("mapping: mmap(%x) failed: %s\n", fixed, strerror(errno));
     return MAP_FAILED;
@@ -314,10 +327,12 @@ static void *resize_mapping_file(int cap, void *addr, size_t oldsize, size_t new
     /* ensure page-aligned */
     assert(!(oldsize & (PAGE_SIZE - 1)));
     assert(!(newsize & (PAGE_SIZE - 1)));
+    /* partial unmapping not supported by emscripten, but this will simply
+       fail there and not hurt */
     munmap(addr + newsize, oldsize - newsize);
 #endif
   } else {
-    if (newsize > p->fsize) {
+    if (p->fd != -1 && newsize > p->fsize) {
       int rc = ftruncate(p->fd, newsize);
       assert(rc != -1);
       p->fsize = newsize;
@@ -326,11 +341,28 @@ static void *resize_mapping_file(int cap, void *addr, size_t oldsize, size_t new
 #if defined(HAVE_MREMAP) && HAVE_DECL_MREMAP_MAYMOVE
     p->addr = mremap(addr, oldsize, newsize, MREMAP_MAYMOVE);
 #else
-    p->addr = mmap(NULL, newsize, p->prot, MAP_SHARED, p->fd, 0);
+    if (p->fd == -1) {
+      p->addr = mmap(NULL, newsize, p->prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+      if (p->addr != MAP_FAILED)
+	memcpy(p->addr, addr, oldsize);
+    } else {
+      p->addr = mmap(NULL, newsize, p->prot, MAP_SHARED, p->fd, 0);
+    }
     munmap(addr, oldsize);
 #endif
   }
   return p->addr;
+}
+
+static int open_mapping_softmmu(int cap)
+{
+  return EMU_FULLSIM();
+}
+
+static void *alloc_mapping_softmmu(int cap, size_t mapsize, void *target)
+{
+  Q__printf("MAPPING: alloc, cap=%s, mapsize=%zx\n", cap, mapsize);
+  return alloc_tail(-1, mapsize, PROT_READ | PROT_WRITE, target);
 }
 
 #ifdef HAVE_SHM_OPEN
@@ -374,6 +406,19 @@ struct mappingdrivers mappingdriver_file = {
   free_mapping_file,
   resize_mapping_file,
   alias_mapping_file,
+  attach_mapping_file,
+  detach_mapping_file,
+};
+
+struct mappingdrivers mappingdriver_softmmu = {
+  "softmmu",
+  "softmmu mapping",
+  open_mapping_softmmu,
+  close_mapping_file,
+  alloc_mapping_softmmu,
+  free_mapping_file,
+  resize_mapping_file,
+  NULL,
   attach_mapping_file,
   detach_mapping_file,
 };

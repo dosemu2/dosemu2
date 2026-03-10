@@ -97,9 +97,10 @@ unsigned char *_jit_base(void)
 uint8_t *lowmem_base;
 
 static struct mappingdrivers *mappingdrv[] = {
+  &mappingdriver_softmmu, /* first try softmmu (fullsim only!) */
 #ifdef HAVE_MEMFD_CREATE
 #if HAVE_DECL_MEMFD_CREATE
-  &mappingdriver_mshm,  /* first try memfd mmap */
+  &mappingdriver_mshm,  /* then try memfd mmap */
 #endif
 #endif
 #ifdef HAVE_SHM_OPEN
