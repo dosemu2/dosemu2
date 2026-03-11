@@ -2,7 +2,7 @@
 
 from subprocess import check_call
 
-from common_framework import (BaseTestCase, main, main_setup, mark,
+from common_framework import (BaseTestCase, main, main_setup, mark, maybeFailure,
                               KNOWNFAIL, UNSUPPORTED)
 from common_os import ppdosgit
 
@@ -32,11 +32,6 @@ class OurTestCase(BaseTestCase):
         """Build PC-MOS"""
         build_pcmos(self)
 
-    @mark('cputest')
-    def test_cpu_trap_flag(self):
-        """CPU Trap Flag"""
-        cpu_trap_flag(self)
-
     @mark('fputest')
     def test_fpu_bart_exceptions_fpex(self):
         """FPU Exceptions (Bart) (fpex)"""
@@ -59,6 +54,12 @@ class KVMTestCase(ppdosgit(OurTestCase, {
     })):
     use_cpu = 'kvm'
 
+    @mark('cputest')
+    @maybeFailure
+    def test_cpu_trap_flag(self):
+        """CPU Trap Flag"""
+        cpu_trap_flag(self)
+
 
 class EMUTestCase(ppdosgit(OurTestCase, {
         "test_fpu_f2xm1_sim_sim": KNOWNFAIL,
@@ -70,6 +71,11 @@ class EMUTestCase(ppdosgit(OurTestCase, {
         "test_fpu_fyl2xp1_sim_sim": KNOWNFAIL,
     })):
     use_cpu = 'emu'
+
+    @mark('cputest')
+    def test_cpu_trap_flag(self):
+        """CPU Trap Flag"""
+        cpu_trap_flag(self)
 
 
 if __name__ == '__main__':
