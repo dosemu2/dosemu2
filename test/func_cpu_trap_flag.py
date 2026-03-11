@@ -99,6 +99,7 @@ result:
         'AMD A10-7870K Radeon R7, 12 Compute Cores 4C+8G',
         'AMD Ryzen 5 5600U with Radeon Graphics',
         'AMD EPYC 7763 64-Core Processor',
+        'AMD EPYC 9V74 80-Core Processor',
     )
 
     # get log content
