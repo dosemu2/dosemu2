@@ -1400,8 +1400,7 @@ static int madvise_mapping(dosaddr_t targ, size_t length, int flags)
 void *mmap_shm_mapping(unsigned targ, size_t length, int prot, int fd)
 {
   int err;
-  void *addr, *ret;
-  int flags = MAP_SHARED | MAP_FIXED;
+  void *ret;
 
   ret = mappingdriver->attach(fd, length, prot);
   if (ret == MAP_FAILED)
@@ -1409,20 +1408,7 @@ void *mmap_shm_mapping(unsigned targ, size_t length, int prot, int fd)
   err = alias_mapping_pa(MAPPING_SHM, targ, length, prot, ret);
   if (err)
     return MAP_FAILED;
-  addr = MEM_BASE32(targ);
-  if ((unsigned char *)addr < mem_bases[MEM_BASE].base ||
-      (unsigned char *)addr + length > mem_bases[MEM_BASE].base +
-      mem_bases[MEM_BASE].size)
-    return addr;
-  ret = addr;
-  err = 0;
-  if (mapping_hook)
-    err = mapping_hook->mmap(addr, length, prot, flags, fd, 0);
-  if (err) {
-    munmap(ret, length);
-    ret = MAP_FAILED;
-  }
-  return ret;
+  return MEM_BASE32(targ);
 }
 
 int mprotect_vga(int idx, dosaddr_t targ, size_t mapsize, int protect)
