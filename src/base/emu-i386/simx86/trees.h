@@ -48,12 +48,14 @@
 #define FH_SIZE (1024*1024*4)
 #define ZONE_P2SZ 20  /* 2^20=1M, can also use 19 for 512K */
 #define FH_STATS 0
+#define FH_ZONED 1
 #else
 /* small linear layout */
 #define FH_SIZE (1024*128)
 #define ZONE_P2SZ 17  /* 2^17=128K, no zoning */
 
 #define FH_STATS 0  /* not expensive due to small amount of buckets */
+#define FH_ZONED 0
 #endif
 #include "misc/fhmap.h"  // FH_STATS must be defined before
 

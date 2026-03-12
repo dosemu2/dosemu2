@@ -35,8 +35,11 @@
 #define FH_STATS 0
 #endif
 
-#define FH_MRU 1
+#ifndef FH_ZONED
 #define FH_ZONED 0
+#endif
+
+#define FH_MRU 1
 
 struct fh_bucket {
     struct ulist_head head;
