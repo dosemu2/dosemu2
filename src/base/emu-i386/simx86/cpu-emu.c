@@ -264,15 +264,13 @@ char *e_print_regs(unsigned int Interp_LONG_CS)
 		dosaddr_t csp = Interp_LONG_CS+TheCPU.eip;
 		dosaddr_t st = LONG_SS+TheCPU.esp;
 		if (csp < 0xa0000 - 256 || dpmi_is_valid_range(csp, 256)) {
-			unsigned char *op = EMU_BASE32(csp);
 			for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6); i+=3) {
-			   exprintb(*op++,buf,i);
+			   exprintb(READ_BYTE(csp),buf,i); csp++;
 			}
 		}
 		if (st < 0xa0000 - 256 || dpmi_is_valid_range(st, 256)) {
-			unsigned short *stk = (unsigned short *)EMU_BASE32(st);
 			for (i=(ERB_L6+ERB_LEFTM); i<(ERB_L7-2); i+=5) {
-			   exprintw(*stk++,buf,i);
+			   exprintw(READ_WORD(st),buf,i); st += 2;
 			}
 		}
 	}
