@@ -116,6 +116,7 @@ int mcommit_mapping(dosaddr_t targ, size_t size);
 int mcommit(void *addr, size_t size);
 /* below wrapper is needed only for remoting the mapping subsystem */
 void *mmap_shm_mapping(size_t length, int prot, int fd);
+void munmap_shm_mapping(void *addr);
 int mapping_is_mapped(void *addr);
 int mapping_is_mapped_pa(unsigned int addr, int mapsize);
 

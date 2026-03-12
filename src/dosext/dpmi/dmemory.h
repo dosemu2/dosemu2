@@ -24,6 +24,7 @@ typedef struct dpmi_pm_block_stuct {
   uint32_t lock_flags;
   int mapped;
   int shm_fd;
+  void *stalled_shm_addr;
 #define PMBF_DJ64 1
   uint32_t flags;
   int opaque;

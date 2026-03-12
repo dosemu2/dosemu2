@@ -70,7 +70,6 @@ struct hardware_ram {
   int type;
   struct aliasmap_s *aliasmap;
   struct hardware_ram *next;
-  void *shm;
 };
 
 #ifdef __linux__
@@ -995,7 +994,6 @@ static int do_register_hwram(int type, unsigned base, unsigned size,
   hw->size = size;
   hw->type = type;
   hw->aliasmap = alloc_aliasmap(size);
-  hw->shm = NULL;
   hw->next = hardware_ram;
   hardware_ram = hw;
   if (base >= LOWMEM_SIZE || type == 'h')
@@ -1051,8 +1049,6 @@ int unregister_hardware_ram_virtual(unsigned base)
         hardware_ram = hw->next;
       if (hw->base + hw->size > ALIAS_SIZE)
         free(hw->aliasmap);
-      if (hw->shm)
-        mappingdriver->detach(hw->shm);
       free(hw);
       return 0;
     }
@@ -1313,8 +1309,6 @@ int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
   }
   hwram_update_aliasmap(hw, addr, mapsize, source);
   hwram_mprotect_aliasmap(hw, addr, mapsize, protect);
-  if (cap & MAPPING_SHM)
-    hw->shm = source;
   if ((cap & MAPPING_INIT_LOWRAM) && (config.cpu_vm_dpmi == CPUVM_KVM ||
       (config.cpu_vm == CPUVM_KVM && addr + mapsize <= LOWMEM_SIZE + HMASIZE))) {
     int prot = KVM_PROT_RWX;
@@ -1400,6 +1394,11 @@ static int madvise_mapping(dosaddr_t targ, size_t length, int flags)
 void *mmap_shm_mapping(size_t length, int prot, int fd)
 {
   return mappingdriver->attach(fd, length, prot);
+}
+
+void munmap_shm_mapping(void *addr)
+{
+  mappingdriver->detach(addr);
 }
 
 int mprotect_vga(int idx, dosaddr_t targ, size_t mapsize, int protect)

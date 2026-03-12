@@ -528,6 +528,8 @@ static void do_unmap_shm(dpmi_pm_block *block)
     smfree(&mem_pool, MEM_BASE32(block->base));
     unregister_hardware_ram_virtual(block->base);
     block->mapped = 0;
+    if (block->stalled_shm_addr)
+        munmap_shm_mapping(block->stalled_shm_addr);
 }
 
 int DPMI_unmapHWRam(dpmi_pm_block_root *root, dosaddr_t vbase)
@@ -662,7 +664,7 @@ err1:
     return NULL;
 }
 
-static int close_shm(int fd, int *r_rc, int *r_rc2)
+static void *close_shm(int fd, int *r_rc, int *r_rc2)
 {
     struct shm_fhm *fhm = fh_find(&shmap, fd, struct shm_fhm, fhnode);
     assert(fhm && fhm->refcnt);
@@ -671,15 +673,16 @@ static int close_shm(int fd, int *r_rc, int *r_rc2)
     if (r_rc2)
         *r_rc2 = 0;
     if (!--fhm->refcnt) {
+        void *addr = fhm->addr;
         *r_rc = shlock_close(fhm->shlock);
         if (r_rc2)
             *r_rc2 = shlock_close(fhm->dlock);
         close(fhm->fd);
         fh_del(&shmap, &fhm->fhnode);
         free(fhm);
-        return 1;
+        return addr;
     }
-    return 0;
+    return NULL;
 }
 
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
@@ -920,13 +923,16 @@ err1:
 int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
 {
     void *exlock;
+    void *addr;
     int rc;
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !ptr->shmname)
         return -1;
     if (ptr->mapped)
         do_unmap_shm(ptr);
-    close_shm(ptr->shm_fd, &rc, NULL);
+    addr = close_shm(ptr->shm_fd, &rc, NULL);
+    if (addr)
+        munmap_shm_mapping(addr);
 
     exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
     assert(exlock);
@@ -943,12 +949,15 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
 int DPMI_freeSharedNS(dpmi_pm_block_root *root, uint32_t handle)
 {
     int rc, rc2;
+    void *addr;
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !ptr->shmname)
         return -1;
     if (ptr->mapped)
         do_unmap_shm(ptr);
-    close_shm(ptr->shm_fd, &rc, &rc2);
+    addr = close_shm(ptr->shm_fd, &rc, &rc2);
+    if (addr)
+        munmap_shm_mapping(addr);
 
     if (rc > 0) {
         char *fname = assemble_path(ptr->shm_dir, ptr->rshmname);
@@ -971,11 +980,12 @@ int DPMI_freeSharedNS(dpmi_pm_block_root *root, uint32_t handle)
 int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle)
 {
     void *exlock;
+    void *addr;
     int rc;
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !ptr->shmname)
         return -1;
-    close_shm(ptr->shm_fd, &rc, NULL);
+    addr = close_shm(ptr->shm_fd, &rc, NULL);
 
     exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
     assert(exlock);
@@ -990,8 +1000,11 @@ int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle)
         ptr->shmname = NULL;
         free(ptr->rshmname);
         ptr->rshmname = NULL;
+        ptr->stalled_shm_addr = addr;
     } else {
         free_pm_block(root, ptr);
+        if (addr)
+            munmap_shm_mapping(addr);
     }
     return 0;
 }
