@@ -168,8 +168,9 @@ static inline struct fh_node *fh_find_pos(fhmap *fhm, unsigned key)
     pos ? ulist_entry(pos, type, member) : NULL; \
 })
 
-static inline void fh_add(fhmap *fhm, unsigned key, struct fh_node *value)
+static inline void fh_add(fhmap *fhm, struct fh_node *value)
 {
+    int key = fh_key_from_value(fhm, (unsigned char *)&value->list);
     struct fh_bucket *b = fh_find_b(fhm, key);
     ulist_add(&value->list, &b->head);
 #if FH_STATS

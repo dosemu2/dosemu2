@@ -121,7 +121,7 @@ static TNode *find_node_start(unsigned a, int l)
 
 static void avltr_probe(TNode *item)
 {
-  fh_add(&CollectTree, item->key, &item->fhnode);
+  fh_add(&CollectTree, &item->fhnode);
 }
 
 
