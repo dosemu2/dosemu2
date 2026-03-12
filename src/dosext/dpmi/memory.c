@@ -35,6 +35,8 @@
 #include "fslib/fslib.h"
 #include "mapping/mapping.h"
 #include "misc/smalloc.h"
+#define FH_STATS 1
+#include "misc/fhmap.h"
 #include "emudpmi.h"
 #include "dpmisel.h"
 #include "dmemory.h"
@@ -50,6 +52,15 @@ static smpool mem_pool;
 static unsigned char *dpmi_lin_rsv_base;
 static unsigned char *dpmi_base;
 static const int dpmi_reserved_space = 4 * 1024 * 1024; // reserve 4Mb
+
+#define SHSIZE 16
+static struct fh_bucket shms[SHSIZE];
+struct shm_fhm {
+    int fd;
+    int refcnt;
+    struct fh_node fhnode;
+};
+static fhmap shmap;
 
 /* utility routines */
 
@@ -218,6 +229,9 @@ int dpmi_alloc_pool(void)
     /* Create DPMI pool */
     sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit, 0);
     dpmi_total_memory = config.dpmi * 1024;
+    fh_init(&shmap, shms, SHSIZE, -1,
+            (int)offsetof(struct shm_fhm, fd) -
+            (int)offsetof(struct shm_fhm, fhnode));
 
     D_printf("DPMI: dpmi_free_memory available 0x%x\n", dpmi_total_memory);
     return 0;
@@ -582,6 +596,7 @@ static int do_shm_open(char **r_shmname, const char *name,
     char *shmname;
     int fd, err;
     struct stat st;
+    struct shm_fhm *fhm;
     int oflags = O_RDWR | O_CREAT;
 
     asprintf(&shmname, "/%s", name);
@@ -620,6 +635,11 @@ static int do_shm_open(char **r_shmname, const char *name,
         }
     }
 
+    fhm = malloc(sizeof(struct shm_fhm));
+    fhm->fd = fd;
+    fhm->refcnt = 1;
+    fh_add(&shmap, &fhm->fhnode);
+
     *r_shmname = shmname;
     return fd;
 
@@ -628,6 +648,19 @@ err2:
 err1:
     free(shmname);
     return -1;
+}
+
+static int close_shm(int fd)
+{
+    struct shm_fhm *fhm = fh_find(&shmap, fd, struct shm_fhm, fhnode);
+    assert(fhm && fhm->refcnt);
+    if (!--fhm->refcnt) {
+        close(fhm->fd);
+        fh_del(&shmap, &fhm->fhnode);
+        free(fhm);
+        return 1;
+    }
+    return 0;
 }
 
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
@@ -672,8 +705,6 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     size = HOST_PAGE_ALIGN(size);
     register_hardware_ram_virtual('S', targ, size, targ);
     addr2 = mmap_shm_mapping(targ, size, prot, fd);
-    close(fd);
-    fd = -1;
     if (addr2 != addr) {
         perror("mmap()");
         error("shared memory map failed %p %p\n", addr2, addr);
@@ -695,6 +726,7 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     ptr->rshmname = shmname;
     ptr->nmoffs = 1;
     ptr->shlock = shlock;
+    ptr->shm_fd = fd;
     D_printf("DPMI: map shm %s\n", ptr->shmname);
     return ptr;
 
@@ -703,8 +735,7 @@ err4:
 err3:
     smfree(&mem_pool, addr);
 err2:
-    if (fd != -1)
-        close(fd);
+    close_shm(fd);
 err1:
     if (exlock)
         shlock_close(exlock);
@@ -723,6 +754,7 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
     void *shlock, *dlock;
     char *ddname = strrchr(dname, '/') + 1;
     char shlock_dir[256];
+    struct shm_fhm *fhm;
     int prot = PROT_READ | PROT_WRITE;
 
     dlock = shlock_open(SHLOCK_DIR, ddname, 0, 1);
@@ -754,8 +786,6 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
     size = HOST_PAGE_ALIGN(size);
     register_hardware_ram_virtual('S', targ, size, targ);
     addr2 = mmap_shm_mapping(targ, size, prot, fd);
-    close(fd);
-    fd = -1;
     if (addr2 != addr) {
         perror("mmap()");
         error("shared memory map failed %p %p\n", addr2, addr);
@@ -777,6 +807,12 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
     ptr->shm_dir = strdup(dname);
     ptr->shlock = shlock;
     ptr->dlock = dlock;
+    ptr->shm_fd = fd;
+
+    fhm = malloc(sizeof(struct shm_fhm));
+    fhm->fd = fd;
+    fhm->refcnt = 1;
+    fh_add(&shmap, &fhm->fhnode);
     D_printf("DPMI: map shm %s\n", ptr->shmname);
     return ptr;
 
@@ -789,8 +825,7 @@ err2:
 err12:
     shlock_close(dlock);
 err11:
-    if (fd != -1)
-        close(fd);
+    close(fd);
     return NULL;
 }
 
@@ -868,6 +903,7 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
         return -1;
     if (ptr->mapped)
         do_unmap_shm(ptr);
+    close_shm(ptr->shm_fd);
 
     exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
     assert(exlock);
@@ -891,6 +927,7 @@ int DPMI_freeSharedNS(dpmi_pm_block_root *root, uint32_t handle)
         return -1;
     if (ptr->mapped)
         do_unmap_shm(ptr);
+    close_shm(ptr->shm_fd);
 
     rc = shlock_close(ptr->shlock);
     ptr->shlock = NULL;
@@ -921,6 +958,7 @@ int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle)
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !ptr->shmname)
         return -1;
+    close_shm(ptr->shm_fd);
 
     exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
     assert(exlock);
