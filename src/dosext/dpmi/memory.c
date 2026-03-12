@@ -962,9 +962,7 @@ int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle)
 
     exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
     assert(exlock);
-    rc = 1;
-    if (ptr->shlock)
-        rc = shlock_close(ptr->shlock);
+    rc = shlock_close(ptr->shlock);
     if (rc > 0) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
         fslib_shm_unlink(ptr->rshmname);
