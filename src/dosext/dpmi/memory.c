@@ -576,37 +576,17 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 #define EXLOCK_DIR "dosemu2_shmex"
 #define SHLOCK_DIR "dosemu2_shmsh"
 
-dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
-        const char *name, unsigned int size, int flags)
+static int do_shm_open(char **r_shmname, const char *name,
+        unsigned int size, int flags)
 {
-    int i, err;
-    int fd = -1;
-    dpmi_pm_block *ptr;
-    void *addr, *addr2;
-    dosaddr_t targ;
     char *shmname;
+    int fd, err;
     struct stat st;
-    void *exlock, *shlock;
     int oflags = O_RDWR | O_CREAT;
-    int prot = PROT_READ | PROT_WRITE;
-
-    if (!size)		// DPMI spec says this is allowed - no thanks
-        return NULL;
-
-    exlock = shlock_open(EXLOCK_DIR, name, 1, 1);
-    if (!exlock) {
-        error("exlock failed\n");
-        return NULL;
-    }
-    if (flags & SHM_EXCL)
-        oflags |= O_EXCL;
-    shlock = shlock_open(SHLOCK_DIR, name, 0, 1);
-    if (!shlock) {
-        error("lock failed for %s\n", name);
-        goto err0;
-    }
 
     asprintf(&shmname, "/%s", name);
+    if (flags & SHM_EXCL)
+        oflags |= O_EXCL;
     fd = fslib_shm_open(shmname, oflags,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (fd == -1 && (flags & SHM_EXCL) && errno == EEXIST) {
@@ -639,7 +619,46 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
             goto err2;
         }
     }
+
+    *r_shmname = shmname;
+    return fd;
+
+err2:
+    close(fd);
+err1:
+    free(shmname);
+    return -1;
+}
+
+dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
+        const char *name, unsigned int size, int flags)
+{
+    int i;
+    int fd = -1;
+    dpmi_pm_block *ptr;
+    void *addr, *addr2;
+    dosaddr_t targ;
+    char *shmname;
+    void *exlock, *shlock;
+    int prot = PROT_READ | PROT_WRITE;
+
+    if (!size)		// DPMI spec says this is allowed - no thanks
+        return NULL;
+
+    exlock = shlock_open(EXLOCK_DIR, name, 1, 1);
+    if (!exlock) {
+        error("exlock failed\n");
+        return NULL;
+    }
+    shlock = shlock_open(SHLOCK_DIR, name, 0, 1);
+    if (!shlock) {
+        error("lock failed for %s\n", name);
+        goto err1;
+    }
+    fd = do_shm_open(&shmname, name, size, flags);
     shlock_close(exlock);
+    if (fd == -1)
+        goto err1;
     exlock = NULL;
 
     addr = smalloc_aligned(&mem_pool, HOST_PAGE_SIZE, size);
@@ -687,9 +706,6 @@ err2:
     if (fd != -1)
         close(fd);
 err1:
-    free(shmname);
-    shlock_close(shlock);
-err0:
     if (exlock)
         shlock_close(exlock);
 //    leavedos(2);
