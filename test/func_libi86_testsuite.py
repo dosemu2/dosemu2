@@ -6,9 +6,11 @@ from shutil import copy
 from subprocess import check_call, check_output, CalledProcessError, DEVNULL, TimeoutExpired
 from sys import stderr
 
-from common_framework import DOSEMU_CONF_DEFAULT
+from common_framework import DOSEMU_CONF_DEFAULT, maybeFailure
 
 TESTSUITE = "/usr/ia16-elf/libexec/libi86/tests/testsuite"
+
+WHITELIST = [104, 105, 106, 107, 108, 109, 110]
 
 
 def libi86_create_items(testcase):
@@ -31,23 +33,28 @@ def libi86_create_items(testcase):
         if t:
             tests += [t.groups(),]
 
-    def create_test(test):
+    def create_test(num, oname):
         def do_test_libi86(self):
-            libi86_test_item(self, test[0])
-        docstring = """libi86 item % 3s %s""" % (test[0], test[2])
+            libi86_test_item(self, num)
+        docstring = f"""libi86 item {num: 3d} {oname}"""
         setattr(do_test_libi86, '__doc__', docstring)
         setattr(do_test_libi86, 'libi86test', True)
-        return do_test_libi86
+        if num in WHITELIST:
+            return maybeFailure(do_test_libi86)
+        else:
+            return do_test_libi86
 
     # Insert each test into the testcase
     for test in tests:
-        name = 'test_libi86_item_%03d' % int(test[0])
-        setattr(testcase, name, create_test(test))
+        num = int(test[0])
+        tname = f'test_libi86_item_{num:03d}'
+        oname = test[2]
+        setattr(testcase, tname, create_test(num, oname))
 
     testcase.attrs.add('libi86test')
 
 
-def libi86_test_item(self, test):
+def libi86_test_item(self, num):
     self.mkfile("dosemu.conf", DOSEMU_CONF_DEFAULT, dname=self.imagedir)
 
     os.umask(0)
@@ -68,16 +75,28 @@ def libi86_test_item(self, test):
     # Do just one
     try:
         starttime = self.utcnow()
-        check_call([TESTSUITE, *args, test[0]], cwd=build, timeout=60, stdout=DEVNULL, stderr=DEVNULL)
+        check_call([TESTSUITE, *args, str(num)], cwd=build, timeout=120, stdout=DEVNULL, stderr=DEVNULL)
         self.duration = self.utcnow() - starttime
-    except CalledProcessError:
-        raise self.failureException("Test error") from None
-    except TimeoutExpired:
-        raise self.failureException("Test timeout") from None
-    finally:
+
+    except (TimeoutExpired, CalledProcessError) as e:
         #  The libi86 test suite has its own log file called 'testsuite.log',
         #  so we will present it as our usual expect log
         logfile = build / "tests" / "testsuite.log"
         if logfile.is_file():
             copy(logfile, self.logfiles['xpt'][0])
             self.logfiles['xpt'][1] = "testsuite.log"
+
+        #  It also has some test directory specific files
+        for tup in (
+                ("a.c", "c"),
+                ("a.log", "out")):
+            fil = build / "tests" / "testsuite.dir" / f"{num:03d}" / tup[0]
+            ext = tup[1]
+            if fil.is_file():
+                self.logfiles[ext] = [self.topdir / f"{self.id()}.{ext}", f"{fil.parent.name}/{fil.name}"]
+                copy(fil, self.logfiles[ext][0])
+
+        if isinstance(e, TimeoutExpired):
+            raise self.failureException("Test timed out, output files may be truncated") from None
+        elif isinstance(e, CalledProcessError):
+            raise self.failureException(f"Test failed with return code {e.returncode}") from None

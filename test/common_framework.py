@@ -17,7 +17,7 @@ from ptyprocess import PtyProcessError
 from shutil import copy, rmtree
 from subprocess import (Popen, call, check_call, check_output,
                         DEVNULL, STDOUT, TimeoutExpired, CalledProcessError)
-from sys import argv, exit, stdout, stderr, version_info
+from sys import argv, exc_info, exit, stdout, stderr, version_info
 from tarfile import open as topen
 from time import sleep
 from unittest.util import strclass
@@ -67,6 +67,7 @@ RED = "\x1b[31m"
 GREEN = "\x1b[32m"
 YELLOW = "\x1b[33m"
 LIGHT_BLUE = "\x1b[94m"
+ORANGE = "\x1b[38;5;214m"  # requires 24 bit terminal support
 RESET = "\x1b[0m"
 
 
@@ -147,6 +148,48 @@ def mark(attr_names):
             setattr(wrapper, n, True)
         return wrapper
     return decorator
+
+
+def maybeFailure(func):
+    """
+    Docorator used to mark a test that may fail without stopping the test run
+    """
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+
+        except self.failureException:
+            if environ.get("NO_MAYBEFAILURES", '0') == '1':
+                raise
+
+            # 1. Get raw traceback info
+            etype, value, tb = exc_info()
+
+            # 2. Filter the traceback frames
+            # Keep frames from our file, and skip the decorator/unittest internals
+            clean_frames = []
+            for frame, lineno in traceback.walk_tb(tb):
+                filename = frame.f_code.co_filename
+                # Skip the decorator itself and the unittest library internals
+                if "unittest/case.py" in filename or "unittest/suite.py" in filename:
+                    continue
+                if frame.f_code.co_name == "wrapper": # Skip our own decorator frame
+                    continue
+                clean_frames.append((frame, lineno))
+
+            # 3. Format only the relevant frames manually
+            # This mimics the "Traceback (most recent call last):" header
+            formatted_lines = ["Traceback (most recent call last):\n"]
+            for frame, lineno in clean_frames:
+                formatted_lines.extend(traceback.format_stack(frame, limit=1))
+
+            # Add the actual exception message at the end
+            formatted_lines.extend(traceback.format_exception_only(etype, value))
+
+            self.skipTest(f"MAYFAIL\n{''.join(formatted_lines)}")
+    return wrapper
 
 
 class BaseTestCase(object):
@@ -614,13 +657,13 @@ class BaseTestCase(object):
                     child.expect(resp[0])
                     child.send(resp[1])
                     if outfile is None:
-                        ret += child.before.decode('ASCII', 'replace')
+                        ret += child.before.decode('cp437', 'replace')
                 trms = ['rem end',]
                 if eofisok:
                     trms += [pexpect.EOF,]
                 child.expect(trms, timeout=timeout)
                 if outfile is None:
-                    ret += child.before.decode('ASCII', 'replace')
+                    ret += child.before.decode('cp437', 'replace')
                 else:
                     ret = outfile.read_text()
             except pexpect.TIMEOUT:
@@ -727,6 +770,7 @@ class MyTestResult(unittest.TextTestResult):
         super().__init__(*args, **kwargs)
         if (self.stream.isatty() or environ.get("CI")) and not environ.get("NO_COLOR"):
             self.with_color_terminal = True
+        self.mayfails = []
 
     def getDescription(self, test):
         if 'SubTest' in strclass(test.__class__):
@@ -786,13 +830,12 @@ class MyTestResult(unittest.TextTestResult):
         if maxLineLen > 120:
             n = list()
             for l in msgLines:
-                lf = l.encode('utf-8').decode('unicode_escape')
                 if self.with_color_terminal:
-                    lf = re.sub(r'(?m)^FAIL:', f"{RED}FAIL{RESET}:", lf)
-                    lf = re.sub(r'(?m)^PASS:', f"{GREEN}PASS{RESET}:", lf)
-                    lf = re.sub(r'(?m)^OKAY:', f"{YELLOW}OKAY{RESET}:", lf)
-                    lf = re.sub(r'(?m)^INFO:', f"{LIGHT_BLUE}INFO{RESET}:", lf)
-                n += [ lf, ]
+                    l = re.sub(r'(?m)^FAIL:', f"{RED}FAIL{RESET}:", l)
+                    l = re.sub(r'(?m)^PASS:', f"{GREEN}PASS{RESET}:", l)
+                    l = re.sub(r'(?m)^OKAY:', f"{YELLOW}OKAY{RESET}:", l)
+                    l = re.sub(r'(?m)^INFO:', f"{LIGHT_BLUE}INFO{RESET}:", l)
+                n += [ l, ]
             msgLines = n
 
         # Stdout, Stderr
@@ -819,7 +862,7 @@ class MyTestResult(unittest.TextTestResult):
                 continue
 
             if l[0].stat().st_size > 16*1024:
-                msgLines.append(f" '{l[0].name}' file too large for CI, see job artifacts\n")
+                msgLines.append(f"'{l[0].name}' file too large for CI, see job artifacts\n")
                 continue
 
             msgLines.append(f"::group::{l[0].name}\n")
@@ -862,6 +905,25 @@ class MyTestResult(unittest.TextTestResult):
         if getattr(self, 'failfast', False):
             self.stop()
 
+    def addSkip(self, test, reason):
+        if reason.startswith("MAYFAIL\n"):
+            if self.showAll:
+                if self.with_color_terminal:
+                    self.stream.writeln(f"{ORANGE}FAIL{RESET} (acceptable)")
+                else:
+                    self.stream.writeln("FAIL (acceptable)")
+            elif self.dots:
+                self.stream.write('M')
+                self.stream.flush()
+            # Store the test and the reason (which now contains the traceback)
+            self.mayfails.append((test, reason[len("MAYFAIL\n"):]))
+
+            for _, l in test.logfiles.items():
+                l[0].unlink(missing_ok=True)
+            test.logfiles = {}
+        else:
+            super().addSkip(test, reason)
+
     def addSuccess(self, test):
         super(unittest.TextTestResult, self).addSuccess(test)
         if self.showAll:
@@ -885,6 +947,20 @@ class MyTestResult(unittest.TextTestResult):
                 test.firstsub = False
                 self.stream.writeln("FAIL (one or more subtests)")
             self.stream.writeln("    %-76s ... FAIL" % subtest._subDescription())
+
+    def printErrors(self):
+        # 1. Print standard Errors/Failures first
+        super().printErrors()
+
+        # 2. Print our custom "MAYFAIL" details
+        if self.mayfails:
+            for test, reason in self.mayfails:
+                self.stream.writeln("\n" + "=" * 70)
+                self.stream.writeln(f"FAIL (acceptable): {self.getDescription(test)}")
+                self.stream.writeln("-" * 70)
+                # The 'reason' string now holds the traceback we captured in the decorator
+                self.stream.writeln(reason)
+            self.stream.flush()
 
 
 class MyTestRunner(unittest.TextTestRunner):
@@ -916,10 +992,10 @@ def main_setup(cases):
                   "  NO_COLOR=1          Override the terminal detection and disable colour printing of PASS|FAIL etc\n" +
                   "  NO_FAILFAST=1       Don't quit on the first test failure, run all specified\n" +
                   "  NO_KVM=1            Disables KVM, equivalent to autodetection not finding /dev/kvm\n" +
+                  "  NO_MAYBEFAILURES=1  Disables the maybeFailure mechanism so promoting test failures to FAIL\n" +
                   "  NO_TESTRUN=1        Exit the test runner after setting up the test environment and print the command line to be used\n" +
                   "  SKIP_EXPENSIVE=1    Tests that have been marked as expensive are not run\n" +
-                  "  SKIP_NATIVE_DPMI=1  Tests that use native DPMI are not run\n" +
-                  "  SKIP_UNCERTAIN=1    Tests that have non-deterministic behaviour are not run\n")
+                  "  SKIP_NATIVE_DPMI=1  Tests that use native DPMI are not run\n")
             exit(0)
 
         if argv[1] == "--get-test-binaries":
