@@ -1397,18 +1397,9 @@ static int madvise_mapping(dosaddr_t targ, size_t length, int flags)
 }
 #endif
 
-void *mmap_shm_mapping(unsigned targ, size_t length, int prot, int fd)
+void *mmap_shm_mapping(size_t length, int prot, int fd)
 {
-  int err;
-  void *ret;
-
-  ret = mappingdriver->attach(fd, length, prot);
-  if (ret == MAP_FAILED)
-    return MAP_FAILED;
-  err = alias_mapping_pa(MAPPING_SHM, targ, length, prot, ret);
-  if (err)
-    return MAP_FAILED;
-  return MEM_BASE32(targ);
+  return mappingdriver->attach(fd, length, prot);
 }
 
 int mprotect_vga(int idx, dosaddr_t targ, size_t mapsize, int protect)
