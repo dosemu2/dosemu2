@@ -317,14 +317,13 @@ char *e_print_scp_regs(cpuctx_t *scp, int pmode)
 }
 
 
-char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
+char *e_emu_disasm(dosaddr_t code, int is32, unsigned int refseg)
 {
    static char buf[512];
    static char frmtbuf[256];
    int rc = 0;
    int i;
    char *p = buf, *p1;
-   dosaddr_t code;
    dosaddr_t org2;
    unsigned int segbase;
 #ifdef USE_MHPDBG
@@ -335,7 +334,6 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
      segbase = GetSegmentBase(refseg);
    else
      segbase = refseg * 16;
-   code = EMUADDR_REL(org);
    org2 = code - segbase;
 #ifdef USE_MHPDBG
    rc = dis_8086(code, frmtbuf, is32, &ref, segbase);
@@ -363,7 +361,7 @@ char *e_scp_disasm(cpuctx_t *scp, int pmode)
    static unsigned int lasta = 0;
    int rc;
    int i;
-   unsigned char *p, *pb, *org2;
+   unsigned char *p, *pb;
    dosaddr_t org, csp2;
    unsigned int refseg, seg;
    unsigned int ref;
@@ -387,9 +385,8 @@ char *e_scp_disasm(cpuctx_t *scp, int pmode)
    	&ref, (pmode? csp2 : refseg * 16));
 
    pb = buf;
-   org2 = EMU_BASE32(org);
-   while ((*org2&0xfc)==0x64) org2++;	/* skip most prefixes */
-   if ((debug_level('t')>3)||(InterOps[*org2]&2))
+   while ((READ_BYTE(org)&0xfc)==0x64) org++;	/* skip most prefixes */
+   if ((debug_level('t')>3)||(InterOps[READ_BYTE(org)]&2))
 	pb += sprintf(pb,"%s",e_print_scp_regs(scp,pmode));
 
    p = pb + sprintf(pb,"  %08x: ",org);

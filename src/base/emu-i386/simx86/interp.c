@@ -382,7 +382,7 @@ static int can_speculate(void)
 	if (debug_level('e')) {
 		unsigned short ocs = TheCPU.cs;
 		unsigned int P2 = GL->npc;
-		char *ds = e_emu_disasm(EMU_BASE32(P2),IG->mode&MBIGCS,ocs);
+		char *ds = e_emu_disasm(P2,IG->mode&MBIGCS,ocs);
 		e_printf("prejit after  %s\n", ds);
 	}
 	return 1;
@@ -622,7 +622,7 @@ static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 
 	if (debug_level('e')>2) {
 		char *ds;
-		ds = e_emu_disasm(EMU_BASE32(PC),basemode&MBIGCS,ocs);
+		ds = e_emu_disasm(PC,basemode&MBIGCS,ocs);
 		e_printf("  %s\n", ds);
 	}
 
@@ -2771,7 +2771,7 @@ static void prejit_run(TNode *G)
     char *ds;
     unsigned short ocs = TheCPU.cs;
     unsigned int basemode = G->mode;
-    ds = e_emu_disasm(EMU_BASE32(PC),basemode&MBIGCS,ocs);
+    ds = e_emu_disasm(PC,basemode&MBIGCS,ocs);
     e_printf("prejit at  %s\n", ds);
   }
   if (e_querymark(PC, 1))
