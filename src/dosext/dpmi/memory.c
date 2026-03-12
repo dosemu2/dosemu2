@@ -58,6 +58,8 @@ static struct fh_bucket shms[SHSIZE];
 struct shm_fhm {
     int fd;
     int refcnt;
+    void *shlock;
+    void *dlock;
     struct fh_node fhnode;
 };
 static fhmap shmap;
@@ -594,11 +596,17 @@ static int do_shm_open(char **r_shmname, const char *name,
         unsigned int size, int flags)
 {
     char *shmname;
+    void *shlock;
     int fd, err;
     struct stat st;
     struct shm_fhm *fhm;
     int oflags = O_RDWR | O_CREAT;
 
+    shlock = shlock_open(SHLOCK_DIR, name, 0, 1);
+    if (!shlock) {
+        error("lock failed for %s\n", name);
+        return -1;
+    }
     asprintf(&shmname, "/%s", name);
     if (flags & SHM_EXCL)
         oflags |= O_EXCL;
@@ -638,6 +646,8 @@ static int do_shm_open(char **r_shmname, const char *name,
     fhm = malloc(sizeof(struct shm_fhm));
     fhm->fd = fd;
     fhm->refcnt = 1;
+    fhm->shlock = shlock;
+    fhm->dlock = NULL;
     fh_add(&shmap, &fhm->fhnode);
 
     *r_shmname = shmname;
@@ -650,11 +660,18 @@ err1:
     return -1;
 }
 
-static int close_shm(int fd)
+static int close_shm(int fd, int *r_rc, int *r_rc2)
 {
     struct shm_fhm *fhm = fh_find(&shmap, fd, struct shm_fhm, fhnode);
     assert(fhm && fhm->refcnt);
+
+    *r_rc = 0;
+    if (r_rc2)
+        *r_rc2 = 0;
     if (!--fhm->refcnt) {
+        *r_rc = shlock_close(fhm->shlock);
+        if (r_rc2)
+            *r_rc2 = shlock_close(fhm->dlock);
         close(fhm->fd);
         fh_del(&shmap, &fhm->fhnode);
         free(fhm);
@@ -666,13 +683,13 @@ static int close_shm(int fd)
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
         const char *name, unsigned int size, int flags)
 {
-    int i;
+    int i, rc;
     int fd = -1;
     dpmi_pm_block *ptr;
     void *addr, *addr2;
     dosaddr_t targ;
     char *shmname;
-    void *exlock, *shlock;
+    void *exlock;
     int prot = PROT_READ | PROT_WRITE;
 
     if (!size)		// DPMI spec says this is allowed - no thanks
@@ -682,11 +699,6 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     if (!exlock) {
         error("exlock failed\n");
         return NULL;
-    }
-    shlock = shlock_open(SHLOCK_DIR, name, 0, 1);
-    if (!shlock) {
-        error("lock failed for %s\n", name);
-        goto err1;
     }
     fd = do_shm_open(&shmname, name, size, flags);
     shlock_close(exlock);
@@ -725,7 +737,6 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     ptr->shmname = strdup(name);
     ptr->rshmname = shmname;
     ptr->nmoffs = 1;
-    ptr->shlock = shlock;
     ptr->shm_fd = fd;
     D_printf("DPMI: map shm %s\n", ptr->shmname);
     return ptr;
@@ -735,7 +746,11 @@ err4:
 err3:
     smfree(&mem_pool, addr);
 err2:
-    close_shm(fd);
+    close_shm(fd, &rc, NULL);
+    if (rc > 0) {
+        D_printf("DPMI: unlink shm %s\n", shmname);
+        fslib_shm_unlink(shmname);
+    }
 err1:
     if (exlock)
         shlock_close(exlock);
@@ -805,13 +820,13 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
     ptr->handle = pm_block_handle_used++;
     ptr->shmname = strdup(name);
     ptr->shm_dir = strdup(dname);
-    ptr->shlock = shlock;
-    ptr->dlock = dlock;
     ptr->shm_fd = fd;
 
     fhm = malloc(sizeof(struct shm_fhm));
     fhm->fd = fd;
     fhm->refcnt = 1;
+    fhm->shlock = shlock;
+    fhm->dlock = dlock;
     fh_add(&shmap, &fhm->fhnode);
     D_printf("DPMI: map shm %s\n", ptr->shmname);
     return ptr;
@@ -903,12 +918,10 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
         return -1;
     if (ptr->mapped)
         do_unmap_shm(ptr);
-    close_shm(ptr->shm_fd);
+    close_shm(ptr->shm_fd, &rc, NULL);
 
     exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
     assert(exlock);
-    rc = shlock_close(ptr->shlock);
-    ptr->shlock = NULL;
     if (rc > 0) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
         fslib_shm_unlink(ptr->rshmname);
@@ -921,16 +934,14 @@ int DPMI_freeShared(dpmi_pm_block_root *root, uint32_t handle)
 
 int DPMI_freeSharedNS(dpmi_pm_block_root *root, uint32_t handle)
 {
-    int rc;
+    int rc, rc2;
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !ptr->shmname)
         return -1;
     if (ptr->mapped)
         do_unmap_shm(ptr);
-    close_shm(ptr->shm_fd);
+    close_shm(ptr->shm_fd, &rc, &rc2);
 
-    rc = shlock_close(ptr->shlock);
-    ptr->shlock = NULL;
     if (rc > 0) {
         char *fname = assemble_path(ptr->shm_dir, ptr->rshmname);
         D_printf("DPMI: unlink shm %s\n", fname);
@@ -938,9 +949,7 @@ int DPMI_freeSharedNS(dpmi_pm_block_root *root, uint32_t handle)
         free(fname);
     }
 
-    rc = shlock_close(ptr->dlock);
-    ptr->dlock = NULL;
-    if (rc > 0) {
+    if (rc2 > 0) {
         D_printf("DPMI: unlink dir %s\n", ptr->shm_dir);
         rc = rmdir(ptr->shm_dir);
         if (rc)
@@ -958,11 +967,10 @@ int DPMI_freeShPartial(dpmi_pm_block_root *root, uint32_t handle)
     dpmi_pm_block *ptr = lookup_pm_block(root, handle);
     if (!ptr || !ptr->shmname)
         return -1;
-    close_shm(ptr->shm_fd);
+    close_shm(ptr->shm_fd, &rc, NULL);
 
     exlock = shlock_open(EXLOCK_DIR, ptr->shmname, 1, 1);
     assert(exlock);
-    rc = shlock_close(ptr->shlock);
     if (rc > 0) {
         D_printf("DPMI: unlink shm %s\n", ptr->rshmname);
         fslib_shm_unlink(ptr->rshmname);
