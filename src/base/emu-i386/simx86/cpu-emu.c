@@ -355,13 +355,12 @@ char *e_emu_disasm(dosaddr_t code, int is32, unsigned int refseg)
 #ifdef TRACE_DPMI
 char *e_scp_disasm(cpuctx_t *scp, int pmode)
 {
-   static char insrep = 0;
-   static unsigned char buf[1024];
-   static unsigned char frmtbuf[256];
+   static char buf[1024];
+   static char frmtbuf[256];
    static unsigned int lasta = 0;
    int rc;
    int i;
-   unsigned char *p, *pb;
+   char *p, *pb;
    dosaddr_t org, csp2;
    unsigned int refseg, seg;
    unsigned int ref;
@@ -369,17 +368,11 @@ char *e_scp_disasm(cpuctx_t *scp, int pmode)
    *buf = 0;
    seg = _cs;
    refseg = seg;
-   if (!(seg & 0x0004)) {
-      csp2 = org = EMUADDR_REL(LINP(_rip)); /* XXX bogus for x86_64 */
-   }
-   else {
-      csp2 = 0;
-      if (scp->cs <= 0xffff)
-         csp2 = GetSegmentBase(seg);
-      org = csp2 + _eip;
-   }
-   if (org==lasta) { insrep=1; return buf; } /* skip 'rep xxx' steps */
-   lasta = org; insrep = 0;
+   assert(DPMIValidSelector(seg));
+   csp2 = GetSegmentBase(seg);
+   org = csp2 + _eip;
+   if (org==lasta) { return buf; } /* skip 'rep xxx' steps */
+   lasta = org;
 
    rc = dis_8086(org, frmtbuf, pmode&&IsSegment32(seg),
    	&ref, (pmode? csp2 : refseg * 16));
