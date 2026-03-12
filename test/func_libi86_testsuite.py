@@ -10,7 +10,7 @@ from common_framework import DOSEMU_CONF_DEFAULT, maybeFailure
 
 TESTSUITE = "/usr/ia16-elf/libexec/libi86/tests/testsuite"
 
-WHITELIST = [104, 105, 106, 107, 108, 109, 110]
+WHITELIST = []
 
 
 def libi86_create_items(testcase):
