@@ -1330,12 +1330,12 @@ int unalias_mapping_pa(int cap, unsigned addr, size_t mapsize)
   struct hardware_ram *hw;
   dosaddr_t va = do_get_hardware_ram(addr, mapsize, &hw);
   if (va == (dosaddr_t)-1)
-    return 0;
+    return -1;
   assert(addr >= LOWMEM_SIZE + HMASIZE);
   restore_mapping(cap, va, mapsize);
   hwram_update_aliasmap(hw, addr, mapsize, NULL);
   invalidate_unprotected_page_cache(va, mapsize);
-  return 1;
+  return 0;
 }
 
 int mapping_is_mapped_pa(unsigned int addr, int mapsize)
