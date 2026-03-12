@@ -24,7 +24,6 @@ export TEST_DOSEMU=/usr/local/bin/dosemu
 export TEST_CMDDIR=/usr/local/share/dosemu/commands
 
 if [ "${BLDTYPE}" = "packaged" ] ; then
-  export SKIP_UNCERTAIN=1
   if [ "${OS}" = "ubuntu-22.04" ] ; then
     export SKIP_NATIVE_DPMI=1
   fi
@@ -34,10 +33,7 @@ fi
 
 if [ "${RUNTYPE}" = "simple" ] ; then
   export SKIP_EXPENSIVE=1
-  export SKIP_UNCERTAIN=1
-elif [ "${RUNTYPE}" = "normal" ] ; then
-  export SKIP_UNCERTAIN=1
-else
+elif [ "${RUNTYPE}" = "full" ] ; then
   export NO_FAILFAST=1
 fi
 

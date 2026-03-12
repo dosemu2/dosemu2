@@ -995,8 +995,7 @@ def main_setup(cases):
                   "  NO_MAYBEFAILURES=1  Disables the maybeFailure mechanism so promoting test failures to FAIL\n" +
                   "  NO_TESTRUN=1        Exit the test runner after setting up the test environment and print the command line to be used\n" +
                   "  SKIP_EXPENSIVE=1    Tests that have been marked as expensive are not run\n" +
-                  "  SKIP_NATIVE_DPMI=1  Tests that use native DPMI are not run\n" +
-                  "  SKIP_UNCERTAIN=1    Tests that have non-deterministic behaviour are not run\n")
+                  "  SKIP_NATIVE_DPMI=1  Tests that use native DPMI are not run\n")
             exit(0)
 
         if argv[1] == "--get-test-binaries":

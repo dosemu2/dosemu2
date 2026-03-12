@@ -4,8 +4,6 @@ from os import environ
 def pit_mode_2(self):
     if environ.get("SKIP_EXPENSIVE"):
         self.skipTest("expensive test")
-    if environ.get("SKIP_UNCERTAIN"):
-        self.skipTest("uncertain test")
 
     self.mkfile("testit.bat", """\
 pitmode2
