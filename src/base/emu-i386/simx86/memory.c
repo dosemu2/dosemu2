@@ -522,7 +522,7 @@ void e_fetch(unsigned int addr, size_t len, void **ret)
 	if (!p0)
 	    p0 = NewC(abeg);
 	l = (abeg == aend ? len : aend - addr);
-	memcpy(&((uint8_t *)p0)[off], EMU_BASE32(addr), l);
+	MEMCPY_2UNIX(&((uint8_t *)p0)[off], addr, l);
 	ret[0] = p0;
 	if (abeg == aend)
 	    return;
@@ -534,7 +534,7 @@ void e_fetch(unsigned int addr, size_t len, void **ret)
 	if (!p1)
 	    p1 = NewC(aend);
 	/* not offsetting as aend is page_aligned */
-	memcpy(p1, EMU_BASE32(aend), addr + len - aend);
+	MEMCPY_2UNIX(p1, aend, addr + len - aend);
 	ret[1] = p1;
 }
 
@@ -611,7 +611,7 @@ static void e_munprotect(unsigned int addr, size_t len)
 }
 
 /* check code hits on sub-page level */
-static int subpage_dirty(uint8_t *p, uint8_t *p1, tMpMap *M, int page)
+static int subpage_dirty(uint8_t *p, dosaddr_t p1, tMpMap *M, int page)
 {
     int i, n;
     uint64_t *bitmask = &M->subpage[page * (HOST_PAGE_SIZE >> 6)];
@@ -624,7 +624,7 @@ static int subpage_dirty(uint8_t *p, uint8_t *p1, tMpMap *M, int page)
 	    if (test_bit(addr&CGRMASK, M->nodemap))
 		assert(FindTree(addr));
 #endif
-	    if (p[bnum] != p1[bnum]) {
+	    if (p[bnum] != READ_BYTE(p1+bnum)) {
 		return 1;
 	    }
 	}
@@ -657,7 +657,7 @@ void e_invalidate_dirty(unsigned int addr, unsigned int aend)
 	    }
 	    p = M->pagemap[page];
 	    bs = 0;
-	    if (p && subpage_dirty(p, EMU_BASE32(addr), M, page)) {
+	    if (p && subpage_dirty(p, addr, M, page)) {
 		e_invalidate_page_full(addr);
 		bs = 1;
 		M = NULL;
@@ -679,7 +679,7 @@ void e_invalidate_page_dirty(unsigned int addr)
 	page = (addr / HOST_PAGE_SIZE) & (M->pages - 1);
 	p = M->pagemap[page];
 	bs = 0;
-	if (p && subpage_dirty(p, EMU_BASE32(addr), M, page)) {
+	if (p && subpage_dirty(p, addr, M, page)) {
 	    e_invalidate_page_full(addr);
 	    bs = 1;
 	}
@@ -698,8 +698,7 @@ again:
 	    for (i=0; i<M->pages; i++) {
 		void *p = M->pagemap[i];
 		dosaddr_t addr = (M->mega<<MEGA_SHIFT) | (i*HOST_PAGE_SIZE);
-		void *p1 = EMU_BASE32(addr);
-		if (p && subpage_dirty(p, p1, M, i)) {
+		if (p && subpage_dirty(p, addr, M, i)) {
 		    if (debug_level('e')>1)
 			dbug_printf("MP_INV %08x = RWX\n",addr);
 		    e_invalidate_page_full(addr);

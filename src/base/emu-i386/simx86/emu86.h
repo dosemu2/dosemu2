@@ -726,7 +726,7 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode, signed char overr_ds, s
 })
 int ModGetReg1(unsigned int PC, int mode);
 //
-char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg);
+char *e_emu_disasm(dosaddr_t code, int is32, unsigned int refseg);
 char *e_print_regs(unsigned int Interp_LONGCS);
 char *e_print_scp_regs(cpuctx_t *scp, int pmode);
 const char *e_trace_fp(void);

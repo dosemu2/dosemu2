@@ -264,15 +264,13 @@ char *e_print_regs(unsigned int Interp_LONG_CS)
 		dosaddr_t csp = Interp_LONG_CS+TheCPU.eip;
 		dosaddr_t st = LONG_SS+TheCPU.esp;
 		if (csp < 0xa0000 - 256 || dpmi_is_valid_range(csp, 256)) {
-			unsigned char *op = EMU_BASE32(csp);
 			for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6); i+=3) {
-			   exprintb(*op++,buf,i);
+			   exprintb(READ_BYTE(csp),buf,i); csp++;
 			}
 		}
 		if (st < 0xa0000 - 256 || dpmi_is_valid_range(st, 256)) {
-			unsigned short *stk = (unsigned short *)EMU_BASE32(st);
 			for (i=(ERB_L6+ERB_LEFTM); i<(ERB_L7-2); i+=5) {
-			   exprintw(*stk++,buf,i);
+			   exprintw(READ_WORD(st),buf,i); st += 2;
 			}
 		}
 	}
@@ -317,14 +315,13 @@ char *e_print_scp_regs(cpuctx_t *scp, int pmode)
 }
 
 
-char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
+char *e_emu_disasm(dosaddr_t code, int is32, unsigned int refseg)
 {
    static char buf[512];
    static char frmtbuf[256];
    int rc = 0;
    int i;
    char *p = buf, *p1;
-   dosaddr_t code;
    dosaddr_t org2;
    unsigned int segbase;
 #ifdef USE_MHPDBG
@@ -335,7 +332,6 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
      segbase = GetSegmentBase(refseg);
    else
      segbase = refseg * 16;
-   code = EMUADDR_REL(org);
    org2 = code - segbase;
 #ifdef USE_MHPDBG
    rc = dis_8086(code, frmtbuf, is32, &ref, segbase);
@@ -357,13 +353,12 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
 #ifdef TRACE_DPMI
 char *e_scp_disasm(cpuctx_t *scp, int pmode)
 {
-   static char insrep = 0;
-   static unsigned char buf[1024];
-   static unsigned char frmtbuf[256];
+   static char buf[1024];
+   static char frmtbuf[256];
    static unsigned int lasta = 0;
    int rc;
    int i;
-   unsigned char *p, *pb, *org2;
+   char *p, *pb;
    dosaddr_t org, csp2;
    unsigned int refseg, seg;
    unsigned int ref;
@@ -371,25 +366,18 @@ char *e_scp_disasm(cpuctx_t *scp, int pmode)
    *buf = 0;
    seg = _cs;
    refseg = seg;
-   if (!(seg & 0x0004)) {
-      csp2 = org = EMUADDR_REL(LINP(_rip)); /* XXX bogus for x86_64 */
-   }
-   else {
-      csp2 = 0;
-      if (scp->cs <= 0xffff)
-         csp2 = GetSegmentBase(seg);
-      org = csp2 + _eip;
-   }
-   if (org==lasta) { insrep=1; return buf; } /* skip 'rep xxx' steps */
-   lasta = org; insrep = 0;
+   assert(DPMIValidSelector(seg));
+   csp2 = GetSegmentBase(seg);
+   org = csp2 + _eip;
+   if (org==lasta) { return buf; } /* skip 'rep xxx' steps */
+   lasta = org;
 
    rc = dis_8086(org, frmtbuf, pmode&&IsSegment32(seg),
    	&ref, (pmode? csp2 : refseg * 16));
 
    pb = buf;
-   org2 = EMU_BASE32(org);
-   while ((*org2&0xfc)==0x64) org2++;	/* skip most prefixes */
-   if ((debug_level('t')>3)||(InterOps[*org2]&2))
+   while ((READ_BYTE(org)&0xfc)==0x64) org++;	/* skip most prefixes */
+   if ((debug_level('t')>3)||(InterOps[READ_BYTE(org)]&2))
 	pb += sprintf(pb,"%s",e_print_scp_regs(scp,pmode));
 
    p = pb + sprintf(pb,"  %08x: ",org);
