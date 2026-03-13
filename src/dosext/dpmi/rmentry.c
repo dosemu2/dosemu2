@@ -85,7 +85,7 @@ int dpmi_rmentry(unsigned short entry16, int is_32)
     post_msdos();
 
     coopth_leave();
-    LWORD(eax) = is_32;
+    LWORD(eax) = is_32 | 0x400;  // 0x400 - reinit IVT
     LWORD(ebx) = es;
     LWORD(ecx) = di;
     SREG(es) = mseg;

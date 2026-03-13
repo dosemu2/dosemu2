@@ -4415,7 +4415,7 @@ void dpmi_init(void)
         DPMI_pm_stack_size-1, DPMI_CLIENT.is_32,
         MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
-  if (in_dpmi > 1) {
+  if (in_dpmi > 1 && !(LWORD(eax) & 0x400)) {
     inherit_idt = DPMI_CLIENT.is_32 == PREV_DPMI_CLIENT.is_32
 	/* inheriting from PharLap causes 0x4c to be passed to DOS directly! */
 	&& !(PREV_DPMI_CLIENT.feature_flags & DF_PHARLAP)

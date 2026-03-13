@@ -1690,8 +1690,10 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    _LWORD(eax) = 0;
 	    /* 32bit DPMI supported (0x1),
 	     * entering from 16bit-PM supported (0x100),
-	     * entering from 32bit-PM supported (0x200) */
-	    _LWORD(ebx) = 1 | 0x300;
+	     * entering from 32bit-PM supported (0x200),
+	     * IVT reinit supported (0x400),
+	     */
+	    _LWORD(ebx) = 1 | 0x700;
 	    _LWORD(ecx) = 4;
 	    _HI(dx) = DPMI_VERSION;
 	    _LO(dx) = DPMI_MINOR_VERSION;
