@@ -46,7 +46,7 @@
 #include "trees.h"
 
 /* Tree structure to store collected code sequences */
-static struct fh_bucket bs[FH_SIZE];
+static struct fh_bucket bs[FHSIZE];
 static fhmap CollectTree;
 
 IMeta	InstrMeta[MAXINODES];
@@ -121,7 +121,7 @@ static TNode *find_node_start(unsigned a, int l)
 
 static void avltr_probe(TNode *item)
 {
-  fh_add(&CollectTree, item->key, &item->fhnode);
+  fh_add(&CollectTree, &item->fhnode);
 }
 
 
@@ -138,7 +138,7 @@ static void avltr_delete(TNode *p)
 
 static void avltr_init(void)
 {
-  fh_init(&CollectTree, bs, FH_SIZE, ZONE_P2SZ,
+  fh_init(&CollectTree, bs, FHSIZE, ZONE_P2SZ,
       (int)offsetof(TNode, key) - (int)offsetof(TNode, fhnode));
 
   g_printf("avltr_init\n");
