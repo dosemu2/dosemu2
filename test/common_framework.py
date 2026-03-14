@@ -163,32 +163,7 @@ def maybeFailure(func):
         except self.failureException:
             if environ.get("NO_MAYBEFAILURES", '0') == '1':
                 raise
-
-            # 1. Get raw traceback info
-            etype, value, tb = exc_info()
-
-            # 2. Filter the traceback frames
-            # Keep frames from our file, and skip the decorator/unittest internals
-            clean_frames = []
-            for frame, lineno in traceback.walk_tb(tb):
-                filename = frame.f_code.co_filename
-                # Skip the decorator itself and the unittest library internals
-                if "unittest/case.py" in filename or "unittest/suite.py" in filename:
-                    continue
-                if frame.f_code.co_name == "wrapper": # Skip our own decorator frame
-                    continue
-                clean_frames.append((frame, lineno))
-
-            # 3. Format only the relevant frames manually
-            # This mimics the "Traceback (most recent call last):" header
-            formatted_lines = ["Traceback (most recent call last):\n"]
-            for frame, lineno in clean_frames:
-                formatted_lines.extend(traceback.format_stack(frame, limit=1))
-
-            # Add the actual exception message at the end
-            formatted_lines.extend(traceback.format_exception_only(etype, value))
-
-            self.skipTest(f"MAYFAIL\n{''.join(formatted_lines)}")
+            self.skipTest(f"MAYFAIL\n")
     return wrapper
 
 
@@ -770,7 +745,6 @@ class MyTestResult(unittest.TextTestResult):
         super().__init__(*args, **kwargs)
         if (self.stream.isatty() or environ.get("CI")) and not environ.get("NO_COLOR"):
             self.with_color_terminal = True
-        self.mayfails = []
 
     def getDescription(self, test):
         if 'SubTest' in strclass(test.__class__):
@@ -915,9 +889,8 @@ class MyTestResult(unittest.TextTestResult):
             elif self.dots:
                 self.stream.write('M')
                 self.stream.flush()
-            # Store the test and the reason (which now contains the traceback)
-            self.mayfails.append((test, reason[len("MAYFAIL\n"):]))
 
+            # Remove the logfiles which will trip the overall failure logic
             for _, l in test.logfiles.items():
                 l[0].unlink(missing_ok=True)
             test.logfiles = {}
@@ -947,20 +920,6 @@ class MyTestResult(unittest.TextTestResult):
                 test.firstsub = False
                 self.stream.writeln("FAIL (one or more subtests)")
             self.stream.writeln("    %-76s ... FAIL" % subtest._subDescription())
-
-    def printErrors(self):
-        # 1. Print standard Errors/Failures first
-        super().printErrors()
-
-        # 2. Print our custom "MAYFAIL" details
-        if self.mayfails:
-            for test, reason in self.mayfails:
-                self.stream.writeln("\n" + "=" * 70)
-                self.stream.writeln(f"FAIL (acceptable): {self.getDescription(test)}")
-                self.stream.writeln("-" * 70)
-                # The 'reason' string now holds the traceback we captured in the decorator
-                self.stream.writeln(reason)
-            self.stream.flush()
 
 
 class MyTestRunner(unittest.TextTestRunner):
