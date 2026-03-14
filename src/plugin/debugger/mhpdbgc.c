@@ -88,8 +88,17 @@ static unsigned int linmode = 0;
 static unsigned int codeorg = 0;
 static int reg32;
 
-static unsigned int dpmimode=1, saved_dpmimode=1;
-#define IN_DPMI (in_dpmi_pm() && dpmimode)
+static unsigned int dpmimode;
+static int _in_dpmi() {
+  switch (dpmimode) {
+  case 0:
+    return in_dpmi_pm();
+  case 1:
+    return 0;
+  }
+  return dpmi_active();
+}
+#define IN_DPMI _in_dpmi()
 
 #define MAXSYM 10000
 enum SType { DYN, ABS };
@@ -729,7 +738,6 @@ static void mhp_go(int argc, char *argv[])
   } else {
     unsigned int csip = mhp_getcsip_value();
     mhpdbgc.stopped = 0;
-    dpmimode = 1;
     if (bpchk(csip)) {
       dpmi_mhp_setTF(1);
       set_TF();
@@ -806,7 +814,6 @@ static void mhp_trace(int argc, char *argv[])
     return;
 
   mhpdbgc.stopped = 0;
-  dpmimode = 1;
   if (in_dpmi_pm())
     dpmi_mhp_setTF(1);
   else
@@ -1581,14 +1588,15 @@ static void mhp_mode(int argc, char *argv[])
     if (argv[1][0] == '2')
       linmode = 2;
     if (!strcmp(argv[1], "+d"))
-      dpmimode = saved_dpmimode = 1;
+      dpmimode = 2;
     if (!strcmp(argv[1], "-d"))
-      dpmimode = saved_dpmimode = 0;
+      dpmimode = 1;
+    if (!strcmp(argv[1], "d"))
+      dpmimode = 0;
   }
   mhp_printf ("current mode: %s, dpmi %s%s\n",
-    linmode == 2 ? "unix32":linmode ? "lin32" : "seg16", dpmimode ? "enabled" : "disabled",
-    dpmimode != saved_dpmimode ? (saved_dpmimode ? "[default enabled]" : "[default disabled]") : "");
-  return;
+    linmode == 2 ? "unix32":linmode ? "lin32" : "seg16", in_dpmi_pm() ? "enabled" : "disabled",
+    dpmimode ? (IN_DPMI ? " [default enabled]" : " [default disabled]") : "");
 }
 
 static void mhp_disasm(int argc, char *argv[])
@@ -2409,7 +2417,6 @@ void mhp_bpset(void)
 {
   int i1;
 
-  dpmimode = saved_dpmimode;
   mhpdbgc.bpcleared = 0;
   for (i1 = 0; i1 < MAXBP; i1++) {
     if (mhpdbgc.brktab[i1].is_valid) {
@@ -2465,8 +2472,6 @@ void mhp_bpclr(void)
       WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, mhpdbgc.brktab[i1].opcode);
     }
   }
-  saved_dpmimode = dpmimode;
-  return;
 }
 
 int bpchk(unsigned int a1)

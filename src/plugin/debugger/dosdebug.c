@@ -152,7 +152,7 @@ static COMMAND cmds[] = {
   {"stop", NULL,
    "                  stop (if running)\n"},
   {"mode", NULL,
-   "0|1|2|+d|-d       set mode (0=SEG16, 1=LIN32, 2=UNIX32) for u and d commands\n"},
+   "0|1|2|d|+d|-d     set mode (0=SEG16, 1=LIN32, 2=UNIX32) for u and d commands\n"},
   {"t", NULL,
    "                  single step\n"},
   {"ti", NULL,
