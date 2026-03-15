@@ -536,7 +536,7 @@ static int dos_helper(int stk_offs, int revect)
 	p_dos_str
 	    ("Submit Bugs via https://github.com/dosemu2/dosemu2/issues\n");
 	p_dos_str
-	    ("Ask for help in mail list: linux-msdos@vger.kernel.org\n");
+	    ("Ask for help in: https://github.com/dosemu2/dosemu2/discussions\n");
 	p_dos_str
 	    ("This program comes with ABSOLUTELY NO WARRANTY.\n"
 	     "This is free software, GPL v2 (or any later version) "
