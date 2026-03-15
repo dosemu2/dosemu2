@@ -1509,6 +1509,7 @@ DRDOS701TestCase = drdos701(OurTestCase, {
     "test_fat_label_delete_wildcard": KNOWNFAIL,
     "test_sfn_truename": KNOWNFAIL,
     "test_sfn_findfirst": KNOWNFAIL,
+    "test_libi86_item_104": KNOWNFAIL,
 })
 
 FRDOS120TestCase = frdos120(OurTestCase, {
@@ -1636,6 +1637,7 @@ FRDOS130TestCase = frdos130(OurTestCase, {
     "test_serial_simple_read_echo": KNOWNFAIL,
     "test_sfn_truename": KNOWNFAIL,
     "test_sfn_findfirst": KNOWNFAIL,
+    "test_libi86_item_104": KNOWNFAIL,
 })
 
 FRDOSGITTestCase = frdosgit(OurTestCase, {
@@ -1688,6 +1690,7 @@ MSDOS622TestCase = msdos622(OurTestCase, {
     "test_passing_dos_errorlevel_back": KNOWNFAIL,
     "test_fat_label_create_bpb32": UNSUPPORTED,
     "test_fat_label_create_on_lfns": UNSUPPORTED,
+    "test_libi86_item_104": KNOWNFAIL,
 })
 
 MSDOS700TestCase = msdos700(OurTestCase, {
