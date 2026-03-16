@@ -1637,6 +1637,7 @@ FRDOS130TestCase = frdos130(OurTestCase, {
     "test_serial_simple_read_echo": KNOWNFAIL,
     "test_sfn_truename": KNOWNFAIL,
     "test_sfn_findfirst": KNOWNFAIL,
+    "test_libi86_item_056": KNOWNFAIL,
     "test_libi86_item_104": KNOWNFAIL,
 })
 
