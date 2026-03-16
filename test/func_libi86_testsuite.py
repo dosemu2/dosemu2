@@ -6,11 +6,12 @@ from shutil import copy
 from subprocess import check_call, check_output, CalledProcessError, DEVNULL, TimeoutExpired
 from sys import stderr
 
-from common_framework import DOSEMU_CONF_DEFAULT, maybeFailure
+from common_framework import DOSEMU_CONF_DEFAULT, acceptFailure
 
 TESTSUITE = "/usr/ia16-elf/libexec/libi86/tests/testsuite"
 
-WHITELIST = []
+# List of integers describing the test items
+ACCEPTFAILURES = []
 
 
 def libi86_create_items(testcase):
@@ -39,8 +40,8 @@ def libi86_create_items(testcase):
         docstring = f"""libi86 item {num: 3d} {oname}"""
         setattr(do_test_libi86, '__doc__', docstring)
         setattr(do_test_libi86, 'libi86test', True)
-        if num in WHITELIST:
-            return maybeFailure(do_test_libi86)
+        if num in ACCEPTFAILURES:
+            return acceptFailure(do_test_libi86)
         else:
             return do_test_libi86
 

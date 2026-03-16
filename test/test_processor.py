@@ -2,7 +2,7 @@
 
 from subprocess import check_call
 
-from common_framework import (BaseTestCase, main, main_setup, mark, maybeFailure,
+from common_framework import (BaseTestCase, main, main_setup, mark, acceptFailure,
                               KNOWNFAIL, UNSUPPORTED)
 from common_os import ppdosgit
 
@@ -55,7 +55,7 @@ class KVMTestCase(ppdosgit(OurTestCase, {
     use_cpu = 'kvm'
 
     @mark('cputest')
-    @maybeFailure
+    @acceptFailure
     def test_cpu_trap_flag(self):
         """CPU Trap Flag"""
         cpu_trap_flag(self)

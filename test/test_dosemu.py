@@ -4,7 +4,7 @@ import unittest
 
 from sys import argv
 
-from common_framework import (BaseTestCase, main, main_setup, mark, maybeFailure,
+from common_framework import (BaseTestCase, main, main_setup, mark, acceptFailure,
                               KNOWNFAIL, UNSUPPORTED)
 
 from common_os import (drdos701, frdos120, frdos130, frdosgit, msdos622,
@@ -1469,7 +1469,7 @@ class OurTestCase(BaseTestCase):
         """Passing DOS Errorlevel back"""
         passing_dos_errorlevel_back(self)
 
-    @maybeFailure
+    @acceptFailure
     def test_pit_mode_2(self):
         """PIT Mode 2"""
         pit_mode_2(self)
