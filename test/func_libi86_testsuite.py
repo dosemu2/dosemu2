@@ -1,9 +1,8 @@
 import re
-import os
 
-from os import environ, _exit
+from os import environ, _exit, umask
 from shutil import copy
-from subprocess import check_call, check_output, CalledProcessError, DEVNULL, TimeoutExpired
+from subprocess import check_output, CalledProcessError, DEVNULL, TimeoutExpired
 from sys import stderr
 
 from common_framework import DOSEMU_CONF_DEFAULT, acceptFailure
@@ -58,7 +57,7 @@ def libi86_create_items(testcase):
 def libi86_test_item(self, num):
     self.mkfile("dosemu.conf", DOSEMU_CONF_DEFAULT, dname=self.imagedir)
 
-    os.umask(0)
+    umask(0)
     build = self.imagedir / "libi86-test"
     build.mkdir()
 
@@ -81,7 +80,7 @@ def libi86_test_item(self, num):
     # Do just one
     try:
         starttime = self.utcnow()
-        check_call([TESTSUITE, *args, str(num)], cwd=build, timeout=120, stdout=DEVNULL, stderr=DEVNULL)
+        stdout = check_output([TESTSUITE, *args, str(num)], cwd=build, timeout=120, stderr=DEVNULL, text=True)
         self.duration = self.utcnow() - starttime
 
     except (TimeoutExpired, CalledProcessError) as e:
@@ -106,3 +105,10 @@ def libi86_test_item(self, num):
             raise self.failureException("Test timed out, output files may be truncated") from None
         elif isinstance(e, CalledProcessError):
             raise self.failureException(f"Test failed with return code {e.returncode}") from None
+
+    # Now check in the output that we ran the test we asked for!
+    x = re.search(r"^\s*(\d+):", stdout, re.MULTILINE)
+    if not x:
+        raise ValueError(f"Could not find test number in autotest output '{stdout}'")
+    if int(x.group(1)) != num:
+        raise ValueError(f"Test number in autotest output did not match requested number '{x.group(1)} != {num}'")
