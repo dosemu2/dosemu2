@@ -187,7 +187,6 @@ dosaddr_t physaddr_to_dosaddr(unsigned addr, int len);
 #ifndef MAP_FAILED
 #define MAP_FAILED (void*)-1
 #endif
-//void *lowmemp(const unsigned char *ptr);
 
 /* This is the global mem_base pointer: *all* memory is with respect
    to this base. It is normally set to 0 but with mmap_min_addr

@@ -143,7 +143,7 @@ umb_setup(int umb_ems)
     }
 #endif
     assert(umbs_used < UMBS);
-    sminit(&umbs[umbs_used], MEM_BASE32(addr_start), size);
+    sminit(&umbs[umbs_used], addr_start, size);
     smregister_error_notifier(&umbs[umbs_used], xx_printf);
     umbs_used++;
     Debug0(("umb_setup: addr %x size 0x%04x\n",
@@ -165,7 +165,7 @@ umb_find(int segbase)
   dosaddr_t addr = SEGOFF2LINEAR(segbase, 0);
 
   for (i = 0; i < umbs_used; i++) {
-    dosaddr_t base = DOSADDR_REL(smget_base_addr(&umbs[i]));
+    dosaddr_t base = smget_base_addr(&umbs[i]);
     if (addr >= base && addr < base + umbs[i].size)
       return (i);
   }
@@ -179,9 +179,9 @@ umb_allocate(int size)
 
   for (i = 0; i < umbs_used; i++) {
     if (smget_largest_free_area(&umbs[i]) >= size) {
-      void *addr = smalloc(&umbs[i], size);
-      assert(addr);
-      return DOSADDR_REL(addr);
+      dosaddr_t addr = smalloc(&umbs[i], size);
+      assert(addr != (dosaddr_t)-1);
+      return addr;
     }
   }
   return 0;
@@ -192,7 +192,7 @@ static void umb_free_all(void)
   int i;
 
   for (i = 0; i < umbs_used; i++) {
-    e_invalidate_full(DOSADDR_REL(smget_base_addr(&umbs[i])), umbs[i].size);
+    e_invalidate_full(smget_base_addr(&umbs[i]), umbs[i].size);
     smfree_all(&umbs[i]);
   }
   umbs_used = 0;
@@ -203,7 +203,7 @@ static int umb_free(int segbase)
   int umb = umb_find(segbase);
 
   if (umb != UMB_NULL)
-    return smfree(&umbs[umb], SEG2UNIX(segbase));
+    return smfree(&umbs[umb], SEGOFF2LINEAR(segbase, 0));
   return -1;
 }
 

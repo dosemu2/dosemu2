@@ -1602,7 +1602,7 @@ static int vga_emu_post_init(void);
 int vga_emu_pre_init(void)
 {
   int i;
-  void *base;
+  dosaddr_t base;
   vga_mapping_type vmt = {0, 0, 0};
 
   if (config.dumb_video) {
@@ -1634,8 +1634,8 @@ int vga_emu_pre_init(void)
   vga.mem.size = (vga.mem.size + ((1 << 18) - 1)) & ~((1 << 18) - 1);
   vga.mem.pages = vga.mem.size / HOST_PAGE_SIZE;
 
-  base = smalloc_aligned_topdown(&main_pool, NULL, HOST_PAGE_SIZE, vga.mem.size);
-  if(!base) {
+  base = smalloc_aligned_topdown(&main_pool, (dosaddr_t)-1, HOST_PAGE_SIZE, vga.mem.size);
+  if(base == (dosaddr_t)-1) {
     error("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     config.exitearly = 1;
     return 1;
@@ -1684,7 +1684,7 @@ int vga_emu_pre_init(void)
     }
   }
 
-  vga.mem.lfb_base = DOSADDR_REL(base);
+  vga.mem.lfb_base = base;
   vga.mem.base = dosaddr_to_unixaddr(vga.mem.lfb_base);
   memcheck_addtype('e', "VGAEMU LFB");
   register_hardware_ram_virtual('e', VGAEMU_PHYS_LFB_BASE, vga.mem.size,
@@ -1732,7 +1732,7 @@ void vga_emu_done(void)
 {
   if (vga.mem.lfb_base) {
     unalias_mapping_pa(MAPPING_DPMI, VGAEMU_PHYS_LFB_BASE, vga.mem.size);
-    smfree(&main_pool, MEM_BASE32(vga.mem.lfb_base));
+    smfree(&main_pool, vga.mem.lfb_base);
     vga.mem.lfb_base = 0;
   }
 }

@@ -294,15 +294,3 @@ void memcheck_dump(void)
   c_printf(".:  (unused)\n");
   c_printf("CONF:  End dump\n");
 }
-
-#if 0
-void *lowmemp(const unsigned char *ptr)
-{
-  dosaddr_t addr = DOSADDR_REL(ptr);
-#ifdef __x86_64__
-  if (addr > 0xffffffff)
-    return (void *)ptr;
-#endif
-  return dosaddr_to_unixaddr(addr);
-}
-#endif

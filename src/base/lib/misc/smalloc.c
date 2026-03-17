@@ -114,25 +114,25 @@ static int get_oom_pr(struct mempool *mp, size_t size)
     return 0;
 }
 
-static void sm_uncommit(struct mempool *mp, void *addr, size_t comb_size)
+static void sm_uncommit(struct mempool *mp, dosaddr_t addr, size_t comb_size)
 {
     /* align address up and align down size */
-    uintptr_t a = (uintptr_t)addr;
-    uintptr_t aa = PAGE_ALIGN(a);
+    dosaddr_t a = addr;
+    dosaddr_t aa = PAGE_ALIGN(a);
     size_t aligned_size = (comb_size - (aa - a)) & _PAGE_MASK;
-    void *aligned_addr = (void *)aa;
+    dosaddr_t aligned_addr = aa;
     if (!mp->uncommit || !aligned_size)
       return;
     mp->uncommit(aligned_addr, aligned_size);
 }
 
-static int __sm_commit(struct mempool *mp, void *addr, size_t size,
-	void *e_addr, size_t e_size)
+static int __sm_commit(struct mempool *mp, dosaddr_t addr, size_t size,
+	dosaddr_t e_addr, size_t e_size)
 {
   if (!mp->commit)
     return 1;
   if (!mp->commit(addr, size)) {
-    smerror(mp, "SMALLOC: failed to commit %p %zi\n", addr, size);
+    smerror(mp, "SMALLOC: failed to commit %#x %zi\n", addr, size);
     if (e_size) {
       mp->avail += e_size;
       sm_uncommit(mp, e_addr, e_size);
@@ -142,14 +142,14 @@ static int __sm_commit(struct mempool *mp, void *addr, size_t size,
   return 1;
 }
 
-static int sm_commit(struct mempool *mp, void *addr, size_t size,
-	void *e_addr, size_t e_size)
+static int sm_commit(struct mempool *mp, dosaddr_t addr, size_t size,
+	dosaddr_t e_addr, size_t e_size)
 {
     /* align address down and align up size */
-    uintptr_t a = (uintptr_t)addr;
-    uintptr_t aa = a & _PAGE_MASK;
+    dosaddr_t a = addr;
+    dosaddr_t aa = a & _PAGE_MASK;
     size_t aligned_size = PAGE_ALIGN(size + (a - aa));
-    void *aligned_addr = (void *)aa;
+    dosaddr_t aligned_addr = aa;
     int ok = __sm_commit(mp, aligned_addr, aligned_size, e_addr, e_size);
     if (ok) {
 	assert(mp->avail >= size);
@@ -158,9 +158,9 @@ static int sm_commit(struct mempool *mp, void *addr, size_t size,
     return ok;
 }
 
-static int sm_commit_simple(struct mempool *mp, void *addr, size_t size)
+static int sm_commit_simple(struct mempool *mp, dosaddr_t addr, size_t size)
 {
-  return sm_commit(mp, addr, size, NULL, 0);
+  return sm_commit(mp, addr, size, (dosaddr_t)-1, 0);
 }
 
 static void mntruncate(struct memnode *pmn, size_t size)
@@ -199,7 +199,7 @@ static void mntruncate(struct memnode *pmn, size_t size)
   }
 }
 
-static struct memnode *find_mn(struct mempool *mp, unsigned char *ptr,
+static struct memnode *find_mn(struct mempool *mp, dosaddr_t ptr,
     struct memnode **prev)
 {
   struct memnode *pmn, *mn;
@@ -219,7 +219,7 @@ static struct memnode *find_mn(struct mempool *mp, unsigned char *ptr,
   return NULL;
 }
 
-static struct memnode *find_mn_at(struct mempool *mp, unsigned char *ptr)
+static struct memnode *find_mn_at(struct mempool *mp, dosaddr_t ptr)
 {
   struct memnode *mn;
   for (mn = &mp->mn; mn; mn = mn->next) {
@@ -242,12 +242,12 @@ static struct memnode *smfind_free_area(struct mempool *mp, size_t size)
 }
 
 static struct memnode *smfind_free_area_topdown(struct mempool *mp,
-    unsigned char *top, size_t size)
+    dosaddr_t top, size_t size)
 {
   struct memnode *mn;
   struct memnode *mn1 = NULL;
   for (mn = &mp->mn; mn; mn = mn->next) {
-    if (top && mn->mem_area + size > top)
+    if (top != (dosaddr_t)-1 && mn->mem_area + size > top)
       break;
     if (!mn->used && mn->size >= size)
       mn1 = mn;
@@ -255,7 +255,7 @@ static struct memnode *smfind_free_area_topdown(struct mempool *mp,
   return mn1;
 }
 
-static struct memnode *sm_alloc_fixed(struct mempool *mp, void *ptr,
+static struct memnode *sm_alloc_fixed(struct mempool *mp, dosaddr_t ptr,
     size_t size)
 {
   struct memnode *mn;
@@ -264,21 +264,21 @@ static struct memnode *sm_alloc_fixed(struct mempool *mp, void *ptr,
     smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
     return NULL;
   }
-  if (!(mn = find_mn_at(mp, (unsigned char *)ptr))) {
-    smerror(mp, "SMALLOC: invalid address %p on alloc_fixed\n", ptr);
+  if (!(mn = find_mn_at(mp, ptr))) {
+    smerror(mp, "SMALLOC: invalid address %#x on alloc_fixed\n", ptr);
     return NULL;
   }
   if (mn->used) {
-    do_smerror(0, mp, "SMALLOC: address %p already allocated\n", ptr);
+    do_smerror(0, mp, "SMALLOC: address %#x already allocated\n", ptr);
     return NULL;
   }
-  delta = (uint8_t *)ptr - mn->mem_area;
+  delta = ptr - mn->mem_area;
   assert(delta >= 0);
   if (size + delta > mn->size) {
     int pr = get_oom_pr(mp, size);
     if (pr < 0)
       pr = 0;
-    do_smerror(pr, mp, "SMALLOC: no space %zi at address %p\n", size, ptr);
+    do_smerror(pr, mp, "SMALLOC: no space %zi at address %#x\n", size, ptr);
     return NULL;
   }
   if (delta) {
@@ -292,7 +292,7 @@ static struct memnode *sm_alloc_fixed(struct mempool *mp, void *ptr,
   mntruncate(mn, size);
   assert(mn->size == size);
   if (!(mp->flags & SMFLG_NOMEMSET))
-    memset(mn->mem_area, 0, size);
+    MEMSET_DOS(mn->mem_area, 0, size);
   return mn;
 }
 
@@ -301,7 +301,7 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
 {
   struct memnode *mn;
   int delta;
-  uintptr_t iptr;
+  dosaddr_t iptr;
   if (!size) {
     smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
     return NULL;
@@ -315,7 +315,7 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
     return NULL;
   }
   /* insert small node to align the start */
-  iptr = (uintptr_t)mn->mem_area;
+  iptr = mn->mem_area;
   delta = ((iptr | align) - iptr + 1) & align;
   if (delta) {
     mntruncate(mn, delta);
@@ -328,7 +328,7 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
   mntruncate(mn, size);
   assert(mn->size == size);
   if (!(mp->flags & SMFLG_NOMEMSET))
-    memset(mn->mem_area, 0, size);
+    MEMSET_DOS(mn->mem_area, 0, size);
   return mn;
 }
 
@@ -338,13 +338,13 @@ static struct memnode *sm_alloc_mn(struct mempool *mp, size_t size)
 }
 
 static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
-    unsigned char *top, size_t align, size_t size)
+    dosaddr_t top, size_t align, size_t size)
 {
   struct memnode *mn;
   int delta;
-  uintptr_t iptr;
-  uintptr_t min_top;
-  uintptr_t iend;
+  dosaddr_t iptr;
+  dosaddr_t min_top;
+  dosaddr_t iend;
   if (!size) {
     smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
     return NULL;
@@ -358,16 +358,16 @@ static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
     return NULL;
   }
   /* use top part of the found area */
-  min_top = (uintptr_t)mn->mem_area + mn->size;
-  if (top)
-    min_top = _min(min_top, (uintptr_t)top);
+  min_top = mn->mem_area + mn->size;
+  if (top != (dosaddr_t)-1)
+    min_top = _min(min_top, top);
   iptr = (min_top - size) & ~align;
   iend = iptr + size;
-  delta = (uintptr_t)mn->mem_area + mn->size - iend;
+  delta = mn->mem_area + mn->size - iend;
   if (delta)
     mntruncate(mn, mn->size - delta);
-  assert(iptr >= (uintptr_t)mn->mem_area);
-  delta = iptr - (uintptr_t)mn->mem_area;
+  assert(iptr >= mn->mem_area);
+  delta = iptr - mn->mem_area;
   if (delta) {
     mntruncate(mn, delta);
     mn = mn->next;
@@ -379,65 +379,65 @@ static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
   mntruncate(mn, size);
   assert(mn->size == size);
   if (!(mp->flags & SMFLG_NOMEMSET))
-    memset(mn->mem_area, 0, size);
+    MEMSET_DOS(mn->mem_area, 0, size);
   return mn;
 }
 
 static struct memnode *sm_alloc_topdown(struct mempool *mp, size_t size)
 {
-  return sm_alloc_aligned_topdown(mp, NULL, 1, size);
+  return sm_alloc_aligned_topdown(mp, (dosaddr_t)-1, 1, size);
 }
 
-void *smalloc(struct mempool *mp, size_t size)
+dosaddr_t smalloc(struct mempool *mp, size_t size)
 {
   struct memnode *mn = sm_alloc_mn(mp, size);
   if (!mn)
-    return NULL;
+    return (dosaddr_t)-1;
   return mn->mem_area;
 }
 
-void *smalloc_fixed(struct mempool *mp, void *ptr, size_t size)
+dosaddr_t smalloc_fixed(struct mempool *mp, dosaddr_t ptr, size_t size)
 {
   struct memnode *mn = sm_alloc_fixed(mp, ptr, size);
   if (!mn)
-    return NULL;
+    return (dosaddr_t)-1;
   assert(mn->mem_area == ptr);
   return mn->mem_area;
 }
 
-void *smalloc_aligned(struct mempool *mp, size_t align, size_t size)
+dosaddr_t smalloc_aligned(struct mempool *mp, size_t align, size_t size)
 {
   struct memnode *mn = sm_alloc_aligned(mp, align, size);
   if (!mn)
-    return NULL;
-  assert(((uintptr_t)mn->mem_area & (align - 1)) == 0);
+    return (dosaddr_t)-1;
+  assert((mn->mem_area & (align - 1)) == 0);
   return mn->mem_area;
 }
 
-void *smalloc_topdown(struct mempool *mp, size_t size)
+dosaddr_t smalloc_topdown(struct mempool *mp, size_t size)
 {
   struct memnode *mn = sm_alloc_topdown(mp, size);
   if (!mn)
-    return NULL;
+    return (dosaddr_t)-1;
   return mn->mem_area;
 }
 
-void *smalloc_aligned_topdown(struct mempool *mp, unsigned char *top,
+dosaddr_t smalloc_aligned_topdown(struct mempool *mp, dosaddr_t top,
     size_t align, size_t size)
 {
   struct memnode *mn = sm_alloc_aligned_topdown(mp, top, align, size);
   if (!mn)
-    return NULL;
-  assert(((uintptr_t)mn->mem_area & (align - 1)) == 0);
+    return (dosaddr_t)-1;
+  assert((mn->mem_area & (align - 1)) == 0);
   return mn->mem_area;
 }
 
-int smfree(struct mempool *mp, void *ptr)
+int smfree(struct mempool *mp, dosaddr_t ptr)
 {
   struct memnode *mn, *pmn;
-  if (!ptr)
+  if (ptr == (dosaddr_t)-1)
     return -1;
-  if (!(mn = find_mn(mp, (unsigned char *)ptr, &pmn))) {
+  if (!(mn = find_mn(mp, ptr, &pmn))) {
     smerror(mp, "SMALLOC: bad pointer passed to smfree()\n");
     return -1;
   }
@@ -485,9 +485,9 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
         return NULL;
     }
     pmn->used = 1;
-    memmove(pmn->mem_area, mn->mem_area, mn->size);
+    MEMMOVE_DOS2DOS(pmn->mem_area, mn->mem_area, mn->size);
     if (!(mp->flags & SMFLG_NOMEMSET))
-      memset(pmn->mem_area + mn->size, 0, size - mn->size);
+      MEMSET_DOS(pmn->mem_area + mn->size, 0, size - mn->size);
     mn->used = 0;
     if (size < pmn->size + mn->size) {
       size_t overl = size > pmn->size ? size - pmn->size : 0;
@@ -511,28 +511,28 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
 	    "SMALLOC: Out Of Memory on realloc, requested=%zu\n", size);
       return NULL;
     }
-    memcpy(new_mn->mem_area, mn->mem_area, mn->size);
+    MEMCPY_DOS2DOS(new_mn->mem_area, mn->mem_area, mn->size);
     smfree(mp, mn->mem_area);
   }
   return new_mn;
 }
 
-void *smrealloc(struct mempool *mp, void *ptr, size_t size)
+dosaddr_t smrealloc(struct mempool *mp, dosaddr_t ptr, size_t size)
 {
   struct memnode *mn, *pmn, *nmn;
   if (!ptr)
     return smalloc(mp, size);
-  if (!(mn = find_mn(mp, (unsigned char *)ptr, &pmn))) {
+  if (!(mn = find_mn(mp, ptr, &pmn))) {
     smerror(mp, "SMALLOC: bad pointer passed to smrealloc()\n");
-    return NULL;
+    return (dosaddr_t)-1;
   }
   if (!mn->used) {
     smerror(mp, "SMALLOC: attempt to realloc the not allocated region\n");
-    return NULL;
+    return (dosaddr_t)-1;
   }
   if (size == 0) {
     smfree(mp, ptr);
-    return NULL;
+    return (dosaddr_t)-1;
   }
   if (size == mn->size)
     return ptr;
@@ -550,44 +550,44 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
     if (nmn && !nmn->used && mn->size + nmn->size >= size) {
       /* expand by shrinking next memnode */
       if (!sm_commit_simple(mp, nmn->mem_area, size - mn->size))
-        return NULL;
+        return (dosaddr_t)-1;
       if (!(mp->flags & SMFLG_NOMEMSET))
-        memset(nmn->mem_area, 0, size - mn->size);
+        MEMSET_DOS(nmn->mem_area, 0, size - mn->size);
       mntruncate(mn, size);
     } else {
       /* need to allocate new memnode */
       mn = sm_realloc_alloc_mn(mp, pmn, mn, nmn, size);
       if (!mn)
-        return NULL;
+        return (dosaddr_t)-1;
     }
   }
   assert(mn->size == size);
   return mn->mem_area;
 }
 
-void *smrealloc_aligned(struct mempool *mp, void *ptr, int align, size_t size)
+dosaddr_t smrealloc_aligned(struct mempool *mp, dosaddr_t ptr, int align, size_t size)
 {
   struct memnode *mn, *pmn, *nmn;
   assert(__builtin_popcount(align) == 1);
   if (!ptr)
     return smalloc_aligned(mp, align, size);
-  if (!(mn = find_mn(mp, (unsigned char *)ptr, &pmn))) {
+  if (!(mn = find_mn(mp, ptr, &pmn))) {
     smerror(mp, "SMALLOC: bad pointer passed to smrealloc()\n");
-    return NULL;
+    return (dosaddr_t)-1;
   }
   if (!mn->used) {
     smerror(mp, "SMALLOC: attempt to realloc the not allocated region\n");
-    return NULL;
+    return (dosaddr_t)-1;
   }
   if (size == 0) {
     smfree(mp, ptr);
-    return NULL;
+    return (dosaddr_t)-1;
   }
   if (size == mn->size)
     return ptr;
-  if ((uintptr_t)mn->mem_area & (align - 1)) {
+  if (mn->mem_area & (align - 1)) {
     smerror(mp, "SMALLOC: unaligned pointer passed to smrealloc_aligned()\n");
-    return NULL;
+    return (dosaddr_t)-1;
   }
   if (size < mn->size) {
     /* shrink */
@@ -603,16 +603,16 @@ void *smrealloc_aligned(struct mempool *mp, void *ptr, int align, size_t size)
     if (nmn && !nmn->used && mn->size + nmn->size >= size) {
       /* expand by shrinking next memnode */
       if (!sm_commit_simple(mp, nmn->mem_area, size - mn->size))
-        return NULL;
+        return (dosaddr_t)-1;
       if (!(mp->flags & SMFLG_NOMEMSET))
-        memset(nmn->mem_area, 0, size - mn->size);
+        MEMSET_DOS(nmn->mem_area, 0, size - mn->size);
       mntruncate(mn, size);
     } else {
       /* lazy impl */
       struct memnode *new_mn = sm_alloc_aligned(mp, align, size);
       if (!new_mn)
-        return NULL;
-      memcpy(new_mn->mem_area, mn->mem_area, mn->size);
+        return (dosaddr_t)-1;
+      MEMCPY_DOS2DOS(new_mn->mem_area, mn->mem_area, mn->size);
       smfree(mp, mn->mem_area);
     }
   }
@@ -620,13 +620,13 @@ void *smrealloc_aligned(struct mempool *mp, void *ptr, int align, size_t size)
   return mn->mem_area;
 }
 
-static int do_sminit(struct mempool *mp, void *start, size_t size, int flags)
+static int do_sminit(struct mempool *mp, dosaddr_t start, size_t size, int flags)
 {
   mp->size = size;
   mp->mn.size = size;
   mp->mn.used = 0;
   mp->mn.next = NULL;
-  mp->mn.mem_area = (unsigned char *)start;
+  mp->mn.mem_area = start;
   mp->avail = size;
   mp->flags = flags;
   mp->commit = NULL;
@@ -635,19 +635,19 @@ static int do_sminit(struct mempool *mp, void *start, size_t size, int flags)
   return 0;
 }
 
-int sminit(struct mempool *mp, void *start, size_t size)
+int sminit(struct mempool *mp, dosaddr_t start, size_t size)
 {
   return do_sminit(mp, start, size, 0);
 }
 
-int sminit_f(struct mempool *mp, void *start, size_t size, int flags)
+int sminit_f(struct mempool *mp, dosaddr_t start, size_t size, int flags)
 {
   return do_sminit(mp, start, size, flags);
 }
 
-static int do_sminit_com(struct mempool *mp, void *start, size_t size,
-    int (*commit)(void *area, size_t size),
-    int (*uncommit)(void *area, size_t size), int do_uncommit,
+static int do_sminit_com(struct mempool *mp, dosaddr_t start, size_t size,
+    int (*commit)(dosaddr_t area, size_t size),
+    int (*uncommit)(dosaddr_t area, size_t size), int do_uncommit,
     int flags)
 {
   do_sminit(mp, start, size, flags);
@@ -658,17 +658,17 @@ static int do_sminit_com(struct mempool *mp, void *start, size_t size,
   return 0;
 }
 
-int sminit_com(struct mempool *mp, void *start, size_t size,
-    int (*commit)(void *area, size_t size),
-    int (*uncommit)(void *area, size_t size),
+int sminit_com(struct mempool *mp, dosaddr_t start, size_t size,
+    int (*commit)(dosaddr_t area, size_t size),
+    int (*uncommit)(dosaddr_t area, size_t size),
     int flags)
 {
   return do_sminit_com(mp, start, size, commit, uncommit, 1, flags);
 }
 
-int sminit_comu(struct mempool *mp, void *start, size_t size,
-    int (*commit)(void *area, size_t size),
-    int (*uncommit)(void *area, size_t size),
+int sminit_comu(struct mempool *mp, dosaddr_t start, size_t size,
+    int (*commit)(dosaddr_t area, size_t size),
+    int (*uncommit)(dosaddr_t area, size_t size),
     int flags)
 {
   return do_sminit_com(mp, start, size, commit, uncommit, 0, flags);
@@ -702,7 +702,7 @@ size_t smget_free_space(struct mempool *mp)
   return mp->avail;
 }
 
-size_t smget_free_space_upto(struct mempool *mp, unsigned char *top)
+size_t smget_free_space_upto(struct mempool *mp, dosaddr_t top)
 {
   struct memnode *mn;
   int cnt = 0;
@@ -729,17 +729,17 @@ size_t smget_largest_free_area(struct mempool *mp)
   return size;
 }
 
-int smget_area_size(struct mempool *mp, void *ptr)
+int smget_area_size(struct mempool *mp, dosaddr_t ptr)
 {
   struct memnode *mn;
-  if (!(mn = find_mn(mp, (unsigned char *)ptr, NULL))) {
+  if (!(mn = find_mn(mp, ptr, NULL))) {
     smerror(mp, "SMALLOC: bad pointer passed to smget_area_size()\n");
     return -1;
   }
   return mn->size;
 }
 
-void *smget_base_addr(struct mempool *mp)
+dosaddr_t smget_base_addr(struct mempool *mp)
 {
   return mp->mn.mem_area;
 }

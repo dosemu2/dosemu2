@@ -31,10 +31,10 @@
 short __dpmi_int_ss, __dpmi_int_sp, __dpmi_int_flags;
 
 static uint16_t data_sel;
-static unsigned char *pool_base;
+static dosaddr_t pool_base;
 static smpool apool;
 
-#define POOL_OFS(p) ((unsigned char *)(p) - pool_base)
+#define POOL_OFS(p) ((p) - pool_base)
 
 static void do_callf(cpuctx_t *scp, int is_32, struct pmaddr_s pma)
 {
@@ -446,18 +446,18 @@ int _dpmi_set_extended_exception_handler_vector_rm(cpuctx_t *scp, int is_32, int
 int _dpmi_simulate_real_mode_interrupt(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
 {			/* DPMI 0.9 AX=0300 */
     cpuctx_t sa = *scp;
-    __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
+    dosaddr_t regs = smalloc(&apool, sizeof(*__regs));
 
     _eax = 0x300;
     _ebx = _vector;
     _ecx = 0;
     _es = data_sel;
     _edi = POOL_OFS(regs);
-    memcpy(regs, __regs, sizeof(*regs));
+    MEMCPY_2DOS(regs, __regs, sizeof(*__regs));
     D_printf("MSDOS: sched to dos thread for int 0x%x\n", _vector);
     do_dpmi_callf(scp, is_32);
     D_printf("MSDOS: return from dos thread\n");
-    memcpy(__regs, regs, sizeof(*regs));
+    MEMCPY_2UNIX(__regs, regs, sizeof(*__regs));
     smfree(&apool, regs);
     *scp = sa;
     return 0;
@@ -466,7 +466,7 @@ int _dpmi_simulate_real_mode_interrupt(cpuctx_t *scp, int is_32, int _vector, __
 int _dpmi_int(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
 { /* like above, but sets ss sp fl */	/* DPMI 0.9 AX=0300 */
     cpuctx_t sa = *scp;
-    __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
+    dosaddr_t regs = smalloc(&apool, sizeof(*__regs));
 
     _eax = 0x300;
     _ebx = _vector;
@@ -476,11 +476,11 @@ int _dpmi_int(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
     __regs->x.ss = __dpmi_int_ss;
     __regs->x.sp = __dpmi_int_sp;
     __regs->x.flags = __dpmi_int_flags;
-    memcpy(regs, __regs, sizeof(*regs));
+    MEMCPY_2DOS(regs, __regs, sizeof(*__regs));
     D_printf("MSDOS: sched to dos thread for int 0x%x\n", _vector);
     do_dpmi_callf(scp, is_32);
     D_printf("MSDOS: return from dos thread\n");
-    memcpy(__regs, regs, sizeof(*regs));
+    MEMCPY_2UNIX(__regs, regs, sizeof(*__regs));
     smfree(&apool, regs);
     *scp = sa;
     return 0;
@@ -498,19 +498,19 @@ static void do_procedure_retf(cpuctx_t *scp,
 	.selector = dpmi_sel(),
     };
     cpuctx_t sa = *scp;
-    __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
+    dosaddr_t regs = smalloc(&apool, sizeof(*__regs));
 
     _eax = 0x301;
     _ebx = 0;
     _ecx = words;
     _es = data_sel;
     _edi = POOL_OFS(regs);
-    memcpy(regs, __regs, sizeof(*regs));
+    MEMCPY_2DOS(regs, __regs, sizeof(*__regs));
     D_printf("MSDOS: sched to dos thread for call to %x:%x\n",
 	    __regs->x.cs, __regs->x.ip);
     do_callf(scp, is_32, is_32 ? pma : pma16);
     D_printf("MSDOS: return from dos thread\n");
-    memcpy(__regs, regs, sizeof(*regs));
+    MEMCPY_2UNIX(__regs, regs, sizeof(*__regs));
     smfree(&apool, regs);
     *scp = sa;
 }
@@ -546,19 +546,19 @@ int _dpmi_simulate_real_mode_procedure_retf_stack(cpuctx_t *scp, int is_32,
 int _dpmi_simulate_real_mode_procedure_iret(cpuctx_t *scp, int is_32, __dpmi_regs *__regs)
 {				/* DPMI 0.9 AX=0302 */
     cpuctx_t sa = *scp;
-    __dpmi_regs *regs = smalloc(&apool, sizeof(*regs));
+    dosaddr_t regs = smalloc(&apool, sizeof(*__regs));
 
     _eax = 0x302;
     _ebx = 0;
     _ecx = 0;
     _es = data_sel;
     _edi = POOL_OFS(regs);
-    memcpy(regs, __regs, sizeof(*regs));
+    MEMCPY_2DOS(regs, __regs, sizeof(*__regs));
     D_printf("MSDOS: sched to dos thread for call to %x:%x\n",
 	    __regs->x.cs, __regs->x.ip);
     do_dpmi_callf(scp, is_32);
     D_printf("MSDOS: return from dos thread\n");
-    memcpy(__regs, regs, sizeof(*regs));
+    MEMCPY_2UNIX(__regs, regs, sizeof(*__regs));
     smfree(&apool, regs);
     *scp = sa;
     return 0;
@@ -896,15 +896,15 @@ int _dpmi_set_coprocessor_emulation(cpuctx_t *scp, int is_32, int _flags)
 void dpmi_api_init(uint16_t selector, dosaddr_t pool, int pool_size)
 {
     data_sel = selector;
-    pool_base = MEM_BASE32(pool);
+    pool_base = pool;
     sminit(&apool, pool_base, pool_size);
 }
 
 __dpmi_paddr dapi_alloc(int len)
 {
     __dpmi_paddr ret = {};
-    void *ptr = smalloc(&apool, len);
-    if (ptr) {
+    dosaddr_t ptr = smalloc(&apool, len);
+    if (ptr != (dosaddr_t)-1) {
         ret.selector = data_sel;
         ret.offset32 = POOL_OFS(ptr);
     }

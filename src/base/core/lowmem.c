@@ -51,35 +51,38 @@ static void do_sm_error(int prio, const char *fmt, ...)
 
 int lowmem_init(void)
 {
-    dosemu_lmheap_base = MK_FP32(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFF);
-    sminit(&mp, dosemu_lmheap_base, DOSEMU_LMHEAP_SIZE);
+    dosaddr_t base = SEGOFF2LINEAR(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFF);
+    sminit(&mp, base, DOSEMU_LMHEAP_SIZE);
+    dosemu_lmheap_base = LINEAR2UNIX(base);
     smregister_error_notifier(&mp, do_sm_error);
     return 1;
 }
 
 void * lowmem_alloc(int size)
 {
-	char *ptr = smalloc(&mp, size);
-	if (!ptr) {
+	dosaddr_t ptr = smalloc(&mp, size);
+	if (ptr == (dosaddr_t)-1) {
 		error("lowmem_heap: OOM, size=%i\n", size);
 		leavedos(86);
 	}
-	return ptr;
+	return LINEAR2UNIX(ptr);
 }
 
 void * lowmem_alloc_aligned(int align, int size)
 {
-	char *ptr = smalloc_aligned(&mp, align, size);
-	if (!ptr) {
+	dosaddr_t ptr = smalloc_aligned(&mp, align, size);
+	if (ptr == (dosaddr_t)-1) {
 		error("lowmem_heap: OOM, size=%i\n", size);
 		leavedos(86);
 	}
-	return ptr;
+	return LINEAR2UNIX(ptr);
 }
 
 void lowmem_free(void *p)
 {
-	smfree(&mp, p);
+	if (!p) return;
+	smfree(&mp, SEGOFF2LINEAR(DOSEMU_LMHEAP_SEG,
+				  DOSEMU_LMHEAP_OFFS_OF(p)));
 }
 
 void lowmem_reset(void)

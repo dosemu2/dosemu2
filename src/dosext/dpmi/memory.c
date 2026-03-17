@@ -49,8 +49,8 @@ static unsigned int mem_allocd;           /* how many bytes memory client */
 unsigned int pm_block_handle_used;       /* tracking handle */
 
 static smpool mem_pool;
-static unsigned char *dpmi_lin_rsv_base;
-static unsigned char *dpmi_base;
+static dosaddr_t dpmi_lin_rsv_base;
+static dosaddr_t dpmi_base;
 static const int dpmi_reserved_space = 4 * 1024 * 1024; // reserve 4Mb
 
 #define SHSIZE 16
@@ -152,21 +152,20 @@ dpmi_pm_block *lookup_pm_block_by_shmname(dpmi_pm_block_root *root,
     return NULL;
 }
 
-static int commit(void *ptr, size_t size)
+static int commit(dosaddr_t targ, size_t size)
 {
-  dosaddr_t targ = DOSADDR_REL(ptr);
   size = HOST_PAGE_ALIGN(size);
   if (mprotect_mapping(MAPPING_DPMI, targ, size,
 	PROT_READ | PROT_WRITE | DPMI_PROT_EXEC) == -1)
     return 0;
-  mcommit(ptr, size);
+  mcommit(MEM_BASE32(targ), size);
   return 1;
 }
 
-static int uncommit(void *ptr, size_t size)
+static int uncommit(dosaddr_t targ, size_t size)
 {
   size = HOST_PAGE_ALIGN(size);
-  if (mprotect_mapping(MAPPING_DPMI, DOSADDR_REL(ptr), size, PROT_NONE) == -1)
+  if (mprotect_mapping(MAPPING_DPMI, targ, size, PROT_NONE) == -1)
     return 0;
   return 1;
 }
@@ -215,16 +214,16 @@ int dpmi_lin_mem_free(void)
     if (!dpmi_lin_rsv_base)
 	return 0;
     return smget_free_space_upto(&main_pool,
-	    &dpmi_lin_rsv_base[dpmi_lin_mem_rsv()]);
+	    dpmi_lin_rsv_base + dpmi_lin_mem_rsv());
 }
 
 int dpmi_alloc_pool(void)
 {
     uint32_t memsize = dpmi_mem_size();
 
-    dpmi_lin_rsv_base = MEM_BASE32(LOWMEM_SIZE + HMASIZE);
-    dpmi_base = MEM_BASE32(config.dpmi_base);
-    c_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, dpmi_base);
+    dpmi_lin_rsv_base = LOWMEM_SIZE + HMASIZE;
+    dpmi_base = config.dpmi_base;
+    c_printf("DPMI: mem init, mpool is %d bytes at %#x\n", memsize, dpmi_base);
     /* Create DPMI pool */
     sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit, 0);
     dpmi_total_memory = config.dpmi * 1024;
@@ -407,7 +406,7 @@ static void restore_page_protection(dpmi_pm_block *block)
 dpmi_pm_block * DPMI_malloc(dpmi_pm_block_root *root, unsigned int size)
 {
     dpmi_pm_block *block;
-    unsigned char *realbase;
+    dosaddr_t realbase;
     int i;
 
    /* aligned size to PAGE size */
@@ -420,7 +419,7 @@ dpmi_pm_block * DPMI_malloc(dpmi_pm_block_root *root, unsigned int size)
 	free_pm_block(root, block);
 	return NULL;
     }
-    block->base = DOSADDR_REL(realbase);
+    block->base = realbase;
     block->linear = 0;
     for (i = 0; i < size / HOST_PAGE_SIZE; i++)
 	block->attrs[i] = 9;
@@ -435,7 +434,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
   dosaddr_t base, unsigned int size, int committed)
 {
     dpmi_pm_block *block;
-    unsigned char *realbase;
+    dosaddr_t realbase;
     int i;
 
    /* aligned size to PAGE size */
@@ -446,12 +445,12 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	base = -1;
     else {
 	/* fixed allocation */
-	if (base < DOSADDR_REL(dpmi_lin_rsv_base)) {
+	if (base < dpmi_lin_rsv_base) {
 	    D_printf("DPMI: failing lin alloc to lowmem %x, size %x\n",
 		    base, size);
 	    return NULL;
 	}
-	if ((uint64_t)base + size > DOSADDR_REL(dpmi_lin_rsv_base) +
+	if ((uint64_t)base + size > dpmi_lin_rsv_base +
 		dpmi_lin_mem_rsv()) {
 	    D_printf("DPMI: failing lin alloc to %x, size %x\n", base, size);
 	    return NULL;
@@ -463,15 +462,15 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 
     if (base == -1)
 	realbase = smalloc_aligned_topdown(&main_pool,
-		&dpmi_lin_rsv_base[dpmi_lin_mem_rsv()],
+		dpmi_lin_rsv_base + dpmi_lin_mem_rsv(),
 		HOST_PAGE_SIZE, size);
     else
-	realbase = smalloc_fixed(&main_pool, MEM_BASE32(base), size);
-    if (realbase == NULL) {
+	realbase = smalloc_fixed(&main_pool, base, size);
+    if (realbase == (dosaddr_t)-1) {
 	free_pm_block(root, block);
 	return NULL;
     }
-    block->base = DOSADDR_REL(realbase);
+    block->base = realbase;
     mprotect_mapping(MAPPING_DPMI, block->base, size, committed ?
 		DPMI_PROT_RWX : PROT_NONE);
     block->linear = 1;
@@ -518,7 +517,7 @@ static void do_unmap_shm(dpmi_pm_block *block)
     if (err)
         error("restore_mapping() failed\n");
     e_invalidate_full(block->base, block->size);
-    smfree(&mem_pool, MEM_BASE32(block->base));
+    smfree(&mem_pool, block->base);
     unregister_hardware_ram_virtual(block->base);
     block->mapped = 0;
     if (block->stalled_shm_addr)
@@ -572,9 +571,9 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
 	}
 	mprotect_mapping(MAPPING_DPMI, block->base, block->size,
 		    PROT_READ | PROT_WRITE);
-	smfree(&main_pool, MEM_BASE32(block->base));
+	smfree(&main_pool, block->base);
     } else {
-	smfree(&mem_pool, MEM_BASE32(block->base));
+	smfree(&mem_pool, block->base);
     }
     for (i = 0; i < block->size / HOST_PAGE_SIZE; i++) {
 	if ((block->attrs[i] & 7) == 1) {   // if committed priv page, account it
@@ -697,8 +696,8 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
 {
     int i, rc;
     dpmi_pm_block *ptr;
-    void *addr, *addr2 = NULL;
-    dosaddr_t targ;
+    void *addr2 = NULL;
+    dosaddr_t addr, targ;
     char *shmname;
     struct shm_fhm *fhm;
     int prot = PROT_READ | PROT_WRITE;
@@ -726,13 +725,13 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     }
     if (!(flags & SHM_NOEXEC))
         prot |= DPMI_PROT_EXEC;
-    targ = DOSADDR_REL(addr);
+    targ = addr;
     size = HOST_PAGE_ALIGN(size);
     if (!addr2) {
         addr2 = mmap_shm_mapping(size, prot, fhm->fd);
         if (addr2 == MAP_FAILED) {
             perror("mmap()");
-            error("shared memory map failed %p %p\n", addr2, addr);
+            error("shared memory map failed %p %#x\n", addr2, addr);
             goto err3;
         }
         fhm->addr = addr2;
@@ -774,8 +773,8 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
 {
     int i, err;
     dpmi_pm_block *ptr;
-    void *addr, *addr2 = NULL;
-    dosaddr_t targ;
+    void *addr2 = NULL;
+    dosaddr_t addr, targ;
     void *shlock = NULL, *dlock = NULL;
     char *ddname = strrchr(dname, '/') + 1;
     char shlock_dir[256];
@@ -820,15 +819,16 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
         fhm->dlock = dlock;
         fh_add(&shmap, &fhm->fhnode);
     }
+
     if (!(flags & SHM_NOEXEC))
         prot |= DPMI_PROT_EXEC;
-    targ = DOSADDR_REL(addr);
+    targ = addr;
     size = HOST_PAGE_ALIGN(size);
     if (!addr2) {
         addr2 = mmap_shm_mapping(size, prot, fd);
         if (addr2 == MAP_FAILED) {
             perror("mmap()");
-            error("shared memory map failed %p %p\n", addr2, addr);
+            error("shared memory map failed %p %#x\n", addr2, addr);
             goto err3;
         }
         fhm->addr = addr2;
@@ -1045,7 +1045,7 @@ dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
   unsigned int handle, unsigned int newsize)
 {
     dpmi_pm_block *block;
-    unsigned char *ptr;
+    dosaddr_t ptr;
 
     if (!newsize)	/* DPMI spec. says resize to 0 is an error */
 	return NULL;
@@ -1070,11 +1070,11 @@ dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
     e_invalidate_full(block->base, block->size);
     mprotect_mapping(MAPPING_DPMI, block->base, block->size,
         DPMI_PROT_RWX);
-    if (!(ptr = smrealloc(&mem_pool, MEM_BASE32(block->base), newsize)))
+    if (!(ptr = smrealloc(&mem_pool, block->base, newsize)))
 	return NULL;
 
     finish_realloc(block, newsize, 1);
-    block->base = DOSADDR_REL(ptr);
+    block->base = ptr;
     block->size = newsize;
     restore_page_protection(block);
     return block;
@@ -1084,7 +1084,7 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
   unsigned handle, unsigned newsize, int committed)
 {
     dpmi_pm_block *block;
-    unsigned char *ptr;
+    dosaddr_t ptr;
 
     if (!newsize)	/* DPMI spec. says resize to 0 is an error */
 	return NULL;
@@ -1113,14 +1113,14 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     e_invalidate_full(block->base, block->size);
     mprotect_mapping(MAPPING_DPMI, block->base, block->size,
       DPMI_PROT_RWX);
-    ptr = smrealloc(&main_pool, MEM_BASE32(block->base), newsize);
-    if (ptr == NULL) {
+    ptr = smrealloc(&main_pool, block->base, newsize);
+    if (ptr == (dosaddr_t)-1) {
 	restore_page_protection(block);
 	return NULL;
     }
 
     finish_realloc(block, newsize, committed);
-    block->base = DOSADDR_REL(ptr);
+    block->base = ptr;
     block->size = newsize;
     /* restore_page_protection() will set proper prots */
     mprotect_mapping(MAPPING_DPMI, block->base, block->size,
