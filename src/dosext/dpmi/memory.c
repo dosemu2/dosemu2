@@ -783,6 +783,12 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
     int prot = PROT_READ | PROT_WRITE;
     dpmi_pm_block *other = lookup_pm_block_by_shmname(root, name);
 
+    addr = smalloc_aligned(&mem_pool, HOST_PAGE_SIZE, size);
+    if (!addr) {
+        error("unable to alloc %x for shm %s\n", size, name);
+        return NULL;
+    }
+
     if (other) {
         fhm = fh_find(&shmap, other->shm_fd, struct shm_fhm, fhnode);
         assert(fhm);
@@ -813,12 +819,6 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
         fhm->shlock = shlock;
         fhm->dlock = dlock;
         fh_add(&shmap, &fhm->fhnode);
-    }
-
-    addr = smalloc_aligned(&mem_pool, HOST_PAGE_SIZE, size);
-    if (!addr) {
-        error("unable to alloc %x for shm %s\n", size, name);
-        goto err2;
     }
     if (!(flags & SHM_NOEXEC))
         prot |= DPMI_PROT_EXEC;
@@ -851,7 +851,7 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
     return ptr;
 
 err3:
-    smfree(&mem_pool, addr);
+    close_shm(fhm->fd, &err, NULL);
 err2:
     if (shlock)
         shlock_close(shlock);
