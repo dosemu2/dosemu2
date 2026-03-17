@@ -18,6 +18,7 @@
 #define __SMALLOC_H
 
 #include <stddef.h>
+#include "memory.h"
 
 #ifndef FORMAT
 #define FORMAT(T,A,B) __attribute__((format(T,A,B)))
@@ -27,7 +28,7 @@ struct memnode {
   struct memnode *next;
   size_t size;
   int used;
-  unsigned char *mem_area;
+  dosaddr_t mem_area;
 };
 
 typedef struct mempool {
@@ -35,39 +36,39 @@ typedef struct mempool {
   size_t avail;
   int flags;
   struct memnode mn;
-  int (*commit)(void *area, size_t size);
-  int (*uncommit)(void *area, size_t size);
+  int (*commit)(dosaddr_t area, size_t size);
+  int (*uncommit)(dosaddr_t area, size_t size);
   void (*smerr)(int prio, const char *fmt, ...) FORMAT(printf, 2, 3);
 } smpool;
 
 #define SMFLG_NOMEMSET 1
 
-void *smalloc(struct mempool *mp, size_t size);
-void *smalloc_fixed(struct mempool *mp, void *ptr, size_t size);
-int smfree(struct mempool *mp, void *ptr);
-void *smalloc_aligned(struct mempool *mp, size_t align, size_t size);
-void *smalloc_topdown(struct mempool *mp, size_t size);
-void *smalloc_aligned_topdown(struct mempool *mp, unsigned char *top,
+dosaddr_t smalloc(struct mempool *mp, size_t size);
+dosaddr_t smalloc_fixed(struct mempool *mp, dosaddr_t ptr, size_t size);
+int smfree(struct mempool *mp, dosaddr_t ptr);
+dosaddr_t smalloc_aligned(struct mempool *mp, size_t align, size_t size);
+dosaddr_t smalloc_topdown(struct mempool *mp, size_t size);
+dosaddr_t smalloc_aligned_topdown(struct mempool *mp, dosaddr_t top,
     size_t align, size_t size);
-void *smrealloc(struct mempool *mp, void *ptr, size_t size);
-void *smrealloc_aligned(struct mempool *mp, void *ptr, int align, size_t size);
-int sminit(struct mempool *mp, void *start, size_t size);
-int sminit_f(struct mempool *mp, void *start, size_t size, int flags);
-int sminit_com(struct mempool *mp, void *start, size_t size,
-    int (*commit)(void *area, size_t size),
-    int (*uncommit)(void *area, size_t size),
+dosaddr_t smrealloc(struct mempool *mp, dosaddr_t ptr, size_t size);
+dosaddr_t smrealloc_aligned(struct mempool *mp, dosaddr_t ptr, int align, size_t size);
+int sminit(struct mempool *mp, dosaddr_t start, size_t size);
+int sminit_f(struct mempool *mp, dosaddr_t start, size_t size, int flags);
+int sminit_com(struct mempool *mp, dosaddr_t start, size_t size,
+    int (*commit)(dosaddr_t area, size_t size),
+    int (*uncommit)(dosaddr_t area, size_t size),
     int flags);
-int sminit_comu(struct mempool *mp, void *start, size_t size,
-    int (*commit)(void *area, size_t size),
-    int (*uncommit)(void *area, size_t size),
+int sminit_comu(struct mempool *mp, dosaddr_t start, size_t size,
+    int (*commit)(dosaddr_t area, size_t size),
+    int (*uncommit)(dosaddr_t area, size_t size),
     int flags);
 void smfree_all(struct mempool *mp);
 int smdestroy(struct mempool *mp);
 size_t smget_free_space(struct mempool *mp);
-size_t smget_free_space_upto(struct mempool *mp, unsigned char *top);
+size_t smget_free_space_upto(struct mempool *mp, dosaddr_t top);
 size_t smget_largest_free_area(struct mempool *mp);
-int smget_area_size(struct mempool *mp, void *ptr);
-void *smget_base_addr(struct mempool *mp);
+int smget_area_size(struct mempool *mp, dosaddr_t ptr);
+dosaddr_t smget_base_addr(struct mempool *mp);
 void smregister_error_notifier(struct mempool *mp,
   void (*func)(int prio, const char *fmt, ...) FORMAT(printf, 2, 3));
 void smregister_default_error_notifier(

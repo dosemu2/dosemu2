@@ -391,7 +391,8 @@ static void do_sm_error(int prio, const char *fmt, ...)
 
 void map_memory_space(void)
 {
-  unsigned char *lowmem, *ptr, *ptr2;
+  unsigned char *lowmem;
+  dosaddr_t ptr, ptr2;
   int result;
   uint32_t memsize;
   int32_t phys_rsv, phys_low;
@@ -433,23 +434,23 @@ void map_memory_space(void)
     memcheck_reserve('x', LOWMEM_SIZE + EXTMEM_SIZE, XMS_SIZE);
   }
 
-  sminit_f(&main_pool, mem_base, memsize, SMFLG_NOMEMSET);
+  sminit_f(&main_pool, 0, memsize, SMFLG_NOMEMSET);
   ptr = smalloc(&main_pool, LOWMEM_SIZE + HMASIZE);
-  assert(ptr == mem_base);
+  assert(ptr == 0);
   /* we have an uncommitted hole up to phys_low */
   ptr += phys_low;
   phys_rsv = phys_low - (LOWMEM_SIZE + HMASIZE);
   /* create non-identity mapping up to phys_low */
   ptr2 = smalloc_topdown(&main_pool, config.dpmi ? phys_low : phys_rsv);
-  assert(ptr2);
+  assert(ptr2 != (dosaddr_t)-1);
   if (config.dpmi) {
-    void *dptr = smalloc_fixed(&main_pool, MEM_BASE32(config.dpmi_base),
+    dosaddr_t dptr = smalloc_fixed(&main_pool, config.dpmi_base,
         dpmi_mem_size());
-    assert(dptr);
+    assert(dptr != (dosaddr_t)-1);
     if (config.cpu_vm_dpmi == CPUVM_KVM) {
       /* map dpmi+uncommitted space to kvm */
       int prot = KVM_PROT_RWX;
-      mmap_kvm(MAPPING_INIT_LOWRAM, phys_low, ptr2 - ptr, ptr, phys_low, prot);
+      mmap_kvm(MAPPING_INIT_LOWRAM, phys_low, ptr2 - ptr, MEM_BASE32(ptr), phys_low, prot);
     }
     /* unused hole for alignment */
     ptr2 += LOWMEM_SIZE + HMASIZE;
@@ -462,12 +463,12 @@ void map_memory_space(void)
       LOWMEM_SIZE + HMASIZE);
 
   /* establish ext_mem alias access for int15 within 32Mb window above dpmi */
-  ext_va = DOSADDR_REL(ptr2);
+  ext_va = ptr2;
   /* Note: can't map directly to lowmem_base here because XMS uses the
    * same window with different source. */
   register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, phys_rsv, ext_va);
   if (config.dpmi && config.cpu_vm_dpmi == CPUVM_KVM)
-    mmap_kvm(MAPPING_LOWMEM, DOSADDR_REL(ptr2), phys_rsv,
+    mmap_kvm(MAPPING_LOWMEM, ptr2, phys_rsv,
         MEM_BASE32(LOWMEM_SIZE + HMASIZE), LOWMEM_SIZE + HMASIZE,
         KVM_PROT_RWX);
 
