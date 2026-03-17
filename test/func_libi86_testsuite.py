@@ -37,7 +37,7 @@ def libi86_create_items(testcase):
     def create_test(num, oname):
         def do_test_libi86(self):
             libi86_test_item(self, num)
-        docstring = f"""libi86 item {num: 3d} {oname}"""
+        docstring = f"""libi86 item {num:>3d} {oname}"""
         setattr(do_test_libi86, '__doc__', docstring)
         setattr(do_test_libi86, 'libi86test', True)
         if num in ACCEPTFAILURES:
