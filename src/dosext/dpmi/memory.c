@@ -73,15 +73,11 @@ static fhmap shmap;
 static dpmi_pm_block * alloc_pm_block(dpmi_pm_block_root *root, unsigned size)
 {
     dpmi_pm_block *p = malloc(sizeof(dpmi_pm_block));
-    if(!p)
-	return NULL;
+    assert(p);
     memset(p, 0, sizeof(*p));
     assert(size >= HOST_PAGE_SIZE && !(size & ~HOST_PAGE_MASK));
     p->attrs = malloc((size / HOST_PAGE_SIZE) * sizeof(u_short));
-    if(!p->attrs) {
-	free(p);
-	return NULL;
-    }
+    assert(p->attrs);
     p->next = root->first_pm_block;	/* add it to list */
     root->first_pm_block = p;
     p->mapped = 1;
@@ -418,8 +414,7 @@ dpmi_pm_block * DPMI_malloc(dpmi_pm_block_root *root, unsigned int size)
     size = HOST_PAGE_ALIGN(size);
     if (size > dpmi_total_memory - mem_allocd + dpmi_reserved_space)
 	return NULL;
-    if ((block = alloc_pm_block(root, size)) == NULL)
-	return NULL;
+    block = alloc_pm_block(root, size);
 
     if (!(realbase = smalloc_aligned(&mem_pool, HOST_PAGE_SIZE, size))) {
 	free_pm_block(root, block);
@@ -464,8 +459,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     }
     if (committed && size > dpmi_free_memory())
 	return NULL;
-    if ((block = alloc_pm_block(root, size)) == NULL)
-	return NULL;
+    block = alloc_pm_block(root, size);
 
     if (base == -1)
 	realbase = smalloc_aligned_topdown(&main_pool,
@@ -500,8 +494,7 @@ dpmi_pm_block * DPMI_mapHWRam(dpmi_pm_block_root *root,
     vbase = get_hardware_ram(hwaddr, size);
     if (vbase == -1)
 	return NULL;
-    if ((block = alloc_pm_block(root, size)) == NULL)
-	return NULL;
+    block = alloc_pm_block(root, size);
     block->base = vbase;
     block->linear = 1;
     block->hwram = 1;
@@ -748,10 +741,6 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     rc = alias_mapping_pa(MAPPING_SHM | MAPPING_DPMI, targ, size, prot, addr2);
     assert(!rc);
     ptr = alloc_pm_block(root, size);
-    if (!ptr) {
-        error("pm block alloc failed, exiting\n");
-        goto err4;
-    }
     for (i = 0; i < (size / HOST_PAGE_SIZE); i++)
         ptr->attrs[i] = 0x09 | ATTR_SHR;	// RW, shared, present
     ptr->base = targ;
@@ -766,8 +755,6 @@ dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
     D_printf("DPMI: map shm %s\n", ptr->shmname);
     return ptr;
 
-err4:
-    restore_mapping(MAPPING_DPMI, DOSADDR_REL(addr2), size);
 err3:
     smfree(&mem_pool, addr);
 err2:
@@ -850,10 +837,6 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
     err = alias_mapping_pa(MAPPING_SHM | MAPPING_DPMI, targ, size, prot, addr2);
     assert(!err);
     ptr = alloc_pm_block(root, size);
-    if (!ptr) {
-        error("pm block alloc failed, exiting\n");
-        goto err4;
-    }
     for (i = 0; i < (size / HOST_PAGE_SIZE); i++)
         ptr->attrs[i] = 0x09 | ATTR_SHR;	// RW, shared, present
     ptr->base = targ;
@@ -867,8 +850,6 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
     D_printf("DPMI: map shm %s\n", ptr->shmname);
     return ptr;
 
-err4:
-    restore_mapping(MAPPING_DPMI, DOSADDR_REL(addr2), size);
 err3:
     smfree(&mem_pool, addr);
 err2:
