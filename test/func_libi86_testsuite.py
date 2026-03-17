@@ -1,7 +1,7 @@
 import re
 import os
 
-from os import environ
+from os import environ, _exit
 from shutil import copy
 from subprocess import check_call, check_output, CalledProcessError, DEVNULL, TimeoutExpired
 from sys import stderr
@@ -72,6 +72,11 @@ def libi86_test_item(self, num):
         '--x-with-dosemu=%s' % self.dosemu,
         '--x-with-dosemu-options=%s' % options,
     ]
+
+    if environ.get("NO_TESTRUN", '0') == '1':
+        print(f'\n\nNO_TESTRUN=1, command line to run test is')
+        print(f'(cd {build} && {TESTSUITE} {args[0]} {args[1]} {args[2]} --x-with-dosemu-options="{options}" {num})\n')
+        _exit(0)  # Don't let unittest handle it, just exit
 
     # Do just one
     try:
