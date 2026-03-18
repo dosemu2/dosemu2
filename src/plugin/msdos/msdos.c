@@ -1857,8 +1857,7 @@ int msdos_pre_extender(cpuctx_t *scp,
     return (alt_ent ? MSDOS_RM : MSDOS_RMINT);
 }
 
-#define RMSEG_ADR(type, seg, reg)  type(&mem_base[(RMREG(seg) << 4) + \
-    RMLWORD(reg)])
+#define RMSEG_ADR(type, seg, reg)  type(MK_FP32(RMREG(seg), RMLWORD(reg)))
 
 far_t get_xms_call(void) { return MSDOS_CLIENT.XMS_call; }
 unsigned short scratch_seg(cpuctx_t *scp, int off, void *arg)
