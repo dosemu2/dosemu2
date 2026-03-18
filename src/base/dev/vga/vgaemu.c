@@ -1088,7 +1088,7 @@ int vga_emu_fault(dosaddr_t lin_addr, unsigned err, cpuctx_t *scp)
     if (debug_level('v') && DPMIValidSelector(_cs) &&
 	  (((daddr = GetSegmentBase(_cs) + _eip) < 0x110000) ||
 	   dpmi_is_valid_range(daddr, 15))) {
-     cs_ip = MEM_BASE32(daddr);
+     cs_ip = LINEAR2UNIX(daddr);
      vga_deb_map(
       "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
       (unsigned) _cs, (unsigned) _eip,
