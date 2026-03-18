@@ -70,11 +70,11 @@ static unsigned char it[0x100] = {
   0, 1, 0, 0, 1, 1, 7, 7,    1, 1, 1, 1, 1, 1, 7, 7
 };
 
-static unsigned arg_len(unsigned char *p, int asp)
+static unsigned arg_len(dosaddr_t p, int asp)
 {
   unsigned u = 0, m, s = 0;
 
-  m = *p & 0xc7;
+  m = READ_BYTE(p) & 0xc7;
   if(asp) {
     if(m == 5) {
       u = 5;
@@ -109,14 +109,14 @@ static unsigned arg_len(unsigned char *p, int asp)
   return u;
 }
 
-static int _instr_len(unsigned char *p, int is_32)
+static int _instr_len(dosaddr_t p, int is_32)
 {
   unsigned u, osp, asp;
-  unsigned char *p0 = p;
+  dosaddr_t p0 = p;
 
   osp = asp = is_32;
 
-  for(u = 1; u && p - p0 < 17;) switch(*p++) {		/* get prefixes */
+  for(u = 1; u && p - p0 < 17;) switch(READ_BYTE(p++)) {		/* get prefixes */
     case 0x26:	/* es: */
 //      seg = 1;
       break;
@@ -155,9 +155,9 @@ static int _instr_len(unsigned char *p, int is_32)
 
   if(p - p0 >= 16) return 0;
 
-  if(*p == 0x0f) {
+  if(READ_BYTE(p) == 0x0f) {
     p++;
-    switch (*p) {
+    switch (READ_BYTE(p)) {
     case 0xba:
       p += 4;
       return p - p0;
@@ -170,12 +170,12 @@ static int _instr_len(unsigned char *p, int is_32)
       return p - p0;
     default:
       /* not yet */
-      error("unsupported instr_len %x %x\n", p[0], p[1]);
+      error("unsupported instr_len %x %x\n", READ_BYTE(p), READ_BYTE(p + 1));
       return 0;
     }
   }
 
-  switch(it[*p]) {
+  switch(it[READ_BYTE(p)]) {
     case 1:	/* op-code */
       p += 1; break;
 
@@ -366,12 +366,12 @@ static unsigned instr_binary_dword(unsigned op, unsigned op1, unsigned op2, unsi
 static uint32_t x86_pop(cpuctx_t *scp, x86_ins *x86)
 {
   unsigned ss_base = GetSegmentBase(_ss);
-  unsigned char *mem = MEM_BASE32(ss_base + (_esp & wordmask[(x86->_32bit+1)*2]));
+  dosaddr_t mem = ss_base + (_esp & wordmask[(x86->_32bit+1)*2]);
   if (x86->_32bit)
     _esp += x86->operand_size;
   else
     _LWORD(esp) += x86->operand_size;
-  return (x86->operand_size == 4 ? READ_DWORDP(mem) : READ_WORDP(mem));
+  return (x86->operand_size == 4 ? READ_DWORD(mem) : READ_WORD(mem));
 }
 
 static int x86_handle_prefixes(cpuctx_t *scp, unsigned cs_base,
@@ -389,7 +389,7 @@ static int x86_handle_prefixes(cpuctx_t *scp, unsigned cs_base,
   x86->ss = 0;
   x86->address_size = x86->operand_size = (x86->_32bit + 1) * 2;
   for (;; eip++) {
-    switch(*(unsigned char *)MEM_BASE32(cs_base + eip)) {
+    switch(READ_BYTE(cs_base + eip)) {
     /* handle (some) prefixes */
       case 0x26:
         prefix++;
@@ -438,18 +438,16 @@ static int x86_handle_prefixes(cpuctx_t *scp, unsigned cs_base,
   return prefix;
 }
 
-static void make_retf_frame(cpuctx_t *scp, void *sp,
+static void make_retf_frame(cpuctx_t *scp, dosaddr_t sp,
 	uint32_t cs, uint32_t eip, int is_32)
 {
   if (is_32) {
-    unsigned int *ssp = sp;
-    *--ssp = cs;
-    *--ssp = eip;
+    WRITE_DWORD(sp - 4, cs);
+    WRITE_DWORD(sp - 8, eip);
     _esp -= 8;
   } else {
-    unsigned short *ssp = sp;
-    *--ssp = cs;
-    *--ssp = eip;
+    WRITE_WORD(sp - 2, cs);
+    WRITE_WORD(sp - 4, eip);
     _LWORD(esp) -= 4;
   }
 }
@@ -457,9 +455,9 @@ static void make_retf_frame(cpuctx_t *scp, void *sp,
 #define PATCH_SIZE 8
 #define STACK_SIZE (PATCH_SIZE + 8)
 
-static void lxx_patch(cpuctx_t *scp, unsigned char *csp, int len, int is_32)
+static void lxx_patch(cpuctx_t *scp, dosaddr_t csp, int len, int is_32)
 {
-  unsigned char *sp;
+  dosaddr_t sp;
   unsigned int lp[LDT_ENTRY_SIZE / 4], esp, base;
   unsigned char retf[] = { 0xca, PATCH_SIZE, 0 };
 
@@ -469,13 +467,13 @@ static void lxx_patch(cpuctx_t *scp, unsigned char *csp, int len, int is_32)
   }
   assert(len + sizeof(retf) <= PATCH_SIZE);
   _esp -= PATCH_SIZE;
-  sp = SEL_ADR(_ss, _esp);
   esp = (dpmi_segment_is32(_ss) ? _esp : _LWORD(esp));
+  sp = GetSegmentBase(_ss) + esp;
   make_retf_frame(scp, sp, _cs, _eip, is_32);
   /* prepare the patch */
-  memcpy(sp, csp, len);
-  sp[0] = 0x8b;  // replace lXX with mov
-  memcpy(sp + len, retf, sizeof(retf));
+  MEMCPY_DOS2DOS(sp, csp, len);
+  WRITE_BYTE(sp, 0x8b);  // replace lXX with mov
+  MEMCPY_2DOS(sp + len, retf, sizeof(retf));
   GetDescriptor(_cs, lp);
   SetDescriptor(patch_cs, lp);
   base = GetSegmentBase(_ss);
@@ -488,19 +486,19 @@ static void lxx_patch(cpuctx_t *scp, unsigned char *csp, int len, int is_32)
 int decode_segreg(cpuctx_t *scp)
 {
   unsigned cs, eip;
-  unsigned char *csp, *orig_csp;
+  dosaddr_t csp, orig_csp;
   int ret = -1;
   x86_ins x86;
 
   x86._32bit = dpmi_segment_is32(_cs);
   cs = GetSegmentBase(_cs);
   eip = _eip + x86_handle_prefixes(scp, cs, &x86);
-  csp = (unsigned char *)MEM_BASE32(cs + eip);
-  orig_csp = (unsigned char *)MEM_BASE32(cs + _eip);
+  csp = cs + eip;
+  orig_csp = cs + _eip;
 
-  switch(*csp) {
+  switch(READ_BYTE(csp)) {
     case 0x8e:		/* mov segreg,r/m16 */
-      ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + eip + 1) >> 3);
+      ret = sreg_idx(READ_BYTE(cs + eip + 1) >> 3);
       _eip += _instr_len(orig_csp, x86._32bit);
       break;
 
@@ -511,9 +509,9 @@ int decode_segreg(cpuctx_t *scp)
       unsigned tmp_eip = x86_pop(scp, &x86);
       x86_pop(scp, &x86);
       ret = cs_INDEX;
-      switch (*(unsigned char *)MEM_BASE32(cs + eip)) {
+      switch (READ_BYTE(cs + eip)) {
         case 0xca: /*retf imm 16*/
-	  _esp += ((unsigned short *) (MEM_BASE32(cs + eip + 1)))[0];
+	  _esp += READ_WORD(cs + eip + 1);
 	  break;
         case 0xcf: /*iret*/
 	  _eflags = dpmi_flags_from_stack_iret(scp, x86_pop(scp, &x86));
@@ -526,8 +524,8 @@ int decode_segreg(cpuctx_t *scp)
     case 0xea:			/* jmp seg:off16/off32 */
     {
       unsigned tmp_eip;
-      tmp_eip = x86.operand_size == 4 ? READ_DWORDP(MEM_BASE32(cs + eip + 1)) :
-		READ_WORDP(MEM_BASE32(cs + eip + 1));
+      tmp_eip = x86.operand_size == 4 ? READ_DWORD(cs + eip + 1) :
+		READ_WORD(cs + eip + 1);
       ret = cs_INDEX;
       _eip = tmp_eip;
     }
@@ -537,7 +535,7 @@ int decode_segreg(cpuctx_t *scp)
       int len = _instr_len(orig_csp, x86._32bit);
       _eip += len;
       assert(len > 0);
-      lxx_patch(scp, MEM_BASE32(cs + eip), len, x86._32bit);
+      lxx_patch(scp, cs + eip, len, x86._32bit);
       ret = es_INDEX;
       break;
     }
@@ -546,7 +544,7 @@ int decode_segreg(cpuctx_t *scp)
       int len = _instr_len(orig_csp, x86._32bit);
       _eip += len;
       assert(len > 0);
-      lxx_patch(scp, MEM_BASE32(cs + eip), len, x86._32bit);
+      lxx_patch(scp, cs + eip, len, x86._32bit);
       ret = ds_INDEX;
       break;
     }
@@ -554,18 +552,18 @@ int decode_segreg(cpuctx_t *scp)
     case 0x07:	/* pop es */
     case 0x17:	/* pop ss */
     case 0x1f:	/* pop ds */
-      ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + eip) >> 3);
+      ret = sreg_idx(READ_BYTE(cs + eip) >> 3);
       x86_pop(scp, &x86);
       _eip = eip + 1;
       break;
 
     case 0x0f:
       eip++;
-      switch (*(unsigned char *)MEM_BASE32(cs + eip)) {
+      switch (READ_BYTE(cs + eip)) {
         case 0xa1:	/* pop fs */
         case 0xa9:	/* pop gs */
 	  x86_pop(scp, &x86);
-	  ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + eip) >> 3);
+	  ret = sreg_idx(READ_BYTE(cs + eip) >> 3);
 	  _eip = eip + 1;
 	  break;
 
@@ -578,7 +576,7 @@ int decode_segreg(cpuctx_t *scp)
 	  int len = _instr_len(orig_csp, x86._32bit);
 	  _eip += len;
 	  assert(len > 1);
-	  lxx_patch(scp, MEM_BASE32(cs + eip), len - 1, x86._32bit);
+	  lxx_patch(scp, cs + eip, len - 1, x86._32bit);
 	  ret = fs_INDEX;
 	  break;
 	}
@@ -587,7 +585,7 @@ int decode_segreg(cpuctx_t *scp)
 	  int len = _instr_len(orig_csp, x86._32bit);
 	  _eip += len;
 	  assert(len > 1);
-	  lxx_patch(scp, MEM_BASE32(cs + eip), len - 1, x86._32bit);
+	  lxx_patch(scp, cs + eip, len - 1, x86._32bit);
 	  ret = gs_INDEX;
 	  break;
 	}
@@ -662,16 +660,16 @@ static uint32_t reg(cpuctx_t *scp, int reg)
 
 int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
 {
-    unsigned cs, eip, seg_base;
-    unsigned char *csp, *orig_csp;
+    unsigned cs, eip, seg_base, csp0;
+    dosaddr_t csp, orig_csp;
     x86_ins x86;
     int inst_len, loop_inc, ret = 0;
 
     x86._32bit = dpmi_segment_is32(_cs);
     cs = GetSegmentBase(_cs);
     eip = _eip + x86_handle_prefixes(scp, cs, &x86);
-    csp = (unsigned char *)MEM_BASE32(cs + eip);
-    orig_csp = (unsigned char *)MEM_BASE32(cs + _eip);
+    csp = cs + eip;
+    orig_csp = cs + _eip;
     inst_len = _instr_len(orig_csp, x86._32bit);
     loop_inc = (_eflags & DF) ? -1 : 1;
     if (x86.rep) {
@@ -713,30 +711,31 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
     else
 	seg_base = GetSegmentBase(_ds);
 
-    switch(*csp) {
+    csp0 = READ_BYTE(csp);
+    switch(csp0) {
     case 0x88:		/* mov r/m8,reg8 */
-	*op = reg8(scp, csp[1] >> 3);
+	*op = reg8(scp, READ_BYTE(csp + 1) >> 3);
 	ret = 1;
 	break;
 
     case 0x89:		/* mov r/m16,reg */
-	*op = reg(scp, csp[1] >> 3);
+	*op = reg(scp, READ_BYTE(csp + 1) >> 3);
 	ret = x86.operand_size;
 	break;
 
     case 0xc6:		/* mov r/m8,imm8 */
-	*op = orig_csp[inst_len - 1];
+	*op = READ_BYTE(orig_csp + inst_len - 1);
 	ret = 1;
 	break;
 
     case 0xc7:		/* mov r/m,imm */
 	switch (x86.operand_size) {
 	case 2:
-	    *op = *(uint16_t *)(orig_csp + inst_len - 2);
+	    *op = READ_WORD(orig_csp + inst_len - 2);
 	    ret = 2;
 	    break;
 	case 4:
-	    *op = *(uint32_t *)(orig_csp + inst_len - 4);
+	    *op = READ_DWORD(orig_csp + inst_len - 4);
 	    ret = 4;
 	    break;
 	}
@@ -744,21 +743,21 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
 
      case 0x80:		/* logical r/m8,imm8 */
      case 0x82:
-	*op = instr_binary_byte(csp[1] >> 3, read_byte(cr2),
-		orig_csp[inst_len - 1], (unsigned*)&_eflags);
+	*op = instr_binary_byte(READ_BYTE(csp + 1) >> 3, read_byte(cr2),
+		READ_BYTE(orig_csp + inst_len - 1), (unsigned*)&_eflags);
 	ret = 1;
 	break;
 
     case 0x81:		/* logical r/m,imm */
 	switch (x86.operand_size) {
 	case 2:
-	    *op = instr_binary_word(csp[1] >> 3, read_word(cr2),
-		    *(uint16_t *)(orig_csp + inst_len - 2), (unsigned*)&_eflags);
+	    *op = instr_binary_word(READ_BYTE(csp + 1) >> 3, read_word(cr2),
+		    READ_WORD(orig_csp + inst_len - 2), (unsigned*)&_eflags);
 	    ret = 2;
 	    break;
 	case 4:
-	    *op = instr_binary_dword(csp[1] >> 3, read_dword(cr2),
-		    *(uint32_t *)(orig_csp + inst_len - 4), (unsigned*)&_eflags);
+	    *op = instr_binary_dword(READ_BYTE(csp + 1) >> 3, read_dword(cr2),
+		    READ_DWORD(orig_csp + inst_len - 4), (unsigned*)&_eflags);
 	    ret = 4;
 	    break;
 	}
@@ -767,13 +766,13 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
     case 0x83:		/* logical r/m,imm8 */
 	switch (x86.operand_size) {
 	case 2:
-	    *op = instr_binary_word(csp[1] >> 3, read_word(cr2),
-		    (short)*(signed char *)(orig_csp + inst_len - 1), (unsigned*)&_eflags);
+	    *op = instr_binary_word(READ_BYTE(csp + 1) >> 3, read_word(cr2),
+		    (short)(signed char)READ_BYTE(orig_csp + inst_len - 1), (unsigned*)&_eflags);
 	    ret = 2;
 	    break;
 	case 4:
-	    *op = instr_binary_dword(csp[1] >> 3, read_dword(cr2),
-		    (int)*(signed char *)(orig_csp + inst_len - 1), (unsigned*)&_eflags);
+	    *op = instr_binary_dword(READ_BYTE(csp + 1) >> 3, read_dword(cr2),
+		    (int)(signed char)READ_BYTE(orig_csp + inst_len - 1), (unsigned*)&_eflags);
 	    ret = 4;
 	    break;
 	}
@@ -805,12 +804,12 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
     case 0xa4:		/* movsb */
 	switch (x86.address_size) {
 	case 2:
-	    *op = *(unsigned char *)MEM_BASE32(seg_base + _LWORD(esi));
+	    *op = READ_BYTE(seg_base + _LWORD(esi));
 	    _LWORD(edi) += loop_inc;
 	    _LWORD(esi) += loop_inc;
 	    break;
 	case 4:
-	    *op = *(unsigned char *)MEM_BASE32(seg_base + _esi);
+	    *op = READ_BYTE(seg_base + _esi);
 	    _edi += loop_inc;
 	    _esi += loop_inc;
 	    break;
@@ -823,12 +822,12 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
 	case 2:
 	    switch (x86.address_size) {
 	    case 2:
-		*op = *(uint16_t *)MEM_BASE32(seg_base + _LWORD(esi));
+		*op = READ_WORD(seg_base + _LWORD(esi));
 		_LWORD(edi) += loop_inc * 2;
 		_LWORD(esi) += loop_inc * 2;
 		break;
 	    case 4:
-		*op = *(uint16_t *)MEM_BASE32(seg_base + _esi);
+		*op = READ_WORD(seg_base + _esi);
 		_edi += loop_inc * 2;
 		_esi += loop_inc * 2;
 		break;
@@ -838,12 +837,12 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
 	case 4:
 	    switch (x86.address_size) {
 	    case 2:
-		*op = *(uint32_t *)MEM_BASE32(seg_base + _LWORD(esi));
+		*op = READ_DWORD(seg_base + _LWORD(esi));
 		_LWORD(edi) += loop_inc * 4;
 		_LWORD(esi) += loop_inc * 4;
 		break;
 	    case 4:
-		*op = *(uint32_t *)MEM_BASE32(seg_base + _esi);
+		*op = READ_DWORD(seg_base + _esi);
 		_edi += loop_inc * 4;
 		_esi += loop_inc * 4;
 		break;
@@ -903,8 +902,8 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
     case 0x28:		/* sub r/m8,reg8 */
     case 0x30:		/* xor r/m8,reg8 */
 //    case 0x38:		/* cmp r/m8,reg8 */
-	*op = instr_binary_byte(csp[0] >> 3, read_byte(cr2),
-		reg8(scp, csp[1] >> 3), (unsigned*)&_eflags);
+	*op = instr_binary_byte(csp0 >> 3, read_byte(cr2),
+		reg8(scp, READ_BYTE(csp + 1) >> 3), (unsigned*)&_eflags);
 	ret = 1;
 	break;
 
@@ -918,13 +917,13 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
 //  case 0x39:		/* cmp r/m16,reg16 */
 	switch (x86.operand_size) {
 	case 2:
-	    *op = instr_binary_word(csp[0] >> 3, read_word(cr2),
-		    reg(scp, csp[1] >> 3), (unsigned*)&_eflags);
+	    *op = instr_binary_word(csp0 >> 3, read_word(cr2),
+		    reg(scp, READ_BYTE(csp + 1) >> 3), (unsigned*)&_eflags);
 	    ret = 2;
 	    break;
 	case 4:
-	    *op = instr_binary_dword(csp[0] >> 3, read_dword(cr2),
-		    reg(scp, csp[1] >> 3), (unsigned*)&_eflags);
+	    *op = instr_binary_dword(csp0 >> 3, read_dword(cr2),
+		    reg(scp, READ_BYTE(csp + 1) >> 3), (unsigned*)&_eflags);
 	    ret = 4;
 	    break;
 	}
@@ -932,7 +931,7 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
 
     case 0xfe: /* inc/dec mem */
 	*op = read_byte(cr2);
-	switch (csp[1] & 0x38) {
+	switch (READ_BYTE(csp + 1) & 0x38) {
 	case 0:	/* inc */
 	    (*op)++;
 	    break;
@@ -944,11 +943,11 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
 	break;
 
     case 0x0f:
-	switch (csp[1]) {
+	switch (READ_BYTE(csp + 1)) {
 	case 0xba: { /* GRP8 - Code Extension 22 */
-	    switch (csp[2] & 0x38) {
+	    switch (READ_BYTE(csp + 2) & 0x38) {
 	    case 0x30: { /* BTR r/m16, imm8 */
-		uint32_t mask = 1 << (csp[4] & 0x1f);
+		uint32_t mask = 1 << (READ_BYTE(csp + 4) & 0x1f);
 		switch (x86.operand_size) {
 		case 2:
 		    *op = read_word(cr2);
@@ -967,19 +966,19 @@ int decode_memop(cpuctx_t *scp, uint32_t *op, dosaddr_t cr2)
 		break;
 	    }
 	    default:
-		error("Unimplemented memop decode GRP8 %#x\n", csp[2]);
+		error("Unimplemented memop decode GRP8 %#x\n", READ_BYTE(csp + 2));
 		break;
 	    }
 	    break;
 	}
 	default:
-	    error("Unimplemented memop decode 0x0f %#x\n", csp[1]);
+	    error("Unimplemented memop decode 0x0f %#x\n", READ_BYTE(csp + 1));
 	    return -1;
 	}
 	break;
 
     default:
-	error("Unimplemented memop decode %#x\n", *csp);
+	error("Unimplemented memop decode %#x\n", csp0);
 	return -1;
   }
 
