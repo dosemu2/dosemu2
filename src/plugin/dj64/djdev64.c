@@ -106,29 +106,28 @@ static int ustore_get(int handle)
 
 static uint8_t *dj64_addr2ptr(uint32_t addr)
 {
-    return MEM_BASE32(addr);
+    return LINEAR2UNIX(addr);
 }
 
 static uint8_t *dj64_addr2ptr2(uint32_t addr, uint32_t len)
 {
     e_invalidate(addr, len);
-    return MEM_BASE32(addr);
+    return LINEAR2UNIX(addr);
 }
 
 static uint32_t dj64_ptr2addr(const uint8_t *ptr)
 {
-    if (ptr >= MEM_BASE32(config.dpmi_base) &&
-            ptr < MEM_BASE32(config.dpmi_base + dpmi_mem_size()))
-        return DOSADDR_REL(ptr);
+    uint8_t *dpmi_base_ptr = LINEAR2UNIX(config.dpmi_base);
+    if (ptr >= dpmi_base_ptr && ptr < dpmi_base_ptr + dpmi_mem_size())
+        return config.dpmi_base + (ptr - dpmi_base_ptr);
     dosemu_error("bad ptr2addr %p\n", ptr);
     return -1;
 }
 
 static int dj64_dos_ptr(const uint8_t *ptr)
 {
-    if ((ptr >= MEM_BASE32(config.dpmi_base) &&
-            ptr < MEM_BASE32(config.dpmi_base + dpmi_mem_size())) ||
-            (ptr >= MEM_BASE32(0) && ptr < MEM_BASE32(LOWMEM_SIZE + HMASIZE)))
+    uint8_t *dpmi_base_ptr = LINEAR2UNIX(config.dpmi_base);
+    if (ptr >= dpmi_base_ptr && ptr < dpmi_base_ptr + dpmi_mem_size())
         return 1;
     return 0;
 }
