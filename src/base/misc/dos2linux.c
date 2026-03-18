@@ -672,10 +672,10 @@ void default_sim_pagefault_handler(dosaddr_t addr, int err, uint32_t op, int len
   }
   if (err & 2)
     dosemu_error("Invalid write to addr %#x, ptr %p, len %d\n",
-		 addr, MEM_BASE32(addr), len);
+		 addr, LINEAR2UNIX(addr), len);
   else
     dosemu_error("Invalid read from addr %#x, ptr %p\n",
-		 addr, MEM_BASE32(addr));
+		 addr, LINEAR2UNIX(addr));
   leavedos_main(1);
 }
 
