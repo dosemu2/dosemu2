@@ -343,7 +343,7 @@ static void write_gfx_char_pl4(Bit16u vstart,Bit8u car,Bit8u attr,
  Bit8u *fdata;
  Bit16u addr,dest,src;
 
- fdata = MEM_BASE32(IVEC(0x43));
+ fdata = dosaddr_to_unixaddr(IVEC(0x43));
  addr=xcurs+ycurs*cheight*nbcols+vstart;
  src = car * cheight;
  port_outw(VGAREG_SEQU_ADDRESS, 0x0f02);
@@ -405,7 +405,7 @@ static void write_gfx_char_cga(Bit16u vstart,Bit8u car,Bit8u attr,
   }
  else
   {
-   fdata = MEM_BASE32(IVEC(0x1f));
+   fdata = dosaddr_to_unixaddr(IVEC(0x1f));
    fdata -= 0x80 * 8;
   }
  addr=(xcurs*bpp)+ycurs*320+vstart;
@@ -485,7 +485,7 @@ static void write_gfx_char_lin(Bit16u vstart,Bit8u car,Bit8u attr,
  Bit16u src;
  Bit32u addr,dest;
 
- fdata = MEM_BASE32(IVEC(0x43));
+ fdata = dosaddr_to_unixaddr(IVEC(0x43));
  addr=xcurs*8+ycurs*nbcols*8*cheight+vstart;
  plane = addr >> 16;
  port_outw(VGAREG_SEQU_ADDRESS, ((1 << (plane + 8))) | 2);  // switch plane
