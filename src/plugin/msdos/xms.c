@@ -168,7 +168,7 @@ static void xmshlp_thr(void *arg)
                 src = xms_map(scp, e->SourceHandle,
                               e->SourceOffset + e->Length);
                 if (src != (dosaddr_t)-1)
-                    s = MEM_BASE32(src + e->SourceOffset);
+                    s = LINEAR2UNIX(src + e->SourceOffset);
             } else {
                 s = SEL_ADR_CLNT(_ds_, e->SourceOffset, is_32);
             }
@@ -180,7 +180,7 @@ static void xmshlp_thr(void *arg)
             if (e->DestHandle != 0) {
                 dst = xms_map(scp, e->DestHandle, e->DestOffset + e->Length);
                 if (dst != (dosaddr_t)-1)
-                    d = MEM_BASE32(dst + e->DestOffset);
+                    d = LINEAR2UNIX(dst + e->DestOffset);
             } else {
                 d = SEL_ADR_CLNT(_ds_, e->DestOffset, is_32);
             }
