@@ -540,7 +540,7 @@ static char *_show_state(sigcontext_t *scp)
       int i;
       #define CSPP (csp2 - 10)
       pos += sprintf(buf + pos, "OPS  : ");
-      if ((CSPP >= &mem_base[0] && CSPP + 10 < &mem_base[0x110000]) ||
+      if ((daddr >= 10 && daddr < 0x110000) ||
 	  ((mapping_find_hole((uintptr_t)CSPP, (uintptr_t)CSPP + 10, 1) == MAP_FAILED) &&
 	   dpmi_is_valid_range(daddr - 10, 10))) {
 	for (i = 0; i < 10; i++)
@@ -548,7 +548,7 @@ static char *_show_state(sigcontext_t *scp)
       } else {
 	pos += sprintf(buf + pos, "<invalid memory> ");
       }
-      if ((csp2 >= &mem_base[0] && csp2 + 10 < &mem_base[0x110000]) ||
+      if ((daddr < 0x110000 - 10) ||
 	  ((mapping_find_hole((uintptr_t)csp2, (uintptr_t)csp2 + 10, 1) == MAP_FAILED) &&
 	   dpmi_is_valid_range(daddr, 10))) {
 	pos += sprintf(buf + pos, "-> ");
@@ -574,7 +574,7 @@ static char *_show_state(sigcontext_t *scp)
       }
       #define SSPP (ssp2 - 10)
       pos += sprintf(buf + pos, "STACK: ");
-      if ((SSPP >= &mem_base[0] && SSPP + 10 < &mem_base[0x110000]) ||
+      if ((saddr >= 10 && saddr < 0x110000) ||
 	  ((mapping_find_hole((uintptr_t)SSPP, (uintptr_t)SSPP + 10, 1) == MAP_FAILED) &&
 	   dpmi_is_valid_range(saddr - 10, 10))) {
 	for (i = 0; i < 10; i++)
@@ -582,7 +582,7 @@ static char *_show_state(sigcontext_t *scp)
       } else {
 	pos += sprintf(buf + pos, "<invalid memory> ");
       }
-      if ((ssp2 >= &mem_base[0] && ssp2 + 10 < &mem_base[0x110000]) ||
+      if ((saddr < 0x110000 - 10) ||
 	  ((mapping_find_hole((uintptr_t)ssp2, (uintptr_t)ssp2 + 10, 1) == MAP_FAILED) &&
 	   dpmi_is_valid_range(saddr, 10))) {
 	pos += sprintf(buf + pos, "-> ");

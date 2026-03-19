@@ -2607,7 +2607,7 @@ static void mhp_print_ldt(int argc, char *argv[])
                    (type & 0x08) ? "Code" : "Data", (type2 & 0x04) ? 32 : 16, (type >> 5) & 0x03,
                    (type >> 7) ? 'P' : ' ', (type & 4) ? ((type & 8) ? 'C' : 'E') : ' ',
                    (type & 2) ? ((type & 8) ? 'R' : 'W') : ' ', (type & 1) ? 'A' : ' ', (lp_[1] & Abit) ? 'a' : ' ',
-                   MEM_BASE32(base_addr), cache_mismatch ? " (cache mismatch)" : "");
+                   LINEAR2UNIX(base_addr), cache_mismatch ? " (cache mismatch)" : "");
       else
         mhp_printf("%04x: %08x %08x System(%02x)%s\n", i, base_addr, limit, type,
                    cache_mismatch ? " (cache mismatch)" : "");

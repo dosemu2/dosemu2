@@ -22,7 +22,7 @@
 typedef Bit32u 		FARPTR16;
 typedef Bit32u		FARPROC16;
 #define FARPTR16_TO_LIN(a) \
-	&mem_base[((a&0xffff) + ((a >> 12)& 0x000ffff0))]
+	MK_FP32((a) >> 16, (a) & 0xffff)
 
 #define SS_PENDING	0x00
 #define SS_COMP		0x01

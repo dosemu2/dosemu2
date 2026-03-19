@@ -81,7 +81,7 @@ unsigned short msdos_ldt_init(int page_size)
     name_sel = AllocateDescriptors(1);
     name = msdos_malloc(name_len);
     tempname(tmpnm, 6);
-    strcpy((char *)MEM_BASE32(name), tmpnm);
+    MEMCPY_2DOS(name, tmpnm, strlen(tmpnm) + 1);
     SetSegmentBaseAddress(name_sel, name);
     SetSegmentLimit(name_sel, name_len - 1);
     shm.name_selector = name_sel;
@@ -92,7 +92,7 @@ unsigned short msdos_ldt_init(int page_size)
     assert(!err);
     ldt_h = shm.handle;
     ldt_bb = shm.addr;
-    ldt_backbuf = MEM_BASE32(ldt_bb);
+    ldt_backbuf = LINEAR2UNIX(ldt_bb);
 
     shm.flags = SHM_NOEXEC;
     err = DPMIAllocateShared(&shm);

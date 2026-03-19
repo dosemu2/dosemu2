@@ -117,7 +117,7 @@ typedef struct x86_regs {
   unsigned prefixes, rep;
   unsigned (*instr_read)(struct rm rm);
   void (*instr_write)(struct rm rm, unsigned u);
-  struct rm (*modrm)(unsigned char *cp, struct x86_regs *x86, int *inst_len);
+  struct rm (*modrm)(dosaddr_t cp, struct x86_regs *x86, int *inst_len);
 } x86_regs;
 
 #if DEBUG_INSTR >= 1
@@ -161,9 +161,9 @@ static unsigned instr_read_word(struct rm rm);
 static unsigned instr_read_dword(struct rm rm);
 static void instr_write_word(struct rm rm, unsigned u);
 static void instr_write_dword(struct rm rm, unsigned u);
-static dosaddr_t sib(unsigned char *cp, x86_regs *x86, int *inst_len);
-static struct rm modrm32(unsigned char *cp, x86_regs *x86, int *inst_len);
-static struct rm modrm16(unsigned char *cp, x86_regs *x86, int *inst_len);
+static dosaddr_t sib(dosaddr_t cp, x86_regs *x86, int *inst_len);
+static struct rm modrm32(dosaddr_t cp, x86_regs *x86, int *inst_len);
+static struct rm modrm16(dosaddr_t cp, x86_regs *x86, int *inst_len);
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -468,68 +468,70 @@ static inline void pop(unsigned *val, x86_regs *x86)
 #define sreg(reg, x86) ((&((x86)->es))+((reg)&0x7))
 #define sreg_idx(reg) (es_INDEX+((reg)&0x7))
 
-dosaddr_t sib(unsigned char *cp, x86_regs *x86, int *inst_len)
+dosaddr_t sib(dosaddr_t cp, x86_regs *x86, int *inst_len)
 {
-  unsigned addr = 0;
+  unsigned addr = 0, sibbyte;
 
-  switch(cp[1] & 0xc0) { /* decode modifier */
+  switch(READ_BYTE(cp + 1) & 0xc0) { /* decode modifier */
   case 0x40:
-    addr = (int)(signed char)cp[3];
+    addr = (int)(signed char)READ_BYTE(cp + 3);
     break;
   case 0x80:
-    addr = R_DWORD(cp[3]);
+    addr = READ_DWORD(cp + 3);
     break;
   }
 
-  if ((cp[2] & 0x38) != 0x20) /* index cannot be esp */
-    addr += *reg(cp[2]>>3, x86) << (cp[2] >> 6);
+  sibbyte = READ_BYTE(cp + 2);
+  if ((sibbyte & 0x38) != 0x20) /* index cannot be esp */
+    addr += *reg(sibbyte>>3, x86) << (sibbyte >> 6);
 
-  switch(cp[2] & 0x07) { /* decode address */
+  switch(sibbyte & 0x07) { /* decode address */
   case 0x00:
   case 0x01:
   case 0x02:
   case 0x03:
   case 0x06:
   case 0x07:
-    return (addr + *reg(cp[2], x86) + x86->seg_base);
+    return (addr + *reg(sibbyte, x86) + x86->seg_base);
   case 0x04: /* esp */
     return (addr + x86->esp + x86->seg_ss_base);
   case 0x05:
-    if (cp[1] >= 0x40)
+    if (READ_BYTE(cp + 1) >= 0x40)
       return (addr + x86->ebp + x86->seg_ss_base);
     else {
       *inst_len += 4;
-      return (addr + R_DWORD(cp[3]) + x86->seg_base);
+      return (addr + READ_DWORD(cp + 3) + x86->seg_base);
     }
   }
   return 0; /* keep gcc happy */
 }
 
-struct rm modrm16(unsigned char *cp, x86_regs *x86, int *inst_len)
+struct rm modrm16(dosaddr_t cp, x86_regs *x86, int *inst_len)
 {
-  unsigned addr = 0;
+  unsigned addr = 0, modrm;
   struct rm rm = {};
   *inst_len = 0;
 
-  switch(cp[1] & 0xc0) { /* decode modifier */
+  modrm = READ_BYTE(cp + 1);
+  switch(modrm & 0xc0) { /* decode modifier */
   case 0x40:
-    addr = (short)(signed char)cp[2];
+    addr = (short)(signed char)READ_BYTE(cp + 2);
     *inst_len = 1;
     break;
   case 0x80:
-    addr = R_WORD(cp[2]);
+    addr = READ_WORD(cp + 2);
     *inst_len = 2;
     break;
   case 0xc0:
-    if (cp[0]&1) /*(d)word*/
-      rm.r = (unsigned char *)reg(cp[1], x86);
+    if (READ_BYTE(cp)&1) /*(d)word*/
+      rm.r = (unsigned char *)reg(modrm, x86);
     else
-      rm.r = reg8(cp[1], x86);
+      rm.r = reg8(modrm, x86);
     return rm;
   }
 
 
-  switch(cp[1] & 0x07) { /* decode address */
+  switch(modrm & 0x07) { /* decode address */
   case 0x00:
     rm.m = (((addr + x86->ebx + x86->esi) & 0xffff) + x86->seg_base);
     break;
@@ -549,11 +551,11 @@ struct rm modrm16(unsigned char *cp, x86_regs *x86, int *inst_len)
     rm.m = (((addr + x86->edi) & 0xffff) + x86->seg_base);
     break;
   case 0x06:
-    if (cp[1] >= 0x40)
+    if (modrm >= 0x40)
       rm.m = (((addr + x86->ebp) & 0xffff) + x86->seg_ss_base);
     else {
       *inst_len += 2;
-      rm.m = (R_WORD(cp[2]) + x86->seg_base);
+      rm.m = (READ_WORD(cp + 2) + x86->seg_base);
     }
     break;
   case 0x07:
@@ -563,48 +565,49 @@ struct rm modrm16(unsigned char *cp, x86_regs *x86, int *inst_len)
   return rm;
 }
 
-struct rm modrm32(unsigned char *cp, x86_regs *x86, int *inst_len)
+struct rm modrm32(dosaddr_t cp, x86_regs *x86, int *inst_len)
 {
-  unsigned addr = 0;
+  unsigned addr = 0, modrm;
   struct rm rm = {};
   *inst_len = 0;
 
-  switch(cp[1] & 0xc0) { /* decode modifier */
+  modrm = READ_BYTE(cp + 1);
+  switch(modrm & 0xc0) { /* decode modifier */
   case 0x40:
-    addr = (int)(signed char)cp[2];
+    addr = (int)(signed char)READ_BYTE(cp + 2);
     *inst_len = 1;
     break;
   case 0x80:
-    addr = R_DWORD(cp[2]);
+    addr = READ_DWORD(cp + 2);
     *inst_len = 4;
     break;
   case 0xc0:
-    if (cp[0]&1) /*(d)word*/
-      rm.r = ((unsigned char *)reg(cp[1], x86));
+    if (READ_BYTE(cp)&1) /*(d)word*/
+      rm.r = ((unsigned char *)reg(modrm, x86));
     else
-      rm.r = reg8(cp[1], x86);
+      rm.r = reg8(modrm, x86);
     return rm;
   }
 
-  switch(cp[1] & 0x07) { /* decode address */
+  switch(modrm & 0x07) { /* decode address */
   case 0x00:
   case 0x01:
   case 0x02:
   case 0x03:
   case 0x06:
   case 0x07:
-    rm.m = (addr + *reg(cp[1], x86) + x86->seg_base);
+    rm.m = (addr + *reg(modrm, x86) + x86->seg_base);
     break;
   case 0x04: /* sib byte follows */
     *inst_len += 1;
     rm.m = sib(cp, x86, inst_len);
     break;
   case 0x05:
-    if (cp[1] >= 0x40)
+    if (modrm >= 0x40)
       rm.m = (addr + x86->ebp + x86->seg_ss_base);
     else {
       *inst_len += 4;
-      rm.m = (R_DWORD(cp[2]) + x86->seg_base);
+      rm.m = (READ_DWORD(cp + 2) + x86->seg_base);
     }
     break;
   }
@@ -617,7 +620,7 @@ static int handle_prefixes(x86_regs *x86)
   int prefix = 0;
 
   for (;; eip++) {
-    switch(*(unsigned char *)MEM_BASE32(x86->cs_base + eip)) {
+    switch(READ_BYTE(x86->cs_base + eip)) {
     /* handle (some) prefixes */
       case 0x26:
         prefix++;
@@ -797,12 +800,12 @@ int decode_modify_segreg_insn(cpuctx_t *scp, int pmode,
   x86.prefixes = handle_prefixes(&x86);
   x86.eip += x86.prefixes;
 
-  switch(*(unsigned char *)MEM_BASE32(cs + x86.eip)) {
+  switch(READ_BYTE(cs + x86.eip)) {
     case 0x8e:		/* mov segreg,r/m16 */
-      ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3);
-      mem = x86.modrm(MEM_BASE32(cs + x86.eip), &x86, &inst_len);
-      if ((*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
-        memcpy(new_val, reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1), &x86), 2);
+      ret = sreg_idx(READ_BYTE(cs + x86.eip + 1) >> 3);
+      mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
+      if ((READ_BYTE(cs + x86.eip + 1) & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
+        memcpy(new_val, reg(READ_BYTE(cs + x86.eip + 1), &x86), 2);
       else
         *new_val = instr_read_word(mem);
       x86.eip += inst_len + 2;
@@ -816,9 +819,9 @@ int decode_modify_segreg_insn(cpuctx_t *scp, int pmode,
       pop(&tmp_eip, &x86);
       pop(new_val, &x86);
       ret = cs_INDEX;
-      switch (*(unsigned char *)MEM_BASE32(cs + x86.eip)) {
+      switch (READ_BYTE(cs + x86.eip)) {
         case 0xca: /*retf imm 16*/
-	  x86.esp += ((unsigned short *) (MEM_BASE32(cs + x86.eip + 1)))[0];
+	  x86.esp += READ_WORD(cs + x86.eip + 1);
 	  break;
         case 0xcf: /*iret*/
 	{
@@ -843,23 +846,23 @@ int decode_modify_segreg_insn(cpuctx_t *scp, int pmode,
     break;
 
     case 0xc4:		/* les */
-      mem = x86.modrm(MEM_BASE32(cs + x86.eip), &x86, &inst_len);
+      mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
       *new_val = instr_read_word(M(mem.m+x86.operand_size));
       if (x86.operand_size == 2)
-	R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
+	R_WORD(*reg(READ_BYTE(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
       else
-	*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
+	*reg(READ_BYTE(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
       ret = es_INDEX;
       x86.eip += inst_len + 2;
       break;
 
     case 0xc5:		/* lds */
-      mem = x86.modrm(MEM_BASE32(cs + x86.eip), &x86, &inst_len);
+      mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
       *new_val = instr_read_word(M(mem.m+x86.operand_size));
       if (x86.operand_size == 2)
-	R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
+	R_WORD(*reg(READ_BYTE(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
       else
-	*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
+	*reg(READ_BYTE(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
       ret = ds_INDEX;
       x86.eip += inst_len + 2;
       break;
@@ -867,50 +870,50 @@ int decode_modify_segreg_insn(cpuctx_t *scp, int pmode,
     case 0x07:	/* pop es */
     case 0x17:	/* pop ss */
     case 0x1f:	/* pop ds */
-      ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + x86.eip) >> 3);
+      ret = sreg_idx(READ_BYTE(cs + x86.eip) >> 3);
       pop(new_val, &x86);
       x86.eip++;
       break;
 
     case 0x0f:
       x86.eip++;
-      switch (*(unsigned char *)MEM_BASE32(cs + x86.eip)) {
+      switch (READ_BYTE(cs + x86.eip)) {
         case 0xa1:	/* pop fs */
         case 0xa9:	/* pop gs */
 	  pop(new_val, &x86);
-	  ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + x86.eip) >> 3);
+	  ret = sreg_idx(READ_BYTE(cs + x86.eip) >> 3);
 	  x86.eip++;
 	  break;
 
 	case 0xb2:	/* lss */
-	  mem = x86.modrm(MEM_BASE32(cs + x86.eip), &x86, &inst_len);
+	  mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
 	  *new_val = instr_read_word(M(mem.m+x86.operand_size));
 	  if (x86.operand_size == 2)
-	    R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
+	    R_WORD(*reg(READ_BYTE(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
 	  else
-	    *reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
+	    *reg(READ_BYTE(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
 	  ret = ss_INDEX;
 	  x86.eip += inst_len + 2;
 	  break;
 
 	case 0xb4:	/* lfs */
-	  mem = x86.modrm(MEM_BASE32(cs + x86.eip), &x86, &inst_len);
+	  mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
 	  *new_val = instr_read_word(M(mem.m+x86.operand_size));
 	  if (x86.operand_size == 2)
-	    R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
+	    R_WORD(*reg(READ_BYTE(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
 	  else
-	    *reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
+	    *reg(READ_BYTE(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
 	  ret = fs_INDEX;
 	  x86.eip += inst_len + 2;
 	  break;
 
 	case 0xb5:	/* lgs */
-	  mem = x86.modrm(MEM_BASE32(cs + x86.eip), &x86, &inst_len);
+	  mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
 	  *new_val = instr_read_word(M(mem.m+x86.operand_size));
 	  if (x86.operand_size == 2)
-	    R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
+	    R_WORD(*reg(READ_BYTE(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
 	  else
-	    *reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
+	    *reg(READ_BYTE(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
 	  ret = gs_INDEX;
 	  x86.eip += inst_len + 2;
 	  break;
