@@ -215,9 +215,13 @@ static void ldt_bitmap_update(unsigned short ldt_entry, int num)
         return;
     for (i = 0; i < num; i++) {
         int ent = ldt_entry + i;
-        ldt_bitmap[ent >> 5] |= 1ULL << (ent & 0x1f);
+        uint32_t *b = &ldt_bitmap[ent >> 5];
+        uint32_t m = 1ULL << (ent & 0x1f);
+        if (!(*b & m)) {
+            *b |= m;
+            ldt_bitmap_cnt++;
+        }
     }
-    ldt_bitmap_cnt += num;
 }
 static void dpmi_ldt_call(cpuctx_t *scp);
 
@@ -2204,10 +2208,16 @@ void dpmi_ext_set_ldt_monitor32(DPMI_INTDESC call, uint16_t d32)
     ldt_call32.ds = d32;
 }
 
+static void reset_ldt_bmp(void)
+{
+    ldt_bitmap_cnt = 0;
+    memset(ldt_bitmap, 0, sizeof(ldt_bitmap));
+}
+
 void dpmi_ext_ldt_monitor_enable(int on)
 {
     ldt_mon_on = on;
-    ldt_bitmap_cnt = 0;
+    reset_ldt_bmp();
 }
 
 static void _do_ldt_call(cpuctx_t *scp, ldt_calldesc call, int ent,
@@ -2319,11 +2329,15 @@ static void ldt_process_chunk(cpuctx_t *scp, ldt_calldesc call,
         j = find_bit(ldt_bitmap[i]);
         assert(j != -1);
         ldt_bitmap[i] &= ~(1ULL << j);
+        assert(ldt_bitmap_cnt);
+        ldt_bitmap_cnt--;
         state->ent = (i << 5) + j;
         state->num = 1;
         for (j++; j < 32; j++) {
             if (ldt_bitmap[i] & (1ULL << j)) {
                 ldt_bitmap[i] &= ~(1ULL << j);
+                assert(ldt_bitmap_cnt);
+                ldt_bitmap_cnt--;
                 state->num++;
             } else {
                 break;
@@ -2358,6 +2372,8 @@ static void ldt_process_chunk_c(cpuctx_t *scp, ldt_calldesc call,
     for (j = 0; j < 32; j++) {
         if (ldt_bitmap[i] & (1ULL << j)) {
             ldt_bitmap[i] &= ~(1ULL << j);
+            assert(ldt_bitmap_cnt);
+            ldt_bitmap_cnt--;
             state->num++;
         } else {
             break;
@@ -2395,13 +2411,12 @@ static void dpmi_ldt_call(cpuctx_t *scp)
     if (!ldt_bitmap_cnt)
         return;
     if (!call.c.selector) {
-        ldt_bitmap_cnt = 0;
+        reset_ldt_bmp();
         return;
     }
     D_printf("DPMI: updating %i LDT entries\n", ldt_bitmap_cnt);
-    ldt_bitmap_cnt = 0;
 
-    for (i = 0; i < LDT_ENTRIES / 32; i++) {
+    for (i = 0; ldt_bitmap_cnt && i < LDT_ENTRIES / 32; i++) {
 	if (state.carry)
 	    ldt_process_chunk_c(scp, call, i, &state);
 	else
@@ -2413,6 +2428,7 @@ static void dpmi_ldt_call(cpuctx_t *scp)
 static void ldt_process_chunk_b(int i, struct chunk_state *state)
 {
     int k;
+    int n = __builtin_popcount(ldt_bitmap[i]);
     int j = find_bit(ldt_bitmap[i]);
     if (j == -1)
         return;
@@ -2422,11 +2438,14 @@ static void ldt_process_chunk_b(int i, struct chunk_state *state)
     state->num = k - j + 1;
     state->carry = 1;
     ldt_bitmap[i] = 0;
+    assert(ldt_bitmap_cnt >= n);
+    ldt_bitmap_cnt -= n;
 }
 
 static void ldt_process_chunk_b_c(int i, struct chunk_state *state)
 {
     int ent;
+    int n = __builtin_popcount(ldt_bitmap[i]);
     int k = find_bit_r(ldt_bitmap[i]);
     if (k == -1)
         return;
@@ -2434,6 +2453,8 @@ static void ldt_process_chunk_b_c(int i, struct chunk_state *state)
     assert(ent >= state->ent);
     state->num = ent - state->ent + 1;
     ldt_bitmap[i] = 0;
+    assert(ldt_bitmap_cnt >= n);
+    ldt_bitmap_cnt -= n;
 }
 
 static void ldt_process_end_b(cpuctx_t *scp, ldt_calldesc call,
@@ -2456,13 +2477,12 @@ static void dpmi_ldt_exitcall(cpuctx_t *scp)
     if (!ldt_bitmap_cnt)
         return;
     if (!call.c.selector) {
-        ldt_bitmap_cnt = 0;
+        reset_ldt_bmp();
         return;
     }
     D_printf("DPMI: bulk-updating %i LDT entries\n", ldt_bitmap_cnt);
-    ldt_bitmap_cnt = 0;
 
-    for (i = 0; i < LDT_ENTRIES / 32; i++) {
+    for (i = 0; ldt_bitmap_cnt && i < LDT_ENTRIES / 32; i++) {
 	if (state.carry)
 	    ldt_process_chunk_b_c(i, &state);
 	else
@@ -4311,7 +4331,7 @@ void dpmi_reset(void)
 	dpmi_cleanup();
     }
     ldt_mon_on = 0;
-    ldt_bitmap_cnt = 0;
+    reset_ldt_bmp();
     DPMI_pm_procedure_running = 0;
     in_dpmi_irq = 0;
     cli_blacklisted = 0;
