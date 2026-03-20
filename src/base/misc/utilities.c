@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
@@ -1081,15 +1082,13 @@ static int pts_open(int pty_fd)
 {
     int err, pts_fd;
 
-    setsid();	// will have ctty
-    /* open pts _after_ setsid, or it won't became a ctty */
     err = grantpt(pty_fd);
     if (err) {
 	error("grantpt failed: %s\n", strerror(errno));
 	return err;
     }
-    /* don't set O_CLOEXEC here */
-    pts_fd = open(ptsname(pty_fd), O_RDWR);
+    /* set ctty in child later */
+    pts_fd = open(ptsname(pty_fd), O_RDWR | O_NOCTTY);
     if (pts_fd == -1) {
 	error("pts open failed: %s\n", strerror(errno));
 	return -1;
@@ -1146,6 +1145,7 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
     assert(!retval);
     signal_block_async_nosig(&oset);
     sigprocmask(SIG_SETMASK, NULL, &set);
+    pts_fd = pts_open(pty_fd);
     /* fork child */
     switch ((pid = fork())) {
     case -1: /* failed */
@@ -1160,7 +1160,9 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	    kill(dosemu_pid, SIGTERM);
 	    _exit(EXIT_FAILURE);
 	}
-	pts_fd = pts_open(pty_fd);
+	setsid();	// will have ctty
+	/* if opening tty before setsid(), needs to force ctty with ioctl() */
+	ioctl(pts_fd, TIOCSCTTY, 0);
 	/* Reading master side before slave opened, results in EOF.
 	 * Notify user that reads are now safe. */
 	pshared_sem_post(pty_sem);
@@ -1219,6 +1221,7 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
     /* wait until its safe to read from pty_fd */
     pshared_sem_wait(pty_sem);
     pshared_sem_destroy(&pty_sem);
+    close(pts_fd);
     return pid;
 }
 
