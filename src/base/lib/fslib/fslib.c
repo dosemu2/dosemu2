@@ -30,19 +30,22 @@ int mfs_define_drive(const char *path)
   int ret;
 
   ret = fssvc->add_path(path);
-  if (ret == -1)
-    return ret;
+  assert(ret != -1);
   return ret + 1;
 }
 
 int fslib_add_path_list(const char *list)
 {
-  return fssvc->add_path_list(list);
+  int ret = fssvc->add_path_list(list);
+  assert(ret == 0);
+  return ret;
 }
 
 int fslib_add_path_ex(const char *path)
 {
-  return fssvc->add_path_ex(path);
+  int ret = fssvc->add_path_ex(path);
+  assert(ret == 0);
+  return ret;
 }
 
 int mfs_open_file(int mfs_idx, const char *path, int flags)

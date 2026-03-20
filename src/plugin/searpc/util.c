@@ -93,25 +93,20 @@ SearpcClient *clnt_init(int *sock_rx, init_cb_t init_cb,
             /* child */
             close(socks[0]);
             close(transp[0]);
+            pshared_sem_wait(svc_sem2);
             err = priv_drop();
-            if (err) {
-                pshared_sem_post(svc_sem);
-                pshared_sem_wait(svc_sem2);
-                pshared_sem_destroy(&svc_sem);
-                pshared_sem_destroy(&svc_sem2);
+            if (err)
                 _exit(1);
-            }
             setsid();
             prctl(PR_SET_PDEATHSIG, SIGQUIT);
             err = init_cb(svc_name, socks[1], init_arg);
-            pshared_sem_post(svc_sem);
-            pshared_sem_wait(svc_sem2);
-            pshared_sem_destroy(&svc_sem);
-            pshared_sem_destroy(&svc_sem2);
             if (err) {
                 fprintf(stderr, "%s service failed\n", svc_name);
                 _exit(1);
             }
+            pshared_sem_post(svc_sem);
+            pshared_sem_destroy(&svc_sem);
+            pshared_sem_destroy(&svc_sem2);
             svc_run(svc_name, transp[1], svc_ex);
             _exit(1);  // not reached
             break;
@@ -119,17 +114,17 @@ SearpcClient *clnt_init(int *sock_rx, init_cb_t init_cb,
 
     close(socks[1]);
     close(transp[1]);
+    sigchld_register_handler(pid, ex_cb, NULL);
     sigchld_set_critical(chld_crash, &act);
+    pshared_sem_post(svc_sem2);
     pshared_sem_wait(svc_sem);
     sigchld_unset_critical(&act);
-    pshared_sem_post(svc_sem2);
     pshared_sem_destroy(&svc_sem);
     pshared_sem_destroy(&svc_sem2);
 
     clnt = searpc_client_new();
     clnt->send = transport_callback;
     clnt->arg = (void *)(uintptr_t)transp[0];
-    sigchld_register_handler(pid, ex_cb, NULL);
     *sock_rx = socks[0];
     if (r_pid)
         *r_pid = pid;

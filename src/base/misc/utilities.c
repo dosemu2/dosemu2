@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
@@ -879,6 +880,9 @@ int popen2_custom(const char *cmdline, struct popen2 *childinfo)
     p = fork();
     assert(p >= 0);
     if(p == 0) { /* child */
+	int err = priv_drop();
+	if (err)
+	    _exit(EXIT_FAILURE);
         setsid();	// escape ctty
         close(pipe_stdin[1]);
         dup2(pipe_stdin[0], 0);
@@ -1077,26 +1081,6 @@ FILE *fstream_tee(FILE *orig)
 }
 #endif
 
-static int pts_open(int pty_fd)
-{
-    int err, pts_fd;
-
-    setsid();	// will have ctty
-    /* open pts _after_ setsid, or it won't became a ctty */
-    err = grantpt(pty_fd);
-    if (err) {
-	error("grantpt failed: %s\n", strerror(errno));
-	return err;
-    }
-    /* don't set O_CLOEXEC here */
-    pts_fd = open(ptsname(pty_fd), O_RDWR);
-    if (pts_fd == -1) {
-	error("pts open failed: %s\n", strerror(errno));
-	return -1;
-    }
-    return pts_fd;
-}
-
 int pshared_sem_init(pshared_sem_t *sem, unsigned int value)
 {
     char sem_name[] = "/dosemu2_psem_%PXXXXXX";
@@ -1133,19 +1117,31 @@ int pshared_sem_destroy(pshared_sem_t *sem)
     return ret;
 }
 
+static void chld_crash(int sig)
+{
+    error("child crashed with %i\n", sig);
+    exit(7);
+}
+
 pid_t run_external_command(const char *path, int argc, const char **argv,
-        int use_stdin, int close_from, int pty_fd)
+        int use_stdin, int close_from, int (*pts_open)(void))
 {
     pid_t pid;
     int wt, retval;
     sigset_t set, oset;
+    struct sigaction act;
     int pts_fd;
-    pshared_sem_t pty_sem;
+    pshared_sem_t init_sem, crit_sem;
 
-    retval = pshared_sem_init(&pty_sem, 0);
+    retval = pshared_sem_init(&init_sem, 0);
+    assert(!retval);
+    retval = pshared_sem_init(&crit_sem, 0);
     assert(!retval);
     signal_block_async_nosig(&oset);
     sigprocmask(SIG_SETMASK, NULL, &set);
+    pts_fd = pts_open();
+    if (pts_fd == -1)
+	return -1;
     /* fork child */
     switch ((pid = fork())) {
     case -1: /* failed */
@@ -1153,22 +1149,18 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	g_printf("run_unix_command(): fork() failed\n");
 	return -1;
     case 0: /* child */
+	pshared_sem_wait(crit_sem);
 	retval = priv_drop();
-	if (retval) {
-	    pshared_sem_post(pty_sem);
-	    pshared_sem_destroy(&pty_sem);
-	    kill(dosemu_pid, SIGTERM);
+	if (retval)
 	    _exit(EXIT_FAILURE);
-	}
-	pts_fd = pts_open(pty_fd);
+	setsid();	// will have ctty
+	/* if opening tty before setsid(), needs to force ctty with ioctl() */
+	ioctl(pts_fd, TIOCSCTTY, 0);
 	/* Reading master side before slave opened, results in EOF.
 	 * Notify user that reads are now safe. */
-	pshared_sem_post(pty_sem);
-	pshared_sem_destroy(&pty_sem);
-	if (pts_fd == -1) {
-	    kill(dosemu_pid, SIGTERM);
-	    _exit(EXIT_FAILURE);
-	}
+	pshared_sem_post(init_sem);
+	pshared_sem_destroy(&init_sem);
+	pshared_sem_destroy(&crit_sem);
 	close(0);
 	close(1);
 	close(2);
@@ -1179,7 +1171,7 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	dup(pts_fd);
 	dup(pts_fd);
 	close(pts_fd);
-	close(pty_fd);
+	/* can close pty_fd, but its closed in close_from anyway */
 	if (close_from != -1)
 #ifdef HAVE_CLOSEFROM
 	    closefrom(close_from);
@@ -1215,10 +1207,15 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	_exit(retval);
 	break;
     }
-    sigprocmask(SIG_SETMASK, &oset, NULL);
     /* wait until its safe to read from pty_fd */
-    pshared_sem_wait(pty_sem);
-    pshared_sem_destroy(&pty_sem);
+    sigchld_set_critical(chld_crash, &act);
+    pshared_sem_post(crit_sem);
+    pshared_sem_wait(init_sem);
+    sigchld_unset_critical(&act);
+    sigprocmask(SIG_SETMASK, &oset, NULL);
+    pshared_sem_destroy(&init_sem);
+    pshared_sem_destroy(&crit_sem);
+    close(pts_fd);
     return pid;
 }
 

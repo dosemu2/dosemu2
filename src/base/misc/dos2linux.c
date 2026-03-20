@@ -110,6 +110,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <libgen.h>
 #include <unistd.h>
 #ifdef HAVE_LIBBSD
 #include <bsd/unistd.h>
@@ -187,6 +188,7 @@ void misc_e6_store_options(const char *str)
 
 
 static int pty_fd;
+static int mfs_idx;
 static int cbrk;
 static pthread_t reader;
 struct rd_args {
@@ -272,18 +274,49 @@ static void pty_worker(struct rd_args *args)
 
 void dos2tty_init(void)
 {
+    char pts[PATH_MAX], *dn;
+    int err;
+
     pty_fd = posix_openpt(O_RDWR);
     if (pty_fd == -1)
     {
-        error("openpt failed %s\n", strerror(errno));
+        error("openpt() failed %s\n", strerror(errno));
         return;
     }
     unlockpt(pty_fd);
+    err = ptsname_r(pty_fd, pts, sizeof(pts));
+    if (err) {
+        error("ptsname() failed %s\n", strerror(errno));
+        return;
+    }
+    dn = dirname(pts);
+    assert(dn && dn[0] != '\0' && dn == pts);
+    if (dn[strlen(dn) - 1] != '/')
+        strlcat(pts, "/", sizeof(pts));
+    mfs_idx = mfs_define_drive(pts);
 }
 
 void dos2tty_done(void)
 {
     close(pty_fd);
+}
+
+static int pts_open(void)
+{
+    int err, pts_fd;
+
+    err = grantpt(pty_fd);
+    if (err) {
+	error("grantpt failed: %s\n", strerror(errno));
+	return err;
+    }
+    /* set ctty in child later */
+    pts_fd = mfs_open_file(mfs_idx, ptsname(pty_fd), O_RDWR | O_NOCTTY);
+    if (pts_fd == -1) {
+	error("pts open failed: %s\n", strerror(errno));
+	return -1;
+    }
+    return pts_fd;
 }
 
 static void dos2tty_start(struct rd_args *args)
@@ -365,7 +398,7 @@ int run_unix_command(int argc, const char **argv, int bg)
     }
 
     g_printf("UNIX: run %s, %i args\n", path, argc);
-    pid = run_external_command(path, argc, argv, !bg, -1, pty_fd);
+    pid = run_external_command(path, argc, argv, !bg, -1, pts_open);
     if (bg) {
 	sigchld_enable_cleanup(pid);
 	return 0;
@@ -398,6 +431,12 @@ static int do_wait_custom(pid_t pid, int fd)
     return WEXITSTATUS(status);
 }
 
+static void chld_crash(int sig)
+{
+    error("secure child crashed with %i\n", sig);
+    exit(7);
+}
+
 int unix_run_secure(const char *path, int pos, struct popen2 *file)
 {
     int close_from = STDERR_FILENO + 1;
@@ -406,7 +445,13 @@ int unix_run_secure(const char *path, int pos, struct popen2 *file)
     sigset_t set, oset;
     int outp[2];
     const char *argv[2];
+    pshared_sem_t init_sem, crit_sem;
+    struct sigaction act;
 
+    retval = pshared_sem_init(&init_sem, 0);
+    assert(!retval);
+    retval = pshared_sem_init(&crit_sem, 0);
+    assert(!retval);
     assert(pos < strlen(path));
     argv[0] = path + pos;
     argv[1] = NULL;	/* no args allowed */
@@ -421,11 +466,13 @@ int unix_run_secure(const char *path, int pos, struct popen2 *file)
 	g_printf("run_unix_command(): fork() failed\n");
 	return -1;
     case 0: /* child */
+	pshared_sem_wait(crit_sem);
 	retval = priv_drop();
-	if (retval) {
-	    kill(dosemu_pid, SIGTERM);
+	if (retval)
 	    _exit(EXIT_FAILURE);
-	}
+	pshared_sem_post(init_sem);
+	pshared_sem_destroy(&init_sem);
+	pshared_sem_destroy(&crit_sem);
 	close(0);
 	open("/dev/null", O_RDONLY);
 	close(1);
@@ -469,7 +516,13 @@ int unix_run_secure(const char *path, int pos, struct popen2 *file)
 	_exit(retval);
 	break;
     }
+    sigchld_set_critical(chld_crash, &act);
+    pshared_sem_post(crit_sem);
+    pshared_sem_wait(init_sem);
+    sigchld_unset_critical(&act);
     sigprocmask(SIG_SETMASK, &oset, NULL);
+    pshared_sem_destroy(&init_sem);
+    pshared_sem_destroy(&crit_sem);
     close(outp[1]);
     file->from_child = outp[0];
     file->to_child = -1;

@@ -331,18 +331,21 @@ static void start_landlock(void)
   int i;
   int err;
   const char **p;
+  /* most of the below is needed for exec'ed children, not for dosemu */
   static const char *allow_rw[] = {
-    "/dev",
+    "/dev/shm",
     "/tmp",
-    "/var",
-    "/run",
-    "/proc",
+    "/run/lock",
     NULL
   };
   static const char *allow_ro[] = {
     "/usr",
-    "/sys",
+    "/var",
     "/etc",
+    NULL
+  };
+  static const char *allow_files_rw[] = {
+    "/dev/null",
     NULL
   };
 
@@ -383,6 +386,14 @@ static void start_landlock(void)
     err = landlock_allow_fd(fd, 0);
     if (err) {
       error("landlock_allow_rw(%i) failed\n", fd);
+      leavedos(3);
+      return;
+    }
+  }
+  for (p = allow_files_rw; *p; p++) {
+    err = landlock_allow_file(*p, 0);
+    if (err) {
+      error("landlock_allow_rw(%s) failed\n", *p);
       leavedos(3);
       return;
     }
