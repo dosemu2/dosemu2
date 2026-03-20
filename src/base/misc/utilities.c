@@ -880,6 +880,9 @@ int popen2_custom(const char *cmdline, struct popen2 *childinfo)
     p = fork();
     assert(p >= 0);
     if(p == 0) { /* child */
+	int err = priv_drop();
+	if (err)
+	    _exit(EXIT_FAILURE);
         setsid();	// escape ctty
         close(pipe_stdin[1]);
         dup2(pipe_stdin[0], 0);
