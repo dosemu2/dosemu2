@@ -192,9 +192,12 @@ static void make_retf_frame(cpuctx_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
 static void make_xretf_frame(cpuctx_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
+static void make_iret_frame(cpuctx_t *scp, void *sp,
+	uint32_t cs, uint32_t eip);
 static void do_pm_int(cpuctx_t *scp, int i);
 static void msdos_set_client(cpuctx_t *scp, int num);
 static int rsp_get_para(void);
+static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp);
 
 static uint32_t ldt_bitmap[LDT_ENTRIES / 32];
 static int ldt_bitmap_cnt;
@@ -212,9 +215,13 @@ static void ldt_bitmap_update(unsigned short ldt_entry, int num)
         return;
     for (i = 0; i < num; i++) {
         int ent = ldt_entry + i;
-        ldt_bitmap[ent >> 5] |= 1ULL << (ent & 0x1f);
+        uint32_t *b = &ldt_bitmap[ent >> 5];
+        uint32_t m = 1ULL << (ent & 0x1f);
+        if (!(*b & m)) {
+            *b |= m;
+            ldt_bitmap_cnt++;
+        }
     }
-    ldt_bitmap_cnt += num;
 }
 static void dpmi_ldt_call(cpuctx_t *scp);
 
@@ -634,12 +641,28 @@ static int dpmi_control(void)
 {
     int ret;
     cpuctx_t *scp = &DPMI_CLIENT.stack_frame;
+    unsigned char *csp = (unsigned char *) SEL_ADR(_cs, _eip);
+    int hlt_cnt = 0;
 
     do {
 #ifdef USE_MHPDBG
       if (mhpdbg.active)
         mhp_debug(DBG_POLL, 0, 0);
 #endif
+      while (*csp == 0xf4) {
+        do_dpmi_hlt(scp, csp, SEL_ADR(_ss, _esp));
+        hlt_cnt++;
+        if (!in_dpmi_pm())
+          break;
+        scp = &DPMI_CLIENT.stack_frame;
+        csp = (unsigned char *) SEL_ADR(_cs, _eip);
+      }
+      if (hlt_cnt && debug_level('M') >= 5)
+        D_printf("DPMI: handled %i hlts\n", hlt_cnt);
+      if (!in_dpmi_pm()) {
+        ret = DPMI_RET_DOSEMU;
+        break;
+      }
       dpmi_pic_run(scp);
       if (!in_dpmi_pm()) {
         ret = DPMI_RET_DOSEMU;
@@ -2189,10 +2212,16 @@ void dpmi_ext_set_ldt_monitor32(DPMI_INTDESC call, uint16_t d32)
     ldt_call32.ds = d32;
 }
 
+static void reset_ldt_bmp(void)
+{
+    ldt_bitmap_cnt = 0;
+    memset(ldt_bitmap, 0, sizeof(ldt_bitmap));
+}
+
 void dpmi_ext_ldt_monitor_enable(int on)
 {
     ldt_mon_on = on;
-    ldt_bitmap_cnt = 0;
+    reset_ldt_bmp();
 }
 
 static void _do_ldt_call(cpuctx_t *scp, ldt_calldesc call, int ent,
@@ -2208,15 +2237,67 @@ static void _do_ldt_call(cpuctx_t *scp, ldt_calldesc call, int ent,
     _gs = 0;
 }
 
+static void dpmi_pusha(cpuctx_t *scp, void *sp, int is_32)
+{
+    if (is_32) {
+        unsigned int *ssp = sp;
+        *--ssp = _eax;
+        *--ssp = _ecx;
+        *--ssp = _edx;
+        *--ssp = _ebx;
+        *--ssp = _esp;
+        *--ssp = _ebp;
+        *--ssp = _esi;
+        *--ssp = _edi;
+        _esp -= 8*4;
+    } else {
+        unsigned short *ssp = sp;
+        *--ssp = _LWORD(eax);
+        *--ssp = _LWORD(ecx);
+        *--ssp = _LWORD(edx);
+        *--ssp = _LWORD(ebx);
+        *--ssp = _LWORD(esp);
+        *--ssp = _LWORD(ebp);
+        *--ssp = _LWORD(esi);
+        *--ssp = _LWORD(edi);
+        _LWORD(esp) -= 8*2;
+    }
+}
+
+static void dpmi_pushsr(cpuctx_t *scp, void *sp)
+{
+    if (DPMI_CLIENT.is_32) {
+        unsigned int *ssp = sp;
+        *--ssp = _ds;
+        *--ssp = _es;
+        *--ssp = _fs;
+        *--ssp = _gs;
+        _esp -= 4*4;
+    } else {
+        unsigned short *ssp = sp;
+        *--ssp = _LWORD(ds);
+        *--ssp = _LWORD(es);
+        *--ssp = _LWORD(fs);
+        *--ssp = _LWORD(gs);
+        _LWORD(esp) -= 4*2;
+    }
+}
+
 static void do_ldt_call(cpuctx_t *scp, ldt_calldesc call, int ent,
         int num, int cnt)
 {
     void *sp;
 
-    save_pm_regs(scp);
-    sp = enter_lpms(scp);
+    sp = SEL_ADR(_ss, _esp);
+    make_iret_frame(scp, sp, _cs, _eip);
+    sp = SEL_ADR(_ss, _esp);
+    dpmi_pushsr(scp, sp);
+    sp = SEL_ADR(_ss, _esp);
+    dpmi_pusha(scp, sp, 1);
+    sp = SEL_ADR(_ss, _esp);
     make_retf_frame(scp, sp, dpmi_sel(),
-            DPMI_SEL_OFF(DPMI_return_from_LDTcall));
+            DPMI_CLIENT.is_32 ? DPMI_SEL_OFF(DPMI_return_from_LDTcall) :
+            DPMI_SEL_OFF(DPMI_return_from_LDTcall16));
     _do_ldt_call(scp, call, ent, num);
     D_printf("DPMI: LDT call %i to %x:%x sel=%x,%i\n",
                     cnt, _cs, _eip, _ebx, _ecx);
@@ -2252,11 +2333,15 @@ static void ldt_process_chunk(cpuctx_t *scp, ldt_calldesc call,
         j = find_bit(ldt_bitmap[i]);
         assert(j != -1);
         ldt_bitmap[i] &= ~(1ULL << j);
+        assert(ldt_bitmap_cnt);
+        ldt_bitmap_cnt--;
         state->ent = (i << 5) + j;
         state->num = 1;
         for (j++; j < 32; j++) {
             if (ldt_bitmap[i] & (1ULL << j)) {
                 ldt_bitmap[i] &= ~(1ULL << j);
+                assert(ldt_bitmap_cnt);
+                ldt_bitmap_cnt--;
                 state->num++;
             } else {
                 break;
@@ -2291,6 +2376,8 @@ static void ldt_process_chunk_c(cpuctx_t *scp, ldt_calldesc call,
     for (j = 0; j < 32; j++) {
         if (ldt_bitmap[i] & (1ULL << j)) {
             ldt_bitmap[i] &= ~(1ULL << j);
+            assert(ldt_bitmap_cnt);
+            ldt_bitmap_cnt--;
             state->num++;
         } else {
             break;
@@ -2328,13 +2415,12 @@ static void dpmi_ldt_call(cpuctx_t *scp)
     if (!ldt_bitmap_cnt)
         return;
     if (!call.c.selector) {
-        ldt_bitmap_cnt = 0;
+        reset_ldt_bmp();
         return;
     }
     D_printf("DPMI: updating %i LDT entries\n", ldt_bitmap_cnt);
-    ldt_bitmap_cnt = 0;
 
-    for (i = 0; i < LDT_ENTRIES / 32; i++) {
+    for (i = 0; ldt_bitmap_cnt && i < LDT_ENTRIES / 32; i++) {
 	if (state.carry)
 	    ldt_process_chunk_c(scp, call, i, &state);
 	else
@@ -2346,6 +2432,7 @@ static void dpmi_ldt_call(cpuctx_t *scp)
 static void ldt_process_chunk_b(int i, struct chunk_state *state)
 {
     int k;
+    int n = __builtin_popcount(ldt_bitmap[i]);
     int j = find_bit(ldt_bitmap[i]);
     if (j == -1)
         return;
@@ -2355,11 +2442,14 @@ static void ldt_process_chunk_b(int i, struct chunk_state *state)
     state->num = k - j + 1;
     state->carry = 1;
     ldt_bitmap[i] = 0;
+    assert(ldt_bitmap_cnt >= n);
+    ldt_bitmap_cnt -= n;
 }
 
 static void ldt_process_chunk_b_c(int i, struct chunk_state *state)
 {
     int ent;
+    int n = __builtin_popcount(ldt_bitmap[i]);
     int k = find_bit_r(ldt_bitmap[i]);
     if (k == -1)
         return;
@@ -2367,6 +2457,8 @@ static void ldt_process_chunk_b_c(int i, struct chunk_state *state)
     assert(ent >= state->ent);
     state->num = ent - state->ent + 1;
     ldt_bitmap[i] = 0;
+    assert(ldt_bitmap_cnt >= n);
+    ldt_bitmap_cnt -= n;
 }
 
 static void ldt_process_end_b(cpuctx_t *scp, ldt_calldesc call,
@@ -2389,13 +2481,12 @@ static void dpmi_ldt_exitcall(cpuctx_t *scp)
     if (!ldt_bitmap_cnt)
         return;
     if (!call.c.selector) {
-        ldt_bitmap_cnt = 0;
+        reset_ldt_bmp();
         return;
     }
     D_printf("DPMI: bulk-updating %i LDT entries\n", ldt_bitmap_cnt);
-    ldt_bitmap_cnt = 0;
 
-    for (i = 0; i < LDT_ENTRIES / 32; i++) {
+    for (i = 0; ldt_bitmap_cnt && i < LDT_ENTRIES / 32; i++) {
 	if (state.carry)
 	    ldt_process_chunk_b_c(i, &state);
 	else
@@ -4244,7 +4335,7 @@ void dpmi_reset(void)
 	dpmi_cleanup();
     }
     ldt_mon_on = 0;
-    ldt_bitmap_cnt = 0;
+    reset_ldt_bmp();
     DPMI_pm_procedure_running = 0;
     in_dpmi_irq = 0;
     cli_blacklisted = 0;
@@ -5210,12 +5301,6 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  restore_pm_regs(scp);
 	  dpmi_set_pm(0);
 
-        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_LDTcall)) {
-	  D_printf("DPMI: Return from LDT call, in_dpmi_pm_stack=%i\n",
-	    DPMI_CLIENT.in_dpmi_pm_stack);
-	  leave_lpms(scp);
-	  restore_pm_regs(scp);
-
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_LDTExitCall)) {
 	  remove_xretf_frame(scp, sp);
 	  D_printf("DPMI: Return from LDT exit call, in_dpmi_pm_stack=%i\n",
@@ -5644,13 +5729,12 @@ static int dpmi_fault1(cpuctx_t *scp)
       if (!in_dpmi_pm())
         return ret;
       scp = &DPMI_CLIENT.stack_frame;  // update, could change
-      if (ldt_bitmap_cnt)
+      if (ldt_bitmap_cnt) {
         dpmi_ldt_call(scp);
-      lina = (unsigned char *) SEL_ADR(_cs, _eip);
-      sp = SEL_ADR(_ss, _esp);
-      if (*lina == 0xf4) {
-        D_printf("DPMI: more hlt to handle\n");
-        dpmi_gpf_simple(scp, lina, sp, &ret);
+        lina = (unsigned char *) SEL_ADR(_cs, _eip);
+        sp = SEL_ADR(_ss, _esp);
+        if (ret == DPMI_RET_CLIENT && *lina == 0xf4)
+          do_dpmi_hlt(scp, lina, sp);
       }
       return ret;
     }

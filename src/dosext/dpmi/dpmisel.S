@@ -88,23 +88,19 @@ DPMI_ext_exception:
 DPMI_rm_exception:
 	FILL_OPCODE 32,hlt
 /* ======================= Addr = dpmi_sel():0170 */
-	.globl DPMI_return_from_LDTcall
-DPMI_return_from_LDTcall:
-	hlt
-/* ======================= Addr = dpmi_sel():0171 */
 	.globl DPMI_return_from_LDTExitCall
 DPMI_return_from_LDTExitCall:
 	hlt
-/* ======================= Addr = dpmi_sel():0172 */
+/* ======================= Addr = dpmi_sel():0171 */
 	.globl DPMI_reinit
 DPMI_reinit:
 	hlt
-/* ======================= Addr = dpmi_sel():0173 */
+/* ======================= Addr = dpmi_sel():0172 */
 	.globl DPMI_dj64
 DPMI_dj64:
 	hlt
 	lretl
-/* ======================= Addr = dpmi_sel():0175 */
+/* ======================= Addr = dpmi_sel():0174 */
 	.globl DPMI_shlock
 DPMI_shlock:
 	hlt
@@ -114,7 +110,25 @@ DPMI_shlock:
 	int $0x2f
 	jmp DPMI_shlock
 1:
-	lret
+	lretl
+
+.macro ldtret wl
+	popa\wl
+	pop %gs
+	pop %fs
+	pop %es
+	pop %ds
+	iretl
+.endm
+
+	.globl DPMI_return_from_LDTcall
+DPMI_return_from_LDTcall:
+	ldtret l
+
+	.globl DPMI_return_from_LDTcall16
+DPMI_return_from_LDTcall16:
+	ldtret w
+
 	.globl DPMI_sel_end
 DPMI_sel_end:
 
