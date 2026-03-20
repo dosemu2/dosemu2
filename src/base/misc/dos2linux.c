@@ -431,6 +431,12 @@ static int do_wait_custom(pid_t pid, int fd)
     return WEXITSTATUS(status);
 }
 
+static void chld_crash(int sig)
+{
+    error("secure child crashed with %i\n", sig);
+    exit(7);
+}
+
 int unix_run_secure(const char *path, int pos, struct popen2 *file)
 {
     int close_from = STDERR_FILENO + 1;
@@ -439,7 +445,13 @@ int unix_run_secure(const char *path, int pos, struct popen2 *file)
     sigset_t set, oset;
     int outp[2];
     const char *argv[2];
+    pshared_sem_t init_sem, crit_sem;
+    struct sigaction act;
 
+    retval = pshared_sem_init(&init_sem, 0);
+    assert(!retval);
+    retval = pshared_sem_init(&crit_sem, 0);
+    assert(!retval);
     assert(pos < strlen(path));
     argv[0] = path + pos;
     argv[1] = NULL;	/* no args allowed */
@@ -454,11 +466,13 @@ int unix_run_secure(const char *path, int pos, struct popen2 *file)
 	g_printf("run_unix_command(): fork() failed\n");
 	return -1;
     case 0: /* child */
+	pshared_sem_wait(crit_sem);
 	retval = priv_drop();
-	if (retval) {
-	    kill(dosemu_pid, SIGTERM);
+	if (retval)
 	    _exit(EXIT_FAILURE);
-	}
+	pshared_sem_post(init_sem);
+	pshared_sem_destroy(&init_sem);
+	pshared_sem_destroy(&crit_sem);
 	close(0);
 	open("/dev/null", O_RDONLY);
 	close(1);
@@ -502,7 +516,13 @@ int unix_run_secure(const char *path, int pos, struct popen2 *file)
 	_exit(retval);
 	break;
     }
+    sigchld_set_critical(chld_crash, &act);
+    pshared_sem_post(crit_sem);
+    pshared_sem_wait(init_sem);
+    sigchld_unset_critical(&act);
     sigprocmask(SIG_SETMASK, &oset, NULL);
+    pshared_sem_destroy(&init_sem);
+    pshared_sem_destroy(&crit_sem);
     close(outp[1]);
     file->from_child = outp[0];
     file->to_child = -1;
