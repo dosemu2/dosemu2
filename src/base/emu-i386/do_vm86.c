@@ -63,6 +63,58 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
   if (dpmi_active() && dpmi_realmode_exception(trapno, err, cr2))
     return 0;
 
+  /* Real-mode SP wraparound: on 8086, SP is 16 bits and wraps
+     naturally on push/pop.  In VM86 mode, a push with SP near 0
+     triggers #SS because ESP-2 would exceed the 64K segment limit.
+     Emulate the push with 16-bit SP wrapping. */
+  if (trapno == 0x0c && LWORD(esp) < 2) {
+    unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
+    unsigned char opc = *csp;
+    /* Handle PUSH reg16 (opcodes 0x50-0x57) */
+    if (opc >= 0x50 && opc <= 0x57) {
+      static const int reg_map[] = { /* AX CX DX BX SP BP SI DI */
+        offsetof(struct vm86_struct, regs.eax),
+        offsetof(struct vm86_struct, regs.ecx),
+        offsetof(struct vm86_struct, regs.edx),
+        offsetof(struct vm86_struct, regs.ebx),
+        offsetof(struct vm86_struct, regs.esp),
+        offsetof(struct vm86_struct, regs.ebp),
+        offsetof(struct vm86_struct, regs.esi),
+        offsetof(struct vm86_struct, regs.edi),
+      };
+      unsigned short val = vm86u.w[reg_map[opc - 0x50] / 2];
+      unsigned short sp = LWORD(esp) - 2;  /* 16-bit wrap */
+      WRITE_WORD(SEGOFF2LINEAR(SREG(ss), sp), val);
+      LWORD(esp) = sp;
+      LWORD(eip)++;
+      return 0;
+    }
+    /* Handle PUSHF (opcode 0x9C) */
+    if (opc == 0x9c) {
+      unsigned short sp = LWORD(esp) - 2;
+      WRITE_WORD(SEGOFF2LINEAR(SREG(ss), sp), (unsigned short)REG(eflags));
+      LWORD(esp) = sp;
+      LWORD(eip)++;
+      return 0;
+    }
+    /* Handle PUSH DS (0x1E), PUSH ES (0x06), PUSH SS (0x16), PUSH CS (0x0E) */
+    if (opc == 0x1e || opc == 0x06 || opc == 0x16 || opc == 0x0e) {
+      unsigned short val;
+      switch (opc) {
+        case 0x1e: val = SREG(ds); break;
+        case 0x06: val = SREG(es); break;
+        case 0x16: val = SREG(ss); break;
+        case 0x0e: val = SREG(cs); break;
+        default: val = 0; break;
+      }
+      unsigned short sp = LWORD(esp) - 2;
+      WRITE_WORD(SEGOFF2LINEAR(SREG(ss), sp), val);
+      LWORD(esp) = sp;
+      LWORD(eip)++;
+      return 0;
+    }
+  }
+
   switch (trapno) {
   case 0x00: /* divide_error */
   case 0x01: /* debug */
@@ -92,6 +144,102 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
   case 0x06: /* invalid_op */
     {
       unsigned char *csp;
+      csp = SEG_ADR((unsigned char *), cs, ip);
+      /* 8F with reg != 0: undocumented POP variants.  On 8086/286 all
+         reg fields of 8F behave as POP r/m16.  Modern CPUs raise #UD
+         for reg != 0, but LZEXE and other real-mode code relies on this.
+         Emulate: pop the word from stack, decode ModR/M to find the
+         destination, write the value, and advance IP. */
+      if (csp[0] == 0x8f && (csp[1] & 0x38) != 0) {
+        unsigned char modrm = csp[1];
+        unsigned char mod = (modrm >> 6) & 3;
+        unsigned char rm = modrm & 7;
+        unsigned short *ssp = SEG_ADR((unsigned short *), ss, sp);
+        unsigned short val = *ssp;
+        LWORD(esp) += 2;
+        unsigned short addr;
+        int insn_len = 2;  /* 8F + ModR/M */
+        /* Decode 16-bit ModR/M effective address */
+        switch (mod) {
+        case 0:
+          if (rm == 6) {
+            addr = csp[2] | (csp[3] << 8);
+            insn_len += 2;
+          } else {
+            switch (rm) {
+              case 0: addr = LWORD(ebx) + LWORD(esi); break;
+              case 1: addr = LWORD(ebx) + LWORD(edi); break;
+              case 2: addr = LWORD(ebp) + LWORD(esi); break;
+              case 3: addr = LWORD(ebp) + LWORD(edi); break;
+              case 4: addr = LWORD(esi); break;
+              case 5: addr = LWORD(edi); break;
+              case 7: addr = LWORD(ebx); break;
+              default: addr = 0; break;
+            }
+          }
+          break;
+        case 1:
+          insn_len += 1;
+          {
+            signed char disp8 = (signed char)csp[2];
+            switch (rm) {
+              case 0: addr = LWORD(ebx) + LWORD(esi) + disp8; break;
+              case 1: addr = LWORD(ebx) + LWORD(edi) + disp8; break;
+              case 2: addr = LWORD(ebp) + LWORD(esi) + disp8; break;
+              case 3: addr = LWORD(ebp) + LWORD(edi) + disp8; break;
+              case 4: addr = LWORD(esi) + disp8; break;
+              case 5: addr = LWORD(edi) + disp8; break;
+              case 6: addr = LWORD(ebp) + disp8; break;
+              case 7: addr = LWORD(ebx) + disp8; break;
+              default: addr = 0; break;
+            }
+          }
+          break;
+        case 2:
+          insn_len += 2;
+          {
+            short disp16 = csp[2] | (csp[3] << 8);
+            switch (rm) {
+              case 0: addr = LWORD(ebx) + LWORD(esi) + disp16; break;
+              case 1: addr = LWORD(ebx) + LWORD(edi) + disp16; break;
+              case 2: addr = LWORD(ebp) + LWORD(esi) + disp16; break;
+              case 3: addr = LWORD(ebp) + LWORD(edi) + disp16; break;
+              case 4: addr = LWORD(esi) + disp16; break;
+              case 5: addr = LWORD(edi) + disp16; break;
+              case 6: addr = LWORD(ebp) + disp16; break;
+              case 7: addr = LWORD(ebx) + disp16; break;
+              default: addr = 0; break;
+            }
+          }
+          break;
+        case 3:
+          /* mod=3: register destination */
+          switch (rm) {
+            case 0: LWORD(eax) = val; break;
+            case 1: LWORD(ecx) = val; break;
+            case 2: LWORD(edx) = val; break;
+            case 3: LWORD(ebx) = val; break;
+            case 4: LWORD(esp) = val; break;
+            case 5: LWORD(ebp) = val; break;
+            case 6: LWORD(esi) = val; break;
+            case 7: LWORD(edi) = val; break;
+          }
+          LWORD(eip) += insn_len;
+          return 0;
+        default:
+          addr = 0;
+          break;
+        }
+        /* mod 0-2: memory destination, default segment is DS (or SS for BP) */
+        {
+          unsigned short seg = SREG(ds);
+          if (rm == 2 || rm == 3 || (rm == 6 && mod != 0))
+            seg = SREG(ss);
+          WRITE_WORD(SEGOFF2LINEAR(seg, addr), val);
+        }
+        LWORD(eip) += insn_len;
+        return 0;
+      }
       error_once("SIGILL while in vm86(): %04x:%04x\n", SREG(cs), LWORD(eip));
       if (config.vga && SREG(cs) == config.vbios_seg) {
 	if (!config.vbios_post)
@@ -400,6 +548,14 @@ static int handle_GP_fault(void)
 static void vm86_GP_fault(void)
 {
     unsigned char *lina;
+    /* Real-mode IP wraparound: on 8086/286 IP is 16 bits and wraps
+       naturally from 0xFFFF to 0x0000.  In VM86 mode the kernel uses
+       32-bit EIP, so exceeding 0xFFFF triggers a #GP instead of
+       wrapping.  Mask EIP back to 16 bits and retry. */
+    if (_EIP > 0xffff) {
+	_EIP &= 0xffff;
+	return;
+    }
     if (handle_GP_fault()) {
 #ifdef USE_MHPDBG
 	if (isset_TF() && !in_dpmi_pm())

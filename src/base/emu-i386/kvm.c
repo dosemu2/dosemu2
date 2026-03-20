@@ -1456,6 +1456,19 @@ int true_kvm_vm86(struct vm86_struct *info)
     /* high word(orig_eax) = exception number */
     /* low word(orig_eax) = error code */
     trapno = (regs->orig_eax >> 16) & 0xff;
+
+    /* Real-mode segment wraparound: on 8086/286, IP and SP are
+       16 bits and wrap naturally.  In VM86/KVM mode, EIP/ESP are
+       32 bits so exceeding 0xFFFF triggers #GP or #SS instead of
+       wrapping.  Mask back to 16 bits and retry.
+       For #SS with low ESP, the push would wrap SP below 0; we
+       need to fall through to the CPU emulator to handle it. */
+    if ((trapno == 0xd || trapno == 0xc) && regs->eip > 0xffff) {
+      regs->eip &= 0xffff;
+      vm86_ret = -1;  /* retry */
+      continue;
+    }
+
 #if 1
     if (
 #ifdef USE_MHPDBG
