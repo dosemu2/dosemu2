@@ -110,6 +110,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <libgen.h>
 #include <unistd.h>
 #ifdef HAVE_LIBBSD
 #include <bsd/unistd.h>
@@ -187,6 +188,7 @@ void misc_e6_store_options(const char *str)
 
 
 static int pty_fd;
+static int mfs_idx;
 static int cbrk;
 static pthread_t reader;
 struct rd_args {
@@ -272,18 +274,49 @@ static void pty_worker(struct rd_args *args)
 
 void dos2tty_init(void)
 {
+    char pts[PATH_MAX], *dn;
+    int err;
+
     pty_fd = posix_openpt(O_RDWR);
     if (pty_fd == -1)
     {
-        error("openpt failed %s\n", strerror(errno));
+        error("openpt() failed %s\n", strerror(errno));
         return;
     }
     unlockpt(pty_fd);
+    err = ptsname_r(pty_fd, pts, sizeof(pts));
+    if (err) {
+        error("ptsname() failed %s\n", strerror(errno));
+        return;
+    }
+    dn = dirname(pts);
+    assert(dn && dn[0] != '\0' && dn == pts);
+    if (dn[strlen(dn) - 1] != '/')
+        strlcat(pts, "/", sizeof(pts));
+    mfs_idx = mfs_define_drive(pts);
 }
 
 void dos2tty_done(void)
 {
     close(pty_fd);
+}
+
+static int pts_open(void)
+{
+    int err, pts_fd;
+
+    err = grantpt(pty_fd);
+    if (err) {
+	error("grantpt failed: %s\n", strerror(errno));
+	return err;
+    }
+    /* set ctty in child later */
+    pts_fd = mfs_open_file(mfs_idx, ptsname(pty_fd), O_RDWR | O_NOCTTY);
+    if (pts_fd == -1) {
+	error("pts open failed: %s\n", strerror(errno));
+	return -1;
+    }
+    return pts_fd;
 }
 
 static void dos2tty_start(struct rd_args *args)
@@ -365,7 +398,7 @@ int run_unix_command(int argc, const char **argv, int bg)
     }
 
     g_printf("UNIX: run %s, %i args\n", path, argc);
-    pid = run_external_command(path, argc, argv, !bg, -1, pty_fd);
+    pid = run_external_command(path, argc, argv, !bg, -1, pts_open);
     if (bg) {
 	sigchld_enable_cleanup(pid);
 	return 0;

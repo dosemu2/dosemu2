@@ -334,7 +334,6 @@ static void start_landlock(void)
   /* most of the below is needed for exec'ed children, not for dosemu */
   static const char *allow_rw[] = {
     "/dev/shm",
-    "/dev/pts",
     "/tmp",
     "/run/lock",
     NULL

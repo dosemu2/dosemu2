@@ -1081,24 +1081,6 @@ FILE *fstream_tee(FILE *orig)
 }
 #endif
 
-static int pts_open(int pty_fd)
-{
-    int err, pts_fd;
-
-    err = grantpt(pty_fd);
-    if (err) {
-	error("grantpt failed: %s\n", strerror(errno));
-	return err;
-    }
-    /* set ctty in child later */
-    pts_fd = open(ptsname(pty_fd), O_RDWR | O_NOCTTY);
-    if (pts_fd == -1) {
-	error("pts open failed: %s\n", strerror(errno));
-	return -1;
-    }
-    return pts_fd;
-}
-
 int pshared_sem_init(pshared_sem_t *sem, unsigned int value)
 {
     char sem_name[] = "/dosemu2_psem_%PXXXXXX";
@@ -1136,7 +1118,7 @@ int pshared_sem_destroy(pshared_sem_t *sem)
 }
 
 pid_t run_external_command(const char *path, int argc, const char **argv,
-        int use_stdin, int close_from, int pty_fd)
+        int use_stdin, int close_from, int (*pts_open)(void))
 {
     pid_t pid;
     int wt, retval;
@@ -1148,7 +1130,7 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
     assert(!retval);
     signal_block_async_nosig(&oset);
     sigprocmask(SIG_SETMASK, NULL, &set);
-    pts_fd = pts_open(pty_fd);
+    pts_fd = pts_open();
     /* fork child */
     switch ((pid = fork())) {
     case -1: /* failed */
@@ -1184,7 +1166,7 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	dup(pts_fd);
 	dup(pts_fd);
 	close(pts_fd);
-	close(pty_fd);
+	/* can close pty_fd, but its closed in close_from anyway */
 	if (close_from != -1)
 #ifdef HAVE_CLOSEFROM
 	    closefrom(close_from);

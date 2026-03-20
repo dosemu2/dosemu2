@@ -32,6 +32,7 @@
 #include "ser_defs.h"
 #include "tty_io.h"
 
+static int pty_fd;
 static void async_serial_run(int fd, void *arg);
 
 /* This function flushes the internal unix receive buffer [num = port] */
@@ -652,17 +653,34 @@ static void pty_exit(void *arg)
   tty_close(c);
 }
 
+static int pts_open(void)
+{
+    int err, pts_fd;
+
+    err = grantpt(pty_fd);
+    if (err) {
+       error("grantpt failed: %s\n", strerror(errno));
+       return err;
+    }
+    /* set ctty in child later */
+    pts_fd = open(ptsname(pty_fd), O_RDWR | O_NOCTTY);
+    if (pts_fd == -1) {
+       error("pts open failed: %s\n", strerror(errno));
+       return -1;
+    }
+    return pts_fd;
+}
+
 static int pty_open(com_t *c, const char *cmd)
 {
   struct termios t;
   const char *argv[] = { "sh", "-c", cmd, NULL };
   const int argc = 4;
-  int pty_fd;
 
   pty_fd = pty_init(c);
   cfmakeraw(&t);
   tcsetattr(pty_fd, TCSANOW, &t);
-  pid_t pid = run_external_command("/bin/sh", argc, argv, 1, -1, pty_fd);
+  pid_t pid = run_external_command("/bin/sh", argc, argv, 1, -1, pts_open);
   if (pid == -1) {
     close(pty_fd);
     return -1;

@@ -309,6 +309,8 @@ int emulate(int argc, char **argv, char * const *envp)
 #ifdef USE_MHPDBG
     mhp_early_init();           /* before mfs_post_config() */
 #endif
+    dos2tty_init();             /* before mfs_post_config() */
+    /* this seals FS ops */
     mfs_post_config();		/* called after config and all config_scrubs */
 #ifdef X86_EMULATOR
 #ifdef DONT_DEBUG_BOOT		/* cpuemu only */
@@ -372,7 +374,6 @@ int emulate(int argc, char **argv, char * const *envp)
 #ifdef USE_MHPDBG
     mhp_init();
 #endif
-    dos2tty_init();
     priv_drop_total();
     init_all_DOS_tables();	/* longest init function! needs to be optimized */
     signal_init();              /* initialize sig's & sig handlers */
