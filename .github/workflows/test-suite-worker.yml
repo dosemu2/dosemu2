@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ inputs.os }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 50
 
@@ -32,7 +32,7 @@ jobs:
       run: ./ci_build_or_install.sh
 
     - name: Cache binaries
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       env:
         cache-name: test-binaries
       with:
@@ -67,7 +67,7 @@ jobs:
 
     - name: Upload failure logs
       if: ${{ always() && (steps.test.outcome == 'failure') }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: failure-logs-${{ format('{0}-{1}-{2}', inputs.bldtype, inputs.runtype, inputs.os) }}
         path: test_*

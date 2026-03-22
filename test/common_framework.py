@@ -150,7 +150,7 @@ def mark(attr_names):
     return decorator
 
 
-def maybeFailure(func):
+def acceptFailure(func):
     """
     Docorator used to mark a test that may fail without stopping the test run
     """
@@ -161,9 +161,9 @@ def maybeFailure(func):
             return func(self, *args, **kwargs)
 
         except self.failureException:
-            if environ.get("NO_MAYBEFAILURES", '0') == '1':
+            if environ.get("NO_ACCEPTFAILURES", '0') == '1':
                 raise
-            self.skipTest(f"MAYFAIL\n")
+            self.skipTest(f"ACCEPTEDFAIL\n")
     return wrapper
 
 
@@ -880,7 +880,7 @@ class MyTestResult(unittest.TextTestResult):
             self.stop()
 
     def addSkip(self, test, reason):
-        if reason.startswith("MAYFAIL\n"):
+        if reason.startswith("ACCEPTEDFAIL\n"):
             if self.showAll:
                 if self.with_color_terminal:
                     self.stream.writeln(f"{ORANGE}FAIL{RESET} (acceptable)")
@@ -947,14 +947,14 @@ def main_setup(cases):
                    "[--require-attr=STRING [TestCase1 .. TestCaseN]] | " +
                    "[TestCase[.testname] ...]")
             print("Significant environment variables:\n" +
-                  "  NO_ACTIONS=1        Allow a test that is marked as known failure or unsupported to be run\n" +
-                  "  NO_COLOR=1          Override the terminal detection and disable colour printing of PASS|FAIL etc\n" +
-                  "  NO_FAILFAST=1       Don't quit on the first test failure, run all specified\n" +
-                  "  NO_KVM=1            Disables KVM, equivalent to autodetection not finding /dev/kvm\n" +
-                  "  NO_MAYBEFAILURES=1  Disables the maybeFailure mechanism so promoting test failures to FAIL\n" +
-                  "  NO_TESTRUN=1        Exit the test runner after setting up the test environment and print the command line to be used\n" +
-                  "  SKIP_EXPENSIVE=1    Tests that have been marked as expensive are not run\n" +
-                  "  SKIP_NATIVE_DPMI=1  Tests that use native DPMI are not run\n")
+                  "  NO_ACTIONS=1         Allow a test that is marked as known failure or unsupported to be run\n" +
+                  "  NO_COLOR=1           Override the terminal detection and disable colour printing of PASS|FAIL etc\n" +
+                  "  NO_FAILFAST=1        Don't quit on the first test failure, run all specified\n" +
+                  "  NO_KVM=1             Disables KVM, equivalent to autodetection not finding /dev/kvm\n" +
+                  "  NO_ACCEPTFAILURES=1  Disables the acceptFailure mechanism so promoting test failures to FAIL\n" +
+                  "  NO_TESTRUN=1         Exit the test runner after setting up the test environment and print the command line to be used\n" +
+                  "  SKIP_EXPENSIVE=1     Tests that have been marked as expensive are not run\n" +
+                  "  SKIP_NATIVE_DPMI=1   Tests that use native DPMI are not run\n")
             exit(0)
 
         if argv[1] == "--get-test-binaries":

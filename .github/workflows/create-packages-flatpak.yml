@@ -15,14 +15,14 @@ jobs:
       image: bilelmoussaoui/flatpak-github-actions:freedesktop-24.08
       options: --privileged
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
       name: Build
       with:
         bundle: dosemu2.flatpak
         manifest-path: io.github.dosemu2.dosemu2.yml
         cache-key: flatpak-builder-${{ github.sha }}
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: gh-pages
         clean: false
