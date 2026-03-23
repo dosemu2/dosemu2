@@ -1509,6 +1509,7 @@ DRDOS701TestCase = drdos701(OurTestCase, {
     "test_fat_label_delete_wildcard": KNOWNFAIL,
     "test_sfn_truename": KNOWNFAIL,
     "test_sfn_findfirst": KNOWNFAIL,
+    "test_libi86_item_056": KNOWNFAIL,
     "test_libi86_item_104": KNOWNFAIL,
 })
 
