@@ -151,9 +151,6 @@ while [ $# -gt 0 ] ; do
         echo "Running under flatpak, priv separation unsupported"
         exit 1
       fi
-      SUDO=setpriv
-      # no-new-privs is needed to bypass suid/sgid bits
-      SUDOOPTS="--no-new-privs"
       OPTS="$OPTS -p"
       ;;
     -t | -t[a-z] | -t[a-z][a-z] | -t[a-z][a-z][a-z])

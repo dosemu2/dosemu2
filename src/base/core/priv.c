@@ -610,28 +610,6 @@ void priv_init(void)
 #endif
 }
 
-#ifdef SDL_SUPPORT
-/* bug-fixer for gtk, see
- * https://gitlab.gnome.org/GNOME/gtk/-/issues/6629
- */
-#include <dlfcn.h>
-static int (*grsg)(gid_t *rgid, gid_t *egid, gid_t *sgid);
-
-int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid)
-{
-  int ret = -1;
-  if (!grsg)
-    grsg = dlsym(RTLD_NEXT, "getresgid");
-  if (grsg)
-    ret = grsg(rgid, egid, sgid);
-  if (!running_suid_orig())
-    return ret;
-  dbug_printf("%s\n", __FUNCTION__);
-  errno = ENOSYS;
-  return -1;
-}
-#endif
-
 #if defined(USE_ASAN) && !defined(__SANITIZE_LEAK__)
 int __lsan_is_turned_off(void);
 int __lsan_is_turned_off(void)

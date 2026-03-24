@@ -194,17 +194,6 @@ ifeq ($(SOLIB),1)
 endif
 	$(INSTALL) -d $(DESTDIR)$(includedir)/$(PACKAGE_NAME)
 	$(INSTALL) -m 0644 -D $(SRCPATH)/include/$(PACKAGE_NAME)/* $(DESTDIR)$(includedir)/$(PACKAGE_NAME)
-ifneq ($(PRIV_SEP),)
-	if getent passwd $(username); then \
-	  if chown $(username):$(username) $(DESTDIR)$(libexecdir)/dosemu2/$(DOSBIN); then \
-	    if chmod ug+s $(DESTDIR)$(libexecdir)/dosemu2/$(DOSBIN); then \
-	      if $(SETCAP) "cap_setgid+p" $(DESTDIR)$(libexecdir)/dosemu2/$(DOSBIN); then \
-	        echo "dosemu2 installed SETUID!"; \
-	      fi; \
-	    fi; \
-	  fi; \
-	fi
-endif
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 $(top_builddir)/bin/dosemu $(DESTDIR)$(bindir)
 	[ ! -f $(top_builddir)/bin/mkfatimage16 ] || $(INSTALL) -m 0755 $(top_builddir)/bin/mkfatimage16 $(DESTDIR)$(bindir)
