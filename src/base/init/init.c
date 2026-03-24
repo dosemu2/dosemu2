@@ -412,7 +412,8 @@ void map_memory_space(void)
     perror("LOWRAM alloc");
     leavedos(98);
   }
-  mem_reserve(memsize);
+  if (!EMU_FULLSIM())
+    mem_reserve(memsize);
   register_hardware_ram_virtual('L', 0, LOWMEM_SIZE + HMASIZE, 0);
   result = alias_mapping_high(MAPPING_INIT_LOWRAM, 0, memsize,
 			      PROT_READ | PROT_WRITE, lowmem);
@@ -427,7 +428,8 @@ void map_memory_space(void)
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
-  c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
+  if (!EMU_FULLSIM())
+    c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
   if (config.xms_size) {
     memcheck_addtype('x', "XMS");

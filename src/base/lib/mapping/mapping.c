@@ -86,18 +86,21 @@ static struct {
 } mem_bases[MAX_BASES];
 unsigned char *_mem_base(void)
 {
+  assert(mem_bases[MEM_BASE].base != MAP_FAILED);
   return mem_bases[MEM_BASE].base;
 }
 unsigned char *_jit_base(void)
 {
+  assert(mem_bases[JIT_BASE].base != MAP_FAILED);
   return mem_bases[JIT_BASE].base;
 }
 uint8_t *lowmem_base;
 
 static struct mappingdrivers *mappingdrv[] = {
+  &mappingdriver_softmmu, /* first try softmmu (fullsim only!) */
 #ifdef HAVE_MEMFD_CREATE
 #if HAVE_DECL_MEMFD_CREATE
-  &mappingdriver_mshm,  /* first try memfd mmap */
+  &mappingdriver_mshm,  /* then try memfd mmap */
 #endif
 #endif
 #ifdef HAVE_SHM_OPEN
@@ -159,7 +162,7 @@ void *dosaddr_to_unixaddr(dosaddr_t addr)
   off = addr - hw->vbase;
   if (hw->aliasmap[off >> PAGE_SHIFT].ptr)
     return hw->aliasmap[off >> PAGE_SHIFT].ptr + (off & (PAGE_SIZE - 1));
-  return MEM_BASE32(addr);
+  return LOWMEM(addr);
 }
 
 void *physaddr_to_unixaddr(unsigned int addr)
@@ -255,8 +258,10 @@ static void kmem_map_single(int cap, int idx, dosaddr_t targ)
         MREMAP_MAYMOVE | MREMAP_FIXED, dst);
     }
   } else {
-    mremap(kmem_map[idx].base[MEM_BASE], kmem_map[idx].len, kmem_map[idx].len,
-        MREMAP_MAYMOVE | MREMAP_FIXED, MEM_BASE32(targ));
+    void *dst = MEM_BASE32x(targ, MEM_BASE);
+    if (dst != MAP_FAILED)
+      mremap(kmem_map[idx].base[MEM_BASE], kmem_map[idx].len, kmem_map[idx].len,
+	     MREMAP_MAYMOVE | MREMAP_FIXED, dst);
   }
   kmem_map[idx].dst = targ;
   update_aliasmap(targ, kmem_map[idx].len, kmem_map[idx].bkp_base);
@@ -285,6 +290,9 @@ int alias_mapping_high(int cap, dosaddr_t targ, size_t mapsize, int protect,
     void *source)
 {
   void *addr;
+
+  if (mem_bases[MEM_BASE].base == MAP_FAILED)
+    return 0;
 
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
 	cap, targ, mapsize, protect, source);
@@ -547,7 +555,7 @@ int restore_mapping_pa(unsigned int addr, size_t mapsize)
 
 static int do_mprot(dosaddr_t targ, size_t mapsize, int protect)
 {
-  int i, ret = -1;
+  int i, ret;
 
   for (i = 0; i < MAX_BASES; i++) {
     void *addr = MEM_BASE32x(targ, i);
@@ -562,7 +570,7 @@ static int do_mprot(dosaddr_t targ, size_t mapsize, int protect)
       return ret;
     }
   }
-  return ret;
+  return 0;
 }
 
 int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
@@ -574,8 +582,7 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
 	cap, targ, mapsize, protect);
   invalidate_unprotected_page_cache(targ, mapsize);
   if (cap & MAPPING_CPUEMU) {
-    /* no need to mprotect with fullsim */
-    if (EMU_FULLSIM())
+    if (mem_bases[JIT_BASE].base == MAP_FAILED)
       return 0;
     /* for cpuemu only mprotect JIT_BASE */
     ret = mprotect(MEM_BASE32x(targ, JIT_BASE), mapsize, protect);
@@ -588,6 +595,8 @@ int mprotect_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect)
     return ret;
   if (is_kvm_map(cap))
     mprotect_kvm(cap, targ, mapsize, protect);
+  if (mem_bases[MEM_BASE].base == MAP_FAILED)
+    return ret;
   addr = MEM_BASE32(targ);
   if ((unsigned char *)addr < mem_bases[MEM_BASE].base ||
       (unsigned char *)addr + mapsize > mem_bases[MEM_BASE].base +
@@ -1154,7 +1163,7 @@ void *get_hardware_uaddr(unsigned addr)
       int off = addr - hw->base;
       if (hw->aliasmap[off >> PAGE_SHIFT].ptr)
         return hw->aliasmap[off >> PAGE_SHIFT].ptr + (off & (PAGE_SIZE - 1));
-      return MEM_BASE32(addr);
+      return LOWMEM(addr);
     }
   }
   return MAP_FAILED;
@@ -1399,7 +1408,6 @@ void munmap_shm_mapping(void *addr)
 
 int mprotect_vga(int idx, dosaddr_t targ, size_t mapsize, int protect)
 {
-  void *addr = MEM_BASE32(targ);
   int wp = !(protect & PROT_WRITE);
   int err;
 
@@ -1407,7 +1415,7 @@ int mprotect_vga(int idx, dosaddr_t targ, size_t mapsize, int protect)
   if (err)
     return err;
   if (mapping_hook)
-    err = mapping_hook->wp_vga(idx, addr, mapsize, wp);
+    err = mapping_hook->wp_vga(idx, MEM_BASE32(targ), mapsize, wp);
   return err;
 }
 

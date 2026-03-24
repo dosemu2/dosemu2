@@ -225,7 +225,10 @@ int dpmi_alloc_pool(void)
     dpmi_base = config.dpmi_base;
     c_printf("DPMI: mem init, mpool is %d bytes at %#x\n", memsize, dpmi_base);
     /* Create DPMI pool */
-    sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit, 0);
+    if (EMU_FULLSIM())
+      sminit(&mem_pool, dpmi_base, memsize);
+    else
+      sminit_com(&mem_pool, dpmi_base, memsize, commit, uncommit, 0);
     dpmi_total_memory = config.dpmi * 1024;
     fh_init(&shmap, shms, SHSIZE, -1,
             (int)offsetof(struct shm_fhm, fd) -
