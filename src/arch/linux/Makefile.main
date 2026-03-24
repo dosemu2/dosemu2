@@ -183,8 +183,6 @@ endif
 	$(INSTALL) -d $(DESTDIR)$(datadir)/applications
 	$(INSTALL) -m 0644 $(top_builddir)/etc/*.desktop $(DESTDIR)$(datadir)/applications
 	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/locales.conf $(DESTDIR)$(dosemudir)
-	$(INSTALL) -d $(DESTDIR)$(prefix)/lib/sysusers.d
-	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/sysusers.conf $(DESTDIR)$(prefix)/lib/sysusers.d/$(PACKAGE_NAME).conf
 	$(INSTALL) -d $(DESTDIR)$(libexecdir)/dosemu2
 	$(INSTALL) -m 0755 $(top_builddir)/bin/$(DOSBIN) $(DESTDIR)$(libexecdir)/dosemu2
 	$(INSTALL) -d $(DESTDIR)$(libdir)
@@ -278,7 +276,6 @@ ifeq ($(SOLIB),1)
 	$(RM) $(DESTDIR)$(libdir)/$(DOSLIBLINKNAME)
 	$(RM) $(DESTDIR)$(libdir)/$(DOSLIB)
 endif
-	$(RM) $(DESTDIR)$(prefix)/lib/sysusers.d/$(PACKAGE_NAME).conf
 	$(RM) $(DESTDIR)$(bindir)/dosemu
 	$(RM) $(DESTDIR)$(bindir)/mkfatimage16
 	$(RM) $(DESTDIR)$(bindir)/mkhdimage
