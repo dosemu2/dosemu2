@@ -45,8 +45,6 @@ BuildRequires: mkfontscale
 BuildRequires: readline-devel
 BuildRequires: json-c-devel
 BuildRequires: libb64-devel
-BuildRequires: libacl-devel
-BuildRequires: libcap-devel
 BuildRequires: libseccomp-devel
 BuildRequires: libsearpc-devel
 BuildRequires: glib2-devel
