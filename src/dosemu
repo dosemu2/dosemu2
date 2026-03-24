@@ -139,8 +139,7 @@ while [ $# -gt 0 ] ; do
         exit 1
       fi
       SUDO=sudo
-      # no-new-privs is needed to bypass suid/sgid bits
-      SUDOOPTS="-E --preserve-env=HOME,USER setpriv --no-new-privs"
+      SUDOOPTS="-E --preserve-env=HOME,USER"
       # sudo doesn't set SUDO_HOME but maybe it will - use another var
       export DOSEMU_SUDO_HOME="$HOME"
       export DOSEMU_SUDO_TTY=`tty`
@@ -151,24 +150,7 @@ while [ $# -gt 0 ] ; do
         echo "Running under flatpak, priv separation unsupported"
         exit 1
       fi
-      SUDO=setpriv
-      # no-new-privs is needed to bypass suid/sgid bits
-      SUDOOPTS="--no-new-privs"
       OPTS="$OPTS -p"
-      ;;
-    -l)
-      shift
-      SUDO=setpriv
-      SUDOOPTS="--no-new-privs"
-      OPTS="$OPTS -l $1"
-      shift
-      ;;
-    -g)
-      shift
-      SUDO=setpriv
-      SUDOOPTS="--no-new-privs"
-      OPTS="$OPTS -g $1"
-      shift
       ;;
     -t | -t[a-z] | -t[a-z][a-z] | -t[a-z][a-z][a-z])
       exec 4>&2 2>~/.dosemu/stderr.log.$BASHPID

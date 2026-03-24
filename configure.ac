@@ -250,8 +250,6 @@ if test -z "$PKG_CONFIG"; then
   AC_MSG_ERROR(Install pkg-config and retry.)
 fi
 
-AC_PATH_PROGS([USERADD], [useradd])
-
 dnl Checks for libraries.
 
 dnl Checks for header files.
@@ -358,34 +356,6 @@ dnl for Haiku
 AC_SEARCH_LIBS([accept], [network], [], [
   AC_MSG_ERROR([Unable to find BSD sockets support])
 ])
-
-PKG_CHECK_MODULES([LIBACL], [libacl], [
-    AC_DEFINE(HAVE_LIBACL)
-    CFLAGS="$CFLAGS $LIBACL_CFLAGS"
-    LIBS="$LIBS $LIBACL_LIBS"
-    have_libacl=1
-  ],
-  [ AC_MSG_WARN(libacl not found) ]
-)
-
-PKG_CHECK_MODULES([LIBCAP], [libcap], [
-    AC_PATH_PROGS([SETCAP], [setcap], [], [$PATH${PATH_SEPARATOR}/usr/sbin${PATH_SEPARATOR}/sbin])
-    if test -z "$SETCAP"; then
-      AC_MSG_ERROR([setcap not found])
-    fi
-    CFLAGS="$CFLAGS $LIBCAP_CFLAGS"
-    LIBS="$LIBS $LIBCAP_LIBS"
-#    PKG_CHECK_MODULES([LIBPSX], [libpsx], [
-#        CFLAGS="$CFLAGS $LIBPSX_CFLAGS"
-#        LIBS="$LIBS $LIBPSX_LIBS"
-#      ], [ AC_MSG_ERROR(libpsx not found) ]
-#    )
-    AC_DEFINE(HAVE_LIBCAP)
-    have_libcap=1
-  ],
-  [ AC_MSG_WARN(libcap not found) ]
-)
-AC_SUBST(SETCAP)
 
 dnl Here is where we do our stuff
 
@@ -662,10 +632,6 @@ AC_ARG_ENABLE(searpc,
   [AS_HELP_STRING([--disable-searpc], [compile without searpc support])],,
   enable_searpc="yes"
 )
-if test -n "$have_libacl" -a -n "$have_libcap" -a -n "$SR_PLU"; then
-  PRIV_SEP=1
-fi
-AC_SUBST(PRIV_SEP)
 
 AC_ARG_ENABLE(system_wa,
   AS_HELP_STRING([--disable-system-wa], [compile without system-specific
@@ -953,14 +919,6 @@ if test -z "$SR_PLU"; then
   AC_MSG_RESULT()
   AC_MSG_WARN([searpc not available!])
 fi
-if test -z "$have_libacl"; then
-  AC_MSG_RESULT()
-  AC_MSG_WARN([libacl not available!])
-fi
-if test -z "$have_libcap"; then
-  AC_MSG_RESULT()
-  AC_MSG_WARN([libcap not available!])
-fi
 
 AH_TEMPLATE([HAVE_ASSIGNABLE_STDERR],
 [ Define if stderr is not const ])
@@ -985,12 +943,6 @@ AH_TEMPLATE(HAVE_LIBBFD,
 
 AH_TEMPLATE(HAVE_LIBBSD,
 [Define this if you have bsd-devel installed])
-
-AH_TEMPLATE(HAVE_LIBACL,
-[Define this if you have libacl-devel installed])
-
-AH_TEMPLATE(HAVE_LIBCAP,
-[Define this if you have libcap-devel installed])
 
 AH_TEMPLATE(HAVE_EXECINFO,
 [Define this if you have execinfo.h in libc])

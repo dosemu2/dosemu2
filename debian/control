@@ -30,9 +30,6 @@ Build-Depends:
     libreadline-dev,
     libjson-c-dev,
     libb64-dev,
-    libacl1-dev,
-    libcap-dev,
-    libcap2-bin,
     libseccomp-dev,
     libglib2.0-dev,
     libsearpc-dev,
@@ -52,7 +49,6 @@ Architecture: any
 Depends:
     ${misc:Depends},
     ${shlibs:Depends},
-    libcap2-bin,
     fdpp,
     comcom64,
     ${shlibs-:Recommends}
