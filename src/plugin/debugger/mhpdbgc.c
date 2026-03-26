@@ -1732,7 +1732,7 @@ static int get_value(char *s, unsigned long *v)
 {
   int len = strlen(s);
   int t;
-  char *tt;
+  const char *tt;
   const char *wl = " WL";
   regnum_t symreg;
 

@@ -1017,7 +1017,7 @@ mfs_helper(struct vm86_regs *regs)
 */
 void extract_filename(const char *filename, char *name, char *ext)
 {
-  char *dot_pos;
+  const char *dot_pos;
   size_t slen; /* length of before-the-dot part of filename */
 
   memset(name, ' ', 8);
@@ -2117,7 +2117,7 @@ static void set_long_path_on_dirs(struct dir_list *dir_list)
 static int
 is_long_path(const char* path)
 {
-  char *p = strrchr(path, BACKSLASH);
+  const char *p = strrchr(path, BACKSLASH);
   return (p != NULL)
     && (p-path > MAX_PATH_LENGTH-8);
 }

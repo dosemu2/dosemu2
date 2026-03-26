@@ -1216,7 +1216,7 @@ static int SDL_change_config(unsigned item, void *buf)
   case CHG_FONT: {
 #if defined(HAVE_SDL_TTF) && defined(HAVE_FONTCONFIG)
     char *p;
-    while ((p = strchr((const char *)buf, '_')))
+    while ((p = strchr(buf, '_')))
       *p = ' ';
     if (!sdl_load_font(buf)) {
       error("xmode: font %s not found\n", (char *)buf);

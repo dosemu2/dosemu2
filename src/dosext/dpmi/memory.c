@@ -779,7 +779,7 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
     void *addr2 = NULL;
     dosaddr_t addr, targ;
     void *shlock = NULL, *dlock = NULL;
-    char *ddname = strrchr(dname, '/') + 1;
+    const char *ddname = strrchr(dname, '/') + 1;
     char shlock_dir[256];
     struct shm_fhm *fhm;
     int prot = PROT_READ | PROT_WRITE;

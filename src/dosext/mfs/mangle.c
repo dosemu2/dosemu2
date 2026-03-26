@@ -64,7 +64,7 @@ the name is either a full Unix name or an 8 character candidate
 ****************************************************************************/
 dosaddr_t is_dos_device(const char *path)
 {
-  char *p;
+  const char *p;
   const char *fname;
   dosaddr_t dev;
   far_t devfar;
@@ -387,7 +387,7 @@ static void init_chartest( void )
  */
 BOOL is_mangled(const char *s)
 {
-  char *magic;
+  const char *magic;
 
   if( chartest == NULL )
     init_chartest();

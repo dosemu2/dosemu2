@@ -1420,7 +1420,7 @@ int pcm_setup_hpf(struct player_params *params)
 
 int pcm_parse_cfg(const char *string, const char *name)
 {
-    char *p;
+    const char *p;
     int l;
     char *on = pcm_parse_params(config.snd_plugin_params, name, "enabled");
     int off = (on && on[0] == '0');
@@ -1440,7 +1440,8 @@ int pcm_parse_cfg(const char *string, const char *name)
 
 char *pcm_parse_params(const char *string, const char *name, const char *param)
 {
-    char *p, *buf;
+    const char *p;
+    char *buf;
     int l;
     l = asprintf(&buf, "%s:%s=", name, param);
     assert(l > 0);
