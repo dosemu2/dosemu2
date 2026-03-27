@@ -43,9 +43,13 @@ static const char vt_base[] = "/dev/tty";
 
 static int open_vt (int vt)  {
   char path[MAXPATHLEN];
+  int fd;
 
   sprintf(path, "%s%d", vt_base, vt);
-  return open (path, O_RDWR);
+  enter_priv_on();
+  fd = open (path, O_RDWR);
+  leave_priv_setting();
+  return fd;
 }
 
 /* open the main console */
@@ -54,7 +58,10 @@ static int open_console (void)  {
   int pos;
   for (pos = 0; CONSOLE[pos]; pos++)  {
     errno = 0;
-    if ((console = open (CONSOLE[pos], O_WRONLY)) >= 0)  {
+    enter_priv_on();
+    console = open (CONSOLE[pos], O_WRONLY);
+    leave_priv_setting();
+    if (console >= 0)  {
       return console;
     }
   }
@@ -66,7 +73,7 @@ unsigned short detach (void) {
 #ifdef __linux__
   struct vt_stat vts;
 #endif
-  int pid;
+  pid_t ppid, ppgid;
   int fd;
     struct stat statout, staterr;
 
@@ -95,6 +102,25 @@ unsigned short detach (void) {
     return(0);
   }
 
+  /* change PGID to the parent's PID to be able to do setsid()
+     without fork(), technique borrowed from X server */
+  ppid = getppid();
+  ppgid = getpgid(ppid);
+  setpgid(0, ppgid);
+  if (setsid() < 0) {
+    perror("setsid");
+    close(fd);
+    return(0);
+  }
+
+  // after setsid this will automatically be the
+  // controlling terminal
+  fd = open_vt(dosemu_vt);
+  if (fd < 0) {
+    perror("open_vt");
+    return(0);
+  }
+
   if (ioctl(fd, VT_ACTIVATE, dosemu_vt) < 0) {
     perror("VT_ACTIVATE");
     close(fd);
@@ -107,17 +133,8 @@ unsigned short detach (void) {
     return(0);
   }
 
-  if ((pid = fork()) < 0) {
-    perror("fork");
-    close(fd);
-    return(0);
-  }
-
-  if (pid) {
-    _exit(0);
-  }
-
-  close(fd);
+  close(console_fd);
+  console_fd = fd;
 
   /* only reassign stderr to the new VT if it isn't already redirected */
   fstat(2, &statout);
@@ -143,7 +160,6 @@ unsigned short detach (void) {
   /* set the permissions to stop other people accessing the vt */
   fchmod (0, S_IRUSR | S_IWUSR);
 
-  setsid();
 #ifdef __linux__
   return(vts.v_active); /* return old VT. */
 #endif
