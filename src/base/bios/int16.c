@@ -126,7 +126,7 @@ static unsigned check_key_available(int extended)
   } else {
     reset_idle(1);
   }
-  return get_key(0, extended);
+  return keyptr;
 }
 
 static void read_key(int extended)
