@@ -153,10 +153,12 @@ int console_size(void)
 
 static int console_init(void)
 {
-  int co, li;
-  gettermcap(&co, &li);
-  consolesize = TEXT_SIZE(co,li);
-  register_hardware_ram('v', VGA_PHYS_TEXT_BASE, TEXT_SIZE(co,li));
+  if (!config.vga) {
+    int co, li;
+    gettermcap(&co, &li);
+    consolesize = TEXT_SIZE(co,li);
+    register_hardware_ram('v', VGA_PHYS_TEXT_BASE, TEXT_SIZE(co,li));
+  }
 
   if (config.detach)
     consolenum = detach();

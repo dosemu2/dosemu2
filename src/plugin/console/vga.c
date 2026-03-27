@@ -575,6 +575,7 @@ static int vga_initialize(void)
     error("console video plugin unavailable\n");
     return -1;
   }
+  Video_console->priv_init();
   set_console_video();
 
   linux_regs.mem = NULL;
