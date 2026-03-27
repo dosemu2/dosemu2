@@ -98,7 +98,7 @@ static unsigned get_key(int blocking, int extended)
     }
     /* differences for extended calls */
     key = do_extended(READ_WORD(BIOS_DATA_SEG + keyptr), extended);
-    if (key == -1) {
+    if (key == -1 || key == 0) {
         keyptr += 2;
         /* check for wrap around	*/
         if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_END)) {
