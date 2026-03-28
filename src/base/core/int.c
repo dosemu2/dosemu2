@@ -1081,7 +1081,8 @@ static int int15(void)
 	CARRY;
 	break;
     case 0x91:
-	CARRY;
+	NOCARRY;
+	HI(ax) = 0;
 	break;
     case 0xbf:			/* DOS/16M,DOS/4GW */
 	switch (REG(eax) &= 0x00FF) {
