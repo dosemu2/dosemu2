@@ -14,6 +14,7 @@
 #include "int.h"
 #include "memory.h"
 #include "coopth.h"
+#include "dos2linux.h"
 #include "keyboard/keyb_server.h"
 
 #define set_typematic_rate()
@@ -73,6 +74,22 @@ static unsigned do_extended(unsigned key, int extended)
   return (scan_code >= 0x85 ? -1 : key); /* Hide new scan codes */
 }
 
+static int int15_hook(Bit8u al)
+{
+  int ret;
+
+  pre_msdos();
+  HI(ax) = 0x90;
+  LO(ax) = al;
+  SREG(es) = 0;
+  LWORD(ebx) = 0;
+  clear_CF();
+  do_int_call_back(0x15);
+  ret = isset_CF();
+  post_msdos();
+  return ret;
+}
+
 /* SUBROUTINE:	Get a key from the buffer if there is one.
  * Translate that key if we aren't an extended key service.
  *		returns current value of BIOS_KEYBOARD_BUFFER_HEAD
@@ -88,9 +105,22 @@ static int get_key(int blocking, int extended)
     /* get address of next char	*/
     while ((keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_HEAD)) ==
         READ_WORD(BIOS_KEYBOARD_BUFFER_TAIL)) {
+      int done;
       if (!blocking) {
+        done = int15_hook(2);
+        if (done) {
+          LWORD(eax) = 0;
+          _EFLAGS &= ~ZF;
+          return 1;
+        }
         _EFLAGS |= ZF;
         return 0;
+      }
+      done = int15_hook(0x21);
+      if (done) {
+        LWORD(eax) = 0;
+        _EFLAGS &= ~ZF;
+        return 1;
       }
       set_IF();
       coopth_wait();

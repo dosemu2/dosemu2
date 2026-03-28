@@ -50,6 +50,7 @@ int mhp_getcsip_value(void);
 void mhp_modify_eip(int delta);
 void mhp_intercept_log(const char *flags, int temporary);
 void mhp_intercept(const char *msg, const char *logflags);
+void mhp_int15_kbd_hook(Bit8u al);
 void mhp_exit_intercept(int errcode);
 int mhpdbg_is_stopped(void);
 int mhp_usermap_move_block(uint16_t oldseg, uint16_t newseg,
@@ -139,6 +140,7 @@ struct mhpdbgc {
   unsigned char intxxalt[32];
   struct brkentry brktab[MAXBP];
   int bpcleared;
+  int kbdbreak;
 };
 
 #if 0

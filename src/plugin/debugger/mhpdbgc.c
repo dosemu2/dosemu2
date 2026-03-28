@@ -2834,12 +2834,19 @@ static void mhp_injchar(int argc, char *argv[])
 }
 
 static void do_hookcbrk(int on);
+static int brk_mode;
 
 static void cbrk_handler(Bit16u idx, HLT_ARG(arg))
 {
   int cnt = coopth_get_thread_count_in_process_vm86();
-  fake_iret();
-  mhp_printf("got cbreak, %i\n", cnt);
+  dosaddr_t stk = SEGOFF2LINEAR(SREG(ss), 0);
+  if (brk_mode == 2) {
+    fake_retf();
+    CARRY;
+  } else {
+    fake_iret();
+  }
+  mhp_printf("got cbreak, %i %x %x\n", cnt, READ_BYTE(stk), READ_BYTE(stk+4));
   if (!cnt)
     do_hookcbrk(0);
 }
@@ -2877,6 +2884,18 @@ static void mhp_hookcbrk(int argc, char *argv[])
   do_hookcbrk(on);
 }
 
+static void c_nothr_k(int nthr)
+{
+  int cnt = coopth_get_thread_count_in_process_vm86();
+  mhp_printf("no thrs %i, %i in cur process\n", nthr, cnt);
+  if (cnt) {
+    mhpdbgc.kbdbreak = 1;
+    return;
+  }
+  mhpdbgc.kbdbreak = 0;
+  coopth_set_nothread_notifier(NULL);
+}
+
 static void c_nothr(int nthr)
 {
   int cnt = coopth_get_thread_count_in_process_vm86();
@@ -2888,17 +2907,26 @@ static void c_nothr(int nthr)
 
 static void mhp_dosbreak(int argc, char *argv[])
 {
+  int flg = 0;
   int cnt = coopth_get_thread_count_in_process_vm86();
   if (cnt == 0) {
     mhp_printf("no dos call to break\n");
     return;
   }
-  mhp_printf("breaking %i coopthreads\n", cnt);
-  coopth_set_nothread_notifier(c_nothr);
-
-  /* order of below 2 lines matters and should be inverse */
-  coopth_start(ic_tid, (void*)(uintptr_t)3);
-  do_hookcbrk(1);
+  if (argc > 1)
+    flg = atoi(argv[1]);
+  brk_mode = flg;
+  mhp_printf("breaking %i coopthreads, method %i\n", cnt, flg);
+  if (!flg) {
+    coopth_set_nothread_notifier(c_nothr_k);
+  } else {
+    Bit8u kflg = READ_BYTE(SEGOFF2LINEAR(0x40, 0x71));
+    coopth_set_nothread_notifier(c_nothr);
+    /* order of below 2 lines matters and should be inverse */
+    coopth_start(ic_tid, (void*)(uintptr_t)3);
+    do_hookcbrk(1);
+    WRITE_BYTE(SEGOFF2LINEAR(0x40, 0x71), kflg | 0x80);
+  }
 }
 
 static int mhp_check_regex(char *line)

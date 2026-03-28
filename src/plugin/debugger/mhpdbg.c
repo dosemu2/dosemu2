@@ -628,3 +628,11 @@ int mhpdbg_is_stopped(void)
 {
   return mhpdbgc.stopped;
 }
+
+void mhp_int15_kbd_hook(Bit8u al)
+{
+  if (mhpdbgc.kbdbreak) {
+    CARRY;
+    mhpdbgc.kbdbreak = 0;
+  }
+}

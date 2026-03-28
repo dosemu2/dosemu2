@@ -1077,8 +1077,17 @@ static int int15(void)
 	LWORD(eax) |= 0xFF00;	/* failed */
 	CARRY;
 	break;
-    case 0x90:			/* no device post/wait stuff */
-	CARRY;
+    case 0x90:
+	NOCARRY;
+	HI(ax) = 0;
+	switch (LO(ax)) {
+	    case 2:
+	    case 0x21:
+#ifdef USE_MHPDBG
+	    mhp_int15_kbd_hook(LO(ax));
+#endif
+	    break;
+	}
 	break;
     case 0x91:
 	NOCARRY;
