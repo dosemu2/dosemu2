@@ -79,7 +79,7 @@ static unsigned do_extended(unsigned key, int extended)
  *		and sets ax=key if a key is available, else
  *		returns -1
  */
-static unsigned get_key(int blocking, int extended)
+static int get_key(int blocking, int extended)
 {
   unsigned key = -1;
   unsigned keyptr;
@@ -90,7 +90,7 @@ static unsigned get_key(int blocking, int extended)
         READ_WORD(BIOS_KEYBOARD_BUFFER_TAIL)) {
       if (!blocking) {
         _EFLAGS |= ZF;
-        return -1;
+        return 0;
       }
       set_IF();
       coopth_wait();
@@ -98,7 +98,7 @@ static unsigned get_key(int blocking, int extended)
     }
     /* differences for extended calls */
     key = do_extended(READ_WORD(BIOS_DATA_SEG + keyptr), extended);
-    if (key == -1 || key == 0) {
+    if (key == -1 || key == 0 || blocking) {
         keyptr += 2;
         /* check for wrap around	*/
         if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_END)) {
@@ -111,13 +111,13 @@ static unsigned get_key(int blocking, int extended)
   } while (key == -1);
   LWORD(eax) = key;
   _EFLAGS &= ~ZF;
-  return keyptr;
+  return 1;
 }
 
-static unsigned check_key_available(int extended)
+static void check_key_available(int extended)
 {
-  unsigned keyptr = get_key(0, extended);
-  if(keyptr == -1) {
+  int got = get_key(0, extended);
+  if(!got) {
     if(!port60_ready)
       trigger_idle();
     else
@@ -126,26 +126,11 @@ static unsigned check_key_available(int extended)
   } else {
     reset_idle(1);
   }
-  return keyptr;
 }
 
 static void read_key(int extended)
 {
-  unsigned keyptr = get_key(1, extended);
-
-  if (keyptr == -1) {
-    /* should not be here - blocking call */
-    return;
-  }
-
-  keyptr += 2;
-  /* check for wrap around        */
-  if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_END)) {
-    /* wrap - get buffer start	*/
-    keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_START);
-  }
-  /* save it as new pointer	*/
-  WRITE_WORD(BIOS_KEYBOARD_BUFFER_HEAD, keyptr);
+  get_key(1, extended);
 }
 
 static void get_shift_flags(void)
