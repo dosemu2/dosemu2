@@ -2986,7 +2986,7 @@ void mhpdbgc_init(void)
   hlt_hdlr.name      = "mhpdbg cbreak";
   hlt_hdlr.func      = cbrk_handler;
   cbrk_handler_hlt   = hlt_register_handler_vm86(hlt_hdlr);
-  setbrk_tid = coopth_create("injchar thr", mhp_setbrk_thr);
+  setbrk_tid = coopth_create("setbrk thr", mhp_setbrk_thr);
   coopth_set_ctx_handlers(setbrk_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
 
   ic_tid = coopth_create("injchar thr", mhp_injchar_thr);
