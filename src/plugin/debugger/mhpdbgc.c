@@ -72,7 +72,9 @@
 static struct HMCB *hma_start;
 static int ic_tid;
 static int setbrk_tid;
+static int setsig_tid;
 static Bit16u cbrk_handler_hlt;
+static Bit16u sig_handler_hlt;
 static far_t old_cbrk_hdlr;
 static int old_cbrk_on;
 
@@ -2834,6 +2836,8 @@ static void mhp_injchar(int argc, char *argv[])
 }
 
 static void do_hookcbrk(int on);
+enum { _SIG_DFL, _SIG_IGN, _SIG_GET };
+static void do_hooksig(int act);
 static int brk_mode;
 
 static void cbrk_handler(Bit16u idx, HLT_ARG(arg))
@@ -2851,6 +2855,20 @@ static void cbrk_handler(Bit16u idx, HLT_ARG(arg))
     do_hookcbrk(0);
 }
 
+static void sig_handler(Bit16u idx, HLT_ARG(arg))
+{
+  int cnt = coopth_get_thread_count_in_process_vm86();
+  if (brk_mode == 3) {
+    fake_retf();
+    CARRY;
+  } else {
+    fake_iret();
+  }
+  mhp_printf("got sig, %i\n", cnt);
+  if (!cnt)
+    do_hooksig(_SIG_IGN);
+}
+
 static void mhp_setbrk_thr(void *arg)
 {
   pre_msdos();
@@ -2859,6 +2877,17 @@ static void mhp_setbrk_thr(void *arg)
   old_cbrk_on = _DX & 1;
   _AX = 0x3301;
   _DX = (uintptr_t)arg;
+  call_msdos();
+  post_msdos();
+}
+
+static void mhp_setsig_thr(void *arg)
+{
+  pre_msdos();
+  _AX = 0x8c02;
+  _BX = (uintptr_t)arg;
+  _DS = BIOS_HLT_BLK_SEG;
+  _DX = sig_handler_hlt;
   call_msdos();
   post_msdos();
 }
@@ -2874,6 +2903,11 @@ static void do_hookcbrk(int on)
     SETIVEC(0x23, old_cbrk_hdlr.segment, old_cbrk_hdlr.offset);
     coopth_start(setbrk_tid, (void *)(uintptr_t)old_cbrk_on);
   }
+}
+
+static void do_hooksig(int act)
+{
+  coopth_start(setsig_tid, (void *)(uintptr_t)act);
 }
 
 static void mhp_hookcbrk(int argc, char *argv[])
@@ -2917,8 +2951,10 @@ static void mhp_dosbreak(int argc, char *argv[])
     flg = atoi(argv[1]);
   brk_mode = flg;
   mhp_printf("breaking %i coopthreads, method %i\n", cnt, flg);
-  if (!flg) {
+  if (!flg || flg >= 3) {
     coopth_set_nothread_notifier(c_nothr_k);
+    if (flg >= 3)
+      do_hooksig(flg == 5 ? _SIG_DFL : _SIG_GET);
   } else {
     Bit8u kflg = READ_BYTE(SEGOFF2LINEAR(0x40, 0x71));
     coopth_set_nothread_notifier(c_nothr);
@@ -2986,8 +3022,13 @@ void mhpdbgc_init(void)
   hlt_hdlr.name      = "mhpdbg cbreak";
   hlt_hdlr.func      = cbrk_handler;
   cbrk_handler_hlt   = hlt_register_handler_vm86(hlt_hdlr);
+  hlt_hdlr.name      = "mhpdbg sig";
+  hlt_hdlr.func      = sig_handler;
+  sig_handler_hlt   = hlt_register_handler_vm86(hlt_hdlr);
   setbrk_tid = coopth_create("setbrk thr", mhp_setbrk_thr);
   coopth_set_ctx_handlers(setbrk_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
+  setsig_tid = coopth_create("setsig thr", mhp_setsig_thr);
+  coopth_set_ctx_handlers(setsig_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
 
   ic_tid = coopth_create("injchar thr", mhp_injchar_thr);
   coopth_set_ctx_handlers(ic_tid, sig_ctx_prepare, sig_ctx_restore, NULL);
