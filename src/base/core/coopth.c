@@ -131,6 +131,7 @@ struct coopth_t {
     const struct coopth_be_ops *ops;
     void *udata;
     pthread_t pthread;
+    int cls;
 };
 
 static __TLS cohandle_t co_handle;
@@ -147,6 +148,7 @@ static __TLS int threads_total;
 static __TLS int threads_active;
 static __TLS int active_tids[MAX_ACT_THRS];
 static __TLS void (*nothread_notifier)(int);
+static __TLS int threads_cs[CTCL_MAX];
 
 static void coopth_callf_chk(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
@@ -328,14 +330,28 @@ static void do_del_thread(struct coopth_t *thr,
 	}
     }
     if (nothread_notifier)
-	nothread_notifier(threads_joinable + threads_left);
+	nothread_notifier(threads_cs[CTCL_NORMAL] + threads_left);
+}
+
+static void threads_joinable_dec(int cls)
+{
+    assert(threads_joinable);
+    threads_joinable--;
+    assert(threads_cs[cls]);
+    threads_cs[cls]--;
+}
+
+static void threads_joinable_inc(int cls)
+{
+    threads_joinable++;
+    threads_cs[cls]++;
 }
 
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth,
 	void (*retf)(int tid, int idx))
 {
     assert(pth->data.attached);
-    threads_joinable--;
+    threads_joinable_dec(thr->cls);
     if (retf)
 	retf(CIDX2(thr->tid, thr->cur_thr - 1));
     if (thr->ctxh.post)
@@ -349,7 +365,7 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     assert(!pth->data.attached);
     if (thr->ctxh.pre)
 	thr->ctxh.pre(thr->tid, thr->ctxh.arg, pth->args.thr.arg);
-    threads_joinable++;
+    threads_joinable_inc(thr->cls);
     pth->data.attached = 1;
 }
 
@@ -589,6 +605,7 @@ int coopth_create_internal(const char *name, coopth_func_t func,
     thr->func = func;
     thr->ops = ops;
     thr->pthread = pthread_self();
+    thr->cls = CTCL_NORMAL;
     call_prep(thr);
     return num;
 }
@@ -612,6 +629,7 @@ int coopth_create_multi_internal(const char *name, int len,
 	thr->func = func;
 	thr->ops = ops;
 	thr->pthread = pthread_self();
+	thr->cls = CTCL_NORMAL;
 	call_prep(thr);
     }
     return num;
@@ -808,6 +826,19 @@ int coopth_set_permanent_post_handler(int tid, coopth_hndl_t func)
     return 0;
 }
 
+int coopth_set_thread_class(int tid, int cls)
+{
+    struct coopth_t *thr;
+    int i;
+    check_tid(tid);
+    assert(cls < CTCL_MAX);
+    for (i = 0; i < coopthreads[tid].len; i++) {
+	thr = &coopthreads[tid + i];
+	thr->cls = cls;
+    }
+    return 0;
+}
+
 int coopth_set_detached(int tid)
 {
     struct coopth_t *thr;
@@ -842,7 +873,7 @@ static void do_detach(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     /* this is really unsafe and should be used only if
      * the DOS side of the thread have disappeared. */
     pth->data.attached = 0;
-    threads_joinable--;
+    threads_joinable_dec(thr->cls);
     /* notify back-end */
     thr->ops->prep(CIDX2(thr->tid, thr->cur_thr - 1));
     /* first deal with state switching. As the result of this,

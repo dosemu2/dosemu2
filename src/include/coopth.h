@@ -24,6 +24,8 @@ typedef void (*coopth_hndl_t)(int tid, void *arg, void *arg2);
 enum { COOPTH_SL_YIELD, COOPTH_SL_WAIT, COOPTH_SL_SLEEP };
 typedef void (*coopth_sleep_hndl_t)(int tid, int sl_state);
 
+enum { CTCL_NORMAL, CTCL_PERSIST, CTCL_MAX };
+
 void coopth_init(void);
 int coopth_is_threaded(void);
 int coopth_create(const char *name, coopth_func_t func);
@@ -37,6 +39,7 @@ int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post,
 	void *arg);
 int coopth_set_sleep_handlers(int tid, coopth_sleep_hndl_t pre,
 	coopth_hndl_t post);
+int coopth_set_thread_class(int tid, int cls);
 int coopth_add_post_handler(coopth_func_t func, void *arg);
 void coopth_join_vm86(int tid);
 int coopth_flush_vm86(void);
