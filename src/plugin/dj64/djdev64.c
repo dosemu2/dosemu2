@@ -320,8 +320,10 @@ static int _do_open(const char *path, unsigned full_flags)
     if (ret == -1)
         return ret;
     assert(ret < HNDL_MAX);
-    if (!call_hlp[ret].tid)
+    if (!call_hlp[ret].tid) {
         doshlp_setup(&call_hlp[ret], "dj64 call", call_thr, dpmi_retf32);
+        coopth_set_thread_class(call_hlp[ret].tid, CTCL_PERSIST);
+    }
     if (!ctrl_off) {
         emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
         hlt_hdlr.name = "dj64 ctrl";
