@@ -333,6 +333,11 @@ static void do_del_thread(struct coopth_t *thr,
 	nothread_notifier(threads_cs[CTCL_NORMAL] + threads_left);
 }
 
+int coopth_get_thread_count(int cls)
+{
+    return threads_cs[cls] + threads_left;
+}
+
 static void threads_joinable_dec(int cls)
 {
     assert(threads_joinable);

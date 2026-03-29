@@ -80,6 +80,6 @@ void coopth_cancel_disable_cur(void);
 void coopth_cancel_enable_cur(void);
 void coopth_dump(int all);
 void coopth_set_nothread_notifier(void (*notifier)(int));
-int coopth_get_thread_count_in_process_vm86(void);
+int coopth_get_thread_count(int cls);
 
 #endif
