@@ -14,6 +14,7 @@
 #include "int.h"
 #include "memory.h"
 #include "coopth.h"
+#include "dos2linux.h"
 #include "keyboard/keyb_server.h"
 
 #define set_typematic_rate()
@@ -73,13 +74,29 @@ static unsigned do_extended(unsigned key, int extended)
   return (scan_code >= 0x85 ? -1 : key); /* Hide new scan codes */
 }
 
+static int int15_hook(Bit8u al)
+{
+  int ret;
+
+  pre_msdos();
+  HI(ax) = 0x90;
+  LO(ax) = al;
+  SREG(es) = 0;
+  LWORD(ebx) = 0;
+  clear_CF();
+  do_int_call_back(0x15);
+  ret = isset_CF();
+  post_msdos();
+  return ret;
+}
+
 /* SUBROUTINE:	Get a key from the buffer if there is one.
  * Translate that key if we aren't an extended key service.
  *		returns current value of BIOS_KEYBOARD_BUFFER_HEAD
  *		and sets ax=key if a key is available, else
  *		returns -1
  */
-static unsigned get_key(int blocking, int extended)
+static int get_key(int blocking, int extended)
 {
   unsigned key = -1;
   unsigned keyptr;
@@ -88,9 +105,22 @@ static unsigned get_key(int blocking, int extended)
     /* get address of next char	*/
     while ((keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_HEAD)) ==
         READ_WORD(BIOS_KEYBOARD_BUFFER_TAIL)) {
+      int done;
       if (!blocking) {
+        done = int15_hook(2);
+        if (done) {
+          LWORD(eax) = 0;
+          _EFLAGS &= ~ZF;
+          return 1;
+        }
         _EFLAGS |= ZF;
-        return -1;
+        return 0;
+      }
+      done = int15_hook(0x21);
+      if (done) {
+        LWORD(eax) = 0;
+        _EFLAGS &= ~ZF;
+        return 1;
       }
       set_IF();
       coopth_wait();
@@ -98,7 +128,7 @@ static unsigned get_key(int blocking, int extended)
     }
     /* differences for extended calls */
     key = do_extended(READ_WORD(BIOS_DATA_SEG + keyptr), extended);
-    if (key == -1 || key == 0) {
+    if (key == -1 || key == 0 || blocking) {
         keyptr += 2;
         /* check for wrap around	*/
         if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_END)) {
@@ -111,13 +141,13 @@ static unsigned get_key(int blocking, int extended)
   } while (key == -1);
   LWORD(eax) = key;
   _EFLAGS &= ~ZF;
-  return keyptr;
+  return 1;
 }
 
-static unsigned check_key_available(int extended)
+static void check_key_available(int extended)
 {
-  unsigned keyptr = get_key(0, extended);
-  if(keyptr == -1) {
+  int got = get_key(0, extended);
+  if(!got) {
     if(!port60_ready)
       trigger_idle();
     else
@@ -126,26 +156,11 @@ static unsigned check_key_available(int extended)
   } else {
     reset_idle(1);
   }
-  return keyptr;
 }
 
 static void read_key(int extended)
 {
-  unsigned keyptr = get_key(1, extended);
-
-  if (keyptr == -1) {
-    /* should not be here - blocking call */
-    return;
-  }
-
-  keyptr += 2;
-  /* check for wrap around        */
-  if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_END)) {
-    /* wrap - get buffer start	*/
-    keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_START);
-  }
-  /* save it as new pointer	*/
-  WRITE_WORD(BIOS_KEYBOARD_BUFFER_HEAD, keyptr);
+  get_key(1, extended);
 }
 
 static void get_shift_flags(void)

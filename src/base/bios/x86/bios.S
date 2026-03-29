@@ -374,6 +374,12 @@ check_special:
         call    store_key
 kbd_done:
 	call	kbd_EOI
+	push	%es
+	xorw	%bx, %bx
+	movw	%bx, %es
+	movw	$0x9102, %ax
+	int	$0x15		/* signal interrupt completion */
+	pop	%es
 kbd_done2:
 	popw	%ds
 	popw	%bx
