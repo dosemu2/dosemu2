@@ -28,7 +28,7 @@
  * you can increase this to anything below 256 since an 8-bit handle
  * is used for each device
  */
-#define MAX_HLT_HANDLERS 50
+#define MAX_HLT_HANDLERS 100
 
 struct hlt_handler {
   emu_hlt_t	h;
