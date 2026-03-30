@@ -29,6 +29,8 @@ if [ "${BLDTYPE}" = "packaged" ] ; then
   fi
   export TEST_DOSEMU=/usr/bin/dosemu
   export TEST_CMDDIR=/usr/share/dosemu/dosemu2-cmds-0.3
+elif [ "${BLDTYPE}" = "asan" ] ; then
+  export DEFAULT_TIMEOUT=45
 fi
 
 if [ "${RUNTYPE}" = "simple" ] ; then

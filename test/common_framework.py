@@ -595,8 +595,11 @@ class BaseTestCase(object):
                 f.seek(c[0])
                 f.write(c[2])
 
-    def runDosemu(self, cmd, opts=None, outfile=None, config=DOSEMU_CONF_DEFAULT, timeout=15,
+    def runDosemu(self, cmd, opts=None, outfile=None, config=DOSEMU_CONF_DEFAULT, timeout=None,
                     eofisok=False, interactions=[]):
+        if timeout is None:
+            timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
+
         # Note: if debugging is turned on then times increase 10x
         dbin = str(self.dosemu)
         args = ["-f", str(self.imagedir / "dosemu.conf"),
@@ -671,7 +674,10 @@ class BaseTestCase(object):
 
         return ret
 
-    def runDosemuCmdline(self, xargs, cwd=None, config=DOSEMU_CONF_DEFAULT, timeout=30):
+    def runDosemuCmdline(self, xargs, cwd=None, config=DOSEMU_CONF_DEFAULT, timeout=None):
+        if timeout is None:
+            timeout = int(environ.get("DEFAULT_TIMEOUT", '15')) + 15  # A little extra to match the old value
+
         args = [str(self.dosemu),
                 "--Fimagedir", str(self.imagedir),
                 "-f", str(self.imagedir / "dosemu.conf"),
@@ -961,6 +967,7 @@ def main_setup(cases):
                    "[--require-attr=STRING [TestCase1 .. TestCaseN]] | " +
                    "[TestCase[.testname] ...]")
             print("Significant environment variables:\n" +
+                  "  DEFAULT_TIMEOUT=15   Integer value of the default test timeout, but may still be overidden on specific tests\n" +
                   "  NO_ACTIONS=1         Allow a test that is marked as known failure or unsupported to be run\n" +
                   "  NO_COLOR=1           Override the terminal detection and disable colour printing of PASS|FAIL etc\n" +
                   "  NO_FAILFAST=1        Don't quit on the first test failure, run all specified\n" +
