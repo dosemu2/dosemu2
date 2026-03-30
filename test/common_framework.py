@@ -623,32 +623,46 @@ class BaseTestCase(object):
         with open(self.logfiles['xpt'][0], "wb") as fout:
             child.logfile = fout
             child.setecho(False)
+
+            # Bare pexpect exceptions don't have any context only a massive string
+            # with conflicting info, so let's augment the exception if we catch it.
+            def myexpect(child, pattern, timeout):
+                try:
+                    return child.expect(pattern, timeout=timeout)
+                except pexpect.TIMEOUT as e:
+                    e.my = {"pattern": pattern, "timeout": timeout}
+                    raise
+                except pexpect.EOF as e:
+                    # Use child.before to see if any output was captured
+                    e.my = {"pattern": pattern}
+                    raise
+
             try:
                 prompt = r'(system -e|unix -e|' + IPROMPT + ')'
-                child.expect([prompt + '[\r\n]*'], timeout=40)
-                child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
+                myexpect(child, [prompt + '[\r\n]*'], timeout=40)
+                myexpect(child, ['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\n')
                 for resp in interactions:
-                    child.expect(resp[0])
+                    myexpect(child, resp[0])
                     child.send(resp[1])
                     if outfile is None:
                         ret += child.before.decode('cp437', 'replace')
                 trms = ['rem end',]
                 if eofisok:
                     trms += [pexpect.EOF,]
-                child.expect(trms, timeout=timeout)
+                myexpect(child, trms, timeout=timeout)
                 if outfile is None:
                     ret += child.before.decode('cp437', 'replace')
                 else:
                     ret = outfile.read_text()
-            except pexpect.TIMEOUT:
-                ret = 'Timeout'
+            except pexpect.TIMEOUT as e:
+                ret = f"Timeout: {e.my['timeout']} seconds waiting for {e.my['pattern']}\n"
                 tlog = self.logfiles['log'][0].read_text()
                 if '(gdb) Attaching to program' in tlog:
                     sleep(60)
                     self.shouldStop = True
-            except pexpect.EOF:
-                ret = 'EndOfFile'
+            except pexpect.EOF as e:
+                ret = f"EndOfFile: waiting for {e.my['pattern']}\n"
 
         try:
             child.close(force=True)
