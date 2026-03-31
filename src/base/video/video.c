@@ -532,7 +532,7 @@ int on_console(void)
 {
 #ifdef __linux__
     struct stat chkbuf;
-    int major, minor;
+    int major, minor, detach = 0;
 
     if (console_fd == -1) {
 	const char *tname = getenv("SUDO_TTY");
@@ -543,6 +543,9 @@ int on_console(void)
 		console_fd = dup(STDIN_FILENO);
 	} else {
 	    console_fd = open(tname, O_RDWR | O_CLOEXEC);
+	    /* we will need to detach to get a
+	       controlling terminal later */
+	    detach = 1;
 	}
     }
     if (console_fd == -1)
@@ -557,8 +560,10 @@ int on_console(void)
     c_printf("major = %d minor = %d\n",
 	    major, minor);
     /* console major num is 4, minor 64 is the first serial line */
-    if (S_ISCHR(chkbuf.st_mode) && (major == 4) && (minor < 64))
+    if (S_ISCHR(chkbuf.st_mode) && (major == 4) && (minor < 64)) {
+       if (detach) config.detach = 1;
        return 1;
+    }
 
 err:
     close(console_fd);

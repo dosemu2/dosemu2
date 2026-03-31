@@ -13,13 +13,12 @@
 #include "Sys/kd.h"
 #endif
 #include <sys/ioctl.h>
-#include "vc.h"
+
 #include "ioselect.h"
 #include "keyboard.h"
 #include "keyb_clients.h"
 #include "translate/keysym_attributes.h"
 #include "keystate.h"
-#include "keyb_raw.h"
 
 #define KBBUF_SIZE (KEYB_QUEUE_LENGTH / 2)
 
@@ -156,26 +155,15 @@ static void print_termios(struct termios term)
 }
 #endif
 
-void kbdraw_priv_init(void)
+static int set_raw_mode(void)
 {
-  if (on_console()) {
-    kbd_fd = console_fd;
-  } else {
-    kbd_fd = STDIN_FILENO;
-    if (config.console_keyb == KEYB_RAW) {
-      k_printf("KBD(raw): not on console, using TTY mode\n");
-      config.console_keyb = KEYB_TTY;
-    }
-  }
-
+  struct termios buf = save_termios;
 #ifdef __linux__
-  if (config.console_keyb == KEYB_RAW) {
-    int err;
+  int err;
 
+  if (config.console_keyb == KEYB_RAW) {
     k_printf("KBD(raw): Setting keyboard to RAW mode\n");
-    enter_priv_on();
     err = ioctl(kbd_fd, KDSKBMODE, K_RAW);
-    leave_priv_setting();
     if (err) {
       error("kbd raw mode failed: %s\n", strerror(errno));
       config.console_keyb = KEYB_TTY;
@@ -185,11 +173,6 @@ void kbdraw_priv_init(void)
   if (config.console_keyb == KEYB_RAW)
     config.console_keyb = KEYB_TTY;
 #endif
-}
-
-static int set_raw_mode(void)
-{
-  struct termios buf = save_termios;
   cfmakeraw(&buf);
   k_printf("KBD(raw): Setting TERMIOS Structure.\n");
   if (tcsetattr(kbd_fd, TCSAFLUSH, &buf) < 0) {
@@ -220,6 +203,7 @@ static int raw_keyboard_init(void)
 
   k_printf("KBD(raw): raw_keyboard_init()\n");
 
+  kbd_fd = STDIN_FILENO;
 #ifdef __linux__
   if (config.console_keyb == KEYB_RAW) {
     int rc = ioctl(kbd_fd, KDGKBMODE, &save_mode);
