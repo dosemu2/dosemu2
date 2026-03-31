@@ -130,31 +130,27 @@ struct HMCB {
 Windows95 - DOS KERNEL - (DE)ALLOCATE HMA MEMORY BLOCK
 
 AX = 4A03h
-CX = segment of block's owner???
+CX = segment of block's owner to allocate, if 0 then 1 is used
+    (MS-DOS v5 AX=4A02h passes INT 2F caller's CS as the owner)
 DL = subfunction
-  00h allocate block
+  00h allocate block from bottom of largest free block
     BX = number of bytes
     Return:
       DI=FFFFh if unable to allocate
-      ES:DI -> allocated block
-      // We do get the allocated size in BX, RBIL misses this
+      ES:DI -> allocated block if able to allocate,
+      BX = allocated size (rounded up to paragraph)
 
-  01h resize block // Seemingly can grow as well as shrink
-    ES:DI -> previously-allocated block
-    BX = new size in bytes
+  01h allocate block from top of largest free block
+    BX = number of bytes
     Return:
       DI=FFFFh if unable to allocate
-      ES:DI -> reallocated block
-      // Maybe we get the reallocated size in BX
-  Win95 FE & SE never seem to free the initial block after creating the
-  replacement. In addition, subsequent frees of the replacement block
-  fail.
+      ES:DI -> allocated block if able to allocate,
+      BX = allocated size (rounded up to paragraph)
 
-  02h free block
+  02h free block (coalesces prior and subsequent free blocks)
     ES:DI -> block to be freed
     Return:
-      Nothing, but checking the ID in the requested block can indicate
-      whether the block was freed.
+      Nothing.
 */
 
 int main(int argc, char *argv[])
@@ -163,20 +159,27 @@ int main(int argc, char *argv[])
   struct SREGS rs;
   int ret;
   struct HMCB hmcb;
+  struct HMCB __far *phmcb;
   uint16_t hma_seg, hma_off;
+  char __far *first;
+  char __far *second;
 
-// Alloc subfunction
+// Alloc subfunction (from bottom of largest free block)
   ret = 0;
-  r.x.ax = 0x4a03;              // hma alloc/realloc/free memory block
-  r.x.bx = 35;                  // alloc 35 bytes, should get rounded up to 48
+  r.x.ax = 0x4a03;              // hma alloc/free memory block
+  r.x.bx = 49;                  // alloc 49 bytes, should get rounded up to 64
   r.x.cx = __libi86_get_cs();   // segment of block's owner
-  r.h.dl = 0;                   // subfunction 0 - alloc
+  r.h.dl = 0;                   // subfunction 0 - alloc upwards
 
-  printf("INFO: Int2f/4a03, dl=0 alloc\n");
+  printf("INFO: Int2f/4a03, dl=0 alloc upwards\n");
   int86x(0x2f, &r, &r, &rs);
 
-  printf("INFO: HMA size returned %d\n", r.x.bx);
-  printf("INFO: HMA block allocated at %04X:%04X\n", rs.es, r.x.di);
+  printf("INFO: HMA size returned %u\n", r.x.bx);
+  printf("INFO: HMA block (1) allocated at %04X:%04X\n", rs.es, r.x.di);
+
+  first = MK_FP(rs.es, r.x.di);
+  hma_seg = rs.es;
+  hma_off = r.x.di;
 
   // Copy back to near structure to make printfs easier
   memset(&hmcb, 0, sizeof(hmcb));
@@ -185,139 +188,46 @@ int main(int argc, char *argv[])
   printf("INFO: \"%c%c\" // signature\n", hmcb.signature[0], hmcb.signature[1]);
   printf("INFO: %04X // owner, our CS = %04X\n", hmcb.owner, __libi86_get_cs());
   printf("INFO: %04X // size (hex bytes)\n", hmcb.size);
-  printf("INFO: %04X // offset to next HMA block\n", hmcb.next);
+  printf("INFO: %04X // offset of next HMA block\n", hmcb.next);
 
   if (r.x.di == 0xffff) {
     printf("WARN: HMA returned offset indicates failure (DI == 0xffff)\n");
     ret += 1;
   }
 
-  if (r.x.bx != 48) {
-    printf("WARN: HMA returned size unexpected (BX == %d)\n", r.x.bx);
+  if (r.x.bx != 64) {
+    printf("WARN: HMA returned size unexpected (BX == %u)\n", r.x.bx);
     ret += 1;
   }
 
   if (r.x.bx != hmcb.size) {
-    printf("WARN: hmcb.size != HMA returned size (%d != %d)\n", hmcb.size, r.x.bx);
+    printf("WARN: hmcb.size != HMA returned size (%u != %u)\n", hmcb.size, r.x.bx);
     ret += 1;
+  }
+
+  if (hmcb.next) { /* FDPP allows final block to have next of zero */
+    // Try to validate offset of next block
+    if (hmcb.next <= hma_off) {
+      printf("WARN: hmcb.next wasn't greater than the current block\n");
+      ret += 1;
+    }
+    phmcb = MK_FP(hma_seg, hmcb.next);
+    if (phmcb->signature[0] != 'M' || phmcb->signature[1] != 'S') {
+      printf("WARN: hmcb.next didn't point to a valid hmcb\n");
+      ret += 1;
+    }
+  } else {
+    printf("INFO: hmcb.next was zero assuming we are testing FDPP\n");
   }
 
   if (ret != 0) {
-    printf("FAIL: Alloc test failed\n");
+    printf("FAIL: Alloc (1) test failed\n");
     return ret;
   }
-
-  hma_seg = rs.es;
-  hma_off = r.x.di;
-
-  printf("\n");
-
-#if 0 // Disable resize tests as the function doesn't seem to work on Win95 SE
-      // allocating multiple blocks and preventing final free.
-
-// Realloc subfunction (shrink block)
-  ret = 0;
-  r.x.ax = 0x4a03;              // hma alloc/realloc/free memory block
-  r.x.bx = 29;                  // realloc 29 bytes, should get rounded up to 32
-  r.x.cx = __libi86_get_cs();   // segment of block's owner
-  r.h.dl = 1;                   // subfunction 1 - realloc
-  rs.es = hma_seg;              // old block seg:off
-  r.x.di = hma_off;
-
-  printf("INFO: Int2f/4a03, dl=1 realloc (shrink)(%04X:%04X)\n", rs.es, r.x.di);
-  int86x(0x2f, &r, &r, &rs);
-
-  printf("INFO: HMA size returned %d\n", r.x.bx);
-  printf("INFO: HMA block reallocated at %04X:%04X\n", rs.es, r.x.di);
-
-  // Copy back to near structure to make printfs easier
-  memset(&hmcb, 0, sizeof(hmcb));
-  _fmemcpy(&hmcb, MK_FP(rs.es, r.x.di - 0x10), sizeof(hmcb));
-
-  printf("INFO: \"%c%c\" // signature\n", hmcb.signature[0], hmcb.signature[1]);
-  printf("INFO: %04X // owner, our CS = %04X\n", hmcb.owner, __libi86_get_cs());
-  printf("INFO: %04X // size (hex bytes)\n", hmcb.size);
-  printf("INFO: %04X // offset to next HMA block\n", hmcb.next);
-
-  if (r.x.di == 0xffff) {
-    printf("WARN: HMA returned offset indicates failure (DI == 0xffff)\n");
-    ret += 1;
-  }
-
-  if (r.x.bx != 32) {
-    printf("WARN: HMA returned size unexpected (BX == %d)\n", r.x.bx);
-    ret += 1;
-  }
-
-  if (r.x.bx != hmcb.size) {
-    printf("WARN: hmcb.size != HMA returned size (%d != %d)\n", hmcb.size, r.x.bx);
-    ret += 1;
-  }
-
-  if (ret != 0) {
-    printf("FAIL: Realloc(shrink) test failed\n");
-    return ret;
-  }
-
-  hma_seg = rs.es;
-  hma_off = r.x.di;
-
-  printf("\n");
-
-// Realloc subfunction (grow block)
-  ret = 0;
-  r.x.ax = 0x4a03;              // hma alloc/realloc/free memory block
-  r.x.bx = 65;                  // realloc 65 bytes, should get rounded up to 80
-  r.x.cx = __libi86_get_cs();   // segment of block's owner
-  r.h.dl = 1;                   // subfunction 1 - realloc
-  rs.es = hma_seg;              // old block seg:off
-  r.x.di = hma_off;
-
-  printf("INFO: Int2f/4a03, dl=1 realloc (grow)(%04X:%04X)\n", rs.es, r.x.di);
-  int86x(0x2f, &r, &r, &rs);
-
-  printf("INFO: HMA size returned %d\n", r.x.bx);
-  printf("INFO: HMA block reallocated at %04X:%04X\n", rs.es, r.x.di);
-
-  // Copy back to near structure to make printfs easier
-  memset(&hmcb, 0, sizeof(hmcb));
-  _fmemcpy(&hmcb, MK_FP(rs.es, r.x.di - 0x10), sizeof(hmcb));
-
-  printf("INFO: \"%c%c\" // signature\n", hmcb.signature[0], hmcb.signature[1]);
-  printf("INFO: %04X // owner, our CS = %04X\n", hmcb.owner, __libi86_get_cs());
-  printf("INFO: %04X // size (hex bytes)\n", hmcb.size);
-  printf("INFO: %04X // offset to next HMA block\n", hmcb.next);
-
-  if (r.x.di == 0xffff) {
-    printf("WARN: HMA returned offset indicates failure (DI == 0xffff)\n");
-    ret += 1;
-  }
-
-  if (r.x.bx != 80) {
-    printf("WARN: HMA returned size unexpected (BX == %d)\n", r.x.bx);
-    ret += 1;
-  }
-
-  if (r.x.bx != hmcb.size) {
-    printf("WARN: hmcb.size != HMA returned size (%d != %d)\n", hmcb.size, r.x.bx);
-    ret += 1;
-  }
-
-  if (ret != 0) {
-    printf("FAIL: Realloc(grow) test failed\n");
-    return ret;
-  }
-
-  hma_seg = rs.es;
-  hma_off = r.x.di;
-
-  printf("\n");
-
-#endif
 
 // Free block subfunction
   ret = 0;
-  r.x.ax = 0x4a03;              // hma alloc/realloc/free memory block
+  r.x.ax = 0x4a03;              // hma alloc/free memory block
   r.x.cx = __libi86_get_cs();   // segment of block's owner
   r.h.dl = 2;                   // subfunction 2 - free
   rs.es = hma_seg;              // old block seg:off
@@ -326,8 +236,9 @@ int main(int argc, char *argv[])
   printf("INFO: Int2f/4a03, dl=2 free (%04X:%04X)\n", rs.es, r.x.di);
   int86x(0x2f, &r, &r, &rs);
 
-  // Free doesn't return anything to indicate success, so we have to check the
-  // requested block to see if it's still marked as ours
+  // Free doesn't return anything to indicate success, so we can check the
+  // requested block to see if it's still marked as ours. However it only
+  // really works when the block was allocated in the upward direction.
 
   // Copy back to near structure to make access easier
   memset(&hmcb, 0, sizeof(hmcb));
@@ -335,18 +246,101 @@ int main(int argc, char *argv[])
 
   if (hmcb.signature[0] == 'M' && hmcb.signature[1] == 'S' &&
       hmcb.owner == __libi86_get_cs()) {
-    printf("WARN: Freed block still marked as ours\n");
+    printf("WARN: Freed block (1) still marked as ours\n");
     ret += 1;
   }
 
   if (ret != 0) {
-    printf("FAIL: Free test failed\n");
+    printf("FAIL: Free (1) test failed\n");
     return ret;
   }
 
   printf("\n");
 
-  printf("PASS: HMA alloc/realloc/free successful\n");
+// Alloc subfunction (downwards from top of largest free block)
+  ret = 0;
+  r.x.ax = 0x4a03;              // hma alloc/free memory block
+  r.x.bx = 35;                  // alloc 35 bytes, should get rounded up to 48
+  r.x.cx = __libi86_get_cs();   // segment of block's owner
+  r.h.dl = 1;                   // subfunction 1 - alloc downwards
+
+  printf("INFO: Int2f/4a03, dl=1 alloc downwards\n");
+  int86x(0x2f, &r, &r, &rs);
+
+  printf("INFO: HMA size returned %u\n", r.x.bx);
+  printf("INFO: HMA block (2) allocated at %04X:%04X\n", rs.es, r.x.di);
+
+  second = MK_FP(rs.es, r.x.di);
+  hma_seg = rs.es;
+  hma_off = r.x.di;
+
+  // Copy back to near structure to make printfs easier
+  memset(&hmcb, 0, sizeof(hmcb));
+  _fmemcpy(&hmcb, MK_FP(rs.es, r.x.di - 0x10), sizeof(hmcb));
+
+  printf("INFO: \"%c%c\" // signature\n", hmcb.signature[0], hmcb.signature[1]);
+  printf("INFO: %04X // owner, our CS = %04X\n", hmcb.owner, __libi86_get_cs());
+  printf("INFO: %04X // size (hex bytes)\n", hmcb.size);
+  printf("INFO: %04X // offset of next HMA block\n", hmcb.next);
+
+  if (r.x.di == 0xffff) {
+    printf("WARN: HMA returned offset indicates failure (DI == 0xffff)\n");
+    ret += 1;
+  }
+
+  if (r.x.bx != 48) {
+    printf("WARN: HMA returned size unexpected (BX == %u)\n", r.x.bx);
+    ret += 1;
+  }
+
+  if (r.x.bx != hmcb.size) {
+    printf("WARN: hmcb.size != HMA returned size (%u != %u)\n", hmcb.size, r.x.bx);
+    ret += 1;
+  }
+
+  if (hmcb.next) { /* FDPP allows final block to have next of zero */
+    // Try to validate offset of next block
+    if (hmcb.next <= hma_off) {
+      printf("WARN: hmcb.next wasn't greater than the current block\n");
+      ret += 1;
+    }
+    phmcb = MK_FP(hma_seg, hmcb.next);
+    if (phmcb->signature[0] != 'M' || phmcb->signature[1] != 'S') {
+      printf("WARN: hmcb.next didn't point to a valid hmcb\n");
+      ret += 1;
+    }
+  } else {
+    printf("INFO: hmcb.next was zero assuming we are testing FDPP\n");
+  }
+
+  if (ret != 0) {
+    printf("FAIL: Alloc (2) test failed\n");
+    return ret;
+  }
+
+// Free block subfunction
+  r.x.ax = 0x4a03;              // hma alloc/free memory block
+  r.x.cx = __libi86_get_cs();   // segment of block's owner
+  r.h.dl = 2;                   // subfunction 2 - free
+  rs.es = hma_seg;              // old block seg:off
+  r.x.di = hma_off;
+
+  printf("INFO: Int2f/4a03, dl=2 free (%04X:%04X)\n", rs.es, r.x.di);
+  int86x(0x2f, &r, &r, &rs);
+
+  // Free doesn't return anything to indicate success, so previously we checked the
+  // requested block to see if it's still marked as ours. However on MS-DOS 7.10
+  // that's an unreliable indicator when the block has been allocated in the
+  // downward direction, so we just have to assume it worked.
+
+  printf("\n");
+
+  if (second <= first) {
+    printf("FAIL: second block address <= first block address\n");
+    return 1;
+  }
+
+  printf("PASS: HMA alloc fn03 / free successful\n");
   return 0;
 }
 
@@ -412,7 +406,7 @@ int main(int argc, char *argv[])
     printf("INFO: \"%c%c\" // signature\n", hmcb.signature[0], hmcb.signature[1]);
     printf("INFO: %04X // owner\n", hmcb.owner);
     printf("INFO: %04X // size (hex bytes)\n", hmcb.size);
-    printf("INFO: %04X // offset to next HMA block\n", hmcb.next);
+    printf("INFO: %04X // offset of next HMA block\n", hmcb.next);
 
     if (hmcb.signature[0] != 'M' || hmcb.signature[1] != 'S') {
       printf("WARN: HMA head signature incorrect\n");
