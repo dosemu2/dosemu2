@@ -595,8 +595,11 @@ class BaseTestCase(object):
                 f.seek(c[0])
                 f.write(c[2])
 
-    def runDosemu(self, cmd, opts=None, outfile=None, config=DOSEMU_CONF_DEFAULT, timeout=15,
+    def runDosemu(self, cmd, opts=None, outfile=None, config=DOSEMU_CONF_DEFAULT, timeout=None,
                     eofisok=False, interactions=[]):
+        if timeout is None:
+            timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
+
         # Note: if debugging is turned on then times increase 10x
         dbin = str(self.dosemu)
         args = ["-f", str(self.imagedir / "dosemu.conf"),
@@ -623,32 +626,46 @@ class BaseTestCase(object):
         with open(self.logfiles['xpt'][0], "wb") as fout:
             child.logfile = fout
             child.setecho(False)
+
+            # Bare pexpect exceptions don't have any context only a massive string
+            # with conflicting info, so let's augment the exception if we catch it.
+            def myexpect(child, pattern, timeout):
+                try:
+                    return child.expect(pattern, timeout=timeout)
+                except pexpect.TIMEOUT as e:
+                    e.my = {"pattern": pattern, "timeout": timeout}
+                    raise
+                except pexpect.EOF as e:
+                    # Use child.before to see if any output was captured
+                    e.my = {"pattern": pattern}
+                    raise
+
             try:
                 prompt = r'(system -e|unix -e|' + IPROMPT + ')'
-                child.expect([prompt + '[\r\n]*'], timeout=40)
-                child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
+                myexpect(child, [prompt + '[\r\n]*'], timeout=40)
+                myexpect(child, ['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\n')
                 for resp in interactions:
-                    child.expect(resp[0])
+                    myexpect(child, resp[0])
                     child.send(resp[1])
                     if outfile is None:
                         ret += child.before.decode('cp437', 'replace')
                 trms = ['rem end',]
                 if eofisok:
                     trms += [pexpect.EOF,]
-                child.expect(trms, timeout=timeout)
+                myexpect(child, trms, timeout=timeout)
                 if outfile is None:
                     ret += child.before.decode('cp437', 'replace')
                 else:
                     ret = outfile.read_text()
-            except pexpect.TIMEOUT:
-                ret = 'Timeout'
+            except pexpect.TIMEOUT as e:
+                ret = f"Timeout: {e.my['timeout']} seconds waiting for {e.my['pattern']}\n"
                 tlog = self.logfiles['log'][0].read_text()
                 if '(gdb) Attaching to program' in tlog:
                     sleep(60)
                     self.shouldStop = True
-            except pexpect.EOF:
-                ret = 'EndOfFile'
+            except pexpect.EOF as e:
+                ret = f"EndOfFile: waiting for {e.my['pattern']}\n"
 
         try:
             child.close(force=True)
@@ -657,7 +674,10 @@ class BaseTestCase(object):
 
         return ret
 
-    def runDosemuCmdline(self, xargs, cwd=None, config=DOSEMU_CONF_DEFAULT, timeout=30):
+    def runDosemuCmdline(self, xargs, cwd=None, config=DOSEMU_CONF_DEFAULT, timeout=None):
+        if timeout is None:
+            timeout = int(environ.get("DEFAULT_TIMEOUT", '15')) + 15  # A little extra to match the old value
+
         args = [str(self.dosemu),
                 "--Fimagedir", str(self.imagedir),
                 "-f", str(self.imagedir / "dosemu.conf"),
@@ -947,6 +967,7 @@ def main_setup(cases):
                    "[--require-attr=STRING [TestCase1 .. TestCaseN]] | " +
                    "[TestCase[.testname] ...]")
             print("Significant environment variables:\n" +
+                  "  DEFAULT_TIMEOUT=15   Integer value of the default test timeout, but may still be overidden on specific tests\n" +
                   "  NO_ACTIONS=1         Allow a test that is marked as known failure or unsupported to be run\n" +
                   "  NO_COLOR=1           Override the terminal detection and disable colour printing of PASS|FAIL etc\n" +
                   "  NO_FAILFAST=1        Don't quit on the first test failure, run all specified\n" +

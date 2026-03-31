@@ -1,6 +1,6 @@
 
 from shutil import copy
-from subprocess import check_output, CalledProcessError, STDOUT
+from subprocess import check_call, check_output, CalledProcessError, STDOUT
 from os import environ
 
 CTESTS = [
@@ -42,6 +42,10 @@ KVM_TESTS = (
 
 
 def _dotest(self, test, cpu_vm, cpu_vm_dpmi):
+
+    if not getattr(self.__class__, 'fpumade', False):
+        check_call(["make", "--quiet", "-C", "test/fpu", "clean", "all"])
+        self.__class__.fpumade = True
 
     if (('jit' in cpu_vm and 'sim' in cpu_vm_dpmi) or
             ('sim' in cpu_vm and 'jit' in cpu_vm_dpmi)):

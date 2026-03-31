@@ -1,8 +1,13 @@
 from os import environ
 from shutil import copy
+from subprocess import check_call
 
 
 def _dotest(self, cpu_vm, cpu_vm_dpmi):
+
+    if not getattr(self.__class__, 'cpumade', False):
+        check_call(["make", "--quiet", "-C", "test/cpu", "clean", "all"])
+        self.__class__.cpumade = True
 
     if (('jit' in cpu_vm and 'sim' in cpu_vm_dpmi) or
             ('sim' in cpu_vm and 'jit' in cpu_vm_dpmi)):
