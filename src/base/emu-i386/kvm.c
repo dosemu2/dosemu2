@@ -161,6 +161,7 @@ static struct monitor {
 static struct kvm_cpuid2 *cpuid;
 /* fpu vme de pse tsc msr mce cx8 */
 #define CPUID_FEATURES_EDX 0x1bf
+#define CPUID_FEATURES_ECX_VMX (1<<5)
 static struct kvm_run *run;
 static int kvmfd, vmfd, vcpufd;
 static struct kvm_sregs sregs;
@@ -173,6 +174,10 @@ static struct kvm_userspace_memory_region maps[MAXSLOT];
 
 static int init_kvm_vcpu(void);
 static void kvm_set_readonly(dosaddr_t base, dosaddr_t size);
+
+#ifndef KVM_X86_QUIRK_IGNORE_GUEST_PAT
+#define KVM_X86_QUIRK_IGNORE_GUEST_PAT		(1 << 9)
+#endif
 
 #if !defined(DISABLE_SYSTEM_WA) || !defined(KVM_CAP_IMMEDIATE_EXIT)
 
@@ -735,6 +740,41 @@ void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t
   mprotect_kvm(cap, targ, mapsize, protect);
 }
 
+/* see https://github.com/dosemu2/dosemu2/pull/2813
+   On Intel we need to disable the ignore guest PAT quirk
+   since otherwise accessing VRAM from /dev/mem causes
+   an MCE. This is possible since kernel 6.16+ and
+   backported in 6.12.78.
+ */
+static void disable_quirk_ignore_guest_pat(void)
+{
+  static int done = 0;
+
+  if (done || !(cpuid->entries[1].ecx & CPUID_FEATURES_ECX_VMX))
+    /* only needed on Intel */
+    return;
+
+  done = 1;
+
+#ifdef KVM_CAP_DISABLE_QUIRKS2
+  int ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_DISABLE_QUIRKS2);
+  if (ret & KVM_X86_QUIRK_IGNORE_GUEST_PAT) {
+    struct kvm_enable_cap cap = {
+      .cap = KVM_CAP_DISABLE_QUIRKS2,
+      .args[0] = KVM_X86_QUIRK_IGNORE_GUEST_PAT,
+    };
+    ret = ioctl(vmfd, KVM_ENABLE_CAP, &cap);
+    if (ret == 0) {
+      Q_printf("KVM: disabled QUIRK_IGNORE_GUEST_PAT\n");
+      return;
+    }
+  }
+#endif
+  error("KVM: QUIRK_IGNORE_GUEST_PAT unsupported\n");
+  error("No support for direct hardware RAM access with KVM\n");
+  leavedos(99);
+}
+
 void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 {
   size_t pagesize = sysconf(_SC_PAGESIZE);
@@ -743,7 +783,7 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
   unsigned int page;
   struct kvm_userspace_memory_region *p;
 
-  if (!(cap & (MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
+  if (!(cap & (MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|MAPPING_KMEM|
 	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_KVM|MAPPING_CPUEMU|
 	       MAPPING_EXTMEM))) return;
   if (memcheck_is_rom(targ)) {
@@ -763,14 +803,19 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 
   Q_printf("KVM: protecting %x:%zx with prot %x\n", targ, mapsize, protect);
 
+  if (cap & MAPPING_KMEM)
+    disable_quirk_ignore_guest_pat();
+
   for (page = start; page < end; page++) {
-    monitor->pte[page] &= _PAGE_MASK;
+    monitor->pte[page] &= _PAGE_MASK | PG_DC;
     if (protect & PROT_WRITE)
       monitor->pte[page] |= PG_PRESENT | PG_RW | PG_USER;
     else if (protect & PROT_READ)
       monitor->pte[page] |= PG_PRESENT | PG_USER;
     if (cap & MAPPING_KVM)
       monitor->pte[page] &= ~PG_USER;
+    if (cap & MAPPING_KMEM)
+      monitor->pte[page] |= PG_DC;
   }
   monitor->cr3 = sregs.cr3; /* Force TLB flush */
 }

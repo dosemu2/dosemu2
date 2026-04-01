@@ -130,6 +130,7 @@ static int hwram_restore_mapping(struct hardware_ram *hw, unsigned addr,
 	int size, dosaddr_t va);
 static int hwram_prot_match(struct hardware_ram *hw, unsigned addr,
 	int size, int prot);
+static int is_kvm_map(int cap);
 #if HAVE_DECL_MADV_POPULATE_WRITE
 static int madvise_mapping(dosaddr_t targ, size_t length, int flags);
 #endif
@@ -263,6 +264,8 @@ static void kmem_map_single(int cap, int idx, dosaddr_t targ)
       mremap(kmem_map[idx].base[MEM_BASE], kmem_map[idx].len, kmem_map[idx].len,
 	     MREMAP_MAYMOVE | MREMAP_FIXED, dst);
   }
+  if (is_kvm_map(cap))
+    mprotect_kvm(cap, targ, kmem_map[idx].len, PROT_READ | PROT_WRITE);
   kmem_map[idx].dst = targ;
   update_aliasmap(targ, kmem_map[idx].len, kmem_map[idx].bkp_base);
 }
