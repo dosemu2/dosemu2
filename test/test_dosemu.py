@@ -999,7 +999,7 @@ class OurTestCase(BaseTestCase):
 
     @mark(['memtest', 'hmatest'])
     def test_memory_hma_alloc3(self):
-        """Memory HMA alloc/resize/dealloc"""
+        """Memory HMA alloc fn03 / free"""
         memory_hma_alloc3(self)
 
     @mark(['memtest', 'hmatest'])
