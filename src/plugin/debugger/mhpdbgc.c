@@ -69,7 +69,7 @@
 
 #define makeaddr(x,y) ((((unsigned int)x) << 4) + (unsigned int)y)
 
-static struct HMCB *hma_start;
+static far_t hma_start;
 static int ic_tid;
 static int setbrk_tid;
 static int setsig_tid;
@@ -328,7 +328,7 @@ static int check_for_stopped(void)
 /* Interrogate DOS for HMA start (Win95+) */
 void mhp_init_hma(void)
 {
-  hma_start = NULL;
+  hma_start = FAR_NULL;
   pre_msdos();
 
   LWORD(eax) = 0x3306;
@@ -337,7 +337,7 @@ void mhp_init_hma(void)
     LWORD(eax) = 0x4a04;
     do_int_call_back(0x2f);
     if (LWORD(eax) == 0)
-      hma_start = MK_FP32(SREG(es), LWORD(edi));
+      hma_start = MK_FARt(SREG(es), LWORD(edi));
   }
 
   post_msdos();
@@ -345,7 +345,7 @@ void mhp_init_hma(void)
 
 void mhp_reset_hma(void)
 {
-  hma_start = NULL;
+  hma_start = FAR_NULL;
 }
 
 int mhp_usermap_load_gnuld(const char *fname, uint16_t origin)
@@ -1281,7 +1281,7 @@ static void mhp_mcbs(int argc, char *argv[])
   int uma, hdr, cnt;
   struct DSCB *dscb;
   uint16_t dsseg;
-  struct HMCB *hmcb, *htmp;
+  far_t hfar;
 
   if (!lol) {
     mhp_printf("DOS's LOL not set\n");
@@ -1317,34 +1317,34 @@ static void mhp_mcbs(int argc, char *argv[])
   }
 
   // HMA
-  for (hmcb = hma_start, cnt = 0; hmcb && cnt < 50; cnt++) {
-    uint16_t hoff = (uintptr_t)hmcb - (uintptr_t)MK_FP32(0xffff, 0);
+  for (hfar = hma_start, cnt = 0; cnt < 50; cnt++) {
     const char *name;
     char buf[32];
+    struct HMCB *hmcb;
 
-    if (hmcb->signature == HMCB_SIG && hmcb->next < 0xfff0) {
-      htmp = MK_FP32(0xffff, hmcb->next);
-      if (htmp->signature == HMCB_SIG) {
-        // Seemingly we have a valid HMA MCB
-        if (cnt == 0) {
-          mhp_printf("\nADDR(HMA) PARAS  OWNER\n");
-        }
+    hmcb = FARt_PTR(hfar);
+    if (!hmcb || hmcb->signature != HMCB_SIG)
+      break;
 
-        name = hma_id_to_name(hmcb->owner);
-        if (!name)
-          name = get_mcb_name_walk_chain(hmcb->owner, 0);
-        if (!name) {
-          snprintf(buf, sizeof buf, "%04x", hmcb->owner);
-          name = buf;
-        }
-
-        mhp_printf("ffff:%04x 0x%04x [%s]\n", hoff, hmcb->size / 16, name);
-      } else if (hmcb->next == 0) {
-        mhp_printf("ffff:%04x (END)\n", hoff);
-        break;
-      }
-      hmcb = htmp;
+    name = hma_id_to_name(hmcb->owner);
+    if (!name)
+      name = get_mcb_name_walk_chain(hmcb->owner, 0);
+    if (!name) {
+      snprintf(buf, sizeof buf, "%04x", hmcb->owner);
+      name = buf;
     }
+
+    if (cnt == 0) {
+      mhp_printf("\nADDR(HMA) PARAS  OWNER\n");
+    }
+
+    if (!hmcb->next) {
+      mhp_printf("%04x:%04x 0x%04x [%s] (END)\n", hfar.segment, hfar.offset, hmcb->size / 16, name);
+      break;
+    }
+    mhp_printf("%04x:%04x 0x%04x [%s]\n", hfar.segment, hfar.offset, hmcb->size / 16, name);
+
+    hfar = MK_FARt(hfar.segment, hmcb->next);
   }
 }
 
