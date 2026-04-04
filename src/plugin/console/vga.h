@@ -18,5 +18,7 @@ void restore_vga_state(struct video_save_struct *save_regs);
 int emu_video_retrace_on(void);
 int emu_video_retrace_off(void);
 
+extern int vga_initialized;
+
 #endif
 /* End of video/vga.h */

@@ -143,7 +143,7 @@ set_dos_video (void)
 
   /* jesx */
   /* After all that fun up there, get permissions and save/restore states */
-  if (video_initialized)
+  if (vga_initialized)
     {
       v_printf ("Acquiring vt, restoring dosemu_regs\n");
       get_perm ();
@@ -159,7 +159,7 @@ static void set_linux_video (void)
 
   /* jesx */
   /* After all that fun  rel perms and save/restore states */
-  if (video_initialized)
+  if (vga_initialized)
     {
       v_printf ("Storing dosemu_regs, Releasing vt mode=%02x\n", READ_BYTE(0x449));
       dosemu_regs.video_mode = READ_BYTE(0x449);

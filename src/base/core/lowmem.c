@@ -29,6 +29,7 @@
 #include "utilities.h"
 #include "emudpmi.h"
 #include "lowmem.h"
+#include "video.h"
 
 static smpool mp;
 unsigned char *dosemu_lmheap_base;
@@ -162,20 +163,21 @@ void rm_stack_leave(void)
 		set_TF();
 }
 
-#define LMHEAP_OFF 0x9000
-#define LMHEAP_SIZE 0x5000
+#define LMHEAP_OFF 0x8000
+#define LMHEAP_SIZE 0x6000
 
-static uint16_t lmheap_add(void)
+static uint16_t lmheap_sub(void)
 {
-	return (config.dos_up == 2 ? FDPP_LMHEAP_ADD : 0);
+	return (config.dos_up == 2 ? FDPP_LMHEAP_ADD : 0) +
+		(!(config.vga && config.chipset == VESA) ? VBE_LMHEAP_ADD : 0);
 }
 
 uint16_t lmheap_off(void)
 {
-	return LMHEAP_OFF + lmheap_add();
+	return LMHEAP_OFF + lmheap_sub();
 }
 
 uint16_t lmheap_size(void)
 {
-	return LMHEAP_SIZE - lmheap_add();
+	return LMHEAP_SIZE - lmheap_sub();
 }
