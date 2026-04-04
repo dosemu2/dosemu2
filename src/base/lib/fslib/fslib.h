@@ -60,4 +60,7 @@ int fslib_popen_knownpath(int subsys, int cookie, struct popen2 *file);
 int fslib_waitpid(int pid, int *status);
 int fslib_debug(int mfs_idx, const char *file);
 
+void *mfs_open_async(int mfs_idx, const char *path, int flags);
+int mfs_async_getfd(void *handle);
+
 #endif

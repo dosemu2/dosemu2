@@ -112,6 +112,17 @@ static int open_file(int mfs_idx, const char *path, int flags)
   return open(path, flags);
 }
 
+static void *open_async(int mfs_idx, const char *path, int flags)
+{
+  assert(path_ok(mfs_idx, path));
+  return (void *)(uintptr_t)open(path, flags);
+}
+
+static int getfd_async(void *handle)
+{
+  return (uintptr_t)handle;
+}
+
 static int create_file(int mfs_idx, const char *path, int flags, mode_t mode)
 {
   assert(path_ok(mfs_idx, path));
@@ -302,6 +313,8 @@ static const struct fslib_ops fslops = {
   .popen_knownpath = fslocal_popen_knownpath,
   .waitpid = fslocal_waitpid,
   .debug = fslocal_debug,
+  .open_async = open_async,
+  .async_getfd = getfd_async,
   .name = "local",
   .flags = FSFLG_NOSUID,
 };

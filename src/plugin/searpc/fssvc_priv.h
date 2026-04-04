@@ -13,6 +13,8 @@ int fssvc_add_path_list(const char *list);
 int fssvc_seal(void);
 int fssvc_open(int id, const char *path, int flags);
 int fssvc_creat(int id, const char *path, int flags, mode_t mode);
+void *fssvc_open_async(int id, const char *path, int flags);
+int fssvc_async_getfd(void *handle);
 int fssvc_unlink(int id, const char *path);
 int fssvc_setxattr(int id, const char *path, int attr);
 int fssvc_getxattr(int id, const char *path);
