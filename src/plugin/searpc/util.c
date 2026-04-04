@@ -14,6 +14,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -25,6 +26,12 @@
 #include "sig.h"
 #include "utilities.h"
 #include "util.h"
+
+typedef struct {
+    int fd;
+    int in_async;
+    void *rpc_priv;
+} SockTransport;
 
 static void svc_run(const char *svc_name, int transp_fd, int (*exiting)(void));
 
@@ -39,15 +46,66 @@ static char *transport_callback(void *arg, const char *fcall_str,
         size_t fcall_len, size_t *ret_len)
 {
     char buf[4096];
-    int sock = (int)(uintptr_t)arg;
-    ssize_t sd = send(sock, fcall_str, fcall_len, MSG_DONTWAIT);
+    SockTransport *sock = arg;
+    ssize_t sd;
+
+    assert(!sock->in_async);
+    sd = send(sock->fd, fcall_str, fcall_len, MSG_DONTWAIT);
     if (sd <= 0)
         return NULL;
-    sd = recv(sock, buf, sizeof(buf), 0);
+    sd = recv(sock->fd, buf, sizeof(buf), 0);
     if (sd <= 0)
         return NULL;
     *ret_len = sd;
     return g_strndup(buf, sd);
+}
+
+#if 1
+/* work around https://github.com/haiwen/libsearpc/pull/79 */
+#define _ASYNC_CALL_DATA_SIZEOF 40
+#endif
+
+static int transport_send(void *arg, char *fcall_str,
+                          size_t fcall_len, void *rpc_priv)
+{
+    SockTransport *sock = arg;
+    ssize_t sd;
+
+    assert(!sock->in_async);
+    sock->in_async++;
+    sd = send(sock->fd, fcall_str, fcall_len, MSG_DONTWAIT);
+    if (sd <= 0)
+        return -1;
+#ifdef _ASYNC_CALL_DATA_SIZEOF
+    sock->rpc_priv = malloc(_ASYNC_CALL_DATA_SIZEOF);
+    memcpy(sock->rpc_priv, rpc_priv, _ASYNC_CALL_DATA_SIZEOF);
+#else
+    sock->rpc_priv = rpc_priv;
+#endif
+    return 0;
+}
+
+static int transport_recv(SockTransport *sock)
+{
+    ssize_t sd;
+    char buf[4096];
+
+    assert(sock->in_async == 1);
+    sock->in_async--;
+    sd = recv(sock->fd, buf, sizeof(buf), 0);
+    if (sd <= 0)
+        return -1;
+    searpc_client_generic_callback(buf, sd, sock->rpc_priv, NULL);
+#ifdef _ASYNC_CALL_DATA_SIZEOF
+    free(sock->rpc_priv);
+#endif
+    sock->rpc_priv = NULL;
+    return 0;
+}
+
+int searpc_async_recv(SearpcClient *clnt)
+{
+    return transport_recv(clnt->async_arg);
 }
 
 static void chld_crash(int sig)
@@ -63,6 +121,7 @@ SearpcClient *clnt_init(int *sock_rx, init_cb_t init_cb,
     SearpcClient *clnt;
     int socks[2];
     int transp[2];
+    SockTransport *sock;
     pid_t pid;
     int err;
     pshared_sem_t svc_sem, svc_sem2;
@@ -122,9 +181,14 @@ SearpcClient *clnt_init(int *sock_rx, init_cb_t init_cb,
     pshared_sem_destroy(&svc_sem);
     pshared_sem_destroy(&svc_sem2);
 
+    sock = malloc(sizeof(SockTransport));
+    memset(sock, 0, sizeof(SockTransport));
+    sock->fd = transp[0];
     clnt = searpc_client_new();
     clnt->send = transport_callback;
-    clnt->arg = (void *)(uintptr_t)transp[0];
+    clnt->arg = sock;
+    clnt->async_send = transport_send;
+    clnt->async_arg = sock;
     *sock_rx = socks[0];
     if (r_pid)
         *r_pid = pid;

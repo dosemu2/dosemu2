@@ -108,6 +108,16 @@ int mfs_utime(int mfs_idx, const char *fpath, time_t atime, time_t mtime)
   return fssvc->utime(mfs_idx - 1, fpath, atime, mtime);
 }
 
+void *mfs_open_async(int mfs_idx, const char *path, int flags)
+{
+  return fssvc->open_async(mfs_idx - 1, path, flags);
+}
+
+int mfs_async_getfd(void *handle)
+{
+    return fssvc->async_getfd(handle);
+}
+
 static const char *def_name =
 #ifdef SEARPC_SUPPORT
   "rpc"

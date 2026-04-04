@@ -215,14 +215,15 @@ static int do_mfs_open(int mfs_idx, struct file_fd *f, const char *fname,
     int fd, err, i;
     void *shlock;
     void *exlock;
+    void *async;
     int is_writable = (flags == O_WRONLY || flags == O_RDWR);
 
     *r_err = ACCESS_DENIED;
     exlock = apply_exlock(fname);
     if (!exlock)
         return -1;
-    fd = mfs_open_file(mfs_idx, fname, flags | O_CLOEXEC);
-    if (fd == -1)
+    async = mfs_open_async(mfs_idx, fname, flags | O_CLOEXEC);
+    if (!async)
         goto err;
     if (!share_mode) {
         err = open_compat(fname, flags, f->shemu_locks);
@@ -261,6 +262,10 @@ static int do_mfs_open(int mfs_idx, struct file_fd *f, const char *fname,
         *r_err = SHARING_VIOLATION;
         goto err3;
     }
+    fd = mfs_async_getfd(async);
+    async = NULL;  // exclude from cleanup
+    if (fd == -1)
+        goto err4;
     shlock_close(exlock);
 
     f->fd = fd;
@@ -271,13 +276,19 @@ static int do_mfs_open(int mfs_idx, struct file_fd *f, const char *fname,
     open_mlemu(f->mlemu_fds);
     return 0;
 
+err4:
+    shlock_close(shlock);
 err3:
     for (i = 0; i < lk_MAX; i++) {
         if (f->shemu_locks[i])
             shlock_close(f->shemu_locks[i]);
     }
 err2:
-    close(fd);
+    if (async) {
+        fd = mfs_async_getfd(async);
+        if (fd != -1)
+            close(fd);
+    }
 err:
     shlock_close(exlock);
     return -1;

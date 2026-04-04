@@ -82,6 +82,8 @@ static const struct fslib_ops fsops = {
   .popen_knownpath = fssvc_popen_knownpath,
   .waitpid = fssvc_waitpid,
   .debug = fssvc_debug,
+  .open_async = fssvc_open_async,
+  .async_getfd = fssvc_async_getfd,
   .name = "rpc",
 };
 

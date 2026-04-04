@@ -149,6 +149,56 @@ int fssvc_open(int id, const char *path, int flags)
     return recv_fd(sock_rx);
 }
 
+struct async_data {
+    SearpcClient *clnt;
+    GObject *ret;
+    GError *error;
+};
+
+static void object_callback(void *result, void *user_data, GError *error)
+{
+    struct async_data *ret = user_data;
+    ret->error = error;
+    ret->ret = result;
+    if (ret->ret)
+        g_object_ref(ret->ret);
+}
+
+void *fssvc_open_async(int id, const char *path, int flags)
+{
+    int rc;
+    struct async_data *data = malloc(sizeof(struct async_data));
+
+    memset(data, 0, sizeof(struct async_data));
+    data->clnt = clnt;
+    rc = searpc_client_async_call__object(clnt, "open_1", object_callback,
+                                     TEST_OBJECT_TYPE,
+                                     data, 3,
+                                     "int", id, "string", path,
+                                     "int", flags);
+    if (rc) {
+        free(data);
+        return NULL;
+    }
+    return data;
+}
+
+int fssvc_async_getfd(void *handle)
+{
+    struct async_data *data = handle;
+    int rc = searpc_async_recv(data->clnt);
+
+    if (rc) {
+        free(data);
+        return -1;
+    }
+    CHECK_RPC(data->error);
+    CHECK_RET(data->ret);
+    g_object_unref(data->ret);
+    free(data);
+    return recv_fd(sock_rx);
+}
+
 int fssvc_creat(int id, const char *path, int flags, mode_t mode)
 {
     GObject* ret;
