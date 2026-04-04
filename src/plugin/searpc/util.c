@@ -60,6 +60,11 @@ static char *transport_callback(void *arg, const char *fcall_str,
     return g_strndup(buf, sd);
 }
 
+#if 1
+/* work around https://github.com/haiwen/libsearpc/pull/79 */
+#define _ASYNC_CALL_DATA_SIZEOF 40
+#endif
+
 static int transport_send(void *arg, char *fcall_str,
                           size_t fcall_len, void *rpc_priv)
 {
@@ -71,7 +76,12 @@ static int transport_send(void *arg, char *fcall_str,
     sd = send(sock->fd, fcall_str, fcall_len, MSG_DONTWAIT);
     if (sd <= 0)
         return -1;
+#ifdef _ASYNC_CALL_DATA_SIZEOF
+    sock->rpc_priv = malloc(_ASYNC_CALL_DATA_SIZEOF);
+    memcpy(sock->rpc_priv, rpc_priv, _ASYNC_CALL_DATA_SIZEOF);
+#else
     sock->rpc_priv = rpc_priv;
+#endif
     return 0;
 }
 
@@ -86,6 +96,9 @@ static int transport_recv(SockTransport *sock)
     if (sd <= 0)
         return -1;
     searpc_client_generic_callback(buf, sd, sock->rpc_priv, NULL);
+#ifdef _ASYNC_CALL_DATA_SIZEOF
+    free(sock->rpc_priv);
+#endif
     sock->rpc_priv = NULL;
     return 0;
 }
