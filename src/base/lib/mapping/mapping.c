@@ -48,14 +48,6 @@ enum { MEM_BASE, KVM_BASE, JIT_BASE,
 #endif
        MAX_BASES };
 
-struct mem_map_struct {
-  off_t src;
-  void *bkp_base;
-  void *base[MAX_BASES];
-  dosaddr_t dst;
-  int len;
-};
-
 struct aliasmap_s {
   unsigned char *ptr;
   int protect;
@@ -71,13 +63,6 @@ struct hardware_ram {
   struct aliasmap_s *aliasmap;
   struct hardware_ram *next;
 };
-
-#ifdef __linux__
-#define MAX_KMEM_MAPPINGS 4096
-static int kmem_mappings = 0;
-static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
-static int kmem_mapped(dosaddr_t addr, int mapsize);
-#endif
 
 static int init_done = 0;
 static struct {
@@ -241,6 +226,18 @@ int alias_mapping_high(int cap, dosaddr_t targ, size_t mapsize, int protect,
     mprotect_kvm(cap, targ, mapsize, protect);
   return 0;
 }
+
+#ifdef __linux__
+// check if mapped for kmem, only used for assert
+static int kmem_mapped(dosaddr_t addr, int mapsize)
+{
+  struct hardware_ram *hw;
+  unsigned addr2 = do_find_hardware_ram(addr, mapsize, &hw);
+  if (addr2 == (unsigned)-1)
+    return 0;
+  return hw->type == 'v' || hw->type == 'h';
+}
+#endif
 
 int alias_mapping(int cap, dosaddr_t targ, size_t mapsize, int protect, void *source)
 {
@@ -767,177 +764,62 @@ static struct aliasmap_s *alloc_aliasmap(int size)
 static struct hardware_ram *hardware_ram;
 
 #if __linux__
-static int map_find_idx(struct mem_map_struct *map, int max, off_t addr)
-{
-  int i;
-  for (i = 0; i < max; i++) {
-    if (map[i].src == addr)
-      return i;
-  }
-  return -1;
-}
-
-static int map_find(struct mem_map_struct *map, int max,
-  dosaddr_t addr, int size, int mapped)
-{
-  int i;
-  dosaddr_t dst, dst1;
-  dosaddr_t min = -1;
-  int idx = -1;
-  dosaddr_t max_addr = addr + size;
-  for (i = 0; i < max; i++) {
-    if (!map[i].dst || !map[i].len || (map[i].dst != -1) != mapped)
-      continue;
-    dst = map[i].dst;
-    dst1 = dst + map[i].len;
-    if (dst >= addr && dst < max_addr) {
-      if (min == (dosaddr_t)-1 || dst < min) {
-        min = dst;
-        idx = i;
-      }
-    }
-    if (dst1 > addr && dst < max_addr) {
-      if (min == (dosaddr_t)-1 || dst1 < min) {
-        min = addr;
-        idx = i;
-      }
-    }
-  }
-  return idx;
-}
-
-// counts number of kmem mappings, only used for assert
-static int kmem_mapped(dosaddr_t addr, int mapsize)
-{
-  int i, cnt = 0;
-
-  while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 1)) != -1) {
-    cnt++;
-  }
-  return cnt;
-}
-
-static void kmem_map_single(int cap, int idx, dosaddr_t targ)
-{
-  assert(targ != (dosaddr_t)-1);
-  if (cap & MAPPING_LOWMEM) {
-    int i;
-    for(i = 0; i < MAX_BASES; i++) {
-      void *dst = MEM_BASE32x(targ, i);
-      if (dst == MAP_FAILED)
-        continue;
-      mremap(kmem_map[idx].base[i], kmem_map[idx].len, kmem_map[idx].len,
-        MREMAP_MAYMOVE | MREMAP_FIXED, dst);
-    }
-  } else {
-    void *dst = MEM_BASE32x(targ, MEM_BASE);
-    if (dst != MAP_FAILED)
-      mremap(kmem_map[idx].base[MEM_BASE], kmem_map[idx].len, kmem_map[idx].len,
-	     MREMAP_MAYMOVE | MREMAP_FIXED, dst);
-  }
-  if (is_kvm_map(cap))
-    mprotect_kvm(cap, targ, kmem_map[idx].len, PROT_READ | PROT_WRITE);
-  kmem_map[idx].dst = targ;
-  update_aliasmap(targ, kmem_map[idx].len, kmem_map[idx].bkp_base);
-}
-
-static dosaddr_t mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
-	off_t source)
-{
-  int i;
-
-  Q__printf("MAPPING: map kmem, cap=%s, target=%x, size=%zx, source=%#jx\n",
-	cap, targ, mapsize, (intmax_t)source);
-
-  i = map_find_idx(kmem_map, kmem_mappings, source);
-  if (i == -1) {
-	error("KMEM mapping for %#jx was not allocated!\n", (intmax_t)source);
-	return (dosaddr_t)-1;
-  }
-  if (kmem_map[i].len != mapsize) {
-	error("KMEM mapping for %#jx allocated for size %#x, but %#zx requested\n",
-	      (intmax_t)source, kmem_map[i].len, mapsize);
-	return (dosaddr_t)-1;
-  }
-
-  if (targ == (dosaddr_t)-1) {
-    targ = smalloc_aligned_topdown(&main_pool, (dosaddr_t)-1, PAGE_SIZE, mapsize);
-    if (targ == (dosaddr_t)-1) {
-      error("OOM for mmap_mapping_kmem, %s\n", strerror(errno));
-      return targ;
-    }
-  }
-  kmem_map_single(cap, i, targ);
-
-  return targ;
-}
-
-static int do_map_hwram(struct hardware_ram *hw)
-{
-  dosaddr_t p;
-  int cap = MAPPING_KMEM;
-  if (hw->default_vbase != (dosaddr_t)-1)
-    cap |= MAPPING_LOWMEM;
-  else if (!config.dpmi)
-    return 0;
-  p = mmap_mapping_kmem(cap, hw->default_vbase, hw->size, hw->base);
-  if (p == (dosaddr_t)-1) {
-    error("mmap error in map_hardware_ram %s\n", strerror (errno));
-    return -1;
-  }
-  hw->vbase = p;
-  g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
-	     hw->base, hw->base+hw->size-1, hw->vbase);
-  return 0;
-}
-
-static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
+static void *mmap_mapping_kmem(int cap, struct hardware_ram *hw)
 {
     void *addr, *addr2;
+    size_t mapsize = hw->size;
+    off_t source = hw->base;
+    dosaddr_t targ = hw->default_vbase;
+    int i;
 
-    Q_printf("MAPPING: alloc kmem, source=%#jx size=%#zx\n",
-             (intmax_t)source, mapsize);
     if (source == -1) {
       error("KMEM mapping without source\n");
       leavedos(64);
     }
-    if (map_find_idx(kmem_map, kmem_mappings, source) != -1) {
-      error("KMEM mapping for %#jx allocated twice!\n", (intmax_t)source);
-      return MAP_FAILED;
-    }
-    open_kmem();
-    if (cap & MAPPING_LOWMEM) {
-      int i;
-      for (i = 0; i < MAX_BASES; i++) {
-        addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED,
-		mem_fd, source);
-        if (addr == MAP_FAILED) {
-          close_kmem();
-          return MAP_FAILED;
-        }
-        kmem_map[kmem_mappings].base[i] = addr;
+
+    if (!(cap & MAPPING_LOWMEM)) {
+      if (!config.dpmi)
+	return 0;
+      targ = smalloc_aligned_topdown(&main_pool, (dosaddr_t)-1, PAGE_SIZE, mapsize);
+      if (targ == (dosaddr_t)-1) {
+	error("OOM for mmap_mapping_kmem, %s\n", strerror(errno));
+	return MAP_FAILED;
       }
-    } else {
-      addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED,
-		mem_fd, source);
+    }
+    assert(targ != (dosaddr_t)-1);
+
+    Q__printf("MAPPING: map kmem, cap=%s, target=%x, size=%zx, source=%#jx\n",
+	      cap, targ, mapsize, (intmax_t)source);
+
+    open_kmem();
+    for (i = 0; i < MAX_BASES; i++) {
+      void *dst = MEM_BASE32x(targ, i);
+      if (dst == MAP_FAILED)
+	continue;
+      addr = mmap(dst, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED,
+		  mem_fd, source);
       if (addr == MAP_FAILED) {
         close_kmem();
+        error("mmap error in mmap_mapping_kmem %s\n", strerror (errno));
         return MAP_FAILED;
       }
-      kmem_map[kmem_mappings].base[MEM_BASE] = addr;
     }
     addr2 = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED,
 		mem_fd, source);
     close_kmem();
-    if (addr2 == MAP_FAILED)
+    if (addr2 == MAP_FAILED) {
+      error("mmap error in mmap_mapping_kmem %s\n", strerror (errno));
       return MAP_FAILED;
+    }
 
-    kmem_map[kmem_mappings].src = source;
-    kmem_map[kmem_mappings].bkp_base = addr2;
-    kmem_map[kmem_mappings].dst = -1;
-    kmem_map[kmem_mappings].len = mapsize;
-    kmem_mappings++;
-    Q_printf("MAPPING: region allocated at %p\n", addr2);
+    Q_printf("MAPPING: backing region allocated at %p\n", addr2);
+    if (is_kvm_map(cap))
+      mprotect_kvm(cap, targ, mapsize, PROT_READ | PROT_WRITE);
+    update_aliasmap(targ, mapsize, addr2);
+
+    hw->vbase = targ;
+    g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
+	     hw->base, hw->base+hw->size-1, hw->vbase);
     return addr2;
 }
 
@@ -960,15 +842,13 @@ void init_hardware_ram(void)
       continue;
     if (hw->default_vbase != (dosaddr_t)-1)
       cap |= MAPPING_LOWMEM;
-    uaddr = alloc_mapping_kmem(cap, hw->size, hw->base);
+    uaddr = mmap_mapping_kmem(cap, hw);
     if (uaddr == MAP_FAILED) {
       error("failed to map KMEM at %zx, size %zx: %s\n", hw->base, hw->size,
           strerror(errno));
       continue;
     }
     populate_aliasmap(hw->aliasmap, uaddr, hw->size);
-    if (do_map_hwram(hw) == -1)
-      return;
   }
 }
 
