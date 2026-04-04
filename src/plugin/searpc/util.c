@@ -26,6 +26,10 @@
 #include "utilities.h"
 #include "util.h"
 
+typedef struct {
+    int fd;
+} SockTransport;
+
 static void svc_run(const char *svc_name, int transp_fd, int (*exiting)(void));
 
 /*
@@ -39,11 +43,11 @@ static char *transport_callback(void *arg, const char *fcall_str,
         size_t fcall_len, size_t *ret_len)
 {
     char buf[4096];
-    int sock = (int)(uintptr_t)arg;
-    ssize_t sd = send(sock, fcall_str, fcall_len, MSG_DONTWAIT);
+    SockTransport *sock = arg;
+    ssize_t sd = send(sock->fd, fcall_str, fcall_len, MSG_DONTWAIT);
     if (sd <= 0)
         return NULL;
-    sd = recv(sock, buf, sizeof(buf), 0);
+    sd = recv(sock->fd, buf, sizeof(buf), 0);
     if (sd <= 0)
         return NULL;
     *ret_len = sd;
@@ -63,6 +67,7 @@ SearpcClient *clnt_init(int *sock_rx, init_cb_t init_cb,
     SearpcClient *clnt;
     int socks[2];
     int transp[2];
+    SockTransport *sock;
     pid_t pid;
     int err;
     pshared_sem_t svc_sem, svc_sem2;
@@ -122,9 +127,11 @@ SearpcClient *clnt_init(int *sock_rx, init_cb_t init_cb,
     pshared_sem_destroy(&svc_sem);
     pshared_sem_destroy(&svc_sem2);
 
+    sock = malloc(sizeof(SockTransport));
+    sock->fd = transp[0];
     clnt = searpc_client_new();
     clnt->send = transport_callback;
-    clnt->arg = (void *)(uintptr_t)transp[0];
+    clnt->arg = sock;
     *sock_rx = socks[0];
     if (r_pid)
         *r_pid = pid;
