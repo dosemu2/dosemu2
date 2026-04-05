@@ -1568,6 +1568,7 @@ FRDOS120TestCase = frdos120(OurTestCase, {
     "test_fat_fcb_rename_wild_1": KNOWNFAIL,
     "test_fat_fcb_rename_wild_2": KNOWNFAIL,
     "test_fat_fcb_rename_wild_3": KNOWNFAIL,
+    "test_fat_fcb_rename_wild_4": KNOWNFAIL,
     "test_mfs_fcb_rename_target_exists": KNOWNFAIL,
     "test_mfs_fcb_rename_source_missing": KNOWNFAIL,
     "test_mfs_fcb_rename_wild_1": KNOWNFAIL,

@@ -754,6 +754,42 @@ class BaseTestCase(object):
             msg = "DOS output did not match reference file\n%s\n" % '\n'.join(lines)
             raise self.failureException(msg) from None
 
+    regexDosSfnDir = (
+        # 2019-06-27 11:29 <DIR>         DOSEMU
+        # DOSEMU               <DIR>  06-27-19  5:33p
+        # TESTB        <DIR>     8-17-20  2:03p
+        # TESTB          <DIR>        04-05-26  18:59
+        r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s<DIR>\s+%s"
+        r"|"
+        r"%s\s+<DIR>\s+\d{1,2}-\d{1,2}-\d{2}\s+\d+:\d+[AaPp]"
+        r"|"
+        r"%s\s+<DIR>\s+\d{2}-\d{2}-\d{2}\s+\d{2}:\d{2}")
+
+    def assertIsDosSfnDir(self, name, results, msg=None):
+        self.assertRegex(results.upper(), self.regexDosSfnDir % ((name.upper(),) * 3), msg)
+
+    def assertIsNotDosSfnDir(self, name, results, msg=None):
+        self.assertNotRegex(results.upper(), self.regexDosSfnDir % ((name.upper(),) * 3), msg)
+
+    regexDosSfnFile = (
+        # 2026-04-05 23:44             7 TESTB.BAL
+        # TESTB    BAL             7  04-05-26 11:44p
+        # TESTB    BAL        7  4-05-26 11:44p
+        # TESTB    BAL             7  04-05-26  23:44
+        r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+\d+\s+%s.%s"
+        r"|"
+        r"%s\s+%s\s+\d+\s+\d{1,2}-\d{1,2}-\d{2}\s+\d+:\d+[AaPp]"
+        r"|"
+        r"%s\s+%s\s+\d+\s+\d{2}-\d{2}-\d{2}\s+\d{1,2}:\d{2}")
+
+    def assertIsDosSfnFile(self, _name, results, msg=None):
+        name = _name.upper().split('.')
+        self.assertRegex(results.upper(), self.regexDosSfnFile % tuple(name * 3), msg)
+
+    def assertIsNotDosSfnFile(self, _name, results, msg=None):
+        name = _name.upper().split('.')
+        self.assertNotRegex(results.upper(), self.regexDosSfnFile % tuple(name * 3), msg)
+
     def test_0_basic_boot(self):
         """Basic boot test"""
         # Since test names are processed alphabetically this test should
