@@ -871,11 +871,9 @@ static dosaddr_t mmap_mapping_kmem(int cap, dosaddr_t targ, size_t mapsize,
 
   return targ;
 }
-#endif
 
 static int do_map_hwram(struct hardware_ram *hw)
 {
-#ifdef __linux__
   dosaddr_t p;
   int cap = MAPPING_KMEM;
   if (hw->default_vbase != (dosaddr_t)-1)
@@ -891,12 +889,8 @@ static int do_map_hwram(struct hardware_ram *hw)
   g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
 	     hw->base, hw->base+hw->size-1, hw->vbase);
   return 0;
-#else
-  return -1;
-#endif
 }
 
-#ifdef __linux__
 static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
 {
     void *addr, *addr2;
@@ -946,7 +940,6 @@ static void *alloc_mapping_kmem(int cap, size_t mapsize, off_t source)
     Q_printf("MAPPING: region allocated at %p\n", addr2);
     return addr2;
 }
-#endif
 
 /*
  * DANG_BEGIN_FUNCTION init_hardware_ram
@@ -961,13 +954,10 @@ void init_hardware_ram(void)
   struct hardware_ram *hw;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
-#ifdef __linux__
     unsigned char *uaddr;
     int cap = MAPPING_KMEM;
-#endif
     if (hw->vbase != (dosaddr_t)-1)  /* virtual hardware ram mapped later */
       continue;
-#ifdef __linux__
     if (hw->default_vbase != (dosaddr_t)-1)
       cap |= MAPPING_LOWMEM;
     uaddr = alloc_mapping_kmem(cap, hw->size, hw->base);
@@ -977,13 +967,11 @@ void init_hardware_ram(void)
       continue;
     }
     populate_aliasmap(hw->aliasmap, uaddr, hw->size);
-#endif
     if (do_map_hwram(hw) == -1)
       return;
   }
 }
 
-#ifdef __linux__
 /* why count ??? */
 /* Because you do not want to open it more than once! */
 static u_char kmem_open_count = 0;

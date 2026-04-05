@@ -166,7 +166,11 @@ extern int have_mremap_fixed;
 void mapping_init(void);
 void mapping_close(void);
 
+#ifdef __linux__
 void init_hardware_ram(void);
+#else
+static inline void init_hardware_ram(void) {}
+#endif
 int register_hardware_ram(int type, dosaddr_t base, unsigned size);
 void register_hardware_ram_virtual(int type, unsigned base, unsigned size,
 	dosaddr_t va);
