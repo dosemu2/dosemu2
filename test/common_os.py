@@ -309,7 +309,7 @@ def msdos700(baseclass, actions):
             self.mkfile("version.bat", "ver\r\nrem end\r\n")
 
             # Disable the logo here or we get blank screen
-            self.mkfile("msdos.sys", """
+            self.mkfile("msdos.sys", """\
 [Options]
 BootGUI=0
 Logo=0
@@ -365,10 +365,11 @@ def msdos710(baseclass, actions):
             self.mkfile("version.bat", "ver\r\nrem end\r\n")
 
             # Disable the logo here or we get blank screen
-            self.mkfile("msdos.sys", """
+            self.mkfile("msdos.sys", """\
 [Options]
 BootGUI=0
 Logo=0
+SystemReg=0
 """, newline="\r\n")
 
     return MSDOS710TestCase
