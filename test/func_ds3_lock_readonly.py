@@ -1,15 +1,18 @@
 def ds3_lock_readonly(self, fstype):
     testdir = self.mkworkdir('d')
 
-    self.mkfile("testit.bat", """\
-d:
-%s
-c:\\lckreado primary
-rem end
-""" % ("rem Internal share" if self.version == "FDPP kernel" else "c:\\share"), newline="\r\n")
+    share = self.share_command(fstype)
+    name = 'lckreado'
 
-        # compile sources
-    self.mkexe_with_djgpp("lckreado", r"""
+    self.mkfile("testit.bat", f"""\
+d:
+{share}
+c:\\{name} primary
+rem end
+""", newline="\r\n")
+
+    # compile sources
+    self.mkexe_with_djgpp(name, r"""
 
 #include <dos.h>
 #include <dir.h>

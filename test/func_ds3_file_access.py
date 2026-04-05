@@ -7,16 +7,16 @@
 def ds3_file_access(self, fstype, optype):
 
     testdir = self.mkworkdir('d')
+    name = 'fileaccs'
 
-    self.mkfile("testit.bat", """\
+    self.mkfile("testit.bat", f"""\
 d:
-%s
-c:\\fileaccs %s
+c:\\{name} {optype}
 rem end
-""" % ("rem Internal share" if self.version == "FDPP kernel" else "c:\\share", optype), newline="\r\n")
+""", newline="\r\n")
 
-# compile sources
-    self.mkcom_with_ia16("fileaccs", r"""
+    # compile sources
+    self.mkcom_with_ia16(name, r"""
 
 #include <dos.h>
 #include <fcntl.h>

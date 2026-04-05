@@ -595,6 +595,17 @@ class BaseTestCase(object):
                 f.seek(c[0])
                 f.write(c[2])
 
+    def share_command(self, fstype):
+        if fstype.startswith("MFS"):
+            return "rem SHARE not required for MFS"
+
+        if "FDPP kernel" in self.version:
+            return "rem Internal SHARE"
+        elif "MS-DOS 7.1" in self.version:
+            self.fail("MS-DOS 7.1 doesn't support SHARE in real mode")
+        else:
+            return r"c:\share"
+
     def runDosemu(self, cmd, opts=None, outfile=None, config=DOSEMU_CONF_DEFAULT, timeout=None,
                     eofisok=False, interactions=[]):
         if timeout is None:

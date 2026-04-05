@@ -1,15 +1,18 @@
 def ds3_lock_twice(self, fstype):
     testdir = self.mkworkdir('d')
 
-    self.mkfile("testit.bat", """\
-d:
-%s
-c:\\lcktwice primary
-rem end
-""" % ("rem Internal share" if self.version == "FDPP kernel" else "c:\\share"), newline="\r\n")
+    share = self.share_command(fstype)
+    name = 'lcktwice'
 
-        # compile sources
-    self.mkexe_with_djgpp("lcktwice", r"""
+    self.mkfile("testit.bat", f"""\
+d:
+{share}
+c:\\{name} primary
+rem end
+""", newline="\r\n")
+
+    # compile sources
+    self.mkexe_with_djgpp(name, r"""
 /* Most of this was copied from DJGPP docs at
    http://www.delorie.com/djgpp/doc/libc/libc_181.html */
 

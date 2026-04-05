@@ -286,7 +286,7 @@ def msdos700(baseclass, actions):
                 ("boot-900-15-17.blk", "8c1243481112f320f2a5f557f30db11174fe7e3d"),
             ]
             cls.images = [
-                ("boot-floppy.img", ""),
+                ("boot-floppy.img", "634912c5c778a3f576e32cdc264b26a9736a8195"),
             ]
             cls.actions = actions
 

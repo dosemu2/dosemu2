@@ -1,15 +1,18 @@
 def ds3_lock_two_handles(self, fstype):
     testdir = self.mkworkdir('d')
 
-    self.mkfile("testit.bat", """\
-d:
-%s
-c:\\lckreads
-rem end
-""" % ("rem Internal share" if self.version == "FDPP kernel" else "c:\\share"), newline="\r\n")
+    share = self.share_command(fstype)
+    name = 'lckreads'
 
-# compile sources
-    self.mkexe_with_djgpp("lckreads", r"""
+    self.mkfile("testit.bat", f"""\
+d:
+{share}
+c:\\{name}
+rem end
+""", newline="\r\n")
+
+    # compile sources
+    self.mkexe_with_djgpp(name, r"""
 
 #include <dos.h>
 #include <dir.h>

@@ -4,15 +4,23 @@ from copy import deepcopy
 def _run_all(self, fstype, tests):
     testdir = self.mkworkdir('d')
 
-    share = "rem Internal share" if self.version == "FDPP kernel" else "c:\\share"
+    share = self.share_command(fstype)
+    name = 'sharopen'
 
-    tfile = f"echo off\r\nset LFN=n\r\nd:\r\n{share}\r\n"
+    tstring = ''
     for t in tests:
-        tfile += ("c:\\sharopen primary %s %s %s %s %s\r\n" % t)
-    tfile += "echo on\r\n"
-    tfile += "rem tests complete\r\n"
-    tfile += "rem end\r\n"
-    self.mkfile("testit.bat", tfile)
+        tstring += ("c:\\%s primary %s %s %s %s %s\n" % (name, *t))
+
+    self.mkfile("testit.bat", f"""\
+echo off
+set LFN=n
+d:
+{share}
+{tstring}
+echo on
+rem tests complete
+rem end
+""", newline="\r\n")
 
     # assemble handler
     handler_S = self.workdir / 'handler.S'
@@ -39,7 +47,7 @@ _int24_received:
 """)
 
     # compile sources
-    self.mkexe_with_djgpp("sharopen", r"""
+    self.mkexe_with_djgpp(name, r"""
 #include <dos.h>
 #include <dir.h>
 #include <fcntl.h>

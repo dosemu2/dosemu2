@@ -76,7 +76,8 @@ from func_pit_mode_2 import pit_mode_2
 class OurTestCase(BaseTestCase):
 
     attrs = {'cmdtest', 'dpmitest', 'emstest', 'fattest', 'fcbtest', 'hmatest', 'labeltest', 'lfntest',
-             'memtest', 'mfstest', 'nettest', 'serialtest', 'sfntest', 'umatest', 'xmstest'}
+             'locktest', 'memtest', 'mfstest', 'nettest', 'serialtest', 'sfntest', 'sharetest', 'umatest',
+             'xmstest'}
 
     @mark('cmdtest')
     def test_command_com_r200fix_real(self):
@@ -1315,138 +1316,172 @@ class OurTestCase(BaseTestCase):
         """MFS DOSv3 file access write device readonly"""
         ds3_file_access(self, "MFSRO", "WRITE")
 
+#    @mark(['mfstest', 'locktest'])
 #    def test_mfs_ds3_lock_readonly(self):
 #        """MFS DOSv3 lock file readonly"""
 #        ds3_lock_readonly(self, "MFS")
 
+    @mark(['fattest', 'locktest'])
     def test_fat_ds3_lock_readonly(self):
         """FAT DOSv3 lock file readonly"""
         ds3_lock_readonly(self, "FAT")
 
+    @mark(['mfstest', 'locktest'])
     def test_mfs_ds3_lock_readlckd(self):
         """MFS DOSv3 lock file read locked"""
         ds3_lock_readlckd(self, "MFS")
 
+    @mark(['fattest', 'locktest'])
     def test_fat_ds3_lock_readlckd(self):
         """FAT DOSv3 lock file read locked"""
         ds3_lock_readlckd(self, "FAT")
 
+    @mark(['mfstest', 'locktest'])
     def test_mfs_ds3_lock_concurrent(self):
         """MFS DOSv3 lock file lock concurrent limit"""
         ds3_lock_concurrent(self, "MFS")
 
+    @mark(['fattest', 'locktest'])
     def test_fat_ds3_lock_concurrent(self):
         """FAT DOSv3 lock file lock concurrent limit"""
         ds3_lock_concurrent(self, "FAT")
 
+    @mark(['mfstest', 'locktest'])
     def test_mfs_ds3_lock_two_handles(self):
         """MFS DOSv3 lock file lock with two handles"""
         ds3_lock_two_handles(self, "MFS")
 
+    @mark(['fattest', 'locktest'])
     def test_fat_ds3_lock_two_handles(self):
         """FAT DOSv3 lock file lock with two handles"""
         ds3_lock_two_handles(self, "FAT")
 
+    @mark(['mfstest', 'locktest'])
     def test_mfs_ds3_lock_twice(self):
         """MFS DOSv3 lock file twice"""
         ds3_lock_twice(self, "MFS")
 
+    @mark(['fattest', 'locktest'])
     def test_fat_ds3_lock_twice(self):
         """FAT DOSv3 lock file twice"""
         ds3_lock_twice(self, "FAT")
 
+    @mark(['mfstest', 'locktest'])
     def test_mfs_ds3_lock_writable(self):
         """MFS DOSv3 lock file writable"""
         ds3_lock_writable(self, "MFS")
 
+    @mark(['fattest', 'locktest'])
     def test_fat_ds3_lock_writable(self):
         """FAT DOSv3 lock file writable"""
         ds3_lock_writable(self, "FAT")
 
+    @mark(['mfstest', 'sharetest'])
     def test_mfs_ds3_share_open_twice(self):
         """MFS DOSv3 share open twice"""
         ds3_share_open_twice(self, "MFS")
 
+    @mark(['fattest', 'sharetest'])
     def test_fat_ds3_share_open_twice(self):
         """FAT DOSv3 share open twice"""
         ds3_share_open_twice(self, "FAT")
 
+    @mark(['mfstest', 'sharetest'])
     def test_mfs_ds3_share_open_delete_one_process_ds2(self):
         """MFS DOSv3 share open delete one process DOSv2"""
         ds3_share_open_access(self, "ONE", "MFS", "DELPTH")
 
+    @mark(['fattest', 'sharetest'])
     def test_fat_ds3_share_open_delete_one_process_ds2(self):
         """FAT DOSv3 share open delete one process DOSv2"""
         ds3_share_open_access(self, "ONE", "FAT", "DELPTH")
 
+    @mark(['mfstest', 'sharetest'])
     def test_mfs_ds3_share_open_delete_one_process_fcb(self):
         """MFS DOSv3 share open delete one process FCB"""
         ds3_share_open_access(self, "ONE", "MFS", "DELFCB")
 
+    @mark(['fattest', 'sharetest'])
     def test_fat_ds3_share_open_delete_one_process_fcb(self):
         """FAT DOSv3 share open delete one process FCB"""
         ds3_share_open_access(self, "ONE", "FAT", "DELFCB")
 
+    @mark(['mfstest', 'sharetest'])
     def test_mfs_ds3_share_open_rename_one_process_ds2(self):
         """MFS DOSv3 share open rename one process DOSv2"""
         ds3_share_open_access(self, "ONE", "MFS", "RENPTH")
 
+    @mark(['fattest', 'sharetest'])
     def test_fat_ds3_share_open_rename_one_process_ds2(self):
         """FAT DOSv3 share open rename one process DOSv2"""
         ds3_share_open_access(self, "ONE", "FAT", "RENPTH")
 
+    @mark(['mfstest', 'sharetest'])
     def test_mfs_ds3_share_open_rename_one_process_fcb(self):
         """MFS DOSv3 share open rename one process FCB"""
         ds3_share_open_access(self, "ONE", "MFS", "RENFCB")
 
+    @mark(['fattest', 'sharetest'])
     def test_fat_ds3_share_open_rename_one_process_fcb(self):
         """FAT DOSv3 share open rename one process FCB"""
         ds3_share_open_access(self, "ONE", "FAT", "RENFCB")
 
+    @mark(['mfstest', 'sharetest'])
     def test_mfs_ds3_share_open_setfattrs_one_process(self):
         """MFS DOSv3 share open set file attrs one process DOSv2"""
         ds3_share_open_access(self, "ONE", "MFS", "SETATT")
 
+    @mark(['fattest', 'sharetest'])
     def test_fat_ds3_share_open_setfattrs_one_process(self):
         """FAT DOSv3 share open set file attrs one process DOSv2"""
         ds3_share_open_access(self, "ONE", "FAT", "SETATT")
 
+    @mark(['mfstest', 'sharetest'])
     def test_mfs_ds3_share_open_delete_two_process_ds2(self):
         """MFS DOSv3 share open delete two process DOSv2"""
         ds3_share_open_access(self, "TWO", "MFS", "DELPTH")
 
+    @mark(['fattest', 'sharetest'])
     def test_fat_ds3_share_open_delete_two_process_ds2(self):
         """FAT DOSv3 share open delete two process DOSv2"""
         ds3_share_open_access(self, "TWO", "FAT", "DELPTH")
 
+    @mark(['mfstest', 'sharetest'])
     def test_mfs_ds3_share_open_delete_two_process_fcb(self):
         """MFS DOSv3 share open delete two process FCB"""
         ds3_share_open_access(self, "TWO", "MFS", "DELFCB")
 
+    @mark(['fattest', 'sharetest'])
     def test_fat_ds3_share_open_delete_two_process_fcb(self):
         """FAT DOSv3 share open delete two process FCB"""
         ds3_share_open_access(self, "TWO", "FAT", "DELFCB")
 
+    @mark(['mfstest', 'sharetest'])
     def test_mfs_ds3_share_open_rename_two_process_ds2(self):
         """MFS DOSv3 share open rename two process DOSv2"""
         ds3_share_open_access(self, "TWO", "MFS", "RENPTH")
 
+    @mark(['fattest', 'sharetest'])
     def test_fat_ds3_share_open_rename_two_process_ds2(self):
         """FAT DOSv3 share open rename two process DOSv2"""
         ds3_share_open_access(self, "TWO", "FAT", "RENPTH")
 
+    @mark(['mfstest', 'sharetest'])
     def test_mfs_ds3_share_open_rename_two_process_fcb(self):
         """MFS DOSv3 share open rename two process FCB"""
         ds3_share_open_access(self, "TWO", "MFS", "RENFCB")
 
+    @mark(['fattest', 'sharetest'])
     def test_fat_ds3_share_open_rename_two_process_fcb(self):
         """FAT DOSv3 share open rename two process FCB"""
         ds3_share_open_access(self, "TWO", "FAT", "RENFCB")
 
+    @mark(['mfstest', 'sharetest'])
     def test_mfs_ds3_share_open_setfattrs_two_process(self):
         """MFS DOSv3 share open set file attrs two process DOSv2"""
         ds3_share_open_access(self, "TWO", "MFS", "SETATT")
 
+    @mark(['fattest', 'sharetest'])
     def test_fat_ds3_share_open_setfattrs_two_process(self):
         """FAT DOSv3 share open set file attrs two process DOSv2"""
         ds3_share_open_access(self, "TWO", "FAT", "SETATT")
@@ -1704,7 +1739,6 @@ MSDOS700TestCase = msdos700(OurTestCase, {
     "test_fat_bpb_set_fstype_ioctl32": UNSUPPORTED,
     "test_fat_bpb_set_serial_ioctl32": UNSUPPORTED,
     "test_fat_bpb_set_volume_ioctl32": UNSUPPORTED,
-    "test_fat_ds3_share_open_twice": UNSUPPORTED,
     "test_fat_label_create_bpb32": UNSUPPORTED,
     "test_lfn_volume_info_fat16": KNOWNFAIL,
     "test_lfn_volume_info_fat32": UNSUPPORTED,
@@ -1718,6 +1752,23 @@ MSDOS710TestCase = msdos710(OurTestCase, {
     "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
+    # Real mode sharing and locking was removed on MS-DOS 7.10
+    "test_fat_ds3_lock_concurrent": UNSUPPORTED,
+    "test_fat_ds3_lock_readlckd": UNSUPPORTED,
+    "test_fat_ds3_lock_readonly": UNSUPPORTED,
+    "test_fat_ds3_lock_twice": UNSUPPORTED,
+    "test_fat_ds3_lock_two_handles": UNSUPPORTED,
+    "test_fat_ds3_lock_writable": UNSUPPORTED,
+    "test_fat_ds3_share_open_delete_one_process_ds2": UNSUPPORTED,
+    "test_fat_ds3_share_open_delete_one_process_fcb": UNSUPPORTED,
+    "test_fat_ds3_share_open_delete_two_process_ds2": UNSUPPORTED,
+    "test_fat_ds3_share_open_delete_two_process_fcb": UNSUPPORTED,
+    "test_fat_ds3_share_open_rename_one_process_ds2": UNSUPPORTED,
+    "test_fat_ds3_share_open_rename_one_process_fcb": UNSUPPORTED,
+    "test_fat_ds3_share_open_rename_two_process_ds2": UNSUPPORTED,
+    "test_fat_ds3_share_open_rename_two_process_fcb": UNSUPPORTED,
+    "test_fat_ds3_share_open_setfattrs_one_process": UNSUPPORTED,
+    "test_fat_ds3_share_open_setfattrs_two_process": UNSUPPORTED,
     "test_fat_ds3_share_open_twice": UNSUPPORTED,
     "test_lfs_disk_info_mfs": KNOWNFAIL,
     "test_passing_dos_errorlevel_back": KNOWNFAIL,
