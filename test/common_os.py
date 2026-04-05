@@ -332,6 +332,7 @@ def msdos710(baseclass, actions):
                 ("io.sys", "8c586b1bf38fc2042f2383ca873283a466be2f44"),
                 ("msdos.sys", "cd1e6103ce9cdebbc7a5611df13ff4fbd5e2159c"),
                 ("command.com", "f6547d81e625a784633c059e536e90ee45532202"),
+                ("dos/himem.sys", "e8a890c90520583bd00eadccce9d0d88b3b5b232"),
             ]
             cls.systype = SYSTYPE_MSDOS_NEW
             cls.autoexec = "autoemu.bat"
