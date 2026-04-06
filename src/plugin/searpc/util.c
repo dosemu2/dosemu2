@@ -62,7 +62,15 @@ static char *transport_callback(void *arg, const char *fcall_str,
 
 #if 1
 /* work around https://github.com/haiwen/libsearpc/pull/79 */
-#define _ASYNC_CALL_DATA_SIZEOF 40
+typedef struct {
+    SearpcClient *client;
+    AsyncCallback callback;
+    const gchar *ret_type;
+    GType gtype;                /* to specify the specific gobject type
+                                 if ret_type is object or objlist */
+    void *cbdata;
+} AsyncCallData;
+#define _ASYNC_CALL_DATA_SIZEOF sizeof(AsyncCallData)
 #endif
 
 static int transport_send(void *arg, char *fcall_str,
