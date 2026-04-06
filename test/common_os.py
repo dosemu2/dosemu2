@@ -286,7 +286,7 @@ def msdos700(baseclass, actions):
                 ("boot-900-15-17.blk", "8c1243481112f320f2a5f557f30db11174fe7e3d"),
             ]
             cls.images = [
-                ("boot-floppy.img", ""),
+                ("boot-floppy.img", "634912c5c778a3f576e32cdc264b26a9736a8195"),
             ]
             cls.actions = actions
 
@@ -309,7 +309,7 @@ def msdos700(baseclass, actions):
             self.mkfile("version.bat", "ver\r\nrem end\r\n")
 
             # Disable the logo here or we get blank screen
-            self.mkfile("msdos.sys", """
+            self.mkfile("msdos.sys", """\
 [Options]
 BootGUI=0
 Logo=0
@@ -332,6 +332,7 @@ def msdos710(baseclass, actions):
                 ("io.sys", "8c586b1bf38fc2042f2383ca873283a466be2f44"),
                 ("msdos.sys", "cd1e6103ce9cdebbc7a5611df13ff4fbd5e2159c"),
                 ("command.com", "f6547d81e625a784633c059e536e90ee45532202"),
+                ("dos/himem.sys", "e8a890c90520583bd00eadccce9d0d88b3b5b232"),
             ]
             cls.systype = SYSTYPE_MSDOS_NEW
             cls.autoexec = "autoemu.bat"
@@ -365,10 +366,11 @@ def msdos710(baseclass, actions):
             self.mkfile("version.bat", "ver\r\nrem end\r\n")
 
             # Disable the logo here or we get blank screen
-            self.mkfile("msdos.sys", """
+            self.mkfile("msdos.sys", """\
 [Options]
 BootGUI=0
 Logo=0
+SystemReg=0
 """, newline="\r\n")
 
     return MSDOS710TestCase

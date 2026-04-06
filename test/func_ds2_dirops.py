@@ -3,58 +3,41 @@ from os.path import exists, join
 
 def ds2_rename_common(self, fstype, testname):
     testdir = self.mkworkdir('d')
+    f1 = testdir / "testa.bat"
+    f2 = testdir / "testb.bal"
 
     extrad = ""
-
     if testname == "file":
         ename = "mfsds2r1"
-        fn1 = "testa"
-        fe1 = "bat"
-        fn2 = "testb"
-        fe2 = "bal"
-        self.mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
+        self.mkfile(f1, """hello\r\n""")
     elif testname == "file_src_missing":
         ename = "mfsds2r2"
-        fn1 = "testa"
-        fe1 = "bat"
-        fn2 = "testb"
-        fe2 = "bal"
     elif testname == "file_tgt_exists":
         ename = "mfsds2r3"
-        fn1 = "testa"
-        fe1 = "bat"
-        fn2 = "testb"
-        fe2 = "bal"
-        self.mkfile(fn1 + "." + fe1, """hello\r\n""", testdir)
-        self.mkfile(fn2 + "." + fe2, """hello\r\n""", testdir)
+        self.mkfile(f1, """hello\r\n""")
+        self.mkfile(f2, """hello\r\n""")
     elif testname == "dir":
         ename = "mfsds2r4"
-        fn1 = "testa"
-        fe1 = ""
-        fn2 = "testb"
-        fe2 = ""
-        extrad = "mkdir %s\n" % fn1
+        f1 = f1.with_suffix('')
+        f2 = f2.with_suffix('')
+        extrad = f"mkdir {f1.name}"
     elif testname == "dir_src_missing":
         ename = "mfsds2r5"
-        fn1 = "testa"
-        fe1 = ""
-        fn2 = "testb"
-        fe2 = ""
+        f1 = f1.with_suffix('')
+        f2 = f2.with_suffix('')
     elif testname == "dir_tgt_exists":
         ename = "mfsds2r6"
-        fn1 = "testa"
-        fe1 = ""
-        fn2 = "testb"
-        fe2 = ""
-        extrad = "mkdir %s\nmkdir %s\n" % (fn1, fn2)
+        f1 = f1.with_suffix('')
+        f2 = f2.with_suffix('')
+        extrad = f"mkdir {f1.name}\nmkdir {f2.name}"
 
-    self.mkfile("testit.bat", """\
+    self.mkfile("testit.bat", f"""\
 d:
-%s
-c:\\%s
+{extrad}
+c:\\{ename}
 DIR
 rem end
-""" % (extrad, ename), newline="\r\n")
+""", newline="\r\n")
 
     # compile sources
     self.mkcom_with_nasm(ename, r"""
@@ -101,25 +84,7 @@ succmsg:
 failmsg:
     db  "Rename Operation Failed",13,10,'$'
 
-""" % (fn1 + "." + fe1, fn2 + "." + fe2))
-
-    def assertIsPresent(testdir, results, fstype, f, e, msg=None):
-        if fstype == "MFS":
-            self.assertTrue(exists(join(testdir, f + "." + e)), msg)
-        else:
-            self.assertRegex(results.upper(), r"%s( +|\.)%s" % (f.upper(), e.upper()), msg)
-
-    def assertIsPresentDir(testdir, results, fstype, f, msg=None):
-        if fstype == "MFS":
-            self.assertTrue(exists(join(testdir, f)), msg)
-        else:
-            # 2019-06-27 11:29 <DIR>         DOSEMU
-            # DOSEMU               <DIR>  06-27-19  5:33p
-            # TESTB        <DIR>     8-17-20  2:03p
-            self.assertRegex(results.upper(),
-                r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}\s<DIR>\s+%s"
-                r"|"
-                r"%s\s+<DIR>\s+\d{1,2}-\d{1,2}-\d{2}\s+\d+:\d+[AaPp]" % (f.upper(), f.upper()), msg)
+""" % (f1.name, f2.name))
 
     if fstype == "MFS":
         results = self.runDosemu("testit.bat", config="""\
@@ -135,7 +100,9 @@ $_floppy_a = ""
 
     if testname == "file":
         self.assertIn("Rename Operation Success", results)
-        assertIsPresent(testdir, results, fstype, fn2, fe2, "File not renamed")
+        if fstype == "MFS":
+            self.assertTrue(f2.is_file(), "File not renamed")
+        self.assertIsDosSfnFile(f2.name, results)
 
     elif testname == "file_src_missing":
         self.assertIn("Rename Operation Failed", results)
@@ -145,7 +112,9 @@ $_floppy_a = ""
 
     elif testname == "dir":
         self.assertIn("Rename Operation Success", results)
-        assertIsPresentDir(testdir, results, fstype, fn2, "Directory not renamed")
+        if fstype == "MFS":
+            self.assertTrue(f2.is_dir(), "Directory not renamed")
+        self.assertIsDosSfnDir(f2.name, results)
 
     elif testname == "dir_src_missing":
         self.assertIn("Rename Operation Failed", results)
@@ -156,23 +125,20 @@ $_floppy_a = ""
 
 def ds2_delete_common(self, fstype, testname):
     testdir = self.mkworkdir('d')
+    f1 = testdir / "testa.bat"
 
     if testname == "file":
         ename = "mfsds2d1"
-        fn1 = "testa"
-        fe1 = "bat"
-        self.mkfile(fn1 + "." + fe1, """hello\r\n""", dname=testdir)
+        self.mkfile(f1, """hello\r\n""")
     elif testname == "file_missing":
         ename = "mfsds2d2"
-        fn1 = "testa"
-        fe1 = "bat"
 
-    self.mkfile("testit.bat", """\
+    self.mkfile("testit.bat", f"""\
 d:
-c:\\%s
+c:\\{ename}
 DIR
 rem end
-""" % ename, newline="\r\n")
+""", newline="\r\n")
 
     # compile sources
     self.mkcom_with_nasm(ename, r"""
@@ -214,13 +180,7 @@ succmsg:
 failmsg:
     db  "Delete Operation Failed",13,10,'$'
 
-""" % (fn1 + "." + fe1))
-
-    def assertIsNotPresent(testdir, results, fstype, f, e, msg=None):
-        if fstype == "MFS":
-            self.assertFalse(exists(join(testdir, f + "." + e)), msg)
-        else:
-            self.assertNotRegex(results.upper(), r"%s( +|\.)%s" % (f.upper(), e.upper()))
+""" % f1.name)
 
     if fstype == "MFS":
         results = self.runDosemu("testit.bat", config="""\
@@ -236,7 +196,9 @@ $_floppy_a = ""
 
     if testname == "file":
         self.assertIn("Delete Operation Success", results)
-        assertIsNotPresent(testdir, results, fstype, fn1, fe1, "File not deleted")
+        if fstype == "MFS":
+            self.assertFalse(f1.is_file(), "File not deleted")
+        self.assertIsNotDosSfnFile(f1.name, results)
 
     elif testname == "file_missing":
         self.assertIn("Delete Operation Failed", results)

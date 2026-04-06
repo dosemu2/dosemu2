@@ -4,22 +4,25 @@ import re
 def _run_all(self, numprocs, fstype, tests, testtype):
     testdir = self.mkworkdir('d')
 
-    share = "rem Internal share" if self.version == "FDPP kernel" else "c:\\share"
+    share = self.share_command(fstype)
+    name = 'shardlrn'
 
-    tfile = "set LFN=n\r\n" + "d:\r\n" + share + "\r\n"
+    tstring=''
     for t in tests:
-        args = t + (testtype,)
-        if numprocs == "ONE":
-            tfile += ("c:\\shardlrn single %s %s %s %s\r\n" % args)
-        else:
-            tfile += ("c:\\shardlrn primary %s %s %s %s\r\n" % args)
-    tfile += "rem tests complete\r\n"
-    tfile += "rem end\r\n"
+        tstring += ("c:\\%s %s %s %s %s %s\n" %
+                    (name, 'single' if numprocs == "ONE" else 'primary', *t, testtype))
 
-    self.mkfile("testit.bat", tfile)
+    self.mkfile("testit.bat", f"""\
+set LFN=n
+d:
+{share}
+{tstring}
+rem tests complete
+rem end
+""", newline="\r\n")
 
     # compile sources
-    self.mkexe_with_djgpp("shardlrn", r"""
+    self.mkexe_with_djgpp(name, r"""
 #include <dos.h>
 #include <dir.h>
 #include <fcntl.h>

@@ -525,10 +525,10 @@ failmsg:
 """ % (fn1, fe1, fn2, fe2))
 
     def assertIsPresent(testdir, results, fstype, f, e, msg=None):
+        n = testdir / f"{f}.{e}"
         if fstype == "MFS":
-            self.assertTrue(exists(join(testdir, f + "." + e)), msg)
-        else:
-            self.assertRegex(results.upper(), r"%s( +|\.)%s" % (f.upper(), e.upper()))
+            self.assertTrue(n.is_file(), msg)
+        self.assertIsDosSfnFile(n.name, results)
 
     if fstype == "MFS":
         results = self.runDosemu("testit.bat", config="""\
@@ -684,16 +684,16 @@ failmsg:
 """ % (fn1, fe1))
 
     def assertIsPresent(testdir, results, fstype, f, e, msg=None):
+        n = testdir / f"{f}.{e}"
         if fstype == "MFS":
-            self.assertTrue(exists(join(testdir, f + "." + e)), msg)
-        else:
-            self.assertRegex(results.upper(), r"%s( +|\.)%s" % (f.upper(), e.upper()))
+            self.assertTrue(n.is_file(), msg)
+        self.assertIsDosSfnFile(n.name, results)
 
     def assertIsNotPresent(testdir, results, fstype, f, e, msg=None):
+        n = testdir / f"{f}.{e}"
         if fstype == "MFS":
-            self.assertFalse(exists(join(testdir, f + "." + e)), msg)
-        else:
-            self.assertNotRegex(results.upper(), r"%s( +|\.)%s" % (f.upper(), e.upper()))
+            self.assertFalse(n.is_file(), msg)
+        self.assertIsNotDosSfnFile(n.name, results)
 
     if fstype == "MFS":
         results = self.runDosemu("testit.bat", config="""\

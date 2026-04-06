@@ -1,15 +1,18 @@
 def ds3_lock_concurrent(self, fstype):
     testdir = self.mkworkdir('d')
 
-    self.mkfile("testit.bat", """\
-d:
-%s
-c:\\lckconcn
-rem end
-""" % ("rem Internal share" if self.version == "FDPP kernel" else "c:\\share /L:1024"), newline="\r\n")
+    share = self.share_command(fstype)
+    name = 'lckconcn'
 
-# compile sources
-    self.mkexe_with_djgpp("lckconcn", r"""
+    self.mkfile("testit.bat", f"""\
+d:
+{share} /L:1024
+c:\\{name}
+rem end
+""", newline="\r\n")
+
+    # compile sources
+    self.mkexe_with_djgpp(name, r"""
 
 #include <dos.h>
 #include <dir.h>
