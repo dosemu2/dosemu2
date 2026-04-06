@@ -738,6 +738,7 @@ static int vga_post_init(void)
 
   config.vga = 1;
   set_vc_screen_page();
+  vga_initialized = 1;
   return 0;
 }
 

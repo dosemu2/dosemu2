@@ -158,6 +158,7 @@ u_short INT_OFF(u_char i);
 uint16_t lmheap_off(void);
 uint16_t lmheap_size(void);
 #define FDPP_LMHEAP_ADD (1024 * 6)
+#define VBE_LMHEAP_ADD (1024 * 4)
 
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, const char *name);
