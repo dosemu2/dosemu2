@@ -228,7 +228,6 @@ int alias_mapping_high(int cap, dosaddr_t targ, size_t mapsize, int protect,
 }
 
 #ifdef __linux__
-// check if mapped for kmem, only used for assert
 static int kmem_mapped(dosaddr_t addr, int mapsize)
 {
   struct hardware_ram *hw;
@@ -404,6 +403,12 @@ int munmap_mapping_pa(int cap, unsigned int addr, size_t mapsize)
   assert(addr >= GRAPH_BASE);
   if (!hwram_is_mapped(hw, addr, mapsize))
     return -1;
+#ifdef __linux__
+  if (kmem_mapped(addr, mapsize)) {
+    error("not unmapping kmem from %x (size %zx)\n", addr, mapsize);
+    return -1;
+  }
+#endif
   restore_mapping(cap, va, mapsize);
   hwram_map_aliasmap(hw, addr, mapsize, 0);
   return 0;
