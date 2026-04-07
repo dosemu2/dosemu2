@@ -1624,11 +1624,8 @@ int vga_emu_pre_init(void)
   dosaddr_t base;
   vga_mapping_type vmt = {0, 0, 0};
 
-  if (config.dumb_video) {
-//    vga_emu_setup_mode_table();
-    vgaemu_register_ports();
-    return 0;
-  }
+  if (config.dumb_video)
+    return vga_emu_post_init();
 
   /* clean it up - just in case */
   memset(&vga, 0, sizeof vga);
@@ -1854,6 +1851,8 @@ static int __vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
   if (pos == -1)
     pos = display_start / HOST_PAGE_SIZE;
   end_page = (display_end - 1) / HOST_PAGE_SIZE;
+  if (end_page >= vga.mem.pages)
+    end_page = vga.mem.pages - 1;
   if (pos > end_page)
     return -1;
 

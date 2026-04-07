@@ -158,4 +158,3 @@ static int vgaemu_simple_mode_list[][2] = {
   { 800, 600},
   {1024, 768}
 };
-

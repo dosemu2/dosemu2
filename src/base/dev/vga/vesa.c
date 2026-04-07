@@ -195,6 +195,10 @@ void vbe_pre_init(void)
     vgaemu_bios_functionality_table.modes[0] = 1 << video_mode;
     vgaemu_bios_functionality_table.modes[1] =
       vgaemu_bios_functionality_table.modes[2] = 0;
+    vgaemu_bios.vbe_mode_list = bios_ptr;
+    /* set up empty video mode list */
+    WRITE_WORD(dos_vga_bios + bios_ptr, -1);
+    bios_ptr += 2;
   }
   vgaemu_bios.functionality = bios_ptr;
   MEMCPY_2DOS(dos_vga_bios + bios_ptr, &vgaemu_bios_functionality_table,
