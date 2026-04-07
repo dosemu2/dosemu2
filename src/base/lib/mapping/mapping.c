@@ -1002,9 +1002,15 @@ static unsigned do_find_hardware_ram(dosaddr_t va, uint32_t size,
     if (hw->vbase == -1)
       continue;
     if (hw->vbase <= va && va + size <= hw->vbase + hw->size) {
-	if (r_hw)
-	  *r_hw = hw;
-      return hw->base + va - hw->vbase;
+      unsigned addr = hw->base + va - hw->vbase;
+      if (!hwram_is_mapped(hw, addr & _PAGE_MASK, PAGE_ALIGN(size))) {
+        /* make sure its not kmem somehow unmapped */
+        assert(hw->type != 'v' && hw->type != 'h');
+        return -1;
+      }
+      if (r_hw)
+        *r_hw = hw;
+      return addr;
     }
   }
   return -1;
