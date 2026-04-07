@@ -796,12 +796,13 @@ int vga_write_access(dosaddr_t m)
 {
 	if (config.console_video)
 		return 0;
-	/* unmapped VGA memory, VGA BIOS, or a bank. Note that
-	 * the bank can be write-protected even in non-planar mode. */
-	if (m >= vga.mem.graph_base &&
-			m < vga.mem.graph_base + vga.mem.graph_size)
-		return mapping_is_mapped_pa(m, 1);
-	if (m >= 0xb8000 && m < 0xc0000 + (vgaemu_bios.pages * PAGE_SIZE))
+	/* Note: the vga.mem.xx pointers are NULL in dumb_video mode,
+	 * in which case the accesses are treated as to normal RAM. */
+	if ((m >= vga.mem.graph_base &&
+			m < vga.mem.graph_base + vga.mem.graph_size) ||
+	    (m >= vga.mem.text_base &&
+			m < vga.mem.text_base + vga.mem.text_size) ||
+	    (m >= 0xc0000 && m < 0xc0000 + (vgaemu_bios.pages * PAGE_SIZE)))
 		return mapping_is_mapped_pa(m, 1);
 	if (vga.mem.lfb_base_page &&
 			(m / HOST_PAGE_SIZE) >= vga.mem.lfb_base_page &&
@@ -1685,6 +1686,10 @@ int vga_emu_pre_init(void)
 
   vga.mem.graph_base = GRAPH_BASE;
   vga.mem.graph_size = MDA_PHYS_TEXT_BASE - vga.mem.graph_base;
+  vga.mem.mda_text_base = MDA_PHYS_TEXT_BASE;
+  vga.mem.mda_text_size = MDA_TEXT_SIZE;
+  vga.mem.text_base = VGA_PHYS_TEXT_BASE;
+  vga.mem.text_size = VGA_TEXT_SIZE;
   if (config.umb_a0)
     munmap_mapping_pa(MAPPING_INIT_LOWRAM, GRAPH_BASE, GRAPH_SIZE);
   if (config.umb_b0)

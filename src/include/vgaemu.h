@@ -274,6 +274,10 @@ typedef struct {
   unsigned bank_len;			/* banked length in bytes */
   unsigned graph_base;                  /* graphics base, normally 0xa0000 */
   unsigned graph_size;                  /* graphics size, normally 0x10000 */
+  unsigned mda_text_base;               /* MDA base, normally 0xb0000 */
+  unsigned mda_text_size;               /* MDA size, normally 0x8000 */
+  unsigned text_base;                   /* graphics base, normally 0xb8000 */
+  unsigned text_size;                   /* graphics size, normally 0x8000 */
   dosaddr_t lfb_base;			/* base address for lfb, 0 if no lfb */
   unsigned lfb_base_page;		/* lfb base page, 0 -> no lfb support */
   vga_mapping_type map[VGAEMU_MAX_MAPPINGS];	/* all the mappings */
