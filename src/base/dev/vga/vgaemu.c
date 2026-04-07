@@ -1854,6 +1854,8 @@ static int __vga_emu_update(vga_emu_update_type *veut, unsigned display_start,
   if (pos == -1)
     pos = display_start / HOST_PAGE_SIZE;
   end_page = (display_end - 1) / HOST_PAGE_SIZE;
+  if (end_page >= vga.mem.pages)
+    end_page = vga.mem.pages - 1;
   if (pos > end_page)
     return -1;
 
