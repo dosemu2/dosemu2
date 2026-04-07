@@ -39,6 +39,7 @@
 static int vga_init(void);
 static int vga_post_init(void);
 static struct video_system *Video_console;
+int vga_initialized;
 
 /* Here are the REGS values for valid dos int10 call */
 
