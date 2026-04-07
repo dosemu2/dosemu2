@@ -2501,28 +2501,28 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 			break;
 		}
 		if(o1 >= 0x20)
-			DR2.d = o2 & ((mode & DATA16) ? 0x0f : 0x1f);
+			DR2.d = o2;
 		else if (mode & DATA16)
-		{
 			DR2.d = CPUWORD(o2);
-			if (mode & RM_REG)
-				DR2.d &= 0x0f;
-		} else {
+		else
 			DR2.d = CPULONG(o2);
-			if (mode & RM_REG)
-				DR2.d &= 0x1f;
-		}
 		if (!(mode & RM_REG) && o1 < 0x20) {
 			/* add bit offset to effective address */
-			mem_ref += (mode&DATA16) ? 2*(DR2.d>>4) : 4*(DR2.d>>5);
 			if (mode & DATA16) {
+				mem_ref += 2*(DR2.d>>4);
 				DR1.d = sim_read_word(mem_ref);
 			}
 			else {
+				mem_ref += 4*(DR2.d>>5);
 				DR1.d = sim_read_dword(mem_ref);
 			}
 		}
-		if (mode & DATA16) DR1.d = DR1.w.l;
+		if (mode & DATA16) {
+			DR1.d = DR1.w.l;
+			DR2.d &= 0x0f;
+		} else {
+			DR2.d &= 0x1f;
+		}
 		if ((o1 & ~0x18) == 0x03 || (o1 & ~0x18) == 0x20) {
 			SET_CF((DR1.d >> DR2.d) & 1);
 			switch (o1 & 0x18) {
