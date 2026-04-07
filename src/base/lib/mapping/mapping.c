@@ -398,18 +398,13 @@ int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
 int munmap_mapping_pa(int cap, unsigned int addr, size_t mapsize)
 {
   struct hardware_ram *hw;
-  int err;
   dosaddr_t va = do_get_hardware_ram(addr, mapsize, &hw);
   if (va == (dosaddr_t)-1)
     return -1;
   assert(addr >= GRAPH_BASE);
   if (!hwram_is_mapped(hw, addr, mapsize))
     return -1;
-  if (!(cap & MAPPING_INIT_LOWRAM)) {
-    err = munmap_mapping(MAPPING_LOWMEM, va, mapsize);
-    if (err)
-      return err;
-  }
+  restore_mapping(cap, va, mapsize);
   hwram_map_aliasmap(hw, addr, mapsize, 0);
   return 0;
 }
@@ -418,7 +413,7 @@ int munmap_mapping_pa(int cap, unsigned int addr, size_t mapsize)
 int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
   int ret;
-  assert((cap & MAPPING_DPMI) && (targ != (dosaddr_t)-1));
+  assert((cap & (MAPPING_DPMI | MAPPING_VGAEMU | MAPPING_INIT_LOWRAM)) && (targ != (dosaddr_t)-1));
   ret = alias_mapping(cap, targ, mapsize, PROT_READ | PROT_WRITE,
       LOWMEM(targ));
   if (is_kvm_map(cap))

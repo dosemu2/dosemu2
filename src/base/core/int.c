@@ -569,9 +569,6 @@ static int dos_helper(int stk_offs, int revect)
 		    restore_mapping_pa(GRAPH_BASE, GRAPH_SIZE);
 		} else {
 		    munmap_mapping_pa(MAPPING_VGAEMU, GRAPH_BASE, GRAPH_SIZE);
-		    alias_mapping(MAPPING_LOWMEM, GRAPH_BASE, GRAPH_SIZE,
-			    PROT_READ | PROT_WRITE | PROT_EXEC,
-			    LOWMEM(GRAPH_BASE));
 		}
 		break;
 	    case DOS_SUBHELPER_VIDEO_MAP_b:
@@ -580,10 +577,6 @@ static int dos_helper(int stk_offs, int revect)
 		} else {
 		    munmap_mapping_pa(MAPPING_VGAEMU, MDA_PHYS_TEXT_BASE,
 				      MDA_TEXT_SIZE);
-		    alias_mapping(MAPPING_LOWMEM, MDA_PHYS_TEXT_BASE,
-			    MDA_TEXT_SIZE,
-			    PROT_READ | PROT_WRITE | PROT_EXEC,
-			    LOWMEM(MDA_PHYS_TEXT_BASE));
 		}
 		break;
 	    default:
