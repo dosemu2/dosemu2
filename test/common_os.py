@@ -277,6 +277,7 @@ def msdos700(baseclass, actions):
                 ("command.com", "67696207c3963a0dc9afab8cf37dbdb966c1f663"),
                 ("share.exe", "67d6524f7d700147013365e1656e93c842b9af07"),
                 ("dos/himem.sys", "837993a3ec3edec102de9ab78a39ae049007d991"),
+                ("fx-video.com", "fb75a6605c40787e805022b36328a050712ddd1d"),  # Fix the Video mode byte for `dosemu -td`
             ]
             cls.systype = SYSTYPE_MSDOS_NEW
             cls.autoexec = "autoemu.bat"
@@ -286,7 +287,7 @@ def msdos700(baseclass, actions):
                 ("boot-900-15-17.blk", "8c1243481112f320f2a5f557f30db11174fe7e3d"),
             ]
             cls.images = [
-                ("boot-floppy.img", "634912c5c778a3f576e32cdc264b26a9736a8195"),
+                ("boot-floppy.img", "efb3e6d2eeb0530f87d59daf269fee128b326871"),
             ]
             cls.actions = actions
 
@@ -296,6 +297,7 @@ def msdos700(baseclass, actions):
             # Use the (almost) standard shipped config
             contents = (self.cmddir / self.autoexec).read_text()
             contents = re.sub(r"[Dd]:\\", r"c:\\", contents)
+            contents = re.sub(r"@echo off", r"@echo off"+"\n"+r"c:\\fx-video", contents)
             self.mkfile(self.autoexec, contents, newline="\r\n")
 
         def setUpDosConfig(self):

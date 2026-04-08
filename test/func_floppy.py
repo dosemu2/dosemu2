@@ -19,6 +19,10 @@ $_bootdrive = "a"
 
 
 def floppy_vfs(self):
+    autofixes = ''
+    if "Windows 95" in self.version:  # AKA MS-DOS 7.0
+        autofixes = "fx-video"
+
     self.mkfile(self.confsys, """\
 DOS=UMB,HIGH
 lastdrive=Z
@@ -33,12 +37,13 @@ install=a:\\dosemu\\emufs.com
 shell=command.com /e:1024 /k %s
 """ % self.autoexec, newline="\r\n")
 
-    self.mkfile(self.autoexec, """\
+    self.mkfile(self.autoexec, f"""\
+{autofixes}
 prompt $P$G
 path a:\\bin;a:\\gnu;a:\\dosemu
 system -s DOSEMU_VERSION
-@echo %s
-""" % IPROMPT, newline="\r\n")
+@echo {IPROMPT}
+""", newline="\r\n")
 
     results = self.runDosemu("version.bat", config="""\
 $_hdimage = ""
