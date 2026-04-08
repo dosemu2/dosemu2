@@ -7,7 +7,7 @@
 
 #include "vc.h"
 #include "port.h"
-#include "vgaemu.h"
+#include "dos2linux.h"
 #include "mousevid.h"
 #include "mouse.h"
 #include "gcursor.h"
@@ -170,13 +170,13 @@ cga2_bitblt(int x,int y,int width,int height,int toscr,int bpl,
 
 	if (toscr)
 		while (height--) {
-			memcpy_to_vga(scr,bs,byteWidth);
+			memcpy_2dos(scr,bs,byteWidth);
 			bs += byteWidth;
 			scr += cga_nextscan(y++);
 		}
 	else
 		while (height--) {
-			memcpy_from_vga(bs,scr,byteWidth);
+			memcpy_2unix(bs,scr,byteWidth);
 			bs += byteWidth;
 			scr += cga_nextscan(y++);
 		}
@@ -192,13 +192,13 @@ cga4_bitblt(int x,int y,int width,int height,int toscr,int bpl,
 
 	if (toscr)
 		while (height--) {
-			memcpy_to_vga(scr,bs,byteWidth);
+			memcpy_2dos(scr,bs,byteWidth);
 			bs += byteWidth;
 			scr += cga_nextscan(y++);
 		}
 	else
 		while (height--) {
-			memcpy_from_vga(bs,scr,byteWidth);
+			memcpy_2unix(bs,scr,byteWidth);
 			bs += byteWidth;
 			scr += cga_nextscan(y++);
 		}
@@ -224,7 +224,7 @@ ega16_bitblt(int x,int y,int width,int height,int toscr,int bpl,
 			write_ega_reg(SEQ_I,0x2,1<<plane);
 
 			while (h--) {
-				memcpy_to_vga(s,bs,byteWidth);
+				memcpy_2dos(s,bs,byteWidth);
 				bs += byteWidth;
 				s += bpl;
 			}
@@ -234,7 +234,7 @@ ega16_bitblt(int x,int y,int width,int height,int toscr,int bpl,
 			write_ega_reg(GRA_I,0x4,plane);
 
 			while (h--) {
-				memcpy_from_vga(bs,s,byteWidth);
+				memcpy_2unix(bs,s,byteWidth);
 				bs += byteWidth;
 				s += bpl;
 			}
@@ -253,13 +253,13 @@ vga_bitblt(int x,int y,int width,int height,int toscr,int bpl,
 
 	if (toscr)
 		while (height--) {
-			memcpy_to_vga(scr,bs,width);
+			memcpy_2dos(scr,bs,width);
 			bs += width;
 			scr += bpl;
 		}
 	else
 		while (height--) {
-			memcpy_from_vga(bs,scr,width);
+			memcpy_2unix(bs,scr,width);
 			bs += width;
 			scr += bpl;
 		}
@@ -275,7 +275,7 @@ static mouse_blitter_func mouse_blitters[] = {
 	vga_bitblt
 };
 
-#define do_pixel	vga_write(s, (vga_read(s) & screenmasks[i]) ^ cursormasks[i]); s++; i++;
+#define do_pixel	write_byte(s, (read_byte(s) & screenmasks[i]) ^ cursormasks[i]); s++; i++;
 
 static void
 cga2_cursor(int x,int y,int width,int height,int xofs,int yofs,int bpl)
