@@ -848,6 +848,7 @@ static int vga_get_mem_base_offset(dosaddr_t addr)
     if (addr >= base && addr < end)
       return addr - base + (vga.mem.map[i].first_page * HOST_PAGE_SIZE);
   }
+  error("VGA address %x unmapped, please report bug\n", addr);
   return -1;
 }
 
