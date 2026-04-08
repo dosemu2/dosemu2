@@ -72,7 +72,7 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
   case 0x07: /* device_not_available */
     error_once("exception %#x occured\n", trapno);
     if (!IS_REDIRECTED(trapno))
-      goto sgleave;
+      break;
     do_int(trapno);
     return 0;
 
@@ -87,7 +87,7 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
      * case and exit dosemu, as an AC fault in vm86 is(?) a
      * catastrophic failure.
      */
-    goto sgleave;
+    break;
 
   case 0x06: /* invalid_op */
     {
@@ -98,7 +98,7 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
 	  error("Fault in VBIOS code, try setting $_vbios_post=(1)\n");
 	else
 	  error("Fault in VBIOS code, try running xdosemu under X\n");
-	goto sgleave;
+	break;
       }
 #if 0
       show_regs();
@@ -117,24 +117,22 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
       if (csp[0] == 0x2e) {
 	csp++;
 	LWORD(eip)++;
-	goto sgleave;
+	break;
       }
       if (csp[0] == 0xf0) {
 	dbug_printf("ERROR: LOCK prefix not permitted!\n");
 	LWORD(eip)++;
 	return 0;
       }
-      goto sgleave;
+      break;
     }
-
-  default:
-sgleave:
-    dosemu_error("unexpected CPU exception 0x%02x err=0x%08x cr2=%08x while in vm86 (DOS)\n",
-	  trapno, err, cr2);
-    show_regs();
-    flush_log();
-    leavedos_from_sig(4);
   }
+
+  dosemu_error("unexpected CPU exception 0x%02x err=0x%08x cr2=%08x while in vm86 (DOS)\n",
+	  trapno, err, cr2);
+  show_regs();
+  flush_log();
+  leavedos_from_sig(4);
   return 0; /* keeps GCC happy */
 }
 
