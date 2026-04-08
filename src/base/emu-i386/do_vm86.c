@@ -132,8 +132,7 @@ int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2)
 	  trapno, err, cr2);
   show_regs();
   flush_log();
-  leavedos_from_sig(4);
-  return 0; /* keeps GCC happy */
+  return -1;
 }
 
 static int vm86_hlt_handle(void)
@@ -466,8 +465,9 @@ again:
     return ret;
 }
 
-void true_vm86_fault(sigcontext_t *scp)
+void true_vm86_fault(int sig, sigcontext_t *scp)
 {
+    int err;
     if (_scp_trapno == 0x0e) {
 	/* we can get to instremu from here, so unblock SIGALRM & friends.
 	 * It is needed to interrupt instremu when it runs for too long. */
@@ -475,7 +475,9 @@ void true_vm86_fault(sigcontext_t *scp)
 	if (vga_emu_fault(_scp_cr2, _scp_err, NULL) == True)
 	    return;
     }
-    vm86_fault(_scp_trapno, _scp_err, _scp_cr2);
+    err = vm86_fault(_scp_trapno, _scp_err, _scp_cr2);
+    if (err)
+	leavedos_from_sig(sig);
 }
 #endif
 
