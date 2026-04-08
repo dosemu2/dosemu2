@@ -15,6 +15,7 @@
 #include "coopth.h"
 #include "utilities.h"
 #include "doshelpers.h"
+#include "dos2linux.h"
 #include "lowmem.h"
 #include "mouse.h"
 
@@ -2219,8 +2220,8 @@ text_cursor(void)
 		drew; some applications seem to reset the mouse
 		*after* clearing the screen and we end up leaving
 		glitches behind. */
-	if (vga_read_word(p + offset) == mouse_erase.backingstore.text[1])
-	  vga_write_word(p + offset, mouse_erase.backingstore.text[0]);
+	if (read_word(p + offset) == mouse_erase.backingstore.text[1])
+	  write_word(p + offset, mouse_erase.backingstore.text[0]);
 	mouse_erase.drawn = FALSE;
   }
 
@@ -2230,12 +2231,12 @@ text_cursor(void)
   /* remember where we drew this. */
   mouse_erase.x = cx + cy * co;
   offset = mouse_erase.x*2;
-  mouse_erase.backingstore.text[0] = vga_read_word(p + offset);
+  mouse_erase.backingstore.text[0] = read_word(p + offset);
 
   /* draw it. */
   mouse_erase.backingstore.text[1] =
-    (vga_read_word(p + offset) & mouse.textscreenmask) ^ mouse.textcursormask;
-  vga_write_word(p + offset, mouse_erase.backingstore.text[1]);
+    (read_word(p + offset) & mouse.textscreenmask) ^ mouse.textcursormask;
+  write_word(p + offset, mouse_erase.backingstore.text[1]);
 
   mouse_erase.drawn = TRUE;
 }
