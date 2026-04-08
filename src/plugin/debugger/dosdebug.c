@@ -531,10 +531,11 @@ int main (int argc, char **argv)
 #endif
 
         if (!running) {
+          int err;
           /* collect all remaining input */
           do
             usleep(100000);
-          while (handle_dbg_input(&ret) && ret == 0);
+          while (handle_dbg_input(&err) && err == 0);
           fputs("\n", fpconout);
           fflush(fpconout);
           break;
