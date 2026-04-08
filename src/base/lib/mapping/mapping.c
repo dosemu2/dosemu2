@@ -228,7 +228,6 @@ int alias_mapping_high(int cap, dosaddr_t targ, size_t mapsize, int protect,
 }
 
 #ifdef __linux__
-// check if mapped for kmem, only used for assert
 static int kmem_mapped(dosaddr_t addr, int mapsize)
 {
   struct hardware_ram *hw;
@@ -398,18 +397,19 @@ int munmap_mapping(int cap, dosaddr_t targ, size_t mapsize)
 int munmap_mapping_pa(int cap, unsigned int addr, size_t mapsize)
 {
   struct hardware_ram *hw;
-  int err;
   dosaddr_t va = do_get_hardware_ram(addr, mapsize, &hw);
   if (va == (dosaddr_t)-1)
     return -1;
   assert(addr >= GRAPH_BASE);
   if (!hwram_is_mapped(hw, addr, mapsize))
     return -1;
-  if (!(cap & MAPPING_INIT_LOWRAM)) {
-    err = munmap_mapping(MAPPING_LOWMEM, va, mapsize);
-    if (err)
-      return err;
+#ifdef __linux__
+  if (kmem_mapped(addr, mapsize)) {
+    error("not unmapping kmem from %x (size %zx)\n", addr, mapsize);
+    return -1;
   }
+#endif
+  restore_mapping(cap, va, mapsize);
   hwram_map_aliasmap(hw, addr, mapsize, 0);
   return 0;
 }
@@ -418,7 +418,7 @@ int munmap_mapping_pa(int cap, unsigned int addr, size_t mapsize)
 int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
 {
   int ret;
-  assert((cap & MAPPING_DPMI) && (targ != (dosaddr_t)-1));
+  assert((cap & (MAPPING_DPMI | MAPPING_VGAEMU | MAPPING_INIT_LOWRAM)) && (targ != (dosaddr_t)-1));
   ret = alias_mapping(cap, targ, mapsize, PROT_READ | PROT_WRITE,
       LOWMEM(targ));
   if (is_kvm_map(cap))
@@ -1002,9 +1002,15 @@ static unsigned do_find_hardware_ram(dosaddr_t va, uint32_t size,
     if (hw->vbase == -1)
       continue;
     if (hw->vbase <= va && va + size <= hw->vbase + hw->size) {
-	if (r_hw)
-	  *r_hw = hw;
-      return hw->base + va - hw->vbase;
+      unsigned addr = hw->base + va - hw->vbase;
+      if (!hwram_is_mapped(hw, addr & _PAGE_MASK, PAGE_ALIGN(size))) {
+        /* make sure its not kmem somehow unmapped */
+        assert(hw->type != 'v' && hw->type != 'h');
+        return -1;
+      }
+      if (r_hw)
+        *r_hw = hw;
+      return addr;
     }
   }
   return -1;
