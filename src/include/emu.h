@@ -30,9 +30,10 @@
 extern char * const *dosemu_envp;
 
 int vm86_init(void);
+__attribute__((warn_unused_result))
 int vm86_fault(unsigned trapno, unsigned err, dosaddr_t cr2);
 #ifdef __i386__
-void true_vm86_fault(sigcontext_t *scp);
+void true_vm86_fault(int sig, sigcontext_t *scp);
 #endif
 
 #define BIT(x)  	(1<<x)

@@ -1524,7 +1524,9 @@ int true_kvm_vm86(struct vm86_struct *info)
   if (vm86_ret == VM86_SIGNAL && exit_reason == KVM_EXIT_HLT) {
     unsigned trapno = (regs->orig_eax >> 16) & 0xff;
     unsigned err = regs->orig_eax & 0xffff;
-    vm86_fault(trapno, err, monitor->cr2);
+    int rc = vm86_fault(trapno, err, monitor->cr2);
+    if (rc)
+      leavedos_main(4);
   }
 #if USE_INSTREMU
   else if (exit_reason == KVM_EXIT_MMIO) {

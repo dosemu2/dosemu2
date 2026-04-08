@@ -317,11 +317,11 @@ static void abort_signal(int sig, siginfo_t *si, void *uc)
 }
 
 #if defined(__i386__) || defined(__x86_64__)
-static int do_fault(sigcontext_t *scp)
+static int do_fault(int sig, sigcontext_t *scp)
 {
 #ifdef __i386__
   if (in_vm86 && _CPU_VM() == CPUVM_VM86) {
-    true_vm86_fault(scp);
+    true_vm86_fault(sig, scp);
     return 1;
   }
 #endif
@@ -351,7 +351,7 @@ void handle_fault(int sig, const siginfo_t *si, sigcontext_t *scp)
       unhand++;
     }
   }
-  if (!unhand && do_fault(scp))
+  if (!unhand && do_fault(sig, scp))
     return;
 #endif
   signal(sig, SIG_DFL);
