@@ -58,21 +58,22 @@
 #include "cpu.h"
 #include "port.h"
 #include "dosemu_debug.h"
+#include "dos2linux.h"
 #include "vgaemu.h"
 #include "vgatables.h"
 #include "vgabios.h"
 
 #define vga_msg(x...) v_printf("VGAEmu: " x)
-#define read_byte_far(seg, off) (vga_read(SEGOFF2LINEAR(seg, off)))
-#define write_byte_far(seg, off, val) (vga_write(SEGOFF2LINEAR(seg, off), val))
-#define read_word_far(seg, off) (vga_read_word(SEGOFF2LINEAR(seg, off)))
-#define write_word_far(seg, off, val) (vga_write_word(SEGOFF2LINEAR(seg, off), val))
+#define read_byte_far(seg, off) (read_byte(SEGOFF2LINEAR(seg, off)))
+#define write_byte_far(seg, off, val) (write_byte(SEGOFF2LINEAR(seg, off), val))
+#define read_word_far(seg, off) (read_word(SEGOFF2LINEAR(seg, off)))
+#define write_word_far(seg, off, val) (write_word(SEGOFF2LINEAR(seg, off), val))
 #define outw port_outw
-#define memsetb(seg, off, val, len) vga_memset(SEGOFF2LINEAR(seg, off), val, len)
-#define memsetw(seg, off, val, len) vga_memsetw(SEGOFF2LINEAR(seg, off), val, len)
-#define memcpyb(seg, off, sseg, soff, len) vga_memcpy(\
+#define memsetb(seg, off, val, len) memset_dos(SEGOFF2LINEAR(seg, off), val, len)
+#define memsetw(seg, off, val, len) memset_dos(SEGOFF2LINEAR(seg, off), val, len * 2)
+#define memcpyb(seg, off, sseg, soff, len) memcpy_dos2dos(\
     SEGOFF2LINEAR(seg, off), SEGOFF2LINEAR(sseg, soff), len)
-#define memcpyw(seg, off, sseg, soff, len) vga_memcpy(\
+#define memcpyw(seg, off, sseg, soff, len) memcpy_dos2dos(\
     SEGOFF2LINEAR(seg, off), SEGOFF2LINEAR(sseg, soff), (len) * 2)
 
 #define vgafont14 dosaddr_to_unixaddr(SEGOFF2LINEAR(0xc000, vgaemu_bios.font_14))
