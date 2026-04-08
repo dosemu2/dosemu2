@@ -2339,7 +2339,7 @@ static int int33_mouse_init(void)
 
   mouse.enabled = FALSE;
 
-  mice->native_cursor = 1;
+  mice->native_cursor = !!vga.mem.text_base;
   mouse.cursor_on = -1;
   mice->init_speed_x = INIT_SPEED_X;
   mice->init_speed_y = INIT_SPEED_Y;
