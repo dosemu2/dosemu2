@@ -63,10 +63,10 @@
 #include "vgabios.h"
 
 #define vga_msg(x...) v_printf("VGAEmu: " x)
-#define read_byte(seg, off) (vga_read(SEGOFF2LINEAR(seg, off)))
-#define write_byte(seg, off, val) (vga_write(SEGOFF2LINEAR(seg, off), val))
-#define read_word(seg, off) (vga_read_word(SEGOFF2LINEAR(seg, off)))
-#define write_word(seg, off, val) (vga_write_word(SEGOFF2LINEAR(seg, off), val))
+#define read_byte_far(seg, off) (vga_read(SEGOFF2LINEAR(seg, off)))
+#define write_byte_far(seg, off, val) (vga_write(SEGOFF2LINEAR(seg, off), val))
+#define read_word_far(seg, off) (vga_read_word(SEGOFF2LINEAR(seg, off)))
+#define write_word_far(seg, off, val) (vga_write_word(SEGOFF2LINEAR(seg, off), val))
 #define outw port_outw
 #define memsetb(seg, off, val, len) vga_memset(SEGOFF2LINEAR(seg, off), val, len)
 #define memsetw(seg, off, val, len) vga_memsetw(SEGOFF2LINEAR(seg, off), val, len)
@@ -174,12 +174,12 @@ Bit8u dir)
  if(cul>clr)return;
 
  // Get the dimensions
- nbrows=read_byte(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
- nbcols=read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+ nbrows=read_byte_far(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
+ nbcols=read_word_far(BIOSMEM_SEG,BIOSMEM_NB_COLS);
 
  // Get the current page
  if(page==0xFF)
-  page=read_byte(BIOSMEM_SEG,BIOSMEM_CURRENT_PAGE);
+  page=read_byte_far(BIOSMEM_SEG,BIOSMEM_CURRENT_PAGE);
 
  if(rlr>=nbrows)rlr=nbrows-1;
  if(clr>=nbcols)clr=nbcols-1;
@@ -224,7 +224,7 @@ Bit8u dir)
  else
   {
    address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
-   cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
+   cheight=read_byte_far(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
    switch(vmi->type)
     {
      case PLANAR4:
@@ -331,8 +331,8 @@ static void biosfn_get_cursor_pos (Bit8u page,Bit16u *shape,Bit16u *pos)
 
  if(page>7)return;
  // FIXME should handle VGA 14/16 lines
- *shape = read_word(BIOSMEM_SEG,BIOSMEM_CURSOR_TYPE);
- *pos = read_word(BIOSMEM_SEG,BIOSMEM_CURSOR_POS+page*2);
+ *shape = read_word_far(BIOSMEM_SEG,BIOSMEM_CURSOR_TYPE);
+ *pos = read_word_far(BIOSMEM_SEG,BIOSMEM_CURSOR_POS+page*2);
 }
 
 // --------------------------------------------------------------------------------------------
@@ -363,14 +363,14 @@ static void write_gfx_char_pl4(Bit16u vstart,Bit8u car,Bit8u attr,
     {
      mask=0x80>>j;
      port_outw(VGAREG_GRDC_ADDRESS, (mask << 8) | 0x08);
-     read_byte(0xa000,dest);
+     read_byte_far(0xa000,dest);
      if(fdata[src+i]&mask)
       {
-       write_byte(0xa000,dest,attr&0x0f);
+       write_byte_far(0xa000,dest,attr&0x0f);
       }
      else
       {
-       write_byte(0xa000,dest,0x00);
+       write_byte_far(0xa000,dest,0x00);
       }
     }
   }
@@ -419,7 +419,7 @@ static void write_gfx_char_cga(Bit16u vstart,Bit8u car,Bit8u attr,
     {
      if (attr & 0x80)
       {
-       data = read_byte(0xb800,dest);
+       data = read_byte_far(0xb800,dest);
       }
      else
       {
@@ -440,7 +440,7 @@ static void write_gfx_char_cga(Bit16u vstart,Bit8u car,Bit8u attr,
         }
        mask >>= 1;
       }
-     write_byte(0xb800,dest,data);
+     write_byte_far(0xb800,dest,data);
     }
    else
     {
@@ -448,7 +448,7 @@ static void write_gfx_char_cga(Bit16u vstart,Bit8u car,Bit8u attr,
       {
        if (attr & 0x80)
         {
-         data = read_byte(0xb800,dest);
+         data = read_byte_far(0xb800,dest);
         }
        else
         {
@@ -469,7 +469,7 @@ static void write_gfx_char_cga(Bit16u vstart,Bit8u car,Bit8u attr,
           }
          mask >>= 1;
         }
-       write_byte(0xb800,dest,data);
+       write_byte_far(0xb800,dest,data);
        dest += 1;
       }
     }
@@ -507,7 +507,7 @@ static void write_gfx_char_lin(Bit16u vstart,Bit8u car,Bit8u attr,
       {
        data = attr;
       }
-     write_byte(0xa000,dest+j,data);
+     write_byte_far(0xa000,dest+j,data);
      mask >>= 1;
     }
   }
@@ -523,15 +523,15 @@ static void biosfn_set_cursor_pos(Bit8u page,Bit16u cursor)
  if(page>7)return;
 
  // Bios cursor pos
- write_word(BIOSMEM_SEG, BIOSMEM_CURSOR_POS+2*page, cursor);
+ write_word_far(BIOSMEM_SEG, BIOSMEM_CURSOR_POS+2*page, cursor);
 
  // Set the hardware cursor
- current=read_byte(BIOSMEM_SEG,BIOSMEM_CURRENT_PAGE);
+ current=read_byte_far(BIOSMEM_SEG,BIOSMEM_CURRENT_PAGE);
  if(page==current)
   {
    // Get the dimensions
-   nbcols=read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
-   nbrows=read_byte(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
+   nbcols=read_word_far(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+   nbrows=read_byte_far(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
 
    xcurs=cursor&0x00ff;ycurs=(cursor&0xff00)>>8;
 
@@ -539,7 +539,7 @@ static void biosfn_set_cursor_pos(Bit8u page,Bit16u cursor)
    address=SCREEN_IO_START(nbcols,nbrows,page)+xcurs+ycurs*nbcols;
 
    // CRTC regs 0x0e and 0x0f
-   crtc_addr=read_word(BIOSMEM_SEG,BIOSMEM_CRTC_ADDRESS);
+   crtc_addr=read_word_far(BIOSMEM_SEG,BIOSMEM_CRTC_ADDRESS);
    port_outb(crtc_addr,0x0e);
    port_outb(crtc_addr+1,(address&0xff00)>>8);
    port_outb(crtc_addr,0x0f);
@@ -560,15 +560,15 @@ static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
 
  // special case if page is 0xff, use current page
  if(page==0xff)
-  page=read_byte(BIOSMEM_SEG,BIOSMEM_CURRENT_PAGE);
+  page=read_byte_far(BIOSMEM_SEG,BIOSMEM_CURRENT_PAGE);
 
  // Get the cursor pos for the page
  biosfn_get_cursor_pos(page,&dummy,&cursor);
  xcurs=cursor&0x00ff;ycurs=(cursor&0xff00)>>8;
 
  // Get the dimensions
- nbrows=read_byte(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
- nbcols=read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+ nbrows=read_byte_far(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
+ nbcols=read_word_far(BIOSMEM_SEG,BIOSMEM_NB_COLS);
 
  switch(car)
   {
@@ -605,15 +605,15 @@ static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
       address=SCREEN_MEM_START(nbcols,nbrows,page)+(xcurs+ycurs*nbcols)*2;
 
       // Write the char
-      write_byte(vmi->buffer_start,address,car);
+      write_byte_far(vmi->buffer_start,address,car);
 
       if(flag==WITH_ATTR)
-       write_byte(vmi->buffer_start,address+1,attr);
+       write_byte_far(vmi->buffer_start,address+1,attr);
      }
     else
      {
       address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
-      cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
+      cheight=read_byte_far(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
       bpp=vmi->color_bits;
       switch(vmi->type)
        {
@@ -648,7 +648,7 @@ static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
    if(vmi->mode_class==TEXT)
     {
      address=SCREEN_MEM_START(nbcols,nbrows,page)+(xcurs+(ycurs-1)*nbcols)*2;
-     attr=read_byte(vmi->buffer_start,address+1);
+     attr=read_byte_far(vmi->buffer_start,address+1);
      biosfn_scroll(0x01,attr,0,0,nbrows-1,nbcols-1,page,SCROLL_UP);
     }
    else
@@ -695,9 +695,9 @@ static void biosfn_write_string(Bit8u flag,Bit8u page,Bit8u attr,Bit16u count,
 
  while(count--!=0)
   {
-   car=read_byte(seg,offset++);
+   car=read_byte_far(seg,offset++);
    if((flag&0x02)!=0)
-    attr=read_byte(seg,offset++);
+    attr=read_byte_far(seg,offset++);
 
    biosfn_write_teletype(car,page,attr,WITH_ATTR);
   }
@@ -724,8 +724,8 @@ static void biosfn_write_char_attr (Bit8u car,Bit8u page,Bit8u attr,
  xcurs=cursor&0x00ff;ycurs=(cursor&0xff00)>>8;
 
  // Get the dimensions
- nbrows=read_byte(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
- nbcols=read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+ nbrows=read_byte_far(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
+ nbcols=read_word_far(BIOSMEM_SEG,BIOSMEM_NB_COLS);
 
  if(vmi->mode_class==TEXT)
   {
@@ -738,7 +738,7 @@ static void biosfn_write_char_attr (Bit8u car,Bit8u page,Bit8u attr,
  else
   {
    address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
-   cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
+   cheight=read_byte_far(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
    bpp=vmi->color_bits;
    while((count-->0) && (xcurs<nbcols))
     {
@@ -780,8 +780,8 @@ static void biosfn_write_char_only (Bit8u car,Bit8u page,Bit8u attr,
  xcurs=cursor&0x00ff;ycurs=(cursor&0xff00)>>8;
 
  // Get the dimensions
- nbrows=read_byte(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
- nbcols=read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+ nbrows=read_byte_far(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
+ nbcols=read_word_far(BIOSMEM_SEG,BIOSMEM_NB_COLS);
 
  if(vmi->mode_class==TEXT)
   {
@@ -789,14 +789,14 @@ static void biosfn_write_char_only (Bit8u car,Bit8u page,Bit8u attr,
    address=SCREEN_MEM_START(nbcols,nbrows,page)+(xcurs+ycurs*nbcols)*2;
 
    while(count-->0)
-    {write_byte(vmi->buffer_start,address,car);
+    {write_byte_far(vmi->buffer_start,address,car);
      address+=2;
     }
   }
  else
   {
    address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
-   cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
+   cheight=read_byte_far(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
    bpp=vmi->color_bits;
    while((count-->0) && (xcurs<nbcols))
     {
@@ -857,17 +857,17 @@ static void biosfn_write_pixel(Bit8u BH,Bit8u AL,Bit16u CX,Bit16u DX)
   {
    case PLANAR4:
    case PLANAR1:
-     addr = CX/8+DX*read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)+
+     addr = CX/8+DX*read_word_far(BIOSMEM_SEG,BIOSMEM_NB_COLS)+
        READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
      mask = 0x80 >> (CX & 0x07);
      port_outw(VGAREG_GRDC_ADDRESS, (mask << 8) | 0x08);
      port_outw(VGAREG_GRDC_ADDRESS, 0x0205);
-//     data = read_byte(0xa000,addr);
+//     data = read_byte_far(0xa000,addr);
      if (AL & 0x80)
       {
        port_outw(VGAREG_GRDC_ADDRESS, 0x1803);
       }
-     write_byte(0xa000,addr,AL);
+     write_byte_far(0xa000,addr,AL);
 #if 0
 ASM_START
      mov dx, # VGAREG_GRDC_ADDRESS
@@ -894,7 +894,7 @@ ASM_END
        addr=(CX>>3)+(DX>>1)*80;
       }
      if (DX & 1) addr += 0x2000;
-     data = read_byte(0xb800,addr);
+     data = read_byte_far(0xb800,addr);
      if(vmi->color_bits==2)
       {
        attr = (AL & 0x03) << ((3 - (CX & 0x03)) * 2);
@@ -914,12 +914,12 @@ ASM_END
        data &= ~mask;
        data |= attr;
       }
-     write_byte(0xb800,addr,data);
+     write_byte_far(0xb800,addr,data);
      break;
    case LINEAR8:
-     addr=CX+DX*(read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)*8)+
+     addr=CX+DX*(read_word_far(BIOSMEM_SEG,BIOSMEM_NB_COLS)*8)+
        READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
-     write_byte(0xa000,addr,AL);
+     write_byte_far(0xa000,addr,AL);
      break;
 #ifdef DEBUG
    default:
@@ -950,21 +950,21 @@ static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
   {
    case PLANAR4:
    case PLANAR1:
-     addr = CX/8+DX*read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)+
+     addr = CX/8+DX*read_word_far(BIOSMEM_SEG,BIOSMEM_NB_COLS)+
        READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
      mask = 0x80 >> (CX & 0x07);
      attr = 0x00;
      for(i=0;i<4;i++)
       {
        port_outw(VGAREG_GRDC_ADDRESS, (i << 8) | 0x04);
-       data = read_byte(0xa000,addr) & mask;
+       data = read_byte_far(0xa000,addr) & mask;
        if (data > 0) attr |= (0x01 << i);
       }
      break;
    case CGA:
      addr=(CX>>2)+(DX>>1)*80;
      if (DX & 1) addr += 0x2000;
-     data = read_byte(0xb800,addr);
+     data = read_byte_far(0xb800,addr);
      if(vmi->color_bits==2)
       {
        attr = (data >> ((3 - (CX & 0x03)) * 2)) & 0x03;
@@ -975,9 +975,9 @@ static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
       }
      break;
    case LINEAR8:
-     addr=CX+DX*(read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)*8)+
+     addr=CX+DX*(read_word_far(BIOSMEM_SEG,BIOSMEM_NB_COLS)*8)+
        READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
-     attr=read_byte(0xa000,addr);
+     attr=read_byte_far(0xa000,addr);
      break;
    default:
 #ifdef DEBUG
@@ -986,7 +986,7 @@ static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
      attr = 0;
   }
 #if 0
- write_word(ss,AX,(read_word(ss,AX) & 0xff00) | attr);
+ write_word_far(ss,AX,(read_word_far(ss,AX) & 0xff00) | attr);
 #else
  return attr;
 #endif
