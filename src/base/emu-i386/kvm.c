@@ -541,7 +541,7 @@ int init_kvm_cpu(void)
 #if defined(KVM_CAP_SYNC_MMU) && defined(KVM_CAP_SET_IDENTITY_MAP_ADDR) && \
   defined(KVM_CAP_SET_TSS_ADDR) && defined(KVM_CAP_XSAVE) && \
   defined(KVM_CAP_IMMEDIATE_EXIT) && defined(KVM_CAP_COALESCED_MMIO) && \
-  defined(KVM_CAP_COALESCED_PIO)
+  defined(KVM_CAP_COALESCED_PIO) && defined(KVM_CAP_VCPU_EVENTS)
   /* SYNC_MMU is needed because we map shm behind KVM's back */
   ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_SYNC_MMU);
   if (ret <= 0) {
@@ -580,6 +580,11 @@ int init_kvm_cpu(void)
 #ifndef KVM_IMMEDIATE_EXIT_SIG
     goto errcap;
 #endif
+  }
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_VCPU_EVENTS);
+  if (ret <= 0) {
+    error("KVM: VCPU_EVENTS unsupported %x\n", ret);
+    goto errcap;
   }
 #else
   error("kernel is too old, KVM unsupported\n");
@@ -1155,11 +1160,35 @@ void kvm_leave(int pm)
 
 static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
 {
-  int ret = ioctl(vcpufd, KVM_GET_REGS, kregs);
+  int ret;
+  int inj_ready = run->ready_for_interrupt_injection;
+
+  if (!inj_ready) {
+    struct kvm_vcpu_events events;
+    /* we may have pending exceptions */
+    ret = ioctl(vcpufd, KVM_GET_VCPU_EVENTS, &events);
+    if (ret == -1) {
+      perror("KVM: KVM_GET_VCPU_EVENTS");
+      leavedos_main(99);
+    }
+    if (events.exception.pending || events.exception.injected) {
+      g_printf("KVM: exception pending, not ready for return %i %i\n",
+          events.exception.pending, events.exception.injected);
+      return 0;
+    }
+  }
+
+  ret = ioctl(vcpufd, KVM_GET_REGS, kregs);
   if (ret == -1) {
     perror("KVM: KVM_GET_REGS");
     leavedos_main(99);
   }
+  if (!inj_ready && (kregs->rflags & (X86_EFLAGS_IF | X86_EFLAGS_VIF))) {
+    /* pending exceptions checked above, so here can be STI/MOVss hold-off */
+    g_printf("KVM: not ready for injection on ring3\n");
+    return 0;
+  }
+
   ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
   if (ret == -1) {
     perror("KVM: KVM_GET_SREGS");
@@ -1168,11 +1197,6 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
   /* don't interrupt GDT code */
   if (!(kregs->rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4)) {
     g_printf("KVM: interrupt in GDT code, resuming\n");
-    return 0;
-  }
-  if (!run->ready_for_interrupt_injection &&
-      (kregs->rflags & (X86_EFLAGS_IF | X86_EFLAGS_VIF))) {
-    g_printf("KVM: not ready for injection on ring3\n");
     return 0;
   }
 
