@@ -221,6 +221,7 @@ static void ldt_bitmap_update(unsigned short ldt_entry, int num)
             ldt_bitmap_cnt++;
         }
     }
+    D_printf("DPMI: ldt_bitmap_cnt=%i\n", ldt_bitmap_cnt);
 }
 static void dpmi_ldt_call(cpuctx_t *scp);
 
@@ -2185,12 +2186,14 @@ void dpmi_set_pm_exc_addr(int num, DPMI_INTDESC addr)
 
 void dpmi_ext_set_ldt_monitor16(DPMI_INTDESC call, uint16_t d16)
 {
+    D_printf("DPMI: ldt_mon16 %x:%x\n", call.selector, call.offset32);
     ldt_call16.c = call;
     ldt_call16.ds = d16;
 }
 
 void dpmi_ext_set_ldt_monitor32(DPMI_INTDESC call, uint16_t d32)
 {
+    D_printf("DPMI: ldt_mon32 %x:%x\n", call.selector, call.offset32);
     ldt_call32.c = call;
     ldt_call32.ds = d32;
 }
@@ -2203,6 +2206,7 @@ static void reset_ldt_bmp(void)
 
 void dpmi_ext_ldt_monitor_enable(int on)
 {
+    D_printf("DPMI: ldt_mon on=%i\n", on);
     ldt_mon_on = on;
     reset_ldt_bmp();
 }
@@ -2395,6 +2399,8 @@ static void dpmi_ldt_call(cpuctx_t *scp)
     int i;
     struct chunk_state state = { .ent = -1 };
 
+    D_printf("DPMI: ldt_call, bitmap_cnt=%i, sel=%x\n", ldt_bitmap_cnt,
+            call.c.selector);
     if (!ldt_bitmap_cnt)
         return;
     if (!call.c.selector) {
