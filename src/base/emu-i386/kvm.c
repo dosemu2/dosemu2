@@ -420,7 +420,16 @@ static void init_kvm_monitor(void)
 	       sizeof(monitor->code), PROT_READ | KVM_PROT_EXEC);
 
   sregs.cr0 |= X86_CR0_PE | X86_CR0_PG | X86_CR0_NE | X86_CR0_ET;
+  /* VME is broken on Intel CPUs, and redirected interrupts in RM sometimes
+   * activates the respective IDT, instead of GPF.
+   * See https://github.com/dosemu2/dosemu2/issues/2624
+   *
+   * It is also sometimes broken on AMD CPUs:
+   * See https://www.os2museum.com/wp/vme-broken-on-amd-ryzen/
+   */
+#if 0
   sregs.cr4 |= X86_CR4_VME;
+#endif
   if (config.umip)
     sregs.cr4 |= X86_CR4_UMIP;
 
