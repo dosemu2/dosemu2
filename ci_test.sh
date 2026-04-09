@@ -74,10 +74,9 @@ done
 
 # If we get here, then we've failed so copy various system logs, give them
 # a name that is picked up by the artefact uploaded.
-[ -f /var/log/audit/audit.log ] && sudo cp /var/log/audit/audit.log test_audit.log
-[ -f /var/log/syslog ] && sudo cp /var/log/syslog test_syslog.log
-[ -f /var/log/auth.log ] && sudo cp /var/log/auth.log test_auth.log
-
-sudo chmod 644 test_*.log
+sudo -- journalctl -b -k > test_dmesg.log
+sudo -- journalctl -b -o short-precise > test_syslog.log
+sudo -- journalctl -b -o short-precise _TRANSPORT=audit > test_audit.log
+sudo -- journalctl -b -o short-precise SYSLOG_FACILITY=4 SYSLOG_FACILITY=10 > test_auth.log
 
 exit 1
