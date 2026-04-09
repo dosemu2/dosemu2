@@ -21,6 +21,43 @@ jobs:
       with:
         fetch-depth: 50
 
+    - name: Information
+      run: |
+        #
+        echo "::group::Git History (Current Branch vs Devel)"
+        if [ "$(git rev-parse --abbrev-ref HEAD)" = "devel" ] ; then
+          echo "Current branch is Devel"
+          git log --color=always --oneline -n 5
+        else
+          git fetch origin devel:refs/remotes/origin/devel --depth=50 >/dev/null 2>&1
+          if [ "${{ github.event_name }}" = "pull_request" ] ; then
+            REF="origin/devel"
+            HEAD="HEAD^2"
+            git log --color=always --graph --oneline --boundary --first-parent ${REF}..${HEAD} || echo "Devel is probably more than 50 commits away"
+          else
+            REF="origin/devel^"
+            HEAD="HEAD"
+            git log --color=always --graph --oneline ${REF}..${HEAD} -n 20
+          fi
+        fi
+        echo "::endgroup::"
+
+        echo "::group::CPU"
+        lscpu
+        echo "::endgroup::"
+
+        echo "::group::Kernel Config"
+        cat /boot/config-$(uname -r)
+        echo "::endgroup::"
+
+        echo "::group::Kernel Modules"
+        sudo lsmod
+        echo "::endgroup::"
+
+        echo "::group::Kernel Parameters (sysctl)"
+        sysctl -a
+        echo "::endgroup::"
+
     - name: Package install
       run: ./ci_prereq.sh
 
