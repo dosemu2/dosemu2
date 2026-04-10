@@ -98,6 +98,7 @@ static void midotmdty_io(int fd, void *arg)
 
 static int midotmdty_preinit(void)
 {
+    int close_from = STDERR_FILENO + 1;
     sigset_t sigs;
     int tmdty_pipe_in[2], tmdty_pipe_out[2];
     const char *tmdty_capt = "-Or -o -";
@@ -131,6 +132,12 @@ static int midotmdty_preinit(void)
 	close(STDERR_FILENO);
 	if (open("/dev/null", O_WRONLY) == -1)
             perror("failed to open /dev/null");
+#endif
+#ifdef HAVE_CLOSEFROM
+	closefrom(close_from);
+#else
+	for (; close_from < sysconf(_SC_OPEN_MAX); close_from++)
+	    close(close_from);
 #endif
 	strcpy(tmdty_sound_spec, tmdty_opt_hc);
 	if (TMDTY_FREQ) {

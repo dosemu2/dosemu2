@@ -680,7 +680,7 @@ static int pty_open(com_t *c, const char *cmd)
   pty_fd = pty_init(c);
   cfmakeraw(&t);
   tcsetattr(pty_fd, TCSANOW, &t);
-  pid_t pid = run_external_command("/bin/sh", argc, argv, 1, -1, pts_open);
+  pid_t pid = run_external_command("/bin/sh", argc, argv, 1, pts_open);
   if (pid == -1) {
     close(pty_fd);
     return -1;
