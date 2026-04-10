@@ -398,7 +398,7 @@ int run_unix_command(int argc, const char **argv, int bg)
     }
 
     g_printf("UNIX: run %s, %i args\n", path, argc);
-    pid = run_external_command(path, argc, argv, !bg, -1, pts_open);
+    pid = run_external_command(path, argc, argv, !bg, pts_open);
     if (bg) {
 	sigchld_enable_cleanup(pid);
 	return 0;

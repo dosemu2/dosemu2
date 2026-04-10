@@ -1131,8 +1131,9 @@ static void chld_crash(int sig)
 }
 
 pid_t run_external_command(const char *path, int argc, const char **argv,
-        int use_stdin, int close_from, int (*pts_open)(void))
+        int use_stdin, int (*pts_open)(void))
 {
+    int close_from = STDERR_FILENO + 1;
     pid_t pid;
     int wt, retval;
     sigset_t set, oset;
@@ -1179,12 +1180,11 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	dup(pts_fd);
 	close(pts_fd);
 	/* can close pty_fd, but its closed in close_from anyway */
-	if (close_from != -1)
 #ifdef HAVE_CLOSEFROM
-	    closefrom(close_from);
+	closefrom(close_from);
 #else
-	    for (; close_from < sysconf(_SC_OPEN_MAX); close_from++)
-		close(close_from);
+	for (; close_from < sysconf(_SC_OPEN_MAX); close_from++)
+	    close(close_from);
 #endif
 	/* close signals, then unblock */
 	signal_done();
