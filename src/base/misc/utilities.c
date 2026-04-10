@@ -866,6 +866,7 @@ void close_plugin(void *handle)
 /* http://media.unpythonic.net/emergent-files/01108826729/popen2.c */
 int popen2_custom(const char *cmdline, struct popen2 *childinfo)
 {
+    int close_from = STDERR_FILENO + 1;
     pid_t p;
     int pipe_stdin[2], pipe_stdout[2];
     sigset_t oset;
@@ -901,6 +902,12 @@ int popen2_custom(const char *cmdline, struct popen2 *childinfo)
 	 */
 	signal_done();
 	sigprocmask(SIG_SETMASK, &oset, NULL);
+#ifdef HAVE_CLOSEFROM
+	closefrom(close_from);
+#else
+	for (; close_from < sysconf(_SC_OPEN_MAX); close_from++)
+	    close(close_from);
+#endif
 
         execl("/bin/sh", "sh", "-c", cmdline, NULL);
         perror("execl");
