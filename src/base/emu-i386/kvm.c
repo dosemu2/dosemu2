@@ -427,7 +427,7 @@ static void init_kvm_monitor(void)
    * It is also sometimes broken on AMD CPUs:
    * See https://www.os2museum.com/wp/vme-broken-on-amd-ryzen/
    */
-#if 0
+#if 1
   sregs.cr4 |= X86_CR4_VME;
 #endif
   if (config.umip)
