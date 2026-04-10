@@ -39,6 +39,8 @@ elif [ "${RUNTYPE}" = "full" ] ; then
   export NO_FAILFAST=1
 fi
 
+set +e
+
 cat >&2 << EOF
 =====================================================
 =         Tests run on KVM and emulated CPU         =
