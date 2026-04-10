@@ -8,7 +8,7 @@ top_builddir=../../..
 include ../plugins_simp.mak
 
 CFILES = modemu.c sockbuf.c ttybuf.c stty.c telopt.c sock.c atcmd.c \
-	timeval.c commx.c verbose.c
+	timeval.c verbose.c
 ALL_CPPFLAGS += -DDOSEMU -I$(REALTOPDIR)/src/plugin/modemu
 GENSRC = lex.zz.c
 
