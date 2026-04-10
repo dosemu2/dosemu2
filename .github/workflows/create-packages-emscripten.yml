@@ -19,7 +19,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - name: Setup Emscripten
-      uses: mymindstorm/setup-emsdk@v14
+      uses: emscripten-core/setup-emsdk@v16
 
     - name: Verify Emscripten installation
       run: emcc --version
