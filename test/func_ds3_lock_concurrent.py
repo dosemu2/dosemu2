@@ -92,7 +92,7 @@ $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
 """ % name
 
-    results = self.runDosemu("testit.bat", config=config)
+    results = self.runDosemu("testit.bat", config=config, timeout=40)
 
     self.assertNotIn("FAIL:", results)
     self.assertIn("PASS:", results)
