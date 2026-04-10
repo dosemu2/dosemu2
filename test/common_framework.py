@@ -58,6 +58,15 @@ TEST_BINARIES = (
     'TEST_R200.tar',
 )
 
+# Freedos 1.4 packages
+TEST_FREEDOS_HOST = "https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/repositories/1.4"
+TEST_FREEDOS_PKGS = (
+    'devel/dj_make.zip',
+    'devel/nasm.zip',
+    'devel/watcomc.zip',
+    'devel/upx.zip',
+)
+
 DOSEMU_CONF_DEFAULT = """\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
@@ -121,12 +130,19 @@ def get_test_binaries():
         tbindir.mkdir()
 
     for tfile in TEST_BINARIES:
-        if not Path(tbindir / tfile).exists():
-            check_call([
-                "wget",
-                "--no-verbose",
-                TEST_BINARY_HOST + '/' + tfile,
-            ], stderr=STDOUT, cwd=tbindir)
+        check_call([
+            "wget",
+            "--no-verbose",
+            f"{TEST_BINARY_HOST}/{tfile}",
+        ], stderr=STDOUT, cwd=tbindir)
+
+    for zfile in TEST_FREEDOS_PKGS:
+        check_call([
+            "wget",
+            "--no-verbose",
+            "--inet4-only",
+            f"{TEST_FREEDOS_HOST}/{zfile}",
+        ], stderr=STDOUT, cwd=tbindir)
 
 
 def mark(attr_names):

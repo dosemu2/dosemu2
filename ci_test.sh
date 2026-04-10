@@ -16,8 +16,8 @@ if [ "${CI}" = "true" ] ; then
   [ -h "${TBINS}" ] || ln -s "${HOME}"/cache "${TBINS}"
 else
   [ -d "${TBINS}"] || mkdir "${TBINS}"
+  python3 test/test_dosemu.py --get-test-binaries
 fi
-python3 test/test_dosemu.py --get-test-binaries
 
 export PYTHONUNBUFFERED=1
 export TEST_DOSEMU=/usr/local/bin/dosemu
@@ -38,6 +38,8 @@ if [ "${RUNTYPE}" = "simple" ] ; then
 elif [ "${RUNTYPE}" = "full" ] ; then
   export NO_FAILFAST=1
 fi
+
+set +e
 
 cat >&2 << EOF
 =====================================================
