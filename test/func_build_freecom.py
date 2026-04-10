@@ -1,6 +1,8 @@
 from os import environ
 from subprocess import check_call, CalledProcessError, run, STDOUT
 
+from common_framework import BINSDIR
+
 
 def build_freecom(self):
     if environ.get("SKIP_EXPENSIVE"):
@@ -14,23 +16,17 @@ def build_freecom(self):
     except CalledProcessError:
         self.skipTest("repository unavailable")
 
-    # Now need to download Watcom 1.9 packages and unpack
+    # Now need to unpack packages already downloaded from freedos
     # Path to watcom binaries will be 'c:/devel/watcomc/binw'
-    pkgurl = 'https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/repositories/1.3/devel'
     try:
         for pkg in ['watcomc', 'nasm']:
-            check_call([
-                "wget",
-                "-q",
-                pkgurl + '/%s.zip' % pkg,
-            ], stderr=STDOUT, cwd=self.imagedir)
             check_call([
                 "unzip",
                 "-LL",
                 "-q",
-                str(self.imagedir) + '/%s.zip' % pkg,
+                f"{self.topdir}/{BINSDIR}/{pkg}.zip",
             ], stderr=STDOUT, cwd=self.workdir)
-    except:
+    except CalledProcessError:
         self.skipTest("DOS pkgs unavailable")
 
     # Generate the config
