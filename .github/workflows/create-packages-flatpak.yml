@@ -34,7 +34,7 @@ jobs:
         cp -r images index.html javascripts params.json stylesheets pub
 
     - name: Upload
-      uses: actions/upload-pages-artifact@v5
+      uses: actions/upload-pages-artifact@v3
       with:
         path: pub
 
