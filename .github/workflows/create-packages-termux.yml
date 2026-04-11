@@ -69,6 +69,7 @@ jobs:
         fi
 
         if [ -n "$packages" ]; then
+          scripts/buildorder.py -d
           ./scripts/run-docker.sh ./build-package.sh -I -a ${{ matrix.target_arch }} $packages
         fi
 
