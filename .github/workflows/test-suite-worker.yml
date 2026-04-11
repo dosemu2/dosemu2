@@ -44,6 +44,8 @@ jobs:
 
         echo "::group::CPU"
         lscpu
+        echo Microcode:
+        grep microcode /proc/cpuinfo
         echo "::endgroup::"
 
         echo "::group::Kernel Config"
