@@ -1,14 +1,11 @@
 #!/bin/bash
 
-set -eo pipefail
-
-if [ "${GITHUB_ACTIONS}" = "true" ] ; then
-  # CI is already set
-  export CI_BRANCH="$(echo ${GITHUB_REF} | cut -d/ -f3)"
-  if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REPOSITORY_OWNER}" = "dosemu2" ] && [ "${CI_BRANCH}" = "devel" ] ; then
-    export RUNTYPE="simple"
-  fi
+if [ "${GITHUB_ACTIONS}" != "true" ] ; then
+  echo "Run this script only under Github Actions"
+  exit 1
 fi
+
+set -eo pipefail
 
 TBINS="test-binaries"
 if [ "${CI}" = "true" ] ; then
