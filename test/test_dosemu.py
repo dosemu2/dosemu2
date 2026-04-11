@@ -4,6 +4,8 @@ import unittest
 
 from sys import argv
 
+from shutil import copy
+
 from common_framework import (BaseTestCase, main, main_setup, mark, acceptFailure,
                               KNOWNFAIL, UNSUPPORTED)
 
@@ -78,6 +80,26 @@ class OurTestCase(BaseTestCase):
     attrs = {'cmdtest', 'dpmitest', 'emstest', 'fattest', 'fcbtest', 'hmatest', 'labeltest', 'lfntest',
              'locktest', 'memtest', 'mfstest', 'nettest', 'serialtest', 'sfntest', 'sharetest', 'umatest',
              'xmstest'}
+
+    def test_quick(self):
+        """Quick test of Stas 'a.com' for an hour"""
+
+        copy(self.topdir / "a.com", self.workdir)
+
+        self.mkfile("testit.bat", """\
+@echo off
+c:\\a.com
+rem end
+""", newline="\r\n")
+
+        config = """\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+$_force_int_revect = (on)
+"""
+        results = self.runDosemu("testit.bat", config=config, timeout=3600)
+
+        self.assertIn("Timeout:", results)
 
     @mark('cmdtest')
     def test_command_com_r200fix_real(self):

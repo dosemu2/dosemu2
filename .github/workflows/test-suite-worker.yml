@@ -16,12 +16,18 @@ jobs:
   worker:
     runs-on: ${{ inputs.os }}
 
+    strategy:
+      fail-fast: false
+      matrix:
+        run-number: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+
     steps:
     - uses: actions/checkout@v6
       with:
         fetch-depth: 50
 
     - name: Information
+      id: info
       run: |
         #
         echo "::group::Git History (Current Branch vs Devel)"
@@ -58,10 +64,19 @@ jobs:
         sysctl -a
         echo "::endgroup::"
 
+        if grep -q Intel /proc/cpuinfo ; then
+          echo "::notice::Processor is Intel."
+          echo "should_continue=true" >> $GITHUB_OUTPUT
+        else
+          echo "should_continue=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Package install
+      if: steps.info.outputs.should_continue == 'true'
       run: ./ci_prereq.sh
 
     - name: Build or install software under test
+      if: steps.info.outputs.should_continue == 'true'
       env:
         BLDTYPE: ${{ inputs.bldtype }}
         RUNTYPE: ${{ inputs.runtype }}
@@ -70,6 +85,7 @@ jobs:
 
     - name: Cache
       id: cache
+      if: steps.info.outputs.should_continue == 'true'
       uses: actions/cache@v5
       with:
         path: ~/cache
@@ -78,13 +94,14 @@ jobs:
           cache-
 
     - name: Populate cache
-      if: steps.cache.outputs.cache-hit != 'true'
+      if: steps.info.outputs.should_continue == 'true' && steps.cache.outputs.cache-hit != 'true'
       run: |
         echo "Cache missed! Populating with fresh binaries"
         [ -h "test-binaries" ] || ln -s "${HOME}"/cache "test-binaries"
         python3 test/test_dosemu.py --get-test-binaries
 
     - name: Add an ACL to KVM for ourselves
+      if: steps.info.outputs.should_continue == 'true'
       run: |
           echo 'SUBSYSTEM=="misc", KERNEL=="kvm", RUN+="/usr/bin/setfacl -m u:'${USER}':rw- /dev/kvm"' | sudo tee /etc/udev/rules.d/99-kvm4dosemu2.rules
           sudo udevadm control --reload-rules
@@ -92,15 +109,18 @@ jobs:
 
     - name: Install test prerequisites
       id: test_prereq
+      if: steps.info.outputs.should_continue == 'true'
       run: ./ci_test_prereq.sh
 
     - name: Open Watcom install
+      if: steps.info.outputs.should_continue == 'true'
       uses: open-watcom/setup-watcom@v1
       with:
         version: 2.0-64
 
     - name: Test
       id: test
+      if: steps.info.outputs.should_continue == 'true'
       env:
         BLDTYPE: ${{ inputs.bldtype }}
         RUNTYPE: ${{ inputs.runtype }}
@@ -109,8 +129,8 @@ jobs:
       run: ./ci_test.sh
 
     - name: Upload failure logs
-      if: ${{ always() && (steps.test.outcome == 'failure') }}
+      if: always() && steps.info.outputs.should_continue == 'true' && steps.test.outcome == 'failure'
       uses: actions/upload-artifact@v6
       with:
-        name: failure-logs-${{ format('{0}-{1}-{2}', inputs.bldtype, inputs.runtype, inputs.os) }}
+        name: failure-logs-${{ format('{0}-{1}-{2}-{3}', inputs.bldtype, inputs.runtype, inputs.os, matrix.run-number) }}
         path: test_*
