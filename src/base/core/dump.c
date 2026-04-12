@@ -110,7 +110,7 @@ void show_regs(void)
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
-  if (sp < 0xa0000 && sp > 10) {
+  if (sp > 10) {
 	  dbug_printf("STACK: ");
 	  sp -= 10;
 	  for (i = 0; i < 10; i++)
