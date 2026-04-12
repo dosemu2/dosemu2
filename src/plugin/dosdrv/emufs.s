@@ -240,6 +240,7 @@ Init:
 	movw    $DOS_HELPER_EMUFS_HELPER, %ax
 	int	$DOS_HELPER_INT
 	jc	.LrevectOnly
+	jz	.LnonResident
 	movw	$mfsMsg, %dx
 	movb	$9, %ah				# Display the banner
 	int	$0x21
@@ -267,6 +268,12 @@ Init:
 .LrevectOnly:
 	movb	$9, %ah
 	movw	$rvcMsg, %dx
+	int	$0x21
+	jmp	Error
+
+.LnonResident:
+	movb	$9, %ah
+	movw	$nrMsg, %dx
 	int	$0x21
 	jmp	Error
 
@@ -304,5 +311,7 @@ isLoadedMsg:
 	.ascii	"emufs.sys has already been loaded.\r\n$"
 
 mfsMsg: .ascii "EMUFS host file and print access available\r\n$"
+
+nrMsg: .ascii "EMUFS host file and print access, non-resident driver mode\r\n$"
 
 rvcMsg: .ascii "EMUFS revectoring only\r\n$"

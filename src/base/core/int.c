@@ -325,6 +325,7 @@ static void emufs_helper(void)
     switch (LO(bx)) {
     case DOS_SUBHELPER_EMUFS_REDIRECT:
 	NOCARRY;
+	clear_ZF();
 	if (!redir_it()) {
 	    CARRY;
 	    break;
@@ -340,11 +341,12 @@ static void emufs_helper(void)
 	    *p = 0;
 	    p--;
 	}
-	p = strrchr(cmdl, ' ');
-	if (p) {
-	    p++;
+	p1 = cmdl;
+	while ((p = strsep(&p1, " \t"))) {
 	    if (strcasecmp(p, "/ALL") == 0)
 		redirect_devices();
+	    if (strcasecmp(p, "/NODEV") == 0)
+		set_ZF();  // not creating "EMUFS$" device
 	}
 	free(cmdl);
 	break;

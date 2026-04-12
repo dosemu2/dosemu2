@@ -168,6 +168,7 @@ static const struct sys_dsc i_sfiles[] = {
     [CONF2_IDX]= { "FDCONFIG.SYS",	0,   },
     [CONF3_IDX]= { "DCONFIG.SYS",	0,   },
     [CONF4_IDX]= { "FDPPCONF.SYS",	0,   },
+    [HOOK_IDX] = { "GLOBHOOK.SYS",	0,   },
     [AUT_IDX]  = { "AUTOEXEC.BAT",	0,   },
     [AUT2_IDX] = { "FDPPAUTO.BAT",	0,   },
     [DEMU_IDX] = { "DOSEMU",		0, FLG_ISDIR },
