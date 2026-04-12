@@ -40,21 +40,21 @@ set +e
 
 #env NO_FAILFAST=1 python3 test/test_dosemu.py PPDOSGITTestCase.test_quick
 
-#for i in $(seq 1000) ; do
-#  echo "Executing run number ${i}"
-#  python3 test/test_processor.py test_fpu_fyl2x_sim_kvm
-#  if [ $? -ne 0 ]; then
-#    break
-#  fi
-#done
-
-for i in $(seq 50) ; do
+for i in $(seq 1000) ; do
   echo "Executing run number ${i}"
-  python3 test/test_processor.py --require-attr=fputest KVMTestCase
+  python3 test/test_processor.py test_fpu_fyl2x_kvm_kvm
   if [ $? -ne 0 ]; then
     break
   fi
 done
+
+#for i in $(seq 50) ; do
+#  echo "Executing run number ${i}"
+#  python3 test/test_processor.py --require-attr=fputest KVMTestCase
+#  if [ $? -ne 0 ]; then
+#    break
+#  fi
+#done
 
 if false ; then  # comment out following
 
