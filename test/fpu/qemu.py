@@ -77,6 +77,9 @@ $_cpu_vm = "{cpu_vm}"
 $_cpu_vm_dpmi = "{cpu_vm_dpmi}"
 $_cpuemu = ({cpuemu})
 $_ignore_djgpp_null_derefs = (off)
+
+$_force_int_revect = (on)
+$_set_int_hooks = (on)
 """
 
     # DOS test binary is built as part of processor test
