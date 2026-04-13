@@ -96,6 +96,9 @@ rem end
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 $_force_int_revect = (on)
+$_cpu_vm = "kvm"
+$_cpu_vm_dpmi = "emulated"
+$_cpuemu = (1)
 """
         results = self.runDosemu("testit.bat", config=config, timeout=3600)
 
