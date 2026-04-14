@@ -12,16 +12,27 @@ class OurTestCase(BaseTestCase):
         dbg_script = f"""\
 #!/bin/bash
 set -e
+sleep 1
 echo 'd b800:0540 256' | {self.dosdebug}
+sleep 1
 echo 'd b800:0640 256' | {self.dosdebug}
+sleep 1
 echo 'd b800:0740 256' | {self.dosdebug}
+sleep 1
 echo 'd b800:0840 256' | {self.dosdebug}
+sleep 1
 echo 'd b800:0940 256' | {self.dosdebug}
+sleep 1
 echo 'd b800:0a40 256' | {self.dosdebug}
+sleep 1
 echo 'd b800:0b40 256' | {self.dosdebug}
+sleep 1
 echo 'd b800:0c40 256' | {self.dosdebug}
+sleep 1
 echo 'd b800:0d40 256' | {self.dosdebug}
+sleep 1
 echo 'd b800:0e40 256' | {self.dosdebug}
+sleep 1
 echo 'd b800:0f40 256' | {self.dosdebug}
 """
 
