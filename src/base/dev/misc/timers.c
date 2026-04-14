@@ -254,7 +254,7 @@ static int _pit_latch(int latch, uint64_t cur)
 	    ticks = 0;  // should not be here
 	}
       } else {
-	ticks = p->cntr - (cur % p->cntr);
+	ticks = p->cntr - (NS_TO_TICKS(cur) % p->cntr);
       }
 
       if ((p->mode & 3)==3) {
