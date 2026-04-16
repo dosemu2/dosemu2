@@ -163,6 +163,7 @@ void speaker_pause (void)
 		std_port_outb (0x61, saved_port_val & 0xFC);	/* clear timer & speaker bits */
 		break;
 	case SPKR_EMULATED:
+	case SPKR_SOUND:
 		speaker_off ();
 		break;
 	case SPKR_OFF:
@@ -178,6 +179,7 @@ void speaker_resume (void)
 		std_port_outb (0x61, saved_port_val);	/* restore timer & speaker bits */
 		break;
 	case SPKR_EMULATED:
+	case SPKR_SOUND:
 //		do_sound(pit[2].write_latch & 0xffff);
 		break;
 	case SPKR_OFF:
@@ -187,13 +189,14 @@ void speaker_resume (void)
 
 void speaker_init (void)
 {
+	sound_speaker_init();
 	evdev_speaker_init();
 	console_speaker_init();
 }
 
 void speaker_done (void)
 {
-	if (config.speaker == SPKR_EMULATED) {
+	if (config.speaker == SPKR_EMULATED || config.speaker == SPKR_SOUND) {
 		g_printf("SPEAKER: sound off\n");
 		speaker_off();		/* turn off any sound */
 	}
@@ -207,6 +210,7 @@ void speaker_done (void)
 		 */
 		port_outb(0x61, port_inb(0x61)&0xFC); /* turn off any sound */
 	}
+	sound_speaker_done();
 	/* reset the speaker to its default */
 	register_speaker(NULL, NULL, NULL);
 }

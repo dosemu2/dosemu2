@@ -678,7 +678,7 @@ line:		CHARSET '{' charset_flags '}' {}
                         c_printf("CONF: allowing speaker port access!\n");
 		      } else {
                         c_printf("CONF: native speaker not allowed: emulate\n");
-			$2 = SPKR_EMULATED;
+			$2 = SPKR_SOUND;
 		      }
 		    }
 		    else
@@ -1870,9 +1870,10 @@ irq_bool:	expression {
 speaker		: L_OFF		{ $$ = SPKR_OFF; }
 		| NATIVE	{ $$ = SPKR_NATIVE; }
 		| EMULATED	{ $$ = SPKR_EMULATED; }
-		| STRING        { yyerror("got '%s', expected 'emulated' or 'native'", $1);
+		| SOUND		{ $$ = SPKR_SOUND; }
+		| STRING        { yyerror("got '%s', expected 'sound', 'emulated' or 'native'", $1);
 				  free($1); }
-		| error         { yyerror("expected 'emulated' or 'native'"); }
+		| error         { yyerror("expected 'sound', 'emulated' or 'native'"); }
 		;
 
 cpu_vm		: L_AUTO	{ $$ = -1; }

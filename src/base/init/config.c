@@ -260,6 +260,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
       case SPKR_OFF: s = "off"; break;
       case SPKR_NATIVE: s = "native"; break;
       case SPKR_EMULATED: s = "emulated"; break;
+      case SPKR_SOUND: s = "sound"; break;
       default: s = "wrong"; break;
     }
     (*print)("dualmon %d\nforce_vt_switch %d\nspeaker \"%s\"\n",

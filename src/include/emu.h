@@ -387,7 +387,7 @@ typedef struct config_info {
 } config_t;
 
 
-enum { SPKR_OFF, SPKR_NATIVE, SPKR_EMULATED };
+enum { SPKR_OFF, SPKR_NATIVE, SPKR_EMULATED, SPKR_SOUND };
 enum { CPUVM_VM86, CPUVM_KVM, CPUVM_EMU, CPUVM_NATIVE };
 
 extern void parent_nextscan(void);

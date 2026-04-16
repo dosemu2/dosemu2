@@ -51,6 +51,8 @@ void register_speaker(void *gp,
 /* for now declare these here */
 void console_speaker_init(void);
 void evdev_speaker_init(void);
+void sound_speaker_init(void);
+void sound_speaker_done(void);
 
 void speaker_init(void);
 void speaker_done(void);
