@@ -1342,6 +1342,33 @@ static void kvm_handle_io(uint16_t port, unsigned char *data,
   }
 }
 
+static int fixup_hlt_exit(struct vm86_regs *regs)
+{
+  unsigned int trapno = (regs->orig_eax >> 16) & 0xff;
+  if (regs->eip < 2 || !(regs->eflags & X86_EFLAGS_VM) ||
+      !(sregs.cr4 & X86_CR4_VME) || trapno < 0x11)
+    return 0;
+  if (READ_BYTE(SEGOFF2LINEAR(regs->cs, regs->eip - 2)) == 0xcd) {
+    /* The problem was noticed on
+
+       Vendor ID:                               GenuineIntel
+       Model name:                              Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz
+       CPU family:                              6
+       Model:                                   106
+
+     * In VME mode, if the interrupt is redirected according to the
+     * redirection bitmap and DPL of PM IDT is 3 for that interrupt,
+     * CPU _sometimes_ executes IDT handler, ignoring the VM flag.
+     */
+    error("KVM: Xeon VME bug detected, trying to undo it\n");
+    regs->eip -= 2;
+    return 1;
+  } else {
+    error("KVM: unknown trapno %x in v86\n", trapno);
+  }
+  return 0;
+}
+
 /* Inner loop for KVM, runs until HLT or signal */
 static unsigned int kvm_run(void)
 {
@@ -1428,6 +1455,8 @@ static unsigned int kvm_run(void)
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
+      if (fixup_hlt_exit(regs))
+        break;
       exit_reason = KVM_EXIT_HLT;
       break;
     case KVM_EXIT_IO:
