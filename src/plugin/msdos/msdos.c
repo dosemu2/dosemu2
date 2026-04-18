@@ -27,6 +27,8 @@
 
 #include "cpu.h"
 #ifdef DOSEMU
+#include "int.h"
+#include "emu.h"
 #include "init.h"
 #include "utilities.h"
 #include "dos2linux.h"
@@ -253,6 +255,17 @@ static void setup_int_exc(int inherit_idt)
 
 	for (i = 0; i < num_ints; i++) {
 	    DPMI_INTDESC desc2 = desc;
+#ifdef DOSEMU
+	    /* XXX working around Xeon VME bug:
+	     * in force_revect mode, 0xe6 left revectored, so not touching. */
+	    if (ints[i] == DOS_HELPER_INT && int_revectored(ints[i]) &&
+		    /* Check KVM-KVM mode, as in non-KVM DPMI we do not
+		     * set PM handlers to KVM, and in non-KVM v86 there is
+		     * no VME. */
+		    config.cpu_vm_dpmi == CPUVM_KVM &&
+		    config.cpu_vm == CPUVM_KVM)
+		continue;
+#endif
 	    MSDOS_CLIENT.prev_ihandler[i] = dpmi_get_interrupt_vector(ints[i]);
 	    desc2.offset32 += int_offs[i];
 	    dpmi_set_interrupt_vector(ints[i], desc2);

@@ -1706,6 +1706,11 @@ static int msdos(void)
     return 0;
 }
 
+int int_revectored(int i)
+{
+    return test_bit(i, &vm86s.int_revectored);
+}
+
 static void do_ret_from_int(int inum, const char *pfx)
 {
     unsigned int ssp, sp;

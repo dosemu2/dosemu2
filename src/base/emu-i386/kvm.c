@@ -45,6 +45,7 @@
 #include "mhpdbg.h"
 #include "sig.h"
 #include "port.h"
+#include "int.h"
 
 #ifndef X86_EFLAGS_FIXED
 #define X86_EFLAGS_FIXED 2
@@ -301,6 +302,13 @@ void kvm_set_idt(int i, uint16_t sel, uint32_t offs, int is_32, int tg)
        the VM */
     if (i < 0x11)
         return;
+    /* Due to Xeon VME bug, we do not allow this.
+     * See https://github.com/dosemu2/dosemu2/issues/2624
+     */
+    if (int_revectored(i)) {
+        error("KVM: not setting PM handler for %x as its revectored\n", i);
+        return;
+    }
     set_idt(i, sel, offs, is_32, tg);
 }
 

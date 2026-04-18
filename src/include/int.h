@@ -34,7 +34,7 @@ void int_try_disable_revect(void);
 
 enum { I_NOT_HANDLED, I_HANDLED, I_SECOND_REVECT };
 
-extern int can_revector(int i);
+int int_revectored(int i);
 
 void update_xtitle(void);
 
