@@ -320,7 +320,7 @@ static void kvm_set_desc(Descriptor *desc, struct kvm_segment *seg)
   desc->S = seg->s;
   desc->gran = seg->g;
   desc->AVL = seg->avl;
-  desc->unused = 0;
+  desc->L = 0;
 }
 
 /* initialize KVM virtual machine monitor */

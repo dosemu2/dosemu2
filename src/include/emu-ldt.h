@@ -67,7 +67,7 @@ typedef struct ldt_descriptor {
 	unsigned present   : 1;
 	unsigned limit_hi  : 4;		/* b6 */
 	unsigned AVL       : 1;
-	unsigned unused    : 1;
+	unsigned L         : 1;
 	unsigned DB        : 1;
 	unsigned gran      : 1;
 	unsigned base_hi   : 8;		/* b7 */
