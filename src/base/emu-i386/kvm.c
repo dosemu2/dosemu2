@@ -444,6 +444,12 @@ static void init_kvm_monitor(void)
   sregs.cs.selector = GDT_CS << 3;
   sregs.cs.db = 1;
   sregs.cs.g = 1;
+  sregs.cs.s = 1;
+  sregs.cs.type = 0xb;
+  sregs.cs.present = 1;
+  sregs.cs.dpl = 0;
+  sregs.cs.avl = 0;
+  kvm_set_desc(&monitor->gdt[GDT_CS], &sregs.cs);
 
   sregs.ss.base = sregs.tr.base;
   sregs.ss.limit = 0xffffffff;
