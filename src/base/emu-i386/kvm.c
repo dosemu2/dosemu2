@@ -100,10 +100,7 @@ extern char _binary_kvmmon_o_bin_start[] asm("_binary_kvmmon_o_bin_start");
  */
 
 #define TSS_IOPB_SIZE (65536 / 8)
-#define GDT_ENTRIES 5
-#define GDT_SS (GDT_ENTRIES - 3)
-#define GDT_TSS (GDT_ENTRIES - 2)
-#define GDT_LDT (GDT_ENTRIES - 1)
+enum { GDT_NULL, GDT_CS, GDT_SS, GDT_TSS, GDT_LDT, GDT_ENTRIES };
 #undef IDT_ENTRIES
 #define IDT_ENTRIES 0x100
 
@@ -266,7 +263,7 @@ static void set_idt_default(dosaddr_t mon, int i)
     unsigned int offs = mon + offsetof(struct monitor, code) + i * 32;
     monitor->idt[i].offs_lo = offs & 0xffff;
     monitor->idt[i].offs_hi = offs >> 16;
-    monitor->idt[i].seg = 0x8; // FLAT_CODE_SEL
+    monitor->idt[i].seg = GDT_CS << 3;
     monitor->idt[i].type = 0xe;
     /* DPL is 0 so that software ints < 0x11 or 255 from DPMI clients will GPF.
        Exceptions are int3 (BP) and into (OF): matching the Linux kernel
@@ -354,7 +351,7 @@ static void init_kvm_monitor(void)
 
   sregs.tr.base = MONITOR_DOSADDR;
   sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE - 1;
-  sregs.tr.selector = 0x18;
+  sregs.tr.selector = GDT_TSS << 3;
   sregs.tr.unusable = 0;
   sregs.tr.type = 0xb;
   sregs.tr.s = 0;
@@ -369,7 +366,7 @@ static void init_kvm_monitor(void)
     ldt_buffer = (unsigned char *)monitor->ldt;
   sregs.ldt.base = sregs.tr.base + offsetof(struct monitor, ldt);
   sregs.ldt.limit = LDT_ENTRIES * LDT_ENTRY_SIZE - 1;
-  sregs.ldt.selector = 0x20;
+  sregs.ldt.selector = GDT_LDT << 3;
   sregs.ldt.unusable = 0;
   sregs.ldt.type = 0x2;
   sregs.ldt.s = 0;
@@ -444,7 +441,7 @@ static void init_kvm_monitor(void)
   /* setup registers to point to VM86 monitor */
   sregs.cs.base = 0;
   sregs.cs.limit = 0xffffffff;
-  sregs.cs.selector = 0x8;
+  sregs.cs.selector = GDT_CS << 3;
   sregs.cs.db = 1;
   sregs.cs.g = 1;
 
