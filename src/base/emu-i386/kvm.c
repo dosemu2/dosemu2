@@ -61,6 +61,11 @@
 
 #define USE_CPIO 1
 
+/* 1 should fix Xeon VME bug, see
+ * https://github.com/dosemu2/dosemu2/issues/2624
+ */
+#define IDT_GPF 1
+
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
                    X86_EFLAGS_AF|X86_EFLAGS_ZF|X86_EFLAGS_SF| \
                    X86_EFLAGS_TF|X86_EFLAGS_DF|X86_EFLAGS_OF| \
@@ -264,7 +269,13 @@ static void set_idt_default(dosaddr_t mon, int i)
     monitor->idt[i].offs_lo = offs & 0xffff;
     monitor->idt[i].offs_hi = offs >> 16;
     monitor->idt[i].seg = GDT_CS << 3;
+#if IDT_GPF
+    /* Set type to 0 for software ints, then they GPF.
+     * We still allow direct interrupt handlers in kvm_set_idt() below. */
+    monitor->idt[i].type = (i <= 0x10) ? 0xe : 0;
+#else
     monitor->idt[i].type = 0xe;
+#endif
     /* DPL is 0 so that software ints < 0x11 or 255 from DPMI clients will GPF.
        Exceptions are int3 (BP) and into (OF): matching the Linux kernel
        they must generate traps 3 and 4, and not GPF.
@@ -320,7 +331,7 @@ static void kvm_set_desc(Descriptor *desc, struct kvm_segment *seg)
   desc->S = seg->s;
   desc->gran = seg->g;
   desc->AVL = seg->avl;
-  desc->unused = 0;
+  desc->L = 0;
 }
 
 /* initialize KVM virtual machine monitor */
@@ -444,6 +455,12 @@ static void init_kvm_monitor(void)
   sregs.cs.selector = GDT_CS << 3;
   sregs.cs.db = 1;
   sregs.cs.g = 1;
+  sregs.cs.s = 1;
+  sregs.cs.type = 0xb;
+  sregs.cs.present = 1;
+  sregs.cs.dpl = 0;
+  sregs.cs.avl = 0;
+  kvm_set_desc(&monitor->gdt[GDT_CS], &sregs.cs);
 
   sregs.ss.base = sregs.tr.base;
   sregs.ss.limit = 0xffffffff;
@@ -1341,6 +1358,7 @@ static void kvm_handle_io(uint16_t port, unsigned char *data,
 
 static int fixup_hlt_exit(struct vm86_regs *regs)
 {
+#if !IDT_GPF
   unsigned int trapno = (regs->orig_eax >> 16) & 0xff;
   if (regs->eip < 2 || !(regs->eflags & X86_EFLAGS_VM) ||
       !(sregs.cr4 & X86_CR4_VME) || trapno < 0x11)
@@ -1363,6 +1381,7 @@ static int fixup_hlt_exit(struct vm86_regs *regs)
   } else {
     error("KVM: unknown trapno %x in v86\n", trapno);
   }
+#endif
   return 0;
 }
 
@@ -1691,6 +1710,9 @@ int true_kvm_dpmi(cpuctx_t *scp)
       _trapno = (regs->orig_eax >> 16) & 0xff;
       _err = regs->orig_eax & 0xffff;
       if (_trapno > 0x10) {
+#if IDT_GPF
+	error("PM int %x should not happen\n", _trapno);
+#endif
 	// convert software ints into the GPFs that the DPMI code expects
 	_err = (_trapno << 3) + 2;
 	_trapno = 0xd;
