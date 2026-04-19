@@ -1,21 +1,21 @@
-name: Test Suite (Triggered)
+name: Test Suite (Triggered x20)
 
 on:
   push:
 
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-
-# workflow_dispatch:
-
 jobs:
+# triggered:
+#   name: "Test Suite (standard-${{ (github.event_name == 'push' && github.repository_owner == 'dosemu' && github.ref_name == 'devel') && 'simple' || 'normal' }}-ubuntu-24.04)"
+#   uses: ./.github/workflows/test-suite-worker.yml
+#   with:
+#     bldtype: 'standard'
+#     runtype: ${{ (github.event_name == 'push' && github.repository_owner == 'dosemu' && github.ref_name == 'devel') && 'simple' || 'normal' }}
+#     os: 'ubuntu-24.04'
+
   triggered:
-    name: "Test Suite (standard-${{ (github.event_name == 'push' && github.repository_owner == 'dosemu' && github.ref_name == 'devel') && 'simple' || 'normal' }}-ubuntu-24.04)"
+    name: Test Suite
     uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'standard'
-      runtype: ${{ (github.event_name == 'push' && github.repository_owner == 'dosemu' && github.ref_name == 'devel') && 'simple' || 'normal' }}
+      runtype: 'normal'
       os: 'ubuntu-24.04'

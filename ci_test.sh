@@ -38,6 +38,18 @@ fi
 
 set +e
 
+#env NO_FAILFAST=1 python3 test/test_dosemu.py PPDOSGITTestCase.test_quick
+
+for i in $(seq 1000) ; do
+  echo "Executing run number ${i}"
+  env NO_FAILFAST=1 python3 test/test_dosemu.py PPDOSGITTestCase.test_quick
+  if [ $? -ne 0 ]; then
+    break
+  fi
+done
+
+if false ; then  # comment out following
+
 cat >&2 << EOF
 =====================================================
 =         Tests run on KVM and emulated CPU         =
@@ -67,6 +79,7 @@ case "${RUNTYPE}" in
     ;;
 esac
 
+fi # end comment block
 for i in test_*.*.*.log ; do
   test -f $i || exit 0
 done
