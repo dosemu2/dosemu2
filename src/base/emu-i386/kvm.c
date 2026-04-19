@@ -1583,6 +1583,12 @@ int true_kvm_vm86(struct vm86_struct *info)
       vm86_ret = kvm_handle_vm86_fault(regs, info->cpu_type);
   } while (vm86_ret == -1);
 
+  /* On Xeon, in VME mode sometimes the IDT handler is invoked instead
+   * of GPF. Assert that we are still in V86, not in such IDT handler.
+   * See https://github.com/dosemu2/dosemu2/issues/2624
+   * for details.
+   */
+  assert(regs->eflags & X86_EFLAGS_VM);
   info->regs = *regs;
   info->regs.eflags |= X86_EFLAGS_IOPL;
 #if 0
