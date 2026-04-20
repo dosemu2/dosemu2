@@ -161,7 +161,7 @@ void do_sound(Bit16u period)
 		}
 		break;
 	case 2:		/* speaker on & direct speaker through bit 1 */
-		speaker_on(sound_duration, 0xfff); /* on as long as possible */
+		speaker_on(sound_duration, 0xffff); /* on as long as possible */
 		break;
 	case 1:		/* speaker off & speaker control through timer channel 2 */
 	case 0:		/* speaker off & direct speaker through bit 1 */
