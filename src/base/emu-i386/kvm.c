@@ -61,10 +61,16 @@
 
 #define USE_CPIO 1
 
+#define USE_VME 1
+
+#if USE_VME
 /* 1 should fix Xeon VME bug, see
  * https://github.com/dosemu2/dosemu2/issues/2624
  */
 #define IDT_GPF 1
+#else
+#define IDT_GPF 0
+#endif
 
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
                    X86_EFLAGS_AF|X86_EFLAGS_ZF|X86_EFLAGS_SF| \
@@ -443,7 +449,7 @@ static void init_kvm_monitor(void)
    * It is also sometimes broken on AMD CPUs:
    * See https://www.os2museum.com/wp/vme-broken-on-amd-ryzen/
    */
-#if 1
+#if USE_VME
   sregs.cr4 |= X86_CR4_VME;
 #endif
   if (config.umip)
@@ -1358,7 +1364,7 @@ static void kvm_handle_io(uint16_t port, unsigned char *data,
 
 static int fixup_hlt_exit(struct vm86_regs *regs)
 {
-#if !IDT_GPF
+#if !IDT_GPF && USE_VME
   unsigned int trapno = (regs->orig_eax >> 16) & 0xff;
   if (regs->eip < 2 || !(regs->eflags & X86_EFLAGS_VM) ||
       !(sregs.cr4 & X86_CR4_VME) || trapno < 0x11)
