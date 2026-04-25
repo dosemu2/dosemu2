@@ -117,6 +117,7 @@ static int hwram_restore_mapping(struct hardware_ram *hw, unsigned addr,
 static int hwram_prot_match(struct hardware_ram *hw, unsigned addr,
 	int size, int prot);
 static int is_kvm_map(int cap);
+static void *do_huge_page(int flags, size_t mapsize, int protect);
 #if HAVE_DECL_MADV_POPULATE_WRITE
 static int madvise_mapping(dosaddr_t targ, size_t length, int flags);
 #endif
@@ -211,7 +212,11 @@ int alias_mapping_high(int cap, dosaddr_t targ, size_t mapsize, int protect,
   if (addr == MAP_FAILED)
     return -1;
   if (cap & MAPPING_INIT_LOWRAM) {
-    void *addr2 = mappingdriver->alias(cap, (void *)-1, mapsize, protect,
+    void *addr1 = do_huge_page(0, mapsize, protect);
+    void *addr2 = MAP_FAILED;
+
+    if (addr1 != MAP_FAILED)
+      addr2 = mappingdriver->alias(cap, addr1, mapsize, protect,
         source);
     if (addr2 == MAP_FAILED) {
       error("second alias failed\n");
