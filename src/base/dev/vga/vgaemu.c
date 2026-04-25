@@ -786,10 +786,13 @@ int vga_bank_access(dosaddr_t m)
 
 int vga_read_access(dosaddr_t m)
 {
-	if (config.console_video)
+	if (config.console_video || !vga.inst_emu)
 		return 0;
-	/* Using a planar mode */
-	return (vga_bank_access(m) && mapping_is_mapped_pa(m, 1));
+	/* even in text mode we protect graph_base */
+	if (m >= vga.mem.graph_base &&
+			m < vga.mem.graph_base + vga.mem.graph_size)
+		return mapping_is_mapped_pa(m, 1);
+	return 0;
 }
 
 int vga_write_access(dosaddr_t m)
