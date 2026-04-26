@@ -39,6 +39,7 @@
 #include "vtmr.h"
 #include "timer/evtimer.h"
 #include "timers.h"
+#include "keyboard/keyb_server.h"
 
 #undef  DEBUG_PIT
 #undef  ONE_MINUTE_TEST
@@ -562,23 +563,33 @@ static int timer_irq_ack(int masked)
  *  1	speaker data status
  *  0	timer 2 clock gate to speaker status
  */
-Bit8u spkr_io_read(ioport_t port) {
+static Bit8u spkr_io_read(ioport_t port, void *arg) {
+   Bit8u r = 0;
+   static Bit8u port61_ff;
+
    if (port==0x61)  {
       if (config.speaker == SPKR_NATIVE)
-         return std_port_inb(0x61);
+         r = std_port_inb(0x61);
       else {
 	 /* keep the connection between port 0x61 and PIT timer#2 */
 	 pit_latch(2);
-         return ((*((Bit8u *)&pic_sys_time)&0x10) | /* or anything that toggles quick enough */
+         r = ((*((Bit8u *)&pic_sys_time)&0x10) | /* or anything that toggles quick enough */
 		(pit[2].outpin? 0x20:0) |	/* outpin: 00 or 80 */
 		(port61&0xcf));
       }
+      port61_ff ^= 0x10;
+      r |= port61_ff;
+      return r;
    }
    return 0xff;
 }
 
-void spkr_io_write(ioport_t port, Bit8u value) {
+static void spkr_io_write(ioport_t port, Bit8u value, void *arg) {
    if (port==0x61) {
+      if (value & 0x80) {
+          k_printf("8042: IRQ ACK, %i\n", port60_ready);
+          int_check_queue();   /* reschedule irq1 if appropriate */
+      }
       switch (config.speaker) {
        case SPKR_NATIVE:
           std_port_outb(0x61, value & 0x03);
@@ -636,11 +647,17 @@ void pit_priv_init(void)
   io_device.end_addr     = 0x0047;
   port_register_handler(io_device, 0);
 #endif
+
+  io_device.read_portb   = spkr_io_read;
+  io_device.write_portb  = spkr_io_write;
+  io_device.handler_name = "Keyboard controller port B";
+  io_device.start_addr   = 0x0061;
+  io_device.end_addr     = 0x0061;
+  port_register_handler(io_device, 0);
 }
 
 void pit_init(void)
 {
-  /* register_handler for port 0x61 is in keyboard code */
   port61 = 0x0c;
 
   vtmr_register(VTMR_PIT, timer_irq_ack);
