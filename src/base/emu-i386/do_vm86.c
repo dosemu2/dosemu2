@@ -512,11 +512,7 @@ static void _do_vm86(void)
     retval = do_vm86(&vm86u);
     in_vm86 = 0;
 
-    if (
-#ifdef X86_EMULATOR
-	(debug_level('e')>1)||
-#endif
-	(debug_level('g')>3)) {
+    if (debug_level('g')>3) {
 	dbug_printf ("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x ret=0x%x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS, retval);
 	if (debug_level('g')>8)
@@ -597,11 +593,7 @@ void run_vm86(void)
 {
     int retval, cnt;
 
-    if (
-#ifdef X86_EMULATOR
-	(debug_level('e')>1)||
-#endif
-	(debug_level('g')>3)) {
+    if (debug_level('g')>3) {
 	dbug_printf ("DO_VM86,  cs=%04x:%04x ss=%04x:%04x f=%08x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS);
 	if (debug_level('g')>8)

@@ -62,7 +62,7 @@
 #define	FP_DISPHEX
 #undef	FPU_TAGS
 
-#undef	DEBUG_VGA
+#define	DEBUG_VGA 1
 
 #define NODES_IN_POOL	1000000
 #define NODELIFE(n)	200

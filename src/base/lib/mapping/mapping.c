@@ -117,6 +117,7 @@ static int hwram_restore_mapping(struct hardware_ram *hw, unsigned addr,
 static int hwram_prot_match(struct hardware_ram *hw, unsigned addr,
 	int size, int prot);
 static int is_kvm_map(int cap);
+static void *do_huge_page(int flags, size_t mapsize, int protect);
 #if HAVE_DECL_MADV_POPULATE_WRITE
 static int madvise_mapping(dosaddr_t targ, size_t length, int flags);
 #endif
@@ -211,7 +212,11 @@ int alias_mapping_high(int cap, dosaddr_t targ, size_t mapsize, int protect,
   if (addr == MAP_FAILED)
     return -1;
   if (cap & MAPPING_INIT_LOWRAM) {
-    void *addr2 = mappingdriver->alias(cap, (void *)-1, mapsize, protect,
+    void *addr1 = do_huge_page(0, mapsize, protect);
+    void *addr2 = MAP_FAILED;
+
+    if (addr1 != MAP_FAILED)
+      addr2 = mappingdriver->alias(cap, addr1, mapsize, protect,
         source);
     if (addr2 == MAP_FAILED) {
       error("second alias failed\n");
@@ -421,8 +426,6 @@ int restore_mapping(int cap, dosaddr_t targ, size_t mapsize)
   assert((cap & (MAPPING_DPMI | MAPPING_VGAEMU | MAPPING_INIT_LOWRAM)) && (targ != (dosaddr_t)-1));
   ret = alias_mapping(cap, targ, mapsize, PROT_READ | PROT_WRITE,
       LOWMEM(targ));
-  if (is_kvm_map(cap))
-    mprotect_kvm(cap, targ, mapsize, PROT_READ | PROT_WRITE);
   return ret;
 }
 
@@ -1182,9 +1185,6 @@ int alias_mapping_pa(int cap, unsigned addr, size_t mapsize, int protect,
     err = alias_mapping(cap, va, mapsize, protect, source);
     if (err)
       return err;
-    invalidate_unprotected_page_cache(va, mapsize);
-    if (is_kvm_map(cap))
-      mprotect_kvm(cap, va, mapsize, protect);
   }
   hwram_update_aliasmap(hw, addr, mapsize, source);
   hwram_mprotect_aliasmap(hw, addr, mapsize, protect);
@@ -1207,7 +1207,6 @@ int unalias_mapping_pa(int cap, unsigned addr, size_t mapsize)
   assert(addr >= LOWMEM_SIZE + HMASIZE);
   restore_mapping(cap, va, mapsize);
   hwram_update_aliasmap(hw, addr, mapsize, NULL);
-  invalidate_unprotected_page_cache(va, mapsize);
   return 0;
 }
 

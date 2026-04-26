@@ -786,10 +786,13 @@ int vga_bank_access(dosaddr_t m)
 
 int vga_read_access(dosaddr_t m)
 {
-	if (config.console_video)
+	if (config.console_video || !vga.inst_emu)
 		return 0;
-	/* Using a planar mode */
-	return (vga_bank_access(m) && mapping_is_mapped_pa(m, 1));
+	/* even in text mode we protect graph_base */
+	if (m >= vga.mem.graph_base &&
+			m < vga.mem.graph_base + vga.mem.graph_size)
+		return mapping_is_mapped_pa(m, 1);
+	return 0;
 }
 
 int vga_write_access(dosaddr_t m)
@@ -1437,7 +1440,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 {
   unsigned u;
   vga_mapping_type *vmt;
-  int prot, i = 0;
+  int prot = VGA_EMU_RW_PROT, i = 0, k0;
 
   if(mapping >= VGAEMU_MAX_MAPPINGS) return 1;
 
@@ -1447,7 +1450,9 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   if(vmt->pages + first_page > vga.mem.pages) return 2;
 
   /* default protection for dirty pages */
-  switch(vga.inst_emu) {
+  k0 = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page;
+  if ((k0 << PAGE_SHIFT) == vga.mem.graph_base)
+    switch(vga.inst_emu) {
     case EMU_WRITE_INST:
       prot = VGA_EMU_RO_PROT;
       break;
@@ -2489,9 +2494,9 @@ int vga_emu_setmode_vmi(vga_mode_info *vmi, int width, int height)
 
 int vgaemu_map_bank(void)
 {
-  int i, first;
+  int i, first, k0;
 #if 0
-  int j, k0, k1;
+  int j, k1;
 #endif
 
   if((vga.mem.bank + 1) * vga.mem.bank_pages > vga.mem.pages) {
@@ -2511,11 +2516,11 @@ int vgaemu_map_bank(void)
   }
   vga.mem.map[VGAEMU_MAP_BANK_MODE].first_page = first;
 
-#if 0
   /*
    * this is too slow !!! -- sw
    */
   k0 = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page;
+#if 0
   k1 = k0 + vga.mem.map[VGAEMU_MAP_BANK_MODE].pages;
   for(j = VGA_A0; j < VGA_C0; j++) {
     if(j < k0 || j >= k1) {
@@ -2531,7 +2536,7 @@ int vgaemu_map_bank(void)
 #endif
 
   /* for inst_emu the real mapping doesn't matter, so save some time */
-  if (vga.inst_emu)
+  if (vga.inst_emu && (k0 << PAGE_SHIFT) == vga.mem.graph_base)
     return False;
   i = vga_emu_map(VGAEMU_MAP_BANK_MODE, first);
   e_invalidate_full(0xa0000, 0x20000);
