@@ -667,10 +667,14 @@ void pit_init(void)
   pit[0].evtmr = evtimer_create(timer_activate, (void *)(uintptr_t)0);
   pit[1].evtmr = evtimer_create(timer_activate, (void *)(uintptr_t)1);
   pit[2].evtmr = evtimer_create(timer_activate, (void *)(uintptr_t)2);
+
+  speaker_init();
 }
 
 void pit_done(void)
 {
+  speaker_done();
+
   evtimer_delete(pit[0].evtmr);
   evtimer_delete(pit[1].evtmr);
   evtimer_delete(pit[2].evtmr);

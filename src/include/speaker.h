@@ -49,9 +49,9 @@ void register_speaker(void *gp,
  * =============================================================================
  */
 /* for now declare these here */
-void X_speaker_on(void *gp, unsigned ms, unsigned short period);
-void X_speaker_off(void *gp);
-void console_speaker_on(void *gp, unsigned ms, unsigned short period);
-void console_speaker_off(void *gp);
+void console_speaker_init(void);
+
+void speaker_init(void);
+void speaker_done(void);
 
 #endif /* SPEAKER_H */

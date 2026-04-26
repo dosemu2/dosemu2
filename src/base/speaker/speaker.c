@@ -184,3 +184,28 @@ void speaker_resume (void)
 		break;
 	}
 }
+
+void speaker_init (void)
+{
+	console_speaker_init();
+}
+
+void speaker_done (void)
+{
+	if (config.speaker == SPKR_EMULATED) {
+		g_printf("SPEAKER: sound off\n");
+		speaker_off();		/* turn off any sound */
+	}
+	else if (config.speaker==SPKR_NATIVE) {
+		g_printf("SPEAKER: sound off\n");
+		/* Since the speaker is native hardware use port manipulation,
+		 * we don't know what is actually implementing the kernel's
+		 * ioctls.
+		 * My port logic is actually stolen from kd_nosound in the kernel.
+		 * 		--EB 21 September 1997
+		 */
+		port_outb(0x61, port_inb(0x61)&0xFC); /* turn off any sound */
+	}
+	/* reset the speaker to its default */
+	register_speaker(NULL, NULL, NULL);
+}

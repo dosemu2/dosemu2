@@ -1112,10 +1112,6 @@ static void config_post_process(void)
 	}
 	if (config.console_keyb == -1 && config.console_video)
 	    config.console_keyb = KEYB_RAW;
-	if (config.speaker == SPKR_EMULATED) {
-	    register_speaker((void *)(uintptr_t)console_fd,
-			     console_speaker_on, console_speaker_off);
-	}
     } else
 #endif
     {

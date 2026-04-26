@@ -6,13 +6,14 @@
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
+#include "X.h"
 #include "speaker.h"
 
 /*
  * X speaker emulation
  * =============================================================================
  */
-void X_speaker_on(void *gp, unsigned ms, unsigned short period)
+static void X_speaker_on(void *gp, unsigned ms, unsigned short period)
 {
 	XKeyboardControl new_state;
 	Display *display = gp;
@@ -41,9 +42,13 @@ void X_speaker_on(void *gp, unsigned ms, unsigned short period)
 	XChangeKeyboardControl(display, KBBellDuration | KBBellPitch, &new_state);
 }
 
-void X_speaker_off(void*gp)
+static void X_speaker_off(void*gp)
 {
 	/* Just make a zero length sound */
 	X_speaker_on(gp, 0,0);
 }
 
+void X_register_speaker(Display *display)
+{
+	register_speaker(display, X_speaker_on, X_speaker_off);
+}
