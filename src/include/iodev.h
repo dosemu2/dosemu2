@@ -20,6 +20,7 @@ extern void iodev_register(const char *name, void (*init_func)(void),
 void iodev_unregister(const char *name);
 void iodev_add_device(const char *dev_name);
 
+extern void  pit_priv_init(void);
 extern void  pit_init(void);
 extern void  pit_done(void);
 extern void  pit_reset(void);

@@ -598,7 +598,7 @@ void spkr_io_write(ioport_t port, Bit8u value) {
    }
 }
 
-void pit_init(void)
+void pit_priv_init(void)
 {
   emu_iodev_t  io_device = {};
 
@@ -631,13 +631,17 @@ void pit_init(void)
   io_device.end_addr     = 0x0043;
   port_register_handler(io_device, 0);
 
-  /* register_handler for port 0x61 is in keyboard code */
-  port61 = 0x0c;
 #if 0
   io_device.start_addr   = 0x0047;
   io_device.end_addr     = 0x0047;
   port_register_handler(io_device, 0);
 #endif
+}
+
+void pit_init(void)
+{
+  /* register_handler for port 0x61 is in keyboard code */
+  port61 = 0x0c;
 
   vtmr_register(VTMR_PIT, timer_irq_ack);
   vtmr_register_latch(VTMR_PIT, pit_latch_hndl);

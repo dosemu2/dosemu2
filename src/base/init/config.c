@@ -1131,11 +1131,6 @@ static void config_post_process(void)
 #endif
 	}
 	config.console_video = 0;
-#if 0
-	if (config.speaker == SPKR_NATIVE) {
-	    config.speaker = SPKR_EMULATED;
-	}
-#endif
     }
     if (!config.console_video)
 	config.vga = config.mapped_bios = 0;
@@ -1177,14 +1172,6 @@ static void config_post_process(void)
         getuid(), geteuid(), getgid(), getegid());
     c_printf("CONF: priv operations %s\n",
             can_do_root_stuff ? "available" : "unavailable");
-
-    /* Speaker scrub */
-#ifdef X86_EMULATOR
-    if (IS_EMU() && config.speaker==SPKR_NATIVE) {
-	c_printf("SPEAKER: can`t use native mode with cpu-emu\n");
-	config.speaker=SPKR_EMULATED;
-    }
-#endif
 
     if (config.pci && !can_do_root_stuff) {
         c_printf("CONF: Warning: PCI requires root, disabled\n");
