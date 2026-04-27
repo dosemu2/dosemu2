@@ -154,7 +154,7 @@ static void change_window_title(char *title)
 	Video->change_config(CHG_TITLE_APPNAME, title);
 }
 
-static void kill_time(long usecs)
+void kill_time(long usecs)
 {
     hitimer_t t_start;
 

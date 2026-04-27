@@ -150,18 +150,17 @@ void do_sound(Bit16u period)
 	 *
 	 * But if you set it too low, then sounds can be cut off - clarence
 	 */
-	static const unsigned sound_duration = 30000;  /* in milliseconds */
 	switch (port61 & 3) {
 	case 3:		/* speaker on & speaker control through timer channel 2 */
 		if ((pit[2].mode == 2) || (pit[2].mode == 3)) {		/* is this test needed? */
-			speaker_on(sound_duration,period);
+			speaker_on(period);
 		}
 		else {
 			speaker_off();	/* is this correct? */
 		}
 		break;
 	case 2:		/* speaker on & direct speaker through bit 1 */
-		speaker_on(sound_duration, 0xffff); /* on as long as possible */
+		speaker_on(0xffff); /* on as long as possible */
 		break;
 	case 1:		/* speaker off & speaker control through timer channel 2 */
 	case 0:		/* speaker off & direct speaker through bit 1 */

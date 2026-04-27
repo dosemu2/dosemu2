@@ -13,7 +13,7 @@
  * X speaker emulation
  * =============================================================================
  */
-static void X_speaker_on(void *gp, unsigned ms, unsigned short period)
+static void X_speaker_on(void *gp, unsigned short period)
 {
 	XKeyboardControl new_state;
 	Display *display = gp;
@@ -32,7 +32,8 @@ static void X_speaker_on(void *gp, unsigned ms, unsigned short period)
 	 * 32767 kHz. Since the X server interprets the pitch as a short int
 	 */
 	if (new_state.bell_pitch >= 0x8000) new_state.bell_pitch = 0x7fff;
-	new_state.bell_duration = ms;
+	/* long default, it'll be switched off */
+	new_state.bell_duration = period == 0 ? 0 : 30000;
 	XChangeKeyboardControl(display, KBBellDuration | KBBellPitch, &new_state);
 
 	/* Reset the sound defaults */
@@ -45,7 +46,7 @@ static void X_speaker_on(void *gp, unsigned ms, unsigned short period)
 static void X_speaker_off(void*gp)
 {
 	/* Just make a zero length sound */
-	X_speaker_on(gp, 0,0);
+	X_speaker_on(gp, 0);
 }
 
 void X_register_speaker(Display *display)
