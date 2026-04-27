@@ -26,13 +26,12 @@ static int initialized;
 
 void keyb_priv_init(void)
 {
-	/* this must be initialized before starting port-server */
-	keyb_8042_init();
 	open_console();
 }
 
 void keyb_init(void)
 {
+	keyb_8042_init();
 	if (!keyb_server_init()) {
 		error("can't init keyboard server\n");
 		leavedos(19);

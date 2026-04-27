@@ -320,7 +320,9 @@ void tty_char_out(unsigned char ch, int s, int attr)
     break;
 
   case 7:           /* Bell */
-    speaker_on(125, 0x637);
+    speaker_on(0x637);
+    kill_time(125000);
+    speaker_off();
     return;
 
   default:          /* Printable character */

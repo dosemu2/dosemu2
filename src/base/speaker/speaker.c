@@ -19,8 +19,8 @@
  *
  * For parts of dosemu that want to beep the pc-speaker (say the video bios)
  * #include "speaker.h"
- * Use 'speaker_on(ms, period)'
- * to turn the pc-speaker on for 'ms' milliseconds with period 'period'.
+ * Use 'speaker_on(period)'
+ * to turn the pc-speaker on with period 'period'.
  * The function returns immediately.
  *
  * Use 'speaker_off()'
@@ -91,7 +91,7 @@ static int speaker_is_on;
 #include <stdio.h> /* for putchar */
 #include <unistd.h>
 
-static void dumb_speaker_on(void * gp, unsigned ms, unsigned short period)
+static void dumb_speaker_on(void * gp, unsigned short period)
 {
 	FILE *out = (config.tty_stderr ? real_stderr : stdout);
 	putc('\007', out);
@@ -129,7 +129,7 @@ void register_speaker(void *gp,
 }
 
 /* this does the EMULATED mode speaker emulation */
-void speaker_on(unsigned ms, unsigned short period)
+void speaker_on(unsigned short period)
 {
 	if (config.speaker == SPKR_OFF)
 		return;
@@ -138,7 +138,7 @@ void speaker_on(unsigned ms, unsigned short period)
 	if (!speaker.on) {
 		speaker = dumb_speaker;
 	}
-	speaker.on(speaker.gp, ms, period);
+	speaker.on(speaker.gp, period);
 }
 
 void speaker_off(void)
@@ -183,4 +183,30 @@ void speaker_resume (void)
 	case SPKR_OFF:
 		break;
 	}
+}
+
+void speaker_init (void)
+{
+	evdev_speaker_init();
+	console_speaker_init();
+}
+
+void speaker_done (void)
+{
+	if (config.speaker == SPKR_EMULATED) {
+		g_printf("SPEAKER: sound off\n");
+		speaker_off();		/* turn off any sound */
+	}
+	else if (config.speaker==SPKR_NATIVE) {
+		g_printf("SPEAKER: sound off\n");
+		/* Since the speaker is native hardware use port manipulation,
+		 * we don't know what is actually implementing the kernel's
+		 * ioctls.
+		 * My port logic is actually stolen from kd_nosound in the kernel.
+		 * 		--EB 21 September 1997
+		 */
+		port_outb(0x61, port_inb(0x61)&0xFC); /* turn off any sound */
+	}
+	/* reset the speaker to its default */
+	register_speaker(NULL, NULL, NULL);
 }

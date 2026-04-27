@@ -7,7 +7,7 @@
  * Caller speaker functions
  * ============================================================================
  */
-void speaker_on(unsigned ms, unsigned short period);
+void speaker_on(unsigned short period);
 void speaker_off(void);
 void speaker_pause(void);
 void speaker_resume(void);
@@ -35,7 +35,7 @@ static inline unsigned short speaker_Hz_to_period(unsigned Hz)
  *  Speaker registration
  * ============================================================================
  */
-typedef void (*speaker_on_t)(void *gp, unsigned ms, unsigned short period);
+typedef void (*speaker_on_t)(void *gp, unsigned short period);
 typedef void (*speaker_off_t)(void *gp);
 
 /* an invalid value of speaker_on || speaker_off resets the default speaker */
@@ -49,16 +49,10 @@ void register_speaker(void *gp,
  * =============================================================================
  */
 /* for now declare these here */
-void X_speaker_on(void *gp, unsigned ms, unsigned short period);
-void X_speaker_off(void *gp);
-void console_speaker_on(void *gp, unsigned ms, unsigned short period);
-void console_speaker_off(void *gp);
+void console_speaker_init(void);
+void evdev_speaker_init(void);
 
-/*
- * These are used by kbd code but reside in timers.c
- * =============================================================================
- */
-Bit8u spkr_io_read(ioport_t port);
-void spkr_io_write(ioport_t port, Bit8u value);
+void speaker_init(void);
+void speaker_done(void);
 
 #endif /* SPEAKER_H */

@@ -30,7 +30,6 @@
 #include "keyboard/keyboard.h"
 #include "keyboard/keyb_server.h"
 #include "keyboard/keyb_clients.h"
-#include "speaker.h"
 #include "hma.h"
 
 /* bios-assisted keyboard read hack */
@@ -346,7 +345,6 @@ static Bit8u read_port60(void)
 Bit8u keyb_io_read(ioport_t port, void *arg)
 {
   Bit8u r = 0;
-  static Bit8u port61_ff;
 
   switch (port) {
   case 0x60:
@@ -354,13 +352,6 @@ Bit8u keyb_io_read(ioport_t port, void *arg)
     if (!port60_ready)
       pic_untrigger(1);
     k_printf("8042: read port 0x60 read=0x%02x\n",r);
-    break;
-
-  case 0x61:
-    /* Handle only PC-Speaker right now */
-    r = spkr_io_read(port);
-    port61_ff ^= 0x10;
-    r |= port61_ff;
     break;
 
   case 0x64:
@@ -379,14 +370,6 @@ void keyb_io_write(ioport_t port, Bit8u value, void *arg)
 #if KEYB_CMD
      write_port60(value);
 #endif
-    break;
-
-  case 0x61:
-    if (value & 0x80) {
-      k_printf("8042: IRQ ACK, %i\n", port60_ready);
-      int_check_queue();   /* reschedule irq1 if appropriate */
-    }
-    spkr_io_write(port, value);
     break;
 
   case 0x64:
@@ -415,11 +398,6 @@ void keyb_8042_init(void)
   io_device.handler_name = "8042 Keyboard command";
   io_device.start_addr   = 0x0064;
   io_device.end_addr     = 0x0064;
-  port_register_handler(io_device, 0);
-
-  io_device.handler_name = "Keyboard controller port B";
-  io_device.start_addr   = 0x0061;
-  io_device.end_addr     = 0x0061;
   port_register_handler(io_device, 0);
 }
 

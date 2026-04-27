@@ -277,11 +277,6 @@
 #include "screen.h"
 #endif
 
-#if CONFIG_X_SPEAKER
-#include "speaker.h"
-#endif
-
-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 typedef struct { unsigned char r, g, b; } c_cube;
 
@@ -561,13 +556,6 @@ void X_pre_init(void)
   XInitThreads();
 }
 
-void X_register_speaker(Display *display)
-{
-#if CONFIG_X_SPEAKER
-  register_speaker(display, X_speaker_on, X_speaker_off);
-#endif
-}
-
 static void SetWindowMotifOptions(Display *display, Window window)
 {
   Atom wm_hints = XInternAtom(display, "_MOTIF_WM_HINTS", True);
@@ -837,7 +825,9 @@ int X_init(void)
     X_printf("X: X_init: mouse grabbing disabled\n");
   }
 
+#if CONFIG_X_SPEAKER
   X_register_speaker(display);
+#endif
 
   pthread_create(&event_thr, NULL, X_handle_events, NULL);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
@@ -867,13 +857,6 @@ void X_close(void)
 
   /* terminate remapper early so that render thread is cancelled */
   remapper_done();
-
-#if CONFIG_X_SPEAKER
-  /* turn off the sound, and */
-  speaker_off();
-  /* reset the speaker to it's default */
-  register_speaker(NULL, NULL, NULL);
-#endif
 
 #ifdef HAVE_XVIDMODE
   X_xf86vm_done();

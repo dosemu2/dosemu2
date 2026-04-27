@@ -284,6 +284,7 @@ void device_init(void)
   video_config_init();	/* privileged part of video init */
   keyb_priv_init();
   mouse_priv_init();
+  pit_priv_init();
 }
 
 /*
