@@ -187,6 +187,7 @@ void speaker_resume (void)
 
 void speaker_init (void)
 {
+	evdev_speaker_init();
 	console_speaker_init();
 }
 
