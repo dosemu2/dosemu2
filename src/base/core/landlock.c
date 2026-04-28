@@ -81,8 +81,12 @@ int landlock_init(void)
     }
     if (abi < 2) {
         /* On ABIv1 LANDLOCK_ACCESS_FS_REFER is always disabled! So bail. */
-        fprintf(stderr, "Your kernel is too old, not using Landlock\n");
+        error("Your kernel is too old, not using Landlock\n");
         return 1;
+    }
+    if (abi < 8) {
+        /* On ABI < 8 LANDLOCK_RESTRICT_SELF_TSYNC missing. */
+        error("Your kernel is too old, using minimal Landlock protection\n");
     }
 
     assert(ruleset_fd == -1);
@@ -171,12 +175,17 @@ int landlock_allow_fd(int fd, int ro)
 
 int landlock_lock(void)
 {
+#ifndef LANDLOCK_RESTRICT_SELF_TSYNC
+#warning LANDLOCK_RESTRICT_SELF_TSYNC not defined
+#define LANDLOCK_RESTRICT_SELF_TSYNC 0
+#endif
+    unsigned int restrict_flags = LANDLOCK_RESTRICT_SELF_TSYNC;
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
         perror("Failed to restrict privileges");
         close(ruleset_fd);
         return -1;
     }
-    if (landlock_restrict_self(ruleset_fd, 0)) {
+    if (landlock_restrict_self(ruleset_fd, restrict_flags)) {
         perror("Failed to enforce ruleset");
         close(ruleset_fd);
         return -1;
