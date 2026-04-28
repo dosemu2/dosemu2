@@ -12,7 +12,7 @@ building and installing dosemu2 from sources
       native DPMI, as it lacks some UFFD features.
       Use linux >= 6.13 for full Landlock-based sandboxing.
     - bison and flex
-    - SDL >= 2.0.6, >= 2.26.0 is required for copy/paste support.
+    - SDL >= 3.0.0.
     - libslirp >= 4.1.0 recommended for networking
     - json-c >= 0.13 recommended
     - development libraries: Xext, slang, gpm, alsa, fluidsynth,
