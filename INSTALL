@@ -9,7 +9,8 @@ building and installing dosemu2 from sources
     - gcc >= 8.1 or clang >= 3.7.0
     - glibc >= 2.20
     - linux >= 6.7 is recommended. With older kernels don't enable
-      native DPMI.
+      native DPMI, as it lacks some UFFD features.
+      Use linux >= 6.13 for full Landlock-based sandboxing.
     - bison and flex
     - SDL >= 2.0.6, >= 2.26.0 is required for copy/paste support.
     - libslirp >= 4.1.0 recommended for networking
