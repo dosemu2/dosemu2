@@ -144,7 +144,7 @@ static CONSTEXPR const uint64_t OLDMOS_D = (MOS_D | (1ULL << 32));
 
 FATFS_EXPORTS
 
-static const struct sys_dsc i_sfiles[] = {
+static const struct i_sys_dsc i_sfiles[] = {
     [IO_IDX]   = { "IO.SYS",		1,   },
     [MSD_IDX]  = { "MSDOS.SYS",		1, FLG_ALLOW_EMPTY },
     [DRB_IDX]  = { "DRBIOS.SYS",	1,   },
@@ -294,13 +294,17 @@ void fatfs_init(struct disk *dp)
   make_label(f);
 
   fatfs_deb2("init: volume label set to \"%s\"\n", f->label);
-  memcpy(f->sfiles, i_sfiles, sizeof(f->sfiles));
   strcpy(config_sys, real_config_sys);
   if (config.emusys) {
     char *p = strrchr(config_sys, '.');
     if (p && p - config_sys <= 8)
       strlcpy(p + 1, config.emusys, 4);
     strupperDOS(config_sys);
+  }
+  for (i = 0; i < MAX_SYS_IDX; i++) {
+    strcpy(f->sfiles[i].name, i_sfiles[i].name);
+    f->sfiles[i].is_sys = i_sfiles[i].is_sys;
+    f->sfiles[i].flags = i_sfiles[i].flags;
   }
   for (i = 0; i < sys_hooks_used; i++)
     sys_hook[i](f->sfiles, f);
@@ -718,7 +722,7 @@ static int get_s_idx(const char *name, fatfs_t *f)
 {
     int i;
     for (i = 0; i < MAX_SYS_IDX; i++) {
-	if (!f->sfiles[i].name)
+	if (f->sfiles[i].name[0] == '\0')
 	    continue;
 	if (strequalDOS(name, f->sfiles[i].name))
 	    return i;
@@ -840,7 +844,7 @@ static void init_sfiles(void)
     }
 #endif
     for (i = 0; i < MAX_SYS_IDX; i++) {
-	if (!cur_d->sfiles[i].name)
+	if (cur_d->sfiles[i].name[0] == '\0')
 	    continue;
 	if (cur_d->sfiles[i].is_sys || !cur_d->sys_found[i])
 	    continue;
