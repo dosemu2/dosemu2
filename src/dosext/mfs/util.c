@@ -1,6 +1,8 @@
 #include "mangle.h"
 #include "translate/translate.h"
 #include "dos2linux.h"
+#include "utilities.h"
+#include "fslib/fslib.h"
 #include <ctype.h>
 #include <wctype.h>
 #include <errno.h>
@@ -228,4 +230,51 @@ int get_drive_from_path(char *path, int *drive)
 
   *drive = c - 'A';
   return 1;
+}
+
+char *probe_sfn_name(int mfs_idx, const char *dir, const char *name, struct stat *r_st)
+{
+    char *ret = assemble_path(dir, name);
+    int rc = mfs_stat_file(mfs_idx, ret, r_st);
+    char *nbuf, *nm;
+
+    if (rc == 0)
+        return ret;
+    free(ret);
+    ret = NULL;
+    nm = strdup(name);
+    /* all uppercase */
+    nbuf = strupperDOS(nm);
+    if (strcmp(nbuf, name)) {
+        ret = assemble_path(dir, nbuf);
+        rc = mfs_stat_file(mfs_idx, ret, r_st);
+        if (rc == 0)
+            goto out;
+        free(ret);
+        ret = NULL;
+    }
+    /* first uppercase */
+    nbuf = strlowerDOS(nm + 1) - 1;
+    if (nbuf[0] != '\0') {
+        ret = assemble_path(dir, nbuf);
+        rc = mfs_stat_file(mfs_idx, ret, r_st);
+        if (rc == 0)
+            goto out;
+        free(ret);
+        ret = NULL;
+    }
+    /* all lowercase */
+    nbuf = strlowerDOS(nm);
+    if (strcmp(nbuf, name)) {
+        ret = assemble_path(dir, nbuf);
+        rc = mfs_stat_file(mfs_idx, ret, r_st);
+        if (rc == 0)
+            goto out;
+        free(ret);
+        ret = NULL;
+    }
+
+out:
+    free(nm);
+    return ret;
 }

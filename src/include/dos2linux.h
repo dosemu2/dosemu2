@@ -7,6 +7,7 @@
 #ifndef DOS2LINUX_H
 #define DOS2LINUX_H
 
+#include <sys/stat.h>
 #include "cpu.h"
 #include "dosemu_debug.h"
 
@@ -395,6 +396,8 @@ char *strnlowerDOS(char *s, int n);
 int strequalDOS(const char *s1, const char *s2);
 char *strstrDOS(char *haystack, const char *upneedle);
 int name_ufs_to_dos(char *dest, const char *src);
+char *probe_sfn_name(int mfs_idx, const char *dir, const char *name,
+    struct stat *r_st);
 
 void dos2tty_init(void);
 void dos2tty_done(void);
