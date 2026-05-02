@@ -3,6 +3,7 @@
 set -e
 
 if [ "${BLDTYPE}" = "packaged" ] ; then
+  echo "Adding dosemu2 PPA..."
   sudo add-apt-repository -y -c main -c main/debug ppa:dosemu2/ppa
   sudo apt install -y \
     dosemu2 \
@@ -34,6 +35,7 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
     echo "USE_ASAN = 1" >> local.mak
   fi
 
+  echo "Configuring PPAs..."
   # Install the build dependancies based FDPP's debian/control file
   sudo add-apt-repository ppa:stsp-0/nasm-segelf
   sudo add-apt-repository ppa:stsp-0/thunk-gen
