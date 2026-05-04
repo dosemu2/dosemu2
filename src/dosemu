@@ -139,7 +139,7 @@ while [ $# -gt 0 ] ; do
         exit 1
       fi
       SUDO=sudo
-      SUDOOPTS="-E --preserve-env=HOME,USER"
+      SUDOOPTS="-E --preserve-env=HOME,USER,XDG_RUNTIME_DIR"
       # sudo doesn't set SUDO_HOME but maybe it will - use another var
       export DOSEMU_SUDO_HOME="$HOME"
       export DOSEMU_SUDO_TTY=`tty`
