@@ -1518,6 +1518,21 @@ class OurTestCase(BaseTestCase):
         """Network mTCP pktdriver NE2000"""
         network_mtcp(self, 'pkt', 'ne2000')
 
+    @mark('nettest')
+    def test_network_mtcp_ndis_builtin(self):
+        """Network mTCP ndisdriver built-in"""
+        network_mtcp(self, 'ndis', 'builtin')
+
+    @mark('nettest')
+    def test_network_mtcp_ndis_ne2000(self):
+        """Network mTCP ndisdriver NE2000"""
+        network_mtcp(self, 'ndis', 'ne2000')
+
+    @mark('nettest')
+    def test_network_mtcp_ndis_pktndis(self):
+        """Network mTCP ndisdriver PKTNDIS"""
+        network_mtcp(self, 'ndis', 'pktndis')
+
     def test_ipx_relay(self):
         """IPX over UDP relay"""
         ipx_relay(self)
