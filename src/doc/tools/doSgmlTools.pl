@@ -96,6 +96,9 @@ sub getSoftwareVersions {
   # Check for SGMLTOOLS
 
   $result = `sgmltools -V`;
+  if ($?) {
+    exit(1);
+  }
 
   if ($result =~ /version ([^ \n]+)/) {
     $versions{'sgmltools'} = $1;
@@ -168,7 +171,7 @@ sub getStylesheets {
       if ($verbose) {
 	print "Added entry for \"/usr/local/lib/sgml/catalog\" to catalog list.\n";
       }
-      
+
       unshift (@theCatalogs, "/usr/local/lib/sgml/catalog");
     }
   }
@@ -221,6 +224,11 @@ sub getStylesheets {
       $theStylesheets{$type} = $fname;
     }
 
+  }
+
+  if (!exists($theStylesheets{'html'})) {
+    print "Stylesheets not found\n";
+    exit(1);
   }
 
   return %theStylesheets;

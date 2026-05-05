@@ -9,6 +9,8 @@ HTML = $(DOCSOURCES:.sgml=.html)
 all: $(HTML)
 txt: $(TXT)
 
+include $(REALTOPDIR)/src/Makefile.common
+
 %.txt: %.sgml
 	$(srcdir)/../tools/doSgmlTools.pl -t $^ $@
 
@@ -16,8 +18,8 @@ txt: $(TXT)
 	$(srcdir)/../tools/doSgmlTools.pl -h $^ $@
 
 
-clean:
+clean::
 	rm -f *.txt *.html *~ *.tex *.log *.aux *.toc *.dvi *.ps
 
-install: $(HTML)
+install:: $(HTML)
 	cp $(HTML) $(top_builddir)/doc

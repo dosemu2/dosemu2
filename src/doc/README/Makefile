@@ -20,6 +20,8 @@ txt: $(TXT)
 
 html: $(HTML)
 
+include $(REALTOPDIR)/src/Makefile.common
+
 %.txt: %.sgml
 #	sgml2txt 2>/dev/null $<
 	$(srcdir)/../tools/doSgmlTools.pl -t $^ $@
@@ -36,9 +38,9 @@ README.sgml: $(srcdir)/header $(patsubst %,$(srcdir)/%,$(SECTIONS)) $(srcdir)/fo
 README-tech.sgml: $(srcdir)/header-tech $(patsubst %,$(srcdir)/%,$(TECHSECTIONS)) $(srcdir)/footer
 	cat $^ > $@
 
-clean:
+clean::
 	rm -f *.txt *.html *~ *.tex *.log *.aux *.toc *.dvi *.ps \
 		README.sgml README-tech.sgml 
 
-install: $(HTML)
+install:: $(HTML)
 	cp $(HTML) $(top_builddir)/doc
