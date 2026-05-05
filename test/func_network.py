@@ -32,7 +32,7 @@ def little_webserver(content):
             pass
 
 
-def network_pktdriver_mtcp(self, driver):
+def network_mtcp(self, tipo, driver):
     content = randbytes(1024*1024)
 
     setup_tap_interface(self)
@@ -42,10 +42,6 @@ def network_pktdriver_mtcp(self, driver):
     p = ctx.Process(target=little_webserver, args=(content,), daemon=True)
     p.start()
 
-    self.unTarOrSkip("TEST_CRYNWR.tar", [
-        ("ne2000.com", "297cf2bc04aded016bb8051a9d2b061940c39569"),
-    ])
-
     self.unTarOrSkip("TEST_MTCP.tar", [
         ("dhcp.exe", "3658786197def91dce139f0d2aa1524ba409e426"),
         ("htget.exe", "26e72660d62a274577e874ba68bd6af03962fcce"),
@@ -53,22 +49,26 @@ def network_pktdriver_mtcp(self, driver):
         ("pkttool.exe", "66a26d7fc18c0102ba6672c37fb6b04a027dc6ee"),
     ])
 
-    # Note: Only load the DOS NE2000 driver if you are going to use it
-    #       as it interferes with the builtin packet driver's receipt
-    #       of packets.
-    if driver == 'ne2000':
-        pktintr = '0x61'
-        mtcpcfg = 'c:\\ne2000 %s 10 0x310' % pktintr
-    else:
-        pktintr = '0x60'
-        mtcpcfg = ''
+    if tipo in ['pkt',]:
+        # Note: Only load the DOS NE2000 driver if you are going to use it
+        #       as it interferes with the builtin packet driver's receipt
+        #       of packets.
+        if driver == 'ne2000':
+            self.unTarOrSkip("TEST_CRYNWR.tar", [
+                ("ne2000.com", "297cf2bc04aded016bb8051a9d2b061940c39569"),
+            ])
+            pktintr = '0x62'
+            mtcpcfg = f'c:\\ne2000 {pktintr} 10 0x310'
+        else:
+            pktintr = '0x60'
+            mtcpcfg = ''
 
-    self.mkfile("mtcp.cfg", """\
-packetint %s
+    self.mkfile("mtcp.cfg", f"""\
+packetint {pktintr}
 hostname dosemu
 dhcp_lease_request_secs 3600
 dhcp_lease_threshold 360
-""" % pktintr, newline="\r\n")
+""", newline="\r\n")
 
     self.mkfile("testit.bat", """\
 %s
