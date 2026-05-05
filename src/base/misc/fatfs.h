@@ -18,10 +18,16 @@ const char *fatfs_get_host_dir(const fatfs_t *f);
 struct sys_dsc *fatfs_get_sfiles(fatfs_t *f);
 
 struct sys_dsc {
-    const char *name;
+    char name[13];
     int is_sys;
     int flags;
     int (*pre_boot)(unsigned char *boot_sec);
+};
+
+struct i_sys_dsc {
+    const char *name;
+    int is_sys;
+    int flags;
 };
 
 #define FLG_ALLOW_EMPTY 1
