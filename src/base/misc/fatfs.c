@@ -87,6 +87,7 @@ static void scan_dir(fatfs_t *, unsigned);
 static void probe_system(fatfs_t *f);
 static char *full_name(fatfs_t *, unsigned, const char *);
 static void add_object(fatfs_t *, unsigned, const char *);
+static void add_sys_object(fatfs_t *f, const char *name, struct stat *sb);
 static unsigned dos_time(time_t *);
 static unsigned make_dos_entry(fatfs_t *, const obj_t *, unsigned char **);
 static unsigned find_obj(fatfs_t *, unsigned);
@@ -803,16 +804,15 @@ static int d_filter(const struct dirent *d)
 
 static int probe_sfiles(fatfs_t *f)
 {
-    struct stat sb;
     int cnt = 0;
 
     for (int idx = 0; idx < MAX_SYS_IDX; idx++) {
 	char *p, *fname;
-	const struct sys_dsc *s = &f->sfiles[idx];
+	struct sys_dsc *s = &f->sfiles[idx];
 
 	if (s->name[0] == '\0')
 	    continue;
-	fname = probe_sfn_name(f->dir_fd, f->dir, s->name, &sb);
+	fname = probe_sfn_name(f->dir_fd, f->dir, s->name, &s->sb);
 	if (!fname)
 	    continue;
 	if (s->is_sys)
@@ -1126,9 +1126,10 @@ static void probe_system(fatfs_t *f)
     }
 
     for (i = 0; i < MAX_SYS_IDX; i++) {
+      int idx = sys_found[i].idx;
       if (!sys_found[i].name)
         break;
-      add_object(f, 0, f->sfiles[sys_found[i].idx].name);
+      add_sys_object(f, f->sfiles[idx].name, &f->sfiles[idx].sb);
       free(sys_found[i].name);
       sys_found[i].name = NULL;
     }
@@ -1337,20 +1338,30 @@ static void _add_object(fatfs_t *f, unsigned parent, const char *s,
   return __add_object(f, parent, s, name, &sb);
 }
 
-static void add_object(fatfs_t *f, unsigned parent, const char *nm)
+static void add_object(fatfs_t *f, unsigned parent, const char *name)
 {
-  const char *s, *name = nm;
+  const char *s;
 
   if(!(strcmp(name, ".") && strcmp(name, ".."))) return;
 
-  if (nm[0] == '/') {
-    s = nm;
-    name = strrchr(nm, '/') + 1;
-  } else {
-    if(!(s = do_full_name(f, parent, name, 0))) {
+  assert(name[0] != '/');
+  if (!(s = do_full_name(f, parent, name, 0))) {
       fatfs_msg("file name too complex: parent %u, name \"%s\"\n", parent, name);
       return;
-    }
+  }
+
+  return _add_object(f, parent, s, name, f->ffn2_ptr);
+}
+
+static void add_sys_object(fatfs_t *f, const char *name, struct stat *sb)
+{
+  const char *s;
+  int parent = 0;
+
+  assert(name[0] != '/');
+  if (!(s = full_name(f, parent, name))) {
+      fatfs_msg("file name too complex: parent %u, name \"%s\"\n", parent, name);
+      return;
   }
   if (strcasecmp(name, real_config_sys) == 0 &&
       strcasecmp(name, config_sys) != 0) {
@@ -1363,7 +1374,7 @@ static void add_object(fatfs_t *f, unsigned parent, const char *nm)
     fatfs_deb("fatfs: subst %s -> %s\n", name, real_config_sys);
   }
 
-  return _add_object(f, parent, s, name, f->ffn2_ptr);
+  return __add_object(f, parent, s, name, sb);
 }
 
 unsigned dos_time(time_t *tt)

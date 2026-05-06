@@ -7,6 +7,8 @@
 #ifndef FATFS_H
 #define FATFS_H
 
+#include <sys/stat.h>
+
 typedef struct fatfs_s fatfs_t;
 
 int fatfs_read(fatfs_t *f, unsigned buf, unsigned pos, int len);
@@ -21,6 +23,7 @@ struct sys_dsc {
     char name[13];
     int is_sys;
     int flags;
+    struct stat sb;
     int (*pre_boot)(unsigned char *boot_sec);
 };
 
