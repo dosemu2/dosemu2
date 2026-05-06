@@ -270,6 +270,7 @@ int disk_validate_boot_part(struct disk *dp);
 void mimic_boot_blk(void);
 
 void fatfs_init(struct disk *);
+void fatfs_reset(struct disk *dp);
 void fatfs_done(struct disk *);
 
 fatfs_t *get_fat_fs_by_serial(unsigned long serial, int *r_idx, int *r_ro);

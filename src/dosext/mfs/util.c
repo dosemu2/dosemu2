@@ -232,15 +232,11 @@ int get_drive_from_path(char *path, int *drive)
   return 1;
 }
 
-char *probe_sfn_name(int mfs_idx, const char *dir, const char *name,
+char *probe_sfn_name(int dfd, const char *dir, const char *name,
 	struct stat *r_st)
 {
     int rc;
     char *nbuf, *nm = NULL, *ret;
-    int dfd = mfs_open_file(mfs_idx, dir, O_RDONLY | O_DIRECTORY);
-
-    if (dfd == -1)
-      return NULL;
 
     rc = fstatat(dfd, name, r_st, 0);
     if (rc == 0) {
@@ -279,6 +275,5 @@ char *probe_sfn_name(int mfs_idx, const char *dir, const char *name,
 
 out:
     free(nm);
-    close(dfd);
     return ret;
 }

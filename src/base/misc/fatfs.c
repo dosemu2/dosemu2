@@ -185,7 +185,6 @@ static int fs_prio[MAX_SYS_IDX];
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
 {
-  int i;
   fatfs_t *f;
   int num_sectors = dp->tracks * dp->heads * dp->sectors - dp->start;
 
@@ -204,13 +203,18 @@ void fatfs_init(struct disk *dp)
   f = dp->fatfs;
 
   f->ffn = malloc(MAX_DIR_NAME_LEN + MAX_FILE_NAME_LEN + 1);
-  if(!f->ffn) {
-    fatfs_msg("init failed: no memory left\n");
-    return;
-  }
+  assert(f->ffn);
   f->ffn_obj = 1;			/* this object doesn't exist */
 
+  f->boot_sec = malloc(0x200);
+
   f->dir = dp->dev_name;
+  f->dir_fd = open(f->dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  if (f->dir_fd == -1) {
+    error("fatfs: failed to open %s: %s\n", f->dir, strerror(errno));
+    leavedos_main(5);
+    return;
+  }
   if (dp->floppy) {
     switch (dp->default_cmos) {
       case THREE_INCH_2880KFLOP:
@@ -290,10 +294,11 @@ void fatfs_init(struct disk *dp)
   f->objs = f->alloc_objs = 0;
 
   new_obj(f);			/* going to be our root dir object */
-  if(f->obj == NULL) {
-    fatfs_msg("init failed: no memory left\n");
-    return;
-  }
+  assert(f->obj);
+  /* entry 0 not freed, not doing strdup() here */
+  f->obj[0].name = f->dir;
+  f->obj[0].full_name = f->dir;
+  f->obj[0].is.dir = 1;
 
   f->got_all_objs = 0;
   f->first_free_cluster = 2;
@@ -308,6 +313,25 @@ void fatfs_init(struct disk *dp)
       strlcpy(p + 1, config.emusys, 4);
     strupperDOS(config_sys);
   }
+}
+
+void fatfs_reset(struct disk *dp)
+{
+  int i;
+  fatfs_t *f = dp->fatfs;
+
+  assert(f->objs >= 1);
+  for(i = 1; i < f->objs; i++) {
+    if(f->obj[i].name)
+      free(f->obj[i].name);
+    if(f->obj[i].full_name)
+      free(f->obj[i].full_name);
+  }
+  f->objs = 1;
+
+  f->got_all_objs = 0;
+  f->first_free_cluster = 2;
+
   for (i = 0; i < MAX_SYS_IDX; i++) {
     strcpy(f->sfiles[i].name, i_sfiles[i].name);
     f->sfiles[i].is_sys = i_sfiles[i].is_sys;
@@ -315,11 +339,6 @@ void fatfs_init(struct disk *dp)
   }
   for (i = 0; i < sys_hooks_used; i++)
     sys_hook[i](f->sfiles, f);
-  f->ok = 1;
-  /* entry 0 not freed, not doing strdup() here */
-  f->obj[0].name = f->dir;
-  f->obj[0].full_name = f->dir;
-  f->obj[0].is.dir = 1;
 
   probe_system(f);
   scan_dir(f, 0);	/* set # of root entries accordingly ??? */
@@ -336,7 +355,9 @@ void fatfs_done(struct disk *dp)
 
   if(!(f = dp->fatfs)) return;
 
-  for(u = 1 ; u < f->objs; u++) {
+  close(f->dir_fd);
+
+  for(u = 1; u < f->objs; u++) {
     if(f->obj[u].name)
       free(f->obj[u].name);
     if(f->obj[u].full_name)
@@ -361,8 +382,6 @@ int fatfs_read(fatfs_t *f, unsigned buf, unsigned pos, int len)
 
   fatfs_deb("read: dir %s, sec %u, len %d\n", f->dir, pos, l);
 
-  if(!f->ok) return -1;
-
   while(l) {
     if((i = read_sec(f, pos, b))) return i;
     MEMCPY_2DOS(buf, b, 0x200);
@@ -380,9 +399,6 @@ int fatfs_read(fatfs_t *f, unsigned buf, unsigned pos, int len)
 int fatfs_write(fatfs_t *f, unsigned buf, unsigned pos, int len)
 {
   error("fatfs write ignored: dir %s, sec %u, len %d\n", f->dir, pos, len);
-
-  if(!f->ok) return -1;
-
   return len;
 }
 
@@ -797,7 +813,7 @@ static int probe_sfiles(fatfs_t *f)
 
 	if (s->name[0] == '\0')
 	    continue;
-	fname = probe_sfn_name(f->mfs_idx, f->dir, s->name, &sb);
+	fname = probe_sfn_name(f->dir_fd, f->dir, s->name, &sb);
 	if (!fname)
 	    continue;
 	if (s->is_sys)
@@ -1093,7 +1109,6 @@ static void probe_system(fatfs_t *f)
     }
 
     /* load boot block from "boot.blk" file or generate Dosemu's own */
-    f->boot_sec = malloc(0x200);
     s = full_name(f, 0, "boot.blk");
     read_bb = 0;
     if (s && (fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
