@@ -204,7 +204,6 @@ void fatfs_init(struct disk *dp)
 
   f->ffn = malloc(MAX_DIR_NAME_LEN + MAX_FILE_NAME_LEN + 1);
   assert(f->ffn);
-  f->ffn_obj = 1;			/* this object doesn't exist */
 
   f->boot_sec = malloc(0x200);
 
@@ -1221,11 +1220,10 @@ int fatfs_get_part_type(const fatfs_t *f)
 /*
  * Return fully qualified filename.
  */
-char *full_name(fatfs_t *f, unsigned oi, const char *name)
+static char *do_full_name(fatfs_t *f, unsigned oi, const char *name, int par)
 {
   char *s = f->ffn;
   int i = MAX_DIR_NAME_LEN, j;
-  unsigned save_oi;
 
   if(!s || !name || oi >= f->objs) return NULL;
 
@@ -1238,53 +1236,44 @@ char *full_name(fatfs_t *f, unsigned oi, const char *name)
 #else
   strcpy(s + i, name);
 #endif
-  /* directory name cached ? */
-  if(oi == f->ffn_obj) {
-    fatfs_deb2("full_name: %u = \"%s\" (cached)\n", oi, f->ffn_ptr);
-    return f->ffn_ptr;
-  }
 
-  save_oi = oi;
-  f->ffn_obj = 1;
   f->ffn_ptr = NULL;
+  f->ffn2_ptr = NULL;
 
   do {
     if(!(name = f->obj[oi].name)) return NULL;
     j = strlen(name);
     if(j + 1 > i) return NULL;
+    if (oi == par) f->ffn2_ptr = s + i;
     s[--i] = '/';
     memcpy(s + (i -= j), name, j);
-    if(!oi) break;
+    if (!oi) break;
     oi = f->obj[oi].parent;
   } while(1);
 
-  fatfs_deb2("full_name: %d = \"%s\"\n", save_oi, s + i);
+  fatfs_deb2("full_name: \"%s\"\n", s + i);
 
-  f->ffn_obj = save_oi;
   return f->ffn_ptr = s + i;
 }
 
-
-static void _add_object(fatfs_t *f, unsigned parent, const char *s,
-    const char *name)
+static char *full_name(fatfs_t *f, unsigned oi, const char *name)
 {
-  struct stat sb;
+  return do_full_name(f, oi, name, -1);
+}
+
+static void __add_object(fatfs_t *f, unsigned parent, const char *s,
+    const char *name, struct stat *sb)
+{
   obj_t tmp_o = {{0}, 0};
   unsigned u;
 
-  fatfs_deb("trying to add \"%s\":\n", s);
-  if(mfs_stat_file(f->mfs_idx, s, &sb)) {
-      fatfs_deb("file not found\n");
-      return;
-  }
-
-  if(!(S_ISDIR(sb.st_mode) || S_ISREG(sb.st_mode))) {
+  if(!(S_ISDIR(sb->st_mode) || S_ISREG(sb->st_mode))) {
     fatfs_deb("entry ignored\n");
     return;
   }
 
-  if(S_ISREG(sb.st_mode)) {
-    tmp_o.size = sb.st_size;
+  if(S_ISREG(sb->st_mode)) {
+    tmp_o.size = sb->st_size;
     u = f->cluster_secs << 9;
     tmp_o.len = (tmp_o.size + u - 1) / u;
     if(tmp_o.size == 0) tmp_o.is.not_real = 1;
@@ -1293,10 +1282,10 @@ static void _add_object(fatfs_t *f, unsigned parent, const char *s,
     tmp_o.is.dir = 1;
   }
 
-  if(!(sb.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH))) tmp_o.is.ro = 1;
+  if(!(sb->st_mode & (S_IWUSR | S_IWGRP | S_IWOTH))) tmp_o.is.ro = 1;
   tmp_o.parent = parent;
 
-  tmp_o.time = dos_time(&sb.st_mtime);
+  tmp_o.time = dos_time(&sb->st_mtime);
 
   tmp_o.full_name = strdup(s);
   tmp_o.name = strdup(name);
@@ -1335,7 +1324,20 @@ err:
   free(tmp_o.full_name);
 }
 
-void add_object(fatfs_t *f, unsigned parent, const char *nm)
+static void _add_object(fatfs_t *f, unsigned parent, const char *s,
+	const char *name, const char *relname)
+{
+  struct stat sb;
+
+  fatfs_deb("trying to add \"%s\":\n", s);
+  if(fstatat(f->dir_fd, relname, &sb, 0)) {
+      fatfs_deb("file not found\n");
+      return;
+  }
+  return __add_object(f, parent, s, name, &sb);
+}
+
+static void add_object(fatfs_t *f, unsigned parent, const char *nm)
 {
   const char *s, *name = nm;
 
@@ -1345,7 +1347,7 @@ void add_object(fatfs_t *f, unsigned parent, const char *nm)
     s = nm;
     name = strrchr(nm, '/') + 1;
   } else {
-    if(!(s = full_name(f, parent, name))) {
+    if(!(s = do_full_name(f, parent, name, 0))) {
       fatfs_msg("file name too complex: parent %u, name \"%s\"\n", parent, name);
       return;
     }
@@ -1357,11 +1359,11 @@ void add_object(fatfs_t *f, unsigned parent, const char *nm)
   }
   if (strcasecmp(name, config_sys) == 0 &&
       strcasecmp(name, real_config_sys) != 0) {
-    _add_object(f, parent, s, real_config_sys);
+    _add_object(f, parent, s, real_config_sys, real_config_sys);
     fatfs_deb("fatfs: subst %s -> %s\n", name, real_config_sys);
   }
 
-  return _add_object(f, parent, s, name);
+  return _add_object(f, parent, s, name, f->ffn2_ptr);
 }
 
 unsigned dos_time(time_t *tt)
