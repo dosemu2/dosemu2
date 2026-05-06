@@ -2629,6 +2629,8 @@ static int EnableDiskRedirections(void)
   cds_t cds;
   int ret = FALSE;
 
+  if (!num_drives)
+    return TRUE;
   for (dd = 0; dd < num_drives; dd++) {
     if (!drives[dd].root || disabled(drives[dd]) || !GetCDSInDOS(dd, &cds))
       continue;
@@ -2646,6 +2648,8 @@ static int DisableDiskRedirections(void)
   cds_t cds;
   int ret = FALSE;
 
+  if (!num_drives)
+    return TRUE;
   for (dd = 0; dd < num_drives; dd++) {
     if (!drives[dd].root || !GetCDSInDOS(dd, &cds))
       continue;

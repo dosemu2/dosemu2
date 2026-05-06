@@ -232,47 +232,48 @@ int get_drive_from_path(char *path, int *drive)
   return 1;
 }
 
-char *probe_sfn_name(int mfs_idx, const char *dir, const char *name, struct stat *r_st)
+char *probe_sfn_name(int dfd, const char *dir, const char *name,
+	struct stat *r_st)
 {
-    char *ret = assemble_path(dir, name);
-    int rc = mfs_stat_file(mfs_idx, ret, r_st);
-    char *nbuf, *nm;
+    int rc;
+    char *nbuf, *nm = NULL, *ret;
 
-    if (rc == 0)
-        return ret;
-    free(ret);
-    ret = NULL;
+    assert(dir && dir[0] != '\0');
+    rc = fstatat(dfd, name, r_st, 0);
+    if (rc == 0) {
+        ret = assemble_path(dir, name);
+        goto out;
+    }
     nm = strdup(name);
     /* all uppercase */
     nbuf = strupperDOS(nm);
     if (strcmp(nbuf, name)) {
-        ret = assemble_path(dir, nbuf);
-        rc = mfs_stat_file(mfs_idx, ret, r_st);
-        if (rc == 0)
+        rc = fstatat(dfd, nbuf, r_st, 0);
+        if (rc == 0) {
+            ret = assemble_path(dir, nbuf);
             goto out;
-        free(ret);
-        ret = NULL;
-    }
-    /* first uppercase */
-    nbuf = strlowerDOS(nm + 1) - 1;
-    if (nbuf[0] != '\0') {
-        ret = assemble_path(dir, nbuf);
-        rc = mfs_stat_file(mfs_idx, ret, r_st);
-        if (rc == 0)
-            goto out;
-        free(ret);
-        ret = NULL;
+        }
     }
     /* all lowercase */
     nbuf = strlowerDOS(nm);
     if (strcmp(nbuf, name)) {
-        ret = assemble_path(dir, nbuf);
-        rc = mfs_stat_file(mfs_idx, ret, r_st);
-        if (rc == 0)
+        rc = fstatat(dfd, nbuf, r_st, 0);
+        if (rc == 0) {
+            ret = assemble_path(dir, nbuf);
             goto out;
-        free(ret);
-        ret = NULL;
+        }
     }
+    if (nbuf[1] != '\0') {  // if just 1 letter, then already tried uppercase
+        /* first uppercase */
+        nbuf[0] = toupperDOS(nbuf[0]);
+        rc = fstatat(dfd, nbuf, r_st, 0);
+        if (rc == 0) {
+            ret = assemble_path(dir, nbuf);
+            goto out;
+        }
+    }
+    /* nothing */
+    ret = NULL;
 
 out:
     free(nm);

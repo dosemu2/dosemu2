@@ -1293,6 +1293,16 @@ static void disk_reset2(void)
      */
     disk_fptrs[dp->type].setup(dp);
   });
+
+  subst_file_ext(NULL);
+  for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
+    if (dp->type == DIR_TYPE)
+      fatfs_init(dp);
+  }
+  FOR_EACH_HDISK(i, {
+    if (hdisktab[i].type == DIR_TYPE)
+      fatfs_init(&hdisktab[i]);
+  });
 }
 
 void disk_reset(void)
@@ -1302,16 +1312,12 @@ void disk_reset(void)
 
   subst_file_ext(NULL);
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
-    if(dp->type == DIR_TYPE) {
-      if (dp->fatfs) fatfs_done(dp);
-      fatfs_init(dp);
-    }
+    if(dp->type == DIR_TYPE)
+      fatfs_reset(dp);
   }
   FOR_EACH_HDISK(i, {
-    if(hdisktab[i].type == DIR_TYPE) {
-      if (hdisktab[i].fatfs) fatfs_done(&hdisktab[i]);
-      fatfs_init(&hdisktab[i]);
-    }
+    if(hdisktab[i].type == DIR_TYPE)
+      fatfs_reset(&hdisktab[i]);
   });
 }
 

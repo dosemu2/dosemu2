@@ -396,7 +396,7 @@ char *strnlowerDOS(char *s, int n);
 int strequalDOS(const char *s1, const char *s2);
 char *strstrDOS(char *haystack, const char *upneedle);
 int name_ufs_to_dos(char *dest, const char *src);
-char *probe_sfn_name(int mfs_idx, const char *dir, const char *name,
+char *probe_sfn_name(int dir_fd, const char *dir, const char *name,
     struct stat *r_st);
 
 void dos2tty_init(void);
