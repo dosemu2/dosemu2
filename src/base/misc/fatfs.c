@@ -84,6 +84,7 @@ static int read_data(fatfs_t *, unsigned, unsigned char *buf);
 static void make_label(fatfs_t *);
 static unsigned new_obj(fatfs_t *);
 static void scan_dir(fatfs_t *, unsigned);
+static void probe_system(fatfs_t *f);
 static char *full_name(fatfs_t *, unsigned, const char *);
 static void add_object(fatfs_t *, unsigned, const char *);
 static unsigned dos_time(time_t *);
@@ -319,6 +320,8 @@ void fatfs_init(struct disk *dp)
   f->obj[0].name = f->dir;
   f->obj[0].full_name = f->dir;
   f->obj[0].is.dir = 1;
+
+  probe_system(f);
   scan_dir(f, 0);	/* set # of root entries accordingly ??? */
 }
 
@@ -942,73 +945,16 @@ static void set_vol_and_len(fatfs_t *f, unsigned oi)
   o->len = (o->size + u - 1) / u;
 }
 
-/*
- * Reads the directory entries and assigns the object ids.
- */
-void scan_dir(fatfs_t *f, unsigned oi)
+static void probe_system(fatfs_t *f)
 {
-  obj_t *o = f->obj + oi;
-  char *s, *name;
-  unsigned u;
-  int i;
-  struct dirent **dlist;
-  int num;
-  int read_bb;
-  int dfd;
+    char *buf, *buf_ptr, *s;
+    int fd, size, i;
+    int read_bb;
+    struct stat sb;
 
-  // just checking...
-  if(!o->is.dir || o->size || !o->name || o->is.scanned) {
-    fatfs_msg("scan_dir: oops #1\n");
-    return;
-  }
-
-  fatfs_deb2("scan_dir: reading \"%s\"\n", o->name);
-
-  o->is.scanned = 1;
-
-  name = full_name(f, oi, "");
-  if(!name) {
-    fatfs_msg("file name too complex: object %u\n", oi);
-    return;
-  }
-  if (!oi) {
     f->sys_type = 0;
     memset(f->sys_found, 0, sizeof(f->sys_found));
     f->sys_objs = 0;
-  }
-  dfd = mfs_open_file(f->mfs_idx, name, O_RDONLY | O_DIRECTORY);
-  if (dfd == -1) {
-    fatfs_msg("%s open failed\n", name);
-    return;
-  }
-  num = fdscandir(dfd, &dlist, d_filter, alphasort);
-  close(dfd);
-  if (num < 0) {
-    fatfs_msg("fatfs: scandir failed for %s\n", name);
-    return;
-  }
-
-  if(oi) {
-    for(i = 0; i < 2; i++) {
-      if((u = new_obj(f))) {	/* ".", ".." */
-        o = f->obj + oi;
-        f->obj[u].is.dir = 1;
-        if(i)
-          f->obj[u].is.parent_dir = 1;
-        else
-          f->obj[u].is.this_dir = 1;
-        f->obj[u].is.not_real = 1;
-        f->obj[u].parent = oi;
-        f->obj[u].dos_dir_size = 0x20;
-        if(!f->obj[oi].first_child) f->obj[oi].first_child = u;
-        o->size += 0x20;
-      }
-    }
-  } else {
-    char *buf, *buf_ptr;
-    int fd, size;
-    struct stat sb;
-
     init_sfiles(f);
     if (!f->sys_type) {
       fatfs_msg("system files not found!\n");
@@ -1130,11 +1076,12 @@ void scan_dir(fatfs_t *f, unsigned oi)
         if (s && ((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1)) {
           uint32_t buf;
           int err = fstat(fd, &sb);
+          int rc;
           assert(!err);
           if (sb.st_size == 128880) {
               lseek(fd, 0x175, SEEK_SET);
-              read(fd, &buf, sizeof(buf));
-              if (buf == 0x20200105)    /* 5.01 */
+              rc = read(fd, &buf, sizeof(buf));
+              if (rc == sizeof(buf) && buf == 0x20200105)    /* 5.01 */
                   f->sys_type = OLDMOS_D;
           }
           close(fd);
@@ -1147,7 +1094,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
 
     /* load boot block from "boot.blk" file or generate Dosemu's own */
     f->boot_sec = malloc(0x200);
-    s = full_name(f, oi, "boot.blk");
+    s = full_name(f, 0, "boot.blk");
     read_bb = 0;
     if (s && (fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
       if (
@@ -1163,14 +1110,72 @@ void scan_dir(fatfs_t *f, unsigned oi)
       fatfs_msg("fatfs: boot block generated\n");
       build_boot_blk(f, f->boot_sec);
     }
+
+    for (i = 0; i < MAX_SYS_IDX; i++) {
+      if (!sys_found[i].name)
+        break;
+      add_object(f, 0, f->sfiles[sys_found[i].idx].name);
+      free(sys_found[i].name);
+      sys_found[i].name = NULL;
+    }
+}
+
+/*
+ * Reads the directory entries and assigns the object ids.
+ */
+static void scan_dir(fatfs_t *f, unsigned oi)
+{
+  obj_t *o = f->obj + oi;
+  char *name;
+  unsigned u;
+  int i;
+  struct dirent **dlist;
+  int num;
+  int dfd;
+
+  // just checking...
+  if(oi && (!o->is.dir || o->size || !o->name || o->is.scanned)) {
+    error("scan_dir: oops #1\n");
+    return;
   }
 
-  for (i = 0; i < MAX_SYS_IDX; i++) {
-    if (!sys_found[i].name)
-      break;
-    add_object(f, oi, f->sfiles[sys_found[i].idx].name);
-    free(sys_found[i].name);
-    sys_found[i].name = NULL;
+  fatfs_deb2("scan_dir: reading \"%s\"\n", o->name);
+
+  o->is.scanned = 1;
+
+  name = full_name(f, oi, "");
+  if(!name) {
+    fatfs_msg("file name too complex: object %u\n", oi);
+    return;
+  }
+  dfd = mfs_open_file(f->mfs_idx, name, O_RDONLY | O_DIRECTORY);
+  if (dfd == -1) {
+    fatfs_msg("%s open failed\n", name);
+    return;
+  }
+  num = fdscandir(dfd, &dlist, d_filter, alphasort);
+  close(dfd);
+  if (num < 0) {
+    fatfs_msg("fatfs: scandir failed for %s\n", name);
+    return;
+  }
+
+  if(oi) {
+    for(i = 0; i < 2; i++) {
+      if((u = new_obj(f))) {	/* ".", ".." */
+        o = f->obj + oi;
+        f->obj[u].is.dir = 1;
+        if(i)
+          f->obj[u].is.parent_dir = 1;
+        else
+          f->obj[u].is.this_dir = 1;
+        f->obj[u].is.not_real = 1;
+        f->obj[u].parent = oi;
+        f->obj[u].dos_dir_size = 0x20;
+        if(!f->obj[oi].first_child) f->obj[oi].first_child = u;
+        o->size += 0x20;
+      }
+    }
   }
 
   for (i = 0; i < num; i++) {
