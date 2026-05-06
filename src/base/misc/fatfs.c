@@ -85,6 +85,7 @@ static void make_label(fatfs_t *);
 static unsigned new_obj(fatfs_t *);
 static void scan_dir(fatfs_t *, unsigned);
 static void probe_system(fatfs_t *f);
+static void set_vol_and_len(fatfs_t *f, unsigned oi);
 static char *full_name(fatfs_t *, unsigned, const char *);
 static void add_object(fatfs_t *, unsigned, const char *);
 static void add_sys_object(fatfs_t *f, const char *name, struct stat *sb);
@@ -341,7 +342,13 @@ void fatfs_reset(struct disk *dp)
     sys_hook[i](f->sfiles, f);
 
   probe_system(f);
-  scan_dir(f, 0);	/* set # of root entries accordingly ??? */
+#if 1
+  scan_dir(f, 0);
+#else
+  set_vol_and_len(f, 0);
+#endif
+  if (f->sys_objs)
+    assign_clusters(f, 0, f->sys_objs);
 }
 
 
@@ -1201,8 +1208,6 @@ static void scan_dir(fatfs_t *f, unsigned oi)
   free(dlist);
 
   set_vol_and_len(f, oi);
-  if (!oi && f->sys_objs)
-    assign_clusters(f, 0, f->sys_objs);
 }
 
 int fatfs_get_part_type(const fatfs_t *f)
