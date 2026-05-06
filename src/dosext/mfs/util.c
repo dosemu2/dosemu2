@@ -238,6 +238,7 @@ char *probe_sfn_name(int dfd, const char *dir, const char *name,
     int rc;
     char *nbuf, *nm = NULL, *ret;
 
+    assert(dir && dir[0] != '\0');
     rc = fstatat(dfd, name, r_st, 0);
     if (rc == 0) {
         ret = assemble_path(dir, name);
@@ -253,15 +254,6 @@ char *probe_sfn_name(int dfd, const char *dir, const char *name,
             goto out;
         }
     }
-    /* first uppercase */
-    nbuf = strlowerDOS(nm + 1) - 1;
-    if (nbuf[0] != '\0') {
-        rc = fstatat(dfd, nbuf, r_st, 0);
-        if (rc == 0) {
-            ret = assemble_path(dir, nbuf);
-            goto out;
-        }
-    }
     /* all lowercase */
     nbuf = strlowerDOS(nm);
     if (strcmp(nbuf, name)) {
@@ -271,6 +263,16 @@ char *probe_sfn_name(int dfd, const char *dir, const char *name,
             goto out;
         }
     }
+    if (nbuf[1] != '\0') {  // if just 1 letter, then already tried uppercase
+        /* first uppercase */
+        nbuf[0] = toupperDOS(nbuf[0]);
+        rc = fstatat(dfd, nbuf, r_st, 0);
+        if (rc == 0) {
+            ret = assemble_path(dir, nbuf);
+            goto out;
+        }
+    }
+    /* nothing */
     ret = NULL;
 
 out:
