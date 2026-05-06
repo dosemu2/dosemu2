@@ -60,8 +60,7 @@ struct fatfs_s {
   unsigned sys_objs;
   obj_t *obj;
 
-  char *ffn, *ffn_ptr;			/* buffer for file names */
-  unsigned ffn_obj;
+  char *ffn, *ffn_ptr, *ffn2_ptr;		/* buffer for file names */
 
   unsigned char *boot_sec;
 

@@ -87,6 +87,7 @@ static void scan_dir(fatfs_t *, unsigned);
 static void probe_system(fatfs_t *f);
 static char *full_name(fatfs_t *, unsigned, const char *);
 static void add_object(fatfs_t *, unsigned, const char *);
+static void add_sys_object(fatfs_t *f, const char *name, struct stat *sb);
 static unsigned dos_time(time_t *);
 static unsigned make_dos_entry(fatfs_t *, const obj_t *, unsigned char **);
 static unsigned find_obj(fatfs_t *, unsigned);
@@ -204,7 +205,6 @@ void fatfs_init(struct disk *dp)
 
   f->ffn = malloc(MAX_DIR_NAME_LEN + MAX_FILE_NAME_LEN + 1);
   assert(f->ffn);
-  f->ffn_obj = 1;			/* this object doesn't exist */
 
   f->boot_sec = malloc(0x200);
 
@@ -804,16 +804,15 @@ static int d_filter(const struct dirent *d)
 
 static int probe_sfiles(fatfs_t *f)
 {
-    struct stat sb;
     int cnt = 0;
 
     for (int idx = 0; idx < MAX_SYS_IDX; idx++) {
 	char *p, *fname;
-	const struct sys_dsc *s = &f->sfiles[idx];
+	struct sys_dsc *s = &f->sfiles[idx];
 
 	if (s->name[0] == '\0')
 	    continue;
-	fname = probe_sfn_name(f->dir_fd, f->dir, s->name, &sb);
+	fname = probe_sfn_name(f->dir_fd, f->dir, s->name, &s->sb);
 	if (!fname)
 	    continue;
 	if (s->is_sys)
@@ -949,7 +948,7 @@ static void set_vol_and_len(fatfs_t *f, unsigned oi)
         if(!f->obj[oi].first_child) f->obj[oi].first_child = u;
         f->obj[u].dos_dir_size = 0x20;
         o->size += 0x20;
-        if(!mfs_stat_file(f->mfs_idx, f->dir, &sb)) {
+        if(!fstat(f->dir_fd, &sb)) {
           f->obj[u].time = dos_time(&sb.st_mtime);
         }
 	fatfs_deb2("added label \"%s\"\n", f->label);
@@ -1127,9 +1126,10 @@ static void probe_system(fatfs_t *f)
     }
 
     for (i = 0; i < MAX_SYS_IDX; i++) {
+      int idx = sys_found[i].idx;
       if (!sys_found[i].name)
         break;
-      add_object(f, 0, f->sfiles[sys_found[i].idx].name);
+      add_sys_object(f, f->sfiles[idx].name, &f->sfiles[idx].sb);
       free(sys_found[i].name);
       sys_found[i].name = NULL;
     }
@@ -1221,11 +1221,10 @@ int fatfs_get_part_type(const fatfs_t *f)
 /*
  * Return fully qualified filename.
  */
-char *full_name(fatfs_t *f, unsigned oi, const char *name)
+static char *do_full_name(fatfs_t *f, unsigned oi, const char *name, int par)
 {
   char *s = f->ffn;
   int i = MAX_DIR_NAME_LEN, j;
-  unsigned save_oi;
 
   if(!s || !name || oi >= f->objs) return NULL;
 
@@ -1238,53 +1237,44 @@ char *full_name(fatfs_t *f, unsigned oi, const char *name)
 #else
   strcpy(s + i, name);
 #endif
-  /* directory name cached ? */
-  if(oi == f->ffn_obj) {
-    fatfs_deb2("full_name: %u = \"%s\" (cached)\n", oi, f->ffn_ptr);
-    return f->ffn_ptr;
-  }
 
-  save_oi = oi;
-  f->ffn_obj = 1;
   f->ffn_ptr = NULL;
+  f->ffn2_ptr = NULL;
 
   do {
     if(!(name = f->obj[oi].name)) return NULL;
     j = strlen(name);
     if(j + 1 > i) return NULL;
+    if (oi == par) f->ffn2_ptr = s + i;
     s[--i] = '/';
     memcpy(s + (i -= j), name, j);
-    if(!oi) break;
+    if (!oi) break;
     oi = f->obj[oi].parent;
   } while(1);
 
-  fatfs_deb2("full_name: %d = \"%s\"\n", save_oi, s + i);
+  fatfs_deb2("full_name: \"%s\"\n", s + i);
 
-  f->ffn_obj = save_oi;
   return f->ffn_ptr = s + i;
 }
 
-
-static void _add_object(fatfs_t *f, unsigned parent, const char *s,
-    const char *name)
+static char *full_name(fatfs_t *f, unsigned oi, const char *name)
 {
-  struct stat sb;
+  return do_full_name(f, oi, name, -1);
+}
+
+static void __add_object(fatfs_t *f, unsigned parent, const char *s,
+    const char *name, struct stat *sb)
+{
   obj_t tmp_o = {{0}, 0};
   unsigned u;
 
-  fatfs_deb("trying to add \"%s\":\n", s);
-  if(mfs_stat_file(f->mfs_idx, s, &sb)) {
-      fatfs_deb("file not found\n");
-      return;
-  }
-
-  if(!(S_ISDIR(sb.st_mode) || S_ISREG(sb.st_mode))) {
+  if(!(S_ISDIR(sb->st_mode) || S_ISREG(sb->st_mode))) {
     fatfs_deb("entry ignored\n");
     return;
   }
 
-  if(S_ISREG(sb.st_mode)) {
-    tmp_o.size = sb.st_size;
+  if(S_ISREG(sb->st_mode)) {
+    tmp_o.size = sb->st_size;
     u = f->cluster_secs << 9;
     tmp_o.len = (tmp_o.size + u - 1) / u;
     if(tmp_o.size == 0) tmp_o.is.not_real = 1;
@@ -1293,10 +1283,10 @@ static void _add_object(fatfs_t *f, unsigned parent, const char *s,
     tmp_o.is.dir = 1;
   }
 
-  if(!(sb.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH))) tmp_o.is.ro = 1;
+  if(!(sb->st_mode & (S_IWUSR | S_IWGRP | S_IWOTH))) tmp_o.is.ro = 1;
   tmp_o.parent = parent;
 
-  tmp_o.time = dos_time(&sb.st_mtime);
+  tmp_o.time = dos_time(&sb->st_mtime);
 
   tmp_o.full_name = strdup(s);
   tmp_o.name = strdup(name);
@@ -1335,20 +1325,43 @@ err:
   free(tmp_o.full_name);
 }
 
-void add_object(fatfs_t *f, unsigned parent, const char *nm)
+static void _add_object(fatfs_t *f, unsigned parent, const char *s,
+	const char *name, const char *relname)
 {
-  const char *s, *name = nm;
+  struct stat sb;
+
+  fatfs_deb("trying to add \"%s\":\n", s);
+  if(fstatat(f->dir_fd, relname, &sb, 0)) {
+      fatfs_deb("file not found\n");
+      return;
+  }
+  return __add_object(f, parent, s, name, &sb);
+}
+
+static void add_object(fatfs_t *f, unsigned parent, const char *name)
+{
+  const char *s;
 
   if(!(strcmp(name, ".") && strcmp(name, ".."))) return;
 
-  if (nm[0] == '/') {
-    s = nm;
-    name = strrchr(nm, '/') + 1;
-  } else {
-    if(!(s = full_name(f, parent, name))) {
+  assert(name[0] != '/');
+  if (!(s = do_full_name(f, parent, name, 0))) {
       fatfs_msg("file name too complex: parent %u, name \"%s\"\n", parent, name);
       return;
-    }
+  }
+
+  return _add_object(f, parent, s, name, f->ffn2_ptr);
+}
+
+static void add_sys_object(fatfs_t *f, const char *name, struct stat *sb)
+{
+  const char *s;
+  int parent = 0;
+
+  assert(name[0] != '/');
+  if (!(s = full_name(f, parent, name))) {
+      fatfs_msg("file name too complex: parent %u, name \"%s\"\n", parent, name);
+      return;
   }
   if (strcasecmp(name, real_config_sys) == 0 &&
       strcasecmp(name, config_sys) != 0) {
@@ -1357,11 +1370,11 @@ void add_object(fatfs_t *f, unsigned parent, const char *nm)
   }
   if (strcasecmp(name, config_sys) == 0 &&
       strcasecmp(name, real_config_sys) != 0) {
-    _add_object(f, parent, s, real_config_sys);
+    _add_object(f, parent, s, real_config_sys, real_config_sys);
     fatfs_deb("fatfs: subst %s -> %s\n", name, real_config_sys);
   }
 
-  return _add_object(f, parent, s, name);
+  return __add_object(f, parent, s, name, sb);
 }
 
 unsigned dos_time(time_t *tt)
