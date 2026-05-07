@@ -675,7 +675,7 @@ static int dos_helper(int stk_offs, int revect)
     case DOS_HELPER_MOUSE_HELPER:{
 	    uint8_t *p = MK_FP32(BIOSSEG, bios_in_int10_callback);
 
-	    switch (LWORD(ebx)) {
+	    switch (LO(bx)) {
 	    case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
 		/* Note: we hook int10 very late, after display.sys already hooked it.
 		 * So when we call previous handler in bios.S, we actually call
@@ -696,7 +696,7 @@ static int dos_helper(int stk_offs, int revect)
 		int switched, to_copy;
 		uint64_t cookie;
 		uint8_t *stk, *new_stk;
-		switch (LWORD(ebx)) {
+		switch (LO(bx)) {
 		case DOS_SUBHELPER_MOUSE_START_VIDEO_MODE_SET:
 		    to_copy = _min(64, (0x10000 - _SP) & 0xffff);
 		    switched = get_rm_stack(&new_ss, &new_sp,
