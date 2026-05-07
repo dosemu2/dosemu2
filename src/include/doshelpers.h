@@ -88,7 +88,8 @@
 #define DOS_VERSION_SERIAL_FOSSIL 1
 
 
-#define DOS_HELPER_BOOTDISK         0x30  /* OLD, removed functionality */
+#define DOS_HELPER_BOOTDISK         0x30
+#define DOS_SUBHELPER_DISK_REFRESH  0
 
 
 #define DOS_HELPER_MOUSE_HELPER     0x33

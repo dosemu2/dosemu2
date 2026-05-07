@@ -290,6 +290,7 @@ void fatfs_init(struct disk *dp)
                     - f->root_secs) / f->cluster_secs + 1;
   f->drive_num = dp->drive_num;
   f->mfs_idx = dp->mfs_idx;
+  f->group = dp->group;
 
   f->obj = NULL;
   f->objs = f->alloc_objs = 0;
@@ -342,15 +343,28 @@ void fatfs_reset(struct disk *dp)
     sys_hook[i](f->sfiles, f);
 
   probe_system(f);
-#if 1
-  scan_dir(f, 0);
+#ifdef USE_FDPP
+    /* very heuristical fdpp check */
+#define FDPP_BOOT(f) \
+    ((f)->sys_type == 0 && (f)->group == 0 && config.hdiskboot == -1 && \
+     config.swap_bootdrv == 0)
 #else
-  set_vol_and_len(f, 0);
+#define FDPP_BOOT(f) 0
 #endif
+  if (!FDPP_BOOT(f))
+    scan_dir(f, 0);
+  else
+    set_vol_and_len(f, 0);
+
   if (f->sys_objs)
     assign_clusters(f, 0, f->sys_objs);
 }
 
+void fatfs_refresh(fatfs_t *f)
+{
+  if (!f->obj[0].is.scanned)
+    scan_dir(f, 0);
+}
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_done(struct disk *dp)
@@ -1156,7 +1170,7 @@ static void scan_dir(fatfs_t *f, unsigned oi)
   int dfd;
 
   // just checking...
-  if(oi && (!o->is.dir || o->size || !o->name || o->is.scanned)) {
+  if(!o->is.dir || !o->name || o->is.scanned) {
     error("scan_dir: oops #1\n");
     return;
   }

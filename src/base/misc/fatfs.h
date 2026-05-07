@@ -8,9 +8,14 @@
 #define FATFS_H
 
 #include <sys/stat.h>
+#include "disks.h"
 
 typedef struct fatfs_s fatfs_t;
 
+void fatfs_init(struct disk *);
+void fatfs_reset(struct disk *dp);
+void fatfs_done(struct disk *);
+void fatfs_refresh(fatfs_t *f);
 int fatfs_read(fatfs_t *f, unsigned buf, unsigned pos, int len);
 int fatfs_write(fatfs_t *f, unsigned buf, unsigned pos, int len);
 int fatfs_is_bootable(const fatfs_t *f);

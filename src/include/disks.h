@@ -5,7 +5,7 @@
 #ifndef DISKS_H
 #define DISKS_H
 
-#include "fatfs.h"
+typedef struct fatfs_s fatfs_t;
 #define PART_INFO_START		0x1be	/* offset in MBR for partition table */
 #define PART_INFO_LEN		0x10	/* size of each partition record */
 #define MBR_SIG			0xaa55	/* magic signature */
@@ -180,6 +180,7 @@ struct disk {
   struct partition part_info;	/* neato partition info */
   fatfs_t *fatfs;		/* for FAT file system emulation */
   int mfs_idx;
+  int group;
   int part_image;               /* partition image */
 };
 
@@ -269,9 +270,7 @@ int disk_validate_boot_part(struct disk *dp);
 
 void mimic_boot_blk(void);
 
-void fatfs_init(struct disk *);
-void fatfs_reset(struct disk *dp);
-void fatfs_done(struct disk *);
+void disk_refresh(unsigned char drv_num);
 
 fatfs_t *get_fat_fs_by_serial(unsigned long serial, int *r_idx, int *r_ro);
 fatfs_t *get_fat_fs_by_drive(unsigned char drv_num);

@@ -1310,7 +1310,6 @@ void disk_reset(void)
   struct disk *dp;
   int i;
 
-  subst_file_ext(NULL);
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if(dp->type == DIR_TYPE)
       fatfs_reset(dp);
@@ -1321,11 +1320,18 @@ void disk_reset(void)
   });
 }
 
+void disk_refresh(unsigned char drv_num)
+{
+  fatfs_t *f = get_fat_fs_by_drive(drv_num);
+
+  if (f)
+      fatfs_refresh(f);
+}
+
 static void hdisk_reset(int num)
 {
   int i;
 
-  subst_file_ext(NULL);
   FOR_EACH_HDISK(i, {
     if(hdisktab[i].type == DIR_TYPE) {
       if (hdisktab[i].fatfs)

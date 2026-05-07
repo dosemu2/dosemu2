@@ -55,7 +55,7 @@
 #include "builtins.h"
 #include "lpt.h"
 #include "int.h"
-#include "disks.h"
+#include "fatfs.h"
 #include "redirect.h"
 #include "lredir.h"
 

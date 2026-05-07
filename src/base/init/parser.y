@@ -2588,7 +2588,7 @@ static void set_hdimage(struct disk *dptr, char *name)
   c_printf("Set up as an image\n");
 }
 
-static int add_drive(const char *name, int rdonly)
+static int add_drive(const char *name, int rdonly, int group)
 {
   struct disk *dptr = &hdisktab[c_hdisks];
   char *rname = expand_path(name);
@@ -2603,6 +2603,7 @@ static int add_drive(const char *name, int rdonly)
   dptr->drive_num = (c_hdisks | 0x80);
   dptr->log_offs = skipped_disks;
   dptr->mfs_idx = mfs_define_drive(rname);
+  dptr->group = group;
   c_printf("Added drive %i (%x): %s\n", c_hdisks, dptr->drive_num, name);
   c_hdisks++;
   return 0;
@@ -2631,7 +2632,7 @@ static void set_drive_c(void)
     config.alt_drv_c = 0;
   }
   config.drive_c_num = c_hdisks | 0x80;
-  err = add_drive(dosemu_drive_c_path, 0);
+  err = add_drive(dosemu_drive_c_path, 0, 0);
   assert(!err);
 }
 
@@ -2642,14 +2643,14 @@ static void set_dosemu_drive(void)
     config.exitearly = 1;
     return;
   }
-  add_drive(commands_path, 1);
+  add_drive(commands_path, 1, 1);
 }
 
 static void set_default_drives(void)
 {
 #define AD(p) do { \
     if (p) \
-      add_drive(p, 1); \
+      add_drive(p, 1, 2); \
 } while (0)
   c_printf("Setting up default drives from %c\n", 'C' + c_hdisks);
   if (config.try_freedos) {

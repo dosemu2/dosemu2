@@ -23,6 +23,7 @@
 #include "emu.h"
 #include "int.h"
 #include "disks.h"
+#include "fatfs.h"
 #include <fdpp/bprm.h>
 #if BPRM_MIN_VER < 10
 #error wrong bprm version
