@@ -84,7 +84,6 @@ extern void  pos_init(void);
 extern void  pos_reset(void);
 
 extern void  hdisk_init(void);
-extern void  hdisk_reset(void);
 
 extern void  floppy_init(void);
 extern void  floppy_reset(void);

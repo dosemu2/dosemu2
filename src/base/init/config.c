@@ -32,6 +32,7 @@
 #include "dosemu_config.h"
 #include "init.h"
 #include "disks.h"
+#include "fatfs.h"
 #include "pktdrvr.h"
 #include "speaker.h"
 #include "sound/sound.h"
@@ -1916,6 +1917,7 @@ void dp_init(struct disk *dptr)
   dptr->rdonly = 0;
   dptr->header = 0;
   dptr->floppy = 0;
+  dptr->group = -1;
 }
 
 static void assign_floppy(int fnum, const char *name)

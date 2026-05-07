@@ -76,10 +76,6 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "lpt",     printer_init, NULL,	    NULL },
   { "dma",     dma_init,     dma_reset,     NULL },
   { "keyb",     keyb_init,   keyb_reset,    keyb_close},
-#if 0
-  { "floppy",  floppy_init,  floppy_reset,  NULL },
-  { "hdisk",   hdisk_init,   hdisk_reset,   NULL },
-#endif
   { "disks",   disk_init,    disk_reset,    NULL },
   { "video",   video_post_init, NULL, NULL },
   { "sound",   sound_init,   sound_reset,   sound_done },
