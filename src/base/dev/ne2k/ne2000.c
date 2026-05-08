@@ -123,9 +123,6 @@
 #define ENTSR_CDH 0x40	/* The collision detect "heartbeat" signal was lost. */
 #define ENTSR_OWC 0x80  /* There was an out-of-window collision. */
 
-#define NE2000_IRQ          10
-#define NE2000_IOBASE       0x310
-
 #define NE2000_PMEM_SIZE    (32 * 1024)
 #define NE2000_PMEM_START   (16 * 1024)
 #define NE2000_PMEM_END     (NE2000_PMEM_SIZE+NE2000_PMEM_START)
@@ -216,8 +213,8 @@ void ne2000_init(void)
     io_device.read_portd = NULL;
     io_device.write_portd = NULL;
     io_device.handler_name = "NE2000 Emulation";
-    io_device.start_addr = /* config.ne2000_base */ NE2000_IOBASE;
-    io_device.end_addr = /* config.ne2000_base */ NE2000_IOBASE + 0x1f;
+    io_device.start_addr = config.ne2k_iobase;
+    io_device.end_addr = config.ne2k_iobase + 0x1f;
     if (port_register_handler(io_device, 0) != 0) {
         N_printf("NE2000: Error registering NE2000 port handler\n");
         ne2000_done();
@@ -225,11 +222,11 @@ void ne2000_init(void)
     }
 
     /* init control defaults */
-    s->irq = NE2000_IRQ;
+    s->irq = config.ne2k_irq;
     /* usually done at reset, but reset may be missed due to early exit */
     s->cmd = E8390_STOP;
 
-    N_printf("NE2000: Initialisation - Base 0x%03x, IRQ %d\n", NE2000_IOBASE, NE2000_IRQ);
+    N_printf("NE2000: Initialisation - Base 0x%03x, IRQ %d\n", config.ne2k_iobase, config.ne2k_irq);
 }
 
 static void _ne2000_reset(NE2000State *s)
@@ -874,7 +871,7 @@ static void ne2000_write(NE2000State *s, uint32_t addr, uint64_t data, unsigned 
 Bit16u ne2000_io_read16(ioport_t port, void *arg)
 {
     NE2000State *s = &ne2000state;
-    ioport_t addr = port - NE2000_IOBASE;
+    ioport_t addr = port - config.ne2k_iobase;
 
     N_printf("\nNE2000: ne2000_io_read16()\n");
 
@@ -887,7 +884,7 @@ Bit16u ne2000_io_read16(ioport_t port, void *arg)
 void ne2000_io_write16(ioport_t port, Bit16u value, void *arg)
 {
     NE2000State *s = &ne2000state;
-    ioport_t addr = port - NE2000_IOBASE;
+    ioport_t addr = port - config.ne2k_iobase;
 
     N_printf("\nNE2000: ne2000_io_write16()\n");
 
@@ -904,7 +901,7 @@ void ne2000_io_write16(ioport_t port, Bit16u value, void *arg)
 Bit8u ne2000_io_read8(ioport_t port, void *arg)
 {
     NE2000State *s = &ne2000state;
-    ioport_t addr = port - NE2000_IOBASE;
+    ioport_t addr = port - config.ne2k_iobase;
 
     N_printf("\nNE2000: ne2000_io_read8() %d\n", addr);
     return ne2000_read(s, addr, 1);
@@ -917,7 +914,7 @@ Bit8u ne2000_io_read8(ioport_t port, void *arg)
 void ne2000_io_write8(ioport_t port, Bit8u value, void *arg)
 {
     NE2000State *s = &ne2000state;
-    ioport_t addr = port - NE2000_IOBASE;
+    ioport_t addr = port - config.ne2k_iobase;
 
     N_printf("\nNE2000: ne2000_io_write8() %d, 0x%02x\n", addr, value);
     ne2000_write(s, addr, value, 1);
