@@ -252,7 +252,7 @@ enum {
 %token KEYTABLE SHIFT_MAP ALT_MAP NUMPAD_MAP DUMP LAYOUT
 %token DGRAVE DACUTE DCIRCUM DTILDE DBREVE DABOVED DDIARES DABOVER DDACUTE DCEDILLA DIOTA DOGONEK DCARON
 	/* ipx */
-%token NETWORK PKTDRIVER TCPDRIVER NE2K
+%token NETWORK PKTDRIVER TCPDRIVER NE2K NE2K_IOBASE NE2K_IRQ
         /* lock files */
 %token DIRECTORY NAMESTUB BINARY
 	/* serial */
@@ -662,6 +662,8 @@ line:		CHARSET '{' charset_flags '}' {}
 			c_printf("CONF: NE2000 %s.\n", 
 				($2) ? "enabled" : "disabled");
 		    }
+		| NE2K_IOBASE int_expr	{ config.ne2k_iobase = $2; }
+		| NE2K_IRQ int_expr	{ config.ne2k_irq = $2; }
 		| ETHDEV string_expr	{ free(config.ethdev); config.ethdev = $2; }
 		| TAPDEV string_expr	{ free(config.tapdev); config.tapdev = $2; }
 		| VDESWITCH string_expr	{ free(config.vdeswitch); config.vdeswitch = $2; }
