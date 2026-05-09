@@ -959,7 +959,7 @@ void memcpy_2dos(dosaddr_t dest, const void *src, size_t n)
   }
 }
 
-void memset_dos(dosaddr_t dest, char ch, size_t n)
+void memset_dos(dosaddr_t dest, unsigned char ch, size_t n)
 {
   if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
     vga_memset(dest, ch, n);
@@ -971,6 +971,42 @@ void memset_dos(dosaddr_t dest, char ch, size_t n)
       MEMSET_DOS(dest, ch, to_copy);
       dest += to_copy;
       n -= to_copy;
+    }
+  }
+}
+
+void memsetw_dos(dosaddr_t dest, unsigned short ch, size_t n)
+{
+  if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
+    vga_memsetw(dest, ch, n);
+  else {
+    e_invalidate(dest, n * 2);
+    while (n) {
+      dosaddr_t bound = (dest & _PAGE_MASK) + PAGE_SIZE;
+      size_t to_copy = _min(n, (bound - dest) / 2);
+      n -= to_copy;
+      while (to_copy--) {
+        WRITE_WORD(dest, ch);
+        dest += 2;
+      }
+    }
+  }
+}
+
+void memsetl_dos(dosaddr_t dest, unsigned int ch, size_t n)
+{
+  if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
+    vga_memsetl(dest, ch, n);
+  else {
+    e_invalidate(dest, n * 4);
+    while (n) {
+      dosaddr_t bound = (dest & _PAGE_MASK) + PAGE_SIZE;
+      size_t to_copy = _min(n, (bound - dest) / 4);
+      n -= to_copy;
+      while (to_copy--) {
+        WRITE_DWORD(dest, ch);
+        dest += 4;
+      }
     }
   }
 }

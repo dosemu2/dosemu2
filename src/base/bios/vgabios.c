@@ -70,7 +70,7 @@
 #define write_word_far(seg, off, val) (write_word(SEGOFF2LINEAR(seg, off), val))
 #define outw port_outw
 #define memsetb(seg, off, val, len) memset_dos(SEGOFF2LINEAR(seg, off), val, len)
-#define memsetw(seg, off, val, len) memset_dos(SEGOFF2LINEAR(seg, off), val, len * 2)
+#define memsetw(seg, off, val, len) memsetw_dos(SEGOFF2LINEAR(seg, off), val, len)
 #define memcpyb(seg, off, sseg, soff, len) memcpy_dos2dos(\
     SEGOFF2LINEAR(seg, off), SEGOFF2LINEAR(sseg, soff), len)
 #define memcpyw(seg, off, sseg, soff, len) memcpy_dos2dos(\

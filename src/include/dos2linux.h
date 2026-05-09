@@ -347,7 +347,9 @@ void memcpy_2unix(void *dest, dosaddr_t src, size_t n);
 void memcpy_2dos(dosaddr_t dest, const void *src, size_t n);
 void memmove_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n);
 void memcpy_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n);
-void memset_dos(dosaddr_t dest, char ch, size_t n);
+void memset_dos(dosaddr_t dest, unsigned char ch, size_t n);
+void memsetw_dos(dosaddr_t dest, unsigned short ch, size_t n);
+void memsetl_dos(dosaddr_t dest, unsigned int ch, size_t n);
 
 int unix_read(int fd, void *data, int cnt);
 int dos_read(int fd, unsigned data, int cnt);
