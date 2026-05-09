@@ -330,6 +330,10 @@ static void start_landlock(void)
 {
   int i;
   int err;
+#ifdef DIRS_ALLOW
+  char *qq, *a;
+  const char *q;
+#endif
   const char **p;
   /* most of the below is needed for exec'ed children, not for dosemu */
   static const char *allow_rw[] = {
@@ -348,6 +352,17 @@ static void start_landlock(void)
     "/dev/null",
     NULL
   };
+
+#ifdef DIRS_ALLOW
+  a = strdup(DIRS_ALLOW);
+  qq = a;
+  while ((q = strsep(&qq, " "))) {
+    if (*q == '\0')
+      continue;
+    permit_dir_ro(strdup(q));
+  }
+  free(a);
+#endif
 
   err = landlock_init();
   if (err) {

@@ -1016,7 +1016,10 @@ void vga_memsetw(dosaddr_t dst, unsigned short val, size_t len)
       }
       vga_mark_dirty(dststart, offs - dststart);
     } else {
-      MEMSET_DOS(dst, val, len * 2);
+      while (len--) {
+        WRITE_WORD(dst, val);
+        dst += 2;
+      }
     }
     return;
   }
@@ -1038,7 +1041,10 @@ void vga_memsetl(dosaddr_t dst, unsigned val, size_t len)
       }
       vga_mark_dirty(dststart, offs - dststart);
     } else {
-      MEMSET_DOS(dst, val, len * 4);
+      while (len--) {
+        WRITE_DWORD(dst, val);
+        dst += 4;
+      }
     }
     return;
   }
