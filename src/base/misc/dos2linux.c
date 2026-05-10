@@ -981,14 +981,9 @@ void memsetw_dos(dosaddr_t dest, unsigned short ch, size_t n)
     vga_memsetw(dest, ch, n);
   else {
     e_invalidate(dest, n * 2);
-    while (n) {
-      dosaddr_t bound = (dest & _PAGE_MASK) + PAGE_SIZE;
-      size_t to_copy = _min(n, (bound - dest) / 2);
-      n -= to_copy;
-      while (to_copy--) {
-        WRITE_WORD(dest, ch);
-        dest += 2;
-      }
+    while (n--) {
+      WRITE_WORD(dest, ch);
+      dest += 2;
     }
   }
 }
@@ -999,14 +994,9 @@ void memsetl_dos(dosaddr_t dest, unsigned int ch, size_t n)
     vga_memsetl(dest, ch, n);
   else {
     e_invalidate(dest, n * 4);
-    while (n) {
-      dosaddr_t bound = (dest & _PAGE_MASK) + PAGE_SIZE;
-      size_t to_copy = _min(n, (bound - dest) / 4);
-      n -= to_copy;
-      while (to_copy--) {
-        WRITE_DWORD(dest, ch);
-        dest += 4;
-      }
+    while (n--) {
+      WRITE_DWORD(dest, ch);
+      dest += 4;
     }
   }
 }
