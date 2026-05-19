@@ -595,6 +595,7 @@ static void spkr_io_write(ioport_t port, Bit8u value, void *arg) {
           break;
 
        case SPKR_EMULATED:
+       case SPKR_SOUND:
 	  if ((value & 3) == (port61 & 3))
 	    break;
 	  port61 = value & 0x0f;

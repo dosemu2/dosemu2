@@ -826,7 +826,8 @@ int X_init(void)
   }
 
 #if CONFIG_X_SPEAKER
-  X_register_speaker(display);
+  if (config.speaker == SPKR_EMULATED)
+    X_register_speaker(display);
 #endif
 
   pthread_create(&event_thr, NULL, X_handle_events, NULL);

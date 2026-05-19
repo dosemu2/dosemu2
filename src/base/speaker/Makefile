@@ -3,7 +3,7 @@ include $(top_builddir)/Makefile.conf
 
 # Makefile for speaker code.
 
-CFILES=speaker.c $(X_CFILES) console_speaker.c evdev_speaker.c
+CFILES=speaker.c $(X_CFILES) console_speaker.c evdev_speaker.c sound_speaker.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)
