@@ -1494,10 +1494,10 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
     return 3;
   }
 
-  for(u = 0; u < vmt->pages; u++) {
+  if (vga.mode_class == GRAPH && prot == VGA_EMU_RW_PROT) {
+   for (u = 0; u < vmt->pages; u++)
     /* need to fix up protection for clean pages */
-    if(vga.mode_class == GRAPH && !vga.mem.dirty_map[vmt->first_page + u] &&
-	    prot == VGA_EMU_RW_PROT)
+    if (!vga.mem.dirty_map[vmt->first_page + u])
       _vga_emu_adjust_protection(vmt->first_page + u, (int[]){VGA_PROT_RO, VGA_PROT_RO}, 0, 0);
   }
   pthread_mutex_unlock(&prot_mtx);
