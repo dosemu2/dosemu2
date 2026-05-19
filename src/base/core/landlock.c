@@ -63,6 +63,12 @@
 
 #define ACCESS_ALL ACCESS_RW
 
+#ifndef LANDLOCK_RESTRICT_SELF_TSYNC
+#warning LANDLOCK_RESTRICT_SELF_TSYNC not defined
+#define LANDLOCK_RESTRICT_SELF_TSYNC 0
+#endif
+static unsigned int restrict_flags = LANDLOCK_RESTRICT_SELF_TSYNC;
+
 static int ruleset_fd = -1;
 
 int landlock_init(void)
@@ -87,6 +93,7 @@ int landlock_init(void)
     if (abi < 8) {
         /* On ABI < 8 LANDLOCK_RESTRICT_SELF_TSYNC missing. */
         error("Your kernel is too old, using minimal Landlock protection\n");
+        restrict_flags &= ~LANDLOCK_RESTRICT_SELF_TSYNC;
     }
 
     assert(ruleset_fd == -1);
@@ -175,11 +182,6 @@ int landlock_allow_fd(int fd, int ro)
 
 int landlock_lock(void)
 {
-#ifndef LANDLOCK_RESTRICT_SELF_TSYNC
-#warning LANDLOCK_RESTRICT_SELF_TSYNC not defined
-#define LANDLOCK_RESTRICT_SELF_TSYNC 0
-#endif
-    unsigned int restrict_flags = LANDLOCK_RESTRICT_SELF_TSYNC;
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
         perror("Failed to restrict privileges");
         close(ruleset_fd);
