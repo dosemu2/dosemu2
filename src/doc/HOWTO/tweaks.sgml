@@ -345,13 +345,15 @@ Test Drive 2 only works from drives up to F:. In most dosemu2 setups,
 these drive letters are occupied. Solution is to copy the game to C:.
 </para>
 <title>
-Bad music with wrong notes.
+Bad music or wrong note at the end.
 </title>
 <para>
 Test Drive 2 is available in 2 versions. Check the VOICES.BIN file, and
 if its size is 0 or 2 bytes, this is an old version. Find the newer version
 with VOICES.BIN of a size 288 bytes. This version has better music, more
-cars and more maps.
+cars and more maps. Note that if your VOICES.BIN is 2 bytes in size, you
+can simply "truncate" it to 0 bytes to eliminate the bad note at the
+end of the melody. But don't remove the file, or the game won't start.
 </para>
 </sect2>
 </sect1>
