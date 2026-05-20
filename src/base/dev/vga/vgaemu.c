@@ -2775,7 +2775,6 @@ static void vgaemu_adjust_instremu(int value)
 {
   int i;
   int changed = (vga.inst_emu != value);
-  vga_mapping_type *vmt = &vga.mem.map[VGAEMU_MAP_BANK_MODE];
 
   if (!changed)
     return;
@@ -2812,9 +2811,9 @@ static void vgaemu_adjust_instremu(int value)
 	vga_emu_protect_page((vga.mem.graph_base >> PAGE_SHIFT) + i, RW, 1);
     }
   }
+  /* As above we need to protect 0xa0 (graph_base) in any case */
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM)
-    kvm_set_mmio(vmt->base_page * HOST_PAGE_SIZE, vmt->pages * HOST_PAGE_SIZE,
-		 value != 0);
+    kvm_set_mmio(vga.mem.graph_base, vga.mem.graph_size, value != 0);
 }
 
 /*
