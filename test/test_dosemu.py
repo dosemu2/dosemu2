@@ -11,9 +11,10 @@ from common_os import (drdos701, frdos120, frdos130, frdosgit, msdos622,
                        msdos700, msdos710, ppdosgit)
 
 from func_bpb_set import bpb_set
-from func_command_com_r200fix import command_com_r200fix
 from func_command_com_builtins import command_com_copy, command_com_keyword_exist
 from func_command_com_cmdline_length import command_com_cmdline_length
+from func_command_com_psp_checks import command_com_psp_fcbs
+from func_command_com_r200fix import command_com_r200fix
 from func_disk import three_drives_vfs, int21_disk_info
 from func_ds2_dirops import (ds2_delete_common, ds2_find_common, ds2_find_first,
                              ds2_find_mixed_wild_plain, ds2_rename_common)
@@ -78,6 +79,11 @@ class OurTestCase(BaseTestCase):
     attrs = {'cmdtest', 'dpmitest', 'emstest', 'fattest', 'fcbtest', 'hmatest', 'labeltest', 'lfntest',
              'locktest', 'memtest', 'mfstest', 'nettest', 'serialtest', 'sfntest', 'sharetest', 'umatest',
              'xmstest'}
+
+    @mark('cmdtest')
+    def test_command_com_psp_fcbs(self):
+        """Command.com PSP FCB Values"""
+        command_com_psp_fcbs(self)
 
     @mark('cmdtest')
     def test_command_com_r200fix_real(self):
@@ -1510,6 +1516,7 @@ class OurTestCase(BaseTestCase):
         pit_mode_2(self)
 
 DRDOS701TestCase = drdos701(OurTestCase, {
+    "test_command_com_psp_fcbs": KNOWNFAIL,
     "test_command_com_r200fix_real": UNSUPPORTED,
     "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos01": UNSUPPORTED,
@@ -1549,6 +1556,7 @@ DRDOS701TestCase = drdos701(OurTestCase, {
 })
 
 FRDOS120TestCase = frdos120(OurTestCase, {
+    "test_command_com_psp_fcbs": KNOWNFAIL,
     "test_command_com_r200fix_real": UNSUPPORTED,
     "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
@@ -1623,6 +1631,7 @@ FRDOS120TestCase = frdos120(OurTestCase, {
 })
 
 FRDOS130TestCase = frdos130(OurTestCase, {
+    "test_command_com_psp_fcbs": KNOWNFAIL,
     "test_command_com_r200fix_real": UNSUPPORTED,
     "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,

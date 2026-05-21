@@ -133,6 +133,7 @@ def get_test_binaries():
         check_call([
             "wget",
             "--no-verbose",
+            "-O", f"{tfile}",
             f"{TEST_BINARY_HOST}/{tfile}",
         ], stderr=STDOUT, cwd=tbindir)
 
@@ -141,6 +142,7 @@ def get_test_binaries():
             "wget",
             "--no-verbose",
             "--inet4-only",
+            "-O", f"{tfile}",
             f"{TEST_FREEDOS_HOST}/{zfile}",
         ], stderr=STDOUT, cwd=tbindir)
 
