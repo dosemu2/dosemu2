@@ -865,7 +865,7 @@ unsigned int Sim_helper_jit(unsigned int mem_ref, unsigned int data,
     return ret;
 }
 
-unsigned char *Jmp_indirect_helper(unsigned int ePC,
+unsigned char *Jmp_indirect_helper(unsigned int ePC, unsigned int mode,
 				   unsigned char *tailcode)
 {
     unsigned char *ret;
@@ -882,7 +882,10 @@ unsigned char *Jmp_indirect_helper(unsigned int ePC,
     /* excessive e_querynode() seems to not help */
     {
         TNode *G = FindTree(ePC);
-        ret = (G && GoodNode(G)) ? GetExecCodeBuf(G->addr) : tailcode;
+        if (G && GoodNode(G) && !((mode & CKSIGN) && exit_pending()))
+            ret = GetExecCodeBuf(G->addr);
+        else
+            ret = tailcode;
     }
 #endif
     InCompiledCode++;
