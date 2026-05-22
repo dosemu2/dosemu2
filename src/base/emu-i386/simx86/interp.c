@@ -1728,7 +1728,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    PC++; goto not_permitted;	/* GPF */
 			}
 			Gen(O_SIM, _mode, opc, 0, P0);
-			PC = JumpGen(PC, Interp_LONG_CS, _mode, opc, 1);
+			PC = JumpGen(PC, Interp_LONG_CS, _mode|CKSIGN, opc, 1);
 			break;
 /*9d*/	case POPF:
 			PC++;

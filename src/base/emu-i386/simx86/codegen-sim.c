@@ -2634,11 +2634,7 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 #endif
 		{
 			TNode *G = FindTree(ePC);
-			if (
-#if 1
-					G &&
-#endif
-					GoodNode(G)) {
+			if (G && GoodNode(G) && !((IG->mode & CKSIGN) && exit_pending())) {
 				IG = (IGen *)G->addr;
 				continue;
 			}
