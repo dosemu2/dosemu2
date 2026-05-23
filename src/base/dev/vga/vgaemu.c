@@ -2921,10 +2921,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 	      ((vga.crtc.data[0x9] & 0x20) << (9 - 5));
       vertical_blanking_end =
 	      vga.crtc.data[0x16] & 0x7F;
-      if (vga.mode_class == TEXT)
-        char_height = (vga.crtc.data[0x9] & 0x1f) + 1;
-      else
-        char_height = vga.char_height;
+      char_height = (vga.crtc.data[0x9] & 0x1f) + 1;
       vertical_multiplier = char_height << ((vga.crtc.data[0x9] & 0x80) >> 7);
       /* see VGADOC: CGA is special for reg 9 */
       if(vga.mode_type == CGA) vertical_multiplier = char_height;
@@ -2945,7 +2942,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       if (vga.mode_class == TEXT)
         height *= char_height;
       else
-        height = vga.height;
+        char_height = vga.char_height;
       /* By Eric (eric@coli.uni-sb.de):                        */
       /* Required for 80x100 CGA "text graphics" with 8x2 font */
       if (vga.height != height || vga.char_height != char_height) {
@@ -3064,7 +3061,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       }
       old_color_bits = vga.color_bits;
       vga.color_bits = vga.pixel_size;
-      vgaemu_adjust_instremu((vga.mode_type==PL4 || vga.mode_type==PL2)
+      vgaemu_adjust_instremu((vga.mode_type==PL4 || vga.mode_type==PL2 || vga.mem.planes > 1)
 			     ? EMU_ALL_INST : 0);
       if (oldclass != vga.mode_class) {
 	vgaemu_adj_cfg(CFG_SEQ_ADDR_MODE, 0);
