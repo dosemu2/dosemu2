@@ -158,6 +158,35 @@ Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u nbcols,Bit8u cheight,Bit8u attr)
 }
 
 // --------------------------------------------------------------------------------------------
+static void vgamem_copy_lin(
+Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u nbcols,Bit8u cheight)
+{
+ Bit16u src,dest;
+ Bit8u i;
+
+ src=(ysrc*cheight*nbcols+xstart)*8;
+ dest=(ydest*cheight*nbcols+xstart)*8;
+ for(i=0;i<cheight;i++)
+  {
+    memcpyb(0xa000,dest+i*nbcols*8,0xa000,src+i*nbcols*8,cols*8);
+  }
+}
+
+// --------------------------------------------------------------------------------------------
+static void vgamem_fill_lin(
+Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u nbcols,Bit8u cheight,Bit8u attr)
+{
+ Bit16u dest;
+ Bit8u i;
+
+ dest=(ystart*cheight*nbcols+xstart)*8;
+ for(i=0;i<cheight;i++)
+  {
+   memsetb(0xa000,dest+i*nbcols*8,attr,cols*8);
+  }
+}
+
+// --------------------------------------------------------------------------------------------
 static void biosfn_scroll(
 Bit8u nblines,Bit8u attr,Bit8u rul,Bit8u cul,Bit8u rlr,Bit8u clr,Bit8u page,
 Bit8u dir)
@@ -290,6 +319,35 @@ Bit8u dir)
               vgamem_fill_cga(address,cul,i,cols,nbcols,cheight,attr);
              else
               vgamem_copy_cga(address,cul,i,i-nblines,cols,nbcols,cheight);
+             if (i>rlr) break;
+            }
+          }
+        }
+       break;
+     case LINEAR8:
+       if(nblines==0&&rul==0&&cul==0&&rlr==nbrows-1&&clr==nbcols-1)
+        {
+         memsetb(vmi->buffer_start,0,attr,nbrows*nbcols*cheight*8);
+        }
+       else
+        {
+         // if Scroll up
+         if(dir==SCROLL_UP)
+          {for(i=rul;i<=rlr;i++)
+            {
+             if((i+nblines>rlr)||(nblines==0))
+              vgamem_fill_lin(cul,i,cols,nbcols,cheight,attr);
+             else
+              vgamem_copy_lin(cul,i+nblines,i,cols,nbcols,cheight);
+            }
+          }
+         else
+          {for(i=rlr;i>=rul;i--)
+            {
+             if((i<rul+nblines)||(nblines==0))
+              vgamem_fill_lin(cul,i,cols,nbcols,cheight,attr);
+             else
+              vgamem_copy_lin(cul,i,i-nblines,cols,nbcols,cheight);
              if (i>rlr) break;
             }
           }
