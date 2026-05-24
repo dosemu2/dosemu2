@@ -104,7 +104,8 @@ $(BINPATH)/bin/$(DOSLIBLINKNAME): $(BINPATH)/bin/$(DOSLIB)
 	$(LN_S) -f $(DOSLIB) $@
 
 $(BINPATH)/bin/$(DOSBIN): base/core/main.o $(BINPATH)/bin/$(DOSLIBLINKNAME)
-	$(LD) $(DOSBIN_LDFLAGS) $(LDFLAGS) -o $@ $< -L $(BINPATH)/bin -ldosemu2
+	$(LD) $(DOSBIN_LDFLAGS) $(LDFLAGS) -o $@ $< -L $(BINPATH)/bin -ldosemu2 \
+	   -Wl,-rpath,$(libdir)
 else
 $(BINPATH)/bin/$(DOSBIN): base/core/main.o $(LIBS_)
 	$(LD) $(DOSBIN_LDFLAGS) $(LDFLAGS) -o $@ $< \
