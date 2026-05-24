@@ -928,7 +928,7 @@ void write_qword(dosaddr_t addr, uint64_t qword)
 
 void memcpy_2unix(void *dest, dosaddr_t src, size_t n)
 {
-  if (vga.inst_emu && src >= 0xa0000 && src < 0xc0000)
+  if (vga_read_access(src))
     memcpy_from_vga(dest, src, n);
   else while (n) {
     /* EMS can produce the non-contig mapping. We need to iterate it
@@ -944,7 +944,7 @@ void memcpy_2unix(void *dest, dosaddr_t src, size_t n)
 
 void memcpy_2dos(dosaddr_t dest, const void *src, size_t n)
 {
-  if (dest >= 0xa0000 && dest < 0xc0000)
+  if (vga_write_access(dest))
     memcpy_to_vga(dest, src, n);
   else {
     e_invalidate(dest, n);
@@ -961,7 +961,7 @@ void memcpy_2dos(dosaddr_t dest, const void *src, size_t n)
 
 void memset_dos(dosaddr_t dest, unsigned char ch, size_t n)
 {
-  if (dest >= 0xa0000 && dest < 0xc0000)
+  if (vga_write_access(dest))
     vga_memset(dest, ch, n);
   else {
     e_invalidate(dest, n);
@@ -977,7 +977,7 @@ void memset_dos(dosaddr_t dest, unsigned char ch, size_t n)
 
 void memsetw_dos(dosaddr_t dest, unsigned short ch, size_t n)
 {
-  if (dest >= 0xa0000 && dest < 0xc0000)
+  if (vga_write_access(dest))
     vga_memsetw(dest, ch, n);
   else {
     e_invalidate(dest, n * 2);
@@ -990,7 +990,7 @@ void memsetw_dos(dosaddr_t dest, unsigned short ch, size_t n)
 
 void memsetl_dos(dosaddr_t dest, unsigned int ch, size_t n)
 {
-  if (dest >= 0xa0000 && dest < 0xc0000)
+  if (vga_write_access(dest))
     vga_memsetl(dest, ch, n);
   else {
     e_invalidate(dest, n * 4);
@@ -1006,13 +1006,13 @@ void memmove_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n)
   /* XXX GW (Game Wizard Pro) does this.
      TODO: worry about overlaps; could be a little cleaner
      using the memcheck.c mechanism */
-  if (vga.inst_emu && src >= 0xa0000 && src < 0xc0000) {
-    if (dest >= 0xa0000 && dest < 0xc0000)
+  if (vga_read_access(src)) {
+    if (vga_write_access(dest))
       vga_memcpy(dest, src, n);
     else
       memcpy_dos_from_vga(dest, src, n);
   }
-  else if (dest >= 0xa0000 && dest < 0xc0000)
+  else if (vga_write_access(dest))
     memcpy_dos_to_vga(dest, src, n);
   else {
     e_invalidate(dest, n);
@@ -1032,13 +1032,13 @@ void memmove_dos2dos(dosaddr_t dest, dosaddr_t src, size_t n)
 void memcpy_dos2dos(unsigned dest, unsigned src, size_t n)
 {
   /* Jazz Jackrabbit does DOS read to VGA via protmode selector */
-  if (vga.inst_emu && src >= 0xa0000 && src < 0xc0000) {
-    if (dest >= 0xa0000 && dest < 0xc0000)
+  if (vga_read_access(src)) {
+    if (vga_write_access(dest))
       vga_memcpy(dest, src, n);
     else
       memcpy_dos_from_vga(dest, src, n);
   }
-  else if (dest >= 0xa0000 && dest < 0xc0000)
+  else if (vga_write_access(dest))
     memcpy_dos_to_vga(dest, src, n);
   else {
     e_invalidate(dest, n);
@@ -1064,7 +1064,7 @@ int dos_read(int fd, unsigned data, int cnt)
 {
   int ret;
   /* GW also reads or writes directly from a file to protected video memory. */
-  if (data >= 0xa0000 && data < 0xc0000) {
+  if (vga_write_access(data)) {
     char buf[cnt];
     ret = unix_read(fd, buf, cnt);
     if (ret >= 0)
@@ -1091,7 +1091,7 @@ int dos_write(int fd, unsigned data, int cnt)
   if (!cnt)
     return 0;
   buf = alloca(cnt);
-  if (vga.inst_emu && data >= 0xa0000 && data < 0xc0000) {
+  if (vga_read_access(data)) {
     memcpy_from_vga(buf, data, cnt);
     d = buf;
   } else {
