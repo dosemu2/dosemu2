@@ -1387,7 +1387,7 @@ int disk_validate_boot_part(struct disk *dp)
   if (dp->hdtype == 0) { /* Unspecified disk type */
     d_printf("DISK: Automatically selecting IBM disk type %i\n", hdtype);
     dp->hdtype = hdtype;
-    dp->sectors = -1;
+    disk_fptrs[dp->type].autosense(dp);
   }
 
   /* some old DOSes only boot if there are no more than 2 drives */
