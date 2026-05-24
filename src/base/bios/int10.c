@@ -59,6 +59,7 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "timers.h"
+#include "vgabios.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 
