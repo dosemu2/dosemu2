@@ -1462,7 +1462,7 @@ config_init(int argc, char **argv)
     free(dosrcname);
 
     if (config.exitearly && !config_check_only)
-	exit(0);
+	exit(config.exitearly);
 
     i_cur = 0;
     GETOPT_RESET();
