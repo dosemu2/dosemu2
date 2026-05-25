@@ -142,7 +142,7 @@ def get_test_binaries():
             "wget",
             "--no-verbose",
             "--inet4-only",
-            "-O", f"{zfile}",
+            "-O", f"{zfile.removeprefix('devel/')}",
             f"{TEST_FREEDOS_HOST}/{zfile}",
         ], stderr=STDOUT, cwd=tbindir)
 
