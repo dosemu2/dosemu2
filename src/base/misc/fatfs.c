@@ -330,9 +330,10 @@ void fatfs_reset(struct disk *dp)
       free(f->obj[i].full_name);
   }
   f->objs = 1;
-
+  f->obj[0].is.scanned = 0;
   f->got_all_objs = 0;
   f->first_free_cluster = 2;
+  f->drive_num = dp->drive_num;  // for swap_bootdrive
 
   for (i = 0; i < MAX_SYS_IDX; i++) {
     strcpy(f->sfiles[i].name, i_sfiles[i].name);

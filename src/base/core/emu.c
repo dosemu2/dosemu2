@@ -379,7 +379,7 @@ int emulate(int argc, char **argv, char * const *envp)
     signal_init();              /* initialize sig's & sig handlers */
     if (config.exitearly) {
       dbug_printf("Leaving DOS before booting\n");
-      leavedos(0);
+      leavedos(config_check_only ? 0 : config.exitearly);
     }
     g_printf("EMULATE\n");
 
