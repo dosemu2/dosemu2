@@ -91,7 +91,7 @@ static unsigned int codeorg = 0;
 static int reg32;
 
 static unsigned int dpmimode;
-static int _in_dpmi() {
+static int _in_dpmi(void) {
   switch (dpmimode) {
   case 0:
     return in_dpmi_pm();
