@@ -57,10 +57,8 @@ Recommends:
     kbd,
     sudo,
     fluid-soundfont-gm,
-    install-freedos,
-    fuse-overlayfs,
-    fuse3
-Suggests: vde2, valgrind, install-otherdos, install-win31
+    install-freedos
+Suggests: vde2, valgrind, install-otherdos, install-win31, mkdexe2
 Description: fast and secure DOS emulator
  dosemu2 is an emulator for running DOS programs under linux.
  It can also serve as a VM to boot various DOSes.

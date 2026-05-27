@@ -70,9 +70,7 @@ Suggests:   valgrind
 Recommends: install-freedos
 Suggests:   install-otherdos
 Suggests:   install-win31
-# fuse is for mkdexe2
-Recommends: fuse-overlayfs
-Recommends: fuse3
+Suggests:   mkdexe2
 
 # cannot coexist with dosemu1
 Conflicts:  dosemu
