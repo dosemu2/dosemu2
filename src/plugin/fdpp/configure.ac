@@ -30,31 +30,11 @@ AC_ARG_WITH([fdpp-lib-dir], AS_HELP_STRING([--with-fdpp-lib-dir=DIR],
         [export PKG_CONFIG_PATH="$fdpp_lib_dir"])
 
     AC_DEFINE_UNQUOTED(FDPP_KERNEL_DIR, "$fdpp_kern_dir")
-    FDPP_RPATH="$fdpp_lib_dir"
     FDPP_INCLUDES=-I"$fdpp_inc_dir"
-    FDPP_LFLAGS=-L"$fdpp_lib_dir"
-  ],
-  [
-    if test "x$prefix" = xNONE; then
-      AC_ARG_WITH([fdpp-rpath], AS_HELP_STRING([--with-fdpp-rpath=DIR],
-        [add alternate fdpp rpath]),
-        [FDPP_RPATH="$fdpp_rpath"],
-        [FDPP_RPATH="${PREFIX:-/usr}/lib/fdpp"
-         FDPP_RPATH2="${PREFIX:-/usr}/lib64/fdpp"]
-      )
-    else
-      FDPP_RPATH="$prefix/lib/fdpp"
-      FDPP_RPATH2="$prefix/lib64/fdpp"
-    fi
-    FDPP_RPATH3="$ac_default_prefix/lib/fdpp"
-    FDPP_RPATH4="$ac_default_prefix/lib64/fdpp"
+    FDPP_LFLAGS="-L$fdpp_lib_dir -Wl,-rpath,$fdpp_lib_dir"
   ]
 )
 
-AC_SUBST(FDPP_RPATH)
-AC_SUBST(FDPP_RPATH2)
-AC_SUBST(FDPP_RPATH3)
-AC_SUBST(FDPP_RPATH4)
 AC_SUBST(FDPP_INCLUDES)
 AC_SUBST(FDPP_LFLAGS)
 
