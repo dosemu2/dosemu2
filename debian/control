@@ -49,7 +49,6 @@ Architecture: any
 Depends:
     ${misc:Depends},
     ${shlibs:Depends},
-    fdpp,
     comcom64,
     ${shlibs-:Recommends}
 Recommends:
