@@ -166,7 +166,7 @@ SearpcClient *clnt_init(int *sock_rx, init_cb_t init_cb,
                 _exit(1);
             setsid();
             prctl(PR_SET_PDEATHSIG, SIGQUIT);
-            for (int i = STDERR_FILENO + 1; i < sysconf(_SC_OPEN_MAX); i++) {
+            for (int i = STDERR_FILENO + 1; i < _OPEN_MAX; i++) {
                 if (i == socks[1] || i == transp[1])
                     continue;
                 close(i);

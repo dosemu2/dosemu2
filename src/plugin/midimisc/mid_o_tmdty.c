@@ -136,7 +136,7 @@ static int midotmdty_preinit(void)
 #ifdef HAVE_CLOSEFROM
 	closefrom(close_from);
 #else
-	for (; close_from < sysconf(_SC_OPEN_MAX); close_from++)
+	for (; close_from < _OPEN_MAX; close_from++)
 	    close(close_from);
 #endif
 	strcpy(tmdty_sound_spec, tmdty_opt_hc);

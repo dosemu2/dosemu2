@@ -202,4 +202,6 @@ int gdb_debug(const char *file);
 int mkdir_p(const char *path, mode_t mode);
 char *list_files(const char *dirname);
 
+#define _OPEN_MAX 1024
+
 #endif /* UTILITIES_H */
