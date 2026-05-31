@@ -403,6 +403,9 @@ AX_CHECK_COMPILE_FLAG([-Waddress-of-packed-member],
 AX_CHECK_COMPILE_FLAG([-Wstring-plus-int],
   [DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-string-plus-int"],, [-Werror])
 DOSEMU_LDFLAGS="-pthread"
+if test "x$prefix" != xNONE; then
+  DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -Wl,-rpath,$libdir"
+fi
 
 AC_CHECK_LIB(m, pow)
 AC_CHECK_DECLS([exp10f],,, [[#include <math.h>]])
