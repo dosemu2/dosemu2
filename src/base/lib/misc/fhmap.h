@@ -175,6 +175,19 @@ static inline struct fh_node *fh_find_pos(fhmap *fhm, FH_KTYPE key)
     return NULL;
 }
 
+/* slow, use only for destruction */
+#define fh_for_each(fhm, type, member, c) { \
+    int _size = 1 << fhm->p2size; \
+    for (int i = 0; i < _size; i++) { \
+        struct ulist_ent *pos; \
+        struct fh_bucket *b = &fhm->bs[i]; \
+        ulist_for_each(pos, &b->head) { \
+            struct fh_node *n = ulist_entry(pos, struct fh_node, list); \
+            c(container_of(n, type, member)); \
+        } \
+    } \
+}
+
 #define fh_find(fhm, key, type, member) ({ \
     struct fh_node *pos = fh_find_pos(fhm, key); \
     pos ? container_of(pos, type, member) : NULL; \
