@@ -29,6 +29,8 @@
 #ifndef ULIST_H
 #define ULIST_H
 
+#include <stddef.h>  // for offsetof
+
 #ifndef container_of
 #define container_of(ptr, type, member) ( \
 		    (type *)((char *)(ptr) - offsetof(type,member)))

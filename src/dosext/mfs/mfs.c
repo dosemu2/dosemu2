@@ -159,6 +159,7 @@ TODO:
 
 #include <string.h>
 #include "libbsd/string.h"
+#include "misc/dict.h"
 #include "emu.h"
 #include "int.h"
 #include "lfn.h"
@@ -181,6 +182,8 @@ TODO:
 #ifdef __linux__
 #include <linux/msdos_fs.h>
 #endif
+
+static void *fpath_dict;
 
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
 /* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
@@ -865,6 +868,8 @@ void mfs_post_config(void)
   }
 
   fslib_seal();
+
+  fpath_dict = dict_init(32);
 }
 
 static void init_one_drive(int dd)
@@ -905,6 +910,7 @@ void mfs_done(void)
 {
   mfs_close_all();
   clear_sfn_bl();
+  dict_done(fpath_dict);
 }
 
 void mfs_late_deinit(void)
@@ -1972,8 +1978,9 @@ scan_dir(const char *path, char *name, int root_len, int drive)
  */
 int find_file(char *fpath, struct stat * st, int *doserrno, int drive)
 {
-  char *slash1, *slash2;
+  char *slash1, *slash2, **fp;
   int root_len = drives[drive].root_len;
+  char fpath_orig[PATH_MAX];
 
   Debug0(("find file %s\n", fpath));
 
@@ -1993,10 +2000,23 @@ int find_file(char *fpath, struct stat * st, int *doserrno, int drive)
     return (s == NULL || path_exists);
   }
 
+  if ((fp = dict_find(fpath_dict, fpath))) {
+    static int cnt;
+    cnt++;
+    Debug0(("lookup cache hit %i %s %s\n", cnt, *fp, fpath));
+    assert(strcmp(*fp, fpath));
+    strcpy(fpath, *fp);
+  }
+
   /* first see if the path exists as is */
   if (!in_sfn_bl(fpath) && mfs_stat(fpath, st, drive) == 0) {
     Debug0(("file exists as is\n"));
     return (TRUE);
+  }
+
+  if (fp) {
+    Debug0(("file %s deleted???\n", *fp));
+    dict_del_by_val(fpath_dict, fp);
   }
 
   /* if it isn't an absolute path then we're in trouble */
@@ -2005,6 +2025,7 @@ int find_file(char *fpath, struct stat * st, int *doserrno, int drive)
     return (FALSE);
   }
 
+  strcpy(fpath_orig, fpath);
   /* slash1 will point to the beginning of the section we're looking
      at, and slash2 will point at the end */
   slash1 = fpath + root_len - 1;
@@ -2058,9 +2079,11 @@ int find_file(char *fpath, struct stat * st, int *doserrno, int drive)
 
   /* we've found the file - now stat it */
   if (mfs_stat(fpath, st, drive) != 0) {
-    Debug0(("find_file(): can't stat %s\n", fpath));
+    error("find_file(): can't stat %s\n", fpath);
     return (FALSE);
   }
+
+  dict_add(fpath_dict, fpath_orig, fpath);
 
   Debug0(("found file %s\n", fpath));
   return (TRUE);
