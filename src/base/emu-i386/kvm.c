@@ -72,6 +72,15 @@
 #define IDT_GPF 0
 #endif
 
+#define KVM_PROFILE 0
+#if KVM_PROFILE
+static int exit_eintr;
+static int exit_hlt;
+static int exit_io;
+static int exit_mmio;
+static int exit_irq;
+#endif
+
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
                    X86_EFLAGS_AF|X86_EFLAGS_ZF|X86_EFLAGS_SF| \
                    X86_EFLAGS_TF|X86_EFLAGS_DF|X86_EFLAGS_OF| \
@@ -1463,6 +1472,9 @@ static unsigned int kvm_run(void)
     if (ret != 0 && ret != -1)
       error("KVM: strange return %i, errno=%i\n", ret, errn);
     if (ret == -1 && errn == EINTR) {
+#if KVM_PROFILE
+      exit_eintr++;
+#endif
       if (!kvm_post_run(regs, &kregs))
         continue;
       saved_regs = *regs;
@@ -1477,11 +1489,17 @@ static unsigned int kvm_run(void)
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
+#if KVM_PROFILE
+      exit_hlt++;
+#endif
       if (fixup_hlt_exit(regs))
         break;
       exit_reason = KVM_EXIT_HLT;
       break;
     case KVM_EXIT_IO:
+#if KVM_PROFILE
+      exit_io++;
+#endif
       kvm_handle_io(run->io.port,
                     (uint8_t *)run + run->io.data_offset,
                     run->io.direction,
@@ -1494,6 +1512,9 @@ static unsigned int kvm_run(void)
       exit_reason = KVM_EXIT_IO;
       break;
     case KVM_EXIT_MMIO:
+#if KVM_PROFILE
+      exit_mmio++;
+#endif
       /* for ROM: simply ignore the write and continue */
       if (memcheck_is_rom(run->mmio.phys_addr))
 	break;
@@ -1515,6 +1536,9 @@ static unsigned int kvm_run(void)
 #endif
       break;
     case KVM_EXIT_IRQ_WINDOW_OPEN:
+#if KVM_PROFILE
+      exit_irq++;
+#endif
       run->request_interrupt_window = !run->ready_for_interrupt_injection;
       if (run->request_interrupt_window || !run->if_flag) break;
       if (!kvm_post_run(regs, &kregs))
@@ -1769,6 +1793,10 @@ void kvm_done(void)
   close(vmfd);
   close(kvmfd);
   free(cpuid);
+#if KVM_PROFILE
+  printf("KVM exits: EINTR=%i HLT=%i IO=%i MMIO=%i IRQ=%i\n",
+      exit_eintr, exit_hlt, exit_io, exit_mmio, exit_irq);
+#endif
 }
 
 #endif
