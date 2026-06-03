@@ -39,6 +39,18 @@
 #define FH_ZONED 0
 #endif
 
+#ifndef FH_KTYPE
+#define FH_KTYPE unsigned
+#endif
+
+#ifndef FH_KEQUAL
+#define FH_KEQUAL(k1, k2) ((k1) == (k2))
+#endif
+
+#ifndef FH_PREHASH
+#define FH_PREHASH(x) (x)
+#endif
+
 #define FH_MRU 1
 
 struct fh_bucket {
@@ -139,18 +151,18 @@ static inline struct fh_bucket *fh_find_b(fhmap *fhm, unsigned key)
     return &fhm->bs[default_fmhash_fn(fhm, key)];
 }
 
-static inline unsigned fh_key_from_value(fhmap *fhm, unsigned char *value)
+static inline FH_KTYPE fh_key_from_value(fhmap *fhm, unsigned char *value)
 {
-    return *(unsigned *)(value + fhm->key_offs);
+    return *(FH_KTYPE *)(value + fhm->key_offs);
 }
 
-static inline struct fh_node *fh_find_pos(fhmap *fhm, unsigned key)
+static inline struct fh_node *fh_find_pos(fhmap *fhm, FH_KTYPE key)
 {
     struct ulist_ent *pos;
-    struct fh_bucket *b = fh_find_b(fhm, key);
+    struct fh_bucket *b = fh_find_b(fhm, FH_PREHASH(key));
 
     ulist_for_each(pos, &b->head) {
-        if (fh_key_from_value(fhm, (unsigned char *)pos) == key) {
+        if (FH_KEQUAL(fh_key_from_value(fhm, (unsigned char *)pos), key)) {
 #if FH_MRU
             if (pos != ulist_first(&b->head)) {
                 ulist_del(pos);
@@ -165,13 +177,13 @@ static inline struct fh_node *fh_find_pos(fhmap *fhm, unsigned key)
 
 #define fh_find(fhm, key, type, member) ({ \
     struct fh_node *pos = fh_find_pos(fhm, key); \
-    pos ? ulist_entry(pos, type, member) : NULL; \
+    pos ? container_of(pos, type, member) : NULL; \
 })
 
 static inline void fh_add(fhmap *fhm, struct fh_node *value)
 {
-    int key = fh_key_from_value(fhm, (unsigned char *)&value->list);
-    struct fh_bucket *b = fh_find_b(fhm, key);
+    FH_KTYPE key = fh_key_from_value(fhm, (unsigned char *)&value->list);
+    struct fh_bucket *b = fh_find_b(fhm, FH_PREHASH(key));
     ulist_add(&value->list, &b->head);
 #if FH_STATS
     b->len++;
@@ -207,7 +219,7 @@ static inline void fh_del(fhmap *fhm, struct fh_node *value)
     struct fh_node *pos = fh_find_pos(fhm, key); \
     assert(pos); \
     fh_del(fhm, pos); \
-    ulist_entry(pos, type, member); \
+    container_of(pos, type, member); \
 })
 
 #endif
