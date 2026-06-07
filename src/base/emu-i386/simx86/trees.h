@@ -125,8 +125,9 @@ typedef struct TNode
 /* -------------------------------------------------------------- */
 	struct fh_node fhnode;
 	int alive;
+	unsigned len;
 	unsigned char *addr;
-	unsigned short len, flags, seqlen, seqnum;
+	unsigned short flags, seqlen, seqnum;
 	linkdesc clink_t;
 	linkdesc clink_nt;
 	backref *bkr;

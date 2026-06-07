@@ -278,8 +278,8 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		  }
 		}
 #endif
-		/* backwards jump limited to 256 bytes */
-		if ((dsp > -256) && (dsp < pskip)) {
+		/* backwards jump */
+		if (dsp < pskip) {
 		    if (dsp >= 0) {
 			// dsp>0 && dsp<pskip: jumps in the jmp itself
 			if (dsp > 0)
@@ -295,7 +295,7 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		    if (dsp == pskip) {
 			e_printf("### jmp %x 00\n",opc);
 		    }
-		    /* forward jump or backward jump >=256 bytes */
+		    /* forward jump */
 		    JMPGen(JF_LINK, mode, opc, j_nt, j_t);
 		}
 		break;
