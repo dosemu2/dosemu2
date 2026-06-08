@@ -132,26 +132,29 @@ static void set_cursor_pos(Bit8u page,Bit16u cursor)
  biosfn_set_cursor_pos(page,cursor);
 }
 
-#if 0
 // --------------------------------------------------------------------------------------------
 static void biosfn_get_cursor_pos (Bit8u page,Bit16u *shape,Bit16u *pos)
 {
+ /* output start & end scanline even if the requested page is invalid */
+ *shape = read_bda_word(BIOSMEM_CURSOR_TYPE);
  // Default
- *shape = 0;
  *pos = 0;
 
  if(page>7)return;
  // FIXME should handle VGA 14/16 lines
- *shape = read_bda_word(BIOSMEM_CURSOR_TYPE);
  *pos = read_bda_word(BIOSMEM_CURSOR_POS+page*2);
 }
-#endif
 
 // --------------------------------------------------------------------------------------------
 static Bit16u get_cursor_pos (Bit8u page)
 {
  if(page>7)return 0;
  return read_bda_word(BIOSMEM_CURSOR_POS+page*2);
+}
+
+void vgaemu_get_cursor_pos(Bit8u page, Bit16u *shape, Bit16u *pos)
+{
+  biosfn_get_cursor_pos(page, shape, pos);
 }
 
 // --------------------------------------------------------------------------------------------

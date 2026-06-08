@@ -769,6 +769,7 @@ int int10(void) /* with dualmon */
   int x, y, co, li;
   unsigned page, page_size, address;
   unsigned sm;
+  Bit16u shape, pos;
 
 #if 0 && USE_DUALMON
   static int last_equip=-1;
@@ -836,17 +837,13 @@ int int10(void) /* with dualmon */
 
 
     case 0x03:		/* get cursor pos/shape */
-      /* output start & end scanline even if the requested page is invalid */
-      LWORD(ecx) = READ_WORD(BIOS_CURSOR_SHAPE);
-
       page = HI(bx);
-      if (page > 7) {
-        LWORD(edx) = 0;
+      vgaemu_get_cursor_pos(page, &shape, &pos);
+      LWORD(ecx) = shape;
+      LWORD(edx) = pos;
+
+      if (page > 7)
         i10_msg("get cursor pos: page > 7: %d\n", page);
-      } else {
-        LO(dx) = get_bios_cursor_x_position(page);
-        HI(dx) = get_bios_cursor_y_position(page);
-      }
 
       i10_deb(
         "get cursor pos: page %u, x.y %u.%u, shape %u-%u\n",
