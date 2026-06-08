@@ -88,6 +88,12 @@ static vga_mode_info *get_vmi(void)
     return vga_emu_find_mode(READ_BYTE(BIOS_VIDEO_MODE), NULL);
 }
 
+static int vgabios_using_text_mode(void)
+{
+    unsigned char mode = READ_BYTE(BIOS_VDU_CONTROL);
+    return (!(mode & 2));
+}
+
 static void biosfn_set_cursor_pos(Bit8u page,Bit16u cursor)
 {
  Bit8u xcurs,ycurs,current;
@@ -277,7 +283,7 @@ Bit8u dir)
  if(nblines>nbrows)nblines=0;
  cols=clr-cul+1;
 
- if(vmi->mode_class==TEXT)
+ if(vgabios_using_text_mode())
   {
    // Get the page size
    pgsize=read_bda_word(BIOSMEM_PAGE_SIZE);
@@ -638,7 +644,7 @@ static void biosfn_write_char_attr (Bit8u car,Bit8u page,Bit8u attr,
  // Get the dimensions
  nbcols=read_bda_word(BIOSMEM_NB_COLS);
 
- if(vmi->mode_class==TEXT)
+ if(vgabios_using_text_mode())
   {
    // Get the page size
    pgsize=read_bda_word(BIOSMEM_PAGE_SIZE);
@@ -698,7 +704,7 @@ static void biosfn_write_char_only (Bit8u car,Bit8u page,Bit8u attr,
  // Get the dimensions
  nbcols=read_bda_word(BIOSMEM_NB_COLS);
 
- if(vmi->mode_class==TEXT)
+ if(vgabios_using_text_mode())
   {
    // Get the page size
    pgsize=read_bda_word(BIOSMEM_PAGE_SIZE);
@@ -976,7 +982,7 @@ static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
 
    default:
 
-    if(vmi->mode_class==TEXT)
+    if(vgabios_using_text_mode())
      {
       // Get the page size
       pgsize=read_bda_word(BIOSMEM_PAGE_SIZE);
@@ -1025,7 +1031,7 @@ static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
  // Do we need to scroll ?
  if(ycurs==nbrows)
   {
-   if(vmi->mode_class==TEXT)
+   if(vgabios_using_text_mode())
     {
      pgsize=read_bda_word(BIOSMEM_PAGE_SIZE);
      address=pgsize*page+(xcurs+(ycurs-1)*nbcols)*2;
