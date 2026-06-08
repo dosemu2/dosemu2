@@ -4,6 +4,7 @@
 void vgaemu_set_cursor_shape(int cs, int ce);
 void vgaemu_set_cursor_pos(unsigned page, int x, int y);
 void vgaemu_get_cursor_pos(Bit8u page,Bit16u *shape,Bit16u *pos);
+void vgaemu_set_active_page(unsigned page);
 void vgaemu_scroll(int x0, int y0, int x1, int y1, int n, unsigned char attr);
 void vgaemu_put_char(unsigned char c, unsigned char page, unsigned char attr);
 void vgaemu_repeat_char(unsigned char c, unsigned char page,

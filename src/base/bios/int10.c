@@ -107,13 +107,6 @@ unsigned screen_adr(int page)
 static void tty_char_out(unsigned char ch, int s, int attr);
 static void vga_ROM_to_RAM(unsigned height, int bank);
 
-static void crt_outw(unsigned index, unsigned value)
-{
-  unsigned port = READ_WORD(BIOS_VIDEO_PORT);
-  port_outw(port, index | (value & 0xff00));
-  port_outw(port, (index + 1) | ((value & 0xff) << 8));
-}
-
 static unsigned do_set_cursor_pos(unsigned page, int x, int y)
 {
   unsigned old_y;
@@ -747,7 +740,7 @@ int int10(void) /* with dualmon */
 {
   /* some code here is copied from Alan Cox ***************/
   int x, y, co, li;
-  unsigned page, page_size, address;
+  unsigned page;
   unsigned sm;
   Bit16u shape, pos;
 
@@ -849,15 +842,7 @@ int int10(void) /* with dualmon */
 	i10_msg("set display page: bad page %d\n", page);
 	break;
       }
-      page_size = READ_WORD(BIOS_VIDEO_MEMORY_USED);
-      address = page_size * page;
-      crt_outw(0xc, address/(using_text_mode() ? 2 : 1));
-
-      WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, page);
-      WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, address);
-      x = get_bios_cursor_x_position(page);
-      y = get_bios_cursor_y_position(page);
-      set_cursor_pos(page, x, y);
+      vgaemu_set_active_page(page);
       break;
 
 

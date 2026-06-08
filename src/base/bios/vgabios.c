@@ -63,6 +63,7 @@
 #define read_byte_far(seg, off) (read_byte(SEGOFF2LINEAR(seg, off)))
 #define read_bda_byte(off) (read_byte_far(BIOSMEM_SEG, off))
 #define write_byte_far(seg, off, val) (write_byte(SEGOFF2LINEAR(seg, off), val))
+#define write_bda_byte(off, val) (write_byte_far(BIOSMEM_SEG, off, val))
 #define read_word_far(seg, off) (read_word(SEGOFF2LINEAR(seg, off)))
 #define read_bda_word(off) (read_word_far(BIOSMEM_SEG, off))
 #define write_word_far(seg, off, val) (write_word(SEGOFF2LINEAR(seg, off), val))
@@ -201,6 +202,51 @@ void vgaemu_set_cursor_shape(int cs, int ce)
 {
   biosfn_set_cursor_shape(cs, ce);
   vga_msg("mapped cursor: start %d, end %d\n", cs, ce);
+}
+
+// --------------------------------------------------------------------------------------------
+static void biosfn_set_active_page (
+Bit8u page)
+{
+ Bit16u cursor,crtc_addr;
+ Bit16u pgsize,address;
+
+ if(page>7)return;
+
+ // Get pos curs pos for the right page
+ cursor=get_cursor_pos(page);
+
+ // Get the page size
+ pgsize=read_bda_word(BIOSMEM_PAGE_SIZE);
+
+ // Calculate the mem address
+ address=pgsize*page;
+ write_bda_word(BIOSMEM_CURRENT_START,address);
+
+ // Now the CRTC start address
+ address>>=1;
+
+ // CRTC regs 0x0c and 0x0d
+ crtc_addr=read_bda_word(BIOSMEM_CRTC_ADDRESS);
+ port_outb(crtc_addr,0x0c);
+ port_outb(crtc_addr+1,(address&0xff00)>>8);
+ port_outb(crtc_addr,0x0d);
+ port_outb(crtc_addr+1,address&0x00ff);
+
+ // And change the BIOS page
+ write_bda_byte(BIOSMEM_CURRENT_PAGE,page);
+
+#ifdef DEBUG
+ v_printf("Set active page %02x address %04x\n",page,address);
+#endif
+
+ // Display the cursor, now the page is active
+ set_cursor_pos(page,cursor);
+}
+
+void vgaemu_set_active_page(unsigned page)
+{
+  biosfn_set_active_page(page);
 }
 
 // --------------------------------------------------------------------------------------------
