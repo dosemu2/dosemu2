@@ -88,8 +88,13 @@ static inline struct ulist_head *ulist_get_head(struct ulist_ent *entry)
 	ulist_entry((ptr)->next, type, member.list)
 
 #define __UL(p) ((p) ? container_of(p, struct ulist_ent, list) : NULL)
+#define __NP(p) ((p) ? __UL((p)->list.next) : NULL)
 
 #define ulist_for_each(pos, head) \
 	for (pos = __UL((head)->next); pos; pos = __UL(pos->list.next))
+
+#define ulist_for_each_safe(pos, n, head) \
+	for (pos = __UL((head)->next), n = __NP(pos); \
+	     pos; pos = n, n = __NP(pos))
 
 #endif

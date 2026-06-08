@@ -56,7 +56,7 @@ static void free_ent(struct dict_ent *ent)
 void dict_done(void *arg)
 {
     fhmap *dict = arg;
-    fh_for_each(dict, struct dict_ent, fhnode, free_ent);
+    fh_for_each_safe(dict, struct dict_ent, fhnode, free_ent);
     free(dict->bs);
     free(dict);
 }
