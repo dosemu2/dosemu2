@@ -51,8 +51,4 @@ typedef unsigned short Boolean;
 #define NO_ATTR     2
 #define WITH_ATTR   3
 
-#define SCREEN_SIZE(x,y) (((x*y*2)|0x00ff)+1)
-#define SCREEN_MEM_START(x,y,p) ((((x*y*2)|0x00ff)+1)*p)
-#define SCREEN_IO_START(x,y,p) ((((x*y)|0x00ff)+1)*p)
-
 #endif
