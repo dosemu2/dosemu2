@@ -95,6 +95,18 @@ static int vgabios_using_text_mode(void)
     return (!(mode & 2));
 }
 
+static unsigned vgabios_screen_adr(void)
+{
+    /* This is the text screen base, the DOS program actually has to use.
+     * Programs that support simultaneous dual monitor support rely on
+     * the fact, that the BIOS takes B0000 for EQUIP-flags 4..5 = 3
+     * else B8000 as regenbuffer address. Each compatible PC-BIOS behaves so.
+     * This is ugly, but there is no screen buffer address in the BIOS-DATA
+     * at 0x400. (Hans)
+     */
+    return (READ_WORD(BIOS_CONFIGURATION) & 0x30) == 0x30 ? 0xb000 : 0xb800;
+}
+
 static void biosfn_set_cursor_pos(Bit8u page,Bit16u cursor)
 {
  Bit8u xcurs,ycurs,current;
@@ -380,18 +392,19 @@ Bit8u dir)
 
  if(vgabios_using_text_mode())
   {
+   Bit16u buffer_start = vgabios_screen_adr();
    // Get the page size
    pgsize=read_bda_word(BIOSMEM_PAGE_SIZE);
    // Compute the address
    address=pgsize*page;
    chattr = ((Bit16u)attr << 8) + ' ';
 #ifdef DEBUG
-   printf("Scroll, address %04x (%04x %04x %02x)\n",address,nbrows,nbcols,page);
+   v_printf("Scroll, address %04x (%04x %04x %02x)\n",address,nbrows,nbcols,page);
 #endif
 
    if(nblines==0&&rul==0&&cul==0&&rlr==nbrows-1&&clr==nbcols-1)
     {
-     memsetw(vmi->buffer_start,address,chattr,nbrows*nbcols);
+     memsetw(buffer_start,address,chattr,nbrows*nbcols);
     }
    else
     {// if Scroll up
@@ -399,18 +412,18 @@ Bit8u dir)
       {for(i=rul;i<=rlr;i++)
         {
          if((i+nblines>rlr)||(nblines==0))
-          memsetw(vmi->buffer_start,address+(i*nbcols+cul)*2,chattr,cols);
+          memsetw(buffer_start,address+(i*nbcols+cul)*2,chattr,cols);
          else
-          memcpyw(vmi->buffer_start,address+(i*nbcols+cul)*2,vmi->buffer_start,((i+nblines)*nbcols+cul)*2,cols);
+          memcpyw(buffer_start,address+(i*nbcols+cul)*2,buffer_start,((i+nblines)*nbcols+cul)*2,cols);
         }
       }
      else
       {for(i=rlr;i>=rul;i--)
         {
          if((i<rul+nblines)||(nblines==0))
-          memsetw(vmi->buffer_start,address+(i*nbcols+cul)*2,chattr,cols);
+          memsetw(buffer_start,address+(i*nbcols+cul)*2,chattr,cols);
          else
-          memcpyw(vmi->buffer_start,address+(i*nbcols+cul)*2,vmi->buffer_start,((i-nblines)*nbcols+cul)*2,cols);
+          memcpyw(buffer_start,address+(i*nbcols+cul)*2,buffer_start,((i-nblines)*nbcols+cul)*2,cols);
          if (i>rlr) break;
         }
       }
