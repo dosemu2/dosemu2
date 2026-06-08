@@ -143,29 +143,12 @@ static void set_cursor_shape(uint16_t shape)
    cshape cursor_shape;
    cursor_shape.w = shape;
 
-   WRITE_WORD(BIOS_CURSOR_SHAPE, cursor_shape.w);
-
-   cs=CURSOR_START(cursor_shape) & 0x1F;
-   ce=CURSOR_END(cursor_shape) & 0x1F;
-
-   if (cursor_shape.w & 0x6000 || cs>ce) {
+   cs = CURSOR_START(cursor_shape);
+   ce = CURSOR_END(cursor_shape);
+   if (cursor_shape.w & 0x2000 || cs>ce)
       i10_deb("no cursor\n");
-      crt_outw(0xa, NO_CURSOR);
-      return;
-   }
 
-   cs&=0x0F;
-   ce&=0x0F;
-   if (ce>3 && ce<12 && (config.cardtype != CARD_MDA)) {
-      int vga_font_height = READ_WORD(BIOS_FONT_HEIGHT);
-      if (cs>ce-3) cs+=vga_font_height-ce-1;
-      else if (cs>3) cs=vga_font_height/2;
-      ce=vga_font_height-1;
-   }
-   i10_msg("mapped cursor: start %d, end %d\n", cs, ce);
-   CURSOR_START(cursor_shape)=cs;
-   CURSOR_END(cursor_shape)=ce;
-   crt_outw(0xa, cursor_shape.w);
+   vgaemu_set_cursor_shape(cs, ce);
 }
 
 /* This is a better scroll routine, mostly for aesthetic reasons. It was

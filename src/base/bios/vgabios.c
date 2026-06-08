@@ -163,6 +163,47 @@ void vgaemu_get_cursor_pos(Bit8u page, Bit16u *shape, Bit16u *pos)
 }
 
 // --------------------------------------------------------------------------------------------
+static void biosfn_set_cursor_shape(
+Bit8u CH,Bit8u CL)
+{Bit16u cheight,curs,crtc_addr;
+ Bit8u modeset_ctl;
+
+ CH&=0x3f;
+ CL&=0x1f;
+
+ curs=(CH<<8)+CL;
+ write_bda_word(BIOSMEM_CURSOR_TYPE,curs);
+
+ modeset_ctl=read_bda_byte(BIOSMEM_MODESET_CTL);
+ cheight = read_bda_word(BIOSMEM_CHAR_HEIGHT);
+ if((modeset_ctl&0x01) && (cheight>8) && (CL<8) && (CH<0x20))
+  {
+   if(CL!=(CH+1))
+    {
+     CH = ((CH+1) * cheight / 8) -1;
+    }
+   else
+    {
+     CH = ((CL+1) * cheight / 8) - 2;
+    }
+   CL = ((CL+1) * cheight / 8) - 1;
+  }
+
+ // CTRC regs 0x0a and 0x0b
+ crtc_addr=read_word_far(BIOSMEM_SEG,BIOSMEM_CRTC_ADDRESS);
+ port_outb(crtc_addr,0x0a);
+ port_outb(crtc_addr+1,CH);
+ port_outb(crtc_addr,0x0b);
+ port_outb(crtc_addr+1,CL);
+}
+
+void vgaemu_set_cursor_shape(int cs, int ce)
+{
+  biosfn_set_cursor_shape(cs, ce);
+  vga_msg("mapped cursor: start %d, end %d\n", cs, ce);
+}
+
+// --------------------------------------------------------------------------------------------
 static void vgamem_copy_pl4(Bit16u vstart,
 Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u nbcols,Bit8u cheight)
 {

@@ -278,10 +278,10 @@ static void draw_cursor(void)
  */
 static void redraw_cursor(void)
 {
-  if (prev_cursor_shape != NO_CURSOR)
+  if (!(prev_cursor_shape & NO_CURSOR))
     restore_cell(prev_cursor_location);
 
-  if (vga.crtc.cursor_shape.w != NO_CURSOR)
+  if (!(vga.crtc.cursor_shape.w & NO_CURSOR))
     draw_cursor();
 
   prev_cursor_location = memoffs_to_location(vga.crtc.cursor_location);
@@ -521,7 +521,7 @@ static void update_cursor(void)
     return;
   }
   pthread_rwlock_unlock(&rdrw_mtx);
-  if (vga.crtc.cursor_shape.w == NO_CURSOR)
+  if (vga.crtc.cursor_shape.w & NO_CURSOR)
     return;
   if (memoffs_to_location(vga.crtc.cursor_location) !=
 	prev_cursor_location) {
