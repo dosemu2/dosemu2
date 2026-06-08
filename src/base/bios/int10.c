@@ -116,13 +116,10 @@ static void crt_outw(unsigned index, unsigned value)
 
 static unsigned do_set_cursor_pos(unsigned page, int x, int y)
 {
-  unsigned co, old_y;
+  unsigned old_y;
 
   old_y = get_bios_cursor_y_position(page);
-  set_bios_cursor_x_position(page, x);
-  set_bios_cursor_y_position(page, y);
-  co = READ_WORD(BIOS_SCREEN_COLUMNS);
-  crt_outw(0xe, READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS)/2 + y * co + x);
+  vgaemu_set_cursor_pos(page, x, y);
   return old_y;
 }
 

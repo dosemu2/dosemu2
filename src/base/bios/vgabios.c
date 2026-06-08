@@ -126,6 +126,11 @@ static void biosfn_set_cursor_pos(Bit8u page,Bit16u cursor)
   }
 }
 
+void vgaemu_set_cursor_pos(unsigned page, int x, int y)
+{
+  biosfn_set_cursor_pos(page, (y << 8) | x);
+}
+
 // --------------------------------------------------------------------------------------------
 static void set_cursor_pos(Bit8u page,Bit16u cursor)
 {
