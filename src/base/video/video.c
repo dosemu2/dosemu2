@@ -174,7 +174,6 @@ struct video_system *video_get(const char *name)
 static void init_video_none(void)
 {
     c_printf("VID: Video set to Video_none\n");
-    config.cardtype = CARD_NONE;
     config.console_video = config.mapped_bios = config.vga = 0;
     Video=&Video_none;
     config.term = 1;
