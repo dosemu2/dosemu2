@@ -59,6 +59,7 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "timers.h"
+#include "vgabios.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 
@@ -106,22 +107,12 @@ unsigned screen_adr(int page)
 static void tty_char_out(unsigned char ch, int s, int attr);
 static void vga_ROM_to_RAM(unsigned height, int bank);
 
-static void crt_outw(unsigned index, unsigned value)
-{
-  unsigned port = READ_WORD(BIOS_VIDEO_PORT);
-  port_outw(port, index | (value & 0xff00));
-  port_outw(port, (index + 1) | ((value & 0xff) << 8));
-}
-
 static unsigned do_set_cursor_pos(unsigned page, int x, int y)
 {
-  unsigned co, old_y;
+  unsigned old_y;
 
   old_y = get_bios_cursor_y_position(page);
-  set_bios_cursor_x_position(page, x);
-  set_bios_cursor_y_position(page, y);
-  co = READ_WORD(BIOS_SCREEN_COLUMNS);
-  crt_outw(0xe, READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS)/2 + y * co + x);
+  vgaemu_set_cursor_pos(page, x, y);
   return old_y;
 }
 
@@ -145,108 +136,12 @@ static void set_cursor_shape(uint16_t shape)
    cshape cursor_shape;
    cursor_shape.w = shape;
 
-   WRITE_WORD(BIOS_CURSOR_SHAPE, cursor_shape.w);
-
-   cs=CURSOR_START(cursor_shape) & 0x1F;
-   ce=CURSOR_END(cursor_shape) & 0x1F;
-
-   if (cursor_shape.w & 0x6000 || cs>ce) {
+   cs = CURSOR_START(cursor_shape);
+   ce = CURSOR_END(cursor_shape);
+   if (cursor_shape.w & 0x2000 || cs>ce)
       i10_deb("no cursor\n");
-      crt_outw(0xa, NO_CURSOR);
-      return;
-   }
 
-   cs&=0x0F;
-   ce&=0x0F;
-   if (ce>3 && ce<12 && (config.cardtype != CARD_MDA)) {
-      int vga_font_height = READ_WORD(BIOS_FONT_HEIGHT);
-      if (cs>ce-3) cs+=vga_font_height-ce-1;
-      else if (cs>3) cs=vga_font_height/2;
-      ce=vga_font_height-1;
-   }
-   i10_msg("mapped cursor: start %d, end %d\n", cs, ce);
-   CURSOR_START(cursor_shape)=cs;
-   CURSOR_END(cursor_shape)=ce;
-   crt_outw(0xa, cursor_shape.w);
-}
-
-/* This is a better scroll routine, mostly for aesthetic reasons. It was
- * just too horrible to contemplate a scroll that worked 1 character at a
- * time :-)
- *
- * It may give some performance improvement on some systems (it does
- * on mine) (Andrew Tridgell)
- */
-static void
-bios_scroll(int x0, int y0, int x1, int y1, int l, int att)
-{
-  int dx = x1 - x0 + 1;
-  int dy = y1 - y0 + 1;
-  int x, y, co, li;
-  uint16_t blank = ' ' | (att << 8);
-  uint16_t tbuf[MAX_COLUMNS];
-  unsigned sadr;
-
-  if (config.dumb_video)
-     return;
-
-  li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
-  co= READ_WORD(BIOS_SCREEN_COLUMNS);
-  sadr = screen_adr(0) + READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS);
-
-  if (sadr < VGA_PHYS_TEXT_BASE && ((att & 7) != 0) && ((att & 7) != 7))
-    {
-      blank = ' ' | ((att | 7) << 8);
-    }
-
-
-  if (x1 >= co || y1 >= li)
-    {
-      v_printf("VID: Scroll parameters out of bounds, in Scroll!\n");
-      v_printf("VID: Attempting to fix with clipping!\n");
-    /* kludge for ansi.sys' clear screen - we'd better do real clipping */
-    /* Also a cludge to fix list, but in the other dimension */
-      if (x1 >= co) x1 = co -1;
-      if (y1 >= li) y1 = li -1;
-      dx = x1 - x0 +1;
-      dy = y1 - x0 +1;
-    }
-  if (dx <= 0 || dy <= 0 || x0 < 0 || x1 >= co || y0 < 0 || y1 >= li)
-    {
-      v_printf("VID: Scroll parameters impossibly out of bounds, giving up!\n");
-    return;
-    }
-
-  /* make a blank line */
-  for (x = 0; x < dx; x++)
-    tbuf[x] = blank;
-
-  if (l >= dy || l <= -dy)
-    l = 0;
-
-  if (l == 0) {			/* Wipe mode */
-    for (y = y0; y <= y1; y++)
-      memcpy_to_vga(sadr + 2 * (y * co + x0), tbuf, dx * 2);
-    return;
-  }
-
-  if (l > 0) {
-    if (dx == co)
-      vga_memcpy(sadr + 2 * y0 * co, sadr + 2 * (y0 + l) * co, (dy - l) * dx * 2);
-    else
-      for (y = y0; y <= (y1 - l); y++)
-	vga_memcpy(sadr + 2 * (y * co + x0), sadr + 2 * ((y + l) * co + x0), dx * 2);
-
-    for (y = y1 - l + 1; y <= y1; y++)
-      memcpy_to_vga(sadr + 2 * (y * co + x0), tbuf, dx * 2);
-  }
-  else {
-    for (y = y1; y >= (y0 - l); y--)
-      vga_memcpy(sadr + 2 * (y * co + x0), sadr + 2 * ((y + l) * co + x0), dx * 2);
-
-    for (y = y0 - l - 1; y >= y0; y--)
-      memcpy_to_vga(sadr + 2 * (y * co + x0), tbuf, dx * 2);
-  }
+   vgaemu_set_cursor_shape(cs, ce);
 }
 
 static int using_text_mode(void)
@@ -346,13 +241,11 @@ void tty_char_out(unsigned char ch, int s, int attr)
   }
   if (ypos == li) {
     ypos--;
-    if(gfx_mode)
-      vgaemu_scroll(0, 0, co - 1, li - 1, 1, 0);
-    else {
-      /* Scroll with color newline */
-      bios_scroll(0,0,co-1,li-1,1,
-		  vga_read(screen_adr(s) + 2*(ypos*co + xpos) + 1));
-    }
+    /* Scroll with color newline in text mode */
+    unsigned char attr = (gfx_mode ? 0:
+			  vga_read(screen_adr(s) + 2*(ypos*co + xpos) + 1));
+    if (!config.dumb_video)
+      vgaemu_scroll(0, 0, co-1, li-1, 1, attr);
   }
   do_set_cursor_pos(s, xpos, ypos);
 }
@@ -766,8 +659,9 @@ int int10(void) /* with dualmon */
 {
   /* some code here is copied from Alan Cox ***************/
   int x, y, co, li;
-  unsigned page, page_size, address;
+  unsigned page;
   unsigned sm;
+  Bit16u shape, pos;
 
 #if 0 && USE_DUALMON
   static int last_equip=-1;
@@ -835,17 +729,13 @@ int int10(void) /* with dualmon */
 
 
     case 0x03:		/* get cursor pos/shape */
-      /* output start & end scanline even if the requested page is invalid */
-      LWORD(ecx) = READ_WORD(BIOS_CURSOR_SHAPE);
-
       page = HI(bx);
-      if (page > 7) {
-        LWORD(edx) = 0;
+      vgaemu_get_cursor_pos(page, &shape, &pos);
+      LWORD(ecx) = shape;
+      LWORD(edx) = pos;
+
+      if (page > 7)
         i10_msg("get cursor pos: page > 7: %d\n", page);
-      } else {
-        LO(dx) = get_bios_cursor_x_position(page);
-        HI(dx) = get_bios_cursor_y_position(page);
-      }
 
       i10_deb(
         "get cursor pos: page %u, x.y %u.%u, shape %u-%u\n",
@@ -871,15 +761,7 @@ int int10(void) /* with dualmon */
 	i10_msg("set display page: bad page %d\n", page);
 	break;
       }
-      page_size = READ_WORD(BIOS_VIDEO_MEMORY_USED);
-      address = page_size * page;
-      crt_outw(0xc, address/(using_text_mode() ? 2 : 1));
-
-      WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, page);
-      WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, address);
-      x = get_bios_cursor_x_position(page);
-      y = get_bios_cursor_y_position(page);
-      set_cursor_pos(page, x, y);
+      vgaemu_set_active_page(page);
       break;
 
 
@@ -889,10 +771,7 @@ int int10(void) /* with dualmon */
         "scroll up: %u lines, area %u.%u-%u.%u, attr 0x%02x\n",
         LO(ax), LO(cx), HI(cx), LO(dx), HI(dx), HI(bx)
       );
-      if(using_text_mode()) {
-        bios_scroll(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
-      }
-      else {
+      if(!config.dumb_video) {
         vgaemu_scroll(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
       }
       break;
@@ -904,10 +783,7 @@ int int10(void) /* with dualmon */
         "scroll dn: %u lines, area %u.%u-%u.%u, attr 0x%02x\n",
         LO(ax), LO(cx), HI(cx), LO(dx), HI(dx), HI(bx)
       );
-      if(using_text_mode()) {
-        bios_scroll(LO(cx), HI(cx), LO(dx), HI(dx), -LO(ax), HI(bx));
-      }
-      else {
+      if(!config.dumb_video) {
         vgaemu_scroll(LO(cx), HI(cx), LO(dx), HI(dx), -LO(ax), HI(bx));
       }
       break;
