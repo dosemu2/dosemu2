@@ -79,6 +79,7 @@ static int exit_hlt;
 static int exit_io;
 static int exit_mmio;
 static int exit_irq;
+static int exit_lock;
 #endif
 
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
@@ -626,6 +627,39 @@ int init_kvm_cpu(void)
 #else
   error("kernel is too old, KVM unsupported\n");
   goto errcap;
+#endif
+
+#if defined(KVM_BUS_LOCK_DETECTION_OFF) && defined(KVM_BUS_LOCK_DETECTION_EXIT)
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_X86_BUS_LOCK_EXIT);
+  if (ret <= 0) {
+    dbug_printf("KVM: X86_BUS_LOCK_EXIT unsupported %x\n", ret);
+  } else if (ret & KVM_BUS_LOCK_DETECTION_OFF) {
+    struct kvm_enable_cap cap = {
+        .cap = KVM_CAP_X86_BUS_LOCK_EXIT,
+        .flags = 0,
+        .args[0] = KVM_BUS_LOCK_DETECTION_OFF,
+    };
+    dbug_printf("KVM: disabling split-lock detection\n");
+    if (ioctl(kvmfd, KVM_ENABLE_CAP, &cap) < 0) {
+        error("KVM: ioctl KVM_ENABLE_CAP(KVM_BUS_LOCK_DETECTION_OFF): %s",
+                strerror(errno));
+    }
+  } else if (ret & KVM_BUS_LOCK_DETECTION_EXIT) {
+    struct kvm_enable_cap cap = {
+        .cap = KVM_CAP_X86_BUS_LOCK_EXIT,
+        .flags = 0,
+        .args[0] = KVM_BUS_LOCK_DETECTION_EXIT,
+    };
+    dbug_printf("KVM: setting split-lock detection to EXIT\n");
+    if (ioctl(kvmfd, KVM_ENABLE_CAP, &cap) < 0) {
+        error("KVM: ioctl KVM_ENABLE_CAP(KVM_BUS_LOCK_DETECTION_EXIT): %s",
+                strerror(errno));
+    }
+  } else {
+    error("KVM: unknown value of split-lock detection: %x\n", ret);
+  }
+#else
+  error("kernel is too old, KVM lock detection control unsupported\n");
 #endif
 
   vmfd = ioctl(kvmfd, KVM_CREATE_VM, (unsigned long)0);
@@ -1200,6 +1234,12 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
   int ret;
   int inj_ready = run->ready_for_interrupt_injection;
 
+#ifdef KVM_RUN_X86_BUS_LOCK
+  if (run->flags & KVM_RUN_X86_BUS_LOCK) {
+    g_printf("KVM: ignoring bus lock\n");
+    return 0;
+  }
+#endif
   if (!inj_ready) {
     struct kvm_vcpu_events events;
     /* we may have pending exceptions */
@@ -1547,6 +1587,14 @@ static unsigned int kvm_run(void)
       saved_regs = *regs;
       exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
       break;
+#ifdef KVM_EXIT_X86_BUS_LOCK
+    case KVM_EXIT_X86_BUS_LOCK:
+#if KVM_PROFILE
+      exit_lock++;
+#endif
+      /* ignore this exit */
+      break;
+#endif
     case KVM_EXIT_FAIL_ENTRY:
       error("KVM_EXIT_FAIL_ENTRY: hardware_entry_failure_reason = 0x%llx\n",
 	      (unsigned long long)run->fail_entry.hardware_entry_failure_reason);
