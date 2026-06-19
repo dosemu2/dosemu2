@@ -230,10 +230,6 @@ static void *alloc_tail(int fd, size_t mapsize, int prot, void *target)
 {
   int i, fixed = 0;
   struct file_mapping *p;
-  if (fd != -1) {
-    int rc = ftruncate(fd, mapsize);
-    assert(rc != -1);
-  }
 
   for (i = 0, p = file_mappings; i < MAX_FILE_MAPPINGS; i++, p++)
     if (p->size == 0)
@@ -268,7 +264,7 @@ static void *alloc_tail(int fd, size_t mapsize, int prot, void *target)
 static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
 {
   int prot = PROT_READ | PROT_WRITE;
-  int fd;
+  int fd, rc;
 
   Q__printf("MAPPING: alloc, cap=%s, mapsize=%zx\n", cap, mapsize);
   fd = mfops->open();
@@ -276,6 +272,8 @@ static void *alloc_mapping_file(int cap, size_t mapsize, void *target)
     error("mapping: open() failed\n");
     return MAP_FAILED;
   }
+  rc = ftruncate(fd, mapsize);
+  assert(rc != -1);
   return alloc_tail(fd, mapsize, prot, target);
 }
 
