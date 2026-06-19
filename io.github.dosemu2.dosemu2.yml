@@ -86,6 +86,8 @@ modules:
     buildsystem: autotools
     build-options:
       env: ['CROSS_PREFIX=i686-unknown-linux-gnu-']
+    config-opts:
+      - --disable-32bit
     sources:
       - type: git
         url: https://github.com/stsp/dj64dev.git
@@ -138,7 +140,7 @@ modules:
   - name: fluidsynth
     buildsystem: cmake
     config-opts:
-      - -Denable-limiter=OFF
+      - -Denable-signalsmith=off
     sources:
       - type: git
         url: https://github.com/FluidSynth/fluidsynth.git
