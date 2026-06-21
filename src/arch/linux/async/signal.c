@@ -477,8 +477,10 @@ static void signal_thr(void *arg)
   struct SIGNAL_queue sig_c;	// local copy for signal-safety
   sig_c.signal_handler = signal_queue[SIGNAL_head].signal_handler;
   sig_c.arg_size = sig->arg_size;
-  if (sig->arg_size)
+  if (sig->arg_size) {
+    assert(sig->arg_size <= MAX_SIG_DATA_SIZE);
     memcpy(sig_c.arg, sig->arg, sig->arg_size);
+  }
   sig_c.name = sig->name;
   SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
   if (debug_level('g') > 5)
