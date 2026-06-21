@@ -20,6 +20,8 @@
  * External API for libdosemu2.
  */
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "emu.h"
 #include "dosemu_config.h"
 #include "dos2linux.h"
@@ -93,6 +95,18 @@ void dosemu2_set_init_hook(void (*hook)(void *), void *arg)
 void dosemu2_set_terminal_mode(void)
 {
     config.term = 1;
+}
+
+void dosemu2_set_dumb_video_mode(void)
+{
+    config.dumb_video = 1;
+}
+
+void dosemu2_set_quiet_boot(void)
+{
+    config.tty_stderr = 1;
+    close(STDERR_FILENO);
+    open("/dev/null", O_WRONLY);
 }
 
 int dosemu2_emulate(int argc, char **argv, char * const *envp)

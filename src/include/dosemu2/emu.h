@@ -29,5 +29,7 @@ void dosemu2_set_window_title(const char *title);
 void dosemu2_set_blind_boot(void);
 void dosemu2_set_init_hook(void (*hook)(void *), void *arg);
 void dosemu2_set_terminal_mode(void);
+void dosemu2_set_dumb_video_mode(void);
+void dosemu2_set_quiet_boot(void);
 
 #endif
