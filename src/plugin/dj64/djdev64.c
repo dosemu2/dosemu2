@@ -35,7 +35,7 @@
 #if DJ64_API_VER < 11
 #error wrong djdev64 version
 #endif
-#if DJ64_API_VER != 22
+#if DJ64_API_VER != 23
 #warning djdev64 version mismatch
 #endif
 
@@ -276,6 +276,35 @@ static int dj64_elfload(int num, int handle, int libid)
 }
 #endif
 
+#if DJ64_API_VER >= 23
+static int dj32_elfopen(int num)
+{
+    int fd, rd;
+#define EI_NIDENT 16
+    unsigned char buf[EI_NIDENT];
+
+    if (num || !config.elfload)
+        return -1;
+    fd = open(config.elfload, O_RDONLY | O_CLOEXEC);
+    if (fd == -1)
+        return -1;
+    rd = read(fd, buf, EI_NIDENT);
+    if (rd != EI_NIDENT)
+        goto err;
+#define EI_CLASS 4
+#define ELFCLASS32 1
+#define ELFCLASS64 2
+    if (buf[EI_CLASS] != ELFCLASS32)
+        goto err;
+    lseek(fd, 0, SEEK_SET);
+    return fd;
+
+err:
+    close(fd);
+    return -1;
+}
+#endif
+
 const struct dj64_api api = {
     .addr2ptr = dj64_addr2ptr,
     .addr2ptr2 = dj64_addr2ptr2,
@@ -386,6 +415,9 @@ static void stub_enter(cpuctx_t *scp, int argc, char *argv[], char *envp[],
             &regs, addr2ptr, &dosops, &dpmiops, dj64_print
 #if DJ64_API_VER >= 16
             , ustore_put
+#endif
+#if DJ64_API_VER >= 23
+            , dj32_elfopen, DJ64_API_VER
 #endif
           );
     if (err) {
