@@ -338,6 +338,10 @@ static void system_scrub(void)
       config.dos_cmd = strdup("elfload2 0");
       break;
     case 2:
+      if (config.elfload) {
+        error("cannot load %s with loader type 2 (self-load)\n", config.elfload);
+        leavedos(33);
+      }
       config.dos_cmd = strdup("elfload 1");
       break;
     }
