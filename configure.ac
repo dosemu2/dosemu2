@@ -402,9 +402,16 @@ AX_CHECK_COMPILE_FLAG([-Waddress-of-packed-member],
 AX_CHECK_COMPILE_FLAG([-Wstring-plus-int],
   [DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-string-plus-int"],, [-Werror])
 DOSEMU_LDFLAGS="-pthread"
-if test "x$prefix" != xNONE; then
-  SO_LDFLAGS="$SO_LDFLAGS -Wl,-rpath,$libdir"
-fi
+
+AC_ARG_WITH(rpath,
+    [AS_HELP_STRING([--with-rpath[[=path]]],
+        [Use rpath, either specified or libdir])], [
+    if test "$withval" = "yes"; then
+        withval=$libdir
+    fi
+    SO_LDFLAGS="$SO_LDFLAGS -Wl,-rpath,$withval"
+  ]
+)
 AC_SUBST(SO_LDFLAGS)
 
 AC_CHECK_LIB(m, pow)
