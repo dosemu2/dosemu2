@@ -673,7 +673,7 @@ static struct shm_fhm *do_shm_open(char **r_shmname, const char *name,
     return ret;
 }
 
-static void *close_shm(int fd, int *r_rc, int *r_rc2)
+static void *_close_shm(int fd, int *r_rc, int *r_rc2, int clo_locks)
 {
     struct shm_fhm *fhm = fh_find(&shmap, fd, struct shm_fhm, fhnode);
     assert(fhm && fhm->refcnt);
@@ -683,15 +683,22 @@ static void *close_shm(int fd, int *r_rc, int *r_rc2)
         *r_rc2 = 0;
     if (!--fhm->refcnt) {
         void *addr = fhm->addr;
-        *r_rc = shlock_close(fhm->shlock);
-        if (r_rc2)
-            *r_rc2 = shlock_close(fhm->dlock);
+        if (clo_locks) {
+            *r_rc = shlock_close(fhm->shlock);
+            if (r_rc2)
+                *r_rc2 = shlock_close(fhm->dlock);
+        }
         close(fhm->fd);
         fh_del(&shmap, &fhm->fhnode);
         free(fhm);
         return addr;
     }
     return NULL;
+}
+
+static void *close_shm(int fd, int *r_rc, int *r_rc2)
+{
+    return _close_shm(fd, r_rc, r_rc2, 1);
 }
 
 dpmi_pm_block *DPMI_mallocShared(dpmi_pm_block_root *root,
@@ -854,7 +861,7 @@ static dpmi_pm_block *DPMI_mallocSharedNS_common(dpmi_pm_block_root *root,
     return ptr;
 
 err3:
-    close_shm(fhm->fd, &err, NULL);
+    _close_shm(fhm->fd, &err, NULL, 0);
 err2:
     if (shlock)
         shlock_close(shlock);
