@@ -115,6 +115,7 @@ struct msdos_struct {
     DPMI_INTDESC int_head;
     int int_offs[num_ints];
     int used;
+    unsigned reinit_AX;
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 static int msdos_client_num;
@@ -172,7 +173,10 @@ int msdos_is_32(void) { return MSDOS_CLIENT.is_32; }
 static void msdos_retf(cpuctx_t *scp)
 {
   void *sp = SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32);
-  if (MSDOS_CLIENT.is_32) {
+  unsigned mode_forced = MSDOS_CLIENT.reinit_AX & 0x300;
+  int is_32 = (mode_forced ? mode_forced & 0x200 : MSDOS_CLIENT.is_32);
+
+  if (is_32) {
     unsigned int *ssp = sp;
     _eip = *ssp++;
     _cs = *ssp++;
@@ -466,6 +470,7 @@ static void reinit_thr(void *arg)
 	_eflags &= ~CF;
     else if (MSDOS_CLIENT.is_32)
 	return;
+    MSDOS_CLIENT.reinit_AX = _LWORD(eax);
     doshlp_call_reinit(scp);
     MSDOS_CLIENT.is_32 = is_32;
     setup_int_exc(0);
