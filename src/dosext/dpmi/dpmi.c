@@ -2040,6 +2040,10 @@ int DPMIAllocateShared(struct SHM_desc *shm)
 	error("DPMI: rejecting unnamed shm\n");
 	return -1;
     }
+    if (!shm->req_len) {
+	error("DPMI: rejecting 0-length shm\n");
+	return -1;
+    }
     D_printf("DPMI: allocate shared region %s\n", name);
     if (shm->flags & SHM_NEW_NS) {
 	ptr = DPMI_mallocSharedNewNS(&DPMI_CLIENT.pm_block_root, name,
