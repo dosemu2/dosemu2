@@ -4,12 +4,15 @@
 
 OS = @CONFIG_HOST@
 DOSBIN = dosemu2.bin
-SOVERSION = 0.1
+SOVER = 0
+SOSUB = 1
+SOVERSION = $(SOVER).$(SOSUB)
 ifeq ($(OS),Darwin)
 DOSLIB = libdosemu2.$(SOVERSION).dylib
 else
 DOSLIB = libdosemu2.so.$(SOVERSION)
 endif
+SONAME = libdosemu2.so.$(SOVER)
 SOLIB := @SOLIB@
 
 PACKAGE_TARNAME:=@PACKAGE_TARNAME@
