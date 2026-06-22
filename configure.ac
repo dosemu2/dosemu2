@@ -58,7 +58,6 @@ else
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions -Wstrict-aliasing=3"
   fi
 fi
-AC_SUBST(SO_LDFLAGS)
 
 AX_SAVE_FLAGS([ce_check])
 CFLAGS="-std=gnu23"
@@ -404,8 +403,9 @@ AX_CHECK_COMPILE_FLAG([-Wstring-plus-int],
   [DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-string-plus-int"],, [-Werror])
 DOSEMU_LDFLAGS="-pthread"
 if test "x$prefix" != xNONE; then
-  DOSEMU_LDFLAGS="$DOSEMU_LDFLAGS -Wl,-rpath,$libdir"
+  SO_LDFLAGS="$SO_LDFLAGS -Wl,-rpath,$libdir"
 fi
+AC_SUBST(SO_LDFLAGS)
 
 AC_CHECK_LIB(m, pow)
 AC_CHECK_DECLS([exp10f],,, [[#include <math.h>]])
