@@ -28,7 +28,8 @@
 #include "dosemu_debug.h"
 #include "dpmi_api.h"
 
-short __dpmi_int_ss, __dpmi_int_sp, __dpmi_int_flags;
+static const short __dpmi_int_ss, __dpmi_int_sp;
+static const short __dpmi_int_flags = 2;
 
 static uint16_t data_sel;
 static dosaddr_t pool_base;
@@ -475,7 +476,7 @@ int _dpmi_int(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
     _edi = POOL_OFS(regs);
     __regs->x.ss = __dpmi_int_ss;
     __regs->x.sp = __dpmi_int_sp;
-    __regs->x.flags = __dpmi_int_flags;
+    __regs->x.flags |= __dpmi_int_flags;
     MEMCPY_2DOS(regs, __regs, sizeof(*__regs));
     D_printf("MSDOS: sched to dos thread for int 0x%x\n", _vector);
     do_dpmi_callf(scp, is_32);
