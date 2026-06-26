@@ -3,9 +3,11 @@ rem autoexec.bat for DOSEMU2 + FDPP
 path %DOSEMUDRV%:\dosemu
 if not "%SHELLDRV%" == "" path %PATH%;%SHELLDRV%:\
 if not "%FREEDOSDRV%" == "" path %PATH%;%FREEDOSDRV%:\bin;%FREEDOSDRV%:\gnu
+if "%USERDRV%" == "" echo "Warning: USERDRV not set"
+if "%USERDRV%" == "" goto notemp
 if not "%USERDRV%" == "" set TEMP=%USERDRV%:\tmp
 if not exist %TEMP%\nul mkdir %TEMP%
-if "%USERDRV%" == "" echo Warning: USERDRV not set
+:notemp
 rem first run external plugins. -E commands may depend on them.
 if "%XBATDRV%" == "" goto noxbat
 path %PATH%;%XBATDRV%:\
