@@ -339,7 +339,8 @@ static void start_landlock(void)
   static const char *allow_rw[] = {
     "/dev/shm",
     "/tmp",
-    "/run/lock",
+    "/var",
+    "/run",  // /etc/resolv.conf -> /run/systemd/resolve/stub-resolv.conf
     "/proc",
     NULL
   };
