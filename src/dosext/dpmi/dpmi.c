@@ -254,7 +254,7 @@ static void print_thr(void *arg)
 FORMAT(printf, 1, 2)
 static int p_direct_str(const char *fmt, ...)
 {
-  static char buf[1024];
+  char buf[1024];
   va_list args;
   int i;
 
@@ -269,7 +269,7 @@ static int p_direct_str(const char *fmt, ...)
 
 int p_direct_vstr(const char *fmt, va_list args)
 {
-  static char buf[1024];
+  char buf[1024];
   int i;
 
   i = com_vsnprintf(buf, sizeof(buf), fmt, args);
@@ -487,7 +487,7 @@ static void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */
 
 static void print_ldt(void)
 {
-  static char buffer[0x10000];
+  char buffer[0x10000];
 
   if (get_ldt(buffer, LDT_ENTRIES * LDT_ENTRY_SIZE) < 0)
     leavedos(0x544c);
