@@ -291,6 +291,8 @@ void dosemu_sleep(void)
 #else
   usleep(10000);
 #endif
+  check_leavedos();
+  handle_signals();
 }
 
 /* "strong" idle callers will have threshold1 = 0 so only the
