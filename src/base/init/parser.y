@@ -2618,12 +2618,8 @@ static void set_drive_c(void)
 
   c_printf("Setting up drive C, %s\n", dosemu_drive_c_path);
   if (!config.alt_drv_c && !exists_dir(dosemu_drive_c_path)) {
-    char *system_str;
     c_printf("Creating default drive C\n");
-    err = asprintf(&system_str, "%s/tmp", dosemu_drive_c_path);
-    assert(err != -1);
-    err = mkdir_p(system_str, 0775);
-    free(system_str);
+    err = mkdir_p(dosemu_drive_c_path, 0775);
     if (err) {
       error("unable to create %s\n", dosemu_drive_c_path);
       return;
