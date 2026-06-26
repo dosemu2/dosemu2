@@ -85,7 +85,7 @@ static enum CbkRet select_cb(int arg0, void *arg, int nfds, int *r_err)
 {
     struct sel_arg *sel = arg;
     struct timeval to = {};
-    int rc = select(nfds, &sel->rfds, &sel->wfds, &sel->efds, &to);
+    int rc = RPT_SYSCALL(select(nfds, &sel->rfds, &sel->wfds, &sel->efds, &to));
     *r_err = rc;
     if (rc == -1 && errno != EAGAIN) {
         error("select(): %s\n", strerror(errno));
