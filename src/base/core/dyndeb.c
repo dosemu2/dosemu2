@@ -259,6 +259,7 @@ CONSTRUCTOR(static void init(void))
   register_debug_class('E', 0, "EMS");
   register_debug_class('F', 0, "MMIO trace");
   register_debug_class('I', 0, "IPC");
+  register_debug_class('L', 0, "TCP");
   register_debug_class('N', 0, "NE2000 emulation");
   register_debug_class('P', 0, "Packet driver");
   register_debug_class('Q', 0, "Mapping driver");

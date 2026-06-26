@@ -120,6 +120,7 @@ static void sock_handler(cpuctx_t *scp,
     _eflags &= ~CF;
     switch(_eax) {
         case SOCK_VER:
+            L_printf("Starting ver()\n"); \
             if (_edi && _edi != 0xffff) {
                 rc = tcp_get_driver_info(SEL_ADR(_ds, _esi), _edi);
                 if (rc) {
@@ -131,6 +132,7 @@ static void sock_handler(cpuctx_t *scp,
             break;
 
         case SOCK_OPEN:
+            L_printf("Starting open()\n"); \
             sock = sock_alloc();
             if (!sock) {
                 _eax = CSOCK_ERR_FD_INUSE;
@@ -164,6 +166,7 @@ static void sock_handler(cpuctx_t *scp,
 
         case SOCK_CLOSE:
             TCP_PROLOG0;
+            L_printf("Starting close()\n"); \
             close(sock->fd);
             sock_free(sock);
             _eax = 0;
@@ -178,6 +181,7 @@ static void sock_handler(cpuctx_t *scp,
 
 #define TCP_IO(n, op, c) do { \
             __label__ _ok; \
+            L_printf("Starting " n "\n"); \
             rc = op; \
             switch (rc) { \
             case 0: \
@@ -214,6 +218,7 @@ _ok: \
                 c \
                 break; \
             } \
+            L_printf("Ending " n "\n"); \
 } while (0)
 
 #define TCP_IO_B(cbk, arg, arg2, arg3, c) do { \
@@ -276,6 +281,7 @@ _ok: \
         case SOCK_BIND: {
             TCP_PROLOG;
 
+            L_printf("Starting bind()\n"); \
             rc = bind(sock->fd, (struct sockaddr *)&sa, sizeof(sa));
             if (rc) {
                 error("TCP bind to port %i: %s\n", _edx, strerror(errno));
@@ -317,6 +323,7 @@ _ok: \
             struct sel_arg sel = {};
             int i, err = 0, nfds = -1;
 
+            L_printf("Starting select()\n"); \
             for (i = 0; i < num_socks; i++) {
                 sock = &socks[i];
                 int used = 0;
@@ -393,6 +400,7 @@ _ok: \
         case SOCK_LISTEN:
             TCP_PROLOG0;
 
+            L_printf("Starting listen()\n"); \
             rc = listen(sock->fd, _ecx);
             if (rc) {
                 error("TCP listen: %s\n", strerror(errno));
@@ -427,6 +435,7 @@ _ok: \
             _ebx = sa.sin_port; \
             _ecx = sa.sin_addr.s_addr;
 
+            L_printf("Starting accept()\n"); \
             if (sock->nb)
                 TCP_IO("TCP accept",
                     accept(sock->fd, (struct sockaddr *)&sa, &len),
@@ -442,6 +451,7 @@ _ok: \
             struct sockaddr_in sa;
             socklen_t len = sizeof(sa);
 
+            L_printf("Starting getsockname()\n"); \
             rc = getsockname(sock->fd, (struct sockaddr *)&sa, &len);
             if (rc) {
                 error("TCP getsockname: %s\n", strerror(errno));
@@ -460,6 +470,7 @@ _ok: \
             struct sockaddr_in sa;
             socklen_t len = sizeof(sa);
 
+            L_printf("Starting getpeername()\n"); \
             rc = getpeername(sock->fd, (struct sockaddr *)&sa, &len);
             if (rc) {
                 error("TCP getpeername: %s\n", strerror(errno));
@@ -476,6 +487,7 @@ _ok: \
         case SOCK_NBM:
             TCP_PROLOG0;
 
+            L_printf("Starting nonblock()\n"); \
             if (!_ecx)
                 _edx = sock->nb;
             else
@@ -486,6 +498,7 @@ _ok: \
         case SOCK_GETFDS: {
             int i;
 
+            L_printf("Starting getfds()\n"); \
             _eax = 0;
             for (i = 0; i < num_socks; i++) {
                 sock = &socks[i];
@@ -500,6 +513,7 @@ _ok: \
         case SOCK_FIONREAD:
             TCP_PROLOG0;
 
+            L_printf("Starting fionread()\n"); \
             rc = ioctl(sock->fd, FIONREAD, &_ecx);
             if (rc) {
                 _eax = CSOCK_ERR_INTERNAL;
@@ -513,6 +527,7 @@ _ok: \
             TCP_PROLOG0;
             socklen_t len = 4;
 
+            L_printf("Starting getsoerr()\n"); \
             rc = getsockopt(sock->fd, SOL_SOCKET, SO_ERROR, &_edx, &len);
             if (rc) {
                 _eax = CSOCK_ERR_INTERNAL;
@@ -527,6 +542,7 @@ _ok: \
             TCP_PROLOG0;
             struct linger lin;
 
+            L_printf("Starting solinger()\n"); \
             lin.l_onoff = _ecx;
             lin.l_linger = _edx;
             rc = setsockopt(sock->fd, SOL_SOCKET, SO_LINGER, &lin,
