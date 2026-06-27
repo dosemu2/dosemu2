@@ -10,8 +10,9 @@ if not exist %TEMP%\nul mkdir %TEMP%
 :notemp
 rem first run external plugins. -E commands may depend on them.
 if "%XBATDRV%" == "" goto noxbat
-path %PATH%;%XBATDRV%:\
-for %%b in (%XBATDRV%:\dosrc.d\*.bat) do call %%b
+if not exist %XBATDRV%:\bat\nul goto noxbat
+path %PATH%;%XBATDRV%:\bat
+for %%b in (%XBATDRV%:\bat\dosrc.d\*.bat) do call %%b
 :noxbat
 rem run dosemu2 plugins, including vars and -E commands.
 for %%b in (%DOSEMUDRV%:\dosemu\dosrc.d\*.bat) do call %%b

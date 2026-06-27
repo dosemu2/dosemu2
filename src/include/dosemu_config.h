@@ -52,7 +52,6 @@ extern int config_check_only;
 #define  DOSEMU_MIDI_IN     "dosemu-midi_in"  /* fifo for midi input */
 #define  FREEDOS_DIR        "freedos"         /* freedos dir name */
 #define  FDBOOT_DIR         "fdboot"          /* freedos boot dir name */
-#define  XBAT_DIR           "bat"             /* extras */
 #define  SUFF "/dosemu"
 #define  DSUFF(x) DATADIR x + sizeof(PREFIXDIR)
 #define  DOSEMULIB_DEFAULT  DSUFF(SUFF)

@@ -447,18 +447,6 @@ static int check_freedos(const char *xdir)
   return 1;
 }
 
-static int check_bat(const char *xdir)
-{
-  char *bdir;
-  bdir = assemble_path(xdir, XBAT_DIR);
-  if (access(bdir, R_OK | X_OK) != 0) {
-    free(bdir);
-    return 0;
-  }
-  xbat_dir = bdir;
-  return 1;
-}
-
 #ifdef USE_FDPP
 static int fdpp_l;
 void fdpp_loaded(void)
@@ -551,11 +539,13 @@ static void set_freedos_dir(void)
         "or DOSEMU2_COMCOM_DIR env var for alternative location of comcom32\n");
 #endif
 
-  if (!xdir || !check_bat(xdir)) {
+  if (!xdir) {
     int i;
     for (i = 0; xdirs[i]; i++) {
-      if (access(xdirs[i], R_OK | X_OK) == 0 && check_bat(xdirs[i]))
+      if (access(xdirs[i], R_OK | X_OK) == 0) {
+        xbat_dir = xdirs[i];
         break;
+      }
     }
   }
 }
