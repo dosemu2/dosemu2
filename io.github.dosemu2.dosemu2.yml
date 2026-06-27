@@ -5,15 +5,6 @@ sdk: org.freedesktop.Sdk
 command: dosemu
 
 modules:
-  - name: nasm-segelf
-    buildsystem: autotools
-    sources:
-      - type: git
-        url: https://github.com/stsp/nasm.git
-        branch: master
-    cleanup:
-      - '*'
-
   - name: thunk-gen
     buildsystem: meson
     sources:
