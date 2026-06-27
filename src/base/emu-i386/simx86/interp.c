@@ -1912,6 +1912,9 @@ repag0:
 					if (debug_level('e')>4)
 					    e_printf("ADDRoverride: new _mode %04x\n",repmod);
 					PC++; goto repag0;
+				default:
+					e_printf("illegal op: rep %x\n", repop);
+					goto illegal_op;
 			}
 			if ((_mode & MSSTP) && !(repmod & (MREP|MREPNE))) {
 				/* with TF set, we use LOOP instead of REP so we can stop at
