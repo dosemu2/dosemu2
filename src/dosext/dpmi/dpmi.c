@@ -254,7 +254,7 @@ static void print_thr(void *arg)
 FORMAT(printf, 1, 2)
 static int p_direct_str(const char *fmt, ...)
 {
-  char buf[1024];
+  static char buf[1024];  // static because passed to coopth
   va_list args;
   int i;
 
@@ -269,7 +269,7 @@ static int p_direct_str(const char *fmt, ...)
 
 int p_direct_vstr(const char *fmt, va_list args)
 {
-  char buf[1024];
+  static char buf[1024];  // static because passed to coopth
   int i;
 
   i = com_vsnprintf(buf, sizeof(buf), fmt, args);
