@@ -35,7 +35,7 @@
 #if DJ64_API_VER < 11
 #error wrong djdev64 version
 #endif
-#if DJ64_API_VER != 23
+#if DJ64_API_VER != 24
 #warning djdev64 version mismatch
 #endif
 
@@ -331,6 +331,9 @@ const struct dj64_api api = {
 #if DJ64_API_VER >= 19
 const struct djdev64_api devapi = {
     .uget = ustore_get,
+#if DJ64_API_VER >= 24
+    .print = dj64_print,
+#endif
 };
 #endif
 
