@@ -1,10 +1,10 @@
 name: Create Packages (Termux)
 
 on:
-#  push:
-#    branches:
-#    - master
-#    - devel
+  push:
+    branches:
+    - master
+    - devel
   pull_request:
     types:
       - opened
