@@ -557,7 +557,7 @@ class BaseTestCase(object):
 
         return name
 
-    def mkimage_vbr(self, fat, lfn=False, cwd=None):
+    def mkimage_vbr(self, fat, label=None, lfn=False, cwd=None):
         if fat == "12":
             bcount = 306 * 4 * 17   # type 1
         elif fat == "16":
@@ -580,6 +580,10 @@ class BaseTestCase(object):
                 f"{img}",
                 str(bcount)],
             stdout=DEVNULL, stderr=DEVNULL)
+
+        # mlabel both writes to the BPB and creates a volume 'file' in the root
+        if label:
+            check_call(["mlabel", "-i", f"{img}", "-n", f"::{label}"])
 
         if cwd is None:
             cwd = self.workdir
