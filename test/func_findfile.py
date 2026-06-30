@@ -326,3 +326,237 @@ int main(void)
     results = self.runDosemu("testit.bat", config=config)
 
     self.assertNotIn("FAIL", results)
+
+
+def ds2_findfirst_volume(self, fstype, exists=False):
+
+    if fstype in ['FAT', 'MFS']:
+        if fstype == 'FAT':
+            drive = "D"
+            fsname = "FAT16"
+            label = "MSCD0001" if exists else "SOMEVOLNAME"
+        else:
+            drive = "C"
+            fsname = "MFS"
+            label = None   # MFS doesn't import the Volume name
+    else:
+        raise ValueError("Incorrect fstype argument '{fstype}'")
+
+    ename = "ds2findv"
+
+    self.mkfile("testit.bat", f"""\
+REM {self.version}
+
+REM - {fsname}
+{drive}:
+mkdir test
+mkdir test\\sub
+echo hello > hello.txt
+C:\\{ename} {drive}:
+
+rem end
+""", newline="\r\n")
+
+    testdir = self.mkworkdir('d')
+    image = self.mkimage_vbr("16", label=label, cwd=testdir)
+
+    config="""\
+$_hdimage = "dXXXXs/c:hdtype1 %s +1"
+$_floppy_a = ""
+$_lfn_support = (off)
+""" % image.name
+
+    # compile sources
+    self.mkcom_with_nasm(ename, rf"""
+; Public Domain
+
+ITERATIONS equ 3
+
+    cpu 8086
+    org 256
+start:
+    mov ah, 19h
+    int 21h
+    push ax
+
+    xor dx, dx
+    mov si, 81h
+.loop:
+    lodsb
+    cmp al, 13
+    je .end
+    cmp al, 'A'
+    jb .loop
+    cmp al, 'z'
+    ja .loop
+.letter:
+    dec ax
+    and al, 31
+    xchg dx, ax
+    jmp .loop
+
+.end:
+    add byte [msg.drive.patch], dl
+    mov ah, 0Eh
+    int 21h
+
+    mov si, ITERATIONS
+outerloop:
+    mov ax, 4E00h
+    mov dx, search
+    mov cx, 8
+innerloop:
+    mov bp, ax
+    int 21h
+    jc .next
+    call dump
+
+    mov ah, 4Fh
+    jmp innerloop
+
+.next:
+    call dump
+    dec si
+    jnz outerloop
+
+    mov dx, msg.endoftest
+    call disp_dx_msg
+
+    pop dx
+    mov ah, 0Eh
+    int 21h
+
+    mov ax, 4C00h
+    int 21h
+
+dump:
+    pushf
+    push ax
+    mov dx, msg.drive.1
+    call disp_dx_msg
+    mov ax, ITERATIONS
+    sub ax, si
+    call disp_al_hex.nybble
+    mov dx, msg.drive.2
+    call disp_dx_msg
+    pop ax
+    popf
+    jc .fail
+.success:
+    mov ax, bp
+    xchg al, ah
+    call disp_al_hex
+
+    mov dx, msg.success.1
+    call disp_dx_msg
+    mov al, [80h + 15h]
+    call disp_al_hex
+    mov dx, msg.success.2
+    call disp_dx_msg
+    mov ax, [80h + 18h]
+    call disp_ax_hex
+    mov dx, msg.success.3
+    call disp_dx_msg
+    mov ax, [80h + 16h]
+    call disp_ax_hex
+    mov dx, msg.success.4
+    call disp_dx_msg
+    mov ax, [80h + 1Ah + 2]
+    call disp_ax_hex
+    mov dx, msg.success.5
+    call disp_dx_msg
+    mov ax, [80h + 1Ah]
+    call disp_ax_hex
+    mov dx, msg.success.6
+    call disp_dx_msg
+    mov dx, 80h + 1Eh
+    mov di, dx
+    mov cx, -1
+    xor ax, ax
+    repne scasb
+    not cx
+    dec cx
+    mov ah, 40h
+    mov bx, 1
+    int 21h
+    mov dx, msg.success.7
+    call disp_dx_msg
+    retn
+
+.fail:
+    xchg ax, bp
+    xchg al, ah
+    call disp_al_hex
+    xchg ax, bp
+
+    mov dx, msg.fail.1
+    call disp_dx_msg
+    call disp_ax_hex
+    mov dx, msg.fail.2
+    call disp_dx_msg
+    retn
+
+disp_dx_msg:
+    push ax
+    mov ah, 09h
+    int 21h
+    pop ax
+    retn
+
+disp_ax_hex:
+    xchg al, ah
+    call disp_al_hex
+    xchg al, ah
+disp_al_hex:
+    push cx
+    mov cl, 4
+    rol al, cl
+    call .nybble
+    rol al, cl
+    pop cx
+.nybble:
+    push ax
+    push dx
+    and al, 15
+    add al, '0'
+    cmp al, '9'
+    jbe .got
+    add al, 7
+.got:
+    xchg dx, ax
+    mov ah, 02h
+    int 21h
+    pop dx
+    pop ax
+    retn
+
+msg:
+.drive.1:      db "Drive "
+.drive.patch:  db "A: (",36
+.drive.2:      db "): ",36
+.fail.1:       db "h: CY error, AX=",36
+.fail.2:       db "h",13,10,36
+.success.1:    db "h: NC, attrib=",36
+.success.2:    db "h, date=",36
+.success.3:    db "h, time=",36
+.success.4:    db "h, size=",36
+.success.5:    db "_",36
+.success.6:    db "h, name=",'"',36
+.success.7:    db '"',13,10,36
+.endoftest:    db "EndOfTest",13,10,36
+
+search:
+    db "{'MSCD0001' if exists else 'CON'}",0
+""")
+
+    results = self.runDosemu("testit.bat", config=config)
+
+    if exists:
+        # Drive D: (0): 4Eh: NC, attrib=08h, date=5CE1h, time=8D53h, size=0000_0000h, name="MSCD0001"
+        self.assertRegex(results, rf'Drive {drive}: \(\d\): 4Eh: NC, attrib=08h,.*name="MSCD0001"')
+    else:
+        # Drive C: (2): 4Eh: NC, attrib=40h, date=5CDEh, time=956Ah, size=0000_0000h, name="CON"
+        # Drive C: (2): 4Fh: CY error, AX=0012h
+        self.assertNotRegex(results, rf'Drive {drive}: \(\d\): 4[EF]h: NC, attrib=')
+
+    self.assertIn("EndOfTest", results)
