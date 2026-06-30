@@ -569,7 +569,7 @@ class BaseTestCase(object):
         else:
             raise ValueError("Invalid arg '%s'" % fat)
 
-        name = "fat%s.img" % fat
+        img = self.imagedir / f"fat{fat}.img"
 
         # mkfs.fat [OPTIONS] DEVICE [BLOCK-COUNT]
         check_call(
@@ -577,7 +577,7 @@ class BaseTestCase(object):
                 "-t", ("fat", "vfat")[lfn],
                 "-C",
                 "-F", fat[0:2],
-                str(self.imagedir / name),
+                f"{img}",
                 str(bcount)],
             stdout=DEVNULL, stderr=DEVNULL)
 
@@ -587,14 +587,10 @@ class BaseTestCase(object):
         # mcopy -i ../fat32.img -s -v * ::/
         srcs = [str(f) for f in cwd.glob('*')]
         if srcs:   # copy files
-            args = ["mcopy",
-                    "-i", str(self.imagedir / name),
-                    "-s"]
-            args += srcs
-            args += ["::/",]
+            args = ["mcopy", "-i", f"{img}", "-s"] + srcs + ["::/",]
             check_call(args, cwd=cwd, stdout=DEVNULL, stderr=DEVNULL)
 
-        return name
+        return img
 
     def patch(self, fname, changes, cwd=None):
         if cwd is None:
