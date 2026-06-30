@@ -489,7 +489,7 @@ static void run_thr(void *arg)
     if (config.elfload_argc) {
         argc = config.elfload_argc;
         argv = config.elfload_argv;
-    } else if (_ecx) {
+    } else if (_ecx || !config.elfload) {
         argc = _ecx;
         argv = alloca((argc + 1) * sizeof(char *));
         argp = SEL_ADR(_ds, _edx);
@@ -497,8 +497,16 @@ static void run_thr(void *arg)
             argv[i] = SEL_ADR(_ds, argp[i]);
         argv[i] = NULL;
     } else {
-        argc = 0;
-        argv = NULL;
+        char *_argv[] = { NULL, NULL };
+        char *p;
+        argc = 1;
+        p = strrchr(config.elfload, '/');
+        if (p)
+            p++;
+        else
+            p = config.elfload;
+        _argv[0] = p;
+        argv = _argv;
     }
 
     coopth_push_user_data_cur(&ud);
