@@ -4195,15 +4195,18 @@ do_create_truncate:
 
       Debug0(("Find first %8.8s.%3.3s\n", sdb_template_name(sdb), sdb_template_ext(sdb)));
 
-      if (((attr & (VOLUME_LABEL | DIRECTORY)) == VOLUME_LABEL) &&
-          strncmp(sdb_template_name(sdb), "????????", 8) == 0 &&
-          strncmp(sdb_template_ext(sdb), "???", 3) == 0) {
-        get_volume_label(fname, fext, NULL, drive);
-        memcpy(_sdb_file_name(sdb), fname, 8);
-        memcpy(_sdb_file_ext(sdb), fext, 3);
-        _sdb_file_attr(sdb) = VOLUME_LABEL;
-        _sdb_dir_entry(sdb) = 0x0;
-        return TRUE;
+      if ((attr & (VOLUME_LABEL | DIRECTORY)) == VOLUME_LABEL) {
+        if ((strncmp(sdb_template_name(sdb), "????????", 8) == 0 &&
+            strncmp(sdb_template_ext(sdb), "???", 3) == 0)) {
+          get_volume_label(fname, fext, NULL, drive);
+          memcpy(_sdb_file_ext(sdb), fext, 3);
+          _sdb_file_attr(sdb) = VOLUME_LABEL;
+          _sdb_dir_entry(sdb) = 0x0;
+          return TRUE;
+        } else {
+          SETWORD(&state->eax, NO_MORE_FILES);
+          return FALSE;
+        }
       }
 
       bs_pos = getbasename(fpath);
