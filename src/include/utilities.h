@@ -205,6 +205,7 @@ char *list_files(const char *dirname);
 #define _OPEN_MAX 1024
 
 #ifndef HAVE_CFMAKERAW
+#include <termios.h>
 static inline void cfmakeraw(struct termios *termios_p)
 {
     termios_p->c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON);
