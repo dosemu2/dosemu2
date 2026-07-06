@@ -10,7 +10,7 @@
 #include <arpa/inet.h>	/*(inet_addr)*/
 #include <string.h>	/*(memset)*/
 #include <netdb.h>	/*hostent,(gethostbyname)*/
-#ifdef USE_FILIO_H
+#ifdef __sun__
 #include <sys/filio.h>	/*FIONBIO*/
 #else
 #include <sys/ioctl.h>	/*FIONBIO*/
