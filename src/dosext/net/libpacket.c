@@ -25,11 +25,11 @@
 #ifdef __linux__
 #include "Linux/if_tun.h"
 #endif
+#ifdef __sun__
+#include <sys/sockio.h>
+#endif
 #ifdef HAVE_NETINET_IF_ETHER_H
 #include <netinet/if_ether.h>
-#endif
-#ifdef __sun__
-#undef HAVE_NETPACKET_PACKET_H
 #endif
 #ifdef HAVE_NETPACKET_PACKET_H
 #include <netpacket/packet.h>
@@ -102,7 +102,12 @@ static int OpenNetworkLinkEth(const char *name, void (*cbk)(int, int))
 {
 	PRIV_SAVE_AREA
 	int s, proto, ret;
+#ifdef __sun__
+	struct lifreq req;
+#else
 	struct ifreq req;
+#endif
+	struct ifreq req2;
 	struct sockaddr_ll addr;
 	unsigned short receive_mode;
 
@@ -123,14 +128,24 @@ static int OpenNetworkLinkEth(const char *name, void (*cbk)(int, int))
 		return -1;
 	}
 
+#ifdef __sun__
+	strlcpy(req.lifr_name, name, sizeof(req.lifr_name));
+	if (ioctl(s, SIOCGLIFINDEX, &req) < 0)
+#else
 	strlcpy(req.ifr_name, name, sizeof(req.ifr_name));
-	if (ioctl(s, SIOCGIFINDEX, &req) < 0) {
+	if (ioctl(s, SIOCGIFINDEX, &req) < 0)
+#endif
+	{
 		close(s);
 		return -1;
 	}
 	addr.sll_family = AF_PACKET;
 	addr.sll_protocol = proto;
+#ifdef __sun__
+	addr.sll_ifindex = req.lifr_index;
+#else
 	addr.sll_ifindex = req.ifr_ifindex;
+#endif
 	if (bind(s, (void *)&addr, sizeof(addr)) < 0) {
 		pd_printf("OpenNetwork: could not bind socket: %s\n",
 			strerror(errno));
@@ -138,16 +153,17 @@ static int OpenNetworkLinkEth(const char *name, void (*cbk)(int, int))
 		return -1;
 	}
 
+	strlcpy(req2.ifr_name, name, sizeof(req2.ifr_name));
 	enter_priv_on();
-	ret = ioctl(s, SIOCGIFFLAGS, &req);
+	ret = ioctl(s, SIOCGIFFLAGS, &req2);
 	leave_priv_setting();
 	if (ret < 0) {
 		close(s);
 		return -1;
 	}
 
-	receive_mode = (req.ifr_flags & IFF_PROMISC) ? 6 :
-		((req.ifr_flags & IFF_BROADCAST) ? 3 : 2);
+	receive_mode = (req2.ifr_flags & IFF_PROMISC) ? 6 :
+		((req2.ifr_flags & IFF_BROADCAST) ? 3 : 2);
 
 	cbk(s, receive_mode);
 	return 0;
@@ -319,12 +335,6 @@ void CloseNetworkLink(int pkt_fd)
  *	Handy support routines.
  */
 
-/*
- *	NET2 or NET3 - work for both.
- *      (NET3 is valid for all kernels > 1.3.38)
- */
-#define NET3
-
 #ifdef HAVE_NETPACKET_PACKET_H
 /*
  *	Obtain the hardware address of an interface.
@@ -347,16 +357,19 @@ static int GetDeviceHardwareAddressEth(unsigned char *addr)
 
 	strlcpy(req.ifr_name, config.ethdev, sizeof(req.ifr_name));
 
+#ifdef __sun__
+	err = ioctl(s, SIOCGENADDR, &req);
+	close(s);
+	if (err == -1)
+		return err;
+	memcpy(addr, req.ifr_enaddr, 8);
+#else
 	err = ioctl(s, SIOCGIFHWADDR, &req);
 	close(s);
 	if (err == -1)
 		return err;
-#ifdef NET3
-	memcpy(addr, req.ifr_hwaddr.sa_data,8);
-#else
-	memcpy(addr, req.ifr_hwaddr, 8);
+	memcpy(addr, req.ifr_hwaddr.sa_data, 8);
 #endif
-
 	return 0;
 }
 #endif
