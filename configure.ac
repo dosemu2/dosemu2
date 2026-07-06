@@ -353,7 +353,10 @@ AC_SUBST(NEED_LIBBSD)
 
 dnl for Haiku
 AC_SEARCH_LIBS([accept], [network], [], [
-  AC_MSG_ERROR([Unable to find BSD sockets support])
+dnl for Solaris
+  AC_CHECK_LIB([socket], [accept],, [
+    AC_MSG_ERROR([Unable to find BSD sockets support])
+  ], [-lnsl])
 ])
 
 dnl Here is where we do our stuff
