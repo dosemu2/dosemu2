@@ -85,6 +85,7 @@ endif
 %.o: %.s
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(XAS) $(XASFLAGS) -o $@
 
+# eg bios_S_START
 VS = $(subst .,_,$(notdir $(1)))_START
 
 %.o: %.S
@@ -116,14 +117,16 @@ VS = $(subst .,_,$(notdir $(1)))_START
 	          print "#include \"$(srcdir)/$(@:.o=)_offsets.h\"";\
 		}\
 		{\
-		  HEXSTR = sprintf("0x%s", $$1);\
+		  if ($$1 == "") next;\
+		  if (match($$1, /:$$/)) next;\
+		  if (match($$1, /^0x/)) \
+		    HEXSTR = $$1;\
+		  else \
+		    HEXSTR = "0x" $$1;\
 		  ADDR = strtonum(HEXSTR) $(if $($(call VS,$<)),+ $($(call VS,$<)));\
 		  if ($$3 != "_start") {\
 		    printf "const unsigned %s = 0x%04x;\n", $$3, ADDR;\
 		  }\
-		}\
-		END {\
-		  print "";\
 		}\
 		' > $@_offsets.c
 	$(CC) -c -o $@ $@_offsets.c
