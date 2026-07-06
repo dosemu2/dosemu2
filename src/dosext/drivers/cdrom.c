@@ -21,6 +21,8 @@
  * DANG_END_MODULE
  */
 
+#include "emu.h"
+
 #ifdef HAVE_LINUX_CDROM_H
 #include <stdio.h>
 #include <string.h>
@@ -35,7 +37,6 @@
 #include <linux/cdrom.h>
 #endif
 
-#include "emu.h"
 #include "dos2linux.h"
 #include "utilities.h"
 
