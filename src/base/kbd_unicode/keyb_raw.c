@@ -14,6 +14,7 @@
 #endif
 #include <sys/ioctl.h>
 
+#include "utilities.h"  // for cfmakeraw(), if missing
 #include "ioselect.h"
 #include "keyboard.h"
 #include "keyb_clients.h"

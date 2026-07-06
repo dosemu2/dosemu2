@@ -295,7 +295,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 
 AC_CHECK_LIB(rt, shm_open)
 dnl below defines HAVE_xxx so needed even if AC_CHECK_LIB() succeeded
-AC_CHECK_FUNCS([shm_open fopencookie sigtimedwait closefrom])
+AC_CHECK_FUNCS([shm_open fopencookie sigtimedwait closefrom cfmakeraw])
 AC_CHECK_FUNCS([setxattr], [
     USE_XATTRS=1
     AC_SUBST(USE_XATTRS)
