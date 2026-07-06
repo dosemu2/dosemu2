@@ -26,7 +26,7 @@ $(BINPATH) $(BINPATH)/bin $(BINPATH)/commands $(BINPATH)/lib:
 	mkdir -p $@
 
 $(BINPATH)/bat: | $(BINPATH)
-	$(LN_SFT) ../src/bindist/bat $@
+	$(LN_S) ../src/bindist/bat $@
 
 $(top_builddir)/commands: | $(BINPATH)/commands $(BINPATH)/bat
 	rm -rf $@
@@ -34,7 +34,7 @@ $(top_builddir)/commands: | $(BINPATH)/commands $(BINPATH)/bat
 	mkdir $@/dosemu
 	$(LN_S) -f ../src/bindist/fdppconf.sys $@/fdppconf.sys
 	$(LN_S) -f ../src/bindist/fdppauto.bat $@/fdppauto.bat
-	for i in `ls $(BINPATH)/bat/`; do $(LN_SFT) ../../$(THISVERSION)/bat/$$i $@/dosemu/$$i; done
+	for i in `ls $(BINPATH)/bat/`; do $(LN_S) ../../$(THISVERSION)/bat/$$i $@/dosemu/$$i; done
 
 $(top_builddir)/bin: | $(BINPATH)/bin
 	rm -f $@
