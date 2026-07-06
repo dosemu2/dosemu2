@@ -1459,6 +1459,7 @@ int handle_timeout_us(uint32_t to,
     return do_to(to, 0xffffffff, end, cbk, arg, arg2, arg3, r_err);
 }
 
+#ifdef SEARPC_SUPPORT
 int send_fd(int usock, int fd_tx)
 {
     union {
@@ -1524,6 +1525,7 @@ int recv_fd(int sock)
         return -1;
     return *p;
 }
+#endif
 
 int emu_shm_open(const char *name, int oflag, mode_t mode)
 {
