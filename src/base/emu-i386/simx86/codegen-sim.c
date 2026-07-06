@@ -58,6 +58,7 @@
  */
 
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
@@ -1338,7 +1339,7 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 		}
 		else {
 		    u_int64_u v;
-		    v.td = (u_int64_t)CPULONG(Ofs_EAX) * (u_int64_t)DR1.d;
+		    v.td = (uint64_t)CPULONG(Ofs_EAX) * (uint64_t)DR1.d;
 		    CPULONG(Ofs_EAX) = v.t.tl;
 		    CPULONG(Ofs_EDX) = v.t.th;
 		    of = (v.t.th != 0);
