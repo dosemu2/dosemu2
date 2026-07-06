@@ -49,7 +49,7 @@ static void tty_tx_buffer_dump(com_t *c)
 
 static int tty_get_tx_queued(com_t *c)
 {
-  int ret = 0, queued;
+  int ret = 0, queued = 0;
 #if HAVE_DECL_TIOCOUTQ
   ret = ioctl(c->fd, TIOCOUTQ, &queued);
 #endif
