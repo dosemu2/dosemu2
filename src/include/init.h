@@ -7,8 +7,8 @@
 #ifdef USE_DL_PLUGINS
 #define CONSTRUCTOR2(x) CONSTRUCTOR(static void x(void))
 #define __S(x) #x
-#define _S(x) __S(x)
-#define LOAD_PLUGIN(x) load_plugin(_S(x))
+#define ___S(x) __S(x)
+#define LOAD_PLUGIN(x) load_plugin(___S(x))
 #else
 #define CONSTRUCTOR2(x) void plugin_##x(void); void plugin_##x(void)
 #define LOAD_PLUGIN(x) void plugin_##x(void); plugin_##x()
