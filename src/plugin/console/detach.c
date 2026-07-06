@@ -2,10 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#ifdef __linux__
 #include <sys/vt.h>
-#include "Sys/kd.h"
-#endif
+#include <sys/kd.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -70,9 +68,7 @@ static int open_console (void)  {
 
 unsigned short detach (void) {
 
-#ifdef __linux__
   struct vt_stat vts;
-#endif
   pid_t ppid, ppgid;
   int fd;
     struct stat statout, staterr;
@@ -82,13 +78,11 @@ unsigned short detach (void) {
     return(0);
   }
 
-#ifdef __linux__
   if (ioctl(fd, VT_GETSTATE, &vts) < 0) {
     perror("VT_GETSTATE");
     close(fd);
     return(0);
   }
-#endif
 
   if (ioctl(fd, VT_OPENQRY, &dosemu_vt) < 0) {
     perror("VT_OPENQRY");
@@ -160,9 +154,7 @@ unsigned short detach (void) {
   /* set the permissions to stop other people accessing the vt */
   fchmod (0, S_IRUSR | S_IWUSR);
 
-#ifdef __linux__
   return(vts.v_active); /* return old VT. */
-#endif
 }
 
 

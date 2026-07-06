@@ -33,10 +33,8 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <sys/stat.h>
-#ifdef __linux__
 #include <sys/vt.h>
-#include "Sys/kd.h"
-#endif
+#include <sys/kd.h>
 
 #define INIT_C2TRAP
 
@@ -378,7 +376,7 @@ vc_active (void)
   g_printf ("VC_ACTIVE: ours: %d, active: %d\n", scr_state.console_no, vtstat.v_active);
   return ((vtstat.v_active == scr_state.console_no));
 #endif
-
+  return 0;
 }
 
 void set_vc_screen_page (void)
