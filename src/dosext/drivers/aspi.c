@@ -43,8 +43,9 @@
  */
 
 #include <stdio.h>
-#ifdef HAVE_SCSI_SG_H
 #include "emu.h"
+#include "aspi.h"
+#ifdef HAVE_SCSI_SG_H
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -58,8 +59,6 @@
 #include <unistd.h>
 #include <glob.h>
 #include <scsi/sg.h>
-
-#include "aspi.h"
 
 
 #define SCSI_OFF sizeof(struct sg_header)
