@@ -70,7 +70,6 @@ YACC:=@YACC@
 #YACC=bison -y
 LEX:=@LEX@
 LN_S := @LN_S@
-LN_SFT := @LN_SFT@
 
 # This gets defined even if we chose via ./include/config.h NOT to
 # use the debugger

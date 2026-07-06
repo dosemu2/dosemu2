@@ -205,15 +205,6 @@ if test -z "$LEX" -o "$LEX" = ":"; then
 fi
 
 AC_PROG_LN_S
-AC_MSG_CHECKING([if $LN_S supports -T])
-if test -n "`$LN_S --help 2>&1 | grep -- -T`"; then
-  AC_MSG_RESULT([yes])
-  LN_SFT="$LN_S -f -T"
-else
-  AC_MSG_RESULT([no, using -F])
-  LN_SFT="$LN_S -f -F"
-fi
-AC_SUBST(LN_SFT)
 
 AC_CHECK_PROGS([MAKE], [gmake make])
 if test -z "$MAKE"; then
