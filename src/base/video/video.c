@@ -180,6 +180,11 @@ static void init_video_none(void)
     config.term = 1;
     config.dumb_video = 1;
     setbuf(stdout, NULL);
+    if (!config.tty_stderr && isatty(STDERR_FILENO)) {
+      warn("term: stderr still on tty, use -dumb switch\n");
+      close(STDERR_FILENO);
+      open("/dev/null", O_WRONLY | O_CLOEXEC);
+    }
 }
 
 /*
