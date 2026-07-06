@@ -52,6 +52,13 @@
 #endif
 #include "emudpmi.h"
 
+#ifdef KVM_MEM_READONLY
+#define USE_RO 1
+#else
+#define USE_RO 0
+#define KVM_MEM_READONLY 0
+#endif
+
 #define USE_INSTREMU 1
 #if USE_INSTREMU
 #define USE_CMMIO 0
@@ -662,6 +669,12 @@ int init_kvm_cpu(void)
   error("kernel is too old, KVM lock detection control unsupported\n");
 #endif
 
+#if USE_RO
+  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_READONLY_MEM);
+  if (ret <= 0)
+    error("KVM: KVM_CAP_READONLY_MEM unsupported %x\n", ret);
+#endif
+
   vmfd = ioctl(kvmfd, KVM_CREATE_VM, (unsigned long)0);
   if (vmfd == -1) {
     warn("KVM: KVM_CREATE_VM: %s\n", strerror(errno));
@@ -907,15 +920,18 @@ void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect)
 
 static void kvm_set_readonly(dosaddr_t base, dosaddr_t size)
 {
+#if USE_RO
   struct kvm_userspace_memory_region *p = kvm_get_memory_region(base, size);
   void *addr = (void *)((uintptr_t)(p->userspace_addr +
 				    (base - p->guest_phys_addr)));
   do_munmap_kvm(base, size);
   mmap_kvm_no_overlap(base, addr, size, KVM_MEM_READONLY);
+#endif
 }
 
 void kvm_set_mmio(dosaddr_t base, dosaddr_t size, int on)
 {
+#if USE_RO
   struct kvm_userspace_memory_region *p = kvm_get_memory_region(base, size);
 #if USE_CMMIO
   struct kvm_coalesced_mmio_zone mmz = {};
@@ -952,6 +968,7 @@ void kvm_set_mmio(dosaddr_t base, dosaddr_t size, int on)
     set_kvm_memory_region(p);
     p->memory_size = region_size;
   }
+#endif
 }
 
 /* Enable dirty logging from base to base+size.
