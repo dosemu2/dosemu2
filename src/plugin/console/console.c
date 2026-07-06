@@ -3,10 +3,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/ioctl.h>
-#ifdef __linux__
-#include "Sys/kd.h"
+#include <sys/kd.h>
 #include <sys/vt.h>
-#endif
 
 #include "emu.h"
 #include "init.h"
