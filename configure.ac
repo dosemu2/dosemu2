@@ -342,12 +342,16 @@ AC_CHECK_MEMBERS(struct ethhdr.h_dest,,, [[#include <netinet/if_ether.h>]])
 AC_CHECK_FUNCS([strlcpy strlcat], [NEED_LIBBSD=0], [NEED_LIBBSD=1])
 AC_SUBST(NEED_LIBBSD)
 
+dnl for Solaris
+AC_SEARCH_LIBS([gethostbyname], [nsl],, [
+  AC_MSG_ERROR([Unable to find BSD resolver])
+])
 dnl for Haiku
 AC_SEARCH_LIBS([accept], [network], [], [
 dnl for Solaris
   AC_CHECK_LIB([socket], [accept],, [
     AC_MSG_ERROR([Unable to find BSD sockets support])
-  ], [-lnsl])
+  ])
 ])
 
 dnl Here is where we do our stuff
