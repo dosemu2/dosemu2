@@ -7,11 +7,9 @@
 #include <string.h>
 #include <semaphore.h>
 #include <pthread.h>
-#ifdef __linux__
-#include "Sys/kd.h"
+#include <sys/kd.h>
 #include <sys/vt.h>
 #include <sys/ioctl.h>
-#endif
 
 #include "bios.h"
 #include "emu.h"
@@ -660,10 +658,13 @@ static void vga_close(void)
     ioctl(console_fd, VT_OPENQRY, &arg);
     vt_activate(arg);
     vt_activate(scr_state.console_no);
+#ifdef __linux__
     ioctl(console_fd, VT_DISALLOCATE, arg);
+#endif
   }
+#ifdef __linux__
   ioctl(console_fd, KIOCSOUND, 0);	/* turn off any sound */
-
+#endif
   pthread_cancel(cpy_thr);
   pthread_join(cpy_thr, NULL);
   sem_destroy(&cpy_sem);

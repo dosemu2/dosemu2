@@ -35,13 +35,16 @@ endif
 ifeq ($(MCONTEXT),1)
 LIBMC = base/lib/mcontext
 endif
+ifeq ($(NEED_LIBBSD),1)
+LIBBSD = base/lib/libbsd
+endif
 
 DPMI = dosext/dpmi dosext/dpmi/doslib dosext/dpmi/dnative
 
 _LIBSUBDIRS=base/video base/dev/vga base/core base/kbd_unicode \
 	arch/linux/async base/lib/mapping $(LIBMC) \
 	base/misc base/lib/misc base/lib/libpcl base/lib/timer \
-	base/lib/fslib base/lib/libbsd \
+	base/lib/fslib $(LIBBSD) \
 	base/dev/misc \
 	base/emu-i386 $(XCPUEMU) base/speaker \
 	base/dev/pic base/dev/ne2k \
@@ -88,13 +91,11 @@ $(BINPATH)/bin/$(DOSLIB): $(LIBS_)
 ifeq ($(OS),Darwin)
 	$(LD) $(ALL_LDFLAGS) -o $@ \
 	   -Wl,-all_load $(LIBS_) $(LIBS) \
-	   -Wl,-map,$(BINPATH)/bin/dosemu.map \
 	   -dynamiclib -install_name $(libdir)/$(DOSLIB) \
 	   -compatibility_version $(SOVER) -current_version $(SOVER)
 else
 	$(LD) $(ALL_LDFLAGS) -o $@ \
 	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS) \
-	   -Wl,-Map=$(BINPATH)/bin/dosemu.map \
 	   -shared -Wl,-Bsymbolic -Wl,-soname=$(SONAME) \
 	   $(SO_LDFLAGS)
 endif
@@ -111,8 +112,7 @@ $(BINPATH)/bin/$(DOSBIN): base/core/main.o $(BINPATH)/bin/$(DOSLIBLINKNAME) \
 else
 $(BINPATH)/bin/$(DOSBIN): base/core/main.o $(LIBS_)
 	$(LD) $(DOSBIN_LDFLAGS) $(LDFLAGS) -o $@ $< \
-	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS) \
-	   -Wl,-Map=$(BINPATH)/bin/dosemu.map
+	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS)
 endif
 
 $(BINPATH)/bin/dosemu: $(SRCPATH)/dosemu.systemwide $(SRCPATH)/dosemu \
