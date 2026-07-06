@@ -21,7 +21,6 @@
  *  plus example at http://lwn.net/Articles/658512/
  */
 
-#ifdef __linux__
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -30,9 +29,14 @@
 #include <limits.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#ifdef __linux__
 #include <linux/kvm.h>
 #include <linux/version.h>
 #include <asm/kvm_para.h>
+#else
+#include "illumos/kvm.h"
+#include "illumos/kvm_para.h"
+#endif
 
 #include "kvm.h"
 #include "kvmmon_offsets.h"
@@ -66,7 +70,11 @@
 #define USE_CMMIO 1
 #endif
 
+#ifdef __linux__
 #define USE_CPIO 1
+#else
+#define USE_CPIO 0
+#endif
 
 #define USE_VME 1
 
@@ -567,7 +575,7 @@ int init_kvm_cpu(void)
 
   if (!config.kvm)
     return 0;
-
+#ifdef __linux__
   if ((kernel_version_code >= KERNEL_VERSION(6, 11, 0) &&
        kernel_version_code < KERNEL_VERSION(6, 12, 44)) ||
       (kernel_version_code >= KERNEL_VERSION(6, 13, 0) &&
@@ -576,7 +584,7 @@ int init_kvm_cpu(void)
     error("See https://github.com/dosemu2/dosemu2/issues/2471\n");
     return 0;
   }
-
+#endif
   kvmfd = open("/dev/kvm", O_RDWR | O_CLOEXEC);
   if (kvmfd == -1) {
     error("KVM: error opening /dev/kvm: %s\n", strerror(errno));
@@ -1257,6 +1265,7 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
     return 0;
   }
 #endif
+#ifdef __linux__
   if (!inj_ready) {
     struct kvm_vcpu_events events;
     /* we may have pending exceptions */
@@ -1271,6 +1280,7 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
       return 0;
     }
   }
+#endif
 
   ret = ioctl(vcpufd, KVM_GET_REGS, kregs);
   if (ret == -1) {
@@ -1327,6 +1337,7 @@ static void process_pending_mmio(void)
   while (mr->first != mr->last) {
     struct kvm_coalesced_mmio *cmi = &mr->coalesced_mmio[mr->first++];
 //    mr->first %= KVM_COALESCED_MMIO_MAX;
+#if USE_CPIO
     if (cmi->pio) {
       switch(cmi->len) {
       case 1: port_outb(cmi->phys_addr, cmi->data[0]); break;
@@ -1334,7 +1345,9 @@ static void process_pending_mmio(void)
       case 4: port_outd(cmi->phys_addr, *(uint32_t*)cmi->data); break;
 //      case 8: port_outq(cmi->phys_addr, *(uint64_t*)cmi->data); break;
       }
-    } else {
+    } else
+#endif
+    {
       switch(cmi->len) {
       case 1: write_byte(cmi->phys_addr, cmi->data[0]); break;
       case 2: write_word(cmi->phys_addr, *(uint16_t*)cmi->data); break;
@@ -1863,5 +1876,3 @@ void kvm_done(void)
       exit_eintr, exit_hlt, exit_io, exit_mmio, exit_irq);
 #endif
 }
-
-#endif

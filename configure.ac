@@ -784,6 +784,11 @@ if test "$CONFIG_HOST" = "Linux"; then
     ])
   fi
 fi
+if test "$CONFIG_HOST" = "SunOS"; then
+  AC_DEFINE(USE_KVM)
+  KVM=1
+  AC_SUBST(KVM)
+fi
 
 PLUGIN_LDFLAGS="-shared"
 if test "$CONFIG_HOST" = "Darwin"; then
