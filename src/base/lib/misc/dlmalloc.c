@@ -214,6 +214,7 @@
 #endif /* WIN32 */
 
 #include <stdio.h>       /* for printing in malloc_stats */
+#include <unistd.h>     /* sysconf */
 
 #ifndef LACKS_ERRNO_H
 #include <errno.h>       /* for MALLOC_FAILURE_ACTION */
