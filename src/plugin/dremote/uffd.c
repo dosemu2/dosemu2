@@ -20,6 +20,7 @@
  * Author: @stsp
  *
  */
+#include <alloca.h>
 #include <stdio.h>
 #include <fcntl.h>             /* Definition of O_* constants */
 #include <sys/syscall.h>       /* Definition of SYS_* constants */

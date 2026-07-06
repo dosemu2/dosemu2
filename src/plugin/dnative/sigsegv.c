@@ -26,6 +26,7 @@
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
 /* WARNING: This may not work in BSD, because it was written for Linux! */
 
+#include <alloca.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>

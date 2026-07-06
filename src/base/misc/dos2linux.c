@@ -126,9 +126,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <pthread.h>
-#ifdef __GLIBC__
 #include <alloca.h>
-#endif
 #include <semaphore.h>
 
 #include "emu.h"
