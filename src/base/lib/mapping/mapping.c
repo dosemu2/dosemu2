@@ -766,7 +766,7 @@ static struct aliasmap_s *alloc_aliasmap(int size)
 
 static struct hardware_ram *hardware_ram;
 
-#if __linux__
+#ifdef __linux__
 static void *mmap_mapping_kmem(int cap, struct hardware_ram *hw)
 {
     void *addr, *addr2;
