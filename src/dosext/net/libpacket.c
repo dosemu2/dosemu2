@@ -28,6 +28,9 @@
 #ifdef HAVE_NETINET_IF_ETHER_H
 #include <netinet/if_ether.h>
 #endif
+#ifdef __sun__
+#undef HAVE_NETPACKET_PACKET_H
+#endif
 #ifdef HAVE_NETPACKET_PACKET_H
 #include <netpacket/packet.h>
 #endif

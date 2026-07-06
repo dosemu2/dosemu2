@@ -24,6 +24,9 @@
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#ifdef __sun__
+#include <sys/filio.h>
+#endif
 #include "Netinet/tcp.h"
 #include <limits.h>
 #include <string.h>
@@ -609,10 +612,10 @@ static void tcp_thr(void *arg)
     int err;
 
 #define __S(x) #x
-#define _S(x) __S(x)
+#define ___S(x) __S(x)
 #define _D(x) \
   case x: \
-    error("TCP call %s\n", _S(x)); \
+    error("TCP call %s\n", ___S(x)); \
     CARRY; \
     break
 
