@@ -4382,7 +4382,7 @@ static void setup_int_exc(int inherit_idt)
 
 static void dpmi_reinit(cpuctx_t *scp)
 {
-  unsigned short DS, ES, SS, rights;
+  unsigned short ds, es, ss, rights;
   int i, err;
   int change = 0;
 
@@ -4400,38 +4400,38 @@ static void dpmi_reinit(cpuctx_t *scp)
 
   DPMI_CLIENT.is_32 = (_LWORD(eax) & 1);
   if (change) {
-    DS = CreateAliasDescriptor(_ds);
-    SetSegmentLimit(DS, 0xffff);
-    err = GetDescriptorAccessRights(DS, &rights);
+    ds = CreateAliasDescriptor(_ds);
+    SetSegmentLimit(ds, 0xffff);
+    err = GetDescriptorAccessRights(ds, &rights);
     assert(!err);
     if (DPMI_CLIENT.is_32)
-      SetDescriptorAccessRights(DS, rights | 0x4000);	// 32bit
+      SetDescriptorAccessRights(ds, rights | 0x4000);	// 32bit
     else
-      SetDescriptorAccessRights(DS, rights & ~0x4000);	// 16bit
+      SetDescriptorAccessRights(ds, rights & ~0x4000);	// 16bit
     if (_ss == _ds) {
-      SS = DS;
+      ss = ds;
     } else {
-      SS = CreateAliasDescriptor(_ss);
-      SetSegmentLimit(SS, 0xffff);
-      err = GetDescriptorAccessRights(SS, &rights);
+      ss = CreateAliasDescriptor(_ss);
+      SetSegmentLimit(ss, 0xffff);
+      err = GetDescriptorAccessRights(ss, &rights);
       assert(!err);
       if (DPMI_CLIENT.is_32)
-        SetDescriptorAccessRights(SS, rights | 0x4000);	// 32bit
+        SetDescriptorAccessRights(ss, rights | 0x4000);	// 32bit
       else
-        SetDescriptorAccessRights(SS, rights & ~0x4000);	// 16bit
+        SetDescriptorAccessRights(ss, rights & ~0x4000);	// 16bit
     }
   } else {
-    DS = _ds;
-    SS = _ss;
+    ds = _ds;
+    ss = _ss;
   }
-  ES = DPMI_CLIENT.psp_sel;
+  es = DPMI_CLIENT.psp_sel;
 
   setup_int_exc(0);
   SETIVEC(0x1b, BIOSSEG, INT_OFF(0x1b));  // for buggy causeway extender
 
-  _ds = DS;
-  _es = ES;
-  _ss = SS;
+  _ds = ds;
+  _es = es;
+  _ss = ss;
   /* if came from coopth, we need to hack CS here and use custom
    * ret16 helper in msdos.c */
   if (_cs == _dpmi_sel16)
@@ -4449,7 +4449,7 @@ static void dpmi_reinit(cpuctx_t *scp)
 void dpmi_init(void)
 {
   /* DPMI spec explicitly states HWORD(esp)=0, so sp have to be short here */
-  unsigned short CS, DS, ES, SS, psp, my_cs, my_ip, sp;
+  unsigned short cs, ds, es, ss, psp, my_cs, my_ip, sp;
   dosaddr_t ssp;
   int i;
   unsigned char *cp;
@@ -4566,17 +4566,17 @@ void dpmi_init(void)
     flush_log();
   }
 
-  if (!(CS = AllocateDescriptors(1))) goto err;
-  if (SetSelector(CS, (dosaddr_t) (my_cs << 4), 0xffff, 0,
+  if (!(cs = AllocateDescriptors(1))) goto err;
+  if (SetSelector(cs, (dosaddr_t) (my_cs << 4), 0xffff, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
-  if (!(SS = ConvertSegmentToDescriptor(SREG(ss)))) goto err;
+  if (!(ss = ConvertSegmentToDescriptor(SREG(ss)))) goto err;
   /* if ds==ss, the selectors will be equal too */
-  if (!(DS = ConvertSegmentToDescriptor(SREG(ds)))) goto err;
-  if (!(ES = AllocateDescriptors(1))) goto err;
-  SetSegmentBaseAddress(ES, psp << 4);
-  SetSegmentLimit(ES, 0xff);
-  DPMI_CLIENT.psp_sel = ES;
+  if (!(ds = ConvertSegmentToDescriptor(SREG(ds)))) goto err;
+  if (!(es = AllocateDescriptors(1))) goto err;
+  SetSegmentBaseAddress(es, psp << 4);
+  SetSegmentLimit(es, 0xff);
+  DPMI_CLIENT.psp_sel = es;
   /* convert environment pointer to a descriptor */
   DPMI_CLIENT.envp = READ_WORD(SEGOFF2LINEAR(psp, 0x2c));
   if (DPMI_CLIENT.envp) {
@@ -4589,17 +4589,17 @@ void dpmi_init(void)
   if (debug_level('M')) {
     print_ldt();
     D_printf("dpmi_sel()=%x CS=%x DS=%x SS=%x ES=%x\n",
-	    dpmi_sel(), CS, DS, SS, ES);
+	    dpmi_sel(), cs, ds, ss, es);
   }
 
   DPMI_CLIENT.in_dpmi_rm_stack = 0;
   scp   = &DPMI_CLIENT.stack_frame;
   _eip	= my_ip;
-  _cs	= CS;
+  _cs	= cs;
   _esp	= sp;
-  _ss	= SS;
-  _ds	= DS;
-  _es	= ES;
+  _ss	= ss;
+  _ds	= ds;
+  _es	= es;
   _fs	= 0;
   _gs	= 0;
   NOCARRY;
