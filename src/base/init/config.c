@@ -97,7 +97,7 @@ char *dosemu_map_file_name;
 char *fddir_default;
 char *comcom_dir;
 char *fddir_boot;
-char *xbat_dir;
+const char *xbat_dir;
 struct config_info config;
 
 #define STRING_STORE_SIZE 10

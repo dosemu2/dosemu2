@@ -73,7 +73,7 @@ extern char *dosemu_tmpdir;
 extern char *fddir_default;
 extern char *comcom_dir;
 extern char *fddir_boot;
-extern char *xbat_dir;
+extern const char *xbat_dir;
 extern char *commands_path;
 extern char *dosemu_lib_dir_path;
 extern const char *dosemu_exec_dir_path;
