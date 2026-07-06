@@ -28,6 +28,7 @@ ifeq ($(findstring $(MAKECMDGOALS), clean realclean pristine distclean),)
 else
 	$< || true
 endif
+	touch $@
 
 config.hh: $(top_srcdir)/config.hh.in | $(top_builddir)/config.status
 	$(top_builddir)/config.status
