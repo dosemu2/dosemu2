@@ -130,7 +130,6 @@ VS = $(subst .,_,$(notdir $(1)))_START
 		}\
 		' > $@_offsets.c
 	$(CC) -c -o $@ $@_offsets.c
-	$(RM) _$@ $@.bin $@.elf $@_offsets.c
 
 %.o: %.SS
 	$(CPP) $(ALL_CPPFLAGS) -x assembler-with-cpp $< | $(AS) $(ASFLAGS) -o $@
