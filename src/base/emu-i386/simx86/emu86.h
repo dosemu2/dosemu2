@@ -388,6 +388,7 @@ extern int SpecPrejits;
 #define SETLEbrm	0x9eu
 #define SETNLEbrm	0x9fu
 
+#if 0
 // FP opcodes
 #define FADDm32r_sti	((ESC0<<3) | (0x0 & 0x38) >> 3)
 #define FMULm32r_sti	((ESC0<<3) | (0x8 & 0x38) >> 3)
@@ -487,6 +488,7 @@ extern int SpecPrejits;
 #define FILDm64i		((ESC7<<3) | (0x28 & 0x38) >> 3)
 #define FBSTPm80dec		((ESC7<<3) | (0x30 & 0x38) >> 3)
 #define FISTPm64i		((ESC7<<3) | (0x38 & 0x38) >> 3)
+#endif
 
 /*
  *   control registers
