@@ -20,6 +20,9 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#ifdef __sun__
+#include <sys/filio.h>
+#endif
 #include "cpu.h"
 #include "int.h"
 #include "dosemu_debug.h"
