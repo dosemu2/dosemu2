@@ -767,7 +767,9 @@ if test "$machine" = "i386" -o "$with_target_bits" = "32" -o \
 else
     AC_MSG_NOTICE(Compiling as PIE for $machine...)
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fpie"
-    DOSBIN_LDFLAGS="$DOSEMU_LDFLAGS -pie"
+    if test "$CONFIG_HOST" != "SunOS"; then
+      DOSBIN_LDFLAGS="$DOSEMU_LDFLAGS -pie"
+    fi
 fi
 AC_SUBST(DOSBIN_LDFLAGS)
 
