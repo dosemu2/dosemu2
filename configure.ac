@@ -143,7 +143,7 @@ if test -n "$CROSS_PREFIX"; then
     AC_MSG_ERROR([${CROSS_PREFIX}ld not found, CROSS_PREFIX is wrong])
   fi
 else
-  AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld i686-unknown-linux-gnu-ld i586-suse-linux-ld i386-elf-ld x86_64-linux-gnu-ld ld.lld ld])
+  AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld i686-unknown-linux-gnu-ld i586-suse-linux-ld i386-elf-ld x86_64-linux-gnu-ld gld ld.lld ld])
   if test "$CONFIG_HOST" = "Darwin" -a `basename "$AS_LD"` = "ld"; then
     AC_MSG_ERROR([Please install lld or i386-elf-binutils])
   fi
