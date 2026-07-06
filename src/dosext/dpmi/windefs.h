@@ -9,7 +9,7 @@
              LO_WORD(_edi), (WORD)_ds, (WORD)_es )
 
 #define WARN D_printf
-#define ERR D_printf
+#define __ERR D_printf
 
 #undef BYTE
 typedef unsigned char BYTE;

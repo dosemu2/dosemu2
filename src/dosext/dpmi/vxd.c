@@ -959,7 +959,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
         _lclose(image);
 
         if (error)
-            ERR("MapModule: Unable to load %s\n", module->pathName);
+            __ERR("MapModule: Unable to load %s\n", module->pathName);
 
         else if (module->relocDelta != 0)
         {
