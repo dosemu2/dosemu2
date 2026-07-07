@@ -186,8 +186,13 @@ pid_t run_external_command(const char *path, int argc,
   optreset = 1; \
   optind = 1
 #else
+#ifdef __sun__
+#define GETOPT_RESET() \
+  optind = 1
+#else
 #define GETOPT_RESET() \
   optind = 0
+#endif
 #endif
 
 int emu_shm_open(const char *name, int oflag, mode_t mode);
