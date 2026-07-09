@@ -76,7 +76,7 @@
 #define USE_CPIO 0
 #endif
 
-#define USE_VME 1
+#define USE_VME 0
 
 #if USE_VME
 /* 1 should fix Xeon VME bug, see
