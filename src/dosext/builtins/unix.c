@@ -22,6 +22,7 @@
 #include "dos2linux.h"
 #include "utilities.h"
 #include "system.h"
+#include "msetenv.h"
 #include "emu.h"
 #include "unix.h"
 
@@ -67,7 +68,9 @@ int unix_main(int argc, char **argv)
     }
   }
   if (optind < argc) {
-    emu_setenv("TERM", "djgpp", 1, dosemu_envp);
+    const char *term = mgetenv("TERM");
+    if (term)
+      emu_setenv("TERM", term, 1, dosemu_envp);
 
     if (secure) {
       if (argc - optind > 1) {
