@@ -118,7 +118,7 @@ pthread_t dosemu_pthread_self;
 pid_t dosemu_pid;
 pid_t dpmi_pid;
 int in_rdpmi;
-char * const *dosemu_envp;
+char **dosemu_envp;
 FILE *real_stderr;
 int config_hdiskboot;
 
@@ -267,6 +267,20 @@ static int c_chk(void)
     return !in_dpmi_pm();
 }
 
+static char **env_dup(char * const *envp)
+{
+    char * const *p;
+    char **ret;
+    int cnt = 0, i;
+    for (p = envp; *p; p++,cnt++);
+    assert(!envp[cnt]);
+    ret = malloc((cnt + 1) * sizeof(char *));
+    for (i = 0; i < cnt; i++)
+        ret[i] = strdup(envp[i]);
+    ret[i] = NULL;
+    return ret;
+}
+
 /*
  * DANG_BEGIN_FUNCTION emulate
  *
@@ -286,7 +300,6 @@ static int c_chk(void)
  */
 int emulate(int argc, char **argv, char * const *envp)
 {
-    dosemu_envp = envp;
     setlocale(LC_ALL,"");
     srand(time(NULL));
 
@@ -345,6 +358,7 @@ int emulate(int argc, char **argv, char * const *envp)
     }
     priv_drop_root();
 
+    dosemu_envp = env_dup(envp);
     map_memory_space();         /* maps all DOS memory (low, dpmi, xms...) */
     init_hardware_ram();        /* map the direct hardware ram */
     map_video_bios();           /* map (really: copy) the video bios */

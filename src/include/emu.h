@@ -27,7 +27,7 @@
 #define __TLS
 #endif
 
-extern char * const *dosemu_envp;
+extern char **dosemu_envp;
 
 int vm86_init(void);
 __attribute__((warn_unused_result))
