@@ -1680,3 +1680,145 @@ char *list_files(const char *dirname)
     closedir(dir);
     return out;
 }
+
+/* ported from djgpp */
+int emu_putenv(char *val, char **_environ)
+{
+  int vlen = strlen(val);
+  char *epos = strchr(val, '=');
+  /* Feature: VAL without a `=' means delete the entry.  GNU `putenv'
+     works that way, and `env' from GNU Sh-utils counts on this behavior.  */
+  int nlen = epos ? epos - val + 1 : vlen;
+  int eindex, ecount, emax;
+
+  for (ecount=0; _environ[ecount]; ecount++);
+  emax = ecount;
+
+  for (eindex=0; _environ[eindex]; eindex++)
+    if (strncmp(_environ[eindex], val, nlen) == 0
+	&& (epos || _environ[eindex][nlen] == '='))
+    {
+      char *oval = _environ[eindex];
+      int olen = strlen(oval);
+
+      if (val[nlen] == 0 && !epos) /* delete the entry */
+      {
+	free(oval);
+	_environ[eindex] = _environ[ecount-1];
+	_environ[ecount-1] = 0;
+	ecount--;
+//	__environ_changed++;
+	return 0;
+      }
+
+      /* change existing entry */
+      if (strcmp(_environ[eindex]+nlen, val+nlen) == 0)
+	return 0; /* they're the same */
+
+      /* If new is the same length as old, reuse the same
+	 storage.  If new is shorter, call realloc to shrink the
+	 allocated block: this causes less memory fragmentation.  */
+      if (vlen != olen)
+      {
+	if (vlen > olen)
+	  _environ[eindex] = (char *)malloc(vlen+1);
+	else	/* vlen < olen */
+	  _environ[eindex] = (char *)realloc(oval, vlen+1);
+	if (_environ[eindex] == 0)
+	{
+	  _environ[eindex] = oval;
+	  return -1;
+	}
+	if (vlen > olen)
+	  free(oval);
+      }
+      strcpy(_environ[eindex], val);
+//      __environ_changed++;
+      return 0;
+    }
+
+  /* delete nonexistant entry? */
+  if (val[nlen] == 0 && !epos)
+    return 0;
+
+  /* create new entry */
+  if (ecount >= emax)
+  {
+    char **enew;
+    emax += 10;
+    enew = (char **)malloc((emax+1) * sizeof(char *));
+    if (enew == 0)
+    {
+      return -1;
+    }
+    memcpy(enew, _environ, ecount * sizeof(char *));
+    /* If somebody set _environ to another array, we can't
+       safely free it.  Better leak memory than crash.  */
+    free(_environ);
+    _environ = enew;
+//    prev_environ = _environ;
+  }
+
+  _environ[ecount] = (char *)malloc(vlen+1);
+  if (_environ[ecount] == NULL)
+  {
+    return -1;
+  }
+  strcpy(_environ[ecount], val);
+
+  ecount++;
+  _environ[ecount] = NULL;
+
+//  __environ_changed++;
+
+  return 0;
+}
+
+char *emu_getenv(const char *name, char **_environ)
+{
+  int i;
+
+  if (_environ == 0)
+    return 0;
+
+  for (i=0; _environ[i]; i++)
+  {
+    char *ep = _environ[i];
+    const char *np = name;
+    while (*ep && *np && *ep == *np && *np != '=')
+      ep++, np++;
+    if (*ep == '=' && *np == 0)
+      return ep+1;
+  }
+  return 0;
+}
+
+int emu_setenv(const char *var, const char *val, int replace, char **_environ)
+{
+  char *prev;
+
+  if (var == (char *)0 || val == (char *)0)
+  {
+    return -1;
+  }
+
+  if ((prev  = emu_getenv (var, _environ)) && !replace)
+    return 0;
+  else
+    {
+      size_t l_var = strlen (var);
+      char *envstr = (char *)alloca (l_var + strlen (val) + 2);
+      char *peq    = strchr (var, '=');
+
+      if (*val == '=')
+        ++val;
+      if (peq)
+        l_var = peq - var;
+
+      strncpy (envstr, var, l_var);
+      envstr[l_var++] = '=';
+      strcpy (envstr + l_var, val);
+
+      return emu_putenv (envstr, _environ);
+    }
+}

@@ -22,6 +22,7 @@
 #include "dos2linux.h"
 #include "utilities.h"
 #include "system.h"
+#include "emu.h"
 #include "unix.h"
 
 static int usage(void);
@@ -66,6 +67,8 @@ int unix_main(int argc, char **argv)
     }
   }
   if (optind < argc) {
+    emu_setenv("TERM", "djgpp", 1, dosemu_envp);
+
     if (secure) {
       if (argc - optind > 1) {
         com_printf("unix: arguments not allowed when -s is specified\n");

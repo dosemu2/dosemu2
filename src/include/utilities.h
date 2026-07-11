@@ -221,4 +221,8 @@ static inline void cfmakeraw(struct termios *termios_p)
 }
 #endif
 
+int emu_putenv(char *val, char **_environ);
+char *emu_getenv(const char *name, char **_environ);
+int emu_setenv(const char *var, const char *val, int replace, char **_environ);
+
 #endif /* UTILITIES_H */
