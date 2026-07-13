@@ -41,6 +41,23 @@ class OurTestCase(BaseTestCase):
         fpu_bart_exceptions_fpexes(self)
 
 
+class EMUTestCase(ppdosgit(OurTestCase, {
+        "test_fpu_f2xm1_sim_sim": KNOWNFAIL,
+        "test_fpu_fisttp_jit_jit": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
+        "test_fpu_fisttp_sim_sim": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
+        "test_fpu_fp_exceptions_sim_sim": KNOWNFAIL,
+        "test_fpu_fprem_sim_sim": KNOWNFAIL,
+        "test_fpu_fyl2x_sim_sim": KNOWNFAIL,
+        "test_fpu_fyl2xp1_sim_sim": KNOWNFAIL,
+    })):
+    use_cpu = 'emu'
+
+    @mark('cputest')
+    def test_cpu_trap_flag(self):
+        """CPU Trap Flag"""
+        cpu_trap_flag(self)
+
+
 class KVMTestCase(ppdosgit(OurTestCase, {
         "test_fpu_f2xm1_kvm_sim": KNOWNFAIL,
         "test_fpu_fisttp_kvm_jit": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
@@ -59,16 +76,12 @@ class KVMTestCase(ppdosgit(OurTestCase, {
         cpu_trap_flag(self)
 
 
-class EMUTestCase(ppdosgit(OurTestCase, {
-        "test_fpu_f2xm1_sim_sim": KNOWNFAIL,
+class VM86TestCase(ppdosgit(OurTestCase, {
+        # Unknown
         "test_fpu_fisttp_jit_jit": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
         "test_fpu_fisttp_sim_sim": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
-        "test_fpu_fp_exceptions_sim_sim": KNOWNFAIL,
-        "test_fpu_fprem_sim_sim": KNOWNFAIL,
-        "test_fpu_fyl2x_sim_sim": KNOWNFAIL,
-        "test_fpu_fyl2xp1_sim_sim": KNOWNFAIL,
     })):
-    use_cpu = 'emu'
+    use_cpu = 'vm86'
 
     @mark('cputest')
     def test_cpu_trap_flag(self):
@@ -81,6 +94,7 @@ if __name__ == '__main__':
     cases = [
         EMUTestCase,
         KVMTestCase,
+        VM86TestCase,
     ]
 
     # Dynamically create tests

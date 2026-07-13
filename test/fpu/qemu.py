@@ -21,8 +21,6 @@ CTESTS = [
 ]
 
 EMU_TESTS = (
-    ('native', 'native'), #  CPU native vm86(i386 only) + native DPMI
-
     ('jit',    'native'), #  CPU JIT vm86 + native DPMI
     ('sim',    'native'), #  CPU simulated vm86 + native DPMI
 
@@ -38,6 +36,10 @@ KVM_TESTS = (
 
     ('jit',    'kvm'),    #  CPU JIT vm86 + KVM DPMI
     ('sim',    'kvm'),    #  CPU simulated vm86 + KVM DPMI
+)
+
+VM86_TESTS = (
+    ('native', 'native'), #  CPU native vm86(i386 only) + native DPMI
 )
 
 
@@ -136,7 +138,11 @@ def create_test(test):
 
 
 def fpu_create_items(testcase):
-    tests = KVM_TESTS if testcase.use_cpu == 'kvm' else EMU_TESTS
+    tests = {
+        'emu': EMU_TESTS,
+        'kvm': KVM_TESTS,
+        'vm86': VM86_TESTS,
+    }[testcase.use_cpu]
 
     # Insert each test into the testcase
     for ctest in CTESTS:

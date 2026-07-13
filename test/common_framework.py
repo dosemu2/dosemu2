@@ -253,6 +253,13 @@ class BaseTestCase(object):
                 print(" \nUsing Emulation", file=stderr, flush=True)
                 return
 
+            if cls.use_cpu == 'vm86':
+                if not cls.have_vm86:
+                    print(" \nUsing VM86", file=stderr, flush=True)
+                    raise unittest.SkipTest("VM86 not available: 32bit x86 only")
+                print(" \nUsing VM86 32bit x86", file=stderr, flush=True)
+                return
+
             reason = ""
             try:
                 with open("/dev/kvm", "r+b"):
@@ -273,7 +280,7 @@ class BaseTestCase(object):
 
             if cls.use_cpu == 'kvm':
                 if not cls.have_kvm:
-                    print(" \nUsing KVM ", end='', file=stderr, flush=True)
+                    print(" \nUsing KVM", file=stderr, flush=True)
                     raise unittest.SkipTest("KVM not available: %s" % reason)
                 print(" \nUsing KVM", file=stderr, flush=True)
                 return
