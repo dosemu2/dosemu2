@@ -882,7 +882,7 @@ unsigned char *Jmp_indirect_helper(unsigned int ePC, unsigned int mode,
     /* excessive e_querynode() seems to not help */
     {
         TNode *G = FindTree(ePC);
-        if (G && GoodNode(G) && !((mode & CKSIGN) && exit_pending()))
+        if (G && GoodNode(G) && !(mode & MSSTP) && !((mode & CKSIGN) && exit_pending()))
             ret = GetExecCodeBuf(G->addr);
         else
             ret = tailcode;
