@@ -260,9 +260,17 @@ static void draw_cursor(void)
     Bit16u *cursor = (Bit16u *) (vga.mem.base + vga.crtc.cursor_location);
     cs = CURSOR_START(vga.crtc.cursor_shape) & 0x1f;
     ce = CURSOR_END(vga.crtc.cursor_shape) & 0x1f;
-    if (cs > ce)
-      ce = (CURSOR_END(vga.crtc.cursor_shape) + vga.char_height) & 0x1f;
-    if (cs > ce)
+    if (cs > ce) {
+      if (cs < vga.char_height - 1) {
+        for (i = 0; i < num_texts; i++) {
+          if (!(Text[i]->flags & TEXTF_DISABLED))
+            Text[i]->Draw_cursor(Text[i]->opaque, x, y, XATTR(cursor, x, y),
+		      cs, vga.char_height - 1, have_focus);
+        }
+      }
+      cs = 0;
+    }
+    if (cs >= ce)
       return;
     for (i = 0; i < num_texts; i++) {
       if (!(Text[i]->flags & TEXTF_DISABLED))
