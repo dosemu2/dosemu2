@@ -1311,6 +1311,8 @@ int kvm_dpmi(cpuctx_t *scp)
 }
 #endif
 
+#define FPUS_TOP ((1 << 11) | (1 << 12) | (1 << 13))
+#define FPUS_TOP_BIT 11
 static void load_fpu_state(void)
 {
   int i;
@@ -1319,7 +1321,6 @@ static void load_fpu_state(void)
   if (!CONFIG_CPUSIM)
     return;
   fxsave_to_fsave(&vm86_fpu_state, &fs);
-  TheCPU.fpstt = 0;
   for (i = 0; i < 8; i++) {
 #ifdef HAVE___FLOAT80
     /* copy only 10 bytes out of 12, so memset first */
@@ -1345,40 +1346,39 @@ static void load_fpu_state(void)
   }
   TheCPU.fpuc = fs.cw;
   TheCPU.fpus = fs.sw;
+  TheCPU.fpstt = (fs.sw&FPUS_TOP)>>FPUS_TOP_BIT;
   TheCPU.fptag = fs.tag;
 }
 
 static void save_fpu_state(void)
 {
-  int i, k;
+  int i;
   struct emu_fsave fs = {};
 
   if (!CONFIG_CPUSIM)
     return;
-  k = TheCPU.fpstt;
   for (i = 0; i < 8; i++) {
 #ifdef HAVE___FLOAT80
     /* copy only 10 bytes out of 12 */
-    memcpy(&fs.st[i], &TheCPU.fpregs[k], sizeof(fs.st[i]));
+    memcpy(&fs.st[i], &TheCPU.fpregs[i], sizeof(fs.st[i]));
 #else
     float_status s;
     union { uint32_t u32[sizeof(floatx80)/4]; floatx80 ld; } x;
 #ifndef NO_FLOAT128
-    union { float128 f; ___float128 ld; } y = { .ld = TheCPU.fpregs[k] };
+    union { float128 f; ___float128 ld; } y = { .ld = TheCPU.fpregs[i] };
 
     x.ld = float128_to_floatx80(y.f, &s);
 #else
-    union { float64 f; ___float64 ld; } y = { .ld = TheCPU.fpregs[k] };
+    union { float64 f; ___float64 ld; } y = { .ld = TheCPU.fpregs[i] };
 
     x.ld = float64_to_floatx80(y.f, &s);
 #endif
 
     memcpy(&fs.st[i], x.u32, sizeof(fs.st[i]));
 #endif
-    k = (k + 1) & 7;
   }
   fs.cw = TheCPU.fpuc;
-  fs.sw = TheCPU.fpus;
+  fs.sw = (TheCPU.fpus&~FPUS_TOP)|(TheCPU.fpstt<<FPUS_TOP_BIT);
   fs.tag = TheCPU.fptag;
   fsave_to_fxsave(&fs, &vm86_fpu_state);
 }
