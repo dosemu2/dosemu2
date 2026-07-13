@@ -14,10 +14,10 @@ from os.path import exists, join
 from pathlib import Path
 from platform import system, machine, release
 from ptyprocess import PtyProcessError
-from shutil import copy, rmtree
+from shutil import copy, rmtree, which
 from subprocess import (Popen, call, check_call, check_output,
                         DEVNULL, STDOUT, TimeoutExpired, CalledProcessError)
-from sys import argv, exc_info, exit, stdout, stderr, version_info
+from sys import argv, exit, stdout, stderr, version_info
 from tarfile import open as topen
 from time import sleep
 from unittest.util import strclass
@@ -181,7 +181,7 @@ def acceptFailure(func):
         except self.failureException:
             if environ.get("NO_ACCEPTFAILURES", '0') == '1':
                 raise
-            self.skipTest(f"ACCEPTEDFAIL\n")
+            self.skipTest("ACCEPTEDFAIL\n")
     return wrapper
 
 
@@ -438,6 +438,9 @@ class BaseTestCase(object):
 
         sfile = basename.with_suffix('.c')
         sfile.write_text(content)
+
+        if not which('wcl'):
+            raise unittest.SkipTest("watcom not on PATH")
 
         watcom = environ.get("WATCOM", '0')
         if watcom == '0':
