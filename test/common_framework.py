@@ -273,10 +273,9 @@ class BaseTestCase(object):
                         reason = "Blacklisted kernel [6.11 - 6.13]"
 
             except FileNotFoundError:
-                pass
+                reason = "Device file /dev/kvm does not exist"
             except PermissionError:
-                op = check_output(["getfacl", "/dev/kvm"])
-                reason = "Permissions wrong on /dev/kvm\n%s" % op.decode('ASCII')
+                reason = "Permissions wrong on /dev/kvm"
 
             if cls.use_cpu == 'kvm':
                 if not cls.have_kvm:
