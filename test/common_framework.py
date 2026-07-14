@@ -979,6 +979,14 @@ class MyTestResult(unittest.TextTestResult):
             self.stop()
 
     def addSkip(self, test, reason):
+        # Class setup skips wrap the suite state in a '_ErrorHolder' object
+        if type(test).__name__ == '_ErrorHolder':
+            # This triggers unittest's internal _write_status generator
+            # to cleanly output 'None ... ' exactly once.
+            self._newline = True
+            #if hasattr(self.stream, 'startTestRun'):       # doesn't seem to be necessary, leave here in case it is.
+            #    self.stream.startTestRun = False
+
         if reason.startswith("ACCEPTEDFAIL\n"):
             if self.showAll:
                 if self.with_color_terminal:
