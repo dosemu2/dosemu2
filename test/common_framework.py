@@ -253,6 +253,13 @@ class BaseTestCase(object):
                 print(" \nUsing Emulation", file=stderr, flush=True)
                 return
 
+            if cls.use_cpu == 'vm86':
+                if not cls.have_vm86:
+                    print(" \nUsing VM86", file=stderr, flush=True)
+                    raise unittest.SkipTest("VM86 not available: 32bit x86 only")
+                print(" \nUsing VM86 32bit x86", file=stderr, flush=True)
+                return
+
             reason = ""
             try:
                 with open("/dev/kvm", "r+b"):
@@ -266,14 +273,13 @@ class BaseTestCase(object):
                         reason = "Blacklisted kernel [6.11 - 6.13]"
 
             except FileNotFoundError:
-                pass
+                reason = "Device file /dev/kvm does not exist"
             except PermissionError:
-                op = check_output(["getfacl", "/dev/kvm"])
-                reason = "Permissions wrong on /dev/kvm\n%s" % op.decode('ASCII')
+                reason = "Permissions wrong on /dev/kvm"
 
             if cls.use_cpu == 'kvm':
                 if not cls.have_kvm:
-                    print(" \nUsing KVM ", end='', file=stderr, flush=True)
+                    print(" \nUsing KVM", file=stderr, flush=True)
                     raise unittest.SkipTest("KVM not available: %s" % reason)
                 print(" \nUsing KVM", file=stderr, flush=True)
                 return
@@ -828,11 +834,14 @@ class BaseTestCase(object):
 class MyTestResult(unittest.TextTestResult):
 
     with_color_terminal = False
+    no_unlink_logs = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if (self.stream.isatty() or environ.get("CI")) and not environ.get("NO_COLOR"):
             self.with_color_terminal = True
+        if environ.get("NO_RMLOGS", "0") == "1":
+            self.no_unlink_logs = True
 
     def getDescription(self, test):
         if 'SubTest' in strclass(test.__class__):
@@ -945,8 +954,9 @@ class MyTestResult(unittest.TextTestResult):
 
     def addExpectedFailure(self, test, err):
         super().addExpectedFailure(test, err)
-        for _, l in test.logfiles.items():
-            l[0].unlink(missing_ok=True)
+        if not self.no_unlink_logs:
+            for _, l in test.logfiles.items():
+                l[0].unlink(missing_ok=True)
 
     def addFailure(self, test, err):
         if self.showAll:
@@ -968,6 +978,14 @@ class MyTestResult(unittest.TextTestResult):
             self.stop()
 
     def addSkip(self, test, reason):
+        # Class setup skips wrap the suite state in a '_ErrorHolder' object
+        if type(test).__name__ == '_ErrorHolder':
+            # This triggers unittest's internal _write_status generator
+            # to cleanly output 'None ... ' exactly once.
+            self._newline = True
+            #if hasattr(self.stream, 'startTestRun'):       # doesn't seem to be necessary, leave here in case it is.
+            #    self.stream.startTestRun = False
+
         if reason.startswith("ACCEPTEDFAIL\n"):
             if self.showAll:
                 if self.with_color_terminal:
@@ -979,8 +997,9 @@ class MyTestResult(unittest.TextTestResult):
                 self.stream.flush()
 
             # Remove the logfiles which will trip the overall failure logic
-            for _, l in test.logfiles.items():
-                l[0].unlink(missing_ok=True)
+            if not self.no_unlink_logs:
+                for _, l in test.logfiles.items():
+                    l[0].unlink(missing_ok=True)
             test.logfiles = {}
         else:
             super().addSkip(test, reason)
@@ -998,8 +1017,9 @@ class MyTestResult(unittest.TextTestResult):
             self.stream.write('.')
             self.stream.flush()
 
-        for _, l in test.logfiles.items():
-            l[0].unlink(missing_ok=True)
+        if not self.no_unlink_logs:
+            for _, l in test.logfiles.items():
+                l[0].unlink(missing_ok=True)
 
     def addSubTest(self, test, subtest, err):
         super(MyTestResult, self).addSubTest(test, subtest, err)
@@ -1042,6 +1062,7 @@ def main_setup(cases):
                   "  NO_KVM=1             Disables KVM, equivalent to autodetection not finding /dev/kvm\n" +
                   "  NO_ACCEPTFAILURES=1  Disables the acceptFailure mechanism so promoting test failures to FAIL\n" +
                   "  NO_TESTRUN=1         Exit the test runner after setting up the test environment and print the command line to be used\n" +
+                  "  NO_RMLOGS=1          Don't delete the logfiles on successful runs, only really useful for local testing\n" +
                   "  SKIP_EXPENSIVE=1     Tests that have been marked as expensive are not run\n" +
                   "  SKIP_NATIVE_DPMI=1   Tests that use native DPMI are not run\n")
             exit(0)

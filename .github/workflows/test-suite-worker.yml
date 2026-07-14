@@ -58,6 +58,10 @@ jobs:
         sysctl -a
         echo "::endgroup::"
 
+        echo "::group::KVM permissions"
+        getfacl -p /dev/kvm
+        echo "::endgroup::"
+
     - name: Package install
       run: ./ci_prereq.sh
 

@@ -4,12 +4,16 @@ from cpuinfo import get_cpu_info
 
 
 def cpu_trap_flag(self):
-    if self.use_cpu == "kvm":
+    if self.use_cpu == "emu":
+        cpu_vm = 'emulated'
+    elif self.use_cpu == "kvm":
         if not self.have_kvm:
             self.skipTest("requires KVM")
         cpu_vm = 'kvm'
-    elif self.use_cpu == "emu":
-        cpu_vm = 'emulated'
+    elif self.use_cpu == "vm86":
+        if not self.have_vm86:
+            self.skipTest("requires vm86() only on 32bit x86")
+        cpu_vm = 'vm86'
     else:
         raise ValueError('invalid self.use_cpu')
 

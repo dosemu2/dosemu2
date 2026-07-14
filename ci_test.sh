@@ -40,7 +40,7 @@ set +e
 
 cat >&2 << EOF
 =====================================================
-=         Tests run on KVM and emulated CPU         =
+=      Tests run on emulated CPU, KVM and VM86      =
 =====================================================
 EOF
 env NO_FAILFAST=1 python3 test/test_processor.py
