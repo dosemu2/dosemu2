@@ -166,7 +166,7 @@ def frdosgit(baseclass, actions):
 
         @classmethod
         def setUpClass(cls):
-            super(FRDOSGITTestCase, cls).setUpClass()
+            super().setUpClass()
             cls.version = "DOS version 7.10"
             cls.prettyname = "FR-DOS-GIT"
             cls.tarfile = ""
@@ -192,9 +192,10 @@ def frdosgit(baseclass, actions):
                     raise unittest.SkipTest("File '%s' not found" % f.name)
 
         def setUp(self):
-            super(FRDOSGITTestCase, self).setUp()
+            super().setUp()
             for f in self.files_to_copy:
-                copy(f, self.workdir)
+                if f.name != 'command.com' or self.commandcom is None:
+                    copy(f, self.workdir)
 
         def setUpDosAutoexec(self):
             # Use the (almost) standard shipped config
