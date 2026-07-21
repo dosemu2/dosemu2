@@ -1,5 +1,6 @@
 import inspect
 import pexpect
+import termios
 import string
 import random
 import re
@@ -660,6 +661,14 @@ class BaseTestCase(object):
             _exit(0)  # Don't let unittest handle it, just exit
 
         child = pexpect.spawn(dbin, args)
+
+        # Tweak the pty to eliminate double CRs
+        fd = child.fileno()
+        attrs = termios.tcgetattr(fd)
+        attrs[1] &= ~termios.ONLCR
+        # attrs[1] |= termios.OCRNL     # turns any CRs left into NL - horrible
+        termios.tcsetattr(fd, termios.TCSANOW, attrs)
+
         ret = ''
         with open(self.logfiles['xpt'][0], "wb") as fout:
             child.logfile = fout
