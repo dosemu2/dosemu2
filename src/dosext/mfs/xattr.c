@@ -80,14 +80,14 @@ static int xattr_err(int err, const char *name)
 
 int set_dos_xattr_fd(int fd, int attr, const char *name)
 {
-  char xbuf[16];
+  char xbuf[256];
   return xattr_err(fsetxattr(fd, XATTR_DOSATTR_NAME, xbuf,
       xattr_str(xbuf, sizeof(xbuf), attr), 0), name);
 }
 
 int set_dos_xattr(const char *fname, int attr)
 {
-  char xbuf[16];
+  char xbuf[256];
   int err = setxattr(fname, XATTR_DOSATTR_NAME, xbuf,
       xattr_str(xbuf, sizeof(xbuf), attr), 0);
   if (err) {
@@ -108,7 +108,7 @@ int set_dos_xattr(const char *fname, int attr)
 
 int get_dos_xattr(const char *fname)
 {
-  char xbuf[16];
+  char xbuf[256];
   ssize_t size = getxattr(fname, XATTR_DOSATTR_NAME, xbuf, sizeof(xbuf) - 1);
   /* some dosemus forgot \0 so we fix it up here */
   if (size > 0 && xbuf[size - 1] != '\0') {
@@ -121,7 +121,7 @@ int get_dos_xattr(const char *fname)
 
 int get_dos_xattr_fd(int fd, const char *name)
 {
-  char xbuf[16];
+  char xbuf[256];
   ssize_t size = fgetxattr(fd, XATTR_DOSATTR_NAME, xbuf, sizeof(xbuf) - 1);
   /* some dosemus forgot \0 so we fix it up here */
   if (size > 0 && xbuf[size - 1] != '\0') {
