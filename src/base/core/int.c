@@ -888,6 +888,7 @@ static int dos_helper(int stk_offs, int revect)
 #endif
 
     default:
+	CARRY;
 	error("bad dos helper function: AX=0x%04x\n", LWORD(eax));
 	return 0;
     }
