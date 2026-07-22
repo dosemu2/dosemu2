@@ -1125,9 +1125,11 @@ INT71_OFF:
 /* COMPAS FFFF5		ROM BIOS date */
 	.ascii	"02/25/93"  /* our bios date */
 /* COMPAS FFFFD		unused */
-	hlt
+	.byte   0x0    /* useful for ensuring termination of the bios date string */
 /* COMPAS FFFFE		system model ID */
 	.byte	0xfc   /* model byte = IBM AT */
+/* COMPAS FFFFF		known to be a submodel byte, a checksum byte or simply padding */
+	.byte   0x0    /* padding */
 
 	.globl  bios_f000_end
 bios_f000_end:
