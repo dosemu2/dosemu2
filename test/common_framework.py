@@ -751,13 +751,13 @@ class BaseTestCase(object):
             ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT).decode(
                 'ASCII', errors='backslashreplace')
         except CalledProcessError as e:
+            ret = 'NonZeroReturn:%d\n' % e.returncode
             if e.output is not None:
-                ret = e.output.decode('ASCII', errors='backslashreplace')
-            ret += '\nNonZeroReturn:%d\n' % e.returncode
+                ret += e.output.decode('ASCII', errors='backslashreplace')
         except TimeoutExpired as e:
+            ret = 'Timeout:%d seconds\n' % timeout
             if e.output is not None:
-                ret = e.output.decode('ASCII', errors='backslashreplace')
-            ret += '\nTimeout:%d seconds\n' % timeout
+                ret += e.output.decode('ASCII', errors='backslashreplace')
             # Now wait for any further logging from dosemu as hopefully it's
             # dying.
             sleep(5)
