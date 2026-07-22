@@ -33,7 +33,6 @@ def build_pcmos(self):
     args = ["-q", "-K", r".:SOURCES\src", "-E", "MAKEMOS.BAT", r"path=%D\bin;%O"]
     results = self.runDosemuCmdline(args, cwd=mosroot, timeout=300)
 
-    self.assertNotIn('Timeout', results)
     self.assertNotIn('NonZeroReturn', results)
 
     missing = [str(x.relative_to(mosroot)) for x in outfiles if not x.exists()]

@@ -1,5 +1,6 @@
 import inspect
 import pexpect
+import termios
 import string
 import random
 import re
@@ -635,8 +636,11 @@ class BaseTestCase(object):
 
     def runDosemu(self, cmd, opts=None, outfile=None, config=DOSEMU_CONF_DEFAULT, timeout=None,
                     eofisok=False, interactions=[]):
+        default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
         if timeout is None:
-            timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
+            timeout = default_timeout
+        else:
+            timeout += default_timeout
 
         # Note: if debugging is turned on then times increase 10x
         dbin = str(self.dosemu)
@@ -660,6 +664,14 @@ class BaseTestCase(object):
             _exit(0)  # Don't let unittest handle it, just exit
 
         child = pexpect.spawn(dbin, args)
+
+        # Tweak the pty to eliminate double CRs
+        fd = child.fileno()
+        attrs = termios.tcgetattr(fd)
+        attrs[1] &= ~termios.ONLCR
+        # attrs[1] |= termios.OCRNL     # turns any CRs left into NL - horrible
+        termios.tcsetattr(fd, termios.TCSANOW, attrs)
+
         ret = ''
         with open(self.logfiles['xpt'][0], "wb") as fout:
             child.logfile = fout
@@ -680,7 +692,7 @@ class BaseTestCase(object):
 
             try:
                 prompt = r'(system -e|unix -e|' + IPROMPT + ')'
-                myexpect(child, [prompt + '[\r\n]*'], timeout=40)
+                myexpect(child, [prompt + '[\r\n]*'], timeout=(default_timeout + 25))
                 myexpect(child, ['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\n')
                 for resp in interactions:
@@ -692,10 +704,6 @@ class BaseTestCase(object):
                 if eofisok:
                     trms += [pexpect.EOF,]
                 myexpect(child, trms, timeout=timeout)
-                if outfile is None:
-                    ret += child.before.decode('cp437', 'replace')
-                else:
-                    ret = outfile.read_text()
             except pexpect.TIMEOUT as e:
                 ret = f"Timeout: {e.my['timeout']} seconds waiting for {e.my['pattern']}\n"
                 tlog = self.logfiles['log'][0].read_text()
@@ -704,17 +712,26 @@ class BaseTestCase(object):
                     self.shouldStop = True
             except pexpect.EOF as e:
                 ret = f"EndOfFile: waiting for {e.my['pattern']}\n"
+            finally:
+                if outfile is None:
+                    ret += child.before.decode('cp437', 'replace')
+                else:
+                    ret += outfile.read_text()
 
         try:
             child.close(force=True)
         except PtyProcessError:
             pass
 
+        self.assertNotIn('Timeout:', ret)
         return ret
 
     def runDosemuCmdline(self, xargs, cwd=None, config=DOSEMU_CONF_DEFAULT, timeout=None):
+        default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
         if timeout is None:
-            timeout = int(environ.get("DEFAULT_TIMEOUT", '15')) + 15  # A little extra to match the old value
+            timeout = default_timeout
+        else:
+            timeout += default_timeout
 
         args = [str(self.dosemu),
                 "--Fimagedir", str(self.imagedir),
@@ -740,19 +757,20 @@ class BaseTestCase(object):
             ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT).decode(
                 'ASCII', errors='backslashreplace')
         except CalledProcessError as e:
+            ret = 'NonZeroReturn:%d\n' % e.returncode
             if e.output is not None:
-                ret = e.output.decode('ASCII', errors='backslashreplace')
-            ret += '\nNonZeroReturn:%d\n' % e.returncode
+                ret += e.output.decode('ASCII', errors='backslashreplace')
         except TimeoutExpired as e:
+            ret = 'Timeout:%d seconds\n' % timeout
             if e.output is not None:
-                ret = e.output.decode('ASCII', errors='backslashreplace')
-            ret += '\nTimeout:%d seconds\n' % timeout
+                ret += e.output.decode('ASCII', errors='backslashreplace')
             # Now wait for any further logging from dosemu as hopefully it's
             # dying.
             sleep(5)
         finally:
             self.logfiles['xpt'][0].write_text(ret)
 
+        self.assertNotIn('Timeout:', ret)
         return ret
 
     def assertFilesEqual(self, reffile, dosfile):
@@ -826,7 +844,6 @@ class BaseTestCase(object):
 
         results = self.runDosemu("version.bat")
 
-        self.assertNotIn('Timeout', results)
         self.assertNotIn('NonZeroReturn', results)
         self.assertIn(self.version, results)
 
