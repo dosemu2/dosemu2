@@ -701,10 +701,6 @@ class BaseTestCase(object):
                 if eofisok:
                     trms += [pexpect.EOF,]
                 myexpect(child, trms, timeout=timeout)
-                if outfile is None:
-                    ret += child.before.decode('cp437', 'replace')
-                else:
-                    ret = outfile.read_text()
             except pexpect.TIMEOUT as e:
                 ret = f"Timeout: {e.my['timeout']} seconds waiting for {e.my['pattern']}\n"
                 tlog = self.logfiles['log'][0].read_text()
@@ -713,6 +709,11 @@ class BaseTestCase(object):
                     self.shouldStop = True
             except pexpect.EOF as e:
                 ret = f"EndOfFile: waiting for {e.my['pattern']}\n"
+            finally:
+                if outfile is None:
+                    ret += child.before.decode('cp437', 'replace')
+                else:
+                    ret += outfile.read_text()
 
         try:
             child.close(force=True)
