@@ -215,6 +215,36 @@ static void *rd_thread(void *arg)
     return NULL;
 }
 
+static int have_term;
+static far_t term;
+
+static int term_write(const char *buf32, u_short size)
+{
+    char *s;
+    int ret;
+    struct vm86_regs saved_regs = REGS;
+
+    s = lowmem_alloc(size);
+    if (!s)
+	return -1;
+    memcpy(s, buf32, size);
+    LWORD(ecx) = size;
+    SREG(ds) = DOSEMU_LMHEAP_SEG;
+    LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
+    do_call_back(term.segment, term.offset);
+    lowmem_free(s);
+    ret = LWORD(eax);
+    REGS = saved_regs;
+    return ret;
+}
+
+static int writecon(const char *buf, u_short size)
+{
+    if (have_term)
+	return term_write(buf, size);
+    return com_doswritecon(buf, size);
+}
+
 static void pty_worker(struct rd_args *args)
 {
 #define MAX_LEN (1024+1)
@@ -246,10 +276,10 @@ static void pty_worker(struct rd_args *args)
 			break;
 		    if (args->crlf) {
 			char *buf3 = strdup_crlf(buf2);
-			com_doswritecon(buf3, strlen(buf3));
+			writecon(buf3, strlen(buf3));
 			free(buf3);
 		    } else {
-			com_doswritecon(buf2, rc);
+			writecon(buf2, rc);
 		    }
 		}
 		continue;
@@ -268,6 +298,22 @@ static void pty_worker(struct rd_args *args)
     }
     cleanup_charset_state(&kstate);
     cleanup_charset_state(&dstate);
+}
+
+void term_handler(void)
+{
+  if (HI(bx)) {
+    /* reserved for handle, currently 0 */
+    CARRY;
+    return;
+  }
+  have_term = LO(bx);
+  if (have_term) {
+    term.segment = LWORD(esi);
+    term.offset = LWORD(edi);
+  }
+  LO(ax) = 0;
+  NOCARRY;
 }
 
 void dos2tty_init(void)

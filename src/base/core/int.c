@@ -815,6 +815,10 @@ static int dos_helper(int stk_offs, int revect)
 	break;
     }
 
+    case DOS_HELPER_TERM_HANDLER:
+	term_handler();
+	break;
+
     case DOS_HELPER_CHDIR:
 	LWORD(eax) = chdir(SEG_ADR((char *), es, dx));
 	break;
