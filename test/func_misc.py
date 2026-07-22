@@ -138,7 +138,6 @@ int main(int argc, char *argv[])
 
     results = self.runDosemuCmdline(["-E", "justerro.com"])
 
-    self.assertNotIn('Timeout', results)
     self.assertIn('NonZeroReturn:53', results)
 
 
@@ -154,7 +153,6 @@ rem end
     args = ["TESTVAR1=" + tstring1, "-E", "testit.bat"]
     results = self.runDosemuCmdline(args)
 
-    self.assertNotIn('Timeout', results)
     self.assertNotIn('NonZeroReturn', results)
     self.assertIn("rem end", results, msg="Test incomplete:\n")
     self.assertIn(tstring1, results)

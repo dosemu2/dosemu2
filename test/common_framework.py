@@ -719,6 +719,7 @@ class BaseTestCase(object):
         except PtyProcessError:
             pass
 
+        self.assertNotIn('Timeout:', ret)
         return ret
 
     def runDosemuCmdline(self, xargs, cwd=None, config=DOSEMU_CONF_DEFAULT, timeout=None):
@@ -762,6 +763,7 @@ class BaseTestCase(object):
         finally:
             self.logfiles['xpt'][0].write_text(ret)
 
+        self.assertNotIn('Timeout:', ret)
         return ret
 
     def assertFilesEqual(self, reffile, dosfile):
@@ -835,7 +837,6 @@ class BaseTestCase(object):
 
         results = self.runDosemu("version.bat")
 
-        self.assertNotIn('Timeout', results)
         self.assertNotIn('NonZeroReturn', results)
         self.assertIn(self.version, results)
 

@@ -58,7 +58,6 @@ set DOS4G=QUIET
     args = ["-q", "-K", ".", "-E", "build.bat"]
     results = self.runDosemuCmdline(args, cwd=root, timeout=120)
 
-    self.assertNotIn('Timeout', results)
     self.assertNotIn('NonZeroReturn', results)
 
     # Test for resultant kernel file

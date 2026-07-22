@@ -54,7 +54,6 @@ set PATH=C:\\devel\\watcomc\\binw;C:\\devel\\nasm;C:\\bin;%OLDPATH%
     args = ["-q", "-K", ".", "-E", "build.bat"]
     results = self.runDosemuCmdline(args, cwd=root, timeout=450)
 
-    self.assertNotIn('Timeout', results)
     self.assertNotIn('NonZeroReturn', results)
 
     # Test for resultant command.com file
