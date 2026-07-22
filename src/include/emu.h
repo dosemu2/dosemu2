@@ -509,6 +509,7 @@ void ipx_helper(struct vm86_regs *);
 void free_fonts(void);
 int emulate(int argc, char **argv, char * const *envp);
 void set_init_hook(void (*hook)(void *), void *arg);
+void term_handler(void);
 
 typedef struct emu_hlt_s emu_hlt_t;
 extern void *vm86_hlt_state;
