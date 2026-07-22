@@ -636,8 +636,11 @@ class BaseTestCase(object):
 
     def runDosemu(self, cmd, opts=None, outfile=None, config=DOSEMU_CONF_DEFAULT, timeout=None,
                     eofisok=False, interactions=[]):
+        default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
         if timeout is None:
-            timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
+            timeout = default_timeout
+        else:
+            timeout += default_timeout
 
         # Note: if debugging is turned on then times increase 10x
         dbin = str(self.dosemu)
@@ -689,7 +692,7 @@ class BaseTestCase(object):
 
             try:
                 prompt = r'(system -e|unix -e|' + IPROMPT + ')'
-                myexpect(child, [prompt + '[\r\n]*'], timeout=40)
+                myexpect(child, [prompt + '[\r\n]*'], timeout=(default_timeout + 25))
                 myexpect(child, ['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
                 child.send(cmd + '\n')
                 for resp in interactions:
@@ -724,8 +727,11 @@ class BaseTestCase(object):
         return ret
 
     def runDosemuCmdline(self, xargs, cwd=None, config=DOSEMU_CONF_DEFAULT, timeout=None):
+        default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
         if timeout is None:
-            timeout = int(environ.get("DEFAULT_TIMEOUT", '15')) + 15  # A little extra to match the old value
+            timeout = default_timeout
+        else:
+            timeout += default_timeout
 
         args = [str(self.dosemu),
                 "--Fimagedir", str(self.imagedir),
