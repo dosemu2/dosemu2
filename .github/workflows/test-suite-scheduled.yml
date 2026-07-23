@@ -8,22 +8,22 @@ on:
 
 jobs:
   asan:
-    name: Test Suite (asan-simple-ubuntu-24.04)
+    name: Test Suite (asan-simple-ubuntu-26.04)
     if: (github.repository_owner == 'dosemu2')
     uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'asan'
       runtype: 'simple'
-      os: 'ubuntu-24.04'
+      os: 'ubuntu-26.04'
 
   full:
-    name: Test Suite (standard-full-ubuntu-24.04)
+    name: Test Suite (standard-full-ubuntu-26.04)
     if: (github.repository_owner == 'dosemu2')
     uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'standard'
       runtype: 'full'
-      os: 'ubuntu-24.04'
+      os: 'ubuntu-26.04'
 
   packaged:
     name: Test Suite (packaged-full-*)
@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04]
+        os: [ubuntu-22.04, ubuntu-24.04, ubuntu-26.04]
     uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'packaged'

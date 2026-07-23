@@ -5,11 +5,11 @@ set -e
 if [ "${BLDTYPE}" = "packaged" ] ; then
   echo "Adding dosemu2 PPA..."
   sudo add-apt-repository -y -c main -c main/debug ppa:dosemu2/ppa
-  sudo apt install -y \
-    dosemu2 \
-    dosemu2-dbgsym \
-    fdpp \
-    fdpp-dbgsym
+  sudo apt install -y -f \
+    dosemu2 dosemu2-dbgsym \
+    libfdldr35 libfdldr35-dbgsym \
+    libfdpp35 libfdpp35-dbgsym \
+
   exit 0
 fi
 
@@ -36,20 +36,26 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
   fi
 
   echo "Configuring PPAs..."
-  # Install the build dependancies based FDPP's debian/control file
-  sudo add-apt-repository ppa:stsp-0/nasm-segelf
-  sudo add-apt-repository ppa:stsp-0/thunk-gen
+  sudo add-apt-repository -y --no-update ppa:stsp-0/thunk-gen
   sudo apt update -q
-  mk-build-deps --install --root-cmd sudo
+  sudo apt install -f
+
+  # Install the build dependancies based FDPP's debian/control file
+  mk-build-deps --install --root-cmd sudo || sudo apt install ./fdpp-build-deps*.deb --simulate
 
   make
   sudo make install
 )
 
+sudo add-apt-repository -y --no-update -c main -c main/debug ppa:dosemu2/ppa
+sudo apt update -q
+sudo apt install -f
+
+# Remove fdpp-dev from debian build dependencies (use bash as padding)
+sed -i -e 's/fdpp-dev,/bash,/' debian/control
+
 # Install the build dependancies based Dosemu's debian/control file
-sudo add-apt-repository -y -c main -c main/debug ppa:dosemu2/ppa
-mk-build-deps --install --root-cmd sudo
-sudo apt remove -y fdpp
+mk-build-deps --install --root-cmd sudo || sudo apt install ./dosemu2-build-deps*.deb --simulate
 
 if [ "${BLDTYPE}" = "asan" ] ; then
   sed -i 's/asan off/asan on/g' compiletime-settings.devel
