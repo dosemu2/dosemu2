@@ -9,7 +9,7 @@ include ../plugins.mak
 ALL_CFLAGS += $(DL_CFLAGS) $(SR_CFLAGS) -Wno-strict-prototypes
 ALL_CPPFLAGS += -I.
 
-CFILES = test-object.c fsrpc_srv.c fssvc.c fslib_be.c util.c
+CFILES = test-object.c fsrpc_srv.c fssvc.c fslib_be.c util.c async.c
 GEN_H = searpc-signature.h searpc-marshal.h
 
 ifeq ($(USE_DL_PLUGINS),1)
