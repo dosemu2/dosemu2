@@ -27,19 +27,6 @@
 #include "utilities.h"
 #include "util.h"
 
-#ifndef NEW_SEARPC
-/* work around https://github.com/haiwen/libsearpc/pull/79 */
-typedef struct {
-    SearpcClient *client;
-    AsyncCallback callback;
-    const gchar *ret_type;
-    GType gtype;                /* to specify the specific gobject type
-                                 if ret_type is object or objlist */
-    void *cbdata;
-} AsyncCallData;
-#define _ASYNC_CALL_DATA_SIZEOF sizeof(AsyncCallData)
-#endif
-
 static int transport_send(void *arg, char *fcall_str,
                           size_t fcall_len, void *rpc_priv)
 {
@@ -51,12 +38,7 @@ static int transport_send(void *arg, char *fcall_str,
     sd = send(sock->fd, fcall_str, fcall_len, MSG_DONTWAIT);
     if (sd <= 0)
         return -1;
-#ifdef _ASYNC_CALL_DATA_SIZEOF
-    sock->rpc_priv = malloc(_ASYNC_CALL_DATA_SIZEOF);
-    memcpy(sock->rpc_priv, rpc_priv, _ASYNC_CALL_DATA_SIZEOF);
-#else
     sock->rpc_priv = rpc_priv;
-#endif
     return 0;
 }
 
@@ -71,9 +53,6 @@ static int transport_recv(SockTransport *sock)
     if (sd <= 0)
         return -1;
     searpc_client_generic_callback(buf, sd, sock->rpc_priv, NULL);
-#ifdef _ASYNC_CALL_DATA_SIZEOF
-    free(sock->rpc_priv);
-#endif
     sock->rpc_priv = NULL;
     return 0;
 }
