@@ -12,6 +12,7 @@ ALL_CPPFLAGS += -I.
 CFILES = test-object.c fsrpc_srv.c fssvc.c fslib_be.c util.c async.c \
   sr_rip/searpc-client.c
 GEN_H = searpc-signature.h searpc-marshal.h
+LDFLAGS += -Wl,-Bsymbolic
 
 ifeq ($(USE_DL_PLUGINS),1)
 all: $(BINPATH)/bin/libplugin_searpc.so
