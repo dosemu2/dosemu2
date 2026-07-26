@@ -16,7 +16,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldl2t" : "=t" (ld_res));
     if (ld_res != 0x3.5269e12f346e2bf8p+0L) {
-        printf("FAIL: fldl2t N\n");
+        printf("FAIL: fldl2t N %Lf\n", ld_res);
         ret = 1;
     }
     /* Round downward.  */
@@ -25,7 +25,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldl2t" : "=t" (ld_res));
     if (ld_res != 0x3.5269e12f346e2bf8p+0L) {
-        printf("FAIL: fldl2t D\n");
+        printf("FAIL: fldl2t D %Lf\n", ld_res);
         ret = 1;
     }
     /* Round toward zero.  */
@@ -34,7 +34,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldl2t" : "=t" (ld_res));
     if (ld_res != 0x3.5269e12f346e2bf8p+0L) {
-        printf("FAIL: fldl2t Z\n");
+        printf("FAIL: fldl2t Z %Lf\n", ld_res);
         ret = 1;
     }
     /* Round upward.  */
@@ -43,7 +43,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldl2t" : "=t" (ld_res));
     if (ld_res != 0x3.5269e12f346e2bfcp+0L) {
-        printf("FAIL: fldl2t U\n");
+        printf("FAIL: fldl2t U %Lf\n", ld_res);
         ret = 1;
     }
 
@@ -53,7 +53,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldl2e" : "=t" (ld_res));
     if (ld_res != 0x1.71547652b82fe178p+0L) {
-        printf("FAIL: fldl2e N\n");
+        printf("FAIL: fldl2e N %Lf\n", ld_res);
         ret = 1;
     }
     /* Round downward.  */
@@ -62,7 +62,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldl2e" : "=t" (ld_res));
     if (ld_res != 0x1.71547652b82fe176p+0L) {
-        printf("FAIL: fldl2e D\n");
+        printf("FAIL: fldl2e D, %Lf\n", ld_res);
         ret = 1;
     }
     /* Round toward zero.  */
@@ -71,7 +71,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldl2e" : "=t" (ld_res));
     if (ld_res != 0x1.71547652b82fe176p+0L) {
-        printf("FAIL: fldl2e Z\n");
+        printf("FAIL: fldl2e Z %Lf\n", ld_res);
         ret = 1;
     }
     /* Round upward.  */
@@ -80,7 +80,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldl2e" : "=t" (ld_res));
     if (ld_res != 0x1.71547652b82fe178p+0L) {
-        printf("FAIL: fldl2e U\n");
+        printf("FAIL: fldl2e U %Lf\n", ld_res);
         ret = 1;
     }
 
@@ -90,7 +90,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldpi" : "=t" (ld_res));
     if (ld_res != 0x3.243f6a8885a308d4p+0L) {
-        printf("FAIL: fldpi N\n");
+        printf("FAIL: fldpi N %Lf\n", ld_res);
         ret = 1;
     }
     /* Round downward.  */
@@ -99,7 +99,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldpi" : "=t" (ld_res));
     if (ld_res != 0x3.243f6a8885a308dp+0L) {
-        printf("FAIL: fldpi D\n");
+        printf("FAIL: fldpi D %Lf\n", ld_res);
         ret = 1;
     }
     /* Round toward zero.  */
@@ -108,7 +108,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldpi" : "=t" (ld_res));
     if (ld_res != 0x3.243f6a8885a308dp+0L) {
-        printf("FAIL: fldpi Z\n");
+        printf("FAIL: fldpi Z %Lf\n", ld_res);
         ret = 1;
     }
     /* Round upward.  */
@@ -117,7 +117,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldpi" : "=t" (ld_res));
     if (ld_res != 0x3.243f6a8885a308d4p+0L) {
-        printf("FAIL: fldpi U\n");
+        printf("FAIL: fldpi U %Lf\n", ld_res);
         ret = 1;
     }
 
@@ -127,7 +127,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldlg2" : "=t" (ld_res));
     if (ld_res != 0x4.d104d427de7fbcc8p-4L) {
-        printf("FAIL: fldlg2 N\n");
+        printf("FAIL: fldlg2 N %Lf\n", ld_res);
         ret = 1;
     }
     /* Round downward.  */
@@ -136,7 +136,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldlg2" : "=t" (ld_res));
     if (ld_res != 0x4.d104d427de7fbccp-4L) {
-        printf("FAIL: fldlg2 D\n");
+        printf("FAIL: fldlg2 D %Lf\n", ld_res);
         ret = 1;
     }
     /* Round toward zero.  */
@@ -145,7 +145,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldlg2" : "=t" (ld_res));
     if (ld_res != 0x4.d104d427de7fbccp-4L) {
-        printf("FAIL: fldlg2 Z\n");
+        printf("FAIL: fldlg2 Z %Lf\n", ld_res);
         ret = 1;
     }
     /* Round upward.  */
@@ -154,7 +154,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldlg2" : "=t" (ld_res));
     if (ld_res != 0x4.d104d427de7fbcc8p-4L) {
-        printf("FAIL: fldlg2 U\n");
+        printf("FAIL: fldlg2 U %Lf\n", ld_res);
         ret = 1;
     }
 
@@ -164,7 +164,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldln2" : "=t" (ld_res));
     if (ld_res != 0xb.17217f7d1cf79acp-4L) {
-        printf("FAIL: fldln2 N\n");
+        printf("FAIL: fldln2 N %Lf\n", ld_res);
         ret = 1;
     }
     /* Round downward.  */
@@ -173,7 +173,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldln2" : "=t" (ld_res));
     if (ld_res != 0xb.17217f7d1cf79abp-4L) {
-        printf("FAIL: fldln2 D\n");
+        printf("FAIL: fldln2 D %Lf\n", ld_res);
         ret = 1;
     }
     /* Round toward zero.  */
@@ -182,7 +182,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldln2" : "=t" (ld_res));
     if (ld_res != 0xb.17217f7d1cf79abp-4L) {
-        printf("FAIL: fldln2 Z\n");
+        printf("FAIL: fldln2 Z %Lf\n", ld_res);
         ret = 1;
     }
     /* Round upward.  */
@@ -191,7 +191,7 @@ int main(void)
     __asm__ volatile ("fldcw %0" : : "m" (cw));
     __asm__ volatile ("fldln2" : "=t" (ld_res));
     if (ld_res != 0xb.17217f7d1cf79acp-4L) {
-        printf("FAIL: fldln2 U\n");
+        printf("FAIL: fldln2 U %Lf\n", ld_res);
         ret = 1;
     }
 
