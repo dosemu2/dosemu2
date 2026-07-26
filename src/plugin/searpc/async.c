@@ -16,15 +16,8 @@
  */
 #include <assert.h>
 #include <stddef.h>
-#include <stdint.h>
-#include <unistd.h>
 #include <sys/socket.h>
-#include <linux/prctl.h>  /* Definition of PR_* constants */
-#include <sys/prctl.h>
 #include <searpc.h>
-#include "priv.h"
-#include "sig.h"
-#include "utilities.h"
 #include "util.h"
 
 static int transport_send(void *arg, char *fcall_str,
