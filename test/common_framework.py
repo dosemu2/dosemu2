@@ -392,6 +392,9 @@ class BaseTestCase(object):
         myid = super(BaseTestCase, self).id().split('.')[-2:]
         return '%s.%s.%s' % (pname, *myid)
 
+    def boot_log(self):
+        return self.logfiles['log'][0].read_text()
+
 # helpers
 
     def mkcom_with_ia16(self, fname, content, dname=None, extraargs=None):
@@ -706,8 +709,7 @@ class BaseTestCase(object):
                 myexpect(child, trms, timeout=timeout)
             except pexpect.TIMEOUT as e:
                 ret = f"Timeout: {e.my['timeout']} seconds waiting for {e.my['pattern']}\n"
-                tlog = self.logfiles['log'][0].read_text()
-                if '(gdb) Attaching to program' in tlog:
+                if '(gdb) Attaching to program' in self.boot_log():
                     sleep(60)
                     self.shouldStop = True
             except pexpect.EOF as e:
