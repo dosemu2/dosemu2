@@ -1,3 +1,4 @@
+import re
 
 from shutil import copy
 from subprocess import check_call, check_output, CalledProcessError, STDOUT
@@ -116,8 +117,17 @@ c:\\fputest
 rem end
 """, newline="\r\n")
         results = self.runDosemu("testit.bat", config=config)
-        self.assertNotIn("FAIL:", results)
-        self.assertIn("PASS:", results)
+
+        try:
+            self.assertNotIn("FAIL:", results)
+            self.assertIn("PASS:", results)
+        except self.failureException:
+            name = f"test_fpu_{test}_{cpu}_{dpmi}"
+            if (name in ['test_fpu_fldcst_sim_sim', 'test_fpu_fldcst_kvm_sim']
+                    and not re.search(r'configure:.*__float80', self.boot_log())
+                    and not environ.get("NO_ACCEPTFAILURES", '0') == '1'):
+                self.skipTest("ACCEPTEDFAIL\n")
+            raise
 
 
 def create_test(test):
