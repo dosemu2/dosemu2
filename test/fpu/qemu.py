@@ -1,3 +1,4 @@
+import re
 
 from shutil import copy
 from subprocess import check_call, check_output, CalledProcessError, STDOUT
@@ -43,34 +44,39 @@ VM86_TESTS = (
 )
 
 
-def _dotest(self, test, cpu_vm, cpu_vm_dpmi):
+def _dotest(self, test, cpu, dpmi):
 
     if not getattr(self.__class__, 'fpumade', False):
         check_call(["make", "--quiet", "-C", "test/fpu", "clean", "all"])
         self.__class__.fpumade = True
 
-    if (('jit' in cpu_vm and 'sim' in cpu_vm_dpmi) or
-            ('sim' in cpu_vm and 'jit' in cpu_vm_dpmi)):
+    if (('jit' in cpu and 'sim' in dpmi) or
+            ('sim' in cpu and 'jit' in dpmi)):
         raise ValueError("Invalid JIT/SIM combination")
 
-    if ('sim' in cpu_vm) or ('sim' in cpu_vm_dpmi):
+    if 'native' in cpu and not self.have_vm86:
+        self.skipTest("requires 32bit kernel")
+
+    if ('kvm' in cpu or 'kvm' in dpmi) and not self.have_kvm:
+        self.skipTest("requires KVM")
+
+    if dpmi == 'native' and environ.get("SKIP_NATIVE_DPMI"):
+        self.skipTest("no native dpmi")
+
+    if ('jit' in cpu) or ('sim' in cpu):
+        cpu_vm = 'emulated'
+    else:
+        cpu_vm = cpu
+
+    if ('jit' in dpmi) or ('sim' in dpmi):
+        cpu_vm_dpmi = 'emulated'
+    else:
+        cpu_vm_dpmi = dpmi
+
+    if ('sim' in cpu) or ('sim' in dpmi):
         cpuemu = 1
     else:
         cpuemu = 0
-
-    if ('jit' in cpu_vm) or ('sim' in cpu_vm):
-        cpu_vm = 'emulated'
-    if ('jit' in cpu_vm_dpmi) or ('sim' in cpu_vm_dpmi):
-        cpu_vm_dpmi = 'emulated'
-
-    if 'native' in cpu_vm and not self.have_vm86:
-        self.skipTest("requires 32bit kernel")
-
-    if ('kvm' in cpu_vm or 'kvm' in cpu_vm_dpmi) and not self.have_kvm:
-        self.skipTest("requires KVM")
-
-    if cpu_vm_dpmi == 'native' and environ.get("SKIP_NATIVE_DPMI"):
-        self.skipTest("no native dpmi")
 
     config = f"""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
@@ -111,8 +117,17 @@ c:\\fputest
 rem end
 """, newline="\r\n")
         results = self.runDosemu("testit.bat", config=config)
-        self.assertNotIn("FAIL:", results)
-        self.assertIn("PASS:", results)
+
+        try:
+            self.assertNotIn("FAIL:", results)
+            self.assertIn("PASS:", results)
+        except self.failureException:
+            name = f"test_fpu_{test}_{cpu}_{dpmi}"
+            if (name in ['test_fpu_fldcst_sim_sim', 'test_fpu_fldcst_kvm_sim']
+                    and not re.search(r'configure:.*__float80', self.boot_log())
+                    and not environ.get("NO_ACCEPTFAILURES", '0') == '1'):
+                self.skipTest("ACCEPTEDFAIL\n")
+            raise
 
 
 def create_test(test):

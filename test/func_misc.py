@@ -166,7 +166,7 @@ $_debug = "-D+d"
 
     # read the logfile
     systypeline = "Not found in logfile"
-    for line in self.logfiles['log'][0].read_text().splitlines():
+    for line in self.boot_log().splitlines():
         if "system type is" in line:
             systypeline = line
             break

@@ -106,9 +106,6 @@ result:
         'AMD EPYC 9V74 80-Core Processor',
     )
 
-    # get log content
-    logcontents = self.logfiles['log'][0].read_text()
-
     cpu = get_cpu_info()
     try:
         name = cpu['brand']
@@ -121,7 +118,7 @@ result:
     if rval == 1:
         if name in knownbad:
             self.fail("Unexpected success with cpu '%s'" % name)
-    elif rval > 1 or fixupmsg in results or fixupmsg in logcontents:
+    elif rval > 1 or fixupmsg in results or fixupmsg in self.boot_log():
         if name in knownbad:
             self.setMessage("known bad cpu '%s'" % name)
         else:

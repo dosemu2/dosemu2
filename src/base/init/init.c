@@ -536,6 +536,14 @@ void print_version(void)
 #define v_S(x) v__S(x)
   dbug_printf("CFLAGS: %s\n", v_S(CFLAGS_STR));
 #endif
+  dbug_printf("configure:");
+#ifdef HAVE___FLOAT80
+  dbug_printf(" __float80");
+#endif
+#ifdef HAVE__FLOAT128
+  dbug_printf(" _Float128");
+#endif
+  dbug_printf("\n");
 }
 
 CONSTRUCTOR(static void init(void))
