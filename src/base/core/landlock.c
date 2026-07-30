@@ -17,7 +17,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <assert.h>
-#include <linux/prctl.h>
 #include <sys/prctl.h>
 #include "dosemu_debug.h"
 #include "landlock_priv.h"
