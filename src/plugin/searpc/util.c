@@ -19,7 +19,6 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <sys/socket.h>
-#include <linux/prctl.h>  /* Definition of PR_* constants */
 #include <sys/prctl.h>
 #include <searpc.h>
 #include "priv.h"
