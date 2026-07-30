@@ -1,0 +1,54 @@
+FROM alpine:3.21 AS builder
+WORKDIR /src
+
+RUN apk add build-base meson git autoconf bash flex bison
+RUN git clone --depth 1 https://github.com/stsp/thunk_gen.git
+RUN cd thunk_gen && ./configure && meson compile --verbose -C build && \
+    meson install -C build
+
+RUN apk add texinfo
+RUN git clone --depth 1 git://sourceware.org/git/binutils-gdb.git
+RUN cd binutils-gdb && ./configure --target=i686-unknown-linux-gnu \
+    --disable-gdb --disable-texinfo --disable-sim --disable-gprofng \
+    && make -j $(nproc) && make install
+
+RUN apk add nasm pkgconf elfutils-dev
+RUN git clone --depth 1 https://github.com/dosemu2/fdpp.git
+RUN cd fdpp && ./configure.meson && meson compile --verbose -C build && \
+    meson install -C build
+
+RUN git clone --depth 1 https://github.com/alexfru/smallerc.git
+RUN cd smallerc && make && make install
+
+RUN git clone --depth 1 https://github.com/stsp/djstub.git
+RUN cd djstub && make -j $(nproc) && make install
+
+RUN apk add automake ctags
+RUN git clone --depth 1 https://github.com/stsp/dj64dev.git
+RUN cd dj64dev && ./autogen.sh && \
+    ./configure --disable-32bit --disable-ncurses && \
+    make -j $(nproc) && make install
+
+RUN git clone --depth 1 https://github.com/dosemu2/comcom64.git
+RUN cd comcom64 && make static -j $(nproc) && make install_64
+
+RUN apk add jansson-dev libtool glib-dev
+RUN git clone --depth 1 https://github.com/haiwen/libsearpc.git
+RUN cd libsearpc && ./autogen.sh && ./configure && \
+    make -j $(nproc) && make install
+
+RUN apk add libb64-dev --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing
+RUN apk add json-c-dev libslirp-dev gawk libseccomp-dev \
+    slang-dev
+RUN git clone --depth 1 https://github.com/dosemu2/dosemu2.git
+RUN cd dosemu2 && ./autogen.sh && ./configure && \
+    make -j $(nproc) && make install
+
+
+FROM alpine:3.21
+RUN apk add elfutils jansson glib slang bash json-c libslirp gawk libseccomp
+RUN apk add libb64 --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing
+
+COPY --from=builder /usr/local /usr/local
+
+ENTRYPOINT ["dosemu"]
