@@ -25,6 +25,7 @@ modules:
       - --disable-gdb
       - --disable-texinfo
       - --disable-sim
+      - --disable-gprofng
     cleanup:
       - '*'
 
