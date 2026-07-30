@@ -1,0 +1,41 @@
+FROM debian:13 AS builder
+WORKDIR /src
+RUN apt-get update
+
+RUN apt-get install -y build-essential devscripts meson git flex bison
+RUN git clone --depth 1 https://github.com/stsp/thunk_gen.git
+RUN cd thunk_gen && debuild -i -us -uc -b
+RUN apt-get install -y ./thunk-gen*.deb
+
+RUN apt-get install -y nasm pkgconf libelf-dev binutils-i686-linux-gnu
+RUN git clone --depth 1 https://github.com/dosemu2/fdpp.git
+RUN cd fdpp && debuild -i -us -uc -b
+RUN apt-get install -y ./libfdpp*.deb ./libfdldr*.deb ./fdpp*.deb
+
+RUN apt-get install -y smallerc
+RUN git clone --depth 1 https://github.com/stsp/djstub.git
+RUN cd djstub && debuild -i -us -uc -b
+RUN apt-get install -y ./djstub*.deb
+
+RUN apt-get install -y universal-ctags gcc-i686-linux-gnu
+RUN git clone --depth 1 https://github.com/stsp/dj64dev.git
+RUN cd dj64dev && debuild -i -us -uc -b
+RUN apt-get install -y ./libdjstub64*.deb ./libdjdev64*.deb \
+    ./djdev64-dev*.deb ./dj64*.deb ./dj32*.deb
+
+RUN git clone --depth 1 https://github.com/dosemu2/comcom64.git
+RUN cd comcom64 && debuild -i -us -uc -b
+RUN apt-get install -y ./comcom64*.deb
+
+RUN apt-get install -y libb64-dev libjson-c-dev libslirp-dev libseccomp-dev \
+    libslang2-dev libsearpc-dev libsdl3-dev libfluidsynth-dev gawk \
+    xfonts-utils libgpm-dev libsdl3-ttf-dev libfontconfig1-dev \
+    ladspa-sdk libao-dev libieee1284-3-dev valgrind
+RUN git clone --depth 1 https://github.com/dosemu2/dosemu2.git
+RUN cd dosemu2 && debuild -i -us -uc -b
+RUN apt-get install -y ./dosemu2*.deb
+
+
+FROM scratch
+WORKDIR /
+COPY --from=builder /src/*.deb .
