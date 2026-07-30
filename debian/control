@@ -8,7 +8,6 @@ Build-Depends:
     autoconf,
     autotools-dev,
     automake,
-    make,
     bison,
     debhelper (>= 9~),
     flex,
@@ -33,11 +32,9 @@ Build-Depends:
     libseccomp-dev,
     libglib2.0-dev,
     libsearpc-dev,
-    binutils-dev,
     pkg-config,
     fdpp-dev,
     djdev64-dev,
-    gcc,
     binutils-i686-linux-gnu,
     valgrind
 Homepage: https://github.com/dosemu2/dosemu2
