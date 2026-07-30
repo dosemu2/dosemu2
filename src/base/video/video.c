@@ -481,6 +481,7 @@ void video_post_init(void)
       warn("VID: initialization failed for %s\n", Video->name);
   }
   if (!Video || err) {
+    Video = NULL;
     if (config.sdl) {
       /* silly fall-back from SDL to X or slang.
        * Can work because X/slang do not have priv_init */
@@ -510,7 +511,8 @@ void video_post_init(void)
         }
       }
 #endif
-    } else {
+    }
+    if (!Video) {
       init_video_term();
       if (Video) {
         err = Video->init();
