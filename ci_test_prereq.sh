@@ -33,7 +33,21 @@ sudo apt install -y \
   dos2unix \
   bridge-utils \
   libvirt-daemon \
-  libvirt-daemon-system
+  libvirt-daemon-system \
+  dnsmasq-base \
+  iptables
+
+if [ -f /etc/os-release ] ; then
+    . /etc/os-release
+    OS_VERSION=${VERSION_ID}
+else
+    OS_VERSION="unknown"
+fi
+if [ "$OS_VERSION" = "26.04" ] ; then
+    sudo virsh net-define /etc/libvirt/qemu/networks/default.xml || true
+    sudo virsh net-start default || true
+    sudo virsh net-autostart default || true
+fi
 
 sudo apt install -y -f \
   dj64-dbgsym \
