@@ -49,6 +49,7 @@ Depends:
     comcom64,
     ${shlibs-:Recommends}
 Recommends:
+    comcom32,
     ladspa-sdk,
     gdb,
     kbd,
