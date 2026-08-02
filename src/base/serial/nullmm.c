@@ -59,7 +59,10 @@ static void nullmm_tx_buffer_dump(com_t *c)
 
 static int nullmm_get_tx_queued(com_t *c)
 {
-  return 0;
+  int idx = get_com_idx(c->cfg->nullmm);
+  if (idx == -1)
+    return -1;
+  return RX_BUF_BYTES(com[idx].num);
 }
 
 static void nullmm_termios(com_t *c)

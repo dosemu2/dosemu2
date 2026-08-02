@@ -51,3 +51,28 @@ rem end
         self.assertIn('hello', text)
     except FileNotFoundError:
         self.fail(f"file {ofile} was not created")
+
+
+def serial_nullmm_loopback(self):
+    """Two COM ports wired to each other: what DOS writes on one it
+    reads back on the other. Stays well under RX_BUFFER_SIZE, because a
+    single DOS process cannot drain the far end while it is still
+    writing."""
+    payload = "DATA_VIA_NULLMM"
+
+    config = DOSEMU_CONF_DEFAULT
+    config += """\
+$_com1 = "nullmodem 2"
+$_com2 = "nullmodem 1"
+"""
+    # ^Z terminates the `type`, as DOS has no other end-of-input here.
+    self.mkfile("payload.txt", payload + "\r\n\x1a", newline="")
+    self.mkfile("testit.bat", """\
+copy /b payload.txt com1 > nul
+type com2
+rem end
+""", newline="\r\n")
+
+    results = self.runDosemu("testit.bat", config=config)
+
+    self.assertIn(payload, results)

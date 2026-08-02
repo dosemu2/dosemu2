@@ -66,7 +66,7 @@ from func_findfile import (mfs_findfile_ufs_lfn, mfs_findfile_ufs_sfn,
                            mfs_findfile_vfat_linux_mounted_lfn, mfs_findfile_vfat_linux_mounted_sfn,
                            sfn_findfirst)
 from func_serial import (serial_simple_read_echo, serial_simple_write_file,
-                         lpt_simple_write_pipe)
+                         serial_nullmm_loopback, lpt_simple_write_pipe)
 from func_truename import (mfs_truename_ufs_lfn, mfs_truename_ufs_sfn, mfs_truename_vfat_linux_mounted_lfn,
                            mfs_truename_vfat_linux_mounted_sfn, sfn_truename)
 
@@ -863,6 +863,11 @@ class OurTestCase(BaseTestCase):
     def test_serial_simple_write_file(self):
         """Serial Simple Write File"""
         serial_simple_write_file(self)
+
+    @mark('serialtest')
+    def test_serial_nullmm_loopback(self):
+        """Serial null-modem loopback"""
+        serial_nullmm_loopback(self)
 
     # Obviously not a serial device, but may as well group together
     @mark('serialtest')
