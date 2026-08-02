@@ -222,14 +222,6 @@ CONSTRUCTOR(static void serial_mouse_register(void))
 }
 
 
-static void serm_rx_buffer_dump(com_t *c)
-{
-}
-
-static void serm_tx_buffer_dump(com_t *c)
-{
-}
-
 static int serm_get_tx_queued(com_t *c)
 {
   return 0;
@@ -310,8 +302,6 @@ static int serm_get_msr(com_t *c)
 
 
 struct serial_drv serm_drv = {
-  serm_rx_buffer_dump,
-  serm_tx_buffer_dump,
   serm_get_tx_queued,
   serm_termios,
   serm_brkctl,

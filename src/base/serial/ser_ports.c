@@ -134,7 +134,7 @@ void uart_clear_fifo(int num, int fifo)
     com[num].IIR.flg.cti = 0;		/* clear timeout */
     com[num].rx_timeout = 0;		/* Receive intr already occurred */
     clear_int_cond(num, LS_INTR | RX_INTR);  /* Clear LS/RX conds */
-    rx_buffer_dump(num);		/* Clear receive buffer */
+//    rx_buffer_dump(num);		/* Clear receive buffer */
   }
 
   /* Clear the transmit FIFO */
@@ -142,7 +142,7 @@ void uart_clear_fifo(int num, int fifo)
     /* Preserve recv data ready bit and error bits, and set THR empty */
     com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
     clear_int_cond(num, TX_INTR);	/* Clear TX int condition */
-    tx_buffer_dump(num);		/* Clear transmit buffer */
+//    tx_buffer_dump(num);		/* Clear transmit buffer */
   }
 }
 

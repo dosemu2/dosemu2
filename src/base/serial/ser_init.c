@@ -450,8 +450,6 @@ rt f(int num, p1 c1, p2 c2) \
   return com[num].drv->f(&com[num], c1, c2); \
 }
 
-SER_FN0(void, rx_buffer_dump)
-SER_FN0(void, tx_buffer_dump)
 SER_FN0(int, serial_get_tx_queued)
 SER_FN0(void, ser_termios)
 SER_FN1(int, serial_brkctl, int, brkflg)

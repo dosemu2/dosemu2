@@ -416,8 +416,6 @@ void tx_buffer_slide(int num);
 int serial_get_tx_queued(int num);
 void serial_update(int num);
 
-void rx_buffer_dump(int num);
-void tx_buffer_dump(int num);
 int serial_get_tx_queued(int num);
 void ser_termios(int num);
 int serial_brkctl(int num, int brkflg);
@@ -432,8 +430,6 @@ int serial_get_msr(int num);
 void fossil_init(void);
 
 struct serial_drv {
-  void (*rx_buffer_dump)(com_t *c);
-  void (*tx_buffer_dump)(com_t *c);
   int (*serial_get_tx_queued)(com_t *c);
   void (*ser_termios)(com_t *c);
   int (*serial_brkctl)(com_t *c, int brkflg);

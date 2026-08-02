@@ -49,14 +49,6 @@ static int add_buf(com_t *c, const char *buf, int len)
   return len;
 }
 
-static void nullmm_rx_buffer_dump(com_t *c)
-{
-}
-
-static void nullmm_tx_buffer_dump(com_t *c)
-{
-}
-
 static int nullmm_get_tx_queued(com_t *c)
 {
   return 0;
@@ -121,8 +113,6 @@ static int nullmm_get_msr(com_t *c)
 
 
 struct serial_drv nullmm_drv = {
-  nullmm_rx_buffer_dump,
-  nullmm_tx_buffer_dump,
   nullmm_get_tx_queued,
   nullmm_termios,
   nullmm_brkctl,

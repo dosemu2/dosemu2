@@ -35,18 +35,6 @@
 static int pty_fd;
 static void async_serial_run(int fd, void *arg);
 
-/* This function flushes the internal unix receive buffer [num = port] */
-static void tty_rx_buffer_dump(com_t *c)
-{
-  tcflush(c->fd, TCIFLUSH);
-}
-
-/* This function flushes the internal unix transmit buffer [num = port] */
-static void tty_tx_buffer_dump(com_t *c)
-{
-  tcflush(c->fd, TCOFLUSH);
-}
-
 static int tty_get_tx_queued(com_t *c)
 {
   int ret = 0, queued = 0;
@@ -861,8 +849,6 @@ static int tty_get_msr(com_t *c)
 
 
 struct serial_drv tty_drv = {
-  tty_rx_buffer_dump,
-  tty_tx_buffer_dump,
   tty_get_tx_queued,
   tty_termios,
   tty_brkctl,
