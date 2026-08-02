@@ -57,7 +57,8 @@ BuildRequires: valgrind
 
 # our startup script is bash-specific
 Requires:   bash
-Requires:   comcom64
+Requires:   comcom64-comcom64
+Recommends: comcom64-comcom32
 Recommends: fluid-soundfont-gm
 Suggests:   timidity++ >= 2.14.0
 Recommends: ladspa
