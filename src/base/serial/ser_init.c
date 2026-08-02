@@ -256,10 +256,22 @@ static void do_ser_init(int num)
   if (com_cfg[num].end_port == 0)
     com_cfg[num].end_port = com_cfg[num].base_port + 7;
 
+  if (com_cfg[num].vmodem) {
 #ifdef USE_MODEMU
-  if (com_cfg[num].vmodem)
     com_cfg[num].dev = modemu_init(num);
+    if (!com_cfg[num].dev || !com_cfg[num].dev[0]) {
+      /* Don't fall through to the default /dev/ttySx below: a vmodem
+       * port must never silently degrade into opening real hardware. */
+      error("SER%d: vmodem initialization failed\n", num);
+      config.exitearly = 1;
+      return;
+    }
+#else
+    error("SER%d: vmodem support is not compiled in\n", num);
+    config.exitearly = 1;
+    return;
 #endif
+  }
   /* Is the device file undef? */
   if ((!com_cfg[num].dev || !com_cfg[num].dev[0]) && !com_cfg[num].mouse &&
       !com_cfg[num].is_file) {
