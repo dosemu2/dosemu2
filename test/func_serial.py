@@ -54,11 +54,17 @@ rem end
 
 
 def serial_nullmm_loopback(self):
-    """Two COM ports wired to each other: what DOS writes on one it
-    reads back on the other. Stays well under RX_BUFFER_SIZE, because a
-    single DOS process cannot drain the far end while it is still
-    writing."""
-    payload = "DATA_VIA_NULLMM"
+    # Two COM ports wired to each other: what DOS writes on one it
+    # reads back on the other. The payload (with CR LF ^Z, 31 bytes)
+    # is under RX_BUFFER_SIZE (128) so add_buf never drops, and over
+    # TX_QUEUE_THRESHOLD (14) so the copy crosses the flow-control
+    # regime: DOS is single-tasking, so nothing drains the peer until
+    # the copy has completed. Both markers asserted separately, so a
+    # truncated transfer fails on the tail marker instead of as an
+    # opaque expect timeout.
+    head = "NULLMM_BEGIN"
+    tail = "NULLMM_END"
+    payload = head + "_data_" + tail
 
     config = DOSEMU_CONF_DEFAULT
     config += """\
@@ -68,11 +74,12 @@ $_com2 = "nullmodem 1"
     # ^Z terminates the `type`, as DOS has no other end-of-input here.
     self.mkfile("payload.txt", payload + "\r\n\x1a", newline="")
     self.mkfile("testit.bat", """\
-copy /b payload.txt com1 > nul
+copy /b payload.txt com1
 type com2
 rem end
 """, newline="\r\n")
 
     results = self.runDosemu("testit.bat", config=config)
 
-    self.assertIn(payload, results)
+    self.assertIn(head, results)
+    self.assertIn(tail, results)
