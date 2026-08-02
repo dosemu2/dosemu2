@@ -408,11 +408,13 @@ void serial_close(void)
   for (i = 0; i < config.num_ser; i++) {
     if (com[i].opened <= 0)
       continue;
+    /* close the DOS-side fd first: ser_close() operates on the pty
+     * slave, and modemu_done() closes its master */
+    ser_close(i);
 #ifdef USE_MODEMU
     if (com_cfg[i].vmodem)
       modemu_done(i);
 #endif
-    ser_close(i);
   }
 }
 
