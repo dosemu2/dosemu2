@@ -3,6 +3,11 @@ on:
   push:
     branches:
       - devel
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 name: Create Packages (Docker)
 
