@@ -140,6 +140,12 @@ static void ser_reset_dev(int num)
   com[num].IER = 0;			/* Interrupt Enable Register */
   com[num].LCR = UART_LCR_WLEN8;	/* Line Control Register: 5N1 */
   com[num].FCReg = 0; 			/* FIFO Control Register */
+  if (com[num].opened > 0) {
+    if (com[num].MCR & UART_MCR_DTR)
+      serial_dtr(num, 0);
+    if ((com[num].MCR & UART_MCR_RTS) && !com_cfg[num].system_rtscts)
+      serial_rts(num, 0);
+  }
   com[num].MCR = 0;			/* Modem Control Register */
 }
 
