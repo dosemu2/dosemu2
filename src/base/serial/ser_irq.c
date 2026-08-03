@@ -323,6 +323,7 @@ void serial_int_engine(int num, int int_requested)
 
 void serial_update(int num)
 {
+  ser_tick(num);
 #ifdef USE_MODEMU
   if (com_cfg[num].vmodem)
     modemu_update(num);
