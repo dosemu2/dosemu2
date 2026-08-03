@@ -1,0 +1,90 @@
+vmodem - a modem for DOS that dials over TCP
+============================================
+
+This plugin gives a DOS serial port a Hayes modem whose "phone line" is
+a TCP socket. DOS dials with ATD, and the far end is a host and port.
+
+The AT command set, the telnet option negotiation and the socket are in
+libmodemu2k <https://github.com/theimpossibleastronaut/modemu2k>. This
+plugin connects that library to dosemu2's emulated 16550.
+
+
+Requirements
+------------
+
+libmodemu2k 0.2.5 or newer, with its development headers. `configure`
+lists `modemu` among the enabled plugins when it is found.
+
+0.2.5 is not released yet, so build it from git master for now. The
+driver needs m2k_pending_to_line(), which is the port's transmit-queue
+depth and was added after 0.2.4.
+
+
+Configuration
+-------------
+
+In ~/.dosemurc:
+
+    $_com1 = "vmodem"
+
+
+Test 1: dial out, using only DOS built-ins
+------------------------------------------
+
+This needs nothing installed in the DOS drive.
+
+In a Linux terminal, listen on a port:
+
+    nc -l 2323
+
+Start dosemu2 with the config above, and at the DOS prompt:
+
+    ECHO ATD"127.0.0.1 2323" > COM1
+    ECHO HELLO FROM DOS > COM1
+
+`nc` prints HELLO FROM DOS. That is the DOS-to-peer direction.
+
+For the other direction, read the port from DOS:
+
+    TYPE COM1
+
+It prints CONNECT, the two lines about escaping to command mode, and
+then whatever you type into the `nc` window. `TYPE` stops at a Ctrl-Z,
+so to get back to the DOS prompt, type Ctrl-V Ctrl-Z in the `nc`
+window and press Enter. (Ctrl-V tells the terminal to pass the next
+key through instead of acting on it.)
+
+`ECHO` cannot hang up. The call is online at this point, so anything
+written to COM1 goes down the socket, `ATH` included. Quit dosemu2, or
+use a terminal program as below. Test 2 is the one that shows the
+whole call.
+
+
+Test 2: dial out from a DOS terminal program
+--------------------------------------------
+
+Any DOS comm program works - Terminate, Telix, Telemate, or the
+terminal built into Dos Navigator. Set it to COM1. The line speed does
+not matter: nothing on the wire runs at it.
+
+Dial the same listener as above:
+
+    ATD"127.0.0.1 2323"
+
+Anything typed in either window appears in the other.
+
+To reach a real telnet BBS, dial its host and port:
+
+    ATD"bbs.example.org 23"
+
+`+++` returns to command mode without dropping the call, `ATO` goes
+back online, and `ATH` hangs up. Leave about a second of silence
+before and after the `+++`, as with a real modem: three plus signs in
+the middle of a stream are data, not an escape.
+
+
+Seeing what the modem is doing
+------------------------------
+
+Run dosemu2 with `-D+s` to log the serial subsystem. The library's own
+narration appears there, prefixed MODEMU2K.
