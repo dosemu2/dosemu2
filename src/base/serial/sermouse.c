@@ -68,25 +68,7 @@ static int add_buf(com_t *c, const char *buf, int len)
 {
   if (!serm.enabled || !serm.opened || serm.div != DIV_1200)
     return 0;
-  if (RX_BUF_BYTES(c->num) + len > RX_BUFFER_SIZE) {
-    if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", c->num,
-        RX_BUF_BYTES(c->num));
-    return 0;
-  }
-
-  /* Slide the buffer contents to the bottom */
-  rx_buffer_slide(c->num);
-
-  memcpy(&c->rx_buf[c->rx_buf_end], buf, len);
-  if (debug_level('s') >= 9) {
-    int i;
-    for (i = 0; i < len; i++)
-      s_printf("SER%d: Got mouse data byte: %#x\n", c->num,
-          c->rx_buf[c->rx_buf_end + i]);
-  }
-  c->rx_buf_end += len;
-  receive_engine(c->num);
-  return len;
+  return serial_rx_push(c, buf, len);
 }
 
 static void ser_mouse_move_button(int num, int press, void *udata)
