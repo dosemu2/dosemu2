@@ -19,6 +19,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 
 #include "emu.h"
@@ -86,6 +87,33 @@ void serial_timer_update(void)
   }
 }
 #endif
+
+/* Hand bytes to the UART receive queue on behalf of a driver that is
+ * pushed to rather than read from (sermouse, nullmm).  Returns the
+ * number accepted, which is 0 if the queue has no room for all of it.
+ */
+int serial_rx_push(com_t *c, const char *buf, int len)
+{
+  if (RX_BUF_BYTES(c->num) + len > RX_BUFFER_SIZE) {
+    if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", c->num,
+        RX_BUF_BYTES(c->num));
+    return 0;
+  }
+
+  /* Slide the buffer contents to the bottom */
+  rx_buffer_slide(c->num);
+
+  memcpy(&c->rx_buf[c->rx_buf_end], buf, len);
+  if (debug_level('s') >= 9) {
+    int i;
+    for (i = 0; i < len; i++)
+      s_printf("SER%d: Got data byte: %#x\n", c->num,
+          c->rx_buf[c->rx_buf_end + i]);
+  }
+  c->rx_buf_end += len;
+  receive_engine(c->num);
+  return len;
+}
 
 /* This function does housekeeping for serial receive operations.  Duties
  * of this function include keeping the UART FIFO/RBR register filled,

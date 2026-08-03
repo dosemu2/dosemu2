@@ -19,35 +19,11 @@
  *
  * Author: stsp
  */
-#include <string.h>
 #include "emu.h"
 #include "init.h"
 #include "utilities.h"
 #include "ser_defs.h"
 #include "nullmm.h"
-
-static int add_buf(com_t *c, const char *buf, int len)
-{
-  if (RX_BUF_BYTES(c->num) + len > RX_BUFFER_SIZE) {
-    if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", c->num,
-        RX_BUF_BYTES(c->num));
-    return 0;
-  }
-
-  /* Slide the buffer contents to the bottom */
-  rx_buffer_slide(c->num);
-
-  memcpy(&c->rx_buf[c->rx_buf_end], buf, len);
-  if (debug_level('s') >= 9) {
-    int i;
-    for (i = 0; i < len; i++)
-      s_printf("SER%d: Got mouse data byte: %#x\n", c->num,
-          c->rx_buf[c->rx_buf_end + i]);
-  }
-  c->rx_buf_end += len;
-  receive_engine(c->num);
-  return len;
-}
 
 static int nullmm_get_tx_queued(com_t *c)
 {
@@ -68,7 +44,7 @@ static ssize_t nullmm_write(com_t *c, char *buf, size_t len)
   int idx = get_com_idx(c->cfg->nullmm);
   if (idx == -1)
     return -1;
-  return add_buf(&com[idx], buf, len);
+  return serial_rx_push(&com[idx], buf, len);
 }
 
 static int nullmm_dtr(com_t *c, int flag)

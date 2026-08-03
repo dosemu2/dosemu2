@@ -427,6 +427,8 @@ int ser_close(int num);
 int uart_fill(int num);
 int serial_get_msr(int num);
 
+int serial_rx_push(com_t *c, const char *buf, int len);
+
 void fossil_init(void);
 
 struct serial_drv {
