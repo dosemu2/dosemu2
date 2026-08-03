@@ -39,14 +39,15 @@ RUN cd libsearpc && ./autogen.sh && ./configure && \
 
 RUN apk add libb64-dev --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing
 RUN apk add json-c-dev libslirp-dev gawk libseccomp-dev \
-    slang-dev
+    slang-dev ladspa-dev
 RUN git clone --depth 1 https://github.com/dosemu2/dosemu2.git
 RUN cd dosemu2 && ./autogen.sh && ./configure && \
     make -j $(nproc) && make install
 
 
 FROM alpine:3.21
-RUN apk add elfutils jansson glib slang bash json-c libslirp gawk libseccomp
+RUN apk add elfutils jansson glib slang bash json-c libslirp gawk libseccomp \
+    ladspa
 RUN apk add libb64 --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing
 
 COPY --from=builder /usr/local /usr/local
