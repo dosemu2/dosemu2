@@ -324,10 +324,6 @@ void serial_int_engine(int num, int int_requested)
 void serial_update(int num)
 {
   ser_tick(num);
-#ifdef USE_MODEMU
-  if (com_cfg[num].vmodem)
-    modemu_update(num);
-#endif
   /* optimization: don't read() when enough data buffered */
   if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger && !IOSEL_CUR(&com[num]) &&
       com_cfg[num].dev) {

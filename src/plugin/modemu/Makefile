@@ -5,22 +5,26 @@
 #
 
 top_builddir=../../..
-include ../plugins_simp.mak
+include ../plugins.mak
 
-CFILES = modemu.c sockbuf.c ttybuf.c stty.c telopt.c sock.c atcmd.c \
-	timeval.c verbose.c
-ALL_CPPFLAGS += -DDOSEMU -I$(REALTOPDIR)/src/plugin/modemu
-GENSRC = lex.zz.c
+ALL_CFLAGS += $(DL_CFLAGS) $(MODEMU2K_CFLAGS)
+ALL_CPPFLAGS += -iquote $(REALTOPDIR)/src/base/serial
+CFILES = vmodem.c
 
+ifeq ($(USE_DL_PLUGINS),1)
+all: $(BINPATH)/bin/libplugin_modemu.so
+else
 all: lib
+endif
 
 install: all
-
-lex.zz.c: cmdlex.l
-	$(LEX) $(LFLAGS) --prefix=zz $<
 
 clean::
 	rm -f *.o *.d
 
 include $(REALTOPDIR)/src/Makefile.common.post
-vpath %.l $(srcdir)
+
+ifeq ($(USE_DL_PLUGINS),1)
+$(BINPATH)/bin/libplugin_modemu.so: $(OBJS) | $(BINPATH)/bin
+	$(CC) $(LDFLAGS) $(PLUGIN_LDFLAGS) -o $@ $^ $(MODEMU2K_LIBS)
+endif
