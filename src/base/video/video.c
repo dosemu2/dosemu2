@@ -95,6 +95,9 @@ static int no_real_terminal(void)
  */
 int using_kms(void)
 {
+    const char *ts = getenv("TERM_SESSION_TYPE");
+    if (ts && strcmp(ts, "kms") == 0)
+        return 1;
 #ifdef __linux__
     char pci_dev_dir[1024];
     int bus, dev, func;
