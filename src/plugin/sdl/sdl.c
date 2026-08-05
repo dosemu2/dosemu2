@@ -1836,6 +1836,10 @@ static void SDL_text_unlock(void *opaque)
 
 CONSTRUCTOR(static void init(void))
 {
+  if (!config.sdl_hwrend && using_kms()) {
+    dbug_printf("SDL: forcing hwrend on KMS\n");
+    config.sdl_hwrend = 1;
+  }
   register_video_client(&Video_SDL);
   register_keyboard_client(&Keyboard_SDL);
   register_mouse_client(&Mouse_SDL);
