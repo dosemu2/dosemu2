@@ -243,6 +243,10 @@ export UBSAN_OPTIONS="${UBSAN_OPTIONS}print_stacktrace=1"
 # this is needed to show dosemu icon
 export SDL_VIDEO_X11_WMCLASS=dosemu
 
+if [ -z "$DBG" -a "$TERM_SESSION_TYPE" = "kms" ]; then
+  DBG=`which kmscon-launch-gui 2>/dev/null`
+fi
+
 eval "set -- $SUFFIX"
 COMMAND="$SUDO $SUDOOPTS $DBG $BINARY -o $LOG_FILE $OPTS"
 if [ -n "$STRING_I" ] ; then
