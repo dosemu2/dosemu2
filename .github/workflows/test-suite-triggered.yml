@@ -1,5 +1,9 @@
 name: Test Suite (Triggered)
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
 on:
   push:
 
