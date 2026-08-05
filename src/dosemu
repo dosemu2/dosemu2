@@ -176,6 +176,12 @@ while [ $# -gt 0 ] ; do
       DBG="gdb --args"
       shift
       ;;
+    -gdbs)
+      # dosemu -gdbs 0.0.0.0:2345
+      DBG="gdbserver $2"
+      shift
+      shift
+      ;;
     -perf)
       DBG="perf record --call-graph dwarf --"
       shift
