@@ -5921,7 +5921,7 @@ static int dpmi_fault1(cpuctx_t *scp)
               LWORD32(eip, += 3);
               break;
             default:
-              error("DPMI: unsupported SLDT dest %x\n%s", csp[1],
+              error_once("DPMI: unsupported SLDT/SIDT dest %x\n%s", csp[1],
                   DPMI_show_state(scp));
               LWORD32(eip, = org_eip + instr_len(lina, Segments(_cs>>3).is_32));
               break;
