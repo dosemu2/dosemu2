@@ -1119,6 +1119,8 @@ void *mapping_find_hole(unsigned long start, unsigned long stop,
     pend = start;
     while ((ret = fscanf(fp, "%lx-%lx%*[^\n]", &beg, &end)) == 2) {
 	if (beg <= start) {
+	    if (end + size > stop)
+		return MAP_FAILED;
 	    if (end > pend)
 		pend = end;
 	    continue;
