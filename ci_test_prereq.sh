@@ -2,9 +2,15 @@
 
 set -e
 
-echo "Configuring PPAs..."
-sudo add-apt-repository -y ppa:jwt27/djgpp-toolchain
-sudo add-apt-repository -y ppa:stsp-0/gcc-ia16
+# Install djgpp and ia16 compilers / libs.
+sudo add-apt-repository -y --no-update ppa:jwt27/djgpp-toolchain
+sudo add-apt-repository -y --no-update ppa:stsp-0/gcc-ia16
+is_amd64v3=$(apt-config dump | grep -q 'Variants.*amd64v3' && echo true || echo false) # APT::Architecture-Variants "amd64v3"
+if [ "$is_amd64v3" = "true" ] ; then
+  # Since there are no host libs to link against we can use amd64 arch on arm64v3
+  sudo sed -i '/^URIs:/i Architectures: amd64' /etc/apt/sources.list.d/jwt27-ubuntu-djgpp-toolchain-resolute.sources
+  sudo sed -i '/^URIs:/i Architectures: amd64' /etc/apt/sources.list.d/stsp-0-ubuntu-gcc-ia16-resolute.sources
+fi
 sudo apt update -q
 
 sudo apt install -y \
@@ -27,11 +33,25 @@ sudo apt install -y \
   dos2unix \
   bridge-utils \
   libvirt-daemon \
-  libvirt-daemon-system
+  libvirt-daemon-system \
+  dnsmasq-base \
+  iptables
 
-sudo apt install -y \
+if [ -f /etc/os-release ] ; then
+    . /etc/os-release
+    OS_VERSION=${VERSION_ID}
+else
+    OS_VERSION="unknown"
+fi
+if [ "$OS_VERSION" = "26.04" ] ; then
+    sudo virsh net-define /etc/libvirt/qemu/networks/default.xml || true
+    sudo virsh net-start default || true
+    sudo virsh net-autostart default || true
+fi
+
+sudo apt install -y -f \
   dj64-dbgsym \
-  djdev64-dbgsym
+  libdjdev64-0-dbgsym
 
 # Install the FAT mount helper
 sudo cp test/dosemu_fat_mount.sh /bin/.

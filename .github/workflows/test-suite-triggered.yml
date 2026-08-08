@@ -17,9 +17,9 @@ on:
 
 jobs:
   triggered:
-    name: "Test Suite (standard-${{ (github.event_name == 'push' && github.repository_owner == 'dosemu' && github.ref_name == 'devel') && 'simple' || 'normal' }}-ubuntu-24.04)"
+    name: "Test Suite (standard-${{ (github.event_name == 'push' && github.repository_owner == 'dosemu' && github.ref_name == 'devel') && 'simple' || 'normal' }}-ubuntu-26.04)"
     uses: ./.github/workflows/test-suite-worker.yml
     with:
       bldtype: 'standard'
       runtype: ${{ (github.event_name == 'push' && github.repository_owner == 'dosemu' && github.ref_name == 'devel') && 'simple' || 'normal' }}
-      os: 'ubuntu-24.04'
+      os: 'ubuntu-26.04'
