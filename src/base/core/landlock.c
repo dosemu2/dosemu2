@@ -91,7 +91,8 @@ int landlock_init(void)
     }
     if (abi < 8) {
         /* On ABI < 8 LANDLOCK_RESTRICT_SELF_TSYNC missing. */
-        error("Your kernel is too old, using minimal Landlock protection\n");
+        error("@Warning: your kernel is too old, "
+              "using minimal Landlock protection\n");
         restrict_flags &= ~LANDLOCK_RESTRICT_SELF_TSYNC;
     }
 
