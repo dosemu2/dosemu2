@@ -235,8 +235,11 @@ Bit8u page)
  address=pgsize*page;
  write_bda_word(BIOSMEM_CURRENT_START,address);
 
- // Now the CRTC start address
- address>>=1;
+ // Now the CRTC start address, which the CRTC counts in words for text
+ // and in bytes for the planar graphics modes.  The LGPL vgabios shifts
+ // only in its TEXT arm; the port at e89164764 kept the shift and lost
+ // the arm, halving the offset in graphics modes and rolling the display.
+ address>>=vgabios_using_text_mode()?1:0;
 
  // CRTC regs 0x0c and 0x0d
  crtc_addr=read_bda_word(BIOSMEM_CRTC_ADDRESS);
