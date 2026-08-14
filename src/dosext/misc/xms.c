@@ -885,7 +885,7 @@ xms_move_EMB(void)
     d = NULL;
   }
   else {
-    if (!handles[e.DestHandle].addr) {
+    if (e.DestHandle >= NUM_HANDLES || !handles[e.DestHandle].addr) {
       x_printf("XMS: invalid dest handle\n");
       return 0xa5;
     }
