@@ -319,7 +319,7 @@ struct file_fd *mfs_open(int mfs_idx, const char *name, int flags,
 static int do_mfs_creat(int mfs_idx, struct file_fd *f, const char *fname,
                         mode_t mode)
 {
-    int fd, err, i;
+    int err, i;
     void *shlock;
     void *exlock;
 
@@ -339,7 +339,7 @@ static int do_mfs_creat(int mfs_idx, struct file_fd *f, const char *fname,
         goto err3;
     shlock_close(exlock);
 
-    f->fd = vfs_file_wrap_posix(fd);
+    f->fd = vfd;
     f->shlock = shlock;
     f->share_mode = 0;
     f->psp = sda_cur_psp(sda);

@@ -972,7 +972,7 @@ static void set_vol_and_len(fatfs_t *f, unsigned oi)
         if(!f->obj[oi].first_child) f->obj[oi].first_child = u;
         f->obj[u].dos_dir_size = 0x20;
         o->size += 0x20;
-        if (!vfs_fstat(vfs_file_wrap_posix(vfs_dirfd(f->dir_fd)), &sb)) {
+        if (!fstat(vfs_dirfd(f->dir_fd), &sb)) {
           f->obj[u].time = dos_time(&sb.st_mtime);
         }
 	fatfs_deb2("added label \"%s\"\n", f->label);
