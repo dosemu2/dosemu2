@@ -388,6 +388,8 @@ void dspio_reset(struct dspio_state *dspio)
 
 void dspio_done(struct dspio_state *dspio)
 {
+    if (!dspio)
+        return;
     midi_done();
     /* shutdown midi before pcm as midi may use pcm */
     pcm_done();

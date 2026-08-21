@@ -195,6 +195,8 @@ void mpu401_reset(struct mpu401_s *mpu)
 
 void mpu401_done(struct mpu401_s *mpu)
 {
+    if (!mpu)
+        return;
     rng_destroy(&mpu->fifo_in);
     free(mpu);
 }

@@ -166,7 +166,7 @@ void adlib_reset(void)
 
 void adlib_done(void)
 {
-    if (!oplops->Generate)
+    if (!oplops || !oplops->Generate)
 	return;
     pthread_cancel(syn_thr);
     pthread_join(syn_thr, NULL);
