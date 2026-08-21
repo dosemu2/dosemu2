@@ -30,7 +30,7 @@ RUN apt-get install -y ./comcom64*.deb
 RUN apt-get install -y libb64-dev libjson-c-dev libslirp-dev libseccomp-dev \
     libslang2-dev libsearpc-dev libsdl3-dev libfluidsynth-dev gawk \
     xfonts-utils libgpm-dev libsdl3-ttf-dev libfontconfig1-dev \
-    ladspa-sdk libao-dev libieee1284-3-dev valgrind
+    ladspa-sdk libao-dev libieee1284-3-dev valgrind bison flex
 RUN git clone --depth 1 https://github.com/dosemu2/dosemu2.git
 RUN cd dosemu2 && debuild -i -us -uc -b
 RUN apt-get install -y ./dosemu2*.deb

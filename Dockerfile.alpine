@@ -39,7 +39,7 @@ RUN cd libsearpc && ./autogen.sh && ./configure && \
 
 RUN apk add libb64-dev --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing
 RUN apk add json-c-dev libslirp-dev gawk libseccomp-dev \
-    slang-dev ladspa-dev
+    slang-dev ladspa-dev bison flex
 RUN git clone --depth 1 https://github.com/dosemu2/dosemu2.git
 RUN cd dosemu2 && ./autogen.sh && ./configure && \
     make -j $(nproc) && make install
