@@ -5,6 +5,16 @@ sdk: org.freedesktop.Sdk
 command: dosemu
 
 modules:
+  - name: python3-ply
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} "ply" --no-build-isolation
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/a3/58/35da89ee790598a0700ea49b2a66594140f44dec458c07e8e3d4979137fc/ply-3.11-py2.py3-none-any.whl
+        sha256: 096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce
+
   - name: thunk-gen
     buildsystem: meson
     sources:
