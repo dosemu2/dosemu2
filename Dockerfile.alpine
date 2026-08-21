@@ -6,7 +6,7 @@ RUN git clone --depth 1 https://github.com/stsp/thunk_gen.git
 RUN cd thunk_gen && ./configure && meson compile --verbose -C build && \
     meson install -C build
 
-RUN apk add texinfo
+RUN apk add texinfo bison flex
 RUN git clone --depth 1 git://sourceware.org/git/binutils-gdb.git
 RUN cd binutils-gdb && ./configure --target=i686-unknown-linux-gnu \
     --disable-gdb --disable-texinfo --disable-sim --disable-gprofng \
@@ -39,7 +39,7 @@ RUN cd libsearpc && ./autogen.sh && ./configure && \
 
 RUN apk add libb64-dev --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing
 RUN apk add json-c-dev libslirp-dev gawk libseccomp-dev \
-    slang-dev ladspa-dev bison flex
+    slang-dev ladspa-dev
 RUN git clone --depth 1 https://github.com/dosemu2/dosemu2.git
 RUN cd dosemu2 && ./autogen.sh && ./configure && \
     make -j $(nproc) && make install
