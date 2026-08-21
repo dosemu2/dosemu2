@@ -121,7 +121,7 @@ static int vfat_search(char *dest, const char *src, const char *path, int alias,
   if (dir == NULL)
     return 0;
 
-  if (dir->dir == NULL)
+  if (dir->vdir == NULL)
     while ((de = dos_readdir(dir)) != NULL) {
       d_printf("LFN: vfat_search (short='%s', long='%s')", de->d_name, de->d_long_name);
       if ((strcasecmp(de->d_long_name, src) == 0) || (strcasecmp(de->d_name, src) == 0)) {

@@ -322,7 +322,7 @@ read_sectors(const struct disk *dp, unsigned buffer, uint64_t sector,
       error("Sector not found in read_sector, error = %s!\n", strerror(errno));
       return -DERR_NOTFOUND;
     }
-    tmpread = dos_read(dp->fdesc, buffer, count * SECTOR_SIZE - already);
+    tmpread = dos_read_posix(dp->fdesc, buffer, count * SECTOR_SIZE - already);
   }
 
   if(tmpread != -1) {
@@ -403,7 +403,7 @@ write_sectors(struct disk *dp, unsigned buffer, uint64_t sector,
       error("Sector not found in write_sector!\n");
       return -DERR_NOTFOUND;
     }
-    tmpwrite = dos_write(dp->fdesc, buffer, count * SECTOR_SIZE - already);
+    tmpwrite = dos_write_posix(dp->fdesc, buffer, count * SECTOR_SIZE - already);
   }
 
   /* this should make floppies a little safer...I would as soon use the

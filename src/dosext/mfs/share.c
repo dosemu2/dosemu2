@@ -1,3 +1,4 @@
+#include "vfs/vfs.h"
 /*
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -128,7 +129,7 @@ static int file_is_opened(int mfs_idx, const char *name)
     int lck = is_locked_shlock(name);
     if (lck)
         return 1;  // locked means already opened
-    return mfs_access(mfs_idx, name, F_OK);
+    return vfs_access(vfs_get_fs(mfs_idx), name, F_OK);
 }
 
 static char *prepare_shemu_name(const char *fname, int id)
@@ -222,7 +223,8 @@ static int do_mfs_open(int mfs_idx, struct file_fd *f, const char *fname,
     exlock = apply_exlock(fname);
     if (!exlock)
         return -1;
-    async = mfs_open_async(mfs_idx, fname, flags | O_CLOEXEC);
+    vfs_fs_t *fs = vfs_get_fs(mfs_idx);
+    async = vfs_open_async(fs, fname, flags | O_CLOEXEC);
     if (!async)
         goto err;
     if (!share_mode) {
@@ -268,7 +270,7 @@ static int do_mfs_open(int mfs_idx, struct file_fd *f, const char *fname,
         goto err4;
     shlock_close(exlock);
 
-    f->fd = fd;
+    f->fd = vfs_file_wrap_posix(fd);
     f->shlock = shlock;
     f->share_mode = share_mode;
     f->psp = sda_cur_psp(sda);
@@ -287,7 +289,7 @@ err2:
     if (async) {
         fd = mfs_async_getfd(async);
         if (fd != -1)
-            close(fd);
+            vfs_close(vfs_file_wrap_posix(fd));
     }
 err:
     shlock_close(exlock);
@@ -324,9 +326,9 @@ static int do_mfs_creat(int mfs_idx, struct file_fd *f, const char *fname,
     exlock = apply_exlock(fname);
     if (!exlock)
         return -1;
-    fd = mfs_create_file(mfs_idx, fname,
-                         O_RDWR | O_CLOEXEC | O_CREAT | O_TRUNC, mode);
-    if (fd == -1)
+    vfs_fs_t *fs = vfs_get_fs(mfs_idx);
+    vfs_file_t *vfd = vfs_creat(fs, fname, O_RDWR | O_CLOEXEC | O_CREAT | O_TRUNC, mode);
+    if (!vfd)
         goto err;
     /* set compat mode */
     err = open_compat(fname, O_RDWR, f->shemu_locks);
@@ -337,7 +339,7 @@ static int do_mfs_creat(int mfs_idx, struct file_fd *f, const char *fname,
         goto err3;
     shlock_close(exlock);
 
-    f->fd = fd;
+    f->fd = vfs_file_wrap_posix(fd);
     f->shlock = shlock;
     f->share_mode = 0;
     f->psp = sda_cur_psp(sda);
@@ -351,8 +353,8 @@ err3:
             shlock_close(f->shemu_locks[i]);
     }
 err2:
-    unlink(fname);
-    close(fd);
+    vfs_unlink(fs, fname);
+    vfs_close(vfd);
 err:
     shlock_close(exlock);
     return -1;
@@ -398,7 +400,7 @@ static int do_mfs_unlink(int mfs_idx, const char *fname, int force)
                 return ACCESS_DENIED;
             }
     }
-    rc = mfs_unlink_file(mfs_idx, fname);
+    rc = vfs_unlink(vfs_get_fs(mfs_idx), fname);
     shlock_close(exlock);
     if (rc)
         return FILE_NOT_FOUND;
@@ -437,7 +439,7 @@ static int do_mfs_setattr(int mfs_idx, const char *fname, int attr, int force)
                 return ACCESS_DENIED;
             }
     }
-    rc = mfs_setxattr_file(mfs_idx, fname, attr);
+    rc = vfs_setxattr(vfs_get_fs(mfs_idx), fname, attr);
     shlock_close(exlock);
     return rc;
 }
@@ -488,7 +490,7 @@ static int do_mfs_rename(int mfs_idx, const char *fname, const char *fname2,
         return ACCESS_DENIED;
     }
 
-    rc = mfs_rename_file(mfs_idx, fname, fname2);
+    rc = vfs_rename(vfs_get_fs(mfs_idx), fname, fname2);
     shlock_close(exlock2);
     shlock_close(exlock);
     if (rc) {
@@ -517,7 +519,7 @@ void mfs_close(struct file_fd *f)
 {
     int i;
 
-    close(f->fd);
+    vfs_close(f->fd);
     if (f->shlock)
         shlock_close(f->shlock);
     for (i = 0; i < lk_MAX; i++) {

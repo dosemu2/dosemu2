@@ -1,3 +1,4 @@
+#include "vfs/vfs.h"
 /*
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -134,7 +135,7 @@ int get_dos_xattr_fd(int fd, const char *name)
 
 int file_is_ro(int mfs_idx, const char *fname)
 {
-    int attr = mfs_getxattr_file(mfs_idx, fname);
+    int attr = vfs_getxattr(vfs_get_fs(mfs_idx), fname);
     /* NOTE: do not use unix file perms for R/O as that may crash
      * some cdrom games:
      * https://github.com/dosemu2/dosemu2/issues/989

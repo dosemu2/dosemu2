@@ -1,3 +1,4 @@
+#include "vfs/vfs.h"
 /*
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -90,7 +91,7 @@ static void lock_get(int fd, struct flock *fl)
   }
 }
 
-int lock_file_region(int fd, int lck, long long start,
+int lock_file_region(vfs_file_t *fd, int lck, long long start,
     unsigned long len, int wr, int mlemu_fd)
 {
   struct flock fl;
@@ -98,25 +99,25 @@ int lock_file_region(int fd, int lck, long long start,
 
   /* make data visible before releasing the lock */
   if (!lck)
-    fsync(fd);
+    vfs_fsync(fd);
 
   fl.l_type = (lck ? (wr ? F_WRLCK : F_RDLCK) : F_UNLCK);
   fl.l_start = start;
   fl.l_len = len;
   /* needs to lock against I/O operations in another process */
-  ret = flock(fd, LOCK_EX);
+  ret = flock(fd->fd, LOCK_EX);
   if (ret)
     return -1;
-  ret = lock_set(fd, &fl);
+  ret = lock_set(fd->fd, &fl);
 #if FUNLCK_WA
   if (mlemu_fd != -1)
     lock_set(mlemu_fd, &fl);
 #endif
-  flock(fd, LOCK_UN);
+  flock(fd->fd, LOCK_UN);
   return ret;
 }
 
-int region_is_fully_owned(int fd, long long start, unsigned long len, int wr,
+int region_is_fully_owned(vfs_file_t *fd, long long start, unsigned long len, int wr,
     int mlemu_fd2)
 {
   struct flock fl;
@@ -125,7 +126,7 @@ int region_is_fully_owned(int fd, long long start, unsigned long len, int wr,
   fl.l_type = F_UNLCK;
   fl.l_start = start;
   fl.l_len = len;
-  err = do_lock_get(fd, &fl);
+  err = do_lock_get(fd->fd, &fl);
 #if FUNLCK_WA
   if (err && errno == EINVAL) {  // F_UNLCK extension unsupported
     /* check on mirror fd so rd/wr inverted */
@@ -155,7 +156,7 @@ int region_is_fully_owned(int fd, long long start, unsigned long len, int wr,
   return 1;
 }
 
-int region_lock_offs(int fd, long long start, unsigned long len, int wr)
+int region_lock_offs(vfs_file_t *fd, long long start, unsigned long len, int wr)
 {
   struct flock fl;
   int ret;
@@ -164,25 +165,25 @@ int region_lock_offs(int fd, long long start, unsigned long len, int wr)
 #ifndef __APPLE__
   /* on MacOS this kind of lock is incompatible with F_OFD_GETLK,
      which then sets l_pid to -1 */
-  ret = flock(fd, LOCK_EX);
+  ret = flock(fd->fd, LOCK_EX);
   if (ret)
     return -1;
 #endif
   fl.l_type = wr ? F_WRLCK : F_RDLCK;
   fl.l_start = start;
   fl.l_len = len;
-  lock_get(fd, &fl);
+  lock_get(fd->fd, &fl);
   if (fl.l_type == F_UNLCK)
     return len;
   if (fl.l_start > start)
     return (fl.l_start - start);  // found partially unlocked region
   /* no allowed region found, unlock and return 0 */
-  return flock(fd, LOCK_UN);
+  return flock(fd->fd, LOCK_UN);
 }
 
-void region_unlock_offs(int fd)
+void region_unlock_offs(vfs_file_t *fd)
 {
-  flock(fd, LOCK_UN);
+  flock(fd->fd, LOCK_UN);
 }
 
 #if FUNLCK_WA
