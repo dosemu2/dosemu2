@@ -5,15 +5,15 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
-    branches:
-    - master
-    - devel
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
+#  push:
+#    branches:
+#    - master
+#    - devel
+#  pull_request:
+#    types:
+#      - opened
+#      - reopened
+#      - synchronize
   workflow_dispatch:
 
 permissions: {} # none
