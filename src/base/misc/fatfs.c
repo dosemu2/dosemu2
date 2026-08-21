@@ -71,8 +71,10 @@
 #include "dos2linux.h"
 #include "utilities.h"
 #include "fslib/fslib.h"
+#include "vfs/vfs.h"
 #include "fatfs.h"
 #include "fatfs_priv.h"
+
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -206,12 +208,13 @@ void fatfs_init(struct disk *dp)
 
   f->ffn = malloc(MAX_DIR_NAME_LEN + MAX_FILE_NAME_LEN + 1);
   assert(f->ffn);
+  f->fs = vfs_get_fs(dp->mfs_idx);
 
   f->boot_sec = malloc(0x200);
 
   f->dir = dp->dev_name;
-  f->dir_fd = open(f->dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-  if (f->dir_fd == -1) {
+  f->dir_fd = vfs_opendir(f->fs, f->dir);
+  if (!f->dir_fd) {
     error("fatfs: failed to open %s: %s\n", f->dir, strerror(errno));
     leavedos_main(5);
     return;
@@ -289,7 +292,6 @@ void fatfs_init(struct disk *dp)
   f->last_cluster = (f->total_secs - f->reserved_secs - f->fats * f->fat_secs
                     - f->root_secs) / f->cluster_secs + 1;
   f->drive_num = dp->drive_num;
-  f->mfs_idx = dp->mfs_idx;
   f->group = dp->group;
 
   f->obj = NULL;
@@ -377,7 +379,7 @@ void fatfs_done(struct disk *dp)
 
   if(!(f = dp->fatfs)) return;
 
-  close(f->dir_fd);
+  vfs_closedir(f->dir_fd);
 
   for(u = 1; u < f->objs; u++) {
     if(f->obj[u].name)
@@ -799,7 +801,7 @@ static int sys_file_idx(const char *name, fatfs_t *f)
     path = full_name(f, 0, name);
     if (!path)
 	return -1;
-    err = mfs_stat_file(f->mfs_idx, path, &sb);
+    err = vfs_stat(f->fs, path, &sb);
     if (err)
 	return -1;
     if (!(S_ISREG(sb.st_mode) || (S_ISDIR(sb.st_mode) &&
@@ -970,7 +972,7 @@ static void set_vol_and_len(fatfs_t *f, unsigned oi)
         if(!f->obj[oi].first_child) f->obj[oi].first_child = u;
         f->obj[u].dos_dir_size = 0x20;
         o->size += 0x20;
-        if(!fstat(f->dir_fd, &sb)) {
+        if (!vfs_fstatdir(f->dir_fd, &sb)) {
           f->obj[u].time = dos_time(&sb.st_mtime);
         }
 	fatfs_deb2("added label \"%s\"\n", f->label);
@@ -985,7 +987,8 @@ static void set_vol_and_len(fatfs_t *f, unsigned oi)
 static void probe_system(fatfs_t *f)
 {
     char *buf, *buf_ptr, *s;
-    int fd, size, i;
+    vfs_file_t *vfd;
+    int size, i;
     int read_bb;
     struct stat sb;
 
@@ -998,12 +1001,12 @@ static void probe_system(fatfs_t *f)
     } else {
       if (f->sys_type == MS_D) {
         s = sys_found[0].name; /* io.sys */
-        if (s && (fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
-            int err = fstat(fd, &sb);
+        if (s && (vfd = vfs_open(f->fs, s, O_RDONLY)) != NULL) {
+            int err = vfs_fstat(vfd, &sb);
             assert(!err);
             buf = malloc(sb.st_size + 1);
             assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
-            size = read(fd, buf, sb.st_size);
+            size = vfs_read(vfd, buf, sb.st_size);
             if (size > 0) {
                 if(buf[0] == 'M' && buf[1] == 'Z') {  /* MS-DOS >= 7 */
                     f->sys_type = NEWMSD_D;
@@ -1033,7 +1036,7 @@ static void probe_system(fatfs_t *f)
                 }
             }
             free(buf);
-            close(fd);
+            vfs_close(vfd);
             if ((f->sys_type == MS_D) && (sb.st_size <= 26*1024)) {
                 f->sys_type = OLDMSD_D; /* unknown but small enough to be < v4 */
             }
@@ -1045,12 +1048,12 @@ static void probe_system(fatfs_t *f)
       if (f->sys_type == PC_D) {
         /* see if it is PC-DOS or Original DR-DOS */
         s = sys_found[0].name;
-        if (s && (fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
-            int err = fstat(fd, &sb);
+        if (s && (vfd = vfs_open(f->fs, s, O_RDONLY)) != NULL) {
+            int err = vfs_fstat(vfd, &sb);
             assert(!err);
             buf = malloc(sb.st_size + 1);
             assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
-            size = read(fd, buf, sb.st_size);
+            size = vfs_read(vfd, buf, sb.st_size);
             if (size > 0) {
                 buf[size] = 0;
                 buf_ptr = buf;
@@ -1077,19 +1080,19 @@ static void probe_system(fatfs_t *f)
                 }
             }
             free(buf);
-            close(fd);
+            vfs_close(vfd);
             if ((f->sys_type == PC_D) && (sb.st_size <= 26*1024)) {
                 f->sys_type = OLDPCD_D; /* unknown but small enough to be < v4 */
             }
         }
         /* see if it is MS-DOS 4.0 */
         s = sys_found[1].name;
-        if (s && (fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
-            int err = fstat(fd, &sb);
+        if (s && (vfd = vfs_open(f->fs, s, O_RDONLY)) != NULL) {
+            int err = vfs_fstat(vfd, &sb);
             assert(!err);
             buf = malloc(sb.st_size + 1);
             assert(sb.st_size < PTRDIFF_MAX);  // fixes gcc warning
-            size = read(fd, buf, sb.st_size);
+            size = vfs_read(vfd, buf, sb.st_size);
             if (size > 0) {
                 buf[size] = 0;
                 buf_ptr = buf;
@@ -1101,7 +1104,7 @@ static void probe_system(fatfs_t *f)
                     f->sys_type = OLDMSD_D;  // Multitasking DOS 4.0
             }
             free(buf);
-            close(fd);
+            vfs_close(vfd);
         }
         if (f->sys_type == PC_D)
             f->sys_type = NEWPCD_D;     /* default to v4.x -> v7.x */
@@ -1110,18 +1113,18 @@ static void probe_system(fatfs_t *f)
       if (f->sys_type == MOS_D) {
         /* see if it is old MOS */
         s = sys_found[0].name;
-        if (s && ((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1)) {
+        if (s && ((vfd = vfs_open(f->fs, s, O_RDONLY)) != NULL)) {
           uint32_t buf;
-          int err = fstat(fd, &sb);
+          int err = vfs_fstat(vfd, &sb);
           int rc;
           assert(!err);
           if (sb.st_size == 128880) {
-              lseek(fd, 0x175, SEEK_SET);
-              rc = read(fd, &buf, sizeof(buf));
+              vfs_lseek(vfd, 0x175, SEEK_SET);
+              rc = vfs_read(vfd, &buf, sizeof(buf));
               if (rc == sizeof(buf) && buf == 0x20200105)    /* 5.01 */
                   f->sys_type = OLDMOS_D;
           }
-          close(fd);
+          vfs_close(vfd);
         }
       }
 
@@ -1132,15 +1135,15 @@ static void probe_system(fatfs_t *f)
     /* load boot block from "boot.blk" file or generate Dosemu's own */
     s = full_name(f, 0, "boot.blk");
     read_bb = 0;
-    if (s && (fd = mfs_open_file(f->mfs_idx, s, O_RDONLY)) != -1) {
+    if (s && (vfd = vfs_open(f->fs, s, O_RDONLY)) != NULL) {
       if (
-          fstat(fd, &sb) == 0 && S_ISREG(sb.st_mode) && sb.st_size == 0x200 &&
-          read(fd, f->boot_sec, 0x200) == 0x200) {
+          vfs_fstat(vfd, &sb) == 0 && S_ISREG(sb.st_mode) && sb.st_size == 0x200 &&
+          vfs_read(vfd, f->boot_sec, 0x200) == 0x200) {
         read_bb = 1;
         fatfs_msg("fatfs: boot block taken from boot.blk\n");
         update_geometry(f, f->boot_sec);
       }
-      close(fd);
+      vfs_close(vfd);
     }
     if (!read_bb) {
       fatfs_msg("fatfs: boot block generated\n");
@@ -1168,7 +1171,7 @@ static void scan_dir(fatfs_t *f, unsigned oi)
   int i;
   struct dirent **dlist;
   int num;
-  int dfd;
+  vfs_dir_t *vdfd;
 
   // just checking...
   if(!o->is.dir || !o->name || o->is.scanned) {
@@ -1185,13 +1188,13 @@ static void scan_dir(fatfs_t *f, unsigned oi)
     fatfs_msg("file name too complex: object %u\n", oi);
     return;
   }
-  dfd = mfs_open_file(f->mfs_idx, name, O_RDONLY | O_DIRECTORY);
-  if (dfd == -1) {
+  vdfd = vfs_opendir(f->fs, name);
+  if (!vdfd) {
     fatfs_msg("%s open failed\n", name);
     return;
   }
-  num = fdscandir(dfd, &dlist, d_filter, alphasort);
-  close(dfd);
+  num = fdscandir(vfs_dirfd(vdfd), &dlist, d_filter, alphasort);
+  vfs_closedir(vdfd);
   if (num < 0) {
     fatfs_msg("fatfs: scandir failed for %s\n", name);
     return;
@@ -1351,7 +1354,7 @@ static void _add_object(fatfs_t *f, unsigned parent, const char *s,
   struct stat sb;
 
   fatfs_deb("trying to add \"%s\":\n", s);
-  if(fstatat(f->dir_fd, relname, &sb, 0)) {
+  if (vfs_fstatat(f->dir_fd, relname, &sb, 0)) {
       fatfs_deb("file not found\n");
       return;
   }
@@ -1599,7 +1602,8 @@ int read_file(fatfs_t *f, unsigned oi, unsigned clu, unsigned pos,
   obj_t *o = f->obj + oi;
   char *s;
   off_t ofs;
-  int fd, rd;
+  vfs_file_t *vfd;
+  int rd;
 
   fatfs_deb2("read_file: obj %u, cluster %u, sec %u\n", oi, clu, pos);
 
@@ -1616,17 +1620,17 @@ int read_file(fatfs_t *f, unsigned oi, unsigned clu, unsigned pos,
   s = o->full_name;
   fatfs_deb2("going to read 0x200 bytes from file \"%s\", ofs 0x%x \n", s, pos);
 
-  if ((fd = mfs_open_file(f->mfs_idx, s, O_RDONLY | O_CLOEXEC)) == -1) {
+  if ((vfd = vfs_open(f->fs, s, O_RDONLY | O_CLOEXEC)) == NULL) {
       fatfs_deb("fatfs: open %s failed\n", s);
       return -1;
   }
 
-  if ((ofs = lseek(fd, pos, SEEK_SET)) == -1) return -1;
+  if ((ofs = vfs_lseek(vfd, pos, SEEK_SET)) == -1) { vfs_close(vfd); return -1; }
 
-  if (ofs != pos) { close(fd); return -1; }
+  if (ofs != pos) { vfs_close(vfd); return -1; }
 
-  rd = read(fd, buf, 0x200);
-  close(fd);
+  rd = vfs_read(vfd, buf, 0x200);
+  vfs_close(vfd);
   if (rd == -1) return -2;
 
   return 0;
@@ -1732,7 +1736,8 @@ unsigned next_cluster(fatfs_t *f, unsigned clu)
  */
 void mimic_boot_blk(void)
 {
-  int fd, size, idx;
+  vfs_file_t *vfd;
+  int size, idx;
   unsigned r_o, d_o, sp;
   int load_offs;
   uint16_t seg;
@@ -1746,7 +1751,7 @@ void mimic_boot_blk(void)
     return;
   }
 
-  if ((fd = mfs_open_file(f->mfs_idx, f->obj[1].full_name, O_RDONLY)) == -1) {
+  if ((vfd = vfs_open(f->fs, f->obj[1].full_name, O_RDONLY)) == NULL) {
     error("cannot open DOS system file %s\n", f->obj[1].full_name);
     leavedos(99);
   }
@@ -1933,7 +1938,7 @@ void mimic_boot_blk(void)
 	size = loadtop - (seg << 4);		/* limit loaded size to max */
       }
       if (size < 0x600) {
-	close(fd);
+	vfs_close(vfd);
 	error("too small DOS system file %s\n", f->obj[1].full_name);
 	leavedos(99);
 	return;
@@ -1978,7 +1983,7 @@ void mimic_boot_blk(void)
         /* load boot sector to stack */
         read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _SP)));
       } else {
-        close(fd);
+        vfs_close(vfd);
         error("%s boot failed\n", system_type(f->sys_type));
         leavedos(99);
         return;
@@ -1992,8 +1997,8 @@ void mimic_boot_blk(void)
 
   // load bootfile i.e IO.SYS, IBMBIO.COM, etc
   if (!(f->sfiles[idx].flags & FLG_NOREAD))
-    dos_read(fd, SEGOFF2LINEAR(_CS, _IP) + load_offs, size);
-  close(fd);
+    dos_read(vfd, SEGOFF2LINEAR(_CS, _IP) + load_offs, size);
+  vfs_close(vfd);
 }
 
 /*

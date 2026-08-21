@@ -362,7 +362,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
 	    n = *CALC_PTR(req_buf, MSCD_READ_NUMSECTORS,
 			  u_short) * CD_FRAMESIZE;
 	    if (transfer_buf == NULL) {
-		n = dos_read(cdrom_fd, dos_transfer_buf, n);
+		n = dos_read_posix(cdrom_fd, dos_transfer_buf, n);
 	    } else {
 		n = unix_read(cdrom_fd, transfer_buf, n);
 	    }
@@ -378,7 +378,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
 		    n = *CALC_PTR(req_buf, MSCD_READ_NUMSECTORS,
 				  u_short) * CD_FRAMESIZE;
 		    if (transfer_buf == NULL)
-			n = dos_read(cdrom_fd, dos_transfer_buf, n);
+			n = dos_read_posix(cdrom_fd, dos_transfer_buf, n);
 		    else
 			n = unix_read(cdrom_fd, transfer_buf, n);
 		    if (n < 0) {

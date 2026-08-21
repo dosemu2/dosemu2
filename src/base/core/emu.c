@@ -232,7 +232,7 @@ void boot(void)
 
     if (dp->type == PARTITION) {/* we boot partition boot record, not MBR! */
 	d_printf("Booting partition boot record from part=%s....\n", dp->dev_name);
-	if (dos_read(dp->fdesc, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
+	if (dos_read_posix(dp->fdesc, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
 	    error("reading partition boot sector using partition %s.\n", dp->dev_name);
 	    leavedos(16);
 	}
