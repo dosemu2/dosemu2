@@ -1,7 +1,7 @@
 FROM alpine:3.21 AS builder
 WORKDIR /src
 
-RUN apk add build-base meson git autoconf bash flex bison
+RUN apk add build-base meson git autoconf bash py3-ply
 RUN git clone --depth 1 https://github.com/stsp/thunk_gen.git
 RUN cd thunk_gen && ./configure && meson compile --verbose -C build && \
     meson install -C build

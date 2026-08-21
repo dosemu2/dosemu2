@@ -2,7 +2,7 @@ FROM debian:13 AS builder
 WORKDIR /src
 RUN apt-get update
 
-RUN apt-get install -y build-essential devscripts meson git flex bison
+RUN apt-get install -y build-essential devscripts meson git python3-ply
 RUN git clone --depth 1 https://github.com/stsp/thunk_gen.git
 RUN cd thunk_gen && debuild -i -us -uc -b
 RUN apt-get install -y ./thunk-gen*.deb
