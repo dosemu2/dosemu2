@@ -171,6 +171,8 @@ static void evtimerfd_delete(void *tmr)
 #ifdef HAVE_TIMERFD_CREATE
     struct itimerspec i = {};
 
+    if (!t)
+        return;
     __atomic_store_n(&t->running, 0, __ATOMIC_RELAXED);
     timerfd_settime(t->fd, 0, &i, NULL);
 #else

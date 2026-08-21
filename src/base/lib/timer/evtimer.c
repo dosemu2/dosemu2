@@ -112,6 +112,8 @@ static void tmr_delete(void *tmr)
 {
     struct evtimer *t = tmr;
 
+    if (!t)
+        return;
     timer_delete(t->tmr);
     pthread_mutex_destroy(&t->start_mtx);
     pthread_mutex_destroy(&t->block_mtx);
