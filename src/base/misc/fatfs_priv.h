@@ -1,3 +1,4 @@
+#include "vfs/vfs.h"
 /*
  * (C) Copyright 1992, ..., 2014 the "DOSEMU-Development-Team".
  *
@@ -49,9 +50,9 @@ struct fatfs_s {
   unsigned root_entries;
   unsigned cluster_secs;
   unsigned char drive_num;
-  unsigned int mfs_idx;
+  vfs_fs_t *fs;
   int group;
-  int dir_fd;
+  vfs_dir_t *dir_fd;
   uint64_t sys_type;			/* see fatfs::scan_dir() */
 
   unsigned got_all_objs;

@@ -1,3 +1,4 @@
+#include "vfs/vfs.h"
 /*
  * DANG_BEGIN_MODULE
  *
@@ -682,11 +683,11 @@ int get_dos_attr(const char *fname, int mode, int drive)
 
 #ifdef __linux__
   if (fname && file_on_fat(fname) && (S_ISREG(mode) || S_ISDIR(mode))) {
-    int fd = mfs_open_file(REDIR_DEVICE_IDX(drives[drive].options),
-	fname, O_RDONLY);
-    if (fd != -1) {
-      int res = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
-      close(fd);
+    vfs_fs_t *fs = vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options));
+    vfs_file_t *vfd = vfs_open(fs, fname, O_RDONLY);
+    if (vfd) {
+      int res = ioctl(vfd->fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
+      vfs_close(vfd);
       if (res == 0)
 	return attr;
     }
@@ -699,13 +700,13 @@ int get_dos_attr(const char *fname, int mode, int drive)
   return handle_xattr(attr, mode);
 }
 
-static int get_dos_attr_fd(int fd, int mode, const char *name, int drive)
+static int get_dos_attr_fd(vfs_file_t *fd, int mode, const char *name, int drive)
 {
   int attr;
 
 #ifdef __linux__
-  if (fd_on_fat(fd) && (S_ISREG(mode) || S_ISDIR(mode)) &&
-      ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr) == 0)
+  if (fd_on_fat(fd->fd) && (S_ISREG(mode) || S_ISDIR(mode)) &&
+      ioctl(fd->fd, FAT_IOCTL_GET_ATTRIBUTES, &attr) == 0)
     return attr;
 #endif
 
@@ -730,30 +731,30 @@ static int get_unix_attr(int attr)
 }
 
 #ifdef __linux__
-int set_fat_attr(int fd, int attr)
+int set_fat_attr(vfs_file_t *fd, int attr)
 {
-  return ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
+  return ioctl(fd->fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
 }
 #endif
 
 int set_dos_attr(char *fpath, int attr, int drive)
 {
 #ifdef __linux__
-  int fd = -1;
+  vfs_fs_t *fs = vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options));
+  vfs_file_t *vfd = NULL;
   int res;
 
   if (fpath && file_on_fat(fpath))
-    fd = mfs_open_file(REDIR_DEVICE_IDX(drives[drive].options),
-	fpath, O_RDONLY);
-  if (fd != -1) {
-    res = set_fat_attr(fd, attr);
+    vfd = vfs_open(fs, fpath, O_RDONLY);
+  if (vfd) {
+    res = set_fat_attr(vfd, attr);
     if (res && errno != ENOTTY) {
       int oldattr = 1;
-      ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &oldattr);
+      ioctl(vfd->fd, FAT_IOCTL_GET_ATTRIBUTES, &oldattr);
       if (dos_would_allow(fpath, "FAT_IOCTL_SET_ATTRIBUTES", attr == oldattr))
 	res = 0;
     }
-    close(fd);
+    vfs_close(vfd);
     return res;
   }
 #endif
@@ -765,8 +766,7 @@ int set_dos_attr(char *fpath, int attr, int drive)
 
 int dos_utime(const char *fpath, time_t atime, time_t mtime, int drive)
 {
-  return mfs_utime(REDIR_DEVICE_IDX(drives[drive].options), fpath, atime,
-      mtime);
+  return vfs_utime(vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options)), fpath, atime, mtime);
 }
 
 static int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
@@ -931,12 +931,12 @@ void mfs_reset(void)
 
 int mfs_stat(const char *path, struct stat *sb, int drive)
 {
-  return mfs_stat_file(REDIR_DEVICE_IDX(drives[drive].options), path, sb);
+  return vfs_stat(vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options)), path, sb);
 }
 
 static int mfs_statvfs(const char *path, struct statvfs *sb, int drive)
 {
-  return do_mfs_statvfs(REDIR_DEVICE_IDX(drives[drive].options), path, sb);
+  return vfs_statvfs(vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options)), path, sb);
 }
 
 static void init_drive(int dd, char *path, uint16_t user, uint16_t options)
@@ -1589,42 +1589,34 @@ static int init_dos_offsets(int ver)
 struct mfs_dir *dos_opendir(const char *name, int drive)
 {
   struct mfs_dir *dir;
-  int fd = -1;
-  DIR *d = NULL;
+  vfs_fs_t *fs = vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options));
+  vfs_file_t *vfile = NULL;
+  vfs_dir_t *vdir = NULL;
 #ifdef __linux__
   struct __fat_dirent de[2];
 
   if (file_on_fat(name)) {
-    fd = mfs_open_file(REDIR_DEVICE_IDX(drives[drive].options),
-	name, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (fd == -1)
+    vfile = vfs_open(fs, name, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (!vfile)
       return NULL;
-    if (ioctl(fd, vfat_ioctl, de) != -1) {
-      lseek(fd, 0, SEEK_SET);
+    if (ioctl(vfile->fd, vfat_ioctl, de) != -1) {
+      vfs_lseek(vfile, 0, SEEK_SET);
     } else {
-      close(fd);
-      fd = -1;
+      vfs_close(vfile);
+      vfile = NULL;
     }
   }
 #endif
-  if (fd == -1) {
-    /* not a VFAT filesystem or other problems */
-    int dfd = mfs_open_file(REDIR_DEVICE_IDX(drives[drive].options), name,
-        O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (dfd == -1) {
+  if (!vfile) {
+    vdir = vfs_opendir(fs, name);
+    if (!vdir) {
       error("opendir failed: %s\n", strerror(errno));
-      return NULL;
-    }
-    d = fdopendir(dfd);
-    if (d == NULL) {
-      error("fdopendir failed: %s\n", strerror(errno));
-      close(dfd);
       return NULL;
     }
   }
   dir = malloc(sizeof *dir);
-  dir->fd = fd;
-  dir->dir = d;
+  dir->vfile = vfile;
+  dir->vdir = vdir;
   dir->nr = 0;
   return (dir);
 }
@@ -1634,8 +1626,8 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
   if (dir->nr <= 1) {
     dir->de.d_name = dir->de.d_long_name = dir->nr ? ".." : ".";
   } else do {
-    if (dir->dir) {
-      struct direct *de = (struct direct *) readdir(dir->dir);
+    if (dir->vdir) {
+      struct dirent *de = vfs_readdir(dir->vdir);
       if (de == NULL)
 	return NULL;
       dir->de.d_name = dir->de.d_long_name = de->d_name;
@@ -1644,7 +1636,7 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
       static struct __fat_dirent de[2];
       int ret;
 
-      ret = (int)RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, de));
+      ret = (int)RPT_SYSCALL(ioctl(dir->vfile->fd, vfat_ioctl, de));
       if (ret == -1 || de[0].d_reclen == 0)
         return NULL;
 
@@ -1668,20 +1660,20 @@ int dos_closedir(struct mfs_dir *dir)
 {
   int ret;
 
-  if (dir->dir)
-    ret = closedir(dir->dir);
+  if (dir->vdir)
+    ret = vfs_closedir(dir->vdir);
   else
-    ret = close(dir->fd);
+    ret = vfs_close(dir->vfile);
   free(dir);
   return (ret);
 }
 
 static inline int
-dos_flush(int fd)
+dos_flush(vfs_file_t *fd)
 {
   int ret;
 
-  ret = RPT_SYSCALL(fsync(fd));
+  ret = vfs_fsync(fd);
 
   return (ret);
 }
@@ -3102,7 +3094,7 @@ int dos_rmdir(const char *filename1, int drive, int lfn)
   build_ufs_path_(fpath, filename1, drive, !lfn);
   if (find_file(fpath, &st, NULL, drive) &&
       !is_dos_device(fpath)) {
-    if (mfs_rmdir(REDIR_DEVICE_IDX(drives[drive].options), fpath) != 0) {
+    if (vfs_rmdir(vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options)), fpath) != 0) {
       Debug0(("failed to remove directory %s\n", fpath));
       return ACCESS_DENIED;
     }
@@ -3133,7 +3125,7 @@ int dos_mkdir(const char *filename1, int drive, int lfn)
     Debug0(("parent not found '%s'\n", fpath));
     return PATH_NOT_FOUND;
   }
-  if (mfs_mkdir(REDIR_DEVICE_IDX(drives[drive].options), fpath, 0755) != 0) {
+  if (vfs_mkdir(vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options)), fpath, 0755) != 0) {
     Debug0(("make directory failed '%s'\n", fpath));
     return ACCESS_DENIED;
   }
@@ -3315,16 +3307,16 @@ static void update_seek_from_dos(uint32_t seek_from_dos, uint64_t* p_seek) {
 
 static struct file_fd *do_open_prn(const char *filename1, const char *fpath)
 {
-    int fd;
+    int prn_num;
     struct file_fd *f;
     const char *bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
     if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
       return NULL;
-    fd = bs_pos[1] - '0' - 1;
-    if (printer_open(fd) != 0)
+    prn_num = bs_pos[1] - '0' - 1;
+    if (printer_open(prn_num) != 0)
       return NULL;
     f = do_claim_fd(fpath);
-    f->fd = fd;
+    f->fd = vfs_file_wrap_posix(prn_num);
     f->type = TYPE_PRINTER;
     return f;
 }
@@ -3467,12 +3459,12 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
           return FALSE;
       f = &open_files[cnt];
       if (f->name == NULL) {
-        Debug0(("Close file %x fails\n", f->fd));
+        Debug0(("Close file %p fails\n", f->fd));
         return FALSE;
       }
       strlcpy(fpath, f->name, sizeof(fpath));
       filename1 = fpath;
-      Debug0(("Close file %x (%s)\n", f->fd, filename1));
+      Debug0(("Close file %p (%s)\n", f->fd, filename1));
 
       /* if bit 14 in device_info is set, dos requests to set the file
          date/time on closing. R.Brown states this incorrectly (inverted).
@@ -3499,8 +3491,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         return TRUE;
       }
       if (f->type == TYPE_PRINTER) {
-        printer_close(f->fd);
-        Debug0(("printer %i closed\n", f->fd));
+        printer_close(f->fd->fd);
+        Debug0(("printer %p closed\n", f->fd));
       } else {
         mfs_close(f);
       }
@@ -3560,10 +3552,10 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         if (cnt1 != -1)
           cnt = cnt1;
       }
-      Debug0(("Read file fd=%d, dta=%#x, cnt=%d\n", f->fd, dta, cnt));
+      Debug0(("Read file fd=%p, dta=%#x, cnt=%d\n", f->fd, dta, cnt));
       Debug0(("Read file pos = %"PRIu64"\n", f->seek));
       Debug0(("Handle cnt %d\n", sft_handle_cnt(sft)));
-      s_pos = lseek(f->fd, f->seek, SEEK_SET);
+      s_pos = vfs_lseek(f->fd, f->seek, SEEK_SET);
       if (s_pos < 0 && errno != ESPIPE) {
         if (locked)
           region_unlock_offs(f->fd);
@@ -3592,7 +3584,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       if (ret + s_pos > sft_size(sft)) {
         /* someone else enlarged the file! refresh. */
         int r2;
-        r2 = fstat(f->fd, &f->st);
+        r2 = vfs_fstat(f->fd, &f->st);
         assert(r2 == 0);
         f->size = f->st.st_size;
         set_32bit_size_or_position(&_sft_size(sft), f->size);
@@ -3616,10 +3608,10 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 
       update_seek_from_dos(sft_position(sft), &f->seek);
       cnt = WORD(state->ecx);
-      Debug0(("Write file fd=%d count=%x sft_mode=%x\n", f->fd, cnt, sft_open_mode(sft)));
+      Debug0(("Write file fd=%p count=%x sft_mode=%x\n", f->fd, cnt, sft_open_mode(sft)));
       if (f->type == TYPE_PRINTER) {
         for (ret = 0; ret < cnt; ret++) {
-          if (printer_write(f->fd, READ_BYTE(dta + ret)) != 1)
+          if (printer_write(f->fd->fd, READ_BYTE(dta + ret)) != 1)
             break;
         }
         SETWORD(&state->ecx, ret);
@@ -3628,7 +3620,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
 
       if (!cnt) {
         Debug0(("Applying O_TRUNC at %x\n", (int)s_pos));
-        if (ftruncate(f->fd, (off_t)f->seek)) {
+        if (vfs_ftruncate(f->fd, (off_t)f->seek)) {
           Debug0(("O_TRUNC failed\n"));
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
@@ -3662,7 +3654,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         if (cnt1 != -1)
           cnt = cnt1;
 
-        s_pos = lseek(f->fd, f->seek, SEEK_SET);
+        s_pos = vfs_lseek(f->fd, f->seek, SEEK_SET);
         if (s_pos < 0 && errno != ESPIPE) {
           if (locked)
             region_unlock_offs(f->fd);
@@ -3693,7 +3685,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       }
       //    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
       /* update stat for atime/mtime */
-      if (fstat(f->fd, &f->st) == 0)
+      if (vfs_fstat(f->fd, &f->st) == 0)
         time_to_dos(f->st.st_mtime, &_sft_date(sft), &_sft_time(sft));
       return TRUE;
     }
@@ -4041,7 +4033,7 @@ do_open_existing:
       do_update_sft(f, fname, fext, sft, drive,
             get_dos_attr(fpath, st.st_mode, drive), FCBcall, 1);
 
-      Debug0(("open succeeds: '%s' fd = 0x%x\n", fpath, f->fd));
+      Debug0(("open succeeds: '%s' fd = %p\n", fpath, f->fd));
       Debug0(("Size : %ld\n", (long)f->st.st_size));
 
       /* If FCB open requested, we need to call int2f 0x120c */
@@ -4096,13 +4088,13 @@ do_create_truncate:
       }
       auspr(filename1, fname, fext);
       if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
-        int fd;
+        int prn_num;
         bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
         if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
           return FALSE;
-        fd = bs_pos[1] - '0' - 1;
-        if (printer_open(fd) != 0) {
-          error("printer %i open failure!\n", fd);
+        prn_num = bs_pos[1] - '0' - 1;
+        if (printer_open(prn_num) != 0) {
+          error("printer %i open failure!\n", prn_num);
           return FALSE;
         }
         Debug0(("printer open succeeds: '%s'\n", filename1));
@@ -4110,7 +4102,7 @@ do_create_truncate:
         fname[0] = 0;
         fext[0] = 0;
         f = do_claim_fd(fpath);
-        f->fd = fd;
+        f->fd = vfs_file_wrap_posix(prn_num);
         f->type = TYPE_PRINTER;
       } else {
         struct stat st;
@@ -4142,8 +4134,8 @@ do_create_truncate:
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
         }
-        if (fstat(f->fd, &f->st) == -1) {
-          Debug0(("can't fstat %d: %s\n", f->fd, strerror(errno)));
+        if (vfs_fstat(f->fd, &f->st) == -1) {
+          Debug0(("can't fstat %p: %s\n", f->fd, strerror(errno)));
           SETWORD(&state->eax, ACCESS_DENIED);
           return FALSE;
         }
@@ -4159,7 +4151,7 @@ do_create_truncate:
       }
 
       do_update_sft(f, fname, fext, sft, drive, attr, FCBcall, 0);
-      Debug0(("create succeeds: '%s' fd = 0x%x\n", fpath, f->fd));
+      Debug0(("create succeeds: '%s' fd = %p\n", fpath, f->fd));
       Debug0(("fsize = 0x%"PRIx64"\n", f->size));
 
       /* If FCB open requested, we need to call int2f 0x120c */
@@ -4284,13 +4276,13 @@ do_create_truncate:
         SETWORD(&state->eax, ACCESS_DENIED);
         return FALSE;
       }
-      Debug0(("Seek From EOF fd=%d ofs=%lld\n", f->fd, (long long)offset));
+      Debug0(("Seek From EOF fd=%p ofs=%lld\n", f->fd, (long long)offset));
 #if 0
       /* no need for an actual seek here. we do it before read/write */
-      new_pos = lseek(f->fd, offset, SEEK_END);
+      new_pos = vfs_lseek(f->fd, offset, SEEK_END);
 #endif
-      Debug0(("Seek returns fd=%d ofs=%lld\n", f->fd, (long long)offset));
-      if (fstat(f->fd, &f->st) == 0) {
+      Debug0(("Seek returns fd=%p ofs=%lld\n", f->fd, (long long)offset));
+      if (vfs_fstat(f->fd, &f->st) == 0) {
         off_t new_pos = offset + f->st.st_size;
         /* update file size in case other process changed it */
         f->seek = new_pos;
@@ -4350,7 +4342,7 @@ do_create_truncate:
           return FALSE;
       f = &open_files[cnt];
 
-      Debug0(("lock requested, fd=%d, is_lock=%d, start=%lx, len=%lx\n",
+      Debug0(("lock requested, fd=%p, is_lock=%d, start=%lx, len=%lx\n",
                       f->fd, is_lock, (long)pt->offset, (long)pt->size));
 
       if (f->name == NULL) {
@@ -4558,7 +4550,7 @@ do_create_truncate:
         SETWORD(&state->eax, HANDLE_INVALID);
         return FALSE;
       }
-      d_printf("found %s on fd %i\n", f->name, f->fd);
+      d_printf("found %s on fd %p\n", f->name, f->fd);
       MEMCPY_2UNIX(&seek, SEGOFF2LINEAR(SREG(ds), LWORD(edx)), sizeof seek);
       d_printf("cl=%02"PRIX8"h seek=%08"PRIX64"h "
 		"sftposition=%08"PRIX32"h\n"
@@ -4575,7 +4567,7 @@ do_create_truncate:
 	  f->seek = f->seek + seek;
 	  break;
 	case DOS_SEEK_EOF:
-	  if (fstat(f->fd, &f->st) == 0) {
+	  if (vfs_fstat(f->fd, &f->st) == 0) {
 	    /* update file size in case other process changed it */
 	    f->size = f->st.st_size;
 	    set_32bit_size_or_position(&_sft_size(sft), f->size);
@@ -4614,9 +4606,9 @@ do_create_truncate:
         SETWORD(&state->eax, HANDLE_INVALID);
         return FALSE;
       }
-      d_printf("found %s on fd %i\n", f->name, f->fd);
+      d_printf("found %s on fd %p\n", f->name, f->fd);
       /* update stat for atime/mtime */
-      if (fstat(f->fd, &f->st)) {
+      if (vfs_fstat(f->fd, &f->st)) {
         SETWORD(&state->eax, HANDLE_INVALID);
         return FALSE;
 	}

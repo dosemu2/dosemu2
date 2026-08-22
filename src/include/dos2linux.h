@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include "cpu.h"
 #include "dosemu_debug.h"
+#include "vfs/vfs.h"
 
 struct MCB {
 	char id;			/* 0 */
@@ -352,9 +353,11 @@ void memsetw_dos(dosaddr_t dest, unsigned short ch, size_t n);
 void memsetl_dos(dosaddr_t dest, unsigned int ch, size_t n);
 
 int unix_read(int fd, void *data, int cnt);
-int dos_read(int fd, unsigned data, int cnt);
+int dos_read(vfs_file_t *fd, unsigned data, int cnt);
+int dos_read_posix(int fd, unsigned data, int cnt);
 int unix_write(int fd, const void *data, int cnt);
-int dos_write(int fd, unsigned data, int cnt);
+int dos_write(vfs_file_t *fd, unsigned data, int cnt);
+int dos_write_posix(int fd, unsigned data, int cnt);
 int com_vsprintf(char *str, const char *format, va_list ap);
 int com_vsnprintf(char *str, size_t size, const char *format, va_list ap);
 int com_sprintf(char *str, const char *format, ...) FORMAT(printf, 2, 3);
@@ -398,7 +401,7 @@ char *strnlowerDOS(char *s, int n);
 int strequalDOS(const char *s1, const char *s2);
 char *strstrDOS(char *haystack, const char *upneedle);
 int name_ufs_to_dos(char *dest, const char *src);
-char *probe_sfn_name(int dir_fd, const char *dir, const char *name,
+char *probe_sfn_name(vfs_dir_t *dir_fd, const char *dir, const char *name,
     struct stat *r_st);
 
 void dos2tty_init(void);

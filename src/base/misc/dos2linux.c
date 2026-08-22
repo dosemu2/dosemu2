@@ -1104,18 +1104,18 @@ int unix_read(int fd, void *data, int cnt)
   return RPT_SYSCALL(read(fd, data, cnt));
 }
 
-int dos_read(int fd, unsigned data, int cnt)
+int dos_read(vfs_file_t *fd, unsigned data, int cnt)
 {
   int ret;
   /* GW also reads or writes directly from a file to protected video memory. */
   if (vga_write_access(data)) {
     char buf[cnt];
-    ret = unix_read(fd, buf, cnt);
+    ret = vfs_read(fd, buf, cnt);
     if (ret >= 0)
       memcpy_to_vga(data, buf, ret);
   }
   else
-    ret = unix_read(fd, LINEAR2UNIX(data), cnt);
+    ret = vfs_read(fd, LINEAR2UNIX(data), cnt);
   if (ret > 0)
 	e_invalidate(data, ret);
   return (ret);
@@ -1126,7 +1126,7 @@ int unix_write(int fd, const void *data, int cnt)
   return RPT_SYSCALL(write(fd, data, cnt));
 }
 
-int dos_write(int fd, unsigned data, int cnt)
+int dos_write(vfs_file_t *fd, unsigned data, int cnt)
 {
   int ret;
   const unsigned char *d;
@@ -1141,7 +1141,7 @@ int dos_write(int fd, unsigned data, int cnt)
   } else {
     d = LINEAR2UNIX(data);
   }
-  ret = unix_write(fd, d, cnt);
+  ret = vfs_write(fd, d, cnt);
   g_printf("Wrote %10.10s\n", d);
   return (ret);
 }
@@ -1759,4 +1759,41 @@ void set_boot_cls(void)
 void set_boot_showwin(void)
 {
     misc_e6_store_options("DOSEMU_BOOT_SHOWWIN=1");
+}
+
+
+int dos_read_posix(int fd, unsigned data, int cnt)
+{
+  int ret;
+  if (vga_write_access(data)) {
+    char buf[cnt];
+    ret = unix_read(fd, buf, cnt);
+    if (ret >= 0)
+      memcpy_to_vga(data, buf, ret);
+  }
+  else
+    ret = unix_read(fd, LINEAR2UNIX(data), cnt);
+  if (ret > 0)
+	e_invalidate(data, ret);
+  return (ret);
+}
+
+int dos_write_posix(int fd, unsigned data, int cnt)
+{
+  int ret;
+  const unsigned char *d;
+  unsigned char *buf;
+
+  if (!cnt)
+    return 0;
+  buf = alloca(cnt);
+  if (vga_read_access(data)) {
+    memcpy_from_vga(buf, data, cnt);
+    d = buf;
+  } else {
+    d = LINEAR2UNIX(data);
+  }
+  ret = unix_write(fd, d, cnt);
+  g_printf("Wrote %10.10s\n", d);
+  return (ret);
 }
