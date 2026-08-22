@@ -551,7 +551,7 @@ static ssize_t pkt_write_eth(int pkt_fd, const void *buf, size_t count)
 static ssize_t pkt_write_sock(int pkt_fd, const void *buf, size_t count)
 {
     uint32_t len = htonl(count);
-    write(pkt_fd, &len, sizeof(len));
+    int r = write(pkt_fd, &len, sizeof(len)); (void)r;
     return write(pkt_fd, buf, count);
 }
 

@@ -139,9 +139,9 @@ static void DOSEMUSetupMouse(void)
         {
 	  static unsigned char s1[] = { 243, 200, 243, 100, 243, 80, };
 	  static unsigned char s2[] = { 246, 230, 244, 243, 100, 232, 3, };
-	  write (mice->fd, s1, sizeof (s1));
+	  int r1 = write (mice->fd, s1, sizeof (s1)); (void)r1;
 	  usleep (30000);
-	  write (mice->fd, s2, sizeof (s2));
+	  int r2 = write (mice->fd, s2, sizeof (s2)); (void)r2;
 	  usleep (30000);
 	  tcflush (mice->fd, TCIFLUSH);
 	}

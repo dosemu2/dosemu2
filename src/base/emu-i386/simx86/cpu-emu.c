@@ -1053,7 +1053,8 @@ static int e_vm86_tail(struct vm86_struct *info)
 	      }
 	    default: {
 		/* FAULT, handled via signal callback */
-		vm86_fault(xval-1, TheCPU.scp_err, TheCPU.cr[2]);
+		int err = vm86_fault(xval-1, TheCPU.scp_err, TheCPU.cr[2]);
+		(void)err;
 		retval = VM86_SIGNAL;
 		break;
 	    }

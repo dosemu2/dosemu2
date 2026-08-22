@@ -290,8 +290,10 @@ static void pty_worker(struct rd_args *args)
 	    continue;  // last re-check
 
 	wr = com_dosreadcon(buf, sizeof(buf) - 1);
-	if (wr > 0)
-	    write(pty_fd, buf, wr);
+	if (wr > 0) {
+	    int r1 = write(pty_fd, buf, wr);
+	    (void)r1;
+	}
 
 	if (!rd && !wr)
 	    coopth_wait();
@@ -521,8 +523,8 @@ int unix_run_secure(const char *path, int pos, struct popen2 *file)
 	open("/dev/null", O_RDONLY);
 	close(1);
 	close(2);
-	dup(outp[1]);
-	dup(outp[1]);
+	int r2 = dup(outp[1]); (void)r2;
+	int r3 = dup(outp[1]); (void)r3;
 	close(outp[0]);
 	close(outp[1]);
 #ifdef HAVE_CLOSEFROM

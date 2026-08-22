@@ -2754,7 +2754,7 @@ static int add_drive_group(const char *path, int ro, int mfs_idx)
     int i, err;
     int cnt = 0;
 
-    asprintf(&wild, "%s/*", path);
+    int r = asprintf(&wild, "%s/*", path); (void)r;
     glob(wild, 0, NULL, &p);
     free(wild);
     for (i = 0; i < p.gl_pathc; i++) {

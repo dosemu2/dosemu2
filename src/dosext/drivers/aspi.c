@@ -288,7 +288,7 @@ static int sg_scan_proc(struct scsi_device_info *devs, int maxdevs)
     if (!fgets(buf, sizeof(buf), f)) break;
     if (!strncmp(buf, attached, sizeof(attached) - 1)) {
       if (strstr(buf, "none")) break;
-      fgets(buf, sizeof(buf), f);
+      char *r1 = fgets(buf, sizeof(buf), f); (void)r1;
     }
     devs[dev].fd = -1;
     devs[dev].sgminor = dev;
@@ -310,7 +310,7 @@ static int sg_scan_proc(struct scsi_device_info *devs, int maxdevs)
     if (!s)
       break;
     devs[dev].lun = strtoul(s,0,10);
-    fgets(buf, sizeof(buf), f);
+    char *r2 = fgets(buf, sizeof(buf), f); (void)r2;
     p = buf;
     s = strbetween(p,&p, "Vendor:", "Model:");
     if (!s)
@@ -324,7 +324,7 @@ static int sg_scan_proc(struct scsi_device_info *devs, int maxdevs)
     if (!s)
       break;
     devs[dev].modelrev = strdup(s);
-    fgets(buf, sizeof(buf), f);
+    char *r3 = fgets(buf, sizeof(buf), f); (void)r3;
     p = buf;
     s = strbetween(p,&p, "Type:", "ANSI SCSI revision:");
     if (!s)
@@ -361,7 +361,7 @@ static char *sysfs_ent(const char *path, const char *item)
   f = fopen(namebuf, "r");
   if (!f)
     return NULL;
-  fgets(buf, sizeof(buf), f);
+  char *r4 = fgets(buf, sizeof(buf), f); (void)r4;
   fclose(f);
   p = buf + strlen(buf);
   while (p > buf) {

@@ -491,7 +491,7 @@ int main (int argc, char **argv)
   fpconout = stdout;
 #endif
 
-  write(fddbgout,"r0\n",3);
+  int r = write(fddbgout,"r0\n",3); (void)r;
 
   for (running=1, ret=0; running; /* */) {
     FD_SET(fddbgin, &readfds);

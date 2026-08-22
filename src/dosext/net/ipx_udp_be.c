@@ -94,8 +94,10 @@ static void udp_async_callback(int fd, void *arg)
     }
     if (i == socketCount)
         error("IPX socket %x not found\n", sock);
-    else
-        write(opensockets[i].pipe[1], buf, size);
+    else {
+        int r = write(opensockets[i].pipe[1], buf, size);
+        (void)r;
+    }
     pthread_rwlock_unlock(&sock_lck);
 //    ioselect_complete(fd);
 }

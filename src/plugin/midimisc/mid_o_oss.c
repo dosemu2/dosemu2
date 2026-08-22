@@ -41,8 +41,10 @@ static int seq_fd = -1;
 static void seqbuf_dump(void)
 {
     if (_seqbufptr) {
-	if (seq_fd != -1)
-	    write(seq_fd, _seqbuf, _seqbufptr);
+	if (seq_fd != -1) {
+	    int r = write(seq_fd, _seqbuf, _seqbufptr);
+	    (void)r;
+	}
 	_seqbufptr = 0;
     }
 }

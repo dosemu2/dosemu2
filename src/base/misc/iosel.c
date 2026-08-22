@@ -255,8 +255,10 @@ add_to_io_select_new(int new_fd, void (*func)(int, void *), void *arg,
     FD_SET(new_fd, &fds_sigio);
     pthread_mutex_unlock(&fds_mtx);
 
-    if (!io_callback_stash[new_fd].func)
-	write(syncpipe[1], "+", 1);
+    if (!io_callback_stash[new_fd].func) {
+	int r1 = write(syncpipe[1], "+", 1);
+	(void)r1;
+}
 }
 
 /*
@@ -295,7 +297,7 @@ void remove_from_io_select(int fd)
 	pthread_mutex_lock(&blk_mtx);
 	FD_CLR(fd, &fds_masked);
 	pthread_mutex_unlock(&blk_mtx);
-	write(syncpipe[1], "-", 1);
+	int r2 = write(syncpipe[1], "-", 1); (void)r2;
 	g_printf("GEN: fd=%d removed from select SIGIO\n", fd);
     }
 }
@@ -305,7 +307,7 @@ static void do_unmask(int fd)
     pthread_mutex_lock(&blk_mtx);
     FD_CLR(fd, &fds_masked);
     pthread_mutex_unlock(&blk_mtx);
-    write(syncpipe[1], "=", 1);
+    int r3 = write(syncpipe[1], "=", 1); (void)r3;
 }
 
 void ioselect_complete(int fd)
@@ -343,7 +345,7 @@ static void *ioselect_thread(void *arg)
 static void do_syncpipe(int fd, void *arg)
 {
     char buf[4096];
-    read(fd, buf, sizeof(buf));
+    int r4 = read(fd, buf, sizeof(buf)); (void)r4;
 }
 
 void ioselect_init(void)
@@ -353,7 +355,7 @@ void ioselect_init(void)
 
     FD_ZERO(&fds_sigio);
     FD_ZERO(&fds_masked);
-    pipe(syncpipe);
+    int r5 = pipe(syncpipe); (void)r5;
     assert(syncpipe[0] < MAX_FD);
     f = &io_callback_func[syncpipe[0]];
     f->func = do_syncpipe;

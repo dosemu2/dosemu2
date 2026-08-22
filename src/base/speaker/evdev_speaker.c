@@ -12,14 +12,14 @@ static void evdev_speaker_on(void *gp, unsigned short period)
 {
 	struct input_event e = {.type = EV_SND, .code = SND_TONE,
 				.value = speaker_period_to_Hz(period)};
-	write((int)(uintptr_t)gp, &e, sizeof e);
+	int r1 = write((int)(uintptr_t)gp, &e, sizeof e); (void)r1;
 }
 
 static void evdev_speaker_off(void *gp)
 {
 	struct input_event e = {.type = EV_SND, .code = SND_TONE,
 				.value = 0};
-	write((int)(uintptr_t)gp, &e, sizeof e);
+	int r2 = write((int)(uintptr_t)gp, &e, sizeof e); (void)r2;
 }
 
 void evdev_speaker_init(void)

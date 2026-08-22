@@ -438,7 +438,7 @@ int main(int argc, char *argv[])
     }
     else {
       clear_buffer();
-      fread(buffer, 1, BYTES_PER_SECTOR, f);
+      size_t r1 = fread(buffer, 1, BYTES_PER_SECTOR, f); (void)r1;
       fclose(f);
     }
   }
@@ -549,7 +549,7 @@ int main(int argc, char *argv[])
     for (m = 0; (m < (input_files[n].size_in_clusters*sectors_per_cluster)); m++)
     {
       clear_buffer();
-      fread(buffer, 1, BYTES_PER_SECTOR, f);
+      size_t r2 = fread(buffer, 1, BYTES_PER_SECTOR, f); (void)r2;
       write_buffer();
     }
     fclose(f);

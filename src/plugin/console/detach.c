@@ -149,7 +149,7 @@ unsigned short detach (void) {
   fstat (0, &orig_stat);
 
   /* now set the console as owned by this user */
-  fchown (0, get_orig_uid(), get_orig_gid());
+  int r1 = fchown (0, get_orig_uid(), get_orig_gid()); (void)r1;
 
   /* set the permissions to stop other people accessing the vt */
   fchmod (0, S_IRUSR | S_IWUSR);
@@ -200,7 +200,7 @@ void disallocate_vt (void) {
 
   /* Restore the uid, gid, mode of the VC */
   if ((vt_fd = open_vt (dosemu_vt)) >= 0) {
-    fchown (vt_fd, orig_stat.st_uid, orig_stat.st_gid);
+    int r2 = fchown (vt_fd, orig_stat.st_uid, orig_stat.st_gid); (void)r2;
     fchmod (vt_fd, orig_stat.st_mode);
     close (vt_fd);
   }

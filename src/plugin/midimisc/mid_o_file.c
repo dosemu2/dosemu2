@@ -222,7 +222,7 @@ static void close_output(void)
 		strerror(errno));
 	goto out;
     }
-    write(fd, midibuf, midi_pos);
+    int r = write(fd, midibuf, midi_pos); (void)r;
     close(fd);
 out:
     free(midibuf);

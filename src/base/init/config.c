@@ -1363,7 +1363,7 @@ config_init(int argc, char **argv)
 		*p = '\0';
 		switch (p[2]) {
 		    case 'P':
-			asprintf(&config.debugout, "%s.%i", tmp, getpid());
+			int r = asprintf(&config.debugout, "%s.%i", tmp, getpid()); (void)r;
 			break;
 		    default:
 			error("Unknown suffix %s\n", p + 1);

@@ -606,7 +606,6 @@ general			RETURN(GENERAL);
 hardware		RETURN(HARDWARE);
 ipc			RETURN(L_IPC);
 network			RETURN(NETWORK);
-sound			RETURN(SOUND);
 joystick		RETURN(JOYSTICK);
 
 	/* printer stuff */

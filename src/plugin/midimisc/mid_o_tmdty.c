@@ -287,7 +287,7 @@ static int midotmdty_init(void *arg)
     else
 	sprintf(buf, cmd1, "msb");
     S_printf("\t%s", buf);
-    write(ctrl_sock_out, buf, strlen(buf));
+    int r1 = write(ctrl_sock_out, buf, strlen(buf)); (void)r1;
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
     if (n == -1) {
         error("control read failed!\n");
@@ -375,7 +375,7 @@ static void midotmdty_done(void *arg)
     if (TMDTY_CAPT)
 	remove_from_io_select(data_sock);
 
-    write(ctrl_sock_out, cmd1, strlen(cmd1));
+    int r2 = write(ctrl_sock_out, cmd1, strlen(cmd1)); (void)r2;
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
     if (n == -1)
         strcpy(buf, "control read failed");
@@ -389,7 +389,7 @@ static void midotmdty_done(void *arg)
     S_printf("\tClose: %s\n", buf);
 
     sigchld_enable_handler(tmdty_pid, 0);
-    write(ctrl_sock_out, cmd2, strlen(cmd2));
+    int r3 = write(ctrl_sock_out, cmd2, strlen(cmd2)); (void)r3;
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
     if (n == -1)
         strcpy(buf, "control read failed");
@@ -408,7 +408,7 @@ static void midotmdty_reset(void)
     char buf[255];
     int n;
 
-    write(ctrl_sock_out, cmd1, strlen(cmd1));
+    int r4 = write(ctrl_sock_out, cmd1, strlen(cmd1)); (void)r4;
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
     if (n == -1)
         strcpy(buf, "control read failed");
@@ -416,7 +416,7 @@ static void midotmdty_reset(void)
         buf[n] = 0;
     S_printf("\tReset: %s\n", buf);
 
-    write(ctrl_sock_out, cmd2, strlen(cmd2));
+    int r5 = write(ctrl_sock_out, cmd2, strlen(cmd2)); (void)r5;
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
     if (n == -1)
         strcpy(buf, "control read failed");

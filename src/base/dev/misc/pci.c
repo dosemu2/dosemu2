@@ -281,7 +281,7 @@ static int pci_read_header_proc (unsigned char bus, unsigned char device,
      why. They are not joking. My NCR810 crashes the machine on read
      of register 0xd8 */
 
-  read(fd, buf, 64);
+  int r1 = read(fd, buf, 64); (void)r1;
   close(fd);
   return 0;
 }
@@ -294,7 +294,7 @@ static unsigned long pci_read_proc (unsigned char bus, unsigned char device,
   if (fd == -1)
     return 0;
   Z_printf("PCI: reading reg %ld\n", reg);
-  pread(fd, &val, len, reg);
+  int r3 = pread(fd, &val, len, reg); (void)r3;
   close(fd);
   return val;
 }
@@ -306,7 +306,7 @@ static void pci_write_proc (unsigned char bus, unsigned char device,
   if (fd == -1)
     return;
   Z_printf("PCI: writing reg %ld\n", reg);
-  pwrite(fd, &val, len, reg);
+  int r2 = pwrite(fd, &val, len, reg); (void)r2;
   close(fd);
 }
 

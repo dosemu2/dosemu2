@@ -192,7 +192,7 @@ void dump_maps(void)
 #else
     sprintf(buf, "cat /proc/%i/maps >&%i", getpid(), vlog_get_fd());
 #endif
-    system(buf);
+    int r1 = system(buf); (void)r1;
 }
 
 int dpmi_lin_mem_rsv(void)
@@ -606,7 +606,7 @@ static struct shm_fhm *_do_shm_open(char **r_shmname, const char *name,
         error("lock failed for %s\n", name);
         return NULL;
     }
-    asprintf(&shmname, "/%s", name);
+    int r2 = asprintf(&shmname, "/%s", name); (void)r2;
     if (flags & SHM_EXCL)
         oflags |= O_EXCL;
     fd = fslib_shm_open(shmname, oflags,

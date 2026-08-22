@@ -52,9 +52,9 @@ dlopenLADSPA (const char *pcFilename, int iFlag)
        LD_LIBRARY_PATH, whereas the LADSPA_PATH is the correct place
        to search. */
 
-    asprintf(&pcLADSPAPath, "%s:/usr/lib/ladspa:"
+    int r = asprintf(&pcLADSPAPath, "%s:/usr/lib/ladspa:"
         "/usr/lib64/ladspa:/usr/local/lib/ladspa",
-        getenv ("LADSPA_PATH"));
+        getenv ("LADSPA_PATH")); (void)r;
 
     if (pcLADSPAPath) {
 

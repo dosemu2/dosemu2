@@ -342,7 +342,7 @@ char *assemble_path2(const char *dir, const char *file, int *r_pos)
 	assert(p.we_wordc == 1);
 	if (r_pos)
 		*r_pos = strlen(p.we_wordv[0]) + 1;  // including slash
-	asprintf(&s, "%s/%s", p.we_wordv[0], file);
+	int r1 = asprintf(&s, "%s/%s", p.we_wordv[0], file); (void)r1;
 	wordfree_lite(&p);
 	return s;
 }
@@ -822,9 +822,9 @@ void *load_plugin(const char *plugin_name)
 
     if (!warned && dosemu_proc_self_exe &&
 	    (p = strrchr(dosemu_proc_self_exe, '/'))) {
-	asprintf(&fullname, "%.*s/libplugin_%s.so",
+	int r2 = asprintf(&fullname, "%.*s/libplugin_%s.so",
 		(int)(p - dosemu_proc_self_exe),
-		dosemu_proc_self_exe, plugin_name);
+		dosemu_proc_self_exe, plugin_name); (void)r2;
 	if (access(fullname, R_OK) == 0 &&
 			strncmp(fullname, dosemu_plugin_dir_path,
 			strlen(dosemu_plugin_dir_path)) != 0) {
@@ -1172,12 +1172,14 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 	close(0);
 	close(1);
 	close(2);
-	if (use_stdin)
-	    dup(pts_fd);
+	if (use_stdin) {
+	    int r3 = dup(pts_fd);
+	    (void)r3;
+	}
 	else
 	    open("/dev/null", O_RDONLY);
-	dup(pts_fd);
-	dup(pts_fd);
+	int r4 = dup(pts_fd); (void)r4;
+	int r5 = dup(pts_fd); (void)r5;
 	close(pts_fd);
 	/* can close pty_fd, but its closed in close_from anyway */
 #ifdef HAVE_CLOSEFROM

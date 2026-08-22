@@ -137,7 +137,7 @@ static char *prepare_shemu_name(const char *fname, int id)
   const char *sf[lk_MAX] = { "compat", "noncompat", "denyR", "denyW",
                              "R", "W" };
   char *nm;
-  asprintf(&nm, "%s.%s", fname, sf[id]);
+  int r = asprintf(&nm, "%s.%s", fname, sf[id]); (void)r;
   return nm;
 }
 

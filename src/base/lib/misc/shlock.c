@@ -70,7 +70,7 @@ static void do_gc(const char *fspec)
   glob_t gl;
   int rc;
 
-  asprintf(&pat, "%s/" LOCK_PFX "*", fspec);
+  int r2 = asprintf(&pat, "%s/" LOCK_PFX "*", fspec); (void)r2;
   rc = glob(pat, GLOB_ERR | GLOB_NOSORT | GLOB_NOESCAPE, NULL, &gl);
   if (rc == 0) {
     int i;
@@ -95,7 +95,7 @@ static char *fixupspec(char *fspec, const char *dir1, const char *dir2)
   char *ret;
   int len = strlen(dir1);
   assert(fspec[len] == '/');
-  asprintf(&ret, "%s%s", dir2, fspec + len);
+  int r1 = asprintf(&ret, "%s%s", dir2, fspec + len); (void)r1;
   return ret;
 }
 

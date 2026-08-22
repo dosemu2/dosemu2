@@ -326,8 +326,10 @@ static int tty_lock(const char *path, int mode)
       }
 
       ime = getpid();
-      if(config.tty_lockbinary)
-	write (fileno(fd), &ime, sizeof(ime));
+      if(config.tty_lockbinary) {
+	int r1 = write (fileno(fd), &ime, sizeof(ime));
+	(void)r1;
+      }
       else
 	fprintf(fd, "%10d\n", (int)ime);
 
@@ -340,7 +342,7 @@ static int tty_lock(const char *path, int mode)
       return(0);        /* keep the lock anyway */
     }
 
-    (void) chown(saved_path, pw->pw_uid, pw->pw_gid);
+    int r2 = chown(saved_path, pw->pw_uid, pw->pw_gid); (void)r2;
     (void) chmod(saved_path, 0644);
   }
   else if (mode == 2) { /* re-acquire a lock after a fork() */
@@ -353,8 +355,10 @@ static int tty_lock(const char *path, int mode)
     }
     ime = getpid();
 
-    if(config.tty_lockbinary)
-      write (fileno(fd), &ime, sizeof(ime));
+    if(config.tty_lockbinary) {
+      int r3 = write (fileno(fd), &ime, sizeof(ime));
+      (void)r3;
+    }
     else
       fprintf(fd, "%10d\n", (int)ime);
 

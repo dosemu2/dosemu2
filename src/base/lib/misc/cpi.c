@@ -149,7 +149,7 @@ uint8_t *cpi_load_font(const char *path, uint16_t cp,
     uint8_t *font_data;
     int i;
 
-    asprintf(&wild, "%s/*.cpi", path);
+    int r = asprintf(&wild, "%s/*.cpi", path); (void)r;
     glob(wild, 0, NULL, &p);
     free(wild);
     for (i = 0; i < p.gl_pathc; i++) {

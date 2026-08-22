@@ -90,7 +90,7 @@ int vlog_init(const char *file)
     if (log_fd == -1)
         return -1;
     if (early_pos) {
-        write(log_fd, early_log, early_pos);
+        int r = write(log_fd, early_log, early_pos); (void)r;
         early_pos = 0;
     }
     return 0;

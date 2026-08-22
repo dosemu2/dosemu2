@@ -390,8 +390,8 @@ Bit8u std_port_inb(ioport_t port)
 	}
 	pr.port = port;
 	pr.type = TYPE_INB;
-	write(port_fd_out[1], &pr, sizeof(pr));
-	read(port_fd_in[0], &pr, sizeof(pr));
+	int r1 = write(port_fd_out[1], &pr, sizeof(pr)); (void)r1;
+	int r2 = read(port_fd_in[0], &pr, sizeof(pr)); (void)r2;
 	return pr.word;
 }
 
@@ -417,8 +417,8 @@ void std_port_outb(ioport_t port, Bit8u byte)
         pr.word = byte;
         pr.port = port;
         pr.type = TYPE_OUTB;
-	write(port_fd_out[1], &pr, sizeof(pr));
-	read(port_fd_in[0], &pr, sizeof(pr));
+	int r3 = write(port_fd_out[1], &pr, sizeof(pr)); (void)r3;
+	int r4 = read(port_fd_in[0], &pr, sizeof(pr)); (void)r4;
 }
 
 static void std_port_outb_h(ioport_t port, Bit8u byte, void *arg)
@@ -441,8 +441,8 @@ Bit16u std_port_inw(ioport_t port)
 	}
         pr.port = port;
         pr.type = TYPE_INW;
-	write(port_fd_out[1], &pr, sizeof(pr));
-	read(port_fd_in[0], &pr, sizeof(pr));
+	int r5 = write(port_fd_out[1], &pr, sizeof(pr)); (void)r5;
+	int r6 = read(port_fd_in[0], &pr, sizeof(pr)); (void)r6;
 	return pr.word;
 }
 
@@ -470,8 +470,8 @@ void std_port_outw(ioport_t port, Bit16u word)
         pr.word = word;
         pr.port = port;
         pr.type = TYPE_OUTW;
-	write(port_fd_out[1], &pr, sizeof(pr));
-	read(port_fd_in[0], &pr, sizeof(pr));
+	int r7 = write(port_fd_out[1], &pr, sizeof(pr)); (void)r7;
+	int r8 = read(port_fd_in[0], &pr, sizeof(pr)); (void)r8;
 }
 
 static void std_port_outw_h(ioport_t port, Bit16u word, void *arg)
@@ -496,8 +496,8 @@ Bit32u std_port_ind(ioport_t port)
 	}
         pr.port = port;
         pr.type = TYPE_IND;
-	write(port_fd_out[1], &pr, sizeof(pr));
-	read(port_fd_in[0], &pr, sizeof(pr));
+	int r9 = write(port_fd_out[1], &pr, sizeof(pr)); (void)r9;
+	int r10 = read(port_fd_in[0], &pr, sizeof(pr)); (void)r10;
 	return pr.word;
 }
 
@@ -527,15 +527,17 @@ static int do_port_outd(ioport_t port, Bit32u dword, int pci)
         pr.word = dword;
         pr.port = port;
         pr.type = pci ? TYPE_PCI : TYPE_OUTD;
-	write(port_fd_out[1], &pr, sizeof(pr));
+	int r11 = write(port_fd_out[1], &pr, sizeof(pr)); (void)r11;
 	return 1;
 }
 
 void std_port_outd(ioport_t port, Bit32u dword)
 {
         struct portreq pr;
-	if (do_port_outd(port, dword, 0))
-		read(port_fd_in[0], &pr, sizeof(pr));
+	if (do_port_outd(port, dword, 0)) {
+		int r12 = read(port_fd_in[0], &pr, sizeof(pr));
+		(void)r12;
+	}
 }
 
 static void std_port_outd_h(ioport_t port, Bit32u dword, void *arg)
@@ -926,7 +928,7 @@ static void port_server(void)
         close(port_fd_out[1]);
         g_printf("server started\n");
         for (;;) {
-                read(port_fd_out[0], &pr, sizeof(pr));
+                int r13 = read(port_fd_out[0], &pr, sizeof(pr)); (void)r13;
                 if (pr.type >= TYPE_EXIT)
                         _exit(0);
 		ph = &EMU_HANDLER(pr.port);
@@ -938,7 +940,7 @@ static void port_server(void)
 			   as possible, both to minimize possible races, and
 			   for speed */
 			struct portreq pr2;
-			read(port_fd_out[0], &pr2, sizeof(pr2));
+			int r14 = read(port_fd_out[0], &pr2, sizeof(pr2)); (void)r14;
 			ph->write_portd(pr.port, pr.word, ph->arg);
 			pr = pr2;
 		}
@@ -996,7 +998,7 @@ static void port_server(void)
                         }
                         break;
                 }
-                write(port_fd_in[1], &pr, sizeof(pr));
+                int r15 = write(port_fd_in[1], &pr, sizeof(pr)); (void)r15;
         }
 }
 
@@ -1040,8 +1042,8 @@ int extra_port_init(void)
                             port_handle_table[i] <= HANDLE_STD_WR)) {
                                 /* fork the privileged port server */
                                 g_printf("starting port server\n");
-                                pipe(port_fd_out);
-                                pipe(port_fd_in);
+                                int r16 = pipe(port_fd_out); (void)r16;
+                                int r17 = pipe(port_fd_in); (void)r17;
                                 portserver_pid = fork();
                                 if (portserver_pid == 0) {
                                         setsid();
@@ -1067,7 +1069,7 @@ void port_exit(void)
 	if (!portserver_pid) return;
 	sigchld_enable_handler(portserver_pid, 0);
 	pr.type = TYPE_EXIT;
-	write(port_fd_out[1], &pr, sizeof(pr));
+	int r18 = write(port_fd_out[1], &pr, sizeof(pr)); (void)r18;
 	waitpid(portserver_pid, &stat, 0);
 	portserver_pid = 0;
 }
