@@ -121,7 +121,16 @@ static int midoflus_init(void *arg)
     }
 
     synth = new_fluid_synth(settings);
+#ifdef FE_NOMASK_ENV
+    /* workaround for:
+     * https://github.com/libsndfile/libsndfile/issues/1157
+     */
+    fedisableexcept(FE_DIVBYZERO);
+#endif
     ret = fluid_synth_sfload(synth, sfont, TRUE);
+#ifdef FE_NOMASK_ENV
+    fesetenv(&dosemu_fenv);
+#endif
     if (ret == FLUID_FAILED) {
 	error("fluidsynth: cannot load soundfont %s\n", sfont);
 	free(sfont);
