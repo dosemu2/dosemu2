@@ -29,11 +29,33 @@
  */
 
 #include <stddef.h>
-#include <fluidsynth.h>
+#include <stdio.h>
 #include "fluid_midi.h"
 #include "fluid_compat.h"
 
 static int fluid_midi_event_length(unsigned char event);
+
+/**
+ * Assign sysex data to a MIDI event structure.
+ * @param evt MIDI event structure
+ * @param data Pointer to SYSEX data
+ * @param size Size of SYSEX data
+ * @param dynamic TRUE if the SYSEX data has been dynamically allocated and
+ *   should be freed when the event is freed (only applies if event gets destroyed
+ *   with delete_fluid_midi_event())
+ * @return Always returns #FLUID_OK
+ *
+ * NOTE: Unlike the other event assignment functions, this one sets evt->type.
+ */
+static int
+fluid_midi_event_set_sysex(fluid_midi_event_t *evt, void *data, int size, int dynamic)
+{
+    evt->type = MIDI_SYSEX;
+    evt->paramptr = data;
+    evt->param1 = size;
+    evt->param2 = dynamic;
+    return FLUID_OK;
+}
 
 /************************************************************************
  *       MIDI PARSER
@@ -127,6 +149,7 @@ fluid_midi_parser_parse(fluid_midi_parser_t *parser, unsigned char c)
 
     /* Max data size exceeded? (SYSEX messages only really) */
     if (parser->nr_bytes == FLUID_MIDI_PARSER_MAX_DATA_SIZE) {
+        fprintf(stderr, "fluidsynth: midi buffer overflow\n");
         parser->status = 0; /* Discard the rest of the message */
         return NULL;
     }
