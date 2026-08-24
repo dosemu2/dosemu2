@@ -31,19 +31,26 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <fluidsynth.h>
+#define FLUIDSYNTH_API
+#define FLUID_DEPRECATED
+#include <fluidsynth/types.h>
+#include <fluidsynth/misc.h>
+#include <fluidsynth/event.h>
+#include <fluidsynth/seqbind.h>
+#include <fluidsynth/audio.h>
+#include <fluidsynth/settings.h>
+#include <fluidsynth/synth.h>
 #if defined(__APPLE__) || defined(__ANDROID__) /* to redefine sem_init() and related functions */
 #include "utilities.h"
 #else
 #include <semaphore.h>
 #endif
-#include "seqbind.h"
 #include "emu.h"
 #include "init.h"
 #include "timers.h"
 #include "sound/midi.h"
 #include "sound/sound.h"
-#include "fluid_rip/fluid_midi.h"
+#include "midi/fluid_midi.h"
 
 
 #define midoflus_name "flus"
@@ -58,7 +65,7 @@ static fluid_settings_t* settings;
 static fluid_synth_t* synth;
 static fluid_sequencer_t* sequencer;
 static fluid_midi_parser_t* parser;
-static void *synthSeqID;
+static fluid_seq_id_t synthSeqID;
 static int pcm_stream;
 static int output_running, pcm_running;
 static double mf_time_base;
@@ -143,7 +150,7 @@ static int midoflus_init(void *arg)
     fluid_settings_setstr(settings, "synth.midi-bank-select", "gm");
     sequencer = new_fluid_sequencer2(0);
     parser = new_fluid_midi_parser();
-    synthSeqID = fluid_sequencer_register_fluidsynth2(sequencer, synth);
+    synthSeqID = fluid_sequencer_register_fluidsynth(sequencer, synth);
 
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);

@@ -39,7 +39,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "fluid_midi.h"
+#include "midi/fluid_midi.h"
 #include "emu.h"
 #include "init.h"
 #include "timers.h"

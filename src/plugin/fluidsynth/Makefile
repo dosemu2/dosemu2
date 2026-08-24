@@ -7,11 +7,10 @@
 top_builddir=../../..
 include ../plugins.mak
 
-ALL_CFLAGS+=$(DL_CFLAGS) $(FLUSCFLAGS) -I$(srcdir)/fluid_rip
-CFILES = mid_o_flus.c fluid_rip/fluid_seqbind.c
+ALL_CFLAGS+=$(DL_CFLAGS) $(FLUSCFLAGS)
+CFILES = mid_o_flus.c
 LDFLAGS += -Wl,-Bsymbolic
 ifeq ($(USE_DL_PLUGINS),1)
-CFILES += fluid_rip/fluid_midi.c
 all: $(BINPATH)/bin/libplugin_fluidsynth.so
 endif
 
