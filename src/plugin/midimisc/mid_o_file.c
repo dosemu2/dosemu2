@@ -44,10 +44,11 @@
 #include "init.h"
 #include "timers.h"
 #include "sound/midi.h"
-
+#include "midi/mt32remap.h"
 
 #define midofile_name "MIDI Output: midi file"
 static fluid_midi_parser_t* parser;
+static mt32_t *mt;
 static int output_running;
 static long long mf_time_base;
 
@@ -367,6 +368,7 @@ static void do_event(fluid_midi_event_t *ev, int32_t time)
 
 static int midofile_init(void *arg)
 {
+    mt = mt32remap_init();
     parser = new_fluid_midi_parser();
     return 1;
 }
@@ -374,6 +376,7 @@ static int midofile_init(void *arg)
 static void midofile_done(void *arg)
 {
     delete_fluid_midi_parser(parser);
+    mt32remap_done(mt);
 }
 
 static void midofile_start(void)
@@ -385,6 +388,41 @@ static void midofile_start(void)
     start_midi_track();
 }
 
+static void do_write(unsigned char *data, int len)
+{
+    assert(parser->nr_bytes == 0);
+    for (int i = 0; i < len; i++) {
+	fluid_midi_event_t *event = fluid_midi_parser_parse(parser, data[i]);
+	if (event != NULL) {
+	    unsigned long long now = GETusTIME(0);
+	    int32_t usec = now - mf_time_base;
+	    do_event(event, usec);
+	}
+    }
+    assert(parser->nr_bytes == 0);
+}
+
+static int do_mt32_event(fluid_midi_event_t *ev)
+{
+    int ch = fluid_midi_event_get_channel(ev);
+    int e = fluid_midi_event_get_type(ev);
+    if (e >= 0x80 && e <= 0xe0 && !mt32remap_channel_assigned(ms->mt, ch))
+	return 1;
+    switch (e) {
+    case NOTE_ON:
+	mt32remap_noteon(mt, ch, fluid_midi_event_get_key(ev),
+		fluid_midi_event_get_velocity(ev), do_write);
+	break;
+    case PROGRAM_CHANGE:
+	mt32remap_program(mt, ch, fluid_midi_event_get_program(ev));
+	return 1;
+    case MIDI_SYSEX:
+	mt32remap_sysex(mt, ev->paramptr, ev->param1);
+	break;
+    }
+    return 0;
+}
+
 static void midofile_write(unsigned char val, enum SynthType type)
 {
     fluid_midi_event_t* event;
@@ -394,11 +432,14 @@ static void midofile_write(unsigned char val, enum SynthType type)
 
     event = fluid_midi_parser_parse(parser, val);
     if (event != NULL) {
-	unsigned long long now = GETusTIME(0);
-	int32_t usec = now - mf_time_base;
-	if (debug_level('S') >= 5)
-	    S_printf("MIDI: sending event to fluidsynth, usec=%i\n", usec);
-	do_event(event, usec);
+	fluid_midi_event_t event2 = *event;
+	if (type == ST_GM || do_mt32_event(event) == 0) {
+	    unsigned long long now = GETusTIME(0);
+	    int32_t usec = now - mf_time_base;
+	    if (debug_level('S') >= 5)
+		S_printf("MIDI: sending event to fluidsynth, usec=%i\n", usec);
+	    do_event(&event2, usec);
+	}
     }
 }
 
@@ -444,7 +485,14 @@ static const struct midi_out_plugin midofile
 };
 #endif
 
-CONSTRUCTOR(static void midofile_register(void))
+static void mt32_scrub(void)
 {
-    midi_register_output_plugin(&midofile, ST_ANY);
+    enum SynthType type = (config.omt_sfz_path && config.omt_sfz_path[0]) ?
+            ST_ANY : ST_GM;
+    midi_register_output_plugin(&midofile, type);
+}
+
+CONSTRUCTOR(static void midoflus_register(void))
+{
+    register_config_scrub(mt32_scrub);
 }

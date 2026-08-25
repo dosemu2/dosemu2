@@ -40,6 +40,7 @@
 #include <fluidsynth/audio.h>
 #include <fluidsynth/settings.h>
 #include <fluidsynth/synth.h>
+#include <fluidsynth/log.h>
 #if defined(__APPLE__) || defined(__ANDROID__) /* to redefine sem_init() and related functions */
 #include "utilities.h"
 #else
@@ -51,7 +52,7 @@
 #include "sound/midi.h"
 #include "sound/sound.h"
 #include "midi/fluid_midi.h"
-
+#include "midi/mt32remap.h"
 
 #define midoflus_name "flus"
 #define midoflus_longname "MIDI Output: FluidSynth device"
@@ -69,6 +70,7 @@ static fluid_seq_id_t synthSeqID;
 static int pcm_stream;
 static int output_running, pcm_running;
 static double mf_time_base;
+static mt32_t *mt;
 
 static pthread_t syn_thr;
 static sem_t syn_sem;
@@ -128,7 +130,10 @@ static int midoflus_init(void *arg)
 	    }
 	}
     }
-
+#if 0
+    fluid_settings_setint(settings, "synth.verbose", TRUE);
+    fluid_set_log_function(FLUID_DBG, fluid_default_log_function, NULL);
+#endif
     synth = new_fluid_synth(settings);
 #ifdef FE_NOMASK_ENV
     /* workaround for:
@@ -151,6 +156,8 @@ static int midoflus_init(void *arg)
     sequencer = new_fluid_sequencer2(0);
     parser = new_fluid_midi_parser();
     synthSeqID = fluid_sequencer_register_fluidsynth(sequencer, synth);
+
+    mt = mt32remap_init();
 
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
@@ -179,6 +186,7 @@ static void midoflus_done(void *arg)
     delete_fluid_sequencer(sequencer);
     delete_fluid_synth(synth);
     delete_fluid_settings(settings);
+    mt32remap_done(mt);
 }
 
 static void midoflus_start(void)
@@ -192,9 +200,44 @@ static void midoflus_start(void)
     pthread_mutex_unlock(&syn_mtx);
 }
 
+static void do_write(unsigned char *data, int len)
+{
+    assert(parser->nr_bytes == 0);
+    for (int i = 0; i < len; i++) {
+	fluid_midi_event_t *event = fluid_midi_parser_parse(parser, data[i]);
+	if (event != NULL) {
+	    int ret = fluid_sequencer_add_midi_event_to_buffer(sequencer, event);
+	    if (ret != FLUID_OK)
+		S_printf("MIDI: failed sending midi data of size %i\n", len);
+	}
+    }
+    assert(parser->nr_bytes == 0);
+}
+
+static int do_mt32_event(fluid_midi_event_t *ev)
+{
+    int ch = fluid_midi_event_get_channel(ev);
+    int e = fluid_midi_event_get_type(ev);
+    if (e >= 0x80 && e <= 0xe0 && !mt32remap_channel_assigned(mt, ch))
+	return 1;
+    switch (e) {
+    case NOTE_ON:
+	mt32remap_noteon(mt, ch, fluid_midi_event_get_key(ev),
+		fluid_midi_event_get_velocity(ev), do_write);
+	break;
+    case PROGRAM_CHANGE:
+	mt32remap_program(mt, ch, fluid_midi_event_get_program(ev));
+	return 1;
+    case MIDI_SYSEX:
+	mt32remap_sysex(mt, ev->paramptr, ev->param1);
+	break;
+    }
+    return 0;
+}
+
 static void midoflus_write(unsigned char val, enum SynthType type)
 {
-    int ret;
+    int ret = FLUID_OK;
     fluid_midi_event_t* event;
     unsigned long long now = GETusTIME(0);
     int msec = (now - mf_time_base) / 1000;
@@ -204,10 +247,14 @@ static void midoflus_write(unsigned char val, enum SynthType type)
 
     event = fluid_midi_parser_parse(parser, val);
     if (event != NULL) {
+	fluid_midi_event_t event2 = *event;
+	pthread_mutex_lock(&syn_mtx);
 	fluid_sequencer_process(sequencer, msec);
-	ret = fluid_sequencer_add_midi_event_to_buffer(sequencer, event);
+	if (type == ST_GM || do_mt32_event(event) == 0)
+	    ret = fluid_sequencer_add_midi_event_to_buffer(sequencer, &event2);
 	if (ret != FLUID_OK)
 	    S_printf("MIDI: failed sending midi event\n");
+	pthread_mutex_unlock(&syn_mtx);
     }
 }
 
@@ -327,7 +374,14 @@ static const struct midi_out_plugin midoflus
 };
 #endif
 
+static void mt32_scrub(void)
+{
+    enum SynthType type = (config.omt_sfz_path && config.omt_sfz_path[0]) ?
+            ST_ANY : ST_GM;
+    midi_register_output_plugin(&midoflus, type);
+}
+
 CONSTRUCTOR(static void midoflus_register(void))
 {
-    midi_register_output_plugin(&midoflus, ST_GM);
+    register_config_scrub(mt32_scrub);
 }

@@ -344,6 +344,7 @@ typedef struct config_info {
        char *midi_driver;
        char *fluid_sfont;
        int fluid_volume;
+       char *omt_sfz_path;
        char *munt_roms_dir;
        char *snd_plugin_params;
        boolean pcm_hpf;

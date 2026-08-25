@@ -7,7 +7,7 @@
 top_builddir=../../../..
 include $(top_builddir)/Makefile.conf
 
-CFILES = fluid_midi.c
+CFILES = fluid_midi.c mt32remap.c
 
 include $(REALTOPDIR)/src/Makefile.common
 
