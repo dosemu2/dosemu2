@@ -302,6 +302,7 @@ int emulate(int argc, char **argv, char * const *envp)
 {
     setlocale(LC_ALL,"");
     srand(time(NULL));
+    dosemu_envp = env_dup(envp);  // before forking fs server
 
     /* NOW! it is safe to touch the priv code.  */
     priv_init();  /* This must come first! */
@@ -358,7 +359,6 @@ int emulate(int argc, char **argv, char * const *envp)
     }
     priv_drop_root();
 
-    dosemu_envp = env_dup(envp);
     map_memory_space();         /* maps all DOS memory (low, dpmi, xms...) */
     init_hardware_ram();        /* map the direct hardware ram */
     map_video_bios();           /* map (really: copy) the video bios */
