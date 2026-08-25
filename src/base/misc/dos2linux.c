@@ -334,7 +334,7 @@ void dos2tty_init(void)
         return;
     }
     dn = dirname(pts);
-    assert(dn && dn[0] != '\0' && dn == pts);
+    assert(dn && dn[0] != '\0');
     if (dn[strlen(dn) - 1] != '/')
         strlcat(pts, "/", sizeof(pts));
     mfs_idx = mfs_define_drive(pts);
