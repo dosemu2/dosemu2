@@ -1075,8 +1075,18 @@ static int mfs_lfn_(void)
 	{
 		int i;
 		char filename[PATH_MAX];
+		char src_filename[PATH_MAX];
 
 		src = MK_FP32(_DS, _SI);
+		strlcpy(src_filename, src, sizeof(src_filename));
+		src = src_filename;
+		i = strlen(src);
+		/* drop trailing ':' unless at pos 1 */
+		if (i > 1 && src[i - 1] == ':') {
+		    src[--i] = '\0';
+		    if (!is_dos_device(src))
+			return lfn_error(FILE_NOT_FOUND);
+		}
 		d_printf("LFN: truename cl=%d '%s'\n", _CL, src);
 		i = 0;
 		if (src[0] && src[1] == ':') i = 2;
