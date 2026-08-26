@@ -192,7 +192,7 @@ static void midoflus_start(void)
     pthread_mutex_unlock(&syn_mtx);
 }
 
-static void midoflus_write(unsigned char val)
+static void midoflus_write(unsigned char val, enum SynthType type)
 {
     int ret;
     fluid_midi_event_t* event;

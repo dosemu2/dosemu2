@@ -385,7 +385,7 @@ static void midofile_start(void)
     start_midi_track();
 }
 
-static void midofile_write(unsigned char val)
+static void midofile_write(unsigned char val, enum SynthType type)
 {
     fluid_midi_event_t* event;
 

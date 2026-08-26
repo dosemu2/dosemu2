@@ -67,7 +67,7 @@ static void midooss_done(void *arg)
     seq_fd = -1;
 }
 
-static void midooss_write(unsigned char val)
+static void midooss_write(unsigned char val, enum SynthType type)
 {
     SEQ_MIDIOUT(0, val);
     SEQ_DUMPBUF();

@@ -425,7 +425,7 @@ static void midotmdty_reset(void)
     S_printf("\tSetup: %s\n", buf);
 }
 
-static void midotmdty_write(Bit8u val)
+static void midotmdty_write(Bit8u val, enum SynthType type)
 {
     if (send(data_sock, &val, 1, MSG_DONTWAIT) == -1)
         error("send failed!\n");
@@ -434,7 +434,7 @@ static void midotmdty_write(Bit8u val)
 static void midotmdty_stop(void *arg)
 {
     S_printf("\tStop\n");
-    midotmdty_write(0xfc);
+    midotmdty_write(0xfc, ST_ANY);
     if (pcm_running)
 	pcm_flush(pcm_stream);
     pcm_running = 0;

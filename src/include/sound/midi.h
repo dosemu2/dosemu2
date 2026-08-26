@@ -41,7 +41,7 @@ struct midi_out_plugin : public pcm_plugin_base {
 struct midi_out_plugin {
   pcm_plugin_base;
 #endif
-  void (*write)(unsigned char);
+  void (*write)(unsigned char, enum SynthType);
   void (*run)(void);
   enum SynthType stype;
 };

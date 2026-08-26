@@ -113,7 +113,7 @@ static void midoalsa_done(void *arg)
     handle = NULL;
 }
 
-static void midoalsa_write(unsigned char val)
+static void midoalsa_write(unsigned char val, enum SynthType type)
 {
     if (!handle)
 	return;
@@ -165,7 +165,7 @@ static void midoalsav_done(void *arg)
     handle_v = NULL;
 }
 
-static void midoalsav_write(unsigned char val)
+static void midoalsav_write(unsigned char val, enum SynthType type)
 {
     if (!handle_v)
 	return;

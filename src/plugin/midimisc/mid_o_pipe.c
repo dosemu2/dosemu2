@@ -67,7 +67,7 @@ static void midopipe_done(void *arg)
     pipe_fd = -1;
 }
 
-static void midopipe_write(unsigned char val)
+static void midopipe_write(unsigned char val, enum SynthType type)
 {
     /* Try again to open FIFO on each write in case some readers showed up. */
     if (pipe_fd == -1) {

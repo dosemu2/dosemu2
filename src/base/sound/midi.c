@@ -54,10 +54,10 @@ void midi_write(unsigned char val, enum SynthType type)
 	stype = synth_type;
     for (i = 0; i < out_registered[stype]; i++)
 	if (out[stype][i].opened)
-	    OUT_PLUGIN(stype, i)->write(val);
+	    OUT_PLUGIN(stype, i)->write(val, type);
     for (i = 0; i < out_registered[ST_ANY]; i++)
 	if (out[ST_ANY][i].opened)
-	    OUT_PLUGIN(ST_ANY, i)->write(val);
+	    OUT_PLUGIN(ST_ANY, i)->write(val, type);
 //  idle(0, 0, 0, "midi");
 }
 
