@@ -136,7 +136,7 @@ static const struct midi_out_plugin midoalsa
     MIDI_W_PREFERRED,
     midoalsa_write,
     NULL, NULL,
-    0
+    PCM_F_EXPLICIT
 };
 #else
 = {
@@ -147,6 +147,7 @@ static const struct midi_out_plugin midoalsa
     .close = midoalsa_done,
     .weight = MIDI_W_PREFERRED,
     .write = midoalsa_write,
+    .flags = PCM_F_EXPLICIT
 };
 #endif
 
