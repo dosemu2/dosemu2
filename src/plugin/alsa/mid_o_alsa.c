@@ -136,7 +136,6 @@ static const struct midi_out_plugin midoalsa
     MIDI_W_PREFERRED,
     midoalsa_write,
     NULL, NULL,
-    ST_GM,
     0
 };
 #else
@@ -148,7 +147,6 @@ static const struct midi_out_plugin midoalsa
     .close = midoalsa_done,
     .weight = MIDI_W_PREFERRED,
     .write = midoalsa_write,
-    .stype = ST_GM,
 };
 #endif
 
@@ -188,7 +186,6 @@ static const struct midi_out_plugin midoalsa_v
     0,
     midoalsav_write,
     NULL, NULL,
-    ST_MT32,
     PCM_F_EXPLICIT
 };
 #else
@@ -199,14 +196,13 @@ static const struct midi_out_plugin midoalsa_v
     .open = midoalsav_init,
     .close = midoalsav_done,
     .write = midoalsav_write,
-    .stype = ST_MT32,
     .flags = PCM_F_EXPLICIT
 };
 #endif
 
 CONSTRUCTOR(static int midoalsa_register(void))
 {
-    midi_register_output_plugin(&midoalsa);
-    midi_register_output_plugin(&midoalsa_v);
+    midi_register_output_plugin(&midoalsa, ST_GM);
+    midi_register_output_plugin(&midoalsa_v, ST_MT32);
     return 0;
 }

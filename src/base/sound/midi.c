@@ -150,9 +150,10 @@ int midi_get_data_byte(unsigned char *buf)
     return rng_get(&midi_in, buf);
 }
 
-int midi_register_output_plugin(const struct midi_out_plugin *plugin)
+int midi_register_output_plugin(const struct midi_out_plugin *plugin,
+    enum SynthType st)
 {
-    int index, st = plugin->stype;
+    int index;
     if (out_registered[st] >= MAX_OUT_PLUGINS) {
 	error("Cannot register midi plugin %s\n", plugin->name);
 	return 0;

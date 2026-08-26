@@ -311,7 +311,6 @@ static const struct midi_out_plugin midoflus
     midoflus_write,
     midoflus_stop,
     midoflus_run,
-    ST_GM,
     0
 };
 #else
@@ -325,11 +324,10 @@ static const struct midi_out_plugin midoflus
     .write = midoflus_write,
     .stop = midoflus_stop,
     .run = midoflus_run,
-    .stype = ST_GM,
 };
 #endif
 
 CONSTRUCTOR(static void midoflus_register(void))
 {
-    midi_register_output_plugin(&midoflus);
+    midi_register_output_plugin(&midoflus, ST_GM);
 }

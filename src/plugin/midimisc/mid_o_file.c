@@ -430,7 +430,6 @@ static const struct midi_out_plugin midofile
     midofile_write,
     midofile_stop,
     NULL,
-    ST_ANY,
     PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
 #else
@@ -441,12 +440,11 @@ static const struct midi_out_plugin midofile
     .close = midofile_done,
     .write = midofile_write,
     .stop = midofile_stop,
-    .stype = ST_ANY,
     .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
 #endif
 
 CONSTRUCTOR(static void midofile_register(void))
 {
-    midi_register_output_plugin(&midofile);
+    midi_register_output_plugin(&midofile, ST_ANY);
 }

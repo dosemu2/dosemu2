@@ -457,7 +457,6 @@ static const struct midi_out_plugin midotmdty
     midotmdty_write,
     midotmdty_stop,
     NULL,
-    ST_GM,
     0
 };
 #else
@@ -470,11 +469,10 @@ static const struct midi_out_plugin midotmdty
     .weight = MIDI_W_PCM,
     .write = midotmdty_write,
     .stop = midotmdty_stop,
-    .stype = ST_GM,
 };
 #endif
 
 CONSTRUCTOR(static void midotmdty_register(void))
 {
-    midi_register_output_plugin(&midotmdty);
+    midi_register_output_plugin(&midotmdty, ST_GM);
 }
