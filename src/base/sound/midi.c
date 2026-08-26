@@ -178,7 +178,7 @@ int midi_register_input_plugin(const struct midi_in_plugin *plugin)
 
 int midi_set_synth_type(enum SynthType st)
 {
-    if (st == ST_ANY || st >= ST_MAX || !out_enabled[st])
+    if (st == ST_ANY || st >= ST_MAX || (!out_enabled[st] && !out_enabled[ST_ANY]))
 	return 0;
     synth_type = st;
     return 1;
