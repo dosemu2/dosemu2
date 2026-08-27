@@ -200,7 +200,7 @@ static void midoflus_start(void)
     pthread_mutex_unlock(&syn_mtx);
 }
 
-static void do_write(unsigned char *data, int len)
+static void do_write(void *arg, unsigned char *data, int len)
 {
     assert(parser->nr_bytes == 0);
     for (int i = 0; i < len; i++) {
@@ -223,7 +223,7 @@ static int do_mt32_event(fluid_midi_event_t *ev)
     switch (e) {
     case NOTE_ON:
 	mt32remap_noteon(mt, ch, fluid_midi_event_get_key(ev),
-		fluid_midi_event_get_velocity(ev), do_write);
+		fluid_midi_event_get_velocity(ev), do_write, NULL);
 	break;
     case PROGRAM_CHANGE:
 	mt32remap_program(mt, ch, fluid_midi_event_get_program(ev));

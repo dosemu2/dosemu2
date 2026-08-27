@@ -572,6 +572,7 @@ opl2lpt_type		RETURN(OPL2LPT_TYPE);
 snd_plugin_params	RETURN(SND_PLUGIN_PARAMS);
 pcm_hpf			RETURN(PCM_HPF);
 midi_file		RETURN(MIDI_FILE);
+midi_file_mt32		RETURN(MIDI_FILE_MT32);
 wav_file		RETURN(WAV_FILE);
 
         /* Joystick stuff */

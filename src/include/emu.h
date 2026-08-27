@@ -349,6 +349,7 @@ typedef struct config_info {
        char *snd_plugin_params;
        boolean pcm_hpf;
        char *midi_file;
+       char *midi_file_mt32;
        char *wav_file;
 
        /* joystick */

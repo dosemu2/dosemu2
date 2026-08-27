@@ -414,7 +414,7 @@ int mt32remap_channel_assigned(const mt32_t *m, int ch)
 }
 
 int mt32remap_noteon(mt32_t *mt, int ch, int key, int vel,
-        void (*write_cb)(unsigned char *data, int len))
+        void (*write_cb)(void *arg, unsigned char *data, int len), void *arg)
 {
     int unmapped = 0;
     for (int part = 0; part < 9; part++) {
@@ -449,15 +449,15 @@ int mt32remap_noteon(mt32_t *mt, int ch, int key, int vel,
         }
         bank = p->bank % 128;
         if (mt->cur_bank[ch] != bank || mt->cur_prog[ch] != p->program) {
-            write_cb((u8 []){0xb0 | ch, 0, bank}, 3);
-            write_cb((u8 []){0xc0 | ch, p->program}, 2);
+            write_cb(arg, (u8 []){0xb0 | ch, 0, bank}, 3);
+            write_cb(arg, (u8 []){0xc0 | ch, p->program}, 2);
             mt->cur_bank[ch] = bank; mt->cur_prog[ch] = p->program;
         }
         if (p->bend >= 0 && mt->cur_bend[ch] != p->bend) {
             int bend = p->bend > 24 ? 24 : p->bend;
-            write_cb((u8 []){0xb0 | ch, 101, 0}, 3);
-            write_cb((u8 []){0xb0 | ch, 100, 0}, 3);
-            write_cb((u8 []){0xb0 | ch, 6, bend}, 3);
+            write_cb(arg, (u8 []){0xb0 | ch, 101, 0}, 3);
+            write_cb(arg, (u8 []){0xb0 | ch, 100, 0}, 3);
+            write_cb(arg, (u8 []){0xb0 | ch, 6, bend}, 3);
             mt->cur_bend[ch] = p->bend;
         }
         break;  // XXX

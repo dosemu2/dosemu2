@@ -303,7 +303,7 @@ enum {
 %token MPU_IRQ MPU_IRQ_MT32 MIDI_SYNTH
 %token SOUND_DRIVER MIDI_DRIVER FLUID_SFONT FLUID_VOLUME OMT_SFZ_PATH
 %token MUNT_ROMS OPL2LPT_DEV OPL2LPT_TYPE
-%token SND_PLUGIN_PARAMS PCM_HPF MIDI_FILE WAV_FILE
+%token SND_PLUGIN_PARAMS PCM_HPF MIDI_FILE MIDI_FILE_MT32 WAV_FILE
 	/* CD-ROM */
 %token CDROM
 	/* ASPI driver */
@@ -1191,6 +1191,7 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| SND_PLUGIN_PARAMS string_expr	{ free(config.snd_plugin_params); config.snd_plugin_params = $2; }
 		| PCM_HPF bool		{ config.pcm_hpf = ($2!=0); }
 		| MIDI_FILE string_expr	{ free(config.midi_file); config.midi_file = $2; }
+		| MIDI_FILE_MT32 string_expr	{ free(config.midi_file_mt32); config.midi_file_mt32 = $2; }
 		| WAV_FILE string_expr	{ free(config.wav_file); config.wav_file = $2; }
 		;
 
