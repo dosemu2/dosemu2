@@ -347,7 +347,7 @@ static void dosemu_fault0(int signum, sigcontext_t *scp, const siginfo_t *si)
     */
     sigemptyset(&set);
     sigaddset(&set, signum);
-    sigprocmask(SIG_UNBLOCK, &set, NULL);
+    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
   }
 #endif
 
