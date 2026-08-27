@@ -219,6 +219,13 @@ class BaseTestCase(object):
         cls.cmddir = Path(environ.get("TEST_CMDDIR", cls.topdir / "src" / "bindist"))
         cls.dosemu = Path(environ.get("TEST_DOSEMU", cls.topdir / "bin" / "dosemu"))
 
+        # Check if the user wants to override the usual command.com and if so make sure it exists
+        cls.commandcom = environ.get("COPY_COMMAND_COM")
+        if cls.commandcom:
+            f = Path(cls.commandcom)
+            if not f.is_file():
+                raise ValueError(f"COPY_COMMAND_COM set but is not a file '{cls.commandcom}'")
+
         cls.version = "BaseTestCase default"
         cls.prettyname = "NoPrettyNameSet"
         cls.tarfile = None
@@ -348,6 +355,10 @@ class BaseTestCase(object):
         # Extract the boot files
         if self.tarfile != "":
             self.unTarOrSkip(self.tarfile, self.files)
+
+        # If we have a COMMAND_COM override, copy it into place
+        if self.commandcom:
+            copy(self.commandcom, self.workdir / "command.com")
 
         # Link back to std dosemu commands and scripts
         p = self.workdir / "dosemu"
