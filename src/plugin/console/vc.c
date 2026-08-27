@@ -334,7 +334,7 @@ set_process_control (void)
   sa.sa_handler = tempsigvt;
   sigaction(SIG_RELEASE, &sa, NULL);
   sigaction(SIG_ACQUIRE, &sa, NULL);
-  sigprocmask(SIG_UNBLOCK, &set, NULL);
+  pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 
   if (ioctl (console_fd, VT_SETMODE, &vt_mode))
     v_printf ("initial VT_SETMODE failed!\n");

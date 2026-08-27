@@ -117,7 +117,7 @@ static void pctx_pre(void *arg)
 static void pctx_post(void *arg)
 {
 	if (sig_threads_wa)
-		sigprocmask(SIG_SETMASK, arg, NULL);
+		pthread_sigmask(SIG_SETMASK, arg, NULL);
 }
 
 static int ptctx_create_context(co_ctx_t *ctx, void (*func)(void*), void *arg,

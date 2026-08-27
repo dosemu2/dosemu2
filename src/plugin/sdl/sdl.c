@@ -1027,7 +1027,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     if (!config.X_hidden)
       SDL_ShowWindow(window);
     if (sig_threads_wa)
-      sigprocmask(SIG_SETMASK, &oset, NULL);
+      pthread_sigmask(SIG_SETMASK, &oset, NULL);
     SDL_SetWindowResizable(window, !config.X_noresize);
     if (config.X_fullscreen) {
       SDL_RaiseWindow(window);
@@ -1040,7 +1040,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     signal_block_async_nosig(&oset);
   SDL_RenderPresent(renderer);
   if (sig_threads_wa)
-    sigprocmask(SIG_SETMASK, &oset, NULL);
+    pthread_sigmask(SIG_SETMASK, &oset, NULL);
 #if defined(HAVE_SDL2_TTF) && defined(HAVE_FONTCONFIG)
   if (is_text)
     setup_ttf_winsize(w_x_res, w_y_res);
@@ -1356,7 +1356,7 @@ static void SDL_handle_events(void)
     signal_block_async_nosig(&oset);
   SDL_PumpEvents();
   if (sig_threads_wa)
-    sigprocmask(SIG_SETMASK, &oset, NULL);
+    pthread_sigmask(SIG_SETMASK, &oset, NULL);
   /* XXX - Flush window resize events to avoid them being dispatched
    * from render thread! If window resize event is dispatched from
    * another thread, window will became permanently blank.

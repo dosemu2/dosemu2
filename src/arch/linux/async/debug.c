@@ -198,7 +198,7 @@ static int do_fork_debug(void)
   if (getuid() != geteuid())
     return 0;
 
-  sigprocmask(SIG_BLOCK, &q_mask, &oset);
+  pthread_sigmask(SIG_BLOCK, &q_mask, &oset);
   switch ((dbg_pid = fork())) {
     case 0:
       signal_done();
@@ -219,7 +219,7 @@ static int do_fork_debug(void)
       }
       break;
   }
-  sigprocmask(SIG_SETMASK, &oset, NULL);
+  pthread_sigmask(SIG_SETMASK, &oset, NULL);
   return ret;
 }
 

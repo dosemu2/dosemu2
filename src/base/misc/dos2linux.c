@@ -502,11 +502,11 @@ int unix_run_secure(const char *path, int pos, struct popen2 *file)
     retval = pipe(outp);
     assert(!retval);
     signal_block_async_nosig(&oset);
-    sigprocmask(SIG_SETMASK, NULL, &set);
+    pthread_sigmask(SIG_SETMASK, NULL, &set);
     /* fork child */
     switch ((pid = fork())) {
     case -1: /* failed */
-	sigprocmask(SIG_SETMASK, &oset, NULL);
+	pthread_sigmask(SIG_SETMASK, &oset, NULL);
 	g_printf("run_unix_command(): fork() failed\n");
 	return -1;
     case 0: /* child */
@@ -563,7 +563,7 @@ int unix_run_secure(const char *path, int pos, struct popen2 *file)
     pshared_sem_post(crit_sem);
     pshared_sem_wait(init_sem);
     sigchld_unset_critical(&act);
-    sigprocmask(SIG_SETMASK, &oset, NULL);
+    pthread_sigmask(SIG_SETMASK, &oset, NULL);
     pshared_sem_destroy(&init_sem);
     pshared_sem_destroy(&crit_sem);
     close(outp[1]);

@@ -603,7 +603,7 @@ void signal_done(void)
 	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
     if (setitimer(ITIMER_VIRTUAL, &itv, NULL) == -1)
 	g_printf("can't turn off vtimer at shutdown: %s\n", strerror(errno));
-    sigprocmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
+    pthread_sigmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
     for (i = 1; i < SIGMAX; i++) {
 	if (sigismember(&q_mask, i))
 	    signal(i, SIG_DFL);
@@ -802,7 +802,7 @@ static int sigasync0(int sig)
     char name[128];
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("Async signal %i from thread %s\n", sig, name);
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(__ANDROID__)
     /* somehow SIGALRM often gets unblocked in threads on MacOS,
        forwarding to main thread */
     pthread_kill(dosemu_pthread_self, sig);
@@ -899,7 +899,7 @@ static void async_call(void *arg)
 void signal_unblock_async_sigs(void)
 {
   /* unblock only nonfatal, fatals should already be unblocked */
-  sigprocmask(SIG_UNBLOCK, &nonfatal_q_mask, NULL);
+  pthread_sigmask(SIG_UNBLOCK, &nonfatal_q_mask, NULL);
 }
 
 void signal_restore_async_sigs(void)
@@ -907,13 +907,13 @@ void signal_restore_async_sigs(void)
   /* restore temporarily unblocked async signals in a sig context.
    * Just block them even for !sas_wa because if deinit_handler is
    * interrupted after changing %fs, we are in troubles */
-  sigprocmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
+  pthread_sigmask(SIG_BLOCK, &nonfatal_q_mask, NULL);
 }
 
 void signal_unblock_fatal_sigs(void)
 {
   /* unblock only nonfatal, fatals should already be unblocked */
-  sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
+  pthread_sigmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
 }
 
 /* similar to above, but to call from non-signal context */

@@ -913,7 +913,7 @@ int popen2_custom(const char *cmdline, struct popen2 *childinfo)
         perror("execl");
         _exit(99);
     }
-    sigprocmask(SIG_SETMASK, &oset, NULL);
+    pthread_sigmask(SIG_SETMASK, &oset, NULL);
     close(pipe_stdin[0]);
     close(pipe_stdout[1]);
     if (fcntl(pipe_stdin[1], F_SETFD, FD_CLOEXEC) == -1)
@@ -1146,14 +1146,14 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
     retval = pshared_sem_init(&crit_sem, 0);
     assert(!retval);
     signal_block_async_nosig(&oset);
-    sigprocmask(SIG_SETMASK, NULL, &set);
+    pthread_sigmask(SIG_SETMASK, NULL, &set);
     pts_fd = pts_open();
     if (pts_fd == -1)
 	return -1;
     /* fork child */
     switch ((pid = fork())) {
     case -1: /* failed */
-	sigprocmask(SIG_SETMASK, &oset, NULL);
+	pthread_sigmask(SIG_SETMASK, &oset, NULL);
 	g_printf("run_unix_command(): fork() failed\n");
 	return -1;
     case 0: /* child */
@@ -1205,7 +1205,7 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
 		}
 #endif
 	} while (wt != -1);
-	sigprocmask(SIG_SETMASK, &oset, NULL);
+	pthread_sigmask(SIG_SETMASK, &oset, NULL);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
 	retval = execve(path, argv, dosemu_envp);	/* execute command */
@@ -1219,7 +1219,7 @@ pid_t run_external_command(const char *path, int argc, const char **argv,
     pshared_sem_post(crit_sem);
     pshared_sem_wait(init_sem);
     sigchld_unset_critical(&act);
-    sigprocmask(SIG_SETMASK, &oset, NULL);
+    pthread_sigmask(SIG_SETMASK, &oset, NULL);
     pshared_sem_destroy(&init_sem);
     pshared_sem_destroy(&crit_sem);
     close(pts_fd);
@@ -1561,7 +1561,7 @@ void create_thread(pthread_t *restrict thread,
       signal_block_async_nosig(&oset);
     err = pthread_create(thread, NULL, start_routine, arg);
     if (sig_threads_wa)
-      sigprocmask(SIG_SETMASK, &oset, NULL);
+      pthread_sigmask(SIG_SETMASK, &oset, NULL);
     assert(!err);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
     pthread_setname_np(*thread, name);
