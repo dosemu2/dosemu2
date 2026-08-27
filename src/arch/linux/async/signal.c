@@ -802,7 +802,7 @@ static int sigasync0(int sig)
     char name[128];
     pthread_getname_np(tid, name, sizeof(name));
     dosemu_error("Async signal %i from thread %s\n", sig, name);
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(__ANDROID__)
     /* somehow SIGALRM often gets unblocked in threads on MacOS,
        forwarding to main thread */
     pthread_kill(dosemu_pthread_self, sig);
