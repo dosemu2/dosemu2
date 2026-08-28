@@ -58,6 +58,26 @@ case "${RUNTYPE}" in
     ;;
 esac
 
+# This section here only runs for proving out test_comcom changes in PRs etc, the tests are
+# run for real in the Comcom64 repository
+if [ "${COMCOM_CHANGED}" = "true" ] ; then
+    VERSION=32
+    cat >&2 << EOF3
+=====================================================
+=              Tests run on Comcom${VERSION}                 =
+=====================================================
+EOF3
+    env COPY_COMMAND_COM=/usr/share/comcom${VERSION}/comcom${VERSION}.exe test/test_comcom.py
+
+    VERSION=64
+    cat >&2 << EOF4
+=====================================================
+=              Tests run on Comcom${VERSION}                 =
+=====================================================
+EOF4
+    env COPY_COMMAND_COM=/usr/share/comcom${VERSION}/comcom${VERSION}.exe test/test_comcom.py
+fi
+
 for i in test_*.*.*.log ; do
   test -f $i || exit 0
 done

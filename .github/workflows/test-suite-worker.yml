@@ -22,6 +22,15 @@ jobs:
       with:
         fetch-depth: 50
 
+    - name: Check if we need to run comcom specific test
+      uses: dorny/paths-filter@v4
+      id: comcom
+      with:
+        filters: |
+          waschanged:
+            - 'test/test_comcom.py'
+            - 'test/func_comcom_internal.py'
+
     - name: Add an ACL to KVM for ourselves
       run: |
           echo 'SUBSYSTEM=="misc", KERNEL=="kvm", RUN+="/usr/bin/setfacl -m u:'${USER}':rw- /dev/kvm"' | sudo tee /etc/udev/rules.d/99-kvm4dosemu2.rules
@@ -110,6 +119,7 @@ jobs:
         RUNTYPE: ${{ inputs.runtype }}
         OS: ${{ inputs.os }}
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        COMCOM_CHANGED: ${{ github.event_name == 'push' || steps.comcom.outputs.waschanged }}
       run: ./ci_test.sh
 
     - name: Upload failure logs
