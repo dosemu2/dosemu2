@@ -120,7 +120,7 @@ static void midomunt_start(void)
     pthread_mutex_unlock(&syn_mtx);
 }
 
-static void midomunt_write(unsigned char val)
+static void midomunt_write(unsigned char val, enum SynthType type)
 {
     unsigned long long now;
     int tstamp;
