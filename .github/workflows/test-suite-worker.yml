@@ -79,6 +79,15 @@ jobs:
         OS: ${{ inputs.os }}
       run: ./ci_build_or_install.sh
 
+    - name: Install test prerequisites
+      id: test_prereq
+      run: ./ci_test_prereq.sh
+
+    - name: Open Watcom install
+      uses: open-watcom/setup-watcom@v1
+      with:
+        version: 2.0-64
+
     - name: Cache
       id: cache
       uses: actions/cache@v5
@@ -92,17 +101,7 @@ jobs:
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
         echo "Cache missed! Populating with fresh binaries"
-        [ -h "test-binaries" ] || ln -s "${HOME}"/cache "test-binaries"
         python3 test/test_dosemu.py --get-test-binaries
-
-    - name: Install test prerequisites
-      id: test_prereq
-      run: ./ci_test_prereq.sh
-
-    - name: Open Watcom install
-      uses: open-watcom/setup-watcom@v1
-      with:
-        version: 2.0-64
 
     - name: Test
       id: test

@@ -2,6 +2,9 @@
 
 set -e
 
+# Ensure the test-binaries link points to ~/cache
+[ -h "test-binaries" ] || ln -s "${HOME}"/cache "test-binaries"
+
 echo "Configuring PPAs..."
 sudo add-apt-repository -y ppa:jwt27/djgpp-toolchain
 sudo add-apt-repository -y ppa:stsp-0/gcc-ia16
