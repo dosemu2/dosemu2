@@ -220,7 +220,6 @@ static const struct midi_out_plugin midomunt
     midomunt_write,
     midomunt_stop,
     midomunt_run,
-    ST_MT32,
     0
 };
 #else
@@ -234,14 +233,13 @@ static const struct midi_out_plugin midomunt
     .write = midomunt_write,
     .stop = midomunt_stop,
     .run = midomunt_run,
-    .stype = ST_MT32,
 };
 #endif
 
 CONSTRUCTOR(static void midomunt_register(void))
 {
     if (config.munt_roms_dir)
-        midi_register_output_plugin(&midomunt);
+        midi_register_output_plugin(&midomunt, ST_MT32);
     else
         warn("munt: not starting as roms not found\n");
 }
