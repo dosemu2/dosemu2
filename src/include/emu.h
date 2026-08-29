@@ -343,6 +343,7 @@ typedef struct config_info {
        char *sound_driver;
        char *midi_driver;
        char *fluid_sfont;
+       char *fluid_sfont_mt32;
        int fluid_volume;
        char *omt_sfz_path;
        char *munt_roms_dir;

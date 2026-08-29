@@ -301,7 +301,7 @@ enum {
         /* Sound Emulation */
 %token SB_BASE SB_IRQ SB_DMA SB_HDMA MPU_BASE MPU_BASE_MT32
 %token MPU_IRQ MPU_IRQ_MT32 MIDI_SYNTH
-%token SOUND_DRIVER MIDI_DRIVER FLUID_SFONT FLUID_VOLUME OMT_SFZ_PATH
+%token SOUND_DRIVER MIDI_DRIVER FLUID_SFONT FLUID_SFONT_MT32 FLUID_VOLUME OMT_SFZ_PATH
 %token MUNT_ROMS OPL2LPT_DEV OPL2LPT_TYPE
 %token SND_PLUGIN_PARAMS PCM_HPF MIDI_FILE MIDI_FILE_MT32 WAV_FILE
 	/* CD-ROM */
@@ -1164,6 +1164,7 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| SOUND_DRIVER string_expr	{ free(config.sound_driver); config.sound_driver = $2; }
 		| MIDI_DRIVER string_expr	{ free(config.midi_driver); config.midi_driver = $2; }
 		| FLUID_SFONT string_expr	{ free(config.fluid_sfont); config.fluid_sfont = $2; }
+		| FLUID_SFONT_MT32 string_expr	{ free(config.fluid_sfont_mt32); config.fluid_sfont_mt32 = $2; }
 		| FLUID_VOLUME expression	{ config.fluid_volume = $2; }
 		| OMT_SFZ_PATH string_expr	{ free(config.omt_sfz_path); config.omt_sfz_path = $2; }
 		| MUNT_ROMS string_expr
