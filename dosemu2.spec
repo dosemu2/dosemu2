@@ -60,6 +60,7 @@ Requires:   bash
 Requires:   comcom64-comcom64
 Recommends: comcom64-comcom32
 Recommends: fluid-soundfont-gm
+Recommends: openmt32-soundfonts
 Suggests:   timidity++ >= 2.14.0
 Recommends: ladspa
 # ncurses-base is for terminfo

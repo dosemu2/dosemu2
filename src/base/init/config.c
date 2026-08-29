@@ -99,6 +99,7 @@ char *comcom_dir;
 char *fddir_boot;
 const char *xbat_dir;
 struct config_info config;
+static int config_scrub_passed;
 
 #define STRING_STORE_SIZE 10
 struct cfg_string_store {
@@ -1206,6 +1207,12 @@ int register_config_scrub(config_scrub_t new_config_scrub)
 {
 	int i;
 	int result = -1;
+
+	/* for late registrants call the handler directly */
+	if (config_scrub_passed) {
+	    new_config_scrub();
+	    return 0;
+	}
 	for(i = 0; i < sizeof(config_scrub_func)/sizeof(config_scrub_func[0]); i++) {
 		if (!config_scrub_func[i]) {
 			config_scrub_func[i] = new_config_scrub;
@@ -1259,6 +1266,7 @@ static void config_scrub(void)
 			func();
 		}
 	}
+	config_scrub_passed++;
 }
 
 /*

@@ -29,6 +29,7 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 #include "fluid_midi.h"
 #include "fluid_compat.h"
 
@@ -384,6 +385,7 @@ fluid_midi_parser_parse(fluid_midi_parser_t *parser, unsigned char c)
 
     /* Max data size exceeded? (SYSEX messages only really) */
     if (parser->nr_bytes == FLUID_MIDI_PARSER_MAX_DATA_SIZE) {
+        fprintf(stderr, "fluidsynth: midi buffer overflow\n");
         parser->status = 0; /* Discard the rest of the message */
         return NULL;
     }

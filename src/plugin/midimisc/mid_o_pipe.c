@@ -67,7 +67,7 @@ static void midopipe_done(void *arg)
     pipe_fd = -1;
 }
 
-static void midopipe_write(unsigned char val)
+static void midopipe_write(unsigned char val, enum SynthType type)
 {
     /* Try again to open FIFO on each write in case some readers showed up. */
     if (pipe_fd == -1) {
@@ -99,7 +99,6 @@ static const struct midi_out_plugin midopipe
     0,
     midopipe_write,
     NULL, NULL,
-    ST_ANY,
     PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
 #else
@@ -110,7 +109,6 @@ static const struct midi_out_plugin midopipe
     .open = midopipe_init,
     .close = midopipe_done,
     .write = midopipe_write,
-    .stype = ST_ANY,
     .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
 #endif
@@ -118,7 +116,7 @@ static const struct midi_out_plugin midopipe
 CONSTRUCTOR(static void midopipe_register(void))
 {
     if (dosemu_midi_path && dosemu_midi_in_path)
-        midi_register_output_plugin(&midopipe);
+        midi_register_output_plugin(&midopipe, ST_ANY);
     else
         warn("not enabling midi pipe\n");
 }

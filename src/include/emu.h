@@ -343,11 +343,14 @@ typedef struct config_info {
        char *sound_driver;
        char *midi_driver;
        char *fluid_sfont;
+       char *fluid_sfont_mt32;
        int fluid_volume;
+       char *omt_sfz_path;
        char *munt_roms_dir;
        char *snd_plugin_params;
        boolean pcm_hpf;
        char *midi_file;
+       char *midi_file_mt32;
        char *wav_file;
 
        /* joystick */

@@ -564,13 +564,16 @@ mpu_irq_mt32            RETURN(MPU_IRQ_MT32);
 sound_driver		RETURN(SOUND_DRIVER);
 midi_driver		RETURN(MIDI_DRIVER);
 fluid_sfont		RETURN(FLUID_SFONT);
+fluid_sfont_mt32	RETURN(FLUID_SFONT_MT32);
 fluid_volume		RETURN(FLUID_VOLUME);
+omt_sfz_path		RETURN(OMT_SFZ_PATH);
 munt_roms		RETURN(MUNT_ROMS);
 opl2lpt_dev		RETURN(OPL2LPT_DEV);
 opl2lpt_type		RETURN(OPL2LPT_TYPE);
 snd_plugin_params	RETURN(SND_PLUGIN_PARAMS);
 pcm_hpf			RETURN(PCM_HPF);
 midi_file		RETURN(MIDI_FILE);
+midi_file_mt32		RETURN(MIDI_FILE_MT32);
 wav_file		RETURN(WAV_FILE);
 
         /* Joystick stuff */

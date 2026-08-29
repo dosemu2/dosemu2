@@ -54,10 +54,10 @@ void midi_write(unsigned char val, enum SynthType type)
 	stype = synth_type;
     for (i = 0; i < out_registered[stype]; i++)
 	if (out[stype][i].opened)
-	    OUT_PLUGIN(stype, i)->write(val);
+	    OUT_PLUGIN(stype, i)->write(val, type);
     for (i = 0; i < out_registered[ST_ANY]; i++)
 	if (out[ST_ANY][i].opened)
-	    OUT_PLUGIN(ST_ANY, i)->write(val);
+	    OUT_PLUGIN(ST_ANY, i)->write(val, type);
 //  idle(0, 0, 0, "midi");
 }
 
@@ -150,9 +150,10 @@ int midi_get_data_byte(unsigned char *buf)
     return rng_get(&midi_in, buf);
 }
 
-int midi_register_output_plugin(const struct midi_out_plugin *plugin)
+int midi_register_output_plugin(const struct midi_out_plugin *plugin,
+    enum SynthType st)
 {
-    int index, st = plugin->stype;
+    int index;
     if (out_registered[st] >= MAX_OUT_PLUGINS) {
 	error("Cannot register midi plugin %s\n", plugin->name);
 	return 0;
@@ -178,7 +179,7 @@ int midi_register_input_plugin(const struct midi_in_plugin *plugin)
 
 int midi_set_synth_type(enum SynthType st)
 {
-    if (st == ST_ANY || st >= ST_MAX || !out_enabled[st])
+    if (st == ST_ANY || st >= ST_MAX || (!out_enabled[st] && !out_enabled[ST_ANY]))
 	return 0;
     synth_type = st;
     return 1;

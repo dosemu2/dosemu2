@@ -67,7 +67,7 @@ static void midooss_done(void *arg)
     seq_fd = -1;
 }
 
-static void midooss_write(unsigned char val)
+static void midooss_write(unsigned char val, enum SynthType type)
 {
     SEQ_MIDIOUT(0, val);
     SEQ_DUMPBUF();
@@ -89,7 +89,6 @@ static const struct midi_out_plugin midooss
     0,
     midooss_write,
     NULL, NULL,
-    ST_GM,
     0
 };
 #else
@@ -100,11 +99,10 @@ static const struct midi_out_plugin midooss
     .open = midooss_init,
     .close = midooss_done,
     .write = midooss_write,
-    .stype = ST_GM,
 };
 #endif
 
 CONSTRUCTOR(static void midooss_register(void))
 {
-    midi_register_output_plugin(&midooss);
+    midi_register_output_plugin(&midooss, ST_GM);
 }

@@ -41,9 +41,8 @@ struct midi_out_plugin : public pcm_plugin_base {
 struct midi_out_plugin {
   pcm_plugin_base;
 #endif
-  void (*write)(unsigned char);
+  void (*write)(unsigned char, enum SynthType);
   void (*run)(void);
-  enum SynthType stype;
 };
 
 #ifdef __cplusplus
@@ -64,7 +63,8 @@ extern void midi_stop(void);
 extern void midi_timer(void);
 extern void midi_put_data(unsigned char *buf, size_t size);
 extern int midi_get_data_byte(unsigned char *buf);
-extern int midi_register_output_plugin(const struct midi_out_plugin *plugin);
+extern int midi_register_output_plugin(const struct midi_out_plugin *plugin,
+    enum SynthType);
 extern int midi_register_input_plugin(const struct midi_in_plugin *plugin);
 extern int midi_set_synth_type(enum SynthType st);
 extern enum SynthType midi_get_synth_type(void);
