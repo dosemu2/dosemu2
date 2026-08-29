@@ -69,6 +69,7 @@ struct flu_state {
     fluid_midi_parser_t* parser;
     fluid_seq_id_t synthSeqID;
     mt32_t *mt;
+    int mt32_msec;
     int output_running;
     double mf_time_base;
 };
@@ -264,7 +265,10 @@ static void do_write(void *arg, unsigned char *data, int len)
     for (int i = 0; i < len; i++) {
 	fluid_midi_event_t *event = fluid_midi_parser_parse(fs->parser, data[i]);
 	if (event != NULL) {
-	    int ret = fluid_sequencer_add_midi_event_to_buffer(fs->sequencer, event);
+	    int ret;
+
+	    fluid_sequencer_process(fs->sequencer, fs->mt32_msec++);
+	    ret = fluid_sequencer_add_midi_event_to_buffer(fs->sequencer, event);
 	    if (ret != FLUID_OK)
 		S_printf("MIDI: failed sending midi data of size %i\n", len);
 	}
@@ -272,12 +276,16 @@ static void do_write(void *arg, unsigned char *data, int len)
     assert(fs->parser->nr_bytes == 0);
 }
 
-static int do_mt32_event(struct flu_state *fs, fluid_midi_event_t *ev)
+static int do_mt32_event(struct flu_state *fs, fluid_midi_event_t *ev,
+    int msec)
 {
     int ch = fluid_midi_event_get_channel(ev);
     int e = fluid_midi_event_get_type(ev);
+
     if (e >= 0x80 && e <= 0xe0 && !mt32remap_channel_assigned(fs->mt, ch))
 	return 1;
+    fs->mt32_msec = msec;
+
     switch (e) {
     case NOTE_ON:
 	mt32remap_noteon(fs->mt, ch, fluid_midi_event_get_key(ev),
@@ -309,9 +317,12 @@ static void midoflus_write(unsigned char val, enum SynthType type)
     if (event != NULL) {
 	fluid_midi_event_t event2 = *event;
 	pthread_mutex_lock(&syn_mtx);
-	fluid_sequencer_process(fs->sequencer, msec);
-	if (type == ST_GM || do_mt32_event(fs, event) == 0)
+	if (type == ST_GM || do_mt32_event(fs, event, msec) == 0) {
+	    if (fs->mt32_msec > msec)
+		msec = fs->mt32_msec++;
+	    fluid_sequencer_process(fs->sequencer, msec);
 	    ret = fluid_sequencer_add_midi_event_to_buffer(fs->sequencer, &event2);
+	}
 	if (ret != FLUID_OK)
 	    S_printf("MIDI: failed sending midi event\n");
 	pthread_mutex_unlock(&syn_mtx);
