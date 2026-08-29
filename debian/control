@@ -55,6 +55,7 @@ Recommends:
     kbd,
     sudo,
     fluid-soundfont-gm,
+    openmt32-soundfonts,
     install-freedos
 Suggests: vde2, valgrind, install-otherdos, install-win31, mkdexe2
 Description: fast and secure DOS emulator
