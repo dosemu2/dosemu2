@@ -338,6 +338,7 @@ static void start_landlock(void)
   /* most of the below is needed for exec'ed children, not for dosemu */
   static const char *allow_rw[] = {
     "/dev/shm",
+    "/dev/dri",
     "/tmp",
     "/var",
     "/run",  // /etc/resolv.conf -> /run/systemd/resolve/stub-resolv.conf
@@ -353,6 +354,10 @@ static void start_landlock(void)
   };
   static const char *allow_files_rw[] = {
     "/dev/null",
+    "/dev/char/195:254",  // nvidia
+    "/dev/char/195:255",  // nvidia
+    "/dev/nvidiactl",
+    "/dev/nvidia-modeset",
     NULL
   };
 
@@ -375,6 +380,8 @@ static void start_landlock(void)
     return;  // landlock unsupported, keep working w/o protection
   }
   for (p = allow_rw; *p; p++) {
+    if (access(*p, R_OK | W_OK | X_OK) != 0)
+      continue;
     err = landlock_allow(*p, 0);
     if (err) {
       error("landlock_allow_rw(%s) failed\n", *p);
@@ -383,6 +390,8 @@ static void start_landlock(void)
     }
   }
   for (p = allow_ro; *p; p++) {
+    if (access(*p, R_OK | X_OK) != 0)
+      continue;
     err = landlock_allow(*p, 1);
     if (err) {
       error("landlock_allow_ro(%s) failed\n", *p);
@@ -409,6 +418,8 @@ static void start_landlock(void)
     }
   }
   for (p = allow_files_rw; *p; p++) {
+    if (access(*p, R_OK | W_OK) != 0)
+      continue;
     err = landlock_allow_file(*p, 0);
     if (err) {
       error("landlock_allow_rw(%s) failed\n", *p);
