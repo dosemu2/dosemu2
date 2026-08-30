@@ -92,7 +92,7 @@ static int do_flu_init(struct flu_state *fs, const char *sfont)
     fluid_settings_setnum(fs->settings, "synth.gain", config.fluid_volume / 4.0);
     fluid_settings_setnum(fs->settings, "synth.sample-rate", flus_srate);
 #if 0
-    fluid_settings_setint(settings, "synth.verbose", TRUE);
+    fluid_settings_setint(fs->settings, "synth.verbose", TRUE);
     fluid_set_log_function(FLUID_DBG, fluid_default_log_function, NULL);
 #endif
     fs->synth = new_fluid_synth(fs->settings);
