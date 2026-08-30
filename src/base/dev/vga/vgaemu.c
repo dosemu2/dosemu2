@@ -1636,9 +1636,6 @@ int vga_emu_pre_init(void)
   dosaddr_t base;
   vga_mapping_type vmt = {0, 0, 0};
 
-  if (config.dumb_video)
-    return vga_emu_post_init();
-
   /* clean it up - just in case */
   memset(&vga, 0, sizeof vga);
 
@@ -1704,6 +1701,9 @@ int vga_emu_pre_init(void)
   if (config.umb_b0)
     munmap_mapping_pa(MAPPING_INIT_LOWRAM, MDA_PHYS_TEXT_BASE,
         MDA_TEXT_SIZE);
+  if (config.umb_b8)
+    munmap_mapping_pa(MAPPING_INIT_LOWRAM, VGA_PHYS_TEXT_BASE,
+        VGA_TEXT_SIZE);
 
   if (config.cpu_vm == CPUVM_KVM || config.cpu_vm_dpmi == CPUVM_KVM) {
     if (vga.mem.graph_base + vga.mem.graph_size == VGA_PHYS_TEXT_BASE) {

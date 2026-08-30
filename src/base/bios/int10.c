@@ -104,31 +104,7 @@ unsigned screen_adr(int page)
 #define i10_deb(x...)
 #endif
 
-static void tty_char_out(unsigned char ch, int s, int attr);
 static void vga_ROM_to_RAM(unsigned height, int bank);
-
-static unsigned do_set_cursor_pos(unsigned page, int x, int y)
-{
-  unsigned old_y;
-
-  old_y = get_bios_cursor_y_position(page);
-  vgaemu_set_cursor_pos(page, x, y);
-  return old_y;
-}
-
-static void set_cursor_pos(unsigned page, int x, int y)
-{
-  unsigned old_y = do_set_cursor_pos(page, x, y);
-
-  if (config.dumb_video && y > old_y) {
-    int i;
-
-    if (no_local_video && !config.tty_stderr)
-      return;
-    for (i = 0; i < y - old_y; i++)
-      fputs("\r\n", config.tty_stderr ? real_stderr : stdout);
-  }
-}
 
 static void set_cursor_shape(uint16_t shape)
 {
@@ -159,30 +135,13 @@ static int using_mono_mode(void)
  * Output a character to the screen.
  * If attr != -1, set the attribute byte, too.
  */
-void tty_char_out(unsigned char ch, int s, int attr)
+static void tty_char_out(unsigned char ch, int s, int attr)
 {
   int xpos, ypos, co, li;
   int gfx_mode = 0;
   unsigned dst;
 
 /* i10_deb("tty_char_out: char 0x%02x, page %d, attr 0x%02x\n", ch, s, attr); */
-
-  if (config.dumb_video) {
-    struct char_set_state term_state;
-    t_unicode uni = dos_to_unicode_table[ch];
-    unsigned char buff[MB_LEN_MAX + 1];
-    int num, i;
-
-    if (no_local_video && !config.tty_stderr)
-      return;
-
-    init_charset_state(&term_state, trconfig.output_charset);
-    num = unicode_to_charset(&term_state, uni, buff, MB_LEN_MAX);
-    if (num <= 0)
-      return;
-    for (i = 0; i < num; i++)
-      fputc(buff[i], config.tty_stderr ? real_stderr : stdout);
-  }
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
@@ -244,10 +203,9 @@ void tty_char_out(unsigned char ch, int s, int attr)
     /* Scroll with color newline in text mode */
     unsigned char attr = (gfx_mode ? 0:
 			  vga_read(screen_adr(s) + 2*(ypos*co + xpos) + 1));
-    if (!config.dumb_video)
-      vgaemu_scroll(0, 0, co-1, li-1, 1, attr);
+    vgaemu_scroll(0, 0, co-1, li-1, 1, attr);
   }
-  do_set_cursor_pos(s, xpos, ypos);
+  vgaemu_set_cursor_pos(s, xpos, ypos);
 }
 
 /* The following clears the screen buffer. It does it only to the screen
@@ -260,16 +218,13 @@ static void clear_screen(void)
   u_short blank = ' ' | (7 << 8);
   int lx, s;
 
-  if (config.dumb_video)
-     return;
-
   v_printf("INT10: cleared screen: screen_adr %x\n", screen_adr(0));
 
   for (schar = screen_adr(0), lx = 0; lx < 16*1024;
        WRITE_WORD(schar, blank), lx++, schar+=2);
 
   for (s = 0; s < 8; s++)
-    do_set_cursor_pos(s, 0, 0);
+    vgaemu_set_cursor_pos(s, 0, 0);
 }
 
 /* return number of vertical scanlines based on the bytes at
@@ -372,6 +327,7 @@ bool set_video_mode(int mode)
   ioport_t port;
 
   i10_msg("set_video_mode: mode 0x%02x\n", mode);
+  if(config.cardtype == CARD_MDA) mode = 7;
 
   if((vmi = vga_emu_find_mode(mode, NULL)) == NULL) {
     i10_msg("set_video_mode: undefined video mode\n");
@@ -425,8 +381,6 @@ bool set_video_mode(int mode)
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
   WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
   MEMSET_DOS(0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
-
-  if(config.cardtype == CARD_MDA) mode = 7;
 
   if(vmi->type == TEXT_MONO) {
     WRITE_BYTE(BIOS_CONFIGURATION, READ_BYTE(BIOS_CONFIGURATION) | 0x30);
@@ -539,7 +493,7 @@ bool set_video_mode(int mode)
   WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height); // before set_cursor_shape()
   set_cursor_shape(vmi->type == TEXT_MONO ? 0x0b0d : 0x0607);
 
-  if (!config.dumb_video && using_text_mode()) {
+  if (using_text_mode()) {
     v_printf("INT10: X_set_video_mode: 8x%d ROM font -> bank 0\n",
              vga_font_height);
     vga_ROM_to_RAM(vga_font_height, 0); /* 0 is default bank */
@@ -653,6 +607,72 @@ static void vga_ROM_to_RAM(unsigned height, int bank)
 
 /******************************************************************/
 
+/* pre-handler for dumb video */
+static void dumb_set_cursor_pos(unsigned page, int y, FILE *f)
+{
+  int old_y = get_bios_cursor_y_position(page);
+  int li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+  int i;
+
+  if (y > old_y && y < li)
+    for (i = 0; i < y - old_y; i++)
+      fputs("\r\n", f);
+}
+
+static void dumb_tty_char_out(unsigned char ch, FILE *f)
+{
+  struct char_set_state term_state;
+  t_unicode uni = dos_to_unicode_table[ch];
+  unsigned char buff[MB_LEN_MAX + 1];
+  int num, i;
+
+  init_charset_state(&term_state, trconfig.output_charset);
+  num = unicode_to_charset(&term_state, uni, buff, MB_LEN_MAX);
+  if (num <= 0)
+    return;
+  for (i = 0; i < num; i++)
+    fputc(buff[i], f);
+}
+
+static void dumb_int10(void)
+{
+  FILE *f = config.tty_stderr ? real_stderr : stdout;
+
+  switch(HI(ax)) {
+    case 0x02:		/* set cursor pos */
+      dumb_set_cursor_pos(HI(bx), HI(dx), f);
+      break;
+    case 0x09:		/* write char & attr */
+    case 0x0a:		/* write char */
+      {
+        unsigned len = LWORD(ecx);
+
+        while(len--)
+          fputc(LO(ax), f);
+        /* cursor must not move when printing */
+        fputc('\r', f);
+      }
+      break;
+    case 0x0e:
+      dumb_tty_char_out(LO(ax), f);
+      break;
+    case 0x13:          /* write string */
+      {
+        unsigned len = LWORD(ecx);
+        unsigned int str = SEGOFF2LINEAR(SREG(es), LWORD(ebp));
+
+        dumb_set_cursor_pos(HI(bx), HI(dx), f);
+        while(len--) {
+          dumb_tty_char_out(READ_BYTE(str), f);
+          str += (LO(ax) & 2) ? 2 : 1;
+        }
+        if(!(LO(ax) & 1))       /* best effort for no cursor update */
+          fputc('\r', f);
+      }
+      break;
+  }
+}
+
 /* the actual int10 handler */
 
 int int10(void) /* with dualmon */
@@ -692,6 +712,9 @@ int int10(void) /* with dualmon */
   i10_msg("ax %04x, bx %04x\n",LWORD(eax), LWORD(ebx));
 #endif
 
+  if (config.dumb_video && (!no_local_video || config.tty_stderr))
+    dumb_int10();
+
   switch(HI(ax)) {
     case 0x00:		/* set video mode */
       i10_msg("set video mode: 0x%x\n", LO(ax));
@@ -724,7 +747,7 @@ int int10(void) /* with dualmon */
         y = li -1;
       }
 
-      set_cursor_pos(page, x, y);
+      vgaemu_set_cursor_pos(page, x, y);
       break;
 
 
@@ -771,9 +794,7 @@ int int10(void) /* with dualmon */
         "scroll up: %u lines, area %u.%u-%u.%u, attr 0x%02x\n",
         LO(ax), LO(cx), HI(cx), LO(dx), HI(dx), HI(bx)
       );
-      if(!config.dumb_video) {
-        vgaemu_scroll(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
-      }
+      vgaemu_scroll(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
       break;
 
 
@@ -783,9 +804,7 @@ int int10(void) /* with dualmon */
         "scroll dn: %u lines, area %u.%u-%u.%u, attr 0x%02x\n",
         LO(ax), LO(cx), HI(cx), LO(dx), HI(dx), HI(bx)
       );
-      if(!config.dumb_video) {
-        vgaemu_scroll(LO(cx), HI(cx), LO(dx), HI(dx), -LO(ax), HI(bx));
-      }
+      vgaemu_scroll(LO(cx), HI(cx), LO(dx), HI(dx), -LO(ax), HI(bx));
       break;
 
 
@@ -821,19 +840,7 @@ int int10(void) /* with dualmon */
           "rep char: page %u, char 0x%02x '%c', attr 0x%02x\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' ', LO(bx)
       );
-      if (config.dumb_video) {
-        FILE *f = config.tty_stderr ? real_stderr : stdout;
-        int i;
-
-        if (no_local_video && !config.tty_stderr)
-          break;
-        for (i = 0; i < LWORD(ecx); i++)
-          fputc(LO(ax), f);
-        /* cursor must not move when printing */
-        fputc('\r', f);
-      } else {
-        vgaemu_repeat_char_attr(LO(ax), HI(bx), LO(bx), LWORD(ecx));
-      }
+      vgaemu_repeat_char_attr(LO(ax), HI(bx), LO(bx), LWORD(ecx));
       break;
 
     case 0x0a:		/* write char */
@@ -1304,7 +1311,7 @@ int int10(void) /* with dualmon */
         old_x = get_bios_cursor_x_position(page);
         old_y = get_bios_cursor_y_position(page);
 
-	set_cursor_pos(page, LO(dx), HI(dx));
+	vgaemu_set_cursor_pos(page, LO(dx), HI(dx));
 
         i10_deb(
           "write string: page %u, x.y %d.%d, attr 0x%02x, len %u, addr 0x%04x:0x%04x\n",
@@ -1333,7 +1340,7 @@ int int10(void) /* with dualmon */
         }
 
         if(!(LO(ax) & 1)) {	/* no cursor update */
-	  set_cursor_pos(page, old_x, old_y);
+	  vgaemu_set_cursor_pos(page, old_x, old_y);
         }
       }
       break;
