@@ -1163,10 +1163,10 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| MPU_IRQ_MT32 expression	{ config.mpu401_irq_mt32 = $2; }
 		| SOUND_DRIVER string_expr	{ free(config.sound_driver); config.sound_driver = $2; }
 		| MIDI_DRIVER string_expr	{ free(config.midi_driver); config.midi_driver = $2; }
-		| FLUID_SFONT string_expr	{ free(config.fluid_sfont); config.fluid_sfont = $2; }
-		| FLUID_SFONT_MT32 string_expr	{ free(config.fluid_sfont_mt32); config.fluid_sfont_mt32 = $2; }
+		| FLUID_SFONT string_expr	{ free(config.fluid_sfont); config.fluid_sfont = expand_path($2); }
+		| FLUID_SFONT_MT32 string_expr	{ free(config.fluid_sfont_mt32); config.fluid_sfont_mt32 = expand_path($2); }
 		| FLUID_VOLUME expression	{ config.fluid_volume = $2; }
-		| OMT_SFZ_PATH string_expr	{ free(config.omt_sfz_path); config.omt_sfz_path = $2; }
+		| OMT_SFZ_PATH string_expr	{ free(config.omt_sfz_path); config.omt_sfz_path = expand_path($2); }
 		| MUNT_ROMS string_expr
 			{
 				free(config.munt_roms_dir);
@@ -1191,9 +1191,9 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 			}
 		| SND_PLUGIN_PARAMS string_expr	{ free(config.snd_plugin_params); config.snd_plugin_params = $2; }
 		| PCM_HPF bool		{ config.pcm_hpf = ($2!=0); }
-		| MIDI_FILE string_expr	{ free(config.midi_file); config.midi_file = $2; }
-		| MIDI_FILE_MT32 string_expr	{ free(config.midi_file_mt32); config.midi_file_mt32 = $2; }
-		| WAV_FILE string_expr	{ free(config.wav_file); config.wav_file = $2; }
+		| MIDI_FILE string_expr	{ free(config.midi_file); config.midi_file = expand_path($2); }
+		| MIDI_FILE_MT32 string_expr	{ free(config.midi_file_mt32); config.midi_file_mt32 = expand_path($2); }
+		| WAV_FILE string_expr	{ free(config.wav_file); config.wav_file = expand_path($2); }
 		;
 
 	/* joystick emulation */
