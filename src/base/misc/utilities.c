@@ -444,7 +444,7 @@ char *expand_path(const char *dir)
 		wordfree_lite(&p);
 		return NULL;
 	}
-	s = realpath(p.we_wordv[0], NULL);
+	s = normalize_path(p.we_wordv[0]);
 	wordfree_lite(&p);
 	return s;
 }
