@@ -380,8 +380,13 @@ static void start_landlock(void)
     return;  // landlock unsupported, keep working w/o protection
   }
   for (p = allow_rw; *p; p++) {
-    if (access(*p, R_OK | W_OK | X_OK) != 0)
-      continue;
+    /* don't check W_OK for dir: files inside are writable, not dir itself */
+    if (access(*p, R_OK | X_OK) != 0) {
+      if (access(*p, F_OK) != 0)  // doesn't exist, skip
+        continue;
+      error("not enough permissions for %s\n", *p);
+      leavedos(3);
+    }
     err = landlock_allow(*p, 0);
     if (err) {
       error("landlock_allow_rw(%s) failed\n", *p);
@@ -390,8 +395,13 @@ static void start_landlock(void)
     }
   }
   for (p = allow_ro; *p; p++) {
-    if (access(*p, R_OK | X_OK) != 0)
+    if (access(*p, R_OK | X_OK) != 0) {
+      if (access(*p, F_OK) != 0)  // doesn't exist, skip
+        continue;
+      error("not enough permissions for %s\n", *p);
+      leavedos(3);
       continue;
+    }
     err = landlock_allow(*p, 1);
     if (err) {
       error("landlock_allow_ro(%s) failed\n", *p);
@@ -418,8 +428,12 @@ static void start_landlock(void)
     }
   }
   for (p = allow_files_rw; *p; p++) {
-    if (access(*p, R_OK | W_OK) != 0)
-      continue;
+    if (access(*p, R_OK | W_OK) != 0) {
+      if (access(*p, F_OK) != 0)  // doesn't exist, skip
+        continue;
+      error("not enough permissions for %s\n", *p);
+      leavedos(3);
+    }
     err = landlock_allow_file(*p, 0);
     if (err) {
       error("landlock_allow_rw(%s) failed\n", *p);
