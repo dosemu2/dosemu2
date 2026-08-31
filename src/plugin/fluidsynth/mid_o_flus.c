@@ -56,6 +56,8 @@
 
 #define midoflus_name "flus"
 #define midoflus_longname "MIDI Output: FluidSynth device"
+#define midoflus_name_mt32 "openmt32"
+#define midoflus_longname_mt32 "MIDI Output: FluidSynth/openmt32 device"
 static const int flus_format = PCM_FORMAT_S16_LE;
 static const float flus_srate = 44100.0;
 #define FLUS_CHANNELS 2
@@ -72,18 +74,19 @@ struct flu_state {
     int mt32_msec;
     int output_running;
     double mf_time_base;
+    int pcm_stream;
+    int pcm_running;
+    pthread_t syn_thr;
+    sem_t syn_sem;
+    int inited;
 };
 static struct flu_state flus[ST_MAX];
 
-static int pcm_stream;
-static int pcm_running;
-
-static pthread_t syn_thr;
-static sem_t syn_sem;
 static pthread_mutex_t syn_mtx = PTHREAD_MUTEX_INITIALIZER;
 static void *synth_thread(void *arg);
 
-static int do_flu_init(struct flu_state *fs, const char *sfont)
+static int do_flu_init(struct flu_state *fs, const char *sfont,
+    const char *pcm_name)
 {
     int ret;
 
@@ -116,6 +119,16 @@ static int do_flu_init(struct flu_state *fs, const char *sfont)
     fs->parser = new_fluid_midi_parser();
     fs->synthSeqID = fluid_sequencer_register_fluidsynth(fs->sequencer, fs->synth);
 
+    fs->pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, pcm_name,
+	    (void*)MC_MIDI);
+
+    sem_init(&fs->syn_sem, 0, 0);
+    pthread_create(&fs->syn_thr, NULL, synth_thread, fs);
+#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
+    pthread_setname_np(fs->syn_thr, "dosemu: fluid");
+#endif
+    fs->inited++;
+
     return 0;
 
 err2:
@@ -126,9 +139,8 @@ err2:
 
 static int midoflus_init(void *arg)
 {
-    int err, ret = 0;
+    int err;
     char *sfont = NULL;
-    char *sfont_mt32 = NULL;
     const char *def_sfonts[] = {
 	"/usr/share/soundfonts/default.sf2",		// fedora
 	DATADIR "/soundfonts/default.sf2",
@@ -137,9 +149,6 @@ static int midoflus_init(void *arg)
 	DATADIR "/soundfonts/FluidR3_GM.sf2",	// termux
 	"/usr/share/sounds/sf2/FluidR3_GM.sf2.flac",	// ubuntu
 	"/usr/share/sounds/sf2/FluidR3_GM.sf2",		// debian
-	NULL };
-    const char *def_sfonts_mt32[] = {
-	"/usr/share/sounds/openmt32/OpenMT32.sf3",	// ubuntu
 	NULL };
     const char *adrivers[] = { NULL };
     fluid_settings_t *settings = new_fluid_settings();
@@ -177,18 +186,33 @@ static int midoflus_init(void *arg)
     }
     delete_fluid_settings(settings);
 
-    if (sfont) {
-	err = do_flu_init(&flus[ST_GM], sfont);
-	free(sfont);
-	if (!err)
-	    ret++;
-    }
+    if (!sfont)
+	return 0;
+    err = do_flu_init(&flus[ST_GM], sfont, "MIDI");
+    free(sfont);
+    if (err)
+	return 0;
+    return 1;
+}
+
+static int midoflus_init_mt32(void *arg)
+{
+    int err;
+    char *sfont_mt32 = NULL;
+    const char *def_sfonts_mt32[] = {
+	"/usr/share/sounds/openmt32/OpenMT32.sf3",	// ubuntu
+	NULL };
+    const char *adrivers[] = { NULL };
+
+    fluid_audio_driver_register(adrivers);
 
     if (config.fluid_sfont_mt32 && config.fluid_sfont_mt32[0]) {
-	if (access(config.fluid_sfont_mt32, R_OK) == 0)
+	if (access(config.fluid_sfont_mt32, R_OK) == 0) {
 	    sfont_mt32 = strdup(config.fluid_sfont_mt32);
-	else
+	} else {
 	    error("MT32 soundfont %s missing\n", config.fluid_sfont_mt32);
+	    return 0;
+	}
     } else {
 	int i = 0;
 
@@ -199,59 +223,52 @@ static int midoflus_init(void *arg)
 	    }
 	    i++;
 	}
-	if (!sfont_mt32)
+	if (!sfont_mt32) {
 	    error("MT32 soundfonts not found\n");
-    }
-    if (sfont_mt32) {
-	err = do_flu_init(&flus[ST_MT32], sfont_mt32);
-	free(sfont_mt32);
-	if (!err) {
-	    flus[ST_MT32].mt = mt32remap_init();
-	    ret++;
+	    return 0;
 	}
     }
-
-    if (!ret)
+    assert(sfont_mt32);
+    err = do_flu_init(&flus[ST_MT32], sfont_mt32, "MT32");
+    free(sfont_mt32);
+    if (err)
 	return 0;
-
-    pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI",
-	    (void*)MC_MIDI);
-
-    sem_init(&syn_sem, 0, 0);
-    pthread_create(&syn_thr, NULL, synth_thread, NULL);
-#if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
-    pthread_setname_np(syn_thr, "dosemu: fluid");
-#endif
+    flus[ST_MT32].mt = mt32remap_init();
     return 1;
+}
+
+static void do_done(struct flu_state *fs)
+{
+    if (!fs->inited)
+	return;
+    pthread_cancel(fs->syn_thr);
+    pthread_join(fs->syn_thr, NULL);
+    sem_destroy(&fs->syn_sem);
+    delete_fluid_midi_parser(fs->parser);
+    delete_fluid_sequencer(fs->sequencer);
+    delete_fluid_synth(fs->synth);
+    delete_fluid_settings(fs->settings);
+    if (fs->mt)
+	mt32remap_done(fs->mt);
 }
 
 static void midoflus_done(void *arg)
 {
-    pthread_cancel(syn_thr);
-    pthread_join(syn_thr, NULL);
-    sem_destroy(&syn_sem);
+    do_done(&flus[ST_GM]);
+}
 
-    for (int i = 0; i < ST_MAX; i++) {
-	struct flu_state *fs = &flus[i];
-	if (fs->parser)
-	    delete_fluid_midi_parser(fs->parser);
-	if (fs->sequencer)
-	    delete_fluid_sequencer(fs->sequencer);
-	if (fs->synth)
-	    delete_fluid_synth(fs->synth);
-	if (fs->settings)
-	    delete_fluid_settings(fs->settings);
-	if (fs->mt)
-	    mt32remap_done(fs->mt);
-    }
+static void midoflus_done_mt32(void *arg)
+{
+    do_done(&flus[ST_MT32]);
 }
 
 static void midoflus_start(struct flu_state *fs)
 {
     S_printf("MIDI: starting fluidsynth\n");
     fs->mf_time_base = GETusTIME(0);
+    assert(fs->sequencer);
     pthread_mutex_lock(&syn_mtx);
-    pcm_prepare_stream(pcm_stream);
+    pcm_prepare_stream(fs->pcm_stream);
     fluid_sequencer_process(fs->sequencer, 0);
     fs->output_running = 1;
     pthread_mutex_unlock(&syn_mtx);
@@ -338,16 +355,16 @@ static void mf_process_samples(struct flu_state *fs, int nframes)
 	error("MIDI: fluidsynth failed\n");
 	return;
     }
-    pcm_running = 1;
+    fs->pcm_running = 1;
     pcm_write_interleaved(buf, nframes, flus_srate, flus_format,
-	    FLUS_CHANNELS, pcm_stream);
+	    FLUS_CHANNELS, fs->pcm_stream);
 }
 
 static void process_samples(struct flu_state *fs, long long now, int min_buf)
 {
     int nframes, retry;
     double period, mf_time_cur;
-    mf_time_cur = pcm_get_stream_time(pcm_stream);
+    mf_time_cur = pcm_get_stream_time(fs->pcm_stream);
     do {
 	retry = 0;
 	period = pcm_frame_period_us(flus_srate);
@@ -358,28 +375,20 @@ static void process_samples(struct flu_state *fs, long long now, int min_buf)
 	}
 	if (nframes >= min_buf) {
 	    mf_process_samples(fs, nframes);
-	    mf_time_cur = pcm_get_stream_time(pcm_stream);
+	    mf_time_cur = pcm_get_stream_time(fs->pcm_stream);
 	    if (debug_level('S') >= 5)
 		S_printf("MIDI: processed %i samples with fluidsynth\n", nframes);
 	}
     } while (retry);
 }
 
-static void midoflus_stop(void *arg)
+static void do_stop(struct flu_state *fs)
 {
     long long now;
     int msec;
-    struct flu_state *fs = NULL;
-    int output_running = 0;
 
     pthread_mutex_lock(&syn_mtx);
-    for (int i = 0; i < ST_MAX; i++) {
-	fs = &flus[i];
-	output_running = fs->output_running;
-	if (output_running)
-	    break;
-    }
-    if (!output_running) {
+    if (!fs->output_running) {
 	pthread_mutex_unlock(&syn_mtx);
 	return;
     }
@@ -390,30 +399,32 @@ static void midoflus_stop(void *arg)
     fluid_sequencer_process(fs->sequencer, msec);
     /* shut down all active notes */
     fluid_synth_system_reset(fs->synth);
-    if (pcm_running)
-	pcm_flush(pcm_stream);
-    pcm_running = 0;
+    if (fs->pcm_running)
+	pcm_flush(fs->pcm_stream);
+    fs->pcm_running = 0;
     fs->output_running = 0;
     pthread_mutex_unlock(&syn_mtx);
 }
 
+static void midoflus_stop(void *arg)
+{
+    do_stop(&flus[ST_GM]);
+}
+
+static void midoflus_stop_mt32(void *arg)
+{
+    do_stop(&flus[ST_MT32]);
+}
+
 static void *synth_thread(void *arg)
 {
+    struct flu_state *fs = arg;
     while (1) {
-	struct flu_state *fs = NULL;
-	int output_running = 0;
-
-	sem_wait(&syn_sem);
+	sem_wait(&fs->syn_sem);
 	pthread_mutex_lock(&syn_mtx);
-	for (int i = 0; i < ST_MAX; i++) {
-	    fs = &flus[i];
-	    output_running = fs->output_running;
-	    if (output_running)
-		break;
-	}
-	if (!output_running) {
-		pthread_mutex_unlock(&syn_mtx);
-		continue;
+	if (!fs->output_running) {
+	    pthread_mutex_unlock(&syn_mtx);
+	    continue;
 	}
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	process_samples(fs, GETusTIME(0), FLUS_MIN_BUF);
@@ -425,22 +436,28 @@ static void *synth_thread(void *arg)
 
 static void midoflus_run(void)
 {
-    int output_running = 0;
-
-    for (int i = 0; i < ST_MAX; i++) {
-	struct flu_state *fs = &flus[i];
-	output_running = fs->output_running;
-	if (output_running)
-	    break;
-    }
-    if (!output_running)
+    struct flu_state *fs = &flus[ST_GM];
+    if (!fs->output_running)
 	return;
-    sem_post(&syn_sem);
+    sem_post(&fs->syn_sem);
+}
+
+static void midoflus_run_mt32(void)
+{
+    struct flu_state *fs = &flus[ST_MT32];
+    if (!fs->output_running)
+	return;
+    sem_post(&fs->syn_sem);
 }
 
 static int midoflus_cfg(void *arg)
 {
     return pcm_parse_cfg(config.midi_driver, midoflus_name);
+}
+
+static int midoflus_cfg_mt32(void *arg)
+{
+    return pcm_parse_cfg(config.midi_driver, midoflus_name_mt32);
 }
 
 static const struct midi_out_plugin midoflus
@@ -471,11 +488,39 @@ static const struct midi_out_plugin midoflus
 };
 #endif
 
+static const struct midi_out_plugin midoflus_mt32
+#ifdef __cplusplus
+={
+    midoflus_name_mt32,
+    midoflus_longname_mt32,
+    midoflus_cfg_mt32,
+    midoflus_init_mt32,
+    midoflus_done_mt32,
+    MIDI_W_PCM | MIDI_W_PREFERRED,
+    midoflus_write,
+    midoflus_stop_mt32,
+    midoflus_run_mt32,
+    0
+};
+#else
+= {
+    .name = midoflus_name_mt32,
+    .longname = midoflus_longname_mt32,
+    .get_cfg = midoflus_cfg_mt32,
+    .open = midoflus_init_mt32,
+    .close = midoflus_done_mt32,
+    .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
+    .write = midoflus_write,
+    .stop = midoflus_stop_mt32,
+    .run = midoflus_run_mt32,
+};
+#endif
+
 static void mt32_scrub(void)
 {
-    enum SynthType type = (config.omt_sfz_path && config.omt_sfz_path[0]) ?
-            ST_ANY : ST_GM;
-    midi_register_output_plugin(&midoflus, type);
+    midi_register_output_plugin(&midoflus, ST_GM);
+    if (config.fluid_sfont_mt32 && config.fluid_sfont_mt32[0])
+        midi_register_output_plugin(&midoflus_mt32, ST_MT32);
 }
 
 CONSTRUCTOR(static void midoflus_register(void))

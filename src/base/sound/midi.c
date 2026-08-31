@@ -158,6 +158,8 @@ int midi_register_output_plugin(const struct midi_out_plugin *plugin,
 	error("Cannot register midi plugin %s\n", plugin->name);
 	return 0;
     }
+    /* only pass-through allowed to register on ST_ANY */
+    assert(st != ST_ANY || (plugin->flags & PCM_F_PASSTHRU));
     index = out_registered[st]++;
     out[st][index].plugin = plugin;
     out[st][index].opened = 0;
