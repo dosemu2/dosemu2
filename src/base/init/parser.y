@@ -1581,7 +1581,7 @@ floppy_flag	: READONLY              { dptr->rdonly = 1; }
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
 		  free(dptr->dev_name);
-		  dptr->dev_name = expand_path($2);
+		  dptr->dev_name = expand_path_exists($2);
 		  free($2);
 		  }
 		| DIRECTORY string_expr
@@ -1590,7 +1590,7 @@ floppy_flag	: READONLY              { dptr->rdonly = 1; }
 		    yyerror("Two names for a directory given.");
 		  dptr->type = DIR_TYPE;
 		  free(dptr->dev_name);
-		  dptr->dev_name = expand_path($2);
+		  dptr->dev_name = expand_path_exists($2);
 		  free($2);
 		  }
 		| STRING

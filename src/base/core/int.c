@@ -2283,7 +2283,7 @@ static int num_x_drives;
 void add_syscom_drive(char *path, uint8_t *user)
 {
     assert(syscomdrv.num_scusers == 0);
-    syscomdrv.path = expand_path(path);
+    syscomdrv.path = expand_path_exists(path);
     syscomdrv.mfs_idx = mfs_define_drive(syscomdrv.path);
     syscomdrv.drv_num[0] = user;
 }
@@ -2302,7 +2302,7 @@ int add_extra_drive(char *path, int ro, int cd, int grp)
 	return -1;
     }
     drv = &extra_drives[num_x_drives++];
-    drv->path = expand_path(path);
+    drv->path = expand_path_exists(path);
     if (!drv->path) {
 	error("Path %s does not exist\n", path);
 	return -1;

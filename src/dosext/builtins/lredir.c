@@ -709,7 +709,7 @@ int lredir_main(int argc, char **argv)
     } else if (get_arg2(argc, argv, &opts)[0] == '\\') {
 	strcpy(resourceStr, get_arg2(argc, argv, &opts));
     } else {
-	char *rp = expand_path(get_arg2(argc, argv, &opts));
+	char *rp = expand_path_exists(get_arg2(argc, argv, &opts));
 	if (!rp) {
 	    com_printf("invalid path\n");
 	    return EXIT_FAILURE;

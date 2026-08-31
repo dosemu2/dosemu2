@@ -555,7 +555,7 @@ void move_dosemu_local_dir(void)
 {
   const char *localdir = getenv("_local_dir");
   if (localdir && localdir[0] && !dosemu_localdir_path) {
-    char *ldir = expand_path(localdir);
+    char *ldir = expand_path_exists(localdir);
     if (ldir)
       dosemu_localdir_path = ldir;
     else
@@ -692,7 +692,7 @@ static char *path_expand(char *path)
     }
   }
   strlcat(buf, pp, sizeof(buf));
-  return expand_path(buf);
+  return expand_path_exists(buf);
 }
 
 static void set_drv_c(char *path)
@@ -1397,7 +1397,7 @@ config_init(int argc, char **argv)
     if (optind < argc && strchr(argv[optind], '=') == NULL &&
 	    !(config.dos_cmd || config.unix_path)) {
 	char *p = NULL, *fpath;
-	fpath = expand_path(argv[optind]);
+	fpath = expand_path_exists(argv[optind]);
 	if (!fpath) {
 	    error("%s not found\n", argv[optind]);
 	    config.exitearly = 1;
@@ -1478,8 +1478,8 @@ config_init(int argc, char **argv)
 	    break;
 	case 'l': {
 #ifdef USE_DJDEV64
-	    char *p = expand_path(optarg);
-	    if (!p || !exists_file(p)) {
+	    char *p = expand_path_exists(optarg);
+	    if (!p) {
 		error("Path %s does not exist\n", optarg);
 		config.exitearly = 1;
 		break;

@@ -449,6 +449,24 @@ char *expand_path(const char *dir)
 	return s;
 }
 
+char *expand_path_exists(const char *dir)
+{
+	char *s;
+	wordexp_t p = {};
+	int err;
+
+	err = wordexp_lite(dir, &p, WRDE_NOCMD);
+	if (err)
+		return NULL;
+	if (p.we_wordc != 1) {
+		wordfree_lite(&p);
+		return NULL;
+	}
+	s = realpath(p.we_wordv[0], NULL);
+	wordfree_lite(&p);
+	return s;
+}
+
 char *expand_cmd(const char *cmd, const char **r_cmd)
 {
 	char *s, *f, *rt;
