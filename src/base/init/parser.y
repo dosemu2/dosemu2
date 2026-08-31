@@ -1170,7 +1170,7 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| MUNT_ROMS string_expr
 			{
 				free(config.munt_roms_dir);
-				config.munt_roms_dir = expand_path($2);
+				config.munt_roms_dir = expand_path_exists($2);
 				if (!config.munt_roms_dir)
 					warn("$_munt_roms %s does not exist\n",
 							$2);
