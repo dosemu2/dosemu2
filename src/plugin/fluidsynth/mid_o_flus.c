@@ -200,6 +200,10 @@ static int midoflus_init_mt32(void *arg)
 	NULL };
     const char *adrivers[] = { NULL };
 
+    flus[ST_MT32].mt = mt32remap_init();
+    if (!flus[ST_MT32].mt)
+	return 0;
+
     fluid_audio_driver_register(adrivers);
 
     if (config.fluid_sfont_mt32 && config.fluid_sfont_mt32[0]) {
@@ -226,7 +230,6 @@ static int midoflus_init_mt32(void *arg)
     }
     assert(sfont_mt32);
     do_flu_init(&flus[ST_MT32], sfont_mt32, "MT32");
-    flus[ST_MT32].mt = mt32remap_init();
     return 1;
 }
 

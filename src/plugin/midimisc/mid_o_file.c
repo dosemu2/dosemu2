@@ -381,6 +381,8 @@ static int midofile_init_mt32(void *arg)
 {
     struct mid_state *ms = &mids[ST_MT32];
     ms->mt = mt32remap_init();
+    if (!ms->mt)
+	return 0;
     ms->parser = new_fluid_midi_parser();
     ms->fname = config.midi_file_mt32;
     return 1;
@@ -565,8 +567,7 @@ static const struct midi_out_plugin midofile_mt32
 static void mt32_scrub(void)
 {
     midi_register_output_plugin(&midofile, ST_ANY);
-    if (config.omt_sfz_path && config.omt_sfz_path[0])
-        midi_register_output_plugin(&midofile_mt32, ST_MT32);
+    midi_register_output_plugin(&midofile_mt32, ST_MT32);
 }
 
 CONSTRUCTOR(static void midoflus_register(void))

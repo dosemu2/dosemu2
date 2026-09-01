@@ -395,7 +395,11 @@ CONSTRUCTOR(static void init(void))
 
 mt32_t *mt32remap_init(void)
 {
-    mt32_t *mt = malloc(sizeof(*mt));
+    mt32_t *mt;
+
+    if (!mt32_presets)
+        return NULL;
+    mt = malloc(sizeof(*mt));
     mt32_reset(mt);
     return mt;
 }
