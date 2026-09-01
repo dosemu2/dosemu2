@@ -79,17 +79,38 @@ struct flu_state {
     pthread_t syn_thr;
     sem_t syn_sem;
     int inited;
+    char *sfont;
+    int sfloaded;
 };
 static struct flu_state flus[ST_MAX];
 
 static pthread_mutex_t syn_mtx = PTHREAD_MUTEX_INITIALIZER;
 static void *synth_thread(void *arg);
 
-static int do_flu_init(struct flu_state *fs, const char *sfont,
-    const char *pcm_name)
+static int do_sfload(struct flu_state *fs)
 {
     int ret;
+#ifdef FE_NOMASK_ENV
+    /* workaround for:
+     * https://github.com/libsndfile/libsndfile/issues/1157
+     */
+    fedisableexcept(FE_DIVBYZERO);
+#endif
+    ret = fluid_synth_sfload(fs->synth, fs->sfont, TRUE);
+#ifdef FE_NOMASK_ENV
+    fesetenv(&dosemu_fenv);
+#endif
+    if (ret == FLUID_FAILED) {
+	error("fluidsynth: cannot load soundfont %s\n", fs->sfont);
+	return -1;
+    }
+    fs->sfloaded++;
+    S_printf("fluidsynth: loaded soundfont %s ID=%i\n", fs->sfont, ret);
+    return 0;
+}
 
+static void do_flu_init(struct flu_state *fs, char *sfont, const char *pcm_name)
+{
     fs->settings = new_fluid_settings();
     fluid_settings_setint(fs->settings, "synth.lock-memory", 0);
     fluid_settings_setnum(fs->settings, "synth.gain", config.fluid_volume / 4.0);
@@ -99,21 +120,6 @@ static int do_flu_init(struct flu_state *fs, const char *sfont,
     fluid_set_log_function(FLUID_DBG, fluid_default_log_function, NULL);
 #endif
     fs->synth = new_fluid_synth(fs->settings);
-#ifdef FE_NOMASK_ENV
-    /* workaround for:
-     * https://github.com/libsndfile/libsndfile/issues/1157
-     */
-    fedisableexcept(FE_DIVBYZERO);
-#endif
-    ret = fluid_synth_sfload(fs->synth, sfont, TRUE);
-#ifdef FE_NOMASK_ENV
-    fesetenv(&dosemu_fenv);
-#endif
-    if (ret == FLUID_FAILED) {
-	error("fluidsynth: cannot load soundfont %s\n", sfont);
-	goto err2;
-    }
-    S_printf("fluidsynth: loaded soundfont %s ID=%i\n", sfont, ret);
     fluid_settings_setstr(fs->settings, "synth.midi-bank-select", "gm");
     fs->sequencer = new_fluid_sequencer2(0);
     fs->parser = new_fluid_midi_parser();
@@ -122,24 +128,18 @@ static int do_flu_init(struct flu_state *fs, const char *sfont,
     fs->pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, pcm_name,
 	    (void*)MC_MIDI);
 
+    permit_file_ro(sfont);
+    fs->sfont = sfont;
     sem_init(&fs->syn_sem, 0, 0);
     pthread_create(&fs->syn_thr, NULL, synth_thread, fs);
 #if defined(HAVE_PTHREAD_SETNAME_NP) && defined(__GLIBC__)
     pthread_setname_np(fs->syn_thr, "dosemu: fluid");
 #endif
     fs->inited++;
-
-    return 0;
-
-err2:
-    delete_fluid_synth(fs->synth);
-    delete_fluid_settings(fs->settings);
-    return -1;
 }
 
 static int midoflus_init(void *arg)
 {
-    int err;
     char *sfont = NULL;
     const char *def_sfonts[] = {
 	"/usr/share/soundfonts/default.sf2",		// fedora
@@ -188,16 +188,12 @@ static int midoflus_init(void *arg)
 
     if (!sfont)
 	return 0;
-    err = do_flu_init(&flus[ST_GM], sfont, "MIDI");
-    free(sfont);
-    if (err)
-	return 0;
+    do_flu_init(&flus[ST_GM], sfont, "MIDI");
     return 1;
 }
 
 static int midoflus_init_mt32(void *arg)
 {
-    int err;
     char *sfont_mt32 = NULL;
     const char *def_sfonts_mt32[] = {
 	"/usr/share/sounds/openmt32/OpenMT32.sf3",	// ubuntu
@@ -229,10 +225,7 @@ static int midoflus_init_mt32(void *arg)
 	}
     }
     assert(sfont_mt32);
-    err = do_flu_init(&flus[ST_MT32], sfont_mt32, "MT32");
-    free(sfont_mt32);
-    if (err)
-	return 0;
+    do_flu_init(&flus[ST_MT32], sfont_mt32, "MT32");
     flus[ST_MT32].mt = mt32remap_init();
     return 1;
 }
@@ -250,6 +243,9 @@ static void do_done(struct flu_state *fs)
     delete_fluid_settings(fs->settings);
     if (fs->mt)
 	mt32remap_done(fs->mt);
+    free(fs->sfont);
+    fs->sfloaded = 0;
+    fs->inited = 0;
 }
 
 static void midoflus_done(void *arg)
@@ -262,9 +258,25 @@ static void midoflus_done_mt32(void *arg)
     do_done(&flus[ST_MT32]);
 }
 
-static void midoflus_start(struct flu_state *fs)
+static int midoflus_start(struct flu_state *fs)
 {
+    int rc;
+    sigset_t oset;
+
+    /* could be deinited due to sfload failure */
+    if (!fs->inited)
+	return -1;
     S_printf("MIDI: starting fluidsynth\n");
+    if (sig_threads_wa)
+      signal_block_async_nosig(&oset);
+    rc = do_sfload(fs);
+    if (sig_threads_wa)
+      pthread_sigmask(SIG_SETMASK, &oset, NULL);
+    if (rc == -1) {
+	do_done(fs);
+	return -1;
+    }
+
     fs->mf_time_base = GETusTIME(0);
     assert(fs->sequencer);
     pthread_mutex_lock(&syn_mtx);
@@ -272,6 +284,7 @@ static void midoflus_start(struct flu_state *fs)
     fluid_sequencer_process(fs->sequencer, 0);
     fs->output_running = 1;
     pthread_mutex_unlock(&syn_mtx);
+    return 0;
 }
 
 static void do_write(void *arg, unsigned char *data, int len)
@@ -321,13 +334,16 @@ static int do_mt32_event(struct flu_state *fs, fluid_midi_event_t *ev,
 static void midoflus_write(unsigned char val, enum SynthType type)
 {
     int ret = FLUID_OK;
+    int rc = 0;
     struct flu_state *fs =&flus[type];
     fluid_midi_event_t* event;
     unsigned long long now = GETusTIME(0);
     int msec = (now - fs->mf_time_base) / 1000;
 
     if (!fs->output_running)
-	midoflus_start(fs);
+	rc = midoflus_start(fs);
+    if (rc == -1)
+	return;
 
     assert(fs->parser);
     event = fluid_midi_parser_parse(fs->parser, val);
