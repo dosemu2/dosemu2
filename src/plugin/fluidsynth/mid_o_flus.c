@@ -270,14 +270,16 @@ static int midoflus_start(struct flu_state *fs)
     if (!fs->inited)
 	return -1;
     S_printf("MIDI: starting fluidsynth\n");
-    if (sig_threads_wa)
-      signal_block_async_nosig(&oset);
-    rc = do_sfload(fs);
-    if (sig_threads_wa)
-      pthread_sigmask(SIG_SETMASK, &oset, NULL);
-    if (rc == -1) {
-	do_done(fs);
-	return -1;
+    if (!fs->sfloaded) {
+      if (sig_threads_wa)
+        signal_block_async_nosig(&oset);
+      rc = do_sfload(fs);
+      if (sig_threads_wa)
+        pthread_sigmask(SIG_SETMASK, &oset, NULL);
+      if (rc == -1) {
+        do_done(fs);
+        return -1;
+      }
     }
 
     fs->mf_time_base = GETusTIME(0);
