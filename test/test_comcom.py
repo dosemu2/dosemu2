@@ -10,7 +10,7 @@ from func_command_com_builtins import command_com_copy, command_com_keyword_exis
 from func_command_com_cmdline_length import command_com_cmdline_length
 from func_command_com_psp_checks import command_com_psp_fcbs
 
-from func_comcom_internal import comcom_r200fix
+from func_comcom_internal import comcom_mem, comcom_r200fix
 
 
 class OurTestCase(BaseTestCase):
@@ -81,6 +81,11 @@ class OurTestCase(BaseTestCase):
     def test_command_psp_fcbs(self):
         """Command.com PSP FCB Values"""
         command_com_psp_fcbs(self)
+
+    @mark('inttest')
+    def test_comcom_mem(self):
+        """Comcom mem report tool"""
+        comcom_mem(self)
 
     @mark('inttest')
     def test_comcom_r200fix_real(self):
