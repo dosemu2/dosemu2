@@ -155,9 +155,10 @@ static int midoflus_init(void *arg)
 	"/usr/share/sounds/sf2/FluidR3_GM.sf2",		// debian
 	NULL };
     const char *adrivers[] = { NULL };
-    fluid_settings_t *settings = new_fluid_settings();
+    fluid_settings_t *settings;
 
     fluid_audio_driver_register(adrivers);
+    settings = new_fluid_settings();
 
     if (config.fluid_sfont && config.fluid_sfont[0]) {
 	if (access(config.fluid_sfont, R_OK) == 0)
