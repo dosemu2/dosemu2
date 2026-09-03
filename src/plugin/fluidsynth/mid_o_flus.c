@@ -31,6 +31,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <limits.h>
 #define FLUIDSYNTH_API
 #define FLUID_DEPRECATED
 #include <fluidsynth/types.h>
@@ -46,6 +47,7 @@
 #else
 #include <semaphore.h>
 #endif
+#include "libbsd/string.h"
 #include "emu.h"
 #include "init.h"
 #include "timers.h"
@@ -79,11 +81,12 @@ struct flu_state {
     pthread_t syn_thr;
     sem_t syn_sem;
     int inited;
-    char *sfont;
+    const char *sfont;
     int sfloaded;
 };
 static struct flu_state flus[ST_MAX];
 
+static char fluid_def_sfont[PATH_MAX];
 static pthread_mutex_t syn_mtx = PTHREAD_MUTEX_INITIALIZER;
 static void *synth_thread(void *arg);
 
@@ -109,7 +112,8 @@ static int do_sfload(struct flu_state *fs)
     return 0;
 }
 
-static void do_flu_init(struct flu_state *fs, char *sfont, const char *pcm_name)
+static void do_flu_init(struct flu_state *fs, const char *sfont,
+    const char *pcm_name)
 {
     fs->settings = new_fluid_settings();
     fluid_settings_setint(fs->settings, "synth.lock-memory", 0);
@@ -140,7 +144,7 @@ static void do_flu_init(struct flu_state *fs, char *sfont, const char *pcm_name)
 
 static int midoflus_init(void *arg)
 {
-    char *sfont = NULL;
+    const char *sfont = NULL;
     const char *def_sfonts[] = {
 	"/usr/share/soundfonts/default.sf2",		// fedora
 	DATADIR "/soundfonts/default.sf2",
@@ -157,28 +161,29 @@ static int midoflus_init(void *arg)
 
     if (config.fluid_sfont && config.fluid_sfont[0]) {
 	if (access(config.fluid_sfont, R_OK) == 0)
-	    sfont = strdup(config.fluid_sfont);
+	    sfont = config.fluid_sfont;
 	else
 	    error("soundfont %s missing\n", config.fluid_sfont);
     } else {
+	char *sf;
 	int ret = fluid_settings_dupstr(settings, "synth.default-soundfont",
-		&sfont);
+		&sf);
 	if (ret == FLUID_FAILED) {
 	    error("Your fluidsynth is too old\n");
-	} else if (access(sfont, R_OK) != 0) {
-	    warn("fluidsynth sound font unavailable at %s\n", sfont);
-	    free(sfont);
-	    sfont = NULL;
+	} else if (access(sf, R_OK) != 0) {
+	    warn("fluidsynth sound font unavailable at %s\n", sf);
+	    free(sf);
+	} else {
+	    strlcpy(fluid_def_sfont, sf, sizeof(fluid_def_sfont));
+	    free(sf);
+	    sfont = fluid_def_sfont;
 	}
 	if (!sfont) {
-	    int i = 0;
-
-	    while (def_sfonts[i]) {
+	    for (int i = 0; def_sfonts[i]; i++) {
 		if (access(def_sfonts[i], R_OK) == 0) {
-		    sfont = strdup(def_sfonts[i]);
+		    sfont = def_sfonts[i];
 		    break;
 		}
-		i++;
 	    }
 	    if (!sfont)
 		error("soundfonts not found\n");
@@ -194,7 +199,7 @@ static int midoflus_init(void *arg)
 
 static int midoflus_init_mt32(void *arg)
 {
-    char *sfont_mt32 = NULL;
+    const char *sfont_mt32 = NULL;
     const char *def_sfonts_mt32[] = {
 	"/usr/share/sounds/openmt32/OpenMT32.sf3",	// ubuntu
 	NULL };
@@ -208,20 +213,17 @@ static int midoflus_init_mt32(void *arg)
 
     if (config.fluid_sfont_mt32 && config.fluid_sfont_mt32[0]) {
 	if (access(config.fluid_sfont_mt32, R_OK) == 0) {
-	    sfont_mt32 = strdup(config.fluid_sfont_mt32);
+	    sfont_mt32 = config.fluid_sfont_mt32;
 	} else {
 	    error("MT32 soundfont %s missing\n", config.fluid_sfont_mt32);
 	    return 0;
 	}
     } else {
-	int i = 0;
-
-	while (def_sfonts_mt32[i]) {
+	for (int i = 0; def_sfonts_mt32[i]; i++) {
 	    if (access(def_sfonts_mt32[i], R_OK) == 0) {
-		sfont_mt32 = strdup(def_sfonts_mt32[i]);
+		sfont_mt32 = def_sfonts_mt32[i];
 		break;
 	    }
-	    i++;
 	}
 	if (!sfont_mt32) {
 	    error("MT32 soundfonts not found\n");
@@ -246,7 +248,6 @@ static void do_done(struct flu_state *fs)
     delete_fluid_settings(fs->settings);
     if (fs->mt)
 	mt32remap_done(fs->mt);
-    free(fs->sfont);
     fs->sfloaded = 0;
     fs->inited = 0;
 }
