@@ -537,14 +537,8 @@ static const struct midi_out_plugin midoflus_mt32
 };
 #endif
 
-static void mt32_scrub(void)
-{
-    midi_register_output_plugin(&midoflus, ST_GM);
-    if (config.fluid_sfont_mt32 && config.fluid_sfont_mt32[0])
-        midi_register_output_plugin(&midoflus_mt32, ST_MT32);
-}
-
 CONSTRUCTOR(static void midoflus_register(void))
 {
-    register_config_scrub(mt32_scrub);
+    midi_register_output_plugin(&midoflus, ST_GM);
+    midi_register_output_plugin(&midoflus_mt32, ST_MT32);
 }

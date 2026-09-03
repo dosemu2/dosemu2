@@ -564,13 +564,8 @@ static const struct midi_out_plugin midofile_mt32
 };
 #endif
 
-static void mt32_scrub(void)
+CONSTRUCTOR(static void midoflus_register(void))
 {
     midi_register_output_plugin(&midofile, ST_ANY);
     midi_register_output_plugin(&midofile_mt32, ST_MT32);
-}
-
-CONSTRUCTOR(static void midoflus_register(void))
-{
-    register_config_scrub(mt32_scrub);
 }
