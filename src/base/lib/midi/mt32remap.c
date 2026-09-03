@@ -384,8 +384,27 @@ static const mt32_preset_t *find_preset(const char *hash)
 
 static void mt32_scrub(void)
 {
-    if (config.omt_sfz_path && config.omt_sfz_path[0])
-        load_openmt32_sfz(config.omt_sfz_path);
+    const char *sfz = NULL;
+    const char *def_sfz_paths[] = {
+        "/usr/share/sounds/openmt32/OpenMT32.sfz",	// ubuntu
+        NULL };
+
+    if (config.omt_sfz_path && config.omt_sfz_path[0]) {
+        sfz = config.omt_sfz_path;
+    } else {
+        for (int i = 0; def_sfz_paths[i]; i++) {
+            if (access(def_sfz_paths[i], R_OK) == 0) {
+                sfz = def_sfz_paths[i];
+                break;
+            }
+        }
+        if (!sfz) {
+            error("MT32 soundfonts (sfz) not found\n");
+            return;
+        }
+    }
+
+    load_openmt32_sfz(sfz);
 }
 
 CONSTRUCTOR(static void init(void))
