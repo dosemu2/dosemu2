@@ -15,7 +15,7 @@ def bpb_set(self, field, method, blkdev=16):
     config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s:partition +1"
 $_floppy_a = ""
-""" % self.mkimage_vbr(str(blkdev), cwd=testdir)
+""" % self.mkimage_vbr(str(blkdev), cwd=testdir).name
 
     self.mkfile("testit.bat", """\
 d:

@@ -15,8 +15,8 @@ def lfs_disk_info(self, fstype):
         bigfile = testdir / 'bigfile.zro'
         size = 104857600
         call(["dd", "if=/dev/zero", "of=%s" % bigfile, "bs=%s" % size, "count=1"], stderr=DEVNULL)
-        name = self.mkimage_vbr("32", cwd=testdir)
-        config="""$_hdimage = "dXXXXs/c:hdtype1 %s +1"\n""" % name
+        image = self.mkimage_vbr("32", cwd=testdir)
+        config="""$_hdimage = "dXXXXs/c:hdtype1 %s +1"\n""" % image.name
     else:
         raise ValueError
 

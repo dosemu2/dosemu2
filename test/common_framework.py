@@ -581,7 +581,7 @@ class BaseTestCase(object):
 
         return name
 
-    def mkimage_vbr(self, fat, lfn=False, cwd=None):
+    def mkimage_vbr(self, fat, label=None, lfn=False, cwd=None):
         if fat == "12":
             bcount = 306 * 4 * 17   # type 1
         elif fat == "16":
@@ -593,7 +593,7 @@ class BaseTestCase(object):
         else:
             raise ValueError("Invalid arg '%s'" % fat)
 
-        name = "fat%s.img" % fat
+        img = self.imagedir / f"fat{fat}.img"
 
         # mkfs.fat [OPTIONS] DEVICE [BLOCK-COUNT]
         check_call(
@@ -601,9 +601,13 @@ class BaseTestCase(object):
                 "-t", ("fat", "vfat")[lfn],
                 "-C",
                 "-F", fat[0:2],
-                str(self.imagedir / name),
+                f"{img}",
                 str(bcount)],
             stdout=DEVNULL, stderr=DEVNULL)
+
+        # mlabel both writes to the BPB and creates a volume 'file' in the root
+        if label:
+            check_call(["mlabel", "-i", f"{img}", "-n", f"::{label}"])
 
         if cwd is None:
             cwd = self.workdir
@@ -611,14 +615,10 @@ class BaseTestCase(object):
         # mcopy -i ../fat32.img -s -v * ::/
         srcs = [str(f) for f in cwd.glob('*')]
         if srcs:   # copy files
-            args = ["mcopy",
-                    "-i", str(self.imagedir / name),
-                    "-s"]
-            args += srcs
-            args += ["::/",]
+            args = ["mcopy", "-i", f"{img}", "-s"] + srcs + ["::/",]
             check_call(args, cwd=cwd, stdout=DEVNULL, stderr=DEVNULL)
 
-        return name
+        return img
 
     def patch(self, fname, changes, cwd=None):
         if cwd is None:

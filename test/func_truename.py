@@ -197,13 +197,13 @@ rem end
 
     testdir = self.mkworkdir('d')
     (testdir / "there.txt").write_text('there')
-    iname = self.mkimage_vbr("16", cwd=testdir)
+    image = self.mkimage_vbr("16", cwd=testdir)
 
     config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = ""
 $_lfn_support = (off)
-""" % iname
+""" % image.name
 
     def mkctests(xtests):
         results = "test_t test[] = {\n"
