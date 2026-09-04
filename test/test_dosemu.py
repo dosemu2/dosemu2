@@ -1,7 +1,5 @@
 #!/usr/bin/python3
 
-import unittest
-
 from sys import argv
 
 from common_framework import (BaseTestCase, main, main_setup, mark, acceptFailure,
@@ -14,7 +12,6 @@ from func_bpb_set import bpb_set
 from func_command_com_builtins import command_com_copy, command_com_keyword_exist
 from func_command_com_cmdline_length import command_com_cmdline_length
 from func_command_com_psp_checks import command_com_psp_fcbs
-from func_command_com_r200fix import command_com_r200fix
 from func_disk import three_drives_vfs, int21_disk_info
 from func_ds2_dirops import (ds2_delete_common, ds2_find_common, ds2_find_first,
                              ds2_find_mixed_wild_plain, ds2_rename_common)
@@ -84,17 +81,6 @@ class OurTestCase(BaseTestCase):
     def test_command_com_psp_fcbs(self):
         """Command.com PSP FCB Values"""
         command_com_psp_fcbs(self)
-
-    @mark('cmdtest')
-    def test_command_com_r200fix_real(self):
-        """Command.com r200fix Real Mode"""
-        command_com_r200fix(self, 'REAL')
-
-    @unittest.expectedFailure
-    @mark('cmdtest')
-    def test_command_com_r200fix_protected(self):
-        """Command.com r200fix Protected Mode"""
-        command_com_r200fix(self, 'PROTECTED')
 
     def test_drv_removable(self):
         """Drive is removable (IOCTL)"""
@@ -1517,8 +1503,6 @@ class OurTestCase(BaseTestCase):
 
 DRDOS701TestCase = drdos701(OurTestCase, {
     "test_command_com_psp_fcbs": KNOWNFAIL,
-    "test_command_com_r200fix_real": UNSUPPORTED,
-    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos02": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
@@ -1557,8 +1541,6 @@ DRDOS701TestCase = drdos701(OurTestCase, {
 
 FRDOS120TestCase = frdos120(OurTestCase, {
     "test_command_com_psp_fcbs": KNOWNFAIL,
-    "test_command_com_r200fix_real": UNSUPPORTED,
-    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_drv_removable": KNOWNFAIL,
@@ -1632,8 +1614,6 @@ FRDOS120TestCase = frdos120(OurTestCase, {
 
 FRDOS130TestCase = frdos130(OurTestCase, {
     "test_command_com_psp_fcbs": KNOWNFAIL,
-    "test_command_com_r200fix_real": UNSUPPORTED,
-    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_command_com_keyword_exist": KNOWNFAIL,
@@ -1688,8 +1668,6 @@ FRDOS130TestCase = frdos130(OurTestCase, {
 })
 
 FRDOSGITTestCase = frdosgit(OurTestCase, {
-    "test_command_com_r200fix_real": UNSUPPORTED,
-    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_fat_bpb_set_fstype_dinfo": KNOWNFAIL,
@@ -1721,8 +1699,6 @@ FRDOSGITTestCase = frdosgit(OurTestCase, {
 })
 
 MSDOS622TestCase = msdos622(OurTestCase, {
-    "test_command_com_r200fix_real": UNSUPPORTED,
-    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos02": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
@@ -1741,8 +1717,6 @@ MSDOS622TestCase = msdos622(OurTestCase, {
 })
 
 MSDOS700TestCase = msdos700(OurTestCase, {
-    "test_command_com_r200fix_real": UNSUPPORTED,
-    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
@@ -1758,8 +1732,6 @@ MSDOS700TestCase = msdos700(OurTestCase, {
 })
 
 MSDOS710TestCase = msdos710(OurTestCase, {
-    "test_command_com_r200fix_real": UNSUPPORTED,
-    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     # Real mode sharing and locking was removed on MS-DOS 7.10
@@ -1785,7 +1757,6 @@ MSDOS710TestCase = msdos710(OurTestCase, {
 })
 
 PPDOSGITTestCase = ppdosgit(OurTestCase, {
-    "test_command_com_r200fix_protected": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_drv_removable": KNOWNFAIL,

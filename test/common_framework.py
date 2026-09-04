@@ -62,6 +62,7 @@ TEST_BINARIES = (
 # Freedos 1.4 packages
 TEST_FREEDOS_HOST = "https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/repositories/1.4"
 TEST_FREEDOS_PKGS = (
+    'base/mem.zip',
     'devel/dj_make.zip',
     'devel/nasm.zip',
     'devel/watcomc.zip',
@@ -139,11 +140,12 @@ def get_test_binaries():
         ], stderr=STDOUT, cwd=tbindir)
 
     for zfile in TEST_FREEDOS_PKGS:
+        zout = zfile.rpartition('/')[-1]
         check_call([
             "wget",
             "--no-verbose",
             "--inet4-only",
-            "-O", f"{zfile.removeprefix('devel/')}",
+            "-O", f"{zout}",
             f"{TEST_FREEDOS_HOST}/{zfile}",
         ], stderr=STDOUT, cwd=tbindir)
 
