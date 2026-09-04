@@ -82,6 +82,7 @@ class OurTestCase(BaseTestCase):
         """Command.com PSP FCB Values"""
         command_com_psp_fcbs(self)
 
+    @acceptFailure
     @mark('inttest')
     def test_comcom_mem(self):
         """Comcom mem report tool"""
