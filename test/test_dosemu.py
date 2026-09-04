@@ -66,6 +66,8 @@ from func_findfile import (mfs_findfile_ufs_lfn, mfs_findfile_ufs_sfn,
                            mfs_findfile_vfat_linux_mounted_lfn, mfs_findfile_vfat_linux_mounted_sfn,
                            sfn_findfirst)
 from func_serial import (serial_simple_read_echo, serial_simple_write_file,
+                         serial_vmodem_dial_data_exchange,
+                         serial_vmodem_dial_data_exchange_ipv6,
                          lpt_simple_write_pipe)
 from func_truename import (mfs_truename_ufs_lfn, mfs_truename_ufs_sfn, mfs_truename_vfat_linux_mounted_lfn,
                            mfs_truename_vfat_linux_mounted_sfn, sfn_truename)
@@ -864,6 +866,17 @@ class OurTestCase(BaseTestCase):
         """Serial Simple Write File"""
         serial_simple_write_file(self)
 
+    @mark('serialtest')
+    def test_serial_vmodem_dial_data_exchange(self):
+        """Serial vmodem ATD dial and data exchange"""
+        serial_vmodem_dial_data_exchange(self)
+
+    @mark('serialtest')
+    def test_serial_vmodem_dial_data_exchange_ipv6(self):
+        """Serial vmodem ATD dial and data exchange IPv6"""
+        serial_vmodem_dial_data_exchange_ipv6(self)
+
+    @mark('serialtest')
     # Obviously not a serial device, but may as well group together
     @mark('serialtest')
     def test_lpt_simple_write_pipe(self):
