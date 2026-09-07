@@ -1147,9 +1147,9 @@ static void config_post_process(void)
 #endif
     }
     if (config.umb_b0 == -1)
-	config.umb_b0 = config.dumb_video;
+	config.umb_b0 = config.dumb_video && config.cardtype != CARD_MDA;
     if (config.umb_b8)
-	config.umb_b8 = config.dumb_video;
+	config.umb_b8 = config.dumb_video && config.cardtype == CARD_MDA;
 
     /* page-align memory sizes */
     config.ext_mem &= ~3;
