@@ -75,7 +75,7 @@ static void pkt_hlt(Bit16u idx, HLT_ARG(arg));
 static int Insert_Type(int, int, Bit8u *);
 static int Remove_Type(int);
 int Find_Handle(u_char *buf);
-static void printbuf(const char *, struct ethhdr *, uint32_t len);
+static void printbuf(const char *, struct ethhdr *, uint32_t len, int novell);
 static int pkt_receive(void);
 static enum VirqHwRet pkt_virq_receive(void *arg);
 static enum VirqSwRet pkt_receiver_callback(void *arg);
@@ -380,11 +380,12 @@ static int pkt_int(void)
 	return 1;
 
     case F_SEND_PKT: {
+	int novell = 0;
+
 	p_stats->packets_out++;
 	p_stats->bytes_out += LWORD(ecx);
 
 	pd_printf("========Sending packet======\n");
-	printbuf("packet to send:", SEG_ADR((struct ethhdr *), ds, si), LWORD(ecx));
 	if (pg.flags & FLAG_NOVELL)	/* Novell hack? */
 	{
 		    char *p;
@@ -404,8 +405,12 @@ static int pkt_int(void)
 			len = (len + 1) & ~1; /* make length even */
 			p[0] = len >> 8;
 			p[1] = (char)len;
+			novell = 1;
 		    }
 	}
+	/* after the translation, so we log what actually goes on the wire */
+	printbuf("packet to send:", SEG_ADR((struct ethhdr *), ds, si),
+		LWORD(ecx), novell);
 
 	if (pkt_write(pkt_fd, SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
 	    pd_printf("Write to net was ok\n");
@@ -658,7 +663,8 @@ static int pkt_receive(void)
 	    p_stats->packets_in++;
 	    p_stats->bytes_in += size;
 
-	    printbuf("received packet:", (struct ethhdr *)pkt_buf, size);
+	    printbuf("received packet:", (struct ethhdr *)pkt_buf, size,
+		    hdlp->flags & FLAG_NOVELL);
 	    /* stuff things in global vars and queue a hardware */
 	    /* interrupt which will perform the upcall */
 	    if (p_helper_size)
@@ -715,23 +721,22 @@ Find_Handle(u_char *buf)
     return -1;
 }
 
-static void printbuf(const char *mesg, struct ethhdr *buf, uint32_t len)
+static void printbuf(const char *mesg, struct ethhdr *buf, uint32_t len,
+	int novell)
 {
-  int i;
+  const uint32_t toff = 2 * ETH_ALEN + (novell ? 2 : 0);
+  uint32_t i;
   u_char *p;
 
   pd_printf("%s :\n Dest=", mesg);
-  for (i = 0; i < 6; i++)
+  for (i = 0; i < ETH_ALEN; i++)
     pd_printf("%02x:", buf->h_dest[i]);
   pd_printf(" Source=");
-  for (i = 0; i < 6; i++)
+  for (i = 0; i < ETH_ALEN; i++)
     pd_printf("%02x:", buf->h_source[i]);
-  if (ntohs(buf->h_proto) >= 1536)
-    pd_printf(" Ethernet-II;");
-  else
-    pd_printf(" 802.3;");
-  p = (u_char *)buf + 2 * ETH_ALEN + 4;
-  pd_printf(" Type/len=0x%x \n", ntohs(*(u_short *)p));
+  p = (u_char *)buf + toff;
+  pd_printf(" %s; Type/len=0x%x \n", novell ? "802.3" : "Ethernet-II",
+	(p[0] << 8) | p[1]);
   p += 2;
   len -= p - (u_char *)buf;
   pd_printf(" Payload:\n");
