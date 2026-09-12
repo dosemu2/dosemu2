@@ -725,8 +725,14 @@ static void printbuf(const char *mesg, struct ethhdr *buf, uint32_t len,
 	int novell)
 {
   const uint32_t toff = 2 * ETH_ALEN + (novell ? 2 : 0);
+  const uint32_t hdrlen = toff + 2;
   uint32_t i;
   u_char *p;
+
+  if (len < hdrlen) {
+    pd_printf("%s :\n runt frame, len=%u\n", mesg, len);
+    return;
+  }
 
   pd_printf("%s :\n Dest=", mesg);
   for (i = 0; i < ETH_ALEN; i++)
