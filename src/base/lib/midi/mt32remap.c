@@ -25,6 +25,7 @@
 #include "init.h"
 #include "dosemu_config.h"
 #include "mt32remap.h"
+#include "mt32_bpf.h"
 
 typedef unsigned char u8;
 typedef unsigned int u32;
@@ -97,6 +98,17 @@ static void sha1_hex16(sha1_t *s, char out[17])
 
 #define MT32_TIMBRE_SIZE 246
 #define TIMBRE_SZ MT32_TIMBRE_SIZE      /* 246 */
+#define PATCH_PTR_SZ       2        /* patch_temp[0..1]: the timbre pointer */
+#define PATCH_SND_SZ       3        /* keyShift, fineTune, benderRange */
+
+#define TABLE_VERSION 3
+#define STATE_IMG_SZ (4 + MT32_TIMBRE_SIZE)
+#define MT32_TRAVERSAL_MAX 65536
+static u8 mt32_traversal[MT32_TRAVERSAL_MAX];
+static size_t mt32_traversal_len;
+static mt32_bpf_t mt32_walk;
+static u8 *state_pkt;               /* the image, with the traversal's tail */
+
 #define PADDED_SZ 256                   /* stride of timbre memory entries */
 
 typedef struct _mt32 {
@@ -136,6 +148,15 @@ static mt32_preset_t *mt32_presets = NULL;
 static size_t num_mt32_presets = 0;
 static size_t cap_mt32_presets = 0;
 
+/* an unusable table is not fatal: mt32remap_init() returns NULL and dosemu
+ * plays the MIDI stream unremapped */
+static void disable_remap(void)
+{
+    free(mt32_presets);
+    mt32_presets = NULL;
+    num_mt32_presets = cap_mt32_presets = 0;
+}
+
 static void load_openmt32_sfz(const char *path)
 {
     FILE *f = fopen(path, "r");
@@ -148,7 +169,10 @@ static void load_openmt32_sfz(const char *path)
     u8 *curr_buf = NULL;
     size_t curr_cap = 0;
     size_t curr_pos = 0;
+    size_t *curr_len = NULL;    /* sections whose length is not their capacity */
     int is_presets = 0;
+    int is_version = 0;
+    int version = 1;            /* no <openmt32> section: pre-versioning file */
 
     while (fgets(line, sizeof(line), f)) {
         /* Strip newline and whitespace */
@@ -163,11 +187,17 @@ static void load_openmt32_sfz(const char *path)
                 *end_tag = '\0';
                 char *tag = p + 1;
                 is_presets = 0;
+                is_version = 0;
                 curr_buf = NULL;
                 curr_cap = 0;
                 curr_pos = 0;
+                curr_len = NULL;
 
-                if (!strcmp(tag, "mt32_rom_timbres")) {
+                if (!strcmp(tag, "mt32_traversal")) {
+                    curr_buf = mt32_traversal; curr_cap = sizeof(mt32_traversal);
+                    curr_len = &mt32_traversal_len;
+                    mt32_traversal_len = 0;
+                } else if (!strcmp(tag, "mt32_rom_timbres")) {
                     curr_buf = (u8 *)mt32_rom_timbres; curr_cap = sizeof(mt32_rom_timbres);
                 } else if (!strcmp(tag, "mt32_init_patch_temp")) {
                     curr_buf = (u8 *)mt32_init_patch_temp; curr_cap = sizeof(mt32_init_patch_temp);
@@ -193,12 +223,17 @@ static void load_openmt32_sfz(const char *path)
                     curr_buf = mt32_max_system; curr_cap = sizeof(mt32_max_system);
                 } else if (!strcmp(tag, "mt32_presets")) {
                     is_presets = 1;
+                } else if (!strcmp(tag, "openmt32")) {
+                    is_version = 1;
                 }
                 continue;
             }
         }
 
-        if (is_presets) {
+        if (is_version) {
+            if (!strncmp(p, "version=", 8))
+                version = atoi(p + 8);
+        } else if (is_presets) {
             char hash_val[64] = "";
             int bank = -1, prog = -1, bend = -1;
             char *token = strtok(p, " \t\r\n");
@@ -228,6 +263,7 @@ static void load_openmt32_sfz(const char *path)
                 if (*token != '\0') {
                     if (curr_pos < curr_cap) {
                         curr_buf[curr_pos++] = (u8)strtoul(token, NULL, 0);
+                        if (curr_len) *curr_len = curr_pos;
                     }
                 }
                 token = strtok(NULL, ",\t\r\n");
@@ -236,6 +272,38 @@ static void load_openmt32_sfz(const char *path)
     }
 
     fclose(f);
+
+    if (version != TABLE_VERSION) {
+        error("MT32: %s declares table version %d, expected %d. "
+              "Update openmt32-soundfonts.\n",
+              path, version, TABLE_VERSION);
+        goto err1;
+    }
+
+    /* The traversal says which bytes of a state are hashed. Without it, or
+     * with one built for a differently shaped image, no note can be
+     * identified, so degrade to plain playback rather than guess. */
+    if (!mt32_bpf_load(&mt32_walk, mt32_traversal, mt32_traversal_len)) {
+        error("MT32: %s has no usable <mt32_traversal> section. Not "
+              "remapping; update openmt32-soundfonts.\n", path);
+        goto err1;
+    }
+    if (mt32_walk.img_sz != STATE_IMG_SZ) {
+        error("MT32: %s describes a %u-byte state image, this build builds "
+              "%d. Not remapping; update openmt32-soundfonts.\n",
+              path, mt32_walk.img_sz, STATE_IMG_SZ);
+        goto err2;
+    }
+    state_pkt = malloc(mt32_walk.img_sz + mt32_walk.tail_len);
+    if (!state_pkt)
+        goto err2;
+    memcpy(state_pkt + mt32_walk.img_sz, mt32_walk.tail, mt32_walk.tail_len);
+    return;
+
+err2:
+    mt32_bpf_free(&mt32_walk);
+err1:
+    disable_remap();
 }
 
 static void mt32_reset(mt32_t *m)
@@ -353,23 +421,43 @@ static void do_mt32_sysex(mt32_t *m, const u8 *p, int len)
 }
 
 /* the sound identity of a note, exactly as tools/mt32_state_logger.py */
-static int note_state(const mt32_t *m, int part, int key, char hash[17])
+static void sha1_emit(void *ctx, const u8 *p, unsigned n)
 {
-    sha1_t s;
-    sha1_init(&s);
+    sha1_update((sha1_t *)ctx, p, n);
+}
+
+static int build_state_image(const mt32_t *m, int part, int key)
+{
+    const u8 *timbre;
+
+    memset(state_pkt, 0, STATE_IMG_SZ);
     if (part == 8) {
         int t;
         if (key < 24 || key > 108) return 0;
         t = m->rhythm_temp[key - 24][0];
         if (t == 127) return 0;
-        sha1_update(&s, "R", 1);
-        sha1_update(&s, (const u8[]){ (u8)t }, 1);
-        if (t < 64) sha1_update(&s, m->timbres[t], TIMBRE_SZ);
+        state_pkt[0] = 'R';
+        /* a drum is identified by the timbre it names, whether that lives
+         * in memory or in ROM */
+        timbre = (t < 64) ? m->timbres[t] : mt32_rom_timbres[128 + (t - 64)];
     } else {
-        sha1_update(&s, "M", 1);
-        sha1_update(&s, m->patch_temp[part], 5);
-        sha1_update(&s, m->timbre_temp[part], TIMBRE_SZ);
+        state_pkt[0] = 'M';
+        /* patch_temp[0..1] points at the timbre; timbre_temp is what it
+         * already resolved to, so take that instead */
+        memcpy(state_pkt + 1, m->patch_temp[part] + PATCH_PTR_SZ, PATCH_SND_SZ);
+        timbre = m->timbre_temp[part];
     }
+    memcpy(state_pkt + 1 + PATCH_SND_SZ, timbre, TIMBRE_SZ);
+    return 1;
+}
+
+static int note_state(const mt32_t *m, int part, int key, char hash[17])
+{
+    sha1_t s;
+
+    if (!build_state_image(m, part, key)) return 0;
+    sha1_init(&s);
+    if (!mt32_bpf_walk(&mt32_walk, state_pkt, sha1_emit, &s)) return 0;
     sha1_hex16(&s, hash);
     return 1;
 }
