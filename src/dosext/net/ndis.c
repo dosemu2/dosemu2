@@ -57,7 +57,6 @@
 #include "cpu.h"
 #include "coopth.h"
 #include "virq.h"
-#include "lowmem.h"
 #include "ioselect.h"
 #include "utilities.h"
 #include "doshelpers.h"
@@ -96,6 +95,13 @@ static_assert(sizeof(ReqBlock) == 14, "bad ReqBlock");
 #define NDIS_RX_LOWATER	2
 /* maximum number of frames indicated in one go */
 #define NDIS_RX_BATCH	(NDIS_RX_BUFS * 2)
+/*
+ * Stack for the indications. A real MAC indicates from its interrupt
+ * handler, i.e. on the stack of whatever it interrupted, so protocols
+ * are frugal - but dosemu's shared real-mode stack is only 512 bytes,
+ * which is too tight to rely on.
+ */
+#define NDIS_STACK_SIZE	2048
 
 #define NDIS_MAJOR	0
 #define NDIS_MINOR	1
@@ -112,6 +118,7 @@ struct ndis_res {
     uint8_t indicate;			/* the "Indicate" flag byte */
     uint8_t pad;
     char vendor_desc[32];
+    uint8_t stack[NDIS_STACK_SIZE];
     uint8_t rxbuf[NDIS_RX_BUFS][NDIS_FRAME_MAX];
 } __attribute__((packed));
 
@@ -491,6 +498,7 @@ static enum VirqHwRet ndis_virq_receive(void *arg)
 
 static void ndis_indicate_thr(void *arg)
 {
+    struct vm86_regs saved_regs;
     int wants_off = 0;
     int indicated = 0;
     int cnt;
@@ -501,7 +509,10 @@ static void ndis_indicate_thr(void *arg)
      * from within a protocol's handler.
      */
     ind_level++;
-    rm_stack_enter();
+    saved_regs = REGS;
+    /* switch to our own stack, see NDIS_STACK_SIZE */
+    SREG(ss) = ndis_seg;
+    LWORD(esp) = offsetof(struct ndis_res, stack) + NDIS_STACK_SIZE;
     /*
      * Frames keep arriving while we are calling into DOS, so limit the
      * batch: what is left is picked up by the next round.
@@ -523,7 +534,7 @@ static void ndis_indicate_thr(void *arg)
     /* the spec requires IndicationComplete after a batch of indications */
     if (indicated)
 	prot_ind_complete();
-    rm_stack_leave();
+    REGS = saved_regs;
 
     /*
      * If the protocol cleared the indicate byte, it wants the

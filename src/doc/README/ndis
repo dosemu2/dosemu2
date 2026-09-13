@@ -101,6 +101,20 @@ drivername=DOSNDIS$
 </sect2>
 
 <sect2>
+<title>Testing</title>
+
+<para>
+<literal>test/ndis</literal> in the dosemu2 sources holds a stand-in for
+the protocol manager and one for an NDIS protocol, so the driver can be
+tested without any of the proprietary network clients. The test protocol
+binds to the MAC, sends an ARP request and waits for the answer to come
+back as an indication; it is run by the
+<literal>test_network_ndis_*</literal> cases of the test suite.
+</para>
+
+</sect2>
+
+<sect2>
 <title>Limitations</title>
 
 <para>
