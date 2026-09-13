@@ -252,7 +252,7 @@ enum {
 %token KEYTABLE SHIFT_MAP ALT_MAP NUMPAD_MAP DUMP LAYOUT
 %token DGRAVE DACUTE DCIRCUM DTILDE DBREVE DABOVED DDIARES DABOVER DDACUTE DCEDILLA DIOTA DOGONEK DCARON
 	/* ipx */
-%token NETWORK PKTDRIVER TCPDRIVER NE2K NE2K_IOBASE NE2K_IRQ
+%token NETWORK PKTDRIVER NDIS TCPDRIVER NE2K NE2K_IOBASE NE2K_IRQ
         /* lock files */
 %token DIRECTORY NAMESTUB BINARY
 	/* serial */
@@ -648,6 +648,12 @@ line:		CHARSET '{' charset_flags '}' {}
 		    {
 			config.pktdrv = ($2!=0);
 			c_printf("CONF: Packet Driver %s.\n", 
+				($2) ? "enabled" : "disabled");
+		    }
+		| NDIS bool
+		    {
+			config.ndis = ($2!=0);
+			c_printf("CONF: NDIS Driver %s.\n",
 				($2) ? "enabled" : "disabled");
 		    }
 		| TCPDRIVER bool
