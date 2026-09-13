@@ -819,6 +819,12 @@ static int read_some_keys(void)
 			k_printf("\n");
 		}
 		keyb_state.kbcount += cc;
+		/* The escape timeout means "nothing more has arrived for a
+		 * while", so anchor it to the arrival of input.  Anchoring it
+		 * where the buffer is inspected instead made do_slang_pending()
+		 * rearm it on every SIGALRM - it calls process_slang_keys()
+		 * whenever the buffer is non-empty - so it could never expire. */
+		keyb_state.t_start = GETusTIME(0);
 	}
 	return cc;
 }
@@ -1385,7 +1391,6 @@ static void process_slang_keys(void)
 
 		if (keyb_state.KeyNot_Ready) {
 			k_printf("KBD: got ESC character\n");
-			keyb_state.t_start = GETusTIME(0);
 			break;			/* try again next time */
 		}
 
