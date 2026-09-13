@@ -78,6 +78,7 @@ static struct keyboard_state
 	unsigned char erasekey;
 	unsigned char Esc_Char;
 	int KeyNot_Ready;	 /* a flag */
+	int RetNot_Ready;	 /* ret val for above flag */
 	int Keystr_Len;
 	unsigned long Shift_Flags;
 
@@ -832,7 +833,7 @@ static int read_some_keys(void)
 static int getkey_callback(void)
 {
 	if (keyb_state.kbcount == keyb_state.Keystr_Len) {
-		keyb_state.KeyNot_Ready = 1;
+		keyb_state.RetNot_Ready = 1;
 		return 0;
 	}
 	return keyb_state.kbp[keyb_state.Keystr_Len++];
@@ -1378,16 +1379,20 @@ static void process_slang_keys(void)
 		size_t result;
 
 		keyb_state.Keystr_Len = 0;
-		keyb_state.KeyNot_Ready = 0;
+		keyb_state.RetNot_Ready = 0;
 
 		key = SLang_do_key(keyb_state.The_Normal_KeyMap, getkey_callback);
 		slang_set_error(0);
 
-		if (keyb_state.KeyNot_Ready) {
+		if (keyb_state.RetNot_Ready) {
 			k_printf("KBD: got ESC character\n");
-			keyb_state.t_start = GETusTIME(0);
+			if (!keyb_state.KeyNot_Ready) {
+				keyb_state.t_start = GETusTIME(0);
+				keyb_state.KeyNot_Ready = 1;
+			}
 			break;			/* try again next time */
 		}
+		keyb_state.KeyNot_Ready = 0;
 
 		if (key) {
 			scan = (unsigned long) key->f.f | modifier;
@@ -1578,7 +1583,7 @@ static int slang_keyb_init(void)
 
 	keyb_state.Esc_Char = 0;
 	keyb_state.erasekey = 0;
-	keyb_state.KeyNot_Ready = TRUE;
+	keyb_state.KeyNot_Ready = 0;
 	keyb_state.Keystr_Len = 0;
 	keyb_state.Shift_Flags = 0;
 	init_charset_state(&keyb_state.translate_state, trconfig.keyb_charset);
