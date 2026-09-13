@@ -1595,8 +1595,7 @@ static int slang_keyb_init(void)
 
 	keyb_state.Esc_Char = 0;
 	keyb_state.erasekey = 0;
-	keyb_state.KeyNot_Ready = 0;	/* nothing pending yet */
-	keyb_state.t_start = GETusTIME(0);
+	keyb_state.KeyNot_Ready = 0;
 	keyb_state.Keystr_Len = 0;
 	keyb_state.Shift_Flags = 0;
 	init_charset_state(&keyb_state.translate_state, trconfig.keyb_charset);
