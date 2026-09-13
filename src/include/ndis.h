@@ -39,6 +39,13 @@ typedef uint32_t  FARPTR;       /* seg:off pointer in DOS memory */
 #define FARPTR_SEG(p) ((uint16_t)((p) >> 16))
 #define FARPTR_OFF(p) ((uint16_t)(p))
 
+#endif /* __ASSEMBLER__ */
+
+/*
+ * The constants below are usable from assembly too, the DOS-side parts
+ * of the driver and of its test harness rely on that.
+ */
+
 #define NAME_LEN  16
 #define ADDR_LEN  16
 
@@ -199,8 +206,26 @@ typedef uint32_t  FARPTR;       /* seg:off pointer in DOS memory */
 #define INDICATION_INIT                 0xff
 
 /* --------------------------------------------------------------------------
+ * PROTOCOL.INI parameter types
+ * -------------------------------------------------------------------------- */
+
+#define PARAM_TYPE_INT                  0
+#define PARAM_TYPE_STRING               1
+
+/* --------------------------------------------------------------------------
+ * Protocol Manager request opcodes
+ * -------------------------------------------------------------------------- */
+
+#define PM_GET_PROTOCOL_MANAGER_INFO    1   /* get config memory image */
+#define PM_REGISTER_MODULE              2   /* register module and bindings */
+#define PM_BIND_AND_START               3   /* initiate binding */
+#define PM_GET_PROTOCOL_MANAGER_LINKAGE 4   /* get ProtMan entry point */
+
+/* --------------------------------------------------------------------------
  * Structures
  * -------------------------------------------------------------------------- */
+
+#ifndef __ASSEMBLER__
 
 /*
  * Common Characteristics Table
@@ -543,9 +568,6 @@ typedef struct {
  * list of keyword entries with typed parameters.
  */
 
-#define PARAM_TYPE_INT      0
-#define PARAM_TYPE_STRING   1
-
 typedef struct {
     USHORT  ParamType;                 /* 0=signed int, 1=string */
     USHORT  ParamLen;                  /* String length (incl. null) or 4 */
@@ -578,15 +600,6 @@ extern void ndis_reset(void);
 extern void ndis_term(void);
 
 #endif /* __ASSEMBLER__ */
-
-/* --------------------------------------------------------------------------
- * Protocol Manager request opcodes
- * -------------------------------------------------------------------------- */
-
-#define PM_GET_PROTOCOL_MANAGER_INFO    1   /* get config memory image */
-#define PM_REGISTER_MODULE              2   /* register module and bindings */
-#define PM_BIND_AND_START               3   /* initiate binding */
-#define PM_GET_PROTOCOL_MANAGER_LINKAGE 4   /* get ProtMan entry point */
 
 /*
  * Name of the DOS character device implementing the MAC driver.
