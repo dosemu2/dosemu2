@@ -1278,6 +1278,8 @@ static void do_slang_pending(void)
 				k_printf("KBD: slang got single ESC\n");
 				slang_send_scancode(keyb_state.Shift_Flags, DKY_ESC);
 				keyb_state.KeyNot_Ready = 0;
+				keyb_state.kbp += keyb_state.kbcount;
+				keyb_state.kbcount = 0;
 				break;
 			case 2:
 				result = charset_to_unicode(&keyb_state.translate_state,
@@ -1285,13 +1287,23 @@ static void do_slang_pending(void)
 				if (result > 0)
 					slang_send_scancode(keyb_state.Shift_Flags | ALT_MASK, symbol);
 				keyb_state.KeyNot_Ready = 0;
+				keyb_state.kbp += keyb_state.kbcount;
+				keyb_state.kbcount = 0;
 				break;
 			default:
-				error("term: timeout after %i chars\n", keyb_state.kbcount);
+				/* An escape sequence that stopped arriving part-way
+				 * through.  Give DOS the ESC and leave the rest to be
+				 * parsed as ordinary characters: dropping the buffer
+				 * loses the keypress silently, and if the tail turns up
+				 * later it gets typed on its own anyway. */
+				k_printf("KBD: timeout after %i chars, releasing ESC\n",
+					keyb_state.kbcount);
+				slang_send_scancode(keyb_state.Shift_Flags, DKY_ESC);
+				keyb_state.KeyNot_Ready = 0;
+				keyb_state.kbp++;
+				keyb_state.kbcount--;
 				break;
 			}
-			keyb_state.kbp += keyb_state.kbcount;
-			keyb_state.kbcount = 0;
 		}
 	}
 	/* do_slang_getkeys() throttles pasting. So we call it here in
