@@ -226,7 +226,7 @@ Each queue entry holds a data structure corresponding to (mostly)
 one keypress or release event. [The exception are the braindead
 0xe02a / 0xe0aa shift key emulation codes the keyboard processor
 `decorates' some kinds of keyboard events with, which for convenience
-are treated as seperate events.]
+are treated as separate events.]
 </para>
 
 <para>
