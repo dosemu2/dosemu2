@@ -789,7 +789,7 @@ static enum VirqSwRet pkt_receiver_callback(void *arg)
 static void pkt_receiver_callback_thr(void *arg)
 {
     struct vm86_regs rcv_saved_regs;
-    unsigned lah_len, len;
+    unsigned lah_len;
 
     rcv_saved_regs = REGS;
     /* since 1.10 the first upcall gets a look-ahead buffer, so that the
@@ -805,21 +805,21 @@ static void pkt_receiver_callback_thr(void *arg)
     _ES = 0;
     _DI = 0;
     do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
-    if (_ES == 0 && _DI == 0) {
-      p_stats->packets_lost++;	/* no buffer from receiver() */
+    /* 1.10 says a short CX on return is the size of the buffer we got
+     * and that we should truncate the packet to fit, but programs
+     * written to the older spec erratically clobber CX instead, so
+     * treat a short CX as "no buffer" rather than as a truncation
+     * request and drop the packet. */
+    if ((_ES == 0 && _DI == 0) || (_CX && _CX < p_helper_size)) {
+      p_stats->packets_lost++;	/* no usable buffer from receiver() */
       goto out;
     }
-    /* since 1.10 CX on return is the size of the buffer we got, and it
-     * is up to us to truncate the packet to fit */
-    len = p_helper_size;
-    if (_CX && _CX < len)
-      len = _CX;
-    MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), pkt_buf, len);
+    MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), pkt_buf, p_helper_size);
     _DS = _ES;
     _SI = _DI;
     _AX = 1;
     _BX = p_helper_handle;
-    _CX = len;			/* bytes actually copied */
+    _CX = p_helper_size;	/* bytes actually copied */
     do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
 
 out:
