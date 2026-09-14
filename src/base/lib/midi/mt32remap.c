@@ -101,7 +101,7 @@ static void sha1_hex16(sha1_t *s, char out[17])
 #define PATCH_PTR_SZ       2        /* patch_temp[0..1]: the timbre pointer */
 #define PATCH_SND_SZ       3        /* keyShift, fineTune, benderRange */
 
-#define TABLE_VERSION 3
+#define TABLE_VERSION 4
 #define STATE_IMG_SZ (4 + MT32_TIMBRE_SIZE)
 #define MT32_TRAVERSAL_MAX 65536
 static u8 mt32_traversal[MT32_TRAVERSAL_MAX];
@@ -121,8 +121,10 @@ typedef struct _mt32 {
     int cur_bank[16];
     int cur_prog[16];
     int cur_bend[16];
+    int cur_fine[16];
 } mt32_t;
 
+static int table_version = 1;
 static u8 mt32_rom_timbres[192][MT32_TIMBRE_SIZE];
 static u8 mt32_init_patch_temp[9][16];
 static u8 mt32_init_timbre_temp[8][MT32_TIMBRE_SIZE];
@@ -141,8 +143,16 @@ typedef struct {
     char hash[17];
     short bank;
     short program;
-    short bend;
+    u8 roots[24];               /* keys this preset was actually recorded at */
+    u8 n_roots;
+    u8 exact;                   /* roots are the whole set of keys expected */
+    u8 reported[16];            /* keys already reported, one bit each */
 } mt32_preset_t;
+
+/* The soundfont the table's preset numbers address -- see
+ * mt32remap_check_soundfont(). */
+static char sfont_sha1[41];
+static long long sfont_size = -1;
 
 static mt32_preset_t *mt32_presets = NULL;
 static size_t num_mt32_presets = 0;
@@ -172,7 +182,6 @@ static void load_openmt32_sfz(const char *path)
     size_t *curr_len = NULL;    /* sections whose length is not their capacity */
     int is_presets = 0;
     int is_version = 0;
-    int version = 1;            /* no <openmt32> section: pre-versioning file */
 
     while (fgets(line, sizeof(line), f)) {
         /* Strip newline and whitespace */
@@ -232,16 +241,22 @@ static void load_openmt32_sfz(const char *path)
 
         if (is_version) {
             if (!strncmp(p, "version=", 8))
-                version = atoi(p + 8);
+                table_version = atoi(p + 8);
+            else if (!strncmp(p, "soundfont_size=", 15))
+                sfont_size = atoll(p + 15);
+            else if (!strncmp(p, "soundfont_sha1=", 15))
+                snprintf(sfont_sha1, sizeof sfont_sha1, "%s", p + 15);
         } else if (is_presets) {
             char hash_val[64] = "";
-            int bank = -1, prog = -1, bend = -1;
+            char roots_val[128] = "";
+            int bank = -1, prog = -1, exact = 0;
             char *token = strtok(p, " \t\r\n");
             while (token) {
                 if (!strncmp(token, "hash=", 5)) strncpy(hash_val, token + 5, sizeof(hash_val) - 1);
                 else if (!strncmp(token, "bank=", 5)) bank = atoi(token + 5);
                 else if (!strncmp(token, "program=", 8)) prog = atoi(token + 8);
-                else if (!strncmp(token, "bend=", 5)) bend = atoi(token + 5);
+                else if (!strncmp(token, "roots=", 6)) strncpy(roots_val, token + 6, sizeof(roots_val) - 1);
+                else if (!strncmp(token, "exact=", 6)) exact = atoi(token + 6);
                 token = strtok(NULL, " \t\r\n");
             }
             if (hash_val[0] && bank >= 0 && prog >= 0) {
@@ -253,7 +268,17 @@ static void load_openmt32_sfz(const char *path)
                 memcpy(mt32_presets[num_mt32_presets].hash, hash_val, 16);
                 mt32_presets[num_mt32_presets].bank = bank;
                 mt32_presets[num_mt32_presets].program = prog;
-                mt32_presets[num_mt32_presets].bend = bend;
+                mt32_presets[num_mt32_presets].exact = !!exact;
+                {   /* roots=36,48,60 -- "-" when the state has none */
+                    mt32_preset_t *pr = &mt32_presets[num_mt32_presets];
+                    char *rt = strtok(roots_val, ",");
+                    pr->n_roots = 0;
+                    while (rt && pr->n_roots < sizeof(pr->roots)) {
+                        if (*rt >= '0' && *rt <= '9')
+                            pr->roots[pr->n_roots++] = atoi(rt);
+                        rt = strtok(NULL, ",");
+                    }
+                }
                 num_mt32_presets++;
             }
         } else if (curr_buf) {
@@ -273,10 +298,10 @@ static void load_openmt32_sfz(const char *path)
 
     fclose(f);
 
-    if (version != TABLE_VERSION) {
+    if (table_version != TABLE_VERSION) {
         error("MT32: %s declares table version %d, expected %d. "
               "Update openmt32-soundfonts.\n",
-              path, version, TABLE_VERSION);
+              path, table_version, TABLE_VERSION);
         goto err1;
     }
 
@@ -314,7 +339,9 @@ static void mt32_reset(mt32_t *m)
     memcpy(m->patches,     mt32_init_patches,     sizeof m->patches);
     memcpy(m->system,      mt32_init_system,      sizeof m->system);
     memset(m->timbres, 0, sizeof m->timbres);   /* munt clears bank M on open */
-    for (int i = 0; i < 16; i++) { m->cur_bank[i] = m->cur_prog[i] = m->cur_bend[i] = -1; }
+    for (int i = 0; i < 16; i++) {
+        m->cur_bank[i] = m->cur_prog[i] = m->cur_bend[i] = m->cur_fine[i] = -1;
+    }
 }
 
 /* the timbre a patch points at: groups A/B/R come from ROM, M from memory */
@@ -442,9 +469,6 @@ static int build_state_image(const mt32_t *m, int part, int key)
         timbre = (t < 64) ? m->timbres[t] : mt32_rom_timbres[128 + (t - 64)];
     } else {
         state_pkt[0] = 'M';
-        /* patch_temp[0..1] points at the timbre; timbre_temp is what it
-         * already resolved to, so take that instead */
-        memcpy(state_pkt + 1, m->patch_temp[part] + PATCH_PTR_SZ, PATCH_SND_SZ);
         timbre = m->timbre_temp[part];
     }
     memcpy(state_pkt + 1 + PATCH_SND_SZ, timbre, TIMBRE_SZ);
@@ -462,12 +486,53 @@ static int note_state(const mt32_t *m, int part, int key, char hash[17])
     return 1;
 }
 
-static const mt32_preset_t *find_preset(const char *hash)
+static mt32_preset_t *find_preset(const char *hash)
 {
     size_t i;
     for (i = 0; i < num_mt32_presets; i++)
         if (memcmp(mt32_presets[i].hash, hash, 16) == 0) return &mt32_presets[i];
     return NULL;
+}
+
+static int sounded_key(const mt32_t *m, int part, int key)
+{
+    int k;
+    if (part == 8) return key;
+    k = key + m->patch_temp[part][2];
+    while (k < 36) k += 12;
+    while (k > 132) k -= 12;
+    return k - 24;
+}
+
+#define ROOT_FAR_LONE  24       /* single root: only report the wild ones */
+#define ROOT_FAR_MIN    4       /* never nag below this, however dense */
+
+static int root_shortfall(mt32_preset_t *p, int key)
+{
+    int i, d = 128, gap;
+
+    if (!p->n_roots) return 0;
+    if (key < 0 || key > 127) return 0;
+    if (p->reported[key >> 3] & (1 << (key & 7))) return 0;
+    for (i = 0; i < p->n_roots; i++) {
+        int t = key - p->roots[i];
+        if (t < 0) t = -t;
+        if (t < d) d = t;
+    }
+    if (!p->exact) {
+        if (p->n_roots == 1) {
+            if (d <= ROOT_FAR_LONE) return 0;
+        } else {
+            for (gap = ROOT_FAR_MIN, i = 1; i < p->n_roots; i++) {
+                int g = p->roots[i] - p->roots[i - 1];
+                if (g > gap) gap = g;
+            }
+            if (d <= gap) return 0;
+        }
+    }
+    if (!d) return 0;
+    p->reported[key >> 3] |= 1 << (key & 7);
+    return d;
 }
 
 static void mt32_scrub(void)
@@ -531,10 +596,22 @@ int mt32remap_noteon(mt32_t *mt, int ch, int key, int vel,
     for (int part = 0; part < 9; part++) {
         char hash[17];
         int bank;
-        const mt32_preset_t *p;
+        mt32_preset_t *p;
         if (mt->system[13 + part] != ch) continue;
         if (!note_state(mt, part, key, hash)) break;
         p = find_preset(hash);
+        /* Key shift moves the key before pitch, keyfollow and sample
+         * selection, so it is a transpose of the note rather than a tuning
+         * offset: RPN 2 would shift the pitch of the zone fluidsynth had
+         * already chosen, giving the right frequency off the wrong sample. */
+        key = sounded_key(mt, part, key);
+        if (p) {
+            int d = root_shortfall((mt32_preset_t *)p, key);
+            if (d)
+                error("openmt32: %s played at key %d, %d from the nearest of "
+                      "its %d recorded root(s)%s\n", hash, key, d, p->n_roots,
+                      p->exact ? " (exact)" : "");
+        }
         if (!p) {
             int k;
             unmapped++;
@@ -564,16 +641,93 @@ int mt32remap_noteon(mt32_t *mt, int ch, int key, int vel,
             write_cb(arg, (u8 []){0xc0 | ch, p->program}, 2);
             mt->cur_bank[ch] = bank; mt->cur_prog[ch] = p->program;
         }
-        if (p->bend >= 0 && mt->cur_bend[ch] != p->bend) {
-            int bend = p->bend > 24 ? 24 : p->bend;
+        if (part != 8 && mt->cur_fine[ch] != mt->patch_temp[part][3]) {
+            int fine = mt->patch_temp[part][3];     /* 0..100, 50 = 0 cents */
+            /* +/-50 cents mapped onto RPN 1, whose full deflection is
+             * +/-100 cents -- hence /100, not /50 */
+            int v = 8192 + (fine - 50) * 8192 / 100;
+            if (v < 0) v = 0; else if (v > 16383) v = 16383;
+            write_cb(arg, (u8 []){0xb0 | ch, 101, 0}, 3);
+            write_cb(arg, (u8 []){0xb0 | ch, 100, 1}, 3);
+            write_cb(arg, (u8 []){0xb0 | ch, 6, v >> 7}, 3);
+            write_cb(arg, (u8 []){0xb0 | ch, 38, v & 127}, 3);
+            mt->cur_fine[ch] = mt->patch_temp[part][3];
+        }
+        if (part != 8 && mt->cur_bend[ch] != mt->patch_temp[part][4]) {
+            int raw = mt->patch_temp[part][4];
+            int bend = raw > 24 ? 24 : raw;
             write_cb(arg, (u8 []){0xb0 | ch, 101, 0}, 3);
             write_cb(arg, (u8 []){0xb0 | ch, 100, 0}, 3);
             write_cb(arg, (u8 []){0xb0 | ch, 6, bend}, 3);
-            mt->cur_bend[ch] = p->bend;
+            mt->cur_bend[ch] = raw;
         }
         break;  // XXX
     }
     return unmapped;
+}
+
+static void sha1_hex40(sha1_t *s, char out[41])
+{
+    unsigned long long bits = s->len * 8;
+    unsigned char pad = 0x80, zero = 0, len[8];
+    size_t i;
+    sha1_update(s, &pad, 1);
+    while (s->len % 64 != 56) sha1_update(s, &zero, 1);
+    for (i = 0; i < 8; i++) len[i] = (unsigned char)(bits >> (56 - 8*i));
+    sha1_update(s, len, 8);
+    for (i = 0; i < 20; i++)
+        sprintf(out + 2*i, "%02x", (unsigned char)(s->h[i/4] >> (24 - 8*(i%4))));
+    out[40] = 0;
+}
+
+int mt32remap_check_soundfont(const char *path)
+{
+    char got[41];
+    sha1_t s;
+    FILE *f;
+    long long sz;
+    static unsigned char buf[1 << 16];
+    size_t n;
+
+    if (table_version < 4)
+        return 0;
+    if (sfont_size < 0 || !sfont_sha1[0]) {
+        error("MT32: bad sfz table, update openmt32-soundfonts.\n");
+        return -1;
+    }
+    f = fopen(path, "rb");
+    if (!f) {
+        error("MT32: cannot open soundfont %s\n", path);
+        return -1;
+    }
+    fseek(f, 0, SEEK_END); sz = ftell(f); fseek(f, 0, SEEK_SET);
+    if (sz != sfont_size) {
+        fclose(f);
+        error("MT32: %s is %lld bytes but the preset table was generated "
+              "against %lld. Update openmt32-soundfonts.\n",
+              path, sz, sfont_size);
+        return -1;
+    }
+    sha1_init(&s);
+    while ((n = fread(buf, 1, sizeof buf, f)) > 0) sha1_update(&s, buf, n);
+    fclose(f);
+    sha1_hex40(&s, got);
+    if (strcmp(got, sfont_sha1)) {
+        error("MT32: %s does not match the preset table it would be used "
+              "with (sha1 %s, table expects %s). "
+              "Update openmt32-soundfonts.\n",
+              path, got, sfont_sha1);
+        return -1;
+    }
+    return 0;
+}
+
+int mt32remap_key(mt32_t *mt, int ch, int key)
+{
+    int part;
+    for (part = 0; part < 9; part++)
+        if (mt->system[13 + part] == ch) return sounded_key(mt, part, key);
+    return key;
 }
 
 void mt32remap_program(mt32_t *mt, int ch, int prog)
