@@ -805,12 +805,15 @@ static void pkt_receiver_callback_thr(void *arg)
     _ES = 0;
     _DI = 0;
     do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
-    /* 1.10 says a short CX on return is the size of the buffer we got
-     * and that we should truncate the packet to fit, but programs
-     * written to the older spec erratically clobber CX instead, so
-     * treat a short CX as "no buffer" rather than as a truncation
-     * request and drop the packet. */
-    if ((_ES == 0 && _DI == 0) || (_CX && _CX < p_helper_size)) {
+    /* 1.10 says CX on return is the size of the buffer we were given
+     * and that we should truncate the packet to fit, but a receiver
+     * that clobbers CX (as FreeGEOS does, turning it into the payload
+     * size) would then be handed a silently corrupted packet.  Treat a
+     * CX that cannot hold the packet as "no buffer" and drop it
+     * instead, which is at least loud about the loss.  Note this is
+     * only legitimate because get_parameters() now reports 1.10+: a
+     * driver claiming 1.09 must not read CX here at all. */
+    if ((_ES == 0 && _DI == 0) || _CX < p_helper_size) {
       p_stats->packets_lost++;	/* no usable buffer from receiver() */
       goto out;
     }

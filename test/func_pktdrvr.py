@@ -387,6 +387,26 @@ start:
     sub     eax, [lost0]
     REPORT  t_shrlost
 
+; ---- a receiver that returns CX == 0 has no room either ----
+    call    readstats
+    mov     eax, [stats+24]
+    mov     [lost0], eax
+    mov     byte [rcv_done], 0
+    mov     byte [shrink], 2
+    mov     si, arpreq
+    mov     cx, 42
+    mov     ah, 4
+    int     PKTINT
+    call    waitpkt
+    mov     byte [shrink], 0
+    mov     al, [rcv_done]
+    mov     ah, 0
+    REPORT  t_zerodone
+    call    readstats
+    mov     eax, [stats+24]
+    sub     eax, [lost0]
+    REPORT  t_zerolost
+
 ; ============================================================
 ; as_send_pkt with a transmitter upcall
 ; ============================================================
@@ -551,7 +571,15 @@ receiver:
     mov     di, rcvbuf
     cmp     byte [cs:shrink], 0
     je      .noshrink
-    mov     cx, 8                   ; pretend we only have 8 bytes
+    cmp     byte [cs:shrink], 2
+    je      .zerocx
+    ; this is what FreeGEOS' ethpktTransceive.asm does: it turns CX
+    ; into the payload size for its own use and never puts the buffer
+    ; size back before returning
+    sub     cx, 14
+    jmp     .noshrink
+.zerocx:
+    xor     cx, cx
 .noshrink:
     retf
 .copied:
@@ -632,6 +660,8 @@ t_rcvcopied: db 'RCVCOPIED=$'
 t_rcvarp:    db 'RCVARP=$'
 t_shrdone:   db 'SHRDONE=$'
 t_shrlost:   db 'SHRLOST=$'
+t_zerodone:  db 'ZERODONE=$'
+t_zerolost:  db 'ZEROLOST=$'
 t_assend:    db 'ASSEND=$'
 t_asflags:   db 'ASFLAGS=$'
 t_ascode:    db 'ASCODE=$'
@@ -712,9 +742,14 @@ $_vnet = "slirp"
 
     # a receiver that clobbers CX instead of returning its buffer size
     # must not be handed a truncated packet: the packet is dropped and
-    # counted as lost
+    # counted as lost.  The receiver above clobbers CX exactly the way
+    # FreeGEOS does, see dosemu2 issue #2979.
     self.assertEqual(0, val("SHRDONE"), results)
     self.assertGreaterEqual(val("SHRLOST"), 1, results)
+
+    # CX == 0 is a buffer with no room in it, not an unset register
+    self.assertEqual(0, val("ZERODONE"), results)
+    self.assertGreaterEqual(val("ZEROLOST"), 1, results)
 
     # as_send_pkt() completes the iocb and makes the transmitter upcall
     self.assertEqual(0, val("ASSEND"), results)
