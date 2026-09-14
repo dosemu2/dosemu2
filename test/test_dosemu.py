@@ -67,6 +67,7 @@ from func_serial import (serial_simple_read_echo, serial_simple_write_file,
 from func_truename import (mfs_truename_ufs_lfn, mfs_truename_ufs_sfn, mfs_truename_vfat_linux_mounted_lfn,
                            mfs_truename_vfat_linux_mounted_sfn, sfn_truename)
 
+from func_ndis import ndis_mac_driver
 from func_network import network_pktdriver_mtcp
 from func_pit_mode_2 import pit_mode_2
 
@@ -1477,6 +1478,16 @@ class OurTestCase(BaseTestCase):
     def test_fat_ds3_share_open_setfattrs_two_process(self):
         """FAT DOSv3 share open set file attrs two process DOSv2"""
         ds3_share_open_access(self, "TWO", "FAT", "SETATT")
+
+    @mark('nettest')
+    def test_network_ndis_receive_chain(self):
+        """Network NDIS driver ReceiveChain"""
+        ndis_mac_driver(self, 'chain')
+
+    @mark('nettest')
+    def test_network_ndis_receive_lookahead(self):
+        """Network NDIS driver ReceiveLookahead"""
+        ndis_mac_driver(self, 'lookahead')
 
     @mark('nettest')
     def test_network_pktdriver_mtcp_builtin(self):

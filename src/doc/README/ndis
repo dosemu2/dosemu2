@@ -1,0 +1,148 @@
+<sect1>
+<title>Using the NDIS 2 driver</title>
+
+<para>
+Besides the packet driver interface, dosemu2 can present its networking
+to DOS as an NDIS 2.0.1 MAC driver. This is what the DOS network clients
+that are built on top of NDIS - Microsoft LAN Manager, Microsoft Network
+Client 3.0, Windows for Workgroups and the MS TCP/IP stack - expect to
+talk to. With the built-in NDIS driver, none of those needs a DOS driver
+for a network card, and no network card has to be emulated.
+</para>
+
+<para>
+The driver consists of two parts: the MAC driver itself, which is
+implemented inside dosemu, and the small DOS stub
+<literal>ndis.sys</literal>, which registers it with the NDIS protocol
+manager. The DOS driver <literal>pktndis.dos</literal> by robert-j,
+which does the same on top of a packet driver, was the model for the
+implementation, see
+<ulink url="https://github.com/dosemu2/dosemu2/issues/1479"
+>dosemu2 issue 1479</ulink>.
+</para>
+
+<sect2>
+<title>Enabling the driver</title>
+
+<para>
+In <literal>dosemu.conf</literal>, switch the NDIS driver on:
+
+<screen>
+$_ndis = (on)
+</screen>
+</para>
+
+<para>
+Most of the networking back-ends of dosemu2 provide only a single
+network link, which then has to be shared by everything that uses it. If
+the packet driver is not needed, it is therefore better to switch it off
+when NDIS is used:
+
+<screen>
+$_pktdriver = (off)
+</screen>
+
+With the "slirp" back-end this is in fact required, as slirp does not
+support more than one link at a time.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Loading the driver</title>
+
+<para>
+An NDIS MAC driver has to be loaded from
+<literal>config.sys</literal> after the protocol manager, which is part
+of the network client:
+
+<screen>
+DEVICE=C:\NET\PROTMAN.DOS /I:C:\NET
+DEVICE=D:\DOSEMU\NDIS.SYS
+</screen>
+</para>
+
+<para>
+The driver reads its configuration from the
+<literal>PROTOCOL.INI</literal> file of the network client. It needs a
+section of its own, which is identified by the
+<literal>DriverName</literal> keyword; the name of the section is the
+name by which the protocols refer to the adapter:
+
+<screen>
+[DOSEMU]
+  DriverName = DOSNDIS$
+
+[TCPIP]
+  DriverName = TCPIP$
+  BINDINGS = DOSEMU
+</screen>
+</para>
+
+<para>
+The setup programs of the network clients can do that for you if you
+point them at a directory containing <literal>ndis.sys</literal> and the
+following <literal>oemsetup.inf</literal>, and select "Unlisted or
+Updated Network Adapter":
+
+<screen>
+[netcard]
+ms$dosemu = "dosemu2 NDIS adapter",,NDIS,ethernet,real,ms$dosemu,ms$dosemu_nif
+
+[ms$dosemu]
+devdir=?:ndis.sys
+device=ndis.sys,@devdir\ndis.sys
+
+[ms$dosemu_nif]
+drivername=DOSNDIS$
+</screen>
+</para>
+
+</sect2>
+
+<sect2>
+<title>Testing</title>
+
+<para>
+<literal>test/ndis</literal> in the dosemu2 sources holds a stand-in for
+the protocol manager and one for an NDIS protocol, so the driver can be
+tested without any of the proprietary network clients. The test protocol
+binds to the MAC, sends an ARP request and waits for the answer to come
+back as an indication; it is run by the
+<literal>test_network_ndis_*</literal> cases of the test suite.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Limitations</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+<para>
+Only one protocol can be bound to the adapter at a time.
+</para>
+</listitem>
+<listitem>
+<para>
+The operations that need real hardware - diagnostics, loopback,
+resetting the adapter, opening and closing it and changing the station
+address - are not supported. Multicast addressing, promiscuous mode and
+the receive filter are.
+</para>
+</listitem>
+<listitem>
+<para>
+Transmissions always complete synchronously, so the protocol never
+receives a TransmitConfirm indication.
+</para>
+</listitem>
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+</sect1>

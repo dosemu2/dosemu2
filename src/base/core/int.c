@@ -764,6 +764,10 @@ static int dos_helper(int stk_offs, int revect)
 	ipx_helper(&vm86s.regs);
 	break;
 
+    case DOS_HELPER_NDIS_HELPER:
+	ndis_helper(&vm86s.regs);
+	break;
+
     case DOS_HELPER_GET_CPU_SPEED:
 	{
 	    REG(eax) = 0;
