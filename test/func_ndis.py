@@ -1,6 +1,6 @@
 from shutil import copy
 from subprocess import check_call
-
+import re
 
 def ndis_mac_driver(self, path):
     """Exercises the built-in NDIS MAC driver.
@@ -20,10 +20,10 @@ def ndis_mac_driver(self, path):
     copy(edir / "tndisapp.com", self.workdir / "tndisapp.com")
 
     # the MAC driver has to be loaded after the protocol manager
-    self.mkfile("userhook.sys", """\
-DEVICE=C:\\TPROTMAN.SYS
-DEVICE=D:\\DOSEMU\\NDIS.SYS
-""", newline="\r\n")
+    # Modify the config.sys
+    contents = (self.workdir / self.confsys).read_text()
+    contents = re.sub(r"(devicehigh=(c:\\)?dosemu\\cdrom.sys)", r"\1\ndevice=\2tprotman.sys\ndevice=\2dosemu\\ndis.sys", contents)
+    self.mkfile(self.confsys, contents, newline="\r\n")
 
     self.mkfile("testit.bat", """\
 tndisapp %s
