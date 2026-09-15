@@ -168,6 +168,9 @@ static void midout_write_delta_time(struct mid_state *ms, int32_t time)
 
 static void start_midi_track(struct mid_state *ms)
 {
+    const char *mark = ms->mt ? "openmt32 midi writer" : "dosemu2 midi writer";
+    size_t len = strlen(mark);
+
     /* Write out track header.
      * The track will have a large length (0x7fffffff) because we don't know at
      * this time how big it will really be.
@@ -178,6 +181,12 @@ static void start_midi_track(struct mid_state *ms)
     M_FWRITE_STR(ms, "\x7f\xff\xff\xff");	/* #chunks */
 
     ms->last_time = 0;
+
+    midout_write_delta_time(ms, 0);
+    M_FWRITE1(ms, 0xff);
+    M_FWRITE1(ms, 0x01);
+    M_FWRITE1(ms, (unsigned char)len);
+    m_fwrite(ms, mark, len);
 
 #if !IGNORE_TEMPO_EVENTS
     ms->tempo = 500000;
