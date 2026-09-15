@@ -145,7 +145,6 @@ typedef struct {
     short program;
     u8 roots[24];               /* keys this preset was actually recorded at */
     u8 n_roots;
-    u8 exact;                   /* roots are the whole set of keys expected */
     u8 reported[16];            /* keys already reported, one bit each */
 } mt32_preset_t;
 
@@ -249,14 +248,13 @@ static void load_openmt32_sfz(const char *path)
         } else if (is_presets) {
             char hash_val[64] = "";
             char roots_val[128] = "";
-            int bank = -1, prog = -1, exact = 0;
+            int bank = -1, prog = -1;
             char *token = strtok(p, " \t\r\n");
             while (token) {
                 if (!strncmp(token, "hash=", 5)) strncpy(hash_val, token + 5, sizeof(hash_val) - 1);
                 else if (!strncmp(token, "bank=", 5)) bank = atoi(token + 5);
                 else if (!strncmp(token, "program=", 8)) prog = atoi(token + 8);
                 else if (!strncmp(token, "roots=", 6)) strncpy(roots_val, token + 6, sizeof(roots_val) - 1);
-                else if (!strncmp(token, "exact=", 6)) exact = atoi(token + 6);
                 token = strtok(NULL, " \t\r\n");
             }
             if (hash_val[0] && bank >= 0 && prog >= 0) {
@@ -268,7 +266,6 @@ static void load_openmt32_sfz(const char *path)
                 memcpy(mt32_presets[num_mt32_presets].hash, hash_val, 16);
                 mt32_presets[num_mt32_presets].bank = bank;
                 mt32_presets[num_mt32_presets].program = prog;
-                mt32_presets[num_mt32_presets].exact = !!exact;
                 {   /* roots=36,48,60 -- "-" when the state has none */
                     mt32_preset_t *pr = &mt32_presets[num_mt32_presets];
                     char *rt = strtok(roots_val, ",");
@@ -519,16 +516,14 @@ static int root_shortfall(mt32_preset_t *p, int key)
         if (t < 0) t = -t;
         if (t < d) d = t;
     }
-    if (!p->exact) {
-        if (p->n_roots == 1) {
-            if (d <= ROOT_FAR_LONE) return 0;
-        } else {
-            for (gap = ROOT_FAR_MIN, i = 1; i < p->n_roots; i++) {
-                int g = p->roots[i] - p->roots[i - 1];
-                if (g > gap) gap = g;
-            }
-            if (d <= gap) return 0;
+    if (p->n_roots == 1) {
+        if (d <= ROOT_FAR_LONE) return 0;
+    } else {
+        for (gap = ROOT_FAR_MIN, i = 1; i < p->n_roots; i++) {
+            int g = p->roots[i] - p->roots[i - 1];
+            if (g > gap) gap = g;
         }
+        if (d <= gap) return 0;
     }
     if (!d) return 0;
     p->reported[key >> 3] |= 1 << (key & 7);
@@ -609,8 +604,7 @@ int mt32remap_noteon(mt32_t *mt, int ch, int key, int vel,
             int d = root_shortfall((mt32_preset_t *)p, key);
             if (d)
                 error("openmt32: %s played at key %d, %d from the nearest of "
-                      "its %d recorded root(s)%s\n", hash, key, d, p->n_roots,
-                      p->exact ? " (exact)" : "");
+                      "its %d recorded root(s)\n", hash, key, d, p->n_roots);
         }
         if (!p) {
             int k;
