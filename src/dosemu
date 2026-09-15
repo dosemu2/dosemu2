@@ -229,7 +229,7 @@ if [ "`id -ur`" -eq 0 ]; then
     echo "Running dosemu2 with root privs is recommended with: $(basename $0) -s"
   else
     # we still need to pass -s so just don't use sudo
-    unset SUDO
+    unset SUDO SUDOOPTS
   fi
   if [ -n "$SUDO_USER" -a -z "$SUDO_HOME" ]; then
     export SUDO_HOME=`getent passwd "$SUDO_USER" | cut -d: -f6`
