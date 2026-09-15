@@ -232,6 +232,8 @@ static int midoflus_init_mt32(void *arg)
 	}
     }
     assert(sfont_mt32);
+    if (mt32remap_check_soundfont(sfont_mt32) != 0)
+	return 0;
     do_flu_init(&flus[ST_MT32], sfont_mt32, "MT32");
     return 1;
 }
@@ -325,8 +327,15 @@ static int do_mt32_event(struct flu_state *fs, fluid_midi_event_t *ev,
 
     switch (e) {
     case NOTE_ON:
-	mt32remap_noteon(fs->mt, ch, fluid_midi_event_get_key(ev),
-		fluid_midi_event_get_velocity(ev), do_write, fs);
+	if (fluid_midi_event_get_velocity(ev) > 0)
+	    mt32remap_noteon(fs->mt, ch, fluid_midi_event_get_key(ev),
+		    fluid_midi_event_get_velocity(ev), do_write, fs);
+	/* a note-on with velocity 0 is a note-off, and either way the key the
+	 * MT-32 actually sounds is the shifted one -- see mt32remap_key() */
+	/* fall through */
+    case NOTE_OFF:
+	fluid_midi_event_set_key(ev,
+		mt32remap_key(fs->mt, ch, fluid_midi_event_get_key(ev)));
 	break;
     case PROGRAM_CHANGE:
 	mt32remap_program(fs->mt, ch, fluid_midi_event_get_program(ev));
