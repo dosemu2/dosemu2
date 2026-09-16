@@ -468,6 +468,8 @@ static int build_state_image(const mt32_t *m, int part, int key)
         state_pkt[0] = 'M';
         timbre = m->timbre_temp[part];
     }
+    /* partialMute, bits 0-3, one per partial; the max table clamps to 0x0f */
+    if (!(timbre[12] & 0x0f)) return 0;
     memcpy(state_pkt + 1 + PATCH_SND_SZ, timbre, TIMBRE_SZ);
     return 1;
 }
@@ -476,7 +478,7 @@ static int note_state(const mt32_t *m, int part, int key, char hash[17])
 {
     sha1_t s;
 
-    if (!build_state_image(m, part, key)) return 0;
+    if (!build_state_image(m, part, key)) return -1;
     sha1_init(&s);
     if (!mt32_bpf_walk(&mt32_walk, state_pkt, sha1_emit, &s)) return 0;
     sha1_hex16(&s, hash);
@@ -587,13 +589,14 @@ int mt32remap_channel_assigned(const mt32_t *m, int ch)
 int mt32remap_noteon(mt32_t *mt, int ch, int key, int vel,
         void (*write_cb)(void *arg, unsigned char *data, int len), void *arg)
 {
-    int unmapped = 0;
+    int silent = 0;
     for (int part = 0; part < 9; part++) {
         char hash[17];
-        int bank;
+        int bank, r;
         mt32_preset_t *p;
         if (mt->system[13 + part] != ch) continue;
-        if (!note_state(mt, part, key, hash)) break;
+        r = note_state(mt, part, key, hash);
+        if (r <= 0) { silent = r < 0; break; }
         p = find_preset(hash);
         /* Key shift moves the key before pitch, keyfollow and sample
          * selection, so it is a transpose of the note rather than a tuning
@@ -608,7 +611,6 @@ int mt32remap_noteon(mt32_t *mt, int ch, int key, int vel,
         }
         if (!p) {
             int k;
-            unmapped++;
             printf("%d %d %d %d %s %d %d", part, ch,
                                key, vel, hash, p ? p->bank : -1,
                                p ? p->program : -1);
@@ -657,7 +659,7 @@ int mt32remap_noteon(mt32_t *mt, int ch, int key, int vel,
         }
         break;  // XXX
     }
-    return unmapped;
+    return silent;
 }
 
 static void sha1_hex40(sha1_t *s, char out[41])

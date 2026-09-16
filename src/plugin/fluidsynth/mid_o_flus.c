@@ -327,9 +327,10 @@ static int do_mt32_event(struct flu_state *fs, fluid_midi_event_t *ev,
 
     switch (e) {
     case NOTE_ON:
-	if (fluid_midi_event_get_velocity(ev) > 0)
-	    mt32remap_noteon(fs->mt, ch, fluid_midi_event_get_key(ev),
-		    fluid_midi_event_get_velocity(ev), do_write, fs);
+	if (fluid_midi_event_get_velocity(ev) > 0 &&
+		mt32remap_noteon(fs->mt, ch, fluid_midi_event_get_key(ev),
+		    fluid_midi_event_get_velocity(ev), do_write, fs))
+	    return 1;			/* sounds nothing on an MT-32 */
 	/* a note-on with velocity 0 is a note-off, and either way the key the
 	 * MT-32 actually sounds is the shifted one -- see mt32remap_key() */
 	/* fall through */
