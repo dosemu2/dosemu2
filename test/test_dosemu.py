@@ -72,6 +72,7 @@ from func_truename import (mfs_truename_ufs_lfn, mfs_truename_ufs_sfn, mfs_truen
 from func_network import network_pktdriver_mtcp
 from func_ipx import ipx_relay
 from func_pktdrvr import pktdriver_api
+from func_mstcp import mstcp_htget
 from func_pit_mode_2 import pit_mode_2
 
 
@@ -1510,6 +1511,14 @@ class OurTestCase(BaseTestCase):
     def test_ipx_relay(self):
         """IPX over UDP relay"""
         ipx_relay(self)
+
+    def test_mstcp_htget(self):
+        """MS TCP/IP sockets htget"""
+        mstcp_htget(self, True)
+
+    def test_mstcp_htget_no_sockets(self):
+        """MS TCP/IP sockets htget without the stack"""
+        mstcp_htget(self, False)
 
     def test_passing_environment_variable(self):
         """Passing Environment Variable to DOS"""
