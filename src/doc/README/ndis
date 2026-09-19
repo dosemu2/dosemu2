@@ -65,13 +65,14 @@ DEVICE=D:\DOSEMU\NDIS.SYS
 <para>
 The driver takes no parameters of its own, but it has to find its own
 section in the <literal>PROTOCOL.INI</literal> file of the network
-client, which is identified by the <literal>DriverName</literal>
-keyword. The name of that section is the name by which the protocols
-refer to the adapter:
+client. It finds it by the <literal>DriverName</literal> keyword, which
+names the DOS device the driver installs, and it then takes the name of
+that section as its module name - that is the name by which the
+protocols refer to the adapter, so the two are not the same thing:
 
 <screen>
 [DOSEMU]
-  DriverName = DOSNDIS$
+  DriverName = DE2NDIS$
 
 [TCPIP]
   DriverName = TCPIP$
@@ -94,7 +95,7 @@ devdir=?:ndis.sys
 device=ndis.sys,@devdir\ndis.sys
 
 [ms$dosemu_nif]
-drivername=DOSNDIS$
+drivername=DE2NDIS$
 </screen>
 </para>
 

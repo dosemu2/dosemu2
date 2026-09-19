@@ -15,7 +15,7 @@
  *
  * It implements just enough of the protocol manager for a MAC driver to
  * come up: it hands out a canned PROTOCOL.INI memory image describing a
- * single [DOSEMU] section with DriverName=DOSNDIS$, and it remembers the
+ * single [DOSEMU] section with DriverName=DE2NDIS$, and it remembers the
  * characteristics table of the module that registers with it. The test
  * program tndisapp.com then picks that table up through a private
  * request opcode and binds itself to the MAC as a protocol would.

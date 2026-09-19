@@ -26,7 +26,7 @@
  * Load it from config.sys _after_ protman.dos, e.g.
  *   DEVICE=C:\NET\PROTMAN.DOS /I:C:\NET
  *   DEVICE=D:\DOSEMU\NDIS.SYS
- * and add a section with DriverName=DOSNDIS$ to PROTOCOL.INI.
+ * and add a section with DriverName=DE2NDIS$ to PROTOCOL.INI.
  *
  * Author: Stas Sergeev
  */

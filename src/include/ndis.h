@@ -606,7 +606,7 @@ extern void ndis_term(void);
  * It has to be matched by the DriverName= keyword of the PROTOCOL.INI
  * section describing this adapter.
  */
-#define NDIS_DEVICE_NAME "DOSNDIS$"
+#define NDIS_DEVICE_NAME "DE2NDIS$"
 
 /* sub-functions of DOS_HELPER_NDIS_HELPER, see ndis.sys */
 #define NDIS_SUBHELPER_INIT      0  /* query availability and memory size */
