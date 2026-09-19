@@ -972,6 +972,7 @@ void mfs_done(void)
 
 void mfs_late_deinit(void)
 {
+  vfs_done();
   fslib_done();
 }
 
