@@ -265,6 +265,13 @@ These are useful drivers for Dosemu
 </para>
 </listitem></varlistentry>
 <varlistentry>
+<term>ndis.sys</term>
+<listitem>
+<para>
+ NDIS 2.0.1 MAC driver
+</para>
+</listitem></varlistentry>
+<varlistentry>
 <term>fossil.com</term>
 <listitem>
 <para>

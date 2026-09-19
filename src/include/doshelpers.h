@@ -12,6 +12,7 @@
  * 0x29      - Serial functions
  * 0x30      - (removed functionality)
  * 0x33      - Mouse Functions
+ * 0x37      - NDIS functions
  * 0x40      - CD-ROM functions
  * 0x50-0x5f - DOSEMU/Linux communications
  *      50 -- run unix command in ES:DX
@@ -107,6 +108,9 @@
 #define DOS_SUBHELPER_IPX_CONFIG    0
 #define DOS_SUBHELPER_IPX_CONNECT   1
 #define DOS_SUBHELPER_IPX_DISCONNECT 2
+
+/* NDIS sub-helpers are defined in ndis.h, which ndis.sys includes anyway */
+#define DOS_HELPER_NDIS_HELPER      0x37
 
 #define DOS_HELPER_CDROM_HELPER     0x40
 
