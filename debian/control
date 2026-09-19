@@ -28,6 +28,7 @@ Build-Depends:
     libslirp-dev,
     libreadline-dev,
     libjson-c-dev,
+    libzip-dev,
     libb64-dev,
     libseccomp-dev,
     libglib2.0-dev,
