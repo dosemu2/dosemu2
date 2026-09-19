@@ -140,9 +140,10 @@ ifneq "$(wildcard *.d)" ""
 endif
 endif
 
-$(top_builddir)/Makefile.conf: $(REALTOPDIR)/configure
+$(top_builddir)/Makefile.conf: $(REALTOPDIR)/configure \
+  $(REALTOPDIR)/Makefile.conf.in
 	cd $(top_builddir) && $(REALTOPDIR)/configure
-Makefile.conf: configure
+Makefile.conf: configure Makefile.conf.in
 	./configure
 configure: configure.ac
 	autoreconf -v -I $(REALTOPDIR)/m4

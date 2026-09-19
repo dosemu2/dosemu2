@@ -36,7 +36,9 @@
 #if DJ64_API_VER < 11
 #error wrong djdev64 version
 #endif
-#if DJ64_API_VER != 24
+
+#define SUPPORTED_VER 25
+#if DJ64_API_VER != SUPPORTED_VER
 #warning djdev64 version mismatch
 #endif
 
@@ -411,10 +413,44 @@ static char *addr2ptr(dosaddr_t addr)
     return dosaddr_to_unixaddr(addr);
 }
 
+#if DJ64_API_VER >= 25
+static const char *get_dyn(void)
+{
+    const char *xdirs[] = {
+        "/usr/share/dj64/crt0.elf",
+        "/usr/local/share/dj64/crt0.elf",
+        DATADIR "/dj64/crt0.elf",
+        "/opt/dj64/crt0.elf",
+        NULL,
+    };
+    for (int i = 0; xdirs[i]; i++) {
+        if (access(xdirs[i], R_OK) == 0)
+            return xdirs[i];
+    }
+    return NULL;
+}
+#endif
+
 static void stub_enter(cpuctx_t *scp, int argc, char *argv[], char *envp[],
     unsigned psp_sel, int ifile, int ver)
 {
     struct stub_ret_regs regs = {};
+#if DJ64_API_VER >= 25
+    struct djstub_api sapi = {
+        .psp_sel = psp_sel,
+        .ifile = ifile,
+        .ver = ver,
+        .regs = &regs,
+        .lin2ptr = addr2ptr,
+        .dosops = &dosops,
+        .dpmiops = &dpmiops,
+        .do_printf = dj64_print,
+        .uput = ustore_put,
+        .elf32_open = dj32_elfopen,
+        .dyn = get_dyn(),
+    };
+    int err = djstub_main(argc, argv, envp, DJ64_API_VER, sapi);
+#else
     int err = djstub_main(argc, argv, envp, psp_sel, ifile, ver,
             &regs, addr2ptr, &dosops, &dpmiops, dj64_print
 #if DJ64_API_VER >= 16
@@ -424,6 +460,7 @@ static void stub_enter(cpuctx_t *scp, int argc, char *argv[], char *envp[],
             , dj32_elfopen, DJ64_API_VER
 #endif
           );
+#endif
     if (err) {
         _eax = err;
         error("djstub: load failed\n");
