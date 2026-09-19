@@ -49,7 +49,7 @@ BuildRequires: libseccomp-devel
 BuildRequires: libsearpc-devel
 BuildRequires: glib2-devel
 BuildRequires: binutils
-BuildRequires: binutils-x86_64-linux-gnu
+#BuildRequires: binutils-x86_64-linux-gnu
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp-devel
 BuildRequires: dj64dev-djdev64-devel
