@@ -265,7 +265,6 @@ struct mfs_dirent
 struct mfs_dir
 {
   vfs_dir_t *vdir;
-  vfs_file_t *vfile;
   struct mfs_dirent de;
   unsigned int nr;
 };

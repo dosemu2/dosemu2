@@ -59,9 +59,18 @@ struct vfs_file_ops {
   int (*set_dos_attr)(vfs_file_t *file, int attr);
 };
 
+/*
+ * A backend may know a short (8.3) name of its own, as FAT does. When
+ * it does not, d_name and d_long_name are the same string.
+ */
+struct vfs_dirent {
+  const char *d_name;
+  const char *d_long_name;
+};
+
 struct vfs_dir_ops {
   int (*closedir)(vfs_dir_t *dir);
-  struct dirent *(*readdir)(vfs_dir_t *dir);
+  int (*readdir)(vfs_dir_t *dir, struct vfs_dirent *de);
   int (*fstatdir)(vfs_dir_t *file, struct stat *sb);
   int (*fstatat)(vfs_dir_t *dir, const char *pathname, struct stat *statbuf, int flags);
   int (*dirfd)(vfs_dir_t *dir);
@@ -81,7 +90,15 @@ struct vfs_dir {
   const struct vfs_dir_ops *ops;
   DIR *d;
   int fd;
+  /* readdir hands out the real 8.3 name, so no mangling is needed */
+  int has_sfn;
 };
+
+/*
+ * Whether the redirector is serving a call that has no long names,
+ * i.e. int2f/11xx rather than int21/71xx.
+ */
+void vfs_set_short_names(int on);
 
 vfs_fs_t *vfs_get_fs(int mfs_idx);
 
@@ -103,7 +120,6 @@ int vfs_get_dos_attr(vfs_fs_t *fs, const char *path, int mode);
 int vfs_set_dos_attr(vfs_fs_t *fs, const char *path, int attr);
 
 vfs_file_t *vfs_file_wrap_posix(int fd);
-vfs_dir_t *vfs_dir_wrap_posix(DIR *d, int fd);
 
 int vfs_close(vfs_file_t *file);
 ssize_t vfs_read(vfs_file_t *file, void *buf, size_t count);
@@ -120,7 +136,8 @@ int vfs_fget_dos_attr(vfs_file_t *file, int mode);
 int vfs_fset_dos_attr(vfs_file_t *file, int attr);
 
 int vfs_closedir(vfs_dir_t *dir);
-struct dirent *vfs_readdir(vfs_dir_t *dir);
+int vfs_readdir(vfs_dir_t *dir, struct vfs_dirent *de);
+int vfs_dir_has_sfn(vfs_dir_t *dir);
 int vfs_fstatat(vfs_dir_t *dir, const char *pathname, struct stat *statbuf, int flags);
 int vfs_fstatdir(vfs_dir_t *dir, struct stat *statbuf);
 int vfs_dirfd(vfs_dir_t *dir);
