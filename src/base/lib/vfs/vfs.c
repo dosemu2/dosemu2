@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <assert.h>
 #include "emu.h"
+#include "utilities.h"
 #include "dosemu_debug.h"
 #include "fslib/fslib.h"
 #include "vfs.h"
@@ -519,12 +520,42 @@ static void set_posix_fs(vfs_fs_t *fs, int mfs_idx)
   fs->priv = NULL;
 }
 
+/*
+ * Optional backends live in plugins, which are loaded by name rather
+ * than scanned for. Pull them in on first use, so that a setup with no
+ * archives never loads their libraries. With plugins linked in rather
+ * than dlopened, they have registered themselves already and this is a
+ * no-op.
+ */
+static void load_backends(void)
+{
+  static int loaded;
+
+  if (loaded)
+    return;
+  loaded = 1;
+  load_plugin("zip");
+}
+
+int vfs_probe(const char *path)
+{
+  int i;
+
+  load_backends();
+  for (i = 0; i < num_backends; i++) {
+    if (backends[i]->probe(path))
+      return 1;
+  }
+  return 0;
+}
+
 static void mount_fs(vfs_fs_t *fs, int mfs_idx)
 {
   const char *path = fs_paths[mfs_idx];
   int i;
 
   fs->mfs_idx = mfs_idx;
+  load_backends();
   if (!path) {
     set_posix_fs(fs, mfs_idx);
     return;
