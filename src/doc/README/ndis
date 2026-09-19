@@ -63,11 +63,11 @@ DEVICE=D:\DOSEMU\NDIS.SYS
 </para>
 
 <para>
-The driver reads its configuration from the
-<literal>PROTOCOL.INI</literal> file of the network client. It needs a
-section of its own, which is identified by the
-<literal>DriverName</literal> keyword; the name of the section is the
-name by which the protocols refer to the adapter:
+The driver takes no parameters of its own, but it has to find its own
+section in the <literal>PROTOCOL.INI</literal> file of the network
+client, which is identified by the <literal>DriverName</literal>
+keyword. The name of that section is the name by which the protocols
+refer to the adapter:
 
 <screen>
 [DOSEMU]
