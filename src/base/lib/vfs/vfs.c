@@ -20,6 +20,12 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#ifdef __linux__
+#include <sys/vfs.h>
+#include <sys/ioctl.h>
+#include <linux/msdos_fs.h>
+#endif
 #include <fcntl.h>
 #include <sys/file.h>
 #include <errno.h>
@@ -29,6 +35,24 @@
 /*
  * Default POSIX backend implementation
  */
+
+#ifdef __linux__
+/*
+ * FAT knows the DOS attributes natively, so prefer them over the xattr
+ * dosemu keeps for filesystems that do not.
+ */
+static int file_on_fat(const char *name)
+{
+  struct statfs buf;
+  return statfs(name, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
+}
+
+static int fd_on_fat(int fd)
+{
+  struct statfs buf;
+  return fstatfs(fd, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
+}
+#endif
 
 static int posix_file_close(vfs_file_t *file)
 {
@@ -113,6 +137,29 @@ static int posix_file_getlk(vfs_file_t *file, struct flock *fl)
 }
 #endif
 
+static int posix_file_get_dos_attr(vfs_file_t *file, int mode)
+{
+#ifdef __linux__
+  int attr;
+
+  if (file && fd_on_fat(file->fd) && (S_ISREG(mode) || S_ISDIR(mode)) &&
+      ioctl(file->fd, FAT_IOCTL_GET_ATTRIBUTES, &attr) == 0)
+    return attr;
+#endif
+  errno = ENOSYS;
+  return -1;
+}
+
+static int posix_file_set_dos_attr(vfs_file_t *file, int attr)
+{
+#ifdef __linux__
+  if (file && fd_on_fat(file->fd))
+    return ioctl(file->fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
+#endif
+  errno = ENOSYS;
+  return -1;
+}
+
 static const struct vfs_file_ops posix_file_ops = {
   .close = posix_file_close,
   .read = posix_file_read,
@@ -127,6 +174,8 @@ static const struct vfs_file_ops posix_file_ops = {
   .setlk = posix_file_setlk,
   .getlk = posix_file_getlk,
 #endif
+  .get_dos_attr = posix_file_get_dos_attr,
+  .set_dos_attr = posix_file_set_dos_attr,
 };
 
 vfs_file_t *vfs_file_wrap_posix(int fd)
@@ -296,6 +345,44 @@ static vfs_dir_t *posix_fs_opendir(vfs_fs_t *fs, const char *path)
   return vfs_dir_wrap_posix(d, dfd);
 }
 
+static int posix_fs_get_dos_attr(vfs_fs_t *fs, const char *path, int mode)
+{
+#ifdef __linux__
+  if (path && file_on_fat(path) && (S_ISREG(mode) || S_ISDIR(mode))) {
+    int fd = mfs_open_file(fs->mfs_idx, path, O_RDONLY);
+
+    if (fd != -1) {
+      int attr;
+      int res = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
+
+      close(fd);
+      if (res == 0)
+        return attr;
+    }
+  }
+#endif
+  errno = ENOSYS;
+  return -1;
+}
+
+static int posix_fs_set_dos_attr(vfs_fs_t *fs, const char *path, int attr)
+{
+#ifdef __linux__
+  if (path && file_on_fat(path)) {
+    int fd = mfs_open_file(fs->mfs_idx, path, O_RDONLY);
+
+    if (fd != -1) {
+      int res = ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
+
+      close(fd);
+      return res;
+    }
+  }
+#endif
+  errno = ENOSYS;
+  return -1;
+}
+
 static const struct vfs_fs_ops posix_fs_ops = {
   .open = posix_fs_open,
   .creat = posix_fs_creat,
@@ -311,6 +398,8 @@ static const struct vfs_fs_ops posix_fs_ops = {
   .utime = posix_fs_utime,
   .open_async = posix_fs_open_async,
   .opendir = posix_fs_opendir,
+  .get_dos_attr = posix_fs_get_dos_attr,
+  .set_dos_attr = posix_fs_set_dos_attr,
 };
 
 static vfs_fs_t fs_instances[128];
@@ -420,6 +509,42 @@ vfs_dir_t *vfs_opendir(vfs_fs_t *fs, const char *path)
   if (!fs || !fs->ops || !fs->ops->opendir)
     return NULL;
   return fs->ops->opendir(fs, path);
+}
+
+int vfs_get_dos_attr(vfs_fs_t *fs, const char *path, int mode)
+{
+  if (!fs || !fs->ops || !fs->ops->get_dos_attr) {
+    errno = ENOSYS;
+    return -1;
+  }
+  return fs->ops->get_dos_attr(fs, path, mode);
+}
+
+int vfs_set_dos_attr(vfs_fs_t *fs, const char *path, int attr)
+{
+  if (!fs || !fs->ops || !fs->ops->set_dos_attr) {
+    errno = ENOSYS;
+    return -1;
+  }
+  return fs->ops->set_dos_attr(fs, path, attr);
+}
+
+int vfs_fget_dos_attr(vfs_file_t *file, int mode)
+{
+  if (!file || !file->ops || !file->ops->get_dos_attr) {
+    errno = ENOSYS;
+    return -1;
+  }
+  return file->ops->get_dos_attr(file, mode);
+}
+
+int vfs_fset_dos_attr(vfs_file_t *file, int attr)
+{
+  if (!file || !file->ops || !file->ops->set_dos_attr) {
+    errno = ENOSYS;
+    return -1;
+  }
+  return file->ops->set_dos_attr(file, attr);
 }
 
 int vfs_close(vfs_file_t *file)

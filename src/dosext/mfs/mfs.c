@@ -641,16 +641,11 @@ select_drive(struct vm86_regs *state, int *drive)
 }
 
 #ifdef __linux__
+/* still needed by the VFAT readdir path below */
 static int file_on_fat(const char *name)
 {
   struct statfs buf;
   return statfs(name, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
-}
-
-static int fd_on_fat(int fd)
-{
-  struct statfs buf;
-  return fstatfs(fd, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
 }
 #endif
 
@@ -679,37 +674,23 @@ static int handle_xattr(int attr, int mode)
 
 int get_dos_attr(const char *fname, int mode, int drive)
 {
-  int attr;
+  int idx = REDIR_DEVICE_IDX(drives[drive].options);
+  int attr = vfs_get_dos_attr(vfs_get_fs(idx), fname, mode);
 
-#ifdef __linux__
-  if (fname && file_on_fat(fname) && (S_ISREG(mode) || S_ISDIR(mode))) {
-    vfs_fs_t *fs = vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options));
-    vfs_file_t *vfd = vfs_open(fs, fname, O_RDONLY);
-    if (vfd) {
-      int res = ioctl(vfd->fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
-      vfs_close(vfd);
-      if (res == 0)
-	return attr;
-    }
-  }
-#endif
-
+  if (attr != -1)
+    return attr;
   if (cdrom(drives[drive]))
     return get_attr_simple(mode);
-  attr = mfs_getxattr_file(REDIR_DEVICE_IDX(drives[drive].options), fname);
+  attr = mfs_getxattr_file(idx, fname);
   return handle_xattr(attr, mode);
 }
 
 static int get_dos_attr_fd(vfs_file_t *fd, int mode, const char *name, int drive)
 {
-  int attr;
+  int attr = vfs_fget_dos_attr(fd, mode);
 
-#ifdef __linux__
-  if (fd_on_fat(fd->fd) && (S_ISREG(mode) || S_ISDIR(mode)) &&
-      ioctl(fd->fd, FAT_IOCTL_GET_ATTRIBUTES, &attr) == 0)
+  if (attr != -1)
     return attr;
-#endif
-
   if (cdrom(drives[drive]))
     return get_attr_simple(mode);
   attr = mfs_getxattr_file(REDIR_DEVICE_IDX(drives[drive].options), name);
@@ -730,38 +711,30 @@ static int get_unix_attr(int attr)
   return mode;
 }
 
-#ifdef __linux__
-int set_fat_attr(vfs_file_t *fd, int attr)
-{
-  return ioctl(fd->fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
-}
-#endif
-
 int set_dos_attr(char *fpath, int attr, int drive)
 {
-#ifdef __linux__
-  vfs_fs_t *fs = vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options));
-  vfs_file_t *vfd = NULL;
-  int res;
+  int idx = REDIR_DEVICE_IDX(drives[drive].options);
+  vfs_fs_t *fs = vfs_get_fs(idx);
+  int res = vfs_set_dos_attr(fs, fpath, attr);
 
-  if (fpath && file_on_fat(fpath))
-    vfd = vfs_open(fs, fpath, O_RDONLY);
-  if (vfd) {
-    res = set_fat_attr(vfd, attr);
+  /* ENOSYS means the backend has no native attrs, anything else is
+   * a failure of the native ones and is not to be papered over with
+   * the xattr */
+  if (!(res == -1 && errno == ENOSYS)) {
     if (res && errno != ENOTTY) {
-      int oldattr = 1;
-      ioctl(vfd->fd, FAT_IOCTL_GET_ATTRIBUTES, &oldattr);
+      int oldattr = vfs_get_dos_attr(fs, fpath, S_IFREG);
+
+      if (oldattr == -1)
+	oldattr = 1;
       if (dos_would_allow(fpath, "FAT_IOCTL_SET_ATTRIBUTES", attr == oldattr))
 	res = 0;
     }
-    vfs_close(vfd);
     return res;
   }
-#endif
 
   if (cdrom(drives[drive]))
     return -1;
-  return mfs_setattr(REDIR_DEVICE_IDX(drives[drive].options), fpath, attr);
+  return mfs_setattr(idx, fpath, attr);
 }
 
 int dos_utime(const char *fpath, time_t atime, time_t mtime, int drive)
@@ -4140,12 +4113,8 @@ do_create_truncate:
           return FALSE;
         }
         f->type = TYPE_DISK;
-#ifdef __linux__
-	if (file_on_fat(fpath))
-          set_fat_attr(f->fd, attr);
-        else
-#endif
-        if (get_attr_simple(f->st.st_mode) != attr)
+	if (vfs_fset_dos_attr(f->fd, attr) == -1 && errno == ENOSYS &&
+	    get_attr_simple(f->st.st_mode) != attr)
           mfs_setxattr_file(REDIR_DEVICE_IDX(drives[drive].options),
               f->name, attr);
       }
