@@ -56,6 +56,7 @@
 #include "misc/ringbuf.h"
 #include "coopth.h"
 #include "sdl.h"
+#include "spice_SDL.h"
 
 #define THREADED_REND 1
 #define THREADED_R() (THREADED_REND && !config.sdl_hwrend)
@@ -438,6 +439,10 @@ static int SDL_init(void)
   color_space_complete(&SDL_csd);
   features = 0;
   register_render_system(&Render_SDL);
+  /* After the pixel format is known: the remote display presents the same
+   * format the local window does, since it mirrors the same rectangles. */
+  if (spice_sdl_init() < 0)
+    error("SDL: remote display unavailable, continuing locally\n");
   if (remapper_init(1, 1, features, &SDL_csd)) {
     error("SDL: SDL_init: VGAEmu init failed!\n");
     config.exitearly = 1;
@@ -485,6 +490,7 @@ void SDL_close(void)
   vga_emu_done();
   /* destroy texture before renderer, or crash */
   pthread_mutex_lock(&rend_mtx);
+  spice_sdl_done();
   pthread_mutex_lock(&tex_mtx);
   if (texture_buf)
     SDL_DestroyTexture(texture_buf);
@@ -578,6 +584,7 @@ static void redraw_text(void)
   SDL_RenderClear(renderer);
   SDL_SetRenderTarget(renderer, NULL);
   pthread_mutex_unlock(&rend_mtx);
+  spice_sdl_clear();
   redraw_text_screen();
 }
 
@@ -829,6 +836,16 @@ static void setup_ttf_winsize(int xtarget, int ytarget)
 static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
 {
   struct rect_desc d;
+  int spice = spice_sdl_on();
+
+  if (spice) {
+    float w, h;
+
+    /* Follow whichever texture we are rendering into: the TTF one and the
+     * bitmap one are different sizes, and either may be the live one. */
+    if (SDL_GetTextureSize(tex, &w, &h))
+      spice_sdl_set_size(w, h, pixel_format);
+  }
 
   while (rng_get(rng, &d)) {
     /* The mode changed after this one was queued, so the surface it points
@@ -842,9 +859,18 @@ static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
     }
     SDL_LockSurface(d.tex);
     SDL_UpdateTexture(tex, &d.rect, d.tex->pixels, d.tex->pitch);
+    /* The same pixels, to the remote display.  Everything this plugin
+     * draws comes through here, TTF glyphs included, which is the whole
+     * reason the remote display lives in this plugin rather than beside
+     * it. */
+    if (spice)
+      spice_sdl_blit(d.rect.x, d.rect.y, d.tex);
     SDL_UnlockSurface(d.tex);
     SDL_DestroySurface(d.tex);
   }
+
+  if (spice)
+    spice_sdl_flush();
 }
 
 static void do_rend(void)
