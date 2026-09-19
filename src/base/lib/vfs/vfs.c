@@ -30,6 +30,7 @@
 #include <sys/file.h>
 #include <errno.h>
 #include <assert.h>
+#include "emu.h"
 #include "dosemu_debug.h"
 #include "fslib/fslib.h"
 #include "vfs.h"
@@ -195,6 +196,30 @@ vfs_file_t *vfs_file_wrap_posix(int fd)
   return file;
 }
 
+/*
+ * The FAT readdir ioctl hands out the 8.3 and the long name in one go,
+ * which is what the redirector wants, so prefer it when we have it.
+ * Which of the two ioctls to use depends on the DOS call being served;
+ * the flag moved here together with the code that reads it.
+ */
+#ifdef __linux__
+static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
+#endif
+
+void vfs_set_short_names(int on)
+{
+#ifdef __linux__
+  vfat_ioctl = on ? VFAT_IOCTL_READDIR_SHORT : VFAT_IOCTL_READDIR_BOTH;
+#endif
+}
+
+struct posix_dir {
+  vfs_dir_t vdir;  // must be first
+#ifdef __linux__
+  struct __fat_dirent fat_de[2];
+#endif
+};
+
 static int posix_dir_closedir(vfs_dir_t *dir)
 {
   int rc = 0;
@@ -208,11 +233,32 @@ static int posix_dir_closedir(vfs_dir_t *dir)
   return rc;
 }
 
-static struct dirent *posix_dir_readdir(vfs_dir_t *dir)
+static int posix_dir_readdir(vfs_dir_t *dir, struct vfs_dirent *de)
 {
-  if (!dir || !dir->d)
-    return NULL;
-  return readdir(dir->d);
+  struct dirent *d;
+
+  if (!dir)
+    return -1;
+#ifdef __linux__
+  if (!dir->d) {
+    struct posix_dir *pd = (struct posix_dir *)dir;
+    struct __fat_dirent *fd = pd->fat_de;
+
+    if (RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, fd)) == -1 ||
+        fd[0].d_reclen == 0)
+      return -1;
+    de->d_name = fd[0].d_name;
+    de->d_long_name = fd[1].d_name;
+    if (de->d_long_name[0] == '\0' || vfat_ioctl == VFAT_IOCTL_READDIR_SHORT)
+      de->d_long_name = de->d_name;
+    return 0;
+  }
+#endif
+  d = readdir(dir->d);
+  if (!d)
+    return -1;
+  de->d_name = de->d_long_name = d->d_name;
+  return 0;
 }
 
 static int posix_dir_fstatdir(vfs_dir_t *dir, struct stat *statbuf)
@@ -246,22 +292,25 @@ static const struct vfs_dir_ops posix_dir_ops = {
   .dirfd = posix_dir_dirfd,
 };
 
-vfs_dir_t *vfs_dir_wrap_posix(DIR *d, int fd)
+static vfs_dir_t *vfs_dir_wrap_posix(DIR *d, int fd)
 {
+  struct posix_dir *pd;
   vfs_dir_t *dir;
   if (!d && fd == -1)
     return NULL;
-  dir = malloc(sizeof(*dir));
-  if (!dir) {
+  pd = malloc(sizeof(*pd));
+  if (!pd) {
     if (d)
       closedir(d);
     else if (fd != -1)
       close(fd);
     return NULL;
   }
+  dir = &pd->vdir;
   dir->ops = &posix_dir_ops;
   dir->d = d;
   dir->fd = fd;
+  dir->has_sfn = 0;
   return dir;
 }
 
@@ -334,11 +383,32 @@ static void *posix_fs_open_async(vfs_fs_t *fs, const char *path, int flags)
 
 static vfs_dir_t *posix_fs_opendir(vfs_fs_t *fs, const char *path)
 {
-  int dfd = mfs_open_file(fs->mfs_idx, path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  int dfd;
   DIR *d;
-  if (dfd == -1) {
-    return NULL;
+
+#ifdef __linux__
+  /* on FAT take the ioctl route, which also gives us the 8.3 names */
+  if (file_on_fat(path)) {
+    struct __fat_dirent de[2];
+
+    dfd = mfs_open_file(fs->mfs_idx, path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (dfd == -1)
+      return NULL;
+    if (ioctl(dfd, vfat_ioctl, de) != -1) {
+      vfs_dir_t *dir;
+
+      lseek(dfd, 0, SEEK_SET);
+      dir = vfs_dir_wrap_posix(NULL, dfd);
+      if (dir)
+        dir->has_sfn = 1;
+      return dir;
+    }
+    close(dfd);
   }
+#endif
+  dfd = mfs_open_file(fs->mfs_idx, path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  if (dfd == -1)
+    return NULL;
   d = fdopendir(dfd);
   if (!d) {
     close(dfd);
@@ -726,11 +796,16 @@ int vfs_closedir(vfs_dir_t *dir)
   return dir->ops->closedir(dir);
 }
 
-struct dirent *vfs_readdir(vfs_dir_t *dir)
+int vfs_readdir(vfs_dir_t *dir, struct vfs_dirent *de)
 {
   if (!dir || !dir->ops || !dir->ops->readdir)
-    return NULL;
-  return dir->ops->readdir(dir);
+    return -1;
+  return dir->ops->readdir(dir, de);
+}
+
+int vfs_dir_has_sfn(vfs_dir_t *dir)
+{
+  return dir && dir->has_sfn;
 }
 
 int vfs_fstatdir(vfs_dir_t *dir, struct stat *statbuf)
