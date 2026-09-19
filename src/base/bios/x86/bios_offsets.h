@@ -17,6 +17,8 @@ extern const unsigned DBGload_parblock;
 extern const unsigned DBGload_CSIP;
 extern const unsigned PKTDRV_param;
 extern const unsigned PKTDRV_stats;
+extern const unsigned PKTDRV_mcast;
+extern const unsigned PKTDRV_lookahead;
 extern const unsigned LFN_short_name;
 extern const unsigned bios_hlt_blk;
 extern const unsigned DPMI_OFF;
