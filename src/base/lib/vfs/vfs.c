@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <sys/file.h>
 #include <errno.h>
 #include <assert.h>
 #include "dosemu_debug.h"
@@ -92,6 +93,29 @@ static int posix_file_get_async_fd(vfs_file_t *file, void *handle)
   return mfs_async_getfd(handle);
 }
 
+static int posix_file_flock(vfs_file_t *file, int op)
+{
+  if (!file)
+    return -1;
+  return flock(file->fd, op);
+}
+
+#if HAVE_DECL_F_OFD_SETLK
+static int posix_file_setlk(vfs_file_t *file, struct flock *fl)
+{
+  if (!file)
+    return -1;
+  return fcntl(file->fd, F_OFD_SETLK, fl);
+}
+
+static int posix_file_getlk(vfs_file_t *file, struct flock *fl)
+{
+  if (!file)
+    return -1;
+  return fcntl(file->fd, F_OFD_GETLK, fl);
+}
+#endif
+
 static const struct vfs_file_ops posix_file_ops = {
   .close = posix_file_close,
   .read = posix_file_read,
@@ -101,6 +125,11 @@ static const struct vfs_file_ops posix_file_ops = {
   .ftruncate = posix_file_ftruncate,
   .fsync = posix_file_fsync,
   .get_async_fd = posix_file_get_async_fd,
+  .flock = posix_file_flock,
+#if HAVE_DECL_F_OFD_SETLK
+  .setlk = posix_file_setlk,
+  .getlk = posix_file_getlk,
+#endif
 };
 
 vfs_file_t *vfs_file_wrap_posix(int fd)
@@ -543,6 +572,27 @@ int vfs_get_async_fd(vfs_file_t *file, void *handle)
   if (!file || !file->ops || !file->ops->get_async_fd)
     return -1;
   return file->ops->get_async_fd(file, handle);
+}
+
+int vfs_flock(vfs_file_t *file, int op)
+{
+  if (!file || !file->ops || !file->ops->flock)
+    return -1;
+  return file->ops->flock(file, op);
+}
+
+int vfs_setlk(vfs_file_t *file, struct flock *fl)
+{
+  if (!file || !file->ops || !file->ops->setlk)
+    return -1;
+  return file->ops->setlk(file, fl);
+}
+
+int vfs_getlk(vfs_file_t *file, struct flock *fl)
+{
+  if (!file || !file->ops || !file->ops->getlk)
+    return -1;
+  return file->ops->getlk(file, fl);
 }
 
 int vfs_closedir(vfs_dir_t *dir)

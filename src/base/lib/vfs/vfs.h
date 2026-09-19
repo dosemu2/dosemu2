@@ -6,6 +6,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/statvfs.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -41,6 +42,11 @@ struct vfs_file_ops {
   int (*ftruncate)(vfs_file_t *file, off_t length);
   int (*fsync)(vfs_file_t *file);
   int (*get_async_fd)(vfs_file_t *file, void *handle);
+  /* whole-file advisory lock, used to serialize region lock updates */
+  int (*flock)(vfs_file_t *file, int op);
+  /* OFD region locks */
+  int (*setlk)(vfs_file_t *file, struct flock *fl);
+  int (*getlk)(vfs_file_t *file, struct flock *fl);
 };
 
 struct vfs_dir_ops {
@@ -112,6 +118,9 @@ int vfs_fstat(vfs_file_t *file, struct stat *sb);
 int vfs_ftruncate(vfs_file_t *file, off_t length);
 int vfs_fsync(vfs_file_t *file);
 int vfs_get_async_fd(vfs_file_t *file, void *handle);
+int vfs_flock(vfs_file_t *file, int op);
+int vfs_setlk(vfs_file_t *file, struct flock *fl);
+int vfs_getlk(vfs_file_t *file, struct flock *fl);
 
 int vfs_closedir(vfs_dir_t *dir);
 struct dirent *vfs_readdir(vfs_dir_t *dir);
