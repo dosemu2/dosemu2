@@ -20,8 +20,11 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <assert.h>
+#include "dosemu_debug.h"
 #include "fslib/fslib.h"
 #include "vfs.h"
 
@@ -284,15 +287,108 @@ static const struct vfs_fs_ops posix_fs_ops = {
   .opendir = posix_fs_opendir,
 };
 
-static vfs_fs_t fs_instances[128];
+/*
+ * Backend selection.
+ *
+ * A backend is chosen per mfs_idx, i.e. per path registered with fslib,
+ * which is the granularity at which a path first becomes addressable
+ * (see mfs_define_drive()). Anything not bound to a backend keeps using
+ * the posix one, so indices that never pass through vfs_bind() behave
+ * exactly as before.
+ */
+#define MAX_FS_INSTANCES 128
+#define MAX_BACKENDS 4
+
+static vfs_fs_t fs_instances[MAX_FS_INSTANCES];
+static char *fs_paths[MAX_FS_INSTANCES];
+static const struct vfs_backend *backends[MAX_BACKENDS];
+static int num_backends;
+
+void vfs_register_backend(const struct vfs_backend *be)
+{
+  assert(num_backends < MAX_BACKENDS);
+  backends[num_backends++] = be;
+}
+
+/*
+ * Remember the path so that the backend can be picked on first use.
+ * Mounting can not happen here: vfs_bind() is called while paths are
+ * still being registered, and fslib refuses to serve anything until
+ * it is sealed.
+ */
+int vfs_bind(int mfs_idx, const char *path)
+{
+  if (mfs_idx <= 0 || mfs_idx >= MAX_FS_INSTANCES)
+    return -1;
+  if (fs_instances[mfs_idx].ops)
+    return -1;  // already in use
+  free(fs_paths[mfs_idx]);
+  fs_paths[mfs_idx] = strdup(path);
+  return 0;
+}
+
+static void set_posix_fs(vfs_fs_t *fs, int mfs_idx)
+{
+  fs->ops = &posix_fs_ops;
+  fs->mfs_idx = mfs_idx;
+  fs->be = NULL;
+  fs->priv = NULL;
+}
+
+static void mount_fs(vfs_fs_t *fs, int mfs_idx)
+{
+  const char *path = fs_paths[mfs_idx];
+  int i;
+
+  fs->mfs_idx = mfs_idx;
+  if (!path) {
+    set_posix_fs(fs, mfs_idx);
+    return;
+  }
+  for (i = 0; i < num_backends; i++) {
+    const struct vfs_backend *be = backends[i];
+
+    if (!be->probe(path))
+      continue;
+    fs->be = be;
+    fs->priv = NULL;
+    if (be->mount(fs, path) == 0) {
+      d_printf("VFS: %s mounted by %s backend\n", path, be->name);
+      return;
+    }
+    error("VFS: %s backend failed on %s\n", be->name, path);
+    break;
+  }
+  set_posix_fs(fs, mfs_idx);
+}
 
 vfs_fs_t *vfs_get_fs(int mfs_idx)
 {
-  if (mfs_idx <= 0 || mfs_idx >= 128)
+  vfs_fs_t *fs;
+
+  if (mfs_idx <= 0 || mfs_idx >= MAX_FS_INSTANCES)
     return NULL;
-  fs_instances[mfs_idx].ops = &posix_fs_ops;
-  fs_instances[mfs_idx].mfs_idx = mfs_idx;
-  return &fs_instances[mfs_idx];
+  fs = &fs_instances[mfs_idx];
+  if (!fs->ops)
+    mount_fs(fs, mfs_idx);
+  return fs;
+}
+
+void vfs_done(void)
+{
+  int i;
+
+  for (i = 0; i < MAX_FS_INSTANCES; i++) {
+    vfs_fs_t *fs = &fs_instances[i];
+
+    if (fs->ops && fs->be && fs->be->umount)
+      fs->be->umount(fs);
+    fs->ops = NULL;
+    fs->be = NULL;
+    fs->priv = NULL;
+    free(fs_paths[i]);
+    fs_paths[i] = NULL;
+  }
 }
 
 vfs_file_t *vfs_open(vfs_fs_t *fs, const char *path, int flags)

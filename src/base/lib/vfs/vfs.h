@@ -51,9 +51,22 @@ struct vfs_dir_ops {
   int (*dirfd)(vfs_dir_t *dir);
 };
 
+struct vfs_backend;
+
 struct vfs_fs {
   const struct vfs_fs_ops *ops;
   int mfs_idx;
+  const struct vfs_backend *be;
+  void *priv;
+};
+
+struct vfs_backend {
+  const char *name;
+  /* returns 1 if this backend handles the given path */
+  int (*probe)(const char *path);
+  /* fills in fs->ops and fs->priv, returns 0 on success */
+  int (*mount)(vfs_fs_t *fs, const char *path);
+  void (*umount)(vfs_fs_t *fs);
 };
 
 struct vfs_file {
@@ -66,6 +79,10 @@ struct vfs_dir {
   DIR *d;
   int fd;
 };
+
+void vfs_register_backend(const struct vfs_backend *be);
+int vfs_bind(int mfs_idx, const char *path);
+void vfs_done(void);
 
 vfs_fs_t *vfs_get_fs(int mfs_idx);
 

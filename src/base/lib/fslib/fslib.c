@@ -21,6 +21,7 @@
 #include "utilities.h"
 #include "fslib_ops.h"
 #include "fslib.h"
+#include "vfs/vfs.h"
 
 static const struct fslib_ops *fssvc;
 static int num_def_drives;
@@ -31,6 +32,9 @@ int mfs_define_drive(const char *path)
 
   ret = fssvc->add_path(path);
   assert(ret != -1);
+  /* let a backend claim the path; the mount itself is deferred until
+   * fslib is sealed and the path can actually be read */
+  vfs_bind(ret + 1, path);
   return ret + 1;
 }
 
