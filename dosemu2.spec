@@ -49,8 +49,19 @@ BuildRequires: libseccomp-devel
 BuildRequires: libsearpc-devel
 BuildRequires: glib2-devel
 BuildRequires: binutils
-#BuildRequires: binutils-x86_64-linux-gnu
-BuildRequires: cross-binutils
+# Assembling and linking the 16/32bit x86 stubs needs x86 tools. On an x86
+# host the native binutils already do that (as --32), so nothing extra is
+# needed there. Elsewhere a cross toolchain is required, and fedora's x86
+# cross binutils are currently simply gone: cross-binutils dropped the
+# primary-arch targets in 2.47-2 (rhbz#2523594) before binutils started
+# shipping them as cross-binutils-x86_64 (rhbz#2523586), and that build is
+# not in rawhide yet. clang, ld.lld and llvm-objcopy cover the same ground
+# and configure picks them up, so use those instead of chasing the rename.
+%ifnarch %{ix86} x86_64
+BuildRequires: clang
+BuildRequires: lld
+BuildRequires: llvm
+%endif
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp-devel
 BuildRequires: dj64dev-djdev64-devel

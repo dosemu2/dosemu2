@@ -110,7 +110,7 @@ else
   AC_PATH_PROGS([XAS], [i686-linux-gnu-as i686-unknown-linux-gnu-as i586-suse-linux-as i386-elf-as])
 fi
 if test -z "$XAS"; then
-  AC_PATH_PROG([XAS], [x86_64-linux-gnu-as])
+  AC_PATH_PROGS([XAS], [x86_64-linux-gnu-as x86_64-redhat-linux-as])
   if test -z "$XAS"; then
     if test \( "$machine" = "i386" -o "$machine" = "x86_64" \) -a "$CONFIG_HOST" != "Darwin"; then
       XAS="$AS"
@@ -124,7 +124,7 @@ if test -z "$XAS"; then
       if test -n "$XAS"; then
         XASFLAGS="-x assembler -target i686-unknown-linux-gnu -c -"
       else
-        AC_MSG_ERROR([386 assembler not found, please install clang or binutils-i686-linux-gnu])
+        AC_MSG_ERROR([386 assembler not found, please install clang, binutils-i686-linux-gnu or cross-binutils-x86_64])
       fi
     fi
   else
@@ -143,11 +143,18 @@ if test -n "$CROSS_PREFIX"; then
     AC_MSG_ERROR([${CROSS_PREFIX}ld not found, CROSS_PREFIX is wrong])
   fi
 else
-  AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld i686-unknown-linux-gnu-ld i586-suse-linux-ld i386-elf-ld x86_64-linux-gnu-ld gld ld.lld ld])
-  if test "$CONFIG_HOST" = "Darwin" -a `basename "$AS_LD"` = "ld"; then
-    AC_MSG_ERROR([Please install lld or i386-elf-binutils])
+  AC_PATH_PROGS([AS_LD], [i686-linux-gnu-ld i686-unknown-linux-gnu-ld i586-suse-linux-ld i386-elf-ld x86_64-linux-gnu-ld x86_64-redhat-linux-ld gld ld.lld ld])
+  as_ld_name=`basename "$AS_LD"`
+  # the native ld links i386 objects only on an x86 host
+  if test "$as_ld_name" = "ld" -o "$as_ld_name" = "gld"; then
+    if test "$CONFIG_HOST" = "Darwin"; then
+      AC_MSG_ERROR([Please install lld or i386-elf-binutils])
+    fi
+    if test "$machine" != "i386" -a "$machine" != "x86_64"; then
+      AC_MSG_ERROR([386 linker not found, please install lld or x86 cross-binutils])
+    fi
   fi
-  if test `basename "$AS_LD"` = "ld.lld"; then
+  if test "$as_ld_name" = "ld.lld"; then
     # newer lld (>=21) needs this, for older it's optional
     AS_LDFLAGS="$AS_LDFLAGS --image-base 0"
   fi
@@ -188,7 +195,12 @@ if test -n "$CROSS_PREFIX"; then
     AC_MSG_ERROR([${CROSS_PREFIX}objcopy not found, CROSS_PREFIX is wrong])
   fi
 else
-  AC_PATH_PROGS([XOBJCOPY], [i686-linux-gnu-objcopy i686-unknown-linux-gnu-objcopy i586-suse-linux-objcopy x86_64-linux-gnu-objcopy llvm-objcopy objcopy])
+  AC_PATH_PROGS([XOBJCOPY], [i686-linux-gnu-objcopy i686-unknown-linux-gnu-objcopy i586-suse-linux-objcopy x86_64-linux-gnu-objcopy x86_64-redhat-linux-objcopy llvm-objcopy objcopy])
+  # likewise, the native objcopy groks i386 objects only on an x86 host
+  if test `basename "$XOBJCOPY"` = "objcopy" -a "$machine" != "i386" \
+      -a "$machine" != "x86_64"; then
+    AC_MSG_ERROR([386 objcopy not found, please install llvm or x86 cross-binutils])
+  fi
 fi
 if test -z "$XOBJCOPY"; then
   XOBJCOPY="$OBJCOPY"
