@@ -31,6 +31,13 @@ struct vfs_fs_ops {
   int (*utime)(vfs_fs_t *fs, const char *fpath, time_t atime, time_t mtime);
   void *(*open_async)(vfs_fs_t *fs, const char *path, int flags);
   vfs_dir_t *(*opendir)(vfs_fs_t *fs, const char *path);
+  /*
+   * Native DOS attributes, as opposed to the ones dosemu stores in an
+   * xattr of its own. Return -1 with errno set to ENOSYS when the
+   * backend has none, so that the caller can fall back to the xattr.
+   */
+  int (*get_dos_attr)(vfs_fs_t *fs, const char *path, int mode);
+  int (*set_dos_attr)(vfs_fs_t *fs, const char *path, int attr);
 };
 
 struct vfs_file_ops {
@@ -47,6 +54,9 @@ struct vfs_file_ops {
   /* OFD region locks */
   int (*setlk)(vfs_file_t *file, struct flock *fl);
   int (*getlk)(vfs_file_t *file, struct flock *fl);
+  /* see the fs ops of the same name */
+  int (*get_dos_attr)(vfs_file_t *file, int mode);
+  int (*set_dos_attr)(vfs_file_t *file, int attr);
 };
 
 struct vfs_dir_ops {
@@ -106,6 +116,8 @@ int vfs_access(vfs_fs_t *fs, const char *path, int mode);
 int vfs_utime(vfs_fs_t *fs, const char *fpath, time_t atime, time_t mtime);
 void *vfs_open_async(vfs_fs_t *fs, const char *path, int flags);
 vfs_dir_t *vfs_opendir(vfs_fs_t *fs, const char *path);
+int vfs_get_dos_attr(vfs_fs_t *fs, const char *path, int mode);
+int vfs_set_dos_attr(vfs_fs_t *fs, const char *path, int attr);
 
 vfs_file_t *vfs_file_wrap_posix(int fd);
 vfs_dir_t *vfs_dir_wrap_posix(DIR *d, int fd);
@@ -121,6 +133,8 @@ int vfs_get_async_fd(vfs_file_t *file, void *handle);
 int vfs_flock(vfs_file_t *file, int op);
 int vfs_setlk(vfs_file_t *file, struct flock *fl);
 int vfs_getlk(vfs_file_t *file, struct flock *fl);
+int vfs_fget_dos_attr(vfs_file_t *file, int mode);
+int vfs_fset_dos_attr(vfs_file_t *file, int attr);
 
 int vfs_closedir(vfs_dir_t *dir);
 struct dirent *vfs_readdir(vfs_dir_t *dir);
