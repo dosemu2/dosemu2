@@ -407,6 +407,7 @@ struct file_fd
   char *name;
   int idx;
   vfs_file_t *fd;
+  int prn;             // printer number for TYPE_PRINTER
   int type;
   void *shlock;
   void **shemu_locks;  // for share modes emulation

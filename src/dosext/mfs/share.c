@@ -94,6 +94,8 @@ struct file_fd *do_claim_fd(const char *name)
             f->shemu_locks = malloc(sizeof(void *) * lk_MAX);
             f->idx = i;
             f->shlock = NULL;
+            f->fd = NULL;
+            f->prn = -1;
             ret = f;
             break;
         }

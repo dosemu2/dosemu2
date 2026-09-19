@@ -3221,7 +3221,7 @@ static struct file_fd *do_open_prn(const char *filename1, const char *fpath)
     if (printer_open(prn_num) != 0)
       return NULL;
     f = do_claim_fd(fpath);
-    f->fd = vfs_file_wrap_posix(prn_num);
+    f->prn = prn_num;
     f->type = TYPE_PRINTER;
     return f;
 }
@@ -3396,8 +3396,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         return TRUE;
       }
       if (f->type == TYPE_PRINTER) {
-        printer_close(f->fd->fd);
-        Debug0(("printer %p closed\n", f->fd));
+        printer_close(f->prn);
+        Debug0(("printer %i closed\n", f->prn));
       } else {
         mfs_close(f);
       }
@@ -3516,7 +3516,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       Debug0(("Write file fd=%p count=%x sft_mode=%x\n", f->fd, cnt, sft_open_mode(sft)));
       if (f->type == TYPE_PRINTER) {
         for (ret = 0; ret < cnt; ret++) {
-          if (printer_write(f->fd->fd, READ_BYTE(dta + ret)) != 1)
+          if (printer_write(f->prn, READ_BYTE(dta + ret)) != 1)
             break;
         }
         SETWORD(&state->ecx, ret);
@@ -4007,7 +4007,7 @@ do_create_truncate:
         fname[0] = 0;
         fext[0] = 0;
         f = do_claim_fd(fpath);
-        f->fd = vfs_file_wrap_posix(prn_num);
+        f->prn = prn_num;
         f->type = TYPE_PRINTER;
       } else {
         struct stat st;
