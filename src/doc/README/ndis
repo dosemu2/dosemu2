@@ -1,0 +1,161 @@
+<sect1>
+<title>Using the NDIS 2 driver</title>
+
+<para>
+Besides the packet driver interface, dosemu2 can present its networking
+to DOS as an NDIS 2.0.1 MAC driver. This is what the DOS network clients
+that are built on top of NDIS - Microsoft LAN Manager, Microsoft Network
+Client 3.0, Windows for Workgroups and the MS TCP/IP stack - expect to
+talk to. With the built-in NDIS driver, none of those needs a DOS driver
+for a network card, and no network card has to be emulated.
+</para>
+
+<para>
+The driver consists of two parts: the MAC driver itself, which is
+implemented inside dosemu, and the small DOS stub
+<literal>ndis.sys</literal>, which registers it with the NDIS protocol
+manager. The DOS driver <literal>pktndis.dos</literal> by robert-j,
+which does the same on top of a packet driver, was the model for the
+implementation, see
+<ulink url="https://github.com/dosemu2/dosemu2/issues/1479"
+>dosemu2 issue 1479</ulink>.
+</para>
+
+<sect2>
+<title>Enabling the driver</title>
+
+<para>
+The NDIS driver is enabled by default and costs nothing until
+<literal>ndis.sys</literal> is loaded. To do without it:
+
+<screen>
+$_ndis = (off)
+</screen>
+</para>
+
+<para>
+The networking back-ends of dosemu2 provide a single network link,
+which every user of it - the packet driver, the NE2000, NDIS - then
+shares. Sharing it is not multiplexing: the frames go to whoever reads
+first. So if the packet driver is not needed, switch it off when NDIS
+is used:
+
+<screen>
+$_pktdriver = (off)
+</screen>
+
+The "vde" back-end does not even share: it refuses a second link, so
+whichever driver asks for it first is the one that gets it.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Loading the driver</title>
+
+<para>
+An NDIS MAC driver has to be loaded after the protocol manager, which
+is part of the network client. dosemu2 supplies its own
+<literal>config.sys</literal>, so the two lines go into
+<literal>userhook.sys</literal> on the boot drive, which the supplied
+<literal>config.sys</literal> chains in - what a setup program writes
+into <literal>config.sys</literal> has no effect. If you boot your own
+DOS from an image, its <literal>config.sys</literal> applies as usual:
+
+<screen>
+DEVICE=C:\NET\PROTMAN.DOS /I:C:\NET
+DEVICE=D:\DOSEMU\NDIS.SYS
+</screen>
+</para>
+
+<para>
+The driver takes no parameters of its own, so it never looks into the
+<literal>PROTOCOL.INI</literal> file of the network client; the
+protocol manager reads it to find out what to bind to what. The driver
+registers under the module name <literal>DE2NDIS</literal>, which is
+the name the protocols refer to the adapter by, so its section has to
+be named like that, and its <literal>DriverName</literal> keyword names
+the DOS device the driver installs:
+
+<screen>
+[DE2NDIS]
+  DriverName = DE2NDIS$
+
+[TCPIP]
+  DriverName = TCPIP$
+  BINDINGS = DE2NDIS
+</screen>
+</para>
+
+<para>
+The setup programs of the network clients can write the
+<literal>PROTOCOL.INI</literal> entries for you, and copy the driver,
+if you point them at a directory containing
+<literal>ndis.sys</literal> and the following
+<literal>oemsetup.inf</literal>, and select "Unlisted or Updated
+Network Adapter". The name of the key in its <literal>[netcard]</literal>
+section is what the setup program uses as the section name in
+<literal>PROTOCOL.INI</literal>, so it has to be the module name. Only
+the loading is not taken care of, for the reason above:
+
+<screen>
+[netcard]
+DE2NDIS = "dosemu2 NDIS adapter",,NDIS,ethernet,real,DE2NDIS,DE2NDIS_nif
+
+[DE2NDIS]
+devdir=?:ndis.sys
+device=ndis.sys,@devdir\ndis.sys
+
+[DE2NDIS_nif]
+drivername=DE2NDIS$
+</screen>
+</para>
+
+</sect2>
+
+<sect2>
+<title>Testing</title>
+
+<para>
+<literal>test/ndis</literal> in the dosemu2 sources holds a stand-in for
+the protocol manager and one for an NDIS protocol, so the driver can be
+tested without any of the proprietary network clients. The test protocol
+binds to the MAC, sends an ARP request and waits for the answer to come
+back as an indication; it is run by the
+<literal>test_network_ndis_*</literal> cases of the test suite.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Limitations</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+<para>
+Only one protocol can be bound to the adapter at a time.
+</para>
+</listitem>
+<listitem>
+<para>
+The operations that need real hardware - diagnostics, loopback,
+resetting the adapter, opening and closing it and changing the station
+address - are not supported. Multicast addressing, promiscuous mode and
+the receive filter are.
+</para>
+</listitem>
+<listitem>
+<para>
+Transmissions always complete synchronously, so the protocol never
+receives a TransmitConfirm indication.
+</para>
+</listitem>
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+</sect1>

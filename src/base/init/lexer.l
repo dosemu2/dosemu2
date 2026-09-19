@@ -310,6 +310,7 @@ speaker			RETURN(SPEAKER);
 ipxsupport		RETURN(IPXSUPPORT);
 ipx_network		RETURN(IPXNETWORK);
 pktdriver		RETURN(PKTDRIVER);
+ndis			RETURN(NDIS);
 tcpdriver		RETURN(TCPDRIVER);
 ne2k			RETURN(NE2K);
 debug			RETURN(DEBUG);
