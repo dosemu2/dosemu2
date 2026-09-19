@@ -29,7 +29,15 @@ struct vfs_fs_ops {
   int (*rename)(vfs_fs_t *fs, const char *oldpath, const char *newpath);
   int (*access)(vfs_fs_t *fs, const char *path, int mode);
   int (*utime)(vfs_fs_t *fs, const char *fpath, time_t atime, time_t mtime);
+  /*
+   * Two-phase open: open_async() reserves the open, then the caller
+   * does its own checks and either claims the file or drops it. The
+   * split exists for the privileged fs service, which needs the
+   * reservation and the fd handover to be separate steps.
+   */
   void *(*open_async)(vfs_fs_t *fs, const char *path, int flags);
+  vfs_file_t *(*async_getfile)(vfs_fs_t *fs, void *handle);
+  void (*async_cancel)(vfs_fs_t *fs, void *handle);
   vfs_dir_t *(*opendir)(vfs_fs_t *fs, const char *path);
   /*
    * Native DOS attributes, as opposed to the ones dosemu stores in an
@@ -48,7 +56,6 @@ struct vfs_file_ops {
   int (*fstat)(vfs_file_t *file, struct stat *sb);
   int (*ftruncate)(vfs_file_t *file, off_t length);
   int (*fsync)(vfs_file_t *file);
-  int (*get_async_fd)(vfs_file_t *file, void *handle);
   /* whole-file advisory lock, used to serialize region lock updates */
   int (*flock)(vfs_file_t *file, int op);
   /* OFD region locks */
@@ -73,7 +80,6 @@ struct vfs_dir_ops {
   int (*readdir)(vfs_dir_t *dir, struct vfs_dirent *de);
   int (*fstatdir)(vfs_dir_t *file, struct stat *sb);
   int (*fstatat)(vfs_dir_t *dir, const char *pathname, struct stat *statbuf, int flags);
-  int (*dirfd)(vfs_dir_t *dir);
 };
 
 struct vfs_backend;
@@ -132,11 +138,12 @@ int vfs_rename(vfs_fs_t *fs, const char *oldpath, const char *newpath);
 int vfs_access(vfs_fs_t *fs, const char *path, int mode);
 int vfs_utime(vfs_fs_t *fs, const char *fpath, time_t atime, time_t mtime);
 void *vfs_open_async(vfs_fs_t *fs, const char *path, int flags);
+vfs_file_t *vfs_async_getfile(vfs_fs_t *fs, void *handle);
+void vfs_async_cancel(vfs_fs_t *fs, void *handle);
 vfs_dir_t *vfs_opendir(vfs_fs_t *fs, const char *path);
 int vfs_get_dos_attr(vfs_fs_t *fs, const char *path, int mode);
 int vfs_set_dos_attr(vfs_fs_t *fs, const char *path, int attr);
 
-vfs_file_t *vfs_file_wrap_posix(int fd);
 
 int vfs_close(vfs_file_t *file);
 ssize_t vfs_read(vfs_file_t *file, void *buf, size_t count);
@@ -145,7 +152,6 @@ off_t vfs_lseek(vfs_file_t *file, off_t offset, int whence);
 int vfs_fstat(vfs_file_t *file, struct stat *sb);
 int vfs_ftruncate(vfs_file_t *file, off_t length);
 int vfs_fsync(vfs_file_t *file);
-int vfs_get_async_fd(vfs_file_t *file, void *handle);
 int vfs_flock(vfs_file_t *file, int op);
 int vfs_setlk(vfs_file_t *file, struct flock *fl);
 int vfs_getlk(vfs_file_t *file, struct flock *fl);
@@ -157,6 +163,11 @@ int vfs_readdir(vfs_dir_t *dir, struct vfs_dirent *de);
 int vfs_dir_has_sfn(vfs_dir_t *dir);
 int vfs_fstatat(vfs_dir_t *dir, const char *pathname, struct stat *statbuf, int flags);
 int vfs_fstatdir(vfs_dir_t *dir, struct stat *statbuf);
-int vfs_dirfd(vfs_dir_t *dir);
+/*
+ * Reads the rest of the directory into a sorted array of names, each
+ * malloc'd, and so is the array. Returns the number of entries, or -1.
+ */
+int vfs_scandir(vfs_dir_t *dir, char ***namelist,
+    int (*filter)(const char *name));
 
 #endif

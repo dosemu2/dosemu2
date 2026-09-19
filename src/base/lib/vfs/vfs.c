@@ -110,13 +110,6 @@ static int posix_file_fsync(vfs_file_t *file)
   return fsync(file->fd);
 }
 
-static int posix_file_get_async_fd(vfs_file_t *file, void *handle)
-{
-  if (file)
-    return file->fd;
-  return mfs_async_getfd(handle);
-}
-
 static int posix_file_flock(vfs_file_t *file, int op)
 {
   if (!file)
@@ -171,7 +164,6 @@ static const struct vfs_file_ops posix_file_ops = {
   .fstat = posix_file_fstat,
   .ftruncate = posix_file_ftruncate,
   .fsync = posix_file_fsync,
-  .get_async_fd = posix_file_get_async_fd,
   .flock = posix_file_flock,
 #if HAVE_DECL_F_OFD_SETLK
   .setlk = posix_file_setlk,
@@ -181,7 +173,7 @@ static const struct vfs_file_ops posix_file_ops = {
   .set_dos_attr = posix_file_set_dos_attr,
 };
 
-vfs_file_t *vfs_file_wrap_posix(int fd)
+static vfs_file_t *vfs_file_wrap_posix(int fd)
 {
   vfs_file_t *file;
   if (fd == -1)
@@ -275,21 +267,11 @@ static int posix_dir_fstatat(vfs_dir_t *dir, const char *pathname, struct stat *
   return fstatat(dir->fd, pathname, statbuf, flags);
 }
 
-static int posix_dir_dirfd(vfs_dir_t *dir)
-{
-  if (!dir)
-    return -1;
-  if (dir->d)
-    return dirfd(dir->d);
-  return dir->fd;
-}
-
 static const struct vfs_dir_ops posix_dir_ops = {
   .closedir = posix_dir_closedir,
   .readdir = posix_dir_readdir,
   .fstatdir = posix_dir_fstatdir,
   .fstatat = posix_dir_fstatat,
-  .dirfd = posix_dir_dirfd,
 };
 
 static vfs_dir_t *vfs_dir_wrap_posix(DIR *d, int fd)
@@ -381,6 +363,19 @@ static void *posix_fs_open_async(vfs_fs_t *fs, const char *path, int flags)
   return mfs_open_async(fs->mfs_idx, path, flags);
 }
 
+static vfs_file_t *posix_fs_async_getfile(vfs_fs_t *fs, void *handle)
+{
+  return vfs_file_wrap_posix(mfs_async_getfd(handle));
+}
+
+static void posix_fs_async_cancel(vfs_fs_t *fs, void *handle)
+{
+  int fd = mfs_async_getfd(handle);
+
+  if (fd != -1)
+    close(fd);
+}
+
 static vfs_dir_t *posix_fs_opendir(vfs_fs_t *fs, const char *path)
 {
   int dfd;
@@ -469,6 +464,8 @@ static const struct vfs_fs_ops posix_fs_ops = {
   .access = posix_fs_access,
   .utime = posix_fs_utime,
   .open_async = posix_fs_open_async,
+  .async_getfile = posix_fs_async_getfile,
+  .async_cancel = posix_fs_async_cancel,
   .opendir = posix_fs_opendir,
   .get_dos_attr = posix_fs_get_dos_attr,
   .set_dos_attr = posix_fs_set_dos_attr,
@@ -669,6 +666,20 @@ void *vfs_open_async(vfs_fs_t *fs, const char *path, int flags)
   return fs->ops->open_async(fs, path, flags);
 }
 
+vfs_file_t *vfs_async_getfile(vfs_fs_t *fs, void *handle)
+{
+  if (!fs || !fs->ops || !fs->ops->async_getfile)
+    return NULL;
+  return fs->ops->async_getfile(fs, handle);
+}
+
+void vfs_async_cancel(vfs_fs_t *fs, void *handle)
+{
+  if (!fs || !fs->ops || !fs->ops->async_cancel)
+    return;
+  fs->ops->async_cancel(fs, handle);
+}
+
 vfs_dir_t *vfs_opendir(vfs_fs_t *fs, const char *path)
 {
   if (!fs || !fs->ops || !fs->ops->opendir)
@@ -761,13 +772,6 @@ int vfs_fsync(vfs_file_t *file)
   return file->ops->fsync(file);
 }
 
-int vfs_get_async_fd(vfs_file_t *file, void *handle)
-{
-  if (!file || !file->ops || !file->ops->get_async_fd)
-    return -1;
-  return file->ops->get_async_fd(file, handle);
-}
-
 int vfs_flock(vfs_file_t *file, int op)
 {
   if (!file || !file->ops || !file->ops->flock)
@@ -822,9 +826,43 @@ int vfs_fstatat(vfs_dir_t *dir, const char *pathname, struct stat *statbuf, int 
   return dir->ops->fstatat(dir, pathname, statbuf, flags);
 }
 
-int vfs_dirfd(vfs_dir_t *dir)
+static int cmp_names(const void *a, const void *b)
 {
-  if (!dir || !dir->ops || !dir->ops->dirfd)
-    return -1;
-  return dir->ops->dirfd(dir);
+  return strcoll(*(char *const *)a, *(char *const *)b);
+}
+
+int vfs_scandir(vfs_dir_t *dir, char ***namelist,
+    int (*filter)(const char *name))
+{
+  struct vfs_dirent de;
+  char **list = NULL;
+  int num = 0;
+  int cap = 0;
+
+  while (vfs_readdir(dir, &de) == 0) {
+    if (filter && !filter(de.d_long_name))
+      continue;
+    if (num == cap) {
+      char **nl;
+
+      cap = cap ? cap * 2 : 32;
+      nl = realloc(list, cap * sizeof(*list));
+      if (!nl)
+        goto err;
+      list = nl;
+    }
+    list[num] = strdup(de.d_long_name);
+    if (!list[num])
+      goto err;
+    num++;
+  }
+  qsort(list, num, sizeof(*list), cmp_names);
+  *namelist = list;
+  return num;
+
+err:
+  while (num--)
+    free(list[num]);
+  free(list);
+  return -1;
 }
