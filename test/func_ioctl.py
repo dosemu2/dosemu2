@@ -25,7 +25,7 @@ rem end
 """.format(ename), newline="\r\n")
 
     testdir = self.mkworkdir('d')
-    iname = self.mkimage_vbr("16", cwd=testdir)
+    img = self.mkimage_vbr("16", cwd=testdir)
 
     testfpy = self.imagedir / "a.img"
     testfpy.write_bytes(b'\x00' * 1474560)
@@ -35,7 +35,7 @@ rem end
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
 $_floppy_a = "a.img"
 $_lfn_support = (off)
-""" % iname
+""" % img.name
 
     # compile sources
     self.mkcom_with_ia16(ename, r"""

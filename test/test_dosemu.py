@@ -59,7 +59,7 @@ from func_misc import (create_new_psp, passing_dos_errorlevel_back, passing_envi
                        systype)
 from func_mfs_directory import mfs_directory_common, mfs_get_current_directory
 from func_mfs_read_write import mfs_file_read, mfs_file_write
-from func_findfile import (mfs_findfile_ufs_lfn, mfs_findfile_ufs_sfn,
+from func_findfile import (ds2_findfirst_volume, mfs_findfile_ufs_lfn, mfs_findfile_ufs_sfn,
                            mfs_findfile_vfat_linux_mounted_lfn, mfs_findfile_vfat_linux_mounted_sfn,
                            sfn_findfirst)
 from func_serial import (serial_simple_read_echo, serial_simple_write_file,
@@ -826,6 +826,21 @@ class OurTestCase(BaseTestCase):
         """MFS DOSv2 findfirst dir not exists filename"""
         ds2_find_first(self, "MFS", "dir_not_exists_fn")
 
+    @mark(['ds2test', 'fattest', 'labeltest'])
+    def test_fat_ds2_findfirst_volume(self):
+        """FAT DOSv2 findfirst with volume attribute"""
+        ds2_findfirst_volume(self, "FAT")
+
+    @mark(['ds2test', 'labeltest', 'mfstest'])
+    def test_mfs_ds2_findfirst_volume(self):
+        """MFS DOSv2 findfirst with volume attribute"""
+        ds2_findfirst_volume(self, "MFS")
+
+    @mark(['ds2test', 'fattest', 'labeltest'])
+    def test_fat_ds2_findfirst_volume_exists(self):
+        """FAT DOSv2 findfirst with volume attribute and matching label"""
+        ds2_findfirst_volume(self, "FAT", exists=True)
+
     @mark(['fattest', 'ds2test'])
     def test_fat_ds2_find_mixed_wild_plain(self):
         """FAT DOSv2 findnext intermixed wild plain"""
@@ -1526,6 +1541,8 @@ DRDOS701TestCase = drdos701(OurTestCase, {
     "test_memory_hma_chain": UNSUPPORTED,
     "test_pcmos_build": KNOWNFAIL,
     "test_passing_dos_errorlevel_back": KNOWNFAIL,
+    "test_fat_ds2_findfirst_volume_exists": KNOWNFAIL,
+    "test_fat_ds2_findfirst_volume": KNOWNFAIL,
     "test_fat_label_create_bpb12": KNOWNFAIL,
     "test_fat_label_create_bpb16": KNOWNFAIL,
     "test_fat_label_create_bpb32": UNSUPPORTED,
@@ -1601,6 +1618,8 @@ FRDOS120TestCase = frdos120(OurTestCase, {
     "test_pcmos_build": KNOWNFAIL,
     r"test_libi86_item_\d+": KNOWNFAIL,
     "test_passing_dos_errorlevel_back": KNOWNFAIL,
+    "test_fat_ds2_findfirst_volume_exists": KNOWNFAIL,
+    "test_fat_ds2_findfirst_volume": KNOWNFAIL,
     "test_fat_label_create_bpb12": KNOWNFAIL,
     "test_fat_label_create_bpb16": KNOWNFAIL,
     "test_fat_label_create_bpb32": KNOWNFAIL,
@@ -1641,6 +1660,8 @@ FRDOS130TestCase = frdos130(OurTestCase, {
     "test_fat_fcb_rename_wild_2": KNOWNFAIL,
     "test_fat_fcb_rename_wild_3": KNOWNFAIL,
     "test_fat_fcb_rename_wild_4": KNOWNFAIL,
+    "test_fat_ds2_findfirst_volume_exists": KNOWNFAIL,
+    "test_fat_ds2_findfirst_volume": KNOWNFAIL,
     "test_fat_label_create_bpb12": KNOWNFAIL,
     "test_fat_label_create_bpb16": KNOWNFAIL,
     "test_fat_label_create_bpb32": KNOWNFAIL,

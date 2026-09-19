@@ -2,8 +2,6 @@
 
 from subprocess import check_output, STDOUT
 
-from common_framework import IMAGEDIR
-
 
 def label_create(self, fstype, itype):
     testdir = self.mkworkdir('d')
@@ -37,10 +35,11 @@ $_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d:hdtype1 +1"
 $_floppy_a = ""
 """
     else:       # FAT
+        image = self.mkimage_vbr(fat, cwd=testdir)
         config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s:partition +1"
 $_floppy_a = ""
-""" % self.mkimage_vbr(fat, cwd=testdir)
+""" % image.name
 
     self.mkfile("testit.bat", """\
 d:
@@ -171,11 +170,10 @@ int main(int argc, char *argv[])
             (name.upper(), name.upper()))
     elif itype in ['bpb12', 'bpb16', 'bpb32']:
         fat = itype[3:5]
-        img = self.topdir / IMAGEDIR / ("fat%s.img" % fat)
         try:
-            data = img.read_bytes()
+            data = image.read_bytes()
         except:
-            raise self.failureException("Read error on '%s'" % img.name) from None
+            raise self.failureException("Read error on '%s'" % image) from None
         if data[0x26] == 0x29:      # v4 BPB
             v1 = 0x2b
             v2 = v1 + len(name)
@@ -204,7 +202,7 @@ $_floppy_a = ""
         config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s:partition +1"
 $_floppy_a = ""
-""" % self.mkimage_vbr("12", cwd=testdir)
+""" % self.mkimage_vbr("12", cwd=testdir).name
 
     self.mkfile("testit.bat", """\
 d:
@@ -312,7 +310,7 @@ $_floppy_a = ""
         config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s:partition +1"
 $_floppy_a = ""
-""" % self.mkimage_vbr("12", cwd=testdir)
+""" % self.mkimage_vbr("12", cwd=testdir).name
 
     self.mkfile("testit.bat", """\
 d:
@@ -399,7 +397,7 @@ $_floppy_a = ""
         config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s:partition +1"
 $_floppy_a = ""
-""" % self.mkimage_vbr("12", cwd=testdir)
+""" % self.mkimage_vbr("12", cwd=testdir).name
 
     self.mkfile("testit.bat", """\
 d:
@@ -502,7 +500,7 @@ $_floppy_a = ""
         config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s:partition +1"
 $_floppy_a = ""
-""" % self.mkimage_vbr("12", cwd=testdir)
+""" % self.mkimage_vbr("12", cwd=testdir).name
 
     self.mkfile("testit.bat", """\
 d:
@@ -617,7 +615,7 @@ def label_create_on_lfns(self):
     config = """\
 $_hdimage = "dXXXXs/c:hdtype1 %s:partition +1"
 $_floppy_a = ""
-""" % image
+""" % image.name
 
     self.mkfile("testit.bat", """\
 d:
@@ -707,7 +705,7 @@ int main(int argc, char *argv[])
     self.assertNotIn("FAIL:", results)
 
     # Check afterwards with mtools that each lfn still exists
-    args = ['mdir', '-i', str(self.imagedir / image)]
+    args = ['mdir', '-i', f'{image}']
     output = check_output(args, timeout=5, stderr=STDOUT).decode(
         'ASCII', errors='backslashreplace')
     for n in names:

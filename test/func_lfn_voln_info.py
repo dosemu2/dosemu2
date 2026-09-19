@@ -4,12 +4,9 @@ def lfn_voln_info(self, fstype):
     testdir = self.mkworkdir('d')
     self.mkfile("foo.dat", "some content", dname=testdir)
 
-    if fstype == "FAT16":
-        name = self.mkimage_vbr("16", cwd=testdir)
-        config = """$_hdimage = "dXXXXs/c:hdtype1 %s +1"\n""" % name
-    elif fstype == "FAT32":
-        name = self.mkimage_vbr("32", cwd=testdir)
-        config = """$_hdimage = "dXXXXs/c:hdtype1 %s +1"\n""" % name
+    if fstype in ["FAT16", "FAT32"]:
+        image = self.mkimage_vbr(fstype[3:5], cwd=testdir)
+        config = """$_hdimage = "dXXXXs/c:hdtype1 %s +1"\n""" % image.name
     elif fstype == "MFS":
         config = """$_hdimage = "dXXXXs/c:hdtype1 dXXXXs/d +1"\n"""
     else:
