@@ -121,6 +121,8 @@ void vfs_set_short_names(int on);
 
 void vfs_register_backend(const struct vfs_backend *be);
 int vfs_bind(int mfs_idx, const char *path);
+/* whether some backend claims the path, without mounting it */
+int vfs_probe(const char *path);
 void vfs_done(void);
 
 vfs_fs_t *vfs_get_fs(int mfs_idx);
