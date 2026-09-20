@@ -80,13 +80,20 @@ static int pkt_receive(void);
 static enum VirqHwRet pkt_virq_receive(void *arg);
 static enum VirqSwRet pkt_receiver_callback(void *arg);
 static void pkt_receiver_callback_thr(void *arg);
+static void pkt_as_send_callback_thr(void *arg);
 static void pkt_register_net_fd_and_mode(int fd, int mode);
 static Bit32u PKTRcvCall_TID;
+static Bit32u PKTAsSendCall_TID;
 static Bit16u pkt_hlt_off;
 
 /* the most inclusive receive mode the back-end can give us */
 static unsigned short receive_mode;
 static int pkt_fd = -1;
+
+/* pending as_send_pkt() upcall */
+static Bit16u as_send_iocb_seg, as_send_iocb_off;
+static Bit16u as_send_xmit_cs, as_send_xmit_ip;
+static int as_send_busy;
 
 /* array used by virtual net to keep track of packet types */
 #define MAX_PKT_TYPE_SIZE 10
@@ -192,6 +199,8 @@ pkt_init(void)
 
     PKTRcvCall_TID = coopth_create("PKT_receiver_call",
 	pkt_receiver_callback_thr);
+    PKTAsSendCall_TID = coopth_create("PKT_as_send_call",
+	pkt_as_send_callback_thr);
 }
 
 /* number of currently allocated handles.  Some functions are only
@@ -231,6 +240,7 @@ pkt_reset(void)
     max_pkt_type_array = 0;
     for (handle = 0; handle < MAX_HANDLE; handle++)
         pg.handle[handle].in_use = 0;
+    as_send_busy = 0;
     pkt_iface_reset();
 }
 
@@ -517,6 +527,49 @@ static int pkt_int(void)
 	HI(dx) = E_BAD_COMMAND;
 	break;
 
+    case F_AS_SEND_PKT: {
+	dosaddr_t iocb = SEGOFF2LINEAR(SREG(es), LWORD(edi));
+	Bit16u bseg, boff, blen, xcs, xip;
+	Bit8u flags;
+
+	/* we have no transmit queue of our own: the packet is on the
+	 * wire by the time we return.  The only thing we cannot do
+	 * while an upcall is in progress is another upcall. */
+	if (as_send_busy) {
+	    HI(dx) = E_CANT_SEND;
+	    break;
+	}
+	boff = READ_WORD_S(iocb, struct pkt_iocb, buffer_off);
+	bseg = READ_WORD_S(iocb, struct pkt_iocb, buffer_seg);
+	blen = READ_WORD_S(iocb, struct pkt_iocb, length);
+	flags = READ_BYTE_S(iocb, struct pkt_iocb, flagbits);
+	xip = READ_WORD_S(iocb, struct pkt_iocb, xmitter_off);
+	xcs = READ_WORD_S(iocb, struct pkt_iocb, xmitter_seg);
+
+	/* an error detected here is reported via carry/DH and leaves
+	 * the iocb alone, and no upcall is made */
+	if (pkt_send(SEGOFF2LINEAR(bseg, boff), blen) < 0) {
+	    HI(dx) = E_CANT_SEND;
+	    break;
+	}
+	WRITE_BYTE_S(iocb, struct pkt_iocb, code, 0);
+	WRITE_BYTE_S(iocb, struct pkt_iocb, flagbits, flags | IOCB_DONE);
+	if ((flags & IOCB_UPCALL) && (xcs || xip)) {
+	    as_send_iocb_seg = SREG(es);
+	    as_send_iocb_off = LWORD(edi);
+	    as_send_xmit_cs = xcs;
+	    as_send_xmit_ip = xip;
+	    as_send_busy = 1;
+	    coopth_start(PKTAsSendCall_TID, NULL);
+	}
+	return 1;
+    }
+
+    case F_DROP_PKT:
+	/* nothing can ever be on the transmit queue, and the spec says
+	 * to signal no error when the iocb is not found */
+	return 1;
+
     case F_SET_RCV_MODE:
 	if (hdlp == NULL || !hdlp->in_use) {
 	    HI(dx) = E_BAD_HANDLE;
@@ -750,6 +803,18 @@ static void pkt_receiver_callback_thr(void *arg)
 out:
     p_helper_size = 0;
     REGS = rcv_saved_regs;
+}
+
+static void pkt_as_send_callback_thr(void *arg)
+{
+    struct vm86_regs as_saved_regs;
+
+    as_saved_regs = REGS;
+    _ES = as_send_iocb_seg;
+    _DI = as_send_iocb_off;
+    do_call_back(as_send_xmit_cs, as_send_xmit_ip);
+    REGS = as_saved_regs;
+    as_send_busy = 0;
 }
 
 /* the back-end hands us more than the handle asked for, so apply the

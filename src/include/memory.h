@@ -295,6 +295,8 @@ static inline void *LINEAR2UNIX(unsigned int addr)
 #define READ_WORD_S(b, s, m)	READ_WORD(b + offsetof(s, m))
 #define READ_DWORD_S(b, s, m)	READ_DWORD(b + offsetof(s, m))
 
+#define WRITE_BYTE_S(b, s, m, v)	WRITE_BYTE(b + offsetof(s, m), v)
+
 #define MEMCPY_P2UNIX(unix_addr, dos_addr, n) \
 	memcpy((unix_addr), (dos_addr), (n))
 

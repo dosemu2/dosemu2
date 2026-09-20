@@ -31,6 +31,8 @@ enum {
 #define F_RESET_IFACE	7
 #define F_GET_PARAMS	10
 #define F_OLD_AS_SEND	11	/* withdrawn in 1.10 */
+#define F_AS_SEND_PKT	12	/* added in 1.10 */
+#define F_DROP_PKT	13	/* added in 1.10 */
 #define F_SET_RCV_MODE	20
 #define F_GET_RCV_MODE	21
 #define F_SET_MCAST_LST	22
@@ -94,6 +96,23 @@ struct pkt_param {
     unsigned short  int_num;        /* Interrupt # to hook for post-EOI
 				       processing, 0 == none */
 };
+
+/* I/O control block passed to AS_SEND_PKT, laid out as DOS sees it */
+
+struct pkt_iocb {
+    uint16_t	buffer_off;	/* far pointer to the transmit buffer */
+    uint16_t	buffer_seg;
+    uint16_t	length;		/* length of buffer */
+    uint8_t	flagbits;	/* flag bits */
+    uint8_t	code;		/* error code */
+    uint16_t	xmitter_off;	/* far pointer to transmitter upcall */
+    uint16_t	xmitter_seg;
+    uint8_t	reserved[4];	/* future gather-write, must be zero */
+    uint8_t	private[8];	/* driver's private data */
+} __attribute__((packed));
+
+#define IOCB_DONE	0x01	/* driver is done with this iocb */
+#define IOCB_UPCALL	0x02	/* upcall wanted once DONE is set */
 
 /* return structure for GET_STATS */
 
