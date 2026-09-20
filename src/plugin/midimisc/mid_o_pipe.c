@@ -40,6 +40,10 @@ static int midopipe_init(void *arg)
 {
     const char *name = dosemu_midi_path;
 
+    if (!name) {
+        S_printf("%s: no run-time dir, not enabling midi pipe\n", midopipe_name);
+        return 0;
+    }
     if (mkfifo(name, 0640) == -1) {
         S_printf("Unable to mkfifo() '%s'\n", strerror(errno));
         return 0;
@@ -115,8 +119,5 @@ static const struct midi_out_plugin midopipe
 
 CONSTRUCTOR(static void midopipe_register(void))
 {
-    if (dosemu_midi_path && dosemu_midi_in_path)
-        midi_register_output_plugin(&midopipe, ST_ANY);
-    else
-        warn("not enabling midi pipe\n");
+    midi_register_output_plugin(&midopipe, ST_ANY);
 }
