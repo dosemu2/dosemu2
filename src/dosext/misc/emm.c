@@ -63,6 +63,7 @@
 #include "int.h"
 #include "hlt.h"
 #include "pic.h"
+#include "vgaemu.h"
 
 #define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
@@ -232,6 +233,7 @@ static u_short os_key2=0xddcc;
 static u_short os_allow=1;
 
 static inline int unmap_page(int);
+static int jemm_hidden(int);
 static int get_map_registers(struct emm_reg *buf, int pages);
 static int set_map_registers(const struct emm_reg *buf, int pages);
 
@@ -589,6 +591,12 @@ __map_page(int physical_page)
   base = PHYS_PAGE_ADDR(physical_page);
   logical = handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
+  if (jemm_hidden(physical_page)) {
+    E_printf("EMS: window 0x%01x stays behind the video memory\n",
+	     physical_page);
+    return (TRUE);
+  }
+
   _do_map_page(base, logical, EMM_PAGE_SIZE);
   return (TRUE);
 }
@@ -609,6 +617,12 @@ __unmap_page(int physical_page)
            physical_page,handle,emm_map[physical_page].logical_page);
 
   base = PHYS_PAGE_ADDR(physical_page);
+
+  if (jemm_hidden(physical_page)) {
+    E_printf("EMS: window 0x%01x was behind the video memory\n",
+	     physical_page);
+    return (TRUE);
+  }
 
   _do_unmap_page(base, EMM_PAGE_SIZE);
 
@@ -2554,17 +2568,40 @@ void ems_reset(void)
  * in protected mode and 'SM' drops back to v86 through VCPI, while MyJEMM
  * keeps the game in v86 and swaps the page table for the first 4M instead.
  * We are the monitor ourselves, and we own the whole window region already,
- * so the windows are simply real memory the whole time: the client's writes
- * through DOS's view of memory have to stay where they landed, which is what
- * it relies on when it loads an overlay and then switches back.  'SM' and
- * 'sm' only carry the state byte, which the client reads to decide whether
- * its own record of the windows can be trusted.
+ * so a window is simply real memory that stays where it is: the client's
+ * writes through either view have to stay where they landed, which is what it
+ * relies on when it loads an overlay and then switches back.  The one region
+ * that cannot be shared is the video aperture, and there the state byte says
+ * who has it; see jemm_set_state() below.
  */
 #define JEMM_FN(a, b) (((a) << 8) | (b))
 #define JEMM_VERSION 0x0436	/* the JEMM.OVL the games carry */
 
+/* The window array covers the video aperture at 0xa0000-0xbffff, as real
+ * JEMM's does, and the video memory and a window cannot both be there.  The
+ * state byte picks which: the client selects the DOS view before it calls the
+ * BIOS or draws, and JEMM's own view before it touches a window over the
+ * aperture, and Privateer's high heap goes to pieces if the two are mixed up.
+ * Every window outside the aperture stays mapped either way, because nothing
+ * of ours is left in that part of the first megabyte. */
+#define JEMM_VIDEO_BASE 0xa0000
+#define JEMM_VIDEO_TOP 0xc0000
+
 static unsigned short jemm_state_seg, jemm_state_off;
-static int jemm_view;
+static int jemm_dos_view;
+
+static int jemm_aperture(int physical_page)
+{
+  unsigned base = PHYS_PAGE_ADDR(physical_page);
+
+  return base < JEMM_VIDEO_TOP && base + EMM_PAGE_SIZE > JEMM_VIDEO_BASE;
+}
+
+/* a window the video memory is sitting in front of right now */
+static int jemm_hidden(int physical_page)
+{
+  return config.jemm && jemm_dos_view && jemm_aperture(physical_page);
+}
 
 static void jemm_init(void)
 {
@@ -2583,13 +2620,27 @@ static void jemm_init(void)
   jemm_state_off = DOSEMU_LMHEAP_OFFS_OF(p);
 }
 
-static void jemm_set_state(int on)
+static void jemm_set_state(int dos)
 {
-  if (on != jemm_view) {
-    E_printf("JEMM: view %s\n", on ? "on" : "off");
-    jemm_view = on;
+  if (dos != jemm_dos_view) {
+    int i, moved = 0;
+
+    E_printf("JEMM: %s view\n", dos ? "DOS" : "window");
+    jemm_dos_view = dos;
+    for (i = 0; i < phys_pages; i++) {
+      if (!jemm_aperture(i) || emm_map[i].handle == NULL_HANDLE)
+	continue;
+      if (dos)
+	_do_unmap_page(PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
+      else
+	__map_page(i);
+      moved++;
+    }
+    /* put the video memory back where we took it from */
+    if (dos && moved)
+      vgaemu_map_bank();
   }
-  WRITE_BYTE(SEGOFF2LINEAR(jemm_state_seg, jemm_state_off), on);
+  WRITE_BYTE(SEGOFF2LINEAR(jemm_state_seg, jemm_state_off), dos);
 }
 
 /* returns 1 when the call was ours, 0 to let int 15h carry on */
@@ -2614,14 +2665,14 @@ int jemm_api(void)
     LWORD(edi) = jemm_state_off;
     break;
 
-  case JEMM_FN('S', 'M'):	/* switch to JEMM's view of memory */
-    prev = jemm_view;
+  case JEMM_FN('S', 'M'):	/* switch to DOS's view of memory */
+    prev = jemm_dos_view;
     jemm_set_state(1);
     LWORD(ebx) = prev;
     break;
 
-  case JEMM_FN('s', 'm'):	/* and back to the DOS one */
-    prev = jemm_view;
+  case JEMM_FN('s', 'm'):	/* and back to JEMM's own */
+    prev = jemm_dos_view;
     jemm_set_state(0);
     LWORD(ebx) = prev;
     break;
