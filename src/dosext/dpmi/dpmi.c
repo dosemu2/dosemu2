@@ -2235,13 +2235,35 @@ void *dpmi_ext_get_fake_gdt_buf(unsigned *limit)
 static struct {
     dosaddr_t base;
     unsigned limit;
+    unsigned char *buf;
 } fake_idt;
 
-void dpmi_ext_set_fake_idt(dosaddr_t base, unsigned limit)
+void dpmi_ext_set_fake_idt(dosaddr_t base, unsigned limit, void *buf)
 {
     D_printf("DPMI: fake idt at %#x lim %#x\n", base, limit);
     fake_idt.base = base;
     fake_idt.limit = limit;
+    fake_idt.buf = buf;
+}
+
+/* The pharlap clients do not trust 0204 to tell them what they set with
+ * 0205: ultima 8 reads the gate back out of the table itself. So keep the
+ * table in step, on the writable side of the page. */
+static void fake_idt_set_gate(int num, DPMI_INTDESC desc, int is32)
+{
+    unsigned char *g;
+
+    if (!fake_idt.buf || num * 8 + 7 > fake_idt.limit)
+	return;
+    g = fake_idt.buf + num * 8;
+    g[0] = desc.offset32;
+    g[1] = desc.offset32 >> 8;
+    g[2] = desc.selector;
+    g[3] = desc.selector >> 8;
+    g[4] = 0;
+    g[5] = is32 ? 0xee : 0xe6;	/* present, dpl 3, interrupt gate */
+    g[6] = is32 ? desc.offset32 >> 16 : 0;
+    g[7] = is32 ? desc.offset32 >> 24 : 0;
 }
 
 int dpmi_ext_get_fake_idt(dosaddr_t *base, unsigned *limit)
@@ -2884,6 +2906,7 @@ err:
     desc.selector = _LWORD(ecx);
     desc.offset32 = API_16_32(_edx);
     dpmi_set_interrupt_vector(_LO(bx), desc);
+    fake_idt_set_gate(_LO(bx), desc, API_32(scp));
     break;
   }
   case 0x0210: {	/* Get Ext Processor Exception Handler Vector - PM */

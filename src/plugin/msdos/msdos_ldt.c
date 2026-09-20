@@ -246,7 +246,8 @@ unsigned short msdos_ldt_init(int page_size)
 	fake_gdt_set_bios();
 	dpmi_ext_set_fake_gdt(gdt_alias, FAKE_GDT_LEN - 1, FAKE_GDT_LDT_SEL,
 		gdt_backbuf);
-	dpmi_ext_set_fake_idt(gdt_alias + FAKE_IDT_OFS, FAKE_IDT_LEN - 1);
+	dpmi_ext_set_fake_idt(gdt_alias + FAKE_IDT_OFS, FAKE_IDT_LEN - 1,
+		gdt_backbuf + FAKE_IDT_OFS);
     }
     return dpmi_ldt_alias;
 }
@@ -269,7 +270,7 @@ void msdos_ldt_done(void)
     DPMIUnmapHWRam(ldt_bb);
     if (gdt_backbuf) {
 	dpmi_ext_set_fake_gdt(0, 0, 0, NULL);
-	dpmi_ext_set_fake_idt(0, 0);
+	dpmi_ext_set_fake_idt(0, 0, NULL);
 	gdt_backbuf = NULL;
 	DPMIUnmapHWRam(gdt_alias);
 	DPMIUnmapHWRam(gdt_bb);
