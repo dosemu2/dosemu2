@@ -204,6 +204,51 @@ void pkt_term(void)
     CloseNetworkLink(pkt_fd);
 }
 
+/* Put the frame the DOS side composed at "addr" onto the wire.
+ * Returns 0 on success, -1 on a transmit error. */
+static int pkt_send(dosaddr_t addr, unsigned len)
+{
+    char *buf = LINEAR2UNIX(addr);
+    int novell = 0;
+
+    p_stats->packets_out++;
+    p_stats->bytes_out += len;
+
+    pd_printf("========Sending packet======\n");
+    if ((pg.flags & FLAG_NOVELL) && len >= 2 * ETH_ALEN + 6) /* Novell hack? */
+    {
+	    char *p;
+	    short elen;
+
+	    p = buf + 2 * ETH_ALEN;	/* point to protocol type */
+
+	    if (p[0] == (char)(ETH_P_IPX >> 8) &&
+		p[1] == (char)ETH_P_IPX &&
+		p[2] == (char)0xff && p[3] == (char)0xff)
+	    {
+		/* it is a Novell Ethernet-II packet, make it */
+		/* "raw 802.3" by overwriting type with length */
+
+		elen = (p[4] << 8) | (unsigned char)p[5];
+		elen = (elen + 1) & ~1; /* make length even */
+		p[0] = elen >> 8;
+		p[1] = (char)elen;
+		novell = 1;
+	    }
+    }
+    /* after the translation, so we log what actually goes on the wire */
+    printbuf("packet to send:", (struct ethhdr *)buf, len, novell);
+
+    if (pkt_write(pkt_fd, buf, len) >= 0) {
+	pd_printf("Write to net was ok\n");
+	return 0;
+    }
+
+    warn("WriteToNetwork(len=%u): error %d\n", len, errno);
+    p_stats->errors_out++;
+    return -1;
+}
+
 /* this is the handler for INT calls from DOS to the packet driver */
 static int pkt_int(void)
 {
@@ -379,49 +424,12 @@ static int pkt_int(void)
 	hdlp->in_use = 0;	/* no longer in use */
 	return 1;
 
-    case F_SEND_PKT: {
-	int novell = 0;
-
-	p_stats->packets_out++;
-	p_stats->bytes_out += LWORD(ecx);
-
-	pd_printf("========Sending packet======\n");
-	if (pg.flags & FLAG_NOVELL)	/* Novell hack? */
-	{
-		    char *p;
-		    short len;
-
-		    p = SEG_ADR((char *),ds,si);
-		    p += 2 * ETH_ALEN;	/* point to protocol type */
-
-		    if (p[0] == (char)(ETH_P_IPX >> 8) &&
-			p[1] == (char)ETH_P_IPX &&
-			p[2] == (char)0xff && p[3] == (char)0xff)
-		    {
-			/* it is a Novell Ethernet-II packet, make it */
-			/* "raw 802.3" by overwriting type with length */
-
-			len = (p[4] << 8) | (unsigned char)p[5];
-			len = (len + 1) & ~1; /* make length even */
-			p[0] = len >> 8;
-			p[1] = (char)len;
-			novell = 1;
-		    }
-	}
-	/* after the translation, so we log what actually goes on the wire */
-	printbuf("packet to send:", SEG_ADR((struct ethhdr *), ds, si),
-		LWORD(ecx), novell);
-
-	if (pkt_write(pkt_fd, SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
-	    pd_printf("Write to net was ok\n");
+    case F_SEND_PKT:
+	if (pkt_send(SEGOFF2LINEAR(SREG(ds), LWORD(esi)), LWORD(ecx)) == 0)
 	    return 1;
-	}
 
-	warn("WriteToNetwork(len=%u): error %d\n", LWORD(ecx), errno);
-	p_stats->errors_out++;
 	HI(dx) = E_CANT_SEND;
-    }
-    break;
+	break;
 
     case F_TERMINATE:
 	if (hdlp == NULL || !hdlp->in_use)
