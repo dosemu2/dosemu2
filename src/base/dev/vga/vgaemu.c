@@ -1696,12 +1696,12 @@ int vga_emu_pre_init(void)
   vga.mem.mda_text_size = MDA_TEXT_SIZE;
   vga.mem.text_base = VGA_PHYS_TEXT_BASE;
   vga.mem.text_size = VGA_TEXT_SIZE;
-  if (config.umb_a0)
+  if (config.umb_a0 || config.dumb_video)
     munmap_mapping_pa(MAPPING_INIT_LOWRAM, GRAPH_BASE, GRAPH_SIZE);
-  if (config.umb_b0)
+  if (config.umb_b0 || config.dumb_video)
     munmap_mapping_pa(MAPPING_INIT_LOWRAM, MDA_PHYS_TEXT_BASE,
         MDA_TEXT_SIZE);
-  if (config.umb_b8)
+  if (config.umb_b8 || config.dumb_video)
     munmap_mapping_pa(MAPPING_INIT_LOWRAM, VGA_PHYS_TEXT_BASE,
         VGA_TEXT_SIZE);
 
