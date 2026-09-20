@@ -336,6 +336,7 @@ hma			RETURN(HMA);
 dos_up			RETURN(DOS_UP);
 ems			RETURN(L_EMS);
 vcpi			RETURN(L_VCPI);
+jemm			RETURN(L_JEMM);
 dpmi			RETURN(L_DPMI);
 dpmi_base		RETURN(DPMI_BASE);
 pm_dos_api		RETURN(PM_DOS_API);
