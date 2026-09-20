@@ -207,7 +207,7 @@ void SetSegProt_set(int ofs, unsigned long sel)
 	        e_printf("Small segment %#lx in 32-bit mode\n",sel);
 	}
 	if (sel < 4) {
-	    sd->BoundL = 0xc0000000;
+	    sd->BoundL = NULLSEG_BASE;
 	    sd->BoundH = sd->BoundL;
 	}
 	else if (!(wFlags & DF_USER)) { /* must be GDT now */

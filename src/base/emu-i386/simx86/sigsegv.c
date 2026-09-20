@@ -297,6 +297,34 @@ static int e_emu_pagefault(sigcontext_t *scp, int pmode)
     return 0;
 }
 
+/* A null selector is legal in DS..GS and faults only when something is
+ * addressed through it. The jit checks no segment limits, so instead of a
+ * check SetSegProt_set() poisons the shadow base with NULLSEG_BASE and
+ * lets the access run off into unmapped memory. Nothing turned that fault
+ * back into an exception, so it reached the generic "bad fault address"
+ * path and took dosemu down with it. A 286|DOS-Extender client gets here
+ * often enough to matter: it hands the fault to its own handler. */
+int e_emu_nullseg_fault(sigcontext_t *scp, void *addr)
+{
+    static const int ofs[] = {Ofs_ES, Ofs_CS, Ofs_SS, Ofs_DS, Ofs_FS, Ofs_GS};
+    dosaddr_t cr2 = EMUADDR_REL(LINP(addr));
+    int i;
+
+    if (!InCompiledCode || (cr2 & 0xffff0000) != NULLSEG_BASE)
+        return 0;
+    for (i = 0; i < 6; i++) {
+        SDTR *sd = (SDTR *)CPUOFFS(e_ofsseg(ofs[i]));
+        if (sd->BoundL == NULLSEG_BASE && sd->BoundH == sd->BoundL)
+            break;
+    }
+    if (i == 6)
+        return 0;
+    e_printf("null segment access at offset %#x\n", cr2 - NULLSEG_BASE);
+    TheCPU.scp_err = 0;
+    TheCPU.err = EXCP0D_GPF;
+    return e_return_from_jit(scp, 1);
+}
+
 int e_emu_fault(sigcontext_t *scp, int in_vm86)
 {
     /* Possibilities:
