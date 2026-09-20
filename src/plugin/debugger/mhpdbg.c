@@ -92,6 +92,15 @@ static void mhp_putc(char c1)
     sendptr++;
 }
 
+/* The terminal prints its prompt when the reply to the command it sent
+ * is complete, so every command gets a terminator, even the ones that
+ * print nothing at all. */
+static void mhp_eor(void)
+{
+  mhp_putc(MHP_EOR);
+  mhp_send();
+}
+
 void mhp_send(void)
 {
   if (sendptr) {
@@ -328,6 +337,7 @@ static void mhp_poll_loop(void)
         break;
       mhp_cmd(ptr1);
       mhp_send();
+      mhp_eor();
     }
     nbytes = 0;
   }

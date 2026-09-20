@@ -75,6 +75,9 @@ static inline void mhp_adjust_revectored(int inum)
 int vmhp_log_intercept(const char *fmt, va_list args);
 
 #define MHP_BUFFERSIZE 8192
+/* Sent to the terminal after the reply to one command is complete, so
+ * that it knows when to print its prompt. Also defined in dosdebug.c. */
+#define MHP_EOR 0x00
 struct mhpdbg {
   int active;
   unsigned long flags;

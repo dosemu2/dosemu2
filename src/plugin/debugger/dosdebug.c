@@ -33,6 +33,8 @@
 #define    TMPFILE_VAR		"%s/dosemu2/dosemu."
 
 #define MHP_BUFFERSIZE 8192
+/* End of the reply to one command; see MHP_EOR in mhpdbg.h */
+#define MHP_EOR 0x00
 
 #define FOREVER ((((unsigned int)-1) >> 1) / CLOCKS_PER_SEC)
 #define KILL_TIMEOUT 2
@@ -44,6 +46,8 @@ const char *prompt = "dosdebug> ";
 int fdconin, fddbgin, fddbgout;
 FILE *fpconout;
 static int running;
+/* commands sent to dosemu whose reply has not arrived in full yet */
+static int pending;
 
 static int find_dosemu_pid(const char *tmpfile, int local)
 {
@@ -371,14 +375,23 @@ static void handle_console_input(char *line)
   /* Pass to dosemu */
   if (dprintf(fddbgout, "%s\n", p) == -1) {
     fprintf(fpconout, "write to pipe failed (%s)\n", strerror(errno));
+    return;
   }
+
+  /* Hold the prompt back until dosemu is done with this command. Printing
+   * it right away puts it ahead of the output it belongs to, which leaves
+   * a script reading up to the prompt with the previous command's reply. */
+  pending++;
+#ifdef HAVE_LIBREADLINE
+  rl_set_prompt("");
+#endif
 }
 
 /* returns 0: done, 1: more to do */
 static int handle_dbg_input(int *retval)
 {
   char buf[MHP_BUFFERSIZE];
-  int n;
+  int n, i, len;
 
   *retval = 0;
   n = read(fddbgin, buf, sizeof(buf));
@@ -401,12 +414,31 @@ static int handle_dbg_input(int *retval)
     rl_redisplay();
 #endif
 
-    fwrite(buf, 1, n, fpconout);
-    fputs("\n", fpconout);
+    /* Split at the end of reply markers. What precedes one completes the
+     * reply to a command, so the prompt goes out right behind it, once
+     * per command; a chunk with no marker is a reply still coming in. */
+    for (i = 0; i < n; i += len + 1) {
+      char *eor = memchr(buf + i, MHP_EOR, n - i);
+
+      len = eor ? eor - (buf + i) : n - i;
+      if (len) {
+        fwrite(buf + i, 1, len, fpconout);
+        fputs("\n", fpconout);
+      }
+      if (!eor)
+        break;
+      if (pending)
+        pending--;
+#ifdef HAVE_LIBREADLINE
+      rl_set_prompt(prompt);
+      rl_redisplay();
+      rl_set_prompt("");
+#endif
+    }
     fflush(fpconout);
 
 #ifdef HAVE_LIBREADLINE
-    rl_set_prompt(prompt);
+    rl_set_prompt(pending ? "" : prompt);
     rl_replace_line(saved_line, 0);
     rl_point = saved_point;
     rl_redisplay();
@@ -440,6 +472,10 @@ int main (int argc, char **argv)
   }
 
   FD_ZERO(&readfds);
+
+  /* the r0 sent below is outstanding from the start, and its reply is
+   * what carries the banner, so the first prompt waits for it too */
+  pending = 1;
 
   if (!argv[1]) {
     char fname[256];
@@ -479,8 +515,9 @@ int main (int argc, char **argv)
   /* Install the readline completion function */
   rl_attempted_completion_function = db_completion;
 
-  /* Install the readline handler. */
-  rl_callback_handler_install(prompt, rl_console_callback);
+  /* Install the readline handler. The prompt starts out empty: the r0
+   * below is already outstanding, and its reply carries the banner. */
+  rl_callback_handler_install("", rl_console_callback);
 
   fdconin = fileno(rl_instream);
   fpconout = rl_outstream;
