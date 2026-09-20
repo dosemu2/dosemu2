@@ -601,9 +601,10 @@ static int map_append_trunc(struct ext_map *m, off_t len)
  * over the tree when the archive is mounted:
  *
  *   op        '+' a file that is not in the archive, 'd' a directory,
- *             '-' a name that is gone
+ *             '-' a name that is gone, 'r' a name that moved
  *   id        which chunk file holds it, for '+' and 'd'
- *   name      the entry's path inside the archive, not terminated
+ *   name      the entry's path inside the archive, not terminated.
+ *             'r' carries the old path, a NUL, then the new one
  *
  * Replaying in order is what makes it work: creating, deleting and
  * creating again is three records and ends up right, and no record
@@ -631,10 +632,13 @@ static int log_open(struct zipfs *zfs, int create)
   return zfs->log_fd;
 }
 
-static int log_append(struct zipfs *zfs, int op, int id, const char *name)
+/* name2 is only for 'r', and goes after the first name and a NUL */
+static int log_append(struct zipfs *zfs, int op, int id, const char *name,
+    const char *name2)
 {
   unsigned char *rec;
-  int len = strlen(name);
+  int len1 = strlen(name);
+  int len = len1 + (name2 ? 1 + strlen(name2) : 0);
   int ret;
 
   if (len > LOG_MAX_NAME) {
@@ -654,14 +658,18 @@ static int log_append(struct zipfs *zfs, int op, int id, const char *name)
   rec[5] = (id >> 8) & 0xff;
   rec[6] = (id >> 16) & 0xff;
   rec[7] = (id >> 24) & 0xff;
-  memcpy(rec + LOG_HDR_LEN, name, len);
+  memcpy(rec + LOG_HDR_LEN, name, len1);
+  if (name2) {
+    rec[LOG_HDR_LEN + len1] = '\0';
+    memcpy(rec + LOG_HDR_LEN + len1 + 1, name2, len - len1 - 1);
+  }
   ret = write(zfs->log_fd, rec, LOG_HDR_LEN + len);
   free(rec);
   return ret == LOG_HDR_LEN + len ? 0 : -1;
 }
 
-/* drop a node from its parent's list and free it */
-static void node_unlink(struct zip_node *n)
+/* drop a node from its parent's list, leaving the node itself whole */
+static void node_detach(struct zip_node *n)
 {
   struct zip_node **pp;
 
@@ -674,7 +682,60 @@ static void node_unlink(struct zip_node *n)
     }
   }
   n->next = NULL;
+}
+
+/* drop a node from its parent's list and free it */
+static void node_unlink(struct zip_node *n)
+{
+  if (!n->parent)
+    return;
+  node_detach(n);
   node_free(n);
+}
+
+/*
+ * Moves a node, and with it its whole subtree, to another name. What
+ * the overlay holds for an entry is named by the entry's index in the
+ * archive or by the id the log gave it, and the path takes no part in
+ * either, so a rename never has to touch the data.
+ */
+static void node_rename(struct zipfs *zfs, const char *from, const char *to)
+{
+  struct zip_node *n = node_walk(zfs, from, 0);
+  struct zip_node *dir, *old, *up;
+  const char *base = strrchr(to, '/');
+  char *name, *prefix;
+
+  if (!n || !n->parent)
+    return;
+  prefix = strndup(to, base ? base - to : 0);
+  if (!prefix)
+    return;
+  if (base)
+    base++;
+  else
+    base = to;
+  dir = *base ? node_walk(zfs, prefix, 1) : NULL;
+  free(prefix);
+  if (!dir || !dir->is_dir)
+    return;
+  /* a directory can not be moved inside itself */
+  for (up = dir; up; up = up->parent) {
+    if (up == n)
+      return;
+  }
+  name = strdup(base);
+  if (!name)
+    return;
+  old = node_find(dir, base, strlen(base));
+  if (old && old != n)
+    node_unlink(old);
+  node_detach(n);
+  free(n->name);
+  n->name = name;
+  n->parent = dir;
+  n->next = dir->child;
+  dir->child = n;
 }
 
 static void log_apply(struct zipfs *zfs, int op, int id, const char *name)
@@ -720,13 +781,23 @@ static void log_replay(struct zipfs *zfs)
 
     if (len < 1 || len > LOG_MAX_NAME)
       break;
-    if ((hdr[0] != '+' && hdr[0] != '-' && hdr[0] != 'd') || hdr[1])
+    if ((hdr[0] != '+' && hdr[0] != '-' && hdr[0] != 'd' &&
+        hdr[0] != 'r') || hdr[1])
       break;
     pos += sizeof(hdr);
     if (pread(zfs->log_fd, name, len, pos) != len)
       break;
     pos += len;
     name[len] = '\0';
+    if (hdr[0] == 'r') {
+      char *sep = memchr(name, '\0', len);
+
+      /* both names have to be there for the record to mean anything */
+      if (!sep || sep == name || sep == name + len - 1)
+        break;
+      node_rename(zfs, name, sep + 1);
+      continue;
+    }
     log_apply(zfs, hdr[0], id, name);
   }
 }
@@ -1274,7 +1345,7 @@ static vfs_file_t *zip_fs_creat(vfs_fs_t *fs, const char *path, int flags,
       errno = ENOENT;
       return NULL;
     }
-    if (log_append(zfs, '+', zfs->next_id, rel) != 0)
+    if (log_append(zfs, '+', zfs->next_id, rel, NULL) != 0)
       return NULL;
     log_apply(zfs, '+', zfs->next_id, rel);
     if (!lookup(fs, path)) {
@@ -1305,7 +1376,7 @@ static int zip_fs_unlink(vfs_fs_t *fs, const char *path)
     errno = EISDIR;
     return -1;
   }
-  if (log_append(zfs, '-', 0, rel) != 0)
+  if (log_append(zfs, '-', 0, rel, NULL) != 0)
     return -1;
   node_unlink(n);
   return 0;
@@ -1324,7 +1395,7 @@ static int zip_fs_mkdir(vfs_fs_t *fs, const char *path, mode_t mode)
     errno = EEXIST;
     return -1;
   }
-  if (log_append(zfs, 'd', zfs->next_id, rel) != 0)
+  if (log_append(zfs, 'd', zfs->next_id, rel, NULL) != 0)
     return -1;
   log_apply(zfs, 'd', zfs->next_id, rel);
   return 0;
@@ -1348,15 +1419,60 @@ static int zip_fs_rmdir(vfs_fs_t *fs, const char *path)
     errno = ENOTEMPTY;
     return -1;
   }
-  if (log_append(zfs, '-', 0, rel) != 0)
+  if (log_append(zfs, '-', 0, rel, NULL) != 0)
     return -1;
   node_unlink(n);
   return 0;
 }
 
+/*
+ * Only the tree and the log move; the chunk file and its map stay put,
+ * since neither is named after the path. A name outside this archive
+ * means the data itself has to move, which only the caller can do.
+ */
 static int zip_fs_rename(vfs_fs_t *fs, const char *oldpath, const char *newpath)
 {
-  return zip_fs_ro();
+  struct zipfs *zfs = fs->priv;
+  struct zip_node *n = lookup(fs, oldpath);
+  const char *from = rel_path(fs, oldpath);
+  const char *to = rel_path(fs, newpath);
+  struct zip_node *old, *dir;
+  const char *base;
+  char *prefix;
+
+  if (!n || !from || !n->parent) {
+    errno = ENOENT;
+    return -1;
+  }
+  if (!to) {
+    errno = EXDEV;
+    return -1;
+  }
+  if (!*to) {
+    errno = EISDIR;
+    return -1;
+  }
+  /* the case of a name is the one thing a rename may change in place */
+  old = lookup(fs, newpath);
+  if (old && old != n) {
+    errno = EEXIST;
+    return -1;
+  }
+  /* a rename does not make the directories on the way to the new name */
+  base = strrchr(to, '/');
+  prefix = strndup(to, base ? base - to : 0);
+  if (!prefix)
+    return -1;
+  dir = node_walk(zfs, prefix, 0);
+  free(prefix);
+  if (!dir || !dir->is_dir) {
+    errno = ENOENT;
+    return -1;
+  }
+  if (log_append(zfs, 'r', 0, from, to) != 0)
+    return -1;
+  node_rename(zfs, from, to);
+  return 0;
 }
 
 static int zip_fs_utime(vfs_fs_t *fs, const char *path, time_t atime,
