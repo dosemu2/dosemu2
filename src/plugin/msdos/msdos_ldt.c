@@ -371,7 +371,12 @@ static void direct_ldt_write(cpuctx_t *scp, int offset,
   if (!(lp[5] & 0x80)) {
     D_printf("LDT: NP\n");
     memcpy(lp, &ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
-    if (lp[5] & 0x80)
+    /* A present entry with S=0 is not a descriptor the host LDT can hold,
+     * so the branch below stores it as not-present and keeps the client's
+     * bytes here. That is the arrangement working as intended, not a cache
+     * that drifted: a 286|DOS-Extender free list is made of such entries
+     * and would otherwise shout on every write to one. */
+    if ((lp[5] & 0x90) == 0x90)
       error("DPMI: ldt cache out of sync\n");
   }
   /* The client writes its descriptors a byte or two at a time, so most of
