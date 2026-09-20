@@ -59,6 +59,20 @@ section .text
     call    puthex8
     call    crlf
 
+    mov     ax, 0DE0Ah              ; 8259A interrupt vector mappings
+    int     67h
+    or      ah, ah
+    jnz     node0a
+    mov     si, mpic
+    call    puts
+    mov     ax, bx
+    call    puthex16
+    mov     al, '/'
+    call    putc
+    mov     ax, cx
+    call    puthex16
+    call    crlf
+
     xor     bx, bx                  ; logical page 0 mapped, ask for it
     call    map_page
     call    do_de06
@@ -115,6 +129,10 @@ novcpi:
     jmp     release
 node06:
     mov     si, mnode06
+    call    puts
+    jmp     release
+node0a:
+    mov     si, mnode0a
     call    puts
     jmp     release
 done:
@@ -313,6 +331,7 @@ buf         times 8 db '?'
 gdt         times 48 db 0
 
 mvcpi       db 'VCPI=',0
+mpic        db 'PIC=',0
 mphys0      db 'PHYS0=',0
 mphys1      db 'PHYS1=',0
 mpage0      db 'PAGE0=',0
@@ -320,6 +339,7 @@ mpage1      db 'PAGE1=',0
 mnoems      db 'NOEMS',13,10,0
 mnovcpi     db 'NOVCPI',13,10,0
 mnode06     db 'NODE06',13,10,0
+mnode0a     db 'NODE0A',13,10,0
 mnomap      db 'NOMAP',13,10,0
 mnomove     db 'NOMOVE',13,10,0
 """)
@@ -342,7 +362,13 @@ $_vcpi = (on)
     self.assertNotIn("NOVCPI", results, "VCPI not announced with $_vcpi = (on)")
     self.assertNotIn("NODE06", results, "int 67h AX=DE06h failed")
 
+    self.assertNotIn("NODE0A", results, "int 67h AX=DE0Ah failed")
+
     self.assertIn("VCPI=01.00", results)
+
+    # The BIOS maps the PICs at 0x08 and 0x70, and so does the JEMM these
+    # clients are written for.
+    self.assertIn("PIC=0008/0070", results)
 
     # Each logical page gets its own physical address, above the first
     # megabyte, not the address of the window they share.
