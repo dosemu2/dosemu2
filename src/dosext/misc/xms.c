@@ -90,6 +90,11 @@ static struct Handle handles[NUM_HANDLES];
 static int handle_count;
 static int intdrv;
 static int ext_hooked_hma;
+/* An EMB costs whole pages, because that is what the window pool hands out
+ * when the block is locked.  Count it that way here too: counting the
+ * unrounded sizes lets a client allocate a block that no longer fits, and
+ * the failure then surfaces at lock time, where XMS has no way left to say
+ * "out of memory". */
 static int totalBytes;
 static void *pgapool;
 
@@ -792,7 +797,7 @@ xms_allocate_EMB(int api)
   if (kbsize == 0) {
     x_printf("XMS WARNING: allocating 0 size EMB\n");
     return 0xa0;
-  } else if (totalBytes + size > config.xms_size * 1024) {
+  } else if (totalBytes + (int)PAGE_ALIGN(size) > config.xms_size * 1024) {
     error("XMS: OOM allocating %i bytes EMB\n", size);
     return 0xa0;
   } else {
@@ -801,7 +806,7 @@ xms_allocate_EMB(int api)
       x_printf("XMS: out of memory\n");
       return 0xa0; /* Out of memory */
     }
-    totalBytes += size;
+    totalBytes += PAGE_ALIGN(size);
   }
   handles[h].num = h;
   handles[h].size = size;
@@ -836,7 +841,7 @@ xms_free_EMB(void)
     return 0xa2;
   }
   else {
-    totalBytes -= handles[h].size;
+    totalBytes -= PAGE_ALIGN(handles[h].size);
     do_free_EMB(h);
     handle_count--;
 
@@ -1013,11 +1018,11 @@ xms_realloc_EMB(int api)
     newsize = REG(ebx) * 1024;
   if (newsize == handles[h].size)
     return 0;
-  if (totalBytes < handles[h].size) {
+  if (totalBytes < (int)PAGE_ALIGN(handles[h].size)) {
     error("XMS: accounting inconsistency\n");
     return 0xa0; /* Out of memory */
   }
-  delta = newsize - handles[h].size;
+  delta = PAGE_ALIGN(newsize) - PAGE_ALIGN(handles[h].size);
   if (totalBytes + delta > config.xms_size * 1024) {
     error("XMS: OOM reallocating %i bytes EMB\n", delta);
     return 0xa0;
