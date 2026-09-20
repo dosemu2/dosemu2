@@ -66,6 +66,12 @@ static unsigned short d16, d32;
  * it straight into ds. */
 #define FAKE_GDT_BIOS_SEL 0x40
 #define FAKE_GDT_LEN (FAKE_GDT_BIOS_SEL + LDT_ENTRY_SIZE)
+/* and an IDT in the second half of the same page: the clients read sidt
+ * too, and a 286 extender takes limit+1 as a 16-bit byte count, so the
+ * 0xffff the emulator reports comes out as zero and its "map the tables"
+ * step fails. 256 gates is what a real one has. */
+#define FAKE_IDT_OFS 0x800
+#define FAKE_IDT_LEN 0x800
 static unsigned char *gdt_backbuf;
 static dosaddr_t gdt_bb;
 static dosaddr_t gdt_alias;
@@ -134,7 +140,7 @@ static void fake_gdt_init(int page_size)
     gdt_h = shm.handle;
     gdt_bb = shm.addr;
     gdt_backbuf = LINEAR2UNIX(gdt_bb);
-    memset(gdt_backbuf, 0, FAKE_GDT_LEN);
+    memset(gdt_backbuf, 0, page_size);
 
     shm.flags = SHM_NOEXEC;
     err = DPMIAllocateShared(&shm);
@@ -238,6 +244,7 @@ unsigned short msdos_ldt_init(int page_size)
 	fake_gdt_set_bios();
 	dpmi_ext_set_fake_gdt(gdt_alias, FAKE_GDT_LEN - 1, FAKE_GDT_LDT_SEL,
 		gdt_backbuf);
+	dpmi_ext_set_fake_idt(gdt_alias + FAKE_IDT_OFS, FAKE_IDT_LEN - 1);
     }
     return dpmi_ldt_alias;
 }
@@ -260,6 +267,7 @@ void msdos_ldt_done(void)
     DPMIUnmapHWRam(ldt_bb);
     if (gdt_backbuf) {
 	dpmi_ext_set_fake_gdt(0, 0, 0, NULL);
+	dpmi_ext_set_fake_idt(0, 0);
 	gdt_backbuf = NULL;
 	DPMIUnmapHWRam(gdt_alias);
 	DPMIUnmapHWRam(gdt_bb);

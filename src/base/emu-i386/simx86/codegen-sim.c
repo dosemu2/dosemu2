@@ -3393,10 +3393,18 @@ stack_return_from_vm86:
 			    }
 			    }
 			    break;
-			case 1: /* SIDT */
+			case 1: { /* SIDT */
 			    /* Store Interrupt Descriptor Table Register */
-			    sim_write_word(mem_ref, TheCPU.IDTR.Limit);
-			    sim_write_dword(mem_ref+2, TheCPU.IDTR.Base);
+			    dosaddr_t ib;
+			    unsigned il;
+			    if (dpmi_ext_get_fake_idt(&ib, &il)) {
+				sim_write_word(mem_ref, il);
+				sim_write_dword(mem_ref+2, ib);
+			    } else {
+				sim_write_word(mem_ref, TheCPU.IDTR.Limit);
+				sim_write_dword(mem_ref+2, TheCPU.IDTR.Base);
+			    }
+			    }
 			    break;
 			}
 			break;

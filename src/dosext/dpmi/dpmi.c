@@ -2232,6 +2232,27 @@ void *dpmi_ext_get_fake_gdt_buf(unsigned *limit)
     return fake_gdt.buf;
 }
 
+static struct {
+    dosaddr_t base;
+    unsigned limit;
+} fake_idt;
+
+void dpmi_ext_set_fake_idt(dosaddr_t base, unsigned limit)
+{
+    D_printf("DPMI: fake idt at %#x lim %#x\n", base, limit);
+    fake_idt.base = base;
+    fake_idt.limit = limit;
+}
+
+int dpmi_ext_get_fake_idt(dosaddr_t *base, unsigned *limit)
+{
+    if (!fake_idt.base)
+	return 0;
+    *base = fake_idt.base;
+    *limit = fake_idt.limit;
+    return 1;
+}
+
 /* A selector the client picked out of the fake GDT is not in the LDT, so
  * the checks below would call it garbage. Vouch for the ones our own table
  * describes as present data segments. */
@@ -6103,6 +6124,13 @@ static int dpmi_fault1(cpuctx_t *scp)
               val[3] = fake_gdt.base >> 8;
               val[4] = fake_gdt.base >> 16;
               val[5] = fake_gdt.base >> 24;
+            } else if (csp[0] == 1 && ext == 1 && fake_idt.base) {	/* sidt */
+              val[0] = fake_idt.limit;
+              val[1] = fake_idt.limit >> 8;
+              val[2] = fake_idt.base;
+              val[3] = fake_idt.base >> 8;
+              val[4] = fake_idt.base >> 16;
+              val[5] = fake_idt.base >> 24;
             } else if (csp[0] == 1 && ext == 4) {	/* smsw */
               val[0] = 1;				/* CR0.PE */
             }

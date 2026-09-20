@@ -161,8 +161,7 @@ static int _SetSegProt_check(int ofs, unsigned long sel)
 	    dt = pm_gdt();
 	    if ((dt == NULL) || ((sel & 0xfff8) > TheCPU.GDTR.Limit) ||
 		(dt[sel>>3].S == 0)) {
-		e_printf("Invalid GDT selector %#lx (dt=%p lim=%x)\n", sel,
-			dt, TheCPU.GDTR.Limit);
+		e_printf("Invalid GDT selector %#lx\n", sel);
 		return EXCP0D_GPF;
 	    }
 	    /* data and non-conforming code need DPL >= max(CPL, RPL) */
