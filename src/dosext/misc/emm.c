@@ -56,6 +56,7 @@
 #include "memory.h"
 #include "mapping/mapping.h"
 #include "misc/pgalloc.h"
+#include "lowmem.h"
 #include "emm.h"
 #include "dos2linux.h"
 #include "utilities.h"
@@ -2532,6 +2533,103 @@ void ems_reset(void)
   ems_reset2();
 }
 
+
+/* JEMM, the memory manager Origin shipped with Privateer and Strike
+ * Commander, has a private API that is not an int 67h extension at all: it
+ * lives on int 15h AX=1209h, with a two-letter function code in BX.  The
+ * games probe for it with BX='AC' before they make a single EMS call and
+ * print "Type PRIV to run Privateer" or "Type SC to run Strike Commander"
+ * when it does not answer, which is what has kept them from starting here.
+ *
+ * Only the functions the games use are implemented, and their meaning was
+ * read off MyJEMM, the Win9x reimplementation: under DOS, JEMM runs the game
+ * in protected mode and 'SM' drops back to v86 through VCPI, while MyJEMM
+ * keeps the game in v86 and swaps the page table for the first 4M instead.
+ * We are the monitor ourselves, so we follow MyJEMM: 'SM' and 'sm' only
+ * track the state byte for now, and the remapping is not implemented.
+ */
+#define JEMM_FN(a, b) (((a) << 8) | (b))
+#define JEMM_VERSION 0x0436	/* the JEMM.OVL the games carry */
+
+static unsigned short jemm_state_seg, jemm_state_off;
+static int jemm_mapped;
+
+static void jemm_init(void)
+{
+  unsigned char *p;
+
+  if (!config.jemm)
+    return;
+  p = lowmem_alloc(1);
+  if (!p) {
+    error("JEMM: cannot allocate the state byte\n");
+    config.jemm = 0;
+    return;
+  }
+  *p = 0;
+  jemm_state_seg = DOSEMU_LMHEAP_SEG;
+  jemm_state_off = DOSEMU_LMHEAP_OFFS_OF(p);
+}
+
+static void jemm_set_state(int on)
+{
+  jemm_mapped = on;
+  WRITE_BYTE(SEGOFF2LINEAR(jemm_state_seg, jemm_state_off), on);
+}
+
+/* returns 1 when the call was ours, 0 to let int 15h carry on */
+int jemm_api(void)
+{
+  int prev;
+
+  switch (LWORD(ebx)) {
+  case JEMM_FN('A', 'C'):	/* are you there */
+    LWORD(eax) = 0;
+    LWORD(ebx) = 0x1209;
+    LWORD(ecx) = 6;
+    break;
+
+  case JEMM_FN('V', 'E'):	/* version */
+    LWORD(eax) = JEMM_VERSION;
+    break;
+
+  case JEMM_FN('F', 'F'):	/* address of the state byte */
+    LWORD(eax) = 0;
+    SREG(es) = jemm_state_seg;
+    LWORD(edi) = jemm_state_off;
+    break;
+
+  case JEMM_FN('S', 'M'):	/* switch to JEMM's view of memory */
+    prev = jemm_mapped;
+    jemm_set_state(1);
+    LWORD(ebx) = prev;
+    break;
+
+  case JEMM_FN('s', 'm'):	/* and back to the DOS one */
+    prev = jemm_mapped;
+    jemm_set_state(0);
+    LWORD(ebx) = prev;
+    break;
+
+  case JEMM_FN('G', 'S'):
+    LWORD(eax) = 1;
+    break;
+
+  case JEMM_FN('S', 'F'):
+    LWORD(eax) = 0;
+    break;
+
+  case JEMM_FN('S', 'R'):	/* nothing to restore */
+    break;
+
+  default:
+    E_printf("JEMM: unimplemented function %c%c from %04x:%04x\n",
+	     HI(bx), LO(bx), SREG(cs), LWORD(eip));
+    return 0;
+  }
+  return 1;
+}
+
 void ems_init(void)
 {
   int i;
@@ -2555,6 +2653,7 @@ void ems_init(void)
   E_printf("EMS: initializing memory\n");
 
   vcpi_pool_init();
+  jemm_init();
 
   memcheck_addtype('E', "EMS page frame");
   /* set up standard EMS frame in UMA */

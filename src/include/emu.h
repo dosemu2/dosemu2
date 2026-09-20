@@ -277,6 +277,7 @@ typedef struct config_info {
        unsigned int ems_frame;
        int ems_uma_pages, ems_cnv_pages;
        int vcpi;
+       int jemm;
        int dpmi, pm_dos_api, no_null_checks;
        uint32_t dpmi_base;
        int dos_up;
