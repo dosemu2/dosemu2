@@ -288,6 +288,30 @@ static void cb_buttons(void *opaque, uint32_t buttons)
     ev_push(&e);
 }
 
+/*
+ * How much of the screen the client could draw out of its own cache rather
+ * than be sent again.  Logged when a viewer leaves and when the plugin
+ * shuts down, because it is the number that says whether a remote session
+ * is usable or a slideshow.
+ */
+static void log_cache_stats(void)
+{
+    unsigned long hits, misses;
+
+    SDLSpice_GetCacheStats(display, &hits, &misses, NULL, NULL);
+    if (hits + misses)
+        v_printf("SPICE: image cache %lu hits, %lu misses (%lu%%)\n",
+                 hits, misses, 100 * hits / (hits + misses));
+}
+
+static void cb_client(void *opaque, SDLSpice_ClientEvent ev, uint32_t id)
+{
+    v_printf("SPICE: client %u %s\n", id,
+             ev == SDLSPICE_CLIENT_CONNECTED ? "connected" : "disconnected");
+    if (ev == SDLSPICE_CLIENT_DISCONNECTED && !SDLSpice_NumClients(server))
+        log_cache_stats();
+}
+
 static void cb_wheel(void *opaque, int dz, uint32_t buttons)
 {
     struct ev e = { .type = EV_WHEEL, .a = dz };
@@ -458,6 +482,8 @@ int spice_sdl_init(void)
         return -1;
     }
 
+    SDLSpice_SetClientCallback(server, cb_client, NULL);
+
     memset(&cbs, 0, sizeof(cbs));
     cbs.scancode = cb_scancode;
     cbs.motion_abs = cb_motion_abs;
@@ -485,6 +511,8 @@ void spice_sdl_done(void)
     if (!spice_on)
         return;
     spice_on = 0;
+
+    log_cache_stats();
 
     SDLSpice_DestroyAudio(audio);
     audio = NULL;
