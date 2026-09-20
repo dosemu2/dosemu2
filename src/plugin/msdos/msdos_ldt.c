@@ -73,6 +73,7 @@ static unsigned short d16, d32;
 #define FAKE_IDT_OFS 0x800
 #define FAKE_IDT_LEN 0x800
 static unsigned char *gdt_backbuf;
+static int gdt_page_size;
 static dosaddr_t gdt_bb;
 static dosaddr_t gdt_alias;
 static uint32_t gdt_h;
@@ -140,6 +141,7 @@ static void fake_gdt_init(int page_size)
     gdt_h = shm.handle;
     gdt_bb = shm.addr;
     gdt_backbuf = LINEAR2UNIX(gdt_bb);
+    gdt_page_size = page_size;
     memset(gdt_backbuf, 0, page_size);
 
     shm.flags = SHM_NOEXEC;
@@ -391,8 +393,31 @@ out:
   dpmi_ext_ldt_monitor_enable(1);
 }
 
+/* The fake GDT and IDT share one read-only page, so a client that writes
+ * a descriptor or a gate faults here rather than scribbling where nothing
+ * reads it back. Unlike the LDT there is no host table to keep in step:
+ * the backbuffer is the table, and simx86 re-reads it on every use. */
+static int fake_gdt_access(dosaddr_t cr2)
+{
+    return gdt_backbuf && cr2 >= gdt_alias &&
+	    cr2 < gdt_alias + gdt_page_size;
+}
+
+static void fake_gdt_direct_write(dosaddr_t cr2, const char *buf, int len)
+{
+    unsigned off = cr2 - gdt_alias;
+
+    if (off + len > gdt_page_size)
+	len = gdt_page_size - off;
+    D_printf("DPMI: direct %s write, off=%#x len=%i\n",
+	    off >= FAKE_IDT_OFS ? "idt" : "gdt", off, len);
+    memcpy(gdt_backbuf + off, buf, len);
+}
+
 int _msdos_ldt_access(dosaddr_t cr2)
 {
+    if (fake_gdt_access(cr2))
+	return 1;
     if (!ldt_alias)
         return 0;
     return cr2 >= ldt_alias && cr2 < ldt_alias + LDT_ENTRIES * LDT_ENTRY_SIZE;
@@ -404,6 +429,10 @@ void _msdos_ldt_write(cpuctx_t *scp, uint32_t op, int len,
     if (!len) {
 	/* 0-len shouldn't fault, so can't be here */
 	error("LDT: zero len write?\n");
+	return;
+    }
+    if (fake_gdt_access(cr2)) {
+	fake_gdt_direct_write(cr2, (char *)&op, len);
 	return;
     }
     direct_ldt_write(scp, cr2 - ldt_alias, (char *)&op, len);
