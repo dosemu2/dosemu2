@@ -132,6 +132,8 @@ Init:
 	je	.LumbSysTooOld
 	cmpb	$UMB_ERROR_UNKNOWN_OPTION, %bl
 	je	.LunknownOption
+	cmpb	$UMB_ERROR_UMBS_UNAVAIL, %bl
+	je	.LnoUmbs
 	/* already initialized */
 	movb	$9, %ah
 	movw	$UmbAlreadyLoadedMsg, %dx
@@ -150,6 +152,16 @@ Init:
 3:
 	xorw 	%ax, %ax
 	ret
+
+/* There is no upper memory left to hand out, which is what happens when the
+ * EMS page frame covers the whole of it, as it does under $_jemm.  That is not
+ * a reason to give up: the XMS driver is installed from here too, and dropping
+ * it would leave DOS with no extended memory at all. */
+.LnoUmbs:
+	movb	$9, %ah
+	movw	$NoUmbsMsg, %dx
+	int	$0x21
+	jmp	1b
 
 .LdosemuTooOld:
 	movb	$9, %ah
@@ -194,6 +206,9 @@ UmbSysTooOldMsg:
 
 UmbInstalledMsg:
 	.ascii	"dosemu UMB driver installed\r\n$"
+
+NoUmbsMsg:
+	.ascii	"dosemu UMB driver: no upper memory available\r\n$"
 
 UnknownOptionMsg:
 	.ascii	"ERROR: unknown option in command line\r\n$"
