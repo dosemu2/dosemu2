@@ -208,6 +208,17 @@ static int pkt_handles_open(void)
     return num;
 }
 
+/* bring the interface back to its initial state */
+static void pkt_iface_reset(void)
+{
+    int handle;
+
+    memcpy(pg.hw_address, rom_hw_address, sizeof(pg.hw_address));
+    mcast_len = 0;
+    for (handle = 0; handle < MAX_HANDLE; handle++)
+	pg.handle[handle].rcv_mode = receive_mode;
+}
+
 void
 pkt_reset(void)
 {
@@ -220,10 +231,7 @@ pkt_reset(void)
     max_pkt_type_array = 0;
     for (handle = 0; handle < MAX_HANDLE; handle++)
         pg.handle[handle].in_use = 0;
-    memcpy(pg.hw_address, rom_hw_address, sizeof(pg.hw_address));
-    mcast_len = 0;
-    for (handle = 0; handle < MAX_HANDLE; handle++)
-	pg.handle[handle].rcv_mode = receive_mode;
+    pkt_iface_reset();
 }
 
 void pkt_term(void)
@@ -453,6 +461,10 @@ static int pkt_int(void)
 
 	Remove_Type(hdlp_handle);
 	hdlp->in_use = 0;	/* no longer in use */
+	/* the per-interface settings only live as long as somebody is
+	 * using the interface, so do not leave them to the next stack */
+	if (pkt_handles_open() == 0)
+	    pkt_iface_reset();
 	return 1;
 
     case F_SEND_PKT:
@@ -480,12 +492,19 @@ static int pkt_int(void)
 	return 1;
 
     case F_RESET_IFACE:
-	if (hdlp == NULL || !hdlp->in_use)
+	if (hdlp == NULL || !hdlp->in_use) {
 	    HI(dx) = E_BAD_HANDLE;
-	else
+	    break;
+	}
+	/* resetting would pull the station address, the multicast list
+	 * and the receive mode from under anyone else using the
+	 * interface, so only do it for the last man standing. */
+	if (pkt_handles_open() > 1) {
 	    HI(dx) = E_CANT_RESET;
-
-	break;
+	    break;
+	}
+	pkt_iface_reset();
+	return 1;
 
     case F_GET_PARAMS:
 	SREG(es) = PKTDRV_SEG;
