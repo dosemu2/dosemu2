@@ -85,6 +85,8 @@ struct ext_map {
   int cap;
   int fd;               // the map file, -1 until there is one
   off_t consumed;       // how much of it is already in v[]
+  off_t size;           // the entry's length now
+  off_t arc_valid;      // how much of the archive's copy still counts
 };
 
 struct zip_file {
@@ -418,6 +420,8 @@ out:
  * on load for the same reason.
  */
 #define EXT_REC_LEN 16
+/* in a length, says the record is a truncation to its offset instead */
+#define EXT_TRUNC (1ULL << 63)
 
 static void put64(unsigned char *p, uint64_t v)
 {
@@ -482,6 +486,28 @@ static int map_add(struct ext_map *m, off_t off, off_t end)
   return 0;
 }
 
+/*
+ * Cut the entry to len. What the overlay owns above that is dropped,
+ * and so is the archive's copy above it, permanently: growing the
+ * entry again must not bring the old bytes back, it must read as
+ * zeros, which is what DOS gets when it seeks past the end and writes.
+ */
+static void map_truncate(struct ext_map *m, off_t len)
+{
+  int i;
+
+  for (i = 0; i < m->n; i++) {
+    if (m->v[i].off >= len)
+      break;
+    if (m->v[i].end > len)
+      m->v[i].end = len;
+  }
+  m->n = i;
+  if (len < m->arc_valid)
+    m->arc_valid = len;
+  m->size = len;
+}
+
 /* take in whatever has been appended since the last look, ours or not */
 static void map_load(struct ext_map *m)
 {
@@ -495,15 +521,24 @@ static void map_load(struct ext_map *m)
   while (m->consumed < whole) {
     if (pread(m->fd, rec, sizeof(rec), m->consumed) != sizeof(rec))
       return;
+    uint64_t raw = get64(rec + 8);
     off_t off = get64(rec);
-    off_t len = get64(rec + 8);
+    off_t len = raw & ~EXT_TRUNC;
 
     m->consumed += sizeof(rec);
     /* the file is ours, but a truncated or scribbled record must not
      * be able to make us read outside the entry */
-    if (off < 0 || len <= 0 || off + len < off)
+    if (off < 0)
+      continue;
+    if (raw & EXT_TRUNC) {
+      map_truncate(m, off);
+      continue;
+    }
+    if (len <= 0 || off + len < off)
       continue;
     map_add(m, off, off + len);
+    if (off + len > m->size)
+      m->size = off + len;
   }
 }
 
@@ -512,7 +547,7 @@ static void map_load(struct ext_map *m)
  * that a crash between the two loses the write rather than pointing
  * the map at a range the chunk file never received.
  */
-static int map_append(struct ext_map *m, off_t off, off_t len)
+static int map_write_rec(struct ext_map *m, off_t off, uint64_t len)
 {
   unsigned char rec[EXT_REC_LEN];
 
@@ -523,7 +558,24 @@ static int map_append(struct ext_map *m, off_t off, off_t len)
   if (write(m->fd, rec, sizeof(rec)) != sizeof(rec))
     return -1;
   m->consumed += sizeof(rec);
+  return 0;
+}
+
+static int map_append(struct ext_map *m, off_t off, off_t len)
+{
+  if (map_write_rec(m, off, len) != 0)
+    return -1;
+  if (off + len > m->size)
+    m->size = off + len;
   return map_add(m, off, off + len);
+}
+
+static int map_append_trunc(struct ext_map *m, off_t len)
+{
+  if (map_write_rec(m, len, EXT_TRUNC) != 0)
+    return -1;
+  map_truncate(m, len);
+  return 0;
 }
 
 /*
@@ -599,15 +651,9 @@ static void ovl_refresh(struct zip_file *zf)
   map_load(&zf->map);
 }
 
-/* the entry is as long as the archive says, unless the overlay wrote
- * past that */
 static off_t ovl_size(struct zip_file *zf)
 {
-  off_t size = zf->node->size;
-
-  if (zf->map.n && zf->map.v[zf->map.n - 1].end > size)
-    size = zf->map.v[zf->map.n - 1].end;
-  return size;
+  return zf->map.size;
 }
 
 static int zf_close(vfs_file_t *file)
@@ -660,7 +706,7 @@ static int read_overlay(struct zip_file *zf, void *buf, off_t off,
 static ssize_t zf_read(vfs_file_t *file, void *buf, size_t count)
 {
   struct zip_file *zf = (struct zip_file *)file;
-  off_t arc_left = zf->node->size - zf->pos;
+  off_t arc_left = zf->map.arc_valid - zf->pos;
   off_t left = ovl_size(zf) - zf->pos;
   ssize_t ret;
 
@@ -668,8 +714,8 @@ static ssize_t zf_read(vfs_file_t *file, void *buf, size_t count)
     return 0;
   if ((off_t)count > left)
     count = left;
-  /* past the end of the archive's copy there is only the overlay, and
-   * anything it does not own reads as zeros */
+  /* past the part of the archive's copy that still counts there is
+   * only the overlay, and what it does not own reads as zeros */
   if (arc_left < 0)
     arc_left = 0;
   if ((off_t)count > arc_left)
@@ -778,12 +824,6 @@ static int zf_fstat(vfs_file_t *file, struct stat *sb)
   return 0;
 }
 
-/*
- * Only growing is supported, which is what a DOS program does when it
- * seeks past the end and writes. Shrinking would have to record that a
- * range stops existing, and the map has no way to say that yet, so it
- * is refused rather than silently left to the archive.
- */
 static int zf_ftruncate(vfs_file_t *file, off_t length)
 {
   struct zip_file *zf = (struct zip_file *)file;
@@ -793,16 +833,23 @@ static int zf_ftruncate(vfs_file_t *file, off_t length)
     errno = EBADF;
     return -1;
   }
-  if (length < ovl_size(zf)) {
-    errno = EPERM;
-    return -1;
-  }
   if (length == ovl_size(zf))
     return 0;
   fd = ovl_chunk_fd(zf, 1);
   if (fd == -1) {
     errno = EROFS;
     return -1;
+  }
+  /*
+   * Shrinking records first and cuts after: a crash in between leaves
+   * a chunk file longer than the map says, which is harmless, where
+   * the other order would leave the map pointing past its end.
+   * Growing is the write case and goes the usual way round.
+   */
+  if (length < ovl_size(zf)) {
+    if (map_append_trunc(&zf->map, length) != 0)
+      return -1;
+    return ftruncate(fd, length);
   }
   if (ftruncate(fd, length) == -1)
     return -1;
@@ -979,15 +1026,16 @@ static vfs_file_t *zip_fs_open(vfs_fs_t *fs, const char *path, int flags)
   zf->node = n;
   zf->chunk_fd = -1;
   zf->map.fd = -1;
+  zf->map.size = zf->map.arc_valid = n->size;
   zf->writable = (flags & O_ACCMODE) != O_RDONLY;
   /* an earlier run, or another instance, may already own part of this
    * entry; reading has to see that without creating anything */
   ovl_refresh(zf);
-  if ((flags & O_TRUNC) && zf->writable) {
-    /* the archive's copy can not be thrown away, and the map can not
-     * say that a range is gone, so this would quietly keep serving it */
+  if ((flags & O_TRUNC) && zf->writable && zf_ftruncate(&zf->vfile, 0) != 0) {
+    int err = errno;
+
     zf_close(&zf->vfile);
-    errno = EPERM;
+    errno = err;
     return NULL;
   }
 
@@ -1032,11 +1080,20 @@ static vfs_file_t *zip_fs_open(vfs_fs_t *fs, const char *path, int flags)
   return &zf->vfile;
 }
 
+/*
+ * The usual DOS way of rewriting a file is to create over it, so this
+ * is the same as opening an existing entry and truncating it. A name
+ * that is not in the archive still can not be made: the overlay has
+ * nowhere to put an entry of its own yet.
+ */
 static vfs_file_t *zip_fs_creat(vfs_fs_t *fs, const char *path, int flags,
     mode_t mode)
 {
-  errno = EROFS;
-  return NULL;
+  if (!lookup(fs, path)) {
+    errno = EROFS;
+    return NULL;
+  }
+  return zip_fs_open(fs, path, (flags & ~O_CREAT) | O_RDWR | O_TRUNC);
 }
 
 static int zip_fs_ro(void)
