@@ -61,6 +61,7 @@
 #include "utilities.h"
 #include "int.h"
 #include "hlt.h"
+#include "pic.h"
 
 #define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
@@ -2069,6 +2070,15 @@ static void vcpi_interface(struct vm86_regs *state)
 	       page, (unsigned)state->edx);
       break;
     }
+
+  case 0x0a:			/* get 8259A interrupt vector mappings */
+    /* whatever the PICs were last programmed with: the client asks because
+       it is about to take over the interrupt tables, and DOS programs do
+       remap the PICs. */
+    SETHI_BYTE(state->eax, EMM_NO_ERR);
+    SETLO_WORD(state->ebx, pic0_get_base());
+    SETLO_WORD(state->ecx, pic1_get_base());
+    break;
 
   default:
     /* Everything else, the protected-mode entry above all, needs a real
