@@ -37,6 +37,7 @@
 #include "pktdrvr.h"
 #include "ne2000.h"
 #include "ipx.h"
+#include "ndis.h"
 #include "sound.h"
 #include "joystick.h"
 #include "emm.h"
@@ -85,6 +86,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "ipx",      ipx_init,    NULL,          ipx_close },
 #endif
   { "packet driver", pkt_init, pkt_reset,   pkt_term },
+  { "ndis",    ndis_init,    ndis_reset,    ndis_term },
   { "tcp driver", emutcp_init, emutcp_reset, emutcp_done },
   { "ne2000",  ne2000_init,  ne2000_reset,  ne2000_done },
   { "ems",     ems_init,     ems_reset,     NULL },
