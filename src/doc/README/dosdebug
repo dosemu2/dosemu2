@@ -346,6 +346,11 @@ prefixing  a `0'.
 	  set mode (0=SEG16, 1=LIN32) for u and d commands
 +d enables DPMI mode (default on startup),
 -d disables DPMI mode.
+With neither +d nor -d in force, addresses are read as selectors only
+while dosemu is stopped in DPMI; in the running state the current CPU
+mode is not sampled, as the debugger polls at an arbitrary point, so
+seg:off is read as a real mode segment unless +d or the '#' prefix says
+otherwise.
 </para>
 </listitem></varlistentry>
 <varlistentry>
