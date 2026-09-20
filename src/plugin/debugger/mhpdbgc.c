@@ -82,6 +82,7 @@ static int old_cbrk_on;
 static void print_log_breakpoints(void);
 static unsigned int mhp_getadr(char *, dosaddr_t *, unsigned int *,
     unsigned int *, unsigned int *, int);
+static int bp_exists(unsigned int);
 static unsigned long mhp_getreg(regnum_t);
 static int decode_symreg(char *, regnum_t *, int *);
 
@@ -113,6 +114,8 @@ static struct {
 int user_symbol_num;
 
 static int trapped_bp = -1, trapped_bp_;
+/* one shot breakpoint that 't' uses to step over an int in protected mode */
+static unsigned int trace_bp;
 
 int traceloop = 0;
 char loopbuf[4] = "";
@@ -815,11 +818,11 @@ static void mhp_trace(int argc, char *argv[])
   if (!check_for_stopped())
     return;
 
-  mhpdbgc.stopped = 0;
-  if (in_dpmi_pm())
-    dpmi_mhp_setTF(1);
-  else
-    set_TF();
+  if (trace_bp) {
+    /* the step over of the previous 't' never came back */
+    mhp_clearbp(trace_bp);
+    trace_bp = 0;
+  }
 
   if (!strcmp(argv[0], "ti")) {
     mhpdbgc.trapcmd = 1;
@@ -828,6 +831,37 @@ static void mhp_trace(int argc, char *argv[])
   }
 
   mhpdbgc.trapip = mhp_getcsip_value();
+
+  /* A plain 't' over an int in protected mode cannot be done with TF:
+   * the handler returns with an iret, which begins executing with TF
+   * already cleared, so the trap fires one instruction past the one we
+   * wanted, and for an int 31h that dosemu serves itself it fires in
+   * dosemu's own stub. Step over it the way 'g' would, with a break-
+   * point on the instruction after the int.
+   */
+  if (in_dpmi_pm() && mhpdbgc.trapcmd == 2 &&
+      READ_BYTE(mhpdbgc.trapip) == 0xcd) {
+    unsigned int next = mhpdbgc.trapip + 2;
+    /* if the user already has a breakpoint there, it stops us just as
+     * well, and it is not ours to remove afterwards */
+    int own = !bp_exists(next);
+
+    if (!own || mhp_setbp(next)) {
+      if (own)
+        trace_bp = next;
+      mhpdbgc.trapcmd = 0;
+      mhpdbgc.stopped = 0;
+      dpmi_mhp_setTF(0);
+      mhp_bpset();
+      return;
+    }
+  }
+
+  mhpdbgc.stopped = 0;
+  if (in_dpmi_pm())
+    dpmi_mhp_setTF(1);
+  else
+    set_TF();
 
   if (!in_dpmi_pm()) {
     unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
@@ -1966,6 +2000,17 @@ static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1,
   return 1;
 }
 
+static int bp_exists(unsigned int seekval)
+{
+  int i1;
+
+  for (i1 = 0; i1 < MAXBP; i1++) {
+    if (mhpdbgc.brktab[i1].brkaddr == seekval && mhpdbgc.brktab[i1].is_valid)
+      return 1;
+  }
+  return 0;
+}
+
 int mhp_setbp(unsigned int seekval)
 {
   int i1;
@@ -2013,6 +2058,7 @@ void mhp_clear_all_bp(void)
 
   mhp_bpclr();
   trapped_bp = -1;
+  trace_bp = 0;
   for (i1 = 0; i1 < MAXBP; i1++) {
     mhpdbgc.brktab[i1].brkaddr = 0;
     mhpdbgc.brktab[i1].is_valid = 0;
@@ -2494,7 +2540,15 @@ int mhp_bpchk(unsigned int a1)
 {
   if (mhpdbgc.bpcleared)
     return 0;
-  return bpchk(a1);
+  if (!bpchk(a1))
+    return 0;
+  if (trace_bp && a1 == trace_bp) {
+    /* it only existed to step over an int, and it has done that */
+    mhp_clearbp(trace_bp);
+    trace_bp = 0;
+    trapped_bp = -1;
+  }
+  return 1;
 }
 
 int mhp_getcsip_value(void)
