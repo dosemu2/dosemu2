@@ -68,6 +68,7 @@ from func_truename import (mfs_truename_ufs_lfn, mfs_truename_ufs_sfn, mfs_truen
                            mfs_truename_vfat_linux_mounted_sfn, sfn_truename)
 
 from func_network import network_pktdriver_mtcp
+from func_ipx import ipx_relay
 from func_pit_mode_2 import pit_mode_2
 
 
@@ -1487,6 +1488,10 @@ class OurTestCase(BaseTestCase):
     def test_network_pktdriver_mtcp_ne2000(self):
         """Network pktdriver mTCP NE2000"""
         network_pktdriver_mtcp(self, 'ne2000')
+
+    def test_ipx_relay(self):
+        """IPX over UDP relay"""
+        ipx_relay(self)
 
     def test_passing_environment_variable(self):
         """Passing Environment Variable to DOS"""

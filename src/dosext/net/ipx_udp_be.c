@@ -239,7 +239,15 @@ static int _do_open(u_short port, u_short *newPort, int *err)
     }
     s = &opensockets[i];
     s->sock = port;
-    rc = pipe(s->pipe);
+    /*
+     * Not a pipe: the packets have to keep their boundaries, or two
+     * that arrive before DOS picks the first one up are read as one
+     * oversized packet, and the second is lost. Datagrams keep the
+     * boundaries just as well, and macOS has no AF_UNIX seqpacket.
+     */
+    rc = socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, s->pipe);
+    if (rc == -1)
+        rc = socketpair(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0, s->pipe);
     assert(!rc);
     fcntl(s->pipe[0], F_SETFL, O_NONBLOCK);
     *newPort = port;
