@@ -29,6 +29,7 @@
 #include "bios.h"
 #include "lpt.h"
 #include "int.h"
+#include "emm.h"
 #include "dosemu_config.h"
 #include "init.h"
 #include "disks.h"
@@ -1137,6 +1138,7 @@ static void config_post_process(void)
               "restricting to 640K\n", config.mem_size);
         config.mem_size = 640;
     }
+    jemm_config();
     if (config.umb_a0 == -1) {
 	config.umb_a0 = config.term;
 #if 0
