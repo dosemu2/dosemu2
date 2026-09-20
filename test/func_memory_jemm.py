@@ -149,3 +149,226 @@ $_ems = (8192)
 
     # nothing answers, so the registers come back as they went in
     self.assertIn("AC=1209/4143/", results)
+
+
+def memory_jemm_windows(self):
+    # With JEMM the client gets one array of 24 windows, high enough that
+    # 640k of DOS memory is still its own and low enough to leave our BIOS
+    # alone.  The windows are real memory whichever view of memory the
+    # client asked for, and 'SM'/'sm' report the previous state.
+
+    self.mkcom_with_nasm('jemmwnd', r"""
+bits 16
+cpu 386
+
+org 100h
+
+section .text
+
+    push    cs
+    pop     ds
+
+    mov     ax, 4100h               ; page frame segment
+    int     67h
+    or      ah, ah
+    jnz     noems
+    mov     [frame], bx
+    mov     si, mframe
+    call    puts
+    mov     ax, bx
+    call    puthex16
+    call    crlf
+
+    mov     ax, 5801h               ; how many windows are there
+    int     67h
+    or      ah, ah
+    jnz     noems
+    mov     si, mpages
+    call    puts
+    mov     ax, cx
+    call    puthex16
+    call    crlf
+
+    mov     ax, 4300h               ; one logical page
+    mov     bx, 1
+    int     67h
+    or      ah, ah
+    jnz     noems
+    mov     [handle], dx            ; the handle comes back in dx
+
+    mov     ax, [frame]             ; window 2 is the one over 0xa000,
+    add     ax, 800h                ; where the video memory would be
+    mov     [wnd], ax
+
+    mov     ax, 4402h               ; logical page 0 into window 2
+    xor     bx, bx
+    int     67h
+    or      ah, ah
+    jnz     nomap
+
+    mov     es, [wnd]               ; it is memory of our own now
+    xor     di, di
+    mov     si, marker
+    mov     cx, 8
+    rep     movsb
+
+    mov     ds, [cs:wnd]            ; and it reads back as we left it
+    xor     si, si
+    push    cs
+    pop     es
+    mov     di, buf
+    mov     cx, 8
+    rep     movsb
+    push    cs
+    pop     ds
+
+    mov     si, mems
+    call    puts
+    mov     si, buf
+    mov     cx, 8
+.p:
+    lodsb
+    call    putc
+    loop    .p
+    call    crlf
+
+    mov     si, mstate              ; 'SM' and 'sm' answer with the state
+    call    puts                    ; they found, so this reads 0110
+    mov     bx, 534Dh
+    call    jemm
+    mov     bx, 534Dh
+    call    jemm
+    mov     bx, 736Dh
+    call    jemm
+    mov     bx, 736Dh
+    call    jemm
+    call    crlf
+
+    mov     ax, 4500h
+    mov     dx, [handle]
+    int     67h
+    jmp     done
+
+noems:
+    mov     si, mnoems
+    call    puts
+    jmp     done
+nomap:
+    mov     si, mnomap
+    call    puts
+done:
+    mov     ax, 4C00h
+    int     21h
+
+jemm:                               ; call BX, print the previous state
+    mov     ax, 1209h
+    int     15h
+    mov     al, bl
+    add     al, '0'
+    call    putc
+    ret
+
+putc:
+    push    ax
+    push    dx
+    mov     dl, al
+    mov     ah, 2
+    int     21h
+    pop     dx
+    pop     ax
+    ret
+
+puts:
+    push    ax
+.l:
+    lodsb
+    or      al, al
+    jz      .e
+    call    putc
+    jmp     .l
+.e:
+    pop     ax
+    ret
+
+crlf:
+    push    ax
+    mov     al, 13
+    call    putc
+    mov     al, 10
+    call    putc
+    pop     ax
+    ret
+
+puthex8:
+    push    ax
+    push    cx
+    mov     cl, al
+    shr     al, 4
+    call    .nyb
+    mov     al, cl
+    and     al, 0Fh
+    call    .nyb
+    pop     cx
+    pop     ax
+    ret
+.nyb:
+    cmp     al, 10
+    jb      .d
+    add     al, 'a'-10
+    jmp     putc
+.d:
+    add     al, '0'
+    jmp     putc
+
+puthex16:
+    push    ax
+    push    bx
+    mov     bx, ax
+    mov     al, bh
+    call    puthex8
+    mov     al, bl
+    call    puthex8
+    pop     bx
+    pop     ax
+    ret
+
+section .data
+
+handle  dw 0
+frame   dw 0
+wnd     dw 0
+marker  db 'JEMMOK!!'
+buf     times 8 db '?'
+
+mframe  db 'FRAME=',0
+mpages  db 'PAGES=',0
+mems    db 'EMS=',0
+mstate  db 'STATE=',0
+mnoems  db 'NOEMS',13,10,0
+mnomap  db 'NOMAP',13,10,0
+""")
+
+    self.mkfile("testit.bat", """\
+c:\\jemmwnd
+rem end
+""", newline="\r\n")
+
+    results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+$_ems = (8192)
+$_jemm = (on)
+""")
+
+    self.assertNotIn("NOEMS", results)
+    self.assertNotIn("NOMAP", results)
+
+    # 24 windows, ending below the lowmem heap and our BIOS
+    self.assertIn("FRAME=9800", results)
+    self.assertIn("PAGES=0018", results)
+
+    # the window is EMS memory, not the video memory it sits over
+    self.assertIn("EMS=JEMMOK!!", results)
+
+    # each switch reports the state it found
+    self.assertIn("STATE=0110", results)
