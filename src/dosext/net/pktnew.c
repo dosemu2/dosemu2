@@ -135,6 +135,8 @@ Bit16u p_helper_receiver_cs, p_helper_receiver_ip;
 short p_helper_handle;
 struct pkt_param *p_param;
 struct pkt_statistics *p_stats;
+/* the address the interface came up with, to go back to on a reset */
+static unsigned char rom_hw_address[sizeof(pg.hw_address)];
 
 /************************************************************************/
 
@@ -165,6 +167,7 @@ pkt_init(void)
     /* fill other global data */
 
     GetDeviceHardwareAddress(pg.hw_address);
+    memcpy(rom_hw_address, pg.hw_address, sizeof(rom_hw_address));
     pg.classes[0] = ETHER_CLASS;  /* == 1. */
     pg.classes[1] = IEEE_CLASS;   /* == 11. */
     pg.type = 12;			/* dummy type (3c503) */
@@ -182,6 +185,20 @@ pkt_init(void)
 	pkt_receiver_callback_thr);
 }
 
+/* number of currently allocated handles.  Some functions are only
+ * allowed to disturb the interface while a single protocol stack uses
+ * it, so they need to know. */
+static int pkt_handles_open(void)
+{
+    int handle, num = 0;
+
+    for (handle = 0; handle < MAX_HANDLE; handle++) {
+	if (pg.handle[handle].in_use)
+	    num++;
+    }
+    return num;
+}
+
 void
 pkt_reset(void)
 {
@@ -194,6 +211,7 @@ pkt_reset(void)
     max_pkt_type_array = 0;
     for (handle = 0; handle < MAX_HANDLE; handle++)
         pg.handle[handle].in_use = 0;
+    memcpy(pg.hw_address, rom_hw_address, sizeof(pg.hw_address));
 }
 
 void pkt_term(void)
@@ -495,6 +513,32 @@ static int pkt_int(void)
 	SREG(ds) = PKTDRV_SEG;
 	REG(esi) = PKTDRV_stats;
 	return 1;
+
+    case F_SET_ADDRESS: {
+	unsigned char addr[ETH_ALEN];
+
+	if (LWORD(ecx) != ETH_ALEN) {
+	    HI(dx) = E_BAD_ADDRESS;
+	    break;
+	}
+	MEMCPY_2UNIX(addr, SEGOFF2LINEAR(SREG(es), LWORD(edi)), ETH_ALEN);
+	if (addr[0] & 1) {		/* a group address is not a station */
+	    HI(dx) = E_BAD_ADDRESS;
+	    break;
+	}
+	/* with a real NIC the address is the host's, not ours to
+	 * change, and changing it under another stack is never OK */
+	if (config.vnet == VNET_TYPE_ETH || pkt_handles_open() > 1) {
+	    HI(dx) = E_CANT_SET;
+	    break;
+	}
+	memcpy(pg.hw_address, addr, ETH_ALEN);
+	REG(ecx) = ETH_ALEN;
+	pd_printf("PKT: station address set to "
+		"%02x:%02x:%02x:%02x:%02x:%02x\n",
+		addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+	return 1;
+    }
 
     case F_SEND_RAW:
     case F_FLUSH_RAW:
