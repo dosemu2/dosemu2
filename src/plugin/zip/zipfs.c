@@ -389,6 +389,32 @@ static int zf_set_dos_attr(vfs_file_t *file, int attr)
   return -1;
 }
 
+/*
+ * Nothing in a read-only archive can change under us, so there is
+ * never a conflicting writer to lock against: grant every lock and
+ * report every region free. Without these the generic code fails with
+ * ENOSYS on every read and complains about it on the way.
+ *
+ * The write overlay will not answer here. It will hand out the chunk
+ * file's own fd and let the kernel do the locking, which is exact
+ * because the chunk file shares the entry's offset space.
+ */
+static int zf_flock(vfs_file_t *file, int op)
+{
+  return 0;
+}
+
+static int zf_setlk(vfs_file_t *file, struct flock *fl)
+{
+  return 0;
+}
+
+static int zf_getlk(vfs_file_t *file, struct flock *fl)
+{
+  fl->l_type = F_UNLCK;
+  return 0;
+}
+
 static const struct vfs_file_ops zip_file_ops = {
   .close = zf_close,
   .read = zf_read,
@@ -397,6 +423,9 @@ static const struct vfs_file_ops zip_file_ops = {
   .fstat = zf_fstat,
   .ftruncate = zf_ftruncate,
   .fsync = zf_fsync,
+  .flock = zf_flock,
+  .setlk = zf_setlk,
+  .getlk = zf_getlk,
   .get_dos_attr = zf_get_dos_attr,
   .set_dos_attr = zf_set_dos_attr,
 };
