@@ -255,6 +255,8 @@ extern int DPMIFreeShared(uint32_t handle);
 
 extern void dpmi_ext_set_fake_gdt(dosaddr_t base, unsigned limit,
 	unsigned short ldt_sel);
+extern int dpmi_ext_get_fake_gdt(dosaddr_t *base, unsigned *limit,
+	unsigned short *ldt_sel);
 extern void dpmi_ext_set_ldt_monitor16(DPMI_INTDESC call, uint16_t ds);
 extern void dpmi_ext_set_ldt_monitor32(DPMI_INTDESC call, uint16_t ds);
 extern void dpmi_ext_ldt_monitor_enable(int on);

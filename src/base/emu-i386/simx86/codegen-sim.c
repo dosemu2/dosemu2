@@ -70,6 +70,7 @@
 #include "msdoshlp.h"
 #include "codegen.h"
 #include "codegen-sim.h"
+#include "emudpmi.h"
 
 #undef	DEBUG_MORE
 
@@ -3348,8 +3349,17 @@ stack_return_from_vm86:
 /*100*/	case 0x100: {	/* GRP6 - Extended Opcode 20 */
 			unsigned char opm = arg;
 			switch (opm) {
-			case 0: /* SLDT */
-			    data = TheCPU.LDT_SEL;
+			case 0: { /* SLDT */
+			    dosaddr_t gb;
+			    unsigned gl;
+			    unsigned short ls;
+			    /* the emulator has no LDT of its own, but a
+			     * client that looks for the tables (phar lap)
+			     * must find the same fake GDT the trap path
+			     * shows it */
+			    data = dpmi_ext_get_fake_gdt(&gb, &gl, &ls) ?
+				    ls : TheCPU.LDT_SEL;
+			    }
 			    break;
 			case 1: /* STR */
 			    /* Store Task Register */
@@ -3369,10 +3379,19 @@ stack_return_from_vm86:
 /*101*/	case 0x101: { /* GRP7 - Extended Opcode 21 */
 			unsigned char opm = arg;
 			switch (opm) {
-			case 0: /* SGDT */
+			case 0: { /* SGDT */
 			    /* Store Global Descriptor Table Register */
-			    sim_write_word(mem_ref, TheCPU.GDTR.Limit);
-			    sim_write_dword(mem_ref+2, TheCPU.GDTR.Base);
+			    dosaddr_t gb;
+			    unsigned gl;
+			    unsigned short ls;
+			    if (dpmi_ext_get_fake_gdt(&gb, &gl, &ls)) {
+				sim_write_word(mem_ref, gl);
+				sim_write_dword(mem_ref+2, gb);
+			    } else {
+				sim_write_word(mem_ref, TheCPU.GDTR.Limit);
+				sim_write_dword(mem_ref+2, TheCPU.GDTR.Base);
+			    }
+			    }
 			    break;
 			case 1: /* SIDT */
 			    /* Store Interrupt Descriptor Table Register */

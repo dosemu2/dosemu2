@@ -2216,6 +2216,17 @@ void dpmi_ext_set_fake_gdt(dosaddr_t base, unsigned limit,
     fake_gdt.ldt_sel = ldt_sel;
 }
 
+int dpmi_ext_get_fake_gdt(dosaddr_t *base, unsigned *limit,
+        unsigned short *ldt_sel)
+{
+    if (!fake_gdt.base)
+	return 0;
+    *base = fake_gdt.base;
+    *limit = fake_gdt.limit;
+    *ldt_sel = fake_gdt.ldt_sel;
+    return 1;
+}
+
 void dpmi_ext_set_ldt_monitor16(DPMI_INTDESC call, uint16_t d16)
 {
     D_printf("DPMI: ldt_mon16 %x:%x\n", call.selector, call.offset32);
