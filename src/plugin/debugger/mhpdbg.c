@@ -53,6 +53,7 @@ struct mhpdbgc mhpdbgc = {0};
 
 static int fdin, fdout;
 static int fdin_idx;
+static int fdin_err;
 static unsigned char recvbuf[MHP_BUFFERSIZE];
 static int nbytes;
 static unsigned char sendbuf[MHP_BUFFERSIZE];
@@ -164,18 +165,24 @@ int mhp_early_init(void)
 {
   int retval;
 
+  fdin_idx = -1;
+
+  /* no run dir, so nowhere to put the fifos; mhp_init() says so */
+  if (!dosemu_rundir_path)
+    return -1;
+
   retval = asprintf(&pipename_in, "%s/dosemu.dbgin.%d", dosemu_rundir_path, getpid());
   assert(retval != -1);
 
   retval = asprintf(&pipename_out, "%s/dosemu.dbgout.%d", dosemu_rundir_path, getpid());
   assert(retval != -1);
 
-  fdin_idx = -1;
-
   retval = mkfifo(pipename_in, S_IFIFO | 0600);
   if (!retval)
     retval = mkfifo(pipename_out, S_IFIFO | 0600);
-  if (!retval)
+  if (retval)
+    fdin_err = errno;
+  else
     fdin_idx = mfs_define_drive(pipename_in);
   return retval;
 }
@@ -191,8 +198,17 @@ void mhp_init(void)
   memset(&mhpdbg.intxxtab, 0, sizeof(mhpdbg.intxxtab));
   memset(&mhpdbgc.intxxalt, 0, sizeof(mhpdbgc.intxxalt));
 
-  if (fdin_idx == -1)
+  if (fdin_idx == -1) {
+    /* Silence here used to leave the user with nothing but a bare
+     * "can't open output fifo" from dosdebug, pointing nowhere. */
+    if (!dosemu_rundir_path)
+      fprintf(stderr, "dosdebug not available: XDG_RUNTIME_DIR is unset or "
+          "empty, so there is no run dir to create the debugger fifos in\n");
+    else
+      fprintf(stderr, "dosdebug not available: can't create the debugger "
+          "fifos in %s: %s\n", dosemu_rundir_path, strerror(fdin_err));
     return;
+  }
 
   /* O_NONBLOCK avoids blocking of open() itself */
   fdin = mfs_open_file(fdin_idx, pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
