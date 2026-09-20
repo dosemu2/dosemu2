@@ -347,6 +347,12 @@ void handle_fault(int sig, const siginfo_t *si, sigcontext_t *scp)
       error("Bad exec address %p\n", si->si_addr);
       unhand++;
     } else if (!mapping_is_mapped(si->si_addr)) {
+#ifdef X86_EMULATOR
+      /* the jit lets an access through a null selector run into unmapped
+       * memory rather than checking it, so look there before giving up */
+      if (IS_EMU_JIT() && e_emu_nullseg_fault(scp, (void *)si->si_addr))
+        return;
+#endif
       error("Bad fault address %p\n", si->si_addr);
       unhand++;
     }
