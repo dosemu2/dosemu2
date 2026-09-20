@@ -189,8 +189,8 @@ section .text
     call    puthex16
     call    crlf
 
-    mov     ax, 4300h               ; one logical page
-    mov     bx, 1
+    mov     ax, 4300h               ; two logical pages
+    mov     bx, 2
     int     67h
     or      ah, ah
     jnz     noems
@@ -230,6 +230,42 @@ section .text
     lodsb
     call    putc
     loop    .p
+    call    crlf
+
+    mov     ax, [frame]             ; window 22 is the one over 0xf000,
+    add     ax, 5800h               ; where our read-only ROM would be
+    mov     [wnd], ax
+
+    mov     ax, 4416h               ; logical page 1 into window 22
+    mov     bx, 1
+    int     67h
+    or      ah, ah
+    jnz     nomap
+
+    mov     es, [wnd]               ; it is memory of our own here too
+    xor     di, di
+    mov     si, marker
+    mov     cx, 8
+    rep     movsb
+
+    mov     ds, [cs:wnd]
+    xor     si, si
+    push    cs
+    pop     es
+    mov     di, buf
+    mov     cx, 8
+    rep     movsb
+    push    cs
+    pop     ds
+
+    mov     si, mrom
+    call    puts
+    mov     si, buf
+    mov     cx, 8
+.q:
+    lodsb
+    call    putc
+    loop    .q
     call    crlf
 
     mov     si, mstate              ; 'SM' and 'sm' answer with the state
@@ -343,6 +379,7 @@ buf     times 8 db '?'
 mframe  db 'FRAME=',0
 mpages  db 'PAGES=',0
 mems    db 'EMS=',0
+mrom    db 'ROM=',0
 mstate  db 'STATE=',0
 mnoems  db 'NOEMS',13,10,0
 mnomap  db 'NOMAP',13,10,0
@@ -369,6 +406,9 @@ $_jemm = (on)
 
     # the window is EMS memory, not the video memory it sits over
     self.assertIn("EMS=JEMMOK!!", results)
+
+    # the window over our f000 ROM is the client's memory, not read-only
+    self.assertIn("ROM=JEMMOK!!", results)
 
     # each switch reports the state it found
     self.assertIn("STATE=0110", results)
