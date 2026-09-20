@@ -993,6 +993,15 @@ static dosaddr_t do_get_hardware_ram(unsigned addr, uint32_t size,
       return hw->vbase + addr - hw->base;
     }
   }
+  if (debug_level('Q')) {
+    /* a client that asks for a range spanning two of our regions, as the
+     * phar lap extenders do when they map their int15 memory, gets a bare
+     * refusal otherwise */
+    Q_printf("MAPPING: no hwram for %#x..%#x, have:\n", addr, addr + size);
+    for (hw = hardware_ram; hw != NULL; hw = hw->next)
+      Q_printf("MAPPING:   type=%c base=%#zx size=%#zx vbase=%#x\n",
+          hw->type, hw->base, hw->size, hw->vbase);
+  }
   return -1;
 }
 
