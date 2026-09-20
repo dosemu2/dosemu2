@@ -621,6 +621,17 @@ static int pkt_int(void)
 	HI(dx) = E_BAD_COMMAND;
 	break;
 
+    case F_GET_STRUCT:
+	if (LWORD(ebx) != STRUCT_IO_STATS) {
+	    HI(dx) = E_BAD_ARGUMENT;
+	    break;
+	}
+	/* struct io_statistics has the same layout as the one
+	 * get_statistics() returns */
+	SREG(ds) = PKTDRV_SEG;
+	REG(esi) = PKTDRV_stats;
+	return 1;
+
     default:
 	/* unhandled function, indicate an error */
 

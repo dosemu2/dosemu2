@@ -41,6 +41,7 @@ enum {
 #define F_FLUSH_RAW	27	/* serial line drivers only */
 #define F_FETCH_RAW	28	/* serial line drivers only */
 #define F_SIGNAL	29	/* added in 1.11, for PPP */
+#define F_GET_STRUCT	30	/* added in 1.11 */
 
 #define E_BAD_HANDLE	1
 #define E_NO_CLASS	2
@@ -57,6 +58,11 @@ enum {
 #define E_CANT_SET	13
 #define E_BAD_ADDRESS	14
 #define E_CANT_RESET	15
+/* The spec names BAD_ARGUMENT for the functions 1.11 added, but its
+ * appendix of error codes was never extended past CANT_RESET, so the
+ * number is just the obvious continuation past BAD_SIGNAL at 16,
+ * which nothing here returns. */
+#define E_BAD_ARGUMENT	17
 
 /* receive modes for set_rcv_mode()/get_rcv_mode() */
 #define RCV_OFF		1	/* receiver turned off */
@@ -65,6 +71,9 @@ enum {
 #define RCV_MULTICAST	4	/* + the set_multicast_list() addresses */
 #define RCV_ALLMULTI	5	/* + all multicasts */
 #define RCV_PROMISC	6	/* every packet on the wire */
+
+/* structure type for get_structure() */
+#define STRUCT_IO_STATS	1
 
 #define ETHER_CLASS	1
 #define IEEE_CLASS	11
