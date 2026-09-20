@@ -1,4 +1,3 @@
-#include "vfs/vfs.h"
 /*
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -58,6 +57,7 @@
 #include <assert.h>
 #include "dosemu_config.h"
 #include "dosemu_debug.h"
+#include "vfs/vfs.h"
 #include "rlocks.h"
 
 static int lock_set(int fd, struct flock *fl)
