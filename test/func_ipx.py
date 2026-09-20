@@ -11,13 +11,19 @@ The relay below is that server, so the test needs neither DOSBox nor a
 second dosemu. It registers dosemu, checks the broadcast dosemu sends,
 plays a peer that broadcasts and unicasts back, and checks the unicast
 answers - all four directions in one run.
+
+It runs in a process of its own rather than a thread: runDosemu() goes
+through forkpty(), and forking a multi-threaded process draws a
+DeprecationWarning from python 3.12 on. So what the relay saw comes
+back over a queue instead of being read out of its attributes.
 """
 
+from queue import Empty
 from shutil import copy
 from subprocess import check_call
+import multiprocessing as mp
 import socket
 import struct
-import threading
 
 IPX_SOCKET = 0x4545             # the socket ipxtest.com uses
 IPX_HDRLEN = 30
@@ -39,16 +45,14 @@ def _packet(dst_net, dst_node, src_net, src_node, tag):
                    IPX_SOCKET, IPX_HDRLEN + PAYLOAD) + payload
 
 
-class Relay(threading.Thread):
+class Relay:
     """The IPX over UDP server, and a peer to talk to."""
 
     def __init__(self):
-        super().__init__(daemon=True)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("127.0.0.1", 0))
         self.sock.settimeout(0.2)
         self.port = self.sock.getsockname()[1]
-        self.done = threading.Event()
         self.node = None            # the node we assigned to dosemu
         self.broadcasts = []        # tags dosemu broadcast
         self.unicasts = []          # tags dosemu sent to us
@@ -96,8 +100,8 @@ class Relay(threading.Thread):
         else:
             self.faults.append("unicast to unknown node %s" % dst_node.hex())
 
-    def run(self):
-        while not self.done.is_set():
+    def serve(self, done):
+        while not done.is_set():
             try:
                 pkt, addr = self.sock.recvfrom(1500)
             except socket.timeout:
@@ -111,6 +115,18 @@ class Relay(threading.Thread):
                 self._data(pkt, addr)
         self.sock.close()
 
+    def seen(self):
+        return {"node": self.node, "broadcasts": self.broadcasts,
+                "unicasts": self.unicasts, "faults": self.faults}
+
+
+def _relay(ports, seen, done):
+    """Bind, tell the test the port, serve until it says stop, report."""
+    relay = Relay()
+    ports.put(relay.port)
+    relay.serve(done)
+    seen.put(relay.seen())
+
 
 def ipx_relay(self):
     if not getattr(self.__class__, 'ipxmade', False):
@@ -120,14 +136,19 @@ def ipx_relay(self):
     copy(self.topdir / "test" / "ipx" / "ipxtest.com",
          self.workdir / "ipxtest.com")
 
-    relay = Relay()
+    ctx = mp.get_context("spawn")
+    ports, reports, done = ctx.Queue(), ctx.Queue(), ctx.Event()
+    relay = ctx.Process(target=_relay, args=(ports, reports, done),
+                        daemon=True)
     relay.start()
+    self.addCleanup(relay.terminate)
+    port = ports.get(timeout=10)
 
     self.mkfile("testit.bat", """\
 emuipx -c localhost:%i
 ipxtest A
 rem end
-""" % relay.port, newline="\r\n")
+""" % port, newline="\r\n")
 
     try:
         results = self.runDosemu("testit.bat", timeout=60, config="""\
@@ -136,20 +157,25 @@ $_floppy_a = ""
 $_ipxsupport = (on)
 """)
     finally:
-        relay.done.set()
-        relay.join(timeout=5)
+        done.set()
 
-    self.assertEqual(relay.faults, [])
-    self.assertIsNotNone(relay.node, "dosemu did not register with the relay")
+    try:
+        saw = reports.get(timeout=10)
+    except Empty:
+        self.fail("the IPX relay did not report back")
+    relay.join(timeout=5)
+
+    self.assertEqual(saw["faults"], [])
+    self.assertIsNotNone(saw["node"], "dosemu did not register with the relay")
 
     # the address the relay handed out is the one DOS sees
-    self.assertIn("ipxtest: node %s" % relay.node.hex().upper(), results)
+    self.assertIn("ipxtest: node %s" % saw["node"].hex().upper(), results)
 
     # broadcast out, and the two the peer sent coming in
-    self.assertEqual(relay.broadcasts, ["A"])
+    self.assertEqual(saw["broadcasts"], ["A"])
     self.assertIn("rx B from %s" % PEER_NODE.hex().upper(), results)
     self.assertIn("rx C from %s" % PEER_NODE.hex().upper(), results)
 
     # both of those were answered by a unicast to the peer
-    self.assertEqual(relay.unicasts, ["a", "a"])
+    self.assertEqual(saw["unicasts"], ["a", "a"])
     self.assertIn("ipxtest: done, rx 2", results)
