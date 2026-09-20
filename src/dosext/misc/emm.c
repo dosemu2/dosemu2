@@ -2116,13 +2116,41 @@ static void vcpi_interface(struct vm86_regs *state)
       SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
       break;
     }
-    E_printf("VCPI: switch to PM, client cs:eip=%04x:%08x\n",
-	     READ_WORD(SEGOFF2LINEAR(state->ds, LO_WORD(state->esi)) + 0x14),
-	     READ_DWORD(SEGOFF2LINEAR(state->ds, LO_WORD(state->esi)) + 0x10));
+    /* ESI is a linear address, not DS:SI: the client builds the structure
+       wherever it likes in the first megabyte and hands over the address
+       whole.  SCCD.EXE of Strike Commander does exactly that, with a
+       "mov esi,[cs:0x5e8]" right before the call. */
+    E_printf("VCPI: switch to PM, client cs:eip=%04x:%08x, cr3=%08x\n",
+	     READ_WORD(state->esi + 0x14), READ_DWORD(state->esi + 0x10),
+	     READ_DWORD(state->esi));
     /* Does not return here: the monitor jumps to the client's entry point
        and we are next called when it comes back through AX=DE0Ch. */
-    kvm_vcpi_pm_switch(SEGOFF2LINEAR(state->ds, LO_WORD(state->esi)));
+    kvm_vcpi_pm_switch(state->esi);
     break;
+
+  case 0x08:			/* set debug registers */
+  case 0x09:{			/* get debug registers */
+      /* Eight dwords: DR0..DR3, two reserved, DR6, DR7.  The client owns
+	 the debug registers while it is in protected mode, so these only
+	 make sense where the monitor is the one running it. */
+      uint32_t dregs[8];
+      int set = LO_BYTE_d(state->eax) == 0x08;
+      dosaddr_t buf = set ? SEGOFF2LINEAR(state->ds, LO_WORD(state->esi)) :
+			    SEGOFF2LINEAR(state->es, LO_WORD(state->edi));
+
+      if (!vcpi_pm_available()) {
+	EMS_TRACE("VCPI debug registers need KVM");
+	SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+	break;
+      }
+      if (set)
+	MEMCPY_2UNIX(dregs, buf, sizeof(dregs));
+      kvm_getset_debugregs(dregs, set);
+      if (!set)
+	MEMCPY_2DOS(buf, dregs, sizeof(dregs));
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      break;
+    }
 
   case 0x0a:			/* get 8259A interrupt vector mappings */
     /* whatever the PICs were last programmed with: the client asks because
