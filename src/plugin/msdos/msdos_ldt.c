@@ -278,7 +278,15 @@ static void direct_ldt_write(cpuctx_t *scp, int offset,
     memset(lp1, 0, sizeof(lp1));
     lp1[5] = 0x70;
     SetDescriptor(selector, (unsigned int *)lp1);
-    FreeSegRegs(scp, selector);
+    /* A present entry with S=0 is a client marking a slot it owns, not a
+     * descriptor going away: a 286|DOS-Extender keeps its free list in
+     * such entries, 6731 writes of access byte 0x80 in one run of one
+     * game. Real hardware leaves a loaded segment register alone when the
+     * descriptor behind it is rewritten, and the client goes on using the
+     * selector, so only clear the registers when the entry really is
+     * gone. */
+    if (!(lp[5] & 0x80))
+      FreeSegRegs(scp, selector);
   }
   memcpy(&ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
 out:
