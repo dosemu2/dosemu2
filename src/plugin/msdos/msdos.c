@@ -58,6 +58,23 @@ static unsigned short EMM_SEG;
 #define DTA_over_1MB (SEL_ADR(MSDOS_CLIENT.user_dta_sel, MSDOS_CLIENT.user_dta_off))
 #define DTA_under_1MB SEGOFF2LINEAR(MSDOS_CLIENT.lowmem_seg + DTA_Para_ADD, 0)
 
+/* A findfirst record is 43 bytes of defined data - the search state, the
+ * attribute, time, date, size and name - inside a 128-byte DTA. The phar
+ * lap extenders give us a buffer of just the 43, so copying the full 128
+ * back would run off the end of it. */
+#define DTA_DEFINED_LEN 43
+static int dta_len(void)
+{
+    return config.pharlap ? DTA_DEFINED_LEN : 0x80;
+}
+
+/* Those extenders also count memory in 4K pages rather than paragraphs,
+ * and pass the psp as a real mode paragraph rather than a selector. */
+static int mem_gran_shift(void)
+{
+    return config.pharlap ? 12 : 4;
+}
+
 #define MAX_DOS_PATH 260
 
 #define DTA_Para_ADD 0
@@ -1058,7 +1075,7 @@ int msdos_pre_extender(cpuctx_t *scp,
 	case 0x12:		/* find first/next using FCB */
 	case 0x4e:
 	case 0x4f:		/* find first/next */
-	    MEMCPY_2DOS(DTA_under_1MB, DTA_over_1MB, 0x80);
+	    MEMCPY_2DOS(DTA_under_1MB, DTA_over_1MB, dta_len());
 	    act = 1;
 	    break;
 	}
@@ -1154,13 +1171,13 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    return MSDOS_DONE;
 	case 0x48:		/* allocate memory */
 	    {
-		unsigned long size = _LWORD(ebx) << 4;
+		unsigned long size = _LWORD(ebx) << mem_gran_shift();
 		dosaddr_t addr = msdos_malloc(size);
 		if (!addr) {
 		    unsigned int meminfo[12];
 		    GetFreeMemoryInformation(meminfo);
 		    _eflags |= CF;
-		    _LWORD(ebx) = meminfo[0] >> 4;
+		    _LWORD(ebx) = meminfo[0] >> mem_gran_shift();
 		    _LWORD(eax) = 0x08;
 		} else {
 		    unsigned short sel = AllocateDescriptors(1);
@@ -1184,14 +1201,14 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    }
 	case 0x4a:		/* reallocate memory */
 	    {
-		unsigned new_size = _LWORD(ebx) << 4;
+		unsigned new_size = _LWORD(ebx) << mem_gran_shift();
 		unsigned addr =
 		    msdos_realloc(GetSegmentBase(_es), new_size);
 		if (!addr) {
 		    unsigned int meminfo[12];
 		    GetFreeMemoryInformation(meminfo);
 		    _eflags |= CF;
-		    _LWORD(ebx) = meminfo[0] >> 4;
+		    _LWORD(ebx) = meminfo[0] >> mem_gran_shift();
 		    _LWORD(eax) = 0x08;
 		} else {
 		    SetSegmentBaseAddress(_es, addr);
@@ -1229,7 +1246,7 @@ int msdos_pre_extender(cpuctx_t *scp,
 		    MSDOS_CLIENT.user_dta_off = off;
 		    SET_RMREG(ds, MSDOS_CLIENT.lowmem_seg + DTA_Para_ADD);
 		    SET_RMLWORD(dx, 0);
-		    MEMCPY_2DOS(DTA_under_1MB, DTA_over_1MB, 0x80);
+		    MEMCPY_2DOS(DTA_under_1MB, DTA_over_1MB, dta_len());
 		} else {
 		    SET_RMREG(ds, GetSegmentBase(_ds) >> 4);
 		    MSDOS_CLIENT.user_dta_sel = 0;
@@ -1363,7 +1380,11 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    break;
 
 	case 0x50:		/* set PSP */
-	    if (!in_dos_space(_LWORD(ebx), 0)) {
+	    if (config.pharlap) {
+		MSDOS_CLIENT.current_psp = _LWORD(ebx);
+		SET_RMLWORD(bx, _LWORD(ebx));
+		MSDOS_CLIENT.user_psp_sel = 0;
+	    } else if (!in_dos_space(_LWORD(ebx), 0)) {
 		MSDOS_CLIENT.user_psp_sel = _LWORD(ebx);
 		SET_RMLWORD(bx, CURRENT_PSP);
 		MEMCPY_DOS2DOS(SEGOFF2LINEAR(CURRENT_PSP, 0),
@@ -1914,7 +1935,7 @@ int msdos_post_extender(cpuctx_t *scp,
 	case 0x12:		/* find first/next using FCB */
 	case 0x4e:
 	case 0x4f:		/* find first/next */
-	    MEMCPY_2UNIX(DTA_over_1MB, DTA_under_1MB, 0x80);
+	    MEMCPY_2UNIX(DTA_over_1MB, DTA_under_1MB, dta_len());
 	    break;
 	}
     }
@@ -2125,7 +2146,9 @@ int msdos_post_extender(cpuctx_t *scp,
 	case 0x62:
 	    {			/* convert environment pointer to a descriptor */
 		unsigned short psp = RMLWORD(bx);
-		if (psp == CURRENT_PSP && MSDOS_CLIENT.user_psp_sel) {
+		if (config.pharlap) {
+		    SET_REG(ebx, psp);
+		} else if (psp == CURRENT_PSP && MSDOS_CLIENT.user_psp_sel) {
 		    SET_REG(ebx, MSDOS_CLIENT.user_psp_sel);
 		} else {
 		    SET_REG(ebx,
