@@ -102,6 +102,21 @@ static int _in_dpmi(void) {
 }
 #define IN_DPMI _in_dpmi()
 
+/* How to read an address the user typed must not depend on the CPU mode
+ * that happens to be current when the debugger polls. While dosemu runs,
+ * the poll lands in real mode or in DPMI at random, so the very same
+ * 'd 6134:0000' is read as a real mode segment on one invocation and as
+ * a selector on the next. Sample the mode only in stopped state; while
+ * running, the interpretation is the user's to pick, with 'mode +d',
+ * 'mode -d' or the '#' prefix.
+ */
+static int addr_in_dpmi(void)
+{
+  if (!dpmimode && !mhpdbgc.stopped)
+    return 0;
+  return IN_DPMI;
+}
+
 #define MAXSYM 10000
 enum SType { DYN, ABS };
 static struct {
@@ -595,7 +610,7 @@ static void mhp_symbol(int argc, char *argv[])
   if (argc > 1) {
     unsigned int seg, off, limit;
 
-    if (!mhp_getadr(argv[1], &target, &seg, &off, &limit, IN_DPMI)) {
+    if (!mhp_getadr(argv[1], &target, &seg, &off, &limit, addr_in_dpmi())) {
       mhp_printf("Invalid address\n");
       return;
     }
@@ -914,9 +929,10 @@ static void mhp_dump(int argc, char *argv[])
   int data32 = 0;
   int unixaddr;
   unsigned char c;
+  int in_dpmi = addr_in_dpmi();
 
   if (argc > 1) {
-    if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
+    if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, in_dpmi)) {
       mhp_printf("Invalid ADDR\n");
       return;
     }
@@ -926,7 +942,7 @@ static void mhp_dump(int argc, char *argv[])
       mhp_printf("No previous \'d\' command\n");
       return;
     }
-    if (!mhp_getadr(lastd, &seekval, &seg, &off, &limit, IN_DPMI)) {
+    if (!mhp_getadr(lastd, &seekval, &seg, &off, &limit, in_dpmi)) {
       mhp_printf("Invalid ADDR\n");
       return;
     }
@@ -947,16 +963,16 @@ static void mhp_dump(int argc, char *argv[])
 #else
   mhp_printf("\n");
 #endif
-  if (IN_DPMI && seg)
+  if (in_dpmi && seg)
     data32 = dpmi_segment_is32(seg);
   unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
   for (i = 0; i < nbytes; i++) {
     if ((i & 0x0f) == 0x00) {
       if (seg != 0 || limit != 0xFFFFFFFF) {
         if (data32)
-          mhp_printf("%s%04x:%08x ", IN_DPMI ? "#" : "", seg, off + i);
+          mhp_printf("%s%04x:%08x ", in_dpmi ? "#" : "", seg, off + i);
         else
-          mhp_printf("%s%04x:%04x ", IN_DPMI ? "#" : "", seg, off + i);
+          mhp_printf("%s%04x:%04x ", in_dpmi ? "#" : "", seg, off + i);
       } else if (unixaddr)
         mhp_printf("%#08x ", seekval + i);
       else
@@ -986,7 +1002,7 @@ static void mhp_dump(int argc, char *argv[])
   }
 
   if (seg != 0 || limit != 0xFFFFFFFF) {
-    if ((lastd[0] == '#') || (IN_DPMI)) {
+    if ((lastd[0] == '#') || (in_dpmi)) {
       snprintf(lastd, sizeof(lastd), "#%x:%x", seg, off + i);
     } else {
       snprintf(lastd, sizeof(lastd), "%x:%x", seg, off + i);
@@ -1439,7 +1455,7 @@ static void mhp_ddrh(int argc, char *argv[])
     dosaddr_t val;
     unsigned int seg, off, limit;
 
-    if (!mhp_getadr(argv[1], &val, &seg, &off, &limit, IN_DPMI)) {
+    if (!mhp_getadr(argv[1], &val, &seg, &off, &limit, addr_in_dpmi())) {
       mhp_printf("Invalid address\n");
       return;
     }
@@ -1532,7 +1548,7 @@ static void mhp_dpbs(int argc, char *argv[])
     dosaddr_t val;
     unsigned int seg, off, limit;
 
-    if (!mhp_getadr(argv[1], &val, &seg, &off, &limit, IN_DPMI)) {
+    if (!mhp_getadr(argv[1], &val, &seg, &off, &limit, addr_in_dpmi())) {
       mhp_printf("Invalid DPB address\n");
       return;
     }
@@ -1622,9 +1638,10 @@ static void mhp_disasm(int argc, char *argv[])
   unsigned int limit;
   int segmented = (linmode == 0);
   const char *s;
+  int in_dpmi = addr_in_dpmi();
 
   if (argc > 1) {
-    if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
+    if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, in_dpmi)) {
       mhp_printf("Invalid ADDR\n");
       return;
     }
@@ -1634,7 +1651,7 @@ static void mhp_disasm(int argc, char *argv[])
       mhp_printf("No previous \'u\' command\n");
       return;
     }
-    if (!mhp_getadr(lastu, &seekval, &seg, &off, &limit, IN_DPMI)) {
+    if (!mhp_getadr(lastu, &seekval, &seg, &off, &limit, in_dpmi)) {
       mhp_printf("Invalid ADDR\n");
       return;
     }
@@ -1655,7 +1672,7 @@ static void mhp_disasm(int argc, char *argv[])
   mhp_printf("\n");
 #endif
 
-  if (IN_DPMI) {
+  if (in_dpmi) {
     def_size = (dpmi_segment_is32(seg) ? 3 : 0);
     segmented = 1;
   } else {
@@ -1681,10 +1698,10 @@ static void mhp_disasm(int argc, char *argv[])
       if ((s = getsym_from_bios(seg, off + bytesdone)) || (s = getsym_from_dos_segofs(seg, off + bytesdone)))
         mhp_printf("%s:\n", s);
     }
-    if (IN_DPMI && base_addr + off + bytesdone > LOWMEM_SIZE + HMASIZE && !dpmi_is_valid_range(base_addr + off + bytesdone, 10))
+    if (in_dpmi && base_addr + off + bytesdone > LOWMEM_SIZE + HMASIZE && !dpmi_is_valid_range(base_addr + off + bytesdone, 10))
       break;
     refseg = seg;
-    rc = dis_8086(buf + bytesdone, frmtbuf, def_size, &ref, (IN_DPMI ? base_addr : refseg * 16));
+    rc = dis_8086(buf + bytesdone, frmtbuf, def_size, &ref, (in_dpmi ? base_addr : refseg * 16));
     if (bytesdone + rc > 256)
       break;
     for (i = 0; i < rc; i++) {
@@ -1695,7 +1712,7 @@ static void mhp_disasm(int argc, char *argv[])
       bytebuf[(i * 2) + 2] = 0x00;
     }
     if (segmented) {
-      const char *x = (IN_DPMI ? "#" : "");
+      const char *x = (in_dpmi ? "#" : "");
       if (def_size) {
         mhp_printf("%s%04x:%08x %-16s %s", x, seg, off + bytesdone, bytebuf, frmtbuf);
       } else
@@ -1720,7 +1737,7 @@ static void mhp_disasm(int argc, char *argv[])
   }
 
   if (segmented) {
-    if ((lastu[0] == '#') || (IN_DPMI)) {
+    if ((lastu[0] == '#') || (in_dpmi)) {
       snprintf(lastu, sizeof(lastu), "#%x:%x", seg, off + bytesdone);
     } else {
       snprintf(lastu, sizeof(lastu), "%x:%x", seg, off + bytesdone);
@@ -1809,7 +1826,7 @@ static void mhp_memset(int argc, char *argv[])
       return;
     }
   } else {
-    if (!mhp_getadr(argv[1], &zapaddr, &seg, &off, &limit, IN_DPMI)) {
+    if (!mhp_getadr(argv[1], &zapaddr, &seg, &off, &limit, addr_in_dpmi())) {
       mhp_printf("Address invalid\n");
       return;
     }
