@@ -33,6 +33,8 @@ enum {
 #define F_OLD_AS_SEND	11	/* withdrawn in 1.10 */
 #define F_SET_RCV_MODE	20
 #define F_GET_RCV_MODE	21
+#define F_SET_MCAST_LST	22
+#define F_GET_MCAST_LST	23
 #define F_GET_STATS	24
 #define F_SET_ADDRESS	25
 #define F_SEND_RAW	26	/* serial line drivers only */

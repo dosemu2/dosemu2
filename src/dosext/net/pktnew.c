@@ -99,6 +99,8 @@ struct pkt_type {
 int max_pkt_type_array=0;
 
 #define PKT_BUF_SIZE (ETH_FRAME_LEN+32)
+/* has to match the space reserved in bios.S */
+#define MCAST_LIST_SIZE (16 * ETH_ALEN)
 
 /* flags from config file, for pkt_globs.flags */
 #define FLAG_NOVELL 0x01                /* Novell 802.3 <-> 8137 translation */
@@ -135,6 +137,10 @@ Bit16u p_helper_receiver_cs, p_helper_receiver_ip;
 short p_helper_handle;
 struct pkt_param *p_param;
 struct pkt_statistics *p_stats;
+/* the multicast list lives in the BIOS segment because
+ * get_multicast_list() has to hand DOS a pointer to it */
+static unsigned char *p_mcast;
+static int mcast_len;
 /* the address the interface came up with, to go back to on a reset */
 static unsigned char rom_hw_address[sizeof(pg.hw_address)];
 
@@ -160,6 +166,7 @@ pkt_init(void)
 
     p_param = MK_FP32(BIOSSEG, PKTDRV_param);
     p_stats = MK_FP32(BIOSSEG, PKTDRV_stats);
+    p_mcast = MK_FP32(BIOSSEG, PKTDRV_mcast);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
     virq_register(VIRQ_PKT, pkt_virq_receive, pkt_receiver_callback, NULL);
@@ -178,6 +185,7 @@ pkt_init(void)
     p_param->length = sizeof(struct pkt_param);
     p_param->addr_len = ETH_ALEN;
     p_param->mtu = GetDeviceMTU();
+    p_param->multicast_aval = MCAST_LIST_SIZE;
     p_param->rcv_bufs = 8 - 1;		/* a guess */
     p_param->xmt_bufs = 2 - 1;
 
@@ -212,6 +220,7 @@ pkt_reset(void)
     for (handle = 0; handle < MAX_HANDLE; handle++)
         pg.handle[handle].in_use = 0;
     memcpy(pg.hw_address, rom_hw_address, sizeof(pg.hw_address));
+    mcast_len = 0;
 }
 
 void pkt_term(void)
@@ -503,6 +512,40 @@ static int pkt_int(void)
 	    break;
 	}
 	REG(eax) = local_receive_mode;
+	return 1;
+
+    case F_SET_MCAST_LST: {
+	dosaddr_t lst = SEGOFF2LINEAR(SREG(es), LWORD(edi));
+	int i;
+
+	if (LWORD(ecx) % ETH_ALEN) {
+	    HI(dx) = E_BAD_ADDRESS;
+	    break;
+	}
+	if (LWORD(ecx) > MCAST_LIST_SIZE) {
+	    /* leave the addresses already in effect alone */
+	    HI(dx) = E_NO_SPACE;
+	    break;
+	}
+	/* every multicast address has the group bit set */
+	for (i = 0; i < LWORD(ecx); i += ETH_ALEN) {
+	    if (!(READ_BYTE(lst + i) & 1)) {
+		HI(dx) = E_BAD_ADDRESS;
+		break;
+	    }
+	}
+	if (i < LWORD(ecx))
+	    break;
+	MEMCPY_2UNIX(p_mcast, lst, LWORD(ecx));
+	mcast_len = LWORD(ecx);
+	pd_printf("PKT: %i multicast address(es) set\n", mcast_len / ETH_ALEN);
+	return 1;
+    }
+
+    case F_GET_MCAST_LST:
+	SREG(es) = PKTDRV_SEG;
+	REG(edi) = PKTDRV_mcast;
+	REG(ecx) = mcast_len;
 	return 1;
 
     case F_GET_STATS:

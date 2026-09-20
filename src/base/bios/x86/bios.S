@@ -619,6 +619,11 @@ PKTDRV_param:
 PKTDRV_stats:
 	.long	0,0,0,0,0,0,0
 
+	/* multicast address list, maintained by set_multicast_list() */
+	.globl	PKTDRV_mcast
+PKTDRV_mcast:
+	.space	96
+
 	.globl	LFN_short_name
 LFN_short_name:
 	.space 128
