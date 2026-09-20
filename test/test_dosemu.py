@@ -55,6 +55,7 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
                              memory_hma_alloc3, memory_hma_chain)
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
+from func_memory_xms_pages import memory_xms_pages
 from func_misc import (create_new_psp, passing_dos_errorlevel_back, passing_environment_variable,
                        systype)
 from func_mfs_directory import mfs_directory_common, mfs_get_current_directory
@@ -1004,6 +1005,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_hma_chain(self):
         """Memory HMA get chain"""
         memory_hma_chain(self)
+
+    @mark(['memtest', 'xmstest'])
+    def test_memory_xms_pages(self):
+        """Memory XMS whole-page accounting"""
+        memory_xms_pages(self)
 
     @mark(['memtest', 'xmstest'])
     def test_memory_xms(self):
