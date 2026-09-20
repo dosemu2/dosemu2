@@ -5631,6 +5631,97 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
 }
 
 /*
+ * Work out the address of a modrm memory operand.
+ * "mem" points to the modrm byte; "asize32" and "pref_seg" come from the
+ * prefixes the caller has already collected, pref_seg being -1 when the
+ * instruction carries no segment override.
+ * Returns the number of bytes the modrm, sib and displacement occupy, or
+ * -1 if the operand is a register rather than memory.
+ */
+static int decode_modrm_mem(cpuctx_t *scp, const unsigned char *mem,
+    int asize32, int pref_seg, unsigned short *sel, uint32_t *off)
+{
+  uint32_t reg32[8] = { _eax, _ecx, _edx, _ebx, _esp, _ebp, _esi, _edi };
+  int mod = mem[0] >> 6;
+  int rm = mem[0] & 7;
+  int use_ss = 0;
+  int len = 1;
+  uint32_t addr = 0;
+
+  if (mod == 3)		/* register operand */
+    return -1;
+
+  if (!asize32) {
+    switch (rm) {
+      case 0: addr = _LWORD(ebx) + _LWORD(esi); break;
+      case 1: addr = _LWORD(ebx) + _LWORD(edi); break;
+      case 2: addr = _LWORD(ebp) + _LWORD(esi); use_ss = 1; break;
+      case 3: addr = _LWORD(ebp) + _LWORD(edi); use_ss = 1; break;
+      case 4: addr = _LWORD(esi); break;
+      case 5: addr = _LWORD(edi); break;
+      case 6:
+        if (mod == 0) {		/* disp16 with no base */
+          addr = mem[1] | (mem[2] << 8);
+          len += 2;
+        } else {
+          addr = _LWORD(ebp);
+          use_ss = 1;
+        }
+        break;
+      case 7: addr = _LWORD(ebx); break;
+    }
+    if (mod == 1) {
+      addr += (int8_t)mem[len];
+      len++;
+    } else if (mod == 2) {
+      addr += (int16_t)(mem[len] | (mem[len + 1] << 8));
+      len += 2;
+    }
+    addr &= 0xffff;
+  } else {
+    int base = rm;
+
+    if (rm == 4) {		/* sib follows */
+      int sib = mem[1];
+      int index = (sib >> 3) & 7;
+
+      len++;
+      base = sib & 7;
+      if (index != 4)		/* 4 means no index */
+        addr += reg32[index] << ((sib >> 6) & 3);
+      if (base == 5 && mod == 0) {	/* disp32 with no base */
+        addr += mem[len] | (mem[len + 1] << 8) | (mem[len + 2] << 16) |
+            ((uint32_t)mem[len + 3] << 24);
+        len += 4;
+        base = -1;
+      }
+    } else if (rm == 5 && mod == 0) {	/* disp32 with no base */
+      addr += mem[len] | (mem[len + 1] << 8) | (mem[len + 2] << 16) |
+          ((uint32_t)mem[len + 3] << 24);
+      len += 4;
+      base = -1;
+    }
+    if (base >= 0) {
+      addr += reg32[base];
+      if (base == 4 || base == 5)	/* esp or ebp default to ss */
+        use_ss = 1;
+    }
+    if (mod == 1) {
+      addr += (int8_t)mem[len];
+      len++;
+    } else if (mod == 2) {
+      addr += mem[len] | (mem[len + 1] << 8) | (mem[len + 2] << 16) |
+          ((uint32_t)mem[len + 3] << 24);
+      len += 4;
+    }
+  }
+
+  *sel = (pref_seg != -1 ? pref_seg : (use_ss ? _ss : _ds));
+  *off = addr;
+  return len;
+}
+
+/*
  * DANG_BEGIN_FUNCTION dpmi_fault
  *
  * This is the brain of DPMI. All CPU exceptions are first
@@ -5909,24 +6000,54 @@ static int dpmi_fault1(cpuctx_t *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: 0f opcode %x\n", csp[0]);
       switch (csp[0]) {
-        case 0: // SLDT, STR ...
-        case 1: // SGDT, SIDT, SMSW ...
-          switch (csp[1] & 0xc0) {
-            case 0xc0: // register dest
+        case 0: // SLDT, STR, LLDT, LTR, VERR, VERW
+        case 1: { // SGDT, SIDT, LGDT, LIDT, SMSW, LMSW
+          int ext = (csp[1] >> 3) & 7;
+          /* Of this group only the store instructions can be emulated:
+           * the load ones would need descriptor tables the client does
+           * not own, and VERR/VERW read rather than write. */
+          int store = (csp[0] == 0 ? ext <= 1 :		/* sldt, str */
+                                     ext <= 1 || ext == 4);	/* sgdt, sidt, smsw */
+          if (!store) {
+            error_once("DPMI: unsupported 0f %02x /%i\n%s", csp[0], ext,
+                DPMI_show_state(scp));
+            LWORD32(eip, = org_eip + instr_len(lina, Segments(_cs>>3).is_32));
+            break;
+          }
+          if ((csp[1] & 0xc0) == 0xc0) { // register dest
               /* just write 0 - no one uses SMSW in PM */
               if (OSIZE_IS_32)
                 *reg32[csp[1] & 7] = 0;
               else
                 *reg16[csp[1] & 7] = 0;
               LWORD32(eip, += 3);
-              break;
-            default:
-              error_once("DPMI: unsupported SLDT/SIDT dest %x\n%s", csp[1],
-                  DPMI_show_state(scp));
-              LWORD32(eip, = org_eip + instr_len(lina, Segments(_cs>>3).is_32));
-              break;
+          } else {
+              /* memory dest. sgdt/sidt have no other form, and the
+               * pharlap extenders reach for the descriptor tables this
+               * way. We have no tables to point them at yet, so store
+               * the same zeros the register form does. */
+              unsigned short sel;
+              uint32_t off;
+              int size = (csp[0] == 1 && ext <= 1) ? 6 : 2;
+              int len = decode_modrm_mem(scp, &csp[1], ASIZE_IS_32,
+                  pref_seg, &sel, &off);
+
+              if (len < 0 || !ValidAndUsedSelector(sel) ||
+                  GetSegmentLimit(sel) < off ||
+                  GetSegmentLimit(sel) - off < size - 1) {
+                error_once("DPMI: bad 0f %02x /%i operand %x\n%s", csp[0],
+                    ext, csp[1], DPMI_show_state(scp));
+                LWORD32(eip, = org_eip + instr_len(lina, Segments(_cs>>3).is_32));
+                break;
+              }
+              if (debug_level('M') >= 5)
+                D_printf("DPMI: 0f %02x /%i to %#x:%#x\n", csp[0], ext,
+                    sel, off);
+              memset(SEL_ADR(sel, off), 0, size);
+              LWORD32(eip, += 2 + len);
           }
           break;
+        }
         case 0x20:  // mov r/m,crX
           switch (csp[1] & 0xc0) {
             case 0xc0: // register dest
