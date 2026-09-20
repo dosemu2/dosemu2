@@ -96,6 +96,7 @@ void InvalidateSegs(void);
 #ifdef X86_JIT
 /* called from sigsegv.c */
 int e_emu_fault(sigcontext_t *scp, int in_vm86);
+int e_emu_nullseg_fault(sigcontext_t *scp, void *addr);
 int e_in_compiled_code(void);
 #else
 #define e_emu_fault(scp, in_vm86) 0
