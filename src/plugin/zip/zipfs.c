@@ -58,7 +58,8 @@ struct zip_node {
   struct zip_node *next;
   zip_int64_t idx;      // -1 for a directory we had to synthesise
   int ovl_id;           // -1 unless the entry only exists in the overlay
-  off_t size;
+  off_t size;           // as DOS sees it, overlay included
+  off_t arc_size;       // as the archive has it, 0 for an overlay entry
   time_t mtime;
   int attr;
   int is_dir;
@@ -271,7 +272,7 @@ static int build_tree(struct zipfs *zfs)
     node->idx = i;
     if (zip_stat_index(zfs->za, i, 0, &st) == 0) {
       if (st.valid & ZIP_STAT_SIZE)
-        node->size = st.size;
+        node->size = node->arc_size = st.size;
       if (st.valid & ZIP_STAT_MTIME)
         node->mtime = st.mtime;
     }
@@ -694,7 +695,7 @@ static void log_apply(struct zipfs *zfs, int op, int id, const char *name)
     return;
   n->ovl_id = id;
   n->idx = -1;
-  n->size = 0;
+  n->size = n->arc_size = 0;
   n->mtime = time(NULL);
   if (op == 'd') {
     n->is_dir = 1;
@@ -889,7 +890,7 @@ static ssize_t zf_read(vfs_file_t *file, void *buf, size_t count)
     size_t acnt = count < (size_t)arc_left ? count : (size_t)arc_left;
 
     if (zf->data) {
-      memcpy(buf, zf->data + zf->pos, acnt);
+      memcpy(buf, zf->data + zf->pos, acnt);  // arc_valid bounds this
     } else {
       /* stored entry, read through the archive */
       if (zip_fseek(zf->zfp, zf->pos, SEEK_SET) < 0) {
@@ -950,6 +951,8 @@ static ssize_t zf_write(vfs_file_t *file, const void *buf, size_t count)
     return -1;
   }
   zf->pos += ret;
+  if (zf->map.size > zf->node->size)
+    zf->node->size = zf->map.size;
   return ret;
 }
 
@@ -1014,12 +1017,16 @@ static int zf_ftruncate(vfs_file_t *file, off_t length)
   if (length < ovl_size(zf)) {
     if (map_append_trunc(&zf->map, length) != 0)
       return -1;
+    zf->node->size = length;
     return ftruncate(fd, length);
   }
   if (ftruncate(fd, length) == -1)
     return -1;
   /* the grown part is the overlay's now, and reads as zeros */
-  return map_append(&zf->map, ovl_size(zf), length - ovl_size(zf));
+  if (map_append(&zf->map, ovl_size(zf), length - ovl_size(zf)) != 0)
+    return -1;
+  zf->node->size = length;
+  return 0;
 }
 
 static int zf_fsync(vfs_file_t *file)
@@ -1191,7 +1198,8 @@ static vfs_file_t *zip_fs_open(vfs_fs_t *fs, const char *path, int flags)
   zf->node = n;
   zf->chunk_fd = -1;
   zf->map.fd = -1;
-  zf->map.size = zf->map.arc_valid = n->size;
+  zf->map.size = n->size;
+  zf->map.arc_valid = n->arc_size;
   zf->writable = (flags & O_ACCMODE) != O_RDONLY;
   /* an earlier run, or another instance, may already own part of this
    * entry; reading has to see that without creating anything */
@@ -1203,6 +1211,11 @@ static vfs_file_t *zip_fs_open(vfs_fs_t *fs, const char *path, int flags)
     errno = err;
     return NULL;
   }
+
+  /* an entry that only exists in the overlay has no archive side at
+   * all, and the read path already serves that */
+  if (n->idx < 0)
+    return &zf->vfile;
 
   if (zip_stat_index(zfs->za, n->idx, 0, &st) == 0 &&
       (st.valid & ZIP_STAT_COMP_METHOD) && st.comp_method == ZIP_CM_STORE) {
@@ -1217,27 +1230,25 @@ static vfs_file_t *zip_fs_open(vfs_fs_t *fs, const char *path, int flags)
    * serve reads from it. This is the point where a chunked backing
    * store would plug in instead.
    */
-  zf->data = malloc(n->size ? n->size : 1);
+  zf->data = malloc(n->arc_size ? n->arc_size : 1);
   if (!zf->data) {
-    free(zf);
+    zf_close(&zf->vfile);
     return NULL;
   }
-  if (n->size) {
+  if (n->arc_size) {
     zip_file_t *zfp = zip_fopen_index(zfs->za, n->idx, 0);
     zip_int64_t rd;
 
     if (!zfp) {
-      free(zf->data);
-      free(zf);
+      zf_close(&zf->vfile);
       errno = EIO;
       return NULL;
     }
-    rd = zip_fread(zfp, zf->data, n->size);
+    rd = zip_fread(zfp, zf->data, n->arc_size);
     zip_fclose(zfp);
-    if (rd != (zip_int64_t)n->size) {
+    if (rd != (zip_int64_t)n->arc_size) {
       error("zip: short read of %s\n", path);
-      free(zf->data);
-      free(zf);
+      zf_close(&zf->vfile);
       errno = EIO;
       return NULL;
     }
@@ -1504,6 +1515,82 @@ static int zip_probe(const char *path)
   return len > 4 && strncasecmp(path + len - 4, ".zip", 4) == 0;
 }
 
+/*
+ * A stat has no open file to ask, and the size DOS must see is the one
+ * the overlay ended up with, not the archive's. Rather than look for a
+ * map beside every entry, read the overlay directory once at mount:
+ * only entries that were locked or written have one.
+ */
+static struct zip_node *node_by_id(struct zip_node *n, zip_int64_t idx,
+    int ovl_id)
+{
+  struct zip_node *c;
+
+  if (ovl_id >= 0 ? n->ovl_id == ovl_id : (n->ovl_id < 0 && n->idx == idx))
+    return n;
+  for (c = n->child; c; c = c->next) {
+    struct zip_node *r = node_by_id(c, idx, ovl_id);
+
+    if (r)
+      return r;
+  }
+  return NULL;
+}
+
+static void sizes_from_overlay(struct zipfs *zfs)
+{
+  struct dirent *de;
+  char *dir;
+  DIR *d;
+
+  if (!zfs->ovl)
+    return;
+  dir = strdup(zfs->ovl);
+  if (!dir)
+    return;
+  dir[strlen(dir) - 1] = '\0';  // mkdir and opendir want no trailing slash
+  d = opendir(dir);
+  free(dir);
+  if (!d)
+    return;
+  while ((de = readdir(d))) {
+    struct ext_map m = { .fd = -1 };
+    struct zip_node *n;
+    zip_int64_t idx = -1;
+    int ovl_id = -1;
+    char *end;
+    char *path;
+    const char *p = de->d_name;
+    int len = strlen(p);
+
+    if (len < 5 || strcmp(p + len - 4, ".map") != 0)
+      continue;
+    errno = 0;
+    if (*p == 'n')
+      ovl_id = strtol(p + 1, &end, 16);
+    else
+      idx = strtoll(p, &end, 16);
+    if (errno || end != p + len - 4)
+      continue;
+    n = node_by_id(zfs->tree, idx, ovl_id);
+    if (!n || n->is_dir)
+      continue;
+    if (asprintf(&path, "%s%s", zfs->ovl, p) == -1)
+      continue;
+    m.fd = open(path, O_RDONLY | O_CLOEXEC);
+    free(path);
+    if (m.fd == -1)
+      continue;
+    m.size = n->size;
+    m.arc_valid = n->arc_size;
+    map_load(&m);
+    n->size = m.size;
+    close(m.fd);
+    free(m.v);
+  }
+  closedir(d);
+}
+
 static int zip_mount(vfs_fs_t *fs, const char *path)
 {
   struct zipfs *zfs;
@@ -1569,6 +1656,9 @@ static int zip_mount(vfs_fs_t *fs, const char *path)
 
   /* whatever an earlier run created or deleted, on top of the archive */
   log_replay(zfs);
+  /* and whatever it wrote, so that a listing shows the size DOS would
+   * read rather than the archive's */
+  sizes_from_overlay(zfs);
 
   fs->ops = &zip_fs_ops;
   fs->priv = zfs;
