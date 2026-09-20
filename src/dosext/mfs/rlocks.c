@@ -70,21 +70,21 @@ static int check_set(int ret)
   return ret;
 }
 
-static int lock_set(int fd, struct flock *fl)
+static int lock_set(vfs_file_t *fd, struct flock *fl)
 {
   fl->l_pid = 0; // needed for OFD locks
   fl->l_whence = SEEK_SET;
-  return check_set(fcntl(fd, F_OFD_SETLK, fl));
+  return check_set(vfs_setlk(fd, fl));
 }
 
-static int do_lock_get(int fd, struct flock *fl)
+static int do_lock_get(vfs_file_t *fd, struct flock *fl)
 {
   fl->l_pid = 0; // needed for OFD locks
   fl->l_whence = SEEK_SET;
-  return fcntl(fd, F_OFD_GETLK, fl);
+  return vfs_getlk(fd, fl);
 }
 
-static void lock_get(int fd, struct flock *fl)
+static void lock_get(vfs_file_t *fd, struct flock *fl)
 {
   int ret = do_lock_get(fd, fl);
   if (ret) {
@@ -93,6 +93,32 @@ static void lock_get(int fd, struct flock *fl)
     fl->l_type = F_UNLCK;
   }
 }
+
+#if FUNLCK_WA
+/* the mlemu mirror fds are our own temporary files, not backend files */
+static int lock_set_fd(int fd, struct flock *fl)
+{
+  fl->l_pid = 0;
+  fl->l_whence = SEEK_SET;
+  return check_set(fcntl(fd, F_OFD_SETLK, fl));
+}
+
+static int do_lock_get_fd(int fd, struct flock *fl)
+{
+  fl->l_pid = 0;
+  fl->l_whence = SEEK_SET;
+  return fcntl(fd, F_OFD_GETLK, fl);
+}
+
+static void lock_get_fd(int fd, struct flock *fl)
+{
+  int ret = do_lock_get_fd(fd, fl);
+  if (ret) {
+    error("OFD_GETLK failed, %s\n", strerror(errno));
+    fl->l_type = F_UNLCK;
+  }
+}
+#endif
 
 int lock_file_region(vfs_file_t *fd, int lck, long long start,
     unsigned long len, int wr, int mlemu_fd)
@@ -108,15 +134,15 @@ int lock_file_region(vfs_file_t *fd, int lck, long long start,
   fl.l_start = start;
   fl.l_len = len;
   /* needs to lock against I/O operations in another process */
-  ret = flock(fd->fd, LOCK_EX);
+  ret = vfs_flock(fd, LOCK_EX);
   if (ret)
     return -1;
-  ret = lock_set(fd->fd, &fl);
+  ret = lock_set(fd, &fl);
 #if FUNLCK_WA
   if (mlemu_fd != -1)
-    lock_set(mlemu_fd, &fl);
+    lock_set_fd(mlemu_fd, &fl);
 #endif
-  flock(fd->fd, LOCK_UN);
+  vfs_flock(fd, LOCK_UN);
   return ret;
 }
 
@@ -129,7 +155,7 @@ int region_is_fully_owned(vfs_file_t *fd, long long start, unsigned long len, in
   fl.l_type = F_UNLCK;
   fl.l_start = start;
   fl.l_len = len;
-  err = do_lock_get(fd->fd, &fl);
+  err = do_lock_get(fd, &fl);
 #if FUNLCK_WA
   if (err && errno == EINVAL) {  // F_UNLCK extension unsupported
     /* check on mirror fd so rd/wr inverted */
@@ -137,7 +163,7 @@ int region_is_fully_owned(vfs_file_t *fd, long long start, unsigned long len, in
     fl.l_start = start;
     fl.l_len = len;
     assert(mlemu_fd2 != -1);
-    lock_get(mlemu_fd2, &fl);
+    lock_get_fd(mlemu_fd2, &fl);
   } else
 #endif
   if (err) {
@@ -168,25 +194,25 @@ int region_lock_offs(vfs_file_t *fd, long long start, unsigned long len, int wr)
 #ifndef __APPLE__
   /* on MacOS this kind of lock is incompatible with F_OFD_GETLK,
      which then sets l_pid to -1 */
-  ret = flock(fd->fd, LOCK_EX);
+  ret = vfs_flock(fd, LOCK_EX);
   if (ret)
     return -1;
 #endif
   fl.l_type = wr ? F_WRLCK : F_RDLCK;
   fl.l_start = start;
   fl.l_len = len;
-  lock_get(fd->fd, &fl);
+  lock_get(fd, &fl);
   if (fl.l_type == F_UNLCK)
     return len;
   if (fl.l_start > start)
     return (fl.l_start - start);  // found partially unlocked region
   /* no allowed region found, unlock and return 0 */
-  return flock(fd->fd, LOCK_UN);
+  return vfs_flock(fd, LOCK_UN);
 }
 
 void region_unlock_offs(vfs_file_t *fd)
 {
-  flock(fd->fd, LOCK_UN);
+  vfs_flock(fd, LOCK_UN);
 }
 
 #if FUNLCK_WA
@@ -217,7 +243,7 @@ void open_mlemu(int *r_fds)
   fl.l_type = F_UNLCK;
   fl.l_start = 0;
   fl.l_len = 1;
-  err = do_lock_get(fd1, &fl);
+  err = do_lock_get_fd(fd1, &fl);
   if (err && errno == EINVAL) {  // F_UNLCK extension unsupported, use mlemu
     r_fds[0] = fd0;
     r_fds[1] = fd1;
