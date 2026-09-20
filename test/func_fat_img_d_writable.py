@@ -13,11 +13,11 @@ rem end
     testfil = testdir / "there.txt"
     testfil.write_text('there')
 
-    name = self.mkimage_vbr(fat, cwd=testdir)
+    img = self.mkimage_vbr(fat, cwd=testdir)
 
     results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 %s +1"
-""" % name)
+""" % img.name)
 
     # Std DOS format
     # TEST         <DIR>

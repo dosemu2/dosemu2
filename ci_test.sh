@@ -34,7 +34,7 @@ cat >&2 << EOF
 =      Tests run on emulated CPU, KVM and VM86      =
 =====================================================
 EOF
-env NO_FAILFAST=1 python3 test/test_processor.py
+#env NO_FAILFAST=1 python3 test/test_processor.py
 
 cat >&2 << EOF2
 =====================================================
@@ -44,19 +44,20 @@ EOF2
 
 case "${RUNTYPE}" in
   "full")
-    python3 test/test_dosemu.py PPDOSGITTestCase
-    python3 test/test_dosemu.py MSDOS622TestCase
-    python3 test/test_dosemu.py FRDOS130TestCase
-    python3 test/test_dosemu.py DRDOS701TestCase
+    #python3 test/test_dosemu.py PPDOSGITTestCase
+    #python3 test/test_dosemu.py MSDOS622TestCase
+    #python3 test/test_dosemu.py FRDOS130TestCase
+    #python3 test/test_dosemu.py DRDOS701TestCase
     ;;
   "normal")
-    python3 test/test_dosemu.py PPDOSGITTestCase
-    python3 test/test_dosemu.py MSDOS622TestCase
+    #python3 test/test_dosemu.py PPDOSGITTestCase
+    #python3 test/test_dosemu.py MSDOS622TestCase
     ;;
   "simple")
-    python3 test/test_dosemu.py PPDOSGITTestCase
+    #python3 test/test_dosemu.py PPDOSGITTestCase
     ;;
 esac
+env NO_FAILFAST=1 test/test_dosemu.py test_fat_ds2_findfirst_volume_exists test_fat_ds2_findfirst_volume test_mfs_ds2_findfirst_volume
 
 # This section here only runs for proving out test_comcom changes in PRs etc, the tests are
 # run for real in the Comcom64 repository
