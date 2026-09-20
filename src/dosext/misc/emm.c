@@ -2605,6 +2605,26 @@ static int jemm_hidden(int physical_page)
   return config.jemm && jemm_dos_view && jemm_shared(physical_page);
 }
 
+/* The first window that is nobody else's.  dosemu borrows four windows as the
+ * buffer it bounces DOS calls of a protected-mode client through, see
+ * prepare_ems_frame() in msdos.c.  Normally the whole frame is ours and the
+ * first window will do, but under JEMM the bottom of the array lies over
+ * memory that still belongs to DOS and to the video card, and mapping over
+ * that behind their back corrupts both.  Returns -1 when there is no such
+ * window. */
+int emm_first_own_page(void)
+{
+  int i;
+
+  if (!config.jemm)
+    return 0;
+  for (i = 0; i < phys_pages; i++) {
+    if (!jemm_shared(i))
+      return i;
+  }
+  return -1;
+}
+
 static void jemm_init(void)
 {
   unsigned char *p;
