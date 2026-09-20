@@ -141,9 +141,16 @@
 #define LOWMEM_SIZE 0x100000
 #define EXTMEM_SIZE ((unsigned)(config.ext_mem << 10))
 #define XMS_SIZE ((unsigned)(config.xms_size << 10))
+/* Physical pages handed out by VCPI AX=DE06h.  They sit right below the XMS
+ * window so that they stay under the 16M the ISA DMA controller can reach;
+ * without $_vcpi = (on) the window is empty and the layout is unchanged. */
+#define VCPI_POOL_PAGES 16	/* EMS pages of 16K */
+#define VCPI_POOL_SIZE ((unsigned)(config.vcpi && config.ems_size ? \
+    VCPI_POOL_PAGES * (16 * 1024) : 0))
 /* ext mem is counted from 1M and the HMA is its first 64K, so it ends at
- * LOWMEM_SIZE + EXTMEM_SIZE and the XMS window starts there */
-#define xms_base (LOWMEM_SIZE + EXTMEM_SIZE)
+ * LOWMEM_SIZE + EXTMEM_SIZE, and the pool starts there */
+#define vcpi_pool_base (LOWMEM_SIZE + EXTMEM_SIZE)
+#define xms_base (vcpi_pool_base + VCPI_POOL_SIZE)
 
 #ifndef __ASSEMBLER__
 
