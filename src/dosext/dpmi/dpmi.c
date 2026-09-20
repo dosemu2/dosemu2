@@ -956,6 +956,8 @@ THEN
    Clear descriptor valid bit;
 FI;
 */
+static int fake_gdt_data_sel(unsigned short sel);
+
 static inline int CheckDataSelector(cpuctx_t *scp,
 				    unsigned short selector,
 				    char letter, int in_dosemu)
@@ -963,7 +965,8 @@ static inline int CheckDataSelector(cpuctx_t *scp,
   /* a null selector can be either 0,1,2 or 3 (RPL field ignored);
      apparently fs=3 and gs=3 show up sometimes when running in
      x86-64 */
-  if (selector > 3 && (!ValidAndUsedSelector(selector)
+  if (selector > 3 && !fake_gdt_data_sel(selector) &&
+		      (!ValidAndUsedSelector(selector)
 		       || Segments(selector >> 3).not_present)) {
     if (in_dosemu) {
       error("%cS selector invalid: 0x%04X, type=%x np=%i\n",
@@ -2204,16 +2207,46 @@ static struct {
     dosaddr_t base;
     unsigned limit;
     unsigned short ldt_sel;
+    void *buf;
 } fake_gdt;
 
 void dpmi_ext_set_fake_gdt(dosaddr_t base, unsigned limit,
-        unsigned short ldt_sel)
+        unsigned short ldt_sel, void *buf)
 {
     D_printf("DPMI: fake gdt at %#x lim %#x, ldt sel %#x\n", base, limit,
             ldt_sel);
     fake_gdt.base = base;
     fake_gdt.limit = limit;
     fake_gdt.ldt_sel = ldt_sel;
+    fake_gdt.buf = buf;
+}
+
+/* the writable side of the same page, for the cpu emulator: it wants a
+ * host pointer it can walk like a real GDT, and it sets the accessed
+ * bit, which the client's read-only mapping would fault on. */
+void *dpmi_ext_get_fake_gdt_buf(unsigned *limit)
+{
+    if (!fake_gdt.base)
+	return NULL;
+    *limit = fake_gdt.limit;
+    return fake_gdt.buf;
+}
+
+/* A selector the client picked out of the fake GDT is not in the LDT, so
+ * the checks below would call it garbage. Vouch for the ones our own table
+ * describes as present data segments. */
+static int fake_gdt_data_sel(unsigned short sel)
+{
+    const unsigned char *d;
+
+    if ((sel & 4) || !fake_gdt.buf)
+	return 0;
+    if ((sel & 0xfff8) + 7 > fake_gdt.limit)
+	return 0;
+    d = (const unsigned char *)fake_gdt.buf + (sel & 0xfff8);
+    if ((d[5] & 0x90) != 0x90)		/* present and not a system seg */
+	return 0;
+    return ((d[5] & 0x0a) != 0x08);	/* data, or readable code */
 }
 
 int dpmi_ext_get_fake_gdt(dosaddr_t *base, unsigned *limit,

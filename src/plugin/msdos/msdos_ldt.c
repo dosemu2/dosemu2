@@ -61,7 +61,11 @@ static unsigned short d16, d32;
  * client trying to write the GDT faults visibly rather than silently
  * scribbling on a table nothing reads back. */
 #define FAKE_GDT_LDT_SEL 8
-#define FAKE_GDT_LEN (FAKE_GDT_LDT_SEL + LDT_ENTRY_SIZE)
+/* 286|DOS-Extender hands its clients a few selectors it did not get from
+ * DPMI; 0x40 is the one for the BIOS data area, and the Origin games load
+ * it straight into ds. */
+#define FAKE_GDT_BIOS_SEL 0x40
+#define FAKE_GDT_LEN (FAKE_GDT_BIOS_SEL + LDT_ENTRY_SIZE)
 static unsigned char *gdt_backbuf;
 static dosaddr_t gdt_bb;
 static dosaddr_t gdt_alias;
@@ -86,6 +90,23 @@ static void fake_gdt_set_ldt(dosaddr_t base, unsigned limit)
     d[5] = 0x82;		/* present, dpl 0, ldt */
     d[6] = (limit >> 16) & 0xf;	/* byte granular, 16-bit */
     d[7] = base >> 24;
+}
+
+static void fake_gdt_set_bios(void)
+{
+    unsigned char *d;
+
+    if (!gdt_backbuf)
+	return;
+    d = gdt_backbuf + FAKE_GDT_BIOS_SEL;
+    d[0] = 0xff;
+    d[1] = 0xff;		/* limit 0xffff, like the real-mode segment */
+    d[2] = 0x00;
+    d[3] = 0x04;
+    d[4] = 0x00;		/* base 0x400 */
+    d[5] = 0xf2;		/* present, dpl 3, data rw */
+    d[6] = 0;			/* byte granular, 16-bit */
+    d[7] = 0;
 }
 
 static void fake_gdt_init(int page_size)
@@ -214,7 +235,9 @@ unsigned short msdos_ldt_init(int page_size)
     if (config.pharlap) {
 	fake_gdt_init(page_size);
 	fake_gdt_set_ldt(ldt_alias, GetSegmentLimit(alias_sel));
-	dpmi_ext_set_fake_gdt(gdt_alias, FAKE_GDT_LEN - 1, FAKE_GDT_LDT_SEL);
+	fake_gdt_set_bios();
+	dpmi_ext_set_fake_gdt(gdt_alias, FAKE_GDT_LEN - 1, FAKE_GDT_LDT_SEL,
+		gdt_backbuf);
     }
     return dpmi_ldt_alias;
 }
@@ -236,7 +259,7 @@ void msdos_ldt_done(void)
     DPMIUnmapHWRam(ldt_alias);
     DPMIUnmapHWRam(ldt_bb);
     if (gdt_backbuf) {
-	dpmi_ext_set_fake_gdt(0, 0, 0);
+	dpmi_ext_set_fake_gdt(0, 0, 0, NULL);
 	gdt_backbuf = NULL;
 	DPMIUnmapHWRam(gdt_alias);
 	DPMIUnmapHWRam(gdt_bb);

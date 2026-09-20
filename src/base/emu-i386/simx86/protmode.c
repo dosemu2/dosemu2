@@ -53,6 +53,7 @@
 #include "codegen.h"
 #include "protmode.h"
 #include "msdoshlp.h"
+#include "emudpmi.h"
 
 Descriptor *GDT = NULL;
 Descriptor *LDT = NULL;
@@ -66,6 +67,39 @@ static unsigned short sysxfer[] = {
 };
 
 static char ofsnam[] =	"ES: CS: SS: DS: FS: GS:";
+
+/* The emulator has no GDT of its own - the table cpu-emu.c allocates is
+ * all zeros and exists only so verr/verw have something to point at. When
+ * the pharlap option is on, dpmi builds a real one for the client, and a
+ * client that goes looking for the descriptor tables itself has to be able
+ * to use what it finds there. Copy it into our table rather than pointing
+ * at it: the client's is a single page, several readers below do not
+ * bounds-check their selector, and the accessed bit must not be written
+ * back to a page the client can read. Returns NULL when there is no fake
+ * GDT, which is the "no GDT at all" case everything here was written for. */
+static Descriptor *pm_gdt(void)
+{
+	unsigned limit;
+	void *buf = dpmi_ext_get_fake_gdt_buf(&limit);
+
+	if (!buf || !GDT || limit >= 65536)
+	    return NULL;
+	memcpy(GDT, buf, limit + 1);
+	TheCPU.GDTR.Base = (uintptr_t)GDT;
+	TheCPU.GDTR.Limit = limit;
+	return GDT;
+}
+
+/* the fake GDT is much smaller than our table, so every walk of it needs
+ * the limit checked first */
+static int pm_dt_ok(unsigned short sel)
+{
+	if (IS_LDT(sel))
+	    return (LDT != NULL);
+	if (!pm_gdt())
+	    return 0;
+	return ((sel & 0xfff8) <= TheCPU.GDTR.Limit);
+}
 
 static unsigned char ofsseg[] = {
 	Ofs_XES, Ofs_XCS, Ofs_XSS, Ofs_XDS, Ofs_XFS, Ofs_XGS };
@@ -123,15 +157,20 @@ static int _SetSegProt_check(int ofs, unsigned long sel)
 	    }
 	}
 	else {
-	    return EXCP0D_GPF;
-#if 0
-	    dt = GDT;	/* GDT is not yet there */
-	    if ((dt == NULL) ||	((sel & 0xfff8) > TheCPU.GDTR.Limit))
-	    {
-		if (dt) e_printf("Invalid GDT selector %#lx\n", sel);
+	    int pl;
+	    dt = pm_gdt();
+	    if ((dt == NULL) || ((sel & 0xfff8) > TheCPU.GDTR.Limit) ||
+		(dt[sel>>3].S == 0)) {
+		e_printf("Invalid GDT selector %#lx (dt=%p lim=%x)\n", sel,
+			dt, TheCPU.GDTR.Limit);
 		return EXCP0D_GPF;
 	    }
-#endif
+	    /* data and non-conforming code need DPL >= max(CPL, RPL) */
+	    pl = CPL; if ((sel & 3) > pl) pl = (sel & 3);
+	    if (!DT_CONFORMING_CODE(&dt[sel>>3]) && pl > dt[sel>>3].DPL) {
+		e_printf("GDT selector %#lx not visible at pl %d\n", sel, pl);
+		return EXCP0D_GPF;
+	    }
 	}
 	wFlags = GetSelectorFlags(sel);
 	sys = (wFlags & DF_USER);
@@ -321,6 +360,8 @@ int hsw_verr(unsigned short sel)
 {
 	unsigned short wFlags;
 	/* test for present && CPL>=DPL && readable */
+	if (!pm_dt_ok(sel))
+	    return 0;
 	wFlags = GetSelectorFlags(sel);
 	if (wFlags & DF_PRESENT) {
 	    if (!(wFlags & DF_CODE) || (wFlags & DF_CREADABLE))
@@ -333,6 +374,8 @@ int hsw_verw(unsigned short sel)
 {
 	unsigned short wFlags;
 	/* test for present && CPL>=DPL && writeable */
+	if (!pm_dt_ok(sel))
+	    return 0;
 	wFlags = GetSelectorFlags(sel);
 	if (wFlags & DF_PRESENT) {
 	    if (!(wFlags & DF_CODE) || (wFlags & DF_DWRITEABLE))
@@ -350,14 +393,14 @@ int e_larlsl(int mode, unsigned short sel)
 	DTR *dtr;
 	int pl;
 
-	dt  = (sel & 4? LDT : GDT);
+	dt  = (sel & 4? LDT : pm_gdt());
 	dtr = (sel & 4? &(TheCPU.LDTR) : &(TheCPU.GDTR));
 	/* check DT and limits */
-	if (dt==NULL || dt == GDT || ((sel&0xfff8) > dtr->Limit)) {
+	if (dt==NULL || ((sel&0xfff8) > dtr->Limit)) {
 		return 0;
 	}
 	/* check system segments if in GDT */
-	if (dt==GDT && (GDT[sel>>3].S==0)) {
+	if (IS_GDT(sel) && (GDT[sel>>3].S==0)) {
 	    /* "is a valid descriptor type" */
 	    int styp=GDT[sel>>3].type;
 	    if (styp==0 || styp==6 || styp==7 || styp==8 ||
