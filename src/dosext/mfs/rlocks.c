@@ -60,18 +60,21 @@
 #include "vfs/vfs.h"
 #include "rlocks.h"
 
-static int lock_set(int fd, struct flock *fl)
+static int check_set(int ret)
 {
-  int ret;
-  fl->l_pid = 0; // needed for OFD locks
-  fl->l_whence = SEEK_SET;
-  ret = fcntl(fd, F_OFD_SETLK, fl);
   if (ret) {
     int err = errno;
     if (err != EAGAIN)
       error("OFD_SETLK failed, %s\n", strerror(err));
   }
   return ret;
+}
+
+static int lock_set(int fd, struct flock *fl)
+{
+  fl->l_pid = 0; // needed for OFD locks
+  fl->l_whence = SEEK_SET;
+  return check_set(fcntl(fd, F_OFD_SETLK, fl));
 }
 
 static int do_lock_get(int fd, struct flock *fl)
