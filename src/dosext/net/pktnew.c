@@ -461,6 +461,12 @@ static int pkt_int(void)
 	REG(edi) = PKTDRV_param;
 	return 1;
 
+    case F_OLD_AS_SEND:
+	/* withdrawn in 1.10 in favour of F_AS_SEND_PKT, and never
+	 * implemented by anyone */
+	HI(dx) = E_BAD_COMMAND;
+	break;
+
     case F_SET_RCV_MODE:
 	if (hdlp == NULL || !hdlp->in_use) {
 	    HI(dx) = E_BAD_HANDLE;
@@ -489,6 +495,18 @@ static int pkt_int(void)
 	SREG(ds) = PKTDRV_SEG;
 	REG(esi) = PKTDRV_stats;
 	return 1;
+
+    case F_SEND_RAW:
+    case F_FLUSH_RAW:
+    case F_FETCH_RAW:
+	/* raw mode exists for serial line drivers only */
+	HI(dx) = E_BAD_COMMAND;
+	break;
+
+    case F_SIGNAL:
+	/* there is no PPP link layer below us to signal to */
+	HI(dx) = E_BAD_COMMAND;
+	break;
 
     default:
 	/* unhandled function, indicate an error */

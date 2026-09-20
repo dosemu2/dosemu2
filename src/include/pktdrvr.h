@@ -30,12 +30,15 @@ enum {
 #define F_GET_ADDRESS	6
 #define F_RESET_IFACE	7
 #define F_GET_PARAMS	10
-#define F_AS_SEND_PKT	11
+#define F_OLD_AS_SEND	11	/* withdrawn in 1.10 */
 #define F_SET_RCV_MODE	20
 #define F_GET_RCV_MODE	21
 #define F_GET_STATS	24
 #define F_SET_ADDRESS	25
-#define F_RECV_PKT	27
+#define F_SEND_RAW	26	/* serial line drivers only */
+#define F_FLUSH_RAW	27	/* serial line drivers only */
+#define F_FETCH_RAW	28	/* serial line drivers only */
+#define F_SIGNAL	29	/* added in 1.11, for PPP */
 
 #define E_BAD_HANDLE	1
 #define E_NO_CLASS	2
