@@ -96,6 +96,7 @@ struct zip_file {
   zip_file_t *zfp;      // used instead of data for stored entries
   int chunk_fd;         // the entry's chunk file, -1 until a lock needs it
   struct ext_map map;   // what of the entry the chunk file owns
+  int writable;         // opened for writing
 };
 
 struct zip_dir {
@@ -418,6 +419,14 @@ out:
  */
 #define EXT_REC_LEN 16
 
+static void put64(unsigned char *p, uint64_t v)
+{
+  int i;
+
+  for (i = 0; i < 8; i++)
+    p[i] = (v >> (i * 8)) & 0xff;
+}
+
 static uint64_t get64(const unsigned char *p)
 {
   uint64_t v = 0;
@@ -496,6 +505,25 @@ static void map_load(struct ext_map *m)
       continue;
     map_add(m, off, off + len);
   }
+}
+
+/*
+ * The record goes out only after the data is in the chunk file, so
+ * that a crash between the two loses the write rather than pointing
+ * the map at a range the chunk file never received.
+ */
+static int map_append(struct ext_map *m, off_t off, off_t len)
+{
+  unsigned char rec[EXT_REC_LEN];
+
+  if (m->fd == -1)
+    return -1;
+  put64(rec, off);
+  put64(rec + 8, len);
+  if (write(m->fd, rec, sizeof(rec)) != sizeof(rec))
+    return -1;
+  m->consumed += sizeof(rec);
+  return map_add(m, off, off + len);
 }
 
 /*
@@ -676,10 +704,42 @@ static ssize_t zf_read(vfs_file_t *file, void *buf, size_t count)
   return count;
 }
 
+/*
+ * A write goes into the chunk file at the offset DOS asked for and
+ * nowhere else. Nothing underneath has to be read, let alone inflated:
+ * the extent is recorded as the overlay's, and from then on reads take
+ * it from here. That is what unaligned extents buy - the archive is
+ * never touched on the way.
+ */
 static ssize_t zf_write(vfs_file_t *file, const void *buf, size_t count)
 {
-  errno = EROFS;
-  return -1;
+  struct zip_file *zf = (struct zip_file *)file;
+  int fd;
+  ssize_t ret;
+
+  if (!zf->writable) {
+    errno = EBADF;
+    return -1;
+  }
+  if (!count)
+    return 0;
+  fd = ovl_chunk_fd(zf, 1);
+  if (fd == -1) {
+    errno = EROFS;
+    return -1;
+  }
+  ret = pwrite(fd, buf, count, zf->pos);
+  if (ret < 0)
+    return -1;
+  if (map_append(&zf->map, zf->pos, ret) != 0) {
+    /* the bytes are in the chunk file but nothing will look at them,
+     * so the write did not happen as far as anyone can tell */
+    error("zip: cannot record write of %s\n", zf->node->name);
+    errno = EIO;
+    return -1;
+  }
+  zf->pos += ret;
+  return ret;
 }
 
 static off_t zf_lseek(vfs_file_t *file, off_t offset, int whence)
@@ -718,15 +778,47 @@ static int zf_fstat(vfs_file_t *file, struct stat *sb)
   return 0;
 }
 
+/*
+ * Only growing is supported, which is what a DOS program does when it
+ * seeks past the end and writes. Shrinking would have to record that a
+ * range stops existing, and the map has no way to say that yet, so it
+ * is refused rather than silently left to the archive.
+ */
 static int zf_ftruncate(vfs_file_t *file, off_t length)
 {
-  errno = EROFS;
-  return -1;
+  struct zip_file *zf = (struct zip_file *)file;
+  int fd;
+
+  if (!zf->writable) {
+    errno = EBADF;
+    return -1;
+  }
+  if (length < ovl_size(zf)) {
+    errno = EPERM;
+    return -1;
+  }
+  if (length == ovl_size(zf))
+    return 0;
+  fd = ovl_chunk_fd(zf, 1);
+  if (fd == -1) {
+    errno = EROFS;
+    return -1;
+  }
+  if (ftruncate(fd, length) == -1)
+    return -1;
+  /* the grown part is the overlay's now, and reads as zeros */
+  return map_append(&zf->map, ovl_size(zf), length - ovl_size(zf));
 }
 
 static int zf_fsync(vfs_file_t *file)
 {
-  return 0;
+  struct zip_file *zf = (struct zip_file *)file;
+
+  if (zf->chunk_fd == -1)
+    return 0;
+  if (zf->map.fd != -1 && fsync(zf->map.fd) == -1)
+    return -1;
+  return fsync(zf->chunk_fd);
 }
 
 static int zf_get_dos_attr(vfs_file_t *file, int mode)
@@ -878,10 +970,6 @@ static vfs_file_t *zip_fs_open(vfs_fs_t *fs, const char *path, int flags)
     errno = EISDIR;
     return NULL;
   }
-  if ((flags & O_ACCMODE) != O_RDONLY) {
-    errno = EROFS;
-    return NULL;
-  }
   zf = calloc(1, sizeof(*zf));
   if (!zf)
     return NULL;
@@ -891,9 +979,17 @@ static vfs_file_t *zip_fs_open(vfs_fs_t *fs, const char *path, int flags)
   zf->node = n;
   zf->chunk_fd = -1;
   zf->map.fd = -1;
+  zf->writable = (flags & O_ACCMODE) != O_RDONLY;
   /* an earlier run, or another instance, may already own part of this
    * entry; reading has to see that without creating anything */
   ovl_refresh(zf);
+  if ((flags & O_TRUNC) && zf->writable) {
+    /* the archive's copy can not be thrown away, and the map can not
+     * say that a range is gone, so this would quietly keep serving it */
+    zf_close(&zf->vfile);
+    errno = EPERM;
+    return NULL;
+  }
 
   if (zip_stat_index(zfs->za, n->idx, 0, &st) == 0 &&
       (st.valid & ZIP_STAT_COMP_METHOD) && st.comp_method == ZIP_CM_STORE) {
@@ -1020,22 +1116,32 @@ static int zip_fs_access(vfs_fs_t *fs, const char *path, int mode)
     errno = ENOENT;
     return -1;
   }
-  if (mode & W_OK) {
-    errno = EROFS;
-    return -1;
-  }
+  /* an existing entry can be written, because the overlay takes it;
+   * creating and deleting still can not be done */
   return 0;
 }
 
+/*
+ * Writes land in the overlay, so the space that matters is the space
+ * the overlay has. Falling back to the archive's own size keeps the
+ * drive looking full rather than infinite if that can not be had.
+ */
 static int zip_fs_statvfs(vfs_fs_t *fs, const char *path, struct statvfs *sb)
 {
   struct zipfs *zfs = fs->priv;
+  struct statvfs host;
 
   memset(sb, 0, sizeof(*sb));
   sb->f_bsize = sb->f_frsize = 512;
-  sb->f_blocks = (zfs->arc_size + 511) / 512;
-  sb->f_flag = ST_RDONLY;
   sb->f_namemax = 255;
+  if (dosemu_tmpdir && statvfs(dosemu_tmpdir, &host) == 0 && host.f_frsize) {
+    double scale = (double)host.f_frsize / 512;
+
+    sb->f_blocks = host.f_blocks * scale;
+    sb->f_bfree = sb->f_bavail = host.f_bavail * scale;
+  } else {
+    sb->f_blocks = (zfs->arc_size + 511) / 512;
+  }
   return 0;
 }
 
