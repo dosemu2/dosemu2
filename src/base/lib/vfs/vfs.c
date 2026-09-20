@@ -756,85 +756,109 @@ int vfs_fset_dos_attr(vfs_file_t *file, int attr)
 
 int vfs_close(vfs_file_t *file)
 {
-  if (!file || !file->ops || !file->ops->close)
+  if (!file || !file->ops || !file->ops->close) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->close(file);
 }
 
 ssize_t vfs_read(vfs_file_t *file, void *buf, size_t count)
 {
-  if (!file || !file->ops || !file->ops->read)
+  if (!file || !file->ops || !file->ops->read) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->read(file, buf, count);
 }
 
 ssize_t vfs_write(vfs_file_t *file, const void *buf, size_t count)
 {
-  if (!file || !file->ops || !file->ops->write)
+  if (!file || !file->ops || !file->ops->write) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->write(file, buf, count);
 }
 
 off_t vfs_lseek(vfs_file_t *file, off_t offset, int whence)
 {
-  if (!file || !file->ops || !file->ops->lseek)
+  if (!file || !file->ops || !file->ops->lseek) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->lseek(file, offset, whence);
 }
 
 int vfs_fstat(vfs_file_t *file, struct stat *sb)
 {
-  if (!file || !file->ops || !file->ops->fstat)
+  if (!file || !file->ops || !file->ops->fstat) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->fstat(file, sb);
 }
 
 int vfs_ftruncate(vfs_file_t *file, off_t length)
 {
-  if (!file || !file->ops || !file->ops->ftruncate)
+  if (!file || !file->ops || !file->ops->ftruncate) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->ftruncate(file, length);
 }
 
 int vfs_fsync(vfs_file_t *file)
 {
-  if (!file || !file->ops || !file->ops->fsync)
+  if (!file || !file->ops || !file->ops->fsync) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->fsync(file);
 }
 
 int vfs_flock(vfs_file_t *file, int op)
 {
-  if (!file || !file->ops || !file->ops->flock)
+  if (!file || !file->ops || !file->ops->flock) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->flock(file, op);
 }
 
 int vfs_setlk(vfs_file_t *file, struct flock *fl)
 {
-  if (!file || !file->ops || !file->ops->setlk)
+  if (!file || !file->ops || !file->ops->setlk) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->setlk(file, fl);
 }
 
 int vfs_getlk(vfs_file_t *file, struct flock *fl)
 {
-  if (!file || !file->ops || !file->ops->getlk)
+  if (!file || !file->ops || !file->ops->getlk) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->getlk(file, fl);
 }
 
 int vfs_closedir(vfs_dir_t *dir)
 {
-  if (!dir || !dir->ops || !dir->ops->closedir)
+  if (!dir || !dir->ops || !dir->ops->closedir) {
+    errno = ENOSYS;
     return -1;
+  }
   return dir->ops->closedir(dir);
 }
 
 int vfs_readdir(vfs_dir_t *dir, struct vfs_dirent *de)
 {
-  if (!dir || !dir->ops || !dir->ops->readdir)
+  if (!dir || !dir->ops || !dir->ops->readdir) {
+    errno = ENOSYS;
     return -1;
+  }
   return dir->ops->readdir(dir, de);
 }
 
@@ -845,8 +869,10 @@ int vfs_dir_has_sfn(vfs_dir_t *dir)
 
 int vfs_fstatdir(vfs_dir_t *dir, struct stat *statbuf)
 {
-  if (!dir || !dir->ops || !dir->ops->fstatdir)
+  if (!dir || !dir->ops || !dir->ops->fstatdir) {
+    errno = ENOSYS;
     return -1;
+  }
   return dir->ops->fstatdir(dir, statbuf);
 }
 
