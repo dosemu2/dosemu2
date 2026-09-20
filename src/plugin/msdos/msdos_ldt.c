@@ -374,6 +374,13 @@ static void direct_ldt_write(cpuctx_t *scp, int offset,
     if (lp[5] & 0x80)
       error("DPMI: ldt cache out of sync\n");
   }
+  /* The client writes its descriptors a byte or two at a time, so most of
+   * what we merge into comes from the host LDT, which does not carry the
+   * accessed bit: SetSelector() has nowhere to put it. A 286|DOS-Extender
+   * client compares the whole access byte against 0xf3, so take that bit
+   * back from the backbuffer, which is its own view of the table. */
+  if ((lp[5] & 0x90) == 0x90)
+    lp[5] |= ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE + 5] & 1;
   memcpy(lp + ldt_offs, buffer, length);
   D_printf("LDT: ");
   for (i = 0; i < LDT_ENTRY_SIZE; i++)
