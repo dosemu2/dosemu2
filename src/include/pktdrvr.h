@@ -45,6 +45,9 @@ enum {
 #define F_SIGNAL	29	/* added in 1.11, for PPP */
 #define F_GET_STRUCT	30	/* added in 1.11 */
 
+/* value returned in AL by driver_info() */
+#define L_HP_EXTENDED	6	/* basic, high-performance and extended */
+
 #define E_BAD_HANDLE	1
 #define E_NO_CLASS	2
 #define E_NO_TYPE	3

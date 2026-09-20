@@ -192,13 +192,14 @@ pkt_init(void)
     pg.flags = config.pktflags;	/* global config flags */
 
     p_param->major_rev = 1;		/* pkt driver spec */
-    p_param->minor_rev = 9;
+    p_param->minor_rev = 11;
     p_param->length = sizeof(struct pkt_param);
     p_param->addr_len = ETH_ALEN;
     p_param->mtu = GetDeviceMTU();
     p_param->multicast_aval = MCAST_LIST_SIZE;
     p_param->rcv_bufs = 8 - 1;		/* a guess */
     p_param->xmt_bufs = 2 - 1;
+    p_param->int_num = 0;		/* no post-EOI interrupt */
 
     PKTRcvCall_TID = coopth_create("PKT_receiver_call",
 	pkt_receiver_callback_thr);
@@ -352,7 +353,8 @@ static int pkt_int(void)
 	   HI(dx) = E_BAD_COMMAND;
 	   break;
 	}
-	REG(eax) = 2;				/* basic+extended functions */
+	/* basic + high-performance + extended functions */
+	REG(eax) = L_HP_EXTENDED;
 	REG(ebx) = 1;				/* version */
 
         /* If  hdlp_handle == 0,  it is not always a valid handle.
