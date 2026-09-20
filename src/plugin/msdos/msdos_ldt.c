@@ -23,6 +23,7 @@
 #include <string.h>
 #include <alloca.h>
 #include <assert.h>
+#include "emu.h"
 #include "cpu.h"
 #include "utilities.h"
 #include "memory.h"
@@ -53,7 +54,80 @@ static unsigned short d16, d32;
  * the subsequent DPMI allocations fail. */
 #define XTRA_LDT_LIM (DPMI_page_size * 4)
 
+/* A fake GDT, built only when the pharlap option is on. The 286|DOS-Extender
+ * does not ask DPMI where the descriptor tables are, it does sldt and then
+ * reads the GDT entry that names, so it needs an entry describing our LDT
+ * alias to find its way. The page is read-only like the alias itself, so a
+ * client trying to write the GDT faults visibly rather than silently
+ * scribbling on a table nothing reads back. */
+#define FAKE_GDT_LDT_SEL 8
+#define FAKE_GDT_LEN (FAKE_GDT_LDT_SEL + LDT_ENTRY_SIZE)
+static unsigned char *gdt_backbuf;
+static dosaddr_t gdt_bb;
+static dosaddr_t gdt_alias;
+static uint32_t gdt_h;
+static uint32_t gdt_alias_h;
+
 static void msdos_ldt_update(int selector, int num);
+
+static void fake_gdt_set_ldt(dosaddr_t base, unsigned limit)
+{
+    unsigned char *d;
+
+    if (!gdt_backbuf)
+	return;
+    d = gdt_backbuf + FAKE_GDT_LDT_SEL;
+    d[0] = limit;
+    d[1] = limit >> 8;
+    d[2] = base;
+    d[3] = base >> 8;
+    d[4] = base >> 16;
+    d[5] = 0x82;		/* present, dpl 0, ldt */
+    d[6] = (limit >> 16) & 0xf;	/* byte granular, 16-bit */
+    d[7] = base >> 24;
+}
+
+static void fake_gdt_init(int page_size)
+{
+    char tmpnm[] = "gdt_alias_%PXXXXXX";
+    struct SHM_desc shm;
+    unsigned short name_sel;
+    dosaddr_t name;
+    uint16_t attrs[1];
+    const int name_len = 128;
+    int err;
+
+    name_sel = AllocateDescriptors(1);
+    name = msdos_malloc(name_len);
+    tempname(tmpnm, 6);
+    MEMCPY_2DOS(name, tmpnm, strlen(tmpnm) + 1);
+    SetSegmentBaseAddress(name_sel, name);
+    SetSegmentLimit(name_sel, name_len - 1);
+    shm.name_selector = name_sel;
+    shm.name_offset32 = 0;
+    shm.req_len = page_size;
+    shm.flags = SHM_NOEXEC | SHM_EXCL;
+    err = DPMIAllocateShared(&shm);
+    assert(!err);
+    gdt_h = shm.handle;
+    gdt_bb = shm.addr;
+    gdt_backbuf = LINEAR2UNIX(gdt_bb);
+    memset(gdt_backbuf, 0, FAKE_GDT_LEN);
+
+    shm.flags = SHM_NOEXEC;
+    err = DPMIAllocateShared(&shm);
+    assert(!err);
+    gdt_alias_h = shm.handle;
+    if (gdt_h == gdt_alias_h)
+	error("DPMI: problems allocating shm\n");
+    gdt_alias = shm.addr;
+    msdos_free(name);
+    FreeDescriptor(name_sel);
+    attrs[0] = 0x83;		/* NX, RO */
+    DPMISetPageAttributes(gdt_alias_h, 0, attrs, 1);
+    DPMIfree(gdt_alias_h);
+    DPMIfree(gdt_h);
+}
 
 static void msdos_ldt_handler(cpuctx_t *scp, void *arg)
 {
@@ -136,6 +210,11 @@ unsigned short msdos_ldt_init(int page_size)
     dpmi_ext_ldt_monitor_enable(1);
 
     dpmi_ldt_alias = alias_sel;
+    if (config.pharlap) {
+	fake_gdt_init(page_size);
+	fake_gdt_set_ldt(ldt_alias, GetSegmentLimit(alias_sel));
+	dpmi_ext_set_fake_gdt(gdt_alias, FAKE_GDT_LEN - 1, FAKE_GDT_LDT_SEL);
+    }
     return dpmi_ldt_alias;
 }
 
@@ -155,6 +234,12 @@ void msdos_ldt_done(void)
     ldt_backbuf = NULL;
     DPMIUnmapHWRam(ldt_alias);
     DPMIUnmapHWRam(ldt_bb);
+    if (gdt_backbuf) {
+	dpmi_ext_set_fake_gdt(0, 0, 0);
+	gdt_backbuf = NULL;
+	DPMIUnmapHWRam(gdt_alias);
+	DPMIUnmapHWRam(gdt_bb);
+    }
 }
 
 int msdos_ldt_fault(cpuctx_t *scp, uint16_t sel)
@@ -181,6 +266,7 @@ int msdos_ldt_fault(cpuctx_t *scp, uint16_t sel)
     limit = GetSegmentLimit(dpmi_ldt_alias);
     D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
     SetSegmentLimit(dpmi_ldt_alias, limit + DPMI_page_size);
+    fake_gdt_set_ldt(ldt_alias, limit + DPMI_page_size);
     return MFR_HANDLED;
 }
 
@@ -193,6 +279,7 @@ static void msdos_ldt_update(int selector, int num)
     if (limit < new_len - 1) {
       D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
       SetSegmentLimit(dpmi_ldt_alias, PAGE_ALIGN(new_len) - 1);
+      fake_gdt_set_ldt(ldt_alias, PAGE_ALIGN(new_len) - 1);
     }
   }
 #endif

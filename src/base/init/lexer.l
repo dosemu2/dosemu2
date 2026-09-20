@@ -338,6 +338,7 @@ dpmi			RETURN(L_DPMI);
 dpmi_base		RETURN(DPMI_BASE);
 pm_dos_api		RETURN(PM_DOS_API);
 ignore_djgpp_null_derefs RETURN(NO_NULL_CHECKS);
+pharlap		RETURN(L_PHARLAP);
 dosmem			RETURN(DOSMEM);
 ext_mem			RETURN(EXT_MEM);
 ports			RETURN(PORTS);

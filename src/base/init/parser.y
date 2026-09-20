@@ -233,7 +233,7 @@ enum {
 %token ETHDEV TAPDEV VDESWITCH SLIRPARGS NETSOCK VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO IGNORE_FPE CPU CPUSPEED BOOTDRIVE SWAP_BOOTDRIVE
-%token L_XMS L_DPMI DPMI_BASE PM_DOS_API NO_NULL_CHECKS
+%token L_XMS L_DPMI DPMI_BASE PM_DOS_API NO_NULL_CHECKS L_PHARLAP
 %token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS UMB_A0 UMB_B0 UMB_B8 UMB_F0 HMA DOS_UP
 %token EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
@@ -624,6 +624,11 @@ line:		CHARSET '{' charset_flags '}' {}
 		    {
 		    config.no_null_checks = ($2!=0);
 		    c_printf("CONF: No DJGPP NULL deref checks: %s\n", ($2) ? "on" : "off");
+		    }
+		| L_PHARLAP bool
+		    {
+		    config.pharlap = ($2!=0);
+		    c_printf("CONF: pharlap descriptor tables %s\n", ($2) ? "on" : "off");
 		    }
 		| DOSMEM int_bool	{ if ($2>=0) config.mem_size = $2; }
 		| EXT_MEM int_bool

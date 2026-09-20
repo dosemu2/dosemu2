@@ -2188,6 +2188,25 @@ void dpmi_set_pm_exc_addr(int num, DPMI_INTDESC addr)
     DPMI_CLIENT.Exception_Table_PM[num].offset = addr.offset32;
 }
 
+/* A fake GDT for the clients that go looking for the descriptor tables
+ * themselves rather than asking DPMI. Registered by the LDT alias code,
+ * which owns the memory; zero base means "we have none". */
+static struct {
+    dosaddr_t base;
+    unsigned limit;
+    unsigned short ldt_sel;
+} fake_gdt;
+
+void dpmi_ext_set_fake_gdt(dosaddr_t base, unsigned limit,
+        unsigned short ldt_sel)
+{
+    D_printf("DPMI: fake gdt at %#x lim %#x, ldt sel %#x\n", base, limit,
+            ldt_sel);
+    fake_gdt.base = base;
+    fake_gdt.limit = limit;
+    fake_gdt.ldt_sel = ldt_sel;
+}
+
 void dpmi_ext_set_ldt_monitor16(DPMI_INTDESC call, uint16_t d16)
 {
     D_printf("DPMI: ldt_mon16 %x:%x\n", call.selector, call.offset32);
@@ -6014,21 +6033,40 @@ static int dpmi_fault1(cpuctx_t *scp)
             LWORD32(eip, = org_eip + instr_len(lina, Segments(_cs>>3).is_32));
             break;
           }
+          /* sgdt and sidt store a 6-byte pseudo-descriptor, the rest a
+           * word. Zeros unless we have a fake GDT to point the client at:
+           * see dpmi_ext_set_fake_gdt(). */
+          uint8_t val[6] = { 0 };
+          int size = (csp[0] == 1 && ext <= 1) ? 6 : 2;
+
+          if (fake_gdt.base) {
+            if (csp[0] == 0 && ext == 0) {		/* sldt */
+              val[0] = fake_gdt.ldt_sel;
+              val[1] = fake_gdt.ldt_sel >> 8;
+            } else if (csp[0] == 1 && ext == 0) {	/* sgdt */
+              val[0] = fake_gdt.limit;
+              val[1] = fake_gdt.limit >> 8;
+              val[2] = fake_gdt.base;
+              val[3] = fake_gdt.base >> 8;
+              val[4] = fake_gdt.base >> 16;
+              val[5] = fake_gdt.base >> 24;
+            } else if (csp[0] == 1 && ext == 4) {	/* smsw */
+              val[0] = 1;				/* CR0.PE */
+            }
+          }
+
           if ((csp[1] & 0xc0) == 0xc0) { // register dest
-              /* just write 0 - no one uses SMSW in PM */
+              unsigned v = val[0] | (val[1] << 8);
               if (OSIZE_IS_32)
-                *reg32[csp[1] & 7] = 0;
+                *reg32[csp[1] & 7] = v;
               else
-                *reg16[csp[1] & 7] = 0;
+                *reg16[csp[1] & 7] = v;
               LWORD32(eip, += 3);
           } else {
-              /* memory dest. sgdt/sidt have no other form, and the
-               * pharlap extenders reach for the descriptor tables this
-               * way. We have no tables to point them at yet, so store
-               * the same zeros the register form does. */
+              /* memory dest; sgdt and sidt have no other form, and the
+               * pharlap extenders reach for the tables this way. */
               unsigned short sel;
               uint32_t off;
-              int size = (csp[0] == 1 && ext <= 1) ? 6 : 2;
               int len = decode_modrm_mem(scp, &csp[1], ASIZE_IS_32,
                   pref_seg, &sel, &off);
 
@@ -6043,7 +6081,7 @@ static int dpmi_fault1(cpuctx_t *scp)
               if (debug_level('M') >= 5)
                 D_printf("DPMI: 0f %02x /%i to %#x:%#x\n", csp[0], ext,
                     sel, off);
-              memset(SEL_ADR(sel, off), 0, size);
+              memcpy(SEL_ADR(sel, off), val, size);
               LWORD32(eip, += 2 + len);
           }
           break;
