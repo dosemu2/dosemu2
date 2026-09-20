@@ -685,8 +685,8 @@ int X_init(void)
       DisplayWidth(display, screen), DisplayHeight(display, screen), /* Size */
       0, 0, 0			/* Border width, color, bg */
     );
-    Atom wm_state = XInternAtom(display, "_NET_WM_STATE", True);
-    Atom wm_fullscreen = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", True);
+    Atom wm_state = XInternAtom(display, "_NET_WM_STATE", False);
+    Atom wm_fullscreen = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
     XChangeProperty(display, fullscreenwindow, wm_state, XA_ATOM, 32,
                 PropModePrepend, (unsigned char *)&wm_fullscreen, 1);
   }
@@ -1433,8 +1433,8 @@ static void toggle_fullscreen_mode(int init)
       force_grab = 1;
     }
   } else {
-    Atom wm_state = XInternAtom(display, "_NET_WM_STATE", True);
-    Atom wm_fullscreen = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", True);
+    Atom wm_state = XInternAtom(display, "_NET_WM_STATE", False);
+    Atom wm_fullscreen = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
     X_printf("X: entering windowed mode!\n");
     w_x_res = saved_w_x_res;
     w_y_res = saved_w_y_res;
