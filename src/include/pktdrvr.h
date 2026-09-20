@@ -58,6 +58,14 @@ enum {
 #define E_BAD_ADDRESS	14
 #define E_CANT_RESET	15
 
+/* receive modes for set_rcv_mode()/get_rcv_mode() */
+#define RCV_OFF		1	/* receiver turned off */
+#define RCV_DIRECT	2	/* our station address only */
+#define RCV_BROADCAST	3	/* + broadcasts (the spec's default) */
+#define RCV_MULTICAST	4	/* + the set_multicast_list() addresses */
+#define RCV_ALLMULTI	5	/* + all multicasts */
+#define RCV_PROMISC	6	/* every packet on the wire */
+
 #define ETHER_CLASS	1
 #define IEEE_CLASS	11
 

@@ -84,8 +84,8 @@ static void pkt_register_net_fd_and_mode(int fd, int mode);
 static Bit32u PKTRcvCall_TID;
 static Bit16u pkt_hlt_off;
 
+/* the most inclusive receive mode the back-end can give us */
 static unsigned short receive_mode;
-static unsigned short local_receive_mode;
 static int pkt_fd = -1;
 
 /* array used by virtual net to keep track of packet types */
@@ -116,6 +116,7 @@ struct per_handle
 	int flags;			/* per-packet-type flags */
 	int sock;			/* fd for the socket */
 	Bit16u rcvr_cs, rcvr_ip;	/* receive handler */
+	unsigned short rcv_mode;	/* receive mode for this handle */
 	Bit8u packet_type[16];		/* packet type for this handle */
 };
 
@@ -221,6 +222,8 @@ pkt_reset(void)
         pg.handle[handle].in_use = 0;
     memcpy(pg.hw_address, rom_hw_address, sizeof(pg.hw_address));
     mcast_len = 0;
+    for (handle = 0; handle < MAX_HANDLE; handle++)
+	pg.handle[handle].rcv_mode = receive_mode;
 }
 
 void pkt_term(void)
@@ -405,6 +408,7 @@ static int pkt_int(void)
 	    hdlp->in_use = 1;
 	    hdlp->rcvr_cs = SREG(es);
 	    hdlp->rcvr_ip = LWORD(edi);
+	    hdlp->rcv_mode = receive_mode;
 	    hdlp->packet_type_len = LWORD(ecx);
 	    memcpy(hdlp->packet_type, SEG_ADR((char *),ds,si), LWORD(ecx));
 	    hdlp->cls = LO(ax);
@@ -499,11 +503,14 @@ static int pkt_int(void)
 	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
-	if (LWORD(ecx) != receive_mode && LWORD(ecx) != 1) {
+	/* we can only narrow down what the back-end hands us */
+	if (LWORD(ecx) < RCV_OFF || LWORD(ecx) > receive_mode) {
 	    HI(dx) = E_BAD_MODE;
 	    break;
 	}
-	local_receive_mode = LWORD(ecx);
+	/* the mode is kept per handle, so that one stack narrowing it
+	 * down does not starve another one */
+	hdlp->rcv_mode = LWORD(ecx);
 	return 1;
 
     case F_GET_RCV_MODE:
@@ -511,7 +518,7 @@ static int pkt_int(void)
 	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
-	REG(eax) = local_receive_mode;
+	REG(eax) = hdlp->rcv_mode;
 	return 1;
 
     case F_SET_MCAST_LST: {
@@ -630,7 +637,6 @@ static void pkt_register_net_fd_and_mode(int fd, int mode)
     pkt_fd = fd;
     add_to_io_select_masked(pkt_fd, pkt_receive_req_async, NULL);
     receive_mode = mode;
-    local_receive_mode = mode;
     pd_printf("PKT: detected receive mode %i\n", mode);
 }
 
@@ -716,6 +722,40 @@ out:
     REGS = rcv_saved_regs;
 }
 
+/* the back-end hands us more than the handle asked for, so apply the
+ * receive mode and the multicast list ourselves */
+static int pkt_mode_accept(unsigned short mode, const unsigned char *dst)
+{
+    static const unsigned char bcast[ETH_ALEN] =
+	    { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+    int i;
+
+    switch (mode) {
+    case RCV_OFF:
+	return 0;
+    case RCV_DIRECT:
+	return !memcmp(dst, pg.hw_address, ETH_ALEN);
+    case RCV_BROADCAST:
+    case RCV_MULTICAST:
+    case RCV_ALLMULTI:
+	if (!memcmp(dst, pg.hw_address, ETH_ALEN) ||
+		!memcmp(dst, bcast, ETH_ALEN))
+	    return 1;
+	if (!(dst[0] & 1))		/* not a group address */
+	    return 0;
+	if (mode == RCV_ALLMULTI)
+	    return 1;
+	if (mode == RCV_BROADCAST)
+	    return 0;
+	for (i = 0; i < mcast_len; i += ETH_ALEN) {
+	    if (!memcmp(dst, p_mcast + i, ETH_ALEN))
+		return 1;
+	}
+	return 0;
+    }
+    return 1;				/* RCV_PROMISC */
+}
+
 static int pkt_receive(void)
 {
     int size, handle;
@@ -725,9 +765,6 @@ static int pkt_receive(void)
         pd_printf("Driver not initialized ...\n");
 	return 0;
     }
-    if (local_receive_mode == 1)
-	return 0;
-
     size = pkt_read(pkt_fd, pkt_buf, PKT_BUF_SIZE);
     if (size < 0) {
         p_stats->errors_in++;		/* select() somehow lied */
@@ -743,6 +780,11 @@ static int pkt_receive(void)
     pd_printf("Found handle %d\n", handle);
 
     hdlp = &pg.handle[handle];
+    if (hdlp->rcv_mode != receive_mode && size >= ETH_ALEN &&
+	    !pkt_mode_accept(hdlp->rcv_mode, pkt_buf)) {
+	pd_printf("Dropped by receive mode %i\n", hdlp->rcv_mode);
+	return 0;
+    }
     if (hdlp->in_use) {
 	    /* No need to hack the incoming packets it seems. */
 #if 0
