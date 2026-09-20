@@ -1655,7 +1655,16 @@ static void get_ext_API(cpuctx_t *scp)
 //	p_direct_str("DPMI: pharlap extender unsupported (%s)\n", ptr);
 	D_printf("DPMI: pharlap extender unsupported (%s)\n", ptr);
 	DPMI_CLIENT.feature_flags |= DF_PHARLAP;
-	_LO(ax) = 0;
+	/* These two ask whether we let the client hook hardware interrupts
+	 * and take critical error callbacks. We don't, and a pharlap client
+	 * that is told we do goes on to rely on it. */
+	if (config.pharlap && (!strcmp("PHARLAP.HWINT_SUPPORT", ptr) ||
+		!strcmp("PHARLAP.CE_SUPPORT", ptr))) {
+	  _eax = 0x8001;
+	  _eflags |= CF;
+	} else {
+	  _LO(ax) = 0;
+	}
       } else if (!strcmp("THUNK_16_32", ptr)) {
 	_LO(ax) = 0;
 	_es = dpmi_sel();
