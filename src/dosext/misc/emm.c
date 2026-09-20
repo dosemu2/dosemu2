@@ -2625,6 +2625,22 @@ int emm_first_own_page(void)
   return -1;
 }
 
+/* True while a JEMM window, and not the video card, owns this address.  The
+ * client's windows over the video aperture are plain memory to it, so an
+ * access there has to reach the window that is mapped in, not vgaemu's idea
+ * of the screen; see vga_read_access() and vga_write_access(). */
+int emm_jemm_window(dosaddr_t addr)
+{
+  int page;
+
+  if (!config.jemm || jemm_dos_view || addr < PHYS_PAGE_ADDR(0))
+    return 0;
+  page = (addr - PHYS_PAGE_ADDR(0)) / EMM_PAGE_SIZE;
+  if (page >= phys_pages)
+    return 0;
+  return jemm_shared(page) && emm_map[page].handle != NULL_HANDLE;
+}
+
 static void jemm_init(void)
 {
   unsigned char *p;
