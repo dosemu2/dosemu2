@@ -73,6 +73,20 @@ struct zipfs {
   int ovl_made;         // the dir is known to exist
 };
 
+/* a half-open range of the entry that the chunk file owns */
+struct extent {
+  off_t off;
+  off_t end;
+};
+
+struct ext_map {
+  struct extent *v;
+  int n;
+  int cap;
+  int fd;               // the map file, -1 until there is one
+  off_t consumed;       // how much of it is already in v[]
+};
+
 struct zip_file {
   vfs_file_t vfile;     // must be first
   struct zipfs *zfs;
@@ -81,6 +95,7 @@ struct zip_file {
   unsigned char *data;  // inflated contents, NULL when stored
   zip_file_t *zfp;      // used instead of data for stored entries
   int chunk_fd;         // the entry's chunk file, -1 until a lock needs it
+  struct ext_map map;   // what of the entry the chunk file owns
 };
 
 struct zip_dir {
@@ -385,29 +400,136 @@ out:
 }
 
 /*
- * The entry's index is what names the chunk file: it is unique within
- * the archive and needs no escaping, unlike the entry's path.
+ * Extent map.
+ *
+ * The chunk file is sparse, so a hole in it reads as zeros and is
+ * indistinguishable from zeros that DOS actually wrote. SEEK_DATA does
+ * not settle it either: it is allowed to report a written range as a
+ * hole, which is the dangerous direction here - we would serve the
+ * archive's bytes over data DOS had written. So what the overlay owns
+ * is recorded explicitly, in a file beside the chunk file.
+ *
+ * The record is a pair of 64 bit little endian numbers, offset and
+ * length, appended and never rewritten. The data goes to the chunk
+ * file before its record goes to the map, so a crash in between loses
+ * the write and falls back to the archive, rather than serving a range
+ * the chunk file never received. A torn record at the tail is dropped
+ * on load for the same reason.
  */
-static int ovl_chunk_fd(struct zip_file *zf)
+#define EXT_REC_LEN 16
+
+static uint64_t get64(const unsigned char *p)
+{
+  uint64_t v = 0;
+  int i;
+
+  for (i = 0; i < 8; i++)
+    v |= (uint64_t)p[i] << (i * 8);
+  return v;
+}
+
+/* insert [off, end), merging into whatever it touches */
+static int map_add(struct ext_map *m, off_t off, off_t end)
+{
+  int i, j;
+
+  if (end <= off)
+    return 0;
+  /* swallow every extent that the new one reaches */
+  for (i = 0; i < m->n; i++) {
+    if (m->v[i].end < off)
+      continue;
+    if (m->v[i].off > end)
+      break;
+    if (m->v[i].off < off)
+      off = m->v[i].off;
+    if (m->v[i].end > end)
+      end = m->v[i].end;
+    for (j = i; j < m->n; j++) {
+      if (m->v[j].off > end)
+        break;
+      if (m->v[j].end > end)
+        end = m->v[j].end;
+    }
+    memmove(&m->v[i + 1], &m->v[j], (m->n - j) * sizeof(m->v[0]));
+    m->n = i + 1 + (m->n - j);
+    m->v[i].off = off;
+    m->v[i].end = end;
+    return 0;
+  }
+  if (m->n == m->cap) {
+    int cap = m->cap ? m->cap * 2 : 8;
+    struct extent *v = realloc(m->v, cap * sizeof(*v));
+
+    if (!v)
+      return -1;
+    m->v = v;
+    m->cap = cap;
+  }
+  memmove(&m->v[i + 1], &m->v[i], (m->n - i) * sizeof(m->v[0]));
+  m->v[i].off = off;
+  m->v[i].end = end;
+  m->n++;
+  return 0;
+}
+
+/* take in whatever has been appended since the last look, ours or not */
+static void map_load(struct ext_map *m)
+{
+  unsigned char rec[EXT_REC_LEN];
+  struct stat sb;
+  off_t whole;
+
+  if (m->fd == -1 || fstat(m->fd, &sb) == -1)
+    return;
+  whole = sb.st_size - sb.st_size % EXT_REC_LEN;
+  while (m->consumed < whole) {
+    if (pread(m->fd, rec, sizeof(rec), m->consumed) != sizeof(rec))
+      return;
+    off_t off = get64(rec);
+    off_t len = get64(rec + 8);
+
+    m->consumed += sizeof(rec);
+    /* the file is ours, but a truncated or scribbled record must not
+     * be able to make us read outside the entry */
+    if (off < 0 || len <= 0 || off + len < off)
+      continue;
+    map_add(m, off, off + len);
+  }
+}
+
+/*
+ * The entry's index is what names the chunk file: it is unique within
+ * the archive and needs no escaping, unlike the entry's path. The map
+ * file sits beside it under the same name.
+ *
+ * With create clear this only adopts a chunk file that is already
+ * there, which is what reading wants: a file nobody has locked or
+ * written has no overlay, and reading it should not make one.
+ */
+static int ovl_chunk_fd(struct zip_file *zf, int create)
 {
   struct zipfs *zfs = zf->zfs;
   char *path;
+  int flags = O_RDWR | O_CLOEXEC | (create ? O_CREAT : 0);
   int fd;
 
   if (zf->chunk_fd != -1)
     return zf->chunk_fd;
-  if (zf->node->idx < 0 || ovl_make_dir(zfs) != 0)
+  if (zf->node->idx < 0)
+    return -1;
+  if (create && ovl_make_dir(zfs) != 0)
     return -1;
   if (asprintf(&path, "%s%08llx", zfs->ovl,
       (unsigned long long)zf->node->idx) == -1)
     return -1;
-  fd = open(path, O_RDWR | O_CREAT | O_CLOEXEC, S_IRUSR | S_IWUSR);
+  fd = open(path, flags, S_IRUSR | S_IWUSR);
   if (fd == -1) {
-    error("zip: cannot open chunk file %s: %s\n", path, strerror(errno));
+    if (create || errno != ENOENT)
+      error("zip: cannot open chunk file %s: %s\n", path, strerror(errno));
     free(path);
     return -1;
   }
-  free(path);
   /*
    * Sparse, so it costs no blocks until something is written. Another
    * instance may have got here first and already sized it, hence the
@@ -420,11 +542,44 @@ static int ovl_chunk_fd(struct zip_file *zf)
         ftruncate(fd, zf->node->size) == -1) {
       error("zip: cannot size chunk file: %s\n", strerror(errno));
       close(fd);
+      free(path);
       return -1;
     }
   }
   zf->chunk_fd = fd;
+
+  free(path);
+  /* O_APPEND, so that a record from another instance can not land in
+   * the middle of ours */
+  if (asprintf(&path, "%s%08llx.map", zfs->ovl,
+      (unsigned long long)zf->node->idx) != -1) {
+    zf->map.fd = open(path, O_RDWR | O_CREAT | O_APPEND | O_CLOEXEC,
+        S_IRUSR | S_IWUSR);
+    if (zf->map.fd == -1)
+      error("zip: cannot open map file %s: %s\n", path, strerror(errno));
+    free(path);
+  }
+  map_load(&zf->map);
   return fd;
+}
+
+/* picks up what another instance has appended since we last looked */
+static void ovl_refresh(struct zip_file *zf)
+{
+  if (zf->chunk_fd == -1)
+    ovl_chunk_fd(zf, 0);
+  map_load(&zf->map);
+}
+
+/* the entry is as long as the archive says, unless the overlay wrote
+ * past that */
+static off_t ovl_size(struct zip_file *zf)
+{
+  off_t size = zf->node->size;
+
+  if (zf->map.n && zf->map.v[zf->map.n - 1].end > size)
+    size = zf->map.v[zf->map.n - 1].end;
+  return size;
 }
 
 static int zf_close(vfs_file_t *file)
@@ -435,38 +590,90 @@ static int zf_close(vfs_file_t *file)
     zip_fclose(zf->zfp);
   if (zf->chunk_fd != -1)
     close(zf->chunk_fd);
+  if (zf->map.fd != -1)
+    close(zf->map.fd);
+  free(zf->map.v);
   free(zf->data);
   free(zf);
+  return 0;
+}
+
+/*
+ * Lay whatever the overlay owns over what the archive gave us. Doing
+ * it in this order rather than picking a source per range keeps the
+ * archive read one contiguous operation, which is what the inflate
+ * path wants, and the extents are few.
+ */
+static int read_overlay(struct zip_file *zf, void *buf, off_t off,
+    size_t count)
+{
+  int i;
+
+  for (i = 0; i < zf->map.n; i++) {
+    off_t s = zf->map.v[i].off;
+    off_t e = zf->map.v[i].end;
+
+    if (e <= off)
+      continue;
+    if (s >= off + (off_t)count)
+      break;
+    if (s < off)
+      s = off;
+    if (e > off + (off_t)count)
+      e = off + count;
+    if (pread(zf->chunk_fd, (char *)buf + (s - off), e - s, s) != e - s) {
+      error("zip: short read of chunk file: %s\n", strerror(errno));
+      return -1;
+    }
+  }
   return 0;
 }
 
 static ssize_t zf_read(vfs_file_t *file, void *buf, size_t count)
 {
   struct zip_file *zf = (struct zip_file *)file;
-  off_t left = zf->node->size - zf->pos;
+  off_t arc_left = zf->node->size - zf->pos;
+  off_t left = ovl_size(zf) - zf->pos;
   ssize_t ret;
 
   if (left <= 0)
     return 0;
   if ((off_t)count > left)
     count = left;
-  if (zf->data) {
-    memcpy(buf, zf->data + zf->pos, count);
-    zf->pos += count;
-    return count;
+  /* past the end of the archive's copy there is only the overlay, and
+   * anything it does not own reads as zeros */
+  if (arc_left < 0)
+    arc_left = 0;
+  if ((off_t)count > arc_left)
+    memset((char *)buf + arc_left, 0, count - arc_left);
+  if (arc_left > 0) {
+    size_t acnt = count < (size_t)arc_left ? count : (size_t)arc_left;
+
+    if (zf->data) {
+      memcpy(buf, zf->data + zf->pos, acnt);
+    } else {
+      /* stored entry, read through the archive */
+      if (zip_fseek(zf->zfp, zf->pos, SEEK_SET) < 0) {
+        errno = EIO;
+        return -1;
+      }
+      ret = zip_fread(zf->zfp, buf, acnt);
+      if (ret < 0) {
+        errno = EIO;
+        return -1;
+      }
+      /* a short read from the archive is not short for DOS: the rest
+       * is the overlay's to fill, or zeros */
+      if ((size_t)ret < acnt)
+        memset((char *)buf + ret, 0, acnt - ret);
+    }
   }
-  /* stored entry, read through the archive */
-  if (zip_fseek(zf->zfp, zf->pos, SEEK_SET) < 0) {
+  if (zf->map.n && read_overlay(zf, buf, zf->pos, count) != 0) {
     errno = EIO;
     return -1;
   }
-  ret = zip_fread(zf->zfp, buf, count);
-  if (ret < 0) {
-    errno = EIO;
-    return -1;
-  }
-  zf->pos += ret;
-  return ret;
+  zf->pos += count;
+  return count;
 }
 
 static ssize_t zf_write(vfs_file_t *file, const void *buf, size_t count)
@@ -488,7 +695,7 @@ static off_t zf_lseek(vfs_file_t *file, off_t offset, int whence)
     pos = zf->pos + offset;
     break;
   case SEEK_END:
-    pos = zf->node->size + offset;
+    pos = ovl_size(zf) + offset;
     break;
   default:
     errno = EINVAL;
@@ -507,6 +714,7 @@ static int zf_fstat(vfs_file_t *file, struct stat *sb)
   struct zip_file *zf = (struct zip_file *)file;
 
   fill_stat(zf->zfs, zf->node, sb);
+  sb->st_size = ovl_size(zf);
   return 0;
 }
 
@@ -544,30 +752,55 @@ static int zf_set_dos_attr(vfs_file_t *file, int attr)
  * lock and report the region free rather than fail the DOS call. That
  * is what this backend did for every file before it had chunk files.
  */
+/*
+ * This one is the mutex the redirector wraps around reading and then
+ * changing a region lock, and it is taken on every DOS read. With no
+ * chunk file there are no region locks on this entry to serialise, so
+ * it creates nothing; the first real lock creates the file, and from
+ * then on there is something to take.
+ */
 static int zf_flock(vfs_file_t *file, int op)
 {
   struct zip_file *zf = (struct zip_file *)file;
-  int fd = ovl_chunk_fd(zf);
+  int fd = ovl_chunk_fd(zf, 0);
 
   if (fd == -1)
     return 0;
-  return flock(fd, op);
+  /* taking the lock is where another instance's writes become ours to
+   * see, which is the same point at which a DOS program expects them */
+  if (op & LOCK_UN)
+    return flock(fd, op);
+  if (flock(fd, op) != 0)
+    return -1;
+  map_load(&zf->map);
+  return 0;
 }
 
 static int zf_setlk(vfs_file_t *file, struct flock *fl)
 {
   struct zip_file *zf = (struct zip_file *)file;
-  int fd = ovl_chunk_fd(zf);
+  /* dropping a lock we never took needs no file to drop it on */
+  int fd = ovl_chunk_fd(zf, fl->l_type != F_UNLCK);
 
   if (fd == -1)
     return 0;
   return fcntl(fd, F_OFD_SETLK, fl);
 }
 
+/*
+ * Asking does not create anything: with no chunk file nobody holds a
+ * lock on this entry, so the answer is already known. A lock taken
+ * between the question and the answer would be missed, but taking one
+ * goes to the kernel on the chunk file, and that is where a race
+ * between two lockers is actually decided.
+ *
+ * It matters because every DOS read asks, and a drive whose files are
+ * only read should leave nothing behind.
+ */
 static int zf_getlk(vfs_file_t *file, struct flock *fl)
 {
   struct zip_file *zf = (struct zip_file *)file;
-  int fd = ovl_chunk_fd(zf);
+  int fd = ovl_chunk_fd(zf, 0);
 
   if (fd == -1) {
     fl->l_type = F_UNLCK;
@@ -657,6 +890,10 @@ static vfs_file_t *zip_fs_open(vfs_fs_t *fs, const char *path, int flags)
   zf->zfs = zfs;
   zf->node = n;
   zf->chunk_fd = -1;
+  zf->map.fd = -1;
+  /* an earlier run, or another instance, may already own part of this
+   * entry; reading has to see that without creating anything */
+  ovl_refresh(zf);
 
   if (zip_stat_index(zfs->za, n->idx, 0, &st) == 0 &&
       (st.valid & ZIP_STAT_COMP_METHOD) && st.comp_method == ZIP_CM_STORE) {
