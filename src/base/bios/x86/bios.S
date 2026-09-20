@@ -624,6 +624,11 @@ PKTDRV_stats:
 PKTDRV_mcast:
 	.space	96
 
+	/* look-ahead buffer passed to the receiver upcall (pktdrvr 1.10) */
+	.globl	PKTDRV_lookahead
+PKTDRV_lookahead:
+	.space	128
+
 	.globl	LFN_short_name
 LFN_short_name:
 	.space 128

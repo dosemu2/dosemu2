@@ -106,6 +106,9 @@ struct pkt_type {
 int max_pkt_type_array=0;
 
 #define PKT_BUF_SIZE (ETH_FRAME_LEN+32)
+/* as much of a received frame as we hand to the receiver upcall as
+ * look-ahead data.  Enough for the MAC, IP and TCP headers. */
+#define PKT_LOOKAHEAD_SIZE 128
 /* has to match the space reserved in bios.S */
 #define MCAST_LIST_SIZE (16 * ETH_ALEN)
 
@@ -240,6 +243,7 @@ pkt_reset(void)
     max_pkt_type_array = 0;
     for (handle = 0; handle < MAX_HANDLE; handle++)
         pg.handle[handle].in_use = 0;
+    p_helper_size = 0;
     as_send_busy = 0;
     pkt_iface_reset();
 }
@@ -783,21 +787,40 @@ static enum VirqSwRet pkt_receiver_callback(void *arg)
 static void pkt_receiver_callback_thr(void *arg)
 {
     struct vm86_regs rcv_saved_regs;
+    unsigned lah_len;
+
     rcv_saved_regs = REGS;
+    /* since 1.10 the first upcall gets a look-ahead buffer, so that the
+     * application can decide where to put the packet by inspecting it */
+    lah_len = _min((unsigned)p_helper_size, (unsigned)PKT_LOOKAHEAD_SIZE);
+    MEMCPY_2DOS(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_lookahead), pkt_buf, lah_len);
     _AX = 0;
     _BX = p_helper_handle;
     _CX = p_helper_size;
-    _DX = 0;	// no lookahead buffer
-    _DI = 0;	// no error
+    _DX = lah_len;
+    _DS = PKTDRV_SEG;
+    _SI = PKTDRV_lookahead;
+    _ES = 0;
+    _DI = 0;
     do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
-    if ((_ES == 0 && _DI == 0) || (_CX && _CX < p_helper_size))
+    /* 1.10 says CX on return is the size of the buffer we were given
+     * and that we should truncate the packet to fit, but a receiver
+     * that clobbers CX (as FreeGEOS does, turning it into the payload
+     * size) would then be handed a silently corrupted packet.  Treat a
+     * CX that cannot hold the packet as "no buffer" and drop it
+     * instead, which is at least loud about the loss.  Note this is
+     * only legitimate because get_parameters() now reports 1.10+: a
+     * driver claiming 1.09 must not read CX here at all. */
+    if ((_ES == 0 && _DI == 0) || _CX < p_helper_size) {
+      p_stats->packets_lost++;	/* no usable buffer from receiver() */
       goto out;
+    }
     MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), pkt_buf, p_helper_size);
     _DS = _ES;
     _SI = _DI;
     _AX = 1;
     _BX = p_helper_handle;
-    _CX = p_helper_size;
+    _CX = p_helper_size;	/* bytes actually copied */
     do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
 
 out:
