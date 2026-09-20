@@ -152,3 +152,199 @@ int main(void)
 
     self.assertNotIn("FAIL:", results)
     self.assertIn("Test OK", results)
+
+
+def memory_dpmi_pharlap16(self):
+    """The same walk from 16-bit protected mode, which is where the 286
+    extender actually lives: 16-bit selectors, 16-bit addressing modes and
+    a descriptor written by hand into the LDT."""
+
+    self.mkfile("testit.bat", BATCHFILE % 'pl16', newline="\r\n")
+
+    self.mkcom_with_nasm("pl16", r"""
+bits 16
+cpu 386
+org 0x100
+
+section .text
+start:
+	mov	ax, 0x1687		; DPMI host present?
+	int	0x2f
+	test	ax, ax
+	jnz	near no_dpmi
+	mov	[entry], di
+	mov	[entry + 2], es
+	mov	ax, cs			; host data area, well past us
+	add	ax, 0x400
+	mov	es, ax
+	xor	ax, ax			; a 16-bit client, like run286
+	call	far [cs:entry]
+	jc	near no_pmode
+
+; ---- from here on we are in 16-bit protected mode, cpl 3 ----
+	xor	ax, ax			; .bss is not in the file, so clear
+	mov	[ldtr], ax		; the answers before asking for them
+	mov	[gdtr], ax
+	mov	[gdtr + 2], ax
+	mov	[gdtr + 4], ax
+	sldt	[ldtr]
+	sgdt	[gdtr]
+	mov	ax, [ldtr]
+	test	ax, ax
+	jz	near no_ldt
+	mov	ax, [gdtr + 2]
+	or	ax, [gdtr + 4]
+	jz	near no_ldt
+	mov	ax, [gdtr]		; a table we can believe in is small,
+	cmp	ax, 7			; and big enough to hold the entry
+	jb	near bad_gdt		; sldt just named
+	cmp	ax, 0x1000
+	jae	near bad_gdt
+	cmp	ax, [ldtr]
+	jb	near bad_gdt
+	mov	dx, msg_tables
+	call	print
+
+	xor	ax, ax			; allocate three descriptors
+	mov	cx, 3
+	int	0x31
+	jc	near no_sel
+	mov	[sel1], ax
+	add	ax, 8
+	mov	[sel2], ax
+	add	ax, 8
+	mov	[sel3], ax
+
+	mov	bx, [sel1]		; point the first one at the GDT
+	mov	cx, [gdtr + 4]
+	mov	dx, [gdtr + 2]
+	mov	ax, 7
+	int	0x31
+	jc	near no_sel
+	mov	bx, [sel1]
+	xor	cx, cx
+	mov	dx, [gdtr]
+	mov	ax, 8
+	int	0x31
+	jc	near no_sel
+
+	mov	es, [sel1]		; read the LDT's own descriptor
+	mov	bx, [ldtr]
+	and	bx, 0xfff8
+	mov	al, [es:bx + 5]
+	cmp	al, 0x82		; present, dpl 0, ldt
+	jne	near not_ldt
+	mov	dx, [es:bx + 2]
+	mov	[ldtbase], dx
+	mov	al, [es:bx + 4]
+	mov	ah, [es:bx + 7]
+	mov	[ldtbase + 2], ax
+	mov	dx, [es:bx]
+	mov	[ldtlim], dx
+	mov	al, [es:bx + 6]
+	and	al, 0x0f
+	xor	ah, ah
+	mov	[ldtlim + 2], ax
+	mov	dx, msg_found
+	call	print
+
+	mov	bx, [sel2]		; and point the second one at the LDT
+	mov	cx, [ldtbase + 2]
+	mov	dx, [ldtbase]
+	mov	ax, 7
+	int	0x31
+	jc	near no_sel
+	mov	bx, [sel2]
+	mov	cx, [ldtlim + 2]
+	mov	dx, [ldtlim]
+	mov	ax, 8
+	int	0x31
+	jc	near no_sel
+
+	mov	es, [sel2]		; write a descriptor the phar lap way
+	mov	bx, [sel3]
+	and	bx, 0xfff8
+	mov	word [es:bx], 0x0fff
+	mov	word [es:bx + 2], 0x3000
+	mov	byte [es:bx + 4], 0x12
+	mov	byte [es:bx + 5], 0xf2
+	mov	byte [es:bx + 6], 0
+	mov	byte [es:bx + 7], 0
+
+	mov	bx, [sel3]		; did the host pick it up?
+	mov	ax, 6
+	int	0x31
+	jc	near no_sel
+	cmp	cx, 0x0012
+	jne	near bad_base
+	cmp	dx, 0x3000
+	jne	near bad_base
+	movzx	eax, word [sel3]	; and does the limit hold up?
+	lsl	eax, eax
+	cmp	eax, 0xfff
+	jne	near bad_base
+	mov	dx, msg_written
+	call	print
+	mov	dx, msg_ok
+	call	print
+	jmp	done
+
+no_dpmi:
+	mov	dx, msg_no_dpmi
+	jmp	bail
+no_pmode:
+	mov	dx, msg_no_pmode
+	jmp	bail
+no_ldt:
+	mov	dx, msg_no_ldt
+	jmp	bail
+not_ldt:
+	mov	dx, msg_not_ldt
+	jmp	bail
+no_sel:
+	mov	dx, msg_no_sel
+	jmp	bail
+bad_gdt:
+	mov	dx, msg_bad_gdt
+	jmp	bail
+bad_base:
+	mov	dx, msg_bad_base
+bail:
+	call	print
+done:
+	mov	ax, 0x4c00
+	int	0x21
+
+print:
+	mov	ah, 9
+	int	0x21
+	ret
+
+section .data
+msg_tables	db "OKAY: sldt/sgdt answered", 13, 10, '$'
+msg_found	db "OKAY: GDT describes the LDT", 13, 10, '$'
+msg_written	db "OKAY: direct LDT write accepted", 13, 10, '$'
+msg_ok		db "Test OK", 13, 10, '$'
+msg_no_dpmi	db "FAIL: no DPMI host", 13, 10, '$'
+msg_no_pmode	db "FAIL: cannot enter protected mode", 13, 10, '$'
+msg_no_ldt	db "FAIL: no tables reported", 13, 10, '$'
+msg_not_ldt	db "FAIL: not an LDT descriptor", 13, 10, '$'
+msg_no_sel	db "FAIL: descriptor call failed", 13, 10, '$'
+msg_bad_base	db "FAIL: direct LDT write did not take", 13, 10, '$'
+msg_bad_gdt	db "FAIL: sgdt answered with someone else's table", 13, 10, '$'
+
+section .bss
+entry		resd 1
+ldtr		resw 1
+gdtr		resw 3
+sel1		resw 1
+sel2		resw 1
+sel3		resw 1
+ldtbase		resd 1
+ldtlim		resd 1
+""")
+
+    results = self.runDosemu("testit.bat", config=PHARLAP_CONF, timeout=45)
+
+    self.assertNotIn("FAIL:", results)
+    self.assertIn("Test OK", results)
