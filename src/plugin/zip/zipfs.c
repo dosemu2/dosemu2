@@ -63,6 +63,8 @@ struct zip_node {
   time_t mtime;
   int attr;
   int is_dir;
+  int refs;             // open handles pointing here
+  int gone;             // unlinked, and only the handles keep it alive
 };
 
 struct zipfs {
@@ -700,13 +702,26 @@ static void node_detach(struct zip_node *n)
   n->next = NULL;
 }
 
-/* drop a node from its parent's list and free it */
+/*
+ * Drop a node from the tree. DOS lets a program delete a file it has
+ * open, and goes on using the handle afterwards, so a node that still
+ * has handles on it is only cut loose here and freed by the last one.
+ */
 static void node_unlink(struct zip_node *n)
 {
   if (!n->parent)
     return;
   node_detach(n);
-  node_free(n);
+  n->parent = NULL;
+  n->gone = 1;
+  if (!n->refs)
+    node_free(n);
+}
+
+static void node_put(struct zip_node *n)
+{
+  if (--n->refs == 0 && n->gone)
+    node_free(n);
 }
 
 /* the path a node has now, which is what the log records it under */
@@ -961,6 +976,7 @@ static int zf_close(vfs_file_t *file)
 {
   struct zip_file *zf = (struct zip_file *)file;
 
+  node_put(zf->node);
   if (zf->zfp)
     zip_fclose(zf->zfp);
   if (zf->chunk_fd != -1)
@@ -1356,6 +1372,7 @@ static vfs_file_t *zip_fs_open(vfs_fs_t *fs, const char *path, int flags)
   zf->vfile.fd = -1;
   zf->zfs = zfs;
   zf->node = n;
+  n->refs++;
   zf->chunk_fd = -1;
   zf->map.fd = -1;
   zf->map.size = n->size;
