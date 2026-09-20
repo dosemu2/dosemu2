@@ -76,6 +76,7 @@ static void fake_gdt_set_ldt(dosaddr_t base, unsigned limit)
 
     if (!gdt_backbuf)
 	return;
+    D_printf("DPMI: fake gdt ldt descriptor base=%#x limit=%#x\n", base, limit);
     d = gdt_backbuf + FAKE_GDT_LDT_SEL;
     d[0] = limit;
     d[1] = limit >> 8;
