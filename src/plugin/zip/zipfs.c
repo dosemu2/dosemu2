@@ -601,8 +601,10 @@ static int map_append_trunc(struct ext_map *m, off_t len)
  * over the tree when the archive is mounted:
  *
  *   op        '+' a file that is not in the archive, 'd' a directory,
- *             '-' a name that is gone, 'r' a name that moved
- *   id        which chunk file holds it, for '+' and 'd'
+ *             '-' a name that is gone, 'r' a name that moved,
+ *             'a' a DOS attribute, 't' a modification time
+ *   id        which chunk file holds it, for '+' and 'd'; the value
+ *             itself for 'a' and 't'
  *   name      the entry's path inside the archive, not terminated.
  *             'r' carries the old path, a NUL, then the new one
  *
@@ -613,6 +615,13 @@ static int map_append_trunc(struct ext_map *m, off_t len)
  */
 #define LOG_HDR_LEN 8
 #define LOG_MAX_NAME 4096
+/*
+ * A modification time goes in as seconds since 1980, which is where
+ * DOS timestamps start. They end in 2107, and that whole span fits the
+ * record's 32 bits, which a time_t stops doing in 2038.
+ */
+#define LOG_EPOCH 315532800
+#define LOG_MTIME_MAX 0xffffffffLL
 
 static int log_open(struct zipfs *zfs, int create)
 {
@@ -633,8 +642,8 @@ static int log_open(struct zipfs *zfs, int create)
 }
 
 /* name2 is only for 'r', and goes after the first name and a NUL */
-static int log_append(struct zipfs *zfs, int op, int id, const char *name,
-    const char *name2)
+static int log_append(struct zipfs *zfs, int op, unsigned id,
+    const char *name, const char *name2)
 {
   unsigned char *rec;
   int len1 = strlen(name);
@@ -693,6 +702,33 @@ static void node_unlink(struct zip_node *n)
   node_free(n);
 }
 
+/* the path a node has now, which is what the log records it under */
+static char *node_path(struct zip_node *n)
+{
+  struct zip_node *p;
+  char *ret, *q;
+  int len = 0;
+
+  for (p = n; p && p->parent; p = p->parent)
+    len += strlen(p->name) + 1;
+  if (!len)
+    return NULL;
+  ret = malloc(len);
+  if (!ret)
+    return NULL;
+  q = ret + len;
+  *--q = '\0';
+  for (p = n; p && p->parent; p = p->parent) {
+    int l = strlen(p->name);
+
+    q -= l;
+    memcpy(q, p->name, l);
+    if (q != ret)
+      *--q = '/';
+  }
+  return ret;
+}
+
 /*
  * Moves a node, and with it its whole subtree, to another name. What
  * the overlay holds for an entry is named by the entry's index in the
@@ -738,18 +774,39 @@ static void node_rename(struct zipfs *zfs, const char *from, const char *to)
   dir->child = n;
 }
 
-static void log_apply(struct zipfs *zfs, int op, int id, const char *name)
+/*
+ * A DOS attribute is one byte, and whether an entry is a directory is
+ * not DOS's to change, so that bit comes from the tree either way.
+ */
+static int attr_for(struct zip_node *n, unsigned attr)
+{
+  return (attr & 0xff & ~ZIP_ATTR_DIR) | (n->is_dir ? ZIP_ATTR_DIR : 0);
+}
+
+static void log_apply(struct zipfs *zfs, int op, unsigned id,
+    const char *name)
 {
   struct zip_node *n;
 
-  if (id >= zfs->next_id)
-    zfs->next_id = id + 1;
-  if (op == '-') {
+  if (op == '-' || op == 'a' || op == 't') {
     n = node_walk(zfs, name, 0);
-    if (n && n->parent)
+    if (!n)
+      return;
+    if (op == 'a') {
+      n->attr = attr_for(n, id);
+      return;
+    }
+    if (op == 't') {
+      n->mtime = LOG_EPOCH + (time_t)id;
+      return;
+    }
+    if (n->parent)
       node_unlink(n);
     return;
   }
+  /* only the ops that make an entry take an id out of the sequence */
+  if ((int)id >= zfs->next_id)
+    zfs->next_id = id + 1;
   /* the parents are made as directories of the archive would be */
   n = node_walk(zfs, name, 1);
   if (!n)
@@ -777,12 +834,12 @@ static void log_replay(struct zipfs *zfs)
     return;
   while (pread(zfs->log_fd, hdr, sizeof(hdr), pos) == sizeof(hdr)) {
     int len = hdr[2] | (hdr[3] << 8);
-    int id = hdr[4] | (hdr[5] << 8) | (hdr[6] << 16) | (hdr[7] << 24);
+    unsigned id = hdr[4] | (hdr[5] << 8) | (hdr[6] << 16) |
+        ((unsigned)hdr[7] << 24);
 
     if (len < 1 || len > LOG_MAX_NAME)
       break;
-    if ((hdr[0] != '+' && hdr[0] != '-' && hdr[0] != 'd' &&
-        hdr[0] != 'r') || hdr[1])
+    if (!hdr[0] || !strchr("+-drat", hdr[0]) || hdr[1])
       break;
     pos += sizeof(hdr);
     if (pread(zfs->log_fd, name, len, pos) != len)
@@ -1111,6 +1168,16 @@ static int zf_fsync(vfs_file_t *file)
   return fsync(zf->chunk_fd);
 }
 
+static int node_set_attr(struct zipfs *zfs, struct zip_node *n,
+    const char *rel, int attr)
+{
+  attr = attr_for(n, attr);
+  if (log_append(zfs, 'a', attr, rel, NULL) != 0)
+    return -1;
+  n->attr = attr;
+  return 0;
+}
+
 static int zf_get_dos_attr(vfs_file_t *file, int mode)
 {
   struct zip_file *zf = (struct zip_file *)file;
@@ -1118,10 +1185,20 @@ static int zf_get_dos_attr(vfs_file_t *file, int mode)
   return zf->node->attr;
 }
 
+/* the create path sets the attribute on the handle it just got */
 static int zf_set_dos_attr(vfs_file_t *file, int attr)
 {
-  errno = EROFS;
-  return -1;
+  struct zip_file *zf = (struct zip_file *)file;
+  char *rel = node_path(zf->node);
+  int ret;
+
+  if (!rel) {
+    errno = ENOENT;
+    return -1;
+  }
+  ret = node_set_attr(zf->zfs, zf->node, rel, attr);
+  free(rel);
+  return ret;
 }
 
 /*
@@ -1475,10 +1552,34 @@ static int zip_fs_rename(vfs_fs_t *fs, const char *oldpath, const char *newpath)
   return 0;
 }
 
+/*
+ * DOS asks for the modification time when it closes a file it wrote,
+ * so this is the ordinary end of a write, not just an explicit touch.
+ * The access time is not kept: nothing on a DOS drive reports one.
+ */
 static int zip_fs_utime(vfs_fs_t *fs, const char *path, time_t atime,
     time_t mtime)
 {
-  return zip_fs_ro();
+  struct zipfs *zfs = fs->priv;
+  struct zip_node *n = lookup(fs, path);
+  const char *rel = rel_path(fs, path);
+  long long secs;
+
+  if (!n || !rel || !n->parent) {
+    errno = ENOENT;
+    return -1;
+  }
+  /* a time DOS cannot name in the first place is pinned to the range
+   * it can, rather than refused */
+  secs = (long long)mtime - LOG_EPOCH;
+  if (secs < 0)
+    secs = 0;
+  if (secs > LOG_MTIME_MAX)
+    secs = LOG_MTIME_MAX;
+  if (log_append(zfs, 't', secs, rel, NULL) != 0)
+    return -1;
+  n->mtime = LOG_EPOCH + (time_t)secs;
+  return 0;
 }
 
 static int zip_fs_setxattr(vfs_fs_t *fs, const char *path, int attr)
@@ -1488,7 +1589,14 @@ static int zip_fs_setxattr(vfs_fs_t *fs, const char *path, int attr)
 
 static int zip_fs_set_dos_attr(vfs_fs_t *fs, const char *path, int attr)
 {
-  return zip_fs_ro();
+  struct zip_node *n = lookup(fs, path);
+  const char *rel = rel_path(fs, path);
+
+  if (!n || !rel || !n->parent) {
+    errno = ENOENT;
+    return -1;
+  }
+  return node_set_attr(fs->priv, n, rel, attr);
 }
 
 static int zip_fs_getxattr(vfs_fs_t *fs, const char *path)
