@@ -272,6 +272,7 @@
 #include "video.h"
 #include "bios.h"
 #include "memory.h"
+#include "emm.h"
 #include "render.h"
 #include "vgaemu.h"
 #include "priv.h"
@@ -781,12 +782,16 @@ int vga_bank_access(dosaddr_t m)
 {
 	if (config.console_video)
 		return 0;
+	if (emm_jemm_window(m))
+		return 0;
 	return (unsigned)(m - vga.mem.bank_base) < vga.mem.bank_len;
 }
 
 int vga_read_access(dosaddr_t m)
 {
 	if (config.console_video || !vga.inst_emu)
+		return 0;
+	if (emm_jemm_window(m))
 		return 0;
 	/* even in text mode we protect graph_base */
 	if (m >= vga.mem.graph_base &&
@@ -798,6 +803,8 @@ int vga_read_access(dosaddr_t m)
 int vga_write_access(dosaddr_t m)
 {
 	if (config.console_video)
+		return 0;
+	if (emm_jemm_window(m))
 		return 0;
 	/* Note: the vga.mem.xx pointers are NULL in dumb_video mode,
 	 * in which case the accesses are treated as to normal RAM. */
