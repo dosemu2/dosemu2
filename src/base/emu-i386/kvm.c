@@ -1972,8 +1972,13 @@ dosaddr_t kvm_vcpi_get_pmi(dosaddr_t pagetable, dosaddr_t gdt, unsigned *pages)
     offsetof(struct monitor, vcpi_data)) | PG_PRESENT | PG_RW;
   *pages = VCPI_DATA_PAGE + 1;
   MEMCPY_2DOS(pagetable, monitor->pte, *pages * 4);
+  /* VCPI hands over three descriptors.  The monitor code uses the first
+     two, a flat CS and the 0-based DS that follows it; the third is the
+     server's to use and ours does not, so it gets the same data
+     descriptor rather than whatever the client left there. */
   MEMCPY_2DOS(gdt, &monitor->gdt[GDT_CS], sizeof(Descriptor));
   MEMCPY_2DOS(gdt + 8, &monitor->gdt[GDT_VCPI_DS], sizeof(Descriptor));
+  MEMCPY_2DOS(gdt + 16, &monitor->gdt[GDT_VCPI_DS], sizeof(Descriptor));
   return (VCPI_CODE_PAGE << PAGE_SHIFT) +
     (kvm_mon_vcpi_pmi - (kvm_mon_start + 2 * PAGE_SIZE));
 }
@@ -1984,6 +1989,10 @@ void kvm_vcpi_pm_switch(dosaddr_t addr)
   /* clear VIF while the client runs so that nothing rewrites cs:eip;
      interrupts are injected instead, see true_kvm_vm86() */
   clear_IF();
+  /* The monitor code reads the client's structure through a 0-based DS,
+     so ESI has to carry the linear address rather than the offset the
+     client passed in DS:SI. */
+  monitor->regs.esi = addr;
   monitor->regs.cs = GDT_CS << 3;
   monitor->regs.eip = (VCPI_CODE_PAGE << PAGE_SHIFT) +
     (kvm_mon_vcpi_pm_jmp - (kvm_mon_start + 2 * PAGE_SIZE));
