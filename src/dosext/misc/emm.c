@@ -592,8 +592,7 @@ __map_page(int physical_page)
   logical = handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
   if (jemm_hidden(physical_page)) {
-    E_printf("EMS: window 0x%01x stays behind the video memory\n",
-	     physical_page);
+    E_printf("EMS: window 0x%01x stays behind its owner\n", physical_page);
     return (TRUE);
   }
 
@@ -619,8 +618,7 @@ __unmap_page(int physical_page)
   base = PHYS_PAGE_ADDR(physical_page);
 
   if (jemm_hidden(physical_page)) {
-    E_printf("EMS: window 0x%01x was behind the video memory\n",
-	     physical_page);
+    E_printf("EMS: window 0x%01x was behind its owner\n", physical_page);
     return (TRUE);
   }
 
@@ -676,7 +674,12 @@ map_page(int handle, int physical_page, int logical_page)
   base = PHYS_PAGE_ADDR(physical_page);
   logical = handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
 
-  _do_map_page(base, logical, EMM_PAGE_SIZE);
+  /* the window is remembered either way, so that the switch back to JEMM's
+   * view puts it in place */
+  if (jemm_hidden(physical_page))
+    E_printf("EMS: window 0x%01x stays behind its owner\n", physical_page);
+  else
+    _do_map_page(base, logical, EMM_PAGE_SIZE);
 
   emm_map[physical_page].handle = handle;
   emm_map[physical_page].logical_page = logical_page;
