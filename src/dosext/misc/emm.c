@@ -2577,30 +2577,29 @@ void ems_reset(void)
 #define JEMM_FN(a, b) (((a) << 8) | (b))
 #define JEMM_VERSION 0x0436	/* the JEMM.OVL the games carry */
 
-/* The window array covers the video aperture at 0xa0000-0xbffff, as real
- * JEMM's does, and the video memory and a window cannot both be there.  The
- * state byte picks which: the client selects the DOS view before it calls the
- * BIOS or draws, and JEMM's own view before it touches a window over the
- * aperture, and Privateer's high heap goes to pieces if the two are mixed up.
- * Every window outside the aperture stays mapped either way, because nothing
- * of ours is left in that part of the first megabyte. */
-#define JEMM_VIDEO_BASE 0xa0000
-#define JEMM_VIDEO_TOP 0xc0000
+/* The bottom of the window array lies over memory that already belongs to
+ * somebody: the top of DOS's own memory, then the video memory, then the video
+ * BIOS.  Real JEMM has the same overlap and does not take any of it away; it
+ * only shadows the region while its own view is selected, and the state byte
+ * says which view that is.  A client relies on both halves of that: Privateer
+ * takes its main heap from DOS with int 21h AH=48h and reaches it in DOS's
+ * view, and maps windows over the very same addresses in JEMM's.  So the
+ * windows below JEMM_HW_TOP follow the state byte, and the ones above it,
+ * where only ROM space of ours is left, stay mapped either way. */
+#define JEMM_HW_TOP 0xc8000
 
 static unsigned short jemm_state_seg, jemm_state_off;
 static int jemm_dos_view;
 
-static int jemm_aperture(int physical_page)
+static int jemm_shared(int physical_page)
 {
-  unsigned base = PHYS_PAGE_ADDR(physical_page);
-
-  return base < JEMM_VIDEO_TOP && base + EMM_PAGE_SIZE > JEMM_VIDEO_BASE;
+  return PHYS_PAGE_ADDR(physical_page) < JEMM_HW_TOP;
 }
 
-/* a window the video memory is sitting in front of right now */
+/* a window whose address is on loan to its original owner right now */
 static int jemm_hidden(int physical_page)
 {
-  return config.jemm && jemm_dos_view && jemm_aperture(physical_page);
+  return config.jemm && jemm_dos_view && jemm_shared(physical_page);
 }
 
 static void jemm_init(void)
@@ -2628,7 +2627,7 @@ static void jemm_set_state(int dos)
     E_printf("JEMM: %s view\n", dos ? "DOS" : "window");
     jemm_dos_view = dos;
     for (i = 0; i < phys_pages; i++) {
-      if (!jemm_aperture(i) || emm_map[i].handle == NULL_HANDLE)
+      if (!jemm_shared(i) || emm_map[i].handle == NULL_HANDLE)
 	continue;
       if (dos)
 	_do_unmap_page(PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
@@ -2700,10 +2699,11 @@ int jemm_api(void)
  * over the video memory and the ROMs: its DE06 translates that whole region
  * page by page, and the clients ask for all 24 windows of it by number.  We
  * cannot give away the top of the first megabyte, so the array is moved down
- * instead: it ends at JEMM_TOP and the last 32k of DOS memory goes with it.
- * Nothing of ours may be left in conventional memory either, or the client
- * maps a window over its own code.  Called from config_post_process(),
- * because DOS memory has to shrink before memcheck sees it. */
+ * instead and ends at JEMM_TOP, which puts its first two windows over the top
+ * of DOS's memory.  That memory is not taken away, it is only shadowed while
+ * JEMM's view is selected; see jemm_set_state().  Called from
+ * config_post_process(), which is where the frame has to be settled before
+ * memcheck sees it. */
 void jemm_config(void)
 {
   if (!config.jemm)
@@ -2711,8 +2711,6 @@ void jemm_config(void)
   config.ems_uma_pages = EMM_UMA_MAX_PHYS;
   config.ems_cnv_pages = 0;
   config.ems_frame = (JEMM_TOP >> 4) - 0x400 * config.ems_uma_pages;
-  if (config.mem_size > config.ems_frame >> 6)
-    config.mem_size = config.ems_frame >> 6;
   c_printf("CONF: JEMM: %i EMS windows from 0x%04x, DOS memory %iK\n",
 	   config.ems_uma_pages, config.ems_frame, config.mem_size);
 }
