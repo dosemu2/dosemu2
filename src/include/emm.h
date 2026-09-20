@@ -33,6 +33,7 @@ void ems_reset(void);
 
 int emm_is_pframe_addr(dosaddr_t addr, uint32_t *size);
 int emm_first_own_page(void);
+int emm_jemm_window(dosaddr_t addr);
 int jemm_api(void);
 void jemm_config(void);
 #endif
