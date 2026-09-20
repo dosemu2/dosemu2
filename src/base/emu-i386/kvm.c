@@ -136,7 +136,9 @@ extern char _binary_kvmmon_o_bin_start[] asm("_binary_kvmmon_o_bin_start");
  */
 
 #define TSS_IOPB_SIZE (65536 / 8)
-enum { GDT_NULL, GDT_CS, GDT_SS, GDT_TSS, GDT_LDT, GDT_ENTRIES };
+enum { GDT_NULL, GDT_CS, GDT_SS, GDT_TSS, GDT_LDT,
+       /* 0x28: 0-based DS and 0x30: based SS, both for VCPI */
+       GDT_VCPI_DS, GDT_VCPI_SS, GDT_ENTRIES };
 #undef IDT_ENTRIES
 #define IDT_ENTRIES 0x100
 
@@ -144,6 +146,13 @@ enum { GDT_NULL, GDT_CS, GDT_SS, GDT_TSS, GDT_LDT, GDT_ENTRIES };
 #define PG_RW 2
 #define PG_USER 4
 #define PG_DC 0x10
+
+/* The VCPI client has to map the monitor into the first 4M of its own
+   linear space.  These are the pages we hand it in the DE01 call: code
+   from the monitor's third code page, data (saved GDTR/IDTR/CR3 and a
+   scratch stack) from monitor->vcpi_data. */
+#define VCPI_CODE_PAGE 0x110
+#define VCPI_DATA_PAGE 0x111
 
 static struct monitor {
     Task tss;                                /* 0000 */
@@ -184,6 +193,7 @@ static struct monitor {
        415000 IDT common code start
        415024 IDT common code end
     */
+    unsigned char vcpi_data[PAGE_SIZE];
     unsigned char kvm_tss[3*PAGE_SIZE];
     unsigned char kvm_identity_map[20*PAGE_SIZE];
 } *monitor;
@@ -368,7 +378,7 @@ static void kvm_set_desc(Descriptor *desc, struct kvm_segment *seg)
 /* initialize KVM virtual machine monitor */
 static void init_kvm_monitor(void)
 {
-  int ret, i;
+  int ret;
 
   if (!cpuid)
     return;
@@ -390,6 +400,18 @@ static void init_kvm_monitor(void)
     leavedos(99);
     return;
   }
+
+  kvm_reset_to_vm86();
+}
+
+/* Set the monitor up for v86 mode, taking the CPU back from a VCPI client
+   if one has it.  Called once at startup and again from leavedos(). */
+void kvm_reset_to_vm86(void)
+{
+  int i;
+
+  if (monitor->regs.eflags & X86_EFLAGS_VM)
+    return;
 
   sregs.tr.base = MONITOR_DOSADDR;
   sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE - 1;
@@ -442,6 +464,12 @@ static void init_kvm_monitor(void)
    * Note: don't forget to clear TSS-busy bit before using that. */
   kvm_set_desc(&monitor->gdt[GDT_TSS], &sregs.tr);
   kvm_set_desc(&monitor->gdt[GDT_LDT], &sregs.ldt);
+  /* 0-based data selector (0x28) for the VCPI monitor code */
+  monitor->gdt[GDT_VCPI_DS].type = 2;
+  /* based data selector (0x30), so a client that leaves junk in the high
+     half of ESP still gets a usable stack */
+  monitor->gdt[GDT_VCPI_SS].type = 2;
+  MKBASE(&monitor->gdt[GDT_VCPI_SS], VCPI_DATA_PAGE << PAGE_SHIFT);
 
   sregs.idt.base = sregs.tr.base + offsetof(struct monitor, idt);
   sregs.idt.limit = IDT_ENTRIES * sizeof(Gatedesc)-1;
@@ -499,8 +527,18 @@ static void init_kvm_monitor(void)
   sregs.ss.db = 1;
   sregs.ss.g = 1;
 
+  monitor->regs.eflags = X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+
   if (config.cpu_vm == CPUVM_KVM)
     dbug_printf("Using V86 mode inside KVM\n");
+}
+
+/* A VCPI client runs in PM with our v86 stack pointer still in the TSS,
+   which is what tells it apart from a DPMI client. */
+static inline int kvm_in_vcpi(void)
+{
+  return !(monitor->regs.eflags & X86_EFLAGS_VM) &&
+    monitor->tss.esp0 == offsetof(struct monitor, regs) + sizeof(monitor->regs);
 }
 
 /* Initialize KVM and memory mappings */
@@ -1304,6 +1342,14 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
     perror("KVM: KVM_GET_SREGS");
     leavedos_main(99);
   }
+  if (sregs.tr.base != MONITOR_DOSADDR) {
+    g_printf("KVM: interrupt in VCPI code\n");
+    /* the client owns the registers and they stay in the VM; cs=0 says
+       that this is where we were */
+    regs->cs = 0;
+    return 1;
+  }
+
   /* don't interrupt GDT code */
   if (!(kregs->rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4)) {
     g_printf("KVM: interrupt in GDT code, resuming\n");
@@ -1568,6 +1614,30 @@ static unsigned int kvm_run(void)
 #if KVM_PROFILE
       exit_hlt++;
 #endif
+      if (kvm_in_vcpi()) {
+        /* protected-mode VCPI interface, AX=DE03/DE04/DE05 */
+        struct vm86_regs state = {0};
+        ret = ioctl(vcpufd, KVM_GET_REGS, &kregs);
+        if (ret == -1) {
+          perror("KVM: KVM_GET_REGS");
+          leavedos_main(99);
+        }
+        if (kregs.rip - 1 != (VCPI_CODE_PAGE << PAGE_SHIFT) +
+            (kvm_mon_vcpi_hlt - (kvm_mon_start + 2 * PAGE_SIZE)))
+          break;
+        state.eax = kregs.rax;
+        state.edx = kregs.rdx;
+        E_printf("VCPI: PM interface, AX=%x\n", (unsigned)state.eax & 0xffff);
+        ems_fn(&state);
+        kregs.rax = state.eax;
+        kregs.rdx = state.edx;
+        ret = ioctl(vcpufd, KVM_SET_REGS, &kregs);
+        if (ret == -1) {
+          perror("KVM: KVM_SET_REGS");
+          leavedos_main(99);
+        }
+        break;
+      }
       if (fixup_hlt_exit(regs))
         break;
       exit_reason = KVM_EXIT_HLT;
@@ -1680,15 +1750,30 @@ int true_kvm_vm86(struct vm86_struct *info)
   unsigned int trapno, exit_reason;
 
   regs = &monitor->regs;
-  *regs = info->regs;
 #if 0
   memcpy(&monitor->fpstate, &vm86_fpu_state, sizeof(vm86_fpu_state));
 #endif
   monitor->int_revectored = info->int_revectored;
-  monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
 
-  regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
-  regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+  if (!kvm_in_vcpi()) {
+    monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
+    *regs = info->regs;
+    regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
+    regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+  } else if (regs->cs == 0) {	/* returning to a client we interrupted */
+    run->request_interrupt_window = 0;
+    if (pic_pending()) {
+      if (run->ready_for_interrupt_injection && run->if_flag) {
+        /* the client's registers are untouchable, so hand the interrupt
+           to KVM instead of rewriting cs:eip ourselves */
+        struct kvm_interrupt ki = { .irq = pic_get_inum() };
+        g_printf("KVM: VCPI: injecting interrupt %#x\n", ki.irq);
+        ioctl(vcpufd, KVM_INTERRUPT, &ki);
+      } else {
+        run->request_interrupt_window = 1;
+      }
+    }
+  }
 
   do {
     exit_reason = kvm_run();
@@ -1718,7 +1803,13 @@ int true_kvm_vm86(struct vm86_struct *info)
    * See https://github.com/dosemu2/dosemu2/issues/2624
    * for details.
    */
-  assert(regs->eflags & X86_EFLAGS_VM);
+  assert(kvm_in_vcpi() || (regs->eflags & X86_EFLAGS_VM));
+  /* a VCPI client ends a round either interrupted (cs=0, registers left
+     in the VM) or by dropping back to v86 through DE0C, and only in the
+     latter case are monitor->regs the guest's */
+  if (!(regs->eflags & X86_EFLAGS_VM))
+    return vm86_ret;
+
   info->regs = *regs;
   info->regs.eflags |= X86_EFLAGS_IOPL;
 #if 0
@@ -1869,6 +1960,61 @@ int true_kvm_dpmi(cpuctx_t *scp)
   }
 #endif
   return ret;
+}
+
+/* VCPI DE01: hand the client the page table entries and the two GDT
+   descriptors it has to install, and the offset of the PM entry point. */
+dosaddr_t kvm_vcpi_get_pmi(dosaddr_t pagetable, dosaddr_t gdt, unsigned *pages)
+{
+  monitor->pte[VCPI_CODE_PAGE] = (MONITOR_DOSADDR +
+    offsetof(struct monitor, code) + 2 * PAGE_SIZE) | PG_PRESENT;
+  monitor->pte[VCPI_DATA_PAGE] = (MONITOR_DOSADDR +
+    offsetof(struct monitor, vcpi_data)) | PG_PRESENT | PG_RW;
+  *pages = VCPI_DATA_PAGE + 1;
+  MEMCPY_2DOS(pagetable, monitor->pte, *pages * 4);
+  MEMCPY_2DOS(gdt, &monitor->gdt[GDT_CS], sizeof(Descriptor));
+  MEMCPY_2DOS(gdt + 8, &monitor->gdt[GDT_VCPI_DS], sizeof(Descriptor));
+  return (VCPI_CODE_PAGE << PAGE_SHIFT) +
+    (kvm_mon_vcpi_pmi - (kvm_mon_start + 2 * PAGE_SIZE));
+}
+
+/* VCPI DE0C: jump into the client's protected mode. */
+void kvm_vcpi_pm_switch(dosaddr_t addr)
+{
+  /* clear VIF while the client runs so that nothing rewrites cs:eip;
+     interrupts are injected instead, see true_kvm_vm86() */
+  clear_IF();
+  monitor->regs.cs = GDT_CS << 3;
+  monitor->regs.eip = (VCPI_CODE_PAGE << PAGE_SHIFT) +
+    (kvm_mon_vcpi_pm_jmp - (kvm_mon_start + 2 * PAGE_SIZE));
+  monitor->regs.eflags &= ~(X86_EFLAGS_VM | X86_EFLAGS_IF);
+
+  /* The client owns the page tables from here on, so the PROT_NONE entries
+     we use to trap VGA accesses are gone: the aperture has to be real MMIO
+     while it runs. */
+  if (vga.inst_emu)
+    kvm_set_mmio(vga.mem.graph_base, vga.mem.graph_size, 1);
+}
+
+/* VCPI DE08/DE09 */
+void kvm_getset_debugregs(uint32_t debugregs[8], int set)
+{
+  struct kvm_debugregs dregs = {};
+  int i;
+
+  if (set) {
+    for (i = 0; i < 4; i++)
+      dregs.db[i] = debugregs[i];
+    dregs.dr6 = debugregs[6];
+    dregs.dr7 = debugregs[7];
+    ioctl(vcpufd, KVM_SET_DEBUGREGS, &dregs);
+  } else {
+    ioctl(vcpufd, KVM_GET_DEBUGREGS, &dregs);
+    for (i = 0; i < 4; i++)
+      debugregs[i] = dregs.db[i];
+    debugregs[6] = dregs.dr6;
+    debugregs[7] = dregs.dr7;
+  }
 }
 
 void kvm_done(void)

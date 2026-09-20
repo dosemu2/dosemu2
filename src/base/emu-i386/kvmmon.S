@@ -93,6 +93,82 @@ skip_cr3:
         add $0x4,%esp
         iret
 
+/* The VCPI half, largely Jemm's code, from Bart Oldeman's PR #1880.
+   It runs from the page a client maps at VCPI_CODE, with its scratch
+   data (saved GDTR/IDTR/CR3 and a stack) on the page above. */
+        VCPI_DATA = 0x111000
+        SAVED_GDTR = 0x80
+        SAVED_IDTR = 0x86
+        SAVED_CR3 = 0x8c
+        MON_TSS_SEL = 0x18
+        MON_LDT_SEL = 0x20
+        VCPI_DS_SEL = 0x28
+        VCPI_SS_SEL = 0x30
+
+        .globl kvm_mon_vcpi_pm_jmp
+kvm_mon_vcpi_pm_jmp:
+        movw $VCPI_DS_SEL,%ax           # 0-based %ds
+        mov %eax,%ds
+        movw $VCPI_SS_SEL,%ax           # some poorly written VCPI clients
+        mov %eax,%ss                    # expect hiword(esp) to be cleared
+
+        sgdt %ss:(SAVED_GDTR)
+        sidt %ss:(SAVED_IDTR)
+        mov  %cr3,%eax
+        mov  %eax,%ss:(SAVED_CR3)
+
+        movl (%esi),%eax                # set client's context *first*
+        movl %eax,%cr3
+        movl 0x08(%esi),%eax            # set up client's IDT
+        lidt (%eax)
+        movl 0x04(%esi),%eax            # set up client's GDT
+        movzwl 0x0e(%esi),%esp          # client's TSS selector
+        lgdt (%eax)
+        movl 2(%eax),%eax               # EAX == linear address of client's GDT
+        andb $~2,%ds:5(%esp,%eax)       # clear task busy bit in TSS descriptor
+        ltr %sp                         # set up client's TSS
+        lldt 0x0c(%esi)                 # set up client's LDT
+        movl $SAVED_GDTR,%esp           # TOS for new stack
+        ljmp *0x10(%esi)                # jump to client's entry point
+
+        .globl kvm_mon_vcpi_pmi
+kvm_mon_vcpi_pmi:
+        cmpw $0xde0c,%ax
+        je pm_to_v86
+        cmpw $0xde03,%ax
+        jb vcpi_unsupported
+        cmpw $0xde05,%ax
+        ja vcpi_unsupported
+	.globl kvm_mon_vcpi_hlt
+kvm_mon_vcpi_hlt:
+        hlt
+        lret
+
+vcpi_unsupported:
+        mov $0x8f,%ah                   # unsupported
+        lret
+
+pm_to_v86:
+        cli
+        mov %cs,%eax
+        addl $8,%eax                    # our 0-based DS follows our CS
+        mov %eax,%ds
+        mov (VCPI_DATA+SAVED_CR3),%eax
+        addl $5*4,%esp
+        pushl $0x20202                  # VM=1, NT=0, IOPL=0, IF=1, TF=0, VIF=0
+        subl $2*4,%esp
+        mov %eax,%cr3
+        lgdt (VCPI_DATA+SAVED_GDTR)
+        movl (VCPI_DATA+SAVED_GDTR+2),%eax  # linear address of our own GDT
+        andb $~2,(MON_TSS_SEL+5)(%eax)  # clear task busy bit in TSS descriptor
+        lidt (VCPI_DATA+SAVED_IDTR)
+        mov $MON_LDT_SEL,%ax
+        lldt %ax
+        mov $MON_TSS_SEL,%al
+        clts
+        ltr %ax
+        iret
+
 	.globl kvm_mon_end
 kvm_mon_end:
 
