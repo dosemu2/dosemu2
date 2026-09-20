@@ -75,11 +75,12 @@
 /* this is in EMS pages, which MAX_EMS (defined in Makefile) is in K */
 #define MAX_EMM		(config.ems_size >> 4)
 #define	EMM_PAGE_SIZE	(16*1024)
-#define EMM_UMA_MAX_PHYS 12
-#define EMM_UMA_STD_PHYS 4
+#define EMM_UMA_MAX_PHYS 24
 #define EMM_CNV_MAX_PHYS 24
 #define EMM_MAX_PHYS	(EMM_UMA_MAX_PHYS + EMM_CNV_MAX_PHYS)
-#define EMM_MAX_SAVED_PHYS EMM_UMA_STD_PHYS
+/* Save Page Map has to cover the whole frame, not just the four windows a
+ * standard one has: with $_jemm the client's frame is all 24 of them */
+#define EMM_MAX_SAVED_PHYS EMM_UMA_MAX_PHYS
 #define NULL_HANDLE	0xffff
 #define	NULL_PAGE	0xffff
 
@@ -184,6 +185,11 @@ static int handle_total, emm_allocated;
 static Bit32u EMSAPMAP_ret_OFF;
 #define saved_phys_pages _min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
 static Bit32u phys_pages;
+/* where our own high memory starts: the lowmem heap, and above it the BIOS
+ * with the halt block all interrupts are dispatched through.  The JEMM
+ * windows end here, because a client that maps one over that has no way
+ * left to take an interrupt or to call EMS. */
+#define JEMM_TOP 0xf8000
 #define cnv_start_seg (0xa000 - 0x400 * config.ems_cnv_pages)
 #define cnv_pages_start config.ems_uma_pages
 
@@ -319,7 +325,9 @@ ems_helper(void)
     }
 
     err = 0;
-    for (i = 0; i < config.ems_uma_pages; i++) {
+    /* under JEMM the frame is the video memory and the ROMs, which are
+     * reserved already, and it is the client's business that it asked */
+    for (i = 0; !config.jemm && i < config.ems_uma_pages; i++) {
       err = memcheck_map_reserve('E', PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
       if (err)
         break;
@@ -2545,14 +2553,18 @@ void ems_reset(void)
  * read off MyJEMM, the Win9x reimplementation: under DOS, JEMM runs the game
  * in protected mode and 'SM' drops back to v86 through VCPI, while MyJEMM
  * keeps the game in v86 and swaps the page table for the first 4M instead.
- * We are the monitor ourselves, so we follow MyJEMM: 'SM' and 'sm' only
- * track the state byte for now, and the remapping is not implemented.
+ * We are the monitor ourselves, and we own the whole window region already,
+ * so the windows are simply real memory the whole time: the client's writes
+ * through DOS's view of memory have to stay where they landed, which is what
+ * it relies on when it loads an overlay and then switches back.  'SM' and
+ * 'sm' only carry the state byte, which the client reads to decide whether
+ * its own record of the windows can be trusted.
  */
 #define JEMM_FN(a, b) (((a) << 8) | (b))
 #define JEMM_VERSION 0x0436	/* the JEMM.OVL the games carry */
 
 static unsigned short jemm_state_seg, jemm_state_off;
-static int jemm_mapped;
+static int jemm_view;
 
 static void jemm_init(void)
 {
@@ -2573,7 +2585,10 @@ static void jemm_init(void)
 
 static void jemm_set_state(int on)
 {
-  jemm_mapped = on;
+  if (on != jemm_view) {
+    E_printf("JEMM: view %s\n", on ? "on" : "off");
+    jemm_view = on;
+  }
   WRITE_BYTE(SEGOFF2LINEAR(jemm_state_seg, jemm_state_off), on);
 }
 
@@ -2600,13 +2615,13 @@ int jemm_api(void)
     break;
 
   case JEMM_FN('S', 'M'):	/* switch to JEMM's view of memory */
-    prev = jemm_mapped;
+    prev = jemm_view;
     jemm_set_state(1);
     LWORD(ebx) = prev;
     break;
 
   case JEMM_FN('s', 'm'):	/* and back to the DOS one */
-    prev = jemm_mapped;
+    prev = jemm_view;
     jemm_set_state(0);
     LWORD(ebx) = prev;
     break;
@@ -2628,6 +2643,27 @@ int jemm_api(void)
     return 0;
   }
   return 1;
+}
+
+/* JEMM leaves its client where DOS loaded it and puts the EMS windows above,
+ * over the video memory and the ROMs: its DE06 translates that whole region
+ * page by page, and the clients ask for all 24 windows of it by number.  We
+ * cannot give away the top of the first megabyte, so the array is moved down
+ * instead: it ends at JEMM_TOP and the last 32k of DOS memory goes with it.
+ * Nothing of ours may be left in conventional memory either, or the client
+ * maps a window over its own code.  Called from config_post_process(),
+ * because DOS memory has to shrink before memcheck sees it. */
+void jemm_config(void)
+{
+  if (!config.jemm)
+    return;
+  config.ems_uma_pages = EMM_UMA_MAX_PHYS;
+  config.ems_cnv_pages = 0;
+  config.ems_frame = (JEMM_TOP >> 4) - 0x400 * config.ems_uma_pages;
+  if (config.mem_size > config.ems_frame >> 6)
+    config.mem_size = config.ems_frame >> 6;
+  c_printf("CONF: JEMM: %i EMS windows from 0x%04x, DOS memory %iK\n",
+	   config.ems_uma_pages, config.ems_frame, config.mem_size);
 }
 
 void ems_init(void)
@@ -2659,7 +2695,8 @@ void ems_init(void)
   /* set up standard EMS frame in UMA */
   for (i = 0; i < config.ems_uma_pages; i++) {
     emm_map[i].phys_seg = EMM_SEGMENT + 0x400 * i;
-    memcheck_e820_reserve(PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE, 1);
+    if (!config.jemm)
+      memcheck_e820_reserve(PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE, 1);
   }
   /* now in conventional mem */
   E_printf("EMS: Using %i pages in conventional memory, starting from 0x%x\n",
