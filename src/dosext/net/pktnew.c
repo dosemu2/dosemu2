@@ -80,13 +80,20 @@ static int pkt_receive(void);
 static enum VirqHwRet pkt_virq_receive(void *arg);
 static enum VirqSwRet pkt_receiver_callback(void *arg);
 static void pkt_receiver_callback_thr(void *arg);
+static void pkt_as_send_callback_thr(void *arg);
 static void pkt_register_net_fd_and_mode(int fd, int mode);
 static Bit32u PKTRcvCall_TID;
+static Bit32u PKTAsSendCall_TID;
 static Bit16u pkt_hlt_off;
 
+/* the most inclusive receive mode the back-end can give us */
 static unsigned short receive_mode;
-static unsigned short local_receive_mode;
 static int pkt_fd = -1;
+
+/* pending as_send_pkt() upcall */
+static Bit16u as_send_iocb_seg, as_send_iocb_off;
+static Bit16u as_send_xmit_cs, as_send_xmit_ip;
+static int as_send_busy;
 
 /* array used by virtual net to keep track of packet types */
 #define MAX_PKT_TYPE_SIZE 10
@@ -99,6 +106,11 @@ struct pkt_type {
 int max_pkt_type_array=0;
 
 #define PKT_BUF_SIZE (ETH_FRAME_LEN+32)
+/* as much of a received frame as we hand to the receiver upcall as
+ * look-ahead data.  Enough for the MAC, IP and TCP headers. */
+#define PKT_LOOKAHEAD_SIZE 128
+/* has to match the space reserved in bios.S */
+#define MCAST_LIST_SIZE (16 * ETH_ALEN)
 
 /* flags from config file, for pkt_globs.flags */
 #define FLAG_NOVELL 0x01                /* Novell 802.3 <-> 8137 translation */
@@ -114,6 +126,7 @@ struct per_handle
 	int flags;			/* per-packet-type flags */
 	int sock;			/* fd for the socket */
 	Bit16u rcvr_cs, rcvr_ip;	/* receive handler */
+	unsigned short rcv_mode;	/* receive mode for this handle */
 	Bit8u packet_type[16];		/* packet type for this handle */
 };
 
@@ -135,6 +148,12 @@ Bit16u p_helper_receiver_cs, p_helper_receiver_ip;
 short p_helper_handle;
 struct pkt_param *p_param;
 struct pkt_statistics *p_stats;
+/* the multicast list lives in the BIOS segment because
+ * get_multicast_list() has to hand DOS a pointer to it */
+static unsigned char *p_mcast;
+static int mcast_len;
+/* the address the interface came up with, to go back to on a reset */
+static unsigned char rom_hw_address[sizeof(pg.hw_address)];
 
 /************************************************************************/
 
@@ -158,6 +177,7 @@ pkt_init(void)
 
     p_param = MK_FP32(BIOSSEG, PKTDRV_param);
     p_stats = MK_FP32(BIOSSEG, PKTDRV_stats);
+    p_mcast = MK_FP32(BIOSSEG, PKTDRV_mcast);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
     virq_register(VIRQ_PKT, pkt_virq_receive, pkt_receiver_callback, NULL);
@@ -165,21 +185,51 @@ pkt_init(void)
     /* fill other global data */
 
     GetDeviceHardwareAddress(pg.hw_address);
+    memcpy(rom_hw_address, pg.hw_address, sizeof(rom_hw_address));
     pg.classes[0] = ETHER_CLASS;  /* == 1. */
     pg.classes[1] = IEEE_CLASS;   /* == 11. */
     pg.type = 12;			/* dummy type (3c503) */
     pg.flags = config.pktflags;	/* global config flags */
 
     p_param->major_rev = 1;		/* pkt driver spec */
-    p_param->minor_rev = 9;
+    p_param->minor_rev = 11;
     p_param->length = sizeof(struct pkt_param);
     p_param->addr_len = ETH_ALEN;
     p_param->mtu = GetDeviceMTU();
+    p_param->multicast_aval = MCAST_LIST_SIZE;
     p_param->rcv_bufs = 8 - 1;		/* a guess */
     p_param->xmt_bufs = 2 - 1;
+    p_param->int_num = 0;		/* no post-EOI interrupt */
 
     PKTRcvCall_TID = coopth_create("PKT_receiver_call",
 	pkt_receiver_callback_thr);
+    PKTAsSendCall_TID = coopth_create("PKT_as_send_call",
+	pkt_as_send_callback_thr);
+}
+
+/* number of currently allocated handles.  Some functions are only
+ * allowed to disturb the interface while a single protocol stack uses
+ * it, so they need to know. */
+static int pkt_handles_open(void)
+{
+    int handle, num = 0;
+
+    for (handle = 0; handle < MAX_HANDLE; handle++) {
+	if (pg.handle[handle].in_use)
+	    num++;
+    }
+    return num;
+}
+
+/* bring the interface back to its initial state */
+static void pkt_iface_reset(void)
+{
+    int handle;
+
+    memcpy(pg.hw_address, rom_hw_address, sizeof(pg.hw_address));
+    mcast_len = 0;
+    for (handle = 0; handle < MAX_HANDLE; handle++)
+	pg.handle[handle].rcv_mode = receive_mode;
 }
 
 void
@@ -194,6 +244,9 @@ pkt_reset(void)
     max_pkt_type_array = 0;
     for (handle = 0; handle < MAX_HANDLE; handle++)
         pg.handle[handle].in_use = 0;
+    p_helper_size = 0;
+    as_send_busy = 0;
+    pkt_iface_reset();
 }
 
 void pkt_term(void)
@@ -202,6 +255,51 @@ void pkt_term(void)
       return;
     remove_from_io_select(pkt_fd);
     CloseNetworkLink(pkt_fd);
+}
+
+/* Put the frame the DOS side composed at "addr" onto the wire.
+ * Returns 0 on success, -1 on a transmit error. */
+static int pkt_send(dosaddr_t addr, unsigned len)
+{
+    char *buf = LINEAR2UNIX(addr);
+    int novell = 0;
+
+    p_stats->packets_out++;
+    p_stats->bytes_out += len;
+
+    pd_printf("========Sending packet======\n");
+    if ((pg.flags & FLAG_NOVELL) && len >= 2 * ETH_ALEN + 6) /* Novell hack? */
+    {
+	    char *p;
+	    short elen;
+
+	    p = buf + 2 * ETH_ALEN;	/* point to protocol type */
+
+	    if (p[0] == (char)(ETH_P_IPX >> 8) &&
+		p[1] == (char)ETH_P_IPX &&
+		p[2] == (char)0xff && p[3] == (char)0xff)
+	    {
+		/* it is a Novell Ethernet-II packet, make it */
+		/* "raw 802.3" by overwriting type with length */
+
+		elen = (p[4] << 8) | (unsigned char)p[5];
+		elen = (elen + 1) & ~1; /* make length even */
+		p[0] = elen >> 8;
+		p[1] = (char)elen;
+		novell = 1;
+	    }
+    }
+    /* after the translation, so we log what actually goes on the wire */
+    printbuf("packet to send:", (struct ethhdr *)buf, len, novell);
+
+    if (pkt_write(pkt_fd, buf, len) >= 0) {
+	pd_printf("Write to net was ok\n");
+	return 0;
+    }
+
+    warn("WriteToNetwork(len=%u): error %d\n", len, errno);
+    p_stats->errors_out++;
+    return -1;
 }
 
 /* this is the handler for INT calls from DOS to the packet driver */
@@ -255,7 +353,8 @@ static int pkt_int(void)
 	   HI(dx) = E_BAD_COMMAND;
 	   break;
 	}
-	REG(eax) = 2;				/* basic+extended functions */
+	/* basic + high-performance + extended functions */
+	REG(eax) = L_HP_EXTENDED;
 	REG(ebx) = 1;				/* version */
 
         /* If  hdlp_handle == 0,  it is not always a valid handle.
@@ -333,6 +432,7 @@ static int pkt_int(void)
 	    hdlp->in_use = 1;
 	    hdlp->rcvr_cs = SREG(es);
 	    hdlp->rcvr_ip = LWORD(edi);
+	    hdlp->rcv_mode = receive_mode;
 	    hdlp->packet_type_len = LWORD(ecx);
 	    memcpy(hdlp->packet_type, SEG_ADR((char *),ds,si), LWORD(ecx));
 	    hdlp->cls = LO(ax);
@@ -377,51 +477,18 @@ static int pkt_int(void)
 
 	Remove_Type(hdlp_handle);
 	hdlp->in_use = 0;	/* no longer in use */
+	/* the per-interface settings only live as long as somebody is
+	 * using the interface, so do not leave them to the next stack */
+	if (pkt_handles_open() == 0)
+	    pkt_iface_reset();
 	return 1;
 
-    case F_SEND_PKT: {
-	int novell = 0;
-
-	p_stats->packets_out++;
-	p_stats->bytes_out += LWORD(ecx);
-
-	pd_printf("========Sending packet======\n");
-	if (pg.flags & FLAG_NOVELL)	/* Novell hack? */
-	{
-		    char *p;
-		    short len;
-
-		    p = SEG_ADR((char *),ds,si);
-		    p += 2 * ETH_ALEN;	/* point to protocol type */
-
-		    if (p[0] == (char)(ETH_P_IPX >> 8) &&
-			p[1] == (char)ETH_P_IPX &&
-			p[2] == (char)0xff && p[3] == (char)0xff)
-		    {
-			/* it is a Novell Ethernet-II packet, make it */
-			/* "raw 802.3" by overwriting type with length */
-
-			len = (p[4] << 8) | (unsigned char)p[5];
-			len = (len + 1) & ~1; /* make length even */
-			p[0] = len >> 8;
-			p[1] = (char)len;
-			novell = 1;
-		    }
-	}
-	/* after the translation, so we log what actually goes on the wire */
-	printbuf("packet to send:", SEG_ADR((struct ethhdr *), ds, si),
-		LWORD(ecx), novell);
-
-	if (pkt_write(pkt_fd, SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
-	    pd_printf("Write to net was ok\n");
+    case F_SEND_PKT:
+	if (pkt_send(SEGOFF2LINEAR(SREG(ds), LWORD(esi)), LWORD(ecx)) == 0)
 	    return 1;
-	}
 
-	warn("WriteToNetwork(len=%u): error %d\n", LWORD(ecx), errno);
-	p_stats->errors_out++;
 	HI(dx) = E_CANT_SEND;
-    }
-    break;
+	break;
 
     case F_TERMINATE:
 	if (hdlp == NULL || !hdlp->in_use)
@@ -441,16 +508,72 @@ static int pkt_int(void)
 	return 1;
 
     case F_RESET_IFACE:
-	if (hdlp == NULL || !hdlp->in_use)
+	if (hdlp == NULL || !hdlp->in_use) {
 	    HI(dx) = E_BAD_HANDLE;
-	else
+	    break;
+	}
+	/* resetting would pull the station address, the multicast list
+	 * and the receive mode from under anyone else using the
+	 * interface, so only do it for the last man standing. */
+	if (pkt_handles_open() > 1) {
 	    HI(dx) = E_CANT_RESET;
-
-	break;
+	    break;
+	}
+	pkt_iface_reset();
+	return 1;
 
     case F_GET_PARAMS:
 	SREG(es) = PKTDRV_SEG;
 	REG(edi) = PKTDRV_param;
+	return 1;
+
+    case F_OLD_AS_SEND:
+	/* withdrawn in 1.10 in favour of F_AS_SEND_PKT, and never
+	 * implemented by anyone */
+	HI(dx) = E_BAD_COMMAND;
+	break;
+
+    case F_AS_SEND_PKT: {
+	dosaddr_t iocb = SEGOFF2LINEAR(SREG(es), LWORD(edi));
+	Bit16u bseg, boff, blen, xcs, xip;
+	Bit8u flags;
+
+	/* we have no transmit queue of our own: the packet is on the
+	 * wire by the time we return.  The only thing we cannot do
+	 * while an upcall is in progress is another upcall. */
+	if (as_send_busy) {
+	    HI(dx) = E_CANT_SEND;
+	    break;
+	}
+	boff = READ_WORD_S(iocb, struct pkt_iocb, buffer_off);
+	bseg = READ_WORD_S(iocb, struct pkt_iocb, buffer_seg);
+	blen = READ_WORD_S(iocb, struct pkt_iocb, length);
+	flags = READ_BYTE_S(iocb, struct pkt_iocb, flagbits);
+	xip = READ_WORD_S(iocb, struct pkt_iocb, xmitter_off);
+	xcs = READ_WORD_S(iocb, struct pkt_iocb, xmitter_seg);
+
+	/* an error detected here is reported via carry/DH and leaves
+	 * the iocb alone, and no upcall is made */
+	if (pkt_send(SEGOFF2LINEAR(bseg, boff), blen) < 0) {
+	    HI(dx) = E_CANT_SEND;
+	    break;
+	}
+	WRITE_BYTE_S(iocb, struct pkt_iocb, code, 0);
+	WRITE_BYTE_S(iocb, struct pkt_iocb, flagbits, flags | IOCB_DONE);
+	if ((flags & IOCB_UPCALL) && (xcs || xip)) {
+	    as_send_iocb_seg = SREG(es);
+	    as_send_iocb_off = LWORD(edi);
+	    as_send_xmit_cs = xcs;
+	    as_send_xmit_ip = xip;
+	    as_send_busy = 1;
+	    coopth_start(PKTAsSendCall_TID, NULL);
+	}
+	return 1;
+    }
+
+    case F_DROP_PKT:
+	/* nothing can ever be on the transmit queue, and the spec says
+	 * to signal no error when the iocb is not found */
 	return 1;
 
     case F_SET_RCV_MODE:
@@ -458,11 +581,14 @@ static int pkt_int(void)
 	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
-	if (LWORD(ecx) != receive_mode && LWORD(ecx) != 1) {
+	/* we can only narrow down what the back-end hands us */
+	if (LWORD(ecx) < RCV_OFF || LWORD(ecx) > receive_mode) {
 	    HI(dx) = E_BAD_MODE;
 	    break;
 	}
-	local_receive_mode = LWORD(ecx);
+	/* the mode is kept per handle, so that one stack narrowing it
+	 * down does not starve another one */
+	hdlp->rcv_mode = LWORD(ecx);
 	return 1;
 
     case F_GET_RCV_MODE:
@@ -470,7 +596,41 @@ static int pkt_int(void)
 	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
-	REG(eax) = local_receive_mode;
+	REG(eax) = hdlp->rcv_mode;
+	return 1;
+
+    case F_SET_MCAST_LST: {
+	dosaddr_t lst = SEGOFF2LINEAR(SREG(es), LWORD(edi));
+	int i;
+
+	if (LWORD(ecx) % ETH_ALEN) {
+	    HI(dx) = E_BAD_ADDRESS;
+	    break;
+	}
+	if (LWORD(ecx) > MCAST_LIST_SIZE) {
+	    /* leave the addresses already in effect alone */
+	    HI(dx) = E_NO_SPACE;
+	    break;
+	}
+	/* every multicast address has the group bit set */
+	for (i = 0; i < LWORD(ecx); i += ETH_ALEN) {
+	    if (!(READ_BYTE(lst + i) & 1)) {
+		HI(dx) = E_BAD_ADDRESS;
+		break;
+	    }
+	}
+	if (i < LWORD(ecx))
+	    break;
+	MEMCPY_2UNIX(p_mcast, lst, LWORD(ecx));
+	mcast_len = LWORD(ecx);
+	pd_printf("PKT: %i multicast address(es) set\n", mcast_len / ETH_ALEN);
+	return 1;
+    }
+
+    case F_GET_MCAST_LST:
+	SREG(es) = PKTDRV_SEG;
+	REG(edi) = PKTDRV_mcast;
+	REG(ecx) = mcast_len;
 	return 1;
 
     case F_GET_STATS:
@@ -478,6 +638,55 @@ static int pkt_int(void)
 	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
+	SREG(ds) = PKTDRV_SEG;
+	REG(esi) = PKTDRV_stats;
+	return 1;
+
+    case F_SET_ADDRESS: {
+	unsigned char addr[ETH_ALEN];
+
+	if (LWORD(ecx) != ETH_ALEN) {
+	    HI(dx) = E_BAD_ADDRESS;
+	    break;
+	}
+	MEMCPY_2UNIX(addr, SEGOFF2LINEAR(SREG(es), LWORD(edi)), ETH_ALEN);
+	if (addr[0] & 1) {		/* a group address is not a station */
+	    HI(dx) = E_BAD_ADDRESS;
+	    break;
+	}
+	/* with a real NIC the address is the host's, not ours to
+	 * change, and changing it under another stack is never OK */
+	if (config.vnet == VNET_TYPE_ETH || pkt_handles_open() > 1) {
+	    HI(dx) = E_CANT_SET;
+	    break;
+	}
+	memcpy(pg.hw_address, addr, ETH_ALEN);
+	REG(ecx) = ETH_ALEN;
+	pd_printf("PKT: station address set to "
+		"%02x:%02x:%02x:%02x:%02x:%02x\n",
+		addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+	return 1;
+    }
+
+    case F_SEND_RAW:
+    case F_FLUSH_RAW:
+    case F_FETCH_RAW:
+	/* raw mode exists for serial line drivers only */
+	HI(dx) = E_BAD_COMMAND;
+	break;
+
+    case F_SIGNAL:
+	/* there is no PPP link layer below us to signal to */
+	HI(dx) = E_BAD_COMMAND;
+	break;
+
+    case F_GET_STRUCT:
+	if (LWORD(ebx) != STRUCT_IO_STATS) {
+	    HI(dx) = E_BAD_ARGUMENT;
+	    break;
+	}
+	/* struct io_statistics has the same layout as the one
+	 * get_statistics() returns */
 	SREG(ds) = PKTDRV_SEG;
 	REG(esi) = PKTDRV_stats;
 	return 1;
@@ -517,7 +726,6 @@ static void pkt_register_net_fd_and_mode(int fd, int mode)
     pkt_fd = fd;
     add_to_io_select_masked(pkt_fd, pkt_receive_req_async, NULL);
     receive_mode = mode;
-    local_receive_mode = mode;
     pd_printf("PKT: detected receive mode %i\n", mode);
 }
 
@@ -581,26 +789,91 @@ static enum VirqSwRet pkt_receiver_callback(void *arg)
 static void pkt_receiver_callback_thr(void *arg)
 {
     struct vm86_regs rcv_saved_regs;
+    unsigned lah_len;
+
     rcv_saved_regs = REGS;
+    /* since 1.10 the first upcall gets a look-ahead buffer, so that the
+     * application can decide where to put the packet by inspecting it */
+    lah_len = _min((unsigned)p_helper_size, (unsigned)PKT_LOOKAHEAD_SIZE);
+    MEMCPY_2DOS(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_lookahead), pkt_buf, lah_len);
     _AX = 0;
     _BX = p_helper_handle;
     _CX = p_helper_size;
-    _DX = 0;	// no lookahead buffer
-    _DI = 0;	// no error
+    _DX = lah_len;
+    _DS = PKTDRV_SEG;
+    _SI = PKTDRV_lookahead;
+    _ES = 0;
+    _DI = 0;
     do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
-    if ((_ES == 0 && _DI == 0) || (_CX && _CX < p_helper_size))
+    /* 1.10 says CX on return is the size of the buffer we were given
+     * and that we should truncate the packet to fit, but a receiver
+     * that clobbers CX (as FreeGEOS does, turning it into the payload
+     * size) would then be handed a silently corrupted packet.  Treat a
+     * CX that cannot hold the packet as "no buffer" and drop it
+     * instead, which is at least loud about the loss.  Note this is
+     * only legitimate because get_parameters() now reports 1.10+: a
+     * driver claiming 1.09 must not read CX here at all. */
+    if ((_ES == 0 && _DI == 0) || _CX < p_helper_size) {
+      p_stats->packets_lost++;	/* no usable buffer from receiver() */
       goto out;
+    }
     MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), pkt_buf, p_helper_size);
     _DS = _ES;
     _SI = _DI;
     _AX = 1;
     _BX = p_helper_handle;
-    _CX = p_helper_size;
+    _CX = p_helper_size;	/* bytes actually copied */
     do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
 
 out:
     p_helper_size = 0;
     REGS = rcv_saved_regs;
+}
+
+static void pkt_as_send_callback_thr(void *arg)
+{
+    struct vm86_regs as_saved_regs;
+
+    as_saved_regs = REGS;
+    _ES = as_send_iocb_seg;
+    _DI = as_send_iocb_off;
+    do_call_back(as_send_xmit_cs, as_send_xmit_ip);
+    REGS = as_saved_regs;
+    as_send_busy = 0;
+}
+
+/* the back-end hands us more than the handle asked for, so apply the
+ * receive mode and the multicast list ourselves */
+static int pkt_mode_accept(unsigned short mode, const unsigned char *dst)
+{
+    static const unsigned char bcast[ETH_ALEN] =
+	    { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+    int i;
+
+    switch (mode) {
+    case RCV_OFF:
+	return 0;
+    case RCV_DIRECT:
+	return !memcmp(dst, pg.hw_address, ETH_ALEN);
+    case RCV_BROADCAST:
+    case RCV_MULTICAST:
+    case RCV_ALLMULTI:
+	if (!memcmp(dst, pg.hw_address, ETH_ALEN) ||
+		!memcmp(dst, bcast, ETH_ALEN))
+	    return 1;
+	if (!(dst[0] & 1))		/* not a group address */
+	    return 0;
+	if (mode == RCV_ALLMULTI)
+	    return 1;
+	if (mode == RCV_BROADCAST)
+	    return 0;
+	for (i = 0; i < mcast_len; i += ETH_ALEN) {
+	    if (!memcmp(dst, p_mcast + i, ETH_ALEN))
+		return 1;
+	}
+	return 0;
+    }
+    return 1;				/* RCV_PROMISC */
 }
 
 static int pkt_receive(void)
@@ -612,9 +885,6 @@ static int pkt_receive(void)
         pd_printf("Driver not initialized ...\n");
 	return 0;
     }
-    if (local_receive_mode == 1)
-	return 0;
-
     size = pkt_read(pkt_fd, pkt_buf, PKT_BUF_SIZE);
     if (size < 0) {
         p_stats->errors_in++;		/* select() somehow lied */
@@ -630,6 +900,11 @@ static int pkt_receive(void)
     pd_printf("Found handle %d\n", handle);
 
     hdlp = &pg.handle[handle];
+    if (hdlp->rcv_mode != receive_mode && size >= ETH_ALEN &&
+	    !pkt_mode_accept(hdlp->rcv_mode, pkt_buf)) {
+	pd_printf("Dropped by receive mode %i\n", hdlp->rcv_mode);
+	return 0;
+    }
     if (hdlp->in_use) {
 	    /* No need to hack the incoming packets it seems. */
 #if 0

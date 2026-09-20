@@ -71,6 +71,7 @@ from func_truename import (mfs_truename_ufs_lfn, mfs_truename_ufs_sfn, mfs_truen
 
 from func_network import network_pktdriver_mtcp
 from func_ipx import ipx_relay
+from func_pktdrvr import pktdriver_api
 from func_pit_mode_2 import pit_mode_2
 
 
@@ -1490,6 +1491,11 @@ class OurTestCase(BaseTestCase):
     def test_fat_ds3_share_open_setfattrs_two_process(self):
         """FAT DOSv3 share open set file attrs two process DOSv2"""
         ds3_share_open_access(self, "TWO", "FAT", "SETATT")
+
+    @mark('nettest')
+    def test_pktdriver_api(self):
+        """Packet driver API"""
+        pktdriver_api(self)
 
     @mark('nettest')
     def test_network_pktdriver_mtcp_builtin(self):
