@@ -105,11 +105,18 @@ struct zip_file {
   int writable;         // opened for writing
 };
 
+/*
+ * A directory is copied out when it is opened rather than walked as it
+ * is read: DOS keeps a search open across calls, and whatever it does
+ * in between - deleting the entry it just found, most of all - must not
+ * be able to pull the tree out from under the search.
+ */
 struct zip_dir {
   vfs_dir_t vdir;       // must be first
-  struct zipfs *zfs;
-  struct zip_node *node;
-  struct zip_node *pos;
+  struct stat sb;       // the directory itself, as it was
+  char **names;
+  int n;
+  int pos;
 };
 
 /*
@@ -1289,7 +1296,13 @@ static const struct vfs_file_ops zip_file_ops = {
 
 static int zd_closedir(vfs_dir_t *dir)
 {
-  free(dir);
+  struct zip_dir *zd = (struct zip_dir *)dir;
+  int i;
+
+  for (i = 0; i < zd->n; i++)
+    free(zd->names[i]);
+  free(zd->names);
+  free(zd);
   return 0;
 }
 
@@ -1297,10 +1310,9 @@ static int zd_readdir(vfs_dir_t *dir, struct vfs_dirent *de)
 {
   struct zip_dir *zd = (struct zip_dir *)dir;
 
-  if (!zd->pos)
+  if (zd->pos >= zd->n)
     return -1;
-  de->d_name = de->d_long_name = zd->pos->name;
-  zd->pos = zd->pos->next;
+  de->d_name = de->d_long_name = zd->names[zd->pos++];
   return 0;
 }
 
@@ -1308,7 +1320,7 @@ static int zd_fstatdir(vfs_dir_t *dir, struct stat *sb)
 {
   struct zip_dir *zd = (struct zip_dir *)dir;
 
-  fill_stat(zd->zfs, zd->node, sb);
+  *sb = zd->sb;
   return 0;
 }
 
@@ -1666,7 +1678,9 @@ static int zip_fs_statvfs(vfs_fs_t *fs, const char *path, struct statvfs *sb)
 static vfs_dir_t *zip_fs_opendir(vfs_fs_t *fs, const char *path)
 {
   struct zip_node *n = lookup(fs, path);
+  struct zip_node *c;
   struct zip_dir *zd;
+  int cnt = 0;
 
   if (!n) {
     errno = ENOENT;
@@ -1676,15 +1690,28 @@ static vfs_dir_t *zip_fs_opendir(vfs_fs_t *fs, const char *path)
     errno = ENOTDIR;
     return NULL;
   }
+  for (c = n->child; c; c = c->next)
+    cnt++;
   zd = calloc(1, sizeof(*zd));
   if (!zd)
     return NULL;
+  zd->names = calloc(cnt ? cnt : 1, sizeof(*zd->names));
+  if (!zd->names) {
+    free(zd);
+    return NULL;
+  }
+  for (c = n->child; c; c = c->next) {
+    zd->names[zd->n] = strdup(c->name);
+    if (!zd->names[zd->n]) {
+      zd_closedir(&zd->vdir);
+      return NULL;
+    }
+    zd->n++;
+  }
   zd->vdir.ops = &zip_dir_ops;
   zd->vdir.fd = -1;
   zd->vdir.has_sfn = 0;
-  zd->zfs = fs->priv;
-  zd->node = n;
-  zd->pos = n->child;
+  fill_stat(fs->priv, n, &zd->sb);
   return &zd->vdir;
 }
 
