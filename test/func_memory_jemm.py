@@ -372,3 +372,73 @@ $_jemm = (on)
 
     # each switch reports the state it found
     self.assertIn("STATE=0110", results)
+
+
+def memory_jemm_xms(self):
+    # Under JEMM the window array covers the whole upper memory area, so
+    # there is no room left for UMBs.  That must not cost DOS its XMS: one
+    # driver installs both, and it used to give up on the pair of them.
+
+    self.mkcom_with_nasm('jemmxms', r"""
+bits 16
+cpu 386
+
+org 100h
+
+section .text
+
+    push    cs
+    pop     ds
+
+    mov     ax, 4300h               ; is an XMS driver there?
+    int     2Fh
+    cmp     al, 80h
+    mov     dx, mnoxms
+    jne     .say
+
+    mov     ax, 4310h               ; its entry point
+    int     2Fh
+    mov     [entry], bx
+    mov     [entry + 2], es
+
+    mov     ah, 8                   ; query free extended memory
+    xor     bl, bl
+    call    far [entry]
+    or      bl, bl
+    mov     dx, mnofree
+    jnz     .say
+    or      ax, ax                  ; largest free block, in kbytes
+    mov     dx, mnofree             ; mov leaves the flags alone
+    jz      .say
+    mov     dx, mxms
+
+.say:
+    mov     ah, 9
+    int     21h
+
+    mov     ax, 4C00h
+    int     21h
+
+section .data
+
+entry   dd 0
+mxms    db 'XMSOK',13,10,'$'
+mnoxms  db 'NOXMS',13,10,'$'
+mnofree db 'NOFREE',13,10,'$'
+""")
+
+    self.mkfile("testit.bat", """\
+c:\\jemmxms
+rem end
+""", newline="\r\n")
+
+    results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+$_ems = (8192)
+$_jemm = (on)
+""")
+
+    self.assertNotIn("NOXMS", results)
+    self.assertNotIn("NOFREE", results)
+    self.assertIn("XMSOK", results)
