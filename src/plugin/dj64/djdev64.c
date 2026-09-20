@@ -427,6 +427,7 @@ static const char *get_dyn(void)
         if (access(xdirs[i], R_OK) == 0)
             return xdirs[i];
     }
+    warn("dj64: crt0.elf not found\n");
     return NULL;
 }
 #endif
