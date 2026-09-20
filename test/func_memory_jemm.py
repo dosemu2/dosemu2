@@ -152,10 +152,12 @@ $_ems = (8192)
 
 
 def memory_jemm_windows(self):
-    # With JEMM the client gets one array of 24 windows, high enough that
-    # 640k of DOS memory is still its own and low enough to leave our BIOS
-    # alone.  The windows are real memory whichever view of memory the
-    # client asked for, and 'SM'/'sm' report the previous state.
+    # With JEMM the client gets one array of 24 windows, low enough to leave
+    # our BIOS alone and high enough that everything DOS still calls its own
+    # is below it: the client reads its DOS memory through the very addresses
+    # it maps windows over, so the two may not be the same bytes.  The windows
+    # are real memory whichever view of memory the client asked for, and
+    # 'SM'/'sm' report the previous state.
 
     self.mkcom_with_nasm('jemmwnd', r"""
 bits 16
@@ -167,6 +169,12 @@ section .text
 
     push    cs
     pop     ds
+
+    int     12h                     ; DOS memory has to end below the array
+    mov     si, mdosmem
+    call    puts
+    call    puthex16
+    call    crlf
 
     mov     ax, 4100h               ; page frame segment
     int     67h
@@ -376,6 +384,7 @@ wnd     dw 0
 marker  db 'JEMMOK!!'
 buf     times 8 db '?'
 
+mdosmem db 'DOSMEM=',0
 mframe  db 'FRAME=',0
 mpages  db 'PAGES=',0
 mems    db 'EMS=',0
@@ -402,6 +411,9 @@ $_jemm = (on)
 
     # 24 windows, ending below the lowmem heap and our BIOS
     self.assertIn("FRAME=9800", results)
+
+    # and DOS keeps only what is left below them, 608k of its 640k
+    self.assertIn("DOSMEM=0260", results)
     self.assertIn("PAGES=0018", results)
 
     # the window is EMS memory, not the video memory it sits over
