@@ -57,6 +57,7 @@ struct zip_node {
   struct zip_node *child;
   struct zip_node *next;
   zip_int64_t idx;      // -1 for a directory we had to synthesise
+  int ovl_id;           // -1 unless the entry only exists in the overlay
   off_t size;
   time_t mtime;
   int attr;
@@ -71,6 +72,8 @@ struct zipfs {
   struct zip_node *tree;
   char *ovl;            // overlay dir for this archive, with a trailing slash
   int ovl_made;         // the dir is known to exist
+  int log_fd;           // the directory log, -1 until there is one
+  int next_id;          // the next overlay id to hand out
 };
 
 /* a half-open range of the entry that the chunk file owns */
@@ -125,6 +128,7 @@ static struct zip_node *node_new(struct zip_node *parent, const char *name,
     return NULL;
   }
   n->idx = -1;
+  n->ovl_id = -1;
   n->parent = parent;
   if (parent) {
     n->next = parent->child;
@@ -293,6 +297,16 @@ static struct zip_node *lookup(vfs_fs_t *fs, const char *path)
     return NULL;
   }
   return node_walk(zfs, path + zfs->root_len, 0);
+}
+
+/* the name is wanted relative to the archive, as the log stores it */
+static const char *rel_path(vfs_fs_t *fs, const char *path)
+{
+  struct zipfs *zfs = fs->priv;
+
+  if (strncmp(path, zfs->root, zfs->root_len) != 0)
+    return NULL;
+  return path + zfs->root_len;
 }
 
 static void fill_stat(struct zipfs *zfs, struct zip_node *n, struct stat *sb)
@@ -579,6 +593,159 @@ static int map_append_trunc(struct ext_map *m, off_t len)
 }
 
 /*
+ * Directory log.
+ *
+ * The archive says what entries there are; this says what has changed
+ * since. One record per change, appended and never rewritten, replayed
+ * over the tree when the archive is mounted:
+ *
+ *   op        '+' a file that is not in the archive, 'd' a directory,
+ *             '-' a name that is gone
+ *   id        which chunk file holds it, for '+' and 'd'
+ *   name      the entry's path inside the archive, not terminated
+ *
+ * Replaying in order is what makes it work: creating, deleting and
+ * creating again is three records and ends up right, and no record
+ * ever has to be found and edited. A record that does not parse ends
+ * the replay, since anything after it has lost its place.
+ */
+#define LOG_HDR_LEN 8
+#define LOG_MAX_NAME 4096
+
+static int log_open(struct zipfs *zfs, int create)
+{
+  char *path;
+  int flags = O_RDWR | O_CLOEXEC | O_APPEND | (create ? O_CREAT : 0);
+
+  if (zfs->log_fd != -1)
+    return zfs->log_fd;
+  if (create && ovl_make_dir(zfs) != 0)
+    return -1;
+  if (asprintf(&path, "%sdir.log", zfs->ovl) == -1)
+    return -1;
+  zfs->log_fd = open(path, flags, S_IRUSR | S_IWUSR);
+  if (zfs->log_fd == -1 && (create || errno != ENOENT))
+    error("zip: cannot open %s: %s\n", path, strerror(errno));
+  free(path);
+  return zfs->log_fd;
+}
+
+static int log_append(struct zipfs *zfs, int op, int id, const char *name)
+{
+  unsigned char *rec;
+  int len = strlen(name);
+  int ret;
+
+  if (len > LOG_MAX_NAME) {
+    errno = ENAMETOOLONG;
+    return -1;
+  }
+  if (log_open(zfs, 1) == -1)
+    return -1;
+  rec = malloc(LOG_HDR_LEN + len);
+  if (!rec)
+    return -1;
+  rec[0] = op;
+  rec[1] = 0;
+  rec[2] = len & 0xff;
+  rec[3] = (len >> 8) & 0xff;
+  rec[4] = id & 0xff;
+  rec[5] = (id >> 8) & 0xff;
+  rec[6] = (id >> 16) & 0xff;
+  rec[7] = (id >> 24) & 0xff;
+  memcpy(rec + LOG_HDR_LEN, name, len);
+  ret = write(zfs->log_fd, rec, LOG_HDR_LEN + len);
+  free(rec);
+  return ret == LOG_HDR_LEN + len ? 0 : -1;
+}
+
+/* drop a node from its parent's list and free it */
+static void node_unlink(struct zip_node *n)
+{
+  struct zip_node **pp;
+
+  if (!n->parent)
+    return;
+  for (pp = &n->parent->child; *pp; pp = &(*pp)->next) {
+    if (*pp == n) {
+      *pp = n->next;
+      break;
+    }
+  }
+  n->next = NULL;
+  node_free(n);
+}
+
+static void log_apply(struct zipfs *zfs, int op, int id, const char *name)
+{
+  struct zip_node *n;
+
+  if (id >= zfs->next_id)
+    zfs->next_id = id + 1;
+  if (op == '-') {
+    n = node_walk(zfs, name, 0);
+    if (n && n->parent)
+      node_unlink(n);
+    return;
+  }
+  /* the parents are made as directories of the archive would be */
+  n = node_walk(zfs, name, 1);
+  if (!n)
+    return;
+  n->ovl_id = id;
+  n->idx = -1;
+  n->size = 0;
+  n->mtime = time(NULL);
+  if (op == 'd') {
+    n->is_dir = 1;
+    n->attr = ZIP_ATTR_DIR;
+  } else {
+    n->is_dir = 0;
+    n->attr = 0;
+  }
+}
+
+static void log_replay(struct zipfs *zfs)
+{
+  unsigned char hdr[LOG_HDR_LEN];
+  char name[LOG_MAX_NAME + 1];
+  off_t pos = 0;
+
+  if (log_open(zfs, 0) == -1)
+    return;
+  while (pread(zfs->log_fd, hdr, sizeof(hdr), pos) == sizeof(hdr)) {
+    int len = hdr[2] | (hdr[3] << 8);
+    int id = hdr[4] | (hdr[5] << 8) | (hdr[6] << 16) | (hdr[7] << 24);
+
+    if (len < 1 || len > LOG_MAX_NAME)
+      break;
+    if ((hdr[0] != '+' && hdr[0] != '-' && hdr[0] != 'd') || hdr[1])
+      break;
+    pos += sizeof(hdr);
+    if (pread(zfs->log_fd, name, len, pos) != len)
+      break;
+    pos += len;
+    name[len] = '\0';
+    log_apply(zfs, hdr[0], id, name);
+  }
+}
+
+/*
+ * An entry of the archive is named by its index, which is unique there
+ * and needs no escaping; one that only exists in the overlay by the id
+ * the directory log gave it, kept apart by the prefix.
+ */
+static int chunk_name(struct zipfs *zfs, struct zip_node *n, const char *suff,
+    char **ret)
+{
+  if (n->ovl_id >= 0)
+    return asprintf(ret, "%sn%08x%s", zfs->ovl, n->ovl_id, suff) == -1 ?
+        -1 : 0;
+  return asprintf(ret, "%s%08llx%s", zfs->ovl, (unsigned long long)n->idx,
+      suff) == -1 ? -1 : 0;
+}
+
+/*
  * The entry's index is what names the chunk file: it is unique within
  * the archive and needs no escaping, unlike the entry's path. The map
  * file sits beside it under the same name.
@@ -596,12 +763,11 @@ static int ovl_chunk_fd(struct zip_file *zf, int create)
 
   if (zf->chunk_fd != -1)
     return zf->chunk_fd;
-  if (zf->node->idx < 0)
+  if (zf->node->idx < 0 && zf->node->ovl_id < 0)
     return -1;
   if (create && ovl_make_dir(zfs) != 0)
     return -1;
-  if (asprintf(&path, "%s%08llx", zfs->ovl,
-      (unsigned long long)zf->node->idx) == -1)
+  if (chunk_name(zfs, zf->node, "", &path) != 0)
     return -1;
   fd = open(path, flags, S_IRUSR | S_IWUSR);
   if (fd == -1) {
@@ -631,8 +797,7 @@ static int ovl_chunk_fd(struct zip_file *zf, int create)
   free(path);
   /* O_APPEND, so that a record from another instance can not land in
    * the middle of ours */
-  if (asprintf(&path, "%s%08llx.map", zfs->ovl,
-      (unsigned long long)zf->node->idx) != -1) {
+  if (chunk_name(zfs, zf->node, ".map", &path) == 0) {
     zf->map.fd = open(path, O_RDWR | O_CREAT | O_APPEND | O_CLOEXEC,
         S_IRUSR | S_IWUSR);
     if (zf->map.fd == -1)
@@ -1089,9 +1254,22 @@ static vfs_file_t *zip_fs_open(vfs_fs_t *fs, const char *path, int flags)
 static vfs_file_t *zip_fs_creat(vfs_fs_t *fs, const char *path, int flags,
     mode_t mode)
 {
+  struct zipfs *zfs = fs->priv;
+
   if (!lookup(fs, path)) {
-    errno = EROFS;
-    return NULL;
+    const char *rel = rel_path(fs, path);
+
+    if (!rel) {
+      errno = ENOENT;
+      return NULL;
+    }
+    if (log_append(zfs, '+', zfs->next_id, rel) != 0)
+      return NULL;
+    log_apply(zfs, '+', zfs->next_id, rel);
+    if (!lookup(fs, path)) {
+      errno = EIO;
+      return NULL;
+    }
   }
   return zip_fs_open(fs, path, (flags & ~O_CREAT) | O_RDWR | O_TRUNC);
 }
@@ -1104,17 +1282,65 @@ static int zip_fs_ro(void)
 
 static int zip_fs_unlink(vfs_fs_t *fs, const char *path)
 {
-  return zip_fs_ro();
+  struct zipfs *zfs = fs->priv;
+  struct zip_node *n = lookup(fs, path);
+  const char *rel = rel_path(fs, path);
+
+  if (!n || !rel || !n->parent) {
+    errno = ENOENT;
+    return -1;
+  }
+  if (n->is_dir) {
+    errno = EISDIR;
+    return -1;
+  }
+  if (log_append(zfs, '-', 0, rel) != 0)
+    return -1;
+  node_unlink(n);
+  return 0;
 }
 
 static int zip_fs_mkdir(vfs_fs_t *fs, const char *path, mode_t mode)
 {
-  return zip_fs_ro();
+  struct zipfs *zfs = fs->priv;
+  const char *rel = rel_path(fs, path);
+
+  if (!rel) {
+    errno = ENOENT;
+    return -1;
+  }
+  if (lookup(fs, path)) {
+    errno = EEXIST;
+    return -1;
+  }
+  if (log_append(zfs, 'd', zfs->next_id, rel) != 0)
+    return -1;
+  log_apply(zfs, 'd', zfs->next_id, rel);
+  return 0;
 }
 
 static int zip_fs_rmdir(vfs_fs_t *fs, const char *path)
 {
-  return zip_fs_ro();
+  struct zipfs *zfs = fs->priv;
+  struct zip_node *n = lookup(fs, path);
+  const char *rel = rel_path(fs, path);
+
+  if (!n || !rel || !n->parent) {
+    errno = ENOENT;
+    return -1;
+  }
+  if (!n->is_dir) {
+    errno = ENOTDIR;
+    return -1;
+  }
+  if (n->child) {
+    errno = ENOTEMPTY;
+    return -1;
+  }
+  if (log_append(zfs, '-', 0, rel) != 0)
+    return -1;
+  node_unlink(n);
+  return 0;
 }
 
 static int zip_fs_rename(vfs_fs_t *fs, const char *oldpath, const char *newpath)
@@ -1328,6 +1554,7 @@ static int zip_mount(vfs_fs_t *fs, const char *path)
   /* the dir itself is made on demand, so an archive nobody locks or
    * writes to leaves nothing behind */
   zfs->ovl = ovl_path_for(zfs->root);
+  zfs->log_fd = -1;
 
   if (build_tree(zfs) != 0) {
     error("zip: cannot index %s\n", path);
@@ -1339,6 +1566,9 @@ static int zip_mount(vfs_fs_t *fs, const char *path)
     free(zfs);
     return -1;
   }
+
+  /* whatever an earlier run created or deleted, on top of the archive */
+  log_replay(zfs);
 
   fs->ops = &zip_fs_ops;
   fs->priv = zfs;
@@ -1354,6 +1584,8 @@ static void zip_umount(vfs_fs_t *fs)
   if (zfs->tree)
     node_free(zfs->tree);
   zip_close(zfs->za);
+  if (zfs->log_fd != -1)
+    close(zfs->log_fd);
   free(zfs->ovl);
   free(zfs->root);
   free(zfs);
