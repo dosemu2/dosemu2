@@ -30,14 +30,19 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 #include <strings.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <zip.h>
 #include "emu.h"
 #include "init.h"
+#include "dosemu_config.h"
 #include "dosemu_debug.h"
 #include "fslib/fslib.h"
 #include "vfs/vfs.h"
@@ -64,6 +69,8 @@ struct zipfs {
   int root_len;
   off_t arc_size;
   struct zip_node *tree;
+  char *ovl;            // overlay dir for this archive, with a trailing slash
+  int ovl_made;         // the dir is known to exist
 };
 
 struct zip_file {
@@ -73,6 +80,7 @@ struct zip_file {
   off_t pos;
   unsigned char *data;  // inflated contents, NULL when stored
   zip_file_t *zfp;      // used instead of data for stored entries
+  int chunk_fd;         // the entry's chunk file, -1 until a lock needs it
 };
 
 struct zip_dir {
@@ -284,12 +292,149 @@ static void fill_stat(struct zipfs *zfs, struct zip_node *n, struct stat *sb)
  * File ops
  */
 
+/*
+ * Overlay
+ *
+ * Every archive gets a directory of its own, and inside it every entry
+ * that needs one gets a chunk file: a sparse file as long as the entry,
+ * so that it shares the DOS file's offset space byte for byte.
+ *
+ * That is what makes locking work. A region lock can be handed straight
+ * to the kernel on the chunk file's own fd, and it means exactly what it
+ * says, because offset N in the chunk file is offset N in the DOS file.
+ * The chunk file is also where written data will land once this backend
+ * accepts writes, which is why an empty one is worth creating just to
+ * have something to lock.
+ *
+ * The directory lives under dosemu_tmpdir, which is per user rather than
+ * per session, so two dosemu2 instances on the same archive meet in the
+ * same chunk files and lock against each other the way they already do
+ * on a plain directory.
+ */
+#define OVL_SUBDIR "zipovl"
+
+/* FNV-1a, to keep two archives with the same basename apart */
+static uint32_t path_hash(const char *s, int len)
+{
+  uint32_t h = 2166136261U;
+  int i;
+
+  for (i = 0; i < len; i++) {
+    h ^= (unsigned char)s[i];
+    h *= 16777619U;
+  }
+  return h;
+}
+
+/*
+ * Named after the archive so that the directory can be recognised by
+ * eye, and hashed so that two archives of the same name elsewhere do
+ * not share it. Takes the path with or without a trailing slash.
+ */
+static char *ovl_path_for(const char *arc)
+{
+  const char *base;
+  char *ret;
+  int len = strlen(arc);
+  int blen;
+
+  while (len && arc[len - 1] == '/')
+    len--;
+  for (blen = 0; blen < len && arc[len - 1 - blen] != '/'; blen++)
+    ;
+  base = arc + len - blen;
+  if (asprintf(&ret, "%s/" OVL_SUBDIR "/%.*s.%08" PRIx32 "/", dosemu_tmpdir,
+      blen, base, path_hash(arc, len)) == -1)
+    return NULL;
+  return ret;
+}
+
+/* both levels, and the trailing slash has to go for mkdir() */
+static int ovl_make_dir(struct zipfs *zfs)
+{
+  char *p, *sl;
+  int ret = -1;
+
+  if (zfs->ovl_made)
+    return 0;
+  if (!zfs->ovl)
+    return -1;
+  p = strdup(zfs->ovl);
+  if (!p)
+    return -1;
+  sl = strrchr(p, '/');
+  if (!sl)
+    goto out;
+  *sl = '\0';
+  sl = strrchr(p, '/');
+  if (!sl)
+    goto out;
+  *sl = '\0';
+  if (mkdir(p, S_IRWXU) == -1 && errno != EEXIST)
+    goto out;
+  *sl = '/';
+  if (mkdir(p, S_IRWXU) == -1 && errno != EEXIST)
+    goto out;
+  zfs->ovl_made = 1;
+  ret = 0;
+out:
+  if (ret)
+    error("zip: cannot create overlay dir %s: %s\n", p, strerror(errno));
+  free(p);
+  return ret;
+}
+
+/*
+ * The entry's index is what names the chunk file: it is unique within
+ * the archive and needs no escaping, unlike the entry's path.
+ */
+static int ovl_chunk_fd(struct zip_file *zf)
+{
+  struct zipfs *zfs = zf->zfs;
+  char *path;
+  int fd;
+
+  if (zf->chunk_fd != -1)
+    return zf->chunk_fd;
+  if (zf->node->idx < 0 || ovl_make_dir(zfs) != 0)
+    return -1;
+  if (asprintf(&path, "%s%08llx", zfs->ovl,
+      (unsigned long long)zf->node->idx) == -1)
+    return -1;
+  fd = open(path, O_RDWR | O_CREAT | O_CLOEXEC, S_IRUSR | S_IWUSR);
+  if (fd == -1) {
+    error("zip: cannot open chunk file %s: %s\n", path, strerror(errno));
+    free(path);
+    return -1;
+  }
+  free(path);
+  /*
+   * Sparse, so it costs no blocks until something is written. Another
+   * instance may have got here first and already sized it, hence the
+   * stat rather than an unconditional ftruncate.
+   */
+  if (zf->node->size) {
+    struct stat sb;
+
+    if (fstat(fd, &sb) == 0 && sb.st_size < zf->node->size &&
+        ftruncate(fd, zf->node->size) == -1) {
+      error("zip: cannot size chunk file: %s\n", strerror(errno));
+      close(fd);
+      return -1;
+    }
+  }
+  zf->chunk_fd = fd;
+  return fd;
+}
+
 static int zf_close(vfs_file_t *file)
 {
   struct zip_file *zf = (struct zip_file *)file;
 
   if (zf->zfp)
     zip_fclose(zf->zfp);
+  if (zf->chunk_fd != -1)
+    close(zf->chunk_fd);
   free(zf->data);
   free(zf);
   return 0;
@@ -390,29 +535,45 @@ static int zf_set_dos_attr(vfs_file_t *file, int attr)
 }
 
 /*
- * Nothing in a read-only archive can change under us, so there is
- * never a conflicting writer to lock against: grant every lock and
- * report every region free. Without these the generic code fails with
- * ENOSYS on every read and complains about it on the way.
+ * Locks go to the kernel on the entry's chunk file, which shares the
+ * DOS file's offset space, so a byte range means the same thing on
+ * both and two instances of dosemu2 lock against each other.
  *
- * The write overlay will not answer here. It will hand out the chunk
- * file's own fd and let the kernel do the locking, which is exact
- * because the chunk file shares the entry's offset space.
+ * When there is no chunk file to be had - a synthesised directory, a
+ * full overlay dir - nothing can be locked against either, so grant the
+ * lock and report the region free rather than fail the DOS call. That
+ * is what this backend did for every file before it had chunk files.
  */
 static int zf_flock(vfs_file_t *file, int op)
 {
-  return 0;
+  struct zip_file *zf = (struct zip_file *)file;
+  int fd = ovl_chunk_fd(zf);
+
+  if (fd == -1)
+    return 0;
+  return flock(fd, op);
 }
 
 static int zf_setlk(vfs_file_t *file, struct flock *fl)
 {
-  return 0;
+  struct zip_file *zf = (struct zip_file *)file;
+  int fd = ovl_chunk_fd(zf);
+
+  if (fd == -1)
+    return 0;
+  return fcntl(fd, F_OFD_SETLK, fl);
 }
 
 static int zf_getlk(vfs_file_t *file, struct flock *fl)
 {
-  fl->l_type = F_UNLCK;
-  return 0;
+  struct zip_file *zf = (struct zip_file *)file;
+  int fd = ovl_chunk_fd(zf);
+
+  if (fd == -1) {
+    fl->l_type = F_UNLCK;
+    return 0;
+  }
+  return fcntl(fd, F_OFD_GETLK, fl);
 }
 
 static const struct vfs_file_ops zip_file_ops = {
@@ -495,6 +656,7 @@ static vfs_file_t *zip_fs_open(vfs_fs_t *fs, const char *path, int flags)
   zf->vfile.fd = -1;
   zf->zfs = zfs;
   zf->node = n;
+  zf->chunk_fd = -1;
 
   if (zip_stat_index(zfs->za, n->idx, 0, &st) == 0 &&
       (st.valid & ZIP_STAT_COMP_METHOD) && st.comp_method == ZIP_CM_STORE) {
@@ -763,12 +925,16 @@ static int zip_mount(vfs_fs_t *fs, const char *path)
   zfs->root[len] = '/';
   zfs->root[len + 1] = '\0';
   zfs->root_len = len + 1;
+  /* the dir itself is made on demand, so an archive nobody locks or
+   * writes to leaves nothing behind */
+  zfs->ovl = ovl_path_for(zfs->root);
 
   if (build_tree(zfs) != 0) {
     error("zip: cannot index %s\n", path);
     if (zfs->tree)
       node_free(zfs->tree);
     zip_close(zfs->za);
+    free(zfs->ovl);
     free(zfs->root);
     free(zfs);
     return -1;
@@ -788,6 +954,7 @@ static void zip_umount(vfs_fs_t *fs)
   if (zfs->tree)
     node_free(zfs->tree);
   zip_close(zfs->za);
+  free(zfs->ovl);
   free(zfs->root);
   free(zfs);
   fs->priv = NULL;
