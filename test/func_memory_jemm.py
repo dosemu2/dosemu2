@@ -409,11 +409,11 @@ $_jemm = (on)
     self.assertNotIn("NOEMS", results)
     self.assertNotIn("NOMAP", results)
 
-    # 24 windows, ending below the lowmem heap and our BIOS
-    self.assertIn("FRAME=9800", results)
+    # 24 windows from 0xa0000, where the real JEMM puts them
+    self.assertIn("FRAME=a000", results)
 
-    # and DOS keeps only what is left below them, 608k of its 640k
-    self.assertIn("DOSMEM=0260", results)
+    # and DOS keeps all of its 640k, the array starting right above it
+    self.assertIn("DOSMEM=0280", results)
     self.assertIn("PAGES=0018", results)
 
     # the window is EMS memory, not the video memory it sits over
