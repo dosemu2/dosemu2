@@ -441,6 +441,16 @@ The address is the same number the rest of the debugger uses, because
 below the HMA the guest's linear addresses are that number.
 </para>
 <para>
+     What the hardware compares is the linear address, which is what the
+     address means under the page tables in force at the time. Those are
+     dosemu's own for an ordinary client, and there the two are the same
+     number. A client that has gone to ring 0 and installed page tables of
+     its own decides for itself what a linear address stands for, and the
+     watch follows the number rather than the memory: a VCPI client maps
+     the first megabyte to itself, which is why this works there at all,
+     but one that did not would be watching something else.
+</para>
+<para>
      There is one set of these registers and the client can use them too, a
      debugger running inside DOS being the case that does. Whatever it had is
      put back when the last watch is cleared, but anything it sets while a
