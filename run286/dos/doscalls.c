@@ -18,10 +18,27 @@
 #define AR_DATA16	0x00f2
 #define AR_CODE16	0x00fa
 
-/* 286 segments top out at 64K, so a huge object is a run of them. The
- * shift is how many paragraphs apart consecutive selectors are, which for
- * a full 64K segment is 0x1000. */
-#define HUGE_SHIFT	12
+/*
+ * 286 segments top out at 64K, so a huge object is a run of them, and the
+ * program walks that run by selector: "shl dx,cl; add dx,base" with cl the
+ * shift below. So it is a selector increment, not a paragraph count -
+ * LITE286.DOC calls it "selector increment for huge segments", and all
+ * three games use it that way. Descriptors are eight bytes apart, so it is
+ * 3, the same number __AHSHIFT has on the Windows side of the family.
+ *
+ * It used to be 12 here, the paragraph distance between two 64K segments,
+ * which is what the name suggests and not what anything wants.
+ */
+#define HUGE_SHIFT	3
+
+/*
+ * How many descriptors one huge object may reserve, and how many objects
+ * we track. Nothing has asked for a huge object yet - the three games
+ * import DosAllocHuge and DosReallocHuge but have never called either -
+ * so these are bounds against a runaway request, not measured sizes.
+ */
+#define HUGE_MAX_SEL	512
+#define MAX_HUGE	16
 
 /* USHORT DosReallocSeg(USHORT cbnew, SEL sel)
  *
@@ -85,6 +102,124 @@ static uint16_t dos_create_cs_alias(struct call *c)
     }
     call_setw(pselp, alias);
     return 0;
+}
+
+struct huge_obj {
+    uint16_t base;			/* first selector of the run */
+    uint16_t nres;			/* descriptors reserved */
+    uint32_t lin;
+    uint32_t room;			/* bytes the linear block holds */
+};
+
+static struct huge_obj huge[MAX_HUGE];
+
+/* Point the run at [lin, lin + size), one 64K window per descriptor, and
+ * leave the descriptors past the end as one byte each. */
+static uint16_t huge_map(const struct huge_obj *h, uint32_t size)
+{
+    unsigned i;
+
+    for (i = 0; i < h->nres; i++) {
+	uint32_t off = (uint32_t)i << 16;
+	uint32_t len = off >= size ? 1 : size - off;
+	uint16_t sel = h->base + i * 8;
+
+	if (len > 0x10000)
+	    len = 0x10000;
+	if (__dpmi_set_segment_base_address(sel, h->lin + off) == -1 ||
+		__dpmi_set_segment_limit(sel, len - 1) == -1 ||
+		__dpmi_set_descriptor_access_rights(sel, AR_DATA16) == -1)
+	    return ERROR_INVALID_PARAMETER;
+    }
+    return 0;
+}
+
+/*
+ * USHORT DosAllocHuge(USHORT nseg, USHORT lcount, PSEL selp, USHORT maxsel,
+ *		       USHORT flags)
+ *
+ * nseg full 64K segments plus lcount bytes in one more, handed to the
+ * program as a run of consecutive descriptors starting at *selp; maxsel is
+ * how far DosReallocHuge may later grow that run. The memory comes from
+ * the same pool DosAllocLinMem uses, because the programs care where it
+ * lands, and the descriptors come from DPMI, which allocates a run of them
+ * in one call so that selector i really is base + i * 8.
+ *
+ * The linear block is rounded up to whole segments, so growing the last
+ * one costs nothing; growing past the end returns "not enough memory"
+ * rather than moving the object, since moving it would mean copying
+ * through the program's own selectors and nothing has ever needed it.
+ */
+static uint16_t dos_alloc_huge(struct call *c)
+{
+    uint16_t maxsel = call_argw(c, 2);
+    uint32_t selp = call_argd(c, 4);
+    uint16_t lcount = call_argw(c, 8);
+    uint16_t nseg = call_argw(c, 10);
+    uint32_t size = ((uint32_t)nseg << 16) + lcount;
+    unsigned nsel = nseg + (lcount ? 1 : 0);
+    unsigned nres = maxsel > nsel ? maxsel : nsel;
+    struct huge_obj h = {};
+    uint16_t err;
+    int sel, i;
+
+    for (i = 0; i < MAX_HUGE; i++) {
+	if (!huge[i].nres)
+	    break;
+    }
+    if (!nsel || nsel > HUGE_MAX_SEL || i == MAX_HUGE)
+	return ERROR_INVALID_PARAMETER;
+    if (nres > HUGE_MAX_SEL)		/* reserve what we can, not what it asked */
+	nres = HUGE_MAX_SEL;
+    h.room = (uint32_t)nsel << 16;
+    err = run286_lin_alloc(h.room, &h.lin);
+    if (err)
+	return err;
+    sel = __dpmi_allocate_ldt_descriptors(nres);
+    if (sel == -1) {
+	run286_lin_free(h.lin);
+	return ERROR_NOT_ENOUGH_MEMORY;
+    }
+    h.base = sel;
+    h.nres = nres;
+    err = huge_map(&h, size);
+    if (err) {
+	unsigned j;
+
+	for (j = 0; j < nres; j++)
+	    __dpmi_free_ldt_descriptor(h.base + j * 8);
+	run286_lin_free(h.lin);
+	return err;
+    }
+    huge[i] = h;
+    call_setw(selp, h.base);
+    trc("run286:   huge[%d] %u bytes at %#lx, %u selectors from %04x\n",
+	    i, size, (unsigned long)h.lin, nres, h.base);
+    return 0;
+}
+
+/* USHORT DosReallocHuge(USHORT nseg, USHORT lcount, SEL sel) */
+static uint16_t dos_realloc_huge(struct call *c)
+{
+    uint16_t sel = call_argw(c, 0);
+    uint16_t lcount = call_argw(c, 2);
+    uint16_t nseg = call_argw(c, 4);
+    uint32_t size = ((uint32_t)nseg << 16) + lcount;
+    unsigned nsel = nseg + (lcount ? 1 : 0);
+    int i;
+
+    for (i = 0; i < MAX_HUGE; i++) {
+	if (huge[i].nres && huge[i].base == sel)
+	    break;
+    }
+    if (i == MAX_HUGE || nsel > huge[i].nres)
+	return ERROR_INVALID_PARAMETER;
+    if (size > huge[i].room) {
+	trc("run286:   huge[%d] cannot grow to %u bytes, block holds %u\n",
+		i, size, huge[i].room);
+	return ERROR_NOT_ENOUGH_MEMORY;
+    }
+    return huge_map(&huge[i], size);
 }
 
 /* USHORT DosGetHugeShift(PUSHORT pshiftp) */
@@ -181,12 +316,35 @@ static const struct api_fn doscalls[] = {
     { "DosSetSigHandler",	14,  16, dos_set_sig_handler },
     { "DosReallocSeg",		38,  4,	dos_realloc_seg },
     { "DosFreeSeg",		39,  2,	dos_free_seg },
+    { "DosAllocHuge",		40,  12, dos_alloc_huge },
     { "DosGetHugeShift",	41,  4,	dos_get_huge_shift },
+    { "DosReallocHuge",		42,  6,	dos_realloc_huge },
     { "DosCreateCSAlias",	43,  6,	dos_create_cs_alias },
     { "DosSetVec",		89,  10, dos_set_vec },
     { "DosMemAvail",		127, 4,	dos_mem_avail },
-    { "DosHugeShift",		135, 4,	dos_get_huge_shift },
 };
+
+/*
+ * Not every DOSCALLS export is a function. OS/2 1.x DLLs also export link
+ * time constants, and #135 is the one the huge memory model needs: the
+ * value is patched straight into "mov cx,imm16" ahead of the "shl dx,cl"
+ * that turns a segment index into a selector, so the fixup is an OFF16 and
+ * not the PTR32 a call would use. That is how all three games take it -
+ * three times in BioForge and Ultima VIII, five in Crusader, and none of
+ * them ever calls it.
+ *
+ * It used to get an import stub like everything else, which wrote the
+ * stub's own code offset into CX.
+ */
+int doscalls_const(uint16_t ord, uint16_t *val)
+{
+    switch (ord) {
+    case 135:				/* DosHugeShift */
+	*val = HUGE_SHIFT;
+	return 0;
+    }
+    return -1;
+}
 
 const struct api_fn *doscalls_lookup(uint16_t ord)
 {

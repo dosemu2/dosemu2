@@ -253,11 +253,13 @@ static uint32_t lin_probe(void)
     return lo & ~0xfff;
 }
 
-/* USHORT DosAllocLinMem(ULONG size, PULONG lin_addp) */
-static uint16_t dos_alloc_lin_mem(struct call *c)
+/*
+ * The linear half of DosAllocLinMem. DosAllocHuge needs the same memory
+ * but hands out a run of selectors over it instead of an address, so the
+ * pool logic lives here and both go through it.
+ */
+uint16_t run286_lin_alloc(uint32_t size, uint32_t *linp)
 {
-    uint32_t linp = call_argd(c, 0);
-    uint32_t size = call_argd(c, 4);
     __dpmi_meminfo m = {};
     __dpmi_free_mem_info mi;
     int i;
@@ -283,7 +285,7 @@ static uint16_t dos_alloc_lin_mem(struct call *c)
     if (size <= lin_avail && lin_alloc(&m, size) == 0) {
 	lin_avail_known = 0;
 	linmem[i] = m;
-	call_setd(linp, m.address);
+	*linp = m.address;
 	if (run286_trace)
 	    trc("run286:   linmem[%d] %u bytes at %#lx, low pool\n", i, size,
 		    (unsigned long)m.address);
@@ -301,17 +303,29 @@ static uint16_t dos_alloc_lin_mem(struct call *c)
     if (__dpmi_allocate_memory(&m) == -1)
 	return ERROR_NOT_ENOUGH_MEMORY;
     linmem[i] = m;
-    call_setd(linp, m.address);
+    *linp = m.address;
     if (run286_trace)
 	trc("run286:   linmem[%d] %u bytes at %#lx, dpmi pool\n", i, size,
 		(unsigned long)m.address);
     return 0;
 }
 
-/* USHORT DosFreeLinMem(ULONG lin_add) */
-static uint16_t dos_free_lin_mem(struct call *c)
+/* USHORT DosAllocLinMem(ULONG size, PULONG lin_addp) */
+static uint16_t dos_alloc_lin_mem(struct call *c)
 {
-    uint32_t lin = call_argd(c, 0);
+    uint32_t linp = call_argd(c, 0);
+    uint32_t size = call_argd(c, 4);
+    uint32_t lin;
+    uint16_t err = run286_lin_alloc(size, &lin);
+
+    if (err)
+	return err;
+    call_setd(linp, lin);
+    return 0;
+}
+
+uint16_t run286_lin_free(uint32_t lin)
+{
     int i;
 
     for (i = 0; i < MAX_LINMEM; i++) {
@@ -328,6 +342,12 @@ static uint16_t dos_free_lin_mem(struct call *c)
     linmem[i].size = 0;
     lin_avail_known = 0;
     return 0;
+}
+
+/* USHORT DosFreeLinMem(ULONG lin_add) */
+static uint16_t dos_free_lin_mem(struct call *c)
+{
+    return run286_lin_free(call_argd(c, 0));
 }
 
 /*
@@ -645,6 +665,64 @@ static void thunk_for(__dpmi_paddr *pm, uint32_t protfn)
     pm->offset32 = int_stubs + i * INT_SLOT_SIZE;
 }
 
+/*
+ * USHORT DosSetProtVec(USHORT intno, PFN protfn, PPFN oldprotp)
+ *
+ * The plain one: put a handler of the program's own on the protected mode
+ * vector and say what was there. Crusader is the only one of the three
+ * that imports it, for int 33h, the way Phar Lap's own INT33P.C example
+ * does. The handler is 16bit code and the host would enter it on whatever
+ * stack is current, so it goes on the vector through the same thunk as the
+ * other two.
+ */
+/*
+ * BOOL BorIsRealIntr(PVOID stack_addr)
+ *
+ * "Was the interrupt I am handling delivered in real mode?", asked with
+ * the address of the handler's own frame. PHAPI.H gives it as
+ * "#define DosIsRealIntr BorIsRealIntr" for Borland builds, and BioForge,
+ * Ultima VIII and Crusader are all Borland builds - the extender's export
+ * table has both names, at ordinals 40 and 58 of PHAPI. Pascal
+ * convention, one far pointer, so four bytes to pop.
+ *
+ * Under run286 the program's handlers are only ever entered from the DPMI
+ * host's protected mode dispatch, through the thunk above, so the answer
+ * is always no. All three games import it; none has called it yet.
+ */
+static uint16_t dos_is_real_intr(struct call *c)
+{
+    trc("run286:   BorIsRealIntr(%#lx) -> 0\n",
+	    (unsigned long)call_argd(c, 0));
+    return 0;
+}
+
+static uint16_t dos_set_prot_vec(struct call *c)
+{
+    uint32_t oldprotp = call_argd(c, 0);
+    uint32_t protfn = call_argd(c, 4);
+    uint16_t intno = call_argw(c, 8);
+    __dpmi_paddr pm;
+    unsigned i;
+
+    if (__dpmi_get_protected_mode_interrupt_vector(intno, &pm) == -1)
+	return ERROR_INVALID_PARAMETER;
+    if (oldprotp)
+	call_setd(oldprotp,
+		((uint32_t)pm.selector << 16) | (pm.offset32 & 0xffff));
+    if (!protfn)
+	return 0;
+    thunk_for(&pm, protfn);
+    if (__dpmi_set_protected_mode_interrupt_vector(intno, &pm) == -1)
+	return ERROR_INVALID_PARAMETER;
+    for (i = 0; i < int_used; i++) {
+	if (int_saved[i] == protfn) {
+	    int_vec[i] = intno;
+	    break;
+	}
+    }
+    return 0;
+}
+
 static uint16_t dos_set_pass_to_prot_vec(struct call *c)
 {
     uint32_t oldrealp = call_argd(c, 0);
@@ -739,6 +817,8 @@ static const struct api_fn phapi[] = {
     { "DOSALLOCLINMEM",		0, 8,	dos_alloc_lin_mem },
     { "DOSFREELINMEM",		0, 4,	dos_free_lin_mem },
     { "DOSISPHARLAP",		0, 0,	dos_is_pharlap },
+    { "BORISREALINTR",		0, 4,	dos_is_real_intr },
+    { "DOSSETPROTVEC",		0, 10,	dos_set_prot_vec },
     { "DOSSETPASSTOPROTVEC",	0, 14,	dos_set_pass_to_prot_vec },
     { "DOSSETREALPROTVEC",	0, 18,	dos_set_real_prot_vec },
     { "DOSSETEXCEPTIONHANDLER",	0, 10,	dos_set_exception_handler },

@@ -67,6 +67,13 @@ extern uint16_t ldt_sel_reg;		/* what sldt says */
 const struct api_fn *phapi_lookup(const char *name);
 const struct api_fn *doscalls_lookup(uint16_t ord);
 
+/* An ordinal that is a constant rather than a function; 0 if it is one. */
+int doscalls_const(uint16_t ord, uint16_t *val);
+
+/* Linear memory out of the pool the programs want it from. */
+uint16_t run286_lin_alloc(uint32_t size, uint32_t *linp);
+uint16_t run286_lin_free(uint32_t lin);
+
 uint16_t call_argw(struct call *c, unsigned off);
 uint32_t call_argd(struct call *c, unsigned off);
 void call_setw(uint32_t fp, uint16_t val);

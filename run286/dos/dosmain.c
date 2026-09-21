@@ -347,8 +347,17 @@ static int dll_import(const char *mod, const char *name, uint16_t ord,
 static int dos_resolve_ord(void *ctx, const char *mod, uint16_t ord,
 	struct ne_far *a)
 {
+    uint16_t val;
+
     if (dll_import(mod, NULL, ord, a) == 0)
 	return 0;
+    /* A constant export, not an address: the fixup is an OFF16 and the
+     * value goes into the instruction as it stands. */
+    if (mod && !strcmp(mod, "DOSCALLS") && doscalls_const(ord, &val) == 0) {
+	a->sel = 0;
+	a->off = val;
+	return 0;
+    }
     return make_stub(&ldr, mod, NULL, ord, a);
 }
 
