@@ -1452,11 +1452,11 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    SET_RMLWORD(dx, 0);
 	    break;
 	case 0x3f:		/* dos read */
-	    msdos_lr_helper(scp, MSDOS_CLIENT.is_32,
+	    msdos_lr_helper(scp, MSDOS_CLIENT.is_32, API_32(scp),
 		    rm_seg, ems_frame_mapped ? restore_ems_frame : NULL);
 	    return MSDOS_DONE;
 	case 0x40:		/* dos write */
-	    msdos_lw_helper(scp, MSDOS_CLIENT.is_32,
+	    msdos_lw_helper(scp, MSDOS_CLIENT.is_32, API_32(scp),
 		    rm_seg, ems_frame_mapped ? restore_ems_frame : NULL);
 	    return MSDOS_DONE;
 	case 0x53:		/* Generate Drive Parameter Table  */
