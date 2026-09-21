@@ -55,6 +55,7 @@ from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
 from func_memory_dpmi_japheth import memory_dpmi_japheth
 from func_memory_dpmi_leak_check import memory_dpmi_leak_check
 from func_memory_dpmi_leak_check_dos import memory_dpmi_leak_check_dos
+from func_memory_dpmi_movss_shadow import memory_dpmi_movss_shadow
 from func_memory_dpmi_reinit_pool import memory_dpmi_reinit_pool
 from func_memory_ems_borland import memory_ems_borland, memory_emm286_borland
 from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_a20,
@@ -1065,6 +1066,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi_pm_stack(self):
         """Memory DPMI PM interrupt stack limit"""
         memory_dpmi_pm_stack(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_movss_shadow(self):
+        """Memory DPMI mov ss interrupt shadow"""
+        memory_dpmi_movss_shadow(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_nofree(self):
