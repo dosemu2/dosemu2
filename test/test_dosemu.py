@@ -1652,6 +1652,11 @@ class OurTestCase(BaseTestCase):
         video_font_load(self)
 
 DRDOS701TestCase = drdos701(OurTestCase, {
+    # Under JEMM our BIOS sits at segment 0, inside the first 64K, and
+    # only the fdpp kernel is told to load above it; every other kernel
+    # is put there by its own boot sector and lands on top of us
+    r"test_memory_jemm_(api|windows|xms|mouse)": UNSUPPORTED,
+
     "test_command_com_psp_fcbs": KNOWNFAIL,
     "test_command_com_cmdline_length_new_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos02": UNSUPPORTED,
@@ -1690,6 +1695,11 @@ DRDOS701TestCase = drdos701(OurTestCase, {
 })
 
 FRDOS120TestCase = frdos120(OurTestCase, {
+    # Under JEMM our BIOS sits at segment 0, inside the first 64K, and
+    # only the fdpp kernel is told to load above it; every other kernel
+    # is put there by its own boot sector and lands on top of us
+    r"test_memory_jemm_(api|windows|xms|mouse)": UNSUPPORTED,
+
     "test_command_com_psp_fcbs": KNOWNFAIL,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
@@ -1763,6 +1773,11 @@ FRDOS120TestCase = frdos120(OurTestCase, {
 })
 
 FRDOS130TestCase = frdos130(OurTestCase, {
+    # Under JEMM our BIOS sits at segment 0, inside the first 64K, and
+    # only the fdpp kernel is told to load above it; every other kernel
+    # is put there by its own boot sector and lands on top of us
+    r"test_memory_jemm_(api|windows|xms|mouse)": UNSUPPORTED,
+
     "test_command_com_psp_fcbs": KNOWNFAIL,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
@@ -1818,6 +1833,11 @@ FRDOS130TestCase = frdos130(OurTestCase, {
 })
 
 FRDOSGITTestCase = frdosgit(OurTestCase, {
+    # Under JEMM our BIOS sits at segment 0, inside the first 64K, and
+    # only the fdpp kernel is told to load above it; every other kernel
+    # is put there by its own boot sector and lands on top of us
+    r"test_memory_jemm_(api|windows|xms|mouse)": UNSUPPORTED,
+
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_fat_bpb_set_fstype_dinfo": KNOWNFAIL,
@@ -1849,6 +1869,11 @@ FRDOSGITTestCase = frdosgit(OurTestCase, {
 })
 
 MSDOS622TestCase = msdos622(OurTestCase, {
+    # Under JEMM our BIOS sits at segment 0, inside the first 64K, and
+    # only the fdpp kernel is told to load above it; every other kernel
+    # is put there by its own boot sector and lands on top of us
+    r"test_memory_jemm_(api|windows|xms|mouse)": UNSUPPORTED,
+
     "test_command_com_cmdline_length_new_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos02": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
@@ -1867,6 +1892,11 @@ MSDOS622TestCase = msdos622(OurTestCase, {
 })
 
 MSDOS700TestCase = msdos700(OurTestCase, {
+    # Under JEMM our BIOS sits at segment 0, inside the first 64K, and
+    # only the fdpp kernel is told to load above it; every other kernel
+    # is put there by its own boot sector and lands on top of us
+    r"test_memory_jemm_(api|windows|xms|mouse)": UNSUPPORTED,
+
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
@@ -1882,6 +1912,11 @@ MSDOS700TestCase = msdos700(OurTestCase, {
 })
 
 MSDOS710TestCase = msdos710(OurTestCase, {
+    # Under JEMM our BIOS sits at segment 0, inside the first 64K, and
+    # only the fdpp kernel is told to load above it; every other kernel
+    # is put there by its own boot sector and lands on top of us
+    r"test_memory_jemm_(api|windows|xms|mouse)": UNSUPPORTED,
+
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     # Real mode sharing and locking was removed on MS-DOS 7.10
