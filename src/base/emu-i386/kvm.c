@@ -1345,7 +1345,9 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
  * the guest sees it, which is what a client's page tables point at. */
 int kvm_read_monitor(unsigned int addr, void *buf, int len)
 {
-  if (!monitor || len <= 0)
+  if (!monitor)
+    return -2;		/* not on KVM at all, so the question does not apply */
+  if (len <= 0)
     return -1;
   if (addr < MONITOR_DOSADDR || addr - MONITOR_DOSADDR > sizeof(*monitor) ||
       sizeof(*monitor) - (addr - MONITOR_DOSADDR) < (unsigned)len)

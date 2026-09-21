@@ -91,7 +91,7 @@ static inline void kvm_get_fpu(void) {}
 static inline int kvm_get_vcpu_state(struct kvm_vcpu_state *st) { return -1; }
 static inline int kvm_read_monitor(unsigned int addr, void *buf, int len)
 {
-  return -1;
+  return -2;
 }
 static inline void kvm_done(void) {}
 #endif

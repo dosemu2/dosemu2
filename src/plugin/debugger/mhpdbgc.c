@@ -2421,7 +2421,7 @@ static void mhp_monitor(int argc, char *argv[])
 {
   unsigned char buf[256];
   unsigned int addr, nbytes = 64;
-  int i, i2;
+  int i, i2, rc;
 
   if (argc < 2) {
     mhp_printf("Usage: mon <address> [size]\n");
@@ -2436,7 +2436,12 @@ static void mhp_monitor(int argc, char *argv[])
     mhp_printf("Invalid size '%s'\n", argv[2]);
     return;
   }
-  if (kvm_read_monitor(addr, buf, nbytes) < 0) {
+  rc = kvm_read_monitor(addr, buf, nbytes);
+  if (rc == -2) {
+    mhp_printf("Only useful when DOSEMU runs on KVM, and it does not\n");
+    return;
+  }
+  if (rc < 0) {
     mhp_printf("%08x is not inside the KVM monitor\n", addr);
     return;
   }
