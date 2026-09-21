@@ -304,6 +304,8 @@ CONNECT_CYCLES = 4
 # follows the guest through a mode change rather than only the first one.
 WANT_SIZES = 3
 CLIENT_TIMEOUT = 30
+# long enough for several of the guest's mode changes to go by
+TAKEOVER_SECONDS = 4
 
 CRASH_MARKERS = (
     "Sync signal",            # dosemu2's own report of a fatal signal
@@ -529,6 +531,36 @@ class SpiceTestCase(unittest.TestCase):
                                 % (i, sorted(c.channels)))
                 c.close()
                 self.checkAlive(run, "while client %d was leaving" % i)
+
+    def test_a_second_client_takes_over(self):
+        """a viewer arriving replaces the one already there, cleanly"""
+        # spice-server serves one client at a time, so this is the behaviour
+        # to pin down rather than wish away: the newcomer gets the screen,
+        # the one already there is dropped, and the guest notices neither
+        with self.dosemuRunning() as run:
+            first = Client(run["port"])
+            self.assertTrue(first.open(), "the first client could not connect")
+            self.assertTrue(first.pump(CLIENT_TIMEOUT, lambda: bool(first.sizes)),
+                            "the first client saw no screen")
+
+            second = Client(run["port"])
+            self.assertTrue(second.open(), "the second client could not connect")
+            self.assertTrue(
+                second.pump(CLIENT_TIMEOUT, lambda: bool(second.sizes)),
+                "the second client never got the screen")
+
+            # the guest keeps changing mode, so a few seconds is several
+            # frames: the newcomer must get them and the old one must not
+            first.sizes = []
+            second.sizes = []
+            second.pump(TAKEOVER_SECONDS)
+            self.assertTrue(second.sizes,
+                            "the second client stopped being drawn to")
+            self.assertFalse(first.sizes,
+                             "the first client was still being drawn to after "
+                             "it had been replaced: %s" % first.sizes)
+            second.close()
+            self.checkAlive(run, "while one client replaced another")
 
     def test_mode_change_with_a_client(self):
         """the client follows the guest through its video mode changes"""
