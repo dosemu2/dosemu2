@@ -2151,6 +2151,8 @@ static int zip_mount(vfs_fs_t *fs, const char *path)
   if (!ovl_id_ok(zfs)) {
     node_free(zfs->tree);
     zip_close(zfs->za);
+    if (zfs->id_fd != -1)
+      close(zfs->id_fd);         // and with it the shared lock it holds
     free(zfs->ovl);
     free(zfs->root);
     free(zfs);
