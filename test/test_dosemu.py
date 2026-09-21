@@ -70,6 +70,7 @@ from func_truename import (mfs_truename_ufs_lfn, mfs_truename_ufs_sfn, mfs_truen
                            mfs_truename_vfat_linux_mounted_sfn, sfn_truename)
 
 from func_ndis import ndis_mac_driver
+from func_xattr import mfs_xattr_unsupported
 from func_network import network_mtcp
 from func_ipx import ipx_relay
 from func_pktdrvr import pktdriver_api
@@ -81,6 +82,11 @@ class OurTestCase(BaseTestCase):
     attrs = {'cmdtest', 'dpmitest', 'emstest', 'fattest', 'fcbtest', 'hmatest', 'labeltest', 'lfntest',
              'locktest', 'memtest', 'mfstest', 'nettest', 'serialtest', 'sfntest', 'sharetest', 'umatest',
              'xmstest'}
+
+    @mark(['mfstest'])
+    def test_mfs_xattr_unsupported(self):
+        """MFS on a file system without xattrs"""
+        mfs_xattr_unsupported(self)
 
     @mark('cmdtest')
     def test_command_com_psp_fcbs(self):
