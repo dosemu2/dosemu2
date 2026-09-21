@@ -979,6 +979,8 @@ int main(int argc, char **argv)
 	    env_init(path), m->seg[m->ne.autodata - 1].size);
     trc("run286: back from the program after %u API calls, rc %d\n",
 	    l->ncall, rc);
+    trc("run286: %u interrupts taken, the last in slot %u\n", int_taken,
+	    int_last);
     ne_free(&m->ne);
     return 0;
 }
