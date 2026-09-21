@@ -14,7 +14,12 @@
  * Linus
  */
 
-#define BIOSSEG		0x0f000
+/* Where our BIOS and the low memory heap live.  Normally 0xf000, as on a
+ * PC, but under $_jemm the client owns the whole of 0xa0000-0xfffff and we
+ * move down into the 32k we take off DOS's memory instead; see
+ * jemm_config() in emm.c. */
+extern unsigned short dosemu_bios_seg;
+#define BIOSSEG		dosemu_bios_seg
 
 #define CPU_086		0
 #define CPU_186		1
