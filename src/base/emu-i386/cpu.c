@@ -326,10 +326,28 @@ int cpu_trap_0f (unsigned char *csp, cpuctx_t *scp,
 		} else if (grp && op <= 1 &&  // SGDT m, SIDT m
 			   (increment_ip = vm86_modrm_mem(csp, pref_seg,
 					prefix67, &addr))) {
-			/* the tables are not visible to DOS, report them
-			 * as empty rather than leaving garbage behind */
-			WRITE_WORD(addr, 0);
-			WRITE_DWORD(addr + 2, 0);
+			/* Base zero is the interrupt vector table, and a
+			 * program that believes what sgdt told it reads
+			 * descriptors out of interrupt vectors, or writes
+			 * over them. Name an address the program cannot
+			 * reach instead, so that following the answer
+			 * faults rather than corrupts, and give a limit a
+			 * real machine has: sixteen bit code that counts
+			 * the entries as (limit + 1) / 8 gets zero out of
+			 * 0xffff and concludes the table is empty.
+			 *
+			 * The same answer as the DPMI path in dpmi.c and
+			 * as cpuemu, from the same constants, so that what
+			 * a program is told does not depend on $_cpu_vm.
+			 * When msdos_ldt.c has made its page, that page is
+			 * the answer on every path alike. */
+			unsigned int base = op ? EMU_IDT_BASE : EMU_GDT_BASE;
+			unsigned int limit = op ? EMU_IDT_LIMIT :
+					EMU_GDT_LIMIT;
+
+			dpmi_get_dtr_alias(op, &base, &limit);
+			WRITE_WORD(addr, limit);
+			WRITE_DWORD(addr + 2, base);
 		} else if (!grp && op <= 1 &&  // SLDT m16, STR m16
 			   (increment_ip = vm86_modrm_mem(csp, pref_seg,
 					prefix67, &addr))) {
