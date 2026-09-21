@@ -1257,6 +1257,10 @@ static int node_set_attr(struct zipfs *zfs, struct zip_node *n,
     const char *rel, int attr)
 {
   attr = attr_for(n, attr);
+  /* the log only has to say what the tree looks like, and a record
+   * setting what is already set says nothing */
+  if (attr == n->attr)
+    return 0;
   if (log_append(zfs, 'a', attr, rel, NULL) != 0)
     return -1;
   n->attr = attr;
@@ -1667,6 +1671,8 @@ static int zip_fs_utime(vfs_fs_t *fs, const char *path, time_t atime,
     secs = 0;
   if (secs > LOG_MTIME_MAX)
     secs = LOG_MTIME_MAX;
+  if (LOG_EPOCH + (time_t)secs == n->mtime)
+    return 0;
   if (log_append(zfs, 't', secs, rel, NULL) != 0)
     return -1;
   n->mtime = LOG_EPOCH + (time_t)secs;
