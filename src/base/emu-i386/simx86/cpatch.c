@@ -120,7 +120,13 @@ struct rep_stack {
  * 286|DOS-Extender client installs its call gates exactly that way, eight
  * bytes at a time with rep movsw, and then faults on the far call through
  * one. Feed such a write to the monitor element by element, as the single
- * stores in wri_8/16/32 already do. */
+ * stores in wri_8/16/32 already do.
+ * This catches the string op whose first element lands in the alias, which
+ * is how a client writes a descriptor. It does not catch one that starts
+ * outside the alias and runs into it, since msdos_ldt_access() is asked
+ * about an address and not a range, the same way vga_write_access() is;
+ * nor a movs whose source is the VGA window, which the check above claims
+ * first. Neither shape writes a descriptor a client means to use. */
 static void ldt_rep_write(dosaddr_t addr, dosaddr_t src, unsigned int cnt,
 	unsigned int size, unsigned int val, int is_movs)
 {
