@@ -203,6 +203,29 @@ back_in_v86:
     pop     es
     sti
 
+    mov     si, mpic
+    call    puts
+    movzx   eax, byte [picmaster]
+    call    puthex32
+    mov     al, '/'
+    call    putc
+    movzx   eax, byte [picslave]
+    call    puthex32
+    call    crlf
+
+    mov     si, mseen
+    call    puts
+    mov     cx, 8
+    mov     bx, seen
+.pseen:
+    mov     eax, [bx]
+    call    puthex32
+    mov     al, ' '
+    call    putc
+    add     bx, 4
+    loop    .pseen
+    call    crlf
+
     mov     si, mtimer
     call    puts
     mov     eax, [n_timer]
@@ -314,7 +337,7 @@ pm_start:
     sti
     mov     ecx, SPIN
 .spin:
-    cmp     dword [n_timer], 1
+    cmp     dword [n_int], 6
     jae     .enough
     cmp     dword [n_bad], 0
     jne     .enough
@@ -349,6 +372,13 @@ pm_exit:
 ; every vector lands here with its number on the stack
 ivec_common:
     pop     eax
+    push    ebx
+    mov     ebx, [n_int]
+    cmp     ebx, 8
+    jae     .noroom
+    mov     [seen + ebx*4], eax
+.noroom:
+    pop     ebx
     inc     dword [n_int]
     cmp     dword [n_int], 100000   ; a fault we cannot clear would spin
     jae     .runaway
@@ -451,6 +481,7 @@ v86_ds      dw 0
 v86_es      dw 0
 
 n_int       dd 0
+seen        times 8 dd 0FFFFFFFFh
 n_timer     dd 0
 n_other     dd 0
 n_bad       dd 0
@@ -460,6 +491,8 @@ mnovcpi     db 'NOVCPI',13,10,0
 mnopic      db 'NODE0A',13,10,0
 mnopmi      db 'NOPM',13,10,0
 mnoswitch   db 'NOSWITCH',13,10,0
+mpic        db 'PIC=',0
+mseen       db 'SEEN=',0
 mtimer      db 'TIMER=',0
 mother      db 'OTHER=',0
 mbad        db 'BAD=',0
