@@ -71,11 +71,13 @@ start:
 
 			; protected mode from here on
 	int3			; tell a watching debugger we are here
-	mov cx, 16
+	mov si, 16		; not cx: the call below returns the cpu
+				; type in cl, so a loop on cx never ends
 .again:
 	mov ax, 0400h
 	int 31h			; get DPMI version, has no side effects
-	loop .again
+	dec si
+	jnz .again
 
 	mov dx, msg.ok
 	jmp short rmexit
