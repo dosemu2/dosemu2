@@ -2459,8 +2459,11 @@ static void mhp_bpw(int argc, char *argv[])
        * warns about is silence, and silence reads as "nothing wrote". */
       mhp_printf("not seen: what dosemu writes into this memory for the"
                  " client\n");
-      if (by_dr)
+      if (by_dr) {
         mhp_printf("the stop comes just after the write, not before it\n");
+        mhp_printf("the client's own debug registers are taken over until"
+                   " bcw\n");
+      }
       return;
     }
   }

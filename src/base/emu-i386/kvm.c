@@ -1350,7 +1350,16 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
  * is the same number as the dosaddr_t the debugger works with: mmap_kvm()
  * fills monitor->pte[] so that guest linear equals guest physical there, and
  * a VCPI client's own page directory maps that range identically too.
+ *
+ * There is one set of these registers and the client can use them too - a
+ * debugger running inside DOS does - so whatever it had is put back when the
+ * last watch goes, rather than left zeroed.  What it sets while ours are
+ * armed is still lost at the next arm: the hardware cannot be shared, and
+ * the debugger is the one that was asked for it.
  */
+static struct kvm_debugregs saved_dr;
+static int saved_dr_valid;
+
 int kvm_set_watchpoints(const struct kvm_watchpoint *wp, int n)
 {
   struct kvm_debugregs dr = {};
@@ -1378,8 +1387,22 @@ int kvm_set_watchpoints(const struct kvm_watchpoint *wp, int n)
     /* R/W = 01, break on writes only; LEN above it */
     dr.dr7 |= (uint64_t)(1 | (lenbits << 2)) << (16 + i * 4);
   }
-  if (dr.dr7)
-    dr.dr7 |= 0x700;			/* bit 10 reads as one; LE and GE */
+  if (!dr.dr7) {
+    /* the last watch is going.  Hand the registers back as they were, and
+     * where they were never taken leave them alone rather than zero them. */
+    if (!saved_dr_valid)
+      return 0;
+    saved_dr_valid = 0;
+    if (ioctl(vcpufd, KVM_SET_DEBUGREGS, &saved_dr) == -1)
+      return -1;
+    return 0;
+  }
+  dr.dr7 |= 0x700;			/* bit 10 reads as one; LE and GE */
+  /* take a copy of whatever the client had, once, before overwriting it */
+  if (!saved_dr_valid && ioctl(vcpufd, KVM_GET_DEBUGREGS, &saved_dr) != -1) {
+    saved_dr.flags = 0;
+    saved_dr_valid = 1;
+  }
   if (ioctl(vcpufd, KVM_SET_DEBUGREGS, &dr) == -1)
     return -1;
   return 0;
