@@ -2321,9 +2321,16 @@ repag0:
 				    Gen(L_CR0, _mode);
 				    PC++; PC += ModRM(opc, PC, _mode|DATA16|MSTORE);
 				    break;
-				case 5: /* Illegal */
 				case 6: /* LMSW, 80286 compatibility, Privileged */
-				    /* Load Machine Status Word */
+				    /* Load Machine Status Word.  Privileged,
+				     * so a client at CPL 3 - which is every
+				     * client we have, in protected mode and
+				     * in vm86 alike - gets #GP from it and
+				     * the host decides what to do, exactly
+				     * as for lldt, ltr, lgdt and lidt above.
+				     * It is not an invalid opcode. */
+				    PC += 3; goto not_permitted;
+				case 5: /* Illegal */
 				case 7: /* Illegal */
 				    PC += 3; goto illegal_op;
 				} }

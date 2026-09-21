@@ -7,6 +7,7 @@ from common_os import ppdosgit
 from func_build_freecom import build_freecom
 from func_build_freedos import build_freedos
 from func_build_pcmos import build_pcmos
+from func_cpu_lmsw import cpu_lmsw
 from func_cpu_rdtsc import cpu_rdtsc
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
@@ -67,6 +68,16 @@ class EMUTestCase(ppdosgit(OurTestCase, {
     def test_cpu_rdtsc_sim(self):
         """CPU RDTSC (simulated)"""
         cpu_rdtsc(self, 1)
+
+    @mark('cputest')
+    def test_cpu_lmsw_jit(self):
+        """CPU LMSW (JIT)"""
+        cpu_lmsw(self, 0)
+
+    @mark('cputest')
+    def test_cpu_lmsw_sim(self):
+        """CPU LMSW (simulated)"""
+        cpu_lmsw(self, 1)
 
 
 class KVMTestCase(ppdosgit(OurTestCase, {
