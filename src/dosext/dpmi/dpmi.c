@@ -110,6 +110,94 @@ static int find_cli_in_blacklist(unsigned char *addr);
 static void add_cli_to_blacklist(unsigned char *addr);
 #ifdef USE_MHPDBG
 static int dpmi_mhp_intxx_check(cpuctx_t *scp, int intno);
+
+/* Work out the offset a modrm byte with a memory destination addresses,
+ * for the handful of instructions emulated below. reg[] is the eight
+ * general registers in encoding order. Returns the offset and puts the
+ * length of the modrm byte together with its sib and displacement into
+ * *len, or leaves *len at zero for a form not decoded here. *ss_rel is
+ * set when the default segment for the form is SS rather than DS. */
+static unsigned int decode_ea(const unsigned char *modrm, uint32_t *reg[8],
+    int a32, int *len, int *ss_rel)
+{
+  unsigned char m = modrm[0];
+  int mod = m >> 6, rm = m & 7;
+  unsigned int ofs = 0;
+  int n = 1;			/* the modrm byte itself */
+
+  *len = 0;
+  *ss_rel = 0;
+  if (mod == 3)			/* register destination, not ours */
+    return 0;
+
+  if (a32) {
+    if (rm == 4) {		/* sib follows */
+      unsigned char sib = modrm[1];
+      int base = sib & 7, index = (sib >> 3) & 7;
+
+      n++;
+      if (index != 4)		/* 4 encodes no index */
+	ofs += *reg[index] << (sib >> 6);
+      if (base == 5 && mod == 0) {
+	ofs += *(const uint32_t *)(modrm + n);
+	n += 4;
+      } else {
+	ofs += *reg[base];
+	if (base == 4 || base == 5)
+	  *ss_rel = 1;		/* esp or ebp based */
+      }
+    } else if (rm == 5 && mod == 0) {
+      ofs = *(const uint32_t *)(modrm + n);
+      n += 4;
+    } else {
+      ofs = *reg[rm];
+      if (rm == 5)
+	*ss_rel = 1;		/* ebp based */
+    }
+
+    if (mod == 1) {
+      ofs += (int8_t)modrm[n];
+      n += 1;
+    } else if (mod == 2) {
+      ofs += *(const int32_t *)(modrm + n);
+      n += 4;
+    }
+  } else {
+    unsigned short bx = *reg[3], bp = *reg[5], si = *reg[6], di = *reg[7];
+
+    switch (rm) {
+      case 0: ofs = bx + si; break;
+      case 1: ofs = bx + di; break;
+      case 2: ofs = bp + si; *ss_rel = 1; break;
+      case 3: ofs = bp + di; *ss_rel = 1; break;
+      case 4: ofs = si; break;
+      case 5: ofs = di; break;
+      case 6:
+	if (mod == 0) {
+	  ofs = *(const uint16_t *)(modrm + n);
+	  n += 2;
+	} else {
+	  ofs = bp;
+	  *ss_rel = 1;
+	}
+	break;
+      case 7: ofs = bx; break;
+    }
+
+    if (mod == 1) {
+      ofs += (int8_t)modrm[n];
+      n += 1;
+    } else if (mod == 2) {
+      ofs += *(const int16_t *)(modrm + n);
+      n += 2;
+    }
+    ofs &= 0xffff;
+  }
+
+  *len = n;
+  return ofs;
+}
+
 #endif
 static int dpmi_fault1(cpuctx_t *scp);
 static void do_dpmi_retf(cpuctx_t *scp, void * const sp);
@@ -5920,11 +6008,31 @@ static int dpmi_fault1(cpuctx_t *scp)
                 *reg16[csp[1] & 7] = 0;
               LWORD32(eip, += 3);
               break;
-            default:
-              error_once("DPMI: unsupported SLDT/SIDT dest %x\n%s", csp[1],
-                  DPMI_show_state(scp));
-              LWORD32(eip, = org_eip + instr_len(lina, Segments(_cs>>3).is_32));
-              break;
+            default: { // memory dest
+              /* Storing to memory is as ordinary for these as storing
+               * to a register, and skipping the instruction leaves the
+               * client reading back whatever its buffer held before -
+               * silence where it asked a question. Write the same zero
+               * the register case writes: six bytes for sgdt and sidt,
+               * two for sldt, str and smsw. */
+              int len, ss_rel;
+              unsigned int ofs = decode_ea(&csp[1], reg32, ASIZE_IS_32,
+                  &len, &ss_rel);
+              /* 0f 01 /0 and /1 are sgdt and sidt, the six byte pair */
+              int is_dt = (csp[0] == 1 && ((csp[1] >> 3) & 7) < 2);
+              unsigned short sel;
+
+              if (!len) {
+                error_once("DPMI: unsupported SLDT/SIDT dest %x\n%s", csp[1],
+                    DPMI_show_state(scp));
+                LWORD32(eip, = org_eip +
+                    instr_len(lina, Segments(_cs>>3).is_32));
+                break;
+              }
+              sel = pref_seg != -1 ? pref_seg : (ss_rel ? _ss : _ds);
+              memset((void *)SEL_ADR(sel, ofs), 0, is_dt ? 6 : 2);
+              LWORD32(eip, += 2 + len);
+              break; }
           }
           break;
         case 0x20:  // mov r/m,crX
