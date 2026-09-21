@@ -527,6 +527,12 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
     case DBG_TRAP:
       if (!mhpdbg.active)
         break;
+      /* A watchpoint in a debug register comes out as this same trap, and
+       * the hardware says in DR6 which of the two it was.  Ask before the
+       * single step below does, since the client may be being stepped with
+       * a watch armed and then both are true at once. */
+      if (DBG_ARG(mhpdbgc.currcode) == 1 && mhp_watch_dr_trap())
+        rtncd = 1; // suppress int 1
       if (DBG_ARG(mhpdbgc.currcode) == 1 && mhpdbgc.trapcmd) { /* single step */
         switch (mhpdbgc.trapcmd) {
           case 2: /* t command -- step until IP changes */

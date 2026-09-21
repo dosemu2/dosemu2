@@ -2042,12 +2042,18 @@ static struct {
   int is_valid;
 } wptab[MAXWP];
 
-static int wp_armed;		/* the pages are write protected right now */
+static int wp_armed;		/* the watches are in force right now */
 static int wp_rearm;		/* a fault took the protection off */
+/* Which of the two ways the watches are armed.  The CPU emulator cannot see
+ * the debug registers and KVM does not take our page protections, so the two
+ * do not mix: the back end is chosen with the first watch and stays until
+ * they are all cleared. */
+static int wp_by_dr;
 static struct {
   int num;			/* the watch that was hit, -1 for none */
   dosaddr_t addr;
   unsigned int pc;		/* linear address of the writing insn, 0 unknown */
+  int pc_next;			/* ... or of the one after it, for a DR trap */
   int before;			/* stopped on the write, not after it */
   unsigned char old[8];
   unsigned int olen;
@@ -2075,10 +2081,35 @@ static int wp_prot_of(dosaddr_t page)
 
 /* Called with on == 0 from the fault handler, so nothing that is not
  * signal safe belongs on that side of it. */
+/* Under KVM the watches live in the CPU's own debug registers, which the
+ * client carries across every mode and task switch it makes - including the
+ * switch to ring 0 a VCPI client does, where nothing else can follow it. */
+static void wp_arm_dr(int on)
+{
+  struct kvm_watchpoint wp[KVM_MAX_WATCHPOINTS] = {};
+  int i;
+
+  if (on) {
+    for (i = 0; i < MAXWP && i < KVM_MAX_WATCHPOINTS; i++) {
+      if (!wptab[i].is_valid)
+        continue;
+      wp[i].addr = wptab[i].addr;
+      wp[i].len = wptab[i].len;
+    }
+  }
+  kvm_set_watchpoints(wp, KVM_MAX_WATCHPOINTS);
+}
+
 static void wp_protect(int on)
 {
   int i;
 
+  if (wp_by_dr) {
+    wp_arm_dr(on);
+    wp_armed = on;
+    wp_rearm = 0;
+    return;
+  }
   for (i = 0; i < MAXWP; i++) {
     dosaddr_t start, a;
     size_t len;
@@ -2241,6 +2272,44 @@ void mhp_watch_write(dosaddr_t addr, unsigned int len)
     wp_last.old[i] = READ_BYTE(wptab[num].addr + i);
 }
 
+/* Called on a debug trap to ask the hardware whether it was one of ours.
+ * A data watchpoint is a trap rather than a fault: the write has already
+ * gone in by the time it is reported, so this is the same "after the write"
+ * case the interpreter's writes are, and cs:ip stands on the instruction
+ * after the one that wrote. */
+int mhp_watch_dr_trap(void)
+{
+  int hits, i, mine = 0;
+
+  if (!wp_armed || !wp_by_dr)
+    return 0;
+  hits = kvm_get_watchpoint_hits();
+  if (!hits)
+    return 0;
+  for (i = 0; i < MAXWP; i++) {
+    unsigned int j;
+
+    if (!(hits & (1 << i)) || !wptab[i].is_valid)
+      continue;
+    mine = 1;
+    if (wp_last.num != -1)	/* one is already waiting to be reported */
+      continue;
+    wp_last.num = i;
+    wp_last.addr = wptab[i].addr;
+    wp_last.pc = mhp_getcsip_value();
+    wp_last.pc_next = 1;
+    wp_last.before = 0;
+    wp_last.olen = _min(wptab[i].len, (unsigned int)sizeof(wp_last.old));
+    for (j = 0; j < wp_last.olen; j++)
+      wp_last.old[j] = READ_BYTE(wptab[i].addr + j);
+  }
+  if (mine)
+    mhpdbgc.want_to_stop = 1;
+  /* a bit set for a watch that is no longer in the table is still ours to
+   * swallow: nobody else put it there */
+  return 1;
+}
+
 /* called from mhp_poll(), outside of any signal handler */
 void mhp_watch_poll(void)
 {
@@ -2254,7 +2323,9 @@ void mhp_watch_poll(void)
      * than let the reader guess. */
     mhp_printf("\nwatchpoint %d: %08x %s", wp_last.num, wp_last.addr,
                wp_last.before ? "about to be written" : "has been written");
-    if (wp_last.pc)
+    if (wp_last.pc && wp_last.pc_next)
+      mhp_printf(" (stopped at %08x, just past it)", wp_last.pc);
+    else if (wp_last.pc)
       mhp_printf(" from %08x", wp_last.pc);
     mhp_printf("%s", wp_last.before ? ", it holds" : ", it now holds");
     for (i = 0; i < wp_last.olen; i++)
@@ -2262,6 +2333,7 @@ void mhp_watch_poll(void)
                  READ_BYTE(wptab[wp_last.num].addr + i));
     mhp_printf("\n");
     wp_last.num = -1;
+    wp_last.pc_next = 0;
     mhpdbgc.want_to_stop = 1;
     return;
   }
@@ -2290,13 +2362,14 @@ void mhp_watch_clr(void)
     wptab[i].is_valid = 0;
   wp_last.num = -1;
   wp_rearm = 0;
+  wp_by_dr = 0;
 }
 
 static void mhp_bpw(int argc, char *argv[])
 {
   dosaddr_t seekval, pg_start, pg_end, a;
   unsigned int seg, off, limit, len = 1;
-  int i;
+  int i, by_dr;
 
   if (argc < 2) {
     mhp_printf("Watchpoints:\n");
@@ -2308,14 +2381,25 @@ static void mhp_bpw(int argc, char *argv[])
   }
   if (!check_for_stopped())
     return;
-  /* The client is caught by taking write permission off the mapping it
-   * runs on, and only the CPU emulator's jit turns the resulting fault
-   * back into something to report.  KVM does not even take it, as its
-   * protections live in the VM's own page tables, and native DPMI would
-   * carry it to the generic handler, so don't arm one there. */
-  if (!IS_EMU_JIT() || (IN_DPMI ? !EMU_DPMI() : !EMU_V86())) {
-    mhp_printf("Only works where the CPU emulator's jit runs the client, "
-               "and it does not here\n");
+  /* Two ways to catch the client, one per machine that can run it.
+   *
+   * Under the CPU emulator's jit, write permission comes off the mapping the
+   * client runs on and the jit turns the fault into something to report.
+   * Under KVM that does nothing - protections there live in the VM's own page
+   * tables - so the watch goes into the CPU's debug registers instead, which
+   * is also the only thing that follows a client into ring 0.  Native DPMI
+   * has neither, and carries the fault to the generic handler.
+   *
+   * The two cannot be mixed, so whichever the first watch picked stands. */
+  by_dr = _CPU_VM_CURRENT() == CPUVM_KVM;
+  if (!by_dr && (!IS_EMU_JIT() || (IN_DPMI ? !EMU_DPMI() : !EMU_V86()))) {
+    mhp_printf("Only works where KVM or the CPU emulator's jit runs the "
+               "client, and neither does here\n");
+    return;
+  }
+  if (wp_count() && by_dr != wp_by_dr) {
+    mhp_printf("The watchpoints already set are armed the other way, for the "
+               "machine that was running then; clear them with bcw first\n");
     return;
   }
   if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
@@ -2330,21 +2414,36 @@ static void mhp_bpw(int argc, char *argv[])
     mhp_printf("Only DOS memory up to %08x can be watched\n", WP_LIMIT);
     return;
   }
-  /* A page these own is already write protected, by them and for their own
-   * purposes, and taking the protection off on a fault - which is what a
-   * watch does - would lose them the writes they exist to catch.  The test
-   * is over whole pages because that is the unit the protection goes on. */
-  pg_start = seekval & ~(dosaddr_t)(HOST_PAGE_SIZE - 1);
-  pg_end = (seekval + len + HOST_PAGE_SIZE - 1) & ~(dosaddr_t)(HOST_PAGE_SIZE - 1);
-  for (a = pg_start; a < pg_end; a += HOST_PAGE_SIZE) {
-    if (vga_write_access(a)) {
-      mhp_printf("%08x is in the video emulation's aperture, cannot watch "
-                 "it\n", a);
+  if (by_dr) {
+    /* what a debug register can hold: one, two or four bytes, on a boundary
+     * of its own size.  Anything else it ignores without saying so. */
+    if (len != 1 && len != 2 && len != 4) {
+      mhp_printf("On KVM a watch is 1, 2 or 4 bytes, not %u\n", len);
       return;
     }
-    if (memcheck_is_rom(a)) {
-      mhp_printf("%08x is in ROM, which is not written to\n", a);
+    if (seekval & (len - 1)) {
+      mhp_printf("On KVM a watch of %u bytes starts on a multiple of %u, "
+                 "and %08x is not one\n", len, len, seekval);
       return;
+    }
+  } else {
+    /* A page these own is already write protected, by them and for their own
+     * purposes, and taking the protection off on a fault - which is what a
+     * watch does - would lose them the writes they exist to catch.  The test
+     * is over whole pages because that is the unit the protection goes on.
+     * A debug register takes nothing away from anybody, so it does not care. */
+    pg_start = seekval & ~(dosaddr_t)(HOST_PAGE_SIZE - 1);
+    pg_end = (seekval + len + HOST_PAGE_SIZE - 1) & ~(dosaddr_t)(HOST_PAGE_SIZE - 1);
+    for (a = pg_start; a < pg_end; a += HOST_PAGE_SIZE) {
+      if (vga_write_access(a)) {
+        mhp_printf("%08x is in the video emulation's aperture, cannot watch "
+                   "it\n", a);
+        return;
+      }
+      if (memcheck_is_rom(a)) {
+        mhp_printf("%08x is in ROM, which is not written to\n", a);
+        return;
+      }
     }
   }
   for (i = 0; i < MAXWP; i++) {
@@ -2352,12 +2451,16 @@ static void mhp_bpw(int argc, char *argv[])
       wptab[i].addr = seekval;
       wptab[i].len = len;
       wptab[i].is_valid = 1;
-      mhp_printf("Watchpoint %d set at %08x, %u byte%s\n", i, seekval, len,
-                 len == 1 ? "" : "s");
+      wp_by_dr = by_dr;
+      mhp_printf("Watchpoint %d set at %08x, %u byte%s, %s\n", i, seekval, len,
+                 len == 1 ? "" : "s",
+                 by_dr ? "in a debug register" : "by page protection");
       /* Said here rather than only in the README because the failure it
        * warns about is silence, and silence reads as "nothing wrote". */
       mhp_printf("not seen: what dosemu writes into this memory for the"
                  " client\n");
+      if (by_dr)
+        mhp_printf("the stop comes just after the write, not before it\n");
       return;
     }
   }
