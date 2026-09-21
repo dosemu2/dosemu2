@@ -30,9 +30,40 @@ add_apt_repository()
   done
 }
 
+# apt does not fail when a repository's index cannot be fetched: it prints
+# "Err:" and "old ones used instead" and exits 0.  A 503 from Launchpad on
+# the PPA index therefore surfaces a minute and a half later, as
+# mk-build-deps failing to install fdpp-build-deps or as a dependency on
+# thunk-gen that cannot be satisfied, which reads like a packaging problem
+# and is not one.  Retry while an index is missing, then carry on: this
+# turns a blip into a working index and never fails a run that would
+# otherwise have got through.
+apt_update()
+{
+  attempt=1
+  while : ; do
+    out="$(sudo apt-get update -q 2>&1 || true)"
+    printf '%s\n' "${out}"
+    if ! printf '%s\n' "${out}" | grep -q '^Err:' ; then
+      return 0
+    fi
+    if [ ${attempt} -ge 3 ] ; then
+      echo "apt-get update: attempt ${attempt} still reports a fetch error," \
+        "going on with the indexes we have" >&2
+      return 0
+    fi
+    delay=$((attempt * 15))
+    echo "apt-get update: attempt ${attempt} could not fetch an index," \
+      "retrying in ${delay}s" >&2
+    sleep ${delay}
+    attempt=$((attempt + 1))
+  done
+}
+
 if [ "${BLDTYPE}" = "packaged" ] ; then
   echo "Adding dosemu2 PPA..."
   add_apt_repository -y -c main -c main/debug ppa:dosemu2/ppa
+  apt_update
   sudo apt install -y \
     dosemu2 \
     dosemu2-dbgsym \
@@ -66,7 +97,7 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
   echo "Configuring PPAs..."
   # Install the build dependancies based FDPP's debian/control file
   add_apt_repository ppa:stsp-0/thunk-gen
-  sudo apt update -q
+  apt_update
   mk-build-deps --install --root-cmd sudo
 
   make
@@ -75,6 +106,7 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
 
 # Install the build dependancies based Dosemu's debian/control file
 add_apt_repository -y -c main -c main/debug ppa:dosemu2/ppa
+apt_update
 mk-build-deps --install --root-cmd sudo
 sudo apt remove -y fdpp
 
