@@ -574,6 +574,9 @@ int main(int argc, char **argv)
 		gate_ldt_sel & 0xffff, alias, ldt_base,
 		ldt_size ? ldt_size - 1 : 0);
     }
+    if (gate_thunk_err)
+	printf("run286: no THUNK_16_32x, DOS calls from the program may "
+		"get a stray high half of edx\n");
     printf("run286: entering %04x:%04x, stack %04x:%04x, ds %04x\n",
 	    l->seg[entry_seg - 1].sel, (unsigned)(ne.csip & 0xffff),
 	    l->seg[ss_seg - 1].sel, sp, l->seg[ne.autodata - 1].sel);

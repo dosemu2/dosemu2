@@ -53,10 +53,18 @@ _ne_enter:
 
 /* int desc_probe(void) - what the machine says its tables are, and the
  * selector dosemu2 hands out for the LDT alias (int 2Fh AX=1688h, the
- * call Windows uses for the same thing). */
+ * call Windows uses for the same thing).
+ *
+ * Also asks dosemu2 for THUNK_16_32x. We are a 32bit DPMI client, but
+ * the program we run is 16bit and hands DOS a DS:DX with nothing in the
+ * high half of EDX; the extension makes the host take the bitness from
+ * the code that made the call instead of from us. */
 .global _desc_probe
 _desc_probe:
     pushl %ebx
+    pushl %esi
+    pushl %edi
+    pushl %es
     sgdt _gate_gdt
     sidt _gate_idt
     sldt _gate_ldt_sel
@@ -65,6 +73,15 @@ _desc_probe:
     int $0x2f
     movzwl %bx, %eax
     movl %eax, _gate_ldt_alias
+    movl $0x168a, %eax
+    leal _gate_thunk_name, %esi
+    movl $1, %ebx
+    int $0x2f
+    movzbl %al, %eax		/* 0 if the host took it */
+    movl %eax, _gate_thunk_err
+    popl %es
+    popl %edi
+    popl %esi
     popl %ebx
     lret
 
@@ -165,6 +182,9 @@ _gate_idt:	.word 0
 _gate_ldt_sel:	.long 0
 .global _gate_ldt_alias
 _gate_ldt_alias: .long 0
+.global _gate_thunk_err
+_gate_thunk_err: .long 0
+_gate_thunk_name: .asciz "THUNK_16_32x"
 
 .global _gate_stack
 _gate_stack:

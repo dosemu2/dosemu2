@@ -11,3 +11,4 @@ __ASM_ARR(uint16_t, gate_gdt, 4) SEMIC		/* sgdt output */
 __ASM_ARR(uint16_t, gate_idt, 4) SEMIC		/* sidt output */
 __ASM(unsigned, gate_ldt_sel) SEMIC		/* sldt output */
 __ASM(unsigned, gate_ldt_alias) SEMIC		/* int 2Fh AX=1688h */
+__ASM(unsigned, gate_thunk_err) SEMIC		/* THUNK_16_32x refused? */
