@@ -532,12 +532,18 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
           mhpdbgc.bpload_bp = SEGOFF2LINEAR(SREG(cs), LWORD(eip));
           if (READ_BYTE(mhpdbgc.bpload_bp) == 0xf4) {
             /* The EXEC was issued by a protected mode caller through a real
-             * mode call, and what it returns to is the hlt dosemu uses to
-             * get back there. An int3 over that breaks the return itself,
-             * so leave this one alone rather than take the machine down. */
-            mhp_printf("bpload: EXEC came from protected mode, not intercepting\n");
+             * mode procedure of its own, called with DPMI 0301, and what the
+             * int 21h returns to is the hlt that ends that call.  An int3 over
+             * that hlt faults instead of stopping, so the load is taken over
+             * here and control is regained from the hlt's own handler in
+             * dpmi.c rather than from a breakpoint. */
+            if (!mhp_bpload_exec_pre()) {
+              mhp_printf("bpload: cannot intercept this EXEC\n");
+              mhpdbgc.bpload = 0;
+              /* it unwatches for itself when it does take the EXEC */
+              bpload_unwatch_int21();
+            }
             mhpdbgc.bpload_bp = 0;
-            mhpdbgc.bpload = 0;
           } else if (mhp_setbp(mhpdbgc.bpload_bp)) {
             Bit16u int_op = READ_WORD(SEGOFF2LINEAR(SREG(cs), LWORD(eip) - 2));
             mhp_printf("bpload: intercepting EXEC\n");
@@ -556,14 +562,15 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
             SREG(es) = BIOSSEG;
             LWORD(ebx) = DBGload_parblock;
             LWORD(eax) = 0x4b01; /* load, but don't execute */
+            bpload_unwatch_int21();
           } else {
             mhp_printf("bpload: ??? #1\n");
             mhp_cmd("r");
 
             mhpdbgc.bpload_bp = 0;
             mhpdbgc.bpload = 0;
+            bpload_unwatch_int21();
           }
-          bpload_unwatch_int21();
         } else {
           if ((DBG_ARG(mhpdbgc.currcode) != 0x21) || !mhpdbgc.bpload) {
             mhpdbgc.stopped = 1;

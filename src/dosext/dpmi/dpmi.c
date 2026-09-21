@@ -6090,7 +6090,19 @@ void dpmi_realmode_hlt(unsigned int lina)
       DPMI_MAX_CLIENTS) {
     int i = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_realmode));
     struct RealModeCallStructure *rmreg;
-    int changed = post_rm_call(i);
+    int changed;
+
+    /* bpload turned an EXEC made from this real mode procedure into a load
+     * without execute, and this hlt is the first moment the program is in
+     * memory.  Run it before finishing the call: it ends by returning to the
+     * address DOS kept for its parent, which is this same hlt, so the return
+     * to protected mode below happens on the second pass. */
+    if (mhp_bpload_exec_post()) {
+      SREG(cs) = BIOSSEG;
+      LWORD(eip) = DBGload_OFF;
+      return;
+    }
+    changed = post_rm_call(i);
     if (changed)
       scp = &DPMI_CLIENT.stack_frame;     // refresh after post_rm_call()
     rmreg = SEL_ADR_X(_es, _edi);
