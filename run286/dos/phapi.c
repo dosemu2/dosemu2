@@ -21,6 +21,9 @@
 
 /* access rights of a 16bit, DPL 3, present data segment */
 #define AR_DATA16	0x00f2
+/* the same, code, readable, and 16 or 32 bit */
+#define AR_CODE16	0x00fa
+#define AR_CODE32	0x40fa
 
 uint16_t call_argw(struct call *c, unsigned off)
 {
@@ -470,6 +473,107 @@ static uint16_t dos_real_far_call(struct call *c)
  * one is a guess: they are neighbouring longs in the caller's data and
  * BioForge only hands them back to us when it unhooks.
  */
+/*
+ * The program's interrupt handlers are 16bit and end in a plain iret, which
+ * pops six bytes. We are a 32bit DPMI client, so the host hands every
+ * handler a twelve byte frame, as the spec tells it to; the handler's own
+ * segment does not say which iret it will run, so the host cannot get this
+ * right on its own and should not try. Put a thunk of our own on the
+ * vector instead: it is 32bit, so it gets the frame the host means to give,
+ * lays the six byte one the program expects on top of it, and jumps to the
+ * handler. The program's iret lands on a 16bit stub holding nothing but a
+ * 66 CF, which is iretd, and that returns the host's own frame.
+ */
+#define THUNK_SLOTS	48
+#define THUNK_SLOT_SIZE	32
+#define THUNK_RET_OFF	0		/* the shared 66 CF, before the slots */
+#define THUNK_BASE	THUNK_SLOT_SIZE
+
+static __dpmi_meminfo thunk_mem;
+static uint16_t thunk_code32_sel;	/* what goes on the vector */
+static uint16_t thunk_code16_sel;	/* the stub the program irets to */
+static uint16_t thunk_data_sel;		/* how we write the bytes */
+static uint32_t thunk_target[THUNK_SLOTS];
+static unsigned thunk_used;
+
+static int thunk_init(void)
+{
+    uint16_t sel;
+
+    if (thunk_code32_sel)
+	return 0;
+    thunk_mem.size = THUNK_BASE + THUNK_SLOTS * THUNK_SLOT_SIZE;
+    if (__dpmi_allocate_memory(&thunk_mem) == -1)
+	return -1;
+    sel = __dpmi_allocate_ldt_descriptors(3);
+    if (sel == (uint16_t)-1)
+	return -1;
+    if (__dpmi_set_segment_base_address(sel, thunk_mem.address) == -1 ||
+	    __dpmi_set_segment_limit(sel, thunk_mem.size - 1) == -1 ||
+	    __dpmi_set_descriptor_access_rights(sel, AR_CODE32) == -1 ||
+	    __dpmi_set_segment_base_address(sel + 8, thunk_mem.address) == -1 ||
+	    __dpmi_set_segment_limit(sel + 8, thunk_mem.size - 1) == -1 ||
+	    __dpmi_set_descriptor_access_rights(sel + 8, AR_CODE16) == -1 ||
+	    __dpmi_set_segment_base_address(sel + 16, thunk_mem.address) == -1 ||
+	    __dpmi_set_segment_limit(sel + 16, thunk_mem.size - 1) == -1 ||
+	    __dpmi_set_descriptor_access_rights(sel + 16, AR_DATA16) == -1)
+	return -1;
+    thunk_code32_sel = sel;
+    thunk_code16_sel = sel + 8;
+    thunk_data_sel = sel + 16;
+    _farpokeb(thunk_data_sel, THUNK_RET_OFF, 0x66);	/* iretd */
+    _farpokeb(thunk_data_sel, THUNK_RET_OFF + 1, 0xcf);
+    return 0;
+}
+
+/*
+ * Give back the address to put on the vector, or the handler itself if we
+ * cannot build a thunk: better a handler that may not return than none.
+ */
+static uint32_t thunk_for(uint32_t protfn)
+{
+    unsigned i, off;
+
+    if (thunk_init() != 0)
+	return protfn;
+    for (i = 0; i < thunk_used; i++) {
+	if (thunk_target[i] == protfn)
+	    return ((uint32_t)thunk_code32_sel << 16) |
+		    (THUNK_BASE + i * THUNK_SLOT_SIZE);
+    }
+    if (thunk_used == THUNK_SLOTS)
+	return protfn;
+    i = thunk_used++;
+    thunk_target[i] = protfn;
+    off = THUNK_BASE + i * THUNK_SLOT_SIZE;
+
+    /* pushw 8(%esp) - the low half of the eflags the host pushed */
+    _farpokeb(thunk_data_sel, off++, 0x66);
+    _farpokeb(thunk_data_sel, off++, 0xff);
+    _farpokeb(thunk_data_sel, off++, 0x74);
+    _farpokeb(thunk_data_sel, off++, 0x24);
+    _farpokeb(thunk_data_sel, off++, 0x08);
+    /* pushw $thunk_code16_sel - the cs the program irets to */
+    _farpokeb(thunk_data_sel, off++, 0x66);
+    _farpokeb(thunk_data_sel, off++, 0x68);
+    _farpokew(thunk_data_sel, off, thunk_code16_sel);
+    off += 2;
+    /* pushw $THUNK_RET_OFF - and the ip */
+    _farpokeb(thunk_data_sel, off++, 0x66);
+    _farpokeb(thunk_data_sel, off++, 0x68);
+    _farpokew(thunk_data_sel, off, THUNK_RET_OFF);
+    off += 2;
+    /* ljmpw $sel:$off - into the program's handler */
+    _farpokeb(thunk_data_sel, off++, 0x66);
+    _farpokeb(thunk_data_sel, off++, 0xea);
+    _farpokew(thunk_data_sel, off, protfn & 0xffff);
+    off += 2;
+    _farpokew(thunk_data_sel, off, protfn >> 16);
+
+    return ((uint32_t)thunk_code32_sel << 16) |
+	    (THUNK_BASE + i * THUNK_SLOT_SIZE);
+}
+
 static uint16_t dos_set_pass_to_prot_vec(struct call *c)
 {
     uint32_t oldrealp = call_argd(c, 0);
@@ -484,6 +588,7 @@ static uint16_t dos_set_pass_to_prot_vec(struct call *c)
 	return ERROR_INVALID_PARAMETER;
     call_setd(oldprotp, ((uint32_t)pm.selector << 16) | (pm.offset32 & 0xffff));
     call_setd(oldrealp, ((uint32_t)rm.segment << 16) | rm.offset16);
+    protfn = thunk_for(protfn);
     pm.selector = protfn >> 16;
     pm.offset32 = protfn & 0xffff;
     if (__dpmi_set_protected_mode_interrupt_vector(intno, &pm) == -1)
@@ -516,6 +621,7 @@ static uint16_t dos_set_real_prot_vec(struct call *c)
 	return ERROR_INVALID_PARAMETER;
     call_setd(oldprotp, ((uint32_t)pm.selector << 16) | (pm.offset32 & 0xffff));
     call_setd(oldrealp, ((uint32_t)rm.segment << 16) | rm.offset16);
+    protfn = thunk_for(protfn);
     pm.selector = protfn >> 16;
     pm.offset32 = protfn & 0xffff;
     rm.segment = realfn >> 16;
