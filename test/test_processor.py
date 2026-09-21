@@ -32,6 +32,11 @@ class OurTestCase(BaseTestCase):
         """Build PC-MOS"""
         build_pcmos(self)
 
+    @mark('cputest')
+    def test_cpu_sgdt_mem(self):
+        """CPU SGDT and SIDT with memory operand"""
+        cpu_sgdt_mem(self)
+
     @mark('fputest')
     def test_fpu_bart_exceptions_fpex(self):
         """FPU Exceptions (Bart) (fpex)"""
@@ -53,11 +58,6 @@ class EMUTestCase(ppdosgit(OurTestCase, {
         "test_fpu_fyl2xp1_sim_sim": KNOWNFAIL,
     })):
     use_cpu = 'emu'
-
-    @mark('cputest')
-    def test_cpu_sgdt_mem(self):
-        """CPU SGDT and SIDT with memory operand"""
-        cpu_sgdt_mem(self)
 
     @mark('cputest')
     def test_cpu_smsw_mem(self):
@@ -82,11 +82,6 @@ class KVMTestCase(ppdosgit(OurTestCase, {
     use_cpu = 'kvm'
 
     @mark('cputest')
-    def test_cpu_sgdt_mem(self):
-        """CPU SGDT and SIDT with memory operand"""
-        cpu_sgdt_mem(self)
-
-    @mark('cputest')
     def test_cpu_smsw_mem(self):
         """CPU SMSW with memory operand"""
         cpu_smsw_mem(self)
@@ -104,11 +99,6 @@ class VM86TestCase(ppdosgit(OurTestCase, {
         "test_fpu_fisttp_sim_sim": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
     })):
     use_cpu = 'vm86'
-
-    @mark('cputest')
-    def test_cpu_sgdt_mem(self):
-        """CPU SGDT and SIDT with memory operand"""
-        cpu_sgdt_mem(self)
 
     @mark('cputest')
     def test_cpu_smsw_mem(self):
