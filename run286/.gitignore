@@ -1,4 +1,7 @@
 nedump
+restub286
+dos/run286.exe
+dos/run286.exe.dbg
 *.o
 dos/libtmp.so
 dos/run286

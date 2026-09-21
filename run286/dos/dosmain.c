@@ -463,14 +463,26 @@ void ASMCFUNC run286_exception(void)
     for (i = 0; i < 12; i++)
 	p += sprintf(p, "%02x ", _farpeekb(cs, eip + i));
     trc("run286:   code at the fault: %s\n", code);
+    /* the bytes in front of the faulting one, to say which routine it is */
+    for (i = 0, p = code; i < 12; i++)
+	p += sprintf(p, "%02x ", _farpeekb(cs, eip - 12 + i));
+    trc("run286:   code before it: %s\n", code);
     for (i = 0, p = code; i < 8; i++)
 	p += sprintf(p, "%04x ", _farpeekw(fss, esp + i * 2));
     trc("run286:   its stack holds: %s\n", code);
+    /* and the start of that stack: a stack that ran out reads as used up
+     * to where it stopped, one that was never set up reads as zeroes */
+    for (i = 0, p = code; i < 8; i++)
+	p += sprintf(p, "%04x ", _farpeekw(fss, i * 2));
+    trc("run286:   stack segment starts: %s\n", code);
     /* a selector fault names the entry; show it and the one in es, as
      * the programs build these themselves through the LDT alias */
     if (n == 0x0a || n == 0x0b || n == 0x0c || n == 0x0d)
 	dump_ldt_entry("blamed", err & 0xfff8);
     dump_ldt_entry("es", es & 0xfff8);
+    dump_ldt_entry("ss", fss & 0xfff8);
+    trc("run286:   %u interrupts taken, the last in slot %u on stack %04x:%08x\n",
+	    int_taken, int_last, (uint16_t)int_last_ss, int_last_esp);
     gate_exit_code = 1;
 }
 
@@ -790,6 +802,49 @@ static int commit_segments(struct module *m)
     return 0;
 }
 
+/*
+ * A restubbed game carries the whole bound file inside our own executable,
+ * after the stub and its overlays, with the offset in an eight byte
+ * trailer at the very end. Then there is nothing to name on the command
+ * line: the file we are is the game. See restub286.c.
+ */
+#define SELF_MAGIC	"R286"
+
+static uint8_t *slurp_self(const char *self, size_t *size)
+{
+    uint8_t trailer[8];
+    uint32_t off;
+    long end;
+    uint8_t *buf;
+    FILE *f = fopen(self, "rb");
+
+    if (!f)
+	return NULL;
+    if (fseek(f, -(long)sizeof(trailer), SEEK_END) != 0 ||
+	    fread(trailer, 1, sizeof(trailer), f) != sizeof(trailer) ||
+	    memcmp(trailer, SELF_MAGIC, 4) != 0) {
+	fclose(f);
+	return NULL;
+    }
+    end = ftell(f) - (long)sizeof(trailer);
+    off = trailer[4] | ((uint32_t)trailer[5] << 8) |
+	    ((uint32_t)trailer[6] << 16) | ((uint32_t)trailer[7] << 24);
+    if (end <= 0 || off >= (uint32_t)end) {
+	fclose(f);
+	return NULL;
+    }
+    *size = end - off;
+    buf = malloc(*size);
+    if (!buf || fseek(f, off, SEEK_SET) != 0 ||
+	    fread(buf, 1, *size, f) != *size) {
+	free(buf);
+	fclose(f);
+	return NULL;
+    }
+    fclose(f);
+    return buf;
+}
+
 int main(int argc, char **argv)
 {
     /* When dj64 loads us as a bare ELF, dosemu2 replaces the command line
@@ -804,7 +859,7 @@ int main(int argc, char **argv)
     const char *err = "";
     char cfg[128];
     char logf[128] = "";
-    uint8_t *file;
+    uint8_t *file, *self = NULL;
     size_t size;
     unsigned entry_seg, ss_seg, sp;
     int i, rc;
@@ -812,6 +867,11 @@ int main(int argc, char **argv)
     if (!path && argc > 1 && argv[1][0] && strcmp(argv[1], "0") != 0 &&
 	    strcmp(argv[1], "1") != 0)
 	path = argv[1];
+    if (!path && argc > 0 && argv[0] && argv[0][0]) {
+	self = slurp_self(argv[0], &size);
+	if (self)
+	    path = argv[0];
+    }
     if (!path)
 	path = read_cfg(cfg);
     if (!path) {
@@ -832,7 +892,7 @@ int main(int argc, char **argv)
     }
     trc("run286: loading %s\n", path);
     snprintf(m->name, sizeof(m->name), "%s", "PROGRAM");
-    file = m->file = slurp(path, &size);
+    file = m->file = self ?: slurp(path, &size);
     if (!file) {
 	trc("run286: cannot read %s\n", path);
 	return 2;

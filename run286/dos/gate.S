@@ -175,6 +175,7 @@ _int_common:
     pushl %gs
     movl %cs:_gate_ds32, %eax
     movl %eax, %ds
+    incl _int_taken
     /* the flags the host pushed, which the handler's iret will want */
     movl 60(%esp), %ebx
     /* which vector: the stub said so, just under the host's frame */
@@ -183,6 +184,10 @@ _int_common:
     movl %esp, %edx
     xorl %eax, %eax
     movw %ss, %ax
+    /* where the interrupt landed, for the exception report */
+    movl %ecx, _int_last
+    movl %eax, _int_last_ss
+    movl %edx, _int_last_esp
     /*
      * A 16bit stack of our own, as the extender would have given it.
      * Each vector gets its own piece of it: one interrupt arrives while
@@ -334,6 +339,14 @@ _int_target:				/* offset, selector, per vector */
 .word 0
 .word 0
 .endr
+.global _int_taken
+_int_taken:	.long 0
+.global _int_last
+_int_last:	.long 0
+.global _int_last_ss
+_int_last_ss:	.long 0
+.global _int_last_esp
+_int_last_esp:	.long 0
 .global _gate_thunk_err
 _gate_thunk_err: .long 0
 _gate_thunk_name: .asciz "THUNK_16_32x"
