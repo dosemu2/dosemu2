@@ -381,7 +381,7 @@ static int handle_GP_fault(void)
     break;
 
   case 0x0f: /* was: RDE hack, now handled in cpu.c */
-    if (!cpu_trap_0f(csp, NULL))
+    if (!cpu_trap_0f(csp, NULL, pref_seg, prefix67))
       return 0;
     break;
 
