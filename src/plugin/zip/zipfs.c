@@ -1053,6 +1053,15 @@ static void log_apply(struct zipfs *zfs, int op, unsigned id,
   n = node_walk(zfs, name, 1);
   if (!n)
     return;
+  /*
+   * The entry this record makes is already here, so the record has
+   * nothing left to say and the fields below are not ours to reset:
+   * the size and the time are whatever has been written since. That
+   * is what lets the log be replayed more than once over the same
+   * tree, our own records included.
+   */
+  if (n->ovl_id == (int)id && n->idx == -1 && !n->is_dir == !(op == 'd'))
+    return;
   n->ovl_id = id;
   n->idx = -1;
   n->size = n->arc_size = 0;
