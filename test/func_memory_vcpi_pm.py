@@ -481,6 +481,7 @@ $_cpu_vm = "kvm"
 $_cpu_vm_dpmi = "kvm"
 $_ems = (8192)
 $_vcpi = (on)
+$_ext_mem = (6144)
 """)
 
     if "NOPM" in results:
