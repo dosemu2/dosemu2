@@ -186,11 +186,6 @@ static int handle_total, emm_allocated;
 static Bit32u EMSAPMAP_ret_OFF;
 #define saved_phys_pages _min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
 static Bit32u phys_pages;
-/* where our own high memory starts: the lowmem heap, and above it the BIOS
- * with the halt block all interrupts are dispatched through.  The JEMM
- * windows end here, because a client that maps one over that has no way
- * left to take an interrupt or to call EMS. */
-#define JEMM_TOP 0xf8000
 #define cnv_start_seg (0xa000 - 0x400 * config.ems_cnv_pages)
 #define cnv_pages_start config.ems_uma_pages
 
@@ -2721,9 +2716,10 @@ void jemm_config(void)
   config.ems_cnv_pages = 0;
   config.ems_frame = JEMM_HW_BASE >> 4;
   /* The array wants the whole of 0xa0000-0xfffff, and our own BIOS and low
-   * memory heap live in the top 32k of it.  They are addressed relative to
-   * BIOSSEG throughout, so move that instead: DOS gives up its last 32k and
-   * we take it, right below the array where no window can reach. */
+   * memory heap live in the top 32k of it, ROMBIOSSEG with them.  They are
+   * addressed relative to BIOSSEG throughout, so move that instead: DOS
+   * gives up its last 32k and we take it, right below the array where no
+   * window can reach. */
   dosemu_bios_seg = (JEMM_HW_BASE >> 4) - 0x1000;
   config.mem_size = SEGOFF2LINEAR(dosemu_bios_seg, DOSEMU_LMHEAP_OFF) / 1024;
   c_printf("CONF: JEMM: %i EMS windows from 0x%04x, BIOS at 0x%04x, "
