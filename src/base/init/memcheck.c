@@ -173,10 +173,12 @@ void memcheck_init(void)
 {
   memcheck_type_init();
   memcheck_reserve('d', 0x00000, config.mem_size*1024); /* dos memory  */
-  memcheck_reserve('r', 0xF0000 + DOSEMU_LMHEAP_OFF, DOSEMU_LMHEAP_SIZE);
+  memcheck_reserve('r', SEGOFF2LINEAR(BIOSSEG, DOSEMU_LMHEAP_OFF),
+		   DOSEMU_LMHEAP_SIZE);
   assert(DOSEMU_LMHEAP_OFF + DOSEMU_LMHEAP_SIZE == bios_data_start);
   /* dosemu bios */
-  memcheck_reserve('b', 0xF0000 + bios_data_start, DOSEMU_BIOS_SIZE());
+  memcheck_reserve('b', SEGOFF2LINEAR(BIOSSEG, bios_data_start),
+		   DOSEMU_BIOS_SIZE());
 }
 
 int memcheck_isfree(dosaddr_t addr_start, uint32_t size)
