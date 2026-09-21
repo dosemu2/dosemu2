@@ -2394,7 +2394,10 @@ repag0:
 			/* case 0x33:	RDPMC(P6) */
 			/* case 0x34:	SYSENTER(PII) */
 			/* case 0x35:	SYSEXIT(PII) */
-			/* case 0x40-0x4f:	CMOV(P6) */
+			case 0x40 ... 0x4f: /* CMOVcc (P6) */
+				PC++; PC += ModRM(opc, PC, _mode|MLOAD);
+				Gen(O_CMOV, _mode, (opc2&0x0f), REG1);
+				break;
 			/* case 0x50-0x5f:	various Cyrix/MMX */
 			/* case 0x60 ... 0x6b:	MMX */
 			/* case 0x6e: case 0x6f: */

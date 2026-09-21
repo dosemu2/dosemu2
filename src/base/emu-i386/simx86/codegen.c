@@ -324,6 +324,12 @@ void Gen(int op, int mode, ...)
 		}
 		break;
 
+	case O_CMOV: {
+		IG->p0 = (unsigned char)va_arg(ap,unsigned int);	// cond
+		IG->p1 = va_arg(ap,unsigned int);			// reg
+		}
+		break;
+
 	case O_FOP:
 	case O_INT: {
 		unsigned char exop = (unsigned char)va_arg(ap,unsigned int);

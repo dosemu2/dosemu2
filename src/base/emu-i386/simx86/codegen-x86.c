@@ -1747,6 +1747,18 @@ shrot0:
 		G3M(0x0f,(0x90|(n&15)),0xc0,Cp);
 		}
 		break;
+	case O_CMOV: {
+		unsigned char n = IG->p0;
+		PopPushF(Cp);	// get flags from stack
+		/* a branch and not a cmov, as the generated code is not
+		 * allowed to assume a P6 host */
+		// j<not cc> 1f
+		G2M(0x70|((n&15)^1),(mode&DATA16)?4:3,Cp);
+		// mov{wl} %%{e}ax,offs(%%ebx)
+		Gen66(mode,Cp); G3M(0x89,0x43,IG->p1,Cp);
+		// 1:
+		}
+		break;
 	case O_BITOP: {
 		unsigned char n = IG->p0;
 		G1(0x9d,Cp);	// get flags from stack
