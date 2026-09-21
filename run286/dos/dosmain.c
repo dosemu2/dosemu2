@@ -467,6 +467,16 @@ int main(int argc, char **argv)
     printf("run286: gdt %04x:%04x%04x, idt %04x:%04x%04x\n",
 	    gate_gdt[0], gate_gdt[2], gate_gdt[1],
 	    gate_idt[0], gate_idt[2], gate_idt[1]);
+    {
+	unsigned int ldt_base = 0;
+	unsigned alias = gate_ldt_alias & 0xffff;
+
+	if (alias)
+	    __dpmi_get_segment_base_address(alias, &ldt_base);
+	printf("run286: ldtr %04x, ldt alias %04x at %#x limit %#x\n",
+		gate_ldt_sel & 0xffff, alias, ldt_base,
+		alias ? __dpmi_get_segment_limit(alias) : 0);
+    }
     printf("run286: entering %04x:%04x, stack %04x:%04x, ds %04x\n",
 	    l->seg[entry_seg - 1].sel, (unsigned)(ne.csip & 0xffff),
 	    l->seg[ss_seg - 1].sel, sp, l->seg[ne.autodata - 1].sel);

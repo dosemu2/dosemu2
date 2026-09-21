@@ -51,13 +51,21 @@ _ne_enter:
     movl %ebx, %esp
     ljmpw *%cs:_gate_jmp
 
-/* int desc_probe(void) - what the machine says its tables are */
+/* int desc_probe(void) - what the machine says its tables are, and the
+ * selector dosemu2 hands out for the LDT alias (int 2Fh AX=1688h, the
+ * call Windows uses for the same thing). */
 .global _desc_probe
 _desc_probe:
+    pushl %ebx
     sgdt _gate_gdt
     sidt _gate_idt
-    xorl %eax, %eax
-    movw %cs, %ax
+    sldt _gate_ldt_sel
+    movl $0x1688, %eax
+    xorl %ebx, %ebx
+    int $0x2f
+    movzwl %bx, %eax
+    movl %eax, _gate_ldt_alias
+    popl %ebx
     lret
 
 /*
@@ -136,6 +144,10 @@ _gate_gdt:	.word 0
 _gate_idt:	.word 0
 		.long 0
 		.word 0
+.global _gate_ldt_sel
+_gate_ldt_sel:	.long 0
+.global _gate_ldt_alias
+_gate_ldt_alias: .long 0
 
 .global _gate_stack
 _gate_stack:

@@ -9,3 +9,5 @@ __ASM_FUNC(gate_entry) SEMIC			/* the int 0x66 handler */
 __ASM_FUNC(gate_stack_end) SEMIC		/* top of the handler stack */
 __ASM_ARR(uint16_t, gate_gdt, 4) SEMIC		/* sgdt output */
 __ASM_ARR(uint16_t, gate_idt, 4) SEMIC		/* sidt output */
+__ASM(unsigned, gate_ldt_sel) SEMIC		/* sldt output */
+__ASM(unsigned, gate_ldt_alias) SEMIC		/* int 2Fh AX=1688h */
