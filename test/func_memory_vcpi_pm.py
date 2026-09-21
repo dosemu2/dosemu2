@@ -30,9 +30,16 @@ TSS_SEL     equ 20h
 PMCS_SEL    equ 38h
 PMDS_SEL    equ 40h
 
-; an upper bound on the spin: the loop leaves as soon as a timer tick
-; arrives, so this only matters when none ever does
-SPIN        equ 20000000
+; The spin leaves as soon as the ticks arrive, so these only matter when
+; they do not.  How long the wait has to be is a wall-clock question -- a
+; tick is 55ms -- and an instruction count does not answer it: 20000000 of
+; these iterations is under one tick period on a 4GHz machine, which is how
+; this passed on a slow rig and failed in CI.  So the bound is the PIT's own
+; counter 0, read every SPIN iterations and counted as it wraps, with the
+; iteration count left only as a backstop for a PIT that never moves.
+SPIN        equ 1000000
+PIT_WRAPS   equ 40                  ; ~2.2s
+SPIN_MAX    equ 20000
 
 section .text
 
@@ -326,6 +333,28 @@ puthex32:
 ; ---------------------------------------------------------------- 32 bit
 bits 32
 
+; Latch PIT counter 0 and note whether it has wrapped since the last look.
+; It counts down, so a reading above the previous one is a wrap.  We are at
+; ring 0 here, so the port access is ours to make.
+pit_wrapped:
+    push    eax
+    push    edx
+    xor     eax, eax
+    out     43h, al
+    in      al, 40h
+    mov     dl, al
+    in      al, 40h
+    mov     dh, al
+    movzx   edx, dx
+    cmp     edx, [pitlast]
+    jbe     .store
+    inc     dword [pitwraps]
+.store:
+    mov     [pitlast], edx
+    pop     edx
+    pop     eax
+    ret
+
 pm_start:
     mov     ax, PMDS_SEL
     mov     ds, ax
@@ -335,6 +364,10 @@ pm_start:
     sub     esp, [segbase]          ; the data segment is based, not flat
 
     sti
+    mov     dword [pitlast], 0FFFFh
+    mov     dword [pitwraps], 0
+    mov     dword [spins], SPIN_MAX
+.outer:
     mov     ecx, SPIN
 .spin:
     cmp     dword [n_int], 6
@@ -343,6 +376,12 @@ pm_start:
     jne     .enough
     dec     ecx
     jnz     .spin
+    call    pit_wrapped
+    mov     eax, [pitwraps]
+    cmp     eax, PIT_WRAPS
+    jae     .enough
+    dec     dword [spins]
+    jnz     .outer
 .enough:
 pm_exit:
     cli
@@ -481,6 +520,9 @@ v86_ds      dw 0
 v86_es      dw 0
 
 n_int       dd 0
+pitlast     dd 0FFFFh
+pitwraps    dd 0
+spins       dd 0
 seen        times 8 dd 0FFFFFFFFh
 n_timer     dd 0
 n_other     dd 0
