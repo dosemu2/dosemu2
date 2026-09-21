@@ -146,19 +146,29 @@ int ASMCFUNC run286_import(void)
 	return 1;
     }
     im = &ldr.imp[n];
+    c.ss = gate_cli_ss;
+    c.sp = gate_cli_esp;
     if (!im->fn) {
+	char nm[72];
+
 	if (im->name[0])
-	    printf("run286: unimplemented %s.%s, called from %04x:%04x\n",
-		    im->mod, im->name, gate_cli_ss, gate_cli_esp);
+	    snprintf(nm, sizeof(nm), "%s", im->name);
 	else
-	    printf("run286: unimplemented %s.%u, called from %04x:%04x\n",
-		    im->mod, im->ord, gate_cli_ss, gate_cli_esp);
+	    snprintf(nm, sizeof(nm), "#%u", im->ord);
+	printf("run286: unimplemented %s.%s, called from %04x:%04x\n",
+		im->mod, nm, _farpeekw(c.ss, c.sp + CALL_ARGS - 2),
+		_farpeekw(c.ss, c.sp + CALL_ARGS - 4));
+	printf("run286:   stack %04x %04x %04x %04x %04x %04x %04x %04x\n",
+		call_argw(&c, 0), call_argw(&c, 2), call_argw(&c, 4),
+		call_argw(&c, 6), call_argw(&c, 8), call_argw(&c, 10),
+		call_argw(&c, 12), call_argw(&c, 14));
 	gate_exit_code = 1;
 	return 1;
     }
 
-    c.ss = gate_cli_ss;
-    c.sp = gate_cli_esp;
+    if (ldr.trace)
+	printf("run286: -> %s.%s%u\n", im->mod,
+		im->name[0] ? im->name : "#", im->ord);
     rc = im->fn->fn(&c);
     ldr.ncall++;
     if (ldr.trace)

@@ -1,0 +1,39 @@
+run286 - a loader for Phar Lap 286|DOS-Extender bound programs
+==============================================================
+
+What it is
+----------
+An ordinary DPMI client that does itself what RUN286.EXE does: it reads the
+NE image out of a bound executable, builds its segments as LDT descriptors,
+resolves its imports and enters it. PHAPI and DOSCALLS are implemented on
+top of DPMI, so the program ends up in ring 3 with a DPMI host underneath
+it instead of in ring 0 with Phar Lap's own extender. Nothing here writes a
+descriptor table by hand.
+
+Building
+--------
+  make               (in run286/, builds nedump for the host)
+  make -C dos        (needs dj64dev installed; builds the loader itself)
+
+Running
+-------
+Put a RUN286.CFG next to the program, holding the image name on the first
+line; a second line of any text turns on a trace of every API call.
+
+  dosemu -dumb -K . -l <path>/run286/dos/libtmp.so -g 1
+
+Memory
+------
+The programs care where their memory lands, so the host's layout matters.
+BioForge builds its arena out of blocks it asks for one at a time and keeps
+only the ones ending below linear 30Mb, so DPMI memory has to be reachable
+below that. DosAllocLinMem takes its blocks from the linear pool DPMI 1.0
+keeps below $_dpmi_base, which means $_dpmi_base itself has to be under the
+ceiling. A layout that works:
+
+  $_ext_mem = (1024)
+  $_xms = (1024)
+  $_dpmi_base = (0x1e00000)
+
+With the default 32Mb base the same run reports Largest=0 and the game
+gives up on its arena.

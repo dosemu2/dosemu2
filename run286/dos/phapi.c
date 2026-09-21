@@ -10,6 +10,7 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <dpmi.h>
 #include <sys/farptr.h>
 #include "run286.h"
@@ -212,13 +213,30 @@ static uint16_t dos_alloc_lin_mem(struct call *c)
     }
     if (i == MAX_LINMEM)
 	return ERROR_NOT_ENOUGH_MEMORY;
-    /* The programs measure memory by asking for ever smaller blocks until
-     * one is granted, so a host that hands out more than it has turns that
-     * into a very long loop. Answer from what DPMI says is left. */
+    /*
+     * The name is not decoration: the programs care where a block lands.
+     * BioForge builds its arena by asking for 8Mb at a time and throws away
+     * everything that ends above linear 30Mb, so blocks out of the ordinary
+     * DPMI pool, which dosemu2 keeps above $_dpmi_base, leave it with an
+     * arena of nothing. DPMI 1.0 has a second pool for exactly this, the
+     * linear one below $_dpmi_base, so take the memory from there.
+     */
+    m.size = size;
+    m.address = 0;
+    if (__dpmi_allocate_linear_memory(&m, 1) == 0) {
+	linmem[i] = m;
+	call_setd(linp, m.address);
+	return 0;
+    }
+    /* Nothing left down there. The programs measure memory by asking for
+     * ever smaller blocks until one is granted, so a host that hands out
+     * more than it has turns that into a very long loop: answer the rest
+     * from what DPMI says is left in the ordinary pool. */
     if (__dpmi_get_free_memory_information(&mi) == 0 &&
 	    size > mi.largest_available_free_block_in_bytes)
 	return ERROR_NOT_ENOUGH_MEMORY;
     m.size = size;
+    m.address = 0;
     if (__dpmi_allocate_memory(&m) == -1)
 	return ERROR_NOT_ENOUGH_MEMORY;
     linmem[i] = m;
@@ -242,6 +260,158 @@ static uint16_t dos_free_lin_mem(struct call *c)
     return 0;
 }
 
+/*
+ * The interrupt block a program hands to _DosRealIntr: thirteen words in
+ * the order OS/2 1.x used, with the register the caller cares about most
+ * last but one. Taken from BioForge's own use of it, which memsets 26
+ * bytes, puts 0x3400 at offset 18 to ask DOS for the InDOS flag and then
+ * reads the answer back out of offsets 0 and 12: es and bx.
+ */
+#define RR_ES	0
+#define RR_DS	2
+#define RR_DI	4
+#define RR_SI	6
+#define RR_BP	8
+#define RR_SP	10
+#define RR_BX	12
+#define RR_DX	14
+#define RR_CX	16
+#define RR_AX	18
+#define RR_IP	20
+#define RR_CS	22
+#define RR_FLAGS 24
+
+static void realregs_get(uint16_t sel, uint16_t off, __dpmi_regs *r)
+{
+    memset(r, 0, sizeof(*r));
+    r->x.es = _farpeekw(sel, off + RR_ES);
+    r->x.ds = _farpeekw(sel, off + RR_DS);
+    r->x.di = _farpeekw(sel, off + RR_DI);
+    r->x.si = _farpeekw(sel, off + RR_SI);
+    r->x.bp = _farpeekw(sel, off + RR_BP);
+    r->x.bx = _farpeekw(sel, off + RR_BX);
+    r->x.dx = _farpeekw(sel, off + RR_DX);
+    r->x.cx = _farpeekw(sel, off + RR_CX);
+    r->x.ax = _farpeekw(sel, off + RR_AX);
+    /* let DPMI pick the real mode stack */
+    r->x.ss = r->x.sp = 0;
+}
+
+static void realregs_put(uint16_t sel, uint16_t off, const __dpmi_regs *r)
+{
+    _farpokew(sel, off + RR_ES, r->x.es);
+    _farpokew(sel, off + RR_DS, r->x.ds);
+    _farpokew(sel, off + RR_DI, r->x.di);
+    _farpokew(sel, off + RR_SI, r->x.si);
+    _farpokew(sel, off + RR_BP, r->x.bp);
+    _farpokew(sel, off + RR_BX, r->x.bx);
+    _farpokew(sel, off + RR_DX, r->x.dx);
+    _farpokew(sel, off + RR_CX, r->x.cx);
+    _farpokew(sel, off + RR_AX, r->x.ax);
+    _farpokew(sel, off + RR_FLAGS, r->x.flags);
+}
+
+/*
+ * USHORT _DosRealIntr(USHORT intno, PREALREGS regs, USHORT copy, ULONG rsv)
+ *
+ * The leading underscore is not decoration: these entry points take their
+ * arguments the C way, so the caller pops them and the first one is the
+ * one nearest the return address. The stub for them must not pop, which
+ * is what an argument count of zero in the table below means.
+ */
+static uint16_t dos_real_intr(struct call *c)
+{
+    uint16_t intno = call_argw(c, 0);
+    uint16_t off = call_argw(c, 2);
+    uint16_t sel = call_argw(c, 4);
+    __dpmi_regs r;
+
+    if (!sel)
+	return ERROR_INVALID_PARAMETER;
+    realregs_get(sel, off, &r);
+    if (__dpmi_int(intno, &r) == -1)
+	return ERROR_INVALID_PARAMETER;
+    realregs_put(sel, off, &r);
+    return 0;
+}
+
+/*
+ * USHORT _DosRealFarCall(REALPTR fn, PREALREGS regs, ULONG copy, ...)
+ *
+ * The register block is optional: BioForge calls its real mode routines
+ * with a null pointer there and cares only that the call happens.
+ */
+static uint16_t dos_real_far_call(struct call *c)
+{
+    uint32_t fn = call_argd(c, 0);
+    uint16_t off = call_argw(c, 4);
+    uint16_t sel = call_argw(c, 6);
+    __dpmi_regs r;
+
+    if (sel)
+	realregs_get(sel, off, &r);
+    else
+	memset(&r, 0, sizeof(r));
+    r.x.ss = r.x.sp = 0;
+    r.x.cs = fn >> 16;
+    r.x.ip = fn & 0xffff;
+    if (__dpmi_simulate_real_mode_procedure_retf(&r) == -1)
+	return ERROR_INVALID_PARAMETER;
+    if (sel)
+	realregs_put(sel, off, &r);
+    return 0;
+}
+
+/*
+ * USHORT DosSetPassToProtVec(USHORT intno, PFN protfn, PPFN oldprotp,
+ *			      PREALPTR oldrealp)
+ *
+ * Hook an interrupt so that it reaches a protected mode handler whichever
+ * mode it arrives in. That is what a DPMI host does for a vector the
+ * client owns, so setting the protected mode vector is the whole of it.
+ * Which of the two out parameters is the real one and which the protected
+ * one is a guess: they are neighbouring longs in the caller's data and
+ * BioForge only hands them back to us when it unhooks.
+ */
+static uint16_t dos_set_pass_to_prot_vec(struct call *c)
+{
+    uint32_t oldrealp = call_argd(c, 0);
+    uint32_t oldprotp = call_argd(c, 4);
+    uint32_t protfn = call_argd(c, 8);
+    uint16_t intno = call_argw(c, 12);
+    __dpmi_paddr pm;
+    __dpmi_raddr rm;
+
+    if (__dpmi_get_protected_mode_interrupt_vector(intno, &pm) == -1 ||
+	    __dpmi_get_real_mode_interrupt_vector(intno, &rm) == -1)
+	return ERROR_INVALID_PARAMETER;
+    call_setd(oldprotp, ((uint32_t)pm.selector << 16) | (pm.offset32 & 0xffff));
+    call_setd(oldrealp, ((uint32_t)rm.segment << 16) | rm.offset16);
+    pm.selector = protfn >> 16;
+    pm.offset32 = protfn & 0xffff;
+    if (__dpmi_set_protected_mode_interrupt_vector(intno, &pm) == -1)
+	return ERROR_INVALID_PARAMETER;
+    return 0;
+}
+
+/* USHORT DosSetExceptionHandler(USHORT exc, PFN handler, PPFN oldp) */
+static uint16_t dos_set_exception_handler(struct call *c)
+{
+    uint32_t oldp = call_argd(c, 0);
+    uint32_t fn = call_argd(c, 4);
+    uint16_t exc = call_argw(c, 8);
+    __dpmi_paddr pm;
+
+    if (__dpmi_get_processor_exception_handler_vector(exc, &pm) == -1)
+	return ERROR_INVALID_PARAMETER;
+    call_setd(oldp, ((uint32_t)pm.selector << 16) | (pm.offset32 & 0xffff));
+    pm.selector = fn >> 16;
+    pm.offset32 = fn & 0xffff;
+    if (__dpmi_set_processor_exception_handler_vector(exc, &pm) == -1)
+	return ERROR_INVALID_PARAMETER;
+    return 0;
+}
+
 /* USHORT DosIsPharLap(void) - yes, of a sort */
 static uint16_t dos_is_pharlap(struct call *c)
 {
@@ -257,6 +427,10 @@ static const struct api_fn phapi[] = {
     { "DOSALLOCLINMEM",		0, 8,	dos_alloc_lin_mem },
     { "DOSFREELINMEM",		0, 4,	dos_free_lin_mem },
     { "DOSISPHARLAP",		0, 0,	dos_is_pharlap },
+    { "DOSSETPASSTOPROTVEC",	0, 14,	dos_set_pass_to_prot_vec },
+    { "DOSSETEXCEPTIONHANDLER",	0, 10,	dos_set_exception_handler },
+    { "_DosRealIntr",		0, 0,	dos_real_intr },
+    { "_DosRealFarCall",	0, 0,	dos_real_far_call },
 };
 
 const struct api_fn *phapi_lookup(const char *name)

@@ -97,8 +97,25 @@ _gate_entry:
     popl %edx				/* program SS */
     movl %edx, %ss
     movl %ecx, %esp
-    popl %es
-    popl %ds
+    /*
+     * Origin's wrapper frees a descriptor while it is still in ES and
+     * carries on with it: on a 286 the entry it freed was its own to
+     * recycle and stayed loadable, here DPMI really takes it away. Put a
+     * null selector in its place rather than faulting on the way out,
+     * which is what dosemu2 does to a segment register holding one.
+     */
+    popl %eax
+    lar %eax, %ecx
+    jz 2f
+    xorl %eax, %eax
+2:
+    movl %eax, %es
+    popl %eax
+    lar %eax, %ecx
+    jz 3f
+    xorl %eax, %eax
+3:
+    movl %eax, %ds
     popal
     iretl
 
