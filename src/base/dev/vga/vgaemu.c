@@ -1234,6 +1234,17 @@ int vga_emu_protect_page(unsigned page, int prot, int instremu)
   int i;
   int sys_prot;
 
+  /* A page a JEMM client's window is holding is the client's own memory and
+   * not the screen, which is what vga_bank_access() and the other access
+   * predicates say.  Protecting it for dirty tracking would therefore send
+   * the client's own write into vga_emu_fault(), which refuses it, and the
+   * write becomes an unexpected page fault.  Leave such a page alone; the
+   * client gets the window back and the screen loses nothing, because no
+   * part of the screen lives there while the window does.
+   */
+  if (emm_jemm_window(page * HOST_PAGE_SIZE))
+    return 0;
+
   /* don't call mprotect at all on LFB with KVM */
   if (_CPU_VM_DPMI() == CPUVM_KVM && page >= vga.mem.lfb_base_page)
     return 0;
@@ -1490,9 +1501,32 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   }
   if (mapping == VGAEMU_MAP_BANK_MODE) {
     int cap = MAPPING_VGAEMU;
-    i = alias_mapping_pa(cap,
-      vmt->base_page * HOST_PAGE_SIZE, vmt->pages * HOST_PAGE_SIZE,
-      prot, vga.mem.base + (first_page * HOST_PAGE_SIZE));
+    unsigned p = 0;
+
+    /* A JEMM client keeps its EMS windows over the video aperture and uses
+     * them as plain memory; it owns them for as long as it is loaded, see
+     * emm_jemm_window().  The bank has to leave those pages alone.  An alias
+     * put over one of them is never taken back - nothing unmaps the bank when
+     * a mode change moves it elsewhere - so the window would stay lost for the
+     * rest of the run, and everything the client wrote there would go to the
+     * screen instead of to its own memory.  Map the runs in between, which is
+     * the whole bank when no window is in the way.
+     */
+    while (p < vmt->pages && i != -1) {
+      unsigned run;
+
+      if (emm_jemm_window((vmt->base_page + p) * HOST_PAGE_SIZE)) {
+	p++;
+	continue;
+      }
+      for (run = 1; p + run < vmt->pages; run++)
+	if (emm_jemm_window((vmt->base_page + p + run) * HOST_PAGE_SIZE))
+	  break;
+      i = alias_mapping_pa(cap,
+	(vmt->base_page + p) * HOST_PAGE_SIZE, run * HOST_PAGE_SIZE,
+	prot, vga.mem.base + ((first_page + p) * HOST_PAGE_SIZE));
+      p += run;
+    }
   }
 
   if(i == -1) {
