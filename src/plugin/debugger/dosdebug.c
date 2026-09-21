@@ -51,6 +51,12 @@ static int pending;
 /* output arrived that no reply marker ended, so the prompt is held back
  * until the burst goes quiet */
 static int prompt_held;
+/* commands are being read from a file rather than typed */
+static FILE *batchfp;
+/* how long a batch command may take before we give up on it, in seconds */
+#define BATCH_TIMEOUT 30
+/* how long '@wait' lets a report dosemu sends on its own settle, in seconds */
+#define BATCH_SETTLE 2
 /* how long to wait for the rest of such a burst, in microseconds */
 #define PROMPT_SETTLE 200000
 
@@ -353,7 +359,8 @@ static void handle_console_input(char *line)
   /* Update or use history */
   if (*line) {
 #ifdef HAVE_LIBREADLINE
-    add_history(line);
+    if (!batchfp)
+      add_history(line);
 #endif
     snprintf(last_line, sizeof(last_line), "%s", line);
     if ((strncmp(last_line, "d ", 2) == 0) ||
@@ -389,7 +396,8 @@ static void handle_console_input(char *line)
   pending++;
   prompt_held = 0;
 #ifdef HAVE_LIBREADLINE
-  rl_set_prompt("");
+  if (!batchfp)
+    rl_set_prompt("");
 #endif
 }
 
@@ -411,13 +419,15 @@ static int handle_dbg_input(int *retval)
     }
 
 #ifdef HAVE_LIBREADLINE
-    char *saved_line;
-    int saved_point;
-    saved_point = rl_point;
-    saved_line = rl_copy_text(0, rl_end);
-    rl_set_prompt("");
-    rl_replace_line("", 0);
-    rl_redisplay();
+    char *saved_line = NULL;
+    int saved_point = 0;
+    if (!batchfp) {
+      saved_point = rl_point;
+      saved_line = rl_copy_text(0, rl_end);
+      rl_set_prompt("");
+      rl_replace_line("", 0);
+      rl_redisplay();
+    }
 #endif
 
     /* Split at the end of reply markers. What precedes one completes the
@@ -438,9 +448,11 @@ static int handle_dbg_input(int *retval)
       if (pending)
         pending--;
 #ifdef HAVE_LIBREADLINE
-      rl_set_prompt(prompt);
-      rl_redisplay();
-      rl_set_prompt("");
+      if (!batchfp) {
+        rl_set_prompt(prompt);
+        rl_redisplay();
+        rl_set_prompt("");
+      }
 #endif
     }
     fflush(fpconout);
@@ -453,11 +465,13 @@ static int handle_dbg_input(int *retval)
     prompt_held = (!pending && !saw_eor);
 
 #ifdef HAVE_LIBREADLINE
-    rl_set_prompt((pending || prompt_held) ? "" : prompt);
-    rl_replace_line(saved_line, 0);
-    rl_point = saved_point;
-    rl_redisplay();
-    free(saved_line);
+    if (!batchfp) {
+      rl_set_prompt((pending || prompt_held) ? "" : prompt);
+      rl_replace_line(saved_line, 0);
+      rl_point = saved_point;
+      rl_redisplay();
+      free(saved_line);
+    }
 #endif
   }
 
@@ -473,13 +487,135 @@ static int handle_dbg_input(int *retval)
 }
 
 
+/* Read from dosemu until every command we sent has been answered, which is
+ * what the reply markers are for, or until 'secs' pass with nothing.
+ * Returns 0 when dosemu went away or stopped answering. */
+static int batch_await_replies(int secs)
+{
+  time_t deadline = time(NULL) + secs;
+  int ret;
+
+  while (pending) {
+    fd_set rfds;
+    struct timeval tv;
+    time_t now = time(NULL);
+
+    if (now >= deadline) {
+      fprintf(fpconout, "dosdebug: no reply in %d seconds, giving up\n", secs);
+      return 0;
+    }
+    FD_ZERO(&rfds);
+    FD_SET(fddbgin, &rfds);
+    tv.tv_sec = deadline - now;
+    tv.tv_usec = 0;
+    if (select(fddbgin + 1, &rfds, NULL, NULL, &tv) <= 0)
+      continue;
+    if (!handle_dbg_input(&ret))
+      return 0;
+  }
+  return 1;
+}
+
+/* Wait for a report dosemu sends on its own, the one it prints when it stops,
+ * and for it to finish arriving.  This is what a script needs after a 'g':
+ * the reply to 'g' comes back at once, the stop comes whenever it comes. */
+static int batch_await_report(int secs)
+{
+  time_t deadline = time(NULL) + secs;
+  int seen = 0, ret;
+
+  for (;;) {
+    fd_set rfds;
+    struct timeval tv;
+    time_t now = time(NULL);
+
+    if (!seen && now >= deadline)
+      return 1;                 /* nothing stopped; the script may mean that */
+    FD_ZERO(&rfds);
+    FD_SET(fddbgin, &rfds);
+    tv.tv_sec = seen ? BATCH_SETTLE : deadline - now;
+    tv.tv_usec = 0;
+    if (select(fddbgin + 1, &rfds, NULL, NULL, &tv) <= 0) {
+      if (seen)
+        return 1;               /* it arrived and has gone quiet */
+      continue;
+    }
+    if (!handle_dbg_input(&ret))
+      return 0;
+    seen = 1;
+  }
+}
+
+/* Run the commands in the batch file, one at a time, each one waited for.
+ * Returns the exit status. */
+static int batch_run(void)
+{
+  char line[MHP_BUFFERSIZE];
+
+  /* the r0 sent at startup is already outstanding; its reply is the banner */
+  if (!batch_await_replies(BATCH_TIMEOUT))
+    return 1;
+
+  while (running && fgets(line, sizeof(line), batchfp)) {
+    char *p = line, *e;
+
+    e = strpbrk(p, "\r\n");
+    if (e)
+      *e = '\0';
+    while (*p == ' ' || *p == '\t')
+      p++;
+    if (!*p || *p == '#')       /* blank line or comment */
+      continue;
+    if (!strncmp(p, "@wait", 5) && (!p[5] || p[5] == ' ')) {
+      int secs = p[5] ? atoi(p + 6) : BATCH_TIMEOUT;
+
+      if (secs <= 0)
+        secs = BATCH_TIMEOUT;
+      if (!batch_await_report(secs))
+        return 1;
+      continue;
+    }
+    handle_console_input(p);
+    if (!batch_await_replies(BATCH_TIMEOUT))
+      return 1;
+  }
+
+  if (running) {
+    char quitcmd[] = "quit";
+
+    /* detach without leaving dosemu stopped, the way 'quit' does */
+    handle_console_input(quitcmd);
+    batch_await_replies(BATCH_TIMEOUT);
+  }
+  return 0;
+}
+
 int main (int argc, char **argv)
 {
   fd_set readfds;
-  int numfds, dospid, ret;
+  int numfds, dospid, ret, argi = 1;
   char *pipename_in, *pipename_out;
   struct timeval timeout;
   const char *rp = getenv("XDG_RUNTIME_DIR");
+
+  while (argi < argc && argv[argi][0] == '-' && argv[argi][1]) {
+    if (!strcmp(argv[argi], "-c") && argi + 1 < argc) {
+      const char *fname = argv[++argi];
+
+      batchfp = strcmp(fname, "-") ? fopen(fname, "r") : stdin;
+      if (!batchfp) {
+        fprintf(stderr, "dosdebug: can't read %s: %s\n", fname,
+                strerror(errno));
+        exit(1);
+      }
+      argi++;
+    } else {
+      fprintf(stderr, "usage: dosdebug [-c file] [pid]\n"
+              "  -c file   read commands from 'file' ('-' for stdin), run\n"
+              "            them in order and exit\n");
+      exit(1);
+    }
+  }
 
   if (!rp || !rp[0]) {
     perror("XDG_RUNTIME_DIR unset or empty");
@@ -492,13 +628,13 @@ int main (int argc, char **argv)
    * what carries the banner, so the first prompt waits for it too */
   pending = 1;
 
-  if (!argv[1]) {
+  if (argi >= argc) {
     char fname[256];
 
     snprintf(fname, sizeof(fname), TMPFILE_VAR "dbgin.", rp);
     dospid = find_dosemu_pid(fname, 0);
   } else
-    dospid = strtol(argv[1], 0, 0);
+    dospid = strtol(argv[argi], 0, 0);
 
   /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
   ret = asprintf(&pipename_in, TMPFILE_VAR "dbgin.%d", rp, dospid);
@@ -524,24 +660,42 @@ int main (int argc, char **argv)
   }
 
 #ifdef HAVE_LIBREADLINE
-  /* So that we can use conditional ~/.inputrc commands */
-  rl_readline_name = "dosdebug";
+  if (!batchfp) {
+    /* So that we can use conditional ~/.inputrc commands */
+    rl_readline_name = "dosdebug";
 
-  /* Install the readline completion function */
-  rl_attempted_completion_function = db_completion;
+    /* Install the readline completion function */
+    rl_attempted_completion_function = db_completion;
 
-  /* Install the readline handler. The prompt starts out empty: the r0
-   * below is already outstanding, and its reply carries the banner. */
-  rl_callback_handler_install("", rl_console_callback);
+    /* Install the readline handler. The prompt starts out empty: the r0
+     * below is already outstanding, and its reply carries the banner. */
+    rl_callback_handler_install("", rl_console_callback);
 
-  fdconin = fileno(rl_instream);
-  fpconout = rl_outstream;
+    fdconin = fileno(rl_instream);
+    fpconout = rl_outstream;
+  } else {
+    fdconin = STDIN_FILENO;
+    fpconout = stdout;
+  }
 #else
   fdconin = STDIN_FILENO;
   fpconout = stdout;
 #endif
 
-  write(fddbgout,"r0\n",3);
+  if (write(fddbgout, "r0\n", 3) != 3) {
+    fprintf(fpconout, "write to pipe failed\n");
+    exit(1);
+  }
+
+  if (batchfp) {
+    running = 1;
+    ret = batch_run();
+    if (batchfp != stdin)
+      fclose(batchfp);
+    free(pipename_in);
+    free(pipename_out);
+    return ret;
+  }
 
   for (running=1, ret=0; running; /* */) {
     FD_SET(fddbgin, &readfds);
