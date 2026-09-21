@@ -1078,8 +1078,18 @@ static int SDL_update_screen(void)
 
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
-  int offs = x * SDL_csd.bits / 8 + y * surface->pitch;
+  int offs;
   struct rect_desc d;
+
+  /* Unlike lock(), which render_lock() calls before it looks at the flags
+   * and which therefore has to tolerate a NULL surface, refresh_rect() is
+   * reached only through render_rect_add(), i.e. only for a render that
+   * render_lock() found enabled.  SDL_change_mode() clears the surface and
+   * disables this render together under the mode write lock, and the
+   * drawing paths hold the mode read lock, so an enabled Render_SDL always
+   * has a surface here. */
+  assert(surface);
+  offs = x * SDL_csd.bits / 8 + y * surface->pitch;
 
   d.rect.x = x;
   d.rect.y = y;
