@@ -449,9 +449,12 @@ class OurTestCase(BaseTestCase):
         # instruction the watchpoint stopped it at
         self.assertNotIn('Timeout', results)
         self.assertRegex(results, r"Watchpoint 0 set at 00000500", results)
+        # \s+ rather than a space: the report is built from several writes
+        # to the debugger's pipe, and on a slow machine they arrive as
+        # separate packets, which come out with a line break between them
         self.assertRegex(results,
-                         r"watchpoint 0: 00000500 about to be written from"
-                         r" [0-9a-f]{8}, it holds 00", results)
+                         r"watchpoint 0: 00000500 about to be written\s+from"
+                         r"\s+[0-9a-f]{8}, it holds 00", results)
         # The dump at the stop settles both halves of it: the watched byte
         # is still 00, so the stop is before the write, and the neighbour
         # already holds a5, so its own write was let through silently.
@@ -498,9 +501,9 @@ class OurTestCase(BaseTestCase):
         # a data breakpoint is a trap, so the client stops on the instruction
         # after the write and the byte already holds what was written
         self.assertRegex(results,
-                         r"watchpoint 0: 00000500 has been written"
-                         r" \(stopped at [0-9a-f]{8}, just past it\),"
-                         r" it now holds 5a", results)
+                         r"watchpoint 0: 00000500 has been written\s+"
+                         r"\(stopped at [0-9a-f]{8}, just past it\),"
+                         r"\s+it now holds 5a", results)
         # 0x501 is written first and has to go by unnoticed: the watch is on
         # the byte here, not on the page it is in
         mem = results.split("mem=")[-1].split(" | ")[0]
@@ -547,7 +550,7 @@ class OurTestCase(BaseTestCase):
         # a write it has faulted on, and a patched write goes a way the
         # protection cannot see
         self.assertRegex(results, r"watchpoint 0: [0-9a-f]{8} about to be"
-                         r" written", results)
+                         r"\s+written", results)
         hits = int(results.split("hits=")[-1].split(" | ")[0])
         self.assertEqual(hits, 3, "only %d of 3 pushes reported: %s"
                          % (hits, results))
