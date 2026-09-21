@@ -443,6 +443,73 @@ void mhp_adjust_revectored(int inum)
   set_bit(inum, mhpdbgc.intxxalt);
 }
 
+/* bpload no longer needs int 21h once it has caught the EXEC it was waiting
+ * for, and leaving it armed would stop on every DOS call after it. */
+static void bpload_unwatch_int21(void)
+{
+  if (!--mhpdbgc.int21_count) {
+    int i = 0x21; /* beware, set_bit-macro has wrong constraints */
+    clear_bit(i, mhpdbg.intxxtab);
+    if (test_bit(i, mhpdbgc.intxxalt)) {
+      clear_bit(i, mhpdbgc.intxxalt);
+      clear_bit(i, &vm86s.int_revectored);
+    }
+  }
+}
+
+/* An EXEC issued by a protected mode client does not reach DOS as an
+ * instruction of the client's.  dosemu makes the call itself, from the coopth
+ * thread in msdoshlp.c, so the address the int 21h returns to is the hlt that
+ * ends that callback and there is nothing there to put an int3 on.  These two
+ * are called by that thread around its own call instead, which is the same
+ * pair of moments the int3 was standing in for: before the call, to ask DOS to
+ * load without executing, and after it, once the program is in memory.
+ *
+ * Returns nonzero from the "pre" half when the EXEC was taken over, and from
+ * the "post" half when the caller should now run the loaded program. */
+int mhp_bpload_exec_pre(void)
+{
+  if (!mhpdbg.active || mhpdbgc.bpload != 1)
+    return 0;
+  if ((LWORD(eax) & 0xff0f) != 0x4b00)
+    return 0;
+
+  mhp_printf("bpload: intercepting EXEC from protected mode\n");
+  mhpdbgc.bpload_par = MK_FP32(BIOSSEG, DBGload_parblock);
+  MEMCPY_2UNIX(mhpdbgc.bpload_par, SEGOFF2LINEAR(SREG(es), LWORD(ebx)), 14);
+  MEMCPY_2UNIX(mhpdbgc.bpload_cmdline, PAR4b_addr(commandline_ptr), 128);
+  MEMCPY_2UNIX(mhpdbgc.bpload_cmd, SEGOFF2LINEAR(SREG(ds), LWORD(edx)), 128);
+
+  SREG(es) = BIOSSEG;
+  LWORD(ebx) = DBGload_parblock;
+  LWORD(eax) = 0x4b01;		/* load, but don't execute */
+  mhpdbgc.bpload = 2;
+  bpload_unwatch_int21();
+  return 1;
+}
+
+int mhp_bpload_exec_post(void)
+{
+  if (mhpdbgc.bpload != 2)
+    return 0;
+  if (LWORD(eflags) & CF) {
+    mhp_printf("bpload: EXEC failed with ax=%#x, not stopping\n", LWORD(eax));
+    mhpdbgc.bpload = 0;
+    return 0;
+  }
+
+  mhp_printf("At entry of program %s\n", mhpdbgc.bpload_cmd);
+  if (mhpdbgc.bpload_cmdline[0]) {
+    mhpdbgc.bpload_cmdline[mhpdbgc.bpload_cmdline[0] + 1] = 0;
+    mhp_printf("command line: %s\n", mhpdbgc.bpload_cmdline + 1);
+  }
+  /* the BIOS stub sets the trap flag and jumps to the entry point, so the
+   * first instruction of the program is where we come back */
+  mhpdbgc.trapcmd = 1;
+  mhpdbgc.bpload = 3;
+  return 1;
+}
+
 unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
 {
   int rtncd = 0;
@@ -465,12 +532,18 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
           mhpdbgc.bpload_bp = SEGOFF2LINEAR(SREG(cs), LWORD(eip));
           if (READ_BYTE(mhpdbgc.bpload_bp) == 0xf4) {
             /* The EXEC was issued by a protected mode caller through a real
-             * mode call, and what it returns to is the hlt dosemu uses to
-             * get back there. An int3 over that breaks the return itself,
-             * so leave this one alone rather than take the machine down. */
-            mhp_printf("bpload: EXEC came from protected mode, not intercepting\n");
+             * mode procedure of its own, called with DPMI 0301, and what the
+             * int 21h returns to is the hlt that ends that call.  An int3 over
+             * that hlt faults instead of stopping, so the load is taken over
+             * here and control is regained from the hlt's own handler in
+             * dpmi.c rather than from a breakpoint. */
+            if (!mhp_bpload_exec_pre()) {
+              mhp_printf("bpload: cannot intercept this EXEC\n");
+              mhpdbgc.bpload = 0;
+              /* it unwatches for itself when it does take the EXEC */
+              bpload_unwatch_int21();
+            }
             mhpdbgc.bpload_bp = 0;
-            mhpdbgc.bpload = 0;
           } else if (mhp_setbp(mhpdbgc.bpload_bp)) {
             Bit16u int_op = READ_WORD(SEGOFF2LINEAR(SREG(cs), LWORD(eip) - 2));
             mhp_printf("bpload: intercepting EXEC\n");
@@ -489,20 +562,14 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
             SREG(es) = BIOSSEG;
             LWORD(ebx) = DBGload_parblock;
             LWORD(eax) = 0x4b01; /* load, but don't execute */
+            bpload_unwatch_int21();
           } else {
             mhp_printf("bpload: ??? #1\n");
             mhp_cmd("r");
 
             mhpdbgc.bpload_bp = 0;
             mhpdbgc.bpload = 0;
-          }
-          if (!--mhpdbgc.int21_count) {
-            int i = 0x21; /* beware, set_bit-macro has wrong constraints */
-            clear_bit(i, mhpdbg.intxxtab);
-            if (test_bit(i, mhpdbgc.intxxalt)) {
-              clear_bit(i, mhpdbgc.intxxalt);
-              clear_bit(i, &vm86s.int_revectored);
-            }
+            bpload_unwatch_int21();
           }
         } else {
           if ((DBG_ARG(mhpdbgc.currcode) != 0x21) || !mhpdbgc.bpload) {

@@ -42,6 +42,7 @@
 #include "emudpmi.h"
 #include "dpmi_api.h"
 #include "cpu.h"
+#include "mhpdbg.h"
 #include "msdoshlp.h"
 #include <assert.h>
 
@@ -287,11 +288,18 @@ static void s_r_call(u_char al, u_short es, u_short di)
 static void exechlp_thr(void *arg)
 {
     uint32_t saved_flags;
+    int dbg;
 
     assert(LWORD(esp) >= exec_helper.len);
     LWORD(esp) -= exec_helper.len;
     s_r_call(0, SREG(ss), LWORD(esp));
+    /* the debugger's bpload has no instruction of the client's to break on
+     * here, because this int 21h is ours rather than the client's, so it is
+     * given the two moments directly */
+    dbg = mhp_bpload_exec_pre();
     do_int_call_back(0x21);
+    if (dbg && mhp_bpload_exec_post())
+	do_call_back(BIOSSEG, DBGload_OFF);
     saved_flags = REG(eflags);
     s_r_call(1, SREG(ss), LWORD(esp));
     REG(eflags) = saved_flags;
