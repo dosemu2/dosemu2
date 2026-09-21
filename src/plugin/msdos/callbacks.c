@@ -123,21 +123,24 @@ static void mouse_callback(cpuctx_t *scp,
 		    const struct RealModeCallStructure *rmreg,
 		    int is_32, void *arg)
 {
-    void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
     void *(*cb)(int) = arg;
     const struct pmaddr_s *mouseCallBack = cb(RMCB_MS);
-    int cb32;
+    int cb32, ss32;
+    void *sp;
 
     if (!ValidAndUsedSelector(mouseCallBack->selector)) {
 	D_printf("MSDOS: ERROR: mouse callback to unused segment\n");
 	return;
     }
     cb32 = cb_is_32(mouseCallBack->selector);
-    if (cb32 < 0) {
+    ss32 = cb_is_32(_ss);
+    if (cb32 < 0 || ss32 < 0) {
 	D_printf("MSDOS: ERROR: mouse callback to unreadable segment\n");
 	return;
     }
-    D_printf("MSDOS: starting %i bit mouse callback\n", cb32 ? 32 : 16);
+    D_printf("MSDOS: starting %i bit mouse callback on a %i bit stack\n",
+	    cb32 ? 32 : 16, ss32 ? 32 : 16);
+    sp = SEL_ADR_CLNT(_ss, _esp, ss32);
 
     if (cb32) {
 	unsigned int *ssp = sp;
@@ -148,7 +151,7 @@ static void mouse_callback(cpuctx_t *scp,
 	*--ssp = _cs;
 	*--ssp = _LWORD(eip);
     }
-    if (is_32)
+    if (ss32)
 	_esp -= cb32 ? 8 : 4;
     else
 	_LWORD(esp) -= cb32 ? 8 : 4;
@@ -164,21 +167,24 @@ static void ps2_mouse_callback(cpuctx_t *scp,
 			int is_32, void *arg)
 {
     unsigned short *rm_ssp;
-    void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
     void *(*cb)(int) = arg;
     const struct pmaddr_s *PS2mouseCallBack = cb(RMCB_PS2MS);
-    int cb32;
+    int cb32, ss32;
+    void *sp;
 
     if (!ValidAndUsedSelector(PS2mouseCallBack->selector)) {
 	D_printf("MSDOS: ERROR: PS2 mouse callback to unused segment\n");
 	return;
     }
     cb32 = cb_is_32(PS2mouseCallBack->selector);
-    if (cb32 < 0) {
+    ss32 = cb_is_32(_ss);
+    if (cb32 < 0 || ss32 < 0) {
 	D_printf("MSDOS: ERROR: PS2 mouse callback to unreadable segment\n");
 	return;
     }
-    D_printf("MSDOS: starting %i bit PS2 mouse callback\n", cb32 ? 32 : 16);
+    D_printf("MSDOS: starting %i bit PS2 mouse callback on a %i bit stack\n",
+	    cb32 ? 32 : 16, ss32 ? 32 : 16);
+    sp = SEL_ADR_CLNT(_ss, _esp, ss32);
 
     rm_ssp = MK_FP32(RMREG(ss), RMREG(sp) + 4 + 8);
     if (cb32) {
@@ -206,7 +212,7 @@ static void ps2_mouse_callback(cpuctx_t *scp,
 	*--ssp = _cs;
 	*--ssp = _LWORD(eip);
     }
-    if (is_32)
+    if (ss32)
 	_esp -= cb32 ? 24 : 12;
     else
 	_LWORD(esp) -= cb32 ? 24 : 12;
