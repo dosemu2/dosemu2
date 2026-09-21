@@ -225,6 +225,23 @@ static void hook_exceptions(void)
     }
 }
 
+/* What the LDT alias says about one entry, for a fault that names it. */
+static void dump_ldt_entry(const char *what, unsigned off)
+{
+    unsigned alias = gate_ldt_alias & 0xffff;
+    char buf[32];
+    char *p = buf;
+    unsigned i;
+
+    if (!alias || off + 8 > ldt_size) {
+	trc("run286:   %s entry %#x is outside the table\n", what, off);
+	return;
+    }
+    for (i = 0; i < 8; i++)
+	p += sprintf(p, "%02x ", _farpeekb(alias, off + i));
+    trc("run286:   %s entry %#x: %s\n", what, off, buf);
+}
+
 /*
  * Called from _exc_common with our own stack under us. gate_exc_ss:esp
  * points at the two registers the stub saved, then the number it pushed,
@@ -265,6 +282,11 @@ void ASMCFUNC run286_exception(void)
     for (i = 0, p = code; i < 8; i++)
 	p += sprintf(p, "%04x ", _farpeekw(fss, esp + i * 2));
     trc("run286:   its stack holds: %s\n", code);
+    /* a selector fault names the entry; show it and the one in es, as
+     * the programs build these themselves through the LDT alias */
+    if (n == 0x0a || n == 0x0b || n == 0x0c || n == 0x0d)
+	dump_ldt_entry("blamed", err & 0xfff8);
+    dump_ldt_entry("es", es & 0xfff8);
     gate_exit_code = 1;
 }
 
