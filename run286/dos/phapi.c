@@ -530,11 +530,13 @@ void dump_hooked_vectors(void)
 	    trc("run286:   int %#04x: cannot read its vector\n", int_vec[i]);
 	    continue;
 	}
-	trc("run286:   int %#04x: slot %u, vector %04x:%08x, our stub %04x:%08x%s\n",
+	trc("run286:   int %#04x: slot %u, vector %04x:%08x, our stub %04x:%08x%s, "
+		"handler %04x:%04x\n",
 		int_vec[i], i, pm.selector, pm.offset32,
 		(uint16_t)gate_cs32, want,
 		(pm.selector == (uint16_t)gate_cs32 && pm.offset32 == want) ?
-		"" : "  <-- NOT OURS");
+		"" : "  <-- NOT OURS",
+		int_target[i * 2 + 1], int_target[i * 2]);
     }
 }
 
