@@ -541,6 +541,15 @@ static inline int kvm_in_vcpi(void)
     monitor->tss.esp0 == offsetof(struct monitor, regs) + sizeof(monitor->regs);
 }
 
+/* True while a VCPI client owns the CPU.  dosemu2's own scheduling has to
+   stand still for as long as that lasts: the registers in the monitor are
+   not the client's, so there is nothing to fix up and nothing to switch
+   away to. */
+int kvm_vcpi_active(void)
+{
+  return config.cpu_vm == CPUVM_KVM && monitor && kvm_in_vcpi();
+}
+
 /* Initialize KVM and memory mappings */
 static int init_kvm_vcpu(void)
 {

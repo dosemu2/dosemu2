@@ -604,6 +604,15 @@ void run_vm86(void)
 			_ESI, _EDI, _ES, _EFLAGS);
     }
 
+    /* A VCPI client owns the CPU: its registers live in the VM, not in
+       our vm86 context, so there is no fault to look at and no interrupt
+       to deliver by rewriting cs:eip.  Just let it run on; it is given
+       its interrupts through the monitor, see true_kvm_vm86(). */
+    if (kvm_vcpi_active()) {
+	_do_vm86();
+	return;
+    }
+
     cnt = 0;
     while ((retval = handle_GP_hlt())) {
 	cnt++;
@@ -718,7 +727,10 @@ static void pic_run(void)
 void loopstep_run_vm86(void)
 {
     if (!dosemu_frozen && !signal_pending()) {
-	if (in_dpmi_pm())
+	/* a VCPI client comes first: a DPMI client of ours may well be
+	   "in PM" at the same time, but the CPU is not ours to hand to it
+	   until the VCPI client drops back to v86 */
+	if (in_dpmi_pm() && !kvm_vcpi_active())
 	    run_dpmi();
 	else
 	    run_vm86();
