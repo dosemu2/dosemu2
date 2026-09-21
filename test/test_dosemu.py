@@ -57,7 +57,9 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
 from func_memory_xms_pages import memory_xms_pages
-from func_mkfatimage import mkfatimage_geometry_conflict
+from func_mkfatimage import (mkfatimage_size, mkfatimage_stdout,
+                             mkfatimage_geometry_conflict,
+                             mkfatimage_dos_read)
 from func_misc import (create_new_psp, passing_dos_errorlevel_back, passing_environment_variable,
                        systype)
 from func_mfs_directory import mfs_directory_common, mfs_get_current_directory
@@ -1089,6 +1091,21 @@ class OurTestCase(BaseTestCase):
         fat_img_d_writable(self, "32")
 
     @mark(['imgtest'])
+    def test_mkfatimage_size_kbytes(self):
+        """mkfatimage16 image sized by Kbytes"""
+        mkfatimage_size(self, "k")
+
+    @mark(['imgtest'])
+    def test_mkfatimage_size_tracks_heads(self):
+        """mkfatimage16 image sized by tracks and heads"""
+        mkfatimage_size(self, "th")
+
+    @mark(['imgtest'])
+    def test_mkfatimage_stdout(self):
+        """mkfatimage16 image written to stdout"""
+        mkfatimage_stdout(self)
+
+    @mark(['imgtest'])
     def test_mkfatimage_conflict_tracks_kbytes(self):
         """mkfatimage16 tracks and Kbytes together"""
         mkfatimage_geometry_conflict(self, "tk")
@@ -1102,6 +1119,11 @@ class OurTestCase(BaseTestCase):
     def test_mkfatimage_conflict_kbytes_heads(self):
         """mkfatimage16 Kbytes and heads together"""
         mkfatimage_geometry_conflict(self, "kh")
+
+    @mark(['fattest', 'imgtest'])
+    def test_mkfatimage_dos_read(self):
+        """mkfatimage16 image sized by Kbytes read by DOS"""
+        mkfatimage_dos_read(self)
 
     @mark('mfstest')
     def test_mfs_lredir_auto_hdc(self):
