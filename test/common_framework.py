@@ -52,10 +52,14 @@ TEST_BINARIES = (
     'MS-DOS-7.10.tar',
     'VARIOUS.tar',
     'TEST_CRYNWR.tar',
+    'TEST_DISPKT.tar',
     'TEST_DOSLFN.tar',
+    'TEST_DP83905.tar',
     'TEST_EMM286.tar',
     'TEST_JAPHETH.tar',
+    'TEST_MSCLIENT.tar',
     'TEST_MTCP.tar',
+    'TEST_PKTNDIS.tar',
     'TEST_R200.tar',
 )
 

@@ -70,7 +70,7 @@ from func_truename import (mfs_truename_ufs_lfn, mfs_truename_ufs_sfn, mfs_truen
                            mfs_truename_vfat_linux_mounted_sfn, sfn_truename)
 
 from func_ndis import ndis_mac_driver
-from func_network import network_pktdriver_mtcp
+from func_network import network_mtcp
 from func_ipx import ipx_relay
 from func_pktdrvr import pktdriver_api
 from func_pit_mode_2 import pit_mode_2
@@ -1509,14 +1509,29 @@ class OurTestCase(BaseTestCase):
         ndis_mac_driver(self, 'lookahead')
 
     @mark('nettest')
-    def test_network_pktdriver_mtcp_builtin(self):
-        """Network pktdriver mTCP built-in"""
-        network_pktdriver_mtcp(self, 'builtin')
+    def test_network_mtcp_pkt_builtin(self):
+        """Network mTCP pktdriver built-in"""
+        network_mtcp(self, 'pkt', 'builtin')
 
     @mark('nettest')
-    def test_network_pktdriver_mtcp_ne2000(self):
-        """Network pktdriver mTCP NE2000"""
-        network_pktdriver_mtcp(self, 'ne2000')
+    def test_network_mtcp_pkt_ne2000(self):
+        """Network mTCP pktdriver NE2000"""
+        network_mtcp(self, 'pkt', 'ne2000')
+
+    @mark('nettest')
+    def test_network_mtcp_ndis_builtin(self):
+        """Network mTCP ndisdriver built-in"""
+        network_mtcp(self, 'ndis', 'builtin')
+
+    @mark('nettest')
+    def test_network_mtcp_ndis_ne2000(self):
+        """Network mTCP ndisdriver NE2000"""
+        network_mtcp(self, 'ndis', 'ne2000')
+
+    @mark('nettest')
+    def test_network_mtcp_ndis_pktndis(self):
+        """Network mTCP ndisdriver PKTNDIS"""
+        network_mtcp(self, 'ndis', 'pktndis')
 
     def test_ipx_relay(self):
         """IPX over UDP relay"""
