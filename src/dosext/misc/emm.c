@@ -233,7 +233,6 @@ static u_short os_key2=0xddcc;
 static u_short os_allow=1;
 
 static inline int unmap_page(int);
-static int jemm_hidden(int);
 static int get_map_registers(struct emm_reg *buf, int pages);
 static int set_map_registers(const struct emm_reg *buf, int pages);
 
@@ -591,11 +590,6 @@ __map_page(int physical_page)
   base = PHYS_PAGE_ADDR(physical_page);
   logical = handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
-  if (jemm_hidden(physical_page)) {
-    E_printf("EMS: window 0x%01x stays behind its owner\n", physical_page);
-    return (TRUE);
-  }
-
   _do_map_page(base, logical, EMM_PAGE_SIZE);
   return (TRUE);
 }
@@ -616,11 +610,6 @@ __unmap_page(int physical_page)
            physical_page,handle,emm_map[physical_page].logical_page);
 
   base = PHYS_PAGE_ADDR(physical_page);
-
-  if (jemm_hidden(physical_page)) {
-    E_printf("EMS: window 0x%01x was behind its owner\n", physical_page);
-    return (TRUE);
-  }
 
   _do_unmap_page(base, EMM_PAGE_SIZE);
 
@@ -674,12 +663,7 @@ map_page(int handle, int physical_page, int logical_page)
   base = PHYS_PAGE_ADDR(physical_page);
   logical = handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
 
-  /* the window is remembered either way, so that the switch back to JEMM's
-   * view puts it in place */
-  if (jemm_hidden(physical_page))
-    E_printf("EMS: window 0x%01x stays behind its owner\n", physical_page);
-  else
-    _do_map_page(base, logical, EMM_PAGE_SIZE);
+  _do_map_page(base, logical, EMM_PAGE_SIZE);
 
   emm_map[physical_page].handle = handle;
   emm_map[physical_page].logical_page = logical_page;
@@ -2581,28 +2565,27 @@ void ems_reset(void)
 #define JEMM_VERSION 0x0436	/* the JEMM.OVL the games carry */
 
 /* The window array lies over the video memory and the video BIOS, as real
- * JEMM's does, and a window and the video card cannot both be there.  The
- * state byte picks which: the client selects the DOS view before it calls the
- * BIOS or draws, and JEMM's own view before it touches a window over the
- * aperture.  Outside that range nothing of ours is left in the array's way, so
- * those windows stay mapped either way. */
+ * JEMM's does, and the client owns all of it for as long as it is loaded.
+ * The two views are not two mappings: the state byte only tells the client
+ * which one it asked for, so that the code it shares with the real JEMM takes
+ * the same branch.  We used to hand the aperture back to vgaemu on the way
+ * into the DOS view, and that is wrong - Privateer reads a file into the
+ * windows over 0xa0000, switches to the DOS view and reads it straight back,
+ * so taking the windows away lost it its resource index.  Real JEMM has no
+ * such trouble because it never gives the array up; a client that wants a
+ * picture on the screen asks JEMM to copy it there instead. */
 #define JEMM_HW_BASE 0xa0000
 #define JEMM_HW_TOP 0xc8000
 
 static unsigned short jemm_state_seg, jemm_state_off;
 static int jemm_dos_view;
 
-static int jemm_shared(int physical_page)
+/* a window sitting where the video card would be */
+static int jemm_on_aperture(int physical_page)
 {
   unsigned base = PHYS_PAGE_ADDR(physical_page);
 
   return base >= JEMM_HW_BASE && base < JEMM_HW_TOP;
-}
-
-/* a window whose address is on loan to its original owner right now */
-static int jemm_hidden(int physical_page)
-{
-  return config.jemm && jemm_dos_view && jemm_shared(physical_page);
 }
 
 /* The first window that is nobody else's.  dosemu borrows four windows as the
@@ -2618,7 +2601,7 @@ int emm_first_own_page(void)
   if (!config.jemm)
     return 0;
   for (i = 0; i < phys_pages; i++) {
-    if (!jemm_shared(i))
+    if (!jemm_on_aperture(i))
       return i;
   }
   return -1;
@@ -2632,12 +2615,12 @@ int emm_jemm_window(dosaddr_t addr)
 {
   int page;
 
-  if (!config.jemm || jemm_dos_view || addr < PHYS_PAGE_ADDR(0))
+  if (!config.jemm || addr < PHYS_PAGE_ADDR(0))
     return 0;
   page = (addr - PHYS_PAGE_ADDR(0)) / EMM_PAGE_SIZE;
   if (page >= phys_pages)
     return 0;
-  return jemm_shared(page) && emm_map[page].handle != NULL_HANDLE;
+  return emm_map[page].handle != NULL_HANDLE;
 }
 
 static void jemm_init(void)
@@ -2660,22 +2643,8 @@ static void jemm_init(void)
 static void jemm_set_state(int dos)
 {
   if (dos != jemm_dos_view) {
-    int i, moved = 0;
-
     E_printf("JEMM: %s view\n", dos ? "DOS" : "window");
     jemm_dos_view = dos;
-    for (i = 0; i < phys_pages; i++) {
-      if (!jemm_shared(i) || emm_map[i].handle == NULL_HANDLE)
-	continue;
-      if (dos)
-	_do_unmap_page(PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
-      else
-	__map_page(i);
-      moved++;
-    }
-    /* put the video memory back where we took it from */
-    if (dos && moved)
-      vgaemu_map_bank();
   }
   WRITE_BYTE(SEGOFF2LINEAR(jemm_state_seg, jemm_state_off), dos);
 }
