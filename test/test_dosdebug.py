@@ -63,6 +63,7 @@ start:
 	lea ecx, [edx + 1000h]	; the page the signature goes in
 	or ecx, 7
 	mov [es:8], ecx		; and 00402000 is table entry 2
+	mov dword [es:0Ch], 200007h	; 00403000 lands in extended memory
 
 	mov ax, bp
 	add ax, 200h
@@ -446,6 +447,8 @@ class OurTestCase(BaseTestCase):
             # that points off the end of memory, must be reported and not
             # followed
             out.append("hole=" + self.dbgCmd("d 401000 16"))
+            # a page above the first megabyte is memory dosemu maps too
+            out.append("high=" + self.dbgCmd("d 403000 16"))
             out.append("wild=" + self.dbgCmd("pgt 402000 fff00000"))
             out.append("off=" + self.dbgCmd("pgdir off"))
             return " || ".join(out)
@@ -476,6 +479,11 @@ class OurTestCase(BaseTestCase):
 
         hole = results.split("hole=")[1].split(" || ")[0]
         self.assertRegex(hole, r"(-- ){16}", hole)
+
+        high = results.split("high=")[1].split(" || ")[0]
+        self.assertNotIn("--", high, "extended memory was called unreachable: "
+                         + high)
+        self.assertRegex(high, r"([0-9A-F]{2} ){16}", high)
 
         wild = results.split("wild=")[1].split(" || ")[0]
         self.assertIn("page directory is not in memory dosemu can read", wild)

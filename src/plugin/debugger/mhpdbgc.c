@@ -59,6 +59,7 @@
 #include "hma.h"
 #include "bios_sym.h"
 #include "misc/dis8086.h"
+#include "misc/smalloc.h"
 #include "dos2linux.h"
 #include "coopth.h"
 #include "kvm.h"
@@ -958,13 +959,15 @@ static void mhp_tracec(int argc, char *argv[])
 #define PG_D    0x040
 #define PG_PS   0x080
 
-/* dosemu can only reach a physical address it has mapped, and a page table
- * we did not build can name any address at all, so check before reading. */
+/* A page table we did not build can name any address at all, and reading
+ * past the DOS memory dosemu mapped takes the whole process down, so check
+ * first.  main_pool spans exactly that memory: conventional, the HMA,
+ * extended memory, XMS and DPMI alike. */
 static int phys_reachable(dosaddr_t addr, int len)
 {
   if (addr + len < addr)        /* a table entry can name the very top */
     return 0;
-  return addr + len <= LOWMEM_SIZE + HMASIZE || dpmi_is_valid_range(addr, len);
+  return addr + len <= main_pool.size;
 }
 
 /* One 32 bit walk of the selected page directory.  On failure *why tells
