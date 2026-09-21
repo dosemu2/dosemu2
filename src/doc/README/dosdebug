@@ -453,6 +453,14 @@ be mixed either: whichever the first watch picked stands until
 <emphasis>bcw</emphasis> clears them all.
 </para>
 <para>
+     A client can also cross from one to the other while a watch is set,
+     which it does when KVM runs its real mode and the emulator its DPMI, or
+     the other way about. The watch then reports nothing from the far side,
+     and a client that writes nothing looks the same, so the debugger says
+     once that this has happened rather than leave the silence to be read as
+     an answer.
+</para>
+<para>
 <emphasis>What it does not see.</emphasis> Taking write permission off the
 mapping the client runs on leaves dosemu's own mirror of the same memory,
 which memory.h keeps unprotected on purpose so that its writes are not

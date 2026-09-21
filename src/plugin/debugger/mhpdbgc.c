@@ -2049,6 +2049,8 @@ static int wp_rearm;		/* a fault took the protection off */
  * do not mix: the back end is chosen with the first watch and stays until
  * they are all cleared. */
 static int wp_by_dr;
+/* said once per set of watches, not once per crossing */
+static int wp_backend_warned;
 static struct {
   int num;			/* the watch that was hit, -1 for none */
   dosaddr_t addr;
@@ -2327,6 +2329,29 @@ int mhp_watch_dr_trap(void)
   return 1;
 }
 
+/* The two ways of arming cannot see each other's ground, and a client can
+ * cross between them while a watch is set: KVM for its v86 and the CPU
+ * emulator for its DPMI is an ordinary configuration.  A watch armed on one
+ * side then reports nothing from the other, and nothing is what a client
+ * that does not write looks like, so say it rather than go quiet.  Once per
+ * set of watches: a client that crosses does it often. */
+static void wp_check_backend(void)
+{
+  int now_dr;
+
+  if (!wp_armed || wp_backend_warned || !wp_count())
+    return;
+  now_dr = _CPU_VM_CURRENT() == CPUVM_KVM;
+  if (now_dr == wp_by_dr)
+    return;
+  wp_backend_warned = 1;
+  mhp_printf("\nthe watchpoints are armed %s, and the client now runs %s:"
+             " they see nothing while it does\n",
+             wp_by_dr ? "in the debug registers, for KVM" :
+             "by page protection, for the CPU emulator",
+             now_dr ? "under KVM" : "on the CPU emulator");
+}
+
 /* called from mhp_poll(), outside of any signal handler */
 void mhp_watch_poll(void)
 {
@@ -2354,6 +2379,7 @@ void mhp_watch_poll(void)
     mhpdbgc.want_to_stop = 1;
     return;
   }
+  wp_check_backend();
   if (wp_rearm && !mhpdbgc.stopped)
     wp_protect(1);
 }
@@ -2380,6 +2406,7 @@ void mhp_watch_clr(void)
   wp_last.num = -1;
   wp_rearm = 0;
   wp_by_dr = 0;
+  wp_backend_warned = 0;
 }
 
 static void mhp_bpw(int argc, char *argv[])
@@ -2505,6 +2532,10 @@ static void mhp_bcw(int argc, char *argv[])
     for (i = 0; i < MAXWP; i++)
       wptab[i].is_valid = 0;
     wp_last.num = -1;
+    /* the table is empty, so the next bpw is free to pick either way
+     * again, and whatever was said about this set is said afresh */
+    wp_by_dr = 0;
+    wp_backend_warned = 0;
     mhp_printf("All watchpoints cleared\n");
     return;
   }
