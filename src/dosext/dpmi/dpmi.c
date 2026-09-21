@@ -1203,6 +1203,27 @@ int GetDescriptor(uint16_t selector, unsigned int *lp)
   return 0;
 }
 
+/* A call gate has S=0, and the kernel LDT cannot hold such a descriptor:
+ * modify_ldt() takes data and code segments only. A client running on the
+ * emulated cpu has a table of our own, so there the eight bytes can be kept
+ * exactly as the client wrote them. A 286|DOS-Extender installs the entry
+ * points of its resident library this way, as gates in its own LDT. */
+int SetGateDescriptor(unsigned short selector, const unsigned char *lp)
+{
+  unsigned short ldt_entry = selector >> 3;
+
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE)
+    return -1;
+  if (!ValidAndUsedSelector(selector) || SystemSelector(selector))
+    return -1;
+  D_printf("DPMI: SetGateDescriptor[0x%04x;0x%04x] acc 0x%02x seg 0x%04x "
+      "offs 0x%04x%04x\n", ldt_entry, selector, lp[5],
+      lp[2] | (lp[3] << 8), lp[6] | (lp[7] << 8), lp[0] | (lp[1] << 8));
+  memcpy(&ldt_buffer[ldt_entry * LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
+  ldt_bitmap_update(ldt_entry, 1);
+  return 0;
+}
+
 int SetDescriptor(unsigned short selector, unsigned int *lp)
 {
   unsigned int base_addr, limit;
