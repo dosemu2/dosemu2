@@ -5,7 +5,10 @@ rem end
 
 from common_framework import DOSEMU_CONF_DEFAULT
 
-EMU_CONF = DOSEMU_CONF_DEFAULT + '$_cpu_vm_dpmi = "emulated"\n'
+# the two DPMI backends whose answer is ours to pick. Under native DPMI
+# the instruction never reaches us: the kernel traps it under UMIP and
+# answers itself, and on a host without UMIP the processor answers.
+DPMI_VMS = ("emulated", "kvm")
 
 
 def memory_dpmi_dtrbase(self):
@@ -63,7 +66,11 @@ int main(void)
 }
 """)
 
-    results = self.runDosemu("testit.bat", config=EMU_CONF, timeout=20)
+    for vm in DPMI_VMS:
+        if vm == "kvm" and not self.have_kvm:
+            continue
+        conf = DOSEMU_CONF_DEFAULT + '$_cpu_vm_dpmi = "%s"\n' % vm
+        results = self.runDosemu("testit.bat", config=conf, timeout=20)
 
-    self.assertNotIn("FAIL:", results)
-    self.assertIn("Test OK", results)
+        self.assertNotIn("FAIL:", results, vm)
+        self.assertIn("Test OK", results, vm)
