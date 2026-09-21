@@ -104,6 +104,8 @@ skip_cr3:
            it, the way back clears it.  Inferring this from monitor->regs
            does not work: the way back does not go through them. */
         VCPI_ACTIVE = 0x90
+        /* the client's TSS selector, while the stub sets the client up */
+        SAVED_TSS = 0x94
         MON_TSS_SEL = 0x18
         MON_LDT_SEL = 0x20
         VCPI_DS_SEL = 0x28
@@ -115,6 +117,13 @@ kvm_mon_vcpi_pm_jmp:
         mov %eax,%ds
         movw $VCPI_SS_SEL,%ax           # some poorly written VCPI clients
         mov %eax,%ss                    # expect hiword(esp) to be cleared
+        movl $SAVED_GDTR,%esp           # a stack of our own, right away: an
+                                        # exception anywhere below pushes its
+                                        # frame at %ss:%esp, and until this
+                                        # runs that pair is the client's esp
+                                        # under our base, which lands outside
+                                        # the page or on top of the very words
+                                        # the way back needs
 
         sgdt %ss:(SAVED_GDTR)
         sidt %ss:(SAVED_IDTR)
@@ -125,14 +134,15 @@ kvm_mon_vcpi_pm_jmp:
         movl %eax,%cr3
         movl 0x08(%esi),%eax            # set up client's IDT
         lidt (%eax)
+        movzwl 0x0e(%esi),%eax          # client's TSS selector
+        movl %eax,%ss:(SAVED_TSS)       # kept in the scratch page, not in esp
         movl 0x04(%esi),%eax            # set up client's GDT
-        movzwl 0x0e(%esi),%esp          # client's TSS selector
         lgdt (%eax)
         movl 2(%eax),%eax               # EAX == linear address of client's GDT
-        andb $~2,%ds:5(%esp,%eax)       # clear task busy bit in TSS descriptor
-        ltr %sp                         # set up client's TSS
+        addl %ss:(SAVED_TSS),%eax
+        andb $~2,5(%eax)                # clear task busy bit in TSS descriptor
+        ltr %ss:(SAVED_TSS)             # set up client's TSS
         lldt 0x0c(%esi)                 # set up client's LDT
-        movl $SAVED_GDTR,%esp           # TOS for new stack
         ljmp *0x10(%esi)                # jump to client's entry point
 
         .globl kvm_mon_vcpi_pmi
