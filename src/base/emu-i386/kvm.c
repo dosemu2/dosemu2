@@ -644,39 +644,6 @@ int init_kvm_cpu(void)
   goto errcap;
 #endif
 
-#if defined(KVM_BUS_LOCK_DETECTION_OFF) && defined(KVM_BUS_LOCK_DETECTION_EXIT)
-  ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_X86_BUS_LOCK_EXIT);
-  if (ret <= 0) {
-    dbug_printf("KVM: X86_BUS_LOCK_EXIT unsupported %x\n", ret);
-  } else if (ret & KVM_BUS_LOCK_DETECTION_OFF) {
-    struct kvm_enable_cap cap = {
-        .cap = KVM_CAP_X86_BUS_LOCK_EXIT,
-        .flags = 0,
-        .args[0] = KVM_BUS_LOCK_DETECTION_OFF,
-    };
-    dbug_printf("KVM: disabling split-lock detection\n");
-    if (ioctl(kvmfd, KVM_ENABLE_CAP, &cap) < 0) {
-        error("KVM: ioctl KVM_ENABLE_CAP(KVM_BUS_LOCK_DETECTION_OFF): %s",
-                strerror(errno));
-    }
-  } else if (ret & KVM_BUS_LOCK_DETECTION_EXIT) {
-    struct kvm_enable_cap cap = {
-        .cap = KVM_CAP_X86_BUS_LOCK_EXIT,
-        .flags = 0,
-        .args[0] = KVM_BUS_LOCK_DETECTION_EXIT,
-    };
-    dbug_printf("KVM: setting split-lock detection to EXIT\n");
-    if (ioctl(kvmfd, KVM_ENABLE_CAP, &cap) < 0) {
-        error("KVM: ioctl KVM_ENABLE_CAP(KVM_BUS_LOCK_DETECTION_EXIT): %s",
-                strerror(errno));
-    }
-  } else {
-    error("KVM: unknown value of split-lock detection: %x\n", ret);
-  }
-#else
-  error("kernel is too old, KVM lock detection control unsupported\n");
-#endif
-
 #if USE_RO
   ret = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_READONLY_MEM);
   if (ret <= 0)
@@ -688,6 +655,41 @@ int init_kvm_cpu(void)
     warn("KVM: KVM_CREATE_VM: %s\n", strerror(errno));
     return 0;
   }
+
+#if defined(KVM_BUS_LOCK_DETECTION_OFF) && defined(KVM_BUS_LOCK_DETECTION_EXIT)
+  /* KVM_ENABLE_CAP for this one is a VM ioctl, so it has to wait for the
+   * VM: on /dev/kvm it can only fail with EINVAL. */
+  ret = ioctl(vmfd, KVM_CHECK_EXTENSION, KVM_CAP_X86_BUS_LOCK_EXIT);
+  if (ret <= 0) {
+    dbug_printf("KVM: X86_BUS_LOCK_EXIT unsupported %x\n", ret);
+  } else if (ret & KVM_BUS_LOCK_DETECTION_OFF) {
+    struct kvm_enable_cap cap = {
+        .cap = KVM_CAP_X86_BUS_LOCK_EXIT,
+        .flags = 0,
+        .args[0] = KVM_BUS_LOCK_DETECTION_OFF,
+    };
+    dbug_printf("KVM: disabling split-lock detection\n");
+    if (ioctl(vmfd, KVM_ENABLE_CAP, &cap) < 0) {
+        error("KVM: ioctl KVM_ENABLE_CAP(KVM_BUS_LOCK_DETECTION_OFF): %s",
+                strerror(errno));
+    }
+  } else if (ret & KVM_BUS_LOCK_DETECTION_EXIT) {
+    struct kvm_enable_cap cap = {
+        .cap = KVM_CAP_X86_BUS_LOCK_EXIT,
+        .flags = 0,
+        .args[0] = KVM_BUS_LOCK_DETECTION_EXIT,
+    };
+    dbug_printf("KVM: setting split-lock detection to EXIT\n");
+    if (ioctl(vmfd, KVM_ENABLE_CAP, &cap) < 0) {
+        error("KVM: ioctl KVM_ENABLE_CAP(KVM_BUS_LOCK_DETECTION_EXIT): %s",
+                strerror(errno));
+    }
+  } else {
+    error("KVM: unknown value of split-lock detection: %x\n", ret);
+  }
+#else
+  error("kernel is too old, KVM lock detection control unsupported\n");
+#endif
 
   cpuid = malloc(sizeof(*cpuid) + nent * sizeof(cpuid->entries[0]));
   memset(cpuid, 0, sizeof(*cpuid) + nent * sizeof(cpuid->entries[0]));	// valgrind
