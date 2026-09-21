@@ -58,13 +58,6 @@ case "${RUNTYPE}" in
     ;;
 esac
 
-cat >&2 << EOF3a
-=====================================================
-=   Tests run on the EMS windows of a JEMM client   =
-=====================================================
-EOF3a
-python3 test/test_jemm_aperture.py
-
 # This section here only runs for proving out test_comcom changes in PRs etc, the tests are
 # run for real in the Comcom64 repository
 if [ "${COMCOM_CHANGED}" = "true" ] ; then
@@ -84,6 +77,13 @@ EOF3
 EOF4
     env NO_FAILFAST=1 COPY_COMMAND_COM=/usr/share/comcom${VERSION}/comcom${VERSION}.exe test/test_comcom.py TestCase${VERSION}
 fi
+
+cat >&2 << EOF3a
+=====================================================
+=   Tests run on the EMS windows of a JEMM client   =
+=====================================================
+EOF3a
+python3 test/test_jemm_aperture.py
 
 for i in test_*.*.*.log ; do
   test -f $i || exit 0
