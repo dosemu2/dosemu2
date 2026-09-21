@@ -3207,8 +3207,16 @@ stack_return_from_vm86:
 			    }
 			}
 			else {
-			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) |
-					(CPL<=IOPL? 0:EFLAGS_IF) |
+			    /* A dpmi client runs at CPL 3, but a client of a
+			     * 286|DOS-Extender believes it owns the machine
+			     * and tells a 386 from a 286 by writing the IOPL
+			     * field and reading it back. Let the field take
+			     * the value, which costs nothing, and keep the
+			     * interrupt flag out of the client's reach all
+			     * the same: what the field now says must not
+			     * decide that, or the write would hand the
+			     * client the real IF. */
+			    int amask = (CPL==0? 0:EFLAGS_IF) |
 					(EFLAGS_VM|EFLAGS_RF);
 			    if (mode & DATA16)
 				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask) | 2;
@@ -3217,7 +3225,7 @@ stack_return_from_vm86:
 					 ((temp&(eTSSMASK|0xfd7))&~amask) | 2;
 			    // unused "extended PVI" since real PVI does not
 			    // affect POPF
-			    if (IOPL<3 && (TheCPU.cr[4]&CR4_PVI)) {
+			    if ((CPL>0 || IOPL<3) && (TheCPU.cr[4]&CR4_PVI)) {
 				if (temp & EFLAGS_IF)
 				    EFLAGS |= EFLAGS_VIF;
 				else
