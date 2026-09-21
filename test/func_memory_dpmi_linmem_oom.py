@@ -5,12 +5,15 @@ rem end
 
 
 def memory_dpmi_linmem_oom(self):
-    """DPMI 1.0 linear memory is taken top down out of the space below
-    $_dpmi_base, and page aligned, so the search is for the size plus the
-    alignment. Ask for exactly the space that is left and the search fails
-    while a free area that size is right there: the out of memory report
-    was then raised at a priority that means "not out of memory", and the
-    host died on the assertion that forbids it."""
+    """DPMI 1.0 linear memory is taken out of the space below $_dpmi_base
+    and is page aligned. Asking for exactly the space that is left has to
+    work: the free area is that size and it begins on a page, so nothing
+    about the alignment is in the way. The search asked every area for the
+    size plus a page anyway and turned this one down, and the refusal was
+    then raised at a priority that means "not out of memory", on which the
+    host died in an assertion. Both halves are checked here: the whole of
+    the free space is granted, and a request that really is too big is
+    refused without taking the host with it."""
 
     self.mkfile("testit.bat", BATCHFILE % 'linoom', newline="\r\n")
 
@@ -35,27 +38,36 @@ int main(void)
     return 1;
   }
 
-  /* all of it: nothing is left over for the alignment, so this cannot be
-   * placed, and the free area it was looked for in is exactly this size */
+  /* all of it: the free area is exactly this size and starts on a page,
+   * so the alignment costs nothing and there is no reason to refuse */
   m.size = avail;
   m.address = 0;
+  if (__dpmi_allocate_linear_memory(&m, 0) != 0) {
+    printf("FAIL: refused %#lx with that much free\n", avail);
+    return 1;
+  }
+  printf("got all %#lx at %#lx\n", avail, (unsigned long)m.address);
+  __dpmi_free_memory(m.handle);
+
+  /* and it really is gone again */
+  m.size = avail;
+  m.address = 0;
+  if (__dpmi_allocate_linear_memory(&m, 0) != 0) {
+    printf("FAIL: not given back\n");
+    return 1;
+  }
+  __dpmi_free_memory(m.handle);
+
+  /* more than there is: this one has to be refused, and the host has to
+   * be alive to say so rather than dying in do_smerror() */
+  m.size = avail + 0x100000;
+  m.address = 0;
   if (__dpmi_allocate_linear_memory(&m, 0) == 0) {
-    printf("FAIL: granted %#lx at %#lx\n", avail,
-           (unsigned long)m.address);
+    printf("FAIL: granted %#lx out of %#lx\n", avail + 0x100000, avail);
     __dpmi_free_memory(m.handle);
     return 1;
   }
-  printf("refused, as it has to be\n");
-
-  /* half of it still has to be there, or the pool was simply empty */
-  m.size = avail / 2;
-  m.address = 0;
-  if (__dpmi_allocate_linear_memory(&m, 0) != 0) {
-    printf("FAIL: half of it is gone too\n");
-    return 1;
-  }
-  printf("got %#lx at %#lx\n", avail / 2, (unsigned long)m.address);
-  __dpmi_free_memory(m.handle);
+  printf("refused what is not there, as it has to be\n");
 
   printf("Test OK\n");
   fflush(stdout);
@@ -66,7 +78,9 @@ int main(void)
     results = self.runDosemu("testit.bat", timeout=20)
 
     self.assertNotIn("FAIL:", results)
-    # the refusal has to happen, or the test proves nothing
-    self.assertIn("refused, as it has to be", results)
+    # the whole of the free space, which is what used to be refused
+    self.assertIn("got all", results)
+    # the refusal still has to happen where there really is no room
+    self.assertIn("refused what is not there", results)
     # and the host has to still be there afterwards
     self.assertIn("Test OK", results)
