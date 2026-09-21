@@ -59,6 +59,7 @@
 #include "hma.h"
 #include "bios_sym.h"
 #include "misc/dis8086.h"
+#include "misc/smalloc.h"
 #include "dos2linux.h"
 #include "coopth.h"
 #include "kvm.h"
@@ -900,6 +901,17 @@ static void mhp_tracec(int argc, char *argv[])
   loopbuf[idx++] = '\0';
 }
 
+/* Only the memory dosemu mapped for DOS can be read at all, and main_pool
+ * spans exactly that: conventional, the HMA, extended memory, XMS and DPMI
+ * alike.  Reading past it faults, and dosemu's fault handler takes the
+ * whole process down with it. */
+static int addr_is_readable(dosaddr_t addr, unsigned int len)
+{
+  if (addr + len < addr)
+    return 0;
+  return addr + len <= main_pool.size;
+}
+
 static void mhp_dump(int argc, char *argv[])
 {
   static char lastd[32];
@@ -950,6 +962,15 @@ static void mhp_dump(int argc, char *argv[])
   if (IN_DPMI && seg)
     data32 = dpmi_segment_is32(seg);
   unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
+  if (!unixaddr) {
+    if (!addr_is_readable(buf, 1)) {
+      mhp_printf("%08x is outside the %08x bytes of memory dosemu has\n",
+                 buf, main_pool.size);
+      return;
+    }
+    if (buf + nbytes > main_pool.size)  /* show what there is of it */
+      nbytes = main_pool.size - buf;
+  }
   for (i = 0; i < nbytes; i++) {
     if ((i & 0x0f) == 0x00) {
       if (seg != 0 || limit != 0xFFFFFFFF) {
@@ -1674,6 +1695,16 @@ static void mhp_disasm(int argc, char *argv[])
   rc = 0;
   buf = seekval;
   org = codeorg ? codeorg : seekval;
+
+  if (!(def_size & 4)) {
+    if (!addr_is_readable(buf, 1)) {
+      mhp_printf("%08x is outside the %08x bytes of memory dosemu has\n",
+                 buf, main_pool.size);
+      return;
+    }
+    if (buf + nbytes > main_pool.size)  /* show what there is of it */
+      nbytes = main_pool.size - buf;
+  }
 
   for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
     dosaddr_t base_addr = GetSegmentBase(seg);
