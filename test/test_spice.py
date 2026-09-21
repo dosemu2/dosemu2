@@ -138,14 +138,11 @@ fname:  db      'KEYS.TXT', 0
 kbuf:   db      0
 """
 
-# Waits for a key and then holds a square wave on the PC speaker, so the
-# test decides when the tone starts.
+# Holds a square wave on the PC speaker from the moment DOS starts it, so
+# a client can attach before the tone or long after it.
 BEEPER = r"""
 bits 16
 org 0x100
-
-        xor     ah, ah                  ; wait for a key
-        int     0x16
 
         mov     al, 0xb6                ; PIT channel 2, square wave
         out     0x43, al
@@ -474,17 +471,30 @@ class SpiceTestCase(unittest.TestCase):
 
     def test_sound_reaches_the_client(self):
         """what the client hears is the tone the guest asked the PIT for"""
+        self.checkTone(self.listen())
+
+    def test_sound_reaches_a_late_client(self):
+        """a client attaching to a tone already playing hears it too"""
+        # dosemu2 has been beeping into nothing for a while by then, which
+        # is what a viewer started after the program does
+        self.checkTone(self.listen(wait=BEEP_SECONDS))
+
+    def listen(self, wait=0):
+        """Record what a client attached to the beeping guest is sent."""
         with self.dosemuRunning("beep", '$_speaker = "sound"\n') as run:
+            if wait:
+                sleep(wait)
             c = Client(run["port"])
             self.assertTrue(c.open(), "the client could not connect")
             self.assertTrue(c.pump(CLIENT_TIMEOUT, lambda: bool(c.sizes)),
                             "the client saw no screen")
-            c.key(SCANCODE_A)           # which is what starts the tone
             c.pcm.clear()
             c.pump(BEEP_SECONDS)
             self.checkAlive(run, "while the speaker was on")
             c.close()
+        return c
 
+    def checkTone(self, c):
         peak, hz = c.tone()
         self.assertGreater(len(c.pcm), 0, "the client was sent no audio at all")
         self.assertGreater(peak, BEEP_MIN_PEAK,
