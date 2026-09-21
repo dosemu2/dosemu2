@@ -105,6 +105,20 @@ static void pm_to_rm_regs(const cpuctx_t *scp,
     X_RMREG(ebp) = _LWORD_(ebp_);
 }
 
+/* The handler a client registers may live in a 16 bit code segment even
+ * when the client itself is 32 bit, and it returns with a retf whose
+ * operand size follows its own code segment. So the frame we push has to
+ * be as wide as the handler, while the stack we push it on stays as wide
+ * as the client's stack segment. Returns -1 if the selector is gone. */
+static int cb_is_32(unsigned short sel)
+{
+    unsigned int lp[2];
+
+    if (GetDescriptor(sel, lp) < 0)
+	return -1;
+    return !!(lp[1] & 0x00400000);	/* the D bit */
+}
+
 static void mouse_callback(cpuctx_t *scp,
 		    const struct RealModeCallStructure *rmreg,
 		    int is_32, void *arg)
@@ -112,24 +126,32 @@ static void mouse_callback(cpuctx_t *scp,
     void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
     void *(*cb)(int) = arg;
     const struct pmaddr_s *mouseCallBack = cb(RMCB_MS);
+    int cb32;
 
     if (!ValidAndUsedSelector(mouseCallBack->selector)) {
 	D_printf("MSDOS: ERROR: mouse callback to unused segment\n");
 	return;
     }
-    D_printf("MSDOS: starting mouse callback\n");
+    cb32 = cb_is_32(mouseCallBack->selector);
+    if (cb32 < 0) {
+	D_printf("MSDOS: ERROR: mouse callback to unreadable segment\n");
+	return;
+    }
+    D_printf("MSDOS: starting %i bit mouse callback\n", cb32 ? 32 : 16);
 
-    if (is_32) {
+    if (cb32) {
 	unsigned int *ssp = sp;
 	*--ssp = _cs;
 	*--ssp = _eip;
-	_esp -= 8;
     } else {
 	unsigned short *ssp = sp;
 	*--ssp = _cs;
 	*--ssp = _LWORD(eip);
-	_LWORD(esp) -= 4;
     }
+    if (is_32)
+	_esp -= cb32 ? 8 : 4;
+    else
+	_LWORD(esp) -= cb32 ? 8 : 4;
 
     rm_to_pm_regs(scp, rmreg, ~(1 << ebp_INDEX));
     _ds = ConvertSegmentToDescriptor(RMREG(ds));
@@ -145,15 +167,21 @@ static void ps2_mouse_callback(cpuctx_t *scp,
     void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
     void *(*cb)(int) = arg;
     const struct pmaddr_s *PS2mouseCallBack = cb(RMCB_PS2MS);
+    int cb32;
 
     if (!ValidAndUsedSelector(PS2mouseCallBack->selector)) {
 	D_printf("MSDOS: ERROR: PS2 mouse callback to unused segment\n");
 	return;
     }
-    D_printf("MSDOS: starting PS2 mouse callback\n");
+    cb32 = cb_is_32(PS2mouseCallBack->selector);
+    if (cb32 < 0) {
+	D_printf("MSDOS: ERROR: PS2 mouse callback to unreadable segment\n");
+	return;
+    }
+    D_printf("MSDOS: starting %i bit PS2 mouse callback\n", cb32 ? 32 : 16);
 
     rm_ssp = MK_FP32(RMREG(ss), RMREG(sp) + 4 + 8);
-    if (is_32) {
+    if (cb32) {
 	unsigned int *ssp = sp;
 	*--ssp = *--rm_ssp;
 	D_printf("data: 0x%x ", *ssp);
@@ -165,7 +193,6 @@ static void ps2_mouse_callback(cpuctx_t *scp,
 	D_printf("0x%x\n", *ssp);
 	*--ssp = _cs;
 	*--ssp = _eip;
-	_esp -= 24;
     } else {
 	unsigned short *ssp = sp;
 	*--ssp = *--rm_ssp;
@@ -178,8 +205,11 @@ static void ps2_mouse_callback(cpuctx_t *scp,
 	D_printf("0x%x\n", *ssp);
 	*--ssp = _cs;
 	*--ssp = _LWORD(eip);
-	_LWORD(esp) -= 12;
     }
+    if (is_32)
+	_esp -= cb32 ? 24 : 12;
+    else
+	_LWORD(esp) -= cb32 ? 24 : 12;
 
     _cs = PS2mouseCallBack->selector;
     _eip = PS2mouseCallBack->offset;
