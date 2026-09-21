@@ -713,15 +713,30 @@ static void map_load(struct ext_map *m)
 static int map_write_rec(struct ext_map *m, off_t off, uint64_t len)
 {
   unsigned char rec[EXT_REC_LEN];
+  int ret = -1;
 
   if (m->fd == -1)
     return -1;
   put64(rec, off);
   put64(rec + 8, len);
-  if (write(m->fd, rec, sizeof(rec)) != sizeof(rec))
+  /*
+   * Take in whatever is there before adding to it. The file is opened
+   * O_APPEND and shared, so anything another writer added since the
+   * last look sits in front of our record; counting our own record
+   * past it would leave theirs unread for good, and we would go on
+   * serving the archive's bytes over a range they had written. The
+   * lock is on the map file, which carries no region locks - those go
+   * on the chunk file - so it serialises nothing but this.
+   */
+  if (flock(m->fd, LOCK_EX) == -1)
     return -1;
-  m->consumed += sizeof(rec);
-  return 0;
+  map_load(m);
+  if (write(m->fd, rec, sizeof(rec)) == sizeof(rec)) {
+    m->consumed += sizeof(rec);
+    ret = 0;
+  }
+  flock(m->fd, LOCK_UN);
+  return ret;
 }
 
 /* is [off, end) already the overlay's, whole and in one piece? */
