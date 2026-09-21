@@ -2631,6 +2631,40 @@ int dpmi_install_rsp(struct RSPcall_s *callback)
     return 0;
 }
 
+/*
+ * What we let a client find where the descriptor tables should be.
+ *
+ * A 286 extender looks for its descriptors the way the hardware does:
+ * sgdt for the GDT, sldt for the index of the LDT inside it, the base
+ * and limit out of that entry, and then it indexes that table by
+ * selector and writes there itself. Under DPMI the LDT is the only
+ * table it has any business touching, and it is reachable - int 2Fh
+ * AX=1688h hands out an alias, and writes to it are picked up in
+ * msdos_ldt.c. What was missing is the step in between: something for
+ * sgdt to point at that names the LDT. The same client then reads the
+ * table sidt names before it goes on, so that needs to be readable too.
+ * msdos_ldt.c keeps one page with both in it.
+ */
+static struct {
+    dosaddr_t base;
+    unsigned limit;
+} dtr_alias[2];
+
+void dpmi_set_dtr_alias(int idt, dosaddr_t base, unsigned limit)
+{
+    dtr_alias[!!idt].base = base;
+    dtr_alias[!!idt].limit = limit;
+}
+
+int dpmi_get_dtr_alias(int idt, dosaddr_t *base, unsigned *limit)
+{
+    if (!dtr_alias[!!idt].limit)
+	return 0;
+    *base = dtr_alias[!!idt].base;
+    *limit = dtr_alias[!!idt].limit;
+    return 1;
+}
+
 dosaddr_t DPMIMapHWRam(unsigned addr, unsigned size)
 {
     dpmi_pm_block *blk = DPMI_mapHWRam(&DPMI_CLIENT.pm_block_root, addr, size);
@@ -6148,6 +6182,10 @@ static int dpmi_fault1(cpuctx_t *scp)
                 unsigned int base = reg ? EMU_IDT_BASE : EMU_GDT_BASE;
                 unsigned int limit = reg ? EMU_IDT_LIMIT : EMU_GDT_LIMIT;
 
+                /* the page msdos_ldt.c keeps, when there is one: a
+                 * client that follows what it reads here then finds
+                 * its own LDT rather than nothing at all */
+                dpmi_get_dtr_alias(reg, &base, &limit);
                 p[0] = limit;
                 p[1] = limit >> 8;
                 p[2] = base;

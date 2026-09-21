@@ -60,6 +60,57 @@ static void msdos_ldt_handler(cpuctx_t *scp, void *arg)
     msdos_ldt_update(_LWORD(ebx), _LWORD(ecx));
 }
 
+/*
+ * One page for both descriptor tables a client may go looking for, see
+ * dpmi_set_dtr_alias(). The first half is the GDT and holds the single
+ * entry that describes the LDT alias; the second half is an IDT of
+ * absent gates, which is the truth about what a client may take from
+ * there. sldt reports selector 0, so the LDT's entry goes at index 0.
+ */
+#define DTR_ALIAS_LIMIT 0x7ff	/* 256 entries, as on a real machine */
+static uint32_t dtr_alias_h;
+
+static void dtr_alias_init(dosaddr_t ldt_lin, int page_size)
+{
+    dpmi_pm_block blk;
+    /* one entry short of the whole table: the extender works out how
+     * many descriptors fit with a 16bit (limit + 1) / 8, and a limit of
+     * 0xffff wraps that to zero, which it reports as a fatal error */
+    unsigned lim = LDT_ENTRIES * LDT_ENTRY_SIZE - LDT_ENTRY_SIZE - 1;
+    unsigned char d[LDT_ENTRY_SIZE] = { 0 };
+
+    if (page_size < 2 * (DTR_ALIAS_LIMIT + 1))
+	return;
+    blk = DPMImalloc(page_size);
+    if (!blk.size)
+	return;
+    dtr_alias_h = blk.handle;
+    MEMSET_DOS(blk.base, 0, page_size);
+    d[0] = lim & 0xff;
+    d[1] = (lim >> 8) & 0xff;
+    d[2] = ldt_lin & 0xff;
+    d[3] = (ldt_lin >> 8) & 0xff;
+    d[4] = (ldt_lin >> 16) & 0xff;
+    d[5] = 0x82;		/* present, system, LDT */
+    d[6] = (lim >> 16) & 0x0f;
+    d[7] = (ldt_lin >> 24) & 0xff;
+    MEMCPY_2DOS(blk.base, d, sizeof(d));
+    dpmi_set_dtr_alias(0, blk.base, DTR_ALIAS_LIMIT);
+    dpmi_set_dtr_alias(1, blk.base + DTR_ALIAS_LIMIT + 1, DTR_ALIAS_LIMIT);
+    D_printf("MSDOS: dtr alias at %#x, ldt %#x/%#x\n", blk.base,
+	    ldt_lin, lim);
+}
+
+static void dtr_alias_done(void)
+{
+    if (!dtr_alias_h)
+	return;
+    dpmi_set_dtr_alias(0, 0, 0);
+    dpmi_set_dtr_alias(1, 0, 0);
+    DPMIfree(dtr_alias_h);
+    dtr_alias_h = 0;
+}
+
 unsigned short msdos_ldt_init(int page_size)
 {
     char tmpnm[] = "ldt_alias_%PXXXXXX";
@@ -136,6 +187,7 @@ unsigned short msdos_ldt_init(int page_size)
     dpmi_ext_ldt_monitor_enable(1);
 
     dpmi_ldt_alias = alias_sel;
+    dtr_alias_init(shm.addr, page_size);
     return dpmi_ldt_alias;
 }
 
@@ -153,6 +205,7 @@ void msdos_ldt_done(void)
     FreeDescriptor(d16);
     FreeDescriptor(d32);
     ldt_backbuf = NULL;
+    dtr_alias_done();
     DPMIUnmapHWRam(ldt_alias);
     DPMIUnmapHWRam(ldt_bb);
 }

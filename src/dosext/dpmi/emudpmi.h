@@ -292,6 +292,8 @@ struct RSPcall_s {
 
 int dpmi_install_rsp(struct RSPcall_s *callback);
 dosaddr_t DPMIMapHWRam(unsigned addr, unsigned size);
+void dpmi_set_dtr_alias(int idt, dosaddr_t base, unsigned limit);
+int dpmi_get_dtr_alias(int idt, dosaddr_t *base, unsigned *limit);
 int DPMIUnmapHWRam(dosaddr_t vbase);
 
 #endif // __ASSEMBLER__
