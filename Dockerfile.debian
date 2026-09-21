@@ -17,11 +17,16 @@ RUN git clone --depth 1 https://github.com/stsp/djstub.git
 RUN cd djstub && debuild -i -us -uc -b
 RUN apt-get install -y ./djstub*.deb
 
+RUN apt-get install -y ninja-build debhelper
+RUN git clone --depth 1 https://github.com/dosemu2/djdev64.git
+RUN cd djdev64 && debuild -i -us -uc -b
+RUN apt-get install -y ./libdjstub64*.deb ./libdjdev64*.deb \
+    ./djdev64-dev*.deb
+
 RUN apt-get install -y universal-ctags gcc-i686-linux-gnu
 RUN git clone --depth 1 https://github.com/stsp/dj64dev.git
 RUN cd dj64dev && debuild -i -us -uc -b
-RUN apt-get install -y ./libdjstub64*.deb ./libdjdev64*.deb \
-    ./djdev64-dev*.deb ./dj64*.deb ./dj32*.deb
+RUN apt-get install -y ./dj64*.deb ./dj32*.deb
 
 RUN git clone --depth 1 https://github.com/dosemu2/comcom64.git
 RUN cd comcom64 && debuild -i -us -uc -b
