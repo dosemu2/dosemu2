@@ -169,31 +169,12 @@ void do_sound(Bit16u period)
 	}
 }
 
-static int _pit_latch(int latch, uint64_t cur)
+static int _pit_count_latch(int latch, uint64_t cur)
 {
   int ret = 0;
   hitimer_u cur_time;
   long ticks=0;
   pit_latch_struct *p = &pit[latch];
-
-  /* check for special 'read latch status' mode */
-  if (p->mode & 0x80) {
-    /*
-     * Latch status:
-     *   bit 7   = state of OUT pin
-     *   bit 6   = null count flag (1 == no cntr set, 0 == cntr available)
-     *   bit 4-5 = read latch format
-     *   bit 1-3 = read latch mode
-     *   bit 0   = BCD flag (1 == BCD, 0 == 16-bit -- always 0)
-     */
-    p->read_latch = (p->read_state << 4) |
-                    ((p->mode & 7) << 1) |
-                     p->outpin;
-    if (p->cntr == -1)
-      p->read_latch |= 0x40;
-    p->mode &= ~0x80;
-    return ret;	/* let bit 7 on */
-  }
 
   cur_time.td = cur;
   p->latched_cnt++;
@@ -279,6 +260,38 @@ static int _pit_latch(int latch, uint64_t cur)
 	p->read_latch,(p->outpin!=0));
 #endif
   return ret;
+}
+
+static int _pit_latch(int latch, uint64_t cur)
+{
+  pit_latch_struct *p = &pit[latch];
+
+  /* check for special 'read latch status' mode */
+  if (!(p->mode & 0x80))
+    return _pit_count_latch(latch, cur);
+
+  /*
+   * Latch status:
+   *   bit 7   = state of OUT pin
+   *   bit 6   = null count flag (1 == no cntr set, 0 == cntr available)
+   *   bit 4-5 = read latch format
+   *   bit 1-3 = read latch mode
+   *   bit 0   = BCD flag (1 == BCD, 0 == 16-bit -- always 0)
+   *
+   * The OUT pin is only ever recomputed while the counter is being
+   * evaluated, so re-evaluate it here rather than reporting whatever
+   * the previous count latch left behind. Without that, a counter
+   * that was programmed but never latched always reports OUT low.
+   */
+  if (p->cntr != -1)
+    _pit_count_latch(latch, cur);
+  p->read_latch = (p->read_state << 4) |
+                  ((p->mode & 7) << 1) |
+                   p->outpin;
+  if (p->cntr == -1)
+    p->read_latch |= 0x40;
+  p->mode &= ~0x80;
+  return 0;	/* let bit 7 on */
 }
 
 static int do_pit_latch(int latch)
