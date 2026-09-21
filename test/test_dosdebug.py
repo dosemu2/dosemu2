@@ -28,6 +28,62 @@ start:
 msg:	db "SIMPLE OK",13,10,'$'
 """
 
+# A page directory, a page table and a page with something recognisable in
+# it, built in conventional memory. Nothing here switches paging on - the
+# point is only to have tables in memory that the debugger can be asked to
+# walk, the way a VCPI client that went to ring 0 leaves them behind.
+PAGED_ASM = r"""
+	cpu 386
+	org 100h
+	bits 16
+start:
+	; put them at the first 4K boundary past our own code, so their
+	; physical addresses follow from CS alone
+	mov ax, cs
+	add ax, 100h
+	and ax, 0FF00h
+	mov bp, ax
+
+	mov es, ax
+	xor di, di
+	xor eax, eax
+	mov cx, 800h
+	rep stosd		; both tables read as not present to start with
+
+	movzx eax, bp
+	shl eax, 4		; the page directory, physically
+	lea edx, [eax + 1000h]	; the page table
+	mov ebx, edx
+	or ebx, 7		; present, writable, user
+	mov [es:4], ebx		; linear 00400000 is directory entry 1
+
+	mov ax, bp
+	add ax, 100h
+	mov es, ax
+	lea ecx, [edx + 1000h]	; the page the signature goes in
+	or ecx, 7
+	mov [es:8], ecx		; and 00402000 is table entry 2
+
+	mov ax, bp
+	add ax, 200h
+	mov es, ax
+	xor di, di
+	mov si, sig
+	mov cx, siglen
+	rep movsb
+
+	int3			; the debugger takes over here
+
+	mov dx, msg
+	mov ah, 9
+	int 21h
+	mov ax, 4C00h
+	int 21h
+sig:	db "PAGEDOK!"
+siglen	equ $ - sig
+msg:	db "PAGED OK",13,10,'$'
+"""
+
 # A minimal DPMI client. It does nothing but enter 16-bit protected mode and
 # issue a few int 31h from there, which is all a debugger test needs: an int
 # instruction executing in protected mode, at a known place, over and over.
@@ -361,6 +417,70 @@ class OurTestCase(BaseTestCase):
         bl = results.split("bl=")[-1].split("Interrupts:")[0]
         self.assertNotRegex(bl, r"\n\s*\d+: [0-9a-f]+",
                             "a breakpoint was left behind: " + results)
+
+
+    def test_dosdebug_pgdir(self):
+        """Dosdebug page directory translation"""
+
+        self.mkfile("testit.bat", "c:\\paged\nrem end\n", newline="\r\n")
+        self.mkcom_with_nasm("paged", PAGED_ASM)
+
+        def body(args):
+            # the int3 the program runs once its tables are built is what
+            # stops us with them in memory
+            self.dbgCmd("bpint 3")
+            self.dbgchild.sendline("g")
+            seg, off, _ = self.dbgWaitStop(pm=False, limit=40)
+            self.dbgCmd("bcint 3")
+
+            pdseg = (seg + 0x100) & 0xff00
+            out = ["cs=%04x pd=%08x sig=%08x" % (seg, pdseg << 4,
+                                                 (pdseg + 0x200) << 4)]
+            out.append("set=" + self.dbgCmd("pgdir %x" % (pdseg << 4)))
+            out.append("walk=" + self.dbgCmd("pgt 402000"))
+            out.append("miss=" + self.dbgCmd("pgt 800000"))
+            self.dbgCmd("mode 1")
+            out.append("dump=" + self.dbgCmd("d 402000 16"))
+            out.append("dis=" + self.dbgCmd("u 402000 4"))
+            # a page the table says nothing about, and a page directory
+            # that points off the end of memory, must be reported and not
+            # followed
+            out.append("hole=" + self.dbgCmd("d 401000 16"))
+            out.append("wild=" + self.dbgCmd("pgt 402000 fff00000"))
+            out.append("off=" + self.dbgCmd("pgdir off"))
+            return " || ".join(out)
+
+        results = self.runWithDosdebug("testit.bat", body)
+
+        self.assertNotIn('Timeout', results)
+        m = re.search(r"sig=([0-9a-f]{8})", results)
+        self.assertIsNotNone(m, results)
+
+        walk = results.split("walk=")[1].split(" || ")[0]
+        self.assertRegex(walk, r"PDE [0-9a-f]{8}  present rw user", walk)
+        self.assertRegex(walk, r"PTE [0-9a-f]{8}  present rw user", walk)
+        self.assertIn("physical %s" % m.group(1), walk)
+
+        miss = results.split("miss=")[1].split(" || ")[0]
+        self.assertIn("page directory entry not present", miss)
+
+        # the signature is only at that linear address through the tables
+        dump = results.split("dump=")[1].split(" || ")[0]
+        self.assertIn("50 41 47 45 44 4F 4B 21", dump)
+
+        # 'u' reads through the tables too: 50 41 47 45 is push ax, inc cx,
+        # inc di, inc bp
+        dis = results.split("dis=")[1].split(" || ")[0]
+        self.assertRegex(dis, r"(?i)00402000: 50\s+push", dis)
+        self.assertRegex(dis, r"(?i)00402003: 45\s+inc", dis)
+
+        hole = results.split("hole=")[1].split(" || ")[0]
+        self.assertRegex(hole, r"(-- ){16}", hole)
+
+        wild = results.split("wild=")[1].split(" || ")[0]
+        self.assertIn("page directory is not in memory dosemu can read", wild)
+
+        self.assertIn("no page directory", results.split("off=")[1])
 
 
 # The DOS variants we want get included here

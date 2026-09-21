@@ -153,6 +153,17 @@ static COMMAND cmds[] = {
    "                  stop (if running)\n"},
   {"mode", NULL,
    "0|1|2|d|+d|-d     set mode (0=SEG16, 1=LIN32, 2=UNIX32) for u and d commands\n"},
+  {"pgdir", NULL,
+   "[ADDR|off]        address the memory a client with its own page tables\n"
+   "                  sees. With a page directory selected, u and d take an\n"
+   "                  address as that client's linear address and walk the\n"
+   "                  tables. ADDR is the page directory's physical address,\n"
+   "                  the value the client put in CR3. No argument shows the\n"
+   "                  setting, off returns u and d to physical addresses\n"},
+  {"pgt", NULL,
+   "ADDR [PGDIR]      show the page walk for a linear address: the directory\n"
+   "                  and table entries with their flags, and the physical\n"
+   "                  address they lead to\n"},
   {"t", NULL,
    "                  single step\n"},
   {"ti", NULL,

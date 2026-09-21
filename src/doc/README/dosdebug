@@ -349,6 +349,58 @@ prefixing  a `0'.
 </para>
 </listitem></varlistentry>
 <varlistentry>
+<term>pgdir [addr|off]</term>
+<listitem>
+<para>
+		  Select the page directory that <emphasis>u</emphasis> and
+		  <emphasis>d</emphasis> translate addresses through.
+</para>
+<para>
+		  Normally those commands take an address as a physical
+		  address, which is what DOSEMU itself works with. A client
+		  that installed page tables of its own - a VCPI client that
+		  went to ring 0 is the case this exists for - works with
+		  linear addresses that mean something else entirely, and
+		  reading them as physical addresses lands on the wrong
+		  memory without saying so. With a page directory selected,
+		  <emphasis>u</emphasis> and <emphasis>d</emphasis> take
+		  their address as that client's linear address and walk the
+		  tables for it.
+</para>
+<para>
+		  <emphasis>addr</emphasis> is the page directory's physical
+		  address, the value the client put in CR3.
+		  <emphasis>off</emphasis> returns the two commands to
+		  physical addresses, and no argument shows the current
+		  setting.
+</para>
+<para>
+		  A byte behind a page that is not present is shown as
+		  <emphasis>--</emphasis> by <emphasis>d</emphasis>; the
+		  page tables themselves are read with the same care, so a
+		  directory that points into nowhere is reported rather than
+		  followed. Only <emphasis>u</emphasis> and
+		  <emphasis>d</emphasis> translate: breakpoints and the
+		  register dumps are unaffected.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>pgt addr [pgdir]</term>
+<listitem>
+<para>
+		  Show the page walk for a linear address: the page
+		  directory entry, the page table entry, the present, rw,
+		  user, accessed and dirty flags of each, and the physical
+		  address they lead to. When the walk cannot finish, it says
+		  where it stopped.
+</para>
+<para>
+		  With <emphasis>pgdir</emphasis> given, that page directory
+		  is selected first, so a single command both sets the
+		  directory and shows what it says about one address.
+</para>
+</listitem></varlistentry>
+<varlistentry>
 <term>t</term>
 <listitem>
 <para>
