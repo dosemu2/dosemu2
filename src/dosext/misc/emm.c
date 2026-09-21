@@ -390,16 +390,23 @@ static struct vcpi_pin {
   int handle;
   int logical_page;
   int page;			/* pool page, -1 when the slot is free */
-} vcpi_pins[VCPI_POOL_PAGES];
+} *vcpi_pins;
+static int vcpi_pool_pages;
 
 static void vcpi_pool_init(void)
 {
   int i;
 
-  if (!config.vcpi)
+  if (!config.vcpi || !VCPI_POOL_SIZE)
     return;
+  vcpi_pool_pages = VCPI_POOL_SIZE / EMM_PAGE_SIZE;
+  vcpi_pins = malloc(vcpi_pool_pages * sizeof(*vcpi_pins));
+  if (!vcpi_pins) {
+    vcpi_pool_pages = 0;
+    return;
+  }
   vcpi_pool = pgainit(VCPI_POOL_SIZE >> PAGE_SHIFT);
-  for (i = 0; i < VCPI_POOL_PAGES; i++)
+  for (i = 0; i < vcpi_pool_pages; i++)
     vcpi_pins[i].page = -1;
 }
 
@@ -409,7 +416,7 @@ static void vcpi_unpin_handle(int handle)
 
   if (!vcpi_pool)
     return;
-  for (i = 0; i < VCPI_POOL_PAGES; i++) {
+  for (i = 0; i < vcpi_pool_pages; i++) {
     unsigned pa;
 
     if (vcpi_pins[i].page == -1 || vcpi_pins[i].handle != handle)
@@ -433,7 +440,7 @@ static unsigned vcpi_pin_page(int handle, int logical_page)
 
   if (!vcpi_pool || !handle_info[handle].object)
     return -1;
-  for (i = 0; i < VCPI_POOL_PAGES; i++) {
+  for (i = 0; i < vcpi_pool_pages; i++) {
     if (vcpi_pins[i].page == -1) {
       if (slot == -1)
 	slot = i;
@@ -2056,8 +2063,8 @@ static void vcpi_interface(struct vm86_regs *state)
 	  break;
 	pa = vcpi_pin_page(emm_map[i].handle, emm_map[i].logical_page);
 	if (pa == (unsigned)-1) {
-	  error("VCPI: no physical page left for handle %d, "
-		"increase VCPI_POOL_PAGES\n", emm_map[i].handle);
+	  error("VCPI: no physical page left for handle %d\n",
+		emm_map[i].handle);
 	  SETHI_BYTE(state->eax, EMM_OUT_OF_PHYS);
 	  return;
 	}
