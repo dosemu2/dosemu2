@@ -114,6 +114,20 @@ static int get_oom_pr(struct mempool *mp, size_t size)
     return 0;
 }
 
+/*
+ * An allocation can be refused while the pool still holds a free area big
+ * enough for it: the request may be pinned to an address, aligned, or
+ * kept under a ceiling, and none of that is what get_oom_pr() measures.
+ * Report such a refusal at the lowest priority rather than handing
+ * do_smerror() the -1 it asserts on.
+ */
+static int oom_pr(struct mempool *mp, size_t size)
+{
+    int pr = get_oom_pr(mp, size);
+
+    return pr < 0 ? 0 : pr;
+}
+
 static void sm_uncommit(struct mempool *mp, dosaddr_t addr, size_t comb_size)
 {
     /* align address up and align down size */
@@ -275,10 +289,8 @@ static struct memnode *sm_alloc_fixed(struct mempool *mp, dosaddr_t ptr,
   delta = ptr - mn->mem_area;
   assert(delta >= 0);
   if (size + delta > mn->size) {
-    int pr = get_oom_pr(mp, size);
-    if (pr < 0)
-      pr = 0;
-    do_smerror(pr, mp, "SMALLOC: no space %zi at address %#x\n", size, ptr);
+    do_smerror(oom_pr(mp, size), mp, "SMALLOC: no space %zi at address %#x\n",
+	    size, ptr);
     return NULL;
   }
   if (delta) {
@@ -310,7 +322,7 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
   assert(__builtin_popcount(align) == 1);
   align--;
   if (!(mn = smfind_free_area(mp, size + align))) {
-    do_smerror(get_oom_pr(mp, size), mp,
+    do_smerror(oom_pr(mp, size + align), mp,
 	    "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
@@ -353,7 +365,7 @@ static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
   assert(__builtin_popcount(align) == 1);
   align--;
   if (!(mn = smfind_free_area_topdown(mp, top, size + align))) {
-    do_smerror(get_oom_pr(mp, size), mp,
+    do_smerror(oom_pr(mp, size + align), mp,
 	    "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
@@ -507,7 +519,7 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
     /* relocate */
     new_mn = sm_alloc_mn(mp, size);
     if (!new_mn) {
-      do_smerror(get_oom_pr(mp, size), mp,
+      do_smerror(oom_pr(mp, size), mp,
 	    "SMALLOC: Out Of Memory on realloc, requested=%zu\n", size);
       return NULL;
     }
