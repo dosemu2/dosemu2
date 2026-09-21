@@ -190,7 +190,8 @@ static COMMAND cmds[] = {
   {"symbol", NULL,
    "[ADDR]            Find the previous symbol to current CS:IP or ADDR\n"},
   {"ldt", NULL,
-   "[sel]             dump ldt page or specific entry for selector 'sel'\n"},
+   "[sel [lines]]     dump 'lines' ldt entries from selector 'sel', comparing\n"
+   "                  each against dosemu's own copy; a page if 'sel' is left out\n"},
   {"log", NULL,
    "[on | off | info | FLAGS ] get/set debug-log flags (e.g 'log +M-k')\n"},
   {"mcbs", NULL,

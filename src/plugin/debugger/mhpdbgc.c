@@ -2579,6 +2579,15 @@ static void mhp_print_ldt(int argc, char *argv[])
     page = 1;
   }
   lines = page ? 16 : 1;
+  if (argc > 2) {
+    unsigned int count;
+
+    if (!getval_ui(argv[2], 10, &count) || !count) {
+      mhp_printf("invalid line count '%s'\n", argv[2]);
+      return;
+    }
+    lines = count;
+  }
 
   if (get_ldt(buffer, LDT_ENTRIES * LDT_ENTRY_SIZE) < 0) {
     mhp_printf("error getting ldt\n");
