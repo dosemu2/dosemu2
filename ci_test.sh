@@ -78,6 +78,13 @@ EOF4
     env NO_FAILFAST=1 COPY_COMMAND_COM=/usr/share/comcom${VERSION}/comcom${VERSION}.exe test/test_comcom.py TestCase${VERSION}
 fi
 
+cat >&2 << EOF5
+=====================================================
+=        Tests run on the VBE mode information      =
+=====================================================
+EOF5
+env NO_FAILFAST=1 python3 test/test_vbe_mode_info.py
+
 for i in test_*.*.*.log ; do
   test -f $i || exit 0
 done
