@@ -6012,9 +6012,8 @@ static int dpmi_fault1(cpuctx_t *scp)
               /* Storing to memory is as ordinary for these as storing
                * to a register, and skipping the instruction leaves the
                * client reading back whatever its buffer held before -
-               * silence where it asked a question. Write the same zero
-               * the register case writes: six bytes for sgdt and sidt,
-               * two for sldt, str and smsw. */
+               * silence where it asked a question. Write six bytes for
+               * sgdt and sidt, two for sldt, str and smsw. */
               int len = 0, ss_rel = 0;
               int ext = (csp[1] >> 3) & 7;
               /* Only the five that store. The rest of both groups load
@@ -6029,6 +6028,7 @@ static int dpmi_fault1(cpuctx_t *scp)
               int is_dt = (csp[0] == 1 && ext < 2);
               unsigned int ofs = 0;
               unsigned short sel;
+              unsigned char *p;
 
               if (is_store)
                 ofs = decode_ea(&csp[1], reg32, ASIZE_IS_32, &len, &ss_rel);
@@ -6041,7 +6041,25 @@ static int dpmi_fault1(cpuctx_t *scp)
                 break;
               }
               sel = pref_seg != -1 ? pref_seg : (ss_rel ? _ss : _ds);
-              memset((void *)SEL_ADR(sel, ofs), 0, is_dt ? 6 : 2);
+              p = (unsigned char *)SEL_ADR(sel, ofs);
+              if (is_dt) {
+                /* sgdt and sidt always lay down the full six bytes,
+                 * whatever the operand size, and the base is little
+                 * endian like everything else the client reads. */
+                unsigned int base = ext ? EMU_IDT_BASE : EMU_GDT_BASE;
+                unsigned int limit = ext ? EMU_IDT_LIMIT : EMU_GDT_LIMIT;
+                p[0] = limit;
+                p[1] = limit >> 8;
+                p[2] = base;
+                p[3] = base >> 8;
+                p[4] = base >> 16;
+                p[5] = base >> 24;
+              } else {
+                /* sldt and str name descriptors the client has no
+                 * business following, and smsw is answered as zero in
+                 * the register case above. */
+                p[0] = p[1] = 0;
+              }
               LWORD32(eip, += 2 + len);
               break; }
           }

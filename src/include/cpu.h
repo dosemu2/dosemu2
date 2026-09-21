@@ -573,4 +573,28 @@ extern int is_cli;
 void set_cpio(int base, int size);
 void set_drio(int base, int size);
 
+/* What sgdt and sidt report to a protected mode client.
+ *
+ * A client reads these to find the descriptor tables, and it must not
+ * be able to follow the answer: our tables are the host's, at an
+ * address no DPMI client can map. A base of zero is the one answer we
+ * must never give, because in a DOS address space linear zero is the
+ * interrupt vector table, which the client can read - it then builds
+ * descriptors out of interrupt vectors and faults on the result.
+ * Point it at the top of the address space instead, the way a Linux
+ * kernel does for a ring 3 sgdt, so the read fails outright and the
+ * client falls back to asking through DPMI. See the note in vxd.c
+ * about Win32s doing exactly that.
+ *
+ * The limits are real limits, not 0xffff: a client that divides
+ * limit+1 by 8 in sixteen bits wraps to zero entries on 0xffff.
+ *
+ * All three paths - cpuemu, the instruction emulator in dpmi.c and
+ * KVM - answer with these, so a client sees one machine.
+ */
+#define EMU_GDT_BASE	0xfffe0000
+#define EMU_GDT_LIMIT	0x0fff
+#define EMU_IDT_BASE	0xffff0000
+#define EMU_IDT_LIMIT	0x07ff
+
 #endif /* CPU_H */
