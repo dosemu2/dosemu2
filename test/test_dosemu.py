@@ -48,6 +48,9 @@ from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
 from func_memory_dpmi_callgate import memory_dpmi_callgate
 from func_memory_dpmi_ldt_movs import memory_dpmi_ldt_movs
 from func_memory_dpmi_pharlap import memory_dpmi_pharlap, memory_dpmi_pharlap16
+from func_memory_dpmi_int_stack import (memory_dpmi_int_stack,
+                                        memory_dpmi_iret_stack)
+from func_memory_dpmi_linmem_oom import memory_dpmi_linmem_oom
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
 from func_memory_dpmi_popf_if import memory_dpmi_popf_if
 from func_memory_dpmi_popf_iopl import memory_dpmi_popf_iopl
@@ -913,9 +916,13 @@ class OurTestCase(BaseTestCase):
         command_com_keyword_exist(self)
 
     @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_alloc(self):
         """Memory DPMI (ECM) alloc"""
         memory_dpmi_ecm_alloc(self)
+
+    @mark(['memtest', 'dpmitest'])
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_mini(self):
@@ -923,9 +930,13 @@ class OurTestCase(BaseTestCase):
         memory_dpmi_ecm_mini(self)
 
     @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_modeswitch(self):
         """Memory DPMI (ECM) mode switch"""
         memory_dpmi_ecm_modeswitch(self)
+
+    @mark(['memtest', 'dpmitest'])
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ecm_psp(self):
@@ -933,9 +944,13 @@ class OurTestCase(BaseTestCase):
         memory_dpmi_ecm_psp(self)
 
     @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth(self):
         """Memory DPMI (Japheth) ''"""
         memory_dpmi_japheth(self, '')
+
+    @mark(['memtest', 'dpmitest'])
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_c(self):
@@ -943,9 +958,13 @@ class OurTestCase(BaseTestCase):
         memory_dpmi_japheth(self, '-c')
 
     @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_d(self):
         """Memory DPMI (Japheth) '-d'"""
         memory_dpmi_japheth(self, '-d')
+
+    @mark(['memtest', 'dpmitest'])
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_e(self):
@@ -953,9 +972,13 @@ class OurTestCase(BaseTestCase):
         memory_dpmi_japheth(self, '-e')
 
     @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_i(self):
         """Memory DPMI (Japheth) '-i'"""
         memory_dpmi_japheth(self, '-i')
+
+    @mark(['memtest', 'dpmitest'])
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_m(self):
@@ -963,14 +986,20 @@ class OurTestCase(BaseTestCase):
         memory_dpmi_japheth(self, '-m')
 
     @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_r(self):
         """Memory DPMI (Japheth) '-r'"""
         memory_dpmi_japheth(self, '-r')
 
     @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_t(self):
         """Memory DPMI (Japheth) '-t'"""
         memory_dpmi_japheth(self, '-t')
+
+    @mark(['memtest', 'dpmitest'])
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_japheth_z(self):
@@ -1028,9 +1057,13 @@ class OurTestCase(BaseTestCase):
         memory_dpmi_dpmi10_ldt(self)
 
     @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_callgate(self):
         """Memory DPMI call gate in the LDT"""
         memory_dpmi_callgate(self)
+
+    @mark(['memtest', 'dpmitest'])
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ldt_movs(self):
@@ -1038,9 +1071,13 @@ class OurTestCase(BaseTestCase):
         memory_dpmi_ldt_movs(self)
 
     @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_pharlap(self):
         """Memory DPMI phar lap tables"""
         memory_dpmi_pharlap(self)
+
+    @mark(['memtest', 'dpmitest'])
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_pharlap16(self):
@@ -1048,9 +1085,18 @@ class OurTestCase(BaseTestCase):
         memory_dpmi_pharlap16(self)
 
     @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_linmem_oom(self):
+        """Memory DPMI linear memory out of space"""
+        memory_dpmi_linmem_oom(self)
+
+    @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_nullseg(self):
         """Memory DPMI null selector access"""
         memory_dpmi_nullseg(self)
+
+    @mark(['memtest', 'dpmitest'])
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_popf_iopl(self):
@@ -1058,9 +1104,13 @@ class OurTestCase(BaseTestCase):
         memory_dpmi_popf_iopl(self)
 
     @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_popf_if(self):
         """Memory DPMI popf does not re-enable interrupts"""
         memory_dpmi_popf_if(self)
+
+    @mark(['memtest', 'dpmitest'])
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_nofree(self):
@@ -1068,14 +1118,20 @@ class OurTestCase(BaseTestCase):
         memory_dpmi_leak_check(self, 'nofree')
 
     @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_normal(self):
         """Memory DPMI Leak Check Normal"""
         memory_dpmi_leak_check(self, 'normal')
 
     @mark(['memtest', 'dpmitest'])
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_dos_nofree(self):
         """Memory DPMI Leak Check DOS No Free"""
         memory_dpmi_leak_check_dos(self, 'nofree')
+
+    @mark(['memtest', 'dpmitest'])
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_dos_normal(self):
