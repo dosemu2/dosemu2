@@ -2084,7 +2084,7 @@ static int wp_prot_of(dosaddr_t page)
 /* Under KVM the watches live in the CPU's own debug registers, which the
  * client carries across every mode and task switch it makes - including the
  * switch to ring 0 a VCPI client does, where nothing else can follow it. */
-static void wp_arm_dr(int on)
+static int wp_arm_dr(int on)
 {
   struct kvm_watchpoint wp[KVM_MAX_WATCHPOINTS] = {};
   int i;
@@ -2097,7 +2097,7 @@ static void wp_arm_dr(int on)
       wp[i].len = wptab[i].len;
     }
   }
-  kvm_set_watchpoints(wp, KVM_MAX_WATCHPOINTS);
+  return kvm_set_watchpoints(wp, KVM_MAX_WATCHPOINTS);
 }
 
 static void wp_protect(int on)
@@ -2105,7 +2105,16 @@ static void wp_protect(int on)
   int i;
 
   if (wp_by_dr) {
-    wp_arm_dr(on);
+    /* Arming is the only side that can be reported: the other is reached
+     * from the fault handler.  It has to be reported, because a watch that
+     * did not take reads exactly like one that nothing wrote to. */
+    if (wp_arm_dr(on) == -1 && on) {
+      mhp_printf("\nthe debug registers would not take the watch; it is not"
+                 " armed\n");
+      wp_armed = 0;
+      wp_rearm = 0;
+      return;
+    }
     wp_armed = on;
     wp_rearm = 0;
     return;
